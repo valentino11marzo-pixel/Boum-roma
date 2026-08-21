@@ -124,6 +124,13 @@ ok(/window\[a\.fn\]/.test(app) && /f\.apply\(window, a\.args/.test(app), 'oggiRu
 const opg = app.slice(app.indexOf('function oggiPage'), app.indexOf('function oggiPage') + 1200);
 ok(/preAgreements/.test(opg) && /S\._paLoading/.test(opg) && !/await/.test(opg),
   'oggiPage carica le proposte fire-and-forget: niente await sul percorso di render');
+// Machete #1-2 (Arsenale): il Command Center è un alias di Oggi, Zone
+// Intelligence una lapide che punta alla Centrale — mai due verità di zona.
+ok(/case 'command-center': S\.page = 'oggi'/.test(app) && !/goTo\('command-center'\)/.test(app),
+  'Machete: Command Center è un alias di Oggi e nessuna voce lo apre più');
+ok(/case 'zone-intel':[\s\S]{0,400}tombstonePage/.test(app) && !/goTo\('zone-intel'\)/.test(app),
+  'Machete: Zone Intelligence è una lapide gentile verso /radar');
+ok(/function tombstonePage/.test(app), 'la lapide gentile esiste (un segnalibro vecchio non trova mai il vuoto)');
 // il deep-link è VERO: la console legge #q= e lo mette nella ricerca
 const consoleSrc = readFileSync(join(ROOT, 'pre-agreement-admin.html'), 'utf8');
 ok(/#q=\(\.\+\)|#q=/.test(consoleSrc) && /decodeURIComponent\(hq\)/.test(consoleSrc),

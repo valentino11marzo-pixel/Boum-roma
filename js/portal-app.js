@@ -4020,7 +4020,6 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div class="nav-section"><div class="nav-label">Operativo</div>
                     <div class="nav-item ${S.page==='oggi'?'active':''}" onclick="goTo('oggi')"><span class="nav-icon">⚡</span> Oggi ${(S.actionQueue||[]).filter(a=>(a.status||'')==='pending'||(a.status||'')==='pending_approval').length + (S.viewingRequests||[]).filter(v=>v.status==='pending'||v.status==='rescheduled').length ? `<span class="nav-badge">${(S.actionQueue||[]).filter(a=>(a.status||'')==='pending'||(a.status||'')==='pending_approval').length + (S.viewingRequests||[]).filter(v=>v.status==='pending'||v.status==='rescheduled').length}</span>` : ''}</div>
                     <div class="nav-item ${S.page==='dashboard'?'active':''}" onclick="goTo('dashboard')"><span class="nav-icon">📊</span> Studio ${urgentDeadlines?`<span class="nav-badge orange">${urgentDeadlines}</span>`:''}</div>
-                    <div class="nav-item ${S.page==='command-center'?'active':''}" onclick="goTo('command-center')"><span class="nav-icon">⚡</span> Command Center ${pendingActions?`<span class="nav-badge gold">${pendingActions}</span>`:''}</div>
                     <div class="nav-item ${S.page==='leads'?'active':''}" onclick="goTo('leads')"><span class="nav-icon">📬</span> Lead ${newLeads?`<span class="nav-badge green">${newLeads}</span>`:''}</div>
                     <div class="nav-item ${S.page==='clienti'?'active':''}" onclick="goTo('clienti')"><span class="nav-icon">👥</span> Clienti ${(activeClients+urgentPFS)?`<span class="nav-badge gold">${activeClients+urgentPFS}</span>`:''}</div>
                     <div class="nav-item ${S.page==='viewings'?'active':''}" onclick="goTo('viewings')"><span class="nav-icon">📅</span> Viewings ${pendingViewings?`<span class="nav-badge gold">${pendingViewings}</span>`:''}</div>
@@ -4041,7 +4040,6 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item ${S.page==='property-radar'?'active':''}" onclick="goTo('property-radar')"><span class="nav-icon">📡</span> Property Radar ${radarFound?`<span class="nav-badge gold">${radarFound}</span>`:''}</div>
                     <div class="nav-item ${S.page==='property-finder'?'active':''}" onclick="goTo('property-finder')"><span class="nav-icon">🔍</span> Property Finder</div>
                     <div class="nav-item ${S.page==='boom-tools'?'active':''}" onclick="goTo('boom-tools')"><span class="nav-icon">🛠️</span> Tools <span class="nav-badge gold">PRO</span></div>
-                    <div class="nav-item ${S.page==='zone-intel'?'active':''}" onclick="goTo('zone-intel')"><span class="nav-icon">🎯</span> Zone Intelligence</div>
                     <div class="nav-item ${S.page==='market-intel'?'active':''}" onclick="goTo('market-intel')"><span class="nav-icon">📊</span> Market Intelligence</div>
                     <div class="nav-item ${S.page==='photo-studio'?'active':''}" onclick="goTo('photo-studio')"><span class="nav-icon">📸</span> Photo Studio</div>
                     <div class="nav-item ${S.page==='burocrazia'?'active':''}" onclick="goTo('burocrazia')"><span class="nav-icon">📝</span> Burocrazia ${S.regPending?`<span class="nav-badge orange">${S.regPending}</span>`:''}</div>
@@ -4126,6 +4124,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('sidebarOverlay').classList.toggle('open'); }
     function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); }
 
+    // Machete: la lapide gentile. Un segnalibro vecchio non trova mai il
+    // vuoto — trova UNA riga che dice dove si è trasferito il mestiere e il
+    // bottone per andarci (window.open su gesto utente: i popup-blocker
+    // non lo fermano).
+    function tombstonePage(icon, title, line, url, btn) {
+        return `<div class="empty-state" style="padding:64px 20px;text-align:center">
+            <div class="empty-icon" style="font-size:40px">${icon}</div>
+            <div class="empty-title" style="margin-top:10px">${esc(title)}</div>
+            <div class="empty-subtitle" style="max-width:540px;margin:10px auto 20px;line-height:1.55">${esc(line)}</div>
+            <button class="btn" onclick="window.open('${url}','_blank')">${esc(btn)}</button></div>`;
+    }
     function renderPage() {
         const m = document.getElementById('main');
         const r = S.profile.role;
@@ -4133,14 +4142,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             case 'dashboard': m.innerHTML = r === 'admin' ? adminDashboard() : r === 'landlord' ? landlordDashboard() : tenantDashboard(); break;
             // === UNIFIED CLIENTI (merges CRM + PFS Pipeline) ===
             case 'clienti': m.innerHTML = isAdmin() ? clientiPage() : accessDenied(); break;
-            case 'command-center': m.innerHTML = isAdmin() ? commandCenterPage() : accessDenied(); break;
+            // Machete #1: Oggi È il command center (coda decisioni + azioni in
+            // riga). L'alias resta per segnalibri e vecchie ricerche salvate.
+            case 'command-center': S.page = 'oggi'; m.innerHTML = isAdmin() ? oggiPage() : accessDenied(); buildNav(); break;
             case 'leads': m.innerHTML = isAdmin() ? leadsPage() : accessDenied(); break;
             case 'viewings': m.innerHTML = isAdmin() ? viewingsPage() : accessDenied(); break;
             // === Legacy redirects ===
             case 'crm': S.page = 'clienti'; m.innerHTML = isAdmin() ? clientiPage() : accessDenied(); buildNav(); break;
             case 'pfs-pipeline': S.page = 'clienti'; m.innerHTML = isAdmin() ? clientiPage() : accessDenied(); buildNav(); break;
             case 'oggi': m.innerHTML = isAdmin() ? oggiPage() : accessDenied(); break;
-            case 'command': S.page = 'dashboard'; m.innerHTML = isAdmin() ? adminDashboard() : accessDenied(); buildNav(); break;
+            case 'command': S.page = 'oggi'; m.innerHTML = isAdmin() ? oggiPage() : accessDenied(); buildNav(); break;
             case 'listings': S.page = 'adminflats'; m.innerHTML = isAdmin() ? adminflatsPage() : accessDenied(); buildNav(); break;
             case 'property-engine': S.page = 'boom-tools'; m.innerHTML = isAdmin() ? boomToolsPage() : accessDenied(); buildNav(); break;
             // === Core Admin ===
@@ -4180,7 +4191,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             case 'boom-tools': m.innerHTML = isAdmin() ? boomToolsPage() : accessDenied(); break;
             case 'property-radar': m.innerHTML = isAdmin() ? propertyRadarPage() : accessDenied(); break;
             case 'property-finder': m.innerHTML = isAdmin() ? propertyFinderPage() : accessDenied(); break;
-            case 'zone-intel': m.innerHTML = isAdmin() ? zoneIntelPage() : accessDenied(); break;
+            // Machete #2: la verità di zona è UNA — le statistiche del Perito
+            // (canoni chiesti e FIRMATI) nella Centrale. La lapide gentile dice
+            // dove si è trasferito il mestiere invece di mostrare dati stantii.
+            case 'zone-intel': m.innerHTML = isAdmin() ? tombstonePage('🎯', 'Zone Intelligence è confluita nella Centrale Radar',
+                'Le statistiche di zona client-side mostravano dati vecchi. La verità ora è una sola: il polso per zona del Perito — canoni chiesti e FIRMATI, assorbimento, ribassi — nella Centrale.', '/radar', 'Apri la Centrale Radar →') : accessDenied(); break;
             case 'landlords': m.innerHTML = isAdmin() ? landlordDatabasePage() : accessDenied(); break;
             // === Landlord/Tenant ===
             case 'my-properties': m.innerHTML = isLandlord() ? myPropertiesPage() : accessDenied(); break;
@@ -4472,11 +4487,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         // Search tasks
         (S.tasks || []).filter(t => (t.title||'').toLowerCase().includes(ql)).forEach(t =>
-            results.push({ type: '✅', label: t.title, sub: `${t.status || 'pending'} · ${t.priority || ''}`, action: `goTo('command-center')` }));
+            results.push({ type: '✅', label: t.title, sub: `${t.status || 'pending'} · ${t.priority || ''}`, action: `goTo('dashboard')` }));
 
         // Search deadlines
         (S.deadlines || []).filter(d => (d.title||'').toLowerCase().includes(ql)).forEach(d =>
-            results.push({ type: '📅', label: d.title, sub: `${d.type || ''} · ${fmtDate(d.date)}`, action: `goTo('command-center')` }));
+            results.push({ type: '📅', label: d.title, sub: `${d.type || ''} · ${fmtDate(d.date)}`, action: `goTo('dashboard')` }));
 
         // Render dropdown
         let dd = document.getElementById('searchResults');
@@ -5111,7 +5126,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="dash-section-head">
                 <h2 class="dash-section-title">Azioni agenti</h2>
                 <span class="dash-section-count">${pending.length}${pending.length > shown.length ? ` · ${shown.length} mostrate` : ''}</span>
-                ${pending.length > 0 ? `<button class="dash-section-link" onclick="goTo('command-center')">Vai al Command Center →</button>` : ''}
+                ${pending.length > 0 ? `<button class="dash-section-link" onclick="goTo('oggi')">Vai a Oggi →</button>` : ''}
             </div>
             ${pending.length === 0
                 ? `<div class="dash-empty">Nessuna azione in attesa. Homie non ha proposte pendenti.</div>`
@@ -16047,7 +16062,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         try {
             await generateContractDeadlines(contractId, contract);
             closeModal();
-            toast('success', `🎉 Scadenze generate! Vai al Command Center per vederle.`);
+            toast('success', `🎉 Scadenze generate! Le trovi in Studio.`);
             buildNav();
         } catch (e) {
             toast('error', 'Errore', e.message);
@@ -24239,7 +24254,7 @@ IBAN: ${l.iban || '-'}`;
             { icon:'💬', title:'Client Message Generator', desc:'Messaggi WhatsApp ai clienti — update annunci, conferme viewing, follow-up. English.', action:"openMessageGeneratorClient()", tags:[{label:'EN · WhatsApp', cls:'blue'}] },
             { icon:'📡', title:'Property Radar', desc:'Ricerche permanenti su Immobiliare/Idealista. Nuovi annunci e cali prezzo finiscono in Lead.', action:"goTo('property-radar')", tags:[{label:'Auto-scan'},{label:'Lead pipeline', cls:'purple'}] },
             { icon:'🔍', title:'Property Finder', desc:'Incolla URL di annunci e confronta side-by-side. Importa come lead in un click.', action:"goTo('property-finder')", tags:[{label:'Side-by-side'}] },
-            { icon:'🗺️', title:'Zone Intel', desc:'Statistiche zone Roma: prezzi medi, occupazione, trend per quartiere.', action:"goTo('zone-intel')", tags:[{label:'Live data', cls:'green'}] },
+            { icon:'🛰️', title:'Centrale Radar', desc:'Polso del mercato per zona — canoni chiesti e FIRMATI, occasioni 💎, vedette, valutatore.', action:"window.open('/radar','_blank')", tags:[{label:'Dati server', cls:'green'}] },
             { icon:'📑', title:'Doc Parser AI', desc:'Estrai dati da contratti, fatture, ricevute con Claude AI. Pre-popola form.', action:"window.open('/boom_doc_parser.html','_blank')", tags:[{label:'AI', cls:'purple'}] },
         ];
 
