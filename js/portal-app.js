@@ -4076,10 +4076,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item ${S.page==='commercialista'?'active':''}" onclick="goTo('commercialista')"><span class="nav-icon">🧮</span> Commercialista</div>
                 </div>
                 <div class="nav-section"><div class="nav-label">Tools</div>
-                    <div class="nav-item ${S.page==='property-radar'?'active':''}" onclick="goTo('property-radar')"><span class="nav-icon">📡</span> Property Radar ${radarFound?`<span class="nav-badge gold">${radarFound}</span>`:''}</div>
-                    <div class="nav-item ${S.page==='property-finder'?'active':''}" onclick="goTo('property-finder')"><span class="nav-icon">🔍</span> Property Finder</div>
                     <div class="nav-item ${S.page==='boom-tools'?'active':''}" onclick="goTo('boom-tools')"><span class="nav-icon">🛠️</span> Tools <span class="nav-badge gold">PRO</span></div>
-                    <div class="nav-item ${S.page==='market-intel'?'active':''}" onclick="goTo('market-intel')"><span class="nav-icon">📊</span> Market Intelligence</div>
                     <div class="nav-item ${S.page==='photo-studio'?'active':''}" onclick="goTo('photo-studio')"><span class="nav-icon">📸</span> Photo Studio</div>
                     <div class="nav-item ${S.page==='burocrazia'?'active':''}" onclick="goTo('burocrazia')"><span class="nav-icon">📝</span> Burocrazia ${S.regPending?`<span class="nav-badge orange">${S.regPending}</span>`:''}</div>
                     <div class="nav-item" onclick="window.open('/scheda-canone.html','_blank')"><span class="nav-icon">📐</span> Scheda Canone</div>
@@ -4095,7 +4092,6 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item ${S.page==='squadra'?'active':''}" onclick="goTo('squadra')"><span class="nav-icon">🤖</span> La Squadra</div>
                     <div class="nav-item" onclick="window.open('/banca','_blank')"><span class="nav-icon">🏦</span> Banca &amp; Fisco</div>
                     <div class="nav-item" onclick="window.open('/pfs-command','_blank')"><span class="nav-icon">🛰️</span> PFS Command</div>
-                    <div class="nav-item" onclick="window.open('/radar','_blank')"><span class="nav-icon">📡</span> La Centrale del Radar</div>
                     <div class="nav-item" onclick="window.open('/photo-lab','_blank')"><span class="nav-icon">🎞️</span> Photo Lab</div>
                     <div class="nav-item" onclick="window.open('/media-studio','_blank')"><span class="nav-icon">🎨</span> Media Studio</div>
                     <div class="nav-item" onclick="window.open('/manuale','_blank')"><span class="nav-icon">🏠</span> Manuale Casa</div>
@@ -4207,7 +4203,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             case 'commercialista': m.innerHTML = (isAdmin() || isLandlord()) ? commercialistaPage() : accessDenied(); break;
             case 'inbox': m.innerHTML = (isAdmin() || isLandlord()) ? inboxPage() : accessDenied(); break;
             case 'photo-studio': m.innerHTML = isAdmin() ? photoStudioPage() : accessDenied(); if (isAdmin()) setTimeout(photoStudioInitDnd, 30); break;
-            case 'market-intel': m.innerHTML = (isAdmin() || isLandlord()) ? marketIntelPage() : accessDenied(); setTimeout(marketInitChart, 50); break;
+            // Machete #6: per l'ADMIN la verità di mercato è il Perito nella
+            // plancia (tab Mercato); il LANDLORD tiene la sua pagina — non ha
+            // accesso alle console admin e toglierla sarebbe un furto.
+            case 'market-intel':
+                if (isAdmin()) { m.innerHTML = tombstonePage('📊', 'Market Intelligence è confluita nella plancia PFS',
+                    'Le statistiche client-side mostravano dati stantii. La verità è il polso del Perito — canoni chiesti e FIRMATI per zona — nella sezione Mercato della plancia.', '/pfs-command#mercato', 'Apri il Mercato in plancia →'); }
+                else if (isLandlord()) { m.innerHTML = marketIntelPage(); setTimeout(marketInitChart, 50); }
+                else { m.innerHTML = accessDenied(); }
+                break;
             case 'activity-log': m.innerHTML = isAdmin() ? activityLogPage() : accessDenied(); break;
             case 'adminflats': m.innerHTML = isAdmin() ? adminflatsPage() : accessDenied(); if (isAdmin()) setTimeout(loadPeritoChips, 0); break;
             // === SCHEDA 360° (cliente unico hub) ===
@@ -4228,13 +4232,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             case 'asseverazioni': S.page = 'burocrazia'; goTo('burocrazia'); break;
             // === Tools ===
             case 'boom-tools': m.innerHTML = isAdmin() ? boomToolsPage() : accessDenied(); break;
-            case 'property-radar': m.innerHTML = isAdmin() ? propertyRadarPage() : accessDenied(); break;
-            case 'property-finder': m.innerHTML = isAdmin() ? propertyFinderPage() : accessDenied(); break;
+            // Machete #4-5 (Arsenale II): il mestiere della caccia vive nella
+            // plancia — feed, triage, ricerche 1:1, vedette, mercato.
+            case 'property-radar': m.innerHTML = isAdmin() ? tombstonePage('📡', 'Property Radar è confluito nella plancia PFS',
+                'Il radar vero gira lato server (alert email + occhi di Homie) e il suo feed, il triage e le ricerche 1:1 per cliente vivono nella plancia.', '/pfs-command', 'Apri la plancia PFS →') : accessDenied(); break;
+            case 'property-finder': m.innerHTML = isAdmin() ? tombstonePage('🔍', 'Property Finder è confluito nella plancia PFS',
+                'Il confronto e l\'importazione degli annunci vivono nella plancia: feed radar, «Aggiungi annuncio» e la spinta al mazzo del cliente.', '/pfs-command', 'Apri la plancia PFS →') : accessDenied(); break;
             // Machete #2: la verità di zona è UNA — le statistiche del Perito
             // (canoni chiesti e FIRMATI) nella Centrale. La lapide gentile dice
             // dove si è trasferito il mestiere invece di mostrare dati stantii.
-            case 'zone-intel': m.innerHTML = isAdmin() ? tombstonePage('🎯', 'Zone Intelligence è confluita nella Centrale Radar',
-                'Le statistiche di zona client-side mostravano dati vecchi. La verità ora è una sola: il polso per zona del Perito — canoni chiesti e FIRMATI, assorbimento, ribassi — nella Centrale.', '/radar', 'Apri la Centrale Radar →') : accessDenied(); break;
+            case 'zone-intel': m.innerHTML = isAdmin() ? tombstonePage('🎯', 'Zone Intelligence è confluita nel Mercato della plancia',
+                'Le statistiche di zona client-side mostravano dati vecchi. La verità ora è una sola: il polso per zona del Perito — canoni chiesti e FIRMATI, assorbimento, ribassi — nella sezione Mercato della plancia PFS.', '/pfs-command#mercato', 'Apri il Mercato in plancia →') : accessDenied(); break;
             case 'landlords': m.innerHTML = isAdmin() ? landlordDatabasePage() : accessDenied(); break;
             // === Landlord/Tenant ===
             case 'my-properties': m.innerHTML = isLandlord() ? myPropertiesPage() : accessDenied(); break;
@@ -24291,9 +24299,7 @@ IBAN: ${l.iban || '-'}`;
         const tools = [
             { icon:'✉️', title:'Portal Message Generator', desc:'Genera messaggi professionali per Immobiliare, Idealista, Subito da inviare come cliente. Italiano.', action:"openMessageGeneratorLandlord()", tags:[{label:'IT · As client'}] },
             { icon:'💬', title:'Client Message Generator', desc:'Messaggi WhatsApp ai clienti — update annunci, conferme viewing, follow-up. English.', action:"openMessageGeneratorClient()", tags:[{label:'EN · WhatsApp', cls:'blue'}] },
-            { icon:'📡', title:'Property Radar', desc:'Ricerche permanenti su Immobiliare/Idealista. Nuovi annunci e cali prezzo finiscono in Lead.', action:"goTo('property-radar')", tags:[{label:'Auto-scan'},{label:'Lead pipeline', cls:'purple'}] },
-            { icon:'🔍', title:'Property Finder', desc:'Incolla URL di annunci e confronta side-by-side. Importa come lead in un click.', action:"goTo('property-finder')", tags:[{label:'Side-by-side'}] },
-            { icon:'🛰️', title:'Centrale Radar', desc:'Polso del mercato per zona — canoni chiesti e FIRMATI, occasioni 💎, vedette, valutatore.', action:"window.open('/radar','_blank')", tags:[{label:'Dati server', cls:'green'}] },
+            { icon:'🛰️', title:'Plancia PFS', desc:'La caccia intera: pipeline clienti, feed radar, ricerche 1:1, vedette, occasioni 💎 e il Mercato del Perito (canoni chiesti e FIRMATI per zona).', action:"window.open('/pfs-command','_blank')", tags:[{label:'Dati server', cls:'green'},{label:'Una console sola'}] },
             { icon:'📑', title:'Doc Parser AI', desc:'Estrai dati da contratti, fatture, ricevute con Claude AI. Pre-popola form.', action:"window.open('/boom_doc_parser.html','_blank')", tags:[{label:'AI', cls:'purple'}] },
         ];
 

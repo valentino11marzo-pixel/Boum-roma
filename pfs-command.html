@@ -21,6 +21,9 @@
 <script src="/js/firebase-config.js"></script>
 <script src="/js/boom-portal.js"></script>
 <script src="/js/boom-err.js"></script>
+<!-- Mercato (Fonderia, Arsenale II): market-engine PRIMA di radar-engine (dipendenza UMD) -->
+<script src="/js/market-engine.js"></script>
+<script src="/js/radar-engine.js"></script>
 <script src="/js/outreach-engine.js"></script>
 
 <style>
@@ -469,6 +472,26 @@ body.triage-lock { overflow: hidden; }
 .cluster-badge { background: rgba(77,155,255,0.18); border-color: rgba(77,155,255,0.4); color: var(--blue); }
 .push-select { width: 100%; padding: 9px 12px; background: var(--bg-input); border: 1px solid rgba(212,175,55,0.35); border-radius: 10px; font-size: 12px; color: var(--gold); }
 
+/* ── 📊 Mercato (Fonderia): i pannelli della Centrale in plancia ── */
+.mk-h { font-size: 12px; letter-spacing: 2.5px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; margin: 22px 0 10px; }
+.mk-sub { text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 11.5px; color: var(--text-muted); }
+.mk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.mk-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 13px; padding: 14px 16px; }
+.mk-empty { color: var(--text-muted); font-size: 12px; padding: 14px; text-align: center; border: 1px dashed var(--border); border-radius: 11px; grid-column: 1/-1; }
+.mk-zbig { font-size: 22px; font-weight: 300; color: var(--gold); margin: 5px 0 2px; }
+.mk-zsub, .mk-m { font-size: 11.5px; color: var(--text-secondary); line-height: 1.7; }
+.mk-t { font-size: 13px; font-weight: 600; }
+.mk-why { font-size: 11px; color: var(--gold-dark, #B8960C); margin-top: 5px; line-height: 1.6; }
+.mk-badge { display: inline-block; font-size: 10px; letter-spacing: 1px; border-radius: 6px; padding: 2px 7px; margin-left: 6px; vertical-align: 1px; background: var(--bg-elevated); color: var(--text-secondary); }
+.mk-badge.gold { background: var(--gold-light, rgba(212,175,55,.15)); color: var(--gold); }
+.mk-badge.red { background: rgba(243,18,96,.12); color: var(--red, #F31260); }
+.mk-point { font-size: 28px; font-weight: 300; color: var(--gold); }
+.mk-vres-row { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-top: 12px; }
+#mk-vres table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+#mk-vres td { padding: 6px; border-bottom: 1px solid var(--border); color: var(--text-secondary); }
+#mk-vres td a { color: var(--text); text-decoration: none; }
+.mk-srcs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+
 /* ── Reduced motion: kill it all ─────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -593,6 +616,32 @@ body.triage-lock { overflow: hidden; }
                 </div>
             </div>
             <p class="hint">💡 Le vedette sono le ricerche LIBERE: slegate dai clienti PFS, vedono solo gli annunci usciti dopo la loro creazione. Telegram a te è istantaneo; l'email parte come digest 3 volte al giorno.</p>
+        </section>
+
+        <!-- 📊 MERCATO — la Centrale vive qui (Fonderia, STUDIO_ARSENALE_II).
+             I 4 pannelli di /radar traslocati: polso per zona, candidati
+             mandato, Valutatore, gemelli. Occasioni e vedette erano GIÀ in
+             plancia: i doppioni si spengono, la Caccia ha una testa sola. -->
+        <section id="mercato">
+            <div class="sec-head"><h2>📊 Mercato</h2><span class="sec-count" id="mk-note"></span>
+                <button class="btn-ghost" id="btn-pulse" title="Ricalcola adesso le statistiche di zona (il Perito le pubblica ogni mattina)">↻ Aggiorna</button></div>
+            <h3 class="mk-h">Il polso per zona <span class="mk-sub">canoni CHIESTI per €/mq, assorbimento dalle morti provate</span></h3>
+            <div class="mk-grid" id="mk-zones"><div class="mk-empty">Nessuna statistica ancora: il libro mastro si riempie a ogni giro del radar.</div></div>
+            <h3 class="mk-h">🎯 Candidati mandato <span class="mk-sub">privati fermi oltre l'assorbimento della loro zona — card per te, mai contatti automatici</span></h3>
+            <div class="mk-grid" id="mk-mand"><div class="mk-empty">Nessun candidato: o il mercato gira, o mancano morti provate per l'assorbimento.</div></div>
+            <h3 class="mk-h">⚖️ Il Valutatore <span class="mk-sub">quantili del chiesto, corretti sui canoni FIRMATI BOOM</span></h3>
+            <div class="mk-card">
+                <div class="d-grid2">
+                    <div><label>ZONA</label><input id="mk-vzone" list="mk-zonelist" placeholder="Pigneto"></div>
+                    <div><label>MQ</label><input id="mk-vsqm" type="number" min="15" max="500" placeholder="70"></div>
+                    <div><label>CAMERE (OPZ.)</label><input id="mk-vrooms" type="number" min="0"></div>
+                    <div style="display:flex;align-items:flex-end"><button class="btn" id="btn-valuta" style="width:100%">Valuta</button></div>
+                </div>
+                <div id="mk-vres"></div>
+            </div>
+            <h3 class="mk-h">🧬 Gemelli cross-portale <span class="mk-sub">la stessa casa vista da più porte è UNA casa</span></h3>
+            <div class="mk-grid" id="mk-clusters"><div class="mk-empty">Nessun gemellaggio ancora: l'impronta lavora a ogni ingestione.</div></div>
+            <datalist id="mk-zonelist"></datalist>
         </section>
 
         <section id="sec-attention">
@@ -2876,6 +2925,117 @@ function bindUI() {
 }
 
 /* ──────────────────── Firestore listeners ────────────────── */
+// ═══ 📊 MERCATO — la Centrale vive in plancia (Fonderia, Arsenale II) ═══
+// I 4 pannelli traslocati da /radar: polso zone (marketStats), candidati
+// mandato (radarState/mandati), Valutatore (/api/radar/valuta), gemelli
+// (radarState/index + BOOM_RADAR.clusterInfo). Stessi canali BoomPortal
+// .listen di tutto il resto — con la rete anti-canale-muto ereditata.
+function startMercato() {
+    var R = window.BOOM_RADAR;
+    var eur = function (n) { return '€' + Math.round(Number(n) || 0).toLocaleString('it-IT'); };
+    if (R && R.ROME_ZONES) {
+        $('mk-zonelist').innerHTML = Object.keys(R.ROME_ZONES).sort().map(function (z) { return '<option value="' + esc(z) + '">'; }).join('');
+    }
+
+    BoomPortal.listen(db.collection('marketStats'), function (snap) {
+        var rows = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
+            .sort(function (a, b) { return (b.activeCount || 0) - (a.activeCount || 0); });
+        if (!rows.length) return;
+        $('mk-note').textContent = rows.length + ' zone nel libro';
+        $('mk-zones').innerHTML = rows.slice(0, 24).map(function (z) {
+            var a = z.asked || {}; var ab = z.absorption || {};
+            return '<div class="mk-card"><div class="mk-t">' + esc(z.zone || z.id) + '</div>'
+                + (a.ok
+                    ? '<div class="mk-zbig">' + a.medianEurSqm + ' <span style="font-size:11px;color:var(--text-secondary)">€/mq mediana</span></div>'
+                      + '<div class="mk-zsub">fascia ' + a.p25 + '–' + a.p75 + ' €/mq · campione ' + a.sample + '</div>'
+                    : '<div class="mk-zsub" style="margin-top:6px;color:var(--text-muted)">campione insufficiente (' + (a.sample || 0) + ')</div>')
+                + '<div class="mk-zsub">' + (z.activeCount || 0) + ' vivi'
+                + (ab.ok ? ' · assorbimento ~' + ab.medianDays + 'g' : ' · assorbimento n/d')
+                + ((z.priceDrops30d || 0) ? ' · ' + z.priceDrops30d + ' ribassi 30g' : '') + '</div></div>';
+        }).join('');
+    });
+
+    BoomPortal.listen(db.collection('radarState').doc('mandati'), function (doc) {
+        var items = (doc.exists && Array.isArray(doc.data().items)) ? doc.data().items : [];
+        if (!items.length) return;
+        $('mk-mand').innerHTML = items.slice(0, 12).map(function (m) {
+            return '<div class="mk-card"><div class="mk-t">' + esc(m.title || 'Annuncio privato')
+                + '<span class="mk-badge red">' + m.staleDays + 'g fermo</span></div>'
+                + '<div class="mk-m" style="margin-top:4px">' + esc(m.zone || 'zona n/d')
+                + (m.price ? ' · ' + eur(m.price) + '/mese' : '') + (m.sqm ? ' · ' + m.sqm + ' m²' : '')
+                + '<br>soglia zona: ' + m.threshold + 'g (' + esc(m.basis || '') + ')'
+                + (m.priceDropAt ? ' · ha già ribassato' : '') + '</div>'
+                + (safeUrl(m.url) ? '<div style="margin-top:9px"><a class="btn-ghost" style="text-decoration:none" target="_blank" rel="noopener" href="' + esc(safeUrl(m.url)) + '">Apri annuncio ↗</a></div>' : '')
+                + '</div>';
+        }).join('');
+    });
+
+    BoomPortal.listen(db.collection('radarState').doc('index'), function (doc) {
+        var entries = (doc.exists && Array.isArray(doc.data().entries)) ? doc.data().entries : [];
+        var byCluster = {};
+        entries.forEach(function (e) { var cid = e.clusterId || e.id; (byCluster[cid] = byCluster[cid] || []).push(e); });
+        var clusters = Object.keys(byCluster).map(function (k) { return byCluster[k]; })
+            .filter(function (ms) { return ms.length >= 2; })
+            .sort(function (a, b) { return b.length - a.length; });
+        if (!clusters.length || !R) return;
+        $('mk-clusters').innerHTML = clusters.slice(0, 9).map(function (ms) {
+            var info = R.clusterInfo(ms.map(function (m) { return { id: m.id, source: m.source, advertiser: m.advertiser, price: m.price, firstSeenAt: m.t }; }));
+            var head = ms[0];
+            return '<div class="mk-card"><div class="mk-t">' + esc((head.title || head.address || 'Casa').slice(0, 70))
+                + (info.privateAndAgency ? '<span class="mk-badge gold">👥 privato + agenzia</span>' : '')
+                + (info.repost ? '<span class="mk-badge">ripubblicato</span>' : '') + '</div>'
+                + '<div class="mk-m" style="margin-top:4px">' + esc(head.zoneSlug || 'zona n/d')
+                + (info.bestPrice ? ' · miglior prezzo ' + eur(info.bestPrice.price) : '')
+                + (info.firstSeenAt ? ' · in vetrina da ' + relTime(info.firstSeenAt) : '') + '</div>'
+                + '<div class="mk-srcs">' + info.sources.map(function (s) { return '<span class="mk-badge">' + esc(s) + '</span>'; }).join('') + '</div></div>';
+        }).join('');
+    });
+
+    $('btn-valuta').addEventListener('click', function () {
+        var btn = $('btn-valuta');
+        var zone = $('mk-vzone').value.trim();
+        var sqm = parseFloat($('mk-vsqm').value);
+        if (!zone || !isFinite(sqm)) { BoomPortal.toast('Servono zona e mq', { type: 'warning' }); return; }
+        btn.disabled = true;
+        apiPost('/api/radar/valuta', { zone: zone, sqm: sqm, rooms: parseFloat($('mk-vrooms').value) || null }).then(function (j) {
+            var v = j.valuation;
+            if (!v.ok) {
+                $('mk-vres').innerHTML = '<div class="mk-m" style="margin-top:10px">⚠️ ' + esc(v.reason === 'small_sample'
+                    ? 'Campione insufficiente in zona (' + (v.sample || 0) + ' annunci attivi): il Valutatore non stampa numeri deboli.'
+                    : (v.detail || v.reason)) + '</div>';
+                return;
+            }
+            var comps = (v.comps || []).map(function (c) {
+                return '<tr><td><a target="_blank" rel="noopener" href="' + esc(safeUrl(c.sourceUrl) || '#') + '">' + esc((c.title || 'annuncio').slice(0, 55)) + ' ↗</a></td>'
+                    + '<td>' + eur(c.price) + '</td><td>' + (c.sqm || '—') + ' mq</td><td>' + (c.eurSqm || '—') + ' €/mq</td></tr>';
+            }).join('');
+            $('mk-vres').innerHTML =
+                '<div class="mk-vres-row"><span class="mk-point">' + eur(v.range.point) + '<span style="font-size:12px;color:var(--text-secondary)">/mese</span></span>'
+                + '<span class="mk-m">fascia ' + eur(v.range.low) + ' – ' + eur(v.range.high) + '</span>'
+                + '<span class="mk-badge ' + (v.confidence === 'alta' ? 'gold' : '') + '">confidenza ' + esc(v.confidence) + '</span></div>'
+                + '<div class="mk-m" style="margin-top:8px">' + v.reasons.map(esc).join('<br>') + '</div>'
+                + (comps ? '<table>' + comps + '</table>' : '');
+        }).catch(function (e) {
+            BoomPortal.toast('Errore: ' + e.message, { type: 'error' });
+        }).then(function () { btn.disabled = false; });
+    });
+
+    $('btn-pulse').addEventListener('click', function () {
+        var b = $('btn-pulse'); b.disabled = true;
+        apiPost('/api/market/pulse', {}).then(function () {
+            BoomPortal.toast('Statistiche aggiornate', { type: 'success' });
+        }).catch(function (e) {
+            BoomPortal.toast('Errore: ' + e.message, { type: 'error' });
+        }).then(function () { b.disabled = false; });
+    });
+
+    // Deep-link #mercato (lapidi del portal, redirect di /radar): la sezione
+    // è in fondo e l'ancora nativa scatta prima che il gate mostri l'app.
+    if (location.hash === '#mercato') {
+        setTimeout(function () { var el = $('mercato'); if (el) el.scrollIntoView({ block: 'start' }); }, 450);
+    }
+}
+
 function startListeners() {
     BoomPortal.listen(db.collection('pfsRadarHealth'), function (snap) {
         var h = {};
@@ -3012,6 +3172,7 @@ function startListeners() {
         renderVedette(); renderOccStrip();
         updateBrief(); updateLive();
         startListeners();
+        startMercato();
         setInterval(function () { renderHealth(); updateBrief(); }, 60000); // tempi relativi, freschezza chip, rollover mezzanotte
     } catch (e) {
         // requireAuth gestisce redirect + toast; lasciamo lo shield visibile
