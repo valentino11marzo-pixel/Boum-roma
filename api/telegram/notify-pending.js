@@ -104,6 +104,35 @@ export default async function handler(req, res) {
     }
   }
 
+  // ── 🐞 Bug reports: la segnalazione dell'operatore suona sul telefono ───
+  // entro un minuto (sa che è presa in carico); il contesto completo —
+  // errori client allegati da boom-err — resta sul doc per chi la lavora.
+  let bugs = [];
+  try {
+    bugs = await fsList('bugReports', {
+      filter: { field: 'status', op: 'EQUAL', value: 'open' },
+      limit: 20,
+    });
+  } catch (_) { /* collection/rules assenti → non-fatale */ }
+  const bugToNotify = (bugs || []).filter(b => !b.telegramNotifiedAt).slice(0, 5);
+  const bugResults = [];
+  for (const b of bugToNotify) {
+    try {
+      const nErr = Array.isArray(b.errs) ? b.errs.length : 0;
+      const mid = await tgSend(
+        chatId,
+        `🐞 <b>Segnalazione bug</b> — ${esc(b.page || '?')}\n${esc(String(b.message || '').slice(0, 400))}${nErr ? `\n\n⚙ ${nErr} error${nErr === 1 ? 'e' : 'i'} client allegat${nErr === 1 ? 'o' : 'i'} sul doc` : ''}`
+      );
+      await fsPatch(`bugReports/${b.id}`, {
+        telegramNotifiedAt: new Date(),
+        telegramMessageId: mid || null,
+      });
+      bugResults.push({ id: b.id, ok: true });
+    } catch (err) {
+      bugResults.push({ id: b.id, ok: false, error: err.message });
+    }
+  }
+
   // ── Instant NEW-LEAD ping: the lead circle starts within a minute. ──────
   // Whatever caught the lead (portal-email scanner, Homie/WhatsApp, apply
   // form), the operator's phone shows WHO, WHAT and — when there's a phone —
@@ -277,6 +306,7 @@ export default async function handler(req, res) {
     notified: results.filter(r => r.ok).length,
     failed:   results.filter(r => !r.ok).length,
     events: { scanned: events.length, notified: evResults.filter(r => r.ok).length, failed: evResults.filter(r => !r.ok).length },
+    bugs: { scanned: bugs.length, notified: bugResults.filter(r => r.ok).length, failed: bugResults.filter(r => !r.ok).length },
     leads: { scanned: leads.length, notified: ldResults.filter(r => r.ok).length, failed: ldResults.filter(r => !r.ok).length },
     viewings: { scanned: viewings.length, notified: vwResults.filter(r => r.ok).length, failed: vwResults.filter(r => !r.ok).length },
     results,

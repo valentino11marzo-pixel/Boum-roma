@@ -190,6 +190,9 @@
         { id: 'tool:diagnosi', group: 'Strumenti', icon: '🩺', label: 'Diagnosi permessi & battiti',
           keywords: 'diagnosi permessi scritture regole salva non salva badge battiti heartbeat debug test rifiutata',
           fn: 'runWriteDiagnosis', args: [], admin: true },
+        { id: 'tool:segnala', group: 'Strumenti', icon: '🐞', label: 'Segnala un problema',
+          keywords: 'segnala bug problema errore non funziona rotto feedback report',
+          fn: 'openBugReport', args: [], admin: true },
         { id: 'tool:bulkreminders', group: 'Strumenti', icon: '📣', label: 'Solleciti in blocco (rate scadute)',
           keywords: 'solleciti blocco massivo ritardi scadute insoluti reminder tutti',
           fn: 'sendBulkReminders', args: [], admin: true }

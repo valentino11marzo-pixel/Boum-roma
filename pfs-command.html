@@ -20,6 +20,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 <script src="/js/firebase-config.js"></script>
 <script src="/js/boom-portal.js"></script>
+<script src="/js/boom-err.js"></script>
 <script src="/js/outreach-engine.js"></script>
 
 <style>
@@ -495,6 +496,7 @@ body.triage-lock { overflow: hidden; }
                 <span id="live-ind" class="live-ind down" title="Connessione realtime…"><span class="live-dot"></span>Live</span>
             </div>
             <div class="tb-cta">
+                <button id="btn-bug" class="btn-ghost" title="Segnala un problema (arriva col contesto tecnico)" aria-label="Segnala un problema" onclick="BoomPortal.reportBug({page:'pfs-command'})">🐞</button>
                 <button id="btn-palette" class="btn-ghost btn-cmd" title="Comandi rapidi (Ctrl+K)" aria-label="Comandi rapidi (Ctrl+K)">⌘</button>
                 <button id="btn-triage" class="btn btn-triage" title="Tutto gestito ✓" disabled>⚡ Triage<span id="triage-badge" class="tbadge" hidden>0</span></button>
                 <button id="btn-add-listing" class="btn">➕ Aggiungi annuncio</button>

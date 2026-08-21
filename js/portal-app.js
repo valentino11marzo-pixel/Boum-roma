@@ -3017,6 +3017,45 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
     window.runWriteDiagnosis = runWriteDiagnosis;
 
+    // ─── 🐞 Segnala — il canale dei bug (STUDIO_ARSENALE_II) ─────────────
+    // Un tap → doc bugReports con pagina, dispositivo e gli ultimi errori
+    // client (anello di boom-err.js) allegati DA SOLI: la segnalazione
+    // arriva già col contesto tecnico, mai più un "ha problemi" senza
+    // indirizzo. Ping Telegram entro un minuto via notify-pending.
+    function openBugReport() {
+        const errs = (window.__boomErrs || []).slice(-5);
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
+            <div class="modal"><div class="modal-header"><h3 class="modal-title">🐞 Segnala un problema</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body">
+                <div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:10px">Cosa stavi facendo e cosa non ha funzionato? Pagina, dispositivo${errs.length ? ` e ${errs.length} error${errs.length === 1 ? 'e' : 'i'} tecnici recenti` : ''} si allegano da soli.</div>
+                <textarea id="bugMsg" class="form-textarea" rows="4" placeholder="Es.: tocco Elimina sul contratto di Pigneto e non succede niente"></textarea>
+            </div>
+            <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="sendBugReport()">Invia</button></div></div></div>`;
+        setTimeout(() => { const t = document.getElementById('bugMsg'); if (t) t.focus(); }, 50);
+    }
+    async function sendBugReport() {
+        const msg = (document.getElementById('bugMsg')?.value || '').trim();
+        if (!msg) { toast('error', 'Scrivi due parole su cosa non va'); return; }
+        try {
+            await db.collection('bugReports').add({
+                message: msg.slice(0, 1200),
+                page: 'portal#' + (S.page || location.hash.slice(1) || ''),
+                ua: navigator.userAgent.slice(0, 200),
+                screen: (window.innerWidth || 0) + 'x' + (window.innerHeight || 0),
+                errs: (window.__boomErrs || []).slice(-5),
+                by: (S.profile && (S.profile.email || S.profile.id)) || null,
+                status: 'open',
+                createdAt: new Date().toISOString()
+            });
+            closeModal();
+            toast('success', 'Segnalazione inviata 🐞 — arriva col contesto completo');
+        } catch (e) {
+            toast('error', 'Invio non riuscito: ' + (e.message || e));
+        }
+    }
+    window.openBugReport = openBugReport;
+    window.sendBugReport = sendBugReport;
+
     function startNotificationListener() {
         if (!S.profile?.id) return;
         
