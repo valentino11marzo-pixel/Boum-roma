@@ -1175,6 +1175,23 @@ function critLine(c) {
     return crit.join(' · ');
 }
 
+// Il brief in chiaro, pronto da incollare OVUNQUE (Casafari, un collega,
+// una chat): la ricerca 1:1 sui portali ha i suoi bottoni; per tutto il
+// resto il criterio viaggia come testo, mai ricopiato a mano.
+function critCopyText(c) {
+    var lines = ['Ricerca per ' + (c.name || 'cliente') + ' — Roma'];
+    var zone = String(c.zone || '').trim() || String(c.preferred_areas || '').trim();
+    if (zone) lines.push('Zone: ' + zone);
+    var budget = fmtBudget(c);
+    if (budget) lines.push('Budget: ' + budget + '/mese');
+    if (c.bedrooms) lines.push('Camere: ' + c.bedrooms);
+    if (c.sqm || c.minSqm) lines.push('Superficie: da ' + (c.sqm || c.minSqm) + ' mq');
+    if (c.furnished != null && c.furnished !== '') lines.push('Arredato: ' + (c.furnished === true || c.furnished === 'yes' || c.furnished === 'si' ? 'sì' : String(c.furnished)));
+    if (c.moveIn) lines.push('Ingresso: ' + c.moveIn);
+    if (c.mustHaves) lines.push('Irrinunciabili: ' + c.mustHaves);
+    return lines.join('\n');
+}
+
 function deckStats(c) {
     var pp = Array.isArray(c.portalProperties) ? c.portalProperties : [];
     var out = { total: pp.length, liked: 0, rejected: 0, news: 0, view: 0 };
@@ -1306,6 +1323,23 @@ function renderDrawer() {
             '<div class="cc-crit">' + (critLine(c) || '<span style="color:var(--amber)">Nessun criterio: senza budget e zone il radar non può lavorare per questo cliente.</span>') + '</div>' +
             (c.mustHaves ? '<div class="cc-crit">✓ ' + esc(c.mustHaves) + '</div>' : '') +
             (c.notes ? '<div class="cc-crit" style="color:var(--text-muted)">📝 ' + esc(c.notes) + '</div>' : '') +
+            // La ricerca 1:1 a UN tap: si apre il portale già filtrato sui
+            // criteri (zona verificata + prezzo + privati — la grammatica di
+            // _searchurls). Da lì: rifinisci gli ultimi filtri e SALVA la
+            // ricerca sul portale → i suoi alert email alimentano da soli il
+            // radar (scan-inbox, la fonte portante). 📋 per Casafari e resto.
+            '<div class="d-links" style="margin-top:8px">' +
+                (function () {
+                    var btns = [];
+                    ['immobiliare', 'idealista'].forEach(function (portal) {
+                        var sr = searches.find(function (x) { return x.portal === portal; });
+                        var u = sr && safeUrl(sr.urlOverride || sr.searchUrl);
+                        if (u) btns.push('<a class="abtn" href="' + esc(u) + '" target="_blank" rel="noopener">🔎 ' + portal.charAt(0).toUpperCase() + portal.slice(1) + '</a>');
+                    });
+                    btns.push('<button class="abtn" data-daction="copy-crit" title="Copia il brief per Casafari o chiunque">📋 Copia criteri</button>');
+                    return btns.join('');
+                })() +
+            '</div>' +
         '</div>' +
         '<div class="d-sec"><h4>Ricerche (' + searches.length + ') <button class="abtn" data-daction="sync">🔄 Sync ora</button></h4>' +
             (searches.length ? searches.map(function (sr) {
@@ -2558,6 +2592,10 @@ function bindUI() {
             if (ni !== i) writeStage(c, flow[ni]);
         } else if (act === 'sync') {
             runAction('sync', b);
+        } else if (act === 'copy-crit') {
+            copyText(critCopyText(c)).then(function (ok) {
+                BoomPortal.toast(ok ? 'Criteri copiati 📋 — incollali su Casafari o dove vuoi' : 'Copia non riuscita', { type: ok ? 'success' : 'warning' });
+            });
         } else if (act === 'copy-portal') {
             copyText(portalLink(c) || '').then(function (ok) {
                 BoomPortal.toast(ok ? 'Link portale copiato 🔗' : 'Copia non riuscita', { type: ok ? 'success' : 'warning' });
