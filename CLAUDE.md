@@ -91,6 +91,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `tenant.html` | Tenant SPA. Realtime property + maintenance feed. |
 | `client-portal.html` | PFS client swipe app. Reads `pfsClients` collection. |
 | `pfs-command.html` | **La plancia unica del PFS** (admin): TUTTO il flusso Property Finding in una pagina. Pipeline per stage (giorni-in-stage, chip lenti in ambra) → fascicolo cliente a drawer (criteri, ricerche, mazzo con esiti/rimozione, attività, link portale con codice BM…, WhatsApp, cambio stage con la STESSA scrittura del portal) → creazione cliente (nasce col portale attivo) → feed radar con fiuto 💎/badge cluster/filtro occasioni + azione «→ Proponi a…» (push curato via `api/casafari/import`, conferma sulle agenzie) → strip occasioni (radarState) → ricerche automatiche + **vedette** (stessa collection della Centrale) → triage swipe, ⌘K, brief AI, salute fonti. |
+| `chiamate.html` | Il Centralino (admin, `/chiamate`). Ogni chiamata deviata in segreteria: audio, trascrizione, azione consigliata, WhatsApp one-tap con bozza. Backed by `api/phone/*`. |
 | `radar.html` | **La Centrale del Radar** (`/radar`, admin). Polso del mercato per zona, feed 💎 occasioni, candidati mandato, vedette (CRUD), Valutatore, gemelli cross-portale, salute fonti. Vedi "Il Radar 2.0". |
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
@@ -217,6 +218,14 @@ BUSY_ICS_URLS                # optional — ICS address(es) of the operator's
                              # copre gli UID anonimizzati di quella modalità
 TELEGRAM_BOT_TOKEN           # already used by api/telegram/*; pfs health alerts
 TELEGRAM_CHAT_ID
+
+# Il Centralino (api/phone/*)
+TWILIO_ACCOUNT_SID           # via A (segreteria): download audio (basic auth)
+TWILIO_AUTH_TOKEN            # + lookup chiamata; senza, si tenta il download
+                             # nudo e l'eventuale 401 finisce ANNOTATO sul doc
+ELEVENLABS_WEBHOOK_SECRET    # via B (receptionist): signing secret del
+                             # post-call webhook ElevenLabs (HMAC t=,v0= sui
+                             # byte grezzi). Senza, la porta rifiuta tutto.
 ```
 
 ## API Endpoints
@@ -1834,6 +1843,72 @@ Test: `node tests/whatsapp/run.mjs` (Firestore finto in memoria, si guida il
 handler vero; copre entrambi gli ordini della transizione, verificati per
 mutazione).
 
+### Il Centralino (`api/phone/*` + `/chiamate`) — la segreteria che lavora
+Su iPhone nessuna app può rispondere a una chiamata al posto dell'operatore —
+e non serve: la segreteria È già una **deviazione condizionale di rete**.
+Puntandola a un numero Twilio (`**004*<numero>#` dal tastierino: occupato +
+nessuna risposta + irraggiungibile in un colpo; `##004#` per tornare
+indietro; MAI `**21*` o l'inoltro di iOS, che devierebbero tutto), l'AI
+risponde SOLO quando l'operatore non può o rifiuta apposta (rifiuto =
+"occupato" per la rete). Rispondere di persona resta sempre possibile.
+- `POST /api/phone/inbound` — webhook Voice di Twilio. Auth `?k=<chiave
+  DERIVATA da HOMIE_SECRET>` (`phoneKey()` — nessun nuovo env, ruotare il
+  secret revoca il webhook) o X-Homie-Secret. Saluto bilingue che DICHIARA
+  l'assistente automatico e la registrazione (disclosure pinnata nei test),
+  poi `<Record>`; il doc `phoneCalls/<CallSid>` nasce SUBITO, così anche chi
+  riaggancia al bip resta visibile come chiamata persa. QUALSIASI intoppo
+  interno non impedisce mai di rispondere (il TwiML esce comunque).
+  `?setup=1` con Bearer admin → gli URL esatti da incollare su Twilio (la
+  chiave non si calcola a mano e non si regala: senza auth, 401).
+- `POST /api/phone/recording` (maxDuration 60) — recordingStatusCallback:
+  scarica l'audio (basic auth TWILIO_*), lo mette su Storage `phone-calls/`
+  (URL tokenizzato = credenziale di lettura della dashboard), trascrive
+  (Whisper, lingua AUTO — mai forzare 'it': i clienti parlano inglese),
+  riconosce il chiamante (`phoneVariants` su leads/users/pfsClients/clients:
+  un inquilino che chiama per la caldaia NON diventa un lead), analisi haiku
+  field-whitelisted (riassunto IT per l'operatore, intent, urgenza, azione
+  consigliata, bozza WhatsApp nella lingua VERA del chiamante via replyLang
+  — le parole battono la dichiarazione del modello), e per lo sconosciuto
+  vero un doc `leads` `source:'phone'` nello schema condiviso (dedupe per
+  persona con recentLeadByPhone) → da lì Brain → notify-pending →
+  Commerciale, gratis. Idempotente per costruzione (`processedAt` sul doc:
+  i retry di Twilio non duplicano lead né ping). Ogni anello è best-effort
+  TRANNE la scrittura del doc: Whisper/AI/Telegram giù → il doc esce
+  comunque con scritto cosa manca ("trascrizione non configurata" è
+  un'informazione, il silenzio è un bug). Senza trascrizione il placeholder
+  del lead è in INGLESE di proposito (replyLang legge lead.message — la
+  lezione di leads/scan-inbox). Ping Telegram DOPO il dato, mai al suo posto.
+- **LA RECEPTIONIST (via B — ElevenLabs Agents, `bot/RECEPTIONIST.md`)**:
+  la chiamata non finisce in segreteria, l'agente RISPONDE e conversa
+  (bilingue, disclosure in apertura). In chiamata usa
+  `GET /api/phone/agent-tools?k=&op=catalog|slots` — catalogo vero e slot da
+  `viewings/_avail.js`, la STESSA griglia di book.html/Telegram (una copia
+  sola: la voce non può promettere uno slot che la pagina negherebbe). NON
+  prenota a voce (una visita senza email = kit che non parte): propone lo
+  slot e promette il link su WhatsApp. A fine chiamata
+  `POST /api/phone/elevenlabs` (firma HMAC `elevenlabs-signature` t=,v0=
+  sui byte grezzi, bodyParser off, tolleranza 30′; `verifySignature`
+  esportata+testata) riceve `post_call_transcription` + `post_call_audio`
+  (audio PUSH base64 → Storage, eventi in QUALSIASI ordine, doc
+  `phoneCalls/el_<conversationId>` idempotente su processedAt) e consegna
+  alla STESSA pipeline di _lib.js. **La regola della lingua, qui doppia**:
+  nel transcript ci sono due voci — nel lead e in replyLang entrano SOLO i
+  turni del CHIAMANTE (l'agente parla anche italiano a un inglese: le sue
+  parole dentro lead.message farebbero rispondere il Commerciale nella
+  lingua sbagliata). Il riassunto ElevenLabs entra solo come fallback.
+- **`chiamate.html` (`/chiamate`)** — la dashboard admin (noindex,
+  no-store; nel portal: Console → 📞 Centralino): live su `phoneCalls`,
+  filtri (da gestire / lead / clienti / senza messaggio), per ogni chiamata
+  player audio, trascrizione (o dialogo 🤖/👤 per le chiamate receptionist,
+  badge 🤖), riassunto + azione consigliata, bottone WhatsApp con la bozza
+  già scritta, tel:, ✓ Gestita. Il pannello ⚙️ Attivazione contiene i
+  codici GSM e recupera dal server gli URL di ENTRAMBE le vie (`?setup=1`).
+  Una 'in-progress' vecchia di 5' è mostrata come "riagganciata senza
+  messaggio" — quello che sappiamo, senza inventare.
+- Rules: `phoneCalls` admin-only (firestore) + `phone-calls/` (storage —
+  senza il match, l'upload admin 403a: la lezione contracts/).
+- Test: `node tests/phone/run.mjs`.
+
 ### GET/POST `/api/leads/match-listing` — LA RICERCA ROVESCIATA
 L'asimmetria che nessuno sfruttava: si pubblica un annuncio e si **aspetta**
 che degli sconosciuti lo trovino, mentre in archivio ci sono persone che tre
@@ -2640,6 +2715,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/whatsapp/replies.mjs` | Le risposte rapide di WhatsApp: un messaggio che si manda a occhi chiusi mille volte non può contenere un link morto (le rotte si deducono dal repo, non da una lista), i prezzi non possono divergere da `api/_catalog.js`, il link recensione apre le stelline e non la scheda Maps, e il documento in `docs/` non può restare indietro |
   | `tests/radar/run.mjs` | Il Radar 2.0: vie diverse non si fondono MAI (il falso gemello nasconde una casa al cliente), stessa-fonte esige un segnale identitario, il fiuto tace senza campione e chiama 'sospetto' le truffe, le vedette vedono solo il futuro e mai due volte la stessa casa, il Valutatore corregge sui canoni FIRMATI e dichiara le basi, e col radar ROTTO l'ingestione PFS spinge comunque — il giro vero su Firestore in memoria, digest email compreso |
   | `tests/whatsapp/run.mjs` | Da WhatsApp a lead senza AI: il rumore resta fuori (👍, "ok") e la persona vera entra, l'inquilino che scrive per la caldaia non inquina la pipeline, un lead per persona anche col numero archiviato in formato diverso (nazionale vs internazionale), una risposta umana zittisce il Commerciale. Guida il handler VERO su un Firestore finto in memoria |
+  | `tests/phone/run.mjs` | Il Centralino, entrambe le porte. Segreteria: chiave derivata mai regalata, disclosure GDPR pinnata nel saluto, retry Twilio senza doppioni, Whisper/AI/Telegram giù non perdono MAI la chiamata. Receptionist ElevenLabs: firma HMAC rifiutata (anche stantia) senza scritture, nel lead SOLO le parole del CHIAMANTE (mai quelle dell'agente — la lingua della bozza esce dalle sue parole), audio e trascrizione in QUALSIASI ordine, tools in chiamata con auth e catalogo che esclude gli affittati. Handler veri su Firestore in memoria + giunzioni asserite sui file |
   | `tests/whatsapp/demand.mjs` | Il misuratore della domanda: ogni intenzione dimostra di saper riconoscere una frase vera (un pattern inerte sotto-conta in SILENZIO), "business" non diventa una domanda sui bus, la classifica è per tempo risparmiato e non per frequenza, sotto campione niente percentuali, e ciò che il motore non sa nominare esce con le parole vere |
   | `tests/miniera/run.mjs` | La Miniera: il join aggancia la persona in OGNI forma del numero (parità con `_lead.js`, JID senza `+` guarito), i veti del libro dei silenzi (inquilini/firmati/morti/oltre 120gg MAI nel re-ingaggio), sotto campione NIENTE percentuali (per mutazione), il verdetto motivato coi numeri, parità cross-linguaggio con l'estrattore Python, handler vero su Firestore in memoria |
   | `tests/wizard/local_brain.py` | Il cervello gratis del bot wizard (`python3`): cosa capisce senza modello e — più importante — cosa deve rifiutarsi di capire. Una domanda ("Levico è affittato?") non può diventare una scrittura; un annuncio nuovo dettato non può diventare la modifica di uno esistente. Estrae le funzioni pure dal bot via AST: gira senza `.env`, senza Telegram, senza rete |
