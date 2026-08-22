@@ -42,7 +42,9 @@ service cloud.firestore {
     // `company` porta IBAN e dati bancari: la stessa ragione per cui
     // /payout esiste separato. Chi è autenticato (portal, /casa) lo
     // legge; l'API anonima no. (Audit 2026-08, S2.)
-    match /settings/{x}  { allow read: if x != 'company' || request.auth != null; allow write: if isAdmin(); }
+    // 'company' (IBAN) e 'registrazione' (email personale del referente
+    // ASPI) non si servono al pubblico anonimo — stessa lezione.
+    match /settings/{x}  { allow read: if !(x in ['company', 'registrazione']) || request.auth != null; allow write: if isAdmin(); }
     // Coordinate per il bonifico del canone. NON in /settings, che è
     // leggibile da chiunque via API: un IBAN esposto così invita scraping.
     // L'inquilino che deve pagare è comunque autenticato.

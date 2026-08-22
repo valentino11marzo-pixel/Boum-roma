@@ -736,6 +736,9 @@
     "api/fiscal/pack.js": {
       "maxDuration": 60
     },
+    "api/fiscal/registra.js": {
+      "maxDuration": 60
+    },
     "api/owners/rendiconto.js": {
       "maxDuration": 60
     },
