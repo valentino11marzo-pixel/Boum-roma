@@ -11,7 +11,12 @@ const PREVIEW = 'https://boum-roma-git-claude-boom-home-background-'
   + 'wqektx-valentino-boom.vercel.app';
 
 const VARIANTI = [
-  ['colloquio', 'Il Colloquio 2.0', "★ la base scelta — l'interrogatorio",
+  ['volo', 'Il Volo', '★ il gioiellino — il servizio si esibisce',
+   '/preview-pfs-volo',
+   "Non racconta il servizio: LO FA VEDERE in tre scene guidate dallo scroll. LE PARTENZE — il mercato di Roma come tabellone Solari, sei righe brutali da fonti pubblicate e il buon annuncio che SCADE sotto gli occhi (BOARDING → LAST CALL → GONE, «went while you scrolled»). IL RADAR — la macchina lavora: 14 contatti, i sotto-60 svaniscono, l'agenzia sbarrata, tre d'oro coi punteggi, poi 96/giorno · 50·30·20 · soglia 60. LA CAMMINATA — il timbro REJECTED sulla casa da 82 («damp behind the wardrobe»). Poi il kit toccabile (app DEMO, zecca del pass), la scatola nera (100% + tabella anti-truffa + §4.2 verbatim + fee dichiarata) e la verifica. Ticket-hero intatto; senza JS o reduced-motion la pagina resta completa e statica.",
+   'La perdita si guarda invece di leggersi — design, ingegneria e persuasione nello stesso gesto; chi scorre vede il prodotto lavorare.',
+   "Le scene chiedono scroll vero: su artifact si valuta dallo screenshot, il giudizio finale va dato sulla pagina viva."],
+  ['colloquio', 'Il Colloquio 2.0', "l'interrogatorio (3.0)",
    '/preview-pfs-colloquio',
    "Sette atti, sette obiezioni VERE, sette reperti. Ogni risposta di Valentino — in prima persona, «on the record» — porta accanto la sua prova incorporata: la tabella truffe dentro «perché pagare prima?», il conto dentro «Roma è davvero così brutale?» (24–72 ore di vita di un annuncio, il fantasma quotidiano, il deposito per legge), il finder VERO dentro «faccio da solo», la verifica dentro «chi sei?», app DEMO + zecca del pass dentro «non sono in Italia», la clausola §4.2 CITATA ALLA LETTERA dentro «e se non trovate niente?» — con la parte onesta: i 15 giorni sono il grilletto del rimborso, non una data di consegna, e la nostra provvigione è dichiarata (§4.1). Chiude «cosa succede appena pago» con l'itinerario. Filo del volo = linea dell'interrogatorio, misura GA per atto.",
    'Il closer misurato (la conversazione, 11×) portato in pagina con le prove dentro — spiega il mercato, il servizio e il perché in un solo gesto.',
@@ -39,7 +44,8 @@ const VARIANTI = [
    'Descrive più che mostrare: è il punto che le varianti attaccano.'],
 ];
 
-const LOCALI = { caccia: 'pfs-caccia.html', terminale: 'pfs-terminale.html',
+const LOCALI = { volo: '/home/user/Boum-roma/preview-pfs-volo.html',
+  caccia: 'pfs-caccia.html', terminale: 'pfs-terminale.html',
   dossier: 'pfs-dossier.html', colloquio: '/home/user/Boum-roma/preview-pfs-colloquio.html',
   attuale: '/home/user/Boum-roma/property-finding.html' };
 
@@ -64,6 +70,7 @@ const LOCALI = { caccia: 'pfs-caccia.html', terminale: 'pfs-terminale.html',
        .regola2.arma > div { opacity:1 !important; transform:none !important; }
        .salta, .rotta-filo, .scroll-progress { display:none !important; }
        .nav { position:absolute !important; }` });
+    await pg.evaluate(() => document.documentElement.classList.remove('cine'));
     await pg.waitForTimeout(700);
     const buf = await pg.screenshot({ fullPage: true, type: 'jpeg', quality: 58 });
     shots[cod] = 'data:image/jpeg;base64,' + buf.toString('base64');
@@ -162,7 +169,7 @@ header p b { color:var(--testo2); font-weight:600; }
   <p>Cinque pagine complete. Ogni visore qui sotto contiene la pagina
     INTERA come immagine — <b>scorri dentro il riquadro</b> per sfogliarla
     — e il bottone oro apre la <b>pagina viva</b> sul preview, con
-    animazioni, filo del volo e form funzionante. La prima è la base scelta, sviluppata in sette atti.</p>
+    animazioni, filo del volo e form funzionante. La prima è il gioiellino: il servizio che si esibisce.</p>
 </header>
 ${palchi}
 </div>`;
