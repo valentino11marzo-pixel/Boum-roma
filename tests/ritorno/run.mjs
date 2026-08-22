@@ -38,5 +38,49 @@ ok(/@media \(max-width: 640px\)[\s\S]{0,200}\.tb-label \{ display: none; \}/.tes
   'plancia ≤640px: «Aggiungi annuncio» diventa ➕ — la topbar non domina più il primo schermo');
 ok(/tb-label"> Aggiungi annuncio<\/span>/.test(cmd), "l'etichetta è avvolta davvero (non solo il CSS)");
 
+// ── 3. La resurrezione delle schede vecchie ─────────────────────────────
+// La trappola vista il 22/08: una scheda Safari di GIORNI prima, riesumata
+// con un modale aperto su un annuncio ormai sparito e i bottoni di una
+// versione superata. Una scheda ripresa dopo 1h+ deve ripartire fresca.
+const bp = src('js/boom-portal.js');
+const fm = bp.match(/BP\.freshOnReturn = function[\s\S]*?\n    \};/);
+ok(!!fm, 'freshOnReturn esiste nella libreria condivisa');
+
+// si guida la funzione VERA con document/window/location finti
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+function harness() {
+  const listeners = {};
+  const fakeDoc = { visibilityState: 'visible', addEventListener: (t, f) => { (listeners[t] = listeners[t] || []).push(f); } };
+  const fakeWin = { addEventListener: (t, f) => { (listeners[t] = listeners[t] || []).push(f); } };
+  const fakeLoc = { reloads: 0, reload() { this.reloads++; } };
+  const make = new Function('document', 'window', 'location', 'var BP={};' + fm[0].replace('BP.freshOnReturn', 'BP.freshOnReturn') + ' return BP;');
+  const BP2 = make(fakeDoc, fakeWin, fakeLoc);
+  return { listeners, fakeDoc, fakeLoc, arm: (min) => BP2.freshOnReturn(min) };
+}
+{
+  const h = harness();
+  h.arm(0.0001); // limite ~6ms: il tempo si comprime, la logica è la stessa
+  h.fakeDoc.visibilityState = 'hidden'; h.listeners.visibilitychange.forEach((f) => f());
+  await wait(25);
+  h.fakeDoc.visibilityState = 'visible'; h.listeners.visibilitychange.forEach((f) => f());
+  ok(h.fakeLoc.reloads === 1, 'assenza oltre il limite → la pagina riparte fresca');
+}
+{
+  const h = harness();
+  h.arm(60); // limite vero: un cambio-tab di un secondo NON ricarica
+  h.fakeDoc.visibilityState = 'hidden'; h.listeners.visibilitychange.forEach((f) => f());
+  h.fakeDoc.visibilityState = 'visible'; h.listeners.visibilitychange.forEach((f) => f());
+  ok(h.fakeLoc.reloads === 0, 'assenza breve → nessun reload (mai buttare il lavoro per un alt-tab)');
+}
+ok(/pageshow/.test(fm[0]) && /e\.persisted/.test(fm[0]), 'copre anche la riesumazione bfcache (pageshow persisted)');
+
+// il cablaggio: le console SENZA form ce l'hanno, quelle coi form NO
+for (const f of ['pfs-command.html', 'banca.html', 'team.html', 'salute.html', 'photo-lab.html']) {
+  ok(src(f).includes('freshOnReturn(60)'), `${f}: scheda vecchia → riparte fresca`);
+}
+for (const f of ['manuale.html', 'media-studio.html', 'pre-agreement-admin.html', 'verbale.html']) {
+  ok(!src(f).includes('freshOnReturn'), `${f}: MAI un reload automatico (c'è un form da non buttare)`);
+}
+
 console.log(`\n${fail ? '✗' : '✓'} ritorno: ${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);

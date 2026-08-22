@@ -413,6 +413,28 @@
         };
     };
 
+    // ─── La resurrezione delle schede vecchie ─────────────────────────────
+    // Una scheda ripresa dopo un'ora è un'altra epoca: stato vecchio, canali
+    // realtime morti, token scaduti, versione superata — la trappola vista il
+    // 22/08 (modale outreach aperto su un annuncio ormai sparito, in una
+    // scheda Safari di giorni prima, coi bottoni di una versione senza
+    // uscite). Meglio una pagina fresca che una salma interattiva. Le pagine
+    // con FORM lunghi (manuale, media-studio, console proposte, verbale) NON
+    // la usano: un reload che butta il lavoro dell'operatore è peggio.
+    BP.freshOnReturn = function (maxAwayMin) {
+        var limit = (maxAwayMin || 60) * 60000;
+        var hiddenAt = null;
+        document.addEventListener('visibilitychange', function () {
+            if (document.visibilityState === 'hidden') { hiddenAt = Date.now(); return; }
+            if (hiddenAt && Date.now() - hiddenAt > limit) location.reload();
+        });
+        // bfcache: Safari riesuma la pagina con lo stato JS congelato —
+        // hiddenAt sopravvive, e se l'assenza supera il limite si riparte.
+        window.addEventListener('pageshow', function (e) {
+            if (e.persisted && hiddenAt && Date.now() - hiddenAt > limit) location.reload();
+        });
+    };
+
     // ─── 🐞 Segnala — il canale dei bug (STUDIO_ARSENALE_II) ──────────────
     // Un tap dell'operatore → doc `bugReports` con pagina, dispositivo e gli
     // ultimi errori client (l'anello di boom-err.js) allegati DA SOLI: la
