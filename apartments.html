@@ -3481,6 +3481,21 @@ setTimeout(function () {
   addEventListener('hashchange', function () { leggiHash(); aggiorna(); });
   })();
 
+  /* ── L'INNESTO: le case nate DOPO la build entrano nel setaccio ──────
+     La griglia è una fotografia; l'idrante (in coda alla pagina) rilegge
+     Firestore e per un annuncio che il catalogo ha e la build no
+     COSTRUISCE la carta — il wizard pubblica di sera e la vetrina non
+     aspetta un deploy. Qui la carta si registra fra quelle di build e si
+     riconta: filtri, conto e ordinamento la trattano come le sorelle.
+     Il guard sui duplicati copre l'ordine inverso (fetch prima di load:
+     la querySelectorAll qui sopra l'ha già presa). */
+  window.__muroInnesta = function (nuove) {
+    (nuove || []).forEach(function (c) {
+      if (carte.indexOf(c) < 0) carte.push(c);
+    });
+    aggiorna();
+  };
+
   aggiorna();
   }
   if (document.readyState === 'complete') via();
@@ -4483,10 +4498,18 @@ setTimeout(function () {
    sola list REST, lettura pubblica) e riscrive stato, data e prezzo dove
    sono cambiati — la stessa disciplina dell'idrante del detail. Se la
    rete manca o la CSP blocca (anteprima artefatto), restano i numeri
-   della build: mai una pagina rotta. */
+   della build: mai una pagina rotta.
+   E L'INNESTO: un annuncio che Firestore ha e la build no (il wizard
+   pubblica di sera, il deploy arriva quando arriva) aveva la pagina
+   /listing/:id viva ma NON stava in vetrina né nel conto — pubblicato e
+   invisibile. Ora la sua carta si COSTRUISCE qui, con la stessa
+   grammatica del builder (stessi data-attribute, stessa regola di
+   ingresso: nome, prezzo, foto di casa nostra, stato noto), si appende
+   al muro e si registra nel setaccio via window.__muroInnesta. */
 (function () {
   'use strict';
   var carte = document.querySelectorAll('.casa-p[data-id]');
+  var muro = document.getElementById('muro');
   if (!carte.length) return;
   function euro(n) { return '€' + Math.round(n).toLocaleString('en-US'); }
   function stato(st, dal) {
@@ -4513,7 +4536,7 @@ setTimeout(function () {
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (j) {
         if (!j || !j.documents) return;
-        var per = {};
+        var per = {}, interi = {};
         j.documents.forEach(function (doc) {
           var f = doc.fields || {};
           function v(k) {
@@ -4522,6 +4545,7 @@ setTimeout(function () {
               : x.integerValue != null ? x.integerValue
               : x.doubleValue != null ? x.doubleValue : null;
           }
+          interi[doc.name.split('/').pop()] = f;
           var p = parseFloat(v('price'));
           /* la data passa dal motore CONDIVISO (dispo-engine): una data
              testo libero non diventa mai "Available now" per un regex
@@ -4567,9 +4591,176 @@ setTimeout(function () {
             }
           }
         });
+        innesta(per, interi);
       })
       .catch(function () { /* niente rete: restano i numeri della build */ });
   }, 900);
+
+  /* ── L'INNESTO — la carta per chi è nato dopo la build ─────────────── */
+  var DOTE = { 'ac': 'A/C', 'wifi': 'Wi-Fi', 'wi-fi': 'Wi-Fi',
+    'washing_machine': 'Washer', 'double_glazing': 'Double glazing',
+    'dishwasher': 'Dishwasher', 'balcony': 'Balcony',
+    'elevator': 'Elevator', 'doorman': 'Doorman', 'parking': 'Parking' };
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;',
+               '"': '&quot;', "'": '&#39;' }[ch];
+    });
+  }
+  function testo(x) {
+    if (!x) return null;
+    return x.stringValue != null ? x.stringValue
+      : x.integerValue != null ? x.integerValue
+      : x.doubleValue != null ? x.doubleValue
+      : x.timestampValue != null ? x.timestampValue
+      : x.booleanValue != null ? String(x.booleanValue) : null;
+  }
+  function lista(f, k) {
+    var a = (f[k] && f[k].arrayValue && f[k].arrayValue.values) || [];
+    return a.map(testo).filter(function (x) { return x != null; });
+  }
+  function intero(x) {
+    var m = String(x == null ? '' : x).match(/\d+/);
+    return m ? parseInt(m[0], 10) : null;
+  }
+  /* stessa regola del builder: solo foto di casa nostra, mai un .heic */
+  function fotoDi(f) {
+    var iv = (f.imagesVariants && f.imagesVariants.arrayValue
+      && f.imagesVariants.arrayValue.values) || [];
+    var m0 = (iv[0] && iv[0].mapValue && iv[0].mapValue.fields) || {};
+    var u = String(testo(m0.w960) || testo(m0.src)
+      || lista(f, 'images')[0] || testo(f.image) || '');
+    if (!(u.indexOf('/') === 0 || u.indexOf('firebasestorage') >= 0)) return '';
+    if (/\.heic(\?|$)/i.test(u)) return '';
+    return u;
+  }
+  function innesta(per, interi) {
+    if (!muro) return;
+    var have = {};
+    [].forEach.call(document.querySelectorAll('.casa-p[data-id]'),
+      function (c) { have[c.dataset.id] = 1; });
+    var salv;
+    try { salv = JSON.parse(localStorage.getItem('boomSalvate') || '[]'); }
+    catch (e) { salv = []; }
+    var oggi = new Date(), nuove = [];
+    Object.keys(interi).forEach(function (id) {
+      if (have[id]) return;
+      var f = interi[id], d = per[id] || {};
+      /* la regola di ingresso del builder: senza nome, prezzo o foto la
+         carta non nasce, e uno stato ignoto (draft, …) resta fuori */
+      if (['available', 'reserved', 'rented', 'waitlist']
+          .indexOf(d.st) < 0) return;
+      var nome = String(testo(f.name) || '').replace(/\s+/g, ' ').trim();
+      if (!nome || !d.p) return;
+      var foto = fotoDi(f);
+      if (!foto) return;
+      var zona = (String(testo(f.zone) || 'Roma').replace(/\s+/g, ' ')
+        .split('/')[0].trim()) || 'Roma';
+      var letti = intero(testo(f.bedrooms) != null ? testo(f.bedrooms)
+        : testo(f.beds));
+      var mq = intero(testo(f.sqm) != null ? testo(f.sqm)
+        : testo(f.size)) || 0;
+      var arred = /^(yes|true|si|sì)$/i
+        .test(String(testo(f.furnished) || '').trim());
+      var video = !!String(testo(f.videoUrl) || testo(f.youtubeUrl)
+        || '').trim();
+      var quando = String(testo(f.createdAt) || '').slice(0, 10)
+        || oggi.toISOString().slice(0, 10);
+      var grezzi = lista(f, 'features');
+      if (!grezzi.length) grezzi = lista(f, 'tags');
+      var dote = [];
+      grezzi.forEach(function (x) {
+        var k = String(x).replace(/\s+/g, ' ').trim().toLowerCase();
+        if (DOTE[k] && dote.indexOf(DOTE[k]) < 0) dote.push(DOTE[k]);
+      });
+      var vivo = d.st === 'available' || d.st === 'waitlist';
+      var giorni = (oggi - new Date(quando + 'T12:00:00')) / 864e5;
+      var chip = (video && vivo) ? { t: 'VERIFIED', c: 'verde' }
+        : (giorni < 21 && vivo) ? { t: 'NEW', c: '' } : null;
+      /* data illeggibile anche per il motore: si dice «Available»,
+         mai «now» — la disciplina di dispo-engine */
+      var s = (d.cieca && d.st === 'available')
+        ? { t: 'Available', c: 'si' } : stato(d.st, d.dal);
+      var a = document.createElement('a');
+      a.className = 'casa-p';
+      a.href = '/listing/' + encodeURIComponent(id);
+      a.dataset.zona = zona; a.dataset.prezzo = String(d.p);
+      a.dataset.letti = String(letti || 0); a.dataset.mq = String(mq);
+      a.dataset.quando = quando; a.dataset.dal = d.dal || '';
+      a.dataset.bagni = String(intero(testo(f.bathrooms)) || 0);
+      a.dataset.arredata = arred ? '1' : '0';
+      a.dataset.video = video ? '1' : '0';
+      a.dataset.dote = '|' + dote.join('|') + '|';
+      a.dataset.chiave = '/listing/' + id;
+      a.dataset.cerca = [nome, zona, String(testo(f.address) || ''),
+        String(testo(f.type) || '')].join(' ').toLowerCase();
+      a.dataset.id = id;
+      a.dataset.cauzione = String(intero(testo(f.depositMonths)) || 1);
+      a.dataset.piano = String(testo(f.floor) == null ? ''
+        : testo(f.floor)).replace(/[\s"]+/g, ' ').trim().slice(0, 12);
+      var pezzi = ['<span class="home-zona" role="link" tabindex="0" '
+        + 'data-href="#zona=' + esc(encodeURIComponent(zona)) + '">'
+        + esc(zona) + '</span>'];
+      if (mq) pezzi.push(mq + ' m²');
+      if (letti === 0) pezzi.push('Studio');
+      else if (letti) pezzi.push(letti + ' bed');
+      a.innerHTML =
+        '<div class="home-foto">'
+        + '<img loading="lazy" decoding="async" src="' + esc(foto)
+        + '" alt="' + esc(nome + ', ' + zona
+          + ' — apartment for rent in Rome with BOOM') + '">'
+        + (chip ? '<span class="casa-chip ' + chip.c + '">' + chip.t
+          + '</span>' : '')
+        + '<span class="casa-stato ' + s.c + '">' + esc(s.t) + '</span>'
+        + '<button type="button" class="home-cuore" data-u="'
+        + esc('/listing/' + id) + '" aria-label="Save this home">♥</button>'
+        + '<button type="button" class="home-para" data-id="' + esc(id)
+        + '" aria-label="Compare this home">⇄</button>'
+        + '</div><div class="corpo">'
+        + '<div class="riga1"><span class="nome">' + esc(nome) + '</span>'
+        + '<span class="canone"><span class="flap-prezzo flap-scale" '
+        + 'data-p="' + esc(euro(d.p)) + '" aria-label="' + esc(euro(d.p))
+        + ' per month">' + esc(euro(d.p)) + '</span><small>/mo</small>'
+        + '</span></div>'
+        + '<div class="riga2">' + pezzi.join(' <i>·</i> ') + '</div>'
+        + '</div>';
+      /* cuore e zona si agganciano qui: i binding per-carta della build
+         sono già passati (il paragone è delegato sul muro, gratis) */
+      var cuore = a.querySelector('.home-cuore');
+      cuore.classList.toggle('si', salv.indexOf(a.dataset.chiave) >= 0);
+      cuore.addEventListener('click', function (e) {
+        e.preventDefault(); e.stopPropagation();
+        var mem;
+        try { mem = JSON.parse(localStorage.getItem('boomSalvate') || '[]'); }
+        catch (err) { mem = []; }
+        var k = mem.indexOf(a.dataset.chiave);
+        if (k >= 0) mem.splice(k, 1); else mem.push(a.dataset.chiave);
+        cuore.classList.toggle('si', k < 0);
+        try { localStorage.setItem('boomSalvate', JSON.stringify(mem)); }
+        catch (err) {}
+      });
+      var zs = a.querySelector('.home-zona');
+      function vaiZona(e) {
+        e.preventDefault(); e.stopPropagation();
+        location.href = zs.dataset.href;
+      }
+      zs.addEventListener('click', vaiZona);
+      zs.addEventListener('keydown', function (e) {
+        if (e.key === 'Enter' || e.key === ' ') vaiZona(e);
+      });
+      muro.appendChild(a);
+      nuove.push(a);
+    });
+    if (!nuove.length) return;
+    /* la regia parte su load, questo fetch a +900ms: chi arriva prima
+       non è garantito. Si riprova finché il setaccio non c'è; se non
+       arriva mai (pagina rotta) le carte restano comunque link vivi. */
+    (function consegna(giri) {
+      if (window.__muroInnesta) { window.__muroInnesta(nuove); return; }
+      if (giri > 40) return;
+      setTimeout(function () { consegna(giri + 1); }, 250);
+    })(0);
+  }
 })();
 </script>
 
