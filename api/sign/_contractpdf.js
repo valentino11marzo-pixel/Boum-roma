@@ -19,13 +19,19 @@
 // - MAI rigenerare sotto una firma viva: qualunque firma presente
 //   (inquilino, locatore, co-conduttore) → si esce senza toccare nulla.
 //   Il PDF di un atto in corso di sottoscrizione è congelato.
-// - Idempotente: generatedPDF già presente → si restituisce quello.
+// - Idempotente sul PDF FRESCO: generatedPDF presente E clauseVersion
+//   corrente → si restituisce quello. Un PDF con le clausole VECCHIE e
+//   NESSUNA firma invece si rigenera qui, in automatico: fino ad agosto
+//   2026 il portal mostrava solo un ⚠ dentro il dettaglio contratto e
+//   sign.html serviva al firmatario il PDF stantio — il modello vecchio
+//   finiva in firma ogni volta che nessuno premeva 🔄 Rigenera.
 // - Best-effort per contratto ALTRUI: ogni chiamante avvolge in try/catch —
 //   una generazione fallita non blocca mai conversione, invito o lookup.
 //
 // Chiamanti: preagreement/convert.js (alla creazione), preagreement/
 // send-sign.js (cintura e bretelle sui contratti pre-fix), magic-sign/
-// lookup.js (ultima rete: la prima apertura del link genera se manca).
+// lookup.js (ultima rete: la prima apertura del link genera se manca o
+// se il PDF è di una versione clausole superata).
 
 import crypto from 'node:crypto';
 import jspdfNS from 'jspdf';
@@ -34,6 +40,11 @@ import { fsGet, fsPatch } from '../homie/_lib.js';
 import { storageUpload } from '../agent/_lib.js';
 
 const jsPDF = jspdfNS.jsPDF || jspdfNS.default || jspdfNS;
+
+// La versione CORRENTE delle clausole dell'impaginato (js/contract-pdf.js,
+// modelli CAF 2023). Un contratto senza firma il cui PDF porta una versione
+// più vecchia viene rigenerato al prossimo passaggio sul rail di firma.
+export const CLAUSE_VERSION = 2;
 
 // Stessa impronta del portal: SHA-256 hex, primi 16 caratteri
 // (generateDocHash in portal-app.js usa crypto.subtle con la stessa formula).
@@ -58,8 +69,15 @@ export async function ensureContractPdf(contractId, preloaded = null) {
   if (!contractId) return null;
   const contract = preloaded || await fsGet('contracts/' + contractId);
   if (!contract) return null;
-  if (contract.generatedPDF) return contract.generatedPDF;   // idempotente
-  if (hasAnySignature(contract)) return null;                // firma viva: congelato
+  // PDF fresco (clausole correnti) → idempotente, si restituisce quello.
+  if (contract.generatedPDF && Number(contract.clauseVersion || 0) >= CLAUSE_VERSION) {
+    return contract.generatedPDF;
+  }
+  // Firma viva: il documento è CONGELATO qualunque versione porti — un
+  // atto in corso di sottoscrizione non cambia sotto la penna di nessuno.
+  if (hasAnySignature(contract)) return contract.generatedPDF || null;
+  // Da qui: PDF mancante O impaginato con clausole vecchie e nessuna
+  // firma → si (ri)genera, sovrascrivendo lo stesso path su Storage.
 
   // Risoluzione dati — stessa catena del portal (S.properties/S.users):
   // property dal contratto, tenant da users, landlord da property.ownerId.
@@ -95,7 +113,7 @@ export async function ensureContractPdf(contractId, preloaded = null) {
     pdfSizeKB: Math.round(bytes.length / 1024),
     pdfGeneratedAt: new Date().toISOString(),
     pdfGeneratedBy: 'server',
-    clauseVersion: 2,
+    clauseVersion: CLAUSE_VERSION,
   });
   return url;
 }

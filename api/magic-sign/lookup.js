@@ -88,15 +88,16 @@ export default async function handler(req, res) {
   // contratto porta generatedPDF. I contratti del portal lo hanno dalla
   // creazione; quelli del rail PA dal convert (server-side); ma un
   // contratto pre-fix, o un link condiviso via WhatsApp senza passare da
-  // 🖊 Magic Sign, poteva ancora arrivare qui senza. La PRIMA apertura
-  // genera (una volta sola: ensureContractPdf è idempotente e non tocca
-  // MAI un contratto con una firma viva); un errore non blocca il lookup.
-  if (!contract.generatedPDF) {
-    try {
-      const url = await ensureContractPdf(contract.id, contract);
-      if (url) contract.generatedPDF = url;
-    } catch (e) { console.warn('[magic-sign/lookup] contract pdf:', e.message); }
-  }
+  // 🖊 Magic Sign, poteva ancora arrivare qui senza — e uno creato PRIMA
+  // dei modelli CAF 2023 arrivava col PDF delle clausole VECCHIE, che il
+  // firmatario apriva da "View full contract PDF" credendolo il contratto.
+  // La chiamata è sempre attiva: ensureContractPdf è idempotente sul PDF
+  // fresco, rigenera quello stantio, e non tocca MAI un contratto con una
+  // firma viva. Un errore non blocca il lookup.
+  try {
+    const url = await ensureContractPdf(contract.id, contract);
+    if (url) contract.generatedPDF = url;
+  } catch (e) { console.warn('[magic-sign/lookup] contract pdf:', e.message); }
 
   // Fetch related docs server-side.
   let property = {};
