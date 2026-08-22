@@ -472,6 +472,11 @@ body.triage-lock { overflow: hidden; }
 .cluster-badge { background: rgba(77,155,255,0.18); border-color: rgba(77,155,255,0.4); color: var(--blue); }
 .push-select { width: 100%; padding: 9px 12px; background: var(--bg-input); border: 1px solid rgba(212,175,55,0.35); border-radius: 10px; font-size: 12px; color: var(--gold); }
 
+/* ── L'uscita di sicurezza dei modali (HTML puro, vive senza JS) ── */
+.modal-esc { color: var(--text-muted); text-decoration: none; font-size: 15px; line-height: 1;
+             padding: 6px 8px; margin-right: 2px; border-radius: 8px; flex: none; }
+.modal-esc:hover { color: var(--gold); background: var(--bg-elevated); }
+
 /* ── La via del ritorno + topbar tascabile ─────────────────────── */
 .tb-back { color: var(--text-secondary); text-decoration: none; font-size: 18px; line-height: 1;
            padding: 8px 10px; margin: -8px 2px -8px -10px; border-radius: 9px; flex: none; }
@@ -676,6 +681,7 @@ body.triage-lock { overflow: hidden; }
     <div class="modal" role="dialog" aria-modal="true" aria-label="Aggiungi annuncio">
         <div class="modal-head">
             <div class="modal-title">Aggiungi annuncio</div>
+            <a class="modal-esc" href="/pfs-command" title="La pagina non risponde? Riparti fresca">↻</a>
             <button class="modal-close" id="mf-close" aria-label="Chiudi">✕</button>
         </div>
         <div class="modal-src" id="mf-source-note">Fonte: manuale</div>
@@ -723,6 +729,7 @@ body.triage-lock { overflow: hidden; }
     <div class="modal" role="dialog" aria-modal="true" aria-label="Cliente PFS">
         <div class="modal-head">
             <div class="modal-title" id="cm-title">Nuovo cliente</div>
+            <a class="modal-esc" href="/pfs-command" title="La pagina non risponde? Riparti fresca">↻</a>
             <button class="modal-close" id="cm-close" aria-label="Chiudi">✕</button>
         </div>
         <div class="modal-src" id="cm-note">Il cliente entra nel flusso e le sue ricerche si generano da sole al prossimo sync.</div>
@@ -748,6 +755,9 @@ body.triage-lock { overflow: hidden; }
     <div class="modal" role="dialog" aria-modal="true" aria-label="Contatta il proprietario">
         <div class="modal-head">
             <div class="modal-title">📨 Contatta il proprietario</div>
+            <!-- L'uscita di sicurezza in HTML PURO: un link nativo naviga
+                 anche quando il JS della pagina è morto (scheda zombie). -->
+            <a class="modal-esc" href="/pfs-command" title="La pagina non risponde? Riparti fresca">↻</a>
             <button class="modal-close" id="om-close" aria-label="Chiudi">✕</button>
         </div>
         <div class="modal-src" id="om-listing-note"></div>

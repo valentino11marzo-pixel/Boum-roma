@@ -78,6 +78,7 @@ const SUITES = [
   { name: 'listen',   file: 'tests/listen/run.mjs',      what: 'il canale muto: BoomPortal.listen consegna una one-shot dopo 6s di silenzio — le console (pfs-command ×7 canali) non restano mai vuote senza un segnale' },
   { name: 'segnala',  file: 'tests/segnala/run.mjs',     what: '🐞 Segnala: la segnalazione porta il contesto da sola (pagina, dispositivo, errori), il testo non passa mai da innerHTML, il ping Telegram suona una volta, rules admin-only' },
   { name: 'ritorno',  file: 'tests/ritorno/run.mjs',     what: 'la via del ritorno: OGNI console porta un link al portale (in PWA senza chrome una pagina senza uscita è una trappola) + topbar plancia tascabile' },
+  { name: 'planciaui', file: 'tests/plancia/ui.mjs',     what: 'la plancia in un browser vero: boot pulito, nessun modale che si apre da solo, outreach chiuso in tre modi (✕/Esc/fondale), uscita di sicurezza in HTML puro in ogni modale' },
   { name: 'oggi',     file: 'tests/oggi/run.mjs',         what: 'Oggi: la coda delle decisioni ordina per costo del ritardo, ogni azione dichiarata esiste, il polso dei soldi fa i conti giusti' },
   { name: 'finish',   file: 'tests/finish/run.mjs',       what: 'La Rifinitura: nessun colore inventato, nessun selettore morto, la riga contratto ridisegnata non perde handler né condizioni' },
   { name: 'actions',  file: 'tests/actions/run.mjs',      what: 'Il Prontuario: ogni azione dichiarata esiste davvero (22 documenti, sezioni, modali), la ricerca trova per sinonimo e prefisso, e le due facce leggono lo stesso registro' },
