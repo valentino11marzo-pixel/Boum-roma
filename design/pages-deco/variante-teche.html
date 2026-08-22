@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Variante LE TECHE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --gold:#FFD700; --green:#00FF88; --black:#030303; --void:#060607;
+  --surface:#0B0B0C; --card:#0E0E10; --text:#FAFAFA;
+  --text-2:rgba(250,250,250,.72); --text-3:rgba(250,250,250,.5);
+  --text-4:rgba(250,250,250,.48); --line-0:rgba(255,255,255,.04);
+  --line:rgba(255,255,255,.08);
+  --ease:cubic-bezier(.16,1,.3,1); --molla:cubic-bezier(.3,1.45,.5,1);
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  --display:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  --mono:ui-monospace,'SF Mono','Cascadia Mono','JetBrains Mono',Menlo,monospace;
+  --c-vv:#00FF88; --c-pf:#FFD700; --c-da:#9D8CFF; --c-cc:#3ED3FF;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--black); color:var(--text); font-family:var(--sans);
+  font-weight:300; -webkit-font-smoothing:antialiased; }
+body::before { content:''; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:
+    radial-gradient(58% 42% at 50% -4%, rgba(255,215,0,.055), transparent 62%),
+    radial-gradient(70% 55% at 50% 112%, rgba(255,255,255,.02), transparent 60%); }
+
+.wrap { position:relative; z-index:1; max-width:1240px; margin:0 auto;
+  padding:clamp(64px,9vh,108px) clamp(20px,4vw,48px) clamp(90px,12vh,140px); }
+
+/* ---------- header ---------- */
+.head { text-align:center; margin-bottom:clamp(44px,6vw,72px); }
+.eyebrow { display:inline-flex; align-items:center; gap:16px;
+  font-size:11px; letter-spacing:.42em; text-transform:uppercase;
+  color:var(--text-3); font-weight:500; }
+.eyebrow i { width:34px; height:1px; display:block;
+  background:linear-gradient(90deg, transparent, rgba(255,215,0,.7)); }
+.eyebrow i:last-child { transform:scaleX(-1); }
+h2 { font-family:var(--display); font-weight:250; letter-spacing:-.015em;
+  font-size:clamp(34px,4.6vw,58px); line-height:1.06; margin:22px 0 16px; }
+h2 em { font-style:normal; color:var(--gold); font-weight:300; }
+.sotto { color:var(--text-3); font-size:clamp(14px,1.4vw,16px); font-weight:300;
+  letter-spacing:.01em; }
+
+/* ---------- grid ---------- */
+.griglia { display:grid; grid-template-columns:repeat(3,1fr);
+  gap:clamp(18px,2vw,24px); }
+
+/* ---------- la teca ---------- */
+.teca { position:relative; display:flex; flex-direction:column;
+  background:linear-gradient(180deg,#0E0E10 0%,#0A0A0B 100%);
+  border:1px solid var(--line-0); border-radius:24px;
+  padding:14px 14px 30px;
+  box-shadow:0 30px 70px -30px rgba(0,0,0,.85);
+  transition:transform .55s var(--ease), border-color .55s var(--ease),
+             box-shadow .55s var(--ease); }
+.teca:hover { transform:translateY(-5px);
+  border-color:color-mix(in srgb, var(--c) 22%, rgba(255,255,255,.06)); }
+.t-pf { --c:var(--c-pf); grid-column:1/-1;
+  border-color:color-mix(in srgb, var(--c-pf) 16%, rgba(255,255,255,.05));
+  box-shadow:0 40px 90px -35px rgba(0,0,0,.9),
+             0 24px 90px -40px color-mix(in srgb, var(--c-pf) 30%, transparent); }
+.t-pf:hover { box-shadow:0 46px 100px -35px rgba(0,0,0,.9),
+             0 28px 100px -38px color-mix(in srgb, var(--c-pf) 42%, transparent); }
+.t-vv { --c:var(--c-vv); }
+.t-da { --c:var(--c-da); }
+.t-cc { --c:var(--c-cc); }
+
+/* ---------- la vetrina di vetro ---------- */
+.vetrina { position:relative; border-radius:16px; overflow:hidden;
+  background:linear-gradient(180deg, rgba(255,255,255,.025), transparent 34%), #060607;
+  border:1px solid rgba(255,255,255,.07);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.09),
+             inset 1px 0 0 rgba(255,255,255,.045),
+             inset -1px 0 0 rgba(255,255,255,.03),
+             inset 0 -18px 34px -22px rgba(0,0,0,.85);
+  min-height:252px; }
+/* riflesso del vetro — gradiente diagonale sottile, sopra l'oggetto */
+.vetrina::after { content:''; position:absolute; inset:0; z-index:6;
+  border-radius:inherit; pointer-events:none;
+  background:linear-gradient(118deg, transparent 30%, rgba(255,255,255,.055) 43%,
+             rgba(255,255,255,.015) 51%, transparent 60%),
+             linear-gradient(180deg, rgba(255,255,255,.05), transparent 14%); }
+/* la lampada in cima */
+.lamp { position:absolute; top:0; left:50%; transform:translateX(-50%); z-index:7;
+  width:46px; height:9px; border-radius:0 0 7px 7px;
+  background:linear-gradient(#28282b,#131315);
+  border:1px solid rgba(255,255,255,.08); border-top:0;
+  display:flex; align-items:flex-end; justify-content:center; }
+.lamp::after { content:''; width:20px; height:3px; margin-bottom:1px; border-radius:2px;
+  background:var(--c); box-shadow:0 2px 12px 1px var(--c); }
+/* il cono di luce */
+.cone { position:absolute; top:6px; left:50%; transform:translateX(-50%); z-index:1;
+  width:76%; height:calc(100% - 34px);
+  clip-path:polygon(45% 0, 55% 0, 100% 100%, 0 100%);
+  background:linear-gradient(to bottom,
+    color-mix(in srgb, var(--c) 34%, transparent),
+    color-mix(in srgb, var(--c) 7%, transparent) 68%, transparent);
+  filter:blur(11px); opacity:.62;
+  transition:opacity .6s var(--ease); }
+/* la pozza di luce sul fondo */
+.pool { position:absolute; bottom:8px; left:50%; transform:translateX(-50%); z-index:1;
+  width:72%; height:36px; border-radius:50%;
+  background:radial-gradient(closest-side,
+    color-mix(in srgb, var(--c) 26%, transparent), transparent 72%);
+  filter:blur(7px); opacity:.8; transition:opacity .6s var(--ease); }
+/* hover = lo spotlight si intensifica, l'oggetto si avvicina al vetro */
+.teca:hover .cone { opacity:1; }
+.teca:hover .pool { opacity:1; }
+.obj { position:absolute; inset:0; z-index:2;
+  display:flex; align-items:center; justify-content:center;
+  padding:26px 18px 30px;
+  transition:transform .65s var(--molla); }
+.teca:hover .obj { transform:translateY(-7px) scale(1.04); }
+
+/* ---------- targhetta da museo ---------- */
+.targhetta { position:relative; align-self:center; text-align:center;
+  margin:20px auto 0; padding:13px 30px 14px; max-width:92%;
+  background:linear-gradient(180deg,#141416,#0C0C0E);
+  border:1px solid var(--line); border-radius:7px;
+  box-shadow:0 10px 26px -12px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.05); }
+.targhetta::before, .targhetta::after { content:''; position:absolute; top:7px;
+  width:4px; height:4px; border-radius:50%;
+  background:rgba(255,255,255,.16); box-shadow:inset 0 1px 1px rgba(0,0,0,.8); }
+.targhetta::before { left:8px; } .targhetta::after { right:8px; }
+.tg-num { display:block; font-family:var(--mono); font-size:8.5px;
+  letter-spacing:.26em; color:var(--text-4); margin-bottom:7px; white-space:nowrap; }
+.pnome { font-family:var(--display); font-size:21px; font-weight:350;
+  letter-spacing:.01em; line-height:1.15; }
+.kind { display:inline-flex; align-items:center; gap:7px; margin-top:8px;
+  font-size:10px; font-weight:600; letter-spacing:.3em; text-transform:uppercase;
+  color:var(--c); }
+.kind::before { content:''; width:4px; height:4px; border-radius:50%;
+  background:var(--c); box-shadow:0 0 8px var(--c); }
+
+/* ---------- strato vendita ---------- */
+.vendita { display:flex; flex-direction:column; align-items:center;
+  text-align:center; padding:0 clamp(14px,3%,30px); flex:1; }
+.promessa { color:var(--text-2); font-size:14.5px; line-height:1.68;
+  max-width:36ch; margin:16px 0 20px; }
+.compra { display:inline-flex; align-items:center; justify-content:center;
+  border-radius:100px; min-height:44px; padding:0 27px;
+  background:var(--c); color:#0A0A05; font-weight:700; font-size:14.5px;
+  letter-spacing:.01em; text-decoration:none; white-space:nowrap;
+  box-shadow:0 10px 30px -6px color-mix(in srgb, var(--c) 42%, transparent),
+             0 2px 8px rgba(0,0,0,.5);
+  transition:transform .45s var(--molla), box-shadow .45s var(--ease),
+             filter .45s var(--ease); margin-top:auto; }
+.compra:hover { transform:translateY(-2px); filter:brightness(1.07);
+  box-shadow:0 16px 40px -6px color-mix(in srgb, var(--c) 55%, transparent),
+             0 3px 10px rgba(0,0,0,.5); }
+.compra:focus-visible { outline:2px solid #fff; outline-offset:3px; }
+.rassicura { display:block; margin-top:14px; min-height:3.1em;
+  color:var(--text-3); font-size:12.5px; line-height:1.55; max-width:40ch; }
+.teca-wide .rassicura { min-height:0; }
+.rassicura b { color:var(--c); font-weight:700; margin-right:5px; }
+
+/* ---------- l'ammiraglia: teca larga, oggetto grande, vendita a lato ---------- */
+@media (min-width:761px) {
+  .teca-wide { display:grid; grid-template-columns:1.06fr .94fr;
+    grid-template-areas:"vet tar" "vet ven";
+    grid-template-rows:auto auto; align-content:center; row-gap:20px;
+    column-gap:clamp(26px,4vw,60px);
+    padding:16px clamp(28px,4vw,56px) 16px 16px; }
+  .teca-wide .vetrina { grid-area:vet; align-self:stretch; }
+  .teca-wide .targhetta { grid-area:tar; align-self:end; justify-self:start;
+    text-align:left; margin:0; padding:13px 34px 14px 22px; }
+  .teca-wide .vendita { grid-area:ven; align-self:start; align-items:flex-start;
+    text-align:left; padding:0; }
+  .teca-wide .rassicura { text-align:left; }
+  .t-pf .vetrina { min-height:400px; }
+  .t-pf .promessa { font-size:17px; max-width:44ch; margin:2px 0 22px; }
+  .t-pf .pnome { font-size:26px; }
+  .t-pf .compra { font-size:15.5px; padding:0 32px; min-height:48px; }
+}
+
+/* ================= GLI STRUMENTI ================= */
+
+/* --- PF · radar oro che spazza e trova --- */
+.obj-radar { position:relative; width:min(66%,270px); aspect-ratio:1; }
+.obj-radar svg { position:absolute; inset:0; width:100%; height:100%; }
+.sweep { position:absolute; inset:3%; border-radius:50%;
+  background:conic-gradient(from 0deg, transparent 0deg,
+    rgba(255,215,0,.04) 14deg, rgba(255,215,0,.28) 68deg,
+    rgba(255,215,0,.85) 79deg, transparent 80deg 360deg); }
+.blip { position:absolute; width:8px; height:8px; margin:-4px 0 0 -4px;
+  border-radius:50%; background:var(--gold);
+  box-shadow:0 0 12px 2px rgba(255,215,0,.75); opacity:.8; }
+.blip-match { width:11px; height:11px; margin:-5.5px 0 0 -5.5px; }
+.blip-match::after { content:''; position:absolute; inset:-7px; border-radius:50%;
+  border:1.5px solid rgba(255,215,0,.75); opacity:0; }
+.blip-match span { position:absolute; left:50%; top:-22px; transform:translateX(-50%);
+  font-family:var(--mono); font-size:9px; font-weight:600; letter-spacing:.22em;
+  color:var(--gold); text-shadow:0 0 10px rgba(255,215,0,.7); }
+
+/* --- VV · schermo live verde --- */
+.obj-screen { display:flex; flex-direction:column; align-items:center; }
+.tv { position:relative; width:204px; max-width:100%; aspect-ratio:16/10;
+  border-radius:13px; overflow:hidden;
+  border:1px solid rgba(0,255,136,.4); background:#03130A;
+  box-shadow:0 0 34px -6px rgba(0,255,136,.35),
+             inset 0 0 26px rgba(0,255,136,.07); }
+.tv::after { content:''; position:absolute; inset:0; pointer-events:none;
+  background:repeating-linear-gradient(180deg,
+    rgba(0,255,136,.05) 0 1px, transparent 1px 4px); }
+.room { position:absolute; top:0; left:0; height:100%; width:auto; }
+.live { position:absolute; top:9px; left:9px; z-index:2;
+  display:inline-flex; align-items:center; gap:6px;
+  font-family:var(--mono); font-size:9px; font-weight:600; letter-spacing:.2em;
+  color:var(--green); padding:4px 9px 4px 8px; border-radius:100px;
+  background:rgba(3,20,12,.75); border:1px solid rgba(0,255,136,.5); }
+.live i { width:5px; height:5px; border-radius:50%; background:var(--green);
+  box-shadow:0 0 8px var(--green); }
+.bars { position:absolute; right:10px; bottom:8px; z-index:2;
+  display:flex; align-items:flex-end; gap:2.5px; }
+.bars i { width:3px; border-radius:1px; background:rgba(0,255,136,.85); }
+.bars i:nth-child(1){height:4px} .bars i:nth-child(2){height:7px}
+.bars i:nth-child(3){height:10px} .bars i:nth-child(4){height:13px}
+.tv-neck { width:12px; height:15px; background:linear-gradient(#1b1b1e,#101012); }
+.tv-base { width:74px; height:6px; border-radius:3px;
+  background:linear-gradient(#232326,#121214);
+  box-shadow:0 4px 10px rgba(0,0,0,.6); }
+
+/* --- DA · scudo violetto che si chiude --- */
+.obj-shield { position:relative; display:flex; align-items:center; justify-content:center; }
+.aura { position:absolute; width:150px; height:150px; border-radius:50%;
+  background:radial-gradient(closest-side, rgba(157,140,255,.34), transparent 70%);
+  filter:blur(22px); opacity:.45; }
+.scudo { position:relative; width:min(152px,52%); overflow:visible; }
+.scudo .met { fill:rgba(157,140,255,.09); stroke:#9D8CFF; stroke-width:2;
+  stroke-linejoin:round; }
+.seam { stroke:#CFC6FF; stroke-width:1.5; opacity:0; }
+.check { fill:none; stroke:#CFC6FF; stroke-width:3.4; stroke-linecap:round;
+  stroke-linejoin:round; stroke-dasharray:60; stroke-dashoffset:0; opacity:1;
+  filter:drop-shadow(0 0 6px rgba(157,140,255,.8)); }
+
+/* --- CC · documento ciano scansionato + semaforo --- */
+.obj-doc { display:flex; align-items:center; gap:20px; }
+.foglio { position:relative; }
+.foglio svg { display:block; width:min(118px,30vw); overflow:visible; }
+.scanbar { position:absolute; left:4%; width:92%; height:22px; top:8%;
+  border-radius:4px; opacity:0; pointer-events:none;
+  background:linear-gradient(180deg, transparent,
+    rgba(62,211,255,.28) 42%, rgba(62,211,255,.75) 50%,
+    rgba(62,211,255,.28) 58%, transparent);
+  box-shadow:0 0 18px rgba(62,211,255,.35); }
+.semaforo { display:flex; flex-direction:column; gap:7px;
+  padding:8px 7px; border-radius:14px;
+  background:#0A0A0C; border:1px solid var(--line);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 8px 20px -8px rgba(0,0,0,.8); }
+.semaforo i { width:13px; height:13px; border-radius:50%; }
+.s-r { background:#FF5A5A; opacity:.32; }
+.s-a { background:#FFB020; opacity:.32; }
+.s-g { background:#00E07A; opacity:1; box-shadow:0 0 12px 2px rgba(0,224,122,.55); }
+
+/* ================= animazioni (solo se il motion è gradito) ================= */
+@media (prefers-reduced-motion: no-preference) {
+  .cone { animation:respiro 7s ease-in-out infinite; }
+  @keyframes respiro { 0%,100%{opacity:.58} 50%{opacity:.72} }
+  .teca:hover .cone { animation:none; opacity:1; }
+
+  .sweep { animation:spin 6s linear infinite; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+  .blip { animation:ping 6s linear infinite; }
+  @keyframes ping { 0%{opacity:1} 42%{opacity:.38} 90%{opacity:.3} 100%{opacity:1} }
+  .blip-match::after { animation:ring 6s linear infinite; }
+  @keyframes ring { 0%{opacity:.9; transform:scale(.4)} 26%{opacity:0; transform:scale(1.9)}
+    100%{opacity:0; transform:scale(1.9)} }
+  .blip-match span { animation:tagf 6s linear infinite; }
+  @keyframes tagf { 0%{opacity:1} 55%{opacity:.75} 92%{opacity:.7} 100%{opacity:1} }
+
+  .room { animation:pan 11s ease-in-out infinite alternate; }
+  @keyframes pan { from{transform:translateX(0)} to{transform:translateX(-46px)} }
+  .live i { animation:blink 1.7s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+  .bars i:nth-child(4) { animation:segnale 2.6s ease-in-out infinite; }
+  .bars i:nth-child(3) { animation:segnale 2.6s ease-in-out infinite .4s; }
+  @keyframes segnale { 0%,100%{opacity:1} 55%{opacity:.3} }
+
+  .sh-l { animation:chiudiL 5.6s var(--ease) infinite; }
+  .sh-r { animation:chiudiR 5.6s var(--ease) infinite; }
+  @keyframes chiudiL { 0%,10%{transform:translateX(0)} 24%{transform:translateX(-8px)}
+    36%{transform:translateX(-8px)} 52%,100%{transform:translateX(0)} }
+  @keyframes chiudiR { 0%,10%{transform:translateX(0)} 24%{transform:translateX(8px)}
+    36%{transform:translateX(8px)} 52%,100%{transform:translateX(0)} }
+  .seam { animation:lampo 5.6s linear infinite; }
+  @keyframes lampo { 0%,51%{opacity:0} 55%{opacity:.9} 64%,100%{opacity:0} }
+  .check { animation:sigillo 5.6s linear infinite; }
+  @keyframes sigillo { 0%,10%{opacity:1; stroke-dashoffset:0}
+    14%{opacity:0; stroke-dashoffset:60} 58%{opacity:0; stroke-dashoffset:60}
+    62%{opacity:1} 74%,100%{opacity:1; stroke-dashoffset:0} }
+  .aura { animation:aurap 5.6s ease-in-out infinite; }
+  @keyframes aurap { 0%,10%{opacity:.5} 30%{opacity:.22} 52%{opacity:.3}
+    66%{opacity:.75} 100%{opacity:.5} }
+
+  .scanbar { animation:scan 7s linear infinite; }
+  @keyframes scan { 0%{top:6%; opacity:0} 5%{opacity:1} 46%{top:82%; opacity:1}
+    52%{top:88%; opacity:0} 100%{top:88%; opacity:0} }
+  .s-r { animation:vr 7s linear infinite; }
+  .s-a { animation:va 7s linear infinite; }
+  .s-g { animation:vg 7s linear infinite; }
+  @keyframes vr { 0%,55%{opacity:.32} 58%{opacity:1} 66%,100%{opacity:.32} }
+  @keyframes va { 0%,64%{opacity:.32} 67%{opacity:1} 75%,100%{opacity:.32} }
+  @keyframes vg { 0%{opacity:.35; box-shadow:0 0 0 rgba(0,224,122,0)}
+    74%{opacity:.35; box-shadow:0 0 0 rgba(0,224,122,0)}
+    80%,100%{opacity:1; box-shadow:0 0 12px 2px rgba(0,224,122,.55)} }
+}
+
+/* ================= responsive ================= */
+@media (min-width:761px) and (max-width:1020px) {
+  .griglia { grid-template-columns:repeat(2,1fr); }
+  .t-cc { grid-column:1/-1;
+    display:grid; grid-template-columns:1.06fr .94fr;
+    grid-template-areas:"vet tar" "vet ven";
+    grid-template-rows:auto auto; align-content:center; row-gap:20px;
+    column-gap:clamp(26px,4vw,60px);
+    padding:16px clamp(28px,4vw,56px) 16px 16px; }
+  .t-cc .vetrina { grid-area:vet; align-self:stretch; min-height:280px; }
+  .t-cc .targhetta { grid-area:tar; align-self:end; justify-self:start;
+    text-align:left; margin:0; padding:13px 34px 14px 22px; }
+  .t-cc .vendita { grid-area:ven; align-self:start; align-items:flex-start;
+    text-align:left; padding:0; }
+  .t-cc .rassicura { min-height:0; }
+}
+@media (max-width:760px) {
+  .griglia { grid-template-columns:1fr; }
+  .t-pf .vetrina { min-height:300px; }
+}
+@media (max-width:580px) {
+  .teca { padding:12px 12px 26px; }
+  .vetrina { min-height:236px; }
+  .t-pf .vetrina { min-height:270px; }
+  .vendita { padding:0 8px; }
+  .compra { width:100%; }
+  .promessa { font-size:14px; }
+}
+</style>
+</head>
+<body>
+<main class="wrap">
+
+  <header class="head">
+    <div class="eyebrow"><i></i>Boom Services · The Permanent Collection<i></i></div>
+    <h2>Four instruments <em>for Rome.</em></h2>
+    <p class="sotto">On display, in working order. Touching is encouraged.</p>
+  </header>
+
+  <div class="griglia">
+
+    <!-- ============ PF · L'AMMIRAGLIA ============ -->
+    <article class="teca t-pf teca-wide">
+      <div class="vetrina">
+        <i class="cone"></i><i class="pool"></i>
+        <div class="obj" aria-hidden="true">
+        <div class="obj-radar">
+          <svg viewBox="0 0 200 200" fill="none">
+            <g stroke="rgba(255,215,0,.18)" stroke-width="1">
+              <circle cx="100" cy="100" r="94"/>
+              <circle cx="100" cy="100" r="68"/>
+              <circle cx="100" cy="100" r="42"/>
+              <circle cx="100" cy="100" r="18"/>
+              <line x1="100" y1="6" x2="100" y2="194"/>
+              <line x1="6" y1="100" x2="194" y2="100"/>
+              <line x1="33.5" y1="33.5" x2="166.5" y2="166.5" stroke="rgba(255,215,0,.09)"/>
+              <line x1="166.5" y1="33.5" x2="33.5" y2="166.5" stroke="rgba(255,215,0,.09)"/>
+            </g>
+            <circle cx="100" cy="100" r="94" stroke="rgba(255,215,0,.45)" stroke-width="1.5"/>
+            <circle cx="100" cy="100" r="3.2" fill="#FFD700"/>
+          </svg>
+          <i class="sweep"></i>
+          <b class="blip" style="left:76.8%; top:29.1%; animation-delay:-.47s"></b>
+          <b class="blip" style="left:61%;  top:69.1%; animation-delay:-4.83s"></b>
+          <b class="blip blip-match" style="left:22.8%; top:62.7%;">
+            <span style="animation-delay:-2.97s">MATCH</span>
+          </b>
+        </div>
+        </div>
+        <i class="lamp"></i>
+      </div>
+      <div class="targhetta">
+        <span class="tg-num">N.&nbsp;01 · COLLEZIONE BOOM</span>
+        <h3 class="pnome">Property Finding</h3>
+        <span class="kind">Flagship</span>
+      </div>
+      <div class="vendita">
+        <p class="promessa">Your private hunter on the whole Rome market — off-market
+          included, every shortlist walked in person before you see it.</p>
+        <a class="compra" href="/property-finding.html">Start the hunt&nbsp;·&nbsp;€350&nbsp;→</a>
+        <p class="rassicura"><b>✓</b> Zero risk: deducted on success, refunded in full
+          if we don't deliver.</p>
+      </div>
+    </article>
+
+    <!-- ============ VV ============ -->
+    <article class="teca t-vv">
+      <div class="vetrina">
+        <i class="cone"></i><i class="pool"></i>
+        <div class="obj obj-screen" aria-hidden="true">
+          <div>
+            <div class="tv">
+              <svg class="room" viewBox="0 0 340 170" fill="none"
+                   stroke="rgba(0,255,136,.55)" stroke-width="1.3" stroke-linecap="round">
+                <line x1="0" y1="130" x2="340" y2="130"/>
+                <rect x="26" y="26" width="72" height="58" rx="2"/>
+                <line x1="62" y1="26" x2="62" y2="84"/>
+                <line x1="26" y1="55" x2="98" y2="55"/>
+                <rect x="150" y="32" width="38" height="28" rx="2"/>
+                <path d="M126 130 v-28 q0 -9 9 -9 h66 q9 0 9 9 v28"/>
+                <line x1="126" y1="112" x2="210" y2="112"/>
+                <line x1="168" y1="93" x2="168" y2="112"/>
+                <line x1="252" y1="130" x2="252" y2="62"/>
+                <path d="M240 62 h24 l-5 -14 h-14 z"/>
+                <path d="M296 130 v-12 h18 v12"/>
+                <path d="M305 118 q-10 -16 2 -26 q10 12 -2 26" />
+              </svg>
+              <span class="live"><i></i>LIVE</span>
+              <span class="bars"><i></i><i></i><i></i><i></i></span>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center">
+              <div class="tv-neck"></div><div class="tv-base"></div>
+            </div>
+          </div>
+        </div>
+        <i class="lamp"></i>
+      </div>
+      <div class="targhetta">
+        <span class="tg-num">N.&nbsp;02 · COLLEZIONE BOOM</span>
+        <h3 class="pnome">Virtual Viewing</h3>
+        <span class="kind">Live</span>
+      </div>
+      <div class="vendita">
+        <p class="promessa">See any home live on video before you fly — the red flags
+          said out loud.</p>
+        <a class="compra" href="/virtual-viewing.html">Book a live tour&nbsp;·&nbsp;€89&nbsp;→</a>
+        <p class="rassicura"><b>✓</b> Credited if you rent with us · BOOM homes:
+          free, always.</p>
+      </div>
+    </article>
+
+    <!-- ============ DA ============ -->
+    <article class="teca t-da">
+      <div class="vetrina">
+        <i class="cone"></i><i class="pool"></i>
+        <div class="obj obj-shield" aria-hidden="true">
+          <i class="aura"></i>
+          <svg class="scudo" viewBox="0 0 120 130" fill="none">
+            <g style="transform-box:fill-box; transform-origin:center;">
+              <path class="met sh-l" d="M60 10 L18 24 V56 C18 86 38 106 60 116 Z"/>
+            </g>
+            <g style="transform-box:fill-box; transform-origin:center;">
+              <path class="met sh-r" d="M60 10 L102 24 V56 C102 86 82 106 60 116 Z"/>
+            </g>
+            <line class="seam" x1="60" y1="14" x2="60" y2="112"/>
+            <path class="check" d="M44 62 L56 74 L78 50"/>
+          </svg>
+        </div>
+        <i class="lamp"></i>
+      </div>
+      <div class="targhetta">
+        <span class="tg-num">N.&nbsp;03 · COLLEZIONE BOOM</span>
+        <h3 class="pnome">Deal Assistance</h3>
+        <span class="kind">Protection</span>
+      </div>
+      <div class="vendita">
+        <p class="promessa">Found a home yourself? We verify the landlord and the
+          papers — then negotiate for you.</p>
+        <a class="compra" href="/deal-assistance.html">Protect the deal&nbsp;·&nbsp;€249&nbsp;→</a>
+        <p class="rassicura"><b>✓</b> Fixed fee — deposit and clauses negotiated,
+          no percentages.</p>
+      </div>
+    </article>
+
+    <!-- ============ CC ============ -->
+    <article class="teca t-cc">
+      <div class="vetrina">
+        <i class="cone"></i><i class="pool"></i>
+        <div class="obj obj-doc" aria-hidden="true">
+          <div class="foglio">
+            <svg viewBox="0 0 130 168" fill="none">
+              <path d="M20 8 h58 l32 32 v112 a8 8 0 0 1 -8 8 H20 a8 8 0 0 1 -8 -8 V16 a8 8 0 0 1 8 -8 Z"
+                    fill="rgba(62,211,255,.06)" stroke="#3ED3FF" stroke-width="2" stroke-linejoin="round"/>
+              <path d="M78 8 v24 a8 8 0 0 0 8 8 h24" stroke="#3ED3FF" stroke-width="2"
+                    stroke-linejoin="round" fill="rgba(62,211,255,.10)"/>
+              <g stroke="rgba(62,211,255,.55)" stroke-width="2.4" stroke-linecap="round">
+                <line x1="28" y1="60" x2="86" y2="60"/>
+                <line x1="28" y1="74" x2="100" y2="74"/>
+                <line x1="28" y1="88" x2="94" y2="88"/>
+                <line x1="28" y1="102" x2="100" y2="102"/>
+                <line x1="28" y1="116" x2="72" y2="116"/>
+              </g>
+              <circle cx="94" cy="136" r="16" stroke="rgba(62,211,255,.7)"
+                      stroke-width="1.6" stroke-dasharray="3.5 3"/>
+              <text x="94" y="140" text-anchor="middle" fill="#3ED3FF"
+                    font-family="ui-monospace,Menlo,monospace" font-size="10"
+                    font-weight="600" letter-spacing="1">24H</text>
+            </svg>
+            <i class="scanbar"></i>
+          </div>
+          <div class="semaforo"><i class="s-r"></i><i class="s-a"></i><i class="s-g"></i></div>
+        </div>
+        <i class="lamp"></i>
+      </div>
+      <div class="targhetta">
+        <span class="tg-num">N.&nbsp;04 · COLLEZIONE BOOM</span>
+        <h3 class="pnome">Contract Check</h3>
+        <span class="kind">Express</span>
+      </div>
+      <div class="vendita">
+        <p class="promessa">About to sign? A written traffic-light verdict in 24h:
+          fine, unfair, missing.</p>
+        <a class="compra" href="/contract-check-express.html">Check my contract&nbsp;·&nbsp;€49&nbsp;→</a>
+        <p class="rassicura"><b>✓</b> Credited in full on Deal Assistance.</p>
+      </div>
+    </article>
+
+  </div>
+</main>
+</body>
+</html>

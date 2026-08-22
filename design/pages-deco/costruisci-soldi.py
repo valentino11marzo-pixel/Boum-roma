@@ -70,15 +70,18 @@ else:
     h = h.replace('FONT_INLINE',
         '<link rel="preconnect" href="https://fonts.googleapis.com">\n'
         '<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>\n'
-        '<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700'
-        '&display=swap" rel="stylesheet">')
+        '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700'
+        '&display=swap" media="print" onload="this.media=\'all\'">\n'
+        '<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700'
+        '&display=swap"></noscript>')
     h = h.replace('href="#banchina"', 'href="/#banchina"')
     h = h.replace('href="/index.html#banchina"', 'href="/#banchina"')
     for da, a_ in {'/index.html': '/',
         '/apartments.html': '/apartments',
-        '/your-money.html': '#giornouno',
-        '/property-finding.html': '/v2-property-finding.html'}.items():
+        '/your-money.html': '#giornouno'}.items():
         h = h.replace('href="' + da + '"', 'href="' + a_ + '"')
+    # cleanUrls: OGNI link interno perde il .html anche nel modo sito
+    h = re.sub(r'href="/([a-z-]+)\.html"', r'href="/\1"', h)
     import testa as TESTA
     OG = TESTA.blocco_money(
         'Your money at BOOM — every euro, in the open | BOOM Rome',
@@ -87,7 +90,7 @@ else:
     h = h[:i] + '\n' + OG + h[i:]
     h = ('<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
          + h.replace('</style>', '</style>\n</head>\n<body>', 1)
-         + '\n</body>\n</html>')
+         + '\n' + TESTA.CONSENSO + '\n</body>\n</html>')
 
 uscita = 'boom-soldi.html' if MODO == 'artefatto' else 'boom-soldi-sito.html'
 open(uscita, 'w', encoding='utf-8').write(h)

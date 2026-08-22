@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.boom.contatto</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Library/Frameworks/Python.framework/Versions/3.13/bin/python3</string>
+        <string>/Users/boomserver/boom-contatto/boom_contatto.py</string>
+        <string>--run</string>
+    </array>
+    <key>WorkingDirectory</key>
+    <string>/Users/boomserver/boom-contatto</string>
+    <key>StartInterval</key>
+    <integer>300</integer>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/Users/boomserver/boom-contatto/contatto.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/boomserver/boom-contatto/contatto.err.log</string>
+</dict>
+</plist>

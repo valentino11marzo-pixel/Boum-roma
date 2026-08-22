@@ -10,6 +10,10 @@ export default class Stripe {
           (globalThis.__stripeCalls ||= []).push(opts);
           return { id: 'cs_test_' + (globalThis.__stripeCalls.length), url: 'https://stripe.test/session' };
         },
+        // Le sessioni che Stripe "ricorda": le suite le riempiono con
+        // globalThis.__stripeSessions per far trovare (o non trovare) la
+        // prova di un pagamento a chi la cerca.
+        list: async () => ({ data: globalThis.__stripeSessions || [], has_more: false }),
       },
     };
     this.webhooks = {

@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
+<meta http-equiv="Cache-Control" content="no-store">
+<title>Risposte rapide WhatsApp — BOOM</title>
+<link rel="icon" href="/favicon.ico">
+<!--
+  /risposte — il mazzo delle risposte rapide, fatto per essere usato col pollice.
+  Due usi: (1) caricarle una volta in WhatsApp Business, (2) copiarne una al
+  volo quando serve un messaggio che qui è già scritto meglio di come lo
+  scriveresti di corsa.
+  I testi NON stanno in questa pagina: vengono da js/whatsapp-replies.js, che è
+  la copia unica letta anche dal documento in docs/ e dai test. Nessun Firebase,
+  nessuna CDN: la pagina si apre anche con la rete che va male.
+-->
+<style>
+  :root{
+    --gold:#D4AF37; --gold-l:rgba(212,175,55,.14); --gold-d:#B8960C;
+    --bg:#08080A; --card:#0C0C0E; --elev:#141416; --line:rgba(255,255,255,.08);
+    --txt:#fff; --dim:#8A8A8E; --ok:#4ADE80;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--txt); font-weight:300;
+    font-family:'Helvetica Neue',Helvetica,Inter,-apple-system,BlinkMacSystemFont,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased; line-height:1.55;
+    padding:0 max(14px,env(safe-area-inset-left)) calc(40px + env(safe-area-inset-bottom));
+  }
+  a{color:var(--gold);text-decoration:none}
+  .wrap{max-width:820px;margin:0 auto}
+
+  header{padding:26px 0 14px}
+  .mark{font-size:11px;letter-spacing:5px;color:var(--gold);text-transform:uppercase}
+  h1{font-size:clamp(24px,6vw,34px);font-weight:200;letter-spacing:-.5px;margin:10px 0 8px}
+  .lead{color:var(--dim);font-size:14px;max-width:60ch}
+  .lead b{color:#ddd;font-weight:400}
+
+  /* barra sticky: ricerca + filtri, sempre a portata di pollice */
+  .bar{position:sticky;top:0;z-index:20;background:rgba(8,8,10,.94);
+    -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+    padding:12px 0 10px;margin:14px 0 6px;border-bottom:1px solid var(--line)}
+  .search{width:100%;background:var(--elev);border:1px solid var(--line);color:var(--txt);
+    border-radius:12px;padding:13px 14px;font-size:16px;font-family:inherit;font-weight:300}
+  .search:focus{outline:none;border-color:var(--gold)}
+  .chips{display:flex;gap:7px;overflow-x:auto;padding:10px 2px 2px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{flex:0 0 auto;background:var(--elev);border:1px solid var(--line);color:var(--dim);
+    padding:8px 13px;border-radius:999px;font-size:12px;letter-spacing:.4px;cursor:pointer;
+    font-family:inherit;min-height:36px}
+  .chip.on{background:var(--gold-l);border-color:var(--gold);color:var(--gold)}
+  .count{color:var(--dim);font-size:11px;letter-spacing:1.2px;text-transform:uppercase;padding:8px 2px 0}
+
+  section{margin:26px 0 0}
+  h2{font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);
+    font-weight:400;margin:30px 0 4px;padding-top:16px;border-top:1px solid var(--line)}
+  h2 .n{color:var(--dim);letter-spacing:1px}
+  .fam-note{color:var(--dim);font-size:13px;margin:0 0 14px}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;
+    padding:15px;margin:0 0 11px;position:relative}
+  .card.done{border-color:rgba(74,222,128,.35)}
+  .card.done .sc{background:rgba(74,222,128,.12);border-color:rgba(74,222,128,.4);color:var(--ok)}
+  .top{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+  .sc{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;color:var(--gold);
+    background:var(--gold-l);border:1px solid rgba(212,175,55,.3);border-radius:7px;padding:3px 9px;
+    cursor:pointer}
+  .ttl{font-size:15px;font-weight:400;flex:1;min-width:180px}
+  .star{color:var(--gold);font-size:12px}
+  .bench{font-size:10px;letter-spacing:.6px;color:var(--dim);border:1px solid var(--line);
+    border-radius:999px;padding:3px 9px;white-space:nowrap}
+  .when{color:var(--dim);font-size:12.5px;margin:9px 0 0}
+  .anchor{color:#C9A227;font-size:12px;margin:7px 0 0;padding-left:9px;
+    border-left:2px solid rgba(212,175,55,.35)}
+  .anchor b{color:var(--gold);font-weight:400}
+  pre{background:#0A0A0C;border:1px solid var(--line);border-radius:10px;margin:11px 0 0;
+    padding:13px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;
+    line-height:1.65;white-space:pre-wrap;word-break:break-word;color:#E6E6E8;max-height:190px;
+    overflow:hidden;position:relative}
+  pre.open{max-height:none}
+  pre .ph{color:var(--gold);background:var(--gold-l);border-radius:3px;padding:0 2px}
+  pre .lk{color:#7FB3FF}
+  .fade{position:absolute;left:0;right:0;bottom:0;height:46px;
+    background:linear-gradient(transparent,#0A0A0C);pointer-events:none}
+  .acts{display:flex;gap:8px;align-items:center;margin:11px 0 0;flex-wrap:wrap}
+  button{font-family:inherit;font-weight:400;cursor:pointer;border-radius:9px;min-height:40px}
+  .copy{background:var(--gold);color:#000;border:none;padding:0 18px;font-size:13px;letter-spacing:.6px}
+  .copy:active{background:var(--gold-d)}
+  .ghost{background:transparent;border:1px solid var(--line);color:var(--dim);padding:0 13px;font-size:12px}
+  .len{color:var(--dim);font-size:11px;margin-left:auto;font-family:ui-monospace,monospace}
+  .len.warn{color:#F0A62A}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;display:block;overflow-x:auto}
+  td,th{border-bottom:1px solid var(--line);padding:9px 10px 9px 0;text-align:left;vertical-align:top}
+  th{color:var(--dim);font-weight:400;font-size:11px;letter-spacing:1.4px;text-transform:uppercase}
+  code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#E6E6E8}
+  .lrow{display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--line);padding:10px 0}
+  .lrow div{flex:1;min-width:0}
+  .lp{font-family:ui-monospace,monospace;font-size:12.5px;color:var(--gold);word-break:break-all}
+  .lw{color:var(--dim);font-size:12px}
+  ol.steps{color:#ccc;font-size:13.5px;padding-left:20px}
+  ol.steps li{margin:0 0 8px}
+  .note{background:var(--elev);border:1px solid var(--line);border-left:2px solid var(--gold);
+    border-radius:0 10px 10px 0;padding:13px 15px;font-size:13px;color:#c9c9cc;margin:14px 0}
+  .note b{color:#fff;font-weight:400}
+  .empty{color:var(--dim);text-align:center;padding:40px 0;font-size:14px}
+  #toast{position:fixed;left:50%;transform:translateX(-50%) translateY(140%);
+    bottom:calc(22px + env(safe-area-inset-bottom));background:var(--gold);color:#000;
+    padding:12px 22px;border-radius:999px;font-size:13px;font-weight:400;z-index:60;
+    transition:transform .25s ease;box-shadow:0 8px 30px rgba(0,0,0,.5);max-width:88vw;text-align:center}
+  #toast.on{transform:translateX(-50%) translateY(0)}
+  footer{color:var(--dim);font-size:12px;margin:34px 0 0;padding-top:16px;border-top:1px solid var(--line)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a href="/portal" style="color:var(--gold, #D4AF37);text-decoration:none;font-size:12px;letter-spacing:1px;display:inline-block;margin-bottom:8px">← Portale</a>
+    <div class="mark">BOOM · WhatsApp Business</div>
+    <h1>Risposte rapide</h1>
+    <p class="lead"><b>Carichi 14 risposte nell'app, una volta sola.</b> Poi in chat digiti
+      <b>/</b> e la scorciatoia, e il messaggio è già scritto. Le altre restano qui: quando
+      serve un caso raro, cerchi e copi al volo — senza occupare uno slot nel telefono.
+      <span id="hdr-n"></span></p>
+  </header>
+
+  <div class="bar">
+    <input id="q" class="search" type="search" placeholder="Cerca: deposito, canone, visita, proprietario…"
+           autocomplete="off" autocapitalize="off" spellcheck="false">
+    <div class="chips" id="chips"></div>
+    <div class="count" id="count"></div>
+  </div>
+
+  <div id="list"></div>
+
+  <section id="auto"></section>
+  <section id="labels"></section>
+  <section id="links"></section>
+
+  <section>
+    <h2>Come si caricano nell'app</h2>
+    <ol class="steps">
+      <li><b>Android</b> → WhatsApp Business → ⋮ → <i>Strumenti per l'attività</i> → <b>Risposte rapide</b> → <b>+</b></li>
+      <li><b>iPhone</b> → <i>Impostazioni</i> → <i>Strumenti per l'attività</i> → <b>Risposte rapide</b> → <b>+</b></li>
+      <li><b>Desktop o Web</b> → ⚙️ → <i>Strumenti per l'attività</i> → <b>Risposte rapide</b>.
+        È la via più veloce per caricarle tutte: si incolla con Ctrl+V invece di digitare sul telefono,
+        e si sincronizzano poi sul telefono da sole.</li>
+      <li>Per ognuna: <b>Copia</b> qui → incolla il messaggio → scrivi la scorciatoia (senza la barra) → salva.
+        <b>Sono 14</b>, circa 10 minuti in tutto.</li>
+    </ol>
+    <div class="note">
+      <b>Ne carichi 14, non 50.</b> Sono quelle che useresti questa settimana — le altre 38 vivono
+      qui e si copiano quando capita il caso raro (Réunion, ricercatori, link di firma…). Il tasto ✓
+      su ogni scheda ricorda quali hai già caricato, così puoi finire in un secondo momento.
+    </div>
+    <div class="note">
+      <b>Le tre regole che le rendono universali.</b>
+      1. Ogni messaggio finisce con una domanda: una risposta che informa e non chiede niente lascia
+      la palla al cliente, e il cliente non la rilancia.
+      2. I buchi sono <span style="color:var(--gold)">[MAIUSCOLO fra quadre]</span> — non mandare mai
+      un messaggio che contiene ancora una parentesi quadra.
+      3. Si concatenano: nessuna prova a dire tutto. <code>/enhi</code> + <code>/enprice</code>,
+      <code>/enhomes</code> + <code>/enbook</code>, <code>/prcanone</code> + <code>/prpack</code>.
+    </div>
+  </section>
+
+  <footer>
+    I testi vivono in <code>js/whatsapp-replies.js</code> — una copia sola, la stessa che genera
+    <code>docs/WHATSAPP_RISPOSTE_RAPIDE.md</code>. Cambia lì e rilancia
+    <code>node scripts/wa-export.mjs</code>.
+  </footer>
+</div>
+
+<div id="toast"></div>
+
+<script src="/js/whatsapp-replies.js"></script>
+<script>
+(function(){
+  var WA = window.BOOM_WA;
+  var list = document.getElementById('list');
+  if (!WA) { list.innerHTML = '<div class="empty">Non riesco a caricare le risposte (js/whatsapp-replies.js).<br>Ricarica la pagina.</div>'; return; }
+
+  /* localStorage su Safari privato LANCIA invece di tornare vuoto: sempre avvolto. */
+  var store = {
+    get: function(k, d){ try { var v = localStorage.getItem(k); return v == null ? d : JSON.parse(v); } catch(e){ return d; } },
+    set: function(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch(e){} }
+  };
+  var done = store.get('boom_wa_done', {}) || {};
+
+  var esc = function(s){ return String(s == null ? '' : s)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+
+  /* Segnaposto e link evidenziati: si vede a occhio cosa va riempito prima di mandare. */
+  function paint(t){
+    return esc(t)
+      .replace(/https?:\/\/[^\s<]+/g, function(u){ return '<span class="lk">' + u + '</span>'; })
+      .replace(/\[[^\]]+\]/g, function(p){ return '<span class="ph">' + p + '</span>'; });
+  }
+
+  var toastT;
+  function toast(msg){
+    var el = document.getElementById('toast');
+    el.textContent = msg; el.classList.add('on');
+    clearTimeout(toastT); toastT = setTimeout(function(){ el.classList.remove('on'); }, 1900);
+  }
+
+  /* Tre livelli: su Safari senza contesto sicuro navigator.clipboard non esiste
+     e il tasto sembrerebbe rotto (stessa lezione di copyToClipboard nel portal). */
+  function copy(text, what){
+    function fallback(){
+      try {
+        var ta = document.createElement('textarea');
+        ta.value = text; ta.setAttribute('readonly','');
+        ta.style.cssText = 'position:fixed;top:0;left:-9999px';
+        document.body.appendChild(ta);
+        ta.select(); ta.setSelectionRange(0, text.length);
+        var okDone = document.execCommand('copy');
+        document.body.removeChild(ta);
+        if (okDone) { toast('Copiato: ' + what); return; }
+      } catch(e){}
+      window.prompt('Copia a mano (Ctrl+C / ⌘C):', text);
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(function(){ toast('Copiato: ' + what); }, fallback);
+    } else fallback();
+  }
+
+  /* ---------------- filtri ---------------- */
+  var fam = 'install', q = '';
+  var chips = document.getElementById('chips');
+  var defs = [{k:'install',l:'🔧 Da installare'},{k:'all',l:'Tutte'}].concat(
+    WA.FAMILIES.map(function(f){ return {k:f.key, l:f.label.split(' · ')[0], full:f.label}; })
+  );
+  defs.forEach(function(d){
+    var b = document.createElement('button');
+    b.className = 'chip' + (d.k === 'install' ? ' on' : '');
+    b.textContent = d.l; b.dataset.k = d.k;
+    b.onclick = function(){
+      fam = d.k;
+      [].forEach.call(chips.children, function(c){ c.classList.toggle('on', c.dataset.k === fam); });
+      render();
+    };
+    chips.appendChild(b);
+  });
+  document.getElementById('q').addEventListener('input', function(e){
+    q = e.target.value.trim().toLowerCase(); render();
+  });
+
+  function matches(r){
+    if (fam === 'install' ? !!r.bench : (fam !== 'all' && r.fam !== fam)) return false;
+    if (!q) return true;
+    return (r.sc + ' ' + r.title + ' ' + r.when + ' ' + r.text).toLowerCase().indexOf(q) >= 0;
+  }
+
+  function card(r){
+    var el = document.createElement('div');
+    el.className = 'card' + (done[r.sc] ? ' done' : '');
+    var long = r.text.length > 420;
+    el.innerHTML =
+      '<div class="top">'
+      + '<span class="sc" title="Copia la scorciatoia">/' + esc(r.sc) + '</span>'
+      + '<span class="ttl">' + esc(r.title) + (r.star ? ' <span class="star">⭐</span>' : '') + '</span>'
+      + (r.bench ? '<span class="bench">panchina · non occupa uno slot</span>' : '')
+      + '</div>'
+      + '<p class="when">' + esc(r.when) + '</p>'
+      + (r.sell && r.sell.anchor
+          ? '<p class="anchor"><b>Vende contro:</b> ' + esc(r.sell.anchor) + '</p>' : '')
+      + '<pre' + (long ? '' : ' class="open"') + '>' + paint(r.text)
+      + (long ? '<span class="fade"></span>' : '') + '</pre>'
+      + '<div class="acts">'
+      + '<button class="copy">Copia messaggio</button>'
+      + (long ? '<button class="ghost more">Tutto il testo</button>' : '')
+      + '<button class="ghost tick">' + (done[r.sc] ? '✓ caricata' : 'Segna caricata') + '</button>'
+      + '<span class="len' + (r.text.length > 900 ? ' warn' : '') + '">' + r.text.length + '/' + WA.LIMITS.text + '</span>'
+      + '</div>';
+    el.querySelector('.copy').onclick = function(){ copy(r.text, '/' + r.sc); };
+    el.querySelector('.sc').onclick = function(){ copy(r.sc, 'scorciatoia ' + r.sc); };
+    var more = el.querySelector('.more');
+    if (more) more.onclick = function(){
+      var pre = el.querySelector('pre');
+      pre.classList.toggle('open');
+      var f = pre.querySelector('.fade'); if (f) f.style.display = pre.classList.contains('open') ? 'none' : '';
+      more.textContent = pre.classList.contains('open') ? 'Riduci' : 'Tutto il testo';
+    };
+    el.querySelector('.tick').onclick = function(){
+      done[r.sc] = !done[r.sc]; store.set('boom_wa_done', done); render();
+    };
+    return el;
+  }
+
+  function render(){
+    list.innerHTML = '';
+    var shown = WA.REPLIES.filter(matches);
+    var caricate = WA.REPLIES.filter(function(r){ return done[r.sc]; }).length;
+    var daInstallare = WA.installed().length;
+    document.getElementById('count').textContent =
+      (fam === 'install'
+        ? daInstallare + ' da caricare nell\'app · ~10 minuti in tutto'
+        : shown.length + ' di ' + WA.REPLIES.length + ' nel mazzo')
+      + (caricate ? ' · ' + caricate + ' fatte' : '');
+    if (!shown.length) { list.innerHTML = '<div class="empty">Nessuna risposta per questa ricerca.</div>'; return; }
+
+    WA.FAMILIES.forEach(function(f){
+      var items = shown.filter(function(r){ return r.fam === f.key; });
+      if (!items.length) return;
+      var h = document.createElement('h2');
+      h.innerHTML = esc(f.label) + ' <span class="n">· ' + items.length + '</span>';
+      list.appendChild(h);
+      var note = document.createElement('p');
+      note.className = 'fam-note'; note.textContent = f.note;
+      list.appendChild(note);
+      items.forEach(function(r){ list.appendChild(card(r)); });
+    });
+  }
+
+  /* ---------------- messaggi automatici ---------------- */
+  var auto = document.getElementById('auto');
+  auto.innerHTML = '<h2>I due messaggi automatici</h2>'
+    + '<p class="fam-note">Non sono risposte rapide: sono due impostazioni a parte e non consumano slot. '
+    + 'Sono anche gli unici messaggi che partono senza che tu li legga — per questo non contengono buchi da riempire.</p>';
+  [WA.GREETING, WA.AWAY].forEach(function(m){
+    var el = document.createElement('div');
+    el.className = 'card';
+    el.innerHTML = '<div class="top"><span class="ttl">' + esc(m.title) + '</span></div>'
+      + '<p class="when">' + esc(m.when) + '</p>'
+      + '<pre class="open">' + paint(m.text) + '</pre>'
+      + '<div class="acts"><button class="copy">Copia</button>'
+      + '<span class="len">' + m.text.length + ' caratteri</span></div>';
+    el.querySelector('.copy').onclick = function(){ copy(m.text, m.title); };
+    auto.appendChild(el);
+  });
+  var tip = document.createElement('div');
+  tip.className = 'note';
+  tip.innerHTML = '<b>Imposta l\'orario vero dell\'assenza</b> (per esempio 21:00–09:00 e la domenica): '
+    + 'un messaggio di assenza attivo 24 ore su 24 dice al cliente che non c\'è mai nessuno.';
+  auto.appendChild(tip);
+
+  /* ---------------- etichette ---------------- */
+  var lab = document.getElementById('labels');
+  var rows = WA.LABELS.map(function(l){
+    return '<tr><td style="white-space:nowrap">' + esc(l.name) + '</td><td class="lw">' + esc(l.what) + '</td></tr>';
+  }).join('');
+  lab.innerHTML = '<h2>Le etichette</h2>'
+    + '<p class="fam-note">Le risposte rapide fanno risparmiare tempo; le etichette impediscono di '
+    + '<b>perdere</b> una persona. Poche, e guardate ogni giorno.</p>'
+    + '<table><tr><th>Etichetta</th><th>A cosa serve</th></tr>' + rows + '</table>'
+    + '<div class="note">Le due che valgono più delle altre: <b>📄 Documenti</b> — è lì che muoiono '
+    + 'le trattative, non nel prezzo — e <b>❄️ Richiamare</b>, dove ogni chat deve avere una data '
+    + 'nella nota: senza data non richiami nessuno.</div>';
+
+  /* ---------------- libreria link ---------------- */
+  var lk = document.getElementById('links');
+  lk.innerHTML = '<h2>Libreria link</h2>'
+    + '<p class="fam-note">Ogni indirizzo qui sotto è una rotta vera del sito (un test lo verifica). '
+    + 'Tocca per copiarlo.</p>';
+  var groups = [];
+  WA.LINKS.forEach(function(l){ if (groups.indexOf(l.group) < 0) groups.push(l.group); });
+  groups.forEach(function(g){
+    var h = document.createElement('p');
+    h.className = 'count'; h.textContent = g; lk.appendChild(h);
+    WA.LINKS.filter(function(l){ return l.group === g; }).forEach(function(l){
+      var row = document.createElement('div');
+      row.className = 'lrow';
+      row.innerHTML = '<div><span class="lp">' + esc(l.path) + '</span><br><span class="lw">' + esc(l.what) + '</span></div>'
+        + '<button class="ghost">Copia</button>';
+      row.querySelector('button').onclick = function(){ copy(WA.SITE + l.path, l.path); };
+      lk.appendChild(row);
+    });
+  });
+  var warn = document.createElement('div');
+  warn.className = 'note';
+  warn.innerHTML = '<b>I link che non si mettono in una risposta rapida</b> perché valgono per una '
+    + 'persona sola e li genera il portale al momento: pagina della visita, Scheda anagrafica, '
+    + 'Magic Sign, pre-accordo, link di pagamento. Nelle risposte <code>/op…</code> stanno come '
+    + '<span style="color:var(--gold)">[LINK]</span> e li incolli tu.';
+  lk.appendChild(warn);
+
+  document.getElementById('hdr-n').textContent =
+    WA.REPLIES.length + ' risposte pronte, in ' + WA.FAMILIES.length + ' famiglie.';
+  render();
+})();
+</script>
+</body>
+</html>

@@ -20,6 +20,11 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 <script src="/js/firebase-config.js"></script>
 <script src="/js/boom-portal.js"></script>
+<script src="/js/boom-err.js"></script>
+<!-- Mercato (Fonderia, Arsenale II): market-engine PRIMA di radar-engine (dipendenza UMD) -->
+<script src="/js/market-engine.js"></script>
+<script src="/js/radar-engine.js"></script>
+<script src="/js/outreach-engine.js"></script>
 
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -112,10 +117,11 @@ button:disabled { opacity: .45; cursor: default; }
 .wa-btn:hover { background: var(--green); color: #000; }
 
 /* ── Layout ──────────────────────────────────────────────── */
-.layout { display: grid; gap: 28px; padding: 24px 20px 110px; max-width: 1400px; margin: 0 auto; grid-template-columns: 1fr; grid-template-areas: "feed" "clients" "searches" "attention"; }
+.layout { display: grid; gap: 28px; padding: 24px 20px 110px; max-width: 1400px; margin: 0 auto; grid-template-columns: 1fr; grid-template-areas: "pipeline" "feed" "searches" "vedette" "attention"; }
+#sec-pipeline { grid-area: pipeline; min-width: 0; }
 #sec-feed { grid-area: feed; min-width: 0; }
-#sec-clients { grid-area: clients; min-width: 0; }
 #sec-searches { grid-area: searches; min-width: 0; }
+#sec-vedette { grid-area: vedette; min-width: 0; }
 #sec-attention { grid-area: attention; min-width: 0; }
 section { scroll-margin-top: 16px; }
 .sec-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 14px; }
@@ -125,7 +131,7 @@ section { scroll-margin-top: 16px; }
 .muted-note { font-size: 11px; color: var(--text-muted); margin-top: 10px; letter-spacing: 1px; }
 @media (min-width: 1100px) {
     .topbar { position: sticky; top: 0; }
-    .layout { grid-template-columns: minmax(0,1fr) 360px; grid-template-areas: "feed clients" "searches clients" "attention clients"; align-items: start; padding-bottom: 40px; }
+    .layout { grid-template-columns: minmax(0,1fr) 360px; grid-template-areas: "pipeline pipeline" "feed searches" "feed vedette" "feed attention"; align-items: start; padding-bottom: 40px; }
     section { scroll-margin-top: 150px; }
 }
 
@@ -398,6 +404,108 @@ body.triage-lock { overflow: hidden; }
 @keyframes ring-pulse { 0% { box-shadow: 0 0 0 0 rgba(212,175,55,0.55); } 100% { box-shadow: 0 0 0 14px rgba(212,175,55,0); } }
 .flash-ring { animation: ring-pulse 2s ease-out; border-color: var(--gold) !important; }
 
+/* ── LA PIPELINE (il flusso, cliente per cliente) ───────────── */
+.pipe-board { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity; }
+.pipe-col { flex: 0 0 250px; scroll-snap-align: start; background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 12px; min-height: 120px; }
+.pipe-col-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+.pipe-col-title { font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--text-secondary); }
+.pipe-col-n { font-size: 11px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.pipe-chip { background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; transition: border-color .2s, transform .2s; }
+.pipe-chip:hover { border-color: rgba(212,175,55,0.4); transform: translateY(-1px); }
+.pipe-chip .pc-name { font-size: 13px; display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.pipe-chip .pc-days { font-size: 9px; color: var(--text-muted); letter-spacing: 1px; flex-shrink: 0; }
+.pipe-chip .pc-days.slow { color: var(--amber); }
+.pipe-chip .pc-crit { font-size: 10.5px; color: var(--text-muted); margin-top: 4px; line-height: 1.5; }
+.pipe-chip .pc-stats { display: flex; gap: 8px; font-size: 10px; color: var(--text-muted); margin-top: 6px; }
+.pipe-chip .pc-stats b { color: var(--text-secondary); font-weight: 500; }
+.pipe-empty-col { font-size: 10px; color: var(--text-muted); letter-spacing: 1px; text-align: center; padding: 12px 0; }
+.pipe-side { font-size: 11px; color: var(--text-muted); margin-top: 8px; letter-spacing: .5px; }
+
+/* ── IL FASCICOLO CLIENTE (drawer) ──────────────────────────── */
+#drawer-scrim { position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 8290; animation: fadein .2s ease; }
+#drawer-scrim[hidden] { display: none; }
+#client-drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(440px, 100vw); background: var(--bg-card); border-left: 1px solid rgba(212,175,55,0.2); z-index: 8300; overflow-y: auto; padding: 20px 18px calc(24px + env(safe-area-inset-bottom)); animation: drawer-in .28s cubic-bezier(.22,.9,.28,1.15); }
+#client-drawer[hidden] { display: none; }
+@keyframes drawer-in { from { transform: translateX(60px); opacity: 0; } }
+.d-head { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.d-name { font-size: 18px; font-weight: 400; flex: 1; min-width: 0; }
+.d-sub { font-size: 11px; color: var(--text-muted); margin-bottom: 14px; letter-spacing: .5px; word-break: break-word; }
+.d-stage-row { display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+.d-stage-row select { flex: 1; min-width: 140px; padding: 10px 12px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; font-size: 12px; }
+.d-sec { margin-top: 18px; }
+.d-sec > h4 { font-size: 10px; letter-spacing: 2.5px; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.d-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.d-grid2 .full { grid-column: 1/-1; }
+.d-grid2 label { display: block; font-size: 9px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
+.d-grid2 input, .d-grid2 select, .d-grid2 textarea { width: 100%; padding: 10px 12px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 10px; font-size: 12.5px; }
+.d-grid2 input:focus, .d-grid2 textarea:focus { outline: none; border-color: var(--gold); }
+.d-deck-row { display: flex; align-items: center; gap: 8px; padding: 9px 10px; background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 6px; font-size: 12px; }
+.d-deck-row .dd-main { flex: 1; min-width: 0; }
+.d-deck-row .dd-title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.d-deck-row .dd-meta { font-size: 10px; color: var(--text-muted); margin-top: 2px; }
+.d-deck-row .dd-flags { font-size: 12px; flex-shrink: 0; }
+.d-deck-row .dd-x { color: var(--text-muted); padding: 4px 7px; border-radius: 8px; flex-shrink: 0; }
+.d-deck-row .dd-x:hover { color: var(--red); }
+.d-act-row { font-size: 11px; color: var(--text-muted); padding: 6px 0; border-bottom: 1px dashed var(--border); line-height: 1.5; }
+.d-links { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* ── Occasioni strip (💎 nel feed) ──────────────────────────── */
+#occ-strip { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 14px; -webkit-overflow-scrolling: touch; }
+#occ-strip:empty { display: none; }
+.occ-mini { flex: 0 0 240px; background: var(--bg-card); border: 1px solid rgba(212,175,55,0.3); border-left: 3px solid var(--gold); border-radius: 13px; padding: 11px 13px; }
+.occ-mini .om-t { font-size: 12px; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.occ-mini .om-m { font-size: 10.5px; color: var(--text-secondary); margin-top: 4px; }
+.occ-mini .om-a { display: flex; gap: 6px; margin-top: 8px; }
+
+/* ── Vedette (compact) ──────────────────────────────────────── */
+.vrow { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 13px 15px; margin-bottom: 8px; }
+.vrow-top { display: flex; align-items: center; gap: 10px; }
+.vrow-name { font-size: 13px; flex: 1; min-width: 0; }
+.vrow-meta { font-size: 11px; color: var(--text-muted); margin-top: 6px; line-height: 1.6; }
+.vrow-del { color: var(--text-muted); padding: 4px 8px; border-radius: 8px; flex-shrink: 0; }
+.vrow-del:hover { color: var(--red); }
+.vform { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 14px; margin-top: 10px; }
+.vform .d-grid2 input, .vform .d-grid2 select { font-size: 12px; }
+
+/* ── Badge fiuto/cluster sulle card feed ────────────────────── */
+.fiuto-badge { background: var(--gold); color: #000; font-weight: 700; }
+.cluster-badge { background: rgba(77,155,255,0.18); border-color: rgba(77,155,255,0.4); color: var(--blue); }
+.push-select { width: 100%; padding: 9px 12px; background: var(--bg-input); border: 1px solid rgba(212,175,55,0.35); border-radius: 10px; font-size: 12px; color: var(--gold); }
+
+/* ── L'uscita di sicurezza dei modali (HTML puro, vive senza JS) ── */
+.modal-esc { color: var(--text-muted); text-decoration: none; font-size: 15px; line-height: 1;
+             padding: 6px 8px; margin-right: 2px; border-radius: 8px; flex: none; }
+.modal-esc:hover { color: var(--gold); background: var(--bg-elevated); }
+
+/* ── La via del ritorno + topbar tascabile ─────────────────────── */
+.tb-back { color: var(--text-secondary); text-decoration: none; font-size: 18px; line-height: 1;
+           padding: 8px 10px; margin: -8px 2px -8px -10px; border-radius: 9px; flex: none; }
+.tb-back:hover { color: var(--gold); background: var(--bg-elevated); }
+@media (max-width: 640px) {
+    .tb-label { display: none; }                     /* ➕ resta, la parola no */
+    .topbar { padding: 12px 12px 10px; }
+}
+
+/* ── 📊 Mercato (Fonderia): i pannelli della Centrale in plancia ── */
+.mk-h { font-size: 12px; letter-spacing: 2.5px; color: var(--text-secondary); font-weight: 600; text-transform: uppercase; margin: 22px 0 10px; }
+.mk-sub { text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 11.5px; color: var(--text-muted); }
+.mk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; }
+.mk-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 13px; padding: 14px 16px; }
+.mk-empty { color: var(--text-muted); font-size: 12px; padding: 14px; text-align: center; border: 1px dashed var(--border); border-radius: 11px; grid-column: 1/-1; }
+.mk-zbig { font-size: 22px; font-weight: 300; color: var(--gold); margin: 5px 0 2px; }
+.mk-zsub, .mk-m { font-size: 11.5px; color: var(--text-secondary); line-height: 1.7; }
+.mk-t { font-size: 13px; font-weight: 600; }
+.mk-why { font-size: 11px; color: var(--gold-dark, #B8960C); margin-top: 5px; line-height: 1.6; }
+.mk-badge { display: inline-block; font-size: 10px; letter-spacing: 1px; border-radius: 6px; padding: 2px 7px; margin-left: 6px; vertical-align: 1px; background: var(--bg-elevated); color: var(--text-secondary); }
+.mk-badge.gold { background: var(--gold-light, rgba(212,175,55,.15)); color: var(--gold); }
+.mk-badge.red { background: rgba(243,18,96,.12); color: var(--red, #F31260); }
+.mk-point { font-size: 28px; font-weight: 300; color: var(--gold); }
+.mk-vres-row { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-top: 12px; }
+#mk-vres table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+#mk-vres td { padding: 6px; border-bottom: 1px solid var(--border); color: var(--text-secondary); }
+#mk-vres td a { color: var(--text); text-decoration: none; }
+.mk-srcs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+
 /* ── Reduced motion: kill it all ─────────────────────────────── */
 @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -420,14 +528,18 @@ body.triage-lock { overflow: hidden; }
     <header class="topbar">
         <div class="tb-row1">
             <div class="tb-brand">
+                <!-- La via del ritorno: dalla PWA (nessuna chrome del browser)
+                     una console senza questo link è una trappola. -->
+                <a class="tb-back" href="/portal" title="Torna al portale" aria-label="Torna al portale">←</a>
                 <div class="tb-dot"></div>
                 <div class="tb-title">PFS Command<small>Boom Roma · Property Finding</small></div>
                 <span id="live-ind" class="live-ind down" title="Connessione realtime…"><span class="live-dot"></span>Live</span>
             </div>
             <div class="tb-cta">
+                <button id="btn-bug" class="btn-ghost" title="Segnala un problema (arriva col contesto tecnico)" aria-label="Segnala un problema" onclick="BoomPortal.reportBug({page:'pfs-command'})">🐞</button>
                 <button id="btn-palette" class="btn-ghost btn-cmd" title="Comandi rapidi (Ctrl+K)" aria-label="Comandi rapidi (Ctrl+K)">⌘</button>
                 <button id="btn-triage" class="btn btn-triage" title="Tutto gestito ✓" disabled>⚡ Triage<span id="triage-badge" class="tbadge" hidden>0</span></button>
-                <button id="btn-add-listing" class="btn">➕ Aggiungi annuncio</button>
+                <button id="btn-add-listing" class="btn">➕<span class="tb-label"> Aggiungi annuncio</span></button>
             </div>
         </div>
         <div class="tb-rows">
@@ -464,8 +576,17 @@ body.triage-lock { overflow: hidden; }
     </div>
 
     <main class="layout">
+        <section id="sec-pipeline">
+            <div class="sec-head"><h2>Il flusso</h2><span class="sec-count" id="pipe-count"></span>
+                <button class="btn-ghost" id="btn-new-client" style="margin-left:auto">➕ Nuovo cliente</button>
+            </div>
+            <div class="pipe-board" id="pipe-board"></div>
+            <div class="pipe-side" id="pipe-side"></div>
+        </section>
+
         <section id="sec-feed">
             <div class="sec-head"><h2>Feed Radar</h2><span class="sec-count" id="feed-count"></span></div>
+            <div id="occ-strip"></div>
             <div class="filters">
                 <input type="text" id="f-q" placeholder="Cerca titolo, indirizzo, zona…" autocomplete="off">
                 <select id="f-source">
@@ -483,21 +604,61 @@ body.triage-lock { overflow: hidden; }
                     <option value="agency">Agenzia</option>
                 </select>
                 <label class="chk"><input type="checkbox" id="f-match"> Solo con match</label>
+                <label class="chk"><input type="checkbox" id="f-deals"> 💎 Solo occasioni</label>
                 <label class="chk"><input type="checkbox" id="f-agency"> Mostra agenzie</label>
             </div>
             <div class="feed-grid" id="feed-list"></div>
-        </section>
-
-        <section id="sec-clients">
-            <div class="sec-head"><h2>Clienti</h2><span class="sec-count" id="clients-count"></span></div>
-            <div id="clients-list"></div>
-            <div class="muted-note" id="clients-inactive"></div>
         </section>
 
         <section id="sec-searches">
             <div class="sec-head"><h2>Ricerche automatiche</h2><span class="sec-count" id="searches-count"></span></div>
             <div id="searches-list"></div>
             <p class="hint">💡 Apri l'URL, raffina i filtri sul portale (zona esatta, "da privati"), incolla qui l'URL finale con ✏️ URL.</p>
+        </section>
+
+        <section id="sec-vedette">
+            <div class="sec-head"><h2>📡 Vedette</h2><span class="sec-count" id="vedette-count"></span></div>
+            <div id="vedette-list"></div>
+            <div class="vform">
+                <div class="d-grid2">
+                    <div class="full"><label>NOME</label><input id="v-name" placeholder="Es: Bilocali Pigneto ≤1100 · per Marco"></div>
+                    <div><label>ZONE (virgola)</label><input id="v-zones" placeholder="Pigneto, San Giovanni"></div>
+                    <div><label>PREZZO MAX €</label><input id="v-pricemax" type="number" min="0" placeholder="1200"></div>
+                    <div><label>MQ MIN</label><input id="v-sqmmin" type="number" min="0"></div>
+                    <div><label>CAMERE MIN</label><input id="v-bedsmin" type="number" min="0"></div>
+                    <div><label>INSERZIONISTA</label><select id="v-adv"><option value="any">Tutti</option><option value="private">Solo privati</option></select></div>
+                    <div><label>SOLO OCCASIONI 💎</label><select id="v-deals"><option value="no">No</option><option value="si">Sì</option></select></div>
+                    <div class="full"><label>EMAIL DESTINATARIO (digest · vuoto = solo Telegram a te)</label><input id="v-email" type="email" placeholder="cliente@esempio.com"></div>
+                    <div class="full"><button class="btn" id="btn-add-vedetta" style="width:100%">＋ Crea vedetta</button></div>
+                </div>
+            </div>
+            <p class="hint">💡 Le vedette sono le ricerche LIBERE: slegate dai clienti PFS, vedono solo gli annunci usciti dopo la loro creazione. Telegram a te è istantaneo; l'email parte come digest 3 volte al giorno.</p>
+        </section>
+
+        <!-- 📊 MERCATO — la Centrale vive qui (Fonderia, STUDIO_ARSENALE_II).
+             I 4 pannelli di /radar traslocati: polso per zona, candidati
+             mandato, Valutatore, gemelli. Occasioni e vedette erano GIÀ in
+             plancia: i doppioni si spengono, la Caccia ha una testa sola. -->
+        <section id="mercato">
+            <div class="sec-head"><h2>📊 Mercato</h2><span class="sec-count" id="mk-note"></span>
+                <button class="btn-ghost" id="btn-pulse" title="Ricalcola adesso le statistiche di zona (il Perito le pubblica ogni mattina)">↻ Aggiorna</button></div>
+            <h3 class="mk-h">Il polso per zona <span class="mk-sub">canoni CHIESTI per €/mq, assorbimento dalle morti provate</span></h3>
+            <div class="mk-grid" id="mk-zones"><div class="mk-empty">Nessuna statistica ancora: il libro mastro si riempie a ogni giro del radar.</div></div>
+            <h3 class="mk-h">🎯 Candidati mandato <span class="mk-sub">privati fermi oltre l'assorbimento della loro zona — card per te, mai contatti automatici</span></h3>
+            <div class="mk-grid" id="mk-mand"><div class="mk-empty">Nessun candidato: o il mercato gira, o mancano morti provate per l'assorbimento.</div></div>
+            <h3 class="mk-h">⚖️ Il Valutatore <span class="mk-sub">quantili del chiesto, corretti sui canoni FIRMATI BOOM</span></h3>
+            <div class="mk-card">
+                <div class="d-grid2">
+                    <div><label>ZONA</label><input id="mk-vzone" list="mk-zonelist" placeholder="Pigneto"></div>
+                    <div><label>MQ</label><input id="mk-vsqm" type="number" min="15" max="500" placeholder="70"></div>
+                    <div><label>CAMERE (OPZ.)</label><input id="mk-vrooms" type="number" min="0"></div>
+                    <div style="display:flex;align-items:flex-end"><button class="btn" id="btn-valuta" style="width:100%">Valuta</button></div>
+                </div>
+                <div id="mk-vres"></div>
+            </div>
+            <h3 class="mk-h">🧬 Gemelli cross-portale <span class="mk-sub">la stessa casa vista da più porte è UNA casa</span></h3>
+            <div class="mk-grid" id="mk-clusters"><div class="mk-empty">Nessun gemellaggio ancora: l'impronta lavora a ogni ingestione.</div></div>
+            <datalist id="mk-zonelist"></datalist>
         </section>
 
         <section id="sec-attention">
@@ -507,9 +668,11 @@ body.triage-lock { overflow: hidden; }
     </main>
 
     <nav id="bottom-nav">
-        <a href="#sec-feed" class="nav-item active" data-target="sec-feed"><span class="ni-icon">📡</span><span class="ni-label">Feed</span></a>
-        <a href="#sec-clients" class="nav-item" data-target="sec-clients"><span class="ni-icon">👥</span><span class="ni-label">Clienti</span></a>
+        <a href="#sec-pipeline" class="nav-item active" data-target="sec-pipeline"><span class="ni-icon">🧭</span><span class="ni-label">Flusso</span></a>
+        <a href="#sec-feed" class="nav-item" data-target="sec-feed"><span class="ni-icon">📡</span><span class="ni-label">Feed</span></a>
         <a href="#sec-searches" class="nav-item" data-target="sec-searches"><span class="ni-icon">🔍</span><span class="ni-label">Ricerche</span></a>
+        <a href="#sec-vedette" class="nav-item" data-target="sec-vedette"><span class="ni-icon">🗼</span><span class="ni-label">Vedette</span></a>
+        <a href="#mercato" class="nav-item" data-target="mercato"><span class="ni-icon">📊</span><span class="ni-label">Mercato</span></a>
         <a href="#sec-attention" class="nav-item" data-target="sec-attention"><span class="ni-icon">⚠️</span><span class="ni-label">Verifica</span></a>
     </nav>
 </div>
@@ -518,6 +681,7 @@ body.triage-lock { overflow: hidden; }
     <div class="modal" role="dialog" aria-modal="true" aria-label="Aggiungi annuncio">
         <div class="modal-head">
             <div class="modal-title">Aggiungi annuncio</div>
+            <a class="modal-esc" href="/pfs-command" title="La pagina non risponde? Riparti fresca">↻</a>
             <button class="modal-close" id="mf-close" aria-label="Chiudi">✕</button>
         </div>
         <div class="modal-src" id="mf-source-note">Fonte: manuale</div>
@@ -555,6 +719,69 @@ body.triage-lock { overflow: hidden; }
     <div class="palette" role="dialog" aria-modal="true" aria-label="Comandi rapidi">
         <input id="palette-input" type="text" placeholder="Cerca comandi, clienti, annunci…" autocomplete="off" spellcheck="false">
         <div id="palette-list" role="listbox"></div>
+    </div>
+</div>
+
+<div id="drawer-scrim" hidden></div>
+<div id="client-drawer" hidden role="dialog" aria-modal="true" aria-label="Fascicolo cliente"></div>
+
+<div id="client-modal-overlay" hidden style="position:fixed;inset:0;background:rgba(0,0,0,0.85);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);z-index:8350;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Cliente PFS">
+        <div class="modal-head">
+            <div class="modal-title" id="cm-title">Nuovo cliente</div>
+            <a class="modal-esc" href="/pfs-command" title="La pagina non risponde? Riparti fresca">↻</a>
+            <button class="modal-close" id="cm-close" aria-label="Chiudi">✕</button>
+        </div>
+        <div class="modal-src" id="cm-note">Il cliente entra nel flusso e le sue ricerche si generano da sole al prossimo sync.</div>
+        <div class="mgrid">
+            <div class="mfield full"><label for="cm-name">Nome *</label><input type="text" id="cm-name" autocomplete="off"></div>
+            <div class="mfield"><label for="cm-email">Email</label><input type="email" id="cm-email"></div>
+            <div class="mfield"><label for="cm-phone">Telefono</label><input type="tel" id="cm-phone" placeholder="+39…"></div>
+            <div class="mfield"><label for="cm-minbudget">Budget min €</label><input type="number" id="cm-minbudget" min="0" step="50"></div>
+            <div class="mfield"><label for="cm-budget">Budget MAX € *</label><input type="number" id="cm-budget" min="0" step="50" placeholder="1500"></div>
+            <div class="mfield full"><label for="cm-zone">Zone preferite</label><input type="text" id="cm-zone" placeholder="Trastevere, Monti"></div>
+            <div class="mfield"><label for="cm-bedrooms">Camere</label><select id="cm-bedrooms"><option value="">—</option><option value="1">1</option><option value="2">2</option><option value="3">3+</option></select></div>
+            <div class="mfield"><label for="cm-movein">Ingresso</label><input type="text" id="cm-movein" placeholder="Settembre 2026"></div>
+            <div class="mfield full"><label for="cm-musthaves">Must have</label><input type="text" id="cm-musthaves" placeholder="Balcone, ascensore…"></div>
+            <div class="mfield full"><label for="cm-notes">Note</label><textarea id="cm-notes"></textarea></div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn" id="cm-save">💾 Salva cliente</button>
+        </div>
+    </div>
+</div>
+
+<div id="outreach-modal-overlay" hidden style="position:fixed;inset:0;background:rgba(0,0,0,0.85);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);z-index:8650;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Contatta il proprietario">
+        <div class="modal-head">
+            <div class="modal-title">📨 Contatta il proprietario</div>
+            <!-- L'uscita di sicurezza in HTML PURO: un link nativo naviga
+                 anche quando il JS della pagina è morto (scheda zombie). -->
+            <a class="modal-esc" href="/pfs-command" title="La pagina non risponde? Riparti fresca">↻</a>
+            <button class="modal-close" id="om-close" aria-label="Chiudi">✕</button>
+        </div>
+        <div class="modal-src" id="om-listing-note"></div>
+        <div class="mgrid">
+            <div class="mfield"><label for="om-style">Stile</label><select id="om-style">
+                <option value="sobrio">Sobrio (professionale)</option>
+                <option value="caloroso">Caloroso</option>
+                <option value="deciso">Deciso (visita subito)</option>
+                <option value="english">English</option>
+            </select></div>
+            <div class="mfield"><label for="om-voice">Voce</label><select id="om-voice">
+                <option value="personale">Chi cerca casa</option>
+                <option value="boom">BOOM (trasparente)</option>
+            </select></div>
+            <div class="mfield full"><label for="om-client">Cliente (facoltativo — porta ingresso/durata nel testo, mai il nome)</label><select id="om-client"><option value="">—</option></select></div>
+            <div class="mfield full"><label for="om-extra">Nota extra (facoltativa)</label><input type="text" id="om-extra" placeholder="Es: disponibile anche a visita video da subito"></div>
+            <div class="mfield full"><label for="om-msg">Il messaggio — parte ESATTAMENTE così (modificabile)</label><textarea id="om-msg" style="min-height:130px"></textarea></div>
+        </div>
+        <div class="modal-actions">
+            <button class="btn-ghost" id="om-regen">↺ Rigenera</button>
+            <button class="btn-ghost" id="om-ai">✨ Rifinisci con AI</button>
+            <button class="btn" id="om-send">📨 Approva e metti in coda</button>
+        </div>
+        <p class="hint">Il tap su Approva è la firma: il Mac lo consegna nella chat del portale entro pochi minuti, a ritmo umano. Un solo contatto per annuncio, per costruzione — un secondo cliente interessato non genera un secondo messaggio.</p>
     </div>
 </div>
 
@@ -691,6 +918,9 @@ var SOURCES = [
     // quindi 25' di tolleranza. Finché non è configurato resta grigia "mai" —
     // che è la verità, e va vista: è la fonte veloce del servizio a pagamento.
     { key: 'homie-eyes', label: 'Occhi Homie', icon: '👁', freshMin: 25 },
+    // Il Contatto: il postino dei messaggi approvati (Mac, giro ogni 5' —
+    // riporta anche a coda vuota, quindi 20' di tolleranza bastano).
+    { key: 'contatto', label: 'Contatto', icon: '📨', freshMin: 20 },
     { key: 'sync',   label: 'Sync',    icon: '🔄', freshMin: 1560 } // 26 h
 ];
 var STAT_LABELS = {
@@ -724,6 +954,9 @@ var STAGES = {
     placed:            { label: 'Sistemato',    cls: 'st-gray' }
 };
 var ACTIVE_STAGES = ['payment_confirmed', 'searching', 'options', 'viewing', 'closing'];
+// Le colonne della pipeline, nell'ordine del flusso reale (placed sta fuori:
+// è il traguardo, non una colonna da guardare ogni giorno).
+var STAGE_FLOW = ['lead', 'payment_confirmed', 'searching', 'options', 'viewing', 'closing'];
 var PORTAL_NAMES = { immobiliare: 'Immobiliare.it', idealista: 'Idealista', subito: 'Subito.it', whatsapp: 'WhatsApp' };
 
 /* ────────────────────────── State ────────────────────────── */
@@ -733,14 +966,21 @@ var state = {
     clients: [],
     clientsById: {},
     searches: [],
-    loaded: { health: false, props: false, clients: false, searches: false },
-    filters: { q: '', source: '', advertiser: '', onlyMatch: false, showAgency: false },
+    loaded: { health: false, props: false, clients: false, searches: false, watchers: false },
+    filters: { q: '', source: '', advertiser: '', onlyMatch: false, onlyDeals: false, showAgency: false },
     openHealth: null,
     expandedBelow: {},        // propId → true
     expandedOutreach: {},     // propId → true
     outreachDraft: {},        // propId → {status, note}
     editSearch: null,         // search id in edit mode
     editSearchVal: null,
+    occ: [],                  // radarState/occasioni (più recente in testa)
+    watchers: [],             // radarWatchers — le vedette
+    outreachById: {},         // outreachQueue — i messaggi al proprietario
+    outreachModal: null,      // listingId col modale 📨 aperto
+    outreachDirty: false,     // l'operatore ha editato l'anteprima a mano
+    drawerClient: null,       // id del cliente col fascicolo aperto
+    clientModal: null,        // null · 'new' · id cliente in modifica
     knownIds: null,           // Set di id già visti (per rilevare nuovi arrivi realtime)
     newIds: null,             // Set di id appena arrivati (animazione is-new)
     live: { props: false, clients: false, searches: false }
@@ -833,6 +1073,7 @@ function visibleProps() {
         if (f.source && (p.source || '') !== f.source) return false;
         var ms = p.matchSummary || {};
         if (f.onlyMatch && !(Array.isArray(ms.pushedTo) && ms.pushedTo.length)) return false;
+        if (f.onlyDeals && !(p.radar && p.radar.fiuto && p.radar.fiuto.verdict === 'occasione')) return false;
         if (q) {
             var hay = [p.title, p.address, p.zone, p.description].join(' ').toLowerCase();
             if (hay.indexOf(q) === -1) return false;
@@ -846,6 +1087,9 @@ function feedCard(p) {
     var adv = ADV[advKey];
     var img = safeUrl(Array.isArray(p.images) && p.images.length ? p.images[0] : '');
     var url = safeUrl(p.sourceUrl);
+    var radar = p.radar || {};
+    var fiuto = radar.fiuto || {};
+    var oj = window.BOOM_OUTREACH ? state.outreachById[BOOM_OUTREACH.outreachKey(p.id)] : null;
     var ms = p.matchSummary || {};
     var pushed = Array.isArray(ms.pushedTo) ? ms.pushedTo : [];
     var had = Array.isArray(ms.alreadyHad) ? ms.alreadyHad : [];
@@ -904,6 +1148,10 @@ function feedCard(p) {
             '<div class="badge-row">' +
                 '<span class="pbadge">' + esc(p.source || '?') + '</span>' +
                 '<span class="pbadge ' + adv.cls + '">' + adv.label + '</span>' +
+                (fiuto.verdict === 'occasione' ? '<span class="pbadge fiuto-badge" title="Il fiuto del radar: occasione">💎 ' + esc(fiuto.score) + '</span>' : '') +
+                (fiuto.verdict === 'sospetto' ? '<span class="pbadge adv-agency" title="Prezzo irrealistico per la zona">⚠ sospetto</span>' : '') +
+                (radar.multiPortal ? '<span class="pbadge cluster-badge" title="La stessa casa su più portali">🔁 ' + (Array.isArray(radar.sources) ? radar.sources.length : 2) + '</span>' : '') +
+                (radar.privateAndAgency ? '<span class="pbadge cluster-badge" title="Pubblicata sia da privato che da agenzia">👥</span>' : '') +
             '</div>' +
             (oInfo ? '<span class="opill ' + oInfo.cls + '">' + oInfo.label + '</span>' : '') +
         '</div>' +
@@ -912,14 +1160,20 @@ function feedCard(p) {
             '<div class="fc-title">' + esc(title) + '</div>' +
             (addrParts.length ? '<div class="fc-addr">📍 ' + esc(addrParts.join(' · ')) + '</div>' : '') +
             '<div class="fc-meta">' + meta.join(' · ') + '</div>' +
+            (fiuto.verdict === 'occasione' && Array.isArray(fiuto.reasons) && fiuto.reasons.length
+                ? '<div class="fc-meta" style="color:var(--gold-dark)">💎 ' + esc(fiuto.reasons[0]) + '</div>' : '') +
             (chips.length ? '<div class="fc-matches">' + chips.join('') + '</div>' : '') +
             belowHtml +
             (waBtns ? '<div class="fc-wa">' + waBtns + '</div>' : '') +
             '<div class="fc-actions">' +
                 (url ? '<a class="abtn" href="' + esc(url) + '" target="_blank" rel="noopener">Apri annuncio ↗</a>' : '') +
+                outreachActionBtn(p, oj) +
                 '<button class="abtn" data-action="toggle-outreach">📞 Outreach ' + (outreachOpen ? '▴' : '▾') + '</button>' +
                 '<button class="abtn" data-action="copy-owner">📋 Copia messaggio proprietario</button>' +
             '</div>' +
+            '<select class="push-select" data-action="push-client" title="Push curato: entra nel mazzo del cliente scelto (senza soglia)">' +
+                '<option value="">→ Proponi a un cliente…</option>' + activeClientOpts() +
+            '</select>' +
             '<div class="fc-outreach"' + (outreachOpen ? '' : ' hidden') + '>' +
                 '<div class="o-row">' +
                     '<select data-field="o-status">' + statusOpts + '</select>' +
@@ -961,7 +1215,7 @@ function renderFeed() {
     list.innerHTML = props.map(feedCard).join('');
 }
 
-/* ────────────────────── Render: clients ──────────────────── */
+/* ─────────── Render: IL FLUSSO (pipeline) + il fascicolo ─────────── */
 function fmtBudget(c) {
     var b = c.budget;
     if (typeof b === 'number' && b > 0) {
@@ -976,71 +1230,612 @@ function isActiveClient(c) {
     return ACTIVE_STAGES.indexOf(c.stage) !== -1 || ACTIVE_STAGES.indexOf(c.portalStage) !== -1;
 }
 
-function clientCard(c) {
-    var stKey = STAGES[c.stage] ? c.stage : c.portalStage;
-    var stage = STAGES[stKey] || { label: c.stage || '—', cls: 'st-gray' };
+// Lo stage EFFETTIVO: i clienti nati da Stripe portano stage E portalStage,
+// quelli storici a volte solo uno dei due. Una regola sola, ovunque.
+function effStage(c) {
+    if (STAGES[c.stage]) return c.stage;
+    if (STAGES[c.portalStage]) return c.portalStage;
+    return 'lead';
+}
+
+function critLine(c) {
     var budget = fmtBudget(c);
     var zone = String(c.zone || '').trim() || String(c.preferred_areas || '').trim();
     var crit = [];
     if (budget) crit.push('💰 ' + esc(budget));
     if (zone) crit.push('📍 ' + esc(zone));
-    if (c.bedrooms) crit.push('🛏 ' + esc(c.bedrooms) + ' cam');
+    if (c.bedrooms) crit.push('🛏 ' + esc(c.bedrooms));
     if (c.moveIn) crit.push('📅 ' + esc(c.moveIn));
+    return crit.join(' · ');
+}
 
-    var weak = [];
-    if (!budget) weak.push('budget mancante');
-    if (!zone) weak.push('zona/aree preferite mancanti');
+// Il brief in chiaro, pronto da incollare OVUNQUE (Casafari, un collega,
+// una chat): la ricerca 1:1 sui portali ha i suoi bottoni; per tutto il
+// resto il criterio viaggia come testo, mai ricopiato a mano.
+function critCopyText(c) {
+    var lines = ['Ricerca per ' + (c.name || 'cliente') + ' — Roma'];
+    var zone = String(c.zone || '').trim() || String(c.preferred_areas || '').trim();
+    if (zone) lines.push('Zone: ' + zone);
+    var budget = fmtBudget(c);
+    if (budget) lines.push('Budget: ' + budget + '/mese');
+    if (c.bedrooms) lines.push('Camere: ' + c.bedrooms);
+    if (c.sqm || c.minSqm) lines.push('Superficie: da ' + (c.sqm || c.minSqm) + ' mq');
+    if (c.furnished != null && c.furnished !== '') lines.push('Arredato: ' + (c.furnished === true || c.furnished === 'yes' || c.furnished === 'si' ? 'sì' : String(c.furnished)));
+    if (c.moveIn) lines.push('Ingresso: ' + c.moveIn);
+    if (c.mustHaves) lines.push('Irrinunciabili: ' + c.mustHaves);
+    return lines.join('\n');
+}
 
+function deckStats(c) {
     var pp = Array.isArray(c.portalProperties) ? c.portalProperties : [];
-    var liked = 0, rejected = 0, news = 0;
+    var out = { total: pp.length, liked: 0, rejected: 0, news: 0, view: 0 };
     pp.forEach(function (x) {
-        if (x.clientLiked) liked++;
-        if (x.clientRejected) rejected++;
-        if (x.isNew) news++;
+        if (!x) return;
+        if (x.clientLiked) out.liked++;
+        if (x.clientRejected) out.rejected++;
+        if (x.isNew) out.news++;
+        if (x.viewingRequested) out.view++;
     });
-    var lastAct = null;
-    (Array.isArray(c.portalActivity) ? c.portalActivity : []).forEach(function (a) {
-        var d = toDate(a.timestamp);
-        if (d && (!lastAct || d > lastAct)) lastAct = d;
-    });
+    return out;
+}
 
-    return '<div class="ccard" data-id="' + esc(c.id) + '">' +
-        '<div class="cc-top">' +
-            '<span class="cc-name">' + esc(c.name || 'Senza nome') + '</span>' +
-            (weak.length ? '<span class="warn" data-action="show-warn" data-warn="' + esc('Criteri deboli: ' + weak.join(', ')) + '" title="' + esc('Criteri deboli: ' + weak.join(', ')) + '">⚠️</span>' : '') +
-            '<span class="spill ' + stage.cls + '">' + esc(stage.label) + '</span>' +
-        '</div>' +
-        (crit.length ? '<div class="cc-crit">' + crit.join(' · ') + '</div>' : '<div class="cc-crit" style="color:var(--text-muted)">Nessun criterio impostato</div>') +
-        '<div class="cc-stats">' +
-            '<span><b>' + pp.length + '</b> proposte</span>' +
-            '<span>❤️ <b>' + liked + '</b></span>' +
-            '<span>✗ <b>' + rejected + '</b></span>' +
-            '<span>🆕 <b>' + news + '</b></span>' +
-        '</div>' +
-        '<div class="cc-act">Ultima attività: ' + (lastAct ? esc(relTime(lastAct)) : 'nessuna') + '</div>' +
+function daysInStage(c) {
+    var d = toDate(c.stageEnteredAt);
+    return d ? Math.floor((Date.now() - d.getTime()) / 86400e3) : null;
+}
+
+// Quanti giorni in questo stage sono "troppi": è IL segnale operativo della
+// pipeline — un cliente fermo è un rimborso che si avvicina.
+var STAGE_SLOW_DAYS = { payment_confirmed: 2, searching: 10, options: 7, viewing: 7, closing: 5 };
+
+function pipeChip(c) {
+    var s = deckStats(c);
+    var days = daysInStage(c);
+    var k = effStage(c);
+    var slow = days != null && STAGE_SLOW_DAYS[k] != null && days > STAGE_SLOW_DAYS[k];
+    var weakCrit = !fmtBudget(c) || !(String(c.zone || '').trim() || String(c.preferred_areas || '').trim());
+    return '<div class="pipe-chip" data-cid="' + esc(c.id) + '">' +
+        '<div class="pc-name"><span>' + esc(c.name || 'Senza nome') + (weakCrit ? ' ⚠️' : '') + '</span>' +
+            (days != null ? '<span class="pc-days' + (slow ? ' slow' : '') + '" title="giorni in questo stage">' + days + 'g</span>' : '') + '</div>' +
+        (critLine(c) ? '<div class="pc-crit">' + critLine(c) + '</div>' : '<div class="pc-crit" style="color:var(--amber)">criteri mancanti — il radar è cieco</div>') +
+        '<div class="pc-stats"><span>🏠 <b>' + s.total + '</b></span><span>❤️ <b>' + s.liked + '</b></span>' +
+            (s.view ? '<span>📅 <b>' + s.view + '</b></span>' : '') +
+            (s.news ? '<span>🆕 <b>' + s.news + '</b></span>' : '') + '</div>' +
     '</div>';
 }
 
+// Il nome resta renderClients (tutti i call-site invariati) ma ora disegna
+// LA PIPELINE: una colonna per stage, il cliente si apre nel fascicolo.
 function renderClients() {
-    var list = $('clients-list');
+    var board = $('pipe-board');
     if (!state.loaded.clients) {
-        list.innerHTML = '<div class="empty"><div class="empty-icon">👥</div><div class="empty-title">Caricamento clienti…</div></div>';
-        $('clients-count').textContent = '';
-        $('clients-inactive').textContent = '';
+        board.innerHTML = '<div class="empty" style="flex:1"><div class="empty-icon">🧭</div><div class="empty-title">Caricamento flusso…</div></div>';
+        $('pipe-count').textContent = '';
+        $('pipe-side').textContent = '';
         return;
     }
-    var active = state.clients.filter(isActiveClient);
-    var inactive = state.clients.length - active.length;
-    $('clients-count').textContent = active.length + ' attivi';
-    if (!active.length) {
-        list.innerHTML = '<div class="empty"><div class="empty-icon">👥</div>' +
-            '<div class="empty-title">Nessun cliente attivo</div>' +
-            '<p>I clienti PFS con stage attivo (pagamento confermato → chiusura) compaiono qui con criteri e statistiche del deck.</p></div>';
+    var byStage = {};
+    STAGE_FLOW.forEach(function (k) { byStage[k] = []; });
+    var placed = 0, other = 0;
+    state.clients.forEach(function (c) {
+        var k = effStage(c);
+        if (byStage[k]) byStage[k].push(c);
+        else if (k === 'placed') placed++;
+        else other++;
+    });
+    var activeN = 0;
+    STAGE_FLOW.forEach(function (k) { if (k !== 'lead') activeN += byStage[k].length; });
+    $('pipe-count').textContent = activeN + ' nel flusso';
+    board.innerHTML = STAGE_FLOW.map(function (k) {
+        var col = byStage[k].slice().sort(function (a, b) { return (daysInStage(b) || 0) - (daysInStage(a) || 0); });
+        return '<div class="pipe-col" data-stage="' + k + '">' +
+            '<div class="pipe-col-head"><span class="pipe-col-title">' + esc(STAGES[k].label) + '</span><span class="pipe-col-n">' + col.length + '</span></div>' +
+            (col.length ? col.map(pipeChip).join('') : '<div class="pipe-empty-col">—</div>') +
+        '</div>';
+    }).join('');
+    $('pipe-side').textContent = [placed ? '🏁 ' + placed + ' sistemati' : '', other ? other + ' fuori flusso' : ''].filter(Boolean).join(' · ');
+    if (state.drawerClient) renderDrawer(); // il fascicolo aperto segue il realtime
+}
+
+/* ── Il fascicolo cliente (drawer) ───────────────────────────── */
+function openDrawer(id) {
+    state.drawerClient = id;
+    $('drawer-scrim').hidden = false;
+    $('client-drawer').hidden = false;
+    renderDrawer();
+}
+function closeDrawer() {
+    state.drawerClient = null;
+    $('drawer-scrim').hidden = true;
+    $('client-drawer').hidden = true;
+}
+function clientSearches(id) {
+    return state.searches.filter(function (s) { return s.clientId === id; });
+}
+function portalLink(c) {
+    return c.portalAccessCode ? 'https://www.boomrome.com/client-portal?code=' + encodeURIComponent(c.portalAccessCode) : null;
+}
+
+function renderDrawer() {
+    var box = $('client-drawer');
+    var c = state.clientsById[state.drawerClient];
+    if (!c) { box.innerHTML = '<div class="empty"><div class="empty-title">Cliente non trovato</div><p>Forse è stato eliminato.</p></div>'; return; }
+    var stKey = effStage(c);
+    var s = deckStats(c);
+    var flow = STAGE_FLOW.concat(['placed']);
+    var idx = flow.indexOf(stKey);
+    var stageOpts = flow.map(function (k) {
+        return '<option value="' + k + '"' + (k === stKey ? ' selected' : '') + '>' + STAGES[k].label + '</option>';
+    }).join('');
+    var searches = clientSearches(c.id);
+    var pLink = portalLink(c);
+    var deck = (Array.isArray(c.portalProperties) ? c.portalProperties : []).slice().reverse().slice(0, 40);
+    var acts = (Array.isArray(c.portalActivity) ? c.portalActivity : []).slice(-12).reverse();
+    var phone = waPhone(c.phone);
+
+    box.innerHTML =
+        '<div class="d-head">' +
+            '<span class="d-name">' + esc(c.name || 'Senza nome') + '</span>' +
+            '<span class="spill ' + (STAGES[stKey] || {}).cls + '">' + esc((STAGES[stKey] || {}).label || stKey) + '</span>' +
+            '<button class="abtn" data-daction="close" aria-label="Chiudi">✕</button>' +
+        '</div>' +
+        '<div class="d-sub">' + esc([c.email, c.phone].filter(Boolean).join(' · ') || 'nessun contatto salvato') + '</div>' +
+        '<div class="d-stage-row">' +
+            '<button class="abtn" data-daction="stage-prev"' + (idx <= 0 ? ' disabled' : '') + ' title="Stage precedente">←</button>' +
+            '<select data-dfield="stage">' + stageOpts + '</select>' +
+            '<button class="abtn" data-daction="stage-next"' + (idx >= flow.length - 1 ? ' disabled' : '') + ' title="Stage successivo">→</button>' +
+        '</div>' +
+        '<div class="d-links">' +
+            (phone ? '<a class="wa-btn" target="_blank" rel="noopener" href="https://wa.me/' + phone + '">💬 WhatsApp</a>' : '') +
+            (pLink
+                ? '<button class="abtn" data-daction="copy-portal">🔗 Link portale</button>'
+                : '<button class="abtn" data-daction="gen-portal">🔑 Attiva portale</button>') +
+            '<button class="abtn" data-daction="edit">✏️ Modifica</button>' +
+            '<button class="abtn" data-daction="delete" style="color:var(--red)" title="Elimina cliente">🗑</button>' +
+        '</div>' +
+        '<div class="d-sec"><h4>Criteri</h4>' +
+            '<div class="cc-crit">' + (critLine(c) || '<span style="color:var(--amber)">Nessun criterio: senza budget e zone il radar non può lavorare per questo cliente.</span>') + '</div>' +
+            (c.mustHaves ? '<div class="cc-crit">✓ ' + esc(c.mustHaves) + '</div>' : '') +
+            (c.notes ? '<div class="cc-crit" style="color:var(--text-muted)">📝 ' + esc(c.notes) + '</div>' : '') +
+            // La ricerca 1:1 a UN tap: si apre il portale già filtrato sui
+            // criteri (zona verificata + prezzo + privati — la grammatica di
+            // _searchurls). Da lì: rifinisci gli ultimi filtri e SALVA la
+            // ricerca sul portale → i suoi alert email alimentano da soli il
+            // radar (scan-inbox, la fonte portante). 📋 per Casafari e resto.
+            '<div class="d-links" style="margin-top:8px">' +
+                (function () {
+                    var btns = [];
+                    ['immobiliare', 'idealista'].forEach(function (portal) {
+                        var sr = searches.find(function (x) { return x.portal === portal; });
+                        var u = sr && safeUrl(sr.urlOverride || sr.searchUrl);
+                        if (u) btns.push('<a class="abtn" href="' + esc(u) + '" target="_blank" rel="noopener">🔎 ' + portal.charAt(0).toUpperCase() + portal.slice(1) + '</a>');
+                    });
+                    btns.push('<button class="abtn" data-daction="copy-crit" title="Copia il brief per Casafari o chiunque">📋 Copia criteri</button>');
+                    return btns.join('');
+                })() +
+            '</div>' +
+        '</div>' +
+        '<div class="d-sec"><h4>Ricerche (' + searches.length + ') <button class="abtn" data-daction="sync">🔄 Sync ora</button></h4>' +
+            (searches.length ? searches.map(function (sr) {
+                var eff = safeUrl(sr.urlOverride || sr.searchUrl);
+                return '<div class="d-deck-row"><div class="dd-main">' +
+                    '<div class="dd-title">' + esc(sr.portal || '?') + (sr.zoneName ? ' · ' + esc(sr.zoneName) : '') + (sr.urlOverride ? ' · <span style="color:var(--gold)">override</span>' : '') + (sr.enabled === false ? ' · <span style="color:var(--text-muted)">spenta</span>' : '') + '</div>' +
+                    '<div class="dd-meta">' + (sr.lastScanAt ? esc(relTime(sr.lastScanAt)) : 'mai scansionata') + (sr.lastNew != null ? ' · nuovi: ' + esc(sr.lastNew) : '') + '</div></div>' +
+                    (eff ? '<a class="abtn" href="' + esc(eff) + '" target="_blank" rel="noopener">↗</a>' : '') +
+                '</div>';
+            }).join('') : '<div class="dd-meta" style="color:var(--text-muted)">Nessuna ricerca: si generano dai criteri al prossimo sync.</div>') +
+        '</div>' +
+        '<div class="d-sec"><h4>Mazzo (' + s.total + ') · ❤️ ' + s.liked + ' · ✗ ' + s.rejected + (s.view ? ' · 📅 ' + s.view : '') + '</h4>' +
+            (deck.length ? deck.map(function (p) {
+                var flags = (p.viewingRequested ? '📅' : '') + (p.clientLiked ? '❤️' : '') + (p.clientRejected ? '✗' : '') + (p.isNew ? '🆕' : '');
+                return '<div class="d-deck-row"><div class="dd-main">' +
+                    '<div class="dd-title">' + esc(p.address || p.id) + '</div>' +
+                    '<div class="dd-meta">€' + fmtPrice(p.price) + (p.match ? ' · match ' + esc(p.match) : '') + (p.addedAt ? ' · ' + esc(relTime(p.addedAt)) : '') + (p.rejectReason ? ' · “' + esc(p.rejectReason) + '”' : '') + '</div></div>' +
+                    (flags ? '<span class="dd-flags">' + flags + '</span>' : '') +
+                    (safeUrl(p.sourceUrl) ? '<a class="abtn" href="' + esc(safeUrl(p.sourceUrl)) + '" target="_blank" rel="noopener">↗</a>' : '') +
+                    '<button class="dd-x" data-daction="deck-remove" data-pid="' + esc(p.id) + '" title="Togli dal mazzo">🗑</button>' +
+                '</div>';
+            }).join('') : '<div class="dd-meta" style="color:var(--text-muted)">Mazzo vuoto: il radar spinge i match ≥60, oppure proponi tu dal feed («→ Proponi a…»).</div>') +
+        '</div>' +
+        '<div class="d-sec"><h4>Attività recente</h4>' +
+            (acts.length ? acts.map(function (a) {
+                return '<div class="d-act-row">' + esc(a.type || '') + (a.score ? ' (' + esc(a.score) + ')' : '') + ' · ' + esc(relTime(a.timestamp)) + '</div>';
+            }).join('') : '<div class="dd-meta" style="color:var(--text-muted)">Nessuna attività registrata.</div>') +
+        '</div>';
+}
+
+/* ── Le azioni del flusso ────────────────────────────────────── */
+// Stessa scrittura di changePFSStage nel portal (stage + stageEnteredAt +
+// lastUpdated, placedDate quando si chiude): due superfici, UNA semantica.
+function writeStage(c, newStage) {
+    if (!c || !STAGES[newStage] || effStage(c) === newStage) return Promise.resolve();
+    var upd = {
+        stage: newStage,
+        stageEnteredAt: firebase.firestore.FieldValue.serverTimestamp(),
+        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    if (newStage === 'placed') upd.placedDate = firebase.firestore.FieldValue.serverTimestamp();
+    return db.collection('pfsClients').doc(c.id).set(upd, { merge: true }).then(function () {
+        BoomPortal.toast('📍 ' + (c.name || 'Cliente') + ' → ' + STAGES[newStage].label);
+    }).catch(function (err) {
+        BoomPortal.toast('Errore stage: ' + (err && err.message ? err.message : err), { type: 'error' });
+    });
+}
+
+function genPortalCode(c) {
+    // Stesso formato del webhook Stripe ('BM' + 5): il client-portal lo
+    // accetta identico. Alfabeto senza caratteri ambigui.
+    var alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+    var code = 'BM';
+    for (var i = 0; i < 5; i++) code += alphabet[Math.floor(Math.random() * alphabet.length)];
+    return db.collection('pfsClients').doc(c.id).set({ portalAccessCode: code, portalEnabled: true }, { merge: true })
+        .then(function () { BoomPortal.toast('Portale attivato · codice ' + code, { duration: 6000 }); })
+        .catch(function (err) { BoomPortal.toast('Errore: ' + (err && err.message ? err.message : err), { type: 'error' }); });
+}
+
+function deckRemove(c, pid) {
+    var pp = (Array.isArray(c.portalProperties) ? c.portalProperties : []).filter(function (x) { return x && x.id !== pid; });
+    return db.collection('pfsClients').doc(c.id).set({ portalProperties: pp }, { merge: true })
+        .then(function () { BoomPortal.toast('Tolto dal mazzo'); })
+        .catch(function (err) { BoomPortal.toast('Errore: ' + (err && err.message ? err.message : err), { type: 'error' }); });
+}
+
+/* ── Modale cliente (crea / modifica) ────────────────────────── */
+function openClientModal(id) {
+    state.clientModal = id || 'new';
+    var c = (id && state.clientsById[id]) || {};
+    $('cm-title').textContent = id ? 'Modifica cliente' : 'Nuovo cliente';
+    $('cm-note').textContent = id
+        ? 'Le modifiche ai criteri riallineano le ricerche al prossimo sync.'
+        : 'Il cliente entra nel flusso in "In ricerca", col portale già attivo.';
+    $('cm-name').value = c.name || '';
+    $('cm-email').value = c.email || '';
+    $('cm-phone').value = c.phone || '';
+    $('cm-minbudget').value = c.minBudget || '';
+    $('cm-budget').value = (typeof c.budget === 'number' && c.budget > 0) ? c.budget : '';
+    $('cm-zone').value = c.zone || c.preferred_areas || '';
+    $('cm-bedrooms').value = c.bedrooms || '';
+    $('cm-movein').value = c.moveIn || '';
+    $('cm-musthaves').value = c.mustHaves || '';
+    $('cm-notes').value = c.notes || '';
+    $('client-modal-overlay').hidden = false;
+    setTimeout(function () { $('cm-name').focus(); }, 60);
+}
+function closeClientModal() {
+    state.clientModal = null;
+    $('client-modal-overlay').hidden = true;
+}
+function saveClientModal() {
+    var name = $('cm-name').value.trim();
+    if (!name) { BoomPortal.toast('Il nome serve', { type: 'warning' }); return; }
+    var budget = parseInt($('cm-budget').value, 10) || 0;
+    // Stessa forma di savePFSClient/updatePFSClient nel portal.
+    var data = {
+        name: name,
+        email: $('cm-email').value.trim(),
+        phone: $('cm-phone').value.trim(),
+        minBudget: parseInt($('cm-minbudget').value, 10) || 0,
+        budget: budget,
+        zone: $('cm-zone').value.trim(),
+        bedrooms: $('cm-bedrooms').value,
+        mustHaves: $('cm-musthaves').value.trim(),
+        moveIn: $('cm-movein').value.trim(),
+        notes: $('cm-notes').value.trim(),
+        lastUpdated: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    var op;
+    if (state.clientModal === 'new') {
+        var alphabet = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+        var code = 'BM';
+        for (var i = 0; i < 5; i++) code += alphabet[Math.floor(Math.random() * alphabet.length)];
+        op = db.collection('pfsClients').add(Object.assign({}, data, {
+            service: 'PFS',
+            dealBreakers: '',
+            source: 'pfs-command',
+            stage: 'searching',
+            stageEnteredAt: new Date().toISOString(),
+            lastContact: null,
+            portalEnabled: true,
+            portalAccessCode: code,
+            portalStage: 'searching',
+            portalProperties: [],
+            portalActivity: [],
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        })).then(function (ref) {
+            BoomPortal.toast('Cliente creato · portale ' + code + ' · le ricerche arrivano col sync', { duration: 6000 });
+            closeClientModal();
+            openDrawer(ref.id);
+        });
     } else {
-        active.sort(function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); });
-        list.innerHTML = active.map(clientCard).join('');
+        op = db.collection('pfsClients').doc(state.clientModal).set(data, { merge: true }).then(function () {
+            BoomPortal.toast('Cliente aggiornato — le ricerche si riallineano al prossimo sync');
+            closeClientModal();
+        });
     }
-    $('clients-inactive').textContent = inactive > 0 ? '+ ' + inactive + ' clienti non attivi' : '';
+    return op.catch(function (err) { BoomPortal.toast('Errore: ' + (err && err.message ? err.message : err), { type: 'error' }); });
+}
+
+/* ── «Proponi a…»: push curato dal feed al mazzo di UN cliente ── */
+// Riusa la porta operator-curated già esistente (api/casafari/import):
+// stesso master, stessa entry del mazzo, force=true perché qui decide
+// l'operatore, non la soglia.
+function pushToClient(prop, clientId, selEl) {
+    var client = state.clientsById[clientId];
+    if (!client || !prop) { if (selEl) selEl.value = ''; return; }
+    var doIt = function () {
+        if (selEl) selEl.disabled = true;
+        apiPost('/api/casafari/import', {
+            clientId: clientId,
+            force: true,
+            listing: {
+                sourceUrl: prop.sourceUrl, source: prop.source, price: prop.price,
+                title: prop.title, address: prop.address, zone: prop.zone,
+                bedrooms: prop.bedrooms, sqm: prop.sqm, bathrooms: prop.bathrooms,
+                furnished: prop.furnished, images: prop.images, description: prop.description,
+                advertiser: prop.advertiser
+            }
+        }).then(function (r) {
+            var res = (r.results && r.results[0]) || {};
+            if (res.duplicate) BoomPortal.toast((client.name || 'Il cliente') + ' ha già questa casa nel mazzo (o un suo gemello)', { type: 'info' });
+            else if (res.pushed) BoomPortal.toast('🏠 Proposta a ' + (client.name || clientId) + (res.score != null ? ' (score ' + res.score + ')' : ''), { type: 'success', duration: 5000 });
+            else BoomPortal.toast('Non spinto: ' + (res.error || 'motivo ignoto'), { type: 'warning' });
+        }).catch(function (err) {
+            BoomPortal.toast('Errore push: ' + (err && err.message ? err.message : err), { type: 'error' });
+        }).then(function () {
+            if (selEl) { selEl.disabled = false; selEl.value = ''; }
+        });
+    };
+    if (prop.advertiser === 'agency') {
+        BoomPortal.confirm('È un annuncio di AGENZIA (doppia commissione per il cliente). Proporlo comunque?', { danger: true })
+            .then(function (yes) { if (yes) doIt(); else if (selEl) selEl.value = ''; });
+    } else {
+        doIt();
+    }
+}
+
+function activeClientOpts() {
+    return state.clients.filter(isActiveClient)
+        .sort(function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); })
+        .map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.name || c.id) + '</option>'; })
+        .join('');
+}
+
+/* ── 📨 IL CONTATTO: dal feed alla chat del portale ──────────── */
+// Il tap su "Approva" È l'approvazione: il doc entra in outreachQueue con
+// status 'approved' e il Mac (boom_contatto.py) lo consegna nella chat del
+// portale. Il messaggio si compone col motore CONDIVISO (BOOM_OUTREACH,
+// stessa copia del server): l'anteprima qui e il testo validato là non
+// possono divergere. Un contatto per annuncio, per costruzione (id =
+// outreachKey), e mai su annunci di AGENZIA (priorità totale al privato).
+
+var OUTREACH_PORTALS = ['immobiliare', 'idealista', 'subito']; // dove esiste una chat/form da compilare
+
+function outreachActionBtn(p, oj) {
+    if (!window.BOOM_OUTREACH) return '';
+    var advKey = (p.advertiser === 'private' || p.advertiser === 'agency') ? p.advertiser : 'unknown';
+    if (advKey === 'agency') return '';
+    // Un annuncio arrivato da WhatsApp o inserito a mano non ha una pagina
+    // portale con la chat: il bottone sarebbe una promessa che il Mac non
+    // può mantenere (validateJob lo rifiuterebbe comunque, ma tardi).
+    if (OUTREACH_PORTALS.indexOf(p.source) < 0) return '';
+    if (oj) {
+        if (oj.status === 'sent') return '<span class="abtn" style="pointer-events:none;color:var(--green)">📨 Inviato via portale</span>';
+        if (oj.status === 'approved') return '<button class="abtn" data-action="cancel-outreach" style="color:var(--gold)" title="In coda per l\'invio — tocca per annullare">📨 In coda · ✕ annulla</button>';
+        if (oj.status === 'sending') return '<span class="abtn" style="pointer-events:none;color:var(--gold)">📨 Invio in corso…</span>';
+        if (oj.status === 'failed') return '<button class="abtn" data-action="contact-owner" style="color:var(--amber)" title="Invio non riuscito o esito incerto: rivedi e riprova">📨 Da verificare — riprova</button>';
+    }
+    return '<button class="abtn" data-action="contact-owner">📨 Contatta (AI)</button>';
+}
+
+function omSelectedClient() {
+    var id = $('om-client').value;
+    return id ? state.clientsById[id] || null : null;
+}
+
+function omRegen() {
+    var p = findProp(state.outreachModal);
+    if (!p || !window.BOOM_OUTREACH) return;
+    $('om-msg').value = BOOM_OUTREACH.buildMessage(p, {
+        style: $('om-style').value,
+        voice: $('om-voice').value,
+        client: omSelectedClient(),
+        note: $('om-extra').value.trim(),
+    });
+    state.outreachDirty = false;
+}
+
+function openOutreachModal(listingId) {
+    var p = findProp(listingId);
+    if (!p) { BoomPortal.toast('Annuncio non più nel feed', { type: 'info' }); return; }
+    state.outreachModal = listingId;
+    state.outreachDirty = false;
+    $('om-listing-note').textContent = (p.title || p.address || p.sourceUrl || '') +
+        ' · €' + fmtPrice(p.price) + '/mese · ' + (p.source || '?') +
+        (p.advertiser === 'unknown' ? ' · ⚠ inserzionista da verificare' : '');
+    // clienti attivi nel select; pre-scelto il primo del matchSummary
+    var pushed = (p.matchSummary && p.matchSummary.pushedTo) || [];
+    var pre = pushed.length ? pushed[0].clientId : '';
+    $('om-client').innerHTML = '<option value="">—</option>' + state.clients.filter(isActiveClient)
+        .sort(function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); })
+        .map(function (c) { return '<option value="' + esc(c.id) + '"' + (c.id === pre ? ' selected' : '') + '>' + esc(c.name || c.id) + '</option>'; })
+        .join('');
+    $('om-extra').value = '';
+    omRegen();
+    $('outreach-modal-overlay').hidden = false;
+}
+
+function closeOutreachModal() {
+    state.outreachModal = null;
+    $('outreach-modal-overlay').hidden = true;
+}
+
+function omAi() {
+    var p = findProp(state.outreachModal);
+    if (!p) { BoomPortal.toast('Annuncio non più nel feed', { type: 'warning' }); closeOutreachModal(); return; }
+    var btn = $('om-ai');
+    btn.disabled = true;
+    apiPost('/api/outreach/draft', {
+        listingId: p.id,
+        style: $('om-style').value,
+        voice: $('om-voice').value,
+        clientId: $('om-client').value || null,
+        note: $('om-extra').value.trim(),
+        ai: true,
+    }).then(function (r) {
+        if (r.message) {
+            $('om-msg').value = r.message;
+            state.outreachDirty = true; // l'AI conta come edit: i selettori non lo sovrascrivono
+            BoomPortal.toast(r.source === 'ai' ? '✨ Rifinito sui dettagli veri dell\'annuncio' : 'AI non disponibile: template', { type: 'info' });
+        }
+    }).catch(function (err) {
+        BoomPortal.toast('Errore AI: ' + (err && err.message ? err.message : err), { type: 'error' });
+    }).then(function () { btn.disabled = false; });
+}
+
+function omSend() {
+    var p = findProp(state.outreachModal);
+    if (!p || !window.BOOM_OUTREACH) {
+        BoomPortal.toast('Annuncio non più nel feed', { type: 'warning' });
+        closeOutreachModal();
+        return;
+    }
+    var message = $('om-msg').value.trim();
+    var job = {
+        listingId: p.id,
+        sourceUrl: p.sourceUrl,
+        portal: p.source || null,
+        message: message,
+        style: $('om-style').value,
+        voice: $('om-voice').value,
+        clientId: $('om-client').value || null,
+        clientName: (omSelectedClient() || {}).name || null,
+        status: 'approved',
+        attempts: 0,
+        createdAt: new Date().toISOString(),
+        createdBy: 'plancia',
+    };
+    var v = BOOM_OUTREACH.validateJob(job);
+    if (!v.ok) { BoomPortal.toast(v.errors[0], { type: 'warning', duration: 5000 }); return; }
+    var key = BOOM_OUTREACH.outreachKey(p.id);
+    var alreadyMsg = 'Questo annuncio è già stato contattato (o è in coda): un proprietario, un messaggio.';
+    var existing = state.outreachById[key];
+    if (existing && (existing.status === 'sent' || existing.status === 'approved' || existing.status === 'sending')) {
+        BoomPortal.toast(alreadyMsg, { type: 'warning', duration: 5000 });
+        return;
+    }
+    var btn = $('om-send');
+    btn.disabled = true;
+    // La verità la dice FIRESTORE, non la cache del listener (che su un
+    // canale morto resta vuota per sempre): si rilegge il doc PRIMA di
+    // scrivere — un doc 'sent' sovrascritto sarebbe un secondo messaggio
+    // allo stesso proprietario.
+    db.collection('outreachQueue').doc(key).get().then(function (snap) {
+        var cur = snap.exists ? snap.data() : null;
+        if (cur && ['sent', 'approved', 'sending'].indexOf(cur.status) >= 0) {
+            BoomPortal.toast(alreadyMsg, { type: 'warning', duration: 5000 });
+            return null;
+        }
+        return db.collection('outreachQueue').doc(key).set(job).then(function () {
+            BoomPortal.toast('📨 In coda: il Mac lo consegna nella chat del portale entro pochi minuti', { type: 'success', duration: 5000 });
+            closeOutreachModal();
+        });
+    }).catch(function (err) {
+        BoomPortal.toast('Errore: ' + (err && err.message ? err.message : err), { type: 'error' });
+    }).then(function () { btn.disabled = false; });
+}
+
+function cancelOutreach(listingId) {
+    var key = BOOM_OUTREACH.outreachKey(listingId);
+    BoomPortal.confirm('Annullare il messaggio in coda per questo annuncio?').then(function (yes) {
+        if (!yes) return;
+        db.collection('outreachQueue').doc(key).set({ status: 'cancelled', cancelledAt: new Date().toISOString() }, { merge: true })
+            .then(function () { BoomPortal.toast('Messaggio annullato — non partirà'); })
+            .catch(function (err) { BoomPortal.toast('Errore: ' + (err && err.message ? err.message : err), { type: 'error' }); });
+    });
+}
+
+/* ── Occasioni (💎 strip nel feed) ───────────────────────────── */
+function renderOccStrip() {
+    var el = $('occ-strip');
+    if (!el) return;
+    el.innerHTML = state.occ.slice(0, 10).map(function (o) {
+        return '<div class="occ-mini" data-oid="' + esc(o.id) + '">' +
+            '<div class="om-t">💎 ' + esc(o.title || 'Annuncio') + '</div>' +
+            '<div class="om-m">' + esc(o.zone || 'zona n/d') + ' · €' + fmtPrice(o.price) +
+                (o.eurSqm ? ' · ' + esc(o.eurSqm) + ' €/mq' : '') +
+                (o.vsMedianPct != null ? ' (' + esc(o.vsMedianPct) + '%)' : '') +
+                ' · ' + esc(relTime(o.at)) + '</div>' +
+            '<div class="om-a">' +
+                (safeUrl(o.url) ? '<a class="abtn" href="' + esc(safeUrl(o.url)) + '" target="_blank" rel="noopener">Apri ↗</a>' : '') +
+                '<button class="abtn" data-action="occ-find">Nel feed</button>' +
+            '</div>' +
+        '</div>';
+    }).join('');
+}
+
+/* ── Le vedette (ricerche libere) ────────────────────────────── */
+function renderVedette() {
+    var list = $('vedette-list');
+    if (!state.loaded.watchers) {
+        list.innerHTML = '<div class="empty"><div class="empty-icon">🗼</div><div class="empty-title">Caricamento vedette…</div></div>';
+        $('vedette-count').textContent = '';
+        return;
+    }
+    $('vedette-count').textContent = state.watchers.length ? state.watchers.length + ' impostate' : '';
+    if (!state.watchers.length) {
+        list.innerHTML = '<div class="empty"><div class="empty-icon">🗼</div>' +
+            '<div class="empty-title">Nessuna vedetta</div>' +
+            '<p>Le ricerche libere del radar: per te o per chiunque tu voglia. Da quando la crei, ogni annuncio nuovo che corrisponde ti arriva addosso.</p></div>';
+        return;
+    }
+    list.innerHTML = state.watchers.map(function (w) {
+        var cr = w.criteria || {};
+        var bits = [];
+        if (Array.isArray(cr.zones) && cr.zones.length) bits.push(esc(cr.zones.join(', ')));
+        if (cr.priceMax != null) bits.push('≤ €' + fmtPrice(cr.priceMax));
+        if (cr.sqmMin != null) bits.push('≥ ' + esc(cr.sqmMin) + ' mq');
+        if (cr.bedsMin != null) bits.push('≥ ' + esc(cr.bedsMin) + ' cam');
+        if (cr.advertiser === 'private') bits.push('solo privati');
+        if (cr.dealsOnly) bits.push('💎 solo occasioni');
+        var q = Array.isArray(w.queue) ? w.queue.length : 0;
+        return '<div class="vrow" data-wid="' + esc(w.id) + '">' +
+            '<div class="vrow-top"><span class="vrow-name">' + esc(w.name || w.id) + (w.enabled === false ? ' <span style="color:var(--text-muted);font-size:10px">· spenta</span>' : '') + '</span>' +
+                '<label class="switch"><input type="checkbox" data-action="v-toggle"' + (w.enabled !== false ? ' checked' : '') + '><span class="sl"></span></label>' +
+                '<button class="vrow-del" data-action="v-del" title="Elimina">✕</button></div>' +
+            '<div class="vrow-meta">' + (bits.join(' · ') || 'nessun filtro (vede tutto)') +
+                '<br>' + (w.channel && w.channel.email ? '📧 ' + esc(w.channel.email) + ' (digest)' : '📲 solo Telegram') +
+                ' · match: ' + (w.matchCount || 0) +
+                (w.lastMatchAt ? ' · ultimo ' + esc(relTime(w.lastMatchAt)) : '') +
+                (q ? ' · <b style="color:var(--gold)">' + q + ' in coda email</b>' : '') + '</div>' +
+        '</div>';
+    }).join('');
+}
+
+function addVedetta() {
+    var name = $('v-name').value.trim();
+    if (!name) { BoomPortal.toast('Dai un nome alla vedetta', { type: 'warning' }); return; }
+    var email = $('v-email').value.trim() || null;
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { BoomPortal.toast('Email non valida', { type: 'warning' }); return; }
+    var num = function (id) { var v = parseFloat($(id).value); return isFinite(v) && v > 0 ? v : null; };
+    db.collection('radarWatchers').add({
+        name: name,
+        enabled: true,
+        criteria: {
+            zones: $('v-zones').value.split(',').map(function (s) { return s.trim(); }).filter(Boolean),
+            priceMax: num('v-pricemax'), priceMin: null,
+            sqmMin: num('v-sqmmin'), bedsMin: num('v-bedsmin'),
+            advertiser: $('v-adv').value === 'private' ? 'private' : 'any',
+            dealsOnly: $('v-deals').value === 'si'
+        },
+        channel: { telegram: true, email: email },
+        createdAt: new Date().toISOString(),
+        matchCount: 0, queue: [], notifiedIds: []
+    }).then(function () {
+        BoomPortal.toast('Vedetta creata: da ora in poi vede', { type: 'success' });
+        ['v-name', 'v-zones', 'v-pricemax', 'v-sqmmin', 'v-bedsmin', 'v-email'].forEach(function (id) { $(id).value = ''; });
+    }).catch(function (err) {
+        BoomPortal.toast('Errore: ' + (err && err.message ? err.message : err), { type: 'error' });
+    });
 }
 
 /* ───────────────────── Render: searches ──────────────────── */
@@ -1310,6 +2105,7 @@ function triageFootHtml(p) {
         return '<button class="wa-btn" data-taction="wa" data-idx="' + i + '">💬 → ' + esc(first) + '</button>';
     }).join('');
     return '<div class="tg-wa-row">' + wa +
+            '<button class="abtn" data-taction="contact">📨 Contatta</button>' +
             '<button class="abtn" data-taction="owner">📋 Proprietario</button></div>' +
         '<div class="tg-btn-row">' +
             '<button class="tg-skip" data-taction="skip">↷ Dopo</button>' +
@@ -1444,19 +2240,18 @@ var PALETTE_ACTIONS = [
     { id: 'act-sync',      type: 'Azione',  label: '🔄 Sync ricerche',     kw: 'sincronizza search auto', run: function () { runAction('sync', $('btn-sync-searches')); } },
     { id: 'act-brief',     type: 'Azione',  label: '🧠 Brief AI',          kw: 'briefing giorno punto situazione', run: function () { runBrief(); } },
     { id: 'act-add',       type: 'Azione',  label: '➕ Aggiungi annuncio', kw: 'nuovo manuale ingest', run: function () { if (triage.open) closeTriage(); openModal(); } },
+    { id: 'act-newclient', type: 'Azione',  label: '👤 Nuovo cliente',     kw: 'crea aggiungi pfs flusso', run: function () { if (triage.open) closeTriage(); openClientModal(null); } },
     { id: 'act-triage',    type: 'Azione',  label: '⚡ Avvia triage',      kw: 'coda gestisci match', run: function () { openTriage(); } },
+    { id: 'go-pipeline',   type: 'Sezione', label: '🧭 Vai a: Flusso',        kw: 'pipeline clienti stage', run: jumpSection('sec-pipeline') },
     { id: 'go-feed',       type: 'Sezione', label: '📡 Vai a: Feed',          kw: 'radar annunci', run: jumpSection('sec-feed') },
-    { id: 'go-clients',    type: 'Sezione', label: '👥 Vai a: Clienti',       kw: 'pfs attivi', run: jumpSection('sec-clients') },
     { id: 'go-searches',   type: 'Sezione', label: '🔍 Vai a: Ricerche',      kw: 'automatiche url override', run: jumpSection('sec-searches') },
+    { id: 'go-vedette',    type: 'Sezione', label: '🗼 Vai a: Vedette',       kw: 'ricerche libere watchers alert', run: jumpSection('sec-vedette') },
     { id: 'go-attention',  type: 'Sezione', label: '⚠️ Vai a: Da verificare', kw: 'attenzione errori', run: jumpSection('sec-attention') }
 ];
 
 function jumpClient(id) {
     if (triage.open) closeTriage();
-    var el = document.querySelector('#clients-list .ccard[data-id="' + cssEsc(id) + '"]');
-    if (!el) { BoomPortal.toast('Cliente non visibile (non attivo)', { type: 'info' }); return; }
-    el.scrollIntoView({ behavior: REDUCED_MOTION ? 'auto' : 'smooth', block: 'center' });
-    flashEl(el);
+    openDrawer(id); // il fascicolo È la scheda cliente, per qualunque stage
 }
 
 // porta la card nel feed: se è filtrata, azzera i filtri per mostrarla
@@ -1465,11 +2260,12 @@ function revealProp(id) {
     var sel = '#feed-list .fcard[data-id="' + cssEsc(id) + '"]';
     var el = document.querySelector(sel);
     if (!el) {
-        state.filters = { q: '', source: '', advertiser: '', onlyMatch: false, showAgency: true };
+        state.filters = { q: '', source: '', advertiser: '', onlyMatch: false, onlyDeals: false, showAgency: true };
         $('f-q').value = '';
         $('f-source').value = '';
         $('f-adv').value = '';
         $('f-match').checked = false;
+        $('f-deals').checked = false;
         $('f-agency').checked = true;
         renderFeed();
         el = document.querySelector(sel);
@@ -1767,6 +2563,7 @@ function bindUI() {
     $('f-source').addEventListener('change', function () { state.filters.source = this.value; renderFeed(); });
     $('f-adv').addEventListener('change', function () { state.filters.advertiser = this.value; renderFeed(); });
     $('f-match').addEventListener('change', function () { state.filters.onlyMatch = this.checked; renderFeed(); });
+    $('f-deals').addEventListener('change', function () { state.filters.onlyDeals = this.checked; renderFeed(); });
     $('f-agency').addEventListener('change', function () { state.filters.showAgency = this.checked; renderFeed(); });
 
     // Feed (delegated clicks)
@@ -1783,7 +2580,11 @@ function bindUI() {
         for (var i = 0; i < state.properties.length; i++) if (state.properties[i].id === id) prop = state.properties[i];
         if (!prop) return;
 
-        if (action === 'toggle-below') {
+        if (action === 'contact-owner') {
+            openOutreachModal(id);
+        } else if (action === 'cancel-outreach') {
+            cancelOutreach(id);
+        } else if (action === 'toggle-below') {
             var bx = card.querySelector('.fc-below');
             if (bx) {
                 bx.hidden = !bx.hidden;
@@ -1827,13 +2628,141 @@ function bindUI() {
         if (el.getAttribute('data-field') === 'o-status') d.status = el.value; else d.note = el.value;
     }
     $('feed-list').addEventListener('input', trackDraft);
-    $('feed-list').addEventListener('change', trackDraft);
-
-    // Clients (warning tooltips on tap)
-    $('clients-list').addEventListener('click', function (e) {
-        var w = e.target.closest('[data-action="show-warn"]');
-        if (w) BoomPortal.toast(w.getAttribute('data-warn'), { type: 'warning', duration: 4500 });
+    $('feed-list').addEventListener('change', function (e) {
+        var el = e.target;
+        // «→ Proponi a…»: il push curato dal feed al mazzo del cliente scelto
+        if (el.matches && el.matches('[data-action="push-client"]')) {
+            var card = el.closest('.fcard');
+            var prop = card && findProp(card.getAttribute('data-id'));
+            if (prop && el.value) pushToClient(prop, el.value, el);
+            return;
+        }
+        trackDraft(e);
     });
+
+    // Pipeline → fascicolo cliente
+    $('pipe-board').addEventListener('click', function (e) {
+        var chip = e.target.closest('.pipe-chip');
+        if (chip) openDrawer(chip.getAttribute('data-cid'));
+    });
+    $('btn-new-client').addEventListener('click', function () {
+        if (triage.open) closeTriage();
+        openClientModal(null);
+    });
+
+    // Fascicolo (drawer)
+    $('drawer-scrim').addEventListener('click', closeDrawer);
+    $('client-drawer').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-daction]');
+        if (!b) return;
+        var c = state.clientsById[state.drawerClient];
+        var act = b.getAttribute('data-daction');
+        if (act === 'close') { closeDrawer(); return; }
+        if (!c) { closeDrawer(); return; }
+        if (act === 'stage-prev' || act === 'stage-next') {
+            var flow = STAGE_FLOW.concat(['placed']);
+            var i = flow.indexOf(effStage(c));
+            var ni = act === 'stage-next' ? Math.min(flow.length - 1, i + 1) : Math.max(0, i - 1);
+            if (ni !== i) writeStage(c, flow[ni]);
+        } else if (act === 'sync') {
+            runAction('sync', b);
+        } else if (act === 'copy-crit') {
+            copyText(critCopyText(c)).then(function (ok) {
+                BoomPortal.toast(ok ? 'Criteri copiati 📋 — incollali su Casafari o dove vuoi' : 'Copia non riuscita', { type: ok ? 'success' : 'warning' });
+            });
+        } else if (act === 'copy-portal') {
+            copyText(portalLink(c) || '').then(function (ok) {
+                BoomPortal.toast(ok ? 'Link portale copiato 🔗' : 'Copia non riuscita', { type: ok ? 'success' : 'warning' });
+            });
+        } else if (act === 'gen-portal') {
+            genPortalCode(c);
+        } else if (act === 'edit') {
+            openClientModal(c.id);
+        } else if (act === 'delete') {
+            BoomPortal.confirm('Eliminare ' + (c.name || 'questo cliente') + '? Mazzo e storico spariscono per sempre.', { danger: true }).then(function (yes) {
+                if (!yes) return;
+                db.collection('pfsClients').doc(c.id).delete().then(function () {
+                    BoomPortal.toast('Cliente eliminato');
+                    closeDrawer();
+                }).catch(function (err) { BoomPortal.toast('Errore: ' + (err && err.message ? err.message : err), { type: 'error' }); });
+            });
+        } else if (act === 'deck-remove') {
+            var pid = b.getAttribute('data-pid');
+            BoomPortal.confirm('Togliere questa casa dal mazzo del cliente?').then(function (yes) {
+                if (yes) deckRemove(c, pid);
+            });
+        }
+    });
+    $('client-drawer').addEventListener('change', function (e) {
+        if (!e.target.matches || !e.target.matches('[data-dfield="stage"]')) return;
+        var c = state.clientsById[state.drawerClient];
+        if (c) writeStage(c, e.target.value);
+    });
+
+    // Modale cliente
+    $('cm-close').addEventListener('click', closeClientModal);
+    $('cm-save').addEventListener('click', saveClientModal);
+    $('client-modal-overlay').addEventListener('click', function (e) { if (e.target === this) closeClientModal(); });
+
+    // Vedette
+    $('btn-add-vedetta').addEventListener('click', addVedetta);
+    $('vedette-list').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-action="v-del"]');
+        if (!b) return;
+        var row = b.closest('.vrow');
+        var id = row && row.getAttribute('data-wid');
+        if (!id) return;
+        BoomPortal.confirm('Eliminare questa vedetta? La coda email non spedita va persa.', { danger: true }).then(function (yes) {
+            if (!yes) return;
+            db.collection('radarWatchers').doc(id).delete().then(function () {
+                BoomPortal.toast('Vedetta eliminata');
+            }).catch(function (err) { BoomPortal.toast('Errore: ' + (err && err.message ? err.message : err), { type: 'error' }); });
+        });
+    });
+    $('vedette-list').addEventListener('change', function (e) {
+        if (!e.target.matches || !e.target.matches('[data-action="v-toggle"]')) return;
+        var row = e.target.closest('.vrow');
+        var id = row && row.getAttribute('data-wid');
+        if (!id) return;
+        var val = e.target.checked;
+        db.collection('radarWatchers').doc(id).set({ enabled: val }, { merge: true }).then(function () {
+            BoomPortal.toast(val ? 'Vedetta accesa' : 'Vedetta spenta');
+        }).catch(function (err) {
+            e.target.checked = !val;
+            BoomPortal.toast('Errore: ' + (err && err.message ? err.message : err), { type: 'error' });
+        });
+    });
+
+    // Occasioni strip
+    $('occ-strip').addEventListener('click', function (e) {
+        var b = e.target.closest('[data-action="occ-find"]');
+        if (!b) return;
+        var mini = b.closest('.occ-mini');
+        if (mini) revealProp(mini.getAttribute('data-oid'));
+    });
+
+    // 📨 Il Contatto (modale)
+    $('om-close').addEventListener('click', closeOutreachModal);
+    $('om-regen').addEventListener('click', omRegen);
+    $('om-ai').addEventListener('click', omAi);
+    $('om-send').addEventListener('click', omSend);
+    $('outreach-modal-overlay').addEventListener('click', function (e) { if (e.target === this) closeOutreachModal(); });
+    // Dopo un edit a mano (o l'AI) l'anteprima NON si rigenera da sola —
+    // ma va DETTO, non taciuto: un selettore girato a vuoto insegna a non
+    // fidarsi del modale (la lezione delle manopole finte).
+    function omDirtyHint() {
+        if (state.outreachDirty) {
+            BoomPortal.toast('Anteprima bloccata dalle tue modifiche: ↺ Rigenera per riapplicare stile e campi', { type: 'info', duration: 4000 });
+            return true;
+        }
+        return false;
+    }
+    ['om-style', 'om-voice', 'om-client'].forEach(function (id) {
+        $(id).addEventListener('change', function () { if (!omDirtyHint()) omRegen(); });
+    });
+    $('om-extra').addEventListener('change', function () { if (!omDirtyHint()) omRegen(); });
+    $('om-extra').addEventListener('input', function () { if (!state.outreachDirty) omRegen(); });
+    $('om-msg').addEventListener('input', function () { state.outreachDirty = true; });
 
     // Searches
     $('searches-list').addEventListener('click', function (e) {
@@ -1905,7 +2834,11 @@ function bindUI() {
     $('mf-push').addEventListener('click', doPush);
     $('modal-overlay').addEventListener('click', function (e) { if (e.target === this) closeModal(); });
     document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape' && !$('modal-overlay').hidden) closeModal();
+        if (e.key !== 'Escape') return;
+        if (!$('outreach-modal-overlay').hidden) { closeOutreachModal(); return; }
+        if (!$('modal-overlay').hidden) { closeModal(); return; }
+        if (!$('client-modal-overlay').hidden) { closeClientModal(); return; }
+        if (!$('client-drawer').hidden && !palette.open && !triage.open) closeDrawer();
     });
 
     // Triage
@@ -1924,6 +2857,10 @@ function bindUI() {
                 if (ok) BoomPortal.toast('Messaggio per il proprietario copiato 📋');
                 else BoomPortal.toast('Copia non riuscita — copia manualmente', { type: 'warning' });
             });
+        } else if (act === 'contact') {
+            buzz();
+            closeTriage();
+            openOutreachModal(p.id);
         } else if (act === 'wa') {
             triageWa(p, parseInt(b.getAttribute('data-idx'), 10) || 0);
         }
@@ -2003,7 +2940,7 @@ function bindUI() {
                 });
             });
         }, { rootMargin: '-30% 0px -60% 0px' });
-        ['sec-feed', 'sec-clients', 'sec-searches', 'sec-attention'].forEach(function (id) {
+        ['sec-pipeline', 'sec-feed', 'sec-searches', 'sec-vedette', 'sec-attention'].forEach(function (id) {
             var el = $(id);
             if (el) spy.observe(el);
         });
@@ -2011,6 +2948,117 @@ function bindUI() {
 }
 
 /* ──────────────────── Firestore listeners ────────────────── */
+// ═══ 📊 MERCATO — la Centrale vive in plancia (Fonderia, Arsenale II) ═══
+// I 4 pannelli traslocati da /radar: polso zone (marketStats), candidati
+// mandato (radarState/mandati), Valutatore (/api/radar/valuta), gemelli
+// (radarState/index + BOOM_RADAR.clusterInfo). Stessi canali BoomPortal
+// .listen di tutto il resto — con la rete anti-canale-muto ereditata.
+function startMercato() {
+    var R = window.BOOM_RADAR;
+    var eur = function (n) { return '€' + Math.round(Number(n) || 0).toLocaleString('it-IT'); };
+    if (R && R.ROME_ZONES) {
+        $('mk-zonelist').innerHTML = Object.keys(R.ROME_ZONES).sort().map(function (z) { return '<option value="' + esc(z) + '">'; }).join('');
+    }
+
+    BoomPortal.listen(db.collection('marketStats'), function (snap) {
+        var rows = snap.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
+            .sort(function (a, b) { return (b.activeCount || 0) - (a.activeCount || 0); });
+        if (!rows.length) return;
+        $('mk-note').textContent = rows.length + ' zone nel libro';
+        $('mk-zones').innerHTML = rows.slice(0, 24).map(function (z) {
+            var a = z.asked || {}; var ab = z.absorption || {};
+            return '<div class="mk-card"><div class="mk-t">' + esc(z.zone || z.id) + '</div>'
+                + (a.ok
+                    ? '<div class="mk-zbig">' + a.medianEurSqm + ' <span style="font-size:11px;color:var(--text-secondary)">€/mq mediana</span></div>'
+                      + '<div class="mk-zsub">fascia ' + a.p25 + '–' + a.p75 + ' €/mq · campione ' + a.sample + '</div>'
+                    : '<div class="mk-zsub" style="margin-top:6px;color:var(--text-muted)">campione insufficiente (' + (a.sample || 0) + ')</div>')
+                + '<div class="mk-zsub">' + (z.activeCount || 0) + ' vivi'
+                + (ab.ok ? ' · assorbimento ~' + ab.medianDays + 'g' : ' · assorbimento n/d')
+                + ((z.priceDrops30d || 0) ? ' · ' + z.priceDrops30d + ' ribassi 30g' : '') + '</div></div>';
+        }).join('');
+    });
+
+    BoomPortal.listen(db.collection('radarState').doc('mandati'), function (doc) {
+        var items = (doc.exists && Array.isArray(doc.data().items)) ? doc.data().items : [];
+        if (!items.length) return;
+        $('mk-mand').innerHTML = items.slice(0, 12).map(function (m) {
+            return '<div class="mk-card"><div class="mk-t">' + esc(m.title || 'Annuncio privato')
+                + '<span class="mk-badge red">' + m.staleDays + 'g fermo</span></div>'
+                + '<div class="mk-m" style="margin-top:4px">' + esc(m.zone || 'zona n/d')
+                + (m.price ? ' · ' + eur(m.price) + '/mese' : '') + (m.sqm ? ' · ' + m.sqm + ' m²' : '')
+                + '<br>soglia zona: ' + m.threshold + 'g (' + esc(m.basis || '') + ')'
+                + (m.priceDropAt ? ' · ha già ribassato' : '') + '</div>'
+                + (safeUrl(m.url) ? '<div style="margin-top:9px"><a class="btn-ghost" style="text-decoration:none" target="_blank" rel="noopener" href="' + esc(safeUrl(m.url)) + '">Apri annuncio ↗</a></div>' : '')
+                + '</div>';
+        }).join('');
+    });
+
+    BoomPortal.listen(db.collection('radarState').doc('index'), function (doc) {
+        var entries = (doc.exists && Array.isArray(doc.data().entries)) ? doc.data().entries : [];
+        var byCluster = {};
+        entries.forEach(function (e) { var cid = e.clusterId || e.id; (byCluster[cid] = byCluster[cid] || []).push(e); });
+        var clusters = Object.keys(byCluster).map(function (k) { return byCluster[k]; })
+            .filter(function (ms) { return ms.length >= 2; })
+            .sort(function (a, b) { return b.length - a.length; });
+        if (!clusters.length || !R) return;
+        $('mk-clusters').innerHTML = clusters.slice(0, 9).map(function (ms) {
+            var info = R.clusterInfo(ms.map(function (m) { return { id: m.id, source: m.source, advertiser: m.advertiser, price: m.price, firstSeenAt: m.t }; }));
+            var head = ms[0];
+            return '<div class="mk-card"><div class="mk-t">' + esc((head.title || head.address || 'Casa').slice(0, 70))
+                + (info.privateAndAgency ? '<span class="mk-badge gold">👥 privato + agenzia</span>' : '')
+                + (info.repost ? '<span class="mk-badge">ripubblicato</span>' : '') + '</div>'
+                + '<div class="mk-m" style="margin-top:4px">' + esc(head.zoneSlug || 'zona n/d')
+                + (info.bestPrice ? ' · miglior prezzo ' + eur(info.bestPrice.price) : '')
+                + (info.firstSeenAt ? ' · in vetrina da ' + relTime(info.firstSeenAt) : '') + '</div>'
+                + '<div class="mk-srcs">' + info.sources.map(function (s) { return '<span class="mk-badge">' + esc(s) + '</span>'; }).join('') + '</div></div>';
+        }).join('');
+    });
+
+    $('btn-valuta').addEventListener('click', function () {
+        var btn = $('btn-valuta');
+        var zone = $('mk-vzone').value.trim();
+        var sqm = parseFloat($('mk-vsqm').value);
+        if (!zone || !isFinite(sqm)) { BoomPortal.toast('Servono zona e mq', { type: 'warning' }); return; }
+        btn.disabled = true;
+        apiPost('/api/radar/valuta', { zone: zone, sqm: sqm, rooms: parseFloat($('mk-vrooms').value) || null }).then(function (j) {
+            var v = j.valuation;
+            if (!v.ok) {
+                $('mk-vres').innerHTML = '<div class="mk-m" style="margin-top:10px">⚠️ ' + esc(v.reason === 'small_sample'
+                    ? 'Campione insufficiente in zona (' + (v.sample || 0) + ' annunci attivi): il Valutatore non stampa numeri deboli.'
+                    : (v.detail || v.reason)) + '</div>';
+                return;
+            }
+            var comps = (v.comps || []).map(function (c) {
+                return '<tr><td><a target="_blank" rel="noopener" href="' + esc(safeUrl(c.sourceUrl) || '#') + '">' + esc((c.title || 'annuncio').slice(0, 55)) + ' ↗</a></td>'
+                    + '<td>' + eur(c.price) + '</td><td>' + (c.sqm || '—') + ' mq</td><td>' + (c.eurSqm || '—') + ' €/mq</td></tr>';
+            }).join('');
+            $('mk-vres').innerHTML =
+                '<div class="mk-vres-row"><span class="mk-point">' + eur(v.range.point) + '<span style="font-size:12px;color:var(--text-secondary)">/mese</span></span>'
+                + '<span class="mk-m">fascia ' + eur(v.range.low) + ' – ' + eur(v.range.high) + '</span>'
+                + '<span class="mk-badge ' + (v.confidence === 'alta' ? 'gold' : '') + '">confidenza ' + esc(v.confidence) + '</span></div>'
+                + '<div class="mk-m" style="margin-top:8px">' + v.reasons.map(esc).join('<br>') + '</div>'
+                + (comps ? '<table>' + comps + '</table>' : '');
+        }).catch(function (e) {
+            BoomPortal.toast('Errore: ' + e.message, { type: 'error' });
+        }).then(function () { btn.disabled = false; });
+    });
+
+    $('btn-pulse').addEventListener('click', function () {
+        var b = $('btn-pulse'); b.disabled = true;
+        apiPost('/api/market/pulse', {}).then(function () {
+            BoomPortal.toast('Statistiche aggiornate', { type: 'success' });
+        }).catch(function (e) {
+            BoomPortal.toast('Errore: ' + e.message, { type: 'error' });
+        }).then(function () { b.disabled = false; });
+    });
+
+    // Deep-link #mercato (lapidi del portal, redirect di /radar): la sezione
+    // è in fondo e l'ancora nativa scatta prima che il gate mostri l'app.
+    if (location.hash === '#mercato') {
+        setTimeout(function () { var el = $('mercato'); if (el) el.scrollIntoView({ block: 'start' }); }, 450);
+    }
+}
+
 function startListeners() {
     BoomPortal.listen(db.collection('pfsRadarHealth'), function (snap) {
         var h = {};
@@ -2095,11 +3143,41 @@ function startListeners() {
         state.loaded.searches = true;
         state.live.searches = true;
         renderSearches();
+        if (state.drawerClient) renderDrawer(); // il fascicolo mostra anche le ricerche
         updateLive();
     }, function (err) {
         state.live.searches = false;
         updateLive();
         BoomPortal.toast('Errore ricerche: ' + ((err && err.message) || 'errore di connessione'), { type: 'error' });
+    });
+
+    // Il feed 💎 del Radar 2.0 (radarState/occasioni — un doc solo).
+    BoomPortal.listen(db.collection('radarState').doc('occasioni'), function (doc) {
+        var items = (doc.exists && Array.isArray(doc.data().items)) ? doc.data().items : [];
+        state.occ = items.slice().reverse(); // più recente in testa
+        renderOccStrip();
+    }, function () { /* rules non deployate → la strip resta vuota, mai un errore urlato */ });
+
+    // 📨 Il Contatto — lo stato di ogni messaggio al proprietario, live.
+    BoomPortal.listen(db.collection('outreachQueue'), function (snap) {
+        var map = {};
+        snap.forEach(function (d) { map[d.id] = Object.assign({ id: d.id }, d.data()); });
+        state.outreachById = map;
+        renderFeed(); // i bottoni 📨 riflettono lo stato vero
+    }, function () { /* rules non deployate → i bottoni restano, la coda no */ });
+
+    // Le vedette (radarWatchers) — le ricerche libere gestite da qui.
+    BoomPortal.listen(db.collection('radarWatchers'), function (snap) {
+        var arr = [];
+        snap.forEach(function (d) { arr.push(Object.assign({ id: d.id }, d.data())); });
+        arr.sort(function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); });
+        state.watchers = arr;
+        state.loaded.watchers = true;
+        renderVedette();
+    }, function (err) {
+        state.loaded.watchers = true;
+        renderVedette();
+        console.warn('[PFS] vedette non disponibili:', err && err.message);
     });
 }
 
@@ -2114,8 +3192,11 @@ function startListeners() {
         bindUI();
         // placeholder di caricamento prima dei primi snapshot
         renderHealth(); renderFeed(); renderClients(); renderSearches(); renderAttention();
+        renderVedette(); renderOccStrip();
         updateBrief(); updateLive();
         startListeners();
+        startMercato();
+        BoomPortal.freshOnReturn(60); // scheda ripresa dopo 1h+ → pagina fresca, mai una salma interattiva
         setInterval(function () { renderHealth(); updateBrief(); }, 60000); // tempi relativi, freschezza chip, rollover mezzanotte
     } catch (e) {
         // requireAuth gestisce redirect + toast; lasciamo lo shield visibile

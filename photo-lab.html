@@ -41,6 +41,7 @@ button.b:disabled{opacity:.45;cursor:default}
 <body>
 <main>
   <div class="hd">
+    <a href="/portal" style="color:var(--gold);text-decoration:none;font-size:12px;letter-spacing:1px;display:inline-block;margin-bottom:10px">← Portale</a><br>
     <span class="eyebrow">Strumento interno · Claude Vision + enhancement</span>
     <h1>Photo Lab. <em>Il catalogo si cura da solo.</em></h1>
     <p>Per ogni casa: <b style="color:var(--t2)">Audit</b> fa guardare ogni foto all'AI (vera/planimetria/render, stanza, rotazione, qualità) e propone copertina, ordine e scarti — senza toccare nulla. <b style="color:var(--t2)">Applica</b> esegue: migliora le foto (luce, contrasto, nitidezza — planimetrie raddrizzate, mai saturate), le carica su Storage e aggiorna l'annuncio. Gli originali restano salvati in <code style="color:var(--gold)">imagesOriginal</code>: sempre reversibile, ri-applicabile.</p>
@@ -53,6 +54,7 @@ button.b:disabled{opacity:.45;cursor:default}
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 <script src="/js/firebase-config.js"></script>
 <script src="/js/boom-portal.js"></script>
+<script>if(window.BoomPortal&&BoomPortal.freshOnReturn)BoomPortal.freshOnReturn(60);</script>
 <script>
 (function(){
 'use strict';

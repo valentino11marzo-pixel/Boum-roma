@@ -47,6 +47,11 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
                           unknown, più il cervello del messaggio unico
                           (più immobili in una frase). window.BOOM_DISPO.
                           Vedi "Le date di disponibilità".
+  radar-engine.js         Il Radar 2.0, puro: impronta (gemelli cross-portale),
+                          fiuto (punteggio occasione), vedette (ricerche
+                          libere), valutatore (fascia canone sui FIRMATI),
+                          inferZone (zona dedotta dal titolo, mai indovinata).
+                          window.BOOM_RADAR. Vedi "Il Radar 2.0 — La Centrale".
   contract-pdf.js         L'impaginato del CONTRATTO (Allegato B transitorio +
                           Allegato C studenti, modelli CAF verbatim) in UNA
                           copia: window.BOOM_CONTRACT_PDF nel portal (jsPDF
@@ -76,6 +81,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `apartments.html` | Property listings page. |
 | `apartment-detail.html` | Dynamic single-property page (loads from Firestore). |
 | `boom_doc_parser.html` | AI document parser UI (uses Claude API). |
+| `risposte.html` | Le risposte rapide di WhatsApp Business (`/risposte`, admin, noindex): 48 messaggi pronti col tasto Copia, i due messaggi automatici, le etichette e la libreria link. Rende `js/whatsapp-replies.js` — nessun testo duplicato nella pagina. |
 | `watermark-studio.html` | Standalone watermark tool for interns/team. 100% client-side (no Firebase): upload photos, customize the BOOM mark live (6 styles: firma, sigillo, editoriale, pattern, cornice, custom logo), drag to position, batch ZIP export. |
 | `media-studio.html` | Pro media production tool (superset of watermark-studio; photo *processing* is 100% client-side). Layered compositor: auto-enhance (histogram analysis, backlight-aware), shadows/highlights tone recovery, color grading (5 looks + manual + saveable custom looks), unsharp-mask sharpening, horizon straighten + vertical keystone (perspective) correction, live histogram, crop/aspect per channel with focal framing + composition guides, branding system (watermark + badge + listing info bar + scrim), draggable text layers, social templates, thumb reordering (order = publish order, first = cover), multi-format batch export with smart ×2 upscale, one-click **Media Kit** ZIP (all formats + AI copy + README), Ken Burns video reel generator (MediaRecorder, MP4-first, optional music track via WebAudio), AI listing copywriter (via `/api/media/caption`). **Simple/Pro UI modes** (localStorage), session autosave/restore (IndexedDB). **Catalog bridge**: browse `listings` (public read), open a listing's photos (`?listing=<id>` deep-link from portal rows 🎨 + photo-lab), prefill info bar from `zone/price/bedrooms/sqm`, and publish curated photos back — uploads under `listings/enhanced/<id>/` (sweep-safe per `api/photos/enhance.js` `isEnhancedUrl`), additive `imagesOriginal` union, `photosEnhancedAt/By: 'studio:<email>'`, cover = first thumb. **Publish rails**: reel → `videoUrl` (MP4 only, upload `listings/enhanced/<id>/video/` — dedicated storage.rules match, video/* <100MB; apartment-detail renders non-YouTube urls via its `<video>` branch/`exVid()`); AI copy (tipo portale) → `description`/`descriptionIt` with sweep discipline (`descriptionOriginal` preserved, `descriptionSource:'studio:<email>'`); live **pagella** chip mirrors `gradeListing()`; portalPubs status shown to admins (photos/video/description are in the Pubblicista's `coreContent` → updates queue themselves). Publishing requires admin (Firestore/Storage rules enforce). Linked from portal sidebar → Console → Media Studio. |
 | `vercel.json` | Deployment config, rewrites, cron schedule. |
@@ -84,8 +90,9 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `owner-dashboard.html` | Landlord/owner SPA. Firestore-backed, filtered by `ownerId`. |
 | `tenant.html` | Tenant SPA. Realtime property + maintenance feed. |
 | `client-portal.html` | PFS client swipe app. Reads `pfsClients` collection. |
-| `pfs-command.html` | PFS Command Center (admin). Radar feed, per-client match scores, outreach tracking, source health, search management. Backed by `api/pfs/*`. |
+| `pfs-command.html` | **La plancia unica del PFS** (admin): TUTTO il flusso Property Finding in una pagina. Pipeline per stage (giorni-in-stage, chip lenti in ambra) → fascicolo cliente a drawer (criteri, ricerche, mazzo con esiti/rimozione, attività, link portale con codice BM…, WhatsApp, cambio stage con la STESSA scrittura del portal) → creazione cliente (nasce col portale attivo) → feed radar con fiuto 💎/badge cluster/filtro occasioni + azione «→ Proponi a…» (push curato via `api/casafari/import`, conferma sulle agenzie) → strip occasioni (radarState) → ricerche automatiche + **vedette** (stessa collection della Centrale) → triage swipe, ⌘K, brief AI, salute fonti. |
 | `chiamate.html` | Il Centralino (admin, `/chiamate`). Ogni chiamata deviata in segreteria: audio, trascrizione, azione consigliata, WhatsApp one-tap con bozza. Backed by `api/phone/*`. |
+| `radar.html` | **La Centrale del Radar** (`/radar`, admin). Polso del mercato per zona, feed 💎 occasioni, candidati mandato, vedette (CRUD), Valutatore, gemelli cross-portale, salute fonti. Vedi "Il Radar 2.0". |
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ## Brand & Design
@@ -991,6 +998,31 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
 - `POST /api/preagreement/notify` — console "✉ Reinvia copia". Admin auth.
   Re-sends the accepted/paid document email to the client (recovery path
   for failed sends / "non l'ho ricevuta").
+- **Lo stato è il FATTO, non l'etichetta** (`_state.js` + `resolve.js`).
+  LA LEZIONE DEL 16 AGOSTO 2026: `submit.js` trattava come terminale il solo
+  stato `accepted`, quindi un **secondo invio del modulo su una proposta già
+  PAGATA** — pagina rimasta aperta con la bozza in localStorage, tasto
+  indietro da Stripe, tap ripetuto su rete lenta — la riscriveva ad
+  `accepted` con un protocollo nuovo e **apriva una seconda Checkout**; e se
+  nel frattempo il lucchetto dell'immobile era passato a un'altra proposta,
+  la ributtava in **`reserve`**, stato da cui → Contratto, Magic Sign e
+  ✉ Reinvia copia rispondono tutti 409 `not_accepted_yet`. In console il
+  deal risultava da pagare e il passo successivo spariva: due sintomi, una
+  causa. `paidOnRecord()` (esportata, condivisa da submit · pay · resolve ·
+  console) guarda la PROVA — `paidAt`/`paidSessionId`/`paidEur` — non lo
+  status, così anche un documento già degradato viene riconosciuto pagato.
+  `POST /api/preagreement/resolve` (admin) è la via d'uscita: cerca la prova
+  sul documento e, se manca, **su Stripe per il token di QUELLA proposta**
+  (metadata `token`, non l'id sessione che il giro rotto sovrascriveva);
+  con la prova riporta a `paid`, rende definitivo il lucchetto e converte;
+  senza prova **non dichiara mai pagato** e lo dice. Sblocca anche una
+  riserva quando l'immobile si è liberato (il lucchetto è l'unica autorità:
+  ancora tenuto → nessuna scrittura e il nome di chi lo tiene).
+  In console: chip oro **✓ incassato** su qualunque etichetta, riga che
+  spiega riserva e disallineamento, bottoni **⚠ Sistema lo stato** /
+  **✅ Sblocca la riserva** / **🔎 Ha pagato?**, filtro Riserve, e la KPI
+  incassato conta i soldi VERI (prima sommava solo `status==='paid'`).
+  Test: `node tests/preagreement/state.mjs`.
 - **Email transport warning**: `nodemailer` and `pdf-lib` MUST be imported
   statically (top-level `import`). Lazy `await import('pkg')` is not traced
   by Vercel's bundler → "Cannot find package" at runtime in production
@@ -1347,6 +1379,89 @@ Un giro solo, otto interventi, 33 suite verdi:
   a destra, sidebar `100dvh`, scroll-lock modali (`body.modal-open`),
   bottone 🔍 che apre la ricerca globale come overlay (su mobile non
   esisteva affatto), `#boomBridge` largo `min(360px, 100vw-32px)`.
+- **M2 "Portal App"** (`css/portal-mobile.css` + `js/portal-mobile.js`,
+  studio in `STUDIO_PORTAL_MOBILE.md`): M1 toglieva il dolore, M2 cambia il
+  MODELLO — su telefono (≤920px) il portale si usa come un'app. Tab bar in
+  basso (4 sezioni del ruolo + Menu, badge specchiati dalla sidebar VERA —
+  mai una seconda lista che diverge), bottom sheet per il menu/le azioni
+  riga/i footer-modale da 15 bottoni (righe 52px con l'etichetta vera),
+  liste `.list-item`→card con primaria etichettata + ⋯, le 6 `<table>` vere
+  →card con data-label, modali lunghe full-screen con tastiere giuste
+  (inputmode), e **il wizard sereno dei contratti**: addContract (che è GIÀ
+  un wizard, #cPage0..3) ristrutturato con progress+barra fissa che proxy-a
+  i bottoni originali (validazione LORO), i modali piatti (editContract 15
+  campi, property 22, user 16-19) spezzati in capitoli semantici con
+  riepilogo finale e campo ignoto MAI perso ("Altro"). Regole dure: ogni
+  azione è un `.click()` sull'originale (zero fork di logica), i nodi si
+  SPOSTANO dentro `#mForm` (FormData integra), lo stato visivo vive SOLO in
+  classi gated `body.pm-on` (ruotare un iPad oltre i 920px = il modale
+  torna desktop da solo), desktop a zero pixel. Kill switch `?classic=1` /
+  `?app=1`. Aggancio: MutationObserver su `#main`/`#modals`/`#sidebar` (~60
+  modali bypassano openModal — la classe body.modal-open NON è affidabile).
+  Test: `node tests/mobile/run.mjs` (151 check sulla sorgente: nomi campo
+  WIZ pinnati su portal-app.js, CSS gated, sw, -webkit-) + `node
+  tests/mobile/ui.mjs` (35 check in Chromium vero a 390px col
+  contractWizardNav REALE estratto).
+- **OGGI — la coda delle decisioni** (`js/oggi-engine.js` → `window.BOOM_OGGI`
+  + `oggiPage()` nel portal, 2026-08-19): la prima schermata dell'admin. La
+  macchina lavora da sola e all'operatore restano le DECISIONI — che su
+  Telegram scorrono via. Qui persistono: risposte AI da approvare
+  (`action_queue`), visite da confermare, ritardi (quadro + 3 peggiori per
+  nome con sollecito/link carta/segna-pagata), lead nuovi col grade del
+  Brain, manutenzioni urgenti, firme a metà, rinnovi ≤30gg — ordinati per
+  COSTO DEL RITARDO (punteggio per specie + età con tetto), con le azioni
+  DENTRO la riga. Motore puro (niente Firestore/Date.now, si testa in
+  node); le azioni sono `{fn, args}` alla maniera del Prontuario e
+  `oggiRun` invoca per RIFERIMENTO — il test pretende che ogni fn esista.
+  In testa il polso dei soldi (incassato mese / in arrivo / in ritardo /
+  prossimi 7gg). "Nascondi" rinvia a domani (localStorage per-giorno).
+  Landing: admin senza hash atterra su `oggi` (deep link vince); la
+  Dashboard resta come "Studio". Tab mobile: ⚡ Oggi prima. Senza motore
+  caricato la pagina ricade sulla dashboard — mai una schermata vuota.
+  Test: `node tests/oggi/run.mjs` (41 check).
+- **D2 — i form grandi coi capitoli su desktop** (`sectionizeForm` in
+  portal-desktop.js): su telefono i modali piatti diventano wizard (M2);
+  su desktop erano muri da 15-22 campi. Pattern console corporate: header
+  di capitolo (micro-maiuscole oro, `.pd-form-sec`) tra i gruppi, tutto
+  visibile. La mappa è LA STESSA di M2 (`window.BOOM_MOBILE.WIZ` — una
+  copia sola); si INSERISCONO header, mai si spostano campi (FormData
+  intatta per costruzione); sotto i 920px il CSS li spegne. Form <8 gruppi
+  esclusi.
+- **La Rifinitura** (`css/portal-finish.css` + composizioni in portal-app.js,
+  2026-08-19): il passo di DESIGN sulle superfici interne. Il sistema
+  (portal.css) era sano ma le composizioni urlavano: nella riga contratto
+  fino a 7 badge a tinta piena + 3 chip con 3 sfondi + emoji nei dati. Ora:
+  UNO stato a tinta piena, i segnali secondari nel grappolo quieto
+  `.li-flags` (puntino semantico + micro-maiuscole in anello), metadati
+  senza emoji (`.li-meta`), le rate in UN metro (`.li-meter`, rosso solo
+  col ritardo), canone in cifre tabellari (`.li-money`). Le 5 strisce
+  statistiche ad-hoc (contratti/utenti/pagamenti/manutenzione/documenti
+  tenant) sono diventate `.stat-card` del sistema; i bottoni-filtro delle
+  5 famiglie (`contract/payment/user/maintenance/rules-filter`) sono chip
+  (velo oro da attivi — prima il filtro attivo era vestito da azione
+  primaria). Regole dure: SOLO token esistenti (mai un colore nuovo), SOLO
+  selettori emessi davvero, niente !important, condizioni/handler/data-attr
+  della riga IDENTICI (filterContracts e M2 la leggono). Carica dopo
+  portal.css e PRIMA dei layer (strutturale batte visivo). Kill switch
+  `?nofinish=1`. Test: `node tests/finish/run.mjs` (59 check).
+- **D1 "BOOM OS"** (`css/portal-desktop.css` + `js/portal-desktop.js`,
+  studio in `STUDIO_BOOM_OS.md`): la faccia DESKTOP del protocollo "un
+  motore, due facce" — attiva SOLO sopra i 920px (la STESSA query di M2,
+  negata: mai zone doppie), tutto dietro `body.pd-on`. **Command Palette
+  ⌘K/Ctrl+K**: sezioni+console dalla sidebar VERA (badge compresi), azioni
+  Crea (proxy di openModal, admin-gated) e ricerca entità SOLLEVATA da
+  `handleSearch` (si invoca il motore esistente e si adottano le righe di
+  #searchResults con la loro onclick — mai un secondo indice). **Tastiera**:
+  `g`+lettera naviga, `n`+lettera crea, `/` ricerca, `?` foglio dei tasti —
+  mai attiva dentro un input o sopra un modale. **Peek drawer**: le schede
+  di sola lettura `lg/xl` (fascicolo contratto, notifiche) arrivano come
+  pannello destro; i FORM restano finestre. Rifinitura sobria (header
+  vetro, filo d'oro sulla voce attiva, focus-visible, scrollbar). Kill
+  switch dedicato `?deskclassic=1` / `?deskapp=1`. Test: `node
+  tests/desktop/run.mjs` (48 check: comandi pinnati su portal-app.js,
+  query 920 condivisa, motore mai copiato) + `node tests/desktop/ui.mjs`
+  (18 check in Chromium a 1440px, col confine dei 920 attraversato nei due
+  sensi).
 - **Dieta del boot** (portal-app): tetti su TUTTE le query nude (limit
   larghi, MAI orderBy+limit — un orderBy su campo assente nasconderebbe i
   doc legacy), i 7 step lazy in parallelo, rate scadute flippate SOLO in
@@ -1365,7 +1480,12 @@ Un giro solo, otto interventi, 33 suite verdi:
 - **CI `deploy-rules`**: push su main → `firebase deploy --only
   firestore:rules,storage` (secret `FIREBASE_TOKEN`; senza secret il job
   avvisa e salta). Nato dal drift che teneva `propertyLocks` spento in
-  produzione.
+  produzione. **Secret configurato il 2026-08-20** (token `login:ci`
+  dell'operatore): da quel giorno le rules del repo VANNO IN PRODUZIONE a
+  ogni push su main — mai più deploy manuali. Il job risponde anche a
+  Run workflow (workflow_dispatch, solo main). Se il token un giorno
+  scade/viene revocato il job torna ad avvisare e saltare: si rigenera con
+  `npx firebase-tools login:ci` e si aggiorna il secret.
 - **Tabella zone canone UNICA**: `scheda-canone.html` ora carica
   `js/canone-engine.js` e semina le zone dal motore (la copia inline che
   poteva divergere dal Fascicolo ARPE è stata rimossa; un edit manuale
@@ -1860,6 +1980,91 @@ SUA lingua (`replyLang`), con il link `book?listing=` con gli slot VERI.
   (nodemailer mockato via loader), idempotenza, cooldown che protegge dal
   secondo richiamo, comando che non indovina mai.
 
+### Le risposte rapide di WhatsApp (`js/whatsapp-replies.js` + `/risposte`)
+La conversazione resta l'unico pezzo che la macchina non fa: il Commerciale
+propone la PRIMA risposta, il Gestore i solleciti, il journey le email — ma
+tutto quello che viene dopo si scrive a mano, di corsa, dal telefono. Queste
+sono **15 risposte rapide da caricare** in WhatsApp Business, più 15 nel mazzo (`/scorciatoia` in chat),
+più i due messaggi automatici e le etichette. Coprono l'intero giro: cliente
+EN e IT, inquilino in casa, proprietario, aziende/enti, La Réunion, e i
+messaggi che accompagnano un link personale.
+- **Una copia sola**: i testi vivono in `js/whatsapp-replies.js` (UMD →
+  `window.BOOM_WA`, come boom-geo). `risposte.html` (`/risposte`, in sidebar
+  Console, noindex+no-store) li mostra col tasto **Copia**, la ricerca, il
+  filtro ⭐ prima fila e il segno "già caricata" (localStorage avvolto: Safari
+  privato LANCIA). `docs/WHATSAPP_RISPOSTE_RAPIDE.md` si **genera**
+  (`node scripts/wa-export.mjs`) — un documento riscritto a mano divergerebbe
+  al primo cambio di prezzo, e un documento vecchio è peggio di nessuno perché
+  sembra vero.
+- **Le regole dure** (`tests/whatsapp/replies.mjs`, 78 check): un link dentro
+  una risposta salvata deve essere una rotta VERA del sito — dedotta dal repo
+  (file, cartella, rewrite/redirect, sitemap), non da una lista a mano; i
+  prezzi citati sono agganciati a `api/_catalog.js` (se il Virtual Viewing
+  passa a €99 il test si accorge che WhatsApp promette ancora €89); il link
+  recensione passa la STESSA validazione delle email (`api/reviews/_lib.js`:
+  la scatola delle stelle, non la scheda Maps); i segnaposto sono
+  `[MAIUSCOLO]` — uno minuscolo si mimetizza in una frase e parte così.
+- **Quattro nate dalla MISURA, non dal ragionamento** (agosto 2026, 1.004
+  conversazioni vere lette dal misuratore): `/enwho` chi può abitarci —
+  coppia, amici, figli, animali — **255 conversazioni su 1.004, una su
+  quattro**, ed era scoperta; `/enfeat` arredo e servizi (95); `/endeal`
+  trattativa (20); `/enres` residenza (17). Il catalogo scritto a
+  ragionamento non le aveva: è il motivo per cui si misura prima di
+  installare.
+- **LA DOTTRINA DELL'UPSELL** (agosto 2026, riscrittura completa su richiesta
+  dell'operatore: «premium, atipico, diretto»). Sette regole, tutte visibili
+  nel testo di ogni messaggio: (1) non si vende il servizio ma **cosa saprai
+  domani** — nessuno compra una "visita virtuale", compra il non mandare
+  3.000€ a uno sconosciuto fidandosi delle sue foto; (2) **l'ancora è la
+  perdita**, non il prezzo (€49 contro la clausola d'uscita non letta), e ogni
+  risposta DICHIARA contro cosa vende (`sell.anchor`, mostrata in pagina);
+  (3) il prezzo sparisce dentro una transazione già in corso — *scalato dalla
+  commissione, rimborsato se non consegniamo*; (4) la prova è un **meccanismo**
+  ("filmo la casa all'ingresso e all'uscita"), mai un aggettivo; (5) una porta
+  sola, aperta una volta; (6) generosità asimmetrica — il primo passo è gratis
+  e vale davvero; (7) prima persona singolare.
+  **L'invariante che la tiene in piedi**: ogni servizio vendibile in
+  conversazione deve avere la SUA risposta (`sell.service`), che ne dice il
+  prezzo esatto e porta la garanzia accanto — senza, quel numero è solo una
+  richiesta di soldi. Il test l'ha già usato per smascherare una dichiarazione
+  falsa (`/prciao` diceva di vendere il pacchetto €349 mentre apre col calcolo
+  gratuito: la porta è `/prpack`).
+- **RISCRITTE SULLA VOCE VERA** (`scripts/wa-voce-locale.mjs`, agosto 2026 —
+  29.255 messaggi dell'operatore). Le prime versioni erano scritte con la voce
+  di chi le redige, non di chi le manda, e l'operatore le ha bocciate: «sono
+  inutili». I numeri gli hanno dato ragione — **metà dei suoi messaggi sta
+  sotto 17 caratteri**, 3 su 4 sotto 38, e **un link compare nell'1%**: testi
+  da 800 caratteri pieni di link non erano risposte, erano muri. Ora si sta
+  sotto i 400 (mediana 262) e il link è un'eccezione che deve valere il tap.
+  La mossa che chiude è **chiamare** (11 volte fra i messaggi ripetuti), quindi
+  la proposta di chiamata sta nelle risposte d'apertura. I **sei messaggi che
+  già riscriveva a mano** ogni volta sono diventati sei scorciatoie
+  (`enlead` 11× · `engone` 13× · `enlink` 15× · `enserv` 18× · `enblock` 11×),
+  e i servizi quasi mai proposti — Virtual Viewing 1×, Deal Assistance 1×,
+  Contract Check 2× su 180 giorni — hanno la loro occasione naturale
+  (`enabroad`, `encheck`) invece di restare nel listino.
+  **Avvertenza sul campione**: l'archivio wacli è il WhatsApp PERSONALE
+  dell'operatore, quindi i conteggi delle intenzioni sono gonfiati dalle chat
+  private (il `chi_abita 255×` vale meno di quanto sembra); i messaggi
+  RIPETUTI, invece, sono inequivocabilmente lavoro.
+- **Quindici, non cinquanta** (`bench: true` su tutto il resto). L'app ne
+  accetta 50, ed è esattamente la trappola: cinquanta scorciatoie non si
+  ricordano, quindi non si usano, quindi lo strumento muore nel telefono.
+  Si installa ciò che serve QUESTA settimana — le sei che già riscrivevi a
+  mano, più costi, documenti, chi può abitarci, arredo, visita, estero,
+  contratto altrui, ricerca su misura, italiano e proprietario — e le altre
+  restano nel mazzo: la pagina
+  si apre già filtrata sulle 14, le rare si cercano e si copiano al volo.
+  La promozione è un attributo, non una riscrittura: se una del mazzo torna
+  spesso, si toglie `bench` e si carica.
+- **Cosa NON entra**: i link personali (visita, Scheda, Magic Sign,
+  pre-accordo, pagamento) sono per una persona sola e li genera il portale;
+  nelle risposte `/op…` stanno come `[LINK]`. E niente che la macchina già
+  faccia da sola, altrimenti si scrive in due sulla stessa conversazione.
+- Da verificare a mano una volta: il link recensione in `/enrev` (deve essere
+  lo stesso di `REVIEW_URL`) e `settings/payout`, senza cui il bonifico
+  citato in `/enpay` non compare in `/casa`.
+
 ### GET/POST `/api/homie/searches` — gli occhi di Homie sul radar PFS
 Il problema sta scritto in `api/pfs/_fetch.js`: *"both portals run anti-bot
 protection and may 403 datacenter IPs — the email-alert path is the
@@ -1925,6 +2130,32 @@ competitor ha — e il VERDETTO che ne esce decide quale potere costruire.
   `verdict()`: classifica motivata dei poteri candidati (Segugio, visite
   auto, velocità, playbook, dossier; radar-proprietari dichiarato NON
   misurabile dalle chat), `tgSummary` HTML-escapato.
+- **Il misuratore della domanda** (`js/wa-demand-engine.js`, `BOOM_WADEMAND`,
+  dentro lo stesso `op:'study'`): gli STESSI dati, seconda domanda — non
+  "che potere costruire" ma **quali risposte rapide servono davvero**. 22
+  intenzioni a grammatica chiusa (IT/EN, zero token) sui messaggi dei
+  clienti: thread ridotti dal Mac (che portano l'esito) + `leads.message`
+  (che esistono anche a Mac spento). Le nostre uscite (`action_queue`)
+  stanno in un corpus SEPARATO: misurare la domanda con le nostre parole la
+  gonfierebbe. **Si ordina per TEMPO RISPARMIATO, non per frequenza** — una
+  domanda che arriva 40 volte e si liquida in dieci secondi vale meno di una
+  che arriva 12 volte e ogni volta costa quattro minuti; il costo non si
+  inventa, è la lunghezza VERA della risposta che la copre (~200 car/minuto
+  col pollice, e fra due risposte si prende la più lunga, mai la somma).
+  Conta per CONVERSAZIONE (tre "deposito" nella stessa chat = una risposta
+  che avresti mandato una volta). Sotto 30 conversazioni classificate escono
+  i conteggi e NESSUNA percentuale (lezione D4). Due uscite che valgono
+  quanto la classifica: le **buche** (intenzione con volume e nessuna
+  scorciatoia che la copra → una risposta DA SCRIVERE: oggi residenza,
+  arredo/servizi, chi abita, trattativa) e l'**ignoto** (`unmatched`, con le
+  frasi vere — una classificazione silenziosa è indistinguibile da un
+  difetto). Finisce in `teamReports/miniera-<data>.domanda` e in un secondo
+  messaggio Telegram dopo il podio. **La guardia che tiene in piedi tutto**
+  (`tests/whatsapp/demand.mjs`): ogni intenzione deve dimostrare di matchare
+  una frase vera — due difetti reali di questo tipo sono già stati presi
+  così, un `\b` in coda a una radice tronca (`residenz`) e un `\\b` scritto
+  in un pattern: entrambi non matchano MAI e sotto-contano in silenzio,
+  cioè il rapporto esce sano e dice che nessuno chiede quella cosa.
 - **Porta** (auth `X-Homie-Secret`): GET → stato + mappa id→hash (sync
   incrementale); POST `op:'threads'` → upsert idempotente in
   `minieraThreads` (id = sha1(chatId), admin-only in firestore.rules — la
@@ -2006,6 +2237,127 @@ zona). Studio: `STUDIO_BOOM_AUTONOMA.md`. Architettura a ciclo di vita:
   contatti→dentro, campione piccolo→pubblica — tutte catturate) e
   `node tests/market/wiring.mjs` (giunzioni sulla sorgente: ordine del tap,
   verdetto solo server, rules, cron).
+
+## Il Radar 2.0 — La Centrale (js/radar-engine.js + api/radar/* + /radar)
+
+I quattro poteri di un Casafari, costruiti sul ciclo di vita del Perito e sul
+dato che Casafari non ha (i canoni FIRMATI). Studio: `STUDIO_RADAR_CENTRALE.md`.
+Il giudizio vive nel motore puro `js/radar-engine.js` (`BOOM_RADAR`, UMD,
+riusa `normalizeZone` di market-engine — UNA copia); l'I/O nelle porte.
+
+- **L'IMPRONTA** — la stessa casa vista da due porte è UNA casa.
+  `api/radar/_tap.js` (chiamato da `_ingest` DOPO master + libro mastro,
+  best-effort: col radar rotto il servizio pagato non si ferma — asserito
+  nei test) gemella l'annuncio contro l'indice dei recenti
+  (`radarState/index`, UN doc compatto, cap 800/90g — cache della verità:
+  una voce persa degrada, non rompe). Regole dure, testate per mutazione:
+  vie diverse = MAI gemelli; stessa fonte = soglia più alta + segnale
+  identitario obbligatorio (le dieci unità gemelle della stessa agenzia);
+  il segnale titoli esige ≥2 token significativi. Cluster additivo su
+  `pfsProperties.radar` (clusterId = capostipite), MAI cancellazioni.
+  Effetti: il mazzo del cliente NON riceve due volte la stessa casa da due
+  portali; il cluster dichiara `privateAndAgency`/`multiPortal`/`repost`.
+- **IL FIUTO** — punteggio occasione 0-100 contro `marketStats/<zona>` +
+  libro mastro (ribassi 14g, rientri 30g, privato, appena uscito). Sotto
+  campione NIENTE verdetto; prezzo irrealistico = 'sospetto', mai
+  'occasione' (le truffe vivono sotto p25). verdict='occasione' → feed
+  `radarState/occasioni` (cap 60, la stessa CASA una volta sola anche via
+  gemelli) + card Telegram 💎. Un ri-avvistamento non è una notizia; un
+  RIBASSO sì (`priceJustDropped` dal ramo skipFresh, che ora aggiorna
+  anche il prezzo sul doc — prima restava stantio).
+- **LE VEDETTE** (`radarWatchers`, CRUD dalla Centrale) — le ricerche
+  libere, slegate dai clienti PFS: zone/prezzo/mq/camere/solo-privati/solo
+  occasioni; canale Telegram ISTANTANEO (nel tap) e canale email come
+  DIGEST (`api/radar/digest.js`, cron 3×/giorno, disciplina Segugio: max 6
+  case, notifiedIds DOPO l'invio, un rerun non rispedisce). Una vedetta
+  vede solo il FUTURO (annunci nati dopo la sua creazione); il de-dup di
+  cluster è per canale e per vedetta (il gemello PRIVATO di un annuncio
+  d'agenzia passa dalla vedetta "solo privati"); criterio dichiarato +
+  dato mancante = NO che dice perché. Heartbeat `teamHealth/vedetta`.
+- **IL VALUTATORE** (`POST /api/radar/valuta` {zone,sqm,rooms}, auth come
+  i cron PFS) — fascia canone dai quantili del CHIESTO di zona, CORRETTA
+  sul rapporto chiesto→FIRMATO dei contratti BOOM della zona (≥3 firme,
+  cap [−20%,+10%], sempre dichiarata) + comparabili vivi dal libro.
+  Sotto campione: 'small_sample', mai un numero debole.
+- **IL RADAR MANDATI** — `pulse.js` (il Perito) compila
+  `radarState/mandati`: privati fermi oltre 1.5× l'assorbimento di zona
+  (o 60g fissi dichiarati) = candidati "proponigli la gestione BOOM".
+  CARD per l'operatore, MAI contatti automatici (la D5 del Perito non si
+  tocca: solo fatti + URL pubblico).
+- **LA ZONA DEDOTTA, MAI INDOVINATA** (`inferZone`) — il difetto che
+  affamava tutto: scan-inbox (fonte portante) non passava zone,
+  scan-market passava la LABEL della ricerca come zona → slug spazzatura
+  che frammentava marketStats. Ora: lessico curato di ~38 zone romane su
+  titolo+indirizzo (mai la descrizione — "a due passi da Trastevere" è
+  marketing), parole intere, l'alias lungo batte il corto contenuto
+  ('monti tiburtini' → Tiburtino), ambiguo → null; provenienza dichiarata
+  (`zoneInferred`). `_searchurls` emette la zona pulita → `sync-searches`
+  la persiste (`zoneName`) → `scan-market` passa quella.
+- **Due battiti guariti**: `pfsRadarHealth/sync` era letto ma MAI scritto
+  (ora `reportHealth('sync')` in sync-searches); gli occhi del Perito
+  (`homie/market.js`) scrivevano il battito a mano bypassando
+  `alertDecision` — l'allerta promessa nel commento non esisteva. Ora vera.
+- **Console** `/radar` (admin, noindex+no-store, gruppo Console del
+  portal): salute fonti, polso per zona, occasioni, mandati, vedette,
+  valutatore, gemelli. La Vedetta è nell'organigramma (driftVsCrons);
+  Perito.console = /radar. Rules: `radarWatchers` + `radarState`
+  admin-only (lezione propertyLocks).
+- Test: `node tests/radar/run.mjs` (102 check — motore per mutazione,
+  giunzioni sulla sorgente, giro vero su Firestore in memoria col digest
+  email reale via nodemailer mockato, e il contenimento: radar giù →
+  cliente servito comunque).
+
+## Lo Scatto + Il Contatto (bot/boom_scout.py · bot/boom_contatto.py · api/outreach/*)
+
+Il ciclo PFS chiuso per intero, coi due bracci sul Mac che mancavano
+(mandato completo: `bot/SCATTO_CONTATTO.md`; installazione in UN comando:
+`bot/install_scatto_contatto.sh` — ritrova HOMIE_SECRET dai bracci già
+installati, .env mai clobberati, rilanciarlo aggiorna gli script e basta).
+La scoperta che li ha fatti
+nascere: il ciclo "apri le ricerche → estrai → manda al server" esisteva
+solo come PROMPT in `bot/HOMIE.md` — nessuno script deterministico lo
+eseguiva, e il radar viveva dei soli alert email. Regola invariata: il
+server pensa, il Mac esegue (IP residenziale, browser vero — i portali
+403-ano i datacenter, `api/pfs/_fetch.js`).
+
+- **LO SCATTO** (`bot/boom_scout.py` + `com.boom.scout.plist`, ogni 10'):
+  GET `/api/homie/searches` (che ora porta anche la `zone` pulita) → apre
+  ogni ricerca nel profilo persistente → estrae gli URL (stessi pattern di
+  `_fetch.js`), registro locale dei già visti (il dedupe VERO è del server)
+  → apre le schede nuove (JSON-LD prima, regex poi, mai inventare) →
+  inserzionista SOLO con prova: `/da-privati/` → private per costruzione,
+  marker → quello che dicono, altrimenti **`unknown` ESPLICITO** (il server
+  a campo mancante assume private — un'agenzia spacciata per privato
+  finirebbe nel mazzo) → POST `/api/homie/property` (ora con
+  `skipFreshHours`: i ri-avvistamenti non ripunteggiano tutti i clienti) →
+  rapporto = battito (`pfsRadarHealth/homie-eyes`, `blocked` è il campo che
+  conta). Priorità totale al privato per costruzione: le agenzie si
+  archiviano, mai nei mazzi.
+- **IL CONTATTO** (`js/outreach-engine.js` + `api/outreach/*` +
+  `bot/boom_contatto.py` + `com.boom.contatto.plist`, ogni 5'): il primo
+  messaggio al proprietario nella CHAT DEL PORTALE (quando non c'è un
+  numero), approvato UNO PER UNO. In plancia: 📨 sul feed/triage → modale
+  con 4 stili (sobrio/caloroso/deciso/english) × 2 voci (chi cerca casa /
+  BOOM trasparente), anteprima ISTANTANEA dal motore condiviso (UMD:
+  stessa copia browser e server), ✨ rifinitura AI opzionale
+  (`api/outreach/draft.js`, haiku sui SOLI fatti dell'annuncio, fallback
+  template su qualunque errore), testo editabile → il tap Approva È la
+  firma: doc `outreachQueue/out_<listingId>` (id deterministico = **un
+  contatto per annuncio per costruzione**). `api/outreach/queue.js`: lease
+  anti doppio-invio (GET marca 'sending', orfani oltre 45' tornano in
+  coda), 3 fallimenti = parcheggio, **esito_incerto = parcheggio
+  IMMEDIATO** (un retry cieco rischia il doppio messaggio allo stesso
+  proprietario), `blocked` rilascia i job e il battito lo dice
+  (`pfsRadarHealth/contatto`, riportato anche a coda vuota), a invio
+  riuscito l'annuncio passa da solo a `contattato` (channel portal-chat).
+  Guardie del motore: mai un telefono nel testo, mai dati del cliente
+  (solo ingresso/durata generici), `?peek=1` per guardare senza prendere.
+  Kill switch `settings/outreach {enabled:false}`. MAI il bottone sulle
+  agenzie. Nell'organigramma: approval **'sempre'** (ogni messaggio è un
+  tap), il terzo agente ad approvazione umana accanto a Gestore e
+  Commerciale (pinnato nei test del registro).
+- Test: `node tests/outreach/run.mjs` (47) · `python3 tests/scout/runner.py`
+  (29) · `python3 tests/contatto/runner.py` (16).
 
 ## La Squadra (AI employees — api/employees/*)
 
@@ -2342,6 +2694,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/journey/steps.mjs` | **le regole commerciali dell'operatore**: quando parte ogni email e cosa NON deve contenere (T-90 e uscita non vendono, le chiavi non si vendono mai, un prodotto già comprato non si ripropone, il rinnovo non arriva prima del move-in su un transitorio breve) |
   | `tests/journey/review-url.mjs` | solo un vero link "scrivi recensione" (`g.page/r/<id>/review`) entra nelle email; un link Maps "Condividi" viene rifiutato con warning |
   | `tests/dossier/run.mjs` | fascicolo ARPE: un landlord non può scrivere nel fascicolo di un immobile altrui, path sotto `property-docs/<id>/`, slot già pieni non sovrascritti |
+  | `tests/preagreement/state.mjs` | stato della proposta: un deal PAGATO non torna mai indietro (né ad `accepted` né a `reserve`) e non apre una seconda Checkout, il link "completa il pagamento" non incassa due volte, la riparazione dalla console non dichiara MAI pagato senza prova (checkout abbandonata ≠ pagamento, sessione di un'altra proposta ≠ pagamento) e la riserva si sblocca solo se il lucchetto è davvero libero. Verificato per mutazione: rimessa la vecchia guardia, 7 check cadono |
   | `tests/photos/sweep.mjs` | photo-lab: chi è candidato allo sweep, quali foto contano come sorgente (i nostri output enhanced mai), e l'ordine con cui le 3 notti si spendono — le gallerie vere prima degli annunci da una foto. Si auto-skippa senza `sharp` |
   | `tests/copy/run.mjs` | descrizioni: lo sweep riscrive i template del bot e le schede mute, ma **mai** le parole di un umano — verificato sulle stringhe vere del catalogo, dove il testo scritto a mano è più CORTO del template |
   | `tests/dispo/run.mjs` | date di disponibilità: una data illeggibile non diventa MAI "libera ora" (il difetto che metteva "Available now" su case libere a settembre), un messaggio aggiorna tutte le case, una data sola non si spalma su chi non è stato nominato, e la porta rifiuta ciò che le pagine non saprebbero rileggere |
@@ -2359,8 +2712,11 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/wizard/health.mjs` | Il guardiano del bot sul Mac: il wrapper saltato lo dice UNA volta (non 96, non mai), il documento assente tace 24h e poi parla, offline batte tutto, il ritorno si sente sempre |
   | `tests/pfs/health.mjs` | Allarmi del radar: una fonte BLOCCATA all'origine parla una volta sola (200 run → 1 messaggio), un guasto vero si dirada invece di gridare ogni 6h (40 giorni → 8 promemoria), i primi due intoppi non svegliano nessuno, e il ritorno si sente sempre |
   | `tests/pfs/eyes.mjs` | Gli occhi di Homie sul radar PFS: nella lista di lavoro non entrano ricerche spente o con URL rotti, la manopola manuale (`urlOverride`) vince sempre, e — la regola che conta — un radar CIECO (403/captcha su tutte le ricerche) non passa mai per un mercato fermo |
+  | `tests/whatsapp/replies.mjs` | Le risposte rapide di WhatsApp: un messaggio che si manda a occhi chiusi mille volte non può contenere un link morto (le rotte si deducono dal repo, non da una lista), i prezzi non possono divergere da `api/_catalog.js`, il link recensione apre le stelline e non la scheda Maps, e il documento in `docs/` non può restare indietro |
+  | `tests/radar/run.mjs` | Il Radar 2.0: vie diverse non si fondono MAI (il falso gemello nasconde una casa al cliente), stessa-fonte esige un segnale identitario, il fiuto tace senza campione e chiama 'sospetto' le truffe, le vedette vedono solo il futuro e mai due volte la stessa casa, il Valutatore corregge sui canoni FIRMATI e dichiara le basi, e col radar ROTTO l'ingestione PFS spinge comunque — il giro vero su Firestore in memoria, digest email compreso |
   | `tests/whatsapp/run.mjs` | Da WhatsApp a lead senza AI: il rumore resta fuori (👍, "ok") e la persona vera entra, l'inquilino che scrive per la caldaia non inquina la pipeline, un lead per persona anche col numero archiviato in formato diverso (nazionale vs internazionale), una risposta umana zittisce il Commerciale. Guida il handler VERO su un Firestore finto in memoria |
   | `tests/phone/run.mjs` | Il Centralino, entrambe le porte. Segreteria: chiave derivata mai regalata, disclosure GDPR pinnata nel saluto, retry Twilio senza doppioni, Whisper/AI/Telegram giù non perdono MAI la chiamata. Receptionist ElevenLabs: firma HMAC rifiutata (anche stantia) senza scritture, nel lead SOLO le parole del CHIAMANTE (mai quelle dell'agente — la lingua della bozza esce dalle sue parole), audio e trascrizione in QUALSIASI ordine, tools in chiamata con auth e catalogo che esclude gli affittati. Handler veri su Firestore in memoria + giunzioni asserite sui file |
+  | `tests/whatsapp/demand.mjs` | Il misuratore della domanda: ogni intenzione dimostra di saper riconoscere una frase vera (un pattern inerte sotto-conta in SILENZIO), "business" non diventa una domanda sui bus, la classifica è per tempo risparmiato e non per frequenza, sotto campione niente percentuali, e ciò che il motore non sa nominare esce con le parole vere |
   | `tests/miniera/run.mjs` | La Miniera: il join aggancia la persona in OGNI forma del numero (parità con `_lead.js`, JID senza `+` guarito), i veti del libro dei silenzi (inquilini/firmati/morti/oltre 120gg MAI nel re-ingaggio), sotto campione NIENTE percentuali (per mutazione), il verdetto motivato coi numeri, parità cross-linguaggio con l'estrattore Python, handler vero su Firestore in memoria |
   | `tests/wizard/local_brain.py` | Il cervello gratis del bot wizard (`python3`): cosa capisce senza modello e — più importante — cosa deve rifiutarsi di capire. Una domanda ("Levico è affittato?") non può diventare una scrittura; un annuncio nuovo dettato non può diventare la modifica di uno esistente. Estrae le funzioni pure dal bot via AST: gira senza `.env`, senza Telegram, senza rete |
   | `tests/executive/run.mjs` | BOOM Executive: il professionista in trasferta resta un TENANT nella macchina piena, il datore dichiarato (`employer`) non viene scambiato per l'honeypot (`company`), la voce B2B tace col tenant e parla con l'ente — con la guardia PRIMA della spesa, asserita sull'ordine nel sorgente |
@@ -2429,7 +2785,7 @@ pages on their loader with no signal at all):
   visible error with a recovery button instead of an empty page.
 - `BoomPortal.registerServiceWorker()` calls `reg.update()` — Safari does
   not re-check `sw.js` as eagerly as Chrome, so a stale worker could serve
-  an old shell for days. Cache version is `boom-v16`. portal.html's inline
+  an old shell for days. Cache version is `boom-v17`. portal.html's inline
   registration does the same.
 - `vercel.json` now sends `private, no-store` + `noindex` on every
   logged-in surface (`casa`, `tenant`, `manuale`, `pre-agreement-admin`,

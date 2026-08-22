@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Variante IL PACKAGING</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --gold:#FFD700; --green:#00FF88; --black:#030303; --void:#060607;
+  --surface:#0B0B0C; --card:#0E0E10; --text:#FAFAFA;
+  --text-2:rgba(250,250,250,.72); --text-3:rgba(250,250,250,.5);
+  --text-4:rgba(250,250,250,.48); --line-0:rgba(255,255,255,.04);
+  --line:rgba(255,255,255,.08);
+  --ease:cubic-bezier(.16,1,.3,1); --molla:cubic-bezier(.3,1.45,.5,1);
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  --display:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  --c-vv:#00FF88; --c-pf:#FFD700; --c-da:#9D8CFF; --c-cc:#3ED3FF;
+  --mono:ui-monospace,'SF Mono',SFMono-Regular,Menlo,Consolas,monospace;
+}
+body{background:var(--black);color:var(--text);font-family:var(--sans);
+  font-weight:300;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;z-index:-1;pointer-events:none;background:
+  radial-gradient(55% 38% at 50% 0%,rgba(255,215,0,.05),transparent 70%),
+  radial-gradient(45% 32% at 88% 100%,rgba(62,211,255,.035),transparent 70%),
+  radial-gradient(45% 32% at 8% 82%,rgba(157,140,255,.03),transparent 70%)}
+
+/* ————— header ————— */
+.testa{max-width:1180px;margin:0 auto;
+  padding:clamp(56px,9vh,92px) clamp(20px,4vw,48px) clamp(34px,5vh,52px)}
+.eyebrow{display:inline-flex;align-items:center;gap:14px;font-family:var(--mono);
+  font-size:11px;letter-spacing:.38em;text-transform:uppercase;color:var(--gold)}
+.eyebrow::before{content:'';width:28px;height:1px;
+  background:linear-gradient(90deg,var(--gold),transparent)}
+.testa h2{margin-top:22px;font-family:var(--display);font-weight:200;
+  font-size:clamp(34px,4.8vw,56px);line-height:1.06;letter-spacing:-.01em}
+.testa h2 em{font-style:normal;color:var(--gold);font-weight:300}
+.sotto{margin-top:16px;color:var(--text-3);font-size:15px;line-height:1.65;max-width:54ch}
+
+/* ————— shelf ————— */
+.scaffale{max-width:1180px;margin:0 auto;
+  padding:0 clamp(20px,4vw,48px) clamp(76px,10vh,120px)}
+.fila{display:grid;grid-template-columns:repeat(3,1fr);gap:26px}
+
+.prodotto{position:relative;--lid:24px;--w:206px;--h:238px;--d:124px;
+  display:flex;flex-direction:column;
+  background:linear-gradient(180deg,rgba(255,255,255,.022),rgba(255,255,255,0) 55%),var(--card);
+  border:1px solid var(--line-0);border-radius:24px;padding:24px 26px 30px;
+  transition:border-color .6s var(--ease)}
+.prodotto:hover{border-color:rgba(var(--cr),.18)}
+
+.ammiraglia{--lid:30px;--w:312px;--h:338px;--d:180px;
+  display:grid;grid-template-columns:1.06fr 1fr;align-items:center;
+  gap:16px 40px;padding:30px 52px 38px;margin-bottom:26px;
+  border-color:rgba(255,215,0,.15);
+  background:radial-gradient(70% 95% at 24% 50%,rgba(255,215,0,.05),transparent 65%),
+    linear-gradient(180deg,rgba(255,255,255,.028),rgba(255,255,255,0) 55%),var(--card)}
+.ammiraglia:hover{border-color:rgba(255,215,0,.28)}
+
+/* ————— stage, halo, ground ————— */
+.palco{position:relative;height:390px}
+.ammiraglia .palco{height:512px}
+.palco::after{content:'';position:absolute;left:9%;right:9%;bottom:26px;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(255,255,255,.09),transparent)}
+.alone{position:absolute;inset:-6% -12%;pointer-events:none;opacity:.85;
+  background:radial-gradient(48% 42% at 50% 55%,rgba(var(--cr),.12),transparent 70%);
+  transition:opacity .7s var(--ease)}
+.prodotto:hover .alone{opacity:1}
+.ombra{position:absolute;left:50%;bottom:14px;width:calc(var(--w)*1.3);height:40px;
+  transform:translateX(-50%);pointer-events:none}
+.ombra::after{content:'';position:absolute;inset:-40% -16%;border-radius:50%;
+  background:radial-gradient(50% 50% at 50% 50%,rgba(var(--cr),.15),transparent 70%);
+  filter:blur(10px)}
+.ombra i{position:absolute;inset:0;border-radius:50%;
+  background:radial-gradient(50% 50% at 50% 50%,rgba(0,0,0,.82),rgba(0,0,0,0) 70%);
+  filter:blur(8px);animation:respiro 6.5s ease-in-out infinite;
+  animation-delay:var(--del,0s)}
+
+/* ————— the box ————— */
+.float{position:absolute;inset:0 0 26px 0;display:flex;align-items:center;justify-content:center;
+  animation:leva 6.5s ease-in-out infinite;animation-delay:var(--del,0s)}
+.scene{position:relative;width:calc(var(--w)*1.4);height:calc(var(--h)*1.2);perspective:1600px}
+.box{position:absolute;left:50%;top:50%;width:var(--w);height:var(--h);
+  transform:translate(-50%,-50%) rotateX(-18deg) rotateY(-31deg);
+  transform-style:preserve-3d;transition:transform .9s var(--molla)}
+@media (hover:hover){
+  .prodotto:hover .box{transform:translate(-50%,-50%) translate3d(0,-12px,34px)
+    rotateX(-11deg) rotateY(-17deg)}
+}
+.face{position:absolute;backface-visibility:hidden}
+
+.f-front{inset:0;transform:translateZ(calc(var(--d)/2));border-radius:4px;
+  background:radial-gradient(130% 85% at 18% 0%,rgba(var(--cr),.10),transparent 55%),
+    linear-gradient(163deg,#151518 0%,#0C0C0E 55%,#09090B 100%);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.05),inset 0 1px 0 rgba(255,255,255,.06);
+  display:flex;flex-direction:column;justify-content:space-between;
+  padding:calc(var(--lid) + 18px) 20px 16px}
+.f-front::after{content:'';position:absolute;left:0;right:0;top:0;height:var(--lid);
+  border-radius:4px 4px 0 0;
+  background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.012))}
+.f-front::before{content:'';position:absolute;left:0;right:0;top:var(--lid);height:1px;z-index:1;
+  background:linear-gradient(90deg,rgba(var(--cr),0),rgba(var(--cr),.7) 30%,rgba(var(--cr),.7) 70%,rgba(var(--cr),0));
+  box-shadow:0 0 12px 1px rgba(var(--cr),.3)}
+
+.f-side{top:0;left:50%;width:var(--d);height:var(--h);margin-left:calc(var(--d)/-2);
+  transform:rotateY(90deg) translateZ(calc(var(--w)/2));border-radius:4px;
+  background:radial-gradient(130% 70% at 35% 0%,rgba(var(--cr),.06),transparent 55%),
+    linear-gradient(195deg,#0E0E10,#070708 70%);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.035);
+  display:flex;align-items:center;justify-content:center}
+.f-side::before{content:'';position:absolute;left:0;right:0;top:var(--lid);height:1px;
+  background:linear-gradient(90deg,rgba(var(--cr),.45),rgba(var(--cr),.1));
+  box-shadow:0 0 8px rgba(var(--cr),.18)}
+.f-side svg{width:52%;height:auto;opacity:.9;
+  filter:drop-shadow(0 0 14px rgba(var(--cr),.35))}
+.f-side .lato-tag{position:absolute;bottom:13px;left:0;right:0;text-align:center;
+  font-family:var(--mono);font-size:8px;letter-spacing:.32em;color:rgba(255,255,255,.32)}
+
+.f-top{left:0;top:50%;width:var(--w);height:var(--d);margin-top:calc(var(--d)/-2);
+  transform:rotateX(90deg) translateZ(calc(var(--h)/2));border-radius:4px;
+  background:linear-gradient(180deg,#1B1C20,#101013);
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.055)}
+.banda{position:absolute;left:0;right:0;top:50%;height:18px;transform:translateY(-50%);
+  background:linear-gradient(90deg,rgba(var(--cr),0),rgba(var(--cr),.8) 28%,rgba(var(--cr),.8) 72%,rgba(var(--cr),0));
+  box-shadow:0 0 18px rgba(var(--cr),.35);opacity:.92}
+.lidmark{position:absolute;left:0;right:0;bottom:9px;text-align:center;
+  font-family:var(--mono);font-size:8px;letter-spacing:.4em;color:rgba(255,255,255,.35)}
+
+/* silk-screen print on the front face */
+.marchio{font-family:var(--display);font-weight:400;font-size:11px;
+  letter-spacing:.42em;color:rgba(255,255,255,.55)}
+.snome{display:block;font-family:var(--display);font-weight:300;
+  font-size:23px;line-height:1.16;letter-spacing:.015em;max-width:9ch}
+.ammiraglia .snome{font-size:31px;max-width:60%}
+.skind{display:block;margin-top:9px;font-family:var(--mono);font-size:8.5px;
+  letter-spacing:.3em;color:var(--c);opacity:.95}
+.codice{display:flex;flex-direction:column;gap:7px;align-items:flex-start}
+.codice span{font-family:var(--mono);font-size:9px;letter-spacing:.18em;color:var(--text-4)}
+.barcode{width:46px;height:15px;opacity:.5;background:repeating-linear-gradient(90deg,
+  rgba(255,255,255,.6) 0 1px,transparent 1px 3px,
+  rgba(255,255,255,.4) 3px 5px,transparent 5px 6px,
+  rgba(255,255,255,.6) 6px 7px,transparent 7px 10px)}
+
+/* flagship ribbon */
+.nastro{position:absolute;top:0;bottom:0;left:64%;width:46px;z-index:2;
+  display:flex;align-items:center;justify-content:center;
+  background:linear-gradient(102deg,rgba(255,255,255,.3),rgba(255,255,255,0) 45%),
+    linear-gradient(180deg,#FFDC33,#DCAF00);
+  box-shadow:inset 1px 0 0 rgba(255,255,255,.3),inset -1px 0 0 rgba(0,0,0,.25),
+    0 0 26px rgba(255,215,0,.22)}
+.nastro span{writing-mode:vertical-rl;font-family:var(--mono);font-weight:700;
+  font-size:9.5px;letter-spacing:.44em;color:#171200;text-transform:uppercase}
+.nastro-top{position:absolute;top:0;bottom:0;left:64%;width:46px;z-index:2;
+  background:linear-gradient(180deg,#FFE45C,#E9BC0A);
+  box-shadow:inset 1px 0 0 rgba(255,255,255,.35),inset -1px 0 0 rgba(0,0,0,.2)}
+
+/* ————— sales layer ————— */
+.vendita{display:flex;flex-direction:column;align-items:flex-start;gap:14px;margin-top:8px}
+.ammiraglia .vendita{gap:18px;margin-top:0}
+.pnome{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.pnome h3{font-family:var(--display);font-weight:300;font-size:24px;letter-spacing:.01em}
+.ammiraglia .pnome h3{font-size:clamp(28px,3vw,38px)}
+.kind{font-family:var(--mono);font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;
+  color:var(--c);background:rgba(var(--cr),.07);border:1px solid rgba(var(--cr),.35);
+  padding:5px 12px 4px;border-radius:100px;white-space:nowrap}
+.promessa{font-size:14.5px;line-height:1.65;color:var(--text-2)}
+.ammiraglia .promessa{font-size:16.5px;max-width:44ch}
+.compra{display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  border-radius:100px;min-height:44px;padding:0 26px;background:var(--c);
+  color:#0A0A05;font-weight:700;font-size:15px;text-decoration:none;
+  letter-spacing:.005em;
+  box-shadow:0 12px 30px -8px rgba(var(--cr),.45),0 2px 8px rgba(0,0,0,.4);
+  transition:transform .4s var(--molla),box-shadow .4s var(--ease)}
+.compra:hover{transform:translateY(-2px);
+  box-shadow:0 18px 40px -8px rgba(var(--cr),.6),0 2px 8px rgba(0,0,0,.4)}
+.compra:focus-visible{outline:2px solid var(--text);outline-offset:3px}
+.fila .compra{width:100%}
+.ammiraglia .compra{padding:0 34px;font-size:16px}
+.rassicura{font-size:12.5px;line-height:1.55;color:var(--text-3);display:flex;gap:9px}
+.rassicura .check{color:var(--c);flex:none;font-weight:600}
+
+/* ————— 3-col alignment (desktop only) ————— */
+@media (min-width:1021px){
+  .fila .pnome h3{font-size:22px}
+  .fila .kind{font-size:9px;padding:4px 10px 3px}
+  .fila .vendita{flex:1;align-self:stretch}
+  .fila .promessa{margin-bottom:auto}
+  .fila .rassicura{min-height:40px}
+}
+
+/* ————— motion ————— */
+@keyframes leva{0%,100%{transform:translateY(0)}50%{transform:translateY(-9px)}}
+@keyframes respiro{0%,100%{transform:scale(1);opacity:.85}50%{transform:scale(.9);opacity:.6}}
+
+/* ————— tablet ————— */
+@media (max-width:1020px){
+  .fila{grid-template-columns:1fr;gap:22px}
+  .fila .prodotto{display:grid;grid-template-columns:minmax(260px,320px) 1fr;
+    align-items:center;gap:0 34px;padding:20px 34px 24px}
+  .fila .palco{height:340px}
+  .fila .compra{width:auto}
+  .fila .vendita{margin-top:0}
+  .ammiraglia{--w:252px;--h:284px;--d:150px;--lid:26px;
+    grid-template-columns:minmax(280px,350px) 1fr;gap:0 34px;padding:24px 34px 30px}
+  .ammiraglia .palco{height:430px}
+  .ammiraglia .snome{font-size:26px}
+}
+
+/* ————— mobile ————— */
+@media (max-width:580px){
+  .fila .prodotto,.prodotto,.ammiraglia{display:flex;flex-direction:column;
+    padding:20px 20px 28px}
+  .prodotto{--w:196px;--h:226px;--d:118px;--lid:22px}
+  .ammiraglia{--w:240px;--h:268px;--d:140px;--lid:26px;gap:12px}
+  .palco,.fila .palco{height:330px}
+  .ammiraglia .palco{height:410px}
+  .compra,.fila .compra,.ammiraglia .compra{width:100%}
+  .vendita,.fila .vendita{margin-top:10px}
+  .pnome h3{font-size:22px}
+  .ammiraglia .pnome h3{font-size:27px}
+  .ammiraglia .promessa{font-size:15px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+/* il chip FLAGSHIP resta ancorato al nome: sotto gli 860px il titolo
+   dell'ammiraglia scala invece di spezzare la riga (l'ordine in coda
+   fa vincere questa regola sulla base a pari specificita') */
+.pnome .kind{flex:none}
+@media (max-width:860px){
+  .ammiraglia .pnome{gap:9px}
+  .ammiraglia .pnome h3{font-size:21px} }
+</style>
+</head>
+<body>
+
+<header class="testa">
+  <div class="eyebrow">BOOM — Services · The shelf</div>
+  <h2>Every service ships<br>in its <em>box</em>.</h2>
+  <p class="sotto">Matte black outside, one light inside. Pick it up, read the label — the whole service is sealed in with its guarantee.</p>
+</header>
+
+<section class="scaffale">
+
+  <!-- ══════════ AMMIRAGLIA · PROPERTY FINDING ══════════ -->
+  <article class="prodotto ammiraglia" style="--c:var(--c-pf);--cr:255,215,0;--del:0s">
+    <div class="palco">
+      <div class="alone"></div>
+      <div class="ombra"><i></i></div>
+      <div class="float">
+        <div class="scene">
+          <div class="box">
+            <div class="face f-top">
+              <span class="banda"></span>
+              <span class="nastro-top"></span>
+              <span class="lidmark">BOOM</span>
+            </div>
+            <div class="face f-side">
+              <svg viewBox="0 0 24 24" fill="none" stroke="var(--c)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="10.5" cy="10.5" r="6.5"/><path d="M15.5 15.5 21 21"/>
+              </svg>
+              <span class="lato-tag">BOOM·ROMA</span>
+            </div>
+            <div class="face f-front">
+              <span class="marchio">BOOM</span>
+              <span>
+                <span class="snome">Property Finding</span>
+                <span class="skind">FLAGSHIP — ROME</span>
+              </span>
+              <span class="codice"><span>PF·0350·ROME</span><i class="barcode"></i></span>
+              <span class="nastro"><span>Full Refund</span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="vendita">
+      <div class="pnome"><h3>Property Finding</h3><span class="kind">Flagship</span></div>
+      <p class="promessa">Your private hunter on the whole Rome market — off-market included, every shortlist walked in person before you see it.</p>
+      <a class="compra" href="/property-finding.html">Start the hunt · €350 →</a>
+      <p class="rassicura"><span class="check">✓</span>Zero risk: deducted on success, refunded in full if we don't deliver.</p>
+    </div>
+  </article>
+
+  <div class="fila">
+
+    <!-- ══════════ VIRTUAL VIEWING ══════════ -->
+    <article class="prodotto" style="--c:var(--c-vv);--cr:0,255,136;--del:-2.2s">
+      <div class="palco">
+        <div class="alone"></div>
+        <div class="ombra"><i></i></div>
+        <div class="float">
+          <div class="scene">
+            <div class="box">
+              <div class="face f-top"><span class="banda"></span><span class="lidmark">BOOM</span></div>
+              <div class="face f-side">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--c)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <rect x="2.5" y="6.5" width="13" height="11" rx="2.5"/>
+                  <path d="M15.5 11.5 21.5 8v8l-6-3.5z"/>
+                </svg>
+                <span class="lato-tag">BOOM·ROMA</span>
+              </div>
+              <div class="face f-front">
+                <span class="marchio">BOOM</span>
+                <span>
+                  <span class="snome">Virtual Viewing</span>
+                  <span class="skind">LIVE — ROME</span>
+                </span>
+                <span class="codice"><span>VV·0089·ROME</span><i class="barcode"></i></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="vendita">
+        <div class="pnome"><h3>Virtual Viewing</h3><span class="kind">Live</span></div>
+        <p class="promessa">See any home live on video before you fly — the red flags said out loud.</p>
+        <a class="compra" href="/virtual-viewing.html">Book a live tour · €89 →</a>
+        <p class="rassicura"><span class="check">✓</span>Credited if you rent with us · BOOM homes: free, always.</p>
+      </div>
+    </article>
+
+    <!-- ══════════ DEAL ASSISTANCE ══════════ -->
+    <article class="prodotto" style="--c:var(--c-da);--cr:157,140,255;--del:-4.1s">
+      <div class="palco">
+        <div class="alone"></div>
+        <div class="ombra"><i></i></div>
+        <div class="float">
+          <div class="scene">
+            <div class="box">
+              <div class="face f-top"><span class="banda"></span><span class="lidmark">BOOM</span></div>
+              <div class="face f-side">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--c)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M12 3l7.5 3v5.2c0 4.6-3.2 7.6-7.5 9.3-4.3-1.7-7.5-4.7-7.5-9.3V6z"/>
+                  <path d="M9 11.5l2.2 2.2 4-4.2"/>
+                </svg>
+                <span class="lato-tag">BOOM·ROMA</span>
+              </div>
+              <div class="face f-front">
+                <span class="marchio">BOOM</span>
+                <span>
+                  <span class="snome">Deal Assistance</span>
+                  <span class="skind">PROTECTION — ROME</span>
+                </span>
+                <span class="codice"><span>DA·0249·ROME</span><i class="barcode"></i></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="vendita">
+        <div class="pnome"><h3>Deal Assistance</h3><span class="kind">Protection</span></div>
+        <p class="promessa">Found a home yourself? We verify the landlord and the papers — then negotiate for you.</p>
+        <a class="compra" href="/deal-assistance.html">Protect the deal · €249 →</a>
+        <p class="rassicura"><span class="check">✓</span>Fixed fee — deposit and clauses negotiated, no percentages.</p>
+      </div>
+    </article>
+
+    <!-- ══════════ CONTRACT CHECK ══════════ -->
+    <article class="prodotto" style="--c:var(--c-cc);--cr:62,211,255;--del:-1.3s">
+      <div class="palco">
+        <div class="alone"></div>
+        <div class="ombra"><i></i></div>
+        <div class="float">
+          <div class="scene">
+            <div class="box">
+              <div class="face f-top"><span class="banda"></span><span class="lidmark">BOOM</span></div>
+              <div class="face f-side">
+                <svg viewBox="0 0 24 24" fill="none" stroke="var(--c)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M6.5 3.5h7L18 8v12a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 6 20V5a1.5 1.5 0 0 1 1.5-1.5z" transform="translate(-.5 0)"/>
+                  <path d="M13 3.5V8h4.5"/>
+                  <path d="M8.8 13h6.4M8.8 16.4h4.4"/>
+                </svg>
+                <span class="lato-tag">BOOM·ROMA</span>
+              </div>
+              <div class="face f-front">
+                <span class="marchio">BOOM</span>
+                <span>
+                  <span class="snome">Contract Check</span>
+                  <span class="skind">EXPRESS — ROME</span>
+                </span>
+                <span class="codice"><span>CC·0049·ROME</span><i class="barcode"></i></span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="vendita">
+        <div class="pnome"><h3>Contract Check</h3><span class="kind">Express</span></div>
+        <p class="promessa">About to sign? A written traffic-light verdict in 24h: fine, unfair, missing.</p>
+        <a class="compra" href="/contract-check-express.html">Check my contract · €49 →</a>
+        <p class="rassicura"><span class="check">✓</span>Credited in full on Deal Assistance.</p>
+      </div>
+    </article>
+
+  </div>
+</section>
+
+</body>
+</html>

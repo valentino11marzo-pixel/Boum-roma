@@ -63,14 +63,16 @@
       hired: 'Il cliente paga €350 perché qualcuno guardi il mercato prima di lui. Questo è quel qualcuno.',
       mandate: [
         'Legge gli alert email di Idealista e Immobiliare via IMAP e ricostruisce l\'annuncio vero dal link tracciato',
-        'Raschia le ricerche salvate sui portali quando lo lasciano passare',
+        'Il braccio sul Mac (LO SCATTO, bot/boom_scout.py) apre le ricerche dei clienti col browser VERO ogni ~10 minuti — la scansione costante che il server non può fare (i portali 403-ano i datacenter)',
         'Rigenera ogni giorno le ricerche dai criteri reali di ogni cliente attivo',
-        'Assegna un punteggio annuncio↔cliente e spinge i match ≥60 nel mazzo di swipe'
+        'Assegna un punteggio annuncio↔cliente e spinge i match ≥60 nel mazzo di swipe',
+        'Riconosce la STESSA casa su più portali (l\'impronta) e deduce la zona dal titolo quando la fonte non la dichiara',
+        'Dà a ogni annuncio un punteggio-occasione (il fiuto) contro le statistiche di zona del Perito'
       ],
       autonomy: {
-        solo:  ['Archivia ogni annuncio trovato', 'Punteggia e spinge i match nel portale del cliente', 'Fa scattare la notifica sul telefono del cliente'],
-        porta: ['Il brief operativo delle 06:00 su Telegram', 'Gli annunci che non è riuscito a ingerire (needsAttention)'],
-        mai:   ['Non contatta il proprietario dell\'annuncio', 'Non spinge annunci di agenzia — li archivia e basta']
+        solo:  ['Archivia ogni annuncio trovato', 'Punteggia e spinge i match nel portale del cliente', 'Fa scattare la notifica sul telefono del cliente', 'NON spinge due volte la stessa casa vista da due portali (de-dup di cluster)'],
+        porta: ['Il brief operativo delle 06:00 su Telegram', 'Gli annunci che non è riuscito a ingerire (needsAttention)', 'La card 💎 quando il fiuto dice "occasione"'],
+        mai:   ['Non contatta il proprietario dell\'annuncio', 'Non spinge annunci di agenzia — li archivia e basta', 'Non chiama "occasione" un annuncio in una zona senza campione sufficiente']
       },
       reach: ['archivio', 'operatore', 'ai'],
       approval: 'mai',
@@ -170,18 +172,64 @@
         'Registra ogni annuncio visto da qualsiasi porta (alert, Homie, scan) nel libro mastro: prezzo, mq, zona, date — MAI i contatti del privato',
         'Tiene la storia dei prezzi e segna i ribassi dei competitor',
         'Fa verificare a Homie chi è ancora vivo: un annuncio sparito con prova (404, "non più disponibile") è un affitto concluso — tempo di assorbimento per zona',
-        'Ogni mattina scrive le statistiche di zona: mediana €/mq, percentili, giorni-a-sparire'
+        'Ogni mattina scrive le statistiche di zona: mediana €/mq, percentili, giorni-a-sparire',
+        'Segnala i PRIVATI fermi oltre l\'assorbimento della loro zona come candidati mandato — card in /radar, mai un contatto automatico'
       ],
       autonomy: {
-        solo:  ['Registra e aggiorna il libro mastro', 'Dichiara morto un annuncio SOLO con prova — un 403 o un captcha è "non so", mai "affittato"', 'Pubblica le statistiche di zona (solo con campione sufficiente)'],
-        porta: ['Il report del mattino coi numeri del libro', 'L\'allarme se le verifiche si arretrano (gli occhi di Homie fermi)'],
+        solo:  ['Registra e aggiorna il libro mastro', 'Dichiara morto un annuncio SOLO con prova — un 403 o un captcha è "non so", mai "affittato"', 'Pubblica le statistiche di zona (solo con campione sufficiente)', 'Compila la lista dei candidati mandato'],
+        porta: ['Il report del mattino coi numeri del libro', 'L\'allarme se le verifiche si arretrano (gli occhi di Homie fermi)', 'I candidati mandato, come card nella Centrale'],
         mai:   ['Non contatta nessuno', 'Non tiene contatti dei privati — statistica, non rubrica', 'Non pubblica un numero su un campione piccolo', 'Non tocca gli annunci nostri']
       },
       reach: ['archivio', 'operatore'],
       approval: 'mai',
       crons: ['/api/market/pulse'],
       health: { col: 'teamHealth', doc: 'perito' },
-      console: null, run: '/api/market/pulse'
+      console: '/pfs-command#mercato', run: '/api/market/pulse'
+    },
+    {
+      key: 'contatto', emoji: '📨', name: 'Il Contatto', reparto: 'Commerciale',
+      role: 'Il messaggio approvato arriva nella chat del portale',
+      hired: 'Il primo contatto decide chi prende la visita, e un privato senza numero si raggiunge solo nella chat del portale. Scriverli a mano uno per uno teneva la qualità alta e la quantità impossibile.',
+      mandate: [
+        'L\'operatore rivede l\'annuncio in plancia, sceglie stile e voce, LEGGE il testo e tocca Approva: quel tap è la firma',
+        'Il Mac (bot/boom_contatto.py) consegna il testo INTATTO nella chat/form del portale, a ritmo umano, max 6 per giro',
+        'Un contatto per annuncio PER COSTRUZIONE: due clienti sulla stessa casa = una conversazione sola',
+        'Esito incerto = parcheggio immediato (mai un retry cieco che rischia il doppio messaggio); captcha = STOP e rapporto blocked'
+      ],
+      autonomy: {
+        solo:  ['Consegna il messaggio già approvato', 'Aggiorna da solo l\'outreach dell\'annuncio a "contattato" quando ha la prova dell\'invio'],
+        porta: ['Il recap Telegram degli invii', 'I parcheggiati (falliti/incerti) restano visibili in plancia con il motivo'],
+        mai:   ['Non scrive MAI a nessuno senza un\'approvazione umana per singolo messaggio', 'Non cambia una parola del testo approvato', 'Mai dati personali del cliente nel testo (il motore rifiuta i telefoni alla porta)']
+      },
+      // reach SENZA 'clienti': quella chiave marca chi scrive a qualcuno
+      // SENZA passare da te — qui ogni singolo messaggio è un tuo tap
+      // (stessa semantica del Commerciale, che propone e non spedisce).
+      reach: ['archivio'],
+      approval: 'sempre',
+      crons: [],
+      health: { col: 'pfsRadarHealth', doc: 'contatto' },
+      console: '/pfs-command', run: null
+    },
+    {
+      key: 'vedetta', emoji: '📡', name: 'La Vedetta', reparto: 'Commerciale',
+      role: 'Le ricerche libere: alert istantanei a te, digest email a chi vuoi',
+      hired: 'Il radar lavorava solo per i clienti PFS paganti. Le vedette sono gli occhi che punti dove vuoi tu: una zona, un budget, solo privati, solo occasioni — per te o per chiunque decidi.',
+      mandate: [
+        'Ogni annuncio ingerito passa dalle vedette accese (zona, prezzo, taglia, privati, solo occasioni 💎)',
+        'Il Telegram a te parte ISTANTANEO, dentro l\'ingestione',
+        'L\'email al destinatario esce come digest 3 volte al giorno: max 6 case, mai due volte lo stesso annuncio',
+        'Una vedetta vede solo il FUTURO: ciò che era già in vetrina quando l\'hai creata non la fa scattare'
+      ],
+      autonomy: {
+        solo:  ['MANDA I DIGEST EMAIL ai destinatari che hai impostato, senza ripasso'],
+        porta: ['L\'alert Telegram istantaneo', 'Il recap quando i digest partono'],
+        mai:   ['Non scrive a nessuno che tu non abbia impostato', 'Non rispedisce mai lo stesso annuncio', 'Non alza la voce su un ri-avvistamento (solo prime viste e ribassi)']
+      },
+      reach: ['clienti', 'operatore', 'archivio'],
+      approval: 'mai',
+      crons: ['/api/radar/digest'],
+      health: { col: 'teamHealth', doc: 'vedetta' },
+      console: '/pfs-command#mercato', run: '/api/radar/digest'
     },
     {
       key: 'segugio', emoji: '🐕', name: 'Il Segugio', reparto: 'Commerciale',
@@ -391,6 +439,26 @@
       crons: ['/api/ops/conservazione'],
       health: null,
       console: null, run: '/api/ops/conservazione'
+    },
+    {
+      key: 'cassaforte', emoji: '🧰', name: 'La Cassaforte', reparto: 'Amministrazione',
+      role: 'Il backup notturno del database, fuori dalla piattaforma',
+      hired: 'L\'audit del 18/08 l\'ha detto senza giri: il database non aveva UN backup. Contratti, pagamenti e clienti vivevano in un Firestore senza copia.',
+      mandate: [
+        'Ogni notte legge le collection critiche e le chiude in uno ZIP con INDICE',
+        'Posa la copia su Storage (backups/) e la SPEDISCE alla tua casella: Gmail e\' la copia fuori piattaforma',
+        'Se una collection e\' illeggibile lo scrive nell\'INDICE e lo dice su Telegram — un buco taciuto e\' un backup bugiardo'
+      ],
+      autonomy: {
+        solo:  ['Prepara, posa su Storage e SPEDISCE lo ZIP alla tua casella'],
+        porta: ['Lo ZIP stesso'],
+        mai:   ['Non manda niente a nessun altro che te', 'Non cancella e non riscrive MAI un documento']
+      },
+      reach: ['operatore', 'file'],
+      approval: 'mai',
+      crons: ['/api/ops/cassaforte'],
+      health: null,
+      console: null, run: '/api/ops/cassaforte'
     },
 
     /* ── VETRINA — quello che vede il pubblico ────────────────────────── */

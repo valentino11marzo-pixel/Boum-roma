@@ -176,7 +176,7 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
   font-weight:300; border-bottom:1px solid var(--line-0); }
 .tenda .btn { margin-top:22px; }
 
-/* ══ HERO — tre zone: la voce, lo scalo, il tabellone ══════════════════ */
+/* ══ HERO — due zone: la voce e il tabellone ══════════════════ */
 .hero { position:relative;
   padding:clamp(104px,12svh,150px) 0 clamp(28px,3vw,40px); }
 .hero-velo { position:absolute; inset:0; overflow:hidden;
@@ -329,46 +329,6 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
     .hero-stat +   .hero-stat:nth-child(even){ padding-left:22px;
     border-left:1px solid var(--line-0); } }
 
-/* lo scalo: il cartellino ROM e la rotta che arriva */
-.scalo { position:absolute; z-index:1; pointer-events:none;
-  left:46.5%; top:30%; display:none; }
-@media (min-width:1280px){ .scalo { display:block; } }
-.scalo-rotta { position:absolute; right:36px; top:34px; width:340px; height:120px;
-  overflow:visible; }
-.scalo-rotta path { fill:none; stroke:rgba(255,215,0,.22);
-  stroke-width:1.2; stroke-dasharray:2 7; stroke-linecap:round; }
-.scalo-punto { offset-path:path('M330 8 C 240 18, 120 44, 8 108');
-  width:5px; height:5px; border-radius:50%; background:var(--gold-light);
-  box-shadow:0 0 10px rgba(255,215,0,.8);
-  animation:vola 9s var(--ease) infinite; }
-@keyframes vola { 0% { offset-distance:0%; opacity:0; }
-  8% { opacity:1; } 88% { opacity:1; }
-  100% { offset-distance:100%; opacity:0; } }
-.scalo-tag { position:relative; margin-top:104px; display:inline-block;
-  padding:14px 20px 12px; background:var(--void); border-radius:14px;
-  box-shadow:inset 0 0 0 1px var(--line-gold), 0 22px 50px -22px rgba(0,0,0,.9);
-  text-align:center; }
-.scalo-tag::before { content:''; position:absolute; left:50%; top:-7px;
-  width:26px; height:8px; transform:translateX(-50%);
-  background:var(--black); border-radius:0 0 8px 8px;
-  box-shadow:inset 0 -1px 0 var(--line-gold); }
-.scalo-tag b { display:block; font-family:var(--display); font-size:28px;
-  font-weight:300; letter-spacing:.22em; text-indent:.22em; color:var(--gold); }
-/* la destinazione ti chiama: due anelli quieti che nascono dal cartellino */
-.scalo-eco { position:absolute; left:50%; top:50%; width:0; height:0;
-  pointer-events:none; }
-.scalo-eco i { position:absolute; left:50%; top:50%;
-  transform:translate(-50%,-50%); border:1px solid rgba(255,215,0,.4);
-  border-radius:50%; opacity:0; font-style:normal;
-  animation:eco-rom 8s ease-out infinite; }
-.scalo-eco i:nth-child(2){ animation-delay:-2.75s; }
-@keyframes eco-rom {
-  0% { width:26px; height:26px; opacity:.34; border-width:1px; }
-  100% { width:190px; height:190px; opacity:0; border-width:.5px; } }
-@media (prefers-reduced-motion:reduce){ .scalo-eco { display:none; } }
-.scalo-tag span { display:block; margin-top:3px; font-size:10px;
-  letter-spacing:.26em; text-transform:uppercase; color:var(--text-3); }
-
 /* la cornice a tacche: riservata agli apparecchi — e questo LO è */
 .quadro { position:relative; }
 .quadro::before, .quadro::after,
@@ -438,6 +398,22 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .board-piede b { color:var(--text-3); font-weight:500;
   font-variant-numeric:tabular-nums; }
 
+/* la fiducia Stripe sotto il form: il MARCHIO visivo, una riga sola.
+   Le parole non ripetono il sotto-hero — il logo e la prova. */
+.hero-fede { display:flex; align-items:center; gap:11px;
+  margin-top:clamp(14px,1.8vw,20px); padding:10px 15px;
+  border-radius:100px; background:var(--surface);
+  box-shadow:inset 0 0 0 1px var(--line-0); max-width:max-content; }
+.hero-fede .hf-stripe { width:38px; height:auto; flex:none; opacity:.85; }
+.hero-fede span { font-size:11.5px; line-height:1.5; color:var(--text-4); }
+.hero-fede span b { color:var(--text-2); font-weight:500; }
+.hero-fede .hf-come { color:var(--gold); text-decoration:none; }
+.hero-fede .hf-come:hover { text-decoration:underline; }
+@media (max-width:640px){
+  .hero-fede { border-radius:14px; padding:10px 13px;
+    align-items:flex-start; }
+  .hero-fede .hf-stripe { margin-top:2px; } }
+
 /* il richiamo ai servizi: UNA riga che parla la situazione, non il
    prodotto — ma da PORTA, non da didascalia: puntino vivo, velo d'oro,
    l'azione in oro e la freccia nel cerchietto che scivola. */
@@ -495,70 +471,326 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .banchina { margin-top:clamp(20px,2.4vw,30px); border:1px solid var(--line);
   border-radius:16px; overflow:hidden; background:var(--surface); }
 
+/* IL BIGLIETTO — il servizio come boarding pass: la rotta del trasferimento,
+   il talloncino col prezzo, la perforazione punzonata. La metafora è un fatto
+   di prodotto: la visita confermata arriva come Apple Wallet boarding pass. */
+/* ══ LA BIGLIETTERIA ═════════════════════════════════════════════════ */
+.biglietteria { --c-vv:#00FF88; --c-pf:#FFD700; --c-da:#9D8CFF; --c-cc:#3ED3FF;
+  --molla:cubic-bezier(.26,1.16,.44,1); display:grid; grid-template-columns:repeat(3,1fr);
+  gap:clamp(12px,1.6vw,18px);
+  margin:clamp(20px,2.6vw,32px) 0 clamp(14px,1.8vw,22px); }
+.bp.eroe { grid-column:1 / -1; }
 
-/* le porte: una situazione per cella, il prezzo come risposta */
-.ba-porte { display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
-  background:var(--line-0); }
-.ba-p { position:relative; display:flex; flex-direction:column;
-  background:var(--surface); padding:16px 17px;
-  transition:background .3s var(--ease); }
-.ba-gate { display:flex; align-items:center; justify-content:space-between;
-  gap:10px; }
-.ba-gate b { font-size:9.5px; font-weight:600; letter-spacing:.24em;
-  text-transform:uppercase; color:var(--text-4);
-  transition:color .3s var(--ease); }
-.ba-p:hover .ba-gate b { color:var(--gold); }
-.ba-p::before { content:''; position:absolute; top:0; left:0; right:0;
-  height:1px; background:var(--gold); transform:scaleX(0);
-  transform-origin:left; transition:transform .42s var(--ease); }
-.ba-p:hover { background:var(--elevated); }
-.ba-p:hover::before { transform:scaleX(1); }
-.ba-p svg.sg { width:19px; height:19px; color:var(--gold); fill:none;
-  stroke:currentColor; stroke-width:1.5; stroke-linecap:round;
-  stroke-linejoin:round; transition:transform .4s var(--ease); }
-.ba-p svg.sg .acc { opacity:.55; }
-.ba-p svg.sg .pieno { fill:var(--gold); stroke:none; }
-.ba-p:hover svg.sg { transform:translateY(-2px); }
-.ba-p .caso { display:block; margin-top:12px;
-  font-family:var(--display); font-size:17.5px; font-weight:300;
-  letter-spacing:-.005em; color:var(--text); line-height:1.28; }
-.ba-p .fa { display:block; margin-top:6px; font-size:11.5px; line-height:1.45;
-  color:var(--text-4); }
-.ba-serv { display:block; margin-top:11px;
-  font-size:10.5px; font-weight:600; letter-spacing:.16em;
-  text-transform:uppercase; color:var(--gold); line-height:1.5; }
-.ba-serv i { display:inline-block; margin-left:6px; font-style:normal;
-  transition:transform .35s var(--ease); }
-.ba-p:hover .ba-serv i { transform:translateX(4px); }
-.ba-p .costo { display:flex; align-items:baseline; gap:7px;
-  margin-top:auto; padding-top:10px; flex-wrap:wrap; }
-.ba-p .costo b { font-family:var(--display); font-size:17px; font-weight:400;
-  letter-spacing:.02em; color:var(--gold); font-variant-numeric:tabular-nums; }
-.ba-p .costo i { font-style:normal; font-size:10.5px; color:var(--text-4);
-  line-height:1.3; }
-.ba-p .costo i .breve { display:none; }
-@media (max-width:860px){
-  .ba-p .costo i .lungo { display:none; }
-  .ba-p .costo i .breve { display:inline; } }
-/* la porta che vale di piu per chi e appena atterrato */
-.ba-p.prima { background:linear-gradient(165deg, rgba(255,215,0,.07),
-  rgba(255,215,0,.01) 70%, transparent); }
-.ba-p.prima:hover { background:linear-gradient(165deg, rgba(255,215,0,.12),
-  rgba(255,215,0,.02) 70%, transparent); }
+/* ── IL BIGLIETTO: nero-vetro, banda-firma, perforazione, talloncino ── */
+.bp { --rx:0deg; --ry:0deg;
+  position:relative; display:grid; border-radius:20px; overflow:hidden;
+  background:linear-gradient(168deg,#101014,#080809 72%);
+  box-shadow:inset 0 0 0 1px var(--line),
+    inset 0 1px 0 rgba(255,255,255,.05),
+    0 30px 60px -36px rgba(0,0,0,.9);
+  transform:perspective(1100px) rotateY(var(--rx)) rotateX(var(--ry));
+  transition:box-shadow .7s var(--ease), transform .7s var(--molla); }
+.bp:hover { box-shadow:inset 0 0 0 1px
+    color-mix(in srgb, var(--c) 30%, transparent),
+    inset 0 1px 0 rgba(255,255,255,.07),
+    0 46px 80px -34px rgba(0,0,0,.95), 0 0 60px -20px var(--ca);
+  transform:perspective(1100px) rotateY(var(--rx)) rotateX(var(--ry))
+    translateY(-3px); }
+/* stampa di sicurezza CALCOGRAFICA: due trame di righe che si
+   incrociano (come la stampa di una banconota), nella luce del servizio */
+.bp::before { content:''; position:absolute; inset:0; pointer-events:none;
+  opacity:.55; background:
+    repeating-linear-gradient(115deg, var(--ca) 0 1px, transparent 1px 9px),
+    repeating-linear-gradient(63deg, var(--ca) 0 1px, transparent 1px 14px);
+  -webkit-mask:radial-gradient(120% 130% at 0% 0%, #000 20%, transparent 62%);
+  mask:radial-gradient(120% 130% at 0% 0%, #000 20%, transparent 62%); }
+/* la FILIGRANA a rosone dell'ammiraglia: anelli concentrici appena
+   percepibili, come guardare la carta in controluce */
+.bp .filigrana { position:absolute; top:50%; right:clamp(200px,26vw,320px);
+  width:300px; height:300px; transform:translateY(-50%);
+  pointer-events:none; opacity:.35; border-radius:50%;
+  background:repeating-radial-gradient(circle,
+    rgba(255,215,0,.09) 0 1px, transparent 1px 7px);
+  -webkit-mask:radial-gradient(circle, #000 30%, transparent 70%);
+  mask:radial-gradient(circle, #000 30%, transparent 70%); }
+/* l'alone ambientale — sull'ammiraglia RESPIRA (scala, 9s) */
+.bp.eroe .alone { animation:respiro 9s ease-in-out infinite alternate;
+  transform-origin:30% 50%; }
+@keyframes respiro { from { transform:scale(1); }
+  to { transform:scale(1.14); } }
+.bp .alone { position:absolute; inset:-40% auto -40% -12%; width:60%;
+  pointer-events:none; opacity:.5; transition:opacity .5s var(--ease);
+  background:radial-gradient(46% 40% at 30% 50%, var(--ca), transparent 70%); }
+.bp:hover .alone { opacity:1; }
 
-/* su schermo stretto: una fila che scorre. Le porte sono alternative —
-   scegliene una — quindi il carosello qui e onesto (a differenza della
-   fiducia, che va sempre tutta visibile). */
-@media (max-width:860px){
-  /* quattro pulsanti, tutti visibili in un colpo d'occhio: la porta che
-     devi scorrere per vedere e una porta che non esiste */
-  .ba-porte { grid-template-columns:1fr 1fr; }
-  .ba-p { padding:13px 14px; }
-  .ba-p .fa { display:none; }
-  .ba-p .caso { margin-top:9px; font-size:14.5px; }
-  .ba-serv { margin-top:8px; font-size:9.5px; }
-  .ba-p .costo { padding-top:8px; }
-  .ba-p .costo b { font-size:16px; } }
+/* ── la banda-firma laterale (lamina) ── */
+.bp .banda { position:relative; display:grid; place-items:center;
+  width:30px; overflow:hidden;
+  background:linear-gradient(180deg,
+    color-mix(in srgb, var(--c) 72%, #000),
+    color-mix(in srgb, var(--c) 34%, #000) 55%,
+    color-mix(in srgb, var(--c) 62%, #000));
+  box-shadow:inset -1px 0 0 rgba(0,0,0,.55),
+    inset 1px 0 0 rgba(255,255,255,.18); }
+.bp .banda em { font-style:normal; writing-mode:vertical-rl;
+  transform:rotate(180deg); font-size:8.5px; font-weight:800;
+  letter-spacing:.34em; text-transform:uppercase; color:#050503;
+  white-space:nowrap; opacity:.85; }
+/* il lampo che percorre la lamina */
+.bp .banda::after { content:''; position:absolute; left:-40%; right:-40%;
+  top:-30%; height:34%; transform:skewY(-18deg);
+  background:linear-gradient(175deg, transparent,
+    rgba(255,255,255,.26) 50%, transparent);
+  animation:lamina 10s var(--ease) infinite; }
+@keyframes lamina { 0%,55% { top:-34%; } 80%,100% { top:134%; } }
+/* lamina ORO dell'ammiraglia: metallo battuto E godronato (la
+   micro-rigatura orizzontale sopra il gradiente = foil vera, non tinta) */
+.bp.eroe .banda { width:36px; background:
+    repeating-linear-gradient(0deg, rgba(0,0,0,.16) 0 1px,
+      transparent 1px 3px),
+    linear-gradient(180deg,#7a5f16,#f6e27a 14%,#8a6d1f 32%,#fdf0a8 48%,
+      #b8942b 63%,#f6e27a 78%,#6b5716 100%); }
+.bp.eroe .banda em { color:#141005; opacity:.9;
+  text-shadow:0 1px 0 rgba(255,244,180,.5); }
+
+/* ── il corpo del biglietto ── */
+.bp .corpo { position:relative; display:flex; flex-direction:column;
+  min-width:0; padding:clamp(16px,2vw,24px) clamp(16px,2.1vw,26px)
+  clamp(14px,1.8vw,20px); }
+.bp .testata { display:flex; align-items:baseline; gap:10px; }
+.bp .situa { font-size:9.5px; font-weight:700; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--c); }
+.bp .numero { margin-left:auto; font-size:8.5px; font-weight:600;
+  letter-spacing:.22em; color:var(--text-4);
+  font-variant-numeric:tabular-nums; white-space:nowrap; }
+
+/* la ROTTA: la tipografia di viaggio, con il punto che percorre la tratta */
+.bp .rotta { display:flex; align-items:center; gap:12px;
+  margin-top:9px; font-family:var(--display); font-weight:200;
+  font-size:clamp(20px,2vw,26px); letter-spacing:.06em; line-height:1;
+  white-space:nowrap; }
+.bp .rotta b { font-weight:250; }
+.bp .rotta b:last-child { color:var(--c);
+  text-shadow:0 0 22px var(--ca); }
+.bp .tratta { position:relative; display:block; flex:1 1 34px;
+  min-width:30px; height:12px; }
+.bp .tratta::before { content:''; position:absolute; left:0; right:0;
+  top:5.5px; height:1px; background:repeating-linear-gradient(90deg,
+    rgba(250,250,250,.34) 0 5px, transparent 5px 10px); }
+.bp .tratta .punto { position:absolute; top:3px; left:0; width:6px;
+  height:6px; border-radius:50%; background:var(--c);
+  box-shadow:0 0 7px var(--c), 0 0 14px var(--ca);
+  animation:tratta 8s var(--ease) infinite; }
+/* l'AEREO dell'ammiraglia: solo dove il volo è VERO (ABROAD→ROME).
+   SVG nella luce del servizio, mai un'emoji; atterra e sosta. */
+.bp .tratta .aereo { width:17px; height:17px; top:-2.5px;
+  border-radius:0; background:none; box-shadow:none;
+  animation-name:trattaAereo; }
+.bp .tratta .aereo svg { display:block; width:100%; height:100%;
+  transform:rotate(90deg); fill:var(--c);
+  filter:drop-shadow(0 0 5px var(--ca))
+    drop-shadow(0 0 12px var(--ca)); }
+@keyframes trattaAereo { 0% { left:0; opacity:0; }
+  7% { opacity:1; } 52% { left:calc(100% - 17px); }
+  84% { left:calc(100% - 17px); opacity:1; }
+  100% { left:calc(100% - 17px); opacity:0; } }
+/* la SCIA: la tratta già percorsa resta accesa dietro il punto */
+.bp .tratta::after { content:''; position:absolute; left:0; top:5.5px;
+  height:1px; width:0; opacity:0;
+  background:linear-gradient(90deg, transparent, var(--c));
+  animation:scia 8s var(--ease) infinite; }
+@keyframes tratta { 0% { left:0; opacity:0; } 7% { opacity:1; }
+  52% { left:calc(100% - 6px); } 84% { left:calc(100% - 6px);
+  opacity:1; } 100% { left:calc(100% - 6px); opacity:0; } }
+@keyframes scia { 0% { width:0; opacity:0; } 7% { opacity:.42; }
+  52% { width:100%; } 84% { width:100%; opacity:.42; }
+  100% { width:100%; opacity:0; } }
+
+/* lo strato vendita (il contratto, intatto) */
+.bp .vendita { display:flex; flex-direction:column; min-width:0;
+  margin-top:10px; }
+.bp .pnome { display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; }
+.bp .pnome .pn { font-family:var(--display); font-weight:350;
+  font-size:clamp(19px,1.9vw,23px); letter-spacing:-.005em; }
+.bp .pnome .pkind { font-size:8.5px; font-weight:700; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--c); }
+.bp .promessa { margin-top:6px; font-size:12.5px; line-height:1.55;
+  color:var(--text-3); max-width:52ch; }
+.bp .promessa b { color:var(--text-2); font-weight:500; }
+.bp .compra { display:inline-flex; align-items:center;
+  justify-content:center; gap:9px; min-height:44px; padding:0 20px;
+  border-radius:100px; background:var(--c); color:#0A0A05;
+  font-size:12.5px; font-weight:700; letter-spacing:.02em;
+  align-self:flex-start; white-space:nowrap;
+  transition:transform .3s var(--ease), box-shadow .3s var(--ease);
+  box-shadow:0 10px 26px -12px var(--cb); }
+.bp .compra i { font-style:normal; transition:transform .3s var(--ease); }
+.bp:hover .compra { transform:translateY(-1px);
+  box-shadow:0 16px 34px -12px var(--cb); }
+.bp:hover .compra i { transform:translateX(4px); }
+.bp .compra:active { transform:translateY(0) scale(.98);
+  transition-duration:.15s; }
+.bp .rassicura { margin-top:10px; display:flex; align-items:flex-start;
+  gap:8px; font-size:10.5px; line-height:1.5; color:var(--text-4);
+  text-align:left; }
+.bp .rassicura::before { content:'✓'; color:var(--c); font-size:11px;
+  line-height:1.4; }
+.bp .rassicura b { color:var(--text-3); font-weight:600; }
+
+/* i dettagli d'imbarco — riletti come un pass privato, mai kitsch */
+.bp .dettagli { display:flex; gap:clamp(14px,1.8vw,26px);
+  margin-top:auto; padding-top:12px; flex-wrap:wrap; }
+.bp .dettagli span { display:flex; flex-direction:column; gap:2px;
+  min-width:0; }
+.bp .dettagli em { font-style:normal; font-size:7.5px; font-weight:700;
+  letter-spacing:.24em; text-transform:uppercase; color:var(--text-4); }
+.bp .dettagli strong { font-size:10.5px; font-weight:600;
+  letter-spacing:.08em; text-transform:uppercase; color:var(--text-2);
+  white-space:nowrap; }
+.bp .dettagli span.acceso strong { color:var(--c); }
+
+/* ── LA PERFORAZIONE a strappo + i due semifori die-cut ── */
+.bp .perf { position:relative; display:block; }
+.bp .perf::before, .bp .perf::after { content:''; position:absolute;
+  width:20px; height:20px; border-radius:50%; background:var(--black);
+  box-shadow:inset 0 0 0 1px var(--line),
+    inset 0 2px 4px rgba(0,0,0,.8); z-index:2; }
+/* fori PUNZONATI veri: ogni foro buca la carta (si vede il nero della
+   pagina) e ha il labbro di luce sul bordo d'uscita — non un tratteggio */
+.perf-h { height:10px; width:auto; background:
+    radial-gradient(circle 3px at 50% 50%, var(--black) 97%, transparent),
+    radial-gradient(circle 3.4px at 50% calc(50% + 1px),
+      rgba(255,255,255,.13) 97%, transparent);
+  background-size:14px 10px; background-repeat:repeat-x;
+  background-position:center; }
+.perf-h::before { left:-11px; top:calc(50% - 10px); }
+.perf-h::after  { right:-11px; top:calc(50% - 10px); }
+.perf-v { width:10px; height:auto; background:
+    radial-gradient(circle 3px at 50% 50%, var(--black) 97%, transparent),
+    radial-gradient(circle 3.4px at calc(50% + 1px) 50%,
+      rgba(255,255,255,.13) 97%, transparent);
+  background-size:10px 14px; background-repeat:repeat-y;
+  background-position:center; }
+.perf-v::before { top:-11px; left:calc(50% - 10px); }
+.perf-v::after  { bottom:-11px; left:calc(50% - 10px); }
+
+/* ── IL TIMBRO a inchiostro dell'ammiraglia: un fatto vero, timbrato ── */
+.bp .timbro { position:absolute;
+  right:calc(clamp(240px,24vw,300px) + clamp(34px,3.4vw,58px));
+  top:61%; width:88px; height:88px;
+  transform:translateY(-50%) rotate(-9deg); opacity:.55;
+  pointer-events:none; mix-blend-mode:screen; display:block; }
+.bp .timbro circle { fill:none; stroke:rgba(255,215,0,.42); }
+.bp .timbro .t-est { stroke-width:1.6; }
+.bp .timbro .t-int { stroke-width:.7; stroke-dasharray:2 3; }
+.bp .timbro text { fill:rgba(255,215,0,.5); font-family:var(--sans);
+  font-weight:700; letter-spacing:.3em; }
+.bp .timbro .t-curvo { font-size:7.2px; }
+.bp .timbro .t-stella { font-size:13px; letter-spacing:0;
+  text-anchor:middle; }
+
+/* ── IL TALLONCINO (stub): porta il prezzo, si inclina appena ── */
+.bp .stub { position:relative; display:flex; flex-direction:column;
+  padding:clamp(14px,1.8vw,20px) clamp(16px,2.1vw,26px);
+  background:linear-gradient(180deg,#0C0C0F,#070708);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+  transition:transform .7s var(--molla); }
+.bp .stub::before { content:'ADMIT ONE'; position:absolute; top:50%;
+  right:7px; transform:translateY(-50%) rotate(180deg);
+  writing-mode:vertical-rl; font-size:7px; font-weight:700;
+  letter-spacing:.4em; text-transform:uppercase;
+  color:rgba(250,250,250,.22); white-space:nowrap; }
+.bp .stub-riga { display:flex; align-items:center; gap:14px;
+  margin-bottom:11px; }
+.bp .quota { font-family:var(--display); font-weight:250;
+  font-size:clamp(26px,2.4vw,32px); letter-spacing:.01em; line-height:1;
+  color:var(--c); text-shadow:0 0 18px var(--ca);
+  font-variant-numeric:tabular-nums; }
+/* il codice a barre decorativo (due trame sovrapposte = irregolare) */
+.bp .barcode { display:block; flex:1; height:30px; min-width:52px;
+  opacity:.45; background:
+    repeating-linear-gradient(90deg, rgba(250,250,250,.75) 0 2px,
+      transparent 2px 4px),
+    repeating-linear-gradient(90deg, rgba(250,250,250,.5) 0 1px,
+      transparent 1px 7px, rgba(250,250,250,.5) 7px 10px,
+      transparent 10px 13px); }
+.bp .barcode-sotto { font-size:7px; font-weight:600; letter-spacing:.3em;
+  color:var(--text-4); text-transform:uppercase; margin:-7px 0 11px;
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* hover: strappare appena il talloncino */
+@media (hover:hover) {
+  .bp:hover .stub { transform:rotate(.8deg) translateX(2px); }
+  .bp.eroe:hover .stub { transform:rotate(-.7deg) translateY(2px); }
+}
+
+/* ── geometrie: 3 biglietti verticali + l'ammiraglia orizzontale ── */
+.bp:not(.eroe) { grid-template-columns:auto minmax(0,1fr);
+  grid-template-rows:1fr auto auto; }
+.bp:not(.eroe) .banda { grid-row:1; grid-column:1; }
+.bp:not(.eroe) .corpo { grid-row:1; grid-column:2; }
+/* lo strappo attraversa TUTTO il biglietto, banda compresa */
+.bp:not(.eroe) .perf { grid-row:2; grid-column:1 / -1; }
+.bp:not(.eroe) .stub { grid-row:3; grid-column:1 / -1; }
+.bp:not(.eroe) .stub .compra { align-self:stretch; }
+.bp:not(.eroe) .stub::before { right:5px; }
+.bp:not(.eroe) .rotta { font-size:clamp(17px,1.5vw,21px);
+  letter-spacing:.05em; }
+
+/* l'ammiraglia: FIRST CLASS orizzontale, doppia lamina, quota maggiore */
+.bp.eroe { grid-template-columns:auto minmax(0,1fr) auto
+  clamp(240px,24vw,300px);
+  background:linear-gradient(168deg,#16130a,#0A0908 72%); }
+.bp.eroe .corpo { padding-right:clamp(18px,2.4vw,30px); }
+.bp.eroe .rotta { font-size:clamp(26px,3vw,40px); margin-top:11px; }
+.bp.eroe .quota { font-size:clamp(32px,3vw,42px); }
+.bp.eroe .stub { justify-content:center;
+  background:linear-gradient(200deg,#121009,#080807 70%); }
+.bp.eroe .stub .compra { align-self:stretch; }
+/* il filo d'oro interno dell'ammiraglia */
+.bp.eroe::after { content:''; position:absolute; inset:6px;
+  border-radius:15px; pointer-events:none;
+  box-shadow:0 0 0 1px rgba(255,215,0,.16); }
+
+/* ── breakpoint intermedio ── */
+@media (max-width:1020px) {
+  .biglietteria { grid-template-columns:1fr; }
+  .bp.eroe { grid-template-columns:auto minmax(0,1fr);
+    grid-template-rows:1fr auto auto; }
+  .bp.eroe .banda { grid-row:1; grid-column:1; }
+  .bp.eroe .corpo { grid-row:1; grid-column:2; }
+  .bp.eroe .perf { grid-row:2; grid-column:1 / -1; width:auto; height:10px;
+    background:
+      radial-gradient(circle 3px at 50% 50%, var(--black) 97%, transparent),
+      radial-gradient(circle 3.4px at 50% calc(50% + 1px),
+        rgba(255,255,255,.13) 97%, transparent);
+    background-size:14px 10px; background-repeat:repeat-x;
+    background-position:center; }
+  .bp.eroe .perf::before { left:-11px; top:calc(50% - 10px); bottom:auto; }
+  .bp.eroe .perf::after { left:auto; right:-11px; top:calc(50% - 10px);
+    bottom:auto; }
+  .bp .filigrana { display:none; }
+  .bp.eroe .stub { grid-row:3; grid-column:1 / -1; }
+  .bp .rotta { white-space:normal; }
+}
+/* ── mobile ── */
+@media (max-width:580px) {
+  .bp .compra { align-self:stretch; width:100%; }
+  .bp .dettagli { gap:12px 18px; }
+  .bp .stub-riga .barcode { min-width:36px; }
+  .bp .rotta { font-size:19px; }
+  .bp.eroe .rotta { font-size:23px; }
+}
+
+@media (max-width:1020px) { .bp .timbro { display:none; } }
+@media (prefers-reduced-motion:reduce) {
+  .bp, .bp .stub, .bp .compra, .bp .compra i { transition:none !important; }
+  .bp { transform:none !important; }
+  .bp .banda::after { animation:none; display:none; }
+  .bp .alone { animation:none; }
+  .bp .tratta .punto { animation:none; left:calc(100% - 6px); opacity:1; }
+  .bp .tratta .aereo { left:calc(100% - 17px); }
+  .bp .tratta::after { animation:none; width:100%; opacity:.4; }
+}
 
 /* le garanzie: badge piccoli, tutti veri — i fatti istituzionali vivono
    qui e nel footer, una volta sola */
@@ -571,8 +803,13 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .ba-g::before { content:''; width:4px; height:4px; border-radius:50%;
   background:var(--gold); opacity:.8; flex:none; }
 @media (max-width:640px){
-  .ba-garanzie { padding:11px 15px; gap:6px; }
-  .ba-g { font-size:10px; padding:6px 10px; } }
+  /* pillole di larghezze casuali = lista sfrangiata: su mobile le
+     garanzie sono righe quiete a tutta larghezza, una checklist */
+  .ba-garanzie { display:block; padding:6px 17px 8px; }
+  .ba-g { display:flex; width:100%; box-shadow:none; border-radius:0;
+    padding:9px 0; font-size:10.5px;
+    border-bottom:1px solid var(--line-0); }
+  .ba-g:last-child { border-bottom:0; } }
 
 /* le quattro cifre: una fila propria, incolonnate. Prima stavano sulla
    stessa riga dell'orologio, in due registri diversi — numeri e tempo
@@ -1157,7 +1394,6 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 
 /* ══ IL VARCO VERSO LA SKYLINE — un invito, non una finta mappa ════════ */
 
-
 /* ══ IL FONDATORE ══════════════════════════════════════════════════════ */
 .fond-sezione { position:relative; }
 .mosaico-fondo { position:absolute; inset:0; width:100%; height:100%;
@@ -1235,6 +1471,29 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
     0 40px 80px -34px rgba(0,0,0,.95); border-radius:16px; overflow:hidden;
   transform:rotate(-2deg); transition:transform .5s var(--ease); }
 .pass-carta:hover { transform:rotate(0deg) translateY(-4px); }
+/* il pass viene EMESSO, non appare: sale e si assesta con la molla —
+   il gesto di Wallet, cioe il prodotto vero */
+html.vivo .sale .pass-carta { opacity:0;
+  transform:translateY(38px) rotate(-5deg) scale(.97); }
+html.vivo .sale.dentro .pass-carta { opacity:1; transform:rotate(-2deg);
+  transition:opacity .6s var(--ease) .2s,
+    transform .85s cubic-bezier(.3,1.45,.5,1) .2s; }
+/* l'arrivo: i prodotti CALANO sullo scaffale in sequenza, con la molla */
+@keyframes pr-arriva {
+  from { opacity:0; transform:translateY(20px); }
+  to { opacity:1; } }
+html.vivo .biglietteria .bp { opacity:0; }
+html.vivo .biglietteria.dentro .bp {
+  animation:pr-arriva 1.05s cubic-bezier(.22,1,.36,1) both; }
+html.vivo .biglietteria.dentro .bp:nth-child(1) { animation-delay:.05s; }
+html.vivo .biglietteria.dentro .bp:nth-child(2) { animation-delay:.22s; }
+html.vivo .biglietteria.dentro .bp:nth-child(3) { animation-delay:.39s; }
+html.vivo .biglietteria.dentro .bp:nth-child(4) { animation-delay:.56s; }
+@media (prefers-reduced-motion:reduce){
+  html.vivo .sale .pass-carta { opacity:1;
+    transform:rotate(-2deg); transition:none; }
+  html.vivo .biglietteria .bp { opacity:1; animation:none; }
+  .oggetto, .pr .ombra { animation:none !important; } }
 .pass-cima { display:flex; align-items:center; justify-content:space-between;
   gap:10px; padding:15px 18px; border-bottom:1px dashed rgba(255,215,0,.2); }
 .pass-cima .marchietto { display:inline-flex; align-items:center; gap:8px;
@@ -1390,6 +1649,11 @@ html.vivo .sale.dentro .pass-qr i {
 .piede { border-top:1px solid var(--line-0);
   padding:clamp(36px,4vw,56px) 0 28px; }
 .piede-int { display:grid; gap:28px; grid-template-columns:1fr; }
+@media (max-width:839px){
+  /* una colonna sola era un footer da 1500px: il brand resta a tutta
+     larghezza, le colonne di link vanno a due a due */
+  .piede-int { grid-template-columns:1fr 1fr; gap:6px 24px; }
+  .piede-int > div:first-child { grid-column:1 / -1; margin-bottom:14px; } }
 @media (min-width:840px){ .piede-int {
   grid-template-columns:1.5fr 1fr 1fr 1.15fr .8fr; } }
 .piede-mercati { margin-top:12px; font-size:10px; font-weight:600;
@@ -1425,6 +1689,29 @@ html.vivo .sale.dentro .titolo, html.vivo .coro.dentro .titolo {
   clip-path:inset(-8% -8% -12% -8%); transform:none;
   transition:clip-path .9s var(--ease), transform .9s var(--ease); }
 html.vivo .coro > * { opacity:0; transform:translateY(24px); }
+/* il primo quadro entra DA SOLO, in puro CSS: col sipario armato in testa
+   non puo' dipendere dagli organi in coda al documento (Safari li
+   raggiunge tardi). Le animazioni vincono sulle dichiarazioni normali,
+   quindi questi keyframes scavalcano il nascondiglio del sipario. */
+@keyframes vieniSu { from { opacity:0; transform:translateY(24px); }
+  to { opacity:1; transform:none; } }
+@keyframes titoloSu {
+  from { clip-path:inset(-8% -8% 108% -8%); transform:translateY(30px); }
+  to { clip-path:inset(-8% -8% -12% -8%); transform:none; } }
+html.vivo .coro.dentro-subito > * {
+  animation:vieniSu .8s var(--ease) .12s both; }
+html.vivo .coro.dentro-subito > :nth-child(2){ animation-delay:.19s; }
+html.vivo .coro.dentro-subito > :nth-child(3){ animation-delay:.26s; }
+html.vivo .coro.dentro-subito > :nth-child(4){ animation-delay:.33s; }
+html.vivo .coro.dentro-subito > :nth-child(5){ animation-delay:.4s; }
+html.vivo .coro.dentro-subito > :nth-child(6){ animation-delay:.47s; }
+html.vivo .coro.dentro-subito .titolo, html.vivo .coro.dentro-subito .hero-title {
+  animation:titoloSu .9s var(--ease) .12s both; }
+@media (prefers-reduced-motion:reduce){
+  html.vivo .coro.dentro-subito > *,
+  html.vivo .coro.dentro-subito .titolo,
+  html.vivo .coro.dentro-subito .hero-title { animation:none; opacity:1;
+    transform:none; clip-path:none; } }
 html.vivo .coro.dentro > * { opacity:1; transform:none;
   transition:opacity .8s var(--ease), transform .8s var(--ease); }
 html.vivo .coro.dentro > :nth-child(2){ transition-delay:.07s; }
@@ -1451,7 +1738,7 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   html.vivo .sale, html.vivo .coro > *, html.vivo .coro .home-foto img,
   html.vivo .sale .titolo, html.vivo .coro .titolo {
     opacity:1; transform:none; clip-path:none; transition:none; }
-  .btn-primary::after, .scalo-punto, .pronto::before { display:none; }
+  .btn-primary::after, .pronto::before { display:none; }
   .tech-orb { animation:none; }
   html { scroll-behavior:auto; } }
 
@@ -1459,16 +1746,28 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 .cielo { position:relative; margin-top:clamp(26px,3vw,40px);
   border:1px solid var(--line); border-radius:16px; overflow:hidden;
   background:var(--void); height:min(76vh,700px);
-  box-shadow:0 30px 90px rgba(0,0,0,.5); isolation:isolate; }
+  box-shadow:0 30px 90px rgba(0,0,0,.5); isolation:isolate;
+  /* WebKit/iOS: i figli COMPOSITATI della mappa (canvas GL, controlli
+     con blur) scappano da overflow:hidden e vengono dipinti all'origine
+     del viewport, sopra la status bar. clip-path + contain:paint +
+     translateZ(0) creano il clip e il containing block che overflow
+     da solo non garantisce sui layer compositati. */
+  clip-path:inset(0 round 16px); -webkit-clip-path:inset(0 round 16px);
+  contain:layout paint; transform:translateZ(0);
+  /* il trucco veterano WebKit: un mask sul gruppo forza il clip anche
+     del layer GL del canvas (le tile che scappavano sopra la status bar) */
+  -webkit-mask-image:-webkit-radial-gradient(#fff, #000); }
 @media (max-width:760px){ .cielo { height:min(72vh,560px); border-radius:14px; } }
-.cielo-mappa { position:absolute; inset:0; }
+.cielo-mappa { position:absolute; inset:0; clip-path:inset(0);
+  transform:translateZ(0); contain:paint; }
 .cielo-mappa canvas { outline:none; }
 .cielo .maplibregl-ctrl-attrib { font-size:9px!important; opacity:.4;
   background:rgba(6,6,7,.7)!important; }
 .cielo .maplibregl-ctrl-attrib a { color:var(--text-3)!important; }
-.cielo .maplibregl-ctrl-group { background:rgba(14,14,16,.82)!important;
-  border:1px solid var(--line)!important; box-shadow:none!important;
-  backdrop-filter:blur(10px); }
+.cielo .maplibregl-ctrl-group { background:rgba(14,14,16,.92)!important;
+  border:1px solid var(--line)!important; box-shadow:none!important; }
+  /* niente backdrop-filter sui controlli mappa: e' il trigger classico
+     del layer che WebKit dipinge fuori dal clip (fondo piu' pieno in cambio) */
 .cielo .maplibregl-ctrl-group button+button { border-top-color:var(--line)!important; }
 .cielo .maplibregl-ctrl-icon { filter:invert(1) brightness(1.6) contrast(.85); }
 .cielo .maplibregl-cooperative-gesture-screen { background:rgba(3,3,3,.72);
@@ -1601,7 +1900,6 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   transform:translateY(-1px); }
 .cielo-pieno svg { width:13px; height:13px; }
 
-
 /* ── bersagli: nessun comando sotto il polpastrello (44×44 su touch) ──── */
 #calPrec, #calSucc { min-width:40px; min-height:40px; display:inline-flex;
   align-items:center; justify-content:center; }
@@ -1615,7 +1913,6 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 /* ── immagini: proporzione dichiarata = nessun salto mentre caricano ──── */
 .s1-casa img, .home-foto img { aspect-ratio:4/3; }
 .fond-foto img { aspect-ratio:4/5; }
-
 
 /* ══ IL GIORNO UNO NEL CHECK-IN ════════════════════════════════════════ */
 .giorno-uno { margin-top:10px; font-size:11.5px; line-height:1.6;
@@ -1653,6 +1950,18 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 <div class="tech-bg" aria-hidden="true"><span class="tech-orb tech-orb-1"></span><span class="tech-orb tech-orb-2"></span><span class="tech-orb tech-orb-3"></span></div>
 
 <nav class="nav" id="nav">
+<script>
+/* Il sipario si arma PRIMA del primo paint. Aggiunto in coda (deco-organi)
+   arrivava DOPO su Safari, che dipinge progressivamente: pagina intera →
+   nascosta → rientrata animata = «doppio caricamento». Senza JS la classe
+   non nasce e tutto resta visibile; se gli organi in coda non si armano
+   entro 3s il sipario si riapre da solo. */
+document.documentElement.classList.add('vivo');
+setTimeout(function () {
+  if (!window.__decoArmato)
+    document.documentElement.classList.remove('vivo');
+}, 3000);
+</script>
   <div class="container nav-inner">
     <a class="marchio" href="/index.html" aria-label="BOOM, home">LOGO_SVG<span>Boom</span></a>
     <div class="menu">
@@ -1679,31 +1988,20 @@ html.vivo .sale.dentro { opacity:1; transform:none;
   <a class="btn btn-primary" href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a>
 </div>
 
-<!-- ══ HERO — la voce · lo scalo · il tabellone ══════════════════════════ -->
+<!-- ══ HERO — la voce · il tabellone ══════════════════════════ -->
 <header class="hero">
   <div class="hero-velo" aria-hidden="true">
   <div class="hero-glow"></div>
   <canvas id="cartaRoma"></canvas>
-  <div class="scalo">
-    <svg class="scalo-rotta" viewBox="0 0 340 120">
-      <path d="M330 8 C 240 18, 120 44, 8 108"/>
-    </svg>
-    <span class="scalo-punto"></span>
-    <span class="scalo-tag"><span class="scalo-eco"><i></i><i></i></span><b>ROM</b><span>Rome · Italy</span></span>
-  </div>
   </div>
 
   <div class="container hero-int">
     <div class="coro dentro-subito">
-      <div class="hero-eyebrow"><b></b>Premium Rentals in Rome</div>
+      <div class="hero-eyebrow"><b></b>Rome rentals for internationals</div>
       <h1 class="hero-title">GET YOUR <span class="hl">ROME</span> APARTMENT<br>
         IN <span class="hl"><span id="flapDays" class="flap-scale"
           aria-label="days">DAYS</span></span>, NOT WEEKS.</h1>
-      <p class="hero-sub">Video-verified. Transparent pricing. Real support.</p>
-      <div class="hero-azioni">
-        <a class="btn btn-primary" href="/apartments.html">View Apartments</a>
-        <a class="btn btn-secondary" href="COME_URL">How It Works</a>
-      </div>
+      <p class="hero-sub">A registered contract you sign from your phone. Every euro through Stripe, receipted. A named person who answers.</p>
       <form class="atterro" id="atterro">
         <div class="atterro-campo ac-data">
         <span id="quandoEti">When do you land?</span>
@@ -1749,6 +2047,12 @@ html.vivo .sale.dentro { opacity:1; transform:none;
         </div>
       </form>
       <p class="giorno-uno" id="giornoUno" hidden></p>
+      <div class="hero-fede">
+        <svg class="hf-stripe" aria-label="Stripe" viewBox="0 0 468 222.5" xmlns="http://www.w3.org/2000/svg"> <path fill="#635BFF" d="M414 113.4c0-25.6-12.4-45.8-36.1-45.8-23.8 0-38.2 20.2-38.2 45.6 0 30.1 17 45.3 41.4 45.3 11.9 0 20.9-2.7 27.7-6.5v-20c-6.8 3.4-14.6 5.5-24.5 5.5-9.7 0-18.3-3.4-19.4-15.2h48.9c0-1.3.2-6.5.2-8.9zm-49.4-9.5c0-11.3 6.9-16 13.2-16 6.1 0 12.6 4.7 12.6 16h-25.8zm-63.5-36.3c-9.8 0-16.1 4.6-19.6 7.8l-1.3-6.2h-22v116.6l25-5.3.1-28.3c3.6 2.6 8.9 6.3 17.7 6.3 17.9 0 34.2-14.4 34.2-46.1-.1-29-16.6-44.8-34.1-44.8zm-6 68.9c-5.9 0-9.4-2.1-11.8-4.7l-.1-37.1c2.6-2.9 6.2-4.9 11.9-4.9 9.1 0 15.4 10.2 15.4 23.3 0 13.4-6.2 23.4-15.4 23.4zm-71.3-74.8l25.1-5.4V36l-25.1 5.3zm0 7.6h25.1v87.5h-25.1zm-26.9 7.4l-1.6-7.4h-21.6v87.5h25V97.5c5.9-7.7 15.9-6.3 19-5.2v-23c-3.2-1.2-14.9-3.4-20.8 7.4zm-50-29.8l-24.4 5.2-.1 80.1c0 14.8 11.1 25.7 25.9 25.7 8.2 0 14.2-1.5 17.5-3.3V135c-3.2 1.3-19 5.9-19-8.9V90.6h19V69.3h-19l.1-21.7zM79.3 94.7c0-3.9 3.2-5.4 8.5-5.4 7.6 0 17.2 2.3 24.8 6.4V72.2c-8.3-3.3-16.5-4.6-24.8-4.6C67.5 67.6 54 78.2 54 95.9c0 27.6 38 23.2 38 35.1 0 4.6-4 6.1-9.6 6.1-8.3 0-18.9-3.4-27.3-8v23.8c9.3 4 18.7 5.7 27.3 5.7 20.8 0 35.1-10.3 35.1-28.2-.1-29.8-38.2-24.5-38.2-35.7z"/> </svg>
+        <span><b>Never pay a stranger</b> — every home walked in person
+          · <a class="hf-come" href="COME_URL">How it works ↓</a>
+          · <a class="hf-come" href="/try.html">▶ Try it in 90s</a></span>
+      </div>
       <a class="porte-eco" href="#banchina">
         <span class="pe-eti"><b></b>Services</span>
         <span class="pe-dice">Can't be there? Found one on your own? About
@@ -1941,62 +2245,217 @@ CASE_TRE
           moves →</a></p>
     </div>
 
-    <div class="banchina coro" style="margin-top:clamp(22px,2.6vw,34px)">
+    <div class="biglietteria coro" id="prBiglietti" style="margin-top:clamp(22px,2.6vw,34px)">
 
-      <div class="ba-porte">
-        <a class="ba-p prima" href="/virtual-viewing.html">
-          <span class="ba-gate"><b>Gate 01</b>
-          <svg class="sg" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5"
-            y="6.5" width="12" height="11" rx="2"/>
-            <path d="M15.5 11l5-2.6v7.2l-5-2.6z"/>
-            <circle cx="7.2" cy="10.2" r="1.1" class="pieno"/></svg></span>
-          <span class="caso">Can't fly over to see it?</span>
-          <span class="fa">A live video tour with you asking the questions —
-            the red flags said out loud. <b style="color:var(--text-2);
-            font-weight:500">Our homes: free, always.</b></span>
-          <span class="ba-serv">Virtual Viewing<i>→</i></span>
-          <span class="costo"><b>€89</b><i><span class="lungo">for homes on
-            other portals · credited if you rent with us</span><span
-            class="breve">for other portals' homes</span></i></span>
-        </a>
+    <!-- ══ L'AMMIRAGLIA · FIRST CLASS ══ -->
+    <a class="bp eroe" href="/property-finding.html"
+       style="--c:var(--c-pf);--ca:rgba(255,215,0,.16);--cb:rgba(255,215,0,.45)">
+      <span class="alone"></span>
+      <span class="filigrana"></span>
+      <svg class="timbro" viewBox="0 0 80 80" aria-hidden="true">
+        <circle class="t-est" cx="40" cy="40" r="32"/>
+        <circle class="t-int" cx="40" cy="40" r="19"/>
+        <defs><path id="tCurva" d="M 40 14 a 26 26 0 1 1 -0.01 0"/></defs>
+        <text class="t-curvo"><textPath href="#tCurva" textLength="163"
+          lengthAdjust="spacingAndGlyphs">WALKED IN PERSON · BOOM ROME · </textPath></text>
+        <text class="t-stella" x="40" y="44.5">★</text>
+      </svg>
+      <span class="banda"><em>First class · Property Finding</em></span>
+      <span class="corpo">
+        <span class="testata">
+          <span class="situa">Still searching from abroad?</span>
+          <span class="numero">N° PF-0350 · EST. MMXXV</span>
+        </span>
+        <span class="rotta"><b>ABROAD</b>
+          <span class="tratta"><i class="punto aereo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 15.5v-2l-8-5V3c0-.83-.67-1.5-1.5-1.5S10.5 2.17 10.5 3v5.5l-8 5v2l8-2.5v5.5l-2 1.5V21l3.5-1 3.5 1v-1.5l-2-1.5v-5.5l8 2.5z"/></svg></i></span>
+          <b>ROME</b></span>
+        <span class="vendita">
+          <span class="pnome"><span class="pn">Property Finding</span>
+            <span class="pkind">Flagship</span></span>
+          <span class="promessa">Your private hunter on the whole Rome
+            market — <b>off-market included</b>, every shortlist walked
+            in person before you see it.</span>
+        </span>
+        <span class="dettagli">
+          <span><em>Passenger</em><strong>You</strong></span>
+          <span><em>Issuer</em><strong>BOOM Roma</strong></span>
+          <span class="acceso"><em>Class</em><strong>First</strong></span>
+          <span><em>Coverage</em><strong>Whole market</strong></span>
+          <span class="acceso"><em>Refund</em><strong>Full</strong></span>
+        </span>
+      </span>
+      <span class="perf perf-v"></span>
+      <span class="stub">
+        <span class="stub-riga"><span class="quota">€350</span>
+          <span class="barcode"></span></span>
+        <span class="barcode-sotto">BOOM·ROME · FIRST · PF-0350</span>
+        <span class="compra">Start the hunt · €350<i>→</i></span>
+        <span class="rassicura"><span><b>Zero risk:</b> deducted on
+          success, refunded in full if we don't deliver.</span></span>
+      </span>
+    </a>
 
-        <a class="ba-p" href="/property-finding.html">
-          <span class="ba-gate"><b>Gate 02</b>
-          <svg class="sg" viewBox="0 0 24 24" aria-hidden="true">
-            <circle cx="10.8" cy="10.8" r="6.6"/><path d="M15.6 15.6L20.5 20.5"/>
-            <path d="M8 10.8h5.6M10.8 8v5.6" class="acc"/></svg></span>
-          <span class="caso">Nothing in the catalogue fits?</span>
-          <span class="fa">We hunt the whole market for you, off-market
-            included.</span>
-          <span class="ba-serv">Property Finding<i>→</i></span>
-          <span class="costo"><b>€350</b><i><span class="lungo">deducted on success · refunded if we don't deliver</span><span class="breve">deducted on success</span></i></span>
-        </a>
+    <!-- ══ VIRTUAL VIEWING · LIVE ══ -->
+    <a class="bp vv" href="/virtual-viewing.html"
+       style="--c:var(--c-vv);--ca:rgba(0,255,136,.14);--cb:rgba(0,255,136,.4)">
+      <span class="alone"></span>
+      <span class="banda"><em>Virtual Viewing</em></span>
+      <span class="corpo">
+        <span class="testata">
+          <span class="situa">Found it, can't fly?</span>
+          <span class="numero">N° VV-0089</span>
+        </span>
+        <span class="rotta"><b>YOU</b>
+          <span class="tratta"><i class="punto"></i></span>
+          <b>THE DOOR</b></span>
+        <span class="vendita">
+          <span class="pnome"><span class="pn">Virtual Viewing</span>
+            <span class="pkind">Live</span></span>
+          <span class="promessa">See any home <b>live on video</b>
+            before you fly — the red flags said out loud.</span>
+        </span>
+        <span class="dettagli">
+          <span class="acceso"><em>Boarding</em><strong>Live video</strong></span>
+          <span><em>Delivery</em><strong>Apple Wallet</strong></span>
+          <span><em>Seat</em><strong>Front row</strong></span>
+        </span>
+      </span>
+      <span class="perf perf-h"></span>
+      <span class="stub">
+        <span class="stub-riga"><span class="quota">€89</span>
+          <span class="barcode"></span></span>
+        <span class="barcode-sotto">BOOM·ROME · LIVE · VV-0089</span>
+        <span class="compra">Book a live tour · €89<i>→</i></span>
+        <span class="rassicura"><span><b>Credited</b> if you rent with
+          us · BOOM homes: free, always.</span></span>
+      </span>
+    </a>
 
-        <a class="ba-p" href="/deal-assistance.html">
-          <span class="ba-gate"><b>Gate 03</b>
-          <svg class="sg" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M12 3.4l7.2 2.9v5.1c0 4.2-3 7.2-7.2 8.4-4.2-1.2-7.2-4.2-7.2-8.4V6.3z"/>
-            <path d="M9.1 11.6l2.2 2.2 4.1-4.7" class="acc"/></svg></span>
-          <span class="caso">Found one yourself?</span>
-          <span class="fa">We verify the landlord, the papers and the price
-            — then negotiate.</span>
-          <span class="ba-serv">Deal Assistance<i>→</i></span>
-          <span class="costo"><b>€249</b><i><span class="lungo">fixed · avg saving €600+</span><span class="breve">fixed · saves €600+ on average</span></i></span>
-        </a>
+    <!-- ══ DEAL ASSISTANCE · PROTECTION ══ -->
+    <a class="bp da" href="/deal-assistance.html"
+       style="--c:var(--c-da);--ca:rgba(157,140,255,.15);--cb:rgba(157,140,255,.4)">
+      <span class="alone"></span>
+      <span class="banda"><em>Deal Assistance</em></span>
+      <span class="corpo">
+        <span class="testata">
+          <span class="situa">Found it elsewhere?</span>
+          <span class="numero">N° DA-0249</span>
+        </span>
+        <span class="rotta"><b>FOUND</b>
+          <span class="tratta"><i class="punto"></i></span>
+          <b>PROTECTED</b></span>
+        <span class="vendita">
+          <span class="pnome"><span class="pn">Deal Assistance</span>
+            <span class="pkind">Protection</span></span>
+          <span class="promessa">We <b>verify the landlord and the
+            papers</b> — then negotiate for you.</span>
+        </span>
+        <span class="dettagli">
+          <span class="acceso"><em>Class</em><strong>Protection</strong></span>
+          <span><em>Fee</em><strong>Fixed</strong></span>
+          <span><em>Escort</em><strong>To signature</strong></span>
+        </span>
+      </span>
+      <span class="perf perf-h"></span>
+      <span class="stub">
+        <span class="stub-riga"><span class="quota">€249</span>
+          <span class="barcode"></span></span>
+        <span class="barcode-sotto">BOOM·ROME · PROTECTION · DA-0249</span>
+        <span class="compra">Protect the deal · €249<i>→</i></span>
+        <span class="rassicura"><span><b>Fixed fee</b> — deposit and
+          clauses negotiated, no percentages.</span></span>
+      </span>
+    </a>
 
-        <a class="ba-p" href="/contract-check-express.html">
-          <span class="ba-gate"><b>Gate 04</b>
-          <svg class="sg" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M6 3.2h7.4L18.6 8v12.8H6z"/>
-            <path d="M13.2 3.2V8h5.2" class="acc"/>
-            <path d="M9 12.6h6.4M9 15.8h4.4" class="acc"/></svg></span>
-          <span class="caso">About to sign something?</span>
-          <span class="fa">A written traffic-light verdict in 24h: what's
-            fine, what's unfair, what's missing.</span>
-          <span class="ba-serv">Contract Check Express<i>→</i></span>
-          <span class="costo"><b>€49</b><i><span class="lungo">credited on Deal Assistance</span><span class="breve">credited on Deal Assistance</span></i></span>
-        </a>
-      </div>
+    <!-- ══ CONTRACT CHECK · EXPRESS ══ -->
+    <a class="bp cc" href="/contract-check-express.html"
+       style="--c:var(--c-cc);--ca:rgba(62,211,255,.14);--cb:rgba(62,211,255,.4)">
+      <span class="alone"></span>
+      <span class="banda"><em>Contract Check</em></span>
+      <span class="corpo">
+        <span class="testata">
+          <span class="situa">About to sign?</span>
+          <span class="numero">N° CC-0049</span>
+        </span>
+        <span class="rotta"><b>DRAFT</b>
+          <span class="tratta"><i class="punto"></i></span>
+          <b>VERDICT</b></span>
+        <span class="vendita">
+          <span class="pnome"><span class="pn">Contract Check</span>
+            <span class="pkind">Express</span></span>
+          <span class="promessa">A <b>written traffic-light verdict in
+            24h</b>: fine, unfair, missing.</span>
+        </span>
+        <span class="dettagli">
+          <span class="acceso"><em>Class</em><strong>Express</strong></span>
+          <span><em>Verdict</em><strong>In 24h</strong></span>
+          <span><em>Format</em><strong>Written</strong></span>
+        </span>
+      </span>
+      <span class="perf perf-h"></span>
+      <span class="stub">
+        <span class="stub-riga"><span class="quota">€49</span>
+          <span class="barcode"></span></span>
+        <span class="barcode-sotto">BOOM·ROME · EXPRESS · CC-0049</span>
+        <span class="compra">Check my contract · €49<i>→</i></span>
+        <span class="rassicura"><span><b>Credited</b> in full on Deal
+          Assistance.</span></span>
+      </span>
+    </a>
+  </div>
+
+    <script>
+    /* prendere in mano il biglietto: tilt lieve verso il cursore, solo
+       con un mouse vero; la molla lo riporta a piatto al rilascio. */
+    (function () {
+      if (!(window.matchMedia
+        && matchMedia('(hover:hover) and (pointer:fine)').matches)) return;
+      if (matchMedia('(prefers-reduced-motion:reduce)').matches) return;
+      document.querySelectorAll('#prBiglietti .bp').forEach(function (bp) {
+        bp.addEventListener('pointermove', function (e) {
+          var r = bp.getBoundingClientRect();
+          var x = (e.clientX - r.left) / r.width - .5;
+          var y = (e.clientY - r.top) / r.height - .5;
+          bp.style.setProperty('--rx', (x * 3.5) + 'deg');
+          bp.style.setProperty('--ry', (-y * 2.5) + 'deg');
+        });
+        bp.addEventListener('pointerleave', function () {
+          bp.style.setProperty('--rx', '0deg');
+          bp.style.setProperty('--ry', '0deg');
+        });
+      });
+    })();
+    /* la biglietteria si MISURA: senza numeri non sapremo mai
+       se vende piu' dello scaffale. gate_view una volta sola
+       (sezione davvero guardata), gate_click col servizio e il
+       prezzo; design:'biglietto' rende confrontabile il futuro. */
+    (function () {
+      var fila = document.getElementById('prBiglietti');
+      if (!fila) return;
+      fila.querySelectorAll('.bp').forEach(function (bp) {
+        bp.addEventListener('click', function () {
+          if (!window.boomTrack) return;
+          var s = (bp.getAttribute('href') || '')
+            .replace(/^\//, '').replace(/\.html$/, '');
+          var q = bp.querySelector('.quota');
+          boomTrack('gate_click', { service: s,
+            price: q ? q.textContent.replace(/[^0-9]/g, '') : '',
+            flagship: bp.classList.contains('eroe') ? 1 : 0,
+            design: 'biglietto' });
+        });
+      });
+      if (!('IntersectionObserver' in window)) return;
+      var visto = false;
+      new IntersectionObserver(function (voci, oss) {
+        if (visto) return;
+        if (!voci.some(function (v) { return v.isIntersecting; })) return;
+        visto = true; oss.disconnect();
+        if (window.boomTrack) boomTrack('gate_view', { design: 'biglietto' });
+      }, { threshold: .35 }).observe(fila);
+    })();
+    </script>
+
+    <div class="banchina sale" style="margin-top:clamp(16px,2vw,24px)">
 
       <div class="ba-garanzie" aria-label="Guarantees">
         <span class="ba-g">Stripe — a receipt for every line</span>
@@ -2017,7 +2476,7 @@ CASE_TRE
 
       <div class="ba-cifre">
         <div><b>48h</b><span>fastest move-in</span></div>
-        <div><b>98%</b><span>success rate</span></div>
+        <div><b>4.9★</b><span>on Google · 47 reviews</span></div>
         <div><b>100%</b><span>walked in person</span></div>
         <div><b>€0</b><span>hidden fees</span></div>
       </div>
@@ -2027,41 +2486,6 @@ CASE_TRE
         <span>· a named human replies within 2h, not a form</span>
       </div>
 
-    </div>
-<div class="rete coro" style="margin-top:clamp(22px,2.6vw,34px)">
-      <div class="rete-pfs">
-        <div class="rete-corpo">
-          <div>
-            <span class="rete-eti"><b></b>Property Finding · the hunt engine</span>
-            <h3 class="rete-titolo">While you read this,<br><span class="hl">it's already looking.</span></h3>
-            <p>You describe the home; we turn it into a standing query. The
-              radar watches Immobiliare, Idealista and the listings that never
-              reach a portal. Every hit is opened, checked and walked by a
-              person before it reaches you — so what arrives is a shortlist,
-              not links.</p>
-            <div class="rete-cifre">
-              <div class="rete-cifra"><b>1:1</b><span>tailored hunt</span></div>
-              <div class="rete-cifra"><b>5+</b><span>curated options</span></div>
-              <div class="rete-cifra"><b>24/7</b><span>market scan</span></div>
-              <div class="rete-cifra"><b>€0</b><span>if we fail</span></div>
-            </div>
-            <a class="btn btn-primary" href="/property-finding.html">Start the hunt</a>
-            <p class="rete-nota">€350 upfront — deducted from the agency fee when
-              we find your home. Full refund if we don't deliver.</p>
-          </div>
-          <div class="radar-colonna" aria-hidden="true">
-            <div class="radar">
-              <i style="left:62%;top:26%;animation-delay:.35s" data-n="Immobiliare"></i>
-              <i style="left:74%;top:58%;animation-delay:1.45s" data-n="Idealista"></i>
-              <i style="left:30%;top:70%;animation-delay:3s" data-n="Casa.it"></i>
-              <i style="left:22%;top:38%;animation-delay:3.9s" data-n="Subito"></i>
-              <i class="oro" style="left:48%;top:14%;animation-delay:4.72s" data-n="Off-market"></i>
-              <span class="radar-io"></span>
-            </div>
-            <p class="radar-dida"><b>96</b> scans · every day</p>
-          </div>
-        </div>
-      </div>
     </div>
 
   </div>
@@ -2100,8 +2524,9 @@ CASE_TRE
     <div class="sale">
       <span class="eyebrow"><i></i>After you sign</span>
       <h2 class="titolo">Travel light. Your rental<br><span class="hl">lives in your pocket.</span></h2>
-      <p class="sotto">Every BOOM tenant gets a digital pass and a home in the
-        BOOM app — because the service doesn't end at the keys.</p>
+      <p class="sotto">Most agencies disappear at the keys. That's where
+        we clock in: your pass, your rent, your receipts and a named person
+        — in your pocket for the whole stay.</p>
       <div class="pass-lista">
         <div class="pass-voce"><i></i>Your tenant pass in Apple Wallet —
           issued with your contract</div>
@@ -2175,8 +2600,8 @@ CASE_TRE
     <p class="dolori-capo"><b>Six things this market does to people</b> — and
       what we do instead.</p>
 <div class="dolori coro">
-      <div class="dolore"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="13"/><path d="M20 12v8l6 4"/></svg><b>45+ days average search time</b><span>Move in as fast as 48h</span></div>
-      <div class="dolore"><svg viewBox="0 0 40 40"><rect x="5" y="12" width="30" height="17" rx="1.5"/><circle cx="20" cy="20.5" r="4.5"/><path d="M10 12v-2h20v2"/></svg><b>€8,000+ upfront costs</b><span>Month + deposit + fee, shown before you pay</span></div>
+      <div class="dolore"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="13"/><path d="M20 12v8l6 4"/></svg><b>Weeks of searching, alone</b><span>Move in as fast as 48h</span></div>
+      <div class="dolore"><svg viewBox="0 0 40 40"><rect x="5" y="12" width="30" height="17" rx="1.5"/><circle cx="20" cy="20.5" r="4.5"/><path d="M10 12v-2h20v2"/></svg><b>Months of rent upfront</b><span>Month + deposit + fee, shown before you pay</span></div>
       <div class="dolore"><svg viewBox="0 0 40 40"><rect x="6" y="10" width="28" height="20" rx="1.5"/><path d="M6 26l8-7 6 5 6-6 8 8M6 6l28 28"/></svg><b>Misleading photos</b><span>Every home walked in person before it's listed</span></div>
       <div class="dolore"><svg viewBox="0 0 40 40"><path d="M11 33V16a9 9 0 0118 0v17l-4.5-3-4.5 3-4.5-3z"/><circle cx="16.5" cy="17" r="1"/><circle cx="23.5" cy="17" r="1"/></svg><b>Agents who disappear</b><span>One name, one WhatsApp — always the same person</span></div>
       <div class="dolore"><svg viewBox="0 0 40 40"><path d="M8 8h24v18H20l-8 7v-7H8z"/><path d="M14 15h12M14 20h8"/></svg><b>Language barriers</b><span>English-first — Italian contracts, explained</span></div>
@@ -2260,7 +2685,7 @@ CASE_TRE
         <b>Homes</b>
         <a href="/apartments.html">Apartments</a>
         <a href="/your-money.html">Your Money</a>
-        <a href="/v2-board.html">Live Board</a>
+        <a href="/board">Live Board</a>
         <a href="/book.html">Book a Viewing</a>
         <a href="/welcome-to-rome.html">Welcome to Rome</a>
       </div>
@@ -2312,13 +2737,12 @@ CASE_TRE
     if (ridotto) b.show('DAYS');
     else {
       setTimeout(function () { b.show('DAYS', 110, true); }, 600);
-      var giro = ['HOURS', 'DAYS'], i = 0;
+      /* l'insegna resta viva: ogni tanto il rullo rifa' il giro intero
+         e riatterra su DAYS — a scheda nascosta tace */
       setInterval(function () {
         if (document.hidden) return;
-        b.update(giro[i % 2]);
-        host.setAttribute('aria-label', giro[i % 2].toLowerCase());
-        i++;
-      }, 8000);
+        b.giro(120);
+      }, 19000);
     }
   }
 
@@ -2364,22 +2788,33 @@ CASE_TRE
       })(organi[organi.length - 1]);
     });
     function accendi() {
-      organi.forEach(function (o, i) {
+      /* i DATI nascono GIA' giusti, all'istante: lo scramble su un prezzo
+         legge come un prezzo sbagliato, non come un tabellone che compone
+         (segnalato due volte dall'operatore — su Safari, che dipinge
+         progressivamente, durava anche di piu'). La vita Solari resta nel
+         FREMITO: un'onda sola di flutter mezzo secondo dopo, e poi i
+         fremiti radi di sempre. Lo scramble teatrale resta solo sulla
+         PAROLA del titolo (DAYS), dove legge come insegna. */
+      organi.forEach(function (o) {
+        o.z.show(o.d.z.toUpperCase().slice(0, LZ));
+        o.p.show(o.d.p); o.t.show(o.d.s);
+      });
+      /* l'onda tocca SOLO lo stato: un fremito su una cifra del prezzo
+         mostrerebbe per un attimo un prezzo diverso — stessa classe di
+         equivoco. Il prezzo freme solo sotto il mouse dell'utente. */
+      if (!ridotto) organi.forEach(function (o, i) {
         setTimeout(function () {
-          if (ridotto) { o.z.show(o.d.z.toUpperCase().slice(0, LZ));
-            o.p.show(o.d.p); o.t.show(o.d.s); return; }
-          o.z.show(o.d.z.toUpperCase().slice(0, LZ), 55, true);
-          o.p.show(o.d.p, 45, true);
-          o.t.show(o.d.s, 60, true);
-        }, ridotto ? 0 : i * 170);
+          if (o.t.flutter) o.t.flutter();
+        }, 500 + i * 90);
       });
     }
-    setTimeout(accendi, 700);
+    accendi();
     /* il fremito: ogni tanto una cella trema, come sui tabelloni veri */
     if (!ridotto) setInterval(function () {
       if (document.hidden) return;
       var o = organi[Math.floor(Math.random() * organi.length)];
-      var quale = ['z', 'p', 't'][Math.floor(Math.random() * 3)];
+      /* mai il prezzo da solo: una cifra che gira e' un prezzo diverso */
+      var quale = ['z', 't'][Math.floor(Math.random() * 2)];
       if (o[quale].flutter) o[quale].flutter();
     }, 14000);
   })();
@@ -2518,7 +2953,36 @@ CASE_TRE
             scrollBy({ top: r.top - 84, behavior: 'smooth' });
         }, 300); }
     }
-    btn.addEventListener('click', function () {
+    /* su touch il calendario e quello del SISTEMA (la ruota Apple):
+       un campo data nativo invisibile copre il bottone. Su desktop
+       resta il calendario BOOM. */
+    var nativo = null;
+    if (matchMedia('(pointer:coarse)').matches) {
+      nativo = document.createElement('input');
+      nativo.type = 'date';
+      nativo.min = iso(oggi);
+      nativo.setAttribute('aria-label', 'Arrival date');
+      nativo.style.cssText = 'position:absolute;inset:0;width:100%;'
+        + 'height:100%;opacity:0;border:0;padding:0;';
+      btn.style.position = 'relative';
+      btn.appendChild(nativo);
+      nativo.addEventListener('change', function () {
+        if (!nativo.value) return;
+        scelta = new Date(nativo.value + 'T12:00:00');
+        testo.textContent = bella(scelta);
+        if (window.__passData) window.__passData(bella(scelta));
+        btn.classList.add('scelta');
+      });
+    }
+    btn.addEventListener('click', function (e) {
+      if (nativo) {
+        if (e.target !== nativo) {
+          try { if (nativo.showPicker) { nativo.showPicker(); return; } }
+          catch (er) {}
+          nativo.focus();
+        }
+        return;
+      }
       apri(!cal.classList.contains('aperto'));
     });
     document.getElementById('calPrec').addEventListener('click', function () {
@@ -2556,6 +3020,38 @@ CASE_TRE
     document.addEventListener('click', function (e) {
       if (!forma.contains(e.target)) apri(false);
     });
+    /* il bottone dice QUANTE case rispondono, prima del click: i dati
+       sono gia' in pagina (CONTA = disponibili con prezzo e data), la
+       data testo libero passa dal motore condiviso quando c'e' */
+    var CONTA = 'CONTA_JSON';
+    var bottone = forma.querySelector('.btn');
+    var bottoneEti = bottone ? bottone.textContent : '';
+    function contaCase() {
+      if (!bottone || !Array.isArray(CONTA)) return;
+      var b = +document.getElementById('quantoBudget').value || 0;
+      var dal = scelta ? iso(scelta) : null;
+      if (!b && !dal) { bottone.textContent = bottoneEti; return; }
+      var n = CONTA.filter(function (r) {
+        if (b && r.p > b) return false;
+        if (dal && r.a && window.BOOM_DISPO) {
+          try {
+            var pa = BOOM_DISPO.parseAvailability(r.a, new Date());
+            if (pa && pa.kind === 'date' && pa.iso > dal) return false;
+          } catch (err) {}
+        }
+        return true;
+      }).length;
+      /* zero non e' mai un vicolo cieco: la porta resta aperta */
+      bottone.textContent = n
+        ? 'See ' + n + ' home' + (n === 1 ? '' : 's') + ' \u2192'
+        : 'See all homes \u2192';
+    }
+    forma.addEventListener('change', contaCase);
+    var quandoT = document.getElementById('quandoTesto');
+    if (quandoT && 'MutationObserver' in window)
+      new MutationObserver(contaCase)
+        .observe(quandoT, { childList: true, characterData: true, subtree: true });
+
     forma.addEventListener('submit', function (e) {
       e.preventDefault();
       var base = 'AP_URL', pezzi = [];
@@ -2564,6 +3060,8 @@ CASE_TRE
       var c = document.getElementById('chiAtterra').value;
       if (b) pezzi.push('budget=' + b);
       if (c) pezzi.push('chi=' + c);
+      if (window.boomTrack) boomTrack('find_homes',
+        { budget: b || '', dal: scelta ? iso(scelta) : '', chi: c || '' });
       location.href = pezzi.length ? base + '#' + pezzi.join('&') : base;
     });
   })();
@@ -2694,16 +3192,22 @@ CASE_TRE
         for (var oi = 0; oi < onde.length; oi++) {
           var od = onde[oi];
           /* il battito ha il passo del mosaico: lento, maestoso */
-          var eta = (t - od.via) / (od.batte ? 2600 : 900);
+          var eta = (t - od.via) / (od.batte ? 3000 : 900);
           if (eta > 1.4) continue;
           var da = Math.abs(Math.hypot(x - od.x, y - od.y)
-            - eta * MIN * (od.batte ? .72 : .5));
-          var vo = Math.max(0, 1 - da / (MIN * .09));
+            - eta * MIN * (od.batte ? 1.05 : .5));
+          var vo = Math.max(0, 1 - da / (MIN * (od.batte ? .12 : .09)));
           E[i] = Math.max(E[i], vo * (1.2 - eta));
           if (od.batte) {
-            /* la banda piena del mosaico: ogni cella sulla cresta si
-               accende d'oro, e l'anello sfuma mentre si allarga */
-            AU[i] = Math.max(AU[i], vo * vo * (1 - eta * .5) * .85);
+            /* la banda piena del mosaico, alzata: una CRESTA stretta e
+               incandescente guida l'onda, la banda dietro tiene l'oro
+               piu' a lungo, e la corsa attraversa TUTTO il campo invece
+               di morire a meta' — un battito, di quelli che si sentono */
+            var vc = Math.max(0, 1 - da / (MIN * .035));
+            E[i] = Math.max(E[i], vc * 1.15 * (1 - eta * .3));
+            AU[i] = Math.max(AU[i],
+              vo * vo * (1 - eta * .35) * .9,
+              vc * (1 - eta * .25));
           } else if (vo > .9 && Math.random() < .015) AU[i] = .8;
         }
       }
@@ -2772,7 +3276,6 @@ CASE_TRE
       attesa = setTimeout(function () { misura(); if (ridotto) vita(0); }, 180);
     }, { passive: true });
   }
-
 
   function mosaicoRomano() {
     /* IL MOSAICO ROMANO — tessere quiete, e un anello d'oro che si
@@ -3148,9 +3651,12 @@ CASE_TRE
       'bottom-right');
     mappa.addControl(new maplibregl.FullscreenControl(), 'bottom-right');
     mappa.on('error', function (e) {
-      /* un tile che manca non e un fallimento; uno stile che manca lo e —
-         e il piano B e il satellite, non il buio */
-      if (e && e.error && /style|Failed to fetch/i.test(String(e.error.message || '')))
+      /* un tile che manca NON e un fallimento (l'errore porta e.tile, e
+         lo standalone li ignora da sempre): si degrada solo se l'errore
+         non riguarda un tile E lo stile non e ancora in piedi */
+      if (e && e.error && !e.tile
+          && !(mappa.isStyleLoaded && mappa.isStyleLoaded())
+          && /style|Failed to fetch/i.test(String(e.error.message || '')))
         ripiego();
     });
     var attrezzata = false;
@@ -3195,8 +3701,16 @@ CASE_TRE
     /* 'idle' = primo quadro COMPLETO: se 'load' tarda ma il render
        arriva, il velo si alza comunque — mai il nero su una mappa viva */
     mappa.once('idle', eccola);
-    /* e se in 9s non e arrivato niente, si passa al satellite */
-    setTimeout(ripiego, 9000);
+    /* il cane da guardia ha due orecchie: a 9s, se lo STILE e in piedi
+       e i tile stanno solo scendendo, si aspetta ('idle' arrivera) —
+       si degrada un quadro MORTO, mai uno vivo e lento */
+    function guardia(giri) {
+      if (carico || morto || satellite || !mappa) return;
+      if (mappa.isStyleLoaded && mappa.isStyleLoaded() && giri < 3)
+        return void setTimeout(function () { guardia(giri + 1); }, 5000);
+      ripiego();
+    }
+    setTimeout(function () { guardia(0); }, 9000);
   }
 
   /* i filtri di prezzo */

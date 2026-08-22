@@ -33,6 +33,18 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,sys
 .sky-pin:hover{transform:translateY(-3px);z-index:50}
 .sky-pin .p{background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-weight:700;font-size:12px;padding:5px 11px;border-radius:100px;white-space:nowrap;box-shadow:0 5px 16px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.18)}
 .sky-pin .p.rented{background:#26262c;color:#9a9aa2;box-shadow:0 4px 12px rgba(0,0,0,.5)}
+/* l'anteprima al passaggio: la foto PRIMA del click, solo dove esiste un
+   mouse vero. pointer-events:none — non deve mai rubare l'hover al pin. */
+.pin-peek{position:fixed;z-index:60;width:186px;border-radius:12px;overflow:hidden;background:#0d0d11;border:1px solid rgba(255,215,0,.22);box-shadow:0 18px 44px rgba(0,0,0,.6);pointer-events:none;opacity:0;transform:translate(-50%,6px) scale(.97);transition:opacity .18s ease,transform .22s ease}
+.pin-peek.su{opacity:1;transform:translate(-50%,0) scale(1)}
+.pin-peek .im{height:104px;background:linear-gradient(135deg,#17171c,#0e0e12) center/cover no-repeat}
+.pin-peek .tx{padding:9px 11px 10px}
+.pin-peek .nm{font-size:12px;color:#fff;font-weight:500;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pin-peek .pz{margin-top:3px;font-size:11px;color:var(--t2)}
+.pin-peek .pz b{color:var(--gold);font-weight:600}
+/* il chip che invita: finché non hai salvato un posto, LO STRUMENTO si
+   presenta da solo — tratteggio oro, mai un altro colore */
+.filters .chip.invito{border-style:dashed;border-color:rgba(255,215,0,.5);color:var(--gold)}
 .sky-pin::after{content:'';width:2px;height:9px;background:linear-gradient(#FFA500,transparent)}
 .sky-pin.dim{opacity:.16;filter:grayscale(.7)}
 .maplibregl-popup-content{background:var(--card)!important;border:1px solid var(--line)!important;border-radius:16px!important;padding:0!important;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.6)!important;width:230px}
@@ -45,6 +57,9 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,sys
 .pc-price{font-family:var(--disp);font-weight:200;font-size:22px;color:var(--gold)}
 .pc-price small{font-size:11px;color:var(--t3)}
 .pc-go{display:block;margin-top:11px;text-align:center;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000;font-size:13px;font-weight:600;text-decoration:none;padding:10px;border-radius:10px}
+.pc-row{display:flex;gap:6px;margin-top:8px}
+.pc-mini{flex:1;text-align:center;font-size:11px;color:var(--t2);text-decoration:none;border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:7px 4px;white-space:nowrap}
+.pc-mini:hover{color:var(--gold);border-color:rgba(255,215,0,.4)}
 .load{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg);transition:opacity .5s,visibility .5s}
 .load.off{opacity:0;visibility:hidden}
 .load .dot{width:10px;height:10px;border-radius:50%;background:var(--gold);animation:p 1.4s ease-in-out infinite}
@@ -59,7 +74,34 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,sys
 .sky-anchor.lit .d::before{content:'· '}
 .count .hint{color:var(--t3);font-weight:300}
 @media(prefers-reduced-motion:reduce){.load .dot{animation:none}.sky-pin{transition:none}}
+.emb .bar{display:none}
+.maplibregl-cooperative-gesture-screen{background:rgba(5,5,7,.72);color:#fff;font-family:var(--disp);font-size:15px;letter-spacing:.04em;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+/* i tuoi posti: ancore d'oro, sempre accese — sono il TUO motivo */
+.sky-mine{display:flex;align-items:center;gap:6px;font-size:11px;color:#111;background:linear-gradient(135deg,var(--gold),var(--gold2));border-radius:100px;padding:5px 11px;white-space:nowrap;font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.45)}
+.sky-mine .d{font-weight:700;display:none}
+.sky-mine.lit .d{display:inline}
+.sky-mine.lit .d::before{content:'· '}
+.miei-velo{position:absolute;inset:0;z-index:30;display:flex;align-items:flex-start;justify-content:center;padding-top:min(16vh,120px);background:rgba(5,5,7,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
+.miei-velo[hidden]{display:none}
+.miei{width:min(420px,92vw);background:var(--card);border:1px solid rgba(255,215,0,.25);border-radius:18px;padding:18px 18px 16px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
+.miei b.t{font-family:var(--disp);font-weight:300;font-size:19px;letter-spacing:.02em}
+.miei p.s{font-size:11.5px;color:var(--t3);margin:4px 0 12px;line-height:1.5}
+.miei input{width:100%;padding:12px 13px;background:#141419;border:1px solid var(--line);border-radius:10px;color:#fff;font-size:14px}
+.miei input:focus{outline:none;border-color:rgba(255,215,0,.45)}
+.miei-sug{margin-top:6px}
+.miei-sug button{display:block;width:100%;text-align:left;padding:10px 12px;background:none;border:0;border-bottom:1px solid var(--line);color:var(--t2);font-size:12.5px;cursor:pointer}
+.miei-sug button:hover{color:var(--gold)}
+.miei-sug button b{display:block;color:#fff;font-weight:500}
+.miei-righe{margin-top:10px}
+.miei-righe .r{display:flex;align-items:center;gap:8px;padding:9px 2px;border-bottom:1px solid var(--line);font-size:13px}
+.miei-righe .r b{font-weight:500;flex:1}
+.miei-righe .r button{background:none;border:0;color:var(--t3);cursor:pointer;font-size:14px;padding:4px 8px}
+.miei-righe .r button:hover{color:#FF6B57}
+.miei-vuota{font-size:12px;color:var(--t3);padding:10px 2px}
+.miei-chiudi{margin-top:12px;width:100%;padding:11px;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000;font-weight:600;font-size:13px;border:0;border-radius:10px;cursor:pointer}
 </style>
+<script src="/js/boom-geo.js"></script>
+<script>if(/[?&]embed=1/.test(location.search)){document.documentElement.classList.add('emb');var _b=document.createElement('base');_b.target='_top';document.head.appendChild(_b);}</script>
 </head>
 <body>
 <div id="map"></div>
@@ -74,6 +116,21 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,sys
   <button class="chip" data-max="1500">≤ €1,500</button>
   <button class="chip" data-max="2000">≤ €2,000</button>
   <button class="chip" data-max="2500">≤ €2,500</button>
+  <button class="chip" id="mieiChip" type="button">◆ My places</button>
+  <button class="chip" id="vicinoChip" type="button" hidden>≤ 25′ walk</button>
+</div>
+
+<div class="miei-velo" id="mieiVelo" hidden>
+  <div class="miei" role="dialog" aria-modal="true" aria-label="My places">
+    <b class="t">Your places, on the sky</b>
+    <p class="s">Type your office, campus or gym once — every home shows the
+      distance, here and on each home's page. Saved on this device only.</p>
+    <input id="mieiQ" type="text" autocomplete="off"
+      placeholder="Your office, university, a metro stop…">
+    <div class="miei-sug" id="mieiSug"></div>
+    <div class="miei-righe" id="mieiRighe"></div>
+    <button class="miei-chiudi" id="mieiChiudi" type="button">Done</button>
+  </div>
 </div>
 
 <div class="count" id="count" style="display:none"></div>
@@ -153,10 +210,17 @@ function distLabel(km){return km<2.6 ? Math.round(km/4.8*60)+'′ walk' : (km<10
 function showLinks(co){
   if(!map.getSource('links'))return;
   /* thread only the six nearest anchors — nine lines is noise, six is a story */
+  /* i TUOI posti si collegano sempre (sono il motivo per cui li hai
+     salvati); le ancore di Roma riempiono fino a sei linee */
+  var mie=MYP_MK.map(function(m){return {m:m,d:haversine(co,[m.p.lng,m.p.lat])}});
   var near=ANCHORS.map(function(A,i){return {A:A,i:i,d:haversine(co,[A[0],A[1]])}})
-    .sort(function(a,b){return a.d-b.d}).slice(0,6);
+    .sort(function(a,b){return a.d-b.d}).slice(0,Math.max(2,6-mie.length));
   var nearSet={};near.forEach(function(n){nearSet[n.i]=n.d});
   var feats=near.map(function(n){return {type:'Feature',geometry:{type:'LineString',coordinates:arc(co,[n.A[0],n.A[1]],0.12,44)}}});
+  mie.forEach(function(x){
+    feats.push({type:'Feature',geometry:{type:'LineString',coordinates:arc(co,[x.m.p.lng,x.m.p.lat],-0.12,44)}});
+    x.m.el.classList.add('lit');x.m.dEl.textContent=distLabel(x.d);
+  });
   ANCHORS.forEach(function(A,i){
     var m=ANCHOR_MK[i]; if(!m)return;
     if(i in nearSet){m.el.classList.add('lit');m.el.style.opacity='';m.dEl.textContent=distLabel(nearSet[i]);}
@@ -167,6 +231,7 @@ function showLinks(co){
 function clearLinks(){
   if(map.getSource('links'))map.getSource('links').setData({type:'FeatureCollection',features:[]});
   ANCHOR_MK.forEach(function(m){m.el.classList.remove('lit');m.el.style.opacity='';});
+  MYP_MK.forEach(function(m){m.el.classList.remove('lit');m.dEl.textContent='';});
 }
 function buildAnchors(){
   map.addSource('links',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
@@ -220,20 +285,103 @@ function gradeColor(){
   }catch(e){}
 }
 
+/* ── I TUOI POSTI — la stessa memoria del detail (boom:pois): scritti
+   una volta, ogni superficie risponde. Qui diventano ancore VIVE. ── */
+var TIENI=null, VICINO=false;
+var MYP=[];
+function mieiLetti(){try{return JSON.parse(localStorage.getItem('boom:pois')||'[]')}catch(e){return[]}}
+function mieiSerba(a){try{localStorage.setItem('boom:pois',JSON.stringify(a.slice(0,4)))}catch(e){}}
+var MYP_MK=[];
+function buildMyPlaces(){
+  MYP=mieiLetti();
+  MYP_MK.forEach(function(m){try{m.mk.remove()}catch(e){}});
+  MYP_MK=[];
+  if(!map)return;
+  MYP.forEach(function(p){
+    var el=document.createElement('div');el.className='sky-mine';
+    var nm=document.createElement('span');nm.textContent='◆ '+p.name;
+    var d=document.createElement('span');d.className='d';
+    el.appendChild(nm);el.appendChild(d);
+    MYP_MK.push({el:el,dEl:d,p:p,mk:new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([p.lng,p.lat]).addTo(map)});
+  });
+  var vc=document.getElementById('vicinoChip');
+  if(vc){vc.hidden=!MYP.length;if(!MYP.length){VICINO=false;vc.classList.remove('on');}}
+  if(map&&map.getSource&&map.getSource('links'))clearLinks();
+  applyFilter();
+}
+window.addEventListener('message',function(e){
+  if(e.origin!==location.origin)return;
+  var d=e.data||{};
+  if(d.t==='boomTieni'&&Array.isArray(d.ids)){TIENI=new Set(d.ids.map(String));if(map)applyFilter();}
+});
+
+/* I tasti diretti nel popup — stessa onestà boom-geo del detail: Street
+   View solo dove il pin è una strada vera (exact/street); su un centroide
+   aprirebbe una via qualunque. Coordinate VERE del doc, mai quelle del
+   pin (spread() le sposta per non sovrapporre i marker). */
+function pinChips(l){
+  var la=num(l.lat), ln=num(l.lng);
+  if(!la||!ln) return '';
+  var lvl='zone';
+  try{ if(window.BOOM_GEO) lvl=BOOM_GEO.pinPrecision(l).level; }catch(e){}
+  var sv=(lvl==='exact'||lvl==='street')
+    ? '<a class="pc-mini" target="_blank" rel="noopener" href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+la+','+ln+'">⟲ Street View</a>'
+    : '';
+  return '<div class="pc-row">'+sv+
+    '<a class="pc-mini" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination='+la+','+ln+'">➤ Directions</a></div>';
+}
+/* l'anteprima hover: un solo nodo riusato per tutti i pin; sparisce al
+   primo movimento della mappa o al click (il popup prende il suo posto). */
+var PEEK=null,
+    PEEK_HOVER=!!(window.matchMedia&&matchMedia('(hover:hover) and (pointer:fine)').matches);
+function peekEl(){
+  if(PEEK)return PEEK;
+  PEEK=document.createElement('div');PEEK.className='pin-peek';
+  PEEK.innerHTML='<div class="im"></div><div class="tx"><div class="nm"></div><div class="pz"></div></div>';
+  document.body.appendChild(PEEK);
+  return PEEK;
+}
+function peekShow(el,l,price,rented){
+  var k=peekEl(),r=el.getBoundingClientRect();
+  var img=l.image||(l.images&&l.images[0])||'';
+  k.querySelector('.im').style.backgroundImage=img?'url(\''+String(img).replace(/'/g,'')+'\')':'';
+  k.querySelector('.nm').textContent=l.name||'Apartment';
+  var pz=k.querySelector('.pz');
+  pz.textContent=(l.zone||l.neighborhood)?String(l.zone||l.neighborhood)+' · ':'';
+  var b=document.createElement('b');
+  b.textContent=rented?'Rented':(price?fmt(price)+'/mo':'On request');
+  pz.appendChild(b);
+  var x=Math.min(Math.max(r.left+r.width/2,104),window.innerWidth-104);
+  var top=r.top-168;
+  k.style.left=x+'px';
+  k.style.top=(top<64?(r.bottom+12):top)+'px';
+  k.classList.add('su');
+  try{map.once('movestart',peekHide);}catch(e){}
+}
+function peekHide(){if(PEEK)PEEK.classList.remove('su');}
 function makePin(l,co){
   var price=num(l.price);
   var rented=/rented|affittato|off_market/.test(String(l.status||'available').toLowerCase());
-  var el=document.createElement('div'); el.className='sky-pin'; el.__price=price||0; el.__rented=rented;
+  var el=document.createElement('div'); el.className='sky-pin'; el.__price=price||0; el.__rented=rented; el.__id=String(l.id||''); el.__co=co;
   el.innerHTML='<span class="p'+(rented?' rented':'')+'">'+(price?fmt(price):'—')+'</span>';
   var img=l.image||(l.images&&l.images[0])||'';
-  var pop=new maplibregl.Popup({offset:18,closeButton:true,maxWidth:'240px'}).setHTML(
+  var pop=new maplibregl.Popup({offset:18,closeButton:true,maxWidth:'240px',focusAfterOpen:false}).setHTML(
     '<div class="pc-img"'+(img?' style="background-image:url(\''+img.replace(/'/g,'')+'\')"':'')+'></div>'+
     '<div class="pc-body"><div class="pc-zone">'+(l.zone||l.neighborhood||'Rome')+'</div>'+
     '<div class="pc-name">'+(l.name||'Apartment')+'</div>'+
     '<span class="pc-price">'+(price?fmt(price):'On request')+(price?'<small> /mo</small>':'')+'</span>'+
-    '<a class="pc-go" href="/listing/'+encodeURIComponent(l.id)+'">View this home →</a></div>'
+    '<a class="pc-go" href="/listing/'+encodeURIComponent(l.id)+'">View this home →</a>'+
+    pinChips(l)+'</div>'
   );
-  el.addEventListener('click',function(){showLinks(co);});
+  el.addEventListener('click',function(){
+    peekHide();
+    showLinks(co);
+    try{map.easeTo({center:co,offset:[0,90],duration:650,zoom:map.getZoom()});}catch(e){}
+  });
+  if(PEEK_HOVER){
+    el.addEventListener('mouseenter',function(){peekShow(el,l,price,rented);});
+    el.addEventListener('mouseleave',peekHide);
+  }
   MARKERS.push(new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat(co).setPopup(pop).addTo(map));
 }
 
@@ -242,6 +390,15 @@ function applyFilter(){
   MARKERS.forEach(function(mk){
     var el=mk.getElement();
     var ok=(MAXFILTER===0)?!el.__rented:(el.__price>0&&el.__price<=MAXFILTER&&!el.__rented);
+    /* il ponte embed: la discovery dice quali case restano dopo i SUOI
+       filtri — un solo Skyline, la selezione arriva da fuori */
+    if(ok&&TIENI&&!TIENI.has(el.__id))ok=false;
+    /* vicino al mio posto: ~2km in linea d'aria ≈ 25' a piedi (stessa
+       stima onesta delle altre superfici, mai spacciata per percorso) */
+    if(ok&&VICINO&&MYP.length){
+      var dmin=1e9;MYP.forEach(function(p){var d=haversine([el.__co[0],el.__co[1]],[p.lng,p.lat]);if(d<dmin)dmin=d;});
+      if(dmin>2.0)ok=false;
+    }
     el.classList.toggle('dim',!ok); if(ok)shown++;
   });
   var c=$('count'); if(c){c.style.display='block'; c.innerHTML='<b>'+shown+'</b> homes'+(MAXFILTER?' under '+fmt(MAXFILTER):' across Rome')+'<span class="hint"> · tap one for its commute lines</span>';}
@@ -251,12 +408,18 @@ async function boot(){
   var listings=[];
   try{ var r=await fetch('/api/listings',{cache:'no-store'}); var j=await r.json(); listings=(j&&Array.isArray(j.listings))?j.listings:(Array.isArray(j)?j:[]); }catch(e){}
   if(!listings.length){ msg('Could not load listings — try the list view.'); return; }
-  map=new maplibregl.Map({container:'map',style:'https://tiles.openfreemap.org/styles/liberty',center:ROME,zoom:11.2,pitch:55,bearing:-12,antialias:true});
+  var EMB=document.documentElement.classList.contains('emb');
+  map=new maplibregl.Map({container:'map',style:'https://tiles.openfreemap.org/styles/liberty',center:ROME,zoom:11.2,pitch:55,bearing:-12,antialias:true,
+    /* in finestra (home/discovery) la rotella scorre la PAGINA: lo zoom
+       vuole Ctrl+scroll (due dita su touch) — mai piu' lo scroll del
+       sito che si impalla dentro la mappa */
+    cooperativeGestures:EMB});
   map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'bottom-right');
   map.addControl(new maplibregl.FullscreenControl(),'bottom-right');
   await new Promise(function(res){ map.on('load',res); });
   gradeColor();
   buildAnchors();
+  buildMyPlaces();
   $('load').classList.add('off');
   var bounds=new maplibregl.LngLatBounds(), placed=0;
   listings.forEach(function(l){
@@ -271,12 +434,76 @@ async function boot(){
   else { msg('No mappable homes yet — try the list view.'); $('load').classList.remove('off'); }
 }
 
-[].forEach.call(document.querySelectorAll('#filters .chip'),function(c){
+[].forEach.call(document.querySelectorAll('#filters .chip[data-max]'),function(c){
   c.addEventListener('click',function(){
-    [].forEach.call(document.querySelectorAll('#filters .chip'),function(x){x.classList.toggle('on',x===c);});
+    [].forEach.call(document.querySelectorAll('#filters .chip[data-max]'),function(x){x.classList.toggle('on',x===c);});
     MAXFILTER=Number(c.getAttribute('data-max'))||0; applyFilter();
   });
 });
+
+/* ── il pannello dei posti ── */
+(function(){
+  var velo=document.getElementById('mieiVelo'),chip=document.getElementById('mieiChip'),
+      q=document.getElementById('mieiQ'),sug=document.getElementById('mieiSug'),
+      righe=document.getElementById('mieiRighe'),chiudi=document.getElementById('mieiChiudi'),
+      vicino=document.getElementById('vicinoChip');
+  if(!velo||!chip)return;
+  /* finché non c'è un posto salvato il chip si presenta da solo
+     (tratteggio oro); poi porta il conto — lo strumento si vede */
+  function invito(){
+    var n=mieiLetti().length;
+    chip.classList.toggle('invito',!n);
+    chip.textContent=n?('◆ My places · '+n):'◆ My places';
+  }
+  function lista(){
+    var a=mieiLetti();
+    invito();
+    righe.innerHTML=a.length?a.map(function(p,i){
+      return '<div class="r"><b>◆ '+String(p.name).replace(/[<>&]/g,'')+'</b>'
+        +'<button type="button" data-i="'+i+'" aria-label="Remove">✕</button></div>';
+    }).join(''):'<p class="miei-vuota">Nothing saved yet — type a place above, once.</p>';
+  }
+  righe.addEventListener('click',function(e){
+    var b=e.target.closest('button[data-i]');if(!b)return;
+    var a=mieiLetti();a.splice(+b.dataset.i,1);mieiSerba(a);lista();buildMyPlaces();
+  });
+  var attesa=null;
+  q.addEventListener('input',function(){
+    clearTimeout(attesa);
+    var t=q.value.trim();
+    if(t.length<3){sug.innerHTML='';return;}
+    attesa=setTimeout(function(){
+      fetch('https://photon.komoot.io/api/?q='+encodeURIComponent(t)
+        +'&lat=41.893&lon=12.483&limit=4&lang=en&zoom=12')
+        .then(function(r){return r.json()})
+        .then(function(j){
+          sug.innerHTML=(j.features||[]).slice(0,4).map(function(ft){
+            var p=ft.properties||{};
+            var nome=(p.name||p.street||'Place').replace(/"/g,'');
+            var dove=[p.suburb||p.district,p.city].filter(Boolean).join(', ');
+            return '<button type="button" data-lat="'+ft.geometry.coordinates[1]
+              +'" data-lng="'+ft.geometry.coordinates[0]+'" data-n="'+nome
+              +'"><b>'+nome+'</b><span>'+dove+'</span></button>';
+          }).join('')||'<p class="miei-vuota">Nothing found — try the street or campus name.</p>';
+        })
+        .catch(function(){sug.innerHTML='<p class="miei-vuota">Place search unreachable right now.</p>';});
+    },320);
+  });
+  sug.addEventListener('click',function(e){
+    var b=e.target.closest('button[data-n]');if(!b)return;
+    var a=mieiLetti();
+    if(!a.some(function(p){return p.name===b.dataset.n}))
+      a.unshift({name:b.dataset.n,lat:+b.dataset.lat,lng:+b.dataset.lng});
+    mieiSerba(a);sug.innerHTML='';q.value='';lista();buildMyPlaces();
+  });
+  chip.addEventListener('click',function(){velo.hidden=false;lista();q.focus();});
+  chiudi.addEventListener('click',function(){velo.hidden=true;});
+  velo.addEventListener('click',function(e){if(e.target===velo)velo.hidden=true;});
+  if(vicino)vicino.addEventListener('click',function(){
+    VICINO=!VICINO;vicino.classList.toggle('on',VICINO);applyFilter();
+  });
+  invito();
+})();
 
 (function loadMapLibre(){
   if(window.maplibregl)return boot();

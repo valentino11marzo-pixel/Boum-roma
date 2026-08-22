@@ -96,7 +96,7 @@ export function paDocumentHtml(pa, opts = {}) {
   const feeAmt = m.feeMode === 'months'
     ? `${m.feeMonths || 1} month${(m.feeMonths || 1) === 1 ? '’s' : 's’'} base rent = ${eur(m.fee)}`
     : (m.feeMode === 'flat' || m.feeFlat != null) ? `${eur(m.fee)} (fixed)`
-    : `${m.feePct != null ? m.feePct : 12}% of annual rent = ${eur(m.fee)}`;
+    : `${m.feePct != null ? m.feePct : 10}% of annual rent = ${eur(m.fee)}`;
   const feeNote = Number(m.fee) > 0
     ? `${feeAmt} + VAT ${m.feeVatPct != null ? m.feeVatPct : 22}% (${eur(m.feeVat)}) = <b>${eur(m.feeTotal)}</b>`
     : 'none for this agreement';

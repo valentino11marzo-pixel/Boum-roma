@@ -73,7 +73,10 @@ async function run({ dry }) {
     host: process.env.PFS_IMAP_HOST || 'imap.gmail.com',
     port: 993, secure: true,
     auth: { user, pass },
-    logger: false, socketTimeout: 30000,
+    logger: false, socketTimeout: 25000,
+    // i default imapflow (connect 90s) superano il limite piattaforma:
+    // lo stallo diventava un kill senza battito
+    connectionTimeout: 15000, greetingTimeout: 10000,
   });
 
   await client.connect();

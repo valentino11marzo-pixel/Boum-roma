@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Variante LE CHIAVI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+<style>
+:root {
+  --gold:#FFD700; --green:#00FF88; --black:#030303; --void:#060607;
+  --surface:#0B0B0C; --card:#0E0E10; --text:#FAFAFA;
+  --text-2:rgba(250,250,250,.72); --text-3:rgba(250,250,250,.5);
+  --text-4:rgba(250,250,250,.48); --line-0:rgba(255,255,255,.04);
+  --line:rgba(255,255,255,.08);
+  --ease:cubic-bezier(.16,1,.3,1); --molla:cubic-bezier(.3,1.45,.5,1);
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  --display:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  --c-vv:#00FF88; --c-pf:#FFD700; --c-da:#9D8CFF; --c-cc:#3ED3FF;
+  color-scheme:dark;
+}
+*,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
+body { background:var(--black); color:var(--text); font-family:var(--sans);
+  font-weight:300; font-size:16px; line-height:1.6;
+  -webkit-font-smoothing:antialiased; overflow-x:hidden; }
+a { color:inherit; text-decoration:none; }
+.container { width:100%; max-width:1240px; margin:0 auto;
+  padding:0 clamp(18px,3vw,40px); }
+:focus-visible { outline:2px solid var(--gold); outline-offset:3px; }
+
+.capo { padding:clamp(48px,7vh,80px) 0 clamp(12px,1.8vw,22px); }
+.capo .eyebrow { display:inline-flex; align-items:center; gap:9px;
+  font-size:10px; font-weight:600; letter-spacing:.26em;
+  text-transform:uppercase; color:var(--gold); }
+.capo .eyebrow i { width:22px; height:1px; background:var(--gold); }
+.capo h2 { margin-top:14px; font-family:var(--display); font-weight:200;
+  font-size:clamp(30px,4.2vw,50px); line-height:1.08; letter-spacing:-.02em;
+  max-width:26ch; }
+.capo h2 b { color:var(--gold); font-weight:300; }
+.capo p { margin-top:12px; max-width:62ch; font-size:13.5px;
+  color:var(--text-3); }
+.capo .prova { margin-top:14px; display:flex; flex-wrap:wrap;
+  align-items:center; gap:7px 14px; font-size:10.5px;
+  letter-spacing:.04em; color:var(--text-4); }
+.capo .prova b { color:var(--text-3); font-weight:600; }
+.capo .prova .stella { color:var(--gold); }
+.capo .prova s { text-decoration:none; color:rgba(250,250,250,.18); }
+
+/* ══ LA RASTRELLIERA: quattro chiavi appese ══════════════════════════ */
+.chiavi { display:grid; grid-template-columns:1fr 1fr;
+  gap:clamp(12px,1.6vw,18px); margin:clamp(18px,2.4vw,30px) 0
+  clamp(40px,5vw,70px); }
+@media (max-width:900px){ .chiavi { grid-template-columns:1fr; } }
+.km { position:relative; display:grid;
+  grid-template-columns:auto minmax(0,1fr);
+  gap:clamp(14px,2vw,26px); align-items:center;
+  border-radius:22px; overflow:hidden;
+  padding:clamp(18px,2.2vw,26px) clamp(18px,2.2vw,26px);
+  background:linear-gradient(165deg,#101014,#080809 70%);
+  box-shadow:inset 0 0 0 1px var(--line), 0 30px 60px -36px rgba(0,0,0,.9);
+  transition:box-shadow .45s var(--ease); }
+.km:hover { box-shadow:inset 0 0 0 1px
+  color-mix(in srgb, var(--c) 32%, transparent),
+  0 40px 80px -36px rgba(0,0,0,.95); }
+.km .alone { position:absolute; inset:-30% auto -30% -22%; width:72%;
+  pointer-events:none; opacity:.5; transition:opacity .5s var(--ease);
+  background:radial-gradient(46% 44% at 34% 46%, var(--ca), transparent 70%); }
+.km:hover .alone { opacity:1; }
+/* il gancio a muro da cui pende la chiave */
+.km .gancio { position:absolute; width:8px; height:8px; border-radius:50%;
+  background:radial-gradient(circle at 36% 30%, #6f6f7a, #17171b 72%);
+  box-shadow:0 1px 2px rgba(0,0,0,.9), 0 0 0 3px rgba(255,255,255,.03);
+  pointer-events:none; }
+@media (max-width:560px){
+  .km { grid-template-columns:1fr; justify-items:center;
+    padding-top:26px; }
+  .km .vendita { text-align:center; align-items:center; }
+  .km .compra { align-self:stretch; }
+  .km .rassicura { justify-content:center; } }
+
+/* ── LA CHIAVE: metallo nero tornito, la luce del servizio ─────────────
+   parametri: --kw larghezza testa · --th altezza testa · --kh altezza  */
+.palco3d { position:relative; display:grid; place-items:start center;
+  perspective:820px; padding:14px 14px 6px; }
+.chiave { --kw:100px; --th:140px; --kh:272px;
+  position:relative; display:block; width:var(--kw); height:var(--kh);
+  transform-origin:50% 14px;
+  transform:rotateY(var(--rx,0deg)) rotateX(var(--ry,0deg));
+  transition:transform .5s var(--molla);
+  animation:dondola 7.5s ease-in-out infinite;
+  filter:drop-shadow(0 26px 22px rgba(0,0,0,.58))
+    drop-shadow(0 0 32px var(--ca)); }
+@keyframes dondola { 0%,100% { rotate:-1.7deg; } 50% { rotate:1.7deg; } }
+.km:nth-child(2) .chiave { animation-delay:-2.4s; }
+.km:nth-child(3) .chiave { animation-delay:-4.1s; }
+.km:nth-child(4) .chiave { animation-delay:-5.8s; }
+.km:hover .chiave { animation-play-state:paused; }
+
+/* l'anello portachiavi, infilato nel foro */
+.chiave .anello { position:absolute; display:block; left:50%; top:0;
+  width:44px; height:44px; margin-left:-22px; border-radius:50%;
+  z-index:4; pointer-events:none;
+  background:conic-gradient(from 230deg,
+    #34343b, #cfcfda 12%, #4c4c56 26%, #eeeef4 38%, #5a5a66 52%,
+    #c2c2ce 64%, #2e2e35 78%, #a8a8b4 90%, #34343b);
+  -webkit-mask:radial-gradient(farthest-side, transparent 0 70%, #000 74%);
+  mask:radial-gradient(farthest-side, transparent 0 70%, #000 74%);
+  filter:drop-shadow(0 3px 3px rgba(0,0,0,.6)); }
+
+/* la testa: bordo tornito conico + faccia in vetro-metallo nero */
+.chiave .testa { position:absolute; display:block; top:26px; left:50%;
+  width:var(--kw); height:var(--th); margin-left:calc(var(--kw) / -2);
+  border-radius:26px;
+  background:conic-gradient(from 200deg,
+    #26262c, #9a9aa8 10%, #3a3a42 22%, #c9c9d4 36%, #4a4a54 50%,
+    #8f8f9c 63%, #2c2c33 76%, #b4b4c0 89%, #26262c);
+  box-shadow:0 1px 0 rgba(255,255,255,.22) inset,
+    0 -2px 6px rgba(0,0,0,.6) inset; }
+.chiave .faccia { position:absolute; display:flex; inset:3px;
+  border-radius:23px; flex-direction:column; align-items:center;
+  justify-content:flex-end; gap:6px; padding:26px 6px 12px;
+  overflow:hidden;
+  background:
+    radial-gradient(72% 44% at 30% 10%, rgba(255,255,255,.12), transparent 58%),
+    radial-gradient(95% 62% at 50% 118%, var(--ca), transparent 62%),
+    repeating-linear-gradient(90deg, rgba(255,255,255,.02) 0 1px,
+      transparent 1px 3px),
+    linear-gradient(168deg, #141417, #08080A 58%, #050506);
+  box-shadow:inset 0 3px 9px rgba(0,0,0,.85),
+    inset 0 -1px 2px rgba(255,255,255,.06); }
+/* il lampo: la luce che passa sul vetro della testa */
+.chiave .faccia::after { content:''; position:absolute; top:-30%;
+  bottom:-30%; left:-80%; width:46%; transform:skewX(-18deg);
+  background:linear-gradient(100deg, transparent,
+    rgba(255,255,255,.14) 50%, transparent);
+  animation:lampo 7s var(--ease) infinite; }
+@keyframes lampo { 0%, 60% { left:-80%; } 80%, 100% { left:140%; } }
+/* il foro, con l'orlo tornito */
+.chiave .foro { position:absolute; display:block; top:9px; left:50%;
+  width:15px; height:15px; margin-left:-7.5px; border-radius:50%;
+  z-index:3;
+  background:radial-gradient(circle at 42% 34%, #101013, #000 72%);
+  box-shadow:inset 0 2px 3px #000, 0 1px 0 rgba(255,255,255,.16),
+    0 -1px 1px rgba(0,0,0,.9); }
+/* l'incisione al centro della testa */
+.chiave svg.cuore { display:block; width:34px; height:34px;
+  margin:auto 0 3px; flex:0 0 auto; fill:none;
+  stroke:var(--c); stroke-width:1.5; stroke-linecap:round;
+  stroke-linejoin:round;
+  filter:drop-shadow(0 0 9px var(--cb)) drop-shadow(0 0 24px var(--ca)); }
+.chiave .marchio { display:block; max-width:82%; text-align:center;
+  font-size:6.6px; font-weight:600; letter-spacing:.3em;
+  text-transform:uppercase; line-height:1.7;
+  color:rgba(250,250,250,.46);
+  text-shadow:0 1px 0 rgba(0,0,0,.85); }
+.chiave .quota { display:block; font-family:var(--display);
+  font-weight:400; font-size:17px; letter-spacing:.045em;
+  color:var(--c); text-shadow:0 0 14px var(--ca);
+  font-variant-numeric:tabular-nums; }
+
+/* il collarino godronato tra testa e gambo */
+.chiave .collo { position:absolute; display:block;
+  top:calc(24px + var(--th)); left:50%; width:36px; height:11px;
+  margin-left:-18px; border-radius:3px; z-index:2;
+  background:repeating-linear-gradient(90deg,
+    #4a4a53 0 2px, #131317 2px 4px);
+  box-shadow:0 2px 3px rgba(0,0,0,.8),
+    inset 0 1px 0 rgba(255,255,255,.14),
+    inset 0 -1px 0 rgba(0,0,0,.8); }
+
+/* il gambo spazzolato, coi denti fresati in punta */
+.chiave .gambo { position:absolute; display:block;
+  top:calc(33px + var(--th)); bottom:0; left:50%; width:26px;
+  margin-left:-13px;
+  background:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 1px,
+      transparent 1px 3px),
+    linear-gradient(90deg, #101013, #3c3c44 30%, #5a5a64 50%,
+      #2e2e35 72%, #0e0e11);
+  box-shadow:inset 0 2px 4px rgba(255,255,255,.08),
+    inset 0 -4px 8px rgba(0,0,0,.7);
+  clip-path:polygon(0 0, 100% 0, 100% 50%, 58% 54%, 100% 60%,
+    100% 66%, 52% 71%, 100% 77%, 100% 83%, 72% 100%, 28% 100%,
+    0 91%, 0 0); }
+/* la scanalatura laser: il canale fresato dove corre la luce */
+.chiave .scanalo { position:absolute; display:block; top:7px;
+  left:50%; width:6px; height:42%; margin-left:-3px; border-radius:3px;
+  background:
+    linear-gradient(180deg, transparent, var(--ca) 55%, transparent),
+    #040405;
+  box-shadow:inset 0 1px 2px #000, inset 0 0 3px #000,
+    1px 1px 0 rgba(255,255,255,.07); overflow:hidden; }
+.chiave .scanalo::after { content:''; position:absolute; left:0; right:0;
+  top:-30%; height:30%; border-radius:3px;
+  background:linear-gradient(180deg, transparent, var(--c), transparent);
+  filter:blur(.5px); opacity:.9;
+  animation:scorri 4.6s var(--ease) infinite; }
+@keyframes scorri { 0%, 22% { top:-32%; } 72%, 100% { top:132%; } }
+
+/* ── l'ammiraglia: chiave maggiore, testa in oro, fob FULL REFUND ── */
+.km.eroe { background:linear-gradient(165deg,#16130a,#0A0908 70%); }
+.km.eroe .chiave { --kw:118px; --th:164px; --kh:314px; }
+.km.eroe .chiave .testa { background:conic-gradient(from 200deg,
+    #6b5716, #f4de7e 12%, #8a6d1f 26%, #fdf0a8 38%, #b8942b 52%,
+    #f6e27a 64%, #7a5f1a 78%, #e8cd62 90%, #6b5716); }
+.km.eroe .chiave .faccia::before { content:''; position:absolute;
+  inset:4px; border-radius:20px; pointer-events:none;
+  box-shadow:0 0 0 1px rgba(255,215,0,.28), 0 0 14px rgba(255,215,0,.1); }
+.km.eroe .chiave .anello { background:conic-gradient(from 230deg,
+    #6b5716, #f4de7e 12%, #8a6d1f 26%, #fdf0a8 38%, #b8942b 52%,
+    #f6e27a 64%, #7a5f1a 78%, #e8cd62 90%, #6b5716); }
+.km.eroe .chiave .collo { background:repeating-linear-gradient(90deg,
+    #8a6d1f 0 2px, #171204 2px 4px); }
+.km.eroe .chiave svg.cuore { width:40px; height:40px; }
+.km.eroe .chiave .quota { font-size:19px; }
+/* il fob d'oro appeso all'anello */
+.km.eroe .fob { position:absolute; display:block; top:28px;
+  left:calc(50% + 21px); transform:rotate(14deg);
+  transform-origin:0 -12px; padding:5px 12px; border-radius:100px;
+  z-index:5; white-space:nowrap;
+  background:linear-gradient(160deg,#f6e27a,#c29a1a);
+  color:#141005; font-size:8px; font-weight:800; letter-spacing:.18em;
+  text-transform:uppercase;
+  box-shadow:0 6px 18px rgba(0,0,0,.55),
+    inset 0 1px 0 rgba(255,255,255,.5);
+  animation:fobdondola 7.5s ease-in-out infinite; }
+@keyframes fobdondola { 0%,100% { rotate:11deg; } 50% { rotate:17deg; } }
+.km.eroe .fob::before { content:''; position:absolute; display:block;
+  top:-9px; left:8px; width:8px; height:8px; border-radius:50%;
+  border:2px solid #cba53a;
+  box-shadow:0 1px 2px rgba(0,0,0,.6); }
+
+/* ── LA VENDITA (lo strato provato, intatto) ── */
+.km .vendita { position:relative; display:flex; flex-direction:column;
+  min-width:0; }
+.km .situa { font-size:9.5px; font-weight:700; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--c); margin-bottom:6px; }
+.km .pnome { display:flex; align-items:baseline; gap:9px; flex-wrap:wrap; }
+.km .pnome .pn { font-family:var(--display); font-weight:350;
+  font-size:clamp(19px,1.9vw,23px); letter-spacing:-.005em; }
+.km .pnome .pkind { font-size:8.5px; font-weight:700; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--text-4); }
+.km .promessa { margin-top:6px; font-size:12.5px; line-height:1.55;
+  color:var(--text-3); max-width:46ch; }
+.km .promessa b { color:var(--text-2); font-weight:500; }
+.km .compra { margin-top:13px; display:inline-flex; align-items:center;
+  justify-content:center; gap:9px; min-height:44px; padding:0 20px;
+  border-radius:100px; background:var(--c); color:#0A0A05;
+  font-size:12.5px; font-weight:700; letter-spacing:.02em;
+  align-self:flex-start;
+  transition:transform .3s var(--ease), box-shadow .3s var(--ease);
+  box-shadow:0 10px 26px -12px var(--cb); }
+.km .compra i { font-style:normal; transition:transform .3s var(--ease); }
+.km:hover .compra { transform:translateY(-1px);
+  box-shadow:0 16px 34px -12px var(--cb); }
+.km:hover .compra i { transform:translateX(4px); }
+.km .rassicura { margin-top:10px; display:flex; align-items:flex-start;
+  gap:8px; font-size:10.5px; line-height:1.5; color:var(--text-4); }
+.km .rassicura::before { content:'✓'; color:var(--c); font-size:11px;
+  line-height:1.4; }
+.km .rassicura b { color:var(--text-3); font-weight:600; }
+
+@media (prefers-reduced-motion:reduce){
+  .chiave, .km.eroe .fob { animation:none !important; }
+  .chiave .faccia::after { animation:none; display:none; }
+  .chiave .scanalo::after { animation:none;
+    top:35%; opacity:.65; } }
+</style>
+</head>
+<body>
+
+<section class="capo">
+  <div class="container">
+    <span class="eyebrow"><i></i>BOOM — Services · The keys</span>
+    <h2>The keys to <b>your home in Rome</b>.</h2>
+    <p>Four services, machined like keys — black metal, one light each.
+      Take the one that opens your moment.</p>
+    <div class="prova"><span><span class="stella">★</span> <b>4.9 on
+      Google</b> · 47 reviews</span><s>—</s><span>Licensed agency ·
+      <b>Egidi Immobiliare S.r.l.</b></span><s>—</s><span>Every home
+      <b>walked in person</b></span></div>
+  </div>
+</section>
+
+<section class="container">
+  <div class="chiavi" id="rastrelliera">
+
+    <a class="km eroe" href="/property-finding.html"
+       style="--c:var(--c-pf);--ca:rgba(255,215,0,.17);--cb:rgba(255,215,0,.45)">
+      <span class="alone"></span>
+      <span class="palco3d"><span class="gancio" style="left:50%;top:6px;margin-left:-4px"></span><span class="chiave">
+        <span class="anello"></span>
+        <span class="fob">Full refund</span>
+        <span class="testa"><span class="faccia">
+          <svg class="cuore" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.6"/><path d="M15.6 15.6L20.5 20.5"/><path d="M8 10.8h5.6M10.8 8v5.6" opacity=".5"/></svg>
+          <span class="marchio">Property Finding</span>
+          <span class="quota">€350</span>
+        </span><span class="foro"></span></span>
+        <span class="collo"></span>
+        <span class="gambo"><span class="scanalo"></span></span>
+      </span></span>
+      <span class="vendita">
+        <span class="situa">Still searching from abroad?</span>
+        <span class="pnome"><span class="pn">Property Finding</span>
+          <span class="pkind">Flagship</span></span>
+        <span class="promessa">Your private hunter on the whole Rome
+          market — <b>off-market included</b>, every shortlist walked in
+          person before you see it.</span>
+        <span class="compra">Start the hunt · €350<i>→</i></span>
+        <span class="rassicura"><span><b>Zero risk:</b> deducted on
+          success, refunded in full if we don't deliver.</span></span>
+      </span>
+    </a>
+
+    <a class="km vv" href="/virtual-viewing.html"
+       style="--c:var(--c-vv);--ca:rgba(0,255,136,.15);--cb:rgba(0,255,136,.4)">
+      <span class="alone"></span>
+      <span class="palco3d"><span class="gancio" style="left:50%;top:6px;margin-left:-4px"></span><span class="chiave">
+        <span class="anello"></span>
+        <span class="testa"><span class="faccia">
+          <svg class="cuore" viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="6.5" width="12" height="11" rx="2"/><path d="M15.5 11l5-2.6v7.2l-5-2.6z"/></svg>
+          <span class="marchio">Virtual Viewing</span>
+          <span class="quota">€89</span>
+        </span><span class="foro"></span></span>
+        <span class="collo"></span>
+        <span class="gambo"><span class="scanalo"></span></span>
+      </span></span>
+      <span class="vendita">
+        <span class="situa">Found it, can't fly?</span>
+        <span class="pnome"><span class="pn">Virtual Viewing</span>
+          <span class="pkind">Live</span></span>
+        <span class="promessa">See any home <b>live on video</b> before
+          you fly — the red flags said out loud.</span>
+        <span class="compra">Book a live tour · €89<i>→</i></span>
+        <span class="rassicura"><span><b>Credited</b> if you rent with
+          us · BOOM homes: free, always.</span></span>
+      </span>
+    </a>
+
+    <a class="km da" href="/deal-assistance.html"
+       style="--c:var(--c-da);--ca:rgba(157,140,255,.16);--cb:rgba(157,140,255,.4)">
+      <span class="alone"></span>
+      <span class="palco3d"><span class="gancio" style="left:50%;top:6px;margin-left:-4px"></span><span class="chiave">
+        <span class="anello"></span>
+        <span class="testa"><span class="faccia">
+          <svg class="cuore" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.4l7.2 2.9v5.1c0 4.2-3 7.2-7.2 8.4-4.2-1.2-7.2-4.2-7.2-8.4V6.3z"/><path d="M9.1 11.6l2.2 2.2 4.1-4.7" opacity=".5"/></svg>
+          <span class="marchio">Deal Assistance</span>
+          <span class="quota">€249</span>
+        </span><span class="foro"></span></span>
+        <span class="collo"></span>
+        <span class="gambo"><span class="scanalo"></span></span>
+      </span></span>
+      <span class="vendita">
+        <span class="situa">Found it elsewhere?</span>
+        <span class="pnome"><span class="pn">Deal Assistance</span>
+          <span class="pkind">Protection</span></span>
+        <span class="promessa">We <b>verify the landlord and the
+          papers</b> — then negotiate for you.</span>
+        <span class="compra">Protect the deal · €249<i>→</i></span>
+        <span class="rassicura"><span><b>Fixed fee</b> — deposit and
+          clauses negotiated, no percentages.</span></span>
+      </span>
+    </a>
+
+    <a class="km cc" href="/contract-check-express.html"
+       style="--c:var(--c-cc);--ca:rgba(62,211,255,.14);--cb:rgba(62,211,255,.4)">
+      <span class="alone"></span>
+      <span class="palco3d"><span class="gancio" style="left:50%;top:6px;margin-left:-4px"></span><span class="chiave">
+        <span class="anello"></span>
+        <span class="testa"><span class="faccia">
+          <svg class="cuore" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3.2h7.4L18.6 8v12.8H6z"/><path d="M13.2 3.2V8h5.2" opacity=".5"/><path d="M9 12.6h6.4M9 15.8h4.4" opacity=".5"/></svg>
+          <span class="marchio">Contract Check</span>
+          <span class="quota">€49</span>
+        </span><span class="foro"></span></span>
+        <span class="collo"></span>
+        <span class="gambo"><span class="scanalo"></span></span>
+      </span></span>
+      <span class="vendita">
+        <span class="situa">About to sign?</span>
+        <span class="pnome"><span class="pn">Contract Check</span>
+          <span class="pkind">Express</span></span>
+        <span class="promessa">A <b>written traffic-light verdict in
+          24h</b>: fine, unfair, missing.</span>
+        <span class="compra">Check my contract · €49<i>→</i></span>
+        <span class="rassicura"><span><b>Credited</b> in full on Deal
+          Assistance.</span></span>
+      </span>
+    </a>
+  </div>
+</section>
+
+<script>
+/* il tilt: la chiave si volge verso il cursore — il gesto di sfilarla
+   dal gancio. Solo con un mouse vero; molla al rilascio. */
+(function () {
+  if (!(window.matchMedia
+    && matchMedia('(hover:hover) and (pointer:fine)').matches)) return;
+  document.querySelectorAll('.km').forEach(function (km) {
+    var ch = km.querySelector('.chiave');
+    if (!ch) return;
+    km.addEventListener('pointermove', function (e) {
+      var r = km.getBoundingClientRect();
+      var x = (e.clientX - r.left) / r.width - .5;
+      var y = (e.clientY - r.top) / r.height - .5;
+      ch.style.setProperty('--rx', (x * 16) + 'deg');
+      ch.style.setProperty('--ry', (-y * 10) + 'deg');
+    });
+    km.addEventListener('pointerleave', function () {
+      ch.style.setProperty('--rx', '0deg');
+      ch.style.setProperty('--ry', '0deg');
+    });
+  });
+})();
+</script>
+</body>
+</html>

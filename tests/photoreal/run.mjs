@@ -9,24 +9,14 @@
 //
 //   node tests/photoreal/run.mjs
 
+import { loadChromium, launchOptions } from '../_browser.mjs';
 import { createServer } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
 const ROOT = new URL('../../', import.meta.url).pathname;
 const PORT = 8941;
-const BROWSER = process.env.BOOM_CHROMIUM || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 
-async function loadChromium() {
-  for (const spec of ['playwright-core', 'playwright',
-    ...(process.env.BOOM_PLAYWRIGHT ? [process.env.BOOM_PLAYWRIGHT] : []),
-    '/opt/node22/lib/node_modules/playwright/index.js']) {
-    try { const m = await import(spec); const c = m.chromium || (m.default && m.default.chromium); if (c) return c; }
-    catch { /* next */ }
-  }
-  console.log('SKIP: playwright-core non disponibile');
-  process.exit(0);
-}
 const chromium = await loadChromium();
 
 const srv = createServer(async (req, res) => {
@@ -86,7 +76,7 @@ function fakeCesium() {
   };
 }
 
-const browser = await chromium.launch({ executablePath: BROWSER, args: ['--no-sandbox'] });
+const browser = await chromium.launch(launchOptions());
 const ctx = await browser.newContext({ viewport: { width: 1000, height: 800 } });
 const page = await ctx.newPage();
 const crashes = [];

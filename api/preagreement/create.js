@@ -72,7 +72,9 @@ export function deriveMoney(m) {
   const feeMode = m.feeMode === 'months' ? 'months'
     : (m.feeMode === 'flat' || (m.feeFlat != null && m.feeFlat !== '')) ? 'flat'
     : 'pct';
-  const feePct = Math.max(0, Math.min(100, num(m.feePct, 12)));
+  // policy dichiarata dall'operatore (16/08) e stampata su /your-money:
+  // onorario 10% dell'annuo — il default segue la parola data in pagina
+  const feePct = Math.max(0, Math.min(100, num(m.feePct, 10)));
   const feeMonths = Math.max(0, Math.min(3, num(m.feeMonths, 1)));
   const feeFlat = feeMode === 'flat' ? Math.max(0, Math.min(200000, num(m.feeFlat, 0))) : null;
   const fee = feeMode === 'flat' ? r2(feeFlat)

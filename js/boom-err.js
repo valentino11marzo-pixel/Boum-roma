@@ -11,7 +11,15 @@
   function report(kind, message, source, line, col, stack) {
     try {
       message = String(message || '').slice(0, 500);
-      if (!message || sent[message] || count >= MAX) return;
+      if (!message) return;
+      // Anello degli ultimi errori (anche i duplicati): è il contesto che
+      // 🐞 Segnala allega da solo a una segnalazione dell'operatore.
+      try {
+        var ring = (window.__boomErrs = window.__boomErrs || []);
+        ring.push({ kind: kind, message: message.slice(0, 200), source: String(source || '').slice(0, 120), line: line || 0, ts: new Date().toISOString() });
+        if (ring.length > 5) ring.shift();
+      } catch (e2) { }
+      if (sent[message] || count >= MAX) return;
       sent[message] = true;
       count++;
       var payload = JSON.stringify({

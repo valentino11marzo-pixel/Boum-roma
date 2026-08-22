@@ -12,7 +12,14 @@ GTAG = (
     '<script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>\n'
     '<script>window.dataLayer=window.dataLayer||[];'
     'function gtag(){dataLayer.push(arguments);}'
-    "gtag('js', new Date());gtag('config','G-EYCD59RDVJ');</script>")
+    "gtag('js', new Date());"
+    "gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',"
+    "ad_personalization:'denied',analytics_storage:'denied',"
+    "wait_for_update:500});"
+    "gtag('config','G-EYCD59RDVJ');</script>")
+
+# il banner che scioglie il consent-mode: va in coda al body, defer
+CONSENSO = '<script defer src="/js/boom-consent.js"></script>'
 
 ICONE = (
     '<link rel="icon" href="/favicon.ico" sizes="any">\n'
@@ -36,7 +43,10 @@ ROBOTS = (
     '<link rel="dns-prefetch" href="https://www.googletagmanager.com">\n'
     '<link rel="dns-prefetch" href="https://www.google-analytics.com">')
 
-IMG_SOCIAL = 'https://www.boomrome.com/BOOMsocialprofile.png'
+# og-home.png e' GENERATA dal repo (scratchpad/genera-og-home.py, card
+# HTML -> screenshot 1200x630): BOOMsocialprofile.png non e' mai stato
+# committato — le condivisioni mostravano un'immagine rotta
+IMG_SOCIAL = 'https://www.boomrome.com/og-home.png'
 
 def _og(titolo, descr, url, immagine=IMG_SOCIAL):
     return (
@@ -117,8 +127,6 @@ NEGOZIO = {
          'opens': '09:00', 'closes': '19:00'},
         {'@type': 'OpeningHoursSpecification', 'dayOfWeek': ['Saturday'],
          'opens': '10:00', 'closes': '14:00'}],
-    'aggregateRating': {'@type': 'AggregateRating',
-                        'ratingValue': '4.9', 'reviewCount': '127'},
 }
 
 FAQ_HOME = {
@@ -127,9 +135,9 @@ FAQ_HOME = {
         {'@type': 'Question',
          'name': 'How fast can I move into a BOOM apartment in Rome?',
          'acceptedAnswer': {'@type': 'Answer', 'text':
-            'Most BOOM tenants move in within 48 hours of signing. Some '
-            'apartments are available same-day; complex cases (visa, '
-            'multi-document onboarding) average 7 days.'}},
+            'Move-in can be as fast as 48 hours from signing when the home '
+            'is free — some same-day. Complex cases (visa, multi-document '
+            'onboarding) usually take about a week.'}},
         {'@type': 'Question', 'name': 'Does BOOM charge broker fees?',
          'acceptedAnswer': {'@type': 'Answer', 'text':
             'BOOM charges one flat agency fee, written into your '
@@ -210,6 +218,75 @@ def blocco_listing():
                 'https://www.boomrome.com/apartment-detail')
             + '\n' + ROBOTS + '\n' + ICONE + '\n' + GTAG + '\n'
             + _ld(AGENZIA, SITO_WEB, briciole))
+
+COME_FAQ = {
+    '@context': 'https://schema.org', '@type': 'FAQPage',
+    'mainEntity': [
+        {'@type': 'Question',
+         'name': 'Can I rent a Rome apartment before I arrive in Italy?',
+         'acceptedAnswer': {'@type': 'Answer', 'text':
+            'Yes — most BOOM tenants do. Viewings are live on video, the '
+            'contract is signed from your phone, and the refundable €300 '
+            'hold keeps the home off the market while you decide. You can '
+            'land in Rome with keys day already booked.'}},
+        {'@type': 'Question',
+         'name': 'Is the contract legal and registered?',
+         'acceptedAnswer': {'@type': 'Answer', 'text':
+            'Yes. Every BOOM lease is a registered Italian contract under '
+            'law 431/98, filed with the Agenzia delle Entrate. You sign '
+            'from your phone and receive the signed copy by email.'}},
+        {'@type': 'Question', 'name': 'What does BOOM cost?',
+         'acceptedAnswer': {'@type': 'Answer', 'text':
+            'One fee: 10% of the annual rent, charged once at signing. '
+            'First month and deposit are the only other lines — and the '
+            'deposit comes back, filmed at move-in and move-out. Every '
+            'payment goes through Stripe with a receipt.'}},
+        {'@type': 'Question',
+         'name': 'I found a home on another portal — can you still help?',
+         'acceptedAnswer': {'@type': 'Answer', 'text':
+            'Yes. A Virtual Viewing (€89) tours it live for you with the '
+            'red flags said out loud, and Deal Assistance (€249, fixed) '
+            'verifies the landlord and the papers, then negotiates. The '
+            'viewing fee is credited if you end up renting with us.'}}],
+}
+
+def blocco_come(titolo, descr):
+    briciole = {
+        '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+        'itemListElement': [
+            {'@type': 'ListItem', 'position': 1, 'name': 'Home',
+             'item': 'https://www.boomrome.com/'},
+            {'@type': 'ListItem', 'position': 2, 'name': 'How it works',
+             'item': 'https://www.boomrome.com/how-it-works'}],
+    }
+    pagina = {
+        '@context': 'https://schema.org', '@type': 'WebPage',
+        'url': 'https://www.boomrome.com/how-it-works',
+        'name': titolo, 'description': descr,
+        'isPartOf': {'@id': 'https://www.boomrome.com/#website'},
+    }
+    return (_og(titolo, descr, 'https://www.boomrome.com/how-it-works') + '\n'
+            + ROBOTS + '\n' + ICONE + '\n' + GTAG + '\n'
+            + _ld(AGENZIA, SITO_WEB, pagina, briciole, COME_FAQ))
+
+def blocco_prova(titolo, descr):
+    briciole = {
+        '@context': 'https://schema.org', '@type': 'BreadcrumbList',
+        'itemListElement': [
+            {'@type': 'ListItem', 'position': 1, 'name': 'Home',
+             'item': 'https://www.boomrome.com/'},
+            {'@type': 'ListItem', 'position': 2, 'name': 'Try BOOM',
+             'item': 'https://www.boomrome.com/try'}],
+    }
+    pagina = {
+        '@context': 'https://schema.org', '@type': 'WebPage',
+        'url': 'https://www.boomrome.com/try',
+        'name': titolo, 'description': descr,
+        'isPartOf': {'@id': 'https://www.boomrome.com/#website'},
+    }
+    return (_og(titolo, descr, 'https://www.boomrome.com/try') + '\n'
+            + ROBOTS + '\n' + ICONE + '\n' + GTAG + '\n'
+            + _ld(AGENZIA, SITO_WEB, pagina, briciole))
 
 def blocco_money(titolo, descr):
     briciole = {

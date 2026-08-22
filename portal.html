@@ -96,6 +96,22 @@
     <script defer src="/js/relet-engine.js"></script>
     <script defer src="/js/underwriting-engine.js"></script>
     <link rel="stylesheet" href="/css/portal.css">
+    <!-- La Rifinitura: finitura visiva delle superfici interne. Carica DOPO il
+         design system e PRIMA dei layer M2/D1 (che sono strutturali e devono
+         vincere dove si toccano). Kill switch: ?nofinish=1. -->
+    <link rel="stylesheet" href="/css/portal-finish.css" id="finishCss">
+    <script>try{var _bq=new URLSearchParams(location.search);
+    /* ?boom=app = il reset universale: qualunque kill switch appiccicoso
+       (classica mobile/desktop, niente-rifinitura) si toglie in un colpo.
+       Gira in <head>, prima dei layer, così vedono i flag già puliti. */
+    if(_bq.get('boom')==='app'){localStorage.removeItem('boom_classic_mobile');localStorage.removeItem('boom_classic_desktop');localStorage.removeItem('boom_no_finish');}
+    if(_bq.has('nofinish')||localStorage.boom_no_finish==='1')document.getElementById('finishCss').remove()}catch(e){}</script>
+    <!-- M2 · Portal App: il layer mobile (tab bar, sheet, wizard sereno).
+         Tutto dietro body.pm-on — senza il JS gemello è CSS inerte. -->
+    <link rel="stylesheet" href="/css/portal-mobile.css">
+    <!-- D1 · BOOM OS: il layer desktop (⌘K, tasti, peek drawer).
+         Tutto dietro body.pd-on — senza il JS gemello è CSS inerte. -->
+    <link rel="stylesheet" href="/css/portal-desktop.css">
 </head>
 <body>
     <!-- Early Protocol Check -->
@@ -279,6 +295,20 @@
          in UNA copia, la stessa che il server usa nel rail pre-agreement -->
     <script src="/js/contract-pdf.js"></script>
     <script src="/js/portal-app.js"></script>
+    <!-- IL PRONTUARIO: tutto ciò che il portale sa fare, in una lista sola.
+         Letto dalla palette ⌘K (desktop) e dal Menu (mobile): le funzioni
+         sepolte (i 22 documenti al volo, gli strumenti) diventano cercabili
+         da qualunque punto. Deve stare PRIMA dei due layer che lo leggono. -->
+    <script src="/js/oggi-engine.js"></script>
+    <script src="/js/portal-actions.js"></script>
+    <!-- M2 · Portal App: DEVE stare dopo portal-app.js (avvolge goTo/openModal
+         globali e osserva #main/#modals/#sidebar). Solo ≤920px; kill switch
+         ?classic=1. Vedi STUDIO_PORTAL_MOBILE.md. -->
+    <script src="/js/portal-mobile.js"></script>
+    <!-- D1 · BOOM OS: la faccia desktop (⌘K, g/n chord, peek). Solo >920px,
+         stessa query di M2 negata; kill switch ?deskclassic=1.
+         Vedi STUDIO_BOOM_OS.md. -->
+    <script src="/js/portal-desktop.js"></script>
 <!-- ============================================================
      BOOM BRIDGE — Riceve dati da deals_v2_commandcenter.html
      ============================================================ -->
