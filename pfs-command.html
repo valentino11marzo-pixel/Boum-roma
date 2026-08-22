@@ -3186,6 +3186,7 @@ function startListeners() {
         updateBrief(); updateLive();
         startListeners();
         startMercato();
+        BoomPortal.freshOnReturn(60); // scheda ripresa dopo 1h+ → pagina fresca, mai una salma interattiva
         setInterval(function () { renderHealth(); updateBrief(); }, 60000); // tempi relativi, freschezza chip, rollover mezzanotte
     } catch (e) {
         // requireAuth gestisce redirect + toast; lasciamo lo shield visibile
