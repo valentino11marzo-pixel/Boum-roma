@@ -11,7 +11,12 @@ const PREVIEW = 'https://boum-roma-git-claude-boom-home-background-'
   + 'wqektx-valentino-boom.vercel.app';
 
 const VARIANTI = [
-  ['caccia', 'La Caccia', '★ la mia — onesta e brutale',
+  ['colloquio', 'Il Colloquio 2.0', "★ la base scelta — l'interrogatorio",
+   '/preview-pfs-colloquio',
+   "Sette atti, sette obiezioni VERE, sette reperti. Ogni risposta di Valentino — in prima persona, «on the record» — porta accanto la sua prova incorporata: la tabella truffe dentro «perché pagare prima?», il conto dentro «Roma è davvero così brutale?» (24–72 ore di vita di un annuncio, il fantasma quotidiano, il deposito per legge), il finder VERO dentro «faccio da solo», la verifica dentro «chi sei?», app DEMO + zecca del pass dentro «non sono in Italia», la clausola §4.2 CITATA ALLA LETTERA dentro «e se non trovate niente?» — con la parte onesta: i 15 giorni sono il grilletto del rimborso, non una data di consegna, e la nostra provvigione è dichiarata (§4.1). Chiude «cosa succede appena pago» con l'itinerario. Filo del volo = linea dell'interrogatorio, misura GA per atto.",
+   'Il closer misurato (la conversazione, 11×) portato in pagina con le prove dentro — spiega il mercato, il servizio e il perché in un solo gesto.',
+   'È la più densa: ogni parola è una promessa, quindi ogni modifica futura va riverificata contro terms e guide.'],
+  ['caccia', 'La Caccia', 'la mia tesi d\'origine',
    '/preview-pfs-caccia',
    "Il servizio non si descrive: SI FA VEDERE. Una caccia si svolge giorno per giorno mentre scorri — il brief e la chiamata dei 15 minuti, il radar che si arma con gli orari veri, 14 candidati di cui 11 muoiono sotto soglia, la casa BOCCIATA a piedi col motivo, la shortlist coi punteggi sul telefono, il pass Wallet da coniare col tuo nome, la firma dal telefono. Chiude la garanzia §4.2.",
    'Spiega, prova e vende nello stesso gesto; due reperti sono il prodotto vero (finder interattivo, app col codice DEMO).',
@@ -26,11 +31,7 @@ const VARIANTI = [
    'Sfogli esattamente ciò che compri: il dossier del giorno 3 — copertina col brief, le 3 case con punteggio e le note di chi le ha CAMMINATE, la pagina degli scarti coi motivi, il conto trasparente con la garanzia. Tutto dichiarato campione.',
    "L'intangibile diventa un oggetto costoso da tenere in mano prima di pagare.",
    'Un documento chiede lettura: su mobile va dosato con cura.'],
-  ['colloquio', 'Il Colloquio', 'le obiezioni, messe in scena',
-   '/preview-pfs-colloquio',
-   'La vendita vera avviene in chat — e la pagina la mette in scena: le VERE domande dello scettico («perché dovrei pagare prima?», «e se non trovate niente?») con le risposte di Valentino in prima persona, ognuna con la sua prova cliccabile (§4.2, recensioni, EUIPO, app demo).',
-   'Incontra lo scettico ESATTAMENTE dove vive: dentro le sue domande. Il closer misurato (la conversazione) portato in pagina.',
-   'Una conversazione rappresentativa va dichiarata tale — mai spacciata per chat reale.'],
+
   ['attuale', 'PFS 6.0', 'il riferimento (in preview)',
    '/property-finding',
    "La pagina com'è ora sul branch: form-hero che si assembla, conto, regola anti-truffa, macchina col finder, toccabile, verifica, filo del volo.",
@@ -161,8 +162,7 @@ header p b { color:var(--testo2); font-weight:600; }
   <p>Cinque pagine complete. Ogni visore qui sotto contiene la pagina
     INTERA come immagine — <b>scorri dentro il riquadro</b> per sfogliarla
     — e il bottone oro apre la <b>pagina viva</b> sul preview, con
-    animazioni, filo del volo e form funzionante. La prima è la mia tesi
-    più onesta.</p>
+    animazioni, filo del volo e form funzionante. La prima è la base scelta, sviluppata in sette atti.</p>
 </header>
 ${palchi}
 </div>`;
