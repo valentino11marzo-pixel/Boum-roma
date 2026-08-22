@@ -1346,6 +1346,78 @@ ogni riga contratto ha **📑 Fascicolo** (genera/apre il PDF; se zona o mq
 mancano li chiede e li persiste su `contract.canoneScheda`) e **✓ RLI
 registrato** (stampa `rliRegisteredAt`, chiude la scadenza "Registrare
 RLI", rigenera il fascicolo — il loop registrazione si chiude in un tap).
+La scheda di pagina 1 ricalca la scheda di calcolo VERA dell'associazione
+(`reference/caf/2023_scheda_calcolo_canone_ASPI.docx`): stessi
+coefficienti di superficie, stessi 20 parametri nello stesso ordine,
+stesse maggiorazioni A–H, transitorio +10%. Le due opzioni a percentuale
+LIBERA del modulo (>120mq "possibilità di diminuzione fino a −15%",
+immobile vincolato/A1-A8) non sono automatizzate di proposito: sono
+concessioni da negoziare, non dati derivabili.
+
+### L'iter ASPI (`api/fiscal/registra.js` + `api/fiscal/_aspi.js`) — registrazione & asseverazione in UN tap
+LA DECISIONE È PRESA: il CAF/associazione è **ASPI** (referente Roberto
+Ubertini, geometra — Roma, via S. Nicola da Tolentino; fa anche gli APE),
+il canale è l'**email strutturata**. Prima l'operatore riceveva il
+fascicolo CAF nella PROPRIA casella e lo inoltrava a mano, ricordando ogni
+volta il corredo: identità + contratto per la registrazione (costo pratica
+**€37**), più APE + planimetria + scheda di calcolo canone per
+l'attestazione di rispondenza (**€100**). Ora:
+- **`POST /api/fiscal/registra`** (Bearer admin). `op:'status'` → la
+  fotografia per il pannello: checklist per ENTRAMBE le varianti (solo
+  registrazione / registrazione+asseverazione), prezzi/costi in vigore,
+  destinatario, stato invii. `op:'send' {contractId, kind, note?, bill?}`
+  → l'invio vero.
+- **`aspiChecklist()`** (esportata+testata) dice prima cosa parte e cosa
+  manca. UNA sola voce blocca: il PDF del contratto (una richiesta di
+  registrazione senza contratto è rumore). Tutto il resto — documento del
+  locatore, APE, CF — avverte, non blocca (lezione `checkSlot`), e i
+  mancanti viaggiano DICHIARATI nell'email ("Non ancora nel fascicolo") e
+  persistiti su `aspiRequestMissing`. Il canone FUORI fascia sulla scheda
+  è un warn esplicito: ASPI non può attestarlo. Per l'asseverazione, se il
+  Fascicolo Fiscale manca **nasce all'invio**.
+- **`sendAspiRequest()`**: email al referente con TUTTI gli allegati
+  (contratto firmato — o generato, dichiarandolo — certificato FES,
+  identità, e per l'asseverazione fascicolo/APE/planimetria/visura/delega;
+  budget 18MB, i link Storage nel corpo restano come rete), operatore
+  SEMPRE in copia (l'email è il registro), stato sul contratto
+  (`aspiRequestedAt/Kind/To/Missing/Count` + `registrationStatus:'sent'`,
+  che accende i badge della pagina Burocrazia — mai degradando un
+  `'registered'`).
+- **I €37/€100 diventano SERVIZI col markup** (il pattern del
+  concordato-pack): all'invio nasce la fattura al cliente —
+  `invoices/aspi_<kind>_<contractId>`, **idempotente per costruzione**
+  (fsCreate con id deterministico → 409 al re-invio: ripremere Invia
+  rimanda l'email, MAI una seconda fattura) — con l'importo di
+  `settings/registrazione` (default: registrazione **€89**, asseverazione
+  **€189**, completo €278; costi pratica 37/100/137 tracciati accanto).
+  Da lì il 💳 link di pagamento esistente incassa con carta.
+- **Manopole in `settings/registrazione`** (admin-only in LETTURA nelle
+  rules — contiene l'email personale del referente, lezione
+  settings/company): email, referente, cc, prezzi, costi, billTo
+  (landlord|tenant), autoInvoice, e **`auto`** — l'opt-in "zero tap": con
+  auto:true la richiesta parte DA SOLA alla firma completa (dentro
+  `_finalize.js`, dopo il fascicolo CAF, best-effort e time-boxed).
+  Default **false**: un invio a terzi che costa denaro resta una decisione
+  dell'operatore. I default vivono in `ASPI_DEFAULTS` (una copia sola,
+  console e server non possono divergere).
+- **Nel portal**: bottone **🏛 ASPI** sulla riga contratto (dettaglio) e
+  **🏛 Invia ad ASPI** in Burocrazia → pannello che legge TUTTO da
+  op:status (mai un prezzo hardcodato nel client), radio variante,
+  checklist live, checkbox fattura, nota, ✎ per cambiare destinatario.
+  `✓ RLI registrato` resta il tap che chiude il loop quando ASPI conferma.
+- Test: `node tests/aspi/run.mjs` (35 check).
+
+**La sanatoria del PDF stantio** (`ensureContractPdf`, stessa release):
+il rail di firma ora RIGENERA da solo un `generatedPDF` con
+`clauseVersion` < 2 quando NESSUNA firma è viva — prima un contratto
+creato con l'impaginato vecchio mostrava al firmatario il modello
+superato in "View full contract PDF" e solo un ⚠ nel dettaglio del
+portal suggeriva di rigenerare a mano. La guardia resta assoluta: con
+una firma viva il documento è congelato, qualunque versione porti.
+Copre invito (send-link/send-sign), prima apertura di /sign (lookup) e
+conversione. Il modello in vigore è VERBATIM il contratto tipo
+dell'associazione (`reference/contratto_tipo_STUDENTI_Roma_2023.doc`,
+prot. RA/2023/0044852 — stesso MD5 del file del referente).
 
 ### Journey consapevole (contesto nel `_run.js`)
 `steps()` riceve `missing`, `late` e `walletUrl`: il T-14 chiede PER NOME
@@ -2701,6 +2773,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/geo/run.mjs` | precisione dei pin (`js/boom-geo.js`): portone (via+civico), strada, quartiere o niente — sulle stringhe `geo.q` vere del catalogo, incluso il caso insidioso `src:'nominatim'` su `q:'Prati, Roma'` |
   | `tests/scheda/run.mjs` | La Scheda: token derivati (ruolo nella derivazione, timing-safe), precedenza prefill contratto→sign→wizard, lock post-firma, sync profilo su ENTRAMBI gli schemi users, upload con OCR che non blocca mai, /api/profile/link autorizzato |
   | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot |
+  | `tests/aspi/run.mjs` | l'iter ASPI: la checklist blocca SOLO senza contratto (il resto avverte, dichiarato nell'email), l'invio raggiunge il referente con l'operatore in copia e gli allegati veri, la fattura col markup non si duplica MAI (id deterministico), 'registered' non si degrada, l'auto-invio parte solo con la manopola girata |
   | `tests/viewings/avail.mjs` | griglia slot: passi, gap 15', preavviso, orizzonte, maxPerDay, DST, token del link cliente |
   | `tests/viewings/telegram.mjs` | card Telegram visite: callback ≤64 byte, escaping HTML |
   | `tests/viewings/busyics.mjs` | il calendario Workspace nella griglia: impegni ICS bloccano gli slot (TZID, ricorrenze, EXDATE, RECURRENCE-ID, all-day busy/free), eventi BOOM filtrati, maxPerDay immune, cache + fail-open |
