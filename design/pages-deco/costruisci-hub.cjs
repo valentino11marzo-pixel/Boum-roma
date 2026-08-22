@@ -40,7 +40,7 @@ const VARIANTI = [
 ];
 
 const LOCALI = { caccia: 'pfs-caccia.html', terminale: 'pfs-terminale.html',
-  dossier: 'pfs-dossier.html', colloquio: 'pfs-colloquio.html',
+  dossier: 'pfs-dossier.html', colloquio: '/home/user/Boum-roma/preview-pfs-colloquio.html',
   attuale: '/home/user/Boum-roma/property-finding.html' };
 
 (async () => {
