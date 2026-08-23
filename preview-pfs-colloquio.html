@@ -1539,9 +1539,61 @@ body.volo-on .rotta-filo { opacity:1; }
   .a3-q { font-size:clamp(24px,7vw,30px); }
   .a3-lead { max-width:none; }
   .a3-cifra { font-size:clamp(52px,16vw,72px); } }
+
+/* ══ LA LINGUA 2030 ═══════════════════════════════════════════════════ */
+/* i 4 passi del prodotto nell'hero: la comprensione in 15 parole */
+.hero-passi { margin-top:16px; display:flex; align-items:center;
+  gap:7px 10px; flex-wrap:wrap; font-size:10px; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--text-3);
+  max-width:56ch; }
+.hero-passi b { color:var(--gold); font-weight:700; margin-right:2px; }
+.hero-passi i { font-style:normal; color:rgba(255,215,0,.45); }
+/* l'HUD di rotta: stato d'atto + sette segmenti + la CTA, sempre */
+.hud { position:fixed; left:0; right:0; bottom:0; z-index:110;
+  display:flex; align-items:center; gap:clamp(10px,2vw,22px);
+  padding:9px clamp(14px,3vw,28px)
+    calc(9px + env(safe-area-inset-bottom, 0px));
+  background:rgba(5,5,5,.82); backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  border-top:1px solid rgba(255,215,0,.14);
+  transform:translateY(110%);
+  transition:transform .5s cubic-bezier(.22,1,.36,1); }
+.hud.su { transform:none; }
+.hud-stato { font-size:9.5px; font-weight:700; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--text-3); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; }
+.hud-stato b { color:var(--gold); font-weight:700; }
+.hud-seg { display:flex; gap:5px; flex:1; justify-content:center; }
+.hud-seg i { width:clamp(14px,2.6vw,32px); height:2px; border-radius:2px;
+  background:rgba(255,255,255,.14);
+  transition:background .4s ease, box-shadow .4s ease; }
+.hud-seg i.acceso { background:var(--gold);
+  box-shadow:0 0 8px rgba(255,215,0,.5); }
+.hud-vai { flex:none; display:inline-flex; align-items:baseline; gap:7px;
+  padding:9px 16px; font-size:11px; font-weight:800;
+  letter-spacing:.08em; color:#0A0A05; background:var(--gold);
+  border-radius:100px; text-decoration:none; white-space:nowrap; }
+.hud-vai small { font-size:9px; font-weight:700; opacity:.7; }
+@media (max-width:760px){ .hud-seg { display:none; }
+  .hud-stato { flex:1; } }
+@media (prefers-reduced-motion:reduce){ .hud { transition:none; } }
+/* il fascio di lettura: l'atto in lettura respira oro dall'alto */
+.atto3 { transition:box-shadow .7s ease; }
+.atto3.in-lettura { box-shadow:inset 0 140px 140px -140px
+  rgba(255,215,0,.05); }
+/* le cifre si assestano come strumenti (solo a moto pieno) */
+@media (prefers-reduced-motion:no-preference){
+  html.vivo .a3-colpo .a3-cifra { filter:blur(7px); opacity:.35;
+    transform:scale(1.05); transform-origin:left bottom;
+    transition:filter .55s cubic-bezier(.22,1,.36,1) .28s,
+      opacity .5s ease .28s,
+      transform .6s cubic-bezier(.22,1,.36,1) .28s; }
+  html.vivo .a3-colpo.sale.dentro .a3-cifra { filter:none; opacity:1;
+    transform:none; }
+}
 </style>
 
-<a class="salta" href="#perche">Skip to content</a>
+<a class="salta" href="#dopo">Skip to content</a>
 <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
 <div class="mouse-glow" id="mouseGlow" aria-hidden="true"></div>
 <div class="tech-bg" aria-hidden="true"><span class="tech-orb tech-orb-1"></span><span class="tech-orb tech-orb-2"></span><span class="tech-orb tech-orb-3"></span></div>
@@ -1601,6 +1653,12 @@ body.volo-on .rotta-filo { opacity:1; }
       <p class="sotto">A dedicated hunt across the whole market —
         off-market included. By contract: <b>3 options in 15 days, or the
         €350 back</b> (Terms §4.2).</p>
+      <div class="hero-passi" aria-label="What the €350 buys, in four steps">
+        <span><b>01</b> Brief — five lines</span><i>→</i>
+        <span><b>02</b> The hunt — off-market + every portal</span><i>→</i>
+        <span><b>03</b> Viewings — live on video</span><i>→</i>
+        <span><b>04</b> Contract — from your phone</span>
+      </div>
       
       <p class="pf-trust"><span class="trust-stars">★★★★★</span>
         <a href="https://www.google.com/maps?q=Egidi+Immobiliare+Via+dei+Coronari+Roma" target="_blank" rel="noopener"><b>4.9 on
@@ -1705,7 +1763,7 @@ body.volo-on .rotta-filo { opacity:1; }
   </div>
 </div>
 
-<section class="section section-dark atto3" id="dubbio">
+<section class="section section-dark atto3" id="dopo">
   <div class="container">
     <div class="sale" style="margin-bottom:clamp(40px,6vw,72px)">
       <span class="eyebrow"><i></i>The interview</span>
@@ -1719,123 +1777,61 @@ body.volo-on .rotta-filo { opacity:1; }
     </div>
     <div class="a3-testa sale">
       <div class="a3-alto"><span class="a3-num">01</span>
-        <span class="a3-tema">The rule</span></div>
-      <p class="a3-q">Why would I pay €350 upfront? Every guide — <b>including yours</b> — says never pay upfront in Rome.</p>
-      <p class="a3-chi">You — every first message, rightly</p>
+        <span class="a3-tema">The product</span></div>
+      <p class="a3-q">What exactly do I get <b>for the €350</b>?</p>
+      <p class="a3-chi">You — the only fair first question</p>
     </div>
     <div class="a3-corpo">
       <div class="a3-risposta sale">
         <div class="a3-avv"><i>V</i><span>Valentino — on the record</span></div>
-        <p class="a3-lead">Keep following that rule.<br>This is <b>mechanically different</b>.</p>
-        <p class="a3-det">That rule protects you from strangers asking for wire transfers to
-      “hold” a flat — <b>we teach it ourselves</b>, in our own scam
-      guide. Here you pay a registered Italian company, by card, against
-      a <b>written contract term</b>. If I don't deliver, the €350
-      returns to your card. Not goodwill: a clause. The whole thing,
-      dimension by dimension, is below.</p>
-      <div class="prove"><a href="/terms.html" target="_blank" rel="noopener">Terms §4.2 —
-          the clause <i>→</i></a>
-        <a href="/blog-scam-bible.html">Our scam guide — 7 patterns,
-          35+ red flags <i>→</i></a></div>
+        <p class="a3-lead">A hunt, a hunter —<br>and everything <b>to the keys</b>.</p>
+        <p class="a3-det"><b>I call</b> — fifteen minutes, brutal about what your budget
+      really buys in your zones. The search arms within 24 hours: the
+      scanner takes your brief the same day it exists. First scored
+      matches land in your private app; viewings follow — I walk, you
+      watch live — then negotiation, and a registered contract
+      <b>signed from your phone</b>. This is the rail:</p>
       </div>
       <aside class="a3-colpo sale" aria-hidden="false">
-        <div class="a3-cifra">100%</div>
-        <p class="a3-cifra-eti">refunded if we don’t deliver — by contract, not courtesy</p>
+        <div class="a3-cifra">24<small>h</small></div>
+        <p class="a3-cifra-eti">from payment to an armed search</p>
         <div class="a3-righe">
-        <span><b>Card via Stripe</b> — receipted, chargeback protection</span>
-        <span><b>Egidi Immobiliare S.r.l.</b> — registered, verifiable</span>
-        <span><b>Terms §4.2 · §7.1-bis</b> — no admin fee</span>
+        <span><b>15-minute call</b> — same day, no sugar</span>
+        <span><b>Your app</b> — first scored matches</span>
+        <span><b>Keys</b> — contract signed from your phone</span>
         </div>
       </aside>
     </div>
     <div class="reperto-eti sale"><b>Exhibit A</b>
-      <span>The scam pattern vs this service</span></div>
-    <div class="regola2 sale">
-      <div class="r2-testa" aria-hidden="true"></div>
-      <div class="r2-testa male">The scam pattern</div>
-      <div class="r2-testa bene">This service</div>
-      <div class="r2-eti">Who you pay</div>
-      <div class="male">A stranger from a listing, unreachable after
-        the transfer</div>
-      <div class="bene"><b>Egidi Immobiliare S.r.l.</b> — registered
-        Italian company, P.IVA 17322991005, REA RM-1710623, office in
-        Via dei Coronari 181</div>
-      <div class="r2-eti">How you pay</div>
-      <div class="male">Bank transfer — irreversible by design</div>
-      <div class="bene"><b>Card via Stripe</b> — receipted, and card
-        payments carry chargeback protection</div>
-      <div class="r2-eti">What you hold</div>
-      <div class="male">A promise in a chat</div>
-      <div class="bene"><b>A written contract term</b>: at least 3 options
-        in your criteria within 15 days — Terms §4.2</div>
-      <div class="r2-eti">If it goes wrong</div>
-      <div class="male">The money is gone</div>
-      <div class="bene"><b>The €350 returns to your card</b>, in full —
-        no admin fee (Terms §7.1-bis)</div>
+      <span>The itinerary — and everything included</span></div>
+    <div class="passi4 sale coro">
+      <div class="passo4"><b>01</b><span>Check-in — five lines and the
+        €350. Your expert calls, the search arms within 24h.</span></div>
+      <div class="passo4"><b>02</b><span>The hunt — our off-market network,
+        plus every portal watched day and night and scored on your
+        brief.</span></div>
+      <div class="passo4"><b>03</b><span>Viewings — walked in person, live
+        on video if you're abroad. Confirmed visits arrive as an Apple
+        Wallet pass.</span></div>
+      <div class="passo4"><b>04</b><span>Keys — we negotiate the terms, you
+        sign the registered contract from your phone.</span></div>
     </div>
-    <p class="regola-fonte sale">Never seen a Rome rental scam up close?
-      <a href="/blog-scam-bible.html">Read our scam guide</a> — the
-      patterns, the red flags, the exact phrases they use. Whoever teaches
-      the defence isn't the threat.</p>
+
+    <div class="inclusi sale">
+      <span><b>Dedicated expert</b> — one person, your contact</span>
+      <span><b>Off-market access</b> — homes never listed publicly</span>
+      <span><b>Viewings done for you</b> — in person, live on video</span>
+      <span><b>Negotiation</b> — rent, deposit, contract terms</span>
+      <span><b>Full setup</b> — contract, utilities, codice fiscale</span>
+      <span><b>€350 deducted</b> from the agency fee on success</span>
+    </div>
   </div>
 </section>
 
-<section class="section atto3 inv" id="roma">
+<section class="section atto3 inv" id="solo">
   <div class="container">
     <div class="a3-testa sale">
       <div class="a3-alto"><span class="a3-num">02</span>
-        <span class="a3-tema">The market</span></div>
-      <p class="a3-q">Is Rome really that brutal? <b>I've rented in other capitals.</b></p>
-      <p class="a3-chi">You — after a week on the portals</p>
-    </div>
-    <div class="a3-corpo">
-      <div class="a3-risposta sale">
-        <div class="a3-avv"><i>V</i><span>Valentino — on the record</span></div>
-        <p class="a3-lead">Rome isn't chaotic.<br>Rome is <b>asymmetric</b>.</p>
-        <p class="a3-det">A good flat survives 24–72 hours; the good private listing collects
-      dozens of enquiries within hours — and from another timezone you
-      join that queue <b>while you sleep</b>. Much of what you scroll is
-      the same flat re-posted by competing agencies; the best homes
-      never reach the portals at all. The scams are engineered precisely
-      for the person abroad — and the law nobody quotes: deposit capped
-      at three months, an unregistered contract <b>voids your residency
-      paperwork</b>. Here is what searching alone actually costs:</p>
-      </div>
-      <aside class="a3-colpo sale" aria-hidden="false">
-        <div class="a3-cifra">24–72<small>h</small></div>
-        <p class="a3-cifra-eti">the life of a good listing on the portals</p>
-        <div class="a3-righe">
-        <span><b>The phantom listing</b> — runs daily</span>
-        <span><b>The double deposit</b> — runs weekly</span>
-        <span><b>Deposit cap</b> — three months, by law</span>
-        </div>
-      </aside>
-    </div>
-    <div class="reperto-eti sale"><b>Exhibit B</b>
-      <span>What searching alone costs</span></div>
-    <div class="conto sale">
-      <div><b>21 nights × €90</b><span>a typical temporary stay in Rome
-        while you search from hotels and short lets — ≈ €1,890 for three
-        weeks, and the clock only stops when you sign.</span></div>
-      <div><b>1–2 months' deposit</b><span>what renters wire to "hold" an
-        unverified flat — the exact money Rome's rental scams are built
-        to take. Our scam guide exists because it keeps happening.</span></div>
-      <div><b>6–8 viewings</b><span>the visits a serious search needs.
-        From another timezone you attend the leftovers — the good ones
-        are gone before your flight lands.</span></div>
-    </div>
-    <p class="conto-chiusa sale">Against that: <b>€350, refundable by
-      contract</b> — and deducted from the agency fee when we deliver.</p>
-    <p class="conto-bench sale">For scale: a dedicated flat hunter runs
-      €1,100–1,800+ in Paris or Amsterdam. Same craft, Rome, with the
-      refund written into the contract: €350.</p>
-  </div>
-</section>
-
-<section class="section section-dark atto3" id="solo">
-  <div class="container">
-    <div class="a3-testa sale">
-      <div class="a3-alto"><span class="a3-num">03</span>
         <span class="a3-tema">The machine</span></div>
       <p class="a3-q">I can search Idealista myself. <b>For free.</b></p>
       <p class="a3-chi">You — and you are right, it is free</p>
@@ -1862,7 +1858,7 @@ body.volo-on .rotta-filo { opacity:1; }
         </div>
       </aside>
     </div>
-    <div class="reperto-eti sale"><b>Exhibit C</b>
+    <div class="reperto-eti sale"><b>Exhibit B</b>
       <span>The finder — real weights, real schedules</span></div>
     <div class="finder quadro" id="finder" data-fase="0">
       <span class="tacca"></span>
@@ -1929,113 +1925,13 @@ body.volo-on .rotta-filo { opacity:1; }
       <div class="finder-piede">Illustrated brief · matches are scored on our
         production weights — budget 50, bedrooms 30, district 20.</div>
     </div>
-
-    <div class="macchina sale" id="macchinaBox">
-      <div>
-        <div class="orari">
-          <div><b>*/15</b><span>Inbox scan</span></div>
-          <div><b>2×/h</b><span>Market scan</span></div>
-          <div><b>04:00</b><span>Search rebuild</span></div>
-          <div><b>06:00</b><span>Daily brief</span></div>
-        </div>
-        <div class="pesiG">
-          <div class="pesoG"><small>Budget</small>
-            <span class="pesoG-b"><i style="--w:100%"></i></span><b>50</b></div>
-          <div class="pesoG"><small>Bedrooms</small>
-            <span class="pesoG-b"><i style="--w:60%"></i></span><b>30</b></div>
-          <div class="pesoG"><small>District</small>
-            <span class="pesoG-b"><i style="--w:40%"></i></span><b>20</b></div>
-        </div>
-        <div class="soglia-r"><b>60</b><span>the push threshold — anything
-          scoring below sixty out of a hundred never reaches your phone.</span></div>
-        <p class="mac-fine">Every 15 minutes = <b>96 scans a day</b>. These
-          schedules are read from our production deploy file — not
-          marketing copy.</p>
-      </div>
-      <div>
-        <div class="regoleP">
-          <div class="regolaP"><b>Most of what we find, you never see.</b>
-            <p>Fewer notifications than any portal alert — few and relevant
-              beats many and useless. That is the product.</p></div>
-          <div class="regolaP"><b>Agency relistings are stored, never pushed.</b>
-            <p>We won't send you to pay someone else's commission on a home
-              you're already paying us to find.</p></div>
-          <div class="regolaP"><b>Too far over budget is a veto.</b>
-            <p>Up to 20% over your ceiling scores half — Roman rents are
-              negotiable. Past that line, it's out, however beautiful.</p></div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
-
-<section class="section atto3 inv" id="chi">
-  <div class="container">
-    <div class="a3-testa sale">
-      <div class="a3-alto"><span class="a3-num">04</span>
-        <span class="a3-tema">The counterpart</span></div>
-      <p class="a3-q">How do I know <b>you're real</b>? I've never met you.</p>
-      <p class="a3-chi">You — as you should</p>
-    </div>
-    <div class="a3-corpo">
-      <div class="a3-risposta sale">
-        <div class="a3-avv"><i>V</i><span>Valentino — on the record</span></div>
-        <p class="a3-lead">Don't trust me.<br><b>Check me.</b></p>
-        <p class="a3-det">Egidi Immobiliare S.r.l. — P.IVA 17322991005, REA RM-1710623,
-      office in Via dei Coronari 181. An EU trademark you can look up on
-      EUIPO yourself. 47 Google reviews, readable one by one. Every
-      payment runs through Stripe with a receipt — <b>never a bank
-      transfer to an individual</b>. And the person answering your
-      WhatsApp is the person who walks your shortlist: <b>me</b>.</p>
-      </div>
-      <aside class="a3-colpo sale" aria-hidden="false">
-        <div class="a3-cifra">4.9<small>★</small></div>
-        <p class="a3-cifra-eti">on Google — 47 reviews from real tenants</p>
-        <div class="a3-righe">
-        <span><b>P.IVA</b> 17322991005 · <b>REA</b> RM-1710623</span>
-        <span><b>EU trademark</b> 019317594 — on EUIPO</span>
-        <span><b>Via dei Coronari 181</b>, Roma</span>
-        </div>
-      </aside>
-    </div>
-    <div class="reperto-eti sale"><b>Exhibit D</b>
-      <span>Check, don’t trust</span></div>
-    <div class="verifica sale">
-      <a class="rec-card" href="https://www.google.com/maps?q=Egidi+Immobiliare+Via+dei+Coronari+Roma" target="_blank" rel="noopener">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.8l6.1-.7z"/></svg>
-        <span><b>4.9 on Google</b><span>47 reviews from real tenants —
-          read every one of them</span></span>
-        <i>Google ↗</i>
-      </a>
-      <div class="volto">
-        <div class="v-chi">
-          <span class="v-foto" id="vFoto">V</span>
-          <span class="v-nome"><b>Valentino — Founder</b>
-            <span>Licensed agency · Egidi Immobiliare S.r.l. · Roma</span></span>
-        </div>
-        <p>I run the search. Every home on your shortlist, <b>I've walked
-          in person</b> before you see it. And the guarantee has my
-          company's name on it: 3 options in your criteria within 15 days,
-          or the €350 goes back to your card — it's in the contract, not
-          in the marketing.</p>
-        <a href="https://wa.me/393313251961" target="_blank" rel="noopener">Message me
-          directly on WhatsApp →</a>
-      </div>
-    </div>
-
-    <div class="verifica-righe sale">
-      <a href="/terms.html">Egidi Immobiliare S.r.l. — P.IVA 17322991005 →</a>
-      <a href="https://euipo.europa.eu/eSearch/#details/trademarks/019317594"
-        target="_blank" rel="noopener">EU trademark 019317594 on EUIPO ↗</a>
-      <a href="/blog-scam-bible.html">Our Rome rental scam guide →</a>
-    </div>
   </div>
 </section>
 
 <section class="section section-dark atto3" id="estero">
   <div class="container">
     <div class="a3-testa sale">
-      <div class="a3-alto"><span class="a3-num">05</span>
+      <div class="a3-alto"><span class="a3-num">03</span>
         <span class="a3-tema">The distance</span></div>
       <p class="a3-q">I'm not even <b>in Italy</b> yet.</p>
       <p class="a3-chi">You — writing from abroad</p>
@@ -2060,7 +1956,7 @@ body.volo-on .rotta-filo { opacity:1; }
         </div>
       </aside>
     </div>
-    <div class="reperto-eti sale"><b>Exhibit E</b>
+    <div class="reperto-eti sale"><b>Exhibit C</b>
       <span>Touch it before you pay</span></div>
     <div class="tocca sale">
       <div>
@@ -2096,10 +1992,188 @@ body.volo-on .rotta-filo { opacity:1; }
   </div>
 </section>
 
-<section class="section atto3 inv" id="garanzia">
+<section class="section atto3 inv" id="roma">
+  <div class="container">
+    <div class="a3-testa sale">
+      <div class="a3-alto"><span class="a3-num">04</span>
+        <span class="a3-tema">The market</span></div>
+      <p class="a3-q">Is Rome really that brutal? <b>I've rented in other capitals.</b></p>
+      <p class="a3-chi">You — after a week on the portals</p>
+    </div>
+    <div class="a3-corpo">
+      <div class="a3-risposta sale">
+        <div class="a3-avv"><i>V</i><span>Valentino — on the record</span></div>
+        <p class="a3-lead">Rome isn't chaotic.<br>Rome is <b>asymmetric</b>.</p>
+        <p class="a3-det">A good flat survives 24–72 hours; the good private listing collects
+      dozens of enquiries within hours — and from another timezone you
+      join that queue <b>while you sleep</b>. Much of what you scroll is
+      the same flat re-posted by competing agencies; the best homes
+      never reach the portals at all. Here is what searching alone
+      actually costs:</p>
+      </div>
+      <aside class="a3-colpo sale" aria-hidden="false">
+        <div class="a3-cifra">24–72<small>h</small></div>
+        <p class="a3-cifra-eti">the life of a good listing on the portals</p>
+        <div class="a3-righe">
+        <span><b>The phantom listing</b> — runs daily</span>
+        <span><b>The double deposit</b> — runs weekly</span>
+        <span><b>Deposit cap</b> — three months, by law</span>
+        </div>
+      </aside>
+    </div>
+    <div class="reperto-eti sale"><b>Exhibit D</b>
+      <span>What searching alone costs</span></div>
+    <div class="conto sale">
+      <div><b>21 nights × €90</b><span>a typical temporary stay in Rome
+        while you search from hotels and short lets — ≈ €1,890 for three
+        weeks, and the clock only stops when you sign.</span></div>
+      <div><b>1–2 months' deposit</b><span>what renters wire to "hold" an
+        unverified flat — the exact money Rome's rental scams are built
+        to take. Our scam guide exists because it keeps happening.</span></div>
+      <div><b>6–8 viewings</b><span>the visits a serious search needs.
+        From another timezone you attend the leftovers — the good ones
+        are gone before your flight lands.</span></div>
+    </div>
+    <p class="conto-chiusa sale">Against that: <b>€350, refundable by
+      contract</b> — and deducted from the agency fee when we deliver.</p>
+    <p class="conto-bench sale">For scale: a dedicated flat hunter runs
+      €1,100–1,800+ in Paris or Amsterdam. Same craft, Rome, with the
+      refund written into the contract: €350.</p>
+  </div>
+</section>
+
+<section class="section section-dark atto3" id="chi">
+  <div class="container">
+    <div class="a3-testa sale">
+      <div class="a3-alto"><span class="a3-num">05</span>
+        <span class="a3-tema">The counterpart</span></div>
+      <p class="a3-q">How do I know <b>you're real</b>? I've never met you.</p>
+      <p class="a3-chi">You — as you should</p>
+    </div>
+    <div class="a3-corpo">
+      <div class="a3-risposta sale">
+        <div class="a3-avv"><i>V</i><span>Valentino — on the record</span></div>
+        <p class="a3-lead">Don't trust me.<br><b>Check me.</b></p>
+        <p class="a3-det">Egidi Immobiliare S.r.l. — P.IVA 17322991005, REA RM-1710623,
+      office in Via dei Coronari 181. An EU trademark you can look up on
+      EUIPO yourself. 47 Google reviews, readable one by one. Every
+      payment runs through Stripe with a receipt — <b>never a bank
+      transfer to an individual</b>. And the person answering your
+      WhatsApp is the person who walks your shortlist: <b>me</b>.</p>
+      </div>
+      <aside class="a3-colpo sale" aria-hidden="false">
+        <div class="a3-cifra">4.9<small>★</small></div>
+        <p class="a3-cifra-eti">on Google — 47 reviews from real tenants</p>
+        <div class="a3-righe">
+        <span><b>P.IVA</b> 17322991005 · <b>REA</b> RM-1710623</span>
+        <span><b>EU trademark</b> 019317594 — on EUIPO</span>
+        <span><b>Via dei Coronari 181</b>, Roma</span>
+        </div>
+      </aside>
+    </div>
+    <div class="reperto-eti sale"><b>Exhibit E</b>
+      <span>Check, don’t trust</span></div>
+    <div class="verifica sale">
+      <a class="rec-card" href="https://www.google.com/maps?q=Egidi+Immobiliare+Via+dei+Coronari+Roma" target="_blank" rel="noopener">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.8l6.1-.7z"/></svg>
+        <span><b>4.9 on Google</b><span>47 reviews from real tenants —
+          read every one of them</span></span>
+        <i>Google ↗</i>
+      </a>
+      <div class="volto">
+        <div class="v-chi">
+          <span class="v-foto" id="vFoto">V</span>
+          <span class="v-nome"><b>Valentino — Founder</b>
+            <span>Licensed agency · Egidi Immobiliare S.r.l. · Roma</span></span>
+        </div>
+        <p>I run the search. Every home on your shortlist, <b>I've walked
+          in person</b> before you see it. And the guarantee has my
+          company's name on it: 3 options in your criteria within 15 days,
+          or the €350 goes back to your card — it's in the contract, not
+          in the marketing.</p>
+        <a href="https://wa.me/393313251961" target="_blank" rel="noopener">Message me
+          directly on WhatsApp →</a>
+      </div>
+    </div>
+
+    <div class="verifica-righe sale">
+      <a href="/terms.html">Egidi Immobiliare S.r.l. — P.IVA 17322991005 →</a>
+      <a href="https://euipo.europa.eu/eSearch/#details/trademarks/019317594"
+        target="_blank" rel="noopener">EU trademark 019317594 on EUIPO ↗</a>
+      <a href="/blog-scam-bible.html">Our Rome rental scam guide →</a>
+    </div>
+  </div>
+</section>
+
+<section class="section atto3 inv" id="dubbio">
   <div class="container">
     <div class="a3-testa sale">
       <div class="a3-alto"><span class="a3-num">06</span>
+        <span class="a3-tema">The rule</span></div>
+      <p class="a3-q">Why would I pay €350 upfront? Every guide — <b>including yours</b> — says never pay upfront in Rome.</p>
+      <p class="a3-chi">You — every first message, rightly</p>
+    </div>
+    <div class="a3-corpo">
+      <div class="a3-risposta sale">
+        <div class="a3-avv"><i>V</i><span>Valentino — on the record</span></div>
+        <p class="a3-lead">Keep following that rule.<br>This is <b>mechanically different</b>.</p>
+        <p class="a3-det">That rule protects you from strangers asking for wire transfers to
+      “hold” a flat — <b>we teach it ourselves</b>, in our own scam
+      guide. Here you pay a registered Italian company, by card, against
+      a <b>written contract term</b>. If I don't deliver, the €350
+      returns to your card. Not goodwill: a clause. The whole thing,
+      dimension by dimension, is below.</p>
+      <div class="prove"><a href="/terms.html" target="_blank" rel="noopener">Terms §4.2 —
+          the clause <i>→</i></a>
+        <a href="/blog-scam-bible.html">Our scam guide — 7 patterns,
+          35+ red flags <i>→</i></a></div>
+      </div>
+      <aside class="a3-colpo sale" aria-hidden="false">
+        <div class="a3-cifra">100%</div>
+        <p class="a3-cifra-eti">refunded if we don’t deliver — by contract, not courtesy</p>
+        <div class="a3-righe">
+        <span><b>Card via Stripe</b> — receipted, never a wire</span>
+        <span><b>Chargeback protection</b> — by design, not promise</span>
+        <span><b>Terms §4.2 · §7.1-bis</b> — no admin fee</span>
+        </div>
+      </aside>
+    </div>
+    <div class="reperto-eti sale"><b>Exhibit F</b>
+      <span>The scam pattern vs this service</span></div>
+    <div class="regola2 sale">
+      <div class="r2-testa" aria-hidden="true"></div>
+      <div class="r2-testa male">The scam pattern</div>
+      <div class="r2-testa bene">This service</div>
+      <div class="r2-eti">Who you pay</div>
+      <div class="male">A stranger from a listing, unreachable after
+        the transfer</div>
+      <div class="bene"><b>Egidi Immobiliare S.r.l.</b> — registered
+        Italian company, P.IVA 17322991005, REA RM-1710623, office in
+        Via dei Coronari 181</div>
+      <div class="r2-eti">How you pay</div>
+      <div class="male">Bank transfer — irreversible by design</div>
+      <div class="bene"><b>Card via Stripe</b> — receipted, and card
+        payments carry chargeback protection</div>
+      <div class="r2-eti">What you hold</div>
+      <div class="male">A promise in a chat</div>
+      <div class="bene"><b>A written contract term</b>: at least 3 options
+        in your criteria within 15 days — Terms §4.2</div>
+      <div class="r2-eti">If it goes wrong</div>
+      <div class="male">The money is gone</div>
+      <div class="bene"><b>The €350 returns to your card</b>, in full —
+        no admin fee (Terms §7.1-bis)</div>
+    </div>
+    <p class="regola-fonte sale">Never seen a Rome rental scam up close?
+      <a href="/blog-scam-bible.html">Read our scam guide</a> — the
+      patterns, the red flags, the exact phrases they use. Whoever teaches
+      the defence isn't the threat.</p>
+  </div>
+</section>
+
+<section class="section section-dark atto3" id="garanzia">
+  <div class="container">
+    <div class="a3-testa sale">
+      <div class="a3-alto"><span class="a3-num">07</span>
         <span class="a3-tema">The guarantee</span></div>
       <p class="a3-q">And if you find <b>nothing</b> I like?</p>
       <p class="a3-chi">You — the fair question</p>
@@ -2128,7 +2202,7 @@ body.volo-on .rotta-filo { opacity:1; }
         </div>
       </aside>
     </div>
-    <div class="reperto-eti sale"><b>Exhibit F</b>
+    <div class="reperto-eti sale"><b>Exhibit G</b>
       <span>The clause, verbatim</span></div>
     <div class="clausola sale">
       <blockquote>PFS costs €350 (fixed fee). If we do not present at
@@ -2147,61 +2221,6 @@ body.volo-on .rotta-filo { opacity:1; }
     <a class="clausola-vai sale" href="/terms.html" target="_blank"
       rel="noopener">Read the full terms — nothing on this page contradicts
       them →</a>
-  </div>
-</section>
-
-<section class="section section-dark atto3" id="dopo">
-  <div class="container">
-    <div class="a3-testa sale">
-      <div class="a3-alto"><span class="a3-num">07</span>
-        <span class="a3-tema">The first 24 hours</span></div>
-      <p class="a3-q">OK. What actually happens <b>the minute I pay</b>?</p>
-      <p class="a3-chi">You — ready to board</p>
-    </div>
-    <div class="a3-corpo">
-      <div class="a3-risposta sale">
-        <div class="a3-avv"><i>V</i><span>Valentino — on the record</span></div>
-        <p class="a3-lead">Five lines.<br>Then the <b>clock starts</b>.</p>
-        <p class="a3-det"><b>I call</b> — fifteen minutes, brutal about what your budget
-      really buys in your zones. The search arms within 24 hours: the
-      scanner takes your brief the same day it exists. First scored
-      matches land in your private app; viewings follow — I walk, you
-      watch live — then negotiation, and a registered contract
-      <b>signed from your phone</b>. This is the rail:</p>
-      </div>
-      <aside class="a3-colpo sale" aria-hidden="false">
-        <div class="a3-cifra">24<small>h</small></div>
-        <p class="a3-cifra-eti">from payment to an armed search</p>
-        <div class="a3-righe">
-        <span><b>15-minute call</b> — same day, no sugar</span>
-        <span><b>Your app</b> — first scored matches</span>
-        <span><b>Keys</b> — contract signed from your phone</span>
-        </div>
-      </aside>
-    </div>
-    <div class="reperto-eti sale"><b>Exhibit G</b>
-      <span>The itinerary — and everything included</span></div>
-    <div class="passi4 sale coro">
-      <div class="passo4"><b>01</b><span>Check-in — five lines and the
-        €350. Your expert calls, the search arms within 24h.</span></div>
-      <div class="passo4"><b>02</b><span>The hunt — our off-market network,
-        plus every portal watched day and night and scored on your
-        brief.</span></div>
-      <div class="passo4"><b>03</b><span>Viewings — walked in person, live
-        on video if you're abroad. Confirmed visits arrive as an Apple
-        Wallet pass.</span></div>
-      <div class="passo4"><b>04</b><span>Keys — we negotiate the terms, you
-        sign the registered contract from your phone.</span></div>
-    </div>
-
-    <div class="inclusi sale">
-      <span><b>Dedicated expert</b> — one person, your contact</span>
-      <span><b>Off-market access</b> — homes never listed publicly</span>
-      <span><b>Viewings done for you</b> — in person, live on video</span>
-      <span><b>Negotiation</b> — rent, deposit, contract terms</span>
-      <span><b>Full setup</b> — contract, utilities, codice fiscale</span>
-      <span><b>€350 deducted</b> from the agency fee on success</span>
-    </div>
   </div>
 </section>
 
@@ -2410,8 +2429,8 @@ body.volo-on .rotta-filo { opacity:1; }
   if (!filo) return;
   var scia = filo.querySelector('.rf-scia');
   var aereo = filo.querySelector('.rf-aereo');
-  var TAPPE = ['dubbio', 'roma', 'solo', 'chi', 'estero', 'garanzia',
-    'dopo', 'faq'];
+  var TAPPE = ['dopo', 'solo', 'estero', 'roma', 'chi', 'dubbio',
+    'garanzia', 'faq'];
   var punti = [];
   function misura() {
     [].forEach.call(filo.querySelectorAll('.rf-tappa'),
@@ -2470,6 +2489,75 @@ body.volo-on .rotta-filo { opacity:1; }
       var el = document.getElementById(id);
       if (el) occhio.observe(el);
     });
+})();
+</script>
+
+<div class="hud" id="hud" aria-label="Route: your position in the interview">
+  <span class="hud-stato" id="hudStato" aria-live="off"></span>
+  <span class="hud-seg" id="hudSeg" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+  <a class="hud-vai" href="#checkin" id="hudVai">Board · €350
+    <small>↩ §4.2</small></a>
+</div>
+<script>
+/* L'HUD DI ROTTA — lo stato dell'interrogatorio sempre sott'occhio:
+   l'atto in lettura, i sette segmenti che si accendono, la CTA.
+   Solo via JS; sparisce alla cassa e all'imbarco. */
+(function () {
+  'use strict';
+  var hud = document.getElementById('hud');
+  if (!hud || !('IntersectionObserver' in window)) return;
+  var stato = document.getElementById('hudStato');
+  var seg = [].slice.call(document.querySelectorAll('#hudSeg i'));
+  var ATTI = [
+    ['dopo', 'Act 01 · The product — <b>armed in 24h</b>'],
+    ['solo', 'Act 02 · The machine — <b>96 scans/day</b>'],
+    ['estero', 'Act 03 · The distance — <b>0 flights</b>'],
+    ['roma', 'Act 04 · The market — <b>24–72h</b>'],
+    ['chi', 'Act 05 · The counterpart — <b>4.9★</b>'],
+    ['dubbio', 'Act 06 · The rule — <b>100% back</b>'],
+    ['garanzia', 'Act 07 · The clause — <b>§4.2</b>'] ];
+  var el = ATTI.map(function (x) {
+    return document.getElementById(x[0]);
+  });
+  var vicini = {};
+  var occ = new IntersectionObserver(function (vs) {
+    vs.forEach(function (v) { vicini[v.target.id] = v.isIntersecting; });
+  });
+  ['checkin', 'imbarco'].forEach(function (id) {
+    var e = document.getElementById(id);
+    if (e) occ.observe(e);
+  });
+  var ultimo = -1, attesa = false;
+  function passo() {
+    attesa = false;
+    var meta = innerHeight * .5, ora = -1;
+    for (var i = 0; i < el.length; i++) {
+      if (!el[i]) continue;
+      var r = el[i].getBoundingClientRect();
+      if (r.top < meta && r.bottom > meta) { ora = i; break; }
+      if (r.top < meta) ora = i;
+    }
+    hud.classList.toggle('su',
+      ora >= 0 && !vicini.checkin && !vicini.imbarco);
+    if (ora !== ultimo) {
+      ultimo = ora;
+      if (ora >= 0) stato.innerHTML = ATTI[ora][1];
+      seg.forEach(function (sg, i) {
+        sg.classList.toggle('acceso', i <= ora);
+      });
+      el.forEach(function (e, i) {
+        if (e) e.classList.toggle('in-lettura', i === ora);
+      });
+    }
+  }
+  addEventListener('scroll', function () {
+    if (!attesa) { attesa = true; requestAnimationFrame(passo); }
+  }, { passive: true });
+  addEventListener('resize', passo);
+  passo();
+  document.getElementById('hudVai').addEventListener('click', function () {
+    try { gtag('event', 'pfs_hud_click'); } catch (e) {}
+  });
 })();
 </script>
 
