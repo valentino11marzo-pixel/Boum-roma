@@ -218,6 +218,34 @@ const { ensureContractPdf } = await import('../../api/sign/_contractpdf.js');
   check('guardia: anche la firma di un CO-conduttore congela il PDF', urlCo === null && !store.get('contracts/c_cosigned').generatedPDF);
 }
 
+// ═══ 4b. CLAUSOLE VECCHIE: il PDF stantio si rigenera da solo (se nessuno firma) ═══
+// Il difetto vissuto: contratti creati prima dei modelli CAF 2023 portavano
+// generatedPDF con l'impaginato VECCHIO e clauseVersion assente; sign.html
+// lo mostrava al firmatario come "il contratto" e solo un ⚠ nel dettaglio
+// del portal suggeriva di rigenerare. Ora il rail di firma sana da sé.
+{
+  const OLD_URL = 'https://firebasestorage.googleapis.com/v0/b/x/o/contracts%2Fc_stale%2Fcontract.pdf?alt=media&token=old';
+  store.set('contracts/c_stale', { ...sampleContract, propertyId: 'p1', tenantId: 'u1', generatedPDF: OLD_URL });
+  const n0 = storageCalls.length;
+  const url = await ensureContractPdf('c_stale');
+  const c = store.get('contracts/c_stale');
+  check('stale: PDF senza clauseVersion e senza firme → RIGENERATO (upload + v2)',
+    !!url && url !== OLD_URL && c.generatedPDF === url && c.clauseVersion === 2 && storageCalls.length === n0 + 1);
+
+  store.set('contracts/c_stale_v1', { ...sampleContract, propertyId: 'p1', generatedPDF: OLD_URL, clauseVersion: 1 });
+  const urlV1 = await ensureContractPdf('c_stale_v1');
+  check('stale: clauseVersion 1 → rigenerato a v2', !!urlV1 && urlV1 !== OLD_URL && store.get('contracts/c_stale_v1').clauseVersion === 2);
+
+  // Firma viva su PDF vecchio: CONGELATO — si restituisce il PDF che le
+  // parti stanno firmando, mai una rigenerazione sotto la penna.
+  store.set('contracts/c_stale_signed', { ...sampleContract, generatedPDF: OLD_URL, clauseVersion: 1, tenantSignature: 'data:image/png;base64,DDD' });
+  const n1 = storageCalls.length;
+  const urlSigned = await ensureContractPdf('c_stale_signed');
+  const cs = store.get('contracts/c_stale_signed');
+  check('stale + firma viva: si restituisce il VECCHIO PDF, zero upload, versione intatta',
+    urlSigned === OLD_URL && storageCalls.length === n1 && cs.clauseVersion === 1 && cs.generatedPDF === OLD_URL);
+}
+
 // ═══ 5. La conversione PA scrive il PDF da sola ═══
 const { convertPaToContract } = await import('../../api/preagreement/convert.js');
 const basePa = {
@@ -304,6 +332,22 @@ const lookup = (await import('../../api/magic-sign/lookup.js')).default;
   await lookup(mkReq({ token: 'tok-frozen-landlord-0' }, { 'x-forwarded-for': '9.9.9.2' }), r);
   check('lookup: firma viva → NIENTE generazione (documento congelato)', r.code === 200 && !r.body?.contract?.generatedPDF && storageCalls.length === n0);
 }
+{
+  // Il caso dell'operatore, agosto 2026: contratto col PDF delle clausole
+  // VECCHIE e nessuna firma — il firmatario apriva "View full contract PDF"
+  // e vedeva il modello superato. La prima apertura ora lo sana.
+  const OLD_URL = 'https://firebasestorage.googleapis.com/v0/b/x/o/contracts%2Fc_lkstale%2Fcontract.pdf?alt=media&token=old';
+  store.set('contracts/c_lkstale', {
+    ...sampleContract, propertyId: 'prop1', tenantId: 'u1',
+    generatedPDF: OLD_URL, tenantSignToken: 'tok-lkstale-tenant-0',
+  });
+  const r = mkRes();
+  await lookup(mkReq({ token: 'tok-lkstale-tenant-0' }, { 'x-forwarded-for': '9.9.9.3' }), r);
+  const c = store.get('contracts/c_lkstale');
+  check('lookup: PDF con clausole vecchie → rigenerato PRIMA che il firmatario lo veda',
+    r.code === 200 && !!r.body?.contract?.generatedPDF && r.body.contract.generatedPDF !== OLD_URL
+    && c.generatedPDF !== OLD_URL && c.clauseVersion === 2);
+}
 
 // ═══ 9. Le giunzioni asserite sulla SORGENTE ═══
 {
@@ -318,7 +362,8 @@ const lookup = (await import('../../api/magic-sign/lookup.js')).default;
   check('sorgente convert: genera, e il promemoria vive solo nel ramo fallimento', iGen > -1 && iMiss > iGen && convertSrc.includes('if (!pdfUrl)'));
 
   const lookupSrc = fs.readFileSync(new URL('../../api/magic-sign/lookup.js', import.meta.url), 'utf8');
-  check('sorgente lookup: la rete esiste ed è condizionata all\'assenza del PDF', lookupSrc.includes('if (!contract.generatedPDF)') && lookupSrc.includes('ensureContractPdf(contract.id'));
+  check('sorgente lookup: la rete è SEMPRE attiva (sana anche il PDF stantio, non solo il mancante)',
+    !lookupSrc.includes('if (!contract.generatedPDF)') && lookupSrc.includes('ensureContractPdf(contract.id'));
 
   const sendLinkSrc = fs.readFileSync(new URL('../../api/sign/send-link.js', import.meta.url), 'utf8');
   const iEnsureSL = sendLinkSrc.indexOf('await ensureContractPdf(');

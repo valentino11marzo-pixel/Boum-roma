@@ -44,6 +44,15 @@
         const props = S.properties || [], V = S.viewingRequests || [];
         const L = S.leads || [], M = S.maintenance || [], Q = S.actionQueue || [];
         const propName = (id) => (props.find((p) => p.id === id) || {}).name || '';
+        // IL DIFETTO DEL 23 AGOSTO 2026. Il portale, al boot, RIETICHETTA in
+        // memoria le rate scadute (pending -> 'overdue') per non scrivere N
+        // volte su Firestore a ogni apertura. Questo motore filtrava il solo
+        // 'pending': in produzione la specie piu' cara della coda — i soldi —
+        // non scattava MAI, e la striscia diceva "0 in ritardo" con le rate
+        // scadute a sistema. Il test non lo vedeva perche' alimenta il motore
+        // con dati grezzi, saltando il boot: verde e cieco. Una rata non
+        // pagata e' non pagata, comunque il portale la chiami.
+        const unpaid = (p) => p.status === 'pending' || p.status === 'overdue';
         const byC = (id) => C.find((c) => c.id === id);
 
         // ── 1. Risposte AI in attesa di approvazione (action_queue) ──────
@@ -79,7 +88,7 @@
         // ── 3. I soldi in ritardo ────────────────────────────────────────
         // UNA card di quadro + le tre peggiori per nome: l'aggregato dà la
         // misura, il nome dà l'azione. Il sollecito morde nei primi giorni.
-        const overdue = P.filter((p) => p.status === 'pending' && p.dueDate && new Date(p.dueDate).getTime() < now);
+        const overdue = P.filter((p) => unpaid(p) && p.dueDate && new Date(p.dueDate).getTime() < now);
         if (overdue.length) {
             const tot = overdue.reduce((s, p) => s + num(p.amount), 0);
             out.push({
@@ -199,16 +208,63 @@
             actions: [{ label: 'Apri in console', fn: 'oggiOpenPa', args: [pa.ref || ''], primary: true }]
         }));
 
+        // ── 9. Contratti firmati DA REGISTRARE (RLI: 30 giorni) ─────────
+        // L'unico ritardo di questa coda con un PREZZO scritto in legge:
+        // oltre i 30 giorni dalla stipula la registrazione e' tardiva
+        // (sanzione, e l'opzione cedolare secca a rischio). Per questo il
+        // punteggio non e' fisso — cresce col calendario e SCAVALCA tutto
+        // quando il termine e' passato: la' ogni giorno costa di piu'.
+        // Due stati, una regola sola: se la pratica e' gia' dal referente
+        // si TACE per una settimana (sta lavorando lui, non e' una
+        // decisione) e poi torna come sollecito, con l'azione che chiude
+        // il giro — la conferma della registrazione.
+        const RLI_DAYS = 30;
+        C.filter((c) => {
+            const signed = c.signatureStatus === 'complete' || !!(c.tenantSignature && c.landlordSignature);
+            const done = c.registrationStatus === 'registered' || !!c.rliRegisteredAt;
+            return signed && !done;
+        }).forEach((c) => {
+            const el = days(c.fullySignedAt || c.landlordSignedAt || c.tenantSignedAt || c.startDate, now);
+            const left = Math.ceil(RLI_DAYS - el);
+            const over = Math.max(0, Math.round(el - RLI_DAYS));
+            const late = left <= 0;
+            const sent = !!c.aspiRequestedAt;
+            const waited = sent ? days(c.aspiRequestedAt, now) : 0;
+            if (sent && waited < 7 && !late && left > 3) return;   // il referente ha la pratica: silenzio
+            const term = late ? (over ? `RLI SCADUTA da ${over}gg` : 'RLI scade OGGI') : `RLI tra ${left}gg`;
+            out.push({
+                id: 'rli_' + c.id, kind: 'registrazioni', icon: late ? '🏛' : '📝',
+                tint: late ? 'red' : (left <= 7 ? 'orange' : 'gold'),
+                title: (sent ? `In attesa di ASPI da ${Math.round(waited)}gg — ` : 'Da registrare — ')
+                    + (propName(c.propertyId) || 'contratto'),
+                sub: [
+                    (U.find((u) => u.id === c.tenantId) || {}).name || c.tenantName || '',
+                    term,
+                    sent ? (c.aspiRequestKind === 'registrazione' ? 'inviata: solo registrazione' : 'inviata: registrazione + attestazione') : ''
+                ].filter(Boolean).join(' · '),
+                score: (late ? 84 + ageBoost(over, 1.2, 12) : 46 + el) - (sent ? 14 : 0),
+                actions: sent
+                    ? [
+                        { label: '\u2713 RLI registrato', fn: 'markRliRegistered', args: [c.id], primary: true },
+                        { label: '\ud83c\udfdb Re-invia', fn: 'openAspi', args: [c.id] }
+                    ]
+                    : [
+                        { label: '\ud83c\udfdb Invia ad ASPI', fn: 'openAspi', args: [c.id], primary: true },
+                        { label: 'Apri contratto', fn: 'viewContract', args: [c.id] }
+                    ]
+            });
+        });
+
         out.sort((a, b) => b.score - a.score);
 
         // ── Il polso dei soldi (la striscia in testa) ───────────────────
         const paidMonth = P.filter((p) => p.status === 'paid' && (p.paidDate || '').slice(0, 7) === month)
             .reduce((s, p) => s + num(p.amount), 0);
-        const dueMonth = P.filter((p) => p.status === 'pending' && (p.dueDate || '').slice(0, 7) === month)
+        const dueMonth = P.filter((p) => unpaid(p) && (p.dueDate || '').slice(0, 7) === month)
             .reduce((s, p) => s + num(p.amount), 0);
         const overdueTot = overdue.reduce((s, p) => s + num(p.amount), 0);
         const next7 = P.filter((p) => {
-            if (p.status !== 'pending' || !p.dueDate) return false;
+            if (!unpaid(p) || !p.dueDate) return false;
             const d = (new Date(p.dueDate).getTime() - now) / DAY;
             return d >= 0 && d <= 7;
         }).reduce((s, p) => s + num(p.amount), 0);

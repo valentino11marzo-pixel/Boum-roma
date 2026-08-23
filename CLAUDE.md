@@ -78,7 +78,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `proppass.html` | Apple Wallet pass generator UI. Four pass types: viewing, tenant, referral, landlord. |
 | `pass-delivery.html` | Pass display page with animated gold-ring background and QR code. |
 | `index.html` | Landing page / homepage. |
-| `apartments.html` | Property listings page. |
+| `apartments.html` | Property listings page (discovery). La griglia è una FOTOGRAFIA di build (`design/pages-deco/costruisci-ad.py` su snapshot locali); in pagina l'**idrante** rilegge Firestore e aggiorna stato/prezzo/data delle card di build, e l'**innesto** COSTRUISCE la card per gli annunci nati dopo la build (es. wizard Telegram di sera) — stessa grammatica del builder, registrata nel setaccio via `window.__muroInnesta`: filtri e conto la vedono. Senza innesto un annuncio era "pubblicato e invisibile" (`/listing/:id` vivo, vetrina muta). Test: `node tests/vetrina/run.mjs`. |
 | `apartment-detail.html` | Dynamic single-property page (loads from Firestore). |
 | `boom_doc_parser.html` | AI document parser UI (uses Claude API). |
 | `risposte.html` | Le risposte rapide di WhatsApp Business (`/risposte`, admin, noindex): 48 messaggi pronti col tasto Copia, i due messaggi automatici, le etichette e la libreria link. Rende `js/whatsapp-replies.js` — nessun testo duplicato nella pagina. |
@@ -91,6 +91,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `tenant.html` | Tenant SPA. Realtime property + maintenance feed. |
 | `client-portal.html` | PFS client swipe app. Reads `pfsClients` collection. |
 | `pfs-command.html` | **La plancia unica del PFS** (admin): TUTTO il flusso Property Finding in una pagina. Pipeline per stage (giorni-in-stage, chip lenti in ambra) → fascicolo cliente a drawer (criteri, ricerche, mazzo con esiti/rimozione, attività, link portale con codice BM…, WhatsApp, cambio stage con la STESSA scrittura del portal) → creazione cliente (nasce col portale attivo) → feed radar con fiuto 💎/badge cluster/filtro occasioni + azione «→ Proponi a…» (push curato via `api/casafari/import`, conferma sulle agenzie) → strip occasioni (radarState) → ricerche automatiche + **vedette** (stessa collection della Centrale) → triage swipe, ⌘K, brief AI, salute fonti. |
+| `chiamate.html` | Il Centralino (admin, `/chiamate`). Ogni chiamata deviata in segreteria: audio, trascrizione, azione consigliata, WhatsApp one-tap con bozza. Backed by `api/phone/*`. |
 | `radar.html` | **La Centrale del Radar** (`/radar`, admin). Polso del mercato per zona, feed 💎 occasioni, candidati mandato, vedette (CRUD), Valutatore, gemelli cross-portale, salute fonti. Vedi "Il Radar 2.0". |
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
@@ -217,6 +218,14 @@ BUSY_ICS_URLS                # optional — ICS address(es) of the operator's
                              # copre gli UID anonimizzati di quella modalità
 TELEGRAM_BOT_TOKEN           # already used by api/telegram/*; pfs health alerts
 TELEGRAM_CHAT_ID
+
+# Il Centralino (api/phone/*)
+TWILIO_ACCOUNT_SID           # via A (segreteria): download audio (basic auth)
+TWILIO_AUTH_TOKEN            # + lookup chiamata; senza, si tenta il download
+                             # nudo e l'eventuale 401 finisce ANNOTATO sul doc
+ELEVENLABS_WEBHOOK_SECRET    # via B (receptionist): signing secret del
+                             # post-call webhook ElevenLabs (HMAC t=,v0= sui
+                             # byte grezzi). Senza, la porta rifiuta tutto.
 ```
 
 ## API Endpoints
@@ -1337,6 +1346,78 @@ ogni riga contratto ha **📑 Fascicolo** (genera/apre il PDF; se zona o mq
 mancano li chiede e li persiste su `contract.canoneScheda`) e **✓ RLI
 registrato** (stampa `rliRegisteredAt`, chiude la scadenza "Registrare
 RLI", rigenera il fascicolo — il loop registrazione si chiude in un tap).
+La scheda di pagina 1 ricalca la scheda di calcolo VERA dell'associazione
+(`reference/caf/2023_scheda_calcolo_canone_ASPI.docx`): stessi
+coefficienti di superficie, stessi 20 parametri nello stesso ordine,
+stesse maggiorazioni A–H, transitorio +10%. Le due opzioni a percentuale
+LIBERA del modulo (>120mq "possibilità di diminuzione fino a −15%",
+immobile vincolato/A1-A8) non sono automatizzate di proposito: sono
+concessioni da negoziare, non dati derivabili.
+
+### L'iter ASPI (`api/fiscal/registra.js` + `api/fiscal/_aspi.js`) — registrazione & asseverazione in UN tap
+LA DECISIONE È PRESA: il CAF/associazione è **ASPI** (referente Roberto
+Ubertini, geometra — Roma, via S. Nicola da Tolentino; fa anche gli APE),
+il canale è l'**email strutturata**. Prima l'operatore riceveva il
+fascicolo CAF nella PROPRIA casella e lo inoltrava a mano, ricordando ogni
+volta il corredo: identità + contratto per la registrazione (costo pratica
+**€37**), più APE + planimetria + scheda di calcolo canone per
+l'attestazione di rispondenza (**€100**). Ora:
+- **`POST /api/fiscal/registra`** (Bearer admin). `op:'status'` → la
+  fotografia per il pannello: checklist per ENTRAMBE le varianti (solo
+  registrazione / registrazione+asseverazione), prezzi/costi in vigore,
+  destinatario, stato invii. `op:'send' {contractId, kind, note?, bill?}`
+  → l'invio vero.
+- **`aspiChecklist()`** (esportata+testata) dice prima cosa parte e cosa
+  manca. UNA sola voce blocca: il PDF del contratto (una richiesta di
+  registrazione senza contratto è rumore). Tutto il resto — documento del
+  locatore, APE, CF — avverte, non blocca (lezione `checkSlot`), e i
+  mancanti viaggiano DICHIARATI nell'email ("Non ancora nel fascicolo") e
+  persistiti su `aspiRequestMissing`. Il canone FUORI fascia sulla scheda
+  è un warn esplicito: ASPI non può attestarlo. Per l'asseverazione, se il
+  Fascicolo Fiscale manca **nasce all'invio**.
+- **`sendAspiRequest()`**: email al referente con TUTTI gli allegati
+  (contratto firmato — o generato, dichiarandolo — certificato FES,
+  identità, e per l'asseverazione fascicolo/APE/planimetria/visura/delega;
+  budget 18MB, i link Storage nel corpo restano come rete), operatore
+  SEMPRE in copia (l'email è il registro), stato sul contratto
+  (`aspiRequestedAt/Kind/To/Missing/Count` + `registrationStatus:'sent'`,
+  che accende i badge della pagina Burocrazia — mai degradando un
+  `'registered'`).
+- **I €37/€100 diventano SERVIZI col markup** (il pattern del
+  concordato-pack): all'invio nasce la fattura al cliente —
+  `invoices/aspi_<kind>_<contractId>`, **idempotente per costruzione**
+  (fsCreate con id deterministico → 409 al re-invio: ripremere Invia
+  rimanda l'email, MAI una seconda fattura) — con l'importo di
+  `settings/registrazione` (default: registrazione **€89**, asseverazione
+  **€189**, completo €278; costi pratica 37/100/137 tracciati accanto).
+  Da lì il 💳 link di pagamento esistente incassa con carta.
+- **Manopole in `settings/registrazione`** (admin-only in LETTURA nelle
+  rules — contiene l'email personale del referente, lezione
+  settings/company): email, referente, cc, prezzi, costi, billTo
+  (landlord|tenant), autoInvoice, e **`auto`** — l'opt-in "zero tap": con
+  auto:true la richiesta parte DA SOLA alla firma completa (dentro
+  `_finalize.js`, dopo il fascicolo CAF, best-effort e time-boxed).
+  Default **false**: un invio a terzi che costa denaro resta una decisione
+  dell'operatore. I default vivono in `ASPI_DEFAULTS` (una copia sola,
+  console e server non possono divergere).
+- **Nel portal**: bottone **🏛 ASPI** sulla riga contratto (dettaglio) e
+  **🏛 Invia ad ASPI** in Burocrazia → pannello che legge TUTTO da
+  op:status (mai un prezzo hardcodato nel client), radio variante,
+  checklist live, checkbox fattura, nota, ✎ per cambiare destinatario.
+  `✓ RLI registrato` resta il tap che chiude il loop quando ASPI conferma.
+- Test: `node tests/aspi/run.mjs` (35 check).
+
+**La sanatoria del PDF stantio** (`ensureContractPdf`, stessa release):
+il rail di firma ora RIGENERA da solo un `generatedPDF` con
+`clauseVersion` < 2 quando NESSUNA firma è viva — prima un contratto
+creato con l'impaginato vecchio mostrava al firmatario il modello
+superato in "View full contract PDF" e solo un ⚠ nel dettaglio del
+portal suggeriva di rigenerare a mano. La guardia resta assoluta: con
+una firma viva il documento è congelato, qualunque versione porti.
+Copre invito (send-link/send-sign), prima apertura di /sign (lookup) e
+conversione. Il modello in vigore è VERBATIM il contratto tipo
+dell'associazione (`reference/contratto_tipo_STUDENTI_Roma_2023.doc`,
+prot. RA/2023/0044852 — stesso MD5 del file del referente).
 
 ### Journey consapevole (contesto nel `_run.js`)
 `steps()` riceve `missing`, `late` e `walletUrl`: il T-14 chiede PER NOME
@@ -1833,6 +1914,72 @@ insieme per giorni.
 Test: `node tests/whatsapp/run.mjs` (Firestore finto in memoria, si guida il
 handler vero; copre entrambi gli ordini della transizione, verificati per
 mutazione).
+
+### Il Centralino (`api/phone/*` + `/chiamate`) — la segreteria che lavora
+Su iPhone nessuna app può rispondere a una chiamata al posto dell'operatore —
+e non serve: la segreteria È già una **deviazione condizionale di rete**.
+Puntandola a un numero Twilio (`**004*<numero>#` dal tastierino: occupato +
+nessuna risposta + irraggiungibile in un colpo; `##004#` per tornare
+indietro; MAI `**21*` o l'inoltro di iOS, che devierebbero tutto), l'AI
+risponde SOLO quando l'operatore non può o rifiuta apposta (rifiuto =
+"occupato" per la rete). Rispondere di persona resta sempre possibile.
+- `POST /api/phone/inbound` — webhook Voice di Twilio. Auth `?k=<chiave
+  DERIVATA da HOMIE_SECRET>` (`phoneKey()` — nessun nuovo env, ruotare il
+  secret revoca il webhook) o X-Homie-Secret. Saluto bilingue che DICHIARA
+  l'assistente automatico e la registrazione (disclosure pinnata nei test),
+  poi `<Record>`; il doc `phoneCalls/<CallSid>` nasce SUBITO, così anche chi
+  riaggancia al bip resta visibile come chiamata persa. QUALSIASI intoppo
+  interno non impedisce mai di rispondere (il TwiML esce comunque).
+  `?setup=1` con Bearer admin → gli URL esatti da incollare su Twilio (la
+  chiave non si calcola a mano e non si regala: senza auth, 401).
+- `POST /api/phone/recording` (maxDuration 60) — recordingStatusCallback:
+  scarica l'audio (basic auth TWILIO_*), lo mette su Storage `phone-calls/`
+  (URL tokenizzato = credenziale di lettura della dashboard), trascrive
+  (Whisper, lingua AUTO — mai forzare 'it': i clienti parlano inglese),
+  riconosce il chiamante (`phoneVariants` su leads/users/pfsClients/clients:
+  un inquilino che chiama per la caldaia NON diventa un lead), analisi haiku
+  field-whitelisted (riassunto IT per l'operatore, intent, urgenza, azione
+  consigliata, bozza WhatsApp nella lingua VERA del chiamante via replyLang
+  — le parole battono la dichiarazione del modello), e per lo sconosciuto
+  vero un doc `leads` `source:'phone'` nello schema condiviso (dedupe per
+  persona con recentLeadByPhone) → da lì Brain → notify-pending →
+  Commerciale, gratis. Idempotente per costruzione (`processedAt` sul doc:
+  i retry di Twilio non duplicano lead né ping). Ogni anello è best-effort
+  TRANNE la scrittura del doc: Whisper/AI/Telegram giù → il doc esce
+  comunque con scritto cosa manca ("trascrizione non configurata" è
+  un'informazione, il silenzio è un bug). Senza trascrizione il placeholder
+  del lead è in INGLESE di proposito (replyLang legge lead.message — la
+  lezione di leads/scan-inbox). Ping Telegram DOPO il dato, mai al suo posto.
+- **LA RECEPTIONIST (via B — ElevenLabs Agents, `bot/RECEPTIONIST.md`)**:
+  la chiamata non finisce in segreteria, l'agente RISPONDE e conversa
+  (bilingue, disclosure in apertura). In chiamata usa
+  `GET /api/phone/agent-tools?k=&op=catalog|slots` — catalogo vero e slot da
+  `viewings/_avail.js`, la STESSA griglia di book.html/Telegram (una copia
+  sola: la voce non può promettere uno slot che la pagina negherebbe). NON
+  prenota a voce (una visita senza email = kit che non parte): propone lo
+  slot e promette il link su WhatsApp. A fine chiamata
+  `POST /api/phone/elevenlabs` (firma HMAC `elevenlabs-signature` t=,v0=
+  sui byte grezzi, bodyParser off, tolleranza 30′; `verifySignature`
+  esportata+testata) riceve `post_call_transcription` + `post_call_audio`
+  (audio PUSH base64 → Storage, eventi in QUALSIASI ordine, doc
+  `phoneCalls/el_<conversationId>` idempotente su processedAt) e consegna
+  alla STESSA pipeline di _lib.js. **La regola della lingua, qui doppia**:
+  nel transcript ci sono due voci — nel lead e in replyLang entrano SOLO i
+  turni del CHIAMANTE (l'agente parla anche italiano a un inglese: le sue
+  parole dentro lead.message farebbero rispondere il Commerciale nella
+  lingua sbagliata). Il riassunto ElevenLabs entra solo come fallback.
+- **`chiamate.html` (`/chiamate`)** — la dashboard admin (noindex,
+  no-store; nel portal: Console → 📞 Centralino): live su `phoneCalls`,
+  filtri (da gestire / lead / clienti / senza messaggio), per ogni chiamata
+  player audio, trascrizione (o dialogo 🤖/👤 per le chiamate receptionist,
+  badge 🤖), riassunto + azione consigliata, bottone WhatsApp con la bozza
+  già scritta, tel:, ✓ Gestita. Il pannello ⚙️ Attivazione contiene i
+  codici GSM e recupera dal server gli URL di ENTRAMBE le vie (`?setup=1`).
+  Una 'in-progress' vecchia di 5' è mostrata come "riagganciata senza
+  messaggio" — quello che sappiamo, senza inventare.
+- Rules: `phoneCalls` admin-only (firestore) + `phone-calls/` (storage —
+  senza il match, l'upload admin 403a: la lezione contracts/).
+- Test: `node tests/phone/run.mjs`.
 
 ### GET/POST `/api/leads/match-listing` — LA RICERCA ROVESCIATA
 L'asimmetria che nessuno sfruttava: si pubblica un annuncio e si **aspetta**
@@ -2531,6 +2678,64 @@ vuota). Il feed Immobiliare emette `<available-from>` **solo su data certa**
 `coreContent` del Pubblicista → l'hash cambia → l'update si mette in coda da
 sé per ogni portale.
 
+## La corsia del pre-blocco (`marketLane` in `js/dispo-engine.js`)
+
+**Il grosso del catalogo non si affitta oggi: si PRENOTA.** Sulle 26 case
+vere: 4 «si entra ora», **16 occupate con una data di rilascio nota**, 7
+affittate e basta. Eppure ogni superficie buttava via quella data — la
+vetrina diceva *«Waitlist open»*, la scheda *«the moment it frees up»*,
+llms *«currently occupied»*, e il JSON-LD dichiarava `InStock` una casa
+con dentro un inquilino. Il dato che vende (IL GIORNO in cui entri) non
+arrivava mai a chi programma un trasferimento con mesi di anticipo —
+studenti, expat, executive: il cuore del mercato BOOM.
+
+`marketLane()` deriva **tre corsie** da status + data, così l'operatore
+non deve tenere allineati due campi e le tre scritture che significano la
+stessa cosa convergono: `now` (entri adesso · *Apply*) · **`ahead`**
+(occupata ma con una data · *«Free from 1 Sep 2027» · Reserve*) ·
+`closed` (occupata e non sappiamo fino a quando · fuori mercato).
+`laneCopy()` tiene le parole in UN posto (badge, scheda, CTA, JSON-LD,
+llms, email Segugio non possono contraddirsi — la lezione di `pinCopy`).
+
+**Le quattro regole dure** (testate, verificate per mutazione):
+- **A.** `waitlist` è SEMPRE prenotabile: è la dichiarazione esplicita
+  dell'operatore. Senza data non diventa `closed`, diventa una promessa
+  più debole («Reserve ahead»).
+- **B.** `available` + data futura è `ahead`, non «libera ora». Sana da
+  sola il disallineamento vero trovato in produzione (il Bilocale Prati
+  era `available` + «1 Sept 2027» mentre l'operatore lo considerava
+  bloccato): **nessuno deve correggere niente a mano**.
+- **C.** `rented` entra in `ahead` SOLO con `availableFrom` — la data che
+  `magic-sign` scrive dal CONTRATTO alla firma — MAI con la sola
+  `availableDate`, testo libero che su una casa affittata è quasi sempre
+  il residuo di quando era libera (6 rented su 7 la portano già passata).
+  Prenotare su un residuo è la bugia peggiore: il cliente la scopre col
+  trasloco pronto.
+- **D.** Una data illeggibile non promette niente — né «libera ora» né una
+  prenotazione (regola 1 del file, ora applicata anche alla vetrina, dove
+  il parser python della build scriveva «Available now»).
+
+**L'anno che nessuno ha scritto** (`yearGuessed`): 10 case su 26 hanno la
+data senza anno («1 Aug», «Mar 1»). Il motore sceglie sempre il FUTURO
+(regola 2: far aspettare costa meno che mostrare una casa occupata) — ma
+ora lo **dichiara**. Se l'operatore intendeva l'anno scorso, quella casa
+è libera adesso e il sito la mostra bloccata fino al 2027: il pannello
+📅 Disponibilità le elenca in testa con un tap **«✓ Sì, è <data>»** che
+trasforma l'inferenza in ISO scritto. `audit()` le espone (`guessed`,
+`lanes`), e `/api/listings-availability` GET le mette in cima alla lista
+di lavoro, per il portal e per il bot.
+
+Superfici allineate: vetrina (idrante + innesto + builder python) ·
+scheda (CTA *Reserve from…* e lead `intent:'reserve'` invece di
+`waitlist` — l'operatore distingue «la vuole dal 1 settembre» da «gli
+piacerebbe, ma è occupata») · `api/listing.js` (JSON-LD **PreOrder** +
+`availabilityStarts`, noscript con la data) · `api/llms-listings.js` ·
+`api/search/matcher.js` (**il Segugio ora guarda la data di ingresso
+richiesta**: prima chi salvava «mi serve da settembre» riceveva le case
+libere adesso e NON quelle che si liberano a settembre) ·
+`api/feed/immobiliare.js` (`publishable` = corsia, non etichetta).
+Test: `node tests/prenota/run.mjs` (45 check).
+
 Test: `node tests/dispo/run.mjs` (112 check — le stringhe vere del catalogo,
 le trappole della lingua, la trasmissione e la sua guardia, le giunzioni
 asserite sulla sorgente, e il handler VERO su un Firestore in memoria: senza
@@ -2624,8 +2829,11 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/copy/run.mjs` | descrizioni: lo sweep riscrive i template del bot e le schede mute, ma **mai** le parole di un umano — verificato sulle stringhe vere del catalogo, dove il testo scritto a mano è più CORTO del template |
   | `tests/dispo/run.mjs` | date di disponibilità: una data illeggibile non diventa MAI "libera ora" (il difetto che metteva "Available now" su case libere a settembre), un messaggio aggiorna tutte le case, una data sola non si spalma su chi non è stato nominato, e la porta rifiuta ciò che le pagine non saprebbero rileggere |
   | `tests/geo/run.mjs` | precisione dei pin (`js/boom-geo.js`): portone (via+civico), strada, quartiere o niente — sulle stringhe `geo.q` vere del catalogo, incluso il caso insidioso `src:'nominatim'` su `q:'Prati, Roma'` |
+  | `tests/prenota/run.mjs` | la corsia del pre-blocco: una casa occupata con data nota si PRENOTA e la data si vede ovunque (era «Waitlist open»), l'affittata si apre SOLO col contratto (`availableFrom`) e mai su una `availableDate` residua, l'illeggibile non promette niente, e l'anno dedotto dal motore viene dichiarato all'operatore invece di passare per un fatto. Regole C e D verificate per mutazione |
+  | `tests/vetrina/run.mjs` | l'innesto della vetrina (Chromium vero su apartments.html servita): un annuncio nato DOPO la build appare, è contato e i filtri veri lo mordono (zona via hash, ricerca libera, cuore); la data testo libero passa dal motore condiviso («1 Sept 2027» → «Free from», mai «Available now»); senza foto di casa nostra o con stato ignoto la carta NON nasce; le card di build continuano ad aggiornarsi. Verificato per mutazione |
   | `tests/scheda/run.mjs` | La Scheda: token derivati (ruolo nella derivazione, timing-safe), precedenza prefill contratto→sign→wizard, lock post-firma, sync profilo su ENTRAMBI gli schemi users, upload con OCR che non blocca mai, /api/profile/link autorizzato |
   | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot |
+  | `tests/aspi/run.mjs` | l'iter ASPI: la checklist blocca SOLO senza contratto (il resto avverte, dichiarato nell'email), l'invio raggiunge il referente con l'operatore in copia e gli allegati veri, la fattura col markup non si duplica MAI (id deterministico), 'registered' non si degrada, l'auto-invio parte solo con la manopola girata |
   | `tests/viewings/avail.mjs` | griglia slot: passi, gap 15', preavviso, orizzonte, maxPerDay, DST, token del link cliente |
   | `tests/viewings/telegram.mjs` | card Telegram visite: callback ≤64 byte, escaping HTML |
   | `tests/viewings/busyics.mjs` | il calendario Workspace nella griglia: impegni ICS bloccano gli slot (TZID, ricorrenze, EXDATE, RECURRENCE-ID, all-day busy/free), eventi BOOM filtrati, maxPerDay immune, cache + fail-open |
@@ -2640,6 +2848,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/whatsapp/replies.mjs` | Le risposte rapide di WhatsApp: un messaggio che si manda a occhi chiusi mille volte non può contenere un link morto (le rotte si deducono dal repo, non da una lista), i prezzi non possono divergere da `api/_catalog.js`, il link recensione apre le stelline e non la scheda Maps, e il documento in `docs/` non può restare indietro |
   | `tests/radar/run.mjs` | Il Radar 2.0: vie diverse non si fondono MAI (il falso gemello nasconde una casa al cliente), stessa-fonte esige un segnale identitario, il fiuto tace senza campione e chiama 'sospetto' le truffe, le vedette vedono solo il futuro e mai due volte la stessa casa, il Valutatore corregge sui canoni FIRMATI e dichiara le basi, e col radar ROTTO l'ingestione PFS spinge comunque — il giro vero su Firestore in memoria, digest email compreso |
   | `tests/whatsapp/run.mjs` | Da WhatsApp a lead senza AI: il rumore resta fuori (👍, "ok") e la persona vera entra, l'inquilino che scrive per la caldaia non inquina la pipeline, un lead per persona anche col numero archiviato in formato diverso (nazionale vs internazionale), una risposta umana zittisce il Commerciale. Guida il handler VERO su un Firestore finto in memoria |
+  | `tests/phone/run.mjs` | Il Centralino, entrambe le porte. Segreteria: chiave derivata mai regalata, disclosure GDPR pinnata nel saluto, retry Twilio senza doppioni, Whisper/AI/Telegram giù non perdono MAI la chiamata. Receptionist ElevenLabs: firma HMAC rifiutata (anche stantia) senza scritture, nel lead SOLO le parole del CHIAMANTE (mai quelle dell'agente — la lingua della bozza esce dalle sue parole), audio e trascrizione in QUALSIASI ordine, tools in chiamata con auth e catalogo che esclude gli affittati. Handler veri su Firestore in memoria + giunzioni asserite sui file |
   | `tests/whatsapp/demand.mjs` | Il misuratore della domanda: ogni intenzione dimostra di saper riconoscere una frase vera (un pattern inerte sotto-conta in SILENZIO), "business" non diventa una domanda sui bus, la classifica è per tempo risparmiato e non per frequenza, sotto campione niente percentuali, e ciò che il motore non sa nominare esce con le parole vere |
   | `tests/miniera/run.mjs` | La Miniera: il join aggancia la persona in OGNI forma del numero (parità con `_lead.js`, JID senza `+` guarito), i veti del libro dei silenzi (inquilini/firmati/morti/oltre 120gg MAI nel re-ingaggio), sotto campione NIENTE percentuali (per mutazione), il verdetto motivato coi numeri, parità cross-linguaggio con l'estrattore Python, handler vero su Firestore in memoria |
   | `tests/wizard/local_brain.py` | Il cervello gratis del bot wizard (`python3`): cosa capisce senza modello e — più importante — cosa deve rifiutarsi di capire. Una domanda ("Levico è affittato?") non può diventare una scrittura; un annuncio nuovo dettato non può diventare la modifica di uno esistente. Estrae le funzioni pure dal bot via AST: gira senza `.env`, senza Telegram, senza rete |

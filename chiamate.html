@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<script src="/js/boom-err.js"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>Centralino · BOOM</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- Font async: su Safari uno stylesheet sincrono verso fonts.googleapis.com blocca il primo paint -->
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" media="print" onload="this.media='all'">
+<noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"></noscript>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-config.js"></script>
+<script src="/js/boom-portal.js"></script>
+
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --gold: #D4AF37; --gold-light: rgba(212,175,55,0.15);
+  --bg: #000; --bg-card: #0A0A0A; --bg-elevated: #141414; --bg-input: #1A1A1A;
+  --border: rgba(255,255,255,0.08); --text: #FFF; --text-secondary: #999; --text-muted: #555;
+  --green: #00D26A; --amber: #F5A524; --red: #F31260; --blue: #3B9EFF;
+}
+body { font-family: 'Inter','Helvetica Neue',sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; -webkit-font-smoothing: antialiased; }
+.wrap { max-width: 860px; margin: 0 auto; padding: 24px 18px 90px; }
+header { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 8px; }
+header h1 { font-size: 20px; font-weight: 300; letter-spacing: 4px; }
+header h1 b { color: var(--gold); font-weight: 600; }
+header a { color: var(--text-secondary); font-size: 12px; text-decoration: none; }
+header a:hover { color: var(--gold); }
+.sub { color: var(--text-muted); font-size: 12px; margin-bottom: 18px; }
+
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+.stat { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; }
+.stat .n { font-size: 22px; font-weight: 600; color: var(--gold); }
+.stat .l { font-size: 10.5px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--text-secondary); margin-top: 2px; }
+
+.chips { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.chip { padding: 6px 14px; border-radius: 999px; font-size: 12px; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-secondary); cursor: pointer; user-select: none; }
+.chip.on { background: var(--gold-light); border-color: var(--gold); color: var(--gold); }
+
+.call { background: var(--bg-card); border: 1px solid var(--border); border-left: 3px solid var(--text-muted); border-radius: 14px; padding: 14px 16px; margin-bottom: 10px; }
+.call.new { border-left-color: var(--gold); }
+.call.lead { border-left-color: var(--green); }
+.call.nomsg { border-left-color: var(--text-muted); opacity: .75; }
+.call.done { border-left-color: var(--border); opacity: .6; }
+.chead { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.cname { font-size: 14px; font-weight: 600; }
+.cwhen { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+.badges { margin: 4px 0 0; display: flex; gap: 6px; flex-wrap: wrap; }
+.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 10px; background: var(--bg-elevated); border: 1px solid var(--border); color: var(--text-secondary); }
+.badge.gold { background: var(--gold-light); border-color: var(--gold); color: var(--gold); }
+.badge.green { border-color: var(--green); color: var(--green); }
+.badge.red { border-color: var(--red); color: var(--red); }
+.csum { font-size: 12.5px; color: var(--text); margin-top: 8px; line-height: 1.5; }
+.cnote { font-size: 11.5px; color: var(--text-muted); margin-top: 6px; }
+.call audio { width: 100%; margin-top: 10px; height: 36px; }
+details.tr { margin-top: 8px; }
+details.tr summary { font-size: 11px; color: var(--text-secondary); cursor: pointer; }
+details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-left: 2px solid var(--border); padding: 6px 10px; margin-top: 6px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+.acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.btn { display: inline-block; padding: 8px 14px; border-radius: 10px; font-size: 12px; font-weight: 500; text-decoration: none; cursor: pointer; border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text); min-height: 20px; }
+.btn.gold { background: var(--gold); color: #000; border-color: var(--gold); font-weight: 600; }
+.btn.quiet { color: var(--text-secondary); }
+.btn:hover { border-color: var(--gold); }
+.empty { color: var(--text-muted); font-size: 12.5px; padding: 20px 4px; }
+
+.setup { background: var(--bg-card); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; margin-top: 26px; }
+.setup summary { font-size: 12px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; color: var(--text-secondary); cursor: pointer; }
+.setup .body { font-size: 12.5px; color: var(--text-secondary); line-height: 1.7; margin-top: 10px; }
+.setup code { background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 1px 7px; font-size: 12px; color: var(--gold); word-break: break-all; }
+#loading { color: var(--text-muted); font-size: 13px; padding: 40px 0; text-align: center; }
+@media (max-width: 520px) { .stats { grid-template-columns: repeat(3, 1fr); gap: 6px; } .stat { padding: 10px; } .stat .n { font-size: 18px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><b>BOOM</b> · CENTRALINO</h1>
+    <nav><a href="/portal">← Portal</a> &nbsp;·&nbsp; <a href="/team">Squadra</a> &nbsp;·&nbsp; <a href="/salute">Salute</a></nav>
+  </header>
+  <p class="sub">Ogni chiamata deviata: segreteria che registra o receptionist AI che conversa — audio, trascrizione, azione consigliata. Il lead nasce da solo; qui si ascolta e si risponde con un tocco. Live.</p>
+
+  <div id="loading">Caricamento…</div>
+  <div id="content" style="display:none">
+    <div class="stats">
+      <div class="stat"><div class="n" id="stToday">0</div><div class="l">Oggi</div></div>
+      <div class="stat"><div class="n" id="stWeek">0</div><div class="l">7 giorni</div></div>
+      <div class="stat"><div class="n" id="stOpen">0</div><div class="l">Da gestire</div></div>
+    </div>
+
+    <div class="chips" id="chips">
+      <span class="chip on" data-f="open">Da gestire</span>
+      <span class="chip" data-f="all">Tutte</span>
+      <span class="chip" data-f="lead">Lead</span>
+      <span class="chip" data-f="known">Clienti</span>
+      <span class="chip" data-f="nomsg">Senza messaggio</span>
+    </div>
+
+    <div id="list"></div>
+
+    <details class="setup">
+      <summary>⚙️ Attivazione (una volta sola)</summary>
+      <div class="body">
+        <b style="color:var(--text)">1 · Il numero che risponde.</b> Compra un numero vocale su Twilio e, nella sua Voice Configuration, imposta "A call comes in" = Webhook <b>POST</b> con l'URL qui sotto.<br>
+        <span id="setupUrl"><button class="btn quiet" id="setupBtn" style="margin:6px 0">Mostra URL webhook</button></span><br>
+        <b style="color:var(--text)">2 · L'iPhone devia solo quando serve.</b> Dal tastierino (sulla SIM giusta):<br>
+        <code>**004*&lt;numero Twilio&gt;#</code> — attiva occupato + nessuna risposta + irraggiungibile in un colpo.<br>
+        Verifica: <code>*#004#</code> · Disattiva tutto: <code>##004#</code>. Rifiutare una chiamata (doppio tasto laterale) = "occupato" → segreteria. Rispondere tu = l'assistente non entra mai. <b>Mai</b> usare <code>**21*</code> o l'inoltro nelle Impostazioni iOS: devierebbe tutto.<br>
+        <b style="color:var(--text)">3 · Env su Vercel.</b> <code>TWILIO_ACCOUNT_SID</code> + <code>TWILIO_AUTH_TOKEN</code> (download audio); <code>OPENAI_API_KEY</code> per la trascrizione (già usato dal wizard). Nota: questa deviazione sostituisce la segreteria del gestore.
+      </div>
+    </details>
+  </div>
+</div>
+
+<script>
+(async () => {
+  await BoomPortal.requireAuth(['admin'], { loginUrl: '/login' });
+  const db = firebase.firestore();
+
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const toDate = (v) => { try { return v && v.toDate ? v.toDate() : (v ? new Date(v) : null); } catch { return null; } };
+  const ago = (v) => {
+    const d = toDate(v);
+    if (!d || isNaN(d)) return '';
+    const m = Math.round((Date.now() - d.getTime()) / 60000);
+    if (m < 1) return 'adesso';
+    if (m < 60) return m + ' min fa';
+    if (m < 48 * 60) return Math.round(m / 60) + ' h fa';
+    return d.toLocaleDateString('it-IT', { day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const TYPE_BADGE = { tenant: '🏠 Inquilino', landlord: '🔑 Proprietario', pfs: '🎯 Cliente PFS', client: '👤 Cliente', lead: '📇 Lead' };
+  const ACT_LABEL = { whatsapp: '💬 Rispondi su WhatsApp', richiama: '📞 Da richiamare', visita: '📅 Vuole una visita', manutenzione: '🔧 Manutenzione', niente: '—' };
+
+  let calls = [];
+  let filter = 'open';
+
+  // Una chiamata 'in-progress' vecchia = riagganciata prima del bip (o il
+  // callback non è arrivato): si mostra per quello che sappiamo, senza inventare.
+  const effStatus = (c) => {
+    if (c.status === 'in-progress') {
+      const d = toDate(c.createdAt);
+      if (d && Date.now() - d.getTime() > 5 * 60000) return 'no-message';
+    }
+    return c.status || 'in-progress';
+  };
+  const isOpen = (c) => !c.handled && effStatus(c) === 'received';
+
+  function render() {
+    const now = Date.now();
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    document.getElementById('stToday').textContent = calls.filter((c) => { const d = toDate(c.createdAt); return d && d >= today; }).length;
+    document.getElementById('stWeek').textContent = calls.filter((c) => { const d = toDate(c.createdAt); return d && now - d.getTime() < 7 * 86400e3; }).length;
+    document.getElementById('stOpen').textContent = calls.filter(isOpen).length;
+
+    const rows = calls.filter((c) => {
+      const st = effStatus(c);
+      if (filter === 'open') return isOpen(c);
+      if (filter === 'lead') return !!c.leadId;
+      if (filter === 'known') return ['tenant', 'landlord', 'pfs', 'client'].includes(c.callerType);
+      if (filter === 'nomsg') return st === 'no-message';
+      return true;
+    });
+
+    document.getElementById('list').innerHTML = rows.map((c) => {
+      const st = effStatus(c);
+      const cls = c.handled ? 'done' : (st === 'no-message' ? 'nomsg' : (c.leadCreated ? 'lead' : 'new'));
+      const name = c.callerName || c.from || 'Numero nascosto';
+      const badges = [];
+      if (c.source === 'elevenlabs') badges.push('<span class="badge gold">🤖 Receptionist AI</span>');
+      if (TYPE_BADGE[c.callerType]) badges.push('<span class="badge">' + TYPE_BADGE[c.callerType] + '</span>');
+      if (c.leadCreated) badges.push('<span class="badge green">🆕 Lead creato</span>');
+      else if (c.leadId) badges.push('<span class="badge green">↺ Lead aggiornato</span>');
+      if (c.propertyTitle) badges.push('<span class="badge gold">🏡 ' + esc(c.propertyTitle) + '</span>');
+      if (c.urgency === 'high') badges.push('<span class="badge red">⚡ urgente</span>');
+      if (c.suggestedAction && ACT_LABEL[c.suggestedAction] && st === 'received') badges.push('<span class="badge gold">' + ACT_LABEL[c.suggestedAction] + '</span>');
+      if (st === 'no-message') badges.push('<span class="badge">☎️ riagganciata senza messaggio</span>');
+      if (c.transcriptStatus && c.transcriptStatus !== 'ok' && st === 'received') badges.push('<span class="badge">🎧 solo audio (trascrizione ' + esc(c.transcriptStatus === 'unavailable' ? 'non configurata' : 'fallita') + ')</span>');
+
+      const digits = String(c.from || '').replace(/\D/g, '');
+      const wa = digits ? 'https://wa.me/' + digits + (c.draftReply ? '?text=' + encodeURIComponent(c.draftReply) : '') : null;
+      const acts = [];
+      if (wa && st === 'received') acts.push('<a class="btn gold" target="_blank" rel="noopener" href="' + wa + '">💬 WhatsApp</a>');
+      if (c.from) acts.push('<a class="btn" href="tel:' + esc(c.from) + '">📞 Chiama</a>');
+      if (c.leadId) acts.push('<a class="btn quiet" href="/portal" title="Lead ' + esc(c.leadId) + '">→ Portal</a>');
+      acts.push(c.handled
+        ? '<span class="btn quiet" data-h="0" data-id="' + esc(c.id) + '">↩︎ Riapri</span>'
+        : '<span class="btn" data-h="1" data-id="' + esc(c.id) + '">✓ Gestita</span>');
+
+      return '<div class="call ' + cls + '">' +
+        '<div class="chead"><span class="cname">' + esc(name) + '</span><span class="cwhen">' + esc(ago(c.createdAt)) + (c.durationSec ? ' · ' + c.durationSec + 's' : '') + '</span></div>' +
+        (c.callerName && c.from && c.callerName !== c.from ? '<div class="cnote">' + esc(c.from) + '</div>' : '') +
+        (badges.length ? '<div class="badges">' + badges.join('') + '</div>' : '') +
+        (c.summary && st === 'received' ? '<div class="csum">🧠 ' + esc(c.summary) + '</div>' : '') +
+        (c.audioUrl ? '<audio controls preload="none" src="' + esc(c.audioUrl) + '"></audio>'
+          : (c.audioError && st === 'received' ? '<div class="cnote">⚠️ audio non recuperato (' + esc(c.audioError) + ')</div>' : '')) +
+        (c.transcript ? '<details class="tr"><summary>Trascrizione</summary><blockquote>' + esc(c.transcript) + '</blockquote></details>' : '') +
+        (c.draftReply && st === 'received' && !c.handled ? '<details class="tr"><summary>Bozza risposta (' + esc(c.language || 'en') + ')</summary><blockquote>' + esc(c.draftReply) + '</blockquote></details>' : '') +
+        '<div class="acts">' + acts.join('') + '</div>' +
+        '</div>';
+    }).join('') || '<div class="empty">' + (filter === 'open' ? 'Niente da gestire. 🎉' : 'Nessuna chiamata qui.') + '</div>';
+  }
+
+  document.getElementById('chips').addEventListener('click', (e) => {
+    const chip = e.target.closest('.chip');
+    if (!chip) return;
+    filter = chip.dataset.f;
+    document.querySelectorAll('.chip').forEach((c) => c.classList.toggle('on', c === chip));
+    render();
+  });
+
+  document.getElementById('list').addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-h]');
+    if (!b) return;
+    const handled = b.dataset.h === '1';
+    try {
+      await db.collection('phoneCalls').doc(b.dataset.id).update({ handled, handledAt: handled ? new Date().toISOString() : null });
+      BoomPortal.toast && BoomPortal.toast(handled ? 'Segnata come gestita' : 'Riaperta');
+    } catch (err) { BoomPortal.toast ? BoomPortal.toast('Errore: ' + err.message) : alert(err.message); }
+  });
+
+  // ── setup: l'URL webhook lo calcola il server (la chiave non vive nel browser)
+  document.getElementById('setupBtn').addEventListener('click', async () => {
+    const el = document.getElementById('setupUrl');
+    el.textContent = 'Recupero…';
+    try {
+      const tok = await firebase.auth().currentUser.getIdToken();
+      const r = await fetch('/api/phone/inbound?setup=1', { headers: { Authorization: 'Bearer ' + tok } });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error || r.status);
+      el.innerHTML = '<code>' + esc(d.voiceUrl) + '</code>';
+    } catch (err) { el.innerHTML = '<span style="color:var(--red)">Non recuperato: ' + esc(err.message) + '</span>'; }
+  });
+
+  // ── live: la collection è nostra, ogni doc ha createdAt → orderBy sicuro
+  BoomPortal.listen(
+    db.collection('phoneCalls').orderBy('createdAt', 'desc').limit(120),
+    (snap) => {
+      calls = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('content').style.display = '';
+      render();
+    },
+    (err) => {
+      document.getElementById('loading').textContent = 'Lettura non riuscita: ' + err.message;
+    }
+  );
+
+  // Rete di sicurezza (lezione watchPAs): canale muto ≠ pagina vuota.
+  setTimeout(async () => {
+    if (document.getElementById('content').style.display !== 'none') return;
+    try {
+      const snap = await db.collection('phoneCalls').orderBy('createdAt', 'desc').limit(120).get();
+      calls = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      document.getElementById('loading').style.display = 'none';
+      document.getElementById('content').style.display = '';
+      render();
+    } catch (e) {
+      document.getElementById('loading').textContent = 'Il canale non risponde: ' + e.message;
+    }
+  }, 6000);
+})();
+</script>
+</body>
+</html>

@@ -20,6 +20,7 @@ import { fsCreate, fsPatch, fsGet, getAdminToken } from '../homie/_lib.js';
 import { sendWelcomeEmails, sendCafDossier } from './_notify.js';
 import { buildFascicolo } from '../fiscal/fascicolo.js';
 import { buildRegistrationPack } from './_pack.js';
+import { maybeAutoAspi } from '../fiscal/_aspi.js';
 // pdf-lib is imported lazily inside buildCertificate so a load failure only
 // skips the certificate — obligations, magic link and welcome emails still run.
 
@@ -241,9 +242,22 @@ export async function finalizeContract(contract){
   const tenantEmail = !!(welcome && welcome.tenant);
   const landlordEmail = !!(welcome && welcome.landlord);
 
+  // ── L'iter ASPI in automatico (opt-in: settings/registrazione.auto) ──
+  // DOPO welcome + fascicolo CAF: la richiesta al referente ASPI parte da
+  // sola SOLO se l'operatore ha girato la manopola (default off — un invio
+  // a terzi che costa denaro resta una sua decisione). Best-effort e
+  // time-boxed: non allunga mai la firma oltre il budget.
+  let aspi = null;
+  try {
+    aspi = await Promise.race([
+      maybeAutoAspi(contract, { signedPdfUrl, certUrl, fascicoloUrl }),
+      new Promise(resolve => setTimeout(() => resolve({ skipped: 'timeout' }), 20000)),
+    ]);
+  } catch (e) { console.warn('[finalize] aspi auto:', e.message); }
+
   try { await fsPatch(`contracts/${contract.id}`, { finalizedAt: now, magicLinkId: magicId, signingCertificateUrl: certUrl, ...(signedPdfUrl ? { signedPdfUrl } : {}), ...(timestampUrl ? { timestampTsrUrl: timestampUrl } : {}) }); } catch(e){ console.warn('[finalize] mark failed:', e.message); }
 
-  return { ok:true, obligations: created, certificate: !!certUrl, signedPdf: !!signedPdfUrl, timestamp: !!timestampUrl, pack: !!pack.url, packMissing: pack.missing, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok) };
+  return { ok:true, obligations: created, certificate: !!certUrl, signedPdf: !!signedPdfUrl, timestamp: !!timestampUrl, pack: !!pack.url, packMissing: pack.missing, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok), aspi: aspi && aspi.ok ? aspi.kind : (aspi && aspi.skipped) || false };
 }
 
 // ── Firebase Storage upload (admin token) ──

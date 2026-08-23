@@ -158,6 +158,15 @@ service firebase.storage {
       allow read, write: if isAdmin();
     }
 
+    // ─── phone-calls/** ───────────────────────────────────────────────
+    // Audio dei messaggi in segreteria (api/phone/recording.js), caricati
+    // server-side con il token admin — Storage applica le rules anche a lui,
+    // quindi senza questo match ogni upload 403a (la lezione contracts/).
+    // La dashboard /chiamate ascolta via URL tokenizzato ?alt=media&token=.
+    match /phone-calls/{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+
     // ─── smistatore/{fiscalYear}/** ───────────────────────────────────
     // Lo Smistatore's filed documents (api/documents/_smista.js): photos/PDFs
     // sent via Telegram or forwarded email, uploaded server-side with the

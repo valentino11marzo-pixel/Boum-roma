@@ -4045,6 +4045,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (r === 'admin') {
             const activeClients = (S.clients || []).filter(c => !['completed', 'lost'].includes(c.stage)).length;
             const pendingInv = S.invoices.filter(i => i.status === 'pending').length;
+        // Il badge di Burocrazia si legge dai CONTRATTI, non da
+        // contractRegistrationStatus: quello si carica solo aprendo la
+        // pagina, quindi al boot la sidebar taceva proprio mentre una
+        // registrazione correva verso i 30 giorni.
+        const daRegistrare = (S.contracts || []).filter(c =>
+            (c.signatureStatus === 'complete' || (c.tenantSignature && c.landlordSignature))
+            && (c.registrationStatus || 'pending') !== 'registered' && !c.rliRegisteredAt).length;
+
             const openMaint = S.maintenance.filter(m => m.status !== 'resolved' && m.status !== 'closed' && m.status !== 'done').length;
             const overduePayments = S.payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate)).length;
             const urgentDeadlines = (S.deadlines || []).filter(d => d.status !== 'done' && daysUntil(d.date) !== null && daysUntil(d.date) <= 7).length + (S.tasks || []).filter(t => t.status !== 'done' && t.priority === 'urgent').length;
@@ -4069,6 +4077,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div class="nav-section"><div class="nav-label">Gestione</div>
                     <div class="nav-item ${S.page==='properties'?'active':''}" onclick="goTo('properties')"><span class="nav-icon">🏠</span> Immobili</div>
                     <div class="nav-item ${S.page==='contracts'?'active':''}" onclick="goTo('contracts')"><span class="nav-icon">📋</span> Contratti</div>
+                    <div class="nav-item ${S.page==='burocrazia'?'active':''}" onclick="goTo('burocrazia')" title="Registrazioni RLI, asseverazioni ASPI, archivio contratti"><span class="nav-icon">📝</span> Burocrazia ${daRegistrare?`<span class="nav-badge orange">${daRegistrare}</span>`:''}</div>
                     <div class="nav-item" onclick="window.open('/pre-agreement-admin.html','_blank')"><span class="nav-icon">🖋️</span> Pre-agreement <span class="nav-badge gold">L'ATTO</span></div>
                     <div class="nav-item ${S.page==='payments'?'active':''}" onclick="goTo('payments')"><span class="nav-icon">💳</span> Pagamenti ${overduePayments?`<span class="nav-badge">${overduePayments}</span>`:''}</div>
                     <div class="nav-item ${S.page==='maintenance'?'active':''}" onclick="goTo('maintenance')"><span class="nav-icon">🔧</span> Manutenzione ${openMaint?`<span class="nav-badge">${openMaint}</span>`:''}</div>
@@ -4078,7 +4087,6 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div class="nav-section"><div class="nav-label">Tools</div>
                     <div class="nav-item ${S.page==='boom-tools'?'active':''}" onclick="goTo('boom-tools')"><span class="nav-icon">🛠️</span> Tools <span class="nav-badge gold">PRO</span></div>
                     <div class="nav-item ${S.page==='photo-studio'?'active':''}" onclick="goTo('photo-studio')"><span class="nav-icon">📸</span> Photo Studio</div>
-                    <div class="nav-item ${S.page==='burocrazia'?'active':''}" onclick="goTo('burocrazia')"><span class="nav-icon">📝</span> Burocrazia ${S.regPending?`<span class="nav-badge orange">${S.regPending}</span>`:''}</div>
                     <div class="nav-item" onclick="window.open('/scheda-canone.html','_blank')"><span class="nav-icon">📐</span> Scheda Canone</div>
                     <div class="nav-item ${S.page==='underwriting'?'active':''}" onclick="goTo('underwriting')"><span class="nav-icon">📊</span> Rischio · Shield</div>
                     <div class="nav-item ${S.page==='relet'?'active':''}" onclick="goTo('relet')"><span class="nav-icon">🏘️</span> Zero-Vacancy</div>
@@ -4090,6 +4098,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
                 <div class="nav-section"><div class="nav-label">Console</div>
                     <div class="nav-item ${S.page==='squadra'?'active':''}" onclick="goTo('squadra')"><span class="nav-icon">🤖</span> La Squadra</div>
+                    <div class="nav-item" onclick="window.open('/chiamate','_blank')"><span class="nav-icon">📞</span> Centralino</div>
                     <div class="nav-item" onclick="window.open('/banca','_blank')"><span class="nav-icon">🏦</span> Banca &amp; Fisco</div>
                     <div class="nav-item" onclick="window.open('/pfs-command','_blank')"><span class="nav-icon">🛰️</span> PFS Command</div>
                     <div class="nav-item" onclick="window.open('/photo-lab','_blank')"><span class="nav-icon">🎞️</span> Photo Lab</div>
@@ -15098,16 +15107,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // stesso ritmo piano→conferma. Il bot è una tastiera in più, non un
         // secondo cervello — così quando è giù (e lo è stato) la funzione resta.
         if (type === 'availability') {
-            const a = window.BOOM_DISPO ? BOOM_DISPO.audit(S.listings) : { gaps: [], total: 0 };
+            const a = window.BOOM_DISPO ? BOOM_DISPO.audit(S.listings) : { gaps: [], guessed: [], total: 0, lanes: {} };
+            // Si mostra la CORSIA — cioè quello che il cliente legge davvero
+            // sulla card — e non più il solo `kind`: una casa affittata col
+            // contratto che dichiara la fine è PRENOTABILE, e prima non
+            // compariva affatto in questa lista (filtrata su status).
             const rows = (S.listings || [])
-                .filter(l => String(l.status || '').toLowerCase() !== 'rented')
-                .map(l => ({ l, r: BOOM_DISPO.resolve(l) }))
-                .sort((x, y) => (x.r.kind === 'unknown' ? 0 : 1) - (y.r.kind === 'unknown' ? 0 : 1)
-                    || String(x.l.name || '').localeCompare(String(y.l.name || '')))
-                .map(({ l, r }) => `<tr>
+                .map(l => ({ l, r: BOOM_DISPO.resolve(l), m: BOOM_DISPO.marketLane(l) }))
+                .filter(({ m }) => m.lane !== 'closed')
+                .sort((x, y) => {
+                    // la lista di lavoro: prima i buchi, poi gli anni dedotti
+                    const rank = (o) => (o.r.kind === 'unknown' ? 0 : o.m.yearGuessed ? 1 : 2);
+                    return rank(x) - rank(y)
+                        || String(x.l.name || '').localeCompare(String(y.l.name || ''));
+                })
+                .map(({ l, r, m }) => `<tr${m.yearGuessed ? ' style="background:rgba(245,166,35,0.06)"' : ''}>
                     <td><strong style="color:var(--text)">${esc(l.name || l.id)}</strong><br><small style="color:var(--text-muted)">${esc(l.zone || '')}</small></td>
-                    <td><span class="badge ${r.kind === 'unknown' ? 'orange' : r.kind === 'now' ? 'green' : 'gray'}">${r.kind === 'unknown' ? '❓ da concordare' : r.kind === 'now' ? '🟢 subito' : '📅 ' + r.iso}</span></td>
-                    <td><input type="date" class="form-input" style="padding:6px;font-size:12px" value="${r.iso || ''}" onchange="setAvailability('${l.id}', this.value)"></td>
+                    <td><span class="badge ${r.kind === 'unknown' ? 'orange' : m.lane === 'now' ? 'green' : 'gray'}">${esc(BOOM_DISPO.laneCopy(m, 'it').short)}</span>${m.yearGuessed ? `<br><small style="color:#f5a623">⚠️ hai scritto "${esc(m.source === 'availableFrom' ? (l.availableFrom || '') : (l.availableDate || ''))}" — l'anno l'abbiamo dedotto noi</small>` : ''}</td>
+                    <td><input type="date" class="form-input" style="padding:6px;font-size:12px" value="${r.iso || ''}" onchange="setAvailability('${l.id}', this.value)">${m.yearGuessed ? `<br><button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;margin-top:4px" onclick="setAvailability('${l.id}','${r.iso}')">✓ Sì, è ${esc(r.iso)}</button>` : ''}</td>
                 </tr>`).join('');
             return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">📅 Disponibilità</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body">
                 <div class="form-group">
@@ -15118,6 +15135,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div style="display:flex;gap:8px;margin-bottom:16px"><button class="btn" onclick="planAvailability()">Leggi il messaggio</button><button class="btn btn-secondary" id="availApply" style="display:none" onclick="applyAvailability()">✓ Conferma e scrivi</button></div>
                 <div id="availPlan"></div>
                 ${a.gaps.length ? `<div class="alert warning mb-8"><span class="alert-icon">❓</span><div class="alert-content"><div class="alert-title">${a.gaps.length} senza data</div><div class="alert-text">Su queste la vetrina dice "Ask us" — onesto, ma una data reale converte di più.</div></div></div>` : ''}
+                ${a.guessed && a.guessed.length ? `<div class="alert danger mb-8"><span class="alert-icon">⚠️</span><div class="alert-content"><div class="alert-title">${a.guessed.length} date con l'anno dedotto da noi</div><div class="alert-text">Hai scritto il giorno e il mese ma non l'anno (es. "1 luglio"), e il motore sceglie sempre <b>il futuro</b> — perché mettere in vetrina una casa ancora occupata è peggio che far aspettare. Ma se intendevi l'anno scorso, quella casa è <b>libera adesso</b> e il sito la sta mostrando come bloccata fino al ${esc(String((a.guessed[0] || {}).reads || '').slice(0, 4))}. Confermale qui sotto (bastano un paio di tap) e nessuno dovrà più indovinare.</div></div></div>` : ''}
+                ${a.lanes ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+                    <span class="badge green">🟢 ${a.lanes.now || 0} si entra ora</span>
+                    <span class="badge gray">📅 ${a.lanes.ahead || 0} si prenotano in anticipo</span>
+                    <span class="badge">🔴 ${a.lanes.closed || 0} affittate senza data</span>
+                </div>` : ''}
                 <div class="table-wrapper"><table><thead><tr><th>Appartamento</th><th>Oggi</th><th>Cambia</th></tr></thead><tbody>${rows}</tbody></table></div>
             </div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Chiudi</button></div></div></div>`;
         }
@@ -17204,6 +17227,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <button class="btn ${(c.generatedPDF && c.clauseVersion !== 2 && c.signatureStatus !== 'complete') ? '' : 'btn-secondary'} btn-sm" onclick="regenerateContractPDF('${c.id}')" title="${(c.generatedPDF && c.clauseVersion !== 2 && c.signatureStatus !== 'complete') ? 'Questo PDF usa le clausole vecchie (impianti/oneri): rigeneralo prima di mandarlo in firma' : 'Rigenera il PDF con i dati aggiornati'}">🔄 Rigenera PDF${(c.generatedPDF && c.clauseVersion !== 2 && c.signatureStatus !== 'complete') ? ' ⚠' : ''}</button>
                 <button class="btn btn-secondary btn-sm" onclick="openFascicolo('${c.id}')" title="Scheda attestazione canone (fascia) + dati RLI + scadenzario — PDF">📑 Fascicolo${c.canoneScheda ? (c.canoneScheda.fits === false ? ' ⚠' : c.canoneScheda.fits === true ? ' ✓' : '') : ''}</button>
                 <button class="btn btn-secondary btn-sm" onclick="openPack('${c.id}')" title="Pack registrazione+asseverazione: ZIP con contratto firmato, certificato, fascicolo, visura, planimetria, APE, delega, identità, attestazione esigenza">📦 Pack${Array.isArray(c.registrationPackMissing) ? (c.registrationPackMissing.length ? ' ⚠' : ' ✓') : ''}</button>
+                <button class="btn btn-secondary btn-sm" onclick="openAspi('${c.id}')" title="${c.aspiRequestedAt ? 'Richiesta inviata ad ASPI il ' + String(c.aspiRequestedAt).slice(0, 10) + ' — riapri per re-inviare' : 'Manda al referente ASPI la richiesta di registrazione (+ asseverazione canone): email con tutti gli allegati, fattura col markup'}">🏛 ASPI${c.aspiRequestedAt ? ' ✓' : ''}</button>
                 ${c.verbaleConsegna && c.verbaleConsegna.url ? `<a class="btn btn-secondary btn-sm" href="${c.verbaleConsegna.url}" target="_blank" rel="noopener" title="Verbale di consegna firmato il ${String(c.verbaleConsegna.at || '').slice(0,10)}" style="text-decoration:none">🔑 Verbale ✓</a>` : `<a class="btn btn-secondary btn-sm" href="/verbale?c=${c.id}" target="_blank" rel="noopener" title="Il giorno delle chiavi: chiavi + letture contatori + stato, firme sullo schermo → PDF via email alle parti (l'Art. 3 del contratto rinvia a questo verbale)" style="text-decoration:none">🔑 Verbale consegna</a>`}
                 <a class="btn btn-secondary btn-sm" href="/casa?as=${c.id}" target="_blank" rel="noopener" title="La tua casa BOOM come la vede QUESTO cliente — dati veri, vista admin, zero credenziali da chiedere" style="text-decoration:none">👁 Casa</a>
                 ${!c.rliRegisteredAt ? `<button class="btn btn-secondary btn-sm" onclick="markRliRegistered('${c.id}')" title="Segna la registrazione RLI fatta: chiude la scadenza e aggiorna il fascicolo">✓ RLI registrato</button>` : `<span class="btn btn-sm" style="background:rgba(52,199,89,.12);color:var(--green);cursor:default" title="Registrato il ${c.rliRegisteredAt ? String(c.rliRegisteredAt).slice(0,10) : ''}">✓ RLI ${String(c.rliRegisteredAt).slice(0,10)}</span>`}
@@ -21792,7 +21816,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
             <div class="card" style="margin-top:16px;padding:14px 16px;background:rgba(212,175,55,0.04);border:1px dashed rgba(212,175,55,0.3)">
                 <div style="font-size:12px;color:var(--text-muted)">
-                    <strong style="color:var(--gold)">🔌 Integrazioni AdE / CAF</strong> · Oggi puoi <em>generare la bozza RLI</em> in PDF e <em>copiare i dati per RLI Web</em>. L'invio telematico diretto richiede credenziali Entratel/Fisconline o un mandato CAF — quando deciderai con quale CAF lavorare, aggiungiamo il loro endpoint qui (basta che ci diano un'API o un'email strutturata).
+                    <strong style="color:var(--gold)">🏛 Iter ASPI attivo</strong> · Il bottone <em>Invia ad ASPI</em> manda al referente (Roberto Ubertini — ASPI) l'email strutturata con contratto, identità e, per il canone concordato, APE + planimetria + scheda di calcolo — e crea la fattura col markup BOOM (costo pratica €37 registrazione / €100 asseverazione). Destinatario e prezzi si cambiano dal pannello (✎) o da <code>settings/registrazione</code>. La <em>bozza RLI</em> resta per chi registra in proprio su RLI Web.
                 </div>
             </div>
         `;
@@ -21806,7 +21830,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const signedT = !!c.tenantSignature, signedL = !!c.landlordSignature;
         const fullySigned = signedT && signedL;
         const regStatus = c.registrationStatus || 'pending';
-        const regBadge = { pending: '<span class="badge orange" style="font-size:10px">Da registrare</span>', sent: '<span class="badge blue" style="font-size:10px">Inviato AdE</span>', registered: '<span class="badge green" style="font-size:10px">✓ Registrato</span>' }[regStatus] || '';
+        const regBadge = { pending: '<span class="badge orange" style="font-size:10px">Da registrare</span>', sent: '<span class="badge blue" style="font-size:10px">🏛 Inviato ad ASPI</span>', registered: '<span class="badge green" style="font-size:10px">✓ Registrato</span>' }[regStatus] || '';
         const asseveBadge = (c.type === 'studenti' || c.type === 'transitorio')
             ? (c.asseverazioneStatus === 'done' ? '<span class="badge green" style="font-size:10px">CAF ✓</span>'
                 : c.requiresAsseverazione === false ? '<span class="badge gray" style="font-size:10px">Non richiesta</span>'
@@ -21850,6 +21874,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <button class="btn btn-xs" style="background:var(--gold);color:#000;font-weight:600" onclick="openShareHub('${c.id}')" title="Tutti i link condivisibili: firma, dati, pass, immobile">🔗 Link</button>
                     ${hasMissing ? `<button class="btn btn-xs btn-secondary" onclick="sendMissingInfoLink('${c.id}','tenant')" title="Solo link form dati inquilino">📨 Solo dati T</button>` : ''}
                     ${lMiss.length ? `<button class="btn btn-xs btn-secondary" onclick="sendMissingInfoLink('${c.id}','landlord')" title="Solo link form dati locatore">📨 Solo dati L</button>` : ''}
+                    ${regStatus !== 'registered' ? `<button class="btn btn-xs" style="background:var(--gold);color:#000;font-weight:600" onclick="openAspi('${c.id}')" title="Email strutturata al referente ASPI con contratto, identità e (per il concordato) APE + planimetria + scheda calcolo — fattura col markup in un tap">🏛 ${c.aspiRequestedAt ? 'ASPI ✓ re-invia' : 'Invia ad ASPI'}</button>` : ''}
                     ${fullySigned && regStatus !== 'registered' ? `<button class="btn btn-xs" onclick="generateRLIDraft('${c.id}')">📝 Bozza RLI</button>` : ''}
                     ${fullySigned && regStatus !== 'registered' ? `<button class="btn btn-xs btn-success" onclick="markRegistered('${c.id}')">✓ Segna registrato</button>` : ''}
                     ${fullySigned && !c.paymentsGenerated ? `<button class="btn btn-xs" style="background:var(--gold);color:#000;font-weight:600" onclick="reactivateContract('${c.id}')" title="Esegui di nuovo: pagamenti, welcome mail, RLI, CAF, Apple Pass">🚀 Ri-attiva onboarding</button>` : ''}
@@ -21967,6 +21992,136 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         } catch (e) { console.error(e); toast('error', 'Pack: ' + e.message); }
     }
     window.openPack = openPack;
+
+    // ── 🏛 L'iter ASPI: registrazione + asseverazione in UN tap ──────────
+    // Il pannello legge TUTTO da /api/fiscal/registra op:status (checklist
+    // per variante, prezzi/costi, destinatario) — una copia sola della
+    // verità, la stessa che l'invio applicherà. L'invio compone l'email
+    // strutturata al referente ASPI con gli allegati, stampa lo stato sul
+    // contratto (registrationStatus:'sent' → i badge Burocrazia si
+    // accendono) e crea la fattura col markup BOOM (idempotente).
+    function _aspiChecklistHtml(items) {
+        const ICON = { ok: '✓', warn: '⚠', missing: '✗' };
+        const COL = { ok: 'var(--green)', warn: 'var(--orange)', missing: 'var(--red)' };
+        return (items || []).map(i => `
+            <div style="display:flex;gap:8px;align-items:flex-start;padding:5px 0;border-bottom:1px solid var(--border)">
+                <span style="color:${COL[i.state] || 'var(--text-muted)'};font-weight:700;width:16px;flex:none">${ICON[i.state] || '·'}</span>
+                <div style="min-width:0;flex:1">
+                    <div style="font-size:12.5px">${i.url ? `<a href="${esc(i.url)}" target="_blank" rel="noopener" style="color:var(--text);text-decoration:none;border-bottom:1px dotted var(--border)">${esc(i.label)}</a>` : esc(i.label)}</div>
+                    ${i.hint ? `<div style="font-size:11px;color:var(--text-muted);margin-top:1px">${esc(i.hint)}</div>` : ''}
+                </div>
+            </div>`).join('');
+    }
+    function _aspiRenderKind() {
+        const st = window._aspiStatus; if (!st) return;
+        const kind = document.querySelector('input[name="aspiKind"]:checked')?.value || st.kind;
+        const items = kind === 'registrazione' ? st.kinds.registrazione : st.kinds.completo;
+        const el = document.getElementById('aspiChecklist');
+        if (el) el.innerHTML = _aspiChecklistHtml(items);
+        const bl = document.getElementById('aspiBillLbl');
+        if (bl) bl.textContent = `Crea fattura ${st.settings.billTo === 'tenant' ? 'all\'inquilino' : 'al proprietario'} — €${st.settings.prezzi[kind]} (costo pratica ASPI €${st.settings.costi[kind]})`;
+    }
+    window._aspiRenderKind = _aspiRenderKind;
+    async function openAspi(contractId) {
+        toast('info', '🏛 Leggo lo stato della pratica…');
+        let st = null;
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/fiscal/registra', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                body: JSON.stringify({ op: 'status', contractId })
+            });
+            st = await r.json().catch(() => null);
+        } catch (e) { console.warn('[aspi]', e); }
+        if (!st || !st.ok) return toast('error', 'ASPI: ' + ((st && st.error) || 'stato non disponibile'));
+        st.contractId = contractId;
+        window._aspiStatus = st;
+        const s = st.settings;
+        const sent = st.state.aspiRequestedAt;
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal lg">
+            <div class="modal-header"><h3 class="modal-title">🏛 Registrazione & asseverazione — ASPI</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-body">
+                <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;background:var(--bg-elevated);border-radius:10px;padding:10px 14px;margin-bottom:14px">
+                    <div style="min-width:0">
+                        <div style="font-size:12.5px"><strong>${esc(s.referente)}</strong> · ${esc(s.organizzazione || '')}</div>
+                        <div style="font-size:11.5px;color:var(--text-muted);font-family:monospace">${esc(s.email)}${s.auto ? ' · <span style="color:var(--gold)">invio automatico alla firma: ON</span>' : ''}</div>
+                    </div>
+                    <button class="btn btn-xs btn-secondary" onclick="editAspiSettings()" title="Cambia destinatario (settings/registrazione)">✎</button>
+                </div>
+                ${sent ? `<div style="font-size:12px;color:var(--text-muted);background:rgba(52,199,89,.08);border-radius:8px;padding:8px 12px;margin-bottom:12px">✓ Già inviato il ${esc(String(sent).slice(0, 10))} (${esc(st.state.aspiRequestKind || '')}) a ${esc(st.state.aspiRequestTo || '')} — ripremere Invia = re-invio aggiornato, la fattura NON si duplica.</div>` : ''}
+                <div class="form-group" style="margin-bottom:10px">
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0"><input type="radio" name="aspiKind" value="completo" ${st.kind === 'completo' ? 'checked' : ''} onchange="_aspiRenderKind()"> Registrazione RLI <strong>+ attestazione canone concordato</strong> · fattura €${s.prezzi.completo}</label>
+                    <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;padding:4px 0"><input type="radio" name="aspiKind" value="registrazione" ${st.kind === 'registrazione' ? 'checked' : ''} onchange="_aspiRenderKind()"> Solo registrazione RLI · fattura €${s.prezzi.registrazione}</label>
+                </div>
+                <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin:10px 0 4px">Il fascicolo che parte</div>
+                <div id="aspiChecklist" style="margin-bottom:12px"></div>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;margin-bottom:10px"><input type="checkbox" id="aspiBill" ${s.autoInvoice ? 'checked' : ''}> <span id="aspiBillLbl"></span></label>
+                <div class="form-group"><textarea class="form-textarea" id="aspiNote" rows="2" placeholder="Nota per il referente (opzionale) — es. urgenza, dettagli catastali…"></textarea></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
+                <button class="btn" id="aspiSendBtn" onclick="sendAspi('${contractId}')">✉ Invia ad ASPI</button>
+            </div>
+        </div></div>`;
+        _aspiRenderKind();
+    }
+    window.openAspi = openAspi;
+    async function sendAspi(contractId) {
+        const kind = document.querySelector('input[name="aspiKind"]:checked')?.value || 'completo';
+        const bill = !!document.getElementById('aspiBill')?.checked;
+        const note = document.getElementById('aspiNote')?.value || '';
+        const btnEl = document.getElementById('aspiSendBtn');
+        if (btnEl) { btnEl.disabled = true; btnEl.textContent = '⏳ Invio…'; }
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/fiscal/registra', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                body: JSON.stringify({ op: 'send', contractId, kind, bill, note })
+            });
+            const j = await r.json().catch(() => null);
+            if (!j || !j.ok) {
+                if (btnEl) { btnEl.disabled = false; btnEl.textContent = '✉ Invia ad ASPI'; }
+                return toast('error', j && j.error === 'contratto_pdf_mancante'
+                    ? 'Manca il PDF del contratto: 🔄 Rigenera PDF, poi riprova'
+                    : 'ASPI: ' + ((j && j.error) || 'invio fallito'));
+            }
+            closeModal();
+            toast('success', `✉ Inviato a ${j.to} — ${(j.attachments || []).length} allegati${j.invoice ? (j.invoice.created ? ` · fattura €${j.invoice.amount} creata` : ' · fattura già emessa') : ''}`);
+            if (Array.isArray(j.missing) && j.missing.length) {
+                toast('error', '⚠ Dichiarati mancanti nell\'email: ' + j.missing.slice(0, 3).join(', ') + (j.missing.length > 3 ? '…' : ''));
+            }
+            const lc = (S.contracts || []).find(x => x.id === contractId);
+            if (lc) {
+                lc.aspiRequestedAt = new Date().toISOString();
+                lc.aspiRequestKind = j.kind; lc.aspiRequestTo = j.to;
+                if (j.kind !== 'asseverazione' && lc.registrationStatus !== 'registered') lc.registrationStatus = 'sent';
+            }
+            renderPage();
+        } catch (e) {
+            console.error(e);
+            if (btnEl) { btnEl.disabled = false; btnEl.textContent = '✉ Invia ad ASPI'; }
+            toast('error', 'ASPI: ' + e.message);
+        }
+    }
+    window.sendAspi = sendAspi;
+    async function editAspiSettings() {
+        const st = window._aspiStatus || { settings: {} };
+        const email = await askModal({ title: '🏛 Destinatario ASPI', message: 'Email del referente per registrazioni e asseverazioni.\nSalvata in settings/registrazione (vale per tutti i contratti).', value: st.settings.email || '', placeholder: 'nome@esempio.it' });
+        if (email === null) return;
+        if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(email).trim())) return toast('error', 'Email non valida');
+        const referente = await askModal({ title: '🏛 Referente', message: 'Nome del referente (compare nell\'email).', value: st.settings.referente || '' });
+        try {
+            await db.collection('settings').doc('registrazione').set({
+                email: String(email).trim(),
+                ...(referente ? { referente: String(referente).trim() } : {}),
+            }, { merge: true });
+            toast('success', 'Destinatario ASPI aggiornato');
+            if (st.contractId) openAspi(st.contractId); else closeModal();
+        } catch (e) { toast('error', 'Salvataggio: ' + e.message); }
+    }
+    window.editAspiSettings = editAspiSettings;
 
     // ── ✓ RLI registrato: chiude il loop della registrazione in un tap —
     // stampa la data sul contratto, spegne la scadenza "Registrare RLI" e
