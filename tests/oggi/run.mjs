@@ -35,6 +35,17 @@ const S = {
   contracts: [
     { id: 'c1', status: 'active', propertyId: 'x1', tenantId: 't1', endDate: '2027-08-31' },
     { id: 'c2', status: 'active', propertyId: 'x2', tenantId: 't2', endDate: '2026-09-10', signatureStatus: 'partial' },
+    // ── Registrazioni RLI (30gg dalla stipula): i cinque stati veri ──
+    // firmato 3gg fa: c'e' tempo, ma la pratica esiste e si vede
+    { id: 'c3', status: 'active', propertyId: 'x1', tenantId: 't1', signatureStatus: 'complete', fullySignedAt: '2026-08-16T10:00:00Z' },
+    // firmato 45gg fa e mai registrato: termine SFORATO, ogni giorno costa
+    { id: 'c4', status: 'active', propertyId: 'x2', tenantId: 't2', signatureStatus: 'complete', fullySignedAt: '2026-07-05T10:00:00Z' },
+    // mandato ad ASPI ieri: sta lavorando lui, non e' una decisione
+    { id: 'c5', status: 'active', propertyId: 'x1', tenantId: 't1', signatureStatus: 'complete', fullySignedAt: '2026-08-14T10:00:00Z', aspiRequestedAt: '2026-08-18T09:00:00Z', aspiRequestKind: 'completo' },
+    // mandato 10gg fa e ancora niente: sollecito, con l'azione che CHIUDE il giro
+    { id: 'c6', status: 'active', propertyId: 'x2', tenantId: 't2', signatureStatus: 'complete', fullySignedAt: '2026-08-07T10:00:00Z', aspiRequestedAt: '2026-08-09T10:00:00Z', aspiRequestKind: 'registrazione' },
+    // gia' registrato: fuori dalla coda per sempre
+    { id: 'c7', status: 'active', propertyId: 'x1', tenantId: 't1', signatureStatus: 'complete', fullySignedAt: '2026-07-01', rliRegisteredAt: '2026-07-20' },
   ],
   users: [{ id: 't1', name: 'Emma' }, { id: 't2', name: 'Lucas' }],
   properties: [{ id: 'x1', name: 'Cavour' }, { id: 'x2', name: 'Pigneto' }],
@@ -90,11 +101,62 @@ ok(pos('pa_pa1') < pos('pa_pa2'), 'una proposta INCASSATA batte una solo accetta
 ok(pos('pa_pa1') < pos('sig_c2'), 'soldi incassati senza contratto battono una firma a metà');
 ok(r.decisions.every((d, i) => i === 0 || r.decisions[i - 1].score >= d.score), 'la lista è davvero ordinata per punteggio');
 
+// ── 2b. Registrazioni RLI: il termine di legge guida la coda ───────────
+// L'unico ritardo con un prezzo scritto in legge (sanzione + cedolare a
+// rischio): il punteggio deve DORMIRE quando c'e' tempo e SCAVALCARE
+// quando il termine e' passato. E mentre il referente ha la pratica in
+// mano non e' una decisione: si tace.
+ok(ids.includes('rli_c3'), 'un contratto firmato e non registrato entra in coda');
+ok(ids.includes('rli_c4'), 'un contratto oltre i 30gg entra (e resta finche\' non e\' registrato)');
+ok(!ids.includes('rli_c5'), 'appena mandato ad ASPI: SILENZIO — sta lavorando il referente, non e\' una decisione');
+ok(ids.includes('rli_c6'), 'mandato da 10gg e ancora niente: torna come sollecito');
+ok(!ids.includes('rli_c7'), 'gia\' registrato: fuori dalla coda');
+ok(!ids.includes('rli_c2'), 'una firma a META\' non e\' da registrare (si registra un atto perfezionato)');
+const rli3 = r.decisions.find((d) => d.id === 'rli_c3');
+const rli4 = r.decisions.find((d) => d.id === 'rli_c4');
+const rli6 = r.decisions.find((d) => d.id === 'rli_c6');
+ok(/RLI tra 27gg/.test(rli3.sub), 'la riga dice quanto manca al termine, in giorni veri');
+ok(/SCADUTA da 15gg/.test(rli4.sub) && rli4.tint === 'red', 'la scaduta lo DICE e si veste di rosso');
+ok(rli4.score > 90 && pos('rli_c4') < pos('pay_all'), 'una RLI scaduta scavalca perfino il quadro degli incassi in ritardo');
+ok(rli3.score < 50 && pos('rli_c3') > pos('rli_c4'), 'una appena firmata dorme in fondo: c\'e\' tempo, non e\' un allarme');
+ok(rli3.actions[0].fn === 'openAspi' && rli3.actions[0].primary, 'da registrare → il tap primario e\' l\'invio ad ASPI');
+ok(rli6.actions[0].fn === 'markRliRegistered', 'in attesa → il tap primario CHIUDE il giro (conferma la registrazione)');
+ok(/In attesa di ASPI da 10gg/.test(rli6.title) && /solo registrazione/.test(rli6.sub), 'il sollecito dice da quanto aspetta e cosa e\' stato chiesto');
+
 // ── 3. Il polso dei soldi fa i conti giusti ────────────────────────────
 ok(r.cash.paidMonth === 1450, `incassato mese = 1450 (trovato ${r.cash.paidMonth})`);
 ok(r.cash.overdueTotal === 3100 && r.cash.overdueCount === 2, 'ritardi: totale e conteggio esatti');
 ok(r.cash.dueMonth === 900 + 980, 'in arrivo nel mese = rate pending con scadenza nel mese');
 ok(r.cash.next7 === 980, 'prossimi 7 giorni = solo la rata del 24');
+
+// ── 3b. La lingua del portale: 'overdue' e' 'pending' non pagato ───────
+// IL DIFETTO DEL 23 AGOSTO. Il portale, al boot, rietichetta in memoria le
+// rate scadute (pending -> overdue) per non scrivere N volte su Firestore.
+// Il motore filtrava il solo 'pending': in produzione la specie piu' cara
+// della coda non scattava MAI e la striscia diceva "0 in ritardo" con le
+// rate scadute a sistema. Questa suite era verde e CIECA, perche' alimenta
+// il motore con dati grezzi saltando il boot: qui si usano i dati nella
+// forma REALE che il portale consegna.
+const asPortal = E.build({
+  payments: [
+    { id: 'q1', status: 'overdue', amount: 950, dueDate: '2026-08-05', month: 'Ago 2026', contractId: 'k1' },
+    { id: 'q2', status: 'paid', amount: 1450, paidDate: '2026-08-04' },
+  ],
+  contracts: [{ id: 'k1', propertyId: 'z1', tenantId: 'u1' }],
+  properties: [{ id: 'z1', name: 'Pigneto' }],
+  users: [{ id: 'u1', name: 'Anna' }],
+}, NOW);
+ok(asPortal.decisions.some((d) => d.id === 'pay_all') && asPortal.decisions.some((d) => d.id === 'pay_q1'),
+  "una rata gia' rietichettata 'overdue' dal portale entra comunque in coda");
+ok(asPortal.cash.overdueTotal === 950 && asPortal.cash.overdueCount === 1,
+  'la striscia dei soldi conta i ritardi VERI, non solo quelli ancora chiamati pending');
+ok(asPortal.cash.dueMonth === 950, "in arrivo nel mese: una rata scaduta e' comunque attesa nel mese");
+// La prova che il flip esiste davvero: se un domani sparisce, questo test
+// resta a spiegare perche' il motore conosce due parole per la stessa cosa.
+ok(/p\.status === 'pending' && p\.dueDate && p\.dueDate < today\) p\.status = 'overdue'/.test(app),
+  'il portale rietichetta davvero le scadute al boot (la ragione della doppia parola)');
+ok(/const unpaid = \(p\) =>[\s\S]{0,80}'overdue'/.test(readFileSync(join(ROOT, 'js/oggi-engine.js'), 'utf8')),
+  "il motore ha UNA definizione di 'non pagata', usata da tutte le letture dei soldi");
 
 // ── 4. Robustezza: S vuoto o mancante non esplode mai ──────────────────
 const empty = E.build({}, NOW);
@@ -145,6 +207,17 @@ ok(/function tombstonePage/.test(app), 'la lapide gentile esiste (un segnalibro 
 const consoleSrc = readFileSync(join(ROOT, 'pre-agreement-admin.html'), 'utf8');
 ok(/#q=\(\.\+\)|#q=/.test(consoleSrc) && /decodeURIComponent\(hq\)/.test(consoleSrc),
   "la console legge #q= — l'argomento dell'azione non è un campo che non fa niente");
+
+// ── 7. Burocrazia si TROVA (il difetto del 23 agosto) ─────────────────
+// La pagina delle registrazioni stava in fondo alla sidebar sotto "Tools":
+// chi cerca "registrare un contratto" non guarda li'. E il badge leggeva
+// contractRegistrationStatus, che si carica solo APRENDO la pagina —
+// quindi al boot la sidebar taceva proprio mentre un termine correva.
+const gestione = app.slice(app.indexOf('>Gestione<'), app.indexOf('>Tools<'));
+ok(gestione.includes("goTo('burocrazia')"), 'Burocrazia vive in GESTIONE, accanto ai Contratti — non sepolta in Tools');
+ok(gestione.indexOf("goTo('contracts')") < gestione.indexOf("goTo('burocrazia')"), 'e sta subito DOPO Contratti: il percorso mentale e\' quello');
+ok(/const daRegistrare = \(S\.contracts \|\| \[\]\)/.test(app) && /daRegistrare\?/.test(app),
+  'il badge si conta dai CONTRATTI (disponibili al boot), non da una collection che arriva dopo');
 
 console.log('');
 console.log(fail ? `${pass} passed, ${fail} failed` : `La coda dice il vero — ${pass} passed, 0 failed`);
