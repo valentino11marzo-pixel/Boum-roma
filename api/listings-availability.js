@@ -113,6 +113,7 @@ async function loadCatalog() {
 
 function view(l, today) {
   const r = DISPO.resolve(l, today);
+  const m = DISPO.marketLane(l, today);
   return {
     id: l.id,
     name: l.name,
@@ -122,6 +123,13 @@ function view(l, today) {
     iso: r.iso,
     label: DISPO.label(r, 'it', today).text,
     raw: l.availableFrom || l.availableDate || '',
+    // la corsia commerciale: è ciò che il cliente vede e che decide se
+    // quella casa si può vendere oggi (now), prenotare (ahead) o niente
+    lane: m.lane,
+    vetrina: DISPO.laneCopy(m, 'it', today).short,
+    // l'anno l'ha messo il motore, non l'operatore: da confermare
+    yearGuessed: m.yearGuessed,
+    daysOut: m.daysOut,
   };
 }
 
@@ -199,8 +207,12 @@ export default async function handler(req, res) {
       const catalog = await loadCatalog();
       const listings = catalog.map((l) => view(l, today))
         .sort((a, b) => {
-          // prima chi non ha una data: è la lista di lavoro, non un archivio
-          const rank = (x) => (x.kind === 'unknown' ? 0 : x.kind === 'date' ? 1 : 2);
+          // prima chi non ha una data, poi le date con l'ANNO INDOVINATO:
+          // è la lista di lavoro, non un archivio — e una data inferita di
+          // un anno è ciò che manda via un cliente che potrebbe entrare
+          // domani, quindi viene subito dopo il buco vero
+          const rank = (x) => (x.kind === 'unknown' ? 0 : x.yearGuessed ? 1
+            : x.kind === 'date' ? 2 : 3);
           return rank(a) - rank(b) || String(a.name).localeCompare(String(b.name));
         });
       return res.status(200).json({ ok: true, today, listings, audit: DISPO.audit(catalog, today) });

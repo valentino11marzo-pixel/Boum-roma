@@ -125,19 +125,23 @@ function injectSeo(html, d, id) {
     addressLocality: 'Rome', addressRegion: 'Lazio', addressCountry: 'IT',
   };
   if (price) {
-    const sold = /rented|affittato|off_market/.test(String(d.status || 'available').toLowerCase());
+    // La CORSIA, non lo stato grezzo. Prima una casa in `waitlist` usciva
+    // come InStock — cioè dichiarava ai motori di essere disponibile ADESSO
+    // mentre dentro c'è un inquilino: il dato strutturato sbagliato finisce
+    // nei rich result, dove non lo corregge nessuno. PreOrder è esattamente
+    // il vocabolario di schema.org per «lo prenoti ora, lo ricevi dopo», ed
+    // è ciò che rende citabile il mercato del blocco anticipato.
+    const lane = DISPO.marketLane(d);
     ld.offers = {
       '@type': 'Offer', price, priceCurrency: 'EUR', url: canonical,
-      availability: sold ? 'https://schema.org/SoldOut' : 'https://schema.org/InStock',
+      availability: lane.lane === 'closed' ? 'https://schema.org/SoldOut'
+        : lane.lane === 'ahead' ? 'https://schema.org/PreOrder'
+          : 'https://schema.org/InStock',
       priceSpecification: { '@type': 'UnitPriceSpecification', price, priceCurrency: 'EUR', unitText: 'MONTH' },
       seller: { '@id': 'https://www.boomrome.com/#organization' },
     };
-    // availabilityStarts solo su una data CERTA: un dato strutturato sbagliato
-    // finisce nei rich result di Google, dove non lo corregge nessuno.
-    const avr = DISPO.resolve(d);
-    if (avr.kind === 'date' && avr.iso > new Date().toISOString().slice(0, 10)) {
-      ld.offers.availabilityStarts = avr.iso;
-    }
+    // availabilityStarts solo su una data CERTA (la corsia la espone solo lì)
+    if (lane.iso) ld.offers.availabilityStarts = lane.iso;
   }
   // Video tour → VideoObject JSON-LD (video badge in search results). Same
   // YouTube-id extraction as the client's exYT().
@@ -191,14 +195,20 @@ function injectSeo(html, d, id) {
   // anyone with scripts off: the page body is a client-rendered shell, so
   // without this a non-executing crawler reads an empty page. Hidden whenever
   // JS runs — the hydrated page replaces it for humans.
-  const waitlist = String(d.status || '').toLowerCase() === 'waitlist';
-  const av2 = DISPO.resolve(d);
-  const avail = waitlist
-    ? 'Currently occupied — can be reserved ahead via waitlist.'
-    : av2.kind === 'date' ? 'Available from ' + av2.iso + '.'
-      : av2.kind === 'now' ? 'Available now.'
+  // Il testo che leggono i crawler AI (e chi ha JS spento). Prima una casa
+  // bloccata diceva solo «currently occupied — can be reserved ahead»: la
+  // DATA, che è l'unico fatto che un motore di risposta può citare utilmente
+  // ("libero da settembre 2027"), spariva. Ora la corsia la porta in chiaro.
+  const lane2 = DISPO.marketLane(d);
+  const avail = lane2.lane === 'ahead'
+    ? (lane2.iso
+      ? 'Occupied now — free from ' + lane2.iso + ' and reservable today.'
+      : 'Occupied now — reservable ahead; ask BOOM for the release date.')
+    : lane2.lane === 'closed' ? 'Currently rented.'
+      : lane2.dateUnreadable
         // il ramo che mancava: senza, ogni data illeggibile diceva "now"
-        : 'Availability on request — ask BOOM for the exact date.';
+        ? 'Availability on request — ask BOOM for the exact date.'
+        : 'Available now.';
   const facts = [];
   if (price) facts.push('<li>Monthly rent (all-in): €' + price.toLocaleString('en-US') + '</li>');
   facts.push('<li>' + esc(avail) + '</li>');

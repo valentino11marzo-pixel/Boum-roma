@@ -17,14 +17,18 @@
 
 import { fsList, fsPatch } from '../homie/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
+import DISPO from '../../js/dispo-engine.js';
 
 const SITE = 'https://www.boomrome.com';
 
 const norm = s => String(s || '').toLowerCase().trim();
 
+// Rentable = la corsia commerciale, non l'etichetta. Così entra anche la
+// casa AFFITTATA di cui il contratto dichiara la fine (availableFrom): è
+// esattamente l'annuncio che serve a chi cerca con mesi di anticipo, e fino
+// a oggi era l'unica categoria che il Segugio non poteva vedere.
 function isRentable(l) {
-  const st = norm(l.status || 'available');
-  return st === 'available' || st === 'waitlist';
+  return DISPO.marketLane(l).lane !== 'closed';
 }
 
 // Mirrors the discovery page's pass() closely enough to keep promises honest.
@@ -47,6 +51,16 @@ export function matches(criteria, l) {
     const hay = norm((l.name || '') + ' ' + (l.zone || '') + ' ' + (l.description || ''));
     if (!hay.includes(norm(c.q))) return false;
   }
+  // LA DATA DI INGRESSO, che questo filtro non guardava affatto: chi salva
+  // «mi serve da settembre» riceveva le case libere adesso e NON quelle che
+  // si liberano a settembre — cioè il contrario di ciò che aveva chiesto.
+  // Stessa regola della discovery: passa ciò che è libero ENTRO il tuo
+  // atterraggio; una casa senza data non viene esclusa (non sappiamo, e
+  // tacere è peggio che proporre).
+  if (/^\d{4}-\d{2}-\d{2}$/.test(String(c.moveIn || ''))) {
+    const iso = DISPO.marketLane(l).iso;
+    if (iso && iso > c.moveIn) return false;
+  }
   return true;
 }
 
@@ -59,7 +73,9 @@ function digestHtml(search, hits) {
         <strong style="font-size:15px">${(l.name || 'Apartment').replace(/</g, '&lt;')}</strong><br>
         <span style="color:#666;font-size:13px">${(l.zone || 'Rome').replace(/</g, '&lt;')}
         · ${l.beds || 'Studio'} bed · ${l.sqm ? l.sqm + ' m² · ' : ''}<strong style="color:#111">${eur(l.price)}/mo</strong>
-        ${norm(l.status) === 'waitlist' ? ' · <em>waitlist — rents ahead</em>' : ''}</span><br>
+        ${(() => { const m = DISPO.marketLane(l); return m.lane === 'ahead'
+          ? (m.iso ? ` · <em>free from ${m.iso} — reservable now</em>`
+            : ' · <em>reservable ahead</em>') : ''; })()}</span><br>
         <span style="color:#B8960C;font-size:13px">View the home →</span>
       </a>
     </td></tr>`).join('');

@@ -116,9 +116,23 @@
 
   /* Un mese/giorno senza anno: quello in corso, e se è già passato il
      prossimo. "1 settembre" scritto a dicembre significa l'anno dopo. */
+  /* L'ANNO CHE NESSUNO HA SCRITTO. Nel catalogo vero 12 case su 26 hanno
+   * una data senza anno ("1 Aug", "Mar 1"): qui si sceglie SEMPRE il
+   * futuro, per la regola 2 del file — sbagliare in avanti fa aspettare,
+   * sbagliare all'indietro mette in vetrina una casa ancora occupata.
+   *
+   * Ma la scelta va TRACCIATA. Con la corsia del pre-blocco una data
+   * inferita non è più solo un'etichetta: diventa «Free from 1 Jul 2027»
+   * su una casa che l'operatore poteva intendere libera dal luglio
+   * SCORSO, cioè adesso. Il motore non può indovinare quale delle due —
+   * ma può dire «questo anno l'ho messo io», e chi ha il catalogo in mano
+   * lo conferma in un tap. `yearGuessed` è quel segnale, e alimenta
+   * l'audit che il portal mostra all'operatore. */
+  var YEAR_GUESSED = false;
   function inferYear(month, day, refIso) {
     var y = +refIso.slice(0, 4);
     var cand = iso(y, month, Math.min(day, daysInMonth(y, month)));
+    YEAR_GUESSED = true;
     return cand < refIso ? y + 1 : y;
   }
 
@@ -143,8 +157,14 @@
   function parseAvailability(raw, today) {
     var ref = todayIso(today);
     var s = String(raw == null ? '' : raw).trim();
+    YEAR_GUESSED = false;
     var out = function (kind, isoV, precision, why) {
-      return { kind: kind, iso: isoV || null, precision: precision || null, raw: s, why: why };
+      return {
+        kind: kind, iso: isoV || null, precision: precision || null,
+        raw: s, why: why,
+        /* l'anno l'abbiamo messo noi? (vedi inferYear) */
+        yearGuessed: kind === 'date' && YEAR_GUESSED
+      };
     };
 
     if (!s) return out('unknown', null, null, 'vuoto');
@@ -269,7 +289,8 @@
       precision: res.precision,
       status: status || 'available',
       source: source,
-      past: past
+      past: past,
+      yearGuessed: !!res.yearGuessed
     };
   }
 
@@ -293,11 +314,14 @@
     var it = lang === 'it';
     var r = (listingOrRes && listingOrRes.kind) ? listingOrRes : resolve(listingOrRes, today);
 
-    if (r.status === 'waitlist') {
-      return {
-        text: it ? 'Occupata ora · si prenota in anticipo' : 'Occupied now · rents ahead',
-        tone: 'waitlist'
-      };
+    /* IL DIFETTO CHE VIVEVA QUI: su una waitlist si usciva con «si prenota
+       in anticipo» e la DATA — che quella casa ce l'ha, tutte e nove nel
+       catalogo vero — spariva. Le parole ora vengono da laneCopy, unica
+       fonte per badge, scheda, feed e JSON-LD; i `tone` storici restano
+       quelli, perché i chiamanti li usano come classi CSS. */
+    if (r.status === 'waitlist' || (r.status === 'rented' && r.kind === 'date')) {
+      var lc = laneCopy(laneFromResolved(r, today), lang, today);
+      return { text: lc.short, tone: lc.lane === 'ahead' ? 'waitlist' : 'rented' };
     }
     if (r.status === 'rented' && r.kind !== 'date') {
       return { text: it ? 'Affittata' : 'Rented', tone: 'rented' };
@@ -311,6 +335,194 @@
     }
     /* LA REGOLA 1, nell'unico punto che conta: qui NON si dice "ora" */
     return { text: it ? 'Data su richiesta' : 'Ask us for the date', tone: 'unknown' };
+  }
+
+  /* ── 3-bis. LA CORSIA COMMERCIALE — «si può prenotare in anticipo?» ─────
+   *
+   * LA SCOPERTA DEL 23 AGOSTO 2026. Il catalogo vero porta 9 case in
+   * `waitlist`: sono le case BLOCCATE — occupate oggi, con una data di
+   * rilascio nota. Tutte e nove hanno la data scritta, e OGNI superficie
+   * la buttava via: la vetrina diceva «Waitlist open», la scheda «the
+   * moment it frees up», llms «currently occupied», e persino la label()
+   * qui sopra si fermava a «rents ahead». Il dato più prezioso che
+   * abbiamo su quella casa — IL GIORNO in cui entri — non arrivava mai
+   * al cliente.
+   *
+   * Non è un dettaglio di copy: «lista d'attesa» è un'attesa indefinita
+   * in cui nessuno vuole mettersi, «libera dal 1 settembre» è una data
+   * che si può PRENOTARE. È lo stesso immobile, ed è la differenza fra
+   * un vicolo cieco e il mercato di chi blocca casa con mesi di anticipo
+   * (studenti, expat in trasferimento, executive: il cuore del catalogo).
+   *
+   * Tre corsie, DERIVATE — l'operatore non deve tenere allineati due
+   * campi, e le tre scritture che significano la stessa cosa convergono:
+   *
+   *   now     entri adesso                        → «Available now» · Apply
+   *   ahead   occupata, ma con una data → PRENOTI → «Free from X» · Reserve
+   *   closed  occupata e non sappiamo fino a quando → fuori mercato
+   *
+   * LE REGOLE DURE (tutte pinnate nei test, verificate per mutazione):
+   *
+   * A. `waitlist` è SEMPRE ahead. È la dichiarazione esplicita
+   *    dell'operatore: «questa si prenota in anticipo». Senza data non
+   *    diventa closed — diventa ahead con data su richiesta, perché la
+   *    casa è in vendita comunque, solo con una promessa più debole.
+   *
+   * B. `available` con data FUTURA è ahead, non now. Per il cliente le
+   *    due cose sono identiche (oggi non entri), e questa regola sana da
+   *    sola il disallineamento vero trovato in produzione: il Bilocale
+   *    Prati era `available` + «1 Sept 2027» mentre l'operatore lo
+   *    considerava bloccato. Nessuno deve correggere niente a mano.
+   *
+   * C. `rented` entra in ahead SOLO con `availableFrom`, MAI con la sola
+   *    `availableDate`. Non è pignoleria: `availableFrom` lo scrive
+   *    magic-sign alla firma (endDate + 1g), quindi è la data che il
+   *    CONTRATTO garantisce; `availableDate` è testo libero che su una
+   *    casa affittata è quasi sempre il residuo di quando era libera —
+   *    nel catalogo vero 6 rented su 7 la portano già PASSATA. Prenotare
+   *    una casa per una data dedotta da un residuo è la bugia peggiore
+   *    del sistema, perché il cliente la scopre col trasloco pronto.
+   *
+   * D. Una data che il motore non sa leggere non promuove MAI a ahead una
+   *    casa che sarebbe closed (regola 1 del file, applicata qui).
+   *
+   * `why` non è decorazione: una corsia che non sa dire perché è
+   *  indistinguibile da un difetto (la lezione dei veti del Richiamo).
+   *
+   * @returns {{lane, iso, daysOut, precision, source, status, bookable, why}}
+   */
+  function marketLane(listing, today) {
+    /* già risolto (resolve/marketLane) oppure un listing grezzo: una porta
+       sola, così label() e le pagine non possono prendere strade diverse */
+    var r = (listing && listing.kind && listing.status !== undefined)
+      ? listing : resolve(listing || {}, today);
+    return laneFromResolved(r, today);
+  }
+
+  function laneFromResolved(r, today) {
+    var ref = todayIso(today);
+    var st = r.status;
+
+    /* c'è del testo che non sappiamo leggere? Non è come non avere testo:
+       il primo è «chiedi a noi», il secondo è il caso normale della casa
+       libera subito. Confonderli riporterebbe il difetto di partenza. */
+    var muta = r.kind === 'unknown' && r.source !== 'none';
+
+    var out = function (lane, why) {
+      var iso = (lane === 'ahead' && r.kind === 'date') ? r.iso : null;
+      return {
+        lane: lane,
+        iso: iso,
+        daysOut: iso ? Math.round(
+          (Date.UTC(+iso.slice(0, 4), +iso.slice(5, 7) - 1, +iso.slice(8, 10))
+            - Date.UTC(+ref.slice(0, 4), +ref.slice(5, 7) - 1, +ref.slice(8, 10))
+          ) / 864e5) : null,
+        precision: r.precision,
+        source: r.source,
+        status: st,
+        /* la data è ILLEGGIBILE, non assente: la pagina deve chiedere */
+        dateUnreadable: muta,
+        /* l'anno non era scritto: la data è una nostra scelta prudente,
+           non un fatto. La pagina la mostra comunque (meglio tardi che
+           una casa occupata in vetrina), l'operatore la CONFERMA. */
+        yearGuessed: !!(iso && r.yearGuessed),
+        bookable: lane !== 'closed',
+        why: why
+      };
+    };
+
+    /* REGOLA A — la dichiarazione dell'operatore vince su tutto */
+    if (st === 'waitlist') {
+      return r.kind === 'date'
+        ? out('ahead', 'waitlist con data di rilascio')
+        : out('ahead', 'waitlist senza data: si prenota, data su richiesta');
+    }
+
+    /* REGOLA C — sulla casa affittata ci si fida SOLO del contratto */
+    if (st === 'rented' || st === 'affittato' || st === 'off_market') {
+      if (r.source === 'availableFrom' && r.kind === 'date') {
+        return out('ahead', 'affittata, ma il contratto dice quando finisce');
+      }
+      return out('closed', r.kind === 'date'
+        ? 'affittata: la data viene da availableDate (testo libero), non dal contratto'
+        : 'affittata senza data di rilascio');
+    }
+
+    if (st === 'reserved') return out('closed', 'riservata');
+
+    /* REGOLA B — libera, ma da quando? */
+    if (r.kind === 'date') return out('ahead', 'libera da una data futura');
+    if (r.kind === 'now') return out('now', 'libera adesso');
+    /* REGOLA D — il testo illeggibile NON diventa una promessa: resta
+       nella corsia trattabile, ma con dateUnreadable acceso, e le parole
+       qui sotto dicono «chiedi a noi» invece di «libera adesso» */
+    return out('now', muta
+      ? 'testo di disponibilità illeggibile: si chiede'
+      : 'nessuna data indicata');
+  }
+
+  /**
+   * Le parole della corsia, in un posto solo (come pinCopy per i pin).
+   * `short` è il badge della card, `long` la frase della scheda, `cta`
+   * il verbo del bottone: prenotare non è candidarsi.
+   */
+  function laneCopy(listingOrLane, lang, today) {
+    var it = lang === 'it';
+    var m = (listingOrLane && listingOrLane.lane)
+      ? listingOrLane : marketLane(listingOrLane, today);
+    var when = m.iso ? fmtDate(m.iso, lang) : '';
+
+    if (m.lane === 'now') {
+      /* REGOLA 1 del file: ciò che non sappiamo leggere non dice mai
+         «libera adesso» — costa una domanda invece di un cliente */
+      if (m.dateUnreadable) {
+        return {
+          lane: 'now',
+          short: it ? 'Data su richiesta' : 'Ask us for the date',
+          long: it ? 'Chiedici la data esatta di ingresso.'
+            : 'Ask us for the exact move-in date.',
+          cta: it ? 'Candidati' : 'Apply',
+          tone: 'fila'
+        };
+      }
+      return {
+        lane: 'now',
+        short: it ? 'Disponibile ora' : 'Available now',
+        long: it ? 'Libera adesso.' : 'Available now.',
+        cta: it ? 'Candidati' : 'Apply',
+        tone: 'si'
+      };
+    }
+    if (m.lane === 'closed') {
+      return {
+        lane: 'closed',
+        short: it ? 'Affittata' : 'Rented',
+        long: it ? 'Affittata al momento.' : 'Currently rented.',
+        cta: null,
+        tone: ''
+      };
+    }
+    /* ahead: la DATA è il messaggio, non «lista d'attesa» */
+    if (when) {
+      return {
+        lane: 'ahead',
+        short: (it ? 'Libera dal ' : 'Free from ') + when,
+        long: (it
+          ? 'Occupata adesso, si libera il ' + when + '. La puoi bloccare da ora.'
+          : 'Occupied now, free from ' + when + '. You can reserve it today.'),
+        cta: (it ? 'Blocca dal ' : 'Reserve from ') + when,
+        tone: 'poi'
+      };
+    }
+    return {
+      lane: 'ahead',
+      short: it ? 'Si prenota in anticipo' : 'Reserve ahead',
+      long: it
+        ? 'Occupata adesso. Si prenota in anticipo: la data esatta te la confermiamo noi.'
+        : 'Occupied now. Reservable ahead — we confirm the exact date with you.',
+      cta: it ? 'Bloccala in anticipo' : 'Reserve ahead',
+      tone: 'fila'
+    };
   }
 
   /* ── 4. RICONOSCERE L'IMMOBILE (stesso punteggio del bot) ─────────────── */
@@ -527,23 +739,45 @@
      Serve al comando /disponibilita e al pannello del portal. */
   function audit(listings, today) {
     var ref = todayIso(today);
-    var out = { now: 0, date: 0, unknown: 0, rented: 0, waitlist: 0, total: 0, gaps: [] };
+    var out = {
+      now: 0, date: 0, unknown: 0, rented: 0, waitlist: 0, total: 0, gaps: [],
+      /* le corsie commerciali, che sono ciò che l'operatore vende */
+      lanes: { now: 0, ahead: 0, closed: 0 },
+      /* LE DATE INDOVINATE. Il buco n.1 del catalogo vero: una data senza
+         anno diventa «Free from 1 Jul 2027» — se l'operatore intendeva il
+         luglio scorso, il sito manda via chi potrebbe entrare domani.
+         Nessuno può saperlo tranne lui: qui gli si mette la lista in mano. */
+      guessed: []
+    };
     (Array.isArray(listings) ? listings : []).forEach(function (l) {
       var r = resolve(l, ref);
+      var m = laneFromResolved(r, ref);
       out.total++;
+      out.lanes[m.lane]++;
       if (r.status === 'rented') out.rented++;
       else if (r.status === 'waitlist') out.waitlist++;
       if (r.kind === 'unknown') {
         out.unknown++;
         if (r.status !== 'rented') out.gaps.push({ id: l.id, name: l.name || l.id, status: r.status });
       } else out[r.kind]++;
+      if (m.yearGuessed) {
+        out.guessed.push({
+          id: l.id, name: l.name || l.id, status: r.status,
+          raw: String(l.availableFrom || l.availableDate || '').trim(),
+          reads: m.iso, lane: m.lane, daysOut: m.daysOut
+        });
+      }
     });
+    /* prima le più lontane: sono quelle che costano di più se sbagliate */
+    out.guessed.sort(function (a, b) { return (b.daysOut || 0) - (a.daysOut || 0); });
     return out;
   }
 
   var API = {
     parseAvailability: parseAvailability,
     resolve: resolve,
+    marketLane: marketLane,
+    laneCopy: laneCopy,
     label: label,
     fmtDate: fmtDate,
     matchListing: matchListing,

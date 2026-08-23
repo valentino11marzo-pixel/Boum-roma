@@ -2961,7 +2961,24 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
      o del percorso — e se il catalogo fotografato non la conosce ma il
      server ha mandato il documento (casa pubblicata dal bot DOPO la
      build), si costruisce da quello. Mai un annuncio nuovo orfano. */
-  function statoDa(s2, d2) {
+  /* LA CORSIA (dispo-engine): «Waitlist open» diceva a chi guarda una
+     casa bloccata di mettersi in coda a tempo indeterminato, mentre la
+     data di rilascio era lì sul documento. Ora la scheda dice il giorno
+     in cui entri e il bottone diventa un BLOCCO, non una candidatura.
+     `campi` porta availableFrom/availableDate GREZZI: solo il primo (che
+     scrive il contratto alla firma) può rendere prenotabile un affittato. */
+  function statoDa(s2, d2, campi) {
+    if (window.BOOM_DISPO && BOOM_DISPO.laneCopy) {
+      try {
+        var lc = BOOM_DISPO.laneCopy({
+          status: s2,
+          availableFrom: (campi && campi.af) || '',
+          availableDate: (campi && campi.ad) || ''
+        });
+        return { eti: lc.eti || lc.short, lib: lc.lane === 'now',
+          lane: lc.lane, cta: lc.cta, spiega: lc.long };
+      } catch (e) { /* fallback storico */ }
+    }
     var oggi = new Date().toISOString().slice(0, 10), eti, lib;
     if (s2 === 'available') {
       if (d2 && d2 > oggi) {
@@ -2975,7 +2992,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
     } else if (s2 === 'waitlist') { eti = 'Waitlist open'; lib = false; }
     else if (s2 === 'reserved') { eti = 'Reserved'; lib = false; }
     else { eti = 'Rented'; lib = false; }
-    return { eti: eti, lib: lib };
+    return { eti: eti, lib: lib, lane: lib ? 'now' : 'closed' };
   }
   function casaDaListing(d, ideNuovo) {
     function n(v) {
@@ -2997,9 +3014,11 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
         if (paD && paD.kind === 'date') dal = paD.iso;
       } catch (e) {}
     }
-    var st = statoDa(String(d.status || 'available').toLowerCase(), dal);
+    var st = statoDa(String(d.status || 'available').toLowerCase(), dal,
+      { af: t(d.availableFrom), ad: t(d.availableDate) });
     return {
       id: ideNuovo,
+      lane: st.lane, ctaLane: st.cta, spiegaLane: st.spiega,
       nome: t(d.name) || 'Apartment',
       zona: (t(d.zone || d.neighborhood) || 'Roma').split('/')[0],
       indirizzo: t(d.address),
@@ -3195,12 +3214,32 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       }
     }
   }
+  /* IL PRE-BLOCCO. Su una casa occupata il vecchio testo chiedeva di
+     «mettersi in lista» e di aspettare «il momento in cui si libera» —
+     un'attesa senza data, che è il modo più sicuro di perdere qualcuno
+     che sta programmando un trasferimento. Sedici case su ventisei di
+     questo catalogo hanno invece una data di rilascio NOTA: chi guarda
+     deve leggere il giorno in cui entra e poter bloccare adesso. Le
+     parole vengono da laneCopy, le stesse della card e del JSON-LD. */
   if (!c.libera) {
     var bAp = document.querySelector('#modApplica button[type="submit"]');
-    if (bAp) bAp.textContent = 'Join the waitlist';
     var sAp = document.getElementById('applicaSotto');
-    if (sAp) sAp.textContent = 'This home is taken for now. Join the '
-      + 'waitlist and you hear first — from a person — the moment it frees up.';
+    var chiuso = c.lane === 'closed';
+    if (bAp) bAp.textContent = c.ctaLane || (chiuso ? 'Ask about this home'
+      : 'Reserve ahead');
+    if (sAp) {
+      sAp.textContent = chiuso
+        ? 'This home is rented right now. Tell us what you need and we '
+          + 'send you the closest matches — from a person, not a robot.'
+        /* solo fatti che il sistema può mantenere: la data viene dalla
+           locazione in corso, e chi prenota lo sa per primo se cambia.
+           Nessuna promessa sui costi — l'hold ha le sue regole, e una
+           riga di marketing non può contraddire il prodotto. */
+        : (c.spiegaLane ? c.spiegaLane + ' ' : '')
+          + 'You reserve it now and sign closer to the date. The date '
+          + 'comes from the current tenancy — if it moves, you are the '
+          + 'first to know, from a person.';
+    }
   }
 
   /* il canone sui Solari, come ovunque nel sito */
@@ -3477,8 +3516,14 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       var corpo = {
         name: d.get('nome'), email: d.get('email'), phone: d.get('telefono'),
         listingId: c.id, listingName: c.nome, listingPrice: c.prezzo,
-        zone: c.zona, kind: c.libera ? 'apply' : 'waitlist',
-        waitlist: !c.libera,
+        zone: c.zona,
+        /* una casa con data di rilascio NOTA non è una lista d'attesa: è
+           una PRENOTAZIONE (intent 'reserve', con la data già nel corpo).
+           La lista vera resta per l'affittata senza data — così in
+           pipeline l'operatore distingue «la vuole dal 1 settembre» da
+           «gli piacerebbe, ma è occupata». */
+        kind: c.libera ? 'apply' : (c.lane === 'ahead' ? 'reserve' : 'waitlist'),
+        waitlist: !c.libera && c.lane !== 'ahead',
         income: d.get('reddito'), guarantor: d.get('garante'),
         household: d.get('chi'), occupation: d.get('occupazione'),
         moveIn: d.get('quando'), durationMonths: Number(d.get('mesi')) || null,
@@ -3893,11 +3938,13 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
     }
     var s2 = testo('status').toLowerCase();
     if (s2) {
-      var d2 = (testo('availableDate')
-        .match(/^\d{4}-\d{2}-\d{2}/) || [])[0] || c.dal;
-      var st2 = statoDa(s2, d2);
+      var af2 = testo('availableFrom'), ad2 = testo('availableDate');
+      var d2 = ((af2 || ad2).match(/^\d{4}-\d{2}-\d{2}/) || [])[0] || c.dal;
+      var st2 = statoDa(s2, d2, { af: af2, ad: ad2 });
       if (st2.eti !== c.stato || st2.lib !== c.libera || d2 !== c.dal) {
-        c.stato = st2.eti; c.libera = st2.lib; c.dal = d2; cambia = true;
+        c.stato = st2.eti; c.libera = st2.lib; c.dal = d2;
+        c.lane = st2.lane; c.ctaLane = st2.cta; c.spiegaLane = st2.spiega;
+        cambia = true;
       }
     }
     if (!cambia) return;
