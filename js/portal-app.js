@@ -4520,7 +4520,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         
         // Search documents
         (S.documents || []).filter(d => (d.name||'').toLowerCase().includes(ql)).forEach(d => 
-            results.push({ type: '📁', label: d.name, sub: `${d.type || ''} · ${fmtDate(d.createdAt)}`, action: d.fileUrl ? `window.open('${d.fileUrl}')` : `goTo('documents')` }));
+            results.push({ type: '📁', label: d.name, sub: `${d.type || ''} · ${fmtDate(d.createdAt)}`, action: d.fileUrl ? `boomOpen('${d.fileUrl}')` : `goTo('documents')` }));
         
         // Search maintenance
         (S.maintenance || []).filter(m => (m.title||'').toLowerCase().includes(ql)).forEach(m => {
@@ -7662,7 +7662,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         const invoicesBody = invoices.length ? invoices.slice(0, 6).map(i => `<div class="list-item clickable" onclick="viewInvoice('${i.id}')"><div class="list-icon">🧾</div><div class="list-content"><div class="list-title">${esc(i.number)} · €${i.amount} <span class="badge ${i.status === 'paid' ? 'green' : 'orange'}" style="font-size:9px">${i.status === 'paid' ? 'pagata' : 'in attesa'}</span></div><div class="list-subtitle">${esc(i.service || '')} · ${fmtDate(i.date || i.createdAt)}</div></div></div>`).join('') : null;
 
-        const documentsBody = documents.length ? documents.slice(0, 6).map(d => `<div class="list-item clickable" onclick="${d.fileUrl ? `window.open('${encodeURI(d.fileUrl)}','_blank')` : `editDocModal('${d.id}')`}"><div class="list-icon">${docIcon(d.type)}</div><div class="list-content"><div class="list-title">${esc(d.name)}</div><div class="list-subtitle">${esc(d.type || '')} · ${fmtDate(d.createdAt)}</div></div></div>`).join('') : null;
+        const documentsBody = documents.length ? documents.slice(0, 6).map(d => `<div class="list-item clickable" onclick="${d.fileUrl ? `boomOpen('${encodeURI(d.fileUrl)}')` : `editDocModal('${d.id}')`}"><div class="list-icon">${docIcon(d.type)}</div><div class="list-content"><div class="list-title">${esc(d.name)}</div><div class="list-subtitle">${esc(d.type || '')} · ${fmtDate(d.createdAt)}</div></div></div>`).join('') : null;
 
         const maintBody = maintenance.length ? maintenance.slice(0, 6).map(m => `<div class="list-item clickable" onclick="viewMaintenance('${m.id}')"><div class="list-icon">🔧</div><div class="list-content"><div class="list-title">${esc(m.title)} <span class="badge ${m.status === 'resolved' ? 'green' : m.priority === 'urgent' ? 'red' : 'orange'}" style="font-size:9px">${esc(m.status)}</span></div><div class="list-subtitle">${fmtDate(m.createdAt)}</div></div></div>`).join('') : null;
 
@@ -12915,7 +12915,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     </div>
                 </div>
                 <div style="display:flex;gap:4px" onclick="event.stopPropagation()">
-                    ${d.fileUrl ? `<button class="btn btn-xs btn-secondary" onclick="window.open('${d.fileUrl}','_blank')" title="Scarica">📥</button>` : ''}
+                    ${d.fileUrl ? `<button class="btn btn-xs btn-secondary" onclick="boomOpen('${d.fileUrl}')" title="Scarica">📥</button>` : ''}
                     ${ro
                         ? `<button class="btn btn-xs btn-secondary" onclick="goTo('contracts')" title="Apri nei Contratti">↗</button>`
                         : `<button class="btn btn-xs btn-secondary" onclick="editDocModal('${d.id}')" title="Modifica">✏️</button>
@@ -13053,7 +13053,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
             </div>
             <div class="modal-footer" style="flex-wrap:wrap;gap:6px">
-                ${d.fileUrl ? `<button class="btn btn-secondary btn-sm" onclick="window.open('${d.fileUrl}','_blank')">📥 Apri PDF</button>` : ''}
+                ${d.fileUrl ? `<button class="btn btn-secondary btn-sm" onclick="boomOpen('${d.fileUrl}')">📥 Apri PDF</button>` : ''}
                 ${!d._readonly ? `<button class="btn btn-secondary btn-sm" onclick="toggleDocShared('${d.id}')">${d.shared ? '🔒 Non condividere' : '🔗 Condividi'}</button>` : ''}
                 ${!d._readonly ? `<button class="btn btn-secondary btn-sm" onclick="editDocModal('${d.id}')">✏️ Modifica</button>` : ''}
                 ${!d._readonly ? `<button class="btn btn-danger btn-sm" onclick="confirmDelete('document','${d.id}','${jsName}')">🗑 Elimina</button>` : ''}
@@ -16677,10 +16677,36 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
     }
 
+    // Apertura file UNIVERSALE. I browser moderni BLOCCANO la navigazione
+    // verso data: URI (window.open su un PDF base64 legacy = click morto,
+    // zero errori): un data: si converte in Blob e si consegna con un
+    // <a download> vero. Gli URL http(s) si aprono nel gesto del click.
+    function boomOpen(url, name) {
+        try {
+            if (String(url || '').slice(0, 5) === 'data:') {
+                const [head, b64] = String(url).split(',');
+                const mime = (head.match(/^data:([^;]+)/) || [])[1] || 'application/octet-stream';
+                const bytes = atob(b64);
+                const arr = new Uint8Array(bytes.length);
+                for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(new Blob([arr], { type: mime }));
+                link.download = name || 'documento.pdf';
+                link.click();
+                setTimeout(() => URL.revokeObjectURL(link.href), 4000);
+                return true;
+            }
+            const w = window.open(url, '_blank');
+            if (!w) { toast('error', 'Il browser ha bloccato l\'apertura — consenti i pop-up per boomrome.com'); return false; }
+            return true;
+        } catch (e) { toast('error', 'Apertura non riuscita: ' + (e.message || e)); return false; }
+    }
+    window.boomOpen = boomOpen;
     async function downloadDocument(id) {
         const doc = S.documents.find(d => d.id === id);
-        if (doc?.fileUrl) { window.open(doc.fileUrl, '_blank'); toast('success', 'Download avviato'); }
-        else toast('info', 'Documento senza file allegato');
+        if (!doc?.fileUrl) { toast('info', 'Documento senza file allegato'); return; }
+        // niente toast bugiardo: si parla solo se l'apertura è partita davvero
+        if (boomOpen(doc.fileUrl, doc.fileName || doc.name)) toast('success', 'Download avviato');
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -19734,8 +19760,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             }
         } else { toast('error', 'Errore generazione PDF'); }
     }
-    
-    
+    window.downloadContractPDF = downloadContractPDF;
+
+
 
     // Le clausole "sicurezza impianti" e "oneri accessori" (con le loro
     // regole: mai un default silenzioso, mai puntini dove il cliente cerca
@@ -21597,7 +21624,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     
     // Aliases & utilities
     function showToast(title, type = 'info') { toast(type, title); }
-    function copyToClipboard(text) { navigator.clipboard.writeText(text).then(() => toast('success', 'Copiato!')).catch(() => toast('error', 'Errore copia')); }
+    // (la copyToClipboard vera — con i fallback execCommand e prompt per
+    // Safari — vive in fondo al file: qui c'era un doppione debole)
 
     // Check if opened locally (file://) - this won't work with Firebase
     if (window.location.protocol === 'file:') {
@@ -22205,11 +22233,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     window.openShareHub = openShareHub;
 
     // ── Download the contract PDF (reuses the existing generator at line 13792)
-    async function downloadContractPDF(contractId) {
-        try { await generateContractPDF(contractId); }
-        catch (e) { console.error(e); toast('error', 'Errore PDF: ' + e.message); }
-    }
-    window.downloadContractPDF = downloadContractPDF;
+    // LA LEZIONE DEL DOPPIONE (23/08): qui viveva una SECONDA
+    // downloadContractPDF che, vincendo sulla prima (script classico:
+    // l'ultima dichiarazione comanda), RIGENERAVA l'intero PDF con jsPDF a
+    // ogni click su 📄 — ecco i download "lentissimi o niente". La versione
+    // vera (scarica il PDF già pronto, rigenera solo se manca o se le firme
+    // sono arrivate dopo) sta più su, ed è l'unica. L'invariante "zero
+    // funzioni duplicate" è pinnato in tests/scarica.
 
     // ── Mark contract as successfully registered in AdE
     async function markRegistered(contractId) {
