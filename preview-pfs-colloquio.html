@@ -1591,6 +1591,105 @@ body.volo-on .rotta-filo { opacity:1; }
   html.vivo .a3-colpo.sale.dentro .a3-cifra { filter:none; opacity:1;
     transform:none; }
 }
+
+/* ══ 7.0 · LA LASTRA — il patto in un respiro, a caratteri cubitali ═══ */
+.lastra { position:relative; padding:clamp(56px,8vw,110px) 0;
+  background:#020202;
+  box-shadow:inset 0 1px 0 rgba(255,215,0,.14),
+    inset 0 -1px 0 rgba(255,215,0,.14); overflow:hidden; }
+.lastra::before { content:''; position:absolute; left:50%; top:0;
+  width:min(760px,92vw); height:1px; transform:translateX(-50%);
+  background:linear-gradient(90deg, transparent, var(--gold),
+    transparent); opacity:.5; }
+.lastra-eti { font-size:9.5px; font-weight:700; letter-spacing:.34em;
+  text-transform:uppercase; color:var(--text-3); }
+.lastra-frase { margin-top:clamp(20px,2.6vw,32px);
+  font-family:var(--display); font-weight:200;
+  font-size:clamp(23px,3.5vw,50px); line-height:1.14;
+  letter-spacing:-.022em; max-width:27ch; }
+.lastra-frase .lp { display:block; }
+.lastra-frase .lp + .lp { margin-top:.18em; }
+.lastra-frase b { font-weight:300; color:var(--gold); }
+.lastra-frase .lp.oro { color:var(--gold); }
+.lastra-frase .lp.oro b { color:var(--text); }
+.lastra-nota { margin-top:clamp(20px,2.6vw,30px); font-size:11px;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--text-3); }
+@media (prefers-reduced-motion:no-preference){
+  html.vivo .lastra .lp { opacity:0; filter:blur(9px);
+    transform:translateY(14px); }
+  html.vivo .lastra.accesa .lp { opacity:1; filter:none;
+    transform:none;
+    transition:opacity .6s ease, filter .7s ease,
+      transform .8s cubic-bezier(.22,1,.36,1); }
+  html.vivo .lastra.accesa .lp:nth-child(1) { transition-delay:.05s; }
+  html.vivo .lastra.accesa .lp:nth-child(2) { transition-delay:.35s; }
+  html.vivo .lastra.accesa .lp:nth-child(3) { transition-delay:.65s; }
+  html.vivo .lastra.accesa .lp:nth-child(4) { transition-delay:.95s; }
+  html.vivo .lastra.accesa .lp:nth-child(5) { transition-delay:1.3s; }
+  html.vivo .lastra .lastra-nota { opacity:0; }
+  html.vivo .lastra.accesa .lastra-nota { opacity:1;
+    transition:opacity .6s ease 1.7s; }
+}
+
+/* ══ 7.0 · L'OROLOGIO DEL RADAR — l'automazione che si vede ═══════════ */
+.orolo { position:relative; margin-bottom:clamp(16px,2.2vw,24px);
+  padding:clamp(14px,2vw,20px) clamp(16px,2.2vw,24px);
+  background:linear-gradient(180deg, rgba(255,215,0,.035),
+    rgba(255,215,0,.006));
+  border-radius:14px; box-shadow:inset 0 0 0 1px rgba(255,215,0,.16);
+  overflow:hidden; }
+.orolo-griglia { display:grid; gap:12px 26px;
+  grid-template-columns:repeat(auto-fit,minmax(148px,1fr));
+  align-items:end; }
+.oro-cella { display:grid; gap:5px; }
+.oro-eti { font-size:9px; font-weight:700; letter-spacing:.24em;
+  text-transform:uppercase; color:var(--text-3); }
+.oro-val { font-family:var(--display); font-weight:250;
+  font-size:clamp(22px,2.6vw,34px); line-height:1; color:var(--gold);
+  letter-spacing:.01em; font-variant-numeric:tabular-nums;
+  font-feature-settings:'tnum' 1; }
+.oro-val small { font-size:.44em; font-weight:400; color:var(--text-2);
+  letter-spacing:.06em; margin-left:.25em; }
+.oro-barra { margin-top:clamp(13px,1.8vw,18px); height:2px;
+  border-radius:2px; background:rgba(255,255,255,.09);
+  overflow:hidden; }
+.oro-barra i { display:block; height:100%; width:0%;
+  background:linear-gradient(90deg, rgba(255,215,0,.35), var(--gold));
+  box-shadow:0 0 10px rgba(255,215,0,.45); }
+.orolo.batte { box-shadow:inset 0 0 0 1px rgba(255,215,0,.55),
+  0 0 34px rgba(255,215,0,.12); }
+.orolo.batte .oro-barra i { box-shadow:0 0 18px rgba(255,215,0,.9); }
+.oro-nota { margin-top:11px; font-size:10.5px; color:var(--text-3);
+  letter-spacing:.02em; line-height:1.6; }
+.oro-vivo { display:inline-flex; align-items:center; gap:6px; }
+.oro-vivo::before { content:''; width:6px; height:6px; border-radius:50%;
+  background:var(--gold); box-shadow:0 0 8px rgba(255,215,0,.7);
+  animation:oropulsa 2.4s ease-in-out infinite; }
+@keyframes oropulsa { 0%,100% { opacity:1; } 50% { opacity:.25; } }
+@media (prefers-reduced-motion:reduce){
+  .oro-vivo::before { animation:none; } }
+
+/* ══ 7.0 · LA SCANSIONE — ogni reperto si sviluppa sotto una lama ════ */
+.reperto-eti::after { transform-origin:0 50%; }
+@media (prefers-reduced-motion:no-preference){
+  html.vivo .reperto-eti::after { transform:scaleX(0); }
+  html.vivo .reperto-eti.sale.dentro::after { transform:scaleX(1);
+    transition:transform 1.1s cubic-bezier(.22,1,.36,1) .1s; }
+  .lama { position:relative; overflow:hidden; }
+  .lama::after { content:''; position:absolute; left:0; right:0;
+    top:0; height:34%; pointer-events:none; opacity:0; z-index:3;
+    background:linear-gradient(180deg, transparent,
+      rgba(255,215,0,.13) 62%, rgba(255,215,0,.5));
+    -webkit-mask-image:linear-gradient(180deg, transparent, #000 70%);
+    mask-image:linear-gradient(180deg, transparent, #000 70%); }
+  .lama.taglia::after { animation:lamagiu 1.25s
+    cubic-bezier(.4,0,.2,1) forwards; }
+  @keyframes lamagiu {
+    0% { opacity:0; transform:translateY(-40%); }
+    12% { opacity:1; }
+    88% { opacity:1; }
+    100% { opacity:0; transform:translateY(340%); } }
+}
 </style>
 
 <a class="salta" href="#dopo">Skip to content</a>
@@ -1763,6 +1862,24 @@ body.volo-on .rotta-filo { opacity:1; }
   </div>
 </div>
 
+<!-- ══ LA LASTRA — il patto in un respiro ═══════════════════════════════ -->
+<section class="lastra" id="lastra">
+  <div class="container">
+    <p class="lastra-eti">The deal, in one breath</p>
+    <p class="lastra-frase">
+      <span class="lp">You pay <b>€350</b>.</span>
+      <span class="lp">I hand you <b>three homes</b> in your criteria,
+        <b>within 15 days</b>.</span>
+      <span class="lp">If I don't — <b>you get the €350 back</b>. In
+        full.</span>
+      <span class="lp">If I do — <b>it comes off my fee</b>.</span>
+      <span class="lp oro">Either way: <b>you don't lose money</b>.</span>
+    </p>
+    <p class="lastra-nota">Terms §4.2 · §7.1-bis — quoted verbatim in
+      act 07</p>
+  </div>
+</section>
+
 <section class="section section-dark atto3" id="dopo">
   <div class="container">
     <div class="sale" style="margin-bottom:clamp(40px,6vw,72px)">
@@ -1860,6 +1977,23 @@ body.volo-on .rotta-filo { opacity:1; }
     </div>
     <div class="reperto-eti sale"><b>Exhibit B</b>
       <span>The finder — real weights, real schedules</span></div>
+    <div class="orolo" id="orolo"
+      aria-label="The scanner's schedule, live">
+      <div class="orolo-griglia">
+        <div class="oro-cella"><span class="oro-eti">Rome time</span>
+          <span class="oro-val" id="oroT">--:--:--</span></div>
+        <div class="oro-cella"><span class="oro-eti">Sweeps since
+          midnight</span>
+          <span class="oro-val" id="oroN">--<small>/96 today</small></span></div>
+        <div class="oro-cella"><span class="oro-eti">Next sweep in</span>
+          <span class="oro-val" id="oroC">--:--</span></div>
+      </div>
+      <div class="oro-barra"><i id="oroB"></i></div>
+      <p class="oro-nota"><span class="oro-vivo">The inbox sweep runs
+        every 15 minutes, day and night</span> — this counter is derived
+        from that production schedule, not a live feed of results.</p>
+    </div>
+
     <div class="finder quadro" id="finder" data-fase="0">
       <span class="tacca"></span>
       <div class="dev-bar"><i></i><i></i><i></i><span class="dev-url">app.boomrome.com/finder</span></div>
@@ -2491,6 +2625,91 @@ body.volo-on .rotta-filo { opacity:1; }
     });
 })();
 </script>
+<script>
+/* L'OROLOGIO DEL RADAR — l'automazione resa visibile. Onesto per
+   costruzione: e' DERIVATO dalla pianificazione di produzione
+   (ogni 15 minuti, vercel.json) e la pagina lo dichiara. Nessun dato
+   inventato, nessun risultato finto. Fermo fuori vista e a scheda
+   nascosta. */
+(function () {
+  'use strict';
+  var box = document.getElementById('orolo');
+  if (!box) return;
+  var eT = document.getElementById('oroT'), eN = document.getElementById('oroN');
+  var eC = document.getElementById('oroC'), eB = document.getElementById('oroB');
+  var fmt;
+  try {
+    fmt = new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/Rome',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+  } catch (e) { return; }
+  function due(n) { return (n < 10 ? '0' : '') + n; }
+  function tic() {
+    var p = {}, i, parti = fmt.formatToParts(new Date());
+    for (i = 0; i < parti.length; i++) p[parti[i].type] = parti[i].value;
+    var h = +p.hour % 24, m = +p.minute, sec = +p.second;
+    var dentro = (m % 15) * 60 + sec;
+    var manca = 900 - dentro;
+    eT.textContent = due(h) + ':' + due(m) + ':' + due(sec);
+    eN.innerHTML = (h * 4 + Math.floor(m / 15)) + '<small>/96 today</small>';
+    eC.textContent = due(Math.floor(manca / 60)) + ':' + due(manca % 60);
+    eB.style.width = (dentro / 900 * 100).toFixed(2) + '%';
+    box.classList.toggle('batte', dentro < 3 || manca < 3);
+    var hud = document.getElementById('hud');
+    if (hud && hud.dataset.atto === '1') {
+      var st = document.getElementById('hudStato');
+      if (st) st.innerHTML = 'Act 02 · The machine — <b>next sweep '
+        + eC.textContent + '</b>';
+    }
+  }
+  tic();
+  var giro = null, vivo = false;
+  function accendi(v) {
+    if (v === vivo) return;
+    vivo = v;
+    if (v) { tic(); giro = setInterval(tic, 1000); }
+    else { clearInterval(giro); giro = null; }
+  }
+  if ('IntersectionObserver' in window) {
+    new IntersectionObserver(function (r) {
+      accendi(r[0].isIntersecting && !document.hidden);
+    }, { threshold: .05 }).observe(box);
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) accendi(false);
+    });
+  } else { accendi(true); }
+})();
+</script>
+<script>
+/* LA LASTRA + LE LAME — messa in scena, mai senza moto pieno. */
+(function () {
+  'use strict';
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!('IntersectionObserver' in window)) return;
+  var lastra = document.getElementById('lastra');
+  if (lastra) {
+    new IntersectionObserver(function (v, o) {
+      if (!v.some(function (x) { return x.isIntersecting; })) return;
+      o.disconnect();
+      lastra.classList.add('accesa');
+      try { gtag('event', 'pfs_lastra_view'); } catch (e) {}
+    }, { threshold: .4 }).observe(lastra);
+  }
+  var LAME = ['.regola2', '.conto', '.tocca', '.clausola', '#orolo'];
+  var occ = new IntersectionObserver(function (vs, o) {
+    vs.forEach(function (v) {
+      if (!v.isIntersecting) return;
+      o.unobserve(v.target);
+      v.target.classList.add('taglia');
+    });
+  }, { threshold: .25 });
+  LAME.forEach(function (sel) {
+    [].forEach.call(document.querySelectorAll(sel), function (el) {
+      el.classList.add('lama');
+      occ.observe(el);
+    });
+  });
+})();
+</script>
 
 <div class="hud" id="hud" aria-label="Route: your position in the interview">
   <span class="hud-stato" id="hudStato" aria-live="off"></span>
@@ -2539,6 +2758,7 @@ body.volo-on .rotta-filo { opacity:1; }
     }
     hud.classList.toggle('su',
       ora >= 0 && !vicini.checkin && !vicini.imbarco);
+    hud.dataset.atto = ora;
     if (ora !== ultimo) {
       ultimo = ora;
       if (ora >= 0) stato.innerHTML = ATTI[ora][1];
