@@ -11,9 +11,9 @@ const PREVIEW = 'https://boum-roma-git-claude-boom-home-background-'
   + 'wqektx-valentino-boom.vercel.app';
 
 const VARIANTI = [
-  ['colloquio', 'Il Colloquio 4.0', '★ il vincitore — con i gioielli dentro',
+  ['colloquio', 'Il Colloquio 5.0', '★ la messa in scena definitiva',
    '/preview-pfs-colloquio',
-   "L'interrogatorio in sette atti (domande manifesto a zigzag, lead distillate, colpi giganti 100% · 24–72h · 96 · 4.9★ · 0 · §4.2 · 24h) che ha assorbito i pezzi migliori del Volo: nell'atto sul mercato il TABELLONE SOLARI con il buon annuncio che scade in loop (BOARDING → LAST CALL → GONE), nell'atto sulla macchina il finder VERO seguito dalla CAMMINATA col timbro REJECTED sulla casa da 82. Più la pillola d'imbarco persistente che compare a metà lettura e sparisce vicino alla cassa. Ticket-hero intatto, clausole verbatim, degrado statico completo.",
+   "L'interrogatorio in sette atti (domande manifesto a zigzag, lead distillate, colpi giganti 100% · 24–72h · 96 · 4.9★ · 0 · §4.2 · 24h) che ha assorbito i pezzi migliori del Volo: nell'atto sul mercato il TABELLONE SOLARI con il buon annuncio che scade in loop (BOARDING → LAST CALL → GONE), nell'atto sulla macchina il finder VERO seguito dalla CAMMINATA col timbro REJECTED sulla casa da 82. Più la pillola d'imbarco persistente che compare a metà lettura e sparisce vicino alla cassa. In piu' nella 5.0: numerale in filigrana dietro la domanda, la domanda che si svela a tendina, la SCIA a fine atto (✓ Answered → la prossima domanda) e il REGISTRO FINALE: le sette obiezioni sbarrate in oro una a una — «Nothing left standing. Five lines — and we hunt.» Ticket-hero intatto, clausole verbatim, degrado statico completo.",
    'Il formato che converte (la conversazione) + la prova che si guarda (tabellone, timbro, finder) + la via alla cassa sempre a un tap.',
    "La pagina più ricca del lotto: ogni claim resta agganciato a fonti pubbliche — va mantenuta con la stessa disciplina."],
   ['volo', 'Il Volo', 'la regia cinematica',
