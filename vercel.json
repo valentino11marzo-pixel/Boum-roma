@@ -739,6 +739,12 @@
     "api/fiscal/registra.js": {
       "maxDuration": 60
     },
+    "api/fiscal/allega.js": {
+      "maxDuration": 60
+    },
+    "api/fiscal/valutazione.js": {
+      "maxDuration": 60
+    },
     "api/owners/rendiconto.js": {
       "maxDuration": 60
     },

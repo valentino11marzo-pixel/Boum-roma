@@ -17186,6 +17186,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <button class="btn btn-secondary btn-sm" onclick="downloadContractPDF('${c.id}')">📥 PDF</button>
                 <button class="btn ${(c.generatedPDF && c.clauseVersion !== 2 && c.signatureStatus !== 'complete') ? '' : 'btn-secondary'} btn-sm" onclick="regenerateContractPDF('${c.id}')" title="${(c.generatedPDF && c.clauseVersion !== 2 && c.signatureStatus !== 'complete') ? 'Questo PDF usa le clausole vecchie (impianti/oneri): rigeneralo prima di mandarlo in firma' : 'Rigenera il PDF con i dati aggiornati'}">🔄 Rigenera PDF${(c.generatedPDF && c.clauseVersion !== 2 && c.signatureStatus !== 'complete') ? ' ⚠' : ''}</button>
                 <button class="btn btn-secondary btn-sm" onclick="openFascicolo('${c.id}')" title="Scheda attestazione canone (fascia) + dati RLI + scadenzario — PDF">📑 Fascicolo${c.canoneScheda ? (c.canoneScheda.fits === false ? ' ⚠' : c.canoneScheda.fits === true ? ' ✓' : '') : ''}</button>
+                <button class="btn btn-secondary btn-sm" onclick="openValutazione('${c.id}')" title="Il parere di valore BOOM sul canone: mediana di zona, assorbimento e canoni FIRMATI da noi. Documento a parte dalla scheda dell'accordo — nessun limite di fascia">💶 Valutazione BOOM</button>
                 <button class="btn btn-secondary btn-sm" onclick="openPack('${c.id}')" title="Pack registrazione+asseverazione: ZIP con contratto firmato, certificato, fascicolo, visura, planimetria, APE, delega, identità, attestazione esigenza">📦 Pack${Array.isArray(c.registrationPackMissing) ? (c.registrationPackMissing.length ? ' ⚠' : ' ✓') : ''}</button>
                 <button class="btn btn-secondary btn-sm" onclick="openAspi('${c.id}')" title="${c.aspiRequestedAt ? 'Richiesta inviata ad ASPI il ' + String(c.aspiRequestedAt).slice(0, 10) + ' — riapri per re-inviare' : 'Manda al referente ASPI la richiesta di registrazione (+ asseverazione canone): email con tutti gli allegati, fattura col markup'}">🏛 ASPI${c.aspiRequestedAt ? ' ✓' : ''}</button>
                 ${c.verbaleConsegna && c.verbaleConsegna.url ? `<a class="btn btn-secondary btn-sm" href="${c.verbaleConsegna.url}" target="_blank" rel="noopener" title="Verbale di consegna firmato il ${String(c.verbaleConsegna.at || '').slice(0,10)}" style="text-decoration:none">🔑 Verbale ✓</a>` : `<a class="btn btn-secondary btn-sm" href="/verbale?c=${c.id}" target="_blank" rel="noopener" title="Il giorno delle chiavi: chiavi + letture contatori + stato, firme sullo schermo → PDF via email alle parti (l'Art. 3 del contratto rinvia a questo verbale)" style="text-decoration:none">🔑 Verbale consegna</a>`}
@@ -21958,18 +21959,70 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // strutturata al referente ASPI con gli allegati, stampa lo stato sul
     // contratto (registrationStatus:'sent' → i badge Burocrazia si
     // accendono) e crea la fattura col markup BOOM (idempotente).
+    // Le voci che si possono ATTACCARE dal pannello (stesse chiavi di
+    // api/fiscal/allega.js: il contratto si genera, la scheda si calcola,
+    // i codici fiscali sono dati — quelli non hanno un file da caricare).
+    const ASPI_ALLEGABILI = ['ape', 'planimetria', 'visura', 'delega', 'id_conduttore', 'id_locatore', 'esigenza'];
     function _aspiChecklistHtml(items) {
         const ICON = { ok: '✓', warn: '⚠', missing: '✗' };
         const COL = { ok: 'var(--green)', warn: 'var(--orange)', missing: 'var(--red)' };
-        return (items || []).map(i => `
+        return (items || []).map(i => {
+            const up = ASPI_ALLEGABILI.includes(i.key);
+            return `
             <div style="display:flex;gap:8px;align-items:flex-start;padding:5px 0;border-bottom:1px solid var(--border)">
                 <span style="color:${COL[i.state] || 'var(--text-muted)'};font-weight:700;width:16px;flex:none">${ICON[i.state] || '·'}</span>
                 <div style="min-width:0;flex:1">
                     <div style="font-size:12.5px">${i.url ? `<a href="${esc(i.url)}" target="_blank" rel="noopener" style="color:var(--text);text-decoration:none;border-bottom:1px dotted var(--border)">${esc(i.label)}</a>` : esc(i.label)}</div>
                     ${i.hint ? `<div style="font-size:11px;color:var(--text-muted);margin-top:1px">${esc(i.hint)}</div>` : ''}
                 </div>
-            </div>`).join('');
+                ${up ? `<button class="btn btn-xs ${i.state === 'ok' ? 'btn-secondary' : ''}" style="flex:none;padding:2px 8px" onclick="aspiAllega('${i.key}')" title="${i.state === 'ok' ? 'Sostituisci il documento' : 'Carica il documento qui, adesso'}">📎${i.state === 'ok' ? '' : ' Carica'}</button>` : ''}
+            </div>`;
+        }).join('');
     }
+    // Il file scelto sulla riga va dove la riga dice, e la checklist torna
+    // aggiornata dal server: la voce si spunta senza cambiare pagina.
+    function aspiAllega(key) {
+        const st = window._aspiStatus;
+        if (!st || !st.contractId) return;
+        const inp = document.createElement('input');
+        inp.type = 'file';
+        inp.accept = 'application/pdf,image/jpeg,image/png,image/webp';
+        inp.onchange = async () => {
+            const f = inp.files && inp.files[0];
+            if (!f) return;
+            if (f.size > 15 * 1024 * 1024) return toast('error', 'File troppo grande (max 15MB)');
+            const btns = document.querySelectorAll('#aspiChecklist button');
+            btns.forEach(b => { b.disabled = true; });
+            toast('info', '📎 Carico ' + f.name + '…');
+            try {
+                const base64 = await new Promise((res, rej) => {
+                    const r = new FileReader();
+                    r.onload = () => res(String(r.result));
+                    r.onerror = () => rej(new Error('lettura fallita'));
+                    r.readAsDataURL(f);
+                });
+                const idToken = await auth.currentUser.getIdToken();
+                const kind = document.querySelector('input[name="aspiKind"]:checked')?.value || st.kind;
+                const r = await fetch('/api/fiscal/allega', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                    body: JSON.stringify({ contractId: st.contractId, key, kind, base64, name: f.name, contentType: f.type })
+                });
+                const j = await r.json().catch(() => null);
+                if (!j || !j.ok) { btns.forEach(b => { b.disabled = false; }); return toast('error', 'Allegato: ' + ((j && j.error) || 'errore')); }
+                // la checklist fresca arriva dal server: si aggiorna la
+                // variante appena mostrata, il resto resta com'era
+                if (j.kinds) st.kinds = j.kinds;   // entrambe: nessuna variante resta stantia
+                _aspiRenderKind();
+                toast('success', '✓ Allegato al fascicolo');
+            } catch (e) {
+                btns.forEach(b => { b.disabled = false; });
+                toast('error', 'Allegato: ' + e.message);
+            }
+        };
+        inp.click();
+    }
+    window.aspiAllega = aspiAllega;
     function _aspiRenderKind() {
         const st = window._aspiStatus; if (!st) return;
         const kind = document.querySelector('input[name="aspiKind"]:checked')?.value || st.kind;
@@ -22080,6 +22133,38 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         } catch (e) { toast('error', 'Salvataggio: ' + e.message); }
     }
     window.editAspiSettings = editAspiSettings;
+
+    // ── 💶 Valutazione BOOM: il NOSTRO parere di valore, documento a parte.
+    // La scheda dell'accordo serve all'attestazione (e il numero che conta
+    // la' e' il massimo di fascia); questo dice quanto vale la casa sul
+    // mercato — mediana di zona del Perito, assorbimento, e i canoni
+    // FIRMATI da BOOM in zona. Il canone si stampa come deciso: nessun
+    // tetto. Sotto campione il documento NON pubblica una mediana.
+    async function openValutazione(contractId, canoneOverride) {
+        const c = (S.contracts || []).find(x => x.id === contractId);
+        const canone = canoneOverride !== undefined ? canoneOverride
+            : await askModal({ title: '💶 Valutazione BOOM', message: 'Canone da valutare (€/mese). Nessun limite di fascia: e\' il nostro parere di mercato.', value: String((c && c.rent) || ''), type: 'number', okLabel: 'Genera' });
+        if (canone === null || canone === undefined || canone === '') return;
+        toast('info', '💶 Preparo la valutazione…');
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/fiscal/valutazione', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                body: JSON.stringify({ contractId, canone: Number(canone) || undefined })
+            });
+            const j = await r.json().catch(() => null);
+            if (!j || !j.ok) return toast('error', 'Valutazione: ' + ((j && j.error) || 'errore'));
+            const basi = [];
+            if (j.market) basi.push(`mercato zona (${j.market.sample} annunci, mediana €${j.market.medianEurSqm}/mq)`);
+            if (j.firmati) basi.push(`${j.firmati.sample} canoni firmati BOOM`);
+            toast('success', basi.length ? '✓ Valutazione su ' + basi.join(' + ') : '✓ Valutazione pronta — campione di zona insufficiente, il documento lo dichiara');
+            const lc = (S.contracts || []).find(x => x.id === contractId);
+            if (lc) lc.valutazioneBoomUrl = j.url;
+            window.open(j.url, '_blank', 'noopener');
+        } catch (e) { console.error(e); toast('error', 'Valutazione: ' + e.message); }
+    }
+    window.openValutazione = openValutazione;
 
     // ── ✓ RLI registrato: chiude il loop della registrazione in un tap —
     // stampa la data sul contratto, spegne la scadenza "Registrare RLI" e
