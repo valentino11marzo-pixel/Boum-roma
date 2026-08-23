@@ -35,13 +35,13 @@ const dl = app.slice(app.indexOf('async function downloadContractPDF'), app.inde
 const iStored = dl.indexOf('fresh.generatedPDF');
 const iFallback = dl.indexOf('No stored PDF');
 ok(iStored > -1 && iFallback > iStored, 'il fast path sul PDF salvato viene PRIMA della rigenerazione (che resta solo fallback)');
-ok(/link\.download = fileName/.test(dl) && /URL\.createObjectURL/.test(dl), 'consegna con <a download> e nome file vero');
+ok(/boomDownloadUrl\([^,]+, fileName\)/.test(dl), 'consegna dal modulo unico, col nome file vero');
 ok(/window\.downloadContractPDF = downloadContractPDF/.test(app), 'esportata (Prontuario e onclick la trovano)');
 
 // ── 3. boomOpen: anche i data: legacy si consegnano, e mai una bugia ────
 const bo = app.slice(app.indexOf('function boomOpen'), app.indexOf('function boomOpen') + 1600);
-ok(bo.length > 100 && /data:/.test(bo) && /atob/.test(bo) && /new Blob/.test(bo) && /link\.download/.test(bo),
-  'un data: URI diventa Blob + <a download> (window.open lo bloccherebbe in silenzio)');
+ok(bo.length > 100 && /data:/.test(bo) && /atob/.test(bo) && /return boomSave\(new Blob/.test(bo),
+  'un data: URI diventa Blob e passa da boomSave (window.open lo bloccherebbe in silenzio)');
 ok(/if \(!w\)/.test(bo) && /pop-up/.test(bo), 'popup bloccato → errore ONESTO che dice la cura');
 const dd = app.slice(app.indexOf('async function downloadDocument'), app.indexOf('async function downloadDocument') + 600);
 ok(/if \(boomOpen\(/.test(dd), 'il toast di successo parte SOLO se l\'apertura è partita davvero');
@@ -52,6 +52,36 @@ ok(!/window\.open\('\$\{d\.fileUrl\}|window\.open\('\$\{encodeURI\(d\.fileUrl\)/
 const cc = app.slice(app.indexOf('async function copyToClipboard'), app.indexOf('async function copyToClipboard') + 900);
 ok(names.filter((n) => n === 'copyToClipboard').length === 1 && /execCommand\('copy'\)/.test(cc),
   'una sola copyToClipboard, quella con i fallback Safari (execCommand/prompt)');
+
+// ── 5. L'INVARIANTE DI CLASSE: nessun download staccato dal documento ───
+// Su Safari il .click() di un <a download> non attaccato al DOM non fa
+// NULLA (nove punti ne soffrivano: PDF contratto, export CSV, pack AdE,
+// card immobile) e una revoca sincrona annulla il file in volo.
+const anchors = [...app.matchAll(/document\.createElement\('a'\)/g)].map((mm) => mm.index);
+ok(anchors.length >= 3, `il rilevatore VEDE gli ancoraggi rimasti (${anchors.length})`);
+const chiamate = (app.match(/boomSave\(/g) || []).length;
+ok(chiamate >= 9, `la consegna è stata accentrata davvero: ${chiamate} usi di boomSave (erano 9 copie a mano, ognuna col suo difetto)`);
+const staccati = [], revocheSincrone = [];
+for (const at of anchors) {
+  const block = app.slice(at, at + 700);
+  const iClick = block.search(/\.click\(\)/);
+  if (iClick === -1) continue;
+  const before = block.slice(0, iClick);
+  if (!/appendChild\(/.test(before)) staccati.push(app.slice(0, at).split('\n').length);
+  // revoca nella stessa riga o in quella subito dopo il click = sincrona
+  const after = block.slice(iClick, iClick + 120);
+  if (/revokeObjectURL/.test(after) && !/setTimeout/.test(after)) revocheSincrone.push(app.slice(0, at).split('\n').length);
+}
+ok(staccati.length === 0, 'ogni <a download> è attaccato al documento prima del click' + (staccati.length ? ' — STACCATI alle righe: ' + staccati.join(', ') : ''));
+ok(revocheSincrone.length === 0, 'nessuna revoca sincrona dopo un click' + (revocheSincrone.length ? ' — righe: ' + revocheSincrone.join(', ') : ''));
+ok(/function boomSave\(src, name\)/.test(app) && /document\.body\.appendChild\(a\)/.test(app.slice(app.indexOf('function boomSave'), app.indexOf('function boomSave') + 900)),
+  'la consegna del file ha UNA copia sola (boomSave), quella giusta');
+
+// ── 6. Il file remoto: tetto di tempo e ripiego, mai un click a vuoto ───
+const bd = app.slice(app.indexOf('async function boomDownloadUrl'), app.indexOf('async function boomDownloadUrl') + 1200);
+ok(/AbortController/.test(bd) && /12000/.test(bd), 'la richiesta ha un tetto di tempo (una fetch appesa era il "lentissimo")');
+ok(/return boomOpen\(url, name\)/.test(bd), 'se la rete o il CORS non collaborano si ripiega sull\'apertura nativa — mai un click che non produce niente');
+ok((app.match(/await boomDownloadUrl\(/g) || []).length >= 3, 'i tre percorsi del PDF contratto passano tutti di lì');
 
 console.log(`\n${fail ? '✗' : '✓'} scarica: ${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);
