@@ -41,8 +41,18 @@ function wa(s) {
     .replace(/\u2212/g, '-')
     .replace(/[^\x20-\xFF\u2013\u2014\u2018\u2019\u201C\u201D\u2026\u20AC]/g, '');
 }
-const eur = n => 'EUR ' + Number(n || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-const fmtN = n => Number(n || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+// Numeri all'italiana DETERMINISTICI: 1.250,00 — mai toLocaleString, che
+// su un runtime con ICU ridotta degrada in silenzio a "1250,00" (la lezione
+// gia' pagata su /executive). Su un foglio che va a un'organizzazione e
+// all'Agenzia delle Entrate il punto delle migliaia non e' un dettaglio.
+function itNum(v) {
+  const n = Number(v || 0);
+  const neg = n < 0;
+  const [i, d] = Math.abs(n).toFixed(2).split('.');
+  return (neg ? '-' : '') + i.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + d;
+}
+const eur = n => 'EUR ' + itNum(n);
+const fmtN = n => itNum(n);
 const dIT = s => { try { const d = new Date(String(s).slice(0, 10) + 'T00:00'); return isNaN(d) ? '' : d.toLocaleDateString('it-IT'); } catch { return ''; } };
 
 // ── Input dal contratto: solo dati reali, override persistiti ────────────
@@ -145,9 +155,20 @@ async function buildPdf({ contract, property, calc, input, deadlines }) {
   row('DECORRENZA', `${dIT(contract.startDate) || '-'}    Stipulato: ${dIT(contract.fullySignedAt) || 'da firmare'}    ${contract.rliRegisteredAt ? 'Registrato: ' + dIT(contract.rliRegisteredAt) : 'DA REGISTRARE'}`, 90);
   y -= 4;
 
-  if (calc && calc.ok) {
-    // superficie convenzionale
-    need(20); T('CALCOLO DELLA SUPERFICIE CONVENZIONALE', M, y, 9, bold, gold); y -= 14;
+  // IL MODULO SI STAMPA SEMPRE, FEDELE AL FOGLIO DELL'ASSOCIAZIONE.
+  // Fino al 23/08/2026 questa pagina degradava a "SCHEDA NON CALCOLABILE"
+  // quando mancavano zona o mq: l'operatore restava senza il foglio proprio
+  // nel caso in cui gli serviva stamparlo e completarlo a mano. Ora escono
+  // sempre tutte le sezioni del modulo — superficie, i 20 parametri, le
+  // maggiorazioni A-H, la fascia, i due importi finali — e cio' che il
+  // sistema non sa diventa una riga vuota da compilare, esattamente come
+  // sul foglio di carta.
+  const HAS = !!(calc && calc.ok);
+  const BLANK = '______________';
+
+  // ── CALCOLO DELLA SUPERFICIE CONVENZIONALE ──
+  need(20); T('CALCOLO DELLA SUPERFICIE CONVENZIONALE', M, y, 9, bold, gold); y -= 14;
+  if (HAS) {
     calc.parts.forEach(p => {
       need(13);
       T(p.n, M, y, 8.5);
@@ -156,45 +177,92 @@ async function buildPdf({ contract, property, calc, input, deadlines }) {
       T(`= mq ${fmtN(p.v)}`, M + 440, y, 8.5, bold);
       y -= 12.5;
     });
-    need(15); line(y + 4); T(`TOTALE SUPERFICIE CONVENZIONALE: mq ${fmtN(calc.sc)}`, M, y - 6, 9.5, bold); y -= 22;
-
-    // caratteristiche + parametri
-    need(16);
-    T('Alloggio "normale" (acqua, fognatura, gas/induzione, riscaldamento):', M, y, 8.5);
-    box(M + 320, calc.normale); T(calc.normale ? 'SI' : 'NO', M + 333, y, 8.5, bold); y -= 18;
-
-    need(150); T(`PARAMETRI DESCRITTIVI DELL'ALLOGGIO: ${calc.nP} su 20`, M, y, 9, bold, gold); y -= 14;
-    for (let i = 0; i < 10; i++) {
-      need(13);
-      box(M, calc.parIdx.includes(i)); T(`${i + 1}. ${CANONE.PARAMETRI[i]}`, M + 12, y, 7.6);
-      box(M + 262, calc.parIdx.includes(i + 10)); T(`${i + 11}. ${CANONE.PARAMETRI[i + 10]}`, M + 274, y, 7.6);
-      y -= 12;
-    }
-    const derFrom = (calc.derived && calc.derived.parametri && calc.derived.parametri.from) || {};
-    if (Object.keys(derFrom).length) {
-      need(12);
-      T('Parametri derivati dalle dotazioni dichiarate in annuncio/immobile - verificare in sede di attestazione.', M, y, 7, font, grey); y -= 14;
-    }
-
-    // maggiorazioni + fascia + verdetto
-    need(30);
-    T(`Maggiorazioni/riduzioni: ${calc.note.length ? calc.note.join(', ') : 'nessuna'} (${calc.pct > 0 ? '+' : ''}${calc.pct}%)${calc.capApplied ? ' - cap al massimo di fascia' : ''}`, M, y, 8.5); y -= 14;
-    T(`FASCIA ${calc.fascia}: ${fmtN(calc.fMin)} - ${fmtN(calc.fMax)} EUR/mq/mese  x  mq ${fmtN(calc.sc)}`, M, y, 9, bold); y -= 18;
-
-    need(46);
-    const okFit = calc.fits !== false;
-    page.drawRectangle({ x: M, y: y - 30, width: W - 2 * M, height: 42, color: okFit ? rgb(0.97, 0.95, 0.88) : rgb(0.99, 0.92, 0.90), borderColor: okFit ? gold : rgb(0.8, 0.3, 0.25), borderWidth: 0.8 });
-    T(`CANONE PATTUITO: ${eur(calc.canone)} /mese`, M + 12, y - 6, 10.5, bold);
-    T(okFit
-      ? `RIENTRA NELLA FASCIA - massimo asseverabile ${eur(calc.cMax)} /mese (${eur(calc.cMax * 12)} /anno)`
-      : `FUORI FASCIA di ${eur(calc.excess)} - massimo asseverabile ${eur(calc.cMax)} /mese: riportare il canone o verificare parametri`,
-      M + 12, y - 21, 8.6, bold, okFit ? gold : rgb(0.7, 0.2, 0.15));
-    y -= 48;
   } else {
-    need(40);
-    T('SCHEDA CANONE NON ANCORA CALCOLABILE', M, y, 10, bold, rgb(0.7, 0.2, 0.15)); y -= 14;
-    T(`Manca: ${calc && calc.error === 'mq_mancanti' ? 'superficie (mq) dell\'immobile' : 'zona dell\'accordo (impostare zonaCod dalla console o property.canoneZonaCod)'}.`, M, y, 8.5, font, grey); y -= 14;
-    T('Le pagine RLI e scadenzario di questo fascicolo restano valide.', M, y, 8.5, font, grey); y -= 18;
+    [['Superficie utile calpestabile', '< 46 x 1,30 | 46-70 x 1,15 | > 70 x 1,00'],
+     ['Box / posto auto esclusivo', 'x 0,80 (zona pregio) | x 0,50'],
+     ['Posto auto in autorimessa comune', 'x 0,20'],
+     ['Balconi, terrazze, cantine e simili', 'x 0,25'],
+     ['Superficie scoperta in godimento esclusivo', 'x 0,15'],
+     ['Verde condominiale (sup. tot. / millesimi)', 'x 0,10']].forEach(([n, c]) => {
+      need(13);
+      T(n, M, y, 8.5); T('mq ______', M + 250, y, 8.5, font, grey);
+      T(c, M + 330, y, 7.5, font, grey); T('= mq ________', M + 440, y, 8.5);
+      y -= 12.5;
+    });
+  }
+  need(15); line(y + 4);
+  T(`TOTALE SUPERFICIE CONVENZIONALE: mq ${HAS ? fmtN(calc.sc) : BLANK}`, M, y - 6, 9.5, bold); y -= 22;
+
+  // ── CARATTERISTICHE + I 20 PARAMETRI ──
+  need(16);
+  T('Alloggio "normale" (acqua, fognatura, gas/induzione, riscaldamento):', M, y, 8.5);
+  box(M + 320, HAS && calc.normale); T(HAS ? (calc.normale ? 'SI' : 'NO') : 'SI / NO', M + 333, y, 8.5, bold); y -= 18;
+
+  need(150);
+  T(`PARAMETRI DESCRITTIVI DELL'ALLOGGIO: ${HAS ? calc.nP + ' su 20' : '____ su 20'}`, M, y, 9, bold, gold); y -= 14;
+  for (let i = 0; i < 10; i++) {
+    need(13);
+    box(M, HAS && calc.parIdx.includes(i)); T(`${i + 1}. ${CANONE.PARAMETRI[i]}`, M + 12, y, 7.6);
+    box(M + 262, HAS && calc.parIdx.includes(i + 10)); T(`${i + 11}. ${CANONE.PARAMETRI[i + 10]}`, M + 274, y, 7.6);
+    y -= 12;
+  }
+  if (HAS && Object.keys((calc.derived && calc.derived.parametri && calc.derived.parametri.from) || {}).length) {
+    need(12);
+    T('Parametri derivati dalle dotazioni dichiarate in annuncio/immobile - verificare in sede di attestazione.', M, y, 7, font, grey); y -= 14;
+  }
+  y -= 4;
+
+  // ── MAGGIORAZIONI / RIDUZIONI A-H (la griglia del modulo) ──
+  need(70);
+  T('MAGGIORAZIONI / RIDUZIONI APPLICABILI', M, y, 9, bold, gold); y -= 14;
+  const magOn = (id) => HAS && Array.isArray(calc.mag) && calc.mag.includes(id);
+  const MAGROW = [
+    ['arr', 'A - Ammobiliato'], ['sem', 'B - Seminterrato -10%'],
+    ['asc', 'C - Senza ascensore -10%'], ['att', 'D - Attico +10%'],
+    ['clA', 'E - Classe energetica A/B/C +10%'], ['eco', 'F - Interventi Eco Bonus +5%'],
+    ['sis', 'G - Interventi Sisma Bonus +10%'], ['clD', 'H - Classe energetica D/E/F +5%'],
+  ];
+  for (let i = 0; i < MAGROW.length; i += 2) {
+    need(13);
+    box(M, magOn(MAGROW[i][0])); T(MAGROW[i][1], M + 12, y, 8);
+    if (MAGROW[i + 1]) { box(M + 262, magOn(MAGROW[i + 1][0])); T(MAGROW[i + 1][1], M + 274, y, 8); }
+    y -= 12.5;
+  }
+  need(14);
+  T('Transitorio +10%', M + 12, y, 8); box(M, HAS && input.tipo === 'trans');
+  T('Immobile vincolato o cat. A1-A8  + ______ %', M + 274, y, 8); box(M + 262, false);
+  y -= 18;
+
+  // ── ZONA · FASCIA · SUBFASCIA (il riquadro del modulo) ──
+  need(30);
+  T(`ZONA ${HAS ? calc.zona.cod + ' - ' + calc.zona.nome : BLANK}`, M, y, 9, bold);
+  T(`SUBFASCIA: ${HAS ? calc.fascia : '____'}`, M + 300, y, 9, bold); y -= 14;
+  T(`FASCIA DI OSCILLAZIONE: ${HAS ? fmtN(calc.fMin) + ' - ' + fmtN(calc.fMax) : '______ - ______'} EUR/mq/mese`
+    + `   x   mq ${HAS ? fmtN(calc.sc) : '______'}`, M, y, 8.5); y -= 13;
+  if (HAS && calc.note.length) { T(`Applicate: ${calc.note.join(', ')} (${calc.pct > 0 ? '+' : ''}${calc.pct}%)`, M, y, 8, font, grey); y -= 13; }
+
+  // ── I DUE IMPORTI, come sul modulo ──
+  // Il canone PATTUITO e' quello deciso dalle parti e si stampa TALE E
+  // QUALE: il massimo di fascia e' un riferimento dell'accordo, non un
+  // limite che questo foglio impone. L'attestazione di rispondenza la
+  // rilascia l'organizzazione, e questo documento le porta i numeri.
+  need(46);
+  const fits = HAS ? calc.fits !== false : null;
+  page.drawRectangle({ x: M, y: y - 32, width: W - 2 * M, height: 44,
+    color: rgb(0.98, 0.97, 0.93), borderColor: gold, borderWidth: 0.8 });
+  T(`Importo massimo canone mensile di fascia: ${HAS ? eur(calc.cMax) : BLANK}`, M + 12, y - 6, 9, bold);
+  T(`Importo canone mensile PATTUITO: ${calc.canone || contract.rent ? eur(calc.canone || contract.rent) : BLANK}`, M + 12, y - 20, 10, bold);
+  if (HAS && fits === false) {
+    T(`(+${eur(calc.excess)} sul massimo di fascia)`, M + 330, y - 20, 8, font, grey);
+  }
+  y -= 50;
+  if (HAS && fits === false) {
+    need(14);
+    T('Nota: il canone pattuito supera il massimo della fascia calcolata con i parametri qui riportati.', M, y, 7.5, font, grey); y -= 11;
+    T('Verificare parametri e maggiorazioni con l\'organizzazione, che valuta il rilascio dell\'attestazione.', M, y, 7.5, font, grey); y -= 14;
+  } else if (!HAS) {
+    need(14);
+    T(`Da completare: ${calc && calc.error === 'mq_mancanti' ? 'superficie (mq) dell\'immobile' : 'zona dell\'accordo territoriale'} - impostabile dal portal (bottone Fascicolo) oppure a mano su questo foglio.`, M, y, 7.5, font, grey); y -= 14;
   }
 
   need(56);

@@ -1407,6 +1407,53 @@ l'attestazione di rispondenza (**€100**). Ora:
   `✓ RLI registrato` resta il tap che chiude il loop quando ASPI conferma.
 - Test: `node tests/aspi/run.mjs` (35 check).
 
+**Il documento si attacca DOVE MANCA** (`api/fiscal/allega.js`, 23/08):
+il pannello diceva onestamente dove caricare ogni pezzo ("console
+pre-agreement → Fascicolo ARPE", "manda il link /scheda") — ma era un
+rimando, e con dieci fascicoli al mese quel rimbalzo fra console *è* il
+lavoro. Ora ogni voce della checklist è una **porta**: 📎 sulla riga, il
+file va esattamente dove serve (APE/planimetria/visura/delega →
+`properties.dossier` — si caricano UNA volta per immobile e li ereditano
+i contratti futuri; identità/esigenza → `contract.identityDocs`, la
+stessa lista di /scheda e del pre-agreement, con `kind:'extra'`
+sull'attestazione) e la risposta riporta **entrambe le checklist
+aggiornate**: la voce passa da ✗ a ✓ senza cambiare pagina. La chiave È
+quella della checklist; le voci non allegabili (il contratto si genera,
+la scheda si calcola, i CF sono dati) vengono **rifiutate** invece di
+ricevere una destinazione inventata.
+
+**La scheda si stampa SEMPRE** (fascicolo pagina 1, stessa release): fino
+al 23/08 senza zona o mq degradava a "SCHEDA NON CALCOLABILE" — e
+l'operatore restava senza foglio proprio quando gli serviva stamparlo e
+completarlo a mano. Ora esce sempre il **modulo fedele** all'originale
+dell'associazione (`reference/caf/2023_scheda_calcolo_canone_ASPI.docx`):
+superficie convenzionale, i 20 parametri, la griglia **maggiorazioni A–H**
+con le caselle, zona/fascia/subfascia, e i due importi finali. Ciò che il
+sistema non sa diventa una riga vuota da compilare. **Il canone PATTUITO
+si stampa tale e quale**: il massimo di fascia è un riferimento
+dell'accordo, non un tetto che il foglio impone al prezzo deciso dalle
+parti; se lo supera il documento lo dice in nota — la valutazione
+dell'attestazione resta all'organizzazione. Numeri all'italiana
+**deterministici** (`itNum`): `toLocaleString` su runtime con ICU ridotta
+stampava `1250,00` invece di `1.250,00` — su un foglio che va all'AdE il
+punto delle migliaia non è un dettaglio (la lezione già pagata su
+/executive).
+
+### La Valutazione BOOM (`api/fiscal/valutazione.js`)
+Il canone che BOOM propone al proprietario non nasce dalla tabella
+dell'accordo: nasce dal mercato. Questo è quel documento, **a parte** dalla
+scheda e per costruzione un'altra cosa — dichiara in testa che **NON è
+l'attestazione di rispondenza**, stampa il canone **deciso** senza tetto né
+ricalcolo, e porta la fascia dell'accordo solo come *riferimento dichiarato*
+(il proprietario ha diritto di sapere dove passa quella linea). Si fonda su
+dati veri già in casa: `marketStats/<zona>` del Perito (mediana e p25–p75
+del **chiesto**, assorbimento in giorni, ribassi 30gg), i canoni **FIRMATI**
+da BOOM in zona (il dato che nessun portale ha), le dotazioni, e il
+posizionamento €/mq contro la mediana. Vale la disciplina del Perito:
+**sotto campione non esce un numero** — meno di 3 contratti firmati o un
+campione di zona povero producono "campione insufficiente", mai una mediana
+travestita da dato. Bottone **💶 Valutazione BOOM** sulla riga contratto.
+
 **La sanatoria del PDF stantio** (`ensureContractPdf`, stessa release):
 il rail di firma ora RIGENERA da solo un `generatedPDF` con
 `clauseVersion` < 2 quando NESSUNA firma è viva — prima un contratto
