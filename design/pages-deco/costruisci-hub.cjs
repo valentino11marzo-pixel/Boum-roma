@@ -11,16 +11,16 @@ const PREVIEW = 'https://boum-roma-git-claude-boom-home-background-'
   + 'wqektx-valentino-boom.vercel.app';
 
 const VARIANTI = [
-  ['volo', 'Il Volo', '★ il gioiellino — il servizio si esibisce',
+  ['colloquio', 'Il Colloquio 4.0', '★ il vincitore — con i gioielli dentro',
+   '/preview-pfs-colloquio',
+   "L'interrogatorio in sette atti (domande manifesto a zigzag, lead distillate, colpi giganti 100% · 24–72h · 96 · 4.9★ · 0 · §4.2 · 24h) che ha assorbito i pezzi migliori del Volo: nell'atto sul mercato il TABELLONE SOLARI con il buon annuncio che scade in loop (BOARDING → LAST CALL → GONE), nell'atto sulla macchina il finder VERO seguito dalla CAMMINATA col timbro REJECTED sulla casa da 82. Più la pillola d'imbarco persistente che compare a metà lettura e sparisce vicino alla cassa. Ticket-hero intatto, clausole verbatim, degrado statico completo.",
+   'Il formato che converte (la conversazione) + la prova che si guarda (tabellone, timbro, finder) + la via alla cassa sempre a un tap.',
+   "La pagina più ricca del lotto: ogni claim resta agganciato a fonti pubbliche — va mantenuta con la stessa disciplina."],
+  ['volo', 'Il Volo', 'la regia cinematica',
    '/preview-pfs-volo',
    "Non racconta il servizio: LO FA VEDERE in tre scene guidate dallo scroll. LE PARTENZE — il mercato di Roma come tabellone Solari, sei righe brutali da fonti pubblicate e il buon annuncio che SCADE sotto gli occhi (BOARDING → LAST CALL → GONE, «went while you scrolled»). IL RADAR — la macchina lavora: 14 contatti, i sotto-60 svaniscono, l'agenzia sbarrata, tre d'oro coi punteggi, poi 96/giorno · 50·30·20 · soglia 60. LA CAMMINATA — il timbro REJECTED sulla casa da 82 («damp behind the wardrobe»). Poi il kit toccabile (app DEMO, zecca del pass), la scatola nera (100% + tabella anti-truffa + §4.2 verbatim + fee dichiarata) e la verifica. Ticket-hero intatto; senza JS o reduced-motion la pagina resta completa e statica.",
    'La perdita si guarda invece di leggersi — design, ingegneria e persuasione nello stesso gesto; chi scorre vede il prodotto lavorare.',
    "Le scene chiedono scroll vero: su artifact si valuta dallo screenshot, il giudizio finale va dato sulla pagina viva."],
-  ['colloquio', 'Il Colloquio 2.0', "l'interrogatorio (3.0)",
-   '/preview-pfs-colloquio',
-   "Sette atti, sette obiezioni VERE, sette reperti. Ogni risposta di Valentino — in prima persona, «on the record» — porta accanto la sua prova incorporata: la tabella truffe dentro «perché pagare prima?», il conto dentro «Roma è davvero così brutale?» (24–72 ore di vita di un annuncio, il fantasma quotidiano, il deposito per legge), il finder VERO dentro «faccio da solo», la verifica dentro «chi sei?», app DEMO + zecca del pass dentro «non sono in Italia», la clausola §4.2 CITATA ALLA LETTERA dentro «e se non trovate niente?» — con la parte onesta: i 15 giorni sono il grilletto del rimborso, non una data di consegna, e la nostra provvigione è dichiarata (§4.1). Chiude «cosa succede appena pago» con l'itinerario. Filo del volo = linea dell'interrogatorio, misura GA per atto.",
-   'Il closer misurato (la conversazione, 11×) portato in pagina con le prove dentro — spiega il mercato, il servizio e il perché in un solo gesto.',
-   'È la più densa: ogni parola è una promessa, quindi ogni modifica futura va riverificata contro terms e guide.'],
   ['caccia', 'La Caccia', 'la mia tesi d\'origine',
    '/preview-pfs-caccia',
    "Il servizio non si descrive: SI FA VEDERE. Una caccia si svolge giorno per giorno mentre scorri — il brief e la chiamata dei 15 minuti, il radar che si arma con gli orari veri, 14 candidati di cui 11 muoiono sotto soglia, la casa BOCCIATA a piedi col motivo, la shortlist coi punteggi sul telefono, il pass Wallet da coniare col tuo nome, la firma dal telefono. Chiude la garanzia §4.2.",
@@ -169,7 +169,7 @@ header p b { color:var(--testo2); font-weight:600; }
   <p>Cinque pagine complete. Ogni visore qui sotto contiene la pagina
     INTERA come immagine — <b>scorri dentro il riquadro</b> per sfogliarla
     — e il bottone oro apre la <b>pagina viva</b> sul preview, con
-    animazioni, filo del volo e form funzionante. La prima è il gioiellino: il servizio che si esibisce.</p>
+    animazioni, filo del volo e form funzionante. La prima è il vincitore, con i gioielli montati dentro.</p>
 </header>
 ${palchi}
 </div>`;
