@@ -1539,6 +1539,121 @@ body.volo-on .rotta-filo { opacity:1; }
   .a3-q { font-size:clamp(24px,7vw,30px); }
   .a3-lead { max-width:none; }
   .a3-cifra { font-size:clamp(52px,16vw,72px); } }
+
+/* ── il tabellone Solari del mercato (reperto dell'atto 2) ──────────── */
+.solari { background:#060606; border-radius:16px;
+  box-shadow:inset 0 0 0 1px var(--line), 0 30px 80px rgba(0,0,0,.5);
+  padding:clamp(14px,2vw,26px); perspective:900px; }
+.sol-testa, .sol-riga { display:grid;
+  grid-template-columns:minmax(0,1.5fr) minmax(0,.9fr) minmax(0,.55fr)
+    minmax(0,1.4fr); gap:clamp(10px,1.6vw,26px); align-items:center; }
+.sol-testa { padding:6px 10px 12px; font-size:9px; font-weight:700;
+  letter-spacing:.3em; text-transform:uppercase; color:var(--text-3);
+  border-bottom:1px solid var(--line); }
+.sol-riga { padding:clamp(11px,1.5vw,15px) 10px;
+  border-bottom:1px solid var(--line-0); transform-origin:50% 0;
+  font-size:clamp(11px,1.15vw,14px); font-weight:600;
+  letter-spacing:.14em; text-transform:uppercase; }
+.sol-riga:last-child { border-bottom:0; }
+.sol-riga .nome { color:var(--text); }
+.sol-riga .stato { color:var(--gold); }
+.sol-riga .male { color:#FF7A6B; }
+.sol-riga .stato.muto { color:var(--text-3); }
+.sol-riga .tempo { font-family:var(--display); font-weight:300;
+  letter-spacing:.04em; color:var(--text-2);
+  font-size:clamp(13px,1.3vw,17px); }
+.sol-riga .nota { font-size:10.5px; font-weight:500;
+  letter-spacing:.04em; text-transform:none; color:var(--text-3);
+  line-height:1.5; }
+.sol-vivo { display:grid; }
+.sol-vivo > span { grid-area:1/1; transition:opacity .35s ease,
+  transform .5s cubic-bezier(.3,1.2,.4,1); backface-visibility:hidden; }
+.sol-vivo > span:nth-child(2), .sol-vivo > span:nth-child(3)
+  { opacity:0; transform:rotateX(80deg); }
+.solari.s2 .sol-vivo > span:nth-child(1),
+.solari.s3 .sol-vivo > span:nth-child(1)
+  { opacity:0; transform:rotateX(-80deg); }
+.solari.s2 .sol-vivo > span:nth-child(2)
+  { opacity:1; transform:none; }
+.solari.s3 .sol-vivo > span:nth-child(2)
+  { opacity:0; transform:rotateX(-80deg); }
+.solari.s3 .sol-vivo > span:nth-child(3)
+  { opacity:1; transform:none; }
+/* l'ingresso a cascata: armato SOLO dal JS */
+.solari.arma .sol-riga { opacity:0; transform:rotateX(-82deg); }
+.solari.viva .sol-riga { opacity:1; transform:none;
+  transition:opacity .45s ease,
+    transform .8s cubic-bezier(.3,1.3,.35,1); }
+.solari-nota { margin-top:12px; font-size:11px; color:var(--text-3);
+  letter-spacing:.02em; max-width:74ch; line-height:1.6; }
+.solari-nota a { color:var(--text-2); }
+@media (max-width:640px){
+  .sol-testa, .sol-riga { grid-template-columns:minmax(0,1.4fr)
+    minmax(0,.9fr) minmax(0,.55fr); }
+  .sol-testa span:nth-child(4), .sol-riga .nota { display:none; } }
+
+/* ── la camminata: il timbro (dentro l'atto 3) ──────────────────────── */
+.cam-mazzo { display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
+  gap:clamp(12px,1.8vw,22px); }
+@media (max-width:760px){ .cam-mazzo
+  { grid-template-columns:minmax(0,1fr); max-width:420px; } }
+.cam-casa { position:relative; padding:clamp(16px,2vw,24px);
+  background:var(--card); border-radius:14px;
+  box-shadow:inset 0 0 0 1px var(--line); }
+.cam-casa h3 { font-family:var(--display); font-weight:300;
+  font-size:clamp(17px,1.8vw,22px); letter-spacing:-.01em;
+  display:flex; align-items:baseline; justify-content:space-between;
+  gap:10px; }
+.cam-casa h3 b { font-weight:250; color:var(--gold); font-size:.9em; }
+.cam-casa .m { margin-top:6px; font-size:11.5px; color:var(--text-3);
+  letter-spacing:.03em; }
+.cam-punti { margin-top:14px; display:grid; gap:7px; }
+.cam-punti div { display:grid;
+  grid-template-columns:56px minmax(0,1fr) 26px; gap:8px;
+  align-items:center; font-size:9.5px; font-weight:700;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--text-3); }
+.cam-punti i { height:3px; border-radius:2px;
+  background:rgba(255,255,255,.09); display:block; font-style:normal;
+  position:relative; overflow:hidden; }
+.cam-punti i::before { content:''; position:absolute; inset:0;
+  transform-origin:0 50%; transform:scaleX(var(--w,1));
+  background:var(--gold); border-radius:2px; }
+.cam-punti b { color:var(--text-2); text-align:right; }
+.cam-timbro { position:absolute; left:50%; top:46%;
+  --posa:translate(-50%,-50%) rotate(-8deg);
+  padding:7px 12px; font-size:10px; font-weight:800;
+  letter-spacing:.2em; text-transform:uppercase; color:#FF7A6B;
+  border:1.5px solid #FF7A6B; border-radius:4px;
+  transform:var(--posa); background:rgba(5,5,5,.72); }
+.cam-timbro small { display:block; font-size:8px; font-weight:600;
+  letter-spacing:.12em; color:rgba(255,122,107,.85); margin-top:2px; }
+.cam-mazzo.arma .cam-timbro { opacity:0;
+  transform:var(--posa) scale(2.4); }
+.cam-mazzo.viva .cam-timbro { opacity:1; transform:var(--posa) scale(1);
+  transition:opacity .35s ease .5s,
+    transform .5s cubic-bezier(.2,1.6,.4,1) .5s; }
+.cam-mazzo.viva .cam-casa.morta { opacity:.45; filter:saturate(.4);
+  transition:opacity .5s ease .7s, filter .5s ease .7s; }
+.cam-verita { margin-top:clamp(16px,2vw,24px); max-width:64ch;
+  font-size:14px; line-height:1.75; color:var(--text-2); }
+.cam-verita b { color:var(--text); }
+
+/* ── la pillola d'imbarco persistente ───────────────────────────────── */
+.pillola { position:fixed; left:50%; bottom:16px; z-index:120;
+  transform:translate(-50%,140%); display:inline-flex;
+  align-items:center; gap:10px; padding:13px 22px;
+  font-size:12.5px; font-weight:700; color:#0A0A05;
+  background:var(--gold); border-radius:100px; text-decoration:none;
+  box-shadow:0 14px 40px rgba(0,0,0,.5), 0 0 0 1px rgba(0,0,0,.2);
+  transition:transform .5s cubic-bezier(.22,1,.36,1);
+  white-space:nowrap; }
+.pillola small { font-size:10px; font-weight:600; opacity:.75; }
+.pillola.su { transform:translate(-50%,0); }
+@media (min-width:900px){ .pillola { left:auto; right:26px;
+  bottom:22px; transform:translate(0,160%); }
+  .pillola.su { transform:none; } }
+@media (prefers-reduced-motion:reduce){ .pillola
+  { transition:none; } }
 </style>
 
 <a class="salta" href="#perche">Skip to content</a>
@@ -1797,9 +1912,8 @@ body.volo-on .rotta-filo { opacity:1; }
       join that queue <b>while you sleep</b>. Much of what you scroll is
       the same flat re-posted by competing agencies; the best homes
       never reach the portals at all. The scams are engineered precisely
-      for the person abroad — and the law nobody quotes: deposit capped
-      at three months, an unregistered contract <b>voids your residency
-      paperwork</b>. Here is what searching alone actually costs:</p>
+      for the person abroad. Here is Rome's board — and what searching
+      alone actually costs:</p>
       </div>
       <aside class="a3-colpo sale" aria-hidden="false">
         <div class="a3-cifra">24–72<small>h</small></div>
@@ -1812,7 +1926,65 @@ body.volo-on .rotta-filo { opacity:1; }
       </aside>
     </div>
     <div class="reperto-eti sale"><b>Exhibit B</b>
-      <span>What searching alone costs</span></div>
+      <span>Rome, stated as a departures board</span></div>
+    <div class="solari sale" id="solari" role="table"
+      aria-label="The Rome rental market, stated as a departures board">
+      <div class="sol-testa" role="row"><span>Listing</span>
+        <span>Status</span><span>Survives</span><span>Remark</span></div>
+      <div class="sol-riga" role="row">
+        <span class="nome">Good 2-bed, fair price</span>
+        <span class="stato sol-vivo"><span>Boarding</span>
+          <span class="male">Last call</span>
+          <span class="male">Gone</span></span>
+        <span class="tempo sol-vivo"><span>24–72h</span>
+          <span>&lt; 24h</span><span class="male">—</span></span>
+        <span class="nota sol-vivo"><span>dozens of enquiries in the
+          first hours</span><span>the queue closed while you
+          slept</span><span>went while you read this page</span></span>
+      </div>
+      <div class="sol-riga" role="row">
+        <span class="nome">The phantom listing</span>
+        <span class="stato male">Scam · daily</span>
+        <span class="tempo male">—</span>
+        <span class="nota">a deposit wired for a flat that doesn't
+          exist</span>
+      </div>
+      <div class="sol-riga" role="row">
+        <span class="nome">The double deposit</span>
+        <span class="stato male">Scam · weekly</span>
+        <span class="tempo male">—</span>
+        <span class="nota">the same keys promised to three people</span>
+      </div>
+      <div class="sol-riga" role="row">
+        <span class="nome">Agency relisting</span>
+        <span class="stato muto">Duplicate</span>
+        <span class="tempo">—</span>
+        <span class="nota">the same flat, re-posted at another
+          price</span>
+      </div>
+      <div class="sol-riga" role="row">
+        <span class="nome">The off-market home</span>
+        <span class="stato">Never listed</span>
+        <span class="tempo">—</span>
+        <span class="nota">moves landlord-to-agency, on
+          relationships</span>
+      </div>
+      <div class="sol-riga" role="row">
+        <span class="nome">Your search from abroad</span>
+        <span class="stato muto">Delayed</span>
+        <span class="tempo">—</span>
+        <span class="nota">you join every queue from another timezone,
+          while you sleep</span>
+      </div>
+    </div>
+    <p class="solari-nota sale">A dramatisation of our published market
+      facts — every line sourced: a good listing survives 24–72 hours;
+      the patterns and their frequency are documented in
+      <a href="/blog-scam-bible.html">our scam guide</a> (7 patterns,
+      35+ red flags). And the law nobody quotes: deposit capped at three
+      months — an unregistered contract voids your residency
+      paperwork.</p>
+
     <div class="conto sale">
       <div><b>21 nights × €90</b><span>a typical temporary stay in Rome
         while you search from hotels and short lets — ≈ €1,890 for three
@@ -1966,6 +2138,46 @@ body.volo-on .rotta-filo { opacity:1; }
         </div>
       </div>
     </div>
+
+    <div class="reperto-eti sale"><b>C·2</b>
+      <span>The walk — what the machine can't see</span></div>
+    <div class="cam-mazzo sale" id="camminata">
+      <div class="cam-casa">
+        <h3>Corso Trieste <b>€1.850</b></h3>
+        <p class="m">2 bed · 78 m² · balcony · off-market</p>
+        <div class="cam-punti">
+          <div><span>Budget</span><i style="--w:.92"></i><b>92</b></div>
+          <div><span>Beds</span><i style="--w:1"></i><b>✓</b></div>
+          <div><span>Area</span><i style="--w:1"></i><b>✓</b></div>
+        </div>
+      </div>
+      <div class="cam-casa morta">
+        <h3>Pinciano <b>€2.050</b></h3>
+        <p class="m">2 bed · 85 m² · elevator</p>
+        <div class="cam-punti">
+          <div><span>Budget</span><i style="--w:.82"></i><b>82</b></div>
+          <div><span>Beds</span><i style="--w:1"></i><b>✓</b></div>
+          <div><span>Area</span><i style="--w:1"></i><b>✓</b></div>
+        </div>
+        <span class="cam-timbro">Rejected<small>damp behind the
+          wardrobe</small></span>
+      </div>
+      <div class="cam-casa">
+        <h3>Salario <b>€1.690</b></h3>
+        <p class="m">2 bed · 72 m² · renovated</p>
+        <div class="cam-punti">
+          <div><span>Budget</span><i style="--w:.87"></i><b>87</b></div>
+          <div><span>Beds</span><i style="--w:1"></i><b>✓</b></div>
+          <div><span>Area</span><i style="--w:1"></i><b>✓</b></div>
+        </div>
+      </div>
+    </div>
+    <p class="cam-verita sale">It scored 82. The photos were beautiful.
+      The wall behind the wardrobe wasn't. <b>Every home on your
+      shortlist is walked in person before you see it</b> — what
+      survives the walk reaches your deck, and “three options” means
+      three homes that survived it. Sample homes; the discipline is the
+      real system.</p>
   </div>
 </section>
 
@@ -2470,6 +2682,90 @@ body.volo-on .rotta-filo { opacity:1; }
       var el = document.getElementById(id);
       if (el) occhio.observe(el);
     });
+})();
+</script>
+<script>
+/* Il tabellone Solari: cascata all'ingresso, poi il buon annuncio SCADE
+   in loop (BOARDING -> LAST CALL -> GONE). Fermo fuori vista; con
+   reduced-motion resta sul FATTO (24-72h), mai la drammatizzazione. */
+(function () {
+  'use strict';
+  var sol = document.getElementById('solari');
+  if (!sol) return;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!('IntersectionObserver' in window)) return;
+  sol.classList.add('arma');
+  var righe = [].slice.call(sol.querySelectorAll('.sol-riga'));
+  righe.forEach(function (r, i) {
+    r.style.transitionDelay = (i * 90) + 'ms';
+  });
+  var vivo = false, giro = null, stato = 0;
+  function ciclo() {
+    if (!vivo || document.hidden) { giro = setTimeout(ciclo, 900); return; }
+    stato = (stato + 1) % 4;
+    sol.classList.toggle('s2', stato === 2);
+    sol.classList.toggle('s3', stato === 3);
+    giro = setTimeout(ciclo,
+      stato === 3 ? 2600 : stato === 2 ? 1700 : 3200);
+  }
+  new IntersectionObserver(function (v) {
+    var era = vivo;
+    vivo = v[0].isIntersecting;
+    if (vivo && !era) {
+      sol.classList.add('viva');
+      if (giro === null) giro = setTimeout(ciclo, 3400);
+      setTimeout(function () {
+        righe.forEach(function (r) { r.style.transitionDelay = ''; });
+      }, 1500);
+    }
+  }, { threshold: .35 }).observe(sol);
+})();
+</script>
+<script>
+/* La camminata: il timbro REJECTED cala quando il mazzo entra in scena */
+(function () {
+  'use strict';
+  var cam = document.getElementById('camminata');
+  if (!cam) return;
+  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (!('IntersectionObserver' in window)) return;
+  cam.classList.add('arma');
+  new IntersectionObserver(function (v, o) {
+    if (!v.some(function (x) { return x.isIntersecting; })) return;
+    o.disconnect();
+    cam.classList.add('viva');
+  }, { threshold: .4 }).observe(cam);
+})();
+</script>
+<a class="pillola" id="pillola" href="#checkin"
+  aria-label="Go to the check-in form">Board the hunt
+  <small>€350 · refundable §4.2</small></a>
+
+<script>
+/* La pillola d'imbarco: compare a meta' interrogatorio, sparisce quando
+   la cassa (hero) o l'imbarco sono gia' in vista. Solo via JS: senza,
+   resta fuori schermo. */
+(function () {
+  'use strict';
+  var p = document.getElementById('pillola');
+  if (!p || !('IntersectionObserver' in window)) return;
+  var visti = {};
+  function stato() {
+    var vicino = visti.checkin || visti.imbarco;
+    p.classList.toggle('su', !vicino && scrollY > innerHeight * 1.6);
+  }
+  var occ = new IntersectionObserver(function (vs) {
+    vs.forEach(function (v) { visti[v.target.id] = v.isIntersecting; });
+    stato();
+  });
+  ['checkin', 'imbarco'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) occ.observe(el);
+  });
+  addEventListener('scroll', stato, { passive: true });
+  p.addEventListener('click', function () {
+    try { gtag('event', 'pfs_pill_click'); } catch (e) {}
+  });
 })();
 </script>
 
