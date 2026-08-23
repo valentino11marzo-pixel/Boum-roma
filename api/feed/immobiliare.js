@@ -55,9 +55,16 @@ export const typologyId = (l) => TYPOLOGY[String(l.type || '').toLowerCase()] ||
 
 // I pubblicabili: stessa regola della vetrina (llms/sitemap) — disponibili
 // o in lista d'attesa, con nome e prezzo.
+// Si pubblica ciò che si può DAVVERO affittare — la corsia, non l'etichetta.
+// Include quindi la casa affittata di cui il contratto dichiara la fine: sui
+// portali è un annuncio legittimo e atteso (`available-from` lo dice), ed è
+// il segmento del blocco anticipato. Resta fuori solo ciò di cui non
+// sappiamo quando si libera. Vetrina, feed e Pubblicista leggono questa.
 export const publishable = (l) => {
-  const s = String(l.availabilityStatus || l.status || 'available').toLowerCase();
-  return (s === 'available' || s === 'waitlist') && l.name && Number(l.price) > 0;
+  if (!l.name || !(Number(l.price) > 0)) return false;
+  return DISPO.marketLane({
+    ...l, status: l.availabilityStatus || l.status || 'available',
+  }).lane !== 'closed';
 };
 
 // Il nodo <property> — SOLO specifiche certe + blocco EXTENDED marcato.

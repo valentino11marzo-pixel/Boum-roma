@@ -4529,7 +4529,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         
         // Search documents
         (S.documents || []).filter(d => (d.name||'').toLowerCase().includes(ql)).forEach(d => 
-            results.push({ type: '📁', label: d.name, sub: `${d.type || ''} · ${fmtDate(d.createdAt)}`, action: d.fileUrl ? `window.open('${d.fileUrl}')` : `goTo('documents')` }));
+            results.push({ type: '📁', label: d.name, sub: `${d.type || ''} · ${fmtDate(d.createdAt)}`, action: d.fileUrl ? `boomOpen('${d.fileUrl}')` : `goTo('documents')` }));
         
         // Search maintenance
         (S.maintenance || []).filter(m => (m.title||'').toLowerCase().includes(ql)).forEach(m => {
@@ -7671,7 +7671,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         const invoicesBody = invoices.length ? invoices.slice(0, 6).map(i => `<div class="list-item clickable" onclick="viewInvoice('${i.id}')"><div class="list-icon">🧾</div><div class="list-content"><div class="list-title">${esc(i.number)} · €${i.amount} <span class="badge ${i.status === 'paid' ? 'green' : 'orange'}" style="font-size:9px">${i.status === 'paid' ? 'pagata' : 'in attesa'}</span></div><div class="list-subtitle">${esc(i.service || '')} · ${fmtDate(i.date || i.createdAt)}</div></div></div>`).join('') : null;
 
-        const documentsBody = documents.length ? documents.slice(0, 6).map(d => `<div class="list-item clickable" onclick="${d.fileUrl ? `window.open('${encodeURI(d.fileUrl)}','_blank')` : `editDocModal('${d.id}')`}"><div class="list-icon">${docIcon(d.type)}</div><div class="list-content"><div class="list-title">${esc(d.name)}</div><div class="list-subtitle">${esc(d.type || '')} · ${fmtDate(d.createdAt)}</div></div></div>`).join('') : null;
+        const documentsBody = documents.length ? documents.slice(0, 6).map(d => `<div class="list-item clickable" onclick="${d.fileUrl ? `boomOpen('${encodeURI(d.fileUrl)}')` : `editDocModal('${d.id}')`}"><div class="list-icon">${docIcon(d.type)}</div><div class="list-content"><div class="list-title">${esc(d.name)}</div><div class="list-subtitle">${esc(d.type || '')} · ${fmtDate(d.createdAt)}</div></div></div>`).join('') : null;
 
         const maintBody = maintenance.length ? maintenance.slice(0, 6).map(m => `<div class="list-item clickable" onclick="viewMaintenance('${m.id}')"><div class="list-icon">🔧</div><div class="list-content"><div class="list-title">${esc(m.title)} <span class="badge ${m.status === 'resolved' ? 'green' : m.priority === 'urgent' ? 'red' : 'orange'}" style="font-size:9px">${esc(m.status)}</span></div><div class="list-subtitle">${fmtDate(m.createdAt)}</div></div></div>`).join('') : null;
 
@@ -11103,10 +11103,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
         if (!n) { toast('error', 'Nessuna foto esportabile (CORS?)'); return; }
         const out = await zip.generateAsync({ type: 'blob' });
-        const url = URL.createObjectURL(out);
-        const a = document.createElement('a');
-        a.href = url; a.download = `BOOM_${(prop.name || prop.id).replace(/[^a-zA-Z0-9]/g, '_')}_foto.zip`;
-        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+        boomSave(out, `BOOM_${(prop.name || prop.id).replace(/[^a-zA-Z0-9]/g, '_')}_foto.zip`);
         toast('success', n + ' foto esportate');
         logActivity('Export foto ZIP', 'property', { propertyId: prop.id, count: n, watermark: _psState.watermark });
     };
@@ -12924,7 +12921,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     </div>
                 </div>
                 <div style="display:flex;gap:4px" onclick="event.stopPropagation()">
-                    ${d.fileUrl ? `<button class="btn btn-xs btn-secondary" onclick="window.open('${d.fileUrl}','_blank')" title="Scarica">📥</button>` : ''}
+                    ${d.fileUrl ? `<button class="btn btn-xs btn-secondary" onclick="boomOpen('${d.fileUrl}')" title="Scarica">📥</button>` : ''}
                     ${ro
                         ? `<button class="btn btn-xs btn-secondary" onclick="goTo('contracts')" title="Apri nei Contratti">↗</button>`
                         : `<button class="btn btn-xs btn-secondary" onclick="editDocModal('${d.id}')" title="Modifica">✏️</button>
@@ -13062,7 +13059,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
             </div>
             <div class="modal-footer" style="flex-wrap:wrap;gap:6px">
-                ${d.fileUrl ? `<button class="btn btn-secondary btn-sm" onclick="window.open('${d.fileUrl}','_blank')">📥 Apri PDF</button>` : ''}
+                ${d.fileUrl ? `<button class="btn btn-secondary btn-sm" onclick="boomOpen('${d.fileUrl}')">📥 Apri PDF</button>` : ''}
                 ${!d._readonly ? `<button class="btn btn-secondary btn-sm" onclick="toggleDocShared('${d.id}')">${d.shared ? '🔒 Non condividere' : '🔗 Condividi'}</button>` : ''}
                 ${!d._readonly ? `<button class="btn btn-secondary btn-sm" onclick="editDocModal('${d.id}')">✏️ Modifica</button>` : ''}
                 ${!d._readonly ? `<button class="btn btn-danger btn-sm" onclick="confirmDelete('document','${d.id}','${jsName}')">🗑 Elimina</button>` : ''}
@@ -15107,16 +15104,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // stesso ritmo piano→conferma. Il bot è una tastiera in più, non un
         // secondo cervello — così quando è giù (e lo è stato) la funzione resta.
         if (type === 'availability') {
-            const a = window.BOOM_DISPO ? BOOM_DISPO.audit(S.listings) : { gaps: [], total: 0 };
+            const a = window.BOOM_DISPO ? BOOM_DISPO.audit(S.listings) : { gaps: [], guessed: [], total: 0, lanes: {} };
+            // Si mostra la CORSIA — cioè quello che il cliente legge davvero
+            // sulla card — e non più il solo `kind`: una casa affittata col
+            // contratto che dichiara la fine è PRENOTABILE, e prima non
+            // compariva affatto in questa lista (filtrata su status).
             const rows = (S.listings || [])
-                .filter(l => String(l.status || '').toLowerCase() !== 'rented')
-                .map(l => ({ l, r: BOOM_DISPO.resolve(l) }))
-                .sort((x, y) => (x.r.kind === 'unknown' ? 0 : 1) - (y.r.kind === 'unknown' ? 0 : 1)
-                    || String(x.l.name || '').localeCompare(String(y.l.name || '')))
-                .map(({ l, r }) => `<tr>
+                .map(l => ({ l, r: BOOM_DISPO.resolve(l), m: BOOM_DISPO.marketLane(l) }))
+                .filter(({ m }) => m.lane !== 'closed')
+                .sort((x, y) => {
+                    // la lista di lavoro: prima i buchi, poi gli anni dedotti
+                    const rank = (o) => (o.r.kind === 'unknown' ? 0 : o.m.yearGuessed ? 1 : 2);
+                    return rank(x) - rank(y)
+                        || String(x.l.name || '').localeCompare(String(y.l.name || ''));
+                })
+                .map(({ l, r, m }) => `<tr${m.yearGuessed ? ' style="background:rgba(245,166,35,0.06)"' : ''}>
                     <td><strong style="color:var(--text)">${esc(l.name || l.id)}</strong><br><small style="color:var(--text-muted)">${esc(l.zone || '')}</small></td>
-                    <td><span class="badge ${r.kind === 'unknown' ? 'orange' : r.kind === 'now' ? 'green' : 'gray'}">${r.kind === 'unknown' ? '❓ da concordare' : r.kind === 'now' ? '🟢 subito' : '📅 ' + r.iso}</span></td>
-                    <td><input type="date" class="form-input" style="padding:6px;font-size:12px" value="${r.iso || ''}" onchange="setAvailability('${l.id}', this.value)"></td>
+                    <td><span class="badge ${r.kind === 'unknown' ? 'orange' : m.lane === 'now' ? 'green' : 'gray'}">${esc(BOOM_DISPO.laneCopy(m, 'it').short)}</span>${m.yearGuessed ? `<br><small style="color:#f5a623">⚠️ hai scritto "${esc(m.source === 'availableFrom' ? (l.availableFrom || '') : (l.availableDate || ''))}" — l'anno l'abbiamo dedotto noi</small>` : ''}</td>
+                    <td><input type="date" class="form-input" style="padding:6px;font-size:12px" value="${r.iso || ''}" onchange="setAvailability('${l.id}', this.value)">${m.yearGuessed ? `<br><button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;margin-top:4px" onclick="setAvailability('${l.id}','${r.iso}')">✓ Sì, è ${esc(r.iso)}</button>` : ''}</td>
                 </tr>`).join('');
             return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">📅 Disponibilità</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body">
                 <div class="form-group">
@@ -15127,6 +15132,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div style="display:flex;gap:8px;margin-bottom:16px"><button class="btn" onclick="planAvailability()">Leggi il messaggio</button><button class="btn btn-secondary" id="availApply" style="display:none" onclick="applyAvailability()">✓ Conferma e scrivi</button></div>
                 <div id="availPlan"></div>
                 ${a.gaps.length ? `<div class="alert warning mb-8"><span class="alert-icon">❓</span><div class="alert-content"><div class="alert-title">${a.gaps.length} senza data</div><div class="alert-text">Su queste la vetrina dice "Ask us" — onesto, ma una data reale converte di più.</div></div></div>` : ''}
+                ${a.guessed && a.guessed.length ? `<div class="alert danger mb-8"><span class="alert-icon">⚠️</span><div class="alert-content"><div class="alert-title">${a.guessed.length} date con l'anno dedotto da noi</div><div class="alert-text">Hai scritto il giorno e il mese ma non l'anno (es. "1 luglio"), e il motore sceglie sempre <b>il futuro</b> — perché mettere in vetrina una casa ancora occupata è peggio che far aspettare. Ma se intendevi l'anno scorso, quella casa è <b>libera adesso</b> e il sito la sta mostrando come bloccata fino al ${esc(String((a.guessed[0] || {}).reads || '').slice(0, 4))}. Confermale qui sotto (bastano un paio di tap) e nessuno dovrà più indovinare.</div></div></div>` : ''}
+                ${a.lanes ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+                    <span class="badge green">🟢 ${a.lanes.now || 0} si entra ora</span>
+                    <span class="badge gray">📅 ${a.lanes.ahead || 0} si prenotano in anticipo</span>
+                    <span class="badge">🔴 ${a.lanes.closed || 0} affittate senza data</span>
+                </div>` : ''}
                 <div class="table-wrapper"><table><thead><tr><th>Appartamento</th><th>Oggi</th><th>Cambia</th></tr></thead><tbody>${rows}</tbody></table></div>
             </div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Chiudi</button></div></div></div>`;
         }
@@ -16686,10 +16697,78 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
     }
 
+    // ═══ LA CONSEGNA DEL FILE — una copia sola ═══════════════════════════
+    // I DUE DIFETTI CHE SU SAFARI UCCIDONO IL DOWNLOAD SENZA UN ERRORE, e
+    // che erano sparsi in NOVE punti di questo file (export CSV, PDF
+    // contratto, pack AdE, card immobile… e la mia stessa boomOpen di ieri):
+    //  1. un <a download> NON attaccato al documento: WebKit ignora il
+    //     .click() di un nodo staccato — il tap non fa proprio nulla;
+    //  2. URL.revokeObjectURL() sincrono subito dopo il click: annulla lo
+    //     scaricamento ancora in volo (Safari e Firefox).
+    // Insieme spiegano "clicco e non scarica" meglio di qualunque lentezza.
+    function boomSave(src, name) {
+        const url = typeof src === 'string' ? src : URL.createObjectURL(src);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = name || 'documento';
+        a.rel = 'noopener';
+        a.style.display = 'none';
+        document.body.appendChild(a);          // ← senza questo, su Safari non succede NIENTE
+        a.click();
+        setTimeout(() => {                     // mai revocare sotto un download in volo
+            a.remove();
+            if (String(url).slice(0, 5) === 'blob:') URL.revokeObjectURL(url);
+        }, 10000);
+        return true;
+    }
+    window.boomSave = boomSave;
+
+    // Scarica un file REMOTO col nome giusto. Si prova a prenderlo (serve per
+    // rinominarlo), ma con un TETTO di tempo e un ripiego: se la rete è lenta
+    // o il bucket non concede il CORS, la fetch fallisce/appende e prima
+    // l'operatore restava con un click che non produceva niente. L'apertura
+    // nativa non fallisce mai: si perde il nome del file, non il documento.
+    async function boomDownloadUrl(url, name) {
+        try {
+            const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+            const timer = setTimeout(() => { try { if (ctrl) ctrl.abort(); } catch (e) { } }, 12000);
+            const r = await fetch(url, ctrl ? { signal: ctrl.signal } : undefined);
+            clearTimeout(timer);
+            if (!r.ok && String(url).slice(0, 5) !== 'data:') throw new Error('HTTP ' + r.status);
+            boomSave(await r.blob(), name);
+            return 'saved';
+        } catch (e) {
+            console.warn('[download] ripiego sull\'apertura nativa:', (e && e.message) || e);
+            return boomOpen(url, name) ? 'opened' : 'failed';
+        }
+    }
+    window.boomDownloadUrl = boomDownloadUrl;
+
+    // Apertura file UNIVERSALE. I browser moderni BLOCCANO la navigazione
+    // verso data: URI (window.open su un PDF base64 legacy = click morto,
+    // zero errori): un data: si converte in Blob e si consegna con boomSave.
+    // Gli URL http(s) si aprono nel gesto del click.
+    function boomOpen(url, name) {
+        try {
+            if (String(url || '').slice(0, 5) === 'data:') {
+                const [head, b64] = String(url).split(',');
+                const mime = (head.match(/^data:([^;]+)/) || [])[1] || 'application/octet-stream';
+                const bytes = atob(b64);
+                const arr = new Uint8Array(bytes.length);
+                for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+                return boomSave(new Blob([arr], { type: mime }), name || 'documento.pdf');
+            }
+            const w = window.open(url, '_blank');
+            if (!w) { toast('error', 'Il browser ha bloccato l\'apertura — consenti i pop-up per boomrome.com'); return false; }
+            return true;
+        } catch (e) { toast('error', 'Apertura non riuscita: ' + (e.message || e)); return false; }
+    }
+    window.boomOpen = boomOpen;
     async function downloadDocument(id) {
         const doc = S.documents.find(d => d.id === id);
-        if (doc?.fileUrl) { window.open(doc.fileUrl, '_blank'); toast('success', 'Download avviato'); }
-        else toast('info', 'Documento senza file allegato');
+        if (!doc?.fileUrl) { toast('info', 'Documento senza file allegato'); return; }
+        // niente toast bugiardo: si parla solo se l'apertura è partita davvero
+        if (boomOpen(doc.fileUrl, doc.fileName || doc.name)) toast('success', 'Download avviato');
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -18673,8 +18752,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     function downloadPass(blob, type) {
         if (!blob) return;
-        var url = URL.createObjectURL(blob); var a = document.createElement('a');
-        a.href = url; a.download = 'boom-' + type + '-pass.pkpass'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+        boomSave(blob, 'boom-' + type + '-pass.pkpass');
     }
 
     function sendPassWhatsApp(phone, msg, passUrl) {
@@ -19651,17 +19729,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const tName = ((tenant && tenant.name) || 'Conduttore').replace(/\s+/g, '_');
         const fileName = `Contratto_${tName}_${isSigned ? 'Firmato' : 'Bozza'}.pdf`;
 
-        // fetch() works for both data: URIs (legacy base64) and https:// (Firebase Storage)
+        // vale sia per i data: URI (base64 legacy) sia per gli https:// di Storage
         try {
-            const blob = await fetch(dataUri).then(r => {
-                if (!r.ok && !dataUri.startsWith('data:')) throw new Error('HTTP ' + r.status);
-                return r.blob();
-            });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = fileName;
-            link.click();
-            URL.revokeObjectURL(link.href);
+            const how = await boomDownloadUrl(dataUri, fileName);
+            if (how === 'failed') throw new Error('consegna non riuscita');
             toast('success', isSigned ? 'Contratto firmato scaricato' : 'Bozza scaricata');
         } catch (e) {
             console.error('Download decode error:', e);
@@ -19716,12 +19787,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const storedPDF = fresh && fresh.generatedPDF;
         if (storedPDF) {
             try {
-                const blob = await fetch(storedPDF).then(r => r.blob());
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = fileName;
-                link.click();
-                URL.revokeObjectURL(link.href);
+                const how = await boomDownloadUrl(storedPDF, fileName);
+                if (how === 'failed') throw new Error('consegna non riuscita');
                 toast('success', hasSignatures ? 'Contratto firmato scaricato' : 'Contratto Allegato B scaricato');
             } catch (e) { console.error('Download error:', e); toast('error', 'Errore download PDF'); }
             return;
@@ -19734,19 +19801,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const after = S.contracts.find(x => x.id === id);
             if (after?.generatedPDF) {
                 try {
-                    const blob = await fetch(after.generatedPDF).then(r => r.blob());
-                    const link = document.createElement('a');
-                    link.href = URL.createObjectURL(blob);
-                    link.download = fileName;
-                    link.click();
-                    URL.revokeObjectURL(link.href);
+                    const how = await boomDownloadUrl(after.generatedPDF, fileName);
+                    if (how === 'failed') throw new Error('consegna non riuscita');
                     toast('success', 'Contratto Allegato B generato e scaricato!');
                 } catch (e) { console.error('Download error:', e); toast('error', 'Errore download PDF'); }
             }
         } else { toast('error', 'Errore generazione PDF'); }
     }
-    
-    
+    window.downloadContractPDF = downloadContractPDF;
+
+
 
     // Le clausole "sicurezza impianti" e "oneri accessori" (con le loro
     // regole: mai un default silenzioso, mai puntini dove il cliente cerca
@@ -21535,10 +21599,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     function downloadCSV(content, filename) {
         const blob = new Blob(['\ufeff' + content], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = filename;
-        link.click();
+        boomSave(blob, filename);
         toast('success', 'Export completato!');
     }
 
@@ -21608,7 +21669,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     
     // Aliases & utilities
     function showToast(title, type = 'info') { toast(type, title); }
-    function copyToClipboard(text) { navigator.clipboard.writeText(text).then(() => toast('success', 'Copiato!')).catch(() => toast('error', 'Errore copia')); }
+    // (la copyToClipboard vera — con i fallback execCommand e prompt per
+    // Safari — vive in fondo al file: qui c'era un doppione debole)
 
     // Check if opened locally (file://) - this won't work with Firebase
     if (window.location.protocol === 'file:') {
@@ -22431,11 +22493,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     window.openShareHub = openShareHub;
 
     // ── Download the contract PDF (reuses the existing generator at line 13792)
-    async function downloadContractPDF(contractId) {
-        try { await generateContractPDF(contractId); }
-        catch (e) { console.error(e); toast('error', 'Errore PDF: ' + e.message); }
-    }
-    window.downloadContractPDF = downloadContractPDF;
+    // LA LEZIONE DEL DOPPIONE (23/08): qui viveva una SECONDA
+    // downloadContractPDF che, vincendo sulla prima (script classico:
+    // l'ultima dichiarazione comanda), RIGENERAVA l'intero PDF con jsPDF a
+    // ogni click su 📄 — ecco i download "lentissimi o niente". La versione
+    // vera (scarica il PDF già pronto, rigenera solo se manca o se le firme
+    // sono arrivate dopo) sta più su, ed è l'unica. L'invariante "zero
+    // funzioni duplicate" è pinnato in tests/scarica.
 
     // ── Mark contract as successfully registered in AdE
     async function markRegistered(contractId) {
@@ -26616,11 +26680,7 @@ IBAN: ${l.iban || '-'}`;
 
                 canvas.toBlob((blob) => {
                     const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `BOOM-${boomCardState.data?.zone || 'property'}-${i+1}.jpg`;
-                    a.click();
-                    URL.revokeObjectURL(url);
+                    boomSave(url, `BOOM-${boomCardState.data?.zone || 'property'}-${i + 1}.jpg`);
                 }, 'image/jpeg', 0.95);
 
                 await new Promise(r => setTimeout(r, 500));
@@ -26683,11 +26743,7 @@ IBAN: ${l.iban || '-'}`;
 
             canvas.toBlob((blob) => {
                 const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `BOOM-${d.zone || 'property'}-card.jpg`;
-                a.click();
-                URL.revokeObjectURL(url);
+                boomSave(url, `BOOM-${d.zone || 'property'}-card.jpg`);
                 toast('success', '✅ Card scaricata!');
             }, 'image/jpeg', 0.95);
         } catch (err) {
@@ -27103,12 +27159,8 @@ IBAN: ${l.iban || '-'}`;
             
             // Download
             const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            const timestamp = now.toISOString().slice(0,10);
-            a.download = `documenti-contratto-ADE-${timestamp}.pdf`;
-            a.click();
-            URL.revokeObjectURL(a.href);
+            const timestamp = now.toISOString().slice(0, 10);
+            boomSave(blob, `documenti-contratto-ADE-${timestamp}.pdf`);
             
             adeState.status = '';
             toast('success', `PDF generato! (${finalSizeMB} MB) - Pronto per upload su AdE`);
@@ -27165,11 +27217,7 @@ IBAN: ${l.iban || '-'}`;
                     pdfBytes = await pdf.save({ useObjectStreams: false });
                 }
                 
-                const a = document.createElement('a'); 
-                a.href = URL.createObjectURL(new Blob([pdfBytes], { type: 'application/pdf' }));
-                a.download = file.name.replace(/\.[^.]+$/, '-ADE.pdf'); 
-                a.click(); 
-                URL.revokeObjectURL(a.href);
+                boomSave(new Blob([pdfBytes], { type: 'application/pdf' }), file.name.replace(/\.[^.]+$/, '-ADE.pdf'));
                 count++;
                 await new Promise(r => setTimeout(r, 400));
             }

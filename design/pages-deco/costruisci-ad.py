@@ -65,18 +65,30 @@ def letti(r):
         if m: return int(m.group())
     return None
 def stato(r):
+    # LA CORSIA, non lo stato grezzo (port fedele di dispo-engine
+    # laneCopy: la build e l'idrante devono dire la STESSA cosa, o la
+    # card cambia parole sotto gli occhi di chi guarda).
+    #   now    -> «Available now»
+    #   ahead  -> «Free from <data>»  ← occupata ma PRENOTABILE
+    #   closed -> «Rented»
+    # `waitlist` è sempre ahead: sono le case bloccate, e la loro data di
+    # rilascio è il fatto che le vende. Diceva «Waitlist open», cioè
+    # un'attesa senza fine, mentre la data era lì sul documento.
     s = r['status']
+    d = libera(r.get('avail'))
+    futura = d and d > oggi.strftime('%Y-%m-%d')
+
+    def dal(dd):
+        dt = datetime.fromisoformat(dd)
+        eti = 'Free from ' + str(int(dt.strftime('%d'))) + dt.strftime(' %b')
+        if dt.year != oggi.year: eti += dt.strftime(' %Y')
+        return (eti, 'poi')
+
+    if s == 'waitlist':
+        # senza data la casa si prenota lo stesso, con una promessa più debole
+        return dal(d) if futura else ('Reserve ahead', 'fila')
     if s == 'available':
-        # libera si, ma DA QUANDO: se la data e nel futuro, il badge la dice.
-        # «Available now» con ingresso nel 2027 era una promessa falsa.
-        d = libera(r.get('avail'))
-        if d and d > oggi.strftime('%Y-%m-%d'):
-            dt = datetime.fromisoformat(d)
-            eti = 'Free from ' + str(int(dt.strftime('%d'))) + dt.strftime(' %b')
-            if dt.year != oggi.year: eti += dt.strftime(' %Y')
-            return (eti, 'poi')
-        return ('Available now', 'si')
-    if s == 'waitlist': return ('Waitlist open', 'fila')
+        return dal(d) if futura else ('Available now', 'si')
     if s == 'reserved': return ('Reserved', '')
     return ('Rented', '')
 

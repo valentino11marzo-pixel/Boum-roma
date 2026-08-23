@@ -91,6 +91,16 @@ const eur = (n) => '€' + Number(n).toLocaleString('en-US');
 const num = (v) => { const m = String(v == null ? '' : v).match(/\d+(?:\.\d+)?/); const n = m ? Number(m[0]) : 0; return n > 0 ? n : null; };
 
 function availability(l, today) {
+  // La riga che un motore di risposta CITA. «waitlist — currently occupied»
+  // non contiene un fatto utile: chi chiede "casa a Prati per settembre" non
+  // può essere servito da "occupata". La data sì — ed è scritta sul
+  // documento di tutte e nove le case bloccate del catalogo.
+  const lane = DISPO.marketLane(l, today);
+  if (lane.lane === 'ahead') {
+    return lane.iso
+      ? 'reservable ahead — occupied now, free from ' + lane.iso
+      : 'reservable ahead — occupied now, release date on request';
+  }
   if (String(l.status || '').toLowerCase() === 'waitlist') {
     return 'waitlist — currently occupied, can be reserved ahead';
   }
@@ -117,7 +127,9 @@ export default async function handler(req, res) {
       String(a.zone || '').localeCompare(String(b.zone || '')) ||
       String(a.name || '').localeCompare(String(b.name || '')));
 
-    const nowN = rentable.filter((l) => String(l.status || '').toLowerCase() !== 'waitlist').length;
+    // «disponibili» sono quelle in cui si entra ORA: una available con data
+    // futura stava nel conteggio delle libere e gonfiava la promessa.
+    const nowN = rentable.filter((l) => DISPO.marketLane(l, today).lane === 'now').length;
 
     const out = [];
     out.push('# BOOM Rome — Live rental inventory');
@@ -128,7 +140,7 @@ export default async function handler(req, res) {
     out.push('> move-in from approval. Operated by Egidi Immobiliare S.r.l., a registered Italian');
     out.push('> agency (Via dei Coronari 181/184, 00186 Roma). Site guide: https://www.boomrome.com/llms.txt');
     out.push('');
-    out.push(`_${rentable.length} homes (${nowN} available, ${rentable.length - nowN} on waitlist) · generated ${new Date().toISOString().slice(0, 16)}Z · cached up to 10 minutes_`);
+    out.push(`_${rentable.length} homes (${nowN} available now, ${rentable.length - nowN} occupied but reservable ahead with a known release date) · generated ${new Date().toISOString().slice(0, 16)}Z · cached up to 10 minutes_`);
     out.push('');
 
     for (const l of rentable) {
