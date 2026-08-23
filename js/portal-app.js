@@ -11103,10 +11103,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
         if (!n) { toast('error', 'Nessuna foto esportabile (CORS?)'); return; }
         const out = await zip.generateAsync({ type: 'blob' });
-        const url = URL.createObjectURL(out);
-        const a = document.createElement('a');
-        a.href = url; a.download = `BOOM_${(prop.name || prop.id).replace(/[^a-zA-Z0-9]/g, '_')}_foto.zip`;
-        document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+        boomSave(out, `BOOM_${(prop.name || prop.id).replace(/[^a-zA-Z0-9]/g, '_')}_foto.zip`);
         toast('success', n + ' foto esportate');
         logActivity('Export foto ZIP', 'property', { propertyId: prop.id, count: n, watermark: _psState.watermark });
     };
@@ -16700,10 +16697,57 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
     }
 
+    // ═══ LA CONSEGNA DEL FILE — una copia sola ═══════════════════════════
+    // I DUE DIFETTI CHE SU SAFARI UCCIDONO IL DOWNLOAD SENZA UN ERRORE, e
+    // che erano sparsi in NOVE punti di questo file (export CSV, PDF
+    // contratto, pack AdE, card immobile… e la mia stessa boomOpen di ieri):
+    //  1. un <a download> NON attaccato al documento: WebKit ignora il
+    //     .click() di un nodo staccato — il tap non fa proprio nulla;
+    //  2. URL.revokeObjectURL() sincrono subito dopo il click: annulla lo
+    //     scaricamento ancora in volo (Safari e Firefox).
+    // Insieme spiegano "clicco e non scarica" meglio di qualunque lentezza.
+    function boomSave(src, name) {
+        const url = typeof src === 'string' ? src : URL.createObjectURL(src);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = name || 'documento';
+        a.rel = 'noopener';
+        a.style.display = 'none';
+        document.body.appendChild(a);          // ← senza questo, su Safari non succede NIENTE
+        a.click();
+        setTimeout(() => {                     // mai revocare sotto un download in volo
+            a.remove();
+            if (String(url).slice(0, 5) === 'blob:') URL.revokeObjectURL(url);
+        }, 10000);
+        return true;
+    }
+    window.boomSave = boomSave;
+
+    // Scarica un file REMOTO col nome giusto. Si prova a prenderlo (serve per
+    // rinominarlo), ma con un TETTO di tempo e un ripiego: se la rete è lenta
+    // o il bucket non concede il CORS, la fetch fallisce/appende e prima
+    // l'operatore restava con un click che non produceva niente. L'apertura
+    // nativa non fallisce mai: si perde il nome del file, non il documento.
+    async function boomDownloadUrl(url, name) {
+        try {
+            const ctrl = typeof AbortController === 'function' ? new AbortController() : null;
+            const timer = setTimeout(() => { try { if (ctrl) ctrl.abort(); } catch (e) { } }, 12000);
+            const r = await fetch(url, ctrl ? { signal: ctrl.signal } : undefined);
+            clearTimeout(timer);
+            if (!r.ok && String(url).slice(0, 5) !== 'data:') throw new Error('HTTP ' + r.status);
+            boomSave(await r.blob(), name);
+            return 'saved';
+        } catch (e) {
+            console.warn('[download] ripiego sull\'apertura nativa:', (e && e.message) || e);
+            return boomOpen(url, name) ? 'opened' : 'failed';
+        }
+    }
+    window.boomDownloadUrl = boomDownloadUrl;
+
     // Apertura file UNIVERSALE. I browser moderni BLOCCANO la navigazione
     // verso data: URI (window.open su un PDF base64 legacy = click morto,
-    // zero errori): un data: si converte in Blob e si consegna con un
-    // <a download> vero. Gli URL http(s) si aprono nel gesto del click.
+    // zero errori): un data: si converte in Blob e si consegna con boomSave.
+    // Gli URL http(s) si aprono nel gesto del click.
     function boomOpen(url, name) {
         try {
             if (String(url || '').slice(0, 5) === 'data:') {
@@ -16712,12 +16756,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 const bytes = atob(b64);
                 const arr = new Uint8Array(bytes.length);
                 for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(new Blob([arr], { type: mime }));
-                link.download = name || 'documento.pdf';
-                link.click();
-                setTimeout(() => URL.revokeObjectURL(link.href), 4000);
-                return true;
+                return boomSave(new Blob([arr], { type: mime }), name || 'documento.pdf');
             }
             const w = window.open(url, '_blank');
             if (!w) { toast('error', 'Il browser ha bloccato l\'apertura — consenti i pop-up per boomrome.com'); return false; }
@@ -18712,8 +18751,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     function downloadPass(blob, type) {
         if (!blob) return;
-        var url = URL.createObjectURL(blob); var a = document.createElement('a');
-        a.href = url; a.download = 'boom-' + type + '-pass.pkpass'; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+        boomSave(blob, 'boom-' + type + '-pass.pkpass');
     }
 
     function sendPassWhatsApp(phone, msg, passUrl) {
@@ -19690,17 +19728,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const tName = ((tenant && tenant.name) || 'Conduttore').replace(/\s+/g, '_');
         const fileName = `Contratto_${tName}_${isSigned ? 'Firmato' : 'Bozza'}.pdf`;
 
-        // fetch() works for both data: URIs (legacy base64) and https:// (Firebase Storage)
+        // vale sia per i data: URI (base64 legacy) sia per gli https:// di Storage
         try {
-            const blob = await fetch(dataUri).then(r => {
-                if (!r.ok && !dataUri.startsWith('data:')) throw new Error('HTTP ' + r.status);
-                return r.blob();
-            });
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(blob);
-            link.download = fileName;
-            link.click();
-            URL.revokeObjectURL(link.href);
+            const how = await boomDownloadUrl(dataUri, fileName);
+            if (how === 'failed') throw new Error('consegna non riuscita');
             toast('success', isSigned ? 'Contratto firmato scaricato' : 'Bozza scaricata');
         } catch (e) {
             console.error('Download decode error:', e);
@@ -19755,12 +19786,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const storedPDF = fresh && fresh.generatedPDF;
         if (storedPDF) {
             try {
-                const blob = await fetch(storedPDF).then(r => r.blob());
-                const link = document.createElement('a');
-                link.href = URL.createObjectURL(blob);
-                link.download = fileName;
-                link.click();
-                URL.revokeObjectURL(link.href);
+                const how = await boomDownloadUrl(storedPDF, fileName);
+                if (how === 'failed') throw new Error('consegna non riuscita');
                 toast('success', hasSignatures ? 'Contratto firmato scaricato' : 'Contratto Allegato B scaricato');
             } catch (e) { console.error('Download error:', e); toast('error', 'Errore download PDF'); }
             return;
@@ -19773,12 +19800,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const after = S.contracts.find(x => x.id === id);
             if (after?.generatedPDF) {
                 try {
-                    const blob = await fetch(after.generatedPDF).then(r => r.blob());
-                    const link = document.createElement('a');
-                    link.href = URL.createObjectURL(blob);
-                    link.download = fileName;
-                    link.click();
-                    URL.revokeObjectURL(link.href);
+                    const how = await boomDownloadUrl(after.generatedPDF, fileName);
+                    if (how === 'failed') throw new Error('consegna non riuscita');
                     toast('success', 'Contratto Allegato B generato e scaricato!');
                 } catch (e) { console.error('Download error:', e); toast('error', 'Errore download PDF'); }
             }
@@ -21575,10 +21598,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     function downloadCSV(content, filename) {
         const blob = new Blob(['\ufeff' + content], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = filename;
-        link.click();
+        boomSave(blob, filename);
         toast('success', 'Export completato!');
     }
 
@@ -26575,11 +26595,7 @@ IBAN: ${l.iban || '-'}`;
 
                 canvas.toBlob((blob) => {
                     const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `BOOM-${boomCardState.data?.zone || 'property'}-${i+1}.jpg`;
-                    a.click();
-                    URL.revokeObjectURL(url);
+                    boomSave(url, `BOOM-${boomCardState.data?.zone || 'property'}-${i + 1}.jpg`);
                 }, 'image/jpeg', 0.95);
 
                 await new Promise(r => setTimeout(r, 500));
@@ -26642,11 +26658,7 @@ IBAN: ${l.iban || '-'}`;
 
             canvas.toBlob((blob) => {
                 const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `BOOM-${d.zone || 'property'}-card.jpg`;
-                a.click();
-                URL.revokeObjectURL(url);
+                boomSave(url, `BOOM-${d.zone || 'property'}-card.jpg`);
                 toast('success', '✅ Card scaricata!');
             }, 'image/jpeg', 0.95);
         } catch (err) {
@@ -27062,12 +27074,8 @@ IBAN: ${l.iban || '-'}`;
             
             // Download
             const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-            const a = document.createElement('a');
-            a.href = URL.createObjectURL(blob);
-            const timestamp = now.toISOString().slice(0,10);
-            a.download = `documenti-contratto-ADE-${timestamp}.pdf`;
-            a.click();
-            URL.revokeObjectURL(a.href);
+            const timestamp = now.toISOString().slice(0, 10);
+            boomSave(blob, `documenti-contratto-ADE-${timestamp}.pdf`);
             
             adeState.status = '';
             toast('success', `PDF generato! (${finalSizeMB} MB) - Pronto per upload su AdE`);
@@ -27124,11 +27132,7 @@ IBAN: ${l.iban || '-'}`;
                     pdfBytes = await pdf.save({ useObjectStreams: false });
                 }
                 
-                const a = document.createElement('a'); 
-                a.href = URL.createObjectURL(new Blob([pdfBytes], { type: 'application/pdf' }));
-                a.download = file.name.replace(/\.[^.]+$/, '-ADE.pdf'); 
-                a.click(); 
-                URL.revokeObjectURL(a.href);
+                boomSave(new Blob([pdfBytes], { type: 'application/pdf' }), file.name.replace(/\.[^.]+$/, '-ADE.pdf'));
                 count++;
                 await new Promise(r => setTimeout(r, 400));
             }
