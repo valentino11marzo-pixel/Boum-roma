@@ -2678,6 +2678,64 @@ vuota). Il feed Immobiliare emette `<available-from>` **solo su data certa**
 `coreContent` del Pubblicista → l'hash cambia → l'update si mette in coda da
 sé per ogni portale.
 
+## La corsia del pre-blocco (`marketLane` in `js/dispo-engine.js`)
+
+**Il grosso del catalogo non si affitta oggi: si PRENOTA.** Sulle 26 case
+vere: 4 «si entra ora», **16 occupate con una data di rilascio nota**, 7
+affittate e basta. Eppure ogni superficie buttava via quella data — la
+vetrina diceva *«Waitlist open»*, la scheda *«the moment it frees up»*,
+llms *«currently occupied»*, e il JSON-LD dichiarava `InStock` una casa
+con dentro un inquilino. Il dato che vende (IL GIORNO in cui entri) non
+arrivava mai a chi programma un trasferimento con mesi di anticipo —
+studenti, expat, executive: il cuore del mercato BOOM.
+
+`marketLane()` deriva **tre corsie** da status + data, così l'operatore
+non deve tenere allineati due campi e le tre scritture che significano la
+stessa cosa convergono: `now` (entri adesso · *Apply*) · **`ahead`**
+(occupata ma con una data · *«Free from 1 Sep 2027» · Reserve*) ·
+`closed` (occupata e non sappiamo fino a quando · fuori mercato).
+`laneCopy()` tiene le parole in UN posto (badge, scheda, CTA, JSON-LD,
+llms, email Segugio non possono contraddirsi — la lezione di `pinCopy`).
+
+**Le quattro regole dure** (testate, verificate per mutazione):
+- **A.** `waitlist` è SEMPRE prenotabile: è la dichiarazione esplicita
+  dell'operatore. Senza data non diventa `closed`, diventa una promessa
+  più debole («Reserve ahead»).
+- **B.** `available` + data futura è `ahead`, non «libera ora». Sana da
+  sola il disallineamento vero trovato in produzione (il Bilocale Prati
+  era `available` + «1 Sept 2027» mentre l'operatore lo considerava
+  bloccato): **nessuno deve correggere niente a mano**.
+- **C.** `rented` entra in `ahead` SOLO con `availableFrom` — la data che
+  `magic-sign` scrive dal CONTRATTO alla firma — MAI con la sola
+  `availableDate`, testo libero che su una casa affittata è quasi sempre
+  il residuo di quando era libera (6 rented su 7 la portano già passata).
+  Prenotare su un residuo è la bugia peggiore: il cliente la scopre col
+  trasloco pronto.
+- **D.** Una data illeggibile non promette niente — né «libera ora» né una
+  prenotazione (regola 1 del file, ora applicata anche alla vetrina, dove
+  il parser python della build scriveva «Available now»).
+
+**L'anno che nessuno ha scritto** (`yearGuessed`): 10 case su 26 hanno la
+data senza anno («1 Aug», «Mar 1»). Il motore sceglie sempre il FUTURO
+(regola 2: far aspettare costa meno che mostrare una casa occupata) — ma
+ora lo **dichiara**. Se l'operatore intendeva l'anno scorso, quella casa
+è libera adesso e il sito la mostra bloccata fino al 2027: il pannello
+📅 Disponibilità le elenca in testa con un tap **«✓ Sì, è <data>»** che
+trasforma l'inferenza in ISO scritto. `audit()` le espone (`guessed`,
+`lanes`), e `/api/listings-availability` GET le mette in cima alla lista
+di lavoro, per il portal e per il bot.
+
+Superfici allineate: vetrina (idrante + innesto + builder python) ·
+scheda (CTA *Reserve from…* e lead `intent:'reserve'` invece di
+`waitlist` — l'operatore distingue «la vuole dal 1 settembre» da «gli
+piacerebbe, ma è occupata») · `api/listing.js` (JSON-LD **PreOrder** +
+`availabilityStarts`, noscript con la data) · `api/llms-listings.js` ·
+`api/search/matcher.js` (**il Segugio ora guarda la data di ingresso
+richiesta**: prima chi salvava «mi serve da settembre» riceveva le case
+libere adesso e NON quelle che si liberano a settembre) ·
+`api/feed/immobiliare.js` (`publishable` = corsia, non etichetta).
+Test: `node tests/prenota/run.mjs` (45 check).
+
 Test: `node tests/dispo/run.mjs` (112 check — le stringhe vere del catalogo,
 le trappole della lingua, la trasmissione e la sua guardia, le giunzioni
 asserite sulla sorgente, e il handler VERO su un Firestore in memoria: senza
@@ -2771,6 +2829,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/copy/run.mjs` | descrizioni: lo sweep riscrive i template del bot e le schede mute, ma **mai** le parole di un umano — verificato sulle stringhe vere del catalogo, dove il testo scritto a mano è più CORTO del template |
   | `tests/dispo/run.mjs` | date di disponibilità: una data illeggibile non diventa MAI "libera ora" (il difetto che metteva "Available now" su case libere a settembre), un messaggio aggiorna tutte le case, una data sola non si spalma su chi non è stato nominato, e la porta rifiuta ciò che le pagine non saprebbero rileggere |
   | `tests/geo/run.mjs` | precisione dei pin (`js/boom-geo.js`): portone (via+civico), strada, quartiere o niente — sulle stringhe `geo.q` vere del catalogo, incluso il caso insidioso `src:'nominatim'` su `q:'Prati, Roma'` |
+  | `tests/prenota/run.mjs` | la corsia del pre-blocco: una casa occupata con data nota si PRENOTA e la data si vede ovunque (era «Waitlist open»), l'affittata si apre SOLO col contratto (`availableFrom`) e mai su una `availableDate` residua, l'illeggibile non promette niente, e l'anno dedotto dal motore viene dichiarato all'operatore invece di passare per un fatto. Regole C e D verificate per mutazione |
   | `tests/vetrina/run.mjs` | l'innesto della vetrina (Chromium vero su apartments.html servita): un annuncio nato DOPO la build appare, è contato e i filtri veri lo mordono (zona via hash, ricerca libera, cuore); la data testo libero passa dal motore condiviso («1 Sept 2027» → «Free from», mai «Available now»); senza foto di casa nostra o con stato ignoto la carta NON nasce; le card di build continuano ad aggiornarsi. Verificato per mutazione |
   | `tests/scheda/run.mjs` | La Scheda: token derivati (ruolo nella derivazione, timing-safe), precedenza prefill contratto→sign→wizard, lock post-firma, sync profilo su ENTRAMBI gli schemi users, upload con OCR che non blocca mai, /api/profile/link autorizzato |
   | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot |

@@ -4512,7 +4512,26 @@ setTimeout(function () {
   var muro = document.getElementById('muro');
   if (!carte.length) return;
   function euro(n) { return '€' + Math.round(n).toLocaleString('en-US'); }
-  function stato(st, dal) {
+  /* LA CORSIA, non lo stato grezzo. «Waitlist open» era un'attesa
+     indefinita per case che la data di rilascio ce l'hanno tutte: ora il
+     badge la DICE (Free from 1 Sep 2027) — la stessa frase che scrive la
+     scheda, perché viene dalla stessa laneCopy. Il motore manca solo
+     dove manca la rete: allora restano le parole della build. */
+  function stato(st, dal, campi) {
+    if (window.BOOM_DISPO && BOOM_DISPO.laneCopy) {
+      try {
+        /* i campi VERI, mai la data già derivata: `availableFrom` è
+           quello che scrive il contratto alla firma, ed è l'unico che
+           autorizza una casa affittata a farsi prenotare (regola C).
+           Passargli `dal` la aprirebbe su un testo qualsiasi. */
+        var c = BOOM_DISPO.laneCopy({
+          status: st,
+          availableFrom: (campi && campi.af) || '',
+          availableDate: (campi && campi.ad) || ''
+        });
+        return { t: c.short, c: c.tone };
+      } catch (e) { /* si ricade sulle regole storiche qui sotto */ }
+    }
     var oggi = new Date().toISOString().slice(0, 10);
     if (st === 'available') {
       if (dal && dal > oggi) {
@@ -4551,27 +4570,33 @@ setTimeout(function () {
              testo libero non diventa mai "Available now" per un regex
              che legge solo ISO — il difetto storico della vetrina */
           var raw = String(v('availableDate') || '').trim();
-          var dal = (raw.match(/^\d{4}-\d{2}-\d{2}/) || [])[0] || '';
-          if (!dal && raw && window.BOOM_DISPO) {
+          var af = String(v('availableFrom') || '').trim();
+          /* la lettura della data passa dal motore su ENTRAMBI i campi,
+             con la stessa precedenza del resto del sito (il contratto
+             batte il testo libero) */
+          var dal = ((af || raw).match(/^\d{4}-\d{2}-\d{2}/) || [])[0] || '';
+          if (!dal && (af || raw) && window.BOOM_DISPO) {
             try {
-              var pa = BOOM_DISPO.parseAvailability(raw, new Date());
+              var pa = BOOM_DISPO.resolve({ availableFrom: af, availableDate: raw });
               if (pa && pa.kind === 'date') dal = pa.iso;
             } catch (e) {}
           }
           per[doc.name.split('/').pop()] = {
             st: String(v('status') || '').toLowerCase(),
-            dal: dal, cieca: !!(raw && !dal),
+            dal: dal, cieca: !!((af || raw) && !dal),
+            af: af, ad: raw,
             p: isFinite(p) && p > 0 ? Math.round(p) : null
           };
         });
         [].forEach.call(carte, function (card) {
           var d = per[card.dataset.id];
           if (!d || !d.st) return;
-          /* data illeggibile anche per il motore: il badge di BUILD (che
-             ha gia' letto la stessa stringa con le stesse regole) resta —
-             meglio fermo che sbagliato */
-          if (d.cieca) return;
-          var s = stato(d.st, d.dal);
+          /* data illeggibile: il badge della BUILD la legge con un parser
+             python più povero del motore e finisce per scrivere
+             «Available now» su una stringa che nessuno sa leggere. Qui il
+             motore ha l'ultima parola e dice «Ask us for the date» — la
+             regola 1 di dispo-engine, applicata anche alla vetrina. */
+          var s = stato(d.st, d.dal, d);
           var eti = card.querySelector('.casa-stato');
           if (eti && eti.textContent.trim() !== s.t) {
             eti.textContent = s.t;
@@ -4677,10 +4702,7 @@ setTimeout(function () {
       var giorni = (oggi - new Date(quando + 'T12:00:00')) / 864e5;
       var chip = (video && vivo) ? { t: 'VERIFIED', c: 'verde' }
         : (giorni < 21 && vivo) ? { t: 'NEW', c: '' } : null;
-      /* data illeggibile anche per il motore: si dice «Available»,
-         mai «now» — la disciplina di dispo-engine */
-      var s = (d.cieca && d.st === 'available')
-        ? { t: 'Available', c: 'si' } : stato(d.st, d.dal);
+      var s = stato(d.st, d.dal, d);
       var a = document.createElement('a');
       a.className = 'casa-p';
       a.href = '/listing/' + encodeURIComponent(id);

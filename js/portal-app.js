@@ -15099,16 +15099,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // stesso ritmo piano→conferma. Il bot è una tastiera in più, non un
         // secondo cervello — così quando è giù (e lo è stato) la funzione resta.
         if (type === 'availability') {
-            const a = window.BOOM_DISPO ? BOOM_DISPO.audit(S.listings) : { gaps: [], total: 0 };
+            const a = window.BOOM_DISPO ? BOOM_DISPO.audit(S.listings) : { gaps: [], guessed: [], total: 0, lanes: {} };
+            // Si mostra la CORSIA — cioè quello che il cliente legge davvero
+            // sulla card — e non più il solo `kind`: una casa affittata col
+            // contratto che dichiara la fine è PRENOTABILE, e prima non
+            // compariva affatto in questa lista (filtrata su status).
             const rows = (S.listings || [])
-                .filter(l => String(l.status || '').toLowerCase() !== 'rented')
-                .map(l => ({ l, r: BOOM_DISPO.resolve(l) }))
-                .sort((x, y) => (x.r.kind === 'unknown' ? 0 : 1) - (y.r.kind === 'unknown' ? 0 : 1)
-                    || String(x.l.name || '').localeCompare(String(y.l.name || '')))
-                .map(({ l, r }) => `<tr>
+                .map(l => ({ l, r: BOOM_DISPO.resolve(l), m: BOOM_DISPO.marketLane(l) }))
+                .filter(({ m }) => m.lane !== 'closed')
+                .sort((x, y) => {
+                    // la lista di lavoro: prima i buchi, poi gli anni dedotti
+                    const rank = (o) => (o.r.kind === 'unknown' ? 0 : o.m.yearGuessed ? 1 : 2);
+                    return rank(x) - rank(y)
+                        || String(x.l.name || '').localeCompare(String(y.l.name || ''));
+                })
+                .map(({ l, r, m }) => `<tr${m.yearGuessed ? ' style="background:rgba(245,166,35,0.06)"' : ''}>
                     <td><strong style="color:var(--text)">${esc(l.name || l.id)}</strong><br><small style="color:var(--text-muted)">${esc(l.zone || '')}</small></td>
-                    <td><span class="badge ${r.kind === 'unknown' ? 'orange' : r.kind === 'now' ? 'green' : 'gray'}">${r.kind === 'unknown' ? '❓ da concordare' : r.kind === 'now' ? '🟢 subito' : '📅 ' + r.iso}</span></td>
-                    <td><input type="date" class="form-input" style="padding:6px;font-size:12px" value="${r.iso || ''}" onchange="setAvailability('${l.id}', this.value)"></td>
+                    <td><span class="badge ${r.kind === 'unknown' ? 'orange' : m.lane === 'now' ? 'green' : 'gray'}">${esc(BOOM_DISPO.laneCopy(m, 'it').short)}</span>${m.yearGuessed ? `<br><small style="color:#f5a623">⚠️ hai scritto "${esc(m.source === 'availableFrom' ? (l.availableFrom || '') : (l.availableDate || ''))}" — l'anno l'abbiamo dedotto noi</small>` : ''}</td>
+                    <td><input type="date" class="form-input" style="padding:6px;font-size:12px" value="${r.iso || ''}" onchange="setAvailability('${l.id}', this.value)">${m.yearGuessed ? `<br><button class="btn btn-secondary" style="padding:4px 10px;font-size:11px;margin-top:4px" onclick="setAvailability('${l.id}','${r.iso}')">✓ Sì, è ${esc(r.iso)}</button>` : ''}</td>
                 </tr>`).join('');
             return `<div class="modal-overlay"><div class="modal lg"><div class="modal-header"><h3 class="modal-title">📅 Disponibilità</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body">
                 <div class="form-group">
@@ -15119,6 +15127,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div style="display:flex;gap:8px;margin-bottom:16px"><button class="btn" onclick="planAvailability()">Leggi il messaggio</button><button class="btn btn-secondary" id="availApply" style="display:none" onclick="applyAvailability()">✓ Conferma e scrivi</button></div>
                 <div id="availPlan"></div>
                 ${a.gaps.length ? `<div class="alert warning mb-8"><span class="alert-icon">❓</span><div class="alert-content"><div class="alert-title">${a.gaps.length} senza data</div><div class="alert-text">Su queste la vetrina dice "Ask us" — onesto, ma una data reale converte di più.</div></div></div>` : ''}
+                ${a.guessed && a.guessed.length ? `<div class="alert danger mb-8"><span class="alert-icon">⚠️</span><div class="alert-content"><div class="alert-title">${a.guessed.length} date con l'anno dedotto da noi</div><div class="alert-text">Hai scritto il giorno e il mese ma non l'anno (es. "1 luglio"), e il motore sceglie sempre <b>il futuro</b> — perché mettere in vetrina una casa ancora occupata è peggio che far aspettare. Ma se intendevi l'anno scorso, quella casa è <b>libera adesso</b> e il sito la sta mostrando come bloccata fino al ${esc(String((a.guessed[0] || {}).reads || '').slice(0, 4))}. Confermale qui sotto (bastano un paio di tap) e nessuno dovrà più indovinare.</div></div></div>` : ''}
+                ${a.lanes ? `<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+                    <span class="badge green">🟢 ${a.lanes.now || 0} si entra ora</span>
+                    <span class="badge gray">📅 ${a.lanes.ahead || 0} si prenotano in anticipo</span>
+                    <span class="badge">🔴 ${a.lanes.closed || 0} affittate senza data</span>
+                </div>` : ''}
                 <div class="table-wrapper"><table><thead><tr><th>Appartamento</th><th>Oggi</th><th>Cambia</th></tr></thead><tbody>${rows}</tbody></table></div>
             </div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Chiudi</button></div></div></div>`;
         }
