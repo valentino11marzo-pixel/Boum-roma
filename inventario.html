@@ -4,6 +4,17 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="robots" content="noindex">
+<meta name="theme-color" content="#050506">
+<!-- Aggiunta alla Home: qui NON si dichiara il manifest del portale, di
+     proposito. Quel manifest ha start_url=/portal, quindi un'icona creata
+     da questa pagina aprirebbe la dashboard invece dell'immobile. Senza,
+     iOS usa l'URL vero: l'icona "Lucrino 41" apre l'inventario DI Lucrino
+     41, a schermo intero. -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Inventario">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <title>Inventario — BOOM Console</title>
 <style>
 /* ═══════════════════════════════════════════════════════════════════

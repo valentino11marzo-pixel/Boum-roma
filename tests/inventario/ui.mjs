@@ -68,6 +68,16 @@ await page.waitForSelector('#form', { state: 'visible', timeout: 8000 });
 check('la pagina si apre sull\'immobile (nessun loader appeso)', await page.isVisible('#form'));
 check('nessun errore JS al boot', errs.length === 0);
 
+// Aggiunta alla Home: la pagina deve aprirsi a schermo intero SULL'IMMOBILE
+// che si sta rilevando. Un <link rel="manifest"> qui la dirotterebbe sullo
+// start_url del portale — l'icona "Lucrino 41" aprirebbe la dashboard.
+{
+  const src = read('inventario.html');
+  check('home-screen: dichiarata app a schermo intero (iOS + Android)', /apple-mobile-web-app-capable" content="yes"/.test(src) && /mobile-web-app-capable" content="yes"/.test(src));
+  check('home-screen: NESSUN manifest dichiarato, o l\'icona per immobile aprirebbe il portale', !/<link[^>]*rel="manifest"/.test(src));
+  check('home-screen: icona e colore della barra ci sono', /apple-touch-icon/.test(src) && /theme-color/.test(src));
+}
+
 // ── Il video: registrato QUI, quindi con la durata "Infinity" del caso vero ──
 const rec = await page.evaluate(async () => {
   const cv = document.createElement('canvas'); cv.width = 320; cv.height = 240;
