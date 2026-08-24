@@ -25,25 +25,18 @@
 // Vercel non traccia i lazy import), email best-effort e time-boxed —
 // il PDF si salva anche se Gmail è giù.
 
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { PDFDocument, rgb } from 'pdf-lib';
 import { fsGet, fsCreate, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { storageUpload, sendEmail } from '../agent/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import { shell, btn, para, fine } from '../preagreement/_notify.js';
+import INV from '../../js/inventario-engine.js';
+import { brandAssets, masthead, stampFooters, wa, INK, GREY, FAINT, GOLD, HAIR } from '../_pdfbrand.js';
 
 const clip = (v, n = 160) => String(v == null ? '' : v).trim().slice(0, n);
 const ADMIN_NOTIFY = process.env.ADMIN_NOTIFY_EMAIL || 'valentino@boom-rome.com';
 const MAX_PHOTO = 2.5 * 1024 * 1024;
 
-// WinAnsi safety — stessa funzione del Fascicolo Fiscale (la lezione del
-// certificato FES: una freccia "→" uccideva TUTTE le generazioni).
-function wa(s) {
-  return String(s == null ? '' : s)
-    .replace(/[→➔➡]/g, '->')
-    .replace(/[✓✔☑☒]/g, 'X')
-    .replace(/−/g, '-')
-    .replace(/[^\x20-\xFF–—‘’“”…€]/g, '');
-}
 const dIT = (s) => { try { const d = new Date(s); return isNaN(d) ? '' : d.toLocaleDateString('it-IT', { timeZone: 'Europe/Rome' }); } catch { return ''; } };
 const romeNow = () => {
   const now = new Date();
@@ -60,18 +53,18 @@ const dataUriToBuf = (s) => {
 };
 
 // ── Il PDF ───────────────────────────────────────────────────────────────
-export async function buildVerbalePdf({ contract, property, keys, meters, condition, notes, firme, photos, when }) {
+export async function buildVerbalePdf({ contract, property, keys, meters, condition, notes, firme, photos, when, inventario }) {
   const pdf = await PDFDocument.create();
-  const font = await pdf.embedFont(StandardFonts.Helvetica);
-  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  const ink = rgb(0.08, 0.08, 0.09), grey = rgb(0.42, 0.42, 0.45), gold = rgb(0.72, 0.55, 0.05);
+  const b = await brandAssets(pdf);          // marchio + font: api/_pdfbrand.js
+  const { font, bold } = b;
+  const ink = INK, grey = GREY, gold = GOLD;
   const W = 595, H = 842, M = 48;
 
   let page, y;
-  const newPage = () => { page = pdf.addPage([W, H]); y = H - 46; };
-  const T = (t, x, yy, sz, f, col) => page.drawText(wa(t), { x, y: yy, size: sz, font: f || font, color: col || ink });
-  const line = (yy, x1 = M, x2 = W - M, th = 0.6, col) => page.drawLine({ start: { x: x1, y: yy }, end: { x: x2, y: yy }, thickness: th, color: col || rgb(0.75, 0.73, 0.68) });
-  const need = (h) => { if (y - h < 60) { newPage(); } };
+  const newPage = () => { page = pdf.addPage([W, H]); y = masthead(page, b, { W, H, M, title: 'Verbale di consegna', date: when.d }); };
+  const T = (t, x, yy, sz, f, col, cs) => page.drawText(wa(t), { x, y: yy, size: sz, font: f || font, color: col || ink, ...(cs ? { characterSpacing: cs } : {}) });
+  const line = (yy, x1 = M, x2 = W - M, th = 0.6, col) => page.drawLine({ start: { x: x1, y: yy }, end: { x: x2, y: yy }, thickness: th, color: col || HAIR });
+  const need = (h) => { if (y - h < 70) { newPage(); } };
   const wrap = (text, size, width, f) => {
     const words = wa(text).split(/\s+/).filter(Boolean); const lines = []; let cur = '';
     for (const w of words) {
@@ -85,22 +78,16 @@ export async function buildVerbalePdf({ contract, property, keys, meters, condit
   const paraDraw = (text, size = 9.5, lh = 14, f, col) => {
     for (const l of wrap(text, size, W - 2 * M, f)) { need(lh); T(l, M, y, size, f, col); y -= lh; }
   };
-  const sect = (title) => { need(34); y -= 8; T(title, M, y, 10.5, bold, gold); y -= 5; line(y, M, W - M, 0.9, gold); y -= 16; };
-  const row = (k, v, kw = 170) => { need(16); T(k, M, y, 8, bold, grey); T(v, M + kw, y, 9.5, font, ink); y -= 15; };
+  const sect = (title) => { need(38); y -= 10; T(String(title).toUpperCase(), M, y, 9, bold, gold, 2.6); y -= 6; line(y, M, W - M, 0.8, gold); y -= 17; };
+  const row = (k, v, kw = 170) => { need(16); T(String(k).toUpperCase(), M, y, 7.5, font, FAINT, 1.1); T(v, M + kw, y, 9.5, font, ink); y -= 15; };
 
   newPage();
-  // Testata BOOM — stesso stile del Fascicolo Fiscale
-  page.drawRectangle({ x: 0, y: H - 40, width: W, height: 40, color: rgb(0.04, 0.04, 0.05) });
-  T('BOOM', M, H - 27, 15, bold, rgb(1, 1, 1));
-  T('ROMA', M + 48, H - 26, 8, font, rgb(0.91, 0.78, 0.41));
-  T('Verbale di consegna', W - M - 130, H - 22, 8, font, rgb(0.8, 0.8, 0.8));
-  T(when.d, W - M - 130, H - 33, 8, font, rgb(0.6, 0.6, 0.6));
-  y = H - 72;
+  T('CONSEGNA DELLE CHIAVI', M, y, 8, font, gold, 3); y -= 20;
+  T('Verbale di consegna dell\u2019immobile', M, y, 19, bold, ink, 0.2); y -= 15;
+  T(`Roma, ${when.d} \u2014 ore ${when.t}`, M, y, 9.5, font, grey); y -= 8;
+  line(y, M, W - M, 0.8, HAIR); y -= 18;
 
-  T('VERBALE DI CONSEGNA DELL\'IMMOBILE E DELLE CHIAVI', M, y, 13, bold, ink); y -= 20;
-  T(`Roma, ${when.d} — ore ${when.t}`, M, y, 9.5, font, grey); y -= 22;
-
-  sect('RIFERIMENTO');
+  sect('Riferimento');
   row('Immobile', clip(property.address || property.name || contract.propertyAddress || '', 90));
   row('Contratto di locazione', `${contract.type === 'studenti' ? 'per studenti universitari' : 'transitorio'} — decorrenza ${dIT(contract.startDate)} / scadenza ${dIT(contract.endDate)}`);
   row('Locatore', clip(contract.landlordName || '', 90));
@@ -109,7 +96,7 @@ export async function buildVerbalePdf({ contract, property, keys, meters, condit
     .filter(Boolean);
   row('Conduttore/i', condNames.join(', '));
 
-  sect('1. CHIAVI CONSEGNATE');
+  sect('1. Chiavi consegnate');
   const ks = (Array.isArray(keys) ? keys : []).filter((k) => k && clip(k.label) && Number(k.qty) > 0);
   if (ks.length) {
     for (const k of ks) row(clip(k.label, 46), `n. ${Math.min(20, Math.round(Number(k.qty)))}`);
@@ -119,7 +106,7 @@ export async function buildVerbalePdf({ contract, property, keys, meters, condit
     paraDraw('Nessuna chiave registrata.', 9.5, 14, font, grey);
   }
 
-  sect('2. LETTURE CONTATORI ALLA CONSEGNA');
+  sect('2. Letture contatori alla consegna');
   const m = meters || {};
   const mRow = (label, r, code, codeLabel) => {
     const val = clip((r || {}).lettura, 30);
@@ -132,18 +119,47 @@ export async function buildVerbalePdf({ contract, property, keys, meters, condit
   mRow('Acqua', m.acqua, 'matricola', 'matricola');
   paraDraw('Le letture sopra riportate fanno fede tra le parti ai fini delle volture e del riparto dei consumi.', 8.5, 12, font, grey);
 
-  sect('3. STATO DELL\'IMMOBILE');
+  sect('3. Stato dell\u2019immobile');
   const condTxt = { ottimo: 'in ottimo stato di manutenzione e pulizia', buono: 'in buono stato di manutenzione', conforme: 'nello stato risultante dal contratto e dai suoi allegati' }[condition] || 'in buono stato di manutenzione';
-  paraDraw(`Le parti danno atto che l'unita immobiliare viene consegnata ${condTxt}, completa degli arredi e delle dotazioni pattuite, funzionante negli impianti e negli apparecchi in dotazione.`);
+  // L'inventario, quando c'e, PRENDE IL POSTO della formula generica: "completa
+  // degli arredi e delle dotazioni pattuite" non ha mai deciso una trattenuta
+  // sul deposito, un elenco si (vedi js/inventario-engine.js).
+  const invRooms = (inventario && Array.isArray(inventario.rooms)) ? inventario.rooms.filter((r) => r && (r.items || []).length) : [];
+  if (invRooms.length) {
+    const ic = INV.counts(invRooms);
+    paraDraw(`Le parti danno atto che l’unità immobiliare viene consegnata ${condTxt}, funzionante negli impianti e negli apparecchi in dotazione, completa degli arredi e delle dotazioni analiticamente elencati nell’inventario redatto in data ${dIT(inventario.at) || when.d} (${ic.pieces} pezzi in ${ic.rooms} ambienti), che le parti dichiarano di aver verificato e che costituisce parte integrante del presente verbale.`);
+    y -= 4;
+    for (const room of invRooms) {
+      const line = (room.items || []).map((it) => {
+        const bits = [];
+        if ((it.qty || 1) > 1) bits.push('n. ' + it.qty);
+        if (it.condition) bits.push(INV.conditionLabel(it.condition));
+        if (it.note) bits.push(clip(it.note, 60));
+        return clip(it.name, 60) + (bits.length ? ' (' + bits.join(', ') + ')' : '');
+      }).join('; ');
+      need(16);
+      T(clip(room.label, 30).toUpperCase(), M, y, 8, bold, grey); y -= 12;
+      paraDraw(line + '.', 8.5, 12);
+      y -= 3;
+    }
+    if (ic.undeclared) {
+      paraDraw(ic.undeclared === 1
+        ? 'Per 1 voce non \u00e8 stato riscontrato n\u00e9 documentato alcun difetto specifico: ci\u00f2 non equivale ad attestazione di buono stato, n\u00e9 pu\u00f2 essere invocato come prova di un danno successivo.'
+        : `Per ${ic.undeclared} voci non \u00e8 stato riscontrato n\u00e9 documentato alcun difetto specifico: ci\u00f2 non equivale ad attestazione di buono stato, n\u00e9 pu\u00f2 essere invocato come prova di un danno successivo.`, 7.5, 11, font, FAINT);
+    }
+    if (inventario.url) paraDraw('L\u2019inventario integrale, con la documentazione fotografica del rilievo, \u00e8 allegato al presente verbale e archiviato nel fascicolo del contratto.', 7.5, 11, font, FAINT);
+  } else {
+    paraDraw(`Le parti danno atto che l’unità immobiliare viene consegnata ${condTxt}, completa degli arredi e delle dotazioni pattuite, funzionante negli impianti e negli apparecchi in dotazione.`);
+  }
   if (clip(notes)) { y -= 2; paraDraw('Annotazioni: ' + clip(notes, 600)); }
 
-  sect('4. DICHIARAZIONI');
-  paraDraw('Il Conduttore dichiara di ricevere in consegna in data odierna l\'unita immobiliare di cui al contratto in epigrafe, unitamente alle chiavi sopra elencate, di averla visitata e trovata adatta all\'uso convenuto, costituendosi da questo momento custode della stessa ai sensi dell\'art. 1590 c.c. e impegnandosi a riconsegnarla nello stato in cui l\'ha ricevuta, salvo il normale deperimento d\'uso. Il presente verbale integra il contratto di locazione ai sensi dell\'articolo 3 dello stesso.');
+  sect('4. Dichiarazioni');
+  paraDraw('Il Conduttore dichiara di ricevere in consegna in data odierna l\u2019unit\u00e0 immobiliare di cui al contratto in epigrafe, unitamente alle chiavi sopra elencate, di averla visitata e trovata adatta all\u2019uso convenuto, costituendosi da questo momento custode della stessa ai sensi dell\u2019art. 1590 c.c. e impegnandosi a riconsegnarla nello stato in cui l\'ha ricevuta, salvo il normale deperimento d\u2019uso. Il presente verbale integra il contratto di locazione ai sensi dell\u2019articolo 3 dello stesso.');
 
   // Foto (opzionali) — 2 per riga
   const ph = (Array.isArray(photos) ? photos : []).slice(0, 4).map((p) => ({ ...p, img: dataUriToBuf(p && p.base64) })).filter((p) => p.img);
   if (ph.length) {
-    sect('5. DOCUMENTAZIONE FOTOGRAFICA');
+    sect('5. Documentazione fotografica');
     const bw = (W - 2 * M - 16) / 2, bh = 150;
     for (let i = 0; i < ph.length; i += 2) {
       need(bh + 26);
@@ -162,7 +178,7 @@ export async function buildVerbalePdf({ contract, property, keys, meters, condit
 
   // Firme — conduttori + consegnante, 2 colonne
   const sigs = (Array.isArray(firme) ? firme : []).map((f) => ({ name: clip((f || {}).name, 60), kind: (f || {}).kind === 'consegnante' ? 'consegnante' : 'conduttore', img: dataUriToBuf((f || {}).sig) })).filter((f) => f.name && f.img);
-  need(40); sect(ph.length ? '6. FIRME' : '5. FIRME');
+  need(40); sect(ph.length ? '6. Firme' : '5. Firme');
   paraDraw(`Letto, confermato e sottoscritto in Roma, ${when.d} alle ore ${when.t}. Firme apposte in presenza, su dispositivo dell'operatore.`, 8.5, 12, font, grey);
   y -= 6;
   const colW = (W - 2 * M - 24) / 2, sigH = 52;
@@ -183,9 +199,7 @@ export async function buildVerbalePdf({ contract, property, keys, meters, condit
     y -= sigH + 44;
   }
 
-  need(20);
-  T('BOOM® è un marchio dell\'Unione europea registrato (MUE 019317594) di Egidi Immobiliare S.r.l.', M, 44, 7, font, grey);
-  T('Egidi Immobiliare S.r.l. — Via dei Coronari 181/184, 00186 Roma — Sede legale: Viale Liegi 42, 00198 Roma — P.IVA 17322991005 — boomrome.com', M, 34, 7, font, grey);
+  stampFooters(pdf, b, { W, M });
   return Buffer.from(await pdf.save());
 }
 
@@ -279,6 +293,7 @@ export default async function handler(req, res) {
       contract, property,
       keys: body.keys, meters: body.meters, condition: clip(body.condition, 20),
       notes: body.notes, firme, photos: body.photos, when,
+      inventario: contract.inventario || property.inventario || null,
     });
 
     const path = `contracts/${contractId}/verbale-consegna_${Date.now()}.pdf`;

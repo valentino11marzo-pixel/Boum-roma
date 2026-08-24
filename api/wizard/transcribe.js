@@ -14,6 +14,7 @@
 // 501:    { ok:false, error:'transcribe_unconfigured' }
 
 import { secretEqual, readJson } from '../homie/_lib.js';
+import { transcribeAudio } from './_stt.js';
 
 function checkSecret(req, res) {
   const supplied = req.headers['x-wizard-secret'] || req.headers['x-homie-secret'];
@@ -39,24 +40,13 @@ export default async function handler(req, res) {
   if (!buf.length || buf.length > 4 * 1024 * 1024) return res.status(400).json({ ok: false, error: 'audio_size' });
 
   try {
-    const mime = String((body && body.mimeType) || 'audio/ogg');
-    const form = new FormData();
-    form.append('file', new Blob([buf], { type: mime }), 'voice.ogg');
-    form.append('model', 'whisper-1');
-    form.append('language', 'it');
-    const r = await fetch('https://api.openai.com/v1/audio/transcriptions', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${key}` },
-      body: form,
-    });
-    if (!r.ok) {
-      console.error('[wizard/transcribe] openai', r.status, (await r.text()).slice(0, 200));
-      return res.status(502).json({ ok: false, error: 'stt_failed' });
+    const out = await transcribeAudio(buf, (body && body.mimeType) || 'audio/ogg');
+    if (!out.ok) {
+      if (out.error === 'unconfigured') return res.status(501).json({ ok: false, error: 'transcribe_unconfigured' });
+      if (out.error === 'stt_failed') return res.status(502).json({ ok: false, error: 'stt_failed' });
+      return res.status(400).json({ ok: false, error: out.error });
     }
-    const j = await r.json();
-    const text = String(j.text || '').trim();
-    if (!text) return res.status(200).json({ ok: true, text: '' });
-    return res.status(200).json({ ok: true, text: text.slice(0, 1200) });
+    return res.status(200).json({ ok: true, text: out.text });
   } catch (e) {
     console.error('[wizard/transcribe]', e);
     return res.status(500).json({ ok: false, error: 'internal' });

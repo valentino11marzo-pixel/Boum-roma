@@ -8498,6 +8498,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     </div>
                     <div class="card-body">
                         <div style="display:grid;gap:10px">
+                            <a class="btn btn-block" href="/inventario" target="_blank" rel="noopener" style="text-decoration:none" title="Filma il giro di casa: fotogrammi letti sul telefono, elenco proposto stanza per stanza, PDF allegato al verbale">
+                                <span style="flex:1;text-align:left">📋 Inventario dal video</span>
+                            </a>
                             <button class="btn btn-block btn-secondary" onclick="openTemplateModal('handover')">
                                 <span style="flex:1;text-align:left">🔘 Verbale Consegna Chiavi</span>
                             </button>
@@ -17104,6 +17107,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
             <div class="modal-footer">
                 <button class="btn btn-danger btn-sm" onclick="confirmDelete('propert','${p.id}','${jsq(p.name)}')">🗑</button>
+                <a class="btn btn-secondary btn-sm" href="/inventario?p=${p.id}" target="_blank" rel="noopener" title="${p.inventario ? 'Inventario del ' + String(p.inventario.at || '').slice(0,10) + ' — ' + ((p.inventario.counts && p.inventario.counts.pieces) || 0) + ' pezzi' : 'Inventario dal video: filma il giro, l\'elenco si scrive da solo'}" style="text-decoration:none">📋 Inventario${p.inventario ? ' ✓' : ''}</a>
                 <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
                 <button class="btn" onclick="const pid='${p.id}';closeModal();setTimeout(()=>openModal('editProperty',S.properties.find(x=>x.id===pid)),250)">✏️ Modifica</button>
             </div>
@@ -17269,6 +17273,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <button class="btn btn-secondary btn-sm" onclick="openPack('${c.id}')" title="Pack registrazione+asseverazione: ZIP con contratto firmato, certificato, fascicolo, visura, planimetria, APE, delega, identità, attestazione esigenza">📦 Pack${Array.isArray(c.registrationPackMissing) ? (c.registrationPackMissing.length ? ' ⚠' : ' ✓') : ''}</button>
                 <button class="btn btn-secondary btn-sm" onclick="openAspi('${c.id}')" title="${c.aspiRequestedAt ? 'Richiesta inviata ad ASPI il ' + String(c.aspiRequestedAt).slice(0, 10) + ' — riapri per re-inviare' : 'Manda al referente ASPI la richiesta di registrazione (+ asseverazione canone): email con tutti gli allegati, fattura col markup'}">🏛 ASPI${c.aspiRequestedAt ? ' ✓' : ''}</button>
                 ${c.verbaleConsegna && c.verbaleConsegna.url ? `<a class="btn btn-secondary btn-sm" href="${c.verbaleConsegna.url}" target="_blank" rel="noopener" title="Verbale di consegna firmato il ${String(c.verbaleConsegna.at || '').slice(0,10)}" style="text-decoration:none">🔑 Verbale ✓</a>` : `<a class="btn btn-secondary btn-sm" href="/verbale?c=${c.id}" target="_blank" rel="noopener" title="Il giorno delle chiavi: chiavi + letture contatori + stato, firme sullo schermo → PDF via email alle parti (l'Art. 3 del contratto rinvia a questo verbale)" style="text-decoration:none">🔑 Verbale consegna</a>`}
+                <a class="btn btn-secondary btn-sm" href="/inventario?c=${c.id}" target="_blank" rel="noopener" title="${c.inventario ? 'Inventario del ' + String(c.inventario.at || '').slice(0,10) + ' — ' + ((c.inventario.counts && c.inventario.counts.pieces) || 0) + ' pezzi. Riaprilo per la riconsegna (il confronto lo fa da solo)' : 'Filma il giro di casa: la pagina legge il video sul telefono e propone l\'elenco stanza per stanza. Diventa allegato del verbale e, alla riconsegna, il confronto che decide il deposito'}" style="text-decoration:none">📋 Inventario${c.inventario ? ' ✓' : ''}</a>
                 <a class="btn btn-secondary btn-sm" href="/casa?as=${c.id}" target="_blank" rel="noopener" title="La tua casa BOOM come la vede QUESTO cliente — dati veri, vista admin, zero credenziali da chiedere" style="text-decoration:none">👁 Casa</a>
                 ${!c.rliRegisteredAt ? `<button class="btn btn-secondary btn-sm" onclick="markRliRegistered('${c.id}')" title="Segna la registrazione RLI fatta: chiude la scadenza e aggiorna il fascicolo">✓ RLI registrato</button>` : `<span class="btn btn-sm" style="background:rgba(52,199,89,.12);color:var(--green);cursor:default" title="Registrato il ${c.rliRegisteredAt ? String(c.rliRegisteredAt).slice(0,10) : ''}">✓ RLI ${String(c.rliRegisteredAt).slice(0,10)}</span>`}
                 ${sigStatus === 'complete' ? `<button class="btn btn-secondary btn-sm" onclick="archiveDeal('${c.id}')" title="Archivia deal completo su Storage">${c.dealArchived ? '✅ Archiviato' : '📦 Archive Deal'}</button>` : ''}

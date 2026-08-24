@@ -262,7 +262,8 @@
         ['/manuale', '🏠', 'Console — Manuale casa', 'manuale casa wifi istruzioni inquilino'],
         ['/salute',  '🩺', 'Console — Salute sistema', 'salute sistema errori heartbeat stato'],
         ['/scheda-canone', '📐', 'Console — Scheda canone', 'canone concordato scheda calcolo fasce arpe'],
-        ['/pre-agreement-admin', '🖋️', 'Console — Pre-agreement', 'preagreement proposta deal atto magic sign']
+        ['/pre-agreement-admin', '🖋️', 'Console — Pre-agreement', 'preagreement proposta deal atto magic sign'],
+        ['/inventario', '📋', 'Console — Inventario dal video', 'inventario arredi stanze video consegna riconsegna deposito stato dei luoghi']
     ].forEach(function (c) {
         ACTIONS.push({
             id: 'console:' + c[0], group: 'Console', icon: c[1], label: c[2],
@@ -296,6 +297,7 @@
         // Il contratto: il fascicolo di lavoro quotidiano dell'operatore
         ['contract', 'openFascicolo',            ['$id'],             '📑', 'Fascicolo ARPE',              'fascicolo arpe asseverazione registrazione checklist zip'],
         ['contract', 'openPack',                 ['$id'],             '📦', 'Pack registrazione',          'pack registrazione rli zip caf ade documenti'],
+        ['contract', 'open',                     ['/inventario?c=$id'], '📋', 'Inventario dal video',      'inventario arredi mobili elenco video stanze consegna riconsegna deposito danni'],
         ['contract', 'openShareHub',             ['$id'],             '🔗', 'Share Hub — link del deal',   'share hub link condividi scheda firma whatsapp'],
         ['contract', 'viewContract',             ['$id'],             '📋', 'Apri il contratto',           'apri vedi contratto dettaglio scheda'],
         ['contract', 'previewContractPDF',       ['$id'],             '👁', 'Anteprima PDF contratto',     'anteprima preview pdf contratto vedi'],
@@ -311,6 +313,7 @@
         ['contract', 'open',                     ['/verbale?c=$id'],  '🔑', 'Verbale di consegna chiavi',  'verbale consegna chiavi contatori letture stato'],
         // L'immobile
         ['property', 'viewProperty',             ['$id'],             '🏠', "Apri l'immobile",             'apri vedi immobile scheda dettaglio'],
+        ['property', 'open',                     ['/inventario?p=$id'], '📋', 'Inventario dal video',      'inventario arredi mobili elenco video stanze consegna riconsegna stato dei luoghi'],
         ['property', 'openDocUploadForProperty', ['$id', '$year'],    '📤', 'Carica documento immobile',   'carica upload documento immobile allega file'],
         ['property', 'downloadTaxPackZip',       ['$id', '$year'],    '🧾', 'Pacchetto commercialista',    'taxpack pacchetto commercialista zip fiscale dichiarazione'],
         ['property', 'openCommercialistaShare',  ['$id', '$year'],    '🤝', 'Condividi col commercialista','condividi commercialista share link documenti'],
