@@ -30,6 +30,7 @@ import { fsGet, fsCreate, fsPatch, readJson, logActivity } from '../homie/_lib.j
 import { storageUpload, sendEmail } from '../agent/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import { shell, btn, para, fine } from '../preagreement/_notify.js';
+import INV from '../../js/inventario-engine.js';
 
 const clip = (v, n = 160) => String(v == null ? '' : v).trim().slice(0, n);
 const ADMIN_NOTIFY = process.env.ADMIN_NOTIFY_EMAIL || 'valentino@boom-rome.com';
@@ -60,7 +61,7 @@ const dataUriToBuf = (s) => {
 };
 
 // ── Il PDF ───────────────────────────────────────────────────────────────
-export async function buildVerbalePdf({ contract, property, keys, meters, condition, notes, firme, photos, when }) {
+export async function buildVerbalePdf({ contract, property, keys, meters, condition, notes, firme, photos, when, inventario }) {
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -134,7 +135,34 @@ export async function buildVerbalePdf({ contract, property, keys, meters, condit
 
   sect('3. STATO DELL\'IMMOBILE');
   const condTxt = { ottimo: 'in ottimo stato di manutenzione e pulizia', buono: 'in buono stato di manutenzione', conforme: 'nello stato risultante dal contratto e dai suoi allegati' }[condition] || 'in buono stato di manutenzione';
-  paraDraw(`Le parti danno atto che l'unita immobiliare viene consegnata ${condTxt}, completa degli arredi e delle dotazioni pattuite, funzionante negli impianti e negli apparecchi in dotazione.`);
+  // L'inventario, quando c'e, PRENDE IL POSTO della formula generica: "completa
+  // degli arredi e delle dotazioni pattuite" non ha mai deciso una trattenuta
+  // sul deposito, un elenco si (vedi js/inventario-engine.js).
+  const invRooms = (inventario && Array.isArray(inventario.rooms)) ? inventario.rooms.filter((r) => r && (r.items || []).length) : [];
+  if (invRooms.length) {
+    const ic = INV.counts(invRooms);
+    paraDraw(`Le parti danno atto che l'unita immobiliare viene consegnata ${condTxt}, funzionante negli impianti e negli apparecchi in dotazione, completa degli arredi e delle dotazioni analiticamente elencati nell'inventario redatto in data ${dIT(inventario.at) || when.d} (${ic.pieces} pezzi in ${ic.rooms} ambienti), che le parti dichiarano di aver verificato e che costituisce parte integrante del presente verbale.`);
+    y -= 4;
+    for (const room of invRooms) {
+      const line = (room.items || []).map((it) => {
+        const bits = [];
+        if ((it.qty || 1) > 1) bits.push('n. ' + it.qty);
+        if (it.condition) bits.push(INV.conditionLabel(it.condition));
+        if (it.note) bits.push(clip(it.note, 60));
+        return clip(it.name, 60) + (bits.length ? ' (' + bits.join(', ') + ')' : '');
+      }).join('; ');
+      need(16);
+      T(clip(room.label, 30).toUpperCase(), M, y, 8, bold, grey); y -= 12;
+      paraDraw(line + '.', 8.5, 12);
+      y -= 3;
+    }
+    if (ic.undeclared) {
+      paraDraw(`Per ${ic.undeclared} voci non e stato riscontrato ne documentato alcun difetto specifico: cio non equivale ad attestazione di buono stato ne puo essere invocato come prova di un danno successivo.`, 7.5, 11, font, grey);
+    }
+    if (inventario.url) paraDraw('Inventario completo, con documentazione fotografica: ' + clip(inventario.url, 150), 7.5, 11, font, grey);
+  } else {
+    paraDraw(`Le parti danno atto che l'unita immobiliare viene consegnata ${condTxt}, completa degli arredi e delle dotazioni pattuite, funzionante negli impianti e negli apparecchi in dotazione.`);
+  }
   if (clip(notes)) { y -= 2; paraDraw('Annotazioni: ' + clip(notes, 600)); }
 
   sect('4. DICHIARAZIONI');
@@ -279,6 +307,7 @@ export default async function handler(req, res) {
       contract, property,
       keys: body.keys, meters: body.meters, condition: clip(body.condition, 20),
       notes: body.notes, firme, photos: body.photos, when,
+      inventario: contract.inventario || property.inventario || null,
     });
 
     const path = `contracts/${contractId}/verbale-consegna_${Date.now()}.pdf`;

@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Inventario — BOOM Console</title>
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   INVENTARIO DAL VIDEO — l'operatore filma il giro di casa, la pagina
+   estrae i fotogrammi QUI (il video non sale mai: pesa 100MB e la rete
+   di un vano scala non li porta), il server propone l'elenco stanza per
+   stanza, l'operatore corregge e firma il PDF.
+   Stessa scocca del verbale: si usa in piedi, con una mano.
+   ═══════════════════════════════════════════════════════════════════ */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--gold:#D4AF37;--gold-light:#F1DFA0;--void:#050506;--card:#0B0B0D;--input:#16161A;
+  --line:rgba(255,255,255,.09);--line-soft:rgba(255,255,255,.05);
+  --t1:#FFF;--t2:rgba(255,255,255,.72);--t3:rgba(255,255,255,.46);--t4:rgba(255,255,255,.26);
+  --green:#4ADE9E;--red:#F87171;--sans:'Helvetica Neue',Helvetica,'Inter',-apple-system,sans-serif;--safe:env(safe-area-inset-bottom,0px)}
+body{font-family:var(--sans);background:var(--void);color:var(--t1);font-weight:300;line-height:1.55;-webkit-font-smoothing:antialiased}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+nav{position:sticky;top:0;z-index:50;display:flex;justify-content:space-between;align-items:center;padding:13px 18px;background:rgba(5,5,6,.9);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid var(--line-soft)}
+.brand{display:flex;align-items:center;gap:10px;color:inherit;text-decoration:none}
+.brand b{font-weight:300;letter-spacing:5px;font-size:14px}
+.tag{font-size:9.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--t4)}
+main{max-width:660px;margin:0 auto;padding:20px 16px calc(96px + var(--safe))}
+h1{font-weight:200;font-size:23px;letter-spacing:-.3px;margin-bottom:3px}
+.sub{color:var(--t3);font-size:12.5px;margin-bottom:16px;line-height:1.6}
+.card{border:1px solid var(--line-soft);border-radius:16px;background:var(--card);padding:18px;margin-bottom:12px;position:relative;overflow:hidden}
+.card::after{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,rgba(212,175,55,.45),rgba(212,175,55,.1),transparent 75%)}
+.card h2{font-size:10.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--gold);font-weight:500;margin-bottom:12px}
+.fld{display:block;margin-bottom:10px}
+.fld span{display:block;font-size:9.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--t3);margin-bottom:5px}
+.fld input,.fld select,.fld textarea{width:100%;background:var(--input);border:1px solid var(--line);border-radius:10px;color:var(--t1);font-family:inherit;font-size:16px;font-weight:300;padding:11px 12px;transition:border-color .25s;resize:vertical}
+.fld input:focus,.fld select:focus,.fld textarea:focus{outline:none;border-color:var(--gold)}
+.hint{font-size:11.5px;color:var(--t3);margin:-2px 0 10px;line-height:1.55}
+.ref{font-size:13.5px;color:var(--t2);line-height:1.7}
+.ref b{color:var(--t1);font-weight:400}
+.pill{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:var(--gold);border:1px solid rgba(212,175,55,.35);border-radius:100px;padding:8px 14px;letter-spacing:.5px;margin:0 6px 6px 0}
+.pill.done{color:var(--green);border-color:rgba(74,222,158,.4)}
+.pill.rec{color:var(--red);border-color:rgba(248,113,113,.45)}
+.pill.ghost{color:var(--t3);border-color:var(--line)}
+.gbtn{display:flex;align-items:center;justify-content:center;width:100%;background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:600;border-radius:100px;padding:15px;font-size:12px;letter-spacing:2px;text-transform:uppercase;margin-top:6px;transition:.25s;text-decoration:none}
+.gbtn:disabled{opacity:.5}
+.gbtn.sec{background:none;border:1px solid var(--line);color:var(--t2);font-weight:400}
+.err{display:none;color:var(--gold-light);font-size:12.5px;text-align:center;margin-top:10px}
+.load{text-align:center;padding:80px 20px;color:var(--t3)}
+.thumbs{display:flex;gap:6px;overflow-x:auto;padding:4px 0 2px;-webkit-overflow-scrolling:touch}
+.thumbs img{height:62px;border-radius:8px;border:1px solid var(--line);flex:0 0 auto}
+.bar{height:3px;background:var(--input);border-radius:3px;overflow:hidden;margin:10px 0 4px}
+.bar i{display:block;height:100%;background:var(--gold);width:0;transition:width .2s}
+.room{border:1px solid var(--line-soft);border-radius:14px;background:rgba(255,255,255,.015);padding:12px;margin-bottom:10px}
+.room .rh{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.room .rh input{flex:1;background:none;border:none;border-bottom:1px solid var(--line);color:var(--t1);font-family:inherit;font-size:13px;letter-spacing:1.6px;text-transform:uppercase;padding:4px 2px}
+.room .rh input:focus{outline:none;border-color:var(--gold)}
+.it{display:grid;grid-template-columns:52px 1fr;gap:8px;align-items:start;padding:8px 0;border-top:1px solid var(--line-soft)}
+.it .qty{background:var(--input);border:1px solid var(--line);border-radius:8px;color:var(--t1);font-family:inherit;font-size:15px;padding:9px 4px;text-align:center;width:100%}
+.it .nm{background:var(--input);border:1px solid var(--line);border-radius:8px;color:var(--t1);font-family:inherit;font-size:15px;padding:9px 10px;width:100%}
+.it .rowb{display:flex;gap:8px;margin-top:6px;align-items:center}
+.it select{flex:1;background:var(--input);border:1px solid var(--line);border-radius:8px;color:var(--t2);font-family:inherit;font-size:13px;padding:8px 8px}
+.it select.dmg{color:var(--red);border-color:rgba(248,113,113,.4)}
+.it .note{flex:2;background:var(--input);border:1px solid var(--line);border-radius:8px;color:var(--t2);font-family:inherit;font-size:13px;padding:8px 10px;min-width:0}
+.it .del{color:var(--t4);font-size:17px;padding:0 4px;line-height:1}
+.it input:focus,.it select:focus{outline:none;border-color:var(--gold)}
+.addi{font-size:12px;color:var(--gold);letter-spacing:1px;margin-top:8px}
+.tot{font-size:12px;color:var(--t3);letter-spacing:.4px;margin:2px 0 10px}
+.tot b{color:var(--gold-light);font-weight:400}
+.tgl{display:flex;align-items:flex-start;gap:9px;font-size:12.5px;color:var(--t2);cursor:pointer;user-select:none;line-height:1.5;margin-top:6px}
+.tgl input{accent-color:var(--gold);width:19px;height:19px;flex:0 0 auto;margin-top:1px}
+.warn{border:1px solid rgba(212,175,55,.3);border-radius:12px;background:rgba(212,175,55,.05);padding:12px 14px;font-size:12.5px;color:var(--t2);line-height:1.6;margin-bottom:10px}
+.seg{display:flex;border:1px solid var(--line);border-radius:100px;overflow:hidden;background:var(--input);margin-bottom:10px}
+.seg button{flex:1;padding:10px;font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--t3)}
+.seg button.on{background:rgba(212,175,55,.14);color:var(--gold-light)}
+#success{display:none;text-align:center;padding:44px 16px}
+#success .big{font-size:50px;margin-bottom:14px}
+#success h2{font-weight:200;font-size:22px;margin-bottom:8px}
+#success p{color:var(--t3);font-size:13.5px;line-height:1.7;margin-bottom:20px}
+#success a.gbtn{max-width:340px;margin:0 auto 10px}
+</style>
+</head>
+<body>
+<nav><a class="brand" href="/portal"><b>BOOM</b></a><span class="tag">Inventario</span></nav>
+<main>
+  <div class="load" id="load">Verifica accesso…</div>
+
+  <div id="app" style="display:none">
+    <h1>Inventario della casa</h1>
+    <p class="sub">Filma il giro con calma, una stanza alla volta. La pagina estrae i fotogrammi <b style="color:var(--gold-light);font-weight:400">sul telefono</b> — il video non parte mai — e ti propone l'elenco. Tu correggi: quello che confermi diventa il PDF allegato al verbale.</p>
+
+    <div class="card" id="pickCard" style="display:none"><h2>Immobile</h2>
+      <label class="fld"><span>Scegli</span><select id="fTarget"><option value="">Scegli…</option></select></label>
+    </div>
+
+    <div id="form" style="display:none">
+      <div class="card"><h2>Riferimento</h2><div class="ref" id="ref"></div></div>
+
+      <div class="card"><h2>1 · Momento del rilievo</h2>
+        <div class="seg">
+          <button type="button" id="kConsegna" class="on">Consegna</button>
+          <button type="button" id="kRiconsegna">Riconsegna</button>
+        </div>
+        <p class="hint" id="kindHint">Ingresso dell'inquilino: questo elenco è la fotografia di partenza.</p>
+      </div>
+
+      <div class="card"><h2>2 · Il giro di casa</h2>
+        <p class="hint">Un video di 1–3 minuti basta. Inquadra ogni stanza e fermati un attimo su elettrodomestici e difetti. Parla pure: quello che dici viene ascoltato.</p>
+        <button class="pill" id="pickVideo">🎥 Scegli o registra il video</button>
+        <button class="pill ghost" id="recVoice">🎤 Nota vocale</button>
+        <div class="bar" id="bar" style="display:none"><i></i></div>
+        <div class="thumbs" id="thumbs"></div>
+        <p class="hint" id="vinfo" style="display:none"></p>
+        <label class="fld" style="margin-top:8px"><span>Note scritte (opzionale)</span><textarea id="fNote" rows="2" placeholder="es. la lavatrice è nuova, sul divano c'è già uno strappo sul bracciolo destro…"></textarea></label>
+        <button class="gbtn" id="go">✨ Leggi il video e proponi l'elenco</button>
+        <button class="gbtn sec" id="manual" style="margin-top:8px">Scrivo l'elenco a mano</button>
+      </div>
+
+      <div class="card" id="listCard" style="display:none"><h2>3 · L'elenco — correggilo</h2>
+        <div class="warn" id="aiWarn" style="display:none"></div>
+        <p class="tot" id="tot"></p>
+        <div id="rooms"></div>
+        <button class="addi" id="addRoom">+ aggiungi una stanza</button>
+        <label class="tgl" style="margin-top:14px"><input type="checkbox" id="reviewed">
+          <span>Ho scorso la lista ed è quella giusta. <b style="color:var(--t3);font-weight:300">Le voci senza condizione restano "non dichiarata": è la verità, e alla riconsegna protegge entrambe le parti.</b></span></label>
+        <button class="gbtn" id="save" style="margin-top:12px">📋 Genera l'inventario</button>
+        <p class="err" id="err"></p>
+      </div>
+    </div>
+  </div>
+
+  <div id="success">
+    <div class="big">📋</div>
+    <h2>Inventario salvato</h2>
+    <p id="sMsg"></p>
+    <a class="gbtn" id="sPdf" target="_blank" rel="noopener">Apri il PDF</a>
+    <button class="gbtn sec" onclick="location.reload()">Fai un altro rilievo</button>
+  </div>
+</main>
+
+<input type="file" accept="video/*" capture="environment" id="videoInput" style="display:none">
+<video id="vid" playsinline muted preload="auto" style="display:none"></video>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-config.js"></script>
+<script src="/js/boom-portal.js"></script>
+<script src="/js/inventario-engine.js"></script>
+<script>
+(function(){
+'use strict';
+var E=window.BOOM_INVENTARIO;
+var USER=null,PROFILE=null,C=null,P=null,PID='',CID='';
+var FRAMES=[],VOICE=null,KIND='consegna',INV={rooms:[]},REC=null;
+var $=function(id){return document.getElementById(id)};
+var esc=function(s){return String(s==null?'':s).replace(/[&<>"]/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]})};
+var dIT=function(s){try{var d=new Date(s);return isNaN(d)?'':d.toLocaleDateString('it-IT')}catch(e){return''}};
+function showErr(m){$('err').style.display='block';$('err').textContent=m;setTimeout(function(){$('err').style.display='none'},7000)}
+
+/* ── Fotogrammi dal video, QUI ──────────────────────────────────────────
+ * Niente upload: si estraggono i frame in canvas e si mandano solo quelli.
+ * Su iOS il seek di un <video> muto vuole un play()+pause() prima, o il
+ * primo drawImage esce nero.                                            */
+function grabFrames(file,onProgress){
+  return new Promise(function(resolve,reject){
+    var v=$('vid'),url=URL.createObjectURL(file),out=[];
+    var cv=document.createElement('canvas'),ctx=cv.getContext('2d');
+    var done=false;
+    var fail=function(e){if(done)return;done=true;URL.revokeObjectURL(url);reject(e||new Error('video_illeggibile'))};
+    v.onerror=function(){fail(new Error('Il telefono non riesce a leggere questo video'))};
+
+    /* La durata NON è sempre nei metadati: i file registrati sul momento
+     * (MediaRecorder, certi .mov) dichiarano Infinity finché non li si
+     * sonda cercando la fine. Senza questo, un video registrato adesso
+     * darebbe "video troppo corto" — il difetto peggiore, perché colpisce
+     * proprio il caso normale: filmo e carico subito. */
+    function measure(){
+      return new Promise(function(ok){
+        if(isFinite(v.duration)&&v.duration>0)return ok(v.duration);
+        var t0=Date.now();
+        var onT=function(){
+          if(isFinite(v.duration)&&v.duration>0){v.removeEventListener('timeupdate',onT);v.currentTime=0;ok(v.duration)}
+          else if(Date.now()-t0>4000){v.removeEventListener('timeupdate',onT);ok(v.duration)}
+        };
+        v.addEventListener('timeupdate',onT);
+        try{v.currentTime=1e7}catch(e){v.removeEventListener('timeupdate',onT);ok(v.duration)}
+      });
+    }
+
+    v.onloadedmetadata=function(){
+      measure().then(function(duration){
+        var plan=E.framePlan(duration,10);
+        if(!plan.length){fail(new Error('Video troppo corto o durata illeggibile: riprova con un giro più lungo'));return}
+        var w=v.videoWidth||1280,h=v.videoHeight||720,mx=1024;
+        if(Math.max(w,h)>mx){var k=mx/Math.max(w,h);w=Math.round(w*k);h=Math.round(h*k)}
+        cv.width=w;cv.height=h;
+        var i=0;
+        var seekNext=function(){
+          if(i>=plan.length){done=true;URL.revokeObjectURL(url);resolve({frames:out,duration:duration});return}
+          v.currentTime=plan[i];
+        };
+        v.onseeked=function(){
+          try{ctx.drawImage(v,0,0,w,h);out.push({t:plan[i],base64:cv.toDataURL('image/jpeg',.72)})}catch(e){/* un frame perso non ferma il giro */}
+          i++;if(onProgress)onProgress(i/plan.length);
+          setTimeout(seekNext,30);
+        };
+        // iOS: sbloccare il decoder prima del primo seek
+        var p=v.play();
+        if(p&&p.then)p.then(function(){v.pause();seekNext()}).catch(function(){seekNext()});
+        else{try{v.pause()}catch(e){}seekNext()}
+      });
+    };
+    v.src=url;v.load();
+  });
+}
+
+$('pickVideo').addEventListener('click',function(){$('videoInput').value='';$('videoInput').click()});
+$('videoInput').addEventListener('change',function(){
+  var f=this.files&&this.files[0];if(!f)return;
+  var btn=$('pickVideo');btn.textContent='Estraggo i fotogrammi…';btn.disabled=true;
+  $('bar').style.display='';$('bar').querySelector('i').style.width='0';
+  grabFrames(f,function(p){$('bar').querySelector('i').style.width=Math.round(p*100)+'%'}).then(function(r){
+    FRAMES=r.frames;btn.disabled=false;btn.className='pill done';btn.textContent='✓ '+FRAMES.length+' fotogrammi';
+    $('thumbs').innerHTML=FRAMES.map(function(f){return '<img src="'+f.base64+'" alt="">'}).join('');
+    $('vinfo').style.display='';$('vinfo').textContent='Video di '+Math.round(r.duration)+'s letto sul telefono. Sale solo questa manciata di immagini.';
+    $('bar').style.display='none';
+  }).catch(function(e){
+    btn.disabled=false;btn.className='pill';btn.textContent='🎥 Riprova con un altro video';
+    $('bar').style.display='none';showErr(e.message||'Video non leggibile');
+  });
+});
+
+/* ── Nota vocale (facoltativa, e mai bloccante) ── */
+$('recVoice').addEventListener('click',function(){
+  var b=this;
+  if(REC&&REC.state==='recording'){REC.stop();return}
+  if(!window.MediaRecorder||!navigator.mediaDevices){showErr('Questo browser non registra audio: usa le note scritte.');return}
+  navigator.mediaDevices.getUserMedia({audio:true}).then(function(stream){
+    var chunks=[];REC=new MediaRecorder(stream);
+    REC.ondataavailable=function(e){if(e.data&&e.data.size)chunks.push(e.data)};
+    REC.onstop=function(){
+      stream.getTracks().forEach(function(t){t.stop()});
+      var blob=new Blob(chunks,{type:REC.mimeType||'audio/webm'});
+      /* Tetto basso di proposito: fotogrammi + voce viaggiano nella STESSA
+       * richiesta e Vercel taglia il corpo a 4,5MB. 1,5MB di opus sono
+       * diversi minuti di parlato — più che abbastanza per un giro di casa. */
+      if(blob.size>1.5*1024*1024){showErr('Nota vocale troppo lunga (max ~1,5MB): rifalla più corta o usa le note scritte.');b.className='pill ghost';b.textContent='🎤 Nota vocale';return}
+      var rd=new FileReader();
+      rd.onload=function(){VOICE={base64:String(rd.result).split(',')[1],mimeType:blob.type};
+        b.className='pill done';b.textContent='✓ Nota vocale ('+Math.round(blob.size/1024)+' KB)'};
+      rd.readAsDataURL(blob);
+    };
+    REC.start();b.className='pill rec';b.textContent='⏺ Sto ascoltando — tocca per fermare';
+  }).catch(function(){showErr('Microfono non concesso: usa le note scritte.')});
+});
+
+/* ── Boot ── */
+BoomPortal.requireAuth(['admin','owner','landlord'],{loginUrl:'/login'}).then(function(res){
+  USER=res.user;PROFILE=res.profile;
+  $('load').style.display='none';$('app').style.display='';
+  var db=firebase.firestore();
+  var q=new URLSearchParams(location.search);
+  var cid=q.get('c'),pid=q.get('p');
+  if(cid){CID=cid;loadContract(db,cid)}
+  else if(pid){PID=pid;loadProperty(db,pid)}
+  else pickers(db);
+}).catch(function(){});
+
+function pickers(db){
+  $('pickCard').style.display='';
+  Promise.all([
+    db.collection('contracts').limit(200).get().catch(function(){return{forEach:function(){}}}),
+    db.collection('properties').limit(300).get().catch(function(){return{forEach:function(){}}})
+  ]).then(function(r){
+    var opts=[],seen={};
+    r[0].forEach(function(d){var c=d.data();if(c.status==='archived')return;
+      seen[c.propertyId]=1;
+      opts.push('<option value="c:'+d.id+'">'+esc((c.propertyAddress||c.propertyId||'Immobile')+' — '+(c.tenantName||'?'))+(c.inventario?' 📋✓':'')+'</option>')});
+    r[1].forEach(function(d){var p=d.data();
+      opts.push('<option value="p:'+d.id+'">'+esc(p.address||p.name||d.id)+' (senza contratto)'+(p.inventario?' 📋✓':'')+'</option>')});
+    $('fTarget').innerHTML='<option value="">Scegli…</option>'+opts.join('');
+    $('fTarget').onchange=function(){
+      if(!this.value)return;
+      var v=this.value.split(':');
+      if(v[0]==='c'){CID=v[1];loadContract(db,v[1])}else{PID=v[1];loadProperty(db,v[1])}
+    };
+  });
+}
+function loadContract(db,cid){
+  db.collection('contracts').doc(cid).get().then(function(doc){
+    if(!doc.exists){showErrTop('Contratto non trovato');return}
+    C=doc.data();C.id=cid;PID=C.propertyId||'';
+    return (PID?db.collection('properties').doc(PID).get():Promise.resolve(null)).then(function(pd){
+      P=(pd&&pd.exists)?pd.data():{};render();
+    });
+  }).catch(function(e){showErrTop('Errore: '+e.message)});
+}
+function loadProperty(db,pid){
+  db.collection('properties').doc(pid).get().then(function(doc){
+    if(!doc.exists){showErrTop('Immobile non trovato');return}
+    P=doc.data();PID=pid;C=null;render();
+  }).catch(function(e){showErrTop('Errore: '+e.message)});
+}
+function showErrTop(m){$('load').style.display='';$('load').textContent=m;$('app').style.display='none'}
+
+function existing(){return (C&&C.inventario)||(P&&P.inventario)||null}
+
+function render(){
+  $('pickCard').style.display='none';$('form').style.display='';
+  var names=C?[C.tenantName].concat((C.coTenants||[]).map(function(x){return x.name})).filter(Boolean):[];
+  var html='<b>'+esc((P&&(P.address||P.name))||(C&&C.propertyAddress)||'Immobile')+'</b>';
+  if(C)html+='<br>Conduttore/i: <b>'+esc(names.join(', ')||'—')+'</b><br>Contratto dal <b>'+dIT(C.startDate)+'</b> al '+dIT(C.endDate);
+  else html+='<br><span style="color:var(--t3)">Nessun contratto collegato: il rilievo resta sull\'immobile e si allega al verbale quando ci sarà.</span>';
+  var ex=existing();
+  if(ex)html+='<br><span style="color:var(--green)">📋 Inventario di consegna del '+dIT(ex.at)+' — '+(ex.counts?ex.counts.pieces+' pezzi':'')+' · <a href="'+esc(ex.url||'#')+'" target="_blank" rel="noopener" style="color:var(--green)">apri</a></span>';
+  $('ref').innerHTML=html;
+  setKind('consegna');
+}
+
+$('kConsegna').onclick=function(){setKind('consegna')};
+$('kRiconsegna').onclick=function(){setKind('riconsegna')};
+function setKind(k){
+  KIND=k;
+  $('kConsegna').className=k==='consegna'?'on':'';
+  $('kRiconsegna').className=k==='riconsegna'?'on':'';
+  if(k==='riconsegna'){
+    $('kindHint').innerHTML=existing()
+      ? 'Uscita dell\'inquilino: alla fine il PDF confronta da solo questo elenco con quello di consegna — mancanti, danni nuovi, aggiunte.'
+      : '⚠️ Non c\'è un inventario di consegna per questo immobile: il confronto non si può fare, resterà solo la fotografia di oggi.';
+  } else $('kindHint').textContent='Ingresso dell\'inquilino: questo elenco è la fotografia di partenza.';
+}
+
+/* ── Analisi ── */
+$('go').addEventListener('click',function(){
+  if(!FRAMES.length){showErr('Prima scegli il video del giro (o scrivi l\'elenco a mano).');return}
+  var btn=this;btn.disabled=true;btn.textContent='Leggo le stanze… (30-60s)';
+  USER.getIdToken().then(function(tok){
+    return fetch('/api/contracts/inventario',{method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+      body:JSON.stringify({op:'analyze',contractId:CID||undefined,propertyId:PID||undefined,
+        frames:FRAMES,voice:VOICE||undefined,note:($('fNote').value||'').trim()})});
+  }).then(function(r){return r.json().then(function(j){return{s:r.status,j:j}})})
+  .then(function(x){
+    btn.disabled=false;btn.textContent='✨ Leggi il video e proponi l\'elenco';
+    if(!x.j||!x.j.ok){
+      var m={ai_unconfigured:'Il lettore AI non è configurato su questo ambiente.',ai_refused:'Il modello non ha voluto rispondere: scrivi l\'elenco a mano.',no_frames:'Nessun fotogramma valido.'}[x.j&&x.j.error];
+      showErr(m||('Non riuscito ['+((x.j&&x.j.error)||x.s)+'] — riprova o scrivi a mano.'));
+      return;
+    }
+    INV=E.mergeInventory(INV,x.j.proposal);
+    var w=[];
+    if(x.j.transcript)w.push('🎤 Ho sentito: «'+x.j.transcript.slice(0,220)+'»');
+    if(x.j.voiceError==='unconfigured')w.push('La nota vocale non è stata trascritta (trascrizione non configurata): controlla che quello che hai detto sia nell\'elenco.');
+    else if(x.j.voiceError)w.push('La nota vocale non è stata trascritta ('+x.j.voiceError+').');
+    (x.j.proposal.warnings||[]).forEach(function(s){w.push('⚠️ '+s)});
+    w.push('Proposta da '+x.j.frames+' fotogrammi. <b>Nessuna riga è un fatto finché non la confermi.</b>');
+    $('aiWarn').style.display='';$('aiWarn').innerHTML=w.join('<br>');
+    openList();
+  }).catch(function(e){btn.disabled=false;btn.textContent='✨ Leggi il video e proponi l\'elenco';showErr('Rete: '+e.message)});
+});
+$('manual').addEventListener('click',function(){
+  if(!INV.rooms.length)INV={rooms:[{key:'soggiorno',label:'Soggiorno',n:0,items:[]}]};
+  $('aiWarn').style.display='none';openList();
+});
+function openList(){$('listCard').style.display='';drawRooms();$('listCard').scrollIntoView({behavior:'smooth',block:'start'})}
+
+/* ── L'elenco editabile ── */
+function drawRooms(){
+  var wrap=$('rooms');wrap.innerHTML='';
+  INV.rooms.forEach(function(room,ri){
+    var d=document.createElement('div');d.className='room';
+    d.innerHTML='<div class="rh"><input value="'+esc(room.label)+'" data-r="'+ri+'" class="rname"><button class="del" data-delroom="'+ri+'">✕</button></div>';
+    room.items.forEach(function(it,ii){
+      var opt=['<option value="">condizione non dichiarata</option>'].concat(E.CONDITIONS.map(function(c){
+        return '<option value="'+c+'"'+(it.condition===c?' selected':'')+'>'+E.CONDITION_LABEL[c]+'</option>'})).join('');
+      var el=document.createElement('div');el.className='it';
+      el.innerHTML='<input class="qty" type="number" inputmode="numeric" min="1" max="99" value="'+it.qty+'" data-r="'+ri+'" data-i="'+ii+'">'+
+        '<div><input class="nm" value="'+esc(it.name)+'" data-r="'+ri+'" data-i="'+ii+'" placeholder="Oggetto">'+
+        '<div class="rowb"><select data-r="'+ri+'" data-i="'+ii+'" class="'+(it.condition==='danneggiato'?'dmg':'')+'">'+opt+'</select>'+
+        '<input class="note" value="'+esc(it.note||'')+'" data-r="'+ri+'" data-i="'+ii+'" placeholder="nota (es. graffio anta)">'+
+        '<button class="del" data-del="'+ri+'.'+ii+'">✕</button></div></div>';
+      d.appendChild(el);
+    });
+    var add=document.createElement('button');add.className='addi';add.textContent='+ oggetto in '+room.label;add.setAttribute('data-additem',ri);
+    d.appendChild(add);
+    wrap.appendChild(d);
+  });
+  var c=E.counts(INV.rooms);
+  $('tot').innerHTML='<b>'+c.pieces+'</b> pezzi · '+c.rooms+' ambienti'+(c.damaged?' · <b style="color:var(--red)">'+c.damaged+' danneggiati</b>':'')+(c.undeclared?' · '+c.undeclared+' senza condizione':'');
+}
+$('rooms').addEventListener('input',function(e){
+  var t=e.target,ri=+t.getAttribute('data-r'),ii=+t.getAttribute('data-i');
+  if(t.classList.contains('rname')){INV.rooms[ri].label=t.value;return}
+  if(isNaN(ri)||isNaN(ii))return;
+  var it=INV.rooms[ri].items[ii];if(!it)return;
+  it.source='human';                                   // toccata da un umano: vale di più (motore, regola 2)
+  if(t.classList.contains('qty'))it.qty=Math.max(1,Math.min(99,+t.value||1));
+  else if(t.classList.contains('nm'))it.name=t.value;
+  else if(t.classList.contains('note'))it.note=t.value;
+});
+$('rooms').addEventListener('change',function(e){
+  var t=e.target;if(t.tagName!=='SELECT')return;
+  var ri=+t.getAttribute('data-r'),ii=+t.getAttribute('data-i');
+  var it=INV.rooms[ri]&&INV.rooms[ri].items[ii];if(!it)return;
+  it.condition=t.value||null;it.source='human';
+  t.className=it.condition==='danneggiato'?'dmg':'';
+  var c=E.counts(INV.rooms);
+  $('tot').innerHTML='<b>'+c.pieces+'</b> pezzi · '+c.rooms+' ambienti'+(c.damaged?' · <b style="color:var(--red)">'+c.damaged+' danneggiati</b>':'')+(c.undeclared?' · '+c.undeclared+' senza condizione':'');
+});
+$('rooms').addEventListener('click',function(e){
+  var b=e.target.closest('button');if(!b)return;
+  if(b.hasAttribute('data-del')){var p=b.getAttribute('data-del').split('.');INV.rooms[+p[0]].items.splice(+p[1],1);drawRooms();return}
+  if(b.hasAttribute('data-delroom')){INV.rooms.splice(+b.getAttribute('data-delroom'),1);drawRooms();return}
+  if(b.hasAttribute('data-additem')){var ri=+b.getAttribute('data-additem');
+    INV.rooms[ri].items.push({name:'',qty:1,condition:null,note:'',source:'human'});drawRooms();
+    var ins=$('rooms').querySelectorAll('.room')[ri].querySelectorAll('.nm');ins[ins.length-1].focus();}
+});
+$('addRoom').addEventListener('click',function(){
+  var name=prompt('Nome della stanza (es. Camera 2, Balcone, Cantina)');
+  if(!name)return;
+  var r=E.normalizeRoom(name);
+  INV.rooms.push({key:r.key,label:r.label,n:r.n,items:[{name:'',qty:1,condition:null,note:'',source:'human'}]});
+  drawRooms();
+});
+
+/* ── Salvataggio ── */
+$('save').addEventListener('click',function(){
+  INV.rooms.forEach(function(r){r.items=r.items.filter(function(it){return (it.name||'').trim()})});
+  INV.rooms=INV.rooms.filter(function(r){return r.items.length});
+  if(!INV.rooms.length){showErr('L\'elenco è vuoto.');drawRooms();return}
+  if(!$('reviewed').checked){showErr('Spunta la conferma: un elenco che nessuno ha riguardato non diventa un documento.');return}
+  var shots=[];
+  var step=Math.max(1,Math.floor(FRAMES.length/6));
+  for(var i=0;i<FRAMES.length&&shots.length<6;i+=step)shots.push({base64:FRAMES[i].base64,label:'Secondo '+Math.round(FRAMES[i].t)});
+  var btn=this;btn.disabled=true;btn.textContent='Genero il PDF…';
+  USER.getIdToken().then(function(tok){
+    return fetch('/api/contracts/inventario',{method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
+      body:JSON.stringify({op:'save',contractId:CID||undefined,propertyId:PID||undefined,kind:KIND,
+        rooms:INV.rooms,reviewed:true,note:($('fNote').value||'').trim(),shots:shots})});
+  }).then(function(r){return r.json().then(function(j){return{s:r.status,j:j}})})
+  .then(function(x){
+    if(!x.j||!x.j.ok){btn.disabled=false;btn.textContent='📋 Genera l\'inventario';
+      showErr('Non riuscito ['+((x.j&&x.j.error)||x.s)+'] — riprova.');return}
+    var c=x.j.counts||{},d=x.j.diff;
+    var msg=c.pieces+' pezzi in '+c.rooms+' ambienti. PDF archiviato in Documenti e agganciato '+(CID?'al contratto e ':'')+'all\'immobile; copia via email.';
+    if(d)msg+=' Confronto con la consegna: '+d.missing.length+' mancanti, '+d.damaged.length+' danneggiati, '+d.added.length+' in più.';
+    $('sMsg').textContent=msg;$('app').style.display='none';$('success').style.display='block';
+    $('sPdf').href=x.j.url;window.scrollTo(0,0);
+  }).catch(function(e){btn.disabled=false;btn.textContent='📋 Genera l\'inventario';showErr('Rete: '+e.message)});
+});
+})();
+</script>
+</body>
+</html>

@@ -52,6 +52,12 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
                           libere), valutatore (fascia canone sui FIRMATI),
                           inferZone (zona dedotta dal titolo, mai indovinata).
                           window.BOOM_RADAR. Vedi "Il Radar 2.0 — La Centrale".
+  inventario-engine.js    Cosa c'è in casa e in che stato: lessico chiuso
+                          delle stanze, il video che NON emette giudizi
+                          ("buono" solo da un umano), il confronto
+                          consegna⇄riconsegna che non imputa un danno su una
+                          condizione mai dichiarata. window.BOOM_INVENTARIO.
+                          Vedi "L'inventario dal video".
   contract-pdf.js         L'impaginato del CONTRATTO (Allegato B transitorio +
                           Allegato C studenti, modelli CAF verbatim) in UNA
                           copia: window.BOOM_CONTRACT_PDF nel portal (jsPDF
@@ -93,6 +99,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `pfs-command.html` | **La plancia unica del PFS** (admin): TUTTO il flusso Property Finding in una pagina. Pipeline per stage (giorni-in-stage, chip lenti in ambra) → fascicolo cliente a drawer (criteri, ricerche, mazzo con esiti/rimozione, attività, link portale con codice BM…, WhatsApp, cambio stage con la STESSA scrittura del portal) → creazione cliente (nasce col portale attivo) → feed radar con fiuto 💎/badge cluster/filtro occasioni + azione «→ Proponi a…» (push curato via `api/casafari/import`, conferma sulle agenzie) → strip occasioni (radarState) → ricerche automatiche + **vedette** (stessa collection della Centrale) → triage swipe, ⌘K, brief AI, salute fonti. |
 | `chiamate.html` | Il Centralino (admin, `/chiamate`). Ogni chiamata deviata in segreteria: audio, trascrizione, azione consigliata, WhatsApp one-tap con bozza. Backed by `api/phone/*`. |
 | `radar.html` | **La Centrale del Radar** (`/radar`, admin). Polso del mercato per zona, feed 💎 occasioni, candidati mandato, vedette (CRUD), Valutatore, gemelli cross-portale, salute fonti. Vedi "Il Radar 2.0". |
+| `inventario.html` | L'inventario dal video (`/inventario`, admin/owner/landlord, noindex): filma il giro, i fotogrammi si estraggono sul telefono, Claude propone l'elenco stanza per stanza, l'operatore corregge → PDF (allegato del verbale) + confronto automatico alla riconsegna. Motore: `js/inventario-engine.js`. |
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ## Brand & Design
@@ -1648,6 +1655,62 @@ conduttori+co-conduttori (EN), proprietario (IT), admin. Bottone 🔑 sulla
 riga contratto del portal (✓ quando esiste). Le letture fanno fede per le
 volture. Test: `node tests/verbale/run.mjs`.
 
+### L'inventario dal video (`POST /api/contracts/inventario` + `/inventario`)
+Il verbale rinviava agli arredi con UNA riga: *"completa degli arredi e delle
+dotazioni pattuite"* (`verbale.js`). Vera e inservibile: alla riconsegna, un
+anno e mezzo dopo, non dice se la lavastoviglie c'era, se il divano aveva già
+lo strappo, se le sedie erano sei — e la trattenuta sul deposito la vince chi
+ricorda più forte. Il giro in casa l'operatore lo fa comunque: qui quel giro
+diventa un documento.
+- **`/inventario`** (`?c=<contractId>` dalla riga contratto, `?p=<propertyId>`
+  dalla scheda immobile — funziona anche PRIMA che il contratto esista, che è
+  il caso vero del sopralluogo). Mobile-first come `/verbale`: si filma il
+  giro, **i fotogrammi si estraggono SUL TELEFONO** (`framePlan` + canvas: un
+  video da 100MB non esce da un vano scala, e non serve) e sale solo una
+  manciata di JPEG. Nota vocale facoltativa (Whisper via `_stt.js`, la copia
+  condivisa col bot wizard) e note scritte: quello che dici entra nel prompt.
+  Poi l'elenco editabile — quantità, condizione, nota per riga — e il tasto
+  **Genera**. `?p=` senza AI configurata resta usabile: "scrivo a mano".
+- **`js/inventario-engine.js`** (UMD → `window.BOOM_INVENTARIO`, importato
+  anche dai file ESM come boom-geo) è dove stanno le regole, quindi si
+  testano senza browser e senza appartamento:
+  1. **Una condizione non dichiarata resta vuota, MAI "buono".** L'asimmetria:
+     un trattino non ha mai fatto perdere una causa, un aggettivo inventato sì.
+  2. **Il video non emette GIUDIZI.** Dall'AI si accettano solo `danneggiato`
+     e `nuovo` — cose che si vedono in un fotogramma; "buono stato" e "segni
+     d'uso" vengono riportati a *non dichiarata* **e la pagina lo dice**
+     (regola 4: nessun taglio silenzioso). L'operatore invece può dichiararli:
+     li ha guardati lui.
+  3. **La proposta non è un fatto**: `saveable()` pretende `reviewed`, ogni
+     riga toccata passa a `source:'human'`, e `op:'analyze'` **non scrive
+     nulla** (asserito nei test: né immobile, né contratto, né archivio, né
+     Storage, né email).
+  4. Lessico chiuso delle stanze (`salotto`→Soggiorno, `bedroom 2`→Camera 2,
+     ma *telecamera* non è una camera), dedupe per stanza, tetti dichiarati.
+- **Il confronto è il punto** (`diffInventory`): alla **riconsegna** il PDF
+  stampa da sé mancanti / danneggiati / aggiunti. **La regola che protegge
+  entrambe le parti**: una voce la cui condizione alla CONSEGNA non era
+  dichiarata non può diventare un danno all'uscita — finisce fra i *non
+  verificabili*, con scritto perché (verificato per mutazione).
+- **Dentro il verbale**: quando l'inventario c'è, `buildVerbalePdf` **sostituisce**
+  la formula generica con l'elenco vero (`contract.inventario ||
+  property.inventario`), più la riga che spiega cosa significa "non
+  dichiarata". Senza inventario il verbale è esattamente quello di prima.
+- Scritture: `properties.inventario` / `.inventarioUscita` (e le stesse sul
+  contratto quando c'è), PDF su `contracts/<id>/` o `property-docs/<propId>/`,
+  fotogrammi come prova sotto `property-docs/<propId>/inventario/`, documento
+  in archivio categoria `inventario`, copia email all'operatore. Auth
+  object-level come il verbale: un owner solo sui PROPRI immobili.
+- Modello: `claude-opus-5` in vision sui fotogrammi (il documento vale sul
+  deposito: qui non si risparmia); senza `ANTHROPIC_API_KEY` → **501
+  esplicito**, mai un elenco vuoto spacciato per casa vuota.
+- Dove si trova: riga contratto **📋 Inventario**, scheda immobile, Burocrazia
+  → *Inventario dal video*, ⌘K/Prontuario (console + azione contestuale su
+  contratto e immobile). Test: `node tests/inventario/run.mjs` (87 check) + `node tests/inventario/ui.mjs`
+  (22 check in Chromium vero: un video registrato al volo diventa fotogrammi —
+  con la sonda per i filmati che dichiarano durata `Infinity` — l'elenco si
+  corregge e senza la spunta non parte niente).
+
 ### Rendiconto proprietario (`GET/POST /api/owners/rendiconto`, cron 1° del mese 06:10 UTC)
 Il 1° del mese ogni proprietario riceve il rendiconto del mese CHIUSO:
 per ogni suo immobile i canoni incassati (data + via), le rate del mese
@@ -2921,6 +2984,8 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/wizard/local_brain.py` | Il cervello gratis del bot wizard (`python3`): cosa capisce senza modello e — più importante — cosa deve rifiutarsi di capire. Una domanda ("Levico è affittato?") non può diventare una scrittura; un annuncio nuovo dettato non può diventare la modifica di uno esistente. Estrae le funzioni pure dal bot via AST: gira senza `.env`, senza Telegram, senza rete |
   | `tests/executive/run.mjs` | BOOM Executive: il professionista in trasferta resta un TENANT nella macchina piena, il datore dichiarato (`employer`) non viene scambiato per l'honeypot (`company`), la voce B2B tace col tenant e parla con l'ente — con la guardia PRIMA della spesa, asserita sull'ordine nel sorgente |
   | `tests/verbale/run.mjs` | verbale consegna chiavi: il PDF vero (WinAnsi-ostile compreso) viaggia in allegato a conduttori/co-conduttori/proprietario/admin, owner solo sui contratti dei propri immobili (403 = zero scritture), firme richieste per entrambi i lati, sul contratto restano solo i NOMI mai i dataURI |
+  | `tests/inventario/run.mjs` | inventario dal video: il video non dichiara mai "buono stato" (solo difetti e oggetti nuovi, e il declassamento viene detto), una condizione non dichiarata alla consegna non diventa MAI un danno alla riconsegna (mutazione), `analyze` non scrive niente, un elenco non riguardato non diventa un documento, e il verbale smette di dire "arredi pattuiti" |
+  | `tests/inventario/ui.mjs` | l'inventario in un browser vero a 390px: il video registrato al volo diventa fotogrammi (immagine vera, non quadrati neri), il filmato NON viene mai caricato, l'operatore corregge una riga e quella diventa 'human', il cancello della conferma tiene |
   | `tests/contractpdf/run.mjs` | il PDF del contratto in UNA copia (jsPDF REALE): l'impaginato condiviso produce Allegato B/C con le ancore firma, la conversione PA lo scrive da sola (e con Storage giù il contratto nasce comunque), send-sign sana i pre-fix PRIMA dell'email (ordine asserito sulla sorgente), la prima apertura di /sign è l'ultima rete, e MAI una rigenerazione sotto una firma viva (mutazione) |
   | `tests/sign/lang.mjs` | /sign bilingue guidata in un browser vero (demo mode): default per ruolo (locatore IT, inquilino EN), toggle che ridisegna lo step corrente in entrambe le direzioni, percorso intero tradotto, Skip OTP che non blocca, link WhatsApp presenti. Si auto-skippa senza playwright |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
