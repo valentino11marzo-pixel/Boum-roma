@@ -1434,65 +1434,113 @@ body.volo-on .rotta-filo { opacity:1; }
   font-size:11px; color:var(--text-3); }
 .imbarco-garanzia::before { content:'✓'; color:var(--gold); }
 
-/* ══ COLLOQUIO 3.0 · composto per l'occhio ════════════════════════════ */
-.titolo-xl { font-size:clamp(32px,5vw,58px) !important; }
-.a3-testa { max-width:1000px; }
-.atto3.inv .a3-testa { margin-left:auto; text-align:right; }
-.a3-alto { display:flex; align-items:baseline; gap:18px; flex-wrap:wrap; }
-.atto3.inv .a3-alto { justify-content:flex-end; }
-.a3-num { font-family:var(--display); font-weight:200; line-height:.85;
-  font-size:clamp(62px,10vw,128px); color:rgba(255,215,0,.11);
-  letter-spacing:-.03em; }
-.a3-tema { font-size:10px; font-weight:700; letter-spacing:.32em;
+/* ══ LA LASTRA — il patto in un respiro ══════════════════════════════ */
+.lastra { position:relative; padding:clamp(52px,7vw,96px) 0;
+  background:#020202; box-shadow:inset 0 1px 0 rgba(255,215,0,.14),
+    inset 0 -1px 0 rgba(255,215,0,.14); }
+.lastra-eti { font-size:9.5px; font-weight:700; letter-spacing:.34em;
   text-transform:uppercase; color:var(--text-3); }
-.a3-q { margin-top:8px; font-family:var(--display); font-weight:200;
-  font-size:clamp(26px,4vw,52px); line-height:1.12;
-  letter-spacing:-.02em; text-wrap:balance; }
-.a3-q b { font-weight:200; color:var(--gold); }
-.a3-q::before { content:'\201C'; color:var(--gold); margin-right:2px; }
-.a3-q::after { content:'\201D'; color:var(--gold); }
-.a3-chi { margin-top:12px; font-size:10px; font-weight:700;
-  letter-spacing:.24em; text-transform:uppercase; color:var(--text-3); }
-.a3-corpo { margin-top:clamp(28px,3.6vw,48px); display:grid;
-  grid-template-columns:minmax(0,1fr); gap:clamp(28px,4.5vw,64px);
-  align-items:center; }
-.a3-avv { display:flex; align-items:center; gap:10px;
-  margin-bottom:16px; }
-.a3-avv i { width:26px; height:26px; border-radius:50%; flex:none;
-  display:inline-flex; align-items:center; justify-content:center;
-  font-style:normal; font-size:12px; font-weight:700; color:#0A0A05;
-  background:var(--gold); }
-.a3-avv span { font-size:10px; font-weight:700; letter-spacing:.22em;
-  text-transform:uppercase; color:var(--text-3); }
-.a3-lead { font-family:var(--display); font-weight:250;
-  font-size:clamp(20px,2.4vw,29px); line-height:1.32;
-  letter-spacing:-.01em; max-width:24ch; text-wrap:balance; }
-.a3-lead b { font-weight:300; color:var(--gold); }
-.a3-det { margin-top:16px; font-size:15px; line-height:1.8;
-  color:var(--text-2); max-width:58ch; }
-.a3-det b { color:var(--text); font-weight:600; }
-.a3-colpo { padding-top:20px; border-top:1px solid var(--line-gold); }
-.a3-cifra { font-family:var(--display); font-weight:200;
-  font-size:clamp(56px,7.5vw,116px); line-height:.95; color:var(--gold);
-  letter-spacing:-.03em; white-space:nowrap; }
-.a3-cifra small { font-size:.42em; font-weight:250;
-  letter-spacing:-.01em; }
-.a3-cifra-eti { margin-top:12px; font-size:11px; font-weight:600;
-  letter-spacing:.18em; text-transform:uppercase; color:var(--text-3);
-  max-width:30ch; line-height:1.6; }
-.a3-righe { margin-top:18px; display:grid; gap:9px; }
-.a3-righe span { position:relative; padding-left:17px; font-size:12.5px;
-  color:var(--text-3); letter-spacing:.02em; line-height:1.5; }
-.a3-righe span::before { content:''; position:absolute; left:0;
-  top:.62em; width:7px; height:1px; background:var(--gold); }
-.a3-righe b { color:var(--text-2); font-weight:600; }
-@media (min-width:980px){
-  .a3-corpo { grid-template-columns:minmax(0,1.08fr) minmax(0,.92fr); }
-  .a3-colpo { border-top:0; padding-top:0;
-    justify-self:end; }
-  .atto3.inv .a3-colpo { order:-1; justify-self:start; }
+.lastra-frase { margin-top:clamp(18px,2.4vw,28px);
+  font-family:var(--display); font-weight:200;
+  font-size:clamp(23px,3.5vw,50px); line-height:1.14;
+  letter-spacing:-.022em; max-width:27ch; }
+.lastra-frase .lp { display:block; }
+.lastra-frase .lp + .lp { margin-top:.16em; }
+.lastra-frase b { font-weight:300; color:var(--gold); }
+.lastra-frase .lp.oro { color:var(--gold); }
+.lastra-frase .lp.oro b { color:var(--text); }
+.lastra-nota { margin-top:clamp(18px,2.4vw,26px); font-size:11px;
+  letter-spacing:.14em; text-transform:uppercase; color:var(--text-3); }
+@media (prefers-reduced-motion:no-preference){
+  html.vivo .lastra .lp { opacity:0; filter:blur(9px);
+    transform:translateY(14px); }
+  html.vivo .lastra.accesa .lp { opacity:1; filter:none; transform:none;
+    transition:opacity .6s ease, filter .7s ease,
+      transform .8s cubic-bezier(.22,1,.36,1); }
+  html.vivo .lastra.accesa .lp:nth-child(1) { transition-delay:.05s; }
+  html.vivo .lastra.accesa .lp:nth-child(2) { transition-delay:.32s; }
+  html.vivo .lastra.accesa .lp:nth-child(3) { transition-delay:.59s; }
+  html.vivo .lastra.accesa .lp:nth-child(4) { transition-delay:.86s; }
+  html.vivo .lastra.accesa .lp:nth-child(5) { transition-delay:1.18s; }
 }
-.prove { margin-top:18px; display:flex; gap:8px; flex-wrap:wrap; }
+
+/* ══ LA CONSOLE — le domande le fai tu ═══════════════════════════════ */
+.console { margin-top:clamp(26px,3.4vw,44px); border-radius:18px;
+  background:linear-gradient(180deg, rgba(255,255,255,.028),
+    rgba(255,255,255,.008));
+  box-shadow:inset 0 0 0 1px var(--line), 0 40px 90px rgba(0,0,0,.45);
+  overflow:hidden; }
+.cs-capo { display:flex; align-items:center; gap:14px 20px;
+  flex-wrap:wrap; padding:clamp(14px,1.8vw,20px) clamp(16px,2.2vw,26px);
+  border-bottom:1px solid var(--line); }
+.cs-stato { font-size:9.5px; font-weight:700; letter-spacing:.24em;
+  text-transform:uppercase; color:var(--text-3); }
+.cs-stato b { color:var(--gold); }
+.cs-seg { display:flex; gap:5px; flex:1; }
+.cs-seg i { flex:1; max-width:38px; height:2px; border-radius:2px;
+  background:rgba(255,255,255,.13);
+  transition:background .45s ease, box-shadow .45s ease; }
+.cs-seg i.acceso { background:var(--gold);
+  box-shadow:0 0 8px rgba(255,215,0,.5); }
+.cs-invito { font-size:10.5px; color:var(--text-3);
+  letter-spacing:.02em; }
+.riga { border-bottom:1px solid var(--line-0); }
+.riga:last-of-type { border-bottom:0; }
+.riga > summary { list-style:none; cursor:pointer; position:relative;
+  display:grid; align-items:center; gap:4px 16px;
+  grid-template-columns:38px minmax(0,1fr) auto 26px;
+  padding:clamp(15px,1.9vw,21px) clamp(16px,2.2vw,26px);
+  transition:background .3s ease; }
+.riga > summary::-webkit-details-marker { display:none; }
+.riga > summary:hover { background:rgba(255,215,0,.035); }
+.riga > summary:focus-visible { outline:2px solid var(--gold);
+  outline-offset:-2px; }
+.r-num { font-family:var(--display); font-weight:250; font-size:13px;
+  letter-spacing:.1em; color:rgba(255,215,0,.5);
+  transition:color .3s ease; }
+.r-tema { grid-column:2; font-size:8.5px; font-weight:700;
+  letter-spacing:.26em; text-transform:uppercase; color:var(--text-3); }
+.r-q { grid-column:2; font-family:var(--display); font-weight:250;
+  font-size:clamp(16px,1.85vw,23px); line-height:1.24;
+  letter-spacing:-.01em; color:var(--text); text-wrap:balance;
+  transition:color .3s ease; }
+.r-colpo { grid-column:3; grid-row:1/3; align-self:center;
+  font-family:var(--display); font-weight:200;
+  font-size:clamp(20px,2.4vw,32px); line-height:1; color:var(--gold);
+  letter-spacing:-.02em; white-space:nowrap; opacity:.85; }
+.r-piu { grid-column:4; grid-row:1/3; align-self:center; width:22px;
+  height:22px; position:relative; justify-self:end; border-radius:50%;
+  box-shadow:inset 0 0 0 1px var(--line); transition:box-shadow .3s ease,
+    transform .4s cubic-bezier(.22,1,.36,1); }
+.r-piu::before, .r-piu::after { content:''; position:absolute;
+  left:50%; top:50%; width:9px; height:1.5px; background:var(--text-2);
+  transform:translate(-50%,-50%); transition:opacity .3s ease,
+    background .3s ease; }
+.r-piu::after { transform:translate(-50%,-50%) rotate(90deg); }
+.riga[open] > summary .r-piu { transform:rotate(180deg);
+  box-shadow:inset 0 0 0 1px rgba(255,215,0,.5); }
+.riga[open] > summary .r-piu::after { opacity:0; }
+.riga[open] > summary .r-piu::before { background:var(--gold); }
+.riga[open] > summary { background:rgba(255,215,0,.045); }
+.riga[open] > summary .r-num { color:var(--gold); }
+.riga[open] > summary .r-q { color:var(--gold); }
+.riga.risposta > summary .r-num::after { content:' ✓'; color:var(--gold); }
+.r-corpo { padding:clamp(6px,1vw,10px) clamp(16px,2.2vw,26px)
+  clamp(24px,3vw,38px); }
+@media (min-width:900px){ .r-corpo { padding-left:80px;
+  padding-right:clamp(30px,4vw,60px); } }
+@media (prefers-reduced-motion:no-preference){
+  .riga[open] .r-corpo { animation:apri .55s cubic-bezier(.22,1,.36,1); }
+  @keyframes apri { from { opacity:0; transform:translateY(-10px); } } }
+.r-lead { font-family:var(--display); font-weight:250;
+  font-size:clamp(19px,2.2vw,28px); line-height:1.3;
+  letter-spacing:-.01em; max-width:26ch; }
+.r-lead b { font-weight:300; color:var(--gold); }
+.r-det { margin-top:14px; font-size:14.5px; line-height:1.78;
+  color:var(--text-2); max-width:60ch; }
+.r-det b { color:var(--text); font-weight:600; }
+.r-det + .r-det { margin-top:11px; }
+.prove { margin-top:16px; display:flex; gap:8px; flex-wrap:wrap; }
 .prove a { display:inline-flex; align-items:center; gap:7px;
   padding:9px 15px; font-size:11.5px; font-weight:600;
   color:var(--text-2); text-decoration:none; border-radius:100px;
@@ -1502,7 +1550,7 @@ body.volo-on .rotta-filo { opacity:1; }
   box-shadow:inset 0 0 0 1px rgba(255,215,0,.4);
   transform:translateY(-1px); }
 .prove a i { font-style:normal; color:var(--gold); }
-.reperto-eti { margin:clamp(30px,4vw,46px) 0 14px; display:flex;
+.reperto-eti { margin:clamp(24px,3vw,34px) 0 14px; display:flex;
   align-items:center; gap:12px; }
 .reperto-eti b { flex:none; padding:5px 11px; font-size:9.5px;
   font-weight:700; letter-spacing:.22em; text-transform:uppercase;
@@ -1512,200 +1560,44 @@ body.volo-on .rotta-filo { opacity:1; }
   letter-spacing:.18em; text-transform:uppercase; color:var(--text-3); }
 .reperto-eti::after { content:''; flex:1; height:1px;
   background:linear-gradient(90deg, var(--line), transparent); }
-.clausola { max-width:820px; padding:clamp(20px,2.6vw,30px);
-  background:var(--card); border-radius:14px; position:relative;
-  box-shadow:inset 0 0 0 1px var(--line-gold); }
-.clausola::before { content:'\00A7'; position:absolute; right:18px;
-  top:8px; font-family:var(--display); font-weight:200; font-size:60px;
-  color:rgba(255,215,0,.08); line-height:1; }
-.clausola blockquote { margin:0; font-size:14.5px; line-height:1.85;
-  color:var(--text-2); }
-.clausola blockquote b { color:var(--text); }
-.clausola cite { display:block; margin-top:10px; font-style:normal;
-  font-size:10px; font-weight:700; letter-spacing:.22em;
-  text-transform:uppercase; color:var(--gold); }
-.clausola + .clausola { margin-top:12px; }
-.clausola-vai { display:inline-flex; margin-top:16px; font-size:12px;
-  font-weight:600; color:var(--text-2); text-decoration:none;
-  letter-spacing:.02em; transition:color .3s ease; }
-.clausola-vai:hover { color:var(--gold); }
-.verifica-righe { margin-top:14px; display:flex; gap:10px 22px;
-  flex-wrap:wrap; }
-.verifica-righe a { font-size:12px; color:var(--text-3);
-  text-decoration:none; letter-spacing:.02em;
-  transition:color .3s ease; }
-.verifica-righe a:hover { color:var(--gold); }
-@media (max-width:640px){
-  .a3-q { font-size:clamp(24px,7vw,30px); }
-  .a3-lead { max-width:none; }
-  .a3-cifra { font-size:clamp(52px,16vw,72px); } }
-
-/* ══ LA LINGUA 2030 ═══════════════════════════════════════════════════ */
-/* i 4 passi del prodotto nell'hero: la comprensione in 15 parole */
-.hero-passi { margin-top:16px; display:flex; align-items:center;
-  gap:7px 10px; flex-wrap:wrap; font-size:10px; font-weight:600;
-  letter-spacing:.1em; text-transform:uppercase; color:var(--text-3);
-  max-width:56ch; }
-.hero-passi b { color:var(--gold); font-weight:700; margin-right:2px; }
-.hero-passi i { font-style:normal; color:rgba(255,215,0,.45); }
-/* l'HUD di rotta: stato d'atto + sette segmenti + la CTA, sempre */
-.hud { position:fixed; left:0; right:0; bottom:0; z-index:110;
-  display:flex; align-items:center; gap:clamp(10px,2vw,22px);
-  padding:9px clamp(14px,3vw,28px)
-    calc(9px + env(safe-area-inset-bottom, 0px));
-  background:rgba(5,5,5,.82); backdrop-filter:blur(14px);
-  -webkit-backdrop-filter:blur(14px);
-  border-top:1px solid rgba(255,215,0,.14);
-  transform:translateY(110%);
-  transition:transform .5s cubic-bezier(.22,1,.36,1); }
-.hud.su { transform:none; }
-.hud-stato { font-size:9.5px; font-weight:700; letter-spacing:.2em;
-  text-transform:uppercase; color:var(--text-3); white-space:nowrap;
-  overflow:hidden; text-overflow:ellipsis; }
-.hud-stato b { color:var(--gold); font-weight:700; }
-.hud-seg { display:flex; gap:5px; flex:1; justify-content:center; }
-.hud-seg i { width:clamp(14px,2.6vw,32px); height:2px; border-radius:2px;
-  background:rgba(255,255,255,.14);
-  transition:background .4s ease, box-shadow .4s ease; }
-.hud-seg i.acceso { background:var(--gold);
-  box-shadow:0 0 8px rgba(255,215,0,.5); }
-.hud-vai { flex:none; display:inline-flex; align-items:baseline; gap:7px;
-  padding:9px 16px; font-size:11px; font-weight:800;
-  letter-spacing:.08em; color:#0A0A05; background:var(--gold);
-  border-radius:100px; text-decoration:none; white-space:nowrap; }
-.hud-vai small { font-size:9px; font-weight:700; opacity:.7; }
-@media (max-width:760px){ .hud-seg { display:none; }
-  .hud-stato { flex:1; } }
-@media (prefers-reduced-motion:reduce){ .hud { transition:none; } }
-/* il fascio di lettura: l'atto in lettura respira oro dall'alto */
-.atto3 { transition:box-shadow .7s ease; }
-.atto3.in-lettura { box-shadow:inset 0 140px 140px -140px
-  rgba(255,215,0,.05); }
-/* le cifre si assestano come strumenti (solo a moto pieno) */
-@media (prefers-reduced-motion:no-preference){
-  html.vivo .a3-colpo .a3-cifra { filter:blur(7px); opacity:.35;
-    transform:scale(1.05); transform-origin:left bottom;
-    transition:filter .55s cubic-bezier(.22,1,.36,1) .28s,
-      opacity .5s ease .28s,
-      transform .6s cubic-bezier(.22,1,.36,1) .28s; }
-  html.vivo .a3-colpo.sale.dentro .a3-cifra { filter:none; opacity:1;
-    transform:none; }
+/* l'invito che compare quando ne hai aperte abbastanza */
+.cs-basta { display:none; align-items:center; gap:14px 20px;
+  flex-wrap:wrap; padding:clamp(16px,2.1vw,24px) clamp(16px,2.2vw,26px);
+  background:rgba(255,215,0,.06);
+  border-top:1px solid rgba(255,215,0,.22); }
+.cs-basta.viva { display:flex;
+  animation:apri .6s cubic-bezier(.22,1,.36,1); }
+.cs-basta p { flex:1 1 260px; font-family:var(--display);
+  font-weight:250; font-size:clamp(17px,2vw,24px); line-height:1.24;
+  letter-spacing:-.01em; }
+.cs-basta p b { color:var(--gold); font-weight:250; }
+@media (max-width:620px){
+  .riga > summary { grid-template-columns:30px minmax(0,1fr) 22px; }
+  .r-colpo { grid-column:2; grid-row:3; justify-self:start;
+    font-size:26px; margin-top:6px; opacity:1; }
+  .r-piu { grid-column:3; grid-row:1/3; }
 }
 
-/* ══ 7.0 · LA LASTRA — il patto in un respiro, a caratteri cubitali ═══ */
-.lastra { position:relative; padding:clamp(56px,8vw,110px) 0;
-  background:#020202;
-  box-shadow:inset 0 1px 0 rgba(255,215,0,.14),
-    inset 0 -1px 0 rgba(255,215,0,.14); overflow:hidden; }
-.lastra::before { content:''; position:absolute; left:50%; top:0;
-  width:min(760px,92vw); height:1px; transform:translateX(-50%);
-  background:linear-gradient(90deg, transparent, var(--gold),
-    transparent); opacity:.5; }
-.lastra-eti { font-size:9.5px; font-weight:700; letter-spacing:.34em;
-  text-transform:uppercase; color:var(--text-3); }
-.lastra-frase { margin-top:clamp(20px,2.6vw,32px);
-  font-family:var(--display); font-weight:200;
-  font-size:clamp(23px,3.5vw,50px); line-height:1.14;
-  letter-spacing:-.022em; max-width:27ch; }
-.lastra-frase .lp { display:block; }
-.lastra-frase .lp + .lp { margin-top:.18em; }
-.lastra-frase b { font-weight:300; color:var(--gold); }
-.lastra-frase .lp.oro { color:var(--gold); }
-.lastra-frase .lp.oro b { color:var(--text); }
-.lastra-nota { margin-top:clamp(20px,2.6vw,30px); font-size:11px;
-  letter-spacing:.14em; text-transform:uppercase; color:var(--text-3); }
-@media (prefers-reduced-motion:no-preference){
-  html.vivo .lastra .lp { opacity:0; filter:blur(9px);
-    transform:translateY(14px); }
-  html.vivo .lastra.accesa .lp { opacity:1; filter:none;
-    transform:none;
-    transition:opacity .6s ease, filter .7s ease,
-      transform .8s cubic-bezier(.22,1,.36,1); }
-  html.vivo .lastra.accesa .lp:nth-child(1) { transition-delay:.05s; }
-  html.vivo .lastra.accesa .lp:nth-child(2) { transition-delay:.35s; }
-  html.vivo .lastra.accesa .lp:nth-child(3) { transition-delay:.65s; }
-  html.vivo .lastra.accesa .lp:nth-child(4) { transition-delay:.95s; }
-  html.vivo .lastra.accesa .lp:nth-child(5) { transition-delay:1.3s; }
-  html.vivo .lastra .lastra-nota { opacity:0; }
-  html.vivo .lastra.accesa .lastra-nota { opacity:1;
-    transition:opacity .6s ease 1.7s; }
-}
+/* ══ LA CHIUSURA ═════════════════════════════════════════════════════ */
+.chiusa-blocco { text-align:center; }
+.chiusa-blocco h2 { font-family:var(--display); font-weight:200;
+  font-size:clamp(30px,5vw,60px); line-height:1.08;
+  letter-spacing:-.022em; }
+.chiusa-blocco h2 span { color:var(--gold); }
+.chiusa-blocco .btn-primary { margin-top:clamp(20px,2.6vw,30px); }
+.chiusa-nota { margin-top:16px; font-size:11.5px; color:var(--text-3);
+  letter-spacing:.02em; }
 
-/* ══ 7.0 · L'OROLOGIO DEL RADAR — l'automazione che si vede ═══════════ */
-.orolo { position:relative; margin-bottom:clamp(16px,2.2vw,24px);
-  padding:clamp(14px,2vw,20px) clamp(16px,2.2vw,24px);
-  background:linear-gradient(180deg, rgba(255,215,0,.035),
-    rgba(255,215,0,.006));
-  border-radius:14px; box-shadow:inset 0 0 0 1px rgba(255,215,0,.16);
-  overflow:hidden; }
-.orolo-griglia { display:grid; gap:12px 26px;
-  grid-template-columns:repeat(auto-fit,minmax(148px,1fr));
-  align-items:end; }
-.oro-cella { display:grid; gap:5px; }
-.oro-eti { font-size:9px; font-weight:700; letter-spacing:.24em;
-  text-transform:uppercase; color:var(--text-3); }
-.oro-val { font-family:var(--display); font-weight:250;
-  font-size:clamp(22px,2.6vw,34px); line-height:1; color:var(--gold);
-  letter-spacing:.01em; font-variant-numeric:tabular-nums;
-  font-feature-settings:'tnum' 1; }
-.oro-val small { font-size:.44em; font-weight:400; color:var(--text-2);
-  letter-spacing:.06em; margin-left:.25em; }
-.oro-barra { margin-top:clamp(13px,1.8vw,18px); height:2px;
-  border-radius:2px; background:rgba(255,255,255,.09);
-  overflow:hidden; }
-.oro-barra i { display:block; height:100%; width:0%;
-  background:linear-gradient(90deg, rgba(255,215,0,.35), var(--gold));
-  box-shadow:0 0 10px rgba(255,215,0,.45); }
-.orolo.batte { box-shadow:inset 0 0 0 1px rgba(255,215,0,.55),
-  0 0 34px rgba(255,215,0,.12); }
-.orolo.batte .oro-barra i { box-shadow:0 0 18px rgba(255,215,0,.9); }
-.oro-nota { margin-top:11px; font-size:10.5px; color:var(--text-3);
-  letter-spacing:.02em; line-height:1.6; }
-.oro-vivo { display:inline-flex; align-items:center; gap:6px; }
-.oro-vivo::before { content:''; width:6px; height:6px; border-radius:50%;
-  background:var(--gold); box-shadow:0 0 8px rgba(255,215,0,.7);
-  animation:oropulsa 2.4s ease-in-out infinite; }
-@keyframes oropulsa { 0%,100% { opacity:1; } 50% { opacity:.25; } }
-@media (prefers-reduced-motion:reduce){
-  .oro-vivo::before { animation:none; } }
-
-/* ══ 7.0 · LA SCANSIONE — ogni reperto si sviluppa sotto una lama ════ */
-.reperto-eti::after { transform-origin:0 50%; }
-@media (prefers-reduced-motion:no-preference){
-  html.vivo .reperto-eti::after { transform:scaleX(0); }
-  html.vivo .reperto-eti.sale.dentro::after { transform:scaleX(1);
-    transition:transform 1.1s cubic-bezier(.22,1,.36,1) .1s; }
-  .lama { position:relative; overflow:hidden; }
-  .lama::after { content:''; position:absolute; left:0; right:0;
-    top:0; height:34%; pointer-events:none; opacity:0; z-index:3;
-    background:linear-gradient(180deg, transparent,
-      rgba(255,215,0,.13) 62%, rgba(255,215,0,.5));
-    -webkit-mask-image:linear-gradient(180deg, transparent, #000 70%);
-    mask-image:linear-gradient(180deg, transparent, #000 70%); }
-  .lama.taglia::after { animation:lamagiu 1.25s
-    cubic-bezier(.4,0,.2,1) forwards; }
-}
-
-/* ══ 8.0 · LA SALA DELLE REGOLE — l'expertise locale, verificabile ════ */
+/* ══ LA SALA DELLE REGOLE — l'expertise locale ══════════════════════ */
 .sala { margin-top:clamp(16px,2.2vw,24px); display:grid;
   gap:clamp(10px,1.4vw,16px);
-  grid-template-columns:repeat(auto-fit,minmax(310px,1fr)); }
+  grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); }
 .regolaR { position:relative; padding:clamp(17px,2.1vw,24px);
   background:var(--card); border-radius:14px;
   box-shadow:inset 0 0 0 1px var(--line); overflow:hidden; }
 .regolaR::before { content:''; position:absolute; left:0; right:0;
   top:0; height:1px; background:linear-gradient(90deg,
-    var(--gold), rgba(255,215,0,.05)); transform-origin:0 50%; }
-@media (prefers-reduced-motion:no-preference){
-  html.vivo .sala .regolaR::before { transform:scaleX(0); }
-  html.vivo .sala.dentro .regolaR::before { transform:scaleX(1);
-    transition:transform .85s cubic-bezier(.22,1,.36,1); }
-  html.vivo .sala.dentro .regolaR:nth-child(2)::before { transition-delay:.09s; }
-  html.vivo .sala.dentro .regolaR:nth-child(3)::before { transition-delay:.18s; }
-  html.vivo .sala.dentro .regolaR:nth-child(4)::before { transition-delay:.27s; }
-  html.vivo .sala.dentro .regolaR:nth-child(5)::before { transition-delay:.36s; }
-  html.vivo .sala.dentro .regolaR:nth-child(6)::before { transition-delay:.45s; }
-}
+    var(--gold), rgba(255,215,0,.05)); }
 .rr-capo { display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
 .rr-num { font-family:var(--display); font-weight:250; font-size:13px;
   letter-spacing:.12em; color:rgba(255,215,0,.55); }
@@ -1730,35 +1622,106 @@ body.volo-on .rotta-filo { opacity:1; }
   line-height:1.6; max-width:78ch; }
 .sala-nota a { color:var(--text-2); }
 
-/* ══ 8.0 · IL BIGLIETTO CHE SI CONVALIDA ═════════════════════════════ */
+/* ══ L'OROLOGIO DEL RADAR ════════════════════════════════════════════ */
+.orolo { position:relative; margin-bottom:clamp(14px,2vw,20px);
+  padding:clamp(14px,2vw,20px) clamp(16px,2.2vw,24px);
+  background:linear-gradient(180deg, rgba(255,215,0,.035),
+    rgba(255,215,0,.006)); border-radius:14px;
+  box-shadow:inset 0 0 0 1px rgba(255,215,0,.16); overflow:hidden; }
+.orolo-griglia { display:grid; gap:12px 26px;
+  grid-template-columns:repeat(auto-fit,minmax(148px,1fr));
+  align-items:end; }
+.oro-cella { display:grid; gap:5px; }
+.oro-eti { font-size:9px; font-weight:700; letter-spacing:.24em;
+  text-transform:uppercase; color:var(--text-3); }
+.oro-val { font-family:var(--display); font-weight:250;
+  font-size:clamp(22px,2.6vw,34px); line-height:1; color:var(--gold);
+  letter-spacing:.01em; font-variant-numeric:tabular-nums; }
+.oro-val small { font-size:.44em; font-weight:400; color:var(--text-2);
+  letter-spacing:.06em; margin-left:.25em; }
+.oro-barra { margin-top:clamp(13px,1.8vw,18px); height:2px;
+  border-radius:2px; background:rgba(255,255,255,.09);
+  overflow:hidden; }
+.oro-barra i { display:block; height:100%; width:0%;
+  background:linear-gradient(90deg, rgba(255,215,0,.35), var(--gold));
+  box-shadow:0 0 10px rgba(255,215,0,.45); }
+.orolo.batte { box-shadow:inset 0 0 0 1px rgba(255,215,0,.55),
+  0 0 34px rgba(255,215,0,.12); }
+.oro-nota { margin-top:11px; font-size:10.5px; color:var(--text-3);
+  letter-spacing:.02em; line-height:1.6; }
+.oro-vivo { display:inline-flex; align-items:center; gap:6px; }
+.oro-vivo::before { content:''; width:6px; height:6px; border-radius:50%;
+  background:var(--gold); box-shadow:0 0 8px rgba(255,215,0,.7);
+  animation:oropulsa 2.4s ease-in-out infinite; }
+@keyframes oropulsa { 0%,100% { opacity:1; } 50% { opacity:.25; } }
+@media (prefers-reduced-motion:reduce){
+  .oro-vivo::before { animation:none; } }
+
+/* ══ LE CLAUSOLE ═════════════════════════════════════════════════════ */
+.clausola { max-width:820px; padding:clamp(20px,2.6vw,30px);
+  background:var(--card); border-radius:14px; position:relative;
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
+.clausola::before { content:'\00A7'; position:absolute; right:18px;
+  top:8px; font-family:var(--display); font-weight:200; font-size:60px;
+  color:rgba(255,215,0,.08); line-height:1; }
+.clausola blockquote { margin:0; font-size:14.5px; line-height:1.85;
+  color:var(--text-2); }
+.clausola blockquote b { color:var(--text); }
+.clausola cite { display:block; margin-top:10px; font-style:normal;
+  font-size:10px; font-weight:700; letter-spacing:.22em;
+  text-transform:uppercase; color:var(--gold); }
+.clausola + .clausola { margin-top:12px; }
+.verifica-righe { margin-top:14px; display:flex; gap:10px 22px;
+  flex-wrap:wrap; }
+.verifica-righe a { font-size:12px; color:var(--text-3);
+  text-decoration:none; transition:color .3s ease; }
+.verifica-righe a:hover { color:var(--gold); }
+
+/* ══ L'HERO: i quattro passi + il biglietto che si convalida ═════════ */
+.hero-passi { margin-top:16px; display:flex; align-items:center;
+  gap:7px 10px; flex-wrap:wrap; font-size:10px; font-weight:600;
+  letter-spacing:.1em; text-transform:uppercase; color:var(--text-3);
+  max-width:56ch; }
+.hero-passi b { color:var(--gold); font-weight:700; margin-right:2px; }
+.hero-passi i { font-style:normal; color:rgba(255,215,0,.45); }
 .ck-pronto { position:absolute; right:clamp(16px,1.8vw,22px);
-  top:-13px; z-index:4; background:#0B0B0C;
-  display:inline-flex; align-items:center;
-  gap:6px; padding:5px 10px; font-size:8.5px; font-weight:800;
-  letter-spacing:.2em; text-transform:uppercase; color:var(--gold);
-  border-radius:100px; box-shadow:inset 0 0 0 1px rgba(255,215,0,.45),
+  top:-13px; z-index:4; background:#0B0B0C; display:inline-flex;
+  align-items:center; gap:6px; padding:5px 10px; font-size:8.5px;
+  font-weight:800; letter-spacing:.2em; text-transform:uppercase;
+  color:var(--gold); border-radius:100px;
+  box-shadow:inset 0 0 0 1px rgba(255,215,0,.45),
     0 6px 20px rgba(0,0,0,.55); opacity:0; transform:translateY(-4px);
   transition:opacity .4s ease, transform .5s cubic-bezier(.22,1,.36,1);
   pointer-events:none; }
 .ck-pronto::before { content:'✓'; letter-spacing:0; }
 #ckForm.pronto .ck-pronto { opacity:1; transform:none; }
-#ckForm.pronto .ck-barcode { opacity:.7;
-  transition:opacity .5s ease; }
+#ckForm.pronto .ck-barcode { opacity:.7; transition:opacity .5s ease; }
 #ckForm.pronto .ck-vai { box-shadow:0 0 0 1px rgba(255,215,0,.5),
-  0 14px 40px rgba(255,215,0,.18);
-  transition:box-shadow .5s ease, transform .3s ease; }
-#ckForm.pronto .ck-perf { filter:drop-shadow(0 0 6px rgba(255,215,0,.28));
-  transition:filter .5s ease; }
-@media (prefers-reduced-motion:reduce){
-  .ck-pronto { transition:none; } }
-@keyframes lamagiu {
-  0% { opacity:0; transform:translateY(-40%); }
-  12% { opacity:1; }
-  88% { opacity:1; }
-  100% { opacity:0; transform:translateY(340%); } }
+  0 14px 40px rgba(255,215,0,.18); transition:box-shadow .5s ease; }
+
+/* ══ LA BARRA — la cassa a un tap, sempre ════════════════════════════ */
+.hud { position:fixed; left:0; right:0; bottom:0; z-index:110;
+  display:flex; align-items:center; gap:clamp(10px,2vw,22px);
+  padding:9px clamp(14px,3vw,28px)
+    calc(9px + env(safe-area-inset-bottom, 0px));
+  background:rgba(5,5,5,.84); backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  border-top:1px solid rgba(255,215,0,.14); transform:translateY(110%);
+  transition:transform .5s cubic-bezier(.22,1,.36,1); }
+.hud.su { transform:none; }
+.hud-stato { flex:1; font-size:9.5px; font-weight:700;
+  letter-spacing:.2em; text-transform:uppercase; color:var(--text-3);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.hud-stato b { color:var(--gold); }
+.hud-vai { flex:none; display:inline-flex; align-items:baseline; gap:7px;
+  padding:9px 16px; font-size:11px; font-weight:800;
+  letter-spacing:.08em; color:#0A0A05; background:var(--gold);
+  border-radius:100px; text-decoration:none; white-space:nowrap; }
+.hud-vai small { font-size:9px; font-weight:700; opacity:.7; }
+@media (prefers-reduced-motion:reduce){ .hud { transition:none; } }
 </style>
 
-<a class="salta" href="#dopo">Skip to content</a>
+<a class="salta" href="#lastra">Skip to content</a>
 <div class="scroll-progress" id="scrollProgress" aria-hidden="true"></div>
 <div class="mouse-glow" id="mouseGlow" aria-hidden="true"></div>
 <div class="tech-bg" aria-hidden="true"><span class="tech-orb tech-orb-1"></span><span class="tech-orb tech-orb-2"></span><span class="tech-orb tech-orb-3"></span></div>
@@ -1937,58 +1900,48 @@ body.volo-on .rotta-filo { opacity:1; }
       <span class="lp">You pay <b>€350</b>.</span>
       <span class="lp">I hand you <b>three homes</b> in your criteria,
         <b>within 15 days</b>.</span>
-      <span class="lp">If I don't — <b>you get the €350 back</b>. In
-        full.</span>
+      <span class="lp">If I don't — <b>you get the €350 back</b>. In full.</span>
       <span class="lp">If I do — <b>it comes off my fee</b>.</span>
       <span class="lp oro">Either way: <b>you don't lose money</b>.</span>
     </p>
-    <p class="lastra-nota">Terms §4.2 · §7.1-bis — quoted verbatim in
-      act 07</p>
+    <p class="lastra-nota">Terms §4.2 · §7.1-bis</p>
   </div>
 </section>
 
-<section class="section section-dark atto3" id="dopo">
+<!-- ══ LA CONSOLE — le domande le fa il visitatore ══════════════════════ -->
+<section class="section" id="console">
   <div class="container">
-    <div class="sale" style="margin-bottom:clamp(40px,6vw,72px)">
-      <span class="eyebrow"><i></i>The interview</span>
-      <h2 class="titolo titolo-xl">You should be sceptical.<br>
-        <span class="hl">So ask us everything.</span></h2>
-      <p class="sotto">Seven questions every client asks before paying —
-        answered in writing, each with its evidence attached. A
-        representative conversation: the objections are the real ones we
-        hear every week, the answers are ours — not a transcript of any
-        client's chat.</p>
+    <div class="sale">
+      <span class="eyebrow"><i></i>The interrogation</span>
+      <h2 class="titolo">You should be sceptical.<br>
+        <span class="hl">So ask me anything.</span></h2>
+      <p class="sotto">The eight questions clients actually ask before
+        paying. <b>Open the ones you care about</b> — every answer carries
+        its evidence, and nothing here is a claim you can't check.</p>
     </div>
-    <div class="a3-testa sale">
-      <div class="a3-alto"><span class="a3-num">01</span>
-        <span class="a3-tema">The product</span></div>
-      <p class="a3-q">What exactly do I get <b>for the €350</b>?</p>
-      <p class="a3-chi">You — the only fair first question</p>
-    </div>
-    <div class="a3-corpo">
-      <div class="a3-risposta sale">
-        <div class="a3-avv"><i>V</i><span>Valentino — on the record</span></div>
-        <p class="a3-lead">A hunt, a hunter —<br>and everything <b>to the keys</b>.</p>
-        <p class="a3-det"><b>I call</b> — fifteen minutes, brutal about what your budget
-      really buys in your zones. The search arms within 24 hours: the
-      scanner takes your brief the same day it exists. First scored
-      matches land in your private app; viewings follow — I walk, you
-      watch live — then negotiation, and a registered contract
-      <b>signed from your phone</b>. This is the rail:</p>
+    <div class="console sale" id="cons">
+      <div class="cs-capo">
+        <span class="cs-stato" id="csStato"><b>0</b>/8 answered</span>
+        <span class="cs-seg" id="csSeg" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+        <span class="cs-invito">Tap a question →</span>
       </div>
-      <aside class="a3-colpo sale" aria-hidden="false">
-        <div class="a3-cifra">24<small>h</small></div>
-        <p class="a3-cifra-eti">from payment to an armed search</p>
-        <div class="a3-righe">
-        <span><b>15-minute call</b> — same day, no sugar</span>
-        <span><b>Your app</b> — first scored matches</span>
-        <span><b>Keys</b> — contract signed from your phone</span>
-        </div>
-      </aside>
-    </div>
-    <div class="reperto-eti sale"><b>Exhibit A</b>
-      <span>The itinerary — and everything included</span></div>
-    <div class="passi4 sale coro">
+      <details class="riga" id="q1">
+      <summary>
+        <span class="r-num">01</span>
+        <span class="r-tema">The product</span>
+        <span class="r-q">What exactly do I get for the €350?</span>
+        <span class="r-colpo">24h</span>
+        <span class="r-piu" aria-hidden="true"></span>
+      </summary>
+      <div class="r-corpo">
+      <p class="r-lead">A hunt, a hunter —<br>and everything <b>to the keys</b>.</p>
+      <p class="r-det">Five lines, then <b>I call you</b>: fifteen minutes, brutal about
+        what your budget really buys in your zones. The search arms within
+        24 hours. I walk the shortlist in person — live on video if you're
+        abroad — negotiate rent and terms, then handle contract, utilities
+        and codice fiscale. On success the €350 <b>comes off my fee</b>.</p>
+      <div class="reperto-eti sale"><b>Exhibit</b><span>The itinerary — and everything included</span></div>
+      <div class="passi4 sale coro">
       <div class="passo4"><b>01</b><span>Check-in — five lines and the
         €350. Your expert calls, the search arms within 24h.</span></div>
       <div class="passo4"><b>02</b><span>The hunt — our off-market network,
@@ -2001,7 +1954,7 @@ body.volo-on .rotta-filo { opacity:1; }
         sign the registered contract from your phone.</span></div>
     </div>
 
-    <div class="inclusi sale">
+      <div class="inclusi sale">
       <span><b>Dedicated expert</b> — one person, your contact</span>
       <span><b>Off-market access</b> — homes never listed publicly</span>
       <span><b>Viewings done for you</b> — in person, live on video</span>
@@ -2009,56 +1962,55 @@ body.volo-on .rotta-filo { opacity:1; }
       <span><b>Full setup</b> — contract, utilities, codice fiscale</span>
       <span><b>€350 deducted</b> from the agency fee on success</span>
     </div>
-  </div>
-</section>
-
-<section class="section atto3 inv" id="solo">
-  <div class="container">
-    <div class="a3-testa sale">
-      <div class="a3-alto"><span class="a3-num">02</span>
-        <span class="a3-tema">The machine</span></div>
-      <p class="a3-q">I can search Idealista myself. <b>For free.</b></p>
-      <p class="a3-chi">You — and you are right, it is free</p>
-    </div>
-    <div class="a3-corpo">
-      <div class="a3-risposta sale">
-        <div class="a3-avv"><i>V</i><span>Valentino — on the record</span></div>
-        <p class="a3-lead">You're not paying me to search.<br>You're paying to be <b>first — and filtered</b>.</p>
-        <p class="a3-det">Free search puts you in the same queue as every other tenant, hours
-      late. Your brief, told once; the scanner reads the market <b>every
-      fifteen minutes, day and night</b> and scores everything against
-      your five lines — under sixty never touches your phone. I walk
-      what survives. And I'm not selling you a portfolio: the hunt works
-      the <b>buyer's side</b> — agency relistings are stored, never
-      pushed. Try the brief yourself:</p>
       </div>
-      <aside class="a3-colpo sale" aria-hidden="false">
-        <div class="a3-cifra">96</div>
-        <p class="a3-cifra-eti">scans a day — read from the production deploy file</p>
-        <div class="a3-righe">
-        <span><b>Match weights</b> — budget 50 · bedrooms 30 · district 20</span>
-        <span><b>Push threshold</b> — under 60/100 never reaches you</span>
-        <span><b>Agency relistings</b> — stored, never pushed</span>
-        </div>
-      </aside>
-    </div>
-    <div class="reperto-eti sale"><b>Exhibit B</b>
-      <span>The finder — real weights, real schedules</span></div>
-    <div class="orolo" id="orolo"
-      aria-label="The scanner's schedule, live">
+    </details>
+      <details class="riga" id="q2">
+      <summary>
+        <span class="r-num">02</span>
+        <span class="r-tema">The price</span>
+        <span class="r-q">Is the €350 an extra cost?</span>
+        <span class="r-colpo">€0</span>
+        <span class="r-piu" aria-hidden="true"></span>
+      </summary>
+      <div class="r-corpo">
+      <p class="r-lead">No. It's <b>my fee, paid early</b>.</p>
+      <p class="r-det">On success it's deducted from the agency fee — one month's rent or
+        10% of the annual rent, <b>whichever is lower</b> (§4.1). So the hunt
+        adds nothing to what you'd pay anyway. If I don't deliver, it comes
+        back in full (§4.2). No viewing fees, no application fees (§4.3).</p>
+      <div class="prove"><a href="/terms.html" target="_blank" rel="noopener">Our fees, in writing — Terms §4 <i>→</i></a></div>
+      </div>
+    </details>
+      <details class="riga" id="q3">
+      <summary>
+        <span class="r-num">03</span>
+        <span class="r-tema">The machine</span>
+        <span class="r-q">Can you really access off-market apartments?</span>
+        <span class="r-colpo">96</span>
+        <span class="r-piu" aria-hidden="true"></span>
+      </summary>
+      <div class="r-corpo">
+      <p class="r-lead">Yes — and the portals are watched<br><b>every fifteen minutes</b> anyway.</p>
+      <p class="r-det">Off-market means landlords and building administrators we've worked
+        with for years: homes that never reach a portal. On top of that, a
+        scanner reads the public market on a production schedule and scores
+        everything against your five lines — <b>under sixty never touches
+        your phone</b>. Agency relistings are stored, never pushed: I won't
+        send you to pay someone else's commission.</p>
+      <div class="reperto-eti sale"><b>Exhibit</b><span>The scanner and the finder — real weights, real schedules</span></div>
+      <div class="orolo" id="orolo" aria-label="The scanner's schedule, live">
       <div class="orolo-griglia">
         <div class="oro-cella"><span class="oro-eti">Rome time</span>
           <span class="oro-val" id="oroT">--:--:--</span></div>
-        <div class="oro-cella"><span class="oro-eti">Sweeps since
-          midnight</span>
+        <div class="oro-cella"><span class="oro-eti">Sweeps since midnight</span>
           <span class="oro-val" id="oroN">--<small>/96 today</small></span></div>
         <div class="oro-cella"><span class="oro-eti">Next sweep in</span>
           <span class="oro-val" id="oroC">--:--</span></div>
       </div>
       <div class="oro-barra"><i id="oroB"></i></div>
-      <p class="oro-nota"><span class="oro-vivo">The inbox sweep runs
-        every 15 minutes, day and night</span> — this counter is derived
-        from that production schedule, not a live feed of results.</p>
+      <p class="oro-nota"><span class="oro-vivo">The inbox sweep runs every
+        15 minutes, day and night</span> — derived from our production
+        schedule, not a live feed of results.</p>
     </div>
 
     <div class="finder quadro" id="finder" data-fase="0">
@@ -2126,40 +2078,71 @@ body.volo-on .rotta-filo { opacity:1; }
       <div class="finder-piede">Illustrated brief · matches are scored on our
         production weights — budget 50, bedrooms 30, district 20.</div>
     </div>
-  </div>
-</section>
-
-<section class="section section-dark atto3" id="estero">
-  <div class="container">
-    <div class="a3-testa sale">
-      <div class="a3-alto"><span class="a3-num">03</span>
-        <span class="a3-tema">The distance</span></div>
-      <p class="a3-q">I'm not even <b>in Italy</b> yet.</p>
-      <p class="a3-chi">You — writing from abroad</p>
-    </div>
-    <div class="a3-corpo">
-      <div class="a3-risposta sale">
-        <div class="a3-avv"><i>V</i><span>Valentino — on the record</span></div>
-        <p class="a3-lead">Good.<br>It's built for <b>exactly that</b>.</p>
-        <p class="a3-det">Viewings happen <b>live on video</b> — I walk, you watch and ask.
-      The contract is signed from your phone. Utilities and codice
-      fiscale are handled before you land. Matches arrive in your
-      private app; confirmed visits land in <b>Apple Wallet</b>. Don't
-      take my word for any of it — touch all three, right now:</p>
       </div>
-      <aside class="a3-colpo sale" aria-hidden="false">
-        <div class="a3-cifra">0</div>
-        <p class="a3-cifra-eti">flights needed before you sign</p>
-        <div class="a3-righe">
-        <span><b>Viewings</b> — live on video, you direct me</span>
-        <span><b>Contract</b> — signed from your phone</span>
-        <span><b>Visits</b> — boarding passes in Apple Wallet</span>
-        </div>
-      </aside>
+    </details>
+      <details class="riga" id="q4">
+      <summary>
+        <span class="r-num">04</span>
+        <span class="r-tema">The rule</span>
+        <span class="r-q">Why would I pay €350 upfront? Every guide says never.</span>
+        <span class="r-colpo">100%</span>
+        <span class="r-piu" aria-hidden="true"></span>
+      </summary>
+      <div class="r-corpo">
+      <p class="r-lead">Keep following that rule.<br>This is <b>mechanically different</b>.</p>
+      <p class="r-det">That rule protects you from strangers asking for wire transfers to
+        “hold” a flat — <b>we teach it ourselves</b>, in our own scam guide.
+        Here you pay a registered Italian company by card: receipted,
+        chargeback-protected, against a <b>written contract term</b>. Not
+        goodwill — a clause.</p>
+      <div class="prove"><a href="/blog-scam-bible.html">Our scam guide — 7 patterns, 35+ red flags <i>→</i></a></div>
+      <div class="reperto-eti sale"><b>Exhibit</b><span>The scam pattern vs this service</span></div>
+      <div class="regola2 sale">
+      <div class="r2-testa" aria-hidden="true"></div>
+      <div class="r2-testa male">The scam pattern</div>
+      <div class="r2-testa bene">This service</div>
+      <div class="r2-eti">Who you pay</div>
+      <div class="male">A stranger from a listing, unreachable after
+        the transfer</div>
+      <div class="bene"><b>Egidi Immobiliare S.r.l.</b> — registered
+        Italian company, P.IVA 17322991005, REA RM-1710623, office in
+        Via dei Coronari 181</div>
+      <div class="r2-eti">How you pay</div>
+      <div class="male">Bank transfer — irreversible by design</div>
+      <div class="bene"><b>Card via Stripe</b> — receipted, and card
+        payments carry chargeback protection</div>
+      <div class="r2-eti">What you hold</div>
+      <div class="male">A promise in a chat</div>
+      <div class="bene"><b>A written contract term</b>: at least 3 options
+        in your criteria within 15 days — Terms §4.2</div>
+      <div class="r2-eti">If it goes wrong</div>
+      <div class="male">The money is gone</div>
+      <div class="bene"><b>The €350 returns to your card</b>, in full —
+        no admin fee (Terms §7.1-bis)</div>
     </div>
-    <div class="reperto-eti sale"><b>Exhibit C</b>
-      <span>Touch it before you pay</span></div>
-    <div class="tocca sale">
+    <p class="regola-fonte sale">Never seen a Rome rental scam up close?
+      <a href="/blog-scam-bible.html">Read our scam guide</a> — the
+      patterns, the red flags, the exact phrases they use. Whoever teaches
+      the defence isn't the threat.</p>
+      </div>
+    </details>
+      <details class="riga" id="q5">
+      <summary>
+        <span class="r-num">05</span>
+        <span class="r-tema">The distance</span>
+        <span class="r-q">I'm not in Italy yet — does it still work?</span>
+        <span class="r-colpo">0</span>
+        <span class="r-piu" aria-hidden="true"></span>
+      </summary>
+      <div class="r-corpo">
+      <p class="r-lead">Good.<br>It's built for <b>exactly that</b>.</p>
+      <p class="r-det">Viewings happen <b>live on video</b> — I walk, you watch and ask.
+        The contract is signed from your phone. Utilities and codice fiscale
+        are handled before you land. Matches arrive in your private app;
+        confirmed visits land in Apple Wallet. Don't take my word for any of
+        it — touch all three.</p>
+      <div class="reperto-eti sale"><b>Exhibit</b><span>Touch it before you pay</span></div>
+      <div class="tocca sale">
       <div>
         <h3>The swipe deck</h3>
         <p>Every match arrives as a card in your private app — photo,
@@ -2190,95 +2173,27 @@ body.volo-on .rotta-filo { opacity:1; }
         <small>No account, nothing saved.</small>
       </div>
     </div>
-  </div>
-</section>
-
-<section class="section atto3 inv" id="roma">
-  <div class="container">
-    <div class="a3-testa sale">
-      <div class="a3-alto"><span class="a3-num">04</span>
-        <span class="a3-tema">The market</span></div>
-      <p class="a3-q">Is Rome really that brutal? <b>I've rented in other capitals.</b></p>
-      <p class="a3-chi">You — after a week on the portals</p>
-    </div>
-    <div class="a3-corpo">
-      <div class="a3-risposta sale">
-        <div class="a3-avv"><i>V</i><span>Valentino — on the record</span></div>
-        <p class="a3-lead">Rome isn't chaotic.<br>Rome is <b>asymmetric</b>.</p>
-        <p class="a3-det">A good flat survives 24–72 hours; the good private listing collects
-      dozens of enquiries within hours — and from another timezone you
-      join that queue <b>while you sleep</b>. Much of what you scroll is
-      the same flat re-posted by competing agencies; the best homes
-      never reach the portals at all. Here is what searching alone
-      actually costs:</p>
       </div>
-      <aside class="a3-colpo sale" aria-hidden="false">
-        <div class="a3-cifra">24–72<small>h</small></div>
-        <p class="a3-cifra-eti">the life of a good listing on the portals</p>
-        <div class="a3-righe">
-        <span><b>The phantom listing</b> — runs daily</span>
-        <span><b>The double deposit</b> — runs weekly</span>
-        <span><b>Deposit cap</b> — three months, by law</span>
-        </div>
-      </aside>
-    </div>
-    <div class="reperto-eti sale"><b>Exhibit D</b>
-      <span>What searching alone costs</span></div>
-    <div class="conto sale">
-      <div><b>21 nights × €90</b><span>a typical temporary stay in Rome
-        while you search from hotels and short lets — ≈ €1,890 for three
-        weeks, and the clock only stops when you sign.</span></div>
-      <div><b>1–2 months' deposit</b><span>what renters wire to "hold" an
-        unverified flat — the exact money Rome's rental scams are built
-        to take. Our scam guide exists because it keeps happening.</span></div>
-      <div><b>6–8 viewings</b><span>the visits a serious search needs.
-        From another timezone you attend the leftovers — the good ones
-        are gone before your flight lands.</span></div>
-    </div>
-    <p class="conto-chiusa sale">Against that: <b>€350, refundable by
-      contract</b> — and deducted from the agency fee when we deliver.</p>
-    <p class="conto-bench sale">For scale: a dedicated flat hunter runs
-      €1,100–1,800+ in Paris or Amsterdam. Same craft, Rome, with the
-      refund written into the contract: €350.</p>
-  </div>
-</section>
-
-<section class="section section-dark atto3" id="chi">
-  <div class="container">
-    <div class="a3-testa sale">
-      <div class="a3-alto"><span class="a3-num">05</span>
-        <span class="a3-tema">The counterpart</span></div>
-      <p class="a3-q">How do I know <b>you're real</b>? I've never met you.</p>
-      <p class="a3-chi">You — as you should</p>
-    </div>
-    <div class="a3-corpo">
-      <div class="a3-risposta sale">
-        <div class="a3-avv"><i>V</i><span>Valentino — on the record</span></div>
-        <p class="a3-lead">Don't trust me.<br><b>Check me.</b></p>
-        <p class="a3-det">Egidi Immobiliare S.r.l. — P.IVA 17322991005, REA RM-1710623,
-      office in Via dei Coronari 181. An EU trademark you can look up on
-      EUIPO yourself. 47 Google reviews, readable one by one. Every
-      payment runs through Stripe with a receipt — <b>never a bank
-      transfer to an individual</b>. And the person answering your
-      WhatsApp is the person who walks your shortlist: <b>me</b>.</p>
-      <p>Then there's the half no platform can copy: <b>Rome's own
-      rules</b>. Which contract holds, what the negotiated bands allow,
-      what must be registered and by when — the six below decide whether
-      your year here is calm or expensive.</p>
-      </div>
-      <aside class="a3-colpo sale" aria-hidden="false">
-        <div class="a3-cifra">4.9<small>★</small></div>
-        <p class="a3-cifra-eti">on Google — 47 reviews from real tenants</p>
-        <div class="a3-righe">
-        <span><b>P.IVA</b> 17322991005 · <b>REA</b> RM-1710623</span>
-        <span><b>EU trademark</b> 019317594 — on EUIPO</span>
-        <span><b>Via dei Coronari 181</b>, Roma</span>
-        </div>
-      </aside>
-    </div>
-    <div class="reperto-eti sale"><b>Exhibit E</b>
-      <span>Check, don’t trust</span></div>
-    <div class="verifica sale">
+    </details>
+      <details class="riga" id="q6">
+      <summary>
+        <span class="r-num">06</span>
+        <span class="r-tema">The counterpart</span>
+        <span class="r-q">How do I know BOOM is legitimate?</span>
+        <span class="r-colpo">4.9★</span>
+        <span class="r-piu" aria-hidden="true"></span>
+      </summary>
+      <div class="r-corpo">
+      <p class="r-lead">Don't trust me.<br><b>Check me.</b></p>
+      <p class="r-det">Egidi Immobiliare S.r.l. — P.IVA 17322991005, REA RM-1710623, office
+        in Via dei Coronari 181. An EU trademark you can look up yourself. 47
+        Google reviews. Every payment through Stripe with a receipt —
+        <b>never a bank transfer to an individual</b>.</p>
+      <p class="r-det">Then there's the half no platform can copy: <b>Rome's own rules</b>.
+        Which contract holds, what the negotiated bands allow, what must be
+        registered and by when.</p>
+      <div class="reperto-eti sale"><b>Exhibit</b><span></span></div>
+      <div class="verifica sale">
       <a class="rec-card" href="https://www.google.com/maps?q=Egidi+Immobiliare+Via+dei+Coronari+Roma" target="_blank" rel="noopener">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.6 5.6 6.1.7-4.5 4.2 1.2 6-5.4-3-5.4 3 1.2-6L3.3 9.8l6.1-.7z"/></svg>
         <span><b>4.9 on Google</b><span>47 reviews from real tenants —
@@ -2308,19 +2223,19 @@ body.volo-on .rotta-filo { opacity:1; }
       <a href="/blog-scam-bible.html">Our Rome rental scam guide →</a>
     </div>
 
-    <div class="reperto-eti sale"><b>Exhibit E·2</b>
+    <div class="reperto-eti sale"><b>Exhibit</b>
       <span>What a Rome local knows that a platform doesn't</span></div>
     <div class="sala sale">
       <div class="regolaR">
         <div class="rr-capo"><span class="rr-num">R01</span>
           <span class="rr-fonte legge">Territorial agreement</span></div>
         <h4>Rome's negotiated-rent bands</h4>
-        <p class="rr-trappola">The 2023 Rome agreement fixes €/m² bands
-          per zone. Ask the wrong rent and the contract can't be
-          attested — you pay more and lose the tax break.</p>
+        <p class="rr-trappola">The 2023 Rome agreement fixes €/m² bands per
+          zone. Ask the wrong rent and the contract can't be attested — you
+          pay more and lose the tax break.</p>
         <p class="rr-noi">We compute the attestable band for your flat
-          before you sign — <b>75 zones, the official coefficients</b> —
-          and negotiate against it.</p>
+          before you sign — <b>75 zones, the official coefficients</b> — and
+          negotiate against it.</p>
       </div>
       <div class="regolaR">
         <div class="rr-capo"><span class="rr-num">R02</span>
@@ -2328,16 +2243,16 @@ body.volo-on .rotta-filo { opacity:1; }
         <h4>Deposit: three months, maximum</h4>
         <p class="rr-trappola">Anything above is not enforceable — and
           “non-refundable deposit” is not a thing.</p>
-        <p class="rr-noi">We push for <b>two</b>, in writing, with the
-          return terms named in the contract.</p>
+        <p class="rr-noi">We push for <b>two</b>, in writing, with the return
+          terms named in the contract.</p>
       </div>
       <div class="regolaR">
         <div class="rr-capo"><span class="rr-num">R03</span>
           <span class="rr-fonte legge">Landlord's duty</span></div>
         <h4>Registered within 30 days — or it doesn't exist</h4>
         <p class="rr-trappola">An unregistered lease gives you no legal
-          protection <b>and no residency</b>: the paperwork chain breaks
-          at the first office.</p>
+          protection <b>and no residency</b>: the paperwork chain breaks at
+          the first office.</p>
         <p class="rr-noi">We register it and hand you the <b>protocol
           number</b> — the dossier is prepared while you sign.</p>
       </div>
@@ -2345,205 +2260,122 @@ body.volo-on .rotta-filo { opacity:1; }
         <div class="rr-capo"><span class="rr-num">R04</span>
           <span class="rr-fonte">€5 · public registry</span></div>
         <h4>Whoever rents it must own it</h4>
-        <p class="rr-trappola">The fake-landlord scam dies with one
-          document: the <b>visura catastale</b> names the real owner. It
-          costs five euros. Almost nobody asks.</p>
-        <p class="rr-noi">We pull it <b>before</b> the viewing, not after
-          the deposit.</p>
+        <p class="rr-trappola">The fake-landlord scam dies with one document:
+          the <b>visura catastale</b> names the real owner. It costs five
+          euros. Almost nobody asks.</p>
+        <p class="rr-noi">We pull it <b>before</b> the viewing, not after the
+          deposit.</p>
       </div>
       <div class="regolaR">
         <div class="rr-capo"><span class="rr-num">R05</span>
           <span class="rr-fonte legge">L. 431/98 art. 5</span></div>
         <h4>A transitional lease needs a documented reason</h4>
-        <p class="rr-trappola">The wrong contract type for your stay is
-          the most common “legal” trap for foreigners — challengeable
-          later, which helps nobody once you live there.</p>
-        <p class="rr-noi">We pick the right form — transitional, student,
-          4+4 — and prepare the <b>attestation</b> that makes it
-          hold.</p>
+        <p class="rr-trappola">The wrong contract type for your stay is the
+          most common “legal” trap for foreigners — challengeable later,
+          which helps nobody once you live there.</p>
+        <p class="rr-noi">We pick the right form — transitional, student, 4+4
+          — and prepare the <b>attestation</b> that makes it hold.</p>
       </div>
       <div class="regolaR">
         <div class="rr-capo"><span class="rr-num">R06</span>
           <span class="rr-fonte">Handover</span></div>
         <h4>The keys day is a document, not a handshake</h4>
-        <p class="rr-trappola">No meter readings, no photos, no signed
-          state of the flat — and the deposit argument, months later, is
-          your word against theirs.</p>
-        <p class="rr-noi">We sign a <b>verbale di consegna</b> on the
-          spot: readings, photos, condition — emailed to both sides
-          before we leave the building.</p>
+        <p class="rr-trappola">No meter readings, no photos, no signed state
+          of the flat — and the deposit argument, months later, is your word
+          against theirs.</p>
+        <p class="rr-noi">We sign a <b>verbale di consegna</b> on the spot:
+          readings, photos, condition — emailed to both sides before we
+          leave the building.</p>
       </div>
     </div>
-    <p class="sala-nota sale">Rules and duties as published on our own
-      pages: the <a href="/welcome-to-rome">expat guide</a> and the
+    <p class="sala-nota sale">Rules and duties as published on our own pages:
+      the <a href="/welcome-to-rome">expat guide</a> and the
       <a href="/blog-scam-bible.html">scam guide</a>. This is the part no
-      platform localises for you — and the reason the hunt is run by
-      someone who signs these contracts every week.</p>
-  </div>
-</section>
-
-<section class="section atto3 inv" id="dubbio">
-  <div class="container">
-    <div class="a3-testa sale">
-      <div class="a3-alto"><span class="a3-num">06</span>
-        <span class="a3-tema">The rule</span></div>
-      <p class="a3-q">Why would I pay €350 upfront? Every guide — <b>including yours</b> — says never pay upfront in Rome.</p>
-      <p class="a3-chi">You — every first message, rightly</p>
-    </div>
-    <div class="a3-corpo">
-      <div class="a3-risposta sale">
-        <div class="a3-avv"><i>V</i><span>Valentino — on the record</span></div>
-        <p class="a3-lead">Keep following that rule.<br>This is <b>mechanically different</b>.</p>
-        <p class="a3-det">That rule protects you from strangers asking for wire transfers to
-      “hold” a flat — <b>we teach it ourselves</b>, in our own scam
-      guide. Here you pay a registered Italian company, by card, against
-      a <b>written contract term</b>. If I don't deliver, the €350
-      returns to your card. Not goodwill: a clause. The whole thing,
-      dimension by dimension, is below.</p>
-      <div class="prove"><a href="/terms.html" target="_blank" rel="noopener">Terms §4.2 —
-          the clause <i>→</i></a>
-        <a href="/blog-scam-bible.html">Our scam guide — 7 patterns,
-          35+ red flags <i>→</i></a></div>
+      platform localises for you.</p>
       </div>
-      <aside class="a3-colpo sale" aria-hidden="false">
-        <div class="a3-cifra">100%</div>
-        <p class="a3-cifra-eti">refunded if we don’t deliver — by contract, not courtesy</p>
-        <div class="a3-righe">
-        <span><b>Card via Stripe</b> — receipted, never a wire</span>
-        <span><b>Chargeback protection</b> — by design, not promise</span>
-        <span><b>Terms §4.2 · §7.1-bis</b> — no admin fee</span>
-        </div>
-      </aside>
+    </details>
+      <details class="riga" id="q7">
+      <summary>
+        <span class="r-num">07</span>
+        <span class="r-tema">The market</span>
+        <span class="r-q">Is Rome really that brutal?</span>
+        <span class="r-colpo">24–72h</span>
+        <span class="r-piu" aria-hidden="true"></span>
+      </summary>
+      <div class="r-corpo">
+      <p class="r-lead">Rome isn't chaotic.<br>Rome is <b>asymmetric</b>.</p>
+      <p class="r-det">A good flat survives <b>24–72 hours</b>; the good private listing
+        collects dozens of enquiries within hours — and from another timezone
+        you join that queue while you sleep. Much of what you scroll is the
+        same flat re-posted by competing agencies. The best homes never reach
+        the portals at all.</p>
+      <div class="reperto-eti sale"><b>Exhibit</b><span>What searching alone costs</span></div>
+      <div class="conto sale">
+      <div><b>21 nights × €90</b><span>a typical temporary stay in Rome
+        while you search from hotels and short lets — ≈ €1,890 for three
+        weeks, and the clock only stops when you sign.</span></div>
+      <div><b>1–2 months' deposit</b><span>what renters wire to "hold" an
+        unverified flat — the exact money Rome's rental scams are built
+        to take. Our scam guide exists because it keeps happening.</span></div>
+      <div><b>6–8 viewings</b><span>the visits a serious search needs.
+        From another timezone you attend the leftovers — the good ones
+        are gone before your flight lands.</span></div>
     </div>
-    <div class="reperto-eti sale"><b>Exhibit F</b>
-      <span>The scam pattern vs this service</span></div>
-    <div class="regola2 sale">
-      <div class="r2-testa" aria-hidden="true"></div>
-      <div class="r2-testa male">The scam pattern</div>
-      <div class="r2-testa bene">This service</div>
-      <div class="r2-eti">Who you pay</div>
-      <div class="male">A stranger from a listing, unreachable after
-        the transfer</div>
-      <div class="bene"><b>Egidi Immobiliare S.r.l.</b> — registered
-        Italian company, P.IVA 17322991005, REA RM-1710623, office in
-        Via dei Coronari 181</div>
-      <div class="r2-eti">How you pay</div>
-      <div class="male">Bank transfer — irreversible by design</div>
-      <div class="bene"><b>Card via Stripe</b> — receipted, and card
-        payments carry chargeback protection</div>
-      <div class="r2-eti">What you hold</div>
-      <div class="male">A promise in a chat</div>
-      <div class="bene"><b>A written contract term</b>: at least 3 options
-        in your criteria within 15 days — Terms §4.2</div>
-      <div class="r2-eti">If it goes wrong</div>
-      <div class="male">The money is gone</div>
-      <div class="bene"><b>The €350 returns to your card</b>, in full —
-        no admin fee (Terms §7.1-bis)</div>
-    </div>
-    <p class="regola-fonte sale">Never seen a Rome rental scam up close?
-      <a href="/blog-scam-bible.html">Read our scam guide</a> — the
-      patterns, the red flags, the exact phrases they use. Whoever teaches
-      the defence isn't the threat.</p>
-  </div>
-</section>
-
-<section class="section section-dark atto3" id="garanzia">
-  <div class="container">
-    <div class="a3-testa sale">
-      <div class="a3-alto"><span class="a3-num">07</span>
-        <span class="a3-tema">The guarantee</span></div>
-      <p class="a3-q">And if you find <b>nothing</b> I like?</p>
-      <p class="a3-chi">You — the fair question</p>
-    </div>
-    <div class="a3-corpo">
-      <div class="a3-risposta sale">
-        <div class="a3-avv"><i>V</i><span>Valentino — on the record</span></div>
-        <p class="a3-lead">Then it costs you nothing.<br>And that sentence is a <b>contract term</b>.</p>
-        <p class="a3-det">Two honest limits. I can't <b>invent supply</b> — if your criteria
-      can't exist in Rome at your budget, I say it on the first call,
-      before your fifteen days burn politely. And fifteen days is the
-      <b>refund trigger, not a delivery date</b>: the right home takes
-      days, sometimes weeks — we don't stop until you're settled.
-      “Three options” means the criteria <b>agreed with you in
-      writing</b> on the first call — the clause pays on those. Our own
-      fee is declared too: one month's rent or 10% of annual —
-      whichever is lower (§4.1); the €350 comes off it.</p>
+    <p class="conto-chiusa sale">Against that: <b>€350, refundable by
+      contract</b> — and deducted from the agency fee when we deliver.</p>
+    <p class="conto-bench sale">For scale: a dedicated flat hunter runs
+      €1,100–1,800+ in Paris or Amsterdam. Same craft, Rome, with the
+      refund written into the contract: €350.</p>
       </div>
-      <aside class="a3-colpo sale" aria-hidden="false">
-        <div class="a3-cifra">§4.2</div>
-        <p class="a3-cifra-eti">the refund clause — quoted verbatim below</p>
-        <div class="a3-righe">
-        <span><b>15 days</b> — the refund trigger, not a promise</span>
-        <span><b>Criteria</b> — agreed in writing, first call</span>
-        <span><b>Our fee</b> — declared in §4.1, €350 deducted</span>
-        </div>
-      </aside>
-    </div>
-    <div class="reperto-eti sale"><b>Exhibit G</b>
-      <span>The clause, verbatim</span></div>
-    <div class="clausola sale">
-      <blockquote>PFS costs €350 (fixed fee). If we do not present at
-        least <b>3 options matching your agreed criteria within 15
-        days</b>, the €350 is <b>refunded in full</b>. On success it is
-        <b>deducted from the agency fee</b>.</blockquote>
+    </details>
+      <details class="riga" id="q8">
+      <summary>
+        <span class="r-num">08</span>
+        <span class="r-tema">The guarantee</span>
+        <span class="r-q">What if you don't find anything?</span>
+        <span class="r-colpo">§4.2</span>
+        <span class="r-piu" aria-hidden="true"></span>
+      </summary>
+      <div class="r-corpo">
+      <p class="r-lead">Then it costs you nothing —<br>and that's a <b>contract term</b>.</p>
+      <p class="r-det">Fifteen days is the <b>refund trigger, not a delivery date</b>: the
+        right home takes days, sometimes weeks, and we don't stop until
+        you're settled. “Three options” means the criteria <b>agreed with you
+        in writing</b> on the first call. And I can't invent supply — if your
+        brief can't exist in Rome at your budget, I say so on that call.</p>
+      <div class="prove"><a href="/terms.html" target="_blank" rel="noopener">Read the full terms <i>→</i></a></div>
+      <div class="reperto-eti sale"><b>Exhibit</b><span>The clause, verbatim</span></div>
+      <div class="clausola sale">
+      <blockquote>PFS costs €350 (fixed fee). If we do not present at least
+        <b>3 options matching your agreed criteria within 15 days</b>, the
+        €350 is <b>refunded in full</b>. On success it is <b>deducted from
+        the agency fee</b>.</blockquote>
       <cite>Terms of Service — §4.2 Property Finding Service</cite>
     </div>
     <div class="clausola sale">
-      <blockquote>For the Property Finding Service, Section 4.2 prevails
-        over this section: if we do not deliver at least 3 options
-        matching your agreed criteria within 15 days, the €350 is
-        refunded in full — <b>no admin fee applies</b>.</blockquote>
+      <blockquote>For the Property Finding Service, Section 4.2 prevails over
+        this section: … the €350 is refunded in full — <b>no admin fee
+        applies</b>.</blockquote>
       <cite>Terms of Service — §7.1-bis Cancellation carve-out</cite>
     </div>
-    <a class="clausola-vai sale" href="/terms.html" target="_blank"
-      rel="noopener">Read the full terms — nothing on this page contradicts
-      them →</a>
-  </div>
-</section>
-
-<!-- ══ L'IMBARCO — il richiamo alla cassa, che ora vive nell'hero ════════ -->
-<section class="section" id="imbarco">
-  <div class="container">
-    <div class="imbarco-strip sale">
-      <h3>Five lines. Then <span class="hl">we hunt</span>.</h3>
-      <a class="btn btn-primary" href="#checkin">Board the hunt ↑</a>
-      <p class="imbarco-garanzia"><span><b>Zero risk:</b> deducted on
-        success, refunded in full if we don't deliver — Terms §4.2.</span></p>
+      </div>
+    </details>
+      <div class="cs-basta" id="csBasta">
+        <p>Enough? <b>Five lines and I start.</b></p>
+        <a class="btn btn-primary" href="#checkin">Board the hunt · €350 ↑</a>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- ══ FAQ — le stesse quattro del markup FAQPage, ORA VISIBILI ══════════ -->
-<section class="section section-dark" id="faq">
-  <div class="container">
-    <div class="sale">
-      <span class="eyebrow"><i></i>Questions, answered straight</span>
-      <h2 class="titolo">Before <span class="hl">you board</span>.</h2>
-    </div>
-    <div class="pf-faq sale" style="margin-top:clamp(22px,3vw,34px)">
-      <details><summary>What if you don't find anything?</summary>
-        <p>The €350 is fully refundable if we do not deliver a match. You
-          risk nothing.</p></details>
-      <details><summary>Is the €350 an extra cost?</summary>
-        <p>No — it is deducted from the agency fee when we secure your
-          apartment, so it effectively disappears. If we don't deliver,
-          it comes back in full (Terms §4.2).</p></details>
-      <details><summary>Can you really access off-market apartments?</summary>
-        <p>Yes. After 6+ years in Rome we work directly with landlords and
-          building administrators, so you see places that never reach the
-          public portals.</p></details>
-      <details><summary>I'm not in Italy yet — does it still work?</summary>
-        <p>Yes — viewings live on video, the contract signed from your
-          phone, utilities handled. One thing genuinely helps: being
-          reachable on WhatsApp for quick decisions, because good flats
-          move in hours, not days.</p></details>
-      <details><summary>How do I know BOOM is legitimate?</summary>
-        <p>Check, don't trust: Egidi Immobiliare S.r.l. — P.IVA 17322991005,
-          REA RM-1710623, Via dei Coronari 181, Roma. EU trademark
-          019317594, verifiable on EUIPO. 47 Google reviews you can read.
-          Every payment runs through Stripe with a receipt — we never ask
-          for a bank transfer to an individual.</p></details>
-    </div>
+<!-- ══ LA CHIUSURA ══════════════════════════════════════════════════════ -->
+<section class="section section-dark" id="chiusura">
+  <div class="container chiusa-blocco sale">
+    <h2>Rome takes a day.<br><span>Your brief takes five lines.</span></h2>
+    <a class="btn btn-primary" href="#checkin">Board the hunt · €350 ↑</a>
+    <p class="chiusa-nota">Deducted from the fee on success · refunded in
+      full if we don't deliver — Terms §4.2 · Card via Stripe to Egidi
+      Immobiliare S.r.l.</p>
   </div>
 </section>
 
@@ -2706,8 +2538,7 @@ body.volo-on .rotta-filo { opacity:1; }
   if (!filo) return;
   var scia = filo.querySelector('.rf-scia');
   var aereo = filo.querySelector('.rf-aereo');
-  var TAPPE = ['dopo', 'solo', 'estero', 'roma', 'chi', 'dubbio',
-    'garanzia', 'faq'];
+  var TAPPE = ['lastra', 'console', 'chiusura'];
   var punti = [];
   function misura() {
     [].forEach.call(filo.querySelectorAll('.rf-tappa'),
@@ -2746,34 +2577,61 @@ body.volo-on .rotta-filo { opacity:1; }
   document.body.classList.add('volo-on');
 })();
 </script>
+
+<div class="hud" id="hud" aria-label="Your progress and the check-in">
+  <span class="hud-stato" id="hudStato">Eight questions · <b>tap one</b></span>
+  <a class="hud-vai" href="#checkin" id="hudVai">Board · €350
+    <small>↩ §4.2</small></a>
+</div>
 <script>
-/* Colloquio 3.0: fin dove arriva l'interrogatorio — una misura, sette atti */
+/* LA CONSOLE — il progresso e' del visitatore: ogni domanda aperta
+   accende un segmento, e dopo due arriva l'invito. Righe <details>
+   native: senza JS restano perfettamente apribili. */
 (function () {
   'use strict';
-  if (!('IntersectionObserver' in window)) return;
-  var visti = {};
-  var occhio = new IntersectionObserver(function (vs) {
-    vs.forEach(function (v) {
-      if (!v.isIntersecting) return;
-      var id = v.target.id;
-      if (visti[id]) return;
-      visti[id] = 1;
-      try { gtag('event', 'pfs_interview_act', { act: id }); } catch (e) {}
+  var cons = document.getElementById('cons');
+  if (!cons) return;
+  var righe = [].slice.call(cons.querySelectorAll('.riga'));
+  var seg = [].slice.call(cons.querySelectorAll('#csSeg i'));
+  var stato = document.getElementById('csStato');
+  var basta = document.getElementById('csBasta');
+  var hudS = document.getElementById('hudStato');
+  var viste = {};
+  function conta() {
+    var n = 0;
+    righe.forEach(function (r, i) {
+      if (r.open) { r.classList.add('risposta'); n++; }
+      seg[i].classList.toggle('acceso', r.classList.contains('risposta'));
     });
-  }, { threshold: .2 });
-  ['dubbio', 'roma', 'solo', 'chi', 'estero', 'garanzia', 'dopo']
-    .forEach(function (id) {
-      var el = document.getElementById(id);
-      if (el) occhio.observe(el);
+    var fatte = righe.filter(function (r) {
+      return r.classList.contains('risposta'); }).length;
+    stato.innerHTML = '<b>' + fatte + '</b>/8 answered';
+    if (hudS) hudS.innerHTML = fatte
+      ? '<b>' + fatte + '</b>/8 answered — the evidence is open'
+      : 'Eight questions · <b>tap one</b>';
+    if (fatte >= 2) basta.classList.add('viva');
+  }
+  righe.forEach(function (r) {
+    r.addEventListener('toggle', function () {
+      if (r.open) {
+        [].forEach.call(r.querySelectorAll('.sale'), function (e) {
+          e.classList.add('dentro');
+        });
+        if (!viste[r.id]) {
+          viste[r.id] = 1;
+          try { gtag('event', 'pfs_q_open', { q: r.id }); } catch (e) {}
+        }
+      }
+      conta();
     });
+  });
+  conta();
 })();
 </script>
 <script>
-/* L'OROLOGIO DEL RADAR — l'automazione resa visibile. Onesto per
-   costruzione: e' DERIVATO dalla pianificazione di produzione
-   (ogni 15 minuti, vercel.json) e la pagina lo dichiara. Nessun dato
-   inventato, nessun risultato finto. Fermo fuori vista e a scheda
-   nascosta. */
+/* L'OROLOGIO DEL RADAR — l'automazione resa visibile. Derivato dalla
+   pianificazione di produzione (ogni 15 minuti, vercel.json) e la pagina
+   lo dichiara. Fermo fuori vista e a scheda nascosta. */
 (function () {
   'use strict';
   var box = document.getElementById('orolo');
@@ -2790,19 +2648,12 @@ body.volo-on .rotta-filo { opacity:1; }
     var p = {}, i, parti = fmt.formatToParts(new Date());
     for (i = 0; i < parti.length; i++) p[parti[i].type] = parti[i].value;
     var h = +p.hour % 24, m = +p.minute, sec = +p.second;
-    var dentro = (m % 15) * 60 + sec;
-    var manca = 900 - dentro;
+    var dentro = (m % 15) * 60 + sec, manca = 900 - dentro;
     eT.textContent = due(h) + ':' + due(m) + ':' + due(sec);
     eN.innerHTML = (h * 4 + Math.floor(m / 15)) + '<small>/96 today</small>';
     eC.textContent = due(Math.floor(manca / 60)) + ':' + due(manca % 60);
     eB.style.width = (dentro / 900 * 100).toFixed(2) + '%';
     box.classList.toggle('batte', dentro < 3 || manca < 3);
-    var hud = document.getElementById('hud');
-    if (hud && hud.dataset.atto === '1') {
-      var st = document.getElementById('hudStato');
-      if (st) st.innerHTML = 'Act 02 · The machine — <b>next sweep '
-        + eC.textContent + '</b>';
-    }
   }
   tic();
   var giro = null, vivo = false;
@@ -2823,128 +2674,56 @@ body.volo-on .rotta-filo { opacity:1; }
 })();
 </script>
 <script>
-/* LA LASTRA + LE LAME — messa in scena, mai senza moto pieno. */
+/* LA LASTRA + IL BIGLIETTO CHE SI CONVALIDA + LA BARRA */
 (function () {
   'use strict';
-  if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  if (!('IntersectionObserver' in window)) return;
+  var ridotto = matchMedia('(prefers-reduced-motion: reduce)').matches;
   var lastra = document.getElementById('lastra');
-  if (lastra) {
+  if (lastra && !ridotto && 'IntersectionObserver' in window) {
     new IntersectionObserver(function (v, o) {
       if (!v.some(function (x) { return x.isIntersecting; })) return;
-      o.disconnect();
-      lastra.classList.add('accesa');
-      try { gtag('event', 'pfs_lastra_view'); } catch (e) {}
+      o.disconnect(); lastra.classList.add('accesa');
     }, { threshold: .4 }).observe(lastra);
   }
-  var LAME = ['.regola2', '.conto', '.tocca', '.clausola', '#orolo'];
-  var occ = new IntersectionObserver(function (vs, o) {
-    vs.forEach(function (v) {
-      if (!v.isIntersecting) return;
-      o.unobserve(v.target);
-      v.target.classList.add('taglia');
-    });
-  }, { threshold: .25 });
-  LAME.forEach(function (sel) {
-    [].forEach.call(document.querySelectorAll(sel), function (el) {
-      el.classList.add('lama');
-      occ.observe(el);
-    });
-  });
-})();
-</script>
-<script>
-/* IL BIGLIETTO CHE SI CONVALIDA — i tre campi che servono davvero
-   accendono il talloncino: progresso visibile, nessun blocco (la
-   validazione vera resta al submit e al server). */
-(function () {
-  'use strict';
   var form = document.getElementById('ckForm');
-  if (!form) return;
   var n = document.getElementById('ckNome');
   var e = document.getElementById('ckMail');
   var t = document.getElementById('ckTel');
-  if (!n || !e || !t) return;
-  function cifre(v) { return (v || '').replace(/[^0-9]/g, '').length; }
-  function guarda() {
-    var ok = (n.value || '').trim().length > 1
-      && /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test((e.value || '').trim())
-      && cifre(t.value) >= 6;
-    form.classList.toggle('pronto', ok);
+  if (form && n && e && t) {
+    var guarda = function () {
+      var ok = (n.value || '').trim().length > 1
+        && /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test((e.value || '').trim())
+        && (t.value || '').replace(/[^0-9]/g, '').length >= 6;
+      form.classList.toggle('pronto', ok);
+    };
+    [n, e, t].forEach(function (c) {
+      c.addEventListener('input', guarda);
+      c.addEventListener('change', guarda);
+    });
+    guarda();
   }
-  [n, e, t].forEach(function (c) {
-    c.addEventListener('input', guarda);
-    c.addEventListener('change', guarda);
-  });
-  guarda();
-})();
-</script>
-
-<div class="hud" id="hud" aria-label="Route: your position in the interview">
-  <span class="hud-stato" id="hudStato" aria-live="off"></span>
-  <span class="hud-seg" id="hudSeg" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
-  <a class="hud-vai" href="#checkin" id="hudVai">Board · €350
-    <small>↩ §4.2</small></a>
-</div>
-<script>
-/* L'HUD DI ROTTA — lo stato dell'interrogatorio sempre sott'occhio:
-   l'atto in lettura, i sette segmenti che si accendono, la CTA.
-   Solo via JS; sparisce alla cassa e all'imbarco. */
-(function () {
-  'use strict';
   var hud = document.getElementById('hud');
   if (!hud || !('IntersectionObserver' in window)) return;
-  var stato = document.getElementById('hudStato');
-  var seg = [].slice.call(document.querySelectorAll('#hudSeg i'));
-  var ATTI = [
-    ['dopo', 'Act 01 · The product — <b>armed in 24h</b>'],
-    ['solo', 'Act 02 · The machine — <b>96 scans/day</b>'],
-    ['estero', 'Act 03 · The distance — <b>0 flights</b>'],
-    ['roma', 'Act 04 · The market — <b>24–72h</b>'],
-    ['chi', 'Act 05 · The counterpart — <b>4.9★</b>'],
-    ['dubbio', 'Act 06 · The rule — <b>100% back</b>'],
-    ['garanzia', 'Act 07 · The clause — <b>§4.2</b>'] ];
-  var el = ATTI.map(function (x) {
-    return document.getElementById(x[0]);
-  });
   var vicini = {};
-  var occ = new IntersectionObserver(function (vs) {
-    vs.forEach(function (v) { vicini[v.target.id] = v.isIntersecting; });
-  });
-  ['checkin', 'imbarco'].forEach(function (id) {
-    var e = document.getElementById(id);
-    if (e) occ.observe(e);
-  });
-  var ultimo = -1, attesa = false;
-  function passo() {
-    attesa = false;
-    var meta = innerHeight * .5, ora = -1;
-    for (var i = 0; i < el.length; i++) {
-      if (!el[i]) continue;
-      var r = el[i].getBoundingClientRect();
-      if (r.top < meta && r.bottom > meta) { ora = i; break; }
-      if (r.top < meta) ora = i;
-    }
-    hud.classList.toggle('su',
-      ora >= 0 && !vicini.checkin && !vicini.imbarco);
-    hud.dataset.atto = ora;
-    if (ora !== ultimo) {
-      ultimo = ora;
-      if (ora >= 0) stato.innerHTML = ATTI[ora][1];
-      seg.forEach(function (sg, i) {
-        sg.classList.toggle('acceso', i <= ora);
-      });
-      el.forEach(function (e, i) {
-        if (e) e.classList.toggle('in-lettura', i === ora);
-      });
-    }
+  function mostra() {
+    hud.classList.toggle('su', scrollY > innerHeight * .8
+      && !vicini.checkin && !vicini.chiusura);
   }
-  addEventListener('scroll', function () {
-    if (!attesa) { attesa = true; requestAnimationFrame(passo); }
-  }, { passive: true });
-  addEventListener('resize', passo);
-  passo();
-  document.getElementById('hudVai').addEventListener('click', function () {
+  var occ = new IntersectionObserver(function (vs) {
+    vs.forEach(function (v) {
+      /* «vicino» solo quando occupa davvero lo schermo: con una pagina
+         corta un contatto di bordo spegnerebbe la barra troppo presto */
+      vicini[v.target.id] = v.intersectionRatio > .45;
+    });
+    mostra();
+  }, { threshold: [0, .25, .45, .7] });
+  ['checkin', 'chiusura'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) occ.observe(el);
+  });
+  addEventListener('scroll', mostra, { passive: true });
+  var vai = document.getElementById('hudVai');
+  if (vai) vai.addEventListener('click', function () {
     try { gtag('event', 'pfs_hud_click'); } catch (e) {}
   });
 })();
