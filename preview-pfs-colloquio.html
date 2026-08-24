@@ -1684,12 +1684,78 @@ body.volo-on .rotta-filo { opacity:1; }
     mask-image:linear-gradient(180deg, transparent, #000 70%); }
   .lama.taglia::after { animation:lamagiu 1.25s
     cubic-bezier(.4,0,.2,1) forwards; }
-  @keyframes lamagiu {
-    0% { opacity:0; transform:translateY(-40%); }
-    12% { opacity:1; }
-    88% { opacity:1; }
-    100% { opacity:0; transform:translateY(340%); } }
 }
+
+/* ══ 8.0 · LA SALA DELLE REGOLE — l'expertise locale, verificabile ════ */
+.sala { margin-top:clamp(16px,2.2vw,24px); display:grid;
+  gap:clamp(10px,1.4vw,16px);
+  grid-template-columns:repeat(auto-fit,minmax(310px,1fr)); }
+.regolaR { position:relative; padding:clamp(17px,2.1vw,24px);
+  background:var(--card); border-radius:14px;
+  box-shadow:inset 0 0 0 1px var(--line); overflow:hidden; }
+.regolaR::before { content:''; position:absolute; left:0; right:0;
+  top:0; height:1px; background:linear-gradient(90deg,
+    var(--gold), rgba(255,215,0,.05)); transform-origin:0 50%; }
+@media (prefers-reduced-motion:no-preference){
+  html.vivo .sala .regolaR::before { transform:scaleX(0); }
+  html.vivo .sala.dentro .regolaR::before { transform:scaleX(1);
+    transition:transform .85s cubic-bezier(.22,1,.36,1); }
+  html.vivo .sala.dentro .regolaR:nth-child(2)::before { transition-delay:.09s; }
+  html.vivo .sala.dentro .regolaR:nth-child(3)::before { transition-delay:.18s; }
+  html.vivo .sala.dentro .regolaR:nth-child(4)::before { transition-delay:.27s; }
+  html.vivo .sala.dentro .regolaR:nth-child(5)::before { transition-delay:.36s; }
+  html.vivo .sala.dentro .regolaR:nth-child(6)::before { transition-delay:.45s; }
+}
+.rr-capo { display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+.rr-num { font-family:var(--display); font-weight:250; font-size:13px;
+  letter-spacing:.12em; color:rgba(255,215,0,.55); }
+.rr-fonte { padding:3px 8px; font-size:8.5px; font-weight:700;
+  letter-spacing:.2em; text-transform:uppercase; color:var(--text-3);
+  border-radius:3px; box-shadow:inset 0 0 0 1px var(--line); }
+.rr-fonte.legge { color:var(--gold);
+  box-shadow:inset 0 0 0 1px rgba(255,215,0,.35); }
+.regolaR h4 { margin-top:11px; font-family:var(--display);
+  font-weight:250; font-size:clamp(17px,1.75vw,21px); line-height:1.22;
+  letter-spacing:-.01em; }
+.rr-trappola { margin-top:9px; font-size:12.5px; line-height:1.6;
+  color:var(--text-3); }
+.rr-noi { margin-top:12px; padding-top:11px; font-size:12.5px;
+  line-height:1.6; color:var(--text-2);
+  border-top:1px solid var(--line-0); }
+.rr-noi::before { content:'BOOM'; display:block; margin-bottom:4px;
+  font-size:8.5px; font-weight:700; letter-spacing:.24em;
+  color:var(--gold); }
+.rr-noi b { color:var(--text); font-weight:600; }
+.sala-nota { margin-top:14px; font-size:11px; color:var(--text-3);
+  line-height:1.6; max-width:78ch; }
+.sala-nota a { color:var(--text-2); }
+
+/* ══ 8.0 · IL BIGLIETTO CHE SI CONVALIDA ═════════════════════════════ */
+.ck-pronto { position:absolute; right:clamp(16px,1.8vw,22px);
+  top:-13px; z-index:4; background:#0B0B0C;
+  display:inline-flex; align-items:center;
+  gap:6px; padding:5px 10px; font-size:8.5px; font-weight:800;
+  letter-spacing:.2em; text-transform:uppercase; color:var(--gold);
+  border-radius:100px; box-shadow:inset 0 0 0 1px rgba(255,215,0,.45),
+    0 6px 20px rgba(0,0,0,.55); opacity:0; transform:translateY(-4px);
+  transition:opacity .4s ease, transform .5s cubic-bezier(.22,1,.36,1);
+  pointer-events:none; }
+.ck-pronto::before { content:'✓'; letter-spacing:0; }
+#ckForm.pronto .ck-pronto { opacity:1; transform:none; }
+#ckForm.pronto .ck-barcode { opacity:.7;
+  transition:opacity .5s ease; }
+#ckForm.pronto .ck-vai { box-shadow:0 0 0 1px rgba(255,215,0,.5),
+  0 14px 40px rgba(255,215,0,.18);
+  transition:box-shadow .5s ease, transform .3s ease; }
+#ckForm.pronto .ck-perf { filter:drop-shadow(0 0 6px rgba(255,215,0,.28));
+  transition:filter .5s ease; }
+@media (prefers-reduced-motion:reduce){
+  .ck-pronto { transition:none; } }
+@keyframes lamagiu {
+  0% { opacity:0; transform:translateY(-40%); }
+  12% { opacity:1; }
+  88% { opacity:1; }
+  100% { opacity:0; transform:translateY(340%); } }
 </style>
 
 <a class="salta" href="#dopo">Skip to content</a>
@@ -1814,6 +1880,7 @@ body.volo-on .rotta-filo { opacity:1; }
       </div>
       <span class="ck-perf" aria-hidden="true"></span>
       <div class="ck-stub">
+        <span class="ck-pronto" role="status" aria-live="polite">Ready to board</span>
         <div class="ck-quota"><b>€350</b><span class="ck-barcode" aria-hidden="true"></span></div>
         <div class="ck-sotto">BOOM·ROME · FIRST · PF-0350</div>
         <p class="ck-tenuta">Held on your file — deducted from the agency
@@ -2194,6 +2261,10 @@ body.volo-on .rotta-filo { opacity:1; }
       payment runs through Stripe with a receipt — <b>never a bank
       transfer to an individual</b>. And the person answering your
       WhatsApp is the person who walks your shortlist: <b>me</b>.</p>
+      <p>Then there's the half no platform can copy: <b>Rome's own
+      rules</b>. Which contract holds, what the negotiated bands allow,
+      what must be registered and by when — the six below decide whether
+      your year here is calm or expensive.</p>
       </div>
       <aside class="a3-colpo sale" aria-hidden="false">
         <div class="a3-cifra">4.9<small>★</small></div>
@@ -2236,6 +2307,78 @@ body.volo-on .rotta-filo { opacity:1; }
         target="_blank" rel="noopener">EU trademark 019317594 on EUIPO ↗</a>
       <a href="/blog-scam-bible.html">Our Rome rental scam guide →</a>
     </div>
+
+    <div class="reperto-eti sale"><b>Exhibit E·2</b>
+      <span>What a Rome local knows that a platform doesn't</span></div>
+    <div class="sala sale">
+      <div class="regolaR">
+        <div class="rr-capo"><span class="rr-num">R01</span>
+          <span class="rr-fonte legge">Territorial agreement</span></div>
+        <h4>Rome's negotiated-rent bands</h4>
+        <p class="rr-trappola">The 2023 Rome agreement fixes €/m² bands
+          per zone. Ask the wrong rent and the contract can't be
+          attested — you pay more and lose the tax break.</p>
+        <p class="rr-noi">We compute the attestable band for your flat
+          before you sign — <b>75 zones, the official coefficients</b> —
+          and negotiate against it.</p>
+      </div>
+      <div class="regolaR">
+        <div class="rr-capo"><span class="rr-num">R02</span>
+          <span class="rr-fonte legge">Italian law</span></div>
+        <h4>Deposit: three months, maximum</h4>
+        <p class="rr-trappola">Anything above is not enforceable — and
+          “non-refundable deposit” is not a thing.</p>
+        <p class="rr-noi">We push for <b>two</b>, in writing, with the
+          return terms named in the contract.</p>
+      </div>
+      <div class="regolaR">
+        <div class="rr-capo"><span class="rr-num">R03</span>
+          <span class="rr-fonte legge">Landlord's duty</span></div>
+        <h4>Registered within 30 days — or it doesn't exist</h4>
+        <p class="rr-trappola">An unregistered lease gives you no legal
+          protection <b>and no residency</b>: the paperwork chain breaks
+          at the first office.</p>
+        <p class="rr-noi">We register it and hand you the <b>protocol
+          number</b> — the dossier is prepared while you sign.</p>
+      </div>
+      <div class="regolaR">
+        <div class="rr-capo"><span class="rr-num">R04</span>
+          <span class="rr-fonte">€5 · public registry</span></div>
+        <h4>Whoever rents it must own it</h4>
+        <p class="rr-trappola">The fake-landlord scam dies with one
+          document: the <b>visura catastale</b> names the real owner. It
+          costs five euros. Almost nobody asks.</p>
+        <p class="rr-noi">We pull it <b>before</b> the viewing, not after
+          the deposit.</p>
+      </div>
+      <div class="regolaR">
+        <div class="rr-capo"><span class="rr-num">R05</span>
+          <span class="rr-fonte legge">L. 431/98 art. 5</span></div>
+        <h4>A transitional lease needs a documented reason</h4>
+        <p class="rr-trappola">The wrong contract type for your stay is
+          the most common “legal” trap for foreigners — challengeable
+          later, which helps nobody once you live there.</p>
+        <p class="rr-noi">We pick the right form — transitional, student,
+          4+4 — and prepare the <b>attestation</b> that makes it
+          hold.</p>
+      </div>
+      <div class="regolaR">
+        <div class="rr-capo"><span class="rr-num">R06</span>
+          <span class="rr-fonte">Handover</span></div>
+        <h4>The keys day is a document, not a handshake</h4>
+        <p class="rr-trappola">No meter readings, no photos, no signed
+          state of the flat — and the deposit argument, months later, is
+          your word against theirs.</p>
+        <p class="rr-noi">We sign a <b>verbale di consegna</b> on the
+          spot: readings, photos, condition — emailed to both sides
+          before we leave the building.</p>
+      </div>
+    </div>
+    <p class="sala-nota sale">Rules and duties as published on our own
+      pages: the <a href="/welcome-to-rome">expat guide</a> and the
+      <a href="/blog-scam-bible.html">scam guide</a>. This is the part no
+      platform localises for you — and the reason the hunt is run by
+      someone who signs these contracts every week.</p>
   </div>
 </section>
 
@@ -2708,6 +2851,32 @@ body.volo-on .rotta-filo { opacity:1; }
       occ.observe(el);
     });
   });
+})();
+</script>
+<script>
+/* IL BIGLIETTO CHE SI CONVALIDA — i tre campi che servono davvero
+   accendono il talloncino: progresso visibile, nessun blocco (la
+   validazione vera resta al submit e al server). */
+(function () {
+  'use strict';
+  var form = document.getElementById('ckForm');
+  if (!form) return;
+  var n = document.getElementById('ckNome');
+  var e = document.getElementById('ckMail');
+  var t = document.getElementById('ckTel');
+  if (!n || !e || !t) return;
+  function cifre(v) { return (v || '').replace(/[^0-9]/g, '').length; }
+  function guarda() {
+    var ok = (n.value || '').trim().length > 1
+      && /^[^@\s]+@[^@\s]+\.[^@\s]{2,}$/.test((e.value || '').trim())
+      && cifre(t.value) >= 6;
+    form.classList.toggle('pronto', ok);
+  }
+  [n, e, t].forEach(function (c) {
+    c.addEventListener('input', guarda);
+    c.addEventListener('change', guarda);
+  });
+  guarda();
 })();
 </script>
 
