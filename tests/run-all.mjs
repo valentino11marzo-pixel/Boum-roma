@@ -30,6 +30,7 @@ const SUITES = [
   { name: 'dispo',    file: 'tests/dispo/run.mjs',        what: 'date di disponibilità: una data illeggibile non diventa MAI "libera ora", un messaggio aggiorna tutte le case, e una data sola non si spalma su chi non è stato nominato' },
   { name: 'vetrina',  file: 'tests/vetrina/run.mjs',      what: 'l\'innesto della vetrina: un annuncio nato DOPO la build appare e viene contato, i filtri lo mordono, e senza foto o con stato ignoto la carta non nasce' },
   { name: 'prenota',  file: 'tests/prenota/run.mjs',      what: 'la corsia del pre-blocco: una casa occupata con data nota si PRENOTA (e la data si vede ovunque), l\'affittata si apre solo col contratto — mai su un testo residuo — e l\'anno che il motore deduce lo dichiara all\'operatore' },
+  { name: 'parser',   file: 'tests/parser/run.mjs',      what: 'Doc Parser: si apre con l\'ID token dell\'admin (mai un segreto nel browser), e un non-admin non spende un token' },
   { name: 'scheda',   file: 'tests/scheda/run.mjs',       what: 'La Scheda: token derivati, prefill, lock post-firma, doppio schema' },
   { name: 'notify',   file: 'tests/notify/run.mjs',       what: 'ciclo email contratto: CAF una volta sola, inviti per ruolo e lingua' },
   { name: 'viewings', file: 'tests/viewings/avail.mjs',   what: 'griglia slot: passi, gap, preavviso, orizzonte, DST, link cliente' },

@@ -234,7 +234,27 @@ ELEVENLABS_WEBHOOK_SECRET    # via B (receptionist): signing secret del
 Generates `.pkpass` files. Body: `{ passType, fields }` where passType is `viewing|tenant|referral|landlord`. Returns binary `.pkpass` data.
 
 ### POST `/api/parse-docs`
-Proxies to Anthropic Claude API for document extraction. Accepts up to 20MB payload.
+Proxies to Anthropic Claude API for document extraction (model pinned
+server-side, max_tokens capped, body field-whitelisted, 10MB cap, rate limit
+per IP). **Due vie di autorizzazione**: l'ID token Firebase di un utente con
+ruolo **admin** (la via di `boom_doc_parser.html`, verificata server-side come
+in `api/_auth.js`) oppure il segreto storico `PARSE_DOCS_SECRET` per i
+chiamanti server-to-server. Un utente loggato senza ruolo admin riceve **403**,
+e in nessuno dei due casi si spende un token Anthropic.
+
+**La lezione del 23 agosto 2026**: la pagina si procurava il bearer leggendolo
+da Firestore (`config/parse_docs.bearer`) — un documento **mai creato in
+produzione**, quindi lo strumento si apriva sul cartello *"Parser config
+missing. Contact admin."* e non partiva nulla. Creare quel documento avrebbe
+rimesso in piedi anche il difetto che `docs/portal-security-audit.md` segnalava
+da mesi (rilievo #7): un segreto del SERVER spedito dentro una pagina, dove
+chiunque legga quella collection se lo porta via. Ora nel browser non scende
+nessun segreto: il token dell'admin è già lì, dura un'ora e si rinnova da solo
+(`getIdToken()` a ogni chiamata — una pagina lasciata aperta il pomeriggio
+mandava altrimenti un token scaduto). E un errore HTTP viene detto per quello
+che è: prima un 401/429 arrivava all'operatore come *"JSON non valido nella
+risposta"*, il messaggio sbagliato per il guasto.
+Test: `node tests/parser/run.mjs`.
 
 ### GET `/api/reminder-cron`
 Triggered by Vercel cron every 15 min. Authenticates with Firebase, queries pending reminders, sends emails via Nodemailer.

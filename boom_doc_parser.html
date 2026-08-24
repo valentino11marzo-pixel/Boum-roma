@@ -469,7 +469,15 @@ firebase.initializeApp({
 });
 const _auth = firebase.auth();
 const _db = firebase.firestore();
-let _parseDocsBearer = null;
+
+// Il token vive un'ora: si richiede a ogni chiamata (Firebase lo rinnova da
+// solo quando serve), altrimenti una pagina lasciata aperta il pomeriggio
+// manderebbe un token scaduto e l'analisi morirebbe con un 401 opaco.
+async function _authHeader() {
+  const u = _auth.currentUser;
+  if (!u) throw new Error('sessione scaduta — ricarica la pagina e accedi di nuovo');
+  return 'Bearer ' + (await u.getIdToken());
+}
 
 _auth.onAuthStateChanged(async (user) => {
   const gate = document.getElementById('authGate');
@@ -501,16 +509,11 @@ _auth.onAuthStateChanged(async (user) => {
       app.classList.add('hidden');
       return;
     }
-    // Fetch bearer for /api/parse-docs
-    const secretDoc = await _capped(_db.collection('config').doc('parse_docs').get());
-    if (!secretDoc.exists || !secretDoc.data().bearer) {
-      document.getElementById('gateMsg').textContent = 'Configurazione parser mancante.';
-      err.textContent = 'Parser config missing. Contact admin.';
-      gate.classList.remove('hidden');
-      app.classList.add('hidden');
-      return;
-    }
-    _parseDocsBearer = secretDoc.data().bearer;
+    // Nessun segreto da procurarsi: /api/parse-docs accetta l'ID token di
+    // questo admin (verificato server-side, ruolo riletto da Firestore).
+    // Prima la pagina leggeva config/parse_docs.bearer — un documento che in
+    // produzione non e mai esistito: lo strumento si apriva su
+    // "Parser config missing" e non partiva nulla.
     gate.classList.add('hidden');
     app.classList.remove('hidden');
   } catch (e) {
@@ -770,7 +773,7 @@ Restituisci SOLO questo JSON (nessun testo prima o dopo):
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + (_parseDocsBearer || ''),
+        'Authorization': await _authHeader(),
       },
       body: JSON.stringify({
         model: 'claude-haiku-4-5-20251001',
@@ -784,7 +787,17 @@ Restituisci SOLO questo JSON (nessun testo prima o dopo):
     animateStep('ls3', 'active');
     await animateProgress(55, 80, 300);
 
-    const data = await response.json();
+    const data = await response.json().catch(() => ({}));
+    // Senza questo controllo un 401/429/500 arrivava all'utente come
+    // "JSON non valido nella risposta": il messaggio sbagliato per il guasto.
+    if (!response.ok) {
+      const detail = data?.error || response.statusText || ('HTTP ' + response.status);
+      throw new Error(response.status === 401
+        ? 'sessione scaduta — ricarica la pagina e accedi di nuovo'
+        : response.status === 403 ? 'servono i permessi di amministratore'
+        : response.status === 429 ? 'troppe analisi in un minuto — riprova fra poco'
+        : detail);
+    }
     rawResponse = data.content?.[0]?.text || '';
 
     // Parse JSON
