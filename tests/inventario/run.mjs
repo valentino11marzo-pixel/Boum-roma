@@ -400,6 +400,63 @@ const rooms = () => [{ room: 'cucina', items: [
   check('verbale: la frase generica sopravvive SOLO senza inventario', /else\s*{\s*\n\s*paraDraw\(`Le parti danno atto[^`]*completa degli arredi e delle dotazioni pattuite/.test(src));
 }
 
+// ═══ H. La rifinitura: marchio, tipografia, piede ══════════════════════
+// Il documento esce dalle mani dell'operatore e finisce dal proprietario,
+// dal CAF, in una causa sul deposito. Che porti il MARCHIO e non una
+// scritta, e che il piede legale ci sia su ogni pagina, non è decorazione:
+// è la differenza tra un documento e un foglio.
+{
+  const { wa, MARK_PNG_B64 } = await import('../../api/_pdfbrand.js');
+  check('wa: gli emoji fuori (StandardFonts non li conosce e FA FALLIRE il PDF)', wa('Chiavi 🔑 ok') === 'Chiavi  ok');
+  check('wa: le frecce diventano ->, le spunte X', wa('a → b ✓') === 'a -> b X');
+  check('wa: accenti e apostrofo tipografico RESTANO (sono WinAnsi)', wa('l\u2019unità è così') === 'l\u2019unità è così');
+  check('wa: em-dash, ellissi ed euro restano', wa('Roma — 1.400 € …') === 'Roma — 1.400 € …');
+  check('il marchio incorporato è un PNG vero', Buffer.from(MARK_PNG_B64, 'base64').slice(1, 4).toString() === 'PNG');
+
+  const { PDFDocument, PDFName } = await import('pdf-lib');
+  seed('admin', 'own1');
+  const many = [];
+  for (let i = 0; i < 9; i++) many.push({ room: 'camera ' + (i % 8 + 2), items: Array.from({ length: 8 }, (_, j) => ({ name: `Oggetto ${i}-${j}`, qty: 1, condition: 'buono', source: 'human' })) });
+  await drive({ op: 'save', contractId: 'ctr1', kind: 'consegna', reviewed: true, rooms: many, shots: [{ base64: JPG1, label: 'Secondo 3' }] });
+  const bytes = storageFiles.get([...storageFiles.keys()].find(k => /inventario-consegna/.test(k)));
+  const doc = await PDFDocument.load(bytes);
+  check('un inventario lungo impagina su più fogli', doc.getPageCount() > 1);
+
+  let images = 0; const fonts = [];
+  doc.context.enumerateIndirectObjects().forEach(([, obj]) => {
+    const str = obj && obj.dict ? String(obj.dict.toString ? obj.dict.toString() : '') : '';
+    if (/\/Subtype\s*\/Image/.test(str)) images++;
+    const bf = obj && obj.get && obj.get(PDFName.of('BaseFont'));
+    if (bf) fonts.push(String(bf));
+  });
+  check('e il font è quello del brand (Helvetica, come il sito), in tondo e in nero', fonts.includes('/Helvetica') && fonts.includes('/Helvetica-Bold'));
+}
+
+// ═══ I. L'email: quadro, non elenco spuntato ═══════════════════════════
+{
+  seed('admin', 'own1');
+  await drive({ op: 'save', contractId: 'ctr1', kind: 'consegna', reviewed: true, rooms: rooms() });
+  const m1 = mails().find(m => m.to === 'valentino@boom-rome.com');
+  check('email consegna: il PDF viaggia in allegato, col nome datato', !!m1 && /^BOOM_Inventario_consegna_\d{4}-\d{2}-\d{2}\.pdf$/.test(m1.attachments[0].filename));
+  check('email consegna: in testa il numero che conta', /9 pezzi/.test(m1.html) && /INVENTARIO/i.test(m1.html));
+  check('email consegna: dice che il verbale ora stampa l\u2019elenco', /verbale di consegna<\/strong> stampa questo elenco/.test(m1.html));
+
+  seed('admin', 'own1');
+  await drive({ op: 'save', contractId: 'ctr1', kind: 'consegna', reviewed: true, rooms: rooms() });
+  globalThis.__mails = [];
+  // il Lampadario torna DANNEGGIATO ma alla consegna nessuno ne aveva
+  // dichiarato la condizione: è il caso che l'email deve spiegare
+  await drive({ op: 'save', contractId: 'ctr1', kind: 'riconsegna', reviewed: true, rooms: [{ room: 'cucina', items: [
+    { name: 'Lavastoviglie Bosch', qty: 1, condition: 'buono', source: 'human' },
+    { name: 'Lampadario', qty: 1, condition: 'danneggiato', source: 'human' },
+  ] }] });
+  const m2 = mails().find(m => m.to === 'valentino@boom-rome.com');
+  check('email riconsegna: parla di SALDO DEL DEPOSITO, non del verbale', /saldo del deposito/.test(m2.html) && !/stampa questo elenco/.test(m2.html));
+  check('email riconsegna: il confronto è un quadro coi numeri', /MANCANTI|Mancanti/.test(m2.html) && /Danni nuovi/.test(m2.html));
+  check('email riconsegna: nessuna spunta verde accanto a una perdita', !/✓[^<]*mancant/i.test(m2.html));
+  check('email riconsegna: la voce non verificabile è spiegata, non nascosta', /non verificabil/.test(m2.html));
+}
+
 // ═══ Esito ══════════════════════════════════════════════════════════════
 console.log(`\nInventario: ${passed} passed, ${failed} failed`);
 if (failed) { console.log('FALLITI: ' + bad.join(' | ')); process.exit(1); }

@@ -31,17 +31,19 @@
 //          differenze contro l'inventario di consegna: è il motivo per cui
 //          questa funzione esiste.
 //
-// Regole ereditate dalla piattaforma: pdf-lib con StandardFonts è
-// WinAnsi-only (tutto passa da wa()), import statici (il bundler Vercel non
-// traccia i lazy import), email best-effort e time-boxed — un PDF salvato
-// non si perde perché Gmail è giù.
+// Regole ereditate dalla piattaforma: testata, marchio, font e piede legale
+// vengono da api/_pdfbrand.js (una copia sola per tutti i PDF del sistema, e
+// il WinAnsi di wa() con essa), import statici (il bundler Vercel non traccia
+// i lazy import), email best-effort e time-boxed — un PDF salvato non si
+// perde perché Gmail è giù.
 
-import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { PDFDocument } from 'pdf-lib';
 import { fsGet, fsPatch, fsCreate, readJson, logActivity } from '../homie/_lib.js';
 import { storageUpload, sendEmail } from '../agent/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
-import { shell, btn, para, fine } from '../preagreement/_notify.js';
+import { shell, btn, para, fine, hero, tiles, includes, rule } from '../preagreement/_notify.js';
 import { transcribeAudio } from '../wizard/_stt.js';
+import { brandAssets, masthead, stampFooters, wa, INK, GREY, FAINT, GOLD, HAIR, RED } from '../_pdfbrand.js';
 import INV from '../../js/inventario-engine.js';
 
 const ADMIN_NOTIFY = process.env.ADMIN_NOTIFY_EMAIL || 'valentino@boom-rome.com';
@@ -50,11 +52,6 @@ const MAX_FRAMES = 12;
 const MAX_FRAME_BYTES = 1.4 * 1024 * 1024;
 
 const clip = (v, n = 160) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, n);
-function wa(s) {
-  return String(s == null ? '' : s)
-    .replace(/[→➔➡]/g, '->').replace(/[✓✔☑☒]/g, 'X').replace(/−/g, '-')
-    .replace(/[^\x20-\xFF–—‘’“”…€]/g, '');
-}
 const dIT = (s) => { try { const d = new Date(s); return isNaN(d) ? '' : d.toLocaleDateString('it-IT', { timeZone: 'Europe/Rome' }); } catch { return ''; } };
 const romeNow = () => {
   const now = new Date();
@@ -141,26 +138,17 @@ async function askClaude(frames, hint) {
 // ─── Il PDF ──────────────────────────────────────────────────────────────
 export async function buildInventarioPdf({ property, contract, inv, kind, note, shots, when, diff, author }) {
   const pdf = await PDFDocument.create();
-  const font = await pdf.embedFont(StandardFonts.Helvetica);
-  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  const ink = rgb(0.08, 0.08, 0.09), grey = rgb(0.42, 0.42, 0.45), gold = rgb(0.72, 0.55, 0.05);
-  const red = rgb(0.66, 0.16, 0.13);
+  const b = await brandAssets(pdf);          // font + marchio VERO, una copia sola
+  const { font, bold } = b;
   const W = 595, H = 842, M = 48;
   const uscita = kind === 'riconsegna';
+  const DOC = uscita ? 'Inventario — riconsegna' : 'Inventario — consegna';
 
   let page, y;
-  const newPage = () => {
-    page = pdf.addPage([W, H]); y = H - 46;
-    page.drawRectangle({ x: 0, y: H - 40, width: W, height: 40, color: rgb(0.04, 0.04, 0.05) });
-    page.drawText('BOOM', { x: M, y: H - 27, size: 15, font: bold, color: rgb(1, 1, 1) });
-    page.drawText('ROMA', { x: M + 48, y: H - 26, size: 8, font, color: rgb(0.91, 0.78, 0.41) });
-    page.drawText(wa(uscita ? 'Inventario — riconsegna' : 'Inventario — consegna'), { x: W - M - 150, y: H - 22, size: 8, font, color: rgb(0.8, 0.8, 0.8) });
-    page.drawText(wa(when.d), { x: W - M - 150, y: H - 33, size: 8, font, color: rgb(0.6, 0.6, 0.6) });
-    y = H - 72;
-  };
-  const T = (t, x, yy, sz, f, col) => page.drawText(wa(t), { x, y: yy, size: sz, font: f || font, color: col || ink });
-  const line = (yy, x1 = M, x2 = W - M, th = 0.6, col) => page.drawLine({ start: { x: x1, y: yy }, end: { x: x2, y: yy }, thickness: th, color: col || rgb(0.75, 0.73, 0.68) });
-  const need = (h) => { if (y - h < 60) newPage(); };
+  const newPage = () => { page = pdf.addPage([W, H]); y = masthead(page, b, { W, H, M, title: DOC, date: when.d }); };
+  const T = (t, x, yy, sz, f, col, cs) => page.drawText(wa(t), { x, y: yy, size: sz, font: f || font, color: col || INK, ...(cs ? { characterSpacing: cs } : {}) });
+  const line = (yy, x1 = M, x2 = W - M, th = 0.6, col) => page.drawLine({ start: { x: x1, y: yy }, end: { x: x2, y: yy }, thickness: th, color: col || HAIR });
+  const need = (h) => { if (y - h < 70) newPage(); };
   const wrap = (text, size, width, f) => {
     const words = wa(text).split(/\s+/).filter(Boolean); const lines = []; let cur = '';
     for (const w of words) {
@@ -173,14 +161,31 @@ export async function buildInventarioPdf({ property, contract, inv, kind, note, 
   const paraDraw = (text, size = 9.5, lh = 14, f, col) => {
     for (const l of wrap(text, size, W - 2 * M, f)) { need(lh); T(l, M, y, size, f, col); y -= lh; }
   };
-  const sect = (title, col) => { need(34); y -= 8; T(title, M, y, 10.5, bold, col || gold); y -= 5; line(y, M, W - M, 0.9, col || gold); y -= 16; };
+  // Titolo di sezione: micro-maiuscole spaziate + filo d'oro, come le
+  // sezioni del portale e del Fascicolo — la stessa grammatica ovunque.
+  const sect = (title, col) => {
+    need(38); y -= 10;
+    T(String(title).toUpperCase(), M, y, 9, bold, col || GOLD, 2.6); y -= 6;
+    line(y, M, W - M, 0.8, col || GOLD); y -= 17;
+  };
+  const rowKV = (k, v, kw = 150) => {
+    need(16);
+    T(String(k).toUpperCase(), M, y, 7.5, font, FAINT, 1.1);
+    for (const [i, l] of wrap(v, 9.5, W - M - (M + kw), font).slice(0, 3).entries()) { T(l, M + kw, y - i * 12, 9.5, font, INK); if (i) y -= 12; }
+    y -= 15;
+  };
 
   newPage();
-  T(uscita ? 'INVENTARIO E STATO DEI LUOGHI — RICONSEGNA' : 'INVENTARIO E STATO DEI LUOGHI — CONSEGNA', M, y, 13, bold, ink); y -= 20;
-  T(`Roma, ${when.d} — ore ${when.t}`, M, y, 9.5, font, grey); y -= 22;
 
-  sect('RIFERIMENTO');
-  const rowKV = (k, v, kw = 170) => { need(16); T(k, M, y, 8, bold, grey); T(v, M + kw, y, 9.5, font, ink); y -= 15; };
+  // Intestazione del documento: occhiello + titolo grande + data
+  T(uscita ? 'STATO DEI LUOGHI' : 'STATO DEI LUOGHI', M, y, 8, font, GOLD, 3);
+  y -= 20;
+  T(uscita ? 'Inventario alla riconsegna' : 'Inventario alla consegna', M, y, 19, bold, INK, 0.2);
+  y -= 15;
+  T(`Roma, ${when.d} — ore ${when.t}`, M, y, 9.5, font, GREY); y -= 8;
+  line(y, M, W - M, 0.8, HAIR); y -= 18;
+
+  sect('Riferimento');
   rowKV('Immobile', clip(property.address || property.name || (contract && contract.propertyAddress) || '', 90));
   if (contract) {
     rowKV('Contratto', `${contract.type === 'studenti' ? 'per studenti universitari' : 'transitorio'} — dal ${dIT(contract.startDate)} al ${dIT(contract.endDate)}`);
@@ -190,89 +195,94 @@ export async function buildInventarioPdf({ property, contract, inv, kind, note, 
   }
   const c = INV.counts(inv.rooms);
   rowKV('Rilevato da', clip(author || 'BOOM Roma', 60));
-  rowKV('Consistenza', `${c.pieces} pezzi in ${c.rooms} ambienti` + (c.damaged ? ` — ${c.damaged} con difetti rilevati` : ''));
+  rowKV('Consistenza', `${c.pieces} ${c.pieces === 1 ? 'pezzo' : 'pezzi'} in ${c.rooms} ${c.rooms === 1 ? 'ambiente' : 'ambienti'}` + (c.damaged ? ` — ${c.damaged} con difetti rilevati` : ''));
 
   // ── Le voci, stanza per stanza ──
-  sect(uscita ? 'STATO ALLA RICONSEGNA' : 'ELENCO DI CONSEGNA');
-  const colQty = M, colName = M + 34, colCond = W - M - 168, colNote = W - M - 168;
+  sect(uscita ? 'Stato alla riconsegna' : 'Elenco di consegna');
+  const colQty = M, colName = M + 34, colCond = W - M - 168;
   for (const room of inv.rooms) {
-    need(30);
-    y -= 4;
-    T(room.label.toUpperCase(), M, y, 9, bold, ink); y -= 4;
-    line(y, M, W - M, 0.4); y -= 13;
+    need(34);
+    y -= 5;
+    T(room.label.toUpperCase(), M, y, 8.5, bold, INK, 2);
+    const cnt = wa(`${room.items.length} ${room.items.length === 1 ? 'voce' : 'voci'}`);
+    T(cnt, W - M - font.widthOfTextAtSize(cnt, 7.5), y, 7.5, font, FAINT);
+    y -= 5;
+    line(y, M, W - M, 0.5, HAIR); y -= 13;
     for (const it of room.items) {
-      const noteLines = it.note ? wrap('— ' + it.note, 8, W - M - colNote - 4, font) : [];
+      const noteLines = it.note ? wrap('— ' + it.note, 8, colCond - colName - 8, font) : [];
       need(14 + noteLines.length * 10);
-      T('n. ' + it.qty, colQty, y, 9, font, grey);
-      const nameW = colCond - colName - 8;
-      const nm = wrap(it.name, 9.5, nameW, font);
-      T(nm[0] + (nm.length > 1 ? '…' : ''), colName, y, 9.5, font, ink);
+      T('n. ' + it.qty, colQty, y, 9, font, GREY);
+      const nm = wrap(it.name, 9.5, colCond - colName - 10, font);
+      T(nm[0] + (nm.length > 1 ? '…' : ''), colName, y, 9.5, font, INK);
       const cl = INV.conditionLabel(it.condition);
-      T(cl, colCond, y, 8.5, font, it.condition === 'danneggiato' ? red : (it.condition ? grey : rgb(0.62, 0.6, 0.58)));
+      T(cl, colCond, y, 8.5, font, it.condition === 'danneggiato' ? RED : (it.condition ? GREY : FAINT), 0.3);
       y -= 13;
-      for (const nl of noteLines) { T(nl, colName, y, 8, font, grey); y -= 10; }
+      for (const nl of noteLines) { T(nl, colName, y, 8, font, GREY); y -= 10; }
+      if (noteLines.length) y -= 2;
     }
-    y -= 6;
+    y -= 7;
   }
-  if (!inv.rooms.length) paraDraw('Nessuna voce registrata.', 9.5, 14, font, grey);
+  if (!inv.rooms.length) paraDraw('Nessuna voce registrata.', 9.5, 14, font, GREY);
 
   // ── La legenda che evita la lite ──
   y -= 4;
-  paraDraw('"Condizione non dichiarata" significa che al momento del rilievo non e stato riscontrato ne documentato alcun difetto specifico: non equivale a una attestazione di buono stato, e non puo essere invocata come prova di un danno successivo.', 8, 11.5, font, grey);
+  paraDraw('"Condizione non dichiarata" significa che al momento del rilievo non è stato riscontrato né documentato alcun difetto specifico: non equivale a un\u2019attestazione di buono stato, e non può essere invocata come prova di un danno successivo.', 8, 11.5, font, FAINT);
 
-  if (clip(note)) { sect('ANNOTAZIONI'); paraDraw(clip(note, 900)); }
+  if (clip(note)) { sect('Annotazioni'); paraDraw(clip(note, 900)); }
 
   // ── Differenze (solo alla riconsegna) ──
   if (uscita && diff) {
-    sect('DIFFERENZE RISPETTO ALLA CONSEGNA', red);
-    const bullet = (t, col) => { const ls = wrap('- ' + t, 9.5, W - 2 * M - 10, font); for (const l of ls) { need(13); T(l, M + 6, y, 9.5, font, col || ink); y -= 13; } };
+    sect('Differenze rispetto alla consegna', RED);
+    const bullet = (t, col) => { for (const l of wrap('- ' + t, 9.5, W - 2 * M - 10, font)) { need(13); T(l, M + 6, y, 9.5, font, col || INK); y -= 13; } };
+    const group = (title, rows, col, fmt) => {
+      if (!rows.length) return;
+      need(16); T(String(title).toUpperCase(), M, y, 7.5, bold, FAINT, 1.2); y -= 13;
+      rows.forEach((x) => bullet(fmt(x), col)); y -= 5;
+    };
     if (!diff.missing.length && !diff.damaged.length && !diff.added.length && !diff.unverifiable.length) {
-      paraDraw('Nessuna differenza rilevata: tutte le voci dell\'inventario di consegna risultano presenti e senza danni nuovi.', 9.5, 14, font, ink);
+      paraDraw('Nessuna differenza rilevata: tutte le voci dell\u2019inventario di consegna risultano presenti e senza danni nuovi.', 9.5, 14, font, INK);
     } else {
-      if (diff.missing.length) { need(16); T('Mancanti', M, y, 8.5, bold, grey); y -= 13; diff.missing.forEach((x) => bullet(`${x.room}: ${x.name} (n. ${x.qty})`, red)); y -= 4; }
-      if (diff.damaged.length) { need(16); T('Danneggiati', M, y, 8.5, bold, grey); y -= 13; diff.damaged.forEach((x) => bullet(`${x.room}: ${x.name} — alla consegna ${INV.conditionLabel(x.from)}`, red)); y -= 4; }
-      if (diff.unverifiable.length) { need(16); T('Segnalati ma non verificabili', M, y, 8.5, bold, grey); y -= 13; diff.unverifiable.forEach((x) => bullet(`${x.room}: ${x.name} — ${x.why}`, grey)); y -= 4; }
-      if (diff.added.length) { need(16); T('Presenti ora e non in consegna', M, y, 8.5, bold, grey); y -= 13; diff.added.forEach((x) => bullet(`${x.room}: ${x.name} (n. ${x.qty})`, grey)); y -= 4; }
-      paraDraw('L\'elenco sopra e una rilevazione di fatto. Ogni conseguenza economica va valutata tenendo conto del normale deperimento d\'uso (art. 1590 c.c.).', 8, 11.5, font, grey);
+      group('Mancanti', diff.missing, RED, (x) => `${x.room}: ${x.name} (n. ${x.qty})`);
+      group('Danneggiati', diff.damaged, RED, (x) => `${x.room}: ${x.name} — alla consegna ${INV.conditionLabel(x.from)}`);
+      group('Segnalati ma non verificabili', diff.unverifiable, GREY, (x) => `${x.room}: ${x.name} — ${x.why}`);
+      group('Presenti ora e non in consegna', diff.added, GREY, (x) => `${x.room}: ${x.name} (n. ${x.qty})`);
+      paraDraw('L\u2019elenco sopra è una rilevazione di fatto. Ogni conseguenza economica va valutata tenendo conto del normale deperimento d\u2019uso (art. 1590 c.c.).', 8, 11.5, font, FAINT);
     }
   }
 
   // ── Fotogrammi: la prova ──
   const ph = (Array.isArray(shots) ? shots : []).slice(0, 6).map((p) => ({ label: p.label, img: imgBuf(p.base64) })).filter((p) => p.img);
   if (ph.length) {
-    sect('FOTOGRAMMI DEL RILIEVO');
+    sect('Fotogrammi del rilievo');
     const bw = (W - 2 * M - 16) / 2, bh = 140;
     for (let i = 0; i < ph.length; i += 2) {
-      need(bh + 24);
+      need(bh + 26);
       for (let j = i; j < Math.min(i + 2, ph.length); j++) {
         const x = M + (j - i) * (bw + 16);
         try {
           const img = ph[j].img.kind === 'png' ? await pdf.embedPng(ph[j].img.buf) : await pdf.embedJpg(ph[j].img.buf);
           const sc = Math.min(bw / img.width, bh / img.height);
           page.drawImage(img, { x, y: y - bh, width: img.width * sc, height: img.height * sc });
-          T(clip(ph[j].label || `Fotogramma ${j + 1}`, 40), x, y - bh - 11, 7.5, font, grey);
+          T(clip(ph[j].label || `Fotogramma ${j + 1}`, 40), x, y - bh - 11, 7.5, font, FAINT, 0.4);
         } catch { /* un fotogramma corrotto non ferma il documento */ }
       }
-      y -= bh + 24;
+      y -= bh + 26;
     }
   }
 
   // ── Sottoscrizione ──
-  sect('SOTTOSCRIZIONE');
+  sect('Sottoscrizione');
   paraDraw(contract
-    ? `Il presente inventario costituisce allegato al verbale di consegna dell'immobile e ne integra l'articolo relativo allo stato dei luoghi. Le parti lo sottoscrivono per accettazione.`
-    : `Documento di rilievo interno. Diventa allegato al verbale di consegna al momento della stipula.`, 9, 13, font, grey);
-  y -= 12;
+    ? 'Il presente inventario costituisce allegato al verbale di consegna dell\u2019immobile e ne integra l\u2019articolo relativo allo stato dei luoghi. Le parti lo sottoscrivono per accettazione.'
+    : 'Documento di rilievo interno. Diventa allegato al verbale di consegna al momento della stipula.', 9, 13, font, GREY);
+  y -= 16;
   const colW = (W - 2 * M - 24) / 2;
-  need(50);
+  need(54);
   line(y, M, M + colW, 0.7); line(y, M + colW + 24, W - M, 0.7);
-  T('Il Conduttore', M, y - 12, 7.5, bold, grey);
-  T('Per BOOM / il Locatore', M + colW + 24, y - 12, 7.5, bold, grey);
-  y -= 34;
+  T('IL CONDUTTORE', M, y - 12, 7.5, bold, FAINT, 1.2);
+  T('PER BOOM / IL LOCATORE', M + colW + 24, y - 12, 7.5, bold, FAINT, 1.2);
 
-  need(20);
-  T('BOOM® è un marchio dell\'Unione europea registrato (MUE 019317594) di Egidi Immobiliare S.r.l.', M, 44, 7, font, grey);
-  T('Egidi Immobiliare S.r.l. — Via dei Coronari 181/184, 00186 Roma — P.IVA 17322991005 — boomrome.com', M, 34, 7, font, grey);
+  stampFooters(pdf, b, { W, M });          // il piede su tutte le pagine, numerate
   return Buffer.from(await pdf.save());
 }
 
@@ -428,19 +438,54 @@ export default async function handler(req, res) {
       needsFiling: false, shared: false, createdAt: new Date(),
     }).catch((e) => console.warn('[inventario] documents filing:', e.message));
 
-    const diffLine = diff
-      ? `<br>Differenze: ${diff.missing.length} mancanti · ${diff.damaged.length} danneggiati · ${diff.added.length} in più${diff.unverifiable.length ? ` · ${diff.unverifiable.length} non verificabili` : ''}.`
+    // L'email è il documento che l'operatore ritrova fra sei mesi: stesso
+    // design system delle altre (masthead nero, marchio, carta bianca), il
+    // numero che conta in testa, e il PDF IN ALLEGATO — un link a Storage
+    // scade dalla memoria, un allegato no.
+    const uscita = kind === 'riconsegna';
+    const cnt = record.counts;
+    const dl = (n, w1, w2) => `${n} ${n === 1 ? w1 : w2}`;
+    // Il confronto è UN QUADRO, non un elenco spuntato: una spunta verde
+    // accanto a "5 voci mancanti" dice il contrario di quello che è successo.
+    const diffBlock = diff
+      ? rule() + para('<strong>Confronto con l\u2019inventario di consegna</strong>')
+        + tiles([
+          { k: 'Mancanti', v: String(diff.missing.length) },
+          { k: 'Danni nuovi', v: String(diff.damaged.length) },
+          { k: 'Comparsi dopo', v: String(diff.added.length) },
+        ])
+        + (diff.unverifiable.length
+          ? fine(`${dl(diff.unverifiable.length, 'voce non verificabile', 'voci non verificabili')}: alla consegna la condizione non era dichiarata, quindi il danno non le si può imputare. È nel PDF, con il motivo accanto.`)
+          : '')
       : '';
+
     await notify({
       to: ADMIN_NOTIFY,
       subject: `📋 Inventario ${kind} — ${label}`,
       html: shell(
-        para(`Inventario di <strong>${kind}</strong> per <strong>${label}</strong> — ${when.d} ore ${when.t}.`)
-        + para(`${record.counts.pieces} pezzi in ${record.counts.rooms} ambienti${record.counts.damaged ? `, di cui ${record.counts.damaged} con difetti rilevati` : ''}.${diffLine}`)
-        + btn(url, 'Apri l\'inventario')
-        + fine('Copia archiviata in Documenti e agganciata all\'immobile' + (contractId ? ' e al contratto.' : '.')),
-        `Inventario ${kind}`),
-      pdfBytes, filename: `BOOM_Inventario_${kind}.pdf`,
+        hero({
+          eyebrow: `Inventario — ${kind}`,
+          value: `${cnt.pieces} ${cnt.pieces === 1 ? 'pezzo' : 'pezzi'}`,
+          note: `in ${dl(cnt.rooms, 'ambiente', 'ambienti')}`
+            + (cnt.damaged ? ` · <strong>${dl(cnt.damaged, 'con difetti rilevati', 'con difetti rilevati')}</strong>` : '')
+            + (cnt.undeclared ? ` · ${cnt.undeclared} senza condizione dichiarata` : ''),
+        })
+        + tiles([
+          { k: 'Immobile', v: label },
+          { k: 'Rilievo', v: when.d, sub: `ore ${when.t}` },
+          { k: 'Fotogrammi', v: String(shotUrls.length), sub: shotUrls.length ? 'allegati al PDF' : 'nessuno' },
+        ])
+        + para(uscita
+          ? 'Il PDF è in allegato: elenco di oggi e, in coda, le differenze rispetto alla consegna. È il documento su cui si decide il <strong>saldo del deposito</strong>.'
+          : (contractId
+            ? 'Il PDF è in allegato e agganciato al contratto: da qui in poi il <strong>verbale di consegna</strong> stampa questo elenco al posto della formula generica sugli arredi.'
+            : 'Il PDF è in allegato e agganciato all\u2019immobile. Quando nascerà il contratto, diventerà l\u2019allegato del verbale di consegna.'))
+        + diffBlock
+        + btn(url, 'Apri l\u2019inventario')
+        + fine('Copia archiviata in Documenti (categoria inventario)'
+          + (kind === 'consegna' ? '. Alla riconsegna riapri /inventario sullo stesso immobile: il confronto lo fa da solo.' : '.')),
+        `Inventario ${kind} — ${label}`),
+      pdfBytes, filename: `BOOM_Inventario_${kind}_${when.iso.slice(0, 10)}.pdf`,
     });
 
     logActivity('Inventario ' + kind, 'property', { propertyId, contractId, pieces: record.counts.pieces }, author).catch(() => {});
