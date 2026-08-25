@@ -51,34 +51,65 @@ assert INCLUSI.endswith('</div>'), 'inclusi'
 CSS_ANCORA = ".imbarco-garanzia::before { content:'✓'; color:var(--gold); }"
 CSS = CSS_ANCORA + """
 
-/* ══ LA LASTRA — il patto in un respiro ══════════════════════════════ */
-.lastra { position:relative; padding:clamp(52px,7vw,96px) 0;
+/* ══ LA LASTRA — il patto come REGISTRO: le parole e i conti ════════ */
+.lastra { position:relative; padding:clamp(46px,6vw,72px) 0;
   background:#020202; box-shadow:inset 0 1px 0 rgba(255,215,0,.14),
-    inset 0 -1px 0 rgba(255,215,0,.14); }
-.lastra-eti { font-size:9px; font-weight:700; letter-spacing:.34em;
+    inset 0 -1px 0 rgba(255,215,0,.14); overflow:hidden; }
+@media (min-width:900px){ .lastra { display:flex; align-items:center;
+  min-height:min(84vh,620px); } }
+@media (min-width:900px) and (max-height:820px){
+  .lp { padding:clamp(8px,1vw,12px) 0; }
+  .lp-t { font-size:clamp(18px,2vw,28px); } }
+.lastra > .container { width:100%; }
+.lastra-eti { font-size:9px; font-weight:700; letter-spacing:.32em;
   text-transform:uppercase; color:var(--text-3); }
-.lastra-frase { margin-top:clamp(18px,2.4vw,28px);
-  font-family:var(--display); font-weight:200;
-  font-size:clamp(23px,3.5vw,50px); line-height:1.14;
-  letter-spacing:-.022em; max-width:27ch; }
-.lastra-frase .lp { display:block; }
-.lastra-frase .lp + .lp { margin-top:.16em; }
-.lastra-frase b { font-weight:300; color:var(--gold); }
-.lastra-frase .lp.oro { color:var(--gold); }
-.lastra-frase .lp.oro b { color:var(--text); }
-.lastra-nota { margin-top:clamp(18px,2.4vw,26px); font-size:11px;
+.libro { margin-top:clamp(18px,2.4vw,30px); max-width:1000px; }
+.lp { display:grid; grid-template-columns:minmax(0,1fr) auto;
+  align-items:baseline; gap:12px clamp(18px,3vw,50px);
+  padding:clamp(10px,1.4vw,16px) 0;
+  border-bottom:1px solid rgba(255,255,255,.055); }
+.lp:first-child { padding-top:0; }
+.lp-t { font-family:var(--display); font-weight:200;
+  font-size:clamp(18px,2.35vw,33px); line-height:1.18;
+  letter-spacing:-.02em; }
+.lp-t b { font-weight:300; color:var(--gold); }
+.lp-v { font-style:normal; font-family:var(--display); font-weight:250;
+  font-size:clamp(14px,1.5vw,20px); letter-spacing:.06em;
+  color:var(--text-3); font-variant-numeric:tabular-nums;
+  white-space:nowrap; }
+.lp.tot { margin-top:6px; border-bottom:0; border-top:1px solid
+  rgba(255,215,0,.4); padding-top:clamp(14px,1.8vw,22px); }
+.lp.tot .lp-t { color:var(--gold); }
+.lp.tot .lp-t b { color:var(--text); }
+.lp.tot .lp-v { font-size:clamp(26px,3.6vw,52px); color:var(--gold);
+  letter-spacing:-.02em; }
+.lastra-nota { margin-top:clamp(16px,2vw,24px); font-size:11px;
   letter-spacing:.14em; text-transform:uppercase; color:var(--text-3); }
+@media (max-width:620px){
+  .lp { grid-template-columns:minmax(0,1fr) auto; gap:6px 14px; }
+  .lp-v { align-self:center; }
+}
 @media (prefers-reduced-motion:no-preference){
-  html.vivo .lastra .lp { opacity:0; filter:blur(9px);
-    transform:translateY(14px); }
-  html.vivo .lastra.accesa .lp { opacity:1; filter:none; transform:none;
-    transition:opacity .6s ease, filter .7s ease,
-      transform .8s cubic-bezier(.22,1,.36,1); }
+  html.vivo .lastra .lp { opacity:0; transform:translateY(12px); }
+  html.vivo .lastra.accesa .lp { opacity:1; transform:none;
+    transition:opacity .55s ease, transform .7s var(--e); }
   html.vivo .lastra.accesa .lp:nth-child(1) { transition-delay:.05s; }
-  html.vivo .lastra.accesa .lp:nth-child(2) { transition-delay:.32s; }
-  html.vivo .lastra.accesa .lp:nth-child(3) { transition-delay:.59s; }
-  html.vivo .lastra.accesa .lp:nth-child(4) { transition-delay:.86s; }
-  html.vivo .lastra.accesa .lp:nth-child(5) { transition-delay:1.18s; }
+  html.vivo .lastra.accesa .lp:nth-child(2) { transition-delay:.26s; }
+  html.vivo .lastra.accesa .lp:nth-child(3) { transition-delay:.47s; }
+  html.vivo .lastra.accesa .lp:nth-child(4) { transition-delay:.68s; }
+  html.vivo .lastra.accesa .lp:nth-child(5) { transition-delay:.92s; }
+  /* la lama che percorre il registro una volta sola */
+  .lastra::after { content:''; position:absolute; left:0; right:0; top:0;
+    height:26%; pointer-events:none; opacity:0; z-index:2;
+    background:linear-gradient(180deg, transparent,
+      rgba(255,215,0,.09) 60%, rgba(255,215,0,.32));
+    -webkit-mask-image:linear-gradient(180deg,transparent,#000 70%);
+    mask-image:linear-gradient(180deg,transparent,#000 70%); }
+  .lastra.accesa::after { animation:lastraLama 1.5s var(--e-soft) .1s; }
+  @keyframes lastraLama {
+    0% { opacity:0; transform:translateY(-30%); }
+    14% { opacity:1; } 86% { opacity:1; }
+    100% { opacity:0; transform:translateY(400%); } }
 }
 
 /* ══ LA CONSOLE — le domande le fai tu ═══════════════════════════════ */
@@ -101,11 +132,12 @@ CSS = CSS_ANCORA + """
   box-shadow:0 0 8px rgba(255,215,0,.5); }
 .cs-invito { font-size:11px; color:var(--text-3);
   letter-spacing:.02em; }
+@media (min-width:900px){ .cs-invito { display:none; } }
 .riga { border-bottom:1px solid var(--line-0); }
 .riga:last-of-type { border-bottom:0; }
 .riga > summary { list-style:none; cursor:pointer; position:relative;
   display:grid; align-items:center; gap:4px 16px;
-  grid-template-columns:50px minmax(0,1fr) auto 26px;
+  grid-template-columns:50px minmax(0,1fr) auto auto;
   padding:clamp(15px,1.9vw,21px) clamp(16px,2.2vw,26px);
   transition:background .3s ease; }
 .riga > summary::-webkit-details-marker { display:none; }
@@ -121,10 +153,31 @@ CSS = CSS_ANCORA + """
   font-size:clamp(16px,1.85vw,23px); line-height:1.24;
   letter-spacing:-.01em; color:var(--text); text-wrap:balance;
   transition:color .3s ease; }
-.r-colpo { grid-column:3; grid-row:1/3; align-self:center;
-  font-family:var(--display); font-weight:200;
+.r-cifra { grid-column:3; grid-row:1/3; align-self:center;
+  display:grid; justify-items:end; gap:3px; }
+.r-colpo { font-family:var(--display); font-weight:200;
   font-size:clamp(20px,2.4vw,32px); line-height:1; color:var(--gold);
-  letter-spacing:-.02em; white-space:nowrap; opacity:.85; }
+  letter-spacing:-.02em; white-space:nowrap; }
+.r-colpo-eti { font-size:9px; font-weight:700; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--text-3); white-space:nowrap; }
+/* l'azione: la parola PRIMA del segno — non si deve indovinare */
+.r-azione { grid-column:4; grid-row:1/3; align-self:center;
+  display:inline-flex; align-items:center; gap:9px; }
+.r-apri { font-size:9px; font-weight:700; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--gold); white-space:nowrap; }
+.r-apri::after { content:'Open'; }
+.riga[open] .r-apri::after { content:'Close'; color:var(--text-3); }
+.riga[open] .r-apri { color:var(--text-3); }
+@media (max-width:620px){ .r-apri { font-size:9px; } }
+/* il primo invito: pulsa finche' non tocchi nulla */
+@media (prefers-reduced-motion:no-preference){
+  .console.pulsa .riga:not([open]):first-of-type .r-piu {
+    animation:invito 2.6s ease-in-out infinite; }
+  @keyframes invito {
+    0%,100% { box-shadow:inset 0 0 0 1px var(--line); }
+    50% { box-shadow:inset 0 0 0 1px rgba(255,215,0,.75),
+      0 0 0 6px rgba(255,215,0,.07); } }
+}
 .r-piu { grid-column:4; grid-row:1/3; align-self:center; width:22px;
   height:22px; position:relative; justify-self:end; border-radius:50%;
   box-shadow:inset 0 0 0 1px var(--line); transition:box-shadow .3s ease,
@@ -189,10 +242,11 @@ CSS = CSS_ANCORA + """
   letter-spacing:-.01em; }
 .cs-basta p b { color:var(--gold); font-weight:250; }
 @media (max-width:620px){
-  .riga > summary { grid-template-columns:44px minmax(0,1fr) 22px; }
-  .r-colpo { grid-column:2; grid-row:3; justify-self:start;
-    font-size:26px; margin-top:6px; opacity:1; }
-  .r-piu { grid-column:3; grid-row:1/3; }
+  .riga > summary { grid-template-columns:44px minmax(0,1fr) 26px; }
+  .r-cifra { grid-column:2; grid-row:3; justify-items:start;
+    margin-top:7px; }
+  .r-colpo { font-size:26px; }
+  .r-azione { grid-column:3; grid-row:1/3; }
 }
 
 /* ══ LA CHIUSURA ═════════════════════════════════════════════════════ */
@@ -336,6 +390,64 @@ CSS = CSS_ANCORA + """
   border-radius:100px; text-decoration:none; white-space:nowrap; }
 .hud-vai small { font-size:9px; font-weight:700; opacity:.7; }
 @media (prefers-reduced-motion:reduce){ .hud { transition:none; } }
+
+/* ══ IL PIEDE — le prove, non solo l'indirizzo ══════════════════════ */
+.footer-prove { margin-top:14px; display:grid; gap:7px; }
+.footer-prove a, .footer-prove span { font-size:11px; line-height:1.6;
+  color:var(--text-3); text-decoration:none; letter-spacing:.02em;
+  transition:color .3s ease; }
+.footer-prove a { position:relative; padding-left:14px; }
+.footer-prove a::before { content:''; position:absolute; left:0;
+  top:.6em; width:7px; height:1px; background:var(--gold); }
+.footer-prove a:hover { color:var(--gold); }
+@media (max-width:620px){ .footer-prove a { min-height:38px;
+  display:flex; align-items:center; } }
+
+/* ══ IL NASTRO DELLE UNIVERSITA' — composto, non tagliato ═══════════ */
+.uni { position:relative; padding:clamp(20px,2.6vw,30px) 0 clamp(18px,2.2vw,26px);
+  background:var(--black); overflow:visible;
+  border-top:1px solid var(--line-0);
+  border-bottom:1px solid var(--line-0); }
+.uni::before, .uni::after { content:none; }
+.uni-eti { position:static; transform:none; display:block;
+  padding:0 0 clamp(12px,1.6vw,18px); background:none; text-align:center;
+  font-size:9px; font-weight:700; letter-spacing:.3em;
+  text-transform:uppercase; color:var(--text-3); white-space:normal; }
+.uni-riga { display:grid; grid-template-columns:repeat(2,1fr);
+  justify-items:center; align-items:center; gap:clamp(12px,1.6vw,18px) 0;
+  max-width:860px; margin:0 auto; padding:0 clamp(16px,3vw,28px); }
+@media (min-width:620px){ .uni-riga { grid-template-columns:repeat(4,1fr); } }
+.uni-riga .uni-item { position:relative; display:inline-flex;
+  align-items:center; padding:0 clamp(14px,2vw,26px);
+  font-family:var(--display); font-size:clamp(13px,1.5vw,18px);
+  font-weight:300; letter-spacing:.22em; text-transform:uppercase;
+  color:rgba(250,250,250,.42); white-space:nowrap; cursor:default;
+  transition:color .45s var(--e), letter-spacing .45s var(--e); }
+.uni-riga .uni-item::before { content:''; position:absolute;
+  left:0; top:50%; width:1px; height:12px; margin-top:-6px;
+  background:var(--line); }
+.uni-riga .uni-item:nth-child(odd)::before { content:none; }
+@media (min-width:620px){
+  .uni-riga .uni-item:nth-child(odd)::before { content:''; }
+  .uni-riga .uni-item:nth-child(4n+1)::before { content:none; } }
+.uni-riga .uni-item:hover { color:var(--gold); letter-spacing:.26em; }
+@media (prefers-reduced-motion:no-preference){
+  html.vivo .uni-riga .uni-item { opacity:0; letter-spacing:.38em; }
+  html.vivo .uni.viva .uni-item { opacity:1; letter-spacing:.22em;
+    transition:opacity .5s ease, letter-spacing .9s var(--e); }
+  html.vivo .uni.viva .uni-item:nth-child(1) { transition-delay:.02s; }
+  html.vivo .uni.viva .uni-item:nth-child(2) { transition-delay:.08s; }
+  html.vivo .uni.viva .uni-item:nth-child(3) { transition-delay:.14s; }
+  html.vivo .uni.viva .uni-item:nth-child(4) { transition-delay:.20s; }
+  html.vivo .uni.viva .uni-item:nth-child(5) { transition-delay:.26s; }
+  html.vivo .uni.viva .uni-item:nth-child(6) { transition-delay:.32s; }
+  html.vivo .uni.viva .uni-item:nth-child(7) { transition-delay:.38s; }
+  html.vivo .uni.viva .uni-item:nth-child(8) { transition-delay:.44s; }
+}
+@media (max-width:620px){
+  .uni-riga .uni-item { padding:0 11px; letter-spacing:.16em; }
+  .uni-riga .uni-item + .uni-item::before { height:10px; margin-top:-5px; }
+}
 
 /* ══ LA RIFINITURA — il mestiere nei dettagli ════════════════════════ */
 :root { --e:cubic-bezier(.22,1,.36,1); --e-soft:cubic-bezier(.4,0,.2,1);
@@ -638,16 +750,25 @@ RIGHE = [
 ]
 
 righe_html = []
+DIDA = {'q1': 'search armed', 'q2': 'extra cost', 'q3': 'sweeps a day',
+        'q4': 'refundable', 'q5': 'flights needed', 'q6': 'on Google · 47',
+        'q7': 'a listing lives', 'q8': 'the clause'}
+
 for i, (rid, tema, dom, colpo, lead, dets, prove, rep_eti, rep) in enumerate(RIGHE):
+    didascalia = DIDA[rid]
+    aperta = ' letta' if i == 0 else ''
+    apre = ' open' if i == 0 else ''
     corpo_det = '\n      '.join(f'<p class="r-det">{d}</p>' for d in dets)
     chips = f'\n      <div class="prove">{prove}</div>' if prove else ''
-    righe_html.append(f"""<details class="riga" id="{rid}">
+    righe_html.append(f"""<details class="riga{aperta}" id="{rid}"{apre}>
       <summary>
         <span class="r-num">{i + 1:02d}</span>
         <span class="r-tema">{tema}</span>
         <span class="r-q">{dom}</span>
-        <span class="r-colpo">{colpo}</span>
-        <span class="r-piu" aria-hidden="true"></span>
+        <span class="r-cifra"><span class="r-colpo">{colpo}</span>
+          <span class="r-colpo-eti">{didascalia}</span></span>
+        <span class="r-azione"><span class="r-apri"></span>
+          <span class="r-piu" aria-hidden="true"></span></span>
       </summary>
       <div class="r-corpo">
       <p class="r-lead">{lead}</p>
@@ -659,14 +780,19 @@ NUOVO = """<!-- ══ LA LASTRA — il patto in un respiro ══════�
 <section class="lastra" id="lastra">
   <div class="container">
     <p class="lastra-eti">The deal, in one breath</p>
-    <p class="lastra-frase">
-      <span class="lp">You pay <b>€350</b>.</span>
-      <span class="lp">I hand you <b>three homes</b> in your criteria,
-        <b>within 15 days</b>.</span>
-      <span class="lp">If I don't — <b>you get the €350 back</b>. In full.</span>
-      <span class="lp">If I do — <b>it comes off my fee</b>.</span>
-      <span class="lp oro">Either way: <b>you don't lose money</b>.</span>
-    </p>
+    <div class="libro">
+      <div class="lp"><span class="lp-t">You pay <b>€350</b>.</span>
+        <i class="lp-v">− €350</i></div>
+      <div class="lp"><span class="lp-t">I hand you <b>three homes</b> in
+        your criteria, <b>within 15 days</b>.</span>
+        <i class="lp-v">the work</i></div>
+      <div class="lp"><span class="lp-t">If I don't — <b>you get the €350
+        back</b>. In full.</span><i class="lp-v">+ €350</i></div>
+      <div class="lp"><span class="lp-t">If I do — <b>it comes off my
+        fee</b>.</span><i class="lp-v">− €350</i></div>
+      <div class="lp tot"><span class="lp-t">Either way:
+        <b>you don't lose money</b>.</span><i class="lp-v">€0</i></div>
+    </div>
     <p class="lastra-nota">Terms §4.2 · §7.1-bis</p>
   </div>
 </section>
@@ -682,10 +808,11 @@ NUOVO = """<!-- ══ LA LASTRA — il patto in un respiro ══════�
         paying. <b>Open the ones you care about</b> — every answer carries
         its evidence, and nothing here is a claim you can't check.</p>
     </div>
-    <div class="console sale" id="cons">
+    <div class="console sale pulsa" id="cons">
       <div class="cs-capo">
         <span class="cs-stato" id="csStato"><b>0</b>/8 answered</span>
         <span class="cs-seg" id="csSeg" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+        <span class="cs-invito">Tap any question to open the answer</span>
         <span class="cs-tasti" aria-hidden="true"><kbd>1</kbd>–<kbd>8</kbd>
           open · <kbd>esc</kbd> close</span>
         <button type="button" class="cs-tutto" id="csTutto"
@@ -733,10 +860,41 @@ s = s.replace(SOTTO, SOTTO + """
         <span><b>03</b> Viewings — live on video</span><i>→</i>
         <span><b>04</b> Contract — from your phone</span>
       </div>""")
+# il nastro delle universita': una riga sola, statica, mai tagliata
+_u0 = s.index('<div class="uni" aria-label=')
+_u1 = s.index('</div>\n</div>', _u0) + len('</div>\n</div>')
+s = s[:_u0] + """<div class="uni" aria-label="Trusted by students from Rome's universities">
+  <span class="uni-eti">Trusted by students from</span>
+  <div class="uni-riga">
+    <span class="uni-item">LUISS</span>
+    <span class="uni-item">Sapienza</span>
+    <span class="uni-item">Roma Tre</span>
+    <span class="uni-item">John Cabot</span>
+    <span class="uni-item">LUMSA</span>
+    <span class="uni-item">NABA</span>
+    <span class="uni-item">IED</span>
+    <span class="uni-item">RUFA</span>
+  </div>
+</div>""" + s[_u1:]
+
 uno(s, '<div class="ck-stub">')
 s = s.replace('<div class="ck-stub">',
     '<div class="ck-stub">\n        <span class="ck-pronto" role="status"'
     ' aria-live="polite">Ready to board</span>')
+# il piede porta le stesse prove verificabili della pagina
+PIEDE_A = """          P.IVA 17322991005 · REA RM-1710623</p>"""
+uno(s, PIEDE_A)
+s = s.replace(PIEDE_A, PIEDE_A + """
+        <p class="footer-prove">
+          <a href="https://euipo.europa.eu/eSearch/#details/trademarks/019317594"
+            target="_blank" rel="noopener">EU trademark 019317594 ↗</a>
+          <a href="https://www.google.com/maps?q=Egidi+Immobiliare+Via+dei+Coronari+Roma"
+            target="_blank" rel="noopener">4.9★ on Google · 47 reviews ↗</a>
+          <a href="/terms.html">Property Finding — refund clause §4.2 →</a>
+          <span>Card payments via Stripe · never a transfer to an
+            individual</span>
+        </p>""")
+
 uno(s, '<a class="salta" href="#perche">')
 s = s.replace('<a class="salta" href="#perche">', '<a class="salta" href="#lastra">')
 
@@ -815,9 +973,16 @@ s = s.replace(CODA_A, """</script>
           try { gtag('event', 'pfs_q_open', { q: r.id }); } catch (e) {}
         }
       }
+      cons.classList.remove('pulsa');
       conta();
     });
   });
+  /* su schermo stretto la prima si richiude: il modello si e' gia'
+     capito col disegno, la lunghezza conta di piu' */
+  if (innerWidth < 900 && !location.hash) {
+    var q1 = document.getElementById('q1');
+    if (q1) q1.open = false;
+  }
   conta();
 
   /* il link profondo: /property-finding#q4 apre quella domanda */
@@ -961,6 +1126,16 @@ s = s.replace(CODA_A, """</script>
       o.disconnect(); lastra.classList.add('accesa');
     }, { threshold: .4 }).observe(lastra);
   }
+  /* il nastro degli atenei: i nomi si assestano una volta sola */
+  var uni = document.querySelector('.uni');
+  if (uni && 'IntersectionObserver' in window) {
+    new IntersectionObserver(function (v, o) {
+      if (!v.some(function (x) { return x.isIntersecting; })) return;
+      o.disconnect(); uni.classList.add('viva');
+    }, { threshold: .25 }).observe(uni);
+  } else if (uni) { uni.classList.add('viva'); }
+  setTimeout(function () { if (uni) uni.classList.add('viva'); }, 2500);
+
   var form = document.getElementById('ckForm');
   var n = document.getElementById('ckNome');
   var e = document.getElementById('ckMail');
@@ -1017,10 +1192,16 @@ for q in LD:
 for ago in ('id="lastra"', 'id="console"', 'id="chiusura"', 'id="cons"',
             'id="csBasta"', 'id="orolo"', 'id="checkin"', 'id="ckForm"',
             'class="ck-pronto"', 'id="hud"', 'pfs_q_open',
-            'id="csTutto"', 'boom_pfs_lette', 'pfs_q_share'):
+            'id="csTutto"', 'boom_pfs_lette', 'pfs_q_share',
+            'class="uni-riga"', 'class="libro"', 'class="footer-prove"',
+            "var uni = document.querySelector('.uni');"):
     uno(s, ago, OUT)
-assert s.count('<details class="riga"') == 8, 'otto righe'
+assert s.count('<details class="riga') == 8, 'otto righe'
 assert s.count('class="r-link"') == 8, 'otto link risposta'
+assert s.count('class="uni-item"') == 8, 'otto atenei, una volta sola'
+assert s.count('class="r-colpo-eti"') == 8, 'otto didascalie'
+assert s.count('<details class="riga letta" id="q1" open>') == 1, 'la prima e aperta'
+assert '<div class="uni-track"' not in s, 'marquee rimosso dal markup'
 assert s.count('class="regolaR"') == 6, 'sei regole'
 for morto in ('id="conto"', 'id="regola"', 'id="macchina"', 'id="tocca"',
               'id="verifica"\x3e', 'id="prezzo"', 'id="perche"',
