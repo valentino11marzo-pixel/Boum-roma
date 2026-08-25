@@ -44,6 +44,19 @@ export default function handler(req, res) {
   let type = String(req.query.type || "tenant").toLowerCase();
   if (!SAMPLES[type]) type = "tenant";
 
+  // ?name= — il pass campione col NOME di chi lo chiede: la stessa
+  // meccanica, ma il biglietto è "suo" (endowment onesto: resta DEMO).
+  // Solo lettere/spazi/apostrofi/trattini, tetto 32 — mai HTML o URL.
+  const nome = String(req.query.name || "")
+    .replace(/[^\p{L} '\-.]/gu, "").trim().slice(0, 32);
+  if (nome) {
+    const campo = { tenant: "tenantName", silver: "tenantName",
+      landlord: "landlordName", viewing: "clientName",
+      referral: "memberName" }[type];
+    if (campo && SAMPLES[type][campo] !== undefined)
+      SAMPLES[type][campo] = nome;
+  }
+
   try {
     const { buffer } = buildAndSign(type, SAMPLES[type]);
     res.setHeader("Content-Type", "application/vnd.apple.pkpass");
