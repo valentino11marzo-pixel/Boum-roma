@@ -115,8 +115,9 @@ h1{font-weight:200;font-size:23px;letter-spacing:-.3px;margin-bottom:3px}
       </div>
 
       <div class="card"><h2>2 · Il giro di casa</h2>
-        <p class="hint">Un video di 1–3 minuti basta. Inquadra ogni stanza e fermati un attimo su elettrodomestici e difetti. Parla pure: quello che dici viene ascoltato.</p>
-        <button class="pill" id="pickVideo">🎥 Scegli o registra il video</button>
+        <p class="hint">Un video di 1–3 minuti basta. Inquadra ogni stanza e fermati un attimo su elettrodomestici e difetti. Parla pure: quello che dici viene ascoltato. Puoi <b>scegliere un video che hai già girato</b> o registrarne uno adesso.</p>
+        <button class="pill" id="pickVideo">📁 Scegli un video già girato</button>
+        <button class="pill" id="recVideo">🎥 Registra adesso</button>
         <button class="pill ghost" id="recVoice">🎤 Nota vocale</button>
         <div class="bar" id="bar" style="display:none"><i></i></div>
         <div class="thumbs" id="thumbs"></div>
@@ -148,7 +149,13 @@ h1{font-weight:200;font-size:23px;letter-spacing:-.3px;margin-bottom:3px}
   </div>
 </main>
 
-<input type="file" accept="video/*" capture="environment" id="videoInput" style="display:none">
+<!-- DUE input, non uno. `capture` non è un suggerimento: forza la
+     fotocamera e TOGLIE la voce "libreria" dal menu di sistema — chi ha già
+     filmato la casa non poteva scegliere il suo video. Quello di sinistra
+     non lo porta (rullino + file + camera, li decide il telefono), quello
+     di destra sì (apre dritto la videocamera). -->
+<input type="file" accept="video/*" id="videoInput" style="display:none">
+<input type="file" accept="video/*" capture="environment" id="videoCapture" style="display:none">
 <video id="vid" playsinline muted preload="auto" style="display:none"></video>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
@@ -200,7 +207,11 @@ function grabFrames(file,onProgress){
 
     v.onloadedmetadata=function(){
       measure().then(function(duration){
-        var plan=E.framePlan(duration,10);
+        // Più lungo è il giro, più istanti servono: 10 fotogrammi su tre
+        // minuti sono uno ogni 18 secondi, cioè mezza stanza saltata. Il
+        // tetto resta 12 (lo stesso del server: oltre, il corpo della
+        // richiesta non passa).
+        var plan=E.framePlan(duration,Math.max(6,Math.min(12,Math.round(duration/12))));
         if(!plan.length){fail(new Error('Video troppo corto o durata illeggibile: riprova con un giro più lungo'));return}
         var w=v.videoWidth||1280,h=v.videoHeight||720,mx=1024;
         if(Math.max(w,h)>mx){var k=mx/Math.max(w,h);w=Math.round(w*k);h=Math.round(h*k)}
@@ -226,9 +237,12 @@ function grabFrames(file,onProgress){
 }
 
 $('pickVideo').addEventListener('click',function(){$('videoInput').value='';$('videoInput').click()});
-$('videoInput').addEventListener('change',function(){
+$('recVideo').addEventListener('click',function(){$('videoCapture').value='';$('videoCapture').click()});
+['videoInput','videoCapture'].forEach(function(id){$(id).addEventListener('change',onVideo)});
+function onVideo(){
   var f=this.files&&this.files[0];if(!f)return;
-  var btn=$('pickVideo');btn.textContent='Estraggo i fotogrammi…';btn.disabled=true;
+  var btn=$('pickVideo');$('recVideo').style.display='none';
+  btn.textContent='Estraggo i fotogrammi…';btn.disabled=true;
   $('bar').style.display='';$('bar').querySelector('i').style.width='0';
   grabFrames(f,function(p){$('bar').querySelector('i').style.width=Math.round(p*100)+'%'}).then(function(r){
     FRAMES=r.frames;btn.disabled=false;btn.className='pill done';btn.textContent='✓ '+FRAMES.length+' fotogrammi';
@@ -236,10 +250,11 @@ $('videoInput').addEventListener('change',function(){
     $('vinfo').style.display='';$('vinfo').textContent='Video di '+Math.round(r.duration)+'s letto sul telefono. Sale solo questa manciata di immagini.';
     $('bar').style.display='none';
   }).catch(function(e){
-    btn.disabled=false;btn.className='pill';btn.textContent='🎥 Riprova con un altro video';
+    btn.disabled=false;btn.className='pill';btn.textContent='📁 Riprova con un altro video';
+    $('recVideo').style.display='';
     $('bar').style.display='none';showErr(e.message||'Video non leggibile');
   });
-});
+}
 
 /* ── Nota vocale (facoltativa, e mai bloccante) ── */
 $('recVoice').addEventListener('click',function(){

@@ -116,13 +116,25 @@ console.log('   (durata dichiarata dal filmato appena registrato: ' + rec.dichia
 check('la sonda della durata è nel codice della pagina', /currentTime=1e7/.test(read('inventario.html')));
 check('e chi non ha durata leggibile riceve un messaggio, non un silenzio', /durata illeggibile/.test(read('inventario.html')));
 
-await page.evaluate(() => {
+// LA TRAPPOLA DEL `capture`: con quell'attributo il telefono apre la
+// videocamera e TOGLIE la libreria dal menu — chi aveva già filmato la casa
+// non poteva scegliere il suo video. Le due porte sono separate per questo.
+{
+  const gal = await page.getAttribute('#videoInput', 'capture');
+  const cam = await page.getAttribute('#videoCapture', 'capture');
+  check('la porta "scegli un video" NON forza la fotocamera', gal === null);
+  check('la porta "registra adesso" apre la videocamera', cam === 'environment');
+  check('e sono due bottoni distinti, non uno che indovina', (await page.isVisible('#pickVideo')) && (await page.isVisible('#recVideo')));
+}
+
+await page.evaluate((which) => {
   const f = new File([window.__testBlob], 'giro.webm', { type: 'video/webm' });
   const dt = new DataTransfer(); dt.items.add(f);
-  const input = document.getElementById('videoInput');
+  const input = document.getElementById(which);
   input.files = dt.files;
   input.dispatchEvent(new Event('change'));
-});
+}, 'videoCapture');            // si guida la porta FOTOCAMERA: entrambe devono estrarre
+
 await page.waitForSelector('#pickVideo.done', { timeout: 20000 }).catch(() => {});
 const frames = await page.evaluate(() => document.querySelectorAll('#thumbs img').length);
 check('i fotogrammi si estraggono da un video registrato al volo', frames >= 4);
