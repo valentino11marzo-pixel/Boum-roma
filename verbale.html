@@ -142,7 +142,10 @@ h1{font-weight:200;font-size:23px;letter-spacing:-.3px;margin-bottom:3px}
   </div>
 </main>
 
-<input type="file" accept="image/*" capture="environment" id="photoInput" style="display:none">
+<!-- niente `capture`: forzerebbe la fotocamera e toglierebbe dal menu di
+     sistema la foto già scattata (stessa trappola del video in /inventario).
+     Senza, il telefono offre entrambe: scatta ora oppure scegli dal rullino. -->
+<input type="file" accept="image/*" id="photoInput" style="display:none">
 
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
