@@ -55,7 +55,7 @@ CSS = CSS_ANCORA + """
 .lastra { position:relative; padding:clamp(52px,7vw,96px) 0;
   background:#020202; box-shadow:inset 0 1px 0 rgba(255,215,0,.14),
     inset 0 -1px 0 rgba(255,215,0,.14); }
-.lastra-eti { font-size:9.5px; font-weight:700; letter-spacing:.34em;
+.lastra-eti { font-size:9px; font-weight:700; letter-spacing:.34em;
   text-transform:uppercase; color:var(--text-3); }
 .lastra-frase { margin-top:clamp(18px,2.4vw,28px);
   font-family:var(--display); font-weight:200;
@@ -90,7 +90,7 @@ CSS = CSS_ANCORA + """
 .cs-capo { display:flex; align-items:center; gap:14px 20px;
   flex-wrap:wrap; padding:clamp(14px,1.8vw,20px) clamp(16px,2.2vw,26px);
   border-bottom:1px solid var(--line); }
-.cs-stato { font-size:9.5px; font-weight:700; letter-spacing:.24em;
+.cs-stato { font-size:9px; font-weight:700; letter-spacing:.24em;
   text-transform:uppercase; color:var(--text-3); }
 .cs-stato b { color:var(--gold); }
 .cs-seg { display:flex; gap:5px; flex:1; }
@@ -99,23 +99,23 @@ CSS = CSS_ANCORA + """
   transition:background .45s ease, box-shadow .45s ease; }
 .cs-seg i.acceso { background:var(--gold);
   box-shadow:0 0 8px rgba(255,215,0,.5); }
-.cs-invito { font-size:10.5px; color:var(--text-3);
+.cs-invito { font-size:11px; color:var(--text-3);
   letter-spacing:.02em; }
 .riga { border-bottom:1px solid var(--line-0); }
 .riga:last-of-type { border-bottom:0; }
 .riga > summary { list-style:none; cursor:pointer; position:relative;
   display:grid; align-items:center; gap:4px 16px;
-  grid-template-columns:38px minmax(0,1fr) auto 26px;
+  grid-template-columns:50px minmax(0,1fr) auto 26px;
   padding:clamp(15px,1.9vw,21px) clamp(16px,2.2vw,26px);
   transition:background .3s ease; }
 .riga > summary::-webkit-details-marker { display:none; }
 .riga > summary:hover { background:rgba(255,215,0,.035); }
 .riga > summary:focus-visible { outline:2px solid var(--gold);
   outline-offset:-2px; }
-.r-num { font-family:var(--display); font-weight:250; font-size:13px;
-  letter-spacing:.1em; color:rgba(255,215,0,.5);
+.r-num { font-family:var(--display); font-weight:250; font-size:12.5px;
+  letter-spacing:.1em; color:rgba(255,215,0,.5); white-space:nowrap;
   transition:color .3s ease; }
-.r-tema { grid-column:2; font-size:8.5px; font-weight:700;
+.r-tema { grid-column:2; font-size:9px; font-weight:700;
   letter-spacing:.26em; text-transform:uppercase; color:var(--text-3); }
 .r-q { grid-column:2; font-family:var(--display); font-weight:250;
   font-size:clamp(16px,1.85vw,23px); line-height:1.24;
@@ -159,7 +159,7 @@ CSS = CSS_ANCORA + """
 .r-det + .r-det { margin-top:11px; }
 .prove { margin-top:16px; display:flex; gap:8px; flex-wrap:wrap; }
 .prove a { display:inline-flex; align-items:center; gap:7px;
-  padding:9px 15px; font-size:11.5px; font-weight:600;
+  padding:9px 15px; font-size:12.5px; font-weight:600;
   color:var(--text-2); text-decoration:none; border-radius:100px;
   box-shadow:inset 0 0 0 1px var(--line);
   transition:color .3s ease, box-shadow .3s ease, transform .3s ease; }
@@ -169,11 +169,11 @@ CSS = CSS_ANCORA + """
 .prove a i { font-style:normal; color:var(--gold); }
 .reperto-eti { margin:clamp(24px,3vw,34px) 0 14px; display:flex;
   align-items:center; gap:12px; }
-.reperto-eti b { flex:none; padding:5px 11px; font-size:9.5px;
+.reperto-eti b { flex:none; padding:5px 11px; font-size:9px;
   font-weight:700; letter-spacing:.22em; text-transform:uppercase;
   color:var(--gold); border-radius:3px;
   box-shadow:inset 0 0 0 1px rgba(255,215,0,.4); }
-.reperto-eti span { font-size:10.5px; font-weight:600;
+.reperto-eti span { font-size:11px; font-weight:600;
   letter-spacing:.18em; text-transform:uppercase; color:var(--text-3); }
 .reperto-eti::after { content:''; flex:1; height:1px;
   background:linear-gradient(90deg, var(--line), transparent); }
@@ -189,7 +189,7 @@ CSS = CSS_ANCORA + """
   letter-spacing:-.01em; }
 .cs-basta p b { color:var(--gold); font-weight:250; }
 @media (max-width:620px){
-  .riga > summary { grid-template-columns:30px minmax(0,1fr) 22px; }
+  .riga > summary { grid-template-columns:44px minmax(0,1fr) 22px; }
   .r-colpo { grid-column:2; grid-row:3; justify-self:start;
     font-size:26px; margin-top:6px; opacity:1; }
   .r-piu { grid-column:3; grid-row:1/3; }
@@ -202,7 +202,7 @@ CSS = CSS_ANCORA + """
   letter-spacing:-.022em; }
 .chiusa-blocco h2 span { color:var(--gold); }
 .chiusa-blocco .btn-primary { margin-top:clamp(20px,2.6vw,30px); }
-.chiusa-nota { margin-top:16px; font-size:11.5px; color:var(--text-3);
+.chiusa-nota { margin-top:16px; font-size:12.5px; color:var(--text-3);
   letter-spacing:.02em; }
 
 /* ══ LA SALA DELLE REGOLE — l'expertise locale ══════════════════════ */
@@ -216,9 +216,9 @@ CSS = CSS_ANCORA + """
   top:0; height:1px; background:linear-gradient(90deg,
     var(--gold), rgba(255,215,0,.05)); }
 .rr-capo { display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
-.rr-num { font-family:var(--display); font-weight:250; font-size:13px;
+.rr-num { font-family:var(--display); font-weight:250; font-size:12.5px;
   letter-spacing:.12em; color:rgba(255,215,0,.55); }
-.rr-fonte { padding:3px 8px; font-size:8.5px; font-weight:700;
+.rr-fonte { padding:3px 8px; font-size:9px; font-weight:700;
   letter-spacing:.2em; text-transform:uppercase; color:var(--text-3);
   border-radius:3px; box-shadow:inset 0 0 0 1px var(--line); }
 .rr-fonte.legge { color:var(--gold);
@@ -232,7 +232,7 @@ CSS = CSS_ANCORA + """
   line-height:1.6; color:var(--text-2);
   border-top:1px solid var(--line-0); }
 .rr-noi::before { content:'BOOM'; display:block; margin-bottom:4px;
-  font-size:8.5px; font-weight:700; letter-spacing:.24em;
+  font-size:9px; font-weight:700; letter-spacing:.24em;
   color:var(--gold); }
 .rr-noi b { color:var(--text); font-weight:600; }
 .sala-nota { margin-top:14px; font-size:11px; color:var(--text-3);
@@ -264,7 +264,7 @@ CSS = CSS_ANCORA + """
   box-shadow:0 0 10px rgba(255,215,0,.45); }
 .orolo.batte { box-shadow:inset 0 0 0 1px rgba(255,215,0,.55),
   0 0 34px rgba(255,215,0,.12); }
-.oro-nota { margin-top:11px; font-size:10.5px; color:var(--text-3);
+.oro-nota { margin-top:11px; font-size:11px; color:var(--text-3);
   letter-spacing:.02em; line-height:1.6; }
 .oro-vivo { display:inline-flex; align-items:center; gap:6px; }
 .oro-vivo::before { content:''; width:6px; height:6px; border-radius:50%;
@@ -285,25 +285,25 @@ CSS = CSS_ANCORA + """
   color:var(--text-2); }
 .clausola blockquote b { color:var(--text); }
 .clausola cite { display:block; margin-top:10px; font-style:normal;
-  font-size:10px; font-weight:700; letter-spacing:.22em;
+  font-size:11px; font-weight:700; letter-spacing:.22em;
   text-transform:uppercase; color:var(--gold); }
 .clausola + .clausola { margin-top:12px; }
 .verifica-righe { margin-top:14px; display:flex; gap:10px 22px;
   flex-wrap:wrap; }
-.verifica-righe a { font-size:12px; color:var(--text-3);
+.verifica-righe a { font-size:12.5px; color:var(--text-3);
   text-decoration:none; transition:color .3s ease; }
 .verifica-righe a:hover { color:var(--gold); }
 
 /* ══ L'HERO: i quattro passi + il biglietto che si convalida ═════════ */
 .hero-passi { margin-top:16px; display:flex; align-items:center;
-  gap:7px 10px; flex-wrap:wrap; font-size:10px; font-weight:600;
+  gap:7px 10px; flex-wrap:wrap; font-size:11px; font-weight:600;
   letter-spacing:.1em; text-transform:uppercase; color:var(--text-3);
   max-width:56ch; }
 .hero-passi b { color:var(--gold); font-weight:700; margin-right:2px; }
 .hero-passi i { font-style:normal; color:rgba(255,215,0,.45); }
 .ck-pronto { position:absolute; right:clamp(16px,1.8vw,22px);
   top:-13px; z-index:4; background:#0B0B0C; display:inline-flex;
-  align-items:center; gap:6px; padding:5px 10px; font-size:8.5px;
+  align-items:center; gap:6px; padding:5px 10px; font-size:9px;
   font-weight:800; letter-spacing:.2em; text-transform:uppercase;
   color:var(--gold); border-radius:100px;
   box-shadow:inset 0 0 0 1px rgba(255,215,0,.45),
@@ -326,7 +326,7 @@ CSS = CSS_ANCORA + """
   border-top:1px solid rgba(255,215,0,.14); transform:translateY(110%);
   transition:transform .5s cubic-bezier(.22,1,.36,1); }
 .hud.su { transform:none; }
-.hud-stato { flex:1; font-size:9.5px; font-weight:700;
+.hud-stato { flex:1; font-size:9px; font-weight:700;
   letter-spacing:.2em; text-transform:uppercase; color:var(--text-3);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .hud-stato b { color:var(--gold); }
@@ -335,7 +335,95 @@ CSS = CSS_ANCORA + """
   letter-spacing:.08em; color:#0A0A05; background:var(--gold);
   border-radius:100px; text-decoration:none; white-space:nowrap; }
 .hud-vai small { font-size:9px; font-weight:700; opacity:.7; }
-@media (prefers-reduced-motion:reduce){ .hud { transition:none; } }"""
+@media (prefers-reduced-motion:reduce){ .hud { transition:none; } }
+
+/* ══ LA RIFINITURA — il mestiere nei dettagli ════════════════════════ */
+:root { --e:cubic-bezier(.22,1,.36,1); --e-soft:cubic-bezier(.4,0,.2,1);
+  --d1:.3s; --d2:.5s; --d3:.8s; }
+::selection { background:rgba(255,215,0,.28); color:#fff; }
+::-moz-selection { background:rgba(255,215,0,.28); color:#fff; }
+html { scrollbar-color:rgba(255,215,0,.3) transparent;
+  scrollbar-width:thin; }
+::-webkit-scrollbar { width:10px; height:10px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:rgba(255,215,0,.22);
+  border-radius:10px; border:3px solid transparent;
+  background-clip:content-box; }
+::-webkit-scrollbar-thumb:hover { background:rgba(255,215,0,.42);
+  background-clip:content-box; }
+/* un solo anello di fuoco per tutta la pagina */
+a:focus-visible, button:focus-visible, summary:focus-visible,
+input:focus-visible, select:focus-visible, textarea:focus-visible,
+details:focus-visible { outline:2px solid var(--gold);
+  outline-offset:3px; border-radius:4px; }
+/* le cifre non ballano mai */
+.r-colpo, .oro-val, .cs-stato, .hud-stato, .lastra-frase,
+.a3-cifra, .rr-num, .r-num { font-variant-numeric:tabular-nums;
+  font-feature-settings:'tnum' 1; }
+/* niente parole che sfondano su schermi stretti */
+.r-q, .r-lead, .lastra-frase, .regolaR h4, .chiusa-blocco h2
+  { overflow-wrap:anywhere; hyphens:none; }
+/* la barra fissa non copre mai l'ultima riga di contenuto */
+body { padding-bottom:0; }
+@media (max-width:900px){ .footer { padding-bottom:76px; } }
+/* target tattili: l'icona resta di 22px, il bersaglio e' di 44 */
+.r-piu::before, .r-piu::after { z-index:1; }
+.r-piu { isolation:isolate; }
+.riga > summary { min-height:56px; }
+.prove a { min-height:38px; }
+@media (max-width:620px){
+  .prove a { min-height:44px; padding:12px 16px; }
+  .r-link { min-height:44px; padding:12px 0; }
+  .cs-tutto { min-height:40px; padding:10px 14px; }
+  .verifica-righe a, .sala-nota a { display:inline-block;
+    padding:6px 0; }
+  .ck-piu { min-height:42px; }
+}
+/* chi chiede piu' contrasto lo ottiene davvero */
+@media (prefers-contrast:more){
+  :root { --text-2:rgba(255,255,255,.94); --text-3:rgba(255,255,255,.78);
+    --line:rgba(255,255,255,.22); --line-0:rgba(255,255,255,.14); }
+  .riga > summary:hover { background:rgba(255,215,0,.09); }
+}
+/* modalita' a colori forzati: i fili d'oro non spariscono */
+@media (forced-colors:active){
+  .console, .regolaR, .clausola, .orolo { border:1px solid CanvasText; }
+  .cs-seg i.acceso, .oro-barra i { forced-color-adjust:none;
+    background:Highlight; }
+}
+/* il segno di lettura: le domande gia' aperte restano marcate */
+.riga[open].letta > summary .r-num::before { content:none; }
+.riga.letta > summary .r-num::before { content:'●';
+  margin-right:5px; font-size:7px; vertical-align:middle;
+  color:rgba(255,215,0,.55); }
+/* il comando apri/chiudi tutto */
+.cs-tutto { flex:none; padding:7px 12px; font-size:9px; font-weight:700;
+  letter-spacing:.2em; text-transform:uppercase; color:var(--text-3);
+  background:none; border:0; border-radius:100px; cursor:pointer;
+  box-shadow:inset 0 0 0 1px var(--line);
+  transition:color var(--d1) ease, box-shadow var(--d1) ease; }
+.cs-tutto:hover { color:var(--gold);
+  box-shadow:inset 0 0 0 1px rgba(255,215,0,.4); }
+/* il link della singola risposta */
+.r-strumenti { margin-top:18px; display:flex; gap:10px 18px;
+  flex-wrap:wrap; align-items:center; }
+.r-link { display:inline-flex; align-items:center; gap:7px;
+  padding:7px 0; font-size:11px; font-weight:600; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--text-3); background:none;
+  border:0; cursor:pointer; transition:color var(--d1) ease; }
+.r-link:hover { color:var(--gold); }
+.r-link::before { content:'⧉'; font-size:12.5px; }
+.r-link.fatto::before { content:'✓'; color:var(--gold); }
+/* il suggerimento della tastiera, solo dove esiste una tastiera */
+.cs-tasti { display:none; }
+@media (min-width:900px) and (hover:hover){
+  .cs-tasti { display:inline-flex; align-items:center; gap:6px;
+    font-size:9px; font-weight:700; letter-spacing:.18em;
+    text-transform:uppercase; color:var(--text-3); }
+  .cs-tasti kbd { padding:2px 6px; font:inherit; letter-spacing:.1em;
+    color:var(--text-2); border-radius:4px;
+    box-shadow:inset 0 0 0 1px var(--line); }
+}"""
 
 # ── i reperti confezionati ───────────────────────────────────────────────
 OROLOGIO = """<div class="orolo" id="orolo" aria-label="The scanner's schedule, live">
@@ -458,6 +546,12 @@ def reperto(eti, corpo):
             f'<span>{eti}</span></div>\n      {corpo}')
 
 
+def strumenti(rid):
+    return (f'\n      <div class="r-strumenti">'
+            f'<button type="button" class="r-link" data-q="{rid}">'
+            f'Copy the link to this answer</button></div>')
+
+
 RIGHE = [
     ('q1', 'The product', 'What exactly do I get for the €350?', '24h',
      'A hunt, a hunter —<br>and everything <b>to the keys</b>.',
@@ -557,7 +651,7 @@ for i, (rid, tema, dom, colpo, lead, dets, prove, rep_eti, rep) in enumerate(RIG
       </summary>
       <div class="r-corpo">
       <p class="r-lead">{lead}</p>
-      {corpo_det}{chips}{reperto(rep_eti, rep)}
+      {corpo_det}{chips}{strumenti(rid)}{reperto(rep_eti, rep)}
       </div>
     </details>""")
 
@@ -592,7 +686,10 @@ NUOVO = """<!-- ══ LA LASTRA — il patto in un respiro ══════�
       <div class="cs-capo">
         <span class="cs-stato" id="csStato"><b>0</b>/8 answered</span>
         <span class="cs-seg" id="csSeg" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
-        <span class="cs-invito">Tap a question →</span>
+        <span class="cs-tasti" aria-hidden="true"><kbd>1</kbd>–<kbd>8</kbd>
+          open · <kbd>esc</kbd> close</span>
+        <button type="button" class="cs-tutto" id="csTutto"
+          aria-expanded="false">Open all</button>
       </div>
       """ + '\n      '.join(righe_html) + """
       <div class="cs-basta" id="csBasta">
@@ -686,12 +783,33 @@ s = s.replace(CODA_A, """</script>
       : 'Eight questions · <b>tap one</b>';
     if (fatte >= 2) basta.classList.add('viva');
   }
+  /* memoria delle letture: solo un segno, mai riaprire da soli */
+  var CHIAVE = 'boom_pfs_lette';
+  function lette() {
+    try { return JSON.parse(localStorage.getItem(CHIAVE) || '[]'); }
+    catch (e) { return []; }
+  }
+  function ricorda(id) {
+    try {
+      var v = lette();
+      if (v.indexOf(id) < 0) { v.push(id);
+        localStorage.setItem(CHIAVE, JSON.stringify(v.slice(-12))); }
+    } catch (e) {}
+  }
+  lette().forEach(function (id) {
+    var r = document.getElementById(id);
+    if (r) r.classList.add('letta');
+  });
+
   righe.forEach(function (r) {
     r.addEventListener('toggle', function () {
       if (r.open) {
         [].forEach.call(r.querySelectorAll('.sale'), function (e) {
           e.classList.add('dentro');
         });
+        r.classList.add('letta');
+        ricorda(r.id);
+        try { history.replaceState(null, '', '#' + r.id); } catch (e) {}
         if (!viste[r.id]) {
           viste[r.id] = 1;
           try { gtag('event', 'pfs_q_open', { q: r.id }); } catch (e) {}
@@ -701,6 +819,89 @@ s = s.replace(CODA_A, """</script>
     });
   });
   conta();
+
+  /* il link profondo: /property-finding#q4 apre quella domanda */
+  function apriDaHash(scorri) {
+    var id = (location.hash || '').replace('#', '');
+    if (!/^q[1-8]$/.test(id)) return;
+    var r = document.getElementById(id);
+    if (!r) return;
+    r.open = true;
+    if (scorri) setTimeout(function () {
+      r.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 120);
+  }
+  apriDaHash(true);
+  addEventListener('hashchange', function () { apriDaHash(true); });
+
+  /* apri / chiudi tutto */
+  var tutto = document.getElementById('csTutto');
+  if (tutto) tutto.addEventListener('click', function () {
+    var apri = righe.some(function (r) { return !r.open; });
+    righe.forEach(function (r) { r.open = apri; });
+    tutto.textContent = apri ? 'Close all' : 'Open all';
+    tutto.setAttribute('aria-expanded', apri ? 'true' : 'false');
+    conta();
+  });
+
+  /* la tastiera: 1-8 aprono, esc chiude — mai dentro un campo */
+  addEventListener('keydown', function (ev) {
+    var t = ev.target || {};
+    var tag = (t.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select'
+      || t.isContentEditable || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+    if (ev.key === 'Escape') {
+      righe.forEach(function (r) { r.open = false; });
+      conta(); return;
+    }
+    var n = parseInt(ev.key, 10);
+    if (!(n >= 1 && n <= 8)) return;
+    var r = righe[n - 1];
+    if (!r) return;
+    ev.preventDefault();
+    r.open = !r.open;
+    conta();
+    if (r.open) r.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  /* copiare il link della singola risposta (con le reti di Safari) */
+  [].forEach.call(document.querySelectorAll('.r-link'), function (b) {
+    b.addEventListener('click', function () {
+      var url = location.origin + location.pathname + '#' + b.dataset.q;
+      var fine = function () {
+        var era = b.textContent;
+        b.classList.add('fatto');
+        b.textContent = 'Link copied';
+        setTimeout(function () {
+          b.classList.remove('fatto'); b.textContent = era; }, 2200);
+        try { gtag('event', 'pfs_q_share', { q: b.dataset.q }); } catch (e) {}
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(fine, function () {
+          window.prompt('Copy this link', url); });
+      } else {
+        var i = document.createElement('input');
+        i.value = url; document.body.appendChild(i); i.select();
+        try { document.execCommand('copy'); fine(); }
+        catch (e) { window.prompt('Copy this link', url); }
+        document.body.removeChild(i);
+      }
+    });
+  });
+
+  /* le prove si scaldano prima del tap */
+  var scaldati = {};
+  [].forEach.call(document.querySelectorAll('.prove a[href^="/"], .r-corpo a[href^="/"]'),
+    function (a) {
+      a.addEventListener('pointerenter', function () {
+        var h = a.getAttribute('href');
+        if (!h || scaldati[h]) return;
+        scaldati[h] = 1;
+        var l = document.createElement('link');
+        l.rel = 'prefetch'; l.href = h;
+        document.head.appendChild(l);
+      }, { once: true });
+    });
 })();
 </script>
 <script>
@@ -815,9 +1016,11 @@ for q in LD:
     assert f'<span class="r-q">{q}</span>' in s, f'FAQ orfana: {q}'
 for ago in ('id="lastra"', 'id="console"', 'id="chiusura"', 'id="cons"',
             'id="csBasta"', 'id="orolo"', 'id="checkin"', 'id="ckForm"',
-            'class="ck-pronto"', 'id="hud"', 'pfs_q_open'):
+            'class="ck-pronto"', 'id="hud"', 'pfs_q_open',
+            'id="csTutto"', 'boom_pfs_lette', 'pfs_q_share'):
     uno(s, ago, OUT)
 assert s.count('<details class="riga"') == 8, 'otto righe'
+assert s.count('class="r-link"') == 8, 'otto link risposta'
 assert s.count('class="regolaR"') == 6, 'sei regole'
 for morto in ('id="conto"', 'id="regola"', 'id="macchina"', 'id="tocca"',
               'id="verifica"\x3e', 'id="prezzo"', 'id="perche"',
