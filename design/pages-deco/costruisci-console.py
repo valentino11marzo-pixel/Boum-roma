@@ -12,8 +12,10 @@
 # Base: property-finding.html (hero-biglietto INTATTO).
 import sys
 
-SRC = 'property-finding.html'
-OUT = 'preview-pfs-colloquio.html'
+# La base PRISTINA (PFS 6.0) resta intoccata in design/pages-deco:
+# cosi' il builder e' rieseguibile all'infinito senza accumulare.
+SRC = 'design/pages-deco/pf-base.html'
+OUT = 'property-finding.html'
 
 
 def uno(s, ago, dove=SRC):
