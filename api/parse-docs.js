@@ -1,8 +1,20 @@
 // api/parse-docs.js
 // Hardened Anthropic /v1/messages proxy.
 //
+// Chi puo chiamarlo (due vie, la prima e quella che usa la pagina):
+//   1. Authorization: Bearer <ID token Firebase di un utente con ruolo admin>
+//      — la stessa disciplina di ogni altro endpoint chiamato dal browser
+//      loggato (api/_auth.js). Nessun segreto viaggia nel browser.
+//   2. Authorization: Bearer <PARSE_DOCS_SECRET> — la via storica, tenuta
+//      viva per i chiamanti server-to-server.
+//
+// La via 2 era l'UNICA, e la pagina si procurava il segreto leggendolo da
+// Firestore (config/parse_docs.bearer). Quel documento non e mai esistito in
+// produzione: boom_doc_parser mostrava "Parser config missing" e lo strumento
+// era inutilizzabile. Oltre al guasto, spedire un segreto del server dentro
+// una pagina era gia segnalato come rischio in docs/portal-security-audit.md.
+//
 // Defenses:
-//   - Admin-gated via Authorization: Bearer <PARSE_DOCS_SECRET>
 //   - Constant-time bearer comparison (crypto.timingSafeEqual)
 //   - Per-IP rate limit: 10 requests / 60s (in-memory, best effort)
 //   - Model pinned server-side (client cannot choose)
@@ -13,6 +25,8 @@
 //   - Structured JSON logging of every reject + every success
 
 import crypto from 'node:crypto';
+import { verifyIdToken } from './_auth.js';
+import { fsGet } from './homie/_lib.js';
 
 export const config = {
   api: {
@@ -27,6 +41,8 @@ const ALLOWED_ORIGINS = new Set([
   'https://www.boomrome.com',
   'https://boomrome.com',
 ]);
+
+const ALLOWED_ROLES = new Set(['admin']);
 
 const ALLOWED_MODEL = 'claude-haiku-4-5-20251001';
 const MAX_TOKENS_CEILING = 2000;
@@ -103,6 +119,34 @@ function checkRateLimit(ip) {
   return { allowed: true, count: entry.count };
 }
 
+
+// Autorizza il chiamante. Torna { ok, via, uid } — mai un'eccezione: qualsiasi
+// intoppo nella verifica e un NO, non un 500 che spalanca la porta.
+async function authorize(providedToken) {
+  if (!providedToken) return { ok: false, via: 'none' };
+
+  const serverSecret = process.env.PARSE_DOCS_SECRET;
+  if (serverSecret && constantTimeEqual(providedToken, serverSecret)) {
+    return { ok: true, via: 'secret' };
+  }
+
+  // Via del browser loggato: ID token Firebase + ruolo letto server-side.
+  // Il ruolo NON si legge dal token (un client puo scrivere quello che vuole
+  // nei claim custom solo se glieli diamo noi): si rilegge da Firestore con
+  // le credenziali admin, come fa api/_auth.js ovunque.
+  try {
+    const user = await verifyIdToken(providedToken);
+    if (!user || !user.localId) return { ok: false, via: 'none' };
+    const profile = await fsGet('users/' + user.localId);
+    if (!profile || !ALLOWED_ROLES.has(profile.role)) {
+      return { ok: false, via: 'role', uid: user.localId, role: (profile && profile.role) || null };
+    }
+    return { ok: true, via: 'firebase', uid: user.localId };
+  } catch (e) {
+    return { ok: false, via: 'error', message: e?.message || 'unknown' };
+  }
+}
+
 export default async function handler(req, res) {
   setCorsHeaders(req, res);
 
@@ -121,23 +165,28 @@ export default async function handler(req, res) {
   }
 
   // Server-side config sanity. Fail closed if misconfigured.
-  const serverSecret = process.env.PARSE_DOCS_SECRET;
-  if (!serverSecret) {
-    logEvent({ event: 'parse-docs-reject', reason: 'server-missing-secret', ip, ua });
-    return res.status(500).json({ error: 'Server misconfigured' });
-  }
   if (!process.env.ANTHROPIC_API_KEY) {
     logEvent({ event: 'parse-docs-reject', reason: 'server-missing-anthropic-key', ip, ua });
     return res.status(500).json({ error: 'Server misconfigured' });
   }
+  // Nessuna delle due vie configurabile = porta chiusa, mai aperta.
+  if (!process.env.PARSE_DOCS_SECRET && !process.env.FIREBASE_API_KEY) {
+    logEvent({ event: 'parse-docs-reject', reason: 'server-no-auth-configured', ip, ua });
+    return res.status(500).json({ error: 'Server misconfigured' });
+  }
 
-  // Auth: constant-time bearer check
+  // Auth: segreto condiviso (confronto a tempo costante) oppure ID token admin
   const authHeader = req.headers.authorization || '';
   const bearerMatch = authHeader.match(/^Bearer\s+(.+)$/);
   const providedToken = bearerMatch ? bearerMatch[1].trim() : '';
-  if (!constantTimeEqual(providedToken, serverSecret)) {
-    logEvent({ event: 'parse-docs-reject', reason: 'auth', ip, ua });
-    return res.status(401).json({ error: 'Unauthorized' });
+  const auth = await authorize(providedToken);
+  if (!auth.ok) {
+    // detail dice QUALE porta ha detto no: 'role' (loggato ma non admin),
+    // 'error' (verifica non riuscita: credenziali admin del server) o 'none'.
+    logEvent({ event: 'parse-docs-reject', reason: 'auth', detail: auth.via, message: auth.message || null, ip, ua });
+    return res.status(auth.via === 'role' ? 403 : 401).json({
+      error: auth.via === 'role' ? 'Forbidden: admin role required' : 'Unauthorized',
+    });
   }
 
   // Per-IP rate limit
@@ -193,6 +242,8 @@ export default async function handler(req, res) {
     logEvent({
       event: 'parse-docs-ok',
       ip,
+      via: auth.via,
+      uid: auth.uid || null,
       upstreamStatus: upstream.status,
       rateCount: rl.count,
     });

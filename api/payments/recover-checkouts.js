@@ -111,7 +111,7 @@ export function leadFromSession(s, now = new Date()) {
     phone: m.phone || '',
     listingId: m.listingId || '',
     listingName: m.listingName || m.listing || '',
-    message: `⏳ Checkout NON completato il ${dateIt(s.created)} — ${label} €${amountEur}. Ha compilato tutto ed è arrivato al pagamento.${wants ? ' ' + wants : ''}`,
+    message: `⏳ Checkout NON completato il ${dateIt(s.created)} — ${label} €${amountEur}. Ha compilato tutto ed è arrivato al pagamento.${wants ? ' ' + wants : ''}${service === 'PFS' ? ' · MOSSA: proponi la call di 15 min e cita la garanzia §4.2 (3 opzioni nei suoi criteri entro 15 giorni o rimborso totale).' : ''}`,
     // requisiti PFS grezzi: il portal e il brief cliente li leggono già così
     move_in_date: m.move_in_date || '',
     budget: m.budget || '',

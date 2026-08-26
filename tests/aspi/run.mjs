@@ -318,6 +318,90 @@ store.set('users/own1', { name: 'Mario Bianchi' });
   store.delete('settings/registrazione');
 }
 
+// ═══ 10. IL DOCUMENTO SI ATTACCA DOVE MANCA (api/fiscal/allega.js) ═══
+// Il rimbalzo fra console era il lavoro: ora la voce della checklist e' una
+// porta. Si pretende che il file finisca DAVVERO dove la voce prometteva —
+// l'immobile eredita i suoi documenti, il contratto i suoi — e che la
+// checklist torni gia' aggiornata (senza, l'operatore ricarica per vedere).
+const allega = (await import('../../api/fiscal/allega.js')).default;
+const PDFB64 = 'data:application/pdf;base64,' + Buffer.from('%PDF-1.4 finto').toString('base64');
+{
+  const r = mkRes();
+  await allega(mkReq({ contractId: 'c1', key: 'ape', base64: PDFB64, name: 'ape.pdf' }), r);
+  check('allega: senza Bearer -> 401, nessun documento scritto', r.code === 401);
+
+  const r1 = mkRes();
+  await allega(mkReq({ contractId: 'c1', key: 'ape', base64: PDFB64, name: 'ape-2026.pdf', contentType: 'application/pdf' }, { authorization: 'Bearer faketoken' }), r1);
+  const prop = store.get('properties/p1');
+  check('allega APE: finisce nel DOSSIER dell\'immobile (lo ereditano i contratti futuri)',
+    r1.code === 200 && prop.dossier && prop.dossier.ape && /property-docs%2Fp1/.test(prop.dossier.ape.url));
+  check('allega: la checklist torna gia\' aggiornata, per ENTRAMBE le varianti',
+    r1.body.kinds && r1.body.kinds.completo.find(i => i.key === 'ape').state === 'ok'
+    && Array.isArray(r1.body.kinds.registrazione));
+
+  const r2 = mkRes();
+  await allega(mkReq({ contractId: 'c1', key: 'id_locatore', base64: PDFB64, name: 'ci-mario.jpg', contentType: 'image/jpeg' }, { authorization: 'Bearer faketoken' }), r2);
+  const c1 = store.get('contracts/c1');
+  const last = c1.identityDocs[c1.identityDocs.length - 1];
+  check('allega identita\': entra in contract.identityDocs col RUOLO giusto',
+    r2.code === 200 && last.role === 'landlord' && /contracts%2Fc1%2Fidentity/.test(last.url)
+    && r2.body.kinds.completo.find(i => i.key === 'id_locatore').state === 'ok');
+
+  const r3 = mkRes();
+  await allega(mkReq({ contractId: 'c1', key: 'esigenza', base64: PDFB64, name: 'iscrizione.pdf' }, { authorization: 'Bearer faketoken' }), r3);
+  const c1b = store.get('contracts/c1');
+  check('allega esigenza: marcata kind:extra (il pack e l\'email la riconoscono)',
+    r3.code === 200 && c1b.identityDocs.some(d => d.kind === 'extra'));
+
+  const nBefore = JSON.stringify(store.get('contracts/c1'));
+  const r4 = mkRes();
+  await allega(mkReq({ contractId: 'c1', key: 'contratto', base64: PDFB64 }, { authorization: 'Bearer faketoken' }), r4);
+  check('allega: una voce NON allegabile (il contratto si genera) viene rifiutata, zero scritture',
+    r4.code === 400 && r4.body.error === 'key_non_allegabile' && JSON.stringify(store.get('contracts/c1')) === nBefore);
+}
+
+// ═══ 11. LA SCHEDA SI STAMPA SEMPRE (fedele al modulo dell'associazione) ═══
+// Il difetto del 23/08: senza zona o mq la pagina 1 degradava a "SCHEDA NON
+// CALCOLABILE" — l'operatore restava senza foglio proprio quando gli serviva
+// stamparlo e completarlo a mano. E il canone PATTUITO non si tocca mai: il
+// massimo di fascia e' un riferimento dell'accordo, non un tetto che questo
+// foglio impone al prezzo deciso dalle parti.
+{
+  const src = fs.readFileSync(new URL('../../api/fiscal/fascicolo.js', import.meta.url), 'utf8');
+  check('fascicolo: nessuna via d\'uscita "non calcolabile" — il modulo esce comunque',
+    !src.includes('SCHEDA CANONE NON ANCORA CALCOLABILE') && src.includes('IL MODULO SI STAMPA SEMPRE'));
+  check('fascicolo: il canone PATTUITO si stampa sempre, anche senza calcolo',
+    /Importo canone mensile PATTUITO/.test(src) && /calc\.canone \|\| contract\.rent/.test(src));
+  check('fascicolo: la griglia maggiorazioni A-H del modulo c\'e\' tutta',
+    ['A - Ammobiliato', 'B - Seminterrato', 'C - Senza ascensore', 'D - Attico',
+     'E - Classe energetica A/B/C', 'F - Interventi Eco Bonus', 'G - Interventi Sisma Bonus',
+     'H - Classe energetica D/E/F'].every(l => src.includes(l)));
+  check('fascicolo: numeri all\'italiana DETERMINISTICI (mai toLocaleString: ICU ridotta = 1250,00)',
+    src.includes('function itNum') && !/toLocaleString\('it-IT'/.test(src));
+}
+
+// ═══ 12. LA VALUTAZIONE BOOM — documento a parte, e onesto sul campione ═══
+{
+  const vsrc = fs.readFileSync(new URL('../../api/fiscal/valutazione.js', import.meta.url), 'utf8');
+  check('valutazione: dichiara in testa di NON essere l\'attestazione di rispondenza',
+    vsrc.includes("NON e\\' l\\'attestazione di rispondenza all\\'accordo territoriale"));
+  check('valutazione: stampa il canone DECISO, non un massimo ricalcolato',
+    vsrc.includes('T(`${eur(canone)} / mese`') && !/canone\s*=\s*Math\.min/.test(vsrc)
+    && !/Math\.min\([^)]*canone[^)]*\)/.test(vsrc));
+  check('valutazione: sotto campione NON pubblica una mediana (disciplina del Perito)',
+    vsrc.includes('campione insufficiente') && vsrc.includes("reason: 'small_sample'"));
+  check('valutazione: i canoni FIRMATI pretendono almeno 3 contratti',
+    /vals\.length < 3/.test(vsrc));
+  check('valutazione: la fascia dell\'accordo entra come RIFERIMENTO dichiarato',
+    vsrc.includes('Riportato come riferimento'));
+  const vj = JSON.parse(fs.readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));
+  check('vercel.json: allega + valutazione hanno il tempo per Storage e mercato',
+    vj.functions['api/fiscal/allega.js'].maxDuration === 60 && vj.functions['api/fiscal/valutazione.js'].maxDuration === 60);
+  const portal = fs.readFileSync(new URL('../../js/portal-app.js', import.meta.url), 'utf8');
+  check('portal: 📎 su ogni voce allegabile e 💶 Valutazione BOOM sulla riga contratto',
+    portal.includes('function aspiAllega') && portal.includes("ASPI_ALLEGABILI") && portal.includes('openValutazione'));
+}
+
 // ═══ 9. Le giunzioni sulla SORGENTE ═══
 {
   const aspiSrc = fs.readFileSync(new URL('../../api/fiscal/_aspi.js', import.meta.url), 'utf8');

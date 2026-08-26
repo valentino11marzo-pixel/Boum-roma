@@ -52,6 +52,15 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
                           libere), valutatore (fascia canone sui FIRMATI),
                           inferZone (zona dedotta dal titolo, mai indovinata).
                           window.BOOM_RADAR. Vedi "Il Radar 2.0 — La Centrale".
+  inventario-engine.js    Cosa c'è in casa e in che stato: lessico chiuso
+                          delle stanze, il video che NON emette giudizi
+                          ("buono" solo da un umano), il confronto
+                          consegna⇄riconsegna che non imputa un danno su una
+                          condizione mai dichiarata. window.BOOM_INVENTARIO.
+                          Vedi "L'inventario dal video".
+  ../api/_pdfbrand.js     La testata dei PDF in una copia sola: marchio VERO
+                          incorporato, filo d'oro, piede legale su ogni
+                          pagina, wa() WinAnsi. Usata da inventario e verbale.
   contract-pdf.js         L'impaginato del CONTRATTO (Allegato B transitorio +
                           Allegato C studenti, modelli CAF verbatim) in UNA
                           copia: window.BOOM_CONTRACT_PDF nel portal (jsPDF
@@ -93,6 +102,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `pfs-command.html` | **La plancia unica del PFS** (admin): TUTTO il flusso Property Finding in una pagina. Pipeline per stage (giorni-in-stage, chip lenti in ambra) → fascicolo cliente a drawer (criteri, ricerche, mazzo con esiti/rimozione, attività, link portale con codice BM…, WhatsApp, cambio stage con la STESSA scrittura del portal) → creazione cliente (nasce col portale attivo) → feed radar con fiuto 💎/badge cluster/filtro occasioni + azione «→ Proponi a…» (push curato via `api/casafari/import`, conferma sulle agenzie) → strip occasioni (radarState) → ricerche automatiche + **vedette** (stessa collection della Centrale) → triage swipe, ⌘K, brief AI, salute fonti. |
 | `chiamate.html` | Il Centralino (admin, `/chiamate`). Ogni chiamata deviata in segreteria: audio, trascrizione, azione consigliata, WhatsApp one-tap con bozza. Backed by `api/phone/*`. |
 | `radar.html` | **La Centrale del Radar** (`/radar`, admin). Polso del mercato per zona, feed 💎 occasioni, candidati mandato, vedette (CRUD), Valutatore, gemelli cross-portale, salute fonti. Vedi "Il Radar 2.0". |
+| `inventario.html` | L'inventario dal video (`/inventario`, admin/owner/landlord, noindex): filma il giro, i fotogrammi si estraggono sul telefono, Claude propone l'elenco stanza per stanza, l'operatore corregge → PDF (allegato del verbale) + confronto automatico alla riconsegna. Motore: `js/inventario-engine.js`. |
 | `sw.js` | Service worker (network-first HTML, cache-first static). |
 
 ## Brand & Design
@@ -234,7 +244,27 @@ ELEVENLABS_WEBHOOK_SECRET    # via B (receptionist): signing secret del
 Generates `.pkpass` files. Body: `{ passType, fields }` where passType is `viewing|tenant|referral|landlord`. Returns binary `.pkpass` data.
 
 ### POST `/api/parse-docs`
-Proxies to Anthropic Claude API for document extraction. Accepts up to 20MB payload.
+Proxies to Anthropic Claude API for document extraction (model pinned
+server-side, max_tokens capped, body field-whitelisted, 10MB cap, rate limit
+per IP). **Due vie di autorizzazione**: l'ID token Firebase di un utente con
+ruolo **admin** (la via di `boom_doc_parser.html`, verificata server-side come
+in `api/_auth.js`) oppure il segreto storico `PARSE_DOCS_SECRET` per i
+chiamanti server-to-server. Un utente loggato senza ruolo admin riceve **403**,
+e in nessuno dei due casi si spende un token Anthropic.
+
+**La lezione del 23 agosto 2026**: la pagina si procurava il bearer leggendolo
+da Firestore (`config/parse_docs.bearer`) — un documento **mai creato in
+produzione**, quindi lo strumento si apriva sul cartello *"Parser config
+missing. Contact admin."* e non partiva nulla. Creare quel documento avrebbe
+rimesso in piedi anche il difetto che `docs/portal-security-audit.md` segnalava
+da mesi (rilievo #7): un segreto del SERVER spedito dentro una pagina, dove
+chiunque legga quella collection se lo porta via. Ora nel browser non scende
+nessun segreto: il token dell'admin è già lì, dura un'ora e si rinnova da solo
+(`getIdToken()` a ogni chiamata — una pagina lasciata aperta il pomeriggio
+mandava altrimenti un token scaduto). E un errore HTTP viene detto per quello
+che è: prima un 401/429 arrivava all'operatore come *"JSON non valido nella
+risposta"*, il messaggio sbagliato per il guasto.
+Test: `node tests/parser/run.mjs`.
 
 ### GET `/api/reminder-cron`
 Triggered by Vercel cron every 15 min. Authenticates with Firebase, queries pending reminders, sends emails via Nodemailer.
@@ -1407,6 +1437,53 @@ l'attestazione di rispondenza (**€100**). Ora:
   `✓ RLI registrato` resta il tap che chiude il loop quando ASPI conferma.
 - Test: `node tests/aspi/run.mjs` (35 check).
 
+**Il documento si attacca DOVE MANCA** (`api/fiscal/allega.js`, 23/08):
+il pannello diceva onestamente dove caricare ogni pezzo ("console
+pre-agreement → Fascicolo ARPE", "manda il link /scheda") — ma era un
+rimando, e con dieci fascicoli al mese quel rimbalzo fra console *è* il
+lavoro. Ora ogni voce della checklist è una **porta**: 📎 sulla riga, il
+file va esattamente dove serve (APE/planimetria/visura/delega →
+`properties.dossier` — si caricano UNA volta per immobile e li ereditano
+i contratti futuri; identità/esigenza → `contract.identityDocs`, la
+stessa lista di /scheda e del pre-agreement, con `kind:'extra'`
+sull'attestazione) e la risposta riporta **entrambe le checklist
+aggiornate**: la voce passa da ✗ a ✓ senza cambiare pagina. La chiave È
+quella della checklist; le voci non allegabili (il contratto si genera,
+la scheda si calcola, i CF sono dati) vengono **rifiutate** invece di
+ricevere una destinazione inventata.
+
+**La scheda si stampa SEMPRE** (fascicolo pagina 1, stessa release): fino
+al 23/08 senza zona o mq degradava a "SCHEDA NON CALCOLABILE" — e
+l'operatore restava senza foglio proprio quando gli serviva stamparlo e
+completarlo a mano. Ora esce sempre il **modulo fedele** all'originale
+dell'associazione (`reference/caf/2023_scheda_calcolo_canone_ASPI.docx`):
+superficie convenzionale, i 20 parametri, la griglia **maggiorazioni A–H**
+con le caselle, zona/fascia/subfascia, e i due importi finali. Ciò che il
+sistema non sa diventa una riga vuota da compilare. **Il canone PATTUITO
+si stampa tale e quale**: il massimo di fascia è un riferimento
+dell'accordo, non un tetto che il foglio impone al prezzo deciso dalle
+parti; se lo supera il documento lo dice in nota — la valutazione
+dell'attestazione resta all'organizzazione. Numeri all'italiana
+**deterministici** (`itNum`): `toLocaleString` su runtime con ICU ridotta
+stampava `1250,00` invece di `1.250,00` — su un foglio che va all'AdE il
+punto delle migliaia non è un dettaglio (la lezione già pagata su
+/executive).
+
+### La Valutazione BOOM (`api/fiscal/valutazione.js`)
+Il canone che BOOM propone al proprietario non nasce dalla tabella
+dell'accordo: nasce dal mercato. Questo è quel documento, **a parte** dalla
+scheda e per costruzione un'altra cosa — dichiara in testa che **NON è
+l'attestazione di rispondenza**, stampa il canone **deciso** senza tetto né
+ricalcolo, e porta la fascia dell'accordo solo come *riferimento dichiarato*
+(il proprietario ha diritto di sapere dove passa quella linea). Si fonda su
+dati veri già in casa: `marketStats/<zona>` del Perito (mediana e p25–p75
+del **chiesto**, assorbimento in giorni, ribassi 30gg), i canoni **FIRMATI**
+da BOOM in zona (il dato che nessun portale ha), le dotazioni, e il
+posizionamento €/mq contro la mediana. Vale la disciplina del Perito:
+**sotto campione non esce un numero** — meno di 3 contratti firmati o un
+campione di zona povero producono "campione insufficiente", mai una mediana
+travestita da dato. Bottone **💶 Valutazione BOOM** sulla riga contratto.
+
 **La sanatoria del PDF stantio** (`ensureContractPdf`, stessa release):
 il rail di firma ora RIGENERA da solo un `generatedPDF` con
 `clauseVersion` < 2 quando NESSUNA firma è viva — prima un contratto
@@ -1580,6 +1657,85 @@ checklist commercialista si spunta da sola) e lo invia IN ALLEGATO:
 conduttori+co-conduttori (EN), proprietario (IT), admin. Bottone 🔑 sulla
 riga contratto del portal (✓ quando esiste). Le letture fanno fede per le
 volture. Test: `node tests/verbale/run.mjs`.
+
+### L'inventario dal video (`POST /api/contracts/inventario` + `/inventario`)
+Il verbale rinviava agli arredi con UNA riga: *"completa degli arredi e delle
+dotazioni pattuite"* (`verbale.js`). Vera e inservibile: alla riconsegna, un
+anno e mezzo dopo, non dice se la lavastoviglie c'era, se il divano aveva già
+lo strappo, se le sedie erano sei — e la trattenuta sul deposito la vince chi
+ricorda più forte. Il giro in casa l'operatore lo fa comunque: qui quel giro
+diventa un documento.
+- **`/inventario`** (`?c=<contractId>` dalla riga contratto, `?p=<propertyId>`
+  dalla scheda immobile — funziona anche PRIMA che il contratto esista, che è
+  il caso vero del sopralluogo). Mobile-first come `/verbale`: si filma il
+  giro, **i fotogrammi si estraggono SUL TELEFONO** (`framePlan` + canvas: un
+  video da 100MB non esce da un vano scala, e non serve) e sale solo una
+  manciata di JPEG. Nota vocale facoltativa (Whisper via `_stt.js`, la copia
+  condivisa col bot wizard) e note scritte: quello che dici entra nel prompt.
+  Poi l'elenco editabile — quantità, condizione, nota per riga — e il tasto
+  **Genera**. `?p=` senza AI configurata resta usabile: "scrivo a mano".
+- **`js/inventario-engine.js`** (UMD → `window.BOOM_INVENTARIO`, importato
+  anche dai file ESM come boom-geo) è dove stanno le regole, quindi si
+  testano senza browser e senza appartamento:
+  1. **Una condizione non dichiarata resta vuota, MAI "buono".** L'asimmetria:
+     un trattino non ha mai fatto perdere una causa, un aggettivo inventato sì.
+  2. **Il video non emette GIUDIZI.** Dall'AI si accettano solo `danneggiato`
+     e `nuovo` — cose che si vedono in un fotogramma; "buono stato" e "segni
+     d'uso" vengono riportati a *non dichiarata* **e la pagina lo dice**
+     (regola 4: nessun taglio silenzioso). L'operatore invece può dichiararli:
+     li ha guardati lui.
+  3. **La proposta non è un fatto**: `saveable()` pretende `reviewed`, ogni
+     riga toccata passa a `source:'human'`, e `op:'analyze'` **non scrive
+     nulla** (asserito nei test: né immobile, né contratto, né archivio, né
+     Storage, né email).
+  4. Lessico chiuso delle stanze (`salotto`→Soggiorno, `bedroom 2`→Camera 2,
+     ma *telecamera* non è una camera), dedupe per stanza, tetti dichiarati.
+- **Il confronto è il punto** (`diffInventory`): alla **riconsegna** il PDF
+  stampa da sé mancanti / danneggiati / aggiunti. **La regola che protegge
+  entrambe le parti**: una voce la cui condizione alla CONSEGNA non era
+  dichiarata non può diventare un danno all'uscita — finisce fra i *non
+  verificabili*, con scritto perché (verificato per mutazione).
+- **Dentro il verbale**: quando l'inventario c'è, `buildVerbalePdf` **sostituisce**
+  la formula generica con l'elenco vero (`contract.inventario ||
+  property.inventario`), più la riga che spiega cosa significa "non
+  dichiarata". Senza inventario il verbale è esattamente quello di prima.
+- Scritture: `properties.inventario` / `.inventarioUscita` (e le stesse sul
+  contratto quando c'è), PDF su `contracts/<id>/` o `property-docs/<propId>/`,
+  fotogrammi come prova sotto `property-docs/<propId>/inventario/`, documento
+  in archivio categoria `inventario`, copia email all'operatore. Auth
+  object-level come il verbale: un owner solo sui PROPRI immobili.
+- Modello: `claude-opus-5` in vision sui fotogrammi (il documento vale sul
+  deposito: qui non si risparmia); senza `ANTHROPIC_API_KEY` → **501
+  esplicito**, mai un elenco vuoto spacciato per casa vuota.
+- **La testata dei documenti, una copia sola** (`api/_pdfbrand.js`): ogni PDF
+  si disegnava la propria intestazione a mano — rettangolo nero, la parola
+  "BOOM" scritta come TESTO, le due righe Egidi ricopiate in fondo — e il
+  marchio vero non compariva da nessuna parte. Ora `masthead()` stampa il
+  **marchio VERO** (i cerchi sonori oro, rasterizzati da `boom-mark.svg` e
+  incorporati in base64: zero dipendenze, zero rete), il filo d'oro, il
+  titolo del documento e la data; `stampFooters()` mette il piede legale su
+  TUTTE le pagine e le numera solo quando sono più d'una. `wa()` (WinAnsi)
+  vive qui: accenti, apostrofo tipografico, em-dash, ellissi e € **restano**
+  — sono in tabella e sono la punteggiatura vera dei nostri testi; si toglie
+  solo ciò che il font non conosce, che non degrada ma fa FALLIRE il
+  documento. Usata da inventario e verbale (che ne ha guadagnato anche gli
+  accenti: prima il conduttore leggeva "l'unita immobiliare"). Sul font: la
+  Helvetica dei PDF **è** il font del sito — un typeface custom vorrebbe
+  fontkit più un .ttf licenziato dentro ogni funzione, e la differenza la fa
+  la tipografia (pesi, spaziatura, gerarchia), non un secondo font.
+- **L'email porta il documento**: design system condiviso (masthead nero col
+  marchio, carta bianca), il numero che conta in testa (`hero`), immobile /
+  rilievo / fotogrammi in `tiles`, PDF **in allegato** col nome datato. Alla
+  riconsegna il confronto è un QUADRO coi numeri (mancanti · danni nuovi ·
+  comparsi dopo) — mai un elenco spuntato: una spunta verde accanto a "5
+  voci mancanti" dice il contrario di quello che è successo — e le voci non
+  verificabili vengono spiegate, non nascoste.
+- Dove si trova: riga contratto **📋 Inventario**, scheda immobile, Burocrazia
+  → *Inventario dal video*, ⌘K/Prontuario (console + azione contestuale su
+  contratto e immobile). Test: `node tests/inventario/run.mjs` (101 check) + `node tests/inventario/ui.mjs`
+  (22 check in Chromium vero: un video registrato al volo diventa fotogrammi —
+  con la sonda per i filmati che dichiarano durata `Infinity` — l'elenco si
+  corregge e senza la spunta non parte niente).
 
 ### Rendiconto proprietario (`GET/POST /api/owners/rendiconto`, cron 1° del mese 06:10 UTC)
 Il 1° del mese ogni proprietario riceve il rendiconto del mese CHIUSO:
@@ -2854,6 +3010,8 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/wizard/local_brain.py` | Il cervello gratis del bot wizard (`python3`): cosa capisce senza modello e — più importante — cosa deve rifiutarsi di capire. Una domanda ("Levico è affittato?") non può diventare una scrittura; un annuncio nuovo dettato non può diventare la modifica di uno esistente. Estrae le funzioni pure dal bot via AST: gira senza `.env`, senza Telegram, senza rete |
   | `tests/executive/run.mjs` | BOOM Executive: il professionista in trasferta resta un TENANT nella macchina piena, il datore dichiarato (`employer`) non viene scambiato per l'honeypot (`company`), la voce B2B tace col tenant e parla con l'ente — con la guardia PRIMA della spesa, asserita sull'ordine nel sorgente |
   | `tests/verbale/run.mjs` | verbale consegna chiavi: il PDF vero (WinAnsi-ostile compreso) viaggia in allegato a conduttori/co-conduttori/proprietario/admin, owner solo sui contratti dei propri immobili (403 = zero scritture), firme richieste per entrambi i lati, sul contratto restano solo i NOMI mai i dataURI |
+  | `tests/inventario/run.mjs` | inventario dal video (101 check): il video non dichiara mai "buono stato" (solo difetti e oggetti nuovi, e il declassamento viene detto), una condizione non dichiarata alla consegna non diventa MAI un danno alla riconsegna (mutazione), `analyze` non scrive niente, un elenco non riguardato non diventa un documento, e il verbale smette di dire "arredi pattuiti" |
+  | `tests/inventario/ui.mjs` | l'inventario in un browser vero a 390px: il video registrato al volo diventa fotogrammi (immagine vera, non quadrati neri), il filmato NON viene mai caricato, l'operatore corregge una riga e quella diventa 'human', il cancello della conferma tiene |
   | `tests/contractpdf/run.mjs` | il PDF del contratto in UNA copia (jsPDF REALE): l'impaginato condiviso produce Allegato B/C con le ancore firma, la conversione PA lo scrive da sola (e con Storage giù il contratto nasce comunque), send-sign sana i pre-fix PRIMA dell'email (ordine asserito sulla sorgente), la prima apertura di /sign è l'ultima rete, e MAI una rigenerazione sotto una firma viva (mutazione) |
   | `tests/sign/lang.mjs` | /sign bilingue guidata in un browser vero (demo mode): default per ruolo (locatore IT, inquilino EN), toggle che ridisegna lo step corrente in entrambe le direzioni, percorso intero tradotto, Skip OTP che non blocca, link WhatsApp presenti. Si auto-skippa senza playwright |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |

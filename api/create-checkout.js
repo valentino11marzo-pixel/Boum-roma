@@ -51,7 +51,7 @@ export default async function handler(req, res) {
           currency: 'eur',
           product_data: {
             name: 'BOOM Property Finding Service',
-            description: 'Full-service apartment search in Rome: curated shortlist, viewings, negotiation, contract.',
+            description: 'Dedicated apartment hunt in Rome — curated shortlist, viewings, negotiation, contract. Guarantee: at least 3 options matching your criteria within 15 days, or the \u20ac350 is refunded in full (Terms \u00a74.2). On success it is deducted from the agency fee.',
           },
           unit_amount: 35000,
         },
@@ -69,8 +69,9 @@ export default async function handler(req, res) {
         must_haves: clip(must_haves),
         additional_info: clip(additional_info),
       },
+      expires_at: Math.floor(Date.now() / 1000) + 3600,
       success_url: 'https://www.boomrome.com/thank-you.html?session_id={CHECKOUT_SESSION_ID}',
-      cancel_url: 'https://www.boomrome.com/property-finding.html',
+      cancel_url: 'https://www.boomrome.com/property-finding?canceled=1',
     });
 
     return res.status(200).json({ url: session.url });
