@@ -14,6 +14,7 @@ const SUITES = [
   { name: 'fiscal',   file: 'tests/fiscal/test.mjs',      what: 'motore scadenze fiscali' },
   { name: 'canone',   file: 'tests/fiscal/canone.mjs',    what: 'canone concordato: fasce, cap, superficie convenzionale, verdetto' },
   { name: 'taxpack',  file: 'tests/taxpack/test.mjs',     what: 'pacchetto commercialista' },
+  { name: 'fattura',  file: 'tests/fattura/run.mjs',      what: "FatturaPA: la parcella quadra al centesimo (controllo 00423), la ritenuta non tocca mai la CPA, l'art. 15 resta fuori dall'IVA, e una P.IVA col checksum rotto non produce nessun XML" },
   { name: 'journey',  file: 'tests/journey/steps.mjs',    what: 'regole commerciali delle email automatiche' },
   { name: 'review',   file: 'tests/journey/review-url.mjs', what: 'link recensione Google' },
   { name: 'dossier',  file: 'tests/dossier/run.mjs',      what: 'fascicolo ARPE: autorizzazione e upload' },
