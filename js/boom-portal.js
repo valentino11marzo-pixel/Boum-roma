@@ -435,6 +435,34 @@
         });
     };
 
+    // ─── 🐞 in OGNI console, non solo in plancia ──────────────────────────
+    // Il canale dei bug vale quanto la sua raggiungibilità: se c'è solo dove
+    // il difetto NON si è manifestato, l'operatore torna a scrivere «non va».
+    // Bottone flottante discreto, sempre nello stesso posto.
+    BP.bugButton = function (page) {
+        try {
+            if (!document.body) {
+                document.addEventListener('DOMContentLoaded', function () { BP.bugButton(page); });
+                return;
+            }
+            if (document.getElementById('bp-bug-btn')) return;
+            var b = document.createElement('button');
+            b.id = 'bp-bug-btn';
+            b.type = 'button';
+            b.title = 'Segnala un problema';
+            b.setAttribute('aria-label', 'Segnala un problema');
+            b.textContent = '🐞';
+            b.style.cssText = 'position:fixed;right:14px;bottom:calc(14px + env(safe-area-inset-bottom,0px));'
+                + 'z-index:9998;width:40px;height:40px;border-radius:50%;border:1px solid rgba(255,255,255,.14);'
+                + 'background:rgba(18,18,20,.86);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);'
+                + 'color:#D4AF37;font-size:16px;line-height:1;cursor:pointer;opacity:.5;transition:opacity .2s';
+            b.addEventListener('mouseenter', function () { b.style.opacity = '1'; });
+            b.addEventListener('mouseleave', function () { b.style.opacity = '.5'; });
+            b.addEventListener('click', function () { BP.reportBug({ page: page || location.pathname }); });
+            document.body.appendChild(b);
+        } catch (e) { /* un bottone non deve mai rompere una console */ }
+    };
+
     // ─── 🐞 Segnala — il canale dei bug (STUDIO_ARSENALE_II) ──────────────
     // Un tap dell'operatore → doc `bugReports` con pagina, dispositivo e gli
     // ultimi errori client (l'anello di boom-err.js) allegati DA SOLI: la
