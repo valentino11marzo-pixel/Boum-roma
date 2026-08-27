@@ -88,14 +88,7 @@
 }
   </script>
   <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
- {"@type":"Question","name":"When should I book the Remote Move Pack?","acceptedAnswer":{"@type":"Answer","text":"4–8 weeks before you land is ideal — September fills first. Once you send a shortlist, the first live video viewing is usually scheduled within 48 hours."}},
- {"@type":"Question","name":"I haven't found apartments yet — can I still buy it?","acceptedAnswer":{"@type":"Answer","text":"Yes. Send your budget, zones and move-in date and we point you to live listings — from the portals and from BOOM's own verified homes. The viewings and the contract check then apply to whichever homes you pick. If you'd rather we run the entire hunt, Property Finding (€350) is the full service."}},
- {"@type":"Question","name":"What exactly is included?","acceptedAnswer":{"@type":"Answer","text":"Two live video viewings (HD photos + honest written report each), full Deal Assistance on the home you choose — clause-by-clause contract review in English, landlord and ownership verification, negotiation — plus arrival setup: utilities plan, codice fiscale guidance and a priority WhatsApp line until you're in. Bought separately that's €427+; the pack is €299."}},
- {"@type":"Question","name":"What if the first apartment fails the check?","acceptedAnswer":{"@type":"Answer","text":"Then it did its job — you just avoided a bad deal from 2,000 km away. We tell you honestly, and the contract review moves to the next home: the pack covers the one you actually sign for."}},
- {"@type":"Question","name":"Is this for students?","acceptedAnswer":{"@type":"Answer","text":"Perfect for students and for parents abroad — JCU, LUISS, AUR, Sapienza arrivals. We schedule viewings across time zones and copy your parents on the report if you want."}},
- {"@type":"Question","name":"What is the refund policy?","acceptedAnswer":{"@type":"Answer","text":"If we cannot deliver a viewing because the advertiser is unreachable, that viewing is refunded — same rule as Virtual Viewing. And if you rent one of BOOM's own homes, the €299 is credited toward your agency fee."}}
-]}
+{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "When should I book the Remote Move Pack?", "acceptedAnswer": {"@type": "Answer", "text": "Four to eight weeks out. September fills first. Once you send a shortlist, the first live viewing is usually scheduled within 48 hours. Book earlier if you are arriving in September: that is when Rome's good supply disappears fastest, and no service can conjure a flat that is already gone."}}, {"@type": "Question", "name": "I haven't found apartments yet — can I still buy it?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Send budget, zones, dates. We point you to live listings — from the portals and from BOOM's own verified homes — and the viewings and contract work then apply to whichever homes you pick. If you would rather we ran the whole hunt, that is Property Finding, and it is a different product."}}, {"@type": "Question", "name": "What exactly is included?", "acceptedAnswer": {"@type": "Answer", "text": "Two viewings, one contract, and the landing. Two live video viewings with HD photos and an honest report each, then full Deal Assistance on the home you choose — clause-by-clause review in English, landlord and ownership verification, negotiation — plus arrival setup so the place works the day you get there."}}, {"@type": "Question", "name": "What if the first apartment fails the check?", "acceptedAnswer": {"@type": "Answer", "text": "Then it did its job. You just avoided a bad deal from two thousand kilometres away. We tell you honestly, and the contract review moves to the next home: the pack covers the one you actually sign for, not the first one you liked."}}, {"@type": "Question", "name": "Is this for students?", "acceptedAnswer": {"@type": "Answer", "text": "Perfect for students — and for parents abroad. We schedule viewings across time zones and copy your parents on the report if you want them to see what you saw. Most of the anxiety in a remote move is not the flat: it is the person paying the deposit not being able to look at it."}}, {"@type": "Question", "name": "What is the refund policy?", "acceptedAnswer": {"@type": "Answer", "text": "A viewing we cannot deliver is refunded. If an advertiser is unreachable and the visit cannot happen, that part comes back. And if you rent one of BOOM's own homes, the €299 is credited toward your agency fee."}}]}
   </script>
 <link rel="stylesheet" href="/css/boom-2026.css">
 <style>
@@ -116,7 +109,314 @@
 .chip{font-size:11px;color:var(--t3);border:1px solid var(--line);background:rgba(255,255,255,.02);padding:6px 10px;border-radius:100px}
 </style>
 <script defer src="/js/boom-consent.js"></script>
-<style>main{padding-top:206px}.fam{top:112px}</style>
+<style>main{padding-top:206px}.fam{top:112px}
+/* ══ DAS CONSOLE — le obiezioni le apre chi legge ═══════════════════ */
+:root { --e:cubic-bezier(.22,1,.36,1); --d1:.3s; }
+::selection { background:rgba(255,215,0,.28); }
+a:focus-visible, button:focus-visible, summary:focus-visible,
+input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
+  border-radius:4px; }
+.sez-capo { max-width:56ch; }
+.sez-capo .num { font-size:10px; font-weight:700; letter-spacing:.28em;
+  text-transform:uppercase; color:var(--gold); }
+.sez-capo h2 { margin-top:12px; font-weight:200;
+  font-size:clamp(28px,4.4vw,52px); line-height:1.08;
+  letter-spacing:-.022em; }
+.sez-capo h2 span { color:var(--gold); }
+.sez-capo p { margin-top:14px; font-size:14.5px; line-height:1.75;
+  color:var(--t3); }
+.sez-capo p b { color:var(--t2); font-weight:600; }
+
+/* il registro del patto */
+.registro { padding:clamp(46px,6vw,74px) 0; background:#020203;
+  box-shadow:inset 0 1px 0 rgba(255,215,0,.14),
+    inset 0 -1px 0 rgba(255,215,0,.14); position:relative;
+  overflow:hidden; }
+@media (min-width:900px){ .registro { display:flex; align-items:center;
+  min-height:min(78vh,600px); } }
+.registro > .container { width:100%; }
+.reg-eti { font-size:9px; font-weight:700; letter-spacing:.32em;
+  text-transform:uppercase; color:var(--t3); }
+.libro { margin-top:clamp(16px,2.2vw,26px); max-width:1000px; }
+.lp { display:grid; grid-template-columns:minmax(0,1fr) auto;
+  align-items:baseline; gap:10px clamp(18px,3vw,50px);
+  padding:clamp(10px,1.3vw,15px) 0;
+  border-bottom:1px solid rgba(255,255,255,.055); }
+.lp:first-child { padding-top:0; }
+.lp-t { font-weight:200; font-size:clamp(18px,2.35vw,33px);
+  line-height:1.18; letter-spacing:-.02em; }
+.lp-t b { font-weight:300; color:var(--gold); }
+.lp-v { font-style:normal; font-size:clamp(11px,1.3vw,17px);
+  letter-spacing:.08em; text-transform:uppercase; color:var(--t4);
+  font-variant-numeric:tabular-nums; white-space:nowrap; }
+.lp.tot { border-bottom:0; border-top:1px solid rgba(255,215,0,.4);
+  margin-top:6px; padding-top:clamp(14px,1.8vw,22px); }
+.lp.tot .lp-t { color:var(--gold); }
+.lp.tot .lp-t b { color:var(--t1); }
+.lp.tot .lp-v { font-size:clamp(13px,1.5vw,19px); color:var(--gold); }
+/* Sul telefono il registro NON si spartisce in due colonne: un'etichetta
+   lunga ("our interests, aligned") strozzava la frase in cinque righe da
+   tre parole. Si impila — l'etichetta sopra, come la voce di un registro
+   vero — e smette di essere nowrap, che era la causa. */
+@media (max-width:700px){
+  .lp { grid-template-columns:1fr; gap:5px; }
+  .lp-v { order:-1; white-space:normal; font-size:10.5px;
+    letter-spacing:.14em; }
+  .lp.tot .lp-v { font-size:11px; }
+}
+.reg-nota { margin-top:clamp(14px,2vw,22px); font-size:11px;
+  letter-spacing:.12em; text-transform:uppercase; color:var(--t4); }
+@media (prefers-reduced-motion:no-preference){
+  .registro .lp { opacity:0; transform:translateY(12px); }
+  .registro.viva .lp { opacity:1; transform:none;
+    transition:opacity .55s ease, transform .7s var(--e); }
+  .registro.viva .lp:nth-child(1){transition-delay:.05s}
+  .registro.viva .lp:nth-child(2){transition-delay:.26s}
+  .registro.viva .lp:nth-child(3){transition-delay:.47s}
+  .registro.viva .lp:nth-child(4){transition-delay:.68s}
+  .registro.viva .lp:nth-child(5){transition-delay:.92s}
+}
+
+/* la console */
+.console { margin-top:clamp(24px,3.2vw,40px); border-radius:18px;
+  background:linear-gradient(180deg,rgba(255,255,255,.028),
+    rgba(255,255,255,.008));
+  box-shadow:inset 0 0 0 1px var(--line), 0 40px 90px rgba(0,0,0,.45);
+  overflow:hidden; }
+.cs-capo { display:flex; align-items:center; gap:12px 20px;
+  flex-wrap:wrap; padding:clamp(13px,1.7vw,19px) clamp(16px,2.2vw,26px);
+  border-bottom:1px solid var(--line); }
+.cs-stato { font-size:9px; font-weight:700; letter-spacing:.24em;
+  text-transform:uppercase; color:var(--t3); }
+.cs-stato b { color:var(--gold); }
+.cs-seg { display:flex; gap:5px; flex:1; }
+.cs-seg i { flex:1; max-width:38px; height:2px; border-radius:2px;
+  background:rgba(255,255,255,.13); transition:background .45s ease; }
+.cs-seg i.acceso { background:var(--gold);
+  box-shadow:0 0 8px rgba(255,215,0,.5); }
+.cs-invito { font-size:11px; color:var(--t3); }
+@media (min-width:900px){ .cs-invito { display:none; } }
+.cs-tasti { display:none; }
+@media (min-width:900px) and (hover:hover){
+  .cs-tasti { display:inline-flex; align-items:center; gap:6px;
+    font-size:9px; font-weight:700; letter-spacing:.18em;
+    text-transform:uppercase; color:var(--t4); }
+  .cs-tasti kbd { padding:2px 6px; font:inherit; letter-spacing:.1em;
+    color:var(--t3); border-radius:4px;
+    box-shadow:inset 0 0 0 1px var(--line); } }
+.cs-tutto { flex:none; padding:7px 12px; font-size:9px; font-weight:700;
+  letter-spacing:.2em; text-transform:uppercase; color:var(--t3);
+  background:none; border:0; border-radius:100px; cursor:pointer;
+  box-shadow:inset 0 0 0 1px var(--line);
+  transition:color var(--d1) ease, box-shadow var(--d1) ease; }
+.cs-tutto:hover { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
+.riga { border-bottom:1px solid rgba(255,255,255,.045); }
+.riga:last-of-type { border-bottom:0; }
+.riga > summary { list-style:none; cursor:pointer; display:grid;
+  align-items:center; gap:4px 16px; min-height:56px;
+  grid-template-columns:50px minmax(0,1fr) auto auto;
+  padding:clamp(15px,1.9vw,21px) clamp(16px,2.2vw,26px);
+  transition:background var(--d1) ease; }
+.riga > summary::-webkit-details-marker { display:none; }
+.riga > summary:hover { background:rgba(255,215,0,.035); }
+.r-num { font-size:12.5px; letter-spacing:.1em; white-space:nowrap;
+  color:rgba(255,215,0,.5); transition:color var(--d1) ease; }
+.r-tema { grid-column:2; font-size:9px; font-weight:700;
+  letter-spacing:.26em; text-transform:uppercase; color:var(--t4); }
+.r-q { grid-column:2; font-weight:250;
+  font-size:clamp(16px,1.85vw,23px); line-height:1.24;
+  letter-spacing:-.01em; color:var(--t1); overflow-wrap:anywhere;
+  transition:color var(--d1) ease; }
+.r-cifra { grid-column:3; grid-row:1/3; align-self:center; display:grid;
+  justify-items:end; gap:3px; }
+.r-colpo { font-weight:200; font-size:clamp(20px,2.4vw,32px);
+  line-height:1; color:var(--gold); letter-spacing:-.02em;
+  white-space:nowrap; font-variant-numeric:tabular-nums; }
+.r-colpo-eti { font-size:9px; font-weight:700; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--t4); white-space:nowrap; }
+.r-azione { grid-column:4; grid-row:1/3; align-self:center;
+  display:inline-flex; align-items:center; gap:9px; }
+.r-apri { font-size:9px; font-weight:700; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--gold); white-space:nowrap; }
+.r-apri::after { content:'Open'; }
+.riga[open] .r-apri { color:var(--t4); }
+.riga[open] .r-apri::after { content:'Close'; }
+.r-piu { width:22px; height:22px; position:relative; border-radius:50%;
+  box-shadow:inset 0 0 0 1px var(--line);
+  transition:box-shadow var(--d1) ease, transform .4s var(--e); }
+.r-piu::before, .r-piu::after { content:''; position:absolute; left:50%;
+  top:50%; width:9px; height:1.5px; background:var(--t2);
+  transform:translate(-50%,-50%); transition:opacity .3s ease,
+    background .3s ease; }
+.r-piu::after { transform:translate(-50%,-50%) rotate(90deg); }
+.riga[open] > summary { background:rgba(255,215,0,.045); }
+.riga[open] > summary .r-num, .riga[open] > summary .r-q
+  { color:var(--gold); }
+.riga[open] .r-piu { transform:rotate(180deg);
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
+.riga[open] .r-piu::after { opacity:0; }
+.riga[open] .r-piu::before { background:var(--gold); }
+.riga.risposta > summary .r-num::after { content:' ✓'; color:var(--gold); }
+@media (prefers-reduced-motion:no-preference){
+  .console.pulsa .riga:not([open]):first-of-type .r-piu {
+    animation:invito 2.6s ease-in-out infinite; }
+  @keyframes invito { 0%,100%{box-shadow:inset 0 0 0 1px var(--line)}
+    50%{box-shadow:inset 0 0 0 1px rgba(255,215,0,.75),
+      0 0 0 6px rgba(255,215,0,.07)} }
+  .riga[open] .r-corpo { animation:apri .55s var(--e); }
+  @keyframes apri { from{opacity:0;transform:translateY(-10px)} } }
+.r-corpo { padding:clamp(6px,1vw,10px) clamp(16px,2.2vw,26px)
+  clamp(24px,3vw,38px); }
+@media (min-width:900px){ .r-corpo { padding-left:80px;
+  padding-right:clamp(30px,4vw,60px); } }
+.r-lead { font-weight:250; font-size:clamp(19px,2.2vw,28px);
+  line-height:1.3; letter-spacing:-.01em; max-width:26ch; }
+.r-lead b { font-weight:300; color:var(--gold); }
+.r-det { margin-top:14px; font-size:14.5px; line-height:1.78;
+  color:var(--t2); max-width:60ch; }
+.r-det b { color:var(--t1); font-weight:600; }
+.r-det + .r-det { margin-top:11px; }
+.prove { margin-top:16px; display:flex; gap:8px; flex-wrap:wrap; }
+.prove a { display:inline-flex; align-items:center; gap:7px;
+  min-height:38px; padding:9px 15px; font-size:11px; font-weight:600;
+  color:var(--t2); text-decoration:none; border-radius:100px;
+  box-shadow:inset 0 0 0 1px var(--line);
+  transition:color var(--d1) ease, box-shadow var(--d1) ease; }
+.prove a:hover { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
+.prove a i { font-style:normal; color:var(--gold); }
+.r-strumenti { margin-top:18px; }
+.r-link { display:inline-flex; align-items:center; gap:7px;
+  padding:7px 0; font-size:11px; font-weight:600; letter-spacing:.12em;
+  text-transform:uppercase; color:var(--t4); background:none; border:0;
+  cursor:pointer; transition:color var(--d1) ease; }
+.r-link::before { content:'⧉'; }
+.r-link:hover { color:var(--gold); }
+.reperto-eti { margin:clamp(24px,3vw,34px) 0 14px; display:flex;
+  align-items:center; gap:12px; }
+.reperto-eti b { flex:none; padding:5px 11px; font-size:9px;
+  font-weight:700; letter-spacing:.22em; text-transform:uppercase;
+  color:var(--gold); border-radius:3px;
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
+.reperto-eti span { font-size:10px; font-weight:600; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--t4); }
+.reperto-eti::after { content:''; flex:1; height:1px;
+  background:linear-gradient(90deg,var(--line),transparent); }
+.cs-basta { display:none; align-items:center; gap:14px 20px;
+  flex-wrap:wrap; padding:clamp(16px,2.1vw,24px) clamp(16px,2.2vw,26px);
+  background:rgba(255,215,0,.06);
+  border-top:1px solid rgba(255,215,0,.22); }
+.cs-basta.viva { display:flex; animation:apri .6s var(--e); }
+.cs-basta p { flex:1 1 240px; font-weight:250;
+  font-size:clamp(17px,2vw,24px); line-height:1.24; }
+.cs-basta p b { color:var(--gold); font-weight:250; }
+.cs-basta .paybtn { max-width:330px; }
+@media (max-width:620px){
+  .riga > summary { grid-template-columns:40px minmax(0,1fr) auto;
+    padding-left:14px; padding-right:14px; }
+  .r-cifra { grid-column:2; grid-row:3; justify-items:start;
+    margin-top:7px; }
+  .r-colpo { font-size:26px; }
+  .r-azione { grid-column:3; grid-row:1/3; }
+  .r-apri { font-size:9px; }
+  .prove a { min-height:44px; padding:12px 16px; }
+  .r-link { min-height:44px; padding:12px 0; }
+}
+
+/* il verdetto — semaforo delle clausole */
+.verdetto { display:grid; gap:12px;
+  grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); }
+.vd { padding:18px 20px; border-radius:14px; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line); position:relative;
+  overflow:hidden; }
+.vd::before { content:''; position:absolute; left:0; right:0; top:0;
+  height:2px; }
+.vd.male::before { background:#FF7A6B; }
+.vd.manca::before { background:#FFB020; }
+.vd.bene::before { background:var(--gold); }
+.vd-eti { font-size:9px; font-weight:700; letter-spacing:.2em;
+  text-transform:uppercase; }
+.vd.male .vd-eti { color:#FF7A6B; }
+.vd.manca .vd-eti { color:#FFB020; }
+.vd.bene .vd-eti { color:var(--gold); }
+.vd h4 { margin-top:10px; font-weight:250; font-size:18px;
+  line-height:1.25; }
+.vd ul { margin-top:11px; list-style:none; display:grid; gap:7px; }
+.vd li { position:relative; padding-left:15px; font-size:12.5px;
+  line-height:1.6; color:var(--t3); }
+.vd li::before { content:''; position:absolute; left:0; top:.62em;
+  width:7px; height:1px; background:currentColor; opacity:.5; }
+
+/* la sala delle regole romane */
+.sala { display:grid; gap:12px;
+  grid-template-columns:repeat(auto-fit,minmax(300px,1fr)); }
+.regolaR { position:relative; padding:19px 21px; border-radius:14px;
+  background:var(--card); box-shadow:inset 0 0 0 1px var(--line);
+  overflow:hidden; }
+.regolaR::before { content:''; position:absolute; left:0; right:0; top:0;
+  height:1px; background:linear-gradient(90deg,var(--gold),
+    rgba(255,215,0,.05)); }
+.rr-capo { display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+.rr-num { font-size:12.5px; letter-spacing:.12em;
+  color:rgba(255,215,0,.55); }
+.rr-fonte { padding:3px 8px; font-size:9px; font-weight:700;
+  letter-spacing:.2em; text-transform:uppercase; color:var(--t4);
+  border-radius:3px; box-shadow:inset 0 0 0 1px var(--line); }
+.rr-fonte.legge { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
+.regolaR h4 { margin-top:11px; font-weight:250; font-size:19px;
+  line-height:1.22; }
+.rr-trappola { margin-top:9px; font-size:12.5px; line-height:1.6;
+  color:var(--t3); }
+.rr-noi { margin-top:12px; padding-top:11px; font-size:12.5px;
+  line-height:1.6; color:var(--t2);
+  border-top:1px solid rgba(255,255,255,.06); }
+.rr-noi::before { content:'BOOM'; display:block; margin-bottom:4px;
+  font-size:9px; font-weight:700; letter-spacing:.24em;
+  color:var(--gold); }
+.rr-noi b { color:var(--t1); font-weight:600; }
+
+/* la verifica */
+.verifica { display:grid; gap:12px;
+  grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); }
+.vf { padding:18px 20px; border-radius:14px; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line); }
+.vf b { display:block; font-size:9px; font-weight:700;
+  letter-spacing:.22em; text-transform:uppercase; color:var(--gold); }
+.vf p { margin-top:9px; font-size:13px; line-height:1.65;
+  color:var(--t2); }
+.vf a { color:var(--t2); }
+
+/* la chiusura */
+.chiusa { text-align:center; padding:clamp(50px,7vw,88px) 0; }
+.chiusa h2 { font-weight:200; font-size:clamp(28px,4.6vw,56px);
+  line-height:1.08; letter-spacing:-.022em; }
+.chiusa h2 span { color:var(--gold); }
+.chiusa .paybtn { margin:clamp(20px,2.6vw,30px) auto 0; max-width:360px; }
+.chiusa-nota { margin-top:16px; font-size:11.5px; color:var(--t4); }
+
+/* la barra della cassa */
+.hud { position:fixed; left:0; right:0; bottom:0; z-index:110;
+  display:flex; align-items:center; gap:clamp(10px,2vw,22px);
+  padding:9px clamp(14px,3vw,28px)
+    calc(9px + env(safe-area-inset-bottom,0px));
+  background:rgba(6,6,7,.86); backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px);
+  border-top:1px solid rgba(255,215,0,.14); transform:translateY(110%);
+  transition:transform .5s var(--e); }
+.hud.su { transform:none; }
+.hud-stato { flex:1; font-size:9px; font-weight:700; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--t4); white-space:nowrap;
+  overflow:hidden; text-overflow:ellipsis; }
+.hud-stato b { color:var(--gold); }
+.hud-vai { flex:none; display:inline-flex; align-items:baseline; gap:7px;
+  padding:9px 16px; font-size:11px; font-weight:800; letter-spacing:.08em;
+  color:#141005; background:var(--gold); border-radius:100px;
+  border:0; cursor:pointer; white-space:nowrap; }
+.hud-vai small { font-size:9px; font-weight:700; opacity:.7; }
+@media (prefers-reduced-motion:reduce){ .hud{transition:none} }
+</style>
 </head>
 <body>
 <nav class="nav" id="nav">
@@ -168,67 +468,206 @@
     </div>
   </header>
 
-  <section class="rv">
-    <div class="sec-h"><span class="num">HOW IT WORKS</span><h2>Three steps. <span class="g">All before your flight.</span></h2></div>
-    <div class="steps">
-      <div class="step"><span class="dot"></span><div class="k">1 · Send your shortlist</div><div class="v">1–2 listings — or ask us to point you</div><div class="s">Any Rome listing from any portal, or BOOM's own verified homes. Budget + zones is enough to start.</div></div>
-      <div class="step"><span class="dot"></span><div class="k">2 · We view &amp; verify</div><div class="v">Live video, then the contract</div><div class="s">You join the viewings from anywhere. The home you pick gets the full check: clauses in English, landlord verified, terms negotiated.</div></div>
-      <div class="step"><span class="dot"></span><div class="k">3 · You land ready</div><div class="v">Keys plan + utilities + priority line</div><div class="s">Sign before you fly. We prep the arrival — utilities plan, codice fiscale guidance — and stay on WhatsApp until you're in.</div></div>
-    </div></section>
-
-  <section class="rv">
-    <div class="truth">
-      <h3>September is a queue. <em>The good homes go to the prepared.</em></h3>
-      <p>Every autumn thousands of students and new hires arrive in the same four weeks. The listings that survive scrutiny are gone in days — and the scams multiply exactly then. Booking from abroad isn't the risk; booking blind is. With eyes inside the apartment and a contract read before you send a euro, distance stops being a handicap.</p>
-      <div class="flags">
-        <span class="flag"><b>⚑</b> deposit requested before any viewing</span>
-        <span class="flag"><b>⚑</b> landlord "abroad", keys "by courier"</span>
-        <span class="flag"><b>⚑</b> contract only in Italian — "standard, just sign"</span>
-        <span class="flag"><b>⚑</b> photos older than the furniture</span>
+  <!-- ══ IL REGISTRO — il patto in un respiro ═════════════════════════ -->
+  <section class="registro" id="registro">
+    <div class="container">
+      <p class="reg-eti">The deal, in one breath</p>
+      <div class="libro">
+        <div class="lp"><span class="lp-t">You pay <b>€299</b>, once.</span><i class="lp-v">− €299</i></div><div class="lp"><span class="lp-t"><b>Two live video viewings</b> — you direct them.</span><i class="lp-v">included</i></div><div class="lp"><span class="lp-t">Full contract review, verification and <b>negotiation</b>.</span><i class="lp-v">included</i></div><div class="lp"><span class="lp-t">Arrival setup, so the flat works the day you land.</span><i class="lp-v">included</i></div><div class="lp tot"><span class="lp-t">You land with <b>keys</b>, not with appointments.</span><i class="lp-v">the risk you remove</i></div>
       </div>
-    </div></section>
+      <p class="reg-nota">Book 4–8 weeks before you land · credited toward your agency fee if you rent a BOOM home</p>
+    </div>
+  </section>
 
-  <section class="rv">
-    <div class="sec-h"><span class="num">WHAT YOU GET</span><h2>Eyes, judgement, muscle — <span class="g">on the ground.</span></h2></div>
-    <div class="get">
-      <div class="g-it"><span class="ic">🎥</span><b>Two live viewings</b><p>Join from any time zone. HD photos + an honest written report each — red flags included.</p></div>
-      <div class="g-it"><span class="ic">🛡️</span><b>Contract, decoded</b><p>Clause-by-clause review in English before you pay anything. Verdict within 24h.</p></div>
-      <div class="g-it"><span class="ic">🕵️</span><b>Landlord verified</b><p>Ownership and identity checks — the step that kills the classic arrival scam.</p></div>
-      <div class="g-it"><span class="ic">🤝</span><b>We negotiate</b><p>Rent, clauses, deposit terms. Average savings beat the price of the pack.</p></div>
-      <div class="g-it"><span class="ic">🔌</span><b>Arrival set up</b><p>Utilities plan, codice fiscale guidance, SIM &amp; bank tips — before you land.</p></div>
-      <div class="g-it"><span class="ic">📲</span><b>Priority line</b><p>One WhatsApp thread, one team, until the keys are in your hand.</p></div>
-    </div></section>
-
-  <section class="rv" id="pay">
-    <div class="sec-h"><span class="num">BOOK IT</span><h2>€427 of services. <span class="g">€299 as a pack.</span></h2></div>
-    <div class="paywrap"><div class="pay">
-      <div class="why">
-        <div><span class="c">✓</span> Two live video viewings — first one within 48h of your shortlist</div>
-        <div><span class="c">✓</span> Full Deal Assistance on the home you choose (worth €249)</div>
-        <div><span class="c">✓</span> Arrival setup + priority WhatsApp line until move-in</div>
-        <div><span class="c">✓</span> Credited toward your agency fee if you rent a BOOM home</div>
+  <!-- ══ LA CONSOLE — le obiezioni le apre chi legge ═══════════════════ -->
+  <section class="rv" id="console">
+    <div class="container">
+      <div class="sez-capo">
+        <span class="num">The interrogation</span>
+        <h2>You are not in Italy yet.<br><span>Ask us anything.</span></h2>
+        <p>Six questions from people closing a home from 2,000 km away. <b>Open the ones you care about.</b></p>
       </div>
-      <div>
-        <button class="paybtn" onclick="openSheet('pay')"><span class="lk">🔒</span><span class="tx"><b>Book the pack</b><small>Stripe-secured · first viewing in 48h</small></span><span class="amt">€299</span></button>
-        <p class="paysafe">Secured by <b>Stripe</b> · a viewing we cannot deliver is refunded — same rule as Virtual Viewing.</p>
+      <div class="console pulsa" id="cons">
+        <div class="cs-capo">
+          <span class="cs-stato" id="csStato"><b>0</b>/6 answered</span>
+          <span class="cs-seg" id="csSeg" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></span>
+          <span class="cs-invito">Tap any question to open the answer</span>
+          <span class="cs-tasti" aria-hidden="true"><kbd>1</kbd>–<kbd>6</kbd>
+            open · <kbd>esc</kbd> close</span>
+          <button type="button" class="cs-tutto" id="csTutto"
+            aria-expanded="false">Open all</button>
+        </div>
+        <details class="riga" id="m1" open>
+      <summary>
+        <span class="r-num">01</span>
+        <span class="r-tema">The product</span>
+        <span class="r-q">What exactly is included?</span>
+        <span class="r-cifra"><span class="r-colpo">3</span>
+          <span class="r-colpo-eti">viewings · contract · arrival</span></span>
+        <span class="r-azione"><span class="r-apri"></span>
+          <span class="r-piu" aria-hidden="true"></span></span>
+      </summary>
+      <div class="r-corpo">
+      <p class="r-lead">Two viewings, one contract,<br>and <b>the landing</b>.</p>
+      <p class="r-det">Two live video viewings with HD photos and an honest report each,
+        then full Deal Assistance on the home you choose — clause-by-clause
+        review in English, landlord and ownership verification, negotiation —
+        plus arrival setup so the place works the day you get there.</p>
+      <div class="r-strumenti"><button type="button" class="r-link"
+        data-q="m1">Copy the link to this answer</button></div>
+      <div class="reperto-eti"><b>Exhibit</b><span>What's in the pack</span></div>
+      <div class="verdetto">
+      <div class="vd bene"><span class="vd-eti">Included</span>
+        <h4>Two live video viewings</h4>
+        <ul><li>You direct each call, we walk the flat</li>
+          <li>HD photos and an honest report for each</li>
+          <li>Scheduled across your time zone</li></ul></div>
+      <div class="vd bene"><span class="vd-eti">Included</span>
+        <h4>Full Deal Assistance on the one you choose</h4>
+        <ul><li>Clause-by-clause review in English</li>
+          <li>Landlord and ownership verification</li>
+          <li>Negotiation done for you</li></ul></div>
+      <div class="vd bene"><span class="vd-eti">Included</span>
+        <h4>Arrival setup</h4>
+        <ul><li>Utilities in your name</li>
+          <li>The paperwork chain that follows the contract</li>
+          <li>A human answering until the keys are yours</li></ul></div>
+    </div>
       </div>
-    </div></div>
-    <div class="trio">
-      <div class="tri"><b>⏱ 48h to first viewing</b><p>Send the shortlist tonight, see inside this week.</p></div>
-      <div class="tri"><b>🛡️ Zero blind decisions</b><p>Nothing signed, nothing paid, before the check.</p></div>
-      <div class="tri"><b>💶 Save more than it costs</b><p>Negotiation alone averages €600+ back.</p></div>
-    </div></section>
+    </details>
+        <details class="riga" id="m2">
+      <summary>
+        <span class="r-num">02</span>
+        <span class="r-tema">The timing</span>
+        <span class="r-q">When should I book the Remote Move Pack?</span>
+        <span class="r-cifra"><span class="r-colpo">4–8</span>
+          <span class="r-colpo-eti">weeks before you land</span></span>
+        <span class="r-azione"><span class="r-apri"></span>
+          <span class="r-piu" aria-hidden="true"></span></span>
+      </summary>
+      <div class="r-corpo">
+      <p class="r-lead">Four to eight weeks out.<br><b>September fills first.</b></p>
+      <p class="r-det">Once you send a shortlist, the first live viewing is usually
+        scheduled within 48 hours. Book earlier if you are arriving in
+        September: that is when Rome's good supply disappears fastest, and no
+        service can conjure a flat that is already gone.</p>
+      <div class="r-strumenti"><button type="button" class="r-link"
+        data-q="m2">Copy the link to this answer</button></div>
+      </div>
+    </details>
+        <details class="riga" id="m3">
+      <summary>
+        <span class="r-num">03</span>
+        <span class="r-tema">The start</span>
+        <span class="r-q">I haven't found apartments yet — can I still buy it?</span>
+        <span class="r-cifra"><span class="r-colpo">yes</span>
+          <span class="r-colpo-eti">we point you to live listings</span></span>
+        <span class="r-azione"><span class="r-apri"></span>
+          <span class="r-piu" aria-hidden="true"></span></span>
+      </summary>
+      <div class="r-corpo">
+      <p class="r-lead">Yes. <b>Send budget, zones, dates.</b></p>
+      <p class="r-det">We point you to live listings — from the portals and from BOOM's own
+        verified homes — and the viewings and contract work then apply to
+        whichever homes you pick. If you would rather we ran the whole hunt,
+        that is Property Finding, and it is a different product.</p>
+      <div class="prove"><a href="/property-finding">Property Finding — we hunt for you <i>→</i></a></div>
+      <div class="r-strumenti"><button type="button" class="r-link"
+        data-q="m3">Copy the link to this answer</button></div>
+      </div>
+    </details>
+        <details class="riga" id="m4">
+      <summary>
+        <span class="r-num">04</span>
+        <span class="r-tema">The failure</span>
+        <span class="r-q">What if the first apartment fails the check?</span>
+        <span class="r-cifra"><span class="r-colpo">2</span>
+          <span class="r-colpo-eti">viewings — use them</span></span>
+        <span class="r-azione"><span class="r-apri"></span>
+          <span class="r-piu" aria-hidden="true"></span></span>
+      </summary>
+      <div class="r-corpo">
+      <p class="r-lead">Then it <b>did its job</b>.</p>
+      <p class="r-det">You just avoided a bad deal from two thousand kilometres away. We
+        tell you honestly, and the contract review moves to the next home:
+        <b>the pack covers the one you actually sign for</b>, not the first
+        one you liked.</p>
+      <div class="r-strumenti"><button type="button" class="r-link"
+        data-q="m4">Copy the link to this answer</button></div>
+      </div>
+    </details>
+        <details class="riga" id="m5">
+      <summary>
+        <span class="r-num">05</span>
+        <span class="r-tema">The audience</span>
+        <span class="r-q">Is this for students?</span>
+        <span class="r-cifra"><span class="r-colpo">4</span>
+          <span class="r-colpo-eti">JCU · LUISS · AUR · Sapienza</span></span>
+        <span class="r-azione"><span class="r-apri"></span>
+          <span class="r-piu" aria-hidden="true"></span></span>
+      </summary>
+      <div class="r-corpo">
+      <p class="r-lead">Perfect for students —<br>and for <b>parents abroad</b>.</p>
+      <p class="r-det">We schedule viewings across time zones and copy your parents on the
+        report if you want them to see what you saw. Most of the anxiety in a
+        remote move is not the flat: it is the person paying the deposit not
+        being able to look at it.</p>
+      <div class="r-strumenti"><button type="button" class="r-link"
+        data-q="m5">Copy the link to this answer</button></div>
+      </div>
+    </details>
+        <details class="riga" id="m6">
+      <summary>
+        <span class="r-num">06</span>
+        <span class="r-tema">The refund</span>
+        <span class="r-q">What is the refund policy?</span>
+        <span class="r-cifra"><span class="r-colpo">100%</span>
+          <span class="r-colpo-eti">on a viewing we cannot deliver</span></span>
+        <span class="r-azione"><span class="r-apri"></span>
+          <span class="r-piu" aria-hidden="true"></span></span>
+      </summary>
+      <div class="r-corpo">
+      <p class="r-lead">A viewing we cannot deliver<br>is <b>refunded</b>.</p>
+      <p class="r-det">If an advertiser is unreachable and the visit cannot happen, that
+        part comes back. And if you rent one of BOOM's own homes, the €299 is
+        <b>credited toward your agency fee</b>.</p>
+      <div class="prove"><a href="/terms.html" target="_blank" rel="noopener">Our terms, in writing <i>→</i></a></div>
+      <div class="r-strumenti"><button type="button" class="r-link"
+        data-q="m6">Copy the link to this answer</button></div>
+      <div class="reperto-eti"><b>Exhibit</b><span>Check us, don't trust us</span></div>
+      <div class="verifica">
+      <div class="vf"><b>The company</b><p>Egidi Immobiliare S.r.l. — P.IVA
+        17322991005, REA RM-1710623, Via dei Coronari 181, Roma.
+        <a href="/terms.html">Terms →</a></p></div>
+      <div class="vf"><b>The trademark</b><p>Registered EU trademark
+        019317594 — look it up yourself on
+        <a href="https://euipo.europa.eu/eSearch/#details/trademarks/019317594"
+        target="_blank" rel="noopener">EUIPO ↗</a>.</p></div>
+      <div class="vf"><b>The reviews</b><p>4.9★ with 47 reviews from real
+        tenants — <a href="https://share.google/xikmVxQCRuKOdWcND"
+        target="_blank" rel="noopener">read them one by one ↗</a>.</p></div>
+      <div class="vf"><b>The money</b><p>Card via Stripe, receipted, with
+        chargeback protection. <b>Never</b> a bank transfer to an
+        individual.</p></div>
+    </div>
+      </div>
+    </details>
+        <div class="cs-basta" id="csBasta">
+          <p>Enough? <b>Send your dates.</b></p>
+          <button class="paybtn" onclick="openSheet('console')"><span class="lk">🛡</span><span class="tx"><b>Get the pack</b><small>pay now · first viewing usually within 48h</small></span><span class="amt">€299</span></button>
+        </div>
+      </div>
+    </div>
+  </section>
 
-  <section class="rv">
-    <div class="sec-h"><span class="num">FAQ</span><h2>Good to <span class="g">know.</span></h2></div>
-    <div class="faq">
-      <details><summary>When should I book?</summary><div class="a">4–8 weeks before you land is ideal — September fills first. Once you send a shortlist, the first live video viewing is usually scheduled within 48 hours.</div></details>
-      <details><summary>I haven't found apartments yet — can I still buy it?</summary><div class="a">Yes. Send your budget, zones and move-in date and we point you to live listings — from the portals and from BOOM's own verified homes. The viewings and the contract check then apply to whichever homes you pick. If you'd rather we run the entire hunt, Property Finding (€350) is the full service.</div></details>
-      <details><summary>What exactly is included?</summary><div class="a">Two live video viewings (HD photos + honest report each), full Deal Assistance on the home you choose — clause-by-clause contract review in English, landlord &amp; ownership verification, negotiation — plus arrival setup: utilities plan, codice fiscale guidance and a priority WhatsApp line until you're in. Bought separately that's €427+.</div></details>
-      <details><summary>What if the first apartment fails the check?</summary><div class="a">Then it did its job — you just avoided a bad deal from 2,000 km away. We tell you honestly, and the contract review moves to the next home: the pack covers the one you actually sign for.</div></details>
-      <details><summary>Is this for students?</summary><div class="a">Perfect for students and for parents abroad — JCU, LUISS, AUR, Sapienza arrivals. We schedule viewings across time zones and copy your parents on the report if you want.</div></details>
-      <details><summary>Refunds?</summary><div class="a">A viewing we cannot deliver (advertiser unreachable) is refunded. And if you rent one of BOOM's own homes, the €299 is credited toward your agency fee.</div></details>
-    </div></section>
+  <!-- ══ LA CHIUSURA ═══════════════════════════════════════════════════ -->
+  <section class="chiusa" id="chiusura">
+    <div class="container">
+      <h2>Land on a Monday.<br><span>Sleep in your own place that night.</span></h2>
+      <button class="paybtn" onclick="openSheet('close')"><span class="lk">🛡</span><span class="tx"><b>Get the pack</b><small>pay now · two viewings + full contract work</small></span><span class="amt">€299</span></button>
+      <p class="chiusa-nota">Card via Stripe to Egidi Immobiliare S.r.l. — never a bank transfer to an individual.</p>
+    </div>
+  </section>
 
   <section class="rv">
     <div class="sec-h"><span class="num">MORE</span><h2>The rest of the agency, <span class="g">on demand.</span></h2></div>
@@ -256,6 +695,15 @@
         </div>
         <p class="footer-tagline">Built in Rome, for Rome. If we can make Rome's rental market work, we can make it work anywhere.</p>
         <div class="footer-company"><strong>Egidi Immobiliare S.r.l.</strong><br>Via dei Coronari 181/184, 00186 Roma<br>Sede legale: Viale Liegi 42, 00198 Roma<br>P.IVA 17322991005 · REA RM-1710623</div>
+        <p class="footer-prove">
+          <a href="https://euipo.europa.eu/eSearch/#details/trademarks/019317594"
+            target="_blank" rel="noopener">EU trademark 019317594 ↗</a>
+          <a href="https://share.google/xikmVxQCRuKOdWcND" target="_blank"
+            rel="noopener">4.9★ on Google · 47 reviews ↗</a>
+          <a href="/terms.html">Terms & fees — §4 →</a>
+          <span>Card payments via Stripe · never a transfer to an
+            individual</span>
+        </p>
         <div class="footer-tm">BOOM&reg; is a registered European Union trade mark (EUTM 019317594) of Egidi Immobiliare S.r.l.</div>
       </div>
       <div>
@@ -343,6 +791,7 @@ document.querySelectorAll('.rv:not(.in)').forEach(function(el){io.observe(el)});
 /* sticky pay bar: appears once the hero is behind you, hides at the pay section */
 (function(){
   var bar=document.getElementById('paybar'),hero=document.querySelector('.hero'),pay=document.getElementById('pay');
+  if(!bar||!hero||!pay)return;   /* la console ha la sua barra */
   function upd(){
     var past=hero.getBoundingClientRect().bottom<0;
     var atPay=pay.getBoundingClientRect().top<innerHeight&&pay.getBoundingClientRect().bottom>0;
@@ -407,6 +856,161 @@ function paySheet(){
     document.body.style.overflow=m.classList.contains('active')?'hidden':'';});
   m.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){
     t.classList.remove('active');m.classList.remove('active');document.body.style.overflow='';});});
+})();
+</script>
+
+<div class="hud" id="hud" aria-label="Your progress and the checkout">
+  <span class="hud-stato" id="hudStato">6 questions · <b>tap one</b></span>
+  <button class="hud-vai" onclick="openSheet('hud')">Get the pack · €299</button>
+</div>
+<script>
+/* LA CONSOLE — il progresso e' del visitatore. Righe <details> native:
+   senza JS restano perfettamente apribili. */
+(function () {
+  'use strict';
+  var cons = document.getElementById('cons');
+  if (!cons) return;
+  var N = 6, PRE = 'm';
+  var righe = [].slice.call(cons.querySelectorAll('.riga'));
+  var seg = [].slice.call(cons.querySelectorAll('#csSeg i'));
+  var stato = document.getElementById('csStato');
+  var basta = document.getElementById('csBasta');
+  var hudS = document.getElementById('hudStato');
+  var CHIAVE = 'boom_' + PRE + '_lette', viste = {};
+  function lette() {
+    try { return JSON.parse(localStorage.getItem(CHIAVE) || '[]'); }
+    catch (e) { return []; } }
+  function ricorda(id) {
+    try { var v = lette(); if (v.indexOf(id) < 0) { v.push(id);
+      localStorage.setItem(CHIAVE, JSON.stringify(v.slice(-12))); } }
+    catch (e) {} }
+  lette().forEach(function (id) {
+    var r = document.getElementById(id); if (r) r.classList.add('letta'); });
+  function conta() {
+    righe.forEach(function (r, i) {
+      if (r.open) r.classList.add('risposta');
+      seg[i].classList.toggle('acceso', r.classList.contains('risposta'));
+    });
+    var f = righe.filter(function (r) {
+      return r.classList.contains('risposta'); }).length;
+    stato.innerHTML = '<b>' + f + '</b>/' + N + ' answered';
+    if (hudS) hudS.innerHTML = f
+      ? '<b>' + f + '</b>/' + N + ' answered — the evidence is open'
+      : N + ' questions · <b>tap one</b>';
+    if (f >= 2) basta.classList.add('viva');
+  }
+  righe.forEach(function (r) {
+    r.addEventListener('toggle', function () {
+      if (r.open) {
+        r.classList.add('letta'); ricorda(r.id);
+        try { history.replaceState(null, '', '#' + r.id); } catch (e) {}
+        if (!viste[r.id]) { viste[r.id] = 1;
+          try { gtag('event', 'svc_q_open',
+            { q: r.id, page: PRE }); } catch (e) {} }
+      }
+      cons.classList.remove('pulsa');
+      conta();
+    });
+  });
+  if (innerWidth < 900 && !location.hash && righe[0]) righe[0].open = false;
+  conta();
+
+  function apriDaHash(scorri) {
+    var id = (location.hash || '').replace('#', '');
+    if (id.indexOf(PRE) !== 0) return;
+    var r = document.getElementById(id);
+    if (!r) return;
+    r.open = true;
+    if (scorri) setTimeout(function () {
+      r.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 120);
+  }
+  apriDaHash(true);
+  addEventListener('hashchange', function () { apriDaHash(true); });
+
+  var tutto = document.getElementById('csTutto');
+  if (tutto) tutto.addEventListener('click', function () {
+    var apri = righe.some(function (r) { return !r.open; });
+    righe.forEach(function (r) { r.open = apri; });
+    tutto.textContent = apri ? 'Close all' : 'Open all';
+    tutto.setAttribute('aria-expanded', apri ? 'true' : 'false');
+    conta();
+  });
+
+  addEventListener('keydown', function (ev) {
+    var t = ev.target || {}, tag = (t.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea' || tag === 'select'
+      || t.isContentEditable || ev.metaKey || ev.ctrlKey || ev.altKey) return;
+    if (ev.key === 'Escape') {
+      righe.forEach(function (r) { r.open = false; }); conta(); return; }
+    var k = parseInt(ev.key, 10);
+    if (!(k >= 1 && k <= N)) return;
+    var r = righe[k - 1]; if (!r) return;
+    ev.preventDefault(); r.open = !r.open; conta();
+    if (r.open) r.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  });
+
+  [].forEach.call(document.querySelectorAll('.r-link'), function (b) {
+    b.addEventListener('click', function () {
+      var url = location.origin + location.pathname + '#' + b.dataset.q;
+      var fine = function () {
+        var era = b.textContent; b.textContent = 'Link copied';
+        setTimeout(function () { b.textContent = era; }, 2200);
+        try { gtag('event', 'svc_q_share',
+          { q: b.dataset.q, page: PRE }); } catch (e) {}
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(fine, function () {
+          window.prompt('Copy this link', url); });
+      } else {
+        var i = document.createElement('input');
+        i.value = url; document.body.appendChild(i); i.select();
+        try { document.execCommand('copy'); fine(); }
+        catch (e) { window.prompt('Copy this link', url); }
+        document.body.removeChild(i);
+      }
+    });
+  });
+
+  /* le prove interne si scaldano prima del tap */
+  var caldi = {};
+  [].forEach.call(document.querySelectorAll('.r-corpo a[href^="/"]'),
+    function (a) {
+      a.addEventListener('pointerenter', function () {
+        var h = a.getAttribute('href');
+        if (!h || caldi[h]) return; caldi[h] = 1;
+        var l = document.createElement('link');
+        l.rel = 'prefetch'; l.href = h; document.head.appendChild(l);
+      }, { once: true });
+    });
+})();
+</script>
+<script>
+/* IL REGISTRO + LA BARRA */
+(function () {
+  'use strict';
+  var reg = document.querySelector('.registro');
+  if (reg && !matchMedia('(prefers-reduced-motion: reduce)').matches
+    && 'IntersectionObserver' in window) {
+    new IntersectionObserver(function (v, o) {
+      if (!v.some(function (x) { return x.isIntersecting; })) return;
+      o.disconnect(); reg.classList.add('viva');
+    }, { threshold: .35 }).observe(reg);
+    setTimeout(function () { reg.classList.add('viva'); }, 2500);
+  } else if (reg) { reg.classList.add('viva'); }
+
+  var hud = document.getElementById('hud');
+  var fine = document.getElementById('chiusura');
+  if (!hud || !fine || !('IntersectionObserver' in window)) return;
+  var vicino = false;
+  function mostra() {
+    hud.classList.toggle('su', scrollY > innerHeight * .8 && !vicino); }
+  new IntersectionObserver(function (vs) {
+    vs.forEach(function (v) { vicino = v.intersectionRatio > .45; });
+    mostra();
+  }, { threshold: [0, .25, .45, .7] }).observe(fine);
+  addEventListener('scroll', mostra, { passive: true });
+  var pb = document.getElementById('paybar');
+  if (pb) pb.style.display = 'none';
 })();
 </script>
 </body>

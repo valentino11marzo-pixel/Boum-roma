@@ -86,14 +86,7 @@
 }
   </script>
   <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
- {"@type":"Question","name":"I already found a place — can you still help?","acceptedAnswer":{"@type":"Answer","text":"That's exactly what Deal Assistance is for: we verify the listing, review the contract and negotiate on the apartment you found — any portal, any agency."}},
- {"@type":"Question","name":"Is €249 really worth it?","acceptedAnswer":{"@type":"Answer","text":"The average client saves €600+ through our negotiation — the service typically pays for itself before you sign."}},
- {"@type":"Question","name":"What does the contract review cover?","acceptedAnswer":{"@type":"Answer","text":"We flag unfair clauses and missing protections, check the registration setup (cedolare secca, RLI) and translate everything into clear English before you sign."}},
- {"@type":"Question","name":"How do I know it isn't a scam?","acceptedAnswer":{"@type":"Answer","text":"We verify the landlord or agency identity and the property ownership before you commit a single euro."}},
- {"@type":"Question","name":"How fast is the review?","acceptedAnswer":{"@type":"Answer","text":"First pass within 24 hours of payment. If your landlord wants an answer by Friday, we work to your deadline."}},
- {"@type":"Question","name":"What do you need from me?","acceptedAnswer":{"@type":"Answer","text":"The listing link and the contract draft (or whatever the landlord sent you). Reply to the confirmation email and we take it from there."}}
-]}
+{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "I already found a place — can you still help?", "acceptedAnswer": {"@type": "Answer", "text": "That is exactly what this is for. Deal Assistance works on the apartment you found — any portal, any agency, a private landlord, a friend of a friend. We verify the listing, review the contract and negotiate on your behalf. We don't need it to be one of ours; we need it to be safe for you."}}, {"@type": "Question", "name": "Is €249 really worth it?", "acceptedAnswer": {"@type": "Answer", "text": "Compare it to one bad clause, not to zero. The honest way to judge it is against the exposure, not against nothing. An exit penalty is counted in months of rent. A deposit above the legal ceiling is money you chase later. A lease that is never registered costs you your residency. If you already bought the €49 Contract Check, it is credited in full against this."}}, {"@type": "Question", "name": "What does the contract review cover?", "acceptedAnswer": {"@type": "Answer", "text": "Every article, the owner, and the registration setup. We read all of it, clause by clause, and hand it back in plain English: what each article means and what it costs you. We flag the unfair ones and the missing ones, verify the landlord's identity and the property ownership, and check how the lease is being registered — the part that decides your residency and your tax position."}}, {"@type": "Question", "name": "How do I know it isn't a scam?", "acceptedAnswer": {"@type": "Answer", "text": "Two answers: who they are, and who we are. On their side: we pull the property registry extract — five euros, and it names the actual owner — and we verify the identity of whoever is renting to you, before a single euro moves. On ours: you can check us in thirty seconds. Registered company, registered EU trademark, 47 public reviews, and every payment through Stripe with a receipt — never a transfer to a person."}}, {"@type": "Question", "name": "How fast is the review?", "acceptedAnswer": {"@type": "Answer", "text": "First pass within 24 hours of payment. You pay, you send the draft, we come back with the first read inside a day. If your landlord wants an answer by Friday, we work to your deadline, not ours — the whole point of this service is that it fits inside the window you actually have."}}, {"@type": "Question", "name": "What do you need from me?", "acceptedAnswer": {"@type": "Answer", "text": "The draft, the listing, and your deadline. Reply to the confirmation email with the contract as you received it — PDF, Word, even photos of the pages. Add the listing link if you have one. Then it's our turn: you'll get the read, the flags and the negotiation plan, and a human answering your questions until the keys are in your hand."}}]}
   </script>
 <link rel="stylesheet" href="/css/boom-2026.css">
 <style>
@@ -172,6 +165,16 @@ input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
 .lp.tot .lp-t { color:var(--gold); }
 .lp.tot .lp-t b { color:var(--t1); }
 .lp.tot .lp-v { font-size:clamp(13px,1.5vw,19px); color:var(--gold); }
+/* Sul telefono il registro NON si spartisce in due colonne: un'etichetta
+   lunga ("our interests, aligned") strozzava la frase in cinque righe da
+   tre parole. Si impila — l'etichetta sopra, come la voce di un registro
+   vero — e smette di essere nowrap, che era la causa. */
+@media (max-width:700px){
+  .lp { grid-template-columns:1fr; gap:5px; }
+  .lp-v { order:-1; white-space:normal; font-size:10.5px;
+    letter-spacing:.14em; }
+  .lp.tot .lp-v { font-size:11px; }
+}
 .reg-nota { margin-top:clamp(14px,2vw,22px); font-size:11px;
   letter-spacing:.12em; text-transform:uppercase; color:var(--t4); }
 @media (prefers-reduced-motion:no-preference){
@@ -580,20 +583,9 @@ input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
     <div class="container">
       <p class="reg-eti">The deal, in one breath</p>
       <div class="libro">
-        <div class="lp"><span class="lp-t">You pay <b>€249</b>, once,
-          before you sign.</span><i class="lp-v">− €249</i></div>
-        <div class="lp"><span class="lp-t">Every page, <b>clause by
-          clause</b>, in plain English.</span><i class="lp-v">the read</i></div>
-        <div class="lp"><span class="lp-t">The owner checked against the
-          <b>property registry</b>.</span><i class="lp-v">included</i></div>
-        <div class="lp"><span class="lp-t">What's unfair — <b>renegotiated
-          before you sign</b>.</span><i class="lp-v">included</i></div>
-        <div class="lp tot"><span class="lp-t">One bad clause costs
-          <b>months of rent — or your residency</b>.</span>
-          <i class="lp-v">the risk you remove</i></div>
+        <div class="lp"><span class="lp-t">You pay <b>€249</b>, once, before you sign.</span><i class="lp-v">− €249</i></div><div class="lp"><span class="lp-t">Every page, <b>clause by clause</b>, in plain English.</span><i class="lp-v">the read</i></div><div class="lp"><span class="lp-t">The owner checked against the <b>property registry</b>.</span><i class="lp-v">included</i></div><div class="lp"><span class="lp-t">What's unfair — <b>renegotiated before you sign</b>.</span><i class="lp-v">included</i></div><div class="lp tot"><span class="lp-t">One bad clause costs <b>months of rent — or your residency</b>.</span><i class="lp-v">the risk you remove</i></div>
       </div>
-      <p class="reg-nota">First pass within 24h · Contract Check €49
-        credited · Terms §4.3</p>
+      <p class="reg-nota">First pass within 24h · Contract Check €49 credited · Terms §4.3</p>
     </div>
   </section>
 
@@ -603,8 +595,7 @@ input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
       <div class="sez-capo">
         <span class="num">The interrogation</span>
         <h2>Before you hand us a contract,<br><span>ask us anything.</span></h2>
-        <p>The eight questions clients actually ask. <b>Open the ones you
-          care about</b> — every answer carries its evidence.</p>
+        <p>The eight questions clients actually ask. <b>Open the ones you care about</b> — every answer carries its evidence.</p>
       </div>
       <div class="console pulsa" id="cons">
         <div class="cs-capo">
@@ -629,11 +620,11 @@ input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
       <div class="r-corpo">
       <p class="r-lead">Every article, the owner,<br>and the <b>registration setup</b>.</p>
       <p class="r-det">We read all of it, clause by clause, and hand it back <b>in plain
-      English</b>: what each article means and what it costs you. We flag
-      the unfair ones and the missing ones, verify the landlord's identity
-      and the property ownership, and check how the lease is being
-      registered — the part that decides your residency and your tax
-      position.</p>
+        English</b>: what each article means and what it costs you. We flag
+        the unfair ones and the missing ones, verify the landlord's identity
+        and the property ownership, and check how the lease is being
+        registered — the part that decides your residency and your tax
+        position.</p>
       <div class="r-strumenti"><button type="button" class="r-link"
         data-q="d1">Copy the link to this answer</button></div>
       <div class="reperto-eti"><b>Exhibit</b><span>The verdict — what we flag</span></div>
@@ -671,10 +662,10 @@ input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
       </summary>
       <div class="r-corpo">
       <p class="r-lead">First pass within <b>24 hours</b><br>of payment.</p>
-      <p class="r-det">You pay, you send the draft, we come back with the first read inside a
-      day. If your landlord wants an answer by Friday, <b>we work to your
-      deadline</b>, not ours — the whole point of this service is that it
-      fits inside the window you actually have.</p>
+      <p class="r-det">You pay, you send the draft, we come back with the first read inside
+        a day. If your landlord wants an answer by Friday, <b>we work to your
+        deadline</b>, not ours — the whole point of this service is that it
+        fits inside the window you actually have.</p>
       <div class="r-strumenti"><button type="button" class="r-link"
         data-q="d2">Copy the link to this answer</button></div>
       </div>
@@ -692,9 +683,9 @@ input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
       <div class="r-corpo">
       <p class="r-lead">That is <b>exactly</b><br>what this is for.</p>
       <p class="r-det">Deal Assistance works on the apartment <b>you</b> found — any portal,
-      any agency, a private landlord, a friend of a friend. We verify the
-      listing, review the contract and negotiate on your behalf. We don't
-      need it to be one of ours; we need it to be safe for you.</p>
+        any agency, a private landlord, a friend of a friend. We verify the
+        listing, review the contract and negotiate on your behalf. We don't
+        need it to be one of ours; we need it to be safe for you.</p>
       <div class="r-strumenti"><button type="button" class="r-link"
         data-q="d3">Copy the link to this answer</button></div>
       </div>
@@ -712,10 +703,10 @@ input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
       <div class="r-corpo">
       <p class="r-lead">Compare it to <b>one bad clause</b>,<br>not to zero.</p>
       <p class="r-det">The honest way to judge it is against the exposure, not against
-      nothing. An exit penalty is counted in months of rent. A deposit above
-      the legal ceiling is money you chase later. A lease that is never
-      registered costs you your residency. If you already bought the €49
-      Contract Check, <b>it is credited in full</b> against this.</p>
+        nothing. An exit penalty is counted in months of rent. A deposit
+        above the legal ceiling is money you chase later. A lease that is
+        never registered costs you your residency. If you already bought the
+        €49 Contract Check, <b>it is credited in full</b> against this.</p>
       <div class="prove"><a href="/contract-check-express.html">The €49 check — the fast verdict <i>→</i></a></div>
       <div class="r-strumenti"><button type="button" class="r-link"
         data-q="d4">Copy the link to this answer</button></div>
@@ -749,11 +740,11 @@ input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
       <div class="r-corpo">
       <p class="r-lead">Reading Italian isn't the job.<br><b>Knowing Rome</b> is.</p>
       <p class="r-det">A translator gives you the words; an accountant gives you the tax
-      line. Neither tells you that the rent can't be attested in that zone,
-      that the deposit is over the ceiling, that the transitional form needs
-      a documented reason, or that the handover has to be written down.
-      These are the six rules that decide whether your year here is calm or
-      expensive — and we check them on your draft, one by one.</p>
+        line. Neither tells you that the rent can't be attested in that zone,
+        that the deposit is over the ceiling, that the transitional form
+        needs a documented reason, or that the handover has to be written
+        down. These are the six rules that decide whether your year here is
+        calm or expensive — and we check them on your draft, one by one.</p>
       <div class="r-strumenti"><button type="button" class="r-link"
         data-q="d5">Copy the link to this answer</button></div>
       <div class="reperto-eti"><b>Exhibit</b><span>What a Rome local checks</span></div>
@@ -816,12 +807,12 @@ input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
       </summary>
       <div class="r-corpo">
       <p class="r-lead">There is no such thing<br>as a <b>standard</b> contract.</p>
-      <p class="r-det">“Standard” usually means a template someone downloaded and edited. The
-      most expensive problems are not exotic: the wrong contract type for
-      your stay, a registration that never happens, a deposit clause that
-      quietly becomes “last month's rent”, repairs pushed onto you. Every
-      one of those is legal-looking on the page and costly in the year that
-      follows.</p>
+      <p class="r-det">“Standard” usually means a template someone downloaded and edited.
+        The most expensive problems are not exotic: the wrong contract type
+        for your stay, a registration that never happens, a deposit clause
+        that quietly becomes “last month's rent”, repairs pushed onto you.
+        Every one of those is legal-looking on the page and costly in the
+        year that follows.</p>
       <div class="prove"><a href="/blog-scam-bible.html">The patterns we see most <i>→</i></a></div>
       <div class="r-strumenti"><button type="button" class="r-link"
         data-q="d6">Copy the link to this answer</button></div>
@@ -840,11 +831,11 @@ input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
       <div class="r-corpo">
       <p class="r-lead">Two answers: <b>who they are</b>,<br>and <b>who we are</b>.</p>
       <p class="r-det">On their side: we pull the property registry extract — five euros,
-      and it names the actual owner — and we verify the identity of whoever
-      is renting to you, <b>before</b> a single euro moves.</p>
+        and it names the actual owner — and we verify the identity of whoever
+        is renting to you, <b>before</b> a single euro moves.</p>
       <p class="r-det">On ours: you can check us in thirty seconds. Registered company,
-      registered EU trademark, 47 public reviews, and every payment through
-      Stripe with a receipt — never a transfer to a person.</p>
+        registered EU trademark, 47 public reviews, and every payment through
+        Stripe with a receipt — never a transfer to a person.</p>
       <div class="r-strumenti"><button type="button" class="r-link"
         data-q="d7">Copy the link to this answer</button></div>
       <div class="reperto-eti"><b>Exhibit</b><span>Check us, don't trust us</span></div>
@@ -877,11 +868,11 @@ input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
       </summary>
       <div class="r-corpo">
       <p class="r-lead">The draft, the listing,<br>and <b>your deadline</b>.</p>
-      <p class="r-det">Reply to the confirmation email with the contract as you received it —
-      PDF, Word, even photos of the pages. Add the listing link if you have
-      one. Then it's our turn: you'll get the read, the flags and the
-      negotiation plan, and a human answering your questions until the keys
-      are in your hand.</p>
+      <p class="r-det">Reply to the confirmation email with the contract as you received it
+        — PDF, Word, even photos of the pages. Add the listing link if you
+        have one. Then it's our turn: you'll get the read, the flags and the
+        negotiation plan, and a human answering your questions until the keys
+        are in your hand.</p>
       <div class="r-strumenti"><button type="button" class="r-link"
         data-q="d8">Copy the link to this answer</button></div>
       <div class="reperto-eti"><b>Exhibit</b><span>What to send</span></div>
@@ -908,8 +899,7 @@ input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
     <div class="container">
       <h2>Eleven pages of Italian.<br><span>One read, before you sign.</span></h2>
       <button class="paybtn" onclick="openSheet('close')"><span class="lk">🛡</span><span class="tx"><b>Get protected</b><small>pay now · first review within 24h · Stripe</small></span><span class="amt">€249</span></button>
-      <p class="chiusa-nota">Card via Stripe to Egidi Immobiliare S.r.l. —
-        never a bank transfer to an individual.</p>
+      <p class="chiusa-nota">Card via Stripe to Egidi Immobiliare S.r.l. — never a bank transfer to an individual.</p>
     </div>
   </section>
 
@@ -939,6 +929,15 @@ input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
         </div>
         <p class="footer-tagline">Built in Rome, for Rome. If we can make Rome's rental market work, we can make it work anywhere.</p>
         <div class="footer-company"><strong>Egidi Immobiliare S.r.l.</strong><br>Via dei Coronari 181/184, 00186 Roma<br>Sede legale: Viale Liegi 42, 00198 Roma<br>P.IVA 17322991005 · REA RM-1710623</div>
+        <p class="footer-prove">
+          <a href="https://euipo.europa.eu/eSearch/#details/trademarks/019317594"
+            target="_blank" rel="noopener">EU trademark 019317594 ↗</a>
+          <a href="https://share.google/xikmVxQCRuKOdWcND" target="_blank"
+            rel="noopener">4.9★ on Google · 47 reviews ↗</a>
+          <a href="/terms.html">Terms & fees — §4 →</a>
+          <span>Card payments via Stripe · never a transfer to an
+            individual</span>
+        </p>
         <div class="footer-tm">BOOM&reg; is a registered European Union trade mark (EUTM 019317594) of Egidi Immobiliare S.r.l.</div>
       </div>
       <div>
@@ -991,7 +990,7 @@ input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
 <div class="ov" id="ov" role="dialog" aria-modal="true" aria-label="Get Deal Assistance">
   <div class="sheet">
     <div class="sh"><h3>Get protected</h3><button class="x" onclick="closeSheet()" aria-label="Close">×</button></div>
-    <p class="note">€249 · first review within 24 hours · send the contract by replying to the confirmation email. Average client saves €600+.</p>
+    <p class="note">€249 · first review within 24 hours · send the contract by replying to the confirmation email.</p>
     <div class="fld"><label for="sName">Your name</label><input id="sName" autocomplete="name" placeholder="Marco Rossi"></div>
     <div class="fld"><label for="sEmail">Email</label><input id="sEmail" type="email" autocomplete="email" placeholder="anna@email.com"></div>
     <div class="fld"><label for="sPhone">Phone / WhatsApp</label><input id="sPhone" type="tel" autocomplete="tel" placeholder="+49 …"></div>
@@ -1005,7 +1004,7 @@ input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
 
 <!-- sticky mobile pay bar -->
 <div class="paybar" id="paybar">
-  <div class="pinfo"><b>Deal Assistance · €249</b><small>review in 24h · Stripe · avg saving €600+</small></div>
+  <div class="pinfo"><b>Deal Assistance · €249</b><small>review in 24h · Stripe · receipt by email</small></div>
   <button class="go" onclick="openSheet('paybar')">Start →</button>
 </div>
 
@@ -1093,8 +1092,8 @@ function paySheet(){
 </script>
 
 <div class="hud" id="hud" aria-label="Your progress and the checkout">
-  <span class="hud-stato" id="hudStato">Eight questions · <b>tap one</b></span>
-  <button class="hud-vai" id="hudVai" onclick="openSheet('hud')">Protect the deal · €249</button>
+  <span class="hud-stato" id="hudStato">8 questions · <b>tap one</b></span>
+  <button class="hud-vai" onclick="openSheet('hud')">Protect the deal · €249</button>
 </div>
 <script>
 /* LA CONSOLE — il progresso e' del visitatore. Righe <details> native:
@@ -1103,12 +1102,13 @@ function paySheet(){
   'use strict';
   var cons = document.getElementById('cons');
   if (!cons) return;
+  var N = 8, PRE = 'd';
   var righe = [].slice.call(cons.querySelectorAll('.riga'));
   var seg = [].slice.call(cons.querySelectorAll('#csSeg i'));
   var stato = document.getElementById('csStato');
   var basta = document.getElementById('csBasta');
   var hudS = document.getElementById('hudStato');
-  var CHIAVE = 'boom_das_lette', viste = {};
+  var CHIAVE = 'boom_' + PRE + '_lette', viste = {};
   function lette() {
     try { return JSON.parse(localStorage.getItem(CHIAVE) || '[]'); }
     catch (e) { return []; } }
@@ -1116,6 +1116,8 @@ function paySheet(){
     try { var v = lette(); if (v.indexOf(id) < 0) { v.push(id);
       localStorage.setItem(CHIAVE, JSON.stringify(v.slice(-12))); } }
     catch (e) {} }
+  lette().forEach(function (id) {
+    var r = document.getElementById(id); if (r) r.classList.add('letta'); });
   function conta() {
     righe.forEach(function (r, i) {
       if (r.open) r.classList.add('risposta');
@@ -1123,32 +1125,31 @@ function paySheet(){
     });
     var f = righe.filter(function (r) {
       return r.classList.contains('risposta'); }).length;
-    stato.innerHTML = '<b>' + f + '</b>/8 answered';
+    stato.innerHTML = '<b>' + f + '</b>/' + N + ' answered';
     if (hudS) hudS.innerHTML = f
-      ? '<b>' + f + '</b>/8 answered — the evidence is open'
-      : 'Eight questions · <b>tap one</b>';
+      ? '<b>' + f + '</b>/' + N + ' answered — the evidence is open'
+      : N + ' questions · <b>tap one</b>';
     if (f >= 2) basta.classList.add('viva');
   }
   righe.forEach(function (r) {
     r.addEventListener('toggle', function () {
       if (r.open) {
-        ricorda(r.id);
+        r.classList.add('letta'); ricorda(r.id);
         try { history.replaceState(null, '', '#' + r.id); } catch (e) {}
         if (!viste[r.id]) { viste[r.id] = 1;
-          try { gtag('event', 'das_q_open', { q: r.id }); } catch (e) {} }
+          try { gtag('event', 'svc_q_open',
+            { q: r.id, page: PRE }); } catch (e) {} }
       }
       cons.classList.remove('pulsa');
       conta();
     });
   });
-  if (innerWidth < 900 && !location.hash) {
-    var p = righe[0]; if (p) p.open = false;
-  }
+  if (innerWidth < 900 && !location.hash && righe[0]) righe[0].open = false;
   conta();
 
   function apriDaHash(scorri) {
     var id = (location.hash || '').replace('#', '');
-    if (!/^d[1-8]$/.test(id)) return;
+    if (id.indexOf(PRE) !== 0) return;
     var r = document.getElementById(id);
     if (!r) return;
     r.open = true;
@@ -1173,9 +1174,9 @@ function paySheet(){
       || t.isContentEditable || ev.metaKey || ev.ctrlKey || ev.altKey) return;
     if (ev.key === 'Escape') {
       righe.forEach(function (r) { r.open = false; }); conta(); return; }
-    var n = parseInt(ev.key, 10);
-    if (!(n >= 1 && n <= 8)) return;
-    var r = righe[n - 1]; if (!r) return;
+    var k = parseInt(ev.key, 10);
+    if (!(k >= 1 && k <= N)) return;
+    var r = righe[k - 1]; if (!r) return;
     ev.preventDefault(); r.open = !r.open; conta();
     if (r.open) r.scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
@@ -1186,7 +1187,8 @@ function paySheet(){
       var fine = function () {
         var era = b.textContent; b.textContent = 'Link copied';
         setTimeout(function () { b.textContent = era; }, 2200);
-        try { gtag('event', 'das_q_share', { q: b.dataset.q }); } catch (e) {}
+        try { gtag('event', 'svc_q_share',
+          { q: b.dataset.q, page: PRE }); } catch (e) {}
       };
       if (navigator.clipboard && navigator.clipboard.writeText) {
         navigator.clipboard.writeText(url).then(fine, function () {
@@ -1200,6 +1202,18 @@ function paySheet(){
       }
     });
   });
+
+  /* le prove interne si scaldano prima del tap */
+  var caldi = {};
+  [].forEach.call(document.querySelectorAll('.r-corpo a[href^="/"]'),
+    function (a) {
+      a.addEventListener('pointerenter', function () {
+        var h = a.getAttribute('href');
+        if (!h || caldi[h]) return; caldi[h] = 1;
+        var l = document.createElement('link');
+        l.rel = 'prefetch'; l.href = h; document.head.appendChild(l);
+      }, { once: true });
+    });
 })();
 </script>
 <script>
@@ -1217,18 +1231,18 @@ function paySheet(){
   } else if (reg) { reg.classList.add('viva'); }
 
   var hud = document.getElementById('hud');
-  if (!hud || !('IntersectionObserver' in window)) return;
-  var vicini = {};
+  var fine = document.getElementById('chiusura');
+  if (!hud || !fine || !('IntersectionObserver' in window)) return;
+  var vicino = false;
   function mostra() {
-    hud.classList.toggle('su', scrollY > innerHeight * .8
-      && !vicini.chiusura); }
+    hud.classList.toggle('su', scrollY > innerHeight * .8 && !vicino); }
   new IntersectionObserver(function (vs) {
-    vs.forEach(function (v) { vicini[v.target.id] = v.intersectionRatio > .45; });
+    vs.forEach(function (v) { vicino = v.intersectionRatio > .45; });
     mostra();
-  }, { threshold: [0, .25, .45, .7] }).observe(document.getElementById('chiusura'));
+  }, { threshold: [0, .25, .45, .7] }).observe(fine);
   addEventListener('scroll', mostra, { passive: true });
-  var paybar = document.getElementById('paybar');
-  if (paybar) paybar.style.display = 'none';
+  var pb = document.getElementById('paybar');
+  if (pb) pb.style.display = 'none';
 })();
 </script>
 </body>
