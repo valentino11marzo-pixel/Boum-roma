@@ -131,3 +131,52 @@ LCP, lazy/decoding immagini, OG/Twitter ovunque.
 **Nota:** P0 + P1 da soli rendono il sito "auto-convertente" dall'organico —
 P0 porta clic, P1 li converte. Gli Ads diventano un acceleratore opzionale,
 non una necessità.
+
+---
+
+## Esecuzione 2026-08-27 — la passata "masterpiece" (e le guardie che la fissano)
+
+Un giro solo, tutto verificabile con `node tests/seo/run.mjs` (in `npm test`
+come suite `seo`). Cosa è stato TROVATO oltre all'audit sopra, e cosa è
+stato fatto:
+
+1. **Il registro era andato alla deriva** — `scripts/seo-config.js` conosceva
+   ~40 pagine mentre il sito ne serviva 60: rigenerare la sitemap avrebbe
+   CANCELLATO canone, services, executive, reunion, le guide moving-to-rome
+   e welcome-to-rome. Ora ogni pagina indicizzabile è registrata (le teste
+   curate a mano portano `metaManaged:false` e `seo-update.js` NON le tocca:
+   la sentinella `BOOM_SEO` è il consenso, senza si salta — `--adopt` per la
+   prima iniezione). Il test rende meccanico il futuro: pagina nuova senza
+   voce = suite rossa.
+2. **La sitemap è tornata una proiezione** (`scripts/seo-sitemap.js`):
+   lastmod dall'ultimo commit git (mai "oggi" finto), hreflang dichiarate
+   per reunion (fr/en) ed executive (en/it), /booking TOLTA (era in sitemap
+   E bloccata da robots.txt — la contraddizione che Search Console segnala),
+   /welcome-to-rome e /apartments-in/ponte-milvio DENTRO (mancavano), gli
+   annunci /listing/* lasciati alla sitemap dinamica.
+3. **FAQ: lo schema segue lo schermo, su TUTTO il sito.** 20 pagine
+   dichiaravano nel FAQPage domande che la pagina non mostrava (la frase
+   dello schema divergeva dal testo visibile). Nuovo strumento
+   `scripts/seo-faq-sync.mjs`: estrae le FAQ VISIBILI (i 3 pattern del
+   sito) e riscrive il blocco perché le rispecchi parola per parola; mai
+   inventa un blocco su una pagina senza FAQ. faq.html aveva DUE blocchi
+   FAQPage divergenti → uno solo, con le 38 domande vere. Su services,
+   about, partners e owners le domande (buone) sono state PORTATE in pagina.
+4. **Igiene dell'indice**: le copie `*-classic`, `header.html` e
+   `.journey-preview.html` (title duplicati, zero link entranti) sono fuori
+   dal deploy via `.vercelignore`; deals e booking (gusci sottili) sono
+   `noindex` e fuori sitemap; portal/boom_doc_parser/seed-listings hanno il
+   meta noindex di cintura.
+5. **Teste completate**: skyline (canonical+OG+JSON-LD+H1), board e
+   property-finding (erano SENZA doctype/html/head — quirks mode — e senza
+   charset), welcome-to-rome (Article+Breadcrumb, era il "viral asset" senza
+   structured data), how-it-works (HowTo sui 6 passi VISIBILI), book (H1).
+   Titoli >65 e description fuori 50–168 rientrati ovunque.
+6. **llms.txt**: sezione Guide coi 7 articoli del blog e il Welcome to Rome
+   Kit (prima invisibili ai motori di risposta); il test verifica che ogni
+   link boomrome.com risolva a una rotta VERA del repo.
+
+**Restano aperti** (P1/P2 dell'audit sopra): espansione dei 5 blog sottili a
+1.000+ parole, blocco di conversione su pagine-zona e articoli, landing IT
+(`affitto roma stranieri`…), nuove money pages (`/mid-term-rentals-rome`,
+`/rent-in-rome-without-scams`), zone × pubblico.

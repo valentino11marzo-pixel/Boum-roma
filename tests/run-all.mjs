@@ -94,6 +94,7 @@ const SUITES = [
   { name: 'actions',  file: 'tests/actions/run.mjs',      what: 'Il Prontuario: ogni azione dichiarata esiste davvero (22 documenti, sezioni, modali), la ricerca trova per sinonimo e prefisso, e le due facce leggono lo stesso registro' },
   { name: 'desktop',  file: 'tests/desktop/run.mjs',      what: 'D1 BOOM OS: giunzioni su portal-app.js (comandi veri, query 920 condivisa, motore di ricerca sollevato mai copiato)' },
   { name: 'desktopui', file: 'tests/desktop/ui.mjs',      what: 'D1 BOOM OS in un browser vero: ⌘K, chord, peek drawer, il confine dei 920px attraversato nei due sensi' },
+  { name: 'seo',      file: 'tests/seo/run.mjs',          what: 'le guardie SEO: ogni pagina indicizzabile ha la testa completa ED è nel registro, la sitemap è la proiezione del registro (mai un URL bloccato o morto), ogni domanda FAQPage esiste come testo visibile, llms.txt non linka rotte inesistenti' },
 ];
 
 const want = process.argv.slice(2).filter((a) => !a.startsWith('-'));

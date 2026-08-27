@@ -30,6 +30,7 @@ const JSONLD_CLOSE = '<!-- BOOM_JSONLD:END -->';
 
 const args = process.argv.slice(2);
 const DRY = args.includes('--dry');
+const ADOPT = args.includes('--adopt');
 const filterArg = args.find((a) => !a.startsWith('--'));
 
 /* ────────────────────────────────────────────────────────────────────────
@@ -697,7 +698,22 @@ function processFile(file, cfg) {
     return null;
   }
 
+  // La testa curata a mano non si riscrive: la voce di registro serve a
+  // sitemap e test, non a questo updater.
+  if (cfg.metaManaged === false) {
+    return { file, changed: false };
+  }
+
   const original = fs.readFileSync(fp, 'utf8');
+
+  // LA SENTINELLA È IL CONSENSO. Una pagina senza blocco BOOM_SEO ha la
+  // testa costruita (o ricostruita) a mano: iniettarvi il blocco del
+  // registro distruggerebbe meta e JSON-LD curati. Si adotta una pagina
+  // nuova SOLO con --adopt, che è una decisione, non un default.
+  if (!original.includes(SENTINEL_OPEN) && !ADOPT) {
+    console.warn(`[skip] ${file} — nessuna sentinella BOOM_SEO (testa a mano; usa --adopt per la prima iniezione)`);
+    return { file, changed: false };
+  }
 
   const headMatch = original.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
   if (!headMatch) {

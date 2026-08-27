@@ -15,7 +15,7 @@ const NEIGHBORHOODS = [
     name: 'Trastevere',
     eyebrow: 'Rome Neighborhood Guide',
     shortVibe: 'Cobblestone bohemian. Postcard Rome.',
-    metaTitle: 'Apartments for Rent in Trastevere, Rome — Verified Listings | BOOM',
+    metaTitle: 'Apartments for Rent in Trastevere, Rome — Verified | BOOM',
     metaDescription:
       'Live in Trastevere — Rome\'s most photogenic district. Verified apartments from €1,400/mo, 48-hour move-in, legal contracts. Bohemian charm, walk-everywhere central.',
     keywords: ['apartment Trastevere', 'rent Trastevere Rome', 'Trastevere apartment expat', 'flats Trastevere'],
@@ -285,7 +285,7 @@ const NEIGHBORHOODS = [
     name: 'Testaccio',
     eyebrow: 'Rome Neighborhood Guide',
     shortVibe: 'Old-school Roman, foodie holy land, zero tourists.',
-    metaTitle: 'Apartments for Rent in Testaccio, Rome — Authentic + Foodie | BOOM',
+    metaTitle: 'Apartments for Rent in Testaccio, Rome — Authentic | BOOM',
     metaDescription:
       'Testaccio apartments for rent — Rome\'s most genuine working-class quarter. Best food market in the city, original carbonara, no tourists. Verified, from €1,200/mo.',
     keywords: ['apartment Testaccio Rome', 'rent Testaccio', 'Testaccio apartment expat', 'foodie neighborhood Rome'],
@@ -339,7 +339,7 @@ const NEIGHBORHOODS = [
     name: 'Ostiense',
     eyebrow: 'Rome Neighborhood Guide',
     shortVibe: 'Industrial-cool. Street art capital, emerging fast.',
-    metaTitle: 'Apartments for Rent in Ostiense, Rome — Street Art + Affordable | BOOM',
+    metaTitle: 'Apartments for Rent in Ostiense, Rome — Street Art | BOOM',
     metaDescription:
       'Ostiense apartments for rent — Rome\'s post-industrial creative quarter. Legendary street art, warehouse nightlife, Roma Tre university. Verified from €1,000/mo.',
     keywords: ['apartment Ostiense', 'rent Ostiense Rome', 'Ostiense apartment student', 'street art Rome'],
@@ -501,9 +501,9 @@ const NEIGHBORHOODS = [
     name: 'San Lorenzo',
     eyebrow: 'Rome Neighborhood Guide',
     shortVibe: 'University. Cheap. Raucous. Not for the prim.',
-    metaTitle: 'Apartments for Rent in San Lorenzo, Rome — Student + Affordable | BOOM',
+    metaTitle: 'Apartments for Rent in San Lorenzo, Rome — Student Hub | BOOM',
     metaDescription:
-      'San Lorenzo apartments for rent — Rome\'s university district, walking distance from Termini and Sapienza. Cheapest central rents, wild nightlife. Verified, from €800/mo.',
+      'San Lorenzo apartments for rent — Rome\'s university district by Termini and Sapienza. Cheapest central rents, wild nightlife. Verified, from €800/mo.',
     keywords: ['apartment San Lorenzo Rome', 'rent San Lorenzo', 'Sapienza apartment', 'student apartment Rome'],
     geo: { lat: 41.8993, lng: 12.5147 },
     matchTerms: ['san lorenzo', 'sapienza', 'verano', 'tiburtina', 'via dei volsci'],

@@ -2948,6 +2948,37 @@ c'è nulla su cui passare col mouse, e su telefono l'hover non esiste.
 `_dl()`). Sbagliati a caso — Roma è anisotropa, lungo la metro A voli e in
 trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
 
+## SEO — la pipeline e le sue guardie (2026-08-27)
+
+Tre strumenti, una suite che impedisce la deriva (`node tests/seo/run.mjs`):
+- **`scripts/seo-config.js`** è IL REGISTRO: ogni pagina indicizzabile in
+  produzione ha una voce (il test lo pretende — pagina nuova senza voce =
+  suite rossa). Le teste curate a mano portano `metaManaged:false`.
+- **`scripts/seo-update.js`** riscrive le teste SOLO dove trova la
+  sentinella `BOOM_SEO` (la sentinella è il consenso; `--adopt` per la
+  prima iniezione). LA LEZIONE: index/apartments/how-it-works avevano teste
+  ricostruite a mano dopo l'ultima passata — una run cieca le avrebbe
+  distrutte.
+- **`scripts/seo-sitemap.js`** rigenera `sitemap.xml` dal registro: lastmod
+  dall'ultimo commit git, hreflang per reunion (fr/en) ed executive
+  (en/it), mai un URL bloccato da robots.txt (la contraddizione /booking),
+  mai gli annunci (/listing/* vive nella sitemap dinamica
+  `/listings-sitemap.xml`). La sitemap NON si edita a mano: la copia a
+  mano era ferma a maggio e non conosceva welcome-to-rome né ponte-milvio.
+- **`scripts/seo-faq-sync.mjs`** — lo schema FAQPage segue la PAGINA, mai
+  il contrario (la dottrina reunion/executive estesa a tutto il sito):
+  estrae le FAQ visibili (3 pattern: `.faq-item`, `.q-card`,
+  `<details><summary>` con `?`) e riscrive il blocco perché le rispecchi
+  parola per parola; su una pagina senza FAQ visibili NON inventa nulla.
+  20 pagine dichiaravano domande che la pagina non mostrava; faq.html
+  aveva due blocchi divergenti.
+- Invarianti pinnate dalla suite: title ≤65 e unici, description 50–168,
+  canonical su `https://www.boomrome.com` senza `.html`, OG+JSON-LD che
+  parsa su ogni pagina indicizzabile, un solo H1, DOCTYPE+lang (board e
+  property-finding erano SENZA guscio html → quirks mode), ogni domanda
+  FAQPage visibile, llms.txt senza rotte inesistenti, `.vercelignore` che
+  tiene fuori le copie `*-classic`.
+
 ## Conventions
 
 - **Serverless deps live in `api/package.json`** (the manifest the Vercel
@@ -3015,6 +3046,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/contractpdf/run.mjs` | il PDF del contratto in UNA copia (jsPDF REALE): l'impaginato condiviso produce Allegato B/C con le ancore firma, la conversione PA lo scrive da sola (e con Storage giù il contratto nasce comunque), send-sign sana i pre-fix PRIMA dell'email (ordine asserito sulla sorgente), la prima apertura di /sign è l'ultima rete, e MAI una rigenerazione sotto una firma viva (mutazione) |
   | `tests/sign/lang.mjs` | /sign bilingue guidata in un browser vero (demo mode): default per ruolo (locatore IT, inquilino EN), toggle che ridisegna lo step corrente in entrambe le direzioni, percorso intero tradotto, Skip OTP che non blocca, link WhatsApp presenti. Si auto-skippa senza playwright |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
+  | `tests/seo/run.mjs` | le guardie SEO: ogni pagina indicizzabile ha la testa completa ED è nel registro, la sitemap è la proiezione del registro (mai un URL bloccato da robots o senza file), ogni domanda FAQPage esiste come testo visibile, llms.txt non linka rotte inesistenti |
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
   the 3 portals via `BoomPortal.registerServiceWorker()`
 

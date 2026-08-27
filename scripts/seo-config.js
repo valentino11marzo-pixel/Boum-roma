@@ -157,7 +157,10 @@ const PAGES = {
       { name: 'Home', url: '/' },
       { name: 'FAQ', url: '/faq' },
     ],
-    schemas: ['FAQPage'],
+    // Niente 'FAQPage' qui: la pagina porta il SUO blocco, sincronizzato
+    // dalle domande visibili con scripts/seo-faq-sync.mjs — il blocco
+    // generico del registro direbbe cose che la pagina non mostra.
+    schemas: [],
   },
 
   'how-it-works.html': {
@@ -181,7 +184,7 @@ const PAGES = {
   // ════════════════════════════════════════════════════════════════════
   'concierge.html': {
     path: '/concierge',
-    title: 'Rome Concierge Services — Airport, Bureaucracy & Daily Support | BOOM',
+    title: 'Rome Concierge — Bureaucracy & Daily Support | BOOM',
     description:
       'Your personal support system in Rome. Airport pickups, codice fiscale, bureaucracy navigation, household setup — BOOM handles the details so you enjoy la dolce vita.',
     keywords: ['concierge Rome', 'expat concierge Rome', 'Rome relocation services', 'codice fiscale help'],
@@ -197,7 +200,7 @@ const PAGES = {
 
   'deal-assistance.html': {
     path: '/deal-assistance',
-    title: 'Deal Assistance Rome — Contract Review & Negotiation €249 | BOOM',
+    title: 'Deal Assistance Rome — Contract Review & Negotiation | BOOM',
     description:
       'Found an apartment in Rome? We close the deal safely. Contract review, negotiation, legal registration, end-to-end support for €249. BOOM-protected.',
     keywords: ['Rome rental contract review', 'apartment deal assistance Rome', 'lease negotiation Rome', 'BOOM deal service'],
@@ -243,6 +246,8 @@ const PAGES = {
     schemas: ['Service:virtualViewing'],
   },
 
+  // Audit SEO 2026-08-27: guscio client-side vuoto per i crawler (thin
+  // content) — noindex finché non ha contenuto statico, come da audit P3.
   'deals.html': {
     path: '/deals',
     title: 'Deals & Offers — BOOM Rome Rental Promotions',
@@ -250,6 +255,8 @@ const PAGES = {
       'Current BOOM deals: free first viewing, refundable property finding fee, referral credits, and limited-time apartment offers in Rome.',
     keywords: ['BOOM deals Rome', 'Rome apartment deals', 'rental offers Rome'],
     type: 'website',
+    robots: 'noindex, follow',
+    skipSitemap: true,
     priority: 0.6,
     changefreq: 'weekly',
     breadcrumbs: [
@@ -274,6 +281,9 @@ const PAGES = {
     schemas: ['ReserveAction'],
   },
 
+  // Audit SEO 2026-08-27: robots.txt la blocca già ("legacy, slated for
+  // removal") — una URL bloccata non può stare in sitemap, e il noindex
+  // meta è la cintura per qualunque crawler che ignori robots.txt.
   'booking.html': {
     path: '/booking',
     title: 'Apply for a Rome Apartment — Secure Application Form | BOOM',
@@ -281,6 +291,8 @@ const PAGES = {
       'Apply for a BOOM-verified Rome apartment. Secure form, document upload, fast review. We respond within 24 hours.',
     keywords: ['apartment application Rome', 'apply rental Rome', 'BOOM apartment application'],
     type: 'website',
+    robots: 'noindex, follow',
+    skipSitemap: true,
     priority: 0.6,
     changefreq: 'monthly',
     breadcrumbs: [
@@ -379,7 +391,7 @@ const PAGES = {
 
   'blog-47-steps.html': blogPost({
     slug: 'blog-47-steps',
-    title: '47 Steps Between You and Your Keys — Complete Rome Rental Guide | BOOM',
+    title: '47 Steps Between You and Your Keys — Rome Rental Guide | BOOM',
     description:
       'The complete 47-step guide to renting an apartment in Rome. Every document, deadline, and trap — with interactive progress tracking.',
     keywords: ['rent apartment Rome step by step', 'Rome rental checklist', 'how to rent Rome'],
@@ -389,7 +401,7 @@ const PAGES = {
 
   'blog-contract-types.html': blogPost({
     slug: 'blog-contract-types',
-    title: 'Transitorio vs 4+4 — Which Italian Rental Contract Is Right for You? | BOOM',
+    title: 'Transitorio vs 4+4 — Italian Rental Contracts Explained | BOOM',
     description:
       'Complete guide to Italian rental contracts: transitorio, 4+4, cedolare secca, uso foresteria. What each means, who it\'s for, what landlords won\'t explain.',
     keywords: ['contratto transitorio', 'contratto 4+4', 'cedolare secca', 'Italian rental contract types'],
@@ -399,7 +411,7 @@ const PAGES = {
 
   'blog-cost-calculator.html': blogPost({
     slug: 'blog-cost-calculator',
-    title: 'What Renting in Rome Actually Costs — Interactive Calculator | BOOM',
+    title: 'What Renting in Rome Actually Costs — Calculator | BOOM',
     description:
       'Interactive cost calculator for renting in Rome. Real monthly and year-one costs by neighborhood, contract type, and budget. Hidden fees exposed.',
     keywords: ['cost of renting Rome', 'Rome rental cost calculator', 'Rome apartment hidden fees'],
@@ -439,7 +451,7 @@ const PAGES = {
 
   'blog-visa-residency.html': blogPost({
     slug: 'blog-visa-residency',
-    title: 'Rome Visa & Residency Cheat Sheet — Codice Fiscale to Residenza | BOOM',
+    title: 'Rome Visa & Residency Cheat Sheet for Expats | BOOM',
     description:
       'The complete expat guide to Italian bureaucracy: codice fiscale, permesso di soggiorno, residenza, anagrafe. Step-by-step timelines, documents, and tips.',
     keywords: ['codice fiscale Rome', 'permesso di soggiorno', 'residency Italy expat', 'Rome visa guide'],
@@ -497,6 +509,80 @@ const PAGES = {
   'proppass.html': noindex('/proppass', 'PropPass — BOOM Rome', 'BOOM PropPass generator.'),
   'pass-delivery.html': noindex('/pass-delivery', 'Pass Delivery — BOOM Rome', 'Your BOOM pass.'),
 };
+
+/* ────────────────────────────────────────────────────────────────────────
+ * Pagine con la testa CURATA A MANO — il registro le conosce (sitemap,
+ * test anti-deriva) ma seo-update.js NON le tocca: `metaManaged: false`.
+ *
+ * LA LEZIONE DEL 2026-08-27: questo registro era fermo a ~40 voci mentre
+ * il sito ne serviva 65 — rigenerare la sitemap avrebbe CANCELLATO canone,
+ * services, executive, reunion, le guide moving-to-rome e welcome-to-rome
+ * dall'indice. Un registro che non conosce le pagine vive è più pericoloso
+ * di nessun registro, perché i suoi strumenti sembrano ancora affidabili.
+ * Da qui in avanti tests/seo/run.mjs pretende che OGNI pagina indicizzabile
+ * in produzione sia registrata: una pagina nuova senza voce = test rosso.
+ * ──────────────────────────────────────────────────────────────────────── */
+function handcrafted(path, title, opts = {}) {
+  return {
+    path,
+    title,
+    metaManaged: false,
+    type: 'website',
+    priority: opts.priority != null ? opts.priority : 0.7,
+    changefreq: opts.changefreq || 'monthly',
+    ...(opts.lang ? { lang: opts.lang } : {}),
+    ...(opts.alternates ? { alternates: opts.alternates } : {}),
+    ...(opts.skipSitemap ? { skipSitemap: true } : {}),
+  };
+}
+
+Object.assign(PAGES, {
+  'canone.html': handcrafted('/canone', 'Calcolo Canone Concordato Roma 2026 — Gratis', { priority: 0.92, lang: 'it' }),
+  'services.html': handcrafted('/services', 'BOOM Services Rome — Every Price Upfront', { priority: 0.88 }),
+  'deposit-letter.html': handcrafted('/deposit-letter', 'Free Deposit Demand Letter Italy — Art. 1590 c.c.', { priority: 0.86 }),
+  'pacchetto-concordato.html': handcrafted('/pacchetto-concordato', 'Canone Concordato Roma — Pacchetto Chiavi in Mano', { priority: 0.85, lang: 'it' }),
+  'reunion.html': handcrafted('/reunion', 'Gestion locative & location à La Réunion — BOOM', {
+    priority: 0.85,
+    alternates: [
+      { hreflang: 'fr', href: '/reunion' },
+      { hreflang: 'en', href: '/reunion?lang=en' },
+    ],
+  }),
+  'executive.html': handcrafted('/executive', 'Executive rentals in Rome for professionals — BOOM', {
+    priority: 0.88,
+    alternates: [
+      { hreflang: 'en', href: '/executive' },
+      { hreflang: 'it', href: '/executive?lang=it' },
+    ],
+  }),
+  'remote-move-pack.html': handcrafted('/remote-move-pack', 'Rent in Rome From Abroad — Remote Move Pack €299', { priority: 0.8 }),
+  'match.html': handcrafted('/match', "Trova la tua zona a Roma vicino all'università | BOOM Match", { priority: 0.9, lang: 'it' }),
+  'try.html': handcrafted('/try', 'Try BOOM — the 90-second rental | BOOM Rome', { priority: 0.8 }),
+  'universities.html': handcrafted('/universities', 'Student Housing in Rome for Universities | BOOM', { priority: 0.8 }),
+  'corporate.html': handcrafted('/corporate', 'Corporate Relocation & Employee Housing in Rome | BOOM', { priority: 0.8 }),
+  'research.html': handcrafted('/research', 'Housing for ERC & Marie-Curie Researchers in Rome | BOOM', { priority: 0.8 }),
+  'partners.html': handcrafted('/partners', 'Partner with BOOM — Housing for Organisations in Rome', { priority: 0.7 }),
+  'contract-check.html': handcrafted('/contract-check', 'Free Rome Rental Contract Check | BOOM', { priority: 0.8 }),
+  'contract-check-express.html': handcrafted('/contract-check-express', 'Contract Check Rome — Verdict in 24h, €49', { priority: 0.7 }),
+  'deposit-recovery.html': handcrafted('/deposit-recovery', 'Deposit Recovery Rome — Get Your Deposit Back', { priority: 0.7 }),
+  'refer.html': handcrafted('/refer', 'Refer a Friend to BOOM — Give €50, Get €50', { priority: 0.6 }),
+  'moving-to-rome.html': handcrafted('/moving-to-rome', 'Moving to Rome in 2026 — The Complete Relocation Guide | BOOM', { priority: 0.9 }),
+  'moving-to-rome-from-us.html': handcrafted('/moving-to-rome-from-us', 'Moving to Rome from the US (2026) — Visas, Costs, Homes | BOOM', { priority: 0.85 }),
+  'moving-to-rome-from-uk.html': handcrafted('/moving-to-rome-from-uk', 'Moving to Rome from the UK (2026) — Post-Brexit Guide | BOOM', { priority: 0.85 }),
+  'moving-to-rome-from-germany.html': handcrafted('/moving-to-rome-from-germany', 'Moving to Rome from Germany (2026) — EU Citizen Guide | BOOM', { priority: 0.85 }),
+  'your-money.html': handcrafted('/your-money', 'Your money at BOOM — every euro, in the open | BOOM Rome', { priority: 0.7 }),
+  'board.html': handcrafted('/board', 'BOOM · Rome — Live Board', { priority: 0.6, changefreq: 'daily' }),
+  'skyline.html': handcrafted('/skyline', 'BOOM Skyline — rent Rome from the sky', { priority: 0.85, changefreq: 'weekly' }),
+  'welcome-to-rome.html': handcrafted('/welcome-to-rome', 'Welcome to Rome Kit — the expat survival guide | BOOM Roma', { priority: 0.85 }),
+});
+
+// Anche queste cinque stanno nel registro dalla prima ora, ma la loro testa
+// è stata ricostruita a mano dopo l'ultima passata di seo-update (le
+// sentinelle BOOM_SEO non ci sono più): il registro resta la fonte per la
+// sitemap, l'updater non deve più riscriverle.
+for (const f of ['index.html', 'apartments.html', 'apartment-detail.html', 'how-it-works.html', 'property-finding.html']) {
+  if (PAGES[f]) PAGES[f].metaManaged = false;
+}
 
 /* ────────────────────────────────────────────────────────────────────────
  * Helper factories
@@ -566,7 +652,7 @@ try {
     path: '/apartments-in',
     title: 'Rome Neighborhoods — Where to Rent an Apartment | BOOM',
     description:
-      'Pick a Rome neighborhood. Verified apartments in Trastevere, Centro Storico, Monti, Prati, Pigneto, Testaccio, Ostiense, Trieste, San Lorenzo, Esquilino. Local guides, real rents, BOOM-managed.',
+      'Pick a Rome neighborhood. Verified apartments in Trastevere, Centro Storico, Monti, Prati, Pigneto, Testaccio and more. Local guides, real rents.',
     keywords: [
       'Rome neighborhoods',
       'where to live Rome',

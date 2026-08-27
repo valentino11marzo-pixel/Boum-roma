@@ -14,3 +14,11 @@ admin-flats.html
 tenant-registration.html
 js/boom-bg-roma.js
 v2-immersive.html
+# Audit SEO 2026-08-27: copie indicizzabili delle pagine vive (title duplicati,
+# FAQ schema orfane) con zero link entranti — restano nel repo, non in produzione.
+index-classic.html
+apartments-classic.html
+apartment-detail-classic.html
+property-finding-classic.html
+header.html
+.journey-preview.html

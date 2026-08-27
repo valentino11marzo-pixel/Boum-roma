@@ -86,16 +86,52 @@
 ]}
   </script>
   <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
- {"@type":"Question","name":"Do I have to use a service to rent a BOOM apartment?","acceptedAnswer":{"@type":"Answer","text":"No. Renting one of BOOM's own homes needs no paid service — viewings of our apartments are free, always. The services exist for apartments you found elsewhere, for things that happen before or after the lease, and for landlords."}},
- {"@type":"Question","name":"Are the prices really fixed?","acceptedAnswer":{"@type":"Answer","text":"Yes. Every price on this page is the price you pay, decided server-side and charged through Stripe. Concierge is the one quoted service, because the work depends on the move."}},
- {"@type":"Question","name":"Which one do I need?","acceptedAnswer":{"@type":"Answer","text":"Still hunting from abroad: Remote Move Pack. Found a place and need it checked: Contract Check Express, or Deal Assistance for the full shield. Want us to run the hunt: Property Finding. Already left and your deposit is gone: Deposit Recovery. Renting your own place out: the Pacchetto Concordato."}},
- {"@type":"Question","name":"Can a service fee be credited back?","acceptedAnswer":{"@type":"Answer","text":"Often, yes. Virtual Viewing and the Remote Move Pack are credited toward your agency fee if you rent through BOOM; Contract Check Express is credited in full if you upgrade to Deal Assistance; Property Finding is deducted from the agency fee and refunded if we find no match."}}
-]}
-  </script>
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Do I have to use a service to rent a BOOM apartment?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. Renting one of BOOM's own homes needs no paid service — viewings of our apartments are free, always. The services exist for apartments you found elsewhere, for things that happen before or after the lease, and for landlords."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Are the prices really fixed?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Every price on this page is the price you pay, decided server-side and charged through Stripe. Concierge is the one quoted service, because the work depends on the move."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Which one do I need?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Still hunting from abroad: Remote Move Pack. Found a place and need it checked: Contract Check Express, or Deal Assistance for the full shield. Want us to run the hunt: Property Finding. Already left and your deposit is gone: Deposit Recovery. Renting your own place out: the Pacchetto Concordato."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can a service fee be credited back?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Often, yes. Virtual Viewing and the Remote Move Pack are credited toward your agency fee if you rent through BOOM; Contract Check Express is credited in full if you upgrade to Deal Assistance; Property Finding is deducted from the agency fee and refunded if we find no match."
+      }
+    }
+  ]
+}
+</script>
 <link rel="stylesheet" href="/css/boom-2026.css">
 <style>
   .lede{max-width:64ch;color:var(--t3);font-size:16px;margin-top:18px}
+  .faq-list{max-width:760px}
+  .faq-item{border-bottom:1px solid var(--line);padding:18px 0}
+  .faq-item h3{font-size:16px;font-weight:500;color:var(--t1);margin:0 0 7px}
+  .faq-item p{font-size:14px;color:var(--t3);margin:0;line-height:1.7}
   .who{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:34px 0 8px}
   @media(max-width:720px){.who{grid-template-columns:1fr}}
   .who a{display:block;border:1px solid var(--line);border-radius:14px;padding:20px 22px;background:var(--card);transition:.2s;text-decoration:none}
@@ -248,6 +284,16 @@
         <span class="when">Nessun costo per l'ente</span>
         <a class="go" href="/corporate">Convenzioni →</a>
       </div>
+    </div>
+  </section>
+
+  <section class="rv" id="faq">
+    <div class="sec-h"><span class="num">FAQ</span><h2>Before you buy, <span class="g">the answers.</span></h2></div>
+    <div class="faq-list">
+      <div class="faq-item"><h3>Do I have to use a service to rent a BOOM apartment?</h3><p>No. Renting one of BOOM's own homes needs no paid service — viewings of our apartments are free, always. The services exist for apartments you found elsewhere, for things that happen before or after the lease, and for landlords.</p></div>
+      <div class="faq-item"><h3>Are the prices really fixed?</h3><p>Yes. Every price on this page is the price you pay, decided server-side and charged through Stripe. Concierge is the one quoted service, because the work depends on the move.</p></div>
+      <div class="faq-item"><h3>Which one do I need?</h3><p>Still hunting from abroad: Remote Move Pack. Found a place and need it checked: Contract Check Express, or Deal Assistance for the full shield. Want us to run the hunt: Property Finding. Already left and your deposit is gone: Deposit Recovery. Renting your own place out: the Pacchetto Concordato.</p></div>
+      <div class="faq-item"><h3>Can a service fee be credited back?</h3><p>Often, yes. Virtual Viewing and the Remote Move Pack are credited toward your agency fee if you rent through BOOM; Contract Check Express is credited in full if you upgrade to Deal Assistance; Property Finding is deducted from the agency fee and refunded if we find no match.</p></div>
     </div>
   </section>
 
