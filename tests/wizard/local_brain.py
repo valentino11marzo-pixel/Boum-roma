@@ -25,6 +25,7 @@ BOT = os.path.join(ROOT, 'bot', 'boom_listing_wizard.py')
 WANTED = {
     '_local_answer', '_local_interpret', '_match_listing', '_is_question',
     '_num', '_it_date', '_parse_money', '_days_since', '_smells_like_new',
+    '_pending_put', '_pending_pop', '_create_invents',
 }
 WANTED_ASSIGN = {
     'NUM_WORDS', 'NL_STOPWORDS', 'QUESTION_RE', 'MONTHS_IT', 'ORDINALS_IT',
@@ -175,6 +176,44 @@ for q in ["quanti interessati ha Pigneto?", "quali persone sarebbero interessate
 ok('id esatto vince', mod._match_listing('l3', CATALOG)[0] == 'l3')
 ok('ambiguità dichiarata, non indovinata', mod._match_listing('quanto costa', CATALOG) in (None,)
    or mod._match_listing('quanto costa', CATALOG)[0] == 'AMBIG')
+
+# ── 5. il piano in attesa è PER CARD, mai uno slot solo ────────────────────
+# LA LEZIONE DEL 28/08/2026 (produzione): incollando più righe di fila, il
+# piano in attesa veniva sovrascritto dal messaggio successivo e il ✅ della
+# card vecchia applicava il piano nuovo — o cadeva nel vuoto. Due date di
+# disponibilità confermate e mai scritte.
+store = {}
+mod._pending_put(store, 42, {'action': 'update', 'id': 'tiburtina'}, 'aaaa')
+mod._pending_put(store, 42, {'action': 'update', 'id': 'piemonte'}, 'bbbb')
+got_a = mod._pending_pop(store, 42, 'aaaa')
+ok('MUTAZIONE: il ✅ della card vecchia applica il SUO piano, non l\'ultimo',
+   got_a and got_a.get('id') == 'tiburtina', got_a)
+got_b = mod._pending_pop(store, 42, 'bbbb')
+ok('e la card nuova applica il suo', got_b and got_b.get('id') == 'piemonte', got_b)
+ok('un secondo tap sullo stesso ✅ trova il vuoto (mai doppio apply)',
+   mod._pending_pop(store, 42, 'aaaa') is None)
+ok('token ignoto → None, mai il piano di un altro',
+   mod._pending_pop({42: {'x': {'id': 'l1'}}}, 42, 'zzz') is None)
+ok('card pre-fix senza token → None', mod._pending_pop({42: {'x': {'id': 'l1'}}}, 42, '') is None)
+store2 = {}
+for i in range(9):
+    mod._pending_put(store2, 7, {'i': i}, f'tk{i}')
+ok('il registro per chat resta capato (≤6)', len(store2[7]) == 6, len(store2[7]))
+ok('…e a decadere sono le card più vecchie', 'tk0' not in store2[7] and 'tk8' in store2[7])
+
+# ── 6. un annuncio non nasce con numeri che l'operatore non ha detto ───────
+# IL CASO VERO (28/08/2026): "Tiburtina libera dal 1 settembre 2026" tornata
+# dal modello come CASA NUOVA con €900 e 35mq inventati — e pubblicata.
+inv = mod._create_invents('Tiburtina libera dal 1 settembre 2026',
+                          {'price': 900, 'sqm': 35, 'address': 'Via Tiburtina 545'})
+ok('MUTAZIONE: prezzo e metri mai pronunciati → la create si rifiuta',
+   len(inv) == 2, inv)
+ok('una casa davvero dettata passa',
+   mod._create_invents('trilocale a Prati, 80mq, 1500 euro', {'price': 1500, 'sqm': 80}) == [])
+ok('i separatori non ingannano (1.500 = 1500)',
+   mod._create_invents('bilocale a Trieste, 55 mq, 1.500 al mese', {'price': 1500, 'sqm': 55}) == [])
+ok('campi vuoti non risultano inventati',
+   mod._create_invents('monolocale a Pigneto a 800', {'price': 800, 'sqm': None}) == [])
 
 print('\n' + (f'{fails} FALLITI' if fails else 'Tutto verde.'))
 sys.exit(1 if fails else 0)
