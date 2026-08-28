@@ -2683,6 +2683,46 @@ accorto perché **niente la confrontava con la realtà**.
   tre elenchi su ogni scheda, i badge veri e i campi solo dove sono collegati;
   si auto-skippa senza playwright).
 
+### LA SCALA DELLA FIDUCIA (`js/fiducia-engine.js` + `api/employees/_fiducia.js` + `/fiducia`)
+L'auto-invio MISURATO disegnato in STUDIO_HOMIE §4 e deciso in
+STUDIO_ORGANICO: le bozze che l'operatore approva da mesi con lo stesso tap
+(544 ultime parole di clienti senza risposta = il costo di quel collo di
+bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
+- **Il giudizio è nel motore puro** (`BOOM_FIDUCIA`, UMD come boom-geo):
+  la categoria è il PREFISSO del `contextHash` (mai `kind`, troppo largo:
+  'reply' copre sia la prima risposta AI sia il follow-up template);
+  promuovibili SOLO testi template — `commerciale:followup`,
+  `gestore:payrem`, `gestore:sign`. `commerciale:first` (bozza AI a un
+  contatto nuovo) è in `NEVER` per costruzione: non parte mai da sola
+  nemmeno accesa a mano nel doc di config. Il verdetto (`autoVerdict`, i
+  cancelli IN ORDINE, testati per mutazione): interruttore → categoria →
+  mai-promuovibile → opt-in → campione ≥ `minSample` (30) → tasso ≥
+  `minRate` (95%) → escalation (avvocato/denuncia/truffa/rimborso… nelle
+  parole del CLIENTE = torna a un umano). Gli invii automatici NON entrano
+  nel campione (`fiduciaAutoSent` escluso da `statsFor`): la scala non può
+  autoalimentarsi.
+- **Auto-invio ≠ invio istantaneo**: la bozza si ARMA con `graceMin` (10')
+  di grazia — card Telegram con **✋ Ferma — decido io** (`fstop:`, il doc
+  resta pending coi tasti Approva/Rifiuta: fermare ≠ rifiutare), ✅ Manda
+  subito e ❌ Rifiuta. Allo scadere parte dallo STESSO executor del tap
+  manuale (`api/agent/execute.js` in-process) → stessa strada, stesso
+  outbox WhatsApp, stessa idempotenza. Digest ogni sera alle 19
+  (idempotente: `heartbeat/fiducia-digest-<giorno>`, fsCreate 409).
+- **Dove gira**: dentro `notify-pending` (ogni minuto), PRIMA delle card
+  normali (il tick marca `telegramNotifiedAt` così la stessa azione non
+  riceve due card) e best-effort (un suo errore non ferma card/lead/visite).
+  Il kill switch vince anche sulle bozze GIÀ armate: spegnere DISARMA.
+- **Config**: `settings/fiducia` {enabled, graceMin, minSample, minRate,
+  categories} — default TUTTO SPENTO (pinnato nei test: il deploy non
+  cambia comportamento finché l'operatore non gira gli interruttori).
+  Valori impossibili rifiutati al default, mai aggiustati in silenzio
+  (disciplina `resolveKnobs`). Si comanda da Telegram: **`/fiducia`** =
+  quadro (per categoria: on/off, decisioni storiche, tasso, pronta o in
+  attesa dei numeri) + interruttori inline (`ftg:`).
+- Test: `node tests/fiducia/run.mjs` — cancelli per mutazione, giunzioni
+  sulla sorgente, e il giro VERO su Firestore in memoria: default = niente,
+  armo → grazia → executor reale → digest, ✋ e kill switch che vincono.
+
 ## Lo Smistatore (document intake — api/documents/_smista.js)
 
 "Mando qualsiasi cosa per il commercialista e si archivia da sola." One
@@ -3007,6 +3047,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/phone/run.mjs` | Il Centralino, entrambe le porte. Segreteria: chiave derivata mai regalata, disclosure GDPR pinnata nel saluto, retry Twilio senza doppioni, Whisper/AI/Telegram giù non perdono MAI la chiamata. Receptionist ElevenLabs: firma HMAC rifiutata (anche stantia) senza scritture, nel lead SOLO le parole del CHIAMANTE (mai quelle dell'agente — la lingua della bozza esce dalle sue parole), audio e trascrizione in QUALSIASI ordine, tools in chiamata con auth e catalogo che esclude gli affittati. Handler veri su Firestore in memoria + giunzioni asserite sui file |
   | `tests/whatsapp/demand.mjs` | Il misuratore della domanda: ogni intenzione dimostra di saper riconoscere una frase vera (un pattern inerte sotto-conta in SILENZIO), "business" non diventa una domanda sui bus, la classifica è per tempo risparmiato e non per frequenza, sotto campione niente percentuali, e ciò che il motore non sa nominare esce con le parole vere |
   | `tests/miniera/run.mjs` | La Miniera: il join aggancia la persona in OGNI forma del numero (parità con `_lead.js`, JID senza `+` guarito), i veti del libro dei silenzi (inquilini/firmati/morti/oltre 120gg MAI nel re-ingaggio), sotto campione NIENTE percentuali (per mutazione), il verdetto motivato coi numeri, parità cross-linguaggio con l'estrattore Python, handler vero su Firestore in memoria |
+  | `tests/fiducia/run.mjs` | La scala della fiducia: parte da solo SOLO il provato (campione ≥30 + tasso ≥95%, sulle decisioni dell'OPERATORE — gli auto-invii non si contano), la prima risposta AI mai (nemmeno accesa a mano), le parole legali/di rabbia tornano a un umano, ✋ Ferma e kill switch vincono anche sulle bozze già armate, e coi DEFAULT non parte niente. Giro vero su Firestore in memoria con l'executor reale |
   | `tests/wizard/local_brain.py` | Il cervello gratis del bot wizard (`python3`): cosa capisce senza modello e — più importante — cosa deve rifiutarsi di capire. Una domanda ("Levico è affittato?") non può diventare una scrittura; un annuncio nuovo dettato non può diventare la modifica di uno esistente. Estrae le funzioni pure dal bot via AST: gira senza `.env`, senza Telegram, senza rete |
   | `tests/executive/run.mjs` | BOOM Executive: il professionista in trasferta resta un TENANT nella macchina piena, il datore dichiarato (`employer`) non viene scambiato per l'honeypot (`company`), la voce B2B tace col tenant e parla con l'ente — con la guardia PRIMA della spesa, asserita sull'ordine nel sorgente |
   | `tests/verbale/run.mjs` | verbale consegna chiavi: il PDF vero (WinAnsi-ostile compreso) viaggia in allegato a conduttori/co-conduttori/proprietario/admin, owner solo sui contratti dei propri immobili (403 = zero scritture), firme richieste per entrambi i lati, sul contratto restano solo i NOMI mai i dataURI |

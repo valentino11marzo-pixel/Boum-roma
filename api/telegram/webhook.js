@@ -20,6 +20,7 @@ import { tgSend, tgEdit, tgAckCallback, requireWebhookSecret, isAuthorizedChat, 
 import { handleViewingCallback, sendAgenda } from './_viewings.js';
 import { handleTaskCallback, handleTaskText, sendBrief } from '../regista/_telegram.js';
 import { handleRichiamoCallback, handleRichiamaCommand } from './_richiamo.js';
+import { fiduciaStatusMessage, toggleFiducia } from '../employees/_fiducia.js';
 
 // Canonical public host for self-calls (the executor). VERCEL_URL deployment
 // URLs can be auth-gated / unreliable for server-to-server self-fetches, which
@@ -148,6 +149,20 @@ export default async function handler(req, res) {
         if (handled) return res.status(200).json({ ok: true });
       }
 
+      // ── La scala della fiducia (ftg) — gli interruttori di /fiducia ─────
+      // Prima della lettura di action_queue: un toggle non è un'azione.
+      if (verb === 'ftg') {
+        const done = await toggleFiducia(actionId).catch(() => false);
+        await tgAckCallback(cq.id, done ? '✓ Fatto' : 'Interruttore sconosciuto');
+        if (done && messageId) {
+          try {
+            const { msg, keyboard } = await fiduciaStatusMessage();
+            await tgEdit(chatId, messageId, msg, { reply_markup: keyboard });
+          } catch (e) { console.warn('[telegram] ftg refresh:', e.message); }
+        }
+        return res.status(200).json({ ok: true });
+      }
+
       const action = await fsGet(`action_queue/${actionId}`);
       if (!action) {
         await tgAckCallback(cq.id, 'Non trovata');
@@ -155,6 +170,25 @@ export default async function handler(req, res) {
       }
       if (action.status !== 'pending') {
         await tgAckCallback(cq.id, `Già ${action.status}`);
+        return res.status(200).json({ ok: true });
+      }
+
+      // ── ✋ Ferma (fstop): l'auto-invio armato torna una decisione umana ──
+      // Il doc resta pending con la tastiera normale: fermarla non è
+      // rifiutarla — è riprendersi il tap.
+      if (verb === 'fstop') {
+        await fsPatch(`action_queue/${actionId}`, {
+          autoSendAt: null,
+          fiduciaStopped: true,
+          fiduciaStoppedAt: new Date(),
+        });
+        await tgAckCallback(cq.id, '✋ Fermata — decidi tu');
+        await tgEdit(chatId, messageId,
+          fmtAction(action) + `\n\n✋ <b>FERMATA</b> — l'invio automatico è annullato, resta in approvazione manuale.\n<i>id:</i> <code>${actionId}</code>`,
+          { reply_markup: { inline_keyboard: [[
+            { text: '✅ Approva', callback_data: `approve:${actionId}` },
+            { text: '❌ Rifiuta', callback_data: `reject:${actionId}` },
+          ]] } });
         return res.status(200).json({ ok: true });
       }
 
@@ -227,6 +261,7 @@ export default async function handler(req, res) {
           'Tap sui bottoni per approvare/rifiutare, o:',
           '',
           '• /queue — vedi le pending',
+          '• /fiducia — quali bozze possono partire da sole (coi numeri e gli interruttori)',
           '• /vendi — manda a un cliente il link di pagamento di un servizio',
           '• /recensione — chi ringraziare oggi, con il messaggio già pronto',
           '• /visite — agenda dei prossimi 7 giorni + richieste da confermare',
@@ -255,6 +290,20 @@ export default async function handler(req, res) {
 
       if (text === '/queue') {
         await tgSend(chatId, await fmtSnapshot());
+        return res.status(200).json({ ok: true });
+      }
+
+      // /fiducia — LA SCALA DELLA FIDUCIA: quali categorie di bozze possono
+      // partire da sole, coi numeri storici davanti e gli interruttori
+      // sotto il pollice. La promozione la decide sempre l'operatore qui;
+      // i numeri (campione + tasso) decidono se è anche in vigore.
+      if (text === '/fiducia') {
+        try {
+          const { msg, keyboard } = await fiduciaStatusMessage();
+          await tgSend(chatId, msg, { reply_markup: keyboard });
+        } catch (e) {
+          await tgSend(chatId, '⚠️ Non riesco a leggere lo stato della scala: ' + esc(e.message));
+        }
         return res.status(200).json({ ok: true });
       }
 
