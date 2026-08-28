@@ -824,7 +824,63 @@ async def cmd_fotolab(update, context):
 # even if the endpoint/secret is unavailable. NOTHING is written until the
 # operator taps ✅ Conferma. NL_CTX remembers the last unresolved message per
 # chat so a follow-up answer ("quello di Pigneto") completes the request.
-PENDING_NL = {}
+PENDING_NL = {}   # chat_id -> {token: plan} — un piano PER CARD, mai uno slot solo
+
+
+def _pending_put(store, chat_id, plan, token):
+    """LA LEZIONE DEL 28/08/2026: PENDING_NL era UNO slot per chat. Incollando
+    più righe di fila, ogni messaggio sovrascriveva il piano in attesa — e il
+    ✅ della card VECCHIA applicava il piano NUOVO (o il pop a vuoto perdeva
+    entrambi: è successo in produzione, due date di disponibilità sparite nel
+    nulla dopo la conferma). Ogni card porta il proprio token: il tasto può
+    applicare SOLO il piano che la card mostra."""
+    plans = store.setdefault(chat_id, {})
+    plans[token] = plan
+    while len(plans) > 6:                       # le card più vecchie decadono
+        plans.pop(next(iter(plans)))
+    return token
+
+
+def _pending_pop(store, chat_id, token):
+    """Ritira il piano di QUELLA card. Token ignoto/scaduto/riusato → None:
+    meglio chiedere di rimandare la frase che applicare il piano di un'altra
+    card. Un secondo tap sullo stesso ✅ trova None: mai un doppio apply."""
+    plans = store.get(chat_id) or {}
+    plan = plans.pop(token, None) if token else None
+    if not plans:
+        store.pop(chat_id, None)
+    return plan
+
+
+def _nl_keyboard(token, ok_label='✅ Conferma'):
+    return InlineKeyboardMarkup([[InlineKeyboardButton(ok_label, callback_data=f'nl_ok:{token}'),
+                                  InlineKeyboardButton('✖️ Annulla', callback_data=f'nl_no:{token}')]])
+
+
+def _create_invents(text, fields):
+    """LA GUARDIA ANTI-INVENZIONE (28/08/2026, produzione): «Tiburtina libera
+    dal 1 settembre 2026» è tornata dal modello come CASA NUOVA con €900,
+    35 mq e un indirizzo MAI pronunciati — e una card 🆕 confermata di fretta
+    l'ha pubblicata sul sito vero. Un annuncio non nasce con numeri che
+    l'operatore non ha detto: prezzo e metri dichiarati nei fields devono
+    comparire come numeri nel testo, o la create si rifiuta e si chiede.
+    Ritorna la lista di ciò che risulta inventato (vuota = si può creare)."""
+    nums = {re.sub(r'[.,]', '', n) for n in re.findall(r'\d[\d.,]*', str(text or ''))}
+    def said(v):
+        try:
+            v = int(float(v))
+        except (TypeError, ValueError):
+            return True
+        if not v:
+            return True
+        return str(v) in nums
+    out = []
+    f = fields or {}
+    if not said(f.get('price')):
+        out.append(f"il prezzo (€{f.get('price')})")
+    if not said(f.get('sqm')):
+        out.append(f"i metri ({f.get('sqm')} mq)")
+    return out
 NL_CTX = {}
 NUM_WORDS = {'un': 1, 'uno': 1, 'una': 1, 'due': 2, 'tre': 3, 'quattro': 4, 'cinque': 5, 'sei': 6}
 # generic words that appear in half the catalog — never listing evidence
@@ -1400,7 +1456,8 @@ async def _nl_process(update, context, text):
         if p.get('ok') and len(p.get('updates') or []) >= 2:
             NL_STATS['free'] += 1
             NL_CTX.pop(chat_id, None)
-            PENDING_NL[chat_id] = {'action': 'availability', 'updates': p['updates']}
+            tok = os.urandom(4).hex()
+            _pending_put(PENDING_NL, chat_id, {'action': 'availability', 'updates': p['updates']}, tok)
             rows = '\n'.join(
                 f"• *{u.get('name')}*: {u.get('was') or '—'} → "
                 f"{'subito' if u.get('kind') == 'now' else 'da concordare' if u.get('kind') == 'unknown' else u.get('iso')}"
@@ -1412,8 +1469,7 @@ async def _nl_process(update, context, text):
                 extra += f"\n⚠️ {n.get('name')}: nessuna data in quel pezzo, lo lascio com'è"
             for a in (p.get('ambiguous') or []):
                 extra += f"\n⚠️ “{a.get('seg')}”: quale fra {', '.join(a.get('names') or [])}?"
-            kb0 = InlineKeyboardMarkup([[InlineKeyboardButton('✅ Conferma', callback_data='nl_ok'),
-                                         InlineKeyboardButton('✖️ Annulla', callback_data='nl_no')]])
+            kb0 = _nl_keyboard(tok)
             await update.message.reply_text(
                 f"📅 *DISPONIBILITÀ*\n{rows}{extra}\n\nScrivo? Vetrina, feed e portali si allineano da soli.",
                 parse_mode='Markdown', reply_markup=kb0)
@@ -1428,12 +1484,21 @@ async def _nl_process(update, context, text):
         if plan: NL_STATS['ai'] += 1
         else: plan = _local_interpret(text, prev, listings)   # endpoint giù → paracadute
 
-    kb = InlineKeyboardMarkup([[InlineKeyboardButton('✅ Conferma', callback_data='nl_ok'), InlineKeyboardButton('✖️ Annulla', callback_data='nl_no')]])
     if plan and plan.get('action') == 'create' and plan.get('fields'):
+        invented = _create_invents(text, plan['fields'])
+        if invented:
+            NL_CTX[chat_id] = text
+            await update.message.reply_text(
+                '🛑 Sembra una casa NUOVA, ma ' + ' e '.join(invented)
+                + ' non li hai detti tu — non pubblico numeri inventati.\n'
+                'Se è davvero nuova, ridillo con prezzo e metri; se volevi '
+                'aggiornare una casa esistente, nominala come compare in catalogo.')
+            return
         NL_CTX.pop(chat_id, None)
         buf = _photo_buffer(chat_id)
         plan['_photos'] = list(buf['ids']) if buf else []
-        PENDING_NL[chat_id] = plan
+        tok = os.urandom(4).hex()
+        _pending_put(PENDING_NL, chat_id, plan, tok)
         lines = '\n'.join('• ' + s for s in (plan.get('summary') or []))
         F = plan['fields']
         # canone concordato traffic light: is the asked rent in the legal band?
@@ -1447,13 +1512,14 @@ async def _nl_process(update, context, text):
             logger.warning(f'canone hint (create): {e}')
         nph = len(plan['_photos'])
         photo_line = f"📸 {nph} foto pronte" if nph else '📸 nessuna foto in memoria (puoi mandarle anche dopo e rilanciare /fotolab)'
-        kb2 = InlineKeyboardMarkup([[InlineKeyboardButton('✅ Pubblica!', callback_data='nl_ok'), InlineKeyboardButton('✖️ Annulla', callback_data='nl_no')]])
+        kb2 = _nl_keyboard(tok, '✅ Pubblica!')
         await update.message.reply_text(f"🆕 *NUOVO ANNUNCIO*\n{lines}\n{photo_line}\n\nDescrizione AI bilingue e miglioramento foto partono da soli. Pubblico?", parse_mode='Markdown', reply_markup=kb2)
         return
     if plan and plan.get('action') == 'photos' and plan.get('id'):
         NL_CTX.pop(chat_id, None)
-        PENDING_NL[chat_id] = plan
-        await update.message.reply_text(f"✨ Migliorare e riordinare le foto di *{plan.get('name', plan['id'])}* con l'AI?\n_(reversibile — gli originali restano salvati)_", parse_mode='Markdown', reply_markup=kb)
+        tok = os.urandom(4).hex()
+        _pending_put(PENDING_NL, chat_id, plan, tok)
+        await update.message.reply_text(f"✨ Migliorare e riordinare le foto di *{plan.get('name', plan['id'])}* con l'AI?\n_(reversibile — gli originali restano salvati)_", parse_mode='Markdown', reply_markup=_nl_keyboard(tok))
         return
     if not plan or plan.get('action') != 'update' or not plan.get('id') or not plan.get('updates'):
         # remember this exchange: the next message can answer the question
@@ -1462,15 +1528,21 @@ async def _nl_process(update, context, text):
         await update.message.reply_text(f"💬 {note}")
         return
     NL_CTX.pop(chat_id, None)
-    PENDING_NL[chat_id] = plan
+    tok = os.urandom(4).hex()
+    _pending_put(PENDING_NL, chat_id, plan, tok)
     lines = '\n'.join('• ' + s for s in (plan.get('summary') or [f"{k} → {v}" for k, v in plan['updates'].items()]))
-    await update.message.reply_text(f"🏠 *{plan.get('name', plan['id'])}*\n{lines}\n\nConfermo?", parse_mode='Markdown', reply_markup=kb)
+    await update.message.reply_text(f"🏠 *{plan.get('name', plan['id'])}*\n{lines}\n\nConfermo?", parse_mode='Markdown', reply_markup=_nl_keyboard(tok))
 
 async def nl_confirm_cb(update, context):
     q = update.callback_query; await q.answer()
-    plan = PENDING_NL.pop(q.message.chat.id, None)
-    if q.data != 'nl_ok' or not plan:
+    verb, _, tok = str(q.data or '').partition(':')
+    plan = _pending_pop(PENDING_NL, q.message.chat.id, tok)
+    if verb != 'nl_ok':
         await q.edit_message_text('✖️ Annullato.'); return
+    if not plan:
+        # card vecchia (pre-fix, senza token), già consumata, o sostituita da
+        # un messaggio più recente: MAI applicare il piano di un'altra card.
+        await q.edit_message_text('⚠️ Questa proposta è scaduta o è stata sostituita — per sicurezza non ho applicato nulla. Rimanda la frase.'); return
     if plan.get('action') == 'create':
         await q.edit_message_text('⏳ *Pubblico l\'annuncio…*', parse_mode='Markdown')
         F = plan['fields']
