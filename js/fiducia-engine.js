@@ -175,6 +175,7 @@
     DEFAULTS: DEFAULTS,
     CATEGORIES: CATEGORIES,
     NEVER: NEVER,
+    ESCALATION_RE: ESCALATION_RE,   // una copia sola: la riusa la Segretaria
     byCode: byCode,
     categoryOf: categoryOf,
     mergeConfig: mergeConfig,

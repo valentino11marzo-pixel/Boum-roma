@@ -26,7 +26,7 @@ function romePart(ms, opts) {
 }
 const romeTime = ms => romePart(ms, { hour: '2-digit', minute: '2-digit', hour12: false });
 const romeHour = ms => Number(romePart(ms, { hour: '2-digit', hour12: false }));
-function romeDay(ms) {
+export function romeDay(ms) {
   // YYYY-MM-DD nel calendario di Roma (en-CA stampa già ISO)
   try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome' }).format(new Date(ms)); }
   catch { return new Date(ms).toISOString().slice(0, 10); }
@@ -36,7 +36,7 @@ function romeDay(ms) {
 // Stesso trucco di callTool in agent/execute.js: si finge (req, res) così
 // l'handler resta una funzione Vercel E una libreria. L'auth è la stessa
 // del tap Telegram (X-Homie-Secret).
-async function runExecutor(actionId) {
+export async function runExecutor(actionId) {
   let captured = { status: 0, body: null };
   const fakeReq = {
     method: 'POST',

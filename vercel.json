@@ -648,6 +648,9 @@
     "api/reminder-cron.js": {
       "maxDuration": 60
     },
+    "api/homie/message.js": {
+      "maxDuration": 60
+    },
       "api/radar/digest.js": {
         "maxDuration": 60
       },

@@ -21,6 +21,7 @@ import { handleViewingCallback, sendAgenda } from './_viewings.js';
 import { handleTaskCallback, handleTaskText, sendBrief } from '../regista/_telegram.js';
 import { handleRichiamoCallback, handleRichiamaCommand } from './_richiamo.js';
 import { fiduciaStatusMessage, toggleFiducia } from '../employees/_fiducia.js';
+import { handoverSegretaria, segretariaOffConv, segretariaStatusMessage, toggleSegretariaKill } from '../segretaria/_core.js';
 
 // Canonical public host for self-calls (the executor). VERCEL_URL deployment
 // URLs can be auth-gated / unreliable for server-to-server self-fetches, which
@@ -149,6 +150,36 @@ export default async function handler(req, res) {
         if (handled) return res.status(200).json({ ok: true });
       }
 
+      // ── La Segretaria (sg/sgx/sgk) — consegna, ripresa, kill switch ─────
+      // Prima della lettura di action_queue: una conversazione non vive lì.
+      if (verb === 'sg') {
+        const r = await handoverSegretaria(actionId).catch(e => ({ ok: false, why: e.message }));
+        await tgAckCallback(cq.id, r.ok ? '🤖 Consegnata' : (r.why || 'Non riesco').slice(0, 190));
+        if (r.ok && messageId) {
+          await tgEdit(chatId, messageId,
+            (cq.message.text || '') + `\n\n🤖 <b>CONSEGNATA ALLA SEGRETARIA</b> — risponde lei su questa chat. Un tuo messaggio manuale la spegne; /segretaria per il quadro.`).catch(() => {});
+        }
+        return res.status(200).json({ ok: true });
+      }
+      if (verb === 'sgx') {
+        await segretariaOffConv(actionId, 'ripresa dall\'operatore da /segretaria').catch(() => {});
+        await tgAckCallback(cq.id, '🖐 Ripresa: ora rispondi tu');
+        try {
+          const { msg, keyboard } = await segretariaStatusMessage();
+          if (messageId) await tgEdit(chatId, messageId, msg, { reply_markup: keyboard });
+        } catch { /* non-fatal */ }
+        return res.status(200).json({ ok: true });
+      }
+      if (verb === 'sgk') {
+        await toggleSegretariaKill().catch(() => {});
+        await tgAckCallback(cq.id, '✓ Fatto');
+        try {
+          const { msg, keyboard } = await segretariaStatusMessage();
+          if (messageId) await tgEdit(chatId, messageId, msg, { reply_markup: keyboard });
+        } catch { /* non-fatal */ }
+        return res.status(200).json({ ok: true });
+      }
+
       // ── La scala della fiducia (ftg) — gli interruttori di /fiducia ─────
       // Prima della lettura di action_queue: un toggle non è un'azione.
       if (verb === 'ftg') {
@@ -262,6 +293,7 @@ export default async function handler(req, res) {
           '',
           '• /queue — vedi le pending',
           '• /fiducia — quali bozze possono partire da sole (coi numeri e gli interruttori)',
+          '• /segretaria — le chat in mano alla Segretaria (🤖 sulla card del lead per consegnargliene una)',
           '• /vendi — manda a un cliente il link di pagamento di un servizio',
           '• /recensione — chi ringraziare oggi, con il messaggio già pronto',
           '• /visite — agenda dei prossimi 7 giorni + richieste da confermare',
@@ -290,6 +322,19 @@ export default async function handler(req, res) {
 
       if (text === '/queue') {
         await tgSend(chatId, await fmtSnapshot());
+        return res.status(200).json({ ok: true });
+      }
+
+      // /segretaria — il quadro vivo: quali chat sono in mano a lei, con i
+      // tasti 🖐 Riprendi e il kill switch. La consegna si fa dalla card del
+      // lead (🤖); qui si controlla e si riprende.
+      if (text === '/segretaria') {
+        try {
+          const { msg, keyboard } = await segretariaStatusMessage();
+          await tgSend(chatId, msg, { reply_markup: keyboard });
+        } catch (e) {
+          await tgSend(chatId, '⚠️ Non riesco a leggere lo stato della Segretaria: ' + esc(e.message));
+        }
         return res.status(200).json({ ok: true });
       }
 
