@@ -154,9 +154,12 @@ export async function escalateSegretaria({ cid, conv, lead, why, text }) {
 }
 
 // ─── IL TURNO ────────────────────────────────────────────────────────────
-// Chiamata da homie/message su OGNI inbound di una conversazione consegnata.
-// Ritorna { acted, sent?, escalated?, why? } — mai lancia verso l'alto.
-export async function segretariaTurn({ cid, conv, lead, text, messageId, now = Date.now() }) {
+// Chiamata da homie/message su OGNI inbound di una conversazione consegnata
+// (WhatsApp), dallo scanner email (scan-replies) e dalla mossa d'apertura.
+// `opening: true` = primo contatto dopo la consegna: si risponde alla
+// richiesta ORIGINALE del lead presentandosi. Ritorna { acted, sent?,
+// escalated?, why? } — mai lancia verso l'alto.
+export async function segretariaTurn({ cid, conv, lead, text, messageId, opening = false, now = Date.now() }) {
   const raw = await fsGet('settings/segretaria').catch(() => null);
   const { cfg } = SEG.mergeConfig(raw);
   const day = romeDay(now);
@@ -178,9 +181,21 @@ export async function segretariaTurn({ cid, conv, lead, text, messageId, now = D
     if (dup && dup.length) return { acted: false, why: 'già risposto a questo messaggio' };
   } catch { /* non-fatal */ }
 
+  // Il canale: WhatsApp dove c'è il numero, email altrove — la Segretaria
+  // risponde sul canale su cui la persona è raggiungibile davvero.
+  const phone = (conv && conv.contactPhone) || (lead && lead.phone) || null;
+  const email = (conv && conv.contactEmail) || (lead && lead.email) || null;
+  if (!phone && !email) {
+    await escalateSegretaria({ cid, conv, lead, why: 'nessun recapito su cui rispondere', text });
+    return { acted: true, escalated: true, why: 'no_contact' };
+  }
+  const channel = phone ? 'whatsapp' : 'email';
+
   // I fatti, solo da fonti vere.
   const prop = await propertyFacts(lead);
   const facts = [
+    opening ? 'QUESTO È IL PRIMO MESSAGGIO dopo la richiesta del cliente: presentati in UNA frase come BOOM Roma e rispondi alla sua richiesta.' : null,
+    channel === 'email' ? 'CANALE: EMAIL — stesso stile corto, niente markdown.' : null,
     lead && lead.name ? `Nome cliente: ${lead.name}` : null,
     lead && lead.budget ? `Budget dichiarato: €${lead.budget}/mese` : null,
     lead && lead.zone ? `Zona cercata: ${lead.zone}` : null,
@@ -212,20 +227,22 @@ export async function segretariaTurn({ cid, conv, lead, text, messageId, now = D
     return { acted: true, escalated: true, why: clean.why };
   }
 
-  // La rotaia del tap manuale: action_queue → executor → outbox WhatsApp.
-  const phone = (conv && conv.contactPhone) || (lead && lead.phone);
-  if (!phone) {
-    await escalateSegretaria({ cid, conv, lead, why: 'nessun numero su cui rispondere', text });
-    return { acted: true, escalated: true, why: 'no_phone' };
-  }
+  // La rotaia del tap manuale: action_queue → executor → outbox WhatsApp
+  // (o Nodemailer per il canale email — lo stesso messages.send del tap).
+  const en = replyLang(lead || { message: text }) !== 'it';
+  const subject = (lead && (lead.propertyTitle || lead.listingName))
+    ? `Re: ${lead.propertyTitle || lead.listingName} — BOOM Roma`
+    : (en ? 'Your enquiry — BOOM Roma' : 'La tua richiesta — BOOM Roma');
   const { id: actionId } = await fsCreate('action_queue', {
     leadId: (lead && lead.id) || (conv && conv.leadId) || 'none',
     kind: 'reply',
-    summary: `Segretaria → ${(conv && conv.contactName) || 'cliente'}`.slice(0, 240),
+    summary: `Segretaria → ${(conv && conv.contactName) || 'cliente'} (${channel})`.slice(0, 240),
     tier: 1,
     confidence: 0.9,
     proposedBy: 'segretaria',
-    payload: { channel: 'whatsapp', phone, recipient: phone, draft: clean.text },
+    payload: channel === 'whatsapp'
+      ? { channel, phone, recipient: phone, draft: clean.text }
+      : { channel, to: email, recipient: email, subject, draft: clean.text },
     contextHash,
     status: 'approved',
     approvedAt: new Date(now),
@@ -266,7 +283,7 @@ function convIdLead(leadId) {
 export async function handoverSegretaria(leadId) {
   const lead = await fsGet(`leads/${leadId}`).catch(() => null);
   if (!lead) return { ok: false, why: 'lead non trovato' };
-  if (!lead.phone) return { ok: false, why: 'nessun numero WhatsApp (per ora la Segretaria parla solo su WhatsApp)' };
+  if (!lead.phone && !lead.email) return { ok: false, why: 'nessun recapito: la Segretaria parla su WhatsApp o via email' };
   const primary = convIdLead(leadId);
   const legacy = lead.conversationId && lead.conversationId !== primary ? lead.conversationId : null;
   const legacyConv = legacy ? await fsGet('conversations/' + legacy).catch(() => null) : null;
@@ -280,13 +297,35 @@ export async function handoverSegretaria(leadId) {
     ...stamp,
     contactType: 'lead',
     contactId: leadId,
-    contactName: (prev && prev.contactName) || (legacyConv && legacyConv.contactName) || lead.name || lead.phone,
-    contactPhone: (prev && prev.contactPhone) || lead.phone,
+    contactName: (prev && prev.contactName) || (legacyConv && legacyConv.contactName) || lead.name || lead.phone || lead.email,
+    contactPhone: (prev && prev.contactPhone) || lead.phone || '',
+    contactEmail: (prev && prev.contactEmail) || lead.email || '',
+    channel: lead.phone ? ((prev && prev.channel) || 'whatsapp') : 'email',
     segretariaTurns: Number((prev && prev.segretariaTurns) || 0),
   });
   if (legacy && legacyConv) await fsPatch('conversations/' + legacy, stamp).catch(() => {});
   await logActivity('Segretaria: conversazione consegnata', 'segretaria', { conversationId: primary, leadId }, 'operator');
   return { ok: true, cid: primary, name: (legacyConv && legacyConv.contactName) || lead.name || 'cliente' };
+}
+
+// ─── La mossa d'apertura ─────────────────────────────────────────────────
+// Il click 🤖 vale anche per chi non ha ancora scritto su WhatsApp (lead da
+// portale, dal centralino, dal sito): la Segretaria APRE lei — risponde
+// alla richiesta ORIGINALE del cliente sul canale giusto. Idempotente per
+// costruzione (contextHash 'open_<leadId>'): un secondo click non riapre.
+export async function segretariaOpen(leadId, now = Date.now()) {
+  const lead = await fsGet(`leads/${leadId}`).catch(() => null);
+  if (!lead) return { acted: false, why: 'lead non trovato' };
+  const cid = convIdLead(leadId);
+  const conv = await fsGet('conversations/' + cid).catch(() => null);
+  if (!conv || !conv.segretaria) return { acted: false, why: 'conversazione non consegnata' };
+  if (Number(conv.segretariaTurns || 0) > 0) return { acted: false, why: 'conversazione già avviata' };
+  const text = String(lead.message || '').trim()
+    || `Richiesta informazioni${lead.propertyTitle ? ' per ' + lead.propertyTitle : ''}`;
+  return segretariaTurn({
+    cid, conv, lead: { id: leadId, ...lead },
+    text, messageId: 'open_' + leadId, opening: true, now,
+  });
 }
 
 export async function segretariaOffConv(cid, why = 'spenta dall\'operatore') {

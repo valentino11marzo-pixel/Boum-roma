@@ -124,6 +124,33 @@
     return { ok: true, text: t };
   }
 
+  /* ── la risposta email, spogliata del testo citato ─────────────────────
+   * Sotto la risposta vera c'è quasi sempre il thread intero ("On ... wrote:",
+   * "Il ... ha scritto:", righe '>'): darlo al modello gonfia il prompt e
+   * gli fa rispondere a frasi NOSTRE. Si tiene solo ciò che il cliente ha
+   * scritto DAVVERO in questo giro. */
+  var QUOTE_STARTS = [
+    /^On .{0,200}wrote:\s*$/i,
+    /^Il .{0,200}ha scritto:\s*$/i,
+    /^Le .{0,200}a écrit\s*:\s*$/i,
+    /^-{2,}\s*(Original Message|Forwarded message|Messaggio originale|Messaggio inoltrato)/i,
+    /^_{5,}\s*$/,
+    /^(Da|From|Von)\s*:\s.+$/i,
+  ];
+  function stripQuoted(text) {
+    var lines = String(text || '').split(/\r?\n/);
+    var out = [];
+    for (var i = 0; i < lines.length; i++) {
+      var ln = lines[i];
+      if (ln.charAt(0) === '>') break;
+      var quoted = false;
+      for (var j = 0; j < QUOTE_STARTS.length; j++) { if (QUOTE_STARTS[j].test(ln.trim())) { quoted = true; break; } }
+      if (quoted) break;
+      out.push(ln);
+    }
+    return out.join('\n').replace(/\n{3,}/g, '\n\n').trim().slice(0, 2000);
+  }
+
   var API = {
     DEFAULTS: DEFAULTS,
     mergeConfig: mergeConfig,
@@ -132,6 +159,7 @@
     noteSent: noteSent,
     sanitizeReply: sanitizeReply,
     textHash: textHash,
+    stripQuoted: stripQuoted,
   };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_SEGRETARIA = API;

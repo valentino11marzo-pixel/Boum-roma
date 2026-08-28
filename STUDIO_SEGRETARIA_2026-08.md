@@ -102,17 +102,29 @@ griglia slot vera via `viewings/_avail`), altra porta.
 
 ## 3 · Le tranche
 
-1. **ORA — WhatsApp** (questa release): consegna dalla card Telegram,
-   turni auto con binari duri, escalation, /segretaria, test sul giro vero.
-2. **Email**: stesso cervello, transport nodemailer (reply nel thread), per
-   i lead dei portali che non hanno ancora un numero.
-3. **Centralino → Segretaria**: la promessa della receptionist ("ti scrivo
-   su WhatsApp") diventa un handover automatico proposto — il lead da
-   chiamata arriva con la card e il 🤖 già suggerito.
-4. **La promozione della consegna**: quando i numeri della Segretaria
-   reggono (escalation rare, esiti buoni), la consegna stessa può diventare
-   proponibile dalla macchina ("questo lead te lo gestisco io?") — sempre
-   un tap, mai da sola.
+1. ✅ **WhatsApp**: consegna dalla card Telegram, turni auto con binari
+   duri, escalation, /segretaria, test sul giro vero.
+2. ✅ **La mossa d'apertura**: il 🤖 vale su QUALSIASI lead raggiungibile
+   (portale, centralino, sito) — se il cliente non ha ancora scritto, la
+   Segretaria APRE lei, rispondendo alla richiesta ORIGINALE sul canale
+   giusto (WhatsApp col numero, email senza). Idempotente per costruzione
+   (`open_<leadId>`): un secondo click non riapre. È anche la tranche
+   "centralino": il lead da chiamata ha la card col 🤖 come tutti.
+3. ✅ **Email** (`api/segretaria/scan-replies.js`, cron */10): le risposte
+   dei clienti seguiti via email tornano nella casella Gmail; lo scanner
+   legge SOLO i mittenti delle conversazioni consegnate (perimetro stretto:
+   il resto della casella non ci riguarda), spoglia il testo citato
+   (`stripQuoted` — il thread sotto la risposta gonfia il prompt e fa
+   rispondere a frasi NOSTRE) e passa il turno allo stesso cervello.
+   Message-ID ricordati; zero conversazioni email consegnate ⇒ un run
+   costa una query. Heartbeat `teamHealth/segretaria` (card in /team,
+   allerta Telegram esistente). NOTA: sul canale email il rientro
+   automatico (D4) non esiste — una tua email non passa dal sistema; si
+   riprende da /segretaria (🖐).
+4. **La promozione della consegna** (futura): quando i numeri della
+   Segretaria reggono (escalation rare, esiti buoni), la consegna stessa
+   può diventare proponibile dalla macchina ("questo lead te lo gestisco
+   io?") — sempre un tap, mai da sola.
 
 ## 4 · Cosa resta all'operatore (il suo lavoro, per contratto)
 

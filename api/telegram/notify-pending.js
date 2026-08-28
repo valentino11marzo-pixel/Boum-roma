@@ -243,9 +243,11 @@ export default async function handler(req, res) {
         url: wa,
       });
       buttons[0].push({ text: '📇 Portale', url: 'https://www.boomrome.com/portal' });
-      // La consegna alla Segretaria (STUDIO_SEGRETARIA): solo dove esiste già
-      // una conversazione WhatsApp — il click è la firma per QUELLA chat.
-      if (l.conversationId && l.phone) buttons.push([{ text: '🤖 Passa alla Segretaria', callback_data: `sg:${l.id}` }]);
+      // La consegna alla Segretaria (STUDIO_SEGRETARIA): su qualsiasi lead
+      // raggiungibile — il click è la firma per QUELLA conversazione. Se il
+      // cliente non ha ancora scritto, la Segretaria APRE lei (mossa
+      // d'apertura) sul canale giusto: WhatsApp col numero, email senza.
+      if (l.phone || l.email) buttons.push([{ text: '🤖 Passa alla Segretaria', callback_data: `sg:${l.id}` }]);
       const mid = await tgSend(chatId, bits.join('\n'), { reply_markup: { inline_keyboard: buttons } });
       await fsPatch(`leads/${l.id}`, { telegramNotifiedAt: new Date(), telegramMessageId: mid || null });
       ldResults.push({ id: l.id, ok: true });

@@ -98,7 +98,7 @@ const NOW = Date.parse('2026-08-28T10:00:00Z');
   ok('il blocco è best-effort (mai perdere il messaggio)', /catch \(e\) \{ console\.warn\('\[homie\/message\] segretaria/.test(msg));
 
   const notif = readFileSync(new URL('../../api/telegram/notify-pending.js', import.meta.url), 'utf8');
-  ok('il 🤖 compare solo dove c\'è una conversazione WhatsApp', /l\.conversationId && l\.phone.*sg:\$\{l\.id\}/.test(notif));
+  ok('il 🤖 compare su ogni lead raggiungibile (telefono O email)', /l\.phone \|\| l\.email.*sg:\$\{l\.id\}/.test(notif));
 
   const hook = readFileSync(new URL('../../api/telegram/webhook.js', import.meta.url), 'utf8');
   const iSg = hook.indexOf("verb === 'sg'");
@@ -108,6 +108,22 @@ const NOW = Date.parse('2026-08-28T10:00:00Z');
 
   ok('callback ≤64B: sg:<leadId>', Buffer.byteLength('sg:' + 'x'.repeat(24)) <= 64);
   ok('callback ≤64B: sgx:<convId>', Buffer.byteLength('sgx:conv_whatsapp_393331234567999') <= 64);
+
+  const vjson = readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8');
+  ok('il cron delle risposte email è dichiarato in vercel.json', vjson.includes('/api/segretaria/scan-replies') && /scan-replies\.js/.test(vjson));
+  const reg = readFileSync(new URL('../../js/squadra-registry.js', import.meta.url), 'utf8');
+  ok('la Segretaria è nell\'organigramma (anti-deriva)', /key: 'segretaria'/.test(reg) && reg.includes('/api/segretaria/scan-replies'));
+}
+
+// ── 5b. la risposta email, spogliata del thread citato ─────────────────────
+{
+  const mail = 'Yes perfect, Thursday works!\n\nOn Mon, Aug 24, 2026 at 10:12 BOOM Rome wrote:\n> Hi Sophie, would Thursday...';
+  ok('tiene solo la risposta vera (EN)', SEG.stripQuoted(mail) === 'Yes perfect, Thursday works!');
+  const it = 'Va bene giovedì, grazie\nIl giorno lun 24 ago 2026 BOOM Rome ha scritto:\n> Ciao...';
+  ok('tiene solo la risposta vera (IT)', SEG.stripQuoted(it) === 'Va bene giovedì, grazie');
+  ok('le righe ">" tagliano comunque', SEG.stripQuoted('ok!\n> quoted stuff') === 'ok!');
+  ok('un\'email senza citazioni resta intera', SEG.stripQuoted('Ciao,\n\nquando posso vederla?') === 'Ciao,\n\nquando posso vederla?');
+  ok('vuota resta vuota (il turno non parte sul nulla)', SEG.stripQuoted('> tutto citato\n> anche questo') === '');
 }
 
 // ── 6. IL GIRO VERO: Firestore in memoria, executor reale, AI finta ────────
@@ -302,5 +318,32 @@ let leadId, cid;
     msgLogs() === before && r.segretaria && r.segretaria.escalated === true && DB.get('conversations/' + cid).segretaria === false, r.segretaria);
 }
 
-console.log(fails ? `\n${fails} FAIL` : '\nOK — la Segretaria parla solo dove l\'hai consegnata, tace dove serve una persona, e un tuo messaggio la spegne sempre.');
+// 6j. LA MOSSA D'APERTURA — lead email-only (portale): il click apre via email
+{
+  const { handoverSegretaria: ho, segretariaOpen } = await import('../../api/segretaria/_core.js');
+  AI_REPLY = { reply: 'Ciao Anna! Sì, il Trilocale è disponibile 😊 Vuoi vederlo in video?', escalate: false };
+  DB.set('leads/ldmail', { status: 'new', name: 'Anna B', email: 'anna@example.com',
+    message: 'Hello, I am interested in the Trilocale, is it available from October?',
+    propertyId: 'l2', propertyTitle: 'Bilocale Trastevere' });
+  const h = await ho('ldmail');
+  ok('6j. la consegna accetta un lead SENZA numero (canale email)', h.ok === true, h);
+  globalThis.__mails = [];
+  const r = await segretariaOpen('ldmail');
+  ok('6j. l\'apertura parte e scrive LEI per prima', r.sent === true, r);
+  ok('6j. l\'email è partita davvero (nodemailer vero, mockato)', globalThis.__mails.length === 1, globalThis.__mails.length);
+  ok('6j. al destinatario giusto, con l\'oggetto del suo immobile',
+    globalThis.__mails[0].to === 'anna@example.com' && /Bilocale Trastevere/.test(globalThis.__mails[0].subject), globalThis.__mails[0] && globalThis.__mails[0].subject);
+  const r2 = await segretariaOpen('ldmail');
+  ok('6j. MUTAZIONE: un secondo click non riapre (conversazione già avviata)', r2.acted === false, r2);
+}
+
+// 6k. l'apertura su una chat GIÀ avviata non scrive (il filo esiste già)
+{
+  const { segretariaOpen } = await import('../../api/segretaria/_core.js');
+  await handoverSegretaria(leadId);   // riconsegnata dopo l'escalation di 6i
+  const r = await segretariaOpen(leadId);
+  ok('6k. chat con turni già fatti → nessuna apertura doppia', r.acted === false && /avviata/.test(r.why || ''), r);
+}
+
+console.log(fails ? `\n${fails} FAIL` : '\nOK — la Segretaria parla solo dove l\'hai consegnata (e ora apre lei, su WhatsApp o email), tace dove serve una persona, e un tuo messaggio la spegne sempre.');
 process.exit(fails ? 1 : 0);

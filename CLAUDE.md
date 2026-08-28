@@ -2764,11 +2764,29 @@ consegna e la porta fino alla visita prenotata o all'escalation.
   card 🖐 con le ultime battute e il wa.me. La voce è "noi di BOOM", mai
   la firma di una persona (D6): "ti metto in contatto con Valentino" È
   l'escalation.
+- **La mossa d'apertura**: il 🤖 vale su QUALSIASI lead raggiungibile
+  (portale, centralino, sito) — se il cliente non ha ancora scritto, la
+  Segretaria APRE lei (`segretariaOpen`, dal webhook subito dopo la
+  consegna): risponde alla richiesta ORIGINALE sul canale giusto, WhatsApp
+  col numero, EMAIL senza (payload `channel:'email'` con to+subject, stesso
+  executor → Nodemailer). Idempotente (`open_<leadId>`): un secondo click
+  non riapre; una chat già avviata non riceve aperture doppie.
+- **La porta email** (`api/segretaria/scan-replies.js`, cron */10,
+  maxDuration 60): legge SOLO i mittenti delle conversazioni consegnate
+  con contactEmail (perimetro stretto — zero consegnate = un run costa una
+  query), spoglia il testo citato (`stripQuoted` nel motore: il thread
+  sotto la risposta farebbe rispondere a frasi NOSTRE), registra il
+  messaggio in Inbox e passa il turno allo stesso cervello. Message-ID in
+  `heartbeat/segretaria-mail-memory`. Sul canale email il rientro D4 non
+  esiste (una tua email non passa dal sistema): si riprende da /segretaria.
 - **Controllo**: `/segretaria` su Telegram (chat attive, 🖐 Riprendi per
   ognuna, kill switch `sgk`), `settings/segretaria`
   {enabled, maxTurns, dailyCap, maxChars} con la disciplina resolveKnobs.
   homie/message ha maxDuration 60 in vercel.json (il turno paga una
-  chiamata Claude).
+  chiamata Claude). La Segretaria è nell'ORGANIGRAMMA (💁, approval
+  `parziale`: la consegna è il tuo click) col heartbeat
+  `teamHealth/segretaria`; la lettera del Commerciale dichiara ora la
+  scala della fiducia sui follow-up.
 - Test: `node tests/segretaria/run.mjs` — cancelli e sanificazione per
   mutazione, giunzioni sulla sorgente, e il giro VERO su Firestore in
   memoria col handler reale: consegna → turno (executor vero) → eco che

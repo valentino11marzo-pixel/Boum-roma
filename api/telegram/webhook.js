@@ -21,7 +21,7 @@ import { handleViewingCallback, sendAgenda } from './_viewings.js';
 import { handleTaskCallback, handleTaskText, sendBrief } from '../regista/_telegram.js';
 import { handleRichiamoCallback, handleRichiamaCommand } from './_richiamo.js';
 import { fiduciaStatusMessage, toggleFiducia } from '../employees/_fiducia.js';
-import { handoverSegretaria, segretariaOffConv, segretariaStatusMessage, toggleSegretariaKill } from '../segretaria/_core.js';
+import { handoverSegretaria, segretariaOpen, segretariaOffConv, segretariaStatusMessage, toggleSegretariaKill } from '../segretaria/_core.js';
 
 // Canonical public host for self-calls (the executor). VERCEL_URL deployment
 // URLs can be auth-gated / unreliable for server-to-server self-fetches, which
@@ -155,9 +155,17 @@ export default async function handler(req, res) {
       if (verb === 'sg') {
         const r = await handoverSegretaria(actionId).catch(e => ({ ok: false, why: e.message }));
         await tgAckCallback(cq.id, r.ok ? '🤖 Consegnata' : (r.why || 'Non riesco').slice(0, 190));
+        // La mossa d'apertura: se il cliente non ha ancora una chat avviata,
+        // la Segretaria APRE lei rispondendo alla richiesta originale —
+        // il click 🤖 così vale anche per i lead da portale e dal centralino.
+        let opened = null;
+        if (r.ok) opened = await segretariaOpen(actionId).catch(e => ({ acted: false, why: e.message }));
         if (r.ok && messageId) {
+          const openLine = opened && opened.sent
+            ? '\n📨 <i>Le ha appena scritto lei, rispondendo alla richiesta.</i>'
+            : (opened && opened.escalated ? `\n🖐 <i>Ti ha subito passato la mano: ${esc(opened.why || '')}</i>` : '');
           await tgEdit(chatId, messageId,
-            (cq.message.text || '') + `\n\n🤖 <b>CONSEGNATA ALLA SEGRETARIA</b> — risponde lei su questa chat. Un tuo messaggio manuale la spegne; /segretaria per il quadro.`).catch(() => {});
+            (cq.message.text || '') + `\n\n🤖 <b>CONSEGNATA ALLA SEGRETARIA</b> — risponde lei su questa chat. Un tuo messaggio manuale la spegne; /segretaria per il quadro.${openLine}`).catch(() => {});
         }
         return res.status(200).json({ ok: true });
       }
