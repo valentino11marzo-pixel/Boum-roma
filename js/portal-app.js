@@ -27642,7 +27642,7 @@ IBAN: ${l.iban || '-'}`;
                 <button class="btn" ${_innesto.busy ? 'disabled' : ''} onclick="innestoAnalyze()">${_innesto.busy ? 'Lettura in corso…' : 'Leggi e proponi'}</button>
             </div>
             <div style="font-size:11.5px;color:var(--text-secondary);margin-top:10px;line-height:1.5">
-                Il documento viene letto dall'AI solo per estrarre i campi. Non viene salvato da nessuna parte finché non confermi.
+                Il documento viene letto dall'AI solo per estrarre i campi. Un file grande transita dal tuo Storage e viene rimosso a lettura finita: niente resta salvato finché non confermi.
             </div>
         </div>
 
@@ -27758,23 +27758,52 @@ IBAN: ${l.iban || '-'}`;
         if (el) el.textContent = f.name;
     }
 
+    // Il body di una function Vercel ha un tetto di PIATTAFORMA di 4,5 MB:
+    // un PDF base64 sopra ~3,3 MB moriva in un "errore 413" nudo emesso
+    // dall'edge prima che l'endpoint partisse (la lezione del 28/08/2026).
+    // Sotto questo tetto il file viaggia inline come sempre; sopra, TRANSITA
+    // dallo Storage (cartella propria documents/<uid>/innesto-tmp/) e all'API
+    // va solo l'URL — e il transito si cancella a lettura finita, così la
+    // promessa della pagina ("niente resta salvato finché non confermi") tiene.
+    const INNESTO_INLINE_MAX = 3 * 1024 * 1024;
+
     async function innestoAnalyze() {
         const text = (document.getElementById('innestoText') || {}).value || '';
         if (!text.trim() && !_innesto.file) { toast('error', 'Serve del materiale', 'Incolla del testo o allega un file'); return; }
         _innesto.busy = true; renderPage();
+        let transitRef = null;
         try {
             const payload = { text: text.slice(0, 60000), context: { known: {
                 landlords: (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').map(u => u.name).filter(Boolean).slice(0, 60),
                 properties: (S.properties || []).map(p => p.name).filter(Boolean).slice(0, 60)
             } } };
             if (_innesto.file) {
-                payload.base64 = await new Promise((res, rej) => {
-                    const r = new FileReader();
-                    r.onload = () => res(String(r.result).split(',')[1] || '');
-                    r.onerror = rej;
-                    r.readAsDataURL(_innesto.file);
-                });
-                payload.mediaType = _innesto.file.type || 'application/pdf';
+                let blob = _innesto.file;
+                let mediaType = blob.type || 'application/pdf';
+                // Le foto si riducono PRIMA di scegliere la via: una foto da
+                // 8 MB diventa un JPEG leggero e viaggia inline (stessa
+                // compressione del convertitore AdE — una copia sola).
+                if (/^image\//i.test(mediaType)) {
+                    try {
+                        const buf = await adeCompressImage(await blob.arrayBuffer(), mediaType, 0.85, 2000);
+                        blob = new Blob([buf], { type: 'image/jpeg' });
+                        mediaType = 'image/jpeg';
+                    } catch (_) { /* decodifica fallita: si tenta col file originale */ }
+                }
+                if (blob.size <= INNESTO_INLINE_MAX) {
+                    payload.base64 = await new Promise((res, rej) => {
+                        const r = new FileReader();
+                        r.onload = () => res(String(r.result).split(',')[1] || '');
+                        r.onerror = rej;
+                        r.readAsDataURL(blob);
+                    });
+                } else {
+                    const safeName = String(_innesto.file.name || 'documento').replace(/[^\w.\-]+/g, '_').slice(-80);
+                    transitRef = storage.ref('documents/' + auth.currentUser.uid + '/innesto-tmp/' + Date.now() + '_' + safeName);
+                    await transitRef.put(blob, { contentType: mediaType });
+                    payload.fileUrl = await transitRef.getDownloadURL();
+                }
+                payload.mediaType = mediaType;
             }
             const token = await auth.currentUser.getIdToken();
             const r = await fetch('/api/portal/ingest', {
@@ -27783,7 +27812,13 @@ IBAN: ${l.iban || '-'}`;
                 body: JSON.stringify(payload)
             });
             const data = await r.json().catch(() => ({}));
-            if (!r.ok || !data.ok) throw new Error(data.error || ('errore ' + r.status));
+            if (!r.ok || !data.ok) {
+                const why = r.status === 413 || data.error === 'file_too_large'
+                        ? 'file oltre il limite di 8 MB — comprimilo o allega solo le pagine che contano'
+                    : data.error === 'unsupported_media_type' ? 'formato non leggibile: servono PDF, JPG, PNG o WebP'
+                    : (data.error || ('errore ' + r.status));
+                throw new Error(why);
+            }
             if (data.empty || !data.proposal || !Object.keys(data.proposal).length) {
                 toast('warning', 'Nessun dato riconosciuto', 'Prova ad aggiungere più contesto o un documento più leggibile');
                 _innesto.notes = data.notes || []; _innesto.proposal = null;
@@ -27798,6 +27833,8 @@ IBAN: ${l.iban || '-'}`;
             console.error('[Innesto]', e);
             toast('error', 'Lettura non riuscita', e.message);
         } finally {
+            // Il transito non resta: il file su Storage era solo il trasporto.
+            if (transitRef) transitRef.delete().catch(() => {});
             _innesto.busy = false; renderPage();
         }
     }

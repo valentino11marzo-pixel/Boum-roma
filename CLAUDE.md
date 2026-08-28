@@ -2008,13 +2008,30 @@ the IBAN before writing. `loadCompanySettings()` is fire-and-forget off the
 boot path (Safari-audit rule: nothing awaited on boot).
 
 ### POST `/api/portal/ingest`
-Admin/owner/landlord (Firebase ID token). Body `{ text?, base64?, mediaType?,
-context:{ known:{ landlords[], properties[] } } }` → `{ ok, proposal, notes[],
-confidence }`. Claude (haiku) extracts the four entities; the prompt forbids
-inventing values (an empty field is correct, an invented one ends up in a
-registered contract) and the response is field-whitelisted server-side to the
-portal's schema. **Writes nothing** — creation happens client-side after the
-operator reviews and confirms. `ANTHROPIC_API_KEY` stays server-side.
+Admin/owner/landlord (Firebase ID token). Body `{ text?, base64?, fileUrl?,
+mediaType?, context:{ known:{ landlords[], properties[] } } }` → `{ ok,
+proposal, notes[], confidence }`. Claude (haiku) extracts the four entities;
+the prompt forbids inventing values (an empty field is correct, an invented
+one ends up in a registered contract) and the response is field-whitelisted
+server-side to the portal's schema. **Writes nothing** — creation happens
+client-side after the operator reviews and confirms. `ANTHROPIC_API_KEY`
+stays server-side.
+
+**La lezione del 28 agosto 2026 (errore 413)**: il body di una function
+Vercel ha un tetto di PIATTAFORMA di **4,5 MB** — l'edge lo respinge PRIMA
+che l'handler parta, quindi il `sizeLimit: '12mb'` dichiarato nel file e il
+tetto client di 8 MB erano promesse vuote: un PDF scansionato sopra ~3,3 MB
+(base64 +33%) moriva in un "errore 413" nudo. La cura, su tre binari: le
+FOTO si riducono client-side prima di partire (`adeCompressImage`, la stessa
+del convertitore AdE — una copia sola); un file che resta sotto
+`INNESTO_INLINE_MAX` (3 MB) viaggia inline come sempre; sopra, TRANSITA
+dallo Storage (`documents/<uid>/innesto-tmp/`, cartella già ammessa dalle
+rules) e all'API va solo `fileUrl` — il server scarica i byte dove il tetto
+non esiste (cap 8 MB), e il client CANCELLA il transito nel `finally`, così
+la promessa della pagina ("niente resta salvato finché non confermi") resta
+vera. `fileUrl` è accettato SOLO su `https://firebasestorage.googleapis.com`:
+i byte finiscono ad Anthropic, e un URL libero trasformerebbe l'endpoint in
+un proxy verso host arbitrari. Test: `node tests/innesto/run.mjs`.
 
 ### POST `/api/homie/wa-outbox`
 WhatsApp OUTBOX for the Mac-side Homie agent: approved WhatsApp replies go
@@ -2988,6 +3005,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/prenota/run.mjs` | la corsia del pre-blocco: una casa occupata con data nota si PRENOTA e la data si vede ovunque (era «Waitlist open»), l'affittata si apre SOLO col contratto (`availableFrom`) e mai su una `availableDate` residua, l'illeggibile non promette niente, e l'anno dedotto dal motore viene dichiarato all'operatore invece di passare per un fatto. Regole C e D verificate per mutazione |
   | `tests/vetrina/run.mjs` | l'innesto della vetrina (Chromium vero su apartments.html servita): un annuncio nato DOPO la build appare, è contato e i filtri veri lo mordono (zona via hash, ricerca libera, cuore); la data testo libero passa dal motore condiviso («1 Sept 2027» → «Free from», mai «Available now»); senza foto di casa nostra o con stato ignoto la carta NON nasce; le card di build continuano ad aggiornarsi. Verificato per mutazione |
   | `tests/scheda/run.mjs` | La Scheda: token derivati (ruolo nella derivazione, timing-safe), precedenza prefill contratto→sign→wizard, lock post-firma, sync profilo su ENTRAMBI gli schemi users, upload con OCR che non blocca mai, /api/profile/link autorizzato |
+  | `tests/innesto/run.mjs` | l'Innesto e il 413 di piattaforma: il PDF grande transita da Storage e i byte che arrivano ad Anthropic sono ESATTAMENTE quelli scaricati, un host estraneo non viene MAI contattato (l'endpoint non è un proxy), i tetti restano onesti (8 MB, whitelist formati), e il transito si cancella nel finally |
   | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot |
   | `tests/aspi/run.mjs` | l'iter ASPI: la checklist blocca SOLO senza contratto (il resto avverte, dichiarato nell'email), l'invio raggiunge il referente con l'operatore in copia e gli allegati veri, la fattura col markup non si duplica MAI (id deterministico), 'registered' non si degrada, l'auto-invio parte solo con la manopola girata |
   | `tests/viewings/avail.mjs` | griglia slot: passi, gap 15', preavviso, orizzonte, maxPerDay, DST, token del link cliente |
