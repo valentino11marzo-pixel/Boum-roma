@@ -1,0 +1,207 @@
+// tests/innesto/run.mjs
+// L'Innesto moriva su "errore 413" con un PDF vero in mano: il body di una
+// function Vercel ha un tetto di PIATTAFORMA di 4,5 MB, quindi un PDF
+// scansionato sopra ~3,3 MB (base64 +33%) veniva respinto dall'edge PRIMA
+// che l'handler partisse — il sizeLimit dichiarato nel file e il tetto
+// client di 8 MB erano promesse che nessuno manteneva.
+//
+// La cura: le foto si riducono client-side (adeCompressImage, una copia
+// sola), e un file che resta grande TRANSITA dallo Storage — all'API va
+// solo l'URL, il server scarica i byte dove il tetto non esiste, e il
+// transito si cancella a lettura finita. L'URL è accettato SOLO se punta
+// al nostro Storage: i byte finiscono ad Anthropic, e un URL libero
+// trasformerebbe l'endpoint in un proxy verso host arbitrari.
+//
+// Qui gira l'HANDLER VERO: sono finte solo la rete (Identity Toolkit,
+// Firestore, Storage, Anthropic) e le credenziali.
+//
+//   node tests/innesto/run.mjs
+
+import { readFileSync } from 'node:fs';
+
+process.env.ANTHROPIC_API_KEY = 'sk-test';
+process.env.FIREBASE_API_KEY = 'k';
+process.env.FIREBASE_ADMIN_EMAIL = 'admin@boom';
+process.env.FIREBASE_ADMIN_PASS = 'p';
+process.env.FIREBASE_PROJECT_ID = 'test-proj';
+
+// ── store in memoria ───────────────────────────────────────────────────────
+const USERS = new Map([
+  ['admin_1',  { role: 'admin',    email: 'valentino@boom-rome.com' }],
+  ['tenant_1', { role: 'tenant',   email: 'inquilino@example.com' }],
+]);
+
+const PDF_BYTES = Buffer.from('%PDF-1.4 SIMETO12 TESTA OYKU — contratto di locazione transitoria');
+const HUGE_BYTES = Buffer.alloc(8 * 1024 * 1024 + 1, 65);
+
+const OUR_STORAGE = 'https://firebasestorage.googleapis.com/v0/b/test/o/documents%2Fadmin_1%2Finnesto-tmp%2F1_Simeto12.pdf?alt=media&token=t';
+const HUGE_URL    = 'https://firebasestorage.googleapis.com/v0/b/test/o/documents%2Fadmin_1%2Finnesto-tmp%2F2_enorme.pdf?alt=media&token=t';
+
+const toF = (v) => (typeof v === 'string' ? { stringValue: v } : { nullValue: null });
+const json = (o, status = 200) =>
+  new Response(JSON.stringify(o), { status, headers: { 'Content-Type': 'application/json' } });
+
+let anthCalls = [];
+let storageFetches = 0;
+let foreignFetches = 0;
+
+// La proposta finta porta anche campi INVENTATI: la whitelist deve fermarli.
+const AI_REPLY = JSON.stringify({
+  landlord: { name: 'Anna Testa', email: 'anna@example.com', segreto: 'mai' },
+  contract: { type: 'transitorio', rent: 1100, startDate: '2026-09-01', hacker: 'x' },
+  confidence: 88,
+  notes: ['il deposito non è indicato'],
+});
+
+globalThis.fetch = async (url, opts = {}) => {
+  const u = String(url);
+  if (u.includes('accounts:signInWithPassword')) return json({ idToken: 'ADMIN_TOKEN' });
+  if (u.includes('accounts:lookup')) {
+    const { idToken } = JSON.parse(opts.body || '{}');
+    if (!USERS.has(idToken)) return json({ error: 'INVALID_ID_TOKEN' }, 400);
+    return json({ users: [{ localId: idToken, email: USERS.get(idToken).email }] });
+  }
+  if (u.includes('firestore.googleapis.com')) {
+    const path = decodeURIComponent(u.split('/documents/')[1] || '').split('?')[0];
+    const uid = path.replace('users/', '');
+    if (!USERS.has(uid)) return json({ error: { status: 'NOT_FOUND' } }, 404);
+    const p = USERS.get(uid);
+    return json({ name: path, fields: { role: toF(p.role), email: toF(p.email) } });
+  }
+  if (u.startsWith('https://firebasestorage.googleapis.com/')) {
+    storageFetches++;
+    const bytes = u.includes('enorme') ? HUGE_BYTES : PDF_BYTES;
+    return new Response(bytes, { status: 200, headers: { 'Content-Type': 'application/pdf' } });
+  }
+  if (u.includes('api.anthropic.com')) {
+    anthCalls.push({ headers: opts.headers, body: JSON.parse(opts.body || '{}') });
+    return json({ content: [{ type: 'text', text: AI_REPLY }] });
+  }
+  // Qualunque altro host è un buco: si conta e si nega.
+  foreignFetches++;
+  return new Response('nope', { status: 200, headers: { 'Content-Type': 'application/pdf' } });
+};
+
+const { default: handler } = await import('../../api/portal/ingest.js');
+
+function mkRes() {
+  const r = { code: 0, body: null, headers: {} };
+  r.status = (c) => { r.code = c; return r; };
+  r.json = (b) => { r.body = b; return r; };
+  r.end = () => r;
+  r.setHeader = (k, v) => { r.headers[k] = v; };
+  return r;
+}
+
+async function call(token, body) {
+  anthCalls = []; storageFetches = 0; foreignFetches = 0;
+  const req = {
+    method: 'POST',
+    headers: token === null ? {} : { authorization: 'Bearer ' + token },
+    body: body || {},
+  };
+  const res = mkRes();
+  await handler(req, res);
+  return { res, anth: anthCalls, storage: storageFetches, foreign: foreignFetches };
+}
+
+let pass = 0, fail = 0;
+const check = (label, cond, extra) => {
+  const ok = !!cond;
+  console.log(`  ${ok ? '\x1b[32m✓\x1b[0m' : '\x1b[31m✗\x1b[0m'} ${label}${ok || !extra ? '' : ` — ${extra}`}`);
+  ok ? pass++ : fail++;
+};
+
+console.log('\n\x1b[1mLa porta\x1b[0m');
+let r = await call(null, { text: 'contratto' });
+check('senza Authorization → 401', r.res.code === 401, `ho avuto ${r.res.code}`);
+check('…e Anthropic non viene mai chiamato', r.anth.length === 0);
+
+r = await call('tenant_1', { text: 'contratto' });
+check('un inquilino loggato → 403', r.res.code === 403, `ho avuto ${r.res.code}`);
+check('…e non spende un token', r.anth.length === 0);
+
+r = await call('admin_1', {});
+check('senza materiale → 400 prima di spendere', r.res.code === 400 && r.anth.length === 0, `ho avuto ${r.res.code}`);
+
+console.log('\n\x1b[1mIl testo inline (la via di sempre)\x1b[0m');
+r = await call('admin_1', { text: 'Contratto transitorio, Anna Testa, €1.100/mese' });
+check('admin + testo → 200', r.res.code === 200, JSON.stringify(r.res.body));
+check('…con la chiave del server', r.anth[0]?.headers?.['x-api-key'] === 'sk-test');
+check('…la whitelist ferma i campi inventati',
+  r.res.body?.proposal?.landlord?.name === 'Anna Testa'
+  && !('segreto' in (r.res.body?.proposal?.landlord || {}))
+  && !('hacker' in (r.res.body?.proposal?.contract || {})),
+  JSON.stringify(r.res.body?.proposal));
+
+console.log('\n\x1b[1mIl transito da Storage (la cura del 413)\x1b[0m');
+r = await call('admin_1', { fileUrl: OUR_STORAGE, mediaType: 'application/pdf' });
+check('fileUrl del NOSTRO Storage → 200', r.res.code === 200, JSON.stringify(r.res.body));
+check('…i byte scaricati sono ESATTAMENTE quelli che vanno ad Anthropic', (() => {
+  const doc = (r.anth[0]?.body?.messages?.[0]?.content || []).find((c) => c.type === 'document');
+  return doc && doc.source?.data === PDF_BYTES.toString('base64')
+    && doc.source?.media_type === 'application/pdf';
+})());
+check('…lo Storage è stato letto una volta', r.storage === 1, String(r.storage));
+
+r = await call('admin_1', { fileUrl: OUR_STORAGE });
+check('senza mediaType dichiarato vale il content-type dello Storage', r.res.code === 200
+  && (r.anth[0]?.body?.messages?.[0]?.content || []).some((c) => c.type === 'document'),
+  `ho avuto ${r.res.code}`);
+
+console.log('\n\x1b[1mMai un proxy verso host arbitrari\x1b[0m');
+r = await call('admin_1', { fileUrl: 'https://evil.example.com/leak.pdf', mediaType: 'application/pdf' });
+check('host estraneo → 400 bad_file_url', r.res.code === 400 && r.res.body?.error === 'bad_file_url',
+  `${r.res.code} ${r.res.body?.error}`);
+check('…l\'host estraneo non viene MAI contattato', r.foreign === 0, String(r.foreign));
+check('…e non si spende un token', r.anth.length === 0);
+
+r = await call('admin_1', { fileUrl: 'http://firebasestorage.googleapis.com/v0/b/x/o/y?alt=media', mediaType: 'application/pdf' });
+check('http nudo (non https) → 400 anche sul nostro host', r.res.code === 400 && r.foreign === 0 && r.storage === 0,
+  `${r.res.code} foreign=${r.foreign} storage=${r.storage}`);
+
+console.log('\n\x1b[1mI tetti restano onesti\x1b[0m');
+r = await call('admin_1', { fileUrl: HUGE_URL, mediaType: 'application/pdf' });
+check('file oltre 8 MB via Storage → 413 file_too_large', r.res.code === 413 && r.res.body?.error === 'file_too_large',
+  `${r.res.code} ${r.res.body?.error}`);
+check('…senza spendere un token', r.anth.length === 0);
+
+r = await call('admin_1', { base64: 'A'.repeat(8 * 1024 * 1024 + 1), mediaType: 'application/pdf' });
+check('base64 inline oltre il tetto → 413', r.res.code === 413, `ho avuto ${r.res.code}`);
+
+r = await call('admin_1', { fileUrl: OUR_STORAGE, mediaType: 'application/zip' });
+check('formato fuori whitelist → 400 anche via fileUrl', r.res.code === 400
+  && r.res.body?.error === 'unsupported_media_type' && r.anth.length === 0,
+  `${r.res.code} ${r.res.body?.error}`);
+
+console.log('\n\x1b[1mLe giunzioni sulla sorgente\x1b[0m');
+const app = readFileSync(new URL('../../js/portal-app.js', import.meta.url), 'utf8');
+const api = readFileSync(new URL('../../api/portal/ingest.js', import.meta.url), 'utf8');
+
+const capM = /INNESTO_INLINE_MAX\s*=\s*(\d+)\s*\*\s*1024\s*\*\s*1024/.exec(app);
+check('il tetto inline del client sta SOTTO i 4,5 MB di piattaforma (base64 +33%)',
+  capM && Number(capM[1]) * 1024 * 1024 * (4 / 3) < 4.5 * 1024 * 1024,
+  capM ? `${capM[1]} MB raw` : 'INNESTO_INLINE_MAX assente');
+check('la scelta inline/transito passa dal tetto', /blob\.size\s*<=\s*INNESTO_INLINE_MAX/.test(app));
+check('le foto si riducono PRIMA della scelta (adeCompressImage, una copia sola)', (() => {
+  const fn = app.slice(app.indexOf('async function innestoAnalyze'));
+  const body = fn.slice(0, fn.indexOf('\n    }\n'));
+  return body.indexOf('adeCompressImage') !== -1
+    && body.indexOf('adeCompressImage') < body.indexOf('INNESTO_INLINE_MAX');
+})());
+check('il transito va nella cartella PROPRIA (documents/<uid>/innesto-tmp/)',
+  /storage\.ref\('documents\/'\s*\+\s*auth\.currentUser\.uid\s*\+\s*'\/innesto-tmp\//.test(app));
+check('…e si CANCELLA a lettura finita (anche su errore: sta nel finally)', (() => {
+  const fn = app.slice(app.indexOf('async function innestoAnalyze'));
+  const fin = fn.slice(fn.indexOf('} finally {'));
+  return /transitRef\.delete\(\)/.test(fin.slice(0, 400));
+})());
+check('la pagina dice del transito invece di promettere il falso',
+  /transita dal tuo Storage/.test(app) && !/Non viene salvato da nessuna parte finché non confermi/.test(app));
+check('il server inchioda l\'host del fileUrl al nostro Storage',
+  /u\.hostname\s*!==\s*'firebasestorage\.googleapis\.com'/.test(api));
+
+console.log('\n────────────────────────────────────────────────');
+console.log(`\x1b[1mResult: ${pass} passed, ${fail} failed\x1b[0m`);
+if (fail) process.exit(1);
+console.log('\x1b[32mIl PDF grande passa da Storage e l\'Innesto legge; l\'endpoint non fa mai da proxy, e il transito non resta.\x1b[0m');

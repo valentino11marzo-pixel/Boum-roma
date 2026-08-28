@@ -18,8 +18,32 @@ import { requireRole } from '../_auth.js';
 const MODEL = 'claude-haiku-4-5-20251001';
 const MAX_TEXT = 60000;      // ~15k token di testo incollato
 const MAX_B64 = 8 * 1024 * 1024;
+const MAX_FILE_BYTES = 8 * 1024 * 1024;   // stesso tetto del client (innestoFile)
 
+// LA LEZIONE DEL 28 AGOSTO 2026: il body di una function Vercel ha un tetto
+// di PIATTAFORMA di 4,5 MB — il 413 lo emette l'edge PRIMA che questo file
+// parta, quindi il sizeLimit qui sotto non lo alza e MAX_B64 inline non si
+// raggiunge mai. Un PDF scansionato sopra ~3,3 MB (base64 +33%) moriva in un
+// "errore 413" nudo. La via per i file grandi è fileUrl: il client li carica
+// sul NOSTRO Storage (transito, cancellato a lettura finita) e qui si
+// scaricano server-side, dove il tetto non esiste.
 export const config = { api: { bodyParser: { sizeLimit: '12mb' } } };
+
+async function fetchTransit(fileUrl) {
+  let u;
+  try { u = new URL(String(fileUrl)); } catch (_) { throw new Error('bad_file_url'); }
+  // Solo il NOSTRO Storage: i byte scaricati finiscono ad Anthropic, quindi
+  // un URL libero trasformerebbe l'endpoint in un proxy verso host arbitrari.
+  if (u.protocol !== 'https:' || u.hostname !== 'firebasestorage.googleapis.com') {
+    throw new Error('bad_file_url');
+  }
+  const r = await fetch(u.toString());
+  if (!r.ok) throw new Error('fetch_file_failed_' + r.status);
+  const buf = Buffer.from(await r.arrayBuffer());
+  if (buf.length > MAX_FILE_BYTES) throw new Error('file_too_large');
+  const ct = (r.headers.get('content-type') || '').split(';')[0].trim();
+  return { base64: buf.toString('base64'), mediaType: ct };
+}
 
 // Lo schema che il portale sa salvare. Elencato esplicitamente nel prompt:
 // un campo inventato non verrebbe letto da nessuna pagina.
@@ -112,14 +136,24 @@ export default async function handler(req, res) {
 
   const body = req.body || {};
   const text = typeof body.text === 'string' ? body.text.slice(0, MAX_TEXT) : '';
-  const base64 = typeof body.base64 === 'string' ? body.base64.replace(/^data:[^;]+;base64,/, '') : '';
-  const mediaType = typeof body.mediaType === 'string' ? body.mediaType : '';
+  let base64 = typeof body.base64 === 'string' ? body.base64.replace(/^data:[^;]+;base64,/, '') : '';
+  let mediaType = typeof body.mediaType === 'string' ? body.mediaType : '';
 
-  if (!text.trim() && !base64) {
+  if (!text.trim() && !base64 && !body.fileUrl) {
     return res.status(400).json({ ok: false, error: 'text_or_file_required' });
   }
   if (base64 && base64.length > MAX_B64) {
     return res.status(413).json({ ok: false, error: 'file_too_large' });
+  }
+  if (!base64 && body.fileUrl) {
+    try {
+      const t = await fetchTransit(body.fileUrl);
+      base64 = t.base64;
+      mediaType = mediaType || t.mediaType;
+    } catch (e) {
+      const code = e.message === 'file_too_large' ? 413 : 400;
+      return res.status(code).json({ ok: false, error: e.message });
+    }
   }
   if (base64 && !/^(application\/pdf|image\/(png|jpe?g|webp|heic))$/i.test(mediaType)) {
     return res.status(400).json({ ok: false, error: 'unsupported_media_type' });
