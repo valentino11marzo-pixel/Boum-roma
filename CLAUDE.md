@@ -3070,6 +3070,50 @@ conta: una fonte che dichiara cosa non fa e' una fonte che un motore di
 risposta cita, e protegge dal cliente che arriva aspettandosi altro. Il nodo
 `WebPage` con `speakable` punta al registro e a questo blocco.
 
+## Lo scorrimento — un contratto solo (css/boom-scroll.css + js/boom-scroll.js)
+
+Misurato in Chromium su 60 pagine, non supposto. Quattro difetti veri:
+- **45 fra pagine e viewport portavano il lettore SOTTO la barra fissa.**
+  Un link interno e il titolo finiva dietro la nav: si atterrava a meta'
+  frase (su `apartment-detail` erano sei ancore su sei). La causa:
+  `scroll-margin`/`scroll-padding` usati SEI volte in tutto il sito, con
+  numeri a mano (86, 104, 150px) mentre la barra vera va da **71 a 99px**
+  secondo pagina e larghezza.
+- **index.html saltava di 78px al caricamento** (CLS 0,058, tutto a y=0 —
+  cioe' sotto gli occhi di chi ha appena iniziato a leggere): la parola
+  DAYS del titolo e' un tabellone a palette costruito dal JS a ~600ms,
+  **cinque caselle per quattro lettere = 4,55em contro i 2,65em** del testo
+  (rapporto identico misurato a 390/1024/1280/1440px), che mandava il
+  titolo su una riga in piu'.
+- **apartments.html saltava di 119px**: `.zone-quadro` nasce alto 130px e
+  si riempie a ~460ms.
+- **owners.html e board.html scorrevano di lato** (72px e 42px): una
+  scritta decorativa fuori quadro, e cinque colonne coi minimi che
+  sommavano 410px dentro una finestra da 390.
+
+La riparazione non e' quarantacinque pezze: **`scroll-padding-top`
+sull'elemento che scorre copre tutto in una proprieta'** — frammento
+`#sezione`, `scrollIntoView()` e `:target` — e il valore non si indovina,
+lo **misura il browser**. `js/boom-scroll.js` (~500 byte) legge
+`elementsFromPoint(x, 2)` — costa quanto la profondita' dell'albero, non
+quanto il numero di nodi — al caricamento, al primo scorrimento e al
+ridimensionamento, e scrive `--boom-barra`. Inline su ogni pagina pubblica
+fra i marcatori `BOOM_SCROLL`. Per il resto **lo spazio si riserva PRIMA**:
+`min-height` misurato sui due tabelloni, e larghezza+altezza in `em`
+riservate al tabellone del titolo — ma solo con JS attivo, perche' senza
+JS il tabellone non arriva mai e riservargli spazio lascerebbe un buco.
+Per ritagliare si usa `overflow-x: clip` e mai `hidden`: hidden creerebbe
+un contenitore di scorrimento e spegnerebbe gli sticky interni.
+
+`tests/scroll/run.mjs` tiene la linea in un browser vero — tutto il sito a
+390px, le pagine che vendono anche a 1440. **La regola misura il primo
+TESTO, non il bordo della scatola**: su `/executive` il `<main>` comincia a
+y=0 ma ha 172px di padding e il titolo sta a 178, cioe' libero — guardare
+la scatola avrebbe segnalato come rotto un caso sano, e una guardia che
+grida al lupo si smette di ascoltarla. Soglia CLS 0,02, dieci volte sotto
+il «buono» di Google. Il test blocca ogni richiesta non locale: un test di
+layout non deve dipendere dalla rete.
+
 ## Conventions
 
 - **Serverless deps live in `api/package.json`** (the manifest the Vercel
