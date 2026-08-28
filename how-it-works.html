@@ -304,66 +304,6 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .atterro-campo select.scelto { color:var(--text); }
 .atterro-campo select option { background:#101012; color:#eee; }
 
-/* il calendario BOOM: lo strumento, non il picker del browser */
-.cal { position:absolute; left:0; top:calc(100% + 10px); z-index:80;
-  width:314px; max-width:calc(100vw - 36px); padding:16px 16px 13px;
-  background:var(--void);
-  box-shadow:inset 0 0 0 1px var(--line-gold), 0 34px 80px -30px rgba(0,0,0,.95);
-  opacity:0; visibility:hidden; transform:translateY(-6px);
-  transition:opacity .28s var(--ease), transform .28s var(--ease),
-    visibility .28s; }
-.cal.aperto { opacity:1; visibility:visible; transform:none; }
-@media (max-width:640px){
-  .cal { position:fixed; left:14px; right:14px; bottom:14px; top:auto;
-    width:auto; max-width:none; z-index:200;
-    box-shadow:inset 0 0 0 1px var(--line-gold),
-      0 -20px 80px rgba(0,0,0,.85); }
-  .cal .cal-giorni button { height:40px; } }
-.cal-testa { display:flex; align-items:center; justify-content:space-between;
-  gap:10px; margin-bottom:11px; }
-.cal-testa b { font-family:var(--display); font-size:14px; font-weight:400;
-  letter-spacing:.06em; }
-.cal-fx { display:flex; gap:6px; }
-.cal-fx button { width:30px; height:30px; display:grid; place-items:center;
-  font-size:15px; color:var(--text-3);
-  box-shadow:inset 0 0 0 1px var(--line); cursor:pointer;
-  transition:color .2s, box-shadow .2s; }
-.cal-fx button:hover { color:var(--gold);
-  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
-.cal-sett { display:grid; grid-template-columns:repeat(7,1fr); gap:2px;
-  margin-bottom:3px; }
-.cal-sett span { text-align:center; font-size:10px; font-weight:600;
-  letter-spacing:.14em; color:var(--text-4); text-transform:uppercase;
-  padding:4px 0; }
-.cal-giorni { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
-.cal-giorni { transition:opacity .18s ease, transform .18s ease; }
-.cal-giorni.gira { opacity:0; transform:translateX(6px); }
-.cal-giorni button { position:relative; height:38px; display:grid;
-  place-items:center; font-size:12.5px; color:var(--text-2);
-  font-variant-numeric:tabular-nums; cursor:pointer;
-  transition:background .15s, color .15s; }
-.cal-giorni button:hover:not(:disabled) { background:rgba(255,215,0,.09);
-  color:var(--text); }
-.cal-giorni button:disabled { color:var(--text-4); opacity:.45;
-  cursor:default; }
-.cal-giorni button.fuori { color:var(--text-4); }
-.cal-giorni button.oggi::after { content:''; position:absolute; bottom:4px;
-  left:50%; transform:translateX(-50%); width:3px; height:3px;
-  border-radius:50%; background:var(--gold); }
-.cal-giorni button.sel { background:var(--gold); color:var(--black);
-  font-weight:600; animation:cal-scatto .32s var(--ease); }
-@keyframes cal-scatto { 40% { transform:scale(1.14); } }
-.cal-giorni button.sel.oggi::after { background:var(--black); }
-.cal-piede { margin-top:10px; padding-top:10px;
-  border-top:1px solid var(--line-0); display:flex; align-items:center;
-  justify-content:space-between; gap:8px; }
-.cal-piede .hint { font-size:10.5px; color:var(--text-3); }
-.cal-piede button { min-height:36px; padding:0 10px;
-  font-size:10px; font-weight:600; letter-spacing:.1em;
-  text-transform:uppercase; color:var(--text-3); padding:6px 10px;
-  box-shadow:inset 0 0 0 1px var(--line); cursor:pointer; transition:.2s; }
-.cal-piede button:hover { color:var(--gold);
-  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
 @media (max-width:640px){
   .atterro { display:grid; grid-template-columns:1fr 1fr; gap:10px 14px;
     width:100%; border-radius:22px; padding:14px 16px; }
@@ -1742,8 +1682,6 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 .cielo-pieno svg { width:13px; height:13px; }
 
 /* ── bersagli: nessun comando sotto il polpastrello (44×44 su touch) ──── */
-#calPrec, #calSucc { min-width:40px; min-height:40px; display:inline-flex;
-  align-items:center; justify-content:center; }
 /* i link di coda erano alti 18px: il testo resta, l'area cresce */
 .settimana-testa .btn-vai, .vai-testa { padding:11px 2px; margin:-11px 0; }
 .cielo-c { min-height:38px; }
