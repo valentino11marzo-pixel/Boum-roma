@@ -84,7 +84,7 @@ function injectSeo(html, d, id) {
   const description = bits.join(', ') + '.';
 
   const images = Array.isArray(d.images) ? d.images.filter(Boolean) : [];
-  const ogImage = images[0] || d.coverImage || d.image || 'https://www.boomrome.com/BOOMsocialprofile.png';
+  const ogImage = images[0] || d.coverImage || d.image || 'https://www.boomrome.com/og-home.png';
 
   const setName = (n, val) => {
     html = html.replace(new RegExp('<meta name="' + n + '" content="[^"]*">'),

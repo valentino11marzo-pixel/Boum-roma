@@ -3021,6 +3021,55 @@ raccolto per tipo invertiva la cascata e la striscia dei servizi risaliva di
 anteprima nello stesso Chromium a 390px e 1440px e pretende stesso fondo,
 stesso carattere, stessa geometria (±2px), stesso contenuto, zero errori JS.
 
+## La casa in ordine — SEO/GEO (tests/seo/run.mjs)
+
+Undici regole su **60 pagine dedotte dalla sitemap**, non da una lista a
+mano. Ognuna nata da un difetto VERO trovato in produzione, non da una
+checklist di buone pratiche:
+- **Il documento e' un documento.** `property-finding.html` e `board.html`,
+  due pagine LIVE, non avevano `<!doctype>`, `<html lang>` ne'
+  `<meta charset>`. Misurato in Chromium: **quirks mode**, nessuna lingua
+  dichiarata, e il browser che indovina `windows-1252` — cioe' «â‚¬350» al
+  posto di «€350», «Â§4.2» al posto di «§4.2» e le stelle ★ della recensione
+  sparite. Sulla pagina di punta. Il guscio e' stato aggiunto e il layout
+  verificato prima/dopo (l'uscita dal quirks mode cambia il box model).
+- **Le card social esistevano solo nel markup.** 50 pagine pubbliche
+  dichiaravano `BOOMsocialprofile.png`, **un file mai esistito nel repo**:
+  ogni inoltro su WhatsApp/LinkedIn/Slack mostrava una card vuota — per
+  un'attivita' che cresce passando di telefono in telefono, il difetto piu'
+  caro del sito. Ora `design/pages-deco/genera-og-servizi.py` genera **otto
+  card dal repo** (le sei servizio + Property Finding + Welcome to Rome),
+  ognuna col proprio prezzo LETTO da `api/_catalog.js` — la card non puo'
+  dire un numero diverso dalla pagina. Il default della pipeline e
+  `api/listing.js` non ricadono piu' sul fantasma.
+- **Nessuna entita' dichiarata due volte.** Tre pagine portavano un intero
+  blocco SEO duplicato (seconda `RealEstateAgent`, secondo `WebSite`, secondo
+  `BreadcrumbList`, secondo `Service` con `serviceType:"Legal"` — che
+  contraddiceva il disclaimer della pagina stessa, «agenzia, non studio
+  legale»). La regola guarda l'IDENTITA', non il tipo: i tre `Service` di
+  `/reunion` hanno url diversi ed e' una scelta voluta.
+- **Una domanda dichiarata deve ESSERE in pagina.** `faq.html` dichiarava
+  DUE `FAQPage` con nove domande, di cui **sei inesistenti come testo
+  visibile**: parafrasi ottimizzate per il motore di domande che la pagina
+  pone con altre parole. E' contenuto nascosto. `scripts/faq-schema.mjs`
+  ora **deriva** il FAQPage dalle card visibili (9 → **38 domande**) e sulle
+  altre pagine taglia alle domande vere: 53 fantasmi tolti, 10 FAQPage
+  senza una sola domanda reale rimossi (services.html ne dichiarava quattro
+  **senza avere una FAQ**).
+- Piu': titoli ≤62 e descrizioni 110–165 (21 riscritte), nessun titolo
+  ripetuto fra pagine, canonical assoluta e concorde con la sitemap,
+  nessuna pagina indicizzabile fuori dalla sitemap (ci mancava
+  `welcome-to-rome`, cioe' proprio «the viral asset»), `llms.txt` allineato
+  ai prezzi di `api/_catalog.js` e senza promesse non dimostrabili, e ogni
+  `speakable` che punta a nodi reali.
+
+**Il blocco «in brief»** (`.breve`, dal motore della console) e' la parte
+GEO: fatti a plat — cos'e', prezzo esatto, cosa comprende, **cosa NON e'**,
+per chi, e chi lo eroga con partita IVA. La riga dei limiti e' quella che
+conta: una fonte che dichiara cosa non fa e' una fonte che un motore di
+risposta cita, e protegge dal cliente che arriva aspettandosi altro. Il nodo
+`WebPage` con `speakable` punta al registro e a questo blocco.
+
 ## Conventions
 
 - **Serverless deps live in `api/package.json`** (the manifest the Vercel

@@ -30,8 +30,8 @@
   <meta property="og:title" content="Rent in Rome From Abroad — Remote Move Pack €299">
   <meta property="og:description" content="Close your Rome apartment before you land: two live video viewings, contract review in English, negotiation and arrival setup. €299, first viewing in 48h.">
   <meta property="og:url" content="https://www.boomrome.com/remote-move-pack">
-  <meta property="og:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
-  <meta property="og:image:secure_url" content="https://www.boomrome.com/BOOMsocialprofile.png">
+  <meta property="og:image" content="https://www.boomrome.com/og-remote-move-pack.png">
+  <meta property="og:image:secure_url" content="https://www.boomrome.com/og-home.png">
   <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -41,7 +41,7 @@
   <meta name="twitter:creator" content="@boomrome">
   <meta name="twitter:title" content="Rent in Rome From Abroad — Remote Move Pack €299">
   <meta name="twitter:description" content="Close your Rome apartment before you land: two live video viewings, contract review in English, negotiation and arrival setup. €299, first viewing in 48h.">
-  <meta name="twitter:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
+  <meta name="twitter:image" content="https://www.boomrome.com/og-remote-move-pack.png">
   <meta name="twitter:image:alt" content="Rent in Rome From Abroad — Remote Move Pack €299">
 <!-- BOOM_SEO:END -->
     <link rel="manifest" href="/site.webmanifest">
@@ -55,7 +55,7 @@
   "name": "BOOM Rome",
   "url": "https://www.boomrome.com",
   "logo": { "@type": "ImageObject", "url": "https://www.boomrome.com/android-chrome-512x512.png", "width": 512, "height": 512 },
-  "image": "https://www.boomrome.com/BOOMsocialprofile.png",
+  "image": "https://www.boomrome.com/og-home.png",
   "description": "Premium mid-term apartment rentals in Rome with full property management, legal contracts, and 48-hour move-in.",
   "sameAs": ["https://www.instagram.com/boomrome","https://www.linkedin.com/company/boomrome","https://wa.me/393313251961","https://share.google/xikmVxQCRuKOdWcND"],
   "address": { "@type": "PostalAddress", "streetAddress": "Via dei Coronari 181/184", "postalCode": "00186", "addressLocality": "Rome", "addressRegion": "Lazio", "addressCountry": "IT" },
@@ -476,7 +476,56 @@ input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
   .espo-c { min-width:0; flex:1 1 140px; }
   .espo input, .espo select { max-width:none; }
 }
+
+/* ══ IN BREVE — il blocco fatto per essere CITATO ════════════════════════
+   La lezione della Réunion: un motore di risposta cita fatti a plat, e cita
+   piu' volentieri una fonte che dichiara i propri LIMITI. Qui non si vende:
+   si dichiara. Prezzo esatto, cosa comprende, cosa NON e', chi lo compra e
+   chi lo eroga con partita IVA. Visibile in pagina — markup che afferma
+   cio' che la pagina non mostra e' contenuto nascosto. */
+.breve { border-top:1px solid rgba(255,255,255,.07);
+  padding:clamp(28px,4vw,52px) 0 clamp(6px,1vw,14px); }
+.breve-eti { margin:0 0 clamp(14px,1.8vw,20px); font-size:10px;
+  letter-spacing:.22em; text-transform:uppercase; color:var(--gold); }
+.breve dl { display:grid; gap:clamp(10px,1.4vw,15px); margin:0;
+  grid-template-columns:minmax(0,1fr); max-width:1000px; }
+@media (min-width:820px){ .breve dl { grid-template-columns:170px minmax(0,1fr);
+  align-items:baseline; gap:clamp(11px,1.3vw,15px) clamp(20px,3vw,44px); } }
+.breve dt { font-size:10px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--t4); }
+.breve dd { margin:0; font-size:clamp(13.5px,1.4vw,16px); line-height:1.55;
+  color:var(--t2); }
+.breve dd b { color:var(--t1); font-weight:400; }
+.breve dd.no { color:var(--t3); }
+.breve dd.no b { color:var(--t2); }
+/* Sul telefono la lista si stringe: l'etichetta diventa una riga di
+   servizio sopra il fatto, non una colonna. Il blocco «in brief» aggiungeva
+   mezza schermata di scorrimento — un blocco fatto per essere CITATO non
+   deve costare al lettore che scorre. */
+@media (max-width:819px){
+  .breve { padding-top:clamp(22px,5vw,32px); }
+  .breve dl { gap:11px; }
+  .breve dt { font-size:9px; letter-spacing:.18em; }
+  .breve dt + dd { margin-top:1px; }
+  .breve dd { font-size:13px; line-height:1.45; }
+}
+.breve-d > summary { list-style:none; cursor:pointer; display:flex;
+  flex-wrap:wrap; align-items:baseline; gap:6px 14px;
+  padding:2px 0 clamp(12px,1.6vw,18px); }
+.breve-d > summary::-webkit-details-marker { display:none; }
+.breve-d > summary .breve-eti { margin:0; }
+.breve-sot { font-size:11.5px; color:var(--t4); letter-spacing:.02em; }
+.breve-d:not([open]) > summary { padding-bottom:2px; }
+.breve-d:not([open]) > summary .breve-sot::after { content:' — tap to read';
+  color:var(--gold); }
+.breve-d > summary:focus-visible { outline:2px solid var(--gold);
+  outline-offset:3px; }
+@media (min-width:820px){ .breve-d > summary { pointer-events:none; }
+  .breve-d > summary .breve-sot { opacity:.75; } }
 </style>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebPage","@id":"https://www.boomrome.com/remote-move-pack#webpage","url":"https://www.boomrome.com/remote-move-pack","name":"Remote Move Pack — rent in Rome from abroad","inLanguage":"en","isPartOf":{"@id":"https://www.boomrome.com/#website"},"about":{"@id":"https://www.boomrome.com/#organization"},"primaryImageOfPage":{"@type":"ImageObject","url":"https://www.boomrome.com/og-remote-move-pack.png"},"speakable":{"@type":"SpeakableSpecification","cssSelector":["#breve","#registro"]}}
+</script>
 </head>
 <body>
 <nav class="nav" id="nav">
@@ -720,6 +769,33 @@ input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
     </div>
   </section>
 
+  <!-- ══ IN BREVE — i fatti a plat, per chi cita ═══════════════════════ -->
+  <section class="breve" id="breve">
+    <div class="container">
+      <details class="breve-d" open>
+        <summary><span class="breve-eti">In brief</span>
+          <span class="breve-sot">the facts, flat — price, what you get,
+            what this is not</span></summary>
+      <dl>
+        <dt>What it is</dt><dd>The full remote path to a signed Rome lease: two live video viewings, a contract review in English, negotiation, and arrival setup — all before you land.</dd>
+        <dt>Price</dt><dd><b>€299 for the pack (€427 if the same services are bought separately). Credited toward the agency fee if you rent a BOOM home.</b></dd>
+        <dt>What you get</dt><dd>Two live viewings on homes you pick, full Deal Assistance on the one you choose, and the arrival chain: utilities, the paperwork order, a human answering until the keys are yours.</dd>
+        <dt>What it is not</dt><dd class="no">Not a guarantee that you will rent one of the two flats you viewed — if the first fails the check, that is the point. It is not a search service: if you want us to run the hunt, that is Property Finding (€350).</dd>
+        <dt>Who it is for</dt><dd>People moving to Rome from another country with a date already fixed — students, researchers, relocating professionals, and parents organising from abroad.</dd>
+        <dt>Provided by</dt>
+        <dd>Egidi Immobiliare S.r.l., a licensed Rome estate agency —
+          P.IVA 17322991005, REA RM-1710623, Via dei Coronari 181, Rome.
+          <a href="https://euipo.europa.eu/eSearch/#details/trademarks/019317594"
+            target="_blank" rel="noopener">EU trademark 019317594 ↗</a> ·
+          <a href="https://share.google/xikmVxQCRuKOdWcND" target="_blank"
+            rel="noopener">4.9★ from 47 Google reviews ↗</a> ·
+          <a href="/terms.html">Terms &amp; fees §4</a>. Card payments run
+          through Stripe with a receipt — never a transfer to an individual.</dd>
+      </dl>
+      </details>
+    </div>
+  </section>
+
   <!-- ══ LA CHIUSURA ═══════════════════════════════════════════════════ -->
   <section class="chiusa" id="chiusura">
     <div class="container">
@@ -755,15 +831,6 @@ input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
         </div>
         <p class="footer-tagline">Built in Rome, for Rome. If we can make Rome's rental market work, we can make it work anywhere.</p>
         <div class="footer-company"><strong>Egidi Immobiliare S.r.l.</strong><br>Via dei Coronari 181/184, 00186 Roma<br>Sede legale: Viale Liegi 42, 00198 Roma<br>P.IVA 17322991005 · REA RM-1710623</div>
-        <p class="footer-prove">
-          <a href="https://euipo.europa.eu/eSearch/#details/trademarks/019317594"
-            target="_blank" rel="noopener">EU trademark 019317594 ↗</a>
-          <a href="https://share.google/xikmVxQCRuKOdWcND" target="_blank"
-            rel="noopener">4.9★ on Google · 47 reviews ↗</a>
-          <a href="/terms.html">Terms & fees — §4 →</a>
-          <span>Card payments via Stripe · never a transfer to an
-            individual</span>
-        </p>
         <div class="footer-tm">BOOM&reg; is a registered European Union trade mark (EUTM 019317594) of Egidi Immobiliare S.r.l.</div>
       </div>
       <div>
@@ -1111,6 +1178,19 @@ function paySheet(){
   addEventListener('scroll', mostra, { passive: true });
   var pb = document.getElementById('paybar');
   if (pb) pb.style.display = 'none';
+})();
+
+/* IN BREVE — aperto di default, richiuso solo sul telefono.
+   Il blocco vale 0,86 schermate su un telefono, in fondo a una pagina che
+   ne ha nove: denso, e nel punto in cui chi scorre lo salta. Qui usa
+   l'idioma della pagina stessa — una riga che si apre — ma nella direzione
+   giusta: il markup lo dichiara APERTO, quindi senza JS (e per qualunque
+   crawler) il testo c'e' comunque; e' il telefono a richiuderlo, una volta
+   sola, e chi vuole i fatti tocca una riga. Il degrado aggiunge contenuto,
+   non lo toglie. */
+(function () {
+  var d = document.querySelector('.breve-d');
+  if (d && innerWidth < 820) d.open = false;
 })();
 
 /* LA LASTRA DELL'ESPOSIZIONE — aritmetica, non promesse.

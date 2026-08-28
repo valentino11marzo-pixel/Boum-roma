@@ -15,16 +15,11 @@ CSS = open(BASE + 'console.css', encoding='utf-8').read()
 SALA = open(BASE + 'reperto-sala.html', encoding='utf-8').read()
 VERIFICA = open(BASE + 'reperto-verifica.html', encoding='utf-8').read()
 
-PIEDE_PROVE = """
-        <p class="footer-prove">
-          <a href="https://euipo.europa.eu/eSearch/#details/trademarks/019317594"
-            target="_blank" rel="noopener">EU trademark 019317594 ↗</a>
-          <a href="https://share.google/xikmVxQCRuKOdWcND" target="_blank"
-            rel="noopener">4.9★ on Google · 47 reviews ↗</a>
-          <a href="/terms.html">Terms & fees — §4 →</a>
-          <span>Card payments via Stripe · never a transfer to an
-            individual</span>
-        </p>"""
+# Le prove verificabili vivono ORA dentro il blocco «in brief», dove
+# stanno gli altri fatti: ripeterle anche nel piede voleva dire
+# dichiarare il marchio EUIPO quattro volte nella stessa pagina, e
+# costava mezza schermata di scorrimento sul telefono.
+PIEDE_PROVE = ""
 
 
 def sheet(testo, sotto, prezzo, dove):
@@ -55,6 +50,21 @@ VERDETTO_DAS = open(BASE + 'reperto-verdetto.html', encoding='utf-8').read()
 _ESPO = open(BASE + 'reperto-esposizione.html', encoding='utf-8').read()
 
 
+
+def breve(cosa, prezzo, dentro, non, chi):
+    """IN BREVE — il blocco fatto per essere CITATO da un motore di
+    risposta. Regola della Reunion: si dichiarano i FATTI, e soprattutto i
+    LIMITI. «Cosa non e'» e' la riga che fa la differenza fra una pagina
+    che vende e una fonte che si cita — e ci protegge anche dal cliente che
+    arriva aspettandosi un'altra cosa."""
+    return f"""
+        <dt>What it is</dt><dd>{cosa}</dd>
+        <dt>Price</dt><dd><b>{prezzo}</b></dd>
+        <dt>What you get</dt><dd>{dentro}</dd>
+        <dt>What it is not</dt><dd class="no">{non}</dd>
+        <dt>Who it is for</dt><dd>{chi}</dd>"""
+
+
 def espo(prezzo):
     """LA LASTRA DELL'ESPOSIZIONE. Sostituisce la media «€600+ risparmiati»,
     che non abbiamo mai misurato, con un'aritmetica che il visitatore
@@ -68,6 +78,22 @@ SPEC = {}
 
 # ══ 1 · DEAL ASSISTANCE ═════════════════════════════════════════════════
 SPEC['deal-assistance'] = dict(
+  breve_nome='Deal Assistance — Rome rental contract review',
+  breve=breve(
+    'A clause-by-clause review, in English, of a Rome rental contract you '
+    'already have — plus landlord and ownership verification and negotiation '
+    'on your behalf.',
+    '\u20ac249 one-off. Credited in full if you already bought the \u20ac49 '
+    'Contract Check. No viewing fees, no application fees (Terms \u00a74.3).',
+    'A written review of every article, the public-registry check on who '
+    'actually owns the flat, the negotiation itself, and the paperwork chain '
+    'after signing. First pass within 24 hours of payment.',
+    'Not legal representation and not a law firm: BOOM is a licensed estate '
+    'agency. It does not find you an apartment \u2014 that is Property '
+    'Finding (\u20ac350) \u2014 and it cannot make a landlord accept terms '
+    'they refuse.',
+    'Anyone who found a Rome flat on a portal, through an agency or privately '
+    'and has a draft contract in front of them, usually in Italian.'),
   base=BASE + 'das-base.html', out='deal-assistance.html', pref='d',
   # «Average client saves €600+» non l'abbiamo mai misurata: non e' una
   # media, e' una speranza. Stava nell'ultima riga prima del tasto paga,
@@ -195,6 +221,20 @@ CHECKLIST = """<div class="verdetto">
     </div>"""
 
 SPEC['virtual-viewing'] = dict(
+  breve_nome='Virtual Viewing — live video apartment tour in Rome',
+  breve=breve(
+    'A live video tour of any Rome apartment, walked by a BOOM person while '
+    'you watch and direct the call from wherever you are.',
+    '\u20ac89 one-off. Credited to the agency fee if you rent the home with '
+    'BOOM; refunded in full if we cannot reach the property.',
+    'The live call you direct, HD photos you keep, and a written report with '
+    'the things a listing never shows \u2014 noise, light, damp, the stairs, '
+    'the street after dark. Usually within 24\u201348 hours.',
+    'Not a booking and not a reservation: it does not hold the flat for you. '
+    'It is not a contract review \u2014 that is Contract Check (\u20ac49) or '
+    'Deal Assistance (\u20ac249) \u2014 and it is not an inspection survey.',
+    'Anyone deciding on a Rome apartment from another city or country, and '
+    'anyone who wants a second pair of eyes before paying a deposit.'),
   base=BASE + 'vv-base.html', out='virtual-viewing.html', pref='v',
   piede_ancora=PIEDE,
   registro_eti='The deal, in one breath',
@@ -292,6 +332,20 @@ SEMAFORO = """<div class="verdetto">
     </div>"""
 
 SPEC['contract-check-express'] = dict(
+  breve_nome='Contract Check Express — 24-hour verdict on a Rome lease',
+  breve=breve(
+    'A written traffic-light verdict on a Rome rental contract: what is fine, '
+    'what is unfair, what is missing.',
+    '\u20ac49 one-off, credited in full against Deal Assistance (\u20ac249) '
+    'if you upgrade.',
+    'Every article read against Italian rental law and the Rome agreement, '
+    'graded green/amber/red in plain English, with the sentences to send back '
+    'to the landlord. Within 24 hours of payment.',
+    'Not negotiation: we tell you what to ask for, we do not ask for it \u2014 '
+    'that is Deal Assistance. Not legal representation, and not a substitute '
+    'for a lawyer where a dispute already exists.',
+    'Anyone with a contract in hand and a landlord waiting for an answer '
+    'tomorrow.'),
   base=BASE + 'cce-base.html', out='contract-check-express.html', pref='c',
   piede_ancora=PIEDE,
   registro_eti='The deal, in one breath',
@@ -386,6 +440,22 @@ LEGGE = """<div class="clausola-box"><div class="verdetto">
     </div></div>"""
 
 SPEC['deposit-recovery'] = dict(
+  breve_nome='Deposit Recovery — get a withheld Rome deposit back',
+  breve=breve(
+    'Recovery of a rental deposit an Italian landlord is withholding \u2014 '
+    'assessment, formal demand under art. 1590 of the civil code, and '
+    'negotiation on your behalf.',
+    '\u20ac99 to start, plus 20% of what is actually recovered. If nothing '
+    'comes back, the 20% is never charged.',
+    'The written assessment, the formal demand by PEC or registered letter, '
+    'the negotiation with the landlord or agency, and the prepared file for a '
+    'partner lawyer if it does not settle. Most cases resolve within '
+    '2\u20136 weeks of the demand.',
+    'Not a law firm and not litigation: BOOM is a licensed estate agency and '
+    'does not represent you in court. No outcome is guaranteed \u2014 that is '
+    'precisely why the success fee only applies to money that arrives.',
+    'Former tenants in Italy, including those who have already left the '
+    'country: everything is handled remotely.'),
   base=BASE + 'dr-base.html', out='deposit-recovery.html', pref='r',
   piede_ancora=PIEDE,
   registro_eti='The deal, in one breath',
@@ -479,6 +549,23 @@ DENTRO = """<div class="verdetto">
     </div>"""
 
 SPEC['remote-move-pack'] = dict(
+  breve_nome='Remote Move Pack — rent in Rome from abroad',
+  breve=breve(
+    'The full remote path to a signed Rome lease: two live video viewings, a '
+    'contract review in English, negotiation, and arrival setup \u2014 all '
+    'before you land.',
+    '\u20ac299 for the pack (\u20ac427 if the same services are bought '
+    'separately). Credited toward the agency fee if you rent a BOOM home.',
+    'Two live viewings on homes you pick, full Deal Assistance on the one you '
+    'choose, and the arrival chain: utilities, the paperwork order, a human '
+    'answering until the keys are yours.',
+    'Not a guarantee that you will rent one of the two flats you viewed \u2014 '
+    'if the first fails the check, that is the point. It is not a search '
+    'service: if you want us to run the hunt, that is Property Finding '
+    '(\u20ac350).',
+    'People moving to Rome from another country with a date already fixed '
+    '\u2014 students, researchers, relocating professionals, and parents '
+    'organising from abroad.'),
   base=BASE + 'rmp-base.html', out='remote-move-pack.html', pref='m',
   piede_ancora=PIEDE,
   registro_eti='The deal, in one breath',
@@ -573,6 +660,21 @@ LISTINO = """<div class="verdetto">
 
 WA_MSG = 'Hi!%20I%27d%20like%20a%20Concierge%20quote.'
 SPEC['concierge'] = dict(
+  breve_nome='BOOM Concierge — the administrative landing in Rome',
+  breve=breve(
+    'The administrative landing in Italy handled for you: codice fiscale, '
+    'utilities, SIM, residence registration, healthcare enrolment, and the '
+    'appointments in between.',
+    'Per task or per move \u2014 single tasks from \u20ac15, a full landing '
+    'package typically from \u20ac390. You pay only for what you take.',
+    'The task itself, done: forms filled, appointments booked and attended, '
+    'every call and office visit translated. A human answers on WhatsApp '
+    'within 2 hours, and you have a dedicated contact for your first month.',
+    'Not immigration advice and not a visa service: we prepare and accompany, '
+    'we do not decide, and we cannot obtain a permit you are not entitled to. '
+    'Not a rental service \u2014 that is the rest of the catalogue.',
+    'Anyone who has just arrived in Rome, or is about to, and does not want '
+    'to spend the first month in queues in a language they do not speak.'),
   base=BASE + 'con-base.html', out='concierge.html', pref='g',
   hud_eti='Your progress and the way to reach us',
   piede_ancora=PIEDE,

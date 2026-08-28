@@ -56,6 +56,11 @@ def _piano(html):
     t = re.sub(r'\s+([,.;:!?])', r'\1', t)
     return t.strip()
 
+def _j(t):
+    import json
+    return json.dumps(t, ensure_ascii=False)
+
+
 def costruisci(spec, css, piede_prove):
     """spec: dizionario della pagina. Ritorna l'HTML finale."""
     src, out = spec['base'], spec['out']
@@ -118,6 +123,28 @@ def costruisci(spec, css, piede_prove):
           {spec['cta_basta']}
         </div>
       </div>
+    </div>
+  </section>
+
+  <!-- ══ IN BREVE — i fatti a plat, per chi cita ═══════════════════════ -->
+  <section class="breve" id="breve">
+    <div class="container">
+      <details class="breve-d" open>
+        <summary><span class="breve-eti">In brief</span>
+          <span class="breve-sot">the facts, flat — price, what you get,
+            what this is not</span></summary>
+      <dl>{spec['breve']}
+        <dt>Provided by</dt>
+        <dd>Egidi Immobiliare S.r.l., a licensed Rome estate agency —
+          P.IVA 17322991005, REA RM-1710623, Via dei Coronari 181, Rome.
+          <a href="https://euipo.europa.eu/eSearch/#details/trademarks/019317594"
+            target="_blank" rel="noopener">EU trademark 019317594 ↗</a> ·
+          <a href="https://share.google/xikmVxQCRuKOdWcND" target="_blank"
+            rel="noopener">4.9★ from 47 Google reviews ↗</a> ·
+          <a href="/terms.html">Terms &amp; fees §4</a>. Card payments run
+          through Stripe with a receipt — never a transfer to an individual.</dd>
+      </dl>
+      </details>
     </div>
   </section>
 
@@ -302,6 +329,19 @@ def costruisci(spec, css, piede_prove):
   if (pb) pb.style.display = 'none';
 }})();
 
+/* IN BREVE — aperto di default, richiuso solo sul telefono.
+   Il blocco vale 0,86 schermate su un telefono, in fondo a una pagina che
+   ne ha nove: denso, e nel punto in cui chi scorre lo salta. Qui usa
+   l'idioma della pagina stessa — una riga che si apre — ma nella direzione
+   giusta: il markup lo dichiara APERTO, quindi senza JS (e per qualunque
+   crawler) il testo c'e' comunque; e' il telefono a richiuderlo, una volta
+   sola, e chi vuole i fatti tocca una riga. Il degrado aggiunge contenuto,
+   non lo toglie. */
+(function () {{
+  var d = document.querySelector('.breve-d');
+  if (d && innerWidth < 820) d.open = false;
+}})();
+
 /* LA LASTRA DELL'ESPOSIZIONE — aritmetica, non promesse.
    Due numeri che il visitatore gia' conosce; il resto lo dice la legge.
    Regole dure, tutte visibili nel comportamento:
@@ -360,6 +400,29 @@ def costruisci(spec, css, piede_prove):
 }})();
 </script>
 </body>""")
+
+    # 5a · IL NODO CHE MANCAVA: la pagina come entita', collegata.
+    # I sei blocchi JSON-LD dichiaravano l'agenzia, la briciola, il servizio
+    # e le domande — ma nessuno diceva che cosa E' questa pagina ne' come i
+    # nodi si tengono. `speakable` indica i due punti scritti per essere
+    # letti ad alta voce e citati: il registro del patto e il blocco «in
+    # brief». Sono selettori di nodi che ESISTONO davvero — un speakable che
+    # punta al vuoto e' una promessa non mantenuta al motore.
+    slug = out[:-5]
+    URL = 'https://www.boomrome.com/' + slug
+    pagina = (
+        '<script type="application/ld+json">\n'
+        '{"@context":"https://schema.org","@type":"WebPage",'
+        f'"@id":"{URL}#webpage","url":"{URL}",'
+        f'"name":{_j(spec["breve_nome"])},'
+        '"inLanguage":"en","isPartOf":{"@id":"https://www.boomrome.com/#website"},'
+        '"about":{"@id":"https://www.boomrome.com/#organization"},'
+        f'"primaryImageOfPage":{{"@type":"ImageObject","url":"https://www.boomrome.com/og-{slug}.png"}},'
+        '"speakable":{"@type":"SpeakableSpecification",'
+        '"cssSelector":["#breve","#registro"]}}\n'
+        '</script>\n')
+    uno(s, '</head>', out)
+    s = s.replace('</head>', pagina + '</head>')
 
     # 5b · le sostituzioni dichiarate dalla pagina
     for vecchia, nuova in spec.get('sostituzioni', []):
