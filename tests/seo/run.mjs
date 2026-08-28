@@ -218,6 +218,33 @@ for (const p of ['/blog-scam-bible', '/welcome-to-rome', '/llms-listings.txt']) 
   ok(llms.includes(ORIGIN + p), `llms.txt cita ${p}`);
 }
 
+/* ── 5b. i blog: la proiezione statica non può divergere dai dati ───── */
+console.log('\n▸ blog: il contenuto negli array JS è PROIETTATO statico (crawler e no-JS lo leggono)');
+try {
+  const { PROJECTIONS, projectOne } = await import('../../scripts/blog-ssg.mjs');
+  let drift = 0;
+  for (const cfg of PROJECTIONS) {
+    const html = read(cfg.file);
+    if (projectOne(html, cfg) !== html) { drift++; ok(false, `${cfg.file}: proiezione fuori sync (node scripts/blog-ssg.mjs)`); }
+    // la rimozione al boot esiste dove dichiarata — senza, l'utente JS
+    // vedrebbe il contenuto due volte
+    if (cfg.removedOnBoot) {
+      ok(html.includes('data-ssg-remove'), `${cfg.file}: blocco marcato per la rimozione al boot`);
+      ok(html.includes("querySelectorAll('[data-ssg-remove]')"), `${cfg.file}: il JS rimuove la proiezione al boot`);
+    }
+  }
+  ok(drift === 0, 'le 5 proiezioni statiche coincidono coi dati delle pagine');
+  // e il contenuto è DAVVERO visibile: parole fuori da script e style
+  for (const cfg of PROJECTIONS) {
+    const html = read(cfg.file);
+    const words = html.replace(/<script[\s\S]*?<\/script>/gi, ' ').replace(/<style[\s\S]*?<\/style>/gi, ' ')
+      .replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().split(' ').length;
+    ok(words >= 700, `${cfg.file}: ${words} parole visibili ai crawler (min 700 — era ~300 quando il contenuto viveva solo nel JS)`);
+  }
+} catch (e) {
+  ok(false, `blog-ssg non importabile: ${e.message}`);
+}
+
 /* ── 6. le guardie restano al loro posto (asserito sulla sorgente) ──── */
 console.log('\n▸ le guardie sulla sorgente');
 const upd = read('scripts/seo-update.js');

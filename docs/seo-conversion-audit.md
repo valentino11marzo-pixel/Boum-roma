@@ -176,7 +176,32 @@ stato fatto:
    Kit (prima invisibili ai motori di risposta); il test verifica che ogni
    link boomrome.com risolva a una rotta VERA del repo.
 
-**Restano aperti** (P1/P2 dell'audit sopra): espansione dei 5 blog sottili a
-1.000+ parole, blocco di conversione su pagine-zona e articoli, landing IT
-(`affitto roma stranieri`…), nuove money pages (`/mid-term-rentals-rome`,
-`/rent-in-rome-without-scams`), zone × pubblico.
+**Restano aperti** (P1/P2 dell'audit sopra): blocco di conversione su
+pagine-zona, landing IT (`affitto roma stranieri`…), altre money pages
+(`/mid-term-rentals-rome`, `/furnished-apartments-rome`), zone × pubblico.
+
+---
+
+## Esecuzione 2026-08-28 — la fase contenuti (P1 #7 + P2 #12, primo colpo)
+
+1. **I blog "sottili" non erano sottili: erano INVISIBILI.** Il contenuto
+   vero viveva in array JS renderizzati client-side — 7 truffe complete,
+   tutti i 47 passi, 15 risposte legali con gli articoli del Codice, 12
+   schede quartiere. Un crawler senza JS (e i motori di risposta) leggeva
+   ~300 parole. `scripts/blog-ssg.mjs` proietta GLI STESSI dati in un
+   blocco statico (regione `BOOM_SSG`); il JS lo rimuove al boot, quindi
+   l'utente vede la versione interattiva e il crawler quella completa.
+   Parole visibili: scam-bible 313→2040, 47-steps 337→2454, tenant-rights
+   422→2249, neighborhood-guide 391→1559, cost-calculator 335→794 (più la
+   tabella costi di riferimento, che resta visibile anche col JS acceso).
+   Provato in Chromium vero nei due stati (JS on/off). Il test confronta
+   proiezione e dati: non possono divergere.
+2. **tenant-rights ha ora il FAQPage schema** sincronizzato dalle 15
+   domande visibili (è di fatto una FAQ legale — il markup ora lo dice).
+3. **`/rent-in-rome-without-scams`** — la money page del posizionamento
+   unico anti-truffa: 5 regole + visura catastale da €5 + blocco "in
+   brief" citabile + 5 FAQ visibili e sincronizzate, ~1.040 parole rese,
+   guscio boom-2026 (marchio e footer byte-per-byte da moving-to-rome).
+   Registrata nel registry, in sitemap (61 URL), in llms.txt ("Renting
+   safely", con la frase per i motori di risposta), linkata da
+   moving-to-rome e dalla proiezione della scam bible.

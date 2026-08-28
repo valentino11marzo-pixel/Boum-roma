@@ -396,7 +396,7 @@ const PAGES = {
       'The complete 47-step guide to renting an apartment in Rome. Every document, deadline, and trap — with interactive progress tracking.',
     keywords: ['rent apartment Rome step by step', 'Rome rental checklist', 'how to rent Rome'],
     datePublished: '2026-03-14',
-    dateModified: '2026-04-22',
+    dateModified: '2026-08-28',
   }),
 
   'blog-contract-types.html': blogPost({
@@ -416,7 +416,7 @@ const PAGES = {
       'Interactive cost calculator for renting in Rome. Real monthly and year-one costs by neighborhood, contract type, and budget. Hidden fees exposed.',
     keywords: ['cost of renting Rome', 'Rome rental cost calculator', 'Rome apartment hidden fees'],
     datePublished: '2026-02-08',
-    dateModified: '2026-04-29',
+    dateModified: '2026-08-28',
   }),
 
   'blog-neighborhood-guide.html': blogPost({
@@ -426,7 +426,7 @@ const PAGES = {
       'Honest, no-BS guide to Rome\'s 12 best neighborhoods for expats. Interactive map with scam risk ratings, rent prices, and insider tips from 500+ rental deals.',
     keywords: ['best neighborhoods Rome expat', 'where to live Rome', 'Rome neighborhood guide'],
     datePublished: '2026-01-19',
-    dateModified: '2026-05-04',
+    dateModified: '2026-08-28',
   }),
 
   'blog-scam-bible.html': blogPost({
@@ -436,7 +436,7 @@ const PAGES = {
       '7 rental scams that cost expats thousands in Rome. Real cases, 35+ red flags, and the exact protection rules BOOM uses to keep clients safe.',
     keywords: ['Rome rental scams', 'apartment scams Italy', 'expat scams Rome', 'avoid scam apartment Rome'],
     datePublished: '2026-02-26',
-    dateModified: '2026-05-10',
+    dateModified: '2026-08-28',
   }),
 
   'blog-tenant-rights.html': blogPost({
@@ -446,7 +446,7 @@ const PAGES = {
       'Complete guide to Italian tenant rights for expats in Rome. Deposits, eviction, maintenance, contract termination — with exact legal references and BOOM advice.',
     keywords: ['tenant rights Italy', 'Italian rental law', 'tenant deposit Rome', 'eviction rules Italy'],
     datePublished: '2026-04-02',
-    dateModified: '2026-05-09',
+    dateModified: '2026-08-28',
   }),
 
   'blog-visa-residency.html': blogPost({
@@ -567,6 +567,7 @@ Object.assign(PAGES, {
   'deposit-recovery.html': handcrafted('/deposit-recovery', 'Deposit Recovery Rome — Get Your Deposit Back', { priority: 0.7 }),
   'refer.html': handcrafted('/refer', 'Refer a Friend to BOOM — Give €50, Get €50', { priority: 0.6 }),
   'moving-to-rome.html': handcrafted('/moving-to-rome', 'Moving to Rome in 2026 — The Complete Relocation Guide | BOOM', { priority: 0.9 }),
+  'rent-in-rome-without-scams.html': handcrafted('/rent-in-rome-without-scams', 'Rent in Rome Without Scams — The Verified Way | BOOM', { priority: 0.85 }),
   'moving-to-rome-from-us.html': handcrafted('/moving-to-rome-from-us', 'Moving to Rome from the US (2026) — Visas, Costs, Homes | BOOM', { priority: 0.85 }),
   'moving-to-rome-from-uk.html': handcrafted('/moving-to-rome-from-uk', 'Moving to Rome from the UK (2026) — Post-Brexit Guide | BOOM', { priority: 0.85 }),
   'moving-to-rome-from-germany.html': handcrafted('/moving-to-rome-from-germany', 'Moving to Rome from Germany (2026) — EU Citizen Guide | BOOM', { priority: 0.85 }),

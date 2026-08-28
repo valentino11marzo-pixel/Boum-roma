@@ -36,7 +36,7 @@
   </url>
   <url>
     <loc>https://www.boomrome.com/moving-to-rome</loc>
-    <lastmod>2026-08-27</lastmod>
+    <lastmod>2026-08-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.90</priority>
   </url>
@@ -134,7 +134,7 @@
   </url>
   <url>
     <loc>https://www.boomrome.com/blog-47-steps</loc>
-    <lastmod>2026-08-27</lastmod>
+    <lastmod>2026-08-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
@@ -146,25 +146,25 @@
   </url>
   <url>
     <loc>https://www.boomrome.com/blog-cost-calculator</loc>
-    <lastmod>2026-08-27</lastmod>
+    <lastmod>2026-08-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/blog-neighborhood-guide</loc>
-    <lastmod>2026-08-18</lastmod>
+    <lastmod>2026-08-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/blog-scam-bible</loc>
-    <lastmod>2026-08-18</lastmod>
+    <lastmod>2026-08-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/blog-tenant-rights</loc>
-    <lastmod>2026-08-18</lastmod>
+    <lastmod>2026-08-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>
@@ -211,6 +211,12 @@
     <priority>0.85</priority>
     <xhtml:link rel="alternate" hreflang="it" href="https://www.boomrome.com/pacchetto-concordato"/>
     <xhtml:link rel="alternate" hreflang="x-default" href="https://www.boomrome.com/pacchetto-concordato"/>
+  </url>
+  <url>
+    <loc>https://www.boomrome.com/rent-in-rome-without-scams</loc>
+    <lastmod>2026-08-28</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/reunion</loc>

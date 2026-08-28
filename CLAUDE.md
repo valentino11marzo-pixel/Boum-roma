@@ -2972,12 +2972,31 @@ Tre strumenti, una suite che impedisce la deriva (`node tests/seo/run.mjs`):
   parola per parola; su una pagina senza FAQ visibili NON inventa nulla.
   20 pagine dichiaravano domande che la pagina non mostrava; faq.html
   aveva due blocchi divergenti.
+- **`scripts/blog-ssg.mjs`** — la proiezione statica dei blog interattivi.
+  LA SCOPERTA: i 5 articoli "sottili" dell'audit non erano sottili, erano
+  INVISIBILI — il contenuto vero (7 truffe, 47 passi, 15 risposte legali
+  con gli articoli di legge, 12 schede quartiere) viveva in array JS
+  renderizzati client-side: un crawler leggeva ~300 parole su pagine da
+  1.500+. Lo script proietta GLI STESSI array in un blocco statico dentro
+  la regione `BOOM_SSG` (scanner bracket-aware, mai un regex sulle
+  stringhe); il JS della pagina rimuove il blocco al boot (progressive
+  enhancement: stesso contenuto, veste interattiva), TRANNE la tabella
+  costi che è complementare e resta per tutti. Risultato: 313→2040,
+  337→2454, 422→2249, 391→1559, 335→794 parole visibili. Il test
+  rigenera in memoria e confronta: proiezione e dati non possono divergere.
+- **`/rent-in-rome-without-scams`** — la money page del posizionamento
+  anti-truffa (P2 dell'audit): le 5 regole + visura da €5 + blocco "in
+  brief" citabile, FAQ visibili sincronizzate, guscio boom-2026 con
+  marchio/footer copiati byte-per-byte da moving-to-rome. Linkata da
+  moving-to-rome, dalla proiezione della scam bible e da llms.txt
+  (sezione "Renting safely").
 - Invarianti pinnate dalla suite: title ≤65 e unici, description 50–168,
   canonical su `https://www.boomrome.com` senza `.html`, OG+JSON-LD che
   parsa su ogni pagina indicizzabile, un solo H1, DOCTYPE+lang (board e
   property-finding erano SENZA guscio html → quirks mode), ogni domanda
   FAQPage visibile, llms.txt senza rotte inesistenti, `.vercelignore` che
-  tiene fuori le copie `*-classic`.
+  tiene fuori le copie `*-classic`, le 5 proiezioni blog in sync coi dati
+  e ≥700 parole visibili per articolo.
 
 ## Conventions
 
