@@ -762,6 +762,9 @@
     },
     "api/ops/cassaforte.js": {
       "maxDuration": 60
+    },
+    "api/marketing/creativo.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -868,6 +871,10 @@
     {
       "path": "/api/radar/digest",
       "schedule": "10 6,12,17 * * *"
+    },
+    {
+      "path": "/api/marketing/creativo",
+      "schedule": "14,44 * * * *"
     }
   ]
 }

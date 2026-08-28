@@ -146,7 +146,8 @@ const AGENT_SRC = {
   gestore: ['api/employees/gestore.js'],
   commerciale: ['api/employees/commerciale.js'],
   'lead-brain': ['api/leads/brain.js'],
-  perito: ['api/homie/market.js', 'api/market/pulse.js']
+  perito: ['api/homie/market.js', 'api/market/pulse.js'],
+  creativo: ['api/marketing/creativo.js']
 };
 
 check('ogni manopola dichiarata è DAVVERO letta dal codice dell\'agente', () => {

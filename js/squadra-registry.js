@@ -522,6 +522,29 @@
       console: null, run: '/api/wizard/video-radar'
     },
 
+    /* ── MARKETING — chi genera la domanda ────────────────────────────── */
+    {
+      key: 'creativo', emoji: '🎥', name: 'Il Creativo', reparto: 'Marketing',
+      role: 'Il reel di ogni annuncio, generato e proposto — mai pubblicato da solo',
+      hired: 'La Pagella dà al video 3 punti su 10 e ogni lunedì elenca gli annunci che non ce l\'hanno; nessuno ha il tempo di girarli. Higgsfield trasforma le foto già curate dal Fotografo in un reel, e il buco si chiude senza che nessuno impugni una camera.',
+      mandate: [
+        'Ogni 30 minuti guarda gli annunci disponibili senza video e con una galleria vera (≥3 foto nostre)',
+        'Costruisce il brief SOLO dai dati veri dell\'annuncio — mai il prezzo dentro i pixel — e sottomette a Higgsfield entro i tetti di spesa',
+        'A reel pronto lo parcheggia su Storage e lo manda su Telegram con l\'anteprima e il comando di pubblicazione (/video) — il tuo tap è l\'approvazione',
+        'Tetto settimanale contato su Firestore: le submission contano anche se falliscono, la spesa c\'è stata'
+      ],
+      autonomy: {
+        solo:  ['Sceglie l\'annuncio e genera il reel (spende credito Higgsfield entro i tetti)', 'Parcheggia il file su Storage — non linkato da nessuna pagina finché non pubblichi tu'],
+        porta: ['Il reel pronto, con anteprima e comando di pubblicazione', 'Un fallimento Higgsfield, col motivo — e senza chiavi lo dice UNA volta sola'],
+        mai:   ['Non pubblica MAI da solo: videoUrl lo scrive l\'operatore, questo processo non tocca `listings`', 'Non inventa mai un fatto sull\'immobile, mai il prezzo nei pixel', 'Un tentativo fallito non si ritenta da solo (crediti): si riprova solo se cambiano le foto']
+      },
+      reach: ['operatore', 'archivio', 'file', 'ai'],
+      approval: 'parziale',
+      crons: ['/api/marketing/creativo'],
+      health: { col: 'teamHealth', doc: 'creativo' },
+      console: null, run: '/api/marketing/creativo'
+    },
+
     /* ── SISTEMI — chi guarda gli altri ───────────────────────────────── */
     {
       key: 'guardiano', emoji: '🛡️', name: 'Il Guardiano', reparto: 'Sistemi',
@@ -544,7 +567,7 @@
     }
   ];
 
-  var REPARTI = ['Commerciale', 'Operativo', 'Amministrazione', 'Vetrina', 'Sistemi'];
+  var REPARTI = ['Commerciale', 'Operativo', 'Amministrazione', 'Vetrina', 'Marketing', 'Sistemi'];
 
   /* Stato di salute — identico alla regola che team.html usava, in un posto solo. */
   function statusOf(h, now) {
@@ -657,6 +680,12 @@
         def: 20, min: 1, max: 50, help: 'Quanti lead ambigui entrano nella singola chiamata a Claude.' },
       { key: 'dailyAiCallCap', label: 'Tetto chiamate AI al giorno', unit: 'chiamate',
         def: 12, min: 0, max: 100, help: 'Il freno di spesa. A 0 il voto resta quello delle regole gratuite, senza AI.' }
+    ],
+    creativo: [
+      { key: 'maxPerRun', label: 'Reel per giro', unit: 'reel',
+        def: 1, min: 0, max: 5, help: 'Quanti reel nuovi sottomette a ogni passaggio (ogni 30\'). A 0 smette di generare; quelli già in lavorazione si completano comunque.' },
+      { key: 'weeklyCap', label: 'Tetto settimanale', unit: 'reel a settimana',
+        def: 5, min: 0, max: 60, help: 'Il freno di spesa Higgsfield: le submission contano anche se falliscono (la spesa c\'è stata). A 0 il Creativo osserva e basta.' }
     ],
     perito: [
       { key: 'deathcheckBatch', label: 'Verifiche di vita per giro di Homie', unit: 'annunci',

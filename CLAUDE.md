@@ -229,6 +229,13 @@ BUSY_ICS_URLS                # optional — ICS address(es) of the operator's
 TELEGRAM_BOT_TOKEN           # already used by api/telegram/*; pfs health alerts
 TELEGRAM_CHAT_ID
 
+# Il Reparto Marketing — Il Creativo (api/marketing/*)
+HIGGSFIELD_API_KEY           # coppia di chiavi dalla dashboard higgsfield.ai
+HIGGSFIELD_API_SECRET        # (sezione API). Senza, il Creativo gira e lo
+                             # dice UNA volta — mai un errore ripetuto
+HIGGSFIELD_API_BASE          # opzionale — default https://api.higgsfield.ai
+HIGGSFIELD_VIDEO_MODEL       # opzionale — default dop-lite (fascia economica)
+
 # Il Centralino (api/phone/*)
 TWILIO_ACCOUNT_SID           # via A (segreteria): download audio (basic auth)
 TWILIO_AUTH_TOKEN            # + lookup chiamata; senza, si tenta il download
@@ -2683,6 +2690,52 @@ accorto perché **niente la confrontava con la realtà**.
   tre elenchi su ogni scheda, i badge veri e i campi solo dove sono collegati;
   si auto-skippa senza playwright).
 
+## Il Reparto Marketing — Il Creativo (api/marketing/* + js/marketing-engine.js)
+
+Il primo membro del reparto **Marketing** (studio completo:
+`STUDIO_MARKETING_HIGGSFIELD.md`; API raccolta in `docs/higgsfield-api.md` —
+docs.higgsfield.ai non è raggiungibile dal sandbox, stessa storia del feed
+Immobiliare). La Pagella dà al video **3 punti su 10** e ogni lunedì elenca
+gli annunci che non ce l'hanno: il Creativo li chiude trasformando le foto
+già curate dal Fotografo in un reel via **Higgsfield** (image-to-video
+cinematografico, `Authorization: Key <id>:<secret>`, flusso asincrono a
+job-set).
+- **La riga rossa: genera da solo, PUBBLICA MAI da solo.** Il handler non
+  scrive mai su `listings` (asserito nei test sia sul sorgente sia a
+  runtime): il reel viene parcheggiato su Storage
+  `listings/enhanced/<id>/video/` (il path del Media Studio, rules già
+  deployate, sweep-safe) e arriva su Telegram con l'anteprima e il comando
+  `/video <id> <url>` — il binario di pubblicazione che l'operatore già
+  usa. Il tap è l'approvazione; la pubblicazione accende `videoUrl` →
+  pagella +3 → `coreContent` del Pubblicista → update ai portali in coda
+  da solo.
+- **Il motore è puro** (`js/marketing-engine.js`, UMD `BOOM_MARKETING`):
+  chi ha bisogno di un reel (disponibile, senza video, ≥3 foto NOSTRE —
+  mai data: URI), in che ordine (gallerie ricche prima, lezione
+  sweepOrder), ogni esclusione DICE perché. L'id del creativo È l'impronta
+  delle foto (`crea_<id>_<hash>` + fsCreate 409): un rerun non sottomette
+  due volte per costruzione, foto nuove → si ricandida da solo. Il brief
+  visivo nasce SOLO dai fatti veri e **il prezzo non entra mai nei pixel**
+  (invecchia alla prima trattativa).
+- **La spesa ha i freni**: tetto settimanale contato su Firestore (le
+  submission contano anche se falliscono — la spesa c'è stata), manopole
+  maxPerRun/weeklyCap in Direzione (`settings/squadra.creativo`), un
+  fallimento Higgsfield **non si ritenta da solo** (lezione SDD), kill
+  switch totale `settings/marketing {enabled:false}`.
+- **Cron** `14,44 * * * *` (auth come i cron PFS, `?dry=1`): completa i
+  job in volo (poll → download MP4 → Storage nostro, mai link a URL
+  effimeri → card Telegram) poi sottomette i nuovi. Heartbeat
+  `teamHealth/creativo` (card in /team e organigramma), allerta dopo 3
+  run falliti. Senza chiavi (`HIGGSFIELD_API_KEY/SECRET`) non è un guasto:
+  battito verde, worklist visibile, e lo dice **UNA volta**
+  (`heartbeat/marketing-unconfigured`, pattern "blocked ≠ guasta").
+- Rules: `marketingCreatives` admin-only (lezione propertyLocks).
+- Test: `node tests/marketing/run.mjs` (71 check).
+- **Fasi successive** (dallo studio): multi-scena + formati + caption
+  (FASE 1), distribuzione social col braccio Mac a tap singolo — pattern
+  Contatto (FASE 2), attribuzione UTM + report settimanale del reparto
+  (FASE 3).
+
 ## Lo Smistatore (document intake — api/documents/_smista.js)
 
 "Mando qualsiasi cosa per il commercialista e si archivia da sola." One
@@ -3002,6 +3055,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/pfs/health.mjs` | Allarmi del radar: una fonte BLOCCATA all'origine parla una volta sola (200 run → 1 messaggio), un guasto vero si dirada invece di gridare ogni 6h (40 giorni → 8 promemoria), i primi due intoppi non svegliano nessuno, e il ritorno si sente sempre |
   | `tests/pfs/eyes.mjs` | Gli occhi di Homie sul radar PFS: nella lista di lavoro non entrano ricerche spente o con URL rotti, la manopola manuale (`urlOverride`) vince sempre, e — la regola che conta — un radar CIECO (403/captcha su tutte le ricerche) non passa mai per un mercato fermo |
   | `tests/whatsapp/replies.mjs` | Le risposte rapide di WhatsApp: un messaggio che si manda a occhi chiusi mille volte non può contenere un link morto (le rotte si deducono dal repo, non da una lista), i prezzi non possono divergere da `api/_catalog.js`, il link recensione apre le stelline e non la scheda Maps, e il documento in `docs/` non può restare indietro |
+  | `tests/marketing/run.mjs` | Il Creativo: genera da solo, pubblica MAI da solo — `listings` intatto (verificato sul sorgente E a runtime), tetto settimanale che conta anche i falliti, un fallimento non si ritenta da solo, id = impronta delle foto (rerun mai doppio), senza chiavi lo dice UNA volta sola |
   | `tests/radar/run.mjs` | Il Radar 2.0: vie diverse non si fondono MAI (il falso gemello nasconde una casa al cliente), stessa-fonte esige un segnale identitario, il fiuto tace senza campione e chiama 'sospetto' le truffe, le vedette vedono solo il futuro e mai due volte la stessa casa, il Valutatore corregge sui canoni FIRMATI e dichiara le basi, e col radar ROTTO l'ingestione PFS spinge comunque — il giro vero su Firestore in memoria, digest email compreso |
   | `tests/whatsapp/run.mjs` | Da WhatsApp a lead senza AI: il rumore resta fuori (👍, "ok") e la persona vera entra, l'inquilino che scrive per la caldaia non inquina la pipeline, un lead per persona anche col numero archiviato in formato diverso (nazionale vs internazionale), una risposta umana zittisce il Commerciale. Guida il handler VERO su un Firestore finto in memoria |
   | `tests/phone/run.mjs` | Il Centralino, entrambe le porte. Segreteria: chiave derivata mai regalata, disclosure GDPR pinnata nel saluto, retry Twilio senza doppioni, Whisper/AI/Telegram giù non perdono MAI la chiamata. Receptionist ElevenLabs: firma HMAC rifiutata (anche stantia) senza scritture, nel lead SOLO le parole del CHIAMANTE (mai quelle dell'agente — la lingua della bozza esce dalle sue parole), audio e trascrizione in QUALSIASI ordine, tools in chiamata con auth e catalogo che esclude gli affittati. Handler veri su Firestore in memoria + giunzioni asserite sui file |
