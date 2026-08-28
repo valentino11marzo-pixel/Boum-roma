@@ -152,14 +152,20 @@
     host.textContent = '';
     host.classList.add('flap-scale');
     calibrate(host, drum);
+    this.host = host;
     this.cells = [];
     this.drum = drum;
     for (var i = 0; i < len; i++) this.cells.push(new Cell(host));
   }
+  /* un glifo che il rullo non conosce lascerebbe la cella MUTA per sempre
+     (indexOf -1 → nessun passo): qui degrada a spazio, mai un buco nero */
+  Board.prototype.glifo = function (ch) {
+    return this.drum.indexOf(ch) >= 0 ? ch : ' ';
+  };
   Board.prototype.show = function (word, stagger, spin) {
     var self = this;
     this.cells.forEach(function (c, i) {
-      var ch = word[i] || ' ';
+      var ch = self.glifo(word[i] || ' ');
       if (!spin) { c.set(ch); return; }
       setTimeout(function () { c.go(ch, self.drum); },
         i * (stagger || 90) + Math.random() * 26);
@@ -168,10 +174,14 @@
   Board.prototype.update = function (word) {   /* flippa solo le celle cambiate */
     var self = this;
     this.cells.forEach(function (c, i) {
-      var ch = word[i] || ' ';
+      var ch = self.glifo(word[i] || ' ');
       if (c.cur !== ch || c.pending !== ch) c.go(ch, self.drum);
     });
   };
+  /* le variabili --gs/--cw sono px derivati dal font al momento della
+     nascita: dopo un resize (kiosk ruotato, finestra) il glifo scivola.
+     La regia chiama refit() e la cella si ricentra. */
+  Board.prototype.refit = function () { calibrate(this.host, this.drum); };
   Board.prototype.giro = function (stagger) {
     /* il giro dell'insegna: ogni cella rifa' TUTTO il tamburo e riatterra
        sulla SUA lettera — la vita dei tabelloni veri, mai una parola

@@ -1,3 +1,8 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>BOOM · Rome — Live Board</title>
 <link rel="canonical" href="https://www.boomrome.com/board">
 <meta property="og:type" content="website">
@@ -7,8 +12,8 @@
 <meta property="og:title" content="BOOM · Rome — Live Board">
 <meta property="og:description" content="The live departures board of BOOM Rome: every verified home, its zone, price and status — updated like an airport.">
 <meta property="og:url" content="https://www.boomrome.com/board">
-<meta property="og:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
-<meta property="og:image:secure_url" content="https://www.boomrome.com/BOOMsocialprofile.png">
+<meta property="og:image" content="https://www.boomrome.com/og-home.png">
+<meta property="og:image:secure_url" content="https://www.boomrome.com/og-home.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -18,7 +23,7 @@
 <meta name="twitter:creator" content="@boomrome">
 <meta name="twitter:title" content="BOOM · Rome — Live Board">
 <meta name="twitter:description" content="The live departures board of BOOM Rome: every verified home, its zone, price and status — updated like an airport.">
-<meta name="twitter:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
+<meta name="twitter:image" content="https://www.boomrome.com/og-home.png">
 <meta name="twitter:image:alt" content="BOOM · Rome — Live Board">
 <meta name="description" content="The live departures board of BOOM Rome: every verified home, its zone, price and status — updated like an airport.">
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
@@ -41,9 +46,12 @@
 <link rel="manifest" href="/site.webmanifest">
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
 <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js', new Date());gtag('config','G-EYCD59RDVJ');</script>
-<meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
-/* ══ IL KIOSK — il tabellone da vetrina. Nessuna nav: solo il teatro. ══ */
+/* ══ IL KIOSK — il tabellone da vetrina. Nessuna nav: solo il teatro. ══
+   Il font delle righe è vincolato ANCHE alla larghezza (2.4vw): un
+   tabellone a 5 colonne non entra in un telefono alla taglia da vetrina,
+   e prima la colonna District veniva schiacciata a zero. Ora la scala
+   intera segue lo schermo. */
 :root { --gold:#FFD700; --gold-light:#FFE55C; --green:#00FF88; --black:#030303;
   --oro-flap:#FFE55C; --line:rgba(255,255,255,.08); --line-0:rgba(255,255,255,.04);
   --line-gold:rgba(255,215,0,.14);
@@ -51,12 +59,15 @@
   --sans:'Inter',-apple-system,sans-serif; color-scheme:dark; }
 *,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
 html,a { color:inherit; }
+/* in standards mode body{height:100%} vale solo se lo dichiara anche html
+   (prima la pagina viveva in quirks mode per l'assenza del doctype) */
+html { height:100%; background:var(--black); }
 body { height:100%; }
 body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
   font-weight:300; overflow:hidden; display:flex; flex-direction:column;
   cursor:none; }
 .cima { display:flex; align-items:center; justify-content:space-between;
-  padding:clamp(18px,3vh,34px) clamp(22px,3.5vw,60px);
+  padding:clamp(14px,3vh,34px) clamp(14px,3.5vw,60px);
   border-bottom:1px solid var(--line-0); }
 .marchio { display:flex; align-items:center; gap:16px; }
 .marchio svg { width:clamp(34px,4.5vh,52px); height:clamp(34px,4.5vh,52px); }
@@ -69,22 +80,24 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
 @keyframes pulse { 50% { opacity:.3; } }
 #ora { font-family:var(--display); font-size:clamp(16px,2.6vh,26px); }
 .sala { flex:1; display:grid; align-content:center;
-  padding:0 clamp(22px,3.5vw,60px); }
+  padding:0 clamp(12px,3.5vw,60px); }
 .colonne, .riga { display:grid; align-items:center;
-  grid-template-columns:clamp(80px,9vw,150px) minmax(0,1fr) clamp(64px,6vw,110px)
-    clamp(120px,12vw,200px) clamp(90px,9vw,150px);
-  gap:clamp(10px,2vw,34px); padding:0 clamp(8px,1vw,20px); }
-.colonne { padding-bottom:1.4vh; font-size:clamp(10px,1.4vh,13px); font-weight:600;
+  grid-template-columns:clamp(46px,9vw,150px) minmax(0,1fr) clamp(30px,6vw,110px)
+    clamp(54px,12vw,200px) clamp(46px,9vw,150px);
+  gap:clamp(6px,2vw,34px); padding:0 clamp(4px,1vw,20px); }
+.colonne { padding-bottom:1.4vh; font-size:clamp(9px,1.4vh,13px); font-weight:600;
   letter-spacing:.2em; text-transform:uppercase; color:rgba(250,250,250,.3); }
-.riga { font-size:clamp(17px,3.4vh,34px);
-  padding-top:clamp(10px,1.9vh,20px); padding-bottom:clamp(10px,1.9vh,20px);
+.colonne span { overflow:hidden; white-space:nowrap; }
+.riga { font-size:clamp(10px,min(3.4vh,2.4vw),34px);
+  padding-top:clamp(8px,1.9vh,20px); padding-bottom:clamp(8px,1.9vh,20px);
   border-top:1px solid var(--line-0); }
 .cella { overflow:hidden; }
 .c-stato { color:var(--green); }
 .riga.nuovo .c-stato { color:var(--gold-light); }
 .fondo { display:flex; align-items:center; justify-content:space-between;
-  gap:16px; padding:clamp(16px,2.6vh,30px) clamp(22px,3.5vw,60px);
-  border-top:1px solid var(--line-0); font-size:clamp(12px,1.7vh,16px);
+  flex-wrap:wrap; gap:10px 16px;
+  padding:clamp(12px,2.6vh,30px) clamp(14px,3.5vw,60px);
+  border-top:1px solid var(--line-0); font-size:clamp(10px,1.7vh,16px);
   letter-spacing:.14em; text-transform:uppercase; color:rgba(250,250,250,.5); }
 .fondo b { color:var(--gold); font-weight:600; }
 .pagine { display:flex; gap:8px; }
@@ -92,9 +105,19 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
   transition:background .4s ease; }
 .pagine i.qui { background:var(--gold); }
 .flap-scale { letter-spacing:0; white-space:nowrap; }
+@media (max-width:640px) {
+  .cima-eti { display:none; }
+  .colonne { font-size:8px; letter-spacing:.12em; }
+  .fondo { font-size:9px; letter-spacing:.08em; justify-content:center; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cima-eti i { animation:none; }
+}
 </style>
+</head>
+<body>
 <div class="cima">
-  <div class="marchio"><svg class="logo-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <div class="marchio"><svg class="logo-mark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" aria-hidden="true">
                     <defs>
                         <linearGradient id="goldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
                             <stop offset="0%" stop-color="#FFE55C"/>
@@ -106,19 +129,46 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
                     </g>
                 </svg><span>Boom</span></div>
   <div class="cima-eti"><i></i>Homes in Rome · Live</div>
-  <div id="ora" class="flap-scale"></div>
+  <div id="ora" class="flap-scale" aria-hidden="true"></div>
 </div>
 <div class="sala">
-  <div class="colonne">
+  <div class="colonne" aria-hidden="true">
     <span>Free</span><span>District</span><span>Beds</span><span>Rent /mo</span><span>State</span>
   </div>
-  <div id="righe"></div>
+  <div id="righe" role="list" aria-label="Homes available in Rome"></div>
 </div>
 <div class="fondo">
   <a href="/" style="color:inherit;text-decoration:none;cursor:pointer"><b>boomrome.com</b> · WhatsApp +39 331 325 1961</a>
-  <span class="pagine" id="pagine"></span>
+  <span class="pagine" id="pagine" aria-hidden="true"></span>
   <span>Video-verified · Keys in 48h</span>
 </div>
+<noscript>
+  <div style="padding:24px 28px;font-size:15px;line-height:1.9;letter-spacing:.02em">
+    <p style="margin-bottom:10px"><b style="color:#FFD700">BOOM Rome</b> — homes on the board right now:</p>
+    <!-- case-noscript -->
+    <p>Centro · 3BR · €1,500/mo · free from 31 Jan</p>
+    <p>Pigneto · 2BR · €1,600/mo · available now</p>
+    <p>Pigneto · 3BR · €2,000/mo · free from 1 Jan</p>
+    <p>Pigneto · 2BR · €1,500/mo · available now</p>
+    <p>Ponte Milvio · 1BR · €1,250/mo · available now</p>
+    <p>Trastevere · 1BR · €1,200/mo · available now</p>
+    <p>Trieste · 1BR · €1,200/mo · available now</p>
+    <p>Trieste · 1BR · €2,000/mo · available now</p>
+    <p>Ponte Milvio · 1BR · €1,200/mo · available now</p>
+    <p>Prati · 1BR · €2,000/mo · available now</p>
+    <p>Parioli · 1BR · €1,000/mo · available now</p>
+    <p>Africano · 1BR · €900/mo · available now</p>
+    <p>Pigneto · 2BR · €1,700/mo · available now</p>
+    <p>V. Veneto · 1BR · €1,300/mo · free from 1 Sep</p>
+    <p>Prati · 1BR · €1,500/mo · available now</p>
+    <p>Conca d'Oro · 1BR · €1,750/mo · available now</p>
+    <p>Centro · 1BR · €1,800/mo · available now</p>
+    <p>Centro · 1BR · €2,300/mo · free from 1 Sep</p>
+    <!-- /case-noscript -->
+    <p style="margin-top:10px"><a href="/apartments" style="color:#FFD700">See every home →</a></p>
+  </div>
+</noscript>
+<!-- solari:inizio -->
 <style>
 /* ══ SOLARI 4.0 — la cella a palette, precisione tipografica ══════════
    · metà esattamente al 50%: nessun pixel del glifo sottratto
@@ -191,7 +241,7 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
     var j = drum.indexOf(this.pending); if (j < 0) j = 0;
     var d = (j - i + drum.length) % drum.length;
     if (d === 0) return null;
-    if (d > 5) return drum[(j - 4 + drum.length) % drum.length];
+    if (d > 2) return drum[(j - 1 + drum.length) % drum.length];
     return drum[(i + 1) % drum.length];
   };
   Cell.prototype.step = function (nc, done) {
@@ -209,17 +259,24 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
         self.cur = nc; done();
       }
       self.lbEl.style.display = 'block';
+      /* Safari spesso NON spara animationend quando l'animazione nasce
+         nello stesso frame del display:block: reflow forzato, e il timer
+         di riserva va al passo VERO dell'animazione (prima 400ms: ogni
+         flip su Safari durava il triplo, e il tabellone «caricava due
+         volte») */
+      void self.lbEl.offsetWidth;
       self.lbEl.style.animation = 'flBot 150ms cubic-bezier(.3,1.35,.6,1) forwards';
       self.lbEl.onanimationend = finishBot;
-      setTimeout(finishBot, 400);
+      setTimeout(finishBot, 210);
     }
     this.st.textContent = nc;
     this.lt.textContent = this.cur;
     this.lb.textContent = nc;
     this.ltEl.style.display = 'block';
+    void this.ltEl.offsetWidth;
     this.ltEl.style.animation = 'flTop 90ms cubic-bezier(.55,0,.85,.36) forwards';
     this.ltEl.onanimationend = finishTop;
-    setTimeout(finishTop, 300);
+    setTimeout(finishTop, 140);
   };
   Cell.prototype.go = function (target, drum, fullTurn) {
     this.pending = target;
@@ -266,14 +323,20 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
     host.textContent = '';
     host.classList.add('flap-scale');
     calibrate(host, drum);
+    this.host = host;
     this.cells = [];
     this.drum = drum;
     for (var i = 0; i < len; i++) this.cells.push(new Cell(host));
   }
+  /* un glifo che il rullo non conosce lascerebbe la cella MUTA per sempre
+     (indexOf -1 → nessun passo): qui degrada a spazio, mai un buco nero */
+  Board.prototype.glifo = function (ch) {
+    return this.drum.indexOf(ch) >= 0 ? ch : ' ';
+  };
   Board.prototype.show = function (word, stagger, spin) {
     var self = this;
     this.cells.forEach(function (c, i) {
-      var ch = word[i] || ' ';
+      var ch = self.glifo(word[i] || ' ');
       if (!spin) { c.set(ch); return; }
       setTimeout(function () { c.go(ch, self.drum); },
         i * (stagger || 90) + Math.random() * 26);
@@ -282,8 +345,23 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
   Board.prototype.update = function (word) {   /* flippa solo le celle cambiate */
     var self = this;
     this.cells.forEach(function (c, i) {
-      var ch = word[i] || ' ';
+      var ch = self.glifo(word[i] || ' ');
       if (c.cur !== ch || c.pending !== ch) c.go(ch, self.drum);
+    });
+  };
+  /* le variabili --gs/--cw sono px derivati dal font al momento della
+     nascita: dopo un resize (kiosk ruotato, finestra) il glifo scivola.
+     La regia chiama refit() e la cella si ricentra. */
+  Board.prototype.refit = function () { calibrate(this.host, this.drum); };
+  Board.prototype.giro = function (stagger) {
+    /* il giro dell'insegna: ogni cella rifa' TUTTO il tamburo e riatterra
+       sulla SUA lettera — la vita dei tabelloni veri, mai una parola
+       diversa (la parola del titolo e' una promessa: non si cambia) */
+    var self = this;
+    this.cells.forEach(function (c, i) {
+      if (c.cur === ' ') return;
+      setTimeout(function () { c.go(c.cur, self.drum, true); },
+        i * (stagger || 90) + Math.random() * 26);
     });
   };
   Board.prototype.flutter = function () {
@@ -294,41 +372,82 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
   window.BoomSolari = { Cell: Cell, Board: Board, calibrate: calibrate };
 })();
 </script>
+<!-- solari:fine -->
 
+<script src="/js/dispo-engine.js" defer></script>
+<script src="/js/kiosk-engine.js" defer></script>
 <script>
+/* ══════════════════════════════════════════════════════════════════════════
+   LA REGIA DEL TABELLONE. Le righe di partenza sono la fotografia della
+   build; poi L'IDRANTE (come in vetrina) rilegge `listings` da Firestore
+   (lettura pubblica) e il tabellone flippa SOLO le celle cambiate — un
+   prezzo che scende gira davanti ai passanti, come a Fiumicino. La
+   grammatica delle righe vive in js/kiosk-engine.js (motore puro,
+   testato); la corsia la decide js/dispo-engine.js: una casa fuori
+   mercato scende dal tabellone, una data illeggibile scrive ASK e mai
+   NOW. Senza rete o senza motori restano i numeri della build — mai una
+   pagina rotta.
+   ══════════════════════════════════════════════════════════════════════════ */
 (function () {
   'use strict';
   var BS = window.BoomSolari;
-  var DRUM = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789€.,:·+/';
-  var CASE = [{"ora": "31JAN", "zona": "CENTRO", "tipo": "3BR", "prezzo": "€1,500", "stato": "LIST"}, {"ora": "NOW", "zona": "PIGNETO", "tipo": "2BR", "prezzo": "€1,600", "stato": "NEW"}, {"ora": "1JAN", "zona": "PIGNETO", "tipo": "3BR", "prezzo": "€2,000", "stato": "LIST"}, {"ora": "NOW", "zona": "PIGNETO", "tipo": "2BR", "prezzo": "€1,500", "stato": "NEW"}, {"ora": "NOW", "zona": "PONTE MILVIO", "tipo": "1BR", "prezzo": "€1,250", "stato": "FREE"}, {"ora": "NOW", "zona": "TRASTEVERE", "tipo": "1BR", "prezzo": "€1,200", "stato": "FREE"}, {"ora": "NOW", "zona": "TRIESTE", "tipo": "1BR", "prezzo": "€1,200", "stato": "FREE"}, {"ora": "NOW", "zona": "TRIESTE", "tipo": "1BR", "prezzo": "€2,000", "stato": "FREE"}, {"ora": "NOW", "zona": "PONTE MILVIO", "tipo": "1BR", "prezzo": "€1,200", "stato": "FREE"}, {"ora": "NOW", "zona": "PRATI", "tipo": "1BR", "prezzo": "€2,000", "stato": "LIST"}, {"ora": "NOW", "zona": "PARIOLI", "tipo": "1BR", "prezzo": "€1,000", "stato": "LIST"}, {"ora": "NOW", "zona": "AFRICANO", "tipo": "1BR", "prezzo": "€900", "stato": "FREE"}, {"ora": "NOW", "zona": "PIGNETO", "tipo": "2BR", "prezzo": "€1,700", "stato": "LIST"}, {"ora": "1SEP", "zona": "VITTORIO VENE", "tipo": "1BR", "prezzo": "€1,300", "stato": "LIST"}, {"ora": "NOW", "zona": "PRATI", "tipo": "1BR", "prezzo": "€1,500", "stato": "FREE"}, {"ora": "NOW", "zona": "CONCA D'ORO", "tipo": "1BR", "prezzo": "€1,750", "stato": "LIST"}, {"ora": "NOW", "zona": "CENTRO STORIC", "tipo": "1BR", "prezzo": "€1,800", "stato": "LIST"}, {"ora": "1SEP", "zona": "CENTRO STORIC", "tipo": "1BR", "prezzo": "€2,300", "stato": "LIST"}];
-  var PER = 6, GIRO = 14000;
-  var pagine = Math.max(1, Math.ceil(CASE.length / PER));
+  var DRUM = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789€.,:·+/'-";
+  var CASE = [{"ora": "31JAN", "zona": "CENTRO", "tipo": "3BR", "prezzo": "€1,500", "stato": "LIST"}, {"ora": "NOW", "zona": "PIGNETO", "tipo": "2BR", "prezzo": "€1,600", "stato": "NEW"}, {"ora": "1JAN", "zona": "PIGNETO", "tipo": "3BR", "prezzo": "€2,000", "stato": "LIST"}, {"ora": "NOW", "zona": "PIGNETO", "tipo": "2BR", "prezzo": "€1,500", "stato": "NEW"}, {"ora": "NOW", "zona": "PONTE MILVIO", "tipo": "1BR", "prezzo": "€1,250", "stato": "FREE"}, {"ora": "NOW", "zona": "TRASTEVERE", "tipo": "1BR", "prezzo": "€1,200", "stato": "FREE"}, {"ora": "NOW", "zona": "TRIESTE", "tipo": "1BR", "prezzo": "€1,200", "stato": "FREE"}, {"ora": "NOW", "zona": "TRIESTE", "tipo": "1BR", "prezzo": "€2,000", "stato": "FREE"}, {"ora": "NOW", "zona": "PONTE MILVIO", "tipo": "1BR", "prezzo": "€1,200", "stato": "FREE"}, {"ora": "NOW", "zona": "PRATI", "tipo": "1BR", "prezzo": "€2,000", "stato": "LIST"}, {"ora": "NOW", "zona": "PARIOLI", "tipo": "1BR", "prezzo": "€1,000", "stato": "LIST"}, {"ora": "NOW", "zona": "AFRICANO", "tipo": "1BR", "prezzo": "€900", "stato": "FREE"}, {"ora": "NOW", "zona": "PIGNETO", "tipo": "2BR", "prezzo": "€1,700", "stato": "LIST"}, {"ora": "1SEP", "zona": "V. VENETO", "tipo": "1BR", "prezzo": "€1,300", "stato": "LIST"}, {"ora": "NOW", "zona": "PRATI", "tipo": "1BR", "prezzo": "€1,500", "stato": "FREE"}, {"ora": "NOW", "zona": "CONCA D'ORO", "tipo": "1BR", "prezzo": "€1,750", "stato": "LIST"}, {"ora": "NOW", "zona": "CENTRO", "tipo": "1BR", "prezzo": "€1,800", "stato": "LIST"}, {"ora": "1SEP", "zona": "CENTRO", "tipo": "1BR", "prezzo": "€2,300", "stato": "LIST"}];
+  var PER = 6, GIRO = 14000, IDRANTE = 5 * 60000;
+  /* il movimento è il teatro, ma chi lo chiede fermo lo ha fermo */
+  var RIDOTTO = !!(window.matchMedia
+    && matchMedia('(prefers-reduced-motion: reduce)').matches);
   var box = document.getElementById('righe');
   var nav = document.getElementById('pagine');
+  var TUTTE = [];                       /* ogni Board, per il refit al resize */
+  function tabella(host, len, drum) {
+    var b = new BS.Board(host, len, drum || DRUM);
+    TUTTE.push(b);
+    return b;
+  }
   var righe = [];
-  for (var i = 0; i < Math.min(PER, CASE.length); i++) {
+  /* PER righe SEMPRE: coi dati vivi il catalogo può crescere, e una riga
+     vuota (celle bianche) è la vita normale di un tabellone */
+  for (var i = 0; i < PER; i++) {
     var d = document.createElement('div');
     d.className = 'riga';
-    d.innerHTML = '<span class="cella c-ora flap-scale"></span>' +
-      '<span class="cella c-zona flap-scale"></span>' +
-      '<span class="cella c-tipo flap-scale"></span>' +
-      '<span class="cella c-prezzo flap-scale"></span>' +
-      '<span class="cella c-stato flap-scale"></span>';
+    d.setAttribute('role', 'listitem');
+    d.innerHTML = '<span class="cella c-ora flap-scale" aria-hidden="true"></span>' +
+      '<span class="cella c-zona flap-scale" aria-hidden="true"></span>' +
+      '<span class="cella c-tipo flap-scale" aria-hidden="true"></span>' +
+      '<span class="cella c-prezzo flap-scale" aria-hidden="true"></span>' +
+      '<span class="cella c-stato flap-scale" aria-hidden="true"></span>';
     box.appendChild(d);
     righe.push({ el:d, celle:{
-      ora:   new BS.Board(d.querySelector('.c-ora'),    5,  DRUM),
-      zona:  new BS.Board(d.querySelector('.c-zona'),   13, DRUM),
-      tipo:  new BS.Board(d.querySelector('.c-tipo'),   3,  DRUM),
-      prezzo:new BS.Board(d.querySelector('.c-prezzo'), 6,  DRUM),
-      stato: new BS.Board(d.querySelector('.c-stato'),  5,  DRUM)
+      ora:   tabella(d.querySelector('.c-ora'),    5),
+      zona:  tabella(d.querySelector('.c-zona'),   13),
+      tipo:  tabella(d.querySelector('.c-tipo'),   3),
+      prezzo:tabella(d.querySelector('.c-prezzo'), 6),
+      stato: tabella(d.querySelector('.c-stato'),  5)
     }});
   }
-  for (var k = 0; k < pagine; k++) {
-    var t = document.createElement('i');
-    if (k === 0) t.className = 'qui';
-    nav.appendChild(t);
+  /* le celle sono grafica per uno screen reader: la riga parla per loro */
+  function descrivi(h) {
+    if (!h) return '';
+    var quando = h.ora === 'NOW' ? 'available now'
+      : h.ora === 'ASK' ? 'move-in date on request'
+      : 'free from ' + h.ora;
+    return h.zona + ', ' + h.tipo + ', ' + h.prezzo + ' per month, ' + quando;
+  }
+  function scrivi(board, word) {
+    if (RIDOTTO) board.show(word, 0, false);
+    else board.update(word);
   }
   var pagina = 0;
+  function conta() { return Math.max(1, Math.ceil(CASE.length / PER)); }
+  function tacche() {
+    nav.textContent = '';
+    for (var k = 0; k < conta(); k++) {
+      var t = document.createElement('i');
+      if (k === pagina) t.className = 'qui';
+      nav.appendChild(t);
+    }
+  }
   function mostra(p, sbatti) {
     pagina = p;
     [].forEach.call(nav.children, function (x, k) {
@@ -337,33 +456,67 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
     righe.forEach(function (r, i) {
       var h = CASE[p * PER + i];
       r.el.classList.toggle('nuovo', !!h && h.stato === 'NEW');
+      r.el.setAttribute('aria-label', descrivi(h));
       var mostraR = function () {
-        r.celle.ora.update(h ? h.ora : '');
-        r.celle.zona.update(h ? h.zona : '');
-        r.celle.tipo.update(h ? h.tipo : '');
-        r.celle.prezzo.update(h ? h.prezzo : '');
-        r.celle.stato.update(h ? h.stato : '');
+        scrivi(r.celle.ora,    h ? h.ora : '');
+        scrivi(r.celle.zona,   h ? h.zona : '');
+        scrivi(r.celle.tipo,   h ? h.tipo : '');
+        scrivi(r.celle.prezzo, h ? h.prezzo : '');
+        scrivi(r.celle.stato,  h ? h.stato : '');
       };
-      if (sbatti) setTimeout(mostraR, i * 140); else mostraR();
+      if (sbatti && !RIDOTTO) setTimeout(mostraR, i * 140); else mostraR();
     });
   }
-  /* prima stampa col giro completo */
-  righe.forEach(function (r, i) {
-    var h = CASE[i];
-    setTimeout(function () {
+  tacche();
+  /* prima stampa col giro completo (istantanea per chi chiede quiete) */
+  if (RIDOTTO) {
+    mostra(0, false);
+  } else {
+    righe.forEach(function (r, i) {
+      var h = CASE[i];
       if (!h) return;
-      r.celle.ora.show(h.ora, 24, true);
-      r.celle.zona.show(h.zona, 18, true);
-      r.celle.tipo.show(h.tipo, 24, true);
-      r.celle.prezzo.show(h.prezzo, 22, true);
-      r.celle.stato.show(h.stato, 22, true);
-      r.el.classList.toggle('nuovo', h.stato === 'NEW');
-    }, 400 + i * 160);
-  });
-  if (pagine > 1) setInterval(function () {
-    if (document.hidden) return;
-    mostra((pagina + 1) % pagine, true);
+      setTimeout(function () {
+        r.celle.ora.show(h.ora, 24, true);
+        r.celle.zona.show(h.zona, 18, true);
+        r.celle.tipo.show(h.tipo, 24, true);
+        r.celle.prezzo.show(h.prezzo, 22, true);
+        r.celle.stato.show(h.stato, 22, true);
+        r.el.classList.toggle('nuovo', h.stato === 'NEW');
+        r.el.setAttribute('aria-label', descrivi(h));
+      }, 400 + i * 160);
+    });
+  }
+  /* la rotazione delle pagine — sempre armata: i dati vivi possono
+     superare le 6 righe anche se la build ne aveva meno */
+  setInterval(function () {
+    if (document.hidden || conta() < 2) return;
+    mostra((pagina + 1) % conta(), true);
   }, GIRO);
+  /* ── L'IDRANTE — il tabellone si guadagna la parola «Live» ──────────── */
+  var ultimaLettura = 0;
+  function aggiorna() {
+    if (!window.BOOM_KIOSK || !window.BOOM_DISPO || !window.fetch) return;
+    ultimaLettura = Date.now();
+    fetch('https://firestore.googleapis.com/v1/projects/'
+        + 'boom-property-dashboards/databases/(default)/documents/'
+        + 'listings?pageSize=300')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || !j.documents) return;
+        var vive = BOOM_KIOSK.daFirestore(j.documents,
+          { dispo: window.BOOM_DISPO });
+        /* zero righe da un catalogo che ne ha = motore/dati in disaccordo:
+           meglio la fotografia di ieri che un tabellone spento */
+        if (!vive.length) return;
+        CASE = vive;
+        if (pagina >= conta()) pagina = 0;
+        tacche();
+        mostra(pagina, true);
+      })
+      .catch(function () { /* niente rete: restano i numeri della build */ });
+  }
+  setTimeout(aggiorna, 1200);
+  setInterval(function () { if (!document.hidden) aggiorna(); }, IDRANTE);
   /* l'orologio */
   function oraRoma() {
     try {
@@ -371,15 +524,33 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
         hour:'2-digit', minute:'2-digit', hour12:false }).format(new Date());
     } catch (e) { return new Date().toTimeString().slice(0, 5); }
   }
-  var oro = new BS.Board(document.getElementById('ora'), 5, ' 0123456789:');
-  oro.show(oraRoma());
-  setInterval(function () { if (!document.hidden) oro.update(oraRoma()); }, 20000);
+  var oro = tabella(document.getElementById('ora'), 5, ' 0123456789:');
+  oro.show(oraRoma(), 24, !RIDOTTO);
+  setInterval(function () { if (!document.hidden) scrivi(oro, oraRoma()); }, 5000);
+  /* al risveglio (kiosk che dorme la notte, tab ripresa) niente attese:
+     orologio subito giusto, e se l'idrante è vecchio si riapre */
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) return;
+    scrivi(oro, oraRoma());
+    if (Date.now() - ultimaLettura > IDRANTE) aggiorna();
+  });
+  /* la calibrazione ottica (--gs/--cw) è in px del font di nascita: dopo
+     un resize o una rotazione si rifà, o il glifo scivola dal centro */
+  var rimisura;
+  window.addEventListener('resize', function () {
+    clearTimeout(rimisura);
+    rimisura = setTimeout(function () {
+      TUTTE.forEach(function (b) { b.refit(); });
+    }, 250);
+  });
   /* ogni tanto un fremito, come i tabelloni veri */
   setInterval(function () {
-    if (document.hidden) return;
+    if (document.hidden || RIDOTTO || !righe.length) return;
     var r = righe[Math.floor(Math.random() * righe.length)];
     var quali = ['zona','prezzo','stato'];
-    r.celle[quali[Math.floor(Math.random() * 3)]].flutter();
+    r.celle[quali[Math.floor(Math.random() * quali.length)]].flutter();
   }, 9000);
 })();
 </script>
+</body>
+</html>
