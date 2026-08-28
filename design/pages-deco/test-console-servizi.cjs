@@ -2,8 +2,21 @@
    Una sola regola per tutte: quello che il JSON-LD dichiara deve stare
    in pagina come testo visibile, la pagina deve funzionare senza JS, e
    niente deve uscire dallo schermo del telefono. */
-const { chromium } = require('/opt/node22/lib/node_modules/playwright');
-const PORTA = process.env.PORTA || 8172;
+// Il browser lo risolve tests/_browser.mjs, mai un percorso cablato: una
+// suite verde su una macchina sola non e' una suite (lezione 19/08/2026).
+const { loadChromium, launchOptions } = require('node:module')
+  .createRequire(__filename)('../../tests/_browser.cjs');
+// Il server se lo avvia la suite: dipendere da un `python3 -m http.server`
+// lanciato a mano significa verde in locale e rosso in CI.
+const PORTA = process.env.PORTA || 8174;
+const fs = require('fs'), path = require('path');
+const R = path.resolve(__dirname, '../..');
+const srv = require('http').createServer((rq, rs) => {
+  const f = path.join(R, rq.url.split('?')[0]);
+  fs.readFile(f, (e, d) => e ? (rs.statusCode = 404, rs.end())
+    : (rs.setHeader('content-type', f.endsWith('.css') ? 'text/css'
+      : f.endsWith('.js') ? 'text/javascript' : 'text/html'), rs.end(d)));
+});
 // [file, prefisso righe, quante, come si compra]
 // Concierge non ha cassa Stripe per PROGETTO: si preventiva a voce.
 // Il test non pretende una cassa dove non deve esistere.
@@ -17,7 +30,10 @@ const PAG = [
 ];
 const SOGLIA_VP = 8.5;
 (async () => {
-  const br = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+    const chromium = await loadChromium();
+  if (!chromium) { console.log('SKIP: playwright non disponibile'); process.exit(0); }
+  srv.listen(PORTA);
+  const br = await chromium.launch(await launchOptions());
   let guasti = 0;
   for (const [file, pre, n, cassa] of PAG) {
     const U = `http://localhost:${PORTA}/${file}`;
@@ -135,7 +151,7 @@ const SOGLIA_VP = 8.5;
     if (errs.length) { guasti++; console.log('  ERRORI: ' + [...new Set(errs)].join(' | ')); }
     else console.log('  zero pageerror');
   }
-  await br.close();
+  await br.close(); srv.close();
   console.log(guasti ? `\n${guasti} GUASTI` : '\nTUTTO VERDE');
   process.exit(guasti ? 1 : 0);
 })();

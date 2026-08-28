@@ -5,7 +5,10 @@
    l'ha aperta un telefono. Questo test confronta l'anteprima con la
    pagina VERA nello stesso browser: stesso fondo, stessa geometria delle
    barre, stesse righe, zero errori. Se divergono, e' un guasto. */
-const { chromium } = require('/opt/node22/lib/node_modules/playwright');
+// Il browser lo risolve tests/_browser.mjs, mai un percorso cablato: una
+// suite verde su una macchina sola non e' una suite (lezione 19/08/2026).
+const { loadChromium, launchOptions } = require('node:module')
+  .createRequire(__filename)('../../tests/_browser.cjs');
 const { execFileSync } = require('child_process');
 const fs = require('fs'), os = require('os'), path = require('path');
 const R = '/home/user/Boum-roma/';
@@ -33,7 +36,9 @@ const rilievo = () => ({
       : (rs.setHeader('content-type', f.endsWith('.css') ? 'text/css'
         : f.endsWith('.js') ? 'text/javascript' : 'text/html'), rs.end(d)));
   }).listen(PORTA);
-  const br = await chromium.launch({ executablePath: '/opt/pw-browsers/chromium' });
+    const chromium = await loadChromium();
+  if (!chromium) { console.log('SKIP: playwright non disponibile'); process.exit(0); }
+  const br = await chromium.launch(await launchOptions());
   const E = []; let guasti = 0;
   const ok = (t, v) => { E.push((v ? 'OK   ' : 'FAIL ') + t); if (!v) guasti++; };
   for (const p of PAG) {
