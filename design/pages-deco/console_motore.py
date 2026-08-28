@@ -301,6 +301,63 @@ def costruisci(spec, css, piede_prove):
   var pb = document.getElementById('paybar');
   if (pb) pb.style.display = 'none';
 }})();
+
+/* LA LASTRA DELL'ESPOSIZIONE — aritmetica, non promesse.
+   Due numeri che il visitatore gia' conosce; il resto lo dice la legge.
+   Regole dure, tutte visibili nel comportamento:
+   · i numeri si formattano A MANO. toLocaleString su un runtime con ICU
+     ridotta stampa 1250,00 invece di 1.250,00 — la lezione gia' pagata su
+     /executive, e qui accanto c'e' un prezzo: un separatore sbagliato
+     sotto una cifra in euro fa sembrare tutto approssimativo.
+   · quando il deposito RIENTRA nel tetto la lastra lo dice e toglie quella
+     voce dal totale. Un calcolatore che restituisce sempre una cifra
+     spaventosa non e' uno strumento, e' una slot machine — e chi legge se
+     ne accorge.
+   · senza JS restano i valori d'esempio gia' scritti nel markup, coerenti
+     fra loro: la pagina non mostra mai caselle vuote. */
+(function () {{
+  var box = document.querySelector('.espo');
+  if (!box) return;
+  var can = document.getElementById('espoR'), dep = document.getElementById('espoD');
+  var v1 = document.getElementById('espoV1'), v2 = document.getElementById('espoV2'),
+      v3 = document.getElementById('espoV3'), r1 = document.getElementById('espoR1'),
+      t1 = document.getElementById('espoT1'), nota = document.getElementById('espoNota');
+  if (!can || !dep || !v1 || !v2 || !v3) return;
+  var TETTO = 3;   /* L. 392/1978 art. 11 */
+  var PREAV = 3;   /* L. 431/1998 art. 4 */
+
+  function eur(n) {{
+    var i = Math.round(Math.abs(n)).toString(), fuori = '';
+    while (i.length > 3) {{ fuori = '.' + i.slice(-3) + fuori; i = i.slice(0, -3); }}
+    return '\u20ac' + i + fuori;
+  }}
+  function batti(el, testo) {{
+    if (el.textContent === testo) return;
+    el.textContent = testo;
+    el.classList.remove('pulsa'); void el.offsetWidth; el.classList.add('pulsa');
+  }}
+  function conta() {{
+    var c = Math.max(0, Math.min(20000, parseInt(can.value, 10) || 0));
+    var m = parseInt(dep.value, 10) || 0;
+    var sopra = Math.max(0, m - TETTO) * c;
+    var uscita = PREAV * c;
+    r1.classList.toggle('ok', sopra === 0);
+    if (t1) t1.textContent = sopra
+      ? 'Deposit above the legal ceiling'
+      : 'Deposit within the legal ceiling';
+    batti(v1, sopra ? eur(sopra) : 'nothing owed above it \u2713');
+    batti(v2, eur(uscita));
+    batti(v3, eur(sopra + uscita));
+    if (nota) nota.textContent = sopra
+      ? 'Your deposit is ' + eur(sopra) + " over the ceiling, and a bad exit "
+        + "clause is worth three months' rent"
+      : "Your deposit is within the ceiling \u2014 what is left on the table is "
+        + "the exit clause, three months' rent";
+  }}
+  can.addEventListener('input', conta);
+  dep.addEventListener('change', conta);
+  conta();
+}})();
 </script>
 </body>""")
 

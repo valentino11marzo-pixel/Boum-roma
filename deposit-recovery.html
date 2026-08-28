@@ -422,6 +422,67 @@ input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
   border:0; cursor:pointer; white-space:nowrap; }
 .hud-vai small { font-size:9px; font-weight:700; opacity:.7; }
 @media (prefers-reduced-motion:reduce){ .hud{transition:none} }
+
+/* ══ LA LASTRA DELL'ESPOSIZIONE ══════════════════════════════════════════
+   Sostituisce la media «€600+ risparmiati» — che non abbiamo mai misurato —
+   con l'aritmetica su due numeri del visitatore. Il movimento qui e'
+   informazione pura: cambi il canone, cambiano le cifre, e cambia anche il
+   VERDETTO (dentro il tetto / sopra il tetto). */
+.espo { border:1px solid rgba(255,215,0,.16); border-radius:14px;
+  background:linear-gradient(180deg,rgba(255,215,0,.035),transparent 55%);
+  padding:clamp(16px,2.2vw,26px); }
+.espo-capo { margin:0 0 clamp(14px,1.8vw,20px); font-size:12.5px;
+  color:var(--t3); line-height:1.5; }
+.espo-in { display:flex; flex-wrap:wrap; gap:clamp(12px,2vw,26px);
+  padding-bottom:clamp(14px,1.8vw,20px);
+  border-bottom:1px solid rgba(255,255,255,.07); }
+.espo-c { display:flex; flex-direction:column; gap:7px; min-width:150px; }
+.espo-c > span:first-child { font-size:9.5px; letter-spacing:.16em;
+  text-transform:uppercase; color:var(--t4); }
+.espo-eur { display:inline-flex; align-items:center; gap:4px;
+  font-size:clamp(18px,2vw,24px); font-weight:300; color:var(--gold); }
+.espo input, .espo select { background:rgba(255,255,255,.045);
+  border:1px solid rgba(255,255,255,.12); border-radius:9px;
+  color:var(--t1); font:inherit; font-size:16px; /* 16px: iOS non zooma */
+  padding:9px 11px; min-height:44px; width:100%;
+  font-variant-numeric:tabular-nums; }
+.espo input { max-width:130px; font-size:clamp(18px,2vw,24px);
+  font-weight:300; color:var(--gold); }
+.espo select { max-width:170px; }
+.espo input:focus-visible, .espo select:focus-visible {
+  outline:2px solid var(--gold); outline-offset:2px; }
+.espo-out { margin-top:clamp(12px,1.6vw,18px); }
+.espo-r { display:grid; grid-template-columns:minmax(0,1fr) auto;
+  align-items:baseline; gap:8px clamp(14px,2.4vw,34px);
+  padding:clamp(11px,1.4vw,16px) 0;
+  border-bottom:1px solid rgba(255,255,255,.055); }
+.espo-t b { display:block; font-weight:400; font-size:clamp(14px,1.5vw,17px);
+  color:var(--t1); line-height:1.3; }
+.espo-t span { display:block; margin-top:5px; font-size:11.5px;
+  color:var(--t4); line-height:1.5; }
+.espo-v { font-size:clamp(17px,2vw,25px); font-weight:200; color:var(--t2);
+  font-variant-numeric:tabular-nums; white-space:nowrap; }
+.espo-r.ok .espo-v { color:#5FD08A; font-size:clamp(13px,1.4vw,16px); }
+.espo-tot { border-bottom:0; border-top:1px solid rgba(255,215,0,.4);
+  margin-top:5px; padding-top:clamp(13px,1.7vw,19px); }
+.espo-tot .espo-t b { color:var(--gold); }
+.espo-tot .espo-v { color:var(--gold); font-weight:300; }
+.espo-fine { margin:clamp(13px,1.7vw,19px) 0 0; font-size:11.5px;
+  color:var(--t4); line-height:1.6; }
+.espo-fine b { color:var(--gold); font-weight:400; }
+.espo-onesto { display:block; margin-top:5px; color:var(--t4); opacity:.75; }
+@media (prefers-reduced-motion:no-preference){
+  .espo-v { transition:color .25s ease; }
+  .espo-v.pulsa { animation:espoBatte .4s ease; }
+  @keyframes espoBatte { 0%{opacity:.35} 100%{opacity:1} }
+}
+@media (max-width:700px){
+  .espo-r { grid-template-columns:1fr; gap:6px; }
+  .espo-v { order:-1; font-size:clamp(19px,6vw,26px); }
+  .espo-in { gap:14px; }
+  .espo-c { min-width:0; flex:1 1 140px; }
+  .espo input, .espo select { max-width:none; }
+}
 </style>
 </head>
 <body>
@@ -822,7 +883,47 @@ input:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
   <button class="go" onclick="openSheet('paybar')">Book →</button>
 </div>
 
-<script src="/js/boom-ambient.js"></script>
+<script>/* IL MOTORE D'AMBIENTE ARRIVA DOPO LA PRIMA PITTURA.
+   Misurato in Chromium con CPU a 1/4 (telefono di fascia media): i 103 KB di
+   boom-ambient.js costano ~420ms di thread principale prima che la pagina sia
+   interattiva, e ~600ms sul load. La prima pittura NON ne soffre — quindi quel
+   lavoro sta semplicemente nel posto sbagliato: e' atmosfera, e l'atmosfera
+   puo' arrivare quando la pagina e' gia' tua.
+   Qui resta uno STUB che mette in coda mount/mood, cosi' nessuna pagina deve
+   cambiare la propria configurazione; il motore vero si carica dopo `load` e
+   la coda gli si riversa dentro.
+   LA TRAPPOLA, che va detta: boom-ambient.js comincia con
+   `if (window.BoomAmbient) return;` — una guardia contro il doppio
+   caricamento. Uno stub con quel nome lo farebbe uscire all'istante e
+   l'ambiente sparirebbe da 23 pagine SENZA UN ERRORE. Percio' lo stub si
+   toglie di mezzo (delete) un attimo prima di iniettare il motore vero. */
+(function () {
+  var Q = [], M = null, STUB;
+  function proxy() { return { mood: function (m) { M && M.mood ? M.mood(m) : Q.push(['mood', m]); } }; }
+  STUB = { mount: function (c) { Q.push(['mount', c]); return proxy(); },
+           mood: function (m) { Q.push(['top', m]); },
+           differito: true };
+  window.BoomAmbient = STUB;
+  function vai() {
+    if (window.BoomAmbient === STUB) { try { delete window.BoomAmbient; } catch (e) { window.BoomAmbient = undefined; } }
+    var s = document.createElement('script');
+    s.src = '/js/boom-ambient.js';
+    s.onload = function () {
+      var A = window.BoomAmbient;
+      if (!A || !A.mount) return;
+      for (var i = 0; i < Q.length; i++) {
+        var q = Q[i];
+        if (q[0] === 'mount') M = A.mount(q[1]);
+        else if (q[0] === 'top' && A.mood) A.mood(q[1]);
+        else if (q[0] === 'mood' && M && M.mood) M.mood(q[1]);
+      }
+    };
+    document.head.appendChild(s);
+  }
+  if (document.readyState === 'complete') setTimeout(vai, 1);
+  else addEventListener('load', function () { setTimeout(vai, 1); });
+})();
+</script>
 <script>
 function boomTrack(name,params){try{if(typeof gtag==='function')gtag('event',name,params||{});}catch(e){}}
 try{if(window.BoomAmbient)BoomAmbient.mount({ink:'#060607',inkRGB:'6,6,7',palette:{a:'255,215,0',b:'255,229,160'},intensity:.55,sections:false,scene:'marmoantico',z:-3});}catch(e){}
@@ -1057,6 +1158,63 @@ function paySheet(){
   addEventListener('scroll', mostra, { passive: true });
   var pb = document.getElementById('paybar');
   if (pb) pb.style.display = 'none';
+})();
+
+/* LA LASTRA DELL'ESPOSIZIONE — aritmetica, non promesse.
+   Due numeri che il visitatore gia' conosce; il resto lo dice la legge.
+   Regole dure, tutte visibili nel comportamento:
+   · i numeri si formattano A MANO. toLocaleString su un runtime con ICU
+     ridotta stampa 1250,00 invece di 1.250,00 — la lezione gia' pagata su
+     /executive, e qui accanto c'e' un prezzo: un separatore sbagliato
+     sotto una cifra in euro fa sembrare tutto approssimativo.
+   · quando il deposito RIENTRA nel tetto la lastra lo dice e toglie quella
+     voce dal totale. Un calcolatore che restituisce sempre una cifra
+     spaventosa non e' uno strumento, e' una slot machine — e chi legge se
+     ne accorge.
+   · senza JS restano i valori d'esempio gia' scritti nel markup, coerenti
+     fra loro: la pagina non mostra mai caselle vuote. */
+(function () {
+  var box = document.querySelector('.espo');
+  if (!box) return;
+  var can = document.getElementById('espoR'), dep = document.getElementById('espoD');
+  var v1 = document.getElementById('espoV1'), v2 = document.getElementById('espoV2'),
+      v3 = document.getElementById('espoV3'), r1 = document.getElementById('espoR1'),
+      t1 = document.getElementById('espoT1'), nota = document.getElementById('espoNota');
+  if (!can || !dep || !v1 || !v2 || !v3) return;
+  var TETTO = 3;   /* L. 392/1978 art. 11 */
+  var PREAV = 3;   /* L. 431/1998 art. 4 */
+
+  function eur(n) {
+    var i = Math.round(Math.abs(n)).toString(), fuori = '';
+    while (i.length > 3) { fuori = '.' + i.slice(-3) + fuori; i = i.slice(0, -3); }
+    return '€' + i + fuori;
+  }
+  function batti(el, testo) {
+    if (el.textContent === testo) return;
+    el.textContent = testo;
+    el.classList.remove('pulsa'); void el.offsetWidth; el.classList.add('pulsa');
+  }
+  function conta() {
+    var c = Math.max(0, Math.min(20000, parseInt(can.value, 10) || 0));
+    var m = parseInt(dep.value, 10) || 0;
+    var sopra = Math.max(0, m - TETTO) * c;
+    var uscita = PREAV * c;
+    r1.classList.toggle('ok', sopra === 0);
+    if (t1) t1.textContent = sopra
+      ? 'Deposit above the legal ceiling'
+      : 'Deposit within the legal ceiling';
+    batti(v1, sopra ? eur(sopra) : 'nothing owed above it ✓');
+    batti(v2, eur(uscita));
+    batti(v3, eur(sopra + uscita));
+    if (nota) nota.textContent = sopra
+      ? 'Your deposit is ' + eur(sopra) + " over the ceiling, and a bad exit "
+        + "clause is worth three months' rent"
+      : "Your deposit is within the ceiling — what is left on the table is "
+        + "the exit clause, three months' rent";
+  }
+  can.addEventListener('input', conta);
+  dep.addEventListener('change', conta);
+  conta();
 })();
 </script>
 </body>

@@ -746,7 +746,47 @@ footer{margin-top:64px;border-top:1px solid var(--line);padding:44px 16px 28px}
 </div></div>
 
 <script src="/js/boom-elevate.js"></script>
-<script src="/js/boom-ambient.js"></script>
+<script>/* IL MOTORE D'AMBIENTE ARRIVA DOPO LA PRIMA PITTURA.
+   Misurato in Chromium con CPU a 1/4 (telefono di fascia media): i 103 KB di
+   boom-ambient.js costano ~420ms di thread principale prima che la pagina sia
+   interattiva, e ~600ms sul load. La prima pittura NON ne soffre — quindi quel
+   lavoro sta semplicemente nel posto sbagliato: e' atmosfera, e l'atmosfera
+   puo' arrivare quando la pagina e' gia' tua.
+   Qui resta uno STUB che mette in coda mount/mood, cosi' nessuna pagina deve
+   cambiare la propria configurazione; il motore vero si carica dopo `load` e
+   la coda gli si riversa dentro.
+   LA TRAPPOLA, che va detta: boom-ambient.js comincia con
+   `if (window.BoomAmbient) return;` — una guardia contro il doppio
+   caricamento. Uno stub con quel nome lo farebbe uscire all'istante e
+   l'ambiente sparirebbe da 23 pagine SENZA UN ERRORE. Percio' lo stub si
+   toglie di mezzo (delete) un attimo prima di iniettare il motore vero. */
+(function () {
+  var Q = [], M = null, STUB;
+  function proxy() { return { mood: function (m) { M && M.mood ? M.mood(m) : Q.push(['mood', m]); } }; }
+  STUB = { mount: function (c) { Q.push(['mount', c]); return proxy(); },
+           mood: function (m) { Q.push(['top', m]); },
+           differito: true };
+  window.BoomAmbient = STUB;
+  function vai() {
+    if (window.BoomAmbient === STUB) { try { delete window.BoomAmbient; } catch (e) { window.BoomAmbient = undefined; } }
+    var s = document.createElement('script');
+    s.src = '/js/boom-ambient.js';
+    s.onload = function () {
+      var A = window.BoomAmbient;
+      if (!A || !A.mount) return;
+      for (var i = 0; i < Q.length; i++) {
+        var q = Q[i];
+        if (q[0] === 'mount') M = A.mount(q[1]);
+        else if (q[0] === 'top' && A.mood) A.mood(q[1]);
+        else if (q[0] === 'mood' && M && M.mood) M.mood(q[1]);
+      }
+    };
+    document.head.appendChild(s);
+  }
+  if (document.readyState === 'complete') setTimeout(vai, 1);
+  else addEventListener('load', function () { setTimeout(vai, 1); });
+})();
+</script>
 <script src="/js/boom-fondali.js"></script>
 <script src="/js/boom-geo.js"></script>
 <script src="/js/dispo-engine.js"></script>

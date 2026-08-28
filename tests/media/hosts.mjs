@@ -110,6 +110,61 @@ morti.length
       + 'TLS regalata a ogni caricamento):\n      ' + morti.join('\n      '))
   : bene('nessun preconnect verso un host che non serviamo piu\'');
 
+// 5 · nessuna immagine del repo sproporzionata a cio' che mostra
+// La griglia di ricerca serviva pigneto-palace.jpg a 1500x2000 e 295 KB per
+// una card larga ~380px in un riquadro 4:3: sei volte i pixel necessari, e
+// per giunta quasi tutti ritagliati via dal browser. Era l'oggetto piu'
+// pesante di apartments.html — piu' dell'HTML. Ricodificata a 800px/48 KB,
+// la pagina e' passata da 591 KB a 343 KB senza toccare una riga di markup.
+// Il budget e' per RUOLO, non un numero unico: le strisce dei pass Wallet
+// viaggiano DENTRO il .pkpass e le scarica l'app una volta sola (e vanno
+// viste a retina sul telefono), le card social le prende un crawler, le
+// immagini di pagina le paga il visitatore su rete mobile. Trattarle uguali
+// avrebbe voluto dire o rovinare i pass o non accorgersi mai di una foto da
+// 295 KB nella griglia di ricerca.
+function tetto(f) {
+  if (/^(pass-assets|assets\/passes)\//.test(f)) return [400, 'pass Wallet'];
+  if (/^og-|\/og-/.test(f)) return [120, 'card social'];
+  return [200, 'immagine di pagina'];
+}
+function immagini(dir, acc = []) {
+  for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (e.name === 'node_modules' || e.name === '.git' || e.name === 'reference') continue;
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) immagini(p, acc);
+    else if (/\.(jpe?g|png|webp)$/i.test(e.name)) acc.push(p);
+  }
+  return acc;
+}
+const grasse = immagini(R)
+  .map((p) => {
+    const f = path.relative(R, p);
+    const [max, ruolo] = tetto(f);
+    return [f, Math.round(fs.statSync(p).size / 1024), max, ruolo];
+  })
+  .filter(([, kb, max]) => kb > max)
+  .sort((a, b) => b[1] - a[1]);
+grasse.length
+  ? male(`${grasse.length} immagini oltre il budget del loro ruolo — su un `
+      + 'telefono una sola di queste vale il budget dell\'intera pagina:\n      '
+      + grasse.map(([f, kb, max, r]) => `${f} — ${kb} KB (${r}: max ${max})`).join('\n      ')
+      + '\n      sharp(f).resize({width:800}).jpeg({quality:82,mozjpeg:true})')
+  : bene('ogni immagine sta nel budget del proprio ruolo');
+
+// 6 · il motore d'ambiente non torna nel percorso critico
+// 103 KB di atmosfera generativa: misurati in Chromium con CPU a 1/4
+// costavano ~420ms di thread principale prima che la pagina fosse
+// interattiva, senza toccare la prima pittura. Sta dietro uno stub che lo
+// carica dopo `load`. Un <script src> nudo lo rimetterebbe davanti.
+const nudi = html(R).filter((f) => !f.startsWith('preview-')
+  && fs.readFileSync(path.join(R, f), 'utf8')
+       .includes('<script src="/js/boom-ambient.js"></script>'));
+nudi.length
+  ? male(`${nudi.length} pagine caricano il motore d'ambiente nel percorso `
+      + 'critico (~420ms di thread principale su un telefono di fascia '
+      + 'media):\n      ' + nudi.join('\n      '))
+  : bene("il motore d'ambiente resta fuori dal percorso critico");
+
 console.log(ko ? `  \x1b[31mLe foto non sono ancora tutte nostre\x1b[0m — ${ok} passed, ${ko} failed`
                 : `  \x1b[32mLe foto restano nostre\x1b[0m — ${ok} passed, 0 failed`);
 process.exit(ko ? 1 : 0);

@@ -52,7 +52,16 @@ def lp(testo, valore, tot=False):
 PIEDE = 'P.IVA 17322991005 · REA RM-1710623</div>'
 
 VERDETTO_DAS = open(BASE + 'reperto-verdetto.html', encoding='utf-8').read()
-CONTO_DAS = open(BASE + 'reperto-conto.html', encoding='utf-8').read()
+_ESPO = open(BASE + 'reperto-esposizione.html', encoding='utf-8').read()
+
+
+def espo(prezzo):
+    """LA LASTRA DELL'ESPOSIZIONE. Sostituisce la media «€600+ risparmiati»,
+    che non abbiamo mai misurato, con un'aritmetica che il visitatore
+    verifica da se' su due numeri suoi — e che sa anche dire «il tuo
+    contratto qui e' a posto». Un calcolatore che restituisce sempre una
+    cifra spaventosa non e' uno strumento, e' una slot machine."""
+    return _ESPO.replace('__PREZZO__', str(prezzo))
 RITIRO_DAS = open(BASE + 'reperto-ritiro.html', encoding='utf-8').read()
 
 SPEC = {}
@@ -118,9 +127,11 @@ SPEC['deal-assistance'] = dict(
         nothing. An exit penalty is counted in months of rent. A deposit
         above the legal ceiling is money you chase later. A lease that is
         never registered costs you your residency. If you already bought the
-        €49 Contract Check, <b>it is credited in full</b> against this."""],
+        €49 Contract Check, <b>it is credited in full</b> against this.
+        And there is nothing else to pay us on the way in: no viewing fees,
+        no application fees (Terms §4.3)."""],
      '<a href="/contract-check-express.html">The €49 check — the fast '
-     'verdict <i>→</i></a>', 'The exposure vs the price', CONTO_DAS),
+     'verdict <i>→</i></a>', 'The arithmetic, on your own rent', espo(249)),
     ('d5', 'The counterpart', 'My accountant can read it — why you?', '6',
      'Rome rules we check',
      "Reading Italian isn't the job.<br><b>Knowing Rome</b> is.",
@@ -350,7 +361,7 @@ SPEC['contract-check-express'] = dict(
         becomes “last month's rent”, repairs pushed onto you. All of it looks
         perfectly normal on the page."""],
      '<a href="/blog-scam-bible.html">The patterns we see most <i>→</i></a>',
-     'What a Rome local checks', SALA),
+     'The arithmetic, on your own rent', espo(49)),
   ])
 
 # ══ 4 · DEPOSIT RECOVERY ════════════════════════════════════════════════

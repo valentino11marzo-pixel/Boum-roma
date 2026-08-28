@@ -85,6 +85,7 @@ const SOGLIA_VP = 8.5;
     ok('nessuna promessa non dimostrabile nella cassa', await pg.evaluate(() =>
       !/€600\+|average client saves/i.test(document.body.textContent)));
 
+
     ok('il registro esiste e finisce con la riga totale', await pg.evaluate(() =>
       document.querySelectorAll('.libro .lp').length >= 4 &&
       !!document.querySelector('.lp.tot .lp-v')));
@@ -117,6 +118,46 @@ const SOGLIA_VP = 8.5;
     ok('il piede porta le prove verificabili', await pg.evaluate(() =>
       /17322991005/.test(document.body.textContent) &&
       /019317594/.test(document.body.textContent)));
+
+    // LA LASTRA DELL'ESPOSIZIONE — dove c'e', deve fare aritmetica onesta.
+    // La regola che vale davvero e' la SECONDA: se il deposito rientra nel
+    // tetto la lastra lo dice e toglie quella voce dal totale. Un
+    // calcolatore che restituisce sempre una cifra spaventosa non e' uno
+    // strumento, e' una slot machine, e chi legge se ne accorge.
+    if (await pg.$('.espo')) {
+      // la lastra vive dentro una riga: si apre quella, qualunque sia
+      await pg.evaluate(() => document.querySelector('.espo')
+        .closest('details').open = true);
+      await pg.waitForTimeout(400);
+      const conto = async (canone, mesi) => {
+        await pg.fill('#espoR', String(canone));
+        await pg.selectOption('#espoD', String(mesi));
+        await pg.waitForTimeout(250);
+        return pg.evaluate(() => ({
+          v1: espoV1.textContent, v2: espoV2.textContent, v3: espoV3.textContent,
+          t1: espoT1.textContent, ok: espoR1.classList.contains('ok'),
+        }));
+      };
+      const sopra = await conto(1200, 4);
+      ok('lastra: il conto e giusto e i separatori pure',
+        sopra.v1 === '\u20ac1.200' && sopra.v2 === '\u20ac3.600'
+        && sopra.v3 === '\u20ac4.800');
+      const dentro = await conto(1200, 3);
+      ok('lastra: col deposito NEL tetto lo dice e non lo somma',
+        dentro.ok && /within the legal ceiling/.test(dentro.t1)
+        && !/\u20ac/.test(dentro.v1) && dentro.v3 === '\u20ac3.600');
+      const grosso = await conto(2500, 6);
+      ok('lastra: le migliaia si separano a mano (mai toLocaleString)',
+        grosso.v3 === '\u20ac15.000');
+      ok('lastra: cita gli articoli, non la nostra parola',
+        await pg.evaluate(() => {
+          const t = document.querySelector('.espo').textContent;
+          return /392\/1978/.test(t) && /431\/1998/.test(t)
+            && !/we (save|saved|recover)/i.test(t);
+        }));
+      await conto(1200, 4);
+    }
+
     await pg.close();
 
     // telefono
