@@ -147,6 +147,11 @@ process.env.FIREBASE_API_KEY = 'k';
 process.env.FIREBASE_ADMIN_EMAIL = 'a@b.c';
 process.env.FIREBASE_ADMIN_PASS = 'p';
 
+// homie/message ora importa (staticamente, la lezione nodemailer) la catena
+// della Segretaria → agent/_lib → nodemailer: mock via loader come in notify.
+const { register } = await import('node:module');
+register('../notify/loader.mjs', import.meta.url);
+
 const { default: handler } = await import('../../api/homie/message.js');
 
 const call = async payload => {

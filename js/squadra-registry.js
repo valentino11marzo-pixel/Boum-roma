@@ -134,14 +134,35 @@
       ],
       autonomy: {
         solo:  ['Scrive la bozza', 'Sceglie la lingua dalle parole vere del cliente'],
-        porta: ['OGNI messaggio, sempre: finisce in action_queue e parte solo se tocchi ✅ su Telegram'],
-        mai:   ['Non spedisce niente da solo. Mai.', 'Se hai già risposto a mano, non scrive una seconda voce']
+        porta: ['OGNI messaggio finisce in action_queue e parte col tuo ✅ — salvo i FOLLOW-UP template, SE li hai promossi tu dalla scala della fiducia (/fiducia, campione ≥30 al ≥95%)'],
+        mai:   ['La prima risposta AI a un contatto nuovo non parte MAI da sola, nemmeno promossa', 'Se hai già risposto a mano, non scrive una seconda voce']
       },
       reach: ['operatore', 'archivio', 'ai'],
       approval: 'sempre',
       crons: ['/api/employees/commerciale'],
       health: { col: 'teamHealth', doc: 'commerciale' },
       console: null, run: '/api/employees/commerciale'
+    },
+    {
+      key: 'segretaria', emoji: '💁', name: 'La Segretaria', reparto: 'Commerciale',
+      role: 'Conduce la conversazione che le consegni, fino alla visita',
+      hired: 'Il "durante" delle chat era l\'ultimo pezzo manuale del giro: metà dei tuoi messaggi sotto i 17 caratteri e 544 silenzi misurati sono il costo di quel collo di bottiglia.',
+      mandate: [
+        'Prende in mano una chat SOLO quando la consegni tu (🤖 sulla card del lead): il click è la firma',
+        'Risponde con i fatti veri: stato dell\'immobile, alternative, slot visita dalla griglia vera, servizi dal catalogo',
+        'Apre lei la conversazione (WhatsApp col numero, email senza) rispondendo alla richiesta originale',
+        'Ogni 10 minuti raccoglie le risposte email dei clienti che segue e continua il filo'
+      ],
+      autonomy: {
+        solo:  ['Conversa sulla chat consegnata: disponibilità, visite, link, un servizio al massimo', 'Propone gli slot VERI e il link di prenotazione'],
+        porta: ['La consegna: senza il tuo 🤖 non scrive a nessuno', 'Trattative, sconti, questioni legali: ti passa la mano con la card 🖐'],
+        mai:   ['Mai trattare il prezzo o promettere fuori catalogo', 'Mai con inquilini, proprietari o clienti PFS', 'Mai un link fuori da boomrome.com', 'Mai firmarsi con un nome di persona']
+      },
+      reach: ['clienti', 'operatore', 'archivio', 'ai'],
+      approval: 'parziale',
+      crons: ['/api/segretaria/scan-replies'],
+      health: { col: 'teamHealth', doc: 'segretaria' },
+      console: null, run: null
     },
     {
       key: 'recupero', emoji: '♻️', name: 'Il Recupero', reparto: 'Commerciale',

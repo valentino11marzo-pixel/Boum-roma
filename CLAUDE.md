@@ -2700,6 +2700,116 @@ accorto perché **niente la confrontava con la realtà**.
   tre elenchi su ogni scheda, i badge veri e i campi solo dove sono collegati;
   si auto-skippa senza playwright).
 
+### LA SCALA DELLA FIDUCIA (`js/fiducia-engine.js` + `api/employees/_fiducia.js` + `/fiducia`)
+L'auto-invio MISURATO disegnato in STUDIO_HOMIE §4 e deciso in
+STUDIO_ORGANICO: le bozze che l'operatore approva da mesi con lo stesso tap
+(544 ultime parole di clienti senza risposta = il costo di quel collo di
+bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
+- **Il giudizio è nel motore puro** (`BOOM_FIDUCIA`, UMD come boom-geo):
+  la categoria è il PREFISSO del `contextHash` (mai `kind`, troppo largo:
+  'reply' copre sia la prima risposta AI sia il follow-up template);
+  promuovibili SOLO testi template — `commerciale:followup`,
+  `gestore:payrem`, `gestore:sign`. `commerciale:first` (bozza AI a un
+  contatto nuovo) è in `NEVER` per costruzione: non parte mai da sola
+  nemmeno accesa a mano nel doc di config. Il verdetto (`autoVerdict`, i
+  cancelli IN ORDINE, testati per mutazione): interruttore → categoria →
+  mai-promuovibile → opt-in → campione ≥ `minSample` (30) → tasso ≥
+  `minRate` (95%) → escalation (avvocato/denuncia/truffa/rimborso… nelle
+  parole del CLIENTE = torna a un umano). Gli invii automatici NON entrano
+  nel campione (`fiduciaAutoSent` escluso da `statsFor`): la scala non può
+  autoalimentarsi.
+- **Auto-invio ≠ invio istantaneo**: la bozza si ARMA con `graceMin` (10')
+  di grazia — card Telegram con **✋ Ferma — decido io** (`fstop:`, il doc
+  resta pending coi tasti Approva/Rifiuta: fermare ≠ rifiutare), ✅ Manda
+  subito e ❌ Rifiuta. Allo scadere parte dallo STESSO executor del tap
+  manuale (`api/agent/execute.js` in-process) → stessa strada, stesso
+  outbox WhatsApp, stessa idempotenza. Digest ogni sera alle 19
+  (idempotente: `heartbeat/fiducia-digest-<giorno>`, fsCreate 409).
+- **Dove gira**: dentro `notify-pending` (ogni minuto), PRIMA delle card
+  normali (il tick marca `telegramNotifiedAt` così la stessa azione non
+  riceve due card) e best-effort (un suo errore non ferma card/lead/visite).
+  Il kill switch vince anche sulle bozze GIÀ armate: spegnere DISARMA.
+- **Config**: `settings/fiducia` {enabled, graceMin, minSample, minRate,
+  categories} — default TUTTO SPENTO (pinnato nei test: il deploy non
+  cambia comportamento finché l'operatore non gira gli interruttori).
+  Valori impossibili rifiutati al default, mai aggiustati in silenzio
+  (disciplina `resolveKnobs`). Si comanda da Telegram: **`/fiducia`** =
+  quadro (per categoria: on/off, decisioni storiche, tasso, pronta o in
+  attesa dei numeri) + interruttori inline (`ftg:`).
+- Test: `node tests/fiducia/run.mjs` — cancelli per mutazione, giunzioni
+  sulla sorgente, e il giro VERO su Firestore in memoria: default = niente,
+  armo → grazia → executor reale → digest, ✋ e kill switch che vincono.
+
+### LA SEGRETARIA (`js/segretaria-engine.js` + `api/segretaria/_core.js` + 🤖 sulla card)
+Il "durante" della conversazione — il buco che generava la frammentazione
+misurata (metà dei messaggi dell'operatore ≤17 caratteri) e i 544 silenzi.
+Studio: `STUDIO_SEGRETARIA_2026-08.md`. È il cervello della Receptionist
+applicato a WhatsApp: prende in mano una chat QUANDO l'operatore gliela
+consegna e la porta fino alla visita prenotata o all'escalation.
+- **La consegna è PER CONVERSAZIONE e il click è la firma** (D1): bottone
+  **🤖 Passa alla Segretaria** sulla card Telegram del lead (`sg:<leadId>`,
+  solo dove esiste una conversazione WhatsApp). Default: nessuna chat
+  consegnata ⇒ zero invii (il deploy non cambia comportamento).
+  **LA TRAPPOLA VERA** (trovata dal test sul giro reale): i primi messaggi
+  di uno sconosciuto vivono su `conv_whatsapp_<numero>`, ma appena il lead
+  esiste homie/message risolve il numero → `conv_lead_<id>`: la consegna
+  marca la PRIMARIA (creata se manca) E quella storica, e la memoria del
+  turno legge i messaggi da entrambe.
+- **I binari duri stanno nel motore** (`BOOM_SEGRETARIA`, testati per
+  mutazione), non nel prompt: mai su chat non consegnate, mai con
+  inquilini/proprietari/PFS, escalation legale/rabbia (la STESSA regex
+  della scala della fiducia — una copia sola), tetto turni/chat (12) e
+  giornaliero (60), `sanitizeReply` che RIFIUTA (mai aggiusta): link fuori
+  da boomrome.com/wa.me = escalation, mai un invio; markdown spogliato;
+  lunghezza tagliata a frase intera (la voce misurata: corta).
+- **Il turno** (`segretariaTurn`, dentro homie/message dopo syncLead,
+  best-effort — un errore non perde mai il messaggio): fatti SOLO da fonti
+  vere (stato immobile + alternative come il Commerciale, slot da
+  `viewings/_avail` — la griglia che book.html non può smentire, servizi
+  da `_catalog`, storia della chat, `replyLang`), Claude risponde
+  `{reply, escalate}`, e l'invio passa dalla STESSA rotaia del tap manuale:
+  action_queue (proposedBy `segretaria`, contextHash
+  `segretaria:turn:<conv>:<msgId>` → un retry di Homie non risponde due
+  volte) → executor → outbox WhatsApp → messageLog → Inbox.
+- **Il rientro è dell'operatore, senza cerimonie** (D4): un suo messaggio
+  manuale nella chat la spegne su quella conversazione — e le risposte
+  della Segretaria che TORNANO dal Mac come `out` sono riconosciute come
+  eco (`isSegretariaEcho`, hash + finestra 48h, disciplina dropBoomEchoes)
+  o si spegnerebbe da sola al primo turno.
+- **L'escalation è un passaggio di testimone** (D5): parole legali, tetti,
+  il modello che chiede una persona, un invio fallito → chat restituita +
+  card 🖐 con le ultime battute e il wa.me. La voce è "noi di BOOM", mai
+  la firma di una persona (D6): "ti metto in contatto con Valentino" È
+  l'escalation.
+- **La mossa d'apertura**: il 🤖 vale su QUALSIASI lead raggiungibile
+  (portale, centralino, sito) — se il cliente non ha ancora scritto, la
+  Segretaria APRE lei (`segretariaOpen`, dal webhook subito dopo la
+  consegna): risponde alla richiesta ORIGINALE sul canale giusto, WhatsApp
+  col numero, EMAIL senza (payload `channel:'email'` con to+subject, stesso
+  executor → Nodemailer). Idempotente (`open_<leadId>`): un secondo click
+  non riapre; una chat già avviata non riceve aperture doppie.
+- **La porta email** (`api/segretaria/scan-replies.js`, cron */10,
+  maxDuration 60): legge SOLO i mittenti delle conversazioni consegnate
+  con contactEmail (perimetro stretto — zero consegnate = un run costa una
+  query), spoglia il testo citato (`stripQuoted` nel motore: il thread
+  sotto la risposta farebbe rispondere a frasi NOSTRE), registra il
+  messaggio in Inbox e passa il turno allo stesso cervello. Message-ID in
+  `heartbeat/segretaria-mail-memory`. Sul canale email il rientro D4 non
+  esiste (una tua email non passa dal sistema): si riprende da /segretaria.
+- **Controllo**: `/segretaria` su Telegram (chat attive, 🖐 Riprendi per
+  ognuna, kill switch `sgk`), `settings/segretaria`
+  {enabled, maxTurns, dailyCap, maxChars} con la disciplina resolveKnobs.
+  homie/message ha maxDuration 60 in vercel.json (il turno paga una
+  chiamata Claude). La Segretaria è nell'ORGANIGRAMMA (💁, approval
+  `parziale`: la consegna è il tuo click) col heartbeat
+  `teamHealth/segretaria`; la lettera del Commerciale dichiara ora la
+  scala della fiducia sui follow-up.
+- Test: `node tests/segretaria/run.mjs` — cancelli e sanificazione per
+  mutazione, giunzioni sulla sorgente, e il giro VERO su Firestore in
+  memoria col handler reale: consegna → turno (executor vero) → eco che
+  non spegne → out manuale che spegne → escalation con ping → retry
+  idempotente → kill switch.
+
 ## Lo Smistatore (document intake — api/documents/_smista.js)
 
 "Mando qualsiasi cosa per il commercialista e si archivia da sola." One
@@ -3025,6 +3135,8 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/phone/run.mjs` | Il Centralino, entrambe le porte. Segreteria: chiave derivata mai regalata, disclosure GDPR pinnata nel saluto, retry Twilio senza doppioni, Whisper/AI/Telegram giù non perdono MAI la chiamata. Receptionist ElevenLabs: firma HMAC rifiutata (anche stantia) senza scritture, nel lead SOLO le parole del CHIAMANTE (mai quelle dell'agente — la lingua della bozza esce dalle sue parole), audio e trascrizione in QUALSIASI ordine, tools in chiamata con auth e catalogo che esclude gli affittati. Handler veri su Firestore in memoria + giunzioni asserite sui file |
   | `tests/whatsapp/demand.mjs` | Il misuratore della domanda: ogni intenzione dimostra di saper riconoscere una frase vera (un pattern inerte sotto-conta in SILENZIO), "business" non diventa una domanda sui bus, la classifica è per tempo risparmiato e non per frequenza, sotto campione niente percentuali, e ciò che il motore non sa nominare esce con le parole vere |
   | `tests/miniera/run.mjs` | La Miniera: il join aggancia la persona in OGNI forma del numero (parità con `_lead.js`, JID senza `+` guarito), i veti del libro dei silenzi (inquilini/firmati/morti/oltre 120gg MAI nel re-ingaggio), sotto campione NIENTE percentuali (per mutazione), il verdetto motivato coi numeri, parità cross-linguaggio con l'estrattore Python, handler vero su Firestore in memoria |
+  | `tests/fiducia/run.mjs` | La scala della fiducia: parte da solo SOLO il provato (campione ≥30 + tasso ≥95%, sulle decisioni dell'OPERATORE — gli auto-invii non si contano), la prima risposta AI mai (nemmeno accesa a mano), le parole legali/di rabbia tornano a un umano, ✋ Ferma e kill switch vincono anche sulle bozze già armate, e coi DEFAULT non parte niente. Giro vero su Firestore in memoria con l'executor reale |
+  | `tests/segretaria/run.mjs` | La Segretaria: parla SOLO sulle chat consegnate col 🤖 (e la consegna marca la conversazione che riceverà davvero il traffico — conv_lead, non conv_whatsapp), mai con inquilini, mai oltre i tetti; l'eco della sua stessa risposta non la spegne, un messaggio manuale dell'operatore sì; un link fuori dominio o una trattativa diventano escalation con card 🖐, MAI un invio. Handler vero su Firestore in memoria |
   | `tests/wizard/local_brain.py` | Il cervello gratis del bot wizard (`python3`): cosa capisce senza modello e — più importante — cosa deve rifiutarsi di capire. Una domanda ("Levico è affittato?") non può diventare una scrittura; un annuncio nuovo dettato non può diventare la modifica di uno esistente. Estrae le funzioni pure dal bot via AST: gira senza `.env`, senza Telegram, senza rete |
   | `tests/executive/run.mjs` | BOOM Executive: il professionista in trasferta resta un TENANT nella macchina piena, il datore dichiarato (`employer`) non viene scambiato per l'honeypot (`company`), la voce B2B tace col tenant e parla con l'ente — con la guardia PRIMA della spesa, asserita sull'ordine nel sorgente |
   | `tests/verbale/run.mjs` | verbale consegna chiavi: il PDF vero (WinAnsi-ostile compreso) viaggia in allegato a conduttori/co-conduttori/proprietario/admin, owner solo sui contratti dei propri immobili (403 = zero scritture), firme richieste per entrambi i lati, sul contratto restano solo i NOMI mai i dataURI |
