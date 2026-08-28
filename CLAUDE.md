@@ -87,7 +87,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `proppass.html` | Apple Wallet pass generator UI. Four pass types: viewing, tenant, referral, landlord. |
 | `pass-delivery.html` | Pass display page with animated gold-ring background and QR code. |
 | `index.html` | Landing page / homepage. |
-| `apartments.html` | Property listings page (discovery). La griglia è una FOTOGRAFIA di build (`design/pages-deco/costruisci-ad.py` su snapshot locali); in pagina l'**idrante** rilegge Firestore e aggiorna stato/prezzo/data delle card di build, e l'**innesto** COSTRUISCE la card per gli annunci nati dopo la build (es. wizard Telegram di sera) — stessa grammatica del builder, registrata nel setaccio via `window.__muroInnesta`: filtri e conto la vedono. Senza innesto un annuncio era "pubblicato e invisibile" (`/listing/:id` vivo, vetrina muta). Test: `node tests/vetrina/run.mjs`. |
+| `apartments.html` | Property listings page (discovery). La griglia è una FOTOGRAFIA di build (`design/pages-deco/costruisci-ad.py` su snapshot locali); in pagina l'**idrante** rilegge Firestore e aggiorna stato/prezzo/data delle card di build, e l'**innesto** COSTRUISCE la card per gli annunci nati dopo la build (es. wizard Telegram di sera) — stessa grammatica del builder, registrata nel setaccio via `window.__muroInnesta`: filtri e conto la vedono. Senza innesto un annuncio era "pubblicato e invisibile" (`/listing/:id` vivo, vetrina muta). **Il Solari del prezzo è UN montatore** (`window.__solariPrezzo`, 28/08): il tabellone split-flap del badge prezzo era montato solo sulle card di build — le carte innestate restavano col testo piatto e l'idrante, aggiornando un prezzo, DISTRUGGEVA il tabellone riscrivendolo come stringa; ora build, innesto e idrante montano lo stesso Solari (test: celle presenti anche sull'innestata). Test: `node tests/vetrina/run.mjs`. |
 | `apartment-detail.html` | Dynamic single-property page (loads from Firestore). |
 | `boom_doc_parser.html` | AI document parser UI (uses Claude API). |
 | `risposte.html` | Le risposte rapide di WhatsApp Business (`/risposte`, admin, noindex): 48 messaggi pronti col tasto Copia, i due messaggi automatici, le etichette e la libreria link. Rende `js/whatsapp-replies.js` — nessun testo duplicato nella pagina. |
@@ -384,6 +384,17 @@ non diventa mai una scrittura ("Levico è affittato?" contiene "affittato" e
 avrebbe marcato l'immobile affittato per una domanda) e una CASA NUOVA non
 diventa mai una modifica ("trilocale a Prati, 80mq" agganciava un
 *Trilocale* esistente e gli riscriveva i metri).
+**La terza guardia è arrivata DALLA produzione (28/08/2026)**: "Tiburtina
+libera dal 1 settembre 2026" è tornata dal modello come CASA NUOVA con
+€900, 35mq e un indirizzo MAI pronunciati — e una card 🆕 confermata di
+fretta l'ha pubblicata sul sito vero (aggravata dal difetto gemello:
+`PENDING_NL` era UNO slot per chat, e incollando più righe il ✅ della card
+vecchia applicava il piano del messaggio successivo — ora ogni card porta
+il suo token, `_pending_put`/`_pending_pop`, e un piano sostituito dice
+"rimanda la frase" invece di applicare quello di un'altra card). La guardia:
+`_create_invents` — un annuncio non nasce con numeri che l'operatore non ha
+detto; prezzo e metri dei fields devono comparire nel testo, o la create si
+rifiuta e si chiede.
 Test: `python3 tests/wizard/local_brain.py`.
 
 ### GET/POST `/api/wizard/video-radar` (cron Monday 07:00 UTC)

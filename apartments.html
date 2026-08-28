@@ -4473,10 +4473,16 @@ setTimeout(function () {
 
   /* ── i canoni delle case sui Solari, al primo sguardo ────────────────── */
   (function () {
-    var voci = [].slice.call(document.querySelectorAll('.flap-prezzo'));
-    if (!voci.length || !BS) return;
-    voci.forEach(function (host) {
+    /* Il montatore è ESPORTATO perché il tabellone è parte del design del
+       prezzo, non un ornamento della sola build: l'idrante (prezzo cambiato
+       dopo il deploy) e l'innesto (carta nata dopo la build) devono montare
+       LO STESSO Solari — prima le loro carte restavano col testo piatto, e
+       un prezzo aggiornato dall'idrante DISTRUGGEVA il tabellone di build
+       riscrivendolo come stringa. Senza BoomSolari si degrada a testo:
+       il prezzo si legge sempre, il design quando può. */
+    window.__solariPrezzo = function (host) {
       var testo = host.dataset.p || '';
+      if (!BS) { host.textContent = testo; return; }
       var b = new BS.Board(host, testo.length, ' €,.0123456789');
       if (ridotto || !('IntersectionObserver' in window)) { b.show(testo); return; }
       new IntersectionObserver(function (r, io) {
@@ -4484,7 +4490,9 @@ setTimeout(function () {
         io.disconnect();
         b.show(testo, 40, true);
       }, { threshold: .4 }).observe(host);
-    });
+    };
+    [].forEach.call(document.querySelectorAll('.flap-prezzo'),
+      window.__solariPrezzo);
   })();
 
 })();
@@ -4612,7 +4620,10 @@ setTimeout(function () {
             var fp = card.querySelector('.flap-prezzo');
             if (fp && fp.dataset.p !== euro(d.p)) {
               fp.dataset.p = euro(d.p);
-              fp.textContent = euro(d.p);
+              /* rimontare il Solari, MAI riscriverlo come testo: la
+                 stringa piatta cancellava il tabellone della build */
+              if (window.__solariPrezzo) window.__solariPrezzo(fp);
+              else fp.textContent = euro(d.p);
             }
           }
         });
@@ -4740,9 +4751,11 @@ setTimeout(function () {
         + '" aria-label="Compare this home">⇄</button>'
         + '</div><div class="corpo">'
         + '<div class="riga1"><span class="nome">' + esc(nome) + '</span>'
+        /* vuoto come nel builder: il testo lo monta il Solari qui sotto —
+           il testo piatto era la carta "senza design" del prezzo */
         + '<span class="canone"><span class="flap-prezzo flap-scale" '
         + 'data-p="' + esc(euro(d.p)) + '" aria-label="' + esc(euro(d.p))
-        + ' per month">' + esc(euro(d.p)) + '</span><small>/mo</small>'
+        + ' per month"></span><small>/mo</small>'
         + '</span></div>'
         + '<div class="riga2">' + pezzi.join(' <i>·</i> ') + '</div>'
         + '</div>';
@@ -4771,6 +4784,11 @@ setTimeout(function () {
         if (e.key === 'Enter' || e.key === ' ') vaiZona(e);
       });
       muro.appendChild(a);
+      /* il Solari del prezzo, come sulle carte di build (dopo l'append:
+         l'IntersectionObserver vuole un nodo nel documento) */
+      var fpN = a.querySelector('.flap-prezzo');
+      if (window.__solariPrezzo) window.__solariPrezzo(fpN);
+      else fpN.textContent = fpN.dataset.p;
       nuove.push(a);
     });
     if (!nuove.length) return;
