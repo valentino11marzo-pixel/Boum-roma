@@ -303,66 +303,18 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .atterro-campo select.scelto { color:var(--text); }
 .atterro-campo select option { background:#101012; color:#eee; }
 
-/* il calendario BOOM: lo strumento, non il picker del browser */
-.cal { position:absolute; left:0; top:calc(100% + 10px); z-index:80;
-  width:314px; max-width:calc(100vw - 36px); padding:16px 16px 13px;
-  background:var(--void);
-  box-shadow:inset 0 0 0 1px var(--line-gold), 0 34px 80px -30px rgba(0,0,0,.95);
-  opacity:0; visibility:hidden; transform:translateY(-6px);
-  transition:opacity .28s var(--ease), transform .28s var(--ease),
-    visibility .28s; }
-.cal.aperto { opacity:1; visibility:visible; transform:none; }
-@media (max-width:640px){
-  .cal { position:fixed; left:14px; right:14px; bottom:14px; top:auto;
-    width:auto; max-width:none; z-index:200;
-    box-shadow:inset 0 0 0 1px var(--line-gold),
-      0 -20px 80px rgba(0,0,0,.85); }
-  .cal .cal-giorni button { height:40px; } }
-.cal-testa { display:flex; align-items:center; justify-content:space-between;
-  gap:10px; margin-bottom:11px; }
-.cal-testa b { font-family:var(--display); font-size:14px; font-weight:400;
-  letter-spacing:.06em; }
-.cal-fx { display:flex; gap:6px; }
-.cal-fx button { width:30px; height:30px; display:grid; place-items:center;
-  font-size:15px; color:var(--text-3);
-  box-shadow:inset 0 0 0 1px var(--line); cursor:pointer;
-  transition:color .2s, box-shadow .2s; }
-.cal-fx button:hover { color:var(--gold);
-  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
-.cal-sett { display:grid; grid-template-columns:repeat(7,1fr); gap:2px;
-  margin-bottom:3px; }
-.cal-sett span { text-align:center; font-size:10px; font-weight:600;
-  letter-spacing:.14em; color:var(--text-4); text-transform:uppercase;
-  padding:4px 0; }
-.cal-giorni { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
-.cal-giorni { transition:opacity .18s ease, transform .18s ease; }
-.cal-giorni.gira { opacity:0; transform:translateX(6px); }
-.cal-giorni button { position:relative; height:38px; display:grid;
-  place-items:center; font-size:12.5px; color:var(--text-2);
-  font-variant-numeric:tabular-nums; cursor:pointer;
-  transition:background .15s, color .15s; }
-.cal-giorni button:hover:not(:disabled) { background:rgba(255,215,0,.09);
-  color:var(--text); }
-.cal-giorni button:disabled { color:var(--text-4); opacity:.45;
-  cursor:default; }
-.cal-giorni button.fuori { color:var(--text-4); }
-.cal-giorni button.oggi::after { content:''; position:absolute; bottom:4px;
-  left:50%; transform:translateX(-50%); width:3px; height:3px;
-  border-radius:50%; background:var(--gold); }
-.cal-giorni button.sel { background:var(--gold); color:var(--black);
-  font-weight:600; animation:cal-scatto .32s var(--ease); }
-@keyframes cal-scatto { 40% { transform:scale(1.14); } }
-.cal-giorni button.sel.oggi::after { background:var(--black); }
-.cal-piede { margin-top:10px; padding-top:10px;
-  border-top:1px solid var(--line-0); display:flex; align-items:center;
-  justify-content:space-between; gap:8px; }
-.cal-piede .hint { font-size:10.5px; color:var(--text-3); }
-.cal-piede button { min-height:36px; padding:0 10px;
-  font-size:10px; font-weight:600; letter-spacing:.1em;
-  text-transform:uppercase; color:var(--text-3); padding:6px 10px;
-  box-shadow:inset 0 0 0 1px var(--line); cursor:pointer; transition:.2s; }
-.cal-piede button:hover { color:var(--gold);
-  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+/* la data: campo NATIVO sotto la veste BOOM — su iPhone la ruota di
+   sistema, su desktop il calendario del browser (showPicker). Il widget
+   custom è stato ritirato: un picker mantenuto dall'OS non ha bug nostri. */
+.atterro-data { position:relative; }
+.atterro-data input[type=date] { position:absolute; inset:0; width:100%;
+  height:100%; margin:0; padding:0; border:0; opacity:0; cursor:pointer;
+  font-size:16px; /* sotto i 16px iOS zooma al focus */
+  -webkit-appearance:none; appearance:none; }
+.atterro-data input[type=date]::-webkit-calendar-picker-indicator {
+  position:absolute; inset:0; width:100%; height:100%; opacity:0;
+  cursor:pointer; }
+.atterro-data:focus-within svg { color:var(--gold); }
 @media (max-width:640px){
   .atterro { display:grid; grid-template-columns:1fr 1fr; gap:10px 14px;
     width:100%; border-radius:22px; padding:14px 16px; }
@@ -1954,8 +1906,6 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 .cielo-pieno svg { width:13px; height:13px; }
 
 /* ── bersagli: nessun comando sotto il polpastrello (44×44 su touch) ──── */
-#calPrec, #calSucc { min-width:40px; min-height:40px; display:inline-flex;
-  align-items:center; justify-content:center; }
 /* i link di coda erano alti 18px: il testo resta, l'area cresce */
 .settimana-testa .btn-vai, .vai-testa { padding:11px 2px; margin:-11px 0; }
 .cielo-c { min-height:38px; }
@@ -2070,11 +2020,10 @@ setTimeout(function () {
       <form class="atterro" id="atterro">
         <div class="atterro-campo ac-data">
         <span id="quandoEti">When do you land?</span>
-        <button type="button" class="atterro-data" id="quandoBtn"
-          aria-haspopup="dialog" aria-expanded="false"
-          aria-labelledby="quandoEti">
-          <svg viewBox="0 0 24 24"><path d="M5 6h14a1.5 1.5 0 0 1 1.5 1.5V19a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19V7.5A1.5 1.5 0 0 1 5 6zM8 3.5v5m8-5v5M3.5 11h17"/></svg>
-          <span id="quandoTesto">Pick a date</span></button>
+        <label class="atterro-data" id="quandoBtn">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14a1.5 1.5 0 0 1 1.5 1.5V19a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19V7.5A1.5 1.5 0 0 1 5 6zM8 3.5v5m8-5v5M3.5 11h17"/></svg>
+          <span id="quandoTesto">Pick a date</span>
+          <input type="date" id="quandoData" aria-labelledby="quandoEti"></label>
         </div>
         <span class="atterro-divisa" aria-hidden="true"></span>
         <label class="atterro-campo">
@@ -2097,19 +2046,6 @@ setTimeout(function () {
             <option value="flatmates">Flatmates</option>
           </select></label>
         <button type="submit" class="btn btn-primary" id="quandoVai">Find homes</button>
-        <div class="cal" id="cal" role="dialog" aria-label="Choose your arrival date">
-          <div class="cal-testa"><b id="calMese">—</b>
-            <div class="cal-fx">
-              <button type="button" id="calPrec" aria-label="Previous month">‹</button>
-              <button type="button" id="calSucc" aria-label="Next month">›</button>
-            </div></div>
-          <div class="cal-sett" aria-hidden="true"><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span></div>
-          <div class="cal-giorni" id="calGiorni"></div>
-          <div class="cal-piede">
-            <span class="hint" id="calHint">Any date — we'll match availability.</span>
-            <button type="button" id="calSubito">ASAP</button>
-          </div>
-        </div>
       </form>
       <p class="giorno-uno" id="giornoUno" hidden></p>
       <div class="hero-fede">
@@ -3055,124 +2991,37 @@ setTimeout(function () {
   }
   batti(); setInterval(batti, 20000);
 
-  /* «when do you land?» — il calendario BOOM, millimetrico */
+  /* «when do you land?» — il campo data NATIVO vestito BOOM: su iPhone
+     la ruota di sistema, su desktop il calendario del browser. */
   (function () {
     var forma = document.getElementById('atterro');
     if (!forma) return;
     var btn = document.getElementById('quandoBtn');
     var testo = document.getElementById('quandoTesto');
-    var vai = document.getElementById('quandoVai');
-    var cal = document.getElementById('cal');
-    var mesEti = document.getElementById('calMese');
-    var griglia = document.getElementById('calGiorni');
+    var campo = document.getElementById('quandoData');
     var oggi = new Date(); oggi.setHours(12, 0, 0, 0);
-    var vista = new Date(oggi.getFullYear(), oggi.getMonth(), 1, 12);
-    var scelta = null;
-    var MESI = ['January','February','March','April','May','June','July',
-      'August','September','October','November','December'];
     function iso(d) { return d.toISOString().slice(0, 10); }
     function bella(d) {
       return d.toLocaleDateString('en-GB',
         { weekday: 'short', day: 'numeric', month: 'short' });
     }
-    function dipingi() {
-      mesEti.textContent = MESI[vista.getMonth()] + ' ' + vista.getFullYear();
-      var prima = new Date(vista);
-      var slitta = (prima.getDay() + 6) % 7;   /* lunedì in testa */
-      prima.setDate(1 - slitta);
-      var h = '';
-      for (var i = 0; i < 42; i++) {
-        var d = new Date(prima); d.setDate(prima.getDate() + i);
-        var fuori = d.getMonth() !== vista.getMonth();
-        var passato = d < oggi;
-        var cls = (fuori ? ' fuori' : '')
-          + (iso(d) === iso(oggi) ? ' oggi' : '')
-          + (scelta && iso(d) === iso(scelta) ? ' sel' : '');
-        h += '<button type="button" data-d="' + iso(d) + '"'
-          + (passato ? ' disabled' : '') + (cls ? ' class="' + cls.trim() + '"' : '')
-          + '>' + d.getDate() + '</button>';
-      }
-      griglia.innerHTML = h;
-    }
-    function apri(si) {
-      cal.classList.toggle('aperto', si);
-      btn.setAttribute('aria-expanded', si ? 'true' : 'false');
-      if (si) { dipingi();
-        setTimeout(function () {
-          if (innerWidth <= 640) return;
-          var r = cal.getBoundingClientRect();
-          if (r.bottom > innerHeight - 14)
-            scrollBy({ top: r.bottom - innerHeight + 14, behavior: 'smooth' });
-          else if (r.top < 84)
-            scrollBy({ top: r.top - 84, behavior: 'smooth' });
-        }, 300); }
-    }
-    /* su touch il calendario e quello del SISTEMA (la ruota Apple):
-       un campo data nativo invisibile copre il bottone. Su desktop
-       resta il calendario BOOM. */
-    var nativo = null;
-    if (matchMedia('(pointer:coarse)').matches) {
-      nativo = document.createElement('input');
-      nativo.type = 'date';
-      nativo.min = iso(oggi);
-      nativo.setAttribute('aria-label', 'Arrival date');
-      nativo.style.cssText = 'position:absolute;inset:0;width:100%;'
-        + 'height:100%;opacity:0;border:0;padding:0;';
-      btn.style.position = 'relative';
-      btn.appendChild(nativo);
-      nativo.addEventListener('change', function () {
-        if (!nativo.value) return;
-        scelta = new Date(nativo.value + 'T12:00:00');
-        testo.textContent = bella(scelta);
-        if (window.__passData) window.__passData(bella(scelta));
-        btn.classList.add('scelta');
+    campo.min = iso(oggi);
+    /* su touch il tap apre da solo la ruota; col mouse il click su un
+       campo invisibile darebbe solo il focus: si chiede il picker */
+    if (matchMedia('(pointer:fine)').matches)
+      campo.addEventListener('click', function () {
+        try { if (campo.showPicker) campo.showPicker(); } catch (e) {}
       });
-    }
-    btn.addEventListener('click', function (e) {
-      if (nativo) {
-        if (e.target !== nativo) {
-          try { if (nativo.showPicker) { nativo.showPicker(); return; } }
-          catch (er) {}
-          nativo.focus();
-        }
-        return;
+    campo.addEventListener('change', function () {
+      if (campo.value) {
+        var d = new Date(campo.value + 'T12:00:00');
+        testo.textContent = bella(d);
+        btn.classList.add('scelta');
+        if (window.__passData) window.__passData(bella(d));
+      } else {                          /* il Clear nativo: si riparte */
+        testo.textContent = 'Pick a date';
+        btn.classList.remove('scelta');
       }
-      apri(!cal.classList.contains('aperto'));
-    });
-    document.getElementById('calPrec').addEventListener('click', function () {
-      vista.setMonth(vista.getMonth() - 1); dipingi();
-    });
-    document.getElementById('calSucc').addEventListener('click', function () {
-      vista.setMonth(vista.getMonth() + 1); dipingi();
-    });
-    griglia.addEventListener('click', function (e) {
-      var b = e.target.closest('button[data-d]');
-      if (!b || b.disabled) return;
-      scelta = new Date(b.dataset.d + 'T12:00:00');
-      testo.textContent = bella(scelta);
-      if (window.__passData) window.__passData(bella(scelta));
-      var fra = Math.round((scelta - oggi) / 864e5);
-      document.getElementById('calHint').textContent = fra <= 2
-        ? 'Tight — and enough. 48h is our craft.'
-        : 'Landing in ' + fra + ' days — plenty for a 48h move-in.';
-      btn.classList.add('scelta');
-      var _ignora = scelta.toLocaleDateString('en-GB',
-        { day: 'numeric', month: 'short' });
-      apri(false);
-    });
-    document.getElementById('calSubito').addEventListener('click', function () {
-      scelta = new Date(oggi);
-      testo.textContent = 'ASAP — ' + bella(scelta);
-      if (window.__passData) window.__passData(bella(scelta));
-      btn.classList.add('scelta');
-      /* la CTA resta «Find homes»: la scelta vive nel campo data */
-      apri(false);
-    });
-    addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') apri(false);
-    });
-    document.addEventListener('click', function (e) {
-      if (!forma.contains(e.target)) apri(false);
     });
     /* il bottone dice QUANTE case rispondono, prima del click: i dati
        sono gia' in pagina (CONTA = disponibili con prezzo e data), la
@@ -3183,7 +3032,7 @@ setTimeout(function () {
     function contaCase() {
       if (!bottone || !Array.isArray(CONTA)) return;
       var b = +document.getElementById('quantoBudget').value || 0;
-      var dal = scelta ? iso(scelta) : null;
+      var dal = campo.value || null;
       if (!b && !dal) { bottone.textContent = bottoneEti; return; }
       var n = CONTA.filter(function (r) {
         if (b && r.p > b) return false;
@@ -3201,21 +3050,17 @@ setTimeout(function () {
         : 'See all homes \u2192';
     }
     forma.addEventListener('change', contaCase);
-    var quandoT = document.getElementById('quandoTesto');
-    if (quandoT && 'MutationObserver' in window)
-      new MutationObserver(contaCase)
-        .observe(quandoT, { childList: true, characterData: true, subtree: true });
 
     forma.addEventListener('submit', function (e) {
       e.preventDefault();
       var base = '/apartments', pezzi = [];
-      if (scelta) pezzi.push('dal=' + iso(scelta));
+      if (campo.value) pezzi.push('dal=' + campo.value);
       var b = document.getElementById('quantoBudget').value;
       var c = document.getElementById('chiAtterra').value;
       if (b) pezzi.push('budget=' + b);
       if (c) pezzi.push('chi=' + c);
       if (window.boomTrack) boomTrack('find_homes',
-        { budget: b || '', dal: scelta ? iso(scelta) : '', chi: c || '' });
+        { budget: b || '', dal: campo.value || '', chi: c || '' });
       location.href = pezzi.length ? base + '#' + pezzi.join('&') : base;
     });
   })();

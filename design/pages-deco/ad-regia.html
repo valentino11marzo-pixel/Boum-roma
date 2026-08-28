@@ -230,8 +230,7 @@
       var chi = document.getElementById('chiAtterra');
       bud.value = ''; chi.value = '';
       bud.classList.remove('scelto'); chi.classList.remove('scelto');
-      document.getElementById('quandoTesto').textContent = 'Any date';
-      document.getElementById('quandoBtn').classList.remove('scelta');
+      if (window.__quandoVeste) window.__quandoVeste();
       aggiorna();
     });
     /* quante ne hai messe da parte */
@@ -311,7 +310,7 @@
       });
     });
 
-  /* ── IL CHECK-IN: budget, chi, e il calendario BOOM ─────────────────── */
+  /* ── IL CHECK-IN: budget, chi, e la data col picker di SISTEMA ──────── */
   var bud = document.getElementById('quantoBudget');
   var chi = document.getElementById('chiAtterra');
   bud.addEventListener('change', function () {
@@ -328,83 +327,44 @@
   (function () {
     var forma = document.getElementById('atterro');
     var btn = document.getElementById('quandoBtn');
-    var cal = document.getElementById('cal');
+    var campo = document.getElementById('quandoData');
     var testo = document.getElementById('quandoTesto');
-    var griglia = document.getElementById('calGiorni');
-    var eti = document.getElementById('calMese');
-    if (!forma || !cal) return;
+    if (!forma || !campo) return;
     var oggi = new Date(); oggi.setHours(12, 0, 0, 0);
-    var vista = new Date(oggi.getFullYear(), oggi.getMonth(), 1, 12);
-    var scelta = null;
-    var MESI = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
-      'August', 'September', 'October', 'November', 'December'];
+    /* il picker è quello di SISTEMA — la ruota iPhone, il calendario del
+       browser: il campo nativo veste i panni BOOM e porta gratis il
+       minimo (niente passato) e il Clear (= Any date) */
+    campo.min = iso(oggi);
     function bella(d) {
       return d.toLocaleDateString('en-GB',
         { weekday: 'short', day: 'numeric', month: 'short' });
     }
-    function dipingi() {
-      eti.textContent = MESI[vista.getMonth()] + ' ' + vista.getFullYear();
-      var primo = new Date(vista);
-      var salta = (primo.getDay() + 6) % 7;
-      var h = '';
-      for (var i = 0; i < 42; i++) {
-        var d = new Date(vista.getFullYear(), vista.getMonth(), 1 - salta + i, 12);
-        var fuori = d.getMonth() !== vista.getMonth();
-        var passata = d < oggi;
-        var cls = (fuori ? ' fuori' : '') + (passata ? ' passata' : '')
-          + (iso(d) === iso(oggi) ? ' oggi' : '')
-          + (scelta && iso(d) === iso(scelta) ? ' sel' : '');
-        h += '<button type="button" data-d="' + iso(d) + '"'
-          + (passata ? ' disabled' : '') + ' class="' + cls.trim() + '">'
-          + d.getDate() + '</button>';
+    /* UNA scrittura per la veste: testo, oro e campo seguono stato.dal,
+       chiunque l'abbia mosso (picker, hash, pulisci, vie d'uscita) */
+    function veste() {
+      if (stato.dal) {
+        testo.textContent = bella(new Date(stato.dal + 'T12:00:00'));
+        btn.classList.add('scelta');
+      } else {
+        testo.textContent = 'Any date';
+        btn.classList.remove('scelta');
       }
-      griglia.innerHTML = h;
+      if (campo.value !== (stato.dal || '')) campo.value = stato.dal || '';
     }
-    function apri(si) {
-      cal.classList.toggle('aperto', si);
-      btn.setAttribute('aria-expanded', si ? 'true' : 'false');
-      if (si) { dipingi();
-        setTimeout(function () {
-          if (innerWidth > 640)
-            cal.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-        }, 60); }
-    }
-    btn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      apri(!cal.classList.contains('aperto'));
+    window.__quandoVeste = veste;
+    /* su touch il tap apre da solo la ruota; col mouse il click su un
+       campo invisibile darebbe solo il focus: si chiede il picker */
+    if (matchMedia('(pointer:fine)').matches)
+      campo.addEventListener('click', function () {
+        try { if (campo.showPicker) campo.showPicker(); } catch (e) {}
+      });
+    campo.addEventListener('change', function () {
+      stato.dal = campo.value || null;
+      veste(); aggiorna();
     });
-    griglia.addEventListener('click', function (e) {
-      var b = e.target.closest('button[data-d]');
-      if (!b || b.disabled) return;
-      scelta = new Date(b.dataset.d + 'T12:00:00');
-      testo.textContent = bella(scelta);
-      btn.classList.add('scelta');
-      stato.dal = iso(scelta);
-      var fra = Math.round((scelta - oggi) / 864e5);
-      document.getElementById('calHint').textContent = fra <= 2
-        ? 'Tight — and enough. 48h is our craft.'
-        : 'Landing in ' + fra + ' days.';
-      dipingi(); aggiorna(); apri(false);
-    });
-    document.getElementById('calPrec').addEventListener('click', function () {
-      vista.setMonth(vista.getMonth() - 1); dipingi(); });
-    document.getElementById('calSucc').addEventListener('click', function () {
-      vista.setMonth(vista.getMonth() + 1); dipingi(); });
-    document.getElementById('calSubito').addEventListener('click', function () {
-      scelta = new Date(oggi);
-      testo.textContent = 'ASAP — ' + bella(scelta);
-      btn.classList.add('scelta');
-      stato.dal = iso(scelta);
-      dipingi(); aggiorna(); apri(false);
-    });
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') apri(false); });
-    document.addEventListener('click', function (e) {
-      if (!forma.contains(e.target)) apri(false); });
     forma.addEventListener('submit', function (e) {
       e.preventDefault();
       /* un filtro mostra i risultati: non decide lui quale casa aprire */
-      apri(false);
       var muro = document.getElementById('muro');
       if (muro) muro.scrollIntoView({ block: 'start', behavior: 'smooth' });
     });
@@ -415,10 +375,7 @@
     if (h) h.split('&').forEach(function (p) {
       var k = p.split('=')[0], v = decodeURIComponent(p.split('=')[1] || '');
       if (k === 'dal' && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
-        scelta = new Date(v + 'T12:00:00');
-        stato.dal = v; testo.textContent = bella(scelta);
-        btn.classList.add('scelta');
-        vista = new Date(scelta.getFullYear(), scelta.getMonth(), 1, 12);
+        stato.dal = v; veste();
       }
       if (k === 'budget') { bud.value = v; stato.budget = +v || 0;
         bud.classList.toggle('scelto', !!v); }
@@ -449,8 +406,7 @@
         bud.classList.remove('scelto'); }
       if (k === 'chi') { stato.chi = ''; chi.value = '';
         chi.classList.remove('scelto'); }
-      if (k === 'dal') { stato.dal = null; scelta = null;
-        testo.textContent = 'Any date'; btn.classList.remove('scelta'); }
+      if (k === 'dal') { stato.dal = null; veste(); }
       if (k === 'zona') { stato.zona = '';
         document.querySelectorAll('.zona-riga.on').forEach(function (z) {
           z.classList.remove('on'); z.setAttribute('aria-pressed', 'false');
