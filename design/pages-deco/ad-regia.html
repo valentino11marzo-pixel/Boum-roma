@@ -483,11 +483,11 @@
       else muro.appendChild(sky);
       sky.style.display = vis.length ? '' : 'none';
     }
-    /* il badge conta TUTTO cio' che filtra — anche zona, data, budget e
-       chi: una stecca che dichiara «nessun filtro» su una lista filtrata
-       insegna a non fidarsi della stecca */
-    var acc = tutti('#foglioVelo .gruppo button.on').filter(function (b) {
-      return b.dataset.v !== ''; }).length
+    /* il badge conta TUTTO cio' che filtra — anche zona, data, budget,
+       chi e i letti scelti sulla stecca: una stecca che dichiara «nessun
+       filtro» su una lista filtrata insegna a non fidarsi della stecca */
+    var acc = tutti('#foglioVelo .gruppo button.on, .stecca .gruppo button.on')
+      .filter(function (b) { return b.dataset.v !== ''; }).length
       + (window.__filtriVivi ? window.__filtriVivi() : 0);
     var fc = per('#filtriConta');
     if (fc) { fc.hidden = !acc; fc.textContent = acc; }
@@ -501,6 +501,14 @@
   if (conto) new MutationObserver(sincronia)
     .observe(conto, { childList: true });
   sincronia();
+  /* un filtro che NON muove il conto (stessa lista risultante) non muove
+     nemmeno l'observer qui sopra: il click sui gruppi richiama la
+     sincronia comunque, così il badge non resta mai indietro */
+  [per('.stecca'), per('#foglioVelo')].forEach(function (box) {
+    if (box) box.addEventListener('click', function (e) {
+      if (e.target.closest('.gruppo button')) setTimeout(sincronia, 0);
+    });
+  });
 
   /* ── il foglio dei filtri ── */
   var foglio = per('#foglioVelo');
