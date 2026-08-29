@@ -3453,11 +3453,11 @@ setTimeout(function () {
       else muro.appendChild(sky);
       sky.style.display = vis.length ? '' : 'none';
     }
-    /* il badge conta TUTTO cio' che filtra — anche zona, data, budget e
-       chi: una stecca che dichiara «nessun filtro» su una lista filtrata
-       insegna a non fidarsi della stecca */
-    var acc = tutti('#foglioVelo .gruppo button.on').filter(function (b) {
-      return b.dataset.v !== ''; }).length
+    /* il badge conta TUTTO cio' che filtra — anche zona, data, budget,
+       chi e i letti scelti sulla stecca: una stecca che dichiara «nessun
+       filtro» su una lista filtrata insegna a non fidarsi della stecca */
+    var acc = tutti('#foglioVelo .gruppo button.on, .stecca .gruppo button.on')
+      .filter(function (b) { return b.dataset.v !== ''; }).length
       + (window.__filtriVivi ? window.__filtriVivi() : 0);
     var fc = per('#filtriConta');
     if (fc) { fc.hidden = !acc; fc.textContent = acc; }
@@ -3471,6 +3471,14 @@ setTimeout(function () {
   if (conto) new MutationObserver(sincronia)
     .observe(conto, { childList: true });
   sincronia();
+  /* un filtro che NON muove il conto (stessa lista risultante) non muove
+     nemmeno l'observer qui sopra: il click sui gruppi richiama la
+     sincronia comunque, così il badge non resta mai indietro */
+  [per('.stecca'), per('#foglioVelo')].forEach(function (box) {
+    if (box) box.addEventListener('click', function (e) {
+      if (e.target.closest('.gruppo button')) setTimeout(sincronia, 0);
+    });
+  });
 
   /* ── il foglio dei filtri ── */
   var foglio = per('#foglioVelo');
@@ -4408,7 +4416,17 @@ setTimeout(function () {
    al muro e si registra nel setaccio via window.__muroInnesta. */
 (function () {
   'use strict';
-  var carte = document.querySelectorAll('.casa-p[data-id]');
+  /* le card della HOME non portano data-id: l'id vive nell'href
+     /listing/<id>. Senza questa normalizzazione l'idrante della home
+     usciva a mani vuote da sempre (0 card trovate) e prezzo/contatori
+     restavano quelli della build. */
+  var carte = [].filter.call(document.querySelectorAll('.casa-p'), function (c) {
+    if (!c.dataset.id) {
+      var m = (c.getAttribute('href') || '').match(/\/listing\/([^/?#]+)/);
+      if (m) c.dataset.id = decodeURIComponent(m[1]);
+    }
+    return !!c.dataset.id;
+  });
   var muro = document.getElementById('muro');
   if (!carte.length) return;
   function euro(n) { return '€' + Math.round(n).toLocaleString('en-US'); }
@@ -4447,6 +4465,43 @@ setTimeout(function () {
     if (st === 'waitlist') return { t: 'Waitlist open', c: 'fila' };
     if (st === 'reserved') return { t: 'Reserved', c: '' };
     return { t: 'Rented', c: '' };
+  }
+  /* i contatori della build — «9 available now», «updated 31 Jul» —
+     restavano CONGELATI mentre l'idrante cambiava le card sotto: un
+     tabellone che dice LIVE con la data di un mese fa insegna a non
+     credergli. Si riconta dal catalogo appena letto, con lo STESSO
+     verdetto dei badge; il gate è sul contenuto (si riscrive solo ciò
+     che porta già quella grammatica), così l'eyebrow della home — che
+     condivide questo file e parla d'altro — non si tocca. */
+  function contatori(per) {
+    var vivi = 0;
+    Object.keys(per).forEach(function (k) {
+      var d = per[k];
+      if (d.st && stato(d.st, d.dal, d).c === 'si') vivi++;
+    });
+    if (!vivi) return; /* zero = niente riscritture: fail-open sulla build */
+    var parole = vivi + ' home' + (vivi === 1 ? '' : 's') + ' available now';
+    [].forEach.call(document.querySelectorAll(
+      '.hero-eyebrow, .board-piede span, .zone-piede span'), function (el) {
+      if (el.textContent.indexOf('available now') < 0) return;
+      [].forEach.call(el.childNodes, function (n) {
+        if (n.nodeType === 3 && /\d+\s+homes? available now/.test(n.nodeValue)) {
+          n.nodeValue = n.nodeValue.replace(/\d+\s+homes? available now/, parole);
+        } else if (n.nodeType === 1 && n.tagName === 'B') {
+          var t = n.textContent.trim();
+          if (/^\d+$/.test(t)) {
+            n.textContent = String(vivi);
+            var s = n.nextSibling;
+            if (s && s.nodeType === 3) s.nodeValue = s.nodeValue
+              .replace(/\bhomes?\b/, vivi === 1 ? 'home' : 'homes');
+          } else if (/^\d{1,2} [A-Z][a-z]{2}$/.test(t)) {
+            var o = new Date();
+            n.textContent = o.getDate() + ' '
+              + o.toLocaleDateString('en-GB', { month: 'short' });
+          }
+        }
+      });
+    });
   }
   setTimeout(function () {
     fetch('https://firestore.googleapis.com/v1/projects/'
@@ -4519,6 +4574,7 @@ setTimeout(function () {
             }
           }
         });
+        contatori(per);
         innesta(per, interi);
       })
       .catch(function () { /* niente rete: restano i numeri della build */ });

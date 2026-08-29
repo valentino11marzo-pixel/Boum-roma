@@ -228,10 +228,16 @@
 
   /* ── i canoni delle case sui Solari, al primo sguardo ────────────────── */
   (function () {
-    var voci = [].slice.call(document.querySelectorAll('.flap-prezzo'));
-    if (!voci.length || !BS) return;
-    voci.forEach(function (host) {
+    /* Il montatore è ESPORTATO perché il tabellone è parte del design del
+       prezzo, non un ornamento della sola build: l'idrante (prezzo cambiato
+       dopo il deploy) e l'innesto (carta nata dopo la build) devono montare
+       LO STESSO Solari — prima le loro carte restavano col testo piatto, e
+       un prezzo aggiornato dall'idrante DISTRUGGEVA il tabellone di build
+       riscrivendolo come stringa. Senza BoomSolari si degrada a testo:
+       il prezzo si legge sempre, il design quando può. */
+    window.__solariPrezzo = function (host) {
       var testo = host.dataset.p || '';
+      if (!BS) { host.textContent = testo; return; }
       var b = new BS.Board(host, testo.length, ' €,.0123456789');
       if (ridotto || !('IntersectionObserver' in window)) { b.show(testo); return; }
       new IntersectionObserver(function (r, io) {
@@ -239,7 +245,9 @@
         io.disconnect();
         b.show(testo, 40, true);
       }, { threshold: .4 }).observe(host);
-    });
+    };
+    [].forEach.call(document.querySelectorAll('.flap-prezzo'),
+      window.__solariPrezzo);
   })();
 
 })();
