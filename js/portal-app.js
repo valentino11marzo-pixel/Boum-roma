@@ -27812,7 +27812,14 @@ IBAN: ${l.iban || '-'}`;
         if (p.landlord && !willLink('landlord', landlordPool, 'person')) willCreate.push('proprietario');
         if (p.property && !willLink('property', S.properties || [], 'property')) willCreate.push('immobile');
         if (p.tenant && !willLink('tenant', (S.users || []).filter(u => u.role === 'tenant'), 'person')) willCreate.push('inquilino');
-        if (p.contract) willCreate.push('contratto + piano rate');
+        // Il contratto ha bisogno di ENTRAMBE le gambe (immobile e inquilino).
+        // Prometterlo quando una manca era la via per un "Innesto completato"
+        // SENZA contratto: l'apply lo saltava in silenzio e l'operatore lo
+        // scopriva giorni dopo, controllando l'archivio.
+        const contractLegs = [];
+        if (p.contract && !p.property) contractLegs.push("l'immobile");
+        if (p.contract && !p.tenant) contractLegs.push("l'inquilino");
+        if (p.contract && !contractLegs.length) willCreate.push('contratto + piano rate');
         if (!willCreate.length) willCreate.push('solo collegamenti (nessun nuovo record)');
 
         return `
@@ -27824,6 +27831,10 @@ IBAN: ${l.iban || '-'}`;
         ${val.warnings.length ? `<div class="card" style="border-color:rgba(255,107,53,0.35);margin-bottom:14px">
             <div style="font-size:12px;color:#FF6B35;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Da guardare (non bloccante)</div>
             ${val.warnings.map(w => `<div style="font-size:12.5px;color:var(--text-secondary);line-height:1.6">• ${esc(w)}</div>`).join('')}
+        </div>` : ''}
+        ${contractLegs.length ? `<div class="card" style="border-color:#FF3B3B;margin-bottom:14px">
+            <div style="font-size:12px;color:#FF3B3B;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">⚠ Contratto NON creabile</div>
+            <div style="font-size:12.5px;color:#FF9A9A;line-height:1.6">Nel materiale letto manca ${esc(contractLegs.join(' e '))}: il contratto e il piano rate <b>non verranno creati</b>. Aggiungi quei dati nel testo (anche due righe: nome inquilino, indirizzo immobile) e ripeti la lettura — oppure crea il resto e completa il contratto dalla pagina Contratti.</div>
         </div>` : ''}
         <div class="card" style="position:sticky;bottom:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
             <div style="flex:1;min-width:220px">
@@ -27962,7 +27973,10 @@ IBAN: ${l.iban || '-'}`;
             // 1 — Proprietario
             let ownerId = _innesto.links.landlord || null;
             if (p.landlord && !ownerId) {
-                const pool = (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner');
+                // Lo STESSO pool della card (users + landlords): con pool
+                // diversi la card diceva «verrà usato il record esistente»
+                // e l'apply ne creava un doppione.
+                const pool = (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').concat(S.landlords || []);
                 const m = _innesto.links.landlord === null ? { match: null } : V.findMatch(p.landlord, pool, 'person');
                 if (m.match) ownerId = m.match.id;
                 else {
@@ -28065,6 +28079,12 @@ IBAN: ${l.iban || '-'}`;
             await logActivity('innesto_import', 'system', { creati: created, confidence: _innesto.confidence });
             try { localStorage.removeItem('boom_data_cache'); } catch (e) {}
             toast('success', 'Innesto completato', created.join(' · '));
+            // Un contratto saltato non resta MAI muto: "Innesto completato"
+            // senza questa riga era indistinguibile da un contratto creato.
+            if (p.contract && (!propertyId || !tenantId)) {
+                const gambe = [!propertyId && "l'immobile", !tenantId && "l'inquilino"].filter(Boolean).join(' e ');
+                toast('warning', 'Contratto NON creato', 'nella proposta manca ' + gambe + ' — completalo dalla pagina Contratti');
+            }
             innestoReset();
             await loadDataFresh(true);
             buildNav(); renderPage();
