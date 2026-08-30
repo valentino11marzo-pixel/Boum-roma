@@ -93,6 +93,16 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
 .cella { overflow:hidden; }
 .c-stato { color:var(--green); }
 .riga.nuovo .c-stato { color:var(--gold-light); }
+/* ARRIVI: la casa in atterraggio (data di rilascio nota) — ETA e stato
+   in oro: non si entra oggi, si prenota (marketLane 'ahead') */
+.riga.presto .c-stato, .riga.presto .c-ora { color:var(--gold-light); }
+.lato-riga { display:flex; align-items:baseline; gap:16px;
+  padding:0 clamp(8px,1vw,20px) 1.6vh; }
+.lato-riga .flap-scale { font-size:clamp(15px,2.6vh,26px); font-weight:500;
+  letter-spacing:.1em; }
+.lato-nota { font-size:clamp(10px,1.5vh,14px); font-weight:600;
+  letter-spacing:.2em; text-transform:uppercase; color:rgba(250,250,250,.4); }
+@media (max-width:560px){ .lato-nota { display:none; } }
 .fondo { display:flex; align-items:center; justify-content:space-between;
   gap:16px; padding:clamp(16px,2.6vh,30px) clamp(22px,3.5vw,60px);
   border-top:1px solid var(--line-0); font-size:clamp(12px,1.7vh,16px);
@@ -120,6 +130,10 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
   <div id="ora" class="flap-scale"></div>
 </div>
 <div class="sala">
+  <div class="lato-riga">
+    <span id="lato" class="flap-scale">DEPARTURES</span>
+    <span class="lato-nota" id="latoNota">Boarding now</span>
+  </div>
   <div class="colonne">
     <span>Free</span><span>District</span><span>Beds</span><span>Rent /mo</span><span>State</span>
   </div>
@@ -313,7 +327,27 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
   var DRUM = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789€.,:·+/';
   var CASE = [{"ora": "31JAN", "zona": "CENTRO", "tipo": "3BR", "prezzo": "€1,500", "stato": "LIST"}, {"ora": "NOW", "zona": "PIGNETO", "tipo": "2BR", "prezzo": "€1,600", "stato": "NEW"}, {"ora": "1JAN", "zona": "PIGNETO", "tipo": "3BR", "prezzo": "€2,000", "stato": "LIST"}, {"ora": "NOW", "zona": "PIGNETO", "tipo": "2BR", "prezzo": "€1,500", "stato": "NEW"}, {"ora": "NOW", "zona": "PONTE MILVIO", "tipo": "1BR", "prezzo": "€1,250", "stato": "FREE"}, {"ora": "NOW", "zona": "TRASTEVERE", "tipo": "1BR", "prezzo": "€1,200", "stato": "FREE"}, {"ora": "NOW", "zona": "TRIESTE", "tipo": "1BR", "prezzo": "€1,200", "stato": "FREE"}, {"ora": "NOW", "zona": "TRIESTE", "tipo": "1BR", "prezzo": "€2,000", "stato": "FREE"}, {"ora": "NOW", "zona": "PONTE MILVIO", "tipo": "1BR", "prezzo": "€1,200", "stato": "FREE"}, {"ora": "NOW", "zona": "PRATI", "tipo": "1BR", "prezzo": "€2,000", "stato": "LIST"}, {"ora": "NOW", "zona": "PARIOLI", "tipo": "1BR", "prezzo": "€1,000", "stato": "LIST"}, {"ora": "NOW", "zona": "AFRICANO", "tipo": "1BR", "prezzo": "€900", "stato": "FREE"}, {"ora": "NOW", "zona": "PIGNETO", "tipo": "2BR", "prezzo": "€1,700", "stato": "LIST"}, {"ora": "1SEP", "zona": "VITTORIO VENE", "tipo": "1BR", "prezzo": "€1,300", "stato": "LIST"}, {"ora": "NOW", "zona": "PRATI", "tipo": "1BR", "prezzo": "€1,500", "stato": "FREE"}, {"ora": "NOW", "zona": "CONCA D'ORO", "tipo": "1BR", "prezzo": "€1,750", "stato": "LIST"}, {"ora": "NOW", "zona": "CENTRO STORIC", "tipo": "1BR", "prezzo": "€1,800", "stato": "LIST"}, {"ora": "1SEP", "zona": "CENTRO STORIC", "tipo": "1BR", "prezzo": "€2,300", "stato": "LIST"}];
   var PER = 6, GIRO = 14000;
-  var pagine = Math.max(1, Math.ceil(CASE.length / PER));
+
+  /* ══ PARTENZE / ARRIVI (STUDIO_AVIATION S4) ═══════════════════════════
+     Il dato c'era già: la colonna `ora` porta NOW (si entra adesso) oppure
+     la data di rilascio. Prima i due flussi erano mischiati; ora il
+     tabellone li separa come uno scalo vero — DEPARTURES = boarding,
+     ARRIVALS = in atterraggio, stato SOON in oro. Nessun dato inventato:
+     è la stessa fotografia di build, organizzata. */
+  var PART = CASE.filter(function (h) { return h.ora === 'NOW'; });
+  var ARR  = CASE.filter(function (h) { return h.ora !== 'NOW'; })
+    .map(function (h) { return { ora:h.ora, zona:h.zona, tipo:h.tipo,
+      prezzo:h.prezzo, stato:'SOON', presto:true }; });
+  var PAGES = [];
+  var np = Math.max(1, Math.ceil(PART.length / PER));
+  for (var pi = 0; pi < np; pi++) PAGES.push({
+    lato:'DEPARTURES', nota:'Boarding now',
+    rows:PART.slice(pi * PER, pi * PER + PER) });
+  for (var ai = 0; ai < Math.ceil(ARR.length / PER); ai++) PAGES.push({
+    lato:'ARRIVALS', nota:'Free soon · reserve ahead',
+    rows:ARR.slice(ai * PER, ai * PER + PER) });
+
+  var pagine = PAGES.length;
   var box = document.getElementById('righe');
   var nav = document.getElementById('pagine');
   var righe = [];
@@ -339,15 +373,24 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
     if (k === 0) t.className = 'qui';
     nav.appendChild(t);
   }
+  /* il lato del tabellone: DEPARTURES ⇄ ARRIVALS, ante vere */
+  var latoEl = document.getElementById('lato');
+  var latoNotaEl = document.getElementById('latoNota');
+  var lato = latoEl ? new BS.Board(latoEl, 10, DRUM) : null;
+  if (lato) lato.show(PAGES[0].lato, 40, true);
+
   var pagina = 0;
   function mostra(p, sbatti) {
     pagina = p;
     [].forEach.call(nav.children, function (x, k) {
       x.classList.toggle('qui', k === p);
     });
+    if (lato) lato.update(PAGES[p].lato);
+    if (latoNotaEl) latoNotaEl.textContent = PAGES[p].nota;
     righe.forEach(function (r, i) {
-      var h = CASE[p * PER + i];
+      var h = PAGES[p].rows[i];
       r.el.classList.toggle('nuovo', !!h && h.stato === 'NEW');
+      r.el.classList.toggle('presto', !!h && !!h.presto);
       var mostraR = function () {
         r.celle.ora.update(h ? h.ora : '');
         r.celle.zona.update(h ? h.zona : '');
@@ -360,7 +403,7 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
   }
   /* prima stampa col giro completo */
   righe.forEach(function (r, i) {
-    var h = CASE[i];
+    var h = PAGES[0].rows[i];
     setTimeout(function () {
       if (!h) return;
       r.celle.ora.show(h.ora, 24, true);
@@ -369,6 +412,7 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
       r.celle.prezzo.show(h.prezzo, 22, true);
       r.celle.stato.show(h.stato, 22, true);
       r.el.classList.toggle('nuovo', h.stato === 'NEW');
+      r.el.classList.toggle('presto', !!h.presto);
     }, 400 + i * 160);
   });
   if (pagine > 1) setInterval(function () {

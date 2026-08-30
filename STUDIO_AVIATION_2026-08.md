@@ -204,7 +204,39 @@ availability-ui), i codici zona che coprono ESATTAMENTE il lessico di
 `inferZone` (S7 — un codice orfano è un errore), e il lab stesso
 tenuto come specimen di regressione visiva (390/1440).
 
-## Parte 5 — Il laboratorio
+**Stato (2026-08-30)**: il primo lotto è ESEGUITO su questo branch —
+S2 `pass-delivery.html` è la carta d'imbarco (emissione in puro CSS,
+rotta con codici dal lessico curato, e due verità che la pagina prima
+taceva: visita ANNULLATA → Wallet spento e detto; visita non ancora
+confermata → standby, mai una carta spacciata per emessa); S4 `/board`
+gira ora su due lati, PARTENZE ⇄ **ARRIVALS** (derivati dal campo `ora`
+della fotografia di build: NOW da una parte, le date dall'altra, stato
+SOON in oro). Suite: `node tests/scalo/run.mjs` (24 check, registrata
+in run-all). S3 book è rimandato di proposito: il copy della pagina è
+pinnato dai test di `availability-ui` (requireApproval) e merita un
+passaggio suo, non un ritocco di sfuggita.
+
+## Parte 5 — La seconda ondata (proposte oltre il primo lotto)
+
+Otto mosse più ambiziose, ognuna appoggiata a un'infrastruttura che ESISTE
+già (la regola 2: mai una metafora senza il fatto di prodotto sotto).
+Mockup visivi delle prime quattro nel lab, sezione 09.
+
+| # | Mossa | Il fatto di prodotto sotto | Resa |
+|---|---|---|---|
+| W1 | **Flight status della visita** — `viewing.html` (la pagina self-service del cliente) vestita da schermo di stato volo: `BM 0142 · ON TIME`, la timeline del countdown (T-24h ✓ → T-3h → boarding T-30m), reschedule = "cambia volo" | la pagina esiste (lookup/reschedule/cancel via `manage`), il countdown esiste (`_moments.js`) — si DISEGNA ciò che il server già fa | alta: è la pagina che il cliente riapre 3 volte |
+| W2 | **Il Meteo del mercato** — bollettino zona per zona in stile METAR: mediana €/mq, giorni di assorbimento, ribassi 30gg, verdetto di visibilità. Pagina pubblica citabile (`/meteo`) + card nella Centrale | `marketStats/<zona>` del Perito, con la SUA disciplina: sotto `minSample` la zona non esce | alta: il contenuto GEO che nessun portale può copiare (viene dai FIRMATI) |
+| W3 | **La faccia ATC della Centrale** — `/radar` con lo sweep vero: ogni 💎 occasione un blip posizionato per zona, i gemelli cross-portale come tracce unite | il feed `radarState/occasioni` esiste; il blip È il dato | media: console interna, ma rende il radar leggibile in un colpo d'occhio |
+| W4 | **OG image = carta d'imbarco** — l'immagine social di ogni annuncio generata dal repo come mini boarding pass (codice zona, prezzo, BOARDING / ARRIVING 1 SEP) | la pipeline og dal repo esiste (og-reunion, og-executive: card HTML → headless → PNG) | alta: ogni condivisione WhatsApp diventa teatro del marchio |
+| W5 | **NOTAM del Segugio** — il digest delle ricerche salvate e il T-24h nel lessico di scalo ("check-in opens"), col blocco `ticket()` esteso a tutta la famiglia email | `search/matcher` + il design system email condiviso | media |
+| W6 | **Template social "Biglietto" nel Media Studio** — un template storia IG a forma di annuncio di gate per ogni nuovo annuncio | il sistema template/branding del media-studio esiste | media |
+| W7 | **Il timbro sulle schede** — "WALKED BY BOOM ✓" sul dettaglio annuncio (il claim è già in pagina: diventa un sigillo) | il claim "walked in person" è già nella meta description | media, costo quasi zero |
+| W8 | **La PA del kiosk** — SOLO sullo schermo fisico di Via dei Coronari: chime a due toni + clatter delle ante al cambio pagina, opt-in | il kiosk (S9) — l'ambiente è nostro, non il browser di un utente | bassa ma memorabile |
+
+Confini invariati (Parte 3, S10): niente di tutto questo tocca carta
+legale, portal operativo o solleciti.
+
+## Parte 6 — Il laboratorio
 
 `design/scalo/scalo-lab.html` — pagina autonoma (nessun Firebase,
 nessuna dipendenza oltre Inter), dati DEMO dichiarati. Contiene, vivi:

@@ -559,6 +559,99 @@ section { padding:clamp(60px,8vw,104px) 0; border-bottom:1px solid var(--line-0)
   width:6px; height:1.5px; background:var(--text-4); }
 .confine li b { color:var(--text); font-weight:600; }
 
+/* ── 09 · la seconda ondata: quattro mockup ──────────────────────────── */
+.ondata { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+  gap:14px; margin-top:26px; }
+.proposta { display:grid; align-content:start; gap:14px; padding:18px;
+  border-radius:16px; background:var(--void);
+  box-shadow:inset 0 0 0 1px var(--line); }
+.proposta > b { font-size:9.5px; font-weight:700; letter-spacing:.24em;
+  text-transform:uppercase; color:var(--gold); }
+.proposta > p { font-size:11.5px; color:var(--text-3); line-height:1.55; }
+.proposta > p code { font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size:10px; color:var(--text-2); }
+/* W1 · flight status */
+.fstat { display:grid; gap:12px; padding:16px; border-radius:12px;
+  background:var(--card); box-shadow:inset 0 0 0 1px var(--line); }
+.fstat .ftesta { display:flex; align-items:center; gap:10px; }
+.fstat .ftesta b { font-family:var(--display); font-weight:300; font-size:17px;
+  letter-spacing:.08em; font-variant-numeric:tabular-nums; }
+.fstat .ontime { margin-left:auto; display:inline-flex; align-items:center;
+  gap:6px; height:22px; padding:0 10px; border-radius:100px;
+  background:rgba(0,32,18,.6); box-shadow:inset 0 0 0 1px rgba(0,255,136,.38);
+  font-size:9px; font-weight:700; letter-spacing:.18em; color:var(--green); }
+.fstat .ontime::before { content:''; width:4px; height:4px; border-radius:50%;
+  background:var(--green); }
+.fstat .frotta { display:flex; align-items:center; gap:10px;
+  font-family:var(--display); font-weight:200; font-size:22px;
+  letter-spacing:.05em; }
+.fstat .frotta i { flex:1; height:1px; font-style:normal;
+  background:repeating-linear-gradient(90deg, rgba(250,250,250,.34) 0 5px,
+    transparent 5px 10px); }
+.fstat .frotta b:last-child { color:var(--gold); font-weight:250; }
+.fstat ol { list-style:none; display:grid; gap:7px; }
+.fstat li { display:flex; align-items:center; gap:9px; font-size:11px;
+  color:var(--text-3); }
+.fstat li i { font-style:normal; width:9px; height:9px; border-radius:50%;
+  flex:none; background:var(--black); box-shadow:inset 0 0 0 1.5px var(--text-4); }
+.fstat li.ok { color:var(--text-2); }
+.fstat li.ok i { background:var(--gold); box-shadow:none; }
+.fstat li.ora i { box-shadow:inset 0 0 0 1.5px var(--gold);
+  animation:pulse 1.8s ease infinite; }
+/* W2 · meteo del mercato */
+.meteo { display:grid; gap:10px; padding:16px; border-radius:12px;
+  background:var(--card); box-shadow:inset 0 0 0 1px var(--line); }
+.meteo .mtesta { display:flex; align-items:baseline; gap:10px;
+  font-size:10px; font-weight:700; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--text-2); }
+.meteo .mtesta span { margin-left:auto; font-weight:600; color:var(--text-4); }
+.meteo .mriga { display:flex; align-items:baseline; justify-content:space-between;
+  gap:10px; font-size:11.5px; color:var(--text-3);
+  border-bottom:1px solid var(--line-0); padding-bottom:7px; }
+.meteo .mriga:last-of-type { border-bottom:0; padding-bottom:0; }
+.meteo .mriga b { font-family:var(--display); font-weight:300; font-size:16px;
+  color:var(--text); font-variant-numeric:tabular-nums; }
+.meteo .verdetto { padding-top:4px; font-size:10px; font-weight:700;
+  letter-spacing:.18em; text-transform:uppercase; color:var(--green); }
+/* W3 · lo sweep ATC */
+.atc { position:relative; aspect-ratio:1; max-width:230px; margin:0 auto;
+  border-radius:50%; overflow:hidden;
+  background:
+    repeating-radial-gradient(circle, rgba(255,215,0,.07) 0 1px, transparent 1px 28px),
+    radial-gradient(circle, #0A0A0C, #060607);
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
+.atc::before { content:''; position:absolute; inset:0; border-radius:50%;
+  background:conic-gradient(from 0deg, rgba(255,215,0,.28), transparent 70deg,
+    transparent 360deg);
+  animation:sweep 5s linear infinite; }
+@keyframes sweep { to { transform:rotate(360deg); } }
+.atc i { position:absolute; width:7px; height:7px; border-radius:50%;
+  background:var(--gold); font-style:normal;
+  box-shadow:0 0 8px var(--gold); animation:pulse 2.4s ease infinite; }
+.atc em { position:absolute; font-style:normal; font-size:8px; font-weight:700;
+  letter-spacing:.14em; color:var(--text-3); }
+/* W4 · l'og carta d'imbarco */
+.ogpass { aspect-ratio:1200/630; display:grid;
+  grid-template-columns:22px minmax(0,1fr); border-radius:12px; overflow:hidden;
+  background:linear-gradient(168deg,#101014,#080809 72%);
+  box-shadow:inset 0 0 0 1px var(--line); }
+.ogpass .lamina em { font-size:6.5px; }
+.ogpass .ogcorpo { display:grid; align-content:center; gap:8px;
+  padding:14px 16px; }
+.ogpass .ogeti { font-size:8px; font-weight:700; letter-spacing:.26em;
+  text-transform:uppercase; color:var(--gold); }
+.ogpass .ogrotta { display:flex; align-items:center; gap:9px;
+  font-family:var(--display); font-weight:200; font-size:24px;
+  letter-spacing:.05em; }
+.ogpass .ogrotta i { flex:1; height:1px; font-style:normal;
+  background:repeating-linear-gradient(90deg, rgba(250,250,250,.34) 0 5px,
+    transparent 5px 10px); }
+.ogpass .ogrotta b:last-child { color:var(--gold); font-weight:250; }
+.ogpass .ogsotto { display:flex; gap:14px; font-size:10px;
+  color:var(--text-3); font-variant-numeric:tabular-nums; }
+.ogpass .ogsotto b { color:var(--green); font-weight:700;
+  letter-spacing:.14em; }
+
 /* ── piede ───────────────────────────────────────────────────────────── */
 footer { padding:40px 0 60px; }
 footer .wrap { display:grid; gap:8px; font-size:11px; color:var(--text-4); }
@@ -620,6 +713,7 @@ footer code { font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
       <a href="#s06">06 Movimento</a>
       <a href="#s07">07 Codici</a>
       <a href="#s08">08 Confine</a>
+      <a href="#s09">09 Seconda ondata</a>
     </nav>
   </div>
 </div>
@@ -1003,6 +1097,87 @@ footer code { font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
         </ul>
       </div>
     </div>
+  </div>
+</section>
+
+<section id="s09">
+  <div class="wrap">
+    <div class="cartello"><span class="num">09</span><h2>La seconda ondata</h2></div>
+    <div class="filo"></div>
+    <p class="premessa">Le proposte OLTRE il primo lotto (studio, Parte 5) —
+    qui in mockup, tutti i numeri demo. La regola resta la 2: ognuna poggia
+    su un'infrastruttura che esiste già.</p>
+
+    <div class="ondata">
+      <div class="proposta">
+        <b>W1 · Flight status della visita</b>
+        <div class="fstat">
+          <div class="ftesta"><b>BM 0142 · Viewing</b>
+            <span class="ontime">On time</span></div>
+          <div class="frotta"><b>ROM</b><i></i><b>TRA</b></div>
+          <ol>
+            <li class="ok"><i></i>Confermata · pass emesso</li>
+            <li class="ok"><i></i>T-24h · promemoria inviato</li>
+            <li class="ora"><i></i>T-3h · oggi alle 12:30</li>
+            <li><i></i>Boarding · T-30m</li>
+          </ol>
+        </div>
+        <p>La pagina self-service del cliente (<code>viewing.html</code>)
+        vestita da schermo di stato volo: la timeline È il countdown che
+        <code>_moments.js</code> già esegue. Reschedule = «cambia volo».</p>
+      </div>
+
+      <div class="proposta">
+        <b>W2 · Il meteo del mercato</b>
+        <div class="meteo">
+          <div class="mtesta">Meteo · Trastevere<span>demo</span></div>
+          <div class="mriga">Canone mediano chiesto<b>€ 28,4 /m²</b></div>
+          <div class="mriga">Assorbimento (morti provate)<b>21 giorni</b></div>
+          <div class="mriga">Ribassi ultimi 30g<b>3</b></div>
+          <div class="verdetto">Visibilità buona · campione 47</div>
+        </div>
+        <p>Il bollettino zona per zona da <code>marketStats</code> (il
+        Perito), con la sua disciplina: sotto <code>minSample</code> la zona
+        NON esce. Pagina pubblica citabile — il dato viene dai FIRMATI, e
+        nessun portale ce l'ha.</p>
+      </div>
+
+      <div class="proposta">
+        <b>W3 · La faccia ATC della Centrale</b>
+        <div class="atc" role="img" aria-label="Radar demo con tre occasioni">
+          <i style="left:62%;top:30%"></i>
+          <i style="left:34%;top:56%;animation-delay:.7s"></i>
+          <i style="left:70%;top:68%;animation-delay:1.3s"></i>
+          <em style="left:64%;top:20%">PIG</em>
+          <em style="left:22%;top:52%">TRA</em>
+          <em style="left:74%;top:76%">MON</em>
+        </div>
+        <p>Le 💎 occasioni di <code>radarState</code> come blip sullo
+        sweep: il blip È il dato, il radar della Centrale si legge in un
+        colpo d'occhio. Console admin, nessuna superficie pubblica.</p>
+      </div>
+
+      <div class="proposta">
+        <b>W4 · L'immagine social = carta d'imbarco</b>
+        <div class="ogpass">
+          <div class="lamina" aria-hidden="true"><em>Boom · Roma</em></div>
+          <div class="ogcorpo">
+            <span class="ogeti">Boom · Boarding pass</span>
+            <div class="ogrotta"><b>ROM</b><i></i><b>TRA</b></div>
+            <div class="ogsotto"><span>Trastevere Loft · 2 camere</span>
+              <span>€ 1.450 /mese</span><b>BOARDING</b></div>
+          </div>
+        </div>
+        <p>L'og:image di ogni annuncio generata DAL REPO come mini carta
+        (la pipeline esiste: og-reunion, og-executive — card HTML →
+        headless → PNG). Ogni condivisione WhatsApp diventa teatro del
+        marchio.</p>
+      </div>
+    </div>
+    <p class="nota">Nel lotto anche: NOTAM del Segugio (il blocco ticket
+    esteso alla famiglia email), template storia «Biglietto» nel Media
+    Studio, il timbro WALKED BY BOOM sulle schede, e la PA sonora SOLO sul
+    kiosk fisico. Dettagli e resa: studio, Parte 5.</p>
   </div>
 </section>
 
