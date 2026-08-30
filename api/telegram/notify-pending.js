@@ -13,6 +13,7 @@
 import { fsList, fsPatch } from '../homie/_lib.js';
 import { tgSend, fmtAction, actionKeyboard } from './_lib.js';
 import { fiduciaTick } from '../employees/_fiducia.js';
+import { postinoTick } from './_postino.js';
 import { fmtViewingCard, viewingKeyboard } from './_viewings.js';
 import { loadViewing } from '../viewings/_apply.js';
 import { replyLang } from '../_lang.js';
@@ -55,6 +56,14 @@ export default async function handler(req, res) {
   let fiducia = null;
   try { fiducia = await fiduciaTick({ pending, chatId }); }
   catch (e) { console.warn('[notify-pending] fiducia tick failed:', e.message); }
+
+  // ── Il Postino: la consegna WhatsApp non è un atto di fede ─────────────
+  // Ripara le azioni della macchina uccise a metà volo e trasforma la posta
+  // che il Mac non ritira in una card con il testo pronto (un tap = consegna
+  // manuale). Best-effort come la scala della fiducia.
+  let postino = null;
+  try { postino = await postinoTick({ chatId }); }
+  catch (e) { console.warn('[notify-pending] postino tick failed:', e.message); }
 
   const toNotify = (pending || [])
     .filter(a => !a.telegramNotifiedAt && !a.telegramMessageId)
@@ -319,6 +328,7 @@ export default async function handler(req, res) {
   return res.status(200).json({
     ok: true,
     fiducia,
+    postino,
     scanned: pending.length,
     notified: results.filter(r => r.ok).length,
     failed:   results.filter(r => !r.ok).length,

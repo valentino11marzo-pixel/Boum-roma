@@ -15,6 +15,7 @@ import SEG from '../../js/segretaria-engine.js';
 import { fsGet, fsPatch, fsCreate, fsList, logActivity } from '../homie/_lib.js';
 import { tgSend } from '../telegram/_lib.js';
 import { runExecutor, romeDay } from '../employees/_fiducia.js';
+import { postinoStatus } from '../telegram/_postino.js';
 import { callClaude, extractJson } from '../agent/_claude.js';
 import { replyLang } from '../_lang.js';
 import { loadConfig, busyBlocks, buildSlots, listingCtx } from '../viewings/_avail.js';
@@ -266,7 +267,7 @@ export async function segretariaTurn({ cid, conv, lead, text, messageId, opening
   }).catch(() => {});
   await fsPatch(budgetPath, { turns: turnsToday + 1, day }).catch(() => {});
   await logActivity('Segretaria: risposta inviata', 'segretaria', { conversationId: cid, actionId }, 'segretaria').catch(() => {});
-  return { acted: true, sent: true, actionId };
+  return { acted: true, sent: true, actionId, channel };
 }
 
 // ─── La consegna (il click) e il rientro ─────────────────────────────────
@@ -348,6 +349,11 @@ export async function segretariaStatusMessage() {
     '',
     active.length ? `<b>Chat in mano a lei (${active.length}):</b>` : 'Nessuna chat consegnata al momento.',
     ...rows,
+    '',
+    ...await postinoStatus().then(p => [
+      p.waiting ? `📮 In coda di consegna WhatsApp (aspettano il Mac): <b>${p.waiting}</b>` : '📮 Coda di consegna WhatsApp: vuota.',
+      ...(p.handedToOperator ? [`📲 Passati a te dal Postino (consegna manuale): <b>${p.handedToOperator}</b>`] : []),
+    ]).catch(() => []),
     '',
     `Tetti: ${cfg.maxTurns} turni/chat · ${cfg.dailyCap} turni/giorno.`,
     ...(rejected.length ? ['⚠️ Impostazioni ignorate: ' + rejected.map(r => r.key).join(', ')] : []),
