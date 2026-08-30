@@ -2815,11 +2815,32 @@ consegna e la porta fino alla visita prenotata o all'escalation.
   `parziale`: la consegna è il tuo click) col heartbeat
   `teamHealth/segretaria`; la lettera del Commerciale dichiara ora la
   scala della fiducia sui follow-up.
+- **IL POSTINO — la consegna WhatsApp non è un atto di fede** (29/08, dal
+  primo uso vero: due 🤖 cliccati, la Segretaria scrive, l'executor marca
+  `executed`… e su WhatsApp non arriva niente, perché su WhatsApp consegna
+  il MAC via `wa-outbox` e il ciclo di ritiro esisteva SOLO come mandato
+  in bot/HOMIE.md — la stessa storia dello Scout). Due bracci:
+  `api/telegram/_postino.js` dentro notify-pending (ogni minuto,
+  best-effort): (1) riesegue le azioni della MACCHINA rimaste `approved`
+  senza esecuzione (funzione uccisa a metà volo; mai le approvazioni
+  umane), (2) la posta `executed` che il Mac non ritira entro 5' diventa
+  una card 📮 col TESTO GIÀ PRONTO nel bottone wa.me (un tap = consegna
+  manuale) e si marca `waSendError:'stalled_operator_notified'` così
+  l'outbox non può più rimandarla (un doppio messaggio è peggio di uno in
+  ritardo); ✅ Consegnato (`pw:`) registra la consegna manuale;
+  `/segretaria` mostra i conteggi della coda. E `bot/boom_postino.py` +
+  `com.boom.postino.plist` (ogni 2'): il ritiro DETERMINISTICO — pull →
+  wacli (comando via `WACLI_SEND_CMD`, template argv MAI shell, `--test`
+  per collaudare) → ack; registro locale anti-doppio scritto PRIMA
+  dell'invio. La card del 🤖 dice la verità sul canale ("in consegna via
+  Mac" / "email inviata"), mai "fatto" per un messaggio in coda.
+  Test: `python3 tests/postino/runner.py`.
 - Test: `node tests/segretaria/run.mjs` — cancelli e sanificazione per
   mutazione, giunzioni sulla sorgente, e il giro VERO su Firestore in
   memoria col handler reale: consegna → turno (executor vero) → eco che
   non spegne → out manuale che spegne → escalation con ping → retry
-  idempotente → kill switch.
+  idempotente → kill switch → Postino (posta ferma → card col testo
+  pronto, auto-riparazione delle azioni uccise a metà volo).
 
 ## Lo Smistatore (document intake — api/documents/_smista.js)
 

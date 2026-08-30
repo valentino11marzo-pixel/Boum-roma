@@ -768,6 +768,9 @@
     },
     "api/segretaria/scan-replies.js": {
       "maxDuration": 60
+    },
+    "api/telegram/notify-pending.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
