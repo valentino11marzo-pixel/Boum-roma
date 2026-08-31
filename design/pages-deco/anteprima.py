@@ -1,5 +1,5 @@
 # LA PAGINA VERA COME ANTEPRIMA.
-# Due trappole gia' pagate, entrambe scritte qui perche' non tornino:
+# Tre trappole gia' pagate, tutte scritte qui perche' non tornino:
 # 1. Il guscio dell'artifact fornisce doctype/head/body, quindi il corpo
 #    va consegnato senza <head> — ma l'<head> di una pagina BOOM contiene
 #    TUTTO il vestito. Buttarlo via produceva HTML nudo, illeggibile sul
@@ -10,7 +10,17 @@
 #    non compilava piu'. Percio' cio' che si inlina esce di scena dietro
 #    un segnaposto, si riscrivono gli URL, e poi rientra intatto.
 import re, sys, os
-R = '/home/user/Boum-roma/'
+# 3. LA RADICE SI DERIVA, NON SI SCRIVE. Qui c'era
+#    R = '/home/user/Boum-roma/' — il percorso assoluto del sandbox di chi
+#    l'ha scritto. In locale funziona sempre; sul runner di CI il repo sta
+#    altrove, quindi la suite `anteprima` falliva a OGNI push su main (main
+#    e' rimasta rossa per giorni) con un traceback che il chiamante
+#    stampava come byte grezzi, illeggibile. E' la stessa lezione gia'
+#    scritta in tests/_browser.mjs: un percorso cablato vale come
+#    SUGGERIMENTO, mai come dichiarazione.
+R = os.environ.get('BOOM_ROOT') or os.path.abspath(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
+R = R.rstrip('/') + '/'
 src, out = sys.argv[1], sys.argv[2]
 orig = open(R + src, encoding='utf-8').read()
 s = orig

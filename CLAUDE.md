@@ -1953,6 +1953,44 @@ il documento dice «firma X per conto di Y». **Al posto del conduttore non
 si firma mai** — quella non è una delega, è una firma falsa, e la riga è
 scritta nel pannello, non lasciata al buonsenso.
 
+### Le regole IN VIGORE ≠ le regole nel file (31/08/2026)
+Il difetto più caro trovato in questa tornata, e nessuna suite poteva
+vederlo: **tutte leggono `firestore.rules`, cioè l'INTENZIONE, e nessuna la
+realtà.** In produzione `publicGeo` (la griglia dei tempi del Pendolare, che
+scheda e /skyline devono leggere da anonimi) rispondeva `PERMISSION_DENIED`
+— la regola era nel repo e non era mai stata deployata, perché il
+`FIREBASE_TOKEN` della CI era **scaduto** e il job `deploy-rules` falliva a
+ogni push mentre i merge continuavano. È esattamente il difetto che quel job
+era nato per impedire (la lezione `propertyLocks`), tornato dal lato di chi
+lo doveva prevenire. L'ultima regola arrivata in produzione è quella del
+**23 agosto**; il messaggio di CI ora dice cosa fare invece di limitarsi a
+fallire (rigenerare con `npx firebase-tools login:ci`; fix duraturo: service
+account + `GOOGLE_APPLICATION_CREDENTIALS`, `--token` è deprecato).
+`tests/regole/run.mjs` è il canarino: interroga Firestore **da anonimo** con
+la chiave pubblica che sta già nelle pagine e misura le DUE direzioni —
+quello che il sito deve poter leggere (catalogo, publicGeo) e quello che non
+deve MAI uscire (contratti, pagamenti, anagrafiche, lead, lucchetti,
+telefonate, proposte, segnalazioni). Senza rete si auto-skippa; se Firestore
+risponde e la risposta non è quella dichiarata, è un guasto.
+
+### La CI rossa che nessuno leggeva (31/08/2026)
+Trenta run di fila fallite su main. Due cause distinte, entrambe invisibili:
+il `deploy-rules` qui sopra, e la suite `anteprima` che moriva **solo sul
+runner** — `design/pages-deco/anteprima.py` portava
+`R = '<home di chi l'ha scritta>'`, il percorso assoluto del proprio sandbox.
+È la STESSA lezione già pagata il 19/08 e già scritta in `tests/_browser.mjs`
+(«un percorso cablato vale come SUGGERIMENTO, mai come dichiarazione»),
+tornata sei giorni dopo in un altro linguaggio, dove quella nota non si
+legge. Il danno peggiore non è il rosso: su una macchina dove quel percorso
+ESISTE lo script non fallisce, legge un ALTRO albero e costruisce la pagina
+sbagliata dichiarandola giusta (verificato per differenza). E il chiamante
+stampava il traceback di Python come **Uint8Array di byte**, illeggibile —
+due giri di correzioni spesi al buio. `tests/radici/run.mjs` chiude la
+classe: nessun file eseguito da `npm test`, né alcuno di quelli che quei
+file **lanciano**, può portare la casa di qualcuno dentro una stringa (i
+commenti che raccontano il difetto restano — sono la memoria che lo tiene
+lontano).
+
 ### Le tre reti del server (`api/_modeljson.js` · `api/_budget.js` · storageUpload)
 Tre difetti trovati il 31/08/2026 **nei log di produzione**, non ragionando:
 tutti e tre di CLASSE, tutti e tre chiusi in un posto solo.
