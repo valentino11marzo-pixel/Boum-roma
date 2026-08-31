@@ -60,6 +60,35 @@ for (const [w, tag] of [[390, 'telefono'], [1440, 'desktop']]) {
     `${tag}: senza mappa il velo se ne va e il pannello dice cosa resta`);
   check(a.mete === 9, `${tag}: il filtro per minuti conosce tutte le mete`);
 
+  /* LA SFUMATURA CHE DICE «CONTINUA SOTTO».
+     Il difetto vero, visto a 390px: l'elenco e' piu' alto del pannello e
+     l'ultima riga finisce TAGLIATA A META' — che non si legge come «c'e'
+     altro», si legge come una cosa rotta. La sfumatura deve comparire
+     quando c'e' davvero altro sotto e SPARIRE quando la lista finisce li'
+     (una sfumatura sempre accesa direbbe «continua» su una lista finita).
+     E soprattutto deve accendersi anche quando il pannello viene aperto
+     DA ALTRI — su telefono nasce chiuso, quindi la prima misura vede zero:
+     e' esattamente il caso in cui era rimasta spenta. */
+  const f = await pg.evaluate(async () => {
+    const c = document.getElementById('quadC');
+    const scorre = c.scrollHeight - c.clientHeight > 1;
+    const inizio = { scorre, giu: c.classList.contains('altro-giu'),
+      su: c.classList.contains('altro-su') };
+    c.scrollTop = c.scrollHeight;            /* in fondo */
+    await new Promise((r) => setTimeout(r, 60));
+    const fondo = { giu: c.classList.contains('altro-giu'),
+      su: c.classList.contains('altro-su') };
+    c.scrollTop = 0;
+    await new Promise((r) => setTimeout(r, 60));
+    return { inizio, fondo };
+  });
+  check(!f.inizio.scorre || f.inizio.giu,
+    `${tag}: lista piu' lunga del pannello → la sfumatura dice che continua`);
+  check(!f.inizio.su, `${tag}: in cima nessuna sfumatura sopra (non c'e' nulla sopra)`);
+  check(!f.inizio.scorre || (!f.fondo.giu && f.fondo.su),
+    `${tag}: arrivati in fondo la sfumatura di sotto sparisce (la lista finisce li')`);
+
+
   // la porta scelta: numeri col loro GRADO DI VERITA'
   const b = await pg.evaluate(() => {
     if (!window.__quadrante) return null;
