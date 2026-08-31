@@ -11,7 +11,10 @@ const { loadChromium, launchOptions } = require('node:module')
   .createRequire(__filename)('../../tests/_browser.cjs');
 const { execFileSync } = require('child_process');
 const fs = require('fs'), os = require('os'), path = require('path');
-const R = '/home/user/Boum-roma/';
+/* la radice si DERIVA dal file, mai scritta a mano: il percorso assoluto
+   del sandbox non esiste sul runner di CI — la suite falliva a ogni run
+   («can't open …/anteprima.py») qualunque fosse il branch */
+const R = path.join(__dirname, '..', '..') + path.sep;
 const PORTA = process.env.PORTA || 8173;
 const PAG = ['deal-assistance', 'virtual-viewing', 'contract-check-express',
              'deposit-recovery', 'remote-move-pack', 'concierge'];
