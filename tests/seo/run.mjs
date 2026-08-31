@@ -55,6 +55,36 @@ monchi.length
       + '\n      Senza charset il browser indovina windows-1252 e stampa â‚¬350 invece di €350.')
   : bene('ogni pagina pubblica ha doctype, lingua e charset');
 
+// ── 1b · un foglio di stile con le graffe sbilanciate ───────────────────
+// LA LEZIONE DEL 28 AGOSTO 2026, e l'ho pagata io. Aggiungendo un
+// `min-height` a `.board` ho spezzato la regola e lasciato un `@media`
+// APERTO: da quel punto in poi TUTTO il resto del foglio della home e'
+// finito dentro `(min-width:640px)`, cioe' spento sul telefono. Effetto
+// misurato: una griglia da sei voci passava da 362px a 2503px e la home
+// da 14,5 a 18,2 schermate — con la pagina che sembrava solo «un po'
+// lunga», non rotta. Il browser non protesta, nessun test di layout se
+// ne accorge, e la cosa e' andata in produzione.
+// Costa un conteggio di parentesi. Da oggi si conta.
+const sbilanciati = [];
+for (const [f] of pubbliche) {
+  const s = fs.readFileSync(path.join(R, f), 'utf8');
+  let i = 0;
+  for (const m of s.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)) {
+    i++;
+    const css = m[1].replace(/\/\*[\s\S]*?\*\//g, '');
+    const apre = (css.match(/\{/g) || []).length;
+    const chiude = (css.match(/\}/g) || []).length;
+    if (apre !== chiude) {
+      sbilanciati.push(`${f} → blocco <style> n.${i}: ${apre} graffe aperte, ${chiude} chiuse`);
+    }
+  }
+}
+sbilanciati.length
+  ? male(`${sbilanciati.length} fogli di stile con le graffe sbilanciate — da li in `
+      + 'poi le regole finiscono dentro il blocco sbagliato e spariscono in '
+      + 'silenzio:' + elenco(sbilanciati))
+  : bene('ogni foglio di stile ha le graffe bilanciate');
+
 // ── 2 · un'entita' sola per pagina ──────────────────────────────────────
 // Un secondo nodo Organization o Service sulla stessa pagina non e' "piu'
 // SEO": sono due entita' in concorrenza per la stessa cosa, e chi legge il

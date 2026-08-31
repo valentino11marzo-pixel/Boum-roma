@@ -365,9 +365,8 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
    nessuno resta fuori. */
 .board { position:relative; background:var(--void);
   min-height:384px;
-}
-@media (min-width:640px){ .board { min-height:364px;
   box-shadow:inset 0 0 0 1px var(--line-gold), 0 40px 90px -40px rgba(0,0,0,.9); }
+@media (min-width:640px){ .board { min-height:364px; } }
 .board-testa { display:flex; align-items:center; justify-content:space-between;
   gap:12px; padding:14px 18px; border-bottom:1px solid var(--line-0); }
 .board-testa b { font-size:10.5px; font-weight:600; letter-spacing:.24em;
@@ -2129,9 +2128,8 @@ setTimeout(function () {
           aria-label="days">DAYS</span></span>, NOT WEEKS.</h1>
       <script>/* IL POSTO SI RISERVA PRIMA CHE ARRIVI IL TABELLONE.
          La parola DAYS e' un tabellone a palette costruito dal JS a ~600ms:
-         cinque caselle per quattro lettere, cioe' 4,55em contro i 2,65em
-         del testo semplice — misurati a 390, 1024, 1280 e 1440px, dove il
-         rapporto e' identico. Quel 72% in piu' mandava il titolo su una
+         quattro caselle, cioe' 3,64em contro i 2,65em del testo semplice —
+         misurati a 390, 1024 e 1440px, dove il rapporto e' identico. Quel 72% in piu' mandava il titolo su una
          riga in piu' e faceva scendere di 78px tutto cio' che segue: era
          il salto di layout piu' grosso del sito (CLS 0,058, tutto a y=0,
          cioe' sotto gli occhi di chi ha appena iniziato a leggere).
@@ -2139,7 +2137,7 @@ setTimeout(function () {
          paint, e solo con JS attivo: senza JS il tabellone non arriva mai,
          e riservargli spazio lascerebbe un buco attorno a una parola. */
         (function(){var f=document.getElementById('flapDays');
-          if(f){f.style.display='inline-block';f.style.minWidth='4.55em';
+          if(f){f.style.display='inline-block';f.style.minWidth='3.64em';
                 f.style.textAlign='center';
                 /* e l'ALTEZZA: le caselle sono 1,26em contro la riga
                    di testo, e quei 12px facevano scendere il resto */
@@ -2951,7 +2949,11 @@ setTimeout(function () {
 
   var host = document.getElementById('flapDays');
   if (host && BS) {
-    var b = new BS.Board(host, 5, ' ABCDEFGHIJKLMNOPQRSTUVWXYZ');
+    /* QUATTRO caselle per quattro lettere. Erano cinque: il titolo
+       mostrava «IN [D][A][Y][S][ ], NOT WEEKS.» con una casella VUOTA
+       in mezzo alla frase piu' importante del sito — si legge come una
+       lettera mancante o un widget rotto. */
+    var b = new BS.Board(host, 4, ' ABCDEFGHIJKLMNOPQRSTUVWXYZ');
     if (ridotto) b.show('DAYS');
     else {
       setTimeout(function () { b.show('DAYS', 110, true); }, 600);
