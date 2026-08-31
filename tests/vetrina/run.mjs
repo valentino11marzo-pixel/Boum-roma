@@ -140,7 +140,17 @@ const r = await page.evaluate(() => {
     statoClasse: g ? g.querySelector('.casa-stato').className : '',
     chip: g ? (g.querySelector('.casa-chip') || {}).textContent : null,
     d: g ? Object.assign({}, g.dataset) : {},
-    flap: g ? g.querySelector('.flap-prezzo').textContent.trim() : '',
+    flapP: g ? g.querySelector('.flap-prezzo').dataset.p : '',
+    flapAria: g ? g.querySelector('.flap-prezzo').getAttribute('aria-label') : '',
+    /* IL SOLARI MONTATO: il difetto vero era la carta innestata col prezzo
+       come testo piatto — il tabellone (celle figlie) è il design, e deve
+       esserci come sulle carte di build */
+    flapCelle: g ? g.querySelector('.flap-prezzo').children.length : 0,
+    flapCelleBuild: (() => {
+      const b = [...document.querySelectorAll('#muro .casa-p')]
+        .find(c => c.dataset.id !== 'nuova1');
+      return b ? b.querySelector('.flap-prezzo').children.length : 0;
+    })(),
     prima: (document.querySelector('#muro > .casa-p') || {}).dataset || {},
     conto: +document.getElementById('conto').textContent,
     viveN: vive.length, totale: build,
@@ -168,7 +178,10 @@ await check('data-attribute del builder: zona/prezzo/letti/mq/bagni',
     && r.d.dal === ANNO + '-09-01' && r.d.chiave === '/listing/nuova1');
 await check('data-cerca porta nome, zona e indirizzo',
   () => r.d.cerca.includes('bilocale prati') && r.d.cerca.includes('visconti'));
-await check('il prezzo si legge: €1,500', () => r.flap === '€1,500');
+await check('il prezzo dichiara €1,500 (data-p + aria-label)',
+  () => r.flapP === '€1,500' && r.flapAria === '€1,500 per month');
+await check('il Solari del prezzo è MONTATO anche sulla carta innestata (celle come sulla build)',
+  () => r.flapCelle > 0 && r.flapCelle === r.flapCelleBuild);
 await check('CONTATA: il conto = le carte vive, innesto compreso',
   () => r.contata && r.conto === r.viveN && r.conto > 0);
 await check('ordinamento «nuove»: la nata oggi apre il muro',

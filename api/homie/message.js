@@ -40,6 +40,10 @@ import {
   isNoise, matchListing, mergeMessage, buildLead, recentLeadByPhone, loadCatalog,
   normalizePhone, phoneVariants,
 } from './_lead.js';
+// STATIC imports (la lezione nodemailer di CLAUDE.md: il bundler Vercel non
+// traccia i lazy import — un modulo mancante in produzione è un turno perso).
+import SEG from '../../js/segretaria-engine.js';
+import { segretariaTurn, segretariaOffConv } from '../segretaria/_core.js';
 
 // ── Pure helpers (mirror js/conversations.js so the id/phone logic matches) ──
 function convIdFor(contactType, contactId) {
@@ -232,7 +236,31 @@ export default async function handler(req, res) {
   try { leadInfo = await syncLead({ direction, text, contactType, contactId, contactPhone, contactName, cid, existing, now, messageId: body.messageId }); }
   catch (e) { console.warn('[homie/message] lead sync:', e.message); }
 
-  return res.status(200).json({ ok: true, conversationId: cid, messageId, created, ...(leadInfo || {}) });
+  // ── LA SEGRETARIA (STUDIO_SEGRETARIA_2026-08.md) ────────────────────────
+  // Su una conversazione CONSEGNATA (il 🤖 sulla card del lead): un inbound
+  // riceve il suo turno; un 'out' MANUALE dell'operatore la spegne su quella
+  // chat (D4) — ma le SUE risposte tornano dal Mac proprio come 'out', e
+  // senza il riconoscimento dell'eco si spegnerebbe da sola al primo turno.
+  // Best-effort: un errore qui non fa mai perdere il messaggio, che è già
+  // scritto sopra.
+  let segretaria = null;
+  try {
+    if (existing && existing.segretaria) {
+      if (direction === 'out') {
+        if (!SEG.isSegretariaEcho(existing, text, now.getTime())) {
+          await segretariaOffConv(cid, 'l\'operatore ha risposto a mano');
+          segretaria = { off: true };
+        }
+      } else if (direction === 'in') {
+        const conv = { ...existing, contactType, contactId, contactPhone: contactPhone || existing.contactPhone, contactName, leadId: existing.leadId || (leadInfo && leadInfo.leadId) || null };
+        let lead = null;
+        if (conv.leadId) { try { const l = await fsGet(`leads/${conv.leadId}`); if (l) lead = { id: conv.leadId, ...l }; } catch { /* non-fatal */ } }
+        segretaria = await segretariaTurn({ cid, conv, lead, text, messageId: body.messageId, now: now.getTime() });
+      }
+    }
+  } catch (e) { console.warn('[homie/message] segretaria:', e.message); }
+
+  return res.status(200).json({ ok: true, conversationId: cid, messageId, created, ...(leadInfo || {}), ...(segretaria ? { segretaria } : {}) });
 }
 
 /**

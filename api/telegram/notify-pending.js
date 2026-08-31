@@ -12,6 +12,8 @@
 
 import { fsList, fsPatch } from '../homie/_lib.js';
 import { tgSend, fmtAction, actionKeyboard } from './_lib.js';
+import { fiduciaTick } from '../employees/_fiducia.js';
+import { postinoTick } from './_postino.js';
 import { fmtViewingCard, viewingKeyboard } from './_viewings.js';
 import { loadViewing } from '../viewings/_apply.js';
 import { replyLang } from '../_lang.js';
@@ -44,6 +46,24 @@ export default async function handler(req, res) {
   }
   const ts = v => v && v.toMillis ? v.toMillis() : (v && v._seconds ? v._seconds * 1000 : (v ? new Date(v).getTime() || 0 : 0));
   pending = (pending || []).sort((a, b) => ts(b.createdAt) - ts(a.createdAt));
+
+  // ── La scala della fiducia — PRIMA delle card normali. ─────────────────
+  // Le categorie promosse dall'operatore (/fiducia) si armano qui con il
+  // ritardo di grazia e la loro card (col tasto ✋ Ferma) sostituisce quella
+  // normale: il tick marca telegramNotifiedAt anche sulla copia in memoria,
+  // così il giro sotto non manda la stessa azione due volte. Best-effort:
+  // un errore della scala non ferma mai card, lead e visite.
+  let fiducia = null;
+  try { fiducia = await fiduciaTick({ pending, chatId }); }
+  catch (e) { console.warn('[notify-pending] fiducia tick failed:', e.message); }
+
+  // ── Il Postino: la consegna WhatsApp non è un atto di fede ─────────────
+  // Ripara le azioni della macchina uccise a metà volo e trasforma la posta
+  // che il Mac non ritira in una card con il testo pronto (un tap = consegna
+  // manuale). Best-effort come la scala della fiducia.
+  let postino = null;
+  try { postino = await postinoTick({ chatId }); }
+  catch (e) { console.warn('[notify-pending] postino tick failed:', e.message); }
 
   const toNotify = (pending || [])
     .filter(a => !a.telegramNotifiedAt && !a.telegramMessageId)
@@ -232,6 +252,11 @@ export default async function handler(req, res) {
         url: wa,
       });
       buttons[0].push({ text: '📇 Portale', url: 'https://www.boomrome.com/portal' });
+      // La consegna alla Segretaria (STUDIO_SEGRETARIA): su qualsiasi lead
+      // raggiungibile — il click è la firma per QUELLA conversazione. Se il
+      // cliente non ha ancora scritto, la Segretaria APRE lei (mossa
+      // d'apertura) sul canale giusto: WhatsApp col numero, email senza.
+      if (l.phone || l.email) buttons.push([{ text: '🤖 Passa alla Segretaria', callback_data: `sg:${l.id}` }]);
       const mid = await tgSend(chatId, bits.join('\n'), { reply_markup: { inline_keyboard: buttons } });
       await fsPatch(`leads/${l.id}`, { telegramNotifiedAt: new Date(), telegramMessageId: mid || null });
       ldResults.push({ id: l.id, ok: true });
@@ -302,6 +327,8 @@ export default async function handler(req, res) {
 
   return res.status(200).json({
     ok: true,
+    fiducia,
+    postino,
     scanned: pending.length,
     notified: results.filter(r => r.ok).length,
     failed:   results.filter(r => !r.ok).length,

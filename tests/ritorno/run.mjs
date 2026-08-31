@@ -82,5 +82,15 @@ for (const f of ['manuale.html', 'media-studio.html', 'pre-agreement-admin.html'
   ok(!src(f).includes('freshOnReturn'), `${f}: MAI un reload automatico (c'è un form da non buttare)`);
 }
 
+// ── 4. Il canale dei bug è in OGNI console, non solo in plancia ─────────
+// Se 🐞 c'è solo dove il difetto NON si è manifestato, l'operatore torna a
+// scrivere «non va» e si ricomincia a indovinare.
+const bp2 = src('js/boom-portal.js');
+ok(/BP\.bugButton = function/.test(bp2), 'il bottone 🐞 flottante vive nella libreria condivisa');
+for (const f of ['banca.html', 'team.html', 'salute.html', 'photo-lab.html', 'manuale.html', 'pre-agreement-admin.html', 'verbale.html']) {
+  ok(src(f).includes('BoomPortal.bugButton('), `${f}: ha il canale 🐞`);
+}
+ok(src('pfs-command.html').includes('BoomPortal.reportBug('), 'la plancia ha il suo 🐞 in topbar');
+
 console.log(`\n${fail ? '✗' : '✓'} ritorno: ${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);

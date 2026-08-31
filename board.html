@@ -108,6 +108,17 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
 .riga { font-size:clamp(17px,3.4vh,34px);
   padding-top:clamp(10px,1.9vh,20px); padding-bottom:clamp(10px,1.9vh,20px);
   border-top:1px solid var(--line-0); }
+/* su telefono le 5 colonne non entrano (la pagina sforava di 42px dietro
+   un overflow:hidden): cade Beds — come sul tabellone della discovery
+   cade il prezzo — e il resto si stringe su misura */
+@media (max-width:560px){
+  .sala { padding:0 14px; }
+  .colonne, .riga { grid-template-columns:64px minmax(0,1fr) 80px 64px;
+    gap:8px; padding:0 4px; }
+  .colonne span:nth-child(3), .riga .c-tipo { display:none; }
+  .riga { font-size:13px; }
+  .colonne { font-size:9px; letter-spacing:.14em; }
+}
 .cella { overflow:hidden; }
 .c-stato { color:var(--green); }
 .riga.nuovo .c-stato { color:var(--gold-light); }

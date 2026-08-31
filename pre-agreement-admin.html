@@ -234,7 +234,7 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
         <div class="g3">
           <label class="fld req"><span>Inizio</span><input id="fStart" type="date"></label>
           <label class="fld"><span>Mesi</span><input id="fMonths" type="number" value="12" min="1" max="48"></label>
-          <label class="fld"><span>Tipo</span><select id="fType"><option>Transitional Lease</option><option>4+4 Residential</option><option>3+2 Concordato</option></select></label>
+          <label class="fld"><span>Tipo</span><select id="fType"><option>Transitional Lease</option><option>Student Housing (Allegato C)</option><option>4+4 Residential</option><option>3+2 Concordato</option></select></label>
         </div>
         <label class="fld"><span>Esigenza transitoria (clausola 5.x)</span><input id="fReason" placeholder="es. corso di studi SIOI · trasferta di lavoro fino al …"></label>
         <label class="fld"><span>Offerta valida fino al (facoltativo)</span><input id="fValid" type="date"></label>
@@ -325,6 +325,7 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 <script src="/js/firebase-config.js"></script>
 <script src="/js/boom-portal.js"></script>
+<script>if(window.BoomPortal&&BoomPortal.bugButton)BoomPortal.bugButton('pre-agreement-admin');</script>
 <script src="/js/canone-engine.js"></script>
 <script>
 (function(){
@@ -698,8 +699,13 @@ window.convertPA=async function(id){
     try{
       var tok=await USER.getIdToken();
       var delegated=document.getElementById('cvDelegate').checked;
+      // IL TIPO VIAGGIA (difetto trovato il 28/08): convert accetta
+      // type:'studenti', ma la console non gliel'ha MAI passato — così ogni
+      // contratto nasceva 'transitorio' e il PDF usciva con l'Allegato B
+      // anche per uno studente. Il tipo si deduce dal Tipo della proposta.
+      var isStud=/student/i.test(String((d.lease||{}).type||''));
       var r=await fetch('/api/preagreement/convert',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
-        body:JSON.stringify({id:id,propertyId:propertyId,delegate:delegated})});
+        body:JSON.stringify({id:id,propertyId:propertyId,delegate:delegated,type:isStud?'studenti':'transitorio'})});
       var j=await r.json();
       if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
       var waT=t.phone?('https://wa.me/'+String(t.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! Il tuo contratto per '+addr+' è pronto per la firma digitale. Firmi qui in 2 minuti: '+j.tenantSignUrl)):null;

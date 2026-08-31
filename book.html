@@ -588,8 +588,14 @@ html {
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script>
-firebase.initializeApp({apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",authDomain:"boom-property-dashboards.firebaseapp.com",projectId:"boom-property-dashboards",messagingSenderId:"937269017440",appId:"1:937269017440:web:41c1a0b1e1633c2f373c05"});
-const db=firebase.firestore();
+/* Lo script di gstatic può mancare (adblock, reti aziendali, il Wi-Fi di
+   un hotel): la prenotazione vive di /api/viewings/slots — solo il
+   catalogo passa da Firestore. La pagina non muore mai per un CDN. */
+var db=null;
+try{
+  firebase.initializeApp({apiKey:"AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso",authDomain:"boom-property-dashboards.firebaseapp.com",projectId:"boom-property-dashboards",messagingSenderId:"937269017440",appId:"1:937269017440:web:41c1a0b1e1633c2f373c05"});
+  db=firebase.firestore();
+}catch(e){}
 
 let ST={step:1,name:'',email:'',phone:'',listing:null,date:'',time:'',notes:'',reqId:null,mode:'person',
         all:[],zone:'',pre:null,approval:false};
@@ -730,7 +736,7 @@ async function loadListings(){
     all.forEach(l=>window._L[l.id]=l);
     ST.all=all;
     paintProps();
-  }catch(e){c.innerHTML='<div class="empty-state"><span>⚠️</span>Couldn\'t load. Please refresh.</div>'}
+  }catch(e){c.innerHTML='<div class="empty-state"><span>⚠️</span>Couldn\'t load the catalog. Refresh — or WhatsApp us and we\'ll send you the list.</div>'}
 }
 
 function propCard(l){

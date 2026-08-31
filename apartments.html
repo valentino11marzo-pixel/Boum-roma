@@ -302,66 +302,18 @@ html.aperto .tenda { opacity:1; visibility:visible; transform:none; }
 .atterro-campo select.scelto { color:var(--text); }
 .atterro-campo select option { background:#101012; color:#eee; }
 
-/* il calendario BOOM: lo strumento, non il picker del browser */
-.cal { position:absolute; left:0; top:calc(100% + 10px); z-index:80;
-  width:314px; max-width:calc(100vw - 36px); padding:16px 16px 13px;
-  background:var(--void);
-  box-shadow:inset 0 0 0 1px var(--line-gold), 0 34px 80px -30px rgba(0,0,0,.95);
-  opacity:0; visibility:hidden; transform:translateY(-6px);
-  transition:opacity .28s var(--ease), transform .28s var(--ease),
-    visibility .28s; }
-.cal.aperto { opacity:1; visibility:visible; transform:none; }
-@media (max-width:640px){
-  .cal { position:fixed; left:14px; right:14px; bottom:14px; top:auto;
-    width:auto; max-width:none; z-index:200;
-    box-shadow:inset 0 0 0 1px var(--line-gold),
-      0 -20px 80px rgba(0,0,0,.85); }
-  .cal .cal-giorni button { height:40px; } }
-.cal-testa { display:flex; align-items:center; justify-content:space-between;
-  gap:10px; margin-bottom:11px; }
-.cal-testa b { font-family:var(--display); font-size:14px; font-weight:400;
-  letter-spacing:.06em; }
-.cal-fx { display:flex; gap:6px; }
-.cal-fx button { width:30px; height:30px; display:grid; place-items:center;
-  font-size:15px; color:var(--text-3);
-  box-shadow:inset 0 0 0 1px var(--line); cursor:pointer;
-  transition:color .2s, box-shadow .2s; }
-.cal-fx button:hover { color:var(--gold);
-  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
-.cal-sett { display:grid; grid-template-columns:repeat(7,1fr); gap:2px;
-  margin-bottom:3px; }
-.cal-sett span { text-align:center; font-size:10px; font-weight:600;
-  letter-spacing:.14em; color:var(--text-4); text-transform:uppercase;
-  padding:4px 0; }
-.cal-giorni { display:grid; grid-template-columns:repeat(7,1fr); gap:2px; }
-.cal-giorni { transition:opacity .18s ease, transform .18s ease; }
-.cal-giorni.gira { opacity:0; transform:translateX(6px); }
-.cal-giorni button { position:relative; height:38px; display:grid;
-  place-items:center; font-size:12.5px; color:var(--text-2);
-  font-variant-numeric:tabular-nums; cursor:pointer;
-  transition:background .15s, color .15s; }
-.cal-giorni button:hover:not(:disabled) { background:rgba(255,215,0,.09);
-  color:var(--text); }
-.cal-giorni button:disabled { color:var(--text-4); opacity:.45;
-  cursor:default; }
-.cal-giorni button.fuori { color:var(--text-4); }
-.cal-giorni button.oggi::after { content:''; position:absolute; bottom:4px;
-  left:50%; transform:translateX(-50%); width:3px; height:3px;
-  border-radius:50%; background:var(--gold); }
-.cal-giorni button.sel { background:var(--gold); color:var(--black);
-  font-weight:600; animation:cal-scatto .32s var(--ease); }
-@keyframes cal-scatto { 40% { transform:scale(1.14); } }
-.cal-giorni button.sel.oggi::after { background:var(--black); }
-.cal-piede { margin-top:10px; padding-top:10px;
-  border-top:1px solid var(--line-0); display:flex; align-items:center;
-  justify-content:space-between; gap:8px; }
-.cal-piede .hint { font-size:10.5px; color:var(--text-3); }
-.cal-piede button { min-height:36px; padding:0 10px;
-  font-size:10px; font-weight:600; letter-spacing:.1em;
-  text-transform:uppercase; color:var(--text-3); padding:6px 10px;
-  box-shadow:inset 0 0 0 1px var(--line); cursor:pointer; transition:.2s; }
-.cal-piede button:hover { color:var(--gold);
-  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+/* la data: campo NATIVO sotto la veste BOOM — su iPhone la ruota di
+   sistema, su desktop il calendario del browser (showPicker). Il widget
+   custom è stato ritirato: un picker mantenuto dall'OS non ha bug nostri. */
+.atterro-data { position:relative; }
+.atterro-data input[type=date] { position:absolute; inset:0; width:100%;
+  height:100%; margin:0; padding:0; border:0; opacity:0; cursor:pointer;
+  font-size:16px; /* sotto i 16px iOS zooma al focus */
+  -webkit-appearance:none; appearance:none; }
+.atterro-data input[type=date]::-webkit-calendar-picker-indicator {
+  position:absolute; inset:0; width:100%; height:100%; opacity:0;
+  cursor:pointer; }
+.atterro-data:focus-within svg { color:var(--gold); }
 @media (max-width:640px){
   .atterro { display:grid; grid-template-columns:1fr 1fr; gap:10px 14px;
     width:100%; border-radius:22px; padding:14px 16px; }
@@ -1740,8 +1692,6 @@ html.vivo .sale.dentro { opacity:1; transform:none;
 .cielo-pieno svg { width:13px; height:13px; }
 
 /* ── bersagli: nessun comando sotto il polpastrello (44×44 su touch) ──── */
-#calPrec, #calSucc { min-width:40px; min-height:40px; display:inline-flex;
-  align-items:center; justify-content:center; }
 /* i link di coda erano alti 18px: il testo resta, l'area cresce */
 .settimana-testa .btn-vai, .vai-testa { padding:11px 2px; margin:-11px 0; }
 .cielo-c { min-height:38px; }
@@ -2339,11 +2289,10 @@ setTimeout(function () {
         <form class="atterro cerca" id="atterro">
           <div class="atterro-campo ac-data">
           <span id="quandoEti">When do you land?</span>
-          <button type="button" class="atterro-data" id="quandoBtn"
-            aria-haspopup="dialog" aria-expanded="false"
-            aria-labelledby="quandoEti">
-            <svg viewBox="0 0 24 24"><path d="M5 6h14a1.5 1.5 0 0 1 1.5 1.5V19a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19V7.5A1.5 1.5 0 0 1 5 6zM8 3.5v5m8-5v5M3.5 11h17"/></svg>
-            <span id="quandoTesto">Any date</span></button>
+          <label class="atterro-data" id="quandoBtn">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14a1.5 1.5 0 0 1 1.5 1.5V19a1.5 1.5 0 0 1-1.5 1.5H5A1.5 1.5 0 0 1 3.5 19V7.5A1.5 1.5 0 0 1 5 6zM8 3.5v5m8-5v5M3.5 11h17"/></svg>
+            <span id="quandoTesto">Any date</span>
+            <input type="date" id="quandoData" aria-labelledby="quandoEti"></label>
           </div>
           <span class="atterro-divisa" aria-hidden="true"></span>
           <label class="atterro-campo">
@@ -2365,19 +2314,6 @@ setTimeout(function () {
               <option value="family">Family</option>
               <option value="flatmates">Flatmates</option>
             </select></label>
-          <div class="cal" id="cal" role="dialog" aria-label="Choose your arrival date">
-            <div class="cal-testa"><b id="calMese">—</b>
-              <div class="cal-fx">
-                <button type="button" id="calPrec" aria-label="Previous month">‹</button>
-                <button type="button" id="calSucc" aria-label="Next month">›</button>
-              </div></div>
-            <div class="cal-sett" aria-hidden="true"><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span></div>
-            <div class="cal-giorni" id="calGiorni"></div>
-            <div class="cal-piede">
-              <span class="hint" id="calHint">Any date — we'll match availability.</span>
-              <button type="button" id="calSubito">ASAP</button>
-            </div>
-          </div>
         </form>
       </div>
 
@@ -3359,8 +3295,7 @@ setTimeout(function () {
       var chi = document.getElementById('chiAtterra');
       bud.value = ''; chi.value = '';
       bud.classList.remove('scelto'); chi.classList.remove('scelto');
-      document.getElementById('quandoTesto').textContent = 'Any date';
-      document.getElementById('quandoBtn').classList.remove('scelta');
+      if (window.__quandoVeste) window.__quandoVeste();
       aggiorna();
     });
     /* quante ne hai messe da parte */
@@ -3440,7 +3375,7 @@ setTimeout(function () {
       });
     });
 
-  /* ── IL CHECK-IN: budget, chi, e il calendario BOOM ─────────────────── */
+  /* ── IL CHECK-IN: budget, chi, e la data col picker di SISTEMA ──────── */
   var bud = document.getElementById('quantoBudget');
   var chi = document.getElementById('chiAtterra');
   bud.addEventListener('change', function () {
@@ -3457,83 +3392,44 @@ setTimeout(function () {
   (function () {
     var forma = document.getElementById('atterro');
     var btn = document.getElementById('quandoBtn');
-    var cal = document.getElementById('cal');
+    var campo = document.getElementById('quandoData');
     var testo = document.getElementById('quandoTesto');
-    var griglia = document.getElementById('calGiorni');
-    var eti = document.getElementById('calMese');
-    if (!forma || !cal) return;
+    if (!forma || !campo) return;
     var oggi = new Date(); oggi.setHours(12, 0, 0, 0);
-    var vista = new Date(oggi.getFullYear(), oggi.getMonth(), 1, 12);
-    var scelta = null;
-    var MESI = ['January', 'February', 'March', 'April', 'May', 'June', 'July',
-      'August', 'September', 'October', 'November', 'December'];
+    /* il picker è quello di SISTEMA — la ruota iPhone, il calendario del
+       browser: il campo nativo veste i panni BOOM e porta gratis il
+       minimo (niente passato) e il Clear (= Any date) */
+    campo.min = iso(oggi);
     function bella(d) {
       return d.toLocaleDateString('en-GB',
         { weekday: 'short', day: 'numeric', month: 'short' });
     }
-    function dipingi() {
-      eti.textContent = MESI[vista.getMonth()] + ' ' + vista.getFullYear();
-      var primo = new Date(vista);
-      var salta = (primo.getDay() + 6) % 7;
-      var h = '';
-      for (var i = 0; i < 42; i++) {
-        var d = new Date(vista.getFullYear(), vista.getMonth(), 1 - salta + i, 12);
-        var fuori = d.getMonth() !== vista.getMonth();
-        var passata = d < oggi;
-        var cls = (fuori ? ' fuori' : '') + (passata ? ' passata' : '')
-          + (iso(d) === iso(oggi) ? ' oggi' : '')
-          + (scelta && iso(d) === iso(scelta) ? ' sel' : '');
-        h += '<button type="button" data-d="' + iso(d) + '"'
-          + (passata ? ' disabled' : '') + ' class="' + cls.trim() + '">'
-          + d.getDate() + '</button>';
+    /* UNA scrittura per la veste: testo, oro e campo seguono stato.dal,
+       chiunque l'abbia mosso (picker, hash, pulisci, vie d'uscita) */
+    function veste() {
+      if (stato.dal) {
+        testo.textContent = bella(new Date(stato.dal + 'T12:00:00'));
+        btn.classList.add('scelta');
+      } else {
+        testo.textContent = 'Any date';
+        btn.classList.remove('scelta');
       }
-      griglia.innerHTML = h;
+      if (campo.value !== (stato.dal || '')) campo.value = stato.dal || '';
     }
-    function apri(si) {
-      cal.classList.toggle('aperto', si);
-      btn.setAttribute('aria-expanded', si ? 'true' : 'false');
-      if (si) { dipingi();
-        setTimeout(function () {
-          if (innerWidth > 640)
-            cal.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-        }, 60); }
-    }
-    btn.addEventListener('click', function (e) {
-      e.stopPropagation();
-      apri(!cal.classList.contains('aperto'));
+    window.__quandoVeste = veste;
+    /* su touch il tap apre da solo la ruota; col mouse il click su un
+       campo invisibile darebbe solo il focus: si chiede il picker */
+    if (matchMedia('(pointer:fine)').matches)
+      campo.addEventListener('click', function () {
+        try { if (campo.showPicker) campo.showPicker(); } catch (e) {}
+      });
+    campo.addEventListener('change', function () {
+      stato.dal = campo.value || null;
+      veste(); aggiorna();
     });
-    griglia.addEventListener('click', function (e) {
-      var b = e.target.closest('button[data-d]');
-      if (!b || b.disabled) return;
-      scelta = new Date(b.dataset.d + 'T12:00:00');
-      testo.textContent = bella(scelta);
-      btn.classList.add('scelta');
-      stato.dal = iso(scelta);
-      var fra = Math.round((scelta - oggi) / 864e5);
-      document.getElementById('calHint').textContent = fra <= 2
-        ? 'Tight — and enough. 48h is our craft.'
-        : 'Landing in ' + fra + ' days.';
-      dipingi(); aggiorna(); apri(false);
-    });
-    document.getElementById('calPrec').addEventListener('click', function () {
-      vista.setMonth(vista.getMonth() - 1); dipingi(); });
-    document.getElementById('calSucc').addEventListener('click', function () {
-      vista.setMonth(vista.getMonth() + 1); dipingi(); });
-    document.getElementById('calSubito').addEventListener('click', function () {
-      scelta = new Date(oggi);
-      testo.textContent = 'ASAP — ' + bella(scelta);
-      btn.classList.add('scelta');
-      stato.dal = iso(scelta);
-      dipingi(); aggiorna(); apri(false);
-    });
-    document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape') apri(false); });
-    document.addEventListener('click', function (e) {
-      if (!forma.contains(e.target)) apri(false); });
     forma.addEventListener('submit', function (e) {
       e.preventDefault();
       /* un filtro mostra i risultati: non decide lui quale casa aprire */
-      apri(false);
       var muro = document.getElementById('muro');
       if (muro) muro.scrollIntoView({ block: 'start', behavior: 'smooth' });
     });
@@ -3544,10 +3440,7 @@ setTimeout(function () {
     if (h) h.split('&').forEach(function (p) {
       var k = p.split('=')[0], v = decodeURIComponent(p.split('=')[1] || '');
       if (k === 'dal' && /^\d{4}-\d{2}-\d{2}$/.test(v)) {
-        scelta = new Date(v + 'T12:00:00');
-        stato.dal = v; testo.textContent = bella(scelta);
-        btn.classList.add('scelta');
-        vista = new Date(scelta.getFullYear(), scelta.getMonth(), 1, 12);
+        stato.dal = v; veste();
       }
       if (k === 'budget') { bud.value = v; stato.budget = +v || 0;
         bud.classList.toggle('scelto', !!v); }
@@ -3578,8 +3471,7 @@ setTimeout(function () {
         bud.classList.remove('scelto'); }
       if (k === 'chi') { stato.chi = ''; chi.value = '';
         chi.classList.remove('scelto'); }
-      if (k === 'dal') { stato.dal = null; scelta = null;
-        testo.textContent = 'Any date'; btn.classList.remove('scelta'); }
+      if (k === 'dal') { stato.dal = null; veste(); }
       if (k === 'zona') { stato.zona = '';
         document.querySelectorAll('.zona-riga.on').forEach(function (z) {
           z.classList.remove('on'); z.setAttribute('aria-pressed', 'false');
@@ -3671,11 +3563,11 @@ setTimeout(function () {
       else muro.appendChild(sky);
       sky.style.display = vis.length ? '' : 'none';
     }
-    /* il badge conta TUTTO cio' che filtra — anche zona, data, budget e
-       chi: una stecca che dichiara «nessun filtro» su una lista filtrata
-       insegna a non fidarsi della stecca */
-    var acc = tutti('#foglioVelo .gruppo button.on').filter(function (b) {
-      return b.dataset.v !== ''; }).length
+    /* il badge conta TUTTO cio' che filtra — anche zona, data, budget,
+       chi e i letti scelti sulla stecca: una stecca che dichiara «nessun
+       filtro» su una lista filtrata insegna a non fidarsi della stecca */
+    var acc = tutti('#foglioVelo .gruppo button.on, .stecca .gruppo button.on')
+      .filter(function (b) { return b.dataset.v !== ''; }).length
       + (window.__filtriVivi ? window.__filtriVivi() : 0);
     var fc = per('#filtriConta');
     if (fc) { fc.hidden = !acc; fc.textContent = acc; }
@@ -3689,6 +3581,14 @@ setTimeout(function () {
   if (conto) new MutationObserver(sincronia)
     .observe(conto, { childList: true });
   sincronia();
+  /* un filtro che NON muove il conto (stessa lista risultante) non muove
+     nemmeno l'observer qui sopra: il click sui gruppi richiama la
+     sincronia comunque, così il badge non resta mai indietro */
+  [per('.stecca'), per('#foglioVelo')].forEach(function (box) {
+    if (box) box.addEventListener('click', function (e) {
+      if (e.target.closest('.gruppo button')) setTimeout(sincronia, 0);
+    });
+  });
 
   /* ── il foglio dei filtri ── */
   var foglio = per('#foglioVelo');
@@ -4583,10 +4483,16 @@ setTimeout(function () {
 
   /* ── i canoni delle case sui Solari, al primo sguardo ────────────────── */
   (function () {
-    var voci = [].slice.call(document.querySelectorAll('.flap-prezzo'));
-    if (!voci.length || !BS) return;
-    voci.forEach(function (host) {
+    /* Il montatore è ESPORTATO perché il tabellone è parte del design del
+       prezzo, non un ornamento della sola build: l'idrante (prezzo cambiato
+       dopo il deploy) e l'innesto (carta nata dopo la build) devono montare
+       LO STESSO Solari — prima le loro carte restavano col testo piatto, e
+       un prezzo aggiornato dall'idrante DISTRUGGEVA il tabellone di build
+       riscrivendolo come stringa. Senza BoomSolari si degrada a testo:
+       il prezzo si legge sempre, il design quando può. */
+    window.__solariPrezzo = function (host) {
       var testo = host.dataset.p || '';
+      if (!BS) { host.textContent = testo; return; }
       var b = new BS.Board(host, testo.length, ' €,.0123456789');
       if (ridotto || !('IntersectionObserver' in window)) { b.show(testo); return; }
       new IntersectionObserver(function (r, io) {
@@ -4594,7 +4500,9 @@ setTimeout(function () {
         io.disconnect();
         b.show(testo, 40, true);
       }, { threshold: .4 }).observe(host);
-    });
+    };
+    [].forEach.call(document.querySelectorAll('.flap-prezzo'),
+      window.__solariPrezzo);
   })();
 
 })();
@@ -4618,7 +4526,17 @@ setTimeout(function () {
    al muro e si registra nel setaccio via window.__muroInnesta. */
 (function () {
   'use strict';
-  var carte = document.querySelectorAll('.casa-p[data-id]');
+  /* le card della HOME non portano data-id: l'id vive nell'href
+     /listing/<id>. Senza questa normalizzazione l'idrante della home
+     usciva a mani vuote da sempre (0 card trovate) e prezzo/contatori
+     restavano quelli della build. */
+  var carte = [].filter.call(document.querySelectorAll('.casa-p'), function (c) {
+    if (!c.dataset.id) {
+      var m = (c.getAttribute('href') || '').match(/\/listing\/([^/?#]+)/);
+      if (m) c.dataset.id = decodeURIComponent(m[1]);
+    }
+    return !!c.dataset.id;
+  });
   var muro = document.getElementById('muro');
   if (!carte.length) return;
   function euro(n) { return '€' + Math.round(n).toLocaleString('en-US'); }
@@ -4657,6 +4575,43 @@ setTimeout(function () {
     if (st === 'waitlist') return { t: 'Waitlist open', c: 'fila' };
     if (st === 'reserved') return { t: 'Reserved', c: '' };
     return { t: 'Rented', c: '' };
+  }
+  /* i contatori della build — «9 available now», «updated 31 Jul» —
+     restavano CONGELATI mentre l'idrante cambiava le card sotto: un
+     tabellone che dice LIVE con la data di un mese fa insegna a non
+     credergli. Si riconta dal catalogo appena letto, con lo STESSO
+     verdetto dei badge; il gate è sul contenuto (si riscrive solo ciò
+     che porta già quella grammatica), così l'eyebrow della home — che
+     condivide questo file e parla d'altro — non si tocca. */
+  function contatori(per) {
+    var vivi = 0;
+    Object.keys(per).forEach(function (k) {
+      var d = per[k];
+      if (d.st && stato(d.st, d.dal, d).c === 'si') vivi++;
+    });
+    if (!vivi) return; /* zero = niente riscritture: fail-open sulla build */
+    var parole = vivi + ' home' + (vivi === 1 ? '' : 's') + ' available now';
+    [].forEach.call(document.querySelectorAll(
+      '.hero-eyebrow, .board-piede span, .zone-piede span'), function (el) {
+      if (el.textContent.indexOf('available now') < 0) return;
+      [].forEach.call(el.childNodes, function (n) {
+        if (n.nodeType === 3 && /\d+\s+homes? available now/.test(n.nodeValue)) {
+          n.nodeValue = n.nodeValue.replace(/\d+\s+homes? available now/, parole);
+        } else if (n.nodeType === 1 && n.tagName === 'B') {
+          var t = n.textContent.trim();
+          if (/^\d+$/.test(t)) {
+            n.textContent = String(vivi);
+            var s = n.nextSibling;
+            if (s && s.nodeType === 3) s.nodeValue = s.nodeValue
+              .replace(/\bhomes?\b/, vivi === 1 ? 'home' : 'homes');
+          } else if (/^\d{1,2} [A-Z][a-z]{2}$/.test(t)) {
+            var o = new Date();
+            n.textContent = o.getDate() + ' '
+              + o.toLocaleDateString('en-GB', { month: 'short' });
+          }
+        }
+      });
+    });
   }
   setTimeout(function () {
     fetch('https://firestore.googleapis.com/v1/projects/'
@@ -4722,10 +4677,14 @@ setTimeout(function () {
             var fp = card.querySelector('.flap-prezzo');
             if (fp && fp.dataset.p !== euro(d.p)) {
               fp.dataset.p = euro(d.p);
-              fp.textContent = euro(d.p);
+              /* rimontare il Solari, MAI riscriverlo come testo: la
+                 stringa piatta cancellava il tabellone della build */
+              if (window.__solariPrezzo) window.__solariPrezzo(fp);
+              else fp.textContent = euro(d.p);
             }
           }
         });
+        contatori(per);
         innesta(per, interi);
       })
       .catch(function () { /* niente rete: restano i numeri della build */ });
@@ -4850,9 +4809,11 @@ setTimeout(function () {
         + '" aria-label="Compare this home">⇄</button>'
         + '</div><div class="corpo">'
         + '<div class="riga1"><span class="nome">' + esc(nome) + '</span>'
+        /* vuoto come nel builder: il testo lo monta il Solari qui sotto —
+           il testo piatto era la carta "senza design" del prezzo */
         + '<span class="canone"><span class="flap-prezzo flap-scale" '
         + 'data-p="' + esc(euro(d.p)) + '" aria-label="' + esc(euro(d.p))
-        + ' per month">' + esc(euro(d.p)) + '</span><small>/mo</small>'
+        + ' per month"></span><small>/mo</small>'
         + '</span></div>'
         + '<div class="riga2">' + pezzi.join(' <i>·</i> ') + '</div>'
         + '</div>';
@@ -4881,6 +4842,11 @@ setTimeout(function () {
         if (e.key === 'Enter' || e.key === ' ') vaiZona(e);
       });
       muro.appendChild(a);
+      /* il Solari del prezzo, come sulle carte di build (dopo l'append:
+         l'IntersectionObserver vuole un nodo nel documento) */
+      var fpN = a.querySelector('.flap-prezzo');
+      if (window.__solariPrezzo) window.__solariPrezzo(fpN);
+      else fpN.textContent = fpN.dataset.p;
       nuove.push(a);
     });
     if (!nuove.length) return;
