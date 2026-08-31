@@ -30,6 +30,8 @@
 
 import { secretEqual, readJson, getAdminToken, fsList, fsPatch } from '../homie/_lib.js';
 import { requireCronOrAdmin } from '../pfs/_guard.js';
+import { modelJson } from '../_modeljson.js';
+import { aiSignal } from '../_budget.js';
 
 const MODEL = 'claude-haiku-4-5-20251001';
 
@@ -115,6 +117,7 @@ const SYSTEM = `You write listing descriptions for BOOM, a premium rental agency
 async function generateCopy(L, key) {
   const messages = [{ role: 'user', content: `Write the description for this apartment:\n\n${buildFacts(L)}` }];
   const upstream = await fetch('https://api.anthropic.com/v1/messages', {
+    signal: aiSignal(20000),   // un modello appeso non deve uccidere la funzione
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: MODEL, max_tokens: 700, system: SYSTEM, messages }),
@@ -128,8 +131,7 @@ async function generateCopy(L, key) {
   const text = (data.content || []).map(b => b.text || '').join('').trim();
   let parsed;
   try {
-    const a = text.indexOf('{'), b = text.lastIndexOf('}');
-    parsed = JSON.parse(a >= 0 && b > a ? text.slice(a, b + 1) : text);
+    parsed = modelJson(text) || JSON.parse(text);
   } catch { parsed = { en: text, it: '' }; }
   return { en: (parsed.en || '').trim(), it: (parsed.it || '').trim() };
 }

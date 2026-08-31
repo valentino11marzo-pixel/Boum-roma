@@ -9,6 +9,8 @@
 //   - POST only; CORS: boomrome.com + anteprime *.vercel.app
 //   - Logging strutturato di ogni reject e successo (come parse-docs.js)
 
+import { aiSignal } from '../_budget.js';
+
 const ALLOWED_MODEL = 'claude-haiku-4-5-20251001';
 const MAX_TOKENS = 500;
 const RATE_LIMIT_MAX = 8;
@@ -114,6 +116,7 @@ export default async function handler(req, res) {
 
   try {
     const upstream = await fetch('https://api.anthropic.com/v1/messages', {
+      signal: aiSignal(20000),   // un modello appeso non deve uccidere la funzione
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

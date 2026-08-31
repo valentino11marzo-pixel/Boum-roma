@@ -21,6 +21,8 @@
 import { getAdminToken, fsGet, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { setCors, rateOk } from '../magic-sign/_shared.js';
 import { parseSchedaRef } from './_scheda.js';
+import { modelJson } from '../_modeljson.js';
+import { aiSignal } from '../_budget.js';
 
 const BUCKET = process.env.FIREBASE_BUCKET || 'boom-property-dashboards.firebasestorage.app';
 const MAX_BYTES = 10 * 1024 * 1024;
@@ -52,6 +54,7 @@ async function extractIdentity(base64, mediaType) {
   ].join('\n');
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      signal: aiSignal(30000),   // un modello appeso non deve uccidere la funzione
       method: 'POST',
       headers: {
         'x-api-key': process.env.ANTHROPIC_API_KEY,
@@ -66,7 +69,8 @@ async function extractIdentity(base64, mediaType) {
     if (!resp.ok) { console.warn('[profile/upload] anthropic', resp.status); return null; }
     const data = await resp.json();
     const raw = (data.content && data.content[0] && data.content[0].text) || '';
-    const j = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
+    const j = modelJson(raw);
+    if (!j) throw new Error('unreadable');
     return {
       name: clip(j.name), cf: clip(j.cf, 20).toUpperCase(), dob: clip(j.dob, 20),
       pob: clip(j.pob), docType: ['passport', 'id', 'permit', 'patente'].includes(j.docType) ? j.docType : '',

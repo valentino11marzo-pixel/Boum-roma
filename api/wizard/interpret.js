@@ -18,6 +18,8 @@
 // twin fields size/bedrooms) so the bot writes them verbatim.
 
 import { secretEqual, readJson, fsList } from '../homie/_lib.js';
+import { parseModelJson, jsonFailureLine } from '../_modeljson.js';
+import { aiSignal } from '../_budget.js';
 
 const MODEL = 'claude-sonnet-5';
 
@@ -99,6 +101,7 @@ Regole sui valori:
   let plan;
   try {
     const upstream = await fetch('https://api.anthropic.com/v1/messages', {
+      signal: aiSignal(25000),   // un modello appeso non deve uccidere la funzione
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({
@@ -117,8 +120,12 @@ Regole sui valori:
     }
     const data = await upstream.json();
     const out = (data.content || []).map(b => b.text || '').join('').trim();
-    const a = out.indexOf('{'), b = out.lastIndexOf('}');
-    plan = JSON.parse(a >= 0 && b > a ? out.slice(a, b + 1) : out);
+    const read = parseModelJson(out);
+    if (!read.ok) {
+      console.error('[wizard/interpret] ' + jsonFailureLine(out, read.why));
+      return res.status(502).json({ ok: false, error: 'ai_failed', why: read.why });
+    }
+    plan = read.value;
   } catch (e) {
     console.error('[wizard/interpret]', e);
     return res.status(502).json({ ok: false, error: 'ai_failed' });

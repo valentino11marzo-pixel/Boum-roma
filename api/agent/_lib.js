@@ -35,17 +35,44 @@ import nodemailer from 'nodemailer';
 // (same shape the Firebase Web SDK produces, so the portal can open it).
 // Bucket: FIREBASE_STORAGE_BUCKET env, else derived from the project id.
 // Returns null if no bucket is configured (caller can fall back to a data URI).
+// Un 503 di Google Cloud Storage è un intoppo momentaneo, non un guasto: la
+// guida ufficiale dice di riprovare con attesa crescente. Qui non si
+// riprovava affatto — e da questa funzione passano il contratto firmato, il
+// verbale delle chiavi, il fascicolo fiscale, il rendiconto al proprietario e
+// l'archivio della conservazione: nei log del 31/08 un 503 ha fatto morire
+// una Valutazione BOOM che era già stata calcolata. Il documento c'era: si è
+// perso il posto dove metterlo.
+//
+// Si riprova SOLO su ciò che può passare da solo (429 e 5xx, o una rete
+// caduta). Un 401/403/404 non si aggiusta aspettando: ripetere quello
+// ruberebbe secondi alla funzione e ritarderebbe l'errore vero.
+const RITENTABILI = new Set([429, 500, 502, 503, 504]);
+
 export async function storageUpload(path, buffer, contentType = 'application/pdf') {
   const bucket = process.env.FIREBASE_STORAGE_BUCKET
     || `${process.env.FIREBASE_PROJECT_ID || 'boom-property-dashboards'}.firebasestorage.app`;
   if (!bucket) return null;
   const token = await _getAdminToken();
   const url = `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o?uploadType=media&name=${encodeURIComponent(path)}`;
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': contentType },
-    body: buffer,
-  });
+  const sig = (ms) => (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function')
+    ? AbortSignal.timeout(ms) : undefined;
+
+  let res = null, lastErr = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt) await new Promise((r) => setTimeout(r, 400 * attempt * attempt));   // 0 · 400ms · 1,6s
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': contentType },
+        body: buffer,
+        signal: sig(20000),   // un upload appeso non deve mangiarsi la funzione
+      });
+    } catch (e) { lastErr = e; res = null; continue; }        // rete caduta: si riprova
+    if (res.ok || !RITENTABILI.has(res.status)) break;
+    lastErr = new Error('status ' + res.status);
+    console.warn(`[storage] ${res.status} su ${path} — ritento (${attempt + 1}/3)`);
+  }
+  if (!res) throw new Error(`Storage upload failed (rete): ${lastErr && lastErr.message}`);
   if (!res.ok) throw new Error(`Storage upload failed (${res.status}): ${await res.text()}`);
   const meta = await res.json();
   const dl = meta.downloadTokens;

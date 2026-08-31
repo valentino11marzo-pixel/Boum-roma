@@ -17,6 +17,7 @@ import { fsList, fsGet, logActivity } from '../homie/_lib.js';
 import { requireCronOrAdmin } from './_guard.js';
 import { listActiveClients } from './_ingest.js';
 import { tgNotify } from './_health.js';
+import { aiSignal } from '../_budget.js';
 
 const MODEL = 'claude-opus-4-8';
 const MAX_TOKENS = 1200;
@@ -115,6 +116,7 @@ export default async function handler(req, res) {
   let brief;
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      signal: aiSignal(40000),   // un modello appeso non deve uccidere la funzione
       method: 'POST',
       headers: {
         'x-api-key': apiKey,

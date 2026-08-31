@@ -23,6 +23,7 @@ import { fsGet, fsPatch, fsCreate, fsList } from '../homie/_lib.js';
 import { requireCronOrAdmin } from '../pfs/_guard.js';
 import { reportEmployeeHealth } from '../employees/_lib.js';
 import { segretariaTurn } from './_core.js';
+import { runBudget } from '../_budget.js';
 
 const MEMORY_DOC = 'heartbeat/segretaria-mail-memory';
 const WINDOW_DAYS = 3;
@@ -63,7 +64,10 @@ async function run({ dry }) {
   const memory = (await fsGet(MEMORY_DOC).catch(() => null)) || {};
   const seenIds = new Set(Array.isArray(memory.ids) ? memory.ids : []);
   const since = new Date(Date.now() - WINDOW_DAYS * 86400000);
-  const softDeadline = Date.now() + 45_000;
+  // Vedi api/_budget.js: il residuo deve coprire il COSTO del passo, non
+  // solo essere positivo (un turno = fetch IMAP 25s + una chiamata al modello).
+  const B = runBudget(60_000, 7_000);
+  const COST_SEARCH = 25_000, COST_TURN = 45_000;
   const stats = { watched: byEmail.size, seen: 0, turns: 0, escalated: 0 };
   const newIds = [];
 
@@ -81,7 +85,7 @@ async function run({ dry }) {
     try {
       const uidSet = new Set();
       for (const from of byEmail.keys()) {
-        if (Date.now() > softDeadline) break;
+        if (!B.afford(COST_SEARCH)) break;
         try {
           const uids = await client.search({ since, from }, { uid: true });
           for (const u of uids || []) uidSet.add(u);
@@ -90,7 +94,7 @@ async function run({ dry }) {
       const uids = [...uidSet].sort((a, b) => a - b).slice(-MAX_PER_RUN * 3);
 
       for (const uid of uids) {
-        if (Date.now() > softDeadline || stats.turns >= MAX_PER_RUN) break;
+        if (!B.afford(COST_TURN) || stats.turns >= MAX_PER_RUN) break;
         let parsed;
         try {
           const msg = await client.fetchOne(String(uid), { source: true }, { uid: true });

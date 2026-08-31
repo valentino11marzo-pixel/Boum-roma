@@ -9,6 +9,8 @@
 // Fails SOFT — on any error it returns a friendly WhatsApp fallback, never a 5xx
 // that would break the chat UX.
 
+import { aiSignal } from './_budget.js';
+
 export const config = { api: { bodyParser: { sizeLimit: '64kb' } } };
 
 const PROJECT = process.env.FIREBASE_PROJECT_ID || 'boom-property-dashboards';
@@ -166,6 +168,7 @@ export default async function handler(req, res) {
 
   try {
     const upstream = await fetch('https://api.anthropic.com/v1/messages', {
+      signal: aiSignal(20000),   // un modello appeso non deve uccidere la funzione
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

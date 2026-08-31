@@ -23,6 +23,7 @@ import { callClaude, extractJson } from '../agent/_claude.js';
 import { replyLang } from '../_lang.js';
 import { isReunion, isB2B } from '../_market.js';
 import { fsGet, fsList as fsListRaw } from '../homie/_lib.js';
+import { runBudget } from '../_budget.js';
 import {
   requireCronOrAdmin, fsList, logActivity, proposeAction,
   reportEmployeeHealth, saveReport,
@@ -102,10 +103,13 @@ function pickChannel(lead) {
   // chiamate Claude in serie sfondavano il limite e la piattaforma uccideva
   // il run a metà — i timeout visti nei log. contextHash rende idempotente
   // riprendere al giro dopo.
-  const softDeadline = now + 48_000;
+  // Vedi api/_budget.js: una bozza costa una chiamata al modello (tetto 30s
+  // in _claude.js). Avviarne una a 47s uccideva la funzione a 60.
+  const B = runBudget(60_000, 7_000);
+  const COST_DRAFT = 30_000;
 
   for (const lead of leads) {
-    if (Date.now() > softDeadline) { timeBoxed = true; break; }
+    if (!B.afford(COST_DRAFT)) { timeBoxed = true; break; }
     if (!isNew(lead) || !reachable(lead)) continue;
     // La Réunion: il Commerciale TACE. Tutto ciò che lo rende bravo — il
     // SYSTEM prompt che descrive il mercato romano, il catalogo `listings`
