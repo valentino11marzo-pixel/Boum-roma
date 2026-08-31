@@ -135,4 +135,19 @@ jobs:
             exit 0
           fi
           npm install --no-save firebase-tools >/dev/null
-          npx firebase-tools deploy --only firestore:rules,storage --project boom-property-dashboards --token "$FIREBASE_TOKEN" --non-interactive
+          # Il token di `login:ci` SCADE (Google revoca i refresh token: il
+          # 31/08/2026 quello del 20/08 era gia' morto, e il job ha fallito a
+          # ogni push per giorni mentre i merge continuavano — le regole del
+          # repo NON erano in produzione, e `publicGeo` rispondeva 403 alla
+          # vetrina). Quando succede, il messaggio deve dire cosa fare, non
+          # solo che e' andato storto.
+          if ! npx firebase-tools deploy --only firestore:rules,storage \
+                 --project boom-property-dashboards --token "$FIREBASE_TOKEN" \
+                 --non-interactive 2>&1 | tee /tmp/fb.log; then
+            if grep -qi "credentials are no longer valid\|Authentication Error" /tmp/fb.log; then
+              echo "::error::FIREBASE_TOKEN SCADUTO — le regole NON sono in produzione. Rigenera con 'npx firebase-tools login:ci' e aggiorna il secret FIREBASE_TOKEN. Finche' non lo fai, ogni modifica a firestore.rules/storage.rules resta solo nel repo. (Fix duraturo: service account + GOOGLE_APPLICATION_CREDENTIALS, --token e' deprecato.)"
+            else
+              echo "::error::Deploy delle regole fallito — vedi il log sopra. Le regole del repo NON sono in produzione."
+            fi
+            exit 1
+          fi

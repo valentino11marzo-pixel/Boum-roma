@@ -47,7 +47,17 @@ const rilievo = () => ({
   for (const p of PAG) {
     // il guscio dell'artifact: doctype/head/body + reset minimo
     const corpo = path.join(tmp, p + '.body.html');
-    execFileSync('python3', [R + 'design/pages-deco/anteprima.py', p + '.html', corpo]);
+    // il costruttore parla: senza stdio ereditato un traceback di Python
+    // usciva come Uint8Array di byte — illeggibile, e infatti la causa vera
+    // (un percorso cablato dentro anteprima.py) e' rimasta nascosta per due
+    // giri di correzioni. Un guasto che non si sa leggere non si corregge.
+    try {
+      execFileSync('python3', [R + 'design/pages-deco/anteprima.py', p + '.html', corpo],
+        { stdio: ['ignore', 'pipe', 'inherit'] });
+    } catch (e) {
+      console.error(`\n✗ anteprima.py non ha costruito ${p}: exit ${e.status}`);
+      process.exit(1);
+    }
     fs.writeFileSync(path.join(tmp, p + '.html'),
       `<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
