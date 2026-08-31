@@ -505,6 +505,27 @@
       console: '/photo-lab', run: null
     },
     {
+      key: 'pendolare', emoji: '🚇', name: 'Il Pendolare', reparto: 'Vetrina',
+      role: 'I tempi porta-a-porta veri, dal GTFS di Roma Mobilità',
+      hired: 'La vetrina prometteva minuti calcolati sulla linea d\'aria: sbagliati a caso. Qualcuno deve misurarli sulla rete vera.',
+      mandate: [
+        'Scarica il GTFS statico di Roma Mobilità (il sandbox di sviluppo non lo raggiunge: il server pensa)',
+        'Costruisce il grafo del trasporto a frequenze: attesa = metà headway misurato, corse medie fra fermate, cambi a piedi',
+        'Dijkstra all\'indietro dalle 9 mete (Termini, Sapienza, LUISS…) e griglia ~300 m sulla città',
+        'Scrive publicGeo/tempi-roma (lettura pubblica): scheda e skyline lo leggono come leggono il catalogo'
+      ],
+      autonomy: {
+        solo:  ['Rigenera la griglia quando ha più di 6 giorni', 'Aggiorna i minuti mostrati su /listing e /skyline'],
+        porta: ['Niente: lavora in silenzio'],
+        mai:   ['Non inventa un tempo dove la griglia non copre: la pagina degrada alla stima di prima, dichiarata col ≈', 'Non tocca mai un dato personale: solo orari pubblici e coordinate']
+      },
+      reach: ['vetrina'],
+      approval: 'mai',
+      crons: ['/api/ops/gtfs-tempi'],
+      health: null,
+      console: null, run: '/api/ops/gtfs-tempi'
+    },
+    {
       key: 'copywriter', emoji: '✍️', name: 'Il Copywriter', reparto: 'Vetrina',
       role: 'Riempie le schede mute',
       hired: 'Una scheda senza testo è invisibile ai motori e incitabile dalle AI. Il 28/07 ne avevamo 10 vuote e 10 col template del bot.',
