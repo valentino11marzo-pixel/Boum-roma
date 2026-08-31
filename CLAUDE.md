@@ -3118,10 +3118,17 @@ Con ≤2 risultati il bounds si allarga fino all'ancora più vicina (Termini,
 LUISS, …) e i fili d'oro si accendono da soli dopo 700ms — su una casa sola non
 c'è nulla su cui passare col mouse, e su telefono l'hover non esiste.
 
-**Ancora falso**: i tempi mostrati come "door-to-door" sono `km_in_linea_d_aria
-× 4.2 + 10`, senza rete né orari (`apartment-detail.html`, `apartments.html`
-`_dl()`). Sbagliati a caso — Roma è anisotropa, lungo la metro A voli e in
-trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
+**I tempi sono VERI** (da 2026-08): il Pendolare (`api/ops/gtfs-tempi.js`,
+cron) scarica il GTFS statico di Roma Mobilità in produzione (il sandbox non
+lo raggiunge — il server pensa), costruisce il grafo a frequenze (attesa =
+metà headway 07–21, corse medie fra fermate consecutive, cambi a piedi),
+Dijkstra all'indietro dalle 9 mete e stampa una griglia ~300 m nel doc
+`publicGeo/tempi-roma` (lettura pubblica nelle rules). `js/tempi-engine.js`
+(`BOOM_TEMPI`, UMD — importato anche dal builder come boom-geo) è l'unica
+lettura: scheda (`#vicini`) e `/skyline` mostrano i minuti della griglia e,
+dove non copre, DEGRADANO alla vecchia stima dichiarata (`≈ km×4.2+10` /
+km secchi) — mai un numero inventato. Heartbeat `teamHealth/pendolare`.
+Test: `node tests/tempi/run.mjs` (fixture GTFS in zip vero via api/_zip.js).
 
 ## Le foto sono nostre + il percorso critico (api/media/rehost.js · tests/media/hosts.mjs)
 

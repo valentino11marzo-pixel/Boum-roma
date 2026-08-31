@@ -2981,6 +2981,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
 </footer>
 <script src="/js/boom-geo.js"></script>
 <script src="/js/dispo-engine.js"></script>
+<script src="/js/tempi-engine.js"></script>
 <script>
 /* LA REGIA DELLA CASA — una casa alla volta, dal catalogo vero.
    Parte al load: il motore Solari è concatenato DOPO questo script. */
@@ -3690,26 +3691,49 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       /* onesto: linea d'aria ×1.3 per le strade vere, non un percorso */
       return 2 * R * Math.asin(Math.min(1, Math.sqrt(q))) * 1.3;
     }
-    function tempo(d) {
-      return d < 2.6 ? Math.round(d / 4.7 * 60) + ' min walk'
-                     : '≈' + Math.round(d * 4.2 + 10) + ' min';
+    /* il tempo VERO viene dalla griglia GTFS del Pendolare (BOOM_TEMPI,
+       doc publicGeo/tempi-roma): rete e orari di Roma Mobilità, non la
+       linea d'aria. Dove la griglia non copre resta la stima di prima,
+       DICHIARATA dal ≈ — mai un numero inventato. */
+    function tempo(d, veri) {
+      if (d < 2.6) return Math.round(d / 4.7 * 60) + ' min walk';
+      if (veri != null) return veri + ' min';
+      return '≈' + Math.round(d * 4.2 + 10) + ' min';
     }
-    /* i vicini fissi: stazioni e atenei veri, i 4 piu vicini a QUESTA porta */
+    /* i vicini fissi: stazioni e atenei veri, i 4 piu vicini a QUESTA
+       porta. Lo slug in coda è la chiave della griglia (tempi-engine). */
     var POSTI = [
-      ['Termini', 'Trains + Metro A/B', 41.9009, 12.5018],
-      ['Colosseo', 'The ancient centre', 41.8902, 12.4924],
-      ['Vatican', 'St Peter\'s & museums', 41.9022, 12.4534],
-      ['Sapienza', 'Main campus', 41.9038, 12.5135],
-      ['LUISS', 'Viale Romania campus', 41.9269, 12.4917],
-      ['Roma Tre', 'Ostiense campus', 41.8564, 12.4790],
-      ['John Cabot', 'Trastevere campus', 41.8937, 12.4664]
+      ['Termini', 'Trains + Metro A/B', 41.9009, 12.5018, 'termini'],
+      ['Colosseo', 'The ancient centre', 41.8902, 12.4924, 'colosseo'],
+      ['Vatican', 'St Peter\'s & museums', 41.9022, 12.4534, 'vaticano'],
+      ['Sapienza', 'Main campus', 41.9038, 12.5135, 'sapienza'],
+      ['LUISS', 'Viale Romania campus', 41.9269, 12.4917, 'luiss'],
+      ['Roma Tre', 'Ostiense campus', 41.8564, 12.4790, 'romatre'],
+      ['John Cabot', 'Trastevere campus', 41.8937, 12.4664, 'johncabot']
     ];
-    document.getElementById('vicini').innerHTML = POSTI.map(function (p) {
-      var d = km(c.lat, c.lng, p[2], p[3]);
-      return { d: d, h: '<div class="vicino"><b>' + p[0] + '</b><span>'
-        + p[1] + '</span><i>' + tempo(d) + '</i></div>' };
-    }).sort(function (a, b) { return a.d - b.d; }).slice(0, 4)
-      .map(function (x) { return x.h; }).join('');
+    function dipingiVicini(minuti) {
+      document.getElementById('vicini').innerHTML = POSTI.map(function (p) {
+        var d = km(c.lat, c.lng, p[2], p[3]);
+        var m = minuti && p[4] in minuti ? minuti[p[4]] : null;
+        return { d: d, h: '<div class="vicino"><b>' + p[0] + '</b><span>'
+          + p[1] + '</span><i>' + tempo(d, m) + '</i></div>' };
+      }).sort(function (a, b) { return a.d - b.d; }).slice(0, 4)
+        .map(function (x) { return x.h; }).join('');
+    }
+    dipingiVicini(null);
+    /* la griglia arriva DOPO il primo paint (regola Safari: nulla di
+       atteso sul boot) e ridipinge solo se copre QUESTA porta */
+    if (window.BOOM_TEMPI) setTimeout(function () {
+      fetch('https://firestore.googleapis.com/v1/projects/'
+          + 'boom-property-dashboards/databases/(default)/documents/'
+          + 'publicGeo/tempi-roma')
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (doc) {
+          var dati = doc && BOOM_TEMPI.daDoc(doc);
+          var minuti = dati && BOOM_TEMPI.verso(dati, c.lat, c.lng);
+          if (minuti) dipingiVicini(minuti);
+        }).catch(function () { /* niente rete: resta la stima ≈ */ });
+    }, 400);
 
     /* la mappa del blocco: solo se la chiami, e se non arriva lo dice */
     var via = document.getElementById('bloccoVia'),

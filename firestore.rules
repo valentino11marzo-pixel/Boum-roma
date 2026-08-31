@@ -38,6 +38,9 @@ service cloud.firestore {
 
     // ─── PUBLIC CATALOG — read open to all, writes admin-only ─────────
     match /listings/{x}  { allow read: if true; allow write: if isAdmin(); }
+    // publicGeo: griglie derivate da SOLI dati pubblici (i tempi GTFS del
+    // Pendolare) — la vetrina le legge anonima come legge il catalogo.
+    match /publicGeo/{x} { allow read: if true; allow write: if isAdmin(); }
     // settings è pubblico (il sito legge config di pagina), MA il doc
     // `company` porta IBAN e dati bancari: la stessa ragione per cui
     // /payout esiste separato. Chi è autenticato (portal, /casa) lo

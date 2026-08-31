@@ -27,6 +27,7 @@ const SUITES = [
   { name: 'photos',   file: 'tests/photos/sweep.mjs',     what: 'sweep notturno: chi si cura e in che ordine' },
   { name: 'copy',     file: 'tests/copy/run.mjs',         what: 'descrizioni: riscrive i template, mai le parole di un umano' },
   { name: 'geo',      file: 'tests/geo/run.mjs',          what: 'precisione dei pin: portone, strada o quartiere — mai spacciati' },
+  { name: 'tempi',    file: 'tests/tempi/run.mjs',        what: 'i tempi porta-a-porta dal GTFS: il builder misura sulla rete vera (fixture zip round-trip), la griglia non inventa mai dove non copre, e le pagine degradano alla stima dichiarata' },
   { name: 'dispo',    file: 'tests/dispo/run.mjs',        what: 'date di disponibilità: una data illeggibile non diventa MAI "libera ora", un messaggio aggiorna tutte le case, e una data sola non si spalma su chi non è stato nominato' },
   { name: 'vetrina',  file: 'tests/vetrina/run.mjs',      what: 'l\'innesto della vetrina: un annuncio nato DOPO la build appare e viene contato, i filtri lo mordono, e senza foto o con stato ignoto la carta non nasce' },
   { name: 'prenota',  file: 'tests/prenota/run.mjs',      what: 'la corsia del pre-blocco: una casa occupata con data nota si PRENOTA (e la data si vede ovunque), l\'affittata si apre solo col contratto — mai su un testo residuo — e l\'anno che il motore deduce lo dichiara all\'operatore' },

@@ -110,6 +110,7 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,sys
 .miei-chiudi{margin-top:12px;width:100%;padding:11px;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000;font-weight:600;font-size:13px;border:0;border-radius:10px;cursor:pointer}
 </style>
 <script src="/js/boom-geo.js"></script>
+<script src="/js/tempi-engine.js"></script>
 <script>if(/[?&]embed=1/.test(location.search)){document.documentElement.classList.add('emb');var _b=document.createElement('base');_b.target='_top';document.head.appendChild(_b);}</script>
 <!-- BOOM_SCROLL:START -->
 <style>
@@ -294,18 +295,35 @@ function spread(co){ // fan multiple listings around a shared zone centre so pin
 }
 
 /* ── Commute lines ── Rome's anchor hubs; tap a home to connect it to them.
-   Honest: straight-line distance + a walk estimate (not a routed commute). */
+   Minutes come from the Pendolare's GTFS grid (publicGeo/tempi-roma) when
+   it covers the spot; otherwise straight-line km, declared as such. */
 var ANCHORS=[
-  [12.5018,41.9009,'Termini','metro'],
-  [12.4924,41.8902,'Colosseo','colosseo'],
-  [12.4534,41.9022,'Vaticano','vaticano'],
-  [12.4690,41.8870,'Trastevere','trastevere'],
-  [12.5135,41.9038,'Sapienza','sapienza'],
-  [12.4917,41.9269,'LUISS','uni'],
-  [12.4790,41.8564,'Roma Tre','uni'],
-  [12.4664,41.8937,'John Cabot','uni'],
-  [12.4593,41.9032,'LUMSA','uni']
+  [12.5018,41.9009,'Termini','metro','termini'],
+  [12.4924,41.8902,'Colosseo','colosseo','colosseo'],
+  [12.4534,41.9022,'Vaticano','vaticano','vaticano'],
+  [12.4690,41.8870,'Trastevere','trastevere','trastevere'],
+  [12.5135,41.9038,'Sapienza','sapienza','sapienza'],
+  [12.4917,41.9269,'LUISS','uni','luiss'],
+  [12.4790,41.8564,'Roma Tre','uni','romatre'],
+  [12.4664,41.8937,'John Cabot','uni','johncabot'],
+  [12.4593,41.9032,'LUMSA','uni','lumsa']
 ];
+/* la griglia dei tempi veri: best-effort dopo il boot, mai bloccante */
+var TEMPI_DATI=null;
+if(window.BOOM_TEMPI)setTimeout(function(){
+  fetch('https://firestore.googleapis.com/v1/projects/boom-property-dashboards/databases/(default)/documents/publicGeo/tempi-roma')
+    .then(function(r){return r.ok?r.json():null})
+    .then(function(d){TEMPI_DATI=d&&BOOM_TEMPI.daDoc(d)})
+    .catch(function(){});
+},600);
+function anchorLabel(A,dKm,co){
+  if(dKm<2.6)return distLabel(dKm);
+  if(TEMPI_DATI&&window.BOOM_TEMPI){
+    var m=BOOM_TEMPI.eta(TEMPI_DATI,co[1],co[0],A[4]);
+    if(m!=null)return m+'\u2032';
+  }
+  return distLabel(dKm);
+}
 var ANCHOR_ICON={metro:'🚇',colosseo:'🏛',vaticano:'⛪',trastevere:'🍷',sapienza:'🎓',uni:'🎓'};
 var ANCHOR_MK=[];
 function haversine(a,b){var R=6371,r=Math.PI/180,dy=(b[1]-a[1])*r,dx=(b[0]-a[0])*r,s=Math.pow(Math.sin(dy/2),2)+Math.cos(a[1]*r)*Math.cos(b[1]*r)*Math.pow(Math.sin(dx/2),2);return 2*R*Math.asin(Math.min(1,Math.sqrt(s)));}
@@ -332,7 +350,7 @@ function showLinks(co){
   });
   ANCHORS.forEach(function(A,i){
     var m=ANCHOR_MK[i]; if(!m)return;
-    if(i in nearSet){m.el.classList.add('lit');m.el.style.opacity='';m.dEl.textContent=distLabel(nearSet[i]);}
+    if(i in nearSet){m.el.classList.add('lit');m.el.style.opacity='';m.dEl.textContent=anchorLabel(A,nearSet[i],co);}
     else{m.el.classList.remove('lit');m.el.style.opacity='.22';m.dEl.textContent='';}
   });
   map.getSource('links').setData({type:'FeatureCollection',features:feats});
