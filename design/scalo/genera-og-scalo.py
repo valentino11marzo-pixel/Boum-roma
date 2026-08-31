@@ -5,10 +5,13 @@
 # porta il tabellone e il bollettino, nel linguaggio dello scalo.
 # Si usa headless_shell (il chromium "vecchio" headless perde il footer a
 # 630px esatti — la lezione di og-executive).
-import os, struct, subprocess, sys
+import os, struct, subprocess, sys, tempfile
 
 QUI = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.abspath(os.path.join(QUI, '..', '..'))
+# le card intermedie vivono in una dir temporanea: nel repo entra SOLO il
+# PNG finale (rilanciare il generatore non lascia mai file non tracciati)
+TMP = tempfile.mkdtemp(prefix='og-scalo-')
 
 TESTA = '''<!DOCTYPE html><html><head><meta charset="utf-8"><style>
 * { margin:0; padding:0; box-sizing:border-box; }
@@ -121,7 +124,7 @@ def png_size(path):
 
 
 def genera(nome, html):
-    card = os.path.join(QUI, 'og-%s-card.html' % nome)
+    card = os.path.join(TMP, 'og-%s-card.html' % nome)
     out = os.path.join(ROOT, 'og-%s.png' % nome)
     open(card, 'w').write(html)
     subprocess.run([shell(), '--headless', '--disable-gpu', '--no-sandbox',
