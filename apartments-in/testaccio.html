@@ -7,7 +7,7 @@
   <link rel="manifest" href="/site.webmanifest">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Apartments for Rent in Testaccio, Rome — Authentic + Foodie | BOOM</title>
+  <title>Apartments for Rent in Testaccio, Rome — Verified | BOOM</title>
 <!-- BOOM_SEO:START -->
   <meta name="description" content="Testaccio apartments for rent — Rome's most genuine working-class quarter. Best food market in the city, original carbonara, no tourists. Verified, from €1,200/mo.">
   <meta name="keywords" content="apartment Testaccio Rome, rent Testaccio, Testaccio apartment expat, foodie neighborhood Rome">
@@ -28,11 +28,11 @@
   <meta property="og:site_name" content="BOOM Rome">
   <meta property="og:locale" content="en_US">
   <meta property="og:locale:alternate" content="it_IT">
-  <meta property="og:title" content="Apartments for Rent in Testaccio, Rome — Authentic + Foodie | BOOM">
+  <meta property="og:title" content="Apartments for Rent in Testaccio, Rome — Verified | BOOM">
   <meta property="og:description" content="Testaccio apartments for rent — Rome's most genuine working-class quarter. Best food market in the city, original carbonara, no tourists. Verified, from €1,200/mo.">
   <meta property="og:url" content="https://www.boomrome.com/apartments-in/testaccio">
-  <meta property="og:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
-  <meta property="og:image:secure_url" content="https://www.boomrome.com/BOOMsocialprofile.png">
+  <meta property="og:image" content="https://www.boomrome.com/og-home.png">
+  <meta property="og:image:secure_url" content="https://www.boomrome.com/og-home.png">
   <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -42,7 +42,7 @@
   <meta name="twitter:creator" content="@boomrome">
   <meta name="twitter:title" content="Apartments for Rent in Testaccio, Rome — Authentic + Foodie | BOOM">
   <meta name="twitter:description" content="Testaccio apartments for rent — Rome's most genuine working-class quarter. Best food market in the city, original carbonara, no tourists. Verified, from €1,200/mo.">
-  <meta name="twitter:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
+  <meta name="twitter:image" content="https://www.boomrome.com/og-home.png">
   <meta name="twitter:image:alt" content="Apartments for Rent in Testaccio, Rome — Authentic + Foodie | BOOM">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -258,7 +258,7 @@ footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50p
     "width": 512,
     "height": 512
   },
-  "image": "https://www.boomrome.com/BOOMsocialprofile.png",
+  "image": "https://www.boomrome.com/og-home.png",
   "description": "Premium mid-term apartment rentals in Rome with full property management, legal contracts, and 48-hour move-in.",
   "sameAs": [
     "https://www.instagram.com/boomrome",
@@ -427,6 +427,106 @@ footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50p
 }
   </script>
 <!-- BOOM_JSONLD:END -->
+<!-- BOOM_SCROLL:START -->
+<style>
+/* boom-scroll.css — IL CONTRATTO DI SCORRIMENTO, in una copia sola.
+ *
+ * IL REPERTO: su 45 fra pagine e viewport, un link interno portava il
+ * lettore SOTTO la barra fissa. Il titolo della sezione finiva nascosto
+ * dietro la nav e si atterrava a meta' frase — su apartment-detail erano
+ * sei ancore su sei. La causa e' banale e sempre la stessa: `scroll-margin`
+ * e `scroll-padding` erano usati sei volte in tutto il sito, con numeri
+ * scritti a mano (86px, 104px, 150px) che nessuno teneva allineati
+ * all'altezza VERA della barra — che va da 71 a 99px a seconda della
+ * pagina e della larghezza.
+ *
+ * La soluzione non e' quarantacinque pezze: e' una proprieta' sola.
+ * `scroll-padding-top` sull'elemento che scorre copre TUTTO in un colpo —
+ * la navigazione per frammento (#sezione), `scrollIntoView()` e `:target`.
+ * Il valore non si indovina: lo misura js/boom-scroll.js dal documento
+ * vero, e lo riscrive quando la finestra cambia.
+ *
+ * Il ripiego (76px) vale solo nell'istante fra il primo paint e la prima
+ * misura, e con JS spento: meglio un'approssimazione onesta dello zero.
+ */
+:root { --boom-barra: 76px; }
+
+html {
+  scroll-padding-top: calc(var(--boom-barra) + 18px);
+}
+
+/* Un'ancora puo' vivere dentro un contenitore che scorre per conto suo
+   (una lista, un cassetto): li' la barra della pagina non c'entra, e la
+   regola sull'elemento la porterebbe fuori quadro. */
+[data-scroll-libero] { scroll-padding-top: 0; }
+
+/* Movimento = informazione. Chi ha chiesto meno movimento al sistema
+   operativo non deve subire lo scorrimento animato di 77 dichiarazioni
+   sparse: si spegne qui, una volta, per tutte. */
+@media (prefers-reduced-motion: reduce) {
+  html, body { scroll-behavior: auto !important; }
+}
+</style>
+<script>
+/* boom-scroll.js — LA MISURA DELLA BARRA. ~500 byte, nessuna dipendenza.
+ *
+ * Scrive --boom-barra con l'altezza VERA di cio' che copre il bordo alto
+ * della finestra, cosi' `scroll-padding-top` (css/boom-scroll.css) porta
+ * ogni ancora sotto la barra invece che dietro.
+ *
+ * Come si misura, e perche' cosi': `elementsFromPoint` restituisce solo
+ * gli elementi sotto UN punto — costa quanto la profondita' dell'albero,
+ * non quanto il numero di nodi. Scorrere tutto il documento con
+ * querySelectorAll('*') e chiedere getComputedStyle a ognuno costerebbe
+ * millisecondi di thread principale a ogni ridimensionamento, per sapere
+ * una cosa che si legge in un punto.
+ *
+ * Si misura al caricamento, al primo scorrimento (molte barre cambiano
+ * altezza appena si scorre) e al ridimensionamento. Mai in un loop.
+ */
+(function () {
+  var R = document.documentElement, ultimo = -1;
+
+  function misura() {
+    var x = Math.round(innerWidth / 2), coperto = 0, i, e, s, r;
+    var sotto = document.elementsFromPoint ? document.elementsFromPoint(x, 2) : [];
+    for (i = 0; i < sotto.length; i++) {
+      e = sotto[i];
+      if (!e || e === R || e === document.body) continue;
+      s = getComputedStyle(e);
+      if (s.position !== 'fixed' && s.position !== 'sticky') continue;
+      if (s.visibility === 'hidden' || s.display === 'none') continue;
+      r = e.getBoundingClientRect();
+      // Una barra alta mezzo schermo non e' una barra: e' un pannello
+      // aperto, e non deve spostare le ancore di tutta la pagina.
+      if (r.top > 2 || r.height > innerHeight * 0.35) continue;
+      if (r.bottom > coperto) coperto = r.bottom;
+    }
+    coperto = Math.round(coperto);
+    if (coperto !== ultimo) {
+      ultimo = coperto;
+      R.style.setProperty('--boom-barra', coperto + 'px');
+    }
+  }
+
+  var atteso = false;
+  function piano() {
+    if (atteso) return;
+    atteso = true;
+    requestAnimationFrame(function () { atteso = false; misura(); });
+  }
+
+  misura();
+  addEventListener('load', misura);
+  addEventListener('resize', piano, { passive: true });
+  addEventListener('orientationchange', piano);
+  addEventListener('scroll', function una() {
+    removeEventListener('scroll', una);
+    piano();
+  }, { passive: true, once: true });
+})();
+</script>
+<!-- BOOM_SCROLL:END -->
 </head>
 <body>
 

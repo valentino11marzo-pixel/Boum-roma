@@ -3107,6 +3107,172 @@ c'è nulla su cui passare col mouse, e su telefono l'hover non esiste.
 `_dl()`). Sbagliati a caso — Roma è anisotropa, lungo la metro A voli e in
 trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
 
+## Le foto sono nostre + il percorso critico (api/media/rehost.js · tests/media/hosts.mjs)
+
+Agosto 2026: sei pagine PUBBLICHE — corporate, partners, universities,
+research, virtual-viewing e le schede storiche — servivano le proprie
+immagini da **i.imgur.com**. Una pagina che chiede a un expat di fidarsi
+prima di mandare un deposito dipendeva, per la prova visiva, da un host di
+terzi: se blocca l'hotlink o cancella il file, la pagina non da' errore —
+resta in piedi a vendere con i riquadri vuoti, e nessun allarme suona.
+- `api/media/rehost.js` (auth come i cron PFS) scarica l'originale,
+  **verifica i byte** (imgur risponde 200 con una placeholder quando il
+  file non c'e' piu': senza guardare la firma l'avremmo copiata e servita
+  come se fosse la foto vera), carica su Storage sotto `site/` con cache
+  immutabile. Chiave **derivata** dall'URL di partenza → rieseguire non
+  duplica mai, e la mappa e' ricostruibile senza stato.
+- `scripts/rehost-images.mjs` riscrive i file dalla mappa. Il download non
+  lo fa lo script perche' l'ambiente di sviluppo puo' non raggiungere
+  l'host di partenza; il server si'.
+  `BOOM_BASE=… HOMIE_SECRET=… node scripts/rehost-images.mjs --apply`
+- **`tests/media/hosts.mjs` e' la parte che vale** (5 regole): un'immagine
+  esterna NUOVA fa fallire; una voce sparita dall'elenco
+  (`fuori-casa.json`) fa fallire pure, cosi' l'elenco non invecchia in
+  silenzio e aggiornarlo E' il momento in cui si vede il progresso; le
+  pagine pubbliche si deducono da `sitemap.xml`, mai da una lista a mano.
+  Piu' due regole nate misurando:
+  · **budget per RUOLO** (pagina 200 KB · card social 120 · pass Wallet
+    400 — le strisce dei pass viaggiano dentro il .pkpass e vanno viste a
+    retina: un numero unico avrebbe rovinato i pass o mancato la foto da
+    295 KB nella griglia). `foto-catalogo/pigneto-palace.jpg` era
+    1500×2000/295 KB per una card larga ~380px in un riquadro 4:3: sei
+    volte i pixel, quasi tutti ritagliati via, ed era l'oggetto piu' pesante
+    di apartments.html — piu' dell'HTML. A 800px/48 KB la pagina e' passata
+    da **591 KB a 343 KB** senza toccare una riga di markup. Idem
+    og-login.png 211→44 KB e og-home.png 171→49 KB.
+  · **il motore d'ambiente resta fuori dal percorso critico.** I 103 KB di
+    `js/boom-ambient.js` costano, misurati in Chromium con CPU a 1/4
+    (telefono di fascia media, 4 misure concordi), **~420ms di thread
+    principale prima che la pagina sia interattiva** e ~600ms sul load —
+    senza toccare la prima pittura, cioe' lavoro nel posto sbagliato. Su 21
+    pagine il `<script src>` nudo e' diventato uno **stub inline** che mette
+    in coda `mount`/`mood` e carica il motore dopo `load`, riversandogli
+    dentro la coda: **nessuna pagina ha dovuto cambiare la propria
+    configurazione**. DCL ~950→~600ms. LA TRAPPOLA: boom-ambient.js comincia
+    con `if (window.BoomAmbient) return;` — uno stub con quel nome lo
+    farebbe uscire all'istante e l'ambiente sparirebbe da 21 pagine SENZA UN
+    ERRORE; percio' lo stub si `delete` un attimo prima di iniettare.
+    Verificato che il canvas dipinga davvero, prima e dopo.
+- 15 **preconnect morti** tolti (i.imgur.com su sette file,
+  tiles.openfreemap.org su apartments/how-it-works/try/your-money): una
+  risoluzione DNS + TCP + TLS regalata a ogni caricamento verso un host da
+  cui non si scarica niente. La regola e' stretta apposta — morto = l'host
+  non compare DA NESSUN'ALTRA PARTE nel file — perche' cercarlo solo fra le
+  immagini segnalava i tile di skyline.html, che una libreria chiede via JS
+  e il cui preconnect e' corretto.
+
+## L'anteprima E' la pagina (design/pages-deco/anteprima.py + test-anteprima.cjs)
+
+Le anteprime pubblicate come artifact sono state **HTML nudo per un giro
+intero**: il costruttore consegnava il corpo senza `<head>`, come vuole il
+guscio dell'artifact, e con l'head se ne andavano tutti i fogli di stile.
+Su desktop passava per una pagina strana; da telefono era illeggibile, ed e'
+cosi' che l'abbiamo scoperto — dall'utente, che e' il posto sbagliato.
+Tre trappole, tutte pagate in un pomeriggio e tutte scritte accanto al
+codice che le evita: (1) gli stili si portano DENTRO il corpo (`<style>` in
+body e' valido); (2) cio' che si inlina esce di scena dietro un segnaposto
+PRIMA che si riscrivano gli URL locali — quella riscrittura entrava dentro
+il codice e trasformava una regex letterale `(/fonts\./)` in
+`(https://boomrome.com/fonts\./)`, con l'errore laconico *"missing ) after
+argument list"*; (3) il vestito si raccoglie NELL'ORDINE DEL DOCUMENTO —
+raccolto per tipo invertiva la cascata e la striscia dei servizi risaliva di
+60px sotto la nav. `test-anteprima.cjs` apre la pagina VERA e la sua
+anteprima nello stesso Chromium a 390px e 1440px e pretende stesso fondo,
+stesso carattere, stessa geometria (±2px), stesso contenuto, zero errori JS.
+
+## La casa in ordine — SEO/GEO (tests/seo/run.mjs)
+
+Undici regole su **60 pagine dedotte dalla sitemap**, non da una lista a
+mano. Ognuna nata da un difetto VERO trovato in produzione, non da una
+checklist di buone pratiche:
+- **Il documento e' un documento.** `property-finding.html` e `board.html`,
+  due pagine LIVE, non avevano `<!doctype>`, `<html lang>` ne'
+  `<meta charset>`. Misurato in Chromium: **quirks mode**, nessuna lingua
+  dichiarata, e il browser che indovina `windows-1252` — cioe' «â‚¬350» al
+  posto di «€350», «Â§4.2» al posto di «§4.2» e le stelle ★ della recensione
+  sparite. Sulla pagina di punta. Il guscio e' stato aggiunto e il layout
+  verificato prima/dopo (l'uscita dal quirks mode cambia il box model).
+- **Le card social esistevano solo nel markup.** 50 pagine pubbliche
+  dichiaravano `BOOMsocialprofile.png`, **un file mai esistito nel repo**:
+  ogni inoltro su WhatsApp/LinkedIn/Slack mostrava una card vuota — per
+  un'attivita' che cresce passando di telefono in telefono, il difetto piu'
+  caro del sito. Ora `design/pages-deco/genera-og-servizi.py` genera **otto
+  card dal repo** (le sei servizio + Property Finding + Welcome to Rome),
+  ognuna col proprio prezzo LETTO da `api/_catalog.js` — la card non puo'
+  dire un numero diverso dalla pagina. Il default della pipeline e
+  `api/listing.js` non ricadono piu' sul fantasma.
+- **Nessuna entita' dichiarata due volte.** Tre pagine portavano un intero
+  blocco SEO duplicato (seconda `RealEstateAgent`, secondo `WebSite`, secondo
+  `BreadcrumbList`, secondo `Service` con `serviceType:"Legal"` — che
+  contraddiceva il disclaimer della pagina stessa, «agenzia, non studio
+  legale»). La regola guarda l'IDENTITA', non il tipo: i tre `Service` di
+  `/reunion` hanno url diversi ed e' una scelta voluta.
+- **Una domanda dichiarata deve ESSERE in pagina.** `faq.html` dichiarava
+  DUE `FAQPage` con nove domande, di cui **sei inesistenti come testo
+  visibile**: parafrasi ottimizzate per il motore di domande che la pagina
+  pone con altre parole. E' contenuto nascosto. `scripts/faq-schema.mjs`
+  ora **deriva** il FAQPage dalle card visibili (9 → **38 domande**) e sulle
+  altre pagine taglia alle domande vere: 53 fantasmi tolti, 10 FAQPage
+  senza una sola domanda reale rimossi (services.html ne dichiarava quattro
+  **senza avere una FAQ**).
+- Piu': titoli ≤62 e descrizioni 110–165 (21 riscritte), nessun titolo
+  ripetuto fra pagine, canonical assoluta e concorde con la sitemap,
+  nessuna pagina indicizzabile fuori dalla sitemap (ci mancava
+  `welcome-to-rome`, cioe' proprio «the viral asset»), `llms.txt` allineato
+  ai prezzi di `api/_catalog.js` e senza promesse non dimostrabili, e ogni
+  `speakable` che punta a nodi reali.
+
+**Il blocco «in brief»** (`.breve`, dal motore della console) e' la parte
+GEO: fatti a plat — cos'e', prezzo esatto, cosa comprende, **cosa NON e'**,
+per chi, e chi lo eroga con partita IVA. La riga dei limiti e' quella che
+conta: una fonte che dichiara cosa non fa e' una fonte che un motore di
+risposta cita, e protegge dal cliente che arriva aspettandosi altro. Il nodo
+`WebPage` con `speakable` punta al registro e a questo blocco.
+
+## Lo scorrimento — un contratto solo (css/boom-scroll.css + js/boom-scroll.js)
+
+Misurato in Chromium su 60 pagine, non supposto. Quattro difetti veri:
+- **45 fra pagine e viewport portavano il lettore SOTTO la barra fissa.**
+  Un link interno e il titolo finiva dietro la nav: si atterrava a meta'
+  frase (su `apartment-detail` erano sei ancore su sei). La causa:
+  `scroll-margin`/`scroll-padding` usati SEI volte in tutto il sito, con
+  numeri a mano (86, 104, 150px) mentre la barra vera va da **71 a 99px**
+  secondo pagina e larghezza.
+- **index.html saltava di 78px al caricamento** (CLS 0,058, tutto a y=0 —
+  cioe' sotto gli occhi di chi ha appena iniziato a leggere): la parola
+  DAYS del titolo e' un tabellone a palette costruito dal JS a ~600ms,
+  **cinque caselle per quattro lettere = 4,55em contro i 2,65em** del testo
+  (rapporto identico misurato a 390/1024/1280/1440px), che mandava il
+  titolo su una riga in piu'.
+- **apartments.html saltava di 119px**: `.zone-quadro` nasce alto 130px e
+  si riempie a ~460ms.
+- **owners.html e board.html scorrevano di lato** (72px e 42px): una
+  scritta decorativa fuori quadro, e cinque colonne coi minimi che
+  sommavano 410px dentro una finestra da 390.
+
+La riparazione non e' quarantacinque pezze: **`scroll-padding-top`
+sull'elemento che scorre copre tutto in una proprieta'** — frammento
+`#sezione`, `scrollIntoView()` e `:target` — e il valore non si indovina,
+lo **misura il browser**. `js/boom-scroll.js` (~500 byte) legge
+`elementsFromPoint(x, 2)` — costa quanto la profondita' dell'albero, non
+quanto il numero di nodi — al caricamento, al primo scorrimento e al
+ridimensionamento, e scrive `--boom-barra`. Inline su ogni pagina pubblica
+fra i marcatori `BOOM_SCROLL`. Per il resto **lo spazio si riserva PRIMA**:
+`min-height` misurato sui due tabelloni, e larghezza+altezza in `em`
+riservate al tabellone del titolo — ma solo con JS attivo, perche' senza
+JS il tabellone non arriva mai e riservargli spazio lascerebbe un buco.
+Per ritagliare si usa `overflow-x: clip` e mai `hidden`: hidden creerebbe
+un contenitore di scorrimento e spegnerebbe gli sticky interni.
+
+`tests/scroll/run.mjs` tiene la linea in un browser vero — tutto il sito a
+390px, le pagine che vendono anche a 1440. **La regola misura il primo
+TESTO, non il bordo della scatola**: su `/executive` il `<main>` comincia a
+y=0 ma ha 172px di padding e il titolo sta a 178, cioe' libero — guardare
+la scatola avrebbe segnalato come rotto un caso sano, e una guardia che
+grida al lupo si smette di ascoltarla. Soglia CLS 0,02, dieci volte sotto
+il «buono» di Google. Il test blocca ogni richiesta non locale: un test di
+layout non deve dipendere dalla rete.
+
 ## Conventions
 
 - **Serverless deps live in `api/package.json`** (the manifest the Vercel

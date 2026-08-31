@@ -30,8 +30,8 @@
   <meta property="og:title" content="BOOM Services Rome — Every Price Upfront">
   <meta property="og:description" content="Every BOOM service with its real price: apartment hunting, live video viewings, contract review, deposit recovery and the canone concordato for landlords.">
   <meta property="og:url" content="https://www.boomrome.com/services">
-  <meta property="og:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
-  <meta property="og:image:secure_url" content="https://www.boomrome.com/BOOMsocialprofile.png">
+  <meta property="og:image" content="https://www.boomrome.com/og-home.png">
+  <meta property="og:image:secure_url" content="https://www.boomrome.com/og-home.png">
   <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -41,7 +41,7 @@
   <meta name="twitter:creator" content="@boomrome">
   <meta name="twitter:title" content="BOOM Services Rome — Every Price Upfront">
   <meta name="twitter:description" content="Every BOOM service with its real price: apartment hunting, live video viewings, contract review, deposit recovery and the canone concordato for landlords.">
-  <meta name="twitter:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
+  <meta name="twitter:image" content="https://www.boomrome.com/og-home.png">
   <meta name="twitter:image:alt" content="BOOM Services Rome — Every Price Upfront">
 <!-- BOOM_SEO:END -->
     <link rel="manifest" href="/site.webmanifest">
@@ -55,7 +55,7 @@
   "name": "BOOM Rome",
   "url": "https://www.boomrome.com",
   "logo": { "@type": "ImageObject", "url": "https://www.boomrome.com/android-chrome-512x512.png", "width": 512, "height": 512 },
-  "image": "https://www.boomrome.com/BOOMsocialprofile.png",
+  "image": "https://www.boomrome.com/og-home.png",
   "description": "Premium mid-term apartment rentals in Rome with full property management, legal contracts, and 48-hour move-in.",
   "sameAs": ["https://www.instagram.com/boomrome","https://www.linkedin.com/company/boomrome","https://wa.me/393313251961","https://share.google/xikmVxQCRuKOdWcND"],
   "address": { "@type": "PostalAddress", "streetAddress": "Via dei Coronari 181/184", "postalCode": "00186", "addressLocality": "Rome", "addressRegion": "Lazio", "addressCountry": "IT" },
@@ -83,14 +83,6 @@
  {"@type":"ListItem","position":6,"item":{"@type":"Service","name":"Contract Check Express","url":"https://www.boomrome.com/contract-check-express","offers":{"@type":"Offer","price":"49","priceCurrency":"EUR"}}},
  {"@type":"ListItem","position":7,"item":{"@type":"Service","name":"Concierge","url":"https://www.boomrome.com/concierge","offers":{"@type":"Offer","price":"390","priceCurrency":"EUR"}}},
  {"@type":"ListItem","position":8,"item":{"@type":"Service","name":"Pacchetto Canone Concordato","url":"https://www.boomrome.com/pacchetto-concordato","offers":{"@type":"Offer","price":"349","priceCurrency":"EUR"}}}
-]}
-  </script>
-  <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
- {"@type":"Question","name":"Do I have to use a service to rent a BOOM apartment?","acceptedAnswer":{"@type":"Answer","text":"No. Renting one of BOOM's own homes needs no paid service — viewings of our apartments are free, always. The services exist for apartments you found elsewhere, for things that happen before or after the lease, and for landlords."}},
- {"@type":"Question","name":"Are the prices really fixed?","acceptedAnswer":{"@type":"Answer","text":"Yes. Every price on this page is the price you pay, decided server-side and charged through Stripe. Concierge is the one quoted service, because the work depends on the move."}},
- {"@type":"Question","name":"Which one do I need?","acceptedAnswer":{"@type":"Answer","text":"Still hunting from abroad: Remote Move Pack. Found a place and need it checked: Contract Check Express, or Deal Assistance for the full shield. Want us to run the hunt: Property Finding. Already left and your deposit is gone: Deposit Recovery. Renting your own place out: the Pacchetto Concordato."}},
- {"@type":"Question","name":"Can a service fee be credited back?","acceptedAnswer":{"@type":"Answer","text":"Often, yes. Virtual Viewing and the Remote Move Pack are credited toward your agency fee if you rent through BOOM; Contract Check Express is credited in full if you upgrade to Deal Assistance; Property Finding is deducted from the agency fee and refunded if we find no match."}}
 ]}
   </script>
 <link rel="stylesheet" href="/css/boom-2026.css">
@@ -123,6 +115,106 @@
 </style>
 <script defer src="/js/boom-consent.js"></script>
 <style>main{padding-top:150px}</style>
+<!-- BOOM_SCROLL:START -->
+<style>
+/* boom-scroll.css — IL CONTRATTO DI SCORRIMENTO, in una copia sola.
+ *
+ * IL REPERTO: su 45 fra pagine e viewport, un link interno portava il
+ * lettore SOTTO la barra fissa. Il titolo della sezione finiva nascosto
+ * dietro la nav e si atterrava a meta' frase — su apartment-detail erano
+ * sei ancore su sei. La causa e' banale e sempre la stessa: `scroll-margin`
+ * e `scroll-padding` erano usati sei volte in tutto il sito, con numeri
+ * scritti a mano (86px, 104px, 150px) che nessuno teneva allineati
+ * all'altezza VERA della barra — che va da 71 a 99px a seconda della
+ * pagina e della larghezza.
+ *
+ * La soluzione non e' quarantacinque pezze: e' una proprieta' sola.
+ * `scroll-padding-top` sull'elemento che scorre copre TUTTO in un colpo —
+ * la navigazione per frammento (#sezione), `scrollIntoView()` e `:target`.
+ * Il valore non si indovina: lo misura js/boom-scroll.js dal documento
+ * vero, e lo riscrive quando la finestra cambia.
+ *
+ * Il ripiego (76px) vale solo nell'istante fra il primo paint e la prima
+ * misura, e con JS spento: meglio un'approssimazione onesta dello zero.
+ */
+:root { --boom-barra: 76px; }
+
+html {
+  scroll-padding-top: calc(var(--boom-barra) + 18px);
+}
+
+/* Un'ancora puo' vivere dentro un contenitore che scorre per conto suo
+   (una lista, un cassetto): li' la barra della pagina non c'entra, e la
+   regola sull'elemento la porterebbe fuori quadro. */
+[data-scroll-libero] { scroll-padding-top: 0; }
+
+/* Movimento = informazione. Chi ha chiesto meno movimento al sistema
+   operativo non deve subire lo scorrimento animato di 77 dichiarazioni
+   sparse: si spegne qui, una volta, per tutte. */
+@media (prefers-reduced-motion: reduce) {
+  html, body { scroll-behavior: auto !important; }
+}
+</style>
+<script>
+/* boom-scroll.js — LA MISURA DELLA BARRA. ~500 byte, nessuna dipendenza.
+ *
+ * Scrive --boom-barra con l'altezza VERA di cio' che copre il bordo alto
+ * della finestra, cosi' `scroll-padding-top` (css/boom-scroll.css) porta
+ * ogni ancora sotto la barra invece che dietro.
+ *
+ * Come si misura, e perche' cosi': `elementsFromPoint` restituisce solo
+ * gli elementi sotto UN punto — costa quanto la profondita' dell'albero,
+ * non quanto il numero di nodi. Scorrere tutto il documento con
+ * querySelectorAll('*') e chiedere getComputedStyle a ognuno costerebbe
+ * millisecondi di thread principale a ogni ridimensionamento, per sapere
+ * una cosa che si legge in un punto.
+ *
+ * Si misura al caricamento, al primo scorrimento (molte barre cambiano
+ * altezza appena si scorre) e al ridimensionamento. Mai in un loop.
+ */
+(function () {
+  var R = document.documentElement, ultimo = -1;
+
+  function misura() {
+    var x = Math.round(innerWidth / 2), coperto = 0, i, e, s, r;
+    var sotto = document.elementsFromPoint ? document.elementsFromPoint(x, 2) : [];
+    for (i = 0; i < sotto.length; i++) {
+      e = sotto[i];
+      if (!e || e === R || e === document.body) continue;
+      s = getComputedStyle(e);
+      if (s.position !== 'fixed' && s.position !== 'sticky') continue;
+      if (s.visibility === 'hidden' || s.display === 'none') continue;
+      r = e.getBoundingClientRect();
+      // Una barra alta mezzo schermo non e' una barra: e' un pannello
+      // aperto, e non deve spostare le ancore di tutta la pagina.
+      if (r.top > 2 || r.height > innerHeight * 0.35) continue;
+      if (r.bottom > coperto) coperto = r.bottom;
+    }
+    coperto = Math.round(coperto);
+    if (coperto !== ultimo) {
+      ultimo = coperto;
+      R.style.setProperty('--boom-barra', coperto + 'px');
+    }
+  }
+
+  var atteso = false;
+  function piano() {
+    if (atteso) return;
+    atteso = true;
+    requestAnimationFrame(function () { atteso = false; misura(); });
+  }
+
+  misura();
+  addEventListener('load', misura);
+  addEventListener('resize', piano, { passive: true });
+  addEventListener('orientationchange', piano);
+  addEventListener('scroll', function una() {
+    removeEventListener('scroll', una);
+    piano();
+  }, { passive: true, once: true });
+})();
+</script>
+<!-- BOOM_SCROLL:END -->
 </head>
 <body>
 <nav class="nav" id="nav">
@@ -317,7 +409,47 @@
   </div>
 </footer>
 
-<script src="/js/boom-ambient.js"></script>
+<script>/* IL MOTORE D'AMBIENTE ARRIVA DOPO LA PRIMA PITTURA.
+   Misurato in Chromium con CPU a 1/4 (telefono di fascia media): i 103 KB di
+   boom-ambient.js costano ~420ms di thread principale prima che la pagina sia
+   interattiva, e ~600ms sul load. La prima pittura NON ne soffre — quindi quel
+   lavoro sta semplicemente nel posto sbagliato: e' atmosfera, e l'atmosfera
+   puo' arrivare quando la pagina e' gia' tua.
+   Qui resta uno STUB che mette in coda mount/mood, cosi' nessuna pagina deve
+   cambiare la propria configurazione; il motore vero si carica dopo `load` e
+   la coda gli si riversa dentro.
+   LA TRAPPOLA, che va detta: boom-ambient.js comincia con
+   `if (window.BoomAmbient) return;` — una guardia contro il doppio
+   caricamento. Uno stub con quel nome lo farebbe uscire all'istante e
+   l'ambiente sparirebbe da 23 pagine SENZA UN ERRORE. Percio' lo stub si
+   toglie di mezzo (delete) un attimo prima di iniettare il motore vero. */
+(function () {
+  var Q = [], M = null, STUB;
+  function proxy() { return { mood: function (m) { M && M.mood ? M.mood(m) : Q.push(['mood', m]); } }; }
+  STUB = { mount: function (c) { Q.push(['mount', c]); return proxy(); },
+           mood: function (m) { Q.push(['top', m]); },
+           differito: true };
+  window.BoomAmbient = STUB;
+  function vai() {
+    if (window.BoomAmbient === STUB) { try { delete window.BoomAmbient; } catch (e) { window.BoomAmbient = undefined; } }
+    var s = document.createElement('script');
+    s.src = '/js/boom-ambient.js';
+    s.onload = function () {
+      var A = window.BoomAmbient;
+      if (!A || !A.mount) return;
+      for (var i = 0; i < Q.length; i++) {
+        var q = Q[i];
+        if (q[0] === 'mount') M = A.mount(q[1]);
+        else if (q[0] === 'top' && A.mood) A.mood(q[1]);
+        else if (q[0] === 'mood' && M && M.mood) M.mood(q[1]);
+      }
+    };
+    document.head.appendChild(s);
+  }
+  if (document.readyState === 'complete') setTimeout(vai, 1);
+  else addEventListener('load', function () { setTimeout(vai, 1); });
+})();
+</script>
 <script>
 function boomTrack(name,params){try{if(typeof gtag==='function')gtag('event',name,params||{});}catch(e){}}
 try{if(window.BoomAmbient)BoomAmbient.mount({ink:'#060607',inkRGB:'6,6,7',palette:{a:'255,215,0',b:'255,229,160'},intensity:.5,sections:false,scene:'marmoantico',z:-3});}catch(e){}
