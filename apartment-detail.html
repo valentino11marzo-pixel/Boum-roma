@@ -2982,6 +2982,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
 <script src="/js/boom-geo.js"></script>
 <script src="/js/dispo-engine.js"></script>
 <script src="/js/tempi-engine.js"></script>
+<script src="/js/mappa-engine.js"></script>
 <script>
 /* LA REGIA DELLA CASA — una casa alla volta, dal catalogo vero.
    Parte al load: il motore Solari è concatenato DOPO questo script. */
@@ -3695,10 +3696,24 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
        doc publicGeo/tempi-roma): rete e orari di Roma Mobilità, non la
        linea d'aria. Dove la griglia non copre resta la stima di prima,
        DICHIARATA dal ≈ — mai un numero inventato. */
+    /* IL GRADO DI VERITA' DI OGNI NUMERO vive nel motore condiviso
+       (js/mappa-engine.js), non qui: la stessa camminata calcolata con due
+       velocita' diverse — 4,7 km/h qui e 4,8 nello Skyline e nel Pendolare
+       — dava due risposte diverse alla stessa domanda. Ora e' una sola.
+       Il ripiego copre solo il caso in cui il motore non sia caricato. */
     function tempo(d, veri) {
-      if (d < 2.6) return Math.round(d / 4.7 * 60) + ' min walk';
-      if (veri != null) return veri + ' min';
-      return '≈' + Math.round(d * 4.2 + 10) + ' min';
+      if (window.BOOM_MAPPA) {
+        var t = BOOM_MAPPA.tempo(d, veri);
+        if (!t) return '';
+        return t.fonte === 'piedi' ? t.min + ' min walk'
+             : t.fonte === 'rete'  ? t.min + ' min'
+             : '\u2248' + t.min + ' min';
+      }
+      /* motore assente (script non caricato): si dice solo cio che e
+         MISURATO, altrimenti NIENTE. Il ripiego non stampa mai un'altra
+         unita di misura al posto dei minuti — chi legge '3 km' dove si
+         aspetta '18 min' non legge una degradazione, legge un errore. */
+      return veri != null ? veri + ' min' : '';
     }
     /* i vicini fissi: stazioni e atenei veri, i 4 piu vicini a QUESTA
        porta. Lo slug in coda è la chiave della griglia (tempi-engine). */

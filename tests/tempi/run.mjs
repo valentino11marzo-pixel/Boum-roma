@@ -14,7 +14,9 @@
 //   · più vicino alla meta = tempo minore (monotonia lungo la linea)
 //   · le virgolette CSV non spostano le colonne (nomi fermate con virgole)
 // Più le giunzioni sulla sorgente: scheda e skyline consultano la griglia
-// e TENGONO il fallback dichiarato, le rules aprono publicGeo in lettura,
+// e la stima dichiarata resta VIVA in una copia sola (js/mappa-engine.js:
+// il letterale nella pagina non si asserisce più — vedi la nota sotto),
+// le rules aprono publicGeo in lettura,
 // il cron esiste in vercel.json e il registro della Squadra lo dichiara.
 
 import { readFileSync } from 'node:fs';
@@ -184,8 +186,34 @@ console.log('GIUNZIONI');
   for (const [nome, t] of [['apartment-detail', det], ['ld-regia', reg]]) {
     check(nome + ': consulta la griglia (publicGeo/tempi-roma + BOOM_TEMPI.verso)',
       t.includes('publicGeo/tempi-roma') && t.includes('BOOM_TEMPI.verso'));
-    check(nome + ': il fallback DICHIARATO resta (≈ km×4.2+10)',
-      t.includes("'≈' + Math.round(d * 4.2 + 10)"));
+  }
+
+  /* IL FALLBACK NON SI ASSERISCE PIU' COME STRINGA NELLA PAGINA.
+     Fino al 31/08/2026 questa guardia pretendeva il letterale
+     `'≈' + Math.round(d * 4.2 + 10)` DENTRO apartment-detail.html — cioè
+     asseriva DOVE stava l'implementazione, non che la promessa reggesse.
+     Il risultato: la stessa camminata era calcolata a 4,7 km/h nella
+     scheda e a 4,8 nello Skyline, due risposte diverse alla stessa
+     domanda, e la guardia era verde. Ora la stima vive in UNA copia
+     (js/mappa-engine.js) e qui si verifica l'INVARIANTE, in tre pezzi che
+     insieme sono più forti del letterale di prima:
+       (a) il motore produce davvero una stima DICHIARATA (il ≈), e
+       (b) la pagina ci passa attraverso, e
+       (c) nessuno se n'è ricopiata una propria — la ricaduta vera. */
+  {
+    const MAP = R('js/mappa-engine.js');
+    check('(a) il motore tiene la stima dichiarata (km×4.2+10, col ≈)',
+      MAP.includes('4.2') && MAP.includes('10') && MAP.includes("'≈'"));
+    check('(b) la scheda passa dal motore condiviso',
+      det.includes('src="/js/mappa-engine.js"')
+      && det.includes('BOOM_MAPPA.tempo('));
+    /* la formula ricopiata FUORI dal motore: è così che le due velocità
+       avevano preso strade diverse. Un solo posto può scriverla. */
+    const copie = ['apartment-detail.html', 'skyline.html', 'index.html',
+      'apartments.html', 'design/pages-deco/ld-regia.html']
+      .filter((f) => /\*\s*4\.2\s*\+\s*10/.test(R(f)));
+    check('(c) nessuna pagina si ricopia la formula (' +
+      (copie.join(', ') || 'nessuna') + ')', copie.length === 0);
   }
   // gli slug scritti nei POSTI della scheda devono esistere nel motore
   const slugs = [...det.matchAll(/\[\s*'(?:[^'\\]|\\.)+',\s*'(?:[^'\\]|\\.)*',\s*[\d.]+,\s*[\d.]+,\s*'(\w+)'\s*\]/g)]
