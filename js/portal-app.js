@@ -27948,7 +27948,10 @@ IBAN: ${l.iban || '-'}`;
                 const why = r.status === 413 || data.error === 'file_too_large'
                         ? 'file oltre il limite di 8 MB — comprimilo o allega solo le pagine che contano'
                     : data.error === 'unsupported_media_type' ? 'formato non leggibile: servono PDF, JPG, PNG o WebP'
-                    : (data.error || ('errore ' + r.status));
+                    // il server ora dice PERCHÉ la lettura non è riuscita e
+                    // cosa fare (documento troppo lungo, scansione illeggibile):
+                    // «ai_bad_json» all'operatore non diceva niente
+                    : (data.detail || data.error || ('errore ' + r.status));
                 throw new Error(why);
             }
             if (data.empty || !data.proposal || !Object.keys(data.proposal).length) {

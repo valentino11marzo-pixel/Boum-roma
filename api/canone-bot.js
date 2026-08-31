@@ -4,6 +4,8 @@
 
 // Endpoint pubblico che paga un modello: senza tetti era costo aperto
 // (audit 2026-08, S4). Rate per IP + cap su ciò che entra nel prompt.
+
+import { aiSignal } from './_budget.js';
 const RL = new Map(); const RL_WINDOW = 60_000, RL_MAX = 10;
 function rateOk(ip) { const n = Date.now(); const e = RL.get(ip); if (!e || n - e.t >= RL_WINDOW) { RL.set(ip, { c: 1, t: n }); return true; } e.c++; return e.c <= RL_MAX; }
 
@@ -49,6 +51,7 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON, formato:
 
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
+      signal: aiSignal(20000),   // un modello appeso non deve uccidere la funzione
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

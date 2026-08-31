@@ -36,13 +36,19 @@ for (const f of files) {
   ok(sock != null && sock <= 30000, `${f}: socketTimeout dichiarato e ≤30s (default 5min = kill garantito)`);
 }
 
-// ── 2. Il loop delle ricerche rispetta la scadenza morbida ───────────────
+// ── 2. Il loop delle ricerche conta il COSTO, non l'orario ───────────────
 // Un socket malato può costare un socketTimeout INTERO per ricerca: quattro
 // mittenti × 25s sfonderebbero comunque i 60s se il loop non guarda l'ora.
+// E guardare l'ora non basta: la scadenza morbida a 48s c'era già, eppure
+// nei log del 31/08 questi due erano ancora fra i killati a 60s — perché il
+// controllo passava a 47,9s e POI partiva una ricerca da 25. Ora si chiede
+// se il tempo residuo copre il costo massimo del passo (api/_budget.js).
 for (const f of ['api/pfs/scan-inbox.js', 'api/leads/scan-inbox.js']) {
   const src = readFileSync(join(ROOT, f), 'utf8');
   const loop = src.slice(src.indexOf('client.search') - 400, src.indexOf('client.search'));
-  ok(/softDeadline\)\s*break/.test(loop), `${f}: il loop ricerche esce alla scadenza morbida`);
+  ok(/afford\(COST_SEARCH\)\)\s*break/.test(loop), `${f}: il loop ricerche non comincia una ricerca che non può finire`);
+  ok(/const COST_SEARCH = 25_000/.test(src) && /socketTimeout: 25000/.test(src),
+    `${f}: il costo dichiarato È il socketTimeout vero (un numero scollegato sarebbe un conto finto)`);
 }
 
 console.log(`\n${fail ? '✗' : '✓'} imap: ${pass} pass, ${fail} fail`);

@@ -45,6 +45,8 @@ import { shell, btn, para, fine, hero, tiles, includes, rule } from '../preagree
 import { transcribeAudio } from '../wizard/_stt.js';
 import { brandAssets, masthead, stampFooters, wa, INK, GREY, FAINT, GOLD, HAIR, RED } from '../_pdfbrand.js';
 import INV from '../../js/inventario-engine.js';
+import { parseModelJson } from '../_modeljson.js';
+import { aiSignal } from '../_budget.js';
 
 const ADMIN_NOTIFY = process.env.ADMIN_NOTIFY_EMAIL || 'valentino@boom-rome.com';
 const MODEL = 'claude-opus-5';          // il documento vale sul deposito: qui non si risparmia
@@ -115,6 +117,7 @@ async function askClaude(frames, hint) {
 
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
+      signal: aiSignal(45000),   // un modello appeso non deve uccidere la funzione
       method: 'POST',
       headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
       body: JSON.stringify({ model: MODEL, max_tokens: 8000, system: SYSTEM, messages: [{ role: 'user', content }] }),
@@ -126,9 +129,9 @@ async function askClaude(frames, hint) {
     const j = await r.json();
     if (j.stop_reason === 'refusal') return { ok: false, error: 'ai_refused' };
     const text = (j.content || []).map((c) => c.text || '').join('');
-    const a = text.indexOf('{'), b = text.lastIndexOf('}');
-    if (a < 0 || b <= a) return { ok: false, error: 'ai_unparsable' };
-    return { ok: true, raw: JSON.parse(text.slice(a, b + 1)) };
+    const read = parseModelJson(text);
+    if (!read.ok) return { ok: false, error: 'ai_unparsable', why: read.why };
+    return { ok: true, raw: read.value };
   } catch (e) {
     console.error('[inventario] ai', e.message);
     return { ok: false, error: 'ai_failed' };

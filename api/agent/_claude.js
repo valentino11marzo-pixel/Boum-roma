@@ -11,6 +11,9 @@
 // ANTHROPIC_MODEL if you want to trade intelligence for latency/cost (e.g.
 // claude-haiku-4-5 for high-volume reply drafting).
 
+import { modelJson } from '../_modeljson.js';
+import { aiSignal } from '../_budget.js';
+
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const DEFAULT_MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';
 
@@ -34,6 +37,7 @@ export async function callClaude({ system, user, maxTokens = 1024, model } = {})
   };
 
   const res = await fetch(ANTHROPIC_URL, {
+    signal: aiSignal(30000),   // un modello appeso non deve uccidere la funzione
     method: 'POST',
     headers: {
       'x-api-key': apiKey,
@@ -56,13 +60,9 @@ export async function callClaude({ system, user, maxTokens = 1024, model } = {})
   return { text, usage: data.usage || null, model: data.model || body.model };
 }
 
-// Best-effort JSON extraction from a Claude response (handles ```json fences).
+// La lettura del JSON di un modello sta in api/_modeljson.js — una copia
+// sola, con le regole scritte lì (si sistema solo la forma, una risposta
+// troncata non si ripara mai). Questo resta l'ingresso storico dei chiamanti.
 export function extractJson(text) {
-  if (!text) return null;
-  let t = text.trim();
-  const fence = t.match(/```(?:json)?\s*([\s\S]*?)```/i);
-  if (fence) t = fence[1].trim();
-  const start = t.indexOf('{'), end = t.lastIndexOf('}');
-  if (start === -1 || end === -1) return null;
-  try { return JSON.parse(t.slice(start, end + 1)); } catch { return null; }
+  return modelJson(text);
 }

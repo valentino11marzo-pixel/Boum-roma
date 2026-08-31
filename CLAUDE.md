@@ -1953,6 +1953,57 @@ il documento dice «firma X per conto di Y». **Al posto del conduttore non
 si firma mai** — quella non è una delega, è una firma falsa, e la riga è
 scritta nel pannello, non lasciata al buonsenso.
 
+### Le tre reti del server (`api/_modeljson.js` · `api/_budget.js` · storageUpload)
+Tre difetti trovati il 31/08/2026 **nei log di produzione**, non ragionando:
+tutti e tre di CLASSE, tutti e tre chiusi in un posto solo.
+
+- **`api/_modeljson.js` — leggere il JSON di un modello.** L'Innesto è morto
+  due volte (`ai_bad_json`) su documenti VERI dell'operatore. La lettura era
+  `JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1))`,
+  ricopiata in **otto** file: `lastIndexOf` non cerca la fine dell'oggetto ma
+  l'ultima graffa del testo (una nota del modello dopo il JSON e si taglia a
+  caso), e una risposta TRONCATA non si distingueva da una malformata. Ora
+  una copia sola, con tre regole: (1) si sistema solo la FORMA — recinto
+  ```json, prosa, virgola in coda, commenti, a capo dentro una stringa;
+  (2) **una risposta troncata non si ripara MAI** — chiudere le graffe
+  consegnerebbe l'ultimo valore letto a metà («Roma, Via Crem») come se
+  fosse quello che c'è nel documento, e un dato mezzo letto non si vede;
+  (3) **la diagnosi non porta contenuto** — il vecchio log stampava
+  `raw.slice(0, 200)`, cioè codice fiscale e IBAN di persone reali dentro i
+  log di Vercel (ci sono finiti davvero). Ora: perché, quanto, in che forma.
+  All'operatore arriva cosa fare, non `ai_bad_json`.
+- **`api/_budget.js` — il tempo che resta.** I cron venivano uccisi a 60s
+  (3 volte nelle sole ultime 24h) **benché avessero già** una scadenza
+  morbida a 48s: chiedeva «sono in ritardo?» e poi avviava un giro da 45s.
+  `runBudget(60_000, riserva).afford(costo)` chiede invece «ce la faccio a
+  pagare il prossimo passo?»; il costo dichiarato è quello VERO (il
+  `socketTimeout` imapflow, il tetto della chiamata al modello) e i test lo
+  legano al numero in vigore. Più `aiSignal(ms)`: **ventuno** file chiamavano
+  `api.anthropic.com` senza alcun tetto — una richiesta appesa non falliva,
+  teneva la funzione occupata fino al kill di piattaforma (nessun battito,
+  nessuna spiegazione). L'invariante di CLASSE è testata scandagliando `api/`
+  per intero: una lista scritta a mano invecchierebbe al primo file nuovo, ed
+  è il file nuovo quello che sbaglia.
+- **`storageUpload` riprova.** Un 503 di Cloud Storage è momentaneo (la guida
+  di Google dice di riprovare) ma non si riprovava affatto: nei log una
+  Valutazione BOOM già calcolata si è persa perché mancava il posto dove
+  metterla. Da questa funzione passano contratto firmato, verbale delle
+  chiavi, fascicolo fiscale, rendiconto al proprietario e conservazione. Ora
+  3 tentativi con attesa crescente **solo su 429/5xx e rete caduta** — un
+  401/403/404 non si aggiusta aspettando — più un tetto di 20s.
+- **La scala del CDN** (portal.html): il portale ha riportato due volte
+  `"Script error." source:"" line:0`, la forma che il browser dà quando a
+  lanciare è uno script di un altro dominio — sappiamo CHE è andato in errore
+  e non possiamo sapere in cosa. `crossorigin="anonymous"` lo smaschera, ma
+  **solo se il CDN manda l'intestazione CORS**: senza, lo script non carica e
+  su portal.html è la pagina bianca. Quindi non si scommette — si scende una
+  scala: se la versione CORS non carica si rimette lo stesso script senza
+  (com'era prima), un solo tentativo, e solo dopo il cartello. Provata in un
+  browser vero contro un finto CDN che NON manda CORS
+  (`node tests/scala/run.mjs`).
+- Test: `node tests/modeljson/run.mjs` (39) · `node tests/tempo/run.mjs` (33)
+  · `node tests/scala/run.mjs` (8).
+
 ### POST `/api/documents/share`
 Admin/landlord (Firebase ID token via `api/_auth.js`). Creates a
 `documentShares` doc (token, ownerId, docIds, recipientName, watermark,

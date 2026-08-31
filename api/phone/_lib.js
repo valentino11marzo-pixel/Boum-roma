@@ -29,6 +29,7 @@ import crypto from 'node:crypto';
 import { secretEqual, fsList, fsPatch, fsCreate, getAdminToken, logActivity } from '../homie/_lib.js';
 import { phoneVariants, isNoise, mergeMessage, buildLead, recentLeadByPhone } from '../homie/_lead.js';
 import { replyLang } from '../_lang.js';
+import { aiSignal } from '../_budget.js';
 
 // ── la chiave del webhook: derivata, mai coniata ───────────────────────────
 // Twilio non può mandare header custom comodi: la chiave viaggia in ?k=.
@@ -270,6 +271,7 @@ export async function analyzeTranscript({ transcript, callerType, resolved, from
 
   try {
     const r = await fetch('https://api.anthropic.com/v1/messages', {
+      signal: aiSignal(25000),   // un modello appeso non deve uccidere la funzione
       method: 'POST',
       headers: {
         'x-api-key': process.env.ANTHROPIC_API_KEY,

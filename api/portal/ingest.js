@@ -14,6 +14,8 @@
 // chiamate dal browser loggato. La chiave Anthropic resta lato server.
 
 import { requireRole } from '../_auth.js';
+import { parseModelJson, jsonFailureLine, jsonFailureHint } from '../_modeljson.js';
+import { aiSignal } from '../_budget.js';
 
 const MODEL = 'claude-haiku-4-5-20251001';
 const MAX_TEXT = 60000;      // ~15k token di testo incollato
@@ -172,6 +174,7 @@ export default async function handler(req, res) {
 
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      signal: aiSignal(45000),   // un modello appeso non deve uccidere la funzione
       method: 'POST',
       headers: {
         'x-api-key': process.env.ANTHROPIC_API_KEY,
@@ -191,13 +194,17 @@ export default async function handler(req, res) {
     }
     const data = await resp.json();
     const raw = (data.content && data.content[0] && data.content[0].text) || '';
-    let parsed;
-    try {
-      parsed = JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1));
-    } catch (_) {
-      console.error('[portal/ingest] risposta non JSON:', raw.slice(0, 200));
-      return res.status(502).json({ ok: false, error: 'ai_bad_json' });
+    // La lettura sta in api/_modeljson.js — una copia sola, e con le regole
+    // scritte lì: si sistema solo la forma, una risposta TRONCATA non si
+    // ripara mai, e nei log finisce la forma, mai il contenuto (qui il
+    // contenuto è il codice fiscale e l'IBAN di persone reali: nei log di
+    // produzione ci sono già finiti una volta).
+    const read = parseModelJson(raw);
+    if (!read.ok) {
+      console.error('[portal/ingest] ' + jsonFailureLine(raw, read.why, data.stop_reason));
+      return res.status(502).json({ ok: false, error: 'ai_bad_json', why: read.why, detail: jsonFailureHint(read.why) });
     }
+    const parsed = read.value;
 
     // Whitelist dura: un campo che il portale non salva non esce da qui.
     // (La normalizzazione dei valori la fa dataops-engine lato client, così

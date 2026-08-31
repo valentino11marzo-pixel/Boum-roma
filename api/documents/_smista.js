@@ -13,6 +13,7 @@
 
 import { fsCreate, fsList, storageUpload, logActivity } from '../agent/_lib.js';
 import { extractJson } from '../agent/_claude.js';
+import { aiSignal } from '../_budget.js';
 
 const MODEL = 'claude-haiku-4-5-20251001';
 export const MAX_DOC_BYTES = 8 * 1024 * 1024;
@@ -81,6 +82,7 @@ export async function smistaDocument({ base64, mediaType, fileName, hint, origin
   ].join('\n');
 
   const r = await fetch('https://api.anthropic.com/v1/messages', {
+    signal: aiSignal(20000),   // un modello appeso non deve uccidere la funzione
     method: 'POST',
     headers: {
       'x-api-key': process.env.ANTHROPIC_API_KEY,

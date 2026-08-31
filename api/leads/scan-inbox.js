@@ -25,6 +25,8 @@ import { fsGet, fsPatch, fsCreate, fsList } from '../homie/_lib.js';
 import { normalizePhone } from '../homie/_lead.js';
 import { requireCronOrAdmin } from '../pfs/_guard.js';
 import { reportHealth } from '../pfs/_health.js';
+import { parseModelJson } from '../_modeljson.js';
+import { aiSignal, runBudget } from '../_budget.js';
 
 const LOOKBACK_DAYS = 2;
 const AI_BUDGET_PER_RUN = 8;
@@ -41,6 +43,7 @@ async function extractLead(key, subject, text) {
 {"name":"...","email":"...o null","phone":"...o null","message":"il testo scritto dal cliente, o null","listingTitle":"titolo/indirizzo dell'annuncio a cui si riferisce, o null","language":"it|en"}
 Regole: SOLO dati presenti nel testo, mai inventare. Il mittente del portale non è il lead. Se l'email non contiene una richiesta di una persona reale, rispondi {"name":null}.`;
   const r = await fetch('https://api.anthropic.com/v1/messages', {
+    signal: aiSignal(20000),   // un modello appeso non deve uccidere la funzione
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({
@@ -51,8 +54,9 @@ Regole: SOLO dati presenti nel testo, mai inventare. Il mittente del portale non
   if (!r.ok) throw new Error('anthropic_' + r.status);
   const j = await r.json();
   const out = (j.content || []).map(b => b.text || '').join('');
-  const a = out.indexOf('{'), b = out.lastIndexOf('}');
-  return JSON.parse(a >= 0 && b > a ? out.slice(a, b + 1) : out);
+  const read = parseModelJson(out);
+  if (!read.ok) throw new Error('ai_json_' + read.why);
+  return read.value;
 }
 
 // simple catalog match, same spirit as the wizard bot's matcher
@@ -88,7 +92,13 @@ export default async function handler(req, res) {
   const since = new Date(Date.now() - LOOKBACK_DAYS * 24 * 3600 * 1000);
   // Deadline morbida sotto il limite piattaforma (60s): uscire puliti batte
   // il kill a metà lavoro — memoria e dedupe rendono gratis il giro dopo.
-  const softDeadline = Date.now() + 48_000;
+  // IL TEMPO SI CONTA PRIMA DI SPENDERLO (api/_budget.js): la vecchia
+  // scadenza a 48s chiedeva «sono in ritardo?» e poi avviava un giro che può
+  // costarne 45 — la funzione moriva a 60 nel mezzo, senza battito. Ora si
+  // parte solo se il residuo copre il COSTO MASSIMO del passo.
+  const B = runBudget(60_000, 7_000);
+  const COST_SEARCH = 25_000;   // = socketTimeout imapflow
+  const COST_ITER = 45_000;     // fetchOne (25s) + una chiamata al modello (20s)
   const stats = { scanned: 0, requests: 0, ingested: 0, duplicates: 0, aiCalls: 0, unmatched: 0, timeBoxed: 0 };
   // Timeout ESPLICITI: i default di imapflow (connect 90s, socket idle 5min)
   // superano il limite piattaforma (60s) — una Gmail lenta uccideva la
@@ -117,14 +127,14 @@ export default async function handler(req, res) {
 
       const uids = new Set();
       for (const dom of PORTAL_DOMAINS) {
-        if (Date.now() > softDeadline) break; // socket malato: ogni search può costare 25s
+        if (!B.afford(COST_SEARCH)) break; // socket malato: ogni search può costare 25s
         try { for (const u of await client.search({ since, from: dom }, { uid: true }) || []) uids.add(u); }
         catch (e) { console.warn('[leads/scan-inbox] search', dom, e.message); }
       }
 
       for (const uid of uids) {
         if (stats.aiCalls >= AI_BUDGET_PER_RUN) break;
-        if (Date.now() > softDeadline) {
+        if (!B.afford(COST_ITER)) {
           stats.timeBoxed = uids.size - stats.scanned;
           console.warn('[leads/scan-inbox] soft deadline: restano', stats.timeBoxed, 'email al prossimo giro');
           break;

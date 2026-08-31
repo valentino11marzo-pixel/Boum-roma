@@ -260,8 +260,34 @@
             window.firebaseScriptsLoaded++;
             console.log(`Firebase script ${window.firebaseScriptsLoaded}/${window.firebaseScriptsTotal} loaded`);
         }
+        // ── «Script error.» — l'errore che non dice niente ──────────────
+        // Nei log di produzione (31/08) il portale ha riportato due volte
+        // `message:"Script error." source:"" line:0` — la forma che il
+        // browser dà quando a lanciare è uno script di un ALTRO dominio: per
+        // policy nasconde messaggio, file e riga. Cioè: sappiamo che il
+        // portale dell'operatore è andato in errore, e non possiamo sapere
+        // in cosa. Con crossorigin="anonymous" il browser mostra l'errore
+        // vero — ma SOLO se il CDN risponde con l'intestazione CORS.
+        //
+        // Quindi non si scommette: si scende una scala. Se la versione con
+        // crossorigin non carica, si RIMETTE lo stesso script senza — che è
+        // esattamente com'era prima — e solo se fallisce anche quella si
+        // mostra il cartello. Firebase è tutto il portale: qui un errore di
+        // giudizio non è un log illeggibile, è la pagina bianca.
+        window.__fbRetried = {};
         function onFirebaseScriptError(e) {
-            console.error('Failed to load Firebase script:', e.target.src);
+            var el = e.target, src = el && el.src;
+            if (src && el.hasAttribute('crossorigin') && !window.__fbRetried[src]) {
+                window.__fbRetried[src] = 1;
+                console.warn('[boot] CDN senza CORS: ricarico senza crossorigin', src);
+                var s = document.createElement('script');
+                s.src = src; s.async = false;
+                s.onload = onFirebaseScriptLoad;
+                s.onerror = onFirebaseScriptError;
+                document.head.appendChild(s);
+                return;
+            }
+            console.error('Failed to load Firebase script:', src);
             document.body.innerHTML = `
                 <div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#000;color:#fff;font-family:system-ui;text-align:center;padding:20px">
                     <div>
@@ -279,10 +305,10 @@
             `;
         }
     </script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js" onload="onFirebaseScriptLoad()" onerror="onFirebaseScriptError(event)"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js" onload="onFirebaseScriptLoad()" onerror="onFirebaseScriptError(event)"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js" onload="onFirebaseScriptLoad()" onerror="onFirebaseScriptError(event)"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js" onload="onFirebaseScriptLoad()" onerror="onFirebaseScriptError(event)"></script>
+    <script crossorigin="anonymous" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js" onload="onFirebaseScriptLoad()" onerror="onFirebaseScriptError(event)"></script>
+    <script crossorigin="anonymous" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js" onload="onFirebaseScriptLoad()" onerror="onFirebaseScriptError(event)"></script>
+    <script crossorigin="anonymous" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js" onload="onFirebaseScriptLoad()" onerror="onFirebaseScriptError(event)"></script>
+    <script crossorigin="anonymous" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js" onload="onFirebaseScriptLoad()" onerror="onFirebaseScriptError(event)"></script>
     <!-- la regola della disponibilità visite (window.BOOM_AVAIL): puro,
          condiviso col server via settings/viewingAvailability e testato -->
     <script src="/js/viewing-availability.js"></script>

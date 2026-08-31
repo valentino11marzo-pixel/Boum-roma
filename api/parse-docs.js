@@ -27,6 +27,7 @@
 import crypto from 'node:crypto';
 import { verifyIdToken } from './_auth.js';
 import { fsGet } from './homie/_lib.js';
+import { aiSignal } from './_budget.js';
 
 export const config = {
   api: {
@@ -228,6 +229,7 @@ export default async function handler(req, res) {
   // Forward to Anthropic
   try {
     const upstream = await fetch('https://api.anthropic.com/v1/messages', {
+      signal: aiSignal(45000),   // un modello appeso non deve uccidere la funzione
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

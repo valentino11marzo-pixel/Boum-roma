@@ -36,6 +36,7 @@ import { simpleParser } from 'mailparser';
 import { parseBankCsv, ingestBankTransactions, fsGet, fsPatch } from './_lib.js';
 import { requireCronOrAdmin, reportEmployeeHealth, saveReport, tgNotify } from '../employees/_lib.js';
 import { callClaude, extractJson } from '../agent/_claude.js';
+import { aiSignal } from '../_budget.js';
 
 const EMPLOYEE = 'banca-mail';
 const LOOKBACK_DAYS = 7;
@@ -270,6 +271,7 @@ async function pdfToMovements(buffer) {
     'counterparty = ordinante/beneficiario se presente, altrimenti stringa vuota. Non inventare movimenti; ignora saldi e totali.',
   ].join('\n');
   const r = await fetch('https://api.anthropic.com/v1/messages', {
+    signal: aiSignal(20000),   // un modello appeso non deve uccidere la funzione
     method: 'POST',
     headers: {
       'x-api-key': process.env.ANTHROPIC_API_KEY,
