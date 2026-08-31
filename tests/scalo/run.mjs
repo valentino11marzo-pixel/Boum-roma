@@ -246,6 +246,137 @@ check('timbro: batte UNA volta (l\'observer si stacca)',
 check('timbro: con reduced-motion resta stampato, fermo',
   /prefers-reduced-motion:reduce\)\{ \.timbro-walk\.giu \{ animation:none/.test(detSrc));
 
+/* ── W2 · /api/meteo: il bollettino pubblico, guidato DAVVERO ──────────── */
+/* Il handler VERO su un Firestore in memoria (si stubba solo la rete, come
+   nelle suite money/radar): la disciplina del Perito deve PASSARE la porta
+   pubblica — la zona sotto campione esce col solo nome, mai coi numeri, e
+   la whitelist non lascia passare un campo non dichiarato. */
+{
+  const enc = (v) => {
+    if (v === null || v === undefined) return { nullValue: null };
+    if (typeof v === 'string') return { stringValue: v };
+    if (typeof v === 'boolean') return { booleanValue: v };
+    if (typeof v === 'number') return Number.isInteger(v)
+      ? { integerValue: String(v) } : { doubleValue: v };
+    const fields = {};
+    for (const [k, x] of Object.entries(v)) fields[k] = enc(x);
+    return { mapValue: { fields } };
+  };
+  const doc = (id, obj) => ({
+    name: 'projects/p/databases/(default)/documents/marketStats/' + id,
+    fields: Object.fromEntries(Object.entries(obj).map(([k, v]) => [k, enc(v)])),
+  });
+  const DOCS = [
+    doc('trastevere', {
+      zone: 'trastevere', activeCount: 12,
+      asked: { ok: true, sample: 12, medianEurSqm: 28.4, p25: 24.1, p75: 33.2 },
+      absorption: { ok: true, sample: 6, medianDays: 21 },
+      priceDrops30d: 3, minSample: 5,
+      // un campo che NON deve mai passare la porta pubblica
+      secretSourceUrl: 'https://portale/annuncio-privato',
+    }),
+    doc('borghetto', {
+      zone: 'borghetto', activeCount: 2,
+      asked: { ok: false, reason: 'small_sample', sample: 2 },
+      absorption: { ok: false, reason: 'small_sample', sample: 1 },
+      priceDrops30d: 0, minSample: 5,
+    }),
+  ];
+  const origFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const u = String(url);
+    if (u.includes('identitytoolkit')) return { ok: true, json: async () => ({ idToken: 't' }) };
+    if (u.includes(':runQuery')) return { ok: true, json: async () => DOCS.map(d => ({ document: d })) };
+    throw new Error('fetch inatteso: ' + u);
+  };
+  const { default: meteo } = await import('../../api/meteo.js');
+  const mkres = () => {
+    const r = { h: {}, code: 0, body: null };
+    r.setHeader = (k, v) => { r.h[k] = v; };
+    r.status = (c) => { r.code = c; return r; };
+    r.json = (b) => { r.body = b; return r; };
+    return r;
+  };
+  let res = mkres();
+  await meteo({ method: 'GET', query: {} }, res);
+  const tra = res.code === 200 && (res.body.zones || []).find(z => z.slug === 'trastevere');
+  check('meteo: il handler risponde col bollettino', res.code === 200 && res.body.ok === true);
+  check('meteo: la zona campionata porta i numeri del Perito',
+    !!tra && tra.asked.medianEurSqm === 28.4 && tra.asked.p25 === 24.1 &&
+    tra.absorptionDays === 21 && tra.priceDrops30d === 3);
+  check('meteo: la whitelist tiene — un campo non dichiarato NON passa',
+    !!tra && !('secretSourceUrl' in tra) &&
+    Object.keys(tra).sort().join() ===
+      'absorptionDays,absorptionSample,activeCount,asked,priceDrops30d,slug,updatedAt,zone');
+  check('meteo: sotto campione SOLO il nome, mai un numero',
+    res.body.zones.length === 1 && res.body.measuring.length === 1 &&
+    res.body.measuring[0] === 'Borghetto');
+  check('meteo: la soglia è dichiarata al lettore', res.body.minSample === 5);
+  check('meteo: cache CDN (il dato cambia una volta al giorno)',
+    /s-maxage/.test(res.h['Cache-Control'] || ''));
+  res = mkres();
+  await meteo({ method: 'POST', query: {} }, res);
+  check('meteo: solo GET', res.code === 405);
+  globalThis.fetch = origFetch;
+}
+
+/* ── W2 · meteo.html: la pagina non tocca mai Firestore direttamente ───── */
+{
+  const meteoSrc = readFileSync(new URL('../../meteo.html', import.meta.url), 'utf8');
+  check('meteo.html: i numeri passano SOLO dalla porta pubblica',
+    meteoSrc.includes("fetch('/api/meteo')") &&
+    !meteoSrc.includes('firestore.googleapis.com'));
+  check('meteo.html: indicizzabile, canonical giusta',
+    meteoSrc.includes('content="index, follow') &&
+    meteoSrc.includes('href="https://www.boomrome.com/meteo"'));
+  check('meteo.html: la disciplina del campione è SCRITTA in pagina',
+    meteoSrc.includes('never scored') && meteoSrc.includes('Still measuring'));
+  check('meteo.html: assorbimento = morti provate, detto al lettore',
+    meteoSrc.includes('proven gone'));
+  check('meteo.html: Dataset JSON-LD che punta alla porta dati',
+    meteoSrc.includes('"Dataset"') &&
+    meteoSrc.includes('https://www.boomrome.com/api/meteo'));
+  check('meteo.html: og dedicata', meteoSrc.includes('/og-meteo.png'));
+  check('sitemap: /meteo c\'è',
+    readFileSync(new URL('../../sitemap.xml', import.meta.url), 'utf8')
+      .includes('https://www.boomrome.com/meteo</loc>'));
+  check('llms.txt: il bollettino è offerto ai motori di risposta',
+    readFileSync(new URL('../../llms.txt', import.meta.url), 'utf8')
+      .includes('boomrome.com/meteo'));
+}
+
+/* ── W3 · lo sweep della plancia: il blip È il dato ────────────────────── */
+{
+  const pfsSrc = readFileSync(new URL('../../pfs-command.html', import.meta.url), 'utf8');
+  check('atc: i blip sono gli STESSI item della strip',
+    pfsSrc.includes("state.occ.slice(0, 10).map(function (o, i)"));
+  check('atc: il raggio viene da vsMedianPct (centro = più forte)',
+    pfsSrc.includes('-(+o.vsMedianPct || 0)'));
+  check('atc: l\'angolo è dichiarato come disposizione, non geografia',
+    pfsSrc.includes("l'angolo è solo disposizione"));
+  check('atc: senza occasioni il pannello sparisce',
+    pfsSrc.includes('row.hidden = !state.occ.length'));
+  check('atc: con reduced-motion sweep e blip si fermano',
+    /prefers-reduced-motion: reduce\) \{ #occ-atc::before, #occ-atc \.blip \{ animation: none/.test(pfsSrc));
+}
+
+/* ── W4 · le og carte: generate dal repo, misure vere ──────────────────── */
+{
+  const ihdr = (p) => {
+    const b = readFileSync(new URL(p, import.meta.url));
+    if (b.readUInt32BE(0) !== 0x89504e47) return null;
+    return { w: b.readUInt32BE(16), h: b.readUInt32BE(20) };
+  };
+  const ob = ihdr('../../og-board.png'), om = ihdr('../../og-meteo.png');
+  check('og-board.png: PNG vero da 1200×630', !!ob && ob.w === 1200 && ob.h === 630);
+  check('og-meteo.png: PNG vero da 1200×630', !!om && om.w === 1200 && om.h === 630);
+  check('og: il generatore vive nel repo',
+    readFileSync(new URL('../../design/scalo/genera-og-scalo.py', import.meta.url), 'utf8')
+      .includes("genera('board'"));
+  check('board.html: la condivisione porta il tabellone, non il segnaposto',
+    boardSrc.includes('/og-board.png') && !boardSrc.includes('BOOMsocialprofile.png'));
+}
+
 /* ── esito ─────────────────────────────────────────────────────────────── */
 if (failed) {
   console.log(`\n${failed} failed, ${passed} passed`);

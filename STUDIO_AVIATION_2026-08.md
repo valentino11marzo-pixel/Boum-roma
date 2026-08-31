@@ -243,6 +243,22 @@ Suite scalo a 67 check; l'idrante è provato in Chromium col motore VERO
 su un Firestore stubbato (NOW/FREE · ASK · 15OCT/1NOV SOON · esclusa la
 affittata senza data).
 
+**Stato (2026-08-31, lotto 4)**: eseguiti **W2**, **W3** e **W4** — il
+**Meteo del mercato** è vivo: `GET /api/meteo` ripubblica SOLO gli
+aggregati del Perito (whitelist esplicita, la zona sotto campione esce
+col solo nome — la disciplina passa la porta pubblica intatta, provato
+guidando il handler vero su Firestore in memoria) e `/meteo` è la pagina
+citabile (indicizzata, Dataset JSON-LD, «in brief» coi numeri veri, chip
+zona dal lessico condiviso, sitemap + llms.txt). La plancia PFS ha lo
+**sweep ATC** sul feed 💎: blip = gli stessi item della strip, raggio =
+quanto sotto la mediana, angolo dichiarato come disposizione, click →
+card. E le **og carte** sono generate dal repo
+(`design/scalo/genera-og-scalo.py`, headless_shell): `og-board.png` e
+`og-meteo.png`, 1200×630 verificati nei byte, agganciate a /board e
+/meteo. Suite scalo a 91 check. Restano dalla seconda ondata: NOTAM del
+Segugio, template social nel Media Studio, la PA sonora del kiosk fisico
+— e la decisione fisica dello schermo in vetrina (S9).
+
 ## Parte 5 — La seconda ondata (proposte oltre il primo lotto)
 
 Otto mosse più ambiziose, ognuna appoggiata a un'infrastruttura che ESISTE
