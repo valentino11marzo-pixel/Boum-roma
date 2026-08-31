@@ -27725,10 +27725,10 @@ IBAN: ${l.iban || '-'}`;
                 </label>
                 <span id="innestoFileName" style="font-size:12px;color:var(--text-secondary)">${_innesto.file ? esc(_innesto.file.name) : 'nessun file'}</span>
                 <div style="flex:1"></div>
-                <button class="btn" ${_innesto.busy ? 'disabled' : ''} onclick="innestoAnalyze()">${_innesto.busy ? 'Lettura in corso…' : 'Leggi e proponi'}</button>
+                <button class="btn" ${_innesto.busy ? 'disabled' : ''} onclick="innestoAnalyze()">${_innesto.busy ? 'Lettura in corso…' : (_innesto.proposal ? 'Leggi e integra' : 'Leggi e proponi')}</button>
             </div>
             <div style="font-size:11.5px;color:var(--text-secondary);margin-top:10px;line-height:1.5">
-                Il documento viene letto dall'AI solo per estrarre i campi. Un file grande transita dal tuo Storage e viene rimosso a lettura finita: niente resta salvato finché non confermi.
+                Il documento viene letto dall'AI solo per estrarre i campi. Un file grande transita dal tuo Storage e viene rimosso a lettura finita: niente resta salvato finché non confermi.${_innesto.proposal ? ' <b>Con la proposta aperta, una nuova lettura riempie i buchi</b> (es. la carta d\'identità dopo il contratto) — non cancella niente.' : ''}
             </div>
         </div>
 
@@ -27776,22 +27776,51 @@ IBAN: ${l.iban || '-'}`;
             </div>`;
         };
 
+        // Sezione mancante ≠ vicolo cieco. Il caso vero (Via Simeto, 30/08):
+        // inquilino e immobile ESISTEVANO in anagrafica, ma il PDF non li
+        // portava nella proposta e il contratto restava increabile da qui —
+        // con la persona giusta a due tap di distanza. Il "fantasma" apre
+        // le tre vie: aggancio dall'archivio, compilazione a mano, o un
+        // altro documento letto in integrazione.
+        const poolLandlord = (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').concat(S.landlords || []);
+        const poolTenant = (S.users || []).filter(u => u.role === 'tenant');
+        const ghost = (key, icon, title, pool, required) => {
+            if (p[key] || !p.contract) return '';
+            const chosen = _innesto.links[key] || '';
+            return `
+            <div class="card" style="margin-bottom:14px;border-style:dashed">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+                    <strong style="font-size:14px">${icon} ${esc(title)}</strong>
+                    <span style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:${chosen ? '#00FF88' : '#FF6B35'}">${chosen ? '✓ agganciato dall\'archivio' : 'non letto dal documento'}</span>
+                </div>
+                <div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:10px;line-height:1.5">${required ? 'Serve per il contratto: ' : 'Facoltativo: '}scegli dall'archivio, compila a mano, oppure allega un altro documento (es. la carta d'identità) e rileggi — i dati si integrano.</div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+                    <select onchange="innestoPick('${key}', this.value)"
+                        style="flex:1;min-width:200px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 10px;font-size:13px;font-family:inherit">
+                        <option value="">— scegli dall'archivio (${pool.length}) —</option>
+                        ${pool.map(r => `<option value="${esc(r.id)}" ${chosen === r.id ? 'selected' : ''}>${esc(r.name || r.email || r.id)}</option>`).join('')}
+                    </select>
+                    <button class="btn btn-sm btn-secondary" onclick="innestoAddSection('${key}')">➕ Compila a mano</button>
+                </div>
+            </div>`;
+        };
+
         blocks.push(section('landlord', '🏛', 'Proprietario', [
             ['name', 'Nome'], ['email', 'Email', 'email'], ['phone', 'Telefono'],
             ['codiceFiscale', 'Codice fiscale'], ['iban', 'IBAN'], ['address', 'Residenza']
-        ], 'person', (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').concat(S.landlords || [])));
+        ], 'person', poolLandlord) || ghost('landlord', '🏛', 'Proprietario', poolLandlord, false));
 
         blocks.push(section('property', '🏠', 'Immobile', [
             ['name', 'Nome'], ['address', 'Indirizzo'], ['rent', 'Canone mensile €', 'number'],
             ['sqm', 'Metri quadri', 'number'], ['rooms', 'Locali', 'number'], ['bathrooms', 'Bagni', 'number'],
             ['floor', 'Piano'], ['interno', 'Interno'], ['cadastralData', 'Dati catastali'], ['energyClass', 'Classe energetica']
-        ], 'property', S.properties || []));
+        ], 'property', S.properties || []) || ghost('property', '🏠', 'Immobile', S.properties || [], true));
 
         blocks.push(section('tenant', '👤', 'Inquilino', [
             ['name', 'Nome'], ['email', 'Email', 'email'], ['phone', 'Telefono'],
             ['codiceFiscale', 'Codice fiscale'], ['birthDate', 'Data di nascita', 'date'],
             ['birthPlace', 'Luogo di nascita'], ['address', 'Residenza']
-        ], 'person', (S.users || []).filter(u => u.role === 'tenant')));
+        ], 'person', poolTenant) || ghost('tenant', '👤', 'Inquilino', poolTenant, true));
 
         blocks.push(section('contract', '📋', 'Contratto', [
             ['type', 'Tipo'], ['startDate', 'Inizio', 'date'], ['endDate', 'Fine', 'date'],
@@ -27802,23 +27831,24 @@ IBAN: ${l.iban || '-'}`;
 
         // Riepilogo onesto: distingue cosa nasce da cosa viene solo collegato,
         // così l'operatore sa in anticipo l'effetto del pulsante.
-        const landlordPool = (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').concat(S.landlords || []);
         const willLink = (key, pool, kind) => {
             if (_innesto.links[key] === null) return false;              // "scollega" esplicito
             if (_innesto.links[key]) return true;                        // aggancio scelto
+            if (!p[key]) return false;                                   // sezione assente e nessuna scelta
             return !!V.findMatch(p[key], pool, kind).match;              // aggancio proposto
         };
         const willCreate = [];
-        if (p.landlord && !willLink('landlord', landlordPool, 'person')) willCreate.push('proprietario');
+        if (p.landlord && !willLink('landlord', poolLandlord, 'person')) willCreate.push('proprietario');
         if (p.property && !willLink('property', S.properties || [], 'property')) willCreate.push('immobile');
-        if (p.tenant && !willLink('tenant', (S.users || []).filter(u => u.role === 'tenant'), 'person')) willCreate.push('inquilino');
+        if (p.tenant && !willLink('tenant', poolTenant, 'person')) willCreate.push('inquilino');
         // Il contratto ha bisogno di ENTRAMBE le gambe (immobile e inquilino).
         // Prometterlo quando una manca era la via per un "Innesto completato"
         // SENZA contratto: l'apply lo saltava in silenzio e l'operatore lo
-        // scopriva giorni dopo, controllando l'archivio.
+        // scopriva giorni dopo, controllando l'archivio. Una gamba vale
+        // anche AGGANCIATA dall'archivio (il fantasma qui sopra).
         const contractLegs = [];
-        if (p.contract && !p.property) contractLegs.push("l'immobile");
-        if (p.contract && !p.tenant) contractLegs.push("l'inquilino");
+        if (p.contract && !p.property && !_innesto.links.property) contractLegs.push("l'immobile");
+        if (p.contract && !p.tenant && !_innesto.links.tenant) contractLegs.push("l'inquilino");
         if (p.contract && !contractLegs.length) willCreate.push('contratto + piano rate');
         if (!willCreate.length) willCreate.push('solo collegamenti (nessun nuovo record)');
 
@@ -27834,7 +27864,7 @@ IBAN: ${l.iban || '-'}`;
         </div>` : ''}
         ${contractLegs.length ? `<div class="card" style="border-color:#FF3B3B;margin-bottom:14px">
             <div style="font-size:12px;color:#FF3B3B;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">⚠ Contratto NON creabile</div>
-            <div style="font-size:12.5px;color:#FF9A9A;line-height:1.6">Nel materiale letto manca ${esc(contractLegs.join(' e '))}: il contratto e il piano rate <b>non verranno creati</b>. Aggiungi quei dati nel testo (anche due righe: nome inquilino, indirizzo immobile) e ripeti la lettura — oppure crea il resto e completa il contratto dalla pagina Contratti.</div>
+            <div style="font-size:12.5px;color:#FF9A9A;line-height:1.6">Nel materiale letto manca ${esc(contractLegs.join(' e '))}: il contratto e il piano rate <b>non verranno creati</b>. Tre vie: <b>aggancia dall'archivio</b> nel riquadro tratteggiato qui sopra, <b>compila a mano</b>, oppure allega un altro documento e premi «Leggi e integra».</div>
         </div>` : ''}
         <div class="card" style="position:sticky;bottom:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
             <div style="flex:1;min-width:220px">
@@ -27918,13 +27948,26 @@ IBAN: ${l.iban || '-'}`;
             }
             if (data.empty || !data.proposal || !Object.keys(data.proposal).length) {
                 toast('warning', 'Nessun dato riconosciuto', 'Prova ad aggiungere più contesto o un documento più leggibile');
-                _innesto.notes = data.notes || []; _innesto.proposal = null;
+                _innesto.notes = (_innesto.proposal ? _innesto.notes || [] : []).concat(data.notes || []);
+                // Una lettura vuota non butta via la proposta che l'operatore
+                // ha già davanti (e magari ha già corretto).
             } else {
-                _innesto.proposal = window.BOOM_DATAOPS.normalizeProposal(data.proposal);
-                _innesto.notes = data.notes || [];
+                // IL FASCICOLO A PIÙ LETTURE: se una proposta è già aperta, la
+                // nuova lettura ne riempie i BUCHI (mergeProposal: un campo
+                // pieno — magari corretto a mano — non si tocca mai). Così il
+                // PDF del contratto + la foto del documento + due righe di
+                // WhatsApp diventano UNA proposta, senza ricominciare da capo.
+                const D = window.BOOM_DATAOPS;
+                const fresh = D.normalizeProposal(data.proposal);
+                const integrating = !!_innesto.proposal;
+                let next = integrating && D.mergeProposal ? D.mergeProposal(_innesto.proposal, fresh) : fresh;
+                if (D.deriveProposal) next = D.deriveProposal(next);
+                _innesto.proposal = next;
+                _innesto.notes = integrating ? (_innesto.notes || []).concat(data.notes || []) : (data.notes || []);
                 _innesto.confidence = data.confidence;
-                _innesto.links = {};
-                toast('success', 'Proposta pronta', 'Controlla i campi prima di confermare');
+                if (!integrating) _innesto.links = {};
+                _innesto.file = null;   // il prossimo giro legge il PROSSIMO documento
+                toast('success', integrating ? 'Proposta integrata' : 'Proposta pronta', 'Controlla i campi prima di confermare');
             }
         } catch (e) {
             console.error('[Innesto]', e);
@@ -27947,6 +27990,21 @@ IBAN: ${l.iban || '-'}`;
     }
     function innestoLink(section, on, matchId) {
         _innesto.links[section] = on ? matchId : null;
+        renderPage();
+    }
+
+    // Aggancio dal fantasma: la sezione non c'è nella proposta, ma la
+    // persona/casa esiste in archivio. Select vuota = si torna a "nessuna
+    // scelta" (undefined), MAI a null: null significa "crea nuovo".
+    function innestoPick(section, id) {
+        if (id) _innesto.links[section] = id; else delete _innesto.links[section];
+        renderPage();
+    }
+
+    function innestoAddSection(section) {
+        if (!_innesto.proposal) return;
+        if (!_innesto.proposal[section]) _innesto.proposal[section] = {};
+        delete _innesto.links[section];
         renderPage();
     }
     function innestoReset() {
@@ -27993,11 +28051,13 @@ IBAN: ${l.iban || '-'}`;
                 }
             }
 
-            // 2 — Immobile
-            let propertyId = null;
-            if (p.property) {
-                const m = V.findMatch(p.property, S.properties || [], 'property');
-                if (m.match && _innesto.links.property !== null) { propertyId = m.match.id; }
+            // 2 — Immobile. L'aggancio SCELTO (checkbox o fantasma) vince
+            // sempre sul match riderivato — e vale anche quando la sezione
+            // manca dalla proposta: è la via Via Simeto.
+            let propertyId = _innesto.links.property || null;
+            if (p.property && !propertyId) {
+                const m = _innesto.links.property === null ? { match: null } : V.findMatch(p.property, S.properties || [], 'property');
+                if (m.match) { propertyId = m.match.id; }
                 else {
                     const ref = await db.collection('properties').add({
                         name: p.property.name, address: p.property.address || '',
@@ -28083,11 +28143,14 @@ IBAN: ${l.iban || '-'}`;
             // senza questa riga era indistinguibile da un contratto creato.
             if (p.contract && (!propertyId || !tenantId)) {
                 const gambe = [!propertyId && "l'immobile", !tenantId && "l'inquilino"].filter(Boolean).join(' e ');
-                toast('warning', 'Contratto NON creato', 'nella proposta manca ' + gambe + ' — completalo dalla pagina Contratti');
+                toast('warning', 'Contratto NON creato', 'nella proposta manca ' + gambe + ' — agganciala dall\'archivio o completala a mano');
             }
+            const madeContract = created.indexOf('contratto') >= 0;
             innestoReset();
             await loadDataFresh(true);
-            buildNav(); renderPage();
+            // Il contratto appena nato si VEDE: si atterra sulla sua lista,
+            // non su una pagina Innesto tornata vuota.
+            if (madeContract) goTo('contracts'); else { buildNav(); renderPage(); }
         } catch (e) {
             console.error('[Innesto] creazione fallita:', e);
             toast('error', 'Creazione non riuscita', e.message + (created.length ? ' — già creati: ' + created.join(', ') : ''));
