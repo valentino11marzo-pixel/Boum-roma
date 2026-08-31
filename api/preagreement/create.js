@@ -24,7 +24,9 @@
 //   property:  { address, type?, condition?, use?, floor?, unit? },
 //   landlord:  { name },
 //   tenant?:   { fullName?, email?, phone? },          // optional prefill
-//   lease:     { startDate(YYYY-MM-DD), months, type?, lawRef?, reason? },
+//   lease:     { startDate(YYYY-MM-DD), months, type?, lawRef?, reason?,
+//                studenti?: { corsoStudi, universita, universitaIndirizzo,
+//                             tipoIscrizione, annoAccademico } },
 //   money:     { rent, energyCredit?, depositMonths?, depositSplitPct?,
 //                feeMode?('pct'|'months'), feePct?, feeMonths?, feeVatPct?,
 //                feeDue?('move-in'|'signing'|'separate'), dueAtSigning? },
@@ -42,6 +44,24 @@ import { requireRole, setCors } from '../_auth.js';
 
 const clip = (v, n = 300) => (v == null ? null : String(v).trim().slice(0, n) || null);
 const num = (v, d = 0) => (isFinite(+v) ? +v : d);
+
+// Allegato C — i dati dello STUDENTE. Il contratto tipo dell'associazione
+// nomina corso di studi e università dentro la clausola: senza, il PDF
+// stampa i puntini al posto dei fatti e l'attestazione non regge. Si
+// raccolgono QUI, dove il deal nasce, invece di scoprirli mancanti alla
+// firma. Tutto facoltativo alla porta (un deal si scrive anche a pezzi):
+// blocco assente = null, non un oggetto di stringhe vuote.
+const studentBlock = (v) => {
+  const x = (v && typeof v === 'object') ? v : {};
+  const out = {
+    corsoStudi: clip(x.corsoStudi, 200) || '',
+    universita: clip(x.universita, 200) || '',
+    universitaIndirizzo: clip(x.universitaIndirizzo, 200) || '',
+    tipoIscrizione: clip(x.tipoIscrizione, 60) || '',
+    annoAccademico: clip(x.annoAccademico, 20) || '',
+  };
+  return Object.keys(out).some((k) => out[k]) ? out : null;
+};
 const r2 = (n) => Math.round(n * 100) / 100;
 
 function endDate(startISO, months) {
@@ -187,6 +207,7 @@ export default async function handler(req, res) {
       type: clip(l.type, 80) || 'Transitional Lease',
       lawRef: clip(l.lawRef, 80) || 'uso transitorio · L.431/98 art.5 c.1',
       reason: clip(l.reason, 300),
+      studenti: studentBlock(l.studenti),
     },
     money,
     extras,

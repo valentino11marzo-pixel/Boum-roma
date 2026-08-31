@@ -5,6 +5,7 @@
 // conversione pre-agreement idempotente.
 // Uso: node tests/money/run.mjs
 import { register } from 'node:module';
+import { readFileSync } from 'node:fs';
 register('./loader.mjs', import.meta.url);
 
 process.env.STRIPE_SECRET_KEY = 'sk_test_x';
@@ -341,6 +342,54 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
     c.agencyFee && c.agencyFee.totalEur === 2049.6 && c.agencyFee.due === 'move-in');
   check('convert: scheda cliente creata anche per il co-conduttore',
     [...store.keys()].some(k => k.startsWith('users/') && (store.get(k) || {}).name === 'Anouk G'));
+}
+
+// ═══ 10. convert: lo STUDENTE riceve l'Allegato C anche quando nessuno
+// dice il tipo — è la strada di _auto.js (immobile collegato: il contratto
+// nasce da solo) e del tasto 🖊 Magic Sign. Prima uscivano tutti Allegato B.
+{
+  const { convertPaToContract } = await import('../../api/preagreement/convert.js');
+  store.set('properties/prop11', { ownerId: 'll11', name: 'Casa Studenti', ownerName: 'Bianchi' });
+  const paStud = {
+    status: 'accepted', propertyId: 'prop11', ref: 'BOOM-S',
+    tenant: { fullName: 'Marta Neri', email: 'marta@x.it', phone: '333' },
+    money: { rent: 700, deposit: 1400, depositMonths: 2 },
+    lease: {
+      months: 10, startDate: '2026-09-01', type: 'Student Housing (Allegato C)',
+      studenti: { corsoStudi: 'Laurea Magistrale in Economia', universita: 'LUISS Guido Carli',
+                  universitaIndirizzo: 'Viale Romania 32, Roma', tipoIscrizione: 'Laurea Magistrale',
+                  annoAccademico: '2026/2027' },
+    },
+  };
+  // NOTA: nessun `type` passato — esattamente come fa _auto.js
+  const outS = await convertPaToContract({ pa: paStud, paId: 'pa11' });
+  const cs = store.get('contracts/pa_pa11');
+  check('convert AUTO: un deal studenti nasce type=studenti senza che nessuno lo dica',
+    outS.ok && cs && cs.type === 'studenti');
+  check('convert: corso e università finiscono sul contratto (l\'Allegato C li nomina)',
+    cs && cs.studenti && cs.studenti.corsoStudi === 'Laurea Magistrale in Economia'
+    && cs.studenti.universita === 'LUISS Guido Carli' && cs.studenti.annoAccademico === '2026/2027');
+  check('convert: anche i campi legacy letti dal generatore sono pieni',
+    cs && cs.courseName === 'Laurea Magistrale in Economia' && cs.universityName === 'LUISS Guido Carli');
+
+  // e il contrario: un transitorio non diventa mai studenti, e non porta
+  // dati universitari addosso
+  store.set('properties/prop12', { ownerId: 'll12', name: 'Casa Lavoro', ownerName: 'Neri' });
+  const paTr = {
+    status: 'accepted', propertyId: 'prop12', ref: 'BOOM-T',
+    tenant: { fullName: 'Luca Blu', email: 'luca@x.it' },
+    money: { rent: 1100, deposit: 1100, depositMonths: 1 },
+    lease: { months: 12, startDate: '2026-09-01', type: 'Transitional Lease' },
+  };
+  await convertPaToContract({ pa: paTr, paId: 'pa12' });
+  const ct = store.get('contracts/pa_pa12');
+  check('convert: un transitorio resta transitorio, senza dati universitari',
+    ct && ct.type === 'transitorio' && ct.studenti === null && ct.courseName === '' && ct.universityName === '');
+
+  // il generatore, letto lo stesso contratto, sceglie davvero l'altro modello
+  const disp = readFileSync(new URL('../../js/contract-pdf.js', import.meta.url), 'utf8');
+  check('e il generatore, su quel type, sceglie l\'Allegato C',
+    /\(env\.contract\.type === 'studenti'\) \? buildAllegatoC\(env\) : buildAllegatoB\(env\)/.test(disp));
 }
 
 console.log('\n' + '─'.repeat(48));

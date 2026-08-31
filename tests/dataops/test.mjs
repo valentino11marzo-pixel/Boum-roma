@@ -267,6 +267,36 @@ console.log('\n── Dati aziendali fuori dal codice (IBAN incluso) ───�
   eq('partita IVA ripulita', m4.company.piva, '17546591000');
 }
 
+
+console.log('\n── Il fascicolo a più letture (merge + derivazioni) ──────');
+{
+  // Il PDF del contratto, POI la carta d'identità: la seconda lettura
+  // riempie i buchi e non tocca MAI un campo pieno (che potrebbe essere
+  // una correzione dell'operatore).
+  const base = {
+    tenant: { name: 'Oyku Testa', email: '', codiceFiscale: '' },
+    contract: { startDate: '2026-09-01', endDate: '2027-08-31', rent: 1100, deposit: null, depositMonths: 2 }
+  };
+  const extra = {
+    tenant: { name: 'OYKU TESTA (dal documento)', email: 'oyku@example.com', codiceFiscale: 'TSTOYK95A41Z243X', birthDate: '1995-01-01' },
+    property: { name: 'Via Simeto 12', address: 'Via Simeto 12, Roma', rent: 1100 }
+  };
+  const m = E.mergeProposal(base, extra);
+  eq('un campo PIENO non si tocca mai (il nome resta quello a video)', m.tenant.name, 'Oyku Testa');
+  eq('i buchi si riempiono (email dal documento)', m.tenant.email, 'oyku@example.com');
+  eq('i campi nuovi entrano (CF dal documento)', m.tenant.codiceFiscale, 'TSTOYK95A41Z243X');
+  ok('una sezione assente arriva intera', m.property && m.property.address === 'Via Simeto 12, Roma');
+  eq('le sezioni non toccate restano identiche', m.contract, base.contract);
+  ok('merge non muta gli argomenti', base.tenant.email === '' && !base.property);
+
+  const d = E.deriveProposal({ contract: { rent: 1100, deposit: null, depositMonths: 2 }, property: { name: '', address: 'Via Simeto 12, Roma', rent: null } });
+  eq('deposito derivato: mensilità × canone', d.contract.deposit, 2200);
+  eq("il nome dell'immobile nasce dall'indirizzo", d.property.name, 'Via Simeto 12, Roma');
+  const d2 = E.deriveProposal({ contract: { rent: null, deposit: 500, depositMonths: 2 }, property: { name: 'Casa', rent: 900 } });
+  eq('il canone del contratto eredita dall\'immobile', d2.contract.rent, 900);
+  eq('un deposito DICHIARATO non viene mai ricalcolato', d2.contract.deposit, 500);
+}
+
 console.log('\n' + '─'.repeat(56));
 if (failed) {
   console.log(`\x1b[31mDataOps: ${passed} passed, ${failed} failed\x1b[0m`);

@@ -558,6 +558,47 @@
         return out;
     }
 
+    // ── L'INNESTO A PIÙ LETTURE ────────────────────────────────────────
+    // Un fascicolo vero arriva a pezzi: il PDF del contratto, POI la foto
+    // della carta d'identità, POI due righe di WhatsApp col telefono.
+    // mergeProposal fonde una NUOVA lettura dentro la proposta che
+    // l'operatore ha già davanti (e magari ha già corretto): riempie SOLO
+    // i buchi. Un campo pieno non si tocca MAI — potrebbe essere una
+    // correzione umana, e una correzione sovrascritta in silenzio è il
+    // difetto peggiore che questo strumento possa avere.
+    function mergeProposal(base, extra) {
+        base = base || {}; extra = extra || {};
+        var out = JSON.parse(JSON.stringify(base));
+        ['landlord', 'tenant', 'property', 'contract'].forEach(function (k) {
+            if (!extra[k]) return;
+            if (!out[k]) { out[k] = JSON.parse(JSON.stringify(extra[k])); return; }
+            Object.keys(extra[k]).forEach(function (f) {
+                var cur = out[k][f], nv = extra[k][f];
+                var curEmpty = cur == null || cur === '' || cur === 0;
+                var nvFull = nv != null && nv !== '' && nv !== 0;
+                if (curEmpty && nvFull) out[k][f] = nv;
+            });
+        });
+        return out;
+    }
+
+    // Derivazioni che l'operatore non deve fare a mano: il deposito da
+    // "N mensilità" × canone, il canone del contratto dall'immobile (il
+    // verso opposto lo fa già normalizeProposal), il nome dell'immobile
+    // dall'indirizzo. Mai una STIMA: solo aritmetica su dati dichiarati.
+    function deriveProposal(p) {
+        p = p || {};
+        var c = p.contract, pr = p.property;
+        if (c) {
+            if (!c.rent && pr && pr.rent) c.rent = pr.rent;
+            if (!c.deposit && c.depositMonths && c.rent) {
+                c.deposit = Math.round(c.depositMonths * c.rent * 100) / 100;
+            }
+        }
+        if (pr && !pr.name && pr.address) pr.name = pr.address;
+        return p;
+    }
+
     // ══════════════════════════════════════════════════════════════════
     // PARTE 3 — I DATI AZIENDALI (IBAN incluso) fuori dal codice
     // ══════════════════════════════════════════════════════════════════
@@ -622,6 +663,7 @@
         // innesto
         validateCF: validateCF, validateIBAN: validateIBAN,
         validateProposal: validateProposal, findMatch: findMatch,
-        normalizeProposal: normalizeProposal, normName: normName, normAddress: normAddress
+        normalizeProposal: normalizeProposal, normName: normName, normAddress: normAddress,
+        mergeProposal: mergeProposal, deriveProposal: deriveProposal
     };
 });

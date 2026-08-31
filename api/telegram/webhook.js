@@ -161,8 +161,13 @@ export default async function handler(req, res) {
         let opened = null;
         if (r.ok) opened = await segretariaOpen(actionId).catch(e => ({ acted: false, why: e.message }));
         if (r.ok && messageId) {
+          // La verità sulla consegna: 'executed' NON è 'consegnato' — su
+          // WhatsApp consegna il Mac, e se non ritira entro 5' arriva la
+          // card 📮 del Postino col testo pronto da mandare a mano.
           const openLine = opened && opened.sent
-            ? '\n📨 <i>Le ha appena scritto lei, rispondendo alla richiesta.</i>'
+            ? (opened.channel === 'email'
+              ? '\n📧 <i>Le ha scritto lei ora, via email (niente numero in archivio).</i>'
+              : '\n📨 <i>Risposta scritta — in consegna su WhatsApp via Mac. Se il Mac non ritira entro 5 min ti mando io la card 📮 col testo pronto.</i>')
             : (opened && opened.escalated ? `\n🖐 <i>Ti ha subito passato la mano: ${esc(opened.why || '')}</i>` : '');
           await tgEdit(chatId, messageId,
             (cq.message.text || '') + `\n\n🤖 <b>CONSEGNATA ALLA SEGRETARIA</b> — risponde lei su questa chat. Un tuo messaggio manuale la spegne; /segretaria per il quadro.${openLine}`).catch(() => {});
@@ -185,6 +190,21 @@ export default async function handler(req, res) {
           const { msg, keyboard } = await segretariaStatusMessage();
           if (messageId) await tgEdit(chatId, messageId, msg, { reply_markup: keyboard });
         } catch { /* non-fatal */ }
+        return res.status(200).json({ ok: true });
+      }
+
+      // ── Il Postino (pw) — la consegna manuale registrata ────────────────
+      // L'operatore ha mandato lui il messaggio dalla card 📮: si marca
+      // consegnato così coda e conteggi dicono il vero. Prima del lookup
+      // generico: il doc è 'executed', non 'pending'.
+      if (verb === 'pw') {
+        await fsPatch(`action_queue/${actionId}`, {
+          waSentAt: new Date(),
+          waSentBy: 'operator',
+        }).catch(() => {});
+        await tgAckCallback(cq.id, '✓ Consegnato');
+        if (messageId) await tgEdit(chatId, messageId,
+          (cq.message.text || '') + '\n\n✅ <b>CONSEGNATO DA TE</b>').catch(() => {});
         return res.status(200).json({ ok: true });
       }
 

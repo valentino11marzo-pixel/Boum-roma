@@ -8,14 +8,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="theme-color" content="#060607">
     <title>Moving to Rome from the US (2026) — Visas, Costs, Homes | BOOM</title>
-    <meta name="description" content="The American guide to moving to Rome: 90-day Schengen rule, student & elective residence visas, real rents, US banking that works in Italy, and a verified home before you land.">
+    <meta name="description" content="The American guide to moving to Rome: the 90-day Schengen rule, student and elective residence visas, real rents, and US banking that works in Italy.">
     <link rel="canonical" href="https://www.boomrome.com/moving-to-rome-from-us">
     <meta property="og:type" content="article">
     <meta property="og:site_name" content="BOOM Rome">
     <meta property="og:title" content="Moving to Rome from the US (2026) — Visas, Costs, Homes | BOOM">
-    <meta property="og:description" content="The American guide to moving to Rome: 90-day Schengen rule, student & elective residence visas, real rents, US banking that works in Italy, and a verified home before you land.">
+    <meta property="og:description" content="The American guide to moving to Rome: the 90-day Schengen rule, student and elective residence visas, real rents, and US banking that works in Italy.">
     <meta property="og:url" content="https://www.boomrome.com/moving-to-rome-from-us">
-    <meta property="og:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
+    <meta property="og:image" content="https://www.boomrome.com/og-home.png">
     <link rel="manifest" href="/site.webmanifest">
     <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
     <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon-180.png">
@@ -44,15 +44,7 @@
 }
   </script>
   <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[
- {"@type":"Question","name":"Do US citizens need a visa to move to Rome?","acceptedAnswer":{"@type":"Answer","text":"For up to 90 days in any 180-day window, no — just a passport. For longer stays you need a visa before departure: student visa, elective residence visa (passive income required), or a work permit sponsored by an employer."}},
- {"@type":"Question","name":"How much does it cost to rent in Rome as an expat?","acceptedAnswer":{"@type":"Answer","text":"Typical mid-term furnished asking prices in 2026: studios from around €900, one-bedrooms €1,200–1,800 in central zones, two-bedrooms €1,500–2,400. Budget a deposit of 2–3 months plus an agency fee — and beware of anything dramatically cheaper, it is usually a scam."}},
- {"@type":"Question","name":"Can I rent an apartment in Rome before arriving?","acceptedAnswer":{"@type":"Answer","text":"Yes — with video-verified listings, a live video viewing, a digital contract and online payment you can sign and pay from abroad and collect keys on landing day. That is exactly the BOOM process."}},
- {"@type":"Question","name":"What documents do I need to rent in Rome?","acceptedAnswer":{"@type":"Answer","text":"Passport or EU ID, codice fiscale (Italian tax code — obtainable remotely), proof of income or a guarantor, and for non-EU citizens the visa or permesso di soggiorno appropriate to your stay."}},
- {"@type":"Question","name":"Which Rome neighbourhood should I choose?","acceptedAnswer":{"@type":"Answer","text":"Trastevere and Monti for atmosphere, Prati for order and space, Testaccio for food and authenticity, San Lorenzo and Pigneto for budgets and nightlife, Trieste-Coppedè for families. BOOM publishes an honest guide for each."}},
- {"@type":"Question","name":"What are the most common rental scams in Rome?","acceptedAnswer":{"@type":"Answer","text":"Deposits wired for apartments that do not exist, landlords who are not the owners, unregistered contracts that strip your rights, and prices far below market. Never pay before verifying — or use an agency that verifies for you."}},
- {"@type":"Question","name":"How long does it take to find an apartment in Rome?","acceptedAnswer":{"@type":"Answer","text":"On the open market 3–6 weeks of daily searching; good listings go in days. With verified inventory or a dedicated property finder, days instead of weeks."}}
-]}
+{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[{"@type":"Question","name":"Do US citizens need a visa to move to Rome?","acceptedAnswer":{"@type":"Answer","text":"For up to 90 days in any 180-day window, no — just a passport. For longer stays you need a visa before departure: student visa, elective residence visa (passive income required), or a work permit sponsored by an employer."}},{"@type":"Question","name":"How much does it cost to rent in Rome as an expat?","acceptedAnswer":{"@type":"Answer","text":"Typical mid-term furnished asking prices in 2026: studios from around €900, one-bedrooms €1,200–1,800 in central zones, two-bedrooms €1,500–2,400. Budget a deposit of 2–3 months plus an agency fee — and beware of anything dramatically cheaper, it is usually a scam."}},{"@type":"Question","name":"Can I rent an apartment in Rome before arriving?","acceptedAnswer":{"@type":"Answer","text":"Yes — with video-verified listings, a live video viewing, a digital contract and online payment you can sign and pay from abroad and collect keys on landing day. That is exactly the BOOM process."}},{"@type":"Question","name":"What documents do I need to rent in Rome?","acceptedAnswer":{"@type":"Answer","text":"Passport or EU ID, codice fiscale (Italian tax code — obtainable remotely), proof of income or a guarantor, and for non-EU citizens the visa or permesso di soggiorno appropriate to your stay."}}]}
   </script>
 <link rel="stylesheet" href="/css/boom-2026.css">
 <style>
@@ -91,6 +83,106 @@
 .marchio .logo-mark{filter:none}
 </style>
 <script defer src="/js/boom-consent.js"></script>
+<!-- BOOM_SCROLL:START -->
+<style>
+/* boom-scroll.css — IL CONTRATTO DI SCORRIMENTO, in una copia sola.
+ *
+ * IL REPERTO: su 45 fra pagine e viewport, un link interno portava il
+ * lettore SOTTO la barra fissa. Il titolo della sezione finiva nascosto
+ * dietro la nav e si atterrava a meta' frase — su apartment-detail erano
+ * sei ancore su sei. La causa e' banale e sempre la stessa: `scroll-margin`
+ * e `scroll-padding` erano usati sei volte in tutto il sito, con numeri
+ * scritti a mano (86px, 104px, 150px) che nessuno teneva allineati
+ * all'altezza VERA della barra — che va da 71 a 99px a seconda della
+ * pagina e della larghezza.
+ *
+ * La soluzione non e' quarantacinque pezze: e' una proprieta' sola.
+ * `scroll-padding-top` sull'elemento che scorre copre TUTTO in un colpo —
+ * la navigazione per frammento (#sezione), `scrollIntoView()` e `:target`.
+ * Il valore non si indovina: lo misura js/boom-scroll.js dal documento
+ * vero, e lo riscrive quando la finestra cambia.
+ *
+ * Il ripiego (76px) vale solo nell'istante fra il primo paint e la prima
+ * misura, e con JS spento: meglio un'approssimazione onesta dello zero.
+ */
+:root { --boom-barra: 76px; }
+
+html {
+  scroll-padding-top: calc(var(--boom-barra) + 18px);
+}
+
+/* Un'ancora puo' vivere dentro un contenitore che scorre per conto suo
+   (una lista, un cassetto): li' la barra della pagina non c'entra, e la
+   regola sull'elemento la porterebbe fuori quadro. */
+[data-scroll-libero] { scroll-padding-top: 0; }
+
+/* Movimento = informazione. Chi ha chiesto meno movimento al sistema
+   operativo non deve subire lo scorrimento animato di 77 dichiarazioni
+   sparse: si spegne qui, una volta, per tutte. */
+@media (prefers-reduced-motion: reduce) {
+  html, body { scroll-behavior: auto !important; }
+}
+</style>
+<script>
+/* boom-scroll.js — LA MISURA DELLA BARRA. ~500 byte, nessuna dipendenza.
+ *
+ * Scrive --boom-barra con l'altezza VERA di cio' che copre il bordo alto
+ * della finestra, cosi' `scroll-padding-top` (css/boom-scroll.css) porta
+ * ogni ancora sotto la barra invece che dietro.
+ *
+ * Come si misura, e perche' cosi': `elementsFromPoint` restituisce solo
+ * gli elementi sotto UN punto — costa quanto la profondita' dell'albero,
+ * non quanto il numero di nodi. Scorrere tutto il documento con
+ * querySelectorAll('*') e chiedere getComputedStyle a ognuno costerebbe
+ * millisecondi di thread principale a ogni ridimensionamento, per sapere
+ * una cosa che si legge in un punto.
+ *
+ * Si misura al caricamento, al primo scorrimento (molte barre cambiano
+ * altezza appena si scorre) e al ridimensionamento. Mai in un loop.
+ */
+(function () {
+  var R = document.documentElement, ultimo = -1;
+
+  function misura() {
+    var x = Math.round(innerWidth / 2), coperto = 0, i, e, s, r;
+    var sotto = document.elementsFromPoint ? document.elementsFromPoint(x, 2) : [];
+    for (i = 0; i < sotto.length; i++) {
+      e = sotto[i];
+      if (!e || e === R || e === document.body) continue;
+      s = getComputedStyle(e);
+      if (s.position !== 'fixed' && s.position !== 'sticky') continue;
+      if (s.visibility === 'hidden' || s.display === 'none') continue;
+      r = e.getBoundingClientRect();
+      // Una barra alta mezzo schermo non e' una barra: e' un pannello
+      // aperto, e non deve spostare le ancore di tutta la pagina.
+      if (r.top > 2 || r.height > innerHeight * 0.35) continue;
+      if (r.bottom > coperto) coperto = r.bottom;
+    }
+    coperto = Math.round(coperto);
+    if (coperto !== ultimo) {
+      ultimo = coperto;
+      R.style.setProperty('--boom-barra', coperto + 'px');
+    }
+  }
+
+  var atteso = false;
+  function piano() {
+    if (atteso) return;
+    atteso = true;
+    requestAnimationFrame(function () { atteso = false; misura(); });
+  }
+
+  misura();
+  addEventListener('load', misura);
+  addEventListener('resize', piano, { passive: true });
+  addEventListener('orientationchange', piano);
+  addEventListener('scroll', function una() {
+    removeEventListener('scroll', una);
+    piano();
+  }, { passive: true, once: true });
+})();
+</script>
+<!-- BOOM_SCROLL:END -->
 </head>
 <body>
 <nav class="top">
@@ -238,7 +330,47 @@
   <div class="fbot"><span>© 2026 BOOM — All Rights Reserved</span><span class="ok"><i></i> Operational</span></div>
 </footer>
 
-<script src="/js/boom-ambient.js"></script>
+<script>/* IL MOTORE D'AMBIENTE ARRIVA DOPO LA PRIMA PITTURA.
+   Misurato in Chromium con CPU a 1/4 (telefono di fascia media): i 103 KB di
+   boom-ambient.js costano ~420ms di thread principale prima che la pagina sia
+   interattiva, e ~600ms sul load. La prima pittura NON ne soffre — quindi quel
+   lavoro sta semplicemente nel posto sbagliato: e' atmosfera, e l'atmosfera
+   puo' arrivare quando la pagina e' gia' tua.
+   Qui resta uno STUB che mette in coda mount/mood, cosi' nessuna pagina deve
+   cambiare la propria configurazione; il motore vero si carica dopo `load` e
+   la coda gli si riversa dentro.
+   LA TRAPPOLA, che va detta: boom-ambient.js comincia con
+   `if (window.BoomAmbient) return;` — una guardia contro il doppio
+   caricamento. Uno stub con quel nome lo farebbe uscire all'istante e
+   l'ambiente sparirebbe da 23 pagine SENZA UN ERRORE. Percio' lo stub si
+   toglie di mezzo (delete) un attimo prima di iniettare il motore vero. */
+(function () {
+  var Q = [], M = null, STUB;
+  function proxy() { return { mood: function (m) { M && M.mood ? M.mood(m) : Q.push(['mood', m]); } }; }
+  STUB = { mount: function (c) { Q.push(['mount', c]); return proxy(); },
+           mood: function (m) { Q.push(['top', m]); },
+           differito: true };
+  window.BoomAmbient = STUB;
+  function vai() {
+    if (window.BoomAmbient === STUB) { try { delete window.BoomAmbient; } catch (e) { window.BoomAmbient = undefined; } }
+    var s = document.createElement('script');
+    s.src = '/js/boom-ambient.js';
+    s.onload = function () {
+      var A = window.BoomAmbient;
+      if (!A || !A.mount) return;
+      for (var i = 0; i < Q.length; i++) {
+        var q = Q[i];
+        if (q[0] === 'mount') M = A.mount(q[1]);
+        else if (q[0] === 'top' && A.mood) A.mood(q[1]);
+        else if (q[0] === 'mood' && M && M.mood) M.mood(q[1]);
+      }
+    };
+    document.head.appendChild(s);
+  }
+  if (document.readyState === 'complete') setTimeout(vai, 1);
+  else addEventListener('load', function () { setTimeout(vai, 1); });
+})();
+</script>
 <script>
 function boomTrack(name,params){try{if(typeof gtag==='function')gtag('event',name,params||{});}catch(e){}}
 try{if(window.BoomAmbient)BoomAmbient.mount({ink:'#060607',inkRGB:'6,6,7',palette:{a:'255,215,0',b:'255,229,160'},intensity:.55,sections:false,scene:'marmoantico',z:-3});}catch(e){}
