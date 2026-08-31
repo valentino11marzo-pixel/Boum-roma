@@ -11,7 +11,7 @@
 
 const ORIGIN = 'https://www.boomrome.com';
 const BRAND = 'BOOM Rome';
-const DEFAULT_OG_IMAGE = `${ORIGIN}/BOOMsocialprofile.png`;
+const DEFAULT_OG_IMAGE = `${ORIGIN}/og-home.png`;
 const FALLBACK_OG_IMAGE = `${ORIGIN}/android-chrome-512x512.png`;
 const THEME_COLOR = '#08080A';
 const GOLD = '#D4AF37';
