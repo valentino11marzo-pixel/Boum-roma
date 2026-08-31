@@ -770,6 +770,15 @@ Il quarto membro de La Squadra: dirige la GIORNATA dell'operatore.
   time next to the visitor's own clock, and carries the day-of action,
   Wallet and .ics. Linked from the confirmation email, the T-24h reminder,
   the reschedule email and `book.html`'s confirmed screen.
+  **Flight status (LO SCALO, W1)**: la pagina veste il biglietto da schermo
+  di stato volo — rotta `ROM → <codice zona>` dal lessico condiviso
+  `js/scalo-codes.js` (una copia con pass-delivery e book; nessun match →
+  HOME, mai inventato), numero `BM ····` DERIVATO dall'id, e il countdown
+  T-24h / T-3h / T-30m disegnato sugli STESSI momenti che `_moments.js`
+  esegue — stato puramente temporale, mai un "già spedito". Su /book la
+  schermata confermata È la carta d'imbarco (stessa grammatica); la
+  pending resta "Request sent": un pass su una visita non confermata è
+  una bugia. Test: `node tests/scalo/run.mjs`.
 - **Telegram: the agenda in your pocket** (`api/telegram/_viewings.js`).
   Every viewing request pings the admin chat (via `notify-pending`, every
   minute) as a card with the three moves — **✅ Conferma <l'orario
@@ -3155,7 +3164,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/inventario/ui.mjs` | l'inventario in un browser vero a 390px: il video registrato al volo diventa fotogrammi (immagine vera, non quadrati neri), il filmato NON viene mai caricato, l'operatore corregge una riga e quella diventa 'human', il cancello della conferma tiene |
   | `tests/contractpdf/run.mjs` | il PDF del contratto in UNA copia (jsPDF REALE): l'impaginato condiviso produce Allegato B/C con le ancore firma, la conversione PA lo scrive da sola (e con Storage giù il contratto nasce comunque), send-sign sana i pre-fix PRIMA dell'email (ordine asserito sulla sorgente), la prima apertura di /sign è l'ultima rete, e MAI una rigenerazione sotto una firma viva (mutazione) |
   | `tests/sign/lang.mjs` | /sign bilingue guidata in un browser vero (demo mode): default per ruolo (locatore IT, inquilino EN), toggle che ridisegna lo step corrente in entrambe le direzioni, percorso intero tradotto, Skip OTP che non blocca, link WhatsApp presenti. Si auto-skippa senza playwright |
-  | `tests/scalo/run.mjs` | LO SCALO lotto 1: la carta d'imbarco dice la verità (visita annullata/standby = Wallet spento e DETTO, codici di rotta solo dal lessico — mai inventati, pass viewing per navigazione vera mai blob:), e gli ARRIVI di /board sono DERIVATI dal campo `ora` della fotografia di build (SOON in oro, rotazione su entrambi i lati) |
+  | `tests/scalo/run.mjs` | LO SCALO lotti 1-2: la carta d'imbarco dice la verità (visita annullata/standby = Wallet spento e DETTO, codici di rotta solo dal lessico — mai inventati, pass viewing per navigazione vera mai blob:), gli ARRIVI di /board DERIVATI dal campo `ora` della build, il lessico `js/scalo-codes.js` in UNA copia (alias lungo batte il corto, parole intere, ambiguo → null, bmCode derivato), il flight status di /viewing (countdown SOLO sui momenti veri di _moments, stato temporale mai "già spedito"), e il check-in di /book (la carta SOLO sulla confermata — mai sulla pending — con applyApprovalCopy unico posto delle parole) |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
   the 3 portals via `BoomPortal.registerServiceWorker()`

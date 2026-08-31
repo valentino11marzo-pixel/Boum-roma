@@ -469,6 +469,7 @@ body{
   <span>BOOM — Rome's Premium Rental Concierge</span>
 </div>
 
+<script src="/js/scalo-codes.js"></script>
 <script>
 // Parse URL params to populate pass data
 const params = new URLSearchParams(window.location.search);
@@ -492,23 +493,19 @@ const typeConfig = {
 const cfg = typeConfig[passType] || typeConfig.viewing;
 document.getElementById('greeting-title').textContent = cfg.title;
 document.getElementById('greeting-sub').textContent = cfg.sub;
-document.getElementById('pm-type').textContent = cfg.label;
 document.getElementById('pm-brand').textContent = cfg.brand;
-
-/* La ROTTA: destinazione = codice zona SOLO dal lessico curato (mai
-   inventato al volo — la disciplina di inferZone: ambiguo → niente).
-   Nessun match → resta il fatto nudo, "HOME". */
-const ZONE_CODES = [
-  ['TRASTEVERE','TRA'],['MONTI','MON'],['PIGNETO','PIG'],['PRATI','PRA'],
-  ['SAN LORENZO','SLO'],['TESTACCIO','TES'],['ESQUILINO','ESQ'],
-  ['OSTIENSE','OST'],['NOMENTANO','NOM'],['TIBURTIN','TIB'],
-  ['PARIOLI','PAR'],['TRIESTE','TRI'],['CENTRO','CEN'],['EUR','EUR']
-];
-function zoneCode(txt){
-  const up = String(txt || '').toUpperCase();
-  for (const [nome, code] of ZONE_CODES) if (up.includes(nome)) return code;
-  return null;
+// il numero di volo: soprannome DERIVATO dall'id vero (bmCode), mai inventato
+{
+  const bm = (window.BOOM_SCALO && passId) ? window.BOOM_SCALO.bmCode(passId) : null;
+  document.getElementById('pm-type').textContent = cfg.label + (bm ? ' · ' + bm : '');
 }
+
+/* La ROTTA: destinazione = codice zona SOLO dal lessico curato di
+   js/scalo-codes.js (UNA copia per pass-delivery, /viewing e /book — la
+   disciplina di inferZone: ambiguo → niente). Nessun match, o modulo non
+   caricato → resta il fatto nudo, "HOME". */
+const SC = window.BOOM_SCALO || null;
+function zoneCode(txt){ return SC ? SC.zoneCode(txt) : null; }
 {
   const seed = zoneCode((params.get('zone') || '') + ' ' + (params.get('address') || ''));
   if (seed) document.getElementById('r-dest').textContent = seed;

@@ -25,9 +25,14 @@
 // node tests/scalo/run.mjs
 
 import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+const require = createRequire(import.meta.url);
 
 const passSrc = readFileSync(new URL('../../pass-delivery.html', import.meta.url), 'utf8');
 const boardSrc = readFileSync(new URL('../../board.html', import.meta.url), 'utf8');
+const viewSrc = readFileSync(new URL('../../viewing.html', import.meta.url), 'utf8');
+const bookSrc = readFileSync(new URL('../../book.html', import.meta.url), 'utf8');
+const SC = require('../../js/scalo-codes.js');
 
 let passed = 0, failed = 0;
 function check(name, cond) {
@@ -72,14 +77,14 @@ check('viewing: il mockup legge il record vero (&meta=1)',
   check('pending: lo standby è dichiarato', blocco.includes('STANDBY'));
 }
 
-// il codice di rotta: solo lessico curato, ambiguo → niente
-check('rotta: lessico ZONE_CODES presente', passSrc.includes('ZONE_CODES'));
-{
-  const i = passSrc.indexOf('function zoneCode');
-  const fn = i >= 0 ? passSrc.slice(i, i + 400) : '';
-  check('rotta: nessun match → null, mai un codice inventato',
-    fn.includes('return null'));
-}
+// il codice di rotta viene dal modulo CONDIVISO — pass-delivery non ha
+// più una copia propria del lessico (la disciplina "una copia sola")
+check('rotta: pass-delivery carica js/scalo-codes.js',
+  passSrc.includes('src="/js/scalo-codes.js"'));
+check('rotta: nessuna copia privata del lessico in pagina',
+  !passSrc.includes('ZONE_CODES ='));
+check('rotta: senza modulo o senza match, nessun codice inventato',
+  passSrc.includes('return SC ? SC.zoneCode(txt) : null'));
 
 // modalità video: la rotta dice la verità (YOU → LIVE), mai un gate
 check('video: la rotta diventa YOU → LIVE',
@@ -125,6 +130,64 @@ check('lato: DEPARTURES/ARRIVALS su ante',
 // il fallback statico del lato esiste anche senza JS (markup, non solo JS)
 check('lato: parola nel markup (degrado no-JS)',
   boardSrc.includes('id="lato" class="flap-scale">DEPARTURES'));
+
+/* ── il lessico condiviso (js/scalo-codes.js) — motore puro, si testa ──── */
+
+check('lessico: la zona nota ha il suo codice', SC.zoneCode('Trastevere Loft') === 'TRA');
+check('lessico: l\'alias lungo batte il corto contenuto (radar lesson)',
+  SC.zoneCode('zona Monti Tiburtini') === 'TIB');
+check('lessico: MONTI da solo resta MON', SC.zoneCode('Monti') === 'MON');
+check('lessico: MONTEVERDE non è MONTI (parole intere)',
+  SC.zoneCode('Monteverde Vecchio') === 'MTV');
+check('lessico: ambiguo/sconosciuto → null, MAI inventato',
+  SC.zoneCode('zona sconosciuta') === null && SC.zoneCode('') === null && SC.zoneCode(null) === null);
+check('lessico: il match ignora il case', SC.zoneCode('pigneto palace') === 'PIG');
+check('volo: bmCode è derivato e deterministico',
+  SC.bmCode('a1B2c3d4e5') === 'BM A1B2' && SC.bmCode('a1B2c3d4e5') === SC.bmCode('a1B2c3d4e5'));
+check('volo: senza id niente numero', SC.bmCode('') === null && SC.bmCode(null) === null);
+
+/* ── viewing.html (W1): il flight status dice solo ciò che è vero ──────── */
+
+check('viewing: carica il lessico condiviso',
+  viewSrc.includes('src="/js/scalo-codes.js"'));
+check('viewing: il countdown usa i momenti VERI di _moments (24h/3h/30m)',
+  viewSrc.includes('when-24*3600e3') && viewSrc.includes('when-3*3600e3') &&
+  viewSrc.includes('when-30*60e3'));
+check('viewing: il countdown esiste SOLO su confermata/completata con orario',
+  viewSrc.includes("(st==='confirmed'||st==='completed')&&v.when"));
+check('viewing: video → YOU → LIVE (mai un gate per una call)',
+  viewSrc.includes("from='YOU';dst='LIVE'"));
+check('viewing: il numero di volo è bmCode(id), derivato',
+  viewSrc.includes('SC.bmCode(v.id)'));
+check('viewing: lo stato del countdown è temporale, mai "email inviata"',
+  !/email (inviata|sent)/i.test(viewSrc.slice(viewSrc.indexOf('tkCount'))));
+
+/* ── book.html (S3): il check-in, con le promesse intatte ──────────────── */
+
+check('book: carica il lessico condiviso',
+  bookSrc.includes('src="/js/scalo-codes.js"'));
+check('book: applyApprovalCopy resta l\'UNICO posto delle parole',
+  bookSrc.includes('function applyApprovalCopy()') &&
+  bookSrc.includes("bl.textContent='Request this viewing →'"));
+// la carta d'imbarco vive SOLO nella schermata confermata: una richiesta
+// pending resta "Request sent" — un pass su una visita non confermata è
+// una bugia (la regola di availability-ui, qui sul client)
+{
+  const pendStart = bookSrc.indexOf('id="pend-body"');
+  const confStart = bookSrc.indexOf('id="conf-body"');
+  const pendBlock = bookSrc.slice(pendStart, confStart);
+  check('book: nessuna carta d\'imbarco nella schermata pending',
+    pendStart > 0 && confStart > pendStart && !pendBlock.includes('cdi'));
+  check('book: la carta vive nella schermata confermata',
+    bookSrc.slice(confStart).includes('class="cdi"'));
+}
+check('book: la rotta usa il lessico condiviso, fallback HOME',
+  bookSrc.includes("SC.zoneCode((data.listingZone||'')+' '+(data.listingName||'')))||'HOME'"));
+check('book: video → YOU → LIVE anche qui',
+  bookSrc.includes("set('conf-from',video?'YOU':'ROM')"));
+check('book: gli id che showConfirmed scrive esistono ancora',
+  bookSrc.includes('id="conf-prop"') && bookSrc.includes('id="conf-time"') &&
+  bookSrc.includes('id="conf-name"') && bookSrc.includes('id="conf-code"'));
 
 /* ── esito ─────────────────────────────────────────────────────────────── */
 if (failed) {

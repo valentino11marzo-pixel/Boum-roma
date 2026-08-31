@@ -212,9 +212,18 @@ confermata → standby, mai una carta spacciata per emessa); S4 `/board`
 gira ora su due lati, PARTENZE ⇄ **ARRIVALS** (derivati dal campo `ora`
 della fotografia di build: NOW da una parte, le date dall'altra, stato
 SOON in oro). Suite: `node tests/scalo/run.mjs` (24 check, registrata
-in run-all). S3 book è rimandato di proposito: il copy della pagina è
-pinnato dai test di `availability-ui` (requireApproval) e merita un
-passaggio suo, non un ritocco di sfuggita.
+in run-all).
+
+**Stato (2026-08-31, lotto 2)**: eseguiti anche **W1** e **S3** — la
+pagina della visita (`viewing.html`) è lo schermo di stato volo (rotta
+col codice zona, `BM ····` derivato dall'id, countdown T-24h/T-3h/T-30m
+sugli STESSI momenti di `_moments.js`, stato puramente temporale) e la
+schermata confermata di `book.html` È la carta d'imbarco (header pill
+«Check-in»; la pending resta "Request sent" — `applyApprovalCopy` è
+rimasto l'unico posto delle parole). Il lessico dei codici è UNA copia:
+`js/scalo-codes.js` (`BOOM_SCALO`), letta da pass-delivery, /viewing e
+/book — alias lungo batte il corto (Monti Tiburtini → TIB), parole
+intere (Monteverde ≠ MONTI), ambiguo → null. Suite scalo a 46 check.
 
 ## Parte 5 — La seconda ondata (proposte oltre il primo lotto)
 

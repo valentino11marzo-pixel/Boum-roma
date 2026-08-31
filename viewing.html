@@ -44,6 +44,29 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
 .tk-badge.pend{background:rgba(255,159,10,.08);border:1px solid rgba(255,159,10,.25);color:var(--warn)}
 .tk-badge.off{background:rgba(255,255,255,.04);border:1px solid var(--b2);color:var(--t1)}
 .pip{width:5px;height:5px;border-radius:50%;background:currentColor}
+/* la rotta dello scalo: ROM –•– TRA + numero di volo derivato (W1).
+   Il codice zona esce SOLO dal lessico condiviso (js/scalo-codes.js);
+   nessun match → HOME, mai una sigla inventata. */
+.tk-route{display:flex;align-items:center;gap:10px;margin-bottom:12px;font-size:20px;font-weight:300;letter-spacing:.04em;white-space:nowrap}
+.tk-route b{font-weight:300}
+.tk-route b.dst{color:var(--g);text-shadow:0 0 18px rgba(255,215,0,.3);overflow:hidden;text-overflow:ellipsis;max-width:44%}
+.tk-route .tr-line{position:relative;flex:1;min-width:24px;height:10px}
+.tk-route .tr-line::before{content:'';position:absolute;left:0;right:0;top:4.5px;height:1px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.3) 0 5px,transparent 5px 10px)}
+.tk-route .tr-line i{position:absolute;top:2px;left:0;width:5px;height:5px;border-radius:50%;background:var(--g);box-shadow:0 0 6px var(--g);animation:trdot 8s cubic-bezier(.16,1,.3,1) infinite}
+@keyframes trdot{0%{left:0;opacity:0}12%{opacity:1}88%{opacity:1}100%{left:calc(100% - 5px);opacity:0}}
+.tk-route .fl{margin-left:6px;font-size:9px;font-weight:500;letter-spacing:.16em;color:var(--t2);font-variant-numeric:tabular-nums;white-space:nowrap}
+/* il countdown del volo: gli STESSI momenti che il server esegue
+   (_moments.js: T-24h / T-3h / T-30m) — stato puramente temporale */
+.tk-count{padding:13px 20px 15px;border-bottom:1px solid var(--b0)}
+.tk-count ol{list-style:none;position:relative;display:flex;justify-content:space-between;gap:6px}
+.tk-count ol::before{content:'';position:absolute;top:4px;left:10%;right:10%;height:1px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.22) 0 4px,transparent 4px 8px)}
+.tk-count li{position:relative;display:flex;flex-direction:column;align-items:center;gap:7px;flex:1;font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--t2);text-align:center}
+.tk-count li i{width:9px;height:9px;border-radius:50%;background:var(--s0);box-shadow:inset 0 0 0 1.5px var(--b3)}
+.tk-count li.done{color:var(--t1)}
+.tk-count li.done i{background:var(--g);box-shadow:0 0 8px rgba(255,215,0,.35)}
+.tk-count li.next i{box-shadow:inset 0 0 0 1.5px var(--g);animation:cpulse 1.8s ease infinite}
+@keyframes cpulse{50%{opacity:.35}}
+.tk-count .cap{margin-top:10px;font-size:10px;color:var(--t2);line-height:1.55;text-align:center}
 .tk-mode{font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:var(--t2);margin-bottom:5px}
 .tk-name{font-size:20px;font-weight:300;letter-spacing:-.02em;line-height:1.25;margin-bottom:3px}
 .tk-price{font-size:12.5px;color:var(--g);letter-spacing:.01em}
@@ -153,6 +176,7 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
     <div class="tk" id="tk">
       <div class="tk-top">
         <div class="tk-badge" id="tkBadge"><span class="pip"></span><span id="tkBadgeT"></span></div>
+        <div class="tk-route hidden" id="tkRoute" aria-hidden="true"></div>
         <div class="tk-mode" id="tkMode"></div>
         <div class="tk-name" id="tkName"></div>
         <div class="tk-price" id="tkPrice"></div>
@@ -161,6 +185,7 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
         <div class="tk-big" id="tkWhen"></div>
         <div class="tk-tz" id="tkTz"></div>
       </div>
+      <div class="tk-count hidden" id="tkCount"></div>
       <div class="tk-rows" id="tkRows"></div>
     </div>
 
@@ -225,6 +250,7 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
 
 <div class="toast" id="toast"></div>
 
+<script src="/js/scalo-codes.js"></script>
 <script>
 (function(){
 'use strict';
@@ -245,6 +271,8 @@ var T={
    bConf:'Confirmed',bPend:'To be confirmed',bDone:'Completed',bOff:'Cancelled',
    mIn:'In person',mVid:'Live video call',romeTime:'Rome time',yourTime:'your time',
    wallet:'🎟 Add to Apple Wallet',gcal:'📅 Add to Google Calendar',ics:'📅 Apple / Outlook (.ics)',
+   tlCap:'Reminders reach your email at each point — at T-30m it’s time to head out.',
+   tlCapV:'Reminders reach your email at each point — at T-30m the call link is one tap away.',
    loading:'Finding free times…',noSlots:'No free slots in the next two weeks.',waAsk:'Message us and we’ll open one for you →',
    past:'This viewing has already taken place. Message us if you’d like another look.',
    okMoved:'Moved — check your email',okCancel:'Cancelled',errTaken:'That slot was just taken — pick another',errGeneric:'Something went wrong — try again',
@@ -259,6 +287,8 @@ var T={
    bConf:'Confermata',bPend:'Da confermare',bDone:'Completata',bOff:'Annullata',
    mIn:'Di persona',mVid:'Videochiamata',romeTime:'ora di Roma',yourTime:'ora tua',
    wallet:'🎟 Aggiungi ad Apple Wallet',gcal:'📅 Aggiungi a Google Calendar',ics:'📅 Apple / Outlook (.ics)',
+   tlCap:'I promemoria arrivano via email a ogni tappa — a T-30m è ora di uscire.',
+   tlCapV:'I promemoria arrivano via email a ogni tappa — a T-30m il link della call è a un tap.',
    loading:'Cerco gli orari liberi…',noSlots:'Nessuno slot libero nelle prossime due settimane.',waAsk:'Scrivici e te ne apriamo uno →',
    past:'Questa visita è già avvenuta. Scrivici se vuoi rivedere casa.',
    okMoved:'Spostata — controlla l’email',okCancel:'Annullata',errTaken:'Quello slot è appena stato preso — scegline un altro',errGeneric:'Qualcosa è andato storto — riprova',
@@ -305,6 +335,46 @@ function render(){
   var badge=$('#tkBadge'),bt=$('#tkBadgeT');
   badge.className='tk-badge '+(st==='confirmed'?'ok':st==='pending'?'pend':'off');
   bt.textContent=st==='confirmed'?t('bConf'):st==='pending'?t('bPend'):st==='completed'?t('bDone'):t('bOff');
+
+  /* W1 · la rotta + il numero di volo. Codici SOLO dal lessico condiviso
+     (js/scalo-codes.js); in persona senza match → HOME, mai inventato.
+     Il numero è bmCode(id): soprannome derivato dall'id vero. */
+  (function(){
+    var SC=window.BOOM_SCALO||null;
+    var route=$('#tkRoute'); if(!route)return;
+    var fl=SC?SC.bmCode(v.id):null;
+    var from='ROM',dst;
+    if(v.mode==='video'){from='YOU';dst='LIVE';}
+    else dst=(SC&&SC.zoneCode([v.listingName,v.listingAddress,v.meetingPoint].join(' ')))||'HOME';
+    route.classList.remove('hidden');
+    route.innerHTML='<b>'+esc(from)+'</b><span class="tr-line"><i></i></span>'+
+      '<b class="dst">'+esc(dst)+'</b>'+(fl?'<span class="fl">'+esc(fl)+'</span>':'');
+  })();
+
+  /* W1 · il countdown del volo: gli STESSI momenti che il server esegue
+     (_moments.js: T-24h / T-3h / T-30m). Lo stato è puramente temporale —
+     la pagina non dichiara mai un "già spedito": dice dove sei sulla rotta. */
+  (function(){
+    var cnt=$('#tkCount'); if(!cnt)return;
+    var show=(st==='confirmed'||st==='completed')&&v.when;
+    cnt.classList.toggle('hidden',!show);
+    if(!show)return;
+    var when=new Date(v.when).getTime(),now=Date.now();
+    var steps=[
+      {lbl:'✓ '+t('bConf'),at:-Infinity},
+      {lbl:'T-24h',at:when-24*3600e3},
+      {lbl:'T-3h',at:when-3*3600e3},
+      {lbl:'T-30m',at:when-30*60e3}
+    ];
+    var allDone=st==='completed'||now>=when;
+    var nextIdx=-1;
+    var lis=steps.map(function(s,i){
+      var done=allDone||now>=s.at;
+      if(!done&&nextIdx<0)nextIdx=i;
+      return '<li class="'+(done?'done':(i===nextIdx?'next':''))+'"><i></i><span>'+esc(s.lbl)+'</span></li>';
+    }).join('');
+    cnt.innerHTML='<ol>'+lis+'</ol><div class="cap">'+esc(t(v.mode==='video'?'tlCapV':'tlCap'))+'</div>';
+  })();
 
   $('#tkMode').textContent=v.mode==='video'?t('mVid'):t('mIn');
   $('#tkName').textContent=v.listingName||'BOOM Rome';
