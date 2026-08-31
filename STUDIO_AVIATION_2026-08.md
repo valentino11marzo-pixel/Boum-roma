@@ -225,6 +225,24 @@ rimasto l'unico posto delle parole). Il lessico dei codici è UNA copia:
 /book — alias lungo batte il corto (Monti Tiburtini → TIB), parole
 intere (Monteverde ≠ MONTI), ambiguo → null. Suite scalo a 46 check.
 
+**Stato (2026-08-31, lotto 3)**: eseguiti **S4-full**, **S6** e **S5** —
+`/board` ha l'**idrante**: la fotografia di build resta lo scheletro
+(fail-open: rete giù = kiosk mai nero) ma il tabellone rilegge il
+catalogo VERO dalla stessa porta della vetrina, e le corsie escono SOLO
+da `BOOM_DISPO.marketLane`: `now` → partenze (illeggibile = **ASK**, mai
+NOW — la regola 1 anche in vetrina fisica), `ahead` → arrivi con l'ETA
+del motore in ordine di atterraggio (anche la affittata col
+`availableFrom` scritto dal contratto), `closed` fuori. `/casa` ha **la
+rotta**: firma → saldo deposito (solo se il deal l'ha spezzato) →
+chiavi → a bordo → rinnovo (endDate−90), ogni tappa un FATTO del
+contratto/pagamenti già in pagina, l'aereo sulla prima non compiuta, coi
+token di QUELLA pagina (l'oro del rail firma). `apartment-detail` ha il
+**timbro** WALKED BY BOOM ✓ sul claim che la pagina già faceva: visibile
+sempre, batte una volta all'ingresso in vista, fermo con reduced-motion.
+Suite scalo a 67 check; l'idrante è provato in Chromium col motore VERO
+su un Firestore stubbato (NOW/FREE · ASK · 15OCT/1NOV SOON · esclusa la
+affittata senza data).
+
 ## Parte 5 — La seconda ondata (proposte oltre il primo lotto)
 
 Otto mosse più ambiziose, ognuna appoggiata a un'infrastruttura che ESISTE

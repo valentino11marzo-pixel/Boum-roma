@@ -320,6 +320,7 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
 })();
 </script>
 
+<script src="/js/dispo-engine.js"></script>
 <script>
 (function () {
   'use strict';
@@ -332,20 +333,26 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
      Il dato c'era già: la colonna `ora` porta NOW (si entra adesso) oppure
      la data di rilascio. Prima i due flussi erano mischiati; ora il
      tabellone li separa come uno scalo vero — DEPARTURES = boarding,
-     ARRIVALS = in atterraggio, stato SOON in oro. Nessun dato inventato:
-     è la stessa fotografia di build, organizzata. */
-  var PART = CASE.filter(function (h) { return h.ora === 'NOW'; });
-  var ARR  = CASE.filter(function (h) { return h.ora !== 'NOW'; })
-    .map(function (h) { return { ora:h.ora, zona:h.zona, tipo:h.tipo,
-      prezzo:h.prezzo, stato:'SOON', presto:true }; });
-  var PAGES = [];
-  var np = Math.max(1, Math.ceil(PART.length / PER));
-  for (var pi = 0; pi < np; pi++) PAGES.push({
-    lato:'DEPARTURES', nota:'Boarding now',
-    rows:PART.slice(pi * PER, pi * PER + PER) });
-  for (var ai = 0; ai < Math.ceil(ARR.length / PER); ai++) PAGES.push({
-    lato:'ARRIVALS', nota:'Free soon · reserve ahead',
-    rows:ARR.slice(ai * PER, ai * PER + PER) });
+     ARRIVALS = in atterraggio, stato SOON in oro. La fotografia di build
+     è lo scheletro; l'idrante (in coda) la sostituisce col catalogo VERO. */
+  function buildPages(part, arr) {
+    var pages = [];
+    for (var pi = 0; pi < Math.ceil(part.length / PER); pi++) pages.push({
+      lato:'DEPARTURES', nota:'Boarding now',
+      rows:part.slice(pi * PER, pi * PER + PER) });
+    for (var ai = 0; ai < Math.ceil(arr.length / PER); ai++) pages.push({
+      lato:'ARRIVALS', nota:'Free soon · reserve ahead',
+      rows:arr.slice(ai * PER, ai * PER + PER) });
+    /* mai una pagina fantasma: un lato vuoto non entra nel giro, e a
+       catalogo vuoto resta lo scheletro delle partenze */
+    if (!pages.length) pages.push({ lato:'DEPARTURES', nota:'Boarding now', rows:[] });
+    return pages;
+  }
+  var PAGES = buildPages(
+    CASE.filter(function (h) { return h.ora === 'NOW'; }),
+    CASE.filter(function (h) { return h.ora !== 'NOW'; })
+      .map(function (h) { return { ora:h.ora, zona:h.zona, tipo:h.tipo,
+        prezzo:h.prezzo, stato:'SOON', presto:true }; }));
 
   var pagine = PAGES.length;
   var box = document.getElementById('righe');
@@ -368,11 +375,15 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
       stato: new BS.Board(d.querySelector('.c-stato'),  5,  DRUM)
     }});
   }
-  for (var k = 0; k < pagine; k++) {
-    var t = document.createElement('i');
-    if (k === 0) t.className = 'qui';
-    nav.appendChild(t);
+  function dipingiNav(attiva) {
+    nav.textContent = '';
+    for (var k = 0; k < pagine; k++) {
+      var t = document.createElement('i');
+      if (k === (attiva || 0)) t.className = 'qui';
+      nav.appendChild(t);
+    }
   }
+  dipingiNav(0);
   /* il lato del tabellone: DEPARTURES ⇄ ARRIVALS, ante vere */
   var latoEl = document.getElementById('lato');
   var latoNotaEl = document.getElementById('latoNota');
@@ -415,10 +426,88 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
       r.el.classList.toggle('presto', !!h.presto);
     }, 400 + i * 160);
   });
-  if (pagine > 1) setInterval(function () {
-    if (document.hidden) return;
+  /* la rotazione legge `pagine` a ogni giro: l'idrante può cambiarle */
+  setInterval(function () {
+    if (document.hidden || pagine < 2) return;
     mostra((pagina + 1) % pagine, true);
   }, GIRO);
+
+  /* ══ L'IDRANTE (S4-full) — il tabellone legge il catalogo VERO ════════
+     Stessa porta della vetrina (REST pubblico su `listings`) e STESSO
+     motore delle corsie (BOOM_DISPO.marketLane): partenze = lane 'now',
+     arrivi = lane 'ahead' con l'ETA del MOTORE — mai un parser locale
+     (il parser povero della build è il difetto storico della vetrina).
+     La regola 1 di dispo-engine vale anche in vetrina fisica: una data
+     ILLEGGIBILE non dice mai NOW — dice ASK. Le corsie 'closed' non
+     salgono sul tabellone. Fail-open: rete giù o motore assente → resta
+     la fotografia di build, il kiosk non è mai nero. */
+  function laneRows(docs) {
+    var D = window.BOOM_DISPO;
+    if (!D || !D.marketLane) return null;
+    var MESI = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    var part = [], arr = [];
+    docs.forEach(function (doc) {
+      var f = doc.fields || {};
+      function v(k) {
+        var x = f[k]; if (!x) return null;
+        return x.stringValue != null ? x.stringValue
+          : x.integerValue != null ? x.integerValue
+          : x.doubleValue != null ? x.doubleValue : null;
+      }
+      var m;
+      try {
+        m = D.marketLane({
+          status: String(v('status') || '').toLowerCase(),
+          availableFrom: String(v('availableFrom') || ''),
+          availableDate: String(v('availableDate') || '')
+        });
+      } catch (e) { return; }
+      if (!m || m.lane === 'closed') return;
+      var p = Math.round(parseFloat(v('price')));
+      var beds = parseInt(v('bedrooms'), 10);
+      var riga = {
+        zona: String(v('zone') || v('name') || 'ROMA').toUpperCase().slice(0, 13),
+        tipo: isFinite(beds) && beds > 0 ? beds + 'BR' : '',
+        prezzo: isFinite(p) && p > 0 ? '€' + p.toLocaleString('en-GB') : ''
+      };
+      if (m.lane === 'ahead') {
+        riga.ora = m.iso
+          ? String(+m.iso.slice(8, 10)) + MESI[+m.iso.slice(5, 7) - 1] : '';
+        riga.stato = 'SOON'; riga.presto = true; riga._d = m.daysOut;
+        arr.push(riga);
+      } else if (m.dateUnreadable) {
+        riga.ora = ''; riga.stato = 'ASK'; riga.presto = true;
+        part.push(riga);
+      } else {
+        riga.ora = 'NOW'; riga.stato = 'FREE';
+        part.push(riga);
+      }
+    });
+    /* gli arrivi in ordine di ETA: è un tabellone arrivi, atterra prima
+       chi atterra prima; senza data in coda */
+    arr.sort(function (a, b) {
+      return (a._d == null ? 9e9 : a._d) - (b._d == null ? 9e9 : b._d);
+    });
+    return { part: part, arr: arr };
+  }
+  function idrante() {
+    fetch('https://firestore.googleapis.com/v1/projects/'
+        + 'boom-property-dashboards/databases/(default)/documents/'
+        + 'listings?pageSize=300')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || !j.documents) return;
+        var rows = laneRows(j.documents);
+        if (!rows || (!rows.part.length && !rows.arr.length)) return;
+        PAGES = buildPages(rows.part, rows.arr);
+        pagine = PAGES.length;
+        dipingiNav(0);
+        mostra(0, true);
+      })
+      .catch(function () {});
+  }
+  setTimeout(idrante, 2500);
+  setInterval(function () { if (!document.hidden) idrante(); }, 300000);
   /* l'orologio */
   function oraRoma() {
     try {

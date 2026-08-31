@@ -32,6 +32,8 @@ const passSrc = readFileSync(new URL('../../pass-delivery.html', import.meta.url
 const boardSrc = readFileSync(new URL('../../board.html', import.meta.url), 'utf8');
 const viewSrc = readFileSync(new URL('../../viewing.html', import.meta.url), 'utf8');
 const bookSrc = readFileSync(new URL('../../book.html', import.meta.url), 'utf8');
+const casaSrc = readFileSync(new URL('../../tenant.html', import.meta.url), 'utf8');
+const detSrc = readFileSync(new URL('../../apartment-detail.html', import.meta.url), 'utf8');
 const SC = require('../../js/scalo-codes.js');
 
 let passed = 0, failed = 0;
@@ -188,6 +190,61 @@ check('book: video → YOU → LIVE anche qui',
 check('book: gli id che showConfirmed scrive esistono ancora',
   bookSrc.includes('id="conf-prop"') && bookSrc.includes('id="conf-time"') &&
   bookSrc.includes('id="conf-name"') && bookSrc.includes('id="conf-code"'));
+
+/* ── board, S4-full: l'idrante legge il catalogo VERO col motore vero ──── */
+
+check('idrante: il board carica il motore delle corsie (dispo-engine)',
+  boardSrc.includes('src="/js/dispo-engine.js"'));
+check('idrante: stessa porta della vetrina (REST pubblico listings)',
+  boardSrc.includes('firestore.googleapis.com') && boardSrc.includes('listings?pageSize=300'));
+check('idrante: le corsie escono SOLO da marketLane, mai da un parser locale',
+  boardSrc.includes('D.marketLane({') && boardSrc.includes('if (!D || !D.marketLane) return null'));
+check('idrante: la corsia closed non sale sul tabellone',
+  boardSrc.includes("m.lane === 'closed') return"));
+check('idrante: la data ILLEGGIBILE dice ASK, mai NOW (regola 1 di dispo)',
+  /m\.dateUnreadable\)\s*\{[^}]*'ASK'/.test(boardSrc));
+check('idrante: l\'ETA degli arrivi viene dall\'iso del motore',
+  boardSrc.includes('m.iso.slice(8, 10)') && boardSrc.includes("riga.stato = 'SOON'"));
+check('idrante: arrivi in ordine di ETA (daysOut del motore)',
+  boardSrc.includes('riga._d = m.daysOut'));
+check('idrante: fail-open — rete giù, resta la fotografia di build',
+  boardSrc.includes('.catch(function () {})') &&
+  /var PAGES = buildPages\(\s*CASE\.filter/.test(boardSrc));
+check('idrante: mai una pagina fantasma (un lato vuoto non gira)',
+  boardSrc.includes('if (!pages.length) pages.push'));
+
+/* ── /casa, S6: la rotta è fatta di FATTI ──────────────────────────────── */
+
+check('casa: senza contratto (startDate) la rotta non esiste',
+  casaSrc.includes("if(!c||!c.startDate)return ''"));
+check('casa: la firma è signatureStatus, non una stima',
+  casaSrc.includes("done:c.signatureStatus==='completed'"));
+check('casa: il saldo deposito esiste SOLO se il deal l\'ha spezzato',
+  casaSrc.includes('if(depBal)st.push') &&
+  casaSrc.includes("done:depBal.status==='paid'"));
+check('casa: chiavi = la decorrenza vera del contratto',
+  casaSrc.includes('done:c.startDate<=todayISO,d:c.startDate'));
+check('casa: il rinnovo è endDate−90 — il T-90 del journey server',
+  casaSrc.includes('d.setDate(d.getDate()-90)'));
+check('casa: l\'aereo sta sulla prima tappa NON compiuta',
+  casaSrc.includes('if(!st[i].done){idx=i;break}'));
+check('casa: la rotta entra dopo le tiles, dentro render()',
+  casaSrc.includes('+rottaCasa(c,depBal);'));
+check('casa: le tappe parlano entrambe le lingue',
+  (casaSrc.match(/jSign:/g) || []).length === 2 &&
+  (casaSrc.match(/jRen:/g) || []).length === 2);
+
+/* ── apartment-detail, S5: il timbro dice un fatto avvenuto ────────────── */
+
+check('timbro: il claim vero della pagina, battuto come sigillo',
+  detSrc.includes('timbro-walk') && detSrc.includes('Walked by BOOM ✓'));
+check('timbro: visibile SEMPRE — l\'animazione è solo il colpo (.giu)',
+  !/\.timbro-walk\s*\{[^}]*opacity\s*:\s*0/.test(detSrc) &&
+  detSrc.includes('.timbro-walk.giu { animation:timbrata'));
+check('timbro: batte UNA volta (l\'observer si stacca)',
+  detSrc.includes('iot.disconnect()'));
+check('timbro: con reduced-motion resta stampato, fermo',
+  /prefers-reduced-motion:reduce\)\{ \.timbro-walk\.giu \{ animation:none/.test(detSrc));
 
 /* ── esito ─────────────────────────────────────────────────────────────── */
 if (failed) {
