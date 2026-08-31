@@ -234,7 +234,20 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
         <div class="g3">
           <label class="fld req"><span>Inizio</span><input id="fStart" type="date"></label>
           <label class="fld"><span>Mesi</span><input id="fMonths" type="number" value="12" min="1" max="48"></label>
-          <label class="fld"><span>Tipo</span><select id="fType"><option>Transitional Lease</option><option>Student Housing (Allegato C)</option><option>4+4 Residential</option><option>3+2 Concordato</option></select></label>
+          <label class="fld"><span>Tipo</span><select id="fType" onchange="syncStud()"><option>Transitional Lease</option><option>Student Housing (Allegato C)</option><option>4+4 Residential</option><option>3+2 Concordato</option></select></label>
+        </div>
+        <div id="studBox" style="display:none;border:1px solid var(--line-gold);background:var(--gold-faint);border-radius:12px;padding:12px 14px;margin-bottom:12px">
+          <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);margin-bottom:9px">🎓 Dati dello studente — finiscono nell'Allegato C</div>
+          <label class="fld"><span>Corso di studi</span><input id="fStudCourse" placeholder="es. Laurea Magistrale in International Management"></label>
+          <div class="g2">
+            <label class="fld"><span>Università</span><input id="fStudUni" placeholder="es. LUISS Guido Carli"></label>
+            <label class="fld"><span>Indirizzo università</span><input id="fStudUniAddr" placeholder="es. Viale Romania 32, Roma"></label>
+          </div>
+          <div class="g2">
+            <label class="fld"><span>Tipo iscrizione</span><select id="fStudKind"><option value="">—</option><option>Laurea Triennale</option><option>Laurea Magistrale</option><option>Master</option><option>Dottorato</option><option>Erasmus</option><option>Altro</option></select></label>
+            <label class="fld"><span>Anno accademico</span><input id="fStudYear" placeholder="es. 2026/2027"></label>
+          </div>
+          <p class="hintline">Il contratto tipo dell'associazione nomina corso e università dentro la clausola: lasciandoli vuoti il PDF stampa i puntini al posto dei fatti. Si possono aggiungere dopo con ✎ Modifica — <b>stesso link</b>.</p>
         </div>
         <label class="fld"><span>Esigenza transitoria (clausola 5.x)</span><input id="fReason" placeholder="es. corso di studi SIOI · trasferta di lavoro fino al …"></label>
         <label class="fld"><span>Offerta valida fino al (facoltativo)</span><input id="fValid" type="date"></label>
@@ -481,6 +494,18 @@ function parseExtras(){
 function parseClauses(){
   return $('fClauses').value.split('\n').map(function(l){return l.trim()}).filter(Boolean).slice(0,10);
 }
+/* I dati dello studente viaggiano SOLO su un contratto studenti: su un
+   transitorio sarebbero rumore che il convert riporterebbe sul contratto.
+   Blocco vuoto → null (mai un oggetto di stringhe vuote da riscrivere). */
+function isStud(){try{return /student/i.test($('fType').value||'')}catch(e){return false}}
+function readStud(){
+  if(!isStud())return null;
+  var o={corsoStudi:$('fStudCourse').value.trim(),universita:$('fStudUni').value.trim(),
+    universitaIndirizzo:$('fStudUniAddr').value.trim(),tipoIscrizione:$('fStudKind').value,
+    annoAccademico:$('fStudYear').value.trim()};
+  return Object.keys(o).some(function(k){return o[k]})?o:null;
+}
+window.syncStud=function(){try{$('studBox').style.display=isStud()?'block':'none'}catch(e){}};
 function readForm(){
   var months=Math.max(1,Math.min(48,+$('fMonths').value||12)),start=$('fStart').value;
   var knobs=moneyKnobs();
@@ -492,7 +517,7 @@ function readForm(){
     extraDoc:$('fXDoc').value.trim()||null,
     validUntil:$('fValid').value||null,
     tenant:{fullName:$('fTName').value.trim()||null,email:$('fTEmail').value.trim()||null,phone:$('fTPhone').value.trim()||null},
-    lease:{startDate:start,months:months,endDate:start?endDateISO(start,months):null,type:$('fType').value,lawRef:'uso transitorio · L.431/98 art.5 c.1',reason:$('fReason').value.trim()||null},
+    lease:{startDate:start,months:months,endDate:start?endDateISO(start,months):null,type:$('fType').value,lawRef:'uso transitorio · L.431/98 art.5 c.1',reason:$('fReason').value.trim()||null,studenti:readStud()},
     knobs:knobs,                 // raw inputs → the create API derives server-side
     money:deriveMoney(knobs),    // full derived object → edit-in-place + preview
     extras:parseExtras(),
@@ -557,6 +582,12 @@ function fillForm(d){
   $('fValid').value=d.validUntil||'';
   $('fStart').value=(d.lease||{}).startDate||'';$('fMonths').value=(d.lease||{}).months||12;
   try{$('fType').value=(d.lease||{}).type||'Transitional Lease'}catch(e){}
+  var _st=(d.lease||{}).studenti||{};
+  $('fStudCourse').value=_st.corsoStudi||'';$('fStudUni').value=_st.universita||'';
+  $('fStudUniAddr').value=_st.universitaIndirizzo||'';
+  try{$('fStudKind').value=_st.tipoIscrizione||''}catch(e){}
+  $('fStudYear').value=_st.annoAccademico||'';
+  syncStud();
   $('fReason').value=(d.lease||{}).reason||'';
   var mo=d.money||{};
   $('fRent').value=mo.rent||'';$('fEnergy').value=mo.energyCredit!=null?mo.energyCredit:0;

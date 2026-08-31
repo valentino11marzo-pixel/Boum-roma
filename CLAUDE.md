@@ -1912,6 +1912,47 @@ through the fallback chain contract fields → users sign schema → users
 wizard schema — a regenerated PDF never prints dots for data a party
 already self-filled on /sign or /scheda.
 
+**IL TIPO NON SI MANDA, SI LEGGE** (agosto 2026). `js/contract-pdf.js`
+sceglie il modello con `contract.type === 'studenti' ? Allegato C :
+Allegato B` — ma delle TRE strade che creano un contratto, due non
+passavano il tipo affatto: la conversione **automatica** (`_auto.js`, il
+caso normale quando l'immobile è collegato) e il tasto **🖊 Magic Sign**
+(`send-sign.js`); la terza, la console pre-accordo, non offriva nemmeno
+l'opzione studenti. Risultato: ogni contratto usciva Allegato B, anche per
+uno studente, e il modale *Modifica* del portal non aveva il campo Tipo —
+una volta sbagliato, per sempre. Ora `leaseType(explicit, lease)`
+(esportata da `convert.js`) **deriva il tipo dalla proposta** quando il
+chiamante tace: nessuna strada può più sbagliarlo. Il campo **Tipo
+contratto** nel modale Modifica corregge lo storico (poi 🔄 Rigenera PDF),
+e scegliendo «Studenti» compaiono lì i campi dell'Allegato C — prima erano
+resi solo se il contratto era GIÀ studenti, quindi cambiare modello
+produceva un PDF coi puntini.
+
+**I dati che l'Allegato C nomina si raccolgono dove il deal nasce**: corso
+di studi, università + indirizzo, tipo iscrizione e anno accademico stanno
+in `lease.studenti` sulla proposta (lista bianca in `create.js`, blocco
+vuoto → `null`), la console li chiede solo col tipo studenti e li
+ricompila in ✎ Modifica, `convert.js` li porta su `contract.studenti` +
+i campi legacy `courseName`/`universityName` che il generatore legge.
+Su un transitorio restano vuoti — un dato universitario su un contratto di
+lavoro è rumore sul documento.
+Test: `node tests/firma/run.mjs` (32 check) + `node tests/firma/ui.mjs`
+(11 check in Chromium a 1280 e 390px) + la prova end-to-end in
+`tests/money/run.mjs` §10, dove un deal studenti convertito **senza che
+nessuno dica il tipo** nasce comunque Allegato C.
+
+### 🖊 Firma ora (riga contratto → `openFirmaOra`)
+Firmare, non solo sollecitare: il pannello apre il link VERO della parte
+(`/sign?sign=<token>`) sul dispositivo dell'operatore — il cliente firma
+col dito davanti a lui, e data/ora/dispositivo finiscono nel certificato
+come sempre. La **delega del proprietario**, prima decidibile SOLO alla
+creazione del contratto, si attiva e si annulla in qualsiasi momento
+(rifiutata se `landlordSignature` esiste): scrive `landlordDelegate` nello
+schema che `magic-sign/lookup`, `submit` e `sign.html` già leggono, quindi
+il documento dice «firma X per conto di Y». **Al posto del conduttore non
+si firma mai** — quella non è una delega, è una firma falsa, e la riga è
+scritta nel pannello, non lasciata al buonsenso.
+
 ### POST `/api/documents/share`
 Admin/landlord (Firebase ID token via `api/_auth.js`). Creates a
 `documentShares` doc (token, ownerId, docIds, recipientName, watermark,

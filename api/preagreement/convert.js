@@ -41,6 +41,16 @@ import { ensureContractPdf } from '../sign/_contractpdf.js';
 const BASE = 'https://www.boomrome.com';
 const clip = (v, n = 200) => (v == null ? null : String(v).trim().slice(0, n) || null);
 
+// Il tipo di contratto DECIDE il modello del PDF (js/contract-pdf.js:
+// studenti → Allegato C, tutto il resto → Allegato B). Una copia sola della
+// regola, esportata perché si testa: il chiamante esplicito vince, altrimenti
+// si legge la proposta. `lease.type` è la tendina della console
+// («Student Housing (Allegato C)»), non testo libero del cliente.
+export function leaseType(explicit, lease) {
+  if (explicit === 'studenti' || explicit === 'transitorio') return explicit;
+  return /student/i.test(String((lease || {}).type || '')) ? 'studenti' : 'transitorio';
+}
+
 // ── Core conversion, shared by the console handler and the auto pipeline ──
 // Returns { ok, already?, contractId, tenantId, tenantSignUrl,
 //           landlordSignUrl, delegate } or { ok:false, error }.
@@ -131,7 +141,14 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
   const installmentAmount = Math.round((Number(m.installmentAmount) || rent * installmentMonths) * 100) / 100;
   // energy allowance collected with the rent (default) or settled apart
   const billEnergyCredit = m.billEnergyCredit !== false && Number(m.energyCredit) > 0;
-  const cType = type === 'studenti' ? 'studenti' : 'transitorio';
+  // IL TIPO NON PUÒ DIPENDERE DA CHI CHIAMA. La console lo manda esplicito,
+  // ma la conversione AUTOMATICA (_auto.js — il caso normale quando
+  // l'immobile è collegato) non lo mandava affatto: uno studente chiudeva il
+  // deal da solo e il contratto nasceva Allegato B, in silenzio. Ora si legge
+  // dalla proposta, che è dove l'operatore l'ha scritto; il parametro resta
+  // come conferma esplicita, non come unica fonte.
+  const cType = leaseType(type, le);
+  const stud = (le.studenti && typeof le.studenti === 'object') ? le.studenti : {};
   const delegateOn = delegate === true;
   const dName = clip(delegateName, 120) || 'Valentino Egidi';
   const newToken = () => crypto.randomUUID();
@@ -189,7 +206,11 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     durata: { text: months + ' mesi', startDate: le.startDate || null, endDate: le.endDate || null },
     transitionalReason: le.reason || '',
     transitionalDocs: '',
-    universityName: '', courseName: '',
+    // I dati dello studente arrivano dalla proposta (console → lease.studenti)
+    // e alimentano l'Allegato C. Su un transitorio restano vuoti: un dato
+    // universitario su un contratto di lavoro sarebbe rumore sul documento.
+    universityName: cType === 'studenti' ? (stud.universita || '') : '',
+    courseName: cType === 'studenti' ? (stud.corsoStudi || '') : '',
     // I co-conduttori del PA sopravvivono con l'IDENTITÀ COMPLETA (prima
     // restavano solo i nomi concatenati): pack, PDF, scheda 360° e la
     // co-firma leggono da qui. La stringa cohabitants resta per i
@@ -211,7 +232,13 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
         + ' e si obbligano in solido con il conduttore per tutte le obbligazioni derivanti dal presente contratto.',
       ] : []),
     ].join('\n'),
-    studenti: null,
+    studenti: cType === 'studenti' ? {
+      corsoStudi: stud.corsoStudi || '',
+      universita: stud.universita || '',
+      universitaIndirizzo: stud.universitaIndirizzo || '',
+      tipoIscrizione: stud.tipoIscrizione || '',
+      annoAccademico: stud.annoAccademico || '',
+    } : null,
     notes: `Da pre-agreement ${pa.ref || paId} — accettato ${String(pa.acceptedAt || '').slice(0, 10)}${pa.paidAt ? ` · pagato €${pa.paidEur} il ${String(pa.paidAt).slice(0, 10)}` : ''}${uploads.length ? ` · ${uploads.length} documento/i d'identità allegati` : ''}.`,
     cadastral: '', energyClass: '',
     renditaCatastale: 0,
