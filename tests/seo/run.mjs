@@ -241,6 +241,42 @@ orfane.length
       + '\n      O entrano in sitemap.xml, o dichiarano noindex. Restare a meta e la strada per farsi indicizzare male.')
   : bene('nessuna pagina indicizzabile e fuori dalla sitemap');
 
+// ── 8b · il catalogo dichiara i suoi prezzi ────────────────────────────
+// Su /apartments il canone e' un tabellone a palette: bellissimo, e
+// leggibile da un umano, ma nel livello di TESTO la pagina esponeva cinque
+// prezzi in tutto — le cifre stanno dentro le palette. C'e' l'aria-label
+// (i lettori di schermo sono a posto) ma i dati strutturati contenevano
+// `CollectionPage` e basta: zero Offer. Le SCHEDE singole i prezzi li
+// dichiarano da sempre; la vetrina — la pagina che un motore mostra per
+// «apartments for rent in Rome» — no. L'ItemList si genera dalle card con
+// scripts/catalogo-schema.mjs; questa regola impedisce che invecchi.
+{
+  const f = 'apartments.html';
+  const s = fs.readFileSync(path.join(R, f), 'utf8');
+  const carte = (s.match(/<a class="casa-p"/g) || []).length;
+  let lista = null;
+  for (const m of s.matchAll(/<script type="application\/ld\+json"[^>]*>\s*([\s\S]*?)\s*<\/script>/g)) {
+    try { const d = JSON.parse(m[1]); if (d['@type'] === 'ItemList') lista = d; } catch { /* niente */ }
+  }
+  const guai = [];
+  if (!lista) guai.push('nessun ItemList: i prezzi del catalogo non sono un dato');
+  else {
+    if (lista.itemListElement.length !== carte)
+      guai.push(`ItemList con ${lista.itemListElement.length} voci ma ${carte} case in pagina `
+        + '— rilancia scripts/catalogo-schema.mjs');
+    const senzaPrezzo = lista.itemListElement.filter((v) => !(v.item && v.item.offers && v.item.offers.price));
+    if (senzaPrezzo.length) guai.push(`${senzaPrezzo.length} voci senza prezzo`);
+    // nessuna disponibilita' promessa a un motore se la card non la dichiara
+    const bugie = lista.itemListElement.filter((v) => {
+      const a = v.item && v.item.offers && v.item.offers.availability;
+      return a && !/InStock|PreOrder/.test(a);
+    });
+    if (bugie.length) guai.push(`${bugie.length} voci con una disponibilita non prevista`);
+  }
+  guai.length ? male('il catalogo non dichiara i suoi prezzi:' + elenco(guai))
+              : bene(`il catalogo dichiara ${carte} case con prezzo nei dati strutturati`);
+}
+
 // ── 9 · speakable che punta a nodi VERI ────────────────────────────────
 // Dichiarare «questa parte va letta ad alta voce» indicando un selettore
 // che in pagina non esiste e' una promessa non mantenuta al motore: il
