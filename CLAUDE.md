@@ -1782,6 +1782,34 @@ controparte (max 3, cooldown 24h col promemoria manuale); inviti FREDDI
 `shouldReinvite()` esportato e testato). Un contratto MAI invitato non
 viene toccato: resta una decisione umana.
 
+### La firma completa che non muore a metà (1/09/2026 — il contratto di Rute)
+Il giorno del primo contratto firmato da entrambe le parti con **Storage
+giù** (403 "Permission denied" su ogni upload admin, mentre Firestore
+funzionava), il finalize ha mostrato tre difetti di classe, tutti chiusi:
+- **La sonda Storage** (`_finalize.js`): il PRIMO upload della catena è il
+  certificato FES. Se Storage lo rifiuta si esce SUBITO — nessuna
+  scadenza, nessun magic link, nessuna email a metà, UN avviso urgente al
+  giorno su `agentNotifications` (`finstor_<id>_<giorno>`, → Telegram
+  entro un minuto) — e il watchdog ritenta ogni 15′ a costo ~1s finché
+  Storage non torna; al primo giro sano parte il finalize INTERO. Prima il
+  run creava ~10 obbligazioni con id auto, poi moriva ucciso a 60s prima
+  del semaforo `finalizedAt`: il retry del cron duplicava le scadenze A
+  OGNI GIRO e il 504 spegneva journey, incasso SEPA e countdown visite
+  (che nel cron stanno DOPO — ora protetti anche da un budget guard).
+- **Scadenze idempotenti + bonifica**: id deterministico
+  `dlfin_<contractId>_<i>`, e a ogni finalize la passata che tiene la
+  prima copia per titolo ed elimina le repliche `source:'finalize'`
+  auto-generate dalla tempesta (le RLI di submit non si toccano MAI).
+- **La CI che mentiva** (`.github/workflows/ci.yml`): `deploy | tee` senza
+  `set -o pipefail` → l'exit status era quello di TEE, e il job
+  deploy-rules usciva VERDE con il FIREBASE_TOKEN scaduto e le regole NON
+  deployate (successo il 31/08 sera). Ora pipefail + la prova positiva
+  (`grep "Deploy complete"`). E `storage.rules` ha guadagnato i match
+  mancanti `rendiconti/` e `site/` (la lezione contracts/, pagata di nuovo
+  al primo run del rendiconto).
+Test: `node tests/finalize/run.mjs` (27 check — storage giù per mutazione,
+bonifica della tempesta, giunzioni e CI asserite sulla sorgente).
+
 ### Il ciclo email del contratto (`api/sign/_notify.js` + `send-link`)
 UN design system per ogni email della piattaforma
 (`api/preagreement/_notify.js`: masthead nero col MARCHIO reale — PNG
