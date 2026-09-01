@@ -123,6 +123,24 @@ def png_size(path):
     return w, h
 
 
+# Il budget di tests/media/hosts.mjs per le card social: su un telefono
+# una og sopra i 120KB vale da sola il peso dell'intera pagina. La
+# quantizzazione a palette (sharp) sta QUI, nel generatore: rigenerare
+# non puo' mai riportare il file sopra il budget senza che lo script
+# stesso lo dica.
+BUDGET = 120 * 1024
+
+
+def quantizza(out):
+    js = ("const s=require('sharp');const f=%r;"
+          "s(f).png({palette:true,quality:80,effort:10,compressionLevel:9})"
+          ".toBuffer().then(b=>require('fs').writeFileSync(f,b));" % out)
+    r = subprocess.run(['node', '-e', js], cwd=ROOT,
+                       capture_output=True, text=True)
+    if r.returncode != 0:
+        sys.exit('quantizzazione fallita (serve sharp: npm ci): ' + r.stderr.strip())
+
+
 def genera(nome, html):
     card = os.path.join(TMP, 'og-%s-card.html' % nome)
     out = os.path.join(ROOT, 'og-%s.png' % nome)
@@ -132,10 +150,14 @@ def genera(nome, html):
                     '--window-size=1200,630', '--screenshot=' + out,
                     'file://' + card], check=True,
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    quantizza(out)
     w, h = png_size(out)
     if (w, h) != (1200, 630):
         sys.exit('%s: %dx%d invece di 1200x630' % (out, w, h))
-    print('og-%s.png ok (1200x630, %d byte)' % (nome, os.path.getsize(out)))
+    kb = os.path.getsize(out)
+    if kb >= BUDGET:
+        sys.exit('%s: %d byte — sopra il budget social di %d' % (out, kb, BUDGET))
+    print('og-%s.png ok (1200x630, %d byte, sotto budget)' % (nome, kb))
 
 
 genera('board', BOARD)

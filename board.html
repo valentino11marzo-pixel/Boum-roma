@@ -136,6 +136,12 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
   gap:16px; padding:clamp(16px,2.6vh,30px) clamp(22px,3.5vw,60px);
   border-top:1px solid var(--line-0); font-size:clamp(12px,1.7vh,16px);
   letter-spacing:.14em; text-transform:uppercase; color:rgba(250,250,250,.5); }
+/* Il piede a tre voci non entra a 390 quando i puntini delle pagine
+   crescono — e col tabellone a due lati (e l'idrante) il loro numero
+   VARIA col catalogo: sotto i 700px si va a capo invece di spingere
+   la pagina di lato (la stessa cura di .cima). */
+@media (max-width:700px){ .fondo { flex-wrap:wrap; justify-content:center;
+  gap:6px 14px; padding:12px; font-size:11px; } }
 .fondo b { color:var(--gold); font-weight:600; }
 .pagine { display:flex; gap:8px; }
 .pagine i { width:26px; height:3px; background:var(--line); font-style:normal;
