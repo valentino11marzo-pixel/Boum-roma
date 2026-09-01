@@ -83,7 +83,10 @@
         /* Nav */
         .nav { position:fixed; top:0; left:0; right:0; z-index:10000; padding:16px 0;
             background:linear-gradient(180deg, rgba(3,3,3,1) 0%, rgba(3,3,3,0.9) 60%, transparent 100%);
-            transition:all 0.4s var(--ease-out); }
+            /* `all` includeva lo SFONDO: mentre sfuma per 400ms la barra
+               non copre, e la pagina si legge attraverso proprio quando
+               inizi a scorrere. Si animano forma e ombra, non il velo. */
+            transition:padding 0.4s var(--ease-out), border-color 0.4s var(--ease-out); }
         .nav.scrolled { background:rgba(3,3,3,1); -webkit-backdrop-filter:blur(20px);backdrop-filter:blur(20px); border-bottom:1px solid var(--border-subtle); padding:12px 0; }
         .nav-inner { display:flex; align-items:center; justify-content:space-between; }
         .marchio{display:inline-flex;align-items:center;gap:13px;text-decoration:none;color:#fff}

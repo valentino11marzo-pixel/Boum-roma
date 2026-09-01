@@ -118,8 +118,12 @@ h1, h2, h3 { font-family:var(--display); }
 
 /* ── LA TESTATA ──────────────────────────────────────────────────────── */
 .nav { position:fixed; top:0; left:0; right:0; z-index:100; padding:14px 0;
-  transition:background .35s ease, box-shadow .35s ease, padding .35s ease; }
-.nav.scrolled, html.aperto .nav { background:rgba(3,3,3,.88);
+  /* lo SFONDO non e' in transizione, di proposito: e' la superficie che
+     COPRE, e mentre sfuma per 350ms non copre — la pagina si legge
+     attraverso la testata proprio nell'istante in cui inizi a
+     scorrere. Padding e ombra restano animati: quelli sono forma. */
+  transition:box-shadow .35s ease, padding .35s ease; }
+.nav.scrolled, html.aperto .nav { background:#030303;
   backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
   box-shadow:0 1px 0 var(--line-0); padding:11px 0; }
 .nav-inner { display:flex; align-items:center; justify-content:space-between; gap:16px; }

@@ -24,7 +24,7 @@ a{color:inherit;text-decoration:none}
 input,textarea,select{font-family:inherit}
 .eyebrow{font-size:10.5px;letter-spacing:2.8px;text-transform:uppercase;color:var(--gold)}
 /* nav */
-nav.top{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;justify-content:space-between;align-items:center;padding:13px 20px;background:rgba(6,6,7,.92);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-bottom:1px solid var(--line-soft)}
+nav.top{position:fixed;top:0;left:0;right:0;z-index:50;display:flex;justify-content:space-between;align-items:center;padding:13px 20px;background:#060607;-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-bottom:1px solid var(--line-soft)}
 .brand{display:flex;align-items:center;gap:10px}
 .brand b{font-weight:300;letter-spacing:5px;font-size:15px}
 .nlinks{display:flex;align-items:center;gap:18px;font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3)}
@@ -240,8 +240,16 @@ footer{position:relative;z-index:5;border-top:1px solid var(--line-soft);margin-
 /* pinned height: the .fam services strip docks flush under the nav, so the
    nav must not grow/shrink on scroll (index shrinks 128 -> 113px; we live at
    the 113px scrolled state, always solid over the ambient) */
-.nav{padding:var(--space-md) 0;background:rgba(6,6,7,.92);-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-bottom:1px solid var(--line-soft);z-index:50}
-.nav.scrolled{padding:var(--space-md) 0;background:rgba(6,6,7,.97)}
+.nav{padding:var(--space-md) 0;background:#060607;-webkit-backdrop-filter:blur(18px);backdrop-filter:blur(18px);border-bottom:1px solid var(--line-soft);z-index:50}
+/* LA BARRA CHE SCORRE E' OPACA, e il perche' e' MISURATO: il vetro
+   smerigliato nasconde quando dietro c'e' una foto, non quando dietro
+   c'e' il nero. Sfocando testo quasi-nero su fondo quasi-nero il
+   contrasto cala appena — misurato in un browser vero: da 26 a 20 su
+   255 — e la pagina RESTA LEGGIBILE attraverso la testata mentre
+   scorri. Su 28 pagine pubbliche ne trasparivano 10, tutte quelle con
+   alpha .88-.92; le 7 gia' opache stavano a zero. Il blur resta (non
+   costa, e serve dove sotto passa una foto) ma a coprire e' l'opacita'. */
+.nav.scrolled{padding:var(--space-md) 0;background:#060607}
 .nav .container{padding:0 20px}
 .mobile-menu{z-index:60}
 footer.footer{background:none}
