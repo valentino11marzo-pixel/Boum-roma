@@ -195,10 +195,22 @@
         // non è ancora armata È il caso senza uscita: si accorcia l'attesa. La
         // grazia di 2,5s evita di sfrattare un boot sano per l'errore di una
         // risorsa secondaria (un'icona che manca non è un portale rotto).
-        window.addEventListener('error', function () {
+        //
+        // E VALE ANCHE PER UNA PROMESSA RIFIUTATA — la lezione del 1° settembre
+        // 2026. Qui c'era solo 'error', ma su WebKit il guasto vero arriva
+        // dall'altra porta: nei log di produzione di oggi, dal telefono
+        // dell'operatore, tre `unhandledrejection` con
+        // «Attempt to get records from database without an in-progress
+        // transaction» — IndexedDB che salta, cioè il magazzino in cui Firebase
+        // Auth tiene la sessione. Una promessa rifiutata non passa mai da
+        // window.onerror: la scorciatoia non scattava e restavano 15 secondi di
+        // rotella, che con un cliente davanti sono «non si apre».
+        var accorcia = function () {
             if (window.__portalBootArmed) return;
             setTimeout(function () { if (!window.__portalBootArmed) showEscape(); }, 2500);
-        });
+        };
+        window.addEventListener('error', accorcia);
+        window.addEventListener('unhandledrejection', accorcia);
     })();
     </script>
     <div class="auth hidden" id="authScreen">
@@ -260,8 +272,41 @@
             window.firebaseScriptsLoaded++;
             console.log(`Firebase script ${window.firebaseScriptsLoaded}/${window.firebaseScriptsTotal} loaded`);
         }
+        // ── PERCHÉ QUI NON C'È crossorigin — 1 settembre 2026 ───────────
+        // «Script error.» senza file né riga è la forma che il browser dà
+        // quando a lanciare è uno script di un altro dominio, e
+        // crossorigin="anonymous" la smaschera. L'abbiamo messo, con una
+        // scala di ricaduta provata in un browser vero contro un CDN senza
+        // CORS. È durato un'ora: l'operatore non è più riuscito a entrare
+        // nel portale da Safari, con clienti dentro.
+        //
+        // La scala copriva il caso sbagliato. Il difetto non era il CDN: in
+        // testa a questa pagina i QUATTRO SDK hanno un
+        // <link rel="preload" as="script"> SENZA crossorigin. Preload e
+        // richiesta vera devono avere la STESSA modalità CORS, altrimenti il
+        // preload non si riusa — e su WebKit quel disallineamento è noto per
+        // lasciare il caricamento appeso invece di fallire pulito. Il
+        // gestore d'errore non scattava nemmeno: non c'era nessun errore da
+        // gestire, solo attesa.
+        //
+        // La regola che resta: sul percorso di boot del portale non si
+        // sperimenta per avere un log più bello. Se un giorno serve davvero,
+        // crossorigin va messo sul preload E sullo script insieme, e provato
+        // su un Safari VERO prima di andare in produzione — non su Chromium.
+        window.__fbRetried = {};
         function onFirebaseScriptError(e) {
-            console.error('Failed to load Firebase script:', e.target.src);
+            var el = e.target, src = el && el.src;
+            if (src && el.hasAttribute('crossorigin') && !window.__fbRetried[src]) {
+                window.__fbRetried[src] = 1;
+                console.warn('[boot] CDN senza CORS: ricarico senza crossorigin', src);
+                var s = document.createElement('script');
+                s.src = src; s.async = false;
+                s.onload = onFirebaseScriptLoad;
+                s.onerror = onFirebaseScriptError;
+                document.head.appendChild(s);
+                return;
+            }
+            console.error('Failed to load Firebase script:', src);
             document.body.innerHTML = `
                 <div style="display:flex;align-items:center;justify-content:center;height:100vh;background:#000;color:#fff;font-family:system-ui;text-align:center;padding:20px">
                     <div>

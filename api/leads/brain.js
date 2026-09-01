@@ -28,6 +28,7 @@
 // Auth: cron secret / X-Homie-Secret / admin ID token. `?dry=1` read-only.
 
 import { knobs, rejectedLine } from '../_squadra.js';
+import { aiSignal } from '../_budget.js';
 import {
   requireCronOrAdmin, fsGet, fsPatch, fsList, reportEmployeeHealth, saveReport,
 } from '../employees/_lib.js';
@@ -89,6 +90,7 @@ Rispondi SOLO array JSON, stesso ordine: [{"i":<n>,"grade":"...","intent":"...",
     `\nmessaggio: ${String(x.message || '(vuoto)').slice(0, 400)}`
   ).join('\n---\n');
   const r = await fetch('https://api.anthropic.com/v1/messages', {
+    signal: aiSignal(25000),   // un modello appeso non deve uccidere la funzione
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: MODEL, max_tokens: 1200, system: SYSTEM, messages: [{ role: 'user', content: lines }] }),

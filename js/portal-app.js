@@ -15206,7 +15206,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 </div>
 </form></div></div></div>`; }
 
-        if (type === 'editContract') { const c = data; if (!c) return ''; const tenants = S.users.filter(u => u.role === 'tenant'); const props = S.properties; const _mb = (c.startDate && c.endDate) ? monthsBetween(c.startDate, c.endDate) : { text: '', total: 0 }; const _autoInst = Math.max(1, Math.ceil(_mb.total || 0)); const _autoTotal = (c.rent || (c.canone && c.canone.monthly) || 0) * _autoInst; const _curInst = (c.canone && c.canone.installments) || _autoInst; const _curTotal = (c.canone && c.canone.total) || _autoTotal || 0; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateContract(event,'${c.id}')"><div class="form-row"><div class="form-group"><label class="form-label">Immobile</label><select class="form-select" name="propertyId">${props.map(p => `<option value="${p.id}" ${c.propertyId === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Inquilino</label><select class="form-select" name="tenantId">${tenants.map(t => `<option value="${t.id}" ${c.tenantId === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}</select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Inizio</label><input type="date" class="form-input" name="startDate" value="${c.startDate || ''}" onchange="calcContractDuration()"></div><div class="form-group"><label class="form-label">Fine</label><input type="date" class="form-input" name="endDate" value="${c.endDate || ''}" onchange="calcContractDuration()"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €</label><input type="number" class="form-input" name="rent" id="cRent" value="${c.rent || ''}" oninput="calcContractDuration()"></div><div class="form-group"><label class="form-label">Deposito €</label><input type="number" class="form-input" name="deposit" value="${c.deposit || ''}"></div></div><div id="cDurationInfo" style="font-size:12px;margin:-4px 0 12px;padding:8px 12px;background:var(--surface);border-radius:8px">${_mb.text ? `<span style="color:var(--green)">Durata: ${_mb.text}</span> &middot; <span style="color:var(--gold)">N° rate: ${_curInst}</span> &middot; <span style="color:var(--gold)">Totale: &euro;${_curTotal.toLocaleString('it-IT')}</span>` : '<span style="color:var(--text-muted)">Compila le date per vedere la durata</span>'}</div><div class="form-row" id="cCanoneCalcRow"><div class="form-group"><label class="form-label">Canone Totale € <span style="font-size:10px;color:var(--text-muted)">(auto)</span></label><input type="number" class="form-input" name="canoneTotal" id="cCanoneTotal" value="${_curTotal || ''}" readonly style="opacity:0.7"></div><div class="form-group"><label class="form-label">N° Rate <span style="font-size:10px;color:var(--text-muted)">(auto)</span></label><input type="number" class="form-input" name="canoneInstallments" id="cCanoneInstallments" value="${_curInst || ''}" readonly style="opacity:0.7"></div></div><div style="margin:-4px 0 12px"><button type="button" class="btn btn-sm btn-secondary" id="cOverrideBtn" data-active="0" onclick="toggleCanoneOverride()" style="font-size:11px">🔓 Personalizza canone</button></div><div id="cOverrideWarn" style="display:none;background:rgba(220,38,38,0.12);border:1px solid #ef4444;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#fca5a5">⚠️ Stai personalizzando il canone manualmente. Verifica che (canone totale ÷ numero rate = canone mensile) e che il numero di rate corrisponda alla durata. Una matematica sbagliata può causare problemi al CAF.</div>${c.type === 'studenti' ? `<div style="background:rgba(212,175,55,0.06);border:1px solid rgba(212,175,55,0.25);border-radius:10px;padding:12px;margin-bottom:12px"><div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">🎓 Dati specifici contratto studenti (CAF Allegato C)</div><div class="form-group"><label class="form-label">Corso di studi *</label><input type="text" class="form-input" name="studenti_corsoStudi" value="${(c.studenti && c.studenti.corsoStudi) || c.courseName || ''}" placeholder="Es: Laurea Magistrale in International Management"></div><div class="form-row"><div class="form-group"><label class="form-label">Università *</label><input type="text" class="form-input" name="studenti_universita" value="${(c.studenti && c.studenti.universita) || c.universityName || ''}" placeholder="Es: LUISS Guido Carli"></div><div class="form-group"><label class="form-label">Indirizzo università *</label><input type="text" class="form-input" name="studenti_universitaIndirizzo" value="${(c.studenti && c.studenti.universitaIndirizzo) || ''}" placeholder="Es: Viale Romania 32, Roma"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Tipo iscrizione</label><select class="form-select" name="studenti_tipoIscrizione">${['','Laurea Triennale','Laurea Magistrale','Master','Dottorato','Erasmus','Altro'].map(t => `<option value="${t}" ${((c.studenti && c.studenti.tipoIscrizione) || '') === t ? 'selected' : ''}>${t || '—'}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Anno accademico</label><input type="text" class="form-input" name="studenti_annoAccademico" value="${(c.studenti && c.studenti.annoAccademico) || ''}" placeholder="Es: 2025/2026"></div></div></div>` : ''}<div class="form-row"><div class="form-group"><label class="form-label">Tipo contratto <span style="font-size:10px;color:var(--text-muted)">(decide il MODELLO del PDF)</span></label><select class="form-select" name="type"><option value="transitorio" ${c.type !== 'studenti' ? 'selected' : ''}>Transitorio — Allegato B</option><option value="studenti" ${c.type === 'studenti' ? 'selected' : ''}>Studenti universitari — Allegato C</option></select></div><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="active" ${c.status === 'active' ? 'selected' : ''}>Attivo</option><option value="expired" ${c.status === 'expired' ? 'selected' : ''}>Scaduto</option><option value="terminated" ${c.status === 'terminated' ? 'selected' : ''}>Terminato</option></select></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${c.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Salva</button></div></div></div>`; }
+        if (type === 'editContract') { const c = data; if (!c) return ''; const tenants = S.users.filter(u => u.role === 'tenant'); const props = S.properties; const _mb = (c.startDate && c.endDate) ? monthsBetween(c.startDate, c.endDate) : { text: '', total: 0 }; const _autoInst = Math.max(1, Math.ceil(_mb.total || 0)); const _autoTotal = (c.rent || (c.canone && c.canone.monthly) || 0) * _autoInst; const _curInst = (c.canone && c.canone.installments) || _autoInst; const _curTotal = (c.canone && c.canone.total) || _autoTotal || 0; return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">✏️ Modifica Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><form id="mForm" onsubmit="updateContract(event,'${c.id}')"><div class="form-row"><div class="form-group"><label class="form-label">Immobile</label><select class="form-select" name="propertyId">${props.map(p => `<option value="${p.id}" ${c.propertyId === p.id ? 'selected' : ''}>${p.name}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Inquilino</label><select class="form-select" name="tenantId">${tenants.map(t => `<option value="${t.id}" ${c.tenantId === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}</select></div></div><div class="form-row"><div class="form-group"><label class="form-label">Inizio</label><input type="date" class="form-input" name="startDate" value="${c.startDate || ''}" onchange="calcContractDuration()"></div><div class="form-group"><label class="form-label">Fine</label><input type="date" class="form-input" name="endDate" value="${c.endDate || ''}" onchange="calcContractDuration()"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Affitto €</label><input type="number" class="form-input" name="rent" id="cRent" value="${c.rent || ''}" oninput="calcContractDuration()"></div><div class="form-group"><label class="form-label">Deposito €</label><input type="number" class="form-input" name="deposit" value="${c.deposit || ''}"></div></div><div id="cDurationInfo" style="font-size:12px;margin:-4px 0 12px;padding:8px 12px;background:var(--surface);border-radius:8px">${_mb.text ? `<span style="color:var(--green)">Durata: ${_mb.text}</span> &middot; <span style="color:var(--gold)">N° rate: ${_curInst}</span> &middot; <span style="color:var(--gold)">Totale: &euro;${_curTotal.toLocaleString('it-IT')}</span>` : '<span style="color:var(--text-muted)">Compila le date per vedere la durata</span>'}</div><div class="form-row" id="cCanoneCalcRow"><div class="form-group"><label class="form-label">Canone Totale € <span style="font-size:10px;color:var(--text-muted)">(auto)</span></label><input type="number" class="form-input" name="canoneTotal" id="cCanoneTotal" value="${_curTotal || ''}" readonly style="opacity:0.7"></div><div class="form-group"><label class="form-label">N° Rate <span style="font-size:10px;color:var(--text-muted)">(auto)</span></label><input type="number" class="form-input" name="canoneInstallments" id="cCanoneInstallments" value="${_curInst || ''}" readonly style="opacity:0.7"></div></div><div style="margin:-4px 0 12px"><button type="button" class="btn btn-sm btn-secondary" id="cOverrideBtn" data-active="0" onclick="toggleCanoneOverride()" style="font-size:11px">🔓 Personalizza canone</button></div><div id="cOverrideWarn" style="display:none;background:rgba(220,38,38,0.12);border:1px solid #ef4444;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#fca5a5">⚠️ Stai personalizzando il canone manualmente. Verifica che (canone totale ÷ numero rate = canone mensile) e che il numero di rate corrisponda alla durata. Una matematica sbagliata può causare problemi al CAF.</div><div id="eStudentiFields" style="display:${c.type === 'studenti' ? 'block' : 'none'}"><div style="background:rgba(212,175,55,0.06);border:1px solid rgba(212,175,55,0.25);border-radius:10px;padding:12px;margin-bottom:12px"><div style="font-size:11px;color:var(--gold);text-transform:uppercase;letter-spacing:1.5px;margin-bottom:8px">🎓 Dati specifici contratto studenti (CAF Allegato C)</div><div class="form-group"><label class="form-label">Corso di studi *</label><input type="text" class="form-input" name="studenti_corsoStudi" value="${(c.studenti && c.studenti.corsoStudi) || c.courseName || ''}" placeholder="Es: Laurea Magistrale in International Management"></div><div class="form-row"><div class="form-group"><label class="form-label">Università *</label><input type="text" class="form-input" name="studenti_universita" value="${(c.studenti && c.studenti.universita) || c.universityName || ''}" placeholder="Es: LUISS Guido Carli"></div><div class="form-group"><label class="form-label">Indirizzo università *</label><input type="text" class="form-input" name="studenti_universitaIndirizzo" value="${(c.studenti && c.studenti.universitaIndirizzo) || ''}" placeholder="Es: Viale Romania 32, Roma"></div></div><div class="form-row"><div class="form-group"><label class="form-label">Tipo iscrizione</label><select class="form-select" name="studenti_tipoIscrizione">${['','Laurea Triennale','Laurea Magistrale','Master','Dottorato','Erasmus','Altro'].map(t => `<option value="${t}" ${((c.studenti && c.studenti.tipoIscrizione) || '') === t ? 'selected' : ''}>${t || '—'}</option>`).join('')}</select></div><div class="form-group"><label class="form-label">Anno accademico</label><input type="text" class="form-input" name="studenti_annoAccademico" value="${(c.studenti && c.studenti.annoAccademico) || ''}" placeholder="Es: 2025/2026"></div></div></div></div><div class="form-row"><div class="form-group"><label class="form-label">Tipo contratto <span style="font-size:10px;color:var(--text-muted)">(decide il MODELLO del PDF)</span></label><select class="form-select" name="type" onchange="const b=document.getElementById('eStudentiFields');if(b)b.style.display=this.value==='studenti'?'block':'none'"><option value="transitorio" ${c.type !== 'studenti' ? 'selected' : ''}>Transitorio — Allegato B</option><option value="studenti" ${c.type === 'studenti' ? 'selected' : ''}>Studenti universitari — Allegato C</option></select></div><div class="form-group"><label class="form-label">Stato</label><select class="form-select" name="status"><option value="active" ${c.status === 'active' ? 'selected' : ''}>Attivo</option><option value="expired" ${c.status === 'expired' ? 'selected' : ''}>Scaduto</option><option value="terminated" ${c.status === 'terminated' ? 'selected' : ''}>Terminato</option></select></div></div><div class="form-group"><label class="form-label">Note</label><textarea class="form-textarea" name="notes" rows="2">${c.notes || ''}</textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">Salva</button></div></div></div>`; }
 
         if (type === 'renewContract') { const c = data; if (!c) return ''; const p = S.properties.find(x => x.id === c.propertyId); const currentEnd = c.endDate ? new Date(c.endDate) : new Date(); const newEnd = new Date(currentEnd); newEnd.setFullYear(newEnd.getFullYear() + 1); return `<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">🔄 Rinnova Contratto</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><div style="background:var(--surface);padding:16px;border-radius:8px;margin-bottom:16px"><div style="font-weight:600;margin-bottom:8px">${p?.name || 'Immobile'}</div><div style="font-size:13px;color:var(--text-muted)">Scadenza attuale: ${fmtDate(c.endDate)}</div></div><form id="mForm" onsubmit="renewContract(event,'${c.id}')"><div class="form-group"><label class="form-label">Nuova Data Fine *</label><input type="date" class="form-input" name="newEndDate" value="${newEnd.toISOString().split('T')[0]}" required></div><div class="form-row"><div class="form-group"><label class="form-label">Nuovo Affitto €</label><input type="number" class="form-input" name="newRent" value="${c.rent || ''}" placeholder="Lascia vuoto per mantenere"></div><div class="form-group"><label class="form-label">Adeguamento %</label><input type="number" class="form-input" name="adjustment" placeholder="Es: 2 per +2%"></div></div><div class="form-group"><label class="form-label">Note Rinnovo</label><textarea class="form-textarea" name="renewalNotes" rows="2" placeholder="Es: Rinnovo annuale con adeguamento ISTAT..."></textarea></div></form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Annulla</button><button class="btn" onclick="document.getElementById('mForm').requestSubmit()">🔄 Rinnova</button></div></div></div>`; }
 
@@ -16388,7 +16388,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         e.preventDefault();
         const data = Object.fromEntries(new FormData(e.target));
         const _existingContract = S.contracts.find(x => x.id === id) || {};
-        const _isStudenti = _existingContract.type === 'studenti';
+        // Il tipo che conta è quello SCELTO ADESSO nel modale, non quello con
+        // cui il contratto è nato: chi passa a «Studenti» sta chiedendo
+        // l'Allegato C, e l'Allegato C senza corso e università stampa i
+        // puntini. Leggere il contratto vecchio faceva saltare la verifica
+        // proprio nel momento in cui serviva.
+        const _isStudenti = (data.type || _existingContract.type) === 'studenti';
         // GUARDIA FIRME: un contratto firmato (anche da UNA sola parte) non si
         // modifica — la firma è attaccata a QUEI termini (signedTermsHash sul
         // server rifiuterebbe comunque la controfirma: 409 terms_changed).
@@ -16412,7 +16417,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // Studenti CAF validation (only enforce if studenti fields are present in form)
         if (_isStudenti && data.studenti_corsoStudi !== undefined) {
             if (!data.studenti_corsoStudi || !data.studenti_universita || !data.studenti_universitaIndirizzo) {
-                alert('Compila i dati specifici del contratto studenti (corso di studi, università, indirizzo università) per procedere con la generazione CAF-compliant.');
+                alert('Contratto studenti (Allegato C): servono corso di studi, università e indirizzo dell\'università — il modello dell\'associazione li nomina dentro la clausola, senza restano i puntini sul PDF.');
                 return;
             }
         }
@@ -27725,10 +27730,10 @@ IBAN: ${l.iban || '-'}`;
                 </label>
                 <span id="innestoFileName" style="font-size:12px;color:var(--text-secondary)">${_innesto.file ? esc(_innesto.file.name) : 'nessun file'}</span>
                 <div style="flex:1"></div>
-                <button class="btn" ${_innesto.busy ? 'disabled' : ''} onclick="innestoAnalyze()">${_innesto.busy ? 'Lettura in corso…' : 'Leggi e proponi'}</button>
+                <button class="btn" ${_innesto.busy ? 'disabled' : ''} onclick="innestoAnalyze()">${_innesto.busy ? 'Lettura in corso…' : (_innesto.proposal ? 'Leggi e integra' : 'Leggi e proponi')}</button>
             </div>
             <div style="font-size:11.5px;color:var(--text-secondary);margin-top:10px;line-height:1.5">
-                Il documento viene letto dall'AI solo per estrarre i campi. Un file grande transita dal tuo Storage e viene rimosso a lettura finita: niente resta salvato finché non confermi.
+                Il documento viene letto dall'AI solo per estrarre i campi. Un file grande transita dal tuo Storage e viene rimosso a lettura finita: niente resta salvato finché non confermi.${_innesto.proposal ? ' <b>Con la proposta aperta, una nuova lettura riempie i buchi</b> (es. la carta d\'identità dopo il contratto) — non cancella niente.' : ''}
             </div>
         </div>
 
@@ -27776,22 +27781,51 @@ IBAN: ${l.iban || '-'}`;
             </div>`;
         };
 
+        // Sezione mancante ≠ vicolo cieco. Il caso vero (Via Simeto, 30/08):
+        // inquilino e immobile ESISTEVANO in anagrafica, ma il PDF non li
+        // portava nella proposta e il contratto restava increabile da qui —
+        // con la persona giusta a due tap di distanza. Il "fantasma" apre
+        // le tre vie: aggancio dall'archivio, compilazione a mano, o un
+        // altro documento letto in integrazione.
+        const poolLandlord = (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').concat(S.landlords || []);
+        const poolTenant = (S.users || []).filter(u => u.role === 'tenant');
+        const ghost = (key, icon, title, pool, required) => {
+            if (p[key] || !p.contract) return '';
+            const chosen = _innesto.links[key] || '';
+            return `
+            <div class="card" style="margin-bottom:14px;border-style:dashed">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px">
+                    <strong style="font-size:14px">${icon} ${esc(title)}</strong>
+                    <span style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:${chosen ? '#00FF88' : '#FF6B35'}">${chosen ? '✓ agganciato dall\'archivio' : 'non letto dal documento'}</span>
+                </div>
+                <div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:10px;line-height:1.5">${required ? 'Serve per il contratto: ' : 'Facoltativo: '}scegli dall'archivio, compila a mano, oppure allega un altro documento (es. la carta d'identità) e rileggi — i dati si integrano.</div>
+                <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+                    <select onchange="innestoPick('${key}', this.value)"
+                        style="flex:1;min-width:200px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 10px;font-size:13px;font-family:inherit">
+                        <option value="">— scegli dall'archivio (${pool.length}) —</option>
+                        ${pool.map(r => `<option value="${esc(r.id)}" ${chosen === r.id ? 'selected' : ''}>${esc(r.name || r.email || r.id)}</option>`).join('')}
+                    </select>
+                    <button class="btn btn-sm btn-secondary" onclick="innestoAddSection('${key}')">➕ Compila a mano</button>
+                </div>
+            </div>`;
+        };
+
         blocks.push(section('landlord', '🏛', 'Proprietario', [
             ['name', 'Nome'], ['email', 'Email', 'email'], ['phone', 'Telefono'],
             ['codiceFiscale', 'Codice fiscale'], ['iban', 'IBAN'], ['address', 'Residenza']
-        ], 'person', (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').concat(S.landlords || [])));
+        ], 'person', poolLandlord) || ghost('landlord', '🏛', 'Proprietario', poolLandlord, false));
 
         blocks.push(section('property', '🏠', 'Immobile', [
             ['name', 'Nome'], ['address', 'Indirizzo'], ['rent', 'Canone mensile €', 'number'],
             ['sqm', 'Metri quadri', 'number'], ['rooms', 'Locali', 'number'], ['bathrooms', 'Bagni', 'number'],
             ['floor', 'Piano'], ['interno', 'Interno'], ['cadastralData', 'Dati catastali'], ['energyClass', 'Classe energetica']
-        ], 'property', S.properties || []));
+        ], 'property', S.properties || []) || ghost('property', '🏠', 'Immobile', S.properties || [], true));
 
         blocks.push(section('tenant', '👤', 'Inquilino', [
             ['name', 'Nome'], ['email', 'Email', 'email'], ['phone', 'Telefono'],
             ['codiceFiscale', 'Codice fiscale'], ['birthDate', 'Data di nascita', 'date'],
             ['birthPlace', 'Luogo di nascita'], ['address', 'Residenza']
-        ], 'person', (S.users || []).filter(u => u.role === 'tenant')));
+        ], 'person', poolTenant) || ghost('tenant', '👤', 'Inquilino', poolTenant, true));
 
         blocks.push(section('contract', '📋', 'Contratto', [
             ['type', 'Tipo'], ['startDate', 'Inizio', 'date'], ['endDate', 'Fine', 'date'],
@@ -27802,17 +27836,25 @@ IBAN: ${l.iban || '-'}`;
 
         // Riepilogo onesto: distingue cosa nasce da cosa viene solo collegato,
         // così l'operatore sa in anticipo l'effetto del pulsante.
-        const landlordPool = (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').concat(S.landlords || []);
         const willLink = (key, pool, kind) => {
             if (_innesto.links[key] === null) return false;              // "scollega" esplicito
             if (_innesto.links[key]) return true;                        // aggancio scelto
+            if (!p[key]) return false;                                   // sezione assente e nessuna scelta
             return !!V.findMatch(p[key], pool, kind).match;              // aggancio proposto
         };
         const willCreate = [];
-        if (p.landlord && !willLink('landlord', landlordPool, 'person')) willCreate.push('proprietario');
+        if (p.landlord && !willLink('landlord', poolLandlord, 'person')) willCreate.push('proprietario');
         if (p.property && !willLink('property', S.properties || [], 'property')) willCreate.push('immobile');
-        if (p.tenant && !willLink('tenant', (S.users || []).filter(u => u.role === 'tenant'), 'person')) willCreate.push('inquilino');
-        if (p.contract) willCreate.push('contratto + piano rate');
+        if (p.tenant && !willLink('tenant', poolTenant, 'person')) willCreate.push('inquilino');
+        // Il contratto ha bisogno di ENTRAMBE le gambe (immobile e inquilino).
+        // Prometterlo quando una manca era la via per un "Innesto completato"
+        // SENZA contratto: l'apply lo saltava in silenzio e l'operatore lo
+        // scopriva giorni dopo, controllando l'archivio. Una gamba vale
+        // anche AGGANCIATA dall'archivio (il fantasma qui sopra).
+        const contractLegs = [];
+        if (p.contract && !p.property && !_innesto.links.property) contractLegs.push("l'immobile");
+        if (p.contract && !p.tenant && !_innesto.links.tenant) contractLegs.push("l'inquilino");
+        if (p.contract && !contractLegs.length) willCreate.push('contratto + piano rate');
         if (!willCreate.length) willCreate.push('solo collegamenti (nessun nuovo record)');
 
         return `
@@ -27824,6 +27866,10 @@ IBAN: ${l.iban || '-'}`;
         ${val.warnings.length ? `<div class="card" style="border-color:rgba(255,107,53,0.35);margin-bottom:14px">
             <div style="font-size:12px;color:#FF6B35;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Da guardare (non bloccante)</div>
             ${val.warnings.map(w => `<div style="font-size:12.5px;color:var(--text-secondary);line-height:1.6">• ${esc(w)}</div>`).join('')}
+        </div>` : ''}
+        ${contractLegs.length ? `<div class="card" style="border-color:#FF3B3B;margin-bottom:14px">
+            <div style="font-size:12px;color:#FF3B3B;letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">⚠ Contratto NON creabile</div>
+            <div style="font-size:12.5px;color:#FF9A9A;line-height:1.6">Nel materiale letto manca ${esc(contractLegs.join(' e '))}: il contratto e il piano rate <b>non verranno creati</b>. Tre vie: <b>aggancia dall'archivio</b> nel riquadro tratteggiato qui sopra, <b>compila a mano</b>, oppure allega un altro documento e premi «Leggi e integra».</div>
         </div>` : ''}
         <div class="card" style="position:sticky;bottom:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
             <div style="flex:1;min-width:220px">
@@ -27902,18 +27948,34 @@ IBAN: ${l.iban || '-'}`;
                 const why = r.status === 413 || data.error === 'file_too_large'
                         ? 'file oltre il limite di 8 MB — comprimilo o allega solo le pagine che contano'
                     : data.error === 'unsupported_media_type' ? 'formato non leggibile: servono PDF, JPG, PNG o WebP'
-                    : (data.error || ('errore ' + r.status));
+                    // il server ora dice PERCHÉ la lettura non è riuscita e
+                    // cosa fare (documento troppo lungo, scansione illeggibile):
+                    // «ai_bad_json» all'operatore non diceva niente
+                    : (data.detail || data.error || ('errore ' + r.status));
                 throw new Error(why);
             }
             if (data.empty || !data.proposal || !Object.keys(data.proposal).length) {
                 toast('warning', 'Nessun dato riconosciuto', 'Prova ad aggiungere più contesto o un documento più leggibile');
-                _innesto.notes = data.notes || []; _innesto.proposal = null;
+                _innesto.notes = (_innesto.proposal ? _innesto.notes || [] : []).concat(data.notes || []);
+                // Una lettura vuota non butta via la proposta che l'operatore
+                // ha già davanti (e magari ha già corretto).
             } else {
-                _innesto.proposal = window.BOOM_DATAOPS.normalizeProposal(data.proposal);
-                _innesto.notes = data.notes || [];
+                // IL FASCICOLO A PIÙ LETTURE: se una proposta è già aperta, la
+                // nuova lettura ne riempie i BUCHI (mergeProposal: un campo
+                // pieno — magari corretto a mano — non si tocca mai). Così il
+                // PDF del contratto + la foto del documento + due righe di
+                // WhatsApp diventano UNA proposta, senza ricominciare da capo.
+                const D = window.BOOM_DATAOPS;
+                const fresh = D.normalizeProposal(data.proposal);
+                const integrating = !!_innesto.proposal;
+                let next = integrating && D.mergeProposal ? D.mergeProposal(_innesto.proposal, fresh) : fresh;
+                if (D.deriveProposal) next = D.deriveProposal(next);
+                _innesto.proposal = next;
+                _innesto.notes = integrating ? (_innesto.notes || []).concat(data.notes || []) : (data.notes || []);
                 _innesto.confidence = data.confidence;
-                _innesto.links = {};
-                toast('success', 'Proposta pronta', 'Controlla i campi prima di confermare');
+                if (!integrating) _innesto.links = {};
+                _innesto.file = null;   // il prossimo giro legge il PROSSIMO documento
+                toast('success', integrating ? 'Proposta integrata' : 'Proposta pronta', 'Controlla i campi prima di confermare');
             }
         } catch (e) {
             console.error('[Innesto]', e);
@@ -27936,6 +27998,21 @@ IBAN: ${l.iban || '-'}`;
     }
     function innestoLink(section, on, matchId) {
         _innesto.links[section] = on ? matchId : null;
+        renderPage();
+    }
+
+    // Aggancio dal fantasma: la sezione non c'è nella proposta, ma la
+    // persona/casa esiste in archivio. Select vuota = si torna a "nessuna
+    // scelta" (undefined), MAI a null: null significa "crea nuovo".
+    function innestoPick(section, id) {
+        if (id) _innesto.links[section] = id; else delete _innesto.links[section];
+        renderPage();
+    }
+
+    function innestoAddSection(section) {
+        if (!_innesto.proposal) return;
+        if (!_innesto.proposal[section]) _innesto.proposal[section] = {};
+        delete _innesto.links[section];
         renderPage();
     }
     function innestoReset() {
@@ -27962,7 +28039,10 @@ IBAN: ${l.iban || '-'}`;
             // 1 — Proprietario
             let ownerId = _innesto.links.landlord || null;
             if (p.landlord && !ownerId) {
-                const pool = (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner');
+                // Lo STESSO pool della card (users + landlords): con pool
+                // diversi la card diceva «verrà usato il record esistente»
+                // e l'apply ne creava un doppione.
+                const pool = (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').concat(S.landlords || []);
                 const m = _innesto.links.landlord === null ? { match: null } : V.findMatch(p.landlord, pool, 'person');
                 if (m.match) ownerId = m.match.id;
                 else {
@@ -27979,11 +28059,13 @@ IBAN: ${l.iban || '-'}`;
                 }
             }
 
-            // 2 — Immobile
-            let propertyId = null;
-            if (p.property) {
-                const m = V.findMatch(p.property, S.properties || [], 'property');
-                if (m.match && _innesto.links.property !== null) { propertyId = m.match.id; }
+            // 2 — Immobile. L'aggancio SCELTO (checkbox o fantasma) vince
+            // sempre sul match riderivato — e vale anche quando la sezione
+            // manca dalla proposta: è la via Via Simeto.
+            let propertyId = _innesto.links.property || null;
+            if (p.property && !propertyId) {
+                const m = _innesto.links.property === null ? { match: null } : V.findMatch(p.property, S.properties || [], 'property');
+                if (m.match) { propertyId = m.match.id; }
                 else {
                     const ref = await db.collection('properties').add({
                         name: p.property.name, address: p.property.address || '',
@@ -28065,9 +28147,18 @@ IBAN: ${l.iban || '-'}`;
             await logActivity('innesto_import', 'system', { creati: created, confidence: _innesto.confidence });
             try { localStorage.removeItem('boom_data_cache'); } catch (e) {}
             toast('success', 'Innesto completato', created.join(' · '));
+            // Un contratto saltato non resta MAI muto: "Innesto completato"
+            // senza questa riga era indistinguibile da un contratto creato.
+            if (p.contract && (!propertyId || !tenantId)) {
+                const gambe = [!propertyId && "l'immobile", !tenantId && "l'inquilino"].filter(Boolean).join(' e ');
+                toast('warning', 'Contratto NON creato', 'nella proposta manca ' + gambe + ' — agganciala dall\'archivio o completala a mano');
+            }
+            const madeContract = created.indexOf('contratto') >= 0;
             innestoReset();
             await loadDataFresh(true);
-            buildNav(); renderPage();
+            // Il contratto appena nato si VEDE: si atterra sulla sua lista,
+            // non su una pagina Innesto tornata vuota.
+            if (madeContract) goTo('contracts'); else { buildNav(); renderPage(); }
         } catch (e) {
             console.error('[Innesto] creazione fallita:', e);
             toast('error', 'Creazione non riuscita', e.message + (created.length ? ' — già creati: ' + created.join(', ') : ''));

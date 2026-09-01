@@ -5,6 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="description" content="Rent Rome from the sky — every BOOM apartment on a live 3D map of the city. Video-verified, transparent, 48-hour move-in.">
 <title>BOOM Skyline — rent Rome from the sky</title>
+<link rel="canonical" href="https://www.boomrome.com/skyline">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://www.boomrome.com/skyline">
+<meta property="og:title" content="BOOM Skyline — rent Rome from the sky">
+<meta property="og:description" content="Every BOOM apartment on a live 3D map of Rome. Video-verified homes, honest distances, no fake pins.">
+<meta property="og:image" content="https://www.boomrome.com/og-home.png">
+<meta property="og:site_name" content="BOOM Rome">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://www.boomrome.com/og-home.png">
 <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=optional" rel="stylesheet" media="print" onload="this.media='all'">
@@ -47,6 +56,7 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,sys
 .filters .chip.invito{border-style:dashed;border-color:rgba(255,215,0,.5);color:var(--gold)}
 .sky-pin::after{content:'';width:2px;height:9px;background:linear-gradient(#FFA500,transparent)}
 .sky-pin.dim{opacity:.16;filter:grayscale(.7)}
+.sky-pin.fuoriTempo{opacity:.16;filter:grayscale(.7)}
 .maplibregl-popup-content{background:var(--card)!important;border:1px solid var(--line)!important;border-radius:16px!important;padding:0!important;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.6)!important;width:230px}
 .maplibregl-popup-close-button{color:#fff!important;font-size:20px!important;padding:2px 8px!important;z-index:2}
 .maplibregl-popup-tip{border-top-color:var(--card)!important;border-bottom-color:var(--card)!important}
@@ -99,9 +109,194 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,sys
 .miei-righe .r button:hover{color:#FF6B57}
 .miei-vuota{font-size:12px;color:var(--t3);padding:10px 2px}
 .miei-chiudi{margin-top:12px;width:100%;padding:11px;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000;font-weight:600;font-size:13px;border:0;border-radius:10px;cursor:pointer}
+/* ══ QUADRANTE:CSS ══ */
+/* IL QUADRANTE — le distanze non spariscono piu'. A riposo e' la legenda
+   della citta'; con una casa scelta e' il cruscotto di quella porta. */
+.quad{position:absolute;z-index:11;left:16px;bottom:calc(16px + env(safe-area-inset-bottom));
+  width:min(330px,calc(100vw - 32px));background:rgba(10,10,14,.82);
+  -webkit-backdrop-filter:blur(16px) saturate(1.2);backdrop-filter:blur(16px) saturate(1.2);
+  border:1px solid rgba(255,255,255,.10);border-radius:18px;
+  box-shadow:0 26px 70px rgba(0,0,0,.62);overflow:hidden;
+  transition:transform .34s cubic-bezier(.22,1,.36,1),opacity .28s ease}
+.quad-capo{display:flex;align-items:center;gap:10px;padding:12px 14px 11px;
+  border-bottom:1px solid rgba(255,255,255,.07)}
+.quad-capo .q-eti{flex:1;min-width:0}
+.quad-capo b{display:block;font-family:var(--disp);font-weight:300;font-size:15px;
+  color:#fff;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.quad-capo small{display:block;margin-top:2px;font-size:10px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--t3)}
+.quad-x{flex:none;width:28px;height:28px;border-radius:50%;border:1px solid rgba(255,255,255,.14);
+  background:transparent;color:var(--t2);font-size:14px;line-height:1;cursor:pointer;
+  display:none;align-items:center;justify-content:center}
+.quad.scelta .quad-x{display:flex}
+.quad-x:hover{border-color:var(--gold);color:var(--gold)}
+.quad-corpo{padding:6px 6px 8px;max-height:min(46vh,340px);overflow-y:auto;
+  overscroll-behavior:contain}
+/* L'elenco e' piu' alto del pannello, quindi l'ultima riga visibile viene
+   TAGLIATA A META'. Senza un segno, una riga mozzata non si legge come
+   «continua sotto»: si legge come una cosa rotta — e' esattamente cosi'
+   che appariva nella prova a 390px. La sfumatura compare SOLO quando c'e'
+   davvero altro da vedere (classe messa dal JS misurando lo scorrimento):
+   una sfumatura sempre accesa direbbe «continua» anche su una lista
+   finita, cioe' mentirebbe in piccolo. */
+.quad-corpo.altro-giu{-webkit-mask-image:linear-gradient(180deg,#000 calc(100% - 34px),transparent);
+  mask-image:linear-gradient(180deg,#000 calc(100% - 34px),transparent)}
+.quad-corpo.altro-su{-webkit-mask-image:linear-gradient(0deg,#000 calc(100% - 22px),transparent);
+  mask-image:linear-gradient(0deg,#000 calc(100% - 22px),transparent)}
+.quad-corpo.altro-su.altro-giu{
+  -webkit-mask-image:linear-gradient(180deg,transparent,#000 22px,#000 calc(100% - 34px),transparent);
+  mask-image:linear-gradient(180deg,transparent,#000 22px,#000 calc(100% - 34px),transparent)}
+.qr{display:flex;align-items:center;gap:10px;padding:8px 8px;border-radius:11px;
+  transition:background .18s ease}
+.qr:hover{background:rgba(255,255,255,.045)}
+.qr .ic{flex:none;width:26px;height:26px;border-radius:8px;display:flex;
+  align-items:center;justify-content:center;font-size:13px;
+  background:rgba(255,215,0,.08);box-shadow:inset 0 0 0 1px rgba(255,215,0,.16)}
+.qr .nm{flex:1;min-width:0}
+.qr .nm b{display:block;font-size:12.5px;font-weight:400;color:#fff;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qr .nm span{display:block;font-size:10.5px;color:var(--t3);
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.qr .tm{flex:none;text-align:right;font-variant-numeric:tabular-nums}
+.qr .tm b{display:block;font-size:14px;font-weight:400;color:var(--gold);line-height:1.1}
+.qr .tm i{display:block;font-style:normal;font-size:9px;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--t4);margin-top:1px}
+.qr.mio .ic{background:rgba(0,255,136,.08);box-shadow:inset 0 0 0 1px rgba(0,255,136,.22)}
+.qr.mio .tm b{color:#00FF88}
+.quad-nota{padding:2px 14px 12px;font-size:10.5px;line-height:1.5;color:var(--t4)}
+.quad-nota b{color:var(--t3);font-weight:400}
+/* il filtro per minuti: la domanda che nessun portale sa rispondere */
+.quad-filtro{padding:10px 12px 12px;border-top:1px solid rgba(255,255,255,.07);
+  background:rgba(255,255,255,.018)}
+.qf-t{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--t3);
+  margin-bottom:8px}
+.qf-r{display:flex;gap:7px;align-items:center}
+.qf-r select{flex:1;min-width:0;background:rgba(255,255,255,.05);
+  border:1px solid rgba(255,255,255,.12);border-radius:9px;color:#fff;
+  font:inherit;font-size:12px;padding:7px 8px;min-height:38px}
+.qf-r select:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.qf-min{display:flex;gap:5px}
+.qf-min button{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);
+  border-radius:9px;color:var(--t2);font:inherit;font-size:11.5px;padding:7px 9px;
+  min-height:38px;cursor:pointer;font-variant-numeric:tabular-nums}
+.qf-min button.on{background:linear-gradient(135deg,var(--gold),var(--gold2));
+  color:#000;border-color:transparent;font-weight:600}
+.qf-esito{margin-top:9px;font-size:11px;color:var(--t3);line-height:1.5}
+.qf-esito b{color:var(--gold);font-weight:500}
+.qf-esito i{font-style:normal;color:var(--t4)}
+@media(max-width:640px){
+  .quad{left:10px;right:10px;width:auto;bottom:calc(10px + env(safe-area-inset-bottom))}
+  .quad-corpo{max-height:34vh}
+  .quad.chiuso .quad-corpo,.quad.chiuso .quad-filtro,.quad.chiuso .quad-nota{display:none}
+  .quad-capo{cursor:pointer}
+}
+@media(prefers-reduced-motion:reduce){.quad{transition:none}}
+/* ══ /QUADRANTE:CSS ══ */
 </style>
 <script src="/js/boom-geo.js"></script>
+<script src="/js/tempi-engine.js"></script>
+<script src="/js/mappa-engine.js"></script>
 <script>if(/[?&]embed=1/.test(location.search)){document.documentElement.classList.add('emb');var _b=document.createElement('base');_b.target='_top';document.head.appendChild(_b);}</script>
+<!-- BOOM_SCROLL:START -->
+<style>
+/* boom-scroll.css — IL CONTRATTO DI SCORRIMENTO, in una copia sola.
+ *
+ * IL REPERTO: su 45 fra pagine e viewport, un link interno portava il
+ * lettore SOTTO la barra fissa. Il titolo della sezione finiva nascosto
+ * dietro la nav e si atterrava a meta' frase — su apartment-detail erano
+ * sei ancore su sei. La causa e' banale e sempre la stessa: `scroll-margin`
+ * e `scroll-padding` erano usati sei volte in tutto il sito, con numeri
+ * scritti a mano (86px, 104px, 150px) che nessuno teneva allineati
+ * all'altezza VERA della barra — che va da 71 a 99px a seconda della
+ * pagina e della larghezza.
+ *
+ * La soluzione non e' quarantacinque pezze: e' una proprieta' sola.
+ * `scroll-padding-top` sull'elemento che scorre copre TUTTO in un colpo —
+ * la navigazione per frammento (#sezione), `scrollIntoView()` e `:target`.
+ * Il valore non si indovina: lo misura js/boom-scroll.js dal documento
+ * vero, e lo riscrive quando la finestra cambia.
+ *
+ * Il ripiego (76px) vale solo nell'istante fra il primo paint e la prima
+ * misura, e con JS spento: meglio un'approssimazione onesta dello zero.
+ */
+:root { --boom-barra: 76px; }
+
+html {
+  scroll-padding-top: calc(var(--boom-barra) + 18px);
+}
+
+/* Un'ancora puo' vivere dentro un contenitore che scorre per conto suo
+   (una lista, un cassetto): li' la barra della pagina non c'entra, e la
+   regola sull'elemento la porterebbe fuori quadro. */
+[data-scroll-libero] { scroll-padding-top: 0; }
+
+/* Movimento = informazione. Chi ha chiesto meno movimento al sistema
+   operativo non deve subire lo scorrimento animato di 77 dichiarazioni
+   sparse: si spegne qui, una volta, per tutte. */
+@media (prefers-reduced-motion: reduce) {
+  html, body { scroll-behavior: auto !important; }
+}
+</style>
+<script>
+/* boom-scroll.js — LA MISURA DELLA BARRA. ~500 byte, nessuna dipendenza.
+ *
+ * Scrive --boom-barra con l'altezza VERA di cio' che copre il bordo alto
+ * della finestra, cosi' `scroll-padding-top` (css/boom-scroll.css) porta
+ * ogni ancora sotto la barra invece che dietro.
+ *
+ * Come si misura, e perche' cosi': `elementsFromPoint` restituisce solo
+ * gli elementi sotto UN punto — costa quanto la profondita' dell'albero,
+ * non quanto il numero di nodi. Scorrere tutto il documento con
+ * querySelectorAll('*') e chiedere getComputedStyle a ognuno costerebbe
+ * millisecondi di thread principale a ogni ridimensionamento, per sapere
+ * una cosa che si legge in un punto.
+ *
+ * Si misura al caricamento, al primo scorrimento (molte barre cambiano
+ * altezza appena si scorre) e al ridimensionamento. Mai in un loop.
+ */
+(function () {
+  var R = document.documentElement, ultimo = -1;
+
+  function misura() {
+    var x = Math.round(innerWidth / 2), coperto = 0, i, e, s, r;
+    var sotto = document.elementsFromPoint ? document.elementsFromPoint(x, 2) : [];
+    for (i = 0; i < sotto.length; i++) {
+      e = sotto[i];
+      if (!e || e === R || e === document.body) continue;
+      s = getComputedStyle(e);
+      if (s.position !== 'fixed' && s.position !== 'sticky') continue;
+      if (s.visibility === 'hidden' || s.display === 'none') continue;
+      r = e.getBoundingClientRect();
+      // Una barra alta mezzo schermo non e' una barra: e' un pannello
+      // aperto, e non deve spostare le ancore di tutta la pagina.
+      if (r.top > 2 || r.height > innerHeight * 0.35) continue;
+      if (r.bottom > coperto) coperto = r.bottom;
+    }
+    coperto = Math.round(coperto);
+    if (coperto !== ultimo) {
+      ultimo = coperto;
+      R.style.setProperty('--boom-barra', coperto + 'px');
+    }
+  }
+
+  var atteso = false;
+  function piano() {
+    if (atteso) return;
+    atteso = true;
+    requestAnimationFrame(function () { atteso = false; misura(); });
+  }
+
+  misura();
+  addEventListener('load', misura);
+  addEventListener('resize', piano, { passive: true });
+  addEventListener('orientationchange', piano);
+  addEventListener('scroll', function una() {
+    removeEventListener('scroll', una);
+    piano();
+  }, { passive: true, once: true });
+})();
+</script>
+<!-- BOOM_SCROLL:END -->
 </head>
 <body>
 <div id="map"></div>
@@ -133,6 +328,29 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,sys
   </div>
 </div>
 
+<!-- BOOM_QUADRANTE -->
+<div class="quad" id="quad" hidden>
+  <div class="quad-capo" id="quadCapo">
+    <span class="q-eti"><b id="quadT">Rome, from any door</b>
+      <small id="quadS">Tap a home — the city answers</small></span>
+    <button class="quad-x" id="quadX" type="button" aria-label="Back to the city">&#10005;</button>
+  </div>
+  <div class="quad-corpo" id="quadC"></div>
+  <p class="quad-nota" id="quadN"></p>
+  <div class="quad-filtro">
+    <p class="qf-t">Only homes within</p>
+    <div class="qf-r">
+      <div class="qf-min" id="qfMin">
+        <button type="button" data-m="15">15&#8242;</button>
+        <button type="button" data-m="25">25&#8242;</button>
+        <button type="button" data-m="40">40&#8242;</button>
+      </div>
+      <select id="qfMeta" aria-label="Destination"></select>
+    </div>
+    <p class="qf-esito" id="qfEsito"></p>
+  </div>
+</div>
+<!-- /BOOM_QUADRANTE -->
 <div class="count" id="count" style="display:none"></div>
 
 <div class="load" id="load">
@@ -185,18 +403,35 @@ function spread(co){ // fan multiple listings around a shared zone centre so pin
 }
 
 /* ── Commute lines ── Rome's anchor hubs; tap a home to connect it to them.
-   Honest: straight-line distance + a walk estimate (not a routed commute). */
+   Minutes come from the Pendolare's GTFS grid (publicGeo/tempi-roma) when
+   it covers the spot; otherwise straight-line km, declared as such. */
 var ANCHORS=[
-  [12.5018,41.9009,'Termini','metro'],
-  [12.4924,41.8902,'Colosseo','colosseo'],
-  [12.4534,41.9022,'Vaticano','vaticano'],
-  [12.4690,41.8870,'Trastevere','trastevere'],
-  [12.5135,41.9038,'Sapienza','sapienza'],
-  [12.4917,41.9269,'LUISS','uni'],
-  [12.4790,41.8564,'Roma Tre','uni'],
-  [12.4664,41.8937,'John Cabot','uni'],
-  [12.4593,41.9032,'LUMSA','uni']
+  [12.5018,41.9009,'Termini','metro','termini'],
+  [12.4924,41.8902,'Colosseo','colosseo','colosseo'],
+  [12.4534,41.9022,'Vaticano','vaticano','vaticano'],
+  [12.4690,41.8870,'Trastevere','trastevere','trastevere'],
+  [12.5135,41.9038,'Sapienza','sapienza','sapienza'],
+  [12.4917,41.9269,'LUISS','uni','luiss'],
+  [12.4790,41.8564,'Roma Tre','uni','romatre'],
+  [12.4664,41.8937,'John Cabot','uni','johncabot'],
+  [12.4593,41.9032,'LUMSA','uni','lumsa']
 ];
+/* la griglia dei tempi veri: best-effort dopo il boot, mai bloccante */
+var TEMPI_DATI=null;
+if(window.BOOM_TEMPI)setTimeout(function(){
+  fetch('https://firestore.googleapis.com/v1/projects/boom-property-dashboards/databases/(default)/documents/publicGeo/tempi-roma')
+    .then(function(r){return r.ok?r.json():null})
+    .then(function(d){TEMPI_DATI=d&&BOOM_TEMPI.daDoc(d);window.__TEMPI_DATI=TEMPI_DATI;if(window.__quadrante)window.__quadrante.applica();})
+    .catch(function(){});
+},600);
+function anchorLabel(A,dKm,co){
+  if(dKm<2.6)return distLabel(dKm);
+  if(TEMPI_DATI&&window.BOOM_TEMPI){
+    var m=BOOM_TEMPI.eta(TEMPI_DATI,co[1],co[0],A[4]);
+    if(m!=null)return m+'\u2032';
+  }
+  return distLabel(dKm);
+}
 var ANCHOR_ICON={metro:'🚇',colosseo:'🏛',vaticano:'⛪',trastevere:'🍷',sapienza:'🎓',uni:'🎓'};
 var ANCHOR_MK=[];
 function haversine(a,b){var R=6371,r=Math.PI/180,dy=(b[1]-a[1])*r,dx=(b[0]-a[0])*r,s=Math.pow(Math.sin(dy/2),2)+Math.cos(a[1]*r)*Math.cos(b[1]*r)*Math.pow(Math.sin(dx/2),2);return 2*R*Math.asin(Math.min(1,Math.sqrt(s)));}
@@ -223,7 +458,7 @@ function showLinks(co){
   });
   ANCHORS.forEach(function(A,i){
     var m=ANCHOR_MK[i]; if(!m)return;
-    if(i in nearSet){m.el.classList.add('lit');m.el.style.opacity='';m.dEl.textContent=distLabel(nearSet[i]);}
+    if(i in nearSet){m.el.classList.add('lit');m.el.style.opacity='';m.dEl.textContent=anchorLabel(A,nearSet[i],co);}
     else{m.el.classList.remove('lit');m.el.style.opacity='.22';m.dEl.textContent='';}
   });
   map.getSource('links').setData({type:'FeatureCollection',features:feats});
@@ -383,8 +618,17 @@ function makePin(l,co){
     el.addEventListener('mouseleave',peekHide);
   }
   MARKERS.push(new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat(co).setPopup(pop).addTo(map));
+  /* il Quadrante lavora su lat/lng, non su [lng,lat]: si consegna gia'
+     nella forma giusta, cosi' nessuno converte due volte */
+  (function(){var _n=(L&&(L.name||L.title))||'This home';
+    (window.__SKY_CASE=window.__SKY_CASE||[]).push({id:el.__id,el:el,
+      lat:co[1],lng:co[0],nome:_n});
+    function _q(){if(window.__quadrante)
+      window.__quadrante.perCasa({lat:co[1],lng:co[0],nome:_n});}
+    el.addEventListener('mouseenter',_q); el.addEventListener('click',_q);})();
 }
 
+window.__skyRicalcola=function(){applyFilter();};
 function applyFilter(){
   var shown=0;
   MARKERS.forEach(function(mk){
@@ -399,6 +643,9 @@ function applyFilter(){
       var dmin=1e9;MYP.forEach(function(p){var d=haversine([el.__co[0],el.__co[1]],[p.lng,p.lat]);if(d<dmin)dmin=d;});
       if(dmin>2.0)ok=false;
     }
+    /* il Quadrante marca le case fuori dal limite di minuti: la
+       selezione resta UNA, e il conto in basso dice la verita' */
+    if(ok&&el.classList.contains('fuoriTempo'))ok=false;
     el.classList.toggle('dim',!ok); if(ok)shown++;
   });
   var c=$('count'); if(c){c.style.display='block'; c.innerHTML='<b>'+shown+'</b> homes'+(MAXFILTER?' under '+fmt(MAXFILTER):' across Rome')+'<span class="hint"> · tap one for its commute lines</span>';}
@@ -505,12 +752,186 @@ async function boot(){
   invito();
 })();
 
+/* ══ QUADRANTE:JS ══ */
+/* Il pannello che non sparisce. Legge il motore condiviso
+   (js/mappa-engine.js): mete, distanze, e soprattutto il GRADO DI VERITA'
+   di ogni minuto — misurato dal Pendolare o stimato, e la stima si vede.
+   Se il motore non c'e', il pannello NON compare: meglio niente che un
+   cruscotto che inventa. */
+(function(){
+  var M = window.BOOM_MAPPA;
+  var q = document.getElementById('quad');
+  if (!M || !q) return;
+  q.hidden = false;
+  if (innerWidth <= 640) q.classList.add('chiuso');
+
+  var capo = document.getElementById('quadCapo'),
+      tit = document.getElementById('quadT'), sot = document.getElementById('quadS'),
+      corpo = document.getElementById('quadC'), nota = document.getElementById('quadN'),
+      chiudi = document.getElementById('quadX'),
+      selMeta = document.getElementById('qfMeta'), minRow = document.getElementById('qfMin'),
+      esito = document.getElementById('qfEsito');
+
+  /* la misura dello scorrimento: 1px di tolleranza perche' su schermi a
+     densita' frazionaria scrollHeight e clientHeight non tornano MAI
+     esattamente uguali, e senza tolleranza la sfumatura resterebbe accesa
+     su una lista che invece finisce li'. */
+  function bordi(){
+    var g = corpo.scrollHeight - corpo.clientHeight - corpo.scrollTop > 1;
+    corpo.classList.toggle('altro-giu', g);
+    corpo.classList.toggle('altro-su', corpo.scrollTop > 1);
+  }
+  corpo.addEventListener('scroll', bordi, { passive: true });
+  addEventListener('resize', bordi);
+  /* LE CHIAMATE ESPLICITE NON BASTANO, e il perche' vale la riga in piu':
+     su telefono il pannello nasce CHIUSO (display:none), quindi la prima
+     misura vede 0 e 0 e non decide nulla; poi qualcun altro lo riapre —
+     il ramo che gestisce la mappa non caricata, per esempio — senza
+     sapere che qui c'e' qualcosa da rimisurare. Invece di rincorrere ogni
+     punto che apre il pannello (e dimenticarne uno, com'e' successo), si
+     osserva la SCATOLA: da nascosta a visibile e' un cambio di
+     dimensione, e la misura si rifa' da sola. */
+  if (window.ResizeObserver) new ResizeObserver(bordi).observe(corpo);
+
+  var ICO = { nodo:'🚇', segno:'🏛', ateneo:'🎓' };
+  var esc = function(t){ return String(t == null ? '' : t)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+
+  /* il ponte verso la griglia del Pendolare, gia' caricata dalla pagina */
+  function etaDi(lat, lng, slug){
+    if (!window.BOOM_TEMPI || !window.__TEMPI_DATI) return null;
+    return BOOM_TEMPI.eta(window.__TEMPI_DATI, lat, lng, slug);
+  }
+
+  M.METE.forEach(function(m){
+    var o = document.createElement('option');
+    o.value = m.slug; o.textContent = m.nome; selMeta.appendChild(o);
+  });
+  selMeta.value = 'termini';
+
+  /* Senza un tempo la colonna NON esiste: un trattino ripetuto su nove
+     righe si legge come una cosa rotta, non come «non hai ancora scelto». */
+  function riga(ic, nome, che, t, mio){
+    return '<div class="qr' + (mio ? ' mio' : '') + '">'
+      + '<span class="ic">' + ic + '</span>'
+      + '<span class="nm"><b>' + esc(nome) + '</b><span>' + esc(che) + '</span></span>'
+      + (t ? '<span class="tm"><b>' + esc(t.testo.replace(/ walk$/,'')) + '</b>'
+        + '<i>' + (t.fonte === 'rete' ? 'measured'
+            : t.fonte === 'piedi' ? 'on foot' : 'estimate') + '</i></span>' : '')
+      + '</div>';
+  }
+
+  /* A RIPOSO: la legenda della citta'. Non e' riempitivo — dice quali sono
+     i punti su cui la mappa sa rispondere, prima ancora che tu scelga. */
+  function riposo(){
+    q.classList.remove('scelta');
+    tit.textContent = 'Rome, from any door';
+    sot.textContent = 'Tap a home — the city answers';
+    corpo.innerHTML = M.METE.map(function(m){
+      return riga(ICO[m.tipo] || '◆', m.nome, m.che, null, false);
+    }).join('');
+    bordi();
+    var mie = M.posti();
+    nota.innerHTML = mie.length
+      ? '<b>' + mie.length + ' of your places</b> are saved on this device — '
+        + 'every home answers for them too.'
+      : 'Save your office or campus once (◆ My places) and every home '
+        + 'answers for it too.';
+  }
+
+  /* CON UNA CASA SCELTA: il cruscotto di quella porta. */
+  var casaAttiva = null;
+  function perCasa(casa){
+    if (!casa || !isFinite(casa.lat) || !isFinite(casa.lng)) return riposo();
+    casaAttiva = casa;
+    q.classList.add('scelta');
+    q.classList.remove('chiuso');
+    tit.textContent = casa.nome || 'This door';
+    sot.textContent = 'From this door';
+    var v = M.vicine(casa.lat, casa.lng, {
+      quante: 6, leggiEta: function(slug){ return etaDi(casa.lat, casa.lng, slug); } });
+    var mie = M.posti().map(function(p){
+      var d = M.km(casa.lat, casa.lng, p.lat, p.lng);
+      return { p: p, t: M.tempo(d, null) };
+    });
+    corpo.innerHTML =
+      mie.map(function(x){ return riga('◆', x.p.name, 'Your place', x.t, true); }).join('')
+      + v.map(function(x){ return riga(ICO[x.meta.tipo] || '◆',
+          x.meta.nome, x.meta.che, x.tempo, false); }).join('');
+    bordi();
+    var stime = v.filter(function(x){ return x.tempo && x.tempo.fonte === 'stima'; }).length;
+    nota.innerHTML = stime
+      ? 'Times marked <b>estimate</b> are straight-line arithmetic — the '
+        + 'measured ones come from Rome’s real timetables.'
+      : 'Measured on Rome’s real network and timetables, door to door.';
+  }
+
+  chiudi.addEventListener('click', function(e){ e.stopPropagation(); casaAttiva = null; riposo(); });
+  capo.addEventListener('click', function(){
+    if (innerWidth <= 640 && !q.classList.contains('scelta')) q.classList.toggle('chiuso');
+  });
+
+  /* IL FILTRO PER MINUTI. La domanda vera di chi si trasferisce — «quanto
+     ci metto da qui a lezione» — e nessun portale la sa rispondere: mostrano
+     un raggio in km, che a Roma non vuol dire niente.
+     Le case il cui tempo e' STIMATO non entrano nel filtro: si contano a
+     parte e si dice. Un filtro che promette minuti deve averli misurati. */
+  var minAttivo = 0;
+  function applica(){
+    var slug = selMeta.value;
+    var tutte = (window.__SKY_CASE || []);
+    if (!minAttivo || !tutte.length){
+      tutte.forEach(function(c){ if (c.el) c.el.classList.remove('fuoriTempo'); });
+      esito.innerHTML = tutte.length
+        ? 'Pick a limit to filter the map.'
+        : '';
+      if (window.__skyRicalcola) window.__skyRicalcola();
+      return;
+    }
+    var r = M.filtroTempo(tutte, slug, minAttivo, function(c, sl){
+      return etaDi(c.lat, c.lng, sl); });
+    var dentro = {};
+    r.dentro.forEach(function(c){ dentro[c.id] = 1; });
+    tutte.forEach(function(c){
+      if (!c.el) return;
+      c.el.classList.toggle('fuoriTempo', !dentro[c.id]);
+    });
+    var nome = (M.METE.filter(function(m){ return m.slug === slug; })[0] || {}).nome || slug;
+    esito.innerHTML = '<b>' + r.dentro.length + '</b> within ' + minAttivo
+      + '′ of ' + esc(nome)
+      + (r.incerte.length ? ' <i>· ' + r.incerte.length
+          + ' not measured yet, left out</i>' : '');
+    if (window.__skyRicalcola) window.__skyRicalcola();
+  }
+  minRow.addEventListener('click', function(e){
+    var b = e.target.closest('button[data-m]'); if (!b) return;
+    var v = +b.dataset.m;
+    minAttivo = (minAttivo === v) ? 0 : v;
+    [].forEach.call(minRow.children, function(x){
+      x.classList.toggle('on', +x.dataset.m === minAttivo); });
+    applica();
+  });
+  selMeta.addEventListener('change', applica);
+
+  window.__quadrante = { perCasa: perCasa, riposo: riposo, applica: applica };
+  riposo();
+})();
+/* ══ /QUADRANTE:JS ══ */
+
 (function loadMapLibre(){
   if(window.maplibregl)return boot();
   var css=document.createElement('link');css.rel='stylesheet';css.href='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.appendChild(css);
   var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.js';
   s.onload=function(){ boot().catch(function(e){console.error('Skyline:',e);msg('Something went wrong — try the list view.');}); };
-  s.onerror=function(){ msg('Map engine unavailable — open the list view.'); };
+  s.onerror=function(){ var _q=document.getElementById('quad');
+    if(_q){var _l=document.getElementById('load');if(_l)_l.style.display='none';
+      _q.classList.remove('chiuso');
+      var _n=document.getElementById('quadN');
+      if(_n)_n.innerHTML='The 3D map needs a connection it could not get. '
+        +'The distances below still work \u2014 or open the '
+        +'<a href="/apartments" style="color:var(--gold)">list view</a>.';
+      return;}
+    msg('Map engine unavailable — open the list view.'); };
   document.head.appendChild(s);
 })();
 })();

@@ -3,7 +3,7 @@
 // Cache-first for static assets (icons, manifest).
 // Skips Firebase / EmailJS / 3rd-party traffic entirely.
 
-const CACHE_VERSION = 'boom-v17';
+const CACHE_VERSION = 'boom-v18';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 // NB: portal.html NON è nel precache — il sito pubblico registra questo SW e
 // non deve scaricare 2.5MB di shell in background. Il portale entra in cache
@@ -72,6 +72,9 @@ self.addEventListener('fetch', (event) => {
             || url.pathname === '/css/portal-mobile.css'
             || url.pathname === '/js/portal-actions.js'
             || url.pathname === '/js/oggi-engine.js'
+            // il motore dell'Innesto/Bonifica è logica del portale: una copia
+            // stantia farebbe divergere merge/validazioni dalla pagina che le usa
+            || url.pathname === '/js/dataops-engine.js'
             || url.pathname === '/js/portal-desktop.js'
             || url.pathname === '/css/portal-desktop.css'
             || url.pathname === '/css/portal-finish.css') ? url.pathname : null);

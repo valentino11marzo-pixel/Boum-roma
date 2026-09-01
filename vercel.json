@@ -724,6 +724,10 @@
       "maxDuration": 60,
       "memory": 1769
     },
+    "api/ops/gtfs-tempi.js": {
+      "maxDuration": 300,
+      "memory": 1769
+    },
     "api/wizard/describe.js": {
       "maxDuration": 60
     },
@@ -768,6 +772,9 @@
     },
     "api/segretaria/scan-replies.js": {
       "maxDuration": 60
+    },
+    "api/telegram/notify-pending.js": {
+      "maxDuration": 60
     }
   },
   "crons": [
@@ -785,6 +792,10 @@
     },
     {
       "path": "/api/pfs/scan-inbox",
+      "schedule": "*/15 * * * *"
+    },
+    {
+      "path": "/api/ops/gtfs-tempi",
       "schedule": "*/15 * * * *"
     },
     {

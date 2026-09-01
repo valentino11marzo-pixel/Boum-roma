@@ -13,6 +13,7 @@
 
 import { fsList, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
+import { aiSignal } from '../_budget.js';
 
 const MODEL = 'claude-haiku-4-5-20251001';
 const MAX_DOCS_DEFAULT = 30;
@@ -123,6 +124,7 @@ export default async function handler(req, res) {
 
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      signal: aiSignal(30000),   // un modello appeso non deve uccidere la funzione
       method: 'POST',
       headers: {
         'x-api-key': process.env.ANTHROPIC_API_KEY,

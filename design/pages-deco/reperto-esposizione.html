@@ -1,0 +1,43 @@
+<div class="espo" data-prezzo="__PREZZO__">
+      <p class="espo-capo">Two numbers you already know. The arithmetic is
+        the law's, not ours.</p>
+      <div class="espo-in">
+        <label class="espo-c"><span>Monthly rent</span>
+          <span class="espo-eur">€<input type="number" id="espoR" value="1200"
+            min="200" max="20000" step="50" inputmode="numeric"
+            aria-label="Monthly rent in euro"></span></label>
+        <label class="espo-c"><span>Deposit they ask for</span>
+          <select id="espoD" aria-label="Deposit in months of rent">
+            <option value="1">1 month</option>
+            <option value="2">2 months</option>
+            <option value="3">3 months</option>
+            <option value="4" selected>4 months</option>
+            <option value="5">5 months</option>
+            <option value="6">6 months</option>
+          </select></label>
+      </div>
+      <div class="espo-out" id="espoOut" aria-live="polite">
+        <div class="espo-r" id="espoR1">
+          <div class="espo-t"><b id="espoT1">Deposit above the legal ceiling</b>
+            <span>L. 392/1978 art. 11 — a residential deposit cannot exceed
+              three months' rent</span></div>
+          <div class="espo-v" id="espoV1">&euro;1.200</div></div>
+        <div class="espo-r">
+          <div class="espo-t"><b>An exit clause you cannot use</b>
+            <span>Three months' notice is the standard tenant exit
+              (L. 431/1998 art. 4). A clause written around it is what turns
+              leaving early into rent you still owe</span></div>
+          <div class="espo-v" id="espoV2">&euro;3.600</div></div>
+        <div class="espo-r espo-tot">
+          <div class="espo-t"><b>On the table before you sign</b>
+            <span id="espoNota">Your deposit is &euro;1.200 over the ceiling,
+              and a bad exit clause is worth three months' rent</span></div>
+          <div class="espo-v" id="espoV3">&euro;4.800</div></div>
+      </div>
+      <p class="espo-fine">Arithmetic on the numbers you typed, against the
+        articles named above. Not a quote and not a prediction: the size of
+        what a contract can do to you — and the reason a <b>&euro;__PREZZO__</b>
+        read happens <em>before</em> the signature, not after.
+        <span class="espo-onesto">If your deposit is within the ceiling, this
+        box says so.</span></p>
+    </div>

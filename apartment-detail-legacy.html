@@ -33,8 +33,8 @@
   <meta property="og:title" content="Apartment Details — Rome Verified Rental | BOOM">
   <meta property="og:description" content="Verified apartment details, photos, location and amenities in Rome. Book a video viewing or apply in minutes. Legal contract, transparent fees, BOOM-managed.">
   <meta property="og:url" content="https://www.boomrome.com/apartment-detail">
-  <meta property="og:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
-  <meta property="og:image:secure_url" content="https://www.boomrome.com/BOOMsocialprofile.png">
+  <meta property="og:image" content="https://www.boomrome.com/og-home.png">
+  <meta property="og:image:secure_url" content="https://www.boomrome.com/og-home.png">
   <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
@@ -44,14 +44,13 @@
   <meta name="twitter:creator" content="@boomrome">
   <meta name="twitter:title" content="Apartment Details — Rome Verified Rental | BOOM">
   <meta name="twitter:description" content="Verified apartment details, photos, location and amenities in Rome. Book a video viewing or apply in minutes. Legal contract, transparent fees, BOOM-managed.">
-  <meta name="twitter:image" content="https://www.boomrome.com/BOOMsocialprofile.png">
+  <meta name="twitter:image" content="https://www.boomrome.com/og-home.png">
   <meta name="twitter:image:alt" content="Apartment Details — Rome Verified Rental | BOOM">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="dns-prefetch" href="https://www.googletagmanager.com">
   <link rel="dns-prefetch" href="https://www.google-analytics.com">
 <!-- BOOM_SEO:END -->
     <!-- Perf: early-connect to the hosts that gate the LCP photo (Firebase data + imgur images) -->
-    <link rel="preconnect" href="https://i.imgur.com" crossorigin>
     <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin>
     <link rel="icon" type="image/png" href="https://www.boomrome.com/BOOMlogogoldicon512.png">
@@ -477,7 +476,7 @@
     "width": 512,
     "height": 512
   },
-  "image": "https://www.boomrome.com/BOOMsocialprofile.png",
+  "image": "https://www.boomrome.com/og-home.png",
   "description": "Premium mid-term apartment rentals in Rome with full property management, legal contracts, and 48-hour move-in.",
   "sameAs": [
     "https://www.instagram.com/boomrome",
@@ -549,38 +548,6 @@
 }
   </script>
 <!-- BOOM_JSONLD:END -->
-  <script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@type": "FAQPage",
-  "mainEntity": [
-    {
-      "@type": "Question",
-      "name": "How do I apply for an apartment?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Submit the 2-minute application on the page — a real person reviews it and replies within 2 hours."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Can I reserve a place before someone else takes it?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Yes. A refundable €300 hold takes it off-market while we process your application."
-      }
-    },
-    {
-      "@type": "Question",
-      "name": "Is the contract legal and the deposit protected?",
-      "acceptedAnswer": {
-        "@type": "Answer",
-        "text": "Yes. Every BOOM rental uses a registered legal contract with a correctly handled deposit."
-      }
-    }
-  ]
-}
-  </script>
     <link rel="stylesheet" href="/css/boom-cinema.css">
 <script>document.documentElement.classList.add('boom-js')</script>
 <style>.boom-js #boomAsk,.boom-js #boomTour{display:none}</style>
@@ -1990,7 +1957,7 @@
         descBits.push('legal contract, 48h move-in');
         const description = descBits.join(', ') + '.';
 
-        const ogImage = (d.images && d.images[0]) || (d.coverImage) || 'https://www.boomrome.com/BOOMsocialprofile.png';
+        const ogImage = (d.images && d.images[0]) || (d.coverImage) || 'https://www.boomrome.com/og-home.png';
 
         const setMeta = (sel, attr, val) => {
             let el = document.head.querySelector(sel);

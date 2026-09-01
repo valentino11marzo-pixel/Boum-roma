@@ -30,6 +30,7 @@
 
 import { readJson } from '../homie/_lib.js';
 import { okJson, errJson } from './_lib.js';
+import { aiSignal } from '../_budget.js';
 
 const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
 const MODEL = process.env.CONCIERGE_MODEL || 'claude-haiku-4-5-20251001';
@@ -59,6 +60,7 @@ async function callClaude(systemPrompt, messages) {
     throw new Error('ANTHROPIC_API_KEY not set');
   }
   const res = await fetch(ANTHROPIC_URL, {
+    signal: aiSignal(20000),   // un modello appeso non deve uccidere la funzione
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

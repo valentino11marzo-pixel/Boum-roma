@@ -1939,6 +1939,136 @@ through the fallback chain contract fields → users sign schema → users
 wizard schema — a regenerated PDF never prints dots for data a party
 already self-filled on /sign or /scheda.
 
+**IL TIPO NON SI MANDA, SI LEGGE** (agosto 2026). `js/contract-pdf.js`
+sceglie il modello con `contract.type === 'studenti' ? Allegato C :
+Allegato B` — ma delle TRE strade che creano un contratto, due non
+passavano il tipo affatto: la conversione **automatica** (`_auto.js`, il
+caso normale quando l'immobile è collegato) e il tasto **🖊 Magic Sign**
+(`send-sign.js`); la terza, la console pre-accordo, non offriva nemmeno
+l'opzione studenti. Risultato: ogni contratto usciva Allegato B, anche per
+uno studente, e il modale *Modifica* del portal non aveva il campo Tipo —
+una volta sbagliato, per sempre. Ora `leaseType(explicit, lease)`
+(esportata da `convert.js`) **deriva il tipo dalla proposta** quando il
+chiamante tace: nessuna strada può più sbagliarlo. Il campo **Tipo
+contratto** nel modale Modifica corregge lo storico (poi 🔄 Rigenera PDF),
+e scegliendo «Studenti» compaiono lì i campi dell'Allegato C — prima erano
+resi solo se il contratto era GIÀ studenti, quindi cambiare modello
+produceva un PDF coi puntini.
+
+**I dati che l'Allegato C nomina si raccolgono dove il deal nasce**: corso
+di studi, università + indirizzo, tipo iscrizione e anno accademico stanno
+in `lease.studenti` sulla proposta (lista bianca in `create.js`, blocco
+vuoto → `null`), la console li chiede solo col tipo studenti e li
+ricompila in ✎ Modifica, `convert.js` li porta su `contract.studenti` +
+i campi legacy `courseName`/`universityName` che il generatore legge.
+Su un transitorio restano vuoti — un dato universitario su un contratto di
+lavoro è rumore sul documento.
+Test: `node tests/firma/run.mjs` (32 check) + `node tests/firma/ui.mjs`
+(11 check in Chromium a 1280 e 390px) + la prova end-to-end in
+`tests/money/run.mjs` §10, dove un deal studenti convertito **senza che
+nessuno dica il tipo** nasce comunque Allegato C.
+
+### 🖊 Firma ora (riga contratto → `openFirmaOra`)
+Firmare, non solo sollecitare: il pannello apre il link VERO della parte
+(`/sign?sign=<token>`) sul dispositivo dell'operatore — il cliente firma
+col dito davanti a lui, e data/ora/dispositivo finiscono nel certificato
+come sempre. La **delega del proprietario**, prima decidibile SOLO alla
+creazione del contratto, si attiva e si annulla in qualsiasi momento
+(rifiutata se `landlordSignature` esiste): scrive `landlordDelegate` nello
+schema che `magic-sign/lookup`, `submit` e `sign.html` già leggono, quindi
+il documento dice «firma X per conto di Y». **Al posto del conduttore non
+si firma mai** — quella non è una delega, è una firma falsa, e la riga è
+scritta nel pannello, non lasciata al buonsenso.
+
+### Le regole IN VIGORE ≠ le regole nel file (31/08/2026)
+Il difetto più caro trovato in questa tornata, e nessuna suite poteva
+vederlo: **tutte leggono `firestore.rules`, cioè l'INTENZIONE, e nessuna la
+realtà.** In produzione `publicGeo` (la griglia dei tempi del Pendolare, che
+scheda e /skyline devono leggere da anonimi) rispondeva `PERMISSION_DENIED`
+— la regola era nel repo e non era mai stata deployata, perché il
+`FIREBASE_TOKEN` della CI era **scaduto** e il job `deploy-rules` falliva a
+ogni push mentre i merge continuavano. È esattamente il difetto che quel job
+era nato per impedire (la lezione `propertyLocks`), tornato dal lato di chi
+lo doveva prevenire. L'ultima regola arrivata in produzione è quella del
+**23 agosto**; il messaggio di CI ora dice cosa fare invece di limitarsi a
+fallire (rigenerare con `npx firebase-tools login:ci`; fix duraturo: service
+account + `GOOGLE_APPLICATION_CREDENTIALS`, `--token` è deprecato).
+`tests/regole/run.mjs` è il canarino: interroga Firestore **da anonimo** con
+la chiave pubblica che sta già nelle pagine e misura le DUE direzioni —
+quello che il sito deve poter leggere (catalogo, publicGeo) e quello che non
+deve MAI uscire (contratti, pagamenti, anagrafiche, lead, lucchetti,
+telefonate, proposte, segnalazioni). Senza rete si auto-skippa; se Firestore
+risponde e la risposta non è quella dichiarata, è un guasto.
+
+### La CI rossa che nessuno leggeva (31/08/2026)
+Trenta run di fila fallite su main. Due cause distinte, entrambe invisibili:
+il `deploy-rules` qui sopra, e la suite `anteprima` che moriva **solo sul
+runner** — `design/pages-deco/anteprima.py` portava
+`R = '<home di chi l'ha scritta>'`, il percorso assoluto del proprio sandbox.
+È la STESSA lezione già pagata il 19/08 e già scritta in `tests/_browser.mjs`
+(«un percorso cablato vale come SUGGERIMENTO, mai come dichiarazione»),
+tornata sei giorni dopo in un altro linguaggio, dove quella nota non si
+legge. Il danno peggiore non è il rosso: su una macchina dove quel percorso
+ESISTE lo script non fallisce, legge un ALTRO albero e costruisce la pagina
+sbagliata dichiarandola giusta (verificato per differenza). E il chiamante
+stampava il traceback di Python come **Uint8Array di byte**, illeggibile —
+due giri di correzioni spesi al buio. `tests/radici/run.mjs` chiude la
+classe: nessun file eseguito da `npm test`, né alcuno di quelli che quei
+file **lanciano**, può portare la casa di qualcuno dentro una stringa (i
+commenti che raccontano il difetto restano — sono la memoria che lo tiene
+lontano).
+
+### Le tre reti del server (`api/_modeljson.js` · `api/_budget.js` · storageUpload)
+Tre difetti trovati il 31/08/2026 **nei log di produzione**, non ragionando:
+tutti e tre di CLASSE, tutti e tre chiusi in un posto solo.
+
+- **`api/_modeljson.js` — leggere il JSON di un modello.** L'Innesto è morto
+  due volte (`ai_bad_json`) su documenti VERI dell'operatore. La lettura era
+  `JSON.parse(raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1))`,
+  ricopiata in **otto** file: `lastIndexOf` non cerca la fine dell'oggetto ma
+  l'ultima graffa del testo (una nota del modello dopo il JSON e si taglia a
+  caso), e una risposta TRONCATA non si distingueva da una malformata. Ora
+  una copia sola, con tre regole: (1) si sistema solo la FORMA — recinto
+  ```json, prosa, virgola in coda, commenti, a capo dentro una stringa;
+  (2) **una risposta troncata non si ripara MAI** — chiudere le graffe
+  consegnerebbe l'ultimo valore letto a metà («Roma, Via Crem») come se
+  fosse quello che c'è nel documento, e un dato mezzo letto non si vede;
+  (3) **la diagnosi non porta contenuto** — il vecchio log stampava
+  `raw.slice(0, 200)`, cioè codice fiscale e IBAN di persone reali dentro i
+  log di Vercel (ci sono finiti davvero). Ora: perché, quanto, in che forma.
+  All'operatore arriva cosa fare, non `ai_bad_json`.
+- **`api/_budget.js` — il tempo che resta.** I cron venivano uccisi a 60s
+  (3 volte nelle sole ultime 24h) **benché avessero già** una scadenza
+  morbida a 48s: chiedeva «sono in ritardo?» e poi avviava un giro da 45s.
+  `runBudget(60_000, riserva).afford(costo)` chiede invece «ce la faccio a
+  pagare il prossimo passo?»; il costo dichiarato è quello VERO (il
+  `socketTimeout` imapflow, il tetto della chiamata al modello) e i test lo
+  legano al numero in vigore. Più `aiSignal(ms)`: **ventuno** file chiamavano
+  `api.anthropic.com` senza alcun tetto — una richiesta appesa non falliva,
+  teneva la funzione occupata fino al kill di piattaforma (nessun battito,
+  nessuna spiegazione). L'invariante di CLASSE è testata scandagliando `api/`
+  per intero: una lista scritta a mano invecchierebbe al primo file nuovo, ed
+  è il file nuovo quello che sbaglia.
+- **`storageUpload` riprova.** Un 503 di Cloud Storage è momentaneo (la guida
+  di Google dice di riprovare) ma non si riprovava affatto: nei log una
+  Valutazione BOOM già calcolata si è persa perché mancava il posto dove
+  metterla. Da questa funzione passano contratto firmato, verbale delle
+  chiavi, fascicolo fiscale, rendiconto al proprietario e conservazione. Ora
+  3 tentativi con attesa crescente **solo su 429/5xx e rete caduta** — un
+  401/403/404 non si aggiusta aspettando — più un tetto di 20s.
+- **La scala del CDN** (portal.html): il portale ha riportato due volte
+  `"Script error." source:"" line:0`, la forma che il browser dà quando a
+  lanciare è uno script di un altro dominio — sappiamo CHE è andato in errore
+  e non possiamo sapere in cosa. `crossorigin="anonymous"` lo smaschera, ma
+  **solo se il CDN manda l'intestazione CORS**: senza, lo script non carica e
+  su portal.html è la pagina bianca. Quindi non si scommette — si scende una
+  scala: se la versione CORS non carica si rimette lo stesso script senza
+  (com'era prima), un solo tentativo, e solo dopo il cartello. Provata in un
+  browser vero contro un finto CDN che NON manda CORS
+  (`node tests/scala/run.mjs`).
+- Test: `node tests/modeljson/run.mjs` (39) · `node tests/tempo/run.mjs` (33)
+  · `node tests/scala/run.mjs` (8).
+
 ### POST `/api/documents/share`
 Admin/landlord (Firebase ID token via `api/_auth.js`). Creates a
 `documentShares` doc (token, ownerId, docIds, recipientName, watermark,
@@ -2028,6 +2158,22 @@ browser or Firestore.
   mod-97, date coherence, canone sanity — errors block, warnings don't. The
   schedule is generated by the SAME `generateMonthlyPayments()` used by
   magic-sign, so the two paths can never duplicate one.
+  **Il fascicolo a più letture (31/08, dal caso Via Simeto)**: il contratto
+  nasce solo con ENTRAMBE le gambe (immobile + inquilino), ma un PDF vero
+  spesso non le porta tutte — e prima quel salto era MUTO ("Innesto
+  completato" senza contratto) e senza uscita anche quando la persona/casa
+  esisteva già in anagrafica. Ora: (1) la sezione mancante è un **fantasma**
+  con select dall'archivio + «Compila a mano» (`innestoPick`/
+  `innestoAddSection`; l'aggancio scelto vince sempre sul match riderivato,
+  anche per l'immobile); (2) una seconda lettura **integra** la proposta
+  aperta (`mergeProposal` nel motore: riempie SOLO i buchi, un campo pieno
+  — magari corretto a mano — non si tocca MAI; il bottone diventa «Leggi e
+  integra», una lettura vuota non butta via niente); (3) `deriveProposal`
+  fa l'aritmetica dichiarata (deposito = mensilità × canone, canone⇄immobile,
+  nome dall'indirizzo — mai una stima); (4) a contratto creato si atterra
+  sulla pagina Contratti, e un contratto saltato ha card rossa PRIMA e toast
+  warning DOPO che nominano la gamba. `js/dataops-engine.js` è network-first
+  nel SW (cache `boom-v18`): il motore non può divergere dalla pagina.
 
 ### Dati aziendali (IBAN) fuori dal codice — `settings/company`
 `COMPANY` in `portal-app.js` carried `iban: 'IT00X0000000000000000000000'` with
@@ -2842,11 +2988,32 @@ consegna e la porta fino alla visita prenotata o all'escalation.
   `parziale`: la consegna è il tuo click) col heartbeat
   `teamHealth/segretaria`; la lettera del Commerciale dichiara ora la
   scala della fiducia sui follow-up.
+- **IL POSTINO — la consegna WhatsApp non è un atto di fede** (29/08, dal
+  primo uso vero: due 🤖 cliccati, la Segretaria scrive, l'executor marca
+  `executed`… e su WhatsApp non arriva niente, perché su WhatsApp consegna
+  il MAC via `wa-outbox` e il ciclo di ritiro esisteva SOLO come mandato
+  in bot/HOMIE.md — la stessa storia dello Scout). Due bracci:
+  `api/telegram/_postino.js` dentro notify-pending (ogni minuto,
+  best-effort): (1) riesegue le azioni della MACCHINA rimaste `approved`
+  senza esecuzione (funzione uccisa a metà volo; mai le approvazioni
+  umane), (2) la posta `executed` che il Mac non ritira entro 5' diventa
+  una card 📮 col TESTO GIÀ PRONTO nel bottone wa.me (un tap = consegna
+  manuale) e si marca `waSendError:'stalled_operator_notified'` così
+  l'outbox non può più rimandarla (un doppio messaggio è peggio di uno in
+  ritardo); ✅ Consegnato (`pw:`) registra la consegna manuale;
+  `/segretaria` mostra i conteggi della coda. E `bot/boom_postino.py` +
+  `com.boom.postino.plist` (ogni 2'): il ritiro DETERMINISTICO — pull →
+  wacli (comando via `WACLI_SEND_CMD`, template argv MAI shell, `--test`
+  per collaudare) → ack; registro locale anti-doppio scritto PRIMA
+  dell'invio. La card del 🤖 dice la verità sul canale ("in consegna via
+  Mac" / "email inviata"), mai "fatto" per un messaggio in coda.
+  Test: `python3 tests/postino/runner.py`.
 - Test: `node tests/segretaria/run.mjs` — cancelli e sanificazione per
   mutazione, giunzioni sulla sorgente, e il giro VERO su Firestore in
   memoria col handler reale: consegna → turno (executor vero) → eco che
   non spegne → out manuale che spegne → escalation con ping → retry
-  idempotente → kill switch.
+  idempotente → kill switch → Postino (posta ferma → card col testo
+  pronto, auto-riparazione delle azioni uccise a metà volo).
 
 ## Lo Smistatore (document intake — api/documents/_smista.js)
 
@@ -3108,10 +3275,210 @@ Con ≤2 risultati il bounds si allarga fino all'ancora più vicina (Termini,
 LUISS, …) e i fili d'oro si accendono da soli dopo 700ms — su una casa sola non
 c'è nulla su cui passare col mouse, e su telefono l'hover non esiste.
 
-**Ancora falso**: i tempi mostrati come "door-to-door" sono `km_in_linea_d_aria
-× 4.2 + 10`, senza rete né orari (`apartment-detail.html`, `apartments.html`
-`_dl()`). Sbagliati a caso — Roma è anisotropa, lungo la metro A voli e in
-trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
+**I tempi sono VERI** (da 2026-08): il Pendolare (`api/ops/gtfs-tempi.js`,
+cron) scarica il GTFS statico di Roma Mobilità in produzione (il sandbox non
+lo raggiunge — il server pensa), costruisce il grafo a frequenze (attesa =
+metà headway 07–21, corse medie fra fermate consecutive, cambi a piedi),
+Dijkstra all'indietro dalle 9 mete e stampa una griglia ~300 m nel doc
+`publicGeo/tempi-roma` (lettura pubblica nelle rules). `js/tempi-engine.js`
+(`BOOM_TEMPI`, UMD — importato anche dal builder come boom-geo) è l'unica
+lettura: scheda (`#vicini`) e `/skyline` mostrano i minuti della griglia e,
+dove non copre, DEGRADANO alla vecchia stima dichiarata (`≈ km×4.2+10` /
+km secchi) — mai un numero inventato. Heartbeat `teamHealth/pendolare`.
+Test: `node tests/tempi/run.mjs` (fixture GTFS in zip vero via api/_zip.js).
+
+## Le foto sono nostre + il percorso critico (api/media/rehost.js · tests/media/hosts.mjs)
+
+Agosto 2026: sei pagine PUBBLICHE — corporate, partners, universities,
+research, virtual-viewing e le schede storiche — servivano le proprie
+immagini da **i.imgur.com**. Una pagina che chiede a un expat di fidarsi
+prima di mandare un deposito dipendeva, per la prova visiva, da un host di
+terzi: se blocca l'hotlink o cancella il file, la pagina non da' errore —
+resta in piedi a vendere con i riquadri vuoti, e nessun allarme suona.
+- `api/media/rehost.js` (auth come i cron PFS) scarica l'originale,
+  **verifica i byte** (imgur risponde 200 con una placeholder quando il
+  file non c'e' piu': senza guardare la firma l'avremmo copiata e servita
+  come se fosse la foto vera), carica su Storage sotto `site/` con cache
+  immutabile. Chiave **derivata** dall'URL di partenza → rieseguire non
+  duplica mai, e la mappa e' ricostruibile senza stato.
+- `scripts/rehost-images.mjs` riscrive i file dalla mappa. Il download non
+  lo fa lo script perche' l'ambiente di sviluppo puo' non raggiungere
+  l'host di partenza; il server si'.
+  `BOOM_BASE=… HOMIE_SECRET=… node scripts/rehost-images.mjs --apply`
+- **`tests/media/hosts.mjs` e' la parte che vale** (5 regole): un'immagine
+  esterna NUOVA fa fallire; una voce sparita dall'elenco
+  (`fuori-casa.json`) fa fallire pure, cosi' l'elenco non invecchia in
+  silenzio e aggiornarlo E' il momento in cui si vede il progresso; le
+  pagine pubbliche si deducono da `sitemap.xml`, mai da una lista a mano.
+  Piu' due regole nate misurando:
+  · **budget per RUOLO** (pagina 200 KB · card social 120 · pass Wallet
+    400 — le strisce dei pass viaggiano dentro il .pkpass e vanno viste a
+    retina: un numero unico avrebbe rovinato i pass o mancato la foto da
+    295 KB nella griglia). `foto-catalogo/pigneto-palace.jpg` era
+    1500×2000/295 KB per una card larga ~380px in un riquadro 4:3: sei
+    volte i pixel, quasi tutti ritagliati via, ed era l'oggetto piu' pesante
+    di apartments.html — piu' dell'HTML. A 800px/48 KB la pagina e' passata
+    da **591 KB a 343 KB** senza toccare una riga di markup. Idem
+    og-login.png 211→44 KB e og-home.png 171→49 KB.
+  · **il motore d'ambiente resta fuori dal percorso critico.** I 103 KB di
+    `js/boom-ambient.js` costano, misurati in Chromium con CPU a 1/4
+    (telefono di fascia media, 4 misure concordi), **~420ms di thread
+    principale prima che la pagina sia interattiva** e ~600ms sul load —
+    senza toccare la prima pittura, cioe' lavoro nel posto sbagliato. Su 21
+    pagine il `<script src>` nudo e' diventato uno **stub inline** che mette
+    in coda `mount`/`mood` e carica il motore dopo `load`, riversandogli
+    dentro la coda: **nessuna pagina ha dovuto cambiare la propria
+    configurazione**. DCL ~950→~600ms. LA TRAPPOLA: boom-ambient.js comincia
+    con `if (window.BoomAmbient) return;` — uno stub con quel nome lo
+    farebbe uscire all'istante e l'ambiente sparirebbe da 21 pagine SENZA UN
+    ERRORE; percio' lo stub si `delete` un attimo prima di iniettare.
+    Verificato che il canvas dipinga davvero, prima e dopo.
+- 15 **preconnect morti** tolti (i.imgur.com su sette file,
+  tiles.openfreemap.org su apartments/how-it-works/try/your-money): una
+  risoluzione DNS + TCP + TLS regalata a ogni caricamento verso un host da
+  cui non si scarica niente. La regola e' stretta apposta — morto = l'host
+  non compare DA NESSUN'ALTRA PARTE nel file — perche' cercarlo solo fra le
+  immagini segnalava i tile di skyline.html, che una libreria chiede via JS
+  e il cui preconnect e' corretto.
+
+## L'anteprima E' la pagina (design/pages-deco/anteprima.py + test-anteprima.cjs)
+
+Le anteprime pubblicate come artifact sono state **HTML nudo per un giro
+intero**: il costruttore consegnava il corpo senza `<head>`, come vuole il
+guscio dell'artifact, e con l'head se ne andavano tutti i fogli di stile.
+Su desktop passava per una pagina strana; da telefono era illeggibile, ed e'
+cosi' che l'abbiamo scoperto — dall'utente, che e' il posto sbagliato.
+Tre trappole, tutte pagate in un pomeriggio e tutte scritte accanto al
+codice che le evita: (1) gli stili si portano DENTRO il corpo (`<style>` in
+body e' valido); (2) cio' che si inlina esce di scena dietro un segnaposto
+PRIMA che si riscrivano gli URL locali — quella riscrittura entrava dentro
+il codice e trasformava una regex letterale `(/fonts\./)` in
+`(https://boomrome.com/fonts\./)`, con l'errore laconico *"missing ) after
+argument list"*; (3) il vestito si raccoglie NELL'ORDINE DEL DOCUMENTO —
+raccolto per tipo invertiva la cascata e la striscia dei servizi risaliva di
+60px sotto la nav. `test-anteprima.cjs` apre la pagina VERA e la sua
+anteprima nello stesso Chromium a 390px e 1440px e pretende stesso fondo,
+stesso carattere, stessa geometria (±2px), stesso contenuto, zero errori JS.
+
+## La casa in ordine — SEO/GEO (tests/seo/run.mjs)
+
+Undici regole su **60 pagine dedotte dalla sitemap**, non da una lista a
+mano. Ognuna nata da un difetto VERO trovato in produzione, non da una
+checklist di buone pratiche:
+- **Il documento e' un documento.** `property-finding.html` e `board.html`,
+  due pagine LIVE, non avevano `<!doctype>`, `<html lang>` ne'
+  `<meta charset>`. Misurato in Chromium: **quirks mode**, nessuna lingua
+  dichiarata, e il browser che indovina `windows-1252` — cioe' «â‚¬350» al
+  posto di «€350», «Â§4.2» al posto di «§4.2» e le stelle ★ della recensione
+  sparite. Sulla pagina di punta. Il guscio e' stato aggiunto e il layout
+  verificato prima/dopo (l'uscita dal quirks mode cambia il box model).
+- **Le card social esistevano solo nel markup.** 50 pagine pubbliche
+  dichiaravano `BOOMsocialprofile.png`, **un file mai esistito nel repo**:
+  ogni inoltro su WhatsApp/LinkedIn/Slack mostrava una card vuota — per
+  un'attivita' che cresce passando di telefono in telefono, il difetto piu'
+  caro del sito. Ora `design/pages-deco/genera-og-servizi.py` genera **otto
+  card dal repo** (le sei servizio + Property Finding + Welcome to Rome),
+  ognuna col proprio prezzo LETTO da `api/_catalog.js` — la card non puo'
+  dire un numero diverso dalla pagina. Il default della pipeline e
+  `api/listing.js` non ricadono piu' sul fantasma.
+- **Nessuna entita' dichiarata due volte.** Tre pagine portavano un intero
+  blocco SEO duplicato (seconda `RealEstateAgent`, secondo `WebSite`, secondo
+  `BreadcrumbList`, secondo `Service` con `serviceType:"Legal"` — che
+  contraddiceva il disclaimer della pagina stessa, «agenzia, non studio
+  legale»). La regola guarda l'IDENTITA', non il tipo: i tre `Service` di
+  `/reunion` hanno url diversi ed e' una scelta voluta.
+- **Una domanda dichiarata deve ESSERE in pagina.** `faq.html` dichiarava
+  DUE `FAQPage` con nove domande, di cui **sei inesistenti come testo
+  visibile**: parafrasi ottimizzate per il motore di domande che la pagina
+  pone con altre parole. E' contenuto nascosto. `scripts/faq-schema.mjs`
+  ora **deriva** il FAQPage dalle card visibili (9 → **38 domande**) e sulle
+  altre pagine taglia alle domande vere: 53 fantasmi tolti, 10 FAQPage
+  senza una sola domanda reale rimossi (services.html ne dichiarava quattro
+  **senza avere una FAQ**).
+- Piu': titoli ≤62 e descrizioni 110–165 (21 riscritte), nessun titolo
+  ripetuto fra pagine, canonical assoluta e concorde con la sitemap,
+  nessuna pagina indicizzabile fuori dalla sitemap (ci mancava
+  `welcome-to-rome`, cioe' proprio «the viral asset»), `llms.txt` allineato
+  ai prezzi di `api/_catalog.js` e senza promesse non dimostrabili, e ogni
+  `speakable` che punta a nodi reali.
+
+**Il blocco «in brief»** (`.breve`, dal motore della console) e' la parte
+GEO: fatti a plat — cos'e', prezzo esatto, cosa comprende, **cosa NON e'**,
+per chi, e chi lo eroga con partita IVA. La riga dei limiti e' quella che
+conta: una fonte che dichiara cosa non fa e' una fonte che un motore di
+risposta cita, e protegge dal cliente che arriva aspettandosi altro. Il nodo
+`WebPage` con `speakable` punta al registro e a questo blocco.
+
+## Lo scorrimento — un contratto solo (css/boom-scroll.css + js/boom-scroll.js)
+
+Misurato in Chromium su 60 pagine, non supposto. Quattro difetti veri:
+- **45 fra pagine e viewport portavano il lettore SOTTO la barra fissa.**
+  Un link interno e il titolo finiva dietro la nav: si atterrava a meta'
+  frase (su `apartment-detail` erano sei ancore su sei). La causa:
+  `scroll-margin`/`scroll-padding` usati SEI volte in tutto il sito, con
+  numeri a mano (86, 104, 150px) mentre la barra vera va da **71 a 99px**
+  secondo pagina e larghezza.
+- **index.html saltava di 78px al caricamento** (CLS 0,058, tutto a y=0 —
+  cioe' sotto gli occhi di chi ha appena iniziato a leggere): la parola
+  DAYS del titolo e' un tabellone a palette costruito dal JS a ~600ms,
+  **cinque caselle per quattro lettere = 4,55em contro i 2,65em** del testo
+  (rapporto identico misurato a 390/1024/1280/1440px), che mandava il
+  titolo su una riga in piu'.
+- **apartments.html saltava di 119px**: `.zone-quadro` nasce alto 130px e
+  si riempie a ~460ms.
+- **owners.html e board.html scorrevano di lato** (72px e 42px): una
+  scritta decorativa fuori quadro, e cinque colonne coi minimi che
+  sommavano 410px dentro una finestra da 390.
+
+La riparazione non e' quarantacinque pezze: **`scroll-padding-top`
+sull'elemento che scorre copre tutto in una proprieta'** — frammento
+`#sezione`, `scrollIntoView()` e `:target` — e il valore non si indovina,
+lo **misura il browser**. `js/boom-scroll.js` (~500 byte) legge
+`elementsFromPoint(x, 2)` — costa quanto la profondita' dell'albero, non
+quanto il numero di nodi — al caricamento, al primo scorrimento e al
+ridimensionamento, e scrive `--boom-barra`. Inline su ogni pagina pubblica
+fra i marcatori `BOOM_SCROLL`. Per il resto **lo spazio si riserva PRIMA**:
+`min-height` misurato sui due tabelloni, e larghezza+altezza in `em`
+riservate al tabellone del titolo — ma solo con JS attivo, perche' senza
+JS il tabellone non arriva mai e riservargli spazio lascerebbe un buco.
+Per ritagliare si usa `overflow-x: clip` e mai `hidden`: hidden creerebbe
+un contenitore di scorrimento e spegnerebbe gli sticky interni.
+
+`tests/scroll/run.mjs` tiene la linea in un browser vero — tutto il sito a
+390px, le pagine che vendono anche a 1440. **La regola misura il primo
+TESTO, non il bordo della scatola**: su `/executive` il `<main>` comincia a
+y=0 ma ha 172px di padding e il titolo sta a 178, cioe' libero — guardare
+la scatola avrebbe segnalato come rotto un caso sano, e una guardia che
+grida al lupo si smette di ascoltarla. Soglia CLS 0,02, dieci volte sotto
+il «buono» di Google. Il test blocca ogni richiesta non locale: un test di
+layout non deve dipendere dalla rete.
+
+## Il catalogo dichiara i suoi prezzi (scripts/catalogo-schema.mjs)
+
+Su `/apartments` il canone e' un tabellone a palette: bello, e leggibile da
+un umano — ma nel LIVELLO DI TESTO la pagina esponeva **cinque prezzi in
+tutto** su 19 case, perche' le cifre stanno dentro le palette e non in un
+nodo di testo. L'`aria-label` c'e' (i lettori di schermo sono a posto) e
+`data-p` pure, ma i dati strutturati contenevano `CollectionPage` e basta:
+**zero `Offer`, zero prezzi**. Le SCHEDE singole li dichiarano da sempre
+(`api/listing.js`, Offer completa con `priceCurrency` e `unitText` MONTH);
+la vetrina — la pagina che un motore mostra per «apartments for rent in
+Rome» — no.
+
+L'`ItemList` si **deriva** dalle card che ci sono gia' (href, data-prezzo,
+data-zona, data-letti, data-mq, nome): nessun dato inventato e nessuna
+seconda fonte da tenere allineata. La disponibilita' segue la disciplina di
+`dispo-engine`: `InStock` solo su «Available now», `PreOrder` su «Free from
+<data>», e su tutto il resto NIENTE — una casa che non sappiamo quando si
+libera non si promette a un motore. Il campo camere resta `numberOfBedrooms`
+**come lo dichiara gia' `api/listing.js`**: divergere avrebbe prodotto due
+dichiarazioni in contraddizione sullo stesso annuncio, che e' peggio del
+dubbio. Regola in `tests/seo/run.mjs`: l'ItemList deve coprire TUTTE le card
+di build, o e' invecchiata e va rigenerata.
+
+**Nota sui dati** (Firestore, non codice): due annunci su 19 dichiarano un
+numero di camere incoerente col proprio nome — «Bilocale Centro» con 3
+camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
 
 ## Conventions
 
@@ -3153,7 +3520,7 @@ trasversale no. Da sostituire con tempi precalcolati sul GTFS di Roma Mobilità.
   | `tests/prenota/run.mjs` | la corsia del pre-blocco: una casa occupata con data nota si PRENOTA e la data si vede ovunque (era «Waitlist open»), l'affittata si apre SOLO col contratto (`availableFrom`) e mai su una `availableDate` residua, l'illeggibile non promette niente, e l'anno dedotto dal motore viene dichiarato all'operatore invece di passare per un fatto. Regole C e D verificate per mutazione |
   | `tests/vetrina/run.mjs` | l'innesto della vetrina (Chromium vero su apartments.html servita): un annuncio nato DOPO la build appare, è contato e i filtri veri lo mordono (zona via hash, ricerca libera, cuore); la data testo libero passa dal motore condiviso («1 Sept 2027» → «Free from», mai «Available now»); senza foto di casa nostra o con stato ignoto la carta NON nasce; le card di build continuano ad aggiornarsi. Verificato per mutazione |
   | `tests/scheda/run.mjs` | La Scheda: token derivati (ruolo nella derivazione, timing-safe), precedenza prefill contratto→sign→wizard, lock post-firma, sync profilo su ENTRAMBI gli schemi users, upload con OCR che non blocca mai, /api/profile/link autorizzato |
-  | `tests/innesto/run.mjs` | l'Innesto e il 413 di piattaforma: il PDF grande transita da Storage e i byte che arrivano ad Anthropic sono ESATTAMENTE quelli scaricati, un host estraneo non viene MAI contattato (l'endpoint non è un proxy), i tetti restano onesti (8 MB, whitelist formati), e il transito si cancella nel finally |
+  | `tests/innesto/run.mjs` | l'Innesto e il 413 di piattaforma: il PDF grande transita da Storage e i byte che arrivano ad Anthropic sono ESATTAMENTE quelli scaricati, un host estraneo non viene MAI contattato (l'endpoint non è un proxy), i tetti restano onesti (8 MB, whitelist formati), e il transito si cancella nel finally. Più l'APPLY VERO su Firestore finto: proposta completa → contratto+rate scritti, proposta senza una gamba → il contratto non nasce MA il riepilogo non lo promette e il toast dice quale gamba manca (la lezione del 30/08: "Innesto completato" senza contratto), proprietario già in `landlords` → mai un doppione |
   | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot |
   | `tests/aspi/run.mjs` | l'iter ASPI: la checklist blocca SOLO senza contratto (il resto avverte, dichiarato nell'email), l'invio raggiunge il referente con l'operatore in copia e gli allegati veri, la fattura col markup non si duplica MAI (id deterministico), 'registered' non si degrada, l'auto-invio parte solo con la manopola girata |
   | `tests/viewings/avail.mjs` | griglia slot: passi, gap 15', preavviso, orizzonte, maxPerDay, DST, token del link cliente |

@@ -13,6 +13,8 @@
 
 import { requireRole, setCors } from '../_auth.js';
 import { readJson } from '../homie/_lib.js';
+import { modelJson } from '../_modeljson.js';
+import { aiSignal } from '../_budget.js';
 
 const MODEL = 'claude-haiku-4-5-20251001';
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
@@ -84,6 +86,7 @@ export default async function handler(req, res) {
 
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      signal: aiSignal(30000),   // un modello appeso non deve uccidere la funzione
       method: 'POST',
       headers: {
         'x-api-key': process.env.ANTHROPIC_API_KEY,
@@ -105,8 +108,8 @@ export default async function handler(req, res) {
     const raw = (data.content && data.content[0] && data.content[0].text) || '';
     let parsed;
     try {
-      const jsonStr = raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1);
-      parsed = JSON.parse(jsonStr);
+      parsed = modelJson(raw);
+      if (!parsed) throw new Error('unreadable');
     } catch (_) {
       return res.status(200).json({ ok: true, category: 'other', text: raw, entities: {} });
     }

@@ -345,5 +345,91 @@ let leadId, cid;
   ok('6k. chat con turni già fatti → nessuna apertura doppia', r.acted === false && /avviata/.test(r.why || ''), r);
 }
 
-console.log(fails ? `\n${fails} FAIL` : '\nOK — la Segretaria parla solo dove l\'hai consegnata (e ora apre lei, su WhatsApp o email), tace dove serve una persona, e un tuo messaggio la spegne sempre.');
+// ── 7. IL POSTINO: la consegna WhatsApp non è un atto di fede ──────────────
+// Il buco vero del 29/08: la Segretaria scriveva, l'executor marcava
+// 'executed', e il messaggio restava nell'outbox che NESSUNO ritirava — in
+// silenzio. Il Postino lato server: ripara le azioni uccise a metà volo e
+// trasforma la posta ferma in una card col testo pronto (un tap = consegna).
+{
+  const { postinoTick, postinoStatus } = await import('../../api/telegram/_postino.js');
+  const CHAT = '42';
+  const NOW2 = NOW + 3600_000;
+
+  // 7a. posta ferma da 10 minuti → UNA card col testo pronto, e il Mac non potrà più rimandarla
+  DB.set('action_queue/st1', {
+    status: 'executed', kind: 'reply', proposedBy: 'segretaria', autoApplied: true,
+    summary: 'Segretaria → Sophie (whatsapp)',
+    payload: { channel: 'whatsapp', phone: '+393331234567', draft: 'Ciao! Confermo giovedì alle 17 😊' },
+    executedAt: new Date(NOW2 - 10 * 60000).toISOString(),
+  });
+  const tgB = TG.length;
+  const p1 = await postinoTick({ chatId: CHAT, now: NOW2 });
+  const st1 = DB.get('action_queue/st1');
+  ok('7a. la posta ferma diventa una card 📮', p1.stalled === 1 && TG.length === tgB + 1, p1);
+  const card = JSON.stringify(TG[TG.length - 1].body);
+  ok('7a. la card porta il testo PRONTO nel bottone wa.me',
+    card.includes('wa.me/393331234567') && card.includes(encodeURIComponent('Ciao! Confermo giovedì alle 17 😊').slice(0, 30)), card.slice(0, 200));
+  ok('7a. da quel momento la consegna è dell\'operatore (l\'outbox non rimanda)',
+    st1.waSendError === 'stalled_operator_notified' && !!st1.waStallNotifiedAt);
+  const p2 = await postinoTick({ chatId: CHAT, now: NOW2 + 60000 });
+  ok('7a. MUTAZIONE: il secondo giro non rimanda la card', p2.stalled === 0 && TG.length === tgB + 1, p2);
+
+  // 7b. il filtro dell'outbox VERO esclude la posta passata all'operatore
+  const outbox = readFileSync(new URL('../../api/homie/wa-outbox.js', import.meta.url), 'utf8');
+  ok('7b. wa-outbox non ritira ciò che ha waSendError (niente doppi messaggi)',
+    /!a\.waSentAt && !a\.waSendError/.test(outbox));
+
+  // 7c. l'azione della MACCHINA uccisa a metà volo si riesegue da sola
+  DB.set('action_queue/hl1', {
+    status: 'approved', kind: 'reply', proposedBy: 'segretaria', autoApplied: true,
+    leadId: 'ld1',
+    payload: { channel: 'whatsapp', phone: '+393331234567', draft: 'Riprovo io: giovedì va bene?' },
+    approvedAt: new Date(NOW2 - 5 * 60000).toISOString(),
+  });
+  const logsB = msgLogs();
+  const p3 = await postinoTick({ chatId: CHAT, now: NOW2 + 120000 });
+  ok('7c. l\'azione approved-e-mai-eseguita viene rieseguita (executor vero)',
+    p3.healed === 1 && DB.get('action_queue/hl1').status === 'executed' && msgLogs() === logsB + 1, p3);
+
+  // 7d. le approvazioni UMANE non si toccano (le riesegue il webhook col retry suo)
+  DB.set('action_queue/hu1', {
+    status: 'approved', kind: 'reply', autoApplied: false,
+    payload: { channel: 'whatsapp', phone: '+393339999999', draft: 'x' },
+    approvedAt: new Date(NOW2 - 20 * 60000).toISOString(),
+  });
+  const p4 = await postinoTick({ chatId: CHAT, now: NOW2 + 180000 });
+  ok('7d. MUTAZIONE: un\'approvazione umana non viene rieseguita dal Postino',
+    p4.healed === 0 && DB.get('action_queue/hu1').status === 'approved', p4);
+
+  // 7e. la posta fresca (sotto i 5') non allarma nessuno
+  DB.set('action_queue/st2', {
+    status: 'executed', kind: 'reply', autoApplied: true,
+    payload: { channel: 'whatsapp', phone: '+39333', draft: 'fresco' },
+    executedAt: new Date(NOW2 + 200000 - 60000).toISOString(),
+  });
+  const tgB2 = TG.length;
+  await postinoTick({ chatId: CHAT, now: NOW2 + 200000 });
+  ok('7e. sotto i 5 minuti nessuna card (il Mac ha il suo tempo)', TG.length === tgB2);
+
+  // 7f. i conteggi per /segretaria dicono il vero
+  const stt = await postinoStatus();
+  ok('7f. lo stato conta la posta in attesa e quella in mano all\'operatore',
+    stt.handedToOperator >= 1 && typeof stt.waiting === 'number', stt);
+
+  // 7g. le giunzioni sulla sorgente
+  const notif2 = readFileSync(new URL('../../api/telegram/notify-pending.js', import.meta.url), 'utf8');
+  ok('7g. il Postino gira dentro notify-pending, best-effort',
+    /postinoTick\(\{ chatId \}\)/.test(notif2) && /postino tick failed/.test(notif2));
+  const hook2 = readFileSync(new URL('../../api/telegram/webhook.js', import.meta.url), 'utf8');
+  const iPw = hook2.indexOf("verb === 'pw'");
+  ok('7g. ✅ Consegnato (pw) registra la consegna manuale, prima del lookup generico',
+    iPw > -1 && iPw < hook2.indexOf('await fsGet(`action_queue/${actionId}`)') && /waSentBy: 'operator'/.test(hook2));
+  const vjson2 = readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8');
+  ok('7g. notify-pending ha maxDuration 60 (fiducia + postino + card in un minuto)',
+    /notify-pending\.js"/.test(vjson2));
+  ok('7g. la card della consegna dice la VERITÀ sul canale (executed ≠ consegnato)',
+    hook2.includes('in consegna su WhatsApp via Mac'));
+}
+
+console.log(fails ? `\n${fails} FAIL` : '\nOK — la Segretaria parla solo dove l\'hai consegnata (e ora apre lei, su WhatsApp o email), tace dove serve una persona, un tuo messaggio la spegne sempre — e la consegna non è mai più un atto di fede.');
 process.exit(fails ? 1 : 0);
