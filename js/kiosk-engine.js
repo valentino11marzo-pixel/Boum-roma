@@ -141,7 +141,10 @@
       zona: zonaCorta(l.zone != null && l.zone !== '' ? l.zone : l.zona),
       tipo: n === 0 ? 'STU' : (n ? (n > 9 ? '9BR' : n + 'BR') : 'FLT'),
       prezzo: prezzoCorto(p),
-      stato: corsia.lane === 'ahead' ? 'LIST' : (fresca ? 'NEW' : 'FREE')
+      stato: corsia.lane === 'ahead' ? 'LIST' : (fresca ? 'NEW' : 'FREE'),
+      /* NON è una colonna del tabellone: è la porta — la riga cliccata
+         apre /listing/<id>. Vuoto quando l'annuncio non ha un id. */
+      id: String(l.id == null ? '' : l.id)
     };
   }
 
@@ -163,6 +166,7 @@
       var f = doc.fields || {};
       var creata = Date.parse(doc.createTime || '') || 0;
       var r = riga({
+        id: String(doc.name || '').split('/').pop(),
         status: campo(f, 'status'),
         availableFrom: campo(f, 'availableFrom'),
         availableDate: campo(f, 'availableDate'),

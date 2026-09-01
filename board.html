@@ -64,8 +64,11 @@ html,a { color:inherit; }
 html { height:100%; background:var(--black); }
 body { height:100%; }
 body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
-  font-weight:300; overflow:hidden; display:flex; flex-direction:column;
-  cursor:none; }
+  font-weight:300; overflow:hidden; display:flex; flex-direction:column; }
+/* il cursore sparisce SOLO in modalità vetrina (?kiosk=1): un visitatore
+   normale deve poter cliccare le righe — prima cursor:none era per tutti */
+body.kiosk { cursor:none; }
+body.kiosk .riga { cursor:none; }
 .cima { display:flex; align-items:center; justify-content:space-between;
   padding:clamp(14px,3vh,34px) clamp(14px,3.5vw,60px);
   border-bottom:1px solid var(--line-0); }
@@ -90,7 +93,12 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
 .colonne span { overflow:hidden; white-space:nowrap; }
 .riga { font-size:clamp(10px,min(3.4vh,2.4vw),34px);
   padding-top:clamp(8px,1.9vh,20px); padding-bottom:clamp(8px,1.9vh,20px);
-  border-top:1px solid var(--line-0); }
+  border-top:1px solid var(--line-0); transition:background .25s ease; }
+/* la riga con un id è una PORTA: si clicca e apre la casa */
+.riga.viva { cursor:pointer; }
+.riga.viva:hover { background:rgba(255,215,0,.045); }
+.riga.viva:focus-visible { outline:1px solid rgba(255,215,0,.55);
+  outline-offset:-1px; background:rgba(255,215,0,.03); }
 .cella { overflow:hidden; }
 .c-stato { color:var(--green); }
 .riga.nuovo .c-stato { color:var(--gold-light); }
@@ -146,24 +154,24 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
   <div style="padding:24px 28px;font-size:15px;line-height:1.9;letter-spacing:.02em">
     <p style="margin-bottom:10px"><b style="color:#FFD700">BOOM Rome</b> — homes on the board right now:</p>
     <!-- case-noscript -->
-    <p>Centro · 3BR · €1,500/mo · free from 31 Jan</p>
-    <p>Pigneto · 2BR · €1,600/mo · available now</p>
-    <p>Pigneto · 3BR · €2,000/mo · free from 1 Jan</p>
-    <p>Pigneto · 2BR · €1,500/mo · available now</p>
-    <p>Ponte Milvio · 1BR · €1,250/mo · available now</p>
-    <p>Trastevere · 1BR · €1,200/mo · available now</p>
-    <p>Trieste · 1BR · €1,200/mo · available now</p>
-    <p>Trieste · 1BR · €2,000/mo · available now</p>
-    <p>Ponte Milvio · 1BR · €1,200/mo · available now</p>
-    <p>Prati · 1BR · €2,000/mo · available now</p>
-    <p>Parioli · 1BR · €1,000/mo · available now</p>
-    <p>Africano · 1BR · €900/mo · available now</p>
-    <p>Pigneto · 2BR · €1,700/mo · available now</p>
-    <p>V. Veneto · 1BR · €1,300/mo · free from 1 Sep</p>
-    <p>Prati · 1BR · €1,500/mo · available now</p>
-    <p>Conca d'Oro · 1BR · €1,750/mo · available now</p>
-    <p>Centro · 1BR · €1,800/mo · available now</p>
-    <p>Centro · 1BR · €2,300/mo · free from 1 Sep</p>
+    <p><a href="/listing/OLLVsiKhPrhpT1fx8XmB" style="color:inherit">Centro · 3BR · €1,500/mo · free from 31 Jan</a></p>
+    <p><a href="/listing/sr0rpLSqbpDMASkHINfx" style="color:inherit">Pigneto · 2BR · €1,600/mo · available now</a></p>
+    <p><a href="/listing/hwnkDcXvs7Q0EW99xV7O" style="color:inherit">Pigneto · 3BR · €2,000/mo · free from 1 Jan</a></p>
+    <p><a href="/listing/2SwJ8yD3ITXylrEtYIlL" style="color:inherit">Pigneto · 2BR · €1,500/mo · available now</a></p>
+    <p><a href="/listing/ttvrjazww9oe4tA0wHTf" style="color:inherit">Ponte Milvio · 1BR · €1,250/mo · available now</a></p>
+    <p><a href="/listing/cezFMXTWnHUDgb1H2WWm" style="color:inherit">Trastevere · 1BR · €1,200/mo · available now</a></p>
+    <p><a href="/listing/levico" style="color:inherit">Trieste · 1BR · €1,200/mo · available now</a></p>
+    <p><a href="/listing/FHeEHIFbil6QG8Jcccxc" style="color:inherit">Trieste · 1BR · €2,000/mo · available now</a></p>
+    <p><a href="/listing/Kz9bXztv5QXmQrNhAcoU" style="color:inherit">Ponte Milvio · 1BR · €1,200/mo · available now</a></p>
+    <p><a href="/listing/angelico" style="color:inherit">Prati · 1BR · €2,000/mo · available now</a></p>
+    <p><a href="/listing/qRRRV7BjXDPqgTpVchnz" style="color:inherit">Parioli · 1BR · €1,000/mo · available now</a></p>
+    <p><a href="/listing/ilW5lAxnNn5M2TjsSHx2" style="color:inherit">Africano · 1BR · €900/mo · available now</a></p>
+    <p><a href="/listing/pigneto" style="color:inherit">Pigneto · 2BR · €1,700/mo · available now</a></p>
+    <p><a href="/listing/piemonte" style="color:inherit">V. Veneto · 1BR · €1,300/mo · available now</a></p>
+    <p><a href="/listing/esFhjFMVfZtkIrhkx0PR" style="color:inherit">Prati · 1BR · €1,500/mo · available now</a></p>
+    <p><a href="/listing/wvX0h0lBoNKOMuTuHkVI" style="color:inherit">Conca D'Oro · 1BR · €1,750/mo · available now</a></p>
+    <p><a href="/listing/navona" style="color:inherit">Centro · 1BR · €1,800/mo · available now</a></p>
+    <p><a href="/listing/ripetta" style="color:inherit">Centro · 1BR · €2,300/mo · available now</a></p>
     <!-- /case-noscript -->
     <p style="margin-top:10px"><a href="/apartments" style="color:#FFD700">See every home →</a></p>
   </div>
@@ -392,11 +400,14 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
   'use strict';
   var BS = window.BoomSolari;
   var DRUM = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789€.,:·+/'-";
-  var CASE = [{"ora": "31JAN", "zona": "CENTRO", "tipo": "3BR", "prezzo": "€1,500", "stato": "LIST"}, {"ora": "NOW", "zona": "PIGNETO", "tipo": "2BR", "prezzo": "€1,600", "stato": "NEW"}, {"ora": "1JAN", "zona": "PIGNETO", "tipo": "3BR", "prezzo": "€2,000", "stato": "LIST"}, {"ora": "NOW", "zona": "PIGNETO", "tipo": "2BR", "prezzo": "€1,500", "stato": "NEW"}, {"ora": "NOW", "zona": "PONTE MILVIO", "tipo": "1BR", "prezzo": "€1,250", "stato": "FREE"}, {"ora": "NOW", "zona": "TRASTEVERE", "tipo": "1BR", "prezzo": "€1,200", "stato": "FREE"}, {"ora": "NOW", "zona": "TRIESTE", "tipo": "1BR", "prezzo": "€1,200", "stato": "FREE"}, {"ora": "NOW", "zona": "TRIESTE", "tipo": "1BR", "prezzo": "€2,000", "stato": "FREE"}, {"ora": "NOW", "zona": "PONTE MILVIO", "tipo": "1BR", "prezzo": "€1,200", "stato": "FREE"}, {"ora": "NOW", "zona": "PRATI", "tipo": "1BR", "prezzo": "€2,000", "stato": "LIST"}, {"ora": "NOW", "zona": "PARIOLI", "tipo": "1BR", "prezzo": "€1,000", "stato": "LIST"}, {"ora": "NOW", "zona": "AFRICANO", "tipo": "1BR", "prezzo": "€900", "stato": "FREE"}, {"ora": "NOW", "zona": "PIGNETO", "tipo": "2BR", "prezzo": "€1,700", "stato": "LIST"}, {"ora": "1SEP", "zona": "V. VENETO", "tipo": "1BR", "prezzo": "€1,300", "stato": "LIST"}, {"ora": "NOW", "zona": "PRATI", "tipo": "1BR", "prezzo": "€1,500", "stato": "FREE"}, {"ora": "NOW", "zona": "CONCA D'ORO", "tipo": "1BR", "prezzo": "€1,750", "stato": "LIST"}, {"ora": "NOW", "zona": "CENTRO", "tipo": "1BR", "prezzo": "€1,800", "stato": "LIST"}, {"ora": "1SEP", "zona": "CENTRO", "tipo": "1BR", "prezzo": "€2,300", "stato": "LIST"}];
+  var CASE = [{"ora": "31JAN", "zona": "CENTRO", "tipo": "3BR", "prezzo": "€1,500", "stato": "LIST", "id": "OLLVsiKhPrhpT1fx8XmB"}, {"ora": "NOW", "zona": "PIGNETO", "tipo": "2BR", "prezzo": "€1,600", "stato": "FREE", "id": "sr0rpLSqbpDMASkHINfx"}, {"ora": "1JAN", "zona": "PIGNETO", "tipo": "3BR", "prezzo": "€2,000", "stato": "LIST", "id": "hwnkDcXvs7Q0EW99xV7O"}, {"ora": "NOW", "zona": "PIGNETO", "tipo": "2BR", "prezzo": "€1,500", "stato": "FREE", "id": "2SwJ8yD3ITXylrEtYIlL"}, {"ora": "NOW", "zona": "PONTE MILVIO", "tipo": "1BR", "prezzo": "€1,250", "stato": "FREE", "id": "ttvrjazww9oe4tA0wHTf"}, {"ora": "NOW", "zona": "TRASTEVERE", "tipo": "1BR", "prezzo": "€1,200", "stato": "FREE", "id": "cezFMXTWnHUDgb1H2WWm"}, {"ora": "NOW", "zona": "TRIESTE", "tipo": "1BR", "prezzo": "€1,200", "stato": "FREE", "id": "levico"}, {"ora": "NOW", "zona": "TRIESTE", "tipo": "1BR", "prezzo": "€2,000", "stato": "FREE", "id": "FHeEHIFbil6QG8Jcccxc"}, {"ora": "NOW", "zona": "PONTE MILVIO", "tipo": "1BR", "prezzo": "€1,200", "stato": "FREE", "id": "Kz9bXztv5QXmQrNhAcoU"}, {"ora": "NOW", "zona": "PRATI", "tipo": "1BR", "prezzo": "€2,000", "stato": "LIST", "id": "angelico"}, {"ora": "NOW", "zona": "PARIOLI", "tipo": "1BR", "prezzo": "€1,000", "stato": "LIST", "id": "qRRRV7BjXDPqgTpVchnz"}, {"ora": "NOW", "zona": "AFRICANO", "tipo": "1BR", "prezzo": "€900", "stato": "FREE", "id": "ilW5lAxnNn5M2TjsSHx2"}, {"ora": "NOW", "zona": "PIGNETO", "tipo": "2BR", "prezzo": "€1,700", "stato": "LIST", "id": "pigneto"}, {"ora": "NOW", "zona": "V. VENETO", "tipo": "1BR", "prezzo": "€1,300", "stato": "LIST", "id": "piemonte"}, {"ora": "NOW", "zona": "PRATI", "tipo": "1BR", "prezzo": "€1,500", "stato": "FREE", "id": "esFhjFMVfZtkIrhkx0PR"}, {"ora": "NOW", "zona": "CONCA D'ORO", "tipo": "1BR", "prezzo": "€1,750", "stato": "LIST", "id": "wvX0h0lBoNKOMuTuHkVI"}, {"ora": "NOW", "zona": "CENTRO", "tipo": "1BR", "prezzo": "€1,800", "stato": "LIST", "id": "navona"}, {"ora": "NOW", "zona": "CENTRO", "tipo": "1BR", "prezzo": "€2,300", "stato": "LIST", "id": "ripetta"}];
   var PER = 6, GIRO = 14000, IDRANTE = 5 * 60000;
   /* il movimento è il teatro, ma chi lo chiede fermo lo ha fermo */
   var RIDOTTO = !!(window.matchMedia
     && matchMedia('(prefers-reduced-motion: reduce)').matches);
+  /* ?kiosk=1 = vetrina vera: niente cursore. Per tutti gli altri il
+     tabellone è anche un INDICE: ogni riga apre la sua casa. */
+  if (/[?&]kiosk=1/.test(location.search)) document.body.classList.add('kiosk');
   var box = document.getElementById('righe');
   var nav = document.getElementById('pagine');
   var TUTTE = [];                       /* ogni Board, per il refit al resize */
@@ -417,6 +428,10 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
       '<span class="cella c-tipo flap-scale" aria-hidden="true"></span>' +
       '<span class="cella c-prezzo flap-scale" aria-hidden="true"></span>' +
       '<span class="cella c-stato flap-scale" aria-hidden="true"></span>';
+    d.addEventListener('click', function () { apri(this); });
+    d.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') apri(this);
+    });
     box.appendChild(d);
     righe.push({ el:d, celle:{
       ora:   tabella(d.querySelector('.c-ora'),    5),
@@ -433,6 +448,26 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
       : h.ora === 'ASK' ? 'move-in date on request'
       : 'free from ' + h.ora;
     return h.zona + ', ' + h.tipo + ', ' + h.prezzo + ' per month, ' + quando;
+  }
+  /* la riga si VESTE dei suoi dati: stato NEW, voce per lo screen
+     reader, e la porta verso /listing/<id> quando l'annuncio ce l'ha */
+  function vesti(r, h) {
+    r.el.classList.toggle('nuovo', !!h && h.stato === 'NEW');
+    r.el.setAttribute('aria-label', descrivi(h));
+    var id = (h && h.id) || '';
+    r.el.dataset.id = id;
+    r.el.classList.toggle('viva', !!id);
+    if (id) {
+      r.el.setAttribute('tabindex', '0');
+      r.el.setAttribute('role', 'link');
+    } else {
+      r.el.removeAttribute('tabindex');
+      r.el.setAttribute('role', 'listitem');
+    }
+  }
+  function apri(el) {
+    var id = el.dataset.id;
+    if (id) location.href = '/listing/' + encodeURIComponent(id);
   }
   function scrivi(board, word) {
     if (RIDOTTO) board.show(word, 0, false);
@@ -455,8 +490,7 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
     });
     righe.forEach(function (r, i) {
       var h = CASE[p * PER + i];
-      r.el.classList.toggle('nuovo', !!h && h.stato === 'NEW');
-      r.el.setAttribute('aria-label', descrivi(h));
+      vesti(r, h);
       var mostraR = function () {
         scrivi(r.celle.ora,    h ? h.ora : '');
         scrivi(r.celle.zona,   h ? h.zona : '');
@@ -481,8 +515,7 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
         r.celle.tipo.show(h.tipo, 24, true);
         r.celle.prezzo.show(h.prezzo, 22, true);
         r.celle.stato.show(h.stato, 22, true);
-        r.el.classList.toggle('nuovo', h.stato === 'NEW');
-        r.el.setAttribute('aria-label', descrivi(h));
+        vesti(r, h);
       }, 400 + i * 160);
     });
   }

@@ -160,14 +160,38 @@ console.log('\n▸ un rullo solo, una grammatica sola');
 {
   const m = board.match(/var CASE = (\[.*?\]);/s);
   const baked = m ? JSON.parse(m[1]) : null;
+  const COLONNE = ['ora', 'zona', 'tipo', 'prezzo', 'stato'];
   ok(!!baked && baked.length > 0, `la CASE della build si legge (${baked && baked.length} righe)`);
-  ok(!!baked && baked.every((c) => Object.values(c).every(nelRullo)),
-    'ogni glifo della build esiste nel rullo (CONCA D\'ORO compresa)');
+  ok(!!baked && baked.every((c) => COLONNE.every((k) => nelRullo(c[k]))),
+    'ogni glifo delle COLONNE della build esiste nel rullo (CONCA D\'ORO compresa; l\'id non passa dalle palette)');
   ok(!!baked && !baked.some((c) => c.zona === 'VITTORIO VENE' || c.zona === 'CENTRO STORIC'),
     'le zone mozzate a metà parola sono sparite dalla build');
   ok(!!baked && baked.every((c) => c.zona.length <= K.W.zona && c.prezzo.length <= K.W.prezzo
     && c.ora.length <= K.W.ora && c.stato.length <= K.W.stato && c.tipo.length <= K.W.tipo),
     'ogni valore della build sta nelle sue celle');
+  ok(!!baked && baked.every((c) => typeof c.id === 'string' && c.id.length > 0),
+    'ogni riga della build porta il suo id: la riga è una PORTA, non solo teatro');
+}
+
+console.log('\n▸ il tabellone si può CLICCARE (e la vetrina resta vetrina)');
+ok(/riga\.viva|\.riga\.viva/.test(board) && board.includes("location.href = '/listing/'"),
+  'la riga con id apre /listing/<id>');
+ok(board.includes("e.key === 'Enter'") && board.includes("setAttribute('tabindex', '0')"),
+  'anche da tastiera: tabindex + Enter');
+ok(/body\.kiosk\s*\{\s*cursor:none/.test(board) && /kiosk=1/.test(board),
+  'cursor:none è SOLO della vetrina (?kiosk=1) — prima nessuno poteva cliccare');
+ok(!/body\s*\{[^}]*cursor:none/.test(board),
+  'il body di default ha il cursore (il difetto «I can\'t even click»)');
+{
+  const eng = readFileSync(join(RADICE, 'js', 'kiosk-engine.js'), 'utf-8');
+  ok(/id: String\(l\.id/.test(eng) && /doc\.name/.test(eng),
+    'il motore porta l\'id dal documento Firestore fino alla riga');
+}
+{
+  const r = K.riga({ id: 'abc123', status: 'available', price: 1500, zone: 'Prati' }, opts);
+  ok(r && r.id === 'abc123', 'riga() conserva l\'id');
+  const senza = K.riga({ status: 'available', price: 1500, zone: 'Prati' }, opts);
+  ok(senza && senza.id === '', 'senza id la porta resta chiusa, mai un undefined');
 }
 
 console.log('\n▸ il motore Solari è UNA copia (e con le guardie)');

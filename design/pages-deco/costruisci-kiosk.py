@@ -119,13 +119,17 @@ for r in vivi:
         'tipo': ('STU' if n == 0 else f'{n}BR' if n else 'FLT'),
         'prezzo': prezzo_corto(p),
         'stato': 'LIST' if r['status'] == 'waitlist' else ('NEW' if nuova else 'FREE'),
+        # non è una colonna: è la porta — la riga cliccata apre /listing/<id>
+        'id': str(r.get('id') or ''),
     })
 
 # ogni glifo emesso deve esistere nel rullo — il divieto n.1, verificato
+# (l'id non passa dalle palette: è solo la porta del click)
+COLONNE = ('ora', 'zona', 'tipo', 'prezzo', 'stato')
 for c in CASE:
-    for v in c.values():
-        fuori = [ch for ch in v if ch not in DRUM]
-        assert not fuori, f'glifo fuori rullo {fuori} in {v!r}'
+    for k in COLONNE:
+        fuori = [ch for ch in c[k] if ch not in DRUM]
+        assert not fuori, f'glifo fuori rullo {fuori} in {c[k]!r}'
 
 # ── il noscript (l'unico testo che un crawler senza JS legge) ────────────
 def frase(c):
@@ -134,7 +138,10 @@ def frase(c):
     else:
         m = re.match(r'^(\d{1,2})([A-Z]{3})$', c['ora'])
         q = f'free from {m.group(1)} {m.group(2).title()}' if m else 'move-in date on request'
-    return f"    <p>{c['zona'].title()} · {c['tipo']} · {c['prezzo']}/mo · {q}</p>"
+    testo = f"{c['zona'].title()} · {c['tipo']} · {c['prezzo']}/mo · {q}"
+    if c.get('id'):
+        return f'    <p><a href="/listing/{c["id"]}" style="color:inherit">{testo}</a></p>'
+    return f'    <p>{testo}</p>'
 
 NOSCRIPT = '\n'.join(frase(c) for c in CASE)
 

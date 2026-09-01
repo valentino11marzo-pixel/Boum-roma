@@ -3,84 +3,130 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="description" content="Rent Rome from the sky — every BOOM apartment on a live 3D map of the city. Video-verified, transparent, 48-hour move-in.">
+<meta name="description" content="Rent Rome from the sky — every BOOM apartment on a cinematic night map of the city. Video-verified, transparent, 48-hour move-in.">
 <title>BOOM Skyline — rent Rome from the sky</title>
 <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=optional" rel="stylesheet" media="print" onload="this.media='all'">
 <style>
-:root{--gold:#FFD700;--gold2:#FFA500;--bg:#08080A;--card:#0E0E12;--line:rgba(255,255,255,.09);--t1:#fff;--t2:#aaa;--t3:#777;--disp:'Helvetica Neue',Helvetica,Inter,Arial,sans-serif}
+/* ══ SKYLINE 2.0 — Roma di notte. La città è scura e quieta, l'ORO è
+   solo BOOM. Le case si sfogliano dalla PELLICOLA in basso: la mappa
+   segue le card, le card seguono i pin — mai più la caccia al pin. ══ */
+:root{--gold:#FFD700;--gold2:#FFA500;--bg:#08080A;--card:#0E0E12;--card2:#121218;
+  --line:rgba(255,255,255,.09);--gline:rgba(255,215,0,.28);--t1:#fff;--t2:#aaa;--t3:#777;
+  --disp:'Helvetica Neue',Helvetica,Inter,Arial,sans-serif;
+  --rail-h:196px}
 *{margin:0;padding:0;box-sizing:border-box}
 html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,system-ui,sans-serif;font-weight:300;overflow:hidden;-webkit-font-smoothing:antialiased}
 #map{position:absolute;inset:0}
-.maplibregl-ctrl-attrib{font-size:9px!important;opacity:.45}
-.bar{position:absolute;top:0;left:0;right:0;z-index:10;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:16px clamp(16px,4vw,32px);background:linear-gradient(180deg,rgba(8,8,10,.92),rgba(8,8,10,0));pointer-events:none}
+.maplibregl-ctrl-attrib{font-size:9px!important;opacity:.4}
+.maplibregl-ctrl-bottom-right{bottom:calc(var(--rail-h) + 14px)!important;transition:bottom .35s ease}
+.rail-giu .maplibregl-ctrl-bottom-right{bottom:56px!important}
+.maplibregl-ctrl-group{background:rgba(14,14,18,.8)!important;-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid var(--line)!important;box-shadow:0 8px 24px rgba(0,0,0,.4)!important}
+.maplibregl-ctrl-group button{background:transparent!important}
+.maplibregl-ctrl-group button span{filter:invert(1) opacity(.8)}
+.maplibregl-cooperative-gesture-screen{background:rgba(5,5,7,.72);color:#fff;font-family:var(--disp);font-size:15px;letter-spacing:.04em;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+
+/* ── la testata ── */
+.bar{position:absolute;top:0;left:0;right:0;z-index:24;display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px clamp(16px,4vw,32px);background:linear-gradient(180deg,rgba(8,8,10,.92),rgba(8,8,10,0));pointer-events:none}
 .bar>*{pointer-events:auto}
 .brand{display:flex;align-items:baseline;gap:14px;text-decoration:none}
 .brand .logo{font-family:var(--disp);font-weight:200;font-size:22px;letter-spacing:6px;color:#fff}
 .brand .logo b{color:var(--gold);font-weight:300}
-.brand .ttl{font-size:12px;letter-spacing:2px;text-transform:uppercase;color:var(--t2)}
+.brand .ttl{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--t2)}
 @media(max-width:640px){.brand .ttl{display:none}}
 .bar-back{font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t2);text-decoration:none;border:1px solid var(--line);border-radius:100px;padding:8px 16px;background:rgba(14,14,18,.6);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);transition:all .25s}
 .bar-back:hover{border-color:var(--gold);color:var(--gold)}
-.filters{position:absolute;top:64px;left:0;right:0;z-index:9;display:flex;gap:8px;justify-content:center;flex-wrap:wrap;padding:0 16px;pointer-events:none}
-.filters .chip{pointer-events:auto;font-size:12px;color:var(--t2);background:rgba(14,14,18,.72);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:100px;padding:8px 15px;cursor:pointer;transition:all .2s}
+.emb .bar{display:none}
+
+/* ── i filtri ── */
+.filters{position:absolute;top:60px;left:0;right:0;z-index:11;display:flex;gap:8px;justify-content:flex-start;padding:0 16px 8px;pointer-events:none;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.filters::-webkit-scrollbar{display:none}
+@media(min-width:900px){.filters{justify-content:center}}
+.emb .filters{top:10px}
+.filters .chip{pointer-events:auto;flex:0 0 auto;font-size:12px;color:var(--t2);background:rgba(14,14,18,.72);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:100px;padding:8px 15px;cursor:pointer;transition:all .2s}
 .filters .chip:hover{border-color:var(--gold);color:#fff}
 .filters .chip.on{background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000;border-color:transparent;font-weight:600}
-.count{position:absolute;left:50%;bottom:calc(20px + env(safe-area-inset-bottom));transform:translateX(-50%);z-index:9;font-size:12px;letter-spacing:.5px;color:var(--t2);background:rgba(14,14,18,.8);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid var(--line);border-radius:100px;padding:9px 18px}
-.count b{color:var(--gold);font-weight:500}
-.sky-pin{display:inline-flex;flex-direction:column;align-items:center;cursor:pointer;transition:transform .2s}
+.filters .chip.invito{border-style:dashed;border-color:rgba(255,215,0,.5);color:var(--gold)}
+
+/* ── i pin: prezzo in oro, «≈» dove il punto è la zona, non il portone ── */
+.sky-pin{display:inline-flex;flex-direction:column;align-items:center;cursor:pointer;transition:transform .22s ease}
+.sky-pin .p{background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-weight:700;font-size:12px;padding:5px 11px;border-radius:100px;white-space:nowrap;box-shadow:0 5px 16px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.18);transition:box-shadow .25s}
+.sky-pin .p.rented{background:#232329;color:#8e8e97;box-shadow:0 4px 12px rgba(0,0,0,.5)}
+.sky-pin::after{content:'';width:2px;height:9px;background:linear-gradient(#FFA500,transparent)}
 .sky-pin:hover{transform:translateY(-3px);z-index:50}
-.sky-pin .p{background:linear-gradient(135deg,#FFD700,#FFA500);color:#000;font-weight:700;font-size:12px;padding:5px 11px;border-radius:100px;white-space:nowrap;box-shadow:0 5px 16px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.18)}
-.sky-pin .p.rented{background:#26262c;color:#9a9aa2;box-shadow:0 4px 12px rgba(0,0,0,.5)}
-/* l'anteprima al passaggio: la foto PRIMA del click, solo dove esiste un
-   mouse vero. pointer-events:none — non deve mai rubare l'hover al pin. */
-.pin-peek{position:fixed;z-index:60;width:186px;border-radius:12px;overflow:hidden;background:#0d0d11;border:1px solid rgba(255,215,0,.22);box-shadow:0 18px 44px rgba(0,0,0,.6);pointer-events:none;opacity:0;transform:translate(-50%,6px) scale(.97);transition:opacity .18s ease,transform .22s ease}
+.sky-pin.sel{transform:translateY(-4px) scale(1.14);z-index:60}
+.sky-pin.sel .p{box-shadow:0 0 0 3px rgba(255,215,0,.35),0 0 26px rgba(255,215,0,.5),0 8px 22px rgba(0,0,0,.6)}
+.sky-pin.dim{opacity:.14;filter:grayscale(.7);pointer-events:none}
+
+/* l'anteprima al passaggio (solo mouse vero) */
+.pin-peek{position:fixed;z-index:70;width:186px;border-radius:12px;overflow:hidden;background:#0d0d11;border:1px solid rgba(255,215,0,.22);box-shadow:0 18px 44px rgba(0,0,0,.6);pointer-events:none;opacity:0;transform:translate(-50%,6px) scale(.97);transition:opacity .18s ease,transform .22s ease}
 .pin-peek.su{opacity:1;transform:translate(-50%,0) scale(1)}
 .pin-peek .im{height:104px;background:linear-gradient(135deg,#17171c,#0e0e12) center/cover no-repeat}
 .pin-peek .tx{padding:9px 11px 10px}
 .pin-peek .nm{font-size:12px;color:#fff;font-weight:500;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pin-peek .pz{margin-top:3px;font-size:11px;color:var(--t2)}
 .pin-peek .pz b{color:var(--gold);font-weight:600}
-/* il chip che invita: finché non hai salvato un posto, LO STRUMENTO si
-   presenta da solo — tratteggio oro, mai un altro colore */
-.filters .chip.invito{border-style:dashed;border-color:rgba(255,215,0,.5);color:var(--gold)}
-.sky-pin::after{content:'';width:2px;height:9px;background:linear-gradient(#FFA500,transparent)}
-.sky-pin.dim{opacity:.16;filter:grayscale(.7)}
-.maplibregl-popup-content{background:var(--card)!important;border:1px solid var(--line)!important;border-radius:16px!important;padding:0!important;overflow:hidden;box-shadow:0 24px 60px rgba(0,0,0,.6)!important;width:230px}
-.maplibregl-popup-close-button{color:#fff!important;font-size:20px!important;padding:2px 8px!important;z-index:2}
-.maplibregl-popup-tip{border-top-color:var(--card)!important;border-bottom-color:var(--card)!important}
-.pc-img{height:128px;background:linear-gradient(135deg,#17171c,#0e0e12) center/cover no-repeat}
-.pc-body{padding:13px 15px 15px}
-.pc-zone{font-size:9.5px;letter-spacing:1.5px;text-transform:uppercase;color:var(--t3)}
-.pc-name{font-size:15px;font-weight:500;color:#fff;margin:3px 0 6px;letter-spacing:-.01em}
-.pc-price{font-family:var(--disp);font-weight:200;font-size:22px;color:var(--gold)}
-.pc-price small{font-size:11px;color:var(--t3)}
-.pc-go{display:block;margin-top:11px;text-align:center;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000;font-size:13px;font-weight:600;text-decoration:none;padding:10px;border-radius:10px}
-.pc-row{display:flex;gap:6px;margin-top:8px}
-.pc-mini{flex:1;text-align:center;font-size:11px;color:var(--t2);text-decoration:none;border:1px solid rgba(255,255,255,.14);border-radius:8px;padding:7px 4px;white-space:nowrap}
-.pc-mini:hover{color:var(--gold);border-color:rgba(255,215,0,.4)}
-.load{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg);transition:opacity .5s,visibility .5s}
-.load.off{opacity:0;visibility:hidden}
-.load .dot{width:10px;height:10px;border-radius:50%;background:var(--gold);animation:p 1.4s ease-in-out infinite}
-@keyframes p{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(255,215,0,.4)}50%{transform:scale(1.25);box-shadow:0 0 0 14px rgba(255,215,0,0)}}
-.load .t{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--t3)}
-.load .s{font-size:11px;color:var(--t3);max-width:280px;text-align:center;line-height:1.6}
-.sky-anchor{display:flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.2px;color:var(--t2);background:rgba(14,14,18,.78);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:100px;padding:5px 10px;white-space:nowrap;opacity:.5;pointer-events:none;transition:opacity .35s,border-color .35s}
+
+/* ── le ancore di Roma + i tuoi posti ── */
+.sky-anchor{display:flex;align-items:center;gap:6px;font-size:11px;letter-spacing:.2px;color:var(--t2);background:rgba(14,14,18,.78);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);border:1px solid var(--line);border-radius:100px;padding:5px 10px;white-space:nowrap;opacity:.45;pointer-events:none;transition:opacity .35s,border-color .35s}
 .sky-anchor .ic{font-size:12px;line-height:1}
 .sky-anchor .d{color:var(--gold);font-weight:600;display:none}
-.sky-anchor.lit{opacity:1;border-color:rgba(255,215,0,.32)}
+.sky-anchor.lit{opacity:1;border-color:var(--gline)}
 .sky-anchor.lit .d{display:inline}
 .sky-anchor.lit .d::before{content:'· '}
-.count .hint{color:var(--t3);font-weight:300}
-@media(prefers-reduced-motion:reduce){.load .dot{animation:none}.sky-pin{transition:none}}
-.emb .bar{display:none}
-.maplibregl-cooperative-gesture-screen{background:rgba(5,5,7,.72);color:#fff;font-family:var(--disp);font-size:15px;letter-spacing:.04em;-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
-/* i tuoi posti: ancore d'oro, sempre accese — sono il TUO motivo */
 .sky-mine{display:flex;align-items:center;gap:6px;font-size:11px;color:#111;background:linear-gradient(135deg,var(--gold),var(--gold2));border-radius:100px;padding:5px 11px;white-space:nowrap;font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.45)}
 .sky-mine .d{font-weight:700;display:none}
 .sky-mine.lit .d{display:inline}
 .sky-mine.lit .d::before{content:'· '}
+
+/* ── LA PELLICOLA — le case, sfogliabili. Sta SOPRA il velo di carico
+   (z-index): le card compaiono appena c'è il dato, la città si accende
+   dietro — e se la mappa non arriva mai, la pellicola resta. ── */
+.rail{position:absolute;left:0;right:0;bottom:0;z-index:22;padding-bottom:env(safe-area-inset-bottom);background:linear-gradient(180deg,rgba(8,8,10,0),rgba(8,8,10,.88) 46%);transition:transform .35s ease}
+.rail-giu .rail{transform:translateY(calc(100% - 44px - env(safe-area-inset-bottom)))}
+.rail-testa{display:flex;align-items:center;justify-content:space-between;padding:6px clamp(14px,3vw,26px) 8px}
+.rail-conta{font-size:12px;letter-spacing:.5px;color:var(--t2)}
+.rail-conta b{color:var(--gold);font-weight:500}
+.rail-conta .hint{color:var(--t3)}
+@media(max-width:520px){.rail-conta .hint{display:none}}
+.rail-giu-btn{background:rgba(14,14,18,.7);border:1px solid var(--line);border-radius:100px;color:var(--t2);font-size:11px;letter-spacing:1px;text-transform:uppercase;padding:6px 14px;cursor:pointer;transition:all .2s}
+.rail-giu-btn:hover{color:var(--gold);border-color:var(--gline)}
+.rail-corsa{display:flex;gap:12px;overflow-x:auto;padding:2px clamp(14px,3vw,26px) 14px;scroll-snap-type:x mandatory;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.rail-corsa::-webkit-scrollbar{display:none}
+.hcard{flex:0 0 min(276px,78vw);scroll-snap-align:center;display:flex;gap:0;flex-direction:column;background:rgba(14,14,18,.92);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border:1px solid var(--line);border-radius:16px;overflow:hidden;cursor:pointer;transition:border-color .25s,transform .25s;outline:none}
+.hcard:hover{border-color:rgba(255,215,0,.35)}
+.hcard:focus-visible{border-color:var(--gold)}
+.hcard.sel{border-color:var(--gline);box-shadow:0 0 0 1px var(--gline),0 18px 44px rgba(0,0,0,.5)}
+.hcard .im{height:92px;background:linear-gradient(135deg,#17171c,#0e0e12) center/cover no-repeat;position:relative}
+.hcard .lane{position:absolute;left:8px;bottom:8px;font-size:10px;font-weight:600;letter-spacing:.4px;padding:4px 9px;border-radius:100px;background:rgba(8,8,10,.82);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);color:#7CE7A6}
+.hcard .lane.poi{color:#FFD98A}
+.hcard .lane.fila{color:#C9C9D2}
+.hcard .tx{display:flex;align-items:center;gap:10px;padding:9px 12px 11px}
+.hcard .nm{flex:1;min-width:0}
+.hcard .nm b{display:block;font-size:12.5px;font-weight:500;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hcard .nm span{display:block;margin-top:2px;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hcard .pr{text-align:right}
+.hcard .pr b{display:block;font-family:var(--disp);font-weight:200;font-size:18px;color:var(--gold)}
+.hcard .pr span{font-size:9.5px;color:var(--t3)}
+.hcard .go{display:block;margin:0 10px 10px;text-align:center;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000;font-size:12px;font-weight:600;text-decoration:none;padding:9px;border-radius:10px}
+.hcard .riga2{display:flex;gap:6px;margin:0 10px 10px}
+.hcard .mini{flex:1;text-align:center;font-size:10.5px;color:var(--t2);text-decoration:none;border:1px solid rgba(255,255,255,.13);border-radius:8px;padding:6px 4px;white-space:nowrap}
+.hcard .mini:hover{color:var(--gold);border-color:rgba(255,215,0,.4)}
+
+/* ── il velo di carico / la rete quando la mappa non c'è ── */
+.load{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg);transition:opacity .7s,visibility .7s}
+.load.off{opacity:0;visibility:hidden}
+.load .dot{width:10px;height:10px;border-radius:50%;background:var(--gold);animation:p 1.4s ease-in-out infinite}
+@keyframes p{0%,100%{transform:scale(1);box-shadow:0 0 0 0 rgba(255,215,0,.4)}50%{transform:scale(1.25);box-shadow:0 0 0 14px rgba(255,215,0,0)}}
+.load .t{font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--t3)}
+.load .s{font-size:11px;color:var(--t3);max-width:300px;text-align:center;line-height:1.6}
+.load .s a{color:var(--gold)}
+/* la mappa può mancare (rete, motore): le case restano sfogliabili */
+.senza-mappa .load{background:radial-gradient(ellipse at 50% 30%,#101018,var(--bg) 70%);padding-bottom:var(--rail-h)}
+.senza-mappa .load .dot{animation:none;opacity:.5}
+
+/* ── il pannello «My places» ── */
 .miei-velo{position:absolute;inset:0;z-index:30;display:flex;align-items:flex-start;justify-content:center;padding-top:min(16vh,120px);background:rgba(5,5,7,.55);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px)}
 .miei-velo[hidden]{display:none}
 .miei{width:min(420px,92vw);background:var(--card);border:1px solid rgba(255,215,0,.25);border-radius:18px;padding:18px 18px 16px;box-shadow:0 30px 80px rgba(0,0,0,.6)}
@@ -99,8 +145,15 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,sys
 .miei-righe .r button:hover{color:#FF6B57}
 .miei-vuota{font-size:12px;color:var(--t3);padding:10px 2px}
 .miei-chiudi{margin-top:12px;width:100%;padding:11px;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000;font-weight:600;font-size:13px;border:0;border-radius:10px;cursor:pointer}
+
+@media(prefers-reduced-motion:reduce){
+  .load .dot{animation:none}
+  .sky-pin,.hcard,.rail{transition:none}
+}
 </style>
 <script src="/js/boom-geo.js"></script>
+<script src="/js/dispo-engine.js"></script>
+<script src="/js/skyline-engine.js"></script>
 <script>if(/[?&]embed=1/.test(location.search)){document.documentElement.classList.add('emb');var _b=document.createElement('base');_b.target='_top';document.head.appendChild(_b);}</script>
 </head>
 <body>
@@ -118,6 +171,7 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,sys
   <button class="chip" data-max="2500">≤ €2,500</button>
   <button class="chip" id="mieiChip" type="button">◆ My places</button>
   <button class="chip" id="vicinoChip" type="button" hidden>≤ 25′ walk</button>
+  <button class="chip" id="satChip" type="button" hidden>🛰 Satellite</button>
 </div>
 
 <div class="miei-velo" id="mieiVelo" hidden>
@@ -133,207 +187,214 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,sys
   </div>
 </div>
 
-<div class="count" id="count" style="display:none"></div>
+<div class="rail" id="rail" hidden>
+  <div class="rail-testa">
+    <span class="rail-conta" id="conta"></span>
+    <button class="rail-giu-btn" id="railGiu" type="button" aria-expanded="true">Hide</button>
+  </div>
+  <div class="rail-corsa" id="corsa" role="list" aria-label="Homes in Rome"></div>
+</div>
 
 <div class="load" id="load">
   <div class="dot"></div>
   <div class="t">BOOM · Skyline</div>
-  <div class="s" id="loadMsg">Mapping Rome…</div>
+  <div class="s" id="loadMsg">Raising Rome…</div>
 </div>
 
 <script>
 (function(){
 'use strict';
-var ROME=[12.4924,41.8902];
+var SK=window.BOOM_SKYLINE;
 var $=function(id){return document.getElementById(id);};
-var msg=function(t){var m=$('loadMsg');if(m)m.textContent=t;};
-var fmt=function(n){return '€'+Math.round(n).toLocaleString('en-US');};
+var msg=function(t,html){var m=$('loadMsg');if(m){if(html)m.innerHTML=t;else m.textContent=t;}};
 var num=function(v){v=Number(v);return isFinite(v)?v:null;};
-var map=null, MARKERS=[], MAXFILTER=0;
+var esc=function(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});};
+var fmt=SK?SK.fmtEuro:function(n){return '€'+Math.round(n);};
+var EMB=document.documentElement.classList.contains('emb');
+var RIDOTTO=!!(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches);
+var HOVER=!!(window.matchMedia&&matchMedia('(hover:hover) and (pointer:fine)').matches);
 
-/* Rome neighbourhood centres [lng,lat,...keywords] — instant, zero geocoding.
-   Building-exact location lives in each listing's own 3D flyover. */
-var ZONES=[
-  [12.4735,41.8986,'centro storico','navona','coronari','ripetta','pantheon','spagna','trevi','campo de','farnese','centro'],
-  [12.4692,41.8867,'trastevere','gianicolo'],
-  [12.4924,41.8946,'monti','colosse','cavour'],
-  [12.4632,41.9100,'prati','mazzini','angelico','vatican','ottaviano','cola di rienzo','lepanto'],
-  [12.5380,41.8880,'pigneto','centocelle','casilina'],
-  [12.4757,41.8758,'testaccio'],
-  [12.4690,41.8560,'marconi','ostiense','garbatella','piramide','gazometro'],
-  [12.5050,41.9230,'trieste','copped','africano','salario','nomentano'],
-  [12.5151,41.9000,'san lorenzo','sapienza','verano'],
-  [12.5010,41.8950,'esquilino','vittorio emanuele','manzoni'],
-  [12.4760,41.9230,'flaminio'],
-  [12.4680,41.9380,'ponte milvio','tor di quinto','foro italico'],
-  [12.4880,41.9230,'parioli','villa ada'],
-  [12.4900,41.9070,'veneto','ludovisi','barberini'],
-  [12.5300,41.9430,"conca d'oro",'conca','jonio','annibaliano'],
-  [12.5230,41.9120,'tiburtina','bologna','pietralata']
-];
-function zoneCoord(l){
-  var z=(String(l.zone||l.neighborhood||'')+' '+String(l.address||'')).toLowerCase();
-  for(var i=0;i<ZONES.length;i++){var Z=ZONES[i];for(var k=2;k<Z.length;k++){if(z.indexOf(Z[k])!==-1)return [Z[0],Z[1]];}}
-  return null;
-}
-var _seen={};
-function spread(co){ // fan multiple listings around a shared zone centre so pins don't stack
-  var key=co[0].toFixed(3)+','+co[1].toFixed(3); var n=_seen[key]||0; _seen[key]=n+1;
-  if(n===0) return co.slice();
-  var ang=n*2.39996323, rad=0.0017*Math.sqrt(n);
-  return [co[0]+rad*Math.cos(ang), co[1]+rad*Math.sin(ang)];
-}
+var map=null, MAPVIVA=false, HOMES=[], SEL=-1, MAXFILTER=0, VICINO=false, TIENI=null;
+var MYP=[], MYP_MK=[], ANCHOR_MK=[];
 
-/* ── Commute lines ── Rome's anchor hubs; tap a home to connect it to them.
-   Honest: straight-line distance + a walk estimate (not a routed commute). */
-var ANCHORS=[
-  [12.5018,41.9009,'Termini','metro'],
-  [12.4924,41.8902,'Colosseo','colosseo'],
-  [12.4534,41.9022,'Vaticano','vaticano'],
-  [12.4690,41.8870,'Trastevere','trastevere'],
-  [12.5135,41.9038,'Sapienza','sapienza'],
-  [12.4917,41.9269,'LUISS','uni'],
-  [12.4790,41.8564,'Roma Tre','uni'],
-  [12.4664,41.8937,'John Cabot','uni'],
-  [12.4593,41.9032,'LUMSA','uni']
-];
-var ANCHOR_ICON={metro:'🚇',colosseo:'🏛',vaticano:'⛪',trastevere:'🍷',sapienza:'🎓',uni:'🎓'};
-var ANCHOR_MK=[];
-function haversine(a,b){var R=6371,r=Math.PI/180,dy=(b[1]-a[1])*r,dx=(b[0]-a[0])*r,s=Math.pow(Math.sin(dy/2),2)+Math.cos(a[1]*r)*Math.cos(b[1]*r)*Math.pow(Math.sin(dx/2),2);return 2*R*Math.asin(Math.min(1,Math.sqrt(s)));}
-function arc(a,b,bow,n){ // quadratic-bezier bowed line → many coordinates (an elegant flight-path arc)
-  n=n||44;var pts=[],mx=(a[0]+b[0])/2,my=(a[1]+b[1])/2,dx=b[0]-a[0],dy=b[1]-a[1];
-  var cx=mx-dy*bow, cy=my+dx*bow;
-  for(var i=0;i<=n;i++){var t=i/n,u=1-t;pts.push([u*u*a[0]+2*u*t*cx+t*t*b[0], u*u*a[1]+2*u*t*cy+t*t*b[1]]);}
-  return pts;
+/* ── LE CASE: il dato prima della mappa — la pellicola vive comunque ── */
+function foto(l){
+  var iv=(l.imagesVariants&&l.imagesVariants[0])||null;
+  return String((iv&&(iv.w960||iv.src))||(l.images&&l.images[0])||l.image||'');
 }
-function distLabel(km){return km<2.6 ? Math.round(km/4.8*60)+'′ walk' : (km<10?km.toFixed(1):Math.round(km))+' km';}
-function showLinks(co){
-  if(!map.getSource('links'))return;
-  /* thread only the six nearest anchors — nine lines is noise, six is a story */
-  /* i TUOI posti si collegano sempre (sono il motivo per cui li hai
-     salvati); le ancore di Roma riempiono fino a sei linee */
-  var mie=MYP_MK.map(function(m){return {m:m,d:haversine(co,[m.p.lng,m.p.lat])}});
-  var near=ANCHORS.map(function(A,i){return {A:A,i:i,d:haversine(co,[A[0],A[1]])}})
-    .sort(function(a,b){return a.d-b.d}).slice(0,Math.max(2,6-mie.length));
-  var nearSet={};near.forEach(function(n){nearSet[n.i]=n.d});
-  var feats=near.map(function(n){return {type:'Feature',geometry:{type:'LineString',coordinates:arc(co,[n.A[0],n.A[1]],0.12,44)}}});
-  mie.forEach(function(x){
-    feats.push({type:'Feature',geometry:{type:'LineString',coordinates:arc(co,[x.m.p.lng,x.m.p.lat],-0.12,44)}});
-    x.m.el.classList.add('lit');x.m.dEl.textContent=distLabel(x.d);
+function precisione(l,daZona){
+  if(daZona)return 'zone';
+  try{ if(window.BOOM_GEO) return BOOM_GEO.pinPrecision(l).level; }catch(e){}
+  return 'zone';
+}
+function costruisciCase(listings){
+  var sp=SK.spreader();
+  listings.forEach(function(l){
+    if(String(l.status||'').toLowerCase()==='draft'||!l.name)return;
+    var la=num(l.lat), ln=num(l.lng), daZona=false, base=null;
+    if(la&&ln)base=[ln,la]; else {base=SK.zoneCoord(l);daZona=true;}
+    if(!base)return;
+    var lane=SK.laneFor(l,window.BOOM_DISPO);
+    HOMES.push({
+      l:l, co:sp(base), vero:(la&&ln)?[ln,la]:null,
+      prec:precisione(l,daZona),
+      price:num(l.price)||0,
+      lane:lane||{lane:'now',bookable:true,badge:'',tone:''},
+      card:null, pinEl:null, mk:null
+    });
   });
-  ANCHORS.forEach(function(A,i){
-    var m=ANCHOR_MK[i]; if(!m)return;
-    if(i in nearSet){m.el.classList.add('lit');m.el.style.opacity='';m.dEl.textContent=distLabel(nearSet[i]);}
-    else{m.el.classList.remove('lit');m.el.style.opacity='.22';m.dEl.textContent='';}
+}
+
+/* ── LA PELLICOLA ── */
+function laneChip(h){
+  if(!h.lane.badge)return '';
+  return '<span class="lane '+esc(h.lane.tone||'')+'">'+esc(h.lane.badge)+'</span>';
+}
+function chips(h){
+  var co=h.vero;
+  if(!co)return '';
+  var sv=(h.prec==='exact'||h.prec==='street')
+    ?'<a class="mini" target="_blank" rel="noopener" href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+co[1]+','+co[0]+'">⟲ Street View</a>':'';
+  return '<div class="riga2">'+sv+'<a class="mini" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination='+co[1]+','+co[0]+'">➤ Directions</a></div>';
+}
+function costruisciPellicola(){
+  var corsa=$('corsa');
+  corsa.textContent='';
+  HOMES.forEach(function(h,i){
+    if(!h.lane.bookable)return;                 /* closed: sul muro no */
+    var a=document.createElement('article');
+    a.className='hcard'; a.tabIndex=0; a.setAttribute('role','listitem');
+    a.setAttribute('aria-label',(h.l.name||'Apartment')+', '+(h.price?fmt(h.price)+' per month':'price on request'));
+    var img=foto(h.l);
+    a.innerHTML='<div class="im"'+(img?' style="background-image:url(\''+img.replace(/'/g,'')+'\')"':'')+'>'+laneChip(h)+'</div>'
+      +'<div class="tx"><span class="nm"><b>'+esc(h.l.name||'Apartment')+'</b><span>'+esc(h.l.zone||h.l.neighborhood||'Rome')+(h.prec==='zone'?' · area':'')+'</span></span>'
+      +'<span class="pr"><b>'+(h.price?fmt(h.price):'—')+'</b><span>'+(h.price?'/mo':'ask us')+'</span></span></div>'
+      +'<a class="go" href="/listing/'+encodeURIComponent(h.l.id)+'">View this home →</a>'
+      +chips(h);
+    a.addEventListener('click',function(e){
+      if(e.target.closest('a'))return;          /* i link fanno i link */
+      seleziona(i,'card');
+    });
+    a.addEventListener('keydown',function(e){
+      if(e.key==='Enter'&&!e.target.closest('a'))seleziona(i,'card');
+    });
+    corsa.appendChild(a);
+    h.card=a;
+  });
+  var rail=$('rail');
+  rail.hidden=false;
+  if(EMB)railStato(true);                 /* nell'iframe parte raccolta */
+  /* l'altezza VERA della pellicola guida i controlli mappa e il velo */
+  try{document.body.style.setProperty('--rail-h',rail.offsetHeight+'px');}catch(e){}
+}
+function railStato(giu){
+  document.body.classList.toggle('rail-giu',giu);
+  var b=$('railGiu');
+  if(b){b.textContent=giu?'Homes':'Hide';b.setAttribute('aria-expanded',String(!giu));}
+}
+/* lo scroll della pellicola sceglie la casa al centro (con calma) */
+var corsaTimer=null, corsaProgrammato=false;
+function agganciaCorsa(){
+  var corsa=$('corsa');
+  corsa.addEventListener('scroll',function(){
+    if(corsaProgrammato)return;
+    clearTimeout(corsaTimer);
+    corsaTimer=setTimeout(function(){
+      var cx=corsa.getBoundingClientRect().left+corsa.clientWidth/2, best=-1, bd=1e9;
+      HOMES.forEach(function(h,i){
+        if(!h.card)return;
+        var r=h.card.getBoundingClientRect();
+        var d=Math.abs(r.left+r.width/2-cx);
+        if(d<bd){bd=d;best=i;}
+      });
+      if(best>=0&&best!==SEL)seleziona(best,'rail');
+    },170);
+  },{passive:true});
+  $('railGiu').addEventListener('click',function(){
+    railStato(!document.body.classList.contains('rail-giu'));
+  });
+}
+function portaInVista(h){
+  if(!h.card)return;
+  corsaProgrammato=true;
+  try{h.card.scrollIntoView({behavior:RIDOTTO?'auto':'smooth',inline:'center',block:'nearest'});}catch(e){}
+  setTimeout(function(){corsaProgrammato=false;},RIDOTTO?60:520);
+}
+
+/* ── LA SELEZIONE: un gesto, quattro risposte (pin, fili, camera, card) ── */
+function seleziona(i,da){
+  var h=HOMES[i]; if(!h)return;
+  if(SEL>=0&&HOMES[SEL]){
+    if(HOMES[SEL].pinEl)HOMES[SEL].pinEl.classList.remove('sel');
+    if(HOMES[SEL].card)HOMES[SEL].card.classList.remove('sel');
+  }
+  SEL=i;
+  if(h.pinEl)h.pinEl.classList.add('sel');
+  if(h.card)h.card.classList.add('sel');
+  if(da!=='rail')portaInVista(h);
+  if(MAPVIVA){
+    fili(h.co);
+    accendiPalazzo(h);
+    var cam=SK.cameraFor(h.co,i);
+    try{
+      if(RIDOTTO)map.jumpTo({center:cam.center,zoom:cam.zoom,pitch:cam.pitch,bearing:cam.bearing});
+      else map.flyTo({center:cam.center,zoom:cam.zoom,pitch:cam.pitch,bearing:cam.bearing,duration:cam.duration,essential:true,curve:1.35,offset:[0,-40]});
+    }catch(e){}
+  }
+  peekHide();
+}
+function deseleziona(){
+  if(SEL>=0&&HOMES[SEL]){
+    if(HOMES[SEL].pinEl)HOMES[SEL].pinEl.classList.remove('sel');
+    if(HOMES[SEL].card)HOMES[SEL].card.classList.remove('sel');
+  }
+  SEL=-1;
+  if(MAPVIVA){puliziaFili();spegniPalazzo();}
+}
+
+/* ── I FILI — i tuoi posti sempre, Roma fino a sei linee ── */
+function fili(co){
+  if(!map.getSource('links'))return;
+  var n=SK.nearestAnchors(co,MYP,6);
+  var feats=n.anchors.map(function(x){return {type:'Feature',geometry:{type:'LineString',coordinates:SK.arc(co,[x.A[0],x.A[1]],0.12,44)}};});
+  var lit={};
+  n.anchors.forEach(function(x){lit[x.i]=x.d;});
+  n.mine.forEach(function(x,k){
+    feats.push({type:'Feature',geometry:{type:'LineString',coordinates:SK.arc(co,[x.p.lng,x.p.lat],-0.12,44)}});
+    var m=MYP_MK[k]; if(m){m.el.classList.add('lit');m.dEl.textContent=SK.distLabel(x.d);}
+  });
+  ANCHOR_MK.forEach(function(m,i){
+    if(i in lit){m.el.classList.add('lit');m.el.style.opacity='';m.dEl.textContent=SK.distLabel(lit[i]);}
+    else{m.el.classList.remove('lit');m.el.style.opacity='.18';m.dEl.textContent='';}
   });
   map.getSource('links').setData({type:'FeatureCollection',features:feats});
 }
-function clearLinks(){
+function puliziaFili(){
   if(map.getSource('links'))map.getSource('links').setData({type:'FeatureCollection',features:[]});
-  ANCHOR_MK.forEach(function(m){m.el.classList.remove('lit');m.el.style.opacity='';});
+  ANCHOR_MK.forEach(function(m){m.el.classList.remove('lit');m.el.style.opacity='';m.dEl.textContent='';});
   MYP_MK.forEach(function(m){m.el.classList.remove('lit');m.dEl.textContent='';});
 }
-function buildAnchors(){
-  map.addSource('links',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
-  map.addLayer({id:'links-glow',type:'line',source:'links',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#FFD700','line-width':6,'line-blur':6,'line-opacity':.22}});
-  map.addLayer({id:'links-line',type:'line',source:'links',layout:{'line-cap':'round'},paint:{'line-color':'#FFE680','line-width':1.6,'line-opacity':.9,'line-dasharray':[1,1.6]}});
-  ANCHORS.forEach(function(A){
-    var el=document.createElement('div');el.className='sky-anchor';
-    var ic=document.createElement('span');ic.className='ic';ic.textContent=ANCHOR_ICON[A[3]]||'•';
-    var nm=document.createElement('span');nm.textContent=A[2];
-    var d=document.createElement('span');d.className='d';
-    el.appendChild(ic);el.appendChild(nm);el.appendChild(d);
-    ANCHOR_MK.push({el:el,dEl:d,mk:new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([A[0],A[1]]).addTo(map)});
-  });
-  map.on('click',clearLinks); // tapping empty map dismisses the lines
+
+/* ── L'ANELLO D'ORO sotto il palazzo — SOLO su pin exact (boom-geo:
+   su una via senza civico il palazzo sotto il pin è arbitrario, e
+   illuminarlo come «il tuo» è una bugia in piccolo). ── */
+function anello(co,r,n){
+  n=n||40;r=r||0.00024;
+  var pts=[];for(var i=0;i<=n;i++){var a=i/n*Math.PI*2;pts.push([co[0]+r*Math.cos(a),co[1]+r*Math.sin(a)*0.75]);}
+  return {type:'Feature',geometry:{type:'Polygon',coordinates:[pts]}};
+}
+function accendiPalazzo(h){
+  spegniPalazzo();
+  if(h.prec!=='exact'||!h.vero||!map.getSource('boom-ring'))return;
+  map.getSource('boom-ring').setData({type:'FeatureCollection',features:[anello(h.vero)]});
+}
+function spegniPalazzo(){
+  if(map&&map.getSource&&map.getSource('boom-ring'))
+    map.getSource('boom-ring').setData({type:'FeatureCollection',features:[]});
 }
 
-function gradeColor(){
-  // FULL COLOUR (same treatment as the listing 3D explorer): keep liberty's real
-  // palette, only declutter tiny POI icons. Travertine-graded 3D buildings,
-  // hybrid satellite layer (hidden until toggled) and real terrain.
-  try{
-    map.getStyle().layers.forEach(function(L){try{
-      if(L.type==='symbol'&&/poi|housenumber|aeroway|airport/.test(L.id)){map.setLayoutProperty(L.id,'visibility','none');return;}
-    }catch(e){}});
-    try{
-      map.addSource('sky-sat',{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256,maxzoom:19,attribution:'Imagery © Esri, Maxar, Earthstar Geographics'});
-      var firstSym=(map.getStyle().layers.find(function(L){return L.type==='symbol'})||{}).id;
-      map.addLayer({id:'sky-sat-l',type:'raster',source:'sky-sat',layout:{visibility:'none'},paint:{'raster-opacity':1,'raster-fade-duration':300}},firstSym);
-    }catch(e){}
-    try{
-      map.addSource('sky-dem',{type:'raster-dem',tiles:['https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png'],encoding:'terrarium',tileSize:256,maxzoom:13});
-      map.setTerrain({source:'sky-dem',exaggeration:1.15});
-    }catch(e){}
-    var srcs=Object.keys(map.getStyle().sources||{});
-    var src=srcs.find(function(s){return /openmaptiles|vector|planet/i.test(s);})||srcs[0];
-    if(src)map.addLayer({id:'sky-3d',type:'fill-extrusion',source:src,'source-layer':'building',minzoom:13,paint:{'fill-extrusion-color':['interpolate',['linear'],['coalesce',['get','render_height'],10],0,'#B8AD97',14,'#C8BDA5',32,'#D6CBB2',60,'#E2D8C0',110,'#EFE6CF'],'fill-extrusion-height':['coalesce',['get','render_height'],12],'fill-extrusion-base':['coalesce',['get','render_min_height'],0],'fill-extrusion-opacity':.92}});
-  }catch(e){}
-  try{ if(map.setSky)map.setSky({'sky-color':'#8FB8E8','horizon-color':'#F2DEB6','fog-color':'#E8E0CE','sky-horizon-blend':.55,'horizon-fog-blend':.5,'fog-ground-blend':.35}); }catch(e){}
-  // Map ⇄ Satellite chip in the existing filter bar
-  try{
-    var fl=document.getElementById('filters');
-    if(fl&&map.getLayer('sky-sat-l')&&!document.getElementById('satChip')){
-      var chip=document.createElement('button');chip.className='chip';chip.id='satChip';chip.type='button';chip.textContent='🛰 Satellite';
-      chip.addEventListener('click',function(){
-        var on=chip.classList.toggle('on');
-        try{map.setLayoutProperty('sky-sat-l','visibility',on?'visible':'none');}catch(e){}
-        try{map.setPaintProperty('sky-3d','fill-extrusion-opacity',on?0.45:0.92);}catch(e){}
-      });
-      fl.appendChild(chip);
-    }
-  }catch(e){}
-}
-
-/* ── I TUOI POSTI — la stessa memoria del detail (boom:pois): scritti
-   una volta, ogni superficie risponde. Qui diventano ancore VIVE. ── */
-var TIENI=null, VICINO=false;
-var MYP=[];
-function mieiLetti(){try{return JSON.parse(localStorage.getItem('boom:pois')||'[]')}catch(e){return[]}}
-function mieiSerba(a){try{localStorage.setItem('boom:pois',JSON.stringify(a.slice(0,4)))}catch(e){}}
-var MYP_MK=[];
-function buildMyPlaces(){
-  MYP=mieiLetti();
-  MYP_MK.forEach(function(m){try{m.mk.remove()}catch(e){}});
-  MYP_MK=[];
-  if(!map)return;
-  MYP.forEach(function(p){
-    var el=document.createElement('div');el.className='sky-mine';
-    var nm=document.createElement('span');nm.textContent='◆ '+p.name;
-    var d=document.createElement('span');d.className='d';
-    el.appendChild(nm);el.appendChild(d);
-    MYP_MK.push({el:el,dEl:d,p:p,mk:new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([p.lng,p.lat]).addTo(map)});
-  });
-  var vc=document.getElementById('vicinoChip');
-  if(vc){vc.hidden=!MYP.length;if(!MYP.length){VICINO=false;vc.classList.remove('on');}}
-  if(map&&map.getSource&&map.getSource('links'))clearLinks();
-  applyFilter();
-}
-window.addEventListener('message',function(e){
-  if(e.origin!==location.origin)return;
-  var d=e.data||{};
-  if(d.t==='boomTieni'&&Array.isArray(d.ids)){TIENI=new Set(d.ids.map(String));if(map)applyFilter();}
-});
-
-/* I tasti diretti nel popup — stessa onestà boom-geo del detail: Street
-   View solo dove il pin è una strada vera (exact/street); su un centroide
-   aprirebbe una via qualunque. Coordinate VERE del doc, mai quelle del
-   pin (spread() le sposta per non sovrapporre i marker). */
-function pinChips(l){
-  var la=num(l.lat), ln=num(l.lng);
-  if(!la||!ln) return '';
-  var lvl='zone';
-  try{ if(window.BOOM_GEO) lvl=BOOM_GEO.pinPrecision(l).level; }catch(e){}
-  var sv=(lvl==='exact'||lvl==='street')
-    ? '<a class="pc-mini" target="_blank" rel="noopener" href="https://www.google.com/maps/@?api=1&map_action=pano&viewpoint='+la+','+ln+'">⟲ Street View</a>'
-    : '';
-  return '<div class="pc-row">'+sv+
-    '<a class="pc-mini" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination='+la+','+ln+'">➤ Directions</a></div>';
-}
-/* l'anteprima hover: un solo nodo riusato per tutti i pin; sparisce al
-   primo movimento della mappa o al click (il popup prende il suo posto). */
-var PEEK=null,
-    PEEK_HOVER=!!(window.matchMedia&&matchMedia('(hover:hover) and (pointer:fine)').matches);
+/* ── I PIN ── */
+var PEEK=null;
 function peekEl(){
   if(PEEK)return PEEK;
   PEEK=document.createElement('div');PEEK.className='pin-peek';
@@ -341,15 +402,14 @@ function peekEl(){
   document.body.appendChild(PEEK);
   return PEEK;
 }
-function peekShow(el,l,price,rented){
-  var k=peekEl(),r=el.getBoundingClientRect();
-  var img=l.image||(l.images&&l.images[0])||'';
-  k.querySelector('.im').style.backgroundImage=img?'url(\''+String(img).replace(/'/g,'')+'\')':'';
-  k.querySelector('.nm').textContent=l.name||'Apartment';
+function peekShow(h){
+  var k=peekEl(),r=h.pinEl.getBoundingClientRect(),img=foto(h.l);
+  k.querySelector('.im').style.backgroundImage=img?'url(\''+img.replace(/'/g,'')+'\')':'';
+  k.querySelector('.nm').textContent=h.l.name||'Apartment';
   var pz=k.querySelector('.pz');
-  pz.textContent=(l.zone||l.neighborhood)?String(l.zone||l.neighborhood)+' · ':'';
+  pz.textContent=(h.l.zone||h.l.neighborhood)?String(h.l.zone||h.l.neighborhood)+' · ':'';
   var b=document.createElement('b');
-  b.textContent=rented?'Rented':(price?fmt(price)+'/mo':'On request');
+  b.textContent=h.lane.bookable?(h.price?fmt(h.price)+'/mo':'On request'):'Rented';
   pz.appendChild(b);
   var x=Math.min(Math.max(r.left+r.width/2,104),window.innerWidth-104);
   var top=r.top-168;
@@ -359,97 +419,81 @@ function peekShow(el,l,price,rented){
   try{map.once('movestart',peekHide);}catch(e){}
 }
 function peekHide(){if(PEEK)PEEK.classList.remove('su');}
-function makePin(l,co){
-  var price=num(l.price);
-  var rented=/rented|affittato|off_market/.test(String(l.status||'available').toLowerCase());
-  var el=document.createElement('div'); el.className='sky-pin'; el.__price=price||0; el.__rented=rented; el.__id=String(l.id||''); el.__co=co;
-  el.innerHTML='<span class="p'+(rented?' rented':'')+'">'+(price?fmt(price):'—')+'</span>';
-  var img=l.image||(l.images&&l.images[0])||'';
-  var pop=new maplibregl.Popup({offset:18,closeButton:true,maxWidth:'240px',focusAfterOpen:false}).setHTML(
-    '<div class="pc-img"'+(img?' style="background-image:url(\''+img.replace(/'/g,'')+'\')"':'')+'></div>'+
-    '<div class="pc-body"><div class="pc-zone">'+(l.zone||l.neighborhood||'Rome')+'</div>'+
-    '<div class="pc-name">'+(l.name||'Apartment')+'</div>'+
-    '<span class="pc-price">'+(price?fmt(price):'On request')+(price?'<small> /mo</small>':'')+'</span>'+
-    '<a class="pc-go" href="/listing/'+encodeURIComponent(l.id)+'">View this home →</a>'+
-    pinChips(l)+'</div>'
-  );
-  el.addEventListener('click',function(){
-    peekHide();
-    showLinks(co);
-    try{map.easeTo({center:co,offset:[0,90],duration:650,zoom:map.getZoom()});}catch(e){}
+function costruisciPin(){
+  var bounds=new maplibregl.LngLatBounds(), messi=0;
+  HOMES.forEach(function(h,i){
+    var el=document.createElement('div');el.className='sky-pin';
+    var circa=(h.prec==='zone'||h.prec==='none')?'≈ ':'';
+    el.innerHTML='<span class="p'+(h.lane.bookable?'':' rented')+'">'
+      +(h.lane.bookable?(h.price?circa+fmt(h.price):'—'):'Rented')+'</span>';
+    el.addEventListener('click',function(){seleziona(i,'pin');});
+    if(HOVER){
+      el.addEventListener('mouseenter',function(){if(i!==SEL)peekShow(h);});
+      el.addEventListener('mouseleave',peekHide);
+    }
+    h.pinEl=el;
+    h.mk=new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat(h.co).addTo(map);
+    bounds.extend(h.co);messi++;
   });
-  if(PEEK_HOVER){
-    el.addEventListener('mouseenter',function(){peekShow(el,l,price,rented);});
-    el.addEventListener('mouseleave',peekHide);
-  }
-  MARKERS.push(new maplibregl.Marker({element:el,anchor:'bottom'}).setLngLat(co).setPopup(pop).addTo(map));
+  return messi?bounds:null;
 }
 
-function applyFilter(){
-  var shown=0;
-  MARKERS.forEach(function(mk){
-    var el=mk.getElement();
-    var ok=(MAXFILTER===0)?!el.__rented:(el.__price>0&&el.__price<=MAXFILTER&&!el.__rented);
-    /* il ponte embed: la discovery dice quali case restano dopo i SUOI
-       filtri — un solo Skyline, la selezione arriva da fuori */
-    if(ok&&TIENI&&!TIENI.has(el.__id))ok=false;
-    /* vicino al mio posto: ~2km in linea d'aria ≈ 25' a piedi (stessa
-       stima onesta delle altre superfici, mai spacciata per percorso) */
+/* ── FILTRI ── */
+function applica(){
+  var visibili=0;
+  HOMES.forEach(function(h){
+    var ok=h.lane.bookable;
+    if(ok&&MAXFILTER>0)ok=h.price>0&&h.price<=MAXFILTER;
+    if(ok&&TIENI&&!TIENI.has(String(h.l.id)))ok=false;
     if(ok&&VICINO&&MYP.length){
-      var dmin=1e9;MYP.forEach(function(p){var d=haversine([el.__co[0],el.__co[1]],[p.lng,p.lat]);if(d<dmin)dmin=d;});
+      var dmin=1e9;MYP.forEach(function(p){var d=SK.haversine(h.co,[p.lng,p.lat]);if(d<dmin)dmin=d;});
       if(dmin>2.0)ok=false;
     }
-    el.classList.toggle('dim',!ok); if(ok)shown++;
+    if(h.pinEl)h.pinEl.classList.toggle('dim',!ok&&h.lane.bookable);
+    if(h.card)h.card.style.display=ok?'':'none';
+    if(ok)visibili++;
   });
-  var c=$('count'); if(c){c.style.display='block'; c.innerHTML='<b>'+shown+'</b> homes'+(MAXFILTER?' under '+fmt(MAXFILTER):' across Rome')+'<span class="hint"> · tap one for its commute lines</span>';}
+  var c=$('conta');
+  if(c)c.innerHTML='<b>'+visibili+'</b> homes'+(MAXFILTER?' under '+fmt(MAXFILTER):' across Rome')
+    +'<span class="hint"> · tap one for its commute lines</span>';
+  if(SEL>=0&&HOMES[SEL]&&HOMES[SEL].card&&HOMES[SEL].card.style.display==='none')deseleziona();
 }
-
-async function boot(){
-  var listings=[];
-  try{ var r=await fetch('/api/listings',{cache:'no-store'}); var j=await r.json(); listings=(j&&Array.isArray(j.listings))?j.listings:(Array.isArray(j)?j:[]); }catch(e){}
-  if(!listings.length){ msg('Could not load listings — try the list view.'); return; }
-  var EMB=document.documentElement.classList.contains('emb');
-  map=new maplibregl.Map({container:'map',style:'https://tiles.openfreemap.org/styles/liberty',center:ROME,zoom:11.2,pitch:55,bearing:-12,antialias:true,
-    /* in finestra (home/discovery) la rotella scorre la PAGINA: lo zoom
-       vuole Ctrl+scroll (due dita su touch) — mai piu' lo scroll del
-       sito che si impalla dentro la mappa */
-    cooperativeGestures:EMB});
-  map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'bottom-right');
-  map.addControl(new maplibregl.FullscreenControl(),'bottom-right');
-  await new Promise(function(res){ map.on('load',res); });
-  gradeColor();
-  buildAnchors();
-  buildMyPlaces();
-  $('load').classList.add('off');
-  var bounds=new maplibregl.LngLatBounds(), placed=0;
-  listings.forEach(function(l){
-    if(String(l.status||'').toLowerCase()==='draft' || !l.name) return;
-    var base=null, la=num(l.lat), ln=num(l.lng);
-    if(la&&ln) base=[ln,la]; else base=zoneCoord(l);
-    if(!base) return;
-    var co=spread(base);
-    makePin(l,co); bounds.extend(co); placed++;
-  });
-  if(placed){ try{ map.fitBounds(bounds,{padding:90,maxZoom:14.5,duration:1500,pitch:55}); }catch(e){} applyFilter(); }
-  else { msg('No mappable homes yet — try the list view.'); $('load').classList.remove('off'); }
-}
-
 [].forEach.call(document.querySelectorAll('#filters .chip[data-max]'),function(c){
   c.addEventListener('click',function(){
     [].forEach.call(document.querySelectorAll('#filters .chip[data-max]'),function(x){x.classList.toggle('on',x===c);});
-    MAXFILTER=Number(c.getAttribute('data-max'))||0; applyFilter();
+    MAXFILTER=Number(c.getAttribute('data-max'))||0; applica();
   });
 });
+/* il ponte embed: la discovery dice quali case restano dopo i SUOI filtri */
+window.addEventListener('message',function(e){
+  if(e.origin!==location.origin)return;
+  var d=e.data||{};
+  if(d.t==='boomTieni'&&Array.isArray(d.ids)){TIENI=new Set(d.ids.map(String));applica();}
+});
 
-/* ── il pannello dei posti ── */
-(function(){
-  var velo=document.getElementById('mieiVelo'),chip=document.getElementById('mieiChip'),
-      q=document.getElementById('mieiQ'),sug=document.getElementById('mieiSug'),
-      righe=document.getElementById('mieiRighe'),chiudi=document.getElementById('mieiChiudi'),
-      vicino=document.getElementById('vicinoChip');
+/* ── I TUOI POSTI (stessa memoria del detail: boom:pois) ── */
+function mieiLetti(){try{return JSON.parse(localStorage.getItem('boom:pois')||'[]')}catch(e){return[]}}
+function mieiSerba(a){try{localStorage.setItem('boom:pois',JSON.stringify(a.slice(0,4)))}catch(e){}}
+function costruisciPosti(){
+  MYP=mieiLetti();
+  MYP_MK.forEach(function(m){try{m.mk.remove()}catch(e){}});
+  MYP_MK=[];
+  if(MAPVIVA)MYP.forEach(function(p){
+    var el=document.createElement('div');el.className='sky-mine';
+    var nm=document.createElement('span');nm.textContent='◆ '+p.name;
+    var d=document.createElement('span');d.className='d';
+    el.appendChild(nm);el.appendChild(d);
+    MYP_MK.push({el:el,dEl:d,p:p,mk:new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([p.lng,p.lat]).addTo(map)});
+  });
+  var vc=$('vicinoChip');
+  if(vc){vc.hidden=!MYP.length;if(!MYP.length){VICINO=false;vc.classList.remove('on');}}
+  if(MAPVIVA&&map.getSource('links'))puliziaFili();
+  applica();
+}
+(function pannello(){
+  var velo=$('mieiVelo'),chip=$('mieiChip'),q=$('mieiQ'),sug=$('mieiSug'),
+      righe=$('mieiRighe'),chiudi=$('mieiChiudi'),vicino=$('vicinoChip');
   if(!velo||!chip)return;
-  /* finché non c'è un posto salvato il chip si presenta da solo
-     (tratteggio oro); poi porta il conto — lo strumento si vede */
   function invito(){
     var n=mieiLetti().length;
     chip.classList.toggle('invito',!n);
@@ -459,13 +503,12 @@ async function boot(){
     var a=mieiLetti();
     invito();
     righe.innerHTML=a.length?a.map(function(p,i){
-      return '<div class="r"><b>◆ '+String(p.name).replace(/[<>&]/g,'')+'</b>'
-        +'<button type="button" data-i="'+i+'" aria-label="Remove">✕</button></div>';
+      return '<div class="r"><b>◆ '+esc(p.name)+'</b><button type="button" data-i="'+i+'" aria-label="Remove">✕</button></div>';
     }).join(''):'<p class="miei-vuota">Nothing saved yet — type a place above, once.</p>';
   }
   righe.addEventListener('click',function(e){
     var b=e.target.closest('button[data-i]');if(!b)return;
-    var a=mieiLetti();a.splice(+b.dataset.i,1);mieiSerba(a);lista();buildMyPlaces();
+    var a=mieiLetti();a.splice(+b.dataset.i,1);mieiSerba(a);lista();costruisciPosti();
   });
   var attesa=null;
   q.addEventListener('input',function(){
@@ -473,14 +516,13 @@ async function boot(){
     var t=q.value.trim();
     if(t.length<3){sug.innerHTML='';return;}
     attesa=setTimeout(function(){
-      fetch('https://photon.komoot.io/api/?q='+encodeURIComponent(t)
-        +'&lat=41.893&lon=12.483&limit=4&lang=en&zoom=12')
+      fetch('https://photon.komoot.io/api/?q='+encodeURIComponent(t)+'&lat=41.893&lon=12.483&limit=4&lang=en&zoom=12')
         .then(function(r){return r.json()})
         .then(function(j){
           sug.innerHTML=(j.features||[]).slice(0,4).map(function(ft){
             var p=ft.properties||{};
-            var nome=(p.name||p.street||'Place').replace(/"/g,'');
-            var dove=[p.suburb||p.district,p.city].filter(Boolean).join(', ');
+            var nome=esc(p.name||p.street||'Place');
+            var dove=esc([p.suburb||p.district,p.city].filter(Boolean).join(', '));
             return '<button type="button" data-lat="'+ft.geometry.coordinates[1]
               +'" data-lng="'+ft.geometry.coordinates[0]+'" data-n="'+nome
               +'"><b>'+nome+'</b><span>'+dove+'</span></button>';
@@ -494,23 +536,154 @@ async function boot(){
     var a=mieiLetti();
     if(!a.some(function(p){return p.name===b.dataset.n}))
       a.unshift({name:b.dataset.n,lat:+b.dataset.lat,lng:+b.dataset.lng});
-    mieiSerba(a);sug.innerHTML='';q.value='';lista();buildMyPlaces();
+    mieiSerba(a);sug.innerHTML='';q.value='';lista();costruisciPosti();
   });
   chip.addEventListener('click',function(){velo.hidden=false;lista();q.focus();});
   chiudi.addEventListener('click',function(){velo.hidden=true;});
   velo.addEventListener('click',function(e){if(e.target===velo)velo.hidden=true;});
   if(vicino)vicino.addEventListener('click',function(){
-    VICINO=!VICINO;vicino.classList.toggle('on',VICINO);applyFilter();
+    VICINO=!VICINO;vicino.classList.toggle('on',VICINO);applica();
   });
   invito();
 })();
 
-(function loadMapLibre(){
-  if(window.maplibregl)return boot();
+/* ── LA MAPPA — la notte, i layer BOOM, la camera cinematografica ── */
+function stileNotte(){
+  /* lo stile si scarica, si RILEGGE in notturno (motore puro), e solo
+     allora nasce la mappa: mai il flash della carta chiara. Se il JSON
+     non arriva, si passa l'URL nudo: mappa chiara ma VIVA. */
+  var URL_STILE='https://tiles.openfreemap.org/styles/liberty';
+  return new Promise(function(res){
+    var ko=setTimeout(function(){res(URL_STILE);},6000);
+    fetch(URL_STILE).then(function(r){return r.ok?r.json():null;})
+      .then(function(j){clearTimeout(ko);res(j?SK.nightStyle(j):URL_STILE);})
+      .catch(function(){clearTimeout(ko);res(URL_STILE);});
+  });
+}
+function layerBoom(){
+  try{
+    var srcs=Object.keys(map.getStyle().sources||{});
+    var src=srcs.find(function(s){return /openmaptiles|vector|planet/i.test(s);})||srcs[0];
+    if(src)map.addLayer({id:'sky-3d',type:'fill-extrusion',source:src,'source-layer':'building',minzoom:13,paint:{
+      'fill-extrusion-color':['interpolate',['linear'],['coalesce',['get','render_height'],10]].concat(SK.EXTRUSION.ramp),
+      'fill-extrusion-height':['coalesce',['get','render_height'],12],
+      'fill-extrusion-base':['coalesce',['get','render_min_height'],0],
+      'fill-extrusion-opacity':SK.EXTRUSION.opacity}});
+  }catch(e){}
+  try{
+    map.addSource('boom-ring',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+    map.addLayer({id:'boom-ring-l',type:'fill-extrusion',source:'boom-ring',paint:{
+      'fill-extrusion-color':'#FFD700','fill-extrusion-height':3,'fill-extrusion-base':0,'fill-extrusion-opacity':.4}});
+  }catch(e){}
+  try{
+    map.addSource('links',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+    map.addLayer({id:'links-glow',type:'line',source:'links',layout:{'line-cap':'round','line-join':'round'},paint:{'line-color':'#FFD700','line-width':6,'line-blur':6,'line-opacity':.22}});
+    map.addLayer({id:'links-line',type:'line',source:'links',layout:{'line-cap':'round'},paint:{'line-color':'#FFE680','line-width':1.6,'line-opacity':.9,'line-dasharray':[1,1.6]}});
+  }catch(e){}
+  try{
+    map.addSource('sky-sat',{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256,maxzoom:19,attribution:'Imagery © Esri, Maxar, Earthstar Geographics'});
+    var firstSym=(map.getStyle().layers.find(function(L){return L.type==='symbol'})||{}).id;
+    map.addLayer({id:'sky-sat-l',type:'raster',source:'sky-sat',layout:{visibility:'none'},paint:{'raster-opacity':1,'raster-fade-duration':300}},firstSym);
+    var sat=$('satChip');
+    if(sat){sat.hidden=false;sat.addEventListener('click',function(){
+      var on=sat.classList.toggle('on');
+      try{map.setLayoutProperty('sky-sat-l','visibility',on?'visible':'none');}catch(e){}
+      try{map.setPaintProperty('sky-3d','fill-extrusion-opacity',on?0.45:SK.EXTRUSION.opacity);}catch(e){}
+    });}
+  }catch(e){}
+  try{if(map.setSky)map.setSky(SK.SKY);}catch(e){}
+  try{if(map.setLight)map.setLight(SK.LIGHT);}catch(e){}
+  SK.ANCHORS.forEach(function(A){
+    var el=document.createElement('div');el.className='sky-anchor';
+    var ic=document.createElement('span');ic.className='ic';ic.textContent=SK.ANCHOR_ICON[A[3]]||'•';
+    var nm=document.createElement('span');nm.textContent=A[2];
+    var d=document.createElement('span');d.className='d';
+    el.appendChild(ic);el.appendChild(nm);el.appendChild(d);
+    ANCHOR_MK.push({el:el,dEl:d,mk:new maplibregl.Marker({element:el,anchor:'center'}).setLngLat([A[0],A[1]]).addTo(map)});
+  });
+  map.on('click',function(e){ if(!e.originalEvent.target.closest('.sky-pin'))deseleziona(); });
+}
+function arrivo(bounds){
+  /* l'arrivo in aereo: alti e piatti, poi si scende inclinandosi */
+  var centro=bounds?bounds.getCenter():SK.INTRO.from.center;
+  if(RIDOTTO){
+    try{map.jumpTo({center:centro,zoom:SK.INTRO.to.zoom,pitch:SK.INTRO.to.pitch,bearing:SK.INTRO.to.bearing});}catch(e){}
+    return;
+  }
+  try{
+    map.jumpTo(SK.INTRO.from);
+    map.flyTo({center:centro,zoom:SK.INTRO.to.zoom,pitch:SK.INTRO.to.pitch,bearing:SK.INTRO.to.bearing,
+      duration:SK.INTRO.to.duration,essential:true,curve:1.2});
+  }catch(e){}
+}
+function bootMappa(){
+  /* il motore arriva dal CDN in asincrono: se non c'è ANCORA si aspetta
+     (attendiMotore), non si dichiara subito il fallimento */
+  if(!window.maplibregl){attendiMotore();return;}
+  stileNotte().then(function(stile){
+    try{
+      map=new maplibregl.Map({container:'map',style:stile,center:SK.INTRO.from.center,
+        zoom:SK.INTRO.from.zoom,pitch:0,bearing:0,antialias:true,cooperativeGestures:EMB});
+    }catch(e){senzaMappa();return;}
+    map.addControl(new maplibregl.NavigationControl({visualizePitch:true}),'bottom-right');
+    if(!EMB)map.addControl(new maplibregl.FullscreenControl(),'bottom-right');
+    var morto=setTimeout(senzaMappa,15000);   /* tiles che non arrivano mai */
+    map.on('error',function(){ /* un tile perso non è la fine: silenzio */ });
+    map.once('load',function(){
+      clearTimeout(morto);
+      MAPVIVA=true;
+      layerBoom();
+      var bounds=costruisciPin();
+      costruisciPosti();
+      $('load').classList.add('off');
+      arrivo(bounds);
+      applica();
+    });
+  });
+}
+function senzaMappa(){
+  /* la mappa può mancare (motore o tiles): le case restano SFOGLIABILI
+     dalla pellicola, ogni card apre la sua pagina — mai un vicolo cieco */
+  if(MAPVIVA)return;
+  document.body.classList.add('senza-mappa');
+  msg('The 3D map is unreachable right now — browse the homes below, or <a href="/apartments">open the list view</a>.',true);
+}
+
+/* ── BOOT: prima il DATO (la pellicola vive comunque), poi la mappa ── */
+(async function boot(){
+  if(!SK||!window.BOOM_DISPO){msg('Something went wrong — open the list view.');return;}
+  var listings=[];
+  try{
+    var r=await fetch('/api/listings',{cache:'no-store'});
+    var j=await r.json();
+    listings=(j&&Array.isArray(j.listings))?j.listings:(Array.isArray(j)?j:[]);
+  }catch(e){}
+  if(!listings.length){
+    msg('Could not load the homes — <a href="/apartments">try the list view</a>.',true);
+    return;
+  }
+  costruisciCase(listings);
+  costruisciPellicola();
+  agganciaCorsa();
+  costruisciPosti();          /* i posti valgono anche senza mappa (filtro ≤25′) */
+  applica();
+  bootMappa();
+})();
+
+/* il motore della mappa, per ultimo: la pagina è già utile senza */
+var MOTORE_ATTESO=false, MOTORE_KO=false;
+function attendiMotore(){
+  if(MOTORE_KO){senzaMappa();return;}
+  MOTORE_ATTESO=true;
+  /* rete lentissima o bloccata senza un onerror: non si aspetta in eterno */
+  setTimeout(function(){ if(!MAPVIVA&&!window.maplibregl)senzaMappa(); },15000);
+}
+(function caricaMapLibre(){
+  if(window.maplibregl)return;
   var css=document.createElement('link');css.rel='stylesheet';css.href='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.css';document.head.appendChild(css);
   var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/maplibre-gl@4.7.1/dist/maplibre-gl.min.js';
-  s.onload=function(){ boot().catch(function(e){console.error('Skyline:',e);msg('Something went wrong — try the list view.');}); };
-  s.onerror=function(){ msg('Map engine unavailable — open the list view.'); };
+  s.onload=function(){ if(MOTORE_ATTESO)bootMappa(); };
+  s.onerror=function(){ MOTORE_KO=true; if(MOTORE_ATTESO)senzaMappa(); };
   document.head.appendChild(s);
 })();
 })();
