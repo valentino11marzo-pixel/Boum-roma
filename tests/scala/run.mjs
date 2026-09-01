@@ -101,5 +101,43 @@ ok(preload === 4 && plain === 4,
 ok(/PERCHÉ QUI NON C'È crossorigin/.test(portal),
   'e la pagina porta scritto perché, così nessuno lo rimette senza sapere cosa costa');
 
+// ── LA REGOLA DI CLASSE: preload e script devono ACCORDARSI ────────────
+// Non è una faccenda di Firebase: un <link rel="preload" as="script"> e il
+// <script> che lo usa devono avere la STESSA modalità CORS. Disallineati, il
+// preload non si riusa — nel migliore dei casi si scarica due volte, nel
+// peggiore (WebKit) il caricamento resta appeso. Qui si controllano TUTTE le
+// pagine del sito, così l'errore che ha piantato il portale non può ripetersi
+// altrove senza che qualcuno se ne accorga.
+{
+  const { readdirSync, readFileSync: rf } = await import('node:fs');
+  const root = new URL('../../', import.meta.url).pathname;
+  const pagine = readdirSync(root).filter((f) => f.endsWith('.html'));
+  ok(pagine.length > 20, `si guardano tutte le pagine del sito (${pagine.length})`);
+
+  const disallineate = [];
+  let coppie = 0;
+  for (const f of pagine) {
+    const h = rf(root + f, 'utf8');
+    for (const m of h.matchAll(/<link\b[^>]*rel="preload"[^>]*>/g)) {
+      const tag = m[0];
+      if (!/as="script"/.test(tag)) continue;
+      const href = (tag.match(/href="([^"]+)"/) || [])[1];
+      if (!href) continue;
+      const preloadCors = /crossorigin/.test(tag);
+      // lo <script> che usa quello stesso href
+      const esc = href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const uso = h.match(new RegExp('<script\\b[^>]*src="' + esc + '"[^>]*>'));
+      if (!uso) continue;
+      coppie++;
+      const scriptCors = /crossorigin/.test(uso[0]);
+      if (preloadCors !== scriptCors) disallineate.push(`${f} → ${href} (preload ${preloadCors ? 'cors' : 'no-cors'}, script ${scriptCors ? 'cors' : 'no-cors'})`);
+    }
+  }
+  ok(coppie > 0, `il controllo VEDE delle coppie preload↔script (${coppie}) — una regola che non trova nulla passa sempre`);
+  ok(disallineate.length === 0,
+    'preload e script concordano sulla modalità CORS ovunque'
+    + (disallineate.length ? ':\n    ' + disallineate.join('\n    ') : ''));
+}
+
 console.log(`\n${fail ? '✗' : '✓'} scala: ${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);

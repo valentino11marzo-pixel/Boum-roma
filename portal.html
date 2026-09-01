@@ -195,10 +195,22 @@
         // non è ancora armata È il caso senza uscita: si accorcia l'attesa. La
         // grazia di 2,5s evita di sfrattare un boot sano per l'errore di una
         // risorsa secondaria (un'icona che manca non è un portale rotto).
-        window.addEventListener('error', function () {
+        //
+        // E VALE ANCHE PER UNA PROMESSA RIFIUTATA — la lezione del 1° settembre
+        // 2026. Qui c'era solo 'error', ma su WebKit il guasto vero arriva
+        // dall'altra porta: nei log di produzione di oggi, dal telefono
+        // dell'operatore, tre `unhandledrejection` con
+        // «Attempt to get records from database without an in-progress
+        // transaction» — IndexedDB che salta, cioè il magazzino in cui Firebase
+        // Auth tiene la sessione. Una promessa rifiutata non passa mai da
+        // window.onerror: la scorciatoia non scattava e restavano 15 secondi di
+        // rotella, che con un cliente davanti sono «non si apre».
+        var accorcia = function () {
             if (window.__portalBootArmed) return;
             setTimeout(function () { if (!window.__portalBootArmed) showEscape(); }, 2500);
-        });
+        };
+        window.addEventListener('error', accorcia);
+        window.addEventListener('unhandledrejection', accorcia);
     })();
     </script>
     <div class="auth hidden" id="authScreen">
