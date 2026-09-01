@@ -1,4 +1,4 @@
-// tests/scala/run.mjs — LA SCALA DI RICADUTA DEL CDN, PROVATA DAVVERO.
+// tests/scala/run.mjs — LA SCALA DI RICADUTA DEL CDN, E PERCHÉ NON È IN USO.
 //
 // Dai log del 31/08/2026: il portale dell'operatore ha riportato due volte
 // `{"message":"Script error.","source":"","line":0,"col":0,"stack":""}`.
@@ -79,11 +79,27 @@ ok(retried === 1, 'un solo tentativo per script: un CDN morto arriva al cartello
 
 await browser.close(); server.close(); cdn.close();
 
-// e la scala deve essere ATTACCATA a tutti e quattro i tag, o metà portale
-// resta cieco come prima
-const tags = (portal.match(/<script crossorigin="anonymous" src="https:\/\/www\.gstatic\.com\/firebasejs/g) || []).length;
-ok(tags === 4, `tutti e quattro gli SDK Firebase chiedono l'errore in chiaro (trovati ${tags})`);
-ok(!/<script src="https:\/\/www\.gstatic\.com\/firebasejs/.test(portal), 'nessun tag rimasto indietro senza crossorigin');
+// ── E PERCHÉ SUL PORTALE NON È ATTACCATA — 1 settembre 2026 ────────────
+// La scala funziona (i controlli qui sopra lo provano) e per un'ora è stata
+// attiva su portal.html. Poi l'operatore non è più riuscito a entrare da
+// Safari, con clienti dentro. Il difetto non era il CDN: in testa alla
+// pagina i quattro SDK hanno un <link rel="preload" as="script"> SENZA
+// crossorigin, e preload e richiesta vera devono avere la STESSA modalità
+// CORS. Disallineate, su WebKit il caricamento resta appeso — e la scala non
+// scattava nemmeno, perché non c'era un errore da gestire: solo attesa.
+//
+// Quindi la regola pinnata è l'OPPOSTO di quella di un'ora fa, e con la
+// ragione scritta accanto: sul percorso di boot del portale non si
+// sperimenta per avere un log più bello. Se un giorno servirà, crossorigin
+// va messo sul preload E sullo script INSIEME, e provato su un Safari vero.
+const conCross = (portal.match(/<script crossorigin="anonymous" src="https:\/\/www\.gstatic\.com\/firebasejs/g) || []).length;
+ok(conCross === 0, `nessuno SDK Firebase porta crossorigin sul percorso di boot (trovati ${conCross})`);
+const preload = (portal.match(/<link rel="preload" as="script" href="https:\/\/www\.gstatic\.com\/firebasejs/g) || []).length;
+const plain = (portal.match(/<script src="https:\/\/www\.gstatic\.com\/firebasejs/g) || []).length;
+ok(preload === 4 && plain === 4,
+  `preload e script sono ${preload} e ${plain}: stessa modalità CORS su entrambi — è il disallineamento che ha piantato il boot`);
+ok(/PERCHÉ QUI NON C'È crossorigin/.test(portal),
+  'e la pagina porta scritto perché, così nessuno lo rimette senza sapere cosa costa');
 
 console.log(`\n${fail ? '✗' : '✓'} scala: ${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);

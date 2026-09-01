@@ -260,20 +260,27 @@
             window.firebaseScriptsLoaded++;
             console.log(`Firebase script ${window.firebaseScriptsLoaded}/${window.firebaseScriptsTotal} loaded`);
         }
-        // ── «Script error.» — l'errore che non dice niente ──────────────
-        // Nei log di produzione (31/08) il portale ha riportato due volte
-        // `message:"Script error." source:"" line:0` — la forma che il
-        // browser dà quando a lanciare è uno script di un ALTRO dominio: per
-        // policy nasconde messaggio, file e riga. Cioè: sappiamo che il
-        // portale dell'operatore è andato in errore, e non possiamo sapere
-        // in cosa. Con crossorigin="anonymous" il browser mostra l'errore
-        // vero — ma SOLO se il CDN risponde con l'intestazione CORS.
+        // ── PERCHÉ QUI NON C'È crossorigin — 1 settembre 2026 ───────────
+        // «Script error.» senza file né riga è la forma che il browser dà
+        // quando a lanciare è uno script di un altro dominio, e
+        // crossorigin="anonymous" la smaschera. L'abbiamo messo, con una
+        // scala di ricaduta provata in un browser vero contro un CDN senza
+        // CORS. È durato un'ora: l'operatore non è più riuscito a entrare
+        // nel portale da Safari, con clienti dentro.
         //
-        // Quindi non si scommette: si scende una scala. Se la versione con
-        // crossorigin non carica, si RIMETTE lo stesso script senza — che è
-        // esattamente com'era prima — e solo se fallisce anche quella si
-        // mostra il cartello. Firebase è tutto il portale: qui un errore di
-        // giudizio non è un log illeggibile, è la pagina bianca.
+        // La scala copriva il caso sbagliato. Il difetto non era il CDN: in
+        // testa a questa pagina i QUATTRO SDK hanno un
+        // <link rel="preload" as="script"> SENZA crossorigin. Preload e
+        // richiesta vera devono avere la STESSA modalità CORS, altrimenti il
+        // preload non si riusa — e su WebKit quel disallineamento è noto per
+        // lasciare il caricamento appeso invece di fallire pulito. Il
+        // gestore d'errore non scattava nemmeno: non c'era nessun errore da
+        // gestire, solo attesa.
+        //
+        // La regola che resta: sul percorso di boot del portale non si
+        // sperimenta per avere un log più bello. Se un giorno serve davvero,
+        // crossorigin va messo sul preload E sullo script insieme, e provato
+        // su un Safari VERO prima di andare in produzione — non su Chromium.
         window.__fbRetried = {};
         function onFirebaseScriptError(e) {
             var el = e.target, src = el && el.src;
@@ -305,10 +312,10 @@
             `;
         }
     </script>
-    <script crossorigin="anonymous" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js" onload="onFirebaseScriptLoad()" onerror="onFirebaseScriptError(event)"></script>
-    <script crossorigin="anonymous" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js" onload="onFirebaseScriptLoad()" onerror="onFirebaseScriptError(event)"></script>
-    <script crossorigin="anonymous" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js" onload="onFirebaseScriptLoad()" onerror="onFirebaseScriptError(event)"></script>
-    <script crossorigin="anonymous" src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js" onload="onFirebaseScriptLoad()" onerror="onFirebaseScriptError(event)"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js" onload="onFirebaseScriptLoad()" onerror="onFirebaseScriptError(event)"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js" onload="onFirebaseScriptLoad()" onerror="onFirebaseScriptError(event)"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js" onload="onFirebaseScriptLoad()" onerror="onFirebaseScriptError(event)"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js" onload="onFirebaseScriptLoad()" onerror="onFirebaseScriptError(event)"></script>
     <!-- la regola della disponibilità visite (window.BOOM_AVAIL): puro,
          condiviso col server via settings/viewingAvailability e testato -->
     <script src="/js/viewing-availability.js"></script>
