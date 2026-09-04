@@ -1,3 +1,12 @@
+<!-- I MOTORI CONDIVISI. Fino al 31/08/2026 questi quattro tag esistevano
+     SOLO dentro apartment-detail.html (aggiunti a mano sul costruito): una
+     ricostruzione con costruisci-ld.py li avrebbe persi tutti, e la pagina
+     sarebbe caduta sui ripieghi senza che nessuno se ne accorgesse. Il
+     template emette cio che la pagina viva usa davvero. -->
+<script src="/js/boom-geo.js"></script>
+<script src="/js/dispo-engine.js"></script>
+<script src="/js/tempi-engine.js"></script>
+<script src="/js/mappa-engine.js"></script>
 <script>
 /* LA REGIA DELLA CASA — una casa alla volta, dal catalogo vero.
    Parte al load: il motore Solari è concatenato DOPO questo script. */
@@ -662,10 +671,21 @@
        doc publicGeo/tempi-roma): rete e orari di Roma Mobilità, non la
        linea d'aria. Dove la griglia non copre resta la stima di prima,
        DICHIARATA dal ≈ — mai un numero inventato. */
+    /* IL GRADO DI VERITA' DI OGNI NUMERO vive nel motore condiviso
+       (js/mappa-engine.js), non qui: la stessa camminata calcolata con due
+       velocita' diverse — 4,7 km/h qui e 4,8 nello Skyline e nel Pendolare
+       — dava due risposte diverse alla stessa domanda. Ora e' una sola. */
     function tempo(d, veri) {
-      if (d < 2.6) return Math.round(d / 4.7 * 60) + ' min walk';
-      if (veri != null) return veri + ' min';
-      return '≈' + Math.round(d * 4.2 + 10) + ' min';
+      if (window.BOOM_MAPPA) {
+        var t = BOOM_MAPPA.tempo(d, veri);
+        if (!t) return '';
+        return t.fonte === 'piedi' ? t.min + ' min walk'
+             : t.fonte === 'rete'  ? t.min + ' min'
+             : '≈' + t.min + ' min';
+      }
+      /* motore assente: si dice solo cio che e MISURATO, altrimenti
+         NIENTE — mai un'altra unita di misura al posto dei minuti. */
+      return veri != null ? veri + ' min' : '';
     }
     /* i vicini fissi: stazioni e atenei veri, i 4 piu vicini a QUESTA
        porta. Lo slug in coda è la chiave della griglia (tempi-engine). */

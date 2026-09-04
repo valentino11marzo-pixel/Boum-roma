@@ -3454,6 +3454,33 @@ grida al lupo si smette di ascoltarla. Soglia CLS 0,02, dieci volte sotto
 il «buono» di Google. Il test blocca ogni richiesta non locale: un test di
 layout non deve dipendere dalla rete.
 
+## Il catalogo dichiara i suoi prezzi (scripts/catalogo-schema.mjs)
+
+Su `/apartments` il canone e' un tabellone a palette: bello, e leggibile da
+un umano — ma nel LIVELLO DI TESTO la pagina esponeva **cinque prezzi in
+tutto** su 19 case, perche' le cifre stanno dentro le palette e non in un
+nodo di testo. L'`aria-label` c'e' (i lettori di schermo sono a posto) e
+`data-p` pure, ma i dati strutturati contenevano `CollectionPage` e basta:
+**zero `Offer`, zero prezzi**. Le SCHEDE singole li dichiarano da sempre
+(`api/listing.js`, Offer completa con `priceCurrency` e `unitText` MONTH);
+la vetrina — la pagina che un motore mostra per «apartments for rent in
+Rome» — no.
+
+L'`ItemList` si **deriva** dalle card che ci sono gia' (href, data-prezzo,
+data-zona, data-letti, data-mq, nome): nessun dato inventato e nessuna
+seconda fonte da tenere allineata. La disponibilita' segue la disciplina di
+`dispo-engine`: `InStock` solo su «Available now», `PreOrder` su «Free from
+<data>», e su tutto il resto NIENTE — una casa che non sappiamo quando si
+libera non si promette a un motore. Il campo camere resta `numberOfBedrooms`
+**come lo dichiara gia' `api/listing.js`**: divergere avrebbe prodotto due
+dichiarazioni in contraddizione sullo stesso annuncio, che e' peggio del
+dubbio. Regola in `tests/seo/run.mjs`: l'ItemList deve coprire TUTTE le card
+di build, o e' invecchiata e va rigenerata.
+
+**Nota sui dati** (Firestore, non codice): due annunci su 19 dichiarano un
+numero di camere incoerente col proprio nome — «Bilocale Centro» con 3
+camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
+
 ## Conventions
 
 - **Serverless deps live in `api/package.json`** (the manifest the Vercel

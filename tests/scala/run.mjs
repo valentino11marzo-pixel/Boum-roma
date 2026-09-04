@@ -1,4 +1,4 @@
-// tests/scala/run.mjs — LA SCALA DI RICADUTA DEL CDN, PROVATA DAVVERO.
+// tests/scala/run.mjs — LA SCALA DI RICADUTA DEL CDN, E PERCHÉ NON È IN USO.
 //
 // Dai log del 31/08/2026: il portale dell'operatore ha riportato due volte
 // `{"message":"Script error.","source":"","line":0,"col":0,"stack":""}`.
@@ -79,11 +79,65 @@ ok(retried === 1, 'un solo tentativo per script: un CDN morto arriva al cartello
 
 await browser.close(); server.close(); cdn.close();
 
-// e la scala deve essere ATTACCATA a tutti e quattro i tag, o metà portale
-// resta cieco come prima
-const tags = (portal.match(/<script crossorigin="anonymous" src="https:\/\/www\.gstatic\.com\/firebasejs/g) || []).length;
-ok(tags === 4, `tutti e quattro gli SDK Firebase chiedono l'errore in chiaro (trovati ${tags})`);
-ok(!/<script src="https:\/\/www\.gstatic\.com\/firebasejs/.test(portal), 'nessun tag rimasto indietro senza crossorigin');
+// ── E PERCHÉ SUL PORTALE NON È ATTACCATA — 1 settembre 2026 ────────────
+// La scala funziona (i controlli qui sopra lo provano) e per un'ora è stata
+// attiva su portal.html. Poi l'operatore non è più riuscito a entrare da
+// Safari, con clienti dentro. Il difetto non era il CDN: in testa alla
+// pagina i quattro SDK hanno un <link rel="preload" as="script"> SENZA
+// crossorigin, e preload e richiesta vera devono avere la STESSA modalità
+// CORS. Disallineate, su WebKit il caricamento resta appeso — e la scala non
+// scattava nemmeno, perché non c'era un errore da gestire: solo attesa.
+//
+// Quindi la regola pinnata è l'OPPOSTO di quella di un'ora fa, e con la
+// ragione scritta accanto: sul percorso di boot del portale non si
+// sperimenta per avere un log più bello. Se un giorno servirà, crossorigin
+// va messo sul preload E sullo script INSIEME, e provato su un Safari vero.
+const conCross = (portal.match(/<script crossorigin="anonymous" src="https:\/\/www\.gstatic\.com\/firebasejs/g) || []).length;
+ok(conCross === 0, `nessuno SDK Firebase porta crossorigin sul percorso di boot (trovati ${conCross})`);
+const preload = (portal.match(/<link rel="preload" as="script" href="https:\/\/www\.gstatic\.com\/firebasejs/g) || []).length;
+const plain = (portal.match(/<script src="https:\/\/www\.gstatic\.com\/firebasejs/g) || []).length;
+ok(preload === 4 && plain === 4,
+  `preload e script sono ${preload} e ${plain}: stessa modalità CORS su entrambi — è il disallineamento che ha piantato il boot`);
+ok(/PERCHÉ QUI NON C'È crossorigin/.test(portal),
+  'e la pagina porta scritto perché, così nessuno lo rimette senza sapere cosa costa');
+
+// ── LA REGOLA DI CLASSE: preload e script devono ACCORDARSI ────────────
+// Non è una faccenda di Firebase: un <link rel="preload" as="script"> e il
+// <script> che lo usa devono avere la STESSA modalità CORS. Disallineati, il
+// preload non si riusa — nel migliore dei casi si scarica due volte, nel
+// peggiore (WebKit) il caricamento resta appeso. Qui si controllano TUTTE le
+// pagine del sito, così l'errore che ha piantato il portale non può ripetersi
+// altrove senza che qualcuno se ne accorga.
+{
+  const { readdirSync, readFileSync: rf } = await import('node:fs');
+  const root = new URL('../../', import.meta.url).pathname;
+  const pagine = readdirSync(root).filter((f) => f.endsWith('.html'));
+  ok(pagine.length > 20, `si guardano tutte le pagine del sito (${pagine.length})`);
+
+  const disallineate = [];
+  let coppie = 0;
+  for (const f of pagine) {
+    const h = rf(root + f, 'utf8');
+    for (const m of h.matchAll(/<link\b[^>]*rel="preload"[^>]*>/g)) {
+      const tag = m[0];
+      if (!/as="script"/.test(tag)) continue;
+      const href = (tag.match(/href="([^"]+)"/) || [])[1];
+      if (!href) continue;
+      const preloadCors = /crossorigin/.test(tag);
+      // lo <script> che usa quello stesso href
+      const esc = href.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      const uso = h.match(new RegExp('<script\\b[^>]*src="' + esc + '"[^>]*>'));
+      if (!uso) continue;
+      coppie++;
+      const scriptCors = /crossorigin/.test(uso[0]);
+      if (preloadCors !== scriptCors) disallineate.push(`${f} → ${href} (preload ${preloadCors ? 'cors' : 'no-cors'}, script ${scriptCors ? 'cors' : 'no-cors'})`);
+    }
+  }
+  ok(coppie > 0, `il controllo VEDE delle coppie preload↔script (${coppie}) — una regola che non trova nulla passa sempre`);
+  ok(disallineate.length === 0,
+    'preload e script concordano sulla modalità CORS ovunque'
+    + (disallineate.length ? ':\n    ' + disallineate.join('\n    ') : ''));
+}
 
 console.log(`\n${fail ? '✗' : '✓'} scala: ${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);

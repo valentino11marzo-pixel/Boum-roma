@@ -135,6 +135,15 @@ jobs:
             exit 0
           fi
           npm install --no-save firebase-tools >/dev/null
+          # `set -o pipefail` NON e' un dettaglio di stile: lo stato d'uscita
+          # di una pipeline e' quello dell'ULTIMO comando, cioe' `tee`, che
+          # riesce sempre. Senza, `if ! deploy | tee` non puo' fallire MAI —
+          # la guardia qui sotto, scritta il 31/08 proprio per il token
+          # scaduto, era inerte per costruzione: il deploy falliva, il job
+          # diceva "success", e le regole del repo non arrivavano in
+          # produzione. Trovato il 01/09 misurando la produzione, non i log:
+          # `listings` rispondeva 200 e `publicGeo` 403.
+          set -o pipefail
           # Il token di `login:ci` SCADE (Google revoca i refresh token: il
           # 31/08/2026 quello del 20/08 era gia' morto, e il job ha fallito a
           # ogni push per giorni mentre i merge continuavano — le regole del

@@ -189,6 +189,21 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
 .toast.err{background:rgba(255,59,48,.15);border:1px solid rgba(255,59,48,.3);color:#FF6B6B}
 .toast.ok{background:rgba(52,199,89,.12);border:1px solid rgba(52,199,89,.25);color:#4CD964}
 .hidden{display:none!important}
+
+/* IL TOCCO. Su iPhone un campo con carattere sotto i 16px fa ZOOMARE la
+   pagina al primo tap, e non torna indietro da sola: il modulo che deve
+   convertire si apre storto. Misurato a 390px con puntatore grossolano su
+   tutte le pagine della sitemap: 29 pagine con moduli, quasi tutti sotto.
+   `!important` qui e' lo strumento giusto, non una scorciatoia: la regola
+   dice «su un dito, mai sotto i 16px, qualunque cosa dica il resto del
+   foglio» — e senza, `.form select{font-size:15px}` scritto domani la
+   batterebbe in silenzio (e' successo alla prima stesura, presa dal test).
+   Vale solo dove il puntatore e' un dito: sul desktop i 14px restano.
+   Verificata in un browser vero da tests/telefono. */
+@media (pointer:coarse) {
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]),
+  select, textarea { font-size:16px !important; }
+}
 </style>
     <link rel="stylesheet" href="/css/boom-cinema.css">
 <!-- BOOM_JSONLD:START -->
