@@ -115,7 +115,7 @@ CSS = r'''/* ══ QUADRANTE:CSS ══ */
 .qf-min{display:flex;gap:5px}
 .qf-min button{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);
   border-radius:9px;color:var(--t2);font:inherit;font-size:11.5px;padding:7px 9px;
-  min-height:38px;cursor:pointer;font-variant-numeric:tabular-nums}
+  min-height:44px;min-width:44px;cursor:pointer;font-variant-numeric:tabular-nums}  /* 44: il bersaglio di un dito, non di un cursore */
 .qf-min button.on{background:linear-gradient(135deg,var(--gold),var(--gold2));
   color:#000;border-color:transparent;font-weight:600}
 .qf-esito{margin-top:9px;font-size:11px;color:var(--t3);line-height:1.5}

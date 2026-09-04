@@ -275,7 +275,7 @@
         /* Menzione di marchio: un gradino sotto per corpo e opacità. */
         .f-brand p.ftm{font-size:11px;font-weight:300;opacity:.7;margin-top:10px;line-height:1.6}
         .f-links h4{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--g4);margin-bottom:14px}
-        .f-links ul{list-style:none}.f-links li{margin-bottom:9px}.f-links a{color:var(--g5);font-size:12px;transition:color .3s}.f-links a:hover{color:var(--gold)}
+        .f-links ul{list-style:none}.f-links li{margin-bottom:9px}.f-links a{color:var(--g5);font-size:12px;transition:color .3s;display:inline-block;padding:13px 0;margin:-13px 0}.f-links a:hover{color:var(--gold)}
         .f-bottom{max-width:1080px;margin:0 auto;padding-top:20px;border-top:.5px solid rgba(255,255,255,.04);display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--g5)}
         .f-status{display:flex;align-items:center;gap:6px}
         .f-status::before{content:'';width:5px;height:5px;border-radius:50%;background:#30D158;box-shadow:0 0 6px rgba(48,209,88,.4)}
@@ -364,6 +364,22 @@
 .marchio .logo-mark{width:66px;height:66px;flex:none}
 .marchio span{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:30px;font-weight:300;letter-spacing:.26em;text-indent:.26em;text-transform:uppercase}
 @media(max-width:640px){.marchio{gap:10px}.marchio .logo-mark{width:58px;height:58px}.marchio span{font-size:25px;letter-spacing:.22em;text-indent:.22em}}
+
+
+/* IL TOCCO. Su iPhone un campo con carattere sotto i 16px fa ZOOMARE la
+   pagina al primo tap, e non torna indietro da sola: il modulo che deve
+   convertire si apre storto. Misurato a 390px con puntatore grossolano su
+   tutte le pagine della sitemap: 29 pagine con moduli, quasi tutti sotto.
+   `!important` qui e' lo strumento giusto, non una scorciatoia: la regola
+   dice «su un dito, mai sotto i 16px, qualunque cosa dica il resto del
+   foglio» — e senza, `.form select{font-size:15px}` scritto domani la
+   batterebbe in silenzio (e' successo alla prima stesura, presa dal test).
+   Vale solo dove il puntatore e' un dito: sul desktop i 14px restano.
+   Verificata in un browser vero da tests/telefono. */
+@media (pointer:coarse) {
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]),
+  select, textarea { font-size:16px !important; }
+}
 </style>
     <link rel="stylesheet" href="/css/boom-cinema.css">
 <script defer src="/js/boom-consent.js"></script>
