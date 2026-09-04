@@ -322,6 +322,28 @@ window.__pmLoaded = true;
         }
         syncTabbarVisibility();
     }
+    /* LA CORSIA DICE CHE CONTINUA. La riga dei bottoni di testa pagina scorre
+       di lato con la barra nascosta: ciò che sta oltre il bordo, per chi
+       guarda, non esiste (la misura del 04/09: su Contratti a 393px restavano
+       fuori 233px su 602). Il CSS non sa se una corsia trabocca, quindi lo
+       dice il layer — e toglie la sfumatura quando si è arrivati in fondo,
+       che altrimenti prometterebbe altro contenuto inesistente. */
+    function syncLanes() {
+        if (!st.active) return;
+        var lanes = D.querySelectorAll('#main .page-actions, #main .page-header > div:last-child');
+        for (var i = 0; i < lanes.length; i++) (function (l) {
+            var piu = l.scrollWidth > l.clientWidth + 4;
+            l.classList.toggle('pm-lane-more', piu);
+            l.classList.toggle('pm-lane-end', piu && (l.scrollLeft + l.clientWidth >= l.scrollWidth - 4));
+            if (piu && !l.__pmLane) {
+                l.__pmLane = 1;
+                l.addEventListener('scroll', function () {
+                    l.classList.toggle('pm-lane-end', l.scrollLeft + l.clientWidth >= l.scrollWidth - 4);
+                }, { passive: true });
+            }
+        })(lanes[i]);
+    }
+
     function syncTabbarVisibility() {
         if (!tabbar) return;
         var app = $('#app');
@@ -940,13 +962,15 @@ window.__pmLoaded = true;
         }
         window.addEventListener('hashchange', function () {
             st.section = (location.hash || '').slice(1) || st.section;
-            if (st.active) syncTabbar();
+            if (st.active) { syncTabbar(); syncLanes(); }
         });
+        window.addEventListener('resize', debounce(syncLanes, 120));
         var main = $('#main');
         if (main) new MutationObserver(debounce(function () {
             if (!st.active) return;
             applyMain();
             syncTabbar();
+            syncLanes();
         }, 70)).observe(main, { childList: true, subtree: true });
         var modals = $('#modals');
         if (modals) new MutationObserver(onModalsChange).observe(modals, { childList: true });
