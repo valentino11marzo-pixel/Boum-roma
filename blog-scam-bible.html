@@ -452,6 +452,21 @@
 .marchio .logo-mark{width:66px;height:66px;flex:none}
 .marchio span{font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:30px;font-weight:300;letter-spacing:.26em;text-indent:.26em;text-transform:uppercase}
 @media(max-width:640px){.marchio{gap:10px}.marchio .logo-mark{width:58px;height:58px}.marchio span{font-size:25px;letter-spacing:.22em;text-indent:.22em}}
+
+/* IL TOCCO. Su iPhone un campo con carattere sotto i 16px fa ZOOMARE la
+   pagina al primo tap, e non torna indietro da sola: il modulo che deve
+   convertire si apre storto. Misurato a 390px con puntatore grossolano su
+   tutte le pagine della sitemap: 29 pagine con moduli, quasi tutti sotto.
+   `!important` qui e' lo strumento giusto, non una scorciatoia: la regola
+   dice «su un dito, mai sotto i 16px, qualunque cosa dica il resto del
+   foglio» — e senza, `.form select{font-size:15px}` scritto domani la
+   batterebbe in silenzio (e' successo alla prima stesura, presa dal test).
+   Vale solo dove il puntatore e' un dito: sul desktop i 14px restano.
+   Verificata in un browser vero da tests/telefono. */
+@media (pointer:coarse) {
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]),
+  select, textarea { font-size:16px !important; }
+}
 </style>
 <script defer src="/js/boom-consent.js"></script>
 <!-- BOOM_JSONLD:START -->
