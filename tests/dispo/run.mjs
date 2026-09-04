@@ -302,6 +302,14 @@ process.env.FIREBASE_ADMIN_EMAIL = 'a@b.c';
 process.env.FIREBASE_ADMIN_PASS = 'p';
 
 const { default: handler } = await import('../../api/listings-availability.js');
+// Il handler legge l'orologio VERO (DISPO.todayIso()), non il TODAY pinnato
+// delle prove sopra: "1 settembre" senza anno cade nel futuro rispetto a
+// oggi, quindi l'anno cambia col calendario. Qui si asserisce che il
+// handler PERSISTA l'ISO che il motore produce — l'inferenza dell'anno è
+// già provata sopra con la data di riferimento fissa. (Pinnato a
+// '2026-09-01', questo blocco è diventato rosso il 2 settembre 2026 senza
+// che nessuno avesse toccato nulla.)
+const SEPT1 = D.parseAvailability('dal 1 settembre').iso;
 const call = async (method, body, headers = { 'x-wizard-secret': 'test-secret' }) => {
   let code = 0, payload = null;
   const res = { status(c) { code = c; return this; }, json(o) { payload = o; return this; }, setHeader() { } };
@@ -323,7 +331,7 @@ ok(DB.get('listings/levico').availableFrom === undefined, '  · e infatti il doc
 
 out = await call('POST', { text: 'Levico dal 1 settembre, Cavour subito', apply: true });
 ok(out.code === 200 && out.payload.applied.length === 2, 'con apply scrive entrambi', out.payload);
-ok(DB.get('listings/levico').availableFrom === '2026-09-01', '  · Levico ha la data ISO');
+ok(DB.get('listings/levico').availableFrom === SEPT1 && /^\d{4}-09-01$/.test(SEPT1), '  · Levico ha la data ISO');
 ok(DB.get('listings/cavour').availableFrom === 'Subito', '  · Cavour è subito');
 ok(DB.get('listings/levico').availableRaw === 'Levico dal 1 settembre',
   '  · le parole originali restano sul documento');
@@ -334,7 +342,7 @@ ok(!out.payload.ok, 'un affittato non si aggiorna da un messaggio veloce (non en
 out = await call('POST', { updates: [{ id: 'levico', iso: 'quando capita' }] });
 ok(out.payload.failed.length === 1 && out.payload.failed[0].error === 'unreadable_date',
   'una stringa illeggibile viene RIFIUTATA alla porta, non scritta a caso', out.payload);
-ok(DB.get('listings/levico').availableFrom === '2026-09-01', '  · e il valore buono di prima resta');
+ok(DB.get('listings/levico').availableFrom === SEPT1, '  · e il valore buono di prima resta');
 
 out = await call('POST', { updates: [{ id: 'inesistente', iso: '2026-09-01' }] });
 ok(out.payload.failed[0].error === 'not_found', 'un id che non esiste non crea un documento');

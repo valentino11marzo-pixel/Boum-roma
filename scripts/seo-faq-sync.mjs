@@ -46,6 +46,9 @@ export function plainText(s) {
     .replace(/&igrave;/g, 'ì').replace(/&euro;/g, '€')
     .replace(/&gt;/g, '>').replace(/&lt;/g, '<')
     .replace(/\s+/g, ' ')
+    // un link inline chiuso prima della punteggiatura ("…a Roma</a>.") non
+    // deve lasciare "Roma ." nello schema
+    .replace(/\s+([.,;:!?])/g, '$1')
     .trim();
 }
 

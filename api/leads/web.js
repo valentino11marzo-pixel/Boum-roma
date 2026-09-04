@@ -44,7 +44,21 @@ export const FORMS = {
   'precheck':        { intent: 'apply',          label: 'Pre-check idoneità' },
   'property-finding':{ intent: 'pfs',            label: 'Property Finding (form)' },
   'blog':            { intent: 'contact',        label: 'Articolo del blog' },
+  // Le pagine-zona (apartments-in/*) mandano `zone-<slug>`: chi compila
+  // vuole una casa in QUEL quartiere — la zona arriva nel campo dedicato e
+  // in testa al messaggio, così l'operatore la legge senza aprire il doc.
+  'zone':            { intent: 'contact',        label: 'Trova casa in zona' },
 };
+
+/** `blog-*` e `zone-*` sono famiglie: il prefisso decide, il suffisso resta
+ *  in sourceRef per l'attribuzione per pagina. */
+export function formFamily(formKey) {
+  const k = String(formKey || '').toLowerCase();
+  if (FORMS[k]) return FORMS[k];
+  if (k.startsWith('blog')) return FORMS.blog;
+  if (k.startsWith('zone')) return FORMS.zone;
+  return FORMS.contact;
+}
 
 /** I campi che NON sono anagrafica: vanno riassunti nel messaggio, così
  *  l'operatore legge il contesto senza aprire il documento. */
@@ -57,7 +71,7 @@ const EXTRA_LABELS = {
 };
 
 export function buildMessage(formKey, body) {
-  const f = FORMS[formKey] || FORMS[String(formKey || '').startsWith('blog') ? 'blog' : 'contact'];
+  const f = formFamily(formKey);
   const bits = [f.label];
   for (const [k, lab] of Object.entries(EXTRA_LABELS)) {
     const v = clip(body[k], 200);
@@ -84,7 +98,7 @@ export default async function handler(req, res) {
   if (rateLimited(ip)) return res.status(429).json({ ok: false, error: 'rate_limited' });
 
   const formKey = clip(body.form, 40).toLowerCase() || 'contact';
-  const f = FORMS[formKey] || (formKey.startsWith('blog') ? FORMS.blog : FORMS.contact);
+  const f = formFamily(formKey);
 
   const name = clip(body.name, 120);
   const email = clip(body.email, 160);

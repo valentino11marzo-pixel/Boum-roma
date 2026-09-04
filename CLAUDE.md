@@ -2990,6 +2990,31 @@ Tre strumenti, una suite che impedisce la deriva (`node tests/seo/run.mjs`):
   marchio/footer copiati byte-per-byte da moving-to-rome. Linkata da
   moving-to-rome, dalla proiezione della scam bible e da llms.txt
   (sezione "Renting safely").
+- **Le landing di intento (2026-09-04)** sullo stesso guscio:
+  `/mid-term-rentals-rome` (il prodotto spiegato: transitorio 1–18 mesi,
+  costi 2026, "monthly rentals" onesto, tutto da remoto — 1.249 parole),
+  `/furnished-apartments-rome` (cosa vuol dire "arredato" in un contratto
+  italiano, l'inventario che protegge il deposito, i 5 controlli — 1.109)
+  e **`/affitto-transitorio-roma`**, la PRIMA landing italiana (P2 #11:
+  doppio binario proprietari/inquilini, cedolare al 10%, esempio coi
+  numeri, `lang=it` + hreflang it/x-default; NIENTE hreflang `en` verso
+  mid-term: non sono traduzioni, e un hreflang non reciproco è un errore
+  in Search Console). Registrate nel registry, sitemap (64 URL), llms.txt,
+  linkate da moving-to-rome, rent-without-scams e canone.
+- **Il blocco di conversione sulle pagine-zona** (P1 #8, 2026-09-04): le
+  11 `apartments-in/*` avevano solo WhatsApp. Il builder
+  (`scripts/neighborhoods-build.js`) ora emette il modulo "Find a home in
+  [zona]" cablato su `/api/leads/web` con `form: zone-<slug>` — la
+  famiglia `zone` in `FORMS` (`formFamily()`, esportata) decide l'intento,
+  il suffisso resta in `sourceRef` per sapere QUALE pagina converte, la
+  zona arriva nel campo dedicato e in testa al messaggio. Honeypot
+  `botcheck`→`company` come nei blog. I link `/book?zone=<slug>` (che
+  book.html legge davvero) vivono nel builder, non più a mano nelle
+  pagine. **Dopo una build serve `node scripts/seo-update.js --adopt
+  apartments-in`**: il builder scrive il placeholder BOOM_SEO e la guardia
+  della sentinella non inietta senza consenso. Provato in Chromium (POST
+  reale con form/zona/budget, senza honeypot); `tests/webforms/run.mjs`
+  pretende il modulo cablato su tutte le 11 pagine.
 - Invarianti pinnate dalla suite: title ≤65 e unici, description 50–168,
   canonical su `https://www.boomrome.com` senza `.html`, OG+JSON-LD che
   parsa su ogni pagina indicizzabile, un solo H1, DOCTYPE+lang (board e

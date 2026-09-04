@@ -568,6 +568,11 @@ Object.assign(PAGES, {
   'refer.html': handcrafted('/refer', 'Refer a Friend to BOOM — Give €50, Get €50', { priority: 0.6 }),
   'moving-to-rome.html': handcrafted('/moving-to-rome', 'Moving to Rome in 2026 — The Complete Relocation Guide | BOOM', { priority: 0.9 }),
   'rent-in-rome-without-scams.html': handcrafted('/rent-in-rome-without-scams', 'Rent in Rome Without Scams — The Verified Way | BOOM', { priority: 0.85 }),
+  'mid-term-rentals-rome.html': handcrafted('/mid-term-rentals-rome', 'Mid-Term Rentals in Rome — 1 to 18 Months, Verified | BOOM', { priority: 0.9 }),
+  'furnished-apartments-rome.html': handcrafted('/furnished-apartments-rome', 'Furnished Apartments in Rome — Verified, Inventoried | BOOM', { priority: 0.85 }),
+  // La prima landing in italiano (audit P2 #11): le query italiane sul
+  // transitorio — proprietari e inquilini — non avevano una pagina.
+  'affitto-transitorio-roma.html': handcrafted('/affitto-transitorio-roma', 'Affitto Transitorio a Roma — Contratto, Canone, Costi 2026 | BOOM', { priority: 0.88, lang: 'it' }),
   'moving-to-rome-from-us.html': handcrafted('/moving-to-rome-from-us', 'Moving to Rome from the US (2026) — Visas, Costs, Homes | BOOM', { priority: 0.85 }),
   'moving-to-rome-from-uk.html': handcrafted('/moving-to-rome-from-uk', 'Moving to Rome from the UK (2026) — Post-Brexit Guide | BOOM', { priority: 0.85 }),
   'moving-to-rome-from-germany.html': handcrafted('/moving-to-rome-from-germany', 'Moving to Rome from Germany (2026) — EU Citizen Guide | BOOM', { priority: 0.85 }),

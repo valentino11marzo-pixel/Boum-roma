@@ -205,3 +205,44 @@ pagine-zona, landing IT (`affitto roma stranieri`…), altre money pages
    Registrata nel registry, in sitemap (61 URL), in llms.txt ("Renting
    safely", con la frase per i motori di risposta), linkata da
    moving-to-rome e dalla proiezione della scam bible.
+
+---
+
+## Esecuzione 2026-09-04 — conversione sulle zone + le landing di intento (P1 #8, P2 #11–12)
+
+1. **Il blocco di conversione sulle 11 pagine-zona** (P1 #8). Il builder
+   `scripts/neighborhoods-build.js` emette il modulo "Find a home in
+   [zona]" (nome, email, WhatsApp, mese di ingresso, budget, note)
+   cablato su `/api/leads/web` con `form: zone-<slug>`: nuova famiglia
+   `zone` in `FORMS` (intento contatto, etichetta "Trova casa in zona"),
+   zona nel campo dedicato + in testa al messaggio, honeypot. I link
+   `/book?zone=<slug>` — che le pagine avevano a mano e il builder no —
+   ora vivono nel builder: la build è tornata deterministica
+   (build + `seo-update.js --adopt apartments-in` = pagine committate).
+   Provato in Chromium: POST reale con form/zona/budget, senza honeypot.
+   `tests/webforms/run.mjs` +6 check.
+2. **`/mid-term-rentals-rome`** (P2 #12, 1.249 parole): il prodotto
+   spiegato per la query di testa — transitorio art. 5 L. 431/98 in
+   quattro mosse, tabella costi 2026, la sezione onesta su "monthly
+   rentals" (piattaforma turistica ≠ affitto vero), chi affitta mid-term,
+   il processo da remoto, 5 FAQ sincronizzate, JSON-LD Service.
+3. **`/furnished-apartments-rome`** (P2 #12, 1.109 parole): "arredato" è
+   una clausola, non una foto — l'inventario che protegge il deposito
+   (art. 1590), i 5 controlli, il premio del 10–20%, costi per zona,
+   griglia zone, l'inventario dal video di BOOM. 5 FAQ sincronizzate.
+4. **`/affitto-transitorio-roma`** (P2 #11, la prima landing italiana,
+   942 parole): doppio binario proprietari (canone concordato, cedolare
+   10%, IMU −25%, attestazione, pacchetto €349) e inquilini; passo per
+   passo fino alla registrazione RLI; esempio coi numeri (15.000 €/anno →
+   1.650 € risparmiati); 6 FAQ. `lang=it`, hreflang it + x-default (NON
+   `en` verso mid-term: non sono traduzioni). Linkata dal calcolatore
+   canone (nuova FAQ visibile, schema sincronizzato).
+5. Tutte e tre: registry, rewrite, sitemap (64 URL), llms.txt (sezione
+   "Mid-term and furnished rentals" con le frasi per i motori di
+   risposta), smoke in Chromium (H1, FAQ, marchio, footer, zero errori).
+
+**Restano aperti**: `/monthly-rentals-rome` (deciso di NON farla: la
+query è coperta dalla sezione dedicata di mid-term — una pagina a parte
+si cannibalizzerebbe), zone × pubblico (P2 #13), altre landing IT
+(`affitto roma stranieri`, `stanze studenti roma`), CWV/Lighthouse,
+Search Console dopo il merge.

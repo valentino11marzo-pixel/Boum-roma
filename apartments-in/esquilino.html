@@ -225,6 +225,22 @@ nav{position:fixed;width:100%;top:0;z-index:100;padding:20px 50px;background:rgb
 .faq[open] .faq-q::after{transform:rotate(45deg)}
 .faq-a{font-size:14px;color:var(--text2);line-height:1.75;padding-top:16px;max-width:760px}
 
+/* FIND A HOME — il blocco di conversione */
+.zform-wrap{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:40px;align-items:start;border:1px solid var(--border-g);border-radius:24px;padding:44px;background:linear-gradient(135deg,rgba(212,175,55,0.06),rgba(212,175,55,0.01))}
+.zform-copy .section-subtitle{margin-bottom:0}
+.zform-proof{list-style:none;margin-top:22px;display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--text3);letter-spacing:.3px}
+.zform{display:flex;flex-direction:column;gap:14px}
+.zform-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.zform-field{display:flex;flex-direction:column;gap:6px}
+.zform-field span{font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:var(--text3)}
+.zform input,.zform select,.zform textarea{width:100%;background:var(--bg2);border:1px solid var(--border-h);border-radius:12px;padding:13px 14px;color:var(--text);font:inherit;font-size:15px;font-weight:300;outline:none;transition:border-color .25s;color-scheme:dark}
+.zform input:focus,.zform select:focus,.zform textarea:focus{border-color:var(--gold)}
+.zform textarea{resize:vertical;min-height:84px}
+.zform-hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.zform-submit{justify-content:center;margin-top:4px}
+.zform-note{font-size:11px;color:var(--text3);text-align:center;letter-spacing:.5px}
+@media(max-width:880px){.zform-wrap{grid-template-columns:1fr;padding:28px 22px;gap:26px}.zform-row{grid-template-columns:1fr}}
+
 /* CTA */
 .cta{max-width:1400px;margin:60px auto 100px;padding:64px 50px;border-radius:24px;background:linear-gradient(135deg,rgba(212,175,55,0.05),rgba(212,175,55,0.01));border:1px solid var(--border-g);text-align:center}
 .cta-title{font-size:clamp(28px,4vw,42px);font-weight:200;letter-spacing:-.01em;margin-bottom:14px}
@@ -589,6 +605,50 @@ footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50p
       </a></div>
     </section>
 
+<!-- Il blocco di conversione (audit SEO P1 #8): il traffico organico che
+     atterra qui aveva solo WhatsApp. Il modulo scrive nella collection leads
+     via /api/leads/web (lo stesso binario dei blog e del contract check) e da
+     lì la macchina esistente fa tutto (Brain, Telegram, Commerciale). -->
+<section class="section zform-section" id="find">
+  <div class="zform-wrap">
+    <div class="zform-copy">
+      <span class="section-eyebrow">Find a home in Esquilino</span>
+      <h2 class="section-title">Tell us the brief. <span class="gold">We'll do the hunt.</span></h2>
+      <p class="section-subtitle">Budget, move-in month, anything that matters — a human reads it within hours and replies with real Esquilino options, video-verified. No account, no fee to ask.</p>
+      <ul class="zform-proof">
+        <li>★ 4.9 on Google · 47 reviews</li>
+        <li>Registered Italian agency · P.IVA 17322991005</li>
+        <li>English-first, WhatsApp-fast</li>
+      </ul>
+    </div>
+    <form class="zform" data-boomform="zone-esquilino" novalidate>
+      <input type="hidden" name="zone" value="Esquilino">
+      <input type="text" name="botcheck" tabindex="-1" autocomplete="off" class="zform-hp" aria-hidden="true">
+      <div class="zform-row">
+        <label class="zform-field"><span>Name</span><input type="text" name="name" placeholder="Your name" required></label>
+        <label class="zform-field"><span>Email</span><input type="email" name="email" placeholder="you@example.com" required></label>
+      </div>
+      <div class="zform-row">
+        <label class="zform-field"><span>WhatsApp (optional)</span><input type="tel" name="phone" placeholder="+44 …"></label>
+        <label class="zform-field"><span>Move-in month</span><input type="month" name="move_in_date"></label>
+      </div>
+      <label class="zform-field"><span>Monthly budget</span>
+        <select name="budget">
+          <option value="">Choose a range</option>
+          <option value="up to €1,000">Up to €1,000</option>
+          <option value="€1,000 – €1,500">€1,000 – €1,500</option>
+          <option value="€1,500 – €2,000">€1,500 – €2,000</option>
+          <option value="€2,000 – €3,000">€2,000 – €3,000</option>
+          <option value="€3,000+">€3,000+</option>
+        </select>
+      </label>
+      <label class="zform-field"><span>Anything else</span><textarea name="message" rows="3" placeholder="How many of you, how long you're staying, must-haves…"></textarea></label>
+      <button type="submit" class="btn btn-primary zform-submit">Find me a home in Esquilino →</button>
+      <div class="zform-note">Free · no commitment · a human replies within hours</div>
+    </form>
+  </div>
+</section>
+
 <section class="cta">
   <h2 class="cta-title">Ready to live in Esquilino?</h2>
   <p class="cta-sub">Book a free video viewing of any apartment, or have BOOM find you one that matches your brief.</p>
@@ -639,6 +699,29 @@ footer{background:var(--bg1);border-top:1px solid var(--border);padding:60px 50p
   h.addEventListener('click',t);
   h.addEventListener('keydown',e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();t()}});
   m.querySelectorAll('a').forEach(a=>a.addEventListener('click',()=>{h.classList.remove('active');m.classList.remove('active')}));
+})();
+
+// Il modulo "Find a home" → /api/leads/web (lo stesso cablaggio dei blog:
+// data-boomform dice da dove arriva, botcheck è l'honeypot dell'endpoint).
+(function boomFormWire(){
+  document.addEventListener("submit",function(e){
+    var F=e.target;if(!F||!F.getAttribute||!F.getAttribute("data-boomform"))return;
+    e.preventDefault();
+    var btn=F.querySelector("[type=submit]"),lbl=btn?btn.textContent:"";
+    if(btn){btn.disabled=true;btn.textContent="Sending…";}
+    var body={form:F.getAttribute("data-boomform")};
+    new FormData(F).forEach(function(v,k){body[k]=v;});
+    if(body.botcheck){body.company=body.botcheck;}
+    fetch("/api/leads/web",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)})
+    .then(function(r){return r.json()}).then(function(j){
+      if(!j||!j.ok)throw new Error((j&&j.error)||"failed");
+      F.innerHTML="<div style=\"text-align:center;padding:26px 4px\"><div style=\"width:54px;height:54px;border-radius:50%;border:1px solid #46C08A;color:#46C08A;display:flex;align-items:center;justify-content:center;font-size:25px;margin:0 auto 14px\">✓</div><h3 style=\"font-size:20px;font-weight:400;margin-bottom:6px\">Got it — thank you.</h3><p style=\"opacity:.65;font-size:14px;margin:0\">A human replies within a few hours with real options. Urgent? WhatsApp us.</p></div>";
+      try{if(typeof gtag==="function")gtag("event","generate_lead",{channel:"form",form:body.form});}catch(_){}
+    }).catch(function(){
+      if(btn){btn.disabled=false;btn.textContent=lbl;}
+      alert("That did not go through — please try again, or message us on WhatsApp.");
+    });
+  },true);
 })();
 </script>
 

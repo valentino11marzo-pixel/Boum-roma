@@ -14,7 +14,7 @@
   </url>
   <url>
     <loc>https://www.boomrome.com/canone</loc>
-    <lastmod>2026-08-27</lastmod>
+    <lastmod>2026-09-04</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.92</priority>
     <xhtml:link rel="alternate" hreflang="it" href="https://www.boomrome.com/canone"/>
@@ -22,7 +22,7 @@
   </url>
   <url>
     <loc>https://www.boomrome.com/apartments-in</loc>
-    <lastmod>2026-08-27</lastmod>
+    <lastmod>2026-09-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.90</priority>
   </url>
@@ -35,74 +35,88 @@
     <xhtml:link rel="alternate" hreflang="x-default" href="https://www.boomrome.com/match"/>
   </url>
   <url>
-    <loc>https://www.boomrome.com/moving-to-rome</loc>
-    <lastmod>2026-08-28</lastmod>
+    <loc>https://www.boomrome.com/mid-term-rentals-rome</loc>
+    <lastmod>2026-09-04</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.90</priority>
   </url>
   <url>
+    <loc>https://www.boomrome.com/moving-to-rome</loc>
+    <lastmod>2026-09-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.90</priority>
+  </url>
+  <url>
+    <loc>https://www.boomrome.com/affitto-transitorio-roma</loc>
+    <lastmod>2026-09-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.88</priority>
+    <xhtml:link rel="alternate" hreflang="it" href="https://www.boomrome.com/affitto-transitorio-roma"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://www.boomrome.com/affitto-transitorio-roma"/>
+  </url>
+  <url>
     <loc>https://www.boomrome.com/apartments-in/centro-storico</loc>
-    <lastmod>2026-08-18</lastmod>
+    <lastmod>2026-09-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.88</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/apartments-in/esquilino</loc>
-    <lastmod>2026-08-18</lastmod>
+    <lastmod>2026-09-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.88</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/apartments-in/monti</loc>
-    <lastmod>2026-08-18</lastmod>
+    <lastmod>2026-09-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.88</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/apartments-in/ostiense</loc>
-    <lastmod>2026-08-27</lastmod>
+    <lastmod>2026-09-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.88</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/apartments-in/pigneto</loc>
-    <lastmod>2026-08-18</lastmod>
+    <lastmod>2026-09-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.88</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/apartments-in/ponte-milvio</loc>
-    <lastmod>2026-08-18</lastmod>
+    <lastmod>2026-09-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.88</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/apartments-in/prati</loc>
-    <lastmod>2026-08-18</lastmod>
+    <lastmod>2026-09-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.88</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/apartments-in/san-lorenzo</loc>
-    <lastmod>2026-08-27</lastmod>
+    <lastmod>2026-09-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.88</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/apartments-in/testaccio</loc>
-    <lastmod>2026-08-27</lastmod>
+    <lastmod>2026-09-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.88</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/apartments-in/trastevere</loc>
-    <lastmod>2026-08-27</lastmod>
+    <lastmod>2026-09-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.88</priority>
   </url>
   <url>
     <loc>https://www.boomrome.com/apartments-in/trieste-coppede</loc>
-    <lastmod>2026-08-18</lastmod>
+    <lastmod>2026-09-04</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.88</priority>
   </url>
@@ -187,6 +201,12 @@
     <priority>0.85</priority>
   </url>
   <url>
+    <loc>https://www.boomrome.com/furnished-apartments-rome</loc>
+    <lastmod>2026-09-04</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.85</priority>
+  </url>
+  <url>
     <loc>https://www.boomrome.com/moving-to-rome-from-germany</loc>
     <lastmod>2026-08-27</lastmod>
     <changefreq>monthly</changefreq>
@@ -214,7 +234,7 @@
   </url>
   <url>
     <loc>https://www.boomrome.com/rent-in-rome-without-scams</loc>
-    <lastmod>2026-08-28</lastmod>
+    <lastmod>2026-09-04</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.85</priority>
   </url>

@@ -116,5 +116,36 @@ console.log('\n\x1b[1m▸ il rate limit\x1b[0m');
   ok('un altro IP passa', (await call({ form: 'contact', name: 'G', email: 'g@y.it' })).code === 200);
 }
 
+console.log('\n\x1b[1m▸ le pagine-zona: "trova casa in Trastevere" entra con la zona in chiaro\x1b[0m');
+{
+  // Audit SEO P1 #8: le 11 landing di quartiere avevano solo WhatsApp. Ora
+  // il modulo manda `zone-<slug>` — la famiglia decide l'intento, il suffisso
+  // resta in sourceRef per sapere QUALE pagina converte.
+  const r = await call({
+    form: 'zone-trastevere', name: 'Lena', email: 'lena@mail.de',
+    zone: 'Trastevere', budget: '€1,500 – €2,000', move_in_date: '2026-10',
+    message: 'Two of us, 9 months, need a real kitchen',
+  });
+  const d = r.leads[0] && r.leads[0].body.fields;
+  ok('entra come contatto della famiglia zone', r.code === 200 && d && d.intent.stringValue === 'contact');
+  ok('sourceRef dice QUALE pagina', d && d.sourceRef.stringValue === 'zone-trastevere');
+  ok('la zona è nel campo dedicato (il Commerciale la legge senza aprire il doc)', d && d.zone.stringValue === 'Trastevere');
+  const m = d ? d.message.stringValue : '';
+  ok('il messaggio apre con l\'etichetta di famiglia e porta budget + move-in',
+    m.startsWith('Trova casa in zona') && m.includes('€1,500') && m.includes('2026-10') && m.includes('real kitchen'));
+  ok('il modulo di zona compilato dal bot viene scartato in silenzio',
+    (await call({ form: 'zone-monti', name: 'Bot', email: 'b@b.b', company: 'x' })).leads.length === 0);
+  // Le pagine generate portano davvero il modulo cablato sull'endpoint.
+  const { readFileSync, readdirSync } = await import('node:fs');
+  const zonePages = readdirSync('apartments-in').filter((f) => f.endsWith('.html') && f !== 'index.html');
+  let wired = 0;
+  for (const f of zonePages) {
+    const html = readFileSync('apartments-in/' + f, 'utf8');
+    const slug = f.replace(/\.html$/, '');
+    if (html.includes(`data-boomform="zone-${slug}"`) && html.includes('name="botcheck"') && html.includes('name="zone"') && html.includes('fetch("/api/leads/web"')) wired++;
+  }
+  ok(`tutte le ${zonePages.length} pagine-zona portano il modulo cablato su /api/leads/web (honeypot + zona)`, wired === zonePages.length);
+}
+
 console.log(`\n${fail ? '\x1b[31m' : '\x1b[32m'}Moduli web: ${pass} passed, ${fail} failed\x1b[0m\n`);
 process.exit(fail ? 1 : 0);

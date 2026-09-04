@@ -224,6 +224,22 @@ nav{position:fixed;width:100%;top:0;z-index:100;padding:20px 50px;background:rgb
 .faq[open] .faq-q::after{transform:rotate(45deg)}
 .faq-a{font-size:14px;color:var(--text2);line-height:1.75;padding-top:16px;max-width:760px}
 
+/* FIND A HOME — il blocco di conversione */
+.zform-wrap{display:grid;grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);gap:40px;align-items:start;border:1px solid var(--border-g);border-radius:24px;padding:44px;background:linear-gradient(135deg,rgba(212,175,55,0.06),rgba(212,175,55,0.01))}
+.zform-copy .section-subtitle{margin-bottom:0}
+.zform-proof{list-style:none;margin-top:22px;display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--text3);letter-spacing:.3px}
+.zform{display:flex;flex-direction:column;gap:14px}
+.zform-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.zform-field{display:flex;flex-direction:column;gap:6px}
+.zform-field span{font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:var(--text3)}
+.zform input,.zform select,.zform textarea{width:100%;background:var(--bg2);border:1px solid var(--border-h);border-radius:12px;padding:13px 14px;color:var(--text);font:inherit;font-size:15px;font-weight:300;outline:none;transition:border-color .25s;color-scheme:dark}
+.zform input:focus,.zform select:focus,.zform textarea:focus{border-color:var(--gold)}
+.zform textarea{resize:vertical;min-height:84px}
+.zform-hp{position:absolute;left:-9999px;width:1px;height:1px;opacity:0}
+.zform-submit{justify-content:center;margin-top:4px}
+.zform-note{font-size:11px;color:var(--text3);text-align:center;letter-spacing:.5px}
+@media(max-width:880px){.zform-wrap{grid-template-columns:1fr;padding:28px 22px;gap:26px}.zform-row{grid-template-columns:1fr}}
+
 /* CTA */
 .cta{max-width:1400px;margin:60px auto 100px;padding:64px 50px;border-radius:24px;background:linear-gradient(135deg,rgba(212,175,55,0.05),rgba(212,175,55,0.01));border:1px solid var(--border-g);text-align:center}
 .cta-title{font-size:clamp(28px,4vw,42px);font-weight:200;letter-spacing:-.01em;margin-bottom:14px}
