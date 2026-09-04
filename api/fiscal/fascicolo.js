@@ -32,6 +32,11 @@ import CANONE from '../../js/canone-engine.js';
 
 const clip = (v, n = 120) => String(v == null ? '' : v).trim().slice(0, n);
 
+// Chi ATTESTA, in sigla. Sul timbro della scheda vera compilata dall'ufficio
+// c'e' ARPE (Associazione Romana Proprieta' Edilizia, via S. Nicola da
+// Tolentino) — si cambia da settings/registrazione.sigla, senza deploy.
+const ORG_FALLBACK = 'ARPE';
+
 // WinAnsi safety: pdf-lib StandardFonts muoiono su caratteri fuori CP1252
 // (→, ✓, − matematico, ☒…). Tutto il testo passa da qui.
 function wa(s) {
@@ -101,7 +106,8 @@ export function resolveCanoneInput({ contract, property, listing, cfg }) {
 }
 
 // ── Il PDF ───────────────────────────────────────────────────────────────
-async function buildPdf({ contract, property, calc, input, deadlines }) {
+async function buildPdf({ contract, property, calc, input, deadlines, org }) {
+  const ORG_NAME = String(org || ORG_FALLBACK);
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -110,7 +116,17 @@ async function buildPdf({ contract, property, calc, input, deadlines }) {
 
   let page, y;
   const newPage = () => { page = pdf.addPage([W, H]); y = H - 46; };
-  const T = (t, x, yy, sz, f, col) => page.drawText(wa(t), { x, y: yy, size: sz, font: f || font, color: col || ink });
+  // align: undefined|'l' = x e' il bordo sinistro; 'c' = x e' il centro; 'r' = x e' il bordo destro.
+  // Serve alla scheda dell'associazione, che ha titolo e dichiarazioni centrati.
+  const T = (t, x, yy, sz, f, col, align) => {
+    const fnt = f || font, txt = wa(t);
+    let px = x;
+    if (align === 'c' || align === 'r') {
+      const w = fnt.widthOfTextAtSize(txt, sz);
+      px = align === 'c' ? x - w / 2 : x - w;
+    }
+    page.drawText(txt, { x: px, y: yy, size: sz, font: fnt, color: col || ink });
+  };
   const line = (yy, x1 = M, x2 = W - M, th = 0.6, col) => page.drawLine({ start: { x: x1, y: yy }, end: { x: x2, y: yy }, thickness: th, color: col || rgb(0.75, 0.73, 0.68) });
   const need = (h) => { if (y - h < 46) newPage(); };
   const head = (title, sub) => {
@@ -134,143 +150,191 @@ async function buildPdf({ contract, property, calc, input, deadlines }) {
     if (checked) T('X', x + 1.6, y - 0.4, 7.5, bold);
   };
 
-  // ═══ PAGINA 1 — SCHEDA ATTESTAZIONE ═══
+  // ═══ PAGINA 1 — LA SCHEDA, COM'E' DAVVERO ═══
+  // Ricalcata sulla scheda FIRMATA che l'organizzazione compila e timbra
+  // (foto del 23/08/2026), non sul solo modello vuoto: i due differiscono in
+  // punti che contano — la tabella della superficie a quattro colonne, le
+  // caratteristiche spuntate una per una, e soprattutto la riga finale, che
+  // sul foglio vero porta SOLO "Importo canone mensile pattuito". Nessun
+  // massimo stampato accanto: il tetto di fascia e' un dato di lavoro NOSTRO
+  // e sta a pagina 2, non su un foglio che va all'organizzazione e all'AdE.
+  //
+  // La scheda esce SEMPRE, anche senza zona o mq: cio' che il sistema non sa
+  // diventa una riga vuota da compilare a penna, mai un foglio che manca.
   newPage();
-  head('SCHEDA PER L\'ATTESTAZIONE DI RISPONDENZA',
-    'Accordo Territoriale del Comune di Roma del 25 luglio 2023 e DM 16 gennaio 2017 - pre-compilata da BOOM sui dati del contratto');
+  page.drawRectangle({ x: 0, y: H - 40, width: W, height: 40, color: rgb(0.04, 0.04, 0.05) });
+  T('BOOM', M, H - 27, 15, bold, rgb(1, 1, 1));
+  T('ROMA', M + 48, H - 26, 8, font, rgb(0.91, 0.78, 0.41));
+  T(dIT(new Date().toISOString()), W - M - 60, H - 27, 8, font, rgb(0.6, 0.6, 0.6));
+  y = H - 62;
+  T('SCHEDA PER LA ATTESTAZIONE DI RISPONDENZA ALL\'ACCORDO TERRITORIALE', W / 2, y, 9.5, bold, ink, 'c'); y -= 12;
+  T('DEL COMUNE DI ROMA DEL 25 LUGLIO 2023 E DM 16 GENNAIO 2017', W / 2, y, 9.5, bold, ink, 'c'); y -= 20;
 
-  // tipo contratto
-  need(18);
-  const tipo = input.tipo;
-  box(M, tipo === '32'); T('Contratto 3+2', M + 13, y, 9);
-  box(M + 130, tipo === 'stud'); T('Studenti universitari', M + 143, y, 9);
-  box(M + 290, tipo === 'trans'); T('Transitorio', M + 303, y, 9);
-  y -= 20;
-
-  row('LOCATORE', `${contract.landlordName || '-'}${contract.landlordCF ? '  -  C.F. ' + contract.landlordCF : ''}`, 90);
-  row('CONDUTTORE', `${contract.tenantName || '-'}${contract.tenantCF ? '  -  C.F. ' + contract.tenantCF : ''}`, 90);
-  row('IMMOBILE', `ROMA - ${property.address || '-'}${property.floor ? ' - piano ' + property.floor : ''}`, 90);
-  row('COD. ZONA', calc && calc.zona ? `${calc.zona.cod} - ${calc.zona.nome}` : 'da confermare con ARPE', 90);
-  row('CATASTO', property.cadastralData || contract.cadastral || '-', 90);
-  row('DECORRENZA', `${dIT(contract.startDate) || '-'}    Stipulato: ${dIT(contract.fullySignedAt) || 'da firmare'}    ${contract.rliRegisteredAt ? 'Registrato: ' + dIT(contract.rliRegisteredAt) : 'DA REGISTRARE'}`, 90);
-  y -= 4;
-
-  // IL MODULO SI STAMPA SEMPRE, FEDELE AL FOGLIO DELL'ASSOCIAZIONE.
-  // Fino al 23/08/2026 questa pagina degradava a "SCHEDA NON CALCOLABILE"
-  // quando mancavano zona o mq: l'operatore restava senza il foglio proprio
-  // nel caso in cui gli serviva stamparlo e completarlo a mano. Ora escono
-  // sempre tutte le sezioni del modulo — superficie, i 20 parametri, le
-  // maggiorazioni A-H, la fascia, i due importi finali — e cio' che il
-  // sistema non sa diventa una riga vuota da compilare, esattamente come
-  // sul foglio di carta.
   const HAS = !!(calc && calc.ok);
-  const BLANK = '______________';
+  const tipo = input.tipo;
 
-  // ── CALCOLO DELLA SUPERFICIE CONVENZIONALE ──
-  need(20); T('CALCOLO DELLA SUPERFICIE CONVENZIONALE', M, y, 9, bold, gold); y -= 14;
-  if (HAS) {
-    calc.parts.forEach(p => {
-      need(13);
-      T(p.n, M, y, 8.5);
-      T(`mq ${fmtN(p.mq)}`, M + 250, y, 8.5, font, grey);
-      T(p.c, M + 330, y, 8.5, font, grey);
-      T(`= mq ${fmtN(p.v)}`, M + 440, y, 8.5, bold);
-      y -= 12.5;
-    });
-  } else {
-    [['Superficie utile calpestabile', '< 46 x 1,30 | 46-70 x 1,15 | > 70 x 1,00'],
-     ['Box / posto auto esclusivo', 'x 0,80 (zona pregio) | x 0,50'],
-     ['Posto auto in autorimessa comune', 'x 0,20'],
-     ['Balconi, terrazze, cantine e simili', 'x 0,25'],
-     ['Superficie scoperta in godimento esclusivo', 'x 0,15'],
-     ['Verde condominiale (sup. tot. / millesimi)', 'x 0,10']].forEach(([n, c]) => {
-      need(13);
-      T(n, M, y, 8.5); T('mq ______', M + 250, y, 8.5, font, grey);
-      T(c, M + 330, y, 7.5, font, grey); T('= mq ________', M + 440, y, 8.5);
-      y -= 12.5;
-    });
-  }
-  need(15); line(y + 4);
-  T(`TOTALE SUPERFICIE CONVENZIONALE: mq ${HAS ? fmtN(calc.sc) : BLANK}`, M, y - 6, 9.5, bold); y -= 22;
-
-  // ── CARATTERISTICHE + I 20 PARAMETRI ──
-  need(16);
-  T('Alloggio "normale" (acqua, fognatura, gas/induzione, riscaldamento):', M, y, 8.5);
-  box(M + 320, HAS && calc.normale); T(HAS ? (calc.normale ? 'SI' : 'NO') : 'SI / NO', M + 333, y, 8.5, bold); y -= 18;
-
-  need(150);
-  T(`PARAMETRI DESCRITTIVI DELL'ALLOGGIO: ${HAS ? calc.nP + ' su 20' : '____ su 20'}`, M, y, 9, bold, gold); y -= 14;
-  for (let i = 0; i < 10; i++) {
-    need(13);
-    box(M, HAS && calc.parIdx.includes(i)); T(`${i + 1}. ${CANONE.PARAMETRI[i]}`, M + 12, y, 7.6);
-    box(M + 262, HAS && calc.parIdx.includes(i + 10)); T(`${i + 11}. ${CANONE.PARAMETRI[i + 10]}`, M + 274, y, 7.6);
-    y -= 12;
-  }
-  if (HAS && Object.keys((calc.derived && calc.derived.parametri && calc.derived.parametri.from) || {}).length) {
-    need(12);
-    T('Parametri derivati dalle dotazioni dichiarate in annuncio/immobile - verificare in sede di attestazione.', M, y, 7, font, grey); y -= 14;
-  }
-  y -= 4;
-
-  // ── MAGGIORAZIONI / RIDUZIONI A-H (la griglia del modulo) ──
-  need(70);
-  T('MAGGIORAZIONI / RIDUZIONI APPLICABILI', M, y, 9, bold, gold); y -= 14;
-  const magOn = (id) => HAS && Array.isArray(calc.mag) && calc.mag.includes(id);
-  const MAGROW = [
-    ['arr', 'A - Ammobiliato'], ['sem', 'B - Seminterrato -10%'],
-    ['asc', 'C - Senza ascensore -10%'], ['att', 'D - Attico +10%'],
-    ['clA', 'E - Classe energetica A/B/C +10%'], ['eco', 'F - Interventi Eco Bonus +5%'],
-    ['sis', 'G - Interventi Sisma Bonus +10%'], ['clD', 'H - Classe energetica D/E/F +5%'],
-  ];
-  for (let i = 0; i < MAGROW.length; i += 2) {
-    need(13);
-    box(M, magOn(MAGROW[i][0])); T(MAGROW[i][1], M + 12, y, 8);
-    if (MAGROW[i + 1]) { box(M + 262, magOn(MAGROW[i + 1][0])); T(MAGROW[i + 1][1], M + 274, y, 8); }
-    y -= 12.5;
-  }
-  need(14);
-  T('Transitorio +10%', M + 12, y, 8); box(M, HAS && input.tipo === 'trans');
-  T('Immobile vincolato o cat. A1-A8  + ______ %', M + 274, y, 8); box(M + 262, false);
+  // ── tipo di contratto ──
+  T('Contratto:', M, y, 8.5, bold);
+  box(M + 58, tipo === '32'); T('3 + 2', M + 70, y, 8.5);
+  box(M + 118, tipo === 'stud'); T('Studenti universitari', M + 130, y, 8.5);
+  box(M + 240, tipo === 'trans'); T('Transitorio', M + 252, y, 8.5);
   y -= 18;
 
-  // ── ZONA · FASCIA · SUBFASCIA (il riquadro del modulo) ──
-  need(30);
-  T(`ZONA ${HAS ? calc.zona.cod + ' - ' + calc.zona.nome : BLANK}`, M, y, 9, bold);
-  T(`SUBFASCIA: ${HAS ? calc.fascia : '____'}`, M + 300, y, 9, bold); y -= 14;
-  T(`FASCIA DI OSCILLAZIONE: ${HAS ? fmtN(calc.fMin) + ' - ' + fmtN(calc.fMax) : '______ - ______'} EUR/mq/mese`
-    + `   x   mq ${HAS ? fmtN(calc.sc) : '______'}`, M, y, 8.5); y -= 13;
-  if (HAS && calc.note.length) { T(`Applicate: ${calc.note.join(', ')} (${calc.pct > 0 ? '+' : ''}${calc.pct}%)`, M, y, 8, font, grey); y -= 13; }
+  // ── le parti ──
+  const fld = (label, val, x, lw, tot) => {
+    T(label, x, y, 8, font, grey);
+    T(val || '', x + lw, y, 8.5);
+    page.drawLine({ start: { x: x + lw, y: y - 2.5 }, end: { x: x + tot, y: y - 2.5 }, thickness: 0.4, color: rgb(0.62, 0.62, 0.62) });
+  };
+  fld('Locatore:', `${contract.landlordName || ''}${contract.landlordCF ? '   C.F. ' + contract.landlordCF : ''}`, M, 52, W - 2 * M); y -= 15;
+  fld('Conduttore:', `${contract.tenantName || ''}${contract.tenantCF ? '   C.F. ' + contract.tenantCF : ''}`, M, 52, W - 2 * M); y -= 17;
 
-  // ── I DUE IMPORTI, come sul modulo ──
-  // Il canone PATTUITO e' quello deciso dalle parti e si stampa TALE E
-  // QUALE: il massimo di fascia e' un riferimento dell'accordo, non un
-  // limite che questo foglio impone. L'attestazione di rispondenza la
-  // rilascia l'organizzazione, e questo documento le porta i numeri.
-  need(46);
-  const fits = HAS ? calc.fits !== false : null;
-  page.drawRectangle({ x: M, y: y - 32, width: W - 2 * M, height: 44,
-    color: rgb(0.98, 0.97, 0.93), borderColor: gold, borderWidth: 0.8 });
-  T(`Importo massimo canone mensile di fascia: ${HAS ? eur(calc.cMax) : BLANK}`, M + 12, y - 6, 9, bold);
-  T(`Importo canone mensile PATTUITO: ${calc.canone || contract.rent ? eur(calc.canone || contract.rent) : BLANK}`, M + 12, y - 20, 10, bold);
-  if (HAS && fits === false) {
-    T(`(+${eur(calc.excess)} sul massimo di fascia)`, M + 330, y - 20, 8, font, grey);
-  }
-  y -= 50;
-  if (HAS && fits === false) {
-    need(14);
-    T('Nota: il canone pattuito supera il massimo della fascia calcolata con i parametri qui riportati.', M, y, 7.5, font, grey); y -= 11;
-    T('Verificare parametri e maggiorazioni con l\'organizzazione, che valuta il rilascio dell\'attestazione.', M, y, 7.5, font, grey); y -= 14;
-  } else if (!HAS) {
-    need(14);
-    T(`Da completare: ${calc && calc.error === 'mq_mancanti' ? 'superficie (mq) dell\'immobile' : 'zona dell\'accordo territoriale'} - impostabile dal portal (bottone Fascicolo) oppure a mano su questo foglio.`, M, y, 7.5, font, grey); y -= 14;
-  }
+  fld('Citta\':', (property.city || 'ROMA').toUpperCase(), M, 30, 96);
+  fld('Via', `${property.address || ''}${property.floor ? ' - piano ' + property.floor : ''}`, M + 106, 20, 214);
+  fld('COD. ZONA', HAS ? calc.zona.cod : ((input.zona && input.zona.cod) || ''), M + 330, 50, W - 2 * M - 330);
+  y -= 16;
 
-  need(56);
-  T('Il locatore ____________________________', M, y, 9);
-  T('Il conduttore ____________________________', M + 270, y, 9); y -= 26;
-  T('Tutto cio\' premesso, l\'organizzazione ________________________________ ATTESTA che i contenuti', M, y, 8.5); y -= 12;
-  T('economici e normativi del contratto corrispondono a quanto previsto dall\'accordo territoriale in epigrafe.', M, y, 8.5); y -= 22;
-  T('L\'Organizzazione sindacale  ____________________________________  (timbro e firma)', M, y, 8.5, font, grey);
+  // Catasto come sul foglio: Foglio / Particella / Subalterno / Categoria.
+  const cat = String(property.cadastralData || contract.cadastral || '');
+  const grab = (re) => { const m = re.exec(cat); return m ? m[1] : ''; };
+  fld('Id. catastale   Foglio', grab(/foglio\s*:?\s*([\w\/]+)/i), M, 84, 150);
+  fld('Part.', grab(/part(?:icella|\.)?\s*:?\s*([\w\/]+)/i), M + 160, 26, 90);
+  fld('Sub.', grab(/sub\.?\s*:?\s*([\w\/]+)/i), M + 260, 24, 90);
+  fld('Cat.', grab(/cat\.?\s*(?:catastale)?\s*:?\s*([\w\/]+)/i), M + 360, 22, W - 2 * M - 360);
+  y -= 17;
+
+  fld('Decorrenza:', dIT(contract.startDate), M, 56, 128);
+  fld('Stipulato il:', dIT(contract.fullySignedAt), M + 138, 56, 128);
+  fld('Registrato il:', dIT(contract.rliRegisteredAt), M + 276, 58, 128);
+  y -= 18;
+
+  T('Tutte le informazioni necessarie per determinare il calcolo del canone sono state fornite dalle parti.', W / 2, y, 8, font, ink, 'c');
+  y -= 18;
+
+  // ── CALCOLO DELLA SUPERFICIE CONVENZIONALE (tabella a 4 colonne) ──
+  // I coefficienti NON si riscrivono qui: si chiedono al motore, che e' la
+  // stessa copia usata da scheda-canone.html e dal calcolo di questa pagina.
+  // Riscriverli a mano voleva dire due verita' possibili sullo stesso foglio.
+  const supPart = (key) => {
+    const v = Number(input[key]) || 0;
+    if (!v) return { netta: 0, c: '', conv: 0 };
+    const parts = CANONE.supConv({ mq: 0, boxPre: input.boxPre, [key]: v }).parts;
+    const p = key === 'mq' ? parts[0] : parts[1];
+    return { netta: v, c: p ? p.c : '', conv: p ? p.v : 0 };
+  };
+  const SUP = [
+    ['Superficie calpestabile appartamento', 'mq'],
+    ['Box o autorimessa in godimento esclusivo', 'mqBox'],
+    ['Posto auto o autorimessa comune', 'mqPC'],
+    ['Balconi, terrazze, cantine e simili', 'mqBal'],
+    ['Superficie scoperta in godimento esclusivo', 'mqSc'],
+    ['Verde condominiale (sup. tot. cond. x mm. Tab. A)', 'mqVe'],
+  ].map(([label, key]) => Object.assign({ label }, supPart(key)));
+
+  T('CALCOLO DELLA SUPERFICIE CONVENZIONALE', M, y, 8.5, bold); y -= 13;
+  const C0 = M, C1 = M + 232, C2 = M + 316, C3 = M + 400, C4 = W - M;
+  const HR = 12, RH = 13, tTop = y + 4;
+  page.drawRectangle({ x: C0, y: tTop - HR, width: C4 - C0, height: HR, color: rgb(0.93, 0.92, 0.89) });
+  const hy = tTop - HR + 3.6;
+  T('SUPERFICIE', C0 + 4, hy, 7, bold);
+  T('SUPERFICIE NETTA', C1 + 4, hy, 7, bold);
+  T('COEFFICIENTE', C2 + 4, hy, 7, bold);
+  T('SUP. CONVENZIONALE', C3 + 4, hy, 7, bold);
+  y = tTop - HR;
+  SUP.forEach((r) => {
+    const ty = y - RH + 3.8;
+    T(r.label, C0 + 4, ty, 7.2);
+    T('mq ' + (r.netta ? fmtN(r.netta) : ''), C1 + 4, ty, 7.2);
+    T(r.c, C2 + 4, ty, 7.2);
+    T('mq ' + (r.conv ? fmtN(r.conv) : ''), C3 + 4, ty, 7.2);
+    y -= RH;
+  });
+  const tBot = y;
+  const gLine = (x1, y1, x2, y2) => page.drawLine({ start: { x: x1, y: y1 }, end: { x: x2, y: y2 }, thickness: 0.5, color: rgb(0.55, 0.55, 0.55) });
+  [C0, C1, C2, C3, C4].forEach(x => gLine(x, tTop, x, tBot));
+  gLine(C0, tTop, C4, tTop);
+  gLine(C0, tTop - HR, C4, tTop - HR);
+  SUP.forEach((_, i) => gLine(C0, tTop - HR - (i + 1) * RH, C4, tTop - HR - (i + 1) * RH));
+  y -= 14;
+  const scTot = CANONE.supConv(input).total;
+  T(`TOTALE SUPERFICIE CONVENZIONALE   Mq. ${scTot > 0 ? fmtN(scTot) : '______________'}`, C1 - 60, y, 8.5, bold);
+  y -= 20;
+
+  // ── CARATTERISTICHE: i requisiti che fanno l'alloggio "normale" ──
+  const norm = input.normale !== false;
+  T('CARATTERISTICHE:', M, y, 8, bold);
+  const CAR = ['Allaccio rete idrica', 'Allaccio rete fognante', 'Erogazione GAS o induzione', 'Impianto di riscaldamento'];
+  CAR.slice(0, 2).forEach((lab, i) => { const x = M + 110 + i * 170; box(x, norm); T(lab, x + 12, y, 7.5); });
+  y -= 13;
+  CAR.slice(2).forEach((lab, i) => { const x = M + 110 + i * 170; box(x, norm); T(lab, x + 12, y, 7.5); });
+  y -= 15;
+  T('Appartamento normale:', M, y, 8, bold);
+  box(M + 110, norm); T('SI', M + 122, y, 8);
+  box(M + 150, !norm); T('NO', M + 162, y, 8);
+  y -= 18;
+
+  // ── I 20 PARAMETRI ──
+  T('PARAMETRI', M, y, 8, bold); y -= 12;
+  for (let i = 0; i < 10; i++) {
+    T(String(i + 1), M, y, 6.8, font, grey);
+    box(M + 13, HAS && calc.parIdx.includes(i)); T(CANONE.PARAMETRI[i], M + 25, y, 6.9);
+    T(String(i + 11), M + 258, y, 6.8, font, grey);
+    box(M + 273, HAS && calc.parIdx.includes(i + 10)); T(CANONE.PARAMETRI[i + 10], M + 285, y, 6.9);
+    y -= 11;
+  }
+  y -= 4;
+  T(`NUMERO PARAMETRI DESCRITTIVI DELL'ALLOGGIO: ${HAS ? calc.nP : '______'}`, M, y, 8.5, bold); y -= 18;
+
+  // ── MAGGIORAZIONI / RIDUZIONI (griglia A-H come sul foglio) ──
+  T('Maggiorazioni / riduzioni applicabili:', M, y, 8.5, bold); y -= 13;
+  const magOn = (id) => HAS && Array.isArray(calc.mag) && calc.mag.includes(id);
+  const pArr = (input.cfg && input.cfg.pArr) || 0;
+  const MAGROW = [
+    [['arr', `A - Ammobiliato + ${pArr ? pArr : '____'}%`], ['sem', 'B - Seminterrato - 10%'], ['asc', 'C - Senza ascensore - 10%']],
+    [['att', 'D - Attico + 10%'], ['clA', 'E - Classe energetica A/B/C + 10%'], ['eco', 'F - Interventi Eco Bonus + 5%']],
+    [['sis', 'G - Interventi Sisma Bonus + 10%'], ['clD', 'H - Classe energetica D/E/F + 5%'], null],
+  ];
+  MAGROW.forEach(r => {
+    r.forEach((cell, ci) => {
+      if (!cell) return;
+      const x = M + ci * 170;
+      box(x, magOn(cell[0])); T(cell[1], x + 12, y, 7.2);
+    });
+    y -= 13;
+  });
+  y -= 8;
+
+  // ── LA RIGA CHE CONTA: il canone PATTUITO, e basta ──
+  // Sul foglio firmato non c'e' nessun "importo massimo" accanto. Il massimo
+  // di fascia e' un riferimento dell'accordo, non un tetto che questo foglio
+  // impone al prezzo deciso dalle parti: sta a pagina 2, per noi. Se il
+  // pattuito lo supera il documento lo dice in nota, senza riscriverlo.
+  const durPct = (input.cfg && input.cfg.pDur && tipo === '32') ? input.cfg.pDur : 0;
+  T(`Durata ${durPct || '_____'}%;`, M, y, 8.5, bold);
+  T(`Transitorio ${tipo === 'trans' ? '10' : '_____'}%;`, M + 96, y, 8.5, bold);
+  const pattuito = Number(contract.rent) || 0;
+  T(`Importo canone mensile pattuito: ${pattuito ? eur(pattuito) : 'EUR ____________'};`, M + 210, y, 9, bold);
+  y -= 12;
+  if (HAS && pattuito > calc.cMax) {
+    T(`Nota: il canone pattuito supera di ${eur(pattuito - calc.cMax)} il massimo di fascia ${calc.fascia} dell'accordo (${eur(calc.cMax)}).`, M, y, 7, font, rgb(0.6, 0.3, 0.05));
+    y -= 12;
+  }
+  y -= 8;
+
+  T('Il locatore', M + 55, y, 8.5); T('Il conduttore', W - M - 145, y, 8.5); y -= 16;
+  page.drawLine({ start: { x: M, y }, end: { x: M + 190, y }, thickness: 0.5, color: rgb(0.5, 0.5, 0.5) });
+  page.drawLine({ start: { x: W - M - 190, y }, end: { x: W - M, y }, thickness: 0.5, color: rgb(0.5, 0.5, 0.5) });
+  y -= 20;
+
+  T(`Roma, ${dIT(new Date().toISOString())}`, M, y, 8.5); y -= 15;
+  T(`Tutto cio' premesso l'organizzazione ${ORG_NAME}, sotto la propria responsabilita' e sulla base degli`, M, y, 7.6); y -= 10;
+  T('elementi oggettivi sopra forniti a cura ed assunzione di responsabilita\' dalle parti, anche ai fini', M, y, 7.6); y -= 10;
+  T('dell\'ottenimento di eventuali agevolazioni fiscali,', M, y, 7.6); y -= 14;
+  T('ATTESTA', W / 2, y, 9.5, bold, ink, 'c'); y -= 13;
+  T('che i contenuti economici e normativi del contratto corrispondono a quanto previsto dall\'accordo', M, y, 7.6); y -= 10;
+  T('territoriale in epigrafe.', M, y, 7.6); y -= 20;
+  T('L\'Organizzazione sindacale', W / 2 + 120, y, 8, font, grey, 'c'); y -= 20;
+  page.drawLine({ start: { x: W / 2 + 30, y: y + 4 }, end: { x: W - M, y: y + 4 }, thickness: 0.5, color: rgb(0.5, 0.5, 0.5) });
 
   // ═══ PAGINA 2 — DATI REGISTRAZIONE RLI ═══
   newPage();
@@ -298,7 +362,45 @@ async function buildPdf({ contract, property, calc, input, deadlines }) {
   row('Indirizzo', `ROMA - ${property.address || '-'}`);
   row('Catasto', `${property.cadastralData || contract.cadastral || '-'}${contract.renditaCatastale ? '  -  rendita ' + eur(contract.renditaCatastale) : ''}`);
   row('Classe energetica', contract.energyClass || property.energyClass || '-');
-  y -= 10;
+  y -= 12;
+
+  // ── VERIFICA CANONE CONCORDATO — il riferimento, dalla parte giusta ──
+  // Questo blocco e' il tetto di fascia dell'accordo: NON sta a pagina 1,
+  // perche' quella e' la scheda che va all'organizzazione e all'Agenzia
+  // delle Entrate e li' si stampa il canone PATTUITO, non un massimo che il
+  // foglio sembrerebbe imporre alle parti. Qui serve a noi: prima di
+  // mandare la pratica si sa se l'attestazione regge o se va negoziata.
+  need(120);
+  const vy0 = y + 12;
+  T('VERIFICA CANONE CONCORDATO', M + 10, y, 9, bold, gold); y -= 12;
+  T('Riferimento di lavoro BOOM - non fa parte della scheda inviata all\'organizzazione.', M + 10, y, 7.5, font, grey); y -= 15;
+  const vrow = (k, v, col) => { T(k, M + 10, y, 8, bold, grey); T(v, M + 170, y, 8.5, font, col || ink); y -= 14; };
+  if (calc && calc.ok) {
+    vrow('Zona accordo', `${calc.zona.cod} - ${calc.zona.nome}`);
+    vrow('Superficie convenzionale', `${fmtN(calc.sc)} mq`);
+    vrow('Parametri / fascia', `${calc.nP} su 20  ->  fascia ${calc.fascia}${calc.normale === false ? '  (alloggio non "normale": fascia A)' : ''}`);
+    vrow('Valori di fascia', `${eur(calc.fMin)} - ${eur(calc.fMax)} per mq/mese`);
+    vrow('Maggiorazioni', calc.note && calc.note.length ? calc.note.join(', ') : 'nessuna');
+    vrow('Canone di fascia', `${eur(calc.cMin)} - ${eur(calc.cMax)} al mese${calc.capApplied ? '  (cap: gli aumenti non superano il massimo di fascia)' : ''}`);
+    const pat = Number(contract.rent) || 0;
+    const fits = pat > 0 && pat <= calc.cMax + 0.5;
+    vrow('Canone pattuito', eur(pat), fits ? rgb(0.05, 0.45, 0.15) : rgb(0.7, 0.15, 0.05));
+    T(fits
+      ? 'ESITO: il canone pattuito rientra nella fascia di oscillazione dell\'accordo.'
+      : `ESITO: il canone pattuito supera il massimo di fascia di ${eur(pat - calc.cMax)}. L'organizzazione non puo' attestare la rispondenza a questo prezzo.`,
+      M + 10, y, 8, bold, fits ? rgb(0.05, 0.45, 0.15) : rgb(0.7, 0.15, 0.05));
+    y -= 14;
+  } else {
+    const why = (calc && calc.error) === 'mq_mancanti'
+      ? 'mancano i metri quadri dell\'immobile'
+      : 'la zona dell\'accordo non e\' stata riconosciuta dall\'indirizzo';
+    vrow('Esito', 'calcolo non eseguito', rgb(0.7, 0.35, 0.05));
+    T(`Motivo: ${why}. La scheda a pagina 1 esce comunque, da completare a mano.`, M + 10, y, 8, font, grey); y -= 12;
+    T('Per il calcolo automatico: portal -> riga contratto -> Fascicolo, e indica zona e mq.', M + 10, y, 8, font, grey); y -= 12;
+  }
+  page.drawRectangle({ x: M, y: y + 4, width: W - 2 * M, height: vy0 - y - 4, borderColor: rgb(0.82, 0.74, 0.5), borderWidth: 0.8 });
+  y -= 14;
+
   need(14); T('Nota: registrazione entro 30 giorni dalla stipula. Con cedolare secca: niente registro ne\' bollo.', M, y, 8, font, grey);
 
   // ═══ PAGINA 3 — SCADENZARIO ═══
@@ -357,7 +459,10 @@ export async function buildFascicolo(contractId, { contract, property, overrides
     let deadlines = [];
     try { deadlines = await fsList('deadlines', { filter: { field: 'linkedContractId', op: 'EQUAL', value: contractId }, limit: 40 }); } catch (_) {}
 
-    const bytes = await buildPdf({ contract: c, property: p, calc, input, deadlines });
+    let org = ORG_FALLBACK;
+    try { const rs = await fsGet('settings/registrazione'); const v = clip((rs || {}).sigla, 40); if (v) org = v; } catch (_) {}
+
+    const bytes = await buildPdf({ contract: c, property: p, calc, input, deadlines, org });
     const url = await storageUpload(`contracts/${contractId}/fascicolo-fiscale.pdf`, Buffer.from(bytes), 'application/pdf');
     if (!url) return { ok: false, error: 'storage_failed' };
 

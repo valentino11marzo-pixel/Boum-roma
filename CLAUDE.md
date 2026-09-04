@@ -1446,7 +1446,7 @@ l'attestazione di rispondenza (**€100**). Ora:
   op:status (mai un prezzo hardcodato nel client), radio variante,
   checklist live, checkbox fattura, nota, ✎ per cambiare destinatario.
   `✓ RLI registrato` resta il tap che chiude il loop quando ASPI conferma.
-- Test: `node tests/aspi/run.mjs` (35 check).
+- Test: `node tests/aspi/run.mjs` (62 check).
 
 **Il documento si attacca DOVE MANCA** (`api/fiscal/allega.js`, 23/08):
 il pannello diceva onestamente dove caricare ogni pezzo ("console
@@ -1463,22 +1463,48 @@ quella della checklist; le voci non allegabili (il contratto si genera,
 la scheda si calcola, i CF sono dati) vengono **rifiutate** invece di
 ricevere una destinazione inventata.
 
-**La scheda si stampa SEMPRE** (fascicolo pagina 1, stessa release): fino
-al 23/08 senza zona o mq degradava a "SCHEDA NON CALCOLABILE" — e
-l'operatore restava senza foglio proprio quando gli serviva stamparlo e
-completarlo a mano. Ora esce sempre il **modulo fedele** all'originale
-dell'associazione (`reference/caf/2023_scheda_calcolo_canone_ASPI.docx`):
-superficie convenzionale, i 20 parametri, la griglia **maggiorazioni A–H**
-con le caselle, zona/fascia/subfascia, e i due importi finali. Ciò che il
-sistema non sa diventa una riga vuota da compilare. **Il canone PATTUITO
-si stampa tale e quale**: il massimo di fascia è un riferimento
-dell'accordo, non un tetto che il foglio impone al prezzo deciso dalle
-parti; se lo supera il documento lo dice in nota — la valutazione
-dell'attestazione resta all'organizzazione. Numeri all'italiana
-**deterministici** (`itNum`): `toLocaleString` su runtime con ICU ridotta
-stampava `1250,00` invece di `1.250,00` — su un foglio che va all'AdE il
-punto delle migliaia non è un dettaglio (la lezione già pagata su
-/executive).
+**La scheda si stampa SEMPRE, ed è ricalcata sul foglio FIRMATO** (fascicolo
+pagina 1). Fino al 23/08 senza zona o mq degradava a "SCHEDA NON
+CALCOLABILE" — e l'operatore restava senza foglio proprio quando gli serviva
+stamparlo e completarlo a mano. Ora esce comunque, e non ricalca il modello
+vuoto ma la **scheda compilata e timbrata** che l'organizzazione restituisce
+(foto del 23/08/2026): i due differiscono in punti che contano — la tabella
+della superficie a **quattro colonne** (superficie / netta / coefficiente /
+convenzionale), le caratteristiche spuntate una per una col verdetto
+*Appartamento normale SI/NO*, i 20 parametri, la griglia **maggiorazioni
+A–H**, e la riga finale, che sul foglio vero porta **solo** `Durata __% ·
+Transitorio __% · Importo canone mensile pattuito`. Ciò che il sistema non sa
+diventa una riga vuota da compilare a penna, mai un foglio che manca.
+
+- **Il canone PATTUITO si stampa tale e quale.** Il massimo di fascia è un
+  riferimento dell'accordo, non un tetto che il foglio impone al prezzo
+  deciso dalle parti; se lo supera il documento lo dice **in nota**, e la
+  valutazione dell'attestazione resta all'organizzazione.
+- **Nessun "importo massimo" accanto al pattuito.** Pagina 1 è il foglio che
+  va all'organizzazione e all'Agenzia delle Entrate: stamparci un tetto lo
+  farebbe sembrare imposto dal documento. Il tetto serve a **noi**, e sta a
+  pagina 2 nel riquadro **VERIFICA CANONE CONCORDATO**, che dichiara di non
+  far parte della scheda inviata — zona, superficie convenzionale, parametri
+  → fascia, valori €/mq, maggiorazioni, canone di fascia, e l'ESITO (rientra
+  / sfora di quanto). Senza calcolo dice **perché** (zona non riconosciuta,
+  mq mancanti) e dove metterli, invece di tacere.
+- **I coefficienti non si riscrivono**: la tabella della superficie li chiede
+  a `CANONE.supConv` — la stessa copia di `scheda-canone.html` e del calcolo
+  di questa pagina. Riscritti a mano volevano dire due verità possibili sullo
+  stesso foglio.
+- **Chi ATTESTA è configurabile**: sul timbro del foglio vero c'è **ARPE**
+  (Associazione Romana Proprietà Edilizia, via S. Nicola da Tolentino), ed è
+  il default; si cambia da `settings/registrazione.sigla` senza deploy.
+- Numeri all'italiana **deterministici** (`itNum`): `toLocaleString` su
+  runtime con ICU ridotta stampava `1250,00` invece di `1.250,00` — su un
+  foglio che va all'AdE il punto delle migliaia non è un dettaglio (la
+  lezione già pagata su /executive).
+- **Il test legge il PDF, non il sorgente.** Un'asserzione su una stringa del
+  codice passa anche quando quella riga non viene mai disegnata: la suite
+  genera il fascicolo VERO su Firestore in memoria, decodifica i content
+  stream (esadecimali — `<424F4F4D> Tj`, mai `(BOOM) Tj`) e pretende il
+  foglio. Verificato per mutazione: tagliando il pattuito al massimo di
+  fascia, o rimettendo la via d'uscita "non calcolabile", i check cadono.
 
 ### La Valutazione BOOM (`api/fiscal/valutazione.js`)
 Il canone che BOOM propone al proprietario non nasce dalla tabella
@@ -3495,7 +3521,7 @@ camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
   | `tests/scheda/run.mjs` | La Scheda: token derivati (ruolo nella derivazione, timing-safe), precedenza prefill contratto→sign→wizard, lock post-firma, sync profilo su ENTRAMBI gli schemi users, upload con OCR che non blocca mai, /api/profile/link autorizzato |
   | `tests/innesto/run.mjs` | l'Innesto e il 413 di piattaforma: il PDF grande transita da Storage e i byte che arrivano ad Anthropic sono ESATTAMENTE quelli scaricati, un host estraneo non viene MAI contattato (l'endpoint non è un proxy), i tetti restano onesti (8 MB, whitelist formati), e il transito si cancella nel finally. Più l'APPLY VERO su Firestore finto: proposta completa → contratto+rate scritti, proposta senza una gamba → il contratto non nasce MA il riepilogo non lo promette e il toast dice quale gamba manca (la lezione del 30/08: "Innesto completato" senza contratto), proprietario già in `landlords` → mai un doppione |
   | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot |
-  | `tests/aspi/run.mjs` | l'iter ASPI: la checklist blocca SOLO senza contratto (il resto avverte, dichiarato nell'email), l'invio raggiunge il referente con l'operatore in copia e gli allegati veri, la fattura col markup non si duplica MAI (id deterministico), 'registered' non si degrada, l'auto-invio parte solo con la manopola girata |
+  | `tests/aspi/run.mjs` | l'iter ASPI: la checklist blocca SOLO senza contratto (il resto avverte, dichiarato nell'email), l'invio raggiunge il referente con l'operatore in copia e gli allegati veri, la fattura col markup non si duplica MAI (id deterministico), 'registered' non si degrada, l'auto-invio parte solo con la manopola girata. Più **la scheda letta dal PDF vero** (non dal sorgente): esce anche senza zona né mq, il canone pattuito si stampa tale e quale e mai ricalcolato al massimo di fascia, nessun tetto accanto ad esso sul foglio dell'organizzazione — sta a pagina 2 dichiarato come riferimento BOOM. Verificato per mutazione |
   | `tests/viewings/avail.mjs` | griglia slot: passi, gap 15', preavviso, orizzonte, maxPerDay, DST, token del link cliente |
   | `tests/viewings/telegram.mjs` | card Telegram visite: callback ≤64 byte, escaping HTML |
   | `tests/viewings/busyics.mjs` | il calendario Workspace nella griglia: impegni ICS bloccano gli slot (TZID, ricorrenze, EXDATE, RECURRENCE-ID, all-day busy/free), eventi BOOM filtrati, maxPerDay immune, cache + fail-open |

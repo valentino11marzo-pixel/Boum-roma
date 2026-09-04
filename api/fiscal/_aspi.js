@@ -59,6 +59,7 @@ export const ASPI_DEFAULTS = {
   email: process.env.ASPI_EMAIL || 'roberto.ubertini@gmail.com',
   referente: 'Roberto Ubertini',
   organizzazione: 'ASPI — Roma, via San Nicola da Tolentino',
+  sigla: 'ARPE',              // chi ATTESTA sulla scheda (come da timbro)
   cc: '',                     // copie extra (l'operatore è SEMPRE in copia)
   costoRegistrazione: 37,     // quanto ASPI fattura a BOOM per pratica
   costoAsseverazione: 100,
@@ -78,6 +79,7 @@ export function mergeAspiSettings(saved) {
   const s = { ...ASPI_DEFAULTS };
   const src = saved && typeof saved === 'object' ? saved : {};
   if (clip(src.email, 120).includes('@')) s.email = clip(src.email, 120);
+  if (clip(src.sigla, 40)) s.sigla = clip(src.sigla, 40);
   if (clip(src.referente)) s.referente = clip(src.referente, 80);
   if (clip(src.organizzazione)) s.organizzazione = clip(src.organizzazione, 120);
   if (clip(src.cc, 200).includes('@')) s.cc = clip(src.cc, 200);
@@ -157,9 +159,9 @@ export function aspiChecklist(contract, property, kind) {
   if (wantsAss) {
     const fits = c.canoneScheda && c.canoneScheda.fits;
     if (!c.fascicoloFiscaleUrl) push('scheda_canone', 'Scheda di calcolo canone (Fascicolo Fiscale)', 'missing', '',
-      'si genera automaticamente all\'invio (o da 📑 Fascicolo); servono zona accordo e mq');
+      'si genera automaticamente all\'invio (o da 📑 Fascicolo): il foglio esce sempre, senza zona o mq resta da completare a mano');
     else if (fits === false) push('scheda_canone', 'Scheda di calcolo canone — CANONE FUORI FASCIA', 'warn', c.fascicoloFiscaleUrl,
-      'ASPI non può attestare un canone sopra il massimo di fascia: riporta il canone o verifica i parametri da 📑 Fascicolo');
+      'l\'organizzazione non può attestare un canone sopra il massimo di fascia: riporta il canone o verifica i parametri da 📑 Fascicolo');
     else push('scheda_canone', 'Scheda di calcolo canone (Fascicolo Fiscale)', 'ok', c.fascicoloFiscaleUrl);
     push('ape', 'APE — Attestato di Prestazione Energetica', dossier.ape && dossier.ape.url ? 'ok' : 'missing',
       dossier.ape && dossier.ape.url, dossier.ape ? '' : 'console pre-agreement → 📦 Fascicolo ARPE (si carica UNA volta per immobile)');
