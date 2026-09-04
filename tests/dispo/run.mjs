@@ -301,6 +301,16 @@ process.env.FIREBASE_API_KEY = 'k';
 process.env.FIREBASE_ADMIN_EMAIL = 'a@b.c';
 process.env.FIREBASE_ADMIN_PASS = 'p';
 
+// L'OROLOGIO SI FERMA ANCHE QUI. La metà pura di questa suite gira su un
+// TODAY fissato; la metà end-to-end no — il handler chiamava `todayIso()`,
+// cioè l'orologio VERO. Il 4 settembre 2026 «Levico dal 1 settembre» ha
+// smesso di valere 2026-09-01 e ha cominciato a valere 2027-09-01: il motore
+// aveva ragione (regola 2 del file: si sceglie sempre il futuro), ma la
+// suite è diventata rossa DA SOLA, senza che nessuno avesse toccato niente.
+// Un test che marcisce col calendario è veleno: insegna a ignorare il rosso,
+// che è esattamente come si finisce con trenta run fallite su main.
+D.todayIso = () => TODAY;
+
 const { default: handler } = await import('../../api/listings-availability.js');
 const call = async (method, body, headers = { 'x-wizard-secret': 'test-secret' }) => {
   let code = 0, payload = null;
@@ -324,6 +334,8 @@ ok(DB.get('listings/levico').availableFrom === undefined, '  · e infatti il doc
 out = await call('POST', { text: 'Levico dal 1 settembre, Cavour subito', apply: true });
 ok(out.code === 200 && out.payload.applied.length === 2, 'con apply scrive entrambi', out.payload);
 ok(DB.get('listings/levico').availableFrom === '2026-09-01', '  · Levico ha la data ISO');
+ok(D.todayIso() === TODAY,
+  'l\'orologio della suite resta fermo: un test che cambia esito col calendario insegna a ignorare il rosso');
 ok(DB.get('listings/cavour').availableFrom === 'Subito', '  · Cavour è subito');
 ok(DB.get('listings/levico').availableRaw === 'Levico dal 1 settembre',
   '  · le parole originali restano sul documento');

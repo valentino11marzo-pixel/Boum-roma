@@ -109,6 +109,7 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,sys
 .miei-righe .r button:hover{color:#FF6B57}
 .miei-vuota{font-size:12px;color:var(--t3);padding:10px 2px}
 .miei-chiudi{margin-top:12px;width:100%;padding:11px;background:linear-gradient(135deg,var(--gold),var(--gold2));color:#000;font-weight:600;font-size:13px;border:0;border-radius:10px;cursor:pointer}
+
 /* ══ QUADRANTE:CSS ══ */
 /* IL QUADRANTE — le distanze non spariscono piu'. A riposo e' la legenda
    della citta'; con una casa scelta e' il cruscotto di quella porta. */
@@ -178,7 +179,7 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,sys
 .qf-min{display:flex;gap:5px}
 .qf-min button{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.12);
   border-radius:9px;color:var(--t2);font:inherit;font-size:11.5px;padding:7px 9px;
-  min-height:38px;cursor:pointer;font-variant-numeric:tabular-nums}
+  min-height:44px;min-width:44px;cursor:pointer;font-variant-numeric:tabular-nums}  /* 44: il bersaglio di un dito, non di un cursore */
 .qf-min button.on{background:linear-gradient(135deg,var(--gold),var(--gold2));
   color:#000;border-color:transparent;font-weight:600}
 .qf-esito{margin-top:9px;font-size:11px;color:var(--t3);line-height:1.5}
@@ -192,6 +193,21 @@ html,body{height:100%;background:var(--bg);color:var(--t1);font-family:Inter,sys
 }
 @media(prefers-reduced-motion:reduce){.quad{transition:none}}
 /* ══ /QUADRANTE:CSS ══ */
+
+/* IL TOCCO. Su iPhone un campo con carattere sotto i 16px fa ZOOMARE la
+   pagina al primo tap, e non torna indietro da sola: il modulo che deve
+   convertire si apre storto. Misurato a 390px con puntatore grossolano su
+   tutte le pagine della sitemap: 29 pagine con moduli, quasi tutti sotto.
+   `!important` qui e' lo strumento giusto, non una scorciatoia: la regola
+   dice «su un dito, mai sotto i 16px, qualunque cosa dica il resto del
+   foglio» — e senza, `.form select{font-size:15px}` scritto domani la
+   batterebbe in silenzio (e' successo alla prima stesura, presa dal test).
+   Vale solo dove il puntatore e' un dito: sul desktop i 14px restano.
+   Verificata in un browser vero da tests/telefono. */
+@media (pointer:coarse) {
+  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]),
+  select, textarea { font-size:16px !important; }
+}
 </style>
 <script src="/js/boom-geo.js"></script>
 <script src="/js/tempi-engine.js"></script>

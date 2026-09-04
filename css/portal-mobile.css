@@ -63,6 +63,30 @@ body.pm-on .page-actions::-webkit-scrollbar,
 body.pm-on .page-header > div:last-child::-webkit-scrollbar{display:none}
 body.pm-on .page-actions .btn,
 body.pm-on .page-header .btn{white-space:nowrap;flex:0 0 auto}
+/* LA MISURA DEL 4 SETTEMBRE 2026. La corsia orizzontale evitava i bottoni
+   impilati a tutta larghezza — ma su iPhone 15 (393px) la pagina Contratti
+   mostrava 369px di corsia su 602px di contenuto, e l'ordine del markup
+   metteva la PRIMARIA per ultima: «+ Nuovo» cominciava a x=503, cioè 134px
+   OLTRE il bordo dello schermo, dietro tre secondarie e con la barra di
+   scorrimento nascosta. L'azione più importante della pagina era invisibile
+   e senza il minimo indizio che esistesse. Stessa cosa su Pagamenti
+   («+ Registra»).
+   La primaria passa in testa alla corsia — `order`, non un riordino nel
+   markup: gli handler e la struttura restano identici (la regola di M2). */
+body.pm-on .page-actions .btn:not(.btn-secondary),
+body.pm-on .page-header > div:last-child .btn:not(.btn-secondary){order:-1}
+/* E la corsia DICE che continua: senza barra visibile, ciò che sta fuori
+   non esiste. La classe la mette il layer solo quando c'è davvero altro. */
+body.pm-on .page-actions.pm-lane-more,
+body.pm-on .page-header > div:last-child.pm-lane-more{
+    -webkit-mask-image:linear-gradient(to right,#000 calc(100% - 26px),transparent);
+    mask-image:linear-gradient(to right,#000 calc(100% - 26px),transparent);
+}
+/* arrivati in fondo la sfumatura sparisce: mentirebbe */
+body.pm-on .page-actions.pm-lane-end,
+body.pm-on .page-header > div:last-child.pm-lane-end{
+    -webkit-mask-image:none;mask-image:none;
+}
 /* Feedback tattile: ogni bottone "risponde" sotto il dito. */
 body.pm-on .btn:active,
 body.pm-on .pm-tab:active,
