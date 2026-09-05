@@ -73,7 +73,14 @@ export async function storageUpload(path, buffer, contentType = 'application/pdf
     console.warn(`[storage] ${res.status} su ${path} — ritento (${attempt + 1}/3)`);
   }
   if (!res) throw new Error(`Storage upload failed (rete): ${lastErr && lastErr.message}`);
-  if (!res.ok) throw new Error(`Storage upload failed (${res.status}): ${await res.text()}`);
+  if (!res.ok) {
+    // Lo status viaggia sull'errore: chi chiama deve poter distinguere un
+    // 403 (le regole/IAM negano: riprovare non serve, serve un umano) da un
+    // 5xx esaurito — la sonda di _finalize.js decide su questo.
+    const err = new Error(`Storage upload failed (${res.status}): ${await res.text()}`);
+    err.status = res.status;
+    throw err;
+  }
   const meta = await res.json();
   const dl = meta.downloadTokens;
   return `https://firebasestorage.googleapis.com/v0/b/${encodeURIComponent(bucket)}/o/${encodeURIComponent(path)}?alt=media${dl ? `&token=${dl}` : ''}`;

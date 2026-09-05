@@ -11,7 +11,7 @@
 
 import { fsGet, secretEqual } from '../homie/_lib.js';
 import { verifyBrowserAdmin } from '../agent/_lib.js';
-import { finalizeContract } from './_finalize.js';
+import { finalizeContract, dedupeFinalizeDeadlines } from './_finalize.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', 'https://www.boomrome.com');
@@ -39,8 +39,16 @@ export default async function handler(req, res) {
     if (contract.signatureStatus !== 'complete') {
       return res.status(409).json({ ok: false, error: 'not_fully_signed', signatureStatus: contract.signatureStatus || 'none' });
     }
+    // La bonifica dei doppioni gira SEMPRE, anche a contratto GIÀ
+    // finalizzato: la tempesta di retry del 1/09 ha lasciato decine di
+    // scadenze doppie e POI il primo giro sano ha scritto finalizedAt — da
+    // lì finalizeContract esce subito (skipped) e la passata interna non
+    // girerebbe mai. Un tap su 🔄 Rifinalizza le pulisce.
+    let dedupeRemoved = 0;
+    try { dedupeRemoved = (await dedupeFinalizeDeadlines(contractId)).removed || 0; }
+    catch (e) { console.warn('[refinalize] dedupe:', e.message); }
     const result = await finalizeContract(contract);
-    return res.status(200).json({ ok: true, result });
+    return res.status(200).json({ ok: true, result, dedupeRemoved });
   } catch (e) {
     return res.status(502).json({ ok: false, error: 'finalize_failed', detail: String((e && e.message) || e) });
   }

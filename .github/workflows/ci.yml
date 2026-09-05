@@ -150,6 +150,11 @@ jobs:
           # repo NON erano in produzione, e `publicGeo` rispondeva 403 alla
           # vetrina). Quando succede, il messaggio deve dire cosa fare, non
           # solo che e' andato storto.
+          # LA LEZIONE DEL 31/08 SERA: senza pipefail l'exit status di
+          # `deploy | tee` e' quello di TEE — il deploy falliva per token
+          # scaduto e il job usciva VERDE. Il guardiano che tace e' peggio
+          # dell'assenza di guardiano: sembrava tutto deployato e non lo era.
+          set -o pipefail
           if ! npx firebase-tools deploy --only firestore:rules,storage \
                  --project boom-property-dashboards --token "$FIREBASE_TOKEN" \
                  --non-interactive 2>&1 | tee /tmp/fb.log; then
@@ -158,5 +163,12 @@ jobs:
             else
               echo "::error::Deploy delle regole fallito — vedi il log sopra. Le regole del repo NON sono in produzione."
             fi
+            exit 1
+          fi
+          # Cintura e bretelle: il successo si dimostra, non si presume.
+          # Se il log non porta la riga di conferma del CLI, il job fallisce
+          # anche con exit status 0.
+          if ! grep -q "Deploy complete" /tmp/fb.log; then
+            echo "::error::Il CLI e' uscito 0 ma il log NON dice 'Deploy complete' — le regole potrebbero NON essere in produzione. Vedi il log sopra."
             exit 1
           fi

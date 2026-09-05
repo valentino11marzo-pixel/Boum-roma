@@ -34,6 +34,7 @@ const SUITES = [
   { name: 'parser',   file: 'tests/parser/run.mjs',      what: 'Doc Parser: si apre con l\'ID token dell\'admin (mai un segreto nel browser), e un non-admin non spende un token' },
   { name: 'scheda',   file: 'tests/scheda/run.mjs',       what: 'La Scheda: token derivati, prefill, lock post-firma, doppio schema' },
   { name: 'notify',   file: 'tests/notify/run.mjs',       what: 'ciclo email contratto: CAF una volta sola, inviti per ruolo e lingua' },
+  { name: 'finalize', file: 'tests/finalize/run.mjs',     what: 'firma completa che non muore a metà: con Storage giù la sonda esce senza scrivere nulla (un avviso al giorno), la tempesta di doppioni si sana da sola, il watchdog non affama journey/SEPA/visite, e la CI del deploy-rules non può più mentire' },
   { name: 'viewings', file: 'tests/viewings/avail.mjs',   what: 'griglia slot: passi, gap, preavviso, orizzonte, DST, link cliente' },
   { name: 'vtelegram',file: 'tests/viewings/telegram.mjs', what: 'card Telegram visite: callback ≤64B, escaping' },
   { name: 'gcal',     file: 'tests/viewings/busyics.mjs', what: 'Google Workspace nella griglia: gli impegni ICS tolgono gli slot, eventi BOOM filtrati' },

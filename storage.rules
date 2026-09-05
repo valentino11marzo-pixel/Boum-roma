@@ -176,6 +176,26 @@ service firebase.storage {
       allow read, write: if isAdmin();
     }
 
+    // ─── rendiconti/{ownerId}/** ──────────────────────────────────────
+    // Il rendiconto mensile al proprietario (api/owners/rendiconto.js),
+    // caricato server-side col token admin. Senza questo match l'upload
+    // 403a (la lezione contracts/ — pagata di nuovo il 1/09/2026, al PRIMO
+    // run del cron: il PDF era generato e non aveva dove stare). Il
+    // proprietario lo riceve in allegato email; il portale lo apre via URL
+    // tokenizzato ?alt=media&token=.
+    match /rendiconti/{ownerId}/{allPaths=**} {
+      allow read, write: if isAdmin();
+    }
+
+    // ─── site/** ──────────────────────────────────────────────────────
+    // Le immagini del sito ri-ospitate da host terzi (api/media/rehost.js,
+    // cache immutabile): servite nelle pagine PUBBLICHE, quindi lettura
+    // aperta; scrive solo il server (admin).
+    match /site/{allPaths=**} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // ─── backups/** ───────────────────────────────────────────────────
     // La Cassaforte (api/ops/cassaforte.js): lo ZIP notturno del database,
     // scritto con le credenziali admin — che passano da QUESTE regole

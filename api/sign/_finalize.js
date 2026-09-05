@@ -1,10 +1,12 @@
 // api/sign/_finalize.js
 // Runs once a standard contract is FULLY signed (called server-side by
 // api/magic-sign/submit on completion). It:
-//   1. generates the full post-signature obligations (fiscal + procedural —
-//      see POST_SIGNATURE_OBLIGATIONS.md);
-//   2. builds a tamper-evident FES signing certificate PDF (signatures + audit)
-//      server-side and stores it on the contract;
+//   1. builds a tamper-evident FES signing certificate PDF (signatures + audit)
+//      and uploads it FIRST — the upload doubles as the STORAGE PROBE: if
+//      Storage refuses it, finalize bails out cheaply with nothing written
+//      (see the note at the probe) and the cron watchdog retries;
+//   2. generates the full post-signature obligations (fiscal + procedural —
+//      see POST_SIGNATURE_OBLIGATIONS.md) with deterministic ids;
 //   3. issues the tenant magic link server-side (single-use, 72h);
 //   4. sends branded tenant + landlord welcome emails (with the certificate).
 // Idempotent via contract.finalizedAt.
@@ -16,16 +18,14 @@ import crypto from 'node:crypto';
 // pdf-lib is imported statically: a lazy `await import('pdf-lib')` is not
 // traced by Vercel's bundler and fails at runtime in production.
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
-import { fsCreate, fsPatch, fsGet, getAdminToken } from '../homie/_lib.js';
+import { fsCreate, fsPatch, fsGet, fsList, fsDelete } from '../homie/_lib.js';
+import { storageUpload } from '../agent/_lib.js';
 import { sendWelcomeEmails, sendCafDossier } from './_notify.js';
 import { buildFascicolo } from '../fiscal/fascicolo.js';
 import { buildRegistrationPack } from './_pack.js';
 import { maybeAutoAspi } from '../fiscal/_aspi.js';
-// pdf-lib is imported lazily inside buildCertificate so a load failure only
-// skips the certificate — obligations, magic link and welcome emails still run.
 
 const BASE = 'https://www.boomrome.com';
-const STORAGE_BUCKET = process.env.FIREBASE_STORAGE_BUCKET || 'boom-property-dashboards.firebasestorage.app';
 const MS_CONSENT = 'I confirm my identity and accept all lease terms. This digital signature is legally valid (FES — Art. 21 CAD).';
 
 const EU_KEYS = ['ital','franc','german','tedesc','spagn','spain','portog','portug','paesi bassi','oland','netherl','dutch','belg','austri','irland','ireland','grec','greece','hellen','svez','swed','danim','denmark','danish','finland','finlandi','poland','polon','polish','cech','czech','slovacch','slovak','sloven','ungher','hungar','magyar','romen','romania','romanian','bulgar','croat','eston','letton','latvia','lituan','lithuan','lussemburg','luxembourg','malt','cipr','cypr','norv','norway','island','iceland','liechtenstein','svizz','switzerl','swiss','europe'];
@@ -74,6 +74,52 @@ export async function finalizeContract(contract){
   const propLabel = (property && (property.address || property.name)) || '';
   const linked = { linkedContractId: contract.id, linkedPropertyId: contract.propertyId || '' };
 
+  // ── FES signing certificate — ED È LA SONDA STORAGE (lezione 1/09/2026) ──
+  // Quel giorno Storage rispondeva 403 a ogni upload admin: il finalize
+  // moriva a 60s DOPO aver già creato le obbligazioni, il watchdog del cron
+  // riprovava ogni 15 minuti duplicando ~10 scadenze a giro, e il 504 del
+  // cron affamava journey, incasso SEPA e countdown visite. Ora il PRIMO
+  // upload della catena è il certificato: se Storage lo rifiuta si esce
+  // SUBITO — nessuna scrittura, nessuna email a metà, UN avviso al giorno —
+  // e il watchdog ritenta a costo ~1s finché Storage non torna; al primo
+  // giro sano riparte il finalize intero, email comprese.
+  //
+  // Contracts created by the portal wizard carry no tenantName/landlordName
+  // fields — fall back to the user docs so the certificate never prints
+  // "Firmatario: -" on a legal document.
+  let certUrl = '';
+  try {
+    const bytes = await buildCertificate({
+      ...contract,
+      tenantName: contract.tenantName || (tenant && tenant.name) || '',
+      landlordName: contract.landlordName || (landlord && landlord.name) || '',
+    }, property);
+    try {
+      certUrl = await uploadPdf(`contracts/${contract.id}/signing-certificate.pdf`, Buffer.from(bytes));
+    } catch (e) {
+      console.warn('[finalize] certificate failed:', e.message);
+      // Storage indisponibile (403 = regole/IAM, serve un umano; 5xx/rete =
+      // retry del helper già esaurito). Gli altri quattro upload fallirebbero
+      // uguale e ogni documento scritto prima del semaforo finalizedAt
+      // diventerebbe un doppione al prossimo giro del watchdog.
+      try {
+        await fsCreate('agentNotifications', {
+          type: 'contract.finalize_blocked', status: 'pending', priority: 'urgent',
+          title: '⛔ Storage rifiuta gli upload — finalize in attesa',
+          body: `Contratto ${contract.tenantName || contract.id}: firmato da TUTTI, ma Firebase Storage risponde "${String(e.message || '').slice(0, 140)}". Certificato, contratto firmato, fascicolo, pack ed email restano in attesa; il watchdog riprova ogni 15 minuti da solo. Se è un 403: controlla le storage.rules deployate e i permessi del progetto (console Firebase → Storage → Rules → Publish le ri-provvigiona), poi non serve altro — al primo giro sano parte tutto.`,
+          contractId: contract.id, createdAt: now.toISOString(),
+        }, `finstor_${contract.id}_${now.toISOString().slice(0, 10)}`); // id per giorno = un solo avviso/giorno (409 ai retry)
+      } catch (_) { /* exists = già avvisato oggi */ }
+      return { ok: false, error: 'storage_unavailable', retryable: true, detail: String(e.message || '').slice(0, 200) };
+    }
+  } catch (e) {
+    // Errore di COSTRUZIONE del PDF (non di Storage): comportamento storico —
+    // si prosegue senza certificato, le email portano il resto. (In questo
+    // raro ramo la sonda non c'è stata: gli upload successivi restano
+    // best-effort come sempre.)
+    console.warn('[finalize] certificate build failed:', e.message);
+  }
+
   // ── Obligations (RLI + payments are created by submit) ──
   const ob = [];
   const add = (title, opts) => ob.push(Object.assign({
@@ -104,25 +150,22 @@ export async function finalizeContract(contract){
   add(`Verifica APE allegato + deposito cauzionale incassato${contract.deposit?(' ('+money(contract.deposit)+')'):''}`, { type:'procedural', date: addDays(signDate, 3), owner:'admin', priority:'high', category:'procedural' });
   add('Inventario / stato dei luoghi firmato', { type:'procedural', date: atLeastTomorrow(ymd(start)), owner:'admin', priority:'medium', category:'procedural' });
 
-  // Write obligations in parallel (the admin token is already warm) to keep
-  // the signer's wait short.
-  const obResults = await Promise.allSettled(ob.map(o => fsCreate('deadlines', o)));
-  let created = obResults.filter(r => r.status === 'fulfilled').length;
-  obResults.forEach(r => { if (r.status === 'rejected') console.warn('[finalize] obligation failed:', r.reason && r.reason.message); });
-
-  // ── FES signing certificate PDF (server-side, tamper-evident) ──
-  // Contracts created by the portal wizard carry no tenantName/landlordName
-  // fields — fall back to the user docs so the certificate never prints
-  // "Firmatario: -" on a legal document.
-  let certUrl = '';
+  // Scadenze IDEMPOTENTI PER COSTRUZIONE (id deterministico `dlfin_<id>_<i>`)
+  // + bonifica dei doppioni lasciati dalla tempesta di retry pre-fix: ogni
+  // run morto a metà creava l'intero set con id auto-generato. Si tiene la
+  // prima copia per titolo, si eliminano le repliche auto del finalize, si
+  // creano solo le voci che mancano — un retry non duplica MAI più.
+  let created = 0;
   try {
-    const bytes = await buildCertificate({
-      ...contract,
-      tenantName: contract.tenantName || (tenant && tenant.name) || '',
-      landlordName: contract.landlordName || (landlord && landlord.name) || '',
-    }, property);
-    certUrl = await uploadPdf(`contracts/${contract.id}/signing-certificate.pdf`, Buffer.from(bytes));
-  } catch(e){ console.warn('[finalize] certificate failed:', e.message); }
+    const { seen } = await dedupeFinalizeDeadlines(contract.id);
+    const toCreate = ob.map((o, i) => ({ o, i })).filter(x => !seen.has(x.o.title));
+    // Write obligations in parallel (the admin token is already warm) to keep
+    // the signer's wait short.
+    const obResults = await Promise.allSettled(toCreate.map(x => fsCreate('deadlines', x.o, `dlfin_${contract.id}_${x.i}`)));
+    created = (ob.length - toCreate.length)
+      + obResults.filter(r => r.status === 'fulfilled' || (r.reason && r.reason.exists)).length;
+    obResults.forEach(r => { if (r.status === 'rejected' && !(r.reason && r.reason.exists)) console.warn('[finalize] obligation failed:', r.reason && r.reason.message); });
+  } catch (e) { console.warn('[finalize] obligations:', e.message); }
 
   // ── Contratto firmato (PDF originale + pagina delle firme) ──
   // È QUESTO il documento che viaggia in ALLEGATO alle parti: il PDF del
@@ -260,15 +303,54 @@ export async function finalizeContract(contract){
   return { ok:true, obligations: created, certificate: !!certUrl, signedPdf: !!signedPdfUrl, timestamp: !!timestampUrl, pack: !!pack.url, packMissing: pack.missing, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok), aspi: aspi && aspi.ok ? aspi.kind : (aspi && aspi.skipped) || false };
 }
 
-// ── Firebase Storage upload (admin token) ──
+// ── Bonifica delle scadenze doppie del finalize ──
+// La tempesta di retry del 1/09 creava l'intero set di obbligazioni a OGNI
+// giro morto a metà: per titolo resta UNA copia — quella già lavorata
+// dall'operatore (status non-pending) se c'è: cancellare il lavoro fatto per
+// tenere un doppione vergine sarebbe il danno inverso — e si eliminano SOLO
+// le repliche `source:'finalize'` auto-generate (le RLI di submit e le voci
+// a mano non si toccano MAI). Esportata perché la usa anche
+// /api/sign/refinalize sui contratti GIÀ finalizzati: lì finalizeContract
+// esce subito (skipped) e la passata interna non girerebbe mai — il caso
+// vero di Rute, dove il primo giro sano ha scritto finalizedAt DOPO che la
+// tempesta aveva già lasciato decine di doppioni.
+export async function dedupeFinalizeDeadlines(contractId) {
+  const existing = await fsList('deadlines', {
+    filter: { field: 'linkedContractId', op: 'EQUAL', value: contractId },
+    limit: 300,
+  });
+  const byTitle = new Map();
+  for (const d of (existing || [])) {
+    const t = d && d.title; if (!t) continue;
+    if (!byTitle.has(t)) byTitle.set(t, []);
+    byTitle.get(t).push(d);
+  }
+  const seen = new Map(); const dupes = [];
+  for (const [t, docs] of byTitle) {
+    const keep = docs.find(d => d.status && d.status !== 'pending') || docs[0];
+    seen.set(t, keep);
+    for (const d of docs) {
+      if (d !== keep && d.autoGenerated && d.source === 'finalize' && d.id) dupes.push(d.id);
+    }
+  }
+  let removed = 0;
+  if (dupes.length) {
+    const gone = await Promise.allSettled(dupes.slice(0, 200).map(id => fsDelete('deadlines/' + id)));
+    removed = gone.filter(r => r.status === 'fulfilled').length;
+    console.warn(`[finalize] dedupe scadenze ${contractId}: rimossi ${removed}/${dupes.length} doppioni auto-generati`);
+  }
+  return { seen, removed };
+}
+
+// ── Firebase Storage upload — UNA copia sola (api/agent/_lib.js) ──
+// La versione locale non riprovava mai (la lezione del 31/08: un 503
+// momentaneo perdeva un documento già calcolato) e non aveva tetto sul
+// fetch. Il helper condiviso riprova SOLO su 429/5xx/rete con cap 20s per
+// tentativo e porta err.status, su cui la sonda in finalizeContract decide.
 async function uploadPdf(path, bytes, contentType = 'application/pdf'){
-  const token = await getAdminToken();
-  const url = `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o?uploadType=media&name=${encodeURIComponent(path)}`;
-  const r = await fetch(url, { method:'POST', headers:{ Authorization:`Bearer ${token}`, 'Content-Type':contentType }, body: bytes });
-  if (!r.ok) throw new Error('storage_' + r.status + ': ' + (await r.text()).slice(0,200));
-  const meta = await r.json().catch(()=>({}));
-  const dt = (meta.downloadTokens || '').split(',')[0];
-  return `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o/${encodeURIComponent(path)}?alt=media${dt ? ('&token=' + dt) : ''}`;
+  const url = await storageUpload(path, bytes, contentType);
+  if (!url) throw new Error('storage_unconfigured');
+  return url;
 }
 
 // ── Contratto firmato: il PDF del contratto + la pagina delle firme ──
