@@ -255,8 +255,24 @@ quanto sotto la mediana, angolo dichiarato come disposizione, click →
 card. E le **og carte** sono generate dal repo
 (`design/scalo/genera-og-scalo.py`, headless_shell): `og-board.png` e
 `og-meteo.png`, 1200×630 verificati nei byte, agganciate a /board e
-/meteo. Suite scalo a 91 check. Restano dalla seconda ondata: NOTAM del
-Segugio, template social nel Media Studio, la PA sonora del kiosk fisico
+/meteo. Suite scalo a 91 check.
+
+**STATO (lotto 5 — eseguito, 2026-09-05).** W5 e W6 chiusi. Il **NOTAM
+del Segugio**: il digest delle ricerche salvate veste il design system
+email condiviso (shell) con la grammatica del board — righe da tabellone,
+codice zona dal lessico (nessun match → niente sigla), corsia SOLO da
+`marketLane` (now → FREE verde-su-carta, ahead → FREE FROM <data>) — e
+la famiglia visite guadagna la **rotta sul ticket** (`routeBand` in
+`_email.js`: ROM→codice / YOU→LIVE, numero `BM ····` derivato) su TUTTE
+le email; il T-24h diventa il **check-in che apre** (la metafora È il
+fatto: è il momento in cui il sistema inizia a parlare; T-3h/T-30m
+restano orologio nudo). Il **Biglietto del Media Studio**: la striscia
+annuncio ha lo stile `biglietto` (carta di gate su canvas: rotta,
+perforazione, prezzo in oro scalo) + template «Story · Biglietto»; la
+**corsia** (NOW BOARDING / FROM <data>) esiste SOLO derivata
+dall'annuncio vero aperto dal catalogo via `BOOM_DISPO.marketLane`, mai
+editabile, mai persistita, azzerata dalle foto locali. Suite scalo a
+122 check. Restano dalla seconda ondata: la PA sonora del kiosk fisico
 — e la decisione fisica dello schermo in vetrina (S9).
 
 ## Parte 5 — La seconda ondata (proposte oltre il primo lotto)

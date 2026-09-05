@@ -8,6 +8,7 @@
 
 import { sendEmail } from '../agent/_lib.js';
 import { shell, btn, btn2, para, fine } from '../preagreement/_notify.js';
+import SCALO from '../../js/scalo-codes.js';
 import {
   isVideo, videoRoom, startOf, fmtWhen, googleCalUrl, icsUrl,
   primaryAction, passUrl, waMsg, WA, manageUrl,
@@ -16,8 +17,28 @@ import {
 const esc = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 const firstName = n => String(n || '').trim().split(/\s+/)[0] || '';
 
+// LA ROTTA DEL BIGLIETTO (STUDIO_AVIATION, W5) — la stessa derivazione di
+// /viewing, in UNA copia (js/scalo-codes.js): video → YOU→LIVE, altrimenti
+// ROM→codice dal lessico curato — nessun match → HOME, MAI una sigla
+// inventata. Il numero è bmCode(id): soprannome derivato dall'id vero,
+// mai una chiave. Statico per costruzione: in una email il movimento non
+// esiste, quindi la rotta è solo tipografia sui fatti.
+export function routeBand(v) {
+  const video = isVideo(v);
+  const from = video ? 'YOU' : 'ROM';
+  const dest = video ? 'LIVE'
+    : (SCALO.zoneCode([v.listingName, v.listingAddress, v.meetingPoint].filter(Boolean).join(' ')) || 'HOME');
+  const fl = SCALO.bmCode(v.id);
+  return `<table width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 8px"><tr>
+      <td style="font-family:Helvetica,Arial,sans-serif;font-size:23px;font-weight:200;letter-spacing:3px;color:#141414;white-space:nowrap">${from}</td>
+      <td width="100%" style="padding:0 12px"><div style="border-top:1px dashed #C9C4B8;font-size:0;line-height:0">&nbsp;</div></td>
+      <td style="font-family:Helvetica,Arial,sans-serif;font-size:23px;font-weight:300;letter-spacing:3px;color:#8A6D1D;white-space:nowrap">${esc(dest)}</td>
+    </tr>${fl ? `<tr><td colspan="3" style="font-family:Helvetica,Arial,sans-serif;font-size:9.5px;letter-spacing:1.8px;text-transform:uppercase;color:#98948A;padding-top:3px">${esc(fl)} · BOOM Rome</td></tr>` : ''}
+  </table>`;
+}
+
 // A compact facts card — the "ticket" block every email shares.
-function ticket(v, lang) {
+export function ticket(v, lang) {
   const s = startOf(v);
   const rows = [
     [lang === 'it' ? 'Immobile' : 'Property', esc(v.listingName || v.propertyName || 'BOOM Rome')],
@@ -29,6 +50,7 @@ function ticket(v, lang) {
     [lang === 'it' ? 'Durata' : 'Duration', `${Number(v.durationMinutes) || 30} ${lang === 'it' ? 'minuti' : 'minutes'}`],
   ].filter(Boolean);
   return `<table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E6E1D6;border-radius:12px;padding:6px 18px;margin:0 0 24px">
+    <tr><td style="padding:12px 0 4px;border-bottom:1px solid #F0EDE5">${routeBand(v)}</td></tr>
     ${rows.map(([k, val]) => `<tr>
       <td style="font-family:Helvetica,Arial,sans-serif;font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;color:#9A9384;padding:11px 0 2px">${k}</td>
     </tr><tr>
@@ -114,8 +136,12 @@ export function sendReminder(v, when, lang = 'en') {
   const it = lang === 'it';
   const act = primaryAction(v, lang);
   const s = startOf(v);
+  // Il T-24h nel lessico di scalo (W5): il check-in apre 24 ore prima del
+  // volo, ed è esattamente il momento in cui questo sistema inizia a
+  // parlare — la metafora È il fatto. T-3h e T-30m restano conti alla
+  // rovescia nudi: lì conta solo l'orologio.
   const head = {
-    '24h': it ? 'Domani la tua visita' : 'Your viewing is tomorrow',
+    '24h': it ? 'Check-in aperto — domani la tua visita' : 'Check-in open — your viewing is tomorrow',
     '3h': it ? 'Tra 3 ore' : 'In 3 hours',
     '30m': it ? 'Tra 30 minuti' : 'In 30 minutes',
   }[when];
@@ -138,7 +164,7 @@ export function sendReminder(v, when, lang = 'en') {
     (when === '24h' ? btn2(passUrl(v), it ? '🎟 Apple Wallet' : '🎟 Apple Wallet') : '') +
     fine(it ? `Serve aiuto? <a href="${WA}" style="color:#B8960C">WhatsApp BOOM</a>` : `Need help? <a href="${WA}" style="color:#B8960C">WhatsApp BOOM</a>`);
   const subj = {
-    '24h': it ? `Domani: visita ${v.listingName || ''}`.trim() : `Tomorrow: viewing at ${v.listingName || 'BOOM Rome'}`,
+    '24h': it ? `Check-in aperto — domani: ${v.listingName || 'la tua visita'}` : `Check-in open — tomorrow at ${v.listingName || 'BOOM Rome'}`,
     '3h': it ? `Tra 3 ore: ${v.listingName || 'la tua visita'}` : `In 3 hours: ${v.listingName || 'your viewing'}`,
     '30m': it ? `Tra 30 minuti: ${v.listingName || 'la tua visita'}` : `In 30 minutes: ${v.listingName || 'your viewing'}`,
   }[when];
