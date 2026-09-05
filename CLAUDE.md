@@ -1665,14 +1665,18 @@ Un giro solo, otto interventi, 33 suite verdi:
   `canone-bot` con rate limit + cap sui messaggi; `notify-viewing-created`
   con honeypot + rate limit.
 - **CI `deploy-rules`**: push su main → `firebase deploy --only
-  firestore:rules,storage` (secret `FIREBASE_TOKEN`; senza secret il job
-  avvisa e salta). Nato dal drift che teneva `propertyLocks` spento in
-  produzione. **Secret configurato il 2026-08-20** (token `login:ci`
-  dell'operatore): da quel giorno le rules del repo VANNO IN PRODUZIONE a
-  ogni push su main — mai più deploy manuali. Il job risponde anche a
-  Run workflow (workflow_dispatch, solo main). Se il token un giorno
-  scade/viene revocato il job torna ad avvisare e saltare: si rigenera con
-  `npx firebase-tools login:ci` e si aggiorna il secret.
+  firestore:rules,storage`. Nato dal drift che teneva `propertyLocks`
+  spento in produzione; risponde anche a Run workflow (workflow_dispatch,
+  solo main). **La credenziale è la SERVICE ACCOUNT** (secret
+  `FIREBASE_SERVICE_ACCOUNT` = JSON della chiave, montato via
+  `GOOGLE_APPLICATION_CREDENTIALS`): i token `login:ci` sono refresh token
+  che Google revoca da solo — TRE morti in due settimane (20/08, 31/08,
+  05/09), ogni volta con le regole del repo ferme fuori produzione, e il
+  31/08 il job diceva pure verde (il `| tee` senza pipefail). La chiave si
+  genera da Firebase console → ⚙ Impostazioni progetto → Account di
+  servizio → "Genera nuova chiave privata". `FIREBASE_TOKEN` resta come
+  ripiego dichiarato (warning in job) finché la chiave non c'è; senza
+  nessuna credenziale il job avvisa e salta.
 - **Tabella zone canone UNICA**: `scheda-canone.html` ora carica
   `js/canone-engine.js` e semina le zone dal motore (la copia inline che
   poteva divergere dal Fascicolo ARPE è stata rimossa; un edit manuale

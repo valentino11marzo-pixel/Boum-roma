@@ -117,8 +117,8 @@ jobs:
   # e salta con un avviso, senza mai rompere la CI.
   deploy-rules:
     # Anche su avvio manuale (Actions → CI → Run workflow su main): serve la
-    # PRIMA volta che il secret FIREBASE_TOKEN viene impostato — senza, per
-    # far partire il deploy bisognerebbe inventare un commit vuoto su main.
+    # PRIMA volta che una credenziale viene impostata — senza, per far
+    # partire il deploy bisognerebbe inventare un commit vuoto su main.
     if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:
@@ -128,38 +128,48 @@ jobs:
           node-version: 22
       - name: Deploy firestore.rules + storage.rules
         env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
         run: |
-          if [ -z "$FIREBASE_TOKEN" ]; then
-            echo "::warning::FIREBASE_TOKEN assente — rules NON deployate. Genera il token con 'npx firebase-tools login:ci' e salvalo nei repo secrets."
-            exit 0
-          fi
-          npm install --no-save firebase-tools >/dev/null
           # `set -o pipefail` NON e' un dettaglio di stile: lo stato d'uscita
           # di una pipeline e' quello dell'ULTIMO comando, cioe' `tee`, che
           # riesce sempre. Senza, `if ! deploy | tee` non puo' fallire MAI —
-          # la guardia qui sotto, scritta il 31/08 proprio per il token
-          # scaduto, era inerte per costruzione: il deploy falliva, il job
-          # diceva "success", e le regole del repo non arrivavano in
-          # produzione. Trovato il 01/09 misurando la produzione, non i log:
-          # `listings` rispondeva 200 e `publicGeo` 403.
+          # il 31/08 il deploy falliva per token scaduto e il job usciva
+          # VERDE: il guardiano che tace e' peggio dell'assenza di guardiano.
+          # Trovato il 01/09 misurando la produzione, non i log.
           set -o pipefail
-          # Il token di `login:ci` SCADE (Google revoca i refresh token: il
-          # 31/08/2026 quello del 20/08 era gia' morto, e il job ha fallito a
-          # ogni push per giorni mentre i merge continuavano — le regole del
-          # repo NON erano in produzione, e `publicGeo` rispondeva 403 alla
-          # vetrina). Quando succede, il messaggio deve dire cosa fare, non
-          # solo che e' andato storto.
-          # LA LEZIONE DEL 31/08 SERA: senza pipefail l'exit status di
-          # `deploy | tee` e' quello di TEE — il deploy falliva per token
-          # scaduto e il job usciva VERDE. Il guardiano che tace e' peggio
-          # dell'assenza di guardiano: sembrava tutto deployato e non lo era.
-          set -o pipefail
+          # LA CREDENZIALE, in ordine di solidita'. I token di `login:ci`
+          # sono refresh token OAuth che Google revoca da solo — TRE morti in
+          # due settimane (20/08, 31/08, 05/09), ogni volta con le regole del
+          # repo ferme fuori dalla produzione. La service account NON scade:
+          # Firebase console → ⚙ Impostazioni progetto → Account di servizio
+          # → "Genera nuova chiave privata" → contenuto del JSON nel secret
+          # FIREBASE_SERVICE_ACCOUNT. Il token resta come ripiego finche' la
+          # chiave non c'e'.
+          AUTH=()
+          if [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            umask 077
+            printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-sa.json"
+            export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-sa.json"
+            CRED_KIND=sa
+          elif [ -n "$FIREBASE_TOKEN" ]; then
+            AUTH=(--token "$FIREBASE_TOKEN")
+            CRED_KIND=token
+            echo "::warning::Deploy col token login:ci (deprecato, scade da solo) — imposta il secret FIREBASE_SERVICE_ACCOUNT per chiudere la classe."
+          else
+            echo "::warning::Nessuna credenziale (ne' FIREBASE_SERVICE_ACCOUNT ne' FIREBASE_TOKEN) — rules NON deployate. Genera la chiave della service account dalla console Firebase e salvala nel secret FIREBASE_SERVICE_ACCOUNT."
+            exit 0
+          fi
+          npm install --no-save firebase-tools >/dev/null
           if ! npx firebase-tools deploy --only firestore:rules,storage \
-                 --project boom-property-dashboards --token "$FIREBASE_TOKEN" \
+                 --project boom-property-dashboards "${AUTH[@]}" \
                  --non-interactive 2>&1 | tee /tmp/fb.log; then
-            if grep -qi "credentials are no longer valid\|Authentication Error" /tmp/fb.log; then
-              echo "::error::FIREBASE_TOKEN SCADUTO — le regole NON sono in produzione. Rigenera con 'npx firebase-tools login:ci' e aggiorna il secret FIREBASE_TOKEN. Finche' non lo fai, ogni modifica a firestore.rules/storage.rules resta solo nel repo. (Fix duraturo: service account + GOOGLE_APPLICATION_CREDENTIALS, --token e' deprecato.)"
+            if grep -qi "credentials are no longer valid\|Authentication Error\|invalid_grant\|PERMISSION_DENIED" /tmp/fb.log; then
+              if [ "$CRED_KIND" = sa ]; then
+                echo "::error::La SERVICE ACCOUNT e' stata rifiutata — le regole NON sono in produzione. Controlla che il secret FIREBASE_SERVICE_ACCOUNT contenga il JSON intero della chiave e che l'account porti un ruolo sufficiente (quello di 'Account di servizio' della console Firebase basta; in IAM: Firebase Admin o Editor)."
+              else
+                echo "::error::FIREBASE_TOKEN SCADUTO — le regole NON sono in produzione. Fix duraturo: secret FIREBASE_SERVICE_ACCOUNT (chiave JSON dalla console Firebase). Tampone: rigenera con 'npx firebase-tools login:ci' e aggiorna FIREBASE_TOKEN."
+              fi
             else
               echo "::error::Deploy delle regole fallito — vedi il log sopra. Le regole del repo NON sono in produzione."
             fi
