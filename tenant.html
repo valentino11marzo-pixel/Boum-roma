@@ -133,6 +133,22 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
 .tile .v small{font-size:11.5px;color:var(--t3);letter-spacing:.3px}
 .tile.hero .v{background:linear-gradient(180deg,#FFF3C4,var(--gold-light) 30%,var(--gold) 78%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
 
+/* LA ROTTA (STUDIO_AVIATION S6) — il journey del contratto come tratta di
+   volo: la tratta punteggiata e l'aereo del biglietto della home, coi
+   token di QUESTA pagina. Ogni tappa è un FATTO del documento. */
+.rcasa{margin:14px 0 2px;padding:18px 14px 14px;border:1px solid var(--line2);border-radius:var(--r);background:var(--panel);-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);overflow-x:auto}
+.rc-linea{position:relative;display:grid;min-width:440px;padding-top:22px}
+.rc-linea::before{content:"";position:absolute;top:26px;left:9%;right:9%;height:1px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.26) 0 5px,transparent 5px 10px)}
+.rc-aereo{position:absolute;top:4px;width:18px;height:18px;transform:translateX(-50%);color:var(--gold);filter:drop-shadow(0 0 8px rgba(212,175,55,.5))}
+.rc-st{position:relative;display:grid;justify-items:center;gap:7px;text-align:center}
+.rc-st i{width:10px;height:10px;border-radius:50%;background:var(--void);box-shadow:inset 0 0 0 1.5px var(--t4);z-index:1}
+.rc-st.fatta i{background:var(--gold);box-shadow:0 0 9px rgba(212,175,55,.45)}
+.rc-st.ora i{box-shadow:inset 0 0 0 1.5px var(--gold)}
+@media(prefers-reduced-motion:no-preference){.rc-st.ora i{animation:rcPulse 1.8s ease infinite}@keyframes rcPulse{50%{opacity:.35}}}
+.rc-st b{font-size:8.5px;letter-spacing:2px;text-transform:uppercase;color:var(--t4);font-weight:400}
+.rc-st.fatta b,.rc-st.ora b{color:var(--t2)}
+.rc-st span{font-size:9.5px;color:var(--t4);font-variant-numeric:tabular-nums}
+
 .card{margin-top:16px;padding:20px;border:1px solid var(--line2);border-radius:var(--r);background:linear-gradient(180deg,rgba(255,252,240,.03),rgba(255,255,255,.015));-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);position:relative;overflow:hidden}
 .card::after{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,rgba(212,175,55,.5),rgba(212,175,55,.12),transparent 75%)}
 .card h2{display:flex;align-items:baseline;gap:11px;margin-bottom:14px}
@@ -464,6 +480,7 @@ var STR={
   nPay:'Payment',nHist:'History',nDocs:'Documents',nMan:'Manual',nHood:'Area',nFix:'Repairs',nConc:'Concierge',nKit:'Rome Kit',nRef:'Invite',
   wifiScan:'Point the camera here — joins the Wi-Fi instantly. No typing, no typos.',redirect:'Cards &amp; Apple Pay · automatic receipt · redirecting…',
   monthly:'Monthly rent',nextPay:'Next payment',due:'Due date',allGood:'all clear ✓',paidReg:'Payments on record',
+  jSign:'Signed',jDep:'Deposit',jKeys:'Keys',jBoard:'On board',jRen:'Renewal',jAria:'Your journey in this home',
   s1:'Next payment',depositBal:'Security deposit balance',rentOf:'Rent',dueBy:'Due by',lateBy:'Overdue since',late:'overdue — settle it now',dueSoon:'coming up',
   payCard:'Pay by card',service:'max service fee',payFoot1:'Stripe · cards & Apple Pay · automatic receipt by email and in your history',
   payFoot2:'Or pay by bank transfer below — free, and this page updates by itself.',
@@ -518,6 +535,7 @@ var STR={
   nPay:'Pagamenti',nHist:'Storico',nDocs:'Documenti',nMan:'Manuale',nHood:'Quartiere',nFix:'Riparazioni',nConc:'Concierge',nKit:'Rome Kit',nRef:'Invita',
   wifiScan:'Inquadra col telefono — si collega al Wi-Fi all\'istante. Zero password da battere.',redirect:'Carte &amp; Apple Pay · ricevuta automatica · reindirizzamento…',
   monthly:'Canone mensile',nextPay:'Prossimo pagamento',due:'Scadenza',allGood:'tutto in regola ✓',paidReg:'Pagamenti registrati',
+  jSign:'Firma',jDep:'Saldo',jKeys:'Chiavi',jBoard:'A bordo',jRen:'Rinnovo',jAria:'La tua rotta in questa casa',
   s1:'Il prossimo pagamento',depositBal:'Saldo deposito cauzionale',rentOf:'Canone',dueBy:'Entro il',lateBy:'Scaduto il',late:'in ritardo — sistemalo ora',dueSoon:'in scadenza',
   payCard:'Paga con carta',service:'di servizio max',payFoot1:'Stripe · carte &amp; Apple Pay · ricevuta automatica via email e nello storico',
   payFoot2:'Oppure paga con bonifico qui sotto — gratis, e la pagina si aggiorna da sola.',
@@ -725,6 +743,40 @@ window.shareKit=function(){
   else location.href='https://wa.me/?text='+encodeURIComponent(msg);
 };
 
+/* ── LA ROTTA (S6): il journey come tratta di volo ─────────────────────
+   Ogni tappa è un FATTO del contratto o dei pagamenti già in pagina:
+   firma (signatureStatus), saldo deposito (il doc depbal, solo se il
+   deal l'ha spezzato), chiavi (startDate), a bordo (tra le due date),
+   rinnovo (endDate−90 — il T-90 del journey server). Niente stime:
+   una tappa non derivabile semplicemente non c'è. L'aereo sta sulla
+   prima tappa non compiuta. */
+function rottaCasa(c,depBal){
+  if(!c||!c.startDate)return '';
+  function d90(iso){try{var d=new Date(iso+'T00:00');d.setDate(d.getDate()-90);
+    return d.toISOString().slice(0,10)}catch(e){return null}}
+  function ds(iso){try{return new Intl.DateTimeFormat(LANG==='it'?'it-IT':'en-GB',
+    {day:'numeric',month:'short'}).format(new Date(iso+'T00:00'))}catch(e){return ''}}
+  var t90=c.endDate?d90(c.endDate):null;
+  var st=[{k:t('jSign'),done:c.signatureStatus==='completed'}];
+  if(depBal)st.push({k:t('jDep'),done:depBal.status==='paid',d:depBal.dueDate});
+  st.push({k:t('jKeys'),done:c.startDate<=todayISO,d:c.startDate});
+  st.push({k:t('jBoard'),done:!!(c.endDate&&c.endDate<todayISO),
+    cur:c.startDate<=todayISO&&(!c.endDate||todayISO<=c.endDate)});
+  if(t90)st.push({k:t('jRen'),done:t90<=todayISO,d:t90});
+  var idx=st.length-1;
+  for(var i=0;i<st.length;i++){if(!st[i].done){idx=i;break}}
+  var pct=((idx+0.5)/st.length*100).toFixed(1);
+  return '<div class="rcasa" role="img" aria-label="'+t('jAria')+'">'
+    +'<div class="rc-linea" style="grid-template-columns:repeat('+st.length+',1fr)">'
+    +'<svg class="rc-aereo" style="left:'+pct+'%" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">'
+    +'<path d="M21.5 15.5v-2l-8.5-5V3.2a1.4 1.4 0 0 0-2.8 0v5.3l-8.5 5v2l8.5-2.6v5.4l-2.3 1.6v1.6l3.7-1.1 3.7 1.1v-1.6l-2.3-1.6v-5.4z"/></svg>'
+    +st.map(function(s){
+      return '<div class="rc-st'+(s.done?' fatta':'')+(s.cur?' ora':'')+'"><i></i><b>'
+        +s.k+'</b>'+(s.d?'<span>'+ds(s.d)+'</span>':'')+'</div>';
+    }).join('')
+    +'</div></div>';
+}
+
 function render(){
   var addr=(PROPERTY&&(PROPERTY.address||PROPERTY.name))||'La tua casa BOOM';
   var c=CONTRACT||{};
@@ -758,7 +810,8 @@ function render(){
       +'<div class="tile"><div class="k">'+t('nextPay')+'</div><div class="v">'+(next?('<span data-roll="'+eur(next.amount)+'">'+eur(next.amount)+'</span>'):'—')+'</div></div>'
       +'<div class="tile"><div class="k">'+t('due')+'</div><div class="v" style="font-size:15px;font-weight:300">'+(next?fmtD(next.dueDate):t('allGood'))+'</div></div>'
       +'<div class="tile"><div class="k">'+t('paidReg')+'</div><div class="v">'+paidCount+'<small> ✓</small></div></div>'
-    +'</div>';
+    +'</div>'
+    +rottaCasa(c,depBal);
 
   /* sticky quick-nav — built from the sections that actually render */
   var navItems=[['s-pay','nPay'],['s-hist','nHist'],['s-docs','nDocs'],['s-man','nMan']];

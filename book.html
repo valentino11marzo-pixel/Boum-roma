@@ -189,6 +189,31 @@ body{font-family:'Helvetica Neue','Helvetica',-apple-system,sans-serif;font-weig
 .toast.err{background:rgba(255,59,48,.15);border:1px solid rgba(255,59,48,.3);color:#FF6B6B}
 .toast.ok{background:rgba(52,199,89,.12);border:1px solid rgba(52,199,89,.25);color:#4CD964}
 .hidden{display:none!important}
+/* LA CARTA D'IMBARCO della conferma (STUDIO_AVIATION S3): stessa grammatica
+   di pass-delivery — lamina, stampa di sicurezza, rotta, perforazione.
+   L'emissione parte quando la schermata appare. Solo sulla CONFERMATA:
+   una richiesta pending resta la schermata "Request sent" di sempre. */
+.cdi{position:relative;display:grid;grid-template-columns:24px minmax(0,1fr);border-radius:14px;overflow:hidden;text-align:left;background:linear-gradient(168deg,#101014,#080809 72%);border:1px solid var(--b1);margin-bottom:16px;animation:cdiOut .8s cubic-bezier(.16,1,.3,1) both}
+@keyframes cdiOut{from{opacity:0;transform:translateY(-14px) scale(.98)}to{opacity:1;transform:none}}
+.cdi::before{content:'';position:absolute;inset:0;pointer-events:none;opacity:.5;background:repeating-linear-gradient(115deg,rgba(255,215,0,.12) 0 1px,transparent 1px 9px),repeating-linear-gradient(63deg,rgba(255,215,0,.12) 0 1px,transparent 1px 14px);-webkit-mask:radial-gradient(120% 130% at 0% 0%,#000 20%,transparent 62%);mask:radial-gradient(120% 130% at 0% 0%,#000 20%,transparent 62%)}
+.cdi-lam{position:relative;overflow:hidden;background:repeating-linear-gradient(0deg,rgba(0,0,0,.16) 0 1px,transparent 1px 3px),linear-gradient(180deg,#7a5f16,#f6e27a 14%,#8a6d1f 32%,#fdf0a8 48%,#b8942b 63%,#f6e27a 78%,#6b5716 100%)}
+.cdi-lam em{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) rotate(180deg);writing-mode:vertical-rl;font-style:normal;font-size:7px;font-weight:800;letter-spacing:.3em;text-transform:uppercase;color:#141005;white-space:nowrap;opacity:.9}
+.cdi-bd{position:relative;padding:14px 15px 13px;min-width:0}
+.cdi-top{display:flex;align-items:baseline;gap:8px}
+.cdi-top b{font-size:8.5px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--g)}
+.cdi-top span{margin-left:auto;font-size:8.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--t2);font-variant-numeric:tabular-nums;white-space:nowrap}
+.cdi-route{display:flex;align-items:center;gap:10px;margin-top:9px;font-size:22px;font-weight:300;letter-spacing:.04em;white-space:nowrap}
+.cdi-route i{position:relative;flex:1;min-width:26px;height:10px;font-style:normal}
+.cdi-route i::before{content:'';position:absolute;left:0;right:0;top:4.5px;height:1px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.3) 0 5px,transparent 5px 10px)}
+.cdi-route b{font-weight:300}
+.cdi-route b:last-of-type{color:var(--g);text-shadow:0 0 16px rgba(255,215,0,.3);overflow:hidden;text-overflow:ellipsis;max-width:44%}
+.cdi-perfo{position:relative;height:0;margin:11px -15px 0;border-top:1.5px dashed var(--b2)}
+.cdi-perfo::before,.cdi-perfo::after{content:'';position:absolute;top:-8px;width:16px;height:16px;border-radius:50%;background:var(--s0);border:1px solid var(--b1)}
+.cdi-perfo::before{left:-9px}.cdi-perfo::after{right:-9px}
+.cdi-rows{display:grid;grid-template-columns:1fr 1fr;gap:7px 12px;padding-top:11px}
+.cdi-k{font-size:8px;font-weight:500;letter-spacing:.16em;text-transform:uppercase;color:var(--t2);margin-bottom:2px}
+.cdi-v{font-size:12px;font-weight:300;color:var(--t0);line-height:1.4;overflow:hidden;text-overflow:ellipsis}
+@media (prefers-reduced-motion:reduce){.cdi{animation:none}}
 
 /* IL TOCCO. Su iPhone un campo con carattere sotto i 16px fa ZOOMARE la
    pagina al primo tap, e non torna indietro da sola: il modulo che deve
@@ -397,7 +422,7 @@ html {
     </svg>
     <span class="logo-wm">BOOM</span>
   </a>
-  <span class="hdr-pill">Book a Viewing</span>
+  <span class="hdr-pill">Check-in</span>
 </header>
 
 <div class="prog-wrap"><div class="prog-bar" id="pb" style="width:0%"></div></div>
@@ -563,14 +588,20 @@ html {
       <div class="pend-title">Confirmed.</div>
       <div class="pend-sub" id="conf-sub">Your viewing is booked. Everything you need is<br>in your inbox — and on the pass below.</div>
       <div class="status-badge conf-badge"><div class="sdot-pulse conf-dot"></div>Confirmed</div>
-      <div class="sum-chip" style="text-align:left;margin-bottom:5px">
-        <div class="sc-icon">🏠</div><div><div class="sc-lbl">Property</div><div class="sc-val" id="conf-prop">—</div></div>
-      </div>
-      <div class="sum-chip" style="text-align:left;margin-bottom:5px">
-        <div class="sc-icon">📅</div><div><div class="sc-lbl">Confirmed time</div><div class="sc-val" id="conf-time">—</div></div>
-      </div>
-      <div class="sum-chip" style="text-align:left;margin-bottom:16px">
-        <div class="sc-icon">👤</div><div><div class="sc-lbl">Agent</div><div class="sc-val">Valentino — BOOM Rome</div></div>
+      <!-- la carta d'imbarco: la promessa della home, consegnata qui -->
+      <div class="cdi" aria-label="Your viewing pass">
+        <div class="cdi-lam" aria-hidden="true"><em>Boom · Roma · Boom</em></div>
+        <div class="cdi-bd">
+          <div class="cdi-top"><b>Boarding pass · viewing</b><span id="conf-code"></span></div>
+          <div class="cdi-route" aria-hidden="true"><b id="conf-from">ROM</b><i></i><b id="conf-dest">HOME</b></div>
+          <div class="cdi-perfo" aria-hidden="true"></div>
+          <div class="cdi-rows">
+            <div><div class="cdi-k">Passenger</div><div class="cdi-v" id="conf-name">—</div></div>
+            <div><div class="cdi-k">Agent</div><div class="cdi-v">Valentino — BOOM</div></div>
+            <div style="grid-column:1/-1"><div class="cdi-k">Property</div><div class="cdi-v" id="conf-prop">—</div></div>
+            <div style="grid-column:1/-1"><div class="cdi-k">Confirmed time</div><div class="cdi-v" id="conf-time">—</div></div>
+          </div>
+        </div>
       </div>
       <!-- the one thing they'll actually tap on the day -->
       <a class="btn btn-p" id="conf-act" href="#" target="_blank" rel="noopener" style="display:block;text-align:center;text-decoration:none;margin-bottom:8px">📍 Get directions</a>
@@ -602,6 +633,7 @@ html {
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="/js/scalo-codes.js"></script>
 <script>
 /* Lo script di gstatic può mancare (adblock, reti aziendali, il Wi-Fi di
    un hotel): la prenotazione vive di /api/viewings/slots — solo il
@@ -893,6 +925,17 @@ function showConfirmed(data){
   const video=data.mode==='video';
   document.getElementById('conf-prop').textContent=data.listingName+(data.listingZone?' — '+data.listingZone:'');
   document.getElementById('conf-time').textContent=dtStr;
+  // la carta d'imbarco: rotta col codice SOLO dal lessico condiviso
+  // (js/scalo-codes.js — nessun match → HOME) e numero di volo DERIVATO
+  // dall'id vero (bmCode). Il passeggero è chi ha compilato lo step 1.
+  {
+    const SC=window.BOOM_SCALO||null;
+    const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v};
+    set('conf-name',ST.name||'—');
+    set('conf-from',video?'YOU':'ROM');
+    set('conf-dest',video?'LIVE':((SC&&SC.zoneCode((data.listingZone||'')+' '+(data.listingName||'')))||'HOME'));
+    set('conf-code',(SC&&SC.bmCode(data.id))||'');
+  }
   document.getElementById('conf-sub').innerHTML=video
     ? 'Your video viewing is booked. The link is in your inbox<br>and in the button below — no app to install.'
     : 'Your viewing is booked. Everything you need is<br>in your inbox — and on the pass below.';

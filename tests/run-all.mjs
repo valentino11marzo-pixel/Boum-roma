@@ -117,6 +117,7 @@ const SUITES = [
   { name: 'media',    file: 'tests/media/hosts.mjs',      what: 'le foto del sito sono nostre: nessuna dipendenza NUOVA da un host di terzi, l\'elenco delle dipendenze note non invecchia in silenzio, nessun preconnect verso un host che non serviamo più' },
   { name: 'servizi',  file: 'design/pages-deco/test-console-servizi.cjs', what: 'le sei pagine servizio col modello LA CONSOLE: la risposta dichiarata ai motori È quella mostrata, nessuna promessa non dimostrabile nella cassa, e senza JS le domande si aprono lo stesso' },
   { name: 'anteprima', file: 'design/pages-deco/test-anteprima.cjs', what: 'l\'anteprima È la pagina: stesso fondo, stesso carattere, stessa geometria delle barre e zero errori JS a 390px e 1440px — le sei anteprime sono già state pubblicate senza CSS una volta' },
+  { name: 'scalo',    file: 'tests/scalo/run.mjs',        what: 'LO SCALO lotti 1-4: la carta d\'imbarco dice la verità (annullata/standby = niente Wallet, codici solo dal lessico condiviso), il flight status di /viewing sui momenti veri, il check-in di /book (carta MAI sulla pending), l\'idrante del board sulle corsie di marketLane, la rotta in /casa dai fatti del contratto, il timbro, e la porta pubblica /api/meteo che non lascia passare un campo non dichiarato' },
 ];
 
 const want = process.argv.slice(2).filter((a) => !a.startsWith('-'));

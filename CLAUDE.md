@@ -85,7 +85,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 |---|---|
 | `portal.html` | Main admin/user app (~21K lines). Single-page app with all CRUD, dashboards, analytics. **Read first.** |
 | `proppass.html` | Apple Wallet pass generator UI. Four pass types: viewing, tenant, referral, landlord. |
-| `pass-delivery.html` | Pass display page with animated gold-ring background and QR code. |
+| `pass-delivery.html` | La CARTA D'IMBARCO (STUDIO_AVIATION_2026-08.md, S2): la pagina STAMPA il biglietto (emissione in puro CSS), rotta ROM→codice zona dal lessico curato (mai inventato), e dice la verità — visita annullata (`meta.voided`) o non confermata (`when` assente) = Wallet spento e detto. Palette scalo #FFD700. Test: `node tests/scalo/run.mjs`. |
 | `index.html` | Landing page / homepage. |
 | `apartments.html` | Property listings page (discovery). La griglia è una FOTOGRAFIA di build (`design/pages-deco/costruisci-ad.py` su snapshot locali); in pagina l'**idrante** rilegge Firestore e aggiorna stato/prezzo/data delle card di build, e l'**innesto** COSTRUISCE la card per gli annunci nati dopo la build (es. wizard Telegram di sera) — stessa grammatica del builder, registrata nel setaccio via `window.__muroInnesta`: filtri e conto la vedono. Senza innesto un annuncio era "pubblicato e invisibile" (`/listing/:id` vivo, vetrina muta). **Il Solari del prezzo è UN montatore** (`window.__solariPrezzo`, 28/08): il tabellone split-flap del badge prezzo era montato solo sulle card di build — le carte innestate restavano col testo piatto e l'idrante, aggiornando un prezzo, DISTRUGGEVA il tabellone riscrivendolo come stringa; ora build, innesto e idrante montano lo stesso Solari (test: celle presenti anche sull'innestata). Test: `node tests/vetrina/run.mjs`. |
 | `apartment-detail.html` | Dynamic single-property page (loads from Firestore). |
@@ -770,6 +770,15 @@ Il quarto membro de La Squadra: dirige la GIORNATA dell'operatore.
   time next to the visitor's own clock, and carries the day-of action,
   Wallet and .ics. Linked from the confirmation email, the T-24h reminder,
   the reschedule email and `book.html`'s confirmed screen.
+  **Flight status (LO SCALO, W1)**: la pagina veste il biglietto da schermo
+  di stato volo — rotta `ROM → <codice zona>` dal lessico condiviso
+  `js/scalo-codes.js` (una copia con pass-delivery e book; nessun match →
+  HOME, mai inventato), numero `BM ····` DERIVATO dall'id, e il countdown
+  T-24h / T-3h / T-30m disegnato sugli STESSI momenti che `_moments.js`
+  esegue — stato puramente temporale, mai un "già spedito". Su /book la
+  schermata confermata È la carta d'imbarco (stessa grammatica); la
+  pending resta "Request sent": un pass su una visita non confermata è
+  una bugia. Test: `node tests/scalo/run.mjs`.
 - **Telegram: the agenda in your pocket** (`api/telegram/_viewings.js`).
   Every viewing request pings the admin chat (via `notify-pending`, every
   minute) as a card with the three moves — **✅ Conferma <l'orario
@@ -966,6 +975,24 @@ about listings that appear AFTER saving; later runs email a digest (max 6
 homes) via Nodemailer with /listing/:id links + one-click unsubscribe
 (`/api/search/unsub?id&e` → status:'unsubscribed'). `?dry=1` reports
 without emailing. Auth: Vercel cron Bearer CRON_SECRET.
+
+### GET `/api/meteo` + `meteo.html` (`/meteo`) — IL METEO DEL MERCATO
+Il bollettino PUBBLICO del mercato romano (STUDIO_AVIATION, W2), zona per
+zona, servito dagli aggregati del Perito (`marketStats/<slug>` — che resta
+admin-only nelle rules: la porta ripubblica SOLO aggregati, con whitelist
+esplicita campo per campo — mai un annuncio, un URL sorgente o un
+contatto). Mediana/p25–p75 del CHIESTO, assorbimento (SOLO morti provate),
+ribassi 30gg, conteggi campione. La disciplina del Perito passa intatta:
+zona sotto `minSample` → nell'elenco `measuring`, col solo nome, MAI un
+numero. Cache CDN 30'. `/meteo` è la pagina citabile (indicizzata, EN,
+lingua dello scalo, chip zona da scalo-codes, Dataset JSON-LD che punta a
+`/api/meteo`, «in brief» coi numeri veri della zona più campionata, blocco
+metodo che dichiara fonti e limiti); in sitemap e llms.txt. La plancia PFS
+ha anche lo SWEEP (W3): le 💎 di `radarState/occasioni` come blip — raggio
+= quanto sotto la mediana (centro = più forte), angolo = SOLO disposizione
+(dichiarato nel title), click → la card nella strip. Og social generate
+dal repo (`design/scalo/genera-og-scalo.py` → `og-board.png`,
+`og-meteo.png`, headless_shell 1200×630). Test: `node tests/scalo/run.mjs`.
 
 ### Pre-agreement suite (`/api/preagreement/*` + `pre-agreement.html` + `pre-agreement-admin.html`)
 Sendable RENTAL PROPOSAL / pre-agreement, modeled on the real BOOM document
@@ -3522,6 +3549,7 @@ camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
   | `tests/inventario/ui.mjs` | l'inventario in un browser vero a 390px: il video registrato al volo diventa fotogrammi (immagine vera, non quadrati neri), il filmato NON viene mai caricato, l'operatore corregge una riga e quella diventa 'human', il cancello della conferma tiene |
   | `tests/contractpdf/run.mjs` | il PDF del contratto in UNA copia (jsPDF REALE): l'impaginato condiviso produce Allegato B/C con le ancore firma, la conversione PA lo scrive da sola (e con Storage giù il contratto nasce comunque), send-sign sana i pre-fix PRIMA dell'email (ordine asserito sulla sorgente), la prima apertura di /sign è l'ultima rete, e MAI una rigenerazione sotto una firma viva (mutazione) |
   | `tests/sign/lang.mjs` | /sign bilingue guidata in un browser vero (demo mode): default per ruolo (locatore IT, inquilino EN), toggle che ridisegna lo step corrente in entrambe le direzioni, percorso intero tradotto, Skip OTP che non blocca, link WhatsApp presenti. Si auto-skippa senza playwright |
+  | `tests/scalo/run.mjs` | LO SCALO lotti 1-4: la carta d'imbarco dice la verità (visita annullata/standby = Wallet spento e DETTO, codici di rotta solo dal lessico — mai inventati, pass viewing per navigazione vera mai blob:), il lessico `js/scalo-codes.js` in UNA copia (alias lungo batte il corto, parole intere, ambiguo → null, bmCode derivato), il flight status di /viewing (countdown SOLO sui momenti veri di _moments, stato temporale mai "già spedito"), il check-in di /book (la carta SOLO sulla confermata — mai sulla pending — con applyApprovalCopy unico posto delle parole), l'idrante di /board (corsie SOLO da BOOM_DISPO.marketLane — closed fuori, illeggibile = ASK mai NOW, ETA dall'iso del motore, fail-open sulla fotografia di build), la rotta di /casa (tappe = FATTI del contratto: signatureStatus, depbal, startDate, endDate−90 — l'aereo sulla prima non compiuta, niente rotta senza contratto) e il timbro di apartment-detail (visibile sempre, batte una volta, fermo con reduced-motion). Lotto 4: il handler VERO di /api/meteo su Firestore in memoria (whitelist che non lascia passare un campo non dichiarato, sotto campione SOLO il nome, cache CDN, solo GET), meteo.html che non tocca mai Firestore, lo sweep della plancia (blip = gli stessi item della strip, angolo dichiarato disposizione), e le og carte PNG verificate nei byte (IHDR 1200×630) |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
   the 3 portals via `BoomPortal.registerServiceWorker()`

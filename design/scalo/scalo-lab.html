@@ -1,0 +1,1543 @@
+<title>BOOM · Lo Scalo</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="color-scheme" content="dark">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap">
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   LO SCALO — il laboratorio del linguaggio aeroportuale di BOOM.
+   Specimen autonomo: dati DEMO dichiarati, l'orologio è l'unica cosa viva.
+   Token e dottrina: quelli del sito 2026 (apartments.html / index.html).
+   Motore ante: Solari 4.0 (design/pages-deco/solari-engine.html), adattato.
+   Tema unico scuro per scelta di marca (il sito BOOM è dark-only).
+   ══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --gold:        #FFD700;
+  --gold-light:  #FFE55C;
+  --green:       #00FF88;
+  --rosso:       #FF7A6B;
+  --black:       #030303;
+  --void:        #060607;
+  --surface:     #0B0B0C;
+  --card:        #0E0E10;
+  --text:        #FAFAFA;
+  --text-2:      rgba(250,250,250,.72);
+  --text-3:      rgba(250,250,250,.5);
+  --text-4:      rgba(250,250,250,.48);
+  --line-0:      rgba(255,255,255,.04);
+  --line:        rgba(255,255,255,.08);
+  --line-gold:   rgba(255,215,0,.14);
+  --line-gold-2: rgba(255,215,0,.3);
+  --oro-flap:    #FFE55C;
+  --ease:        cubic-bezier(.16,1,.3,1);
+  --molla:       cubic-bezier(.26,1.16,.44,1);
+  --d1: .25s; --d2: .5s; --d3: .8s;
+  --sans:    'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --display: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  color-scheme: dark;
+}
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
+html { scroll-behavior:smooth; }
+body { background:var(--black); color:var(--text); font-family:var(--sans);
+  font-weight:300; line-height:1.6; -webkit-font-smoothing:antialiased; }
+a { color:inherit; }
+::selection { background:rgba(255,215,0,.28); }
+:focus-visible { outline:2px solid var(--gold); outline-offset:3px;
+  border-radius:4px; }
+button { font:inherit; color:inherit; background:none; border:0;
+  cursor:pointer; }
+.wrap { max-width:1080px; margin:0 auto;
+  padding:0 clamp(18px,4vw,40px); }
+
+/* ── la segnaletica in testa ─────────────────────────────────────────── */
+.cima { position:sticky; top:0; z-index:40; display:flex; align-items:center;
+  gap:14px; padding:14px clamp(18px,4vw,40px);
+  background:rgba(3,3,3,.86); backdrop-filter:blur(14px);
+  -webkit-backdrop-filter:blur(14px); border-bottom:1px solid var(--line-0); }
+.marchio { display:flex; align-items:center; gap:11px; }
+.marchio svg { width:26px; height:26px; }
+.marchio b { font-family:var(--display); font-weight:500; font-size:14px;
+  letter-spacing:.32em; text-indent:.32em; text-transform:uppercase; }
+.cima .rotolo { font-size:10px; font-weight:600; letter-spacing:.24em;
+  text-transform:uppercase; color:var(--text-3); }
+.cima .spec { margin-left:auto; display:inline-flex; align-items:center;
+  gap:8px; height:26px; padding:0 13px; border-radius:100px;
+  box-shadow:inset 0 0 0 1px var(--line-gold-2);
+  font-size:9.5px; font-weight:700; letter-spacing:.26em;
+  text-transform:uppercase; color:var(--gold); }
+#ora { font-family:var(--display); font-weight:300; font-size:15px;
+  letter-spacing:.08em; font-variant-numeric:tabular-nums;
+  color:var(--text-2); white-space:nowrap; }
+@media (max-width:640px){ .cima .rotolo { display:none; } }
+
+/* ── l'apertura: LO SCALO in ante ────────────────────────────────────── */
+.eroe { padding:clamp(64px,10vw,120px) 0 clamp(44px,6vw,72px);
+  border-bottom:1px solid var(--line-0); background:
+    radial-gradient(60% 46% at 50% 0%, rgba(255,215,0,.05), transparent 70%),
+    var(--black); }
+.eroe .eti { display:inline-flex; align-items:center; gap:8px;
+  margin-bottom:22px; padding:6px 13px; font-size:9.5px; font-weight:700;
+  letter-spacing:.26em; text-transform:uppercase; color:var(--gold);
+  border-radius:100px; box-shadow:inset 0 0 0 1px rgba(255,215,0,.35); }
+.eroe .eti::before { content:''; width:5px; height:5px; border-radius:50%;
+  background:var(--gold); }
+.eroe h1 { font-family:var(--display); font-weight:250;
+  font-size:clamp(30px,6.4vw,64px); letter-spacing:.06em; line-height:1.1; }
+.eroe h1 .flap-scale { font-weight:300; }
+.eroe .sotto { margin-top:22px; max-width:64ch; font-size:15px;
+  color:var(--text-2); text-wrap:pretty; }
+.eroe .sotto b { font-weight:600; color:var(--text); }
+.eroe .indice { display:flex; flex-wrap:wrap; gap:8px 10px;
+  margin-top:30px; }
+.eroe .indice a { display:inline-flex; align-items:center; min-height:34px;
+  padding:5px 14px; border-radius:100px; font-size:10.5px; font-weight:600;
+  letter-spacing:.16em; text-transform:uppercase; color:var(--text-3);
+  box-shadow:inset 0 0 0 1px var(--line); text-decoration:none;
+  transition:color var(--d1) ease, box-shadow var(--d1) ease; }
+.eroe .indice a:hover { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+
+/* ── le sezioni: cartelli di terminal ────────────────────────────────── */
+section { padding:clamp(60px,8vw,104px) 0; border-bottom:1px solid var(--line-0); }
+.cartello { display:flex; align-items:baseline; gap:16px; margin-bottom:8px; }
+.cartello .num { font-family:var(--display); font-weight:200;
+  font-size:clamp(30px,4vw,44px); letter-spacing:.04em; color:var(--gold);
+  font-variant-numeric:tabular-nums; }
+.cartello h2 { font-family:var(--display); font-weight:300;
+  font-size:clamp(20px,2.6vw,28px); letter-spacing:.14em;
+  text-transform:uppercase; text-wrap:balance; }
+.filo { height:1px; margin:14px 0 18px;
+  background:linear-gradient(90deg, var(--line-gold-2), var(--line) 40%, transparent); }
+.premessa { max-width:68ch; font-size:14.5px; color:var(--text-2);
+  text-wrap:pretty; }
+.premessa b { font-weight:600; color:var(--text); }
+.nota { margin-top:18px; display:flex; gap:10px; max-width:74ch;
+  font-size:11.5px; line-height:1.6; color:var(--text-3); }
+.nota::before { content:'▸'; color:var(--gold); flex:none; }
+.dove { margin-top:8px; font-size:10.5px; letter-spacing:.06em;
+  color:var(--text-4); }
+.dove code { font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size:10px; color:var(--text-3); }
+
+/* ── 00 · dottrina: palette, tipo, movimento, regole ─────────────────── */
+.tavolozza { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:10px; margin-top:26px; }
+.tinta { padding:14px; border-radius:12px; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line); }
+.tinta i { display:block; height:44px; border-radius:8px; margin-bottom:10px;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.06); }
+.tinta b { display:block; font-size:11px; font-weight:600;
+  letter-spacing:.12em; text-transform:uppercase; }
+.tinta span { font-size:10.5px; color:var(--text-3);
+  font-variant-numeric:tabular-nums; }
+.specimen { margin-top:26px; padding:clamp(18px,3vw,28px); border-radius:14px;
+  background:var(--void); box-shadow:inset 0 0 0 1px var(--line); display:grid;
+  gap:14px; }
+.specimen .sp-d { font-family:var(--display); font-weight:200;
+  font-size:clamp(26px,3.6vw,40px); letter-spacing:.06em; }
+.specimen .sp-b { max-width:60ch; font-size:14.5px; color:var(--text-2); }
+.specimen .sp-e { font-size:10px; font-weight:700; letter-spacing:.3em;
+  text-transform:uppercase; color:var(--text-4); }
+.specimen .sp-n { font-family:var(--display); font-weight:300; font-size:26px;
+  font-variant-numeric:tabular-nums; color:var(--gold); }
+.regole { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr));
+  gap:10px; margin-top:26px; counter-reset:regola; }
+.regole li { list-style:none; counter-increment:regola; padding:16px;
+  border-radius:12px; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line); font-size:12.5px;
+  color:var(--text-2); line-height:1.55; }
+.regole li::before { content:counter(regola,decimal-leading-zero);
+  display:block; margin-bottom:8px; font-family:var(--display);
+  font-weight:200; font-size:20px; color:var(--gold);
+  font-variant-numeric:tabular-nums; }
+.regole li b { color:var(--text); font-weight:600; }
+
+/* ── le celle Solari (dal motore 4.0 del repo) ───────────────────────── */
+.fc2 {
+  --ch: 1.26em; --cw: 0.84em; --gs: 0px;
+  position:relative; display:inline-block;
+  width:var(--cw); height:var(--ch);
+  margin-right:0.07em; vertical-align:-0.20em;
+  border-radius:0.085em; background:#040404;
+  box-shadow:inset 0 0 0 1px rgba(239,235,223,0.05), 0 0.08em 0.3em rgba(0,0,0,0.6);
+  perspective:3em; color:var(--oro-flap);
+}
+.fc2 i { position:absolute; left:0; width:100%; height:50%; overflow:hidden; font-style:normal; }
+.fc2 i b { position:absolute; left:0; width:100%; height:var(--ch); line-height:var(--ch);
+  text-align:center; font-weight:inherit; transform:translateY(var(--gs)); }
+.fc2 .st { top:0; border-radius:0.085em 0.085em 0 0; background:linear-gradient(180deg,#17171A,#0E0E10); z-index:1; }
+.fc2 .sb { bottom:0; border-radius:0 0 0.085em 0.085em; background:linear-gradient(180deg,#09090B,#111114); z-index:1; }
+.fc2 .st b { top:0; }
+.fc2 .sb b { top:-100%; }
+.fc2 .lt { top:0; border-radius:0.085em 0.085em 0 0; background:linear-gradient(180deg,#17171A,#0E0E10);
+  transform-origin:center bottom; z-index:4; display:none; }
+.fc2 .lt b { top:0; }
+.fc2 .lb { bottom:0; border-radius:0 0 0.085em 0.085em; background:linear-gradient(180deg,#09090B,#111114);
+  transform-origin:center top; transform:rotateX(88deg); z-index:3; display:none; }
+.fc2 .lb b { top:-100%; }
+.fc2 s { position:absolute; left:0; right:0; top:50%; height:0.035em; min-height:1px;
+  margin-top:calc(0.035em / -2);
+  background:linear-gradient(180deg, rgba(0,0,0,0.92), rgba(0,0,0,0.5));
+  z-index:6; text-decoration:none; }
+.fc2 s::before, .fc2 s::after { content:''; position:absolute; top:50%; width:0.055em; height:0.16em;
+  transform:translateY(-50%); background:linear-gradient(180deg,#000,#1A1A1A); border-radius:0.02em; }
+.fc2 s::before { left:0; border-radius:0 0.02em 0.02em 0; }
+.fc2 s::after { right:0; border-radius:0.02em 0 0 0.02em; }
+@keyframes flTop { 0% { transform:rotateX(0); filter:brightness(1); }
+  100% { transform:rotateX(-88deg); filter:brightness(0.45); } }
+@keyframes flBot { 0% { transform:rotateX(88deg); filter:brightness(0.5); }
+  55% { filter:brightness(1.15); } 100% { transform:rotateX(0); filter:brightness(1); } }
+.flap-scale { letter-spacing:0; white-space:nowrap; }
+
+/* ── 01 · il tabellone: partenze / arrivi ────────────────────────────── */
+.tab-testa { display:flex; align-items:center; flex-wrap:wrap; gap:12px;
+  margin-top:26px; }
+.tab-scelta { display:inline-flex; border-radius:100px;
+  box-shadow:inset 0 0 0 1px var(--line); overflow:hidden; }
+.tab-scelta button { min-height:38px; padding:0 20px; font-size:10.5px;
+  font-weight:700; letter-spacing:.2em; text-transform:uppercase;
+  color:var(--text-3); transition:color var(--d1) ease, background var(--d1) ease; }
+.tab-scelta button[aria-pressed="true"] { color:#050503;
+  background:var(--gold); }
+.tab-live { display:inline-flex; align-items:center; gap:7px; height:26px;
+  padding:0 12px; margin-left:auto; border-radius:100px;
+  background:rgba(0,32,18,.6); box-shadow:inset 0 0 0 1px rgba(0,255,136,.38);
+  font-size:9.5px; font-weight:700; letter-spacing:.2em; color:var(--green); }
+.tab-live i { font-style:normal; width:5px; height:5px; border-radius:50%;
+  background:var(--green); animation:pulse 1.8s ease infinite; }
+@keyframes pulse { 50% { opacity:.3; } }
+.tabellone { margin-top:14px; background:var(--void); border-radius:16px;
+  padding:clamp(12px,2vw,22px);
+  box-shadow:inset 0 0 0 1px var(--line-gold), 0 40px 90px -50px rgba(0,0,0,.9);
+  perspective:900px; overflow-x:auto; }
+.tab-col, .tab-riga { display:grid; align-items:center; min-width:560px;
+  grid-template-columns:78px minmax(0,1.5fr) minmax(0,.9fr) minmax(0,1.1fr);
+  gap:clamp(10px,1.6vw,24px); padding:10px clamp(8px,1vw,14px); }
+.tab-col { font-size:9px; font-weight:700; letter-spacing:.3em;
+  text-transform:uppercase; color:var(--text-4);
+  border-bottom:1px solid var(--line); }
+.tab-riga { border-bottom:1px solid var(--line-0);
+  font-size:clamp(12px,1.2vw,15px); font-weight:600; letter-spacing:.1em;
+  text-transform:uppercase; }
+.tab-riga:last-child { border-bottom:0; }
+.tab-riga .nome { font-family:var(--display); font-weight:300;
+  letter-spacing:.1em; color:var(--text); overflow:hidden;
+  text-overflow:ellipsis; white-space:nowrap; }
+.tab-riga .flap-scale { font-size:clamp(13px,1.3vw,16px); }
+.tab-riga .stato.ok    { --oro-flap:var(--green); }
+.tab-riga .stato.last  { --oro-flap:var(--rosso); }
+.tab-riga .stato.eta   { --oro-flap:var(--gold-light); }
+.tab-riga .stato.muto  { --oro-flap:rgba(250,250,250,.42); }
+.tab-piede { display:flex; flex-wrap:wrap; align-items:center; gap:10px 18px;
+  margin-top:14px; }
+.tab-piede .legenda { display:flex; flex-wrap:wrap; gap:8px 16px;
+  font-size:10px; font-weight:600; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--text-4); }
+.tab-piede .legenda i { font-style:normal; display:inline-block; width:7px;
+  height:7px; border-radius:50%; margin-right:6px; vertical-align:1px; }
+.btn-quieto { display:inline-flex; align-items:center; min-height:38px;
+  padding:0 18px; margin-left:auto; border-radius:100px; font-size:10.5px;
+  font-weight:700; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--text-2); box-shadow:inset 0 0 0 1px var(--line);
+  transition:color var(--d1) ease, box-shadow var(--d1) ease; }
+.btn-quieto:hover { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+
+/* ── 02 · il check-in ────────────────────────────────────────────────── */
+.checkin { margin-top:26px; border-radius:16px; background:var(--void);
+  box-shadow:inset 0 0 0 1px var(--line); overflow:hidden; }
+.ck-passi { display:flex; border-bottom:1px solid var(--line-0); }
+.ck-passi button { flex:1; min-height:52px; padding:8px 6px; font-size:10px;
+  font-weight:700; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--text-4); border-bottom:2px solid transparent;
+  transition:color var(--d1) ease, border-color var(--d1) ease; }
+.ck-passi button i { font-style:normal; display:block; font-family:var(--display);
+  font-weight:200; font-size:17px; color:inherit;
+  font-variant-numeric:tabular-nums; }
+.ck-passi button[aria-selected="true"] { color:var(--gold);
+  border-bottom-color:var(--gold); }
+.ck-corpo { padding:clamp(18px,3vw,28px); }
+.ck-vista { display:none; }
+.ck-vista.su { display:block; }
+.ck-voli { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:10px; }
+.ck-volo { text-align:left; padding:16px; border-radius:12px;
+  background:var(--card); box-shadow:inset 0 0 0 1px var(--line);
+  transition:box-shadow var(--d1) ease, transform var(--d2) var(--molla); }
+.ck-volo:hover { box-shadow:inset 0 0 0 1px var(--line-gold-2);
+  transform:translateY(-2px); }
+.ck-volo[aria-pressed="true"] { box-shadow:inset 0 0 0 1.5px var(--gold); }
+.ck-volo .cv-rotta { display:flex; align-items:center; gap:8px;
+  font-family:var(--display); font-weight:250; font-size:19px;
+  letter-spacing:.06em; }
+.ck-volo .cv-rotta em { flex:1; height:1px; font-style:normal;
+  background:repeating-linear-gradient(90deg, rgba(250,250,250,.34) 0 5px,
+    transparent 5px 10px); }
+.ck-volo .cv-rotta b:last-child { color:var(--gold); font-weight:300; }
+.ck-volo .cv-nome { margin-top:8px; font-size:12px; color:var(--text-2); }
+.ck-volo .cv-prezzo { margin-top:2px; font-size:11px; color:var(--text-3);
+  font-variant-numeric:tabular-nums; }
+.ck-slot { display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr));
+  gap:8px; }
+.ck-slot button { min-height:46px; border-radius:10px; font-family:var(--display);
+  font-weight:300; font-size:15px; letter-spacing:.06em;
+  font-variant-numeric:tabular-nums; color:var(--text-2);
+  background:var(--card); box-shadow:inset 0 0 0 1px var(--line);
+  transition:color var(--d1) ease, box-shadow var(--d1) ease; }
+.ck-slot button:hover:not(:disabled) { color:var(--gold);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+.ck-slot button[aria-pressed="true"] { color:#050503; background:var(--gold);
+  box-shadow:none; font-weight:400; }
+.ck-slot button:disabled { color:var(--text-4); cursor:not-allowed;
+  background:transparent; box-shadow:inset 0 0 0 1px var(--line-0);
+  text-decoration:line-through; }
+.ck-nota-slot { margin-top:12px; font-size:11px; color:var(--text-3); }
+.ck-fine { display:grid; gap:14px; justify-items:start; }
+.ck-fine .ok-riga { display:flex; align-items:center; gap:10px;
+  font-family:var(--display); font-weight:250; font-size:20px;
+  letter-spacing:.04em; }
+.ck-fine .ok-riga i { font-style:normal; display:grid; place-items:center;
+  width:26px; height:26px; border-radius:50%; color:#050503;
+  background:var(--green); font-size:14px; font-weight:700; }
+.ck-fine p { max-width:56ch; font-size:13px; color:var(--text-2); }
+.ck-avanti { margin-top:18px; }
+
+/* ── il CTA con le luci di pista ─────────────────────────────────────── */
+.btn-pista { position:relative; display:inline-flex; flex-direction:column;
+  align-items:center; gap:7px; min-height:48px; padding:12px 26px 9px;
+  border-radius:12px; background:var(--gold); color:#050503;
+  font-size:12px; font-weight:800; letter-spacing:.18em;
+  text-transform:uppercase;
+  transition:transform var(--d2) var(--molla), box-shadow var(--d2) ease; }
+.btn-pista:hover { transform:translateY(-2px);
+  box-shadow:0 18px 40px -18px rgba(255,215,0,.55); }
+.btn-pista .luci { display:block; width:100%; height:3px; border-radius:2px;
+  background:repeating-linear-gradient(90deg, rgba(5,5,3,.55) 0 5px,
+    transparent 5px 16px); background-size:16px 3px; opacity:.4; }
+.btn-pista:hover .luci, .btn-pista:focus-visible .luci { opacity:.9;
+  animation:pista .7s linear infinite; }
+@keyframes pista { to { background-position-x:16px; } }
+
+/* ── 03 · la carta d'imbarco ─────────────────────────────────────────── */
+.gate-kiosk { margin-top:26px; display:grid; gap:18px; }
+.kiosk-comandi { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+.modo { display:inline-flex; align-items:center; gap:9px; font-size:10.5px;
+  font-weight:600; letter-spacing:.14em; text-transform:uppercase;
+  color:var(--text-3); }
+.modo .levetta { position:relative; width:40px; height:22px;
+  border-radius:100px; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line);
+  transition:background var(--d1) ease; }
+.modo .levetta::after { content:''; position:absolute; top:3px; left:3px;
+  width:16px; height:16px; border-radius:50%; background:var(--text-3);
+  transition:transform var(--d2) var(--molla), background var(--d1) ease; }
+.modo .levetta[aria-pressed="true"] { background:rgba(255,215,0,.14); }
+.modo .levetta[aria-pressed="true"]::after { transform:translateX(18px);
+  background:var(--gold); }
+.stampante { position:relative; max-width:760px; }
+.fessura { height:10px; border-radius:100px; margin:0 6%;
+  background:linear-gradient(180deg,#000,#101013);
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.9), inset 0 -1px 0 rgba(255,255,255,.05); }
+.uscita { overflow:hidden; padding:16px 0 8px; }
+.carta { display:grid; grid-template-columns:34px minmax(0,1fr) 0 190px;
+  border-radius:18px; overflow:hidden; position:relative;
+  background:linear-gradient(168deg,#101014,#080809 72%);
+  box-shadow:inset 0 0 0 1px var(--line), inset 0 1px 0 rgba(255,255,255,.05),
+    0 34px 70px -36px rgba(0,0,0,.9);
+  transform:translateY(-112%);
+  transition:transform var(--d3) var(--ease); }
+.uscita.emessa .carta { transform:none; }
+/* la stampa di sicurezza calcografica del biglietto della home */
+.carta::before { content:''; position:absolute; inset:0; pointer-events:none;
+  opacity:.5; background:
+    repeating-linear-gradient(115deg, rgba(255,215,0,.16) 0 1px, transparent 1px 9px),
+    repeating-linear-gradient(63deg, rgba(255,215,0,.16) 0 1px, transparent 1px 14px);
+  -webkit-mask:radial-gradient(120% 130% at 0% 0%, #000 20%, transparent 62%);
+  mask:radial-gradient(120% 130% at 0% 0%, #000 20%, transparent 62%); }
+.carta .lamina { position:relative; display:grid; place-items:center;
+  overflow:hidden; background:
+    repeating-linear-gradient(0deg, rgba(0,0,0,.16) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg,#7a5f16,#f6e27a 14%,#8a6d1f 32%,#fdf0a8 48%,
+      #b8942b 63%,#f6e27a 78%,#6b5716 100%); }
+.carta .lamina em { font-style:normal; writing-mode:vertical-rl;
+  transform:rotate(180deg); font-size:8.5px; font-weight:800;
+  letter-spacing:.34em; text-transform:uppercase; color:#141005;
+  white-space:nowrap; opacity:.9; }
+.carta .lamina::after { content:''; position:absolute; left:-40%; right:-40%;
+  top:-30%; height:34%; transform:skewY(-18deg);
+  background:linear-gradient(175deg, transparent, rgba(255,255,255,.26) 50%,
+    transparent);
+  animation:lamina 10s var(--ease) infinite; }
+@keyframes lamina { 0%,55% { top:-34%; } 80%,100% { top:134%; } }
+.carta .ccorpo { padding:clamp(16px,2.4vw,24px); min-width:0; }
+.carta .ctesta { display:flex; align-items:baseline; gap:10px; }
+.carta .ctesta b { font-size:9.5px; font-weight:700; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--gold); }
+.carta .ctesta .cnum { margin-left:auto; font-size:9px; font-weight:600;
+  letter-spacing:.22em; color:var(--text-4);
+  font-variant-numeric:tabular-nums; white-space:nowrap; }
+.carta .crotta { display:flex; align-items:center; gap:12px; margin-top:12px;
+  font-family:var(--display); font-weight:200;
+  font-size:clamp(24px,3.4vw,34px); letter-spacing:.05em; line-height:1;
+  white-space:nowrap; }
+.carta .crotta b { font-weight:250; }
+.carta .crotta b:last-child { color:var(--gold);
+  text-shadow:0 0 22px rgba(255,215,0,.4); }
+.carta .tratta { position:relative; flex:1 1 40px; min-width:34px; height:12px; }
+.carta .tratta::before { content:''; position:absolute; left:0; right:0;
+  top:5.5px; height:1px; background:repeating-linear-gradient(90deg,
+    rgba(250,250,250,.34) 0 5px, transparent 5px 10px); }
+.carta .tratta .punto { position:absolute; top:3px; left:0; width:6px;
+  height:6px; border-radius:50%; background:var(--gold);
+  box-shadow:0 0 7px var(--gold), 0 0 14px rgba(255,215,0,.4);
+  animation:tratta 8s var(--ease) infinite; }
+@keyframes tratta { 0% { left:0; opacity:0; } 12% { opacity:1; }
+  88% { opacity:1; } 100% { left:calc(100% - 6px); opacity:0; } }
+.carta .campi { display:grid; grid-template-columns:repeat(auto-fit,minmax(110px,1fr));
+  gap:12px 18px; margin-top:18px; }
+.carta .campo b { display:block; font-size:8.5px; font-weight:700;
+  letter-spacing:.24em; text-transform:uppercase; color:var(--text-4); }
+.carta .campo span { font-family:var(--display); font-weight:300;
+  font-size:15px; letter-spacing:.04em; font-variant-numeric:tabular-nums; }
+.carta[data-mode="video"] .campo.solo-persona { display:none; }
+/* la perforazione + il talloncino */
+.carta .perfo { position:relative; width:0;
+  border-left:1.5px dashed rgba(250,250,250,.22); }
+.carta .perfo::before, .carta .perfo::after { content:''; position:absolute;
+  left:-9px; width:16px; height:16px; border-radius:50%;
+  background:var(--black); box-shadow:inset 0 0 0 1px var(--line); }
+.carta .perfo::before { top:-8px; }
+.carta .perfo::after { bottom:-8px; }
+.tallone { position:relative; display:grid; align-content:center;
+  justify-items:center; gap:8px; padding:14px;
+  text-align:center; cursor:pointer;
+  transition:transform .6s var(--ease), opacity .5s ease; }
+.tallone .tnum { font-size:9px; font-weight:700; letter-spacing:.22em;
+  text-transform:uppercase; color:var(--gold);
+  font-variant-numeric:tabular-nums; }
+.tallone canvas { width:84px; height:84px; border-radius:8px;
+  background:#FAFAFA; padding:6px; }
+.tallone .tora { font-family:var(--display); font-weight:300; font-size:16px;
+  letter-spacing:.06em; font-variant-numeric:tabular-nums; }
+.tallone .strappa { font-size:8.5px; font-weight:700; letter-spacing:.26em;
+  text-transform:uppercase; color:var(--text-4); }
+.carta.strappata .tallone { transform:translate(46px,20px) rotate(9deg);
+  opacity:0; pointer-events:none; }
+.wallet { position:absolute; right:26px; top:50%;
+  transform:translateY(-50%) scale(.9); opacity:0; pointer-events:none;
+  display:inline-flex; align-items:center; gap:8px; min-height:44px;
+  padding:0 18px; border-radius:100px; background:#000;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.28);
+  font-size:11px; font-weight:600; letter-spacing:.04em; white-space:nowrap;
+  transition:opacity var(--d2) ease var(--d1), transform var(--d2) var(--molla) var(--d1); }
+.carta.strappata .wallet { opacity:1;
+  transform:translateY(-50%) scale(1); pointer-events:auto; }
+@media (max-width:640px){
+  .carta { grid-template-columns:26px minmax(0,1fr); }
+  .carta .perfo, .tallone { display:none; }
+  .wallet { position:static; transform:none; opacity:1; pointer-events:auto;
+    grid-column:1 / -1; margin:0 16px 16px; justify-self:start; } }
+
+/* ── 04 · i timbri ───────────────────────────────────────────────────── */
+.timbri { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:12px; margin-top:26px; }
+.timbro-teatro { display:grid; align-content:center; justify-items:center;
+  gap:16px; min-height:190px; padding:20px; border-radius:14px;
+  background:var(--void); box-shadow:inset 0 0 0 1px var(--line); }
+.timbro { --tc: var(--gold);
+  display:inline-block; padding:10px 18px; border:3px solid var(--tc);
+  border-radius:8px; transform:rotate(-7deg);
+  font-family:var(--display); font-weight:600; font-size:17px;
+  letter-spacing:.2em; text-transform:uppercase; color:var(--tc);
+  opacity:0; pointer-events:none;
+  -webkit-mask-image:repeating-radial-gradient(circle at 30% 40%,
+    #000 0 2.6px, rgba(0,0,0,.72) 2.6px 5px);
+  mask-image:repeating-radial-gradient(circle at 30% 40%,
+    #000 0 2.6px, rgba(0,0,0,.72) 2.6px 5px); }
+.timbro.verde { --tc: var(--green); }
+.timbro.rosso { --tc: var(--rosso); }
+.timbro.giu { opacity:1; pointer-events:auto;
+  animation:timbrata .38s var(--molla); }
+@keyframes timbrata {
+  0% { opacity:0; transform:rotate(-13deg) scale(1.7); }
+  62% { opacity:1; transform:rotate(-6.4deg) scale(.96); }
+  100% { opacity:1; transform:rotate(-7deg) scale(1); } }
+.timbro-teatro .btn-quieto { margin-left:0; }
+
+/* ── 05 · la rotta del journey ───────────────────────────────────────── */
+.rotta-casa { margin-top:30px; padding:clamp(20px,3vw,30px) clamp(14px,2vw,24px);
+  border-radius:16px; background:var(--void);
+  box-shadow:inset 0 0 0 1px var(--line); overflow-x:auto; }
+.rc-linea { position:relative; display:grid;
+  grid-template-columns:repeat(6,1fr); min-width:620px; padding-top:26px; }
+.rc-linea::before { content:''; position:absolute; top:31px;
+  left:calc(100% / 12); right:calc(100% / 12); height:1px;
+  background:repeating-linear-gradient(90deg, rgba(250,250,250,.3) 0 5px,
+    transparent 5px 10px); }
+.rc-linea .aereo { position:absolute; top:22px;
+  left:calc(100% / 12 + (100% - 100% / 6) * .62); width:19px; height:19px;
+  transform:translateX(-50%); color:var(--gold);
+  filter:drop-shadow(0 0 8px rgba(255,215,0,.5)); }
+.rc-tappa { position:relative; display:grid; justify-items:center; gap:9px;
+  text-align:center; }
+.rc-tappa i { font-style:normal; width:11px; height:11px; border-radius:50%;
+  background:var(--black); box-shadow:inset 0 0 0 1.5px var(--text-4);
+  z-index:1; }
+.rc-tappa.fatta i { background:var(--gold); box-shadow:0 0 10px rgba(255,215,0,.4); }
+.rc-tappa.ora i { background:var(--black);
+  box-shadow:inset 0 0 0 1.5px var(--gold); animation:pulse 1.8s ease infinite; }
+.rc-tappa b { font-size:9px; font-weight:700; letter-spacing:.18em;
+  text-transform:uppercase; color:var(--text-4); }
+.rc-tappa.fatta b, .rc-tappa.ora b { color:var(--text-2); }
+.rc-tappa span { font-size:9.5px; color:var(--text-4);
+  font-variant-numeric:tabular-nums; }
+.rc-prossima { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 14px;
+  margin-top:22px; padding-top:16px; border-top:1px solid var(--line-0);
+  font-size:12px; color:var(--text-3); }
+.rc-prossima b { font-size:10px; font-weight:700; letter-spacing:.22em;
+  text-transform:uppercase; color:var(--gold); }
+.rc-prossima .cifra { font-family:var(--display); font-weight:300;
+  font-size:19px; color:var(--text); font-variant-numeric:tabular-nums; }
+
+/* ── 06 · gate-tick + fremito ────────────────────────────────────────── */
+.contatori { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:10px; margin-top:26px; }
+.contatore { padding:18px; border-radius:12px; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line); }
+.contatore .cifra { display:block; font-family:var(--display);
+  font-weight:200; font-size:34px; letter-spacing:.02em; color:var(--gold);
+  font-variant-numeric:tabular-nums; perspective:300px; }
+.contatore .cifra i { font-style:normal; display:inline-block; }
+.contatore.in .cifra i { animation:gate-tick .55s ease both; }
+@keyframes gate-tick { from { transform:rotateX(84deg); opacity:0; }
+  to { transform:none; opacity:1; } }
+.contatore b { font-size:9.5px; font-weight:700; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--text-4); }
+.motion-note { display:grid; grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+  gap:10px; margin-top:22px; }
+.motion-note div { padding:14px 16px; border-radius:12px; background:var(--void);
+  box-shadow:inset 0 0 0 1px var(--line); font-size:11.5px;
+  color:var(--text-3); line-height:1.55; }
+.motion-note b { display:block; margin-bottom:4px; font-size:10px;
+  font-weight:700; letter-spacing:.18em; text-transform:uppercase;
+  color:var(--text-2); }
+.motion-note code { font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size:10px; color:var(--gold-light); }
+
+/* ── 07 · i codici di rotta ──────────────────────────────────────────── */
+.codici { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr));
+  gap:8px; margin-top:26px; }
+.codice { display:flex; align-items:center; gap:10px; padding:10px 12px;
+  border-radius:10px; background:var(--card);
+  box-shadow:inset 0 0 0 1px var(--line); }
+.codice .targa { position:relative; display:grid; place-items:center;
+  width:52px; height:30px; border-radius:6px; flex:none;
+  background:linear-gradient(180deg,#17171A 0 50%,#0A0A0C 50% 100%);
+  box-shadow:inset 0 0 0 1px rgba(239,235,223,.06);
+  font-family:var(--display); font-weight:500; font-size:13px;
+  letter-spacing:.14em; color:var(--oro-flap); }
+.codice .targa::after { content:''; position:absolute; left:0; right:0;
+  top:50%; height:1px; background:rgba(0,0,0,.85); }
+.codice span { font-size:11px; color:var(--text-3); line-height:1.3; }
+
+/* ── 08 · il confine ─────────────────────────────────────────────────── */
+.confine { display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
+  gap:12px; margin-top:26px; }
+.confine > div { padding:20px; border-radius:14px; background:var(--void);
+  box-shadow:inset 0 0 0 1px var(--line); }
+.confine h3 { font-size:10.5px; font-weight:700; letter-spacing:.24em;
+  text-transform:uppercase; margin-bottom:12px; }
+.confine .parla h3 { color:var(--green); }
+.confine .tace h3 { color:var(--rosso); }
+.confine ul { list-style:none; display:grid; gap:8px; }
+.confine li { font-size:12.5px; color:var(--text-2); padding-left:16px;
+  position:relative; line-height:1.5; }
+.confine li::before { content:''; position:absolute; left:0; top:9px;
+  width:6px; height:1.5px; background:var(--text-4); }
+.confine li b { color:var(--text); font-weight:600; }
+
+/* ── 09 · la seconda ondata: quattro mockup ──────────────────────────── */
+.ondata { display:grid; grid-template-columns:repeat(auto-fit,minmax(300px,1fr));
+  gap:14px; margin-top:26px; }
+.proposta { display:grid; align-content:start; gap:14px; padding:18px;
+  border-radius:16px; background:var(--void);
+  box-shadow:inset 0 0 0 1px var(--line); }
+.proposta > b { font-size:9.5px; font-weight:700; letter-spacing:.24em;
+  text-transform:uppercase; color:var(--gold); }
+.proposta > p { font-size:11.5px; color:var(--text-3); line-height:1.55; }
+.proposta > p code { font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size:10px; color:var(--text-2); }
+/* W1 · flight status */
+.fstat { display:grid; gap:12px; padding:16px; border-radius:12px;
+  background:var(--card); box-shadow:inset 0 0 0 1px var(--line); }
+.fstat .ftesta { display:flex; align-items:center; gap:10px; }
+.fstat .ftesta b { font-family:var(--display); font-weight:300; font-size:17px;
+  letter-spacing:.08em; font-variant-numeric:tabular-nums; }
+.fstat .ontime { margin-left:auto; display:inline-flex; align-items:center;
+  gap:6px; height:22px; padding:0 10px; border-radius:100px;
+  background:rgba(0,32,18,.6); box-shadow:inset 0 0 0 1px rgba(0,255,136,.38);
+  font-size:9px; font-weight:700; letter-spacing:.18em; color:var(--green); }
+.fstat .ontime::before { content:''; width:4px; height:4px; border-radius:50%;
+  background:var(--green); }
+.fstat .frotta { display:flex; align-items:center; gap:10px;
+  font-family:var(--display); font-weight:200; font-size:22px;
+  letter-spacing:.05em; }
+.fstat .frotta i { flex:1; height:1px; font-style:normal;
+  background:repeating-linear-gradient(90deg, rgba(250,250,250,.34) 0 5px,
+    transparent 5px 10px); }
+.fstat .frotta b:last-child { color:var(--gold); font-weight:250; }
+.fstat ol { list-style:none; display:grid; gap:7px; }
+.fstat li { display:flex; align-items:center; gap:9px; font-size:11px;
+  color:var(--text-3); }
+.fstat li i { font-style:normal; width:9px; height:9px; border-radius:50%;
+  flex:none; background:var(--black); box-shadow:inset 0 0 0 1.5px var(--text-4); }
+.fstat li.ok { color:var(--text-2); }
+.fstat li.ok i { background:var(--gold); box-shadow:none; }
+.fstat li.ora i { box-shadow:inset 0 0 0 1.5px var(--gold);
+  animation:pulse 1.8s ease infinite; }
+/* W2 · meteo del mercato */
+.meteo { display:grid; gap:10px; padding:16px; border-radius:12px;
+  background:var(--card); box-shadow:inset 0 0 0 1px var(--line); }
+.meteo .mtesta { display:flex; align-items:baseline; gap:10px;
+  font-size:10px; font-weight:700; letter-spacing:.2em;
+  text-transform:uppercase; color:var(--text-2); }
+.meteo .mtesta span { margin-left:auto; font-weight:600; color:var(--text-4); }
+.meteo .mriga { display:flex; align-items:baseline; justify-content:space-between;
+  gap:10px; font-size:11.5px; color:var(--text-3);
+  border-bottom:1px solid var(--line-0); padding-bottom:7px; }
+.meteo .mriga:last-of-type { border-bottom:0; padding-bottom:0; }
+.meteo .mriga b { font-family:var(--display); font-weight:300; font-size:16px;
+  color:var(--text); font-variant-numeric:tabular-nums; }
+.meteo .verdetto { padding-top:4px; font-size:10px; font-weight:700;
+  letter-spacing:.18em; text-transform:uppercase; color:var(--green); }
+/* W3 · lo sweep ATC */
+.atc { position:relative; aspect-ratio:1; max-width:230px; margin:0 auto;
+  border-radius:50%; overflow:hidden;
+  background:
+    repeating-radial-gradient(circle, rgba(255,215,0,.07) 0 1px, transparent 1px 28px),
+    radial-gradient(circle, #0A0A0C, #060607);
+  box-shadow:inset 0 0 0 1px var(--line-gold); }
+.atc::before { content:''; position:absolute; inset:0; border-radius:50%;
+  background:conic-gradient(from 0deg, rgba(255,215,0,.28), transparent 70deg,
+    transparent 360deg);
+  animation:sweep 5s linear infinite; }
+@keyframes sweep { to { transform:rotate(360deg); } }
+.atc i { position:absolute; width:7px; height:7px; border-radius:50%;
+  background:var(--gold); font-style:normal;
+  box-shadow:0 0 8px var(--gold); animation:pulse 2.4s ease infinite; }
+.atc em { position:absolute; font-style:normal; font-size:8px; font-weight:700;
+  letter-spacing:.14em; color:var(--text-3); }
+/* W4 · l'og carta d'imbarco */
+.ogpass { aspect-ratio:1200/630; display:grid;
+  grid-template-columns:22px minmax(0,1fr); border-radius:12px; overflow:hidden;
+  background:linear-gradient(168deg,#101014,#080809 72%);
+  box-shadow:inset 0 0 0 1px var(--line); }
+.ogpass .lamina em { font-size:6.5px; }
+.ogpass .ogcorpo { display:grid; align-content:center; gap:8px;
+  padding:14px 16px; }
+.ogpass .ogeti { font-size:8px; font-weight:700; letter-spacing:.26em;
+  text-transform:uppercase; color:var(--gold); }
+.ogpass .ogrotta { display:flex; align-items:center; gap:9px;
+  font-family:var(--display); font-weight:200; font-size:24px;
+  letter-spacing:.05em; }
+.ogpass .ogrotta i { flex:1; height:1px; font-style:normal;
+  background:repeating-linear-gradient(90deg, rgba(250,250,250,.34) 0 5px,
+    transparent 5px 10px); }
+.ogpass .ogrotta b:last-child { color:var(--gold); font-weight:250; }
+.ogpass .ogsotto { display:flex; gap:14px; font-size:10px;
+  color:var(--text-3); font-variant-numeric:tabular-nums; }
+.ogpass .ogsotto b { color:var(--green); font-weight:700;
+  letter-spacing:.14em; }
+
+/* ── piede ───────────────────────────────────────────────────────────── */
+footer { padding:40px 0 60px; }
+footer .wrap { display:grid; gap:8px; font-size:11px; color:var(--text-4); }
+footer code { font-family:ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size:10px; color:var(--text-3); }
+
+@media (max-width:620px) {
+  .eroe .indice a, .tab-scelta button, .btn-quieto,
+  .ck-passi button { min-height:44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior:auto; }
+  *, *::before, *::after { animation:none !important;
+    transition:none !important; }
+  .carta { transform:none; }
+  .timbro { opacity:1; }
+}
+</style>
+
+<noscript><style>
+  .carta { transform:none; }
+  #eroeFlap { color:var(--gold); }
+</style></noscript>
+
+<header class="cima">
+  <span class="marchio" aria-hidden="true">
+    <svg viewBox="0 0 48 48" fill="none" stroke="#FFD700" stroke-width="2.6">
+      <circle cx="24" cy="24" r="5"/>
+      <path d="M24 9a15 15 0 0 1 0 30" opacity=".65"/>
+      <path d="M24 2.5a21.5 21.5 0 0 1 0 43" opacity=".35"/>
+      <path d="M24 39a15 15 0 0 1 0-30" opacity=".65"/>
+      <path d="M24 45.5a21.5 21.5 0 0 1 0-43" opacity=".35"/>
+    </svg>
+    <b>Boom</b>
+  </span>
+  <span class="rotolo">Lo Scalo · laboratorio del linguaggio</span>
+  <span class="spec">Specimen</span>
+  <span id="ora" aria-label="Ora di Roma">--:--:-- ROM</span>
+</header>
+
+<div class="eroe">
+  <div class="wrap">
+    <span class="eti">Design system · aviazione</span>
+    <h1><span id="eroeFlap" class="flap-scale">LO SCALO</span></h1>
+    <p class="sotto">Il linguaggio aeroportuale di BOOM, codificato. Non è un
+    tema da aggiungere: è <b>la lingua che il sito già parla</b> — i Solari
+    sono tabelloni d'aeroporto, la visita è un volo, il pass Wallet è un vero
+    boarding pass. Questo laboratorio mette in fila i componenti esistenti e
+    quelli proposti, con le regole che impediscono alla metafora di diventare
+    scenografia. Tutti i dati in pagina sono <b>demo</b>; l'orologio è
+    l'unica cosa vera.</p>
+    <nav class="indice" aria-label="Indice">
+      <a href="#s00">00 Dottrina</a>
+      <a href="#s01">01 Tabellone</a>
+      <a href="#s02">02 Check-in</a>
+      <a href="#s03">03 Carta d'imbarco</a>
+      <a href="#s04">04 Timbri</a>
+      <a href="#s05">05 Rotta</a>
+      <a href="#s06">06 Movimento</a>
+      <a href="#s07">07 Codici</a>
+      <a href="#s08">08 Confine</a>
+      <a href="#s09">09 Seconda ondata</a>
+    </nav>
+  </div>
+</div>
+
+<main>
+
+<section id="s00">
+  <div class="wrap">
+    <div class="cartello"><span class="num">00</span><h2>La dottrina</h2></div>
+    <div class="filo"></div>
+    <p class="premessa">I colori dello scalo sono già quelli di BOOM: <b>ambra
+    su nero</b> come i tabelloni veri, verde di via, rosso d'allarme. La
+    tipografia è la coppia in produzione sul sito 2026: Helvetica Neue
+    sottile per i numeri e le rotte, Inter per l'interfaccia, cifre tabellari
+    ovunque i numeri si incolonnano.</p>
+
+    <div class="tavolozza">
+      <div class="tinta"><i style="background:#FFD700"></i><b>Oro</b><span>#FFD700 · marchio, azione</span></div>
+      <div class="tinta"><i style="background:#FFE55C"></i><b>Oro flap</b><span>#FFE55C · glifi delle ante</span></div>
+      <div class="tinta"><i style="background:#00FF88"></i><b>Boarding</b><span>#00FF88 · libera ora, via</span></div>
+      <div class="tinta"><i style="background:#FF7A6B"></i><b>Last call</b><span>#FF7A6B · sta per sparire</span></div>
+      <div class="tinta"><i style="background:#060607; box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)"></i><b>Void</b><span>#060607 · il pannello</span></div>
+      <div class="tinta"><i style="background:#030303; box-shadow:inset 0 0 0 1px rgba(255,255,255,.14)"></i><b>Nero</b><span>#030303 · il terminal</span></div>
+    </div>
+
+    <div class="specimen">
+      <span class="sp-e">Etichetta di segnaletica · 700 · tracking .24em</span>
+      <span class="sp-d">Helvetica Neue 200 — la voce dei tabelloni</span>
+      <p class="sp-b">Inter 300 per il corpo: quello che si legge da fermi,
+      dopo che il tabellone ha catturato l'occhio. Massimo ~65 caratteri per
+      riga, sempre.</p>
+      <span class="sp-n">€ 1.450 · 15:30 · BM 0142</span>
+    </div>
+
+    <ol class="regole">
+      <li><b>Mai scenografia.</b> Il tabellone legge il catalogo vero,
+      "updated" è il timestamp vero. Un dato finto uccide la metafora.</li>
+      <li><b>La metafora è un fatto di prodotto.</b> Il boarding pass ESISTE:
+      arriva in Apple Wallet con il geofence al portone. Si disegna solo ciò
+      che la macchina fa davvero.</li>
+      <li><b>Il movimento è informazione.</b> Le ante flippano quando un dato
+      cambia. Se non dice nulla, non si muove.</li>
+      <li><b>Degrado totale.</b> Senza JS la pagina è completa e statica;
+      con <i>reduced-motion</i> è ferma ma intera.</li>
+      <li><b>Ogni cifra esiste già.</b> Mai un numero inventato, in nessuna
+      superficie.</li>
+      <li><b>Un organo vivo per schermata.</b> Il budget del movimento:
+      lo scalo è calmo, e proprio per questo il flip si guarda.</li>
+    </ol>
+  </div>
+</section>
+
+<section id="s01">
+  <div class="wrap">
+    <div class="cartello"><span class="num">01</span><h2>Il tabellone — partenze e arrivi</h2></div>
+    <div class="filo"></div>
+    <p class="premessa">Le PARTENZE (/board) esistono già. La proposta è il
+    lato <b>ARRIVI</b>: la corsia <code style="font-family:ui-monospace,monospace;font-size:12px">ahead</code>
+    di <i>marketLane</i> — le case occupate <b>con data di rilascio nota</b> —
+    diventa il tabellone delle case in atterraggio, con ETA e azione
+    <i>Reserve</i>. È il dato che nessun portale ha, perché viene dai
+    contratti firmati.</p>
+
+    <div class="tab-testa">
+      <div class="tab-scelta" role="group" aria-label="Lato del tabellone">
+        <button id="btnPart" aria-pressed="true">Partenze</button>
+        <button id="btnArr" aria-pressed="false">Arrivi</button>
+      </div>
+      <span class="tab-live"><i></i>Demo · dati d'esempio</span>
+    </div>
+
+    <div class="tabellone" id="tabellone" aria-live="off">
+      <div class="tab-col" id="tabCol">
+        <span>Rotta</span><span>Casa</span><span>Canone</span><span>Stato</span>
+      </div>
+      <div id="tabRighe">
+        <!-- fallback statico: senza JS il tabellone è fermo ma COMPLETO -->
+        <div class="tab-riga"><span style="color:var(--oro-flap)">TRA</span><span class="nome">Trastevere Loft</span><span style="color:var(--oro-flap)">€1450</span><span style="color:var(--green)">BOARDING</span></div>
+        <div class="tab-riga"><span style="color:var(--oro-flap)">MON</span><span class="nome">Monti Terrace</span><span style="color:var(--oro-flap)">€1800</span><span style="color:var(--green)">BOARDING</span></div>
+        <div class="tab-riga"><span style="color:var(--oro-flap)">PIG</span><span class="nome">Pigneto Palace</span><span style="color:var(--oro-flap)">€980</span><span style="color:var(--rosso)">LAST CALL</span></div>
+        <div class="tab-riga"><span style="color:var(--oro-flap)">SLO</span><span class="nome">San Lorenzo Due</span><span style="color:var(--oro-flap)">€1100</span><span style="color:var(--text-4)">GONE</span></div>
+      </div>
+    </div>
+    <div class="tab-piede">
+      <div class="legenda">
+        <span><i style="background:var(--green)"></i>Boarding · libera ora</span>
+        <span><i style="background:var(--rosso)"></i>Last call</span>
+        <span><i style="background:var(--gold)"></i>ETA · si prenota</span>
+        <span><i style="background:rgba(250,250,250,.42)"></i>Gone</span>
+      </div>
+      <button class="btn-quieto" id="btnAggiorna">Simula un aggiornamento</button>
+    </div>
+    <p class="nota">«Simula un aggiornamento» cambia UN prezzo: flippano solo
+    le celle cambiate (semantica di <i>update</i>, non di spettacolo). Il
+    fremito casuale è raro come sui tabelloni veri.</p>
+    <p class="dove">Dove va: <code>/board</code> (split partenze/arrivi) ·
+    testata di <code>apartments.html</code> («in arrivo questa settimana») ·
+    kiosk in vetrina. Motore: una copia sola → <code>js/solari-engine.js</code>.</p>
+  </div>
+</section>
+
+<section id="s02">
+  <div class="wrap">
+    <div class="cartello"><span class="num">02</span><h2>Il check-in</h2></div>
+    <div class="filo"></div>
+    <p class="premessa">book.html fa già tutto questo: si sceglie la casa, si
+    sceglie uno slot VERO, la conferma è immediata. La proposta è solo
+    <b>chiamarlo col suo nome</b>: Volo → Posto → Carta d'imbarco. La griglia
+    degli orari è un tabellone del giorno: uno slot preso è una cella spenta.</p>
+
+    <div class="checkin">
+      <div class="ck-passi" role="tablist" aria-label="Passi del check-in">
+        <button role="tab" aria-selected="true" data-passo="1"><i>1</i>Volo</button>
+        <button role="tab" aria-selected="false" data-passo="2"><i>2</i>Posto</button>
+        <button role="tab" aria-selected="false" data-passo="3"><i>3</i>Carta d'imbarco</button>
+      </div>
+      <div class="ck-corpo">
+        <div class="ck-vista su" data-vista="1">
+          <div class="ck-voli">
+            <button class="ck-volo" aria-pressed="true">
+              <span class="cv-rotta"><b>ROM</b><em></em><b>TRA</b></span>
+              <span class="cv-nome">Trastevere Loft · 2 camere</span>
+              <span class="cv-prezzo">€ 1.450 / mese · demo</span>
+            </button>
+            <button class="ck-volo" aria-pressed="false">
+              <span class="cv-rotta"><b>ROM</b><em></em><b>MON</b></span>
+              <span class="cv-nome">Monti Terrace · 3 camere</span>
+              <span class="cv-prezzo">€ 1.800 / mese · demo</span>
+            </button>
+            <button class="ck-volo" aria-pressed="false">
+              <span class="cv-rotta"><b>ROM</b><em></em><b>PIG</b></span>
+              <span class="cv-nome">Pigneto Palace · 1 camera</span>
+              <span class="cv-prezzo">€ 980 / mese · demo</span>
+            </button>
+          </div>
+        </div>
+        <div class="ck-vista" data-vista="2">
+          <div class="ck-slot" id="ckSlot" aria-label="Orari disponibili (demo)">
+            <button type="button">10:00</button><button type="button">10:45</button>
+            <button type="button" disabled>11:30</button><button type="button">15:00</button>
+          </div>
+          <p class="ck-nota-slot">Gli slot veri vengono da
+          <span style="font-family:ui-monospace,monospace;font-size:10.5px">/api/viewings/slots</span> —
+          la stessa griglia di book, Telegram e receptionist. Qui: demo.</p>
+        </div>
+        <div class="ck-vista" data-vista="3">
+          <div class="ck-fine">
+            <span class="ok-riga"><i>✓</i>Visita confermata</span>
+            <p>La carta d'imbarco si emette qui sotto (sezione 03) — stesso
+            componente di pass-delivery. Con l'approvazione manuale accesa
+            (<i>requireApproval</i>) questa schermata resta uno <b>standby
+            onesto</b>: «orario tenuto per te», nessuna carta finché
+            l'operatore non conferma.</p>
+            <a class="btn-pista ck-avanti" href="#s03">Emetti la carta
+              <span class="luci" aria-hidden="true"></span></a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <p class="dove">Dove va: <code>book.html</code> (parole + veste degli
+    step; la logica non si tocca) · schermata confermata = componente 03.</p>
+  </div>
+</section>
+
+<section id="s03">
+  <div class="wrap">
+    <div class="cartello"><span class="num">03</span><h2>La carta d'imbarco</h2></div>
+    <div class="filo"></div>
+    <p class="premessa">Il momento più fotografabile del funnel.
+    pass-delivery.html oggi consegna il pass con una pagina generica: qui la
+    pagina <b>stampa</b> la carta (l'emissione dal taglio), il talloncino si
+    <b>strappa</b> e sotto c'è Apple Wallet. In modalità video la rotta dice
+    la verità: <i>YOU → LIVE CALL</i>, nessun gate.</p>
+
+    <div class="gate-kiosk">
+      <div class="kiosk-comandi">
+        <button class="btn-pista" id="btnEmetti">Emetti la carta
+          <span class="luci" aria-hidden="true"></span></button>
+        <span class="modo">Video call
+          <button class="levetta" id="btnModo" aria-pressed="false"
+            aria-label="Modalità video"></button>
+        </span>
+      </div>
+      <div class="stampante">
+        <div class="fessura" aria-hidden="true"></div>
+        <div class="uscita" id="uscita">
+          <article class="carta" id="carta" data-mode="person"
+            aria-label="Carta d'imbarco demo">
+            <div class="lamina" aria-hidden="true"><em>Boom · Roma · Boom · Roma</em></div>
+            <div class="ccorpo">
+              <div class="ctesta">
+                <b>Boarding pass · visita</b>
+                <span class="cnum">BM 0142 · demo</span>
+              </div>
+              <div class="crotta" id="crotta">
+                <b>ROM</b>
+                <span class="tratta"><span class="punto"></span></span>
+                <b id="rDest">TRA</b>
+              </div>
+              <div class="campi">
+                <div class="campo"><b>Passeggero</b><span>Anna K.</span></div>
+                <div class="campo"><b>Data</b><span>Gio 03 Set</span></div>
+                <div class="campo"><b>Ora · Roma</b><span>15:30</span></div>
+                <div class="campo solo-persona"><b>Gate</b><span>Trastevere · Via T. 12</span></div>
+                <div class="campo"><b>Modalità</b><span id="cModo">Di persona</span></div>
+              </div>
+            </div>
+            <div class="perfo" aria-hidden="true"></div>
+            <button class="tallone" id="tallone" aria-label="Strappa il talloncino">
+              <span class="tnum">BM 0142</span>
+              <canvas id="qr" width="84" height="84" aria-label="Codice demo"></canvas>
+              <span class="tora">15:30</span>
+              <span class="strappa">Strappa ▸</span>
+            </button>
+            <span class="wallet"> Add to Apple Wallet</span>
+          </article>
+        </div>
+      </div>
+    </div>
+    <p class="nota">Regola dura (già nei test di produzione): la carta non
+    nasce MAI su una visita <i>pending</i> — «un pass per una visita non
+    confermata è una bugia al cliente». L'emissione avviene una volta sola.</p>
+    <p class="dove">Dove va: <code>pass-delivery.html</code> (dati già serviti
+    da <code>/api/viewings/pass?meta=1</code>, zero backend nuovo) · schermata
+    confermata di <code>book.html</code> · grammatica del blocco
+    <code>ticket()</code> nelle email.</p>
+  </div>
+</section>
+
+<section id="s04">
+  <div class="wrap">
+    <div class="cartello"><span class="num">04</span><h2>I timbri</h2></div>
+    <div class="filo"></div>
+    <p class="premessa">Il timbro è il gesto che BOOM ha già due volte — la
+    cerimonia del pre-accordo e il REJECTED della selezione PFS. Diventa un
+    componente unico. Un timbro dice un <b>fatto avvenuto</b>: mai usarlo per
+    decorare una promessa.</p>
+    <div class="timbri">
+      <div class="timbro-teatro">
+        <span class="timbro giu" data-timbro>Walked by BOOM ✓</span>
+        <button class="btn-quieto" data-batti>Timbra</button>
+      </div>
+      <div class="timbro-teatro">
+        <span class="timbro verde giu" data-timbro>Signed</span>
+        <button class="btn-quieto" data-batti>Timbra</button>
+      </div>
+      <div class="timbro-teatro">
+        <span class="timbro rosso giu" data-timbro>Rejected</span>
+        <button class="btn-quieto" data-batti>Timbra</button>
+      </div>
+    </div>
+    <p class="dove">Dove va: card e schede annuncio (la casa camminata di
+    persona) · conferma firma su <code>/sign</code> · triage PFS (dal
+    preview «IL VOLO»). 300ms, una volta, mai in loop.</p>
+  </div>
+</section>
+
+<section id="s05">
+  <div class="wrap">
+    <div class="cartello"><span class="num">05</span><h2>La rotta — il journey in /casa</h2></div>
+    <div class="filo"></div>
+    <p class="premessa">Il backend scrive già le tappe
+    (<span style="font-family:ui-monospace,monospace;font-size:12px">contracts.journey.*</span>:
+    T-30 benvenuto, T-14 documenti, T-7 saldo, T-1 chiavi, T+3, T-90
+    rinnovo). In pagina non si vedono. La striscia di rotta le mostra col
+    segno che il cliente ha già visto sul biglietto della home: la tratta
+    punteggiata e il punto in viaggio.</p>
+
+    <div class="rotta-casa">
+      <div class="rc-linea">
+        <svg class="aereo" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M21.5 15.5v-2l-8.5-5V3.2a1.4 1.4 0 0 0-2.8 0v5.3l-8.5 5v2l8.5-2.6v5.4l-2.3 1.6v1.6l3.7-1.1 3.7 1.1v-1.6l-2.3-1.6v-5.4z"/>
+        </svg>
+        <div class="rc-tappa fatta"><i></i><b>Firma</b><span>12 Ago</span></div>
+        <div class="rc-tappa fatta"><i></i><b>Documenti</b><span>18 Ago</span></div>
+        <div class="rc-tappa fatta"><i></i><b>Saldo</b><span>25 Ago</span></div>
+        <div class="rc-tappa ora"><i></i><b>Chiavi</b><span>01 Set</span></div>
+        <div class="rc-tappa"><i></i><b>A bordo</b><span>—</span></div>
+        <div class="rc-tappa"><i></i><b>Rinnovo</b><span>T-90</span></div>
+      </div>
+      <div class="rc-prossima">
+        <b>Prossimo servizio</b>
+        <span class="cifra">€ 1.450</span>
+        <span>canone di Settembre · scadenza 01/09 · demo</span>
+      </div>
+    </div>
+    <p class="dove">Dove va: testata di <code>tenant.html</code> (/casa).
+    L'aereo è posizionato sullo STATO VERO del contratto, mai su una stima.</p>
+  </div>
+</section>
+
+<section id="s06">
+  <div class="wrap">
+    <div class="cartello"><span class="num">06</span><h2>Il movimento — il kit e il budget</h2></div>
+    <div class="filo"></div>
+    <p class="premessa">Quattro micro-organi, tutti già visti in questa
+    pagina, ognuno con un compito. Budget dichiarato: <b>un organo vivo per
+    schermata</b>. Con <i>reduced-motion</i> tutto si ferma, completo.</p>
+
+    <div class="contatori">
+      <div class="contatore" data-tick><span class="cifra">26</span><b>Case a catalogo · demo</b></div>
+      <div class="contatore" data-tick><span class="cifra">9</span><b>Boarding · demo</b></div>
+      <div class="contatore" data-tick><span class="cifra">16</span><b>In arrivo · demo</b></div>
+      <div class="contatore" data-tick><span class="cifra">48h</span><b>Tempo medio al sì · demo</b></div>
+    </div>
+
+    <div class="motion-note">
+      <div><b>Gate-tick</b>Le cifre scattano <code>rotateX</code> quando
+      entrano in vista — già in apartment-detail. Una volta sola.</div>
+      <div><b>Fremito</b>Una cella Solari rifà il giro e riatterra sulla SUA
+      lettera, ogni tanto. Mai una parola diversa: la parola è una promessa.</div>
+      <div><b>Luci di pista</b>La fila di luci sul CTA primario scorre verso
+      l'azione, solo su hover/focus. Un'affordance direzionale, non un
+      addobbo.</div>
+      <div><b>Il punto in rotta</b>La tratta punteggiata col punto in viaggio
+      — il segno del biglietto della home, riusato su carta e journey.</div>
+      <div><b>Curve</b><code>--ease: cubic-bezier(.16,1,.3,1)</code> per le
+      uscite, <code>--molla: (.26,1.16,.44,1)</code> per gli arrivi fisici
+      (timbri, levette). Durate: <code>.25s / .5s / .8s</code>.</div>
+      <div><b>Il suono</b>Valutato e scartato di default: sul web il suono
+      non chiesto brucia fiducia. Al massimo opt-in sul kiosk fisico.</div>
+    </div>
+  </div>
+</section>
+
+<section id="s07">
+  <div class="wrap">
+    <div class="cartello"><span class="num">07</span><h2>I codici di rotta</h2></div>
+    <div class="filo"></div>
+    <p class="premessa">Ogni scalo ha i suoi codici; BOOM li ha sparsi
+    (ROM nel manifesto, BM nei codici portale, i gate di apartments). Si
+    dichiarano in UNA tabella derivata dal lessico curato delle zone
+    (<i>inferZone</i>, ~38 voci) — mai inventati al volo, ambiguo → niente.
+    Il codice è un soprannome del dato vero, mai una chiave.</p>
+    <div class="codici">
+      <div class="codice"><span class="targa">TRA</span><span>Trastevere</span></div>
+      <div class="codice"><span class="targa">MON</span><span>Monti</span></div>
+      <div class="codice"><span class="targa">PIG</span><span>Pigneto</span></div>
+      <div class="codice"><span class="targa">PRA</span><span>Prati</span></div>
+      <div class="codice"><span class="targa">SLO</span><span>San Lorenzo</span></div>
+      <div class="codice"><span class="targa">TES</span><span>Testaccio</span></div>
+      <div class="codice"><span class="targa">ESQ</span><span>Esquilino</span></div>
+      <div class="codice"><span class="targa">OST</span><span>Ostiense</span></div>
+      <div class="codice"><span class="targa">NOM</span><span>Nomentano</span></div>
+      <div class="codice"><span class="targa">TIB</span><span>Tiburtino</span></div>
+    </div>
+    <p class="dove">Dove vanno: tabelloni, carta d'imbarco, pass Wallet,
+    blocco <code>ticket()</code> delle email. Il numero visita in forma di
+    volo: <code>BM 0142</code>.</p>
+  </div>
+</section>
+
+<section id="s08">
+  <div class="wrap">
+    <div class="cartello"><span class="num">08</span><h2>Il confine</h2></div>
+    <div class="filo"></div>
+    <p class="premessa">L'eccellenza è anche sapere dove la metafora si
+    ferma. La lingua dello scalo accompagna il <b>viaggio del cliente</b>;
+    dove si parla di legge e di soldi dovuti, la serietà È il design.</p>
+    <div class="confine">
+      <div class="parla">
+        <h3>Dove parla</h3>
+        <ul>
+          <li><b>Scoprire</b> — vetrina, /board, kiosk, schede</li>
+          <li><b>Prenotare</b> — book, slot, conferme</li>
+          <li><b>Visitare</b> — pass Wallet, countdown, pass-delivery</li>
+          <li><b>Entrare e abitare</b> — journey, /casa, rinnovo</li>
+          <li><b>Email del viaggio</b> — il blocco ticket, la rotta</li>
+        </ul>
+      </div>
+      <div class="tace">
+        <h3>Dove tace</h3>
+        <ul>
+          <li><b>Contratti e PDF fiscali</b> — verbali, fascicoli, scheda
+          canone: carta legale, resta sobria (<i>_pdfbrand</i>)</li>
+          <li><b>Il portal operativo</b> — BOOM OS ha la sua lingua
+          (oro #D4AF37)</li>
+          <li><b>Solleciti e ritardi</b> — un pagamento in ritardo non è un
+          «delay»</li>
+          <li><b>Il suono</b> — mai in autoplay, da nessuna parte</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="s09">
+  <div class="wrap">
+    <div class="cartello"><span class="num">09</span><h2>La seconda ondata</h2></div>
+    <div class="filo"></div>
+    <p class="premessa">Le proposte OLTRE il primo lotto (studio, Parte 5) —
+    qui in mockup, tutti i numeri demo. La regola resta la 2: ognuna poggia
+    su un'infrastruttura che esiste già.</p>
+
+    <div class="ondata">
+      <div class="proposta">
+        <b>W1 · Flight status della visita</b>
+        <div class="fstat">
+          <div class="ftesta"><b>BM 0142 · Viewing</b>
+            <span class="ontime">On time</span></div>
+          <div class="frotta"><b>ROM</b><i></i><b>TRA</b></div>
+          <ol>
+            <li class="ok"><i></i>Confermata · pass emesso</li>
+            <li class="ok"><i></i>T-24h · promemoria inviato</li>
+            <li class="ora"><i></i>T-3h · oggi alle 12:30</li>
+            <li><i></i>Boarding · T-30m</li>
+          </ol>
+        </div>
+        <p>La pagina self-service del cliente (<code>viewing.html</code>)
+        vestita da schermo di stato volo: la timeline È il countdown che
+        <code>_moments.js</code> già esegue. Reschedule = «cambia volo».</p>
+      </div>
+
+      <div class="proposta">
+        <b>W2 · Il meteo del mercato</b>
+        <div class="meteo">
+          <div class="mtesta">Meteo · Trastevere<span>demo</span></div>
+          <div class="mriga">Canone mediano chiesto<b>€ 28,4 /m²</b></div>
+          <div class="mriga">Assorbimento (morti provate)<b>21 giorni</b></div>
+          <div class="mriga">Ribassi ultimi 30g<b>3</b></div>
+          <div class="verdetto">Visibilità buona · campione 47</div>
+        </div>
+        <p>Il bollettino zona per zona da <code>marketStats</code> (il
+        Perito), con la sua disciplina: sotto <code>minSample</code> la zona
+        NON esce. Pagina pubblica citabile — il dato viene dai FIRMATI, e
+        nessun portale ce l'ha.</p>
+      </div>
+
+      <div class="proposta">
+        <b>W3 · La faccia ATC della Centrale</b>
+        <div class="atc" role="img" aria-label="Radar demo con tre occasioni">
+          <i style="left:62%;top:30%"></i>
+          <i style="left:34%;top:56%;animation-delay:.7s"></i>
+          <i style="left:70%;top:68%;animation-delay:1.3s"></i>
+          <em style="left:64%;top:20%">PIG</em>
+          <em style="left:22%;top:52%">TRA</em>
+          <em style="left:74%;top:76%">MON</em>
+        </div>
+        <p>Le 💎 occasioni di <code>radarState</code> come blip sullo
+        sweep: il blip È il dato, il radar della Centrale si legge in un
+        colpo d'occhio. Console admin, nessuna superficie pubblica.</p>
+      </div>
+
+      <div class="proposta">
+        <b>W4 · L'immagine social = carta d'imbarco</b>
+        <div class="ogpass">
+          <div class="lamina" aria-hidden="true"><em>Boom · Roma</em></div>
+          <div class="ogcorpo">
+            <span class="ogeti">Boom · Boarding pass</span>
+            <div class="ogrotta"><b>ROM</b><i></i><b>TRA</b></div>
+            <div class="ogsotto"><span>Trastevere Loft · 2 camere</span>
+              <span>€ 1.450 /mese</span><b>BOARDING</b></div>
+          </div>
+        </div>
+        <p>L'og:image di ogni annuncio generata DAL REPO come mini carta
+        (la pipeline esiste: og-reunion, og-executive — card HTML →
+        headless → PNG). Ogni condivisione WhatsApp diventa teatro del
+        marchio.</p>
+      </div>
+    </div>
+    <p class="nota">Nel lotto anche: NOTAM del Segugio (il blocco ticket
+    esteso alla famiglia email), template storia «Biglietto» nel Media
+    Studio, il timbro WALKED BY BOOM sulle schede, e la PA sonora SOLO sul
+    kiosk fisico. Dettagli e resa: studio, Parte 5.</p>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>LO SCALO · specimen — dati demo, orologio vero. Studio completo:
+    <code>STUDIO_AVIATION_2026-08.md</code>.</span>
+    <span>Motore ante: Solari 4.0 —
+    <code>design/pages-deco/solari-engine.html</code> (Gino Valle, 1962).
+    Token: <code>apartments.html</code> / <code>index.html</code> (sito 2026).</span>
+  </div>
+</footer>
+
+<script>
+/* ══ Il motore Solari 4.0 — adattato da design/pages-deco/solari-engine.html
+   (stessa meccanica: mezze celle statiche + ante 3D, rulli corti,
+   retargeting, failsafe Safari). In produzione: UNA copia, js/solari-engine.js. */
+(function () {
+  'use strict';
+  var RIDOTTO = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function Cell(host) {
+    var el = document.createElement('span');
+    el.className = 'fc2';
+    el.innerHTML = '<i class="st"><b></b></i><i class="sb"><b></b></i><i class="lt"><b></b></i><i class="lb"><b></b></i><s></s>';
+    host.appendChild(el);
+    this.st = el.children[0].firstChild;
+    this.sb = el.children[1].firstChild;
+    this.ltEl = el.children[2]; this.lt = this.ltEl.firstChild;
+    this.lbEl = el.children[3]; this.lb = this.lbEl.firstChild;
+    this.cur = ' '; this.busy = false; this.pending = ' '; this.turns = 0;
+    this.set(' ');
+  }
+  Cell.prototype.set = function (c) {
+    this.cur = c; this.pending = c;
+    this.st.textContent = c; this.sb.textContent = c;
+  };
+  Cell.prototype.next = function (drum) {
+    var i = drum.indexOf(this.cur); if (i < 0) i = 0;
+    var j = drum.indexOf(this.pending); if (j < 0) j = 0;
+    var d = (j - i + drum.length) % drum.length;
+    if (d === 0) return null;
+    if (d > 2) return drum[(j - 1 + drum.length) % drum.length];
+    return drum[(i + 1) % drum.length];
+  };
+  Cell.prototype.step = function (nc, done) {
+    var self = this, fired = false;
+    function finishTop() {
+      if (fired) return; fired = true;
+      self.ltEl.onanimationend = null;
+      self.ltEl.style.display = 'none'; self.ltEl.style.animation = '';
+      var fired2 = false;
+      function finishBot() {
+        if (fired2) return; fired2 = true;
+        self.lbEl.onanimationend = null;
+        self.sb.textContent = nc;
+        self.lbEl.style.display = 'none'; self.lbEl.style.animation = '';
+        self.cur = nc; done();
+      }
+      self.lbEl.style.display = 'block';
+      void self.lbEl.offsetWidth;
+      self.lbEl.style.animation = 'flBot 150ms cubic-bezier(.3,1.35,.6,1) forwards';
+      self.lbEl.onanimationend = finishBot;
+      setTimeout(finishBot, 210);
+    }
+    this.st.textContent = nc;
+    this.lt.textContent = this.cur;
+    this.lb.textContent = nc;
+    this.ltEl.style.display = 'block';
+    void this.ltEl.offsetWidth;
+    this.ltEl.style.animation = 'flTop 90ms cubic-bezier(.55,0,.85,.36) forwards';
+    this.ltEl.onanimationend = finishTop;
+    setTimeout(finishTop, 140);
+  };
+  Cell.prototype.go = function (target, drum, fullTurn) {
+    this.pending = target;
+    if (RIDOTTO) { this.set(target); return; }
+    if (fullTurn && !this.busy) this.turns = 1;
+    if (this.busy) return;
+    var self = this;
+    this.busy = true;
+    (function run() {
+      var nc = self.next(drum);
+      if (nc === null && self.turns > 0) {
+        self.turns = 0;
+        var i = drum.indexOf(self.cur);
+        nc = drum[(i + 1) % drum.length];
+        self.pending = drum[i];
+        self.step(nc, run);
+        return;
+      }
+      if (nc === null) { self.busy = false; return; }
+      self.step(nc, run);
+    })();
+  };
+
+  var measurer = document.createElement('canvas').getContext('2d');
+  function calibrate(host, drum) {
+    var cs = getComputedStyle(host);
+    var fs = parseFloat(cs.fontSize);
+    measurer.font = cs.fontWeight + ' ' + cs.fontSize + ' ' + cs.fontFamily;
+    var chPx = 1.26 * fs;
+    var m = measurer.measureText('H');
+    var fa = m.fontBoundingBoxAscent !== undefined ? m.fontBoundingBoxAscent : m.actualBoundingBoxAscent * 1.25;
+    var fd = m.fontBoundingBoxDescent !== undefined ? m.fontBoundingBoxDescent : m.actualBoundingBoxAscent * 0.25;
+    var baseline = (chPx + fa - fd) / 2;
+    var shift = chPx / 2 - (baseline - m.actualBoundingBoxAscent / 2);
+    var maxW = 0;
+    for (var i = 0; i < drum.length; i++) {
+      var w = measurer.measureText(drum[i]).width;
+      if (w > maxW) maxW = w;
+    }
+    host.style.setProperty('--gs', shift.toFixed(2) + 'px');
+    host.style.setProperty('--cw', ((maxW + fs * 0.24) / fs).toFixed(4) + 'em');
+  }
+
+  function Board(host, len, drum) {
+    host.textContent = '';
+    host.classList.add('flap-scale');
+    calibrate(host, drum);
+    this.cells = [];
+    this.drum = drum;
+    for (var i = 0; i < len; i++) this.cells.push(new Cell(host));
+  }
+  Board.prototype.show = function (word, stagger, spin) {
+    var self = this;
+    this.cells.forEach(function (c, i) {
+      var ch = word[i] || ' ';
+      if (!spin || RIDOTTO) { c.set(ch); return; }
+      setTimeout(function () { c.go(ch, self.drum); },
+        i * (stagger || 90) + Math.random() * 26);
+    });
+  };
+  Board.prototype.update = function (word) {
+    var self = this;
+    this.cells.forEach(function (c, i) {
+      var ch = word[i] || ' ';
+      if (c.cur !== ch || c.pending !== ch) c.go(ch, self.drum);
+    });
+  };
+  Board.prototype.flutter = function () {
+    if (RIDOTTO) return;
+    var c = this.cells[Math.floor(Math.random() * this.cells.length)];
+    if (c && !c.busy && c.cur !== ' ') c.go(c.cur, this.drum, true);
+  };
+
+  window.BoomSolari = { Board: Board, calibrate: calibrate, ridotto: RIDOTTO };
+})();
+
+/* ══ La regia dello specimen ═══════════════════════════════════════════ */
+(function () {
+  'use strict';
+  var BS = window.BoomSolari;
+  var DRUM = ' ABCDEFGHILMNOPQRSTUVZKWXYJ0123456789€.·-';
+
+  /* orologio di Roma — l'unica cosa vera della pagina */
+  var ora = document.getElementById('ora');
+  function tic() {
+    try {
+      ora.textContent = new Intl.DateTimeFormat('it-IT', {
+        timeZone: 'Europe/Rome', hour: '2-digit', minute: '2-digit',
+        second: '2-digit', hour12: false
+      }).format(new Date()) + ' ROM';
+    } catch (e) { ora.textContent = ''; }
+  }
+  tic(); setInterval(tic, 1000);
+
+  /* l'apertura: LO SCALO si compone */
+  var eroeHost = document.getElementById('eroeFlap');
+  var eroe = new BS.Board(eroeHost, 8, DRUM);
+  eroe.show('LO SCALO', 110, true);
+
+  /* ── 01 · il tabellone ─────────────────────────────────────────────── */
+  var PARTENZE = [
+    { code: 'TRA', nome: 'Trastevere Loft',  prezzo: '€1450', stato: 'BOARDING',  cls: 'ok'   },
+    { code: 'MON', nome: 'Monti Terrace',    prezzo: '€1800', stato: 'BOARDING',  cls: 'ok'   },
+    { code: 'PIG', nome: 'Pigneto Palace',   prezzo: '€980',  stato: 'LAST CALL', cls: 'last' },
+    { code: 'SLO', nome: 'San Lorenzo Due',  prezzo: '€1100', stato: 'GONE',      cls: 'muto' }
+  ];
+  var ARRIVI = [
+    { code: 'PRA', nome: 'Prati Bilocale',   prezzo: '€1600', stato: '01 SET',    cls: 'eta' },
+    { code: 'ESQ', nome: 'Esquilino Studio', prezzo: '€890',  stato: '15 OTT',    cls: 'eta' },
+    { code: 'TES', nome: 'Testaccio Casa',   prezzo: '€1350', stato: '01 NOV',    cls: 'eta' },
+    { code: 'NOM', nome: 'Nomentano Tre',    prezzo: '€1250', stato: '15 NOV',    cls: 'eta' }
+  ];
+  var righeHost = document.getElementById('tabRighe');
+  var boards = [];   /* per riga: { code, prezzo, stato } */
+  var latoArrivi = false;
+
+  function costruisci(dati) {
+    righeHost.textContent = '';
+    boards = [];
+    dati.forEach(function (r) {
+      var riga = document.createElement('div');
+      riga.className = 'tab-riga';
+      riga.innerHTML = '<span class="rcode"></span>' +
+        '<span class="nome"></span>' +
+        '<span class="prezzo"></span>' +
+        '<span class="stato ' + r.cls + '"></span>';
+      riga.children[1].textContent = r.nome;
+      righeHost.appendChild(riga);
+      var b = {
+        code:   new BS.Board(riga.children[0], 3, DRUM),
+        prezzo: new BS.Board(riga.children[2], 5, DRUM),
+        stato:  new BS.Board(riga.children[3], 9, DRUM),
+        statoEl: riga.children[3]
+      };
+      b.code.show(r.code, 70, true);
+      b.prezzo.show(r.prezzo, 70, true);
+      b.stato.show(r.stato, 70, true);
+      boards.push(b);
+    });
+  }
+  costruisci(PARTENZE);
+
+  var btnPart = document.getElementById('btnPart');
+  var btnArr = document.getElementById('btnArr');
+  function lato(arrivi) {
+    if (latoArrivi === arrivi) return;
+    latoArrivi = arrivi;
+    btnPart.setAttribute('aria-pressed', String(!arrivi));
+    btnArr.setAttribute('aria-pressed', String(arrivi));
+    document.getElementById('tabCol').lastElementChild.textContent =
+      arrivi ? 'ETA · Reserve' : 'Stato';
+    costruisci(arrivi ? ARRIVI : PARTENZE);
+  }
+  btnPart.addEventListener('click', function () { lato(false); });
+  btnArr.addEventListener('click', function () { lato(true); });
+
+  /* un aggiornamento VERO: cambia un prezzo, flippano solo le celle toccate */
+  var giro = 0;
+  document.getElementById('btnAggiorna').addEventListener('click', function () {
+    if (!boards.length) return;
+    var dati = latoArrivi ? ARRIVI : PARTENZE;
+    var i = giro++ % dati.length;
+    var vecchio = dati[i].prezzo;
+    var n = parseInt(vecchio.replace(/\D/g, ''), 10);
+    n = n - 50 <= 500 ? n + 50 : n - 50;
+    dati[i].prezzo = '€' + n;
+    boards[i].prezzo.update(dati[i].prezzo);
+  });
+
+  /* il fremito, raro come sui tabelloni veri */
+  if (!BS.ridotto) setInterval(function () {
+    if (!boards.length) return;
+    var b = boards[Math.floor(Math.random() * boards.length)];
+    b.stato.flutter();
+  }, 7000);
+
+  /* ── 02 · il check-in ──────────────────────────────────────────────── */
+  var passi = Array.prototype.slice.call(document.querySelectorAll('.ck-passi button'));
+  var viste = Array.prototype.slice.call(document.querySelectorAll('.ck-vista'));
+  function vaiA(n) {
+    passi.forEach(function (b) {
+      b.setAttribute('aria-selected', String(b.dataset.passo === String(n)));
+    });
+    viste.forEach(function (v) {
+      v.classList.toggle('su', v.dataset.vista === String(n));
+    });
+  }
+  passi.forEach(function (b) {
+    b.addEventListener('click', function () { vaiA(b.dataset.passo); });
+  });
+  document.querySelectorAll('.ck-volo').forEach(function (v) {
+    v.addEventListener('click', function () {
+      document.querySelectorAll('.ck-volo').forEach(function (o) {
+        o.setAttribute('aria-pressed', String(o === v));
+      });
+      setTimeout(function () { vaiA(2); }, 220);
+    });
+  });
+  var slotHost = document.getElementById('ckSlot');
+  slotHost.textContent = '';
+  ['10:00','10:45','11:30','15:00','15:45','16:30','17:15','18:00']
+    .forEach(function (t, i) {
+      var b = document.createElement('button');
+      b.textContent = t;
+      if (i === 2 || i === 5) { b.disabled = true; }
+      b.addEventListener('click', function () {
+        slotHost.querySelectorAll('button').forEach(function (o) {
+          o.setAttribute('aria-pressed', String(o === b));
+        });
+        setTimeout(function () { vaiA(3); }, 220);
+      });
+      slotHost.appendChild(b);
+    });
+
+  /* ── 03 · la carta ─────────────────────────────────────────────────── */
+  var uscita = document.getElementById('uscita');
+  var carta = document.getElementById('carta');
+  document.getElementById('btnEmetti').addEventListener('click', function () {
+    uscita.classList.add('emessa');
+  });
+  var tallone = document.getElementById('tallone');
+  tallone.addEventListener('click', function () {
+    carta.classList.add('strappata');
+  });
+  var btnModo = document.getElementById('btnModo');
+  btnModo.addEventListener('click', function () {
+    var video = btnModo.getAttribute('aria-pressed') !== 'true';
+    btnModo.setAttribute('aria-pressed', String(video));
+    carta.dataset.mode = video ? 'video' : 'person';
+    document.getElementById('rDest').textContent = video ? 'LIVE' : 'TRA';
+    document.getElementById('crotta').firstElementChild.textContent =
+      video ? 'YOU' : 'ROM';
+    document.getElementById('cModo').textContent =
+      video ? 'Video call' : 'Di persona';
+  });
+
+  /* il codice demo sul talloncino (pseudo-QR deterministico, marcato demo) */
+  (function qr() {
+    var cv = document.getElementById('qr');
+    if (!cv || !cv.getContext) return;
+    var ctx = cv.getContext('2d');
+    var N = 21, cs = 84 / N, seed = 42;
+    function rnd() { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; }
+    ctx.fillStyle = '#FAFAFA'; ctx.fillRect(0, 0, 84, 84);
+    ctx.fillStyle = '#0A0A0A';
+    for (var y = 0; y < N; y++) for (var x = 0; x < N; x++) {
+      var finder = (x < 7 && y < 7) || (x >= N - 7 && y < 7) || (x < 7 && y >= N - 7);
+      if (finder) {
+        var fx = x >= N - 7 ? x - (N - 7) : x, fy = y >= N - 7 ? y - (N - 7) : y;
+        var anello = fx === 0 || fy === 0 || fx === 6 || fy === 6 ||
+          (fx >= 2 && fx <= 4 && fy >= 2 && fy <= 4);
+        if (anello) ctx.fillRect(x * cs, y * cs, cs + .4, cs + .4);
+      } else if (rnd() > .52) {
+        ctx.fillRect(x * cs, y * cs, cs + .4, cs + .4);
+      }
+    }
+  })();
+
+  /* ── 04 · i timbri ─────────────────────────────────────────────────── */
+  document.querySelectorAll('.timbro-teatro').forEach(function (t) {
+    var timbro = t.querySelector('[data-timbro]');
+    t.querySelector('[data-batti]').addEventListener('click', function () {
+      timbro.classList.remove('giu');
+      void timbro.offsetWidth;
+      timbro.classList.add('giu');
+    });
+  });
+
+  /* ── 06 · gate-tick all'ingresso in vista ──────────────────────────── */
+  var contatori = document.querySelectorAll('.contatore');
+  contatori.forEach(function (c) {
+    var cifra = c.querySelector('.cifra');
+    cifra.innerHTML = cifra.textContent.split('').map(function (ch) {
+      return '<i style="animation-delay:' + (Math.random() * .25) + 's">' + ch + '</i>';
+    }).join('');
+  });
+  if ('IntersectionObserver' in window) {
+    var io = new IntersectionObserver(function (voci) {
+      voci.forEach(function (v) {
+        if (v.isIntersecting) { v.target.classList.add('in'); io.unobserve(v.target); }
+      });
+    }, { threshold: .5 });
+    contatori.forEach(function (c) { io.observe(c); });
+  } else {
+    contatori.forEach(function (c) { c.classList.add('in'); });
+  }
+})();
+</script>

@@ -10,14 +10,14 @@
   <meta name="googlebot" content="noindex, follow">
   <meta name="author" content="BOOM Rome">
   <meta name="publisher" content="BOOM Rome">
-  <meta name="theme-color" content="#08080A">
+  <meta name="theme-color" content="#030303">
   <meta name="color-scheme" content="dark">
   <meta name="format-detection" content="telephone=no">
   <meta name="application-name" content="BOOM Rome">
   <meta name="apple-mobile-web-app-title" content="BOOM">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="msapplication-TileColor" content="#08080A">
+  <meta name="msapplication-TileColor" content="#030303">
   <link rel="canonical" href="https://www.boomrome.com/pass-delivery">
   <meta property="og:type" content="website">
   <meta property="og:site_name" content="BOOM Rome">
@@ -41,6 +41,8 @@
   <meta name="twitter:image:alt" content="Pass Delivery — BOOM Rome">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700;800&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;500;700;800&display=swap"></noscript>
   <link rel="dns-prefetch" href="https://www.googletagmanager.com">
   <link rel="dns-prefetch" href="https://www.google-analytics.com">
 <!-- BOOM_SEO:END -->
@@ -52,239 +54,246 @@
   gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500});gtag('config','G-EYCD59RDVJ');
 </script>
 <style>
+/* ══════════════════════════════════════════════════════════════════════════
+   LA CARTA D'IMBARCO — pass-delivery nel linguaggio dello Scalo
+   (STUDIO_AVIATION_2026-08.md, mossa S2). La pagina STAMPA il biglietto:
+   emissione dal taglio in puro CSS (vive anche senza JS), poi il vero
+   "Add to Apple Wallet". La metafora è un fatto: il .pkpass esiste.
+   Token del sito 2026 (oro #FFD700 su #030303), non più l'oro del portal.
+   ══════════════════════════════════════════════════════════════════════════ */
 @font-face{font-family:'HN';src:local('Helvetica Neue Light'),local('HelveticaNeue-Light');font-weight:300}
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--gold:#D4AF37;--black:#08080A;--ease:cubic-bezier(0.22,1,0.36,1)}
-
+:root{
+  --gold:#FFD700; --gold-light:#FFE55C; --black:#030303; --void:#060607;
+  --text:#FAFAFA; --text-2:rgba(250,250,250,.72); --text-3:rgba(250,250,250,.5);
+  --text-4:rgba(250,250,250,.48);
+  --line:rgba(255,255,255,.08); --line-gold:rgba(255,215,0,.14);
+  --rosso:#FF7A6B;
+  --ease:cubic-bezier(.16,1,.3,1); --molla:cubic-bezier(.26,1.16,.44,1);
+  color-scheme:dark;
+}
 body{
-  font-family:'HN','Helvetica Neue',-apple-system,sans-serif;
-  background:var(--black);color:#fff;min-height:100vh;min-height:100dvh;
+  font-family:'Inter','HN','Helvetica Neue',-apple-system,sans-serif;
+  background:
+    radial-gradient(60% 42% at 50% 0%, rgba(255,215,0,.06), transparent 70%),
+    var(--black);
+  color:var(--text);min-height:100vh;min-height:100dvh;font-weight:300;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  overflow:hidden;position:relative;-webkit-font-smoothing:antialiased;
+  position:relative;-webkit-font-smoothing:antialiased;line-height:1.5;
 }
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:4px}
+::selection{background:rgba(255,215,0,.28)}
 
-/* === Animated background === */
-.bg-canvas{position:fixed;inset:0;z-index:0;overflow:hidden}
-
-/* Concentric rings animation */
-.ring{
-  position:absolute;border-radius:50%;
-  border:1px solid rgba(212,175,55,0.08);
-  left:50%;top:50%;transform:translate(-50%,-50%) scale(0);
-  animation:ringExpand 4s var(--ease) forwards;
-}
-.ring:nth-child(1){width:200px;height:200px;animation-delay:0.3s}
-.ring:nth-child(2){width:360px;height:360px;animation-delay:0.5s}
-.ring:nth-child(3){width:520px;height:520px;animation-delay:0.7s}
-.ring:nth-child(4){width:680px;height:680px;animation-delay:0.9s}
-.ring:nth-child(5){width:840px;height:840px;animation-delay:1.1s}
-.ring:nth-child(6){width:1000px;height:1000px;animation-delay:1.3s}
-.ring:nth-child(7){width:1200px;height:1200px;animation-delay:1.5s}
-
-@keyframes ringExpand{
-  0%{transform:translate(-50%,-50%) scale(0);opacity:0}
-  40%{opacity:1}
-  100%{transform:translate(-50%,-50%) scale(1);opacity:0.5}
-}
-
-/* Rotating slow ring */
-.ring-rotate{
-  position:absolute;width:500px;height:500px;border-radius:50%;
-  left:50%;top:50%;transform:translate(-50%,-50%);
-  border:1px solid transparent;
-  border-top:1px solid rgba(212,175,55,0.12);
-  border-right:1px solid rgba(212,175,55,0.06);
-  animation:spinSlow 20s linear infinite;
-  opacity:0;animation:spinSlow 20s linear infinite, fadeIn 2s 1.5s forwards;
-}
-.ring-rotate:nth-child(8){width:550px;height:550px;animation-direction:reverse;animation-delay:0s,1.8s}
-.ring-rotate:nth-child(9){width:450px;height:450px;animation-duration:25s}
-
-@keyframes spinSlow{from{transform:translate(-50%,-50%) rotate(0deg)}to{transform:translate(-50%,-50%) rotate(360deg)}}
-@keyframes fadeIn{from{opacity:0}to{opacity:1}}
-
-/* Particle dots */
-.particle{
-  position:absolute;width:2px;height:2px;background:var(--gold);border-radius:50%;
-  opacity:0;animation:particleFade 3s ease-in-out infinite;
-}
-@keyframes particleFade{
-  0%,100%{opacity:0;transform:translateY(0)}
-  50%{opacity:0.4;transform:translateY(-20px)}
-}
-
-/* Gold ambient glow */
-.glow{
-  position:absolute;width:400px;height:400px;border-radius:50%;
-  background:radial-gradient(circle,rgba(212,175,55,0.06) 0%,transparent 70%);
-  left:50%;top:45%;transform:translate(-50%,-50%);
-  animation:glowPulse 4s ease-in-out infinite alternate;
-}
-@keyframes glowPulse{0%{opacity:0.5;transform:translate(-50%,-50%) scale(0.9)}100%{opacity:1;transform:translate(-50%,-50%) scale(1.1)}}
-
-/* Noise overlay */
+/* Noise overlay (invariato) */
 .noise{
   position:fixed;inset:0;opacity:0.03;z-index:1;pointer-events:none;
   background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
   background-size:256px;
 }
 
-/* === Main content === */
+/* === Contenuto === */
 .content{
   position:relative;z-index:2;text-align:center;
-  padding:2rem;max-width:400px;width:100%;
+  padding:2rem 1.2rem;max-width:480px;width:100%;
 }
 
-/* Logo entrance */
 .logo-wrap{
-  margin-bottom:2rem;opacity:0;
-  animation:logoIn 1.2s var(--ease) 0.5s forwards;
+  margin-bottom:1.6rem;opacity:0;
+  animation:logoIn 1.2s var(--ease) 0.2s forwards;
 }
 @keyframes logoIn{
-  from{opacity:0;transform:scale(0.8) translateY(10px)}
+  from{opacity:0;transform:scale(0.9) translateY(8px)}
   to{opacity:1;transform:scale(1) translateY(0)}
 }
-.logo-img{width:64px;height:64px;margin:0 auto 1rem}
+.logo-img{width:52px;height:52px;margin:0 auto 0.8rem}
 .logo-text{
-  font-size:1.3rem;font-weight:300;letter-spacing:0.4em;color:var(--gold);
+  font-family:'HN','Helvetica Neue',sans-serif;
+  font-size:1.1rem;font-weight:300;letter-spacing:0.4em;text-indent:0.4em;
+  color:var(--gold);text-transform:uppercase;
 }
 
-/* Greeting */
-.greeting{
-  opacity:0;animation:textIn 0.8s var(--ease) 1.2s forwards;
-}
+.greeting{opacity:0;animation:textIn 0.8s var(--ease) 0.7s forwards}
 @keyframes textIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
-
 .greeting h2{
-  font-size:1.5rem;font-weight:300;color:#fff;margin-bottom:0.3rem;
-  line-height:1.3;
+  font-family:'HN','Helvetica Neue',sans-serif;
+  font-size:1.45rem;font-weight:300;color:var(--text);margin-bottom:0.35rem;
+  line-height:1.3;letter-spacing:0.02em;
 }
 .greeting p{
-  font-size:0.82rem;font-weight:300;color:rgba(255,255,255,0.45);
-  letter-spacing:0.02em;line-height:1.5;
+  font-size:0.82rem;font-weight:300;color:var(--text-3);
+  letter-spacing:0.02em;line-height:1.55;max-width:36ch;margin:0 auto;
 }
 
-/* Pass card preview */
-.pass-preview{
-  margin:2.5rem 0;opacity:0;
-  animation:cardIn 1s var(--ease) 1.8s forwards;
+/* === LA STAMPANTE: il taglio + l'emissione ============================ */
+.pass-preview{margin:2rem 0 1.8rem}
+.fessura{
+  height:9px;border-radius:100px;margin:0 10%;
+  background:linear-gradient(180deg,#000,#101013);
+  box-shadow:inset 0 2px 5px rgba(0,0,0,.9), inset 0 -1px 0 rgba(255,255,255,.05);
 }
-@keyframes cardIn{
-  from{opacity:0;transform:translateY(20px) scale(0.95) perspective(600px) rotateX(5deg)}
-  to{opacity:1;transform:translateY(0) scale(1) perspective(600px) rotateX(0)}
+.uscita{overflow:hidden;padding:14px 2px 6px}
+/* l'emissione è PURO CSS: parte da sola, vive senza JS, e con
+   reduced-motion la carta è semplicemente lì */
+.carta{
+  position:relative;display:grid;grid-template-columns:26px minmax(0,1fr);
+  border-radius:16px;overflow:hidden;text-align:left;
+  background:linear-gradient(168deg,#101014,#080809 72%);
+  box-shadow:inset 0 0 0 1px var(--line), inset 0 1px 0 rgba(255,255,255,.05),
+    0 30px 60px -34px rgba(0,0,0,.9);
+  animation:emissione 0.9s var(--ease) 1.1s both;
 }
-
-.pass-mini{
-  background:var(--black);border:1px solid rgba(212,175,55,0.15);
-  border-radius:14px;padding:1.2rem 1.4rem;text-align:left;
-  box-shadow:0 4px 30px rgba(0,0,0,0.5),0 0 60px rgba(212,175,55,0.04);
-  position:relative;overflow:hidden;
+@keyframes emissione{from{transform:translateY(-108%)}to{transform:none}}
+/* stampa di sicurezza calcografica (dal biglietto della home) */
+.carta::before{content:'';position:absolute;inset:0;pointer-events:none;opacity:.5;
+  background:
+    repeating-linear-gradient(115deg, rgba(255,215,0,.14) 0 1px, transparent 1px 9px),
+    repeating-linear-gradient(63deg, rgba(255,215,0,.14) 0 1px, transparent 1px 14px);
+  -webkit-mask:radial-gradient(120% 130% at 0% 0%, #000 20%, transparent 62%);
+  mask:radial-gradient(120% 130% at 0% 0%, #000 20%, transparent 62%);
 }
-
-.pass-mini::before{
-  content:'';position:absolute;top:0;left:0;right:0;height:50%;
-  background:linear-gradient(180deg,rgba(212,175,55,0.03) 0%,transparent 100%);
-  pointer-events:none;
+/* la banda-lamina laterale */
+.lamina{position:relative;display:grid;place-items:center;overflow:hidden;
+  background:
+    repeating-linear-gradient(0deg, rgba(0,0,0,.16) 0 1px, transparent 1px 3px),
+    linear-gradient(180deg,#7a5f16,#f6e27a 14%,#8a6d1f 32%,#fdf0a8 48%,
+      #b8942b 63%,#f6e27a 78%,#6b5716 100%);
 }
+.lamina em{font-style:normal;writing-mode:vertical-rl;transform:rotate(180deg);
+  font-size:7.5px;font-weight:800;letter-spacing:.34em;text-transform:uppercase;
+  color:#141005;white-space:nowrap;opacity:.9}
+.lamina::after{content:'';position:absolute;left:-40%;right:-40%;top:-30%;
+  height:34%;transform:skewY(-18deg);
+  background:linear-gradient(175deg, transparent, rgba(255,255,255,.26) 50%, transparent);
+  animation:lampo 10s var(--ease) infinite}
+@keyframes lampo{0%,55%{top:-34%}80%,100%{top:134%}}
 
-.pm-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:0.8rem;position:relative}
-.pm-brand{font-size:0.7rem;font-weight:300;letter-spacing:0.3em;color:var(--gold)}
-.pm-type{font-size:0.55rem;letter-spacing:0.1em;text-transform:uppercase;color:rgba(212,175,55,0.5)}
+.ccorpo{position:relative;padding:1.05rem 1.15rem 1rem;min-width:0}
+.ctesta{display:flex;align-items:baseline;gap:10px}
+.ctesta b{font-size:0.58rem;font-weight:700;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--gold)}
+#pm-type{margin-left:auto;font-size:0.52rem;font-weight:600;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--text-4);white-space:nowrap;
+  font-variant-numeric:tabular-nums}
 
-.pm-address{font-size:1rem;font-weight:300;color:#fff;margin-bottom:0.6rem;position:relative}
+/* la ROTTA — la tipografia di viaggio del biglietto della home */
+.crotta{display:flex;align-items:center;gap:11px;margin-top:0.7rem;
+  font-family:'HN','Helvetica Neue',sans-serif;font-weight:300;
+  font-size:clamp(19px,5.6vw,26px);letter-spacing:0.05em;line-height:1.1;
+  white-space:nowrap}
+.crotta b{font-weight:300}
+.crotta #r-dest{color:var(--gold);text-shadow:0 0 22px rgba(255,215,0,.35);
+  overflow:hidden;text-overflow:ellipsis;max-width:58%}
+.tratta{position:relative;flex:1 1 30px;min-width:26px;height:12px}
+.tratta::before{content:'';position:absolute;left:0;right:0;top:5.5px;height:1px;
+  background:repeating-linear-gradient(90deg, rgba(250,250,250,.34) 0 5px,
+    transparent 5px 10px)}
+.tratta .punto{position:absolute;top:3px;left:0;width:6px;height:6px;
+  border-radius:50%;background:var(--gold);
+  box-shadow:0 0 7px var(--gold), 0 0 14px rgba(255,215,0,.4);
+  animation:tratta 8s var(--ease) infinite}
+@keyframes tratta{0%{left:0;opacity:0}12%{opacity:1}88%{opacity:1}
+  100%{left:calc(100% - 6px);opacity:0}}
 
-.pm-fields{display:grid;grid-template-columns:1fr 1fr;gap:0.4rem 1rem;position:relative}
-.pm-f-lbl{font-size:0.45rem;letter-spacing:0.1em;text-transform:uppercase;color:rgba(212,175,55,0.5)}
-.pm-f-val{font-size:0.72rem;color:rgba(255,255,255,0.8);font-weight:300}
+#pm-address{margin-top:0.55rem;font-size:0.8rem;color:var(--text-2);
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
-/* CTA Button */
-.cta-wrap{
-  opacity:0;animation:ctaIn 0.8s var(--ease) 2.5s forwards;
-}
+/* la perforazione ORIZZONTALE + il talloncino in coda */
+.perfo{position:relative;height:0;margin:0.85rem -1.15rem 0;
+  border-top:1.5px dashed rgba(250,250,250,.22)}
+.perfo::before,.perfo::after{content:'';position:absolute;top:-8px;
+  width:16px;height:16px;border-radius:50%;background:var(--black);
+  box-shadow:inset 0 0 0 1px var(--line)}
+.perfo::before{left:-9px}
+.perfo::after{right:-9px}
+.pm-fields{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:0.5rem 0.9rem;padding-top:0.85rem}
+.pm-f-lbl{font-size:0.44rem;font-weight:700;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--text-4)}
+.pm-f-val{font-family:'HN','Helvetica Neue',sans-serif;font-size:0.8rem;
+  color:var(--text-2);font-weight:300;font-variant-numeric:tabular-nums;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media(max-width:420px){.pm-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* stato annullata / in attesa: la carta dice la verità */
+.carta.voided{filter:saturate(.4) brightness(.8)}
+.carta.voided .crotta #r-dest{color:var(--rosso);text-shadow:none}
+.avviso{display:none;margin-top:0.7rem;font-size:0.68rem;letter-spacing:0.04em;
+  color:var(--rosso)}
+.avviso.show{display:block}
+
+/* CTA */
+.cta-wrap{opacity:0;animation:ctaIn 0.8s var(--ease) 1.9s forwards}
 @keyframes ctaIn{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
-
 .cta-btn{
-  display:inline-flex;align-items:center;gap:0.6rem;
-  padding:0.95rem 2rem;background:var(--gold);color:var(--black);
-  border:none;border-radius:12px;font-size:0.78rem;font-weight:500;
-  letter-spacing:0.1em;text-transform:uppercase;cursor:pointer;
-  font-family:inherit;transition:all 0.3s var(--ease);
-  text-decoration:none;position:relative;overflow:hidden;
+  position:relative;display:inline-flex;flex-direction:column;align-items:center;
+  gap:6px;padding:0.85rem 2rem 0.65rem;background:var(--gold);color:#050503;
+  border:none;border-radius:12px;font-size:0.76rem;font-weight:700;
+  letter-spacing:0.12em;text-transform:uppercase;cursor:pointer;
+  font-family:inherit;transition:transform 0.3s var(--molla), box-shadow 0.3s var(--ease);
+  text-decoration:none;overflow:hidden;
 }
-.cta-btn::before{
-  content:'';position:absolute;inset:0;
-  background:linear-gradient(135deg,rgba(255,255,255,0.2) 0%,transparent 50%);
-  opacity:0;transition:opacity 0.3s;
-}
-.cta-btn:hover{
-  transform:translateY(-2px);
-  box-shadow:0 8px 30px rgba(212,175,55,0.3),0 2px 8px rgba(212,175,55,0.2);
-}
-.cta-btn:hover::before{opacity:1}
+/* le luci di pista: scorrono verso l'azione, solo su hover/focus */
+.cta-btn .luci{display:block;width:100%;height:3px;border-radius:2px;
+  background:repeating-linear-gradient(90deg, rgba(5,5,3,.55) 0 5px,
+    transparent 5px 16px);background-size:16px 3px;opacity:.35}
+.cta-btn:hover .luci,.cta-btn:focus-visible .luci{opacity:.9;
+  animation:pista .7s linear infinite}
+@keyframes pista{to{background-position-x:16px}}
+.cta-btn:hover{transform:translateY(-2px);
+  box-shadow:0 8px 30px rgba(255,215,0,0.3),0 2px 8px rgba(255,215,0,0.2)}
 .cta-btn:active{transform:translateY(0)}
+.cta-btn[disabled]{opacity:.45;pointer-events:none}
+.cta-row{display:inline-flex;align-items:center;gap:0.6rem}
+.cta-btn .apple-w{font-size:1.05rem}
+.cta-sub{margin-top:0.8rem;font-size:0.62rem;color:var(--text-4);
+  letter-spacing:0.04em;font-weight:300}
 
-.cta-btn .apple-w{font-size:1.1rem}
-
-.cta-sub{
-  margin-top:0.8rem;font-size:0.62rem;color:rgba(255,255,255,0.2);
-  letter-spacing:0.04em;font-weight:300;
-}
-
-/* Review CTA (tenant move-in only) */
+/* Review CTA (tenant move-in only) — invariato nella sostanza */
 .review-wrap{
   margin-top:1.6rem;display:none;flex-direction:column;align-items:center;
-  opacity:0;animation:ctaIn 0.8s var(--ease) 3.1s forwards;
+  opacity:0;animation:ctaIn 0.8s var(--ease) 2.5s forwards;
 }
 .review-wrap.show{display:flex}
-.review-stars{
-  display:flex;gap:0.25rem;margin-bottom:0.7rem;
-}
+.review-stars{display:flex;gap:0.25rem;margin-bottom:0.7rem}
 .review-stars span{
   color:var(--gold);font-size:0.95rem;line-height:1;
-  filter:drop-shadow(0 0 6px rgba(212,175,55,0.4));
+  filter:drop-shadow(0 0 6px rgba(255,215,0,0.4));
   opacity:0;animation:starPop 0.4s var(--ease) forwards;
 }
-.review-stars span:nth-child(1){animation-delay:3.2s}
-.review-stars span:nth-child(2){animation-delay:3.3s}
-.review-stars span:nth-child(3){animation-delay:3.4s}
-.review-stars span:nth-child(4){animation-delay:3.5s}
-.review-stars span:nth-child(5){animation-delay:3.6s}
+.review-stars span:nth-child(1){animation-delay:2.6s}
+.review-stars span:nth-child(2){animation-delay:2.7s}
+.review-stars span:nth-child(3){animation-delay:2.8s}
+.review-stars span:nth-child(4){animation-delay:2.9s}
+.review-stars span:nth-child(5){animation-delay:3.0s}
 @keyframes starPop{from{opacity:0;transform:scale(0.4)}to{opacity:1;transform:scale(1)}}
 .review-prompt{
-  font-size:0.74rem;color:rgba(255,255,255,0.55);font-weight:300;
+  font-size:0.74rem;color:var(--text-3);font-weight:300;
   letter-spacing:0.04em;margin-bottom:0.9rem;text-align:center;max-width:300px;
 }
 .review-btn{
   display:inline-flex;align-items:center;gap:0.5rem;
   padding:0.7rem 1.5rem;background:transparent;color:var(--gold);
-  border:1px solid rgba(212,175,55,0.4);border-radius:10px;
+  border:1px solid rgba(255,215,0,0.4);border-radius:10px;
   font-size:0.68rem;font-weight:500;letter-spacing:0.12em;text-transform:uppercase;
   cursor:pointer;font-family:inherit;text-decoration:none;
   transition:all 0.3s var(--ease);
 }
 .review-btn:hover{
-  background:rgba(212,175,55,0.1);border-color:var(--gold);
+  background:rgba(255,215,0,0.1);border-color:var(--gold);
   transform:translateY(-2px);
-  box-shadow:0 6px 22px rgba(212,175,55,0.18);
+  box-shadow:0 6px 22px rgba(255,215,0,0.18);
 }
 
 /* Footer */
 .foot{
-  position:fixed;bottom:0;left:0;right:0;padding:1.5rem;text-align:center;z-index:2;
-  opacity:0;animation:fadeIn 0.5s 3s forwards;
+  position:fixed;bottom:0;left:0;right:0;padding:1.2rem;text-align:center;z-index:2;
+  opacity:0;animation:fadeIn 0.5s 2.4s forwards;
 }
-.foot span{font-size:0.55rem;color:rgba(255,255,255,0.15);letter-spacing:0.08em}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.foot span{font-size:0.55rem;color:rgba(250,250,250,0.18);letter-spacing:0.08em}
 
-/* Completion state */
-.content.done .pass-mini{
-  border-color:rgba(212,175,55,0.3);
-  box-shadow:0 4px 30px rgba(0,0,0,0.5),0 0 80px rgba(212,175,55,0.08);
-}
-
-/* Loading shimmer on button */
-.cta-btn.loading{
-  pointer-events:none;opacity:0.7;
-}
+/* Loading shimmer sul bottone (legacy flow) */
+.cta-btn.loading{pointer-events:none;opacity:0.7}
 .cta-btn.loading::after{
   content:'';position:absolute;inset:0;
   background:linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.2) 50%,transparent 100%);
@@ -295,8 +304,8 @@ body{
 /* Success checkmark */
 .success-check{
   display:none;width:48px;height:48px;margin:1rem auto 0;
-  border-radius:50%;background:rgba(212,175,55,0.1);
-  border:1px solid rgba(212,175,55,0.2);
+  border-radius:50%;background:rgba(255,215,0,0.1);
+  border:1px solid rgba(255,215,0,0.2);
   align-items:center;justify-content:center;
 }
 .success-check.show{display:flex;animation:checkIn 0.5s var(--ease)}
@@ -305,7 +314,14 @@ body{
 
 @media(max-width:420px){
   .greeting h2{font-size:1.2rem}
-  .logo-img{width:48px;height:48px}
+  .logo-img{width:44px;height:44px}
+}
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{animation:none !important;transition:none !important}
+  .logo-wrap,.greeting,.cta-wrap,.foot{opacity:1}
+  .review-wrap.show{opacity:1}
+  .review-stars span{opacity:1}
+  .carta{transform:none}
 }
 </style>
 <script defer src="/js/boom-consent.js"></script>
@@ -372,32 +388,18 @@ body{
 </head>
 <body>
 
-<!-- Animated Background -->
-<div class="bg-canvas">
-  <div class="glow"></div>
-  <div class="ring"></div>
-  <div class="ring"></div>
-  <div class="ring"></div>
-  <div class="ring"></div>
-  <div class="ring"></div>
-  <div class="ring"></div>
-  <div class="ring"></div>
-  <div class="ring-rotate"></div>
-  <div class="ring-rotate"></div>
-  <div class="ring-rotate"></div>
-</div>
 <div class="noise"></div>
 
 <!-- Content -->
 <div class="content" id="content">
-  
+
   <div class="logo-wrap">
     <!-- Inline mark: the old <img> pointed at a file that does not exist in
          the repo, so every visitor met a broken-image badge. Inline SVG can
          never 404, needs no request and stays crisp at any density. -->
     <div class="logo-img" aria-label="BOOM">
-      <svg viewBox="0 0 1024 1024" width="64" height="64" role="img" aria-label="BOOM">
-        <defs><linearGradient id="boomG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFD54F"/><stop offset="100%" stop-color="#F5A623"/></linearGradient></defs>
+      <svg viewBox="0 0 1024 1024" width="52" height="52" role="img" aria-label="BOOM">
+        <defs><linearGradient id="boomG" x1="0%" y1="0%" x2="0%" y2="100%"><stop offset="0%" stop-color="#FFE55C"/><stop offset="100%" stop-color="#E5C200"/></linearGradient></defs>
         <g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#boomG)"><path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z"/></g>
       </svg>
     </div>
@@ -409,26 +411,41 @@ body{
     <p id="greeting-sub">Add this pass to your Apple Wallet to have all the details at hand when you arrive.</p>
   </div>
 
+  <!-- LA CARTA D'IMBARCO: la pagina la stampa (emissione CSS dal taglio) -->
   <div class="pass-preview">
-    <div class="pass-mini">
-      <div class="pm-top">
-        <span class="pm-brand">BOOM</span>
-        <span class="pm-type" id="pm-type">Viewing Pass</span>
-      </div>
-      <div class="pm-address" id="pm-address">Via dei Coronari 42, Roma</div>
-      <div class="pm-fields">
-        <div><div class="pm-f-lbl" id="pm-l1">Date</div><div class="pm-f-val" id="pm-v1">Apr 15, 2026</div></div>
-        <div><div class="pm-f-lbl" id="pm-l2">Time</div><div class="pm-f-val" id="pm-v2">14:30</div></div>
-        <div><div class="pm-f-lbl" id="pm-l3">Zone</div><div class="pm-f-val" id="pm-v3">Centro Storico</div></div>
-        <div><div class="pm-f-lbl" id="pm-l4">Agent</div><div class="pm-f-val" id="pm-v4">Valentino</div></div>
-      </div>
+    <div class="fessura" aria-hidden="true"></div>
+    <div class="uscita">
+      <article class="carta" id="carta" aria-label="Your BOOM pass">
+        <div class="lamina" aria-hidden="true"><em>Boom · Roma · Boom · Roma</em></div>
+        <div class="ccorpo">
+          <div class="ctesta">
+            <b id="pm-brand">Boarding pass</b>
+            <span class="pm-type" id="pm-type">Viewing</span>
+          </div>
+          <div class="crotta" aria-hidden="true">
+            <b id="r-from">ROM</b>
+            <span class="tratta"><span class="punto"></span></span>
+            <b id="r-dest">HOME</b>
+          </div>
+          <div class="pm-address" id="pm-address">Rome</div>
+          <div class="perfo" aria-hidden="true"></div>
+          <div class="pm-fields">
+            <div><div class="pm-f-lbl" id="pm-l0">Passenger</div><div class="pm-f-val" id="pm-v0">Guest</div></div>
+            <div><div class="pm-f-lbl" id="pm-l1">Date</div><div class="pm-f-val" id="pm-v1">—</div></div>
+            <div><div class="pm-f-lbl" id="pm-l2">Time</div><div class="pm-f-val" id="pm-v2">—</div></div>
+            <div><div class="pm-f-lbl" id="pm-l3">Gate</div><div class="pm-f-val" id="pm-v3">Rome</div></div>
+          </div>
+          <div class="avviso" id="pm-avviso"></div>
+        </div>
+      </article>
     </div>
   </div>
 
   <div class="cta-wrap">
     <button class="cta-btn" id="cta-btn" onclick="addToWallet()">
-      <span class="apple-w"></span>
-      <span id="cta-text">Add to Apple Wallet</span>
+      <span class="cta-row"><span class="apple-w"></span>
+      <span id="cta-text">Add to Apple Wallet</span></span>
+      <span class="luci" aria-hidden="true"></span>
     </button>
     <div class="cta-sub">Works with iPhone and Apple Watch</div>
   </div>
@@ -442,7 +459,7 @@ body{
   </div>
 
   <div class="success-check" id="success-check">
-    <svg viewBox="0 0 24 24" fill="none" stroke="#D4AF37" stroke-width="2" stroke-linecap="round">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#FFD700" stroke-width="2" stroke-linecap="round">
       <polyline points="20 6 9 17 4 12"/>
     </svg>
   </div>
@@ -452,41 +469,47 @@ body{
   <span>BOOM — Rome's Premium Rental Concierge</span>
 </div>
 
+<script src="/js/scalo-codes.js"></script>
 <script>
-// Generate floating particles
-const canvas = document.querySelector('.bg-canvas');
-for(let i = 0; i < 20; i++){
-  const p = document.createElement('div');
-  p.className = 'particle';
-  p.style.left = Math.random() * 100 + '%';
-  p.style.top = Math.random() * 100 + '%';
-  p.style.animationDelay = Math.random() * 3 + 's';
-  p.style.animationDuration = (2 + Math.random() * 2) + 's';
-  canvas.appendChild(p);
-}
-
 // Parse URL params to populate pass data
 const params = new URLSearchParams(window.location.search);
 const passType = params.get('type') || 'viewing';
 const passId = params.get('id') || '';
 
-// Populate from URL params if available
+// Populate from URL params if available (legacy links)
 if(params.get('address')) document.getElementById('pm-address').textContent = params.get('address');
+if(params.get('name')) document.getElementById('pm-v0').textContent = params.get('name');
 if(params.get('date')) document.getElementById('pm-v1').textContent = params.get('date');
 if(params.get('time')) document.getElementById('pm-v2').textContent = params.get('time');
 if(params.get('zone')) document.getElementById('pm-v3').textContent = params.get('zone');
 
 const typeConfig = {
-  viewing: { title: 'Your viewing is confirmed', sub: 'Add this pass to your Apple Wallet to have all details at hand when you arrive.', label: 'Viewing Pass' },
-  tenant: { title: 'Welcome home', sub: 'Your tenant card has all the information you need — emergency contacts, contract details, and more.', label: 'Tenant Card' },
-  referral: { title: 'Share the love', sub: 'Give this referral pass to a friend looking for a rental in Rome. You both win.', label: 'Referral Pass' },
-  landlord: { title: 'Your property dashboard', sub: 'Keep track of your rental at a glance. Tenant info, contract dates, everything in your Wallet.', label: 'Landlord Pass' },
+  viewing: { title: 'Your viewing is confirmed', sub: 'Add this pass to your Apple Wallet to have all details at hand when you arrive.', label: 'Viewing', brand: 'Boarding pass' },
+  tenant: { title: 'Welcome home', sub: 'Your tenant card has all the information you need — emergency contacts, contract details, and more.', label: 'Tenant', brand: 'Resident card' },
+  referral: { title: 'Share the love', sub: 'Give this referral pass to a friend looking for a rental in Rome. You both win.', label: 'Referral', brand: 'Companion pass' },
+  landlord: { title: 'Your property dashboard', sub: 'Keep track of your rental at a glance. Tenant info, contract dates, everything in your Wallet.', label: 'Landlord', brand: 'Owner pass' },
 };
 
 const cfg = typeConfig[passType] || typeConfig.viewing;
 document.getElementById('greeting-title').textContent = cfg.title;
 document.getElementById('greeting-sub').textContent = cfg.sub;
-document.getElementById('pm-type').textContent = cfg.label;
+document.getElementById('pm-brand').textContent = cfg.brand;
+// il numero di volo: soprannome DERIVATO dall'id vero (bmCode), mai inventato
+{
+  const bm = (window.BOOM_SCALO && passId) ? window.BOOM_SCALO.bmCode(passId) : null;
+  document.getElementById('pm-type').textContent = cfg.label + (bm ? ' · ' + bm : '');
+}
+
+/* La ROTTA: destinazione = codice zona SOLO dal lessico curato di
+   js/scalo-codes.js (UNA copia per pass-delivery, /viewing e /book — la
+   disciplina di inferZone: ambiguo → niente). Nessun match, o modulo non
+   caricato → resta il fatto nudo, "HOME". */
+const SC = window.BOOM_SCALO || null;
+function zoneCode(txt){ return SC ? SC.zoneCode(txt) : null; }
+{
+  const seed = zoneCode((params.get('zone') || '') + ' ' + (params.get('address') || ''));
+  if (seed) document.getElementById('r-dest').textContent = seed;
+}
 
 // Review CTA — only for the move-in (tenant) pass, the genuine "happy customer" moment.
 // Swap REVIEW_LINK for the one-tap g.page/r/.../review link once available (see docs/reviews.md).
@@ -508,7 +531,11 @@ if(passType === 'tenant'){
    (address, coordinates, confirmed time, video room) and served from a REAL
    url — iOS only hands a .pkpass to Wallet when it arrives with the right
    Content-Type from a normal navigation. Fetch + blob: is exactly what used
-   to fail silently on iPhone. */
+   to fail silently on iPhone.
+   La carta dice la VERITÀ (regola del lab, tests/viewings/availability-ui):
+   - meta.voided  → visita annullata: niente Wallet, lo si dice;
+   - meta.when assente → non ancora confermata: standby onesto, niente
+     boarding pass spacciato per emesso. */
 if (passType === 'viewing' && passId) {
   const passHref = '/api/viewings/pass?id=' + encodeURIComponent(passId);
   const ctaBtn = document.getElementById('cta-btn');   // this script runs after the markup
@@ -521,10 +548,11 @@ if (passType === 'viewing' && passId) {
       setTimeout(() => { if (t) t.textContent = 'Add to Apple Wallet'; }, 4000);
     });
   }
-  // fill the on-screen mockup with the actual appointment
+  // fill the on-screen boarding pass with the actual appointment
   fetch(passHref + '&meta=1').then(r => r.ok ? r.json() : null).then(m => {
     if (!m || !m.ok) return;
     const set = (id, val) => { const el = document.getElementById(id); if (el && val) el.textContent = val; };
+    set('pm-v0', m.clientName);
     set('pm-address', m.address || (m.mode === 'video' ? 'Video call' : ''));
     if (m.whenLabel) {
       const parts = m.whenLabel.split(/,\s*/);
@@ -532,10 +560,32 @@ if (passType === 'viewing' && passId) {
       const t = (m.when || '').slice(11, 16);
       set('pm-v2', t);
     }
-    set('pm-v3', m.mode === 'video' ? 'Video' : (m.meetingPoint || 'Rome'));
+    const code = zoneCode((m.address || '') + ' ' + (m.meetingPoint || ''));
     if (m.mode === 'video') {
+      set('r-from', 'YOU');
+      set('r-dest', 'LIVE');
+      set('pm-v3', 'Video call');
       const sub = document.getElementById('greeting-sub');
       if (sub) sub.textContent = 'Your video viewing is in the pass — tap it on the day to join the call.';
+    } else {
+      if (code) set('r-dest', code);
+      set('pm-v3', m.meetingPoint || m.address || 'Rome');
+    }
+    const avviso = document.getElementById('pm-avviso');
+    const carta = document.getElementById('carta');
+    if (m.voided) {
+      carta.classList.add('voided');
+      document.getElementById('greeting-title').textContent = 'This viewing was cancelled';
+      document.getElementById('greeting-sub').textContent = 'If that’s a surprise, write us on WhatsApp and we’ll sort out a new time.';
+      avviso.textContent = 'CANCELLED — this pass is no longer valid.';
+      avviso.classList.add('show');
+      ctaBtn.setAttribute('disabled', 'disabled');
+    } else if (!m.when) {
+      document.getElementById('greeting-title').textContent = 'Your request is in';
+      document.getElementById('greeting-sub').textContent = 'Your time slot is held. We’ll confirm shortly and your boarding pass will be ready right here.';
+      avviso.textContent = 'STANDBY — the pass is issued once the viewing is confirmed.';
+      avviso.classList.add('show');
+      ctaBtn.setAttribute('disabled', 'disabled');
     }
   }).catch(() => {});
 }
@@ -578,7 +628,7 @@ async function addToWallet(){
         }
       })
     });
-    
+
     // Il conio anonimo è chiuso (audit 2026-08 S1): i link legacy a parametri
     // non firmano più — il messaggio dice al cliente cosa fare davvero.
     if(res.status===401){
@@ -592,10 +642,10 @@ async function addToWallet(){
 
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
-    
+
     // On iOS, opening the blob URL triggers the Wallet add flow
     window.location.href = url;
-    
+
     // Show success state
     setTimeout(() => {
       btn.classList.remove('loading');
@@ -603,7 +653,7 @@ async function addToWallet(){
       btn.style.pointerEvents = 'none';
       document.getElementById('success-check').classList.add('show');
     }, 1500);
-    
+
   } catch(e) {
     btn.classList.remove('loading');
     text.textContent = 'Try again';

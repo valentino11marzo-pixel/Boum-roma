@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rome Rental Market Weather — €/m² and Days to Rent | BOOM</title>
+<!-- BOOM_SEO:START -->
+  <meta name="description" content="Rome's rental market weather, zone by zone: median asked €/m², days-to-rent measured on proven-gone listings, and price cuts in the last 30 days.">
+  <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1">
+  <meta name="googlebot" content="index, follow, max-image-preview:large, max-snippet:-1">
+  <meta name="author" content="BOOM Rome">
+  <meta name="publisher" content="BOOM Rome">
+  <meta name="theme-color" content="#030303">
+  <meta name="color-scheme" content="dark">
+  <meta name="format-detection" content="telephone=no">
+  <meta name="application-name" content="BOOM Rome">
+  <meta name="apple-mobile-web-app-title" content="BOOM">
+  <link rel="canonical" href="https://www.boomrome.com/meteo">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="BOOM Rome">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:locale:alternate" content="it_IT">
+  <meta property="og:title" content="Rome Rental Market Weather — €/m² and Days-to-Rent by Zone">
+  <meta property="og:description" content="Median asked €/m², days-to-rent and 30-day price cuts, zone by zone. Zones below the sample threshold are never scored.">
+  <meta property="og:url" content="https://www.boomrome.com/meteo">
+  <meta property="og:image" content="https://www.boomrome.com/og-meteo.png">
+  <meta property="og:image:secure_url" content="https://www.boomrome.com/og-meteo.png">
+  <meta property="og:image:type" content="image/png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Rome Rental Market Weather — BOOM">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@boomrome">
+  <meta name="twitter:creator" content="@boomrome">
+  <meta name="twitter:title" content="Rome Rental Market Weather — €/m² and Days-to-Rent by Zone">
+  <meta name="twitter:description" content="Median asked €/m², days-to-rent and 30-day price cuts, zone by zone.">
+  <meta name="twitter:image" content="https://www.boomrome.com/og-meteo.png">
+  <meta name="twitter:image:alt" content="Rome Rental Market Weather — BOOM">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"></noscript>
+  <link rel="dns-prefetch" href="https://www.googletagmanager.com">
+<!-- BOOM_SEO:END -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500});gtag('config','G-EYCD59RDVJ');
+</script>
+<style>
+/* ══════════════════════════════════════════════════════════════════════════
+   IL METEO DEL MERCATO (STUDIO_AVIATION, W2) — il bollettino pubblico del
+   mercato romano, zona per zona, nel linguaggio dello scalo. I numeri
+   vengono da /api/meteo (gli aggregati del Perito): mediana del CHIESTO,
+   assorbimento SOLO da morti provate, ribassi 30gg. La disciplina del
+   campione passa intatta: sotto soglia, la zona compare senza numeri.
+   ══════════════════════════════════════════════════════════════════════════ */
+:root{
+  --gold:#FFD700; --gold-light:#FFE55C; --green:#00FF88; --rosso:#FF7A6B;
+  --black:#030303; --void:#060607; --card:#0E0E10;
+  --text:#FAFAFA; --text-2:rgba(250,250,250,.72); --text-3:rgba(250,250,250,.5);
+  --text-4:rgba(250,250,250,.48);
+  --line-0:rgba(255,255,255,.04); --line:rgba(255,255,255,.08);
+  --line-gold:rgba(255,215,0,.14); --line-gold-2:rgba(255,215,0,.3);
+  --ease:cubic-bezier(.16,1,.3,1);
+  --sans:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;
+  --display:'Helvetica Neue',Helvetica,Arial,sans-serif;
+  color-scheme:dark;
+}
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--black);color:var(--text);font-family:var(--sans);
+  font-weight:300;line-height:1.6;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+::selection{background:rgba(255,215,0,.28)}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:4px}
+.wrap{max-width:1020px;margin:0 auto;padding:0 clamp(18px,4vw,40px)}
+
+header.cima{position:sticky;top:0;z-index:40;display:flex;align-items:center;
+  gap:14px;padding:13px clamp(18px,4vw,40px);background:#030303;
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+  border-bottom:1px solid var(--line-0)}
+.marchio{display:flex;align-items:center;gap:11px;text-decoration:none}
+.marchio svg{width:24px;height:24px}
+.marchio b{font-family:var(--display);font-weight:500;font-size:13px;
+  letter-spacing:.32em;text-indent:.32em;text-transform:uppercase}
+.cima .eti{font-size:9.5px;font-weight:700;letter-spacing:.24em;
+  text-transform:uppercase;color:var(--gold)}
+#ora{margin-left:auto;font-family:var(--display);font-weight:300;
+  font-size:14px;letter-spacing:.08em;font-variant-numeric:tabular-nums;
+  color:var(--text-2);white-space:nowrap}
+@media(max-width:560px){.cima .eti{display:none}}
+
+.eroe{padding:clamp(48px,7vw,84px) 0 clamp(30px,4vw,44px);
+  border-bottom:1px solid var(--line-0);
+  background:radial-gradient(56% 42% at 50% 0%,rgba(255,215,0,.05),transparent 70%)}
+.eroe .sopra{display:inline-flex;align-items:center;gap:8px;margin-bottom:18px;
+  padding:6px 13px;font-size:9.5px;font-weight:700;letter-spacing:.26em;
+  text-transform:uppercase;color:var(--gold);border-radius:100px;
+  box-shadow:inset 0 0 0 1px rgba(255,215,0,.35)}
+.eroe .sopra i{font-style:normal;width:5px;height:5px;border-radius:50%;
+  background:var(--green);animation:pulse 2s ease infinite}
+@keyframes pulse{50%{opacity:.3}}
+.eroe h1{font-family:var(--display);font-weight:250;
+  font-size:clamp(26px,4.6vw,44px);letter-spacing:.02em;line-height:1.15;
+  max-width:22ch;text-wrap:balance}
+.eroe h1 b{color:var(--gold);font-weight:300}
+.eroe p.sotto{margin-top:16px;max-width:62ch;font-size:14.5px;
+  color:var(--text-2);text-wrap:pretty}
+#aggiornato{margin-top:14px;font-size:11px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--text-4);
+  font-variant-numeric:tabular-nums}
+
+/* il blocco «in breve» — scritto per essere CITATO */
+.breve{margin:26px 0 0;padding:18px 20px;border-radius:14px;
+  background:var(--void);box-shadow:inset 0 0 0 1px var(--line)}
+.breve b{display:block;font-size:9.5px;font-weight:700;letter-spacing:.24em;
+  text-transform:uppercase;color:var(--gold);margin-bottom:10px}
+.breve ul{list-style:none;display:grid;gap:7px}
+.breve li{font-size:13px;color:var(--text-2);padding-left:16px;position:relative}
+.breve li::before{content:'';position:absolute;left:0;top:9px;width:6px;
+  height:1.5px;background:var(--text-4)}
+
+section{padding:clamp(36px,5vw,56px) 0;border-bottom:1px solid var(--line-0)}
+h2{font-family:var(--display);font-weight:300;font-size:clamp(17px,2.2vw,22px);
+  letter-spacing:.14em;text-transform:uppercase;margin-bottom:6px}
+.filo{height:1px;margin:12px 0 20px;
+  background:linear-gradient(90deg,var(--line-gold-2),var(--line) 40%,transparent)}
+
+/* i bollettini */
+#bollettini{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.zona{display:grid;align-content:start;gap:10px;padding:16px 17px;
+  border-radius:14px;background:var(--card);box-shadow:inset 0 0 0 1px var(--line)}
+.zona .zt{display:flex;align-items:center;gap:9px}
+.zona .zt h3{font-family:var(--display);font-weight:300;font-size:16px;
+  letter-spacing:.08em;text-transform:uppercase;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+.zona .cod{flex:none;display:grid;place-items:center;min-width:44px;height:26px;
+  padding:0 6px;border-radius:6px;position:relative;
+  background:linear-gradient(180deg,#17171A 0 50%,#0A0A0C 50% 100%);
+  box-shadow:inset 0 0 0 1px rgba(239,235,223,.07);
+  font-family:var(--display);font-weight:500;font-size:12px;
+  letter-spacing:.14em;color:var(--gold-light)}
+.zona .cod::after{content:'';position:absolute;left:0;right:0;top:50%;
+  height:1px;background:rgba(0,0,0,.85)}
+.zona .grande{display:flex;align-items:baseline;gap:8px}
+.zona .grande b{font-family:var(--display);font-weight:200;font-size:30px;
+  letter-spacing:-.01em;color:var(--gold);font-variant-numeric:tabular-nums}
+.zona .grande span{font-size:11px;color:var(--text-3)}
+/* la banda p25–p75: la forchetta VERA del chiesto */
+.banda{position:relative;height:5px;border-radius:3px;background:var(--line-0)}
+.banda i{position:absolute;top:0;bottom:0;left:0;right:0;border-radius:3px;
+  background:linear-gradient(90deg,rgba(255,215,0,.3),rgba(255,215,0,.6))}
+.banda s{position:absolute;top:-3px;width:2px;height:11px;border-radius:1px;
+  background:var(--gold);box-shadow:0 0 6px rgba(255,215,0,.6);
+  text-decoration:none;transform:translateX(-50%)}
+.banda-eti{display:flex;justify-content:space-between;font-size:10px;
+  color:var(--text-4);font-variant-numeric:tabular-nums}
+.zona .riga{display:flex;justify-content:space-between;align-items:baseline;
+  gap:10px;font-size:12px;color:var(--text-3);
+  border-top:1px solid var(--line-0);padding-top:8px}
+.zona .riga b{font-family:var(--display);font-weight:300;font-size:15px;
+  color:var(--text);font-variant-numeric:tabular-nums}
+.zona .riga b.giu{color:var(--rosso)}
+.zona .piede{font-size:10px;color:var(--text-4);
+  font-variant-numeric:tabular-nums}
+.zona .senza{font-size:11.5px;color:var(--text-4)}
+
+#misurando{margin-top:18px;font-size:12px;color:var(--text-3);line-height:1.7}
+#misurando b{font-weight:600;color:var(--text-2)}
+
+.metodo p{max-width:70ch;font-size:13.5px;color:var(--text-2);margin-bottom:10px}
+.metodo p b{font-weight:600;color:var(--text)}
+.metodo .nota{font-size:11.5px;color:var(--text-3);max-width:70ch}
+
+.porte{display:flex;flex-wrap:wrap;gap:10px;margin-top:6px}
+.porte a{display:inline-flex;align-items:center;min-height:44px;padding:0 20px;
+  border-radius:100px;font-size:11px;font-weight:700;letter-spacing:.16em;
+  text-transform:uppercase;text-decoration:none;
+  transition:transform .3s var(--ease),box-shadow .3s var(--ease)}
+.porte a.p{background:var(--gold);color:#050503}
+.porte a.p:hover{transform:translateY(-2px);
+  box-shadow:0 10px 30px -12px rgba(255,215,0,.5)}
+.porte a.s{color:var(--text-2);box-shadow:inset 0 0 0 1px var(--line)}
+.porte a.s:hover{color:var(--gold);box-shadow:inset 0 0 0 1px var(--line-gold-2)}
+
+#stato{padding:26px 0;font-size:13px;color:var(--text-3)}
+#stato a{color:var(--gold)}
+
+footer{padding:34px 0 54px;font-size:11px;color:var(--text-4);line-height:1.8}
+footer a{color:var(--text-3);text-decoration:none}
+footer a:hover{color:var(--gold)}
+
+@media(prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+</style>
+<script defer src="/js/boom-consent.js"></script>
+<!-- BOOM_SCROLL:START -->
+<style>
+/* boom-scroll.css — IL CONTRATTO DI SCORRIMENTO, in una copia sola.
+ *
+ * IL REPERTO: su 45 fra pagine e viewport, un link interno portava il
+ * lettore SOTTO la barra fissa. Il titolo della sezione finiva nascosto
+ * dietro la nav e si atterrava a meta' frase — su apartment-detail erano
+ * sei ancore su sei. La causa e' banale e sempre la stessa: `scroll-margin`
+ * e `scroll-padding` erano usati sei volte in tutto il sito, con numeri
+ * scritti a mano (86px, 104px, 150px) che nessuno teneva allineati
+ * all'altezza VERA della barra — che va da 71 a 99px a seconda della
+ * pagina e della larghezza.
+ *
+ * La soluzione non e' quarantacinque pezze: e' una proprieta' sola.
+ * `scroll-padding-top` sull'elemento che scorre copre TUTTO in un colpo —
+ * la navigazione per frammento (#sezione), `scrollIntoView()` e `:target`.
+ * Il valore non si indovina: lo misura js/boom-scroll.js dal documento
+ * vero, e lo riscrive quando la finestra cambia.
+ *
+ * Il ripiego (76px) vale solo nell'istante fra il primo paint e la prima
+ * misura, e con JS spento: meglio un'approssimazione onesta dello zero.
+ */
+:root { --boom-barra: 76px; }
+
+html {
+  scroll-padding-top: calc(var(--boom-barra) + 18px);
+}
+
+/* Un'ancora puo' vivere dentro un contenitore che scorre per conto suo
+   (una lista, un cassetto): li' la barra della pagina non c'entra, e la
+   regola sull'elemento la porterebbe fuori quadro. */
+[data-scroll-libero] { scroll-padding-top: 0; }
+
+/* Movimento = informazione. Chi ha chiesto meno movimento al sistema
+   operativo non deve subire lo scorrimento animato di 77 dichiarazioni
+   sparse: si spegne qui, una volta, per tutte. */
+@media (prefers-reduced-motion: reduce) {
+  html, body { scroll-behavior: auto !important; }
+}
+</style>
+<script>
+/* boom-scroll.js — LA MISURA DELLA BARRA. ~500 byte, nessuna dipendenza.
+ *
+ * Scrive --boom-barra con l'altezza VERA di cio' che copre il bordo alto
+ * della finestra, cosi' `scroll-padding-top` (css/boom-scroll.css) porta
+ * ogni ancora sotto la barra invece che dietro.
+ *
+ * Come si misura, e perche' cosi': `elementsFromPoint` restituisce solo
+ * gli elementi sotto UN punto — costa quanto la profondita' dell'albero,
+ * non quanto il numero di nodi. Scorrere tutto il documento con
+ * querySelectorAll('*') e chiedere getComputedStyle a ognuno costerebbe
+ * millisecondi di thread principale a ogni ridimensionamento, per sapere
+ * una cosa che si legge in un punto.
+ *
+ * Si misura al caricamento, al primo scorrimento (molte barre cambiano
+ * altezza appena si scorre) e al ridimensionamento. Mai in un loop.
+ */
+(function () {
+  var R = document.documentElement, ultimo = -1;
+
+  function misura() {
+    var x = Math.round(innerWidth / 2), coperto = 0, i, e, s, r;
+    var sotto = document.elementsFromPoint ? document.elementsFromPoint(x, 2) : [];
+    for (i = 0; i < sotto.length; i++) {
+      e = sotto[i];
+      if (!e || e === R || e === document.body) continue;
+      s = getComputedStyle(e);
+      if (s.position !== 'fixed' && s.position !== 'sticky') continue;
+      if (s.visibility === 'hidden' || s.display === 'none') continue;
+      r = e.getBoundingClientRect();
+      // Una barra alta mezzo schermo non e' una barra: e' un pannello
+      // aperto, e non deve spostare le ancore di tutta la pagina.
+      if (r.top > 2 || r.height > innerHeight * 0.35) continue;
+      if (r.bottom > coperto) coperto = r.bottom;
+    }
+    coperto = Math.round(coperto);
+    if (coperto !== ultimo) {
+      ultimo = coperto;
+      R.style.setProperty('--boom-barra', coperto + 'px');
+    }
+  }
+
+  var atteso = false;
+  function piano() {
+    if (atteso) return;
+    atteso = true;
+    requestAnimationFrame(function () { atteso = false; misura(); });
+  }
+
+  misura();
+  addEventListener('load', misura);
+  addEventListener('resize', piano, { passive: true });
+  addEventListener('orientationchange', piano);
+  addEventListener('scroll', function una() {
+    removeEventListener('scroll', una);
+    piano();
+  }, { passive: true, once: true });
+})();
+</script>
+<!-- BOOM_SCROLL:END -->
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebPage",
+      "@id": "https://www.boomrome.com/meteo#page",
+      "url": "https://www.boomrome.com/meteo",
+      "name": "Rome Rental Market Weather — €/m² and Days-to-Rent by Zone",
+      "description": "Median asked €/m², days-to-rent (absorption measured on listings proven gone) and 30-day price cuts, zone by zone in Rome. Zones below the sample threshold are never scored.",
+      "inLanguage": "en",
+      "isPartOf": { "@id": "https://www.boomrome.com/#website" },
+      "publisher": { "@id": "https://www.boomrome.com/#organization" }
+    },
+    {
+      "@type": "Dataset",
+      "@id": "https://www.boomrome.com/meteo#dataset",
+      "name": "Rome rental market statistics by zone",
+      "description": "Per-zone aggregates of Rome's mid-term rental market: median asked rent per square metre with 25th–75th percentile band, median days-to-rent computed only on listings verified as gone, and count of price cuts in the last 30 days. Zones whose sample is below the minimum threshold carry no numbers.",
+      "url": "https://www.boomrome.com/meteo",
+      "creator": { "@id": "https://www.boomrome.com/#organization" },
+      "temporalCoverage": "2026/..",
+      "spatialCoverage": { "@type": "City", "name": "Rome" },
+      "isAccessibleForFree": true,
+      "distribution": [{
+        "@type": "DataDownload",
+        "encodingFormat": "application/json",
+        "contentUrl": "https://www.boomrome.com/api/meteo"
+      }]
+    }
+  ]
+}
+</script>
+</head>
+<body>
+
+<header class="cima">
+  <a class="marchio" href="/" aria-label="BOOM Rome">
+    <svg viewBox="0 0 48 48" fill="none" stroke="#FFD700" stroke-width="2.6" aria-hidden="true">
+      <circle cx="24" cy="24" r="5"/>
+      <path d="M24 9a15 15 0 0 1 0 30" opacity=".65"/>
+      <path d="M24 2.5a21.5 21.5 0 0 1 0 43" opacity=".35"/>
+      <path d="M24 39a15 15 0 0 1 0-30" opacity=".65"/>
+      <path d="M24 45.5a21.5 21.5 0 0 1 0-43" opacity=".35"/>
+    </svg>
+    <b>Boom</b>
+  </a>
+  <span class="eti">Market weather</span>
+  <span id="ora" aria-label="Rome time"></span>
+</header>
+
+<div class="eroe">
+  <div class="wrap">
+    <span class="sopra"><i></i>Rome · updated daily</span>
+    <h1>How fast is Rome <b>renting</b> right now?</h1>
+    <p class="sotto">The weather report of Rome's rental market, zone by
+    zone: what homes are <b>asking per m²</b>, how many <b>days</b> a home
+    takes to rent, and how many <b>price cuts</b> landed in the last month.
+    Measured on listings BOOM tracks across portals — and on homes
+    <b>proven gone</b>, not guessed.</p>
+    <div id="aggiornato"></div>
+
+    <div class="breve">
+      <b>In brief</b>
+      <ul id="breve-li">
+        <li>Numbers load below — each zone shows the median asked €/m² with
+        its 25th–75th percentile band, the median days-to-rent, and the
+        price cuts of the last 30 days.</li>
+        <li>Days-to-rent counts only listings verified as gone — never
+        assumptions.</li>
+        <li>A zone below the minimum sample shows no numbers at all: it is
+        listed as “still measuring”.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<main>
+<section>
+  <div class="wrap">
+    <h2>Zone bulletins</h2>
+    <div class="filo"></div>
+    <div id="stato">Reading today's bulletin…
+      <noscript>This page needs JavaScript to load the live numbers. The
+      data is also served as JSON at <a href="/api/meteo">/api/meteo</a>.</noscript>
+    </div>
+    <div id="bollettini"></div>
+    <p id="misurando" hidden></p>
+  </div>
+</section>
+
+<section class="metodo">
+  <div class="wrap">
+    <h2>How it's measured</h2>
+    <div class="filo"></div>
+    <p><b>Asked €/m²</b> is the median of live listings in the zone, with
+    the 25th–75th percentile band shown as the bar — the real spread, not
+    a single average.</p>
+    <p><b>Days-to-rent</b> (absorption) is the median lifespan of listings
+    that are <b>proven gone</b>: a home counts only when its listing has
+    verifiably disappeared, in a 270-day window. A blocked check or an
+    ambiguous page never counts as a rental.</p>
+    <p><b>Price cuts</b> counts listings in the zone whose price dropped in
+    the last 30 days.</p>
+    <p class="nota">Sources: rental listings BOOM tracks across the major
+    portals plus its own catalog, aggregated per zone every morning. Zones
+    with fewer data points than the minimum sample are never scored — a
+    median over three listings would be noise dressed as a number. This
+    page republishes aggregates only: never individual listings, sources
+    or contacts.</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Now that you know the weather</h2>
+    <div class="filo"></div>
+    <div class="porte">
+      <a class="p" href="/apartments">See the homes</a>
+      <a class="s" href="/board">The live board</a>
+      <a class="s" href="/welcome-to-rome">Welcome to Rome kit</a>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>BOOM® — Rome rentals for internationals ·
+    <a href="/">boomrome.com</a> · Data: <a href="/api/meteo">/api/meteo</a>
+    (JSON, free)</span>
+  </div>
+</footer>
+
+<script src="/js/scalo-codes.js"></script>
+<script>
+(function(){
+'use strict';
+
+/* l'orologio di Roma — vivo, come sul tabellone */
+var ora=document.getElementById('ora');
+function tic(){
+  try{
+    ora.textContent=new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Rome',
+      hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date())+' ROM';
+  }catch(e){}
+}
+tic();setInterval(tic,20000);
+
+function esc(s){return String(s==null?'':s).replace(/[<>&"]/g,function(c){
+  return {'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]})}
+
+var SC=window.BOOM_SCALO||null;
+
+function card(z){
+  var a=z.asked;
+  var top='<div class="zt">'
+    +(SC&&SC.zoneCode(z.zone)?'<span class="cod">'+esc(SC.zoneCode(z.zone))+'</span>':'')
+    +'<h3>'+esc(z.zone)+'</h3></div>';
+  var corpo='';
+  if(a&&a.medianEurSqm!=null){
+    var lo=a.p25,hi=a.p75;
+    var pos=(hi>lo)?Math.min(98,Math.max(2,(a.medianEurSqm-lo)/(hi-lo)*100)):50;
+    corpo+='<div class="grande"><b>€'+esc(a.medianEurSqm)+'</b>'
+      +'<span>/m² asked · median</span></div>'
+      +'<div class="banda"><i></i><s style="left:'+pos.toFixed(1)+'%"></s></div>'
+      +'<div class="banda-eti"><span>p25 €'+esc(lo)+'</span>'
+      +'<span>p75 €'+esc(hi)+'</span></div>';
+  }else{
+    corpo+='<div class="senza">Asked-rent sample still below threshold.</div>';
+  }
+  if(z.absorptionDays!=null){
+    corpo+='<div class="riga"><span>Days to rent · median</span>'
+      +'<b>'+esc(z.absorptionDays)+' days</b></div>';
+  }
+  corpo+='<div class="riga"><span>Price cuts · 30 days</span>'
+    +'<b'+(z.priceDrops30d>0?' class="giu"':'')+'>'+esc(z.priceDrops30d)+'</b></div>';
+  if(z.activeCount!=null){
+    corpo+='<div class="riga"><span>Live listings tracked</span>'
+      +'<b>'+esc(z.activeCount)+'</b></div>';
+  }
+  var campioni=[];
+  if(a&&a.sample!=null)campioni.push('asked n='+a.sample);
+  if(z.absorptionSample!=null)campioni.push('gone n='+z.absorptionSample);
+  if(campioni.length)corpo+='<div class="piede">sample: '+esc(campioni.join(' · '))+'</div>';
+  return '<article class="zona">'+top+corpo+'</article>';
+}
+
+fetch('/api/meteo').then(function(r){return r.ok?r.json():null}).then(function(j){
+  var stato=document.getElementById('stato');
+  if(!j||!j.ok){throw new Error('bad')}
+  var box=document.getElementById('bollettini');
+  if(!j.zones.length){
+    stato.textContent='The bulletin is warming up — the market radar has '
+      +'not yet measured enough homes to score a zone. Check back soon.';
+    return;
+  }
+  stato.remove();
+  box.innerHTML=j.zones.map(card).join('');
+  if(j.generatedAt){
+    var d=new Date(j.generatedAt);
+    document.getElementById('aggiornato').textContent=
+      'Bulletin generated '+new Intl.DateTimeFormat('en-GB',{
+        timeZone:'Europe/Rome',day:'numeric',month:'short',year:'numeric',
+        hour:'2-digit',minute:'2-digit'}).format(d)+' (Rome time)'
+      +(j.minSample!=null?' · minimum sample '+j.minSample:'');
+  }
+  /* «in breve» coi numeri VERI della zona più campionata */
+  var z0=j.zones[0];
+  if(z0&&z0.asked){
+    var li=document.getElementById('breve-li');
+    var extra=document.createElement('li');
+    extra.textContent='Right now, the most-sampled zone is '+z0.zone+': median asked €'
+      +z0.asked.medianEurSqm+'/m² (p25–p75 €'+z0.asked.p25+'–€'+z0.asked.p75+')'
+      +(z0.absorptionDays!=null?', a home rents in ~'+z0.absorptionDays+' days':'')
+      +'.';
+    li.insertBefore(extra,li.firstChild);
+  }
+  if(j.measuring&&j.measuring.length){
+    var m=document.getElementById('misurando');
+    m.hidden=false;
+    m.innerHTML='<b>Still measuring</b> (sample below threshold, no numbers '
+      +'yet): '+esc(j.measuring.join(' · '))+'.';
+  }
+}).catch(function(){
+  var stato=document.getElementById('stato');
+  if(stato)stato.innerHTML='The bulletin could not load right now — the raw '
+    +'JSON lives at <a href="/api/meteo">/api/meteo</a>, or just '
+    +'<a href="https://wa.me/393313251961">ask us on WhatsApp</a>.';
+});
+})();
+</script>
+</body>
+</html>

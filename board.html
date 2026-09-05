@@ -11,8 +11,8 @@
 <meta property="og:title" content="BOOM · Rome — Live Board">
 <meta property="og:description" content="The live departures board of BOOM Rome: every verified home, its zone, price and status — updated like an airport.">
 <meta property="og:url" content="https://www.boomrome.com/board">
-<meta property="og:image" content="https://www.boomrome.com/og-home.png">
-<meta property="og:image:secure_url" content="https://www.boomrome.com/og-home.png">
+<meta property="og:image" content="https://www.boomrome.com/og-board.png">
+<meta property="og:image:secure_url" content="https://www.boomrome.com/og-board.png">
 <meta property="og:image:type" content="image/png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -22,7 +22,7 @@
 <meta name="twitter:creator" content="@boomrome">
 <meta name="twitter:title" content="BOOM · Rome — Live Board">
 <meta name="twitter:description" content="The live departures board of BOOM Rome: every verified home, its zone, price and status — updated like an airport.">
-<meta name="twitter:image" content="https://www.boomrome.com/og-home.png">
+<meta name="twitter:image" content="https://www.boomrome.com/og-board.png">
 <meta name="twitter:image:alt" content="BOOM · Rome — Live Board">
 <meta name="description" content="The live departures board of BOOM Rome: every verified home, its zone, price and status — updated like an airport.">
 <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
@@ -122,10 +122,26 @@ body { background:var(--black); color:#FAFAFA; font-family:var(--sans);
 .cella { overflow:hidden; }
 .c-stato { color:var(--green); }
 .riga.nuovo .c-stato { color:var(--gold-light); }
+/* ARRIVI: la casa in atterraggio (data di rilascio nota) — ETA e stato
+   in oro: non si entra oggi, si prenota (marketLane 'ahead') */
+.riga.presto .c-stato, .riga.presto .c-ora { color:var(--gold-light); }
+.lato-riga { display:flex; align-items:baseline; gap:16px;
+  padding:0 clamp(8px,1vw,20px) 1.6vh; }
+.lato-riga .flap-scale { font-size:clamp(15px,2.6vh,26px); font-weight:500;
+  letter-spacing:.1em; }
+.lato-nota { font-size:clamp(10px,1.5vh,14px); font-weight:600;
+  letter-spacing:.2em; text-transform:uppercase; color:rgba(250,250,250,.4); }
+@media (max-width:560px){ .lato-nota { display:none; } }
 .fondo { display:flex; align-items:center; justify-content:space-between;
   gap:16px; padding:clamp(16px,2.6vh,30px) clamp(22px,3.5vw,60px);
   border-top:1px solid var(--line-0); font-size:clamp(12px,1.7vh,16px);
   letter-spacing:.14em; text-transform:uppercase; color:rgba(250,250,250,.5); }
+/* Il piede a tre voci non entra a 390 quando i puntini delle pagine
+   crescono — e col tabellone a due lati (e l'idrante) il loro numero
+   VARIA col catalogo: sotto i 700px si va a capo invece di spingere
+   la pagina di lato (la stessa cura di .cima). */
+@media (max-width:700px){ .fondo { flex-wrap:wrap; justify-content:center;
+  gap:6px 14px; padding:12px; font-size:11px; } }
 .fondo b { color:var(--gold); font-weight:600; }
 .pagine { display:flex; gap:8px; }
 .pagine i { width:26px; height:3px; background:var(--line); font-style:normal;
@@ -251,6 +267,10 @@ html {
   <div id="ora" class="flap-scale"></div>
 </div>
 <div class="sala">
+  <div class="lato-riga">
+    <span id="lato" class="flap-scale">DEPARTURES</span>
+    <span class="lato-nota" id="latoNota">Boarding now</span>
+  </div>
   <div class="colonne">
     <span>Free</span><span>District</span><span>Beds</span><span>Rent /mo</span><span>State</span>
   </div>
@@ -437,6 +457,7 @@ html {
 })();
 </script>
 
+<script src="/js/dispo-engine.js"></script>
 <script>
 (function () {
   'use strict';
@@ -444,7 +465,33 @@ html {
   var DRUM = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789€.,:·+/';
   var CASE = [{"ora": "31JAN", "zona": "CENTRO", "tipo": "3BR", "prezzo": "€1,500", "stato": "LIST"}, {"ora": "NOW", "zona": "PIGNETO", "tipo": "2BR", "prezzo": "€1,600", "stato": "NEW"}, {"ora": "1JAN", "zona": "PIGNETO", "tipo": "3BR", "prezzo": "€2,000", "stato": "LIST"}, {"ora": "NOW", "zona": "PIGNETO", "tipo": "2BR", "prezzo": "€1,500", "stato": "NEW"}, {"ora": "NOW", "zona": "PONTE MILVIO", "tipo": "1BR", "prezzo": "€1,250", "stato": "FREE"}, {"ora": "NOW", "zona": "TRASTEVERE", "tipo": "1BR", "prezzo": "€1,200", "stato": "FREE"}, {"ora": "NOW", "zona": "TRIESTE", "tipo": "1BR", "prezzo": "€1,200", "stato": "FREE"}, {"ora": "NOW", "zona": "TRIESTE", "tipo": "1BR", "prezzo": "€2,000", "stato": "FREE"}, {"ora": "NOW", "zona": "PONTE MILVIO", "tipo": "1BR", "prezzo": "€1,200", "stato": "FREE"}, {"ora": "NOW", "zona": "PRATI", "tipo": "1BR", "prezzo": "€2,000", "stato": "LIST"}, {"ora": "NOW", "zona": "PARIOLI", "tipo": "1BR", "prezzo": "€1,000", "stato": "LIST"}, {"ora": "NOW", "zona": "AFRICANO", "tipo": "1BR", "prezzo": "€900", "stato": "FREE"}, {"ora": "NOW", "zona": "PIGNETO", "tipo": "2BR", "prezzo": "€1,700", "stato": "LIST"}, {"ora": "1SEP", "zona": "VITTORIO VENE", "tipo": "1BR", "prezzo": "€1,300", "stato": "LIST"}, {"ora": "NOW", "zona": "PRATI", "tipo": "1BR", "prezzo": "€1,500", "stato": "FREE"}, {"ora": "NOW", "zona": "CONCA D'ORO", "tipo": "1BR", "prezzo": "€1,750", "stato": "LIST"}, {"ora": "NOW", "zona": "CENTRO STORIC", "tipo": "1BR", "prezzo": "€1,800", "stato": "LIST"}, {"ora": "1SEP", "zona": "CENTRO STORIC", "tipo": "1BR", "prezzo": "€2,300", "stato": "LIST"}];
   var PER = 6, GIRO = 14000;
-  var pagine = Math.max(1, Math.ceil(CASE.length / PER));
+
+  /* ══ PARTENZE / ARRIVI (STUDIO_AVIATION S4) ═══════════════════════════
+     Il dato c'era già: la colonna `ora` porta NOW (si entra adesso) oppure
+     la data di rilascio. Prima i due flussi erano mischiati; ora il
+     tabellone li separa come uno scalo vero — DEPARTURES = boarding,
+     ARRIVALS = in atterraggio, stato SOON in oro. La fotografia di build
+     è lo scheletro; l'idrante (in coda) la sostituisce col catalogo VERO. */
+  function buildPages(part, arr) {
+    var pages = [];
+    for (var pi = 0; pi < Math.ceil(part.length / PER); pi++) pages.push({
+      lato:'DEPARTURES', nota:'Boarding now',
+      rows:part.slice(pi * PER, pi * PER + PER) });
+    for (var ai = 0; ai < Math.ceil(arr.length / PER); ai++) pages.push({
+      lato:'ARRIVALS', nota:'Free soon · reserve ahead',
+      rows:arr.slice(ai * PER, ai * PER + PER) });
+    /* mai una pagina fantasma: un lato vuoto non entra nel giro, e a
+       catalogo vuoto resta lo scheletro delle partenze */
+    if (!pages.length) pages.push({ lato:'DEPARTURES', nota:'Boarding now', rows:[] });
+    return pages;
+  }
+  var PAGES = buildPages(
+    CASE.filter(function (h) { return h.ora === 'NOW'; }),
+    CASE.filter(function (h) { return h.ora !== 'NOW'; })
+      .map(function (h) { return { ora:h.ora, zona:h.zona, tipo:h.tipo,
+        prezzo:h.prezzo, stato:'SOON', presto:true }; }));
+
+  var pagine = PAGES.length;
   var box = document.getElementById('righe');
   var nav = document.getElementById('pagine');
   var righe = [];
@@ -465,20 +512,33 @@ html {
       stato: new BS.Board(d.querySelector('.c-stato'),  5,  DRUM)
     }});
   }
-  for (var k = 0; k < pagine; k++) {
-    var t = document.createElement('i');
-    if (k === 0) t.className = 'qui';
-    nav.appendChild(t);
+  function dipingiNav(attiva) {
+    nav.textContent = '';
+    for (var k = 0; k < pagine; k++) {
+      var t = document.createElement('i');
+      if (k === (attiva || 0)) t.className = 'qui';
+      nav.appendChild(t);
+    }
   }
+  dipingiNav(0);
+  /* il lato del tabellone: DEPARTURES ⇄ ARRIVALS, ante vere */
+  var latoEl = document.getElementById('lato');
+  var latoNotaEl = document.getElementById('latoNota');
+  var lato = latoEl ? new BS.Board(latoEl, 10, DRUM) : null;
+  if (lato) lato.show(PAGES[0].lato, 40, true);
+
   var pagina = 0;
   function mostra(p, sbatti) {
     pagina = p;
     [].forEach.call(nav.children, function (x, k) {
       x.classList.toggle('qui', k === p);
     });
+    if (lato) lato.update(PAGES[p].lato);
+    if (latoNotaEl) latoNotaEl.textContent = PAGES[p].nota;
     righe.forEach(function (r, i) {
-      var h = CASE[p * PER + i];
+      var h = PAGES[p].rows[i];
       r.el.classList.toggle('nuovo', !!h && h.stato === 'NEW');
+      r.el.classList.toggle('presto', !!h && !!h.presto);
       var mostraR = function () {
         r.celle.ora.update(h ? h.ora : '');
         r.celle.zona.update(h ? h.zona : '');
@@ -491,7 +551,7 @@ html {
   }
   /* prima stampa col giro completo */
   righe.forEach(function (r, i) {
-    var h = CASE[i];
+    var h = PAGES[0].rows[i];
     setTimeout(function () {
       if (!h) return;
       r.celle.ora.show(h.ora, 24, true);
@@ -500,12 +560,91 @@ html {
       r.celle.prezzo.show(h.prezzo, 22, true);
       r.celle.stato.show(h.stato, 22, true);
       r.el.classList.toggle('nuovo', h.stato === 'NEW');
+      r.el.classList.toggle('presto', !!h.presto);
     }, 400 + i * 160);
   });
-  if (pagine > 1) setInterval(function () {
-    if (document.hidden) return;
+  /* la rotazione legge `pagine` a ogni giro: l'idrante può cambiarle */
+  setInterval(function () {
+    if (document.hidden || pagine < 2) return;
     mostra((pagina + 1) % pagine, true);
   }, GIRO);
+
+  /* ══ L'IDRANTE (S4-full) — il tabellone legge il catalogo VERO ════════
+     Stessa porta della vetrina (REST pubblico su `listings`) e STESSO
+     motore delle corsie (BOOM_DISPO.marketLane): partenze = lane 'now',
+     arrivi = lane 'ahead' con l'ETA del MOTORE — mai un parser locale
+     (il parser povero della build è il difetto storico della vetrina).
+     La regola 1 di dispo-engine vale anche in vetrina fisica: una data
+     ILLEGGIBILE non dice mai NOW — dice ASK. Le corsie 'closed' non
+     salgono sul tabellone. Fail-open: rete giù o motore assente → resta
+     la fotografia di build, il kiosk non è mai nero. */
+  function laneRows(docs) {
+    var D = window.BOOM_DISPO;
+    if (!D || !D.marketLane) return null;
+    var MESI = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
+    var part = [], arr = [];
+    docs.forEach(function (doc) {
+      var f = doc.fields || {};
+      function v(k) {
+        var x = f[k]; if (!x) return null;
+        return x.stringValue != null ? x.stringValue
+          : x.integerValue != null ? x.integerValue
+          : x.doubleValue != null ? x.doubleValue : null;
+      }
+      var m;
+      try {
+        m = D.marketLane({
+          status: String(v('status') || '').toLowerCase(),
+          availableFrom: String(v('availableFrom') || ''),
+          availableDate: String(v('availableDate') || '')
+        });
+      } catch (e) { return; }
+      if (!m || m.lane === 'closed') return;
+      var p = Math.round(parseFloat(v('price')));
+      var beds = parseInt(v('bedrooms'), 10);
+      var riga = {
+        zona: String(v('zone') || v('name') || 'ROMA').toUpperCase().slice(0, 13),
+        tipo: isFinite(beds) && beds > 0 ? beds + 'BR' : '',
+        prezzo: isFinite(p) && p > 0 ? '€' + p.toLocaleString('en-GB') : ''
+      };
+      if (m.lane === 'ahead') {
+        riga.ora = m.iso
+          ? String(+m.iso.slice(8, 10)) + MESI[+m.iso.slice(5, 7) - 1] : '';
+        riga.stato = 'SOON'; riga.presto = true; riga._d = m.daysOut;
+        arr.push(riga);
+      } else if (m.dateUnreadable) {
+        riga.ora = ''; riga.stato = 'ASK'; riga.presto = true;
+        part.push(riga);
+      } else {
+        riga.ora = 'NOW'; riga.stato = 'FREE';
+        part.push(riga);
+      }
+    });
+    /* gli arrivi in ordine di ETA: è un tabellone arrivi, atterra prima
+       chi atterra prima; senza data in coda */
+    arr.sort(function (a, b) {
+      return (a._d == null ? 9e9 : a._d) - (b._d == null ? 9e9 : b._d);
+    });
+    return { part: part, arr: arr };
+  }
+  function idrante() {
+    fetch('https://firestore.googleapis.com/v1/projects/'
+        + 'boom-property-dashboards/databases/(default)/documents/'
+        + 'listings?pageSize=300')
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (j) {
+        if (!j || !j.documents) return;
+        var rows = laneRows(j.documents);
+        if (!rows || (!rows.part.length && !rows.arr.length)) return;
+        PAGES = buildPages(rows.part, rows.arr);
+        pagine = PAGES.length;
+        dipingiNav(0);
+        mostra(0, true);
+      })
+      .catch(function () {});
+  }
+  setTimeout(idrante, 2500);
+  setInterval(function () { if (!document.hidden) idrante(); }, 300000);
   /* l'orologio */
   function oraRoma() {
     try {

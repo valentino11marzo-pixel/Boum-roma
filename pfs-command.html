@@ -452,6 +452,27 @@ body.triage-lock { overflow: hidden; }
 /* ── Occasioni strip (💎 nel feed) ──────────────────────────── */
 #occ-strip { display: flex; gap: 10px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 14px; -webkit-overflow-scrolling: touch; }
 #occ-strip:empty { display: none; }
+/* W3 · LO SWEEP ATC (STUDIO_AVIATION) — le 💎 come blip: il blip È il dato.
+   Raggio = quanto sotto la mediana di zona (centro = occasione più forte);
+   l'ANGOLO è solo disposizione, non geografia — e il pannello lo dichiara
+   nel title. Un click sul blip trova la sua card nella strip. */
+.occ-row { display: flex; gap: 14px; align-items: stretch; margin-bottom: 14px; }
+.occ-row #occ-strip { flex: 1; min-width: 0; margin-bottom: 0; }
+#occ-atc { flex: none; width: 118px; height: 118px; position: relative;
+  border-radius: 50%; overflow: hidden; align-self: center;
+  background: repeating-radial-gradient(circle, rgba(212,175,55,.08) 0 1px, transparent 1px 22px),
+    radial-gradient(circle, #101010, #0A0A0A);
+  box-shadow: inset 0 0 0 1px rgba(212,175,55,.3); }
+#occ-atc::before { content: ''; position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(from 0deg, rgba(212,175,55,.28), transparent 65deg, transparent 360deg);
+  animation: occ-sweep 5s linear infinite; }
+@keyframes occ-sweep { to { transform: rotate(360deg); } }
+#occ-atc .blip { position: absolute; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px;
+  border-radius: 50%; background: var(--gold); border: none; padding: 0; cursor: pointer;
+  box-shadow: 0 0 8px rgba(212,175,55,.8); animation: occ-pulse 2.4s ease infinite; }
+@keyframes occ-pulse { 50% { opacity: .45; } }
+.occ-mini.lampo { box-shadow: 0 0 0 2px var(--gold); transition: box-shadow .3s; }
+@media (prefers-reduced-motion: reduce) { #occ-atc::before, #occ-atc .blip { animation: none; } }
 .occ-mini { flex: 0 0 240px; background: var(--bg-card); border: 1px solid rgba(212,175,55,0.3); border-left: 3px solid var(--gold); border-radius: 13px; padding: 11px 13px; }
 .occ-mini .om-t { font-size: 12px; line-height: 1.35; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .occ-mini .om-m { font-size: 10.5px; color: var(--text-secondary); margin-top: 4px; }
@@ -586,7 +607,10 @@ body.triage-lock { overflow: hidden; }
 
         <section id="sec-feed">
             <div class="sec-head"><h2>Feed Radar</h2><span class="sec-count" id="feed-count"></span></div>
-            <div id="occ-strip"></div>
+            <div class="occ-row" id="occ-row" hidden>
+                <div id="occ-atc" title="💎 sul radar — più vicino al centro = più sotto la mediana di zona; l'angolo è solo disposizione, non geografia"></div>
+                <div id="occ-strip"></div>
+            </div>
             <div class="filters">
                 <input type="text" id="f-q" placeholder="Cerca titolo, indirizzo, zona…" autocomplete="off">
                 <select id="f-source">
@@ -1771,6 +1795,40 @@ function renderOccStrip() {
             '</div>' +
         '</div>';
     }).join('');
+
+    // W3 · lo sweep: gli STESSI item della strip, come blip. Raggio =
+    // quanto sotto la mediana (vsMedianPct del tap — centro = più forte,
+    // senza dato = anello esterno); angolo = hash stabile dell'id, solo
+    // disposizione. Un click porta alla card corrispondente.
+    var row = $('occ-row'), atc = $('occ-atc');
+    if (row) row.hidden = !state.occ.length;
+    if (atc) {
+        atc.innerHTML = state.occ.slice(0, 10).map(function (o, i) {
+            var s = String(o.id || i), h = 0;
+            for (var k = 0; k < s.length; k++) h = (h * 31 + s.charCodeAt(k)) >>> 0;
+            var ang = (h % 360) * Math.PI / 180;
+            var depth = Math.max(0, Math.min(30, -(+o.vsMedianPct || 0)));
+            var r = 44 - (depth / 30) * 32;
+            var x = 50 + Math.cos(ang) * r, y = 50 + Math.sin(ang) * r;
+            return '<button type="button" class="blip" data-oid="' + esc(o.id) + '"' +
+                ' style="left:' + x.toFixed(1) + '%;top:' + y.toFixed(1) + '%;animation-delay:' + ((h % 12) / 10) + 's"' +
+                ' title="' + esc((o.title || 'Annuncio') + ' · ' + (o.zone || 'zona n/d') +
+                    (o.vsMedianPct != null ? ' · ' + o.vsMedianPct + '% vs mediana' : '')) + '"' +
+                ' aria-label="' + esc(o.title || 'Occasione') + '"></button>';
+        }).join('');
+        if (!atc._bound) {
+            atc._bound = true;
+            atc.addEventListener('click', function (e) {
+                var b = e.target.closest('.blip'); if (!b) return;
+                var sel = (window.CSS && CSS.escape) ? CSS.escape(b.dataset.oid) : b.dataset.oid;
+                var card = document.querySelector('.occ-mini[data-oid="' + sel + '"]');
+                if (!card) return;
+                card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+                card.classList.add('lampo');
+                setTimeout(function () { card.classList.remove('lampo'); }, 1200);
+            });
+        }
+    }
 }
 
 /* ── Le vedette (ricerche libere) ────────────────────────────── */
