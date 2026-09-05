@@ -209,6 +209,86 @@ perde più niente.
 
 Regressione: `node tests/whatsapp/run.mjs`.
 
+## La lezione del 5 settembre 2026 — "fermare il gateway" spegne Homie
+
+Il giorno in cui le transazioni Anthropic sono sembrate troppe, l'operatore
+ha scritto a Homie: *"interrompi il token che fa passare i pagamenti"*.
+Homie ha eseguito l'unica cosa che poteva: `openclaw gateway stop`. Da lì:
+LaunchAgent `ai.openclaw.gateway` scaricato da launchd, bot muto su Telegram
+per 18 ore, il Postino fermo (nessun WhatsApp approvato consegnato), e i lead
+continuavano ad arrivare perché quella catena vive su Vercel. Tre fatti da
+fissare:
+
+1. **Homie non ha alcun potere sulla fatturazione Anthropic.** Le
+   "transazioni" sono le ricariche automatiche del credito prepagato. Si
+   fermano SOLO da console.anthropic.com → Settings → Billing (limite
+   mensile, ricarica automatica). Chiederlo al bot equivale a chiedergli di
+   suicidarsi, e lo fa.
+2. **Il gateway È Homie.** Spegnerlo non riduce il costo del lavoro doppio:
+   toglie le due sole cose che il server non può fare (WhatsApp e i portali)
+   e lascia intatte le cause della spesa.
+3. **La spesa veniva dal lavoro che questo file vieta.** Il log del
+   gateway (`~/.openclaw/logs/gateway.log`) alle 23:25 mostrava Homie che
+   graduava un lead da solo — *"Score: D/20 — nessuna azione"*, tabella
+   intent, *"Grade A"*, *"Draft salvato, in coda per il morning briefing"* —
+   con `agent model: anthropic/claude-sonnet-4-6` e un `gmail-watcher`
+   acceso dentro il gateway. È il ciclo da 74k token/giorno della sezione
+   "Perché", ancora vivo un mese dopo il mandato. Il Lead Brain lo faceva
+   già gratis sul server: pagato due volte, come previsto.
+
+### Cosa verificare sul Mac mini (in ordine)
+
+```bash
+# 1. il gateway è su?  (loaded + RPC probe: ok)
+openclaw gateway status --deep | grep -E "Service|Runtime|RPC probe"
+
+# 2. chi legge Gmail e con che modello?
+grep -n -i -E "gmail|model|sonnet|haiku" ~/.openclaw/openclaw.json
+
+# 3. il vecchio bot email→WhatsApp gira ancora?  (NON è nel repo)
+launchctl list | grep boomrome
+cat ~/Library/LaunchAgents/com.boomrome.email-whatsapp-bot.plist
+
+# 4. i file di bootstrap sfondano il limite di 7000 caratteri?
+grep -c "limit 7000" ~/.openclaw/logs/gateway.err.log
+```
+
+- Il `gmail-watcher` e `com.boomrome.email-whatsapp-bot` sono i due
+  candidati per la spesa: la lettura delle email dei portali è lavoro di
+  `api/leads/scan-inbox` (cron 10′, haiku in batch, tetto giornaliero). Vanno
+  spenti LORO, non il gateway.
+- **Il modello di default del gateway va portato a haiku.** `agent-os`
+  sveglia Homie con `--thinking minimal` e si aspetta haiku; se il default
+  del gateway è Sonnet, ogni turno — anche "inoltra questo WhatsApp" — paga
+  Sonnet.
+- **I file di workspace vengono TRONCATI a 7.000 caratteri** dal gateway
+  (`SOUL.md` 9.958, `AGENTS.md` 8.237, `MEMORY.md` 23.810 al 5/09). Tutto ciò
+  che sta oltre il limite non viene MAI letto: se il divieto di analizzare
+  sta in coda a `AGENTS.md`, per Homie non esiste. Il mandato va nei primi
+  7.000 caratteri, e `MEMORY.md` va potato — la memoria per contatto è di
+  `agent-os/bin/memory.sh`, non di un file unico che cresce per sempre. Si
+  legge anche come costo: 3 file troncati a 7.000 sono ~5k token iniettati
+  a OGNI risveglio, prima ancora del messaggio.
+
+### Riaccendere il gateway
+
+```bash
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/ai.openclaw.gateway.plist
+launchctl kickstart -k gui/$(id -u)/ai.openclaw.gateway
+sleep 15; openclaw gateway status --deep | grep -E "Runtime|RPC probe"
+```
+
+Non usare `openclaw gateway restart` su macOS: fa bootout + bootstrap e il
+bootstrap fallisce in silenzio (issue openclaw/openclaw#40905). Se il plist
+manca: `openclaw gateway install`.
+
+Da questa data `agent-os/bin/health.sh` controlla il SINTOMO (LaunchAgent
+caricato + porta 18789 che risponde) e ricarica il gateway da solo; per
+tenerlo fermo di proposito: `touch ~/agent-os/state/gateway_hold`. E
+`aos_alert` cade sulla Bot API di Telegram (`TG_BOT_TOKEN` in `~/.boom/env`)
+quando il gateway è giù — prima l'allarme "gateway morto" passava DAL
+gateway morto.
+
 ## La Miniera (`/api/homie/miniera`)
 
 Lo storico WhatsApp che custodisci è l'asset: mesi di conversazioni che,

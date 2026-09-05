@@ -72,6 +72,16 @@ aos_lock() {
 # ─── send a Telegram alert via the running OpenClaw gateway ───────────
 # Uses the cron-style isolated agent turn so it goes through the same
 # proven delivery path as boom-digest. Fire-and-forget; never blocks.
+#
+# THE HOLE (2026-09-05): this path goes THROUGH the gateway. When the
+# gateway itself is down — the one failure health.sh most needs to
+# report — the alert is silently lost. So when the gateway port is not
+# answering (or the CLI is missing) we fall back to the Telegram Bot API
+# directly with curl, if TG_BOT_TOKEN is available (put it in
+# ~/.boom/env next to HOMIE_SECRET). No token → log only, and say so.
+aos_gateway_up() {
+    nc -z 127.0.0.1 "${OPENCLAW_GATEWAY_PORT:-18789}" >/dev/null 2>&1
+}
 aos_alert() {
     local message="$1"
     local urgency="${2:-info}"   # info | warn | crit
@@ -85,12 +95,19 @@ aos_alert() {
     # We don't want alerting to depend on the LLM. Send the raw text
     # via the OpenClaw agent CLI which honors --to/--channel/--deliver
     # directly (no model call for plain delivery).
-    if command -v openclaw >/dev/null 2>&1; then
+    if command -v openclaw >/dev/null 2>&1 && aos_gateway_up; then
         printf '%s %s' "$icon" "$message" | head -c 3500 | \
             openclaw agent --agent main \
                 --channel telegram --to "$TG_CHAT_ID" --deliver \
                 --message "[agent-os] $icon $message" \
                 --thinking off --timeout 30 >/dev/null 2>&1 &
+    elif [ -n "${TG_BOT_TOKEN:-}" ]; then
+        curl -s -m 15 -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TG_CHAT_ID}" \
+            --data-urlencode "text=[agent-os] $icon $message" >/dev/null 2>&1 &
+        aos_log "alert delivered via Bot API (gateway down)"
+    else
+        aos_log "alert NOT delivered: gateway down and TG_BOT_TOKEN unset"
     fi
 }
 

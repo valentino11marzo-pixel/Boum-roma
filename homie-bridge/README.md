@@ -121,6 +121,8 @@ Dopo: ogni `boom action` nuova arriva sul tuo telefono con
 | `→ 403 Host not in allowlist` | Vercel Firewall blocca | Vercel → Firewall → aggiungi il Mac all'allowlist |
 | `→ 500 server_misconfigured: HOMIE_SECRET unset` | Vercel non ha la env var | Vercel → Settings → Environment Variables → aggiungi `HOMIE_SECRET` |
 | `ai-reply → no model` | il modello Claude non è disponibile sulla key | Vercel → `ANTHROPIC_MODEL=claude-haiku-4-5` |
+| Homie muto su Telegram, lead che arrivano lo stesso | il gateway OpenClaw è spento (`openclaw gateway status --deep` → `LaunchAgent (not loaded)`): tipicamente Homie ha eseguito `gateway stop` su richiesta | sul Mac mini: `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/ai.openclaw.gateway.plist && launchctl kickstart -k gui/$(id -u)/ai.openclaw.gateway`. MAI `openclaw gateway restart` su macOS. Vedi `bot/HOMIE.md` § 5 settembre |
+| "troppe transazioni Anthropic" | ricariche automatiche del credito prepagato: Homie NON può fermarle | console.anthropic.com → Settings → Billing (limite mensile, ricarica). Poi spegni il LAVORO doppio (gmail-watcher, grading locale), non il gateway |
 | keep-alive non parte | launchd plist non caricato | `launchctl unload ~/Library/LaunchAgents/com.boomrome.homie.plist; launchctl load ~/Library/LaunchAgents/com.boomrome.homie.plist` |
 
 ## Disinstallare

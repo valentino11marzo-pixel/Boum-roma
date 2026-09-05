@@ -13,7 +13,8 @@
 #   2. pulse freshness — last_pulse_ts must be < PULSE_MAX_AGE old,
 #        otherwise the guardian itself has stalled
 #   3. wacli daemon — must have a live PID (it's the WhatsApp bridge)
-#   4. openclaw gateway — must respond (the wake path depends on it)
+#   4. openclaw gateway — LaunchAgent loaded AND port answering (the
+#        wake path depends on it; "CLI in PATH" alone proved worthless)
 #
 # Discipline:
 #   - Alerts only on STATE TRANSITION (healthy→sick / sick→healthy),
@@ -87,10 +88,48 @@ if [ -n "$wacli_pid" ] && [ "$wacli_pid" = "-" ]; then
 fi
 
 # ─── 4 · openclaw gateway reachable ──────────────────────────────────
-# The wake path runs through openclaw. If the CLI is gone from PATH the
-# whole brain is unreachable — worth knowing.
+# The wake path runs through openclaw. Until 2026-09-05 this check only
+# asked "is the CLI in PATH?" — and the day Homie was told to "fermare il
+# gateway" it ran `openclaw gateway stop`, launchd booted the LaunchAgent
+# out, the CLI stayed in PATH, and this guardian reported HEALTHY for 18
+# hours while the bot was mute on Telegram. The brain was dead and the
+# dead-man switch was the one thing that didn't notice.
+# Now we look at the SYMPTOM, not a proxy: is the LaunchAgent loaded, and
+# is the port answering? If the plist exists but the service is unloaded
+# we bootstrap it back (one attempt per tick) — unless the operator has
+# parked it on purpose: `touch ~/agent-os/state/gateway_hold` keeps it
+# down and silences the revive (delete the file to resume).
+GW_LABEL="${OPENCLAW_GATEWAY_LABEL:-ai.openclaw.gateway}"
+GW_PORT="${OPENCLAW_GATEWAY_PORT:-18789}"
+GW_PLIST="$HOME/Library/LaunchAgents/${GW_LABEL}.plist"
 if ! command -v openclaw >/dev/null 2>&1; then
     problems+=("openclaw non in PATH — il risveglio dell'agente non funziona")
+elif [ -f "$AOS_STATE/gateway_hold" ]; then
+    aos_log "gateway_hold presente — gateway fermo di proposito, nessun revive"
+else
+    gw_loaded=0
+    launchctl print "gui/$UID_NUM/$GW_LABEL" >/dev/null 2>&1 && gw_loaded=1
+    gw_listening=0
+    nc -z 127.0.0.1 "$GW_PORT" >/dev/null 2>&1 && gw_listening=1
+    if [ "$gw_loaded" -eq 0 ]; then
+        if [ -f "$GW_PLIST" ]; then
+            problems+=("gateway openclaw NON caricato in launchd (Homie muto su Telegram)")
+            if launchctl bootstrap "gui/$UID_NUM" "$GW_PLIST" >/dev/null 2>&1 \
+               && launchctl kickstart -k "gui/$UID_NUM/$GW_LABEL" >/dev/null 2>&1; then
+                revived+=("$GW_LABEL (bootstrap)")
+                aos_log "bootstrap $GW_LABEL OK"
+            else
+                aos_log "bootstrap $GW_LABEL FAILED"
+            fi
+        else
+            problems+=("gateway openclaw non installato ($GW_PLIST assente) — \`openclaw gateway install\`")
+        fi
+    elif [ "$gw_listening" -eq 0 ]; then
+        # Loaded but the port is silent: crash loop or stuck boot. One kick.
+        problems+=("gateway openclaw caricato ma porta $GW_PORT muta")
+        launchctl kickstart -k "gui/$UID_NUM/$GW_LABEL" >/dev/null 2>&1 \
+            && revived+=("$GW_LABEL (kickstart)")
+    fi
 fi
 
 # ─── DECISION · alert only on transitions ────────────────────────────
