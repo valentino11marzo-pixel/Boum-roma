@@ -14,6 +14,11 @@
 <script defer src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 <script defer src="https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js"></script>
 <script defer src="/js/firebase-config.js"></script>
+<!-- Il lessico dello scalo e le corsie di disponibilità, in UNA copia (W6):
+     il Biglietto deriva il codice zona da BOOM_SCALO e la corsia da
+     BOOM_DISPO — mai una sigla o una promessa scritte a mano. -->
+<script defer src="/js/scalo-codes.js"></script>
+<script defer src="/js/dispo-engine.js"></script>
 <style>
     :root {
         --gold: #D4AF37;
@@ -442,10 +447,17 @@
             </div>
             <div class="card">
                 <h3>Striscia annuncio <label class="switch"><input type="checkbox" id="infoOn"><i></i></label></h3>
+                <div class="row"><label>Stile</label>
+                    <div class="seg" id="infoStile">
+                        <button data-v="classica">Classica</button>
+                        <button data-v="biglietto">Biglietto</button>
+                    </div>
+                </div>
                 <div class="row"><label>Zona</label><input type="text" id="infoZona" maxlength="28" placeholder="PRATI · ROMA"></div>
                 <div class="row"><label>Prezzo</label><input type="text" id="infoPrezzo" maxlength="18" placeholder="€ 1.850 / mese"></div>
                 <div class="row"><label>Locali</label><input type="text" id="infoLocali" maxlength="14" placeholder="2 camere"></div>
                 <div class="row"><label>Metri²</label><input type="text" id="infoMq" maxlength="10" placeholder="85 mq"></div>
+                <div class="hint" id="corsiaHint" style="display:none"></div>
             </div>
             <div class="card pro-only">
                 <h3>Scrim leggibilità <label class="switch"><input type="checkbox" id="scrimOn"><i></i></label></h3>
@@ -613,7 +625,11 @@ const DEFAULT_BRAND = {
           pos: { x: 0.13, y: 0.92 } },
     badge: { on: false, text: 'NUOVO', style: 'gold', corner: 'tl' },
     scrim: { on: false, strength: 55 },
-    info: { on: false, zona: '', prezzo: '', locali: '', mq: '' },
+    // stile 'biglietto' (W6): la striscia diventa la carta di gate. `corsia`
+    // è DERIVATA (BOOM_DISPO.marketLane sull'annuncio aperto dal catalogo):
+    // mai editabile a mano e mai persistita — una corsia stantia su una casa
+    // ormai occupata sarebbe una bugia stampata in una story.
+    info: { on: false, stile: 'classica', zona: '', prezzo: '', locali: '', mq: '', corsia: null },
     quality: 92,
     upscale: false,
 };
@@ -632,6 +648,7 @@ function loadBrand() {
             const b = JSON.parse(JSON.stringify(DEFAULT_BRAND));
             Object.assign(b.wm, saved.wm || {}); Object.assign(b.badge, saved.badge || {});
             Object.assign(b.scrim, saved.scrim || {}); Object.assign(b.info, saved.info || {});
+            b.info.corsia = null; // la corsia vive solo con l'annuncio aperto ORA, mai da storage
             if (saved.quality) b.quality = saved.quality;
             if (typeof saved.upscale === 'boolean') b.upscale = saved.upscale;
             return b;
@@ -701,6 +718,16 @@ const TEMPLATES = [
         setAspectAll('4:3');
         brand.badge.on = false; brand.scrim.on = false; brand.info.on = false;
         Object.assign(brand.wm, { mode: 'firma', scale: 4.5, opacity: 90, scheme: 'classic', sub: 'ROMA', pos: { x: 0.13, y: 0.92 } });
+    } },
+    { id: 'story-biglietto', label: 'Story · Biglietto', apply() {
+        // W6: la story come annuncio di gate. Il biglietto È il badge (il
+        // badge normale si spegne); la corsia compare da sola SOLO se
+        // l'annuncio è stato aperto dal catalogo.
+        setAspectAll('9:16');
+        brand.badge.on = false;
+        brand.scrim = { on: true, strength: 55 };
+        brand.info.on = true; brand.info.stile = 'biglietto';
+        Object.assign(brand.wm, { mode: 'firma', scale: 4.5, opacity: 92, scheme: 'classic', sub: 'ROMA', pos: { x: 0.5, y: 0.07 } });
     } },
     { id: 'affittato', label: 'Affittato', apply() {
         brand.badge = { on: true, text: 'AFFITTATO', style: 'gold', corner: 'tr' };
@@ -940,8 +967,117 @@ function drawBadge(ctx, W, H, badge) {
     ctx.restore();
 }
 
+/* ── IL BIGLIETTO (STUDIO_AVIATION, W6) — la striscia come carta di gate ──
+   La grammatica di pass-delivery portata sulla story: rotta ROM → codice
+   zona (SOLO dal lessico BOOM_SCALO — nessun match → la zona per esteso,
+   MAI una sigla inventata), prezzo in oro scalo, e la corsia che esiste
+   soltanto se deriva dall'annuncio VERO aperto dal catalogo (marketLane).
+   Niente perforazioni finte bucate nella foto: una riga tratteggiata è
+   tutto il teatro che i fatti si concedono. */
+function drawBiglietto(ctx, W, H, info, aspect) {
+    const zona = (info.zona || '').trim();
+    const prezzo = (info.prezzo || '').trim();
+    const parts = [info.locali, info.mq].map(s => (s || '').trim()).filter(Boolean);
+    if (!zona && !prezzo && !parts.length) return;
+    const code = (window.BOOM_SCALO && zona) ? BOOM_SCALO.zoneCode(zona) : null;
+    const co = info.corsia && info.corsia.word ? info.corsia : null;
+
+    const m = W * 0.055, p = W * 0.05, r = W * 0.02;
+    const hasRoute = !!zona;
+    const routeH = hasRoute ? W * 0.088 : 0;
+    const sepH = hasRoute ? W * 0.052 : 0;
+    const detH = (prezzo || parts.length) ? W * 0.062 : 0;
+    const footH = W * 0.045;
+    const bh = p * 1.6 + routeH + sepH + detH + footH;
+    const inset = aspect < 0.8 ? H * 0.055 : H * 0.02;
+    const x = m, w = W - 2 * m, y = H - inset - bh;
+
+    ctx.save();
+    // la carta
+    roundRectPath(ctx, x, y, w, bh, r);
+    ctx.fillStyle = 'rgba(6,6,8,0.80)';
+    ctx.fill();
+    // filo d'oro in testa
+    roundRectPath(ctx, x, y, w, bh, r);
+    ctx.clip();
+    ctx.fillStyle = 'rgba(255,215,0,0.92)';
+    ctx.fillRect(x, y, w, Math.max(1.5, W * 0.0024));
+
+    ctx.textBaseline = 'middle';
+    let cy = y + p * 0.8;
+
+    if (hasRoute) {
+        const rm = cy + routeH / 2;
+        const rfs = W * 0.058;
+        ctx.font = `200 ${rfs}px ${FONT}`;
+        ctx.fillStyle = '#FFFFFF';
+        const lw = drawSpaced(ctx, 'ROM', x + p, rm, rfs * 0.14);
+        // destinazione: il codice dal lessico, o la zona per esteso (ridotta)
+        let dest = code || zona.toUpperCase();
+        let dfs = code ? rfs : rfs * 0.52;
+        ctx.font = `300 ${dfs}px ${FONT}`;
+        while (!code && spacedWidth(ctx, dest, dfs * 0.14) > w * 0.42 && dfs > rfs * 0.3) {
+            dfs *= 0.92; ctx.font = `300 ${dfs}px ${FONT}`;
+        }
+        const dw = spacedWidth(ctx, dest, dfs * 0.14);
+        ctx.fillStyle = '#FFD700';
+        drawSpaced(ctx, dest, x + w - p - dw, rm, dfs * 0.14);
+        // la tratta: linea tratteggiata + aereo
+        const lx1 = x + p + lw + W * 0.03, lx2 = x + w - p - dw - W * 0.03;
+        if (lx2 > lx1 + W * 0.04) {
+            ctx.strokeStyle = 'rgba(255,255,255,0.34)';
+            ctx.lineWidth = Math.max(1, W * 0.0015);
+            ctx.setLineDash([W * 0.008, W * 0.009]);
+            ctx.beginPath(); ctx.moveTo(lx1, rm); ctx.lineTo(lx2, rm); ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.font = `300 ${W * 0.026}px ${FONT}`;
+            ctx.fillStyle = 'rgba(255,255,255,0.6)';
+            const pw = ctx.measureText('✈').width;
+            ctx.fillText('✈', (lx1 + lx2) / 2 - pw / 2, rm - W * 0.001);
+        }
+        cy += routeH;
+        // il tratteggio della perforazione fra rotta e dati
+        ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+        ctx.lineWidth = Math.max(1, W * 0.0012);
+        ctx.setLineDash([W * 0.006, W * 0.008]);
+        ctx.beginPath(); ctx.moveTo(x + p * 0.6, cy + sepH / 2); ctx.lineTo(x + w - p * 0.6, cy + sepH / 2); ctx.stroke();
+        ctx.setLineDash([]);
+        cy += sepH;
+    }
+
+    if (detH) {
+        const dm = cy + detH / 2;
+        if (parts.length) {
+            ctx.font = `300 ${W * 0.030}px ${FONT}`;
+            ctx.fillStyle = 'rgba(255,255,255,0.74)';
+            ctx.fillText(parts.join('  ·  '), x + p, dm);
+        }
+        if (prezzo) {
+            ctx.font = `300 ${W * 0.042}px ${FONT}`;
+            ctx.fillStyle = '#FFD700';
+            const pw2 = ctx.measureText(prezzo).width;
+            ctx.fillText(prezzo, x + w - p - pw2, dm);
+        }
+        cy += detH;
+    }
+
+    // piede: il marchio a sinistra, la corsia (solo se DERIVATA) a destra
+    const fm = cy + footH / 2;
+    ctx.font = `400 ${W * 0.020}px ${FONT}`;
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    drawSpaced(ctx, 'BOOMROME.COM', x + p, fm, W * 0.020 * 0.28);
+    if (co) {
+        ctx.font = `500 ${W * 0.021}px ${FONT}`;
+        ctx.fillStyle = co.tone === 'ok' ? '#00FF88' : '#FFE55C';
+        const cw2 = spacedWidth(ctx, co.word, W * 0.021 * 0.22);
+        drawSpaced(ctx, co.word, x + w - p - cw2, fm, W * 0.021 * 0.22);
+    }
+    ctx.restore();
+}
+
 function drawInfoBar(ctx, W, H, info, aspect) {
     if (!info.on) return;
+    if (info.stile === 'biglietto') return drawBiglietto(ctx, W, H, info, aspect);
     const parts = [info.locali, info.mq].map(s => (s || '').trim()).filter(Boolean);
     const zona = (info.zona || '').trim().toUpperCase();
     const prezzo = (info.prezzo || '').trim();
@@ -1249,6 +1385,9 @@ function updateDragTip() {
 function addFiles(fileList) {
     const files = Array.from(fileList || []).filter(f => f.type.startsWith('image/'));
     if (!files.length) { toast('Nessuna immagine valida'); return; }
+    // foto locali = nessun annuncio sotto: la corsia del biglietto muore qui
+    // (una NOW BOARDING ereditata da un altro annuncio sarebbe una bugia).
+    brand.info.corsia = null;
     let pending = files.length;
     files.forEach(f => {
         const reader = new FileReader();
@@ -1662,15 +1801,17 @@ bindObj('infoLocali', brand.info, 'locali', false);
 bindObj('infoMq', brand.info, 'mq', false);
 bindObj('scrimOn', brand.scrim, 'on', true);
 bindObj('scrimStrength', brand.scrim, 'strength', false, 'outScrim', v => v + '%');
-['badgeStyle', 'badgeCorner'].forEach(id => {
-    const seg = $(id), key = id === 'badgeStyle' ? 'style' : 'corner';
+[['badgeStyle', () => brand.badge, 'style'],
+ ['badgeCorner', () => brand.badge, 'corner'],
+ ['infoStile', () => brand.info, 'stile']].forEach(([id, obj, key]) => {
+    const seg = $(id);
     seg.addEventListener('click', e => {
         const b = e.target.closest('button'); if (!b) return;
-        brand.badge[key] = b.dataset.v;
+        obj()[key] = b.dataset.v;
         seg.querySelectorAll('button').forEach(x => x.classList.toggle('active', x === b));
         saveBrand(); render();
     });
-    seg._sync = () => seg.querySelectorAll('button').forEach(x => x.classList.toggle('active', x.dataset.v === brand.badge[key]));
+    seg._sync = () => seg.querySelectorAll('button').forEach(x => x.classList.toggle('active', x.dataset.v === obj()[key]));
 });
 
 function syncBrandControls() {
@@ -1680,7 +1821,11 @@ function syncBrandControls() {
     ['wmText', 'wmSub', 'wmDot', 'wmScale', 'wmOpacity', 'wmSpacing', 'wmDensity'].forEach(id => $(id)._sync());
     $('wmScheme').querySelectorAll('button').forEach(x => x.classList.toggle('active', x.dataset.v === brand.wm.scheme));
     ['badgeOn', 'badgeText', 'infoOn', 'infoZona', 'infoPrezzo', 'infoLocali', 'infoMq', 'scrimOn', 'scrimStrength'].forEach(id => $(id)._sync());
-    $('badgeStyle')._sync(); $('badgeCorner')._sync();
+    $('badgeStyle')._sync(); $('badgeCorner')._sync(); $('infoStile')._sync();
+    // il cartello della corsia: dichiara da dove viene la parola, mai un input
+    const ch = $('corsiaHint'), co = brand.info.corsia;
+    ch.style.display = co ? '' : 'none';
+    if (co) ch.innerHTML = 'Corsia dal catalogo: <b>' + String(co.word).replace(/</g, '&lt;') + '</b> — derivata dalla disponibilità vera dell\'annuncio aperto (si azzera caricando foto locali).';
     updateDragTip();
 }
 
@@ -2540,6 +2685,24 @@ async function openListing(l) {
     if (l.price) brand.info.prezzo = '€ ' + Number(l.price).toLocaleString('it-IT') + ' / mese';
     if (l.bedrooms) brand.info.locali = l.bedrooms + (+l.bedrooms === 1 ? ' camera' : ' camere');
     if (l.sqm) brand.info.mq = l.sqm + ' mq';
+    // LA CORSIA DEL BIGLIETTO (W6): derivata SOLO qui, dall'annuncio VERO
+    // appena aperto, con le corsie di BOOM_DISPO.marketLane — la stessa
+    // disciplina del board: now → NOW BOARDING, ahead con data → FROM
+    // <giorno mese>, tutto il resto → nessuna parola. Mai un input a mano.
+    brand.info.corsia = (() => {
+        try {
+            if (!window.BOOM_DISPO) return null;
+            const MESI = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+            const lane = BOOM_DISPO.marketLane(l);
+            if (lane.lane === 'now') return { word: 'NOW BOARDING', tone: 'ok' };
+            if (lane.lane === 'ahead' && lane.iso) {
+                const yr = lane.iso.slice(0, 4) === String(new Date().getFullYear()) ? '' : ' ' + lane.iso.slice(0, 4);
+                return { word: 'FROM ' + (+lane.iso.slice(8, 10)) + ' ' + MESI[+lane.iso.slice(5, 7) - 1] + yr, tone: 'ahead' };
+            }
+            if (lane.lane === 'ahead') return { word: 'RESERVE AHEAD', tone: 'ahead' };
+            return null;
+        } catch (e) { return null; }
+    })();
     saveBrand();
     renderThumbs(); syncPhotoControls(); syncBrandControls(); syncTextControls(); render();
     toast(loaded.length + ' foto caricate — ' + (l.name || l.id) + (fails ? ` (${fails} non scaricabili)` : ''));

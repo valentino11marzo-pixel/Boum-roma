@@ -17,7 +17,9 @@
 
 import { fsList, fsPatch } from '../homie/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
+import { shell, para, btn, fine } from '../preagreement/_notify.js';
 import DISPO from '../../js/dispo-engine.js';
+import SCALO from '../../js/scalo-codes.js';
 
 const SITE = 'https://www.boomrome.com';
 
@@ -65,36 +67,62 @@ export function matches(criteria, l) {
 }
 
 const eur = n => '€' + Number(n || 0).toLocaleString('en-US');
+const escH = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', '"': '&quot;' }[c]));
 
-function digestHtml(search, hits) {
-  const rows = hits.map(l => `
-    <tr><td style="padding:12px 0;border-bottom:1px solid #eee">
-      <a href="${SITE}/listing/${encodeURIComponent(l.id)}" style="color:#111;text-decoration:none">
-        <strong style="font-size:15px">${(l.name || 'Apartment').replace(/</g, '&lt;')}</strong><br>
-        <span style="color:#666;font-size:13px">${(l.zone || 'Rome').replace(/</g, '&lt;')}
-        · ${l.beds || 'Studio'} bed · ${l.sqm ? l.sqm + ' m² · ' : ''}<strong style="color:#111">${eur(l.price)}/mo</strong>
-        ${(() => { const m = DISPO.marketLane(l); return m.lane === 'ahead'
-          ? (m.iso ? ` · <em>free from ${m.iso} — reservable now</em>`
-            : ' · <em>reservable ahead</em>') : ''; })()}</span><br>
-        <span style="color:#B8960C;font-size:13px">View the home →</span>
+// IL NOTAM DEL SEGUGIO (STUDIO_AVIATION, W5): il digest parla la lingua del
+// board — righe da tabellone, codici di rotta dal lessico condiviso, corsie
+// da marketLane — dentro il design system email condiviso (shell), così chi
+// ha già ricevuto una email BOOM riconosce anche questa.
+//
+// La corsia esce SOLO da marketLane (la disciplina del board): now → FREE,
+// ahead con data → FREE FROM <giorno mese>, ahead senza data → RESERVE
+// AHEAD. `closed` non arriva mai qui: isRentable lo esclude alla porta.
+const MESI_EN = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+export function laneWord(l, today = new Date()) {
+  const m = DISPO.marketLane(l);
+  if (m.lane === 'now') return { word: 'FREE', color: '#1E7A45' };
+  if (m.lane === 'ahead') {
+    if (!m.iso) return { word: 'RESERVE AHEAD', color: '#8A6D1D' };
+    const yr = m.iso.slice(0, 4) === String(today.getFullYear()) ? '' : ' ' + m.iso.slice(0, 4);
+    return { word: `FREE FROM ${+m.iso.slice(8, 10)} ${MESI_EN[+m.iso.slice(5, 7) - 1]}${yr}`, color: '#8A6D1D' };
+  }
+  return null;
+}
+
+export function digestHtml(search, hits) {
+  const rows = hits.map(l => {
+    // il codice SOLO dal lessico curato — nessun match → niente sigla,
+    // resta il nome della zona per esteso (mai una sigla inventata).
+    const code = SCALO.zoneCode(String(l.zone || ''));
+    const lane = laneWord(l);
+    const meta = [escH(l.zone || 'Rome'), l.beds ? l.beds + ' bed' : 'Studio', l.sqm ? l.sqm + ' m²' : '']
+      .filter(Boolean).join(' · ');
+    return `
+    <tr><td style="padding:13px 0;border-bottom:1px solid #E7E4DC">
+      <a href="${SITE}/listing/${encodeURIComponent(l.id)}" style="text-decoration:none">
+        <table width="100%" cellpadding="0" cellspacing="0"><tr>
+          <td style="font-family:Helvetica,Arial,sans-serif">
+            ${code ? `<span style="display:inline-block;border:1px solid #8A6D1D;color:#8A6D1D;font-size:9.5px;letter-spacing:1.6px;padding:2px 7px;border-radius:4px;margin-right:8px;vertical-align:1px">${code}</span>` : ''}<strong style="font-size:15px;font-weight:500;color:#141414">${escH(l.name || 'Apartment')}</strong><br>
+            <span style="color:#6E6A60;font-size:12.5px;line-height:1.9">${meta}</span>
+          </td>
+          <td align="right" style="font-family:Helvetica,Arial,sans-serif;white-space:nowrap;vertical-align:top">
+            <strong style="font-size:15px;color:#8A6D1D">${eur(l.price)}/mo</strong><br>
+            ${lane ? `<span style="font-size:10px;letter-spacing:1.6px;color:${lane.color}">${lane.word}</span>` : ''}
+          </td>
+        </tr></table>
       </a>
-    </td></tr>`).join('');
+    </td></tr>`;
+  }).join('');
   const unsub = `${SITE}/api/search/unsub?id=${encodeURIComponent(search.id)}&e=${encodeURIComponent(search.email)}`;
-  return `<!doctype html><html><head><meta charset="utf-8"></head>
-  <body style="margin:0;background:#f6f6f6;font-family:Helvetica,Arial,sans-serif">
-  <div style="max-width:560px;margin:0 auto;padding:28px 18px">
-    <div style="background:#fff;border-radius:14px;padding:26px 24px;border:1px solid #e8e8e8">
-      <div style="letter-spacing:4px;font-size:12px;color:#B8960C">B O O M &nbsp;R O M E</div>
-      <h2 style="font-weight:400;margin:14px 0 4px">New home${hits.length > 1 ? 's' : ''} matching your search</h2>
-      <p style="color:#666;font-size:13.5px;margin:0 0 6px">${search.label ? 'Your search “' + String(search.label).replace(/</g, '&lt;') + '”' : 'Your saved search'} just matched ${hits.length} new listing${hits.length > 1 ? 's' : ''} — video-verified, transparent pricing.</p>
-      <table style="width:100%;border-collapse:collapse">${rows}</table>
-      <p style="margin:18px 0 0"><a href="${SITE}/apartments" style="display:inline-block;background:#D4AF37;color:#1a1407;text-decoration:none;font-weight:600;border-radius:100px;padding:11px 22px;font-size:14px">See everything →</a></p>
-      <p style="color:#999;font-size:11.5px;margin:18px 0 0">Rome moves fast — the good ones go in days. Questions? Just reply, a human answers within 2 hours.</p>
-    </div>
-    <p style="color:#aaa;font-size:11px;text-align:center;margin:14px 0 0">
-      You saved this search on boomrome.com · <a href="${unsub}" style="color:#aaa">stop these alerts</a>
-    </p>
-  </div></body></html>`;
+  const inner =
+    para(`<span style="font-size:9.5px;letter-spacing:2.4px;color:#98948A">NOTAM &middot; NEW ON THE BOARD</span><br>` +
+      `<b style="font-size:19px;font-weight:300">New home${hits.length > 1 ? 's' : ''} matching your search</b>`) +
+    para(`${search.label ? 'Your search &ldquo;' + escH(search.label) + '&rdquo;' : 'Your saved search'} just matched ${hits.length} new listing${hits.length > 1 ? 's' : ''} — video-verified, transparent pricing.`) +
+    `<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin:0 0 4px">${rows}</table>` +
+    btn(`${SITE}/apartments`, 'See everything →') +
+    para('Rome moves fast — the good ones go in days. Questions? Just reply, a human answers within 2 hours.') +
+    fine(`You saved this search on boomrome.com · <a href="${unsub}" style="color:#98948A">stop these alerts</a>`);
+  return shell(inner, `New on the board — your saved search just matched ${hits.length} home${hits.length > 1 ? 's' : ''}`);
 }
 
 export default async function handler(req, res) {

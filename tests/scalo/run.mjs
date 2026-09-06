@@ -377,6 +377,85 @@ check('timbro: con reduced-motion resta stampato, fermo',
     boardSrc.includes('/og-board.png') && !boardSrc.includes('BOOMsocialprofile.png'));
 }
 
+/* ── W5 · il NOTAM del Segugio e la rotta nella famiglia email ─────────── */
+{
+  const emailSrc = readFileSync(new URL('../../api/viewings/_email.js', import.meta.url), 'utf8');
+  const matchSrc = readFileSync(new URL('../../api/search/matcher.js', import.meta.url), 'utf8');
+
+  check('email: il lessico viene da js/scalo-codes.js (una copia)',
+    emailSrc.includes("from '../../js/scalo-codes.js'"));
+  check('email: la rotta video è YOU→LIVE come su /viewing',
+    emailSrc.includes("'YOU'") && emailSrc.includes("'LIVE'"));
+  check('email: nessun match → HOME, mai una sigla inventata',
+    emailSrc.includes("|| 'HOME'"));
+  check('email: il ticket porta la rotta in TUTTA la famiglia',
+    /function ticket\(v, lang\)[\s\S]{0,1200}routeBand\(v\)/.test(emailSrc));
+  check('email: il T-24h è il check-in che apre (EN e IT)',
+    emailSrc.includes('Check-in open') && emailSrc.includes('Check-in aperto'));
+  check('email: T-3h e T-30m restano orologio nudo (niente teatro)',
+    /'3h': it \? 'Tra 3 ore' : 'In 3 hours'/.test(emailSrc));
+
+  check('segugio: il digest veste il design system condiviso (shell)',
+    matchSrc.includes("from '../preagreement/_notify.js'") && matchSrc.includes('return shell(inner'));
+  check('segugio: i codici SOLO dal lessico condiviso',
+    matchSrc.includes("from '../../js/scalo-codes.js'") && matchSrc.includes('SCALO.zoneCode'));
+  check('segugio: la corsia esce SOLO da marketLane',
+    /laneWord[\s\S]{0,200}DISPO\.marketLane\(l\)/.test(matchSrc));
+  check('segugio: il link per fermare gli avvisi resta',
+    matchSrc.includes('/api/search/unsub?id='));
+
+  // il motore VERO, coi casi-trappola
+  const { digestHtml, laneWord } = await import('../../api/search/matcher.js');
+  const { ticket, routeBand } = await import('../../api/viewings/_email.js');
+  const hits = [
+    { id: 'l1', name: 'Trastevere Loft', zone: 'Trastevere', beds: 2, sqm: 85, price: 1850, status: 'available' },
+    { id: 'l2', name: 'Casa Zagarolo', zone: 'Zagarolo', beds: 1, price: 900, status: 'available', availableDate: '2031-09-01' },
+  ];
+  const html = digestHtml({ id: 's1', email: 'x@y.z', label: 'Trastevere <2 beds>' }, hits);
+  check('digest: il masthead vero della famiglia email', html.includes('android-chrome-192x192.png'));
+  check('digest: la voce NOTAM in testa', html.includes('NOTAM'));
+  check('digest: Trastevere ha il suo codice sul tabellone', />TRA</.test(html));
+  check('digest: Zagarolo NON riceve una sigla inventata', !/>ZAG</.test(html));
+  check('digest: la casa occupata-con-data promette FREE FROM, con l\'anno se non è questo',
+    /FREE FROM 1 SEP 2031/.test(html));
+  check('digest: la libera-ora dice FREE in verde leggibile su carta',
+    /1E7A45[^>]*>FREE</.test(html));
+  check('digest: il testo del cliente resta ESCAPATO', html.includes('Trastevere &lt;2 beds&gt;'));
+  check('digest: una casa closed non ha corsia (mai in lista comunque)',
+    laneWord({ status: 'rented' }) === null);
+
+  const tP = ticket({ id: 'abc123xy', listingName: 'Pigneto Nest', listingAddress: 'Via del Pigneto 12', durationMinutes: 45 }, 'en');
+  const tV = ticket({ id: 'zz99', mode: 'video', listingName: 'Prati Suite', durationMinutes: 20 }, 'en');
+  check('ticket: la rotta in persona è ROM→codice dal lessico', tP.includes('ROM') && tP.includes('PIG'));
+  check('ticket: il numero è il soprannome derivato, mai una chiave', /BM ABC1/.test(tP));
+  check('ticket: la video è YOU→LIVE', tV.includes('YOU') && tV.includes('LIVE'));
+  check('ticket: zona ignota → HOME sul biglietto',
+    routeBand({ id: 'q1', listingName: 'Villa Altrove' }).includes('HOME'));
+}
+
+/* ── W6 · il Biglietto del Media Studio ────────────────────────────────── */
+{
+  const msSrc = readFileSync(new URL('../../media-studio.html', import.meta.url), 'utf8');
+  check('studio: lessico e corsie in UNA copia (scalo-codes + dispo-engine)',
+    msSrc.includes('src="/js/scalo-codes.js"') && msSrc.includes('src="/js/dispo-engine.js"'));
+  check('studio: il template Story · Biglietto esiste',
+    msSrc.includes("id: 'story-biglietto'"));
+  check('studio: il codice zona SOLO dal lessico (zoneCode), mai scritto a mano',
+    msSrc.includes('BOOM_SCALO.zoneCode(zona)'));
+  check('studio: la corsia è DERIVATA da marketLane, mai un input',
+    msSrc.includes('BOOM_DISPO.marketLane(l)') && !msSrc.includes('id="infoCorsia"'));
+  check('studio: la corsia non sopravvive allo storage (stantia = bugia)',
+    msSrc.includes('b.info.corsia = null'));
+  check('studio: le foto locali uccidono la corsia',
+    /addFiles[\s\S]{0,400}brand\.info\.corsia = null/.test(msSrc));
+  check('studio: nessun match → la zona per esteso, mai una sigla inventata',
+    msSrc.includes('code || zona.toUpperCase()'));
+  check('studio: il cartello dichiara da dove viene la parola',
+    msSrc.includes('Corsia dal catalogo'));
+  check('studio: sul biglietto il verde è SOLO della corsia now',
+    /co\.tone === 'ok' \? '#00FF88' : '#FFE55C'/.test(msSrc));
+}
+
 /* ── esito ─────────────────────────────────────────────────────────────── */
 if (failed) {
   console.log(`\n${failed} failed, ${passed} passed`);
