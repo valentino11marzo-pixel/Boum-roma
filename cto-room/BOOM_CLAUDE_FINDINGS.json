@@ -1,0 +1,858 @@
+{
+  "schema": "boom-audit-findings/1",
+  "audit_date": "2026-09-06",
+  "packaged_on": "2026-09-07",
+  "auditor": "Claude (Claude Code)",
+  "repository": "valentino11marzo-pixel/Boum-roma",
+  "branch_reviewed": "main",
+  "commit_reviewed": "aed13c81606ed7e5d6a7ae7c6a21b6943908b175",
+  "documentation_commit": "b5d0644 on claude/boom-architecture-strategy-dc5e1y",
+  "evidence_levels": {
+    "VERIFIED": "read in code, configuration, CI logs or production data through public access",
+    "INFERRED": "strongly suggested by code or first-hand repository documents",
+    "UNKNOWN": "not determinable with the available access",
+    "LEGACY": "present but unreferenced, superseded or retired",
+    "PROTOTYPE": "present but not part of the operated product"
+  },
+  "severity_scale": [
+    "critical",
+    "high",
+    "medium",
+    "low",
+    "info"
+  ],
+  "redaction": "No secrets, credential values, environment values or customer personal data; locations are file paths and line numbers at the reviewed commit.",
+  "finding_count": 83,
+  "findings": [
+    {
+      "finding_id": "BOOM-SECUR-001",
+      "category": "security",
+      "title": "Firestore rules not deploying from CI; repo/production drift",
+      "evidence_level": "VERIFIED",
+      "severity": "critical",
+      "repository_location": ".github/workflows/ci.yml (job deploy-rules); GitHub Actions run 33975271662",
+      "description": "The deploy-rules job took the deprecated token path because the service-account secret does not exist and Firebase replied that credentials are no longer valid (2026-09-05). Nine of the last twelve main runs are red; CI is advisory and merges continue. Production rules are whatever was last deployed by hand; newer Storage matches (backups/, rendiconti/) may not be live.",
+      "recommendation": "Create the service-account secret in GitHub, re-run deploy-rules, verify \"Deploy complete\", then run the anonymous production probe (tests/regole/run.mjs) plus a Storage probe. Add branch protection requiring green CI."
+    },
+    {
+      "finding_id": "BOOM-SECUR-002",
+      "category": "security",
+      "title": "Repository is public and ships internal material as static files",
+      "evidence_level": "VERIFIED",
+      "severity": "critical",
+      "repository_location": "GitHub repository; .vercelignore; api/reminder-cron.js:11; api/fiscal/_aspi.js:59; homie-bridge/agent-os/lib/common.sh:22",
+      "description": "The repository returns HTTP 200 to an unauthenticated client. .vercelignore excludes 14 files only, so tests/, docs/, the root studies, bot/ and CLAUDE.md deploy as static files. The tree contains internal security audits, a named third party's personal email as a default, a numeric chat identifier and an example cron-secret value in a comment.",
+      "recommendation": "Make the repository private or scrub it; extend .vercelignore to docs, tests, bot and studies; rotate the value shown in the comment; move personal defaults out of source."
+    },
+    {
+      "finding_id": "BOOM-SECUR-003",
+      "category": "security",
+      "title": "Telegram webhook accepts any POST when its secret is unset",
+      "evidence_level": "VERIFIED",
+      "severity": "critical",
+      "repository_location": "api/telegram/_lib.js:64-72,86-88; api/telegram/webhook.js:254-281",
+      "description": "requireWebhookSecret returns true when TELEGRAM_WEBHOOK_SECRET is absent; the only remaining check is chat-id equality. A forged callback_query with the admin chat id can approve and execute queued outbound actions, confirm or cancel viewings and toggle autonomy switches. Production env state is UNKNOWN.",
+      "recommendation": "Make the secret mandatory (500 if missing) and verify the X-Telegram-Bot-Api-Secret-Token header on every update."
+    },
+    {
+      "finding_id": "BOOM-SECUR-004",
+      "category": "security",
+      "title": "Server identity is a human admin user's email and password",
+      "evidence_level": "VERIFIED",
+      "severity": "critical",
+      "repository_location": "api/homie/_lib.js:27-47 plus eight copies (api/listing.js, api/llms-listings.js, api/reminder-cron.js, api/stripe-webhook.js, api/listings.js, api/ask-listing.js, api/sitemap-listings.js, bot/boom_listing_wizard.py:36-40)",
+      "description": "Every server function signs in with FIREBASE_ADMIN_EMAIL/PASS through Identity Toolkit and uses Firestore REST; rules apply to the server; no Admin SDK or service account exists. The same credential lives on the Mac mini. A password reset from /login rotates the platform credential and every write fails within 50 minutes.",
+      "recommendation": "Introduce a service account with the Admin SDK in one module behind a DB_MODE flag; replace the nine copies; make rules browser-only guards."
+    },
+    {
+      "finding_id": "BOOM-SECUR-005",
+      "category": "security",
+      "title": "Stored XSS into the admin session via anonymous maintenance documents",
+      "evidence_level": "VERIFIED",
+      "severity": "high",
+      "repository_location": "firestore.rules:112-113; sign.html:512; js/portal-app.js:4933,2713",
+      "description": "Anonymous Firebase sessions may create maintenance docs (userId == uid). The admin dashboard loads 600 maintenance docs and interpolates ${m.title} unescaped. Similar anonymous create paths exist for documents and messages. Sink and write path verified; not executed.",
+      "recommendation": "Escape every dashboard interpolation with the existing esc() helper; restrict maintenance/documents/messages creates to non-anonymous users with a key whitelist like registrations."
+    },
+    {
+      "finding_id": "BOOM-SECUR-006",
+      "category": "security",
+      "title": "Derived-token helpers fall back to a constant when secrets are absent",
+      "evidence_level": "VERIFIED",
+      "severity": "high",
+      "repository_location": "api/viewings/_lib.js:32,129; api/profile/_scheda.js:18; api/magic-sign/_shared.js:29; api/payments/_token.js:22; api/services/_sell.js:26; api/viewings/feed.js:20; api/feed/immobiliare.js:41; api/generate-pass.js:79",
+      "description": "Every derivation uses HOMIE_SECRET || CRON_SECRET || a literal string; Wallet auth falls back to another literal. In any deployment lacking those env vars (previews) every scheda, viewing-manage, payment, co-sign, feed and pass link is computable from public source.",
+      "recommendation": "Throw at module load when HOMIE_SECRET (and PASS_AUTH_SECRET) is missing; add a dual-secret rotation window."
+    },
+    {
+      "finding_id": "BOOM-SECUR-007",
+      "category": "security",
+      "title": "HOMIE_SECRET is a single blast-radius credential with no rotation grace",
+      "evidence_level": "VERIFIED",
+      "severity": "high",
+      "repository_location": "56 references in 42 files under api/ and bot/",
+      "description": "One secret authenticates every Mac process and derives every client link, calendar feed, phone webhook key and sell link. A leak gives total machine control and lets anyone mint client links for every contract and viewing; rotation invalidates every outstanding link, both calendar subscriptions, Twilio URLs and five Mac .env files.",
+      "recommendation": "Split machine credentials by process; add a versioned secret with an overlap window for derived tokens; store per-item revocation for high-value links."
+    },
+    {
+      "finding_id": "BOOM-SECUR-008",
+      "category": "security",
+      "title": "Rules/code drift silently disables features",
+      "evidence_level": "VERIFIED",
+      "severity": "high",
+      "repository_location": "firestore.rules:244,285; api/log.js:48; api/agent/messages.send.js:68; api/homie/miniera.js:118; api/leads/_richiamo.js:238",
+      "description": "clientErrors and messageLog are write:false while the server (an admin user) writes them; the viewings collection has no rule and no writer but two features read it, so the Miniera funnel and the richiamo \"already has a viewing\" veto see nothing. The /salute error panel reads a permanently empty collection.",
+      "recommendation": "Add a contract test that diffs collections written by api/** against firestore.rules; fix the three collections; point viewings readers at viewingRequests."
+    },
+    {
+      "finding_id": "BOOM-SECUR-009",
+      "category": "security",
+      "title": "Any landlord can read any user's Storage document folders",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "storage.rules:42,51,60",
+      "description": "documents/, maintenance/ and payment-proofs/ folders are readable by isLandlord() without an ownership check; the portal uploads tenant ID documents into documents/.",
+      "recommendation": "Scope reads to ownsProperty via firestore.get on document metadata or move identity documents under contracts/."
+    },
+    {
+      "finding_id": "BOOM-SECUR-010",
+      "category": "security",
+      "title": "PFS client portal access code is 25 bits from Math.random with no rate limit",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "js/portal-app.js:23929-23933; api/portal/_shared.js:13; api/portal/lookup.js; api/portal/action.js",
+      "description": "Access codes (BM + 5 chars from a 32-symbol alphabet) gate the client dossier and deck actions; lookup and action endpoints have no throttling; codes travel in URLs that reach /api/log.",
+      "recommendation": "Generate 64+ bits with crypto.getRandomValues; add lockout/rate limiting; stop logging query strings."
+    },
+    {
+      "finding_id": "BOOM-SECUR-011",
+      "category": "security",
+      "title": "Public viewing booking endpoint has no rate limit",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "api/viewings/slots.js:67,142",
+      "description": "POST creates pending viewingRequests that hold real slots and emails an arbitrary address plus a Telegram card and an operator calendar invite, protected only by a honeypot.",
+      "recommendation": "Rate-limit by IP and email; require email confirmation before holding a slot."
+    },
+    {
+      "finding_id": "BOOM-SECUR-012",
+      "category": "security",
+      "title": "Rate limiting is per-instance in-memory state",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "~20 files, e.g. api/apply-lead.js:28-31, api/media/caption.js:26, api/ask-listing.js:31, api/canone-bot.js:9",
+      "description": "All limiters are module-scope Map objects keyed by x-forwarded-for; they reset on cold start and do not aggregate across instances. Three public endpoints call a model behind them.",
+      "recommendation": "Use a shared limiter (Firestore counter or an external store) and a global daily budget for model-calling public endpoints."
+    },
+    {
+      "finding_id": "BOOM-SECUR-013",
+      "category": "security",
+      "title": "Unauthenticated write endpoint with outbound geocoding",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "api/geocode-bake.js:9-16,72-125",
+      "description": "A public GET patches listing coordinates and fires up to 25 Nominatim calls per hit, throttled only per instance; no cron or page calls it.",
+      "recommendation": "Gate with the cron guard or remove; keep geocoding as an admin action."
+    },
+    {
+      "finding_id": "BOOM-SECUR-014",
+      "category": "security",
+      "title": "Viewing pass and ICS served by document id alone; Twilio callbacks by URL key only",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "api/viewings/pass.js:25-31; api/viewings/ics.js:14-18; api/phone/_lib.js:44-52",
+      "description": "Anyone with a viewing id obtains the client's name, address and time; viewings/pass also writes passMeta. Twilio webhooks are authenticated by a derived key in the URL with no X-Twilio-Signature validation.",
+      "recommendation": "Require the manage token on pass/ics; validate X-Twilio-Signature."
+    },
+    {
+      "finding_id": "BOOM-SECUR-015",
+      "category": "security",
+      "title": "Permanent bearer download URLs for signed contracts, certificates and ID documents",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "api/sign/_notify.js:232-233; api/profile/upload.js:134-141; api/share/lookup.js:63",
+      "description": "Never-expiring Storage token URLs are emailed and stored on contracts/users, readable by the counter-party through contract read rules; share links return raw Storage URLs so expiry and revocation are cosmetic after the first open.",
+      "recommendation": "Proxy downloads through a token-verified endpoint with expiry; store paths, not bearer URLs."
+    },
+    {
+      "finding_id": "BOOM-SECUR-016",
+      "category": "security",
+      "title": "Non-constant-time secret comparisons and permissive CORS",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "api/homie/_lib.js:167; api/generate-pass.js:484; api/viewings/feed.js:29; api/agent/notify.js:55; api/pass-update/[...path].js:59,79; api/_auth.js:74; vercel.json headers",
+      "description": "requireSecret and five other gates compare with !== or ===; 22 write-capable endpoints send Access-Control-Allow-Origin: *; _auth.js trusts any *.vercel.app origin; the site CSP has no script-src.",
+      "recommendation": "Use the existing secretEqual everywhere; restrict CORS to the production origins; add a script-src policy."
+    },
+    {
+      "finding_id": "BOOM-SECUR-017",
+      "category": "security",
+      "title": "Client-controlled hold amount",
+      "evidence_level": "VERIFIED",
+      "severity": "low",
+      "repository_location": "api/reserve-checkout.js:42-45; apartment-detail.html:4012",
+      "description": "The €300 hold amount is sent by the client and clamped to 100–2000; a €100 payment obtains the same 48-hour hold.",
+      "recommendation": "Compute the amount server-side from configuration."
+    },
+    {
+      "finding_id": "BOOM-SECUR-018",
+      "category": "security",
+      "title": "Stripe webhook secret rotation after an exposure is unevidenced",
+      "evidence_level": "UNKNOWN",
+      "severity": "low",
+      "repository_location": "BOOM_STATUS.md:47",
+      "description": "The April 2026 status note says the webhook secret was exposed in a chat session and should be rotated; no evidence of rotation exists in the repository.",
+      "recommendation": "Rotate the webhook secret and record it."
+    },
+    {
+      "finding_id": "BOOM-SECUR-019",
+      "category": "security",
+      "title": "World-readable settings and anonymous-readable bank coordinates",
+      "evidence_level": "VERIFIED",
+      "severity": "low",
+      "repository_location": "firestore.rules:50,54; api/viewings/_avail.js:81; js/viewing-availability.js:103-106",
+      "description": "settings/* is public except two documents; the viewingAvailability document can carry the secret Workspace ICS URL; payout/default (IBAN) and settings/company are readable by any authenticated principal including anonymous sessions.",
+      "recommendation": "Move operational configuration to an admin-only document; keep only page configuration public."
+    },
+    {
+      "finding_id": "BOOM-PRIVA-001",
+      "category": "privacy",
+      "title": "Nightly plaintext full-database ZIP stored with a bearer URL and emailed",
+      "evidence_level": "VERIFIED",
+      "severity": "critical",
+      "repository_location": "api/ops/cassaforte.js:57,63-64,133,139-153",
+      "description": "26 collections including users, contracts, payments, leads and bank transactions are dumped (capped at 5,000 docs each, silently truncated) to Storage with a download-token URL and emailed when under 18 MB. No retention, no pruning, no restore procedure, ~20 collections not covered, PITR noted as not activated.",
+      "recommendation": "Encrypt before upload, stop emailing, prune to 30 days, enable PITR or managed exports, rehearse a restore on a staging project."
+    },
+    {
+      "finding_id": "BOOM-PRIVA-002",
+      "category": "privacy",
+      "title": "Privacy policy describes a different stack and undisclosed processors",
+      "evidence_level": "VERIFIED",
+      "severity": "high",
+      "repository_location": "privacy.html:554-567,575-605,643,467",
+      "description": "The policy names AWS, SendGrid, Google Analytics and Stripe; the code uses Firebase, Vercel, Gmail, EmailJS, Anthropic, OpenAI, Twilio, ElevenLabs, Telegram, Jitsi, GoCardless and GA. It promises MFA for admins (none exists), secure backups (plaintext ZIP in a mailbox), a retention table (unenforced) and account deletion (no mechanism).",
+      "recommendation": "Rewrite the policy from the real processor list; add AI processing, call recording and transcription disclosures; document international transfers."
+    },
+    {
+      "finding_id": "BOOM-PRIVA-003",
+      "category": "privacy",
+      "title": "No retention, erasure or export mechanism anywhere",
+      "evidence_level": "VERIFIED",
+      "severity": "high",
+      "repository_location": "api/, js/, firestore.rules (grep negative); js/portal-app.js:16678",
+      "description": "Signature PNGs, codici fiscali, dates of birth, ID scans and IP/UA persist indefinitely on contracts, users, landlords, preAgreements and signRequests. Admin deleteRecord removes Firestore docs only (no Auth user, no Storage cascade, no backups).",
+      "recommendation": "Implement retention classes and a nightly job; write and rehearse an erasure runbook covering Auth, Firestore, Storage and backups with legal-hold exceptions; add a data export."
+    },
+    {
+      "finding_id": "BOOM-PRIVA-004",
+      "category": "privacy",
+      "title": "DPIA-worthy automated processing without documentation",
+      "evidence_level": "INFERRED",
+      "severity": "high",
+      "repository_location": "api/leads/brain.js:24-26,184; api/phone/_lib.js:220-227; api/profile/upload.js:34-69; homie-bridge/agent-os/bin/miniera_extract.py:30,143-145; api/homie/miniera.js:96",
+      "description": "Lead scoring auto-archives \"dead\" leads; call audio, transcripts and AI analysis of unknown callers are persisted; ID photos are OCR'd by a US provider; per-thread samples, names and phones from the operator's personal WhatsApp archive (including non-customers) are imported server-side.",
+      "recommendation": "Register the processing, run a DPIA, add notices and lawful bases, minimise what is imported from personal WhatsApp history."
+    },
+    {
+      "finding_id": "BOOM-PRIVA-005",
+      "category": "privacy",
+      "title": "Personal data sent to AI providers without disclosure; PII reached logs once",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "api/_modeljson.js:31-35; api/profile/upload.js; api/portal/ingest.js; api/banking/scan-inbox.js; api/segretaria/_core.js:128,208; api/phone/recording.js",
+      "description": "Passports, contracts with CF and IBAN, bank emails, lead identities, the last 12 WhatsApp messages of handed-over chats, caller transcripts and home frames go to Anthropic; voice and voicemail audio to OpenAI; call audio to ElevenLabs/Twilio. The repository records that CF and IBAN values of real people reached Vercel logs.",
+      "recommendation": "Classify prompts by PII; route or redact; log shape never content; list processors in the policy."
+    },
+    {
+      "finding_id": "BOOM-PRIVA-006",
+      "category": "privacy",
+      "title": "Saved-search digests emailed without double opt-in; Telegram cards carry PII",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "api/search/save.js; api/search/matcher.js; api/telegram/notify-pending.js:198-206; api/phone/_lib.js:346-352",
+      "description": "Anyone can subscribe any address to three emails a day; lead cards carry names, phones, emails, messages and 350-character transcripts into a third-party chat.",
+      "recommendation": "Add confirmation before the first digest; minimise card content to what the tap needs."
+    },
+    {
+      "finding_id": "BOOM-PRIVA-007",
+      "category": "privacy",
+      "title": "Scraped private advertisers' contacts stored for outreach; portal ToS exposure",
+      "evidence_level": "INFERRED",
+      "severity": "medium",
+      "repository_location": "api/pfs/_ingest.js; api/pfs/_fetch.js:12; bot/boom_scout.py:17,46; bot/boom_publisher.py:57-60",
+      "description": "contactEmail/contactPhone/description/images of private advertisers are persisted in pfsProperties; scraping uses a spoofed UA and Playwright persistent profiles; the Pubblicista automates third-party agency back offices. Legal basis and portal terms compliance are not documented in the repository.",
+      "recommendation": "Document the basis or stop storing contacts; review portal terms before automating their panels."
+    },
+    {
+      "finding_id": "BOOM-MONEY-001",
+      "category": "money",
+      "title": "cedolareSecca never recognised by the fiscal engines",
+      "evidence_level": "VERIFIED",
+      "severity": "critical",
+      "repository_location": "js/fiscal-engine.js:41-53; js/taxpack-engine.js:90-105; api/preagreement/convert.js:203,245; api/magic-sign/submit.js:325; js/portal-app.js:7410,15698,15728",
+      "description": "Contracts store cedolareSecca as \"si\"/\"no\" (and a nested boolean); both engines test === true. Every contract is computed as ordinary IRPEF: registration-tax obligations emitted for cedolare leases, cedolare tax 0, Contabile, scadenzario ICS and taxpack wrong.",
+      "recommendation": "Normalise the field to one boolean in a migration and read it consistently; add a test with a \"si\" contract."
+    },
+    {
+      "finding_id": "BOOM-MONEY-002",
+      "category": "money",
+      "title": "Company VAT estimated on tenants' rent",
+      "evidence_level": "VERIFIED",
+      "severity": "high",
+      "repository_location": "js/portal-app.js:16209-16236; api/employees/contabile.js:78-84; api/accounting/scadenzario.js:43-49",
+      "description": "autoInvoiceForPayment turns every manually marked-paid rent into a paid invoices doc; Contabile and scadenzario sum all paid invoices into revenueByQuarter and derive IVA at 22 %, so third-party rent inflates the company's VAT picture.",
+      "recommendation": "Separate rent receipts from company invoices; compute VAT only on BOOM fee invoices."
+    },
+    {
+      "finding_id": "BOOM-MONEY-003",
+      "category": "money",
+      "title": "Commission defined three different ways; agencyFee is a dead field; PFS credit not applied",
+      "evidence_level": "VERIFIED",
+      "severity": "high",
+      "repository_location": "terms.html:474-481; api/preagreement/create.js:96-102; how-it-works.html:2044,2181; faq.html:704,834; api/preagreement/convert.js:178-184",
+      "description": "Terms promise one month or 10 % of annual rent whichever is lower plus 22 % IVA; the code default is 10 % of annual (1.2 months); marketing says 10 % of annual. contract.agencyFee is written and read by nothing; no invoice, receivable or PFS €350 credit exists.",
+      "recommendation": "Decide one definition, align terms, code and copy, model the commission as a receivable, apply the PFS credit."
+    },
+    {
+      "finding_id": "BOOM-MONEY-004",
+      "category": "money",
+      "title": "Client funds collected with no settlement layer",
+      "evidence_level": "INFERRED",
+      "severity": "high",
+      "repository_location": "api/stripe-webhook.js; api/payments/*; api/owners/rendiconto.js:205; tenant.html:651",
+      "description": "All Checkout sessions and SEPA debits are created under one Stripe key and the bank-transfer lane names the agency as beneficiary; the monthly owner statement reports gross amounts and never what was remitted; no transfer, payout, netting or segregation logic exists. Whether landlords are paid directly is UNKNOWN.",
+      "recommendation": "Decide the model (agent with mandate vs direct payment) and build a settlement statement per landlord; document the PSD2 basis."
+    },
+    {
+      "finding_id": "BOOM-MONEY-005",
+      "category": "money",
+      "title": "PREAGREEMENT and DEPOSIT webhook branches lack double-charge detection",
+      "evidence_level": "VERIFIED",
+      "severity": "high",
+      "repository_location": "api/stripe-webhook.js:166-199,522-566; api/preagreement/submit.js:187-211; api/preagreement/pay.js:49-71",
+      "description": "A second Checkout session for the same proposal overwrites paidSessionId and re-sends emails; the deposit branch patches the contract before the idempotency check and returns duplicate:true silently; PA sessions never expire early. RENT/INVOICE/SDD branches have the correct discipline.",
+      "recommendation": "Apply the RENT branch discipline (never overwrite a paid record, alarm on a second session) and expire PA sessions early."
+    },
+    {
+      "finding_id": "BOOM-MONEY-006",
+      "category": "money",
+      "title": "Proposal resume path under-charges and add-ons are never fulfilled",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "api/preagreement/pay.js:42; api/preagreement/submit.js:109,148,165-186; api/stripe-webhook.js:510-573",
+      "description": "pay.js uses money.dueAtSigning without addonsEur while submit includes it; add-ons paid inside a proposal are recorded on the PA only and never produce a service lead or email.",
+      "recommendation": "Compute the due amount in one function and fulfil add-ons from the PREAGREEMENT branch."
+    },
+    {
+      "finding_id": "BOOM-MONEY-007",
+      "category": "money",
+      "title": "Public pay link always charges the seed fee",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "api/payments/link.js:104; api/payments/pay.js:9-13,48-77",
+      "description": "link.js calls rentFee without loading settings/rentFeeStats, so WhatsApp payment links charge 3.3 % + €0.30 while /casa converges on the measured cost; the header comment still documents a retired 2.5 %/€9 rule.",
+      "recommendation": "Load the measured stats in link.js; delete the stale comment."
+    },
+    {
+      "finding_id": "BOOM-MONEY-008",
+      "category": "money",
+      "title": "Invoices are not a fiscal series; no e-invoicing",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "js/portal-app.js:5664-5676,15152,16191-16205; api/fiscal/_aspi.js:372",
+      "description": "Four writers with three numbering schemes (one with no number), sequence derived from cached in-memory state, no VAT lines, no FatturaPA/SDI XML.",
+      "recommendation": "Decide whether invoices are issued in-product (server-side series, SDI) or by the commercialista, and remove the client-side numbering."
+    },
+    {
+      "finding_id": "BOOM-MONEY-009",
+      "category": "money",
+      "title": "Bank auto-match by unique amount ignores the counterparty; AI-read amounts trusted",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "api/banking/_lib.js:93,124-170,356; api/banking/scan-inbox.js:245-307",
+      "description": "Any inbound credit equal to a single open instalment within a 60-day window is marked paid regardless of sender; movements extracted by a model from emails or PDFs are booked as truth; email-derived rows dedupe by content hash only.",
+      "recommendation": "Auto-pay only on reference or counterparty matches; route AI-extracted movements to suggestions."
+    },
+    {
+      "finding_id": "BOOM-MONEY-010",
+      "category": "money",
+      "title": "€300 hold is a dead end",
+      "evidence_level": "VERIFIED",
+      "severity": "low",
+      "repository_location": "api/stripe-webhook.js:420-504; api/ops/_lotto12.js:90-130; firestore leads with status reserved",
+      "description": "The hold writes a lead nobody reads, uses EmailJS notifications, requires a manual refund and ignores the proposal locks; zero real transactions evidenced.",
+      "recommendation": "Fold holds into the deal state machine or remove the product."
+    },
+    {
+      "finding_id": "BOOM-LEGAL-001",
+      "category": "legal",
+      "title": "Magic Sign: OTP skippable, hash not bound to bytes, unverified free timestamp, delegate not printed",
+      "evidence_level": "VERIFIED",
+      "severity": "high",
+      "repository_location": "sign.html:388,728; api/magic-sign/submit.js:175-183; js/contract-pdf.js:505; api/sign/_finalize.js:206-223,470,531,547; contract-pdf.js:895",
+      "description": "Phone OTP is optional and no writer sets otpRequired; pdfHash covers four fields and the certificate hash covers metadata, the only byte hash goes to freetsa.org and is accepted unparsed; landlordSignedByDelegate is stored only in Firestore while artefacts print the owner's name over the admin's drawn signature; the site copy calls the signature \"fully valid\".",
+      "recommendation": "Make OTP mandatory, hash and print the exact PDF bytes, verify the TSA reply or use a qualified provider, print the delegate, correct the copy."
+    },
+    {
+      "finding_id": "BOOM-LEGAL-002",
+      "category": "legal",
+      "title": "Client-side signature write path still allowed",
+      "evidence_level": "VERIFIED",
+      "severity": "high",
+      "repository_location": "firestore.rules:82-86; js/portal-app.js:17472,17665",
+      "description": "Rules let a tenant update signature fields directly; the legacy in-portal modal writes signatures with an IP from a third-party service and no pinned consent for token-less contracts, bypassing terms freeze and concurrency checks.",
+      "recommendation": "Deny signature fields in rules; delete the in-portal signing path."
+    },
+    {
+      "finding_id": "BOOM-LEGAL-003",
+      "category": "legal",
+      "title": "Unsourced marketing claims on live pages",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "about.html:14,841,862; index.html; api/listing.js:81,83,155,219; api/llms-listings.js:137-140; corporate.html; universities.html; research.html; blog-*.html",
+      "description": "\"500+ happy tenants\", \"98 % success rate\", \"2-minute average response\", \"trusted by 500+\", \"verified properties\" and \"48-hour move-in\" are hard-coded copy with no backing field, process or data (30 lifetime Stripe payments).",
+      "recommendation": "Remove or back every figure with a ledger; keep the repository's own rule that every number exists in the repo."
+    },
+    {
+      "finding_id": "BOOM-LEGAL-004",
+      "category": "legal",
+      "title": "Licensing and delegation documentation absent from the repository",
+      "evidence_level": "UNKNOWN",
+      "severity": "medium",
+      "repository_location": "terms.html:437-444; reunion.html:782-787; api/preagreement/convert.js:265-271; js/portal-app.js:19609-19626",
+      "description": "Only the company registration appears; no natural-person estate-agent enrolment number; France carte G/T explicitly not held; the landlord delegation can be toggled without a written mandate on file.",
+      "recommendation": "Confirm enrolment; require an uploaded written delegation before enabling delegate signing."
+    },
+    {
+      "finding_id": "BOOM-DATA-001",
+      "category": "data",
+      "title": "Availability truth has no single owner",
+      "evidence_level": "VERIFIED",
+      "severity": "critical",
+      "repository_location": "js/portal-app.js:14757,14612; bot/boom_listing_wizard.py:494,558,564,1108; api/wizard/interpret.js:78,97; api/magic-sign/submit.js:527-556; api/ops/_lotto12.js:96-119; js/portal-app.js:15160,16368",
+      "description": "listings.status has seven writers; properties carry availabilityStatus and status as two more vocabularies; listings.propertyId has no writer (0 of 26 live listings), so the signature cascade never marks a listing rented; nothing resets availability at contract end, termination or renewal; readers disagree on what \"rentable\" means.",
+      "recommendation": "One availability writer with one vocabulary and a market pack; backfill propertyId; reset at contract end; single reader (laneCopy) everywhere."
+    },
+    {
+      "finding_id": "BOOM-DATA-002",
+      "category": "data",
+      "title": "Seven person collections and two users schemas",
+      "evidence_level": "VERIFIED",
+      "severity": "high",
+      "repository_location": "js/portal-app.js:7327,7350,15535-15551,24296,28049,28095; api/preagreement/convert.js:118-127; api/magic-sign/submit.js:421-434; api/profile/submit.js:94-101",
+      "description": "users (cf/dob/pob vs codiceFiscale/birthDate/birthPlace), landlords (uid-keyed on the server, auto-id in the portal), clients, pfsClients, leads, registrations, contractRegistrations; users created without Auth accounts cannot be authorised by tenant-scoped rules or /api/payments/pay; four copies of normalizePhone.",
+      "recommendation": "Migrate to one parties model with roles, provenance and verification levels; users becomes auth-only."
+    },
+    {
+      "finding_id": "BOOM-DATA-003",
+      "category": "data",
+      "title": "No schema, indexes, pagination or migrations",
+      "evidence_level": "VERIFIED",
+      "severity": "high",
+      "repository_location": "firestore.indexes.json; api/homie/_lib.js:233-246; api/ops/_lotto12.js; js/portal-app.js:3066-3089",
+      "description": "Readers tolerate every shape; fsList supports one filter, one order and a limit with no cursor, so crons scan whole collections with silent truncation at 800–5,000 docs; one client query needs a composite index that is not declared; one-off data corrections run as helpers inside crons.",
+      "recommendation": "Typed schema with validation at write doors; generated indexes; a migrations folder with markers and dry-run."
+    },
+    {
+      "finding_id": "BOOM-DATA-004",
+      "category": "data",
+      "title": "Contract status semantics wrong and never automated",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "api/preagreement/convert.js:254; js/portal-app.js:15733,15209,16519,16554; api/journey/_run.js:191,214",
+      "description": "contracts.status is \"active\" at creation before any signature; \"expired\" exists only as a manual select; journey exit, Gestore and relet reason on stale active contracts.",
+      "recommendation": "Derive contract state from signatureStatus, finalizedAt and dates; automate expiry."
+    },
+    {
+      "finding_id": "BOOM-DATA-005",
+      "category": "data",
+      "title": "Lead state split and hot leads hidden",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "api/homie/message.js:281-295; js/portal-app.js:4425,6832,15774; api/magic-sign/submit.js:505-512",
+      "description": "A manual WhatsApp reply flips a lead to \"contacted\", which the portal renders as DISCARDED and Brain/Commerciale/notify-pending ignore; stage:\"closed\" is written to leads or pfsClients as a second state field.",
+      "recommendation": "Fold stage into status; treat contacted as hot; one enum."
+    },
+    {
+      "finding_id": "BOOM-DATA-006",
+      "category": "data",
+      "title": "Proposal, viewing and lead are not linked",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "api/preagreement/create.js:192-230; api/viewings/slots.js:95-127; api/apply-lead.js:72-128",
+      "description": "preAgreements carry no leadId; self-booked viewings carry no leadId and create no lead; applicant eligibility data stays in leads.raw and is never copied to the proposal; viewing outcome is never stored.",
+      "recommendation": "Introduce a deal entity that owns the chain and stores the viewing outcome and application snapshot."
+    },
+    {
+      "finding_id": "BOOM-DATA-007",
+      "category": "data",
+      "title": "Timestamp, field and taxonomy inconsistencies",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "js/portal-app.js:16165; js/dispo-engine.js:726; api/documents/_smista.js:126-145; api/viewings/slots.js:95-126 vs js/portal-app.js:6860-6895",
+      "description": "Five timestamp encodings; paidDate mixes date and datetime; availableFrom mixes ISO and \"Subito\"; viewings use proposedDateTime (server) vs proposedDate/Time (portal); documents.category has 30 free-text literals; maintenance uses pending and open; two task collections.",
+      "recommendation": "Normalise in migrations; enforce enums at write doors."
+    },
+    {
+      "finding_id": "BOOM-DATA-008",
+      "category": "data",
+      "title": "Two incompatible Firestore codecs in the money path",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "api/stripe-webhook.js:37-46,113-150,887",
+      "description": "The webhook carries its own toFirestoreFields/patchDoc that encode maps and arrays as String(v) and a reader that returns null for maps, beside the shared helper imported at the top; the SDD branch routes around it.",
+      "recommendation": "Delete the local codec; use the shared layer; add optimistic preconditions to fsPatch."
+    },
+    {
+      "finding_id": "BOOM-DATA-009",
+      "category": "data",
+      "title": "Ghost role and settings naming drift",
+      "evidence_level": "VERIFIED",
+      "severity": "low",
+      "repository_location": "api/pfs/_guard.js:13; firestore.rules:21-23; admin.html:1203; tenant.html:629; banca.html:301,392",
+      "description": "\"owner\" is accepted by 17 server gates but has no rules helper; CLAUDE.md and tenant copy cite settings/payout while code uses payout/default; the deals collection holds canone worksheets, not proposals.",
+      "recommendation": "Remove the ghost role or define it; fix the naming in one place."
+    },
+    {
+      "finding_id": "BOOM-AI-001",
+      "category": "ai",
+      "title": "No AI gateway; 24 hand-built Anthropic call sites; Opus as hidden default",
+      "evidence_level": "VERIFIED",
+      "severity": "high",
+      "repository_location": "api/agent/_claude.js:18; 23 files under api/ (e.g. api/leads/brain.js:92, api/wizard/interpret.js:103, api/contracts/inventario.js:119)",
+      "description": "Twenty of 24 sites build the request by hand; model ids are hard-coded in 21 files; the shared client defaults to Opus 4.8 for the Commerciale first reply, ai.reply and every Segretaria turn; four hand-rolled JSON parsers survive; no prompt versioning; one vision call has no timeout.",
+      "recommendation": "Introduce api/_core/ai.js with provider adapters, tiers instead of ids, built-in timeouts, one JSON reader, budgets, prompt versions stamped on writes."
+    },
+    {
+      "finding_id": "BOOM-AI-002",
+      "category": "ai",
+      "title": "AI output writes state without a human tap in nine paths",
+      "evidence_level": "VERIFIED",
+      "severity": "high",
+      "repository_location": "api/documents/_smista.js:123-128; api/leads/scan-inbox.js:189-205; api/leads/brain.js:184; api/banking/scan-inbox.js + api/banking/_lib.js:124-167; api/photos/enhance.js:344; api/wizard/describe.js:163; api/phone/_lib.js:331; api/phone/elevenlabs.js; api/segretaria/_core.js:237-254",
+      "description": "Document filing, lead creation from emails and calls, grade dead → archived, AI-read bank amounts → payments marked paid, listing photo rewrite, public description rewrite with no sanitizer, and Segretaria sends all occur without approval; only some carry whitelists.",
+      "recommendation": "Downgrade to proposals or suggestions where the consequence is public, legal or financial; keep sanitizers; never let AI set a status."
+    },
+    {
+      "finding_id": "BOOM-AI-003",
+      "category": "ai",
+      "title": "Hard dependence on one provider for eleven features",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "api/portal/ingest.js:136; api/documents/_smista.js:47; api/documents/qa.js; api/documents/ocr.js; api/parse-docs.js; api/media/caption.js; api/pfs/brief.js; api/contracts/inventario.js; api/agent/ai.reply.js; api/agent/concierge.js; api/leads/scan-inbox.js:162",
+      "description": "Removing the Anthropic key hard-fails Innesto, doc parser, Smistatore, Documents Q&A/OCR, copywriter, PFS brief, inventory analysis, ai.reply and concierge, and silently loses portal-email leads.",
+      "recommendation": "Gateway with a second provider; deterministic parsers for fixed-format emails."
+    },
+    {
+      "finding_id": "BOOM-AI-004",
+      "category": "ai",
+      "title": "AI used where a rule suffices",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "api/leads/scan-inbox.js:35 vs api/pfs/_alertparse.js; api/banking/scan-inbox.js:56-63; api/pfs/brief.js:22; api/canone-bot.js; api/agent/concierge.js",
+      "description": "Eight haiku calls every 10 minutes parse six fixed-format portal emails although a template parser exists; whitelisted bank alert emails have fixed formats; Opus summarises already-computed statistics daily; canone-bot duplicates a guided form; concierge is unreferenced.",
+      "recommendation": "Replace with parsers/templates; delete the unwired chat."
+    },
+    {
+      "finding_id": "BOOM-AI-005",
+      "category": "ai",
+      "title": "No evals and no stubbed-model coverage of the prompts that write",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "tests/ (six suites stub fetch; brain, commerciale, banking, smista, describe, enhance-classify, interpret never exercised through a handler)",
+      "description": "Prompts live inline in 21 files and as Markdown mandates on the Mac; no golden outputs; no version stamped on AI-written documents.",
+      "recommendation": "Add stubbed-model handler tests for the writing prompts and a prompt version field."
+    },
+    {
+      "finding_id": "BOOM-AI-006",
+      "category": "ai",
+      "title": "Prompt injection surface on client-controlled conversation turns",
+      "evidence_level": "VERIFIED",
+      "severity": "low",
+      "repository_location": "api/canone-bot.js:22-24; api/agent/concierge.js:121-123; api/segretaria/_core.js",
+      "description": "canone-bot and concierge accept client-supplied assistant turns; Segretaria has only a post-hoc sanitizer and escalation regex on inbound text.",
+      "recommendation": "Reject client-supplied assistant roles; screen inbound text before drafting."
+    },
+    {
+      "finding_id": "BOOM-HOMIE-001",
+      "category": "homie",
+      "title": "Three Telegram voices, two bots, contradictory prose mandates",
+      "evidence_level": "VERIFIED",
+      "severity": "high",
+      "repository_location": "api/telegram/webhook.js; bot/boom_listing_wizard.py:36-37,1727; homie-bridge/HOMIE.md; homie-bridge/SOUL-BOOM-V2.md; bot/HOMIE.md:138-168; homie-bridge/agent-os/bin/pulse.sh:111; realtime.sh:84; api/wizard/video-radar.js:21-26",
+      "description": "The Vercel operator bot, the Mac polling wizard bot (separate token, INFERRED) and OpenClaw delivery share one operator; server crons emit wizard commands through the other bot; three mandate generations coexist and nothing records which is loaded; the deterministic bracci exist because the LLM mandate did not execute.",
+      "recommendation": "One bot with a server-side grammar; retire the OpenClaw agent as a decision-maker; keep the Mac only for sessions."
+    },
+    {
+      "finding_id": "BOOM-HOMIE-002",
+      "category": "homie",
+      "title": "Mac mini is a single point of failure with almost no dead-man coverage",
+      "evidence_level": "VERIFIED",
+      "severity": "high",
+      "repository_location": "api/pfs/_health.js:13,101; api/wizard/health.js:31-36; homie-bridge/agent-os/bin/health.sh:45-48; api/agent/heartbeat.js:37",
+      "description": "WhatsApp inbound, outbound, scraping, publishing and the listing bot depend on the Mac; only the wizard has a server-side staleness cron; scout/contatto/publisher alert after three failed POSTs, never on silence; the agent-os watchdog lives on the machine it watches and ignores the com.boom.* labels; com.boom.publisher.plist is not well-formed XML.",
+      "recommendation": "Server-side dead-man for every Mac process; alert on silence; fix the plist; test plists in CI."
+    },
+    {
+      "finding_id": "BOOM-HOMIE-003",
+      "category": "homie",
+      "title": "Agent tool contract stale; dead wires; auto-apply status with no executor",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "api/agent/spec.js; api/agent/execute.js:28-88; api/homie/action.js:110-121; tenant.html:1085 → api/agent/notify.js:52-70; cockpit-preview.html; api/agent/radar.scan.js",
+      "description": "The manifest lists none of viewings/segretaria/richiamo/fiducia; nine of 24 tool files have no caller; tenant.html posts maintenance events without a secret and always gets 401; homie/action can mark actions \"auto-applied\", a status execute.js never handles; cockpit-preview calls three non-existent endpoints.",
+      "recommendation": "Generate the tool registry from the write doors; delete orphan tools; fix or remove the tenant wire."
+    },
+    {
+      "finding_id": "BOOM-HOMIE-004",
+      "category": "homie",
+      "title": "Approval history polluted by machine self-approvals",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "api/segretaria/_core.js:237-254; api/leads/_richiamo.js:349-351; js/fiducia-engine.js; api/employees/_fiducia.js",
+      "description": "Segretaria writes action_queue rows as approved/autoApplied and richiamo writes executed rows; the fiducia scale that decides autonomy computes statistics over that history, excluding only fiduciaAutoSent rows.",
+      "recommendation": "Emit tiered events (T1/T2) for machine actions; compute autonomy statistics on human decisions only."
+    },
+    {
+      "finding_id": "BOOM-OPERA-001",
+      "category": "operations",
+      "title": "reminder-cron and notify-pending run without budgets or overlap guards",
+      "evidence_level": "VERIFIED",
+      "severity": "high",
+      "repository_location": "api/reminder-cron.js:137-425; api/_budget.js; api/telegram/notify-pending.js:24-48",
+      "description": "reminder-cron chains 14 sub-jobs with a time guard on the last only and does not import runBudget; SEPA collection and the T-30m viewing warning sit behind unbounded nudge loops; notify-pending runs every minute with no overlap guard; seven functions fire together at every hour and three open separate IMAP sessions on one mailbox.",
+      "recommendation": "Budget every step; add an overlap lock; stagger schedules; share one IMAP session per run."
+    },
+    {
+      "finding_id": "BOOM-OPERA-002",
+      "category": "operations",
+      "title": "Six crons write no heartbeat; telemetry collection unwritable; single alert sink",
+      "evidence_level": "VERIFIED",
+      "severity": "high",
+      "repository_location": "vercel.json crons; api/pfs/brief.js; api/search/matcher.js; api/wizard/health.js; api/wizard/video-radar.js; api/photos/enhance.js; api/wizard/describe.js; api/log.js:48; firestore.rules:244",
+      "description": "Brief, matcher (which emails subscribers), wizard/health, video-radar and the two sweeps report no health; clientErrors writes are rejected so /salute shows nothing; one Telegram chat is both the alert sink and the approval UI; no structured logging, error tracker, metrics or uptime monitor.",
+      "recommendation": "Mandatory heartbeats enforced in CI; fix clientErrors; add an error tracker and a second alert channel."
+    },
+    {
+      "finding_id": "BOOM-OPERA-003",
+      "category": "operations",
+      "title": "No staging; previews execute all functions against production Firebase",
+      "evidence_level": "VERIFIED",
+      "severity": "high",
+      "repository_location": "vercel.json; api/magic-sign/_shared.js:137-138; js/firebase-config.js; grep VERCEL_ENV = 0",
+      "description": "Every push to a feature branch deploys 176 functions that read and write the production database; preview origins are whitelisted in Magic-Sign CORS; scoping of Stripe and Gmail secrets to production is UNKNOWN.",
+      "recommendation": "Create a staging Firebase project; branch configuration by VERCEL_ENV; scope secrets."
+    },
+    {
+      "finding_id": "BOOM-OPERA-004",
+      "category": "operations",
+      "title": "Configuration outside version control and dormant projects",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "api/ (55 process.env names, 14 absent from CLAUDE.md); Vercel team (50 projects, 49 dormant); api/vercel.json",
+      "description": "Stripe webhook events, Telegram setWebhook, Twilio URLs, ElevenLabs agent, Workspace ICS URLs, Immobiliare FTP, GoCardless, Gmail app password, Firebase console settings, Mac .env files and launchd plists are all undocumented dashboard state; the nested api/vercel.json is a stale config that would blank the site if ever honoured.",
+      "recommendation": "Inventory and document every external setting; delete the nested config; archive dormant projects."
+    },
+    {
+      "finding_id": "BOOM-OPERA-005",
+      "category": "operations",
+      "title": "Release process: advisory CI, no branch protection, no rollback, narrative changelog",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": ".github/workflows/ci.yml:4-7; git history (8 of 57 recent commits direct to main); CLAUDE.md (268 KB)",
+      "description": "Vercel deploys main regardless of test results; direct pushes duplicate PR content; no documented rollback; kill switches scattered in settings docs and query parameters; CLAUDE.md is guide, changelog and incident log at once and is stale in at least six places.",
+      "recommendation": "Branch protection with required checks; ADRs and a generated changelog; a registered flag list."
+    },
+    {
+      "finding_id": "BOOM-OPERA-006",
+      "category": "operations",
+      "title": "Mac processes hand-deployed; wizard self-update unsigned",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "bot/wizard_heartbeat.py:31-39,60-98; bot/install_scatto_contatto.sh; bot/com.boom.publisher.plist:6",
+      "description": "Only the wizard updates itself, by fetching raw files from the main branch hourly with a sha1 and py_compile gate but no signature check (a compromised main becomes code on the Mac); the other four bracci update only by re-running an install script; the publisher plist is invalid XML.",
+      "recommendation": "Pin releases by tag with a checksum manifest; deploy all bracci the same way; validate plists in CI."
+    },
+    {
+      "finding_id": "BOOM-OPERA-007",
+      "category": "operations",
+      "title": "Gmail account as a single mailbox for everything",
+      "evidence_level": "VERIFIED",
+      "severity": "low",
+      "repository_location": "api/agent/_lib.js:31; api/pfs/scan-inbox.js; api/leads/scan-inbox.js; api/banking/scan-inbox.js; api/documents/scan-inbox.js; api/segretaria/scan-replies.js; api/viewings/_ical.js; api/ops/cassaforte.js; api/ops/conservazione.js",
+      "description": "One app password carries all outbound email, five IMAP scanners, calendar invites, and is the destination of backups and the legal archive; revocation is a total outage.",
+      "recommendation": "Separate transactional email from the operator mailbox; use a dedicated intake mailbox."
+    },
+    {
+      "finding_id": "BOOM-TESTS-001",
+      "category": "tests",
+      "title": "Test harness misreports and duplicates its own infrastructure",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "tests/run-all.mjs:171-175; 37 suites with private globalThis.fetch fakes; tests/wizard/local_brain.py and four other Python suites; ≥28 suites reading source text",
+      "description": "A suite printing SKIP: then failing is reported skipped; five Python suites never run in npm test or CI; 37 hand-rolled in-memory Firestore fakes; ≥28 suites assert on source text (brittle to refactors, blind to behaviour); the 28k-line portal has no unit tests; tool versions in CI are unpinned.",
+      "recommendation": "Check exit status before SKIP; one shared Firestore fake; run Python suites in CI; retire source-pinning tests as behaviour tests arrive; pin CI tool versions."
+    },
+    {
+      "finding_id": "BOOM-FRONT-001",
+      "category": "frontend",
+      "title": "Public site is a hand-run Python snapshot with a partial runtime overlay",
+      "evidence_level": "VERIFIED",
+      "severity": "high",
+      "repository_location": "design/pages-deco/costruisci-ad.py:38-52,324-325; design/home-live-deco/costruisci-home.py; apartments.html:2352,4640-4881; index.html:2219,4489; apartment-detail.html:3032,3134-3140; api/listing.js:277-292",
+      "description": "Builders read local JSON dumps (live-rows.json, foto-uri.json) that are not in the repository and emit side files copied by hand; the live pages are dated 31 July; the overlay updates status/price/date and adds new cards but cannot remove deleted listings or refresh names/photos/descriptions and rewrites the \"updated\" stamp to today; unknown listing ids return 200 with a bare template; the static sitemap lists a rented seed home.",
+      "recommendation": "Server-render /apartments, / and /apartment-detail from a public inventory projection using the existing SSR and laneCopy; 404 on unknown ids; retire the builders."
+    },
+    {
+      "finding_id": "BOOM-FRONT-002",
+      "category": "frontend",
+      "title": "Public listing documents leak operator identity, contract ids and exact addresses",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "js/portal-app.js:14603 → js/dispo-engine.js:732; api/photos/enhance.js:342; media-studio.html:2334,2424; api/magic-sign/submit.js:549-551; api/wizard/publish.js:97-101; api/listing.js:124,186; apartment-detail.html:3252",
+      "description": "availabilityUpdatedBy carries the operator's email or a contract id with the lease end date; descriptionSource and photosEnhancedBy carry emails; the SSR page dumps the whole document into window.__LISTING; addresses print regardless of pin precision; the wizard publish endpoint has no field whitelist.",
+      "recommendation": "Publish a projection with a whitelist; honour pin precision on the page and JSON-LD; strip provenance fields from public documents."
+    },
+    {
+      "finding_id": "BOOM-FRONT-003",
+      "category": "frontend",
+      "title": "Indexed pages that do not work and deployed duplicates",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "booking.html:935-945; deals.html:347-348,611,641-642 vs firestore.rules:238; sitemap.xml (/apartment-detail, /booking, /deals); index-classic, apartments-classic, apartment-detail-classic, property-finding-classic; form-tenant.html:637; form-landlord.html:1469; onboarding.html:791",
+      "description": "booking.html has a dead form handler; deals.html reads an admin-only collection anonymously; the bare /apartment-detail renders the first baked listing; four -classic pages are deployed, indexable and un-linked; form-tenant/landlord write to admin-only collections and fail silently; onboarding writes registrations nobody reads; the meta description hard-codes \"9 available now · updated 31 Jul\".",
+      "recommendation": "Remove from sitemap and deployment; delete the dead forms; regenerate meta text from data."
+    },
+    {
+      "finding_id": "BOOM-FRONT-004",
+      "category": "frontend",
+      "title": "No design-token source of truth; Solari engine copied six times",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "css/boom-core.css:13-24; css/boom-2026.css:10-16; css/portal.css:2; login.html; sign.html; scheda.html; about.html; skyline.html; index.html:4124; apartments.html:4276; apartment-detail.html:4395; board.html:456; how-it-works.html:2455; your-money.html:2347",
+      "description": "Five golds and six blacks across pages; boom-core is not loaded by the pages the guide says use it; boom-svc expects undeclared tokens; boom-cinema hard-codes a scroll offset that boom-scroll measures; window.BoomSolari is defined inline in six live pages although the aviation study prescribes one module; ≥8 nav variants; seven hand-rolled i18n switchers with five storage keys; two manifests with different start URLs.",
+      "recommendation": "One tokens.css with two declared contexts; one Solari module; one nav include; one i18n helper; one manifest."
+    },
+    {
+      "finding_id": "BOOM-FRONT-005",
+      "category": "frontend",
+      "title": "Status vocabulary drift across surfaces",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "js/dispo-engine.js:469-523; apartments.html:4599-4601; apartment-detail.html:3068-3076; board.html:489-619; viewing.html; pass-delivery.html; tenant.html; js/portal-app.js:14761",
+      "description": "The occupied-with-date state is rendered with five different phrases; raw enum strings (awaiting_tenant, cancelled) reach clients; payments and viewings use different words per surface.",
+      "recommendation": "Make status a projection with one dictionary and three registers (customer words, operator codes, board glyphs)."
+    },
+    {
+      "finding_id": "BOOM-FRONT-006",
+      "category": "frontend",
+      "title": "Firebase configuration duplicated fifteen times with three API keys",
+      "evidence_level": "VERIFIED",
+      "severity": "low",
+      "repository_location": "js/firebase-config.js; 14 inline copies (apartments-in/*.html, book.html, deals.html, form-*.html, login.html, sign.html, onboarding.html, seed-listings.html, pass-studio.html); js/portal-app.js:73-100",
+      "description": "The portal carries its own config with ENV development and a placeholder production block; two pages use different, apparently stale keys and bucket names; four catalogue renderers must agree.",
+      "recommendation": "One config module; remove stale keys."
+    },
+    {
+      "finding_id": "BOOM-DEBT-001",
+      "category": "debt",
+      "title": "Portal monolith duplicates the server and writes business state from the browser",
+      "evidence_level": "VERIFIED",
+      "severity": "critical",
+      "repository_location": "js/portal-app.js (28,356 lines): 15650 saveContract, 7299 wizardFinish, 17866 generateMonthlyPayments, 28112 Innesto schedule, 16023 generateContractDeadlines, 17656 saveContractSignature, 17753 activateContract, 19270 sendTenantWelcomeWithMagicLink, 9715 rulesPage, 2862 checkContractExpiry, 3847 checkScheduledNotifications, 15524 saveUser, 16196 nextInvoiceNumber",
+      "description": "~200 direct Firestore write sites over ~35 collections; three rent-schedule generators; two contract factories; in-portal signing and activation parallel to /sign; a browser rules engine; customer emails sent from a browser tab at boot; three user-provisioning paths; race-prone invoice numbering; 1,050 inline handlers; 44 dead functions; 71 modals bypassing openModal; layers coupled by DOM scraping. Maintainability 2/10.",
+      "recommendation": "Strangle logic into server doors starting with contract creation + schedule + deadlines; delete in-portal signing, the browser rules engine and boot emails; then split the UI by page."
+    },
+    {
+      "finding_id": "BOOM-DEBT-002",
+      "category": "debt",
+      "title": "Duplicated primitives across the codebase",
+      "evidence_level": "VERIFIED",
+      "severity": "high",
+      "repository_location": "api/ (9 sign-in copies, 3 listing readers, ~20 rate limiters, 2 Whisper clients); api/homie/_lead.js:33, api/homie/inbox-sync.js:31, js/miniera-engine.js:38, js/conversations.js:41 (normalizePhone); api/_pdfbrand.js:46 + 4 wa() copies; ~19 PDF layout code paths",
+      "description": "The \"one copy\" discipline the repository declares is violated for sign-in, Firestore codecs, phone normalisation, WinAnsi sanitising, listing readers, PDF headers, rate limiting and speech-to-text.",
+      "recommendation": "Consolidate each into one module with a test that fails on a second copy."
+    },
+    {
+      "finding_id": "BOOM-DEBT-003",
+      "category": "debt",
+      "title": "Legacy and orphan surface still deployed",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "api/apply.js; api/ask-listing.js; api/agent/{ack,compliance.scan,concierge,documents.*,magicsign.create,radar.scan,relet.scan}.js; api/geocode-all.js; api/geocode-bake.js; api/vercel.json; api/stripe-webhook.js EmailJS calls; api/notify-viewing-created.js; api/portal/_notify.js; smartlink-fix.js; s.html; owner-dashboard (both); pass-studio.html; cockpit-preview.html; public/deals_v2_commandcenter.html; header.html; flats.json; js/boom-bg*.js; js/boom-photoreal.js; 37 preview-*.html",
+      "description": "Dead endpoints, EmailJS still used server-side in three files despite being declared retired, a stale nested Vercel config, an orphan SmartLink generator, two owner-dashboard files (one a broken paste), a third pass generator, retired consoles and 37 design previews remain in the deployed tree.",
+      "recommendation": "Retire in one PR with the sitemap and vercelignore updated; keep design studies outside the deployed root."
+    },
+    {
+      "finding_id": "BOOM-DEBT-004",
+      "category": "debt",
+      "title": "Documentation as changelog; guide stale in at least six places",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "CLAUDE.md (268 KB, 3,749 lines; grew 199→268 KB in 16 days); 31 root studies; commit bodies averaging ~977 words",
+      "description": "The guide is simultaneously guide, changelog, incident log and design rationale; stale claims include the service-worker version, cron count, suite count, \"EmailJS retired\", \"boom-core used by index\", settings/payout and an Allegato generator said to live in the portal; studies contradict each other and have no current/superseded index.",
+      "recommendation": "Short guide + ADRs + generated changelog; date and status on every study."
+    },
+    {
+      "finding_id": "BOOM-DEBT-005",
+      "category": "debt",
+      "title": "Rome literals compiled into global code",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "js/radar-engine.js:80-122 (38 zones); js/scalo-codes.js (25); js/neighborhoods.js (11); js/canone-engine.js (75); api/feed/immobiliare.js:37; api/publisher/_state.js:129; api/ops/gtfs-tempi.js:33-34; api/listing.js:75,125,171; api/viewings/_avail.js:25; currency \"eur\" in 14 Stripe sites",
+      "description": "Five independent zone lexicons, the ISTAT code, the GTFS source, the Rome time zone, EUR and Italian legal fields are constants in domain code; only leads carry a market field.",
+      "recommendation": "Add a market dimension and load Rome tables from a city pack; test that domain code contains no Rome literal."
+    },
+    {
+      "finding_id": "BOOM-DEBT-006",
+      "category": "debt",
+      "title": "Body size limits above the platform cap and hard-coded fallbacks",
+      "evidence_level": "VERIFIED",
+      "severity": "low",
+      "repository_location": "api/parse-docs.js:35; api/portal/ingest.js:32; api/sign/custom/submit.js:23; five files with a literal Firebase web API key fallback",
+      "description": "Declared limits of 10–12 MB cannot be honoured (4.5 MB platform cap); public-key fallbacks and admin addresses are hard-coded as defaults.",
+      "recommendation": "Align limits with the platform; remove literal fallbacks."
+    },
+    {
+      "finding_id": "BOOM-PRODU-001",
+      "category": "product",
+      "title": "No canonical deal entity; the transaction is fragments plus Telegram",
+      "evidence_level": "VERIFIED",
+      "severity": "high",
+      "repository_location": "api/leads/*; api/viewings/*; api/preagreement/*; api/preagreement/_lock.js; api/ops/_lotto12.js; api/magic-sign/*; api/journey/_run.js",
+      "description": "Application, negotiation, approval, check-in, active tenancy and exit do not exist as state; two incompatible hold mechanisms; the renewal answer and the viewing outcome live only in WhatsApp messages; no document carries the whole deal, so funnel metrics and \"what is blocking this deal\" are unanswerable.",
+      "recommendation": "Introduce the DEALS state machine with events and dual-write during the strangler period."
+    },
+    {
+      "finding_id": "BOOM-PRODU-002",
+      "category": "product",
+      "title": "Three autonomy regimes, all off, no recorded decision",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "homie-bridge/SOUL-BOOM-V2.md:3-11; js/fiducia-engine.js:35-56; api/segretaria/_core.js; js/squadra-registry.js (26 agents: 21 mai, 3 sempre, 2 parziale); STUDIO_ORGANICO_2026-08.md",
+      "description": "\"Never auto-execute\", the fiducia measured scale and the per-chat Segretaria handover coexist; the studies that would turn them on have no execution record; the registry says 21 of 26 agents act alone while the three approval rails default off.",
+      "recommendation": "Adopt the four-tier approval model and record the decision as an ADR."
+    },
+    {
+      "finding_id": "BOOM-PRODU-003",
+      "category": "product",
+      "title": "Surface grows faster than substance",
+      "evidence_level": "VERIFIED",
+      "severity": "medium",
+      "repository_location": "js/squadra-registry.js (26 agents); vercel.json (28 crons); STUDIO_ARSENALE_2026-08.md (2 of 13 kill-list items done); 16 visual directions; 37 previews; three command centres, four radars, three photo studios",
+      "description": "For ~26 homes and 30 lifetime payments the repository added Segretaria, Scalo, Meteo, Postino and seven studies in the fortnight after its own audit said \"less surface\"; La Réunion, Executive and the Pubblicista target markets or channels with no evidence of value.",
+      "recommendation": "Freeze the registry; every new automation retires one; consolidate before adding."
+    },
+    {
+      "finding_id": "BOOM-PRODU-004",
+      "category": "product",
+      "title": "Markets and channels without evidence",
+      "evidence_level": "PROTOTYPE",
+      "severity": "low",
+      "repository_location": "reunion.html; api/reunion-lead.js; executive.html; api/executive-lead.js; api/feed/immobiliare.js; api/publisher/*; api/phone/elevenlabs.js; api/banking/connect.js",
+      "description": "La Réunion has no entity, licence, price or presence; Executive feeds the same pipeline; the portal feed was never activated; the receptionist activation and the open-banking account are UNKNOWN.",
+      "recommendation": "Park until the Rome rail converts; keep the code behind flags or remove."
+    }
+  ]
+}
