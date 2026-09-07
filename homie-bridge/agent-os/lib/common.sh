@@ -21,6 +21,10 @@ fi
 # in the environment if needed.
 TG_CHAT_ID="${TG_CHAT_ID:-553858752}"
 
+# Sessione in cui vivono le sveglie AUTOMATICHE. Deve essere DIVERSA dalla
+# conversazione Telegram dell'operatore: vedi aos_wake_homie.
+AOS_WAKE_SESSION="${AOS_WAKE_SESSION:-agent-os-auto}"
+
 # ─── logging ──────────────────────────────────────────────────────────
 aos_log() {
     local name="${AOS_NAME:-aos}"
@@ -92,19 +96,19 @@ aos_alert() {
         *)    icon='ℹ️' ;;
     esac
     aos_log "ALERT[$urgency] $message"
-    # We don't want alerting to depend on the LLM. Send the raw text
-    # via the OpenClaw agent CLI which honors --to/--channel/--deliver
-    # directly (no model call for plain delivery).
+    local text
+    text="$(printf '[agent-os] %s %s' "$icon" "$message" | head -c 3500)"
+    # `openclaw agent --deliver` faceva girare un TURNO DI MODELLO solo per
+    # recapitare un testo già scritto — e lo scriveva dentro la sessione
+    # dell'operatore. `message send` consegna e basta: zero token, zero
+    # storico aggiunto alla chat.
     if command -v openclaw >/dev/null 2>&1 && aos_gateway_up; then
-        printf '%s %s' "$icon" "$message" | head -c 3500 | \
-            openclaw agent --agent main \
-                --channel telegram --to "$TG_CHAT_ID" --deliver \
-                --message "[agent-os] $icon $message" \
-                --thinking off --timeout 30 >/dev/null 2>&1 &
+        openclaw message send --channel telegram --target "$TG_CHAT_ID" \
+            --message "$text" >/dev/null 2>&1 &
     elif [ -n "${TG_BOT_TOKEN:-}" ]; then
         curl -s -m 15 -X POST "https://api.telegram.org/bot${TG_BOT_TOKEN}/sendMessage" \
             --data-urlencode "chat_id=${TG_CHAT_ID}" \
-            --data-urlencode "text=[agent-os] $icon $message" >/dev/null 2>&1 &
+            --data-urlencode "text=$text" >/dev/null 2>&1 &
         aos_log "alert delivered via Bot API (gateway down)"
     else
         aos_log "alert NOT delivered: gateway down and TG_BOT_TOKEN unset"
@@ -113,8 +117,19 @@ aos_alert() {
 
 # ─── wake Homie with a precise delta (token-efficient agent turn) ─────
 # Usage: aos_wake_homie "Sofia Poulet ha scritto un messaggio nuovo: ..."
-# Defaults to haiku + minimal thinking. Escalation is the agent's job
-# (the agent inside the turn can decide to call sonnet via a tool).
+#
+# LA SESSIONE È IL PUNTO (7 settembre 2026). Questa funzione passava
+# `--channel telegram --to "$TG_CHAT_ID"`, e nel CLI `--to` è "the recipient
+# number USED TO DERIVE THE SESSION KEY": ogni sveglia automatica finiva
+# quindi DENTRO la conversazione Telegram dell'operatore. Dopo mesi la
+# sessione `agent:main:main` portava ~8.000 messaggi di valutazioni lead
+# generate dai cron, e il modello continuava quello schema qualunque cosa
+# gli si scrivesse: alla domanda "rispondi solo ok" ha risposto graduando
+# un lead di Via Satrico. Da fuori si vedeva "non risponde alle mie
+# domande, analizza solo le email" — e ogni turno ripagava quello storico.
+# Ora l'automazione ha la SUA sessione (AOS_WAKE_SESSION) e la chat
+# dell'operatore resta la chat dell'operatore. Nessun --deliver: la sveglia
+# fa agire, non parlare (il canale resta libero per le decisioni vere).
 aos_wake_homie() {
     local context="$1"
     local thinking="${2:-minimal}"
@@ -123,9 +138,9 @@ aos_wake_homie() {
         aos_log "wake_homie: empty context, skipping"
         return 1
     fi
-    aos_log "waking Homie (thinking=$thinking, timeout=${timeout}s) :: ${context:0:120}"
+    aos_log "waking Homie (session=$AOS_WAKE_SESSION, thinking=$thinking, timeout=${timeout}s) :: ${context:0:120}"
     openclaw agent --agent main \
-        --channel telegram --to "$TG_CHAT_ID" \
+        --session-id "$AOS_WAKE_SESSION" \
         --thinking "$thinking" --timeout "$timeout" \
         --message "$context" >/dev/null 2>&1
 }

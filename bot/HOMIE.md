@@ -295,6 +295,32 @@ modello di NON analizzare). Pinnato in `tests/agentos/run.mjs`.
 Sul Mac, dopo il pull: `launchctl kickstart -k gui/$(id -u)/com.boomrome.realtime`
 e nel log `~/agent-os/state/realtime.log` deve comparire `MANDATE mode`.
 
+### La sessione dell'operatore non è la discarica dei cron
+
+Il pezzo che spiega il sintomo peggiore ("non risponde alle mie domande,
+analizza solo le email"). `aos_wake_homie` passava
+`--channel telegram --to "$TG_CHAT_ID"`, e nel CLI OpenClaw `--to` è *"the
+recipient number **used to derive the session key**"*: ogni sveglia
+automatica finiva quindi DENTRO la conversazione Telegram dell'operatore.
+Dopo mesi la sessione `agent:main:main` portava **~8.000 messaggi** di
+valutazioni lead prodotte dai cron. Prova diretta, 7/09: a
+`openclaw agent --message "ping rispondi solo ok"` Homie ha risposto
+*"C/42 · Firestore … · Via Satrico — ora a 28 lead in meno di 40 ore"*.
+Non aveva letto la domanda: continuava lo schema dominante del suo storico.
+E quello storico si ripaga a ogni turno — è la voce di costo più grossa,
+più del modello.
+
+Da questa data l'automazione ha la sua sessione (`AOS_WAKE_SESSION`,
+default `agent-os-auto`) e la chat dell'operatore resta la chat
+dell'operatore. Inoltre `aos_alert` consegna con `openclaw message send`:
+prima faceva girare un **turno di modello** solo per recapitare un testo già
+scritto, e lo scriveva pure nella chat.
+
+**Se la sessione è già avvelenata**, il codice nuovo non la ripulisce da
+solo: va aperta una sessione nuova per la chat (`openclaw sessions` per
+vederle). Sintomo da riconoscere: Homie risponde a tono con qualcos'altro,
+tipicamente l'ultimo lavoro automatico che ha visto.
+
 ### Riaccendere il gateway
 
 ```bash

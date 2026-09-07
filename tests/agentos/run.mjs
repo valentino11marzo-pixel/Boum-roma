@@ -75,11 +75,30 @@ ok('health: gateway_hold ferma il revive (lo stop voluto resta possibile)', /gat
 ok('health: "CLI in PATH" non è più l\'unico controllo',
    (hs.match(/command -v openclaw/g) || []).length >= 1 && hs.includes('gw_loaded'));
 
-// ── 4. common.sh: l'allarme non passa dal gateway morto ───────────────────
+// ── 4. common.sh: la sessione dell'operatore non è la discarica dei cron ──
+// `--to` nel CLI OpenClaw DERIVA LA SESSION KEY: passarci la chat Telegram
+// dell'operatore metteva ogni sveglia automatica dentro la sua
+// conversazione. Dopo mesi: ~8.000 messaggi di grading, e a "rispondi solo
+// ok" il modello rispondeva valutando un lead.
+const cmSess = src('lib/common.sh');
+const wake = cmSess.slice(cmSess.indexOf('aos_wake_homie() {'), cmSess.indexOf('aos_hash()'))
+  .split('\n').filter(l => !/^\s*#/.test(l)).join('\n');
+ok('wake: usa una session-id dedicata', /--session-id "\$AOS_WAKE_SESSION"/.test(wake));
+ok('wake: NON deriva più la sessione dalla chat dell\'operatore', !/--to /.test(wake) && !wake.includes('$TG_CHAT_ID'));
+ok('wake: la sessione dell\'automazione ha un default esplicito', /AOS_WAKE_SESSION="\$\{AOS_WAKE_SESSION:-agent-os-auto\}"/.test(cmSess));
+ok('wake: nessun --deliver (la sveglia fa agire, non parlare)', !wake.includes('--deliver'));
+
+// ── 5. common.sh: l'allarme non passa dal gateway morto ───────────────────
 const cm = src('lib/common.sh');
 ok('alert: via gateway SOLO se la porta risponde', /command -v openclaw >\/dev\/null 2>&1 && aos_gateway_up; then/.test(cm));
 ok('alert: fallback Bot API Telegram con TG_BOT_TOKEN', /api\.telegram\.org\/bot\$\{TG_BOT_TOKEN\}\/sendMessage/.test(cm));
 ok('alert: senza token lo dice nel log invece di tacere', /alert NOT delivered/.test(cm));
+// Solo il CODICE: i commenti che raccontano il difetto nominano per forza
+// la vecchia chiamata, ed è giusto che restino.
+const alert = cm.slice(cm.indexOf('aos_alert() {'), cm.indexOf('# ─── wake Homie'))
+  .split('\n').filter(l => !/^\s*#/.test(l)).join('\n');
+ok('alert: consegna con `message send`, non con un turno di modello',
+   alert.includes('openclaw message send') && !alert.includes('openclaw agent'));
 
 console.log(fails ? `\n${fails} FAIL` : '\nALL PASS');
 process.exit(fails ? 1 : 0);
