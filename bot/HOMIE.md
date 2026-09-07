@@ -302,13 +302,14 @@ analizza solo le email"). `aos_wake_homie` passava
 `--channel telegram --to "$TG_CHAT_ID"`, e nel CLI OpenClaw `--to` è *"the
 recipient number **used to derive the session key**"*: ogni sveglia
 automatica finiva quindi DENTRO la conversazione Telegram dell'operatore.
-Dopo mesi la sessione `agent:main:main` portava **~8.000 messaggi** di
-valutazioni lead prodotte dai cron. Prova diretta, 7/09: a
-`openclaw agent --message "ping rispondi solo ok"` Homie ha risposto
-*"C/42 · Firestore … · Via Satrico — ora a 28 lead in meno di 40 ore"*.
-Non aveva letto la domanda: continuava lo schema dominante del suo storico.
-E quello storico si ripaga a ogni turno — è la voce di costo più grossa,
-più del modello.
+Dopo mesi quella sessione era piena di valutazioni lead prodotte dai cron:
+`openclaw sessions` la dava a **61k/200k token (31%)**. Prova diretta,
+7/09: a `openclaw agent --message "ping rispondi solo ok"` Homie ha
+risposto *"C/42 · Firestore … · Via Satrico — ora a 28 lead in meno di 40
+ore"*. Non aveva letto la domanda: continuava lo schema dominante del suo
+storico. La stessa identica domanda in una sessione vergine
+(`--session-id diag1`) ha risposto `OK`. E quello storico si ripaga a ogni
+turno, quindi non è solo un problema di attenzione: è anche costo.
 
 Da questa data l'automazione ha la sua sessione (`AOS_WAKE_SESSION`,
 default `agent-os-auto`) e la chat dell'operatore resta la chat
@@ -317,9 +318,17 @@ prima faceva girare un **turno di modello** solo per recapitare un testo già
 scritto, e lo scriveva pure nella chat.
 
 **Se la sessione è già avvelenata**, il codice nuovo non la ripulisce da
-solo: va aperta una sessione nuova per la chat (`openclaw sessions` per
-vederle). Sintomo da riconoscere: Homie risponde a tono con qualcos'altro,
-tipicamente l'ultimo lavoro automatico che ha visto.
+solo: va aperta una sessione nuova per la chat. Sintomo da riconoscere:
+Homie risponde a tono con qualcos'altro, tipicamente l'ultimo lavoro
+automatico che ha visto. Diagnosi in un comando — la stessa domanda in una
+sessione vergine:
+
+```bash
+openclaw sessions
+openclaw agent --session-id diag1 --message "rispondi solo ok" --thinking off --timeout 90
+```
+
+Risponde `OK` lì e a sproposito in chat ⇒ è la sessione, non il modello.
 
 ### Riaccendere il gateway
 
