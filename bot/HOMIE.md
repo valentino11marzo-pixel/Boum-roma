@@ -330,6 +330,41 @@ openclaw agent --session-id diag1 --message "rispondi solo ok" --thinking off --
 
 Risponde `OK` lì e a sproposito in chat ⇒ è la sessione, non il modello.
 
+### L'orecchio perdeva i messaggi (7 settembre, il difetto più caro)
+
+Sintomo dell'operatore: *«non si aggiorna live da WhatsApp, e ad alcuni
+avevo già risposto»*. La protezione contro la seconda parte esisteva già
+lato server — `api/homie/message.js` marca il lead `contacted` su un
+`direction:'out'`, così il Commerciale non scrive a chi hai già risposto —
+ma funziona solo se il Mac manda davvero tutto. E `wa-forwarder.sh`, il
+file che lo fa, **è vissuto un mese fuori da git**: esisteva solo sul disco
+del mini, nessuno l'aveva mai riletto, e l'installer non lo registrava
+nemmeno (una reinstallazione da zero avrebbe dato un BOOM senza WhatsApp,
+in silenzio). Tre difetti dentro:
+
+1. **Il cursore avanzava anche sul fallimento.** `raw="$(wacli … || echo '')"`
+   rendeva *«wacli è giù»* e *«nessun messaggio nuovo»* indistinguibili, e
+   in entrambi i casi il cursore veniva riscritto. Ogni riavvio di wacli o
+   riconnessione della sessione WhatsApp bruciava quei messaggi **per
+   sempre**: mai inoltrati, mai diventati lead, mai arrivati su Telegram.
+   È la stessa lezione di `runVerdict` (un radar cieco non è un mercato
+   fermo), imparata lì e non qui.
+2. **I messaggi senza testo venivano buttati.** Note vocali, foto,
+   documenti: la persona non esisteva. A Roma metà dei primi contatti sono
+   note vocali.
+3. **I gruppi diventavano lead spazzatura**, con numero `group:12036…` che
+   nessuno può richiamare (il server non filtra i `@g.us`).
+
+Ora il cursore avanza solo su un giro riuscito, un 5xx o un timeout lo
+tiene fermo (il replay è gratis: `messageId` è la chiave di idempotenza)
+mentre un 4xx no (bloccherebbe la coda per sempre), i media viaggiano con
+un'etichetta, i gruppi si saltano e ciò che non si sa nominare viene
+scartato **ma loggato**. Un orecchio fermo da oltre 15 minuti manda UN
+allarme Telegram, e uno solo.
+Test: `node tests/agentos/forwarder.mjs` — script vero, wacli finto,
+server vero; i tre scenari (wacli giù, server giù, 4xx) verificati per
+mutazione: rimesso il difetto vecchio, 3 check cadono.
+
 ### Riaccendere il gateway
 
 ```bash

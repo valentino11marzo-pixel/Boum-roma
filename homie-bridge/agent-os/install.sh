@@ -24,6 +24,7 @@ HEALTH_PLIST="$PLIST_DIR/com.boomrome.health.plist"
 TELEMETRY_PLIST="$PLIST_DIR/com.boomrome.telemetry.plist"
 MEMORY_PLIST="$PLIST_DIR/com.boomrome.memory.plist"
 REALTIME_PLIST="$PLIST_DIR/com.boomrome.realtime.plist"
+FORWARDER_PLIST="$PLIST_DIR/com.boomrome.wa-forwarder.plist"
 PULSE_BIN="$HOME/agent-os/bin/pulse.sh"
 HEALTH_BIN="$HOME/agent-os/bin/health.sh"
 TELEMETRY_BIN="$HOME/agent-os/bin/telemetry.sh"
@@ -110,6 +111,22 @@ if launchctl list | grep -q com.boomrome.realtime; then
     ok "realtime registrato (daemon always-on, poll ogni 15s)"
 else
     warn "realtime NON trovato in list"
+fi
+
+# 7b) launchd · wa-forwarder (L'ORECCHIO, always-on)
+#     Fino al 7/09/2026 questo job esisteva SOLO come plist scritto a mano
+#     sul Mac mini, e il suo script viveva fuori da git: una
+#     reinstallazione da zero avrebbe prodotto un BOOM senza WhatsApp, in
+#     silenzio. Da qui in poi lo installa l'installer, come tutti gli altri.
+bold "7b/9  Registra launchd com.boomrome.wa-forwarder (l'orecchio WhatsApp)"
+FORWARDER_BIN="$HOME/agent-os/bin/wa-forwarder.sh"
+printf '<?xml version="1.0" encoding="UTF-8"?>\n<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n<plist version="1.0">\n<dict>\n  <key>Label</key><string>com.boomrome.wa-forwarder</string>\n  <key>ProgramArguments</key>\n  <array>\n    <string>/bin/bash</string>\n    <string>%s</string>\n  </array>\n  <key>KeepAlive</key><true/>\n  <key>RunAtLoad</key><true/>\n  <key>ThrottleInterval</key><integer>10</integer>\n  <key>StandardOutPath</key><string>%s/state/launchd.wa-forwarder.log</string>\n  <key>StandardErrorPath</key><string>%s/state/launchd.wa-forwarder.err</string>\n  <key>EnvironmentVariables</key>\n  <dict>\n    <key>PATH</key><string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>\n  </dict>\n</dict>\n</plist>\n' "$FORWARDER_BIN" "$HERE" "$HERE" > "$FORWARDER_PLIST"
+launchctl unload "$FORWARDER_PLIST" 2>/dev/null || true
+launchctl load "$FORWARDER_PLIST"
+if launchctl list | grep -q com.boomrome.wa-forwarder; then
+    ok "wa-forwarder registrato (inoltro WhatsApp → server)"
+else
+    warn "wa-forwarder NON trovato in list"
 fi
 
 # 8) Smoke-test tutta la fleet
