@@ -3,18 +3,34 @@
 # every POLL_SECS (default 15) and converts each pending notification into
 # an immediate Homie wake.
 #
-# This is the bridge between the cloud (where events happen) and the Mac
-# (where Homie acts). Without this, you wait up to 15 min for the pulse
-# cron tick. With this, a new lead arriving via the public form on the
-# site fires a Homie response within ~15 seconds.
+# IL DIFETTO DEL 7 SETTEMBRE 2026 — questo daemon era il cliente che pagava
+# due volte. Per OGNI notifica del server (lead.new ogni 10' dallo
+# scan-inbox, giorno e notte) svegliava Homie con l'istruzione "dedup,
+# qualifica, scrivi la risposta di benvenuto": esattamente il lavoro che
+# bot/HOMIE.md vieta e che il server fa già gratis (Lead Brain,
+# Commerciale). Ogni sveglia = un turno col modello di default del gateway
+# (Sonnet) + 21k caratteri di bootstrap, che teneva la corsia
+# `agent:main:main` fino a 240s. Risultato misurato nel log: "No reply from
+# agent" alle :01, :11, :21… tutta la notte, le "troppe transazioni"
+# Anthropic, e l'operatore che scrive a Homie su Telegram e non vede nemmeno
+# "sta scrivendo" — il suo messaggio aspettava una corsia sempre occupata.
+# Danno collaterale: la claim su /api/agent/queue toglie le notifiche dallo
+# stato `pending` PRIMA che notify-pending (ogni minuto) le trasformi in card
+# Telegram — la card "anche col Mac spento" arrivava SOLO col Mac spento.
+#
+# Ora: per DEFAULT questo daemon non sveglia nessuno e non interroga la
+# coda (la lascia al server). REALTIME_WAKE_TYPES="tipo1,tipo2" in
+# ~/.boom/env riaccende la sveglia SOLO per i tipi elencati — e quei tipi
+# non riceveranno più la card Telegram del server, perché li consuma il Mac.
 #
 # launchd:  KeepAlive=true, RunAtLoad=true. If this script ever exits it
 #           gets restarted within seconds; if the Mini reboots it comes
 #           up on its own.
 #
-# Cost:    polling /api/agent/queue is FREE (no LLM call). Only matched
-#          events incur a Homie wake — and they go through the SAME
-#          aos_wake_homie path pulse uses (haiku + minimal thinking).
+# Cost:    polling /api/agent/queue is FREE (no LLM call). Only allow-listed
+#          events incur a Homie wake — through aos_wake_homie, whose model
+#          is the GATEWAY DEFAULT (set it to haiku in openclaw.json: the old
+#          comment "haiku + minimal" was a wish, not a fact).
 set -uo pipefail
 
 AOS_NAME="realtime"
@@ -26,6 +42,9 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 POLL_SECS="${POLL_SECS:-15}"
 API_BASE="${API_BASE:-https://boomrome.com/api/agent}"
 MAX_ATTEMPTS_RETRY="${MAX_ATTEMPTS_RETRY:-3}"
+# Allow-list of event types that may wake the LLM. Empty = mandate mode:
+# no polling, no wakes, the server's own pipeline handles every event.
+REALTIME_WAKE_TYPES="${REALTIME_WAKE_TYPES:-}"
 
 if [ -z "${HOMIE_SECRET:-}" ]; then
     aos_log "FATAL: HOMIE_SECRET not set (load ~/.boom/env first)"
@@ -33,7 +52,17 @@ if [ -z "${HOMIE_SECRET:-}" ]; then
     exit 1
 fi
 
-aos_log "realtime daemon starting (poll=${POLL_SECS}s, api=$API_BASE)"
+if [ -z "$REALTIME_WAKE_TYPES" ]; then
+    aos_log "realtime daemon in MANDATE mode: nessuna sveglia LLM, coda lasciata al server (REALTIME_WAKE_TYPES vuota — vedi bot/HOMIE.md)"
+    # Stay alive quietly (KeepAlive would just restart us); re-read the env
+    # every 5 min so enabling the allow-list needs no restart.
+    while :; do
+        sleep 300
+        [ -f "$HOME/.boom/env" ] && . "$HOME/.boom/env"
+        [ -n "${REALTIME_WAKE_TYPES:-}" ] && { aos_log "REALTIME_WAKE_TYPES impostata ($REALTIME_WAKE_TYPES) — riavvio in modalità sveglia"; exit 0; }
+    done
+fi
+aos_log "realtime daemon starting (poll=${POLL_SECS}s, api=$API_BASE, wake_types=$REALTIME_WAKE_TYPES)"
 
 # Trap SIGTERM / SIGINT for clean launchd shutdowns.
 running=1
@@ -108,9 +137,26 @@ for k in ('chat','chatId','jid','phone','from','wa'):
     bash "$HERE/memory.sh" inject "$chat" 2>/dev/null
 }
 
+type_allowed() {
+    case ",$REALTIME_WAKE_TYPES," in
+        *",$1,"*) return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
 process_one() {
     local id="$1" type="$2" summary="$3" priority="$4" payload="$5" attempts="$6"
     aos_log "event $id [$type/$priority] :: ${summary:0:100}"
+    if ! type_allowed "$type"; then
+        # Not ours: the server pipeline owns it. Release without an LLM turn.
+        aos_log "event $id [$type] non in REALTIME_WAKE_TYPES — nessuna sveglia, ack done (gestito dal server)"
+        curl -fsS -m 20 -X POST "$API_BASE/ack" \
+            -H "Content-Type: application/json" \
+            -H "X-Homie-Secret: $HOMIE_SECRET" \
+            -d "$(printf '{"id":"%s","status":"done","detail":"server-side (realtime mandate)"}' "$id")" \
+            >/dev/null 2>&1
+        return 0
+    fi
     local context
     context="$(build_context "$type" "$summary" "$priority" "$payload")"
     local mem

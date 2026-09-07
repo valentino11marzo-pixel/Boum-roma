@@ -270,6 +270,31 @@ grep -c "limit 7000" ~/.openclaw/logs/gateway.err.log
   legge anche come costo: 3 file troncati a 7.000 sono ~5k token iniettati
   a OGNI risveglio, prima ancora del messaggio.
 
+### 7 settembre: il cliente che pagava due volte era `agent-os`
+
+Il gateway riacceso, Homie rispondeva ancora "solo alle email" e su Telegram
+non compariva nemmeno *sta scrivendo*. Il log lo spiegava: `No reply from
+agent` alle :01, :11, :21 di TUTTA la notte, e `lane wait exceeded:
+lane=session:agent:main:main`. Chi lo svegliava ogni 10 minuti era
+`homie-bridge/agent-os/bin/realtime.sh`: per ogni notifica del server
+(`lead.new` dallo scan-inbox, cron */10) un turno con l'istruzione *"dedup,
+qualifica, scrivi la risposta di benvenuto"* — il lavoro che questo file
+vieta, rifatto col modello di default del gateway (Sonnet) e 21k caratteri
+di bootstrap, con la corsia unica della chat occupata fino a 240s. Il
+messaggio dell'operatore aspettava 30s e veniva scartato. `pulse.sh` ogni
+15' faceva lo stesso col vecchio prompt ("boom lead-create", "boom action").
+In più la claim sulla coda toglieva le notifiche da `pending` PRIMA che
+`notify-pending` le trasformasse in card Telegram: la card "anche col Mac
+spento" arrivava SOLO col Mac spento.
+
+Da questa data: `realtime.sh` non sveglia nessuno e non tocca la coda
+(`REALTIME_WAKE_TYPES` vuota = modalità mandato; una allow-list per tipo la
+riaccende, sapendo che quei tipi perdono la card del server), `pulse.sh`
+resta un sensore gratuito (`PULSE_WAKE_LLM=0`, e il prompt residuo dice al
+modello di NON analizzare). Pinnato in `tests/agentos/run.mjs`.
+Sul Mac, dopo il pull: `launchctl kickstart -k gui/$(id -u)/com.boomrome.realtime`
+e nel log `~/agent-os/state/realtime.log` deve comparire `MANDATE mode`.
+
 ### Riaccendere il gateway
 
 ```bash

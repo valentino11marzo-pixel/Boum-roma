@@ -125,6 +125,17 @@ Dopo: ogni `boom action` nuova arriva sul tuo telefono con
 | "troppe transazioni Anthropic" | ricariche automatiche del credito prepagato: Homie NON può fermarle | console.anthropic.com → Settings → Billing (limite mensile, ricarica). Poi spegni il LAVORO doppio (gmail-watcher, grading locale), non il gateway |
 | keep-alive non parte | launchd plist non caricato | `launchctl unload ~/Library/LaunchAgents/com.boomrome.homie.plist; launchctl load ~/Library/LaunchAgents/com.boomrome.homie.plist` |
 
+## Il repo sul Mac mini segue un branch
+
+`~/agent-os` è un symlink dentro `~/Boum-roma/homie-bridge/agent-os`: gli
+script che launchd esegue sono QUELLI del checkout. Dopo aver provato un
+branch sul mini, tornare a main o il Mac resta fermo a quel commit per sempre:
+
+```bash
+cd ~/Boum-roma && git checkout main && git pull origin main
+launchctl kickstart -k gui/$(id -u)/com.boomrome.realtime
+```
+
 ## Disinstallare
 
 ```bash

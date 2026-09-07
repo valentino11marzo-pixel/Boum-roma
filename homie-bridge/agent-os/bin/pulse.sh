@@ -13,7 +13,17 @@
 #   - new lead from the public website (snapshot delta on leads.newToday)
 #
 # Cost discipline: per pulse, sends AT MOST one wake-up with --thinking
-# minimal + haiku. The agent itself may escalate inside its turn.
+# minimal. The agent itself may escalate inside its turn.
+#
+# 7 SETTEMBRE 2026 — la sveglia è SPENTA per default (PULSE_WAKE_LLM=0).
+# Il prompt che mandava ("Lead nuovi: boom lead-create · Risposte/visite:
+# boom action") è il mandato VECCHIO: oggi i WhatsApp vanno al server
+# verbatim (wa-forwarder → /api/homie/message → lead → Brain → Telegram) e
+# i lead li grada il server. Una sveglia ogni 15' per rifare quel lavoro è
+# spesa doppia e una corsia occupata (vedi realtime.sh). Il pulse resta
+# utile come SENSORE gratuito: registra il delta, aggiorna last_pulse_ts
+# (health.sh lo sorveglia) e i contatori di telemetry. PULSE_WAKE_LLM=1 in
+# ~/.boom/env riaccende la sveglia, col prompt allineato a bot/HOMIE.md.
 set -uo pipefail
 
 AOS_NAME="pulse"
@@ -23,6 +33,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 . "$HERE/../lib/portal.sh"
 
 aos_lock "$AOS_NAME" 900 || exit 0
+PULSE_WAKE_LLM="${PULSE_WAKE_LLM:-0}"
 
 # Last successful pulse timestamp — drives the wacli "since" window.
 last_pulse="$(aos_state_get last_pulse_ts)"
@@ -108,7 +119,15 @@ if [ -n "$risk_delta" ]; then
         "$context" "$risk_delta")"
 fi
 
-context="$(printf '%s\n\nAGISCI per SOUL.md (Bilanciato):\n- Specchia i WhatsApp con boom message (Tier-1).\n- Lead nuovi: boom lead-create --dedup.\n- Risposte/visite/chiamate: boom action (Tier-2, mando approvazione su Telegram).\n- Anti-rumore: SILENZIO su Telegram salvo proposte Tier-2 o urgenze vere.\n- Quiet hours 22-08: agisci sul portal, niente messaggi.' "$context")"
+context="$(printf '%s\n\nMANDATO (bot/HOMIE.md): NON analizzare, NON creare lead, NON scrivere risposte — lo fa il server.\nSolo: se un WhatsApp qui sopra NON risulta già inoltrato, inoltralo verbatim a POST /api/homie/message. Poi taci (niente messaggi su Telegram).' "$context")"
+
+if [ "$PULSE_WAKE_LLM" != "1" ]; then
+    aos_log "delta rilevato (wa=$wa_count, risk_delta=${risk_delta:+yes}) — sveglia LLM SPENTA (PULSE_WAKE_LLM=0, mandato): il server ha già tutto via wa-forwarder/scan-inbox"
+    aos_state_set last_pulse_ts "$now"
+    skipped="$(aos_state_get pulse_skipped_today)"
+    aos_state_set pulse_skipped_today "$(( ${skipped:-0} + 1 ))"
+    exit 0
+fi
 
 aos_log "waking agent (wa=$wa_count, risk_delta=${risk_delta:+yes})"
 aos_wake_homie "$context" minimal 240 || aos_log "agent wake failed (exit $?)"
