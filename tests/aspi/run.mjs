@@ -43,6 +43,7 @@ process.env.GMAIL_APP_PASS = 'gp';
 delete process.env.ASPI_EMAIL;
 
 import fs from 'node:fs';
+import CANONE from '../../js/canone-engine.js';
 
 let passed = 0, failed = 0;
 const bad = [];
@@ -50,6 +51,7 @@ const check = (name, cond) => { cond ? passed++ : (failed++, bad.push(name)); co
 
 // ── Stub fetch: Firestore + Storage (upload E download) + IdentityToolkit ─
 const store = new Map();
+let lastUpload = null;   // i byte VERI del PDF, per leggere il documento invece del sorgente
 const FS = 'firestore.googleapis.com';
 const okJson = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'Content-Type': 'application/json' } });
 
@@ -80,7 +82,7 @@ globalThis.fetch = async (url, opts = {}) => {
   if (url.includes('identitytoolkit')) return okJson({ idToken: 'tok', users: [{ localId: 'admin1' }] });
   if (url.includes('firebasestorage.googleapis.com')) {
     // POST = upload (fascicolo); GET = download allegato → byte finti
-    if ((opts.method || 'GET') === 'POST') return okJson({ downloadTokens: 'tk123' });
+    if ((opts.method || 'GET') === 'POST') { lastUpload = { url, bytes: Buffer.from(opts.body || '') }; return okJson({ downloadTokens: 'tk123' }); }
     return new Response(Buffer.from('%PDF-1.4 fake bytes for attachment'), { status: 200 });
   }
   if (url.includes(FS)) {
@@ -363,21 +365,106 @@ const PDFB64 = 'data:application/pdf;base64,' + Buffer.from('%PDF-1.4 finto').to
 // ═══ 11. LA SCHEDA SI STAMPA SEMPRE (fedele al modulo dell'associazione) ═══
 // Il difetto del 23/08: senza zona o mq la pagina 1 degradava a "SCHEDA NON
 // CALCOLABILE" — l'operatore restava senza foglio proprio quando gli serviva
-// stamparlo e completarlo a mano. E il canone PATTUITO non si tocca mai: il
-// massimo di fascia e' un riferimento dell'accordo, non un tetto che questo
-// foglio impone al prezzo deciso dalle parti.
+// stamparlo e completarlo a mano.
+//
+// Qui NON si legge il sorgente: si genera il PDF VERO e si rilegge il testo
+// che ci finisce dentro. Un'asserzione su una stringa del codice passa anche
+// quando quella riga non viene mai disegnata; questa no. E la scheda va a
+// un'organizzazione e all'Agenzia delle Entrate: conta il foglio, non il file.
 {
-  const src = fs.readFileSync(new URL('../../api/fiscal/fascicolo.js', import.meta.url), 'utf8');
-  check('fascicolo: nessuna via d\'uscita "non calcolabile" — il modulo esce comunque',
-    !src.includes('SCHEDA CANONE NON ANCORA CALCOLABILE') && src.includes('IL MODULO SI STAMPA SEMPRE'));
-  check('fascicolo: il canone PATTUITO si stampa sempre, anche senza calcolo',
-    /Importo canone mensile PATTUITO/.test(src) && /calc\.canone \|\| contract\.rent/.test(src));
-  check('fascicolo: la griglia maggiorazioni A-H del modulo c\'e\' tutta',
+  const { buildFascicolo } = await import('../../api/fiscal/fascicolo.js');
+  const zlib = await import('node:zlib');
+
+  // Testo per pagina, decodificato dai content stream (pdf-lib scrive gli
+  // esadecimali: <424F4F4D> Tj, mai (BOOM) Tj — la lezione del certificato).
+  const pdfPages = (buf) => {
+    const s = buf.toString('latin1'), out = [];
+    let i = 0;
+    for (;;) {
+      const m = /stream\r?\n/g; m.lastIndex = i;
+      const hit = m.exec(s); if (!hit) break;
+      const st = hit.index + hit[0].length, en = s.indexOf('endstream', st);
+      if (en < 0) break;
+      i = en + 9;
+      let u; try { u = zlib.inflateSync(Buffer.from(s.slice(st, en), 'latin1')).toString('latin1'); } catch { continue; }
+      if (!u.includes('Tj')) continue;
+      // WinAnsi 0x80-0x9F non e' latin-1: senza rimappare, il parametro
+      // "Cortile d'uso comune" (apostrofo curvo) non si riconoscerebbe mai.
+      const WIN = { 0x80: '\u20AC', 0x85: '\u2026', 0x91: '\u2018', 0x92: '\u2019', 0x93: '\u201C', 0x94: '\u201D', 0x96: '\u2013', 0x97: '\u2014' };
+      const dec = (hex) => [...Buffer.from(hex, 'hex')].map(c => WIN[c] || String.fromCharCode(c)).join('');
+      const txt = [...u.matchAll(/<([0-9A-Fa-f]+)>\s*Tj/g)].map(x => dec(x[1])).join('\n');
+      out.push(txt);
+    }
+    return out;
+  };
+
+  const baseContract = {
+    id: 'sc1', type: 'transitorio', propertyId: 'sp1', rent: 1250, deposit: 2500,
+    startDate: '2026-09-01', endDate: '2027-02-28',
+    tenantName: 'Anna Rossi', tenantCF: 'RSSNNA99A41H501X',
+    landlordName: 'Mario Bianchi', landlordCF: 'BNCMRA60A01H501Y',
+    cedolareSecca: 'si', energyClass: 'C',
+  };
+  const baseProperty = { address: 'Via del Pigneto 12', city: 'Roma', floor: '2', cadastralData: 'foglio 623 part. 145 sub 12 cat. A/2' };
+
+  // (a) SENZA zona e SENZA mq: il foglio esce lo stesso, da riempire a penna.
+  store.set('contracts/sc1', { ...baseContract });
+  store.set('properties/sp1', { ...baseProperty });
+  lastUpload = null;
+  const rMuto = await buildFascicolo('sc1');
+  const pMuto = lastUpload ? pdfPages(lastUpload.bytes) : [];
+  const p1Muto = pMuto[0] || '';
+  check('scheda: senza zona ne\' mq il foglio esce COMUNQUE (mai una via d\'uscita "non calcolabile")',
+    rMuto.ok && p1Muto.includes('SCHEDA PER LA ATTESTAZIONE DI RISPONDENZA')
+    && !/NON ANCORA CALCOLABILE|NON CALCOLABILE/.test(p1Muto));
+  check('scheda: le righe che il sistema non sa diventano spazi da compilare, non zeri',
+    p1Muto.includes('TOTALE SUPERFICIE CONVENZIONALE') && /Mq\. _{6,}/.test(p1Muto)
+    && /NUMERO PARAMETRI DESCRITTIVI DELL'ALLOGGIO: _{4,}/.test(p1Muto));
+  check('scheda: il canone PATTUITO si stampa anche senza calcolo',
+    p1Muto.includes('Importo canone mensile pattuito: EUR 1.250,00'));
+
+  // (b) CON zona e mq: si compila da sola, e resta lo stesso foglio.
+  store.set('contracts/sc1', { ...baseContract, canoneScheda: { zonaCod: 'C30', mq: 60, mqBal: 8, parIdx: [0, 3, 5, 6, 8, 9, 16], mag: ['clA'] } });
+  store.set('properties/sp1', { ...baseProperty, sqm: 60, zone: 'Pigneto' });
+  lastUpload = null;
+  const rPieno = await buildFascicolo('sc1');
+  const pPieno = lastUpload ? pdfPages(lastUpload.bytes) : [];
+  const p1 = pPieno[0] || '', p2 = pPieno[1] || '';
+  check('scheda: la superficie convenzionale esce coi coefficienti UFFICIALI del motore',
+    p1.includes('CALCOLO DELLA SUPERFICIE CONVENZIONALE') && p1.includes('1,15 (max 70,00)')
+    && p1.includes('mq 69,00') && p1.includes('TOTALE SUPERFICIE CONVENZIONALE   Mq. 71,00'));
+  check('scheda: i 20 parametri, spuntati solo quelli provati dai dati reali',
+    CANONE.PARAMETRI.every(t => p1.includes(t)) && p1.includes("NUMERO PARAMETRI DESCRITTIVI DELL'ALLOGGIO: 7"));
+  check('scheda: la griglia maggiorazioni A-H c\'e\' tutta, sul foglio',
     ['A - Ammobiliato', 'B - Seminterrato', 'C - Senza ascensore', 'D - Attico',
      'E - Classe energetica A/B/C', 'F - Interventi Eco Bonus', 'G - Interventi Sisma Bonus',
-     'H - Classe energetica D/E/F'].every(l => src.includes(l)));
+     'H - Classe energetica D/E/F'].every(l => p1.includes(l)));
+  check('scheda: chiude come l\'originale — parti, data, ATTESTA, organizzazione',
+    p1.includes('Il locatore') && p1.includes('Il conduttore') && p1.includes('ATTESTA')
+    && p1.includes("L'Organizzazione sindacale") && /Tutto cio' premesso l'organizzazione ARPE/.test(p1));
+
+  // (c) LA REGOLA: il canone pattuito si stampa TALE E QUALE. Il massimo di
+  // fascia e' un riferimento dell'accordo, non un tetto che questo foglio
+  // impone alle parti — e sul foglio dell'organizzazione non ci va affatto.
+  check('scheda: il pattuito si stampa tale e quale, mai ricalcolato al massimo di fascia',
+    p1.includes('Importo canone mensile pattuito: EUR 1.250,00'));
+  check('scheda: nessun "importo massimo" stampato accanto al pattuito (pagina 1 e\' il foglio dell\'organizzazione)',
+    !/massimo canone mensile|Importo massimo/i.test(p1));
+  check('scheda: se il pattuito sfora, il foglio lo DICE in nota invece di nasconderlo',
+    /supera di EUR 319,90/.test(p1));
+
+  // (d) Il riferimento di fascia esiste — a pagina 2, che e' roba nostra.
+  check('fascicolo: il tetto di fascia sta a pagina 2, dichiarato come riferimento BOOM',
+    p2.includes('VERIFICA CANONE CONCORDATO') && p2.includes("non fa parte della scheda inviata all'organizzazione")
+    && p2.includes('Canone di fascia') && /fascia C/.test(p2));
+  check('fascicolo: senza calcolo pagina 2 dice PERCHE\', invece di tacere',
+    (pMuto[1] || '').includes('calcolo non eseguito') && /Motivo: /.test(pMuto[1] || ''));
+
+  const src = fs.readFileSync(new URL('../../api/fiscal/fascicolo.js', import.meta.url), 'utf8');
   check('fascicolo: numeri all\'italiana DETERMINISTICI (mai toLocaleString: ICU ridotta = 1250,00)',
     src.includes('function itNum') && !/toLocaleString\('it-IT'/.test(src));
+  check('fascicolo: i coefficienti di superficie NON sono riscritti qui — si chiedono al motore',
+    src.includes('CANONE.supConv') && !/1\.30|1,30\)/.test(src.split('function buildPdf')[1] || ''));
 }
 
 // ═══ 12. LA VALUTAZIONE BOOM — documento a parte, e onesto sul campione ═══
