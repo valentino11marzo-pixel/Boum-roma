@@ -40,7 +40,10 @@ const esc = s => String(s == null ? '' : s).replace(/[<>&"]/g, c => ({ '<': '&lt
 // 1.250,00 — su un foglio per l'AdE il punto delle migliaia non è un dettaglio).
 const itNum = (n) => { const f = Math.abs(Number(n)).toFixed(2); const [i, d] = f.split('.'); return (Number(n) < 0 ? '-' : '') + i.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + d; };
 const eur = n => (n === null || n === undefined || n === '' || isNaN(Number(n))) ? '' : '€ ' + itNum(n);
-const dIT = s => { const t = String(s || '').slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return ''; const d = new Date(t + 'T00:00'); return isNaN(d) ? '' : d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }); };
+// Date all'italiana DETERMINISTICHE (stessa lezione dei numeri: un runtime con
+// ICU ridotta cadrebbe su en-US e 09/01/2026 sarebbe il 9 gennaio su un
+// foglio per l'AdE).
+const dIT = s => { const t = String(s || '').slice(0, 10); if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) return ''; return t.slice(8, 10) + '/' + t.slice(5, 7) + '/' + t.slice(0, 4); };
 const ND = '<span style="color:#9A958A">non dichiarato</span>';
 const v = (s) => { const t = String(s == null ? '' : s).trim(); return t ? esc(t) : ND; };
 const vd = (s) => { const t = dIT(s); return t ? esc(t) : ND; };
@@ -206,8 +209,10 @@ export async function sendRegistrationSheet(contract, property, { certUrl, fasci
     }
     const attachments = [];
     let budget = 18 * 1024 * 1024;
+    const t0 = Date.now();
     for (const [url, name, ct] of wanted) {
       if (budget <= 0) break;
+      if (Date.now() - t0 > 25000) break;   // tetto di tempo (la lezione del pack): l'email parte comunque
       const att = await fetchPdfAttachment(url, name, ct);
       if (att && att.content.length <= budget) { attachments.push(att); budget -= att.content.length; }
     }

@@ -27,8 +27,8 @@
 //           | 404 | 410 { error:'already_signed' }
 
 import { fsGet, fsPatch, fsCreate, readJson, logActivity } from '../homie/_lib.js';
-import { setCors, rateOk } from '../magic-sign/_shared.js';
-import { parseSchedaRef, schedaLocked, identityComplete, validCF } from './_scheda.js';
+import { setCors, rateOk, fsGetWithTime, commitWrites } from '../magic-sign/_shared.js';
+import { parseSchedaRef, schedaLocked, identityComplete } from './_scheda.js';
 import FIELDS from '../../js/contract-fields.js';
 // Static imports (Vercel NFT non traccia i lazy import di pacchetti npm):
 // la conferma al cliente viaggia sul design system condiviso.
@@ -61,26 +61,43 @@ export default async function handler(req, res) {
   try { contract = await fsGet('contracts/' + contractId); }
   catch (e) { return res.status(500).json({ ok: false, error: 'lookup_failed' }); }
   if (!contract) return res.status(404).json({ ok: false, error: 'not_found' });
+  if (role === 'cotenant' && !(Array.isArray(contract.coTenants) ? contract.coTenants : [])[coIndex]) return res.status(404).json({ ok: false, error: 'not_found' });
   if (schedaLocked(contract, role, coIndex)) return res.status(410).json({ ok: false, error: 'already_signed' });
 
   // ── CO-CONDUTTORE: scrive SOLO la sua riga coTenants[idx] ─────────────
   // Un firmatario a sé per l'AdE (una riga RLI, CF obbligatorio) — il suo
-  // token non tocca il conduttore principale né gli altri co-conduttori:
-  // la lista si riscrive dal dato FRESCO con la sola riga aggiornata.
+  // token non tocca il conduttore principale né gli altri co-conduttori.
+  // L'array è UNO: si rilegge con updateTime e si scrive con la
+  // precondizione (la stessa di magic-sign/submit), così una co-firma o una
+  // seconda Scheda arrivate nel mezzo non vengono mai sovrascritte.
   if (role === 'cotenant') {
-    const list = Array.isArray(contract.coTenants) ? contract.coTenants.slice() : [];
-    if (!list[coIndex]) return res.status(404).json({ ok: false, error: 'not_found' });
     const raw = (body && body.identity && typeof body.identity === 'object') ? body.identity : {};
     const cf = clip(raw.cf, 20).toUpperCase();
-    if (cf && !validCF(cf)) return res.status(400).json({ ok: false, error: 'cf_invalid' });
+    if (cf && !FIELDS.validCF16(cf)) return res.status(400).json({ ok: false, error: 'cf_invalid' });
     const idc = {
-      name: clip(raw.name, 120) || list[coIndex].name, cf, dob: clip(raw.dob, 20), pob: clip(raw.pob, 120), address: clip(raw.address, 200),
+      name: clip(raw.name, 120), cf, dob: clip(raw.dob, 20), pob: clip(raw.pob, 120), address: clip(raw.address, 200),
       docType: ['passport', 'id', 'permit', 'patente'].includes(raw.docType) ? raw.docType : '', docNum: clip(raw.docNum, 60),
       docIssuer: clip(raw.docIssuer, 120), docIssueDate: clip(raw.docIssueDate, 20), nationality: clip(raw.nationality, 80), phone: clip(body.phone, 30),
     };
-    list[coIndex] = { ...FIELDS.applyCotenantIdentity(list[coIndex], idc), schedaAt: new Date().toISOString() };
-    try { await fsPatch('contracts/' + contractId, { coTenants: list }); }
-    catch (e) { console.error('[profile/submit] cotenant write:', e.message); return res.status(500).json({ ok: false, error: 'write_failed' }); }
+    let list = null;
+    for (let attempt = 0; attempt < 2 && !list; attempt++) {
+      let fresh, freshTime = null;
+      try { const got = await fsGetWithTime('contracts/' + contractId); fresh = got.data; freshTime = got.updateTime; }
+      catch (e) { return res.status(500).json({ ok: false, error: 'lookup_failed' }); }
+      const cur = Array.isArray(fresh && fresh.coTenants) ? fresh.coTenants.slice() : [];
+      if (!cur[coIndex]) return res.status(404).json({ ok: false, error: 'not_found' });
+      if (cur[coIndex].signature) return res.status(410).json({ ok: false, error: 'already_signed' });
+      cur[coIndex] = { ...FIELDS.applyCotenantIdentity(cur[coIndex], idc), schedaAt: new Date().toISOString() };
+      try {
+        await commitWrites([{ docPath: 'contracts/' + contractId, fields: { coTenants: cur }, precondition: freshTime ? { updateTime: freshTime } : undefined }]);
+        list = cur;
+      } catch (e) {
+        if (attempt === 0 && /FAILED_PRECONDITION|precondition/i.test(String(e.message || ''))) continue;
+        console.error('[profile/submit] cotenant write:', e.message);
+        return res.status(500).json({ ok: false, error: 'write_failed' });
+      }
+    }
+    if (!list) return res.status(409).json({ ok: false, error: 'conflict' });
     const miss = FIELDS.cotenantMissing(list[coIndex]);
     await logActivity('scheda_submitted', 'contract', { contractId, role: 'cotenant', coIndex, complete: miss.length === 0 }, 'scheda').catch(() => {});
     try {
@@ -127,8 +144,10 @@ export default async function handler(req, res) {
   if (id) {
     if (!id.name || id.name.length < 3) return res.status(400).json({ ok: false, error: 'name_required' });
     // CF is optional (a fresh expat may not have one yet) but never wrong:
-    // an invalid checksum would poison the RLI registration downstream.
-    if (id.cf && !validCF(id.cf)) return res.status(400).json({ ok: false, error: 'cf_invalid' });
+    // an invalid checksum would poison the RLI registration downstream. Il
+    // conduttore è una persona fisica (16 caratteri); solo il locatore può
+    // essere una società (11 cifre).
+    if (id.cf && !FIELDS.validCFFor(role, id.cf)) return res.status(400).json({ ok: false, error: 'cf_invalid' });
   }
   const phone = clip(body.phone, 30);
 
@@ -263,6 +282,23 @@ export default async function handler(req, res) {
         fsPatch('contracts/' + contractId, { [confirmFlag]: nowISO }).catch(() => {});
       }
     } catch (e) { console.warn('[profile/submit] confirmation email:', e.message); }
+  }
+  // Un dato SENSIBILE impostato da un link pubblico (l'IBAN dove paga
+  // l'inquilino) si dice all'operatore ad ALTA priorità, col valore: fill-only
+  // impedisce di cambiarne uno esistente, ma il primo va comunque visto.
+  if (Array.isArray(applied.sensitive) && applied.sensitive.length) {
+    try {
+      await fsCreate('agentNotifications', {
+        type: 'scheda.sensitive',
+        summary: `⚠ ${P === 'tenant' ? 'Inquilino' : 'Locatore'} ha impostato dal link /scheda: ${applied.sensitive.map(x => FIELDS.labels([x.key], 'it')[0] + ' = ' + x.value).join(' · ')} · ${((property || {}).name) || contractId} — verifica prima che l'inquilino lo veda`,
+        priority: 'high',
+        ref: { collection: 'contracts', id: contractId },
+        payload: { contractId, role, sensitive: applied.sensitive },
+        dedupKey: `scheda-sensitive-${contractId}-${role}-${applied.sensitive.map(x => x.key).join('+')}`,
+        status: 'pending', actor: 'scheda',
+        createdAt: nowISO, attempts: 0,
+      });
+    } catch (_) {}
   }
   // Wake the operator's channels like magic-sign does — a completed scheda
   // usually means "regenerate the PDF and send the sign link".

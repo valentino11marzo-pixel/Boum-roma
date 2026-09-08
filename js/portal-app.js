@@ -21981,6 +21981,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const oMiss = comp ? lbls(comp.byOwner.operator.missing) : [];
         const coMiss = comp ? (comp.cotenants || []).filter(x => x.missing.length).map(x => String(x.name || '').split(' ')[0]) : [];
         const few = (arr) => arr.slice(0, 3).join(', ') + (arr.length > 3 ? ' +' + (arr.length - 3) : '');
+        // Una parte che ha già firmato è congelata sulla Scheda (410): dal
+        // link può solo caricare documenti — il bottone «Chiedi» compare
+        // solo se c'è qualcosa che il link può ancora fare.
+        const askable = (o, sig) => comp && (!sig || comp.byOwner[o].missing.some(e => e.group === 'docs'));
+        const askT = tMiss.length && askable('tenant', c.tenantSignature), askL = lMiss.length && askable('landlord', c.landlordSignature);
         const hasMissing = (tMiss.length + lMiss.length + oMiss.length + coMiss.length) > 0;
 
         return `<div class="list-item" style="padding:14px 16px;align-items:flex-start">
@@ -22000,8 +22005,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <button class="btn btn-xs btn-secondary" onclick="viewContract('${c.id}')" title="Apri dettaglio contratto">📄 Dettaglio</button>
                     <button class="btn btn-xs btn-secondary" onclick="downloadContractPDF('${c.id}')" title="Scarica PDF firmato/da firmare">⬇️ PDF</button>
                     <button class="btn btn-xs" style="background:var(--gold);color:#000;font-weight:600" onclick="openShareHub('${c.id}')" title="Tutti i link condivisibili: firma, dati, pass, immobile">🔗 Link</button>
-                    ${tMiss.length ? `<button class="btn btn-xs btn-secondary" onclick="sendMissingInfoLink('${c.id}','tenant')" title="Link Scheda che chiede SOLO ciò che manca all'inquilino: ${esc(tMiss.join(', '))}">📨 Chiedi a T</button>` : ''}
-                    ${lMiss.length ? `<button class="btn btn-xs btn-secondary" onclick="sendMissingInfoLink('${c.id}','landlord')" title="Link Scheda che chiede SOLO ciò che manca al locatore: ${esc(lMiss.join(', '))}">📨 Chiedi a L</button>` : ''}
+                    ${askT ? `<button class="btn btn-xs btn-secondary" onclick="sendMissingInfoLink('${c.id}','tenant')" title="Link Scheda che chiede SOLO ciò che manca all'inquilino: ${esc(tMiss.join(', '))}">📨 Chiedi a T</button>` : ''}
+                    ${askL ? `<button class="btn btn-xs btn-secondary" onclick="sendMissingInfoLink('${c.id}','landlord')" title="Link Scheda che chiede SOLO ciò che manca al locatore: ${esc(lMiss.join(', '))}">📨 Chiedi a L</button>` : ''}
                     ${regStatus !== 'registered' ? `<button class="btn btn-xs" style="background:var(--gold);color:#000;font-weight:600" onclick="openAspi('${c.id}')" title="Email strutturata al referente ASPI con contratto, identità e (per il concordato) APE + planimetria + scheda calcolo — fattura col markup in un tap">🏛 ${c.aspiRequestedAt ? 'ASPI ✓ re-invia' : 'Invia ad ASPI'}</button>` : ''}
                     ${fullySigned && regStatus !== 'registered' ? `<button class="btn btn-xs" onclick="generateRLIDraft('${c.id}')">📝 Bozza RLI</button>` : ''}
                     ${fullySigned && regStatus !== 'registered' ? `<button class="btn btn-xs btn-success" onclick="markRegistered('${c.id}')">✓ Segna registrato</button>` : ''}
@@ -22079,9 +22084,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!F || !comp) return '';
         const signed = !!(c.tenantSignature && c.landlordSignature);
         const who = [['tenant', 'Inquilino'], ['landlord', 'Locatore'], ['operator', 'Operatore']];
+        const sigOf = { tenant: !!c.tenantSignature, landlord: !!c.landlordSignature, operator: false };
         const rows = who.map(([o, label]) => {
             const m = comp.byOwner[o].missing;
-            return `<div style="display:flex;gap:8px;align-items:baseline;font-size:12px;padding:3px 0"><span style="width:16px">${m.length ? '✗' : '✓'}</span><span style="color:var(--text-secondary);min-width:78px">${label}</span><span>${m.length ? esc(F.labels(m.map(e => e.key), 'it').join(', ')) : '<span style="color:var(--green)">completo</span>'}</span>${m.length && o !== 'operator' ? `<button class="btn btn-xs btn-secondary" style="margin-left:auto" onclick="sendMissingInfoLink('${c.id}','${o}')">📨 Chiedi</button>` : ''}</div>`;
+            // Parte già firmata: la Scheda è congelata (solo documenti dal link),
+            // il resto si corregge da ✏️ Modifica.
+            const canAsk = m.length && o !== 'operator' && (!sigOf[o] || m.some(e => e.group === 'docs'));
+            return `<div style="display:flex;gap:8px;align-items:baseline;font-size:12px;padding:3px 0"><span style="width:16px">${m.length ? '✗' : '✓'}</span><span style="color:var(--text-secondary);min-width:78px">${label}</span><span>${m.length ? esc(F.labels(m.map(e => e.key), 'it').join(', ')) + (sigOf[o] && m.some(e => e.group !== 'docs') ? ' <span style="color:var(--text-muted)">(firmato: dal portal, ✏️ Modifica)</span>' : '') : '<span style="color:var(--green)">completo</span>'}</span>${canAsk ? `<button class="btn btn-xs btn-secondary" style="margin-left:auto" onclick="sendMissingInfoLink('${c.id}','${o}')">📨 Chiedi</button>` : ''}</div>`;
         }).concat((comp.cotenants || []).map(ct => `<div style="display:flex;gap:8px;align-items:baseline;font-size:12px;padding:3px 0"><span style="width:16px">${ct.missing.length ? '✗' : '✓'}</span><span style="color:var(--text-secondary);min-width:78px">Co-cond. ${ct.index + 1}</span><span>${esc(String(ct.name || ''))}${ct.missing.length ? ' — ' + esc(ct.missing.map(m => m.label.it).join(', ')) : ''}</span></div>`));
         const dots = comp.dots.filter(d => d.required).length;
         const legal = (comp.legal || []).filter(x => !x.ok).map(x => x.note.it);

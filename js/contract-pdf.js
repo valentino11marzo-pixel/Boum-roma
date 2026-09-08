@@ -250,7 +250,7 @@
     const sicurezza = impiantiClause(contract, property);
     const tab = tabelleOf(contract, property);
     const tabFmt = (v) => (v !== undefined && v !== null && v !== '') ? String(v) : dot;
-    const tabPro = tabFmt(tab['proprietà']);
+    const tabPro = tabFmt(tab['proprieta'] || tab['proprietà']);
     const tabRis = tabFmt(tab.riscaldamento);
     const tabAcq = tabFmt(tab.acqua);
     const tabAlt = tabFmt(tab.altre);

@@ -2038,11 +2038,25 @@ presente sul profilo usciva «MANCANTE».
   `REGISTRATION_EMAIL` → `CAF_EMAIL` → valentino@boom-rome.com. Rimandabile
   da **✉ Foglio** (`POST /api/fiscal/foglio`, admin). Numeri all'italiana
   deterministici (`itNum`, la lezione small-ICU).
+- **Le righe rosse del link pubblico** (dal riesame avversario, stessa
+  release): un link /scheda viaggia su WhatsApp ed è intercettabile, quindi
+  ciò che decide DOVE arriva la firma o i soldi è **fill-only** — email di
+  parte (mai sul profilo `users`, da cui send-link legge il destinatario),
+  IBAN del locatore (il primo accende una notifica ad ALTA priorità col
+  valore), indirizzo e comune dell'immobile: si riempiono solo se vuoti,
+  altrimenti `rejected: already_set` e si corregge dal portal. Il CF del
+  conduttore e dei co-conduttori è SOLO a 16 caratteri (`validCFFor`): un
+  11 cifre Luhn-valido inquinerebbe l'RLI; il locatore può essere una
+  società. La riga del co-conduttore si scrive con la precondizione
+  `updateTime` (`commitWrites`, come magic-sign): una co-firma arrivata nel
+  mezzo non viene mai sovrascritta. Una parte che ha già FIRMATO è congelata
+  (410): il fascicolo completo e i bottoni «📨 Chiedi» offrono il link SOLO
+  per i documenti, il resto è dichiarato «dal portal» — mai un link morto.
 - **Fuori scopo, dichiarato**: i comproprietari con quota (`ownershipPct`
   esiste sul doc landlord ma nessuno lo legge) e la pagina RLI del
   Fascicolo Fiscale (`fascicolo.js` stampa ancora `rent×12` e «L2» solo su
   studenti — il foglio e l'email completa usano `rliFacts`).
-- Test: `node tests/contratto/run.mjs` (68 check).
+- Test: `node tests/contratto/run.mjs` (87 check).
 
 ### Contratto studenti — template associazione (accordo Roma 27/07/2023)
 `_generateContractPDF_allegatoC` (js/portal-app.js) genera il contratto

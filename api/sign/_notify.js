@@ -324,9 +324,11 @@ export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl
     {
       const idDocs = (Array.isArray(contract.identityDocs) ? contract.identityDocs : []).slice(0, 6);
       let budget = 18 * 1024 * 1024 - cafAtts.reduce((n, a) => n + (a.content ? a.content.length : 0), 0);
+      const t0 = Date.now();
       for (let i = 0; i < idDocs.length; i++) {
         const d = idDocs[i];
         if (!d || !d.url || budget <= 0) continue;
+        if (Date.now() - t0 > 20000) break;   // tetto di tempo: i link restano nel corpo
         const isExtra = d.kind === 'extra';
         const base = String(d.name || 'doc').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 40);
         const name = (isExtra ? 'Attestazione_esigenza_' : 'Documento_identita_') + (i + 1) + '_'
@@ -345,15 +347,30 @@ export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl
     const lbl = (e) => (e.label && e.label.it) || e.key;
     const box = (title, body) => `<div style="margin:14px 0;padding:12px 14px;background:#FBF3E4;border:1px solid #E5C878;border-radius:8px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;color:#4A3F1A;line-height:1.6"><b>${title}</b><br>${body}</div>`;
     const pre = (txt) => `<div style="margin-top:8px;padding:10px 12px;background:#FFFFFF;border:1px dashed #C9B77A;border-radius:6px;font-family:Menlo,Consolas,monospace;font-size:12px;white-space:pre-wrap;color:#2A2618">${esc(txt)}</div>`;
-    const askBlock = (role, missing, name, url, cotenantIdx) => {
+    // Una parte che ha GIÀ FIRMATO ha l'identità congelata (410 sulla
+    // Scheda): dal link può solo caricare documenti. Il resto si corregge
+    // nel portal — il link si offre SOLO per ciò che il link può fare.
+    const askBlock = (role, missing, name, url, cotenantIdx, locked) => {
       if (!missing.length) return '';
       const who = role === 'landlord' ? 'Locatore' : (cotenantIdx != null ? 'Co-conduttore ' + (cotenantIdx + 1) : 'Conduttore');
-      const msg = FIELDS.missingMessage(role === 'landlord' ? 'landlord' : 'tenant', missing.map(m => ({ key: m.key, label: m.label, group: m.group })), { name, url, propLabel: g.propLabel });
-      return box(`${esc(who)} — manca: ${missing.map(m => esc(lbl(m))).join(', ')}`,
-        `Link Scheda (si adatta: chiede SOLO questo): <a href="${esc(url)}" style="color:#8A6D1D">${esc(url)}</a>` + pre(msg));
+      const fillable = locked ? missing.filter(m => m.group === 'docs') : missing;
+      const frozen = locked ? missing.filter(m => m.group !== 'docs') : [];
+      let out = '';
+      if (fillable.length) {
+        const msg = FIELDS.missingMessage(role === 'landlord' ? 'landlord' : 'tenant', fillable.map(m => ({ key: m.key, label: m.label, group: m.group })), { name, url, propLabel: g.propLabel });
+        out += box(`${esc(who)} — manca: ${fillable.map(m => esc(lbl(m))).join(', ')}`,
+          `Link Scheda (si adatta: chiede SOLO questo): <a href="${esc(url)}" style="color:#8A6D1D">${esc(url)}</a>` + pre(msg));
+      }
+      if (frozen.length) {
+        out += box(`${esc(who)} — già firmato, da correggere nel portal (✏️ Modifica): ${frozen.map(m => esc(lbl(m))).join(', ')}`,
+          'La Scheda di questa parte è bloccata dalla firma: i dati si integrano dal portal, il documento può ancora caricarlo lei dal link.');
+      }
+      return out;
     };
+    const COT_KEY = { name: 'tenantName', cf: 'tenantCF', dob: 'tenantDob', pob: 'tenantPob', nationality: 'tenantNationality', docNum: 'tenantDocNum' };
+    const coList = Array.isArray(contract.coTenants) ? contract.coTenants : [];
     const cotenantBlocks = (comp.cotenants || []).filter(ct => ct.missing.length).map(ct =>
-      askBlock('tenant', ct.missing.map(m => ({ key: 'tenant' + m.key.split('.')[1].replace(/^./, ch => ch.toUpperCase()), label: m.label, group: 'identity' })), ct.name, schedaUrl(contract.id, 'cotenant', ct.index), ct.index)).join('');
+      askBlock('tenant', ct.missing.map(m => ({ key: COT_KEY[m.key.split('.')[1]] || m.key, label: m.label, group: 'identity' })), ct.name, schedaUrl(contract.id, 'cotenant', ct.index), ct.index, !!(coList[ct.index] && coList[ct.index].signature))).join('');
     const operatorBlock = missOperator.length
       ? box('Operatore — da impostare nel portal (✏️ Modifica): ' + missOperator.map(m => esc(lbl(m))).join(', '), 'Sono termini del contratto: nessun link al cliente, li imposti tu.')
       : '';
@@ -370,9 +387,9 @@ export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl
     const html = shell(
       para(`Fascicolo completo per la <b>${reqType.toLowerCase()}</b> del contratto <b>${esc(contract.id || '')}</b> — firmato da entrambe le parti.`)
       + verdictTiles
-      + askBlock('tenant', missTenant, g.tenantName, schedaUrl(contract.id, 'tenant'))
+      + askBlock('tenant', missTenant, g.tenantName, schedaUrl(contract.id, 'tenant'), null, !!contract.tenantSignature)
       + cotenantBlocks
-      + askBlock('landlord', missLandlord, g.landlordName, schedaUrl(contract.id, 'landlord'))
+      + askBlock('landlord', missLandlord, g.landlordName, schedaUrl(contract.id, 'landlord'), null, !!contract.landlordSignature)
       + operatorBlock
       + tableHtml(sheet.rows.concat([
           sheetH('Allegati e pack'),

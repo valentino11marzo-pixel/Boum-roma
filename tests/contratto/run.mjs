@@ -117,6 +117,9 @@ const SRC = readFileSync(new URL('../../js/contract-pdf.js', import.meta.url), '
   const b = PDF.build({ jsPDF, contractId: 'x', contract: { ...base, type: 'transitorio' }, property: { address: 'Via X 1', tabelleMillesimali: { acqua: 12 } }, tenant: null, landlord: null });
   const c = PDF.build({ jsPDF, contractId: 'x', contract: { ...base, type: 'studenti' }, property: { address: 'Via X 1' }, tenant: null, landlord: null });
   check('i due modelli si impaginano (B + C) con le letture unificate', !!b.doc && !!c.doc && b.sigAnchors.length >= 2 && c.sigAnchors.length >= 2);
+  check('tabelle: ENTRAMBI i modelli leggono «proprieta» senza accento (la chiave che la Scheda scrive) oltre a «proprietà»', (SRC.match(/tab\['proprieta'\] \|\| tab\['proprietà'\]/g) || []).length === 2);
+  check('cedolare assente → NON è un puntino (il PDF stampa il ramo cedolare): niente «mancante» finto per l\'invito di firma', !F.completeness({ contract: { type: 'transitorio' }, property: {} }).dots.some(d => d.key === 'cedolareSecca') && F.read('cedolareSecca', { contract: {} }) === 'si' && F.read('type', { contract: {} }) === 'transitorio');
+  check('numeri: «1.250» = 1250 (migliaia), «1.250,30» = 1250.3, «12,5» = 12.5, «12.5» = 12.5', F.parseItNumber('1.250') === 1250 && F.parseItNumber('1.250,30') === 1250.3 && F.parseItNumber('12,5') === 12.5 && F.parseItNumber('12.5') === 12.5);
 }
 
 // ═══ 3. COMPLETEZZA ═══
@@ -190,6 +193,17 @@ const DOCS = { identityDocs: [{ url: 'https://storage.example/t.jpg', role: 'ten
     && l.rejected.find(r => r.key === 'tenantCF').why === 'not_yours' && l.rejected.find(r => r.key === 'studCorsoStudi').why === 'not_yours' && l.rejected.find(r => r.key === 'esigenzaDi').why === 'not_yours');
   check('tenant su B: un campo studenti è not_on_template (il suo, ma non su questo modello)', F.applyAnswers('tenant', { studCorsoStudi: 'x' }, ctx).rejected[0].why === 'not_on_template');
   check('validazioni: data non ISO, select fuori lista, IBAN e P.IVA sbagliati → scartati', F.applyAnswers('landlord', { landlordDob: '01/01/1970', impiantiStato: 'boh', landlordIban: 'IT00X', landlordPIva: '12345678901' }, ctx).rejected.length === 4);
+  // Il link è intercettabile: ciò che decide DOVE arriva la firma o i soldi
+  // si riempie solo se vuoto, e non tocca mai il profilo di accesso.
+  const fo = F.applyAnswers('tenant', { tenantEmail: 'attacker@evil.example' }, { ...ctx, contract: { ...ctx.contract, tenantEmail: 'anna@expat.com' } });
+  check('email: fill-only sul contratto (già presente → already_set) e MAI sul profilo users', fo.rejected[0].why === 'already_set' && Object.keys(F.applyAnswers('tenant', { tenantEmail: 'anna@expat.com' }, ctx).user).length === 0);
+  check('email: se manca sul contratto ma c\'è sul profilo, non si chiede e non si riscrive', F.applyAnswers('tenant', { tenantEmail: 'x@y.z' }, { ...ctx, tenant: { email: 'anna@expat.com' } }).rejected[0].why === 'already_set');
+  const ib = F.applyAnswers('landlord', { landlordIban: 'IT60X0542811101000000123456' }, { ...ctx, landlord: { iban: 'IT60X0542811101000000123456' } });
+  check('IBAN: uguale a quello esistente passa (idempotente); uno DIVERSO su un IBAN esistente è already_set; il primo è marcato sensibile', ib.applied.includes('landlordIban')
+    && F.applyAnswers('landlord', { landlordIban: 'IT07X0542811101000000654321' }, { ...ctx, landlord: { iban: 'IT60X0542811101000000123456' } }).rejected[0].why === 'already_set'
+    && (F.applyAnswers('landlord', { landlordIban: 'IT60X0542811101000000123456' }, ctx).sensitive || [])[0].key === 'landlordIban');
+  check('indirizzo dell\'immobile: fill-only (un locatore non lo riscrive da un link)', F.applyAnswers('landlord', { propertyAddress: 'Via Falsa 999' }, { ...ctx, property: { address: 'Via Levico 12' } }).rejected[0].why === 'already_set');
+  check('CF: il conduttore è una persona fisica — un 11 cifre Luhn-valido è cf_invalid; per il locatore è ammesso', F.applyAnswers('tenant', { tenantCF: '12345678903' }, ctx).rejected[0].why === 'cf_invalid' && F.applyAnswers('landlord', { landlordCF: '12345678903' }, ctx).applied.includes('landlordCF') && F.validCFFor('tenant', '12345678903') === false);
 }
 
 // ═══ 6. IL MESSAGGIO CHE NOMINA I MANCANTI ═══
@@ -248,6 +262,9 @@ function fromFs(v) {
 }
 const fromFsFields = (f) => { const o = {}; for (const [k, v] of Object.entries(f || {})) o[k] = fromFs(v); return o; };
 let callerRole = 'admin';
+const docTimes = new Map();
+let tick = 0;
+const bump = (k) => docTimes.set(k, '2026-01-01T00:00:' + String(++tick).padStart(2, '0') + 'Z');
 globalThis.fetch = async (url, opts = {}) => {
   url = String(url);
   if (url.includes('identitytoolkit')) return okJson({ idToken: 'tok', users: [{ localId: 'caller1', email: 'op@boom.it' }] });
@@ -257,6 +274,24 @@ globalThis.fetch = async (url, opts = {}) => {
     const path = (url.split('/documents')[1] || '').replace(/^\//, '').split('?')[0];
     const qs = new URL(url).searchParams;
     if (path.startsWith(':runQuery')) return okJson([{}]);
+    // :commit con updateMask (merge) e PRECONDIZIONE currentDocument.updateTime
+    if (path.startsWith(':commit')) {
+      const writes = (JSON.parse(opts.body || '{}') || {}).writes || [];
+      for (const w of writes) {
+        if (!/^projects\/[^/]+\/databases\/\(default\)\/documents\/.+/.test(String(w.update.name))) {
+          return new Response(JSON.stringify({ error: { code: 400, message: `Document name "${w.update.name}" is invalid`, status: 'INVALID_ARGUMENT' } }), { status: 400 });
+        }
+        const k = (w.update.name.split('/documents/')[1] || '');
+        if (w.currentDocument && w.currentDocument.updateTime) {
+          const cur = docTimes.get(k) || '2026-01-01T00:00:00Z';
+          if (cur !== w.currentDocument.updateTime) return new Response(JSON.stringify({ error: { status: 'FAILED_PRECONDITION', message: 'the stored version does not match' } }), { status: 400 });
+        }
+        const doc = store.get(k) || {};
+        Object.assign(doc, fromFsFields(w.update.fields));
+        store.set(k, doc); bump(k);
+      }
+      return okJson({ writeResults: writes.map(() => ({})) });
+    }
     if (opts.method === 'POST') {
       const docId = qs.get('documentId') || 'auto_' + (store.size + 1);
       const key = path + '/' + docId;
@@ -268,12 +303,12 @@ globalThis.fetch = async (url, opts = {}) => {
       if (url.includes('currentDocument.exists=false') && store.has(path)) return new Response('exists', { status: 412 });
       const cur = store.get(path) || {};
       Object.assign(cur, fromFsFields(JSON.parse(opts.body).fields));
-      store.set(path, cur);
+      store.set(path, cur); bump(path);
       return okJson({ name: 'projects/p/databases/(default)/documents/' + path });
     }
     const doc = store.get(path);
     if (!doc) return new Response('not found', { status: 404 });
-    return okJson({ name: 'projects/p/databases/(default)/documents/' + path, fields: toFsFields(doc) });
+    return okJson({ name: 'projects/p/databases/(default)/documents/' + path, fields: toFsFields(doc), updateTime: docTimes.get(path) || '2026-01-01T00:00:00Z' });
   }
   throw new Error('fetch non stubbata: ' + url);
 };
@@ -326,6 +361,14 @@ const link = (await import('../../api/profile/link.js')).default;
     && r.body.rejected.filter(x => x.why === 'not_yours').length === 2 && c2.transitionalReason === 'Incarico di lavoro' && c2.cohabitants === 'Bob Lee; Cleo Ray');
   check('submit tenant extra-UE: complete per il PDF, ma missing nomina permesso e documento (registrazione)', r.body.complete === true && r.body.missing.some(m => m.key === 'tenantPermessoScadenza') && r.body.missing.some(m => m.key === 'tenantIdDoc'));
 
+  r = mkRes();
+  await submit(mkReq({ t: schedaRef('ctrA', 'tenant'), identity: { name: 'Anna Smith', cf: '00000000000', dob: '1998-05-04', pob: 'B', address: 'x', docType: 'passport', docNum: '1', nationality: 'American' } }), r);
+  check('submit tenant: CF a 11 cifre → 400 cf_invalid (mai sull\'RLI)', r.code === 400 && r.body.error === 'cf_invalid' && store.get('contracts/ctrA').tenantCF === 'RSSMRA85T10A562S');
+  r = mkRes();
+  await submit(mkReq({ t: schedaRef('ctrA', 'tenant'), identity: { name: 'Anna Smith', cf: 'RSSMRA85T10A562S', dob: '1998-05-04', pob: 'Boston, USA', address: 'Via Roma 1', docType: 'passport', docNum: 'USA991', nationality: 'American' }, answers: { tenantEmail: 'attacker@evil.example' } }), r);
+  check('submit tenant: l\'email di firma NON si dirotta dal link (users.email intatta, contratto already_set)', r.code === 200 && store.get('users/t1').email === 'anna@expat.com' && store.get('contracts/ctrA').tenantEmail === 'anna@expat.com' && r.body.rejected.some(x => x.key === 'tenantEmail' && x.why === 'already_set'));
+  check('submit landlord: l\'IBAN impostato dal link ha acceso una notifica ad ALTA priorità col valore', [...store.keys()].some(k => k.startsWith('agentNotifications/') && store.get(k).type === 'scheda.sensitive' && store.get(k).priority === 'high' && /IT60X0542811101000000123456/.test(store.get(k).summary)));
+
   // co-conduttore: solo la SUA riga
   IP = '7.1.1.4';
   r = mkRes();
@@ -334,11 +377,25 @@ const link = (await import('../../api/profile/link.js')).default;
   r = mkRes();
   await submit(mkReq({ t: schedaRef('ctrA', 'cotenant', 0), identity: { name: 'Bob Lee', cf: 'RSSMRA85T10A562S', dob: '1999-01-01', pob: 'Leeds', address: 'x', docType: 'passport', docNum: 'UK1', nationality: 'British' } }), r);
   const c3 = store.get('contracts/ctrA');
-  check('submit co-conduttore: scrive SOLO coTenants[0]; Cleo (firmata) intatta con la firma; il conduttore principale intatto', r.code === 200 && r.body.complete === true && c3.coTenants[0].cf === 'RSSMRA85T10A562S' && c3.coTenants[0].birthPlace === 'Leeds' && c3.coTenants[0].idDoc === 'UK1'
+  check('submit co-conduttore: scrive SOLO coTenants[0] (merge: l\'email di Bob resta); Cleo (firmata) intatta con la firma; il conduttore principale intatto', r.code === 200 && r.body.complete === true && c3.coTenants[0].cf === 'RSSMRA85T10A562S' && c3.coTenants[0].birthPlace === 'Leeds' && c3.coTenants[0].idDoc === 'UK1' && c3.coTenants[0].email === 'bob@x.com'
     && c3.coTenants[1].signature === 'data:sig' && c3.coTenants[1].cf === 'RSSMRA85T10A562S' && c3.tenantCF === 'RSSMRA85T10A562S' && c3.tenantName === 'Anna Smith');
+  // Un terzo co-conduttore: il token con indice 2 scrive la riga 2, non la 0.
+  store.set('contracts/ctrA', { ...store.get('contracts/ctrA'), coTenants: store.get('contracts/ctrA').coTenants.concat([{ name: 'Dan Po', email: 'dan@x.com' }]) });
+  r = mkRes();
+  await submit(mkReq({ t: schedaRef('ctrA', 'cotenant', 2), identity: { name: 'Dan Po', cf: 'RSSMRA85T10A562S', dob: '2000-02-02', pob: 'Oslo', address: 'y', docType: 'id', docNum: 'NO1', nationality: 'Norwegian' } }), r);
+  const c4 = store.get('contracts/ctrA');
+  check('submit co-conduttore indice 2: scrive la riga 2 (Dan), la 0 (Bob) e la 1 (Cleo) non cambiano', r.code === 200 && c4.coTenants[2].birthPlace === 'Oslo' && c4.coTenants[2].email === 'dan@x.com' && c4.coTenants[0].birthPlace === 'Leeds' && c4.coTenants[1].signature === 'data:sig');
+  check('submit co-conduttore: la scrittura passa da :commit con la PRECONDIZIONE updateTime (mai una PATCH cieca dell\'array)', (() => {
+    const src = readFileSync(new URL('../../api/profile/submit.js', import.meta.url), 'utf8');
+    const block = src.slice(src.indexOf("if (role === 'cotenant') {"), src.indexOf('const miss = FIELDS.cotenantMissing'));
+    return /commitWrites\(/.test(block) && /precondition/.test(block) && !/fsPatch\(/.test(block);
+  })());
   r = mkRes();
   await submit(mkReq({ t: schedaRef('ctrA', 'cotenant', 1), identity: { name: 'Cleo Ray', cf: 'BNCGLI70A41H501A' } }), r);
   check('co-conduttore già FIRMATO → 410, la sua riga non cambia', r.code === 410 && store.get('contracts/ctrA').coTenants[1].cf === 'RSSMRA85T10A562S');
+  r = mkRes();
+  await submit(mkReq({ t: schedaRef('ctrA', 'cotenant', 0), identity: { name: 'Bob Lee', cf: '00000000000' } }), r);
+  check('co-conduttore: CF a 11 cifre → 400', r.code === 400 && r.body.error === 'cf_invalid');
   check('token co-conduttore fuori indice → 404', await (async () => { const x = mkRes(); await lookup(mkReq({ t: schedaRef('ctrA', 'cotenant', 5) }), x); return x.code === 404; })());
   // Il documento caricato dal co-conduttore è lato conduttori (role tenant)
   // e porta l'indice della sua riga, così la sua Scheda lo conta.
@@ -357,7 +414,7 @@ const link = (await import('../../api/profile/link.js')).default;
   await link(mkReq({ contractId: 'ctrA' }, { authorization: 'Bearer x' }), r);
   check('link: messaggi pronti per parte, nella lingua giusta, col link /scheda dentro', r.code === 200 && /^Hi Anna,/.test(r.body.messages.tenant) && r.body.messages.tenant.includes('/scheda?t=ctrA.t.')
     && /^Gentile Giulia,/.test(r.body.messages.landlord) && Array.isArray(r.body.missing.tenant) && r.body.template === 'B');
-  check('link: ogni co-conduttore ha il SUO link /scheda (c<idx>) e il suo messaggio; il firmato è locked', r.body.cosign.length === 2 && r.body.cosign[0].schedaUrl.includes('/scheda?t=ctrA.c0.') && r.body.cosign[0].message.includes('Bob')
+  check('link: ogni co-conduttore ha il SUO link /scheda (c<idx>) e il suo messaggio; il firmato è locked', r.body.cosign.length === 3 && r.body.cosign[0].schedaUrl.includes('/scheda?t=ctrA.c0.') && r.body.cosign[0].message.includes('Bob')
     && r.body.cosign[1].schedaLocked === true && r.body.cosign[0].schedaLocked === false);
 }
 
@@ -367,7 +424,7 @@ const foglioEndpoint = (await import('../../api/fiscal/foglio.js')).default;
   let r = mkRes();
   await foglioEndpoint(mkReq({ contractId: 'ctrA' }), r);
   check('foglio endpoint: senza token → 401, nessuna email', r.code === 401 && mails().filter(m => /^Registrazione contratto/.test(m.subject)).length === 0);
-  store.set('contracts/ctrA', { ...store.get('contracts/ctrA'), fullySignedAt: '2026-08-20T10:00:00Z', signedPdfUrl: 'https://storage.example/signed.pdf', signingCertificateUrl: 'https://storage.example/cert.pdf', identityDocs: [{ url: 'https://storage.example/anna.jpg', role: 'tenant' }] });
+  store.set('contracts/ctrA', { ...store.get('contracts/ctrA'), fullySignedAt: '2026-08-20T10:00:00Z', signedPdfUrl: 'https://storage.example/signed.pdf', signingCertificateUrl: 'https://storage.example/cert.pdf', identityDocs: [{ url: 'https://storage.example/anna.jpg', role: 'tenant' }], transitionalDocs: 'Lettera <b>del</b> datore' });
   r = mkRes();
   await foglioEndpoint(mkReq({ contractId: 'ctrA' }, { authorization: 'Bearer x' }), r);
   const f = mails().find(m => /^Registrazione contratto/.test(m.subject));
@@ -378,6 +435,7 @@ const foglioEndpoint = (await import('../../api/fiscal/foglio.js')).default;
     && /Conduttore 1 Nome Anna Smith/.test(txt) && /Conduttore 2 Nome Bob Lee/.test(txt) && /Conduttore 3 Nome Cleo Ray/.test(txt) && /BNCGLI70A41H501A/.test(txt));
   check('foglio: RLI L2, importo per la durata (10 mesi → 9.000), scadenza dalla stipula, extra-UE con cessione', /L2 — locazione agevolata/.test(txt) && /Importo da indicare in RLI € 9\.000,00/.test(txt) && /Registrazione entro 19\/09\/2026/.test(txt) && /Cessione di fabbricato SÌ/.test(txt));
   check('foglio: nessun bottone, nessun link al portal, «non dichiarato» dove manca (mai un\'istruzione)', !/class="bp-btn/.test(f.html) && !/boomrome\.com\/portal/.test(f.html) && /non dichiarato/.test(txt) && !/mancano|rigenera|Share Hub/i.test(txt));
+  check('foglio: ogni valore è ESCAPATO (un «<b>» scritto dal cliente non diventa markup) e le date sono deterministiche gg/mm/aaaa', f.html.includes('Lettera &lt;b&gt;del&lt;/b&gt; datore') && !/Lettera <b>del<\/b>/.test(f.html) && /01\/09\/2026/.test(txt));
   check('foglio: allegati veri (contratto firmato, certificato, documento)', (f.attachments || []).some(a => a.filename === 'Contratto_firmato.pdf') && (f.attachments || []).some(a => a.filename === 'Certificato_firma_FES.pdf') && (f.attachments || []).some(a => /^Documento_conduttore_1/.test(a.filename)));
   callerRole = 'tenant';
   store.set('users/caller1', { role: 'tenant' });
@@ -390,13 +448,23 @@ const foglioEndpoint = (await import('../../api/fiscal/foglio.js')).default;
 // ═══ 11. L'EMAIL COMPLETA porta il link /scheda e il messaggio per chi manca ═══
 {
   const { sendCafDossier } = await import('../../api/sign/_notify.js');
-  const c = { ...store.get('contracts/ctrA'), id: 'ctrA', tenantNationality: 'American' };
+  // Bob (0) è completo, Cleo (1) ha firmato con dati mancanti, Eve (3) è nuova e vuota.
+  const c = { ...store.get('contracts/ctrA'), id: 'ctrA', tenantNationality: 'American', coTenants: store.get('contracts/ctrA').coTenants.concat([{ name: 'Eve Lin' }]) };
   const before = mails().length;
   const out = await sendCafDossier(c, store.get('properties/prop1'), {});
   const m = mails().slice(before).find(x => /Fascicolo completo/.test(x.subject));
   const txt = m.html.replace(/<style[\s\S]*?<\/style>/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
-  check('fascicolo completo: verdetto in testa + link /scheda del conduttore + messaggio EN già scritto + blocco co-conduttore con il SUO link', out.ok && /Registrazione ✗ incompleta|✗ incompleta/.test(txt)
-    && m.html.includes('/scheda?t=ctrA.t.') && /Hi Anna,/.test(txt) && m.html.includes('/scheda?t=ctrA.c1.') && /Co-conduttore 2/.test(txt));
+  check('fascicolo completo: verdetto in testa + link /scheda del conduttore + messaggio EN già scritto + blocco del co-conduttore VUOTO col SUO link', out.ok && /Registrazione ✗ incompleta|✗ incompleta/.test(txt)
+    && m.html.includes('/scheda?t=ctrA.t.') && /Hi Anna,/.test(txt) && m.html.includes('/scheda?t=ctrA.c3.') && /Co-conduttore 4 — manca/.test(txt));
+  check('fascicolo completo: il co-conduttore FIRMATO con dati mancanti non riceve un link morto — «già firmato, dal portal»', /Co-conduttore 2 — già firmato/.test(txt) && !m.html.includes('/scheda?t=ctrA.c1.'));
+  // Parte già FIRMATA (Scheda congelata → 410): il link si offre SOLO per i
+  // documenti; il resto è dichiarato «dal portal», mai un link morto.
+  const before2 = mails().length;
+  await sendCafDossier({ ...c, tenantSignature: 'data:sig', landlordSignature: 'data:sig', identityDocs: [] }, store.get('properties/prop1'), {});
+  const m2 = mails().slice(before2).find(x => /Fascicolo completo/.test(x.subject));
+  const t2 = m2.html.replace(/<style[\s\S]*?<\/style>/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
+  check('fascicolo completo su firmato: i campi congelati vanno «nel portal», il link resta solo per la copia del documento', /già firmato, da correggere nel portal/.test(t2)
+    && /Conduttore — manca: [^]*Copia documento conduttore/.test(t2) && !/we still need:[^.]*permit/i.test(t2) && /già firmato[^]*Numero permesso/.test(t2));
   check('fascicolo completo: le stesse righe del foglio (catasto a caselle) + oggetto stabile', /Subalterno 6/.test(txt) && /^📑 Fascicolo completo — Via Levico 12 — Anna Smith — 2026-09-01$/.test(m.subject));
 }
 

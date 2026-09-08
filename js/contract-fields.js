@@ -77,7 +77,11 @@
     }
     return sum % 10 === 0;
   }
+  // validCF = una delle due forme; validCFFor(role) = la forma AMMESSA per
+  // quel ruolo: il conduttore (e ogni co-conduttore) è una persona fisica,
+  // 16 caratteri e basta — un 11 cifre Luhn-valido inquinerebbe l'RLI.
   const validCF = (cf) => validCF16(cf) || validPIva(cf);
+  const validCFFor = (role, cf) => role === 'landlord' ? validCF(cf) : validCF16(cf);
 
   // Cedolare secca: i contratti reali portano la STRINGA 'si'/'no' (portal,
   // convert), il pre-accordo il booleano dentro canone. Assente = sì, come
@@ -230,7 +234,7 @@
     return Object.assign({
       key: P + suffix, group: opts.group || 'identity', owner: who,
       templates: ['B', 'C'], needs: ['contract', 'registration'], required: true, type: 'text',
-      read: (ctx) => pick(obj(ctx.contract)[P + suffix], ...userKeys.map(k => obj(ctx[who])[k])),
+      read: (ctx) => pick(obj(ctx.contract)[P + suffix], ...(suffix === 'Email' ? ['email'] : userKeys).map(k => obj(ctx[who])[k])),
       write: { doc: 'contract', path: P + suffix, user: userKeys },
     }, opts);
   }
@@ -265,7 +269,10 @@
     // permesso di soggiorno. Richiesti SOLO quando la nazionalità lo dice.
     partyField('tenant', 'PermessoNumero', { group: 'soggiorno', userKeys: ['permessoNumero'], needs: ['registration'], required: tenantNonEU, label: { it: 'Numero permesso di soggiorno / visto', en: 'Residence permit or visa number' }, ask: { it: 'Se in attesa di rilascio, il numero della ricevuta', en: 'If pending, the receipt number' } }),
     partyField('tenant', 'PermessoScadenza', { group: 'soggiorno', userKeys: ['permessoScadenza'], type: 'date', needs: ['registration'], required: tenantNonEU, label: { it: 'Scadenza del permesso', en: 'Permit expiry date' }, ask: { it: '', en: '' } }),
-    partyField('tenant', 'Email', { group: 'contact', userKeys: ['email'], needs: ['operations'], type: 'email', label: { it: 'Email', en: 'Email' }, ask: { it: 'Dove ricevi il link di firma e il contratto', en: 'Where you’ll receive the signing link and your copy' } }),
+    // EMAIL: è il recapito del link di FIRMA. Un link /scheda (viaggia su
+    // WhatsApp) non deve poterla dirottare: mai sul profilo users (da cui
+    // send-link legge il destinatario), e sul contratto SOLO se vuota.
+    partyField('tenant', 'Email', { group: 'contact', userKeys: [], fillOnly: true, needs: ['operations'], type: 'email', label: { it: 'Email', en: 'Email' }, ask: { it: 'Dove ricevi il link di firma e il contratto', en: 'Where you’ll receive the signing link and your copy' } }),
     partyField('tenant', 'Phone', { group: 'contact', userKeys: ['phone'], needs: ['operations'], required: false, type: 'tel', label: { it: 'Telefono', en: 'Phone' }, ask: { it: 'Con prefisso', en: 'With country code' } }),
 
     // ── LOCATORE — identità («Il/La sig./soc. …»: anche una società) ──
@@ -273,7 +280,7 @@
       read: (ctx) => pick(obj(ctx.contract).landlordKind, obj(ctx.landlord).kind, obj(ctx.landlord).businessName ? 'giuridica' : ''), write: { doc: 'contract', path: 'landlordKind', user: ['kind'] },
       label: { it: 'Locatore', en: 'Landlord' }, ask: { it: 'Vuoto = persona fisica', en: 'Empty = private individual' } },
     partyField('landlord', 'Name', { userKeys: ['name', 'businessName'], label: { it: 'Nome e cognome / ragione sociale', en: 'Full name / company name' }, ask: { it: 'Come sul documento o in visura', en: 'As on your ID or company registration' } }),
-    partyField('landlord', 'CF', { userKeys: ['cf', 'codiceFiscale'], type: 'cf', label: { it: 'Codice fiscale', en: 'Codice fiscale' }, ask: { it: '16 caratteri (11 cifre per una società)', en: '16 characters (11 digits for a company)' } }),
+    partyField('landlord', 'CF', { userKeys: ['cf', 'codiceFiscale'], type: 'cfx', label: { it: 'Codice fiscale', en: 'Codice fiscale' }, ask: { it: '16 caratteri (11 cifre per una società)', en: '16 characters (11 digits for a company)' } }),
     { key: 'landlordPIva', group: 'identity', owner: 'landlord', templates: ['B', 'C'], needs: ['registration'], required: isGiuridica, type: 'piva',
       read: (ctx) => pick(obj(ctx.contract).landlordPIva, obj(ctx.landlord).partitaIva), write: { doc: 'contract', path: 'landlordPIva', user: ['partitaIva'] },
       label: { it: 'Partita IVA', en: 'VAT number' }, ask: { it: 'Solo per società o ente', en: 'Companies only' } },
@@ -287,9 +294,12 @@
     partyField('landlord', 'DocIssuer', { userKeys: ['docIssuer'], needs: ['registration'], required: false, label: { it: 'Rilasciato da', en: 'Issued by' }, ask: { it: '', en: '' } }),
     partyField('landlord', 'DocIssueDate', { userKeys: ['docIssueDate'], needs: ['registration'], required: false, type: 'date', label: { it: 'Data di rilascio', en: 'Issue date' }, ask: { it: '', en: '' } }),
     partyField('landlord', 'Nationality', { userKeys: ['nationality'], needs: ['registration'], required: false, label: { it: 'Nazionalità', en: 'Nationality' }, ask: { it: '', en: '' } }),
-    partyField('landlord', 'Email', { group: 'contact', userKeys: ['email'], needs: ['operations'], type: 'email', label: { it: 'Email', en: 'Email' }, ask: { it: 'Dove ricevi il link di firma, il contratto e il rendiconto', en: 'Where you receive the signing link, the contract and statements' } }),
+    partyField('landlord', 'Email', { group: 'contact', userKeys: [], fillOnly: true, needs: ['operations'], type: 'email', label: { it: 'Email', en: 'Email' }, ask: { it: 'Dove ricevi il link di firma, il contratto e il rendiconto', en: 'Where you receive the signing link, the contract and statements' } }),
     partyField('landlord', 'Phone', { group: 'contact', userKeys: ['phone'], needs: ['operations'], required: false, type: 'tel', label: { it: 'Telefono', en: 'Phone' }, ask: { it: 'Con prefisso', en: 'With country code' } }),
-    { key: 'landlordIban', group: 'contact', owner: 'landlord', templates: ['B', 'C'], needs: ['operations'], required: false, type: 'iban',
+    // IBAN: è dove l'inquilino paga (/casa lo mostra). Dal link SOLO se
+    // vuoto — un IBAN esistente non si cambia da un link intercettabile —
+    // e submit avvisa l'operatore ad alta priorità quando viene impostato.
+    { key: 'landlordIban', group: 'contact', owner: 'landlord', templates: ['B', 'C'], needs: ['operations'], required: false, type: 'iban', fillOnly: true, sensitive: true,
       read: (ctx) => pick(obj(ctx.contract).landlordIban, obj(ctx.landlord).iban), write: { doc: 'contract', path: 'landlordIban', user: ['iban'] },
       label: { it: 'IBAN per il canone', en: 'IBAN for rent' }, ask: { it: 'Dove BOOM ti gira il canone incassato', en: 'Where BOOM forwards the rent collected' } },
 
@@ -311,8 +321,8 @@
 
     // ── IMMOBILE («posta in … via …, piano …, scala …, int. …, composta di
     //    n. … vani … accessori …, ammobiliata/non» + b) energia c) impianti) ─
-    propField('propertyAddress', 'address', { needs: ['contract', 'registration'], label: { it: 'Via e numero civico', en: 'Street and number' }, ask: { it: 'Es. Via Levico 12', en: 'e.g. Via Levico 12' } }),
-    propField('propertyCity', 'city', { required: false, label: { it: 'Comune', en: 'City' }, ask: { it: 'Vuoto = Roma', en: 'Empty = Rome' } }),
+    propField('propertyAddress', 'address', { needs: ['contract', 'registration'], fillOnly: true, label: { it: 'Via e numero civico', en: 'Street and number' }, ask: { it: 'Es. Via Levico 12', en: 'e.g. Via Levico 12' } }),
+    propField('propertyCity', 'city', { required: false, fillOnly: true, label: { it: 'Comune', en: 'City' }, ask: { it: 'Vuoto = Roma', en: 'Empty = Rome' } }),
     propField('propertyFloor', 'floor', { needs: ['contract', 'registration'], label: { it: 'Piano', en: 'Floor' }, ask: { it: 'Es. 3, oppure T per il piano terra', en: 'e.g. 3, or T for ground floor' } }),
     propField('propertyScala', 'scala', { required: false, label: { it: 'Scala', en: 'Staircase (scala)' }, ask: { it: 'Es. A — scrivi “unica” se non c’è', en: 'e.g. A — write “unica” if there is only one' } }),
     propField('propertyInterno', 'interno', { needs: ['contract', 'registration'], read: (ctx) => pick(obj(ctx.property).interno, obj(ctx.property).unit), label: { it: 'Interno', en: 'Apartment number (interno)' }, ask: { it: 'Es. 7', en: 'e.g. 7' } }),
@@ -335,7 +345,7 @@
 
     // ── TERMINI (l'operatore: nascono dalla proposta o dal portal) ────
     { key: 'type', group: 'terms', owner: 'operator', templates: ['B', 'C'], needs: ['contract', 'registration'], required: true, type: 'select', options: [{ v: 'transitorio', it: 'Transitorio (Allegato B)', en: 'Transitional (Allegato B)' }, { v: 'studenti', it: 'Studenti (Allegato C)', en: 'Students (Allegato C)' }],
-      read: (ctx) => pick(obj(ctx.contract).type), write: { doc: 'contract', path: 'type' }, label: { it: 'Tipo di contratto', en: 'Contract type' }, ask: { it: '', en: '' } },
+      read: (ctx) => pick(obj(ctx.contract).type) || 'transitorio', write: { doc: 'contract', path: 'type' }, label: { it: 'Tipo di contratto', en: 'Contract type' }, ask: { it: '', en: '' } },
     { key: 'startDate', group: 'terms', owner: 'operator', templates: ['B', 'C'], needs: ['contract', 'registration'], required: true, type: 'date',
       read: (ctx) => pick(obj(obj(ctx.contract).durata).startDate, obj(ctx.contract).startDate), write: { doc: 'contract', path: 'startDate' }, label: { it: 'Decorrenza', en: 'Start date' }, ask: { it: '', en: '' } },
     { key: 'endDate', group: 'terms', owner: 'operator', templates: ['B', 'C'], needs: ['contract', 'registration'], required: true, type: 'date',
@@ -351,7 +361,9 @@
     { key: 'installmentMonths', group: 'terms', owner: 'operator', templates: ['B', 'C'], needs: ['contract'], required: false, type: 'select', options: [1, 2, 3, 6, 12].map(n => ({ v: String(n), it: { 1: 'Mensile', 2: 'Bimestrale', 3: 'Trimestrale', 6: 'Semestrale', 12: 'Annuale' }[n], en: { 1: 'Monthly', 2: 'Every 2 months', 3: 'Quarterly', 6: 'Every 6 months', 12: 'Yearly' }[n] })),
       read: (ctx) => pick(obj(ctx.contract).installmentMonths), write: { doc: 'contract', path: 'installmentMonths' }, label: { it: 'Cadenza rate', en: 'Instalment cadence' }, ask: { it: 'Vuoto = mensile', en: 'Empty = monthly' } },
     { key: 'cedolareSecca', group: 'terms', owner: 'operator', templates: ['B', 'C'], needs: ['contract', 'registration'], required: true, type: 'select', options: CEDOLARE,
-      read: (ctx) => { const c = obj(ctx.contract); const raw = (c.cedolareSecca !== undefined && c.cedolareSecca !== null && c.cedolareSecca !== '') ? c.cedolareSecca : obj(c.canone).cedolareSecca; return (raw === undefined || raw === null || raw === '') ? '' : (cedolareOn(c) ? 'si' : 'no'); },
+      // Assente = sì per TUTTI i lettori (cedolareOn): nessun puntino sul PDF,
+      // quindi nessun «mancante» finto che blocchi l'invito di firma.
+      read: (ctx) => cedolareOn(obj(ctx.contract)) ? 'si' : 'no',
       write: { doc: 'contract', path: 'cedolareSecca' }, label: { it: 'Cedolare secca', en: 'Cedolare secca (flat tax)' }, ask: { it: 'Decide l’art. 7 (B) / 6 (C) e la registrazione', en: '' } },
     { key: 'oneriQuota', group: 'terms', owner: 'operator', templates: ['B', 'C'], needs: ['contract'], required: false, type: 'number',
       read: (ctx) => pick(obj(ctx.contract).oneriQuota), write: { doc: 'contract', path: 'oneriQuota' }, label: { it: 'Acconto oneri accessori (€/mese)', en: 'Service charges advance (€/month)' }, ask: { it: 'Vuoto = a consuntivo (B) / “--” (C)', en: '' } },
@@ -586,7 +598,7 @@
       if (!isRequired(f, fake)) return true;
       if (needsOf(f, tpl).indexOf('contract') < 0 && needsOf(f, tpl).indexOf('registration') < 0) return true;
       return has(d[IDENT_MAP[k]]);
-    }) && (!has(d.cf) || validCF(d.cf));
+    }) && (!has(d.cf) || validCFFor(role, d.cf));
   }
 
   // ── LA SCHEDA CHE SI ADATTA ──────────────────────────────────────────
@@ -647,10 +659,11 @@
     const s = str(raw);
     if (s === '') return { ok: false, why: 'empty' };
     switch (f.type) {
-      case 'cf': { const cf = s.toUpperCase().replace(/\s+/g, ''); return validCF(cf) ? { ok: true, value: cf } : { ok: false, why: 'cf_invalid' }; }
+      case 'cf': { const cf = s.toUpperCase().replace(/\s+/g, ''); return validCF16(cf) ? { ok: true, value: cf } : { ok: false, why: 'cf_invalid' }; }
+      case 'cfx': { const cf = s.toUpperCase().replace(/\s+/g, ''); return validCF(cf) ? { ok: true, value: cf } : { ok: false, why: 'cf_invalid' }; }
       case 'piva': { const p = s.replace(/\s+/g, '').replace(/^IT/i, ''); return validPIva(p) ? { ok: true, value: p } : { ok: false, why: 'piva_invalid' }; }
       case 'date': return ISO_DATE.test(s) ? { ok: true, value: s } : { ok: false, why: 'date_invalid' };
-      case 'number': { const n = Number(String(s).replace(/\./g, m => (String(s).indexOf(',') >= 0 ? '' : m)).replace(',', '.')); return (isFinite(n) && n >= 0) ? { ok: true, value: n } : { ok: false, why: 'number_invalid' }; }
+      case 'number': { const n = parseItNumber(s); return (isFinite(n) && n >= 0) ? { ok: true, value: n } : { ok: false, why: 'number_invalid' }; }
       case 'yesno': return /^(yes|si|sì|true|1)$/i.test(s) ? { ok: true, value: true } : /^(no|false|0)$/i.test(s) ? { ok: true, value: false } : { ok: false, why: 'yesno_invalid' };
       case 'select': return (f.options || []).some(o => String(o.v) === s) ? { ok: true, value: s } : { ok: false, why: 'option_invalid' };
       case 'email': return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s) ? { ok: true, value: s.slice(0, 160).toLowerCase() } : { ok: false, why: 'email_invalid' };
@@ -659,6 +672,16 @@
       case 'textarea': return { ok: true, value: s.slice(0, 600) };
       default: return { ok: true, value: s.slice(0, 200) };
     }
+  }
+  // «1.250» è milleduecentocinquanta (punto delle migliaia), «1.250,30» pure,
+  // «12,5» è dodici e mezzo, «12.5» (tastiera EN) pure: il punto è decimale
+  // SOLO quando non è seguito da esattamente tre cifre finali.
+  function parseItNumber(raw) {
+    let s = String(raw).replace(/\s+/g, '').replace(/€/g, '');
+    if (/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) s = s.replace(/\./g, '').replace(',', '.');
+    else if (/^-?\d+,\d+$/.test(s)) s = s.replace(',', '.');
+    else if (/^-?\d+\.\d{3}$/.test(s)) s = s.replace('.', '');
+    return Number(s);
   }
   function ibanOk(iban) {
     const r = iban.slice(4) + iban.slice(0, 4);
@@ -711,7 +734,11 @@
       if (!f.write) { out.rejected.push({ key, why: 'upload_only' }); return; }
       const norm = normalizeAnswer(f, answers[key]);
       if (!norm.ok) { out.rejected.push({ key, why: norm.why }); return; }
+      // fillOnly: un dato che c'è già non si riscrive da un link pubblico
+      // (email di firma, IBAN, indirizzo dell'immobile): si corregge dal portal.
+      if (f.fillOnly && valueOf(f, ctx) !== '' && valueOf(f, ctx) !== str(norm.value)) { out.rejected.push({ key, why: 'already_set' }); return; }
       let value = norm.value;
+      if (f.sensitive) out.sensitive = (out.sensitive || []).concat([{ key, value: str(value) }]);
       if (f.type === 'people') value = composeCohabitants(c, value);
       const w = f.write;
       put(w.doc, w.path, value);
@@ -859,7 +886,7 @@
     FIELDS, BY_KEY, SECTIONS, DOC_TYPES, READS, GROUP_NAMES, PROPERTY_WRITE_KEYS,
     templateOf, fieldsFor, valueOf, needsOf, isRequired, ownerOf, read,
     completeness, printCheck, missingFor, askFor, applyAnswers, missingMessage, missingNames, labels,
-    identityComplete, validCF, validCF16, validPIva, ibanOk, leaseDays, leaseMonths,
+    identityComplete, validCF, validCF16, validCFFor, validPIva, ibanOk, parseItNumber, leaseDays, leaseMonths,
     cedolareOn, docTypeCode, docTypeIt, isEU, parseCadastral, composeCadastral,
     cotenantIdentity, cotenantMissing, applyCotenantIdentity, legalChecks, rliFacts, readParty, hydrateParties,
   };

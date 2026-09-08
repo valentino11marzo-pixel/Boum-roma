@@ -25,6 +25,9 @@
 // Response: { ok, url, calc } | { ok:false, error }
 
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+// Il dizionario del contratto: i campi di parte risalgono la catena users come
+// nel PDF — un CF presente solo sul profilo non esce «-» sulla pagina RLI.
+import FIELDS from '../../js/contract-fields.js';
 import { fsGet, fsList, fsPatch, readJson } from '../homie/_lib.js';
 import { storageUpload } from '../agent/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
@@ -330,9 +333,18 @@ async function buildPdf({ contract, property, calc, input, deadlines }) {
 // ── Build + persist ──────────────────────────────────────────────────────
 export async function buildFascicolo(contractId, { contract, property, overrides } = {}) {
   try {
-    const c = contract || await fsGet('contracts/' + contractId);
+    let c = contract || await fsGet('contracts/' + contractId);
     if (!c) return { ok: false, error: 'contract_not_found' };
     const p = property || (c.propertyId ? await fsGet('properties/' + c.propertyId).catch(() => null) : null) || {};
+    if (!contract) {
+      // Rigenerazione dalla console: stessa idratazione del finalize.
+      try {
+        const tU = c.tenantId ? await fsGet('users/' + c.tenantId).catch(() => null) : null;
+        const lU = p.ownerId ? await fsGet('users/' + p.ownerId).catch(() => null) : null;
+        const lR = p.ownerId ? await fsGet('landlords/' + p.ownerId).catch(() => null) : null;
+        c = FIELDS.hydrateParties(c, tU, { ...(lR || {}), ...(lU || {}) }, p);
+      } catch (_) {}
+    }
     let listing = null;
     if (c.propertyId) {
       try { listing = (await fsList('listings', { filter: { field: 'propertyId', op: 'EQUAL', value: c.propertyId }, limit: 1 }))[0] || null; } catch (_) {}
