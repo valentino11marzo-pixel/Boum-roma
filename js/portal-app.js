@@ -4267,6 +4267,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // === DATI (bonifica archivio + import intelligente) ===
             case 'bonifica': m.innerHTML = isAdmin() ? bonificaPage() : accessDenied(); break;
             case 'innesto': m.innerHTML = isAdmin() ? innestoPage() : accessDenied(); break;
+            case 'importa': m.innerHTML = isAdmin() ? importaPage() : accessDenied(); break;
             default: m.innerHTML = r === 'admin' ? adminDashboard() : r === 'landlord' ? landlordDashboard() : tenantDashboard();
         }
         // Post-render hooks
@@ -8940,6 +8941,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <button class="btn btn-secondary" onclick="goTo('templates')">📜 Template</button>
                     <button class="btn btn-secondary" onclick="(async()=>{ const r = await window.boomAuditAllContracts(); toast(r.stale.length ? 'warning' : 'success', 'Audit canone: ' + r.ok + ' OK · ' + r.stale.length + ' stale', r.stale.length ? 'Apri console (F12) per dettagli' : 'Tutti i contratti coerenti'); })()" title="Audit math canone su tutti i contratti">🔍 Audit canone</button>
                     <button class="btn btn-secondary" onclick="openMagicSignEditor()" title="Carica un PDF e posiziona i campi firma con drag-and-drop">✨ Magic Sign</button>
+                    <button class="btn btn-secondary" onclick="importaReset();goTo('importa')" title="Un contratto già firmato fuori da Magic Sign entra in gestione">📥 Importa pratica</button>
                     <button class="btn" onclick="openModal('addContract')">+ Nuovo</button>
                 </div>
             </div>
@@ -27712,6 +27714,318 @@ IBAN: ${l.iban || '-'}`;
     // Nulla viene scritto prima della tua conferma.
 
     let _innesto = { proposal: null, matches: null, notes: [], confidence: null, busy: false, file: null, links: {} };
+
+    // ═══════════════════════════════════════════════════════════════════════
+    // ★ IMPORTA PRATICA — un contratto firmato FUORI entra in gestione.
+    //
+    // Non è un secondo portale: è una pagina che chiama api/contracts/import.js
+    // e mostra ciò che il motore js/pratica-engine.js decide. Qui NON vive
+    // nessuna regola — se una decisione sembra doverla prendere questa pagina,
+    // va spostata nel motore, dove si testa senza browser.
+    //
+    // Tre schermate in una: carica → rivedi (con fonte e pagina accanto a ogni
+    // valore) → conferma. Alla conferma si apre la pratica operativa, che è un
+    // normale contratto del portale con dentro il blocco `imported`.
+    // ═══════════════════════════════════════════════════════════════════════
+    let _imp = { files: [], busy: false, step: 'carica', result: null, draft: null, error: null };
+    const IMP_INLINE_MAX = 3 * 1024 * 1024;   // stessa soglia dell'Innesto (tetto di piattaforma 4,5 MB)
+
+    function importaReset() { _imp = { files: [], busy: false, step: 'carica', result: null, draft: null, error: null }; }
+
+    function importaPickFiles(input) {
+        const eng = window.BOOM_PRATICA;
+        const rejected = [];
+        Array.from(input.files || []).forEach(f => {
+            const check = eng ? eng.acceptsFile({ name: f.name, mediaType: f.type }) : { ok: true };
+            if (!check.ok) { rejected.push(f.name + ' — ' + check.why); return; }
+            if (_imp.files.length < 8) _imp.files.push(f);
+        });
+        input.value = '';
+        if (rejected.length) toast('warning', 'Formato non gestito', rejected[0]);
+        renderPage();
+    }
+    function importaRemoveFile(i) { _imp.files.splice(i, 1); renderPage(); }
+
+    async function importaPrepare(file) {
+        // Stessa via dell'Innesto: le foto si riducono, i file piccoli vanno
+        // inline, i grandi transitano dal NOSTRO Storage e si cancellano dopo.
+        let blob = file, mediaType = file.type || 'application/pdf';
+        if (/^image\//i.test(mediaType)) {
+            try {
+                const buf = await adeCompressImage(await blob.arrayBuffer(), mediaType, 0.85, 2000);
+                blob = new Blob([buf], { type: 'image/jpeg' }); mediaType = 'image/jpeg';
+            } catch (_) { /* si tenta col file originale */ }
+        }
+        const out = { name: file.name, mediaType };
+        if (blob.size <= IMP_INLINE_MAX) {
+            out.base64 = await new Promise((res, rej) => {
+                const r = new FileReader();
+                r.onload = () => res(String(r.result).split(',')[1] || '');
+                r.onerror = rej; r.readAsDataURL(blob);
+            });
+        } else {
+            const safe = String(file.name).replace(/[^\w.\-]+/g, '_').slice(-80);
+            const ref = storage.ref('documents/' + auth.currentUser.uid + '/innesto-tmp/' + Date.now() + '_' + safe);
+            await ref.put(blob, { contentType: mediaType });
+            out.fileUrl = await ref.getDownloadURL();
+            out._transit = ref;
+        }
+        return out;
+    }
+
+    async function importaAnalyze() {
+        if (!_imp.files.length) { toast('error', 'Serve almeno il contratto', 'Allega il PDF o la foto del contratto'); return; }
+        _imp.busy = true; _imp.error = null; renderPage();
+        const transits = [];
+        try {
+            const files = [];
+            for (const f of _imp.files) { const p = await importaPrepare(f); if (p._transit) transits.push(p._transit); delete p._transit; files.push(p); }
+            const token = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/contracts/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify({
+                    op: 'extract', files,
+                    existing: _imp.result ? { extraction: _imp.result.extraction, sources: _imp.result.sources } : null,
+                    context: { known: {
+                        landlords: (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').map(u => u.name).filter(Boolean).slice(0, 60),
+                        properties: (S.properties || []).map(p => p.name).filter(Boolean).slice(0, 60)
+                    } },
+                    archive: {
+                        properties: (S.properties || []).map(p => ({ id: p.id, name: p.name, address: p.address })),
+                        users: (S.users || []).filter(u => u.role === 'tenant').map(u => ({ id: u.id, name: u.name, email: u.email, codiceFiscale: u.codiceFiscale, phone: u.phone })),
+                        landlords: (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').map(u => ({ id: u.id, name: u.name, email: u.email, codiceFiscale: u.codiceFiscale, iban: u.iban }))
+                    }
+                })
+            });
+            const data = await r.json().catch(() => ({}));
+            if (!r.ok || !data.ok) throw new Error(data.detail || data.error || ('errore ' + r.status));
+            _imp.result = data;
+            _imp.draft = {
+                reviewed: false,
+                takeoverDate: new Date().toISOString().slice(0, 10),
+                signature: { mode: 'external', signedOn: '', verifiedBy: (S.profile && S.profile.name) || 'operatore', verifiedAt: new Date().toISOString().slice(0, 10), evidenceSourceKey: (data.sources[0] || {}).key || '', note: '' },
+                // La pre-selezione la decide il MOTORE (aggancio forte = prova,
+                // solo-nome = indizio). Copiando il blocco senza tradurre
+                // `preselected` in `chosen`, la pagina la buttava via e ogni
+                // aggancio ricadeva su «Crea nuovo»: un doppione silenzioso a
+                // ogni import. Trovato da tests/pratica/ui.mjs.
+                links: Object.keys(data.links || {}).reduce((acc, k) => {
+                    const l = data.links[k] || {};
+                    acc[k] = { decision: l.decision, chosen: l.preselected || null, createNew: !l.preselected };
+                    return acc;
+                }, {})
+            };
+            // Un file illeggibile non è un fallimento della pratica: si dice.
+            (data.files || []).filter(f => f.ok === false).forEach(f => toast('warning', 'Documento non letto', f.name + ' — ' + (f.detail || f.error)));
+            _imp.step = 'rivedi';
+        } catch (e) {
+            _imp.error = e.message;
+            toast('error', 'Lettura non riuscita', e.message);
+        } finally {
+            _imp.busy = false;
+            // il transito non resta salvato: la promessa della pagina tiene
+            transits.forEach(t => { t.delete().catch(() => {}); });
+            renderPage();
+        }
+    }
+
+    function importaSetField(path, value) {
+        if (!_imp.result) return;
+        const f = _imp.result.extraction.fields[path];
+        if (f) { f.value = value; f.confirmed = true; f.source = f.source || 'operatore'; }
+        else _imp.result.extraction.fields[path] = { value: value, source: 'operatore', page: null, confirmed: true };
+    }
+    function importaResolveConflict(i, take) {
+        const c = _imp.result.extraction.conflicts[i];
+        if (!c) return;
+        importaSetField(c.path, take === 'seen' ? c.seen : c.kept);
+        _imp.result.extraction.conflicts.splice(i, 1);
+        renderPage();
+    }
+    function importaSetLink(kind, value) {
+        const l = _imp.draft.links[kind] || (_imp.draft.links[kind] = {});
+        if (value === '__new__') { l.chosen = null; l.createNew = true; }
+        else { l.chosen = value; l.createNew = false; }
+    }
+
+    async function importaConfirm() {
+        _imp.busy = true; renderPage();
+        const transits = [];
+        try {
+            _imp.draft.reviewed = true;
+            _imp.draft.extraction = _imp.result.extraction;
+            const sources = [];
+            for (const f of _imp.files) { const p = await importaPrepare(f); if (p._transit) transits.push(p._transit); delete p._transit; sources.push(p); }
+            _imp.draft.sources = sources;
+            const token = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/contracts/import', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify({ op: 'confirm', draft: _imp.draft })
+            });
+            const data = await r.json().catch(() => ({}));
+            if (r.status === 409) {
+                toast('warning', 'Pratica già in gestione', data.message || '');
+                _imp.step = 'esiste'; _imp.result.exists = { id: data.id }; return;
+            }
+            if (!r.ok || !data.ok) {
+                const errs = (data.errors || []).join(' · ') || data.error || ('errore ' + r.status);
+                throw new Error(errs);
+            }
+            toast('success', 'Pratica in gestione', data.historical + ' periodi storici, ' + data.managed + ' in gestione');
+            await loadDataFresh(true);
+            importaReset();
+            goTo('contracts');
+        } catch (e) {
+            toast('error', 'Conferma non riuscita', e.message);
+        } finally {
+            _imp.busy = false;
+            transits.forEach(t => { t.delete().catch(() => {}); });
+            renderPage();
+        }
+    }
+
+    function importaPage() {
+        const eng = window.BOOM_PRATICA;
+        if (!eng) return `<div class="page-header"><div><h1 class="page-title">📥 Importa pratica</h1></div></div>
+            <div class="card"><div class="card-body"><div class="empty-state"><div class="empty-text">Motore non caricato. Ricarica la pagina.</div></div></div></div>`;
+
+        const head = `<div class="page-header">
+            <div><h1 class="page-title">📥 Importa pratica</h1><p class="page-subtitle">Un contratto già firmato entra in gestione: originali conservati, nessuna firma simulata</p></div>
+            <div class="page-actions">
+                <button class="btn btn-secondary" onclick="goTo('contracts')">← Contratti</button>
+                ${_imp.step !== 'carica' ? `<button class="btn btn-secondary" onclick="importaReset();renderPage()">Ricomincia</button>` : ''}
+            </div></div>`;
+
+        if (_imp.step === 'carica') {
+            const formati = eng.ACCEPTED.map(a => a.ext[0].toUpperCase()).join(' · ');
+            return head + `<div class="card"><div class="card-body">
+                <div style="font-size:13px;color:var(--text-secondary);margin-bottom:14px">
+                    Allega il <strong>contratto</strong> e i suoi allegati: verbale di consegna, ricevuta di registrazione, documento del conduttore, APE.
+                    Nulla viene salvato finché non confermi.
+                </div>
+                <input type="file" id="impFiles" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.heic" style="display:none" onchange="importaPickFiles(this)">
+                <button class="btn btn-secondary" onclick="document.getElementById('impFiles').click()">📎 Scegli documenti</button>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:8px">Formati letti: ${formati}. Word, ZIP, fogli di calcolo ed email non si caricano qui — ${esc(eng.NOT_ACCEPTED[0].why)}</div>
+                ${_imp.files.length ? `<div style="margin-top:16px">${_imp.files.map((f, i) => `
+                    <div class="list-item" style="padding:8px 10px">
+                        <div class="list-icon">📄</div>
+                        <div class="list-content"><div class="list-title">${esc(f.name)}</div><div class="list-subtitle">${(f.size / 1024).toFixed(0)} KB</div></div>
+                        <button class="btn btn-xs btn-secondary" onclick="importaRemoveFile(${i})">✕</button>
+                    </div>`).join('')}</div>` : ''}
+                <div style="margin-top:18px">
+                    <button class="btn" ${_imp.busy || !_imp.files.length ? 'disabled' : ''} onclick="importaAnalyze()">${_imp.busy ? 'Lettura in corso…' : 'Leggi i documenti →'}</button>
+                </div>
+                ${_imp.error ? `<div class="badge red" style="margin-top:12px">${esc(_imp.error)}</div>` : ''}
+            </div></div>`;
+        }
+
+        if (_imp.step === 'esiste') {
+            const id = (_imp.result.exists || {}).id;
+            return head + `<div class="card"><div class="card-body">
+                <div class="empty-state"><div class="empty-icon">📂</div>
+                <div class="empty-text">Questa pratica è già in gestione.</div>
+                <div style="font-size:12px;color:var(--text-secondary);margin:8px 0 16px">Nessun doppione è stato creato. Per aggiungere documenti usa la pratica esistente.</div>
+                <button class="btn" onclick="viewContract('${esc(id)}')">Apri la pratica</button></div>
+            </div></div>`;
+        }
+
+        // ── revisione ──────────────────────────────────────────────────────
+        const R = _imp.result, D = _imp.draft;
+        const fields = R.extraction.fields || {};
+        const sections = { landlord: 'Proprietario', tenant: 'Conduttore', property: 'Immobile', contract: 'Contratto' };
+        const srcName = (k) => { const s = (R.sources || []).find(x => x.key === k); return s ? s.name : (k === 'operatore' ? 'inserito a mano' : '—'); };
+
+        const fieldRows = Object.keys(sections).map(sec => {
+            const rows = Object.keys(fields).filter(p => p.indexOf(sec + '.') === 0);
+            if (!rows.length) return '';
+            return `<div style="margin-bottom:18px">
+                <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);margin-bottom:8px">${sections[sec]}</div>
+                <table style="width:100%;border-collapse:collapse;font-size:12px">
+                ${rows.map(p => { const f = fields[p]; return `<tr style="border-bottom:1px solid var(--border)">
+                    <td style="padding:6px 8px 6px 0;color:var(--text-secondary);white-space:nowrap">${esc(p.split('.')[1])}</td>
+                    <td style="padding:6px 8px"><input class="form-input" style="font-size:12px;padding:4px 8px" value="${esc(String(f.value))}"
+                        onchange="importaSetField('${esc(p)}', this.value)"></td>
+                    <td style="padding:6px 0;color:var(--text-muted);font-size:11px;white-space:nowrap" title="${esc(f.quote || '')}">
+                        ${f.confirmed ? '✎ operatore' : esc(srcName(f.source))}${f.page ? ' · p.' + f.page : ''}
+                        ${f.quote ? ` <span style="opacity:.7">«${esc(String(f.quote).slice(0, 40))}»</span>` : ''}
+                    </td></tr>`; }).join('')}
+                </table></div>`;
+        }).join('');
+
+        const conflicts = (R.extraction.conflicts || []).map((c, i) => `
+            <div class="list-item" style="padding:10px;border-left:3px solid var(--red)">
+                <div class="list-content"><div class="list-title" style="font-size:12px">${esc(c.path || 'documento')}</div>
+                <div class="list-subtitle">${esc(c.reason)}</div></div>
+                ${c.path ? `<button class="btn btn-xs btn-secondary" onclick="importaResolveConflict(${i},'kept')">Tieni «${esc(String(c.kept).slice(0, 20))}»</button>
+                <button class="btn btn-xs btn-secondary" onclick="importaResolveConflict(${i},'seen')">Usa «${esc(String(c.seen).slice(0, 20))}»</button>` : ''}
+            </div>`).join('');
+
+        const linkBlock = ['property', 'tenant', 'landlord'].map(kind => {
+            const l = (R.links || {})[kind] || {};
+            const d = (D.links || {})[kind] || {};
+            const label = { property: 'Immobile', tenant: 'Conduttore', landlord: 'Proprietario' }[kind];
+            const sel = d.createNew ? '__new__' : (d.chosen || '');
+            return `<div style="margin-bottom:10px">
+                <label class="form-label" style="font-size:11px">${label} ${l.decision === 'da_confermare' ? '<span class="badge orange" style="font-size:9px">conferma richiesta</span>' : ''}</label>
+                <select class="form-input" style="font-size:12px" onchange="importaSetLink('${kind}', this.value)">
+                    <option value="__new__" ${sel === '__new__' ? 'selected' : ''}>➕ Crea nuovo</option>
+                    ${(l.candidates || []).map(c => `<option value="${esc(c.id)}" ${sel === c.id ? 'selected' : ''}>${esc(c.label)} — ${esc(c.why)} (${c.score})</option>`).join('')}
+                </select>
+                <div style="font-size:11px;color:var(--text-muted);margin-top:3px">${esc(l.why || 'nessuna corrispondenza in archivio')}</div>
+            </div>`;
+        }).join('');
+
+        const missing = eng.missingDocs({ documents: (R.sources || []).map(s => ({ key: /ricevut|rli|registraz/i.test(s.name) ? 'registrazione' : /verbal/i.test(s.name) ? 'verbale' : /ape/i.test(s.name) ? 'ape' : /planim/i.test(s.name) ? 'planimetria' : /identit|carta|passaport/i.test(s.name) ? 'identita_conduttore' : 'contratto', documentId: s.key })) });
+
+        return head + `
+        <div class="card" style="margin-bottom:16px"><div class="card-header"><h3 class="card-title">Dati letti — correggi qui, la fonte è accanto</h3></div>
+            <div class="card-body">${fieldRows || '<div class="empty-text">Nessun dato riconosciuto.</div>'}</div></div>
+
+        ${conflicts ? `<div class="card" style="margin-bottom:16px"><div class="card-header"><h3 class="card-title">⚠ Documenti in disaccordo — scegli tu</h3></div>
+            <div class="card-body flush">${conflicts}</div></div>` : ''}
+
+        <div class="card" style="margin-bottom:16px"><div class="card-header"><h3 class="card-title">Collegamenti in archivio</h3></div>
+            <div class="card-body"><div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">Nulla viene fuso automaticamente sul solo nome.</div>${linkBlock}</div></div>
+
+        <div class="card" style="margin-bottom:16px"><div class="card-header"><h3 class="card-title">Firma esterna e presa in gestione</h3></div>
+            <div class="card-body">
+                <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">
+                    Questo contratto è stato firmato fuori dal sistema. BOOM non lo firma e non simula Magic Sign: registra la <em>tua</em> verifica.
+                </div>
+                <div class="form-row">
+                    <div class="form-group"><label class="form-label">Data della firma sul documento</label>
+                        <input type="date" class="form-input" value="${esc(D.signature.signedOn)}" onchange="_imp.draft.signature.signedOn=this.value"></div>
+                    <div class="form-group"><label class="form-label">Verificata da</label>
+                        <input class="form-input" value="${esc(D.signature.verifiedBy)}" onchange="_imp.draft.signature.verifiedBy=this.value"></div>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Data di presa in gestione</label>
+                    <input type="date" class="form-input" value="${esc(D.takeoverDate)}" onchange="_imp.draft.takeoverDate=this.value;renderPage()">
+                    <div style="font-size:11px;color:var(--text-muted);margin-top:4px">
+                        Prima di questa data BOOM non ha gestito nulla: nessuna rata, nessun sollecito, nessuna fattura, nessuna registrazione vengono creati per il passato.
+                    </div>
+                </div>
+            </div></div>
+
+        <div class="card" style="margin-bottom:16px"><div class="card-header"><h3 class="card-title">Documenti della pratica</h3></div>
+            <div class="card-body flush">${missing.map(m => `
+                <div class="list-item" style="padding:8px 12px">
+                    <div class="list-icon">${m.present ? '✓' : '○'}</div>
+                    <div class="list-content"><div class="list-title" style="font-size:12px">${esc(m.label)}</div>
+                    <div class="list-subtitle">${m.present ? 'allegato' : esc(m.why)}</div></div>
+                </div>`).join('')}</div></div>
+
+        <div class="card"><div class="card-body">
+            <button class="btn" ${_imp.busy ? 'disabled' : ''} onclick="importaConfirm()">${_imp.busy ? 'Creazione…' : '✓ Conferma e apri la pratica'}</button>
+            <button class="btn btn-secondary" onclick="document.getElementById('impFiles2').click()">📎 Aggiungi un altro documento</button>
+            <input type="file" id="impFiles2" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.heic" style="display:none" onchange="importaPickFiles(this);importaAnalyze()">
+            <div style="font-size:11px;color:var(--text-muted);margin-top:10px">
+                Gli originali restano immutati sotto <code>contracts/&lt;pratica&gt;/originali/</code>. Firmato, registrato, pagato e consegnato restano quattro stati distinti.
+            </div>
+        </div></div>`;
+    }
 
     function innestoPage() {
         const p = _innesto.proposal;

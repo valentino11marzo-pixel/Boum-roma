@@ -345,6 +345,10 @@
          sepolte (i 22 documenti al volo, gli strumenti) diventano cercabili
          da qualunque punto. Deve stare PRIMA dei due layer che lo leggono. -->
     <script src="/js/oggi-engine.js"></script>
+    <!-- Importa pratica: le decisioni (identità, conflitti, stati, presa in
+         gestione) stanno nel motore, non nella pagina. Prima di portal-app.js
+         come gli altri engine: importaPage() lo legge al primo render. -->
+    <script src="/js/pratica-engine.js"></script>
     <script src="/js/portal-actions.js"></script>
     <!-- M2 · Portal App: DEVE stare dopo portal-app.js (avvolge goTo/openModal
          globali e osserva #main/#modals/#sidebar). Solo ≤920px; kill switch

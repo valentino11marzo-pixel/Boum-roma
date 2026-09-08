@@ -49,7 +49,10 @@ async function fetchTransit(fileUrl) {
 
 // Lo schema che il portale sa salvare. Elencato esplicitamente nel prompt:
 // un campo inventato non verrebbe letto da nessuna pagina.
-const SCHEMA = `{
+// Esportati perché api/contracts/import.js legga gli STESSI contratti con lo
+// STESSO schema: due descrizioni del formato del portale divergerebbero al
+// primo campo aggiunto, e la seconda sarebbe quella che nessuno aggiorna.
+export const SCHEMA = `{
   "landlord": { "name": "", "email": "", "phone": "", "codiceFiscale": "", "iban": "",
                 "address": "", "birthDate": "AAAA-MM-GG", "birthPlace": "" },
   "tenant":   { "name": "", "email": "", "phone": "", "codiceFiscale": "",
@@ -63,7 +66,7 @@ const SCHEMA = `{
                 "cedolareSecca": true, "transitionalReason": "", "notes": "" }
 }`;
 
-function buildPrompt(context) {
+export function buildPrompt(context) {
   const known = context && context.known ? context.known : {};
   const lines = [
     'Sei un assistente di back-office immobiliare a Roma. Dal materiale che segue estrai i dati per il gestionale.',

@@ -145,6 +145,10 @@ self.addEventListener('fetch', (event) => {
             // il motore dell'Innesto/Bonifica è logica del portale: una copia
             // stantia farebbe divergere merge/validazioni dalla pagina che le usa
             || url.pathname === '/js/dataops-engine.js'
+            // stessa ragione per il motore delle pratiche importate: identità,
+            // conflitti e presa in gestione non possono restare a una versione
+            // indietro rispetto alla pagina che li mostra
+            || url.pathname === '/js/pratica-engine.js'
             || url.pathname === '/js/portal-desktop.js'
             || url.pathname === '/css/portal-desktop.css'
             || url.pathname === '/css/portal-finish.css') ? url.pathname : null);
