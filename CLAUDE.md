@@ -2368,6 +2368,20 @@ risponde SOLO quando l'operatore non può o rifiuta apposta (rifiuto =
   messaggio" — quello che sappiamo, senza inventare.
 - Rules: `phoneCalls` admin-only (firestore) + `phone-calls/` (storage —
   senza il match, l'upload admin 403a: la lezione contracts/).
+- **LA LEZIONE DELL'8 SETTEMBRE 2026 — `Redirecting...`**: la Receptionist
+  era stata creata il 22/08 e testata UNA volta: il tool `get_catalog` ha
+  ricevuto come risposta la stringa `Redirecting...` (URL sull'apex
+  `boomrome.com`, che reindirizza su `www`, con *Follow redirects* spento) e
+  l'agente ha detto «I don't have the catalog in front of me» col catalogo
+  vivo. Nessuno ha letto il transcript; zero chiamate in 17 giorni; il numero
+  del workspace (`+1 707`, Twilio) era rimasto assegnato a «Sofia», l'agente
+  di febbraio senza tool. Regole: **un URL BOOM consegnato a un servizio
+  esterno è SEMPRE `www`** (`canonicalHost()` in `inbound.js`, pinnato nei
+  test insieme al mandato); l'italiano nasce dal **preset di lingua**, non
+  dal modello TTS (la piattaforma impone flash v2 agli agenti inglesi);
+  formati μ-law 8k per il numero Twilio; il webhook post-chiamata è `www`
+  per la stessa ragione. Stato completo e checklist di attivazione in
+  `bot/RECEPTIONIST.md` §0 e `STUDIO_CARICO_2026-09.md` §3.
 - Test: `node tests/phone/run.mjs`.
 
 ### GET/POST `/api/leads/match-listing` — LA RICERCA ROVESCIATA
