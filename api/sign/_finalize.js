@@ -517,7 +517,7 @@ async function buildCertificate(c, property){
   const row = (label, val) => { T(label, 40, y, 9, bold, grey); T(val, 180, y, 10, font, dark); y -= 18; };
   row('Contratto', c.id || '');
   row('Immobile', (property && (property.address || property.name)) || '');
-  row('Tipo', c.type === 'studenti' ? 'Per studenti' : 'Transitorio');
+  row('Tipo', c.type === 'studenti' ? 'Per studenti' : c.type === '3+2' ? 'Canone concordato 3+2' : 'Transitorio');
   row('Canone / Deposito', (money(c.rent) || '-') + '   /   ' + (money(c.deposit) || '-'));
   // Solo caratteri WinAnsi: la freccia "→" (U+2192) non è codificabile con
   // gli StandardFonts di pdf-lib e faceva fallire l'INTERO certificato.

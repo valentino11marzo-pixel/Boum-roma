@@ -69,6 +69,9 @@ export async function buildRegistrationPack(contract, property, { signedPdfUrl, 
   const prop = property || {};
   const dossier = prop.dossier || {};
   const studenti = contract.type === 'studenti';
+  // Il 3+2 (Allegato A) non ha un'esigenza da documentare: la voce non
+  // compare, e non compare fra i mancanti.
+  const senzaEsigenza = contract.type === '3+2';
   const attLabel = studenti ? 'Attestazione iscrizione universitaria (esigenza studenti)' : 'Attestazione esigenza transitoria';
 
   // ── Le voci del pack: cosa DEVE esserci e da dove viene ──
@@ -119,7 +122,7 @@ export async function buildRegistrationPack(contract, property, { signedPdfUrl, 
     }
   }
   if (!idN) push('Documento identità conduttore', '08_Documento_conduttore', '', 'manda al conduttore il suo link /scheda (Share Hub) — upload con OCR');
-  if (!extraN) push(attLabel, '09_Attestazione_esigenza', '', studenti
+  if (!extraN && !senzaEsigenza) push(attLabel, '09_Attestazione_esigenza', '', studenti
     ? 'certificato di iscrizione/Erasmus: richiedibile dalla console PA (documenti richiesti) o via /scheda'
     : 'lettera datore di lavoro / iscrizione corso: console PA (documenti richiesti)');
 

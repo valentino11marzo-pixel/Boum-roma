@@ -47,8 +47,11 @@ const clip = (v, n = 200) => (v == null ? null : String(v).trim().slice(0, n) ||
 // si legge la proposta. `lease.type` è la tendina della console
 // («Student Housing (Allegato C)»), non testo libero del cliente.
 export function leaseType(explicit, lease) {
-  if (explicit === 'studenti' || explicit === 'transitorio') return explicit;
-  return /student/i.test(String((lease || {}).type || '')) ? 'studenti' : 'transitorio';
+  if (explicit === 'studenti' || explicit === 'transitorio' || explicit === '3+2') return explicit;
+  const t = String((lease || {}).type || '');
+  if (/student/i.test(t)) return 'studenti';
+  if (/3\s*\+\s*2|allegato a\b/i.test(t)) return '3+2';
+  return 'transitorio';
 }
 
 // ── Core conversion, shared by the console handler and the auto pipeline ──

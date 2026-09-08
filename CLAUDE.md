@@ -1461,6 +1461,13 @@ impone di DIRE anche se non ha la riga: il tetto dell'accordo (con
 transitorio +10% la riga stampa 2.153,80 ma il massimo resta 1.958,00: la
 nota lo spiega invece di lasciare due numeri in contraddizione) e il
 pattuito sopra il massimo (sforamento esatto in nota, mai nascosto).
+**Anche il calcolatore stampa il modulo** (`scheda-canone.html` →
+«Stampa / Salva PDF»): la sua vista di stampa era una terza scheda —
+titolo «SCHEDA PER LA ATTESTAZIONE…», riga Decorrenza/Stipulato/Registrato,
+blocco «ATTESTA» — cioè un foglio diverso da quello che il fascicolo manda
+ad ARPE. Ora è lo stesso modulo, sezione per sezione, con gli stessi numeri
+del server (verificato: 89,00 mq · MEDIA 15,40/22,00 · 1.958,00 · nota del
+tetto) — pre-verifica e fascicolo non possono più contraddirsi.
 **Zona mai indovinata dalla via** (stessa release): `matchZone` cadeva
 sulla ricerca per parola singola e «Via DELLA Lungaretta» diventava DELLA
 VITTORIA, «Porta Pinciana» PORTA PORTESE, «Via del Monte» MONTE MARIO — un
@@ -2131,6 +2138,51 @@ dal referente; differisce dal modello con cedolare SOLO nell'art. 6 —
 verificato per diff). In `reference/` anche
 `contratto_tipo_32_Roma_2023.doc`, il contratto tipo 3+2 (art. 2 c. 3
 L.431/98) dell'accordo 27/07/2023.
+
+### Il terzo modello: 3+2 canone concordato — Allegato A (8/09/2026)
+Il contratto tipo dell'associazione per il **3+2** (L.431/98 art. 2 c. 3,
+accordo 27/07/2023 prot. RA/2023/0044852 —
+`reference/contratto_tipo_32_Roma_2023.doc`, caricato dal referente) è il
+terzo modello di `js/contract-pdf.js`, VERBATIM. `contract.type === '3+2'`
+(anche `'32'`/`'concordato'`, la forma che `compliance-rules` già leggeva)
+→ `buildAllegatoA`; il dispatcher resta una riga sola. **Un telaio, tre
+facce**: il generatore studenti è diventato `buildConcordato(env, MODEL)` —
+stessa impaginazione, stesse parti, stesse firme, stesse ancore — e i due
+modelli concordati sono `MODEL_C` / `MODEL_A`: titolo, riferimento di
+legge, `articles(v, addArticle)` e la clausola 1341/1342. Il 3+2 parla
+**per anno** (canone annuo = mensile × 12, rate per anno secondo la
+cadenza), dura «3 anni» per legge (art. 1: proroga di diritto di due anni,
+disdetta sei mesi), non ha esigenza né corso di studi, deposito con la
+riserva «durata minima ≥ 5 anni», oneri sull'**allegato 5 dell'Accordo**
+(non l'allegato D del decreto), recesso a sei mesi, «Accesso» al singolare.
+Refusi dell'originale normalizzati e DICHIARATI nel sorgente
+(«Organizzazione della Proprietà», «RA/2023/044852», la virgola che chiude
+l'art. 1, «non è superiore», la parentesi mai chiusa, «l'immobile :
+locato», «E'» → «È», «dei presente» → «del presente»).
+- **`tests/contractpdf/verbatim.mjs` misura la parola "verbatim"**:
+  `tests/_doc.mjs` legge i `.doc` VERI (OLE → FIB → piece table, zero
+  dipendenze), il test estrae dal sorgente ogni frase fissa degli articoli
+  (i pezzi fra un `${…}` e l'altro, ≥ 40 caratteri) e pretende che stia
+  nel modello — confronto sul CONTENUTO (minuscolo, senza punteggiatura),
+  normalizzazioni elencate, varianti nostre dichiarate (niente deposito;
+  canone «riferito all'intera durata» sotto i 12 mesi). Al primo giro ha
+  trovato sul modello C **«saranno a carico» dove il modello dice «sono a
+  carico»**, il ramo senza cedolare scritto a mano, e lo slot «nella misura
+  contrattata del --» che mancava (ora `contract.istatPct`, campo del
+  dizionario: l'aggiornamento Istat pattuito senza cedolare).
+- **Il tipo viaggia ovunque**: dizionario (`templateOf` → `'A'`; un campo
+  comune a B e C vale anche per A, `garanzieAltre`/`accessiModalita`
+  dichiarano `'A'`, rilascio del documento e rendita sono dati del
+  contratto come sul C, durata di legge `durata_32` = 36 mesi esatti,
+  opzione «3+2 canone concordato (Allegato A)» nel campo Tipo), portal
+  (terzo bottone 📜 3+2 nel wizard, 36 mesi di default e minimo, tendina
+  del modale Modifica, `updateContract` lo salva), console pre-accordo
+  («3+2 Canone concordato (Allegato A)» e `type:'3+2'` alla conversione),
+  `convert.leaseType` (esplicito o dedotto dalla proposta),
+  `contracts.draft` (36 mesi), fascicolo/valutazione (`contractTipo` →
+  `'32'`, la casella «Contratto: 3+2» della scheda ARPE e «Durata + %» con
+  `pDur`), Foglio/Fascicolo/verbale/inventario (a parole), Pack e iter ASPI
+  (nessuna «attestazione esigenza» chiesta o segnata mancante).
 
 **IL TIPO NON SI MANDA, SI LEGGE** (agosto 2026). `js/contract-pdf.js`
 sceglie il modello con `contract.type === 'studenti' ? Allegato C :
@@ -3701,6 +3753,7 @@ camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
   | `tests/money/run.mjs` | checkout, webhook Stripe idempotenti, conversione PA→contratto |
   | `tests/fiscal/test.mjs` | motore scadenze fiscali |
   | `tests/fiscal/canone.mjs` | canone concordato: superficie convenzionale (coefficienti e tetti), fascia dai parametri, regola del cap, match zona che non indovina, parametri solo da feature reali, verdetto fits/fuori |
+  | `tests/contractpdf/verbatim.mjs` | le clausole dei modelli A (3+2) e C (studenti, con e senza cedolare) sono quelle dei `.doc` dell'associazione in `reference/`, frase per frase — il lettore `.doc` sta in `tests/_doc.mjs`, le normalizzazioni dei refusi sono elencate, le varianti nostre dichiarate; ha preso «saranno» per «sono» al primo giro |
   | `tests/fiscal/scheda.mjs` | la Scheda di calcolo canone 1:1 col modulo ARPE (Allegato 2/B): ogni etichetta stampata sta nel `.docx` del modulo parola per parola (anti-deriva, con la mutazione che dimostra che il check morde), i fatti dal contratto (bracket di superficie, pertinenze, parametri derivati, subfascia, calcolo riga per riga, cap dichiarato, sforamento), senza zona/mq un modulo vuoto onesto (e «Via della Lungaretta» non è più DELLA VITTORIA), PDF a sé stante di una pagina che stampa davvero quelle parole e NON la testata BOOM |
   | `tests/taxpack/test.mjs` | pacchetto commercialista |
   | `tests/journey/steps.mjs` | **le regole commerciali dell'operatore**: quando parte ogni email e cosa NON deve contenere (T-90 e uscita non vendono, le chiavi non si vendono mai, un prodotto già comprato non si ripropone, il rinnovo non arriva prima del move-in su un transitorio breve) |

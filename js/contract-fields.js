@@ -123,7 +123,10 @@
     return EU_WORDS.some(w => n.indexOf(w) >= 0);
   }
 
-  function templateOf(contract) { return (contract && contract.type === 'studenti') ? 'C' : 'B'; }
+  // B = transitorio (Allegato B), C = studenti (Allegato C), A = 3+2 canone
+  // concordato (contratto tipo art. 2 c. 3 L.431/98, type '3+2').
+  function is32(contract) { const t = str(obj(contract).type).toLowerCase(); return t === '3+2' || t === '32' || t === 'concordato'; }
+  function templateOf(contract) { return (contract && contract.type === 'studenti') ? 'C' : is32(contract) ? 'A' : 'B'; }
 
   function leaseDays(c) {
     c = obj(c);
@@ -262,8 +265,8 @@
       read: (ctx) => docTypeCode(pick(obj(ctx.contract).tenantDocType, obj(ctx.tenant).docType, obj(ctx.tenant).idDocType)),
       label: { it: 'Documento', en: 'ID document' }, ask: { it: '', en: '' } }),
     partyField('tenant', 'DocNum', { userKeys: ['docNum', 'idDocNumber'], label: { it: 'Numero documento', en: 'Document number' }, ask: { it: '', en: '' } }),
-    partyField('tenant', 'DocIssuer', { userKeys: ['docIssuer'], needs: (tpl) => tpl === 'C' ? ['contract', 'registration'] : ['registration'], required: (ctx) => templateOf(ctx.contract) === 'C', label: { it: 'Rilasciato da', en: 'Issued by' }, ask: { it: 'Ente che ha rilasciato il documento', en: 'Issuing authority' } }),
-    partyField('tenant', 'DocIssueDate', { userKeys: ['docIssueDate'], type: 'date', needs: (tpl) => tpl === 'C' ? ['contract', 'registration'] : ['registration'], required: (ctx) => templateOf(ctx.contract) === 'C', label: { it: 'Data di rilascio', en: 'Issue date' }, ask: { it: '', en: '' } }),
+    partyField('tenant', 'DocIssuer', { userKeys: ['docIssuer'], needs: (tpl) => tpl !== 'B' ? ['contract', 'registration'] : ['registration'], required: (ctx) => templateOf(ctx.contract) !== 'B', label: { it: 'Rilasciato da', en: 'Issued by' }, ask: { it: 'Ente che ha rilasciato il documento', en: 'Issuing authority' } }),
+    partyField('tenant', 'DocIssueDate', { userKeys: ['docIssueDate'], type: 'date', needs: (tpl) => tpl !== 'B' ? ['contract', 'registration'] : ['registration'], required: (ctx) => templateOf(ctx.contract) !== 'B', label: { it: 'Data di rilascio', en: 'Issue date' }, ask: { it: '', en: '' } }),
     partyField('tenant', 'Nationality', { userKeys: ['nationality'], needs: ['registration'], label: { it: 'Nazionalità', en: 'Nationality' }, ask: { it: 'Per un cittadino extra-UE serve la cessione di fabbricato', en: 'Non-EU citizens need a “cessione di fabbricato” filing — we handle it' } }),
     // Extra-UE: la comunicazione in Questura (48h) vuole gli estremi del
     // permesso di soggiorno. Richiesti SOLO quando la nazionalità lo dice.
@@ -314,7 +317,7 @@
       read: (ctx) => catRead(ctx, 'categoria'), write: { doc: 'property', path: 'categoria', cadastral: true }, label: { it: 'Categoria', en: 'Category' }, ask: { it: 'Es. A/2', en: 'e.g. A/2' } },
     { key: 'catSezione', group: 'catasto', owner: 'landlord', templates: ['B', 'C'], needs: ['registration'], required: false, type: 'text',
       read: (ctx) => catRead(ctx, 'sezione'), write: { doc: 'property', path: 'sezione', cadastral: true }, label: { it: 'Sezione urbana', en: 'Urban section' }, ask: { it: 'Solo se presente in visura', en: 'Only if shown on the visura' } },
-    { key: 'propertyRendita', group: 'catasto', owner: 'landlord', templates: ['B', 'C'], needs: (tpl) => tpl === 'C' ? ['contract', 'registration'] : ['registration'], required: true, type: 'number',
+    { key: 'propertyRendita', group: 'catasto', owner: 'landlord', templates: ['B', 'C'], needs: (tpl) => tpl !== 'B' ? ['contract', 'registration'] : ['registration'], required: true, type: 'number',
       read: (ctx) => { const v = pick(obj(ctx.contract).renditaCatastale, obj(ctx.property).renditaCatastale); return (v && Number(v) > 0) ? v : ''; },
       write: { doc: 'property', path: 'renditaCatastale', also: { doc: 'contract', path: 'renditaCatastale' } },
       label: { it: 'Rendita catastale (€)', en: 'Cadastral income (€)' }, ask: { it: 'Dalla visura', en: 'From the visura catastale' } },
@@ -344,7 +347,7 @@
     tabField('tabAltre', 'altre', { type: 'text', label: { it: 'Altre tabelle', en: 'Other tables' }, ask: { it: 'Es. scale 41, ascensore 38', en: 'e.g. stairs 41, lift 38' } }),
 
     // ── TERMINI (l'operatore: nascono dalla proposta o dal portal) ────
-    { key: 'type', group: 'terms', owner: 'operator', templates: ['B', 'C'], needs: ['contract', 'registration'], required: true, type: 'select', options: [{ v: 'transitorio', it: 'Transitorio (Allegato B)', en: 'Transitional (Allegato B)' }, { v: 'studenti', it: 'Studenti (Allegato C)', en: 'Students (Allegato C)' }],
+    { key: 'type', group: 'terms', owner: 'operator', templates: ['B', 'C'], needs: ['contract', 'registration'], required: true, type: 'select', options: [{ v: 'transitorio', it: 'Transitorio (Allegato B)', en: 'Transitional (Allegato B)' }, { v: 'studenti', it: 'Studenti (Allegato C)', en: 'Students (Allegato C)' }, { v: '3+2', it: '3+2 canone concordato (Allegato A)', en: '3+2 agreed rent (Allegato A)' }],
       read: (ctx) => pick(obj(ctx.contract).type) || 'transitorio', write: { doc: 'contract', path: 'type' }, label: { it: 'Tipo di contratto', en: 'Contract type' }, ask: { it: '', en: '' } },
     { key: 'startDate', group: 'terms', owner: 'operator', templates: ['B', 'C'], needs: ['contract', 'registration'], required: true, type: 'date',
       read: (ctx) => pick(obj(obj(ctx.contract).durata).startDate, obj(ctx.contract).startDate), write: { doc: 'contract', path: 'startDate' }, label: { it: 'Decorrenza', en: 'Start date' }, ask: { it: '', en: '' } },
@@ -367,15 +370,20 @@
       write: { doc: 'contract', path: 'cedolareSecca' }, label: { it: 'Cedolare secca', en: 'Cedolare secca (flat tax)' }, ask: { it: 'Decide l’art. 7 (B) / 6 (C) e la registrazione', en: '' } },
     { key: 'oneriQuota', group: 'terms', owner: 'operator', templates: ['B', 'C'], needs: ['contract'], required: false, type: 'number',
       read: (ctx) => pick(obj(ctx.contract).oneriQuota), write: { doc: 'contract', path: 'oneriQuota' }, label: { it: 'Acconto oneri accessori (€/mese)', en: 'Service charges advance (€/month)' }, ask: { it: 'Vuoto = a consuntivo (B) / “--” (C)', en: '' } },
+    // «nella misura contrattata del --»: la percentuale di aggiornamento
+    // Istat pattuita (solo SENZA cedolare — con la cedolare il locatore vi
+    // rinuncia). Slot del modello A e C; '--' quando non pattuita.
+    { key: 'istatPct', group: 'terms', owner: 'operator', templates: ['C', 'A'], needs: ['contract'], required: false, type: 'text',
+      read: (ctx) => pick(obj(ctx.contract).istatPct), write: { doc: 'contract', path: 'istatPct' }, label: { it: 'Aggiornamento Istat contrattato (%)', en: 'Agreed ISTAT update (%)' }, ask: { it: 'Es. 75% — vuoto = «--»', en: 'e.g. 75% — empty = «--»' } },
     { key: 'condoMode', group: 'terms', owner: 'operator', templates: ['B'], needs: ['contract'], required: false, type: 'select', options: [{ v: 'incluso', it: 'Spese incluse nel canone', en: 'Charges included in rent' }, { v: 'consuntivo', it: 'A consuntivo', en: 'Settled on actual costs' }],
       read: (ctx) => pick(obj(ctx.contract).condoMode), write: { doc: 'contract', path: 'condoMode' }, label: { it: 'Regime oneri', en: 'Service charges regime' }, ask: { it: '', en: '' } },
     { key: 'consegnaStato', group: 'terms', owner: 'operator', templates: ['B', 'C'], needs: ['contract'], required: false, type: 'textarea',
       read: (ctx) => pick(obj(ctx.contract).consegnaStato), write: { doc: 'contract', path: 'consegnaStato' }, label: { it: 'Stato di consegna (art. 1590 c.c.)', en: 'Condition at handover (art. 1590 c.c.)' }, ask: { it: 'Vuoto = rinvia al verbale di consegna', en: '' } },
-    { key: 'garanzieAltre', group: 'terms', owner: 'operator', templates: ['C'], needs: ['contract'], required: false, type: 'text',
+    { key: 'garanzieAltre', group: 'terms', owner: 'operator', templates: ['C', 'A'], needs: ['contract'], required: false, type: 'text',
       read: (ctx) => pick(obj(ctx.contract).garanzieAltre), write: { doc: 'contract', path: 'garanzieAltre' }, label: { it: 'Altre forme di garanzia', en: 'Other guarantees' }, ask: { it: 'Vuoto = “--”', en: '' } },
     { key: 'subentroModalita', group: 'terms', owner: 'operator', templates: ['C'], needs: ['contract'], required: false, type: 'text',
       read: (ctx) => pick(obj(ctx.contract).subentroModalita), write: { doc: 'contract', path: 'subentroModalita' }, label: { it: 'Modalità di subentro', en: 'Replacement of a co-tenant' }, ask: { it: 'Vuoto = “--”', en: '' } },
-    { key: 'accessiModalita', group: 'terms', owner: 'operator', templates: ['C'], needs: ['contract'], required: false, type: 'text',
+    { key: 'accessiModalita', group: 'terms', owner: 'operator', templates: ['C', 'A'], needs: ['contract'], required: false, type: 'text',
       read: (ctx) => pick(obj(ctx.contract).accessiModalita), write: { doc: 'contract', path: 'accessiModalita' }, label: { it: 'Modalità di accesso per visite', en: 'Access for viewings' }, ask: { it: 'Vuoto = “--”', en: '' } },
     { key: 'signaturePlace', group: 'terms', owner: 'operator', templates: ['B', 'C'], needs: ['contract'], required: false, type: 'text',
       read: (ctx) => pick(obj(ctx.contract).signaturePlace), write: { doc: 'contract', path: 'signaturePlace' }, label: { it: 'Luogo di firma', en: 'Place of signature' }, ask: { it: 'Vuoto = Roma', en: '' } },
@@ -456,7 +464,7 @@
     contract: ['tenantName', 'tenantCF', 'tenantDob', 'tenantPob', 'tenantAddress', 'tenantDocType', 'tenantDocNum', 'tenantDocIssuer', 'tenantDocIssueDate',
       'landlordName', 'landlordCF', 'landlordDob', 'landlordPob', 'landlordAddress',
       'type', 'startDate', 'endDate', 'rent', 'deposit', 'paymentDay', 'paymentMethod', 'installmentMonths', 'cedolareSecca',
-      'oneriQuota', 'condoMode', 'consegnaStato', 'garanzieAltre', 'subentroModalita', 'accessiModalita', 'signaturePlace',
+      'oneriQuota', 'condoMode', 'consegnaStato', 'garanzieAltre', 'subentroModalita', 'accessiModalita', 'signaturePlace', 'istatPct',
       'transitionalReason', 'transitionalDocs', 'studenti', 'courseName', 'universityName', 'cohabitants', 'uso',
       'renditaCatastale', 'energyClass', 'impiantiStato', 'propertyExtra', 'motivazioneTransitorieta', 'canone', 'durata'],
     property: ['address', 'city', 'floor', 'scala', 'interno', 'unit', 'rooms', 'accessories', 'furnished', 'cadastralData', 'renditaCatastale', 'energyCert', 'energyClass', 'safetyImplants', 'tabelleMillesimali', 'impiantiStato', 'foglio', 'particella', 'sub', 'categoria'],
@@ -468,7 +476,15 @@
   function needsOf(f, tpl) { return typeof f.needs === 'function' ? f.needs(tpl) : (f.needs || []); }
   function isRequired(f, ctx) { return typeof f.required === 'function' ? !!f.required(ctx) : f.required !== false; }
   function ownerOf(f, ctx) { return typeof f.owner === 'function' ? f.owner(ctx) : f.owner; }
-  function onTemplate(f, tpl) { return (f.templates || ['B', 'C']).indexOf(tpl) >= 0; }
+  // Un campo che vale per ENTRAMBI i modelli concordati B e C (parti,
+  // immobile, catasto, termini) vale anche per il 3+2, che ne condivide
+  // testata e struttura; i campi di UN solo modello (esigenza transitoria,
+  // corso di studi) dichiarano 'A' esplicitamente quando lo riguardano.
+  function onTemplate(f, tpl) {
+    const t = f.templates || ['B', 'C'];
+    if (t.indexOf(tpl) >= 0) return true;
+    return tpl === 'A' && t.indexOf('B') >= 0 && t.indexOf('C') >= 0;
+  }
   function valueOf(f, ctx) { try { return str(f.read(ctx)); } catch (_) { return ''; } }
   function fieldsFor(tpl) { return FIELDS.filter(f => onTemplate(f, tpl)); }
   const read = (key, ctx) => { const f = BY_KEY[key]; return f ? valueOf(f, ctx) : ''; };
@@ -522,6 +538,7 @@
     if (!m) return out;
     if (tpl === 'B') out.push({ code: 'durata_transitorio', ok: m >= 1 && m <= 18, months: m, note: { it: 'Transitorio: durata ammessa da 1 a 18 mesi (DM 16/01/2017 art. 2)', en: 'Transitional lease: allowed term 1–18 months' } });
     if (tpl === 'C') out.push({ code: 'durata_studenti', ok: m >= 6 && m <= 36, months: m, note: { it: 'Studenti: durata ammessa da 6 mesi a 3 anni (DM 16/01/2017 art. 3)', en: 'Student lease: allowed term 6–36 months' } });
+    if (tpl === 'A') out.push({ code: 'durata_32', ok: m === 36, months: m, note: { it: '3+2: durata di 3 anni esatti (art. 2 c. 3 L.431/98), poi proroga di diritto di due anni', en: '3+2 lease: exactly 3 years (art. 2 c. 3 L.431/98), then a two-year extension by law' } });
     return out;
   }
 

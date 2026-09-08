@@ -468,6 +468,22 @@ const foglioEndpoint = (await import('../../api/fiscal/foglio.js')).default;
   check('fascicolo completo: le stesse righe del foglio (catasto a caselle) + oggetto stabile', /Subalterno 6/.test(txt) && /^📑 Fascicolo completo — Via Levico 12 — Anna Smith — 2026-09-01$/.test(m.subject));
 }
 
+// ═══ Il terzo modello: 3+2 (Allegato A) ═══
+{
+  const A = { type: '3+2', startDate: '2026-10-01', endDate: '2029-09-30', rent: 1200, tenantName: 'A B', landlordName: 'C D' };
+  check('templateOf: 3+2 / 32 / concordato → A', F.templateOf(A) === 'A' && F.templateOf({ type: '32' }) === 'A' && F.templateOf({ type: 'concordato' }) === 'A' && F.templateOf({ type: 'transitorio' }) === 'B');
+  const keysA = F.fieldsFor('A').map(f => f.key);
+  check('A eredita i campi comuni a B e C (parti, catasto, termini) + garanzie/accessi del contratto tipo, NON esigenza né corso di studi',
+    ['tenantName', 'tenantCF', 'landlordName', 'catFoglio', 'rent', 'garanzieAltre', 'accessiModalita', 'istatPct'].every(k => keysA.includes(k))
+    && !keysA.includes('transitionalReason') && !keysA.includes('studCorsoStudi') && !keysA.includes('subentroModalita') && !keysA.includes('condoMode'));
+  const leg = F.legalChecks({ contract: A });
+  check('durata di legge del 3+2: 36 mesi esatti', leg.length === 1 && leg[0].code === 'durata_32' && leg[0].ok === true);
+  const legBad = F.legalChecks({ contract: { ...A, endDate: '2028-09-30' } });
+  check('24 mesi su un 3+2 → la durata di legge non torna', legBad.length === 1 && legBad[0].ok === false);
+  check('sul 3+2 rilascio del documento e rendita sono dati del CONTRATTO (come sul C: la testata li stampa)',
+    F.needsOf(F.BY_KEY.tenantDocIssuer, 'A').includes('contract') && F.needsOf(F.BY_KEY.propertyRendita, 'A').includes('contract') && !F.needsOf(F.BY_KEY.tenantDocIssuer, 'B').includes('contract'));
+}
+
 console.log('────────────────────────────────────────────────');
 console.log(`Il dizionario del contratto: ${passed} passed, ${failed} failed`);
 if (failed) { console.log('FAILED: ' + bad.join(' | ')); process.exit(1); }

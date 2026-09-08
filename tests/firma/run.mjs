@@ -59,8 +59,9 @@ ok(!/type:/.test(src('api/preagreement/_auto.js').slice(src('api/preagreement/_a
 ok(/leaseType\(type, le\)/.test(conv), 'convert deriva il tipo con la regola condivisa, non con un ternario locale');
 ok(/Student Housing \(Allegato C\)/.test(cons), 'la console pre-accordo OFFRE il contratto studenti');
 const call = cons.slice(cons.indexOf("fetch('/api/preagreement/convert'") - 600, cons.indexOf("fetch('/api/preagreement/convert'") + 400);
-ok(/type:\s*isStud\s*\?\s*'studenti'\s*:\s*'transitorio'/.test(call), 'la conversione PASSA il tipo (prima non lo faceva mai)');
-ok(/\/student\/i\.test\(String\(\(d\.lease/.test(call), 'il tipo si deduce dal Tipo scelto sulla proposta, non da un default');
+ok(/type:\s*isStud\s*\?\s*'studenti'\s*:\s*is32\s*\?\s*'3\+2'\s*:\s*'transitorio'/.test(call), 'la conversione PASSA il tipo (prima non lo faceva mai) — studenti, 3+2 o transitorio');
+ok(/isStud=\/student\/i\.test\(_lt\)/.test(call) && /_lt=String\(\(d\.lease\|\|\{\}\)\.type/.test(call), 'il tipo si deduce dal Tipo scelto sulla proposta, non da un default');
+ok(/3\+2 Canone concordato \(Allegato A\)/.test(cons), 'la console pre-accordo OFFRE anche il 3+2');
 
 // ── 1b. I dati che l'Allegato C nomina arrivano fin lì ──────────────────
 // Il modello dell'associazione scrive corso di studi e università DENTRO la
@@ -85,7 +86,11 @@ ok(/onchange="syncStud\(\)"/.test(cons) && /_st\.corsoStudi/.test(cons),
 const edit = app.slice(app.indexOf("if (type === 'editContract')"), app.indexOf("if (type === 'editContract')") + 9000);
 ok(/name="type"/.test(edit) && /Studenti universitari — Allegato C/.test(edit), 'il modale Modifica ha il campo Tipo');
 const upd = app.slice(app.indexOf('async function updateContract'), app.indexOf('async function updateContract') + 5200);
-ok(/type: data\.type === 'studenti' \? 'studenti' : 'transitorio'/.test(upd), 'updateContract SALVA il tipo (altrimenti il campo sarebbe finto)');
+ok(/type: data\.type === 'studenti' \? 'studenti' : data\.type === '3\+2' \? '3\+2' : 'transitorio'/.test(upd), 'updateContract SALVA il tipo (altrimenti il campo sarebbe finto) — anche il 3+2');
+ok(/3\+2 canone concordato — Allegato A/.test(edit), 'il modale Modifica offre anche il 3+2 (Allegato A)');
+ok(/is32\(env\.contract\) \? buildAllegatoA\(env\)/.test(cpdf), 'il dispatcher manda il 3+2 all\'Allegato A');
+ok(leaseType('3+2', {}) === '3+2' && leaseType(undefined, { type: '3+2 Canone concordato (Allegato A)' }) === '3+2' && leaseType(undefined, { type: 'Transitional Lease' }) === 'transitorio',
+  'leaseType: il 3+2 esplicito e quello letto dalla proposta; il transitorio resta transitorio');
 // IL BUCO CHE IL CAMPO TIPO APRIVA: passando a «studenti» il blocco coi dati
 // dell'Allegato C non c'era nemmeno nel modale (era reso solo se il contratto
 // era GIÀ studenti) — si cambiava modello e il PDF nasceva coi puntini.

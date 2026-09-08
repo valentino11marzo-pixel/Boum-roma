@@ -153,7 +153,8 @@ export function aspiChecklist(contract, property, kind) {
     c.tenantCF ? '' : 'si raccoglie da /scheda o /sign');
   push('cf_locatore', 'Codice Fiscale locatore', c.landlordCF ? 'ok' : 'missing', '',
     c.landlordCF ? '' : 'si raccoglie da /scheda locatore');
-  push('esigenza', studenti ? 'Attestazione iscrizione universitaria' : 'Attestazione esigenza transitoria',
+  // Il 3+2 (Allegato A) non ha un'esigenza da attestare.
+  if (c.type !== '3+2') push('esigenza', studenti ? 'Attestazione iscrizione universitaria' : 'Attestazione esigenza transitoria',
     extras.length ? 'ok' : 'warn', extras[0] && extras[0].url,
     extras.length ? '' : 'console PA (documenti richiesti) o pagina accettazione del cliente');
 

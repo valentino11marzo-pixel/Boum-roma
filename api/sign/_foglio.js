@@ -168,7 +168,7 @@ export function buildRegistrationSheet({ contract, property, propLabel, attached
 
   const title = `Registrazione contratto — ${propLabel} — ${read('tenantName') || 'conduttore'} — ${String(c.startDate || '').slice(0, 10) || 'data da definire'}`;
   const html = shell(
-    para(`<b>Contratto di locazione ${studenti ? 'per studenti universitari' : 'transitorio'} — dati per la registrazione (Mod. RLI).</b><br>Immobile <b>${esc(propLabel)}</b>, conduttore <b>${esc(read('tenantName') || '—')}</b>, decorrenza ${vd(c.startDate)}. Il foglio riporta i dati dichiarati dalle parti e i documenti in allegato: si inoltra così com'è.`)
+    para(`<b>Contratto di locazione ${studenti ? 'per studenti universitari' : c.type === '3+2' ? 'a canone concordato 3+2' : 'transitorio'} — dati per la registrazione (Mod. RLI).</b><br>Immobile <b>${esc(propLabel)}</b>, conduttore <b>${esc(read('tenantName') || '—')}</b>, decorrenza ${vd(c.startDate)}. Il foglio riporta i dati dichiarati dalle parti e i documenti in allegato: si inoltra così com'è.`)
     + tableHtml(rows)
     + rule()
     + fine(`Foglio generato automaticamente da BOOM Roma · Egidi Immobiliare S.r.l. il ${esc(dIT(generatedAt) || '')} · contratto ${esc(c.id || '')}${rli.stipula ? ' · firmato il ' + esc(dIT(rli.stipula)) : ''}. I valori indicati come «non dichiarato» non sono stati forniti dalle parti al momento della generazione.`, 'text-align:center'),
