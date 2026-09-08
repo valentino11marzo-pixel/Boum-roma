@@ -16501,7 +16501,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                  'tenantSignedUA', 'landlordSignedUA', 'tenantConsentText', 'tenantConsentHash', 'tenantConsentAt',
                  'landlordConsentText', 'landlordConsentHash', 'landlordConsentAt', 'signedTermsHash', 'signedTermsAt', 'signedTerms',
                  'fullySignedAt', 'finalizedAt', 'signingCertificateUrl', 'signedPdfUrl', 'registrationPackUrl',
-                 'registrationPackMissing', 'registrationPackAt', 'fascicoloFiscaleUrl', 'canoneScheda', 'journey',
+                 'registrationPackMissing', 'registrationPackAt', 'fascicoloFiscaleUrl', 'schedaCanoneUrl', 'schedaCanoneAt', 'canoneScheda', 'journey',
                  'signInviteTenantAt', 'signInviteLandlordAt', 'signViewedTenantAt', 'signViewedLandlordAt',
                  'tenantSignTokenUsedAt', 'landlordSignTokenUsedAt', 'rliRegisteredAt', 'magicLinkId', 'generatedPDF', 'pdfHash',
                  'depositPayToken', 'depositPaid', 'inviteNudgeCount', 'lastReminderAt', 'welcomeEmailSent',
@@ -17289,7 +17289,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <button class="btn btn-secondary btn-sm" onclick="previewContractPDF('${c.id}')">👁 Anteprima</button>
                 <button class="btn btn-secondary btn-sm" onclick="downloadContractPDF('${c.id}')">📥 PDF</button>
                 <button class="btn ${(c.generatedPDF && c.clauseVersion !== 2 && c.signatureStatus !== 'complete') ? '' : 'btn-secondary'} btn-sm" onclick="regenerateContractPDF('${c.id}')" title="${(c.generatedPDF && c.clauseVersion !== 2 && c.signatureStatus !== 'complete') ? 'Questo PDF usa le clausole vecchie (impianti/oneri): rigeneralo prima di mandarlo in firma' : 'Rigenera il PDF con i dati aggiornati'}">🔄 Rigenera PDF${(c.generatedPDF && c.clauseVersion !== 2 && c.signatureStatus !== 'complete') ? ' ⚠' : ''}</button>
-                <button class="btn btn-secondary btn-sm" onclick="openFascicolo('${c.id}')" title="Scheda attestazione canone (fascia) + dati RLI + scadenzario — PDF">📑 Fascicolo${c.canoneScheda ? (c.canoneScheda.fits === false ? ' ⚠' : c.canoneScheda.fits === true ? ' ✓' : '') : ''}</button>
+                <button class="btn btn-secondary btn-sm" onclick="openFascicolo('${c.id}')" title="Fascicolo Fiscale: scheda di calcolo canone (Allegato 2/B ARPE) + dati RLI + scadenzario — PDF">📑 Fascicolo${c.canoneScheda ? (c.canoneScheda.fits === false ? ' ⚠' : c.canoneScheda.fits === true ? ' ✓' : '') : ''}</button>
+                <button class="btn btn-secondary btn-sm" onclick="openSchedaArpe('${c.id}')" title="La Scheda di calcolo del canone da sola — Allegato 2/B, 1:1 col modulo ARPE: firmano le parti, si manda ad ARPE per l'attestazione">📐 Scheda ARPE</button>
                 <button class="btn btn-secondary btn-sm" onclick="openValutazione('${c.id}')" title="Il parere di valore BOOM sul canone: mediana di zona, assorbimento e canoni FIRMATI da noi. Documento a parte dalla scheda dell'accordo — nessun limite di fascia">💶 Valutazione BOOM</button>
                 <button class="btn btn-secondary btn-sm" onclick="openFoglio('${c.id}')" title="${c.registrationSheetSentAt ? 'Foglio di registrazione inviato il ' + String(c.registrationSheetSentAt).slice(0, 10) + ' — rimanda (l’ultimo in Gmail è quello buono)' : 'Manda a Valentino il Foglio di registrazione: email PULITA con tutti i dati del modello RLI e gli allegati — da inoltrare o stampare, fa da archivio'}">✉ Foglio${c.registrationSheetSentAt ? ' ✓' : ''}</button>
                 <button class="btn btn-secondary btn-sm" onclick="openPack('${c.id}')" title="Pack registrazione+asseverazione: ZIP con contratto firmato, certificato, fascicolo, visura, planimetria, APE, delega, identità, attestazione esigenza">📦 Pack${Array.isArray(c.registrationPackMissing) ? (c.registrationPackMissing.length ? ' ⚠' : ' ✓') : ''}</button>
@@ -22124,7 +22125,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
     window.openFoglio = openFoglio;
 
-    async function openFascicolo(contractId, overrides) {
+    // 📐 La Scheda ARPE da sola (Allegato 2/B, 1:1 col modulo): il file che
+    // si manda ad ARPE. Se non e' mai stata generata, nasce col fascicolo.
+    async function openSchedaArpe(contractId) {
+        const c = (S.contracts || []).find(x => x.id === contractId);
+        if (c && c.schedaCanoneUrl) { window.open(c.schedaCanoneUrl, '_blank', 'noopener'); return; }
+        return openFascicolo(contractId, undefined, { open: 'scheda' });
+    }
+    window.openSchedaArpe = openSchedaArpe;
+
+    async function openFascicolo(contractId, overrides, opts) {
         toast('info', '📑 Genero il fascicolo…');
         try {
             const idToken = await auth.currentUser.getIdToken();
@@ -22138,10 +22148,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const calc = j.calc || {};
             if (calc.error === 'zona_non_trovata') {
                 const z = await askModal({ title: '📐 Zona ARPE', message: 'Zona accordo non riconosciuta dall\'indirizzo.\nEsempi: B14 Trastevere · C1 Parioli · C30 Pigneto', placeholder: 'Codice zona (es. B14)' });
-                if (z && z.trim()) return openFascicolo(contractId, Object.assign({}, overrides, { zonaCod: z.trim().toUpperCase() }));
+                if (z && z.trim()) return openFascicolo(contractId, Object.assign({}, overrides, { zonaCod: z.trim().toUpperCase() }), opts);
             } else if (calc.error === 'mq_mancanti') {
                 const mq = await askModal({ title: '📐 Superficie', message: 'Mq calpestabili dell\'immobile (manca sqm sulla scheda immobile). Verranno salvati sul contratto.', placeholder: 'es. 65', type: 'number' });
-                if (mq && +mq > 0) return openFascicolo(contractId, Object.assign({}, overrides, { mq: +mq }));
+                if (mq && +mq > 0) return openFascicolo(contractId, Object.assign({}, overrides, { mq: +mq }), opts);
             } else if (calc.fits === false) {
                 toast('error', `⚠ FUORI FASCIA (${calc.zonaCod} · fascia ${calc.fascia}, max €${Number(calc.cMax).toLocaleString('it-IT')}) — il PDF lo dettaglia`);
             } else if (calc.fits === true) {
@@ -22149,8 +22159,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             }
             // aggiorna la cache locale così il bottone mostra ✓/⚠ senza reload
             const lc = (S.contracts || []).find(x => x.id === contractId);
-            if (lc) { lc.fascicoloFiscaleUrl = j.url; lc.canoneScheda = calc; }
-            window.open(j.url, '_blank', 'noopener');
+            if (lc) { lc.fascicoloFiscaleUrl = j.url; lc.canoneScheda = calc; if (j.schedaUrl) lc.schedaCanoneUrl = j.schedaUrl; }
+            window.open((opts && opts.open === 'scheda' && j.schedaUrl) ? j.schedaUrl : j.url, '_blank', 'noopener');
         } catch (e) { console.error(e); toast('error', 'Fascicolo: ' + e.message); }
     }
     window.openFascicolo = openFascicolo;

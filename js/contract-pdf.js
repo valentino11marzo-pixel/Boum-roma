@@ -800,7 +800,13 @@
     addArticle(6, 'Spese di bollo e di registrazione',
       cedolareIsOn
         ? `Il locatore intende avvalersi delle disposizioni di cui al DLGS n. 23 del 14-03-2011 cosiddetta "cedolare secca". Pertanto a norma di tale disposizione il locatore dichiara di rinunciare all'applicazione degli adeguamenti Istat. Il presente contratto, quindi, è esente da imposta di bollo e tassa registro. È facoltà del locatore recedere dalla tassazione della cedolare secca e in tal caso il canone sarà adeguato annualmente con l'applicazione dell'Istat al 75% e le spese di bollo per il presente contratto e per le ricevute conseguenti saranno a carico del conduttore mentre la tassa di registro è pari alla metà. Il locatore provvede alla registrazione del contratto, dandone documentata comunicazione al conduttore e all'Amministratore del condominio ai sensi dell'art. 13 legge 431 del 1998.\n\nLe parti possono delegare alla registrazione del contratto una delle organizzazioni sindacali che abbia prestato assistenza ai fini della stipula del contratto medesimo.`
-        : `Le spese di bollo per il presente contratto e per le ricevute conseguenti sono a carico del conduttore, mentre la tassa di registro è ripartita al 50% tra le parti. Il locatore provvede alla registrazione del contratto, dandone documentata comunicazione al conduttore e all'Amministratore del condominio ai sensi dell'art. 13 legge 431 del 1998.\n\nLe parti possono delegare alla registrazione del contratto una delle organizzazioni sindacali che abbia prestato assistenza ai fini della stipula del contratto medesimo.`
+        // Variante SENZA cedolare: VERBATIM dal modello dell'associazione
+        // (reference/contratto_tipo_STUDENTI_Roma_2023_SENZA_CEDOLARE.doc).
+        // Fino al 8/09/2026 qui c'era un testo scritto a mano ("ripartita
+        // al 50%") che ometteva l'adeguamento Istat al 75%: il modello lo
+        // prevede, e un contratto senza cedolare senza quella riga e' un
+        // canone fermo per legge del contratto stesso.
+        : `Il canone sarà adeguato annualmente con l'applicazione dell'Istat al 75% e le spese di bollo per il presente contratto e per le ricevute conseguenti sono a carico del conduttore mentre la tassa di registro è pari alla metà. Il locatore provvede alla registrazione del contratto, dandone documentata comunicazione al conduttore e all'Amministratore del condominio ai sensi dell'art. 13 legge 431 del 1998. Le parti possono delegare alla registrazione del contratto una delle organizzazioni sindacali che abbia prestato assistenza ai fini della stipula del contratto medesimo.`
     );
 
     addArticle(7, 'Pagamento',

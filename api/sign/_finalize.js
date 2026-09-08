@@ -255,10 +255,10 @@ export async function finalizeContract(contract){
   // delle email (così il CAF riceve il link). Best-effort: se zona o mq
   // mancano, il PDF nasce comunque con le pagine RLI+scadenze e la scheda
   // canone dice esattamente cosa impostare dalla console.
-  let fascicoloUrl = '';
+  let fascicoloUrl = '', schedaPdfUrl = '';
   try {
     const fasc = await buildFascicolo(contract.id, { contract, property });
-    if (fasc && fasc.ok) fascicoloUrl = fasc.url;
+    if (fasc && fasc.ok) { fascicoloUrl = fasc.url; schedaPdfUrl = fasc.schedaUrl || ''; }
   } catch (e) { console.warn('[finalize] fascicolo:', e.message); }
 
   // ── Pack Registrazione (ZIP: tutto il necessario per RLI + ARPE) ──
@@ -272,7 +272,7 @@ export async function finalizeContract(contract){
       ...contract,
       tenantName: contract.tenantName || (tenant && tenant.name) || '',
       landlordName: contract.landlordName || (landlord && landlord.name) || '',
-    }, property, { signedPdfUrl, certUrl, fascicoloUrl });
+    }, property, { signedPdfUrl, certUrl, fascicoloUrl, schedaPdfUrl });
     if (p && p.ok) pack = p;
   } catch (e) { console.warn('[finalize] pack:', e.message); }
 
@@ -296,8 +296,8 @@ export async function finalizeContract(contract){
   // FOGLIO DI REGISTRAZIONE (pulito: si inoltra, si stampa, fa da archivio).
   const [welcome, caf, foglio] = await Promise.all([
     sendWelcomeEmails(contract, property, { portalLink, certUrl, cedolare, nonEU, signedPdfUrl }),
-    sendCafDossier(contract, property, { certUrl, fascicoloUrl, signedPdfUrl, packUrl: pack.url, packMissing: pack.missing, tenant, landlord }),
-    sendRegistrationSheet(contract, property, { certUrl, fascicoloUrl, signedPdfUrl, tenant, landlord, now }),
+    sendCafDossier(contract, property, { certUrl, fascicoloUrl, schedaPdfUrl, signedPdfUrl, packUrl: pack.url, packMissing: pack.missing, tenant, landlord }),
+    sendRegistrationSheet(contract, property, { certUrl, fascicoloUrl, schedaPdfUrl, signedPdfUrl, tenant, landlord, now }),
   ]);
   const tenantEmail = !!(welcome && welcome.tenant);
   const landlordEmail = !!(welcome && welcome.landlord);
@@ -310,7 +310,7 @@ export async function finalizeContract(contract){
   let aspi = null;
   try {
     aspi = await Promise.race([
-      maybeAutoAspi(contract, { signedPdfUrl, certUrl, fascicoloUrl }),
+      maybeAutoAspi(contract, { signedPdfUrl, certUrl, fascicoloUrl, schedaPdfUrl }),
       new Promise(resolve => setTimeout(() => resolve({ skipped: 'timeout' }), 20000)),
     ]);
   } catch (e) { console.warn('[finalize] aspi auto:', e.message); }

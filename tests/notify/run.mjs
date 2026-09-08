@@ -229,11 +229,11 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
     && foglio[0].html.includes('L2 — locazione agevolata') && foglio[0].html.includes('RSSMRA85T10A562S') && foglio[0].html.includes('BNCGLI70A41H501X')
     && /Subalterno/.test(foglio[0].html) && /Registrazione entro/.test(foglio[0].html));
   check('foglio: contratto firmato + certificato + fascicolo + documento in allegato', foglio.length === 1
-    && ['Contratto_firmato.pdf', 'Certificato_firma_FES.pdf', 'Fascicolo_fiscale.pdf'].every(n => (foglio[0].attachments || []).some(a => a.filename === n))
+    && ['Contratto_firmato.pdf', 'Certificato_firma_FES.pdf', 'Scheda_calcolo_canone_ARPE.pdf', 'Fascicolo_fiscale.pdf'].every(n => (foglio[0].attachments || []).some(a => a.filename === n))
     && (foglio[0].attachments || []).some(a => /^Documento_conduttore_1/.test(a.filename)));
-  check('CAF: contratto firmato + certificato + fascicolo + DOCUMENTO IDENTITÀ in allegato', caf.length === 1
-    && (caf[0].attachments || []).length === 4
-    && ['BOOM_Contratto_firmato.pdf', 'BOOM_Certificato_di_firma.pdf', 'BOOM_Fascicolo_Fiscale.pdf']
+  check('CAF: contratto firmato + certificato + scheda ARPE + fascicolo + DOCUMENTO IDENTITÀ in allegato', caf.length === 1
+    && (caf[0].attachments || []).length === 5
+    && ['BOOM_Contratto_firmato.pdf', 'BOOM_Certificato_di_firma.pdf', 'BOOM_Scheda_calcolo_canone_ARPE.pdf', 'BOOM_Fascicolo_Fiscale.pdf']
         .every(n => (caf[0].attachments || []).some(a => a.filename === n))
     && (caf[0].attachments || []).some(a => a.filename === 'Documento_identita_1_passport.jpg'));
 
@@ -272,7 +272,7 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   const zNames = Object.keys(zf);
   check('pack: contiene indice, contratto firmato, certificato, fascicolo',
     zNames.includes('00_INDICE.txt') && zNames.includes('01_Contratto_firmato.pdf')
-    && zNames.includes('02_Certificato_firma_FES.pdf') && zNames.includes('03_Fascicolo_Fiscale.pdf'));
+    && zNames.includes('02_Certificato_firma_FES.pdf') && zNames.includes('03_Scheda_calcolo_canone_ARPE.pdf') && zNames.includes('03_Fascicolo_Fiscale.pdf'));
   check('pack: contiene visura, planimetria, APE, delega dal dossier immobile',
     zNames.some(n => n.startsWith('04_Visura')) && zNames.some(n => n.startsWith('05_Planimetria'))
     && zNames.some(n => n.startsWith('06_APE')) && zNames.some(n => n.startsWith('07_Delega')));
@@ -311,6 +311,9 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   const ctr = store.get('contracts/ctrF');
   check('fascicolo: PDF generato e URL sul contratto',
     typeof ctr.fascicoloFiscaleUrl === 'string' && ctr.fascicoloFiscaleUrl.includes('fascicolo-fiscale.pdf'));
+  check('scheda ARPE: PDF a se\' stante (una pagina) generato e URL sul contratto',
+    typeof ctr.schedaCanoneUrl === 'string' && ctr.schedaCanoneUrl.includes('scheda-canone-arpe.pdf')
+    && storageFiles.has('contracts/ctrF/scheda-canone-arpe.pdf'));
   check('fascicolo: calcolo canone persistito (zona B14, fascia, verdetto)',
     ctr.canoneScheda && ctr.canoneScheda.zonaCod === 'B14' && !!ctr.canoneScheda.fascia
     && typeof ctr.canoneScheda.cMax === 'number' && ctr.canoneScheda.fits === true);
@@ -338,9 +341,10 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
     && wt.attachments[0].filename === 'BOOM_Signing_Certificate.pdf'
     && /Signing certificate/.test(wt.html));
   const caf = mails().slice(b).find(m => m.to === 'valentino@boom-rome.com' && /Fascicolo completo/i.test(m.subject));
-  check('legacy senza PDF: CAF onesto (PDF non ancora generato) + cert, fascicolo e identità allegati', !!caf
+  check('legacy senza PDF: CAF onesto (PDF non ancora generato) + cert, scheda ARPE, fascicolo e identità allegati', !!caf
     && caf.html.includes('PDF non ancora generato')
-    && (caf.attachments || []).length === 3);
+    && (caf.attachments || []).length === 4
+    && (caf.attachments || []).some(a => a.filename === 'BOOM_Scheda_calcolo_canone_ARPE.pdf'));
   check('legacy senza PDF: il pack elenca "Contratto firmato" tra i mancanti',
     Array.isArray(out.packMissing) && out.packMissing.includes('Contratto firmato')
     && !!caf && /Nel pack mancano/.test(caf.html) && caf.html.includes('Contratto firmato'));

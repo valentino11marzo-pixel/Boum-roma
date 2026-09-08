@@ -299,7 +299,7 @@ export async function sendWelcomeEmails(contract, property, { portalLink, certUr
 // righe del Foglio di registrazione: due email, una verità), gli allegati
 // e il pack. Prima viveva in portal-app.js via EmailJS e partiva SOLO dal
 // vecchio flusso di firma nel portal — su /sign non partiva affatto.
-export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl, signedPdfUrl, packUrl, packMissing, tenant, landlord } = {}) {
+export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl, schedaPdfUrl, signedPdfUrl, packUrl, packMissing, tenant, landlord } = {}) {
   try {
     if (!CAF_EMAIL) return { ok: false, error: 'no_caf_email' };
     const g = await gather(contract, property);
@@ -313,9 +313,13 @@ export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl
     // contratto firmato, certificato e fascicolo fiscale in allegato.
     const signedHref = signedPdfUrl || contract.signedPdfUrl || '';
     const fascHref = fascicoloUrl || contract.fascicoloFiscaleUrl || '';
+    // La scheda ARPE (Allegato 2/B) viaggia da sola: e' il file che si
+    // inoltra ad ARPE senza aprire il fascicolo.
+    const schedaHref = schedaPdfUrl || contract.schedaCanoneUrl || '';
     const cafAtts = (await Promise.all([
       fetchPdfAttachment(signedHref, 'BOOM_Contratto_firmato.pdf'),
       fetchPdfAttachment(certUrl || contract.signingCertificateUrl, 'BOOM_Certificato_di_firma.pdf'),
+      fetchPdfAttachment(schedaHref, 'BOOM_Scheda_calcolo_canone_ARPE.pdf'),
       fetchPdfAttachment(fascHref, 'BOOM_Fascicolo_Fiscale.pdf'),
     ])).filter(Boolean);
     // Documenti d'identità + attestazione esigenza IN ALLEGATO (max 6,

@@ -177,7 +177,7 @@ export function buildRegistrationSheet({ contract, property, propLabel, attached
 }
 
 // L'operazione: idrata, allega, manda, stampa lo stato. Mai lancia.
-export async function sendRegistrationSheet(contract, property, { certUrl, fascicoloUrl, signedPdfUrl, tenant, landlord, now } = {}) {
+export async function sendRegistrationSheet(contract, property, { certUrl, fascicoloUrl, schedaPdfUrl, signedPdfUrl, tenant, landlord, now } = {}) {
   try {
     if (!contract || !contract.id) return { ok: false, error: 'no_contract' };
     const to = REGISTRATION_EMAIL;
@@ -192,11 +192,13 @@ export async function sendRegistrationSheet(contract, property, { certUrl, fasci
     const signedHref = signedPdfUrl || contract.signedPdfUrl || '';
     const cert = certUrl || contract.signingCertificateUrl || '';
     const fasc = fascicoloUrl || contract.fascicoloFiscaleUrl || '';
+    const scheda = schedaPdfUrl || contract.schedaCanoneUrl || '';
 
     const wanted = [];
     if (signedHref) wanted.push([signedHref, 'Contratto_firmato.pdf', 'application/pdf']);
     else if (contract.generatedPDF) wanted.push([contract.generatedPDF, 'Contratto.pdf', 'application/pdf']);
     if (cert) wanted.push([cert, 'Certificato_firma_FES.pdf', 'application/pdf']);
+    if (scheda) wanted.push([scheda, 'Scheda_calcolo_canone_ARPE.pdf', 'application/pdf']);
     if (fasc) wanted.push([fasc, 'Fascicolo_fiscale.pdf', 'application/pdf']);
     const docs = (Array.isArray(contract.identityDocs) ? contract.identityDocs : []).filter(d => d && d.url);
     const seen = new Set();

@@ -1418,12 +1418,56 @@ mancano li chiede e li persiste su `contract.canoneScheda`) e **✓ RLI
 registrato** (stampa `rliRegisteredAt`, chiude la scadenza "Registrare
 RLI", rigenera il fascicolo — il loop registrazione si chiude in un tap).
 La scheda di pagina 1 ricalca la scheda di calcolo VERA dell'associazione
-(`reference/caf/2023_scheda_calcolo_canone_ASPI.docx`): stessi
+(`reference/caf/2023_scheda_calcolo_canone_ARPE.docx`): stessi
 coefficienti di superficie, stessi 20 parametri nello stesso ordine,
 stesse maggiorazioni A–H, transitorio +10%. Le due opzioni a percentuale
 LIBERA del modulo (>120mq "possibilità di diminuzione fino a −15%",
 immobile vincolato/A1-A8) non sono automatizzate di proposito: sono
 concessioni da negoziare, non dati derivabili.
+
+**LA SCHEDA È IL MODULO ARPE, 1:1** (8/09/2026 — «sarà quello che mando
+all'ARPE, no ASPI»). Pagina 1 era *modellata* sul foglio dell'associazione
+ma non ERA quel foglio: titolo diverso («SCHEDA PER L'ATTESTAZIONE…»
+invece di «SCHEDA DI CALCOLO DEL CANONE…», intestazione «Allegato 2/B»
+assente), testata BOOM in cima, righe DECORRENZA/Stipulato/Registrato che il
+modulo non ha, etichette della superficie riscritte («Superficie utile
+calpestabile», «Box / posto auto esclusivo»), la riga CARATTERISTICHE
+compressa in una frase, la griglia A–H su due colonne invece delle tre del
+modulo con transitorio e vincolato dentro la griglia, il blocco del calcolo
+in altra forma, e in coda un «l'organizzazione ATTESTA…» che sul modulo
+non esiste (il modulo dice il contrario: «SCHEDA NON VALIDA AI FINI
+DELL'ATTESTAZIONE» — è il foglio che le PARTI firmano; l'attestazione la
+rilascia ARPE dopo). Ora `drawSchedaArpe()` riproduce il modulo sezione per
+sezione con la SUA geometria (larghezze delle tabelle in twip / 20, tabelle
+flottanti «X SI / NO» e «SI | NO» nella posizione del modulo, corpo 7–8pt,
+pie' di pagina del modulo; unico refuso normalizzato: «VALIDI» → «VALIDA»).
+Nessuna testata BOOM su quella pagina. `schedaFacts()` è PURA: tutto ciò
+che la pagina stampa (bracket di superficie, pertinenze coi coefficienti,
+parametri, A–H, zona/fascia/subfascia, il calcolo riga per riga, i due
+importi) esce di lì e si testa senza aprire il PDF; `SCHEDA_TEXT` esporta
+OGNI etichetta fissa e `tests/fiscal/scheda.mjs` la cerca parola per parola
+dentro il `.docx` del modulo (anti-deriva: un'etichetta «migliorata» fa
+cadere il test). **La scheda esce anche DA SOLA**: stessi fatti → PDF di
+una pagina su `contracts/<id>/scheda-canone-arpe.pdf` →
+`contract.schedaCanoneUrl` (+`schedaCanoneAt`), perché ad ARPE va la scheda,
+non le pagine RLI/scadenzario che sono nostre. Viaggia come
+`BOOM_Scheda_calcolo_canone_ARPE.pdf` nel Fascicolo completo a Valentino,
+come `Scheda_calcolo_canone_ARPE.pdf` nel Foglio di registrazione, come
+`03_Scheda_calcolo_canone_ARPE.pdf` nel Pack, ed è l'allegato «scheda»
+dell'iter ASPI (che ricade sul fascicolo intero solo per i contratti nati
+prima). Nel portal: **📐 Scheda ARPE** accanto a 📑 Fascicolo (apre il PDF
+a sé; se non esiste lo genera col fascicolo). Due cose che il modulo
+impone di DIRE anche se non ha la riga: il tetto dell'accordo (con
+transitorio +10% la riga stampa 2.153,80 ma il massimo resta 1.958,00: la
+nota lo spiega invece di lasciare due numeri in contraddizione) e il
+pattuito sopra il massimo (sforamento esatto in nota, mai nascosto).
+**Zona mai indovinata dalla via** (stessa release): `matchZone` cadeva
+sulla ricerca per parola singola e «Via DELLA Lungaretta» diventava DELLA
+VITTORIA, «Porta Pinciana» PORTA PORTESE, «Via del Monte» MONTE MARIO — un
+COD. ZONA falso su un foglio che va ad ARPE. Ora le parole di
+toponomastica sono stop-word (`STOP_WORDS`): ambiguo → null, e la zona la
+mette l'operatore dal bottone. Senza zona o mq il foglio resta il modulo
+vuoto, con parametri e pertinenze compilati perché sono fatti.
 
 ### L'iter ASPI (`api/fiscal/registra.js` + `api/fiscal/_aspi.js`) — registrazione & asseverazione in UN tap
 LA DECISIONE È PRESA: il CAF/associazione è **ASPI** (referente Roberto
@@ -1497,7 +1541,7 @@ ricevere una destinazione inventata.
 al 23/08 senza zona o mq degradava a "SCHEDA NON CALCOLABILE" — e
 l'operatore restava senza foglio proprio quando gli serviva stamparlo e
 completarlo a mano. Ora esce sempre il **modulo fedele** all'originale
-dell'associazione (`reference/caf/2023_scheda_calcolo_canone_ASPI.docx`):
+dell'associazione (`reference/caf/2023_scheda_calcolo_canone_ARPE.docx`):
 superficie convenzionale, i 20 parametri, la griglia **maggiorazioni A–H**
 con le caselle, zona/fascia/subfascia, e i due importi finali. Ciò che il
 sistema non sa diventa una riga vuota da compilare. **Il canone PATTUITO
@@ -2076,6 +2120,17 @@ utenze private a carico conduttore nelle Altre clausole (art.16) +
 through the fallback chain contract fields → users sign schema → users
 wizard schema — a regenerated PDF never prints dots for data a party
 already self-filled on /sign or /scheda.
+
+**Art. 6 SENZA cedolare: verbatim, finalmente** (8/09/2026). Il ramo «no
+cedolare» dell'Allegato C era un testo scritto a mano («tassa di registro
+ripartita al 50%») che OMETTEVA l'adeguamento Istat al 75% previsto dal
+modello dell'associazione: un contratto senza cedolare usciva con un canone
+fermo per clausola. Ora è VERBATIM da
+`reference/contratto_tipo_STUDENTI_Roma_2023_SENZA_CEDOLARE.doc` (caricato
+dal referente; differisce dal modello con cedolare SOLO nell'art. 6 —
+verificato per diff). In `reference/` anche
+`contratto_tipo_32_Roma_2023.doc`, il contratto tipo 3+2 (art. 2 c. 3
+L.431/98) dell'accordo 27/07/2023.
 
 **IL TIPO NON SI MANDA, SI LEGGE** (agosto 2026). `js/contract-pdf.js`
 sceglie il modello con `contract.type === 'studenti' ? Allegato C :
@@ -3646,6 +3701,7 @@ camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
   | `tests/money/run.mjs` | checkout, webhook Stripe idempotenti, conversione PA→contratto |
   | `tests/fiscal/test.mjs` | motore scadenze fiscali |
   | `tests/fiscal/canone.mjs` | canone concordato: superficie convenzionale (coefficienti e tetti), fascia dai parametri, regola del cap, match zona che non indovina, parametri solo da feature reali, verdetto fits/fuori |
+  | `tests/fiscal/scheda.mjs` | la Scheda di calcolo canone 1:1 col modulo ARPE (Allegato 2/B): ogni etichetta stampata sta nel `.docx` del modulo parola per parola (anti-deriva, con la mutazione che dimostra che il check morde), i fatti dal contratto (bracket di superficie, pertinenze, parametri derivati, subfascia, calcolo riga per riga, cap dichiarato, sforamento), senza zona/mq un modulo vuoto onesto (e «Via della Lungaretta» non è più DELLA VITTORIA), PDF a sé stante di una pagina che stampa davvero quelle parole e NON la testata BOOM |
   | `tests/taxpack/test.mjs` | pacchetto commercialista |
   | `tests/journey/steps.mjs` | **le regole commerciali dell'operatore**: quando parte ogni email e cosa NON deve contenere (T-90 e uscita non vendono, le chiavi non si vendono mai, un prodotto già comprato non si ripropone, il rinnovo non arriva prima del move-in su un transitorio breve) |
   | `tests/journey/review-url.mjs` | solo un vero link "scrivi recensione" (`g.page/r/<id>/review`) entra nelle email; un link Maps "Condividi" viene rifiutato con warning |

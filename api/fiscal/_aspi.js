@@ -159,11 +159,14 @@ export function aspiChecklist(contract, property, kind) {
 
   if (wantsAss) {
     const fits = c.canoneScheda && c.canoneScheda.fits;
-    if (!c.fascicoloFiscaleUrl) push('scheda_canone', 'Scheda di calcolo canone (Fascicolo Fiscale)', 'missing', '',
+    // La scheda e' l'Allegato 2/B dell'accordo, 1:1 col modulo ARPE: da sola
+    // (schedaCanoneUrl) o come pagina 1 del Fascicolo Fiscale (legacy).
+    const schedaUrl = c.schedaCanoneUrl || c.fascicoloFiscaleUrl || '';
+    if (!schedaUrl) push('scheda_canone', 'Scheda di calcolo canone (Allegato 2/B ARPE)', 'missing', '',
       'si genera automaticamente all\'invio (o da 📑 Fascicolo); servono zona accordo e mq');
-    else if (fits === false) push('scheda_canone', 'Scheda di calcolo canone — CANONE FUORI FASCIA', 'warn', c.fascicoloFiscaleUrl,
-      'ASPI non può attestare un canone sopra il massimo di fascia: riporta il canone o verifica i parametri da 📑 Fascicolo');
-    else push('scheda_canone', 'Scheda di calcolo canone (Fascicolo Fiscale)', 'ok', c.fascicoloFiscaleUrl);
+    else if (fits === false) push('scheda_canone', 'Scheda di calcolo canone (Allegato 2/B ARPE) — CANONE FUORI FASCIA', 'warn', schedaUrl,
+      'un canone sopra il massimo di fascia non e\' attestabile: riporta il canone o verifica i parametri da 📑 Fascicolo');
+    else push('scheda_canone', 'Scheda di calcolo canone (Allegato 2/B ARPE)', 'ok', schedaUrl);
     push('ape', 'APE — Attestato di Prestazione Energetica', dossier.ape && dossier.ape.url ? 'ok' : 'missing',
       dossier.ape && dossier.ape.url, dossier.ape ? '' : 'console pre-agreement → 📦 Fascicolo ARPE (si carica UNA volta per immobile)');
     push('planimetria', 'Planimetria', dossier.planimetria && dossier.planimetria.url ? 'ok' : 'missing',
@@ -272,6 +275,7 @@ export async function sendAspiRequest(contractId, opts = {}) {
   if (ov.signedPdfUrl && !contract.signedPdfUrl) contract.signedPdfUrl = ov.signedPdfUrl;
   if (ov.certUrl && !contract.signingCertificateUrl) contract.signingCertificateUrl = ov.certUrl;
   if (ov.fascicoloUrl && !contract.fascicoloFiscaleUrl) contract.fascicoloFiscaleUrl = ov.fascicoloUrl;
+  if (ov.schedaPdfUrl && !contract.schedaCanoneUrl) contract.schedaCanoneUrl = ov.schedaPdfUrl;
 
   // fallback nomi come fa il pack: il fascicolo non stampa mai "—" evitabili
   if (!contract.tenantName && contract.tenantId) {
@@ -299,7 +303,7 @@ export async function sendAspiRequest(contractId, opts = {}) {
   if (wantsAss && !contract.fascicoloFiscaleUrl) {
     try {
       const fasc = await buildFascicolo(contractId, { contract, property });
-      if (fasc && fasc.ok) contract.fascicoloFiscaleUrl = fasc.url;
+      if (fasc && fasc.ok) { contract.fascicoloFiscaleUrl = fasc.url; if (fasc.schedaUrl) contract.schedaCanoneUrl = fasc.schedaUrl; }
     } catch (e) { console.warn('[aspi] fascicolo:', e.message); }
   }
 
@@ -321,7 +325,10 @@ export async function sendAspiRequest(contractId, opts = {}) {
     else { idN++; wanted.push([d.url, 'Documento_' + (d.role === 'landlord' ? 'locatore' : 'conduttore') + '_' + idN + '_' + safeName(d.name || 'id') + extOf(d.url, '.jpg'), null]); }
   }
   if (wantsAss) {
-    if (contract.fascicoloFiscaleUrl) wanted.push([contract.fascicoloFiscaleUrl, 'BOOM_Scheda_calcolo_canone_Fascicolo_Fiscale.pdf', 'application/pdf']);
+    // Ad ARPE va la scheda DA SOLA (Allegato 2/B); il fascicolo intero solo
+    // per i contratti nati prima che la scheda avesse il suo PDF.
+    const schedaHref = contract.schedaCanoneUrl || contract.fascicoloFiscaleUrl;
+    if (schedaHref) wanted.push([schedaHref, 'BOOM_Scheda_calcolo_canone_ARPE.pdf', 'application/pdf']);
     const dossier = property.dossier || {};
     if (dossier.ape && dossier.ape.url) wanted.push([dossier.ape.url, 'APE' + extOf(dossier.ape.url, '.pdf'), null]);
     if (dossier.planimetria && dossier.planimetria.url) wanted.push([dossier.planimetria.url, 'Planimetria' + extOf(dossier.planimetria.url, '.pdf'), null]);

@@ -28,6 +28,7 @@ import { fsGet, fsList, readJson } from '../homie/_lib.js';
 import { storageUpload } from '../agent/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import CANONE from '../../js/canone-engine.js';
+import { contractTipo } from './fascicolo.js';
 import ME from '../../js/market-engine.js';
 
 const clip = (v, n = 160) => String(v == null ? '' : v).trim().slice(0, n);
@@ -221,7 +222,7 @@ export default async function handler(req, res) {
     if (zonaAcc && mq > 0) {
       calc = CANONE.solve({
         zona: zonaAcc, mq, canone,
-        tipo: contract && contract.type === 'studenti' ? 'stud' : 'trans',
+        tipo: contractTipo(contract || {}),
         features: [], furnished: !!property.furnished,
         energyClass: property.energyClass || '',
         floorText: String(property.floor || ''),
