@@ -3,7 +3,7 @@
 // Cache-first for static assets (icons, manifest).
 // Skips Firebase / EmailJS / 3rd-party traffic entirely.
 
-const CACHE_VERSION = 'boom-v19';
+const CACHE_VERSION = 'boom-v20';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 // NB: portal.html NON è nel precache — il sito pubblico registra questo SW e
 // non deve scaricare 2.5MB di shell in background. Il portale entra in cache
@@ -145,6 +145,9 @@ self.addEventListener('fetch', (event) => {
             // il motore dell'Innesto/Bonifica è logica del portale: una copia
             // stantia farebbe divergere merge/validazioni dalla pagina che le usa
             || url.pathname === '/js/dataops-engine.js'
+            // il dizionario del contratto decide cosa "manca" e cosa scrive
+            // la Scheda: una copia stantia farebbe divergere portal e server
+            || url.pathname === '/js/contract-fields.js'
             || url.pathname === '/js/portal-desktop.js'
             || url.pathname === '/css/portal-desktop.css'
             || url.pathname === '/css/portal-finish.css') ? url.pathname : null);

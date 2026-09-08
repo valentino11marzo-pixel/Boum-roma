@@ -50,6 +50,9 @@ import { fsGet, fsCreate, fsPatch } from '../homie/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
 import { shell, row, para, fine } from '../preagreement/_notify.js';
 import { buildFascicolo } from './fascicolo.js';
+// Il dizionario del contratto: i campi di parte risalgono la catena users
+// come nel PDF, così la checklist non dice «CF mancante» a un CF che c'è.
+import FIELDS from '../../js/contract-fields.js';
 
 const BASE = 'https://www.boomrome.com';
 const ADMIN_EMAIL = process.env.ADMIN_NOTIFY_EMAIL || 'valentino@boom-rome.com';
@@ -277,6 +280,15 @@ export async function sendAspiRequest(contractId, opts = {}) {
   if (!contract.landlordName && property.ownerId) {
     try { const l = await fsGet('users/' + property.ownerId); if (l && l.name) contract.landlordName = l.name; } catch (_) {}
   }
+
+  // I campi di parte risalgono la catena users come nel PDF (un CF presente
+  // solo sul profilo non è «mancante»).
+  try {
+    const tU = contract.tenantId ? await fsGet('users/' + contract.tenantId).catch(() => null) : null;
+    const lU = property.ownerId ? await fsGet('users/' + property.ownerId).catch(() => null) : null;
+    const lR = property.ownerId ? await fsGet('landlords/' + property.ownerId).catch(() => null) : null;
+    Object.assign(contract, FIELDS.hydrateParties(contract, tU, { ...(lR || {}), ...(lU || {}) }, property));
+  } catch (_) {}
 
   const kind = ASPI_KINDS.includes(opts.kind) ? opts.kind : defaultKind(contract);
   const wantsAss = kind !== 'registrazione';

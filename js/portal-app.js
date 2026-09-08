@@ -14948,27 +14948,35 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // schema wizard) e divide: CRITICI (identità delle parti — senza, il
     // firmato è incompleto) e CONSIGLIATI (catasto, residenza, APE — servono
     // a RLI/asseverazione ma non bloccano la firma).
-    function templateMissing(contract) {
+    // Cosa manca al contratto — UNA copia: il dizionario (js/contract-fields.js,
+    // window.BOOM_CONTRACT_FIELDS), lo STESSO che la Scheda usa per chiedere e
+    // le email a Valentino per il verdetto. Prima qui c'era una terza lista di
+    // etichette scritta a mano che divergeva dal badge di Burocrazia e dal
+    // server. critici = puntini nel PDF (need contract); consigliati = ciò che
+    // la registrazione pretende in più (documento caricato, permesso extra-UE…).
+    function contractCompleteness(contract) {
+        const F = window.BOOM_CONTRACT_FIELDS;
         const t = (S.users || []).find(u => u.id === contract.tenantId) || {};
         const prop = (S.properties || []).find(p => p.id === contract.propertyId) || {};
         const llU = prop.ownerId ? ((S.users || []).find(u => u.id === prop.ownerId) || {}) : {};
         const ll = (S.landlords || []).find(l => l.id === prop.ownerId) || {};
-        const pick = (...vals) => { for (const v of vals) { const s = String(v == null ? '' : v).trim(); if (s) return s; } return ''; };
+        if (!F) return null;
+        return F.completeness({ contract, property: prop, tenant: t, landlord: { ...ll, ...llU } }, { level: 'registration' });
+    }
+    function templateMissing(contract) {
+        const F = window.BOOM_CONTRACT_FIELDS;
+        const comp = contractCompleteness(contract);
+        if (!F || !comp) return { critici: [], consigliati: [] };
+        const who = { tenant: 'inquilino', landlord: 'locatore', operator: 'operatore' };
+        const lbl = (e) => F.labels([e.key], 'it')[0] + ' (' + who[e.owner] + ')';
         const critici = [], consigliati = [];
-        const needC = (label, ...vals) => { if (!pick(...vals)) critici.push(label); };
-        const needS = (label, ...vals) => { if (!pick(...vals)) consigliati.push(label); };
-        needC('Codice fiscale inquilino', contract.tenantCF, t.cf, t.codiceFiscale);
-        needC('Data di nascita inquilino', contract.tenantDob, t.dob, t.birthDate);
-        needC('Luogo di nascita inquilino', contract.tenantPob, t.pob, t.birthPlace);
-        needC('Documento inquilino (tipo + numero)', contract.tenantDocNum, t.docNum, t.documentNumber);
-        needC('Nazionalità inquilino', contract.tenantNationality, t.nationality);
-        needC('Codice fiscale locatore', contract.landlordCF, llU.cf, llU.codiceFiscale, ll.cf, ll.codiceFiscale);
-        needS('Residenza inquilino', contract.tenantAddress, t.address, t.residenza);
-        needS('Dati catastali immobile (foglio/particella/sub)', prop.catFoglio || prop.cadastralSheet, contract.catFoglio);
-        needS('Classe energetica (APE)', contract.energyClass, prop.energyClass);
-        (Array.isArray(contract.coTenants) ? contract.coTenants : []).forEach((co, i) => {
-            if (co && co.name && !String(co.cf || '').trim()) critici.push('Codice fiscale co-conduttore ' + (i + 1) + ' (' + co.name.split(' ')[0] + ')');
-        });
+        ['tenant', 'landlord', 'operator'].forEach(o => comp.byOwner[o].missing.forEach(e => {
+            ((e.needs || []).indexOf('contract') >= 0 ? critici : consigliati).push(lbl(e));
+        }));
+        (comp.cotenants || []).forEach(ct => ct.missing.forEach(m => {
+            (m.need === 'contract' ? critici : consigliati).push((m.label && m.label.it ? m.label.it : m.key) + ' co-conduttore ' + (ct.index + 1) + ' (' + String(ct.name || '').split(' ')[0] + ')');
+        }));
+        (comp.legal || []).filter(x => !x.ok).forEach(x => consigliati.push(x.note.it));
         return { critici, consigliati };
     }
 
@@ -17257,6 +17265,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div><div class="detail-label">Affitto Mensile</div><div class="detail-value text-gold">€${c.rent}</div></div>
                     <div><div class="detail-label">Deposito Cauzionale</div><div class="detail-value">€${c.deposit || 0}</div></div>
                 </div>
+                ${contractCompletenessHtml(c)}
                 ${c.notes ? `<div class="mt-16"><div class="detail-label">Note</div><div class="detail-value" style="background:var(--surface);padding:10px;border-radius:8px;font-size:13px;margin-top:6px">${c.notes}</div></div>` : ''}
                 ${payments.length ? `
                 <div class="section-title mt-16" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">💳 Riepilogo Pagamenti</div>
@@ -17282,6 +17291,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <button class="btn ${(c.generatedPDF && c.clauseVersion !== 2 && c.signatureStatus !== 'complete') ? '' : 'btn-secondary'} btn-sm" onclick="regenerateContractPDF('${c.id}')" title="${(c.generatedPDF && c.clauseVersion !== 2 && c.signatureStatus !== 'complete') ? 'Questo PDF usa le clausole vecchie (impianti/oneri): rigeneralo prima di mandarlo in firma' : 'Rigenera il PDF con i dati aggiornati'}">🔄 Rigenera PDF${(c.generatedPDF && c.clauseVersion !== 2 && c.signatureStatus !== 'complete') ? ' ⚠' : ''}</button>
                 <button class="btn btn-secondary btn-sm" onclick="openFascicolo('${c.id}')" title="Scheda attestazione canone (fascia) + dati RLI + scadenzario — PDF">📑 Fascicolo${c.canoneScheda ? (c.canoneScheda.fits === false ? ' ⚠' : c.canoneScheda.fits === true ? ' ✓' : '') : ''}</button>
                 <button class="btn btn-secondary btn-sm" onclick="openValutazione('${c.id}')" title="Il parere di valore BOOM sul canone: mediana di zona, assorbimento e canoni FIRMATI da noi. Documento a parte dalla scheda dell'accordo — nessun limite di fascia">💶 Valutazione BOOM</button>
+                <button class="btn btn-secondary btn-sm" onclick="openFoglio('${c.id}')" title="${c.registrationSheetSentAt ? 'Foglio di registrazione inviato il ' + String(c.registrationSheetSentAt).slice(0, 10) + ' — rimanda (l’ultimo in Gmail è quello buono)' : 'Manda a Valentino il Foglio di registrazione: email PULITA con tutti i dati del modello RLI e gli allegati — da inoltrare o stampare, fa da archivio'}">✉ Foglio${c.registrationSheetSentAt ? ' ✓' : ''}</button>
                 <button class="btn btn-secondary btn-sm" onclick="openPack('${c.id}')" title="Pack registrazione+asseverazione: ZIP con contratto firmato, certificato, fascicolo, visura, planimetria, APE, delega, identità, attestazione esigenza">📦 Pack${Array.isArray(c.registrationPackMissing) ? (c.registrationPackMissing.length ? ' ⚠' : ' ✓') : ''}</button>
                 <button class="btn btn-secondary btn-sm" onclick="openAspi('${c.id}')" title="${c.aspiRequestedAt ? 'Richiesta inviata ad ASPI il ' + String(c.aspiRequestedAt).slice(0, 10) + ' — riapri per re-inviare' : 'Manda al referente ASPI la richiesta di registrazione (+ asseverazione canone): email con tutti gli allegati, fattura col markup'}">🏛 ASPI${c.aspiRequestedAt ? ' ✓' : ''}</button>
                 ${c.verbaleConsegna && c.verbaleConsegna.url ? `<a class="btn btn-secondary btn-sm" href="${c.verbaleConsegna.url}" target="_blank" rel="noopener" title="Verbale di consegna firmato il ${String(c.verbaleConsegna.at || '').slice(0,10)}" style="text-decoration:none">🔑 Verbale ✓</a>` : `<a class="btn btn-secondary btn-sm" href="/verbale?c=${c.id}" target="_blank" rel="noopener" title="Il giorno delle chiavi: chiavi + letture contatori + stato, firme sullo schermo → PDF via email alle parti (l'Art. 3 del contratto rinvia a questo verbale)" style="text-decoration:none">🔑 Verbale consegna</a>`}
@@ -21960,17 +21970,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ? `<span class="badge orange" style="font-size:10px" title="Pagamenti: ${c.paymentsGenerated ? '✓' : '·'} · Welcome: ${c.welcomeEmailSent ? '✓' : '·'} · Pass: ${c.passGenerated ? '✓' : '·'}">🚀 Onboarding incompleto</span>`
             : '';
 
-        // Missing-info detection — what we still need from tenant/landlord to file RLI
-        const tMiss = [];
-        if (!tenant.codiceFiscale) tMiss.push('CF');
-        if (!tenant.address && !tenant.residenceAddress) tMiss.push('residenza');
-        if (!tenant.birthDate) tMiss.push('nascita');
-        if (!tenant.idDocNumber) tMiss.push('documento');
-        const lMiss = [];
-        if (!landlord.codiceFiscale) lMiss.push('CF');
-        if (!landlord.iban) lMiss.push('IBAN');
-        if (!prop.catFoglio && !prop.cadastral) lMiss.push('catastale');
-        const hasMissing = (tMiss.length + lMiss.length) > 0;
+        // Cosa manca, dal DIZIONARIO (una copia con la Scheda e le email):
+        // per owner, con le etichette del dizionario; dopo la firma completa
+        // restano solo le voci della registrazione (documento, permesso…).
+        const F = window.BOOM_CONTRACT_FIELDS;
+        const comp = contractCompleteness(c);
+        const lbls = (list) => F ? list.map(e => F.labels([e.key], 'it')[0]) : [];
+        const tMiss = comp ? lbls(comp.byOwner.tenant.missing) : [];
+        const lMiss = comp ? lbls(comp.byOwner.landlord.missing) : [];
+        const oMiss = comp ? lbls(comp.byOwner.operator.missing) : [];
+        const coMiss = comp ? (comp.cotenants || []).filter(x => x.missing.length).map(x => String(x.name || '').split(' ')[0]) : [];
+        const few = (arr) => arr.slice(0, 3).join(', ') + (arr.length > 3 ? ' +' + (arr.length - 3) : '');
+        const hasMissing = (tMiss.length + lMiss.length + oMiss.length + coMiss.length) > 0;
 
         return `<div class="list-item" style="padding:14px 16px;align-items:flex-start">
             <div class="list-icon" style="font-size:20px">${fullySigned && regStatus === 'registered' ? '✅' : fullySigned ? '📝' : signedT || signedL ? '✍️' : '⏳'}</div>
@@ -21983,14 +21994,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
                 <div class="list-subtitle" style="margin-top:4px">
                     ${esc(c.type || '—')} · €${c.rent || 0}/mo · ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}
-                    ${hasMissing ? ` · <span style="color:var(--orange)">📋 mancano: ${[tMiss.length ? 'inquilino(' + tMiss.join(',') + ')' : '', lMiss.length ? 'locatore(' + lMiss.join(',') + ')' : ''].filter(Boolean).join(' + ')}</span>` : ''}
+                    ${hasMissing ? ` · <span style="color:var(--orange)" title="${esc([tMiss.length ? 'Inquilino: ' + tMiss.join(', ') : '', lMiss.length ? 'Locatore: ' + lMiss.join(', ') : '', oMiss.length ? 'Operatore: ' + oMiss.join(', ') : '', coMiss.length ? 'Co-conduttori: ' + coMiss.join(', ') : ''].filter(Boolean).join(' · '))}">📋 mancano: ${[tMiss.length ? 'inquilino (' + few(tMiss) + ')' : '', lMiss.length ? 'locatore (' + few(lMiss) + ')' : '', oMiss.length ? 'operatore (' + few(oMiss) + ')' : '', coMiss.length ? 'co-conduttori (' + coMiss.join(', ') + ')' : ''].filter(Boolean).join(' + ')}</span>` : ''}
                 </div>
                 <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">
                     <button class="btn btn-xs btn-secondary" onclick="viewContract('${c.id}')" title="Apri dettaglio contratto">📄 Dettaglio</button>
                     <button class="btn btn-xs btn-secondary" onclick="downloadContractPDF('${c.id}')" title="Scarica PDF firmato/da firmare">⬇️ PDF</button>
                     <button class="btn btn-xs" style="background:var(--gold);color:#000;font-weight:600" onclick="openShareHub('${c.id}')" title="Tutti i link condivisibili: firma, dati, pass, immobile">🔗 Link</button>
-                    ${hasMissing ? `<button class="btn btn-xs btn-secondary" onclick="sendMissingInfoLink('${c.id}','tenant')" title="Solo link form dati inquilino">📨 Solo dati T</button>` : ''}
-                    ${lMiss.length ? `<button class="btn btn-xs btn-secondary" onclick="sendMissingInfoLink('${c.id}','landlord')" title="Solo link form dati locatore">📨 Solo dati L</button>` : ''}
+                    ${tMiss.length ? `<button class="btn btn-xs btn-secondary" onclick="sendMissingInfoLink('${c.id}','tenant')" title="Link Scheda che chiede SOLO ciò che manca all'inquilino: ${esc(tMiss.join(', '))}">📨 Chiedi a T</button>` : ''}
+                    ${lMiss.length ? `<button class="btn btn-xs btn-secondary" onclick="sendMissingInfoLink('${c.id}','landlord')" title="Link Scheda che chiede SOLO ciò che manca al locatore: ${esc(lMiss.join(', '))}">📨 Chiedi a L</button>` : ''}
                     ${regStatus !== 'registered' ? `<button class="btn btn-xs" style="background:var(--gold);color:#000;font-weight:600" onclick="openAspi('${c.id}')" title="Email strutturata al referente ASPI con contratto, identità e (per il concordato) APE + planimetria + scheda calcolo — fattura col markup in un tap">🏛 ${c.aspiRequestedAt ? 'ASPI ✓ re-invia' : 'Invia ad ASPI'}</button>` : ''}
                     ${fullySigned && regStatus !== 'registered' ? `<button class="btn btn-xs" onclick="generateRLIDraft('${c.id}')">📝 Bozza RLI</button>` : ''}
                     ${fullySigned && regStatus !== 'registered' ? `<button class="btn btn-xs btn-success" onclick="markRegistered('${c.id}')">✓ Segna registrato</button>` : ''}
@@ -22012,7 +22023,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const target = isTenant
             ? (S.users || []).find(u => u.id === c.tenantId)
             : (S.users || []).find(u => u.id === (S.properties || []).find(p => p.id === c.propertyId)?.ownerId);
-        let url = '';
+        let url = '', msg = '', missing = [];
         try {
             const idToken = await auth.currentUser.getIdToken();
             const r = await fetch('/api/profile/link', {
@@ -22021,27 +22032,32 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 body: JSON.stringify({ contractId })
             });
             const j = await r.json().catch(() => null);
-            if (j && j.ok) url = isTenant ? j.tenantUrl : j.landlordUrl;
+            if (j && j.ok) {
+                url = isTenant ? j.tenantUrl : j.landlordUrl;
+                // Il messaggio NOMINA ciò che manca, nella lingua della parte, col
+                // link dentro: lo scrive il dizionario sul server (una copia).
+                msg = (j.messages && j.messages[isTenant ? 'tenant' : 'landlord']) || '';
+                missing = (j.missing && j.missing[isTenant ? 'tenant' : 'landlord']) || [];
+            }
         } catch (e) { console.warn('[sendMissingInfoLink]', e); }
         if (!url) return toast('error', 'Link scheda non disponibile — riprova');
         const name = target?.name || (isTenant ? 'inquilino' : 'proprietario');
-        const phone = target?.phone || '';
-        const email = target?.email || '';
-        const msg = isTenant
+        const phone = target?.phone || (isTenant ? c.tenantPhone : c.landlordPhone) || '';
+        const email = target?.email || (isTenant ? c.tenantEmail : c.landlordEmail) || '';
+        if (!msg) msg = isTenant
             ? `Ciao ${name}, per completare la registrazione del contratto ho bisogno di qualche dato in più. Lo puoi compilare qui (è veloce): ${url}`
             : `Ciao ${name}, per la registrazione del contratto AdE servono ancora un paio di dati. Lo puoi compilare qui: ${url}`;
 
-        const waUrl = phone ? `https://wa.me/${String(phone).replace(/\D/g, '')}?text=${encodeURIComponent(msg)}` : null;
-        const mailtoUrl = email ? `mailto:${email}?subject=${encodeURIComponent('BOOM · Dati per registrazione contratto')}&body=${encodeURIComponent(msg)}` : null;
-
         document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal">
-            <div class="modal-header"><h3 class="modal-title">📨 Link compila dati — ${isTenant ? 'Inquilino' : 'Locatore'}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-header"><h3 class="modal-title">📨 Chiedi i dati — ${isTenant ? 'Inquilino' : 'Locatore'}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
-                <div style="margin-bottom:14px;font-size:13px;color:var(--text-muted)">Manda questo link a <strong style="color:var(--text)">${esc(name)}</strong>. Quando compila il form, i dati arrivano automaticamente nel portal e sbloccano la registrazione RLI.</div>
-                <div class="form-group"><label class="form-label">Link pre-compilato</label><div style="display:flex;gap:6px"><input type="text" class="form-input" readonly value="${url}" id="missInfoUrl" style="flex:1;font-family:monospace;font-size:11px"><button class="btn btn-sm" onclick="navigator.clipboard.writeText(document.getElementById('missInfoUrl').value);toast('success','Copiato')">📋</button></div></div>
+                <div style="margin-bottom:12px;font-size:13px;color:var(--text-muted)">Il link si ADATTA: a <strong style="color:var(--text)">${esc(name)}</strong> chiede solo ciò che manca${missing.length ? ` — <span style="color:var(--orange)">${esc(missing.map(m => m.label).join(', '))}</span>` : ' (oggi niente: la scheda è completa)'}. Quando compila, i dati arrivano nel portal e sbloccano PDF e registrazione.</div>
+                <div class="form-group"><label class="form-label">Messaggio pronto (modificabile)</label><textarea class="form-input" id="missInfoMsg" rows="6" style="font-size:13px;line-height:1.5">${esc(msg)}</textarea></div>
+                <div class="form-group"><label class="form-label">Link</label><div style="display:flex;gap:6px"><input type="text" class="form-input" readonly value="${url}" id="missInfoUrl" style="flex:1;font-family:monospace;font-size:11px"><button class="btn btn-sm" onclick="copyToClipboard(document.getElementById('missInfoUrl').value);toast('success','Link copiato')">📋</button></div></div>
                 <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
-                    ${waUrl ? `<a href="${waUrl}" target="_blank" class="btn btn-success">💬 Manda via WhatsApp</a>` : '<span style="font-size:12px;color:var(--text-muted)">⚠️ Nessun telefono</span>'}
-                    ${mailtoUrl ? `<a href="${mailtoUrl}" class="btn btn-secondary">📧 Manda via email</a>` : ''}
+                    <button class="btn btn-secondary" onclick="copyToClipboard(document.getElementById('missInfoMsg').value);toast('success','Messaggio copiato')">📋 Copia messaggio</button>
+                    ${phone ? `<button class="btn btn-success" onclick="window.open('https://wa.me/${String(phone).replace(/\D/g, '')}?text='+encodeURIComponent(document.getElementById('missInfoMsg').value),'_blank')">💬 WhatsApp</button>` : '<span style="font-size:12px;color:var(--text-muted);align-self:center">⚠️ Nessun telefono</span>'}
+                    ${email ? `<button class="btn btn-secondary" onclick="location.href='mailto:${esc(email)}?subject='+encodeURIComponent('BOOM · ${isTenant ? 'Your details for the contract' : 'Dati per il contratto'}')+'&body='+encodeURIComponent(document.getElementById('missInfoMsg').value)">📧 Email</button>` : ''}
                 </div>
             </div>
             <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Chiudi</button></div>
@@ -22053,6 +22069,52 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // Generato/rigenerato server-side (api/fiscal/fascicolo). Se la zona
     // dell'accordo o i mq non si risolvono da soli, chiede QUI il dato e lo
     // persiste su contract.canoneScheda — la rigenerazione resta stabile.
+    // ── La strip di completezza nel dettaglio contratto: per owner, dal
+    // dizionario. Prima della firma dice quanti PUNTINI stamperebbe il PDF
+    // (così Rigenera PDF non è un salto nel buio); sempre, cosa manca alla
+    // registrazione e a chi chiederlo.
+    function contractCompletenessHtml(c) {
+        const F = window.BOOM_CONTRACT_FIELDS;
+        const comp = contractCompleteness(c);
+        if (!F || !comp) return '';
+        const signed = !!(c.tenantSignature && c.landlordSignature);
+        const who = [['tenant', 'Inquilino'], ['landlord', 'Locatore'], ['operator', 'Operatore']];
+        const rows = who.map(([o, label]) => {
+            const m = comp.byOwner[o].missing;
+            return `<div style="display:flex;gap:8px;align-items:baseline;font-size:12px;padding:3px 0"><span style="width:16px">${m.length ? '✗' : '✓'}</span><span style="color:var(--text-secondary);min-width:78px">${label}</span><span>${m.length ? esc(F.labels(m.map(e => e.key), 'it').join(', ')) : '<span style="color:var(--green)">completo</span>'}</span>${m.length && o !== 'operator' ? `<button class="btn btn-xs btn-secondary" style="margin-left:auto" onclick="sendMissingInfoLink('${c.id}','${o}')">📨 Chiedi</button>` : ''}</div>`;
+        }).concat((comp.cotenants || []).map(ct => `<div style="display:flex;gap:8px;align-items:baseline;font-size:12px;padding:3px 0"><span style="width:16px">${ct.missing.length ? '✗' : '✓'}</span><span style="color:var(--text-secondary);min-width:78px">Co-cond. ${ct.index + 1}</span><span>${esc(String(ct.name || ''))}${ct.missing.length ? ' — ' + esc(ct.missing.map(m => m.label.it).join(', ')) : ''}</span></div>`));
+        const dots = comp.dots.filter(d => d.required).length;
+        const legal = (comp.legal || []).filter(x => !x.ok).map(x => x.note.it);
+        return `<div class="mt-16" style="background:var(--surface);padding:10px 12px;border-radius:8px;border-left:3px solid ${comp.ready.registration ? 'var(--green)' : 'var(--orange)'}">
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:6px"><div class="detail-label" style="margin:0">Completezza</div>
+                ${!signed ? `<span class="badge ${dots ? 'orange' : 'green'}" style="font-size:10px">${dots ? '⚠ il PDF stamperebbe ' + dots + ' puntini' : '✓ PDF senza puntini'}</span>` : ''}
+                <span class="badge ${comp.ready.registration ? 'green' : 'orange'}" style="font-size:10px">${comp.ready.registration ? '✓ registrazione pronta' : '✗ registrazione incompleta'}</span>
+                ${legal.length ? `<span class="badge red" style="font-size:10px" title="${esc(legal.join(' · '))}">⚠ durata di legge</span>` : ''}</div>
+            ${rows.join('')}
+        </div>`;
+    }
+    window.contractCompletenessHtml = contractCompletenessHtml;
+
+    // ── ✉ Foglio di registrazione: l'email PULITA a Valentino, rimandata
+    // dai dati attuali (POST /api/fiscal/foglio, admin).
+    async function openFoglio(contractId) {
+        toast('info', '✉ Mando il Foglio di registrazione…');
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/fiscal/foglio', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                body: JSON.stringify({ contractId })
+            });
+            const j = await r.json().catch(() => null);
+            if (!j || !j.ok) return toast('error', 'Foglio non inviato: ' + ((j && j.error) || r.status));
+            const c = (S.contracts || []).find(x => x.id === contractId);
+            if (c) c.registrationSheetSentAt = new Date().toISOString();
+            toast('success', `✉ Foglio inviato a ${j.to} (${j.attachments} allegati)`);
+        } catch (e) { toast('error', 'Foglio non inviato: ' + e.message); }
+    }
+    window.openFoglio = openFoglio;
+
     async function openFascicolo(contractId, overrides) {
         toast('info', '📑 Genero il fascicolo…');
         try {
@@ -22436,16 +22498,33 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // form-tenant, che scriveva anonimo su una collection admin-only e
         // falliva in silenzio per il cliente)
         if (schedaLinks && schedaLinks.tenantUrl) {
+            const missT = (schedaLinks.missing && schedaLinks.missing.tenant) || [];
+            const msgT = schedaLinks.messages && schedaLinks.messages.tenant;
             links.push({
                 audience: 'tenant', icon: '📋', title: 'Compila i tuoi dati',
-                subtitle: 'La Scheda — anagrafica + foto documento con lettura automatica',
+                subtitle: 'La Scheda che si adatta — ' + (missT.length ? 'chiede SOLO: ' + missT.map(m => m.label).join(', ') : 'oggi non manca nulla (riapre per correzioni e documento)'),
                 url: schedaLinks.tenantUrl,
                 target: tenant,
-                waText: (n) => `Ciao ${n}, per il tuo contratto ci servono i tuoi dati anagrafici. Li compili qui in 2 minuti (basta una foto del documento): {URL}\n\n— BOOM Roma`,
-                emailSubj: 'BOOM · I tuoi dati per il contratto',
-                emailBody: (n) => `Ciao ${n},\n\nper preparare e registrare il contratto ci servono i tuoi dati anagrafici.\nLi puoi inserire qui (2 minuti — con una foto del documento si compila da solo):\n\n{URL}\n\nGrazie,\nBOOM Roma`
+                waText: (n) => msgT ? msgT.replace(schedaLinks.tenantUrl, '{URL}') : `Ciao ${n}, per il tuo contratto ci servono i tuoi dati anagrafici. Li compili qui in 2 minuti (basta una foto del documento): {URL}\n\n— BOOM Roma`,
+                emailSubj: 'BOOM · Your details for the contract',
+                emailBody: (n) => msgT ? msgT.replace(schedaLinks.tenantUrl, '{URL}') : `Ciao ${n},\n\nper preparare e registrare il contratto ci servono i tuoi dati anagrafici.\nLi puoi inserire qui (2 minuti — con una foto del documento si compila da solo):\n\n{URL}\n\nGrazie,\nBOOM Roma`
             });
         }
+        // Co-conduttori: la LORO Scheda (una riga RLI ciascuno — il CF di ogni
+        // conduttore è obbligatorio per registrare), col messaggio già scritto.
+        (schedaLinks && Array.isArray(schedaLinks.cosign) ? schedaLinks.cosign : []).forEach(co => {
+            if (!co.schedaUrl || co.schedaLocked) return;
+            const miss = Array.isArray(co.missing) ? co.missing : [];
+            links.push({
+                audience: 'tenant', icon: '📋', title: `Compila i tuoi dati — ${co.name}`,
+                subtitle: 'Scheda del co-conduttore — ' + (miss.length ? 'chiede SOLO: ' + miss.map(m => m.label).join(', ') : 'completa'),
+                url: co.schedaUrl,
+                target: { name: co.name },
+                waText: () => (co.message || `Hi ${co.name.split(' ')[0]}, we need a few details for the lease: {URL}\n\n— BOOM Roma`).replace(co.schedaUrl, '{URL}'),
+                emailSubj: 'BOOM · Your details for the lease',
+                emailBody: () => (co.message || `Hi ${co.name.split(' ')[0]},\n\nwe need a few details for the lease:\n\n{URL}\n\nBOOM Roma`).replace(co.schedaUrl, '{URL}')
+            });
+        });
         // Tenant: Apple Wallet pass (if already generated during onboarding)
         if (tenant && c.tenantPassUrl) {
             links.push({
@@ -22491,14 +22570,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
         // Landlord: La Scheda (anagrafica universale, IT-first per il locatore)
         if (schedaLinks && schedaLinks.landlordUrl) {
+            const missL = (schedaLinks.missing && schedaLinks.missing.landlord) || [];
+            const msgL = schedaLinks.messages && schedaLinks.messages.landlord;
             links.push({
-                audience: 'landlord', icon: '📋', title: 'Compila i tuoi dati',
-                subtitle: 'La Scheda — anagrafica + documento per la registrazione RLI',
+                audience: 'landlord', icon: '📋', title: 'Compila i Suoi dati',
+                subtitle: 'La Scheda che si adatta — ' + (missL.length ? 'chiede SOLO: ' + missL.map(m => m.label).join(', ') : 'oggi non manca nulla (riapre per correzioni e documento)'),
                 url: schedaLinks.landlordUrl,
                 target: landlord,
-                waText: (n) => `Gentile ${n}, per la registrazione del contratto all'AdE ci servono i Suoi dati anagrafici. Li può inserire qui (2 minuti, basta una foto del documento): {URL}\n\n— BOOM Roma`,
-                emailSubj: 'BOOM · Dati per registrazione contratto',
-                emailBody: (n) => `Gentile ${n},\n\nper completare la registrazione del contratto all'Agenzia delle Entrate ci servono i Suoi dati anagrafici.\nLi può inserire qui (con una foto del documento il modulo si compila da solo):\n\n{URL}\n\nCordiali saluti,\nBOOM Roma`
+                waText: (n) => msgL ? msgL.replace(schedaLinks.landlordUrl, '{URL}') : `Gentile ${n}, per la registrazione del contratto all'AdE ci servono i Suoi dati. Li può inserire qui (2 minuti): {URL}\n\n— BOOM Roma`,
+                emailSubj: 'BOOM · Dati per il contratto',
+                emailBody: (n) => msgL ? msgL.replace(schedaLinks.landlordUrl, '{URL}') : `Gentile ${n},\n\nper completare la registrazione del contratto all'Agenzia delle Entrate ci servono ancora alcuni dati.\nLi può inserire qui:\n\n{URL}\n\nGrazie,\nBOOM Roma`
             });
         }
         // Landlord: Apple Wallet pass

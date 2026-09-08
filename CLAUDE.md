@@ -151,6 +151,9 @@ PASS_KEY_PASSPHRASE
 # Email (Nodemailer)
 GMAIL_USER
 GMAIL_APP_PASS
+REGISTRATION_EMAIL           # optional — dove arriva il Foglio di registrazione
+                             # (email pulita a firma completa); default
+                             # CAF_EMAIL → valentino@boom-rome.com
 
 # AI document parsing
 ANTHROPIC_API_KEY
@@ -1952,6 +1955,95 @@ Share Hub now hands out /scheda links instead). Study: `LA_SCHEDA_STUDY.md`.
   completo) → Magic Sign. Per contratti già firmati su carta: solo
   Scheda (upload documento incluso) — nessuna firma fittizia.
 
+### Il Dizionario del contratto — la Scheda che si adatta e le due email a Valentino (`js/contract-fields.js`)
+**Il problema misurato (8/09/2026)**: i due modelli (Allegato B/C, CAF
+verbatim) stampano `………` per OGNI dato mancante e nessun posto sapeva PRIMA
+quali puntini sarebbero usciti; `/scheda` raccoglieva SOLO l'identità
+(niente conviventi, esigenza transitoria, corso di studi, fatti
+dell'immobile, catasto strutturato); il portal aveva TRE liste «mancano»
+scritte a mano che divergevano fra loro e dal server; la cedolare era letta
+in modo OPPOSTO dai due modelli (B `=== true`, C `!== 'no'` — i contratti
+reali portano `'si'`, quindi su B usciva l'art. 7 del regime ordinario);
+il catasto era un blob di testo che nessuno poteva ricopiare nelle caselle
+RLI; i lettori della registrazione (fascicolo, pack, ASPI) guardavano solo
+i campi del contratto mentre il PDF risale la catena `users` — un CF
+presente sul profilo usciva «MANCANTE».
+- **`js/contract-fields.js`** (UMD → `window.BOOM_CONTRACT_FIELDS`, import
+  ESM da `api/**`): UNA dichiarazione per ogni dato che i modelli STAMPANO
+  più ciò che RLI/AdE e la macchina pretendono — `owner` (chi lo SA: tenant
+  · landlord · operator, anche dinamico: l'esigenza transitoria è di chi la
+  dichiara, `esigenzaDi`), `templates` (B/C), `needs` (`contract` = puntini
+  nel PDF · `registration` · `operations`), `required` (funzione del
+  contesto: rilascio del documento solo su C, permesso di soggiorno solo
+  per un extra-UE, nascita solo per una persona fisica, documento
+  dell'esigenza solo oltre 30 giorni), `read` (la STESSA catena di
+  contract-pdf.js) e `write` (contract / property / user, anche doppio: i
+  fatti dell'immobile vanno in MEMORIA sull'immobile E sul contratto che il
+  PDF legge). API pure: `completeness` (per owner + co-conduttori + durata
+  di legge + `ready.contract/registration` + `dots`), `askFor` (le sezioni
+  con SOLO i campi vuoti di QUEL ruolo), `applyAnswers` (lista bianca per
+  owner, validazione, mappe annidate riscritte INTERE dal dato esistente,
+  catasto strutturato → blob ricomposto, «vivo da solo» che non cancella i
+  co-conduttori), `missingMessage` (nomina i mancanti, collassa i gruppi,
+  EN/IT), `rliFacts` (L2 per entrambi i modelli, importo = corrispettivo
+  per la durata se < 12 mesi, scadenza = 30 gg da min(stipula, decorrenza),
+  imponibile 70% senza cedolare), `hydrateParties`, `cedolareOn`,
+  `docTypeCode/It`, `parseCadastral/composeCadastral`, `validCF` (16
+  caratteri O 11 cifre: il locatore può essere una società), `isEU`.
+  **`READS`** dichiara le letture coperte: il test anti-deriva le confronta
+  in ENTRAMBE le direzioni con ciò che `contract-pdf.js` legge davvero.
+- **Le tre letture unificate in `contract-pdf.js`** (letture, non testo
+  d'articolo — i modelli CAF restano verbatim): `cedolareOn` (assente = sì,
+  come C, `_finalize` e compliance-rules; il vecchio `=== true` non può
+  tornare, mutazione pinnata), `docTypeLabel` (sul contratto va l'italiano:
+  «identificato/a mediante passport» non lo era), `tabelleOf`/impianti con
+  fallback alla memoria dell'immobile.
+- **La Scheda che si adatta**: `lookup` porta `ask` (sezioni per ruolo dal
+  dizionario: esigenza, corso di studi, conviventi, permesso di soggiorno,
+  contatti · per il locatore catasto a caselle, immobile, tabelle, IBAN),
+  `submit` accetta `answers` e scrive via `applyAnswers` — un token tenant
+  NON scrive mai un fatto dell'immobile, il locatore mai i campi del
+  conduttore, ogni scarto torna in `rejected` (mai silenzioso); i fatti
+  dell'immobile atterrano su `properties/<id>` (lista bianca DERIVATA:
+  `PROPERTY_WRITE_KEYS`). `complete` = il PDF non stamperebbe puntini per
+  quella parte; `missing` nomina ciò che serve ancora anche per la
+  registrazione. **I co-conduttori hanno il LORO link** (`<id>.c<idx>.<token>`,
+  derivato come `cosignToken`): scrivono SOLO `coTenants[idx]`, bloccati
+  dalla PROPRIA firma — per l'AdE ogni conduttore è una riga RLI con CF.
+  `scheda.html` rende gli step extra dai descrittori (people = «vivo da
+  solo» + elenco, con i co-conduttori già mostrati), rinfresca la lookup
+  UNA volta se un dato appena scritto fa nascere una sezione (nazionalità
+  extra-UE → permesso), e lo schermo finale dice cosa manca ancora.
+  `api/profile/link.js` ritorna `missing` e `messages` per parte + la
+  Scheda di ogni co-conduttore: il portal non ricalcola nulla.
+- **Portal**: `templateMissing` è un wrapper del dizionario (la terza lista
+  a mano è sparita), il badge «mancano» di Burocrazia e i bottoni **📨 Chiedi
+  a T/L** (solo dove manca qualcosa) leggono `contractCompleteness`, il
+  modale porta il messaggio pronto (modificabile) e il link; lo Share Hub
+  dice cosa chiede ogni link e ha le card dei co-conduttori; il dettaglio
+  contratto ha la strip **Completezza** (per owner, «⚠ il PDF stamperebbe N
+  puntini» prima della firma, durata di legge) e **✉ Foglio**.
+- **Le due email a Valentino a firma completa** (`_finalize.js`, dopo
+  `hydrateParties`): il **Fascicolo completo** (`sendCafDossier`, interno:
+  verdetto in testa, per ogni parte a cui manca qualcosa il link /scheda
+  DERIVATO già pronto col messaggio nella sua lingua, le stesse righe del
+  foglio, allegati, pack, bottone portal; oggetto stabile `📑 Fascicolo
+  completo — <immobile> — <conduttore> — <decorrenza>`) e il **Foglio di
+  registrazione** (`api/sign/_foglio.js`, PULITO: niente bottoni né link
+  al portal né «mancano/rigenera», catasto a caselle, un conduttore per
+  riga, i numeri RLI da `rliFacts`, extra-UE con la scadenza della cessione
+  di fabbricato, «non dichiarato» dove manca — si inoltra così com'è, si
+  stampa, in Gmail fa da ARCHIVIO: oggetto `Registrazione contratto —
+  <immobile> — <conduttore> — <decorrenza>`, senza emoji). Destinatario
+  `REGISTRATION_EMAIL` → `CAF_EMAIL` → valentino@boom-rome.com. Rimandabile
+  da **✉ Foglio** (`POST /api/fiscal/foglio`, admin). Numeri all'italiana
+  deterministici (`itNum`, la lezione small-ICU).
+- **Fuori scopo, dichiarato**: i comproprietari con quota (`ownershipPct`
+  esiste sul doc landlord ma nessuno lo legge) e la pagina RLI del
+  Fascicolo Fiscale (`fascicolo.js` stampa ancora `rent×12` e «L2» solo su
+  studenti — il foglio e l'email completa usano `rliFacts`).
+- Test: `node tests/contratto/run.mjs` (68 check).
+
 ### Contratto studenti — template associazione (accordo Roma 27/07/2023)
 `_generateContractPDF_allegatoC` (js/portal-app.js) genera il contratto
 tipo STUDENTI dell'associazione: accordo territoriale depositato presso il
@@ -3552,6 +3644,7 @@ camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
   | `tests/prenota/run.mjs` | la corsia del pre-blocco: una casa occupata con data nota si PRENOTA e la data si vede ovunque (era «Waitlist open»), l'affittata si apre SOLO col contratto (`availableFrom`) e mai su una `availableDate` residua, l'illeggibile non promette niente, e l'anno dedotto dal motore viene dichiarato all'operatore invece di passare per un fatto. Regole C e D verificate per mutazione |
   | `tests/vetrina/run.mjs` | l'innesto della vetrina (Chromium vero su apartments.html servita): un annuncio nato DOPO la build appare, è contato e i filtri veri lo mordono (zona via hash, ricerca libera, cuore); la data testo libero passa dal motore condiviso («1 Sept 2027» → «Free from», mai «Available now»); senza foto di casa nostra o con stato ignoto la carta NON nasce; le card di build continuano ad aggiornarsi. Verificato per mutazione |
   | `tests/scheda/run.mjs` | La Scheda: token derivati (ruolo nella derivazione, timing-safe), precedenza prefill contratto→sign→wizard, lock post-firma, sync profilo su ENTRAMBI gli schemi users, upload con OCR che non blocca mai, /api/profile/link autorizzato |
+  | `tests/contratto/run.mjs` | Il dizionario del contratto: ogni lettura dei modelli è dichiarata e ogni voce è letta (anti-deriva nelle due direzioni), la cedolare non torna `=== true` (mutazione), la completezza cambia per modello/owner/società/extra-UE/co-conduttori/durata di legge, la Scheda chiede SOLO ciò che manca a QUELLA parte, un token tenant non scrive mai l'immobile (e lo dice), il co-conduttore scrive solo la sua riga e la firma altrui resta, i numeri RLI (totale per durata < 12 mesi, scadenza da min(stipula, decorrenza)), il foglio pulito senza bottoni né link e con gli allegati veri, 401 senza admin |
   | `tests/innesto/run.mjs` | l'Innesto e il 413 di piattaforma: il PDF grande transita da Storage e i byte che arrivano ad Anthropic sono ESATTAMENTE quelli scaricati, un host estraneo non viene MAI contattato (l'endpoint non è un proxy), i tetti restano onesti (8 MB, whitelist formati), e il transito si cancella nel finally. Più l'APPLY VERO su Firestore finto: proposta completa → contratto+rate scritti, proposta senza una gamba → il contratto non nasce MA il riepilogo non lo promette e il toast dice quale gamba manca (la lezione del 30/08: "Innesto completato" senza contratto), proprietario già in `landlords` → mai un doppione |
   | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot |
   | `tests/aspi/run.mjs` | l'iter ASPI: la checklist blocca SOLO senza contratto (il resto avverte, dichiarato nell'email), l'invio raggiunge il referente con l'operatore in copia e gli allegati veri, la fattura col markup non si duplica MAI (id deterministico), 'registered' non si degrada, l'auto-invio parte solo con la manopola girata |

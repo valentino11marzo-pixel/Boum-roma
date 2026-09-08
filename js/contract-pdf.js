@@ -64,11 +64,48 @@
     return { months, days, total, text };
   }
 
+  // LETTURE UNIFICATE (la stessa regola di js/contract-fields.js — cambiare
+  // qui = cambiare lì). Non toccano il testo degli articoli: decidono quale
+  // ramo si stampa e come si scrive un dato.
+  //
+  // Cedolare secca: i contratti reali portano la STRINGA 'si'/'no' (portal,
+  // convert); il pre-accordo il booleano dentro canone. L'Allegato B
+  // leggeva `=== true` e stampava a un 'si' l'art. 7 del regime ORDINARIO
+  // — mentre l'Allegato C, _finalize e compliance-rules leggevano la
+  // stringa. Assente = sì, come tutto il resto del server.
+  function cedolareOn(contract) {
+    const c = contract || {};
+    const v = (c.cedolareSecca !== undefined && c.cedolareSecca !== null && c.cedolareSecca !== '')
+      ? c.cedolareSecca : (c.canone && c.canone.cedolareSecca);
+    if (v === false || v === 'no' || v === 'false' || v === 0) return false;
+    return true;
+  }
+  // Tipo di documento: la Scheda scrive codici, il portal etichette. Sul
+  // contratto va l'italiano — «identificato/a mediante passport» non lo era.
+  const DOC_TYPE_IT = { passport: 'passaporto', id: 'carta d’identità', permit: 'permesso di soggiorno', patente: 'patente auto' };
+  function docTypeLabel(raw) {
+    const s = String(raw || '').trim();
+    const k = s.toLowerCase();
+    if (DOC_TYPE_IT[k]) return DOC_TYPE_IT[k];
+    if (/^(passaporto|pass)$/.test(k)) return 'passaporto';
+    if (/^(ci|c\.i\.|id card|identity card)$/.test(k) || /carta d.identit/.test(k)) return 'carta d’identità';
+    if (/permesso|permit|residence/.test(k)) return 'permesso di soggiorno';
+    if (/patente|licen[cs]e/.test(k)) return 'patente auto';
+    return s;
+  }
+  // Tabelle millesimali e stato impianti: la memoria dell'immobile vale
+  // quando il contratto non li porta (la Scheda del locatore li scrive su
+  // entrambi; i contratti nati prima li trovano sull'immobile).
+  function tabelleOf(contract, property) {
+    return (contract && contract.propertyExtra && contract.propertyExtra.tabelleMillesimali)
+      || (property && property.tabelleMillesimali) || {};
+  }
+
   function impiantiClause(contract, property) {
     const custom = (contract && contract.propertyExtra && contract.propertyExtra.sicurezzaImpianti)
       || (property && property.safetyImplants) || '';
     if (custom) return custom;
-    const stato = (contract && contract.impiantiStato) || '';
+    const stato = (contract && contract.impiantiStato) || (property && property.impiantiStato) || '';
     if (stato === 'conformi') {
       return 'Il locatore dichiara che gli impianti presenti nell’unità immobiliare sono conformi alla normativa vigente e consegna al conduttore copia della dichiarazione di conformità ai sensi del D.M. 37/2008.';
     }
@@ -196,7 +233,7 @@
     const tenCF   = pick(contract.tenantCF, tenant && tenant.cf, tenant && tenant.codiceFiscale) || dot;
     const tenDocT = pick(contract.tenantDocType, tenant && tenant.docType, tenant && tenant.idDocType);
     const tenDocN = pick(contract.tenantDocNum, tenant && tenant.docNum, tenant && tenant.idDocNumber);
-    const tenDoc  = tenDocT ? (tenDocT + (tenDocN ? ' n. ' + tenDocN : '')) : dot;
+    const tenDoc  = tenDocT ? (docTypeLabel(tenDocT) + (tenDocN ? ' n. ' + tenDocN : '')) : dot;
 
     const propCity   = (property && property.city)    || 'Roma';
     const propStreet = (property && property.address) || dot;
@@ -211,7 +248,7 @@
     const cadast    = (property && property.cadastralData) || formatCadastral(property) || dot;
     const energy    = (property && (property.energyCert || property.energyClass)) || dot;
     const sicurezza = impiantiClause(contract, property);
-    const tab = (contract.propertyExtra && contract.propertyExtra.tabelleMillesimali) || {};
+    const tab = tabelleOf(contract, property);
     const tabFmt = (v) => (v !== undefined && v !== null && v !== '') ? String(v) : dot;
     const tabPro = tabFmt(tab['proprietà']);
     const tabRis = tabFmt(tab.riscaldamento);
@@ -231,7 +268,7 @@
     const canTotal        = (contract.canone && contract.canone.total)        || (canMonthly * canInstallments);
     const canDay          = (contract.canone && contract.canone.paymentDay)   || contract.paymentDay   || 5;
     const canMethod       = (contract.canone && contract.canone.paymentMethod)|| contract.paymentMethod|| 'bonifico bancario';
-    const cedolareSecca   = (contract.canone && contract.canone.cedolareSecca === true) || contract.cedolareSecca === true;
+    const cedolareSecca   = cedolareOn(contract);
     const oneriMode       = (contract.canone && contract.canone.oneriMode)    || 'tabella_allegato_d';
     const oneriSoglia     = (contract.canone && contract.canone.oneriSoglia)  || null;
 
@@ -610,8 +647,7 @@
     const tenDocIssuer  = pick(contract.tenantDocIssuer, tenant && tenant.docIssuer) || dot;
     const tenDocIssuedR = pick(contract.tenantDocIssueDate, tenant && tenant.docIssueDate);
     const tenDocIssued  = tenDocIssuedR ? fmtDate(tenDocIssuedR) : dot;
-    const docTypeIt = { passport: 'passaporto', id: 'carta d’identità', permit: 'permesso di soggiorno', patente: 'patente auto' };
-    const tenDocLabel = docTypeIt[tenDocTypeRaw] || tenDocTypeRaw || 'C.I/patente auto';
+    const tenDocLabel = tenDocTypeRaw ? docTypeLabel(tenDocTypeRaw) : 'C.I/patente auto';
 
     const propCity   = (property && property.city)    || 'Roma';
     const propStreet = (property && property.address) || dot;
@@ -628,7 +664,7 @@
                       ? fmtIt(contract.renditaCatastale || property.renditaCatastale) : dot;
     const energy    = (property && (property.energyCert || property.energyClass)) || contract.energyClass || dot;
     const sicurezza = impiantiClause(contract, property);
-    const tab = (contract.propertyExtra && contract.propertyExtra.tabelleMillesimali) || {};
+    const tab = tabelleOf(contract, property);
     const tabFmt = (v) => (v !== undefined && v !== null && v !== '') ? String(v) : dot;
     const tabPro = tabFmt(tab['proprieta'] || tab['proprietà']);
     const tabRis = tabFmt(tab.riscaldamento);
@@ -687,7 +723,7 @@
                           ? fmtIt(contract.oneriQuota) : '--';
     const subentroMod   = contract.subentroModalita || '--';
     const accessiMod    = contract.accessiModalita || '--';
-    const cedolareOn    = (contract.cedolareSecca || 'si') !== 'no';
+    const cedolareIsOn  = cedolareOn(contract);
 
     const consegnaStato = contract.consegnaStato || '--';
     const sigPlace = contract.signaturePlace || (property && property.city) || 'Roma';
@@ -762,7 +798,7 @@
     );
 
     addArticle(6, 'Spese di bollo e di registrazione',
-      cedolareOn
+      cedolareIsOn
         ? `Il locatore intende avvalersi delle disposizioni di cui al DLGS n. 23 del 14-03-2011 cosiddetta "cedolare secca". Pertanto a norma di tale disposizione il locatore dichiara di rinunciare all'applicazione degli adeguamenti Istat. Il presente contratto, quindi, è esente da imposta di bollo e tassa registro. È facoltà del locatore recedere dalla tassazione della cedolare secca e in tal caso il canone sarà adeguato annualmente con l'applicazione dell'Istat al 75% e le spese di bollo per il presente contratto e per le ricevute conseguenti saranno a carico del conduttore mentre la tassa di registro è pari alla metà. Il locatore provvede alla registrazione del contratto, dandone documentata comunicazione al conduttore e all'Amministratore del condominio ai sensi dell'art. 13 legge 431 del 1998.\n\nLe parti possono delegare alla registrazione del contratto una delle organizzazioni sindacali che abbia prestato assistenza ai fini della stipula del contratto medesimo.`
         : `Le spese di bollo per il presente contratto e per le ricevute conseguenti sono a carico del conduttore, mentre la tassa di registro è ripartita al 50% tra le parti. Il locatore provvede alla registrazione del contratto, dandone documentata comunicazione al conduttore e all'Amministratore del condominio ai sensi dell'art. 13 legge 431 del 1998.\n\nLe parti possono delegare alla registrazione del contratto una delle organizzazioni sindacali che abbia prestato assistenza ai fini della stipula del contratto medesimo.`
     );
@@ -953,6 +989,9 @@
     monthsBetween: monthsBetween,
     impiantiClause: impiantiClause,
     oneriClause: oneriClause,
+    cedolareOn: cedolareOn,
+    docTypeLabel: docTypeLabel,
+    tabelleOf: tabelleOf,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = API;

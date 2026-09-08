@@ -21,9 +21,15 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { fsCreate, fsPatch, fsGet, fsList, fsDelete } from '../homie/_lib.js';
 import { storageUpload } from '../agent/_lib.js';
 import { sendWelcomeEmails, sendCafDossier } from './_notify.js';
+import { sendRegistrationSheet } from './_foglio.js';
 import { buildFascicolo } from '../fiscal/fascicolo.js';
 import { buildRegistrationPack } from './_pack.js';
 import { maybeAutoAspi } from '../fiscal/_aspi.js';
+// Il dizionario del contratto: i lettori RLI (fascicolo, pack, ASPI, foglio)
+// guardavano SOLO i campi del contratto mentre il PDF risale la catena
+// users — un CF presente solo sul profilo usciva «MANCANTE» in tre posti.
+// hydrateParties riempie i campi di parte dalla stessa catena, una volta.
+import FIELDS from '../../js/contract-fields.js';
 
 const BASE = 'https://www.boomrome.com';
 const MS_CONSENT = 'I confirm my identity and accept all lease terms. This digital signature is legally valid (FES — Art. 21 CAD).';
@@ -64,6 +70,13 @@ export async function finalizeContract(contract){
   const tenant   = contract.tenantId ? await fsGet(`users/${contract.tenantId}`).catch(()=>null) : null;
   const ownerId  = property && property.ownerId;
   const landlord = ownerId ? await fsGet(`users/${ownerId}`).catch(()=>null) : null;
+  // Da qui in poi il contratto porta i campi di parte della catena users
+  // (CF, nascita, documento) come li stampa il PDF: fascicolo, pack, CAF,
+  // ASPI e foglio non possono più dire «mancante» a un dato che c'è.
+  try {
+    const landlordR = ownerId ? await fsGet(`landlords/${ownerId}`).catch(()=>null) : null;
+    contract = FIELDS.hydrateParties(contract, tenant, { ...(landlordR || {}), ...(landlord || {}) }, property);
+  } catch (e) { console.warn('[finalize] hydrate:', e.message); }
 
   // cedolareSecca sui contratti reali è la STRINGA 'si'/'no' (portal e
   // convert), non un boolean: il vecchio `=== true` mandava OGNI contratto
@@ -278,9 +291,13 @@ export async function finalizeContract(contract){
   try { await fsPatch(`contracts/${contract.id}`, { finalizedAt: now }); }
   catch (e) { console.warn('[finalize] early mark failed:', e.message); }
 
-  const [welcome, caf] = await Promise.all([
+  // Tre email all'operatore, tre mestieri: il milestone (breve), il
+  // FASCICOLO COMPLETO (interno: verdetto, link da copiare, pack) e il
+  // FOGLIO DI REGISTRAZIONE (pulito: si inoltra, si stampa, fa da archivio).
+  const [welcome, caf, foglio] = await Promise.all([
     sendWelcomeEmails(contract, property, { portalLink, certUrl, cedolare, nonEU, signedPdfUrl }),
-    sendCafDossier(contract, property, { certUrl, fascicoloUrl, signedPdfUrl, packUrl: pack.url, packMissing: pack.missing }),
+    sendCafDossier(contract, property, { certUrl, fascicoloUrl, signedPdfUrl, packUrl: pack.url, packMissing: pack.missing, tenant, landlord }),
+    sendRegistrationSheet(contract, property, { certUrl, fascicoloUrl, signedPdfUrl, tenant, landlord, now }),
   ]);
   const tenantEmail = !!(welcome && welcome.tenant);
   const landlordEmail = !!(welcome && welcome.landlord);
@@ -300,7 +317,7 @@ export async function finalizeContract(contract){
 
   try { await fsPatch(`contracts/${contract.id}`, { finalizedAt: now, magicLinkId: magicId, signingCertificateUrl: certUrl, ...(signedPdfUrl ? { signedPdfUrl } : {}), ...(timestampUrl ? { timestampTsrUrl: timestampUrl } : {}) }); } catch(e){ console.warn('[finalize] mark failed:', e.message); }
 
-  return { ok:true, obligations: created, certificate: !!certUrl, signedPdf: !!signedPdfUrl, timestamp: !!timestampUrl, pack: !!pack.url, packMissing: pack.missing, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok), aspi: aspi && aspi.ok ? aspi.kind : (aspi && aspi.skipped) || false };
+  return { ok:true, obligations: created, certificate: !!certUrl, signedPdf: !!signedPdfUrl, timestamp: !!timestampUrl, pack: !!pack.url, packMissing: pack.missing, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok), foglio: !!(foglio && foglio.ok), aspi: aspi && aspi.ok ? aspi.kind : (aspi && aspi.skipped) || false };
 }
 
 // ── Bonifica delle scadenze doppie del finalize ──
