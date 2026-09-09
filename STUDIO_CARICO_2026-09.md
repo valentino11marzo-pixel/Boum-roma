@@ -225,3 +225,77 @@ la porta come trasporto.
 - La qualità non cala delegando sui binari misurati: cala quando il collo
   di bottiglia è uno solo e non ha tempo. È la situazione di oggi, ed è la
   ragione per cui questo studio è breve.
+
+---
+
+## 7 · Il confronto con GPT (9 settembre 2026)
+
+*La risposta di GPT al prompt di `docs/PROMPT_GPT_INTEGRAZIONE.md` è stata
+letta contro §5-§6 e contro il codice. Qui il verdetto, non la trascrizione.*
+
+**Dove convergiamo (e quindi si decide).** GPT boccia «l'integrazione GPT»
+come progetto autonomo e la riduce a UNA cosa: *«BOOM ricava dai messaggi e
+documenti ricevuti una proposta di aggiornamento dei dati, mostra la fonte
+e ciò che manca, e applica soltanto quanto confermato attraverso i motori
+esistenti»*. È, parola per parola, il principio dello Scrivano
+(`STUDIO_SCRIVANO.md` §3). Il modello dietro è «un componente sostituibile,
+non la funzione». Le letture A, B e C cadono: A duplica Telegram, B compra
+un'opinione dove BOOM ha un dato, C è già la regola verso l'esterno.
+Aggiunta di GPT che vale da sola: *una seconda opinione da leggere aumenta
+il carico* — con metà dei messaggi sotto 17 caratteri, il costo è
+l'interruzione, non la scrittura.
+
+**Conseguenza sul nome.** Il progetto «integrazione GPT» muore. Non c'è
+motivo di introdurre un secondo fornitore dietro lo Scrivano: la lettura
+del JSON (`_modeljson.js`), il tetto di tempo (`_budget.js`) e la
+disciplina «mai inventare» sono già costruiti sul modello in uso, e un
+secondo fornitore porta i suoi modi di rompersi senza un beneficio
+misurato. Quello che resta è lo Scrivano, passi 1-4, con una misura.
+
+**I tre punti «da accertare» di GPT, accertati sul codice:**
+
+| Dubbio di GPT | Cosa dice il codice | Effetto sul piano |
+|---|---|---|
+| «L'acquisizione da WhatsApp ed email non è dimostrata» | WhatsApp: `api/homie/message.js` accetta `mediaUrls` e li salva come `attachments` sul messaggio, **nessuno li legge**. Email: `api/documents/scan-inbox.js` processa SOLO mittenti fidati (i tuoi indirizzi + `DOC_MAIL_FROM`) — il PDF che un proprietario ti manda direttamente **non entra** | La «porta unica» (passo 4) è oggi solo Telegram. WhatsApp ed email vanno collegate allo Smistatore, o la porta resta una |
+| «`action_queue` gestisce anche modifiche interne?» | No. I `kind` esistenti sono uscite (`reply`, `signature`) e avvisi (`fiducia-digest`, emergenze); l'executor ha un `DISPATCH` per kind e nessuno scrive dati. La conferma dal telefono esiste come PATTERN nel bot (card con token per le modifiche annuncio, `_pending_put`/`_pending_pop`) ma applica solo sugli annunci | La conferma di una proposta Scrivano dal telefono è una rotaia NUOVA da costruire, nella disciplina delle card del bot; i record nascono in Firestore (regola 6 rispettata), ed è lavoro da giustificare con la misura |
+| «Che cosa dello Scrivano esiste già in codice?» | `innestoApply`: 4 `.add` (contracts, properties, users) e 2 `.update`, **zero** scritture in `documents`; lo Smistatore ha la tabella `CATS` dei tipi e le porte Telegram/email; l'Innesto non usa quella tabella. Nessuna «modifica proposta» esiste | Le due metà ci sono, il giunto no. Passo 1 (il documento resta) e passo 2 (il tipo) sono giunti fra codice esistente: ½ + 1 giorno restano stime credibili |
+
+**Dove GPT sbaglia strumento.** La misura proposta — 30 minuti netti al
+giorno recuperati, con un conteggio manuale dei minuti per 7 giorni di
+riferimento — è la grandezza giusta con lo strumento sbagliato: un
+operatore che non trova il click per `/fiducia` non cronometra le
+trascrizioni per una settimana. In BOOM la misura si deriva dai dati, o
+non esiste. Tre numeri a costo zero per te, tutti già possibili dopo il
+passo 1 (che lega ogni record al documento da cui nasce):
+1. **latenza arrivo → record**: dal `createdAt` del documento (Telegram,
+   email, WhatsApp) al `createdAt` del contratto/persona/immobile che ne
+   nasce. È il tempo in cui una pratica aspetta la tua trascrizione;
+2. **quota di record nati da proposta** contro nati a mano (`source`);
+3. **tasso di correzione**: campi cambiati dall'operatore prima della
+   conferma. È la condizione di GPT resa misurabile: se il lavoro si
+   sposta dalla trascrizione alla correzione, questo numero lo dice.
+La soglia dei 30 minuti al giorno resta come criterio di decisione, ma si
+legge sulla latenza e sui minuti per pratica, non su un cronometro. La
+base di riferimento (ultimi 30 giorni) si calcola da Firestore con uno
+script: `contracts.createdAt` meno il primo documento o lead collegato —
+un'approssimazione dichiarata, non una misura di sforzo.
+
+**Le tre esclusioni aggiunte da GPT, accolte:** non promettere una
+riduzione delle ore di campo (lo Scrivano non le tocca); non creare una
+seconda casella di decisioni (la coda Oggi è l'unica); misurare a parte
+gli effetti di Receptionist e fiducia se si accendono nello stesso mese.
+
+**Cosa resta da te** (le domande di GPT che il codice non può chiudere):
+1. Le tre trascrizioni che hai ripetuto più spesso nell'ultima settimana e
+   quanto ti sono costate — decidono l'ordine dei passi 1-4.
+2. «GPT» voleva dire lavorare DENTRO ChatGPT, oppure un altro modello
+   dietro BOOM? Se è la prima, resta solo la domanda della superficie
+   (Telegram o ChatGPT); se è la seconda, la risposta è no per costruzione.
+3. Il click che non arriva: tempo, fiducia, decisioni poco chiare o
+   tecnica? Sulla Receptionist la risposta è nel transcript (tecnica, e
+   nessuno l'ha letto); sulla fiducia serve la tua.
+
+**Decisione proposta:** si parte con lo Scrivano passo 1 (il documento
+resta e si lega al record) e con lo script della base di riferimento —
+entrambi senza toccare la tua giornata — DOPO che le leve di §4 sono
+accese. La parola «GPT» esce dal nome del ramo alla prima occasione.
