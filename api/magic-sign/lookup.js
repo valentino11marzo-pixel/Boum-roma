@@ -152,6 +152,13 @@ export default async function handler(req, res) {
     // per delega ("Valentino Egidi on behalf of …", as on the paper docs) —
     // the sign UI shows who signs for whom
     landlordDelegate: contract.landlordDelegate || null,
+    // il mandato del conduttore: quando l'operatore apre il link del
+    // conduttore per firmare in sua vece, la pagina dice "X per conto di Y
+    // — mandato del <data> sulla proposta <ref>". Solo i fatti, mai il testo
+    // integrale (sta sul PDF del mandato).
+    tenantDelegate: contract.tenantDelegate || null,
+    tenantMandate: (contract.tenantMandate && contract.tenantMandate.given === true)
+      ? { at: contract.tenantMandate.at || null, ref: contract.tenantMandate.ref || null } : null,
     preAgreementRef: contract.preAgreementRef || null,
   };
   const sanitizedProperty = {

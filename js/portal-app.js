@@ -16509,6 +16509,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                  'signInviteTenantAt', 'signInviteLandlordAt', 'signViewedTenantAt', 'signViewedLandlordAt',
                  'tenantSignTokenUsedAt', 'landlordSignTokenUsedAt', 'rliRegisteredAt', 'magicLinkId', 'generatedPDF', 'pdfHash',
                  'depositPayToken', 'depositPaid', 'inviteNudgeCount', 'lastReminderAt', 'welcomeEmailSent',
+                 // mandato e deleghe sono atti su QUEL contratto: un rinnovo non li eredita
+                 'tenantMandate', 'tenantDelegate', 'tenantSignedByDelegate', 'landlordSignedByDelegate', 'paAcceptance',
                  'createdAt', 'updatedAt', 'renewalHistory'].forEach(k => delete clone[k]);
                 const _inst = (contract.canone && contract.canone.installments) || 12;
                 Object.assign(clone, {
@@ -17131,6 +17133,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="modal-footer">
                 <button class="btn btn-danger btn-sm" onclick="confirmDelete('propert','${p.id}','${jsq(p.name)}')">🗑</button>
                 <a class="btn btn-secondary btn-sm" href="/inventario?p=${p.id}" target="_blank" rel="noopener" title="${p.inventario ? 'Inventario del ' + String(p.inventario.at || '').slice(0,10) + ' — ' + ((p.inventario.counts && p.inventario.counts.pieces) || 0) + ' pezzi' : 'Inventario dal video: filma il giro, l\'elenco si scrive da solo'}" style="text-decoration:none">📋 Inventario${p.inventario ? ' ✓' : ''}</a>
+                ${isAdmin() ? `<button class="btn btn-secondary btn-sm" onclick="openValutazione(null, undefined, {propertyId:'${p.id}'})" title="${p.valutazioneBoomUrl ? 'Ultima valutazione del ' + String(p.valutazioneBoomAt || '').slice(0,10) + ' — rigenera' : 'Il documento per il proprietario: parere di mercato + scheda di calcolo dell\'accordo'}">💶 Valutazione${p.valutazioneBoomUrl ? ' ✓' : ''}</button>` : ''}
                 <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
                 <button class="btn" onclick="const pid='${p.id}';closeModal();setTimeout(()=>openModal('editProperty',S.properties.find(x=>x.id===pid)),250)">✏️ Modifica</button>
             </div>
@@ -19578,8 +19581,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     //    «firma X per conto di Y», submit stampa landlordSignedByDelegate).
     //    Prima si poteva decidere SOLO alla creazione del contratto: se il
     //    proprietario si tirava indietro dopo, non c'era più modo.
+    //  · MANDATO DEL CONDUTTORE — SOLO se il cliente l'ha conferito PER
+    //    ISCRITTO sulla proposta (spunta a parte, `contract.tenantMandate`
+    //    dalla conversione PA) e SOLO agli stessi termini: registri che
+    //    firmi tu per suo conto (tenantDelegate) e apri il SUO link; il
+    //    server ricontrolla mandato e impronta dei termini al submit (403 /
+    //    409) e stampa tenantSignedByDelegate — pagina firme e certificato
+    //    lo dichiarano.
     // Quello che NON si fa, e il pannello lo dice: firmare al posto del
-    // conduttore. Quella non è una delega, è una firma falsa.
+    // conduttore SENZA mandato. Quella non è una delega, è una firma falsa.
     function openFirmaOra(contractId) {
         const c = (S.contracts || []).find(x => x.id === contractId);
         if (!c) return toast('error', 'Contratto non trovato');
@@ -19591,6 +19601,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const lLink = c.landlordSignToken ? `${base}/sign?sign=${c.landlordSignToken}` : '';
         const tDone = !!c.tenantSignature, lDone = !!c.landlordSignature;
         const dele = c.landlordDelegate && c.landlordDelegate.name ? c.landlordDelegate : null;
+        const mand = c.tenantMandate && c.tenantMandate.given === true ? c.tenantMandate : null;
+        const tdele = c.tenantDelegate && c.tenantDelegate.name ? c.tenantDelegate : null;
+        const dIT = iso => iso ? new Date(iso).toLocaleDateString('it-IT') : '—';
         const row = (icon, who, name, done, link, extra) => `
             <div class="list-item" style="align-items:center">
                 <div class="list-icon" style="background:var(--${done ? 'green' : 'gold'}-light)">${icon}</div>
@@ -19607,7 +19620,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="modal"><div class="modal-header"><h3 class="modal-title">🖊 Firma ora</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
                 <div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:12px">Apri il link su <b>questo</b> dispositivo e fai firmare col dito. La firma resta quella della persona che firma — data, ora e dispositivo finiscono nel certificato come sempre.</div>
-                ${row('👤', 'Conduttore', (t && t.name) || c.tenantName, tDone, tLink)}
+                ${row('👤', tdele ? 'Conduttore — firmi TU per mandato' : 'Conduttore', tdele ? `per conto di ${(t && t.name) || c.tenantName || ''}` : ((t && t.name) || c.tenantName), tDone, tLink)}
                 ${row('🏠', dele ? 'Locatore — firmi TU per delega' : 'Locatore', dele ? `per conto di ${dele.onBehalfOf || (ll && ll.name) || ''}` : ((ll && ll.name) || c.landlordName), lDone, lLink)}
                 <div class="card" style="margin-top:14px"><div class="card-body" style="padding:12px 14px">
                     <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:6px">Delega del proprietario</div>
@@ -19618,7 +19631,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                             : `<div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:8px">Il proprietario ti ha detto «fai tu»? Registra la delega: da quel momento il suo link ti fa firmare per suo conto, dichiarandolo sul documento.</div>
                                <button class="btn btn-sm" onclick="setDelega('${c.id}', true)">Prendo io la firma del proprietario</button>`}
                 </div></div>
-                <div style="font-size:11.5px;color:var(--text-muted);margin-top:12px;line-height:1.6">⚠️ Al posto del <b>conduttore</b> non si firma mai: quella non è una delega, è una firma falsa. Se non è con te, mandagli il link — o fissa la firma in presenza.</div>
+                <div class="card" style="margin-top:10px"><div class="card-body" style="padding:12px 14px">
+                    <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:6px">Mandato del conduttore</div>
+                    ${tDone ? '<div style="font-size:12.5px;color:var(--text-secondary)">Il conduttore ha già firmato' + (c.tenantSignedByDelegate ? ' — per mandato, da ' + esc(c.tenantSignedByDelegate.name || '') : '') + '.</div>'
+                        : !mand
+                            ? '<div style="font-size:12.5px;color:var(--text-secondary)">Nessun mandato scritto sul contratto. Il mandato si dà SOLO sulla proposta (pre-agreement), con la spunta a parte del cliente: senza, il conduttore firma col suo link.</div>'
+                            : tdele
+                                ? `<div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:8px">Attiva: firmi tu (<b>${esc(tdele.name)}</b>) per conto del conduttore, in forza del mandato del <b>${dIT(mand.at)}</b>${mand.ref ? ' (proposta ' + esc(mand.ref) + ')' : ''}. Apri il link del conduttore qui sopra e firma. Se i termini sono cambiati dopo il mandato, il server rifiuta la firma.</div>
+                                   <button class="btn btn-secondary btn-sm" onclick="setMandatoTenant('${c.id}', false)">Non firmo io: mando il link al conduttore</button>`
+                                : `<div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:8px">Mandato scritto ricevuto il <b>${dIT(mand.at)}</b>${mand.ref ? ' con la proposta ' + esc(mand.ref) : ''}${mand.docUrl ? ' · <a href="' + mand.docUrl + '" target="_blank" rel="noopener">apri il documento</a>' : ''}. Il cliente ti ha autorizzato a firmare il contratto in sua vece agli stessi termini: se non apre l'email, puoi firmare tu.</div>
+                                   <button class="btn btn-sm" onclick="setMandatoTenant('${c.id}', true)">Firmo io per il conduttore (mandato)</button>`}
+                </div></div>
+                <div style="font-size:11.5px;color:var(--text-muted);margin-top:12px;line-height:1.6">⚠️ Senza mandato scritto, al posto del <b>conduttore</b> non si firma mai: quella non è una delega, è una firma falsa. Se non è con te, mandagli il link — o fissa la firma in presenza.</div>
             </div>
             <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Chiudi</button></div></div></div>`;
     }
@@ -19643,6 +19667,31 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         } catch (e) { toast('error', 'Errore: ' + (e.message || e)); }
     }
     window.setDelega = setDelega;
+
+    // Firma per MANDATO del conduttore: si accende solo con un mandato
+    // scritto sul contratto (tenantMandate.given, dalla proposta). Scrive
+    // tenantDelegate nello schema che magic-sign/lookup e submit leggono;
+    // il server resta l'ultimo giudice (403 senza mandato, 409 termini
+    // cambiati). Rifiutata a firma già apposta.
+    async function setMandatoTenant(contractId, on) {
+        const c = (S.contracts || []).find(x => x.id === contractId);
+        if (!c) return;
+        if (c.tenantSignature) return toast('error', 'Il conduttore ha già firmato');
+        if (on && !(c.tenantMandate && c.tenantMandate.given === true)) return toast('error', 'Nessun mandato scritto: il conduttore firma col suo link');
+        const t = (S.users || []).find(u => u.id === c.tenantId);
+        try {
+            const me = (S.profile && (S.profile.name || S.profile.email)) || 'Amministratore BOOM';
+            const payload = on
+                ? { name: me, onBehalfOf: (t && t.name) || c.tenantName || 'il conduttore', basis: 'mandato scritto del conduttore' + (c.tenantMandate.ref ? ' (proposta ' + c.tenantMandate.ref + ')' : ''), at: new Date().toISOString(), by: (S.profile && S.profile.id) || null }
+                : null;
+            await db.collection('contracts').doc(contractId).update({ tenantDelegate: payload });
+            c.tenantDelegate = payload;
+            toast('success', on ? 'Firmi tu per il conduttore, in forza del mandato' : 'Il conduttore firma col suo link');
+            try { if (typeof logActivity === 'function') await logActivity(on ? 'mandato_attivato' : 'mandato_annullato', 'contract', { contractId }); } catch (e) { }
+            openFirmaOra(contractId);
+        } catch (e) { toast('error', 'Errore: ' + (e.message || e)); }
+    }
+    window.setMandatoTenant = setMandatoTenant;
 
     function viewContractSignatures(contractId) {
         const contract = S.contracts.find(c => c.id === contractId);
@@ -22383,10 +22432,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // mercato — mediana di zona del Perito, assorbimento, e i canoni
     // FIRMATI da BOOM in zona. Il canone si stampa come deciso: nessun
     // tetto. Sotto campione il documento NON pubblica una mediana.
-    async function openValutazione(contractId, canoneOverride) {
-        const c = (S.contracts || []).find(x => x.id === contractId);
+    // Dalla riga contratto (contractId) O dalla scheda immobile (opts.propertyId,
+    // senza contratto): e' il documento per i proprietari che chiedono una
+    // valutazione — pagina 1 il parere di mercato, pagina 2 la scheda di
+    // calcolo dell'accordo brandizzata BOOM. Il canone proposto lo decide
+    // l'operatore qui; il server non lo tocca mai.
+    async function openValutazione(contractId, canoneOverride, opts) {
+        opts = opts || {};
+        const c = contractId ? (S.contracts || []).find(x => x.id === contractId) : null;
+        const p = (S.properties || []).find(x => x.id === (opts.propertyId || (c && c.propertyId)));
+        if (!c && !p) return toast('error', 'Immobile non trovato');
+        const seed = (c && c.rent) || (p && (p.rent || p.monthlyRent || p.price)) || '';
         const canone = canoneOverride !== undefined ? canoneOverride
-            : await askModal({ title: '💶 Valutazione BOOM', message: 'Canone da valutare (€/mese). Nessun limite di fascia: e\' il nostro parere di mercato.', value: String((c && c.rent) || ''), type: 'number', okLabel: 'Genera' });
+            : await askModal({ title: '💶 Valutazione BOOM', message: 'Canone da valutare (€/mese). Nessun limite di fascia: e\' il nostro parere di mercato. La scheda di calcolo dell\'accordo esce a pagina 2.', value: String(seed), type: 'number', okLabel: 'Genera' });
         if (canone === null || canone === undefined || canone === '') return;
         toast('info', '💶 Preparo la valutazione…');
         try {
@@ -22394,16 +22452,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const r = await fetch('/api/fiscal/valutazione', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
-                body: JSON.stringify({ contractId, canone: Number(canone) || undefined })
+                body: JSON.stringify({ contractId: contractId || undefined, propertyId: (!contractId && p) ? p.id : undefined, canone: Number(canone) || undefined })
             });
             const j = await r.json().catch(() => null);
             if (!j || !j.ok) return toast('error', 'Valutazione: ' + ((j && j.error) || 'errore'));
             const basi = [];
             if (j.market) basi.push(`mercato zona (${j.market.sample} annunci, mediana €${j.market.medianEurSqm}/mq)`);
             if (j.firmati) basi.push(`${j.firmati.sample} canoni firmati BOOM`);
-            toast('success', basi.length ? '✓ Valutazione su ' + basi.join(' + ') : '✓ Valutazione pronta — campione di zona insufficiente, il documento lo dichiara');
-            const lc = (S.contracts || []).find(x => x.id === contractId);
+            const gaps = (j.scheda && j.scheda.gaps) || [];
+            toast('success', (basi.length ? '✓ Valutazione su ' + basi.join(' + ') : '✓ Valutazione pronta — campione di zona insufficiente, il documento lo dichiara')
+                + (gaps.length ? ' · scheda da completare: ' + gaps.join(', ') : ''));
+            const lc = contractId ? (S.contracts || []).find(x => x.id === contractId) : null;
             if (lc) lc.valutazioneBoomUrl = j.url;
+            if (p) p.valutazioneBoomUrl = j.url;
             window.open(j.url, '_blank', 'noopener');
         } catch (e) { console.error(e); toast('error', 'Valutazione: ' + e.message); }
     }

@@ -9,6 +9,7 @@
 // Vercel's bundler and fails at runtime in production.
 
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { PA_MANDATE_TEXT } from './_consent.js';
 
 // The real BOOM sonic-rings mark (black, on transparent) — rasterized once
 // from the official site SVG and embedded so the PDF carries the brand with
@@ -257,8 +258,21 @@ export async function buildPaPdf(pa, opts = {}) {
     y -= 3;
   });
 
-  // ── 6. SIGNATURES ──
-  secTitle(6, 'Signatures');
+  // ── 6. MANDATE TO SIGN (solo se conferito) ──
+  // Il mandato e' un atto a parte sulla pagina: qui si ristampa per intero
+  // col momento del conferimento, perche' questo PDF e' il documento che
+  // accompagna il contratto firmato per conto del cliente (pack, ARPE).
+  let sigNo = 6;
+  if (pa.mandate && pa.mandate.given) {
+    secTitle(6, 'Mandate to sign');
+    para(PA_MANDATE_TEXT, font, 8.5, INK, W, 1.42);
+    para(`Granted by the tenant together with the acceptance below - ${String(pa.mandate.at || '').replace('T', ' ').slice(0, 16)} UTC - hash ${String(pa.mandate.hash || '').slice(0, 16)}`, font, 7, SOFT);
+    y -= 6;
+    sigNo = 7;
+  }
+
+  // ── SIGNATURES ──
+  secTitle(sigNo, 'Signatures');
   const when = pa.acceptedAt ? fmtD(pa.acceptedAt) : fmtD(new Date().toISOString());
   para(`Roma, ${when}`, font, 9.5, INK); y -= 6;
   need(110);
@@ -276,6 +290,7 @@ export async function buildPaPdf(pa, opts = {}) {
   y = boxTop - 102;
   if (pa.consent && pa.consent.at) {
     para(`Digitally accepted with typed signature(s) - recorded ${String(pa.consent.at).replace('T', ' ').slice(0, 16)} UTC - IP ${pa.consent.ip || '-'} - boomrome.com/pre-agreement`, font, 7, SOFT);
+    if (pa.consent.text) para(`Consent: ${pa.consent.text}${pa.consent.hash ? ' [' + String(pa.consent.hash).slice(0, 16) + ']' : ''}`, font, 6.5, SOFT);
   }
 
   foot(page);

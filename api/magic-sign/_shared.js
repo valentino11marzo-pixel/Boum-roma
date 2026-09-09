@@ -74,6 +74,21 @@ export async function findContractByToken(token) {
   return null;
 }
 
+// L'impronta dei termini ECONOMICI del contratto: la usa la firma (terms
+// freeze) e il mandato del conduttore (il mandato copre SOLO questi termini:
+// un canone o una data cambiati dopo il conferimento = mandato che non vale).
+export function termsFingerprint(c) {
+  return [
+    'rent:' + Number(c.rent || 0),
+    'deposit:' + Number(c.deposit || 0),
+    'start:' + String(c.startDate || ''),
+    'end:' + String(c.endDate || ''),
+    'cadence:' + ([1, 2, 3, 6, 12].includes(Number(c.installmentMonths)) ? Number(c.installmentMonths) : 1),
+    'type:' + String(c.type || ''),
+    'cedolare:' + (((c.cedolareSecca || 'si') !== 'no' && c.cedolareSecca !== false) ? 'si' : 'no'),
+  ].join('|');
+}
+
 // Lato-conduttori completo = conduttore principale + TUTTI i co-conduttori.
 // È la condizione che sblocca la controfirma del locatore (sequenziale).
 export function tenantSideComplete(contract) {

@@ -797,8 +797,8 @@
     const base = cedolare ? 0 : Math.round(annual * 0.7 * 100) / 100;
     return {
       tipologia: 'L2', tipologiaLabel: 'L2 — locazione agevolata ad uso abitativo (canone concordato)',
-      article: c.type === 'studenti' ? 'art. 5, comma 2, L. 431/98' : 'art. 5, comma 1, L. 431/98',
-      accordo: c.type === 'studenti' ? 'Accordo territoriale Roma Capitale 27/07/2023, prot. RA/2023/0044852' : 'Accordo territoriale Roma Capitale 25/07/2023, prot. QC/82672/2023',
+      article: c.type === 'studenti' ? 'art. 5, comma 2, L. 431/98' : is32(c) ? 'art. 2, comma 3, L. 431/98' : 'art. 5, comma 1, L. 431/98',
+      accordo: (c.type === 'studenti' || is32(c)) ? 'Accordo territoriale Roma Capitale 27/07/2023, prot. RA/2023/0044852' : 'Accordo territoriale Roma Capitale 25/07/2023, prot. QC/82672/2023',
       months, rentMonthly: rent, rentAnnual: annual, totalForTerm,
       amountForRli: months && months < 12 ? totalForTerm : annual,
       amountForRliNote: months && months < 12 ? 'corrispettivo per l’intera durata (contratto inferiore a 12 mesi)' : 'canone annuo',

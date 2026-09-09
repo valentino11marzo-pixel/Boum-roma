@@ -376,6 +376,23 @@ async function uploadPdf(path, bytes, contentType = 'application/pdf'){
 // data/ora, hash e rinvio al certificato FES, e restituisce i byte del
 // documento unico. Ritorna null se il contratto non ha un PDF sorgente
 // (legacy): il chiamante allega allora solo il certificato.
+// Le righe "firmato per delega / per mandato" sotto il riquadro della firma
+// (pagina firme + certificato). Esportata e testata: due righe corte, solo
+// WinAnsi (mai una freccia), il mandato porta data e proposta. Nessun
+// delegato = nessuna riga: il documento non cambia per chi firma di persona.
+export function delegateLines(d) {
+  if (!d || !d.name) return [];
+  const cut = (s, n) => { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '.' : s; };
+  const isMandate = !!(d.mandateRef || d.mandateAt || /mandat/i.test(String(d.basis || '')));
+  const l1 = (isMandate ? 'Firma per mandato: ' : 'Firma per delega: ') + cut(d.name, 44);
+  let l2 = 'per conto di ' + cut(d.onBehalfOf || '-', 30);
+  if (isMandate) {
+    const at = d.mandateAt ? new Date(d.mandateAt).toLocaleDateString('it-IT') : '';
+    l2 += ' - mandato' + (at ? ' del ' + at : '') + (d.mandateRef ? ' (' + cut(d.mandateRef, 16) + ')' : '');
+  } else if (d.basis) l2 += ' - ' + cut(d.basis, 30);
+  return [cut(l1, 64), cut(l2, 64)];
+}
+
 async function buildSignedContract(c, property){
   const src = c.generatedPDF || c.contractPdfUrl || '';
   if (!src) return null;
@@ -453,7 +470,7 @@ async function buildSignedContract(c, property){
   row('Firmato da tutte le parti il', c.fullySignedAt ? new Date(c.fullySignedAt).toLocaleString('it-IT') : '-');
   y -= 10;
 
-  const block = async (title, name, cf, sig, at, x) => {
+  const block = async (title, name, cf, sig, at, x, dele) => {
     let yy = y;
     T(title, x, yy, 10, bold, gold); yy -= 16;
     T('Firmatario: ' + (name || '-'), x, yy, 9); yy -= 13;
@@ -468,9 +485,13 @@ async function buildSignedContract(c, property){
           page.drawImage(im, { x: x + (230 - w)/2, y: yy - 56 + (52 - h)/2, width: w, height: h }); }
       } catch(e){}
     }
+    // Firma per delega / per mandato: CHI ha firmato davvero e in forza di
+    // cosa — sotto il riquadro, dove chi legge cerca la firma. Prima la
+    // pagina taceva e il documento sembrava firmato dal titolare.
+    for (const [i, line] of delegateLines(dele).entries()) T(line, x, yy - 58 - 9 - i * 8, 7, font, grey);
   };
-  await block('IL CONDUTTORE (Tenant)', c.tenantName, c.tenantCF, c.tenantSignature, c.tenantSignedAt, 40);
-  await block('IL LOCATORE (Landlord)', c.landlordName, c.landlordCF, c.landlordSignature, c.landlordSignedAt, 320);
+  await block('IL CONDUTTORE (Tenant)', c.tenantName, c.tenantCF, c.tenantSignature, c.tenantSignedAt, 40, c.tenantSignedByDelegate);
+  await block('IL LOCATORE (Landlord)', c.landlordName, c.landlordCF, c.landlordSignature, c.landlordSignedAt, 320, c.landlordSignedByDelegate);
 
   // CO-FIRMA: blocchi firma anche per i co-conduttori (fino a 2 in pagina).
   const coSigList = (Array.isArray(c.coTenants) ? c.coTenants : []).filter(x => x && x.name);
@@ -525,7 +546,7 @@ async function buildCertificate(c, property){
   row('Stato', c.fullySignedAt ? 'COMPLETO — firmato da tutte le parti il ' + new Date(c.fullySignedAt).toLocaleString('it-IT') : 'COMPLETO');
   y -= 8;
 
-  const block = async (title, name, cf, sig, at, ip, hash, x) => {
+  const block = async (title, name, cf, sig, at, ip, hash, x, dele) => {
     let yy = y;
     T(title, x, yy, 10, bold, gold); yy -= 16;
     T('Firmatario: ' + (name || '-'), x, yy, 9); yy -= 13;
@@ -543,9 +564,12 @@ async function buildCertificate(c, property){
     }
     yy -= 70;
     T('Consent hash: ' + String(hash || '').slice(0, 40), x, yy, 7, font, grey);
+    // Il certificato ATTESTA: se ha firmato un delegato o un mandatario, lo
+    // dice qui, con la base (delega / mandato, data, proposta).
+    for (const [i, line] of delegateLines(dele).entries()) T(line, x, yy - 9 - i * 8, 7, font, grey);
   };
-  await block('CONDUTTORE (Tenant)', c.tenantName, c.tenantCF, c.tenantSignature, c.tenantSignedAt, c.tenantSignedIP, c.tenantConsentHash, 40);
-  await block('LOCATORE (Landlord)', c.landlordName, c.landlordCF, c.landlordSignature, c.landlordSignedAt, c.landlordSignedIP, c.landlordConsentHash, 320);
+  await block('CONDUTTORE (Tenant)', c.tenantName, c.tenantCF, c.tenantSignature, c.tenantSignedAt, c.tenantSignedIP, c.tenantConsentHash, 40, c.tenantSignedByDelegate);
+  await block('LOCATORE (Landlord)', c.landlordName, c.landlordCF, c.landlordSignature, c.landlordSignedAt, c.landlordSignedIP, c.landlordConsentHash, 320, c.landlordSignedByDelegate);
 
   // CO-FIRMA: i co-conduttori hanno il LORO blocco (firma, CF, data/ora,
   // IP, hash del consenso) — fino a 2 in pagina; oltre, la riga li conta

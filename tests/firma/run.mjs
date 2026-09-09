@@ -100,7 +100,9 @@ ok(/const _isStudenti = \(data\.type \|\| _existingContract\.type\) === 'student
   'la verifica guarda il tipo SCELTO ORA, non quello con cui il contratto è nato');
 
 // ── 3. La firma in prima persona ────────────────────────────────────────
-const fo = app.slice(app.indexOf('function openFirmaOra'), app.indexOf('function openFirmaOra') + 6000);
+// Il pannello ha DUE card (delega del proprietario + mandato del conduttore):
+// la finestra copre l'intera funzione, fino a setDelega.
+const fo = app.slice(app.indexOf('function openFirmaOra'), app.indexOf('async function setDelega'));
 ok(fo.length > 500 && /window\.openFirmaOra/.test(app), 'il pannello 🖊 Firma ora esiste ed è globale');
 ok(/tenantSignToken/.test(fo) && /landlordSignToken/.test(fo), 'apre il link VERO di ciascuna parte (firma in presenza)');
 ok(/boomOpen\(/.test(fo), 'usa la consegna unica (niente window.open crudo)');

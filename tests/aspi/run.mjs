@@ -369,7 +369,7 @@ const PDFB64 = 'data:application/pdf;base64,' + Buffer.from('%PDF-1.4 finto').to
 {
   const src = fs.readFileSync(new URL('../../api/fiscal/fascicolo.js', import.meta.url), 'utf8');
   check('fascicolo: nessuna via d\'uscita "non calcolabile" — il modulo ARPE (Allegato 2/B) esce comunque, 1:1',
-    !src.includes('NON ANCORA CALCOLABILE') && src.includes('export function drawSchedaArpe') && src.includes('export const SCHEDA_TEXT'));
+    !src.includes('NON ANCORA CALCOLABILE') && /export async function drawSchedaArpe/.test(src) && src.includes('export const SCHEDA_TEXT'));
   check('fascicolo: il canone PATTUITO si stampa sempre, anche senza calcolo',
     /importoPatt: 'Importo canone mensile pattuito: €'/.test(src) && /Number\(input\.canone \|\| contract\.rent\)/.test(src));
   check('fascicolo: la griglia maggiorazioni A-H del modulo c\'e\' tutta (etichette del modulo, con la lineetta del modulo)',

@@ -1576,6 +1576,32 @@ posizionamento €/mq contro la mediana. Vale la disciplina del Perito:
 campione di zona povero producono "campione insufficiente", mai una mediana
 travestita da dato. Bottone **💶 Valutazione BOOM** sulla riga contratto.
 
+**Il documento per i proprietari che chiedono una valutazione** (9/09/2026
+— «la scheda calcolo brandizzata boom diventa un documento per i
+proprietari»). Il modulo 1:1 va ad ARPE; al proprietario va QUESTO: pagina 1
+il parere di mercato, **pagina 2 la scheda di calcolo brandizzata BOOM**
+(`drawSchedaBoom`, esportata): superficie convenzionale riga per riga con
+i coefficienti, i 20 parametri con quelli che l'immobile ha davvero, la
+subfascia con la soglia che la decide, il canone base (valore × mq), le
+maggiorazioni A–H applicate, la regola del tetto quando scatta, e i due
+numeri affiancati — **massimo attestabile** dell'accordo e **canone
+proposto** — con la frase che li mette in relazione («rientra: attestabile
+come concordato, cedolare al 10%» oppure «supera di €X: è un canone di
+MERCATO, non attestabile»). Gli STESSI fatti del modulo (`schedaFacts` +
+`resolveCanoneInput`, una copia sola: dotazioni REALI di immobile e
+annuncio, override persistiti): la scheda del proprietario e il modulo ARPE
+non possono divergere. Ciò che manca si scrive «da completare» (zona, mq,
+catasto), il massimo diventa «non calcolabile» con l'elenco di cosa manca
+— mai un numero. **Si genera anche SENZA contratto**: bottone
+**💶 Valutazione** nel modale dell'immobile (admin) →
+`openValutazione(null, undefined, {propertyId})` → `POST {propertyId,
+canone}`; il documento si ricorda sull'immobile (`valutazioneBoomUrl/At/
+Canone`) e, quando c'è, sul contratto. Testata e piede dal marchio vero
+(`_pdfbrand`: `masthead` + `stampFooters`), come inventario e verbale — la
+testata scritta a mano è sparita. La risposta porta `scheda: {gaps, fascia,
+cMax, fits, nP, sc}` e il portal lo dice nel toast («scheda da completare:
+catasto»). Test: `node tests/mandato/run.mjs` §8.
+
 **La sanatoria del PDF stantio** (`ensureContractPdf`, stessa release):
 il rail di firma ora RIGENERA da solo un `generatedPDF` con
 `clauseVersion` < 2 quando NESSUNA firma è viva — prima un contratto
@@ -2222,8 +2248,89 @@ creazione del contratto, si attiva e si annulla in qualsiasi momento
 (rifiutata se `landlordSignature` esiste): scrive `landlordDelegate` nello
 schema che `magic-sign/lookup`, `submit` e `sign.html` già leggono, quindi
 il documento dice «firma X per conto di Y». **Al posto del conduttore non
-si firma mai** — quella non è una delega, è una firma falsa, e la riga è
-scritta nel pannello, non lasciata al buonsenso.
+si firma mai SENZA MANDATO SCRITTO** — quella non è una delega, è una firma
+falsa, e la riga è scritta nel pannello, non lasciata al buonsenso.
+
+### Il mandato a firmare del conduttore (9/09/2026 — «devo poter firmare io per il cliente»)
+Il caso vero: il cliente ha accettato e firmato la proposta, pensa sia
+tutto fatto, e l'email col link del contratto resta chiusa per settimane —
+mentre i termini del contratto sono ESATTAMENTE quelli della proposta.
+Prima l'unica via era rincorrerlo; il pannello diceva (giustamente) che al
+posto del conduttore non si firma. Ora il conduttore può conferire a BOOM
+un **mandato con rappresentanza** (art. 1703 ss. c.c.) a sottoscrivere il
+contratto in suo nome — e siccome il contenuto è predeterminato dalla
+proposta, il doppio ruolo dell'agenzia non fa conflitto (art. 1395 c.c.,
+dichiarato nel testo). Le regole, tutte verificate per mutazione:
+- **Si dà SULLA PROPOSTA, con una spunta A PARTE** (`pre-agreement.html`,
+  checkbox `paMandate`, mai pre-selezionata, mai obbligatoria): chi la
+  lascia vuota firma col proprio link come sempre. La console la OFFRE
+  (`askMandate`, default sì, interruttore per proposta): senza offerta la
+  spunta nel body non vale (`submit.js`: `askMandate!==false && b.mandate===true`).
+  Il testo è UNO (`api/preagreement/_consent.js` → `PA_MANDATE_TEXT`,
+  hash sha256): la pagina lo mostra parola per parola (test: pagina ==
+  server), submit lo registra con hash/data/ip/ua, il PDF della proposta
+  lo ristampa come sezione «6. Mandate to sign».
+- **Il contratto lo eredita CON L'IMPRONTA dei termini**: `convert.js`
+  scrive `tenantMandate {given, at, ref, paId, hash, text, termsHash,
+  docUrl}` dove `termsHash = termsFingerprint(contract)` (canone, deposito,
+  date, cadenza, tipo, cedolare — la stessa funzione del terms freeze,
+  ora in `magic-sign/_shared.js`, una copia) calcolata sul contratto
+  INTERO appena nato; il PDF della proposta accettata va su
+  `contracts/<id>/mandato-conduttore.pdf` come documento del mandato.
+- **Il server è l'ultimo giudice** (`magic-sign/submit.js`, guardia PRIMA
+  della costruzione della firma): `tenantDelegate` senza
+  `tenantMandate.given` → **403 `mandate_missing`**, nessuna firma, avviso
+  urgente; impronta diversa (un canone ritoccato dopo il mandato) → **409
+  `mandate_terms_changed`**, nessuna firma. Con mandato valido la firma
+  passa e stampa `tenantSignedByDelegate {name, onBehalfOf, basis, signedAt,
+  mandateRef, mandateAt, mandateHash}`.
+- **Chi ha firmato davvero resta scritto ovunque**: `sign.html` mostra il
+  banner «You are signing as X on behalf of the tenant Y — written mandate
+  given on … with proposal …» (e avverte se il mandato manca); la pagina
+  delle firme e il certificato FES stampano sotto il riquadro le due righe
+  di `delegateLines()` («Firma per mandato: X» / «per conto di Y - mandato
+  del gg/mm/aaaa (ref)» — anche per la delega del locatore, che prima
+  taceva); la scheda ARPE porta la firma con «X per conto di Y», «mandato
+  del …», e la riga della firma digitale sulla proposta; il Pack aggiunge
+  `10_Mandato_conduttore.pdf` solo quando la firma è per mandato.
+- **Nel portal**: card «Mandato del conduttore» in 🖊 Firma ora — senza
+  mandato dice dove si dà (sulla proposta), con mandato mostra data/
+  proposta/documento e il bottone «Firmo io per il conduttore (mandato)» →
+  `setMandatoTenant` scrive `tenantDelegate {name, onBehalfOf, basis, at,
+  by}` (rifiutato senza mandato o a firma già apposta), poi si apre il link
+  del conduttore e si firma. La riga del contratto nella console PA dice
+  «🖊 Mandato a firmare ricevuto il …». Un rinnovo NON eredita mandato,
+  deleghe, firme per conto né accettazione (atti di QUEL contratto).
+- **La scheda si firma con la proposta** (stessa release — «pronta e auto
+  firmata dal cliente quando accetta»): `PA_CONSENT_TEXT` dichiara che
+  l'accettazione firma ANCHE la scheda di calcolo del canone (Allegato
+  2/B) e che le informazioni sull'immobile sono fornite dalle parti;
+  submit registra `consent {text, hash, schedaSigned:true}`, convert lo
+  porta su `contract.paAcceptance {at, ref, hash, schedaSigned}`, e
+  `firmaOf()` in `fascicolo.js` stampa sul modulo — sotto la riga di firma
+  di ciascuna parte — la firma grafica del contratto (PNG incorporato) più
+  le righe che la qualificano («firmato digitalmente il …», «firma digitale
+  sulla proposta BOOM-… del …», delega/mandato). La pagina della proposta
+  mostra PRIMA della firma la card «Rent calculation sheet (Allegato 2/B)»
+  coi numeri calcolati DAL SERVER sull'immobile collegato
+  (`lookup.js` → `schedaSummary`: zona, superficie convenzionale,
+  parametri, fascia, massimo, canone e verdetto) e dichiara i buchi
+  («Still to complete on the sheet: cadastral data»); `schedaGaps()`
+  (zona · mq · catasto · canone) è la stessa lista che la console PA
+  segnala nella riga del canone («scheda 2/B: manca il catasto») e che il
+  fascicolo riporta — la scheda esce completa perché i buchi si vedono
+  PRIMA, non dopo la firma.
+- **Il bug della pagina RLI** (stessa release): `fascicolo.js` stampava
+  `rent×12` e «L2» solo sugli studenti; ora legge `FIELDS.rliFacts`
+  (tipologia L2 per tutti i concordati, importo = corrispettivo per la
+  durata sotto i 12 mesi, scadenza da min(stipula, decorrenza), articolo e
+  accordo per modello — il 3+2 cita art. 2 c. 3 e l'accordo 27/07/2023).
+- Test: `node tests/mandato/run.mjs` (64 check — handler VERI su Firestore
+  in memoria: proposta → accettazione con mandato → conversione →
+  lookup → 403 senza mandato → 409 termini cambiati → firma per mandato
+  stampata; scheda ARPE con le firme; pagina == server sui testi;
+  Valutazione dall'immobile con la scheda a pagina 2, buchi dichiarati,
+  403 non admin).
 
 ### Le regole IN VIGORE ≠ le regole nel file (31/08/2026)
 Il difetto più caro trovato in questa tornata, e nessuna suite poteva
@@ -3798,6 +3905,7 @@ camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
   | `tests/contractpdf/run.mjs` | il PDF del contratto in UNA copia (jsPDF REALE): l'impaginato condiviso produce Allegato B/C con le ancore firma, la conversione PA lo scrive da sola (e con Storage giù il contratto nasce comunque), send-sign sana i pre-fix PRIMA dell'email (ordine asserito sulla sorgente), la prima apertura di /sign è l'ultima rete, e MAI una rigenerazione sotto una firma viva (mutazione) |
   | `tests/sign/lang.mjs` | /sign bilingue guidata in un browser vero (demo mode): default per ruolo (locatore IT, inquilino EN), toggle che ridisegna lo step corrente in entrambe le direzioni, percorso intero tradotto, Skip OTP che non blocca, link WhatsApp presenti. Si auto-skippa senza playwright |
   | `tests/scalo/run.mjs` | LO SCALO lotti 1-4: la carta d'imbarco dice la verità (visita annullata/standby = Wallet spento e DETTO, codici di rotta solo dal lessico — mai inventati, pass viewing per navigazione vera mai blob:), il lessico `js/scalo-codes.js` in UNA copia (alias lungo batte il corto, parole intere, ambiguo → null, bmCode derivato), il flight status di /viewing (countdown SOLO sui momenti veri di _moments, stato temporale mai "già spedito"), il check-in di /book (la carta SOLO sulla confermata — mai sulla pending — con applyApprovalCopy unico posto delle parole), l'idrante di /board (corsie SOLO da BOOM_DISPO.marketLane — closed fuori, illeggibile = ASK mai NOW, ETA dall'iso del motore, fail-open sulla fotografia di build), la rotta di /casa (tappe = FATTI del contratto: signatureStatus, depbal, startDate, endDate−90 — l'aereo sulla prima non compiuta, niente rotta senza contratto) e il timbro di apartment-detail (visibile sempre, batte una volta, fermo con reduced-motion). Lotto 4: il handler VERO di /api/meteo su Firestore in memoria (whitelist che non lascia passare un campo non dichiarato, sotto campione SOLO il nome, cache CDN, solo GET), meteo.html che non tocca mai Firestore, lo sweep della plancia (blip = gli stessi item della strip, angolo dichiarato disposizione), e le og carte PNG verificate nei byte (IHDR 1200×630) |
+  | `tests/mandato/run.mjs` | il mandato a firmare: spunta a parte sulla proposta (mai dedotta, solo se offerta), il contratto la eredita con l'impronta dei termini, al posto del conduttore SOLO col mandato (403) e SOLO agli stessi termini (409), chi ha firmato resta stampato su pagina firme/certificato/scheda ARPE/pack; il consenso della proposta firma anche la scheda 2/B (pagina == server, hash); la Valutazione BOOM esce dall'immobile con la scheda di calcolo brandizzata a pagina 2 e i buchi dichiarati |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
   the 3 portals via `BoomPortal.registerServiceWorker()`

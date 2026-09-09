@@ -58,7 +58,9 @@ function itNum(v) {
 }
 const eur = n => 'EUR ' + itNum(n);
 const fmtN = n => itNum(n);
-const dIT = s => { try { const d = new Date(String(s).slice(0, 10) + 'T00:00'); return isNaN(d) ? '' : d.toLocaleDateString('it-IT'); } catch { return ''; } };
+// Date all'italiana DETERMINISTICHE (gg/mm/aaaa): come i numeri, mai
+// toLocale* su un runtime con ICU ridotta.
+const dIT = s => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s == null ? '' : s)); return m ? `${m[3]}/${m[2]}/${m[1]}` : ''; };
 
 // ── Input dal contratto: solo dati reali, override persistiti ────────────
 function collectFeatures(property, listing) {
@@ -185,6 +187,51 @@ const nameCf = (n, cf) => { const a = clip(n, 70), b = clip(cf, 20); return a ? 
 // Il modulo dice "Via ____": il tipo di strada e' gia' stampato.
 const stripVia = (a) => clip(a, 60).replace(/^(via|viale|piazza|piazzale|largo|corso|vicolo|lungotevere|circonvallazione)\s+/i, '');
 
+// La firma di una parte SUL MODULO, dai fatti del contratto: la firma
+// disegnata (Magic Sign) quando la parte ha firmato lei; «X per conto di Y»
+// quando ha firmato BOOM per mandato (conduttore) o per delega (locatore);
+// e per il conduttore anche la firma digitale della PROPOSTA, che con
+// l'accettazione ha firmato pure questa scheda (_consent.js). Nessuna
+// firma → le righe restano vuote, come sul modulo.
+function firmaOf(contract, side) {
+  const c = contract || {};
+  const sig = c[side + 'Signature'], at = c[side + 'SignedAt'], dele = c[side + 'SignedByDelegate'];
+  const name = side === 'tenant' ? c.tenantName : c.landlordName;
+  const lines = [];
+  let image = null;
+  const isImg = (s) => typeof s === 'string' && /^data:image\/(png|jpe?g);base64,/i.test(s);
+  if (dele && dele.name) {
+    lines.push(`${clip(dele.name, 60)} per conto di ${clip(name, 60) || (side === 'tenant' ? 'il conduttore' : 'il locatore')}`);
+    if (side === 'tenant') {
+      const m = c.tenantMandate || {};
+      lines.push(`mandato del ${dIT(dele.mandateAt || m.at)}${(dele.mandateRef || m.ref) ? ' (' + clip(dele.mandateRef || m.ref, 30) + ')' : ''} - firmato il ${dIT(dele.signedAt || at)}`);
+    } else {
+      lines.push(`per delega del proprietario - firmato il ${dIT(dele.signedAt || at)}`);
+    }
+    if (isImg(sig)) image = sig;
+  } else if (isImg(sig)) {
+    image = sig;
+    lines.push(`firmato digitalmente il ${dIT(at)} (FES art. 21 CAD)`);
+  }
+  const pa = c.paAcceptance || {};
+  if (side === 'tenant' && pa.at && pa.schedaSigned) lines.push(`firma digitale sulla proposta del ${dIT(pa.at)}${pa.ref ? ' (' + clip(pa.ref, 30) + ')' : ''}`);
+  return { name: clip(name, 80), image, lines: lines.slice(0, 3) };
+}
+
+// Cosa manca perche' la scheda esca COMPLETA (senza righe vuote da
+// compilare a mano): la console della proposta lo mostra PRIMA di mandare
+// il link, il fascicolo lo riporta. Parametri a zero non sono un buco:
+// una casa senza dotazioni esiste.
+export function schedaGaps(f) {
+  const g = [];
+  if (!f) return ['fatti'];
+  if (!f.zona && !f.zonaCod) g.push('zona');
+  if (!(f.mq > 0)) g.push('mq');
+  if (!(f.cat && f.cat.f && f.cat.p)) g.push('catasto');
+  if (!(f.pattuito > 0)) g.push('canone');
+  return g;
+}
+
 export function schedaFacts({ contract = {}, property = {}, calc, input = {} }) {
   const has = !!(calc && calc.ok);
   const cfg = Object.assign({}, CANONE.DEFAULT_CFG, input.cfg || {});
@@ -229,10 +276,11 @@ export function schedaFacts({ contract = {}, property = {}, calc, input = {} }) 
     cMax: has ? calc.cMax : null, capApplied: !!(has && calc.capApplied),
     pattuito, fits: has && pattuito > 0 ? calc.fits !== false : null,
     excess: has && calc.fits === false ? calc.excess : 0,
+    firme: { locatore: firmaOf(contract, 'landlord'), conduttore: firmaOf(contract, 'tenant') },
   };
 }
 
-export function drawSchedaArpe(pdf, { font, bold }, f) {
+export async function drawSchedaArpe(pdf, { font, bold }, f) {
   const W = 595, H = 842, ML = 36, MR = W - ML;      // margini del modulo: 720 twip
   const page = pdf.addPage([W, H]);
   const ink = rgb(0.06, 0.06, 0.07), grey = rgb(0.4, 0.4, 0.42), tint = rgb(0.9, 0.9, 0.9);
@@ -400,13 +448,32 @@ export function drawSchedaArpe(pdf, { font, bold }, f) {
     if (f.fits === false) { T(`Il canone pattuito supera l’importo massimo di € ${N(f.excess)}: l’attestazione di rispondenza va verificata con l’organizzazione.`, ML + 2, y, 6.5, font, grey); y -= 10; }
   }
 
-  // ── Firme ──
+  // ── Firme: la firma disegnata sopra la riga, la provenienza sotto ──
   y -= 22;
   T(TX.firme[0], ML + 30, y, 9); T(TX.firme[1], ML + 370, y, 9); y -= 26;
   hline(ML + 10, ML + 175, y); hline(ML + 350, ML + 515, y);
+  const firme = f.firme || {};
+  const sides = [[firme.locatore, ML + 10], [firme.conduttore, ML + 350]];
+  for (const [s, x] of sides) {
+    if (!s) continue;
+    if (s.image) {
+      try {
+        const m = /^data:image\/(png|jpe?g);base64,(.+)$/i.exec(s.image);
+        const b = Buffer.from(m[2], 'base64');
+        const im = m[1].toLowerCase().startsWith('jp') ? await pdf.embedJpg(b) : await pdf.embedPng(b);
+        const ar = im.width / im.height; let w = 120, h = w / ar; if (h > 26) { h = 26; w = h * ar; }
+        page.drawImage(im, { x: x + 20, y: y + 2, width: w, height: h });
+      } catch (_) { /* una firma che non si incorpora non ferma il modulo */ }
+    }
+    // Le righe di provenienza NON escono dalla colonna della firma: si
+    // TRONCANO alla larghezza (165pt) con i puntini invece di rimpicciolire
+    // fino a 5pt e sconfinare comunque sul piede del modulo.
+    const fit = (t) => { let u = String(t); while (u.length > 4 && wd(u, 6.5, font) > 165) u = u.slice(0, -4) + '...'; return u; };
+    (s.lines || []).forEach((ln, i) => T(fit(ln), x, y - 9 - i * 8, 6.5, font, grey));
+  }
 
-  // ── Pie' di pagina del modulo ──
-  TC(TX.footer, W / 2, 48, 8, bold);
+  // ── Pie' di pagina del modulo (sotto le righe delle firme, mai sopra) ──
+  TC(TX.footer, W / 2, Math.min(34, y - 40), 8, bold);
   return page;
 }
 
@@ -414,7 +481,7 @@ export async function buildSchedaPdf(facts) {
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
-  drawSchedaArpe(pdf, { font, bold }, facts);
+  await drawSchedaArpe(pdf, { font, bold }, facts);
   return await pdf.save();
 }
 
@@ -449,18 +516,26 @@ async function buildPdf({ contract, property, calc, input, deadlines, facts }) {
   };
 
   // ═══ PAGINA 1 — LA SCHEDA DI CALCOLO DEL CANONE (Allegato 2/B ARPE, 1:1) ═══
-  drawSchedaArpe(pdf, { font, bold }, facts);
+  await drawSchedaArpe(pdf, { font, bold }, facts);
 
   // ═══ PAGINA 2 — DATI REGISTRAZIONE RLI ═══
   newPage();
   head('DATI PER LA REGISTRAZIONE (Mod. RLI)', 'Da ricopiare sul modello RLI (web/desktop) - non sostituisce il modello ufficiale');
-  const months = (contract.startDate && contract.endDate)
-    ? Math.max(1, Math.round((new Date(contract.endDate) - new Date(contract.startDate)) / (1000 * 60 * 60 * 24 * 30))) : null;
-  const annuo = Number(contract.rent || 0) * 12;
-  row('Tipologia contratto', contract.type === 'studenti' ? 'L2 - Studenti universitari (art. 5 c.2-3 L.431/98)' : 'Transitorio (art. 5 c.1 L.431/98)');
-  row('Durata', `${dIT(contract.startDate)} -> ${dIT(contract.endDate)}${months ? `  (${months} mesi)` : ''}`);
-  row('Canone', `${eur(contract.rent)} /mese  -  ${eur(annuo)} /anno${contract.installmentMonths > 1 ? `  -  rata ogni ${contract.installmentMonths} mesi da ${eur(contract.installmentAmount)}` : ''}`);
-  row('Cedolare secca', (contract.cedolareSecca || 'si') !== 'no' ? 'SI (10% concordato con attestazione)' : 'NO - regime ordinario (registro 2% min EUR 67 + bollo)');
+  // I numeri RLI escono dal dizionario (rliFacts): tipologia L2 per TUTTI
+  // i concordati, importo = corrispettivo per la durata sotto i 12 mesi,
+  // scadenza a 30 giorni da min(stipula, decorrenza), imponibile 70% senza
+  // cedolare — gli stessi del Foglio di registrazione. Fino al 9/09/2026
+  // questa pagina stampava rent×12 sempre e «L2» solo su studenti.
+  const rli = FIELDS.rliFacts(contract);
+  row('Tipologia contratto', `${rli.tipologiaLabel} - ${rli.article}`);
+  row('Accordo', rli.accordo);
+  row('Durata', `${dIT(contract.startDate)} -> ${dIT(contract.endDate)}${rli.months ? `  (${rli.months} mesi)` : ''}`);
+  row('Canone', `${eur(rli.rentMonthly)} /mese  -  ${eur(rli.rentAnnual)} /anno${contract.installmentMonths > 1 ? `  -  rata ogni ${contract.installmentMonths} mesi da ${eur(contract.installmentAmount)}` : ''}`);
+  row('Importo per RLI', `${eur(rli.amountForRli)}  (${rli.amountForRliNote})`);
+  row('Cedolare secca', rli.cedolare ? 'SI (10% concordato con attestazione) - niente registro ne\' bollo'
+    : `NO - registro 2% su imponibile ${eur(rli.imponibileRegistro)} = ${eur(rli.impostaRegistro)} (min EUR 67) + bollo ${eur(rli.bollo)}`);
+  row('Registrazione entro', rli.registrationDeadline ? `${dIT(rli.registrationDeadline)}  (30 gg da ${rli.registrationFrom === rli.stipula && rli.stipula ? 'stipula' : 'decorrenza'})` : 'da stipula/decorrenza');
+  row('Conduttori / Locatori', `${rli.nConduttori} / ${rli.nLocatori}`);
   row('Deposito', eur(contract.deposit));
   y -= 6;
   need(16); T('LOCATORE', M, y, 9, bold, gold); y -= 14;
@@ -478,7 +553,7 @@ async function buildPdf({ contract, property, calc, input, deadlines, facts }) {
   row('Catasto', `${property.cadastralData || contract.cadastral || '-'}${contract.renditaCatastale ? '  -  rendita ' + eur(contract.renditaCatastale) : ''}`);
   row('Classe energetica', contract.energyClass || property.energyClass || '-');
   y -= 10;
-  need(14); T('Nota: registrazione entro 30 giorni dalla stipula. Con cedolare secca: niente registro ne\' bollo.', M, y, 8, font, grey);
+  need(14); T('Nota: registrazione entro 30 giorni da stipula o decorrenza (la prima). Con cedolare secca: niente registro ne\' bollo.', M, y, 8, font, grey);
 
   // ═══ PAGINA 3 — SCADENZARIO ═══
   newPage();

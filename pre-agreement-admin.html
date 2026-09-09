@@ -304,6 +304,8 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
           <button type="button" onclick="setXDoc('Last 3 payslips or proof of income')">Buste paga</button>
         </div>
         <label class="fld"><span>Secondo documento (facoltativo)</span><input id="fXDoc" placeholder="es. Proof of the transitional need (work contract / enrolment)"></label>
+        <p class="hintline" style="margin-top:12px">Con l'accettazione il cliente firma anche la <b>scheda di calcolo del canone</b> (Allegato 2/B) — dopo la firma del contratto esce già completa. E può darti il <b>mandato a firmare</b> il contratto in sua vece agli stessi identici termini: spunta a parte, mai pre-selezionata. Se i termini cambiano dopo, il mandato non vale più (il server lo rifiuta).</p>
+        <label class="fld" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="fMandate" checked style="width:auto"><span style="margin:0">Offri il mandato a firmare nella proposta</span></label>
       </div>
 
       <div class="card"><h2><span class="no">06</span><span class="tt">Cliente (prefill facoltativo)</span></h2>
@@ -438,6 +440,10 @@ function canoneLine(){
   var gear=' <a href="#" onclick="calibraAccordo();return false" title="Calibra accordo (ammobiliato %, soglie)" style="color:var(--t3);text-decoration:none">⚙</a>';
   if(!zona){el.innerHTML='<span style="color:var(--t3)">Canone concordato: zona non riconosciuta'+(zonaText?' («'+zonaText.slice(0,28)+'»)':'')+' — verifica con ARPE</span>'+gear;return;}
   if(!p||!p.sqm){el.innerHTML='<span style="color:var(--t3)">Zona <b>'+zona.cod+'</b> ('+zona.nome+') · fascia B '+zona.bMin+'–'+zona.bMax+' €/mq — seleziona una proprietà con mq per il verdetto</span>'+gear;return;}
+  /* La scheda ARPE che il cliente firma con l'accettazione stampa anche i
+     dati catastali: senza, esce con una riga vuota. Lo si dice QUI, dove
+     si compila — non dopo la firma. */
+  var schedaGap=(!p.cadastralData&&!(p.foglio&&p.particella))?' · <span style="color:#E08573">scheda 2/B: manca il catasto sull\'immobile</span>':'';
   var s=window.BOOM_CANONE.solve({zona:zona,mq:p.sqm,canone:rent,tipo:'trans',features:p.features||[],
     furnished:p.furnished,energyClass:p.energyClass,floorText:p.floor,cfg:CANONE_CFG||{}});
   if(!s.ok){el.innerHTML='<span style="color:var(--t3)">Canone: '+s.error+'</span>'+gear;return;}
@@ -445,7 +451,7 @@ function canoneLine(){
   el.innerHTML=(s.fits
     ? '<b style="color:var(--gold)">✓ IN FASCIA '+s.fascia+'</b> ('+zona.cod+' · '+s.nP+' parametri) — max asseverabile <b>€ '+max+'</b>/mese'
     : '<b style="color:#E08573">⚠ FUORI FASCIA di € '+(s.canone-s.cMax).toLocaleString('it-IT',{maximumFractionDigits:0})+'</b> ('+zona.cod+' · fascia '+s.fascia+', max € '+max+') — riporta il canone o verifica i parametri')
-    +gear;
+    +schedaGap+gear;
 }
 var _origMathLine=mathLine;
 mathLine=function(){_origMathLine();loadCanoneCfg().then(canoneLine);};
@@ -515,6 +521,7 @@ function readForm(){
     property:{address:$('fAddress').value.trim(),floor:$('fFloor').value.trim()||null,unit:$('fUnit').value.trim()||null,condition:$('fCondition').value.trim()||'Furnished',type:'Entire Apartment',use:'Residential'},
     landlord:{name:$('fLandlord').value.trim(),email:$('fLEmail').value.trim()||null,phone:$('fLPhone').value.trim()||null},
     extraDoc:$('fXDoc').value.trim()||null,
+    askMandate:!!$('fMandate').checked,
     validUntil:$('fValid').value||null,
     tenant:{fullName:$('fTName').value.trim()||null,email:$('fTEmail').value.trim()||null,phone:$('fTPhone').value.trim()||null},
     lease:{startDate:start,months:months,endDate:start?endDateISO(start,months):null,type:$('fType').value,lawRef:'uso transitorio · L.431/98 art.5 c.1',reason:$('fReason').value.trim()||null,studenti:readStud()},
@@ -549,7 +556,7 @@ window.createPA=async function(){
       /* update in place — same token, same link, status back to sent */
       await firebase.firestore().collection('preAgreements').doc(EDIT_ID).update({
         listingId:body.listingId,propertyId:body.propertyId,autoConvert:!!body.propertyId,
-        property:body.property,landlord:body.landlord,extraDoc:body.extraDoc,validUntil:body.validUntil,
+        property:body.property,landlord:body.landlord,extraDoc:body.extraDoc,askMandate:body.askMandate,validUntil:body.validUntil,
         tenant:body.tenant,tenants:[body.tenant],lease:body.lease,money:body.money,
         extras:body.extras,customClauses:body.customClauses,note:body.note,
         status:'sent',updatedAt:new Date().toISOString(),updatedBy:USER.email||USER.uid
@@ -579,6 +586,7 @@ function fillForm(d){
   $('fLandlord').value=(d.landlord||{}).name||'';
   $('fLEmail').value=(d.landlord||{}).email||'';$('fLPhone').value=(d.landlord||{}).phone||'';
   $('fXDoc').value=d.extraDoc||'';
+  $('fMandate').checked=d.askMandate!==false;
   $('fValid').value=d.validUntil||'';
   $('fStart').value=(d.lease||{}).startDate||'';$('fMonths').value=(d.lease||{}).months||12;
   try{$('fType').value=(d.lease||{}).type||'Transitional Lease'}catch(e){}
@@ -903,8 +911,13 @@ function paRow(d){
   var ups=Array.isArray(d.uploads)?d.uploads:[];
   var xGot=ups.some(function(u){return u&&u.kind==='extra'});
   var docsLine='';
+  if(d.mandate&&d.mandate.given){
+    docsLine+='<div class="docs" style="color:var(--gold)">🖊 Mandato a firmare ricevuto il '+esc(String(d.mandate.at||'').slice(0,10))+' — dopo la conversione puoi firmare TU per il conduttore (🖊 Firma ora nel portal)</div>';
+  }else if(done&&d.askMandate!==false){
+    docsLine+='<div class="docs" style="color:var(--t3)">🖊 Mandato non dato: il conduttore firma col suo link</div>';
+  }
   if(ups.length||d.extraDoc){
-    docsLine='<div class="docs">📎 '
+    docsLine+='<div class="docs">📎 '
       +(ups.length?ups.map(function(u,i){var n=(u.name||'doc '+(i+1));return '<a href="'+u.url+'" target="_blank" rel="noopener">'+esc(n.length>22?n.slice(0,20)+'…':n)+(u.kind==='extra'?' (extra)':'')+'</a>'}).join(' · '):'<span class="miss">nessun documento</span>')
       +(d.extraDoc?(' &nbsp;·&nbsp; '+(xGot?'<span style="color:var(--green)">✓ '+esc(d.extraDoc)+'</span>':'<span class="miss">⏳ in attesa: '+esc(d.extraDoc)+'</span>')):'')
       +'</div>';

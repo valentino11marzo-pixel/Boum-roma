@@ -122,6 +122,16 @@ export async function buildRegistrationPack(contract, property, { signedPdfUrl, 
     }
   }
   if (!idN) push('Documento identità conduttore', '08_Documento_conduttore', '', 'manda al conduttore il suo link /scheda (Share Hub) — upload con OCR');
+  // Il MANDATO del conduttore (proposta accettata col mandato a firmare):
+  // quando il contratto è stato firmato per mandato, il documento che lo
+  // prova viaggia nel pack — chi registra deve poter vedere in forza di
+  // cosa BOOM ha sottoscritto. Senza firma per mandato, niente voce.
+  const tsd = contract.tenantSignedByDelegate;
+  if (tsd && tsd.name) {
+    const mUrl = (contract.tenantMandate && contract.tenantMandate.docUrl) || '';
+    push('Mandato a firmare del conduttore', '10_Mandato_conduttore.pdf', mUrl,
+      mUrl ? 'proposta accettata col mandato (sezione "Mandate to sign")' : 'il PDF del mandato non è stato salvato alla conversione — riapri la proposta e scarica il PDF accettato (console PA)');
+  }
   if (!extraN && !senzaEsigenza) push(attLabel, '09_Attestazione_esigenza', '', studenti
     ? 'certificato di iscrizione/Erasmus: richiedibile dalla console PA (documenti richiesti) o via /scheda'
     : 'lettera datore di lavoro / iscrizione corso: console PA (documenti richiesti)');

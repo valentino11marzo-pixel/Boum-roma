@@ -23,6 +23,7 @@ import { acquireLock, confirmLock, HOLD_HOURS } from './_lock.js';
 import { paidOnRecord } from './_state.js';
 import { normalizeAddons, addonsTotal } from './_addons.js';
 import { tgSend } from '../telegram/_lib.js';
+import { PA_CONSENT_TEXT, PA_CONSENT_HASH, PA_MANDATE_TEXT, PA_MANDATE_HASH } from './_consent.js';
 
 // Telegram in parse_mode HTML: un nome con & o < romperebbe il messaggio.
 const esc = (v) => String(v == null ? '' : v)
@@ -87,6 +88,15 @@ export default async function handler(req, res) {
 
     const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
     const ref = 'BOOM-' + Date.now().toString(36).toUpperCase();
+    const ua = String(req.headers['user-agent'] || '').slice(0, 160);
+    // Il consenso porta il TESTO e l'hash (una copia sola, _consent.js): e'
+    // l'accettazione della proposta E la firma sulla scheda di calcolo del
+    // canone (Allegato 2/B) — il contratto la eredita (paAcceptance).
+    const consent = { at: new Date().toISOString(), ip, ua, text: PA_CONSENT_TEXT, hash: PA_CONSENT_HASH, schedaSigned: true };
+    // Il MANDATO a firmare: solo se chiesto dalla console e spuntato dal
+    // cliente (atto a parte, mai dedotto dal consenso).
+    const mandate = (data.askMandate !== false && b.mandate === true)
+      ? { given: true, at: consent.at, ip, ua, text: PA_MANDATE_TEXT, hash: PA_MANDATE_HASH } : null;
 
     // Each party's typed full name IS their signature (like the paper doc,
     // where every co-tenant signs the same signature box).
@@ -125,7 +135,7 @@ export default async function handler(req, res) {
         status: 'reserve',
         reserveOf: lock.by || null,
         reserveAt: new Date().toISOString(),
-        consent: { at: new Date().toISOString(), ip, ua: String(req.headers['user-agent'] || '').slice(0, 160) },
+        consent, mandate,
       });
       logActivity('preagreement_reserve', 'preagreement', {
         id, tenant: fullName, heldBy: lock.by, address: (data.property || {}).address,
@@ -146,7 +156,7 @@ export default async function handler(req, res) {
       tenant, tenants: signed, status: 'accepted', ref,
       acceptedAt: new Date().toISOString(),
       ...(addons.length ? { addons, addonsEur } : {}),
-      consent: { at: new Date().toISOString(), ip, ua: String(req.headers['user-agent'] || '').slice(0, 160) },
+      consent, mandate,
     });
     logActivity('preagreement_accepted', 'preagreement', { id, ref, tenant: fullName, coTenants: signed.length - 1, address: (data.property || {}).address }, 'web')
       .catch(() => {});
