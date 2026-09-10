@@ -10,8 +10,28 @@
 //
 // Callers: api/telegram/webhook.js (send a photo/PDF to the bot) and
 // api/documents/scan-inbox.js (forward an email with attachments).
+//
+// LE PORTE (10/09/2026, Lotto 2 della Segretaria unica): un documento può
+// arrivare anche da chi NON è l'operatore — un allegato WhatsApp, l'email di
+// un proprietario. Due garanzie, entrambe decise PRIMA di spendere il modello
+// e PRIMA di scrivere (Codex le ha chieste in PR #234, e aveva ragione):
+//   · `docId` — id deterministico scelto dal chiamante (es. sha1 dell'URL
+//     dell'allegato): se il documento esiste già si torna `duplicate:true`
+//     senza chiamare il modello né caricare su Storage; un 409 in gara è
+//     trattato allo stesso modo. Un retry di Homie non archivia due volte.
+//   · `relation` — chi manda: `{ kind:'landlord'|'tenant'|'unknown'|
+//     'operator', label, propertyIds[], contractIds[] }`. Con
+//     landlord/tenant il modello sceglie SOLO fra gli immobili del mittente
+//     (l'elenco che vede è già ristretto e la scelta è rivalidata qui); un
+//     immobile solo → è il default quando il modello non sceglie
+//     (`relationDefault:true`); più immobili e nessuna scelta → resta da
+//     smistare coi candidati dichiarati (`relatedPropertyIds`). Con
+//     `unknown` il documento NON finisce MAI sotto un immobile: la scelta
+//     del modello resta visibile come `suggestedPropertyId`, `needsFiling`
+//     è forzato. Senza `relation` il comportamento è quello di sempre
+//     (l'operatore che smista: tutto il catalogo, archiviazione diretta).
 
-import { fsCreate, fsList, storageUpload, logActivity } from '../agent/_lib.js';
+import { fsCreate, fsGet, fsList, storageUpload, logActivity } from '../agent/_lib.js';
 import { extractJson } from '../agent/_claude.js';
 import { aiSignal } from '../_budget.js';
 
@@ -41,22 +61,67 @@ export const CATS = {
   altro:               { label: 'Documento',                     category: 'documento generico',             folder: '99_DaSmistare',       type: 'other' },
 };
 
+const RELATION_KINDS = new Set(['landlord', 'tenant', 'unknown', 'operator']);
+
+/** La relazione del mittente, normalizzata. Pura, esportata per i test.
+ *  Niente relation → 'operator' (il comportamento storico). Una relation
+ *  con kind ignoto → 'unknown' (il default sicuro: mai sotto un immobile). */
+export function normalizeRelation(relation) {
+  const r = relation && typeof relation === 'object' ? relation : null;
+  const kind = r ? (RELATION_KINDS.has(r.kind) ? r.kind : 'unknown') : 'operator';
+  const ids = (arr) => new Set((Array.isArray(arr) ? arr : []).map((x) => String(x || '').trim()).filter(Boolean).slice(0, 50));
+  return {
+    kind,
+    label: r && r.label ? String(r.label).slice(0, 80) : null,
+    propertyIds: kind === 'landlord' || kind === 'tenant' ? ids(r.propertyIds) : new Set(),
+    contractIds: kind === 'landlord' || kind === 'tenant' ? ids(r.contractIds) : new Set(),
+  };
+}
+
+function dupResult(id, prev) {
+  return {
+    ok: true, duplicate: true, id,
+    catKey: null, label: (prev && prev.name) || null, folder: null,
+    propertyLabel: null, fiscalYear: (prev && prev.fiscalYear) || null,
+    needsFiling: !!(prev && prev.needsFiling), summary: (prev && prev.notes) || '',
+  };
+}
+
 // Classify + file one document. Returns
-// { ok, id, catKey, label, propertyLabel, fiscalYear, folder, needsFiling, summary }
-export async function smistaDocument({ base64, mediaType, fileName, hint, origin }) {
+// { ok, id, catKey, label, propertyLabel, fiscalYear, folder, needsFiling, summary,
+//   duplicate, suggestedPropertyId, relationDefault, relatedPropertyIds }
+export async function smistaDocument({ base64, mediaType, fileName, hint, origin, docId = null, relation = null }) {
   if (!process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY missing');
   const bytes = Math.floor((base64.length * 3) / 4);
   if (bytes > MAX_DOC_BYTES) throw new Error('file troppo grande (max 8MB)');
 
+  // Idempotenza PRIMA di spendere: stesso docId → già archiviato. Niente
+  // modello, niente upload. (Un fsGet fallito per rete cade nel 409 sotto.)
+  const id0 = docId ? String(docId).replace(/[^\w.\-]+/g, '_').slice(0, 120) : null;
+  if (id0) {
+    const prev = await fsGet('documents/' + id0).catch(() => null);
+    if (prev) return dupResult(id0, prev);
+  }
+
+  const rel = normalizeRelation(relation);
+  const allowed = rel.propertyIds.size ? rel.propertyIds : null;
+
   // Real property list so the model does the matching against ACTUAL data.
+  // Con una relazione, il modello vede SOLO gli immobili del mittente.
   const [properties, contracts] = await Promise.all([
     fsList('properties', { limit: 200 }).catch(() => []),
     fsList('contracts', { limit: 300 }).catch(() => []),
   ]);
-  const propList = properties.map(p => ({
+  const candidates = allowed ? properties.filter((p) => allowed.has(p.id)) : properties;
+  const propList = candidates.map(p => ({
     id: p.id,
     label: [p.title || p.name || p.nickname, p.address].filter(Boolean).join(' — ').slice(0, 90),
   }));
+  const whoLine = rel.kind === 'landlord' || rel.kind === 'tenant'
+    ? `\nChi lo manda: ${rel.label || (rel.kind === 'landlord' ? 'un proprietario' : 'un inquilino')} in archivio, ${rel.kind === 'landlord' ? 'proprietario' : 'inquilino'} degli immobili elencati sotto. L'elenco contiene SOLO i suoi immobili.`
+    : rel.kind === 'unknown'
+      ? '\nChi lo manda: un contatto NON in archivio. Indica l\'immobile solo se il documento lo nomina chiaramente.'
+      : '';
 
   const isPdf = /pdf/.test(mediaType);
   const block = isPdf
@@ -77,6 +142,7 @@ export async function smistaDocument({ base64, mediaType, fileName, hint, origin
     '',
     'Elenco immobili (usa SOLO questi id, confronta indirizzi/nomi):',
     JSON.stringify(propList),
+    whoLine,
     hint ? `\nNota di chi lo invia (usala per categoria/immobile): "${String(hint).slice(0, 300)}"` : '',
     '\nSe non sei ragionevolmente sicuro dell\'immobile, propertyId=null. Non inventare.',
   ].join('\n');
@@ -102,10 +168,28 @@ export async function smistaDocument({ base64, mediaType, fileName, hint, origin
   const catKey = CATS[parsed.category] ? parsed.category : 'altro';
   const cat = CATS[catKey];
   const fiscalYear = Number(parsed.fiscalYear) || (parsed.docDate ? Number(String(parsed.docDate).slice(0, 4)) : null) || new Date().getFullYear();
-  const property = properties.find(p => p.id === parsed.propertyId) || null;
+  // La scelta del modello, rivalidata QUI contro la relazione — prima di
+  // qualunque scrittura. Il modello propone; il vincolo decide.
+  const modelPick = properties.find(p => p.id === parsed.propertyId) || null;
+  let property = null;
+  let relationDefault = false;
+  let suggestedPropertyId = null;
+  if (rel.kind === 'unknown') {
+    // Uno sconosciuto non archivia MAI sotto un immobile: il suggerimento
+    // resta visibile all'operatore, la decisione è sua.
+    suggestedPropertyId = modelPick ? modelPick.id : null;
+  } else if (allowed) {
+    if (modelPick && allowed.has(modelPick.id)) property = modelPick;
+    else if (candidates.length === 1) { property = candidates[0]; relationDefault = true; }
+    // più immobili e nessuna scelta valida → da smistare, coi candidati dichiarati
+  } else {
+    property = modelPick;
+  }
   const propertyLabel = property ? (property.title || property.name || property.nickname || property.id) : null;
 
   // Best contract for the property in that fiscal year (for the checklist).
+  // Un contratto dichiarato dalla relazione (l'inquilino che manda) vince,
+  // purché sia dell'immobile scelto.
   let contractId = null;
   if (property) {
     const cands = contracts
@@ -115,7 +199,7 @@ export async function smistaDocument({ base64, mediaType, fileName, hint, origin
         const ey = c.endDate ? Number(String(c.endDate).slice(0, 4)) : null;
         return (!sy || sy <= fiscalYear) && (!ey || ey >= fiscalYear);
       });
-    contractId = (cands.find(c => c.status === 'active') || cands[0])?.id || null;
+    contractId = (cands.find(c => rel.contractIds.has(c.id)) || cands.find(c => c.status === 'active') || cands[0])?.id || null;
   }
 
   const safeName = String(fileName || 'documento').replace(/[^\w.\-]+/g, '_').slice(0, 60);
@@ -124,12 +208,13 @@ export async function smistaDocument({ base64, mediaType, fileName, hint, origin
   if (!fileUrl) throw new Error('storage non configurato');
 
   const needsFiling = !property;
+  const relatedPropertyIds = allowed && !property ? [...allowed] : null;
   const name = [cat.label, propertyLabel || null, String(fiscalYear)].filter(Boolean).join(' · ');
-  const { id } = await fsCreate('documents', {
+  const doc = {
     name,
     type: cat.type,
     category: cat.category,
-    tags: [cat.folder, 'smistatore', origin].filter(Boolean),
+    tags: [cat.folder, 'smistatore', origin, rel.kind === 'unknown' ? 'sconosciuto' : null].filter(Boolean),
     fileUrl,
     fileName: safeName,
     mimeType: mediaType,
@@ -145,15 +230,28 @@ export async function smistaDocument({ base64, mediaType, fileName, hint, origin
     needsFiling,
     shared: false,
     createdAt: new Date(),
-  });
+    ...(rel.kind !== 'operator' ? { relationKind: rel.kind, relationLabel: rel.label } : {}),
+    ...(suggestedPropertyId ? { suggestedPropertyId } : {}),
+    ...(relatedPropertyIds ? { relatedPropertyIds } : {}),
+    ...(relationDefault ? { relationDefault: true } : {}),
+  };
+  let id;
+  try {
+    ({ id } = await fsCreate('documents', doc, id0 || undefined));
+  } catch (e) {
+    // Gara persa su un docId (due porte, stesso allegato): è già in archivio.
+    if (e && e.exists && id0) return dupResult(id0, await fsGet('documents/' + id0).catch(() => null));
+    throw e;
+  }
 
   await logActivity('Documento smistato', 'document',
-    { id, catKey, propertyId: property?.id || null, fiscalYear, origin, needsFiling }, 'smistatore');
+    { id, catKey, propertyId: property?.id || null, fiscalYear, origin, needsFiling, relationKind: rel.kind }, 'smistatore');
 
   return {
-    ok: true, id, catKey,
+    ok: true, duplicate: false, id, catKey,
     label: cat.label, folder: cat.folder,
     propertyLabel, fiscalYear, needsFiling,
     summary: String(parsed.summary || '').slice(0, 200),
+    suggestedPropertyId, relationDefault, relatedPropertyIds,
   };
 }

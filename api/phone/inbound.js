@@ -26,9 +26,24 @@ import { normalizePhone } from '../homie/_lead.js';
 import { requireCronOrAdmin } from '../pfs/_guard.js';
 import { checkPhoneAuth, phoneKey, qparam, readForm, twimlGreeting, twimlThanks } from './_lib.js';
 
+// Il host CANONICO del sito è www. L'apex `boomrome.com` risponde con un
+// redirect, e un tool ElevenLabs con "follow redirects" spento legge il corpo
+// "Redirecting..." come se fosse la risposta — la lezione del 22/08/2026:
+// l'unico test della receptionist finì con «I don't have the catalog in
+// front of me» mentre il catalogo era vivo. Un URL consegnato a un servizio
+// esterno (tool in chiamata, webhook post-chiamata, callback Twilio) non deve
+// MAI passare da un redirect: chi chiede dall'apex riceve www; un host di
+// preview (vercel.app) resta com'è, perché lì il redirect non esiste.
+const CANONICAL_HOST = 'www.boomrome.com';
+export function canonicalHost(host) {
+  const h = String(host || '').split(',')[0].trim().toLowerCase();
+  if (!h || h === 'boomrome.com') return CANONICAL_HOST;
+  return h;
+}
+
 function baseUrl(req) {
-  const host = (req.headers && (req.headers['x-forwarded-host'] || req.headers.host)) || 'boomrome.com';
-  return `https://${host}`;
+  const host = req.headers && (req.headers['x-forwarded-host'] || req.headers.host);
+  return `https://${canonicalHost(host)}`;
 }
 
 export default async function handler(req, res) {
