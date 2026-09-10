@@ -199,7 +199,9 @@ export default async function handler(req, res) {
     // contratto per conto del cliente ai termini accettati — il cliente che
     // ha già firmato la proposta non deve tornare a firmare. Default ON;
     // la console lo spegne per il singolo deal.
-    askMandate: b.askMandate !== false,
+    // Scelta ESPLICITA della console, persistita: assente = non offerto (le
+    // proposte create prima di questa versione non cambiano comportamento).
+    askMandate: b.askMandate === true,
     // Offer expiry (YYYY-MM-DD, end of that day Rome time). Gates NEW
     // acceptances only — an accepted/paid deal is never voided. Extend it
     // any time from the console's Edit (same link revives).

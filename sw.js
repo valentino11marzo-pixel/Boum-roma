@@ -148,6 +148,8 @@ self.addEventListener('fetch', (event) => {
             // il dizionario del contratto decide cosa "manca" e cosa scrive
             // la Scheda: una copia stantia farebbe divergere portal e server
             || url.pathname === '/js/contract-fields.js'
+            // le condizioni approvate del mandato: la stessa copia del server
+            || url.pathname === '/js/mandato-engine.js'
             || url.pathname === '/js/portal-desktop.js'
             || url.pathname === '/css/portal-desktop.css'
             || url.pathname === '/css/portal-finish.css') ? url.pathname : null);

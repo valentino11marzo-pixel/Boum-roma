@@ -22,7 +22,7 @@
 // Response 4xx: { ok:false, error }
 
 import { fsGet, fsPatch, fsList, readJson, logActivity } from '../homie/_lib.js';
-import { findContractByToken, commitWrites, fsGetWithTime, tenantSideComplete, termsFingerprint, setCors, rateOk } from './_shared.js';
+import { findContractByToken, commitWrites, fsGetWithTime, tenantSideComplete, termsFingerprint, mandateCheck, setCors, rateOk } from './_shared.js';
 
 // ── TERMS FREEZE ──────────────────────────────────────────────────────────
 // L'impronta dei termini ECONOMICI del contratto. La prima firma la congela
@@ -127,14 +127,18 @@ export default async function handler(req, res) {
   // dell'operatore a sé stesso concordata col proprietario).
   const tenantDele = (role === 'tenant' && contract.tenantDelegate && contract.tenantDelegate.name) ? contract.tenantDelegate : null;
   if (tenantDele) {
-    const m = contract.tenantMandate;
-    if (!m || m.given !== true || !m.termsHash) {
+    // mandateCheck (una copia, _shared.js): v2 confronta il contratto di
+    // ADESSO con la foto presa all'accettazione (immobile, parti, modello,
+    // date, soldi, clausole); v1 legacy resta sul termsFingerprint.
+    const chk = mandateCheck(contract);
+    if (chk.reason === 'mandate_missing') {
       alertSignFailure(contractId, role, 'mandate_missing', 'firma per conto del conduttore senza mandato scritto');
       return res.status(403).json({ ok: false, error: 'mandate_missing' });
     }
-    if (termsFingerprint(contract) !== m.termsHash) {
-      alertSignFailure(contractId, role, 'mandate_terms_changed', 'i termini del contratto non sono più quelli del mandato');
-      return res.status(409).json({ ok: false, error: 'mandate_terms_changed' });
+    if (!chk.ok) {
+      const changed = chk.diff.map(d => d.key);
+      alertSignFailure(contractId, role, 'mandate_terms_changed', 'le condizioni non sono più quelle del mandato' + (changed.length ? ': ' + changed.join(', ') : ''));
+      return res.status(409).json({ ok: false, error: 'mandate_terms_changed', changed });
     }
   }
 

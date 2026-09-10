@@ -19604,6 +19604,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const mand = c.tenantMandate && c.tenantMandate.given === true ? c.tenantMandate : null;
         const tdele = c.tenantDelegate && c.tenantDelegate.name ? c.tenantDelegate : null;
         const dIT = iso => iso ? new Date(iso).toLocaleDateString('it-IT') : '—';
+        // Le condizioni approvate (v2): il contratto di ADESSO riproduce la
+        // foto presa all'accettazione? Il diff si mostra QUI, prima di ogni
+        // tentativo — il server resta l'ultimo giudice (409). Senza motore
+        // caricato o su un mandato v1 non si finge un verdetto.
+        const ME = window.BOOM_MANDATO;
+        const mandDiff = (mand && ME && Number(mand.termsVersion) >= 2) ? ME.diffTerms(mand.terms || {}, ME.termsFromContract(c)) : null;
+        const mandBroken = !!(mandDiff && mandDiff.length);
+        const nCo = (Array.isArray(c.coTenants) ? c.coTenants : []).filter(x => x && x.name).length;
+        const coNote = `<div style="font-size:11.5px;color:var(--text-muted);margin-top:8px">Il mandato riguarda <b>solo il conduttore principale</b>${nCo ? `: i ${nCo} co-conduttori firmano separatamente, ciascuno col proprio link` : '; eventuali co-conduttori firmano separatamente col proprio link'}. Il locatore controfirma dopo.</div>`;
         const row = (icon, who, name, done, link, extra) => `
             <div class="list-item" style="align-items:center">
                 <div class="list-icon" style="background:var(--${done ? 'green' : 'gold'}-light)">${icon}</div>
@@ -19635,12 +19644,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:6px">Mandato del conduttore</div>
                     ${tDone ? '<div style="font-size:12.5px;color:var(--text-secondary)">Il conduttore ha già firmato' + (c.tenantSignedByDelegate ? ' — per mandato, da ' + esc(c.tenantSignedByDelegate.name || '') : '') + '.</div>'
                         : !mand
-                            ? '<div style="font-size:12.5px;color:var(--text-secondary)">Nessun mandato scritto sul contratto. Il mandato si dà SOLO sulla proposta (pre-agreement), con la spunta a parte del cliente: senza, il conduttore firma col suo link.</div>'
+                            ? '<div style="font-size:12.5px;color:var(--text-secondary)">Nessun mandato scritto sul contratto. Il mandato si dà SOLO sulla proposta (pre-agreement), con la spunta a parte del cliente e solo se la console l\'ha offerto: senza, il conduttore firma col suo link.</div>'
+                            : mandBroken
+                                ? `<div style="font-size:12.5px;color:var(--danger, #E08573);margin-bottom:8px">⚠ Le condizioni del contratto <b>non sono più quelle</b> su cui il cliente ha dato il mandato (${dIT(mand.at)}${mand.ref ? ', proposta ' + esc(mand.ref) : ''}): <b>${esc(ME.describeDiff(mandDiff))}</b>. Il server rifiuterà la firma per mandato. Manda al conduttore il suo link, oppure rifai la proposta e falla accettare di nuovo.</div>
+                                   ${tdele ? `<button class="btn btn-secondary btn-sm" onclick="setMandatoTenant('${c.id}', false)">Non firmo io: mando il link al conduttore</button>` : ''}`
                             : tdele
-                                ? `<div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:8px">Attiva: firmi tu (<b>${esc(tdele.name)}</b>) per conto del conduttore, in forza del mandato del <b>${dIT(mand.at)}</b>${mand.ref ? ' (proposta ' + esc(mand.ref) + ')' : ''}. Apri il link del conduttore qui sopra e firma. Se i termini sono cambiati dopo il mandato, il server rifiuta la firma.</div>
+                                ? `<div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:8px">Attiva: firmi tu (<b>${esc(tdele.name)}</b>) per conto del conduttore, in forza del mandato del <b>${dIT(mand.at)}</b>${mand.ref ? ' (proposta ' + esc(mand.ref) + ')' : ''}. Le condizioni del contratto coincidono con quelle accettate${Number(mand.termsVersion) >= 2 ? ' (verificato ora)' : ''}. Apri il link del conduttore qui sopra e firma.</div>
                                    <button class="btn btn-secondary btn-sm" onclick="setMandatoTenant('${c.id}', false)">Non firmo io: mando il link al conduttore</button>`
-                                : `<div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:8px">Mandato scritto ricevuto il <b>${dIT(mand.at)}</b>${mand.ref ? ' con la proposta ' + esc(mand.ref) : ''}${mand.docUrl ? ' · <a href="' + mand.docUrl + '" target="_blank" rel="noopener">apri il documento</a>' : ''}. Il cliente ti ha autorizzato a firmare il contratto in sua vece agli stessi termini: se non apre l'email, puoi firmare tu.</div>
+                                : `<div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:8px">Mandato scritto ricevuto il <b>${dIT(mand.at)}</b>${mand.ref ? ' con la proposta ' + esc(mand.ref) : ''}${mand.docUrl ? ' · <a href="' + mand.docUrl + '" target="_blank" rel="noopener">apri il documento</a>' : ''}. Il cliente ti ha autorizzato a firmare il contratto in sua vece agli stessi termini${Number(mand.termsVersion) >= 2 ? ' — condizioni verificate ora: coincidono' : ''}: se non apre l'email, puoi firmare tu.</div>
                                    <button class="btn btn-sm" onclick="setMandatoTenant('${c.id}', true)">Firmo io per il conduttore (mandato)</button>`}
+                    ${coNote}
                 </div></div>
                 <div style="font-size:11.5px;color:var(--text-muted);margin-top:12px;line-height:1.6">⚠️ Senza mandato scritto, al posto del <b>conduttore</b> non si firma mai: quella non è una delega, è una firma falsa. Se non è con te, mandagli il link — o fissa la firma in presenza.</div>
             </div>
@@ -19678,6 +19691,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!c) return;
         if (c.tenantSignature) return toast('error', 'Il conduttore ha già firmato');
         if (on && !(c.tenantMandate && c.tenantMandate.given === true)) return toast('error', 'Nessun mandato scritto: il conduttore firma col suo link');
+        if (on && window.BOOM_MANDATO && Number(c.tenantMandate.termsVersion) >= 2) {
+            const d = window.BOOM_MANDATO.diffTerms(c.tenantMandate.terms || {}, window.BOOM_MANDATO.termsFromContract(c));
+            if (d.length) return toast('error', 'Condizioni cambiate rispetto al mandato: ' + window.BOOM_MANDATO.describeDiff(d));
+        }
         const t = (S.users || []).find(u => u.id === c.tenantId);
         try {
             const me = (S.profile && (S.profile.name || S.profile.email)) || 'Amministratore BOOM';

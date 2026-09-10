@@ -37,7 +37,8 @@ import crypto from 'node:crypto';
 import { fsGet, fsList, fsCreate, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import { ensureContractPdf } from '../sign/_contractpdf.js';
-import { termsFingerprint } from '../magic-sign/_shared.js';
+import { mandateTermsHash } from '../magic-sign/_shared.js';
+import MANDATO from '../../js/mandato-engine.js';
 import { storageUpload } from '../agent/_lib.js';
 import { buildPaPdf } from './_pdf.js';
 
@@ -50,11 +51,9 @@ const clip = (v, n = 200) => (v == null ? null : String(v).trim().slice(0, n) ||
 // si legge la proposta. `lease.type` è la tendina della console
 // («Student Housing (Allegato C)»), non testo libero del cliente.
 export function leaseType(explicit, lease) {
-  if (explicit === 'studenti' || explicit === 'transitorio' || explicit === '3+2') return explicit;
-  const t = String((lease || {}).type || '');
-  if (/student/i.test(t)) return 'studenti';
-  if (/3\s*\+\s*2|allegato a\b/i.test(t)) return '3+2';
-  return 'transitorio';
+  // La regola vive in js/mandato-engine.js (la foto delle condizioni
+  // approvate deve derivare il modello ESATTAMENTE come la conversione).
+  return MANDATO.modelOfLease(explicit, lease);
 }
 
 // ── Core conversion, shared by the console handler and the auto pipeline ──
@@ -263,6 +262,10 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     // Landlord identity from the PA — magic-sign shows the real name even
     // when the portal property has no ownerId/users profile (owner-direct
     // signing is the default now).
+    // Il nome del conduttore sta sul contratto (prima solo sul profilo
+    // users): è una delle PARTI della foto delle condizioni approvate, e la
+    // firma per mandato la confronta sul contratto, senza risalire la catena.
+    tenantName: t.fullName || '',
     landlordName: (pa.landlord || {}).name || property.ownerName || '',
     landlordEmail: (pa.landlord || {}).email || null,
     landlordPhone: (pa.landlord || {}).phone || null,
@@ -300,6 +303,15 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
   // una firma). Senza `pa.mandate.given` il contratto NON ha mandato e la
   // firma al posto del conduttore resta impossibile (403 mandate_missing).
   if (pa.mandate && pa.mandate.given === true) {
+    // La BASE del mandato è la foto presa all'accettazione (pa.approvedTerms,
+    // v2). Per una proposta accettata prima della v2 la foto si prende dalla
+    // proposta stessa — che la console non lascia modificare dopo
+    // l'accettazione — e la provenienza resta dichiarata. MAI dal contratto:
+    // il contratto è ciò che si VERIFICA, non la base.
+    const snap = (pa.approvedTerms && pa.approvedTerms.terms && pa.approvedTerms.hash) ? pa.approvedTerms : null;
+    const terms = snap ? snap.terms : MANDATO.termsFromProposal(pa);
+    const termsHash = snap ? snap.hash : mandateTermsHash(terms);
+    const diff = MANDATO.diffTerms(terms, MANDATO.termsFromContract(contract));
     contract.tenantMandate = {
       given: true,
       at: pa.mandate.at || null,
@@ -308,7 +320,17 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
       hash: pa.mandate.hash || null,
       text: pa.mandate.text || '',
       ip: pa.mandate.ip || '',
-      termsHash: termsFingerprint(contract),
+      termsVersion: MANDATO.VERSION,
+      termsHash,
+      terms,
+      termsSource: snap ? 'proposal-at-acceptance' : 'proposal-at-conversion',
+      // La verifica alla CONVERSIONE: il contratto appena costruito riproduce
+      // le condizioni approvate? Se no (es. modello scelto a mano diverso
+      // dalla proposta), il mandato resta registrato ma DICHIARATO non
+      // spendibile: il server rifiuterà la firma (409) e il portal lo mostra.
+      termsMatch: diff.length === 0,
+      termsDiff: diff.map(d => d.key),
+      termsCheckedAt: new Date().toISOString(),
     };
   }
 
@@ -434,6 +456,7 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     landlordSignUrl: `${BASE}/sign?sign=${contract.landlordSignToken}`,
     delegate: contract.landlordDelegate,
     mandate: !!contract.tenantMandate,
+    mandateTermsMatch: contract.tenantMandate ? contract.tenantMandate.termsMatch : null,
   };
 }
 

@@ -14,7 +14,7 @@
 //            400 { ok:false, error:'missing_token' }
 
 import { fsGet, fsPatch, fsCreate, readJson } from '../homie/_lib.js';
-import { findContractByToken, tenantSideComplete, setCors, rateOk } from './_shared.js';
+import { findContractByToken, mandateCheck, tenantSideComplete, setCors, rateOk } from './_shared.js';
 import { ensureContractPdf } from '../sign/_contractpdf.js';
 
 export default async function handler(req, res) {
@@ -157,8 +157,12 @@ export default async function handler(req, res) {
     // — mandato del <data> sulla proposta <ref>". Solo i fatti, mai il testo
     // integrale (sta sul PDF del mandato).
     tenantDelegate: contract.tenantDelegate || null,
+    // + termsOk/termsChanged: la verifica delle condizioni approvate fatta
+    // dal SERVER ora (la pagina non può calcolarla) — così sign.html avvisa
+    // PRIMA del tentativo, e il rifiuto al submit non è una sorpresa.
     tenantMandate: (contract.tenantMandate && contract.tenantMandate.given === true)
-      ? { at: contract.tenantMandate.at || null, ref: contract.tenantMandate.ref || null } : null,
+      ? (() => { const chk = mandateCheck(contract); return { at: contract.tenantMandate.at || null, ref: contract.tenantMandate.ref || null, termsVersion: Number(contract.tenantMandate.termsVersion) || 1, termsOk: chk.ok, termsChanged: chk.diff.map(d => d.label || d.key) }; })()
+      : null,
     preAgreementRef: contract.preAgreementRef || null,
   };
   const sanitizedProperty = {

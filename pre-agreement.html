@@ -1039,7 +1039,7 @@ function renderStep4(){
        termini al momento della firma: un canone diverso = mandato nullo).
        Il testo è quello di api/preagreement/_consent.js, parola per parola:
        submit ne registra l'hash, il PDF lo ristampa. */
-    +(PA.askMandate!==false
+    +(PA.askMandate===true
       ?'<div class="mandate" id="mandateBox">'
         +'<div class="mh"><b>Optional · Mandate to sign</b><span>so you don’t have to come back for the lease signature</span></div>'
         +'<p>'+esc(PA_MANDATE_TEXT)+'</p>'

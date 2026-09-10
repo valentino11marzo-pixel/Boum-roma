@@ -87,7 +87,7 @@ export default async function handler(req, res) {
         extraDocCount: Array.isArray(data.uploads) ? data.uploads.filter(u => u && u.kind === 'extra').length : 0,
         // Il mandato a firmare: chiesto? gia' conferito? (mai il testo qui —
         // la pagina lo ha in una copia sola, uguale a _consent.js).
-        askMandate: data.askMandate !== false,
+        askMandate: data.askMandate === true,
         mandate: data.mandate && data.mandate.given ? { at: data.mandate.at } : null,
         // La scheda di calcolo del canone (Allegato 2/B) che il cliente firma
         // con l'accettazione: i numeri che firma, calcolati DAL SERVER

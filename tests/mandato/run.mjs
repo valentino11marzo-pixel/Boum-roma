@@ -192,7 +192,7 @@ store.set('users/own1', { role: 'landlord', name: 'Giulia Bianchi', email: 'giul
 
 const TOKEN_A = 'a'.repeat(32), TOKEN_B = 'b'.repeat(32), TOKEN_C = 'c'.repeat(32);
 const paSeed = (token, extra = {}) => ({
-  token, status: 'sent', propertyId: 'prop1',
+  token, status: 'sent', propertyId: 'prop1', askMandate: true,
   property: { address: 'Via della Lungaretta 12', type: 'Entire Apartment', condition: 'Furnished', use: 'Residential', floor: '3' },
   landlord: { name: 'Giulia Bianchi', email: 'giulia@x.it' },
   lease: { startDate: '2026-11-01', months: 12, endDate: '2027-10-31', type: 'Transitional Lease', lawRef: 'uso transitorio · L.431/98 art.5 c.1' },
@@ -229,8 +229,15 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
   const r = mkRes();
   await lookup(mkReq({ token: TOKEN_A }), r);
   const sc = r.code === 200 && r.body.pa.scheda;
-  check('lookup: 200 con askMandate=true di default e mandate=null prima dell\'accettazione',
+  check('lookup: 200 con askMandate=true (scelta esplicita della console) e mandate=null prima dell\'accettazione',
     r.code === 200 && r.body.pa.askMandate === true && r.body.pa.mandate === null);
+  // COMPATIBILITÀ: una proposta nata PRIMA del mandato non ha il campo →
+  // NON offerto. Le proposte in corso non cambiano comportamento da sole.
+  store.set('preAgreements/paOld', { ...paSeed('d'.repeat(32)), askMandate: undefined, propertyId: 'prop2', lease: { startDate: '2031-01-01', months: 6, endDate: '2031-06-30', type: 'Transitional Lease', lawRef: 'x' } });
+  delete store.get('preAgreements/paOld').askMandate;
+  const rOld = mkRes();
+  await lookup(mkReq({ token: 'd'.repeat(32) }), rOld);
+  check('lookup: askMandate ASSENTE (proposta precedente) → false: nessuna spunta offerta', rOld.code === 200 && rOld.body.pa.askMandate === false);
   check('lookup: scheda collegata all\'immobile — zona riconosciuta, mq, fascia, verdetto sul canone della proposta',
     !!sc && sc.linked === true && !!sc.zonaCod && sc.mq === 78 && !!sc.fascia && sc.pattuito === 1500 && typeof sc.fits === 'boolean');
   check('lookup: nessun buco su un immobile completo (zona, mq, catasto, canone)', !!sc && Array.isArray(sc.gaps) && sc.gaps.length === 0);
@@ -263,6 +270,15 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
   const paC = store.get('preAgreements/paC');
   check('submit: askMandate=false → mandate NULL anche con mandate:true nel body (mai dedotto)',
     r.code === 200 && paC.status === 'accepted' && paC.mandate === null && paC.consent && paC.consent.schedaSigned === true);
+  check('submit: la FOTO delle condizioni approvate è persistita sulla proposta (v2, hash, immobile, parti, modello, soldi, clausole)',
+    paC.approvedTerms && paC.approvedTerms.version === 2 && /^[a-f0-9]{64}$/.test(paC.approvedTerms.hash)
+    && paC.approvedTerms.terms.propertyId === 'prop2' && paC.approvedTerms.terms.rent === 1500 && paC.approvedTerms.terms.deposit === 3000
+    && paC.approvedTerms.terms.model === 'transitorio' && paC.approvedTerms.terms.tenants[0] === 'anna expat' && paC.approvedTerms.terms.landlord === 'giulia bianchi'
+    && Array.isArray(paC.approvedTerms.terms.clauses) && paC.approvedTerms.at === paC.acceptedAt);
+  r = mkRes();
+  await submit(mkReq({ token: 'd'.repeat(32), tenant: { ...tenant, email: 'old@x.com' }, tenants: [{ ...tenant, email: 'old@x.com' }], accept: true, mandate: true }), r);
+  check('submit: askMandate ASSENTE (proposta precedente) + mandate:true nel body → mandate NULL',
+    r.code === 200 && store.get('preAgreements/paOld').status === 'accepted' && store.get('preAgreements/paOld').mandate === null);
 
   // Senza spunta, niente mandato.
   // Periodo DISGIUNTO da paC sullo stesso immobile: il lucchetto per mese
@@ -280,6 +296,56 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
     r.code === 200 && r.body.pa.mandate && r.body.pa.mandate.at === pa.mandate.at && !('text' in r.body.pa.mandate));
 }
 
+// ═══ 3b. CONVERSIONE AUTOMATICA sul percorso REALE (submit → maybeAutoConvert) ═══
+// La regressione della revisione: submit.js passava a maybeAutoConvert la
+// proposta letta PRIMA della patch — senza consenso, mandato e foto delle
+// condizioni. Il contratto automatico nasceva senza paAcceptance e senza
+// tenantMandate: il mandato appena dato spariva sulla strada normale.
+{
+  const submit = (await import('../../api/preagreement/submit.js')).default;
+  const tenant = { fullName: 'Bruno Auto', email: 'bruno@x.com', phone: '+39333000111', cf: 'BRNTAU90A01H501Z' };
+  const T_D = 'e'.repeat(32), T_E = 'f'.repeat(32);
+  store.set('preAgreements/paD', paSeed(T_D, { autoConvert: true, lease: { startDate: '2028-01-01', months: 12, endDate: '2028-12-31', type: 'Transitional Lease', lawRef: 'x' }, customClauses: ['No pets.', 'Keys returned at the agency.'] }));
+  store.set('preAgreements/paE', paSeed(T_E, { autoConvert: true, lease: { startDate: '2029-01-01', months: 12, endDate: '2029-12-31', type: 'Transitional Lease', lawRef: 'x' } }));
+
+  let r = mkRes();
+  await submit(mkReq({ token: T_D, tenant, tenants: [tenant], accept: true, mandate: true }), r);
+  const paD = store.get('preAgreements/paD');
+  const cD = store.get('contracts/pa_paD');
+  check('auto-convert (dovuto 0, mandato offerto e selezionato): il contratto nasce dal submit', r.code === 200 && r.body.ok && !!cD && paD.contractId === 'pa_paD');
+  check('auto-convert: il contratto conserva paAcceptance (data = consenso, ref, hash, schedaSigned)',
+    !!cD && cD.paAcceptance && cD.paAcceptance.at === paD.consent.at && cD.paAcceptance.ref === paD.ref && cD.paAcceptance.hash === PA_CONSENT_HASH && cD.paAcceptance.schedaSigned === true);
+  check('auto-convert: il contratto conserva tenantMandate v2 con la FOTO presa all\'accettazione (stesso hash della proposta)',
+    !!cD && cD.tenantMandate && cD.tenantMandate.given === true && cD.tenantMandate.termsVersion === 2
+    && cD.tenantMandate.termsHash === paD.approvedTerms.hash && cD.tenantMandate.termsSource === 'proposal-at-acceptance'
+    && cD.tenantMandate.termsMatch === true && cD.tenantMandate.termsDiff.length === 0 && cD.tenantMandate.hash === PA_MANDATE_HASH);
+  check('auto-convert: le clausole della proposta sono nel contratto e nella foto (stesso insieme)',
+    !!cD && /No pets\./.test(cD.otherClauses) && cD.tenantMandate.terms.clauses.includes('no pets.') && cD.tenantName === 'Bruno Auto');
+  check('auto-convert: il documento del mandato è su Storage', storageFiles.has('contracts/pa_paD/mandato-conduttore.pdf'));
+
+  // Ripetizione della richiesta (tasto indietro, doppio tap): niente secondo contratto, niente riscrittura
+  const before = JSON.stringify(cD.tenantMandate);
+  r = mkRes();
+  await submit(mkReq({ token: T_D, tenant, tenants: [tenant], accept: true, mandate: true }), r);
+  check('submit ripetuto su proposta accettata: 200 already, UN solo contratto, mandato intatto',
+    r.code === 200 && r.body.already === true && [...store.keys()].filter(k => k.startsWith('contracts/') && store.get(k).preAgreementId === 'paD').length === 1
+    && JSON.stringify(store.get('contracts/pa_paD').tenantMandate) === before);
+
+  // Mandato offerto ma NON selezionato: contratto automatico senza mandato, con l'accettazione
+  r = mkRes();
+  await submit(mkReq({ token: T_E, tenant: { ...tenant, email: 'bruno2@x.com' }, tenants: [{ ...tenant, email: 'bruno2@x.com' }], accept: true }), r);
+  const cE = store.get('contracts/pa_paE');
+  check('auto-convert (mandato offerto, non selezionato): contratto con paAcceptance e tenantMandate NULL',
+    r.code === 200 && !!cE && cE.paAcceptance && cE.paAcceptance.schedaSigned === true && cE.tenantMandate === null && store.get('preAgreements/paE').approvedTerms.version === 2);
+  const src = R('api/preagreement/submit.js');
+  check('submit.js: maybeAutoConvert riceve consent, mandate e approvedTerms (non la proposta stale)',
+    /maybeAutoConvert\(\{\s*pa: \{ \.\.\.data, tenant, tenants: signed, status: 'accepted', ref, acceptedAt, consent, mandate, approvedTerms/.test(src));
+  // Gli altri chiamanti automatici rileggono la proposta da Firestore (webhook, resolve): la foto viaggia da sé
+  const wh = R('api/stripe-webhook.js'), rs = R('api/preagreement/resolve.js');
+  check('webhook e resolve passano la proposta RILETTA (con consent/mandate/approvedTerms persistiti)',
+    /maybeAutoConvert\(\{ pa: \{ \.\.\.pa, status: 'paid'/.test(wh) && /maybeAutoConvert\(\{ pa: fixed, paId \}\)/.test(rs));
+}
+
 // ═══ 4. Conversione: il contratto eredita accettazione (= firma scheda) e mandato con l'impronta ═══
 {
   const { convertPaToContract } = await import('../../api/preagreement/convert.js');
@@ -288,9 +354,11 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
   check('convert: contratto creato con paAcceptance (data, ref, hash, schedaSigned)',
     outA.ok && !!cA && cA.paAcceptance && cA.paAcceptance.at === store.get('preAgreements/paA').consent.at
     && cA.paAcceptance.ref === store.get('preAgreements/paA').ref && cA.paAcceptance.schedaSigned === true && cA.paAcceptance.hash === PA_CONSENT_HASH);
-  check('convert: tenantMandate con termsHash = impronta dei termini del contratto APPENA nato',
-    cA.tenantMandate && cA.tenantMandate.given === true && cA.tenantMandate.termsHash === termsFingerprint(cA)
-    && cA.tenantMandate.hash === PA_MANDATE_HASH && cA.tenantMandate.ref === cA.preAgreementRef && outA.mandate === true);
+  check('convert: tenantMandate v2 = la FOTO presa all\'accettazione (hash della proposta, non ricalcolato dal contratto), verificata alla conversione',
+    cA.tenantMandate && cA.tenantMandate.given === true && cA.tenantMandate.termsVersion === 2
+    && cA.tenantMandate.termsHash === store.get('preAgreements/paA').approvedTerms.hash && cA.tenantMandate.termsHash !== termsFingerprint(cA)
+    && cA.tenantMandate.termsMatch === true && cA.tenantMandate.termsSource === 'proposal-at-acceptance'
+    && cA.tenantMandate.hash === PA_MANDATE_HASH && cA.tenantMandate.ref === cA.preAgreementRef && outA.mandate === true && outA.mandateTermsMatch === true);
   const mandBytes = storageFiles.get('contracts/pa_paA/mandato-conduttore.pdf');
   check('convert: il documento del mandato (proposta accettata col testo) è su Storage e linkato (tenantMandate.docUrl)',
     !!mandBytes && mandBytes.slice(0, 4).toString() === '%PDF' && /mandato-conduttore\.pdf/.test(cA.tenantMandate.docUrl || ''));
@@ -341,7 +409,34 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
   r = mkRes();
   await msSubmit(mkReq(body(cA.tenantSignToken)), r);
   check('termini cambiati dopo il mandato: 409 mandate_terms_changed, nessuna firma',
-    r.code === 409 && r.body.error === 'mandate_terms_changed' && !store.get('contracts/pa_paA').tenantSignature);
+    r.code === 409 && r.body.error === 'mandate_terms_changed' && r.body.changed.includes('rent') && !store.get('contracts/pa_paA').tenantSignature);
+  cA.rent = rentBefore;
+
+  // Le condizioni che l'impronta v1 IGNORAVA: immobile, clausole, oneri, modello — tutte DOPO la conversione
+  const tryMut = async (label, mutate, restore, key) => {
+    mutate();
+    const rr = mkRes();
+    await msSubmit(mkReq(body(cA.tenantSignToken)), rr);
+    restore();
+    check(`dopo la conversione, ${label} cambiato → 409 mandate_terms_changed (changed: ${key}), nessuna firma`,
+      rr.code === 409 && rr.body.error === 'mandate_terms_changed' && rr.body.changed.includes(key) && !store.get('contracts/pa_paA').tenantSignature);
+  };
+  const keep = { propertyId: cA.propertyId, otherClauses: cA.otherClauses, accessoryCharges: cA.accessoryCharges, type: cA.type, landlordName: cA.landlordName, installmentMonths: cA.installmentMonths };
+  await tryMut('immobile', () => { cA.propertyId = 'prop2'; }, () => { cA.propertyId = keep.propertyId; }, 'propertyId');
+  await tryMut('clausole', () => { cA.otherClauses = (cA.otherClauses ? cA.otherClauses + '\n' : '') + 'Il conduttore rinuncia alla restituzione del deposito.'; }, () => { cA.otherClauses = keep.otherClauses; }, 'clauses');
+  await tryMut('oneri accessori', () => { cA.accessoryCharges = 120; }, () => { cA.accessoryCharges = keep.accessoryCharges; }, 'accessoryCharges');
+  await tryMut('modello di contratto', () => { cA.type = 'studenti'; }, () => { cA.type = keep.type; }, 'model');
+  await tryMut('locatore', () => { cA.landlordName = 'Altro Proprietario'; }, () => { cA.landlordName = keep.landlordName; }, 'landlord');
+  await tryMut('cadenza delle rate', () => { cA.installmentMonths = 3; }, () => { cA.installmentMonths = keep.installmentMonths; }, 'installmentMonths');
+  // Un accento corretto in /scheda NON è un'altra persona: la foto normalizza
+  cA.tenantName = 'Ánna  Expat';
+  { const rr = mkRes(); await msLookup(mkReq({ token: cA.tenantSignToken }), rr);
+    check('lookup: nome con accento/spazi diversi → condizioni ancora OK (normalizzazione), termsOk=true', rr.code === 200 && rr.body.contract.tenantMandate.termsOk === true && rr.body.contract.tenantMandate.termsVersion === 2); }
+  cA.tenantName = 'Anna Expat';
+  cA.rent = rentBefore + 50;
+  { const rr = mkRes(); await msLookup(mkReq({ token: cA.tenantSignToken }), rr);
+    check('lookup: condizioni cambiate → termsOk=false + termsChanged con le etichette (sign.html avvisa PRIMA del tentativo)',
+      rr.code === 200 && rr.body.contract.tenantMandate.termsOk === false && rr.body.contract.tenantMandate.termsChanged.includes('canone mensile')); }
   cA.rent = rentBefore;
 
   // (d) stessi termini → la firma passa ed è marcata "per mandato"
@@ -374,6 +469,98 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
   const sign = R('sign.html');
   check('sign.html: banner "You are signing as X on behalf of the tenant" + avviso se manca il mandato',
     /S\.role==='tenant'&&c\.tenantDelegate&&c\.tenantDelegate\.name/.test(sign) && /on behalf of the tenant/.test(sign) && /no written mandate on file/.test(sign));
+}
+
+// ═══ 5b. La verifica ALLA CONVERSIONE, la base che non si sposta, il v1 che non si rompe ═══
+{
+  const submit = (await import('../../api/preagreement/submit.js')).default;
+  const { convertPaToContract } = await import('../../api/preagreement/convert.js');
+  const msSubmit = (await import('../../api/magic-sign/submit.js')).default;
+  const MANDATO = (await import('../../js/mandato-engine.js')).default;
+  const CONSENT = 'I confirm my identity and accept all lease terms. This digital signature is legally valid (FES — Art. 21 CAD).';
+  const SIG = 'data:image/png;base64,' + 'C'.repeat(400);
+  const body = (token) => ({ token, signature: SIG, consent: { text: CONSENT, hash: '' }, identity: {} });
+  const dele = { name: 'Valentino Egidi', onBehalfOf: 'x', basis: 'mandato scritto del conduttore', at: '2026-09-10T09:00:00Z', by: 'caller1' };
+  const tenant = { fullName: 'Carla Prova', email: 'carla@x.com', phone: '+39333000222' };
+
+  // (a) modello scelto a mano alla conversione ≠ proposta → mandato registrato ma NON spendibile, e la firma 409
+  const T_F = '1a'.repeat(16);
+  store.set('preAgreements/paF', paSeed(T_F, { propertyId: 'prop2', lease: { startDate: '2032-01-01', months: 12, endDate: '2032-12-31', type: 'Transitional Lease', lawRef: 'x' } }));
+  let r = mkRes();
+  await submit(mkReq({ token: T_F, tenant, tenants: [tenant], accept: true, mandate: true }), r);
+  const outF = await convertPaToContract({ pa: store.get('preAgreements/paF'), paId: 'paF', type: 'studenti' });
+  const cF = store.get('contracts/pa_paF');
+  check('conversione con modello diverso dalla proposta: tenantMandate.termsMatch=false, termsDiff=[model], risposta mandateTermsMatch=false',
+    outF.ok && cF.type === 'studenti' && cF.tenantMandate && cF.tenantMandate.termsMatch === false && cF.tenantMandate.termsDiff.includes('model') && outF.mandateTermsMatch === false
+    && cF.tenantMandate.termsHash === store.get('preAgreements/paF').approvedTerms.hash);
+  cF.tenantDelegate = dele;
+  r = mkRes();
+  await msSubmit(mkReq(body(cF.tenantSignToken)), r);
+  check('…e la firma per mandato viene rifiutata (409, changed: model)', r.code === 409 && r.body.error === 'mandate_terms_changed' && r.body.changed.includes('model'));
+
+  // (b) la BASE non si sposta: la proposta viene manomessa DOPO l'accettazione → la foto resta quella dell'accettazione
+  const T_G = '2b'.repeat(16);
+  store.set('preAgreements/paG', paSeed(T_G, { propertyId: 'prop2', lease: { startDate: '2033-01-01', months: 12, endDate: '2033-12-31', type: 'Transitional Lease', lawRef: 'x' } }));
+  r = mkRes();
+  await submit(mkReq({ token: T_G, tenant, tenants: [tenant], accept: true, mandate: true }), r);
+  const paG = store.get('preAgreements/paG');
+  const hashAtAcceptance = paG.approvedTerms.hash;
+  paG.money.rent = 1900;   // manomissione dopo l'accettazione (la console non lo permette; una scrittura diretta sì)
+  const outG = await convertPaToContract({ pa: paG, paId: 'paG' });
+  const cG = store.get('contracts/pa_paG');
+  check('proposta manomessa DOPO l\'accettazione: il contratto nasce coi dati nuovi, ma la base del mandato resta la FOTO dell\'accettazione → termsMatch=false (rent)',
+    outG.ok && cG.rent === 1900 && cG.tenantMandate.termsHash === hashAtAcceptance && cG.tenantMandate.terms.rent === 1500
+    && cG.tenantMandate.termsMatch === false && cG.tenantMandate.termsDiff.includes('rent'));
+
+  // (c) proposta accettata PRIMA della v2 (senza approvedTerms) → foto dalla proposta, dichiarata
+  const T_H = '3c'.repeat(16);
+  store.set('preAgreements/paH', { ...paSeed(T_H, { propertyId: 'prop2', lease: { startDate: '2034-01-01', months: 12, endDate: '2034-12-31', type: 'Transitional Lease', lawRef: 'x' } }),
+    status: 'accepted', ref: 'BOOM-LEGACY', acceptedAt: '2026-09-09T10:00:00Z', tenant: { ...tenant, signature: tenant.fullName }, tenants: [{ ...tenant, signature: tenant.fullName }],
+    consent: { at: '2026-09-09T10:00:00Z', text: 'x', hash: 'y', schedaSigned: true }, mandate: { given: true, at: '2026-09-09T10:00:00Z', hash: 'z', text: 'm' } });
+  const outH = await convertPaToContract({ pa: store.get('preAgreements/paH'), paId: 'paH' });
+  const cH = store.get('contracts/pa_paH');
+  check('proposta senza approvedTerms (accettata prima della v2): foto presa dalla proposta e DICHIARATA (proposal-at-conversion), match=true',
+    outH.ok && cH.tenantMandate.termsSource === 'proposal-at-conversion' && cH.tenantMandate.termsVersion === 2 && cH.tenantMandate.termsMatch === true
+    && cH.tenantMandate.termsHash === (await import('../../api/magic-sign/_shared.js')).mandateTermsHash(MANDATO.termsFromProposal(store.get('preAgreements/paH'))));
+
+  // (c2) proposta SENZA immobile collegato al momento del mandato, immobile scelto alla conversione manuale → non spendibile (propertyId)
+  const T_I = '4d'.repeat(16);
+  store.set('preAgreements/paI', { ...paSeed(T_I, { lease: { startDate: '2036-01-01', months: 12, endDate: '2036-12-31', type: 'Transitional Lease', lawRef: 'x' } }), propertyId: null });
+  r = mkRes();
+  await submit(mkReq({ token: T_I, tenant, tenants: [tenant], accept: true, mandate: true }), r);
+  const outI = await convertPaToContract({ pa: store.get('preAgreements/paI'), paId: 'paI', propertyId: 'prop2' });
+  const cI = store.get('contracts/pa_paI');
+  check('mandato dato su una proposta senza immobile collegato, immobile agganciato alla conversione → termsMatch=false (propertyId): il cliente non ha approvato QUEL record',
+    r.code === 200 && outI.ok && cI.propertyId === 'prop2' && cI.tenantMandate.terms.propertyId === null && cI.tenantMandate.termsMatch === false && cI.tenantMandate.termsDiff.includes('propertyId'));
+
+  // (d) mandato v1 (nato prima: termsHash = termsFingerprint, senza termsVersion) resta valutato con la regola v1
+  store.set('contracts/legacyV1', {
+    propertyId: 'prop2', tenantId: 't9', type: 'transitorio', cedolareSecca: 'si', rent: 900, deposit: 1800, startDate: '2035-01-01', endDate: '2035-12-31',
+    tenantName: 'Legacy Uno', landlordName: 'Giulia Bianchi', tenantSignToken: 'LEGACYTOK_1', landlordSignToken: 'LEGACYTOK_2',
+    signingOrder: 'sequential', signatureStatus: 'none', status: 'active', tenantDelegate: dele,
+  });
+  const cL = store.get('contracts/legacyV1');
+  cL.tenantMandate = { given: true, at: '2026-09-09T00:00:00Z', ref: 'BOOM-V1', hash: 'h', termsHash: termsFingerprint(cL) };
+  cL.rent = 950;
+  r = mkRes();
+  await msSubmit(mkReq(body('LEGACYTOK_1')), r);
+  check('mandato v1 con canone cambiato → 409 (regola v1 ancora in vigore)', r.code === 409 && r.body.error === 'mandate_terms_changed');
+  cL.rent = 900;
+  r = mkRes();
+  await msSubmit(mkReq(body('LEGACYTOK_1')), r);
+  check('mandato v1 sui termini originali → la firma passa (versionato, non rotto)', r.code === 200 && !!store.get('contracts/legacyV1').tenantSignedByDelegate);
+
+  // (e) il motore: simmetria proposta⇄contratto e cosa NON entra
+  const t1 = MANDATO.termsFromProposal(store.get('preAgreements/paD'));
+  const t2 = MANDATO.termsFromContract(store.get('contracts/pa_paD'));
+  check('motore: la foto dalla proposta e quella dal contratto convertito coincidono (canonical identico)', MANDATO.canonical(t1) === MANDATO.canonical(t2) && MANDATO.diffTerms(t1, t2).length === 0);
+  check('motore: la clausola automatica dei co-conduttori non conta come clausola pattuita',
+    MANDATO.normClauses('I co-conduttori (A, B) hanno sottoscritto la proposta accettata BOOM-1 e si obbligano in solido…\nNo pets.').join('|') === 'no pets.');
+  check('motore: extra, provvigione e add-on NON entrano nella foto (non sono condizioni del contratto di locazione)',
+    !('extras' in t1) && !('fee' in t1) && !('addons' in t1) && !('agencyFee' in t1));
+  const sh = R('api/magic-sign/_shared.js');
+  check('_shared: mandateCheck versionato (v2 → foto; v1 → termsFingerprint), hash con prefisso di versione',
+    /Number\(m\.termsVersion\) >= 2/.test(sh) && /termsFingerprint\(contract\) === m\.termsHash/.test(sh) && /'mandato:v2:'/.test(sh));
 }
 
 // ═══ 6. Le righe sotto la firma: pagina firme e certificato dicono CHI ha firmato ═══
@@ -493,13 +680,21 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
   check('portal: 💶 Valutazione sulla scheda immobile → openValutazione(null, undefined, {propertyId})',
     /openValutazione\(null, undefined, \{propertyId:'\$\{p\.id\}'\}\)/.test(app) && /propertyId: \(!contractId && p\) \? p\.id : undefined/.test(app));
   const adm = R('pre-agreement-admin.html');
-  check('console PA: interruttore "offri il mandato" (fMandate) nel create E nell\'edit in place, ripristinato dal doc',
-    /id="fMandate" checked/.test(adm) && /askMandate:!!\$\('fMandate'\)\.checked/.test(adm) && /askMandate:body\.askMandate/.test(adm) && /\$\('fMandate'\)\.checked=d\.askMandate!==false/.test(adm));
+  check('console PA: interruttore "offri il mandato" (fMandate) NON preselezionato, persistito nel create E nell\'edit in place, ripristinato solo se esplicito',
+    /id="fMandate" style/.test(adm) && !/id="fMandate" checked/.test(adm) && /askMandate:!!\$\('fMandate'\)\.checked/.test(adm) && /askMandate:body\.askMandate/.test(adm) && /\$\('fMandate'\)\.checked=d\.askMandate===true/.test(adm));
+  check('pagina cliente: la spunta del mandato compare SOLO con askMandate===true (assente = non offerto)',
+    /PA\.askMandate===true/.test(R('pre-agreement.html')) && !/PA\.askMandate!==false/.test(R('pre-agreement.html')));
+  check('portal Firma ora: la card dice che il mandato riguarda SOLO il conduttore principale e che i co-conduttori firmano separatamente, e mostra il diff delle condizioni',
+    /solo il conduttore principale/.test(fo) && /co-conduttori firmano separatamente/.test(fo) && /describeDiff\(mandDiff\)/.test(fo) && /termsFromContract\(c\)/.test(fo));
+  check('portal: mandato-engine caricato dal portal e network-first nel SW; setMandatoTenant rifiuta l\'attivazione a condizioni cambiate',
+    /mandato-engine\.js/.test(R('portal.html')) && /\/js\/mandato-engine\.js/.test(R('sw.js')) && /Condizioni cambiate rispetto al mandato/.test(sm));
+  check('sign.html: avviso rosso quando termsOk===false (il server rifiuterà)', /termsOk===false/.test(R('sign.html')));
   check('console PA: la riga dice se il mandato è arrivato e la verifica canone segnala il catasto mancante PRIMA di mandare il link',
     /Mandato a firmare ricevuto il/.test(adm) && /scheda 2\/B: manca il catasto/.test(adm));
   const cv = R('api/preagreement/convert.js');
-  check('convert.js: termsHash calcolato sul contratto INTERO (dopo l\'oggetto), mai prima',
-    cv.indexOf('termsHash: termsFingerprint(contract)') > cv.indexOf("createdBy: 'preagreement_convert:' + actor"));
+  check('convert.js: la base del mandato è la FOTO della proposta (pa.approvedTerms), mai il contratto — il contratto si VERIFICA (diff), non fa da base',
+    /const terms = snap \? snap\.terms : MANDATO\.termsFromProposal\(pa/.test(cv) && /const termsHash = snap \? snap\.hash : mandateTermsHash\(terms\)/.test(cv)
+    && /MANDATO\.diffTerms\(terms, MANDATO\.termsFromContract\(contract\)\)/.test(cv) && !/termsFingerprint\(contract\)/.test(cv));
 }
 
 // ═══ 10. Il bug della pagina RLI: numeri da rliFacts (L2 per tutti, importo per durata) ═══

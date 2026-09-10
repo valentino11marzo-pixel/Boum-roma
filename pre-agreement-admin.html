@@ -304,8 +304,8 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
           <button type="button" onclick="setXDoc('Last 3 payslips or proof of income')">Buste paga</button>
         </div>
         <label class="fld"><span>Secondo documento (facoltativo)</span><input id="fXDoc" placeholder="es. Proof of the transitional need (work contract / enrolment)"></label>
-        <p class="hintline" style="margin-top:12px">Con l'accettazione il cliente firma anche la <b>scheda di calcolo del canone</b> (Allegato 2/B) — dopo la firma del contratto esce già completa. E può darti il <b>mandato a firmare</b> il contratto in sua vece agli stessi identici termini: spunta a parte, mai pre-selezionata. Se i termini cambiano dopo, il mandato non vale più (il server lo rifiuta).</p>
-        <label class="fld" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="fMandate" checked style="width:auto"><span style="margin:0">Offri il mandato a firmare nella proposta</span></label>
+        <p class="hintline" style="margin-top:12px">Con l'accettazione il cliente firma anche la <b>scheda di calcolo del canone</b> (Allegato 2/B) — dopo la firma del contratto esce già completa. Se lo scegli qui, può darti il <b>mandato a firmare</b> il contratto in sua vece agli stessi identici termini: spunta a parte sulla sua pagina, mai pre-selezionata. Riguarda <b>solo il conduttore principale</b> (i co-conduttori firmano col proprio link). Se le condizioni cambiano dopo l'accettazione, il mandato non vale più: il server rifiuta la firma e il portal mostra cosa è cambiato.</p>
+        <label class="fld" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="fMandate" style="width:auto"><span style="margin:0">Offri il mandato a firmare nella proposta (scelta esplicita, non attiva di default)</span></label>
       </div>
 
       <div class="card"><h2><span class="no">06</span><span class="tt">Cliente (prefill facoltativo)</span></h2>
@@ -586,7 +586,7 @@ function fillForm(d){
   $('fLandlord').value=(d.landlord||{}).name||'';
   $('fLEmail').value=(d.landlord||{}).email||'';$('fLPhone').value=(d.landlord||{}).phone||'';
   $('fXDoc').value=d.extraDoc||'';
-  $('fMandate').checked=d.askMandate!==false;
+  $('fMandate').checked=d.askMandate===true;
   $('fValid').value=d.validUntil||'';
   $('fStart').value=(d.lease||{}).startDate||'';$('fMonths').value=(d.lease||{}).months||12;
   try{$('fType').value=(d.lease||{}).type||'Transitional Lease'}catch(e){}
@@ -913,8 +913,8 @@ function paRow(d){
   var docsLine='';
   if(d.mandate&&d.mandate.given){
     docsLine+='<div class="docs" style="color:var(--gold)">🖊 Mandato a firmare ricevuto il '+esc(String(d.mandate.at||'').slice(0,10))+' — dopo la conversione puoi firmare TU per il conduttore (🖊 Firma ora nel portal)</div>';
-  }else if(done&&d.askMandate!==false){
-    docsLine+='<div class="docs" style="color:var(--t3)">🖊 Mandato non dato: il conduttore firma col suo link</div>';
+  }else if(done&&d.askMandate===true){
+    docsLine+='<div class="docs" style="color:var(--t3)">🖊 Mandato offerto ma non dato: il conduttore firma col suo link</div>';
   }
   if(ups.length||d.extraDoc){
     docsLine+='<div class="docs">📎 '
