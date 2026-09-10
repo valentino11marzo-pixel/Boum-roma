@@ -3081,6 +3081,26 @@ Two intakes:
   senders (operator's own addresses + `DOC_MAIL_FROM`). Processed emails
   remembered in `docImports`; per-run AI budget; Telegram recap.
 
+**Le porte (10/09/2026, Lotto 2 della Segretaria unica — `STUDIO_SEGRETARIA_UNICA_2026-09.md` §5).**
+Un documento può arrivare da chi NON è l'operatore: l'allegato WhatsApp
+(oggi salvato in `attachments` e mai letto) e l'email di un proprietario
+(oggi esclusa, perché fidata solo per indirizzo). Codex, incaricato delle
+porte, si è fermato in PR #234 con due obiezioni giuste: la pipeline creava
+un id casuale (un retry di Homie = due documenti) e non aveva un vincolo sul
+match (uno sconosciuto poteva finire sotto un immobile). `smistaDocument`
+accetta ora `docId` — controllato PRIMA di chiamare il modello e di caricare
+su Storage: un doppione non paga nulla, un 409 in gara è un doppione — e
+`relation` `{kind: landlord|tenant|unknown|operator, label, propertyIds[],
+contractIds[]}`: con landlord/tenant il modello vede SOLO gli immobili del
+mittente e la scelta è rivalidata sul server (un immobile → default
+dichiarato `relationDefault`; più immobili senza scelta valida →
+`needsFiling` coi `relatedPropertyIds`); con `unknown` il documento **non
+finisce MAI sotto un immobile**, `needsFiling` forzato e la scelta del
+modello resta visibile come `suggestedPropertyId`. Senza `relation` è lo
+Smistatore di sempre. Le porte vere (WhatsApp, email per relazione) sono il
+lavoro di Codex sopra questa interfaccia. Test: `node tests/documents/smista.mjs`
+(gara 409, scarto della scelta fuori relazione e dedupe verificati per mutazione).
+
 ## La Banca (open banking — api/banking/* + banca.html)
 
 PSD2 bank feed for the Contabile via **GoCardless Bank Account Data** (ex

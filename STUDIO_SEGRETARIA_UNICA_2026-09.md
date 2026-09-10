@@ -129,6 +129,18 @@ conflitto è un errore di perimetro, non di merge. Il prompt d'apertura di
 Codex è in `docs/PROMPT_CODEX_PORTE.md`; le regole che Codex legge da solo
 in `AGENTS.md`.
 
+**Il primo conflitto di perimetro, e come si è chiuso (10/09).** Codex si è
+fermato (PR #234, come prescritto) perché `_smista.js` è del Lotto 4 ma
+senza un id deterministico e un vincolo sul match le porte non potevano
+garantire i due «mai». Aveva ragione. La soluzione non è spostare il file:
+il proprietario del file (Lotto 4) ha esteso l'INTERFACCIA — `docId`
+controllato prima di spendere, `relation` applicata prima di scrivere — con
+la sua suite (`tests/documents/smista.mjs`). Regola generale che ne esce:
+**quando un lotto ha bisogno di un file altrui, chiede un'interfaccia nella
+PR, e il proprietario la costruisce e la testa**. Le porte restano di Codex,
+che riprende unendo il ramo `claude/workload-gpt-integration-yvewv1` nel
+suo (o main, dopo il merge) e chiamando la firma nuova.
+
 ## 6 · Le righe rosse
 
 - **Mai una seconda memoria**: il fascicolo si deriva, non si salva. Il
