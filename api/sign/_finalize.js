@@ -21,9 +21,15 @@ import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import { fsCreate, fsPatch, fsGet, fsList, fsDelete } from '../homie/_lib.js';
 import { storageUpload } from '../agent/_lib.js';
 import { sendWelcomeEmails, sendCafDossier } from './_notify.js';
+import { sendRegistrationSheet } from './_foglio.js';
 import { buildFascicolo } from '../fiscal/fascicolo.js';
 import { buildRegistrationPack } from './_pack.js';
 import { maybeAutoAspi } from '../fiscal/_aspi.js';
+// Il dizionario del contratto: i lettori RLI (fascicolo, pack, ASPI, foglio)
+// guardavano SOLO i campi del contratto mentre il PDF risale la catena
+// users — un CF presente solo sul profilo usciva «MANCANTE» in tre posti.
+// hydrateParties riempie i campi di parte dalla stessa catena, una volta.
+import FIELDS from '../../js/contract-fields.js';
 
 const BASE = 'https://www.boomrome.com';
 const MS_CONSENT = 'I confirm my identity and accept all lease terms. This digital signature is legally valid (FES — Art. 21 CAD).';
@@ -64,6 +70,13 @@ export async function finalizeContract(contract){
   const tenant   = contract.tenantId ? await fsGet(`users/${contract.tenantId}`).catch(()=>null) : null;
   const ownerId  = property && property.ownerId;
   const landlord = ownerId ? await fsGet(`users/${ownerId}`).catch(()=>null) : null;
+  // Da qui in poi il contratto porta i campi di parte della catena users
+  // (CF, nascita, documento) come li stampa il PDF: fascicolo, pack, CAF,
+  // ASPI e foglio non possono più dire «mancante» a un dato che c'è.
+  try {
+    const landlordR = ownerId ? await fsGet(`landlords/${ownerId}`).catch(()=>null) : null;
+    contract = FIELDS.hydrateParties(contract, tenant, { ...(landlordR || {}), ...(landlord || {}) }, property);
+  } catch (e) { console.warn('[finalize] hydrate:', e.message); }
 
   // cedolareSecca sui contratti reali è la STRINGA 'si'/'no' (portal e
   // convert), non un boolean: il vecchio `=== true` mandava OGNI contratto
@@ -242,10 +255,10 @@ export async function finalizeContract(contract){
   // delle email (così il CAF riceve il link). Best-effort: se zona o mq
   // mancano, il PDF nasce comunque con le pagine RLI+scadenze e la scheda
   // canone dice esattamente cosa impostare dalla console.
-  let fascicoloUrl = '';
+  let fascicoloUrl = '', schedaPdfUrl = '';
   try {
     const fasc = await buildFascicolo(contract.id, { contract, property });
-    if (fasc && fasc.ok) fascicoloUrl = fasc.url;
+    if (fasc && fasc.ok) { fascicoloUrl = fasc.url; schedaPdfUrl = fasc.schedaUrl || ''; }
   } catch (e) { console.warn('[finalize] fascicolo:', e.message); }
 
   // ── Pack Registrazione (ZIP: tutto il necessario per RLI + ARPE) ──
@@ -259,7 +272,7 @@ export async function finalizeContract(contract){
       ...contract,
       tenantName: contract.tenantName || (tenant && tenant.name) || '',
       landlordName: contract.landlordName || (landlord && landlord.name) || '',
-    }, property, { signedPdfUrl, certUrl, fascicoloUrl });
+    }, property, { signedPdfUrl, certUrl, fascicoloUrl, schedaPdfUrl });
     if (p && p.ok) pack = p;
   } catch (e) { console.warn('[finalize] pack:', e.message); }
 
@@ -278,9 +291,13 @@ export async function finalizeContract(contract){
   try { await fsPatch(`contracts/${contract.id}`, { finalizedAt: now }); }
   catch (e) { console.warn('[finalize] early mark failed:', e.message); }
 
-  const [welcome, caf] = await Promise.all([
+  // Tre email all'operatore, tre mestieri: il milestone (breve), il
+  // FASCICOLO COMPLETO (interno: verdetto, link da copiare, pack) e il
+  // FOGLIO DI REGISTRAZIONE (pulito: si inoltra, si stampa, fa da archivio).
+  const [welcome, caf, foglio] = await Promise.all([
     sendWelcomeEmails(contract, property, { portalLink, certUrl, cedolare, nonEU, signedPdfUrl }),
-    sendCafDossier(contract, property, { certUrl, fascicoloUrl, signedPdfUrl, packUrl: pack.url, packMissing: pack.missing }),
+    sendCafDossier(contract, property, { certUrl, fascicoloUrl, schedaPdfUrl, signedPdfUrl, packUrl: pack.url, packMissing: pack.missing, tenant, landlord }),
+    sendRegistrationSheet(contract, property, { certUrl, fascicoloUrl, schedaPdfUrl, signedPdfUrl, tenant, landlord, now }),
   ]);
   const tenantEmail = !!(welcome && welcome.tenant);
   const landlordEmail = !!(welcome && welcome.landlord);
@@ -293,14 +310,14 @@ export async function finalizeContract(contract){
   let aspi = null;
   try {
     aspi = await Promise.race([
-      maybeAutoAspi(contract, { signedPdfUrl, certUrl, fascicoloUrl }),
+      maybeAutoAspi(contract, { signedPdfUrl, certUrl, fascicoloUrl, schedaPdfUrl }),
       new Promise(resolve => setTimeout(() => resolve({ skipped: 'timeout' }), 20000)),
     ]);
   } catch (e) { console.warn('[finalize] aspi auto:', e.message); }
 
   try { await fsPatch(`contracts/${contract.id}`, { finalizedAt: now, magicLinkId: magicId, signingCertificateUrl: certUrl, ...(signedPdfUrl ? { signedPdfUrl } : {}), ...(timestampUrl ? { timestampTsrUrl: timestampUrl } : {}) }); } catch(e){ console.warn('[finalize] mark failed:', e.message); }
 
-  return { ok:true, obligations: created, certificate: !!certUrl, signedPdf: !!signedPdfUrl, timestamp: !!timestampUrl, pack: !!pack.url, packMissing: pack.missing, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok), aspi: aspi && aspi.ok ? aspi.kind : (aspi && aspi.skipped) || false };
+  return { ok:true, obligations: created, certificate: !!certUrl, signedPdf: !!signedPdfUrl, timestamp: !!timestampUrl, pack: !!pack.url, packMissing: pack.missing, magicLink: !!magicId, tenantEmail, landlordEmail, caf: !!(caf && caf.ok), foglio: !!(foglio && foglio.ok), aspi: aspi && aspi.ok ? aspi.kind : (aspi && aspi.skipped) || false };
 }
 
 // ── Bonifica delle scadenze doppie del finalize ──
@@ -359,6 +376,23 @@ async function uploadPdf(path, bytes, contentType = 'application/pdf'){
 // data/ora, hash e rinvio al certificato FES, e restituisce i byte del
 // documento unico. Ritorna null se il contratto non ha un PDF sorgente
 // (legacy): il chiamante allega allora solo il certificato.
+// Le righe "firmato per delega / per mandato" sotto il riquadro della firma
+// (pagina firme + certificato). Esportata e testata: due righe corte, solo
+// WinAnsi (mai una freccia), il mandato porta data e proposta. Nessun
+// delegato = nessuna riga: il documento non cambia per chi firma di persona.
+export function delegateLines(d) {
+  if (!d || !d.name) return [];
+  const cut = (s, n) => { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '.' : s; };
+  const isMandate = !!(d.mandateRef || d.mandateAt || /mandat/i.test(String(d.basis || '')));
+  const l1 = (isMandate ? 'Firma per mandato: ' : 'Firma per delega: ') + cut(d.name, 44);
+  let l2 = 'per conto di ' + cut(d.onBehalfOf || '-', 30);
+  if (isMandate) {
+    const at = d.mandateAt ? new Date(d.mandateAt).toLocaleDateString('it-IT') : '';
+    l2 += ' - mandato' + (at ? ' del ' + at : '') + (d.mandateRef ? ' (' + cut(d.mandateRef, 16) + ')' : '');
+  } else if (d.basis) l2 += ' - ' + cut(d.basis, 30);
+  return [cut(l1, 64), cut(l2, 64)];
+}
+
 async function buildSignedContract(c, property){
   const src = c.generatedPDF || c.contractPdfUrl || '';
   if (!src) return null;
@@ -436,7 +470,7 @@ async function buildSignedContract(c, property){
   row('Firmato da tutte le parti il', c.fullySignedAt ? new Date(c.fullySignedAt).toLocaleString('it-IT') : '-');
   y -= 10;
 
-  const block = async (title, name, cf, sig, at, x) => {
+  const block = async (title, name, cf, sig, at, x, dele) => {
     let yy = y;
     T(title, x, yy, 10, bold, gold); yy -= 16;
     T('Firmatario: ' + (name || '-'), x, yy, 9); yy -= 13;
@@ -451,9 +485,13 @@ async function buildSignedContract(c, property){
           page.drawImage(im, { x: x + (230 - w)/2, y: yy - 56 + (52 - h)/2, width: w, height: h }); }
       } catch(e){}
     }
+    // Firma per delega / per mandato: CHI ha firmato davvero e in forza di
+    // cosa — sotto il riquadro, dove chi legge cerca la firma. Prima la
+    // pagina taceva e il documento sembrava firmato dal titolare.
+    for (const [i, line] of delegateLines(dele).entries()) T(line, x, yy - 58 - 9 - i * 8, 7, font, grey);
   };
-  await block('IL CONDUTTORE (Tenant)', c.tenantName, c.tenantCF, c.tenantSignature, c.tenantSignedAt, 40);
-  await block('IL LOCATORE (Landlord)', c.landlordName, c.landlordCF, c.landlordSignature, c.landlordSignedAt, 320);
+  await block('IL CONDUTTORE (Tenant)', c.tenantName, c.tenantCF, c.tenantSignature, c.tenantSignedAt, 40, c.tenantSignedByDelegate);
+  await block('IL LOCATORE (Landlord)', c.landlordName, c.landlordCF, c.landlordSignature, c.landlordSignedAt, 320, c.landlordSignedByDelegate);
 
   // CO-FIRMA: blocchi firma anche per i co-conduttori (fino a 2 in pagina).
   const coSigList = (Array.isArray(c.coTenants) ? c.coTenants : []).filter(x => x && x.name);
@@ -500,7 +538,7 @@ async function buildCertificate(c, property){
   const row = (label, val) => { T(label, 40, y, 9, bold, grey); T(val, 180, y, 10, font, dark); y -= 18; };
   row('Contratto', c.id || '');
   row('Immobile', (property && (property.address || property.name)) || '');
-  row('Tipo', c.type === 'studenti' ? 'Per studenti' : 'Transitorio');
+  row('Tipo', c.type === 'studenti' ? 'Per studenti' : c.type === '3+2' ? 'Canone concordato 3+2' : 'Transitorio');
   row('Canone / Deposito', (money(c.rent) || '-') + '   /   ' + (money(c.deposit) || '-'));
   // Solo caratteri WinAnsi: la freccia "→" (U+2192) non è codificabile con
   // gli StandardFonts di pdf-lib e faceva fallire l'INTERO certificato.
@@ -508,7 +546,7 @@ async function buildCertificate(c, property){
   row('Stato', c.fullySignedAt ? 'COMPLETO — firmato da tutte le parti il ' + new Date(c.fullySignedAt).toLocaleString('it-IT') : 'COMPLETO');
   y -= 8;
 
-  const block = async (title, name, cf, sig, at, ip, hash, x) => {
+  const block = async (title, name, cf, sig, at, ip, hash, x, dele) => {
     let yy = y;
     T(title, x, yy, 10, bold, gold); yy -= 16;
     T('Firmatario: ' + (name || '-'), x, yy, 9); yy -= 13;
@@ -526,9 +564,12 @@ async function buildCertificate(c, property){
     }
     yy -= 70;
     T('Consent hash: ' + String(hash || '').slice(0, 40), x, yy, 7, font, grey);
+    // Il certificato ATTESTA: se ha firmato un delegato o un mandatario, lo
+    // dice qui, con la base (delega / mandato, data, proposta).
+    for (const [i, line] of delegateLines(dele).entries()) T(line, x, yy - 9 - i * 8, 7, font, grey);
   };
-  await block('CONDUTTORE (Tenant)', c.tenantName, c.tenantCF, c.tenantSignature, c.tenantSignedAt, c.tenantSignedIP, c.tenantConsentHash, 40);
-  await block('LOCATORE (Landlord)', c.landlordName, c.landlordCF, c.landlordSignature, c.landlordSignedAt, c.landlordSignedIP, c.landlordConsentHash, 320);
+  await block('CONDUTTORE (Tenant)', c.tenantName, c.tenantCF, c.tenantSignature, c.tenantSignedAt, c.tenantSignedIP, c.tenantConsentHash, 40, c.tenantSignedByDelegate);
+  await block('LOCATORE (Landlord)', c.landlordName, c.landlordCF, c.landlordSignature, c.landlordSignedAt, c.landlordSignedIP, c.landlordConsentHash, 320, c.landlordSignedByDelegate);
 
   // CO-FIRMA: i co-conduttori hanno il LORO blocco (firma, CF, data/ora,
   // IP, hash del consenso) — fino a 2 in pagina; oltre, la riga li conta

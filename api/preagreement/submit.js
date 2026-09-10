@@ -23,6 +23,9 @@ import { acquireLock, confirmLock, HOLD_HOURS } from './_lock.js';
 import { paidOnRecord } from './_state.js';
 import { normalizeAddons, addonsTotal } from './_addons.js';
 import { tgSend } from '../telegram/_lib.js';
+import { PA_CONSENT_TEXT, PA_CONSENT_HASH, PA_MANDATE_TEXT, PA_MANDATE_HASH } from './_consent.js';
+import MANDATO from '../../js/mandato-engine.js';
+import { mandateTermsHash } from '../magic-sign/_shared.js';
 
 // Telegram in parse_mode HTML: un nome con & o < romperebbe il messaggio.
 const esc = (v) => String(v == null ? '' : v)
@@ -87,6 +90,28 @@ export default async function handler(req, res) {
 
     const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
     const ref = 'BOOM-' + Date.now().toString(36).toUpperCase();
+    const ua = String(req.headers['user-agent'] || '').slice(0, 160);
+    // Il consenso porta il TESTO e l'hash (una copia sola, _consent.js): e'
+    // l'accettazione della proposta E la firma sulla scheda di calcolo del
+    // canone (Allegato 2/B) — il contratto la eredita (paAcceptance).
+    const acceptedAt = new Date().toISOString();
+    const consent = { at: acceptedAt, ip, ua, text: PA_CONSENT_TEXT, hash: PA_CONSENT_HASH, schedaSigned: true };
+    // Il MANDATO a firmare: SOLO se la console l'ha offerto ESPLICITAMENTE
+    // (askMandate === true; assente = non offerto, le proposte nate prima non
+    // cambiano comportamento) e il cliente ha spuntato (atto a parte, mai
+    // dedotto dal consenso).
+    const mandate = (data.askMandate === true && b.mandate === true)
+      ? { given: true, at: acceptedAt, ip, ua, text: PA_MANDATE_TEXT, hash: PA_MANDATE_HASH } : null;
+    // LA FOTO DELLE CONDIZIONI APPROVATE, presa ORA e persistita sulla
+    // proposta: immobile, parti, modello, date, canone/deposito/oneri/
+    // cadenza/cedolare, clausole (js/mandato-engine.js). È la base del
+    // mandato — conversione e firma si confrontano con QUESTA, mai con dati
+    // riletti dopo. Si registra sempre (anche senza mandato): è il record di
+    // cosa il cliente ha accettato.
+    const approvedTerms = (() => {
+      const terms = MANDATO.termsFromProposal({ ...data, tenant: tenants[0], tenants });
+      return { version: MANDATO.VERSION, at: acceptedAt, terms, hash: mandateTermsHash(terms) };
+    })();
 
     // Each party's typed full name IS their signature (like the paper doc,
     // where every co-tenant signs the same signature box).
@@ -124,8 +149,8 @@ export default async function handler(req, res) {
         tenant, tenants: signed,
         status: 'reserve',
         reserveOf: lock.by || null,
-        reserveAt: new Date().toISOString(),
-        consent: { at: new Date().toISOString(), ip, ua: String(req.headers['user-agent'] || '').slice(0, 160) },
+        reserveAt: acceptedAt,
+        consent, mandate, approvedTerms,
       });
       logActivity('preagreement_reserve', 'preagreement', {
         id, tenant: fullName, heldBy: lock.by, address: (data.property || {}).address,
@@ -144,9 +169,9 @@ export default async function handler(req, res) {
     }
     await fsPatch(`preAgreements/${id}`, {
       tenant, tenants: signed, status: 'accepted', ref,
-      acceptedAt: new Date().toISOString(),
+      acceptedAt,
       ...(addons.length ? { addons, addonsEur } : {}),
-      consent: { at: new Date().toISOString(), ip, ua: String(req.headers['user-agent'] || '').slice(0, 160) },
+      consent, mandate, approvedTerms,
     });
     logActivity('preagreement_accepted', 'preagreement', { id, ref, tenant: fullName, coTenants: signed.length - 1, address: (data.property || {}).address }, 'web')
       .catch(() => {});
@@ -232,8 +257,16 @@ export default async function handler(req, res) {
     // Deal sealed with nothing due via Stripe → the contract auto-creates
     // NOW and the tenant's Magic-Sign link goes out while momentum is hot.
     // (When a payment is expected, the webhook runs this after checkout.)
+    // LO STATO ACCETTATO VIAGGIA INTERO: `data` è la proposta letta PRIMA
+    // della patch — senza consenso, mandato e foto delle condizioni il
+    // contratto automatico nasceva senza paAcceptance e senza tenantMandate
+    // (il mandato appena dato spariva proprio sulla strada normale).
     if (!(due > 0 && checkoutUrl)) {
-      await maybeAutoConvert({ pa: { ...data, tenant, tenants: signed, status: 'accepted', ref }, paId: id });
+      await maybeAutoConvert({
+        pa: { ...data, tenant, tenants: signed, status: 'accepted', ref, acceptedAt, consent, mandate, approvedTerms,
+              ...(addons.length ? { addons, addonsEur } : {}) },
+        paId: id,
+      });
     }
 
     return res.status(200).json({ ok: true, ref, checkoutUrl });

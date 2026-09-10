@@ -1,10 +1,12 @@
 // api/fiscal/fascicolo.js
 // IL FASCICOLO FISCALE — un PDF, tre pagine, generato dal contratto:
-//   1. SCHEDA PER L'ATTESTAZIONE DI RISPONDENZA (accordo Roma 25/07/2023 +
-//      DM 16/01/2017) compilata DAL CONTRATTO: parti, catasto, superficie
-//      convenzionale, i 20 parametri derivati dalle feature REALI di
-//      immobile/annuncio, maggiorazioni provate, e il verdetto — il canone
-//      pattuito RIENTRA nella fascia di oscillazione (o sfora di quanto).
+//   1. LA SCHEDA DI CALCOLO DEL CANONE — Allegato 2/B, 1:1 col modulo ARPE
+//      (accordo Roma 25/07/2023 + DM 16/01/2017) compilata DAL CONTRATTO:
+//      parti, via/zona/catasto, superficie convenzionale, i 20 parametri
+//      derivati dalle feature REALI di immobile/annuncio, maggiorazioni
+//      provate, il calcolo riga per riga e i due importi finali. La stessa
+//      pagina esce anche da sola (contract.schedaCanoneUrl): e' quella che
+//      si manda ad ARPE.
 //   2. DATI PER LA REGISTRAZIONE RLI (quadri: contratto, parti, immobile,
 //      regime) — tutto quello che si ricopia sul modello AdE.
 //   3. SCADENZARIO del contratto (le deadline già a sistema + i termini di
@@ -22,9 +24,12 @@
 // Method:   POST  { contractId, zonaCod?, parIdx?[], mag?[], mqBal?, mqBox?,
 //                   boxPre?, mqPC?, mqSc?, mqVe?, normale?, regData? }
 // Headers:  Authorization: Bearer <firebase-id-token>  (admin)
-// Response: { ok, url, calc } | { ok:false, error }
+// Response: { ok, url, schedaUrl, calc } | { ok:false, error }
 
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+// Il dizionario del contratto: i campi di parte risalgono la catena users come
+// nel PDF — un CF presente solo sul profilo non esce «-» sulla pagina RLI.
+import FIELDS from '../../js/contract-fields.js';
 import { fsGet, fsList, fsPatch, readJson } from '../homie/_lib.js';
 import { storageUpload } from '../agent/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
@@ -53,7 +58,9 @@ function itNum(v) {
 }
 const eur = n => 'EUR ' + itNum(n);
 const fmtN = n => itNum(n);
-const dIT = s => { try { const d = new Date(String(s).slice(0, 10) + 'T00:00'); return isNaN(d) ? '' : d.toLocaleDateString('it-IT'); } catch { return ''; } };
+// Date all'italiana DETERMINISTICHE (gg/mm/aaaa): come i numeri, mai
+// toLocale* su un runtime con ICU ridotta.
+const dIT = s => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(s == null ? '' : s)); return m ? `${m[3]}/${m[2]}/${m[1]}` : ''; };
 
 // ── Input dal contratto: solo dati reali, override persistiti ────────────
 function collectFeatures(property, listing) {
@@ -70,6 +77,14 @@ function collectFeatures(property, listing) {
   return out;
 }
 
+// Il tipo del contratto nella grammatica del motore: 'stud' (Allegato C),
+// '32' (canone concordato 3+2, Allegato A) o 'trans' (Allegato B).
+export function contractTipo(contract) {
+  const t = String((contract && contract.type) || '').toLowerCase();
+  if (t === 'studenti') return 'stud';
+  if (t === '32' || /^3\s*\+\s*2$/.test(t) || t === 'concordato') return '32';
+  return 'trans';
+}
 export function resolveCanoneInput({ contract, property, listing, cfg }) {
   const saved = contract.canoneScheda || {};
   const zonaCod = saved.zonaCod || property.canoneZonaCod || '';
@@ -94,14 +109,384 @@ export function resolveCanoneInput({ contract, property, listing, cfg }) {
     furnished: !!(property.furnished || (listing || {}).furnished),
     energyClass: contract.energyClass || property.energyClass || (listing || {}).energyClass || '',
     floorText: String(property.floor || (listing || {}).floor || ''),
-    tipo: contract.type === 'studenti' ? 'stud' : 'trans',
+    tipo: contractTipo(contract),
     canone: Number(contract.rent) || 0,
     cfg,
   };
 }
 
+// ── LA SCHEDA DI CALCOLO DEL CANONE — Allegato 2/B, 1:1 col modulo ARPE ──
+// Il foglio che le parti FIRMANO e che va ad ARPE per l'attestazione di
+// rispondenza: reference/caf/2023_scheda_calcolo_canone_ARPE.docx (accordo
+// Roma 25/07/2023 + DM 16/01/2017). Stesse sezioni, stesse etichette, stesso
+// ordine, stesse caselle, stessa geometria delle tabelle (larghezze in twip
+// del modulo / 20): chi lo riceve deve riconoscere il PROPRIO modulo, gia'
+// compilato. Cio' che il sistema sa e' scritto; cio' che non sa resta la
+// riga vuota del modulo, da completare a mano — mai una stima. Su questa
+// pagina NON c'e' la testata BOOM: e' il modulo dell'associazione, non un
+// documento nostro. L'unico refuso normalizzato: il pie' di pagina del
+// modulo dice "SCHEDA NON VALIDI"; qui "VALIDA".
+//
+// schedaFacts() e' pura: TUTTO cio' che la pagina stampa passa di qui, cosi'
+// si testa senza aprire il PDF. drawSchedaArpe() e' solo geometria.
+const SUB_NAME = { A: 'inferiore', B: 'media', C: 'massima' };
+// OGNI stringa fissa che la pagina stampa sta qui, ed e' esportata: il test
+// la cerca nel .docx del modulo, parola per parola. Cambiare una etichetta
+// senza che il modulo sia cambiato = il test cade.
+export const SCHEDA_TEXT = {
+  header: 'Allegato 2/B',
+  title1: 'SCHEDA DI CALCOLO DEL CANONE DELL’ACCORDO TERRITORIALE',
+  title2: 'DEL COMUNE DI ROMA DEL 25/07/2023 E DM 16 GENNAIO 2017',
+  tipi: ['Contratto: 3+2', 'Studenti universitari', 'Transitorio'],
+  parti: ['LOCATORE:', 'CONDUTTORE:'],
+  riga: ['Città:', 'ROMA', 'Via', 'COD. ZONA', 'Id. catastale:'],
+  dichiarazione: 'Tutte le informazioni necessarie per determinare il calcolo del canone sono state fornite dalle parti.',
+  hSuperficie: 'CALCOLO DELLA SUPERFICIE CONVENZIONALE',
+  calpestabile: 'Superficie calpestabile appartamento:',
+  brackets: [
+    '<46 (x 1,30 fino a 52.90 mq.)',
+    '46-70(x 1,15 fino a 70.00 mq.)',
+    '70-120',
+    '>120 (possibilità di diminuzione fino a – 15%)',
+  ],
+  pertinenze: [
+    ['boxPre', 'Autorimessa e/o posto auto esclusivo Zona Pregio', 'x 0,80', 0.80],
+    ['box',    'Autorimessa e/o posto auto esclusivo',             'x 0,50', 0.50],
+    ['pc',     'Posto auto in autorimessa comune',                 'x 0,20', 0.20],
+    ['bal',    'Balconi, terrazze, cantine e simili',              'x 0,25', 0.25],
+    ['sc',     'Superficie scoperta in godimento esclusivo',       'x 0,15', 0.15],
+    ['ve',     'Sup. verde condominiale (Sup. tot. cond / MM.Tab A)', 'x 0,10', 0.10],
+  ],
+  totale: 'TOTALE SUPERFICIE CONVENZIONALE Mq.',
+  caratteristiche: 'CARATTERISTICHE:',
+  caratt: ['Allaccio rete idrica', 'Allaccio rete fognante', 'Erogazione GAS o induzione', 'Impianto riscaldamento'],
+  normale: 'Appartamento normale', si: 'SI', no: 'NO',
+  hParametri: 'PARAMETRI',
+  nParametri: 'NUMERO PARAMETRI DESCRITTIVI DELL’ALLOGGIO',
+  hMagg: 'Maggiorazioni/Riduzioni applicabili:',
+  magg: [
+    [['arr', 'A – Ammobiliato + ____%'], ['sem', 'B – Seminterrato -10%'], ['asc', 'C – Senza ascensore –10%']],
+    [['att', 'D – Attico + 10%'], ['clA', 'E – Classe energetica A/B/C + 10%'], ['eco', 'F – Interventi Eco Bonus + 5%']],
+    [['sis', 'G – Interventi Sisma Bonus + 10%'], ['clD', 'H – Classe energetica D/E/F + 5%'], null],
+  ],
+  zona: 'ZONA', fascia: 'FASCIA DI OSCILLAZIONE MIN/MAX',
+  parN: 'PARAMETRI n.', subfascia: 'SUBFASCIA: (inferiore/media/massima)', valore: 'Valore applicato €',
+  calcolo: 'CALCOLO DEL CANONE: €', mqMese: 'MQ/MESE', xmq: 'x mq.',
+  durata: 'Durata +', transitorio: 'Transitorio + 10%', vincolato: 'Immobile Vincolato oppure Cat. A1-A8+____%',
+  importoMax: 'Importo massimo canone mensile: €', importoPatt: 'Importo canone mensile pattuito: €',
+  firme: ['Il locatore', 'Il conduttore'],
+  // Il modulo dice "SCHEDA NON VALIDI": l'unico refuso normalizzato.
+  footer: 'SCHEDA NON VALIDA AI FINI DELL’ATTESTAZIONE DI RISPONDENZA EX DM 16 GENNAIO 2017',
+  footerOriginale: 'SCHEDA NON VALIDI AI FINI DELL’ATTESTAZIONE DI RISPONDENZA EX DM 16 GENNAIO 2017',
+};
+const TX = SCHEDA_TEXT;
+const BRACKETS = TX.brackets;
+const PERTINENZE = TX.pertinenze;
+const MAG_ROWS = TX.magg;
+const nameCf = (n, cf) => { const a = clip(n, 70), b = clip(cf, 20); return a ? (b ? `${a} — C.F. ${b}` : a) : ''; };
+// Il modulo dice "Via ____": il tipo di strada e' gia' stampato.
+const stripVia = (a) => clip(a, 60).replace(/^(via|viale|piazza|piazzale|largo|corso|vicolo|lungotevere|circonvallazione)\s+/i, '');
+
+// La firma di una parte SUL MODULO, dai fatti del contratto: la firma
+// disegnata (Magic Sign) quando la parte ha firmato lei; «X per conto di Y»
+// quando ha firmato BOOM per mandato (conduttore) o per delega (locatore);
+// e per il conduttore anche la firma digitale della PROPOSTA, che con
+// l'accettazione ha firmato pure questa scheda (_consent.js). Nessuna
+// firma → le righe restano vuote, come sul modulo.
+function firmaOf(contract, side) {
+  const c = contract || {};
+  const sig = c[side + 'Signature'], at = c[side + 'SignedAt'], dele = c[side + 'SignedByDelegate'];
+  const name = side === 'tenant' ? c.tenantName : c.landlordName;
+  const lines = [];
+  let image = null;
+  const isImg = (s) => typeof s === 'string' && /^data:image\/(png|jpe?g);base64,/i.test(s);
+  if (dele && dele.name) {
+    lines.push(`${clip(dele.name, 60)} per conto di ${clip(name, 60) || (side === 'tenant' ? 'il conduttore' : 'il locatore')}`);
+    if (side === 'tenant') {
+      const m = c.tenantMandate || {};
+      lines.push(`mandato del ${dIT(dele.mandateAt || m.at)}${(dele.mandateRef || m.ref) ? ' (' + clip(dele.mandateRef || m.ref, 30) + ')' : ''} - firmato il ${dIT(dele.signedAt || at)}`);
+    } else {
+      lines.push(`per delega del proprietario - firmato il ${dIT(dele.signedAt || at)}`);
+    }
+    if (isImg(sig)) image = sig;
+  } else if (isImg(sig)) {
+    image = sig;
+    lines.push(`firmato digitalmente il ${dIT(at)} (FES art. 21 CAD)`);
+  }
+  const pa = c.paAcceptance || {};
+  if (side === 'tenant' && pa.at && pa.schedaSigned) lines.push(`firma digitale sulla proposta del ${dIT(pa.at)}${pa.ref ? ' (' + clip(pa.ref, 30) + ')' : ''}`);
+  return { name: clip(name, 80), image, lines: lines.slice(0, 3) };
+}
+
+// Cosa manca perche' la scheda esca COMPLETA (senza righe vuote da
+// compilare a mano): la console della proposta lo mostra PRIMA di mandare
+// il link, il fascicolo lo riporta. Parametri a zero non sono un buco:
+// una casa senza dotazioni esiste.
+export function schedaGaps(f) {
+  const g = [];
+  if (!f) return ['fatti'];
+  if (!f.zona && !f.zonaCod) g.push('zona');
+  if (!(f.mq > 0)) g.push('mq');
+  if (!(f.cat && f.cat.f && f.cat.p)) g.push('catasto');
+  if (!(f.pattuito > 0)) g.push('canone');
+  return g;
+}
+
+export function schedaFacts({ contract = {}, property = {}, calc, input = {} }) {
+  const has = !!(calc && calc.ok);
+  const cfg = Object.assign({}, CANONE.DEFAULT_CFG, input.cfg || {});
+  const mq = Number(input.mq) || 0;
+  const sup = mq > 0 ? CANONE.supConv(input) : null;
+  const bracket = mq <= 0 ? -1 : mq < 46 ? 0 : mq <= 70 ? 1 : mq <= 120 ? 2 : 3;
+  // Righe pertinenze: stessa aritmetica di supConv (che fa il totale).
+  const boxPre = !!input.boxPre;
+  const qty = { boxPre: boxPre ? Number(input.mqBox) || 0 : 0, box: boxPre ? 0 : Number(input.mqBox) || 0,
+    pc: Number(input.mqPC) || 0, bal: Number(input.mqBal) || 0, sc: Number(input.mqSc) || 0, ve: Number(input.mqVe) || 0 };
+  const pertinenze = PERTINENZE.map(([k, label, coef, c]) => ({ key: k, label, coef, mq: qty[k], v: qty[k] * c }));
+  // Parametri e maggiorazioni: dal calcolo quando c'e', altrimenti override
+  // salvati o derivati dalle dotazioni REALI (mai inventati) — la scheda
+  // senza zona resta un foglio di lavoro onesto.
+  const parIdx = has ? calc.parIdx
+    : (Array.isArray(input.parIdx) && input.parIdx.length ? input.parIdx.slice() : CANONE.deriveParametri(input.features || []).parIdx);
+  const mag = has ? calc.mag
+    : (Array.isArray(input.mag) && input.mag.length ? input.mag.slice() : CANONE.deriveMaggiorazioni(input, cfg).mag);
+  const cat = FIELDS.parseCadastral(property.cadastralData || contract.cadastral || '');
+  const zona = has ? calc.zona : (input.zona || null);
+  const base = has ? calc.fMax * calc.sc : null;
+  const tipo = input.tipo === '32' ? '32' : input.tipo === 'stud' ? 'stud' : 'trans';
+  const transPct = tipo === 'trans' ? 10 : 0;
+  const pDur = tipo === '32' && Number(cfg.pDur) > 0 ? Number(cfg.pDur) : 0;
+  const pattuito = Number(input.canone || contract.rent) || 0;
+  return {
+    has, tipo,
+    locatore: nameCf(contract.landlordName, contract.landlordCF),
+    conduttore: nameCf(contract.tenantName, contract.tenantCF),
+    citta: clip(property.city || 'Roma', 30).toUpperCase(),
+    via: stripVia(property.address),
+    zonaCod: zona ? zona.cod : clip((contract.canoneScheda || {}).zonaCod || property.canoneZonaCod, 8),
+    cat: { f: clip(property.foglio || cat.foglio, 8), p: clip(property.particella || cat.particella, 8), s: clip(property.sub || cat.sub, 6) },
+    mq, bracket, base0: sup ? sup.parts[0].v : null, pertinenze, scTotal: sup ? sup.total : null,
+    normale: input.normale !== false,
+    parIdx, nP: parIdx.length, mag, magAny: mag.length > 0, pArr: Number(cfg.pArr) || 0,
+    zona: zona ? { cod: zona.cod, nome: zona.nome, min: zona.aMin, max: zona.cMax } : null,
+    sub: has ? { fascia: calc.fascia, name: SUB_NAME[calc.fascia] || calc.fascia, min: calc.fMin, max: calc.fMax, val: calc.fMax } : null,
+    sc: has ? calc.sc : (sup ? sup.total : 0),
+    base, pDur, durataVal: base != null && pDur ? base * (1 + pDur / 100) : null,
+    transPct, transVal: base != null && transPct ? base * (1 + transPct / 100) : null,
+    cMax: has ? calc.cMax : null, capApplied: !!(has && calc.capApplied),
+    pattuito, fits: has && pattuito > 0 ? calc.fits !== false : null,
+    excess: has && calc.fits === false ? calc.excess : 0,
+    firme: { locatore: firmaOf(contract, 'landlord'), conduttore: firmaOf(contract, 'tenant') },
+  };
+}
+
+export async function drawSchedaArpe(pdf, { font, bold }, f) {
+  const W = 595, H = 842, ML = 36, MR = W - ML;      // margini del modulo: 720 twip
+  const page = pdf.addPage([W, H]);
+  const ink = rgb(0.06, 0.06, 0.07), grey = rgb(0.4, 0.4, 0.42), tint = rgb(0.9, 0.9, 0.9);
+  const wd = (t, sz, fnt) => (fnt || font).widthOfTextAtSize(wa(t), sz);
+  const T = (t, x, yy, sz, fnt, col) => page.drawText(wa(t), { x, y: yy, size: sz, font: fnt || font, color: col || ink });
+  // Testo che DEVE stare nella cella: si stringe il corpo, mai il testo.
+  const TF = (t, x, yy, sz, maxW, fnt, col) => { let s = sz; while (s > 5 && wd(t, s, fnt) > maxW) s -= 0.25; T(t, x, yy, s, fnt, col); };
+  const TC = (t, cx, yy, sz, fnt, col) => T(t, cx - wd(t, sz, fnt) / 2, yy, sz, fnt, col);
+  const TR = (t, rx, yy, sz, fnt, col) => T(t, rx - wd(t, sz, fnt), yy, sz, fnt, col);
+  const hline = (x1, x2, yy) => page.drawLine({ start: { x: x1, y: yy }, end: { x: x2, y: yy }, thickness: 0.5, color: ink });
+  const vline = (x, y1, y2) => page.drawLine({ start: { x, y: y1 }, end: { x, y: y2 }, thickness: 0.5, color: ink });
+  const cell = (x, top, w, h, fill) => page.drawRectangle({ x, y: top - h, width: w, height: h, borderColor: ink, borderWidth: 0.5, ...(fill ? { color: fill } : {}) });
+  // Una riga di celle col bordo (la griglia del modulo). Ritorna le x.
+  const grid = (x, top, widths, h) => {
+    const xs = [x]; widths.forEach(w => xs.push(xs[xs.length - 1] + w));
+    hline(x, xs[xs.length - 1], top); hline(x, xs[xs.length - 1], top - h);
+    xs.forEach(v => vline(v, top, top - h));
+    return xs;
+  };
+  // La casella e' la cella stretta del modulo: la X ci sta dentro.
+  const X = (x, w, top, h, on) => { if (on) TC('X', x + w / 2, top - h + h * 0.28, Math.min(h * 0.7, 8), bold); };
+  const blank = (n) => '_'.repeat(n);
+  const val = (v, n) => (v !== undefined && v !== null && String(v).trim() !== '') ? String(v) : blank(n);
+  const N = (v) => fmtN(v);
+
+  // ── Intestazione + titolo ──
+  TR(TX.header, MR, H - 35, 9);
+  let y = H - 64;
+  TC(TX.title1, W / 2, y, 10.5, bold); y -= 13;
+  TC(TX.title2, W / 2, y, 10.5, bold); y -= 22;
+
+  // ── Contratto: 3+2 / Studenti universitari / Transitorio (tabella centrata) ──
+  {
+    const widths = [14, 86, 12.5, 99, 14, 64], h = 14;
+    const tw = widths.reduce((a, b) => a + b, 0);
+    const xs = grid((W - tw) / 2, y + 10, widths, h);
+    X(xs[0], widths[0], y + 10, h, f.tipo === '32'); T(TX.tipi[0], xs[1] + 3, y, 8);
+    X(xs[2], widths[2], y + 10, h, f.tipo === 'stud'); T(TX.tipi[1], xs[3] + 3, y, 8);
+    X(xs[4], widths[4], y + 10, h, f.tipo === 'trans'); T(TX.tipi[2], xs[5] + 3, y, 8);
+    y -= 24;
+  }
+
+  // ── LOCATORE / CONDUTTORE (tabella senza bordi: etichetta 1418 twip) ──
+  T(TX.parti[0], ML + 2, y, 8.5, bold); TF(val(f.locatore, 56), ML + 73, y, 8.5, MR - ML - 75); y -= 14;
+  T(TX.parti[1], ML + 2, y, 8.5, bold); TF(val(f.conduttore, 56), ML + 73, y, 8.5, MR - ML - 75); y -= 18;
+
+  // ── Città · Via · COD. ZONA · Id. catastale (larghezze del modulo) ──
+  {
+    const x = [0, 35, 106, 156, 261, 318, 368, 425].map(v => ML + v + 2);
+    T(TX.riga[0], x[0], y, 7); T(f.citta, x[1], y, 7, bold);
+    T(TX.riga[2], x[2], y, 7); TF(val(f.via, 24), x[3], y, 7, 100);
+    T(TX.riga[3], x[4], y, 7); T(val(f.zonaCod, 6), x[5], y, 7, bold);
+    T(TX.riga[4], x[6], y, 7);
+    T(`F ${val(f.cat.f, 4)}   P ${val(f.cat.p, 4)}   S ${val(f.cat.s, 3)}`, x[7], y, 7);
+    y -= 20;
+  }
+  TC(TX.dichiarazione, W / 2, y, 9); y -= 20;
+
+  // ── CALCOLO DELLA SUPERFICIE CONVENZIONALE ──
+  T(TX.hSuperficie, ML, y, 10, bold); y -= 6;
+  {
+    const widths = [222, 49, 188, 64];                  // 4536 · 993 · 3845 · 1362 twip, in scala
+    let top = y;
+    let xs = grid(ML, top, widths, 44);
+    T(TX.calpestabile, xs[0] + 3, top - 10, 7.5);
+    for (let i = 0; i < 4; i++) {
+      const ly = top - 10 - i * 10, on = i === f.bracket;
+      T('= mq ' + (on ? N(f.mq) : ''), xs[1] + 3, ly, 7.5, on ? bold : font);
+      TF(BRACKETS[i], xs[2] + 3, ly, 7, widths[2] - 5);
+      T('= mq ' + (on && f.base0 != null ? N(f.base0) : ''), xs[3] + 3, ly, 7.5, on ? bold : font);
+    }
+    top -= 44;
+    f.pertinenze.forEach(r => {
+      xs = grid(ML, top, widths, 13);
+      TF(r.label, xs[0] + 3, top - 9.5, 7.5, widths[0] - 5);
+      T('= mq ' + (r.mq > 0 ? N(r.mq) : ''), xs[1] + 3, top - 9.5, 7.5);
+      T(r.coef, xs[2] + 3, top - 9.5, 7.5);
+      T('= mq ' + (r.mq > 0 ? N(r.v) : ''), xs[3] + 3, top - 9.5, 7.5, r.mq > 0 ? bold : font);
+      top -= 13;
+    });
+    y = top - 15;
+  }
+  TR(`${TX.totale} ${f.scTotal != null ? N(f.scTotal) : blank(12)}`, MR - 12, y, 9.5, bold); y -= 20;
+
+  // ── CARATTERISTICHE (le quattro caselle) + Appartamento normale SI/NO ──
+  {
+    const on = f.normale;
+    let x = ML + 2;
+    T(TX.caratteristiche, x, y, 7.5, bold); x += 90;
+    [[TX.caratt[0], 78], [TX.caratt[1], 92], [TX.caratt[2], 113], [TX.caratt[3], 99]].forEach(([lab, w]) => {
+      T(lab, x, y, 7); cell(x + w, y + 8.5, 11, 11); X(x + w, 11, y + 8.5, 11, on); x += w + 20;
+    });
+    y -= 16;
+    T(TX.normale, ML + 2, y, 8, bold);
+    // La tabellina flottante del modulo, a 2777 twip dal bordo pagina.
+    const bx = 139;
+    cell(bx, y + 8.5, 15.5, 11); X(bx, 15.5, y + 8.5, 11, on); T(TX.si, bx + 19, y, 8);
+    cell(bx + 50.5, y + 8.5, 14, 11); X(bx + 50.5, 14, y + 8.5, 11, !on); T(TX.no, bx + 68, y, 8);
+    y -= 20;
+  }
+
+  // ── PARAMETRI (1-10 a sinistra, 11-20 a destra) ──
+  T(TX.hParametri, ML, y, 10, bold); y -= 6;
+  {
+    const widths = [21, 14, 204, 21, 14, 249], h = 12.5;   // 425 · 284 · 4186 · 425 · 283 · 5103 twip, in scala
+    let top = y;
+    for (let i = 0; i < 10; i++) {
+      const xs = grid(ML, top, widths, h);
+      TC(String(i + 1), xs[0] + widths[0] / 2, top - 9, 7.5);
+      X(xs[1], widths[1], top, h, f.parIdx.includes(i));
+      TF(CANONE.PARAMETRI[i], xs[2] + 3, top - 9, 7, widths[2] - 5);
+      TC(String(i + 11), xs[3] + widths[3] / 2, top - 9, 7.5);
+      X(xs[4], widths[4], top, h, f.parIdx.includes(i + 10));
+      TF(CANONE.PARAMETRI[i + 10], xs[5] + 3, top - 9, 7, widths[5] - 5);
+      top -= h;
+    }
+    y = top - 14;
+  }
+  T(`${TX.nParametri}   ${f.nP}`, ML + 2, y, 8); y -= 17;
+
+  // ── Maggiorazioni/Riduzioni applicabili: SI/NO + la griglia A-H ──
+  T(TX.hMagg, ML + 2, y, 8, bold);
+  {
+    const bx = 187;                                        // 3745 twip dal bordo pagina
+    cell(bx, y + 8.5, 21, 11, f.magAny ? tint : null); TC(TX.si, bx + 10.5, y, 7.5, f.magAny ? bold : font);
+    cell(bx + 21, y + 8.5, 24, 11, f.magAny ? null : tint); TC(TX.no, bx + 33, y, 7.5, f.magAny ? font : bold);
+    y -= 17;
+    const widths = [135, 35, 142, 43, 135, 33], h = 13;    // 2694 · 708 · 2835 · 851 · 2693 · 779 twip
+    let top = y + 10;
+    MAG_ROWS.forEach(row => {
+      let x = ML;
+      row.forEach((m, i) => {
+        const lw = widths[i * 2], bw = widths[i * 2 + 1];
+        if (m) {
+          TF(f.pArr > 0 ? m[1].replace('____', String(f.pArr)) : m[1], x + 2, top - 9.5, 7.5, lw - 4);
+          cell(x + lw, top, bw, h); X(x + lw, bw, top, h, f.mag.includes(m[0]));
+        }
+        x += lw + bw;
+      });
+      top -= h;
+    });
+    y = top - 12;
+  }
+
+  // ── Il calcolo, riga per riga come sul modulo (corpo 8, interlinea 1,5) ──
+  const L = 14;
+  T(`${TX.zona} ${f.zona ? f.zona.cod + '  ' + f.zona.nome : blank(9)}`, ML + 2, y, 8);
+  T(`${TX.fascia}   ${f.zona ? N(f.zona.min) + ' / ' + N(f.zona.max) : '/'}`, ML + 250, y, 8); y -= L;
+  T(`${TX.parN} ${f.nP}`, ML + 2, y, 8);
+  T(`${TX.subfascia}   ${f.sub ? f.sub.name.toUpperCase() + '   ' + N(f.sub.min) + ' / ' + N(f.sub.max) : '/'}`, ML + 110, y, 8);
+  T(`${TX.valore} ${f.sub ? N(f.sub.val) : ''}`, ML + 400, y, 8); y -= L;
+  T(`${TX.calcolo} ${f.sub ? N(f.sub.val) : blank(6)} ${TX.mqMese}  ${TX.xmq} ${f.has ? N(f.sc) : blank(6)} = € ${f.base != null ? N(f.base) : blank(10)}`, ML + 2, y, 8); y -= L;
+  T(`${TX.durata} ${f.pDur ? f.pDur : '____'}% = € ${f.durataVal != null ? N(f.durataVal) : blank(12)}`, ML + 2, y, 8); y -= L;
+  T(`${TX.transitorio}${f.transVal != null ? '  = € ' + N(f.transVal) : ''}`, ML + 2, y, 8); y -= L;
+  T(TX.vincolato, ML + 2, y, 8); y -= L + 2;
+  {
+    const a = `${TX.importoMax} ${f.cMax != null ? N(f.cMax) : '_'}; `;
+    T(a, ML + 2, y, 8);
+    T(`${TX.importoPatt} ${f.pattuito > 0 ? N(f.pattuito) : '____'};`, ML + 2 + wd(a, 8), y, 8, bold);
+    y -= 12;
+    // Due righe che il modulo non ha ma che il calcolo impone di dire: il
+    // tetto dell'accordo (gli aumenti non superano il massimo di fascia) e
+    // il canone pattuito sopra il massimo — mai nascosto.
+    if (f.capApplied) { T('Le maggiorazioni non portano il canone oltre il massimo della fascia di oscillazione (regola dell’accordo).', ML + 2, y, 6.5, font, grey); y -= 10; }
+    if (f.fits === false) { T(`Il canone pattuito supera l’importo massimo di € ${N(f.excess)}: l’attestazione di rispondenza va verificata con l’organizzazione.`, ML + 2, y, 6.5, font, grey); y -= 10; }
+  }
+
+  // ── Firme: la firma disegnata sopra la riga, la provenienza sotto ──
+  y -= 22;
+  T(TX.firme[0], ML + 30, y, 9); T(TX.firme[1], ML + 370, y, 9); y -= 26;
+  hline(ML + 10, ML + 175, y); hline(ML + 350, ML + 515, y);
+  const firme = f.firme || {};
+  const sides = [[firme.locatore, ML + 10], [firme.conduttore, ML + 350]];
+  for (const [s, x] of sides) {
+    if (!s) continue;
+    if (s.image) {
+      try {
+        const m = /^data:image\/(png|jpe?g);base64,(.+)$/i.exec(s.image);
+        const b = Buffer.from(m[2], 'base64');
+        const im = m[1].toLowerCase().startsWith('jp') ? await pdf.embedJpg(b) : await pdf.embedPng(b);
+        const ar = im.width / im.height; let w = 120, h = w / ar; if (h > 26) { h = 26; w = h * ar; }
+        page.drawImage(im, { x: x + 20, y: y + 2, width: w, height: h });
+      } catch (_) { /* una firma che non si incorpora non ferma il modulo */ }
+    }
+    // Le righe di provenienza NON escono dalla colonna della firma: si
+    // TRONCANO alla larghezza (165pt) con i puntini invece di rimpicciolire
+    // fino a 5pt e sconfinare comunque sul piede del modulo.
+    const fit = (t) => { let u = String(t); while (u.length > 4 && wd(u, 6.5, font) > 165) u = u.slice(0, -4) + '...'; return u; };
+    (s.lines || []).forEach((ln, i) => T(fit(ln), x, y - 9 - i * 8, 6.5, font, grey));
+  }
+
+  // ── Pie' di pagina del modulo (sotto le righe delle firme, mai sopra) ──
+  TC(TX.footer, W / 2, Math.min(34, y - 40), 8, bold);
+  return page;
+}
+
+export async function buildSchedaPdf(facts) {
+  const pdf = await PDFDocument.create();
+  const font = await pdf.embedFont(StandardFonts.Helvetica);
+  const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+  await drawSchedaArpe(pdf, { font, bold }, facts);
+  return await pdf.save();
+}
+
 // ── Il PDF ───────────────────────────────────────────────────────────────
-async function buildPdf({ contract, property, calc, input, deadlines }) {
+async function buildPdf({ contract, property, calc, input, deadlines, facts }) {
   const pdf = await PDFDocument.create();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
   const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
@@ -129,159 +514,28 @@ async function buildPdf({ contract, property, calc, input, deadlines }) {
     T(v, M + kw, y, 9.5, font, ink);
     y -= 15;
   };
-  const box = (x, checked) => {
-    page.drawRectangle({ x, y: y - 1.5, width: 8, height: 8, borderColor: ink, borderWidth: 0.7 });
-    if (checked) T('X', x + 1.6, y - 0.4, 7.5, bold);
-  };
 
-  // ═══ PAGINA 1 — SCHEDA ATTESTAZIONE ═══
-  newPage();
-  head('SCHEDA PER L\'ATTESTAZIONE DI RISPONDENZA',
-    'Accordo Territoriale del Comune di Roma del 25 luglio 2023 e DM 16 gennaio 2017 - pre-compilata da BOOM sui dati del contratto');
-
-  // tipo contratto
-  need(18);
-  const tipo = input.tipo;
-  box(M, tipo === '32'); T('Contratto 3+2', M + 13, y, 9);
-  box(M + 130, tipo === 'stud'); T('Studenti universitari', M + 143, y, 9);
-  box(M + 290, tipo === 'trans'); T('Transitorio', M + 303, y, 9);
-  y -= 20;
-
-  row('LOCATORE', `${contract.landlordName || '-'}${contract.landlordCF ? '  -  C.F. ' + contract.landlordCF : ''}`, 90);
-  row('CONDUTTORE', `${contract.tenantName || '-'}${contract.tenantCF ? '  -  C.F. ' + contract.tenantCF : ''}`, 90);
-  row('IMMOBILE', `ROMA - ${property.address || '-'}${property.floor ? ' - piano ' + property.floor : ''}`, 90);
-  row('COD. ZONA', calc && calc.zona ? `${calc.zona.cod} - ${calc.zona.nome}` : 'da confermare con ARPE', 90);
-  row('CATASTO', property.cadastralData || contract.cadastral || '-', 90);
-  row('DECORRENZA', `${dIT(contract.startDate) || '-'}    Stipulato: ${dIT(contract.fullySignedAt) || 'da firmare'}    ${contract.rliRegisteredAt ? 'Registrato: ' + dIT(contract.rliRegisteredAt) : 'DA REGISTRARE'}`, 90);
-  y -= 4;
-
-  // IL MODULO SI STAMPA SEMPRE, FEDELE AL FOGLIO DELL'ASSOCIAZIONE.
-  // Fino al 23/08/2026 questa pagina degradava a "SCHEDA NON CALCOLABILE"
-  // quando mancavano zona o mq: l'operatore restava senza il foglio proprio
-  // nel caso in cui gli serviva stamparlo e completarlo a mano. Ora escono
-  // sempre tutte le sezioni del modulo — superficie, i 20 parametri, le
-  // maggiorazioni A-H, la fascia, i due importi finali — e cio' che il
-  // sistema non sa diventa una riga vuota da compilare, esattamente come
-  // sul foglio di carta.
-  const HAS = !!(calc && calc.ok);
-  const BLANK = '______________';
-
-  // ── CALCOLO DELLA SUPERFICIE CONVENZIONALE ──
-  need(20); T('CALCOLO DELLA SUPERFICIE CONVENZIONALE', M, y, 9, bold, gold); y -= 14;
-  if (HAS) {
-    calc.parts.forEach(p => {
-      need(13);
-      T(p.n, M, y, 8.5);
-      T(`mq ${fmtN(p.mq)}`, M + 250, y, 8.5, font, grey);
-      T(p.c, M + 330, y, 8.5, font, grey);
-      T(`= mq ${fmtN(p.v)}`, M + 440, y, 8.5, bold);
-      y -= 12.5;
-    });
-  } else {
-    [['Superficie utile calpestabile', '< 46 x 1,30 | 46-70 x 1,15 | > 70 x 1,00'],
-     ['Box / posto auto esclusivo', 'x 0,80 (zona pregio) | x 0,50'],
-     ['Posto auto in autorimessa comune', 'x 0,20'],
-     ['Balconi, terrazze, cantine e simili', 'x 0,25'],
-     ['Superficie scoperta in godimento esclusivo', 'x 0,15'],
-     ['Verde condominiale (sup. tot. / millesimi)', 'x 0,10']].forEach(([n, c]) => {
-      need(13);
-      T(n, M, y, 8.5); T('mq ______', M + 250, y, 8.5, font, grey);
-      T(c, M + 330, y, 7.5, font, grey); T('= mq ________', M + 440, y, 8.5);
-      y -= 12.5;
-    });
-  }
-  need(15); line(y + 4);
-  T(`TOTALE SUPERFICIE CONVENZIONALE: mq ${HAS ? fmtN(calc.sc) : BLANK}`, M, y - 6, 9.5, bold); y -= 22;
-
-  // ── CARATTERISTICHE + I 20 PARAMETRI ──
-  need(16);
-  T('Alloggio "normale" (acqua, fognatura, gas/induzione, riscaldamento):', M, y, 8.5);
-  box(M + 320, HAS && calc.normale); T(HAS ? (calc.normale ? 'SI' : 'NO') : 'SI / NO', M + 333, y, 8.5, bold); y -= 18;
-
-  need(150);
-  T(`PARAMETRI DESCRITTIVI DELL'ALLOGGIO: ${HAS ? calc.nP + ' su 20' : '____ su 20'}`, M, y, 9, bold, gold); y -= 14;
-  for (let i = 0; i < 10; i++) {
-    need(13);
-    box(M, HAS && calc.parIdx.includes(i)); T(`${i + 1}. ${CANONE.PARAMETRI[i]}`, M + 12, y, 7.6);
-    box(M + 262, HAS && calc.parIdx.includes(i + 10)); T(`${i + 11}. ${CANONE.PARAMETRI[i + 10]}`, M + 274, y, 7.6);
-    y -= 12;
-  }
-  if (HAS && Object.keys((calc.derived && calc.derived.parametri && calc.derived.parametri.from) || {}).length) {
-    need(12);
-    T('Parametri derivati dalle dotazioni dichiarate in annuncio/immobile - verificare in sede di attestazione.', M, y, 7, font, grey); y -= 14;
-  }
-  y -= 4;
-
-  // ── MAGGIORAZIONI / RIDUZIONI A-H (la griglia del modulo) ──
-  need(70);
-  T('MAGGIORAZIONI / RIDUZIONI APPLICABILI', M, y, 9, bold, gold); y -= 14;
-  const magOn = (id) => HAS && Array.isArray(calc.mag) && calc.mag.includes(id);
-  const MAGROW = [
-    ['arr', 'A - Ammobiliato'], ['sem', 'B - Seminterrato -10%'],
-    ['asc', 'C - Senza ascensore -10%'], ['att', 'D - Attico +10%'],
-    ['clA', 'E - Classe energetica A/B/C +10%'], ['eco', 'F - Interventi Eco Bonus +5%'],
-    ['sis', 'G - Interventi Sisma Bonus +10%'], ['clD', 'H - Classe energetica D/E/F +5%'],
-  ];
-  for (let i = 0; i < MAGROW.length; i += 2) {
-    need(13);
-    box(M, magOn(MAGROW[i][0])); T(MAGROW[i][1], M + 12, y, 8);
-    if (MAGROW[i + 1]) { box(M + 262, magOn(MAGROW[i + 1][0])); T(MAGROW[i + 1][1], M + 274, y, 8); }
-    y -= 12.5;
-  }
-  need(14);
-  T('Transitorio +10%', M + 12, y, 8); box(M, HAS && input.tipo === 'trans');
-  T('Immobile vincolato o cat. A1-A8  + ______ %', M + 274, y, 8); box(M + 262, false);
-  y -= 18;
-
-  // ── ZONA · FASCIA · SUBFASCIA (il riquadro del modulo) ──
-  need(30);
-  T(`ZONA ${HAS ? calc.zona.cod + ' - ' + calc.zona.nome : BLANK}`, M, y, 9, bold);
-  T(`SUBFASCIA: ${HAS ? calc.fascia : '____'}`, M + 300, y, 9, bold); y -= 14;
-  T(`FASCIA DI OSCILLAZIONE: ${HAS ? fmtN(calc.fMin) + ' - ' + fmtN(calc.fMax) : '______ - ______'} EUR/mq/mese`
-    + `   x   mq ${HAS ? fmtN(calc.sc) : '______'}`, M, y, 8.5); y -= 13;
-  if (HAS && calc.note.length) { T(`Applicate: ${calc.note.join(', ')} (${calc.pct > 0 ? '+' : ''}${calc.pct}%)`, M, y, 8, font, grey); y -= 13; }
-
-  // ── I DUE IMPORTI, come sul modulo ──
-  // Il canone PATTUITO e' quello deciso dalle parti e si stampa TALE E
-  // QUALE: il massimo di fascia e' un riferimento dell'accordo, non un
-  // limite che questo foglio impone. L'attestazione di rispondenza la
-  // rilascia l'organizzazione, e questo documento le porta i numeri.
-  need(46);
-  const fits = HAS ? calc.fits !== false : null;
-  page.drawRectangle({ x: M, y: y - 32, width: W - 2 * M, height: 44,
-    color: rgb(0.98, 0.97, 0.93), borderColor: gold, borderWidth: 0.8 });
-  T(`Importo massimo canone mensile di fascia: ${HAS ? eur(calc.cMax) : BLANK}`, M + 12, y - 6, 9, bold);
-  T(`Importo canone mensile PATTUITO: ${calc.canone || contract.rent ? eur(calc.canone || contract.rent) : BLANK}`, M + 12, y - 20, 10, bold);
-  if (HAS && fits === false) {
-    T(`(+${eur(calc.excess)} sul massimo di fascia)`, M + 330, y - 20, 8, font, grey);
-  }
-  y -= 50;
-  if (HAS && fits === false) {
-    need(14);
-    T('Nota: il canone pattuito supera il massimo della fascia calcolata con i parametri qui riportati.', M, y, 7.5, font, grey); y -= 11;
-    T('Verificare parametri e maggiorazioni con l\'organizzazione, che valuta il rilascio dell\'attestazione.', M, y, 7.5, font, grey); y -= 14;
-  } else if (!HAS) {
-    need(14);
-    T(`Da completare: ${calc && calc.error === 'mq_mancanti' ? 'superficie (mq) dell\'immobile' : 'zona dell\'accordo territoriale'} - impostabile dal portal (bottone Fascicolo) oppure a mano su questo foglio.`, M, y, 7.5, font, grey); y -= 14;
-  }
-
-  need(56);
-  T('Il locatore ____________________________', M, y, 9);
-  T('Il conduttore ____________________________', M + 270, y, 9); y -= 26;
-  T('Tutto cio\' premesso, l\'organizzazione ________________________________ ATTESTA che i contenuti', M, y, 8.5); y -= 12;
-  T('economici e normativi del contratto corrispondono a quanto previsto dall\'accordo territoriale in epigrafe.', M, y, 8.5); y -= 22;
-  T('L\'Organizzazione sindacale  ____________________________________  (timbro e firma)', M, y, 8.5, font, grey);
+  // ═══ PAGINA 1 — LA SCHEDA DI CALCOLO DEL CANONE (Allegato 2/B ARPE, 1:1) ═══
+  await drawSchedaArpe(pdf, { font, bold }, facts);
 
   // ═══ PAGINA 2 — DATI REGISTRAZIONE RLI ═══
   newPage();
   head('DATI PER LA REGISTRAZIONE (Mod. RLI)', 'Da ricopiare sul modello RLI (web/desktop) - non sostituisce il modello ufficiale');
-  const months = (contract.startDate && contract.endDate)
-    ? Math.max(1, Math.round((new Date(contract.endDate) - new Date(contract.startDate)) / (1000 * 60 * 60 * 24 * 30))) : null;
-  const annuo = Number(contract.rent || 0) * 12;
-  row('Tipologia contratto', contract.type === 'studenti' ? 'L2 - Studenti universitari (art. 5 c.2-3 L.431/98)' : 'Transitorio (art. 5 c.1 L.431/98)');
-  row('Durata', `${dIT(contract.startDate)} -> ${dIT(contract.endDate)}${months ? `  (${months} mesi)` : ''}`);
-  row('Canone', `${eur(contract.rent)} /mese  -  ${eur(annuo)} /anno${contract.installmentMonths > 1 ? `  -  rata ogni ${contract.installmentMonths} mesi da ${eur(contract.installmentAmount)}` : ''}`);
-  row('Cedolare secca', (contract.cedolareSecca || 'si') !== 'no' ? 'SI (10% concordato con attestazione)' : 'NO - regime ordinario (registro 2% min EUR 67 + bollo)');
+  // I numeri RLI escono dal dizionario (rliFacts): tipologia L2 per TUTTI
+  // i concordati, importo = corrispettivo per la durata sotto i 12 mesi,
+  // scadenza a 30 giorni da min(stipula, decorrenza), imponibile 70% senza
+  // cedolare — gli stessi del Foglio di registrazione. Fino al 9/09/2026
+  // questa pagina stampava rent×12 sempre e «L2» solo su studenti.
+  const rli = FIELDS.rliFacts(contract);
+  row('Tipologia contratto', `${rli.tipologiaLabel} - ${rli.article}`);
+  row('Accordo', rli.accordo);
+  row('Durata', `${dIT(contract.startDate)} -> ${dIT(contract.endDate)}${rli.months ? `  (${rli.months} mesi)` : ''}`);
+  row('Canone', `${eur(rli.rentMonthly)} /mese  -  ${eur(rli.rentAnnual)} /anno${contract.installmentMonths > 1 ? `  -  rata ogni ${contract.installmentMonths} mesi da ${eur(contract.installmentAmount)}` : ''}`);
+  row('Importo per RLI', `${eur(rli.amountForRli)}  (${rli.amountForRliNote})`);
+  row('Cedolare secca', rli.cedolare ? 'SI (10% concordato con attestazione) - niente registro ne\' bollo'
+    : `NO - registro 2% su imponibile ${eur(rli.imponibileRegistro)} = ${eur(rli.impostaRegistro)} (min EUR 67) + bollo ${eur(rli.bollo)}`);
+  row('Registrazione entro', rli.registrationDeadline ? `${dIT(rli.registrationDeadline)}  (30 gg da ${rli.registrationFrom === rli.stipula && rli.stipula ? 'stipula' : 'decorrenza'})` : 'da stipula/decorrenza');
+  row('Conduttori / Locatori', `${rli.nConduttori} / ${rli.nLocatori}`);
   row('Deposito', eur(contract.deposit));
   y -= 6;
   need(16); T('LOCATORE', M, y, 9, bold, gold); y -= 14;
@@ -299,7 +553,7 @@ async function buildPdf({ contract, property, calc, input, deadlines }) {
   row('Catasto', `${property.cadastralData || contract.cadastral || '-'}${contract.renditaCatastale ? '  -  rendita ' + eur(contract.renditaCatastale) : ''}`);
   row('Classe energetica', contract.energyClass || property.energyClass || '-');
   y -= 10;
-  need(14); T('Nota: registrazione entro 30 giorni dalla stipula. Con cedolare secca: niente registro ne\' bollo.', M, y, 8, font, grey);
+  need(14); T('Nota: registrazione entro 30 giorni da stipula o decorrenza (la prima). Con cedolare secca: niente registro ne\' bollo.', M, y, 8, font, grey);
 
   // ═══ PAGINA 3 — SCADENZARIO ═══
   newPage();
@@ -330,9 +584,18 @@ async function buildPdf({ contract, property, calc, input, deadlines }) {
 // ── Build + persist ──────────────────────────────────────────────────────
 export async function buildFascicolo(contractId, { contract, property, overrides } = {}) {
   try {
-    const c = contract || await fsGet('contracts/' + contractId);
+    let c = contract || await fsGet('contracts/' + contractId);
     if (!c) return { ok: false, error: 'contract_not_found' };
     const p = property || (c.propertyId ? await fsGet('properties/' + c.propertyId).catch(() => null) : null) || {};
+    if (!contract) {
+      // Rigenerazione dalla console: stessa idratazione del finalize.
+      try {
+        const tU = c.tenantId ? await fsGet('users/' + c.tenantId).catch(() => null) : null;
+        const lU = p.ownerId ? await fsGet('users/' + p.ownerId).catch(() => null) : null;
+        const lR = p.ownerId ? await fsGet('landlords/' + p.ownerId).catch(() => null) : null;
+        c = FIELDS.hydrateParties(c, tU, { ...(lR || {}), ...(lU || {}) }, p);
+      } catch (_) {}
+    }
     let listing = null;
     if (c.propertyId) {
       try { listing = (await fsList('listings', { filter: { field: 'propertyId', op: 'EQUAL', value: c.propertyId }, limit: 1 }))[0] || null; } catch (_) {}
@@ -357,9 +620,18 @@ export async function buildFascicolo(contractId, { contract, property, overrides
     let deadlines = [];
     try { deadlines = await fsList('deadlines', { filter: { field: 'linkedContractId', op: 'EQUAL', value: contractId }, limit: 40 }); } catch (_) {}
 
-    const bytes = await buildPdf({ contract: c, property: p, calc, input, deadlines });
+    // La scheda ARPE nasce DUE volte dagli stessi fatti: pagina 1 del
+    // fascicolo (uso interno: RLI + scadenze dietro) e PDF a se' stante —
+    // quello che si manda ad ARPE, senza pagine che non le competono.
+    const facts = schedaFacts({ contract: c, property: p, calc, input });
+    const bytes = await buildPdf({ contract: c, property: p, calc, input, deadlines, facts });
     const url = await storageUpload(`contracts/${contractId}/fascicolo-fiscale.pdf`, Buffer.from(bytes), 'application/pdf');
     if (!url) return { ok: false, error: 'storage_failed' };
+    let schedaUrl = '';
+    try {
+      const sb = await buildSchedaPdf(facts);
+      schedaUrl = (await storageUpload(`contracts/${contractId}/scheda-canone-arpe.pdf`, Buffer.from(sb), 'application/pdf')) || '';
+    } catch (e) { console.warn('[fiscal/fascicolo] scheda:', e.message); }
 
     const snapshot = calc && calc.ok ? {
       ...(c.canoneScheda || {}),
@@ -370,8 +642,11 @@ export async function buildFascicolo(contractId, { contract, property, overrides
       computedAt: new Date().toISOString(),
     } : { ...(c.canoneScheda || {}), error: calc && calc.error, computedAt: new Date().toISOString() };
 
-    await fsPatch('contracts/' + contractId, { fascicoloFiscaleUrl: url, canoneScheda: snapshot }).catch(() => {});
-    return { ok: true, url, calc: snapshot };
+    await fsPatch('contracts/' + contractId, {
+      fascicoloFiscaleUrl: url, canoneScheda: snapshot,
+      ...(schedaUrl ? { schedaCanoneUrl: schedaUrl, schedaCanoneAt: snapshot.computedAt } : {}),
+    }).catch(() => {});
+    return { ok: true, url, schedaUrl, calc: snapshot };
   } catch (e) {
     console.error('[fiscal/fascicolo]', e.message);
     return { ok: false, error: 'build_failed' };

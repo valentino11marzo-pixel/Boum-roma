@@ -26,6 +26,11 @@ import { shell, btn, btn2, para, fine, tiles, timeline, includes, rule, row } fr
 // Il pass Wallet del contratto è servito LIVE da /api/my-pass (ricostruito
 // da Firestore a ogni tap): il link è derivato, niente da generare o salvare.
 import { generateAuthToken } from '../generate-pass.js';
+// Il dizionario del contratto + i link /scheda DERIVATI: l'email completa
+// dice cosa manca a chi, e porta il link già pronto con il messaggio scritto.
+import FIELDS from '../../js/contract-fields.js';
+import { schedaUrl } from '../profile/_scheda.js';
+import { sheetRows, tableHtml, H as sheetH } from './_foglio.js';
 
 export const tenantWalletUrl = (contractId) =>
   `${'https://www.boomrome.com'}/api/my-pass?type=tenant&id=${encodeURIComponent(contractId)}&t=${generateAuthToken(String(contractId))}`;
@@ -56,7 +61,7 @@ const trySend = (to, subject, html, attachments) => send(to, subject, html, atta
 // Best-effort e time-boxed: un download fallito non ferma mai l'email —
 // il documento resta raggiungibile dal link. Cap 8MB (limite Gmail 25MB
 // totali: contratto + certificato + fascicolo restano ampiamente sotto).
-async function fetchPdfAttachment(url, filename, contentType = 'application/pdf') {
+export async function fetchPdfAttachment(url, filename, contentType = 'application/pdf') {
   if (!url) return null;
   try {
     const r = await Promise.race([
@@ -71,7 +76,7 @@ async function fetchPdfAttachment(url, filename, contentType = 'application/pdf'
   } catch (e) { console.warn('[sign/notify] attachment', filename, e.message); return null; }
 }
 
-async function gather(contract, property) {
+export async function gather(contract, property) {
   const prop = property
     || (contract.propertyId ? await fsGet('properties/' + contract.propertyId).catch(() => null) : null)
     || {};
@@ -285,23 +290,36 @@ export async function sendWelcomeEmails(contract, property, { portalLink, certUr
   return out;
 }
 
-// ── Il fascicolo CAF / asseverazione ─────────────────────────────────────
-// Parte UNA volta, a contratto completo (finalize è idempotente): tutta
-// l'anagrafica raccolta da Scheda/Magic Sign, l'immobile, i termini, i
-// link al PDF firmato, al certificato e ai documenti d'identità. Prima
-// viveva in portal-app.js via EmailJS e partiva SOLO dal vecchio flusso di
-// firma dentro il portal — su /sign non partiva affatto.
-export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl, signedPdfUrl, packUrl, packMissing } = {}) {
+// ── IL FASCICOLO COMPLETO (l'email interna a Valentino) ─────────────────
+// Parte UNA volta, a contratto completo (finalize è idempotente). È l'email
+// di LAVORO: in testa il VERDETTO del dizionario (contratto senza puntini?
+// registrazione possibile?), poi — la novità — per ogni parte a cui manca
+// qualcosa il link /scheda DERIVATO già pronto e il messaggio già scritto
+// nella sua lingua (copia → WhatsApp), poi il foglio intero (le STESSE
+// righe del Foglio di registrazione: due email, una verità), gli allegati
+// e il pack. Prima viveva in portal-app.js via EmailJS e partiva SOLO dal
+// vecchio flusso di firma nel portal — su /sign non partiva affatto.
+export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl, schedaPdfUrl, signedPdfUrl, packUrl, packMissing, tenant, landlord } = {}) {
   try {
     if (!CAF_EMAIL) return { ok: false, error: 'no_caf_email' };
     const g = await gather(contract, property);
+    const t = tenant || g.tenant || {};
+    const l = landlord || { ...(g.landlordR || {}), ...(g.landlordU || {}) };
+    const ctx = { contract, property: g.prop, tenant: t, landlord: l };
+    const hydrated = FIELDS.hydrateParties(contract, t, l, g.prop);
+    const comp = FIELDS.completeness(ctx, { level: 'registration' });
+    const rli = FIELDS.rliFacts(hydrated);
     // Il dossier deve poter essere INOLTRATO così com'è ad ARPE/CAF:
     // contratto firmato, certificato e fascicolo fiscale in allegato.
     const signedHref = signedPdfUrl || contract.signedPdfUrl || '';
     const fascHref = fascicoloUrl || contract.fascicoloFiscaleUrl || '';
+    // La scheda ARPE (Allegato 2/B) viaggia da sola: e' il file che si
+    // inoltra ad ARPE senza aprire il fascicolo.
+    const schedaHref = schedaPdfUrl || contract.schedaCanoneUrl || '';
     const cafAtts = (await Promise.all([
       fetchPdfAttachment(signedHref, 'BOOM_Contratto_firmato.pdf'),
       fetchPdfAttachment(certUrl || contract.signingCertificateUrl, 'BOOM_Certificato_di_firma.pdf'),
+      fetchPdfAttachment(schedaHref, 'BOOM_Scheda_calcolo_canone_ARPE.pdf'),
       fetchPdfAttachment(fascHref, 'BOOM_Fascicolo_Fiscale.pdf'),
     ])).filter(Boolean);
     // Documenti d'identità + attestazione esigenza IN ALLEGATO (max 6,
@@ -310,9 +328,11 @@ export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl
     {
       const idDocs = (Array.isArray(contract.identityDocs) ? contract.identityDocs : []).slice(0, 6);
       let budget = 18 * 1024 * 1024 - cafAtts.reduce((n, a) => n + (a.content ? a.content.length : 0), 0);
+      const t0 = Date.now();
       for (let i = 0; i < idDocs.length; i++) {
         const d = idDocs[i];
         if (!d || !d.url || budget <= 0) continue;
+        if (Date.now() - t0 > 20000) break;   // tetto di tempo: i link restano nel corpo
         const isExtra = d.kind === 'extra';
         const base = String(d.name || 'doc').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 40);
         const name = (isExtra ? 'Attestazione_esigenza_' : 'Documento_identita_') + (i + 1) + '_'
@@ -322,40 +342,62 @@ export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl
       }
     }
     const reqType = contract.requiresAsseverazione !== false ? 'Asseverazione + Registrazione' : 'Registrazione';
-    const cad = g.prop.cadastralData || contract.cadastral || '—';
     const docs = Array.isArray(contract.identityDocs) ? contract.identityDocs : [];
     const docLinks = docs.slice(0, 8).map((d, i) =>
       `<a href="${esc(d.url)}" style="color:#8A6D1D">Doc ${i + 1}${d.name ? ' · ' + esc(d.name) : ''}</a>`).join('<br>') || '—';
-    const cadence = [1, 2, 3, 6, 12].includes(Number(contract.installmentMonths)) ? Number(contract.installmentMonths) : 1;
-    const cadLabel = { 1: 'mensile', 2: 'bimestrale', 3: 'trimestrale', 6: 'semestrale', 12: 'annuale' }[cadence];
 
-    const partyRows = (P, label) => {
-      const name = contract[P + 'Name'] || (P === 'tenant' ? g.tenantName : g.landlordName) || '—';
-      const doc = [contract[P + 'DocType'], contract[P + 'DocNum']].filter(Boolean).join(' n. ')
-        + (contract[P + 'DocIssuer'] ? ` · rilasciato da ${contract[P + 'DocIssuer']}` : '')
-        + (contract[P + 'DocIssueDate'] ? ` il ${contract[P + 'DocIssueDate']}` : '');
-      return row(label, `<b>${esc(name)}</b>`,
-        [contract[P + 'CF'] ? 'CF ' + contract[P + 'CF'] : null,
-         contract[P + 'Dob'] ? 'nato/a ' + contract[P + 'Dob'] + (contract[P + 'Pob'] ? ' a ' + contract[P + 'Pob'] : '') : null,
-         contract[P + 'Address'] ? 'res. ' + contract[P + 'Address'] : null,
-         doc || null,
-         contract[P + 'Nationality'] || null,
-        ].filter(Boolean).map(esc).join(' · ') || null);
+    // ── Il verdetto + i link da copiare ──────────────────────────────────
+    const missTenant = comp.byOwner.tenant.missing, missLandlord = comp.byOwner.landlord.missing, missOperator = comp.byOwner.operator.missing;
+    const lbl = (e) => (e.label && e.label.it) || e.key;
+    const box = (title, body) => `<div style="margin:14px 0;padding:12px 14px;background:#FBF3E4;border:1px solid #E5C878;border-radius:8px;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;font-size:13px;color:#4A3F1A;line-height:1.6"><b>${title}</b><br>${body}</div>`;
+    const pre = (txt) => `<div style="margin-top:8px;padding:10px 12px;background:#FFFFFF;border:1px dashed #C9B77A;border-radius:6px;font-family:Menlo,Consolas,monospace;font-size:12px;white-space:pre-wrap;color:#2A2618">${esc(txt)}</div>`;
+    // Una parte che ha GIÀ FIRMATO ha l'identità congelata (410 sulla
+    // Scheda): dal link può solo caricare documenti. Il resto si corregge
+    // nel portal — il link si offre SOLO per ciò che il link può fare.
+    const askBlock = (role, missing, name, url, cotenantIdx, locked) => {
+      if (!missing.length) return '';
+      const who = role === 'landlord' ? 'Locatore' : (cotenantIdx != null ? 'Co-conduttore ' + (cotenantIdx + 1) : 'Conduttore');
+      const fillable = locked ? missing.filter(m => m.group === 'docs') : missing;
+      const frozen = locked ? missing.filter(m => m.group !== 'docs') : [];
+      let out = '';
+      if (fillable.length) {
+        const msg = FIELDS.missingMessage(role === 'landlord' ? 'landlord' : 'tenant', fillable.map(m => ({ key: m.key, label: m.label, group: m.group })), { name, url, propLabel: g.propLabel });
+        out += box(`${esc(who)} — manca: ${fillable.map(m => esc(lbl(m))).join(', ')}`,
+          `Link Scheda (si adatta: chiede SOLO questo): <a href="${esc(url)}" style="color:#8A6D1D">${esc(url)}</a>` + pre(msg));
+      }
+      if (frozen.length) {
+        out += box(`${esc(who)} — già firmato, da correggere nel portal (✏️ Modifica): ${frozen.map(m => esc(lbl(m))).join(', ')}`,
+          'La Scheda di questa parte è bloccata dalla firma: i dati si integrano dal portal, il documento può ancora caricarlo lei dal link.');
+      }
+      return out;
     };
+    const COT_KEY = { name: 'tenantName', cf: 'tenantCF', dob: 'tenantDob', pob: 'tenantPob', nationality: 'tenantNationality', docNum: 'tenantDocNum' };
+    const coList = Array.isArray(contract.coTenants) ? contract.coTenants : [];
+    const cotenantBlocks = (comp.cotenants || []).filter(ct => ct.missing.length).map(ct =>
+      askBlock('tenant', ct.missing.map(m => ({ key: COT_KEY[m.key.split('.')[1]] || m.key, label: m.label, group: 'identity' })), ct.name, schedaUrl(contract.id, 'cotenant', ct.index), ct.index, !!(coList[ct.index] && coList[ct.index].signature))).join('');
+    const operatorBlock = missOperator.length
+      ? box('Operatore — da impostare nel portal (✏️ Modifica): ' + missOperator.map(m => esc(lbl(m))).join(', '), 'Sono termini del contratto: nessun link al cliente, li imposti tu.')
+      : '';
+    const legalBad = (comp.legal || []).filter(x => !x.ok);
+    const verdictTiles = tiles([
+      { k: 'Contratto', v: comp.ready.contract ? '✓ senza puntini' : `✗ ${comp.dots.filter(d => d.required).length} mancanti`, sub: comp.ready.contract ? null : 'campi che il PDF stampa come puntini' },
+      { k: 'Registrazione', v: comp.ready.registration ? '✓ pronta' : '✗ incompleta', sub: legalBad.length ? legalBad.map(x => x.note.it).join(' · ') : null },
+      { k: 'RLI entro', v: rli.registrationDeadline ? fmtIT(rli.registrationDeadline) : '—', sub: rli.registrationFrom ? '30 gg da ' + fmtIT(rli.registrationFrom) : null },
+    ]);
+
+    // ── Il foglio intero (le stesse righe del Foglio di registrazione) ──
+    const sheet = sheetRows({ contract: hydrated, property: g.prop });
 
     const html = shell(
-      para(`Fascicolo pronto per la <b>${reqType.toLowerCase()}</b> del contratto <b>${esc(contract.id || '')}</b> — firmato da entrambe le parti, anagrafica completa.`)
-      + `<table width="100%" cellpadding="0" cellspacing="0" style="font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;margin-top:8px">
-          ${row('Immobile', `<b>${esc(g.propLabel)}</b>`, [cad !== '—' ? 'Catasto: ' + cad : null, g.prop.rooms ? g.prop.rooms + ' vani' : null, g.prop.sqm ? g.prop.sqm + ' mq' : null, (contract.energyClass || g.prop.energyClass) ? 'Classe ' + (contract.energyClass || g.prop.energyClass) : null].filter(Boolean).map(esc).join(' · '))}
-          ${partyRows('landlord', 'Locatore')}
-          ${partyRows('tenant', 'Conduttore')}
-          ${row('Contratto', `<b>${esc(contract.type === 'studenti' ? 'Studenti (art. 5 c.2 L.431/98)' : 'Transitorio')}</b>`, [
-              `${fmtIT(contract.startDate)} → ${fmtIT(contract.endDate)}`,
-              `canone ${eur(contract.rent)}/mese (rata ${cadLabel})`,
-              `deposito ${eur(contract.deposit)}`,
-              `cedolare secca: ${(contract.cedolareSecca || 'si') !== 'no' ? 'SÌ' : 'NO'}`,
-            ].map(esc).join(' · '))}
-          ${row('Allegati', [
+      para(`Fascicolo completo per la <b>${reqType.toLowerCase()}</b> del contratto <b>${esc(contract.id || '')}</b> — firmato da entrambe le parti.`)
+      + verdictTiles
+      + askBlock('tenant', missTenant, g.tenantName, schedaUrl(contract.id, 'tenant'), null, !!contract.tenantSignature)
+      + cotenantBlocks
+      + askBlock('landlord', missLandlord, g.landlordName, schedaUrl(contract.id, 'landlord'), null, !!contract.landlordSignature)
+      + operatorBlock
+      + tableHtml(sheet.rows.concat([
+          sheetH('Allegati e pack'),
+          row('Allegati', [
               signedHref ? `<a href="${esc(signedHref)}" style="color:#8A6D1D"><b>Contratto firmato (PDF)</b></a>`
                 : contract.generatedPDF ? `<a href="${esc(contract.generatedPDF)}" style="color:#8A6D1D"><b>Contratto (PDF, pre-firma)</b></a>` : '<b>PDF non ancora generato</b>',
               certUrl ? `<a href="${esc(certUrl)}" style="color:#8A6D1D"><b>Certificato FES</b></a>` : null,
@@ -363,21 +405,22 @@ export async function sendCafDossier(contract, property, { certUrl, fascicoloUrl
             ].filter(Boolean).join(' · '),
             [cafAtts.length ? `${cafAtts.length} allegati — email pronta da inoltrare` : null,
              fascHref ? 'il Fascicolo contiene: scheda attestazione canone (fascia di oscillazione), dati RLI, scadenzario' : null,
-            ].filter(Boolean).join(' · ') || null)}
-          ${row('Pack registrazione',
+            ].filter(Boolean).join(' · ') || null),
+          row('Pack registrazione',
             (packUrl || contract.registrationPackUrl)
               ? `<a href="${esc(packUrl || contract.registrationPackUrl)}" style="color:#8A6D1D"><b>📦 ZIP completo per RLI + ARPE</b></a>`
               : '<b>non generato</b> — bottone 📦 Pack sulla riga contratto',
             (Array.isArray(packMissing) && packMissing.length)
               ? '⚠ Nel pack mancano: ' + packMissing.map(esc).join(', ') + ' — l\'INDICE.txt dentro lo ZIP dice dove caricarli; poi rigenera con 📦 Pack'
-              : ((packUrl || contract.registrationPackUrl) ? 'completo: contratto firmato, certificato, fascicolo, visura, planimetria, APE, delega, identità, attestazione esigenza' : null))}
-          ${row('Documenti identità', docLinks, null)}
-        </table>`
+              : ((packUrl || contract.registrationPackUrl) ? 'completo: contratto firmato, certificato, fascicolo, visura, planimetria, APE, delega, identità, attestazione esigenza' : null)),
+          row('Documenti identità', docLinks, null),
+        ]))
       + btn(BASE + '/portal', 'Apri nel portal')
-      + fine('Generato automaticamente alla firma completa. La scadenza RLI (30gg) è già a scadenzario nel portal.', 'text-align:center'),
-      `${reqType} — ${g.propLabel} · anagrafica completa e allegati.`);
+      + fine('Generato automaticamente alla firma completa. Il Foglio di registrazione (email pulita, da inoltrare o stampare) è partito in parallelo. La scadenza RLI è già a scadenzario nel portal.', 'text-align:center'),
+      `${reqType} — ${g.propLabel} · ${comp.ready.registration ? 'pronto' : 'incompleto: ' + comp.missingKeys.length + ' dati'}`);
 
-    const ok = await trySend(CAF_EMAIL, `📑 ${reqType} — ${g.propLabel}`, html, cafAtts);
-    return { ok };
+    const subject = `📑 Fascicolo completo — ${g.propLabel} — ${g.tenantName || 'conduttore'} — ${String(contract.startDate || '').slice(0, 10)}`;
+    const ok = await trySend(CAF_EMAIL, subject, html, cafAtts);
+    return { ok, missing: comp.missingKeys };
   } catch (e) { console.warn('[sign/notify] caf:', e.message); return { ok: false, error: e.message }; }
 }

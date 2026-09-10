@@ -37,7 +37,7 @@
 
 import { fsCreate, fsGet, fsPatch, logActivity, guardPost, okJson, errJson } from './_lib.js';
 
-const VALID_TYPES = new Set(['transitorio', 'studenti']);
+const VALID_TYPES = new Set(['transitorio', 'studenti', '3+2']);
 
 function addMonths(dateStr, months) {
   const d = new Date(dateStr); d.setMonth(d.getMonth() + months);
@@ -63,7 +63,7 @@ export default async function handler(req, res) {
   if (!property) return errJson(res, 404, 'property_not_found');
   if (!tenant)   return errJson(res, 404, 'tenant_not_found');
 
-  const endDate = body.endDate || addMonths(body.startDate, body.type === 'studenti' ? 12 : 18);
+  const endDate = body.endDate || addMonths(body.startDate, body.type === 'studenti' ? 12 : body.type === '3+2' ? 36 : 18);
   const deposit = typeof body.deposit === 'number' ? body.deposit : body.rent * (body.depositMonths || 2);
   const depositMonths = body.depositMonths || Math.round(deposit / body.rent);
   const paymentDay = body.paymentDay || 5;

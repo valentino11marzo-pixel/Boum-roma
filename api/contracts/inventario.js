@@ -191,7 +191,7 @@ export async function buildInventarioPdf({ property, contract, inv, kind, note, 
   sect('Riferimento');
   rowKV('Immobile', clip(property.address || property.name || (contract && contract.propertyAddress) || '', 90));
   if (contract) {
-    rowKV('Contratto', `${contract.type === 'studenti' ? 'per studenti universitari' : 'transitorio'} — dal ${dIT(contract.startDate)} al ${dIT(contract.endDate)}`);
+    rowKV('Contratto', `${contract.type === 'studenti' ? 'per studenti universitari' : contract.type === '3+2' ? 'a canone concordato 3+2' : 'transitorio'} — dal ${dIT(contract.startDate)} al ${dIT(contract.endDate)}`);
     const cond = [clip(contract.tenantName, 60)].concat((Array.isArray(contract.coTenants) ? contract.coTenants : []).map((c) => clip(c && c.name, 60))).filter(Boolean);
     if (cond.length) rowKV('Conduttore/i', cond.join(', '));
     if (contract.landlordName) rowKV('Locatore', clip(contract.landlordName, 90));

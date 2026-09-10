@@ -24,6 +24,7 @@ export async function fsGetWithTime(docPath) {
 // ruotare il secret revoca tutto. Il ref viaggia nello stesso parametro
 // ?sign= come "<contractId>.c<idx>.<token>".
 import crypto from 'node:crypto';
+import MANDATO from '../../js/mandato-engine.js';
 
 export function cosignToken(contractId, idx) {
   const salt = process.env.HOMIE_SECRET || process.env.CRON_SECRET || 'boom';
@@ -74,8 +75,51 @@ export async function findContractByToken(token) {
   return null;
 }
 
+// L'impronta dei termini ECONOMICI del contratto: la usa la firma (terms
+// freeze) e il mandato del conduttore (il mandato copre SOLO questi termini:
+// un canone o una data cambiati dopo il conferimento = mandato che non vale).
+export function termsFingerprint(c) {
+  return [
+    'rent:' + Number(c.rent || 0),
+    'deposit:' + Number(c.deposit || 0),
+    'start:' + String(c.startDate || ''),
+    'end:' + String(c.endDate || ''),
+    'cadence:' + ([1, 2, 3, 6, 12].includes(Number(c.installmentMonths)) ? Number(c.installmentMonths) : 1),
+    'type:' + String(c.type || ''),
+    'cedolare:' + (((c.cedolareSecca || 'si') !== 'no' && c.cedolareSecca !== false) ? 'si' : 'no'),
+  ].join('|');
+}
+
 // Lato-conduttori completo = conduttore principale + TUTTI i co-conduttori.
 // È la condizione che sblocca la controfirma del locatore (sequenziale).
+// ── LE CONDIZIONI APPROVATE DEL MANDATO (v2) ─────────────────────────────
+// L'hash della foto canonica (js/mandato-engine.js) presa all'ACCETTAZIONE
+// della proposta. Il prefisso porta la versione: un hash v1
+// (termsFingerprint) non può mai combaciare per caso con uno v2.
+export function mandateTermsHash(terms) {
+  return crypto.createHash('sha256').update('mandato:v2:' + MANDATO.canonical(terms), 'utf8').digest('hex');
+}
+
+// Il mandato del conduttore vale per QUESTO contratto, ADESSO?
+//  · nessun mandato scritto → { ok:false, reason:'mandate_missing' }
+//  · v2 (termsVersion ≥ 2): il contratto di adesso deve riprodurre la foto
+//    presa all'accettazione; il diff dice cosa è cambiato (portal, sign.html);
+//  · legacy v1 (mandati nati prima della v2): resta il confronto
+//    termsFingerprint — versionato, non rotto.
+// Una copia sola: submit (409), lookup (avviso), convert (registrazione).
+export function mandateCheck(contract) {
+  const m = contract && contract.tenantMandate;
+  if (!m || m.given !== true || !m.termsHash) return { ok: false, version: 0, reason: 'mandate_missing', diff: [] };
+  if (Number(m.termsVersion) >= 2) {
+    const current = MANDATO.termsFromContract(contract);
+    const ok = mandateTermsHash(current) === m.termsHash;
+    const diff = ok ? [] : MANDATO.diffTerms(m.terms || {}, current);
+    return { ok, version: 2, reason: ok ? null : 'mandate_terms_changed', diff, current };
+  }
+  const ok = termsFingerprint(contract) === m.termsHash;
+  return { ok, version: 1, reason: ok ? null : 'mandate_terms_changed', diff: [] };
+}
+
 export function tenantSideComplete(contract) {
   if (!contract || !contract.tenantSignature) return false;
   const list = Array.isArray(contract.coTenants) ? contract.coTenants : [];

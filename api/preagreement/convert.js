@@ -37,6 +37,10 @@ import crypto from 'node:crypto';
 import { fsGet, fsList, fsCreate, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import { ensureContractPdf } from '../sign/_contractpdf.js';
+import { mandateTermsHash } from '../magic-sign/_shared.js';
+import MANDATO from '../../js/mandato-engine.js';
+import { storageUpload } from '../agent/_lib.js';
+import { buildPaPdf } from './_pdf.js';
 
 const BASE = 'https://www.boomrome.com';
 const clip = (v, n = 200) => (v == null ? null : String(v).trim().slice(0, n) || null);
@@ -47,8 +51,9 @@ const clip = (v, n = 200) => (v == null ? null : String(v).trim().slice(0, n) ||
 // si legge la proposta. `lease.type` è la tendina della console
 // («Student Housing (Allegato C)»), non testo libero del cliente.
 export function leaseType(explicit, lease) {
-  if (explicit === 'studenti' || explicit === 'transitorio') return explicit;
-  return /student/i.test(String((lease || {}).type || '')) ? 'studenti' : 'transitorio';
+  // La regola vive in js/mandato-engine.js (la foto delle condizioni
+  // approvate deve derivare il modello ESATTAMENTE come la conversione).
+  return MANDATO.modelOfLease(explicit, lease);
 }
 
 // ── Core conversion, shared by the console handler and the auto pipeline ──
@@ -257,6 +262,10 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     // Landlord identity from the PA — magic-sign shows the real name even
     // when the portal property has no ownerId/users profile (owner-direct
     // signing is the default now).
+    // Il nome del conduttore sta sul contratto (prima solo sul profilo
+    // users): è una delle PARTI della foto delle condizioni approvate, e la
+    // firma per mandato la confronta sul contratto, senza risalire la catena.
+    tenantName: t.fullName || '',
     landlordName: (pa.landlord || {}).name || property.ownerName || '',
     landlordEmail: (pa.landlord || {}).email || null,
     landlordPhone: (pa.landlord || {}).phone || null,
@@ -269,11 +278,61 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
       setAt: new Date().toISOString(),
       setBy: actor,
     } : null,
+    // L'accettazione digitale della proposta viaggia sul contratto: e' la
+    // firma del conduttore sulla Scheda di calcolo del canone (Allegato
+    // 2/B) — il consenso della proposta la copre esplicitamente
+    // (_consent.js) — e la base del mandato. Solo fatti: data, protocollo,
+    // hash del testo accettato.
+    paAcceptance: (pa.consent && pa.consent.at) ? {
+      at: pa.consent.at,
+      ref: pa.ref || null,
+      hash: pa.consent.hash || null,
+      schedaSigned: pa.consent.schedaSigned === true,
+    } : null,
+    tenantMandate: null,   // riempito sotto: l'impronta si calcola sul contratto INTERO
     paymentsGenerated: false,
     welcomeEmailSent: false,
     createdAt: new Date().toISOString(),
     createdBy: 'preagreement_convert:' + actor,
   };
+
+  // IL MANDATO DEL CONDUTTORE — conferito sulla proposta (spunta a parte,
+  // mai pre-selezionata), vale SOLO per questi termini: termsHash e' la
+  // stessa impronta che magic-sign/submit ricalcola al momento della firma
+  // (un canone o una data ritoccati dopo = 409 mandate_terms_changed, mai
+  // una firma). Senza `pa.mandate.given` il contratto NON ha mandato e la
+  // firma al posto del conduttore resta impossibile (403 mandate_missing).
+  if (pa.mandate && pa.mandate.given === true) {
+    // La BASE del mandato è la foto presa all'accettazione (pa.approvedTerms,
+    // v2). Per una proposta accettata prima della v2 la foto si prende dalla
+    // proposta stessa — che la console non lascia modificare dopo
+    // l'accettazione — e la provenienza resta dichiarata. MAI dal contratto:
+    // il contratto è ciò che si VERIFICA, non la base.
+    const snap = (pa.approvedTerms && pa.approvedTerms.terms && pa.approvedTerms.hash) ? pa.approvedTerms : null;
+    const terms = snap ? snap.terms : MANDATO.termsFromProposal(pa);
+    const termsHash = snap ? snap.hash : mandateTermsHash(terms);
+    const diff = MANDATO.diffTerms(terms, MANDATO.termsFromContract(contract));
+    contract.tenantMandate = {
+      given: true,
+      at: pa.mandate.at || null,
+      ref: pa.ref || null,
+      paId,
+      hash: pa.mandate.hash || null,
+      text: pa.mandate.text || '',
+      ip: pa.mandate.ip || '',
+      termsVersion: MANDATO.VERSION,
+      termsHash,
+      terms,
+      termsSource: snap ? 'proposal-at-acceptance' : 'proposal-at-conversion',
+      // La verifica alla CONVERSIONE: il contratto appena costruito riproduce
+      // le condizioni approvate? Se no (es. modello scelto a mano diverso
+      // dalla proposta), il mandato resta registrato ma DICHIARATO non
+      // spendibile: il server rifiuterà la firma (409) e il portal lo mostra.
+      termsMatch: diff.length === 0,
+      termsDiff: diff.map(d => d.key),
+      termsCheckedAt: new Date().toISOString(),
+    };
+  }
 
   // ID deterministico dal PA: due conversioni concorrenti (double-submit,
   // retry del webhook con back-link stantio) collassano sullo stesso doc —
@@ -339,6 +398,25 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     } catch (e) { console.warn('[preagreement/convert] co-tenant user:', e.message); }
   }
 
+  // Il mandato ha un documento suo (best-effort): il PDF della proposta
+  // accettata — che stampa la sezione "Mandate to sign" col testo firmato —
+  // salvato accanto al contratto, cosi' il Pack Registrazione e l'archivio
+  // lo trovano senza risalire alla proposta.
+  if (contract.tenantMandate) {
+    try {
+      const buf = await buildPaPdf({ ...pa, id: paId, ref: pa.ref || paId });
+      if (buf) {
+        const url = await storageUpload(`contracts/${contractId}/mandato-conduttore.pdf`, buf, 'application/pdf');
+        if (url) {
+          contract.tenantMandate.docUrl = url;
+          // la mappa si riscrive INTERA (fsPatch non conosce i percorsi a
+          // punti): il contratto e' appena nato, nessuno l'ha toccata.
+          await fsPatch('contracts/' + contractId, { tenantMandate: contract.tenantMandate }).catch(() => {});
+        }
+      }
+    } catch (e) { console.warn('[preagreement/convert] mandato pdf:', e.message); }
+  }
+
   // Back-link on the PA (best-effort — the contract exists either way).
   // Sign URLs are stored here too so the console can offer 🖊 Magic Sign /
   // WhatsApp share without extra reads (preAgreements is admin-only).
@@ -377,6 +455,8 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     tenantSignUrl: `${BASE}/sign?sign=${contract.tenantSignToken}`,
     landlordSignUrl: `${BASE}/sign?sign=${contract.landlordSignToken}`,
     delegate: contract.landlordDelegate,
+    mandate: !!contract.tenantMandate,
+    mandateTermsMatch: contract.tenantMandate ? contract.tenantMandate.termsMatch : null,
   };
 }
 

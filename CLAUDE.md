@@ -151,6 +151,9 @@ PASS_KEY_PASSPHRASE
 # Email (Nodemailer)
 GMAIL_USER
 GMAIL_APP_PASS
+REGISTRATION_EMAIL           # optional — dove arriva il Foglio di registrazione
+                             # (email pulita a firma completa); default
+                             # CAF_EMAIL → valentino@boom-rome.com
 
 # AI document parsing
 ANTHROPIC_API_KEY
@@ -1415,12 +1418,63 @@ mancano li chiede e li persiste su `contract.canoneScheda`) e **✓ RLI
 registrato** (stampa `rliRegisteredAt`, chiude la scadenza "Registrare
 RLI", rigenera il fascicolo — il loop registrazione si chiude in un tap).
 La scheda di pagina 1 ricalca la scheda di calcolo VERA dell'associazione
-(`reference/caf/2023_scheda_calcolo_canone_ASPI.docx`): stessi
+(`reference/caf/2023_scheda_calcolo_canone_ARPE.docx`): stessi
 coefficienti di superficie, stessi 20 parametri nello stesso ordine,
 stesse maggiorazioni A–H, transitorio +10%. Le due opzioni a percentuale
 LIBERA del modulo (>120mq "possibilità di diminuzione fino a −15%",
 immobile vincolato/A1-A8) non sono automatizzate di proposito: sono
 concessioni da negoziare, non dati derivabili.
+
+**LA SCHEDA È IL MODULO ARPE, 1:1** (8/09/2026 — «sarà quello che mando
+all'ARPE, no ASPI»). Pagina 1 era *modellata* sul foglio dell'associazione
+ma non ERA quel foglio: titolo diverso («SCHEDA PER L'ATTESTAZIONE…»
+invece di «SCHEDA DI CALCOLO DEL CANONE…», intestazione «Allegato 2/B»
+assente), testata BOOM in cima, righe DECORRENZA/Stipulato/Registrato che il
+modulo non ha, etichette della superficie riscritte («Superficie utile
+calpestabile», «Box / posto auto esclusivo»), la riga CARATTERISTICHE
+compressa in una frase, la griglia A–H su due colonne invece delle tre del
+modulo con transitorio e vincolato dentro la griglia, il blocco del calcolo
+in altra forma, e in coda un «l'organizzazione ATTESTA…» che sul modulo
+non esiste (il modulo dice il contrario: «SCHEDA NON VALIDA AI FINI
+DELL'ATTESTAZIONE» — è il foglio che le PARTI firmano; l'attestazione la
+rilascia ARPE dopo). Ora `drawSchedaArpe()` riproduce il modulo sezione per
+sezione con la SUA geometria (larghezze delle tabelle in twip / 20, tabelle
+flottanti «X SI / NO» e «SI | NO» nella posizione del modulo, corpo 7–8pt,
+pie' di pagina del modulo; unico refuso normalizzato: «VALIDI» → «VALIDA»).
+Nessuna testata BOOM su quella pagina. `schedaFacts()` è PURA: tutto ciò
+che la pagina stampa (bracket di superficie, pertinenze coi coefficienti,
+parametri, A–H, zona/fascia/subfascia, il calcolo riga per riga, i due
+importi) esce di lì e si testa senza aprire il PDF; `SCHEDA_TEXT` esporta
+OGNI etichetta fissa e `tests/fiscal/scheda.mjs` la cerca parola per parola
+dentro il `.docx` del modulo (anti-deriva: un'etichetta «migliorata» fa
+cadere il test). **La scheda esce anche DA SOLA**: stessi fatti → PDF di
+una pagina su `contracts/<id>/scheda-canone-arpe.pdf` →
+`contract.schedaCanoneUrl` (+`schedaCanoneAt`), perché ad ARPE va la scheda,
+non le pagine RLI/scadenzario che sono nostre. Viaggia come
+`BOOM_Scheda_calcolo_canone_ARPE.pdf` nel Fascicolo completo a Valentino,
+come `Scheda_calcolo_canone_ARPE.pdf` nel Foglio di registrazione, come
+`03_Scheda_calcolo_canone_ARPE.pdf` nel Pack, ed è l'allegato «scheda»
+dell'iter ASPI (che ricade sul fascicolo intero solo per i contratti nati
+prima). Nel portal: **📐 Scheda ARPE** accanto a 📑 Fascicolo (apre il PDF
+a sé; se non esiste lo genera col fascicolo). Due cose che il modulo
+impone di DIRE anche se non ha la riga: il tetto dell'accordo (con
+transitorio +10% la riga stampa 2.153,80 ma il massimo resta 1.958,00: la
+nota lo spiega invece di lasciare due numeri in contraddizione) e il
+pattuito sopra il massimo (sforamento esatto in nota, mai nascosto).
+**Anche il calcolatore stampa il modulo** (`scheda-canone.html` →
+«Stampa / Salva PDF»): la sua vista di stampa era una terza scheda —
+titolo «SCHEDA PER LA ATTESTAZIONE…», riga Decorrenza/Stipulato/Registrato,
+blocco «ATTESTA» — cioè un foglio diverso da quello che il fascicolo manda
+ad ARPE. Ora è lo stesso modulo, sezione per sezione, con gli stessi numeri
+del server (verificato: 89,00 mq · MEDIA 15,40/22,00 · 1.958,00 · nota del
+tetto) — pre-verifica e fascicolo non possono più contraddirsi.
+**Zona mai indovinata dalla via** (stessa release): `matchZone` cadeva
+sulla ricerca per parola singola e «Via DELLA Lungaretta» diventava DELLA
+VITTORIA, «Porta Pinciana» PORTA PORTESE, «Via del Monte» MONTE MARIO — un
+COD. ZONA falso su un foglio che va ad ARPE. Ora le parole di
+toponomastica sono stop-word (`STOP_WORDS`): ambiguo → null, e la zona la
+mette l'operatore dal bottone. Senza zona o mq il foglio resta il modulo
+vuoto, con parametri e pertinenze compilati perché sono fatti.
 
 ### L'iter ASPI (`api/fiscal/registra.js` + `api/fiscal/_aspi.js`) — registrazione & asseverazione in UN tap
 LA DECISIONE È PRESA: il CAF/associazione è **ASPI** (referente Roberto
@@ -1494,7 +1548,7 @@ ricevere una destinazione inventata.
 al 23/08 senza zona o mq degradava a "SCHEDA NON CALCOLABILE" — e
 l'operatore restava senza foglio proprio quando gli serviva stamparlo e
 completarlo a mano. Ora esce sempre il **modulo fedele** all'originale
-dell'associazione (`reference/caf/2023_scheda_calcolo_canone_ASPI.docx`):
+dell'associazione (`reference/caf/2023_scheda_calcolo_canone_ARPE.docx`):
 superficie convenzionale, i 20 parametri, la griglia **maggiorazioni A–H**
 con le caselle, zona/fascia/subfascia, e i due importi finali. Ciò che il
 sistema non sa diventa una riga vuota da compilare. **Il canone PATTUITO
@@ -1521,6 +1575,32 @@ posizionamento €/mq contro la mediana. Vale la disciplina del Perito:
 **sotto campione non esce un numero** — meno di 3 contratti firmati o un
 campione di zona povero producono "campione insufficiente", mai una mediana
 travestita da dato. Bottone **💶 Valutazione BOOM** sulla riga contratto.
+
+**Il documento per i proprietari che chiedono una valutazione** (9/09/2026
+— «la scheda calcolo brandizzata boom diventa un documento per i
+proprietari»). Il modulo 1:1 va ad ARPE; al proprietario va QUESTO: pagina 1
+il parere di mercato, **pagina 2 la scheda di calcolo brandizzata BOOM**
+(`drawSchedaBoom`, esportata): superficie convenzionale riga per riga con
+i coefficienti, i 20 parametri con quelli che l'immobile ha davvero, la
+subfascia con la soglia che la decide, il canone base (valore × mq), le
+maggiorazioni A–H applicate, la regola del tetto quando scatta, e i due
+numeri affiancati — **massimo attestabile** dell'accordo e **canone
+proposto** — con la frase che li mette in relazione («rientra: attestabile
+come concordato, cedolare al 10%» oppure «supera di €X: è un canone di
+MERCATO, non attestabile»). Gli STESSI fatti del modulo (`schedaFacts` +
+`resolveCanoneInput`, una copia sola: dotazioni REALI di immobile e
+annuncio, override persistiti): la scheda del proprietario e il modulo ARPE
+non possono divergere. Ciò che manca si scrive «da completare» (zona, mq,
+catasto), il massimo diventa «non calcolabile» con l'elenco di cosa manca
+— mai un numero. **Si genera anche SENZA contratto**: bottone
+**💶 Valutazione** nel modale dell'immobile (admin) →
+`openValutazione(null, undefined, {propertyId})` → `POST {propertyId,
+canone}`; il documento si ricorda sull'immobile (`valutazioneBoomUrl/At/
+Canone`) e, quando c'è, sul contratto. Testata e piede dal marchio vero
+(`_pdfbrand`: `masthead` + `stampFooters`), come inventario e verbale — la
+testata scritta a mano è sparita. La risposta porta `scheda: {gaps, fascia,
+cMax, fits, nP, sc}` e il portal lo dice nel toast («scheda da completare:
+catasto»). Test: `node tests/mandato/run.mjs` §8.
 
 **La sanatoria del PDF stantio** (`ensureContractPdf`, stessa release):
 il rail di firma ora RIGENERA da solo un `generatedPDF` con
@@ -1952,6 +2032,109 @@ Share Hub now hands out /scheda links instead). Study: `LA_SCHEDA_STUDY.md`.
   completo) → Magic Sign. Per contratti già firmati su carta: solo
   Scheda (upload documento incluso) — nessuna firma fittizia.
 
+### Il Dizionario del contratto — la Scheda che si adatta e le due email a Valentino (`js/contract-fields.js`)
+**Il problema misurato (8/09/2026)**: i due modelli (Allegato B/C, CAF
+verbatim) stampano `………` per OGNI dato mancante e nessun posto sapeva PRIMA
+quali puntini sarebbero usciti; `/scheda` raccoglieva SOLO l'identità
+(niente conviventi, esigenza transitoria, corso di studi, fatti
+dell'immobile, catasto strutturato); il portal aveva TRE liste «mancano»
+scritte a mano che divergevano fra loro e dal server; la cedolare era letta
+in modo OPPOSTO dai due modelli (B `=== true`, C `!== 'no'` — i contratti
+reali portano `'si'`, quindi su B usciva l'art. 7 del regime ordinario);
+il catasto era un blob di testo che nessuno poteva ricopiare nelle caselle
+RLI; i lettori della registrazione (fascicolo, pack, ASPI) guardavano solo
+i campi del contratto mentre il PDF risale la catena `users` — un CF
+presente sul profilo usciva «MANCANTE».
+- **`js/contract-fields.js`** (UMD → `window.BOOM_CONTRACT_FIELDS`, import
+  ESM da `api/**`): UNA dichiarazione per ogni dato che i modelli STAMPANO
+  più ciò che RLI/AdE e la macchina pretendono — `owner` (chi lo SA: tenant
+  · landlord · operator, anche dinamico: l'esigenza transitoria è di chi la
+  dichiara, `esigenzaDi`), `templates` (B/C), `needs` (`contract` = puntini
+  nel PDF · `registration` · `operations`), `required` (funzione del
+  contesto: rilascio del documento solo su C, permesso di soggiorno solo
+  per un extra-UE, nascita solo per una persona fisica, documento
+  dell'esigenza solo oltre 30 giorni), `read` (la STESSA catena di
+  contract-pdf.js) e `write` (contract / property / user, anche doppio: i
+  fatti dell'immobile vanno in MEMORIA sull'immobile E sul contratto che il
+  PDF legge). API pure: `completeness` (per owner + co-conduttori + durata
+  di legge + `ready.contract/registration` + `dots`), `askFor` (le sezioni
+  con SOLO i campi vuoti di QUEL ruolo), `applyAnswers` (lista bianca per
+  owner, validazione, mappe annidate riscritte INTERE dal dato esistente,
+  catasto strutturato → blob ricomposto, «vivo da solo» che non cancella i
+  co-conduttori), `missingMessage` (nomina i mancanti, collassa i gruppi,
+  EN/IT), `rliFacts` (L2 per entrambi i modelli, importo = corrispettivo
+  per la durata se < 12 mesi, scadenza = 30 gg da min(stipula, decorrenza),
+  imponibile 70% senza cedolare), `hydrateParties`, `cedolareOn`,
+  `docTypeCode/It`, `parseCadastral/composeCadastral`, `validCF` (16
+  caratteri O 11 cifre: il locatore può essere una società), `isEU`.
+  **`READS`** dichiara le letture coperte: il test anti-deriva le confronta
+  in ENTRAMBE le direzioni con ciò che `contract-pdf.js` legge davvero.
+- **Le tre letture unificate in `contract-pdf.js`** (letture, non testo
+  d'articolo — i modelli CAF restano verbatim): `cedolareOn` (assente = sì,
+  come C, `_finalize` e compliance-rules; il vecchio `=== true` non può
+  tornare, mutazione pinnata), `docTypeLabel` (sul contratto va l'italiano:
+  «identificato/a mediante passport» non lo era), `tabelleOf`/impianti con
+  fallback alla memoria dell'immobile.
+- **La Scheda che si adatta**: `lookup` porta `ask` (sezioni per ruolo dal
+  dizionario: esigenza, corso di studi, conviventi, permesso di soggiorno,
+  contatti · per il locatore catasto a caselle, immobile, tabelle, IBAN),
+  `submit` accetta `answers` e scrive via `applyAnswers` — un token tenant
+  NON scrive mai un fatto dell'immobile, il locatore mai i campi del
+  conduttore, ogni scarto torna in `rejected` (mai silenzioso); i fatti
+  dell'immobile atterrano su `properties/<id>` (lista bianca DERIVATA:
+  `PROPERTY_WRITE_KEYS`). `complete` = il PDF non stamperebbe puntini per
+  quella parte; `missing` nomina ciò che serve ancora anche per la
+  registrazione. **I co-conduttori hanno il LORO link** (`<id>.c<idx>.<token>`,
+  derivato come `cosignToken`): scrivono SOLO `coTenants[idx]`, bloccati
+  dalla PROPRIA firma — per l'AdE ogni conduttore è una riga RLI con CF.
+  `scheda.html` rende gli step extra dai descrittori (people = «vivo da
+  solo» + elenco, con i co-conduttori già mostrati), rinfresca la lookup
+  UNA volta se un dato appena scritto fa nascere una sezione (nazionalità
+  extra-UE → permesso), e lo schermo finale dice cosa manca ancora.
+  `api/profile/link.js` ritorna `missing` e `messages` per parte + la
+  Scheda di ogni co-conduttore: il portal non ricalcola nulla.
+- **Portal**: `templateMissing` è un wrapper del dizionario (la terza lista
+  a mano è sparita), il badge «mancano» di Burocrazia e i bottoni **📨 Chiedi
+  a T/L** (solo dove manca qualcosa) leggono `contractCompleteness`, il
+  modale porta il messaggio pronto (modificabile) e il link; lo Share Hub
+  dice cosa chiede ogni link e ha le card dei co-conduttori; il dettaglio
+  contratto ha la strip **Completezza** (per owner, «⚠ il PDF stamperebbe N
+  puntini» prima della firma, durata di legge) e **✉ Foglio**.
+- **Le due email a Valentino a firma completa** (`_finalize.js`, dopo
+  `hydrateParties`): il **Fascicolo completo** (`sendCafDossier`, interno:
+  verdetto in testa, per ogni parte a cui manca qualcosa il link /scheda
+  DERIVATO già pronto col messaggio nella sua lingua, le stesse righe del
+  foglio, allegati, pack, bottone portal; oggetto stabile `📑 Fascicolo
+  completo — <immobile> — <conduttore> — <decorrenza>`) e il **Foglio di
+  registrazione** (`api/sign/_foglio.js`, PULITO: niente bottoni né link
+  al portal né «mancano/rigenera», catasto a caselle, un conduttore per
+  riga, i numeri RLI da `rliFacts`, extra-UE con la scadenza della cessione
+  di fabbricato, «non dichiarato» dove manca — si inoltra così com'è, si
+  stampa, in Gmail fa da ARCHIVIO: oggetto `Registrazione contratto —
+  <immobile> — <conduttore> — <decorrenza>`, senza emoji). Destinatario
+  `REGISTRATION_EMAIL` → `CAF_EMAIL` → valentino@boom-rome.com. Rimandabile
+  da **✉ Foglio** (`POST /api/fiscal/foglio`, admin). Numeri all'italiana
+  deterministici (`itNum`, la lezione small-ICU).
+- **Le righe rosse del link pubblico** (dal riesame avversario, stessa
+  release): un link /scheda viaggia su WhatsApp ed è intercettabile, quindi
+  ciò che decide DOVE arriva la firma o i soldi è **fill-only** — email di
+  parte (mai sul profilo `users`, da cui send-link legge il destinatario),
+  IBAN del locatore (il primo accende una notifica ad ALTA priorità col
+  valore), indirizzo e comune dell'immobile: si riempiono solo se vuoti,
+  altrimenti `rejected: already_set` e si corregge dal portal. Il CF del
+  conduttore e dei co-conduttori è SOLO a 16 caratteri (`validCFFor`): un
+  11 cifre Luhn-valido inquinerebbe l'RLI; il locatore può essere una
+  società. La riga del co-conduttore si scrive con la precondizione
+  `updateTime` (`commitWrites`, come magic-sign): una co-firma arrivata nel
+  mezzo non viene mai sovrascritta. Una parte che ha già FIRMATO è congelata
+  (410): il fascicolo completo e i bottoni «📨 Chiedi» offrono il link SOLO
+  per i documenti, il resto è dichiarato «dal portal» — mai un link morto.
+- **Fuori scopo, dichiarato**: i comproprietari con quota (`ownershipPct`
+  esiste sul doc landlord ma nessuno lo legge) e la pagina RLI del
+  Fascicolo Fiscale (`fascicolo.js` stampa ancora `rent×12` e «L2» solo su
+  studenti — il foglio e l'email completa usano `rliFacts`).
+- Test: `node tests/contratto/run.mjs` (87 check).
+
 ### Contratto studenti — template associazione (accordo Roma 27/07/2023)
 `_generateContractPDF_allegatoC` (js/portal-app.js) genera il contratto
 tipo STUDENTI dell'associazione: accordo territoriale depositato presso il
@@ -1970,6 +2153,62 @@ utenze private a carico conduttore nelle Altre clausole (art.16) +
 through the fallback chain contract fields → users sign schema → users
 wizard schema — a regenerated PDF never prints dots for data a party
 already self-filled on /sign or /scheda.
+
+**Art. 6 SENZA cedolare: verbatim, finalmente** (8/09/2026). Il ramo «no
+cedolare» dell'Allegato C era un testo scritto a mano («tassa di registro
+ripartita al 50%») che OMETTEVA l'adeguamento Istat al 75% previsto dal
+modello dell'associazione: un contratto senza cedolare usciva con un canone
+fermo per clausola. Ora è VERBATIM da
+`reference/contratto_tipo_STUDENTI_Roma_2023_SENZA_CEDOLARE.doc` (caricato
+dal referente; differisce dal modello con cedolare SOLO nell'art. 6 —
+verificato per diff). In `reference/` anche
+`contratto_tipo_32_Roma_2023.doc`, il contratto tipo 3+2 (art. 2 c. 3
+L.431/98) dell'accordo 27/07/2023.
+
+### Il terzo modello: 3+2 canone concordato — Allegato A (8/09/2026)
+Il contratto tipo dell'associazione per il **3+2** (L.431/98 art. 2 c. 3,
+accordo 27/07/2023 prot. RA/2023/0044852 —
+`reference/contratto_tipo_32_Roma_2023.doc`, caricato dal referente) è il
+terzo modello di `js/contract-pdf.js`, VERBATIM. `contract.type === '3+2'`
+(anche `'32'`/`'concordato'`, la forma che `compliance-rules` già leggeva)
+→ `buildAllegatoA`; il dispatcher resta una riga sola. **Un telaio, tre
+facce**: il generatore studenti è diventato `buildConcordato(env, MODEL)` —
+stessa impaginazione, stesse parti, stesse firme, stesse ancore — e i due
+modelli concordati sono `MODEL_C` / `MODEL_A`: titolo, riferimento di
+legge, `articles(v, addArticle)` e la clausola 1341/1342. Il 3+2 parla
+**per anno** (canone annuo = mensile × 12, rate per anno secondo la
+cadenza), dura «3 anni» per legge (art. 1: proroga di diritto di due anni,
+disdetta sei mesi), non ha esigenza né corso di studi, deposito con la
+riserva «durata minima ≥ 5 anni», oneri sull'**allegato 5 dell'Accordo**
+(non l'allegato D del decreto), recesso a sei mesi, «Accesso» al singolare.
+Refusi dell'originale normalizzati e DICHIARATI nel sorgente
+(«Organizzazione della Proprietà», «RA/2023/044852», la virgola che chiude
+l'art. 1, «non è superiore», la parentesi mai chiusa, «l'immobile :
+locato», «E'» → «È», «dei presente» → «del presente»).
+- **`tests/contractpdf/verbatim.mjs` misura la parola "verbatim"**:
+  `tests/_doc.mjs` legge i `.doc` VERI (OLE → FIB → piece table, zero
+  dipendenze), il test estrae dal sorgente ogni frase fissa degli articoli
+  (i pezzi fra un `${…}` e l'altro, ≥ 40 caratteri) e pretende che stia
+  nel modello — confronto sul CONTENUTO (minuscolo, senza punteggiatura),
+  normalizzazioni elencate, varianti nostre dichiarate (niente deposito;
+  canone «riferito all'intera durata» sotto i 12 mesi). Al primo giro ha
+  trovato sul modello C **«saranno a carico» dove il modello dice «sono a
+  carico»**, il ramo senza cedolare scritto a mano, e lo slot «nella misura
+  contrattata del --» che mancava (ora `contract.istatPct`, campo del
+  dizionario: l'aggiornamento Istat pattuito senza cedolare).
+- **Il tipo viaggia ovunque**: dizionario (`templateOf` → `'A'`; un campo
+  comune a B e C vale anche per A, `garanzieAltre`/`accessiModalita`
+  dichiarano `'A'`, rilascio del documento e rendita sono dati del
+  contratto come sul C, durata di legge `durata_32` = 36 mesi esatti,
+  opzione «3+2 canone concordato (Allegato A)» nel campo Tipo), portal
+  (terzo bottone 📜 3+2 nel wizard, 36 mesi di default e minimo, tendina
+  del modale Modifica, `updateContract` lo salva), console pre-accordo
+  («3+2 Canone concordato (Allegato A)» e `type:'3+2'` alla conversione),
+  `convert.leaseType` (esplicito o dedotto dalla proposta),
+  `contracts.draft` (36 mesi), fascicolo/valutazione (`contractTipo` →
+  `'32'`, la casella «Contratto: 3+2» della scheda ARPE e «Durata + %» con
+  `pDur`), Foglio/Fascicolo/verbale/inventario (a parole), Pack e iter ASPI
+  (nessuna «attestazione esigenza» chiesta o segnata mancante).
 
 **IL TIPO NON SI MANDA, SI LEGGE** (agosto 2026). `js/contract-pdf.js`
 sceglie il modello con `contract.type === 'studenti' ? Allegato C :
@@ -2009,8 +2248,132 @@ creazione del contratto, si attiva e si annulla in qualsiasi momento
 (rifiutata se `landlordSignature` esiste): scrive `landlordDelegate` nello
 schema che `magic-sign/lookup`, `submit` e `sign.html` già leggono, quindi
 il documento dice «firma X per conto di Y». **Al posto del conduttore non
-si firma mai** — quella non è una delega, è una firma falsa, e la riga è
-scritta nel pannello, non lasciata al buonsenso.
+si firma mai SENZA MANDATO SCRITTO** — quella non è una delega, è una firma
+falsa, e la riga è scritta nel pannello, non lasciata al buonsenso.
+
+### Il mandato a firmare del conduttore (9/09/2026 — «devo poter firmare io per il cliente»)
+Il caso vero: il cliente ha accettato e firmato la proposta, pensa sia
+tutto fatto, e l'email col link del contratto resta chiusa per settimane —
+mentre i termini del contratto sono ESATTAMENTE quelli della proposta.
+Prima l'unica via era rincorrerlo; il pannello diceva (giustamente) che al
+posto del conduttore non si firma. Ora il conduttore può conferire a BOOM
+un **mandato con rappresentanza** (art. 1703 ss. c.c.) a sottoscrivere il
+contratto in suo nome — e siccome il contenuto è predeterminato dalla
+proposta, il doppio ruolo dell'agenzia non fa conflitto (art. 1395 c.c.,
+dichiarato nel testo). Le regole, tutte verificate per mutazione:
+- **Si dà SULLA PROPOSTA, con una spunta A PARTE** (`pre-agreement.html`,
+  checkbox `paMandate`, mai pre-selezionata, mai obbligatoria): chi la
+  lascia vuota firma col proprio link come sempre. La console la OFFRE
+  con una **scelta esplicita** (`askMandate === true`, interruttore NON
+  attivo di default, persistito nel create e nell'edit): assente = non
+  offerto, quindi le proposte nate prima non cambiano comportamento e
+  nessuna migrazione serve; senza offerta la spunta nel body non vale
+  (`submit.js`: `askMandate === true && b.mandate === true`). La card in
+  Firma ora dice che il mandato riguarda **solo il conduttore
+  principale** e che i co-conduttori firmano separatamente col proprio
+  link (la guardia del delegato vale solo per `role === 'tenant'`).
+  Il testo è UNO (`api/preagreement/_consent.js` → `PA_MANDATE_TEXT`,
+  hash sha256): la pagina lo mostra parola per parola (test: pagina ==
+  server), submit lo registra con hash/data/ip/ua, il PDF della proposta
+  lo ristampa come sezione «6. Mandate to sign».
+- **LE CONDIZIONI APPROVATE sono una FOTO presa all'accettazione, v2**
+  (revisione PR #233, 10/09/2026 — la prima versione calcolava
+  `termsFingerprint(contract)` ALLA CONVERSIONE: base nata dopo, e cieca
+  su immobile, clausole e oneri). `js/mandato-engine.js` (UMD →
+  `window.BOOM_MANDATO`, import ESM da `api/**`) è la copia unica:
+  `termsFromProposal(pa)` e `termsFromContract(contract)` producono lo
+  STESSO oggetto canonico da due sorgenti — immobile (`propertyId`),
+  parti (locatore + conduttori, testo normalizzato senza accenti),
+  modello (`modelOfLease`, la regola che `convert.leaseType` ora delega),
+  decorrenza/scadenza, canone, deposito, oneri accessori e se si
+  incassano col canone, cadenza, cedolare, clausole (insieme ordinato,
+  esclusa la clausola automatica dei co-conduttori). NON entrano, di
+  proposito: extra e provvigione (non stanno nel contratto di locazione),
+  add-on, `clauseVersion` (è il nostro impaginato). `submit.js` la
+  scrive SEMPRE all'accettazione (`pa.approvedTerms {version:2, at,
+  terms, hash}`, hash = sha256 con prefisso `mandato:v2:`); `convert.js`
+  la prende da lì (`termsSource:'proposal-at-acceptance'`; per una
+  proposta accettata prima della v2 la ricava dalla proposta stessa,
+  che la console non lascia più modificare, e lo DICHIARA:
+  `'proposal-at-conversion'`) — mai dal contratto, che è ciò che si
+  VERIFICA: alla conversione `termsMatch`/`termsDiff` (un modello scelto a
+  mano diverso dalla proposta = mandato registrato ma non spendibile), e
+  `tenantName` va sul contratto perché le parti si confrontano lì.
+  `mandateCheck(contract)` in `_shared.js` è versionato: v2 → foto, v1
+  (mandati nati prima, senza `termsVersion`) → `termsFingerprint`; il
+  terms-freeze fra le firme (`signedTermsHash`) è intatto. Il PDF della
+  proposta accettata va su `contracts/<id>/mandato-conduttore.pdf`.
+- **Il server è l'ultimo giudice** (`magic-sign/submit.js`, guardia PRIMA
+  della costruzione della firma): `tenantDelegate` senza
+  `tenantMandate.given` → **403 `mandate_missing`**, nessuna firma, avviso
+  urgente; condizioni diverse dalla foto → **409 `mandate_terms_changed`**
+  con `changed:[chiavi]`, nessuna firma. **L'incompatibilità si vede
+  PRIMA del tentativo**: la card del portal calcola il diff col motore
+  («canone mensile: 1500 → 1550 · clausole»), nasconde «Firmo io» e
+  `setMandatoTenant` rifiuta l'attivazione; `magic-sign/lookup` espone
+  `tenantMandate.termsOk/termsChanged` e `sign.html` lo scrive in rosso.
+  Con mandato valido la firma passa e stampa `tenantSignedByDelegate
+  {name, onBehalfOf, basis, signedAt, mandateRef, mandateAt, mandateHash}`.
+- **La strada automatica non perde il mandato**: `submit.js` passava a
+  `maybeAutoConvert` la proposta letta PRIMA della patch — il contratto
+  automatico (il caso normale con l'immobile collegato) nasceva senza
+  `paAcceptance` e senza `tenantMandate`. Ora viaggiano `consent`,
+  `mandate`, `approvedTerms`, `acceptedAt`; webhook e resolve rileggono la
+  proposta e non avevano il difetto.
+- **Chi ha firmato davvero resta scritto ovunque**: `sign.html` mostra il
+  banner «You are signing as X on behalf of the tenant Y — written mandate
+  given on … with proposal …» (e avverte se il mandato manca); la pagina
+  delle firme e il certificato FES stampano sotto il riquadro le due righe
+  di `delegateLines()` («Firma per mandato: X» / «per conto di Y - mandato
+  del gg/mm/aaaa (ref)» — anche per la delega del locatore, che prima
+  taceva); la scheda ARPE porta la firma con «X per conto di Y», «mandato
+  del …», e la riga della firma digitale sulla proposta; il Pack aggiunge
+  `10_Mandato_conduttore.pdf` solo quando la firma è per mandato.
+- **Nel portal**: card «Mandato del conduttore» in 🖊 Firma ora — senza
+  mandato dice dove si dà (sulla proposta), con mandato mostra data/
+  proposta/documento e il bottone «Firmo io per il conduttore (mandato)» →
+  `setMandatoTenant` scrive `tenantDelegate {name, onBehalfOf, basis, at,
+  by}` (rifiutato senza mandato o a firma già apposta), poi si apre il link
+  del conduttore e si firma. La riga del contratto nella console PA dice
+  «🖊 Mandato a firmare ricevuto il …». Un rinnovo NON eredita mandato,
+  deleghe, firme per conto né accettazione (atti di QUEL contratto).
+- **La scheda si firma con la proposta** (stessa release — «pronta e auto
+  firmata dal cliente quando accetta»): `PA_CONSENT_TEXT` dichiara che
+  l'accettazione firma ANCHE la scheda di calcolo del canone (Allegato
+  2/B) e che le informazioni sull'immobile sono fornite dalle parti;
+  submit registra `consent {text, hash, schedaSigned:true}`, convert lo
+  porta su `contract.paAcceptance {at, ref, hash, schedaSigned}`, e
+  `firmaOf()` in `fascicolo.js` stampa sul modulo — sotto la riga di firma
+  di ciascuna parte — la firma grafica del contratto (PNG incorporato) più
+  le righe che la qualificano («firmato digitalmente il …», «firma digitale
+  sulla proposta BOOM-… del …», delega/mandato). La pagina della proposta
+  mostra PRIMA della firma la card «Rent calculation sheet (Allegato 2/B)»
+  coi numeri calcolati DAL SERVER sull'immobile collegato
+  (`lookup.js` → `schedaSummary`: zona, superficie convenzionale,
+  parametri, fascia, massimo, canone e verdetto) e dichiara i buchi
+  («Still to complete on the sheet: cadastral data»); `schedaGaps()`
+  (zona · mq · catasto · canone) è la stessa lista che la console PA
+  segnala nella riga del canone («scheda 2/B: manca il catasto») e che il
+  fascicolo riporta — la scheda esce completa perché i buchi si vedono
+  PRIMA, non dopo la firma.
+- **Il bug della pagina RLI** (stessa release): `fascicolo.js` stampava
+  `rent×12` e «L2» solo sugli studenti; ora legge `FIELDS.rliFacts`
+  (tipologia L2 per tutti i concordati, importo = corrispettivo per la
+  durata sotto i 12 mesi, scadenza da min(stipula, decorrenza), articolo e
+  accordo per modello — il 3+2 cita art. 2 c. 3 e l'accordo 27/07/2023).
+- Test: `node tests/mandato/run.mjs` (98 check — handler VERI su Firestore
+  in memoria: proposta → accettazione con mandato → conversione →
+  lookup → 403 senza mandato → 409 termini cambiati → firma per mandato
+  stampata; **la strada automatica** (submit con `autoConvert`, dovuto 0:
+  mandato selezionato / non selezionato / richiesta ripetuta); le
+  condizioni approvate v2 (immobile, clausole, oneri, modello, locatore,
+  cadenza cambiati DOPO la conversione → 409 con `changed`; modello
+  scelto a mano ALLA conversione → `termsMatch:false` e 409; proposta
+  manomessa dopo l'accettazione → la base resta la foto; proposta senza
+  foto → provenienza dichiarata; mandato v1 ancora valutato con la regola
+  v1); `askMandate` assente = non offerto; scheda ARPE con le firme;
+  pagina == server sui testi; Valutazione dall'immobile con la scheda a
+  pagina 2, buchi dichiarati, 403 non admin).
 
 ### Le regole IN VIGORE ≠ le regole nel file (31/08/2026)
 Il difetto più caro trovato in questa tornata, e nessuna suite poteva
@@ -3574,6 +3937,8 @@ camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
   | `tests/money/run.mjs` | checkout, webhook Stripe idempotenti, conversione PA→contratto |
   | `tests/fiscal/test.mjs` | motore scadenze fiscali |
   | `tests/fiscal/canone.mjs` | canone concordato: superficie convenzionale (coefficienti e tetti), fascia dai parametri, regola del cap, match zona che non indovina, parametri solo da feature reali, verdetto fits/fuori |
+  | `tests/contractpdf/verbatim.mjs` | le clausole dei modelli A (3+2) e C (studenti, con e senza cedolare) sono quelle dei `.doc` dell'associazione in `reference/`, frase per frase — il lettore `.doc` sta in `tests/_doc.mjs`, le normalizzazioni dei refusi sono elencate, le varianti nostre dichiarate; ha preso «saranno» per «sono» al primo giro |
+  | `tests/fiscal/scheda.mjs` | la Scheda di calcolo canone 1:1 col modulo ARPE (Allegato 2/B): ogni etichetta stampata sta nel `.docx` del modulo parola per parola (anti-deriva, con la mutazione che dimostra che il check morde), i fatti dal contratto (bracket di superficie, pertinenze, parametri derivati, subfascia, calcolo riga per riga, cap dichiarato, sforamento), senza zona/mq un modulo vuoto onesto (e «Via della Lungaretta» non è più DELLA VITTORIA), PDF a sé stante di una pagina che stampa davvero quelle parole e NON la testata BOOM |
   | `tests/taxpack/test.mjs` | pacchetto commercialista |
   | `tests/journey/steps.mjs` | **le regole commerciali dell'operatore**: quando parte ogni email e cosa NON deve contenere (T-90 e uscita non vendono, le chiavi non si vendono mai, un prodotto già comprato non si ripropone, il rinnovo non arriva prima del move-in su un transitorio breve) |
   | `tests/journey/review-url.mjs` | solo un vero link "scrivi recensione" (`g.page/r/<id>/review`) entra nelle email; un link Maps "Condividi" viene rifiutato con warning |
@@ -3586,6 +3951,7 @@ camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
   | `tests/prenota/run.mjs` | la corsia del pre-blocco: una casa occupata con data nota si PRENOTA e la data si vede ovunque (era «Waitlist open»), l'affittata si apre SOLO col contratto (`availableFrom`) e mai su una `availableDate` residua, l'illeggibile non promette niente, e l'anno dedotto dal motore viene dichiarato all'operatore invece di passare per un fatto. Regole C e D verificate per mutazione |
   | `tests/vetrina/run.mjs` | l'innesto della vetrina (Chromium vero su apartments.html servita): un annuncio nato DOPO la build appare, è contato e i filtri veri lo mordono (zona via hash, ricerca libera, cuore); la data testo libero passa dal motore condiviso («1 Sept 2027» → «Free from», mai «Available now»); senza foto di casa nostra o con stato ignoto la carta NON nasce; le card di build continuano ad aggiornarsi. Verificato per mutazione |
   | `tests/scheda/run.mjs` | La Scheda: token derivati (ruolo nella derivazione, timing-safe), precedenza prefill contratto→sign→wizard, lock post-firma, sync profilo su ENTRAMBI gli schemi users, upload con OCR che non blocca mai, /api/profile/link autorizzato |
+  | `tests/contratto/run.mjs` | Il dizionario del contratto: ogni lettura dei modelli è dichiarata e ogni voce è letta (anti-deriva nelle due direzioni), la cedolare non torna `=== true` (mutazione), la completezza cambia per modello/owner/società/extra-UE/co-conduttori/durata di legge, la Scheda chiede SOLO ciò che manca a QUELLA parte, un token tenant non scrive mai l'immobile (e lo dice), il co-conduttore scrive solo la sua riga e la firma altrui resta, i numeri RLI (totale per durata < 12 mesi, scadenza da min(stipula, decorrenza)), il foglio pulito senza bottoni né link e con gli allegati veri, 401 senza admin |
   | `tests/innesto/run.mjs` | l'Innesto e il 413 di piattaforma: il PDF grande transita da Storage e i byte che arrivano ad Anthropic sono ESATTAMENTE quelli scaricati, un host estraneo non viene MAI contattato (l'endpoint non è un proxy), i tetti restano onesti (8 MB, whitelist formati), e il transito si cancella nel finally. Più l'APPLY VERO su Firestore finto: proposta completa → contratto+rate scritti, proposta senza una gamba → il contratto non nasce MA il riepilogo non lo promette e il toast dice quale gamba manca (la lezione del 30/08: "Innesto completato" senza contratto), proprietario già in `landlords` → mai un doppione |
   | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot |
   | `tests/aspi/run.mjs` | l'iter ASPI: la checklist blocca SOLO senza contratto (il resto avverte, dichiarato nell'email), l'invio raggiunge il referente con l'operatore in copia e gli allegati veri, la fattura col markup non si duplica MAI (id deterministico), 'registered' non si degrada, l'auto-invio parte solo con la manopola girata |
@@ -3616,6 +3982,7 @@ camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
   | `tests/contractpdf/run.mjs` | il PDF del contratto in UNA copia (jsPDF REALE): l'impaginato condiviso produce Allegato B/C con le ancore firma, la conversione PA lo scrive da sola (e con Storage giù il contratto nasce comunque), send-sign sana i pre-fix PRIMA dell'email (ordine asserito sulla sorgente), la prima apertura di /sign è l'ultima rete, e MAI una rigenerazione sotto una firma viva (mutazione) |
   | `tests/sign/lang.mjs` | /sign bilingue guidata in un browser vero (demo mode): default per ruolo (locatore IT, inquilino EN), toggle che ridisegna lo step corrente in entrambe le direzioni, percorso intero tradotto, Skip OTP che non blocca, link WhatsApp presenti. Si auto-skippa senza playwright |
   | `tests/scalo/run.mjs` | LO SCALO lotti 1-4: la carta d'imbarco dice la verità (visita annullata/standby = Wallet spento e DETTO, codici di rotta solo dal lessico — mai inventati, pass viewing per navigazione vera mai blob:), il lessico `js/scalo-codes.js` in UNA copia (alias lungo batte il corto, parole intere, ambiguo → null, bmCode derivato), il flight status di /viewing (countdown SOLO sui momenti veri di _moments, stato temporale mai "già spedito"), il check-in di /book (la carta SOLO sulla confermata — mai sulla pending — con applyApprovalCopy unico posto delle parole), l'idrante di /board (corsie SOLO da BOOM_DISPO.marketLane — closed fuori, illeggibile = ASK mai NOW, ETA dall'iso del motore, fail-open sulla fotografia di build), la rotta di /casa (tappe = FATTI del contratto: signatureStatus, depbal, startDate, endDate−90 — l'aereo sulla prima non compiuta, niente rotta senza contratto) e il timbro di apartment-detail (visibile sempre, batte una volta, fermo con reduced-motion). Lotto 4: il handler VERO di /api/meteo su Firestore in memoria (whitelist che non lascia passare un campo non dichiarato, sotto campione SOLO il nome, cache CDN, solo GET), meteo.html che non tocca mai Firestore, lo sweep della plancia (blip = gli stessi item della strip, angolo dichiarato disposizione), e le og carte PNG verificate nei byte (IHDR 1200×630) |
+  | `tests/mandato/run.mjs` | il mandato a firmare: spunta a parte sulla proposta (mai dedotta, solo se offerta ESPLICITAMENTE — assente = non offerto), la foto delle condizioni approvate presa all'accettazione (v2: immobile, parti, modello, date, soldi, oneri, clausole) è la base che conversione e firma verificano (409 con `changed`; il contratto non fa mai da base; v1 ancora valutato con la sua regola), la strada automatica non perde consenso e mandato, al posto del conduttore SOLO col mandato (403), chi ha firmato resta stampato su pagina firme/certificato/scheda ARPE/pack; il consenso della proposta firma anche la scheda 2/B (pagina == server, hash); la Valutazione BOOM esce dall'immobile con la scheda di calcolo brandizzata a pagina 2 e i buchi dichiarati |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
   the 3 portals via `BoomPortal.registerServiceWorker()`

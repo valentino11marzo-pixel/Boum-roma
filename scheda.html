@@ -199,6 +199,28 @@
     @keyframes sh{to{background-position:-200% 0}}
     @media (max-width:480px){.dome{width:min(600px,155vw);height:min(600px,155vw)}.dome .rim{display:none}}
     @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition-duration:.01ms!important}.draw{stroke-dashoffset:0}.success-ring::before,.success-ring::after{display:none}}
+
+    /* ── La Scheda che si adatta: i controlli delle sezioni extra ── */
+    .sec{margin-bottom:16px;padding-left:13px;border-left:2px solid var(--gold)}
+    .sec .lbl{font-size:9px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:rgba(233,199,102,.7);margin-bottom:4px}
+    .sec .name{font-family:var(--display);font-weight:300;font-size:18px}
+    textarea.inp{height:auto;min-height:96px;padding:11px 14px;resize:vertical;line-height:1.45}
+    .yn{display:flex;gap:8px}
+    .yn button{flex:1;height:46px;border:1px solid var(--line);border-radius:11px;background:var(--field);color:var(--text-2);
+      font-family:var(--ui);font-size:14px;font-weight:500;cursor:pointer;transition:border-color .2s var(--ease),background .2s var(--ease),color .2s var(--ease)}
+    .yn button:hover{background:var(--field-hover);border-color:rgba(255,255,255,.17)}
+    .yn button.on{border-color:rgba(233,199,102,.6);background:rgba(233,199,102,.14);color:var(--gold)}
+    .yn.bad button{border-color:rgba(240,133,133,.6);box-shadow:0 0 0 3px rgba(240,133,133,.12)}
+    .tog{display:flex;align-items:center;gap:11px;width:100%;padding:11px 13px;margin-bottom:10px;border:1px solid var(--line);border-radius:11px;
+      background:var(--field);color:var(--text-2);font-family:var(--ui);font-size:13.5px;font-weight:500;text-align:left;cursor:pointer;
+      transition:border-color .2s var(--ease),background .2s var(--ease),color .2s var(--ease)}
+    .tog:hover{background:var(--field-hover);border-color:rgba(255,255,255,.17)}
+    .tog i{position:relative;flex-shrink:0;width:34px;height:20px;border-radius:999px;background:rgba(255,255,255,.14);transition:background .2s var(--ease)}
+    .tog i::after{content:'';position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:transform .2s var(--ease),background .2s var(--ease)}
+    .tog.on{border-color:rgba(233,199,102,.5);background:rgba(233,199,102,.08);color:var(--text)}
+    .tog.on i{background:var(--gold)} .tog.on i::after{transform:translateX(14px);background:#1c1503}
+    .tog.bad{border-color:rgba(240,133,133,.6);box-shadow:0 0 0 3px rgba(240,133,133,.12)}
+    .cot{font-size:12px;color:var(--text-3);margin:0 2px 10px;line-height:1.5} .cot b{color:var(--text-2);font-weight:500}
   </style>
 </head>
 <body>
@@ -281,6 +303,12 @@
         k_prop:'Property', k_period:'Period', k_role_t:'Tenant', k_role_l:'Landlord',
         k_name:'Full name', k_cf:'Codice Fiscale', k_dob:'Date of birth', k_pob:'Place of birth', k_doc:'Document', k_nat:'Nationality', k_addr:'Address',
         saving:'Saving…', save_fail:'We couldn’t save your scheda.', rate:'Too many attempts — wait a moment.',
+        extra_t:'A few more details', extra_d:'The contract needs these too — we only ask what’s still missing.',
+        sec_of:'Section %1 of %2', optional:'optional', sel_ph:'— choose —',
+        alone:'I’ll live alone', people_more:'Anyone else living with you?', people_ph:'Full names, separated by commas',
+        cotenants:'Already on the contract as co-tenants', yes:'Yes', no:'No',
+        still:'We still need', more:'and %1 more',
+        e_val:'Some answers weren’t accepted — check the highlighted fields.',
       },
       it: {
         kick:'La Scheda', trust:'Cifrata · usata solo per il tuo contratto di locazione (GDPR)',
@@ -312,9 +340,19 @@
         k_prop:'Immobile', k_period:'Periodo', k_role_t:'Inquilino', k_role_l:'Locatore',
         k_name:'Nome e cognome', k_cf:'Codice Fiscale', k_dob:'Data di nascita', k_pob:'Luogo di nascita', k_doc:'Documento', k_nat:'Nazionalità', k_addr:'Indirizzo',
         saving:'Salvataggio…', save_fail:'Non riusciamo a salvare la scheda.', rate:'Troppi tentativi — aspetta un momento.',
+        extra_t:'Ancora qualche dato', extra_d:'Servono anche questi per il contratto — chiediamo solo ciò che manca.',
+        sec_of:'Sezione %1 di %2', optional:'facoltativo', sel_ph:'— scegli —',
+        alone:'Vivo da solo', people_more:'Chi altro abiterà con te?', people_ph:'Nome e cognome, separati da virgola',
+        cotenants:'Già sul contratto come co-conduttori', yes:'Sì', no:'No',
+        still:'Ci manca ancora', more:'e altri %1',
+        e_val:'Alcune risposte non sono valide — controlla i campi evidenziati.',
       }
     };
     var lang = localStorage.getItem('boom_scheda_lang') || '';
+    // Scelta ESPLICITA del lettore (o di una visita precedente)? Il boot
+    // sotto chiama setLang('en') come ripiego e lo persiste: senza questa
+    // memoria il default italiano del locatore non scattava mai.
+    var LANG_CHOSEN = !!lang;
     function t(k){ return (STR[lang]||STR.en)[k] || STR.en[k] || k; }
     function setLang(l){
       lang = (l==='it')?'it':'en';
@@ -330,13 +368,37 @@
     });
 
     // ── State ──
-    var S = { data:null, role:'tenant', locked:false, id:{}, docs:0, uploadedNow:0, view:null };
+    var S = { data:null, role:'tenant', locked:false, id:{}, docs:0, uploadedNow:0, view:null,
+      // La Scheda che si adatta: le sezioni extra che il server dice ancora
+      // vuote per QUESTA parte (S.ask.sections), le risposte in memoria
+      // (S.answers, ripopolate avanti/indietro), l'indice della sezione
+      // corrente, ogni campo mai mostrato (S.fields, per etichette e per non
+      // richiedere due volte), il rinfresco — uno solo — e i mancanti che il
+      // salvataggio riporta.
+      ask:null, missing:[], template:'B', answers:{}, secIdx:0, hadExtra:false, refreshed:false, missingAfter:[], fields:{} };
+    function sections(){ return (S.ask && Array.isArray(S.ask.sections)) ? S.ask.sections : []; }
+    function hasSections(){ return sections().length>0; }
+    // I passi: identità → [extra: UN puntino per tutte le sezioni] → documento → fine.
+    function stepTotal(){ return S.hadExtra ? 4 : 3; }
+    function stepNo(name){ return name==='who' ? 1 : (name==='extra' ? 2 : (name==='doc' ? stepTotal()-1 : stepTotal())); }
+    // Testi bilingui del server ({it,en}): la lingua della pagina, poi it, poi en.
+    function L(o){ if(!o) return ''; if(typeof o==='string') return o; return o[lang] || o.it || o.en || ''; }
+    function fmt(s,a,b){ return String(s).replace('%1',a).replace('%2',b); }
+    function setAsk(ask, missing, template){
+      S.ask = (ask && typeof ask==='object') ? ask : { sections:[], identityMissing:[], missingCount:0, lang:'' };
+      if(!Array.isArray(S.ask.sections)) S.ask.sections=[];
+      S.missing = Array.isArray(missing) ? missing : [];
+      S.template = template || 'B';
+      S.hadExtra = S.hadExtra || hasSections();
+      sections().forEach(function(sec){ (sec.fields||[]).forEach(function(f){ if(f&&f.key) S.fields[f.key]=f; }); });
+    }
 
     function el(html){ var d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
     function esc(s){ return String(s==null?'':s).replace(/[&<>"]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c];}); }
     function setProgress(n){
       if(n<0){ PROG.innerHTML=''; return; }
-      var h=''; for(var i=1;i<=3;i++){ h += '<i class="'+(i<n?'done':(i===n?'on':''))+'"></i>'; }
+      var tot=stepTotal(), h='';
+      for(var i=1;i<=tot;i++){ h += '<i class="'+(i<n?'done':(i===n?'on':''))+'"></i>'; }
       PROG.innerHTML=h;
     }
     function validCF(cf){
@@ -379,7 +441,8 @@
           }
           S.data=j; S.role=j.role||'tenant'; S.locked=!!j.locked; S.docs=j.docsCount||0;
           S.id = idFrom(j.signer||{});
-          if(!lang) setLang(S.role==='landlord' ? 'it' : 'en');
+          S.answers={}; setAsk(j.ask, j.missing, j.template);
+          if(!LANG_CHOSEN) setLang(S.role==='landlord' ? 'it' : 'en');
           if(S.locked) return renderLocked();
           renderWho();
         })
@@ -398,7 +461,28 @@
       };
       S.role = S.data.role; S.locked=false; S.docs=0;
       S.id = idFrom(S.data.signer||{});
-      if(!localStorage.getItem('boom_scheda_lang')) setLang(ll?'it':'en');
+      // Le sezioni extra della demo, nella STESSA forma della risposta di
+      // /api/profile/lookup (label/ask/title bilingui, options {v,label}).
+      S.answers={};
+      setAsk(ll ? { lang:'it', identityMissing:[], missingCount:4, sections:[
+          { key:'catasto', title:{it:'Dati catastali',en:'Cadastral data'}, fields:[
+            { key:'catFoglio', type:'text', required:true, value:'', label:{it:'Foglio',en:'Foglio (sheet)'}, ask:{it:'Dalla visura catastale',en:'From the visura catastale'} },
+            { key:'catParticella', type:'text', required:true, value:'', label:{it:'Particella',en:'Particella (parcel)'}, ask:{it:'',en:''} },
+            { key:'catSub', type:'text', required:true, value:'', label:{it:'Subalterno',en:'Subalterno (unit)'}, ask:{it:'',en:''} } ] },
+          { key:'property', title:{it:'L’immobile',en:'The property'}, fields:[
+            { key:'propertyFurnished', type:'yesno', required:true, value:'', label:{it:'Ammobiliato',en:'Furnished'}, ask:{it:'Come da elenco arredi',en:'As per the furniture list'} },
+            { key:'impiantiStato', type:'select', required:false, value:'', label:{it:'Sicurezza impianti',en:'Systems safety (electric, gas)'}, ask:{it:'Vuoto = “funzionanti e idonei”',en:'Empty = “working and fit for use”'}, options:[
+              { v:'funzionanti', label:{it:'Funzionanti e idonei (documentazione in possesso)',en:'Working and fit for use (documents on hand)'} },
+              { v:'conformi', label:{it:'Certificati conformi (D.M. 37/2008)',en:'Certified compliant (D.M. 37/2008)'} },
+              { v:'non_certificati', label:{it:'Senza certificazione a norma',en:'No compliance certificate'} } ] } ] } ] }
+        : { lang:'en', identityMissing:[], missingCount:2, sections:[
+          { key:'uso', title:{it:'Chi abiterà la casa',en:'Who will live in the home'}, fields:[
+            { key:'cohabitants', type:'people', required:true, value:'', label:{it:'Conviventi',en:'People living with you'}, ask:{it:'Nome e cognome di chi vivrà con te — o “vivo da solo/a”',en:'Full names of anyone living with you — or “just me”'}, cotenants: known ? ['Marco Rossi'] : [] } ] },
+          { key:'esigenza', title:{it:'L’esigenza transitoria',en:'The temporary need'}, fields:[
+            { key:'transitionalReason', type:'textarea', required:true, value:'', label:{it:'Motivo della transitorietà',en:'Reason for the temporary stay'}, ask:{it:'Es. incarico di lavoro a Roma fino a …, corso, cure',en:'e.g. work assignment in Rome until …, a course, medical care'} },
+            { key:'transitionalDocs', type:'text', required:false, value:'', label:{it:'Documento che la prova',en:'Document proving it'}, ask:{it:'Es. lettera del datore di lavoro, iscrizione, certificato medico',en:'e.g. employer letter, enrolment, medical certificate'} } ] } ] },
+        [], 'B');
+      if(!LANG_CHOSEN) setLang(ll?'it':'en');
       renderWho();
     }
 
@@ -466,7 +550,7 @@
         '</div>'
       ));
       document.getElementById('w-edit').onclick=renderForm;
-      document.getElementById('w-ok').onclick=function(){ save(this); };
+      document.getElementById('w-ok').onclick=function(){ afterWho(this); };
     }
     function renderForm(){
       setProgress(1); S.view=renderForm;
@@ -521,34 +605,235 @@
         });
         if(S.id.cf && !validCF(S.id.cf)){ cf.classList.add('bad'); document.getElementById('e-cf').classList.add('show'); if(!firstBad) firstBad=cf; }
         if(firstBad){ flash(t('e_req')); firstBad.focus(); firstBad.scrollIntoView({block:'center',behavior:'smooth'}); return; }
-        save(document.getElementById('w-next'));
+        afterWho(document.getElementById('w-next'));
       };
     }
 
-    // ═══ SAVE → STEP 2 ═══
+    // ═══ STEP "EXTRA" — le sezioni che il server dice ancora vuote per QUESTA parte ═══
+    // Una schermata per sezione (S.secIdx). Le risposte vivono in S.answers e
+    // si ripopolano avanti/indietro; il Continua dell'ULTIMA sezione fa il
+    // salvataggio unico (identità + answers). Senza sezioni si salva subito,
+    // come prima.
+    function afterWho(btn){
+      if(hasSections()){ S.secIdx=0; renderExtra(); window.scrollTo({top:0,behavior:'smooth'}); return; }
+      save(btn);
+    }
+    function xid(k){ return 'x-'+String(k).replace(/[^A-Za-z0-9_-]/g,'_'); }
+    function hintHtml(ask){ return ask ? '<div class="hint" style="margin:6px 2px 0">'+esc(ask)+'</div>' : ''; }
+    function fieldHtml(f){
+      var id=xid(f.key), ask=L(f.ask), v=S.answers[f.key];
+      var opt = f.required ? '' : ' <span class="hint">— '+esc(t('optional'))+'</span>';
+      var lab='<label for="'+id+'">'+esc(L(f.label)||f.key)+opt+'</label>';
+      var sv = (v==null || typeof v==='object') ? '' : String(v);
+      var open='<div class="field" data-key="'+esc(f.key)+'">';
+      switch(f.type){
+        case 'people': {
+          // Conviventi: interruttore «vivo da solo» + nomi. I co-conduttori
+          // firmatari sono già sul contratto: si mostrano, e si chiede chi
+          // c'è OLTRE a loro.
+          var alone = !!(v && typeof v==='object' && v.alone);
+          var txt = (v && typeof v==='object' && v.text) ? v.text : '';
+          var cots = Array.isArray(f.cotenants) ? f.cotenants.filter(Boolean) : [];
+          return open+
+            (cots.length ? '<div class="cot"><b>'+esc(t('cotenants'))+':</b> '+esc(cots.join(', '))+'</div>' : '')+
+            '<label for="'+id+'">'+esc(cots.length ? t('people_more') : (L(f.label)||f.key))+opt+'</label>'+
+            '<button type="button" class="tog'+(alone?' on':'')+'" id="'+id+'-alone" aria-pressed="'+(alone?'true':'false')+'"><i></i><span>'+esc(t('alone'))+'</span></button>'+
+            '<textarea class="inp" id="'+id+'" placeholder="'+esc(t('people_ph'))+'"'+(alone?' style="display:none"':'')+'>'+esc(txt)+'</textarea>'+
+            hintHtml(ask)+'</div>';
+        }
+        case 'yesno':
+          return open+lab+'<div class="yn" id="'+id+'">'+
+            '<button type="button" data-v="yes" class="'+(sv==='yes'?'on':'')+'">'+esc(t('yes'))+'</button>'+
+            '<button type="button" data-v="no" class="'+(sv==='no'?'on':'')+'">'+esc(t('no'))+'</button>'+
+            '</div>'+hintHtml(ask)+'</div>';
+        case 'select': {
+          var o='<option value="">'+esc(t('sel_ph'))+'</option>';
+          (f.options||[]).forEach(function(x){ o+='<option value="'+esc(x.v)+'"'+(String(x.v)===sv?' selected':'')+'>'+esc(L(x.label)||x.v)+'</option>'; });
+          return open+lab+'<select class="inp" id="'+id+'">'+o+'</select>'+hintHtml(ask)+'</div>';
+        }
+        case 'textarea':
+          return open+lab+'<textarea class="inp" id="'+id+'" placeholder="'+esc(ask)+'">'+esc(sv)+'</textarea></div>';
+        default: {
+          var attrs='';
+          if(f.type==='date') attrs=' type="date"';
+          else if(f.type==='number') attrs=' inputmode="decimal"';
+          else if(f.type==='cf') attrs=' maxlength="16" autocapitalize="characters" autocomplete="off" spellcheck="false"';
+          else if(f.type==='piva') attrs=' inputmode="numeric" maxlength="13"';
+          else if(f.type==='email') attrs=' type="email" inputmode="email" autocomplete="email"';
+          else if(f.type==='tel') attrs=' type="tel" inputmode="tel" autocomplete="tel"';
+          else if(f.type==='iban') attrs=' autocapitalize="characters" autocomplete="off" spellcheck="false"';
+          var cls='inp'+((f.type==='cf'||f.type==='iban')?' mono':'');
+          return open+lab+'<input class="'+cls+'" id="'+id+'"'+attrs+' value="'+esc(sv)+'" placeholder="'+esc(ask)+'"></div>';
+        }
+      }
+    }
+    function wireField(f){
+      var id=xid(f.key);
+      if(f.type==='people'){
+        var b=document.getElementById(id+'-alone'), ta=document.getElementById(id);
+        if(b) b.onclick=function(){
+          var on=!b.classList.contains('on');
+          b.classList.toggle('on',on); b.setAttribute('aria-pressed',on?'true':'false'); b.classList.remove('bad');
+          if(ta){ ta.style.display=on?'none':''; ta.classList.remove('bad'); if(!on) ta.focus(); }
+        };
+        if(ta) ta.oninput=function(){ ta.classList.remove('bad'); };
+        return;
+      }
+      if(f.type==='yesno'){
+        var yn=document.getElementById(id); if(!yn) return;
+        yn.onclick=function(e){
+          var x=e.target.closest('button'); if(!x) return;
+          [].forEach.call(yn.querySelectorAll('button'),function(q){ q.classList.toggle('on',q===x); });
+          yn.classList.remove('bad');
+        };
+        return;
+      }
+      var n=document.getElementById(id); if(!n) return;
+      n.oninput=function(){ if(f.type==='cf'||f.type==='iban') n.value=n.value.toUpperCase(); n.classList.remove('bad'); };
+    }
+    function validNum(s){ s=String(s).replace(/\s+/g,''); if(s.indexOf(',')>=0) s=s.replace(/\./g,'').replace(',','.'); var n=Number(s); return s!=='' && isFinite(n) && n>=0; }
+    function validIban(ib){
+      if(!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(ib)) return false;
+      var r=ib.slice(4)+ib.slice(0,4), n='';
+      for(var i=0;i<r.length;i++){ n += /[A-Z]/.test(r[i]) ? String(r[i].charCodeAt(0)-55) : r[i]; }
+      var rem=0; for(var j=0;j<n.length;j+=7){ rem=Number(String(rem)+n.slice(j,j+7))%97; }
+      return rem===1;
+    }
+    // Legge la sezione dal DOM in S.answers (vuoto = chiave tolta). Con
+    // lenient=true non giudica (Indietro, cambio lingua); altrimenti marca
+    // .bad e torna il primo campo da correggere.
+    function collectSection(sec, lenient){
+      var firstBad=null;
+      (sec.fields||[]).forEach(function(f){
+        var id=xid(f.key), val='', node=null, bad=false;
+        if(f.type==='people'){
+          var b=document.getElementById(id+'-alone'), ta=document.getElementById(id);
+          var on=!!(b&&b.classList.contains('on')); var txt=((ta&&ta.value)||'').trim();
+          val = on ? {alone:true} : (txt ? {text:txt} : '');
+          node = (ta && ta.style.display!=='none') ? ta : b;
+          bad = !!f.required && !val;
+        } else if(f.type==='yesno'){
+          var yn=document.getElementById(id); var onb=yn&&yn.querySelector('button.on');
+          val = onb ? (onb.getAttribute('data-v')||'') : ''; node=yn; bad = !!f.required && !val;
+        } else {
+          node=document.getElementById(id); val=((node&&node.value)||'').trim();
+          if(f.type==='cf'||f.type==='iban') val=val.toUpperCase().replace(/\s+/g,'');
+          if(!val) bad=!!f.required;
+          else if(f.type==='cf' && !validCF(val)) bad=true;
+          else if(f.type==='piva' && !/^\d{11}$/.test(val.replace(/\s+/g,'').replace(/^IT/i,''))) bad=true;
+          else if(f.type==='number' && !validNum(val)) bad=true;
+          else if(f.type==='date' && !/^\d{4}-\d{2}-\d{2}$/.test(val)) bad=true;
+          else if(f.type==='email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) bad=true;
+          else if(f.type==='iban' && !validIban(val)) bad=true;
+        }
+        if(val==='' || val==null) delete S.answers[f.key]; else S.answers[f.key]=val;
+        if(bad && !lenient && node){ node.classList.add('bad'); if(!firstBad) firstBad=node; }
+      });
+      return firstBad;
+    }
+    function markBad(k){ var id=xid(k); var n=document.getElementById(id), b=document.getElementById(id+'-alone'); if(n) n.classList.add('bad'); if(b) b.classList.add('bad'); }
+    function renderExtra(badKeys){
+      var secs=sections(); if(!secs.length) return renderDoc();
+      if(S.secIdx<0) S.secIdx=0; if(S.secIdx>=secs.length) S.secIdx=secs.length-1;
+      var sec=secs[S.secIdx];
+      // Cambio lingua / ri-render della STESSA sezione: quello che è già
+      // scritto non si perde.
+      var host=document.getElementById('xsec'); if(host && host.getAttribute('data-sec')===sec.key) collectSection(sec, true);
+      setProgress(stepNo('extra')); S.view=renderExtra;
+      var last = S.secIdx===secs.length-1;
+      var h='<div class="step">'+
+        '<h1 class="t">'+esc(t('extra_t'))+'</h1>'+
+        '<p class="sub">'+esc(t('extra_d'))+'</p>'+
+        '<div class="sec"><div class="lbl">'+esc(secs.length>1 ? fmt(t('sec_of'),S.secIdx+1,secs.length) : (S.role==='landlord'?t('k_role_l'):t('k_role_t')))+'</div><div class="name">'+esc(L(sec.title)||sec.key)+'</div></div>'+
+        '<div id="xsec" data-sec="'+esc(sec.key)+'">';
+      (sec.fields||[]).forEach(function(f){ h+=fieldHtml(f); });
+      h+='</div>'+
+        '<div class="btnrow"><button class="btn ghost" id="x-back">'+esc(t('b_back'))+'</button><button class="btn" id="x-next">'+esc(last?t('b_send'):t('b_continue'))+'</button></div>'+
+        '</div>';
+      FLOW.innerHTML=''; FLOW.appendChild(el(h));
+      (sec.fields||[]).forEach(function(f){ wireField(f); });
+      document.getElementById('x-back').onclick=function(){
+        collectSection(sec, true);
+        if(S.secIdx>0){ S.secIdx--; renderExtra(); } else renderWho();
+        window.scrollTo({top:0,behavior:'smooth'});
+      };
+      document.getElementById('x-next').onclick=function(){
+        var bad=collectSection(sec, false);
+        if(bad){ flash(t('e_req')); try{ bad.focus(); }catch(e){} bad.scrollIntoView({block:'center',behavior:'smooth'}); return; }
+        if(!last){ S.secIdx++; renderExtra(); window.scrollTo({top:0,behavior:'smooth'}); return; }
+        save(this);
+      };
+      if(badKeys && badKeys.length){
+        badKeys.forEach(markBad);
+        var fb=document.querySelector('#xsec .bad'); if(fb){ try{ fb.focus(); }catch(e){} fb.scrollIntoView({block:'center',behavior:'smooth'}); }
+      }
+    }
+
+    // ═══ SAVE (identità + answers, UN POST) → STEP documento ═══
+    // Un valore che il server scarta per validazione torna sul SUO campo;
+    // gli altri motivi (not_yours/unknown/upload_only/not_on_template) da
+    // questa pagina non possono succedere — si annotano e basta.
+    var VALIDATION_WHY=/^(cf_invalid|date_invalid|number_invalid|iban_invalid|email_invalid|piva_invalid|option_invalid|yesno_invalid)$/;
     function save(btn){
-      if(btn){ btn.disabled=true; btn.innerHTML='<span class="spin"></span>'; }
-      if(DEMO){ setTimeout(function(){ S.saved=true; S.savedComplete=idComplete(S.id); renderDoc(); }, 550); return; }
+      var restore=function(){ if(btn){ btn.disabled=false; btn.textContent=btn.getAttribute('data-lbl')||t('b_confirm'); } };
+      if(btn){ btn.setAttribute('data-lbl', btn.textContent); btn.disabled=true; btn.innerHTML='<span class="spin"></span>'; }
+      if(DEMO){ setTimeout(function(){ S.saved=true; S.savedComplete=idComplete(S.id); S.missingAfter=[]; renderDoc(); }, 550); return; }
       fetch('/api/profile/submit',{ method:'POST', headers:{'Content-Type':'application/json'},
-        body: JSON.stringify({ t:T, identity:S.id, phone:S.id.phone||'' }) })
+        body: JSON.stringify({ t:T, identity:S.id, phone:S.id.phone||'', answers:S.answers }) })
         .then(function(r){ return r.json().catch(function(){return {ok:false};}); })
         .then(function(j){
           if(!j.ok){
-            if(btn){ btn.disabled=false; btn.textContent=t('b_confirm'); }
+            restore();
             if(j.error==='cf_invalid'){ flash(t('e_cf')); return renderForm(); }
             if(j.error==='rate_limited') return flash(t('rate'));
             if(j.error==='already_signed'){ S.locked=true; return renderLocked(); }
             return flash(t('save_fail'));
           }
-          S.saved=true; S.savedComplete=!!j.complete;
-          renderDoc();
+          S.saved=true; S.savedComplete=!!j.complete; S.missingAfter=Array.isArray(j.missing)?j.missing:[];
+          var bad=[], other=[];
+          (Array.isArray(j.rejected)?j.rejected:[]).forEach(function(r){ if(r && r.key && VALIDATION_WHY.test(String(r.why||''))) bad.push(r); else other.push(r); });
+          if(other.length) console.warn('[scheda] answers rejected:', other);
+          if(bad.length){ restore(); return showRejected(bad); }
+          afterSave();
         })
-        .catch(function(){ if(btn){ btn.disabled=false; btn.textContent=t('b_confirm'); } flash(t('conn_d')); });
+        .catch(function(){ restore(); flash(t('conn_d')); });
+    }
+    function showRejected(bad){
+      var keys=bad.map(function(r){ return r.key; });
+      var secs=sections(), idx=-1;
+      secs.forEach(function(sc,i){ if(idx<0 && (sc.fields||[]).some(function(f){ return keys.indexOf(f.key)>=0; })) idx=i; });
+      if(idx<0){ console.warn('[scheda] rejected keys not on screen:', keys); return afterSave(); }
+      S.secIdx=idx; renderExtra(keys); flash(t('e_val'));
+    }
+    function afterSave(){
+      // Un dato appena scritto può far nascere una sezione nuova (la
+      // nazionalità extra-UE → permesso di soggiorno): UN rinfresco della
+      // lookup, mai un loop, e solo per mancanti obbligatori mai mostrati.
+      var need=S.missingAfter.filter(function(m){ return m && m.key && m.group && m.group!=='identity' && m.group!=='docs' && !S.fields[m.key]; });
+      if(need.length && !S.refreshed && !DEMO && T){ S.refreshed=true; return refreshAsk(); }
+      renderDoc();
+    }
+    function refreshAsk(){
+      S.view=null; setProgress(stepNo('extra'));
+      FLOW.innerHTML='<div class="sk" style="width:55%"></div><div class="sk"></div><div class="sk" style="width:80%"></div>';
+      fetch('/api/profile/lookup',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ t:T }) })
+        .then(function(r){ return r.json().catch(function(){return {ok:false};}); })
+        .then(function(j){
+          if(!j.ok || !j.ask) return renderDoc();
+          // Solo ciò che NON era già stato mostrato: un facoltativo saltato non torna.
+          var fresh=(Array.isArray(j.ask.sections)?j.ask.sections:[]).map(function(sc){
+            return { key:sc.key, title:sc.title, fields:(sc.fields||[]).filter(function(f){ return f && f.key && !S.fields[f.key]; }) };
+          }).filter(function(sc){ return sc.fields.length; });
+          if(!fresh.length) return renderDoc();
+          setAsk({ sections:fresh, identityMissing:j.ask.identityMissing||[], missingCount:j.ask.missingCount||0, lang:j.ask.lang||'' }, j.missing, j.template);
+          S.secIdx=0; renderExtra(); window.scrollTo({top:0,behavior:'smooth'});
+        })
+        .catch(function(){ renderDoc(); });
     }
 
     // ═══ STEP 2 — DOCUMENT ═══
     function renderDoc(){
-      setProgress(2); S.view=renderDoc;
+      setProgress(stepNo('doc')); S.view=renderDoc;
       FLOW.innerHTML='';
       FLOW.appendChild(el(
         '<div class="step">'+
@@ -657,16 +942,35 @@
         });
     }
 
-    // ═══ STEP 3 — DONE ═══
+    // ═══ LAST STEP — DONE ═══
+    // I mancanti che il salvataggio ha riportato, con l'etichetta nella lingua
+    // della pagina: dal campo mostrato se c'è, dal dizionario dell'identità
+    // altrimenti, e in ultimo l'etichetta del server.
+    var IDENT_STR={ Name:'f_name', CF:'f_cf', Dob:'f_dob', Pob:'f_pob', Address:'f_addr', DocType:'f_doc', DocNum:'f_docnum', DocIssuer:'f_issuer', DocIssueDate:'f_issued', Nationality:'f_nat', Phone:'f_phone' };
+    function labelFor(m){
+      var f=S.fields[m.key]; if(f && f.label) return L(f.label);
+      var mm=/^(tenant|landlord)(Name|CF|Dob|Pob|Address|DocType|DocNum|DocIssuer|DocIssueDate|Nationality|Phone)$/.exec(m.key);
+      if(mm) return t(IDENT_STR[mm[2]]);
+      return m.label || m.key;
+    }
+    function stillNeeded(){
+      if(S.savedComplete) return '';
+      var have=(S.docs+S.uploadedNow)>0;
+      // Il documento caricato in questo giro non è più "mancante".
+      var labels=(S.missingAfter||[]).filter(function(m){ return m && m.key && !(have && /IdDoc$/.test(m.key)); }).map(labelFor).filter(Boolean);
+      if(!labels.length) return '';
+      return labels.slice(0,5).join(' · ') + (labels.length>5 ? ' '+fmt(t('more'), labels.length-5) : '');
+    }
     function renderDone(){
-      setProgress(3); S.view=renderDone;
-      var complete=!!S.savedComplete;
+      setProgress(stepNo('done')); S.view=renderDone;
+      var complete=!!S.savedComplete, still=stillNeeded();
       FLOW.innerHTML='';
       FLOW.appendChild(el(
         '<div class="step center">'+
           '<div class="ic success-ring" style="border-color:rgba(95,208,140,.4)">'+ICON_CHECK+'</div>'+
           '<h2>'+esc(complete?t('done_t'):t('done_partial_t'))+'</h2>'+
           '<p>'+esc(complete?t('done_d'):t('done_partial_d'))+'</p>'+
+          (still ? '<div class="next" style="width:100%" id="still"><div class="n" style="color:var(--text-2)"><span><b style="font-weight:500;color:var(--gold)">'+esc(t('still'))+':</b> '+esc(still)+'</span></div></div>' : '')+
           '<div class="next" style="width:100%">'+
             '<div class="n">'+esc(t('next1'))+'</div>'+
             '<div class="n">'+esc(t('next2'))+'</div>'+

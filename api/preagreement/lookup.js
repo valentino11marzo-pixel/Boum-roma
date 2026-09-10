@@ -6,8 +6,32 @@
 // Response 200: { ok, id, pa: {status, property, landlord, tenant, lease,
 //                money, note, createdAt, acceptedAt?, ref?} }
 
-import { fsList, fsPatch, readJson } from '../homie/_lib.js';
+import { fsGet, fsList, fsPatch, readJson } from '../homie/_lib.js';
 import { offeredAddons } from './_addons.js';
+import { resolveCanoneInput, schedaFacts, schedaGaps } from '../fiscal/fascicolo.js';
+import CANONE from '../../js/canone-engine.js';
+
+// La scheda ARPE come la vedrebbe il contratto nato da questa proposta:
+// stessi fatti (schedaFacts), stesso motore. Senza immobile collegato o
+// senza mq/zona: `gaps` dice cosa manca, mai un numero inventato.
+async function schedaSummary(pa) {
+  if (!pa || !pa.propertyId) return { linked: false, gaps: ['immobile'] };
+  const property = await fsGet('properties/' + pa.propertyId).catch(() => null);
+  if (!property) return { linked: false, gaps: ['immobile'] };
+  let cfg = null;
+  try { cfg = await fsGet('settings/canoneAccordo'); } catch (_) {}
+  const le = pa.lease || {}, m = pa.money || {};
+  const contract = { type: /student/i.test(String(le.type || '')) ? 'studenti' : (/3\s*\+\s*2/.test(String(le.type || '')) ? '3+2' : 'transitorio'), rent: Number(m.rent) || 0 };
+  const input = resolveCanoneInput({ contract, property, listing: null, cfg: cfg || undefined });
+  const calc = input.zona && input.mq > 0 ? CANONE.solve(input) : { ok: false, error: !input.zona ? 'zona_non_trovata' : 'mq_mancanti' };
+  const f = schedaFacts({ contract, property, calc, input });
+  return {
+    linked: true, gaps: schedaGaps(f),
+    zonaCod: f.zonaCod || '', zonaNome: f.zona ? f.zona.nome : '', mq: f.mq || 0, sc: f.has ? f.sc : (f.scTotal || 0),
+    nP: f.nP, fascia: f.sub ? f.sub.fascia : '', subfascia: f.sub ? f.sub.name : '',
+    valore: f.sub ? f.sub.val : null, cMax: f.cMax, pattuito: f.pattuito, fits: f.fits,
+  };
+}
 
 // Offer expiry gates NEW acceptances only — never an accepted/paid deal.
 // "Today" is Rome's calendar day, so the offer dies at midnight in Rome.
@@ -38,6 +62,8 @@ export default async function handler(req, res) {
     const { id, ...data } = hit;   // fsList returns flat rows: {id, ...fields}
     if (data.status === 'revoked') return res.status(410).json({ ok: false, error: 'revoked' });
 
+    const scheda = await schedaSummary(data).catch(() => null);
+
     // audit the view (best-effort)
     const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
     const views = Array.isArray(data.views) ? data.views.slice(-49) : [];
@@ -59,6 +85,14 @@ export default async function handler(req, res) {
         // need) — label + whether it already arrived (never blocking)
         extraDoc: data.extraDoc || null,
         extraDocCount: Array.isArray(data.uploads) ? data.uploads.filter(u => u && u.kind === 'extra').length : 0,
+        // Il mandato a firmare: chiesto? gia' conferito? (mai il testo qui —
+        // la pagina lo ha in una copia sola, uguale a _consent.js).
+        askMandate: data.askMandate === true,
+        mandate: data.mandate && data.mandate.given ? { at: data.mandate.at } : null,
+        // La scheda di calcolo del canone (Allegato 2/B) che il cliente firma
+        // con l'accettazione: i numeri che firma, calcolati DAL SERVER
+        // sull'immobile collegato — o cosa manca per calcolarli.
+        scheda,
         contractReady: !!data.contractId,
         // Gli add-on proponibili alla firma (prezzo dal catalogo server-side,
         // mai dal browser) + quelli già scelti, così un rientro sulla pagina

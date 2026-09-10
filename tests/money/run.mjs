@@ -389,7 +389,7 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
   // il generatore, letto lo stesso contratto, sceglie davvero l'altro modello
   const disp = readFileSync(new URL('../../js/contract-pdf.js', import.meta.url), 'utf8');
   check('e il generatore, su quel type, sceglie l\'Allegato C',
-    /\(env\.contract\.type === 'studenti'\) \? buildAllegatoC\(env\) : buildAllegatoB\(env\)/.test(disp));
+    /\(env\.contract\.type === 'studenti'\) \? buildAllegatoC\(env\) : is32\(env\.contract\) \? buildAllegatoA\(env\) : buildAllegatoB\(env\)/.test(disp));
 }
 
 console.log('\n' + '─'.repeat(48));
