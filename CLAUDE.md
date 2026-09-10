@@ -3067,6 +3067,15 @@ Two intakes:
   senders (operator's own addresses + `DOC_MAIL_FROM`). Processed emails
   remembered in `docImports`; per-run AI budget; Telegram recap.
 
+Lotto 2 (settembre 2026), **bloccato sul contratto della pipeline**: oggi
+WhatsApp salva gli allegati senza leggerli; l'email entra solo per indirizzo.
+Le porte richieste devono deduplicare per URL e tenere gli sconosciuti in
+`needsFiling` prima di qualsiasi archiviazione sotto un immobile. `_smista.js`
+oggi crea un id casuale e non accetta un vincolo sul match: serve coordinare
+il Lotto 4 prima di collegarle. I test previsti sono `tests/whatsapp/run.mjs`
+e `tests/documents/porte.mjs` (quest'ultimo ancora da creare); nessuna nuova
+garanzia è implementata finché questa dipendenza non viene risolta.
+
 ## La Banca (open banking — api/banking/* + banca.html)
 
 PSD2 bank feed for the Contabile via **GoCardless Bank Account Data** (ex
