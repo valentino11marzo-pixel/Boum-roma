@@ -528,6 +528,20 @@ const elCall = async (payload, { secret = 'el-secret', t = Math.floor(Date.now()
 {
   const r = await call(inbound, { method: 'GET', query: { setup: '1' }, headers: { 'x-homie-secret': 'test-secret', host: 'boomrome.com' } });
   ok('setup autenticato → gli URL delle due vie', r.code === 200 && r.out.voiceUrl.includes('/api/phone/inbound?k=') && r.out.elevenlabsWebhookUrl.endsWith('/api/phone/elevenlabs') && r.out.toolCatalogUrl.includes('op=catalog'), r.out);
+
+  // LA LEZIONE DEL 22/08/2026: l'apex boomrome.com risponde con un redirect e
+  // il tool ElevenLabs (follow redirects spento) ha letto "Redirecting..."
+  // come risposta → «I don't have the catalog in front of me». Un URL che
+  // consegniamo a un servizio esterno non passa MAI da un redirect: chiesto
+  // dall'apex, esce già canonico (www).
+  const urls = [r.out.voiceUrl, r.out.elevenlabsWebhookUrl, r.out.toolCatalogUrl, r.out.toolSlotsUrl];
+  ok('setup chiesto dall\'apex → TUTTI gli URL escono sul host canonico www', urls.every((u) => u.startsWith('https://www.boomrome.com/')), urls);
+  const fwd = await call(inbound, { method: 'GET', query: { setup: '1' }, headers: { 'x-homie-secret': 'test-secret', host: 'boomrome.com', 'x-forwarded-host': 'boomrome.com' } });
+  ok('…anche quando l\'apex arriva via x-forwarded-host', fwd.out.toolCatalogUrl.startsWith('https://www.boomrome.com/'), fwd.out.toolCatalogUrl);
+  const prev = await call(inbound, { method: 'GET', query: { setup: '1' }, headers: { 'x-homie-secret': 'test-secret', host: 'boum-roma-git-x-valentino-boom.vercel.app' } });
+  ok('un host di preview resta com\'è (lì il redirect non esiste)', prev.out.toolCatalogUrl.startsWith('https://boum-roma-git-x-valentino-boom.vercel.app/'), prev.out.toolCatalogUrl);
+  const { canonicalHost } = await import('../../api/phone/inbound.js');
+  ok('canonicalHost: apex → www, www → www, vuoto → www, lista x-forwarded → primo', canonicalHost('boomrome.com') === 'www.boomrome.com' && canonicalHost('www.boomrome.com') === 'www.boomrome.com' && canonicalHost('') === 'www.boomrome.com' && canonicalHost('boomrome.com, 10.0.0.1') === 'www.boomrome.com');
 }
 
 // ─── 21. le giunzioni della receptionist ───────────────────────────────────
@@ -542,6 +556,11 @@ const elCall = async (payload, { secret = 'el-secret', t = Math.floor(Date.now()
 
   const mandate = readFileSync(new URL('../../bot/RECEPTIONIST.md', import.meta.url), 'utf8');
   ok('bot/RECEPTIONIST.md: il mandato esiste con prompt e regole', mandate.includes('System prompt') && mandate.includes('NEVER invent') && mandate.includes('**004*'));
+  // Il mandato è ciò che l'operatore INCOLLA nella console ElevenLabs: un URL
+  // sull'apex lì dentro è la stessa trappola del 22/08, riscritta a mano.
+  ok('bot/RECEPTIONIST.md: nessun URL BOOM sull\'apex (tool e webhook passano da www)', !/https:\/\/boomrome\.com\//.test(mandate) && mandate.includes('https://www.boomrome.com/api/phone/elevenlabs'));
+  ok('bot/RECEPTIONIST.md: la trappola del redirect è scritta accanto ai tool', /follow redirects/i.test(mandate) && mandate.includes('Redirecting'));
+  ok('bot/RECEPTIONIST.md: l\'italiano nasce dal preset di lingua, non dal modello TTS', /additional languages|lingue aggiuntive|language preset/i.test(mandate) && /flash v2/i.test(mandate));
 
   const page = readFileSync(new URL('../../chiamate.html', import.meta.url), 'utf8');
   ok('la dashboard marca le chiamate receptionist', page.includes('Receptionist AI'));
