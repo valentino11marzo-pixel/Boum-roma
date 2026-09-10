@@ -11,6 +11,11 @@
 //     valida il documento resta da smistare coi candidati dichiarati.
 // Senza relation e senza docId il comportamento è quello storico (l'operatore
 // che smista da Telegram): tutto il catalogo, id automatico.
+// Dalla revisione della PR #234 le garanzie sono NATIVE (le porte le
+// aggiravano con guardie proprie): una lista di immobili VUOTA non è mai il
+// catalogo libero, gli immobili della relazione si leggono PER ID (il tetto
+// dei 200 non li riguarda), una relazione troppo larga degrada a unknown e lo
+// DICE, e con `budget` modello e Storage stanno nel tempo che resta.
 //
 // Esegui: node tests/documents/smista.mjs
 
@@ -55,7 +60,7 @@ const dec = (f) => {
 const toDoc = (path, data) => ({ name: `projects/p/databases/(default)/documents/${path}`, fields: Object.fromEntries(Object.entries(data).map(([k, v]) => [k, enc(v)])) });
 
 let autoId = 0;
-let aiHits = 0, storageHits = 0;
+let aiHits = 0, storageHits = 0, storageStatus = 200, onStorage = () => {};
 let aiJson = { category: 'ape', fiscalYear: 2026, propertyId: null, summary: 'APE classe C' };
 let lastPrompt = '';
 
@@ -63,7 +68,11 @@ globalThis.fetch = async (url, opts = {}) => {
   const u = String(url);
   const json = (o, status = 200) => ({ ok: status < 400, status, json: async () => o, text: async () => JSON.stringify(o) });
   if (u.includes('identitytoolkit')) return json({ idToken: 'fake', localId: 'admin' });
-  if (u.includes('firebasestorage.googleapis.com')) { storageHits++; return json({ downloadTokens: 'dl-tok-1' }); }
+  if (u.includes('firebasestorage.googleapis.com')) {
+    storageHits++; onStorage();
+    if (storageStatus !== 200) return json({ error: 'storage giù' }, storageStatus);
+    return json({ downloadTokens: 'dl-tok-1' });
+  }
   if (u.includes('api.anthropic.com')) {
     aiHits++;
     const body = JSON.parse(opts.body || '{}');
@@ -75,7 +84,8 @@ globalThis.fetch = async (url, opts = {}) => {
   const path = m ? decodeURIComponent(m[1]) : '';
   if (u.includes(':runQuery')) {
     const coll = body.structuredQuery.from[0].collectionId;
-    return json([...DB.entries()].filter(([k]) => k.startsWith(coll + '/')).map(([k, v]) => ({ document: toDoc(k, v) })));
+    const limit = body.structuredQuery.limit || Infinity;   // il tetto VERO della lettura, come Firestore
+    return json([...DB.entries()].filter(([k]) => k.startsWith(coll + '/')).slice(0, limit).map(([k, v]) => ({ document: toDoc(k, v) })));
   }
   if (opts.method === 'PATCH') {
     const prev = DB.get(path) || {};
@@ -209,6 +219,82 @@ const promptIds = () => { const m = lastPrompt.match(/Elenco immobili[^\n]*\n(\[
   let err = null;
   try { await smistaDocument({ ...base, base64: 'A'.repeat(9 * 1024 * 1024 * 4 / 3 | 0) }); } catch (e) { err = e; }
   ok('oltre 8MB → rifiutato prima di tutto', err && /8MB/.test(err.message), err && err.message);
+}
+
+// ─── 10. lista vuota = NESSUN candidato, mai il catalogo libero ─────────────
+{
+  aiJson = { category: 'f24_imu', fiscalYear: 2026, propertyId: 'pB', summary: 'F24' };
+  const ai0 = aiHits;
+  const out = await smistaDocument({ ...base, docId: 'em_empty1', relation: { kind: 'landlord', label: 'Bianchi', propertyIds: [] } });
+  const d = DB.get('documents/em_empty1');
+  ok('landlord senza immobili: il modello vede una lista VUOTA (mai il catalogo)', JSON.stringify(promptIds()) === '[]', promptIds());
+  ok('…classificato comunque (una chiamata: la categoria serve al Contabile)', aiHits === ai0 + 1 && out.label === 'F24 IMU', out);
+  ok('…MAI archiviato sotto l\'immobile scelto dal modello', d.propertyId === null && out.needsFiling === true && d.needsFiling === true, d);
+  ok('…candidati dichiarati: nessuno; kind e label conservati', JSON.stringify(d.relatedPropertyIds) === '[]' && d.relationKind === 'landlord' && d.relationLabel === 'Bianchi', d);
+  ok('…nessun default inventato', !('relationDefault' in d) && d.contractId === null);
+  ok('…e il prompt lo dice', /non ne risulta nessuno collegato/.test(lastPrompt));
+}
+
+// ─── 11. l'immobile della relazione si legge PER ID, oltre il tetto del catalogo ──
+{
+  for (let i = 0; i < 200; i++) DB.set(`properties/extra${i}`, { id: `extra${i}`, title: 'Riempitivo ' + i });
+  DB.set('properties/pZ', { id: 'pZ', title: 'Loft Ostiense', address: 'Via Ostiense 100' });
+  DB.set('contracts/cZ', { id: 'cZ', propertyId: 'pZ', status: 'active', startDate: '2026-01-01', endDate: '2027-12-31' });
+  aiJson = { category: 'utenza', fiscalYear: 2026, propertyId: 'pZ', summary: 'bolletta' };
+  const out = await smistaDocument({ ...base, docId: 'em_far1', relation: { kind: 'landlord', propertyIds: ['pZ'], contractIds: ['cZ'] } });
+  const d = DB.get('documents/em_far1');
+  ok('relazione: l\'immobile oltre il 200° del catalogo si trova lo stesso (letto per id)', out.needsFiling === false && d.propertyId === 'pZ', out);
+  ok('…il modello vede SOLO quello', JSON.stringify(promptIds()) === JSON.stringify(['pZ']), promptIds());
+  ok('…col suo contratto', d.contractId === 'cZ', d.contractId);
+  ok('…un id che non esiste sparisce dai candidati, non inventa', JSON.stringify((await (async () => { await smistaDocument({ ...base, docId: 'em_far2', relation: { kind: 'landlord', propertyIds: ['pZ', 'fantasma'] } }); return promptIds(); })())) === JSON.stringify(['pZ']));
+  aiJson = { category: 'utenza', fiscalYear: 2026, propertyId: 'pZ', summary: 'bolletta' };
+  const op = await smistaDocument({ ...base, docId: 'op_far1' });
+  ok('operatore: il catalogo letto resta al tetto di 200 — il tetto è del catalogo, non della relazione', promptIds().length === 200 && op.needsFiling === true, promptIds().length);
+  for (let i = 0; i < 200; i++) DB.delete(`properties/extra${i}`);
+}
+
+// ─── 12. una relazione troppo larga degrada a unknown e lo DICE ─────────────
+{
+  const many = Array.from({ length: 51 }, (_, i) => 'p' + i);
+  const n = normalizeRelation({ kind: 'landlord', label: 'Immobiliare Srl', propertyIds: many });
+  ok('oltre 50 immobili → unknown dichiarato, nessun troncamento silenzioso', n.kind === 'unknown' && n.degraded === 'too_many_properties' && n.propertyIds.size === 0, n);
+  ok('50 immobili esatti → landlord intero', normalizeRelation({ kind: 'landlord', propertyIds: many.slice(0, 50) }).kind === 'landlord');
+  ok('oltre 50 contratti → degrada e dice quale tetto', normalizeRelation({ kind: 'tenant', propertyIds: ['pA'], contractIds: many }).degraded === 'too_many_contracts');
+  ok('operatore e sconosciuto non degradano mai', normalizeRelation(null).degraded === null && normalizeRelation({ kind: 'unknown' }).degraded === null);
+  aiJson = { category: 'utenza', fiscalYear: 2026, propertyId: 'pA', summary: 'bolletta' };
+  const out = await smistaDocument({ ...base, docId: 'em_wide1', relation: { kind: 'landlord', label: 'Immobiliare Srl', propertyIds: many } });
+  const d = DB.get('documents/em_wide1');
+  ok('…il documento nasce da smistare, col motivo sul doc e nella risposta', d.propertyId === null && d.needsFiling === true && d.relationDegraded === 'too_many_properties' && out.relationDegraded === 'too_many_properties', d);
+  ok('…il suggerimento resta visibile e il prompt non lo chiama "NON in archivio"', d.suggestedPropertyId === 'pA' && !/NON in archivio/.test(lastPrompt) && /Immobiliare Srl/.test(lastPrompt));
+}
+
+// ─── 13. il budget: modello e Storage dentro il tempo che resta ─────────────
+{
+  const { runBudget } = await import('../../api/_budget.js');
+  const realNow = Date.now;
+  // a) senza tempo per il modello: si esce PRIMA di spendere
+  const spent = runBudget(60_000, 6_000);
+  Date.now = () => realNow() + 50_000;          // restano 4s: il modello ne vuole 20
+  let err = null; const ai0 = aiHits, st0 = storageHits;
+  try { await smistaDocument({ ...base, docId: 'bud1', relation: { kind: 'landlord', propertyIds: ['pA'] }, budget: spent }); } catch (e) { err = e; }
+  Date.now = realNow;
+  ok('budget finito → budget_exhausted PRIMA del modello e dello Storage, nessun documento', err && err.code === 'budget_exhausted' && aiHits === ai0 && storageHits === st0 && !DB.has('documents/bud1'), err && err.message);
+  const dup = await smistaDocument({ ...base, docId: 'wa_abc123', relation: { kind: 'landlord', propertyIds: ['pA'] }, budget: spent });
+  ok('…ma un doppione risponde anche a budget zero', dup.duplicate === true && aiHits === ai0);
+  // b) Storage in 503 col tempo finito: UN tentativo e l'errore vero (503), non un kill a 60s
+  storageStatus = 503;
+  const t0 = realNow();
+  onStorage = () => { Date.now = () => t0 + 55_000; };   // dopo il primo tentativo il tempo è finito
+  const fresh = runBudget(60_000, 6_000);
+  err = null; const st1 = storageHits;
+  try { await smistaDocument({ ...base, docId: 'bud2', relation: { kind: 'landlord', propertyIds: ['pA'] }, budget: fresh }); } catch (e) { err = e; }
+  Date.now = realNow; onStorage = () => {};
+  ok('Storage 503 col budget finito: un tentativo solo, errore 503 dichiarato, nessun documento', storageHits === st1 + 1 && err && /503/.test(err.message) && !DB.has('documents/bud2'), { tentativi: storageHits - st1, err: err && err.message });
+  // c) senza budget: i tre tentativi di sempre (undici chiamanti non cambiano comportamento)
+  err = null; const st2 = storageHits;
+  try { await smistaDocument({ ...base, docId: 'bud3', relation: { kind: 'landlord', propertyIds: ['pA'] } }); } catch (e) { err = e; }
+  ok('Storage 503 senza budget: i tre tentativi di sempre', storageHits === st2 + 3 && err && /503/.test(err.message), storageHits - st2);
+  storageStatus = 200;
 }
 
 console.log(fails ? `\n${fails} FAILED` : '\nAll smista checks passed');

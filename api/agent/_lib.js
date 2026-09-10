@@ -48,7 +48,12 @@ import nodemailer from 'nodemailer';
 // ruberebbe secondi alla funzione e ritarderebbe l'errore vero.
 const RITENTABILI = new Set([429, 500, 502, 503, 504]);
 
-export async function storageUpload(path, buffer, contentType = 'application/pdf') {
+// `budget` (opzionale): l'oggetto di `runBudget` (api/_budget.js). I
+// tentativi stanno dentro il tempo che resta alla funzione — un retry che
+// non può finire non si inizia, e l'errore che esce è quello VERO (lo status
+// dell'ultimo tentativo), non un kill di piattaforma senza battito. Senza
+// budget: 20s a tentativo, tre tentativi, com'era (undici chiamanti).
+export async function storageUpload(path, buffer, contentType = 'application/pdf', { budget = null } = {}) {
   const bucket = process.env.FIREBASE_STORAGE_BUCKET
     || `${process.env.FIREBASE_PROJECT_ID || 'boom-property-dashboards'}.firebasestorage.app`;
   if (!bucket) return null;
@@ -57,15 +62,27 @@ export async function storageUpload(path, buffer, contentType = 'application/pdf
   const sig = (ms) => (typeof AbortSignal !== 'undefined' && typeof AbortSignal.timeout === 'function')
     ? AbortSignal.timeout(ms) : undefined;
 
+  const ATTEMPT_MS = 20000, MIN_ATTEMPT_MS = 2000;
+  const exhausted = () => Object.assign(new Error('budget_exhausted'), { code: 'budget_exhausted' });
   let res = null, lastErr = null;
   for (let attempt = 0; attempt < 3; attempt++) {
-    if (attempt) await new Promise((r) => setTimeout(r, 400 * attempt * attempt));   // 0 · 400ms · 1,6s
+    if (attempt) {
+      const wait = 400 * attempt * attempt;   // 400ms · 1,6s
+      if (budget && !budget.afford(wait + MIN_ATTEMPT_MS)) {
+        console.warn(`[storage] budget esaurito su ${path}: mi fermo dopo ${attempt} tentativ${attempt === 1 ? 'o' : 'i'}`);
+        if (!res) lastErr = exhausted();
+        break;
+      }
+      await new Promise((r) => setTimeout(r, wait));
+    }
+    const cap = budget ? budget.capFor(ATTEMPT_MS) : ATTEMPT_MS;
+    if (cap < MIN_ATTEMPT_MS) { if (!res) lastErr = exhausted(); break; }   // non si inizia un upload che non può finire
     try {
       res = await fetch(url, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}`, 'Content-Type': contentType },
         body: buffer,
-        signal: sig(20000),   // un upload appeso non deve mangiarsi la funzione
+        signal: sig(cap),   // un upload appeso non deve mangiarsi la funzione
       });
     } catch (e) { lastErr = e; res = null; continue; }        // rete caduta: si riprova
     if (res.ok || !RITENTABILI.has(res.status)) break;

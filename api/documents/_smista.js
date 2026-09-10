@@ -8,8 +8,9 @@
 // taxpack-engine's docMatchesRequirement picks them up with NO changes:
 // filing an F24 IMU automatically ticks the pacchetto-commercialista box.
 //
-// Callers: api/telegram/webhook.js (send a photo/PDF to the bot) and
-// api/documents/scan-inbox.js (forward an email with attachments).
+// Callers: api/telegram/webhook.js (send a photo/PDF to the bot),
+// api/documents/scan-inbox.js (email with attachments) and the WhatsApp door
+// in api/homie/message.js.
 //
 // LE PORTE (10/09/2026, Lotto 2 della Segretaria unica): un documento può
 // arrivare anche da chi NON è l'operatore — un allegato WhatsApp, l'email di
@@ -30,6 +31,27 @@
 //     del modello resta visibile come `suggestedPropertyId`, `needsFiling`
 //     è forzato. Senza `relation` il comportamento è quello di sempre
 //     (l'operatore che smista: tutto il catalogo, archiviazione diretta).
+//
+// LE GARANZIE SONO NATIVE (dalla revisione della PR #234: le porte le
+// aggiravano con guardie proprie — «lista vuota = catalogo libero», «oltre
+// 200 immobili non so se li vedo tutti» — e una guardia ripetuta in ogni
+// chiamante è una guardia che prima o poi manca):
+//   · con landlord/tenant una lista di immobili VUOTA vuol dire «nessun
+//     candidato»: il documento si classifica (la categoria serve al
+//     Contabile) e resta da smistare, MAI sul catalogo libero;
+//   · gli immobili e i contratti della relazione si leggono PER ID, non
+//     filtrando una lista col tetto: il tetto di lettura del catalogo (200)
+//     riguarda solo l'operatore e lo sconosciuto, mai un documento con
+//     relazione;
+//   · una relazione più larga di MAX_RELATION_IDS non viene troncata in
+//     silenzio: degrada a `unknown` e lo DICE (`relationDegraded` sul doc e
+//     nella risposta), così il suggerimento resta visibile e la decisione è
+//     dell'operatore;
+//   · `budget` — l'oggetto di `runBudget` (api/_budget.js): la chiamata al
+//     modello e l'upload su Storage (coi suoi retry) stanno dentro il tempo
+//     che resta alla funzione; senza tempo per il modello si esce con
+//     `budget_exhausted` PRIMA di spendere, e un doppione risponde anche a
+//     budget zero.
 
 import { fsCreate, fsGet, fsList, storageUpload, logActivity } from '../agent/_lib.js';
 import { extractJson } from '../agent/_claude.js';
@@ -37,6 +59,8 @@ import { aiSignal } from '../_budget.js';
 
 const MODEL = 'claude-haiku-4-5-20251001';
 export const MAX_DOC_BYTES = 8 * 1024 * 1024;
+export const MAX_RELATION_IDS = 50;
+const MODEL_MS = 20_000;   // tetto della chiamata al modello (un modello appeso non deve uccidere la funzione)
 
 // key → archive mapping. `category` strings are keyword-rich on purpose:
 // they're what docMatchesRequirement regexes look for.
@@ -65,16 +89,26 @@ const RELATION_KINDS = new Set(['landlord', 'tenant', 'unknown', 'operator']);
 
 /** La relazione del mittente, normalizzata. Pura, esportata per i test.
  *  Niente relation → 'operator' (il comportamento storico). Una relation
- *  con kind ignoto → 'unknown' (il default sicuro: mai sotto un immobile). */
+ *  con kind ignoto → 'unknown' (il default sicuro: mai sotto un immobile).
+ *  Una relazione più larga di MAX_RELATION_IDS → 'unknown' DICHIARATO
+ *  (`degraded`), mai un elenco troncato spacciato per intero. */
 export function normalizeRelation(relation) {
   const r = relation && typeof relation === 'object' ? relation : null;
-  const kind = r ? (RELATION_KINDS.has(r.kind) ? r.kind : 'unknown') : 'operator';
-  const ids = (arr) => new Set((Array.isArray(arr) ? arr : []).map((x) => String(x || '').trim()).filter(Boolean).slice(0, 50));
+  let kind = r ? (RELATION_KINDS.has(r.kind) ? r.kind : 'unknown') : 'operator';
+  const ids = (arr) => [...new Set((Array.isArray(arr) ? arr : []).map((x) => String(x || '').trim()).filter(Boolean))];
+  const related = kind === 'landlord' || kind === 'tenant';
+  const propertyIds = related ? ids(r.propertyIds) : [];
+  const contractIds = related ? ids(r.contractIds) : [];
+  let degraded = null;
+  if (propertyIds.length > MAX_RELATION_IDS) degraded = 'too_many_properties';
+  else if (contractIds.length > MAX_RELATION_IDS) degraded = 'too_many_contracts';
+  if (degraded) kind = 'unknown';
   return {
     kind,
     label: r && r.label ? String(r.label).slice(0, 80) : null,
-    propertyIds: kind === 'landlord' || kind === 'tenant' ? ids(r.propertyIds) : new Set(),
-    contractIds: kind === 'landlord' || kind === 'tenant' ? ids(r.contractIds) : new Set(),
+    propertyIds: new Set(degraded ? [] : propertyIds),
+    contractIds: new Set(degraded ? [] : contractIds),
+    degraded,
   };
 }
 
@@ -87,16 +121,31 @@ function dupResult(id, prev) {
   };
 }
 
+function budgetExhausted() {
+  const e = new Error('budget_exhausted');
+  e.code = 'budget_exhausted';
+  return e;
+}
+
+// Letture PER ID (≤ MAX_RELATION_IDS, in parallelo). Un id che non esiste più
+// sparisce dai candidati: meglio un candidato in meno che un immobile
+// inventato. Un guasto di rete su una lettura vale come "non trovato".
+async function readByIds(collection, ids) {
+  const rows = await Promise.all([...ids].map((id) => fsGet(`${collection}/${id}`).catch(() => null)));
+  return rows.filter(Boolean);
+}
+
 // Classify + file one document. Returns
 // { ok, id, catKey, label, propertyLabel, fiscalYear, folder, needsFiling, summary,
-//   duplicate, suggestedPropertyId, relationDefault, relatedPropertyIds }
-export async function smistaDocument({ base64, mediaType, fileName, hint, origin, docId = null, relation = null }) {
+//   duplicate, suggestedPropertyId, relationDefault, relatedPropertyIds, relationDegraded }
+export async function smistaDocument({ base64, mediaType, fileName, hint, origin, docId = null, relation = null, budget = null }) {
   if (!process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY missing');
   const bytes = Math.floor((base64.length * 3) / 4);
   if (bytes > MAX_DOC_BYTES) throw new Error('file troppo grande (max 8MB)');
 
   // Idempotenza PRIMA di spendere: stesso docId → già archiviato. Niente
-  // modello, niente upload. (Un fsGet fallito per rete cade nel 409 sotto.)
+  // modello, niente upload, e nessun bisogno di budget. (Un fsGet fallito
+  // per rete cade nel 409 sotto.)
   const id0 = docId ? String(docId).replace(/[^\w.\-]+/g, '_').slice(0, 120) : null;
   if (id0) {
     const prev = await fsGet('documents/' + id0).catch(() => null);
@@ -104,23 +153,31 @@ export async function smistaDocument({ base64, mediaType, fileName, hint, origin
   }
 
   const rel = normalizeRelation(relation);
-  const allowed = rel.propertyIds.size ? rel.propertyIds : null;
+  const related = rel.kind === 'landlord' || rel.kind === 'tenant';
 
-  // Real property list so the model does the matching against ACTUAL data.
-  // Con una relazione, il modello vede SOLO gli immobili del mittente.
-  const [properties, contracts] = await Promise.all([
-    fsList('properties', { limit: 200 }).catch(() => []),
+  // Gli immobili che il modello vede. Con una relazione si leggono PER ID —
+  // mai filtrando una lista col tetto: l'immobile oltre il 200° sparirebbe in
+  // silenzio. Senza relazione (operatore, sconosciuto) il catalogo com'è
+  // sempre stato. I contratti: la lista di sempre, più quelli della relazione
+  // letti per id (un contratto oltre il tetto non deve perdere la precedenza).
+  const [catalog, contractList, relatedProps, relatedContracts] = await Promise.all([
+    related ? [] : fsList('properties', { limit: 200 }).catch(() => []),
     fsList('contracts', { limit: 300 }).catch(() => []),
+    related ? readByIds('properties', rel.propertyIds) : [],
+    related ? readByIds('contracts', rel.contractIds) : [],
   ]);
-  const candidates = allowed ? properties.filter((p) => allowed.has(p.id)) : properties;
+  const candidates = related ? relatedProps : catalog;
+  const contracts = [...contractList, ...relatedContracts.filter((c) => !contractList.some((x) => x.id === c.id))];
   const propList = candidates.map(p => ({
     id: p.id,
     label: [p.title || p.name || p.nickname, p.address].filter(Boolean).join(' — ').slice(0, 90),
   }));
-  const whoLine = rel.kind === 'landlord' || rel.kind === 'tenant'
-    ? `\nChi lo manda: ${rel.label || (rel.kind === 'landlord' ? 'un proprietario' : 'un inquilino')} in archivio, ${rel.kind === 'landlord' ? 'proprietario' : 'inquilino'} degli immobili elencati sotto. L'elenco contiene SOLO i suoi immobili.`
+  const whoLine = related
+    ? `\nChi lo manda: ${rel.label || (rel.kind === 'landlord' ? 'un proprietario' : 'un inquilino')} in archivio, ${rel.kind === 'landlord' ? 'proprietario' : 'inquilino'} degli immobili elencati sotto. L'elenco contiene SOLO i suoi immobili${propList.length ? '.' : ' — e non ne risulta nessuno collegato: propertyId=null.'}`
     : rel.kind === 'unknown'
-      ? '\nChi lo manda: un contatto NON in archivio. Indica l\'immobile solo se il documento lo nomina chiaramente.'
+      ? (rel.degraded
+        ? `\nChi lo manda: ${rel.label || 'un contatto'} in archivio, con più immobili o contratti di quanti se ne possano elencare: indica l'immobile solo se il documento lo nomina chiaramente.`
+        : '\nChi lo manda: un contatto NON in archivio. Indica l\'immobile solo se il documento lo nomina chiaramente.')
       : '';
 
   const isPdf = /pdf/.test(mediaType);
@@ -147,8 +204,11 @@ export async function smistaDocument({ base64, mediaType, fileName, hint, origin
     '\nSe non sei ragionevolmente sicuro dell\'immobile, propertyId=null. Non inventare.',
   ].join('\n');
 
+  // Il tempo che resta: se non copre il modello si esce PRIMA di spendere.
+  // Il chiamante ritenta al giro dopo (il docId rende il retry gratis).
+  if (budget && !budget.afford(MODEL_MS)) throw budgetExhausted();
   const r = await fetch('https://api.anthropic.com/v1/messages', {
-    signal: aiSignal(20000),   // un modello appeso non deve uccidere la funzione
+    signal: aiSignal(budget ? budget.capFor(MODEL_MS) : MODEL_MS),
     method: 'POST',
     headers: {
       'x-api-key': process.env.ANTHROPIC_API_KEY,
@@ -169,19 +229,20 @@ export async function smistaDocument({ base64, mediaType, fileName, hint, origin
   const cat = CATS[catKey];
   const fiscalYear = Number(parsed.fiscalYear) || (parsed.docDate ? Number(String(parsed.docDate).slice(0, 4)) : null) || new Date().getFullYear();
   // La scelta del modello, rivalidata QUI contro la relazione — prima di
-  // qualunque scrittura. Il modello propone; il vincolo decide.
-  const modelPick = properties.find(p => p.id === parsed.propertyId) || null;
+  // qualunque scrittura. Il modello propone; il vincolo decide. Con una
+  // relazione i candidati SONO il vincolo: una scelta fuori non si trova.
+  const modelPick = candidates.find(p => p.id === parsed.propertyId) || null;
   let property = null;
   let relationDefault = false;
   let suggestedPropertyId = null;
   if (rel.kind === 'unknown') {
-    // Uno sconosciuto non archivia MAI sotto un immobile: il suggerimento
-    // resta visibile all'operatore, la decisione è sua.
+    // Uno sconosciuto (o una relazione degradata) non archivia MAI sotto un
+    // immobile: il suggerimento resta visibile all'operatore, la decisione è sua.
     suggestedPropertyId = modelPick ? modelPick.id : null;
-  } else if (allowed) {
-    if (modelPick && allowed.has(modelPick.id)) property = modelPick;
+  } else if (related) {
+    if (modelPick) property = modelPick;
     else if (candidates.length === 1) { property = candidates[0]; relationDefault = true; }
-    // più immobili e nessuna scelta valida → da smistare, coi candidati dichiarati
+    // più immobili (o nessuno) e nessuna scelta valida → da smistare, coi candidati dichiarati
   } else {
     property = modelPick;
   }
@@ -204,11 +265,13 @@ export async function smistaDocument({ base64, mediaType, fileName, hint, origin
 
   const safeName = String(fileName || 'documento').replace(/[^\w.\-]+/g, '_').slice(0, 60);
   const path = `smistatore/${fiscalYear}/${Date.now()}_${safeName}`;
-  const fileUrl = await storageUpload(path, Buffer.from(base64, 'base64'), mediaType);
+  // Il modello è già stato pagato: l'upload si tenta col tempo che resta
+  // (storageUpload ferma i retry quando il budget non li copre più).
+  const fileUrl = await storageUpload(path, Buffer.from(base64, 'base64'), mediaType, { budget });
   if (!fileUrl) throw new Error('storage non configurato');
 
   const needsFiling = !property;
-  const relatedPropertyIds = allowed && !property ? [...allowed] : null;
+  const relatedPropertyIds = related && !property ? [...rel.propertyIds] : null;
   const name = [cat.label, propertyLabel || null, String(fiscalYear)].filter(Boolean).join(' · ');
   const doc = {
     name,
@@ -231,6 +294,7 @@ export async function smistaDocument({ base64, mediaType, fileName, hint, origin
     shared: false,
     createdAt: new Date(),
     ...(rel.kind !== 'operator' ? { relationKind: rel.kind, relationLabel: rel.label } : {}),
+    ...(rel.degraded ? { relationDegraded: rel.degraded } : {}),
     ...(suggestedPropertyId ? { suggestedPropertyId } : {}),
     ...(relatedPropertyIds ? { relatedPropertyIds } : {}),
     ...(relationDefault ? { relationDefault: true } : {}),
@@ -253,5 +317,6 @@ export async function smistaDocument({ base64, mediaType, fileName, hint, origin
     propertyLabel, fiscalYear, needsFiling,
     summary: String(parsed.summary || '').slice(0, 200),
     suggestedPropertyId, relationDefault, relatedPropertyIds,
+    relationDegraded: rel.degraded,
   };
 }
