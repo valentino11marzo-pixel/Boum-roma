@@ -158,6 +158,10 @@ export async function commitWrites(writes) {
       if (updateMask.length) write.updateMask = { fieldPaths: updateMask };
       if (fieldTransforms.length) write.updateTransforms = fieldTransforms;
       if (w.precondition && w.precondition.updateTime) write.currentDocument = { updateTime: w.precondition.updateTime };
+      // exists:true = "aggiorna SOLO se il documento c'è già": la stampa
+      // dello stato firma sulla proposta non deve mai CREARE una proposta
+      // fantasma (fsPatch, con currentDocument.exists=false, lo farebbe).
+      else if (w.precondition && w.precondition.exists === true) write.currentDocument = { exists: true };
       return write;
     }),
   };

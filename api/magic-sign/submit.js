@@ -401,7 +401,12 @@ export default async function handler(req, res) {
       } catch (e) {
         if (/FAILED_PRECONDITION|precondition/i.test(String(e.message || ''))) {
           const again = await fsGet('contracts/' + contractId).catch(() => null);
-          const nowSigned = again && (role === 'tenant' ? again.tenantSignature : again.landlordSignature);
+          // Stessa logica di ruolo del check iniziale: un co-conduttore in
+          // gara guardava landlordSignature e, a locatore già firmato,
+          // riceveva 410 senza che la SUA firma fosse mai stata scritta.
+          const nowSigned = again && (role === 'tenant' ? again.tenantSignature
+            : role === 'cotenant' ? (((again.coTenants || [])[coIndex] || {}).signature)
+            : again.landlordSignature);
           if (nowSigned) return res.status(410).json({ ok: false, error: 'already_signed', role, signatureStatus: (again && again.signatureStatus) || 'partial' });
           await fsPatch('contracts/' + contractId, upd);   // conflitto su ALTRI campi: riprova secca
         } else { throw e; }
@@ -432,6 +437,32 @@ export default async function handler(req, res) {
         fullySigned = false;
       }
     } catch (e) { console.warn('[magic-sign/submit] race re-read:', e.message); }
+  }
+
+  // ── 4c. La firma si STAMPA anche sulla proposta (rail pre-agreement) ──
+  // LA LEZIONE DEL 12 SETTEMBRE 2026 (il caso Inês, Viale Angelico 9): la
+  // console pre-agreement legge SOLO il documento della proposta — e
+  // nessuno le scriveva mai che il contratto era stato firmato. Il deal
+  // restava «paid · 🖊 Reinvia Magic Sign · dopo la firma dell'inquilino…»
+  // per sempre, l'operatore rimandava il link e il cliente si vedeva dire
+  // «hai già firmato». La firma ERA sul contratto: mancava il riflesso.
+  // Best-effort, dopo il write che conta, SOLO su una proposta che esiste
+  // (precondizione exists:true — mai una proposta fantasma).
+  {
+    const paId = String(fresh.preAgreementId || '').trim();
+    if (paId) {
+      const stamp = {
+        contractId,
+        contractSignatureStatus: upd.signatureStatus,
+        contractSignatureAt: nowISO,
+      };
+      if (role === 'tenant') stamp.tenantSignedAt = nowISO;
+      else if (role === 'landlord') stamp.landlordSignedAt = nowISO;
+      else stamp.coTenantsSignedAt = nowISO;
+      if (fullySigned) stamp.contractFullySignedAt = nowISO;
+      try { await commitWrites([{ docPath: 'preAgreements/' + paId, fields: stamp, precondition: { exists: true } }]); }
+      catch (e) { console.warn('[magic-sign/submit] pa stamp:', e.message); }
+    }
   }
 
   // ── 5. Sync signer profile (best-effort; do not fail the sign) ──

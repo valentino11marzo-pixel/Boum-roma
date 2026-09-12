@@ -118,5 +118,35 @@ ok(/landlordDelegate/.test(src('api/magic-sign/lookup.js')) && /landlordDelegate
   'lookup e submit leggono la delega: il documento dirà «per conto di»');
 ok(/landlordDelegate/.test(src('sign.html')), 'la pagina di firma mostra la delega al firmatario');
 
+// ── 4. La console VEDE la firma (12/09/2026, il caso Inês) ──────────────
+// La console pre-agreement leggeva solo la proposta e nessuno le scriveva
+// che il contratto era firmato: il deal restava «paid · 🖊 Reinvia Magic
+// Sign» per sempre. Il giro vero (submit → stampa → send-sign onesto) è in
+// tests/notify/run.mjs §1f; qui le giunzioni sulla sorgente della console.
+const sub = src('api/magic-sign/submit.js');
+const ss = src('api/preagreement/send-sign.js');
+ok(/preAgreements\/' \+ paId/.test(sub) && /contractSignatureStatus: upd\.signatureStatus/.test(sub), 'submit STAMPA lo stato firma sulla proposta');
+ok(/precondition: \{ exists: true \}/.test(sub) && /currentDocument = \{ exists: true \}/.test(src('api/magic-sign/_shared.js')),
+  '… solo su una proposta che esiste: mai una proposta fantasma');
+const iSigned = ss.indexOf('if (sig.tenantSigned)'), iMail = ss.indexOf('await sendContractSignEmail(');
+ok(iSigned > -1 && iMail > -1 && iSigned < iMail, 'send-sign: il check «già firmato» sta PRIMA dell\'email (ordine)');
+ok(/alreadySigned: true/.test(ss) && /emailed: false/.test(ss), 'send-sign risponde lo stato invece di rimandare un link morto');
+ok(/function watchContract\(/.test(cons) && /collection\('contracts'\)\.doc\(id\)/.test(cons) && /onSnapshot\(take/.test(cons) && /get\(\{source:'server'\}\)\.then\(take\)/.test(cons),
+  'la console ascolta il contratto di ogni proposta convertita (realtime + fallback get)');
+ok(/if\(d\.contractId\)watchContract\(d\.contractId\)/.test(cons), '… agganciato all\'arrivo dei deal');
+ok(/function sigOfContract\(/.test(cons) && /function sigState\(/.test(cons) && /contractSignatureStatus/.test(cons),
+  'lo stato si deriva dalle FIRME presenti e ricade sulla stampa della proposta');
+const row = cons.slice(cons.indexOf('function paRow('), cons.indexOf('/* filters + search + KPIs */'));
+ok(/var sig=sigState\(d\)/.test(row) && /chip signed">✓ firmato/.test(row) && /chip signing">✍ firmato inquilino/.test(row), 'la riga dice chi ha firmato');
+const prim = row.slice(row.indexOf("(sig.status==='complete'"), row.indexOf('Reinvia Magic Sign'));
+ok(prim.length > 0 && /:\(sig\.tenantSigned\s*\?/.test(prim), '🖊 Reinvia Magic Sign NON compare quando l\'inquilino ha già firmato');
+ok(/📥 Contratto firmato/.test(row) && /🖊 Controfirma per delega/.test(row), 'a firma avvenuta: PDF firmato / controfirma per delega al posto dell\'invito');
+ok(/function nextStepLine\(/.test(cons) && /L’inquilino ha firmato/.test(cons) && /Contratto firmato da entrambi/.test(cons), 'il prossimo passo è scritto dal punto in cui il deal È');
+ok(/data-f="signed"/.test(cons) && /FILTER==='signed'\)return sigState\(d\)\.status==='complete'/.test(cons), 'filtro Firmati sulle firme, non sull\'etichetta');
+ok(/j\.alreadySigned/.test(cons) && /ha già firmato/.test(cons), 'sendSign() dice «ha già firmato» invece di ✓ Inviato');
+const fasc = cons.slice(cons.indexOf('window.fascicoloPA'), cons.indexOf('DOSSIER_SLOTS.forEach'));
+ok(/signedOk=sigF\.status==='complete'/.test(fasc) && !/\(contract\.signingCertificateUrl\|\|contract\.generatedPDF\)\|\|null/.test(fasc),
+  'Fascicolo ARPE: «Contratto firmato» spuntato SOLO a firme complete, non sul PDF generato');
+
 console.log(`\n${fail ? '✗' : '✓'} firma: ${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);

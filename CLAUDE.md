@@ -1094,6 +1094,35 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
   **✅ Sblocca la riserva** / **🔎 Ha pagato?**, filtro Riserve, e la KPI
   incassato conta i soldi VERI (prima sommava solo `status==='paid'`).
   Test: `node tests/preagreement/state.mjs`.
+- **La console VEDE la firma** (12/09/2026 — il caso Inês, Viale Angelico 9).
+  La console leggeva SOLO il documento della proposta, e nessuno le scriveva
+  mai che il contratto era stato firmato: un deal firmato da entrambi e
+  attivo da settembre restava «paid · 🖊 Reinvia Magic Sign · dopo la firma
+  dell'inquilino…» per sempre; l'operatore rimandava il link e il cliente
+  leggeva «hai già firmato» (nei log: `send-sign 200` e 24 secondi dopo
+  `magic-sign/lookup 410`, nessun submit). La firma ERA sul contratto:
+  mancava il riflesso. Tre correzioni: (1) la console **ascolta il
+  contratto** di ogni proposta convertita (`watchContract`, onSnapshot +
+  fallback get) e la riga dice chi ha firmato — chip «✍ firmato inquilino» /
+  «✓ firmato», filtro **Firmati**, KPI «contratti firmati», prossimo passo
+  scritto dal punto in cui il deal È (`nextStepLine`), «🖊 Reinvia Magic
+  Sign» sparisce a inquilino firmato e al suo posto c'è il link del
+  proprietario / la controfirma per delega / il PDF firmato; anche il
+  Fascicolo ARPE spunta «Contratto firmato» SOLO a firme complete (prima
+  spuntava il PDF generato, non firmato). (2) `magic-sign/submit` **stampa
+  lo stato sulla proposta** (`contractSignatureStatus`, `tenantSignedAt`,
+  `landlordSignedAt`, `contractFullySignedAt`) con precondizione
+  `exists:true` — mai una proposta fantasma — ed è il ripiego quando il
+  contratto non è ancora arrivato dal listener. (3) `send-sign` **legge il
+  contratto prima di spedire**: con la firma dell'inquilino sopra non parte
+  nessuna email, risponde `alreadySigned` con lo stato, e ristampa la
+  proposta (sanatoria dei deal firmati prima del fix). Test:
+  `tests/notify/run.mjs` §1f (giro vero: invito → firma → stampa → 🖊 senza
+  email → controfirma → complete → proposta cancellata = nessun fantasma) e
+  `tests/firma/run.mjs` §4 (giunzioni sulla sorgente della console) e
+  `tests/firma/console.mjs` (la console MONTATA in Node con DOM minimo e
+  Firestore finto: quattro deal nei quattro stati, l'HTML che `paRow`
+  produce davvero).
 - **Email transport warning**: `nodemailer` and `pdf-lib` MUST be imported
   statically (top-level `import`). Lazy `await import('pkg')` is not traced
   by Vercel's bundler → "Cannot find package" at runtime in production
@@ -3953,7 +3982,7 @@ camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
   | `tests/scheda/run.mjs` | La Scheda: token derivati (ruolo nella derivazione, timing-safe), precedenza prefill contratto→sign→wizard, lock post-firma, sync profilo su ENTRAMBI gli schemi users, upload con OCR che non blocca mai, /api/profile/link autorizzato |
   | `tests/contratto/run.mjs` | Il dizionario del contratto: ogni lettura dei modelli è dichiarata e ogni voce è letta (anti-deriva nelle due direzioni), la cedolare non torna `=== true` (mutazione), la completezza cambia per modello/owner/società/extra-UE/co-conduttori/durata di legge, la Scheda chiede SOLO ciò che manca a QUELLA parte, un token tenant non scrive mai l'immobile (e lo dice), il co-conduttore scrive solo la sua riga e la firma altrui resta, i numeri RLI (totale per durata < 12 mesi, scadenza da min(stipula, decorrenza)), il foglio pulito senza bottoni né link e con gli allegati veri, 401 senza admin |
   | `tests/innesto/run.mjs` | l'Innesto e il 413 di piattaforma: il PDF grande transita da Storage e i byte che arrivano ad Anthropic sono ESATTAMENTE quelli scaricati, un host estraneo non viene MAI contattato (l'endpoint non è un proxy), i tetti restano onesti (8 MB, whitelist formati), e il transito si cancella nel finally. Più l'APPLY VERO su Firestore finto: proposta completa → contratto+rate scritti, proposta senza una gamba → il contratto non nasce MA il riepilogo non lo promette e il toast dice quale gamba manca (la lezione del 30/08: "Innesto completato" senza contratto), proprietario già in `landlords` → mai un doppione |
-  | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot |
+  | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot; §1f: ogni firma STAMPA lo stato sulla proposta (rail PA), 🖊 send-sign su contratto già firmato non manda email e ristampa la proposta, mai una proposta fantasma |
   | `tests/aspi/run.mjs` | l'iter ASPI: la checklist blocca SOLO senza contratto (il resto avverte, dichiarato nell'email), l'invio raggiunge il referente con l'operatore in copia e gli allegati veri, la fattura col markup non si duplica MAI (id deterministico), 'registered' non si degrada, l'auto-invio parte solo con la manopola girata |
   | `tests/viewings/avail.mjs` | griglia slot: passi, gap 15', preavviso, orizzonte, maxPerDay, DST, token del link cliente |
   | `tests/viewings/telegram.mjs` | card Telegram visite: callback ≤64 byte, escaping HTML |
