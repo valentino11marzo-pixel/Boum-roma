@@ -52,7 +52,7 @@ export async function runPaReminders() {
           + '</td></tr></table></td></tr></table></body></html>',
       });
       await fsPatch(`preAgreements/${id}`, { remindedAt: new Date().toISOString() });
-      logActivity('preagreement_reminder', 'preagreement', { id, ref: pa.ref || '', email: t.email }, 'remind-cron').catch(() => {});
+      await logActivity('preagreement_reminder', 'preagreement', { id, ref: pa.ref || '', email: t.email }, 'remind-cron').catch(() => {});
       sent++;
     } catch (e) {
       console.error('[pa/_remind]', id, e.message);

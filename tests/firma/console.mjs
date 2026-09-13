@@ -29,16 +29,19 @@ const mkEl = (id) => els[id] || (els[id] = {
   addEventListener() {}, scrollIntoView() {}, getAttribute() { return null; },
 });
 const chipI = {};
-const chips = ['all', 'open', 'close', 'paid', 'signed', 'reserve', 'revoked'].map(f => ({
+const chips = ['all', 'open', 'close', 'paid', 'signed', 'nocontract', 'reserve', 'revoked'].map(f => ({
   getAttribute: () => f, querySelector: () => (chipI[f] || (chipI[f] = { textContent: '' })), classList: { toggle() {} },
 }));
 mkEl('fchips').querySelectorAll = () => chips;
 
 // ── Firestore finto: consegna gli snapshot quando il test decide ──
-let paApply = null; const cWatch = {};
-const firestore = () => ({ collection: () => ({
+let paApply = null; const cWatch = {}; const updates = [];
+const firestore = () => ({ collection: (name) => ({
   orderBy: () => ({ limit: () => ({ onSnapshot: (fn) => { paApply = fn; }, get: async () => { throw new Error('offline'); } }) }),
-  doc: (id) => ({ onSnapshot: (fn) => { cWatch[id] = fn; }, get: async () => { throw new Error('offline'); } }),
+  doc: (id) => ({
+    onSnapshot: (fn) => { cWatch[id] = fn; }, get: async () => { throw new Error('offline'); },
+    update: async (patch) => { updates.push({ name, id, patch }); },
+  }),
   limit: () => ({ get: async () => ({ forEach() {} }) }),
 }) });
 const ctx = {
@@ -69,11 +72,20 @@ paApply(snap([
   { ...base, id: 'B', contractId: 'pa_B' },
   { ...base, id: 'C', contractId: 'pa_C', delegated: true },
   { ...base, id: 'D', contractId: 'pa_D', contractSignatureStatus: 'partial', tenantSignedAt: '2026-09-01T10:00:00Z' },
+  /* E · la proposta ORFANA (Léa): pagata, senza contractId, ma contracts/pa_E esiste ed è firmato */
+  { ...base, id: 'E', contractId: undefined, propertyId: 'p1' },
+  /* F · il binario morto: pagata 40 giorni fa, nessun contratto, nessun immobile nel portal */
+  { ...base, id: 'F', contractId: undefined, propertyId: null, signSentAt: null, paidAt: new Date(Date.now() - 40 * 86400000).toISOString() },
+  /* G · accettata NON pagata (la proposta di prova che restava lì per sempre) */
+  { ...base, id: 'G', status: 'accepted', paidEur: null, paidAt: null, contractId: undefined, propertyId: null, signSentAt: null },
 ]));
 const before = els.paRows.innerHTML;
 cWatch['pa_A']({ exists: true, data: () => ({ signatureStatus: 'none' }) });
 cWatch['pa_B']({ exists: true, data: () => ({ tenantSignature: 'x', tenantSignedAt: '2026-09-02T09:00:00Z', signatureStatus: 'partial' }) });
 cWatch['pa_C']({ exists: true, data: () => ({ tenantSignature: 'x', landlordSignature: 'y', tenantSignedAt: '2026-09-02T09:00:00Z', landlordSignedAt: '2026-09-03T09:00:00Z', fullySignedAt: '2026-09-03T09:00:00Z', signatureStatus: 'complete', signedPdfUrl: 'https://s/signed.pdf', signingCertificateUrl: 'https://s/cert.pdf', finalizedAt: 'x' }) });
+cWatch['pa_E']({ exists: true, data: () => ({ tenantSignature: 'x', landlordSignature: 'y', tenantSignedAt: '2026-08-14T09:00:00Z', landlordSignedAt: '2026-08-14T10:00:00Z', fullySignedAt: '2026-08-14T10:00:00Z', signatureStatus: 'complete', signedPdfUrl: 'https://s/lea.pdf', finalizedAt: 'x' }) });
+cWatch['pa_F']({ exists: false, data: () => null });
+cWatch['pa_G']({ exists: false, data: () => null });
 await new Promise(r => setTimeout(r, 200));   // scheduleRender è debounced
 
 const rows = els.paRows.innerHTML.split('<div class="parow').slice(1);
@@ -81,8 +93,8 @@ const has = (i, re) => re.test(rows[i] || '');
 let pass = 0, fail = 0;
 const ok = (c, n) => { if (c) { pass++; console.log('PASS ' + n); } else { fail++; console.log('✗ FAIL ' + n); } };
 
-ok(rows.length === 4 && Object.keys(cWatch).length === 4, 'quattro deal renderizzati, quattro contratti in ascolto');
-ok(before.split('<div class="parow').length === 5 && !/chip signed/.test(before) && /chip signing">✍ firmato inquilino/.test(before),
+ok(rows.length === 7 && Object.keys(cWatch).length === 7, 'sette deal renderizzati, sette contratti in ascolto (anche pa_<id> per chi non ha contractId)');
+ok(before.split('<div class="parow').length === 8 && !/chip signed/.test(before) && /chip signing">✍ firmato inquilino/.test(before),
   'PRIMA che i contratti arrivino la lista è intera e il ripiego (stampa sulla proposta) già parla');
 ok(has(0, /Reinvia Magic Sign/) && has(0, /Firma su WhatsApp/) && !has(0, /chip sign/),
   'A · nessuna firma: 🖊 Reinvia Magic Sign + Firma su WhatsApp, nessun chip firma');
@@ -95,13 +107,27 @@ ok(has(2, /chip signed">✓ firmato/) && has(2, /📥 Contratto firmato/) && has
   'C · firmato da entrambi: chip ✓, PDF firmato + certificato, niente inviti, prossimo passo = registrazione');
 ok(has(3, /chip signing">✍ firmato inquilino/) && !has(3, /Reinvia Magic Sign/),
   'D · contratto non letto: la stampa sulla proposta basta a togliere il Reinvia');
-ok(/^1 <small>\/ 4 creati<\/small>$/.test(els.kContr.innerHTML), 'KPI: 1 contratto firmato su 4 creati');
-ok(chipI.signed.textContent === 1 || chipI.signed.textContent === '1', 'chip Firmati conta 1');
+ok(has(4, /chip signed">✓ firmato/) && has(4, /📥 Contratto firmato/) && !has(4, /→ Contratto/),
+  'E · proposta orfana: il contratto pa_E viene ADOTTATO — chip ✓, PDF firmato, niente «→ Contratto»');
+ok(updates.some(u => u.name === 'preAgreements' && u.id === 'E' && u.patch.contractId === 'pa_E' && u.patch.contractAdoptedAt),
+  'E · il back-link viene RISCRITTO sulla proposta (contractId + contractAdoptedAt)');
+ok(!updates.some(u => u.id !== 'E'), '… e solo su di lei: nessuna scrittura sulle altre');
+ok(has(5, /contratto NON ancora creato nel sistema/) && has(5, /40 giorni fa/) && has(5, /→ Contratto/) && has(5, /crealo prima da Immobili/) && !has(5, /Revoca</),
+  'F · pagato senza contratto: la riga lo dice (da quanti giorni), la mossa è → Contratto, niente Revoca su un pagato');
+ok(has(6, /Revoca</) && has(6, /Pagamento ancora in sospeso/) && !has(6, /contratto NON ancora creato/),
+  'G · accettato non pagato: Revoca disponibile, nessun allarme «senza contratto» (non ha pagato)');
+ok(!has(0, /Revoca</) && !has(2, /Revoca</), 'A e C (pagati/contrattualizzati): mai Revoca');
+ok(/^2 <small>\/ 5 creati<\/small>$/.test(els.kContr.innerHTML), 'KPI: 2 contratti firmati su 5 creati (E adottato conta)');
+ok(chipI.signed.textContent === 2 || chipI.signed.textContent === '2', 'chip Firmati conta 2');
+ok(chipI.nocontract.textContent === 1 || chipI.nocontract.textContent === '1', 'chip Da contratto conta 1 (solo F)');
+ctx.setFilter('nocontract', chips.find(c => c.getAttribute() === 'nocontract'));
+const onlyNo = els.paRows.innerHTML.split('<div class="parow').slice(1);
+ok(onlyNo.length === 1 && /contratto NON ancora creato/.test(onlyNo[0]), 'filtro Da contratto → resta solo F');
 
 // filtro Firmati: solo C
-ctx.setFilter('signed', chips[4]);
+ctx.setFilter('signed', chips.find(c => c.getAttribute() === 'signed'));
 const onlySigned = els.paRows.innerHTML.split('<div class="parow').slice(1);
-ok(onlySigned.length === 1 && /chip signed/.test(onlySigned[0]), 'filtro Firmati → resta solo il deal firmato da entrambi');
+ok(onlySigned.length === 2 && onlySigned.every(r => /chip signed/.test(r)), 'filtro Firmati → restano C ed E, i due firmati da entrambi');
 
 console.log(`\n${fail ? '✗' : '✓'} console PA: ${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);

@@ -68,7 +68,8 @@ export default async function handler(req, res) {
     const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
     const views = Array.isArray(data.views) ? data.views.slice(-49) : [];
     views.push({ at: new Date().toISOString(), ip, ua: String(req.headers['user-agent'] || '').slice(0, 160) });
-    fsPatch(`preAgreements/${id}`, { views, status: data.status === 'sent' ? 'viewed' : data.status }).catch(() => {});
+    // Atteso: «viewed» è ciò che la console mostra come «ha aperto il link».
+    await fsPatch(`preAgreements/${id}`, { views, status: data.status === 'sent' ? 'viewed' : data.status }).catch(() => {});
 
     return res.status(200).json({
       ok: true, id,

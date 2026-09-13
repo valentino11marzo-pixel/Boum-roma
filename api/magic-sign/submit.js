@@ -327,7 +327,7 @@ export default async function handler(req, res) {
   if (fresh.signedTermsHash && fresh.signedTermsHash !== currentTermsHash) {
     try {
       const { fsCreate } = await import('../homie/_lib.js');
-      fsCreate('agentNotifications', {
+      await fsCreate('agentNotifications', {
         type: 'contract.terms_changed',
         summary: `⚠ Termini modificati DOPO una firma · ${contractId} — controfirma BLOCCATA (serve nuova versione del contratto)`,
         priority: 'urgent',
@@ -719,8 +719,10 @@ export default async function handler(req, res) {
   // - if only one signed → contract.signed/low (informational; the
   //   missing signer may need a nudge)
   try {
+    // Atteso: è la card Telegram «contratto firmato» — persa se la
+    // funzione viene congelata dopo la risposta (la lezione del 13/09).
     const { fsCreate } = await import('../homie/_lib.js');
-    fsCreate('agentNotifications', {
+    await fsCreate('agentNotifications', {
       type: 'contract.signed',
       summary: fullySigned
         ? `Contratto firmato da TUTTI · ${contractId} (chiudere il flow)`

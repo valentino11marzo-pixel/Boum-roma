@@ -1123,6 +1123,34 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
   `tests/firma/console.mjs` (la console MONTATA in Node con DOM minimo e
   Firestore finto: quattro deal nei quattro stati, l'HTML che `paRow`
   produce davvero).
+- **LE SCRITTURE DOPO LA RISPOSTA SI PERDONO** (13/09/2026 — letto nel
+  backup notturno, non dedotto). Su Vercel la funzione può essere congelata
+  appena `res.json` parte: una `fsPatch(...).catch(() => {})` lanciata
+  senza `await` un attimo prima muore in volo. Prove nel dump del 13/09: la
+  proposta di Inês SENZA `signSentAt` dopo un 🖊 andato a buon fine (email
+  partite, 200 al client — e la console diceva ancora «Invia Magic Sign»
+  come se non fosse mai stato premuto); la proposta di Léa SENZA
+  `contractId` con il contratto `pa_<id>` firmato da entrambi il 14/08 (il
+  back-link di convert era fire-and-forget, e il ramo «esiste già» non lo
+  riscriveva mai: orfana per sempre, riga «paid · → Contratto»). Regola di
+  CLASSE: nei tre rail (`api/preagreement`, `api/magic-sign`, `api/sign`)
+  nessuna `fsPatch/fsCreate/commitWrites/logActivity/tgSend` sta a inizio
+  istruzione senza `await` — `tests/firma/run.mjs` §5 scandaglia i file
+  e fallisce al primo ritorno. `convert.js` ha `backlinkPa()` in una copia
+  (creazione E ramo «esiste già», atteso). La console si ripara da sola:
+  per ogni proposta chiusa senza `contractId` ascolta `contracts/pa_<id>`
+  (l'id è deterministico) e, se esiste, lo ADOTTA e riscrive il back-link
+  (`contractIdOf`, `contractAdoptedAt`).
+- **Il binario morto dei pagati senza contratto** (stesso dump): 8
+  proposte pagate, 6 SENZA alcun contratto nel sistema — 3 su un indirizzo
+  che non esiste nemmeno fra gli immobili del portal. Senza contratto non
+  partono Magic Sign, rate, journey né registrazione, e la riga non lo
+  diceva. Ora: alertline «💶 Pagato il … (N giorni fa) — contratto NON
+  ancora creato», con la mossa (🖊 se l'immobile è collegato, → Contratto
+  altrimenti, «crealo prima da Immobili» se manca), chip **Da contratto**
+  con conteggio. E **Revoca** anche su un accettato NON pagato (con
+  conferma; mai su un pagato o contrattualizzato): le proposte di prova
+  restavano in lista per sempre.
 - **Email transport warning**: `nodemailer` and `pdf-lib` MUST be imported
   statically (top-level `import`). Lazy `await import('pkg')` is not traced
   by Vercel's bundler → "Cannot find package" at runtime in production
@@ -1949,6 +1977,21 @@ funzionava), il finalize ha mostrato tre difetti di classe, tutti chiusi:
   al primo run del rendiconto).
 Test: `node tests/finalize/run.mjs` (27 check — storage giù per mutazione,
 bonifica della tempesta, giunzioni e CI asserite sulla sorgente).
+
+**La bonifica che nessuno premeva** (13/09/2026): la passata dei doppioni
+girava SOLO dentro un finalize o su 🔄 Rifinalizza — e finalize esce subito
+a `finalizedAt` scritto. Nel dump del 13/09 il contratto di Rute portava
+ancora **204 scadenze, 200 doppioni** (25 copie × 8 titoli, `source:
+'finalize'`). `sweepFinalizeDuplicates()` (`_finalize.js`) gira dal
+`reminder-cron` una volta al giorno (04 UTC): una query sulle scadenze
+auto-generate, per contratto+titolo si tiene la copia migliore (stato
+non-pending → doc `dlfin_` → la prima) e si eliminano le altre; le manuali
+non si toccano. Test in `tests/notify/run.mjs` §1f (idempotenza compresa).
+Nello stesso dump: `viewings` «ILLEGGIBILE» (403) perché la collection non
+aveva NESSUNA regola (slots.js scrive `viewingRequests`) — e la
+`Promise.all` del Richiamo e della Miniera, che leggevano `viewings`,
+saltava intera. Ora leggono `viewingRequests` e `viewings` ha la regola
+admin (un onesto «0 documenti» invece del 403).
 
 ### Il ciclo email del contratto (`api/sign/_notify.js` + `send-link`)
 UN design system per ogni email della piattaforma

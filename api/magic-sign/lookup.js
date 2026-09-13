@@ -70,8 +70,8 @@ export default async function handler(req, res) {
     : 'signViewedLandlordAt';
   if (!contract[viewedField]) {
     const nowISO = new Date().toISOString();
-    fsPatch('contracts/' + contract.id, { [viewedField]: nowISO }).catch(() => {});
-    fsCreate('agentNotifications', {
+    await fsPatch('contracts/' + contract.id, { [viewedField]: nowISO }).catch(() => {});
+    await fsCreate('agentNotifications', {
       type: 'contract.sign_opened',
       summary: `👀 ${role === 'tenant' ? "L'inquilino" : role === 'cotenant' ? ('Il co-conduttore ' + ((coT && coT.name) || '')) : 'Il locatore'} ha APERTO il contratto · ${contract.id}`,
       priority: 'low',

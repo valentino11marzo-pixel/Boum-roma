@@ -193,6 +193,13 @@ service cloud.firestore {
     match /viewingRequests/{x} {
       allow read, create, update, delete: if isAdmin();
     }
+    // `viewings` è il nome LEGACY della stessa cosa: nessuno scrive qui
+    // (slots.js scrive viewingRequests), ma tre lettori la interrogavano e
+    // senza regola cadeva nel default-deny — 403 anche con credenziali
+    // admin: il backup notturno la segnava «ILLEGGIBILE» e la Promise.all
+    // del Richiamo e della Miniera saltava intera (13/09/2026). Con la
+    // regola una lettura risponde un onesto «0 documenti».
+    match /viewings/{x} { allow read, write: if isAdmin(); }
 
     // ─── config ───────────────────────────────────────────────────────
     match /config/{x} { allow read, write: if isAdmin(); }

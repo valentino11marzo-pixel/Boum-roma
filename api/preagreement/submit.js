@@ -152,10 +152,10 @@ export default async function handler(req, res) {
         reserveAt: acceptedAt,
         consent, mandate, approvedTerms,
       });
-      logActivity('preagreement_reserve', 'preagreement', {
+      await logActivity('preagreement_reserve', 'preagreement', {
         id, tenant: fullName, heldBy: lock.by, address: (data.property || {}).address,
       }, 'web').catch(() => {});
-      tgSend(process.env.TELEGRAM_CHAT_ID,
+      await tgSend(process.env.TELEGRAM_CHAT_ID,
         '🅿️ <b>Riserva su un immobile già chiuso</b>\n\n'
         + `<b>${esc(fullName)}</b> ha firmato per <b>${esc((data.property || {}).address || '')}</b>,\n`
         + `ma è tenuto da un altro candidato${lock.byRef ? ' (' + esc(lock.byRef) + ')' : ''}.\n\n`
@@ -173,7 +173,7 @@ export default async function handler(req, res) {
       ...(addons.length ? { addons, addonsEur } : {}),
       consent, mandate, approvedTerms,
     });
-    logActivity('preagreement_accepted', 'preagreement', { id, ref, tenant: fullName, coTenants: signed.length - 1, address: (data.property || {}).address }, 'web')
+    await logActivity('preagreement_accepted', 'preagreement', { id, ref, tenant: fullName, coTenants: signed.length - 1, address: (data.property || {}).address }, 'web')
       .catch(() => {});
 
     // Stripe checkout for whatever is due at signing (best-effort: acceptance
@@ -235,7 +235,7 @@ export default async function handler(req, res) {
           cancel_url: 'https://www.boomrome.com/pre-agreement?t=' + token,
         });
         checkoutUrl = session.url;
-        fsPatch(`preAgreements/${id}`, { checkoutSessionId: session.id }).catch(() => {});
+        await fsPatch(`preAgreements/${id}`, { checkoutSessionId: session.id }).catch(() => {});
       } catch (e) {
         console.error('[preagreement/submit] stripe failed:', e.message);
       }

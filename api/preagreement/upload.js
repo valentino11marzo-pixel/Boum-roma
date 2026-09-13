@@ -85,7 +85,7 @@ export default async function handler(req, res) {
       ip: (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown',
     });
     await fsPatch(`preAgreements/${id}`, { uploads });
-    logActivity('preagreement_doc_uploaded', 'preagreement', { id, name: safeName, bytes: buf.length }, 'web').catch(() => {});
+    await logActivity('preagreement_doc_uploaded', 'preagreement', { id, name: safeName, bytes: buf.length }, 'web').catch(() => {});
 
     return res.status(200).json({ ok: true, count: uploads.length });
   } catch (e) {

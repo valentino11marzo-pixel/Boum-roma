@@ -104,7 +104,7 @@ export default async function handler(req, res) {
     // risposta la funzione può essere congelata e un patch in volo perso.
     try { await fsPatch('preAgreements/' + paId, stamp); }
     catch (e) { console.warn('[pa/send-sign] pa stamp:', e.message); }
-    logActivity('preagreement_sign_already', 'contract',
+    await logActivity('preagreement_sign_already', 'contract',
       { paId, ref: pa.ref || '', contractId: out.contractId, signatureStatus: sig.status }, auth.email || 'admin')
       .catch(() => {});
     return res.status(200).json({
@@ -133,21 +133,31 @@ export default async function handler(req, res) {
     emailed = !!r.client;
   } catch (e) { console.error('[pa/send-sign] email failed:', e.message); }
 
-  fsPatch('preAgreements/' + paId, {
-    signSentAt: new Date().toISOString(),
-    signSentBy: auth.email || auth.uid,
-    tenantSignUrl, landlordSignUrl,
-  }).catch(() => {});
+  // LA LEZIONE DEL 13 SETTEMBRE 2026 — LE SCRITTURE DOPO LA RISPOSTA SI
+  // PERDONO. Queste tre righe erano fire-and-forget (`.catch(() => {})`
+  // senza await) subito prima di `res.json`: su Vercel la funzione può
+  // essere congelata appena la risposta parte, e la scrittura in volo
+  // muore. Nel backup del 13/09: la proposta di Inês SENZA signSentAt
+  // dopo un 🖊 andato a buon fine (email partite, 200 al client), quindi
+  // la console mostrava «Invia Magic Sign» come se non fosse mai stato
+  // premuto. Da qui in poi: ogni scrittura di stato si ATTENDE prima di
+  // rispondere (costa ~100ms, non costa un deal).
+  try {
+    await fsPatch('preAgreements/' + paId, {
+      signSentAt: new Date().toISOString(),
+      signSentBy: auth.email || auth.uid,
+      tenantSignUrl, landlordSignUrl,
+    });
+  } catch (e) { console.warn('[pa/send-sign] pa stamp:', e.message); }
   // L'invito va STAMPATO ANCHE SUL CONTRATTO: journeyEligible tace il
   // ciclo casa sui contratti invitati-non-firmati, e il watchdog re-inviti
   // del reminder-cron riparte da signInviteTenantAt — senza questo stamp
   // il rail PA restava invisibile a entrambi.
   if (out.contractId && emailed) {
-    fsPatch('contracts/' + out.contractId, {
-      signInviteTenantAt: new Date().toISOString(),
-    }).catch(() => {});
+    try { await fsPatch('contracts/' + out.contractId, { signInviteTenantAt: new Date().toISOString() }); }
+    catch (e) { console.warn('[pa/send-sign] contract stamp:', e.message); }
   }
-  logActivity('preagreement_sign_sent', 'contract',
+  await logActivity('preagreement_sign_sent', 'contract',
     { paId, ref: pa.ref || '', contractId: out.contractId, emailed }, auth.email || 'admin')
     .catch(() => {});
 
