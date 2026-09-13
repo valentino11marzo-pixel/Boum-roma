@@ -1151,6 +1151,118 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
   con conteggio. E **Revoca** anche su un accettato NON pagato (con
   conferma; mai su un pagato o contrattualizzato): le proposte di prova
   restavano in lista per sempre.
+- **SPRINT 1 DELLA CONSOLE (13/09/2026) — i binari morti chiusi, il cliente
+  che firma dalla sua pagina, il preflight.** Cinque voci del piano
+  (`STUDIO`: artifact «Piano Console Proposte»), tutte nate da un caso visto
+  nel dump o nei log, mai da un'idea:
+  1. **L'immobile che manca si crea DALLA proposta** (`convert.js`
+     `createProperty:true`, `propertyFromPa` esportata, id deterministico
+     `prop_pa_<paId>`): 6 pagati senza contratto, 3 su indirizzi assenti da
+     `properties`, e la riga diceva «crealo prima da Immobili». Il doc nasce
+     nella forma di `saveProperty` (address/floor/unit+interno/ownerName/
+     rent, `source:'preagreement'`), catasto/mq/zona restano da completare —
+     mai inventati. L'immobile è obbligatorio alla CONVERSIONE, non alla
+     creazione (una stanza o una casa in trattativa restano proponibili).
+     `no_property` risponde `canCreate`; il back-link riporta `propertyId`
+     sulla proposta. Console: opzione «＋ Crea l'immobile da questa proposta»
+     nel modale → Contratto, selezionata da sola quando nessun immobile
+     corrisponde.
+  2. **Due contratti vivi sulla stessa casa non passano** (`overlapConflict`
+     pura ed esportata, `findOverlap` I/O, guardia PRIMA di profili e
+     contratto, DOPO il riconoscimento dell'orfana — un contratto vicino non
+     deve mai impedire a una proposta di ritrovare il SUO `pa_<id>`): Brand
+     New Duplex con due contratti attivi sovrapposti nel dump. Stesso
+     immobile + entrambi attivi + date che si toccano = 409 `overlap` col
+     nome di chi occupa, A MENO CHE gli interni siano dichiarati e diversi
+     (due stanze sì, la stessa stanza no, un interno vuoto non esclude);
+     l'interno viaggia sul contratto (`unit`). `force:true` scavalca — dal
+     modale è la spunta «Crea comunque», dichiarata e riportata nella
+     risposta (`overlapForced`). Il contratto AUTOMATICO bloccato avvisa
+     (`agentNotifications` `contract.overlap_blocked`), mai in silenzio.
+  3. **«Per mandato» solo quando firma davvero l'operatore**
+     (`magic-sign/submit.js`: `body.asDelegate === true`): prima bastava
+     `tenantDelegate` armato sul contratto perché QUALSIASI firma dal link
+     del conduttore — anche la sua, dal suo telefono — uscisse «per mandato»
+     sul certificato (e senza mandato scritto il cliente riceveva 403 da
+     solo). Il flag lo mette sign.html SOLO se aperto con `&delegate=1`, il
+     link che compone il pannello 🖊 Firma ora del portal; lo Share Hub e
+     l'email restano nudi. Mutazione pinnata: delega armata + link nudo →
+     200, firma propria, nessun `tenantSignedByDelegate`.
+  4. **Il cliente vede il suo stato e firma dalla sua pagina**
+     (`preagreement/lookup.js` `contractStatus` esportata → `pa.contract`,
+     `pre-agreement.html` card «Your contract is ready → Sign your contract
+     now», poi «signed by you / waiting for the landlord», poi il PDF
+     firmato; la timeline segue). L'email col link restava chiusa per
+     settimane — il caso che ha fatto nascere il mandato. Il link del
+     conduttore compare SOLO a soldi ricevuti (`paidOnRecord`) o a dovuto
+     zero: chi tiene il link della proposta ha già pagato, la stessa
+     esposizione dell'email; a firma apposta sparisce; il token del
+     locatore non esce mai; su una proposta solo inviata `contract` è null
+     (nessuna lettura).
+  5. **Il preflight prima di → Contratto e di 🖊** (`convert.js`
+     `dryRun:true`: lo STESSO contratto che la conversione scriverebbe,
+     passato da `FIELDS.hydrateParties` + `completeness` — mai una lista a
+     mano — con la sovrapposizione RIPORTATA e nessuna scrittura: né
+     profilo, né immobile, né contratto; con `createProperty` si valuta
+     sull'immobile che nascerebbe). Console: al cambio immobile nel modale
+     la strip «Il PDF stamperebbe N puntini — Inquilino: … · Locatore: … ·
+     Operatore: …» (`preflightLines`, una copia per modale e conferma);
+     prima di 🖊 `signPreflight` (dryRun senza contratto, `profile/link`
+     col contratto già nato) e l'operatore può fermarsi. Avverte, non blocca.
+  Test: `node tests/money/run.mjs` §9b (regola pura per mutazione,
+  createProperty, overlap/force/stanze, porta HTTP, dryRun senza scritture),
+  `tests/mandato/run.mjs` (asDelegate, link nudo, lookup col link solo a
+  soldi ricevuti, pagina), `tests/firma/run.mjs` §7 (giunzioni sulla
+  sorgente), `tests/firma/console.mjs`.
+- **I PUNTINI (13/09/2026) — solo dove il dato è dovuto, e il dato arriva
+  da solo.** «Spazi vuoti con i puntini che fanno percepire al cliente un
+  contratto incompleto». Misurato sul dizionario: su una proposta tipo
+  (transitorio, identità del conduttore dalla proposta) il PDF stampava
+  ~23 slot `………`, 15 dei quali del LOCATORE o dell'IMMOBILE (CF, nascita,
+  residenza, catasto, vani, classe energetica, tabelle) — dati che nessuno
+  chiedeva a nessuno prima della firma. Quattro mosse, in ordine di peso:
+  1. **La richiesta al locatore parte da sola a 🖊** (`api/preagreement/
+     _askscheda.js`, chiamata da `send-sign` PRIMA dell'invito): se al
+     locatore mancano dati dovuti e c'è un'email, parte la sua Scheda
+     (link derivato, testo del dizionario `missingMessage`, oggetto IT);
+     stato su `contract.schedaAskedLandlord*`, risposta `landlordAsked`
+     che la console dice. Mai se ha firmato, se non manca niente o senza
+     email (allora la console rimanda a 📨 dal portal).
+  2. **Il PDF si rifà da solo quando arrivano dati** (`ensureContractPdf`
+     accetta `{ force: true }`; la guardia sulla firma viva resta assoluta):
+     dalla Scheda (`profile/submit`, `pdfRegenerated`) e — il caso più
+     comune — **alla PRIMA firma del conduttore** (`magic-sign/submit`,
+     prima della rilettura fresca: il PDF nato alla conversione non aveva
+     CF/nascita/residenza/documento, scritti nello step Identity; la copia
+     firmata, congelata da lì, li stampava come puntini). Solo identità:
+     la firma grafica la stampa `_finalize` sulle ancore. E la **pagina
+     delle firme** stampa nascita/residenza/documento dichiarati da ogni
+     parte (`identityLines`): ciò che la SECONDA parte dichiara firmando
+     non può più entrare nel corpo congelato, ma è parte integrante lì.
+  3. **Il locatore si risolve da dove sta** (`resolveLandlord`, esportata
+     da `_contractpdf.js`, usata dal PDF, dal preflight e dalla richiesta):
+     `users` + `landlords` per ownerId, poi `landlords` per email — prima
+     il PDF leggeva SOLO `users/<ownerId>` e un immobile nato dalla
+     proposta non ha ownerId affatto. Dalla proposta arrivano anche il
+     **tipo di documento** (select sulla pagina, `idDocType` in codice
+     passport|id|permit|patente → `users.docType`; prima «identificato/a
+     mediante ………») e l'**attestazione dell'esigenza** caricata
+     (`transitionalDocs` la nomina).
+  4. **Gli slot FACOLTATIVI non stampano più puntini** (`contract-pdf.js`,
+     B e C): scala omessa se ignota (un palazzo senza scala è la norma),
+     accessori e tabelle millesimali «—», stato di consegna = «quanto
+     risulta dal verbale di consegna» (l'art. 3 già lo prevede). I dati
+     DOVUTI (vani, classe energetica, catasto, identità) restano `………`:
+     li chiude il dato, non un segno — mentire con un trattino su un fatto
+     dovuto sarebbe peggio del puntino.
+  Test: `tests/contractpdf/run.mjs` §9 (il testo VERO del PDF: scala
+  omessa/presente, «—», rinvio al verbale, la classe energetica che resta
+  puntino finché non arriva; resolveLandlord per id e per email; force che
+  rigenera e che NON scavalca una firma viva), `tests/mandato` (il CF
+  digitato alla firma è nel PDF congelato), `tests/notify` §1f (la Scheda
+  al locatore parte con l'invito, una volta), `tests/scheda` (rigenera
+  senza firma, mai con), `tests/money` §9b (docType/transitionalDocs),
+  `tests/firma` §8 (giunzioni).
 - **Email transport warning**: `nodemailer` and `pdf-lib` MUST be imported
   statically (top-level `import`). Lazy `await import('pkg')` is not traced
   by Vercel's bundler → "Cannot find package" at runtime in production
@@ -4006,7 +4118,7 @@ camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
 
   | Suite | Copre |
   |---|---|
-  | `tests/money/run.mjs` | checkout, webhook Stripe idempotenti, conversione PA→contratto |
+  | `tests/money/run.mjs` | checkout, webhook Stripe idempotenti, conversione PA→contratto; §9b Sprint 1: la guardia sovrapposizioni (regola pura per mutazione: interni, retry, aperti), l'immobile che nasce dalla proposta (id deterministico, mai due), la porta HTTP (409 overlap · 400 no_property+canCreate) e il dryRun che non scrive NIENTE e dice i puntini per parte |
   | `tests/fiscal/test.mjs` | motore scadenze fiscali |
   | `tests/fiscal/canone.mjs` | canone concordato: superficie convenzionale (coefficienti e tetti), fascia dai parametri, regola del cap, match zona che non indovina, parametri solo da feature reali, verdetto fits/fuori |
   | `tests/contractpdf/verbatim.mjs` | le clausole dei modelli A (3+2) e C (studenti, con e senza cedolare) sono quelle dei `.doc` dell'associazione in `reference/`, frase per frase — il lettore `.doc` sta in `tests/_doc.mjs`, le normalizzazioni dei refusi sono elencate, le varianti nostre dichiarate; ha preso «saranno» per «sono» al primo giro |

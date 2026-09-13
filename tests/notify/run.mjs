@@ -555,6 +555,16 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   await sendSign(mkReq({ id: 'paSIG' }, { authorization: 'Bearer x' }), r);
   check('send-sign PRIMA della firma: invito all\'inquilino, come sempre', r.code === 200 && r.body.emailed === true && !r.body.alreadySigned
     && mails().slice(b0).some(m => m.to === 'ines@test.pt' && /ready to sign/.test(m.subject)));
+  // I DATI DEL LOCATORE SI CHIEDONO ALLO STESSO TAP (13/09/2026): al
+  // contratto mancano CF, nascita, residenza e catasto del locatore → la
+  // sua Scheda parte con l'invito, in italiano, col link derivato; lo stato
+  // resta sul contratto. Il conduttore non riceve quella mail.
+  const askMail = mails().slice(b0).find(m => m.to === 'giulia@owner.it' && /suoi dati per il contratto/.test(m.subject));
+  check('send-sign: al locatore parte la richiesta della Scheda (mancano CF, nascita, catasto…) — link /scheda, oggetto in italiano, stato sul contratto',
+    r.body.landlordAsked === true && r.body.landlordAskedTo === 'giulia@owner.it' && !!askMail && /scheda\?t=/.test(askMail.html || '') && /scheda\?t=/.test(askMail.text || '')
+    && (r.body.landlordMissing || []).includes('landlordCF') && !!store.get('contracts/pa_paSIG').schedaAskedLandlordAt
+    && store.get('contracts/pa_paSIG').schedaAskedLandlordTo === 'giulia@owner.it'
+    && !mails().slice(b0).some(m => m.to === 'ines@test.pt' && /suoi dati per il contratto/.test(m.subject)));
   // LE SCRITTURE DOPO LA RISPOSTA SI PERDONO (13/09/2026): signSentAt sulla
   // proposta e signInviteTenantAt sul contratto erano fire-and-forget e il
   // backup di produzione li mostrava ASSENTI dopo un 200. Ora sono attesi:
@@ -574,6 +584,8 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   IP = '9.1.4.2';
   r = mkRes(); b0 = mails().length;
   await sendSign(mkReq({ id: 'paSIG' }, { authorization: 'Bearer x' }), r);
+  check('send-sign DOPO la firma dell\'inquilino: nessuna NUOVA richiesta Scheda al locatore (una sola, prima)',
+    mails().filter(m => m.to === 'giulia@owner.it' && /suoi dati per il contratto/.test(m.subject)).length === 1);
   check('send-sign DOPO la firma dell\'inquilino: alreadySigned partial, ZERO email all\'inquilino', r.code === 200 && r.body.ok === true
     && r.body.alreadySigned === true && r.body.signatureStatus === 'partial' && !!r.body.tenantSignedAt && r.body.emailed === false
     && !mails().slice(b0).some(m => m.to === 'ines@test.pt'));

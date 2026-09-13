@@ -23,6 +23,7 @@
 
 import { fsGet, fsPatch, fsList, readJson, logActivity } from '../homie/_lib.js';
 import { findContractByToken, commitWrites, fsGetWithTime, tenantSideComplete, termsFingerprint, mandateCheck, setCors, rateOk } from './_shared.js';
+import { ensureContractPdf, hasAnySignature } from '../sign/_contractpdf.js';
 
 // ── TERMS FREEZE ──────────────────────────────────────────────────────────
 // L'impronta dei termini ECONOMICI del contratto. La prima firma la congela
@@ -125,7 +126,17 @@ export default async function handler(req, res) {
   // firma; termini cambiati dopo il mandato = 409, mai una firma. Il ramo
   // locatore resta quello di sempre (landlordDelegate è una delega
   // dell'operatore a sé stesso concordata col proprietario).
-  const tenantDele = (role === 'tenant' && contract.tenantDelegate && contract.tenantDelegate.name) ? contract.tenantDelegate : null;
+  //
+  // «PER MANDATO» SOLO QUANDO FIRMA DAVVERO L'OPERATORE (Sprint 1, 1.3).
+  // Prima bastava `tenantDelegate` armato sul contratto: QUALSIASI firma
+  // arrivata dal link del conduttore — anche quella del conduttore stesso,
+  // dal suo telefono — usciva come «firma per mandato» sul certificato.
+  // Ora la firma per mandato la DICHIARA chi la compie: `asDelegate:true`
+  // nel body, che sign.html manda solo aperto con `&delegate=1` (il link
+  // che il portal compone in 🖊 Firma ora). Il link nudo firma sempre come
+  // la parte, e la delega armata resta lì senza effetto.
+  const asDelegate = body.asDelegate === true;
+  const tenantDele = (role === 'tenant' && asDelegate && contract.tenantDelegate && contract.tenantDelegate.name) ? contract.tenantDelegate : null;
   if (tenantDele) {
     // mandateCheck (una copia, _shared.js): v2 confronta il contratto di
     // ADESSO con la foto presa all'accettazione (immobile, parti, modello,
@@ -303,6 +314,27 @@ export default async function handler(req, res) {
       depositPayToken = contract.depositPayToken || crypto.randomBytes(24).toString('hex');
       upd.depositPayToken = depositPayToken;
     }
+  }
+
+  // ── IL DOCUMENTO CHE SI FIRMA PORTA I DATI APPENA DICHIARATI (13/09) ──
+  // Il PDF nasce alla conversione, PRIMA che il conduttore scriva CF,
+  // nascita, residenza e documento nello step Identity: la copia firmata
+  // (che _finalize costruisce da generatedPDF, congelato alla prima firma)
+  // stampava puntini proprio sui dati del firmatario. Qui — SOLO alla
+  // prima firma, mai sotto una firma viva — si rigenera con l'identità in
+  // mano, poi si rilegge (la precondizione updateTime vede la patch). Solo
+  // identità: la firma grafica la stampa _finalize, sulle ancore. Best-
+  // effort e a tempo: un PDF che non si rigenera non ferma mai una firma.
+  if (role === 'tenant' && !hasAnySignature(contract)) {
+    const idOnly = {};
+    ['CF', 'Address', 'Dob', 'Pob', 'DocType', 'DocNum', 'DocIssuer', 'DocIssueDate', 'Nationality', 'Phone']
+      .forEach(k => { if (upd['tenant' + k] !== undefined && upd['tenant' + k] !== '') idOnly['tenant' + k] = upd['tenant' + k]; });
+    try {
+      await Promise.race([
+        ensureContractPdf(contractId, { ...contract, ...idOnly }, { force: true }),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('pdf_refresh_timeout')), 20000)),
+      ]);
+    } catch (e) { console.warn('[magic-sign/submit] pdf refresh skipped:', e.message); }
   }
 
   // ── 3. Re-read FRESH (dati + updateTime per la precondizione) ──

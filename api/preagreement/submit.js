@@ -51,13 +51,16 @@ export default async function handler(req, res) {
   const rawList = Array.isArray(b.tenants) && b.tenants.length
     ? b.tenants.slice(0, 6)
     : [b.tenant || {}];
+  // Il tipo di documento in CODICE (passport|id|permit|patente), mai testo
+  // libero: è ciò che il dizionario e i modelli sanno stampare.
+  const docCode = (v) => { const x = String(v || '').trim().toLowerCase(); return /^(passport|passaporto)$/.test(x) ? 'passport' : /^(id|ci|carta)/.test(x) ? 'id' : /permit|permesso/.test(x) ? 'permit' : /patente|licen/.test(x) ? 'patente' : ''; };
   const sanitizeTenant = (t) => ({
     fullName: clip((t || {}).fullName, 120),
     email: clip((t || {}).email, 160),
     phone: clip((t || {}).phone, 60),
     dob: clip((t || {}).dob, 20), birthPlace: clip((t || {}).birthPlace, 120),
     nationality: clip((t || {}).nationality, 80), address: clip((t || {}).address, 200),
-    cf: clip((t || {}).cf, 40), idDoc: clip((t || {}).idDoc, 80),
+    cf: clip((t || {}).cf, 40), idDoc: clip((t || {}).idDoc, 80), idDocType: docCode((t || {}).idDocType),
   });
   const tenants = rawList.map(sanitizeTenant)
     .filter((t, i) => i === 0 || (t.fullName && t.fullName.length >= 3));

@@ -368,6 +368,39 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
   const cB = store.get('contracts/pa_paB');
   check('convert: senza mandato sulla proposta → tenantMandate NULL (la firma per conto del conduttore resta impossibile)',
     outB.ok && !!cB && cB.tenantMandate === null && outB.mandate === false && !storageFiles.has('contracts/pa_paB/mandato-conduttore.pdf'));
+
+  // ── IL CLIENTE VEDE IL SUO STATO E FIRMA DA LÌ (Sprint 1, 2.3) ──
+  // La pagina della proposta legge il contratto: a soldi ricevuti (o dovuto
+  // zero) il link di firma del conduttore compare LÌ — l'email chiusa per
+  // settimane smette di essere l'unica strada. Mai il link del locatore.
+  const paLookup = (await import('../../api/preagreement/lookup.js')).default;
+  let rl = mkRes();
+  await paLookup(mkReq({ token: TOKEN_A }), rl);
+  const ctA = rl.code === 200 && rl.body.pa.contract;
+  check('lookup (proposta accettata a dovuto ZERO, contratto nato): pa.contract con tenantSignUrl del conduttore, non firmato, contractReady',
+    !!ctA && ctA.id === 'pa_paA' && ctA.status === 'none' && ctA.tenantSigned === false && ctA.unlocked === true
+    && ctA.tenantSignUrl === 'https://www.boomrome.com/sign?sign=' + cA.tenantSignToken && rl.body.pa.contractReady === true
+    && !JSON.stringify(ctA).includes(cA.landlordSignToken));
+  // proposta accettata con DOVUTO e non pagata: il contratto c'è, il link NO
+  store.set('preAgreements/paL', paSeed('9e'.repeat(16), { status: 'accepted', acceptedAt: '2026-09-02T10:00:00Z', contractId: 'pa_paL', money: { rent: 1000, deposit: 2000, dueAtSigning: 500 } }));
+  store.set('contracts/pa_paL', { propertyId: 'prop1', tenantSignToken: 'tokL', landlordSignToken: 'lokL', signatureStatus: 'none', status: 'active' });
+  rl = mkRes();
+  await paLookup(mkReq({ token: '9e'.repeat(16) }), rl);
+  check('lookup (accettata, dovuto 500 NON pagato): lo stato del contratto sì, il link di firma NO (unlocked=false)',
+    rl.code === 200 && rl.body.pa.contract && rl.body.pa.contract.unlocked === false && rl.body.pa.contract.tenantSignUrl === null && !JSON.stringify(rl.body).includes('tokL'));
+  store.get('preAgreements/paL').paidAt = '2026-09-03T10:00:00Z';
+  rl = mkRes();
+  await paLookup(mkReq({ token: '9e'.repeat(16) }), rl);
+  check('… pagata (prova sul documento, etichetta ancora accepted): il link compare',
+    rl.code === 200 && rl.body.pa.contract.unlocked === true && rl.body.pa.contract.tenantSignUrl === 'https://www.boomrome.com/sign?sign=tokL');
+  // proposta ancora «sent»: nessuna lettura del contratto, contract null
+  rl = mkRes();
+  await paLookup(mkReq({ token: 'd'.repeat(32) }), rl);
+  check('lookup (proposta solo inviata): contract null — lo stato del contratto è un fatto della proposta chiusa', rl.code === 200 && rl.body.pa.contract === null);
+  const pageSrc = R('pre-agreement.html');
+  check('pre-agreement.html: la card «Your contract is ready → Sign your contract now» legge PA.contract.tenantSignUrl, poi lo stato firmato/completo, e la timeline la segue',
+    /var CT=PA\.contract\|\|null;/.test(pageSrc) && /CT&&CT\.tenantSignUrl/.test(pageSrc) && /Sign your contract now/.test(pageSrc)
+    && /Contract signed by you/.test(pageSrc) && /Contract signed by both parties/.test(pageSrc) && /signedAll\?'don'/.test(pageSrc));
 }
 
 // ═══ 5. Magic Sign: al posto del conduttore SOLO col mandato, SOLO agli stessi termini ═══
@@ -376,7 +409,9 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
   const msLookup = (await import('../../api/magic-sign/lookup.js')).default;
   const CONSENT = 'I confirm my identity and accept all lease terms. This digital signature is legally valid (FES — Art. 21 CAD).';
   const SIG = 'data:image/png;base64,' + 'A'.repeat(400);
-  const body = (token) => ({ token, signature: SIG, consent: { text: CONSENT, hash: '' }, identity: { cf: 'XPTNNA96B43Z110Q' } });
+  // asDelegate:true = il link aperto DALL'OPERATORE (&delegate=1 → sign.html
+  // lo dichiara nel body). Il link nudo del cliente non lo porta mai.
+  const body = (token) => ({ token, asDelegate: true, signature: SIG, consent: { text: CONSENT, hash: '' }, identity: { cf: 'XPTNNA96B43Z110Q' } });
   const dele = { name: 'Valentino Egidi', onBehalfOf: 'Anna Expat', basis: 'mandato scritto del conduttore', at: '2026-09-09T09:00:00Z', by: 'caller1' };
 
   // (a) contratto SENZA mandato + tenantDelegate acceso a mano → 403, zero firma
@@ -457,6 +492,37 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
     return !c.tenantDelegate && !c.tenantSignedByDelegate;
   })());
 
+  // (e2) LA DELEGA ARMATA + IL LINK NUDO DEL CLIENTE → firma PROPRIA (Sprint 1, 1.3).
+  // Prima: tenantDelegate sul contratto bastava a marcare «per mandato»
+  // QUALSIASI firma dal link del conduttore — anche la sua, dal suo telefono
+  // (e senza mandato scritto, 403: il cliente non poteva firmare da solo).
+  cB.tenantDelegate = dele;
+  IP = '9.7.5.4';
+  r = mkRes();
+  await msSubmit(mkReq({ ...body(cB.tenantSignToken), asDelegate: false }), r);
+  const sB = store.get('contracts/pa_paB');
+  check('delega armata + link nudo (asDelegate:false): 200, firma del CONDUTTORE registrata, NESSUN tenantSignedByDelegate, nessun 403',
+    r.code === 200 && !!sB.tenantSignature && !sB.tenantSignedByDelegate && sB.tenantDelegate && sB.tenantDelegate.name === 'Valentino Egidi');
+  // IL DOCUMENTO CHE SI FIRMA PORTA I DATI APPENA DICHIARATI (13/09/2026):
+  // il PDF nato alla conversione non aveva il CF del conduttore (lo scrive
+  // nello step Identity); alla PRIMA firma si rigenera col dato in mano e
+  // la copia congelata lo stampa — niente puntini sul firmatario.
+  const tjText = (buf) => { const t = Buffer.from(buf).toString('latin1'); const out = []; const re = /\((?:\\.|[^\\)])*\)\s*Tj/g; let m; while ((m = re.exec(t))) out.push(m[0].slice(1, m[0].lastIndexOf(')'))); return out.join(' '); };
+  const pdfB = storageFiles.get('contracts/pa_paB/contract.pdf');
+  check('prima della PRIMA firma il PDF si rifà col dato dichiarato: il CF digitato nello step Identity è nel documento congelato',
+    !!pdfB && tjText(pdfB).includes('XPTNNA96B43Z110Q') && !!sB.pdfGeneratedAt && sB.pdfGeneratedBy === 'server');
+  // e lo stesso vale col flag ASSENTE (client vecchio / link dell'email)
+  const cA2 = store.get('contracts/pa_paA');
+  check('submit.js: il flag è `body.asDelegate === true` — assente = firma propria (mutazione: nessun default a true)',
+    /const asDelegate = body\.asDelegate === true;/.test(R('api/magic-sign/submit.js')) && /role === 'tenant' && asDelegate && contract\.tenantDelegate/.test(R('api/magic-sign/submit.js')));
+  // la pagina della proposta, dopo la firma per mandato di A: stato firmato, link sparito, chi ha firmato dichiarato
+  { const paLookup2 = (await import('../../api/preagreement/lookup.js')).default; const rl2 = mkRes();
+    await paLookup2(mkReq({ token: TOKEN_A }), rl2);
+    const ct = rl2.code === 200 && rl2.body.pa.contract;
+    check('lookup dopo la firma per mandato: tenantSigned, link NULL, byDelegate col nome di chi ha firmato',
+      !!ct && ct.tenantSigned === true && ct.tenantSignUrl === null && ct.status === 'partial' && ct.byDelegate && ct.byDelegate.name === 'Valentino Egidi' && !!ct.tenantSignedAt); }
+  void cA2;
+
   // (f) l'ORDINE nel sorgente: la guardia del mandato sta PRIMA della costruzione della firma
   const src = R('api/magic-sign/submit.js');
   check('submit.js: guardia mandato (403/409) PRIMA di `const upd = {}` e stamp DENTRO il ramo tenant',
@@ -468,7 +534,13 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
     /import \{[^}]*termsFingerprint[^}]*\} from '\.\/_shared\.js'/.test(src) && !/^export function termsFingerprint/m.test(src) && /export \{ termsFingerprint \};/.test(src));
   const sign = R('sign.html');
   check('sign.html: banner "You are signing as X on behalf of the tenant" + avviso se manca il mandato',
-    /S\.role==='tenant'&&c\.tenantDelegate&&c\.tenantDelegate\.name/.test(sign) && /on behalf of the tenant/.test(sign) && /no written mandate on file/.test(sign));
+    /S\.role==='tenant'&&ASDELE&&c\.tenantDelegate&&c\.tenantDelegate\.name/.test(sign) && /on behalf of the tenant/.test(sign) && /no written mandate on file/.test(sign));
+  check('sign.html: ASDELE viene da ?delegate=1 e finisce nel body come asDelegate (solo lato conduttore)',
+    /var ASDELE = qs\.get\('delegate'\) === '1';/.test(sign) && /asDelegate: !!\(ASDELE && S\.role==='tenant'\)/.test(sign));
+  const appSrc = R('js/portal-app.js');
+  check('portal 🖊 Firma ora: il link del conduttore porta &delegate=1 SOLO col mandato armato; lo Share Hub resta nudo',
+    /sign\?sign=\$\{c\.tenantSignToken\}\$\{\(c\.tenantDelegate && c\.tenantDelegate\.name\) \? '&delegate=1' : ''\}/.test(appSrc)
+    && /url: `\$\{base\}\/sign\?sign=\$\{encodeURIComponent\(c\.tenantSignToken\)\}`,/.test(appSrc));
 }
 
 // ═══ 5b. La verifica ALLA CONVERSIONE, la base che non si sposta, il v1 che non si rompe ═══
@@ -479,7 +551,7 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
   const MANDATO = (await import('../../js/mandato-engine.js')).default;
   const CONSENT = 'I confirm my identity and accept all lease terms. This digital signature is legally valid (FES — Art. 21 CAD).';
   const SIG = 'data:image/png;base64,' + 'C'.repeat(400);
-  const body = (token) => ({ token, signature: SIG, consent: { text: CONSENT, hash: '' }, identity: {} });
+  const body = (token) => ({ token, asDelegate: true, signature: SIG, consent: { text: CONSENT, hash: '' }, identity: {} });
   const dele = { name: 'Valentino Egidi', onBehalfOf: 'x', basis: 'mandato scritto del conduttore', at: '2026-09-10T09:00:00Z', by: 'caller1' };
   const tenant = { fullName: 'Carla Prova', email: 'carla@x.com', phone: '+39333000222' };
 
@@ -577,7 +649,7 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
     long.every(l => l.length <= 64 && /^[\x20-\xFF]*$/.test(l)));
   const fin = R('api/sign/_finalize.js');
   check('_finalize: pagina firme E certificato passano tenantSignedByDelegate / landlordSignedByDelegate ai blocchi',
-    (fin.match(/c\.tenantSignedByDelegate\)/g) || []).length >= 2 && (fin.match(/c\.landlordSignedByDelegate\)/g) || []).length >= 2 && /delegateLines\(dele\)/.test(fin));
+    (fin.match(/c\.tenantSignedByDelegate[,)]/g) || []).length >= 2 && (fin.match(/c\.landlordSignedByDelegate[,)]/g) || []).length >= 2 && /delegateLines\(dele\)/.test(fin));
 }
 
 // ═══ 7. La scheda ARPE firmata: le firme delle parti sul modulo ═══

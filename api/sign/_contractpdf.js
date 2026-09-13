@@ -36,7 +36,7 @@
 import crypto from 'node:crypto';
 import jspdfNS from 'jspdf';
 import CONTRACT_PDF from '../../js/contract-pdf.js';
-import { fsGet, fsPatch } from '../homie/_lib.js';
+import { fsGet, fsPatch, fsList } from '../homie/_lib.js';
 import { storageUpload } from '../agent/_lib.js';
 
 const jsPDF = jspdfNS.jsPDF || jspdfNS.default || jspdfNS;
@@ -50,6 +50,33 @@ export const CLAUSE_VERSION = 2;
 // (generateDocHash in portal-app.js usa crypto.subtle con la stessa formula).
 export const sha16 = (s) =>
   crypto.createHash('sha256').update(String(s)).digest('hex').substring(0, 16);
+
+// ── IL LOCATORE SI RISOLVE DA DOVE STA (13/09/2026) ──────────────────
+// ensureContractPdf leggeva SOLO users/<ownerId>: l'anagrafica che il
+// locatore compila dalla Scheda (o che l'Innesto archivia) sta in
+// landlords/<ownerId> — e un immobile nato dalla proposta non ha ownerId
+// affatto. Stessa catena di profile/link.js (landlords ← users), più la
+// ricerca per email quando manca l'id: il PDF smette di stampare puntini
+// su dati che il sistema già possiede. Usata anche dal preflight.
+export async function resolveLandlord(contract, property) {
+  let landlord = null;
+  const oid = property && property.ownerId;
+  if (oid) {
+    const [u, ll] = await Promise.all([fsGet('users/' + oid).catch(() => null), fsGet('landlords/' + oid).catch(() => null)]);
+    if (u || ll) landlord = { ...(ll || {}), ...(u || {}) };
+  }
+  if (!landlord) {
+    const raw = String((contract && contract.landlordEmail) || '').trim();
+    const tries = raw ? [...new Set([raw, raw.toLowerCase()])] : [];
+    for (const email of tries) {
+      try {
+        const hits = await fsList('landlords', { filter: { field: 'email', op: 'EQUAL', value: email }, limit: 1 });
+        if (hits && hits[0]) { landlord = hits[0]; break; }
+      } catch (_) { break; }
+    }
+  }
+  return landlord;
+}
 
 export const hasAnySignature = (c) => !!(
   c && (c.tenantSignature || c.landlordSignature
@@ -65,12 +92,15 @@ const withBudget = (p, ms, label) => Promise.race([
 // si può/deve generare. `preloaded` evita una rilettura quando il chiamante
 // ha già il documento in mano; deve includere i campi del contratto (l'id
 // arriva dal primo parametro, non dal documento).
-export async function ensureContractPdf(contractId, preloaded = null) {
+// `opts.force` (13/09/2026): rigenera ANCHE se il PDF è fresco — quando
+// arrivano dati nuovi (Scheda, identità dichiarata alla firma) il documento
+// va rifatto; la guardia sulla firma viva resta assoluta.
+export async function ensureContractPdf(contractId, preloaded = null, opts = {}) {
   if (!contractId) return null;
   const contract = preloaded || await fsGet('contracts/' + contractId);
   if (!contract) return null;
   // PDF fresco (clausole correnti) → idempotente, si restituisce quello.
-  if (contract.generatedPDF && Number(contract.clauseVersion || 0) >= CLAUSE_VERSION) {
+  if (!(opts && opts.force) && contract.generatedPDF && Number(contract.clauseVersion || 0) >= CLAUSE_VERSION) {
     return contract.generatedPDF;
   }
   // Firma viva: il documento è CONGELATO qualunque versione porti — un
@@ -90,9 +120,7 @@ export async function ensureContractPdf(contractId, preloaded = null) {
   if (contract.tenantId) {
     try { tenant = await fsGet('users/' + contract.tenantId); } catch (_) {}
   }
-  if (property && property.ownerId) {
-    try { landlord = await fsGet('users/' + property.ownerId); } catch (_) {}
-  }
+  try { landlord = await resolveLandlord(contract, property); } catch (_) { landlord = null; }
 
   const built = CONTRACT_PDF.build({ jsPDF, contractId, contract, property, tenant, landlord });
   const bytes = Buffer.from(built.doc.output('arraybuffer'));
