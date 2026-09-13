@@ -359,6 +359,41 @@ export async function dedupeFinalizeDeadlines(contractId) {
   return { seen, removed };
 }
 
+// ── LA BONIFICA GLOBALE delle scadenze doppie (reminder-cron, 1×/giorno) ──
+// La passata qui sopra gira SOLO dentro un finalize o su 🔄 Rifinalizza: il
+// contratto di Rute portava ancora 200 doppioni (25 copie × 8 titoli, tutte
+// `source:'finalize'`) il 13/09/2026, perché nessuno aveva premuto
+// Rifinalizza e finalize esce subito a finalizedAt scritto. Il cron non
+// dipende da un tap: UNA query sulle scadenze auto-generate dal finalize,
+// raggruppate per contratto+titolo, si tiene la copia migliore (chi ha uno
+// stato non-pending, poi il doc deterministico dlfin_, poi la prima) e si
+// eliminano le altre. Le scadenze manuali (source diverso) non si toccano.
+export async function sweepFinalizeDuplicates({ limit = 2000 } = {}) {
+  const rows = await fsList('deadlines', { filter: { field: 'source', op: 'EQUAL', value: 'finalize' }, limit });
+  const byKey = new Map();
+  for (const d of (rows || [])) {
+    if (!d || !d.id || !d.linkedContractId || !d.title) continue;
+    const k = d.linkedContractId + '|' + d.title;
+    if (!byKey.has(k)) byKey.set(k, []);
+    byKey.get(k).push(d);
+  }
+  const dupes = [];
+  for (const [, docs] of byKey) {
+    if (docs.length < 2) continue;
+    const keep = docs.find(x => x.status && x.status !== 'pending')
+      || docs.find(x => String(x.id).startsWith('dlfin_'))
+      || docs[0];
+    for (const x of docs) if (x !== keep) dupes.push(x.id);
+  }
+  let removed = 0;
+  for (let i = 0; i < dupes.length; i += 50) {
+    const gone = await Promise.allSettled(dupes.slice(i, i + 50).map(id => fsDelete('deadlines/' + id)));
+    removed += gone.filter(r => r.status === 'fulfilled').length;
+  }
+  if (removed) console.warn(`[finalize] sweep scadenze doppie: rimossi ${removed}/${dupes.length} su ${byKey.size} gruppi`);
+  return { scanned: (rows || []).length, groups: byKey.size, dupes: dupes.length, removed };
+}
+
 // ── Firebase Storage upload — UNA copia sola (api/agent/_lib.js) ──
 // La versione locale non riprovava mai (la lezione del 31/08: un 503
 // momentaneo perdeva un documento già calcolato) e non aveva tetto sul

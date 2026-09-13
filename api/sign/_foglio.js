@@ -228,7 +228,7 @@ export async function sendRegistrationSheet(contract, property, { certUrl, fasci
       new Promise((_, rej) => setTimeout(() => rej(new Error('email_timeout')), 20000)),
     ]);
     const stamp = (now || new Date()).toISOString();
-    fsPatch('contracts/' + contract.id, { registrationSheetSentAt: stamp, registrationSheetTo: to }).catch(() => {});
+    await fsPatch('contracts/' + contract.id, { registrationSheetSentAt: stamp, registrationSheetTo: to }).catch(() => {});
     return { ok: true, to, attachments: attachments.length, subject };
   } catch (e) { console.warn('[sign/foglio]', e.message); return { ok: false, error: e.message }; }
 }

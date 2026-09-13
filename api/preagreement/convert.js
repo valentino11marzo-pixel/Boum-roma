@@ -56,6 +56,21 @@ export function leaseType(explicit, lease) {
   return MANDATO.modelOfLease(explicit, lease);
 }
 
+// Il back-link proposta → contratto, in UNA copia (creazione e ramo «esiste
+// già»). convertedAt non si riscrive se la proposta lo porta già.
+async function backlinkPa({ paId, pa, contractId, tenantSignToken, landlordSignToken, delegated, actor }) {
+  try {
+    await fsPatch('preAgreements/' + paId, {
+      contractId,
+      convertedAt: (pa && pa.convertedAt) || new Date().toISOString(),
+      convertedBy: (pa && pa.convertedBy) || actor,
+      tenantSignUrl: tenantSignToken ? `${BASE}/sign?sign=${tenantSignToken}` : null,
+      landlordSignUrl: landlordSignToken ? `${BASE}/sign?sign=${landlordSignToken}` : null,
+      delegated: !!delegated,   // the console shapes the landlord-link action on this
+    });
+  } catch (e) { console.warn('[preagreement/convert] pa back-link:', e.message); }
+}
+
 // ── Core conversion, shared by the console handler and the auto pipeline ──
 // Returns { ok, already?, contractId, tenantId, tenantSignUrl,
 //           landlordSignUrl, delegate } or { ok:false, error }.
@@ -346,6 +361,15 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
       try {
         const c = await fsGet('contracts/' + contractId);
         if (c) {
+          // LA PROPOSTA ORFANA (13/09/2026, il caso Léa): il contratto
+          // pa_<paId> esiste — firmato da entrambi il 14/08 — ma la
+          // proposta non porta contractId, perché il back-link qui sotto
+          // era fire-and-forget e si è perso dopo la risposta. Ogni volta
+          // che si arrivava qui si restituivano i link SENZA riscrivere
+          // il back-link: l'orfana restava orfana per sempre e la console
+          // la mostrava «paid · → Contratto». Ora il ramo «esiste già»
+          // ricuce la proposta al suo contratto, e lo ATTENDE.
+          await backlinkPa({ paId, pa, contractId, tenantSignToken: c.tenantSignToken, landlordSignToken: c.landlordSignToken, delegated: !!(c.landlordDelegate && c.landlordDelegate.name), actor });
           return {
             ok: true, already: true, contractId, tenantId: c.tenantId || null,
             tenantSignUrl: c.tenantSignToken ? `${BASE}/sign?sign=${c.tenantSignToken}` : null,
@@ -417,16 +441,12 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     } catch (e) { console.warn('[preagreement/convert] mandato pdf:', e.message); }
   }
 
-  // Back-link on the PA (best-effort — the contract exists either way).
-  // Sign URLs are stored here too so the console can offer 🖊 Magic Sign /
+  // Back-link on the PA — ATTESO, non best-effort: senza contractId la
+  // console non sa che il contratto esiste (il caso Léa qui sopra). Sign
+  // URLs are stored here too so the console can offer 🖊 Magic Sign /
   // WhatsApp share without extra reads (preAgreements is admin-only).
-  fsPatch('preAgreements/' + paId, {
-    contractId, convertedAt: new Date().toISOString(), convertedBy: actor,
-    tenantSignUrl: `${BASE}/sign?sign=${contract.tenantSignToken}`,
-    landlordSignUrl: `${BASE}/sign?sign=${contract.landlordSignToken}`,
-    delegated: delegateOn,   // the console shapes the landlord-link action on this
-  }).catch(() => {});
-  logActivity('preagreement_converted', 'contract',
+  await backlinkPa({ paId, pa, contractId, tenantSignToken: contract.tenantSignToken, landlordSignToken: contract.landlordSignToken, delegated: delegateOn, actor });
+  await logActivity('preagreement_converted', 'contract',
     { paId, ref: pa.ref || '', contractId, tenant: t.fullName, delegate: delegateOn, auto: actor === 'auto' }, actor)
     .catch(() => {});
   // Il PDF del contratto nasce QUI, server-side (js/contract-pdf.js — lo
@@ -441,7 +461,7 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     pdfUrl = await ensureContractPdf(contractId, { ...contract });
   } catch (e) { console.error('[preagreement/convert] contract pdf:', e.message); }
   if (!pdfUrl) {
-    fsCreate('agentNotifications', {
+    await fsCreate('agentNotifications', {
       type: 'contract.pdf_missing',
       summary: `📄 Contratto ${contractId} creato dal pre-agreement: PDF non generato automaticamente — genera dal portal (🔄 Rigenera PDF) o ripremi 🖊 Magic Sign`,
       priority: 'low', ref: { collection: 'contracts', id: contractId },

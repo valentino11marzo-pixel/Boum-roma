@@ -44,9 +44,9 @@ export default async function handler(req, res) {
     notifyClient: true,
   });
 
-  fsPatch('preAgreements/' + paId, { resentAt: new Date().toISOString(), resentBy: auth.email || auth.uid })
+  await fsPatch('preAgreements/' + paId, { resentAt: new Date().toISOString(), resentBy: auth.email || auth.uid })
     .catch(() => {});
-  logActivity('preagreement_copy_resent', 'preagreement',
+  await logActivity('preagreement_copy_resent', 'preagreement',
     { paId, ref: pa.ref || '', client: results.client }, auth.email || 'admin')
     .catch(() => {});
 

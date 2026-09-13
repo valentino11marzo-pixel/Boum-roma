@@ -115,7 +115,7 @@ async function opStudy(res) {
       fsList('minieraThreads', { limit: 5000 }),
       fsList('leads', { limit: 4000 }),
       fsList('contracts', { limit: 1000 }),
-      fsList('viewings', { limit: 2000 }),
+      fsList('viewingRequests', { limit: 2000 }),   // la collection VERA delle visite ('viewings' non ha regola → 403)
       fsList('users', { limit: 2000 }),
       fsList('landlords', { limit: 1000 }),
       fsList('pfsClients', { limit: 500 }),

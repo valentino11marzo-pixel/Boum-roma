@@ -229,7 +229,7 @@ export default async function handler(req, res) {
 
   try {
     const { id } = await fsCreate('preAgreements', doc);
-    logActivity('preagreement_created', 'preagreement', { id, address, rent: money.rent, tenant: doc.tenant.fullName }, auth.email || 'admin')
+    await logActivity('preagreement_created', 'preagreement', { id, address, rent: money.rent, tenant: doc.tenant.fullName }, auth.email || 'admin')
       .catch(() => {});
     return res.status(200).json({ ok: true, id, token, url: '/pre-agreement?t=' + token });
   } catch (e) {

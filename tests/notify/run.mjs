@@ -126,6 +126,12 @@ globalThis.fetch = async (url, opts = {}) => {
           const cur = docTimes.get(k) || '2026-01-01T00:00:00Z';
           if (cur !== w.currentDocument.updateTime) return new Response(JSON.stringify({ error: { status: 'FAILED_PRECONDITION', message: 'the stored version does not match' } }), { status: 400 });
         }
+        // currentDocument.exists:true = come il VERO Firestore, NOT_FOUND su un
+        // documento assente: la stampa dello stato firma sulla proposta non
+        // deve mai creare una proposta fantasma.
+        if (w.currentDocument && w.currentDocument.exists === true && !store.has(k)) {
+          return new Response(JSON.stringify({ error: { code: 404, status: 'NOT_FOUND', message: 'No document to update: ' + k } }), { status: 404 });
+        }
         const doc = store.get(k) || {};
         Object.assign(doc, fromFsFields(w.update.fields));
         store.set(k, doc); bump(k);
@@ -147,6 +153,7 @@ globalThis.fetch = async (url, opts = {}) => {
       bump(path);
       return okJson({ name: 'projects/p/databases/(default)/documents/' + path });
     }
+    if (opts.method === 'DELETE') { store.delete(path); return okJson({}); }
     const doc = store.get(path);
     if (!doc) return new Response('not found', { status: 404 });
     return okJson(docRow(path));
@@ -505,6 +512,146 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   check('reinvite: già firmato → no', shouldReinvite({ ...base, tenantSignature: 'sig' }, now) === false);
   check('reinvite: reminder manuale <24h fa → no', shouldReinvite({ ...base, lastReminderAt: h(2) }, now) === false);
   check('reinvite: cap 2 re-inviti → no', shouldReinvite({ ...base, inviteNudgeCount: 2 }, now) === false);
+}
+
+// ═══ 1f. LA CONSOLE VEDE LA FIRMA: stampa sulla proposta + send-sign onesto ═══
+// Il caso Inês (12/09/2026, Viale Angelico 9): contratto firmato e attivo,
+// console pre-agreement cieca («paid · 🖊 Reinvia Magic Sign»), e il tasto
+// che rispediva all'inquilino un link «hai già firmato». Tre regole:
+//  · ogni firma via submit STAMPA lo stato sulla proposta (rail PA);
+//  · send-sign su un contratto già firmato dall'inquilino NON manda email,
+//    risponde lo stato e stampa la proposta (sanatoria dei deal vecchi);
+//  · la stampa non crea MAI una proposta fantasma (precondizione exists).
+{
+  const msSubmit = (await import('../../api/magic-sign/submit.js')).default;
+  const sendSignMod = await import('../../api/preagreement/send-sign.js');
+  const sendSign = sendSignMod.default;
+  const { signatureState } = sendSignMod;
+  const CONSENT = 'I confirm my identity and accept all lease terms. This digital signature is legally valid (FES — Art. 21 CAD).';
+  const SIG = 'data:image/png;base64,' + 'C'.repeat(400);
+  store.set('users/caller1', { role: 'admin' });
+  store.set('preAgreements/paSIG', {
+    status: 'paid', ref: 'BOOM-SIGTEST', contractId: 'pa_paSIG', propertyId: 'prop1',
+    tenant: { fullName: 'Ines Test', email: 'ines@test.pt' }, tenants: [{ fullName: 'Ines Test', email: 'ines@test.pt' }],
+    landlord: { name: 'Giulia Bianchi', email: 'giulia@owner.it' }, property: { address: 'Viale Angelico 9' },
+    lease: { startDate: '2026-09-01', months: 12 }, money: { rent: 1450, deposit: 2900 },
+    tenantSignUrl: 'https://www.boomrome.com/sign?sign=SIGTOK_T', landlordSignUrl: 'https://www.boomrome.com/sign?sign=SIGTOK_L',
+    signSentAt: '2026-08-20T10:00:00Z', createdAt: '2026-08-10T10:00:00Z',
+  });
+  store.set('contracts/pa_paSIG', {
+    propertyId: 'prop1', tenantId: 't1', type: 'transitorio', cedolareSecca: 'si',
+    rent: 1450, deposit: 2900, startDate: '2026-09-01', endDate: '2027-08-31', paymentDay: 5,
+    tenantName: 'Ines Test', tenantEmail: 'ines@test.pt', landlordName: 'Giulia Bianchi', landlordEmail: 'giulia@owner.it',
+    tenantSignToken: 'SIGTOK_T', landlordSignToken: 'SIGTOK_L',
+    signingOrder: 'sequential', signatureStatus: 'none', status: 'active',
+    preAgreementId: 'paSIG', preAgreementRef: 'BOOM-SIGTEST',
+    generatedPDF: 'https://storage.example/contract.pdf', clauseVersion: 2,
+  });
+  const body = (token) => ({ token, signature: SIG, consent: { text: CONSENT, hash: '' }, identity: {} });
+
+  // Prima della firma: 🖊 manda l'invito, come sempre.
+  IP = '9.1.4.1';
+  let r = mkRes(); let b0 = mails().length;
+  await sendSign(mkReq({ id: 'paSIG' }, { authorization: 'Bearer x' }), r);
+  check('send-sign PRIMA della firma: invito all\'inquilino, come sempre', r.code === 200 && r.body.emailed === true && !r.body.alreadySigned
+    && mails().slice(b0).some(m => m.to === 'ines@test.pt' && /ready to sign/.test(m.subject)));
+  // LE SCRITTURE DOPO LA RISPOSTA SI PERDONO (13/09/2026): signSentAt sulla
+  // proposta e signInviteTenantAt sul contratto erano fire-and-forget e il
+  // backup di produzione li mostrava ASSENTI dopo un 200. Ora sono attesi:
+  // quando il handler risponde, sono già sul documento.
+  check('… e signSentAt / signInviteTenantAt sono GIÀ scritti quando arriva la risposta (attesi, non fire-and-forget)',
+    !!store.get('preAgreements/paSIG').signSentAt && !!store.get('contracts/pa_paSIG').signInviteTenantAt);
+
+  // L'inquilino firma → la PROPOSTA porta lo stato (la console lo legge da lì
+  // quando il contratto non è ancora arrivato dal listener).
+  r = mkRes();
+  await msSubmit(mkReq(body('SIGTOK_T')), r);
+  let pa = store.get('preAgreements/paSIG');
+  check('firma inquilino → la proposta porta contractSignatureStatus=partial + tenantSignedAt', r.code === 200
+    && pa.contractSignatureStatus === 'partial' && !!pa.tenantSignedAt && pa.contractId === 'pa_paSIG' && !pa.contractFullySignedAt);
+
+  // 🖊 Reinvia Magic Sign a un inquilino che HA GIÀ FIRMATO: zero email, stato in risposta.
+  IP = '9.1.4.2';
+  r = mkRes(); b0 = mails().length;
+  await sendSign(mkReq({ id: 'paSIG' }, { authorization: 'Bearer x' }), r);
+  check('send-sign DOPO la firma dell\'inquilino: alreadySigned partial, ZERO email all\'inquilino', r.code === 200 && r.body.ok === true
+    && r.body.alreadySigned === true && r.body.signatureStatus === 'partial' && !!r.body.tenantSignedAt && r.body.emailed === false
+    && !mails().slice(b0).some(m => m.to === 'ines@test.pt'));
+  check('… e nemmeno il recap admin «Magic Sign inviato» (non è partito niente)', !mails().slice(b0).some(m => /Magic Sign inviato/.test(m.subject)));
+
+  // Sanatoria: un deal firmato PRIMA che submit imparasse a stampare → 🖊 riscrive lo stato.
+  pa = store.get('preAgreements/paSIG'); delete pa.contractSignatureStatus; delete pa.tenantSignedAt; store.set('preAgreements/paSIG', pa);
+  r = mkRes();
+  await sendSign(mkReq({ id: 'paSIG' }, { authorization: 'Bearer x' }), r);
+  pa = store.get('preAgreements/paSIG');
+  check('sanatoria: send-sign ristampa lo stato su una proposta firmata prima del fix', r.code === 200 && pa.contractSignatureStatus === 'partial' && !!pa.tenantSignedAt);
+
+  // Il locatore controfirma → complete sulla proposta.
+  IP = '9.1.4.3';
+  r = mkRes();
+  await msSubmit(mkReq(body('SIGTOK_L')), r);
+  pa = store.get('preAgreements/paSIG');
+  check('controfirma → la proposta porta complete + landlordSignedAt + contractFullySignedAt', r.code === 200 && r.body.fullySigned === true
+    && pa.contractSignatureStatus === 'complete' && !!pa.landlordSignedAt && !!pa.contractFullySignedAt);
+  r = mkRes(); b0 = mails().length;
+  await sendSign(mkReq({ id: 'paSIG' }, { authorization: 'Bearer x' }), r);
+  check('send-sign a contratto COMPLETO: alreadySigned complete, zero email', r.code === 200 && r.body.alreadySigned === true
+    && r.body.signatureStatus === 'complete' && mails().length === b0);
+
+  // signatureState: i FATTI (le firme) battono l'etichetta stantia.
+  check('signatureState: firme presenti battono un signatureStatus stantio',
+    signatureState({ tenantSignature: 'x', landlordSignature: 'y', signatureStatus: 'partial' }).status === 'complete'
+    && signatureState({ tenantSignature: 'x' }).status === 'partial' && signatureState(null).status === 'none');
+
+  // Mai una proposta fantasma: contratto che punta a una proposta CANCELLATA.
+  store.set('contracts/ctrGhost', {
+    propertyId: 'prop1', tenantId: 't1', type: 'transitorio', cedolareSecca: 'si',
+    rent: 900, deposit: 900, startDate: '2026-10-01', endDate: '2027-03-31', paymentDay: 5,
+    tenantSignToken: 'GHOST_TOK1', landlordSignToken: 'GHOST_LOK1', signingOrder: 'sequential',
+    signatureStatus: 'none', status: 'active', preAgreementId: 'paGhost',
+  });
+  IP = '9.1.4.4';
+  r = mkRes();
+  await msSubmit(mkReq(body('GHOST_TOK1')), r);
+  check('firma su contratto con proposta cancellata: firma registrata, NESSUNA proposta fantasma creata',
+    r.code === 200 && !!store.get('contracts/ctrGhost').tenantSignature && !store.has('preAgreements/paGhost'));
+
+  // LA PROPOSTA ORFANA (il caso Léa): contratto pa_<id> esistente e firmato,
+  // proposta senza contractId (back-link perso). Il ramo «esiste già» della
+  // conversione la RICUCE — e il back-link è atteso, quindi c'è già quando
+  // convert ritorna.
+  const { convertPaToContract } = await import('../../api/preagreement/convert.js');
+  store.set('preAgreements/paOrf', {
+    status: 'paid', ref: 'BOOM-ORFANA', propertyId: 'prop1',
+    tenant: { fullName: 'Lea Test', email: 'lea@test.fr' }, tenants: [{ fullName: 'Lea Test', email: 'lea@test.fr' }],
+    landlord: { name: 'Giulia Bianchi' }, property: { address: 'Via di Tor di Quinto 39' },
+    lease: { startDate: '2026-09-01', months: 4 }, money: { rent: 1200, deposit: 2400 }, createdAt: '2026-07-15T10:00:00Z',
+  });
+  store.set('contracts/pa_paOrf', {
+    propertyId: 'prop1', tenantId: 't1', type: 'transitorio', rent: 1200, deposit: 2400,
+    startDate: '2026-09-01', endDate: '2026-12-31', tenantSignToken: 'ORF_TOKEN_T1', landlordSignToken: 'ORF_TOKEN_L1',
+    tenantSignature: 'x', landlordSignature: 'y', signatureStatus: 'complete', status: 'active', preAgreementId: 'paOrf',
+  });
+  const orf = await convertPaToContract({ pa: store.get('preAgreements/paOrf'), paId: 'paOrf', propertyId: 'prop1', actor: 'op@boom.it' });
+  const paOrf = store.get('preAgreements/paOrf');
+  check('proposta orfana: il ramo «contratto esiste già» ricuce il back-link (contractId + link firma) ed è già scritto al ritorno',
+    orf.ok === true && orf.already === true && paOrf.contractId === 'pa_paOrf'
+    && /ORF_TOKEN_T1/.test(paOrf.tenantSignUrl || '') && /ORF_TOKEN_L1/.test(paOrf.landlordSignUrl || ''));
+
+  // LA BONIFICA GLOBALE delle scadenze doppie (200 su un contratto il 13/09):
+  // si tiene la copia migliore per contratto+titolo, le altre auto-generate
+  // dal finalize spariscono, le manuali restano.
+  const { sweepFinalizeDuplicates } = await import('../../api/sign/_finalize.js');
+  const mk = (id, extra) => store.set('deadlines/' + id, { linkedContractId: 'ctrDup', title: 'Denuncia TARI', status: 'pending', source: 'finalize', autoGenerated: true, ...extra });
+  mk('auto_dup_1'); mk('auto_dup_2'); mk('auto_dup_3'); mk('dlfin_ctrDup_0');
+  store.set('deadlines/auto_dup_done', { linkedContractId: 'ctrDup', title: 'Verifica APE', status: 'done', source: 'finalize', autoGenerated: true });
+  store.set('deadlines/auto_dup_pend', { linkedContractId: 'ctrDup', title: 'Verifica APE', status: 'pending', source: 'finalize', autoGenerated: true });
+  store.set('deadlines/manual_1', { linkedContractId: 'ctrDup', title: 'Denuncia TARI', status: 'pending', source: 'portal' });
+  const sw = await sweepFinalizeDuplicates();
+  check('sweep scadenze: 4 copie di «Denuncia TARI» → resta il dlfin_, 2 copie di «Verifica APE» → resta quella DONE, la manuale non si tocca',
+    sw.removed === 4 && store.has('deadlines/dlfin_ctrDup_0') && !store.has('deadlines/auto_dup_1') && !store.has('deadlines/auto_dup_3')
+    && store.has('deadlines/auto_dup_done') && !store.has('deadlines/auto_dup_pend') && store.has('deadlines/manual_1'));
+  check('sweep scadenze: idempotente (secondo giro: zero rimozioni)', (await sweepFinalizeDuplicates()).removed === 0);
 }
 
 // ═══ 2. notifyPartialSignature: lingue e link giusti ═══
