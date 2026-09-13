@@ -16,6 +16,7 @@ import { requireRole, setCors } from '../_auth.js';
 import { convertPaToContract } from './convert.js';
 import { sendContractSignEmail } from './_notify.js';
 import { ensureContractPdf } from '../sign/_contractpdf.js';
+import { askLandlordScheda } from './_askscheda.js';
 
 const BASE = 'https://www.boomrome.com';
 
@@ -129,6 +130,18 @@ export default async function handler(req, res) {
     catch (e) { console.error('[pa/send-sign] contract pdf:', e.message); }
   }
 
+  // ── I DATI DEL LOCATORE SI CHIEDONO ALLO STESSO TAP (13/09/2026) ──
+  // Il PDF che il conduttore vede stampa puntini sui dati del locatore
+  // (CF, nascita, residenza, catasto, vani, classe energetica): se mancano
+  // e c'è un'email, il link /scheda parte insieme all'invito — le due
+  // parti compilano in parallelo e il PDF si rifà da solo quando i dati
+  // arrivano, prima della firma dell'inquilino. Mai bloccante.
+  let landlordAsk = { asked: false };
+  if (out.contractId && contract) {
+    try { landlordAsk = await askLandlordScheda({ contractId: out.contractId, contract, pa, actor: auth.email || auth.uid }); }
+    catch (e) { console.warn('[pa/send-sign] landlord scheda ask:', e.message); landlordAsk = { asked: false, why: 'error' }; }
+  }
+
   let emailed = false;
   try {
     const r = await sendContractSignEmail({
@@ -165,5 +178,9 @@ export default async function handler(req, res) {
     { paId, ref: pa.ref || '', contractId: out.contractId, emailed }, auth.email || 'admin')
     .catch(() => {});
 
-  return res.status(200).json({ ok: true, contractId: out.contractId, tenantSignUrl, landlordSignUrl, emailed });
+  return res.status(200).json({
+    ok: true, contractId: out.contractId, tenantSignUrl, landlordSignUrl, emailed,
+    landlordAsked: landlordAsk.asked === true, landlordAskedTo: landlordAsk.to || null,
+    landlordMissing: landlordAsk.missing || [], landlordAskWhy: landlordAsk.why || null,
+  });
 }

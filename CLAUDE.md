@@ -1214,6 +1214,55 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
   `tests/mandato/run.mjs` (asDelegate, link nudo, lookup col link solo a
   soldi ricevuti, pagina), `tests/firma/run.mjs` §7 (giunzioni sulla
   sorgente), `tests/firma/console.mjs`.
+- **I PUNTINI (13/09/2026) — solo dove il dato è dovuto, e il dato arriva
+  da solo.** «Spazi vuoti con i puntini che fanno percepire al cliente un
+  contratto incompleto». Misurato sul dizionario: su una proposta tipo
+  (transitorio, identità del conduttore dalla proposta) il PDF stampava
+  ~23 slot `………`, 15 dei quali del LOCATORE o dell'IMMOBILE (CF, nascita,
+  residenza, catasto, vani, classe energetica, tabelle) — dati che nessuno
+  chiedeva a nessuno prima della firma. Quattro mosse, in ordine di peso:
+  1. **La richiesta al locatore parte da sola a 🖊** (`api/preagreement/
+     _askscheda.js`, chiamata da `send-sign` PRIMA dell'invito): se al
+     locatore mancano dati dovuti e c'è un'email, parte la sua Scheda
+     (link derivato, testo del dizionario `missingMessage`, oggetto IT);
+     stato su `contract.schedaAskedLandlord*`, risposta `landlordAsked`
+     che la console dice. Mai se ha firmato, se non manca niente o senza
+     email (allora la console rimanda a 📨 dal portal).
+  2. **Il PDF si rifà da solo quando arrivano dati** (`ensureContractPdf`
+     accetta `{ force: true }`; la guardia sulla firma viva resta assoluta):
+     dalla Scheda (`profile/submit`, `pdfRegenerated`) e — il caso più
+     comune — **alla PRIMA firma del conduttore** (`magic-sign/submit`,
+     prima della rilettura fresca: il PDF nato alla conversione non aveva
+     CF/nascita/residenza/documento, scritti nello step Identity; la copia
+     firmata, congelata da lì, li stampava come puntini). Solo identità:
+     la firma grafica la stampa `_finalize` sulle ancore. E la **pagina
+     delle firme** stampa nascita/residenza/documento dichiarati da ogni
+     parte (`identityLines`): ciò che la SECONDA parte dichiara firmando
+     non può più entrare nel corpo congelato, ma è parte integrante lì.
+  3. **Il locatore si risolve da dove sta** (`resolveLandlord`, esportata
+     da `_contractpdf.js`, usata dal PDF, dal preflight e dalla richiesta):
+     `users` + `landlords` per ownerId, poi `landlords` per email — prima
+     il PDF leggeva SOLO `users/<ownerId>` e un immobile nato dalla
+     proposta non ha ownerId affatto. Dalla proposta arrivano anche il
+     **tipo di documento** (select sulla pagina, `idDocType` in codice
+     passport|id|permit|patente → `users.docType`; prima «identificato/a
+     mediante ………») e l'**attestazione dell'esigenza** caricata
+     (`transitionalDocs` la nomina).
+  4. **Gli slot FACOLTATIVI non stampano più puntini** (`contract-pdf.js`,
+     B e C): scala omessa se ignota (un palazzo senza scala è la norma),
+     accessori e tabelle millesimali «—», stato di consegna = «quanto
+     risulta dal verbale di consegna» (l'art. 3 già lo prevede). I dati
+     DOVUTI (vani, classe energetica, catasto, identità) restano `………`:
+     li chiude il dato, non un segno — mentire con un trattino su un fatto
+     dovuto sarebbe peggio del puntino.
+  Test: `tests/contractpdf/run.mjs` §9 (il testo VERO del PDF: scala
+  omessa/presente, «—», rinvio al verbale, la classe energetica che resta
+  puntino finché non arriva; resolveLandlord per id e per email; force che
+  rigenera e che NON scavalca una firma viva), `tests/mandato` (il CF
+  digitato alla firma è nel PDF congelato), `tests/notify` §1f (la Scheda
+  al locatore parte con l'invito, una volta), `tests/scheda` (rigenera
+  senza firma, mai con), `tests/money` §9b (docType/transitionalDocs),
+  `tests/firma` §8 (giunzioni).
 - **Email transport warning**: `nodemailer` and `pdf-lib` MUST be imported
   statically (top-level `import`). Lazy `await import('pkg')` is not traced
   by Vercel's bundler → "Cannot find package" at runtime in production

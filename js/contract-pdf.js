@@ -211,6 +211,13 @@
 
     const fmtIt = (n) => Number(n || 0).toLocaleString('it-IT');
     const dot = '………';
+    // I PUNTINI SOLO DOVE IL DATO È DOVUTO (13/09/2026): uno slot FACOLTATIVO
+    // del modello lasciato «………» fa percepire al cliente un contratto
+    // incompleto — su carta lo si lascerebbe vuoto o barrato. Scala: se non
+    // c'è, la locuzione non si stampa. Accessori e tabelle millesimali: «—»
+    // (nessuna dichiarazione). Vani, classe energetica, catasto e identità
+    // restano puntini: sono dovuti, e li chiude il DATO, non un segno.
+    const NONE = '—';
 
     // --------------- Variable data points ---------------
     // Identity fallback chain: contract fields (Magic Sign / La
@@ -238,10 +245,10 @@
     const propCity   = (property && property.city)    || 'Roma';
     const propStreet = (property && property.address) || dot;
     const propFloor  = (property && property.floor)   || dot;
-    const propScala  = (property && property.scala)   || dot;
+    const propScala  = (property && property.scala)   || '';
     const propInt    = (property && (property.interno || property.unit)) || dot;
     const propRooms  = (property && property.rooms)   || dot;
-    const propAcc    = (property && property.accessories) || dot;
+    const propAcc    = (property && property.accessories) || NONE;
     const propFurnishedFlag = property && property.furnished;
     const propFurnished = propFurnishedFlag ? 'ammobiliata' : 'non ammobiliata';
 
@@ -249,7 +256,7 @@
     const energy    = (property && (property.energyCert || property.energyClass)) || dot;
     const sicurezza = impiantiClause(contract, property);
     const tab = tabelleOf(contract, property);
-    const tabFmt = (v) => (v !== undefined && v !== null && v !== '') ? String(v) : dot;
+    const tabFmt = (v) => (v !== undefined && v !== null && v !== '') ? String(v) : NONE;
     const tabPro = tabFmt(tab['proprieta'] || tab['proprietà']);
     const tabRis = tabFmt(tab.riscaldamento);
     const tabAcq = tabFmt(tab.acqua);
@@ -288,7 +295,8 @@
 
     const conviventi  = (contract.uso && contract.uso.conviventi) || contract.cohabitants || 'nessuno';
 
-    const consegnaStato = contract.consegnaStato || dot;
+    // Senza una dichiarazione delle parti vale ciò che l'art. 3 già prevede.
+    const consegnaStato = contract.consegnaStato || 'quanto risulta dal verbale di consegna sottoscritto alla consegna delle chiavi';
 
     const sigPlace = contract.signaturePlace || 'Roma';
     const sigDateRaw = contract.signatureDate || contract.fullySignedAt || new Date();
@@ -316,7 +324,7 @@
     addParagraph(`Il/La sig./soc. ${locName}, nato/a il ${locDOB} a ${locPOB}, domiciliato/a in ${locDom}, C.F. ${locCF}, di seguito denominato/a locatore`);
     addParagraph(`concede in locazione al/alla sig. ${tenName}, nato/a il ${tenDOB} a ${tenPOB}, domiciliato/a in ${tenDom}, C.F. ${tenCF}, di seguito denominato/a conduttore, identificato/a mediante ${tenDoc}, che accetta, per sé e suoi aventi causa,`);
 
-    addParagraph(`A) l'unità immobiliare posta in ${propCity}, via ${propStreet}, piano ${propFloor}, scala ${propScala}, int. ${propInt}, composta di n. ${propRooms} vani, oltre cucina e servizi, e dotata altresì dei seguenti elementi accessori ${propAcc}`);
+    addParagraph(`A) l'unità immobiliare posta in ${propCity}, via ${propStreet}, piano ${propFloor}${propScala ? ', scala ' + propScala : ''}, int. ${propInt}, composta di n. ${propRooms} vani, oltre cucina e servizi, e dotata altresì dei seguenti elementi accessori ${propAcc}`);
     addParagraph(`${propFurnished} come da elenco a parte sottoscritto dalle parti.`);
 
     addParagraph(`a) estremi catastali identificativi dell'unità immobiliare: ${cadast}`);
@@ -814,6 +822,13 @@
 
     const fmtIt = (n) => Number(n || 0).toLocaleString('it-IT');
     const dot = '………';
+    // I PUNTINI SOLO DOVE IL DATO È DOVUTO (13/09/2026): uno slot FACOLTATIVO
+    // del modello lasciato «………» fa percepire al cliente un contratto
+    // incompleto — su carta lo si lascerebbe vuoto o barrato. Scala: se non
+    // c'è, la locuzione non si stampa. Accessori e tabelle millesimali: «—»
+    // (nessuna dichiarazione). Vani, classe energetica, catasto e identità
+    // restano puntini: sono dovuti, e li chiude il DATO, non un segno.
+    const NONE = '—';
 
     // --------------- Variable data points ---------------
     // Identity fallback chain: contract fields (written by Magic
@@ -844,10 +859,10 @@
     const propCity   = (property && property.city)    || 'Roma';
     const propStreet = (property && property.address) || dot;
     const propFloor  = (property && property.floor)   || dot;
-    const propScala  = (property && property.scala)   || dot;
+    const propScala  = (property && property.scala)   || '';
     const propInt    = (property && (property.interno || property.unit)) || dot;
     const propRooms  = (property && property.rooms)   || dot;
-    const propAcc    = (property && property.accessories) || dot;
+    const propAcc    = (property && property.accessories) || NONE;
     const propFurnishedFlag = property && property.furnished;
     const propFurnished = propFurnishedFlag ? 'ammobiliata' : 'non ammobiliata';
 
@@ -857,7 +872,7 @@
     const energy    = (property && (property.energyCert || property.energyClass)) || contract.energyClass || dot;
     const sicurezza = impiantiClause(contract, property);
     const tab = tabelleOf(contract, property);
-    const tabFmt = (v) => (v !== undefined && v !== null && v !== '') ? String(v) : dot;
+    const tabFmt = (v) => (v !== undefined && v !== null && v !== '') ? String(v) : NONE;
     const tabPro = tabFmt(tab['proprieta'] || tab['proprietà']);
     const tabRis = tabFmt(tab.riscaldamento);
     const tabAcq = tabFmt(tab.acqua);
@@ -917,7 +932,7 @@
     const accessiMod    = contract.accessiModalita || '--';
     const cedolareIsOn  = cedolareOn(contract);
 
-    const consegnaStato = contract.consegnaStato || '--';
+    const consegnaStato = contract.consegnaStato || 'quanto risulta dal verbale di consegna sottoscritto alla consegna delle chiavi';
     const sigPlace = contract.signaturePlace || (property && property.city) || 'Roma';
     const sigDateRaw = contract.signatureDate || contract.fullySignedAt || new Date();
     const sigDateStr = fmtDate(sigDateRaw);
@@ -946,7 +961,7 @@
     addParagraph(`al sig. ${tenName}, C.F. ${tenCF}, nato/a a ${tenPOB} il ${tenDOB}, domiciliato/a nei locali oggetto della locazione, identificato/a mediante ${tenDocLabel} n. ${tenDocNum} rilasciata da ${tenDocIssuer} il ${tenDocIssued}, di seguito denominato/a conduttore,`);
     addParagraph('CHE ACCETTA, PER SÉ E SUOI AVENTI CAUSA,', { bold: true, align: 'center', x: pageW / 2, after: 4 });
 
-    addParagraph(`l'unità immobiliare posta in ${propCity}, via ${propStreet}, piano ${propFloor}, scala ${propScala}, int. ${propInt}, composta di n. ${propRooms} vani, oltre cucina e servizi, e dotata altresì dei seguenti elementi accessori: ${propAcc}, ${propFurnished} come da elenco a parte sottoscritto dalle parti.`);
+    addParagraph(`l'unità immobiliare posta in ${propCity}, via ${propStreet}, piano ${propFloor}${propScala ? ', scala ' + propScala : ''}, int. ${propInt}, composta di n. ${propRooms} vani, oltre cucina e servizi, e dotata altresì dei seguenti elementi accessori: ${propAcc}, ${propFurnished} come da elenco a parte sottoscritto dalle parti.`);
 
     addParagraph(`A) estremi catastali identificativi dell'unità immobiliare: ${cadast}, rendita catastale € ${rendita}.`);
     addParagraph(`B) PRESTAZIONE ENERGETICA: classe ${energy}. Il conduttore dichiara di aver ricevuto le informazioni e la documentazione in ordine alla attestazione della prestazione energetica dell'immobile.`);

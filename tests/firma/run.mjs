@@ -226,5 +226,28 @@ ok(/window\.cvPreflight=async function/.test(cons) && /onchange="cvPreflight\(\)
   '3.3 console → Contratto: il preflight al cambio immobile, in parole (preflightLines), prima del tap');
 ok(/function ask\(msg\)\{return \(typeof confirm==='function'\)\?confirm\(msg\):true;\}/.test(cons), 'console: la conferma è guardata (in Node non esiste confirm)');
 
+// ── 8. I PUNTINI (13/09/2026) — solo dove il dato è dovuto, e il dato arriva ──
+ok(/const NONE = '—';/.test(cpdf) && /\$\{propScala \? ', scala ' \+ propScala : ''\}/.test(cpdf) && /consegnaStato \|\| 'quanto risulta dal verbale di consegna sottoscritto/.test(cpdf) && /property\.rooms\)\s+\|\| dot/.test(cpdf) && /property\.accessories\) \|\| NONE/.test(cpdf),
+  'puntini: scala omessa se ignota, accessori/tabelle «—», consegna che rinvia al verbale — i vani (dovuti) restano puntini');
+const cpS = src('api/sign/_contractpdf.js');
+ok(/export async function resolveLandlord\(/.test(cpS) && /landlord = await resolveLandlord\(contract, property\)/.test(cpS) && /!\(opts && opts\.force\) && contract\.generatedPDF/.test(cpS)
+  && cpS.indexOf('opts && opts.force') < cpS.indexOf('if (hasAnySignature(contract)) return contract.generatedPDF || null;'),
+  'puntini: il PDF risolve il locatore da users+landlords (anche per email) e accetta force — la firma viva vince sempre (guardia dopo il force)');
+const ps = src('api/profile/submit.js');
+ok(/if \(!hasAnySignature\(contract\)\) \{/.test(ps) && /ensureContractPdf\(contractId, null, \{ force: true \}\)/.test(ps) && /pdfRegenerated/.test(ps), 'puntini: la Scheda rigenera il PDF quando nessuno ha firmato');
+const ms = src('api/magic-sign/submit.js');
+ok(ms.indexOf("if (role === 'tenant' && !hasAnySignature(contract)) {") < ms.indexOf('// ── 3. Re-read FRESH') && /ensureContractPdf\(contractId, \{ \.\.\.contract, \.\.\.idOnly \}, \{ force: true \}\)/.test(ms) && !/idOnly\['tenantSignature'\]/.test(ms),
+  'puntini: prima della PRIMA firma il PDF si rifà con la SOLA identità dichiarata, poi si rilegge (precondizione intatta)');
+const fin = src('api/sign/_finalize.js');
+ok(/identityLines\('tenant', c\)/.test(fin) && /identityLines\('landlord', c\)/.test(fin) && /import \{ wa \} from '\.\.\/_pdfbrand\.js';/.test(fin), 'puntini: la pagina delle firme stampa nascita/residenza/documento dichiarati, WinAnsi-safe');
+const ss8 = src('api/preagreement/send-sign.js');
+ok(ss8.indexOf('await askLandlordScheda(') < ss8.indexOf('await sendContractSignEmail(') && /landlordAsked: landlordAsk\.asked === true/.test(ss8) && /landlordAsked\?' · dati chiesti al proprietario'/.test(cons),
+  'puntini: a 🖊 la Scheda del locatore parte con l\'invito, la risposta e la console lo dicono');
+const ask = src('api/preagreement/_askscheda.js');
+ok(/if \(contract\.landlordSignature\) return \{ asked: false, why: 'signed' \};/.test(ask) && /if \(!missing\.length\) return \{ asked: false, why: 'complete' \};/.test(ask) && /why: 'no_email'/.test(ask) && /FIELDS\.missingMessage\('landlord', missing/.test(ask),
+  'puntini: la richiesta al locatore NON parte se ha firmato, se non manca niente o senza email; il testo è quello del dizionario');
+ok(/sel\('tIdDocType','ID document type',''\)/.test(src('pre-agreement.html')) && /idDocType: docCode\(/.test(src('api/preagreement/submit.js')) && /docType: t\.idDocType \|\| ''/.test(convS) && /transitionalDocs: uploads\.some\(u => u && u\.kind === 'extra'\)/.test(convS),
+  'puntini: tipo di documento e attestazione dell\'esigenza viaggiano dalla proposta al contratto');
+
 console.log(`\n${fail ? '✗' : '✓'} firma: ${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);

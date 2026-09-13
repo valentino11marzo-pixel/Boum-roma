@@ -807,7 +807,9 @@ window.sendSign=async function(id,btn){
         :'L’inquilino ha già firmato'+(when?' il '+when:'')+': nessun link inviato. Manca la firma del proprietario'+(j.delegate?' — apri il link delega e controfirma.':' — mandagli il link firma (WhatsApp/copia).'));
       return;
     }
-    if(btn)btn.textContent=j.emailed?'✓ Inviato':'✓ Contratto pronto (email non partita)';
+    if(btn)btn.textContent=(j.emailed?'✓ Inviato':'✓ Contratto pronto (email non partita)')+(j.landlordAsked?' · dati chiesti al proprietario':'');
+    if(j.landlordAsked)alert('Al proprietario ('+(j.landlordAskedTo||'')+') è partita anche la richiesta dei suoi dati per il contratto (link Scheda): appena li compila il PDF si rifà da solo, prima della firma dell’inquilino.');
+    else if(j.landlordAskWhy==='no_email'&&(j.landlordMissing||[]).length)alert('Al contratto mancano dati del proprietario ('+j.landlordMissing.length+') e non c’è un’email a cui chiederli: usa 📨 Chiedi al locatore dal portal (WhatsApp) o ✎ Modifica per aggiungere l’email.');
   }catch(e){
     if(btn){btn.disabled=false;btn.textContent='🖊 Riprova Magic Sign';}
     alert('Magic Sign non inviato: '+(e.message||'riprova')+(String(e.message).indexOf('no_property')>=0?' — collega (o crea) la proprietà con → Contratto.':String(e.message).indexOf('overlap')>=0?' — sullo stesso immobile c’è già un contratto attivo: passa da → Contratto e decidi.':''));

@@ -430,6 +430,15 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
   rh = mkRes();
   await convert(mkReq({ id: 'paH', dryRun: true }, { authorization: 'Bearer t' }), rh);
   check('HTTP dryRun: 200 con overlap + completeness, contratto non scritto', rh.code === 200 && rh.body.dryRun === true && rh.body.overlap && !!rh.body.completeness && !store.has('contracts/pa_paH'));
+
+  // ── i puntini che il DATO chiude: tipo di documento e attestazione dalla proposta ──
+  const paT = { ...paN, tenant: { ...paN.tenant, email: 'tania@x.it', idDocType: 'passport' }, uploads: [{ url: 'https://s/esigenza.pdf', name: 'esigenza.pdf', kind: 'extra' }], extraDoc: 'Lettera del datore di lavoro' };
+  const rT = await convertPaToContract({ pa: paT, paId: 'paT', createProperty: true });
+  const uT = [...store.keys()].map(k => store.get(k)).find(d => d && d.email === 'tania@x.it');
+  check('convert: il TIPO di documento della proposta arriva al profilo (docType) — il contratto non stampa più «identificato/a mediante ………»',
+    rT.ok && !!uT && uT.docType === 'passport' && uT.idDocType === 'passport');
+  check('convert: l\'attestazione caricata sulla proposta NOMINA il documento (transitionalDocs), invece dei puntini',
+    store.get('contracts/pa_paT').transitionalDocs === 'Lettera del datore di lavoro' && store.get('contracts/pa_paN').transitionalDocs === '');
 }
 
 // ═══ 10. convert: lo STUDENTE riceve l'Allegato C anche quando nessuno

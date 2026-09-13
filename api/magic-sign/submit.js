@@ -23,6 +23,7 @@
 
 import { fsGet, fsPatch, fsList, readJson, logActivity } from '../homie/_lib.js';
 import { findContractByToken, commitWrites, fsGetWithTime, tenantSideComplete, termsFingerprint, mandateCheck, setCors, rateOk } from './_shared.js';
+import { ensureContractPdf, hasAnySignature } from '../sign/_contractpdf.js';
 
 // ── TERMS FREEZE ──────────────────────────────────────────────────────────
 // L'impronta dei termini ECONOMICI del contratto. La prima firma la congela
@@ -313,6 +314,27 @@ export default async function handler(req, res) {
       depositPayToken = contract.depositPayToken || crypto.randomBytes(24).toString('hex');
       upd.depositPayToken = depositPayToken;
     }
+  }
+
+  // ── IL DOCUMENTO CHE SI FIRMA PORTA I DATI APPENA DICHIARATI (13/09) ──
+  // Il PDF nasce alla conversione, PRIMA che il conduttore scriva CF,
+  // nascita, residenza e documento nello step Identity: la copia firmata
+  // (che _finalize costruisce da generatedPDF, congelato alla prima firma)
+  // stampava puntini proprio sui dati del firmatario. Qui — SOLO alla
+  // prima firma, mai sotto una firma viva — si rigenera con l'identità in
+  // mano, poi si rilegge (la precondizione updateTime vede la patch). Solo
+  // identità: la firma grafica la stampa _finalize, sulle ancore. Best-
+  // effort e a tempo: un PDF che non si rigenera non ferma mai una firma.
+  if (role === 'tenant' && !hasAnySignature(contract)) {
+    const idOnly = {};
+    ['CF', 'Address', 'Dob', 'Pob', 'DocType', 'DocNum', 'DocIssuer', 'DocIssueDate', 'Nationality', 'Phone']
+      .forEach(k => { if (upd['tenant' + k] !== undefined && upd['tenant' + k] !== '') idOnly['tenant' + k] = upd['tenant' + k]; });
+    try {
+      await Promise.race([
+        ensureContractPdf(contractId, { ...contract, ...idOnly }, { force: true }),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('pdf_refresh_timeout')), 20000)),
+      ]);
+    } catch (e) { console.warn('[magic-sign/submit] pdf refresh skipped:', e.message); }
   }
 
   // ── 3. Re-read FRESH (dati + updateTime per la precondizione) ──

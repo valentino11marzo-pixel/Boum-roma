@@ -18,6 +18,7 @@ import crypto from 'node:crypto';
 // pdf-lib is imported statically: a lazy `await import('pdf-lib')` is not
 // traced by Vercel's bundler and fails at runtime in production.
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import { wa } from '../_pdfbrand.js';
 import { fsCreate, fsPatch, fsGet, fsList, fsDelete } from '../homie/_lib.js';
 import { storageUpload } from '../agent/_lib.js';
 import { sendWelcomeEmails, sendCafDossier } from './_notify.js';
@@ -505,11 +506,27 @@ async function buildSignedContract(c, property){
   row('Firmato da tutte le parti il', c.fullySignedAt ? new Date(c.fullySignedAt).toLocaleString('it-IT') : '-');
   y -= 10;
 
-  const block = async (title, name, cf, sig, at, x, dele) => {
+  // I DATI DICHIARATI ALLA FIRMA (13/09/2026): nascita, residenza,
+  // documento. Il corpo del contratto è congelato alla PRIMA firma, quindi
+  // ciò che la seconda parte dichiara firmando (il locatore, di solito) non
+  // può più entrarci — e la copia firmata stampava puntini proprio lì. La
+  // pagina delle firme, che è parte integrante, li porta per ogni parte.
+  const identityLines = (P, src) => {
+    const g = (k) => String((src && src[P + k]) || '').trim();
+    const out = [];
+    const dob = g('Dob'), pob = g('Pob'), addr = g('Address'), docT = g('DocType'), docN = g('DocNum');
+    const dobIt = dob && !Number.isNaN(new Date(dob).getTime()) ? new Date(dob).toLocaleDateString('it-IT') : dob;
+    if (dob || pob) out.push('Nato/a' + (pob ? ' a ' + pob : '') + (dobIt ? ' il ' + dobIt : ''));
+    if (addr) out.push('Residenza: ' + addr);
+    if (docT || docN) out.push('Documento: ' + [FIELDS.docTypeIt ? FIELDS.docTypeIt(docT) : docT, docN ? 'n. ' + docN : ''].filter(Boolean).join(' '));
+    return out.map(l => wa(l).slice(0, 72));
+  };
+  const block = async (title, name, cf, sig, at, x, dele, idLines) => {
     let yy = y;
     T(title, x, yy, 10, bold, gold); yy -= 16;
     T('Firmatario: ' + (name || '-'), x, yy, 9); yy -= 13;
     T('Codice Fiscale: ' + (cf || '-'), x, yy, 9); yy -= 13;
+    for (const line of (idLines || [])) { T(line, x, yy, 8, font, grey); yy -= 11; }
     T('Data/ora: ' + (at ? new Date(at).toLocaleString('it-IT') : '-'), x, yy, 9); yy -= 14;
     page.drawRectangle({ x, y: yy-58, width:230, height:56, borderColor:grey, borderWidth:0.5, color:rgb(0.99,0.99,0.98) });
     if (sig) {
@@ -525,8 +542,8 @@ async function buildSignedContract(c, property){
     // pagina taceva e il documento sembrava firmato dal titolare.
     for (const [i, line] of delegateLines(dele).entries()) T(line, x, yy - 58 - 9 - i * 8, 7, font, grey);
   };
-  await block('IL CONDUTTORE (Tenant)', c.tenantName, c.tenantCF, c.tenantSignature, c.tenantSignedAt, 40, c.tenantSignedByDelegate);
-  await block('IL LOCATORE (Landlord)', c.landlordName, c.landlordCF, c.landlordSignature, c.landlordSignedAt, 320, c.landlordSignedByDelegate);
+  await block('IL CONDUTTORE (Tenant)', c.tenantName, c.tenantCF, c.tenantSignature, c.tenantSignedAt, 40, c.tenantSignedByDelegate, identityLines('tenant', c));
+  await block('IL LOCATORE (Landlord)', c.landlordName, c.landlordCF, c.landlordSignature, c.landlordSignedAt, 320, c.landlordSignedByDelegate, identityLines('landlord', c));
 
   // CO-FIRMA: blocchi firma anche per i co-conduttori (fino a 2 in pagina).
   const coSigList = (Array.isArray(c.coTenants) ? c.coTenants : []).filter(x => x && x.name);
@@ -535,7 +552,8 @@ async function buildSignedContract(c, property){
     const shown = coSigList.slice(0, 2);
     for (let i = 0; i < shown.length; i++) {
       const cv = shown[i];
-      await block(`IL CO-CONDUTTORE ${i + 1} (Co-tenant)`, cv.name, cv.cf, cv.signature, cv.signedAt, i % 2 === 0 ? 40 : 320);
+      await block(`IL CO-CONDUTTORE ${i + 1} (Co-tenant)`, cv.name, cv.cf, cv.signature, cv.signedAt, i % 2 === 0 ? 40 : 320, null,
+        identityLines('co', { coDob: cv.dob, coPob: cv.birthPlace || cv.pob, coAddress: cv.address, coDocType: cv.docType, coDocNum: cv.idDoc || cv.docNum }));
     }
     if (coSigList.length > 2) T('+ ' + (coSigList.length - 2) + ' ulteriori co-conduttori — firme registrate a sistema.', 40, Math.max(160, y - 150), 8, font, grey);
   }

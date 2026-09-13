@@ -45,7 +45,7 @@
 import crypto from 'node:crypto';
 import { fsGet, fsList, fsCreate, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
-import { ensureContractPdf } from '../sign/_contractpdf.js';
+import { ensureContractPdf, resolveLandlord } from '../sign/_contractpdf.js';
 import { mandateTermsHash } from '../magic-sign/_shared.js';
 import MANDATO from '../../js/mandato-engine.js';
 import { storageUpload } from '../agent/_lib.js';
@@ -139,6 +139,9 @@ function tenantUserFromPa(t, uploads) {
     name: t.fullName, email: t.email || '', phone: t.phone || '',
     cf: t.cf || '', dob: t.dob || '', pob: t.birthPlace || '',
     address: t.address || '', docNum: t.idDoc || '', nationality: t.nationality || '',
+    // il TIPO di documento (passport|id|permit|patente) arriva dalla
+    // proposta: senza, il contratto stampava «identificato/a mediante ………»
+    docType: t.idDocType || '', idDocType: t.idDocType || '',
     identityDocs: (uploads || []).filter(u => (u.tenantIndex || 0) === 0).map(u => ({ url: u.url, name: u.name, at: u.at })),
     createdBy: 'preagreement_convert', createdAt: new Date().toISOString(),
   };
@@ -225,12 +228,11 @@ function preflightOf({ contract, property, tenantUser, landlord }) {
       .map(c => ({ name: c.name, missing: c.missing.map(m => lab(m, 'en')) })),
   };
 }
-async function landlordCtxOf(property) {
-  if (!property || !property.ownerId) return {};
-  try {
-    const [u, ll] = await Promise.all([fsGet('users/' + property.ownerId).catch(() => null), fsGet('landlords/' + property.ownerId).catch(() => null)]);
-    return { ...(ll || {}), ...(u || {}) };
-  } catch (_) { return {}; }
+// Il locatore, risolto come lo risolve il PDF (resolveLandlord: users +
+// landlords per ownerId, poi landlords per email): preflight e documento
+// non possono contraddirsi su cosa manca.
+async function landlordCtxOf(property, contract) {
+  try { return (await resolveLandlord(contract, property)) || {}; } catch (_) { return {}; }
 }
 
 // ── Core conversion, shared by the console handler and the auto pipeline ──
@@ -429,7 +431,10 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     },
     durata: { text: months + ' mesi', startDate: le.startDate || null, endDate: le.endDate || null },
     transitionalReason: le.reason || '',
-    transitionalDocs: '',
+    // Il documento che prova l'esigenza: se il cliente l'ha caricato sulla
+    // proposta (kind:'extra') il contratto lo NOMINA invece di stampare
+    // puntini — è lo stesso file che il Pack allega alla registrazione.
+    transitionalDocs: uploads.some(u => u && u.kind === 'extra') ? (clip(pa.extraDoc, 120) || 'attestazione allegata alla proposta') : '',
     // I dati dello studente arrivano dalla proposta (console → lease.studenti)
     // e alimentano l'Allegato C. Su un transitorio restano vuoti: un dato
     // universitario su un contratto di lavoro sarebbe rumore sul documento.
@@ -444,7 +449,7 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
        x.cf ? 'C.F. ' + String(x.cf).toUpperCase() : ''].filter(Boolean).join(', ')).join('; '),
     coTenants: tenants.slice(1).filter(x => x && x.fullName).map((x, i) => ({
       name: x.fullName, cf: String(x.cf || '').toUpperCase(), dob: x.dob || '',
-      birthPlace: x.birthPlace || '', address: x.address || '', idDoc: x.idDoc || '',
+      birthPlace: x.birthPlace || '', address: x.address || '', idDoc: x.idDoc || '', docType: x.idDocType || '',
       nationality: x.nationality || '', email: x.email || '', phone: x.phone || '',
       tenantIndex: i + 1, paSignedName: x.signName || x.typedSignature || x.signature || '',
     })),
@@ -563,7 +568,7 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
   if (dryRun) {
     let exists = false;
     try { exists = !!(await fsGet('contracts/' + contractId)); } catch (_) {}
-    const landlord = { ...(await landlordCtxOf(property)), name: contract.landlordName || undefined, email: contract.landlordEmail || undefined, phone: contract.landlordPhone || undefined };
+    const landlord = { ...(await landlordCtxOf(property, contract)), name: contract.landlordName || undefined, email: contract.landlordEmail || undefined, phone: contract.landlordPhone || undefined };
     return {
       ok: true, dryRun: true, contractId, propertyId: propId, exists,
       overlap: overlap || null,

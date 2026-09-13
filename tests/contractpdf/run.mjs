@@ -413,5 +413,44 @@ const lookup = (await import('../../api/magic-sign/lookup.js')).default;
 }
 
 // ═══ Esito ═══
+// ═══ 9. I PUNTINI SOLO DOVE IL DATO È DOVUTO (13/09/2026) ═══
+// Il testo VERO del PDF (gli operatori Tj del content stream jsPDF, non
+// compresso): scala omessa se ignota, accessori e tabelle «—», stato di
+// consegna che rinvia al verbale; vani, classe energetica e identità
+// restano puntini — li chiude il dato, non un segno tipografico.
+{
+  const tjText = (buf) => { const t = Buffer.from(buf).toString('latin1'); const out = []; const re = /\((?:\\.|[^\\)])*\)\s*Tj/g; let m; while ((m = re.exec(t))) out.push(m[0].slice(1, m[0].lastIndexOf(')'))); return out.join(' '); };
+  const textOf = (contract, property) => tjText(CONTRACT_PDF.build({ jsPDF, contractId: 'c_dots', contract, property, tenant: null, landlord: null }).doc.output('arraybuffer'));
+  const noScala = textOf(sampleContract, sampleProperty);
+  check('B: senza scala la locuzione «scala …» NON si stampa (niente puntini)', !/\bscala\b/.test(noScala));
+  check('B: con scala si stampa', /scala B\b/.test(textOf(sampleContract, { ...sampleProperty, scala: 'B' })));
+  check('B: tabelle millesimali ignote → «—» ognuna, mai puntini', /propriet\S* \x97, riscaldamento \x97, acqua \x97, altre \x97/.test(noScala));
+  check('B: accessori ignoti → «—»', /elementi accessori \x97/.test(noScala));
+  check('B: stato di consegna senza dichiarazione → rinvio al verbale (art. 3), mai puntini', /quanto risulta dal verbale di consegna sottoscritto/.test(noScala) && !/di quanto segue: \x85/.test(noScala));
+  check('B: i dati DOVUTI restano puntini (classe energetica) — li chiude il dato, non un segno', /prestazione energetica: \x85\x85\x85/.test(noScala));
+  check('B: con la classe energetica il puntino sparisce', /prestazione energetica: A2/.test(textOf(sampleContract, { ...sampleProperty, energyClass: 'A2' })));
+  const cText = textOf({ ...sampleContract, type: 'studenti', universityName: 'Sapienza', courseName: 'Fisica', universitaIndirizzo: 'P.le Aldo Moro 5' }, sampleProperty);
+  check('C (studenti): stesse regole — niente «scala …», tabelle «—», consegna che rinvia al verbale', !/\bscala\b/.test(cText) && /propriet\S* \x97/.test(cText) && /quanto risulta dal verbale di consegna sottoscritto/.test(cText));
+
+  // ── il locatore si risolve da dove sta, e il force rispetta la firma ──
+  const { resolveLandlord, ensureContractPdf } = await import('../../api/sign/_contractpdf.js');
+  store.set('landlords/own9', { name: 'Lucia Verdi', cf: 'VRDLCU70A41H501Z', email: 'lucia@x.it', dob: '1970-01-01' });
+  store.set('users/own9', { name: 'Lucia Verdi', phone: '+39' });
+  const byId = await resolveLandlord({}, { ownerId: 'own9' });
+  check('resolveLandlord: users + landlords per ownerId (il CF della Scheda arriva al PDF)', !!byId && byId.cf === 'VRDLCU70A41H501Z' && byId.phone === '+39');
+  const byMail = await resolveLandlord({ landlordEmail: 'lucia@x.it' }, { address: 'x' });
+  check('resolveLandlord: senza ownerId (immobile nato dalla proposta) → landlords per email', !!byMail && byMail.cf === 'VRDLCU70A41H501Z');
+  check('resolveLandlord: nessuna traccia → null, mai un locatore inventato', (await resolveLandlord({ landlordEmail: 'nobody@x.it' }, {})) === null);
+  store.set('properties/prop9', { ...sampleProperty, ownerId: 'own9' });
+  store.set('contracts/c9', { ...sampleContract, propertyId: 'prop9', landlordCF: '', generatedPDF: 'https://old/contract.pdf', clauseVersion: 2 });
+  const n0 = storageCalls.length;
+  check('ensureContractPdf: PDF fresco → idempotente, nessun upload', (await ensureContractPdf('c9')) === 'https://old/contract.pdf' && storageCalls.length === n0);
+  const url = await ensureContractPdf('c9', null, { force: true });
+  check('ensureContractPdf force: rigenera (un upload) e ristampa generatedPDF/pdfGeneratedAt', !!url && url !== 'https://old/contract.pdf' && storageCalls.length === n0 + 1 && store.get('contracts/c9').pdfGeneratedBy === 'server' && !!store.get('contracts/c9').pdfGeneratedAt);
+  store.get('contracts/c9').tenantSignature = 'x';
+  const n1 = storageCalls.length;
+  check('ensureContractPdf force sotto una firma viva: NIENTE (mutazione: la guardia vince sul force)', (await ensureContractPdf('c9', null, { force: true })) === url && storageCalls.length === n1);
+}
+
 console.log(`\n${passed} passed, ${failed} failed`);
 if (failed) { console.log('FAILED:', bad.join(' | ')); process.exit(1); }

@@ -503,6 +503,14 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
   const sB = store.get('contracts/pa_paB');
   check('delega armata + link nudo (asDelegate:false): 200, firma del CONDUTTORE registrata, NESSUN tenantSignedByDelegate, nessun 403',
     r.code === 200 && !!sB.tenantSignature && !sB.tenantSignedByDelegate && sB.tenantDelegate && sB.tenantDelegate.name === 'Valentino Egidi');
+  // IL DOCUMENTO CHE SI FIRMA PORTA I DATI APPENA DICHIARATI (13/09/2026):
+  // il PDF nato alla conversione non aveva il CF del conduttore (lo scrive
+  // nello step Identity); alla PRIMA firma si rigenera col dato in mano e
+  // la copia congelata lo stampa — niente puntini sul firmatario.
+  const tjText = (buf) => { const t = Buffer.from(buf).toString('latin1'); const out = []; const re = /\((?:\\.|[^\\)])*\)\s*Tj/g; let m; while ((m = re.exec(t))) out.push(m[0].slice(1, m[0].lastIndexOf(')'))); return out.join(' '); };
+  const pdfB = storageFiles.get('contracts/pa_paB/contract.pdf');
+  check('prima della PRIMA firma il PDF si rifà col dato dichiarato: il CF digitato nello step Identity è nel documento congelato',
+    !!pdfB && tjText(pdfB).includes('XPTNNA96B43Z110Q') && !!sB.pdfGeneratedAt && sB.pdfGeneratedBy === 'server');
   // e lo stesso vale col flag ASSENTE (client vecchio / link dell'email)
   const cA2 = store.get('contracts/pa_paA');
   check('submit.js: il flag è `body.asDelegate === true` — assente = firma propria (mutazione: nessun default a true)',
@@ -641,7 +649,7 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
     long.every(l => l.length <= 64 && /^[\x20-\xFF]*$/.test(l)));
   const fin = R('api/sign/_finalize.js');
   check('_finalize: pagina firme E certificato passano tenantSignedByDelegate / landlordSignedByDelegate ai blocchi',
-    (fin.match(/c\.tenantSignedByDelegate\)/g) || []).length >= 2 && (fin.match(/c\.landlordSignedByDelegate\)/g) || []).length >= 2 && /delegateLines\(dele\)/.test(fin));
+    (fin.match(/c\.tenantSignedByDelegate[,)]/g) || []).length >= 2 && (fin.match(/c\.landlordSignedByDelegate[,)]/g) || []).length >= 2 && /delegateLines\(dele\)/.test(fin));
 }
 
 // ═══ 7. La scheda ARPE firmata: le firme delle parti sul modulo ═══
