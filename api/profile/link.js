@@ -17,6 +17,8 @@ import { fsGet, readJson } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import { schedaUrl, schedaLocked } from './_scheda.js';
 import { cosignRef } from '../magic-sign/_shared.js';
+// Il dizionario: cosa manca a chi, e il messaggio già scritto che lo nomina.
+import FIELDS from '../../js/contract-fields.js';
 
 const BASE = process.env.PUBLIC_BASE_URL || 'https://www.boomrome.com';
 
@@ -45,21 +47,53 @@ export default async function handler(req, res) {
     if (ownerId !== auth.uid) return res.status(403).json({ ok: false, error: 'not_your_contract' });
   }
 
+  // La completezza per parte (dizionario) + il messaggio che NOMINA i
+  // mancanti nella lingua della parte, col link dentro: il portal non
+  // ricalcola nulla, copia e manda.
+  let property = {}, tenant = null, landlord = null;
+  if (contract.propertyId) { try { property = (await fsGet('properties/' + contract.propertyId)) || {}; } catch (_) {} }
+  if (contract.tenantId) { try { tenant = await fsGet('users/' + contract.tenantId); } catch (_) {} }
+  if (property.ownerId) {
+    try {
+      const [u, ll] = await Promise.all([fsGet('users/' + property.ownerId).catch(() => null), fsGet('landlords/' + property.ownerId).catch(() => null)]);
+      landlord = { ...(ll || {}), ...(u || {}) };
+    } catch (_) {}
+  }
+  const ctx = { contract, property, tenant: tenant || {}, landlord: landlord || {} };
+  const propLabel = property.name || property.address || '';
+  const tenantUrl = schedaUrl(contractId, 'tenant');
+  const landlordUrl = schedaUrl(contractId, 'landlord');
+  const missT = FIELDS.missingFor('tenant', ctx, { lang: 'en' });
+  const missL = FIELDS.missingFor('landlord', ctx, { lang: 'it' });
+  const tName = contract.tenantName || (tenant && tenant.name) || '';
+  const lName = contract.landlordName || (landlord && landlord.name) || '';
+
   const cosign = (Array.isArray(contract.coTenants) ? contract.coTenants : [])
     .map((co, i) => (co && co.name ? {
       index: i,
       name: String(co.name).slice(0, 60),
       url: `${BASE}/sign?sign=${encodeURIComponent(cosignRef(contractId, i))}`,
       signed: !!co.signature,
+      // La Scheda del co-conduttore: la SUA riga RLI (CF, nascita, documento).
+      schedaUrl: schedaUrl(contractId, 'cotenant', i),
+      schedaLocked: schedaLocked(contract, 'cotenant', i),
+      missing: FIELDS.cotenantMissing(co).map(m => ({ key: m.key, label: m.label.en })),
+      message: FIELDS.missingMessage('tenant', FIELDS.cotenantMissing(co).map(m => ({ key: m.key, label: m.label, group: 'identity' })), { name: co.name, url: schedaUrl(contractId, 'cotenant', i), propLabel }),
     } : null))
     .filter(Boolean);
 
   return res.status(200).json({
     ok: true,
-    tenantUrl: schedaUrl(contractId, 'tenant'),
-    landlordUrl: schedaUrl(contractId, 'landlord'),
+    tenantUrl,
+    landlordUrl,
     tenantLocked: schedaLocked(contract, 'tenant'),
     landlordLocked: schedaLocked(contract, 'landlord'),
+    template: FIELDS.templateOf(contract),
+    missing: { tenant: missT, landlord: missL, operator: FIELDS.missingFor('operator', ctx, { lang: 'it' }) },
+    messages: {
+      tenant: FIELDS.missingMessage('tenant', missT, { name: tName, url: tenantUrl, propLabel }),
+      landlord: FIELDS.missingMessage('landlord', missL, { name: lName, url: landlordUrl, propLabel }),
+    },
     ...(cosign.length ? { cosign } : {}),
   });
 }

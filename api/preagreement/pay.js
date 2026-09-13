@@ -69,7 +69,7 @@ export default async function handler(req, res) {
       success_url: 'https://www.boomrome.com/pre-agreement?t=' + token + '&paid=1',
       cancel_url: 'https://www.boomrome.com/pre-agreement?t=' + token,
     });
-    fsPatch(`preAgreements/${id}`, { checkoutSessionId: session.id }).catch(() => {});
+    await fsPatch(`preAgreements/${id}`, { checkoutSessionId: session.id }).catch(() => {});
     return res.status(200).json({ ok: true, checkoutUrl: session.url });
   } catch (e) {
     console.error('[preagreement/pay] failed:', e.message);

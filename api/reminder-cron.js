@@ -335,6 +335,17 @@ export default async function handler(req, res) {
       } catch (e) { results.errors.push(`pa-locks: ${e.message}`); }
     }
 
+    // ── Scadenze doppie lasciate dalla tempesta di retry del finalize
+    // (13/09/2026: 200 doppioni su un solo contratto, nessuno le puliva
+    // perché la bonifica girava solo su 🔄 Rifinalizza). Una volta al
+    // giorno, alle 04 UTC: una query, poi le cancellazioni. ──
+    if (now.getUTCHours() === 4 && now.getUTCMinutes() < 15) {
+      try {
+        const { sweepFinalizeDuplicates } = await import('./sign/_finalize.js');
+        results.deadlineDupes = await sweepFinalizeDuplicates();
+      } catch (e) { results.errors.push(`dl-dupes: ${e.message}`); }
+    }
+
     // ── Hold €300: la riserva scaduta (48h) libera la casa e Telegram
     // ricorda all'operatore il rimborso. Nello stesso giro, il one-shot
     // Lotto 12 sana i dati del catalogo UNA volta (marker heartbeat —

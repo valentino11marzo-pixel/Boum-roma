@@ -22,7 +22,7 @@
 // Response 4xx: { ok:false, error }
 
 import { fsGet, fsPatch, fsList, readJson, logActivity } from '../homie/_lib.js';
-import { findContractByToken, commitWrites, fsGetWithTime, tenantSideComplete, setCors, rateOk } from './_shared.js';
+import { findContractByToken, commitWrites, fsGetWithTime, tenantSideComplete, termsFingerprint, mandateCheck, setCors, rateOk } from './_shared.js';
 
 // ── TERMS FREEZE ──────────────────────────────────────────────────────────
 // L'impronta dei termini ECONOMICI del contratto. La prima firma la congela
@@ -30,18 +30,9 @@ import { findContractByToken, commitWrites, fsGetWithTime, tenantSideComplete, s
 // successiva la ricalcola sui valori CORRENTI e rifiuta con 409
 // terms_changed se qualcuno ha toccato canone/date/deposito nel mezzo —
 // nessuno controfirma mai condizioni diverse da quelle già firmate.
-// Esportata e testata.
-export function termsFingerprint(c) {
-  return [
-    'rent:' + Number(c.rent || 0),
-    'deposit:' + Number(c.deposit || 0),
-    'start:' + String(c.startDate || ''),
-    'end:' + String(c.endDate || ''),
-    'cadence:' + ([1, 2, 3, 6, 12].includes(Number(c.installmentMonths)) ? Number(c.installmentMonths) : 1),
-    'type:' + String(c.type || ''),
-    'cedolare:' + (((c.cedolareSecca || 'si') !== 'no' && c.cedolareSecca !== false) ? 'si' : 'no'),
-  ].join('|');
-}
+// Vive in _shared.js (la legge anche il MANDATO del conduttore: convert.js
+// la stampa sul mandato, qui si confronta). Ri-esportata per i test.
+export { termsFingerprint };
 
 // Canonical consent — MUST equal sign.html's CONSENT and _finalize.js's
 // MS_CONSENT: the certificate attests exactly this text.
@@ -126,6 +117,31 @@ export default async function handler(req, res) {
   // attempt that DID record the signature) render the right success state.
   if (already) return res.status(410).json({ ok: false, error: 'already_signed', role, signatureStatus: contract.signatureStatus || 'partial' });
 
+  // ── IL MANDATO DEL CONDUTTORE ──────────────────────────────────────────
+  // L'operatore può firmare AL POSTO del conduttore SOLO con un mandato
+  // scritto (conferito dal cliente sulla proposta, `tenantMandate`) e SOLO
+  // se i termini del contratto sono ESATTAMENTE quelli su cui il mandato è
+  // stato dato (termsHash). `tenantDelegate` senza mandato = 403, mai una
+  // firma; termini cambiati dopo il mandato = 409, mai una firma. Il ramo
+  // locatore resta quello di sempre (landlordDelegate è una delega
+  // dell'operatore a sé stesso concordata col proprietario).
+  const tenantDele = (role === 'tenant' && contract.tenantDelegate && contract.tenantDelegate.name) ? contract.tenantDelegate : null;
+  if (tenantDele) {
+    // mandateCheck (una copia, _shared.js): v2 confronta il contratto di
+    // ADESSO con la foto presa all'accettazione (immobile, parti, modello,
+    // date, soldi, clausole); v1 legacy resta sul termsFingerprint.
+    const chk = mandateCheck(contract);
+    if (chk.reason === 'mandate_missing') {
+      alertSignFailure(contractId, role, 'mandate_missing', 'firma per conto del conduttore senza mandato scritto');
+      return res.status(403).json({ ok: false, error: 'mandate_missing' });
+    }
+    if (!chk.ok) {
+      const changed = chk.diff.map(d => d.key);
+      alertSignFailure(contractId, role, 'mandate_terms_changed', 'le condizioni non sono più quelle del mandato' + (changed.length ? ': ' + changed.join(', ') : ''));
+      return res.status(409).json({ ok: false, error: 'mandate_terms_changed', changed });
+    }
+  }
+
   // ── 2. Build the signature update for the contract ──────
   const id = body.identity || {};
   // Il CF entra normalizzato (maiuscolo, senza spazi) — la validazione
@@ -201,6 +217,19 @@ export default async function handler(req, res) {
     upd.tenantConsentText = consent.text;
     upd.tenantConsentHash = consent.hash;
     upd.tenantConsentAt = nowISO;
+    // Firma per mandato: si registra CHI ha firmato davvero e su quale
+    // mandato (riferimento, data, hash del testo) — la pagina firme e il
+    // certificato lo stampano, l'audit lo trova.
+    if (tenantDele) {
+      const m = contract.tenantMandate || {};
+      upd.tenantSignedByDelegate = {
+        ...tenantDele,
+        signedAt: nowISO,
+        mandateRef: m.ref || '',
+        mandateAt: m.at || '',
+        mandateHash: m.hash || '',
+      };
+    }
     // Il token NON si azzera più: chi riapre il proprio link deve vedere
     // "Hai già firmato ✓" (lookup 410), non "Link not valid". La firma
     // registrata blocca comunque ogni ri-uso (check already qui e in lookup).
@@ -298,7 +327,7 @@ export default async function handler(req, res) {
   if (fresh.signedTermsHash && fresh.signedTermsHash !== currentTermsHash) {
     try {
       const { fsCreate } = await import('../homie/_lib.js');
-      fsCreate('agentNotifications', {
+      await fsCreate('agentNotifications', {
         type: 'contract.terms_changed',
         summary: `⚠ Termini modificati DOPO una firma · ${contractId} — controfirma BLOCCATA (serve nuova versione del contratto)`,
         priority: 'urgent',
@@ -372,7 +401,12 @@ export default async function handler(req, res) {
       } catch (e) {
         if (/FAILED_PRECONDITION|precondition/i.test(String(e.message || ''))) {
           const again = await fsGet('contracts/' + contractId).catch(() => null);
-          const nowSigned = again && (role === 'tenant' ? again.tenantSignature : again.landlordSignature);
+          // Stessa logica di ruolo del check iniziale: un co-conduttore in
+          // gara guardava landlordSignature e, a locatore già firmato,
+          // riceveva 410 senza che la SUA firma fosse mai stata scritta.
+          const nowSigned = again && (role === 'tenant' ? again.tenantSignature
+            : role === 'cotenant' ? (((again.coTenants || [])[coIndex] || {}).signature)
+            : again.landlordSignature);
           if (nowSigned) return res.status(410).json({ ok: false, error: 'already_signed', role, signatureStatus: (again && again.signatureStatus) || 'partial' });
           await fsPatch('contracts/' + contractId, upd);   // conflitto su ALTRI campi: riprova secca
         } else { throw e; }
@@ -403,6 +437,32 @@ export default async function handler(req, res) {
         fullySigned = false;
       }
     } catch (e) { console.warn('[magic-sign/submit] race re-read:', e.message); }
+  }
+
+  // ── 4c. La firma si STAMPA anche sulla proposta (rail pre-agreement) ──
+  // LA LEZIONE DEL 12 SETTEMBRE 2026 (il caso Inês, Viale Angelico 9): la
+  // console pre-agreement legge SOLO il documento della proposta — e
+  // nessuno le scriveva mai che il contratto era stato firmato. Il deal
+  // restava «paid · 🖊 Reinvia Magic Sign · dopo la firma dell'inquilino…»
+  // per sempre, l'operatore rimandava il link e il cliente si vedeva dire
+  // «hai già firmato». La firma ERA sul contratto: mancava il riflesso.
+  // Best-effort, dopo il write che conta, SOLO su una proposta che esiste
+  // (precondizione exists:true — mai una proposta fantasma).
+  {
+    const paId = String(fresh.preAgreementId || '').trim();
+    if (paId) {
+      const stamp = {
+        contractId,
+        contractSignatureStatus: upd.signatureStatus,
+        contractSignatureAt: nowISO,
+      };
+      if (role === 'tenant') stamp.tenantSignedAt = nowISO;
+      else if (role === 'landlord') stamp.landlordSignedAt = nowISO;
+      else stamp.coTenantsSignedAt = nowISO;
+      if (fullySigned) stamp.contractFullySignedAt = nowISO;
+      try { await commitWrites([{ docPath: 'preAgreements/' + paId, fields: stamp, precondition: { exists: true } }]); }
+      catch (e) { console.warn('[magic-sign/submit] pa stamp:', e.message); }
+    }
   }
 
   // ── 5. Sync signer profile (best-effort; do not fail the sign) ──
@@ -659,8 +719,10 @@ export default async function handler(req, res) {
   // - if only one signed → contract.signed/low (informational; the
   //   missing signer may need a nudge)
   try {
+    // Atteso: è la card Telegram «contratto firmato» — persa se la
+    // funzione viene congelata dopo la risposta (la lezione del 13/09).
     const { fsCreate } = await import('../homie/_lib.js');
-    fsCreate('agentNotifications', {
+    await fsCreate('agentNotifications', {
       type: 'contract.signed',
       summary: fullySigned
         ? `Contratto firmato da TUTTI · ${contractId} (chiudere il flow)`

@@ -95,7 +95,7 @@ export default async function handler(req, res) {
 
   const ref = parseSchedaRef(body && body.t);
   if (!ref) return res.status(404).json({ ok: false, error: 'invalid_link' });
-  const { contractId, role } = ref;
+  const { contractId, role, coIndex } = ref;
 
   const raw = body.base64 || '';
   if (!raw) return res.status(400).json({ ok: false, error: 'no_data' });
@@ -133,8 +133,14 @@ export default async function handler(req, res) {
     const dlToken = String(meta.downloadTokens || '').split(',')[0];
     const url = `https://firebasestorage.googleapis.com/v0/b/${BUCKET}/o/${encodeURIComponent(path)}?alt=media${dlToken ? '&token=' + dlToken : ''}`;
 
+    // Il documento di un CO-CONDUTTORE è un documento lato conduttori
+    // (role 'tenant', come lo leggono checklist ASPI, pack e foglio) e porta
+    // l'indice della sua riga (tenantIndex, la stessa convenzione di
+    // convert.js), così la sua Scheda conta i suoi file.
     docs.push({
-      url, path, name: safeName, contentType, bytes: buf.length, role,
+      url, path, name: safeName, contentType, bytes: buf.length,
+      role: role === 'cotenant' ? 'tenant' : role,
+      ...(role === 'cotenant' ? { tenantIndex: (Number(coIndex) || 0) + 1 } : {}),
       at: new Date().toISOString(),
       ip: (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown',
     });

@@ -235,7 +235,7 @@ async function buildExcludeSets() {
     fsList('contracts', { limit: 800 }),
     fsList('users', { limit: 2000 }),
     fsList('pfsClients', { limit: 400 }),
-    fsList('viewings', { limit: 600 }),
+    fsList('viewingRequests', { limit: 600 }),   // la collection VERA delle visite (slots.js scrive qui; 'viewings' non ha regola → 403 che faceva saltare l'intera Promise.all)
   ]);
   const excludePhones = new Set();
   const addAll = p => { for (const f of phoneVariants(p)) excludePhones.add(f); };

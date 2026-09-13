@@ -59,8 +59,9 @@ ok(!/type:/.test(src('api/preagreement/_auto.js').slice(src('api/preagreement/_a
 ok(/leaseType\(type, le\)/.test(conv), 'convert deriva il tipo con la regola condivisa, non con un ternario locale');
 ok(/Student Housing \(Allegato C\)/.test(cons), 'la console pre-accordo OFFRE il contratto studenti');
 const call = cons.slice(cons.indexOf("fetch('/api/preagreement/convert'") - 600, cons.indexOf("fetch('/api/preagreement/convert'") + 400);
-ok(/type:\s*isStud\s*\?\s*'studenti'\s*:\s*'transitorio'/.test(call), 'la conversione PASSA il tipo (prima non lo faceva mai)');
-ok(/\/student\/i\.test\(String\(\(d\.lease/.test(call), 'il tipo si deduce dal Tipo scelto sulla proposta, non da un default');
+ok(/type:\s*isStud\s*\?\s*'studenti'\s*:\s*is32\s*\?\s*'3\+2'\s*:\s*'transitorio'/.test(call), 'la conversione PASSA il tipo (prima non lo faceva mai) — studenti, 3+2 o transitorio');
+ok(/isStud=\/student\/i\.test\(_lt\)/.test(call) && /_lt=String\(\(d\.lease\|\|\{\}\)\.type/.test(call), 'il tipo si deduce dal Tipo scelto sulla proposta, non da un default');
+ok(/3\+2 Canone concordato \(Allegato A\)/.test(cons), 'la console pre-accordo OFFRE anche il 3+2');
 
 // ── 1b. I dati che l'Allegato C nomina arrivano fin lì ──────────────────
 // Il modello dell'associazione scrive corso di studi e università DENTRO la
@@ -85,7 +86,11 @@ ok(/onchange="syncStud\(\)"/.test(cons) && /_st\.corsoStudi/.test(cons),
 const edit = app.slice(app.indexOf("if (type === 'editContract')"), app.indexOf("if (type === 'editContract')") + 9000);
 ok(/name="type"/.test(edit) && /Studenti universitari — Allegato C/.test(edit), 'il modale Modifica ha il campo Tipo');
 const upd = app.slice(app.indexOf('async function updateContract'), app.indexOf('async function updateContract') + 5200);
-ok(/type: data\.type === 'studenti' \? 'studenti' : 'transitorio'/.test(upd), 'updateContract SALVA il tipo (altrimenti il campo sarebbe finto)');
+ok(/type: data\.type === 'studenti' \? 'studenti' : data\.type === '3\+2' \? '3\+2' : 'transitorio'/.test(upd), 'updateContract SALVA il tipo (altrimenti il campo sarebbe finto) — anche il 3+2');
+ok(/3\+2 canone concordato — Allegato A/.test(edit), 'il modale Modifica offre anche il 3+2 (Allegato A)');
+ok(/is32\(env\.contract\) \? buildAllegatoA\(env\)/.test(cpdf), 'il dispatcher manda il 3+2 all\'Allegato A');
+ok(leaseType('3+2', {}) === '3+2' && leaseType(undefined, { type: '3+2 Canone concordato (Allegato A)' }) === '3+2' && leaseType(undefined, { type: 'Transitional Lease' }) === 'transitorio',
+  'leaseType: il 3+2 esplicito e quello letto dalla proposta; il transitorio resta transitorio');
 // IL BUCO CHE IL CAMPO TIPO APRIVA: passando a «studenti» il blocco coi dati
 // dell'Allegato C non c'era nemmeno nel modale (era reso solo se il contratto
 // era GIÀ studenti) — si cambiava modello e il PDF nasceva coi puntini.
@@ -95,7 +100,9 @@ ok(/const _isStudenti = \(data\.type \|\| _existingContract\.type\) === 'student
   'la verifica guarda il tipo SCELTO ORA, non quello con cui il contratto è nato');
 
 // ── 3. La firma in prima persona ────────────────────────────────────────
-const fo = app.slice(app.indexOf('function openFirmaOra'), app.indexOf('function openFirmaOra') + 6000);
+// Il pannello ha DUE card (delega del proprietario + mandato del conduttore):
+// la finestra copre l'intera funzione, fino a setDelega.
+const fo = app.slice(app.indexOf('function openFirmaOra'), app.indexOf('async function setDelega'));
 ok(fo.length > 500 && /window\.openFirmaOra/.test(app), 'il pannello 🖊 Firma ora esiste ed è globale');
 ok(/tenantSignToken/.test(fo) && /landlordSignToken/.test(fo), 'apre il link VERO di ciascuna parte (firma in presenza)');
 ok(/boomOpen\(/.test(fo), 'usa la consegna unica (niente window.open crudo)');
@@ -110,6 +117,72 @@ ok(/logActivity\(on \? 'delega_attivata'/.test(sd), 'la delega lascia traccia ne
 ok(/landlordDelegate/.test(src('api/magic-sign/lookup.js')) && /landlordDelegate/.test(src('api/magic-sign/submit.js')),
   'lookup e submit leggono la delega: il documento dirà «per conto di»');
 ok(/landlordDelegate/.test(src('sign.html')), 'la pagina di firma mostra la delega al firmatario');
+
+// ── 4. La console VEDE la firma (12/09/2026, il caso Inês) ──────────────
+// La console pre-agreement leggeva solo la proposta e nessuno le scriveva
+// che il contratto era firmato: il deal restava «paid · 🖊 Reinvia Magic
+// Sign» per sempre. Il giro vero (submit → stampa → send-sign onesto) è in
+// tests/notify/run.mjs §1f; qui le giunzioni sulla sorgente della console.
+const sub = src('api/magic-sign/submit.js');
+const ss = src('api/preagreement/send-sign.js');
+ok(/preAgreements\/' \+ paId/.test(sub) && /contractSignatureStatus: upd\.signatureStatus/.test(sub), 'submit STAMPA lo stato firma sulla proposta');
+ok(/precondition: \{ exists: true \}/.test(sub) && /currentDocument = \{ exists: true \}/.test(src('api/magic-sign/_shared.js')),
+  '… solo su una proposta che esiste: mai una proposta fantasma');
+const iSigned = ss.indexOf('if (sig.tenantSigned)'), iMail = ss.indexOf('await sendContractSignEmail(');
+ok(iSigned > -1 && iMail > -1 && iSigned < iMail, 'send-sign: il check «già firmato» sta PRIMA dell\'email (ordine)');
+ok(/alreadySigned: true/.test(ss) && /emailed: false/.test(ss), 'send-sign risponde lo stato invece di rimandare un link morto');
+ok(/function watchContract\(/.test(cons) && /collection\('contracts'\)\.doc\(id\)/.test(cons) && /onSnapshot\(take/.test(cons) && /get\(\{source:'server'\}\)\.then\(take\)/.test(cons),
+  'la console ascolta il contratto di ogni proposta convertita (realtime + fallback get)');
+ok(/if\(d\.contractId\)watchContract\(d\.contractId\)/.test(cons), '… agganciato all\'arrivo dei deal');
+ok(/function sigOfContract\(/.test(cons) && /function sigState\(/.test(cons) && /contractSignatureStatus/.test(cons),
+  'lo stato si deriva dalle FIRME presenti e ricade sulla stampa della proposta');
+const row = cons.slice(cons.indexOf('function paRow('), cons.indexOf('/* filters + search + KPIs */'));
+ok(/var sig=sigState\(d\)/.test(row) && /chip signed">✓ firmato/.test(row) && /chip signing">✍ firmato inquilino/.test(row), 'la riga dice chi ha firmato');
+const prim = row.slice(row.indexOf("(sig.status==='complete'"), row.indexOf('Reinvia Magic Sign'));
+ok(prim.length > 0 && /:\(sig\.tenantSigned\s*\?/.test(prim), '🖊 Reinvia Magic Sign NON compare quando l\'inquilino ha già firmato');
+ok(/📥 Contratto firmato/.test(row) && /🖊 Controfirma per delega/.test(row), 'a firma avvenuta: PDF firmato / controfirma per delega al posto dell\'invito');
+ok(/function nextStepLine\(/.test(cons) && /L’inquilino ha firmato/.test(cons) && /Contratto firmato da entrambi/.test(cons), 'il prossimo passo è scritto dal punto in cui il deal È');
+ok(/data-f="signed"/.test(cons) && /FILTER==='signed'\)return sigState\(d\)\.status==='complete'/.test(cons), 'filtro Firmati sulle firme, non sull\'etichetta');
+ok(/j\.alreadySigned/.test(cons) && /ha già firmato/.test(cons), 'sendSign() dice «ha già firmato» invece di ✓ Inviato');
+const fasc = cons.slice(cons.indexOf('window.fascicoloPA'), cons.indexOf('DOSSIER_SLOTS.forEach'));
+ok(/signedOk=sigF\.status==='complete'/.test(fasc) && !/\(contract\.signingCertificateUrl\|\|contract\.generatedPDF\)\|\|null/.test(fasc),
+  'Fascicolo ARPE: «Contratto firmato» spuntato SOLO a firme complete, non sul PDF generato');
+
+// ── 5. LE SCRITTURE DOPO LA RISPOSTA SI PERDONO (13/09/2026) ──────────
+// Su Vercel la funzione può essere congelata appena `res.json` parte: una
+// fsPatch lanciata senza await un attimo prima muore in volo. Il backup di
+// produzione lo dimostrava: la proposta di Inês senza signSentAt dopo un 🖊
+// andato a buon fine, quella di Léa senza contractId con il contratto firmato
+// da un mese. Regola di CLASSE, verificata scandagliando i tre rail: nessuna
+// scrittura di stato o ping può stare a inizio istruzione senza `await`.
+import { readdirSync, statSync } from 'node:fs';
+const walk = (dir) => readdirSync(join(ROOT, dir)).flatMap((n) => {
+  const p = join(dir, n);
+  return statSync(join(ROOT, p)).isDirectory() ? walk(p) : (n.endsWith('.js') ? [p] : []);
+});
+const railFiles = ['api/preagreement', 'api/magic-sign', 'api/sign'].flatMap(walk);
+const loose = [];
+for (const f of railFiles) {
+  src(f).split('\n').forEach((line, i) => {
+    if (/^\s*(fsPatch|fsCreate|commitWrites|logActivity|tgSend|tgNotify)\(/.test(line)) loose.push(`${f}:${i + 1}`);
+  });
+}
+ok(railFiles.length > 20, 'la scansione copre i tre rail (preagreement, magic-sign, sign)');
+ok(loose.length === 0, 'nessuna scrittura/ping fire-and-forget a inizio istruzione nei rail' + (loose.length ? ' — ' + loose.join(', ') : ''));
+ok(/async function backlinkPa\(/.test(conv) && /await backlinkPa\(\{ paId, pa, contractId, tenantSignToken: c\.tenantSignToken/.test(conv),
+  'convert: il ramo «contratto esiste già» ricuce il back-link della proposta orfana (atteso)');
+ok(/match \/viewings\/\{x\}/.test(src('firestore.rules')), 'firestore.rules: `viewings` ha una regola (prima: default-deny → 403 anche per l\'admin)');
+ok(/fsList\('viewingRequests', \{ limit: 600 \}\)/.test(src('api/leads/_richiamo.js')) && /fsList\('viewingRequests', \{ limit: 2000 \}\)/.test(src('api/homie/miniera.js')),
+  'Richiamo e Miniera leggono la collection VERA delle visite (viewingRequests)');
+ok(/sweepFinalizeDuplicates/.test(src('api/reminder-cron.js')) && /getUTCHours\(\) === 4/.test(src('api/reminder-cron.js')),
+  'la bonifica delle scadenze doppie gira dal cron, una volta al giorno');
+
+// ── 6. La console si ripara da sola e dice i binari morti ─────────────
+ok(/function contractIdOf\(/.test(cons) && /CONTRACTS\['pa_'\+d\.id\]/.test(cons), 'contractIdOf: il contratto dichiarato, o quello adottato da contracts/pa_<id>');
+ok(/watchContract\('pa_'\+d\.id,d\.id\)/.test(cons) && /update\(\{contractId:id,contractAdoptedAt/.test(cons), 'proposta senza contractId: si guarda contracts/pa_<id> e, se c\'è, si riscrive il back-link');
+ok(/data-f="nocontract"/.test(cons) && /FILTER==='nocontract'\)return paidOf\(d\)&&!contractIdOf\(d\)/.test(cons), 'filtro «Da contratto»: i pagati senza contratto, il binario morto reso visibile');
+ok(/contratto NON ancora creato nel sistema/.test(cons), 'la riga del pagato senza contratto lo DICE, con la mossa');
+ok(/!gotMoney&&!cid&&st!=='paid'\?'<button class="pbtn warn" onclick="revokePA/.test(cons) && /ACCETTATA \(non pagata\)/.test(cons), 'Revoca anche su accettato non pagato (con conferma), mai su pagato o contrattualizzato');
 
 console.log(`\n${fail ? '✗' : '✓'} firma: ${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);

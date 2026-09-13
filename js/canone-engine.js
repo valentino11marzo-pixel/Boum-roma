@@ -208,15 +208,22 @@
   }
 
   // ─── Zona: match per codice o per nome (substring, case-insensitive) ──
+  var STOP_WORDS = ['DELLA', 'DELLE', 'DEGLI', 'DELL', 'NELLA', 'SULLA', 'PORTA', 'MONTE', 'CORSO', 'VIALE',
+    'PIAZZA', 'PIAZZALE', 'LARGO', 'VICOLO', 'VILLA', 'VILLAGGIO', 'NUOVO', 'NUOVA', 'VECCHIO', 'VECCHIA',
+    'ALTO', 'ALTA', 'SANT', 'SANTA', 'SANTO', 'SANTI', 'ROMA', 'ITALIA', 'NORD', 'CENTRO', 'ANTICA', 'FIORELLI', 'COLLE'];
   function matchZone(text) {
     var t = String(text || '').toUpperCase().trim();
     if (!t) return null;
     for (var i = 0; i < ZONES.length; i++) if (ZONES[i].cod === t) return ZONES[i];
     var hits = ZONES.filter(function (z) { return t.indexOf(z.nome) !== -1 || z.nome.indexOf(t) !== -1; });
     if (hits.length === 1) return hits[0];
-    // parole singole: "TRASTEVERE LOFT" deve trovare TRASTEVERE
+    // parole singole: "TRASTEVERE LOFT" deve trovare TRASTEVERE — ma MAI
+    // su una parola che sta in mezza toponomastica: "Via DELLA Lungaretta"
+    // non e' DELLA VITTORIA, "Via di PORTA Pinciana" non e' PORTA PORTESE,
+    // "Via del MONTE" non e' MONTE MARIO. Sul foglio per ARPE una zona
+    // indovinata e' un dato falso: ambiguo → null (decide l'operatore).
     if (!hits.length) {
-      var words = t.split(/[^A-ZÀ-Ü']+/).filter(function (w) { return w.length >= 4; });
+      var words = t.split(/[^A-ZÀ-Ü']+/).filter(function (w) { return w.length >= 4 && STOP_WORDS.indexOf(w) === -1; });
       var found = ZONES.filter(function (z) {
         return words.some(function (w) { return z.nome.indexOf(w) !== -1; });
       });

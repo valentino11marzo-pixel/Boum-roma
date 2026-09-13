@@ -271,6 +271,12 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
 .consent input:checked{background:linear-gradient(180deg,var(--gold-light),var(--gold));border-color:var(--gold);box-shadow:0 0 16px rgba(212,175,55,.4)}
 .consent input::after{content:"";position:absolute;left:5px;top:4px;width:9px;height:5px;border:solid #1a1407;border-width:0 0 2px 2px;transform:rotate(-45deg) scale(0);transition:transform .25s var(--spring) .05s}
 .consent input:checked::after{transform:rotate(-45deg) scale(1)}
+.mandate{margin-top:16px;border:1px dashed var(--line-gold);border-radius:12px;padding:13px 15px;background:var(--gold-faint)}
+.mandate .mh{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:6px}
+.mandate .mh b{font-size:12px;letter-spacing:.8px;text-transform:uppercase;color:var(--gold);font-weight:400}
+.mandate .mh span{font-size:11px;color:var(--t3)}
+.mandate p{font-size:12px;color:var(--t2);line-height:1.6;margin:0}
+.mandate.given{border-style:solid}
 
 /* ── accepted / timeline ── */
 .issued{text-align:center;padding:44px 30px 40px}
@@ -518,6 +524,34 @@ function fail(status){$('load').style.display='none';$('errbox').style.display='
   }}
 
 function kv(k,v,sub){return '<div class="kv"><span class="k">'+k+'</span><span class="dots"></span><span class="v">'+v+(sub?' <small>· '+sub+'</small>':'')+'</span></div>';}
+/* I due testi che il cliente firma: COPIA di api/preagreement/_consent.js
+   (il test tests/preagreement/mandate.mjs pretende che siano identici —
+   l'hash registrato dal server è calcolato su QUESTE parole). */
+var PA_CONSENT_TEXT='I confirm my details are correct and I accept this pre-agreement, including the general conditions above. With this acceptance I also sign the rent calculation sheet of the Rome territorial agreement (Allegato 2/B) that accompanies the lease: the information about the property used for that sheet was provided by the parties.';
+var PA_MANDATE_TEXT='MANDATE TO SIGN. I appoint Egidi Immobiliare S.r.l. (BOOM), Via dei Coronari 181/184, 00186 Rome, as my representative to sign the lease agreement in my name and on my behalf, on exactly the terms accepted in this pre-agreement (property, rent, term, deposit, contract model of the Rome territorial agreement), with no changes. The mandate is free of charge and revocable in writing until the lease is signed. I will receive the signed lease and its signing certificate by email. I acknowledge that BOOM also assists the landlord: since the terms are fully predetermined here, no conflict of interest arises (art. 1395 Italian Civil Code).';
+/* La scheda di calcolo del canone (Allegato 2/B dell'accordo di Roma) che
+   il cliente firma con l'accettazione: si MOSTRA prima, coi fatti che il
+   server ha (lookup.scheda) — zona, superficie, parametri, fascia, il
+   canone pattuito e se rientra. Senza immobile collegato o con dati
+   mancanti la card lo DICE, non finge. Un numero mai inventato. */
+function schedaCard(){
+  var sc=PA.scheda;
+  if(!sc||!sc.linked)return '';
+  var it=function(n){n=Number(n)||0;return n.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2});};
+  var rows='';
+  if(sc.zonaCod)rows+=kv('Zone (accordo)',esc(sc.zonaCod)+(sc.zonaNome?' · '+esc(sc.zonaNome):''));
+  if(sc.mq)rows+=kv('Conventional surface',it(sc.sc||sc.mq)+' m²',sc.sc&&sc.sc!==sc.mq?('from '+it(sc.mq)+' m²'):null);
+  if(sc.nP!=null)rows+=kv('Parameters met',String(sc.nP)+' / 20');
+  if(sc.fascia)rows+=kv('Band',esc(sc.fascia)+(sc.subfascia?' · '+esc(sc.subfascia):''));
+  if(sc.cMax)rows+=kv('Maximum under the agreement','€ '+it(sc.cMax)+' / month');
+  rows+=kv('Agreed rent','€ '+it(sc.pattuito)+' / month',(sc.fits===true?'within the band':(sc.fits===false?'above the band — declared on the sheet':null)));
+  var gaps=(sc.gaps||[]).map(function(g){return {zona:'zone',mq:'surface',catasto:'cadastral data',canone:'rent'}[g]||g});
+  return '<div class="card">'+secH(4,'Rent calculation sheet (Allegato 2/B)')
+    +'<p style="font-size:12.5px;color:var(--t2);line-height:1.65;margin:0 0 10px">The Rome territorial agreement requires a calculation sheet signed by the parties, attached to the lease. By accepting this proposal you also sign it. These are the facts that will be printed on it:</p>'
+    +rows
+    +(gaps.length?'<p style="font-size:11.5px;color:var(--t3);margin:10px 0 0">Still to complete on the sheet: '+esc(gaps.join(', '))+' — your advisor fills these in from the property file; nothing is required from you.</p>':'')
+    +'</div>';
+}
 function fld(id,label,val,req,type){
   return '<label class="fld'+(req?' req':'')+'"><input id="'+id+'" type="'+(type||'text')+'" value="'+esc(val||'')+'" placeholder=" " autocomplete="off"><span>'+label+'</span>'
     +'<svg class="tick" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></label>';
@@ -731,6 +765,7 @@ function renderStep1(){
     +'</div>'
     +'<div class="card">'+secH(2,'Financial terms')+moneyRows()+'</div>'
     +'<div class="card">'+secH(3,'General conditions')+condList(null)+'</div>'
+    +schedaCard()
     /* Il documento si può LEGGERE in PDF anche prima di accettare — come
        nel Magic Sign si legge il contratto prima di firmare. Arriva con la
        filigrana PREVIEW finché non c'è la firma. */
@@ -996,7 +1031,22 @@ function renderStep4(){
       +(Object.keys(UP).length?' · <span class="ok">●</span> ID document received':'')
       +'<br>on signing: timestamp + IP + consent hash are sealed with this act</div>'
     +'<label class="consent"><input type="checkbox" id="paOk" onchange="barSync()">'
-    +'<span>I confirm my details are correct and I accept this pre-agreement, including the general conditions above.</span></label>'
+    +'<span>'+esc(PA_CONSENT_TEXT)+'</span></label>'
+    /* IL MANDATO A FIRMARE — spunta A PARTE, mai pre-selezionata, mai
+       obbligatoria: chi la lascia vuota firma il contratto col proprio link
+       come sempre. Chi la dà autorizza BOOM a sottoscrivere il contratto in
+       suo nome SOLO a questi termini (il server confronta l'impronta dei
+       termini al momento della firma: un canone diverso = mandato nullo).
+       Il testo è quello di api/preagreement/_consent.js, parola per parola:
+       submit ne registra l'hash, il PDF lo ristampa. */
+    +(PA.askMandate===true
+      ?'<div class="mandate" id="mandateBox">'
+        +'<div class="mh"><b>Optional · Mandate to sign</b><span>so you don’t have to come back for the lease signature</span></div>'
+        +'<p>'+esc(PA_MANDATE_TEXT)+'</p>'
+        +'<label class="consent" style="margin-top:8px"><input type="checkbox" id="paMandate" onchange="barSync()">'
+        +'<span>I give BOOM this mandate. If I prefer to sign the lease myself, I leave this unticked and I’ll receive my personal signing link by email.</span></label>'
+        +'</div>'
+      :'')
     +'<p class="err" id="paErr" role="alert"></p>'
     +'</div>';
   html+='</div></div>';
@@ -1077,6 +1127,10 @@ function renderAccepted(){
     if(!(tt.signature||tt.fullName))return;
     html+='<div class="signwrap" style="max-width:360px;margin:20px auto 0;text-align:left"><div class="cap"><span>Signed · Roma</span><span>'+esc((PA.acceptedAt||'').slice(0,10))+'</span></div><div class="signature">'+esc(tt.signature||tt.fullName)+'</div><svg class="sigflr draw" viewBox="0 0 200 12" preserveAspectRatio="none" aria-hidden="true"><path d="M2 8 C 40 2, 92 12, 132 6 S 190 3, 198 7"/></svg><div class="who">'+esc(tt.fullName||'')+'</div></div>';
   });
+  if(PA.mandate&&PA.mandate.at){
+    html+='<div class="mandate given" style="max-width:430px;margin:18px auto 0;text-align:left"><div class="mh"><b>✓ Mandate to sign given</b><span>'+esc(String(PA.mandate.at).slice(0,10))+'</span></div>'
+      +'<p>BOOM will sign the lease in your name on exactly these terms. You’ll receive the signed contract and its certificate by email — nothing else to do. You can revoke it in writing any time before the lease is signed.</p></div>';
+  }
   if(stillDue){
     html+='<div style="max-width:430px;margin:20px auto 0"><button class="gbtn" id="payNowBtn" onclick="payNow()">Complete your reservation — '+eur(m.dueAtSigning)+' via Stripe →</button>'
       +'<p style="font-size:11px;color:var(--t3);margin-top:9px">Secured by Stripe · credited to your first month · refunded in full within 48h</p></div>';
@@ -1192,8 +1246,9 @@ function barSync(){
     btn.innerHTML=Number(m.dueAtSigning)>0
       ?('<span class="paylock"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Accept &amp; sign — '+eur(m.dueAtSigning)+' due now</span>')
       :'Accept & sign';
+    var mnd=$('paMandate');
     hint.innerHTML=ok&&ok.checked
-      ?'<span style="color:var(--green)">●</span> Stripe · carte &amp; Apple Pay · rimborsabile entro 48h · legalmente registrato'
+      ?('<span style="color:var(--green)">●</span> '+(mnd&&mnd.checked?'Mandate included — BOOM will sign the lease for you on these exact terms':'Stripe · cards &amp; Apple Pay · refundable within 48h · legally recorded'))
       :'Tick the consent box above to enable signing';
   }
 }
@@ -1230,7 +1285,7 @@ function accept(){
   err.style.display='none';
   var btn=$('abarBtn');btn.disabled=true;btn.textContent='Signing…';
   fetch('/api/preagreement/submit',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({token:TOKEN,tenant:tenant,tenants:tenants,accept:true,addons:ADDONS})})
+    body:JSON.stringify({token:TOKEN,tenant:tenant,tenants:tenants,accept:true,addons:ADDONS,mandate:!!($('paMandate')&&$('paMandate').checked)})})
   .then(function(r){return r.json()})
   .then(function(j){
     /* L'appartamento è stato chiuso da un altro candidato mentre questa

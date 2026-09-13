@@ -170,7 +170,10 @@ IP = '1.2.3.2';
   r = mkRes();
   await submit(mkReq({ t: schedaRef('ctr1', 'tenant'), identity: ID, phone: '+39 333 1234567' }), r);
   const c = store.get('contracts/ctr1');
-  check('submit: 200 + complete', r.code === 200 && r.body.ok && r.body.complete === true);
+  // Identità completa ≠ contratto senza puntini: mancano ancora conviventi e
+  // (transitorio) il motivo — la risposta li NOMINA invece di dire «completa».
+  check('submit: 200 + identità scritta ma NON «complete» (il PDF avrebbe ancora puntini) + missing nominati', r.code === 200 && r.body.ok && r.body.complete === false
+    && Array.isArray(r.body.missing) && r.body.missing.some(m => m.key === 'cohabitants'));
   check('submit: campi contratto scritti', c.tenantCF === ID.cf && c.tenantDocIssuer === 'Questura' && c.tenantName === 'Mario Rossi');
   const u = store.get('users/u1');
   check('submit: profilo sync su ENTRAMBI gli schemi', u.cf === ID.cf && u.codiceFiscale === ID.cf && u.birthDate === ID.dob && u.idDocNumber === 'YA123');

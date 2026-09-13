@@ -94,6 +94,11 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
 .chip.reserve{color:#ffb27a;border:1px solid rgba(255,150,90,.4);background:rgba(255,150,90,.08)}
 /* i soldi sono un FATTO, non uno stato: si vedono su qualunque etichetta */
 .chip.money{color:#1a1407;background:linear-gradient(180deg,var(--gold-light),var(--gold))}
+/* lo stato della FIRMA, letto dal contratto (non dalla proposta) */
+.chip.signing{color:var(--green);border:1px solid rgba(74,222,158,.35)}
+.chip.signed{color:#062416;background:linear-gradient(180deg,#a8f2d0,var(--green))}
+.parow.st-signed::before{background:var(--green);box-shadow:0 0 10px rgba(74,222,158,.5)}
+.pbtn.prim.wa{background:rgba(37,211,102,.1)}
 .alertline{font-size:11.5px;color:#ffb27a;margin-top:8px;line-height:1.6;border-left:2px solid rgba(255,150,90,.45);padding-left:9px}
 .alertline b{color:#ffd0ac;font-weight:400}
 .nextstep{font-size:11px;color:var(--t3);margin-top:9px;padding-top:9px;border-top:1px solid var(--line-soft);line-height:1.6}
@@ -178,7 +183,7 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
       <div class="kpi"><div class="k">In corso</div><div class="v" id="kOpen">0</div></div>
       <div class="kpi green"><div class="k">Da chiudere</div><div class="v" id="kClose">0</div></div>
       <div class="kpi gold"><div class="k">Incassato</div><div class="v" id="kPaid">€0</div></div>
-      <div class="kpi"><div class="k">Contratti</div><div class="v" id="kContr">0</div></div>
+      <div class="kpi"><div class="k">Contratti firmati</div><div class="v" id="kContr">0</div></div>
     </div>
 
     <div class="tabs">
@@ -198,6 +203,8 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
           <button data-f="open" onclick="setFilter('open',this)">In corso<i></i></button>
           <button data-f="close" onclick="setFilter('close',this)">Da chiudere<i></i></button>
           <button data-f="paid" onclick="setFilter('paid',this)">Pagati<i></i></button>
+          <button data-f="signed" onclick="setFilter('signed',this)">Firmati<i></i></button>
+          <button data-f="nocontract" onclick="setFilter('nocontract',this)">Da contratto<i></i></button>
           <button data-f="reserve" onclick="setFilter('reserve',this)">Riserve<i></i></button>
           <button data-f="revoked" onclick="setFilter('revoked',this)">Revocati<i></i></button>
         </div>
@@ -234,7 +241,7 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
         <div class="g3">
           <label class="fld req"><span>Inizio</span><input id="fStart" type="date"></label>
           <label class="fld"><span>Mesi</span><input id="fMonths" type="number" value="12" min="1" max="48"></label>
-          <label class="fld"><span>Tipo</span><select id="fType" onchange="syncStud()"><option>Transitional Lease</option><option>Student Housing (Allegato C)</option><option>4+4 Residential</option><option>3+2 Concordato</option></select></label>
+          <label class="fld"><span>Tipo</span><select id="fType" onchange="syncStud()"><option>Transitional Lease</option><option>Student Housing (Allegato C)</option><option>3+2 Canone concordato (Allegato A)</option><option>4+4 Residential</option><option>3+2 Concordato</option></select></label>
         </div>
         <div id="studBox" style="display:none;border:1px solid var(--line-gold);background:var(--gold-faint);border-radius:12px;padding:12px 14px;margin-bottom:12px">
           <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);margin-bottom:9px">🎓 Dati dello studente — finiscono nell'Allegato C</div>
@@ -304,6 +311,8 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
           <button type="button" onclick="setXDoc('Last 3 payslips or proof of income')">Buste paga</button>
         </div>
         <label class="fld"><span>Secondo documento (facoltativo)</span><input id="fXDoc" placeholder="es. Proof of the transitional need (work contract / enrolment)"></label>
+        <p class="hintline" style="margin-top:12px">Con l'accettazione il cliente firma anche la <b>scheda di calcolo del canone</b> (Allegato 2/B) — dopo la firma del contratto esce già completa. Se lo scegli qui, può darti il <b>mandato a firmare</b> il contratto in sua vece agli stessi identici termini: spunta a parte sulla sua pagina, mai pre-selezionata. Riguarda <b>solo il conduttore principale</b> (i co-conduttori firmano col proprio link). Se le condizioni cambiano dopo l'accettazione, il mandato non vale più: il server rifiuta la firma e il portal mostra cosa è cambiato.</p>
+        <label class="fld" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="fMandate" style="width:auto"><span style="margin:0">Offri il mandato a firmare nella proposta (scelta esplicita, non attiva di default)</span></label>
       </div>
 
       <div class="card"><h2><span class="no">06</span><span class="tt">Cliente (prefill facoltativo)</span></h2>
@@ -438,6 +447,10 @@ function canoneLine(){
   var gear=' <a href="#" onclick="calibraAccordo();return false" title="Calibra accordo (ammobiliato %, soglie)" style="color:var(--t3);text-decoration:none">⚙</a>';
   if(!zona){el.innerHTML='<span style="color:var(--t3)">Canone concordato: zona non riconosciuta'+(zonaText?' («'+zonaText.slice(0,28)+'»)':'')+' — verifica con ARPE</span>'+gear;return;}
   if(!p||!p.sqm){el.innerHTML='<span style="color:var(--t3)">Zona <b>'+zona.cod+'</b> ('+zona.nome+') · fascia B '+zona.bMin+'–'+zona.bMax+' €/mq — seleziona una proprietà con mq per il verdetto</span>'+gear;return;}
+  /* La scheda ARPE che il cliente firma con l'accettazione stampa anche i
+     dati catastali: senza, esce con una riga vuota. Lo si dice QUI, dove
+     si compila — non dopo la firma. */
+  var schedaGap=(!p.cadastralData&&!(p.foglio&&p.particella))?' · <span style="color:#E08573">scheda 2/B: manca il catasto sull\'immobile</span>':'';
   var s=window.BOOM_CANONE.solve({zona:zona,mq:p.sqm,canone:rent,tipo:'trans',features:p.features||[],
     furnished:p.furnished,energyClass:p.energyClass,floorText:p.floor,cfg:CANONE_CFG||{}});
   if(!s.ok){el.innerHTML='<span style="color:var(--t3)">Canone: '+s.error+'</span>'+gear;return;}
@@ -445,7 +458,7 @@ function canoneLine(){
   el.innerHTML=(s.fits
     ? '<b style="color:var(--gold)">✓ IN FASCIA '+s.fascia+'</b> ('+zona.cod+' · '+s.nP+' parametri) — max asseverabile <b>€ '+max+'</b>/mese'
     : '<b style="color:#E08573">⚠ FUORI FASCIA di € '+(s.canone-s.cMax).toLocaleString('it-IT',{maximumFractionDigits:0})+'</b> ('+zona.cod+' · fascia '+s.fascia+', max € '+max+') — riporta il canone o verifica i parametri')
-    +gear;
+    +schedaGap+gear;
 }
 var _origMathLine=mathLine;
 mathLine=function(){_origMathLine();loadCanoneCfg().then(canoneLine);};
@@ -515,6 +528,7 @@ function readForm(){
     property:{address:$('fAddress').value.trim(),floor:$('fFloor').value.trim()||null,unit:$('fUnit').value.trim()||null,condition:$('fCondition').value.trim()||'Furnished',type:'Entire Apartment',use:'Residential'},
     landlord:{name:$('fLandlord').value.trim(),email:$('fLEmail').value.trim()||null,phone:$('fLPhone').value.trim()||null},
     extraDoc:$('fXDoc').value.trim()||null,
+    askMandate:!!$('fMandate').checked,
     validUntil:$('fValid').value||null,
     tenant:{fullName:$('fTName').value.trim()||null,email:$('fTEmail').value.trim()||null,phone:$('fTPhone').value.trim()||null},
     lease:{startDate:start,months:months,endDate:start?endDateISO(start,months):null,type:$('fType').value,lawRef:'uso transitorio · L.431/98 art.5 c.1',reason:$('fReason').value.trim()||null,studenti:readStud()},
@@ -549,7 +563,7 @@ window.createPA=async function(){
       /* update in place — same token, same link, status back to sent */
       await firebase.firestore().collection('preAgreements').doc(EDIT_ID).update({
         listingId:body.listingId,propertyId:body.propertyId,autoConvert:!!body.propertyId,
-        property:body.property,landlord:body.landlord,extraDoc:body.extraDoc,validUntil:body.validUntil,
+        property:body.property,landlord:body.landlord,extraDoc:body.extraDoc,askMandate:body.askMandate,validUntil:body.validUntil,
         tenant:body.tenant,tenants:[body.tenant],lease:body.lease,money:body.money,
         extras:body.extras,customClauses:body.customClauses,note:body.note,
         status:'sent',updatedAt:new Date().toISOString(),updatedBy:USER.email||USER.uid
@@ -573,12 +587,103 @@ window.copyLink=function(){try{navigator.clipboard.writeText($('rLink').textCont
 
 /* ── deals list ── */
 var PAS=[],FILTER='all';
+/* ── LO STATO DELLA FIRMA SI LEGGE DAL CONTRATTO ────────────────────────
+   La lezione del 12/09/2026 (Inês, Viale Angelico 9): questa console
+   leggeva SOLO la proposta, e nessuno le scriveva mai che il contratto
+   era stato firmato — il deal restava «paid · 🖊 Reinvia Magic Sign ·
+   dopo la firma dell'inquilino…» per sempre, l'operatore rimandava il
+   link e il cliente leggeva «hai già firmato». La firma ERA sul
+   contratto: mancava il riflesso. Ora ogni proposta con contractId
+   ascolta il SUO contratto (onSnapshot + fallback get: il canale realtime
+   può non aprirsi mai — stessa disciplina di watchPAs) e la riga dice la
+   verità: chi ha firmato, quando, cosa manca. La stampa che submit.js e
+   send-sign lasciano sulla proposta è il ripiego quando il contratto non
+   è (ancora) leggibile. */
+var CONTRACTS={},CWATCH={},HEALED={},_rt=null;
+function scheduleRender(){if(_rt)return;_rt=setTimeout(function(){_rt=null;renderList();},80);}
+/* Una proposta convertita ha SEMPRE il contratto `pa_<id>` (id
+   deterministico in convert.js). Se la proposta non porta contractId — il
+   back-link si è perso dopo la risposta (13/09/2026, il caso Léa: contratto
+   firmato il 14/08, proposta ancora «paid · → Contratto») — si guarda
+   direttamente lì: se esiste, la riga lo ADOTTA e il contractId viene
+   riscritto sulla proposta, così la sanatoria è fatta al primo sguardo. */
+function watchContract(id,adoptFor){
+  if(!id||CWATCH[id]||Object.keys(CWATCH).length>=400)return;
+  CWATCH[id]=true;
+  var ref=firebase.firestore().collection('contracts').doc(id),got=false;
+  var take=function(s){
+    got=true;CONTRACTS[id]=s.exists?(s.data()||{}):{missing:true};
+    if(s.exists&&adoptFor&&!HEALED[adoptFor]){
+      HEALED[adoptFor]=true;
+      try{firebase.firestore().collection('preAgreements').doc(adoptFor).update({contractId:id,contractAdoptedAt:new Date().toISOString()}).catch(function(e){console.warn('adopt',adoptFor,e);});}catch(e){}
+    }
+    scheduleRender();
+  };
+  var once=function(){if(got)return;ref.get({source:'server'}).then(take).catch(function(){});};
+  try{ref.onSnapshot(take,function(e){console.warn('contract watch',id,e);once();});}catch(e){once();}
+  setTimeout(once,6000);
+}
+/* il contratto di una proposta: quello dichiarato, o quello adottato */
+function contractIdOf(d){
+  if(!d)return null;
+  if(d.contractId)return d.contractId;
+  var c=CONTRACTS['pa_'+d.id];
+  return (c&&!c.missing)?('pa_'+d.id):null;
+}
+function isoOf(v){if(!v)return '';if(typeof v==='string')return v;try{if(typeof v.toDate==='function')return v.toDate().toISOString();if(v.seconds)return new Date(v.seconds*1000).toISOString();}catch(e){}return String(v);}
+/* i FATTI (le firme presenti) battono l'etichetta signatureStatus */
+function sigOfContract(c){
+  c=c||{};
+  var tS=!!c.tenantSignature,lS=!!c.landlordSignature;
+  var status=(c.signatureStatus==='complete'||(tS&&lS))?'complete':(tS||lS||c.signatureStatus==='partial')?'partial':'none';
+  return {status:status,tenantSigned:tS||status==='complete',landlordSigned:lS||status==='complete',
+    tenantAt:isoOf(c.tenantSignedAt),landlordAt:isoOf(c.landlordSignedAt),fullyAt:isoOf(c.fullySignedAt),
+    pdf:c.signedPdfUrl||null,cert:c.signingCertificateUrl||null,finalized:!!c.finalizedAt,loaded:true};
+}
+function sigState(d){
+  var cid=contractIdOf(d);
+  var c=cid?CONTRACTS[cid]:null;
+  if(c&&!c.missing)return sigOfContract(c);
+  /* ripiego: la stampa lasciata da submit.js / send-sign sulla proposta */
+  var st=(d&&d.contractSignatureStatus)||'none';
+  var tA=isoOf(d&&d.tenantSignedAt),lA=isoOf(d&&d.landlordSignedAt);
+  if(st!=='complete'&&tA&&lA)st='complete';
+  if(st==='none'&&(tA||lA))st='partial';
+  return {status:st,tenantSigned:!!tA||st==='complete',landlordSigned:!!lA||st==='complete',
+    tenantAt:tA,landlordAt:lA,fullyAt:isoOf(d&&d.contractFullySignedAt),pdf:null,cert:null,finalized:false,loaded:false};
+}
+/* il prossimo passo, dal punto in cui il deal è DAVVERO */
+function nextStepLine(d,sig,st,m){
+  var day=function(v){return v?String(v).slice(0,10):'—'};
+  var tail=(st==='accepted'&&(m.dueAtSigning||0)>0)?' <span style="color:var(--gold-light)">Pagamento ancora in sospeso.</span>':'';
+  if(sig.status==='complete'){
+    return '✓ <b>Contratto firmato da entrambi</b> il '+day(sig.fullyAt||sig.landlordAt||sig.tenantAt)
+      +(sig.loaded?(sig.finalized?' — attivo: certificato FES, scadenze ed email di benvenuto partiti.':' — post-firma in corso (certificato, scadenze, email); se resta così, <b>Rigenera</b> sulla riga contratto del portal.'):'.')
+      +' Prossimo passo: <b>registrazione</b> (🏛 ASPI dal portal) e 📦 Fascicolo ARPE.'+tail;
+  }
+  if(sig.tenantSigned){
+    return '✍ <b>L’inquilino ha firmato</b> il '+day(sig.tenantAt)+' — manca la firma del proprietario: '
+      +(d.delegated?'apri il <b>link delega</b> e controfirma tu.':'mandagli il <b>link firma</b> (WhatsApp/copia).')
+      +' Il Magic Sign all’inquilino non serve più.'+tail;
+  }
+  var cid=contractIdOf(d);
+  return (d.signSentAt
+    ?'🖊 Magic Sign inviato il <b>'+day(d.signSentAt)+'</b> — in attesa della firma dell’inquilino; dopo, '+(d.delegated
+      ?'apri il <b>link delega</b> e controfirmi quando decidi tu, poi registrazione.'
+      :'manda il <b>link firma al proprietario</b> (WhatsApp/copia), poi registrazione.')
+    :(cid
+      ?'Contratto pronto (identità + documenti già dentro) — <b>🖊 Magic Sign</b> quando vuoi far firmare l’inquilino.'
+      :(d.propertyId
+        ?'Tutto pronto — <b>🖊 Magic Sign</b> crea il contratto e manda il link di firma all’inquilino, in un tocco.'
+        :'Prossimo passo → <b>→ Contratto</b> collega la proprietà e prepara il contratto (identità e termini già dentro). Se l’immobile non è nel portal, crealo prima da Immobili.')))+tail;
+}
 function fillForm(d){
   $('fAddress').value=(d.property||{}).address||'';$('fFloor').value=(d.property||{}).floor||'';
   $('fUnit').value=(d.property||{}).unit||'';$('fCondition').value=(d.property||{}).condition||'Furnished';
   $('fLandlord').value=(d.landlord||{}).name||'';
   $('fLEmail').value=(d.landlord||{}).email||'';$('fLPhone').value=(d.landlord||{}).phone||'';
   $('fXDoc').value=d.extraDoc||'';
+  $('fMandate').checked=d.askMandate===true;
   $('fValid').value=d.validUntil||'';
   $('fStart').value=(d.lease||{}).startDate||'';$('fMonths').value=(d.lease||{}).months||12;
   try{$('fType').value=(d.lease||{}).type||'Transitional Lease'}catch(e){}
@@ -619,6 +724,11 @@ window.editPA=function(id){
 window.cancelEdit=function(){EDIT_ID=null;EDIT_TOKEN=null;$('editbar').style.display='none';$('pageH').textContent='Nuovo pre-agreement';$('goBtn').textContent='Crea il link del pre-agreement →';};
 window.dupPA=function(id){var d=PAS.find(function(x){return x.id===id});if(!d)return;cancelEdit();showTab('new');fillForm(d);};
 window.revokePA=async function(id,undo){
+  if(!undo){
+    var d=PAS.find(function(x){return x.id===id})||{};
+    if(paidOf(d)||contractIdOf(d)){alert('Questa proposta è pagata o ha già un contratto: non si revoca.');return;}
+    if(d.status==='accepted'&&!confirm('Questa proposta è ACCETTATA (non pagata). Revocarla chiude il link del cliente e libera l’immobile. Confermi?'))return;
+  }
   try{await firebase.firestore().collection('preAgreements').doc(id).update({status:undo?'sent':'revoked',updatedAt:new Date().toISOString()});}catch(e){alert('Aggiornamento fallito: '+e.message);}
 };
 window.copyPaLink=function(tok){try{navigator.clipboard.writeText(location.origin+'/pre-agreement?t='+tok);}catch(e){}};
@@ -633,6 +743,16 @@ window.sendSign=async function(id,btn){
     var r=await fetch('/api/preagreement/send-sign',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({id:id})});
     var j=await r.json();
     if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
+    if(j.alreadySigned){
+      /* il server ha letto il contratto: firma già sopra, nessun link inviato
+         (un invito a firmare un contratto già firmato è un link morto) */
+      var when=j.tenantSignedAt?String(j.tenantSignedAt).slice(0,10):'';
+      if(btn)btn.textContent=j.signatureStatus==='complete'?'✓ Già firmato da entrambi':'✓ L’inquilino ha già firmato';
+      alert(j.signatureStatus==='complete'
+        ?'Il contratto è già firmato da entrambe le parti: nessun link inviato. La riga mostra lo stato reale.'
+        :'L’inquilino ha già firmato'+(when?' il '+when:'')+': nessun link inviato. Manca la firma del proprietario'+(j.delegate?' — apri il link delega e controfirma.':' — mandagli il link firma (WhatsApp/copia).'));
+      return;
+    }
     if(btn)btn.textContent=j.emailed?'✓ Inviato':'✓ Contratto pronto (email non partita)';
   }catch(e){
     if(btn){btn.disabled=false;btn.textContent='🖊 Riprova Magic Sign';}
@@ -734,9 +854,10 @@ window.convertPA=async function(id){
       // type:'studenti', ma la console non gliel'ha MAI passato — così ogni
       // contratto nasceva 'transitorio' e il PDF usciva con l'Allegato B
       // anche per uno studente. Il tipo si deduce dal Tipo della proposta.
-      var isStud=/student/i.test(String((d.lease||{}).type||''));
+      var _lt=String((d.lease||{}).type||'');
+      var isStud=/student/i.test(_lt), is32=/3\s*\+\s*2/i.test(_lt);
       var r=await fetch('/api/preagreement/convert',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
-        body:JSON.stringify({id:id,propertyId:propertyId,delegate:delegated,type:isStud?'studenti':'transitorio'})});
+        body:JSON.stringify({id:id,propertyId:propertyId,delegate:delegated,type:isStud?'studenti':is32?'3+2':'transitorio'})});
       var j=await r.json();
       if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
       var waT=t.phone?('https://wa.me/'+String(t.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! Il tuo contratto per '+addr+' è pronto per la firma digitale. Firmi qui in 2 minuti: '+j.tenantSignUrl)):null;
@@ -770,19 +891,29 @@ function loadJSZip(){return new Promise(function(ok,ko){if(window.JSZip)return o
 var DOSSIER_SLOTS=[['visura','Visura catastale'],['planimetria','Planimetria'],['ape','APE (attestato energetico)'],['delega','Delega/incarico ARPE firmato']];
 window.closeFasc=function(){var o=document.getElementById('fascov');if(o)o.remove();};
 window.fascicoloPA=async function(id){
-  var d=PAS.find(function(x){return x.id===id});if(!d||!d.contractId)return;
+  var d=PAS.find(function(x){return x.id===id});var cid=contractIdOf(d);if(!d||!cid)return;
   var db=firebase.firestore();
   var contract=null,property=null;
-  try{var cs=await db.collection('contracts').doc(d.contractId).get();if(cs.exists)contract=cs.data();}catch(e){}
+  try{var cs=await db.collection('contracts').doc(cid).get();if(cs.exists)contract=cs.data();}catch(e){}
   try{var pid=(contract&&contract.propertyId)||d.propertyId;if(pid){var ps=await db.collection('properties').doc(pid).get();if(ps.exists){property=ps.data();property.__id=pid;}}}catch(e){}
   var ups=Array.isArray(d.uploads)?d.uploads:[];
   var ids=ups.filter(function(u){return u.kind!=='extra'});
   var extra=ups.filter(function(u){return u.kind==='extra'});
   var dossier=(property&&property.dossier)||{};
-  var contractPdf=contract&&(contract.signingCertificateUrl||contract.generatedPDF)||null;
+  /* «Contratto firmato» è vero SOLO con le due firme sopra: prima il PDF
+     GENERATO (non firmato) veniva spuntato come «PDF con certificato di
+     firma» — un fascicolo che dichiarava firmato un contratto da firmare. */
+  var sigF=sigOfContract(contract||{});
+  var signedOk=sigF.status==='complete';
+  var cFiles=[];
+  if(signedOk&&(contract.signedPdfUrl||contract.generatedPDF))cFiles.push({folder:'01_Contratto',url:contract.signedPdfUrl||contract.generatedPDF,name:'Contratto_firmato.pdf'});
+  if(signedOk&&contract.signingCertificateUrl)cFiles.push({folder:'01_Contratto',url:contract.signingCertificateUrl,name:'Certificato_firma_FES.pdf'});
   /* the checklist — [label, ok, detailHtml, files[{folder,url,name}]] */
   var items=[
-    ['Contratto firmato',!!contractPdf,contractPdf?'PDF con certificato di firma':'in attesa delle firme (Magic Sign)',contractPdf?[{folder:'01_Contratto',url:contractPdf,name:'Contratto_firmato.pdf'}]:[]],
+    ['Contratto firmato',signedOk&&cFiles.length>0,
+      signedOk?(contract.signedPdfUrl?'PDF firmato'+(contract.signingCertificateUrl?' + certificato FES':''):'firmato da entrambi — PDF firmato non ancora generato (Rigenera dal portal)')
+        :(sigF.tenantSigned?'firmato dall’inquilino — manca il proprietario':'in attesa delle firme (Magic Sign)'),
+      cFiles],
     ['Scheda Allegato 2/B',null,'<a href="/scheda-canone" target="_blank" style="color:var(--gold)">genera dalla Scheda Canone →</a> e aggiungila a mano al fascicolo',[]],
     ['Documenti conduttore',ids.length>0,ids.length?ids.length+' file':'nessun documento caricato',ids.map(function(u,i){return {folder:'03_Conduttore',url:u.url,name:(u.name||'doc_'+(i+1))}})],
     ['Esigenza transitoria',!!((d.lease||{}).reason&&(extra.length||!d.extraDoc)),((d.lease||{}).reason?'clausola: '+esc((d.lease||{}).reason)+' · ':'')+(extra.length?extra.length+' documento/i di supporto':(d.extraDoc?'documento di supporto in attesa':'—')),extra.map(function(u,i){return {folder:'04_Transitorieta',url:u.url,name:(u.name||'doc_'+(i+1))}})]
@@ -831,13 +962,13 @@ window.fascicoloPA=async function(id){
       zip.file('INDICE.txt',
         'FASCICOLO ARPE — BOOM · Egidi Immobiliare S.r.l.\n'
         +'Deal: '+((d.tenant||{}).fullName||'')+' · '+((d.property||{}).address||'')+' · rif '+(d.ref||'')+'\n'
-        +'Contratto: '+d.contractId+' · generato '+new Date().toISOString().slice(0,10)+'\n\n'
+        +'Contratto: '+cid+' · generato '+new Date().toISOString().slice(0,10)+'\n\n'
         +'CONTENUTO\n'+files.map(function(f){return '  '+f.folder+'/'+f.name}).join('\n')
         +'\n\nDA AGGIUNGERE A MANO\n  02_Scheda_Allegato_2B (genera da boomrome.com/scheda-canone)\n'
         +(missing.length?missing.map(function(m){return '  MANCA: '+m}).join('\n')+'\n':''));
       var blob=await zip.generateAsync({type:'blob'});
       var a=document.createElement('a');a.href=URL.createObjectURL(blob);
-      a.download='Fascicolo_ARPE_'+String(d.ref||d.contractId).replace(/[^A-Za-z0-9-]/g,'')+'.zip';
+      a.download='Fascicolo_ARPE_'+String(d.ref||cid).replace(/[^A-Za-z0-9-]/g,'')+'.zip';
       a.click();setTimeout(function(){URL.revokeObjectURL(a.href)},4000);
       btn.disabled=false;btn.textContent='Scarica lo ZIP del fascicolo ↓';
     }catch(e){btn.disabled=false;btn.textContent='Scarica lo ZIP del fascicolo ↓';err.textContent='ZIP non riuscito — '+(e.message||'riprova');err.style.display='block';}
@@ -883,8 +1014,20 @@ function paRow(d){
   var done=(st==='accepted'||st==='paid');
   var gotMoney=paidOf(d),mismatch=gotMoney&&st!=='paid';
   var dueNow=Math.round(Number(m.dueAtSigning)||0)+Math.round(Number(d.addonsEur)||0);
+  var sig=sigState(d);   /* chi ha firmato il CONTRATTO, letto dal contratto */
+  var cid=contractIdOf(d);   /* dichiarato sulla proposta, o adottato da contracts/pa_<id> */
+  /* il deal PAGATO senza contratto è un binario morto: niente Magic Sign,
+     rate, journey, registrazione — e finora la riga non lo diceva */
+  var noContract=gotMoney&&!cid&&st!=='reserve';
   /* la riga che mancava: cosa c'è che non va, e la mossa per uscirne */
   var alertLine='';
+  if(noContract&&!mismatch){
+    var days=d.paidAt?Math.max(0,Math.round((Date.now()-new Date(d.paidAt).getTime())/86400000)):null;
+    alertLine='<div class="alertline"><b>💶 Pagato'+(d.paidAt?' il '+String(d.paidAt).slice(0,10):'')+(days!=null?' ('+days+' giorni fa)':'')+' — contratto NON ancora creato nel sistema</b>: '
+      +'senza contratto non partono Magic Sign, rate, journey né registrazione. '
+      +(d.propertyId?'Premi <b>🖊 Magic Sign</b>: crea il contratto e manda il link.':'Premi <b>→ Contratto</b> e scegli l’immobile'+(((d.property||{}).address)?' («'+esc(String((d.property||{}).address).slice(0,40))+'»)':'')+'; se non è nel portal, crealo prima da Immobili.')
+      +'</div>';
+  }
   if(mismatch){
     alertLine='<div class="alertline"><b>Pagamento incassato, stato fermo su «'+esc(st)+'»</b> — '
       +(d.paidEur?eur(d.paidEur)+' ':'')+(d.paidAt?'ricevuti il '+String(d.paidAt).slice(0,10)+'. ':'ricevuti. ')
@@ -902,24 +1045,30 @@ function paRow(d){
   var ups=Array.isArray(d.uploads)?d.uploads:[];
   var xGot=ups.some(function(u){return u&&u.kind==='extra'});
   var docsLine='';
+  if(d.mandate&&d.mandate.given){
+    docsLine+='<div class="docs" style="color:var(--gold)">🖊 Mandato a firmare ricevuto il '+esc(String(d.mandate.at||'').slice(0,10))+' — dopo la conversione puoi firmare TU per il conduttore (🖊 Firma ora nel portal)</div>';
+  }else if(done&&d.askMandate===true){
+    docsLine+='<div class="docs" style="color:var(--t3)">🖊 Mandato offerto ma non dato: il conduttore firma col suo link</div>';
+  }
   if(ups.length||d.extraDoc){
-    docsLine='<div class="docs">📎 '
+    docsLine+='<div class="docs">📎 '
       +(ups.length?ups.map(function(u,i){var n=(u.name||'doc '+(i+1));return '<a href="'+u.url+'" target="_blank" rel="noopener">'+esc(n.length>22?n.slice(0,20)+'…':n)+(u.kind==='extra'?' (extra)':'')+'</a>'}).join(' · '):'<span class="miss">nessun documento</span>')
       +(d.extraDoc?(' &nbsp;·&nbsp; '+(xGot?'<span style="color:var(--green)">✓ '+esc(d.extraDoc)+'</span>':'<span class="miss">⏳ in attesa: '+esc(d.extraDoc)+'</span>')):'')
       +'</div>';
   }
   /* landlord signature share (owner signs directly unless delegated) */
-  var llWa=(done&&d.signSentAt&&d.landlordSignUrl&&!d.delegated&&ll.phone)
-    ?('https://wa.me/'+String(ll.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(ll.name?' '+ll.name.split(' ')[0]:'')+'! Il contratto per '+((d.property||{}).address||'')+' è pronto per la sua firma digitale (dopo la firma dell’inquilino). Può firmare qui: '+d.landlordSignUrl)):null;
-  return '<div class="parow st-'+st+'">'
+  var llWa=(done&&(d.signSentAt||sig.tenantSigned)&&d.landlordSignUrl&&!d.delegated&&ll.phone)
+    ?('https://wa.me/'+String(ll.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(ll.name?' '+ll.name.split(' ')[0]:'')+'! Il contratto per '+((d.property||{}).address||'')+' è pronto per la sua firma digitale'+(sig.tenantSigned?' — l’inquilino ha già firmato':' (dopo la firma dell’inquilino)')+'. Può firmare qui: '+d.landlordSignUrl)):null;
+  return '<div class="parow st-'+st+(sig.status==='complete'?' st-signed':'')+'">'
     +'<div class="top"><span class="chip '+st+'">'+st+(st==='paid'&&d.paidEur?' '+eur(d.paidEur):'')+'</span>'
     +(mismatch?'<span class="chip money">✓ incassato'+(d.paidEur?' '+eur(d.paidEur):'')+'</span>':'')
+    +(sig.status==='complete'?'<span class="chip signed">✓ firmato</span>':(sig.tenantSigned?'<span class="chip signing">✍ firmato inquilino</span>':''))
     +'<span class="who">'+esc(t.fullName||'—')+(nTen>1?' <span style="font-size:11px;color:var(--t3);font-weight:300">+'+(nTen-1)+' co-tenant'+(nTen>2?'s':'')+'</span>':'')+'</span>'
     +(d.ref?'<span style="font-size:11px;color:var(--t3);letter-spacing:1px">'+esc(d.ref)+'</span>':'')
     +'<span class="when">'+when+'</span>'
     +'<div class="addr">'+esc((d.property||{}).address||'')+'</div></div>'
     +'<div class="meta">Canone <b>'+eur(m.rent||0)+'</b>'+(m.energyCredit?' +'+eur(m.energyCredit)+' energy':'')+' · alla firma <b>'+eur(m.dueAtSigning||0)+'</b> · '+((d.lease||{}).months||'—')+' mesi dal '+(((d.lease||{}).startDate)||'—')+(views?' · '+views+' view'+(views>1?'s':''):'')
-    +(d.propertyId&&!d.contractId?' · <span style="color:var(--gold-light)">auto-contratto ON</span>':'')
+    +(d.propertyId&&!cid?' · <span style="color:var(--gold-light)">auto-contratto ON</span>':'')
     +(d.validUntil&&!done&&st!=='revoked'?(paExpiredUi(d)?' · <span style="color:#ff8a70;font-weight:500">⌛ OFFERTA SCADUTA — ✎ Modifica per estenderla</span>':' · <span style="color:var(--gold-light)">valida fino al '+d.validUntil+'</span>'):'')+'</div>'
     +docsLine
     +alertLine
@@ -930,36 +1079,39 @@ function paRow(d){
     +(st==='reserve'?'<button class="pbtn prim" onclick="resolvePA(\''+d.id+'\',this)">✅ Sblocca la riserva</button>':'')
     +(st==='accepted'&&dueNow>0&&!gotMoney?'<button class="pbtn" onclick="resolvePA(\''+d.id+'\',this)">🔎 Ha pagato?</button>':'')
     +(done?(
-        /* ONE evident action per deal: 🖊 Magic Sign converts (if needed) and
-           emails the tenant their signing link — nothing goes out before you
-           press it. Property link required (from creation or → Contratto). */
-        (d.contractId||d.propertyId
-          ?'<button class="pbtn prim" onclick="sendSign(\''+d.id+'\',this)">'+(d.signSentAt?'🖊 Reinvia Magic Sign':'🖊 Invia Magic Sign')+'</button>'
-          :'<button class="pbtn prim" onclick="convertPA(\''+d.id+'\')">→ Contratto</button>')
-        +(d.signSentAt&&d.tenantSignUrl&&t.phone?'<a class="pbtn wa" href="https://wa.me/'+String(t.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! Il tuo contratto per '+((d.property||{}).address||'')+' è pronto — firmi qui in 2 minuti: '+d.tenantSignUrl)+'" target="_blank" rel="noopener">Firma su WhatsApp</a>':'')
-        +(llWa?'<a class="pbtn wa" href="'+llWa+'" target="_blank" rel="noopener">Firma proprietario su WhatsApp</a>':'')
-        +(d.landlordSignUrl?'<button class="pbtn" onclick="copyTxt(\''+d.landlordSignUrl+'\')">'+(d.delegated?'Copia link delega':'Copia link firma proprietario')+'</button>':'')
+        /* ONE evident action per deal, dal punto in cui il deal È:
+           · contratto firmato da entrambi → il PDF firmato (niente più inviti);
+           · inquilino ha firmato → il link del proprietario (delega o WhatsApp);
+           · altrimenti 🖊 Magic Sign converts (if needed) and emails the tenant
+             their signing link — nothing goes out before you press it.
+             Property link required (from creation or → Contratto). */
+        (sig.status==='complete'
+          ?(sig.pdf?'<a class="pbtn prim" href="'+sig.pdf+'" target="_blank" rel="noopener">📥 Contratto firmato</a>':'')
+          :(sig.tenantSigned
+            ?(d.delegated&&d.landlordSignUrl
+              ?'<a class="pbtn prim" href="'+d.landlordSignUrl+'" target="_blank" rel="noopener">🖊 Controfirma per delega</a>'
+              :(llWa?'<a class="pbtn prim wa" href="'+llWa+'" target="_blank" rel="noopener">📲 Firma proprietario su WhatsApp</a>':''))
+            :(cid||d.propertyId
+              ?'<button class="pbtn prim" onclick="sendSign(\''+d.id+'\',this)">'+(d.signSentAt?'🖊 Reinvia Magic Sign':'🖊 Invia Magic Sign')+'</button>'
+              :'<button class="pbtn prim" onclick="convertPA(\''+d.id+'\')">→ Contratto</button>')))
+        +(!sig.tenantSigned&&d.signSentAt&&d.tenantSignUrl&&t.phone?'<a class="pbtn wa" href="https://wa.me/'+String(t.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! Il tuo contratto per '+((d.property||{}).address||'')+' è pronto — firmi qui in 2 minuti: '+d.tenantSignUrl)+'" target="_blank" rel="noopener">Firma su WhatsApp</a>':'')
+        +(llWa&&!sig.tenantSigned?'<a class="pbtn wa" href="'+llWa+'" target="_blank" rel="noopener">Firma proprietario su WhatsApp</a>':'')
+        +(d.landlordSignUrl&&sig.status!=='complete'?'<button class="pbtn" onclick="copyTxt(\''+d.landlordSignUrl+'\')">'+(d.delegated?'Copia link delega':'Copia link firma proprietario')+'</button>':'')
+        +(sig.status==='complete'&&sig.cert?'<a class="pbtn" href="'+sig.cert+'" target="_blank" rel="noopener">Certificato FES</a>':'')
         +'<button class="pbtn" onclick="resendCopy(\''+d.id+'\',this)">✉ Reinvia copia</button>'
-        +(d.contractId?'<button class="pbtn" onclick="fascicoloPA(\''+d.id+'\')">📦 Fascicolo ARPE</button>':'')
+        +(cid?'<button class="pbtn" onclick="fascicoloPA(\''+d.id+'\')">📦 Fascicolo ARPE</button>':'')
       ):'')
     +'<button class="pbtn" onclick="copyPaLink(\''+d.token+'\')">Copia link</button>'
     +'<a class="pbtn" href="'+url+'" target="_blank" rel="noopener">Apri</a>'
     +(wa?'<a class="pbtn" href="'+wa+'" target="_blank" rel="noopener">'+(done?'📲 Copia su WhatsApp':'WhatsApp')+'</a>':'')
     +(editable?'<button class="pbtn" onclick="editPA(\''+d.id+'\')">✎ Modifica</button>':'')
     +'<button class="pbtn" onclick="dupPA(\''+d.id+'\')">Duplica</button>'
+    /* Revoca: mai su un deal pagato o già contrattualizzato; sì su un
+       accettato non pagato (le proposte di prova restavano lì per sempre) */
     +(st==='revoked'?'<button class="pbtn" onclick="revokePA(\''+d.id+'\',true)">Riattiva</button>'
-      :(st!=='paid'&&st!=='accepted'?'<button class="pbtn warn" onclick="revokePA(\''+d.id+'\')">Revoca</button>':''))
+      :(!gotMoney&&!cid&&st!=='paid'?'<button class="pbtn warn" onclick="revokePA(\''+d.id+'\')">Revoca</button>':''))
     +'</div>'
-    +(done?'<div class="nextstep">'+(d.signSentAt
-        ?'🖊 Magic Sign inviato il <b>'+String(d.signSentAt).slice(0,10)+'</b> — dopo la firma dell’inquilino '+(d.delegated
-          ?'apri il <b>link delega</b> e controfirmi quando decidi tu, poi registrazione.'
-          :'manda il <b>link firma al proprietario</b> (WhatsApp/copia), poi registrazione.')
-        :(d.contractId
-          ?'Contratto pronto (identità + documenti già dentro) — <b>🖊 Magic Sign</b> quando vuoi far firmare l’inquilino.'
-          :(d.propertyId
-            ?'Tutto pronto — <b>🖊 Magic Sign</b> crea il contratto e manda il link di firma all’inquilino, in un tocco.'
-            :'Prossimo passo → <b>→ Contratto</b> collega la proprietà e prepara il contratto (identità e termini già dentro).')))
-      +(st==='accepted'&&(m.dueAtSigning||0)>0?' <span style="color:var(--gold-light)">Pagamento ancora in sospeso.</span>':'')+'</div>':'')
+    +(done?'<div class="nextstep">'+nextStepLine(d,sig,st,m)+'</div>':'')
     +'</div>';
 }
 
@@ -974,6 +1126,8 @@ function matchFilter(d){
   if(FILTER==='open')return st==='sent'||st==='viewed';
   if(FILTER==='close')return st==='accepted'&&!paidOf(d);
   if(FILTER==='paid')return paidOf(d);          /* l'incasso, non l'etichetta */
+  if(FILTER==='signed')return sigState(d).status==='complete';   /* le firme, non l'etichetta */
+  if(FILTER==='nocontract')return paidOf(d)&&!contractIdOf(d)&&st!=='reserve';   /* pagati fermi: il binario morto */
   if(FILTER==='reserve')return st==='reserve';
   if(FILTER==='revoked')return st==='revoked';
   return true;
@@ -989,8 +1143,10 @@ window.renderList=function(){
   $('paRows').innerHTML=rows.map(paRow).join('');
   $('emptyRows').style.display=rows.length?'none':'';
   /* filter counts */
-  var cnt={all:PAS.length,open:0,close:0,paid:0,reserve:0,revoked:0};
+  var cnt={all:PAS.length,open:0,close:0,paid:0,signed:0,nocontract:0,reserve:0,revoked:0};
   PAS.forEach(function(d){var st=d.status||'sent';
+    if(sigState(d).status==='complete')cnt.signed++;
+    if(paidOf(d)&&!contractIdOf(d)&&st!=='reserve')cnt.nocontract++;
     if(paidOf(d))cnt.paid++;
     else if(st==='sent'||st==='viewed')cnt.open++;else if(st==='accepted')cnt.close++;
     else if(st==='reserve')cnt.reserve++;else if(st==='revoked')cnt.revoked++;});
@@ -1001,11 +1157,11 @@ window.renderList=function(){
   var paidSum=0,contr=0;
   PAS.forEach(function(d){
     if(paidOf(d))paidSum+=Number(d.paidEur||((d.money||{}).dueAtSigning)||0);
-    if(d.contractId)contr++;});
+    if(contractIdOf(d))contr++;});
   $('kOpen').textContent=cnt.open;
   $('kClose').textContent=cnt.close;
   $('kPaid').innerHTML=eur(paidSum)+' <small>('+cnt.paid+')</small>';
-  $('kContr').textContent=contr;
+  $('kContr').innerHTML=cnt.signed+' <small>/ '+contr+' creati</small>';
   $('kpis').style.display=PAS.length?'grid':'none';
 };
 // Elenco deals. Il canale realtime (WebChannel) può non stabilirsi mai —
@@ -1018,6 +1174,14 @@ function watchPAs(){
   var apply=function(snap){
     got=true;
     PAS=[];snap.forEach(function(doc){var v=doc.data();v.id=doc.id;PAS.push(v);});
+    /* ogni proposta convertita ascolta il SUO contratto: lo stato firma
+       arriva da lì, non dall'etichetta della proposta */
+    PAS.forEach(function(d){
+      if(d.contractId)watchContract(d.contractId);
+      /* proposta chiusa senza contractId: il contratto pa_<id> può esistere
+         lo stesso (back-link perso) — si guarda, e se c'è si adotta */
+      else if(d.status==='paid'||d.status==='accepted'||d.status==='reserve')watchContract('pa_'+d.id,d.id);
+    });
     renderList();
   };
   var fallback=function(why){

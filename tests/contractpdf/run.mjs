@@ -162,6 +162,10 @@ const sampleProperty = { city: 'Roma', address: 'Via Prova 1', floor: '2', rooms
     && built.sigAnchors.every(a => a.page >= 1 && a.xr >= 0 && a.yr >= 0 && a.wr > 0 && a.hr > 0));
   check('modulo: hashSeed = id+date+canone (stessa formula del portal)', built.hashSeed === 'c_test2026-09-012027-08-31' + 1200);
 
+  const builtA = CONTRACT_PDF.build({ jsPDF, contractId: 'c_32', contract: { ...sampleContract, type: '3+2', endDate: '2029-08-31', istatPct: '75%' }, property: sampleProperty, tenant: null, landlord: null });
+  const bytesA = Buffer.from(builtA.doc.output('arraybuffer'));
+  check('modulo: Allegato A (3+2) produce un PDF vero con le ancore firma e lo stesso hashSeed', bytesA.slice(0, 5).toString() === '%PDF-'
+    && builtA.doc.internal.getNumberOfPages() >= 3 && builtA.sigAnchors.length === 4 && builtA.hashSeed === 'c_322026-09-012029-08-31' + 1200);
   const builtC = CONTRACT_PDF.build({ jsPDF, contractId: 'c_stud', contract: { ...sampleContract, type: 'studenti', universityName: 'LUISS', courseName: 'Economia' }, property: sampleProperty, tenant: null, landlord: null });
   const bytesC = Buffer.from(builtC.doc.output('arraybuffer'));
   check('modulo: Allegato C (studenti) produce un PDF vero', bytesC.slice(0, 5).toString() === '%PDF-' && builtC.sigAnchors.length === 4);

@@ -64,11 +64,48 @@
     return { months, days, total, text };
   }
 
+  // LETTURE UNIFICATE (la stessa regola di js/contract-fields.js — cambiare
+  // qui = cambiare lì). Non toccano il testo degli articoli: decidono quale
+  // ramo si stampa e come si scrive un dato.
+  //
+  // Cedolare secca: i contratti reali portano la STRINGA 'si'/'no' (portal,
+  // convert); il pre-accordo il booleano dentro canone. L'Allegato B
+  // leggeva `=== true` e stampava a un 'si' l'art. 7 del regime ORDINARIO
+  // — mentre l'Allegato C, _finalize e compliance-rules leggevano la
+  // stringa. Assente = sì, come tutto il resto del server.
+  function cedolareOn(contract) {
+    const c = contract || {};
+    const v = (c.cedolareSecca !== undefined && c.cedolareSecca !== null && c.cedolareSecca !== '')
+      ? c.cedolareSecca : (c.canone && c.canone.cedolareSecca);
+    if (v === false || v === 'no' || v === 'false' || v === 0) return false;
+    return true;
+  }
+  // Tipo di documento: la Scheda scrive codici, il portal etichette. Sul
+  // contratto va l'italiano — «identificato/a mediante passport» non lo era.
+  const DOC_TYPE_IT = { passport: 'passaporto', id: 'carta d’identità', permit: 'permesso di soggiorno', patente: 'patente auto' };
+  function docTypeLabel(raw) {
+    const s = String(raw || '').trim();
+    const k = s.toLowerCase();
+    if (DOC_TYPE_IT[k]) return DOC_TYPE_IT[k];
+    if (/^(passaporto|pass)$/.test(k)) return 'passaporto';
+    if (/^(ci|c\.i\.|id card|identity card)$/.test(k) || /carta d.identit/.test(k)) return 'carta d’identità';
+    if (/permesso|permit|residence/.test(k)) return 'permesso di soggiorno';
+    if (/patente|licen[cs]e/.test(k)) return 'patente auto';
+    return s;
+  }
+  // Tabelle millesimali e stato impianti: la memoria dell'immobile vale
+  // quando il contratto non li porta (la Scheda del locatore li scrive su
+  // entrambi; i contratti nati prima li trovano sull'immobile).
+  function tabelleOf(contract, property) {
+    return (contract && contract.propertyExtra && contract.propertyExtra.tabelleMillesimali)
+      || (property && property.tabelleMillesimali) || {};
+  }
+
   function impiantiClause(contract, property) {
     const custom = (contract && contract.propertyExtra && contract.propertyExtra.sicurezzaImpianti)
       || (property && property.safetyImplants) || '';
     if (custom) return custom;
-    const stato = (contract && contract.impiantiStato) || '';
+    const stato = (contract && contract.impiantiStato) || (property && property.impiantiStato) || '';
     if (stato === 'conformi') {
       return 'Il locatore dichiara che gli impianti presenti nell’unità immobiliare sono conformi alla normativa vigente e consegna al conduttore copia della dichiarazione di conformità ai sensi del D.M. 37/2008.';
     }
@@ -196,7 +233,7 @@
     const tenCF   = pick(contract.tenantCF, tenant && tenant.cf, tenant && tenant.codiceFiscale) || dot;
     const tenDocT = pick(contract.tenantDocType, tenant && tenant.docType, tenant && tenant.idDocType);
     const tenDocN = pick(contract.tenantDocNum, tenant && tenant.docNum, tenant && tenant.idDocNumber);
-    const tenDoc  = tenDocT ? (tenDocT + (tenDocN ? ' n. ' + tenDocN : '')) : dot;
+    const tenDoc  = tenDocT ? (docTypeLabel(tenDocT) + (tenDocN ? ' n. ' + tenDocN : '')) : dot;
 
     const propCity   = (property && property.city)    || 'Roma';
     const propStreet = (property && property.address) || dot;
@@ -211,9 +248,9 @@
     const cadast    = (property && property.cadastralData) || formatCadastral(property) || dot;
     const energy    = (property && (property.energyCert || property.energyClass)) || dot;
     const sicurezza = impiantiClause(contract, property);
-    const tab = (contract.propertyExtra && contract.propertyExtra.tabelleMillesimali) || {};
+    const tab = tabelleOf(contract, property);
     const tabFmt = (v) => (v !== undefined && v !== null && v !== '') ? String(v) : dot;
-    const tabPro = tabFmt(tab['proprietà']);
+    const tabPro = tabFmt(tab['proprieta'] || tab['proprietà']);
     const tabRis = tabFmt(tab.riscaldamento);
     const tabAcq = tabFmt(tab.acqua);
     const tabAlt = tabFmt(tab.altre);
@@ -231,7 +268,7 @@
     const canTotal        = (contract.canone && contract.canone.total)        || (canMonthly * canInstallments);
     const canDay          = (contract.canone && contract.canone.paymentDay)   || contract.paymentDay   || 5;
     const canMethod       = (contract.canone && contract.canone.paymentMethod)|| contract.paymentMethod|| 'bonifico bancario';
-    const cedolareSecca   = (contract.canone && contract.canone.cedolareSecca === true) || contract.cedolareSecca === true;
+    const cedolareSecca   = cedolareOn(contract);
     const oneriMode       = (contract.canone && contract.canone.oneriMode)    || 'tabella_allegato_d';
     const oneriSoglia     = (contract.canone && contract.canone.oneriSoglia)  || null;
 
@@ -510,7 +547,199 @@
   // Reference: reference/caf/2023_All__locazione_studenti.docx
   //            (Accordo territoriale Roma Capitale 27/07/2023, prot. RA/2023/0044852)
   //            L. 9 dicembre 1998, n. 431, art. 5, comma 2
-  function buildAllegatoC({ jsPDF, contractId, contract, property, tenant, landlord }) {
+  // === MODELLO C — LOCAZIONE ABITATIVA PER STUDENTI UNIVERSITARI ===
+  // Fonte: reference/contratto_tipo_STUDENTI_Roma_2023.doc (accordo depositato
+  // il 27/07/2023, prot. RA/2023/0044852). Refusi dell'originale normalizzati:
+  // il secondo "Articolo 13" (Accessi) è il 14, come conferma la stessa
+  // clausola 1341/1342 del modello; "E'" → "È"; "dei presente" → "del
+  // presente". L'art. 6 senza cedolare è VERBATIM dal modello
+  // SENZA_CEDOLARE. tests/contractpdf/verbatim.mjs confronta ogni frase fissa
+  // col .doc.
+  const MODEL_C = {
+    title: 'LOCAZIONE ABITATIVA PER STUDENTI UNIVERSITARI',
+    law: 'ai sensi dell’art. 5, comma 2 Legge 9/12/98 n° 431',
+    articles(v, addArticle) {
+    const { durMonths, durStartStr, durEndStr, durText, isAnnual, canTotal, canAnnual, rateClause, rateClauseYear, hasDeposit, depAmount, depMonthsStr, garanzieAltre, cedolareIsOn, subentroMod, consegnaStato, accessiMod, studCorsoStudi, studUniversita, oneriQuota, contract, fmtIt, dot, oneriClause } = v;
+
+    // Fonte: contratto_tipo_STUDENTI_Roma_2023 (accordo depositato il
+    // 27/07/2023, prot. RA/2023/0044852). Refusi dell'originale
+    // normalizzati: il secondo "Articolo 13" (Accessi) è il 14, come
+    // conferma la stessa clausola 1341/1342 del modello.
+
+    addArticle(1, 'Durata',
+      `Il contratto è stipulato per la durata di ${durMonths || dot} mesi, dal ${durStartStr} al ${durEndStr}. Alla prima scadenza il contratto si rinnova automaticamente per uguale periodo se il conduttore non comunica al locatore disdetta almeno tre mesi prima della data di scadenza del contratto.`
+    );
+
+    addArticle(2, 'Natura transitoria',
+      `Secondo quanto previsto dall'Accordo territoriale stipulato ai sensi dell'articolo 5, comma 2, della legge n. 431/98, tra le Associazioni della proprietà e le Organizzazioni degli inquilini, depositato il 27/07/2023 con Protocollo n° RA/2023/0044852 presso il Comune di Roma Capitale, le parti concordano che la presente locazione ha natura transitoria in quanto il conduttore espressamente ha l'esigenza di abitare l'immobile per un periodo non eccedente i ${durMonths || dot} mesi, frequentando il corso di studi di ${studCorsoStudi} presso l'Università “${studUniversita}” di Roma.`
+    );
+
+    addArticle(3, 'Canone',
+      (isAnnual
+        ? `Il canone annuo di locazione, secondo quanto stabilito dall'Accordo territoriale stipulato ai sensi dell'articolo 5, comma 2, della legge n. 431/98, tra le Associazioni della proprietà e le Organizzazioni degli inquilini, depositato il 27/07/2023 con Protocollo n° RA/2023/0044852 presso il Comune di Roma Capitale, è convenuto in € ${fmtIt(canTotal)} (${fmtIt(canTotal)}/00), che il conduttore si obbliga a corrispondere nel domicilio del locatore ovvero a mezzo di bonifico bancario, ${rateClause}.`
+        : `Il canone di locazione, riferito all'intera durata contrattuale di ${durText}, secondo quanto stabilito dall'Accordo territoriale stipulato ai sensi dell'articolo 5, comma 2, della legge n. 431/98, tra le Associazioni della proprietà e le Organizzazioni degli inquilini, depositato il 27/07/2023 con Protocollo n° RA/2023/0044852 presso il Comune di Roma Capitale, è convenuto in € ${fmtIt(canTotal)} (${fmtIt(canTotal)}/00), che il conduttore si obbliga a corrispondere nel domicilio del locatore ovvero a mezzo di bonifico bancario, ${rateClause}.`)
+      + `\n\nNel caso in cui l'Accordo territoriale di cui al presente punto lo preveda, il canone viene aggiornato ogni anno nella misura contrattata del ${contract.istatPct ? contract.istatPct : '--'}, che comunque non può superare il 75% della variazione Istat ed esclusivamente nel caso in cui il locatore non abbia optato per la “cedolare secca” per la durata dell'opzione.`
+    );
+
+    if (hasDeposit) {
+      addArticle(4, 'Deposito cauzionale e altre forme di garanzia',
+        `A garanzia delle obbligazioni assunte col presente contratto, il conduttore versa al locatore (che con la firma del contratto ne rilascia, in caso, quietanza) una somma di € ${fmtIt(depAmount)} (${fmtIt(depAmount)}/00) pari a ${depMonthsStr} mensilità del canone, non imputabile in conto canoni e produttiva di interessi legali, riconosciuti al conduttore al termine di ogni anno di locazione. Il deposito cauzionale così costituito viene reso al termine della locazione, previa verifica dello stato dell'unità immobiliare e dell'osservanza di ogni obbligazione contrattuale.\n\nAltre forme di garanzia: ${garanzieAltre}.`
+      );
+    } else {
+      addArticle(4, 'Deposito cauzionale e altre forme di garanzia',
+        `Le parti concordano che per il presente contratto non viene costituito deposito cauzionale.\n\nAltre forme di garanzia: ${garanzieAltre}.`
+      );
+    }
+
+    addArticle(5, 'Oneri accessori',
+      `Per gli oneri accessori le parti fanno applicazione della Tabella oneri accessori, allegato D al decreto emanato dal Ministero delle infrastrutture e dei trasporti di concerto con il Ministero dell'economia e delle finanze ai sensi dell'articolo 4, comma 2, della legge n. 431/1998 e di cui il presente contratto costituisce l'Allegato C.\n\nIn sede di consuntivo, il pagamento degli oneri anzidetti, per la quota parte di quelli condominiali/comuni a carico del conduttore, deve avvenire entro sessanta giorni dalla richiesta. Prima di effettuare il pagamento, il conduttore ha diritto di ottenere l'indicazione specifica delle spese anzidette e dei criteri di ripartizione. Ha inoltre diritto di prendere visione - anche tramite organizzazioni sindacali - presso il locatore (o il suo amministratore o l'amministratore condominiale, ove esistente) dei documenti giustificativi delle spese effettuate. Insieme con il pagamento della prima rata del canone annuale, il conduttore versa una quota di acconto non superiore a quella di sua spettanza risultante dal rendiconto dell'anno precedente.\n\n${oneriClause(contract)}`
+    );
+
+    addArticle(6, 'Spese di bollo e di registrazione',
+      cedolareIsOn
+        ? `Il locatore intende avvalersi delle disposizioni di cui al DLGS n. 23 del 14-03-2011 cosiddetta "cedolare secca". Pertanto a norma di tale disposizione il locatore dichiara di rinunciare all'applicazione degli adeguamenti Istat. Il presente contratto, quindi, è esente da imposta di bollo e tassa registro. È facoltà del locatore recedere dalla tassazione della cedolare secca e in tal caso, il canone sarà adeguato annualmente con l'applicazione dell'Istat al 75% e le spese di bollo per il presente contratto e per le ricevute conseguenti sono a carico del conduttore mentre la tassa di registro è pari alla metà. Il locatore provvede alla registrazione del contratto, dandone documentata comunicazione al conduttore e all'Amministratore del condominio ai sensi dell'art. 13 legge 431 del 1998. Le parti possono delegare alla registrazione del contratto una delle organizzazioni sindacali che abbia prestato assistenza ai fini della stipula del contratto medesimo.`
+        // Variante SENZA cedolare: VERBATIM dal modello dell'associazione
+        // (reference/contratto_tipo_STUDENTI_Roma_2023_SENZA_CEDOLARE.doc).
+        // Fino al 8/09/2026 qui c'era un testo scritto a mano ("ripartita
+        // al 50%") che ometteva l'adeguamento Istat al 75%: il modello lo
+        // prevede, e un contratto senza cedolare senza quella riga e' un
+        // canone fermo per legge del contratto stesso.
+        : `Il canone sarà adeguato annualmente con l'applicazione dell'Istat al 75% e le spese di bollo per il presente contratto e per le ricevute conseguenti sono a carico del conduttore mentre la tassa di registro è pari alla metà. Il locatore provvede alla registrazione del contratto, dandone documentata comunicazione al conduttore e all'Amministratore del condominio ai sensi dell'art. 13 legge 431 del 1998. Le parti possono delegare alla registrazione del contratto una delle organizzazioni sindacali che abbia prestato assistenza ai fini della stipula del contratto medesimo.`
+    );
+
+    addArticle(7, 'Pagamento',
+      `Il pagamento del canone o di quant'altro dovuto anche per oneri accessori non può venire sospeso o ritardato da pretese o eccezioni del conduttore, quale ne sia il titolo. Il mancato puntuale pagamento, per qualsiasi causa, anche di una sola rata del canone, nonché di quant'altro dovuto, ove di importo pari almeno ad una mensilità del canone, costituisce in mora il conduttore, fatto salvo quanto previsto dall'articolo 55 della legge 27 luglio 1978, n. 392.`
+    );
+
+    addArticle(8, 'Uso',
+      `L'immobile deve essere destinato esclusivamente a civile abitazione del conduttore e delle seguenti persone attualmente con lui conviventi: ${contract.cohabitants || '--'}.\n\nSalvo espresso patto scritto contrario, è fatto divieto di sublocazione e di comodato sia totale sia parziale. Per la successione nel contratto si applica l'articolo 6 della legge n. 392/78, nel testo vigente a seguito della sentenza della Corte costituzionale n. 404/1988.`
+    );
+
+    addArticle(9, 'Recesso del conduttore',
+      `Il conduttore ha facoltà di recedere dal contratto per gravi motivi, previo avviso da recapitarsi mediante lettera raccomandata almeno tre mesi prima della scadenza. Tale facoltà è consentita anche ad uno o più dei conduttori firmatari ed in tal caso, dal mese dell'intervenuto recesso, la locazione prosegue nei confronti degli altri, ferma restando la solidarietà del conduttore recedente per i pregressi periodi di conduzione.\n\nLe modalità di subentro sono così concordate tra le parti: ${subentroMod}.`
+    );
+
+    addArticle(10, 'Consegna',
+      `Il conduttore dichiara di aver visitato l'unità immobiliare locatagli, di averla trovata adatta all'uso convenuto e, pertanto, di prenderla in consegna ad ogni effetto col ritiro delle chiavi, costituendosi da quel momento custode della stessa. Il conduttore si impegna a riconsegnare l'unità immobiliare nello stato in cui l'ha ricevuta, salvo il deperimento d'uso, pena il risarcimento del danno; si impegna, altresì, a rispettare le norme del regolamento dello stabile ove esistente, accusando in tal caso ricevuta dello stesso con la firma del presente contratto, così come si impegna ad osservare le deliberazioni dell'assemblea dei condomini. È in ogni caso vietato al conduttore compiere atti e tenere comportamenti che possano recare molestia agli altri abitanti dello stabile.\n\nLe parti danno atto, in relazione allo stato dell'unità immobiliare, ai sensi dell'articolo 1590 del Codice civile di quanto segue: ${consegnaStato} ovvero di quanto risulta dal verbale di consegna.`
+    );
+
+    addArticle(11, 'Modifiche e danni',
+      `Il conduttore non può apportare alcuna modifica, innovazione, miglioria o addizione ai locali locati ed alla loro destinazione, o agli impianti esistenti, senza il preventivo consenso scritto del locatore. Il conduttore esonera espressamente il locatore da ogni responsabilità per danni diretti o indiretti che possano derivargli da fatti dei dipendenti del locatore medesimo nonché per interruzioni incolpevoli dei servizi.`
+    );
+
+    addArticle(12, 'Assemblee',
+      `Il conduttore ha diritto di voto, in luogo del proprietario dell'unità immobiliare locatagli, nelle deliberazioni dell'assemblea condominiale relative alle spese ed alle modalità di gestione dei servizi di riscaldamento e di condizionamento d'aria. Ha inoltre diritto di intervenire, senza voto, sulle deliberazioni relative alla modificazione degli altri servizi comuni.\n\nQuanto stabilito in materia di riscaldamento e di condizionamento d'aria si applica anche ove si tratti di edificio non in condominio. In tale caso (e con l'osservanza, in quanto applicabili, delle disposizioni del codice civile sull'assemblea dei condomini) i conduttori si riuniscono in apposita assemblea, convocata dalla proprietà o da almeno tre conduttori.`
+    );
+
+    addArticle(13, 'Impianti',
+      `Il conduttore - in caso d'installazione sullo stabile di antenna televisiva centralizzata - si obbliga a servirsi unicamente dell'impianto relativo, restando sin d'ora il locatore, in caso di inosservanza, autorizzato a far rimuovere e demolire ogni antenna individuale a spese del conduttore, il quale nulla può pretendere a qualsiasi titolo, fatte salve le eccezioni di legge.\n\nPer quanto attiene all'impianto termico autonomo, ove presente, ai sensi della normativa del d.lgs n. 192/05, con particolare riferimento all'art. 7 comma 1, il conduttore subentra per la durata della detenzione alla figura del proprietario nell'onere di adempiere alle operazioni di controllo e di manutenzione.`
+    );
+
+    addArticle(14, 'Accessi',
+      `Il conduttore deve consentire l'accesso all'unità immobiliare al locatore, al suo amministratore nonché ai loro incaricati ove gli stessi ne abbiano - motivandola - ragione.\n\nNel caso in cui il locatore intenda vendere o, in caso di recesso anticipato del conduttore, locare l'unità immobiliare, questi deve consentirne la visita una volta la settimana, per almeno due ore, con esclusione dei giorni festivi oppure con le seguenti modalità: ${accessiMod}.`
+    );
+
+    addArticle(15, 'Commissione di negoziazione paritetica e conciliazione stragiudiziale',
+      `La Commissione di cui all'articolo 6 del decreto del Ministro delle infrastrutture e dei trasporti di concerto con il Ministro dell'economia e delle finanze, emanato ai sensi dell'articolo 4, comma 2, della legge 431 del 1998, è composta da due membri scelti fra appartenenti alle rispettive organizzazioni firmatarie dell'Accordo territoriale sulla base delle designazioni, rispettivamente, del locatore e del conduttore.\n\nL'operato della Commissione è disciplinato dal documento “Procedure di negoziazione e conciliazione stragiudiziale nonché modalità di funzionamento della Commissione”, Allegato E al citato decreto. La richiesta di intervento della Commissione non determina la sospensione delle obbligazioni contrattuali.\n\nLa richiesta di attivazione della Commissione non comporta oneri.`
+    );
+
+    addArticle(16, 'Varie',
+      `A tutti gli effetti del presente contratto, compresa la notifica degli atti esecutivi, e ai fini della competenza a giudicare, il conduttore elegge domicilio nei locali a lui locati e, ove egli più non li occupi o comunque detenga, presso l'ufficio di segreteria del Comune ove è situato l'immobile locato.\n\nQualunque modifica al presente contratto non può aver luogo, e non può essere provata, se non con atto scritto.\n\nIl locatore ed il conduttore si autorizzano reciprocamente a comunicare a terzi i propri dati personali in relazione ad adempimenti connessi col rapporto di locazione (d.Lgs n. 196/03).\n\nPer quanto non previsto dal presente contratto le parti rinviano a quanto in materia disposto dal Codice civile, dalle leggi n. 392/1978 e n. 431 del 1998 o comunque dalle norme vigenti e dagli usi locali nonché alla normativa ministeriale emanata in applicazione della legge n. 431 del 1998 ed agli Accordi di cui agli articoli 2 e 3.\n\nAltre clausole: sono a carico del conduttore le spese relative alle utenze private di energia elettrica, gas, acqua, tassa rifiuti.${contract.otherClauses ? '\n\n' + contract.otherClauses : ''}`
+    );
+
+    },
+    art1341: `A mente degli articoli 1341 e 1342 del Codice civile, le parti specificamente approvano i patti di cui agli articoli 2 (Natura transitoria), 4 (Deposito cauzionale e altre forme di garanzia), 5 (Oneri accessori), 7 (Pagamento, risoluzione), 9 (Recesso del conduttore), 10 (Consegna), 11 (Modifiche e danni), 13 (Impianti), 14 (Accessi), 15 (Commissione di negoziazione paritetica e conciliazione stragiudiziale) e 16 (Varie) del presente contratto.`,
+  };
+
+  // === MODELLO A — CONTRATTO DI LOCAZIONE AD USO ABITATIVO (3+2) ===
+  // Fonte: reference/contratto_tipo_32_Roma_2023.doc — contratto tipo
+  // dell'associazione, L. 431/98 art. 2 comma 3, accordo depositato il
+  // 27/07/2023 prot. RA/2023/0044852. VERBATIM; refusi dell'originale
+  // normalizzati e dichiarati: "Organizzazione della Proprietà" →
+  // "Organizzazioni della Proprietà", protocollo "RA/2023/044852" →
+  // "RA/2023/0044852" (come nella testata dello stesso modello), la virgola
+  // che chiude l'art. 1 → punto, "non è superiore" → "non superiore", la
+  // parentesi mai chiusa dell'art. 4, "l'immobile : locato" → "l'immobile
+  // locato", "E'" → "È", "dei presente" → "del presente".
+  const MODEL_A = {
+    title: 'CONTRATTO DI LOCAZIONE AD USO ABITATIVO',
+    law: 'ai sensi dell’art. 2, comma 3 Legge 9/12/98 n° 431',
+    articles(v, addArticle) {
+      const { durStartStr, durEndStr, canAnnual, rateClauseYear, hasDeposit, depAmount, depMonthsStr, garanzieAltre, cedolareIsOn, consegnaStato, accessiMod, contract, fmtIt, oneriClause } = v;
+
+      addArticle(1, 'Durata',
+        `Il contratto è stipulato per la durata di 3 anni, dal ${durStartStr} al ${durEndStr} e alla prima scadenza, ove le parti non concordino sul rinnovo del medesimo, il contratto è prorogato di diritto di due anni, fatta salva la facoltà di disdetta da parte del locatore che intenda adibire l'immobile agli usi o effettuare sullo stesso le opere di cui all'articolo 3 della legge n. 431/98, ovvero vendere l'immobile alle condizioni e con le modalità di cui al citato articolo 3. Alla scadenza del periodo di proroga biennale ciascuna parte ha diritto di attivare la procedura per il rinnovo a nuove condizioni ovvero per la rinuncia al rinnovo del contratto, comunicando la propria intenzione con lettera raccomandata da inviare all'altra parte almeno sei mesi prima della scadenza. In mancanza della comunicazione, il contratto è rinnovato tacitamente alle stesse condizioni. Nel caso in cui il locatore abbia riacquistato la disponibilità dell'alloggio alla prima scadenza e non lo adibisca, nel termine di dodici mesi dalla data in cui ha riacquistato tale disponibilità, agli usi per i quali ha esercitato la facoltà di disdetta, il conduttore ha diritto al ripristino del rapporto di locazione alle stesse condizioni di cui al contratto disdettato o, in alternativa, ad un risarcimento pari a trentasei mensilità dell'ultimo canone di locazione corrisposto.`
+      );
+
+      addArticle(2, 'Canone',
+        `Il canone annuo di locazione, secondo quanto stabilito dall'Accordo territoriale definito tra le Organizzazioni della Proprietà e le Organizzazioni degli inquilini e depositato il 27.07.2023 con Protocollo n. RA/2023/0044852 presso il Comune di Roma è convenuto in € ${fmtIt(canAnnual)} (${fmtIt(canAnnual)}/00), che il conduttore si obbliga a corrispondere nel domicilio del locatore ovvero a mezzo di bonifico bancario, ${rateClauseYear}.`
+        + `\n\nNel caso in cui l'Accordo territoriale di cui al presente punto lo preveda, il canone viene aggiornato ogni anno nella misura contrattata del ${contract.istatPct ? contract.istatPct : '--'}, che comunque non può superare il 75% della variazione Istat ed esclusivamente nel caso in cui il locatore non abbia optato per la “cedolare secca” per la durata dell'opzione.`
+      );
+
+      if (hasDeposit) {
+        addArticle(3, 'Deposito cauzionale e altre forme di garanzia',
+          `A garanzia delle obbligazioni assunte col presente contratto, il conduttore versa al locatore (che con la firma del contratto ne rilascia, in caso, quietanza) una somma di € ${fmtIt(depAmount)} (${fmtIt(depAmount)}/00) pari a ${depMonthsStr} mensilità del canone, non imputabile in conto canoni e produttiva di interessi legali, riconosciuti al conduttore al termine di ogni anno di locazione, salvo che la durata contrattuale minima non sia, ferma la proroga del contratto per due anni, di almeno 5 anni o superiore. Il deposito cauzionale così costituito viene reso al termine della locazione, previa verifica sia dello stato dell'unità immobiliare sia dell'osservanza di ogni obbligazione contrattuale. Eventuali altre forme di garanzia: ${garanzieAltre}.`
+        );
+      } else {
+        addArticle(3, 'Deposito cauzionale e altre forme di garanzia',
+          `Le parti concordano che per il presente contratto non viene costituito deposito cauzionale. Eventuali altre forme di garanzia: ${garanzieAltre}.`
+        );
+      }
+
+      addArticle(4, 'Oneri accessori',
+        `Per gli oneri accessori le parti fanno applicazione della Tabella oneri accessori, allegato 5 all’Accordo territoriale per il Comune di Roma Capitale.\n\nIn sede di consuntivo, il pagamento degli oneri anzidetti, per la quota parte di quelli condominiali/comuni a carico del conduttore, deve avvenire entro sessanta giorni dalla richiesta. Prima di effettuare il pagamento, il conduttore ha diritto di ottenere l'indicazione specifica delle spese anzidette e dei criteri di ripartizione. Ha inoltre diritto di prendere visione - anche tramite organizzazioni sindacali - presso il locatore (o il suo amministratore o l'amministratore condominiale, ove esistente) dei documenti giustificativi delle spese effettuate. Insieme con il pagamento della prima rata del canone annuale, il conduttore versa una quota di acconto non superiore a quella di sua spettanza risultante dal rendiconto dell'anno precedente.\n\n${oneriClause(contract)}`
+      );
+
+      addArticle(5, 'Spese di bollo e di registrazione',
+        cedolareIsOn
+          ? `Il locatore intende avvalersi delle disposizioni di cui al DLGS n. 23 del 14-03-2011 cosiddetta "cedolare secca". Pertanto a norma di tale disposizione il locatore dichiara di rinunciare all'applicazione degli adeguamenti Istat. Il presente contratto, quindi, è esente da imposta di bollo e tassa registro. È facoltà del locatore recedere dalla tassazione della cedolare secca e in tal caso, il canone sarà adeguato annualmente con l'applicazione dell'Istat al 75% e le spese di bollo per il presente contratto e per le ricevute conseguenti sono a carico del conduttore mentre la tassa di registro è pari alla metà. Il locatore provvede alla registrazione del contratto, dandone documentata comunicazione al conduttore e all'Amministratore del condominio ai sensi dell'art. 13 legge 431 del 1998. Le parti possono delegare alla registrazione del contratto una delle organizzazioni sindacali che abbia prestato assistenza ai fini della stipula del contratto medesimo.`
+          : `Il canone sarà adeguato annualmente con l'applicazione dell'Istat al 75% e le spese di bollo per il presente contratto e per le ricevute conseguenti sono a carico del conduttore mentre la tassa di registro è pari alla metà. Il locatore provvede alla registrazione del contratto, dandone documentata comunicazione al conduttore e all'Amministratore del condominio ai sensi dell'art. 13 legge 431 del 1998. Le parti possono delegare alla registrazione del contratto una delle organizzazioni sindacali che abbia prestato assistenza ai fini della stipula del contratto medesimo.`
+      );
+
+      addArticle(6, 'Pagamento',
+        `Il pagamento del canone o di quant'altro dovuto anche per oneri accessori non può venire sospeso o ritardato da pretese o eccezioni del conduttore, quale ne sia il titolo. Il mancato puntuale pagamento, per qualsiasi causa, anche di una sola rata del canone, nonché di quant'altro dovuto, ove di importo pari almeno ad una mensilità del canone, costituisce in mora il conduttore, fatto salvo quanto previsto dall'articolo 55 della legge 27 luglio 1978, n. 392.`
+      );
+
+      addArticle(7, 'Uso',
+        `L'immobile deve essere destinato esclusivamente a civile abitazione del conduttore e delle seguenti persone attualmente con lui conviventi: ${contract.cohabitants || '--'}.\n\nSalvo espresso patto scritto contrario, è fatto divieto di sublocazione e di comodato sia totale sia parziale. Per la successione nel contratto si applica l'articolo 6 della legge n. 392/78, nel testo vigente a seguito della sentenza della Corte costituzionale n. 404/1988.`
+      );
+
+      addArticle(8, 'Recesso del conduttore',
+        `È facoltà del conduttore recedere dal contratto per gravi motivi, previo avviso da recapitarsi tramite lettera raccomandata almeno sei mesi prima.`
+      );
+
+      addArticle(9, 'Consegna',
+        `Il conduttore dichiara di aver visitato l'unità immobiliare locatagli, di averla trovata adatta all'uso convenuto e, pertanto, di prenderla in consegna ad ogni effetto col ritiro delle chiavi, costituendosi da quel momento custode della stessa. Il conduttore si impegna a riconsegnare l'unità immobiliare nello stato in cui l'ha ricevuta, salvo il deperimento d'uso, pena il risarcimento del danno; si impegna, altresì, a rispettare le norme del regolamento dello stabile ove esistente, accusando in tal caso ricevuta dello stesso con la firma del presente contratto, così come si impegna ad osservare le deliberazioni dell'assemblea dei condomini. È in ogni caso vietato al conduttore compiere atti e tenere comportamenti che possano recare molestia agli altri abitanti dello stabile.\n\nLe parti danno atto, in relazione allo stato dell'unità immobiliare, ai sensi dell'articolo 1590 del Codice civile di quanto segue: ${consegnaStato} ovvero di quanto risulta dal verbale di consegna.`
+      );
+
+      addArticle(10, 'Modifiche e danni',
+        `Il conduttore non può apportare alcuna modifica, innovazione, miglioria o addizione ai locali locati ed alla loro destinazione, o agli impianti esistenti, senza il preventivo consenso scritto del locatore. Il conduttore esonera espressamente il locatore da ogni responsabilità per danni diretti o indiretti che possano derivargli da fatti dei dipendenti del locatore medesimo nonché per interruzioni incolpevoli dei servizi.`
+      );
+
+      addArticle(11, 'Assemblee',
+        `Il conduttore ha diritto di voto, in luogo del proprietario dell'unità immobiliare locatagli, nelle deliberazioni dell'assemblea condominiale relative alle spese ed alle modalità di gestione dei servizi di riscaldamento e di condizionamento d'aria. Ha inoltre diritto di intervenire, senza voto, sulle deliberazioni relative alla modificazione degli altri servizi comuni.\n\nQuanto stabilito in materia di riscaldamento e di condizionamento d'aria si applica anche ove si tratti di edificio non in condominio. In tale caso (e con l'osservanza, in quanto applicabili, delle disposizioni del codice civile sull'assemblea dei condomini) i conduttori si riuniscono in apposita assemblea, convocata dalla proprietà o da almeno tre conduttori.`
+      );
+
+      addArticle(12, 'Impianti',
+        `Il conduttore - in caso d'installazione sullo stabile di antenna televisiva centralizzata - si obbliga a servirsi unicamente dell'impianto relativo, restando sin d'ora il locatore, in caso di inosservanza, autorizzato a far rimuovere e demolire ogni antenna individuale a spese del conduttore, il quale nulla può pretendere a qualsiasi titolo, fatte salve le eccezioni di legge.\n\nPer quanto attiene all'impianto termico autonomo, ove presente, ai sensi della normativa del d.lgs n. 192/05, con particolare riferimento all'art. 7 comma 1, il conduttore subentra per la durata della detenzione alla figura del proprietario nell'onere di adempiere alle operazioni di controllo e di manutenzione.`
+      );
+
+      addArticle(13, 'Accesso',
+        `Il conduttore deve consentire l'accesso all'unità immobiliare al locatore, al suo amministratore nonché ai loro incaricati ove gli stessi ne abbiano - motivandola - ragione.\n\nNel caso in cui il locatore intenda vendere o, in caso di recesso anticipato del conduttore, locare l'unità immobiliare, questi deve consentirne la visita una volta la settimana, per almeno due ore, con esclusione dei giorni festivi oppure con le seguenti modalità: ${accessiMod}.`
+      );
+
+      addArticle(14, 'Commissione di negoziazione paritetica e conciliazione stragiudiziale',
+        `La Commissione di cui all'articolo 6 del decreto del Ministro delle infrastrutture e dei trasporti di concerto con il Ministro dell'economia e delle finanze, emanato ai sensi dell'articolo 4, comma 2, della legge 431 del 1998, è composta da due membri scelti fra appartenenti alle rispettive organizzazioni firmatarie dell'Accordo territoriale sulla base delle designazioni, rispettivamente, del locatore e del conduttore.\n\nL'operato della Commissione è disciplinato dal documento “Procedure di negoziazione e conciliazione stragiudiziale nonché modalità di funzionamento della Commissione”, Allegato E al citato decreto. La richiesta di intervento della Commissione non determina la sospensione delle obbligazioni contrattuali.\n\nLa richiesta di attivazione della Commissione non comporta oneri.`
+      );
+
+      addArticle(15, 'Varie',
+        `A tutti gli effetti del presente contratto, compresa la notifica degli atti esecutivi, e ai fini della competenza a giudicare, il conduttore elegge domicilio nei locali a lui locati e, ove egli più non li occupi o comunque detenga, presso l'ufficio di segreteria del Comune ove è situato l'immobile locato.\n\nQualunque modifica al presente contratto non può aver luogo, e non può essere provata, se non con atto scritto. Il locatore ed il conduttore si autorizzano reciprocamente a comunicare a terzi i propri dati personali in relazione ad adempimenti connessi col rapporto di locazione (d.Lgs n. 196/03). Per quanto non previsto dal presente contratto le parti rinviano a quanto in materia disposto dal Codice civile, dalle leggi n. 392/1978 e n. 431 del 1998 o comunque dalle norme vigenti e dagli usi locali nonché alla normativa ministeriale emanata in applicazione della legge n. 431 del 1998 ed all'Accordo definito in sede locale.\n\nAltre clausole: sono a carico del conduttore le spese relative alle utenze private di energia elettrica, gas, acqua, tassa rifiuti.${contract.otherClauses ? '\n\n' + contract.otherClauses : ''}`
+      );
+    },
+    art1341: `A mente degli articoli 1341 e 1342 del codice civile, le parti specificamente approvano i patti di cui agli articoli 3 (Deposito cauzionale e altre forme di garanzia), 4 (Oneri accessori), 6 (Pagamento, risoluzione), 9 (Consegna), 10 (Modifiche e danni), 12 (Impianti), 13 (Accesso), 14 (Commissione di negoziazione paritetica e conciliazione stragiudiziale) e 15 (Varie) del presente contratto.`,
+  };
+
+  function buildConcordato({ jsPDF, contractId, contract, property, tenant, landlord }, MODEL) {
     const doc = new jsPDF({ format: 'a4', unit: 'mm' });
     const pageW = 210, pageH = 297;
     const margin = 20;
@@ -610,8 +839,7 @@
     const tenDocIssuer  = pick(contract.tenantDocIssuer, tenant && tenant.docIssuer) || dot;
     const tenDocIssuedR = pick(contract.tenantDocIssueDate, tenant && tenant.docIssueDate);
     const tenDocIssued  = tenDocIssuedR ? fmtDate(tenDocIssuedR) : dot;
-    const docTypeIt = { passport: 'passaporto', id: 'carta d’identità', permit: 'permesso di soggiorno', patente: 'patente auto' };
-    const tenDocLabel = docTypeIt[tenDocTypeRaw] || tenDocTypeRaw || 'C.I/patente auto';
+    const tenDocLabel = tenDocTypeRaw ? docTypeLabel(tenDocTypeRaw) : 'C.I/patente auto';
 
     const propCity   = (property && property.city)    || 'Roma';
     const propStreet = (property && property.address) || dot;
@@ -628,7 +856,7 @@
                       ? fmtIt(contract.renditaCatastale || property.renditaCatastale) : dot;
     const energy    = (property && (property.energyCert || property.energyClass)) || contract.energyClass || dot;
     const sicurezza = impiantiClause(contract, property);
-    const tab = (contract.propertyExtra && contract.propertyExtra.tabelleMillesimali) || {};
+    const tab = tabelleOf(contract, property);
     const tabFmt = (v) => (v !== undefined && v !== null && v !== '') ? String(v) : dot;
     const tabPro = tabFmt(tab['proprieta'] || tab['proprietà']);
     const tabRis = tabFmt(tab.riscaldamento);
@@ -687,7 +915,7 @@
                           ? fmtIt(contract.oneriQuota) : '--';
     const subentroMod   = contract.subentroModalita || '--';
     const accessiMod    = contract.accessiModalita || '--';
-    const cedolareOn    = (contract.cedolareSecca || 'si') !== 'no';
+    const cedolareIsOn  = cedolareOn(contract);
 
     const consegnaStato = contract.consegnaStato || '--';
     const sigPlace = contract.signaturePlace || (property && property.city) || 'Roma';
@@ -695,13 +923,15 @@
     const sigDateStr = fmtDate(sigDateRaw);
 
     // --------------- HEADER (contratto tipo associazione, accordo Roma 27.07.2023) ---------------
+    // Titolo e riferimento di legge dal MODELLO (C studenti / A 3+2); il
+    // rinvio all'accordo depositato e' lo stesso per entrambi.
     doc.setFont('times', 'bold');
     doc.setFontSize(14);
-    doc.text('LOCAZIONE ABITATIVA PER STUDENTI UNIVERSITARI', pageW / 2, y, { align: 'center' });
+    doc.text(MODEL.title, pageW / 2, y, { align: 'center' });
     y += 6;
     doc.setFont('times', 'normal');
     doc.setFontSize(10);
-    doc.text('ai sensi dell’art. 5, comma 2 Legge 9/12/98 n° 431', pageW / 2, y, { align: 'center' });
+    doc.text(MODEL.law, pageW / 2, y, { align: 'center' });
     y += 5;
     const subHdr = doc.splitTextToSize('in conformità all’accordo territoriale tra le Associazioni dei proprietari e degli inquilini depositato presso il Comune di Roma Capitale il 27.07.2023 con protocollo n° RA/2023/0044852', pw);
     doc.text(subHdr, pageW / 2, y, { align: 'center', maxWidth: pw });
@@ -726,86 +956,16 @@
     y += 2;
     addParagraph('LA LOCAZIONE È REGOLATA DALLE PATTUIZIONI SEGUENTI', { bold: true, align: 'center', x: pageW / 2, after: 2 });
 
-    // --------------- ARTICOLI 1-16 (contratto tipo associazione, verbatim) ---------------
-    // Fonte: contratto_tipo_STUDENTI_Roma_2023 (accordo depositato il
-    // 27/07/2023, prot. RA/2023/0044852). Refusi dell'originale
-    // normalizzati: il secondo "Articolo 13" (Accessi) è il 14, come
-    // conferma la stessa clausola 1341/1342 del modello.
-
-    addArticle(1, 'Durata',
-      `Il contratto è stipulato per la durata di ${durMonths || dot} mesi, dal ${durStartStr} al ${durEndStr}. Alla prima scadenza il contratto si rinnova automaticamente per uguale periodo se il conduttore non comunica al locatore disdetta almeno tre mesi prima della data di scadenza del contratto.`
-    );
-
-    addArticle(2, 'Natura transitoria',
-      `Secondo quanto previsto dall'Accordo territoriale stipulato ai sensi dell'articolo 5, comma 2, della legge n. 431/98, tra le Associazioni della proprietà e le Organizzazioni degli inquilini, depositato il 27/07/2023 con Protocollo n° RA/2023/0044852 presso il Comune di Roma Capitale, le parti concordano che la presente locazione ha natura transitoria in quanto il conduttore espressamente ha l'esigenza di abitare l'immobile per un periodo non eccedente i ${durMonths || dot} mesi, frequentando il corso di studi di ${studCorsoStudi} presso l'Università “${studUniversita}” di Roma.`
-    );
-
-    addArticle(3, 'Canone',
-      (isAnnual
-        ? `Il canone annuo di locazione, secondo quanto stabilito dall'Accordo territoriale stipulato ai sensi dell'articolo 5, comma 2, della legge n. 431/98, tra le Associazioni della proprietà e le Organizzazioni degli inquilini, depositato il 27/07/2023 con Protocollo n° RA/2023/0044852 presso il Comune di Roma Capitale, è convenuto in € ${fmtIt(canTotal)} (${fmtIt(canTotal)}/00), che il conduttore si obbliga a corrispondere nel domicilio del locatore ovvero a mezzo di bonifico bancario, ${rateClause}.`
-        : `Il canone di locazione, riferito all'intera durata contrattuale di ${durText}, secondo quanto stabilito dall'Accordo territoriale stipulato ai sensi dell'articolo 5, comma 2, della legge n. 431/98, tra le Associazioni della proprietà e le Organizzazioni degli inquilini, depositato il 27/07/2023 con Protocollo n° RA/2023/0044852 presso il Comune di Roma Capitale, è convenuto in € ${fmtIt(canTotal)} (${fmtIt(canTotal)}/00), che il conduttore si obbliga a corrispondere nel domicilio del locatore ovvero a mezzo di bonifico bancario, ${rateClause}.`)
-      + `\n\nNel caso in cui l'Accordo territoriale di cui al presente punto lo preveda, il canone viene aggiornato ogni anno nella misura contrattata, che comunque non può superare il 75% della variazione Istat ed esclusivamente nel caso in cui il locatore non abbia optato per la “cedolare secca” per la durata dell'opzione.`
-    );
-
-    if (hasDeposit) {
-      addArticle(4, 'Deposito cauzionale e altre forme di garanzia',
-        `A garanzia delle obbligazioni assunte col presente contratto, il conduttore versa al locatore (che con la firma del contratto ne rilascia, in caso, quietanza) una somma di € ${fmtIt(depAmount)} (${fmtIt(depAmount)}/00) pari a ${depMonthsStr} mensilità del canone, non imputabile in conto canoni e produttiva di interessi legali, riconosciuti al conduttore al termine di ogni anno di locazione. Il deposito cauzionale così costituito viene reso al termine della locazione, previa verifica dello stato dell'unità immobiliare e dell'osservanza di ogni obbligazione contrattuale.\n\nAltre forme di garanzia: ${garanzieAltre}.`
-      );
-    } else {
-      addArticle(4, 'Deposito cauzionale e altre forme di garanzia',
-        `Le parti concordano che per il presente contratto non viene costituito deposito cauzionale.\n\nAltre forme di garanzia: ${garanzieAltre}.`
-      );
-    }
-
-    addArticle(5, 'Oneri accessori',
-      `Per gli oneri accessori le parti fanno applicazione della Tabella oneri accessori, allegato D al decreto emanato dal Ministero delle infrastrutture e dei trasporti di concerto con il Ministero dell'economia e delle finanze ai sensi dell'articolo 4, comma 2, della legge n. 431/1998 e di cui il presente contratto costituisce l'Allegato C.\n\nIn sede di consuntivo, il pagamento degli oneri anzidetti, per la quota parte di quelli condominiali/comuni a carico del conduttore, deve avvenire entro sessanta giorni dalla richiesta. Prima di effettuare il pagamento, il conduttore ha diritto di ottenere l'indicazione specifica delle spese anzidette e dei criteri di ripartizione. Ha inoltre diritto di prendere visione - anche tramite organizzazioni sindacali - presso il locatore (o il suo amministratore o l'amministratore condominiale, ove esistente) dei documenti giustificativi delle spese effettuate. Insieme con il pagamento della prima rata del canone annuale, il conduttore versa una quota di acconto non superiore a quella di sua spettanza risultante dal rendiconto dell'anno precedente.\n\n${oneriClause(contract)}`
-    );
-
-    addArticle(6, 'Spese di bollo e di registrazione',
-      cedolareOn
-        ? `Il locatore intende avvalersi delle disposizioni di cui al DLGS n. 23 del 14-03-2011 cosiddetta "cedolare secca". Pertanto a norma di tale disposizione il locatore dichiara di rinunciare all'applicazione degli adeguamenti Istat. Il presente contratto, quindi, è esente da imposta di bollo e tassa registro. È facoltà del locatore recedere dalla tassazione della cedolare secca e in tal caso il canone sarà adeguato annualmente con l'applicazione dell'Istat al 75% e le spese di bollo per il presente contratto e per le ricevute conseguenti saranno a carico del conduttore mentre la tassa di registro è pari alla metà. Il locatore provvede alla registrazione del contratto, dandone documentata comunicazione al conduttore e all'Amministratore del condominio ai sensi dell'art. 13 legge 431 del 1998.\n\nLe parti possono delegare alla registrazione del contratto una delle organizzazioni sindacali che abbia prestato assistenza ai fini della stipula del contratto medesimo.`
-        : `Le spese di bollo per il presente contratto e per le ricevute conseguenti sono a carico del conduttore, mentre la tassa di registro è ripartita al 50% tra le parti. Il locatore provvede alla registrazione del contratto, dandone documentata comunicazione al conduttore e all'Amministratore del condominio ai sensi dell'art. 13 legge 431 del 1998.\n\nLe parti possono delegare alla registrazione del contratto una delle organizzazioni sindacali che abbia prestato assistenza ai fini della stipula del contratto medesimo.`
-    );
-
-    addArticle(7, 'Pagamento',
-      `Il pagamento del canone o di quant'altro dovuto anche per oneri accessori non può venire sospeso o ritardato da pretese o eccezioni del conduttore, quale ne sia il titolo. Il mancato puntuale pagamento, per qualsiasi causa, anche di una sola rata del canone, nonché di quant'altro dovuto, ove di importo pari almeno ad una mensilità del canone, costituisce in mora il conduttore, fatto salvo quanto previsto dall'articolo 55 della legge 27 luglio 1978, n. 392.`
-    );
-
-    addArticle(8, 'Uso',
-      `L'immobile deve essere destinato esclusivamente a civile abitazione del conduttore e delle seguenti persone attualmente con lui conviventi: ${contract.cohabitants || '--'}.\n\nSalvo espresso patto scritto contrario, è fatto divieto di sublocazione e di comodato sia totale sia parziale. Per la successione nel contratto si applica l'articolo 6 della legge n. 392/78, nel testo vigente a seguito della sentenza della Corte costituzionale n. 404/1988.`
-    );
-
-    addArticle(9, 'Recesso del conduttore',
-      `Il conduttore ha facoltà di recedere dal contratto per gravi motivi, previo avviso da recapitarsi mediante lettera raccomandata almeno tre mesi prima della scadenza. Tale facoltà è consentita anche ad uno o più dei conduttori firmatari ed in tal caso, dal mese dell'intervenuto recesso, la locazione prosegue nei confronti degli altri, ferma restando la solidarietà del conduttore recedente per i pregressi periodi di conduzione.\n\nLe modalità di subentro sono così concordate tra le parti: ${subentroMod}.`
-    );
-
-    addArticle(10, 'Consegna',
-      `Il conduttore dichiara di aver visitato l'unità immobiliare locatagli, di averla trovata adatta all'uso convenuto e, pertanto, di prenderla in consegna ad ogni effetto col ritiro delle chiavi, costituendosi da quel momento custode della stessa. Il conduttore si impegna a riconsegnare l'unità immobiliare nello stato in cui l'ha ricevuta, salvo il deperimento d'uso, pena il risarcimento del danno; si impegna, altresì, a rispettare le norme del regolamento dello stabile ove esistente, accusando in tal caso ricevuta dello stesso con la firma del presente contratto, così come si impegna ad osservare le deliberazioni dell'assemblea dei condomini. È in ogni caso vietato al conduttore compiere atti e tenere comportamenti che possano recare molestia agli altri abitanti dello stabile.\n\nLe parti danno atto, in relazione allo stato dell'unità immobiliare, ai sensi dell'articolo 1590 del Codice civile di quanto segue: ${consegnaStato} ovvero di quanto risulta dal verbale di consegna.`
-    );
-
-    addArticle(11, 'Modifiche e danni',
-      `Il conduttore non può apportare alcuna modifica, innovazione, miglioria o addizione ai locali locati ed alla loro destinazione, o agli impianti esistenti, senza il preventivo consenso scritto del locatore. Il conduttore esonera espressamente il locatore da ogni responsabilità per danni diretti o indiretti che possano derivargli da fatti dei dipendenti del locatore medesimo nonché per interruzioni incolpevoli dei servizi.`
-    );
-
-    addArticle(12, 'Assemblee',
-      `Il conduttore ha diritto di voto, in luogo del proprietario dell'unità immobiliare locatagli, nelle deliberazioni dell'assemblea condominiale relative alle spese ed alle modalità di gestione dei servizi di riscaldamento e di condizionamento d'aria. Ha inoltre diritto di intervenire, senza voto, sulle deliberazioni relative alla modificazione degli altri servizi comuni.\n\nQuanto stabilito in materia di riscaldamento e di condizionamento d'aria si applica anche ove si tratti di edificio non in condominio. In tale caso (e con l'osservanza, in quanto applicabili, delle disposizioni del codice civile sull'assemblea dei condomini) i conduttori si riuniscono in apposita assemblea, convocata dalla proprietà o da almeno tre conduttori.`
-    );
-
-    addArticle(13, 'Impianti',
-      `Il conduttore - in caso d'installazione sullo stabile di antenna televisiva centralizzata - si obbliga a servirsi unicamente dell'impianto relativo, restando sin d'ora il locatore, in caso di inosservanza, autorizzato a far rimuovere e demolire ogni antenna individuale a spese del conduttore, il quale nulla può pretendere a qualsiasi titolo, fatte salve le eccezioni di legge.\n\nPer quanto attiene all'impianto termico autonomo, ove presente, ai sensi della normativa del d.lgs n. 192/05, con particolare riferimento all'art. 7 comma 1, il conduttore subentra per la durata della detenzione alla figura del proprietario nell'onere di adempiere alle operazioni di controllo e di manutenzione.`
-    );
-
-    addArticle(14, 'Accessi',
-      `Il conduttore deve consentire l'accesso all'unità immobiliare al locatore, al suo amministratore nonché ai loro incaricati ove gli stessi ne abbiano - motivandola - ragione.\n\nNel caso in cui il locatore intenda vendere o, in caso di recesso anticipato del conduttore, locare l'unità immobiliare, questi deve consentirne la visita una volta la settimana, per almeno due ore, con esclusione dei giorni festivi oppure con le seguenti modalità: ${accessiMod}.`
-    );
-
-    addArticle(15, 'Commissione di negoziazione paritetica e conciliazione stragiudiziale',
-      `La Commissione di cui all'articolo 6 del decreto del Ministro delle infrastrutture e dei trasporti di concerto con il Ministro dell'economia e delle finanze, emanato ai sensi dell'articolo 4, comma 2, della legge 431 del 1998, è composta da due membri scelti fra appartenenti alle rispettive organizzazioni firmatarie dell'Accordo territoriale sulla base delle designazioni, rispettivamente, del locatore e del conduttore.\n\nL'operato della Commissione è disciplinato dal documento “Procedure di negoziazione e conciliazione stragiudiziale nonché modalità di funzionamento della Commissione”, Allegato E al citato decreto. La richiesta di intervento della Commissione non determina la sospensione delle obbligazioni contrattuali.\n\nLa richiesta di attivazione della Commissione non comporta oneri.`
-    );
-
-    addArticle(16, 'Varie',
-      `A tutti gli effetti del presente contratto, compresa la notifica degli atti esecutivi, e ai fini della competenza a giudicare, il conduttore elegge domicilio nei locali a lui locati e, ove egli più non li occupi o comunque detenga, presso l'ufficio di segreteria del Comune ove è situato l'immobile locato.\n\nQualunque modifica al presente contratto non può aver luogo, e non può essere provata, se non con atto scritto.\n\nIl locatore ed il conduttore si autorizzano reciprocamente a comunicare a terzi i propri dati personali in relazione ad adempimenti connessi col rapporto di locazione (d.Lgs n. 196/03).\n\nPer quanto non previsto dal presente contratto le parti rinviano a quanto in materia disposto dal Codice civile, dalle leggi n. 392/1978 e n. 431 del 1998 o comunque dalle norme vigenti e dagli usi locali nonché alla normativa ministeriale emanata in applicazione della legge n. 431 del 1998 ed agli Accordi di cui agli articoli 2 e 3.\n\nAltre clausole: sono a carico del conduttore le spese relative alle utenze private di energia elettrica, gas, acqua, tassa rifiuti.${contract.otherClauses ? '\n\n' + contract.otherClauses : ''}`
-    );
+    // --------------- ARTICOLI (contratto tipo associazione, verbatim) ---------------
+    // Il canone ANNUO del 3+2 e le sue rate per anno: il modello A parla
+    // per anno, il C per l'intera durata (o annuo se e' di 12 mesi).
+    const canAnnual = canMonthly * 12;
+    const nRateYear = Math.max(1, Math.round(12 / instStep));
+    const rateClauseYear = instStep === 1
+      ? `in n. ${nRateYear} rate mensili eguali anticipate di € ${fmtIt(rataAmount)} (${fmtIt(rataAmount)}/00) ciascuna, entro il giorno ${payDay} di ogni mese`
+      : `in n. ${nRateYear} rate ${cadWord} eguali anticipate di € ${fmtIt(rataAmount)} (${fmtIt(rataAmount)}/00) ciascuna, entro il giorno ${payDay} del primo mese di ciascun periodo`;
+    const v = { durMonths, durStartStr, durEndStr, durText, isAnnual, canTotal, canAnnual, rateClause, rateClauseYear, hasDeposit, depAmount, depMonthsStr, garanzieAltre, cedolareIsOn, subentroMod, consegnaStato, accessiMod, studCorsoStudi, studUniversita, oneriQuota, contract, fmtIt, dot, oneriClause };
+    MODEL.articles(v, addArticle);
 
     // --------------- LETTO, APPROVATO, SOTTOSCRITTO ---------------
     // Ancore delle righe-firma (rapporti sulla pagina, 1-based page):
@@ -872,7 +1032,7 @@
     ensureSpace(40);
     doc.setFont('times', 'normal');
     doc.setFontSize(10);
-    const art1341 = `A mente degli articoli 1341 e 1342 del Codice civile, le parti specificamente approvano i patti di cui agli articoli 2 (Natura transitoria), 4 (Deposito cauzionale e altre forme di garanzia), 5 (Oneri accessori), 7 (Pagamento, risoluzione), 9 (Recesso del conduttore), 10 (Consegna), 11 (Modifiche e danni), 13 (Impianti), 14 (Accessi), 15 (Commissione di negoziazione paritetica e conciliazione stragiudiziale) e 16 (Varie) del presente contratto.`;
+    const art1341 = MODEL.art1341;
     const art1341Lines = doc.splitTextToSize(art1341, pw);
     const art1341LineH = ptToMm(10) * 1.15;
     ensureSpace(art1341Lines.length * art1341LineH);
@@ -937,22 +1097,42 @@
     };
   }
 
-  // Dispatcher: il tipo decide il modello (studenti → Allegato C, tutto il
-  // resto → Allegato B transitorio) — stessa regola di generateContractPDF.
+
+  // Le due facce del contratto tipo concordato: STESSA impaginazione, stesse
+  // parti, stesse firme; cambiano titolo, riferimento di legge e articoli.
+  function buildAllegatoC(env) { return buildConcordato(env, MODEL_C); }
+  function buildAllegatoA(env) { return buildConcordato(env, MODEL_A); }
+
+  // Il 3+2 si riconosce da contract.type: '3+2' (la forma che compliance-rules
+  // gia' legge), '32' o 'concordato'.
+  function is32(contract) {
+    const t = String((contract && contract.type) || '').toLowerCase().trim();
+    return t === '3+2' || t === '32' || t === 'concordato';
+  }
+
+
+  // Dispatcher: il tipo decide il modello (studenti → Allegato C, 3+2 →
+  // Allegato A, tutto il resto → Allegato B transitorio) — stessa regola di
+  // generateContractPDF.
   function build(env) {
     if (!env || !env.jsPDF) throw new Error('contract-pdf: jsPDF constructor required');
     if (!env.contract) throw new Error('contract-pdf: contract required');
-    return (env.contract.type === 'studenti') ? buildAllegatoC(env) : buildAllegatoB(env);
+    return (env.contract.type === 'studenti') ? buildAllegatoC(env) : is32(env.contract) ? buildAllegatoA(env) : buildAllegatoB(env);
   }
 
   const API = {
     build: build,
     buildAllegatoB: buildAllegatoB,
     buildAllegatoC: buildAllegatoC,
+    buildAllegatoA: buildAllegatoA,
+    is32: is32,
     fmtDate: fmtDate,
     monthsBetween: monthsBetween,
     impiantiClause: impiantiClause,
     oneriClause: oneriClause,
+    cedolareOn: cedolareOn,
+    docTypeLabel: docTypeLabel,
+    tabelleOf: tabelleOf,
   };
 
   if (typeof module !== 'undefined' && module.exports) module.exports = API;

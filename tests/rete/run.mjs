@@ -190,7 +190,7 @@ const navBlock = sw.slice(sw.indexOf("event.request.mode === 'navigate'"), sw.in
 ok(/netFirstCapped\(/.test(navBlock), 'le navigazioni usano la STESSA strategia della shell del portale');
 ok(/NET_HARD_MS/.test(navBlock) || /NET_HARD_MS\)/.test(sw),
   'il limite duro è cablato sulle navigazioni (non sugli asset: lì un errore non aiuta nessuno)');
-ok(/CACHE_VERSION = 'boom-v19'/.test(sw),
+ok(/CACHE_VERSION = 'boom-v20'/.test(sw),
   'la versione della cache è salita: senza, i browser terrebbero il worker vecchio');
 
 console.log(`\n${fail ? '✗' : '✓'} rete: ${pass} pass, ${fail} fail`);

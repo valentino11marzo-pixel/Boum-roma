@@ -165,7 +165,8 @@ DB.set('leads/ten1', { propertyId: 'casa1', phone: '+393330000003', name: 'Inqui
 DB.set('leads/boo1', { propertyId: 'casa1', phone: '+393330000004', name: 'Prenotato', status: 'new', createdAt: days(2) });
 DB.set('leads/rec1', { phone: '+393330000007', name: 'Recente', message: 'cerco casa a roma', status: 'new', createdAt: days(2) });
 DB.set('users/u1', { phone: '3330000003', role: 'tenant' });
-DB.set('viewings/v1', { phone: '+393330000004', status: 'confirmed', when: new Date(NOW + 2 * 86400000).toISOString() });
+/* la collection VERA delle visite: slots.js scrive viewingRequests (13/09/2026) */
+DB.set('viewingRequests/v1', { phone: '+393330000004', status: 'confirmed', when: new Date(NOW + 2 * 86400000).toISOString() });
 
 const call = (method, body, headers = {}) => new Promise(resolve => {
   const req = { method, headers: { 'x-wizard-secret': 'test-secret', ...headers }, body, query: body && body.__q ? body.__q : {} };
