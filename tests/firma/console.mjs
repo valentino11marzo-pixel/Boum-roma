@@ -112,8 +112,8 @@ ok(has(4, /chip signed">✓ firmato/) && has(4, /📥 Contratto firmato/) && !ha
 ok(updates.some(u => u.name === 'preAgreements' && u.id === 'E' && u.patch.contractId === 'pa_E' && u.patch.contractAdoptedAt),
   'E · il back-link viene RISCRITTO sulla proposta (contractId + contractAdoptedAt)');
 ok(!updates.some(u => u.id !== 'E'), '… e solo su di lei: nessuna scrittura sulle altre');
-ok(has(5, /contratto NON ancora creato nel sistema/) && has(5, /40 giorni fa/) && has(5, /→ Contratto/) && has(5, /crealo prima da Immobili/) && !has(5, /Revoca</),
-  'F · pagato senza contratto: la riga lo dice (da quanti giorni), la mossa è → Contratto, niente Revoca su un pagato');
+ok(has(5, /contratto NON ancora creato nel sistema/) && has(5, /40 giorni fa/) && has(5, /→ Contratto/) && has(5, /lo crei dalla proposta con un tap/) && !has(5, /crealo prima da Immobili/) && !has(5, /Revoca</),
+  'F · pagato senza contratto: la riga lo dice (da quanti giorni), la mossa è → Contratto che CREA l’immobile dalla proposta, niente Revoca su un pagato');
 ok(has(6, /Revoca</) && has(6, /Pagamento ancora in sospeso/) && !has(6, /contratto NON ancora creato/),
   'G · accettato non pagato: Revoca disponibile, nessun allarme «senza contratto» (non ha pagato)');
 ok(!has(0, /Revoca</) && !has(2, /Revoca</), 'A e C (pagati/contrattualizzati): mai Revoca');

@@ -234,7 +234,7 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
           <label class="fld"><span>WhatsApp proprietario</span><input id="fLPhone" type="tel" placeholder="+39 …"></label>
         </div>
         <label class="fld"><span>Proprietà nel portal — abilita l'auto-contratto</span><select id="fProp"><option value="">— nessuna (converto dopo a mano) —</option></select></label>
-        <p class="hintline">Con la proprietà collegata il contratto <b>si crea da solo</b> alla chiusura del deal. Il Magic Sign al cliente parte solo quando lo decidi tu; il link firma del proprietario glielo mandi con un tocco.</p>
+        <p class="hintline">Con la proprietà collegata il contratto <b>si crea da solo</b> alla chiusura del deal. Il Magic Sign al cliente parte solo quando lo decidi tu; il link firma del proprietario glielo mandi con un tocco. Senza immobile nel portal, alla conversione lo <b>crei dalla proposta</b> con un tap.</p>
       </div>
 
       <div class="card"><h2><span class="no">02</span><span class="tt">Contratto</span></h2>
@@ -675,7 +675,7 @@ function nextStepLine(d,sig,st,m){
       ?'Contratto pronto (identità + documenti già dentro) — <b>🖊 Magic Sign</b> quando vuoi far firmare l’inquilino.'
       :(d.propertyId
         ?'Tutto pronto — <b>🖊 Magic Sign</b> crea il contratto e manda il link di firma all’inquilino, in un tocco.'
-        :'Prossimo passo → <b>→ Contratto</b> collega la proprietà e prepara il contratto (identità e termini già dentro). Se l’immobile non è nel portal, crealo prima da Immobili.')))+tail;
+        :'Prossimo passo → <b>→ Contratto</b> collega la proprietà e prepara il contratto (identità e termini già dentro). Se l’immobile non è nel portal, <b>→ Contratto</b> lo crea dalla proposta con un tap.')))+tail;
 }
 function fillForm(d){
   $('fAddress').value=(d.property||{}).address||'';$('fFloor').value=(d.property||{}).floor||'';
@@ -734,13 +734,67 @@ window.revokePA=async function(id,undo){
 window.copyPaLink=function(tok){try{navigator.clipboard.writeText(location.origin+'/pre-agreement?t='+tok);}catch(e){}};
 window.copyTxt=function(t){try{navigator.clipboard.writeText(t);}catch(e){}};
 
+/* ── IL PREFLIGHT (Sprint 1, 3.3) — i puntini PRIMA del PDF, la sovrapposizione
+   PRIMA del contratto. Il server (convert dryRun / profile/link) decide;
+   qui si mettono in parole. Avverte, non blocca: si procede a occhi aperti. */
+function preflightLines(j){
+  var out=[];
+  if(j&&j.overlap){var o=j.overlap;out.push({k:'overlap',t:'⚠ Sullo stesso immobile c’è già un contratto ATTIVO di '+(o.tenantName||'—')+' dal '+o.startDate+(o.endDate?' al '+o.endDate:'')+(o.unit?' (int. '+o.unit+')':'')+'.'});}
+  var c=j&&j.completeness;
+  if(c){
+    var n=(c.dots||[]).length;
+    var who=[['tenant','Inquilino'],['landlord','Locatore'],['operator','Operatore']].map(function(w){var l=((c.byOwner||{})[w[0]]||[]).map(function(x){return x.label});return l.length?w[1]+': '+l.join(', '):''}).filter(Boolean);
+    (c.cotenants||[]).forEach(function(ct){who.push('Co-conduttore '+ct.name+': '+ct.missing.join(', '))});
+    out.push({k:'dots',n:n,t:n?('Il PDF stamperebbe '+n+' puntin'+(n===1?'o':'i')+' — '+who.join(' · ')):(who.length?'PDF completo; per la registrazione mancano — '+who.join(' · '):'✓ Nessun puntino: identità e termini completi.')});
+  }
+  return out;
+}
+function preflightHtml(j){
+  return preflightLines(j).map(function(l){return '<div style="margin-top:4px;'+(l.k==='overlap'?'color:#ff8a70':(l.n?'color:var(--gold-light)':'color:var(--green)'))+'">'+esc(l.t)+'</div>'}).join('')
+    +(j&&j.overlap?'<label class="dele" style="margin-top:8px"><input type="checkbox" id="cvForce"><span><b>Crea comunque</b> — è un’altra stanza/interno non modellato, oppure sostituisce quello in corso.</span></label>':'');
+}
+function ask(msg){return (typeof confirm==='function')?confirm(msg):true;}
+/* prima di 🖊: contratto da creare → convert dryRun (sovrapposizione + puntini);
+   contratto già nato e non firmato → profile/link (i mancanti per parte).
+   Ritorna {stop:true} se l'operatore si ferma, {force:true} se scavalca. */
+async function signPreflight(d,tok){
+  try{
+    var H={'Content-Type':'application/json','Authorization':'Bearer '+tok};
+    var cid=contractIdOf(d),force=false;
+    if(!cid){
+      var r=await fetch('/api/preagreement/convert',{method:'POST',headers:H,body:JSON.stringify({id:d.id,dryRun:true,propertyId:d.propertyId||undefined})});
+      var j=await r.json();
+      if(j&&j.ok&&!j.already){
+        var L=preflightLines(j);
+        var ov=L.find(function(l){return l.k==='overlap'});
+        if(ov){if(!ask(ov.t+'\n\nCreare COMUNQUE il contratto (altra stanza/interno, oppure sostituisce quello in corso)?\nAnnulla per fermarti.'))return {stop:true};force=true;}
+        var dl=L.find(function(l){return l.k==='dots'});
+        if(dl&&dl.n>0&&!ask(dl.t+'\n\nMandare comunque il link di firma? Annulla per completare prima i dati (Scheda / ✎ Modifica).'))return {stop:true};
+      }
+    }else if(!sigState(d).tenantSigned){
+      var r2=await fetch('/api/profile/link',{method:'POST',headers:H,body:JSON.stringify({contractId:cid})});
+      var k=await r2.json();
+      if(k&&k.ok&&k.missing){
+        var parts=[['tenant','Inquilino'],['landlord','Locatore'],['operator','Operatore']].map(function(w){var l=(k.missing[w[0]]||[]).map(function(x){return x.label});return l.length?w[1]+': '+l.join(', '):''}).filter(Boolean);
+        if(parts.length&&!ask('Dati ancora mancanti — '+parts.join(' · ')+'\n\nMandare comunque il link di firma? Annulla per chiederli prima con la Scheda (📨 dal portal).'))return {stop:true};
+      }
+    }
+    return {force:force};
+  }catch(e){return null;}   /* il preflight non blocca mai per un suo errore */
+}
+
 /* 🖊 Magic Sign — one tap: contract prepared (if needed) + tenant emailed.
    The row refreshes by itself via the realtime listener (signSentAt patch). */
 window.sendSign=async function(id,btn){
-  if(btn){btn.disabled=true;btn.textContent='Invio…';}
+  var d=PAS.find(function(x){return x.id===id});
+  var was=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='Controllo…';}
   try{
     var tok=await USER.getIdToken();
-    var r=await fetch('/api/preagreement/send-sign',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({id:id})});
+    var pre=d?await signPreflight(d,tok):null;
+    if(pre&&pre.stop){if(btn){btn.disabled=false;btn.textContent=was;}return;}
+    if(btn)btn.textContent='Invio…';
+    var r=await fetch('/api/preagreement/send-sign',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(Object.assign({id:id},pre&&pre.force?{force:true}:{}))});
     var j=await r.json();
     if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
     if(j.alreadySigned){
@@ -756,7 +810,7 @@ window.sendSign=async function(id,btn){
     if(btn)btn.textContent=j.emailed?'✓ Inviato':'✓ Contratto pronto (email non partita)';
   }catch(e){
     if(btn){btn.disabled=false;btn.textContent='🖊 Riprova Magic Sign';}
-    alert('Magic Sign non inviato: '+(e.message||'riprova')+(String(e.message).indexOf('no_property')>=0?' — collega prima la proprietà con → Contratto.':''));
+    alert('Magic Sign non inviato: '+(e.message||'riprova')+(String(e.message).indexOf('no_property')>=0?' — collega (o crea) la proprietà con → Contratto.':String(e.message).indexOf('overlap')>=0?' — sullo stesso immobile c’è già un contratto attivo: passa da → Contratto e decidi.':''));
   }
 };
 /* ⚠ Sistema lo stato · ✅ Sblocca la riserva · 🔎 Ha pagato?
@@ -831,9 +885,13 @@ window.convertPA=async function(id){
     +'<h3>Converti in contratto</h3>'
     +'<div class="sub2"><b style="color:var(--t1)">'+esc(t.fullName||'—')+'</b> · '+esc(addr)
     +'<br>Identità, termini e documenti passano dal pre-agreement firmato — niente da ribattere.</div>'
-    +'<label class="fld"><span>Proprietà nel portal *</span><select id="cvProp"><option value="">Scegli la proprietà…</option>'
+    +'<label class="fld"><span>Proprietà nel portal *</span><select id="cvProp" onchange="cvPreflight()"><option value="">Scegli la proprietà…</option>'
+    /* l'immobile che manca si crea DALLA proposta (Sprint 1, 1.1): indirizzo,
+       piano, interno, locatore e canone sono già qui — niente Immobili a mano */
+    +(addr?'<option value="__new__"'+(!guess?' selected':'')+'>＋ Crea l’immobile da questa proposta — '+esc(addr.slice(0,48))+'</option>':'')
     +props.map(function(p){return '<option value="'+p.id+'"'+(guess&&guess.id===p.id?' selected':'')+'>'+esc(p.name)+(p.zone?' · '+p.zone:'')+'</option>'}).join('')
     +'</select></label>'
+    +'<div id="cvPre" class="sub2" style="margin-top:2px;min-height:18px"></div>'
     +'<label class="dele"><input type="checkbox" id="cvDelegate"><span><b>Firmo io per delega del proprietario</b> (opzione). Di default firma <b>'+esc(ll.name||'il proprietario')+'</b> direttamente: il suo link glielo mandi tu, dopo la firma dell’inquilino.</span></label>'
     +'<button class="gbtn" id="cvGo">Crea contratto + link Magic Sign →</button>'
     +'<p class="err" id="cvErr"></p>'
@@ -842,29 +900,55 @@ window.convertPA=async function(id){
     +'</div>';
   ov.addEventListener('click',function(e){if(e.target===ov)closeConvert();});
   document.body.appendChild(ov);
+  // IL TIPO VIAGGIA (difetto trovato il 28/08): convert accetta
+  // type:'studenti', ma la console non gliel'ha MAI passato — così ogni
+  // contratto nasceva 'transitorio' e il PDF usciva con l'Allegato B
+  // anche per uno studente. Il tipo si deduce dal Tipo della proposta.
+  var _lt=String((d.lease||{}).type||'');
+  var cvType=/student/i.test(_lt)?'studenti':/3\s*\+\s*2/i.test(_lt)?'3+2':'transitorio';
+  var cvBody=function(){var sel=document.getElementById('cvProp').value;var b={id:id,type:cvType};if(sel==='__new__')b.createProperty=true;else if(sel)b.propertyId=sel;return b;};
+  /* il preflight al cambio immobile: sovrapposizione + i puntini del PDF, PRIMA del tap */
+  window.cvPreflight=async function(){
+    var box=document.getElementById('cvPre');if(!box)return;
+    var sel=document.getElementById('cvProp').value;
+    if(!sel){box.innerHTML='';return;}
+    box.innerHTML='<span style="color:var(--t3)">Controllo completezza e sovrapposizioni…</span>';
+    try{
+      var tok=await USER.getIdToken();
+      var r=await fetch('/api/preagreement/convert',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(Object.assign(cvBody(),{dryRun:true}))});
+      var j=await r.json();
+      if(!j||!j.ok){box.innerHTML='<span class="miss">Preflight non riuscito: '+esc((j&&j.error)||'errore')+'</span>';return;}
+      box.innerHTML=(j.already?'<div style="color:var(--gold-light)">Contratto già esistente: ecco i link.</div>':preflightHtml(j))
+        +(sel==='__new__'?'<div style="margin-top:6px;color:var(--gold-light)">Nasce un immobile nuovo nel portal (indirizzo, piano, interno, locatore, canone dalla proposta); catasto, mq e zona li completi da Immobili.</div>':'');
+    }catch(e){box.innerHTML='<span class="miss">Preflight non riuscito: '+esc(e.message||'')+'</span>';}
+  };
+  cvPreflight();
   document.getElementById('cvGo').onclick=async function(){
     var err=document.getElementById('cvErr');err.style.display='none';
     var propertyId=document.getElementById('cvProp').value;
-    if(!propertyId){err.textContent='Scegli la proprietà del portal a cui appartiene il contratto.';err.style.display='block';return;}
+    if(!propertyId){err.textContent='Scegli la proprietà del portal a cui appartiene il contratto — o creala dalla proposta.';err.style.display='block';return;}
     var btn=this;btn.disabled=true;btn.textContent='Creo il contratto…';
     try{
       var tok=await USER.getIdToken();
       var delegated=document.getElementById('cvDelegate').checked;
-      // IL TIPO VIAGGIA (difetto trovato il 28/08): convert accetta
-      // type:'studenti', ma la console non gliel'ha MAI passato — così ogni
-      // contratto nasceva 'transitorio' e il PDF usciva con l'Allegato B
-      // anche per uno studente. Il tipo si deduce dal Tipo della proposta.
-      var _lt=String((d.lease||{}).type||'');
-      var isStud=/student/i.test(_lt), is32=/3\s*\+\s*2/i.test(_lt);
+      var body=Object.assign(cvBody(),{delegate:delegated});
+      var fc=document.getElementById('cvForce');if(fc&&fc.checked)body.force=true;
       var r=await fetch('/api/preagreement/convert',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},
-        body:JSON.stringify({id:id,propertyId:propertyId,delegate:delegated,type:isStud?'studenti':is32?'3+2':'transitorio'})});
+        body:JSON.stringify(body)});
       var j=await r.json();
+      if(j&&!j.ok&&j.error==='overlap'){
+        /* la guardia ha fermato: si mostra chi occupa la casa e la spunta per scavalcare, a voce alta */
+        document.getElementById('cvPre').innerHTML=preflightHtml({overlap:j.overlap});
+        throw new Error('sullo stesso immobile c’è già un contratto attivo — spunta «Crea comunque» se è un’altra stanza o una sostituzione');
+      }
       if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
       var waT=t.phone?('https://wa.me/'+String(t.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! Il tuo contratto per '+addr+' è pronto per la firma digitale. Firmi qui in 2 minuti: '+j.tenantSignUrl)):null;
       var isDele=!!j.delegate;
       var waL=(!isDele&&ll.phone)?('https://wa.me/'+String(ll.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(ll.name?' '+ll.name.split(' ')[0]:'')+'! Il contratto per '+addr+' è pronto per la sua firma digitale (si sblocca dopo la firma dell’inquilino). Può firmare qui in 2 minuti: '+j.landlordSignUrl)):null;
       document.getElementById('cvResult').innerHTML=
         (j.already?'<div class="sub2" style="color:var(--gold-light);margin-top:12px">Già convertito — ecco i link esistenti.</div>':'')
+        +(j.propertyCreated?'<div class="sub2" style="color:var(--gold-light);margin-top:12px">✓ Immobile creato nel portal dalla proposta ('+esc(j.propertyId||'')+'): completa catasto, mq e zona da Immobili quando puoi.</div>':'')
+        +(j.overlapForced?'<div class="sub2" style="color:#ff8a70;margin-top:12px">Creato COMUNQUE accanto al contratto attivo di '+esc((j.overlapForced||{}).tenantName||'—')+' (scelta tua, registrata).</div>':'')
         +'<div class="cvlink"><b>Firma inquilino — prima lui</b><span class="u">'+j.tenantSignUrl+'</span>'
         +'<div class="row2"><button class="pbtn" onclick="copyTxt(\''+j.tenantSignUrl+'\')">Copia</button>'
         +(waT?'<a class="pbtn wa" href="'+waT+'" target="_blank" rel="noopener">WhatsApp</a>':'')+'</div></div>'
@@ -1025,7 +1109,7 @@ function paRow(d){
     var days=d.paidAt?Math.max(0,Math.round((Date.now()-new Date(d.paidAt).getTime())/86400000)):null;
     alertLine='<div class="alertline"><b>💶 Pagato'+(d.paidAt?' il '+String(d.paidAt).slice(0,10):'')+(days!=null?' ('+days+' giorni fa)':'')+' — contratto NON ancora creato nel sistema</b>: '
       +'senza contratto non partono Magic Sign, rate, journey né registrazione. '
-      +(d.propertyId?'Premi <b>🖊 Magic Sign</b>: crea il contratto e manda il link.':'Premi <b>→ Contratto</b> e scegli l’immobile'+(((d.property||{}).address)?' («'+esc(String((d.property||{}).address).slice(0,40))+'»)':'')+'; se non è nel portal, crealo prima da Immobili.')
+      +(d.propertyId?'Premi <b>🖊 Magic Sign</b>: crea il contratto e manda il link.':'Premi <b>→ Contratto</b> e scegli l’immobile'+(((d.property||{}).address)?' («'+esc(String((d.property||{}).address).slice(0,40))+'»)':'')+'; se non è nel portal, lo crei dalla proposta con un tap, lì dentro.')
       +'</div>';
   }
   if(mismatch){

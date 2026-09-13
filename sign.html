@@ -338,6 +338,10 @@
     })();
 
     var TOKEN = (qs.get('token') || qs.get('sign') || '').trim();
+    // &delegate=1: l'OPERATORE apre il link del conduttore per firmare in
+    // sua vece (mandato scritto). Il link nudo del cliente firma sempre come
+    // il cliente: il server marca «per mandato» SOLO con asDelegate:true.
+    var ASDELE = qs.get('delegate') === '1';
     var DEMO = (qs.get('demo') || '').trim(); // demo=1 (standard) | demo=custom — walkthrough with mock data, no real API/OTP
 
     // ── State ──
@@ -586,7 +590,7 @@
       // e firma in sua vece — solo se il contratto porta tenantDelegate E un
       // mandato scritto (il server lo verifica di nuovo al submit: senza
       // mandato 403, termini cambiati 409). La pagina lo dichiara.
-      var tdele=(S.role==='tenant'&&c.tenantDelegate&&c.tenantDelegate.name)?c.tenantDelegate:null;
+      var tdele=(S.role==='tenant'&&ASDELE&&c.tenantDelegate&&c.tenantDelegate.name)?c.tenantDelegate:null;
       var tmand=c.tenantMandate||null;
       FLOW.innerHTML='';
       FLOW.appendChild(el(
@@ -903,6 +907,7 @@
       Promise.all([ sha256Hex(CONSENT), fetchIP() ]).then(function(arr){
         var payload = {
           token: TOKEN,
+          asDelegate: !!(ASDELE && S.role==='tenant'),
           signature: S.signature,
           signerIP: arr[1],
           signerName: S.id.name || signer.name || '',

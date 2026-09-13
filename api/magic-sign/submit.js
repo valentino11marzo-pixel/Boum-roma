@@ -125,7 +125,17 @@ export default async function handler(req, res) {
   // firma; termini cambiati dopo il mandato = 409, mai una firma. Il ramo
   // locatore resta quello di sempre (landlordDelegate è una delega
   // dell'operatore a sé stesso concordata col proprietario).
-  const tenantDele = (role === 'tenant' && contract.tenantDelegate && contract.tenantDelegate.name) ? contract.tenantDelegate : null;
+  //
+  // «PER MANDATO» SOLO QUANDO FIRMA DAVVERO L'OPERATORE (Sprint 1, 1.3).
+  // Prima bastava `tenantDelegate` armato sul contratto: QUALSIASI firma
+  // arrivata dal link del conduttore — anche quella del conduttore stesso,
+  // dal suo telefono — usciva come «firma per mandato» sul certificato.
+  // Ora la firma per mandato la DICHIARA chi la compie: `asDelegate:true`
+  // nel body, che sign.html manda solo aperto con `&delegate=1` (il link
+  // che il portal compone in 🖊 Firma ora). Il link nudo firma sempre come
+  // la parte, e la delega armata resta lì senza effetto.
+  const asDelegate = body.asDelegate === true;
+  const tenantDele = (role === 'tenant' && asDelegate && contract.tenantDelegate && contract.tenantDelegate.name) ? contract.tenantDelegate : null;
   if (tenantDele) {
     // mandateCheck (una copia, _shared.js): v2 confronta il contratto di
     // ADESSO con la foto presa all'accettazione (immobile, parti, modello,

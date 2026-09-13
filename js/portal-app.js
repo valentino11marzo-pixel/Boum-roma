@@ -19597,7 +19597,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const t = (S.users || []).find(u => u.id === c.tenantId);
         const ll = p ? (S.users || []).find(u => u.id === p.ownerId) : null;
         const base = window.location.origin;
-        const tLink = c.tenantSignToken ? `${base}/sign?sign=${c.tenantSignToken}` : '';
+        // Il link del conduttore aperto DA QUI porta &delegate=1 quando il
+        // mandato è armato: è l'unico modo in cui la firma esce «per
+        // mandato». Il link nudo (Share Hub, email) firma come il cliente.
+        const tLink = c.tenantSignToken ? `${base}/sign?sign=${c.tenantSignToken}${(c.tenantDelegate && c.tenantDelegate.name) ? '&delegate=1' : ''}` : '';
         const lLink = c.landlordSignToken ? `${base}/sign?sign=${c.landlordSignToken}` : '';
         const tDone = !!c.tenantSignature, lDone = !!c.landlordSignature;
         const dele = c.landlordDelegate && c.landlordDelegate.name ? c.landlordDelegate : null;

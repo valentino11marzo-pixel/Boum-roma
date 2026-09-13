@@ -273,7 +273,11 @@ const basePa = {
 {
   globalThis.__storageDown = true;
   store.set('preAgreements/pa2', { ...basePa });
-  const out = await convertPaToContract({ pa: store.get('preAgreements/pa2'), paId: 'pa2', propertyId: 'prop1', actor: 'test' });
+  // un ALTRO immobile: pa1 ha già un contratto attivo su prop1 con le stesse
+  // date, e la guardia sovrapposizioni (Sprint 1) lo fermerebbe — qui si
+  // misura Storage giù, non la guardia (che ha i suoi test in tests/money)
+  store.set('properties/prop2', { ...sampleProperty, ownerId: 'own1' });
+  const out = await convertPaToContract({ pa: store.get('preAgreements/pa2'), paId: 'pa2', propertyId: 'prop2', actor: 'test' });
   const c = store.get('contracts/pa_pa2');
   check('convert: Storage giù → contratto creato comunque, senza PDF', out.ok && c && !c.generatedPDF);
   const notif = [...store.keys()].filter(k => k.startsWith('agentNotifications/')).map(k => store.get(k));

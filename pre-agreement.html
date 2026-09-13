@@ -274,6 +274,13 @@ h1.big em{font-style:normal;color:var(--gold);font-weight:300}
 .mandate{margin-top:16px;border:1px dashed var(--line-gold);border-radius:12px;padding:13px 15px;background:var(--gold-faint)}
 .mandate .mh{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:6px}
 .mandate .mh b{font-size:12px;letter-spacing:.8px;text-transform:uppercase;color:var(--gold);font-weight:400}
+/* the contract card on the accepted view: ready → sign here; signed → status */
+.ctc{max-width:430px;margin:20px auto 0;text-align:left;border:1px solid var(--line-gold);border-radius:12px;padding:16px 18px;background:var(--gold-faint)}
+.ctc .ch{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:6px}
+.ctc .ch b{font-size:12px;letter-spacing:.8px;text-transform:uppercase;color:var(--gold);font-weight:400}
+.ctc .ch span{font-size:11px;color:var(--t3)}
+.ctc p{font-size:12.5px;color:var(--t3);margin:0 0 12px;line-height:1.6}
+.ctc .gbtn{margin-top:2px}
 .mandate .mh span{font-size:11px;color:var(--t3)}
 .mandate p{font-size:12px;color:var(--t2);line-height:1.6;margin:0}
 .mandate.given{border-style:solid}
@@ -1131,6 +1138,22 @@ function renderAccepted(){
     html+='<div class="mandate given" style="max-width:430px;margin:18px auto 0;text-align:left"><div class="mh"><b>✓ Mandate to sign given</b><span>'+esc(String(PA.mandate.at).slice(0,10))+'</span></div>'
       +'<p>BOOM will sign the lease in your name on exactly these terms. You’ll receive the signed contract and its certificate by email — nothing else to do. You can revoke it in writing any time before the lease is signed.</p></div>';
   }
+  /* THE CONTRACT, LIVE (Sprint 1, 2.3): when the contract exists the client
+     signs from HERE — the same link the email carries, shown only once the
+     money is in (lookup decides); then the state, then the signed PDF. */
+  var CT=PA.contract||null;
+  if(CT&&CT.tenantSignUrl){
+    html+='<div class="ctc" id="ctcard"><div class="ch"><b>Your contract is ready</b><span>'+(CT.invitedAt?'sent '+esc(String(CT.invitedAt).slice(0,10)):'')+'</span></div>'
+      +'<p>Prepared from this document, on exactly these terms. Signing takes two minutes on your phone — no app, no account.</p>'
+      +'<a class="gbtn" href="'+esc(CT.tenantSignUrl)+'">Sign your contract now →</a></div>';
+  }else if(CT&&CT.tenantSigned&&CT.status!=='complete'){
+    html+='<div class="ctc" id="ctcard"><div class="ch"><b>✓ Contract signed by you</b><span>'+esc(String(CT.tenantSignedAt||'').slice(0,10))+'</span></div>'
+      +'<p>'+(CT.byDelegate?'Signed under your written mandate by '+esc(CT.byDelegate.name)+'. ':'')+'Waiting for the landlord’s countersignature — you’ll receive the signed contract and its certificate by email.</p></div>';
+  }else if(CT&&CT.status==='complete'){
+    html+='<div class="ctc" id="ctcard"><div class="ch"><b>✓ Contract signed by both parties</b><span>'+esc(String(CT.fullySignedAt||CT.landlordSignedAt||'').slice(0,10))+'</span></div>'
+      +'<p>Your lease is active. BOOM files the registration with the Agenzia delle Entrate.</p>'
+      +(CT.signedPdfUrl?'<a class="gbtn" href="'+esc(CT.signedPdfUrl)+'" target="_blank" rel="noopener">Download the signed contract ↓</a>':'')+'</div>';
+  }
   if(stillDue){
     html+='<div style="max-width:430px;margin:20px auto 0"><button class="gbtn" id="payNowBtn" onclick="payNow()">Complete your reservation — '+eur(m.dueAtSigning)+' via Stripe →</button>'
       +'<p style="font-size:11px;color:var(--t3);margin-top:9px">Secured by Stripe · credited to your first month · refunded in full within 48h</p></div>';
@@ -1146,14 +1169,15 @@ function renderAccepted(){
       +'<input type="file" id="upinx" accept="image/*,application/pdf" style="display:none" onchange="onDoc(\'x\',this)">'
       +'</div>';
   }
-  var contractReady=!!PA.contractReady;
+  var contractReady=!!PA.contractReady||!!CT;
+  var signedAll=!!(CT&&CT.status==='complete'), signedMe=!!(CT&&CT.tenantSigned);
   html+='<div class="timeline">'
     +'<div class="tstep don"><span class="td"><i>✓</i></span><div><b>Pre-agreement signed</b><span>'+esc(p.address.split(',')[0])+' is reserved under your name.</span></div></div>'
     +(Number(m.dueAtSigning)>0
       ?'<div class="tstep '+(paid?'don':'now')+'"><span class="td"><i>'+(paid?'✓':'2')+'</i></span><div><b>Reservation payment</b><span>'+(paid?eur(m.dueAtSigning)+' received via Stripe — receipt in your email.':eur(m.dueAtSigning)+' via Stripe locks the apartment completely.')+'</span></div></div>'
       :'')
-    +'<div class="tstep '+(contractReady?'don':(paid||!Number(m.dueAtSigning)?'now':''))+'"><span class="td"><i>'+(contractReady?'✓':'•')+'</i></span><div><b>Your rental contract</b><span>'+(contractReady?'Ready — check your email for the digital signing link.':'Prepared automatically from this document — the signing link arrives by email.')+'</span></div></div>'
-    +'<div class="tstep"><span class="td"><i>•</i></span><div><b>Sign digitally, we register</b><span>Two minutes on your phone. BOOM countersigns and files the registration with the Agenzia delle Entrate.</span></div></div>'
+    +'<div class="tstep '+(contractReady?'don':(paid||!Number(m.dueAtSigning)?'now':''))+'"><span class="td"><i>'+(contractReady?'✓':'•')+'</i></span><div><b>Your rental contract</b><span>'+(contractReady?(CT&&CT.tenantSignUrl?'Ready — sign it above, or from the link in your email.':'Ready — check your email for the digital signing link.'):'Prepared automatically from this document — the signing link arrives by email.')+'</span></div></div>'
+    +'<div class="tstep '+(signedAll?'don':(signedMe||(CT&&CT.tenantSignUrl)?'now':''))+'"><span class="td"><i>'+(signedAll?'✓':(signedMe?'½':'•'))+'</i></span><div><b>Sign digitally, we register</b><span>'+(signedAll?'Signed by both parties. BOOM files the registration with the Agenzia delle Entrate.':(signedMe?'Signed by you — the landlord countersigns next, then BOOM registers the lease.':'Two minutes on your phone. BOOM countersigns and files the registration with the Agenzia delle Entrate.'))+'</span></div></div>'
     +'<div class="tstep"><span class="td"><i>•</i></span><div><b>Keys &amp; your tenant portal</b><span>Move-in day: keys, contacts and payments — all in one place.</span></div></div>'
     +'</div>'
     +'<div class="prq" id="paQr" aria-hidden="true"></div>'

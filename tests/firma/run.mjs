@@ -58,9 +58,11 @@ ok(!/type:/.test(src('api/preagreement/_auto.js').slice(src('api/preagreement/_a
   'la conversione automatica NON manda il tipo: deve bastare la proposta');
 ok(/leaseType\(type, le\)/.test(conv), 'convert deriva il tipo con la regola condivisa, non con un ternario locale');
 ok(/Student Housing \(Allegato C\)/.test(cons), 'la console pre-accordo OFFRE il contratto studenti');
-const call = cons.slice(cons.indexOf("fetch('/api/preagreement/convert'") - 600, cons.indexOf("fetch('/api/preagreement/convert'") + 400);
-ok(/type:\s*isStud\s*\?\s*'studenti'\s*:\s*is32\s*\?\s*'3\+2'\s*:\s*'transitorio'/.test(call), 'la conversione PASSA il tipo (prima non lo faceva mai) — studenti, 3+2 o transitorio');
-ok(/isStud=\/student\/i\.test\(_lt\)/.test(call) && /_lt=String\(\(d\.lease\|\|\{\}\)\.type/.test(call), 'il tipo si deduce dal Tipo scelto sulla proposta, non da un default');
+// (Sprint 1: il tipo vive in cvType, calcolato UNA volta nel modale e messo
+//  nel body da cvBody() — lo stesso body del preflight e della conversione.)
+ok(/var cvType=\/student\/i\.test\(_lt\)\?'studenti':\/3\\s\*\\\+\\s\*2\/i\.test\(_lt\)\?'3\+2':'transitorio';/.test(cons) && /var b=\{id:id,type:cvType\};/.test(cons),
+  'la conversione PASSA il tipo (prima non lo faceva mai) — studenti, 3+2 o transitorio');
+ok(/_lt=String\(\(d\.lease\|\|\{\}\)\.type/.test(cons), 'il tipo si deduce dal Tipo scelto sulla proposta, non da un default');
 ok(/3\+2 Canone concordato \(Allegato A\)/.test(cons), 'la console pre-accordo OFFRE anche il 3+2');
 
 // ── 1b. I dati che l'Allegato C nomina arrivano fin lì ──────────────────
@@ -183,6 +185,46 @@ ok(/watchContract\('pa_'\+d\.id,d\.id\)/.test(cons) && /update\(\{contractId:id,
 ok(/data-f="nocontract"/.test(cons) && /FILTER==='nocontract'\)return paidOf\(d\)&&!contractIdOf\(d\)/.test(cons), 'filtro «Da contratto»: i pagati senza contratto, il binario morto reso visibile');
 ok(/contratto NON ancora creato nel sistema/.test(cons), 'la riga del pagato senza contratto lo DICE, con la mossa');
 ok(/!gotMoney&&!cid&&st!=='paid'\?'<button class="pbtn warn" onclick="revokePA/.test(cons) && /ACCETTATA \(non pagata\)/.test(cons), 'Revoca anche su accettato non pagato (con conferma), mai su pagato o contrattualizzato');
+
+// ── 7. Sprint 1 — le giunzioni sulla sorgente ──────────────────────────
+// 1.1 l'immobile dalla proposta, 1.2 la guardia sovrapposizioni, 1.3 «per
+// mandato» esplicito, 2.3 il cliente firma dalla sua pagina, 3.3 il preflight.
+const convS = src('api/preagreement/convert.js');
+ok(/export function propertyFromPa\(/.test(convS) && /export const propertyIdForPa = \(paId\) => 'prop_pa_' \+ paId;/.test(convS) && /createProperty === true && canCreate/.test(convS),
+  '1.1 convert: l\'immobile nasce dalla proposta con id deterministico, solo su richiesta esplicita (createProperty) e solo con un indirizzo');
+ok(/error: 'no_property', canCreate/.test(convS) && /\.\.\.\(propertyId \? \{ propertyId \} : \{\}\)/.test(convS),
+  '1.1 convert: no_property dichiara canCreate; il back-link riporta propertyId sulla proposta');
+ok(/'__new__'/.test(cons) && /Crea l’immobile da questa proposta/.test(cons) && /b\.createProperty=true/.test(cons) && /j\.propertyCreated\?/.test(cons),
+  '1.1 console: l\'opzione «＋ Crea l’immobile da questa proposta» nel modale → createProperty:true, e il risultato lo dice');
+ok(!/crealo prima da Immobili/.test(cons) && /lo crei dalla proposta con un tap/.test(cons) && /lo crea dalla proposta con un tap/.test(cons),
+  '1.1 console: nessuna riga rimanda più a «crealo prima da Immobili»');
+ok(/export function overlapConflict\(/.test(convS)
+  && convS.indexOf("existing = await fsGet('contracts/' + contractId)") < convS.indexOf('const overlap = await findOverlap(')
+  && convS.indexOf('const overlap = await findOverlap(') < convS.indexOf("await fsCreate('contracts', contract, contractId);")
+  && /if \(overlap && force !== true && !dryRun\) return \{ ok: false, error: 'overlap', overlap \};/.test(convS),
+  '1.2 convert: la guardia sovrapposizioni DOPO il riconoscimento dell\'orfana (un contratto vicino non può bloccare il SUO) e PRIMA della creazione, scavalcabile solo con force:true, mai in dryRun');
+ok(/out\.error === 'overlap' \? 409/.test(convS) && /out\.error === 'overlap' \? 409/.test(src('api/preagreement/send-sign.js')) && /contract\.overlap_blocked/.test(src('api/preagreement/_auto.js')),
+  '1.2: 409 overlap dalla porta HTTP e da send-sign; il contratto automatico bloccato AVVISA (agentNotifications)');
+ok(/^\s+unit,$/m.test(convS) && /const unit = clip\(\(pa\.property \|\| \{\}\)\.unit, 40\) \|\| '';/.test(convS), '1.2 convert: l\'interno viaggia sul contratto (due stanze si distinguono)');
+ok(/cvForce/.test(cons) && /body\.force=true/.test(cons) && /j\.error==='overlap'/.test(cons) && /Crea comunque/.test(cons),
+  '1.2 console: la sovrapposizione si mostra, e «Crea comunque» è una spunta esplicita → force:true');
+ok(/const asDelegate = body\.asDelegate === true;/.test(src('api/magic-sign/submit.js')), '1.3 submit: «per mandato» solo con asDelegate:true nel body');
+ok(/&delegate=1/.test(app) && /qs\.get\('delegate'\) === '1'/.test(src('sign.html')), '1.3: il flag nasce dal link del pannello Firma ora e sign.html lo legge dall\'URL');
+const lookS = src('api/preagreement/lookup.js');
+ok(/export async function contractStatus\(/.test(lookS) && /const unlocked = paidOnRecord\(data\) \|\| dueAtSigning\(data\) === 0;/.test(lookS)
+  && /tenantSignUrl: \(unlocked && !tenantSigned && c\.tenantSignToken\)/.test(lookS) && !/landlordSignToken/.test(lookS),
+  '2.3 lookup: il link di firma del conduttore SOLO a soldi ricevuti (o dovuto zero) e SOLO se non ha firmato; il token del locatore non esce mai');
+ok(/id="ctcard"/.test(src('pre-agreement.html')) && /Sign your contract now/.test(src('pre-agreement.html')), '2.3 pagina: la card «Sign your contract now» esiste');
+ok(/dryRun: b\.dryRun === true/.test(convS) && convS.indexOf('if (dryRun) {') < convS.indexOf("await fsCreate('contracts', contract, contractId);") && /if \(!dryRun\) try \{/.test(convS),
+  '3.3 convert: dryRun esce PRIMA di ogni scrittura (profilo, contratto) e dopo la costruzione del contratto');
+ok(/function preflightOf\(/.test(convS) && /FIELDS\.completeness\(ctx, \{ level: 'registration' \}\)/.test(convS) && /FIELDS\.hydrateParties\(contract, tenantUser/.test(convS),
+  '3.3 convert: il preflight passa dal dizionario (completeness + hydrateParties), non da una lista a mano');
+ok(/async function signPreflight\(d,tok\)/.test(cons) && cons.indexOf('var pre=d?await signPreflight(d,tok):null;') < cons.indexOf("fetch('/api/preagreement/send-sign'")
+  && /dryRun:true,propertyId:d\.propertyId/.test(cons) && /fetch\('\/api\/profile\/link'/.test(cons) && /if\(pre&&pre\.stop\)/.test(cons),
+  '3.3 console 🖊: il preflight (dryRun senza contratto, profile/link col contratto) PRIMA di send-sign, e l\'operatore può fermarsi');
+ok(/window\.cvPreflight=async function/.test(cons) && /onchange="cvPreflight\(\)"/.test(cons) && /Object\.assign\(cvBody\(\),\{dryRun:true\}\)/.test(cons) && /function preflightLines\(j\)/.test(cons),
+  '3.3 console → Contratto: il preflight al cambio immobile, in parole (preflightLines), prima del tap');
+ok(/function ask\(msg\)\{return \(typeof confirm==='function'\)\?confirm\(msg\):true;\}/.test(cons), 'console: la conferma è guardata (in Node non esiste confirm)');
 
 console.log(`\n${fail ? '✗' : '✓'} firma: ${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);

@@ -13,6 +13,7 @@
 
 import { convertPaToContract } from './convert.js';
 import { sendContractSignEmail } from './_notify.js';
+import { fsCreate } from '../homie/_lib.js';
 
 export async function maybeAutoConvert({ pa, paId }) {
   try {
@@ -23,6 +24,22 @@ export async function maybeAutoConvert({ pa, paId }) {
     const out = await convertPaToContract({ pa, paId, delegate: false, actor: 'auto' });
     if (!out.ok) {
       console.error('[pa/_auto] convert failed:', out.error);
+      // La guardia sovrapposizioni ha fermato il contratto automatico: il
+      // deal è chiuso (pagato/accettato) e l'operatore DEVE saperlo — una
+      // riga su agentNotifications → Telegram entro un minuto; la console
+      // mostra comunque «pagato, contratto NON creato» con la mossa.
+      if (out.error === 'overlap' && out.overlap) {
+        const o = out.overlap;
+        try {
+          await fsCreate('agentNotifications', {
+            type: 'contract.overlap_blocked',
+            summary: `⚠ Contratto automatico NON creato per ${pa.ref || paId} (${(pa.tenant || {}).fullName || 'conduttore'}): sullo stesso immobile c'è già un contratto attivo di ${o.tenantName || '—'} dal ${o.startDate}${o.endDate ? ' al ' + o.endDate : ''}${o.unit ? ' (int. ' + o.unit + ')' : ''}. Dalla console: → Contratto e decidi (stanza diversa → crea comunque).`,
+            priority: 'high', ref: { collection: 'preAgreements', id: paId },
+            dedupKey: 'overlap-' + paId, status: 'pending',
+            actor: 'preagreement-auto', createdAt: new Date().toISOString(), attempts: 0,
+          });
+        } catch (e) { console.warn('[pa/_auto] overlap notice:', e.message); }
+      }
       return out;
     }
     if (!out.already) {

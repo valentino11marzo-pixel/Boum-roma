@@ -64,10 +64,14 @@ export default async function handler(req, res) {
     propertyId: b.propertyId || pa.propertyId,
     delegate: b.delegate === true,
     actor: auth.email || auth.uid,
+    // le stesse leve del modale → Contratto: l'immobile che nasce dalla
+    // proposta e lo scavalco DICHIARATO della guardia sovrapposizioni
+    createProperty: b.createProperty === true,
+    force: b.force === true,
   });
   if (!out.ok) {
-    const code = out.error === 'no_property' ? 400 : out.error === 'property_not_found' ? 404 : 500;
-    return res.status(code).json({ ok: false, error: out.error });
+    const code = out.error === 'no_property' ? 400 : out.error === 'property_not_found' ? 404 : out.error === 'overlap' ? 409 : 500;
+    return res.status(code).json({ ok: false, error: out.error, ...(out.overlap ? { overlap: out.overlap } : {}), ...(out.canCreate != null ? { canCreate: out.canCreate } : {}) });
   }
 
   const tenantSignUrl = out.tenantSignUrl || pa.tenantSignUrl || null;
