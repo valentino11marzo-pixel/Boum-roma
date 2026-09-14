@@ -678,6 +678,9 @@
     "api/contracts/inventario.js": {
       "maxDuration": 60
     },
+    "api/portal/ingest.js": {
+      "maxDuration": 120
+    },
     "api/listing.js": {
       "includeFiles": "apartment-detail.html"
     },

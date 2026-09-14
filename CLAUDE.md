@@ -2753,6 +2753,43 @@ browser or Firestore.
   sulla pagina Contratti, e un contratto saltato ha card rossa PRIMA e toast
   warning DOPO che nominano la gamba. `js/dataops-engine.js` è network-first
   nel SW (cache `boom-v18`): il motore non può divergere dalla pagina.
+  **Innesto 3.0 (14/09/2026)** — dopo la lettura (vedi `/api/portal/ingest`):
+  (1) **più file, incolla, scatta**: drop zone `multiple`, Ctrl+V di uno
+  screenshot, `capture="environment"` da telefono, chip per file, progresso
+  con i secondi e la fase (transito / lettura); (2) **la card dice cosa ha
+  letto**: un verdetto per documento (tipo, pagine, illeggibile e perché),
+  il riassunto, il costo stimato (`INNESTO_RATES`, $/M token); (3) **ogni
+  campo cita** la frase del documento (`evidence` → `evMap`, percorsi del
+  modello ricondotti alla forma piatta da `innestoEvPath`), un campo
+  DERIVATO dice «calcolato: …», un valore senza citazione lo dichiara;
+  campi core sempre visibili, il resto dietro «＋ altri campi»; (4) **LA
+  MODIFICA PROPOSTA** (STUDIO_SCRIVANO §3, soffitto 1 chiuso): chi esiste
+  già in archivio non genera un doppione e non resta com'era — la card
+  mostra prima → dopo (`diffRecord`): un buco si riempie con la spunta già
+  accesa, un valore che CAMBIA parte spento e lo confermi tu; la scrittura
+  va nella collection del record (`users`/`landlords`/`properties`, `_col`
+  sul pool) nei DUE schemi users (`codiceFiscale`+`cf`, `birthDate`+`dob`…),
+  firmata `updatedBy:'innesto'`; (5) **co-conduttori** con la loro card,
+  aggancio e riga `coTenants[]` sul contratto (cf, dob, tenantIndex,
+  userId); (6) **parità con saveContract**: il contratto nasce con
+  `tenantSignToken`/`landlordSignToken`, `canone{}` (mesi di locazione da
+  `monthsSpan`, non i «11 mesi e 30 giorni» di monthsBetween), `durata{}`,
+  identità delle parti (`tenantCF/Dob/Pob/Doc*`, `landlord*`), catasto in
+  testo, APE, rendita, `studenti{}`, `cohabitants`, `otherClauses`, poi
+  `generateMonthlyPayments`, `generateContractDeadlines` e
+  `generateContractPDF` (best-effort); (7) **il documento RESTA**
+  (STUDIO_SCRIVANO §4 passo 1): i file letti si archiviano su
+  `documents/<uid>/innesto/` e in `documents` con categoria/cartella dello
+  Smistatore, legati a contratto/immobile/persona; un documento d'identità
+  entra anche negli `identityDocs` del contratto e del profilo
+  (`arrayUnion`, mai una riscrittura); spegnibile dalla barra. Motore:
+  `pruneProposal`, `cfBirth`/`cfBirthDateMatches`/`cfMatchesName` (il CF
+  che CONFERMA data e nome: data invertita = errore, CF di un'altra persona
+  = avviso), `validatePIva`, `monthsSpan`, `diffRecord`/`applyDiff`,
+  `LABELS` in una copia; controlli: deposito > 3 mensilità (art. 11 L.
+  392/78), durate per tipo (transitorio 1–18, studenti 6–36, 3+2 = 36),
+  esigenza mancante, studenti senza corso. Test: `tests/dataops/test.mjs`
+  (174 check) + `tests/innesto/run.mjs`.
 
 ### Dati aziendali (IBAN) fuori dal codice — `settings/company`
 `COMPANY` in `portal-app.js` carried `iban: 'IT00X0000000000000000000000'` with
@@ -2770,31 +2807,68 @@ console shows a red card, and admins get a toast at boot. Saving re-validates
 the IBAN before writing. `loadCompanySettings()` is fire-and-forget off the
 boot path (Safari-audit rule: nothing awaited on boot).
 
-### POST `/api/portal/ingest`
-Admin/owner/landlord (Firebase ID token). Body `{ text?, base64?, fileUrl?,
-mediaType?, context:{ known:{ landlords[], properties[] } } }` → `{ ok,
-proposal, notes[], confidence }`. Claude (haiku) extracts the four entities;
-the prompt forbids inventing values (an empty field is correct, an invented
-one ends up in a registered contract) and the response is field-whitelisted
-server-side to the portal's schema. **Writes nothing** — creation happens
-client-side after the operator reviews and confirms. `ANTHROPIC_API_KEY`
-stays server-side.
+### POST `/api/portal/ingest` — L'INNESTO 3.0 (14/09/2026)
+Admin/owner/landlord (Firebase ID token). Body `{ text?, files?:[{ base64? |
+fileUrl?, mediaType, name }] (≤8, ≤8 MB l'uno, ≤20 MB in tutto), context:{
+hint?, known:{ landlords[], tenants[], properties[] } } }` (il vecchio corpo
+a UN file `base64/fileUrl/mediaType` è ancora accettato) → `{ ok, proposal,
+derived, checks, files[], evidence[], notes[], confidence, summary, usage }`.
+**Writes nothing** — creation happens client-side after the operator reviews
+and confirms. `ANTHROPIC_API_KEY` stays server-side.
 
-**La lezione del 28 agosto 2026 (errore 413)**: il body di una function
-Vercel ha un tetto di PIATTAFORMA di **4,5 MB** — l'edge lo respinge PRIMA
-che l'handler parta, quindi il `sizeLimit: '12mb'` dichiarato nel file e il
-tetto client di 8 MB erano promesse vuote: un PDF scansionato sopra ~3,3 MB
-(base64 +33%) moriva in un "errore 413" nudo. La cura, su tre binari: le
-FOTO si riducono client-side prima di partire (`adeCompressImage`, la stessa
-del convertitore AdE — una copia sola); un file che resta sotto
-`INNESTO_INLINE_MAX` (3 MB) viaggia inline come sempre; sopra, TRANSITA
-dallo Storage (`documents/<uid>/innesto-tmp/`, cartella già ammessa dalle
-rules) e all'API va solo `fileUrl` — il server scarica i byte dove il tetto
-non esiste (cap 8 MB), e il client CANCELLA il transito nel `finally`, così
-la promessa della pagina ("niente resta salvato finché non confermi") resta
-vera. `fileUrl` è accettato SOLO su `https://firebasestorage.googleapis.com`:
-i byte finiscono ad Anthropic, e un URL libero trasformerebbe l'endpoint in
-un proxy verso host arbitrari. Test: `node tests/innesto/run.mjs`.
+**LA LEZIONE DEL 14 SETTEMBRE 2026** («quando leggo dei file non riesce mai a
+leggerli bene»): nei log di produzione delle 08:30 c'era la risposta —
+`why=truncated len=3365 fenced=1 stop=end_turn`. Il modello aveva FINITO
+(`end_turn`, non `max_tokens`), ma il JSON scritto a mano libera in un recinto
+```json non chiudeva le graffe (basta una virgoletta dentro una nota) e
+`_modeljson.js` lo diagnosticava come troncato: all'operatore arrivava il
+rimedio SBAGLIATO («documento troppo lungo, allega meno pagine») per un
+guasto di forma. A monte, tre difetti di classe: (1) 120 campi chiesti come
+testo libero a un modello sono una lotteria; (2) leggeva `claude-haiku-4-5`
+con `max_tokens: 2000` — un contratto registrato all'AdE letto col modello
+più piccolo, mentre l'inventario legge con Opus 5 «perché vale sul
+deposito»; (3) la funzione NON era in `vercel.json`, quindi girava col
+maxDuration di default della piattaforma. Ora:
+- **Output strutturato** (`output_config.format` json_schema, `INGEST_SCHEMA`
+  esportato: ogni oggetto `additionalProperties:false` e `required` completo,
+  «manca» = null): il JSON è valido PER COSTRUZIONE. `parseModelJson` resta
+  come rete; `stop_reason` è letto e detto — `refusal` → `ai_refused`,
+  `max_tokens` → `ai_truncated` (solo lì si parla di taglio), 429 →
+  `ai_rate_limited`, abort → 504 `ai_timeout`, ognuno con il rimedio in
+  `detail`. Ripiego server-side sui rifiuti (`fallbacks:'default'` + beta
+  `server-side-fallback-2026-07-01`): se la piattaforma lo rifiutasse con un
+  400 si riprova UNA volta senza — la lettura non dipende da un beta.
+- **`claude-opus-5`**, thinking adattivo, `max_tokens 16000`, prompt di
+  sistema in cache (`cache_control`). `vercel.json`: `maxDuration 120`,
+  `AI_MS` 100 s (il test pretende `AI_MS < maxDuration`).
+- **Più file in una lettura**: ogni file è un blocco `document`/`image`
+  preceduto da «DOCUMENTO n — nome»; il testo incollato è l'ultimo documento;
+  un PDF oltre `MAX_PAGES` (60) viene tagliato con pdf-lib alle prime 60 e lo
+  si dice nelle note. HEIC → 400 col rimedio («Più compatibile» su iPhone):
+  Anthropic non lo legge e Chrome non lo converte.
+- **Lo schema è il dizionario** (`js/contract-fields.js`): tenant e landlord
+  con documento (tipo/numero/ente/data), permesso di soggiorno, società
+  (kind/ragione sociale/P.IVA), `coTenants[]`, catasto a caselle (sezione/
+  foglio/particella/sub/categoria/rendita), tabelle millesimali, piano/scala/
+  interno/vani/accessori/ammobiliato/APE, contratto con durata, cadenza,
+  cedolare (null = non detto), esigenza e di chi è, blocco studenti,
+  conviventi, clausole, luogo/data di firma, ISTAT.
+- **Ogni valore cita la fonte**: `evidence[] {path, quote, file, page}` —
+  percorso validato contro lo schema, indice di documento fuori range → null.
+  `files[]` porta il verdetto per file (tipo dalla tassonomia `CATS` dello
+  Smistatore, pagine, `legible`, a quale parte appartiene un documento
+  d'identità): «non riesce a leggerli» diventa una riga per documento.
+- **Server-side**: `pruneProposal` (solo le sezioni con un'ANCORA — un
+  booleano di default non fa nascere una card «Contratto»), `normalizeProposal`
+  (forma del modello E forma piatta, idempotente), `deriveProposal` con
+  `FIELDS.parseCadastral` (una copia sola) e derivazioni DICHIARATE,
+  `validateProposal`. `usage` porta modello, token (cache compresa) e ms: il
+  portal ne fa il costo stimato della lettura.
+- **La cura del 413 (28/08) resta**: foto ridotte client-side; la SOMMA dei
+  file inline sta sotto `INNESTO_INLINE_MAX` (3 MB) e il resto TRANSITA da
+  `documents/<uid>/innesto-tmp/` (cancellato nel `finally`); `fileUrl` solo
+  su `https://firebasestorage.googleapis.com`, mai un proxy. Nei log la
+  forma, mai il contenuto. Test: `node tests/innesto/run.mjs` (112 check).
 
 ### POST `/api/homie/wa-outbox`
 WhatsApp OUTBOX for the Mac-side Homie agent: approved WhatsApp replies go
