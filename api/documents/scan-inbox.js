@@ -149,6 +149,9 @@ async function run({ dry }) {
               fileName,
               hint,
               origin: 'email',
+              // This scanner sends one batch recap; do not add a second
+              // per-document Telegram card when Scrivano (#238) is integrated.
+              offer: false,
               docId,
               relation: relation || { kind: 'operator' },
             });
