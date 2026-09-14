@@ -35,7 +35,10 @@
 //
 // Response: { ok, conversationId, messageId, created, dedupHit? }
 
+import crypto from 'node:crypto';
 import { fsCreate, fsGet, fsPatch, fsList, logActivity, requireSecret, readJson } from './_lib.js';
+import { smistaDocument, MAX_DOC_BYTES } from '../documents/_smista.js';
+import { runBudget, aiSignal } from '../_budget.js';
 import {
   isNoise, matchListing, mergeMessage, buildLead, recentLeadByPhone, loadCatalog,
   normalizePhone, phoneVariants,
@@ -95,6 +98,7 @@ export default async function handler(req, res) {
   if (!body || typeof body !== 'object') return res.status(400).json({ ok: false, error: 'no_body' });
 
   const direction = body.direction;
+  const documentBudget = runBudget(60_000, 6_000);
   const text = String(body.body || '').trim();
   const channel = body.channel || 'whatsapp';
   if (!['in', 'out', 'note'].includes(direction)) return res.status(400).json({ ok: false, error: 'invalid_direction' });
@@ -108,12 +112,14 @@ export default async function handler(req, res) {
   let contactEmail = body.email || '';
   let contactUid  = body.contactUid || null;
   let assignedLandlordId = body.assignedLandlordId || null;
+  let documentContact = null;
 
   if (!contactType || !contactId) {
     let resolved = null;
     if (contactPhone || body.phone) resolved = await resolveByPhone(body.phone || contactPhone);
     if (resolved) {
       const e = resolved.entity;
+      documentContact = e;
       contactType = resolved.contactType;
       contactId   = e.id;
       contactName = contactName || e.name || ((e.firstName ? (e.firstName + ' ' + (e.lastName || '')).trim() : '') ) || e.email || contactPhone;
@@ -141,6 +147,16 @@ export default async function handler(req, res) {
     try {
       const dup = await fsList('messages', { filter: { field: 'waMessageId', op: 'EQUAL', value: String(body.messageId) }, limit: 1 });
       if (dup && dup.length) {
+        // Il testo è già salvo; un retry può recuperare un allegato fallito
+        // o rinviato per budget, usando gli URL persistiti, non nuovi input.
+        if (dup[0].direction === 'in' && dup[0].channel === 'whatsapp' && dup[0].attachments?.length) {
+          try {
+            const originalContact = await fsGet('conversations/' + dup[0].conversationId);
+            await fileWhatsAppAttachments({ urls: dup[0].attachments, text: dup[0].body,
+              contactType: originalContact?.contactType || 'whatsapp',
+              contactId: originalContact?.contactId, entity: null, budget: documentBudget });
+          } catch { console.warn('[homie/message] attachments retry: failed'); }
+        }
         return res.status(200).json({ ok: true, conversationId: cid, messageId: dup[0].id, created: false, dedupHit: true });
       }
     } catch { /* non-fatal — fall through and write */ }
@@ -260,7 +276,110 @@ export default async function handler(req, res) {
     }
   } catch (e) { console.warn('[homie/message] segretaria:', e.message); }
 
+  // Gli allegati sono secondari: messaggio, lead e turno sono già persistiti.
+  if (direction === 'in' && channel === 'whatsapp' && msg.attachments?.length) {
+    try {
+      await fileWhatsAppAttachments({ urls: msg.attachments, text, contactType, contactId,
+        entity: documentContact, budget: documentBudget });
+    } catch { console.warn('[homie/message] attachments: failed'); }
+  }
+
   return res.status(200).json({ ok: true, conversationId: cid, messageId, created, ...(leadInfo || {}), ...(segretaria ? { segretaria } : {}) });
+}
+
+// Lettura condivisa dalle due porte, senza memoria propria. Una scansione
+// incompleta NON può trasformare due immobili in un default unico.
+export async function loadDocumentRelations() {
+  const collections = ['landlords', 'users', 'contracts', 'properties'];
+  const rows = await Promise.all(collections.map(c => fsList(c, { limit: 1000 })));
+  if (rows.some(r => r.length >= 1000)) throw new Error('relation_scan_incomplete');
+  return Object.fromEntries(collections.map((c, i) => [c, rows[i]]));
+}
+
+export const documentEmail = value => String(value || '').trim().toLowerCase();
+
+// Solo legami registrati: email, ids delle parti, property.ownerId. Mai il
+// nome, il testo del messaggio o la prima casa trovata. Esportata per email.
+export function documentRelation(archive, { email, contactType, contactId } = {}) {
+  const address = documentEmail(email);
+  const ownerIds = new Set(), tenantIds = new Set(), propertyIds = new Set(), contractIds = new Set();
+  let label = '', landlord = false, tenant = false;
+  const matches = (p, kind) => (address && documentEmail(p.email) === address)
+    || (contactType === kind && contactId && p.id === contactId);
+  for (const p of [...archive.landlords.map(p => ({ ...p, role: 'landlord' })), ...archive.users]) {
+    if (!['landlord', 'tenant'].includes(p.role) || !matches(p, p.role)) continue;
+    if (p.role === 'landlord') { landlord = true; ownerIds.add(p.id); }
+    else { tenant = true; tenantIds.add(p.id); }
+    label ||= p.name || [p.firstName, p.lastName].filter(Boolean).join(' ') || p.email;
+  }
+  for (const c of archive.contracts) {
+    if (address && documentEmail(c.landlordEmail) === address) {
+      landlord = true;
+      if (c.landlordId) ownerIds.add(c.landlordId);
+    }
+    if (address && documentEmail(c.tenantEmail) === address) {
+      tenant = true;
+      if (c.tenantId) tenantIds.add(c.tenantId);
+    }
+  }
+  for (const p of archive.properties) if (ownerIds.has(p.ownerId)) propertyIds.add(p.id);
+  for (const c of archive.contracts) {
+    if (ownerIds.has(c.landlordId) || tenantIds.has(c.tenantId)
+      || (address && [c.landlordEmail, c.tenantEmail].some(e => documentEmail(e) === address))) {
+      contractIds.add(c.id);
+      if (c.propertyId) propertyIds.add(c.propertyId);
+    }
+  }
+  if (!landlord && !tenant) return null;
+  // L'interfaccia tratta una lista vuota come catalogo libero e tronca a 50:
+  // qui quel caso deve restare da smistare, mai un permesso implicito.
+  // Anche il catalogo dello Smistatore ha un tetto (200): oltre quel tetto
+  // non sappiamo se vedrebbe tutti i candidati, quindi niente default.
+  const bounded = propertyIds.size > 0 && propertyIds.size <= 50 && contractIds.size <= 50
+    && archive.properties.length < 200;
+  return { kind: bounded ? (landlord ? 'landlord' : 'tenant') : 'unknown',
+    label: label || address || contactId, propertyIds: [...propertyIds], contractIds: [...contractIds] };
+}
+
+async function fileWhatsAppAttachments({ urls, text, contactType, contactId, entity, budget }) {
+  if (!budget.afford(45_000)) return; // download 5s + modello 20s + primo upload 20s
+  let relation = { kind: 'unknown' };
+  if (contactType !== 'whatsapp') {
+    const coll = { lead: 'leads', tenant: 'users', landlord: 'users', pfs: 'pfsClients', client: 'clients' }[contactType];
+    const person = entity || (coll ? await fsGet(`${coll}/${contactId}`) : null);
+    if (person) relation = documentRelation(await loadDocumentRelations(), {
+      email: person.email, contactType, contactId,
+    }) || relation;
+  }
+  for (const url of urls) {
+    if (!budget.afford(45_000)) break;
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== 'https:' || parsed.username || parsed.password) continue;
+      const docId = 'wa_' + crypto.createHash('sha1').update(url).digest('hex');
+      if (await fsGet('documents/' + docId)) continue;
+      const response = await fetch(url, { signal: aiSignal(5_000), redirect: 'error' });
+      if (!response.ok) throw new Error('attachment_download');
+      const mediaType = (response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+      if (!/^(application\/pdf|image\/(jpeg|png|webp|gif))$/.test(mediaType)
+        || Number(response.headers.get('content-length')) > MAX_DOC_BYTES) {
+        await response.body?.cancel();
+        continue;
+      }
+      // Il Content-Length può mancare o mentire: limite anche sullo stream.
+      const chunks = [];
+      let size = 0;
+      for await (const chunk of response.body) {
+        size += chunk.length;
+        if (size > MAX_DOC_BYTES) throw new Error('attachment_too_large');
+        chunks.push(Buffer.from(chunk));
+      }
+      if (!size || !budget.afford(40_000)) continue;
+      await smistaDocument({ base64: Buffer.concat(chunks).toString('base64'), mediaType,
+        fileName: decodeURIComponent(parsed.pathname.split('/').pop() || 'allegato'),
+        hint: text, origin: 'whatsapp', docId, relation });
+    } catch { console.warn('[homie/message] attachment: failed'); }
+  }
 }
 
 /**
