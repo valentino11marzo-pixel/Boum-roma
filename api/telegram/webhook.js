@@ -20,6 +20,9 @@ import { tgSend, tgEdit, tgAckCallback, requireWebhookSecret, isAuthorizedChat, 
 import { handleViewingCallback, sendAgenda } from './_viewings.js';
 import { handleTaskCallback, handleTaskText, sendBrief } from '../regista/_telegram.js';
 import { handleRichiamoCallback, handleRichiamaCommand } from './_richiamo.js';
+import { handleScrivanoCallback } from './_scrivano.js';
+import { scrivanoEligible, offerKeyboard, offerLine } from '../scrivano/_offer.js';
+import crypto from 'node:crypto';
 import { fiduciaStatusMessage, toggleFiducia } from '../employees/_fiducia.js';
 import { handoverSegretaria, segretariaOpen, segretariaOffConv, segretariaStatusMessage, toggleSegretariaKill } from '../segretaria/_core.js';
 
@@ -137,6 +140,16 @@ export default async function handler(req, res) {
       if (verb === 'tkd' || verb === 'tks') {
         const handled = await handleTaskCallback(verb, data.slice(verb.length + 1), {
           chatId, messageId, callbackId: cq.id,
+        });
+        if (handled) return res.status(200).json({ ok: true });
+      }
+
+      // ── Lo Scrivano (sc) — «leggi e proponi» su un documento archiviato ──
+      // Prima della lettura di action_queue: un documento non vive lì. Il tap
+      // mette in coda; legge il worker (api/scrivano/worker.js).
+      if (verb === 'sc') {
+        const handled = await handleScrivanoCallback(verb, data.slice(verb.length + 1), {
+          chatId, messageId, callbackId: cq.id, text: (cq.message && cq.message.text) || '',
         });
         if (handled) return res.status(200).json({ ok: true });
       }
@@ -639,19 +652,26 @@ async function applyEdit(chatId, actionId, newDraft, res) {
 async function handleIncomingDoc(chatId, msg, res) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   try {
-    let fileId, fileName, mimeType, fileSize;
+    let fileId, fileName, mimeType, fileSize, fileUniqueId;
     if (msg.document) {
       fileId = msg.document.file_id;
       fileName = msg.document.file_name || 'documento';
       mimeType = msg.document.mime_type || 'application/octet-stream';
       fileSize = msg.document.file_size || 0;
+      fileUniqueId = msg.document.file_unique_id || null;
     } else {
       const best = msg.photo[msg.photo.length - 1]; // largest rendition
       fileId = best.file_id;
       fileName = 'foto.jpg';
       mimeType = 'image/jpeg';
       fileSize = best.file_size || 0;
+      fileUniqueId = best.file_unique_id || null;
     }
+    // Id DETERMINISTICO dal file_unique_id di Telegram: lo stesso file
+    // inoltrato due volte non archivia due volte e non paga due volte (la
+    // disciplina chiesta da Codex per le porte), e il bottone 🌱 punta a un
+    // id corto per costruzione (callback ≤ 64 byte).
+    const docId = fileUniqueId ? 'tg_' + crypto.createHash('sha1').update(String(fileUniqueId)).digest('hex').slice(0, 24) : null;
 
     const ACCEPTED = /^(application\/pdf|image\/(jpeg|png|webp|gif))$/;
     if (!ACCEPTED.test(mimeType)) {
@@ -677,17 +697,28 @@ async function handleIncomingDoc(chatId, msg, res) {
       base64, mediaType: mimeType, fileName,
       hint: msg.caption || null,
       origin: 'telegram',
+      docId,
     });
 
-    const lines = [
-      `📁 <b>Archiviato: ${out.label}</b>`,
-      out.propertyLabel ? `🏠 ${out.propertyLabel}` : '🤔 Immobile non riconosciuto — è in <b>99_DaSmistare</b> (assegnalo dal portale, o rimandamelo con una didascalia tipo "via Cavour")',
-      `📅 Anno fiscale ${out.fiscalYear} · cartella <code>${out.folder}</code>`,
-      out.summary ? `<i>${out.summary}</i>` : null,
-      '',
-      'La checklist del commercialista si è aggiornata da sola. Archivio: https://www.boomrome.com/portal',
-    ].filter(Boolean);
-    await tgSend(chatId, lines.join('\n'));
+    // Lo Scrivano: se il documento è di una classe che l'Innesto sa leggere,
+    // il bottone 🌱 sta QUI, nella risposta — il tap è la firma sulla spesa.
+    const offer = scrivanoEligible(out.catKey, out.id);
+    const lines = out.duplicate
+      ? [
+        `📁 <b>Già in archivio: ${out.label}</b>`,
+        out.summary ? `<i>${out.summary}</i>` : null,
+        offer ? '' : null, offer ? offerLine(out.catKey) : null,
+      ]
+      : [
+        `📁 <b>Archiviato: ${out.label}</b>`,
+        out.propertyLabel ? `🏠 ${out.propertyLabel}` : '🤔 Immobile non riconosciuto — è in <b>99_DaSmistare</b> (assegnalo dal portale, o rimandamelo con una didascalia tipo "via Cavour")',
+        `📅 Anno fiscale ${out.fiscalYear} · cartella <code>${out.folder}</code>`,
+        out.summary ? `<i>${out.summary}</i>` : null,
+        '',
+        'La checklist del commercialista si è aggiornata da sola. Archivio: https://www.boomrome.com/portal',
+        offer ? '' : null, offer ? offerLine(out.catKey) : null,
+      ];
+    await tgSend(chatId, lines.filter((l) => l !== null).join('\n'), offer ? { reply_markup: offerKeyboard(out.id) } : {});
     return res.status(200).json({ ok: true });
   } catch (e) {
     console.error('[telegram/webhook] smistatore:', e);
