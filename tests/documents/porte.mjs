@@ -231,5 +231,19 @@ ok('due allegati omonimi nella stessa email: due documenti distinti', docs().len
 await run();
 ok('retry di allegati omonimi: nessun doppione', docs().length === 2 && aiHits === 2);
 
+reset();
+const retryNames = Array.from({ length: 12 }, (_, i) => `retry-${i}.pdf`);
+globalThis.__porteMail = [mail('owner@example.test', 'retry-budget', retryNames)];
+for (const file of retryNames.slice(0, 9)) DB.set(docKey('retry-budget', file), { name: 'Già archiviato' });
+result = await run();
+ok('nove duplicati non consumano budget AI: tutti i tre nuovi vengono letti',
+  result.counts.filed === 3 && aiHits === 3 && storageHits === 3 && docs().length === 12 && imports().length === 1);
+
+reset();
+globalThis.__porteMail = [mail('owner@example.test', 'real-budget', retryNames)];
+result = await run();
+ok('il tetto resta dieci chiamate REALI: email incompleta resta ritentabile',
+  result.counts.filed === 10 && aiHits === 10 && storageHits === 10 && imports().length === 0 && result.counts.deferred === 1);
+
 console.log(`${checks} check, ${fails} falliti`);
 process.exit(fails ? 1 : 0);

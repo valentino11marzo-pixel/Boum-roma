@@ -24,7 +24,7 @@ import { simpleParser } from 'mailparser';
 import { fsGet, fsPatch } from '../homie/_lib.js';
 import { requireCronOrAdmin, reportEmployeeHealth, saveReport, tgNotify } from '../employees/_lib.js';
 import { smistaDocument, MAX_DOC_BYTES } from './_smista.js';
-import { loadDocumentRelations, documentRelation, documentEmail } from '../homie/message.js';
+import { loadDocumentRelations, documentRelation, documentEmail } from './_relation.js';
 import { runBudget } from '../_budget.js';
 
 const EMPLOYEE = 'smistatore';
@@ -152,7 +152,7 @@ async function run({ dry }) {
               docId,
               relation: relation || { kind: 'operator' },
             });
-            if (out.duplicate) { results.push({ file: fileName, ok: true, duplicate: true }); continue; }
+            if (out.duplicate) { aiBudget++; results.push({ file: fileName, ok: true, duplicate: true }); continue; }
             counts.filed++;
             if (out.needsFiling) counts.needsFiling++;
             results.push({ file: att.filename, ok: true, label: out.label, property: out.propertyLabel, folder: out.folder });

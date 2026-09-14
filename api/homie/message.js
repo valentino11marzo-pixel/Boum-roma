@@ -38,6 +38,7 @@
 import crypto from 'node:crypto';
 import { fsCreate, fsGet, fsPatch, fsList, logActivity, requireSecret, readJson } from './_lib.js';
 import { smistaDocument, MAX_DOC_BYTES } from '../documents/_smista.js';
+import { loadDocumentRelations, documentRelation } from '../documents/_relation.js';
 import { runBudget, aiSignal } from '../_budget.js';
 import {
   isNoise, matchListing, mergeMessage, buildLead, recentLeadByPhone, loadCatalog,
@@ -287,70 +288,17 @@ export default async function handler(req, res) {
   return res.status(200).json({ ok: true, conversationId: cid, messageId, created, ...(leadInfo || {}), ...(segretaria ? { segretaria } : {}) });
 }
 
-// Lettura condivisa dalle due porte, senza memoria propria. Una scansione
-// incompleta NON può trasformare due immobili in un default unico.
-export async function loadDocumentRelations() {
-  const collections = ['landlords', 'users', 'contracts', 'properties'];
-  const rows = await Promise.all(collections.map(c => fsList(c, { limit: 1000 })));
-  if (rows.some(r => r.length >= 1000)) throw new Error('relation_scan_incomplete');
-  return Object.fromEntries(collections.map((c, i) => [c, rows[i]]));
-}
-
-export const documentEmail = value => String(value || '').trim().toLowerCase();
-
-// Solo legami registrati: email, ids delle parti, property.ownerId. Mai il
-// nome, il testo del messaggio o la prima casa trovata. Esportata per email.
-export function documentRelation(archive, { email, contactType, contactId } = {}) {
-  const address = documentEmail(email);
-  const ownerIds = new Set(), tenantIds = new Set(), propertyIds = new Set(), contractIds = new Set();
-  let label = '', landlord = false, tenant = false;
-  const matches = (p, kind) => (address && documentEmail(p.email) === address)
-    || (contactType === kind && contactId && p.id === contactId);
-  for (const p of [...archive.landlords.map(p => ({ ...p, role: 'landlord' })), ...archive.users]) {
-    if (!['landlord', 'tenant'].includes(p.role) || !matches(p, p.role)) continue;
-    if (p.role === 'landlord') { landlord = true; ownerIds.add(p.id); }
-    else { tenant = true; tenantIds.add(p.id); }
-    label ||= p.name || [p.firstName, p.lastName].filter(Boolean).join(' ') || p.email;
-  }
-  for (const c of archive.contracts) {
-    if (address && documentEmail(c.landlordEmail) === address) {
-      landlord = true;
-      if (c.landlordId) ownerIds.add(c.landlordId);
-    }
-    if (address && documentEmail(c.tenantEmail) === address) {
-      tenant = true;
-      if (c.tenantId) tenantIds.add(c.tenantId);
-    }
-  }
-  for (const p of archive.properties) if (ownerIds.has(p.ownerId)) propertyIds.add(p.id);
-  for (const c of archive.contracts) {
-    if (ownerIds.has(c.landlordId) || tenantIds.has(c.tenantId)
-      || (address && [c.landlordEmail, c.tenantEmail].some(e => documentEmail(e) === address))) {
-      contractIds.add(c.id);
-      if (c.propertyId) propertyIds.add(c.propertyId);
-    }
-  }
-  if (!landlord && !tenant) return null;
-  // L'interfaccia tratta una lista vuota come catalogo libero e tronca a 50:
-  // qui quel caso deve restare da smistare, mai un permesso implicito.
-  // Anche il catalogo dello Smistatore ha un tetto (200): oltre quel tetto
-  // non sappiamo se vedrebbe tutti i candidati, quindi niente default.
-  const bounded = propertyIds.size > 0 && propertyIds.size <= 50 && contractIds.size <= 50
-    && archive.properties.length < 200;
-  return { kind: bounded ? (landlord ? 'landlord' : 'tenant') : 'unknown',
-    label: label || address || contactId, propertyIds: [...propertyIds], contractIds: [...contractIds] };
-}
-
 async function fileWhatsAppAttachments({ urls, text, contactType, contactId, entity, budget }) {
   if (!budget.afford(45_000)) return; // download 5s + modello 20s + primo upload 20s
-  let relation = { kind: 'unknown' };
-  if (contactType !== 'whatsapp') {
-    const coll = { lead: 'leads', tenant: 'users', landlord: 'users', pfs: 'pfsClients', client: 'clients' }[contactType];
-    const person = entity || (coll ? await fsGet(`${coll}/${contactId}`) : null);
-    if (person) relation = documentRelation(await loadDocumentRelations(), {
-      email: person.email, contactType, contactId,
-    }) || relation;
-  }
+  // Q3: gli allegati degli altri contatti restano nel messaggio. Nemmeno
+  // un indirizzo email dell'operatore trasforma WhatsApp in una porta libera.
+  if (!['tenant', 'landlord'].includes(contactType)) return;
+  const person = entity || await fsGet(`users/${contactId}`);
+  if (!person || person.role !== contactType) return;
+  const relation = documentRelation(await loadDocumentRelations(), {
+    email: person.email, contactType, contactId,
+  });
+  if (!relation) return;
   for (const url of urls) {
     if (!budget.afford(45_000)) break;
     try {
@@ -375,8 +323,10 @@ async function fileWhatsAppAttachments({ urls, text, contactType, contactId, ent
         chunks.push(Buffer.from(chunk));
       }
       if (!size || !budget.afford(40_000)) continue;
+      let fileName = parsed.pathname.split('/').pop() || 'allegato';
+      try { fileName = decodeURIComponent(fileName); } catch { /* nome grezzo: non perdere il documento */ }
       await smistaDocument({ base64: Buffer.concat(chunks).toString('base64'), mediaType,
-        fileName: decodeURIComponent(parsed.pathname.split('/').pop() || 'allegato'),
+        fileName,
         hint: text, origin: 'whatsapp', docId, relation });
     } catch { console.warn('[homie/message] attachment: failed'); }
   }

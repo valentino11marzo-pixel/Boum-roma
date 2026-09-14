@@ -3076,6 +3076,9 @@ Intakes:
 - **Telegram** (`api/telegram/webhook.js`): send ANY photo/PDF to the bot
   (caption = optional hint, e.g. "F24 IMU via Cavour"); replies with what
   it understood and where it filed it. Authorized chat only.
+- **WhatsApp** (`api/homie/message.js`): server pronto per PDF/immagini di
+  tenant/landlord risolti; il ponte Mac non produce ancora `mediaUrls`,
+  quindi l'ingresso degli allegati non è operativo.
 - **Email** (`api/documents/scan-inbox.js`, cron daily 03:50): forward an
   email with attachments to the BOOM mailbox — trusted senders (operator's
   addresses + `DOC_MAIL_FROM`) and verified landlord/tenant relations. Emails
@@ -3101,14 +3104,14 @@ Smistatore di sempre. Le porte WhatsApp ed email per relazione usano
 questa interfaccia. Test: `node tests/documents/smista.mjs`
 (gara 409, scarto della scelta fuori relazione e dedupe verificati per mutazione).
 
-Le due porte sono collegate: WhatsApp prima salvava gli allegati e non li
-leggeva; l'email accettava solo gli indirizzi fidati. Ora PDF e immagini
-WhatsApp entrano dopo messaggio e lead, con id sha1 dell'URL; l'email cerca
-anche le relazioni in landlords/users/contracts e ricontrolla il From vero.
-Tutti gli immobili della relazione viaggiano nel match; sconosciuti WhatsApp
-e relazioni senza immobili restano da smistare, le email ignote sono escluse.
-Tetti 8 MB/tempo e retry senza doppioni; test `npm test -- whatsapp porte`,
-inclusi prima scrittura, conservazione del lead e verifiche per mutazione.
+La porta WhatsApp chiama lo Smistatore solo per tenant/landlord verificati;
+lead/PFS/client/sconosciuti conservano l'allegato nel messaggio, senza modello
+né Storage né documento. Il server è pronto, ma il ponte Mac → `mediaUrls`
+resta da realizzare: questa PR non rende operativo l'ingresso dei media.
+Le relazioni condivise sono in `api/documents/_relation.js`; l'email conserva
+la fiducia dell'operatore. Retry duplicati rimborsano il budget email e nomi
+URL malformati usano il nome grezzo. `npm test -- whatsapp porte smista`
+verifica i handler e, per mutazione, esclusioni, retry e conservazione del dato.
 
 ## La Banca (open banking — api/banking/* + banca.html)
 

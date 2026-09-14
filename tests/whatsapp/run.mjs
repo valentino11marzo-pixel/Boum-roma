@@ -106,7 +106,7 @@ const toDoc = (path, data) => ({ name: `projects/p/databases/(default)/documents
 
 let autoId = 0;
 const media = new Map();
-let aiHits = 0, storageHits = 0, aiFails = false, lastPrompt = '', beforeAI = () => {};
+let mediaHits = 0, aiHits = 0, storageHits = 0, aiFails = false, lastPrompt = '', beforeAI = () => {};
 let modelProperty = 'pA';
 const documentWrites = [];
 globalThis.fetch = async (url, opts = {}) => {
@@ -115,6 +115,7 @@ globalThis.fetch = async (url, opts = {}) => {
 
   if (u.includes('identitytoolkit')) return json({ idToken: 'fake', localId: 'admin' });
   if (media.has(u)) {
+    mediaHits++;
     ok('download allegato con scadenza', !!opts.signal);
     const att = media.get(u);
     if (att.error) throw new Error('download_failed');
@@ -367,23 +368,57 @@ DB.set('contracts/docContract', { tenantId: 'docTenant', propertyId: 'pA', statu
 }
 {
   const url = attachment('unknown.pdf');
-  await call({ direction: 'in', phone: '+393338000002', body: 'Vorrei casa, allego il documento', mediaUrls: [url], messageId: 'doc-unknown' });
-  const doc = DB.get(docKey(url));
-  ok('sconosciuto: MAI archiviato sotto un immobile', doc?.needsFiling === true && doc?.propertyId === null && doc?.contractId === null, doc);
-  ok('sconosciuto: anche la PRIMA scrittura è da smistare', documentWrites.at(-1)?.needsFiling === true && documentWrites.at(-1)?.propertyId === null);
-  const n = docs().length, ai = aiHits, uploads = storageHits;
-  await call({ direction: 'in', phone: '+393338000002', body: 'Rimando lo stesso documento', mediaUrls: [url], messageId: 'doc-retry-other-id' });
-  await call({ direction: 'in', phone: '+393338000002', body: 'Vorrei casa, allego il documento', mediaUrls: [url], messageId: 'doc-unknown' });
-  ok('stesso URL con messageId diversi → un documento solo', docs().length === n && DB.has(docKey(url)));
-  ok('retry non paga modello né Storage', aiHits === ai && storageHits === uploads);
+  const before = { docs: docs().length, ai: aiHits, storage: storageHits, media: mediaHits };
+  const payload = { direction: 'in', phone: '+393338000002', body: 'Vorrei casa, allego il documento', mediaUrls: [url], messageId: 'doc-unknown' };
+  const r = await call(payload);
+  ok('sconosciuto: messaggio, allegato e lead restano disponibili', r.leadCreated
+    && DB.get(`messages/${r.messageId}`)?.attachments?.includes(url) && DB.get(`leads/${r.leadId}`)?.message === payload.body);
+  await call({ ...payload, messageId: 'doc-retry-other-id' });
+  await call({ ...payload, contactType: 'tenant', contactId: 'docTenant' });
+  ok('sconosciuto anche al retry: nessun download, modello, Storage o documento',
+    docs().length === before.docs && aiHits === before.ai && storageHits === before.storage && mediaHits === before.media);
+}
+for (const [type, coll] of [['lead', 'leads'], ['pfs', 'pfsClients'], ['client', 'clients']]) {
+  const url = attachment(type + '-excluded.pdf'), id = 'doc-' + type;
+  // Un'email uguale a quella del tenant NON scavalca il tipo del contatto.
+  DB.set(coll + '/' + id, { phone: '+39333801000' + ({lead: 1, pfs: 2, client: 3}[type]), email: 'tenant@example.test' });
+  const before = [docs().length, aiHits, storageHits, mediaHits].join(',');
+  const r = await call({ direction: 'in', contactType: type, contactId: id,
+    body: 'Allego il documento', mediaUrls: [url], messageId: id });
+  ok(`${type}: allegato conservato senza Smistatore anche con email nota`,
+    DB.get(`messages/${r.messageId}`)?.attachments?.includes(url)
+    && before === [docs().length, aiHits, storageHits, mediaHits].join(','));
+}
+{
+  // Email condivisa con un tenant: non deve promuovere il ruolo admin.
+  DB.set('users/docAdmin', { role: 'admin', email: 'tenant@example.test' });
+  for (const contactType of ['operator', 'tenant']) {
+    const url = attachment('admin-' + contactType + '.pdf');
+    const before = [docs().length, aiHits, storageHits, mediaHits].join(',');
+    const r = await call({ direction: 'in', contactType, contactId: 'docAdmin',
+      email: process.env.FIREBASE_ADMIN_EMAIL, body: 'Documento operatore', mediaUrls: [url], messageId: 'doc-admin-' + contactType });
+    ok(`operatore WhatsApp (${contactType} dichiarato): non aggira il vincolo`,
+      DB.get(`messages/${r.messageId}`)?.attachments?.includes(url)
+      && before === [docs().length, aiHits, storageHits, mediaHits].join(','));
+  }
+}
+{
+  const url = attachment('tenant-dedupe.pdf');
+  const payload = { direction: 'in', phone: '+393338000001', body: 'Ecco il documento', mediaUrls: [url], messageId: 'doc-known-dedupe' };
+  await call(payload);
+  const before = [docs().length, aiHits, storageHits, mediaHits].join(',');
+  await call({ ...payload, messageId: 'doc-known-dedupe-new-message' });
+  await call(payload);
+  ok('tenant, stesso URL con messageId diversi: un documento e nessuna seconda spesa',
+    DB.has(docKey(url)) && before === [docs().length, aiHits, storageHits, mediaHits].join(','));
 }
 {
   const url = attachment('failure.pdf');
-  const phone = '+393338000003', text = 'Cerco una casa a Pigneto, ecco il documento';
+  const phone = '+393338000001', text = 'Ecco il documento della casa';
   let primaryBeforeFailure = false;
+  const initialLeads = leads().length;
   beforeAI = () => {
-    primaryBeforeFailure = [...DB.values()].some(m => m.waMessageId === 'doc-fail' && m.body === text)
-      && leads().some(([, l]) => l.phone === phone && l.message === text);
+    primaryBeforeFailure = [...DB.values()].some(m => m.waMessageId === 'doc-fail' && m.body === text && m.attachments?.includes(url));
   };
   aiFails = true;
   const warnings = [], warn = console.warn;
@@ -391,14 +426,13 @@ DB.set('contracts/docContract', { tenantId: 'docTenant', propertyId: 'pA', statu
   let result;
   try { result = await call({ direction: 'in', phone, body: text, mediaUrls: [url], messageId: 'doc-fail' }); }
   finally { aiFails = false; beforeAI = () => {}; console.warn = warn; }
-  ok('errore allegato: messaggio e lead persistiti PRIMA del fallimento', primaryBeforeFailure);
-  ok('errore allegato: risposta 200, messaggio e lead MAI persi', result.code === 200 && result.leadCreated
-    && DB.get(`messages/${result.messageId}`)?.body === text && DB.get(`leads/${result.leadId}`)?.message === text, result);
+  ok('errore allegato tenant: messaggio e URL persistiti PRIMA del fallimento', primaryBeforeFailure);
+  ok('errore allegato tenant: risposta 200, messaggio salvo e nessun lead creato', result.code === 200
+    && DB.get(`messages/${result.messageId}`)?.body === text && leads().length === initialLeads, result);
   ok('errore allegato: nessun contenuto del documento nei log', !warnings.join('').includes('sensitive-document'));
-  const count = leads().length;
   const recovered = await call({ direction: 'in', phone, body: text, mediaUrls: [url], messageId: 'doc-fail' });
-  ok('retry stesso messageId recupera allegato fallito senza duplicare il lead', recovered.dedupHit === true
-    && DB.has(docKey(url)) && leads().length === count);
+  ok('retry stesso messageId recupera allegato fallito senza duplicare il messaggio', recovered.dedupHit === true
+    && DB.has(docKey(url)) && [...DB.values()].filter(m => m.waMessageId === 'doc-fail').length === 1);
 }
 {
   DB.set('users/owner1', { role: 'landlord', phone: '+393338000004' });
@@ -423,30 +457,37 @@ DB.set('contracts/docContract', { tenantId: 'docTenant', propertyId: 'pA', statu
   const broken = attachment('broken.pdf', { error: true });
   const valid = attachment('after-broken.pdf');
   const ai = aiHits;
-  const r = await call({ direction: 'in', phone: '+393338000006', body: 'Cerco casa, mando i documenti',
+  const r = await call({ direction: 'in', phone: '+393338000001', body: 'Mando i documenti della casa',
     mediaUrls: [bad, misleading, large, streamed, broken, valid], messageId: 'doc-limits' });
   ok('solo PDF/immagini entro 8MB, anche senza Content-Length', [bad, misleading, large, streamed, broken].every(u => !DB.has(docKey(u))) && aiHits === ai + 1);
-  ok('un allegato fallito non perde il successivo né il lead', DB.has(docKey(valid)) && r.leadCreated);
+  ok('un allegato fallito non perde il successivo né il messaggio', DB.has(docKey(valid)) && DB.has(`messages/${r.messageId}`));
   const out = attachment('outbound.pdf');
-  await call({ direction: 'out', phone: '+393338000006', body: 'Ecco il documento', mediaUrls: [out] });
+  await call({ direction: 'out', phone: '+393338000001', body: 'Ecco il documento', mediaUrls: [out] });
   ok('gli allegati in uscita non entrano nello Smistatore', !DB.has(docKey(out)));
 }
 {
   const realFetch = globalThis.fetch, realNow = Date.now;
   const url = attachment('budget.pdf');
-  const payload = { direction: 'in', phone: '+393338000007', body: 'Cerco casa, allego il documento', mediaUrls: [url], messageId: 'doc-budget' };
+  const payload = { direction: 'in', phone: '+393338000001', body: 'Allego il documento della casa', mediaUrls: [url], messageId: 'doc-budget' };
   globalThis.fetch = async (u, opts) => {
     const response = await realFetch(u, opts);
-    if (String(u).endsWith('/leads') && opts?.method === 'POST') {
+    if (String(u).endsWith('/messages') && opts?.method === 'POST') {
       const time = realNow(); Date.now = () => time + 25_000;
     }
     return response;
   };
   let r;
   try { r = await call(payload); } finally { globalThis.fetch = realFetch; Date.now = realNow; }
-  ok('budget consumato dal testo: lead salvo, allegato rinviato', r.leadCreated && !DB.has(docKey(url)));
+  ok('budget consumato dal testo: messaggio salvo, allegato rinviato', DB.has(`messages/${r.messageId}`) && !DB.has(docKey(url)));
   await call(payload);
   ok('retry dopo rinvio per budget recupera il documento', DB.has(docKey(url)));
+}
+
+{
+  const url = attachment('percent-%E0%A4%A.pdf');
+  const r = await call({ direction: 'in', phone: '+393338000001', body: 'Nome file malformato', mediaUrls: [url], messageId: 'doc-bad-filename' });
+  ok('percent encoding malformato: nome grezzo, documento non perso', r.code === 200
+    && DB.get(docKey(url))?.fileName === 'percent-_E0_A4_A.pdf');
 }
 
 console.log(fails ? `\n${fails} FALLITI` : '\nTutto verde.');
