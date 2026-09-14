@@ -2877,7 +2877,7 @@ maxDuration di default della piattaforma. Ora:
   ogni file, e la via d'uscita: la seconda lettura integra la prima). Il 400
   «prompt is too long» del modello (finestra di contesto, che non si può
   contare in locale) diventa `ai_too_long` col rimedio — meno pagine, due giri
-  — mai un «riprova». Test: `node tests/innesto/run.mjs` (117 check).
+  — mai un «riprova». Test: `node tests/innesto/run.mjs` (120 check).
 
 ### LO SCRIVANO — la porta dal telefono (`api/scrivano/*` + `sc:` su Telegram, 14/09/2026)
 STUDIO_SCRIVANO §4, **passo 4**: i passi 1–3 (il documento resta, la classe
