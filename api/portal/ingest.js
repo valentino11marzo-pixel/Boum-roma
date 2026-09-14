@@ -54,6 +54,7 @@ export const MAX_FILES = 8;
 export const MAX_FILE_BYTES = 8 * 1024 * 1024;     // per file (stesso tetto del client)
 export const MAX_TOTAL_BYTES = 20 * 1024 * 1024;   // Anthropic: 32 MB a richiesta, base64 +33%
 export const MAX_PAGES = 60;                       // oltre, si leggono le prime 60 e lo si dice
+export const MAX_TOTAL_PAGES = 100;                // Anthropic: 100 pagine PDF per RICHIESTA — non per file
 const MAX_TEXT = 60000;                            // ~15k token di testo incollato
 const MAX_B64 = 8 * 1024 * 1024;
 const AI_MS = 100000;                              // sotto il maxDuration 120 di vercel.json
@@ -311,7 +312,20 @@ async function readFiles(body) {
       name: String(f.name || ('documento-' + (out.length + 1))).slice(0, 120),
       mediaType: isPdf ? 'application/pdf' : (mediaType === 'image/jpg' ? 'image/jpeg' : mediaType),
       base64: buf.toString('base64'), bytes: buf.length, isPdf, pages, clipped,
+      readPages: pages == null ? null : Math.min(pages, MAX_PAGES),
     });
+  }
+  // Il tetto dell'API è per RICHIESTA: due contratti da 60 pagine passano il
+  // taglio per file e l'API li rifiuta INSIEME con un 400 — che usciva come
+  // «errore (400), riprova», cioè il rimedio sbagliato per un guasto
+  // deterministico. Si rifiuta qui, PRIMA di spendere, coi nomi e la via
+  // d'uscita: la seconda lettura integra la prima («Leggi e integra»).
+  const pagesTotal = out.reduce((s, f) => s + (f.readPages || 0), 0);
+  if (pagesTotal > MAX_TOTAL_PAGES) {
+    const parts = out.filter((f) => f.readPages).sort((a, b) => b.readPages - a.readPages)
+      .map((f) => `«${f.name}» ${f.readPages} pag.`).join(', ');
+    throw Object.assign(new Error('too_many_pages'), { status: 400,
+      detail: `${pagesTotal} pagine di PDF in un giro (${parts}): il lettore ne accetta ${MAX_TOTAL_PAGES}. Togli il documento più lungo — i dati di un contratto stanno nelle prime pagine — o leggi in due giri: la seconda lettura integra la prima.` });
   }
   return out;
 }
@@ -353,6 +367,9 @@ async function askModel(content) {
 }
 
 const clip = (v, n) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, n);
+// Il 400 con cui l'API dice «troppo materiale» (finestra di contesto o tetto
+// pagine): non si ripara riprovando, si ripara togliendo pagine.
+const TOO_LONG_RE = /prompt is too long|too many pages|pages?\b[^.]*\b(exceed|limit|maximum)|(exceed|limit|maximum)[^.]*\bpages?\b/i;
 const PATH_RE = /^(landlord|tenant|property|contract|coTenants\[\d+\])(\.[a-zA-Z]+)+$/;
 
 function sanitizeEvidence(list, nFiles) {
@@ -386,7 +403,7 @@ function sanitizeFiles(list, files) {
       legible: m.legible !== false,
       party: ['tenant', 'landlord', 'cotenant'].indexOf(m.party) >= 0 ? m.party : null,
       pages: f.pages != null ? f.pages : (Number.isInteger(m.pages) ? m.pages : null),
-      clipped: f.clipped, readPages: f.clipped ? MAX_PAGES : (f.pages != null ? f.pages : null),
+      clipped: f.clipped, readPages: f.readPages != null ? f.readPages : null,
     };
   });
 }
@@ -460,6 +477,12 @@ export default async function handler(req, res) {
   if (!out.ok) {
     console.error('[portal/ingest] anthropic', out.status, clip(out.text, 200));
     const rate = out.status === 429;
+    const tooLong = out.status === 400 && TOO_LONG_RE.test(out.text || '');
+    if (tooLong) {
+      const pagesSent = files.reduce((s, f) => s + (f.readPages || 0), 0);
+      return res.status(413).json({ ok: false, error: 'ai_too_long',
+        detail: `Troppo materiale in un giro (${pagesSent} pagine di PDF${files.length > 1 ? ', ' + files.length + ' documenti' : ''}): i dati di un contratto stanno nelle prime pagine. Allega meno pagine o meno documenti, oppure leggi in due giri: la seconda lettura integra la prima.` });
+    }
     return res.status(502).json({ ok: false, error: rate ? 'ai_rate_limited' : 'ai_provider_error',
       detail: rate ? 'Troppe letture in questo momento: riprova tra un minuto.' : 'Il servizio di lettura ha risposto con un errore (' + out.status + '). Riprova; se ricapita, incolla il testo invece del file.' });
   }

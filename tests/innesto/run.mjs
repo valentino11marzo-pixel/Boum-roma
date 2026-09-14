@@ -20,6 +20,7 @@
 //   node tests/innesto/run.mjs
 
 import { readFileSync } from 'node:fs';
+import { PDFDocument } from 'pdf-lib';
 
 process.env.ANTHROPIC_API_KEY = 'sk-test';
 process.env.FIREBASE_API_KEY = 'k';
@@ -113,7 +114,7 @@ globalThis.fetch = async (url, opts = {}) => {
   return new Response('nope', { status: 200, headers: { 'Content-Type': 'application/pdf' } });
 };
 
-const { default: handler, INGEST_SCHEMA, MODEL } = await import('../../api/portal/ingest.js');
+const { default: handler, INGEST_SCHEMA, MODEL, MAX_PAGES, MAX_TOTAL_PAGES } = await import('../../api/portal/ingest.js');
 
 function mkRes() {
   const r = { code: 0, body: null, headers: {} };
@@ -137,6 +138,7 @@ async function call(token, body, ai) {
   return { res, anth: anthCalls, storage: storageFetches, foreign: foreignFetches };
 }
 const b64 = (buf) => buf.toString('base64');
+const pdfOf = async (n) => { const d = await PDFDocument.create(); for (let i = 0; i < n; i++) d.addPage([200, 200]); return Buffer.from(await d.save()); };
 
 let pass = 0, fail = 0;
 const check = (label, cond, extra) => {
@@ -243,6 +245,26 @@ check('formato fuori whitelist → 400 anche via fileUrl', r.res.code === 400
 r = await call('admin_1', { files: [{ base64: b64(JPG_BYTES), mediaType: 'image/heic', name: 'IMG_1.heic' }] });
 check('una foto HEIC (iPhone) → 400 con il RIMEDIO scritto, non un errore nudo', r.res.code === 400 && /JPEG|compatibile/i.test(r.res.body?.detail || ''), JSON.stringify(r.res.body));
 
+console.log('\n\x1b[1mIl tetto delle pagine è per GIRO, non per file (il limite dell\'API è 100 a richiesta)\x1b[0m');
+check('il tetto per giro è quello dell\'API ed è esportato', MAX_TOTAL_PAGES === 100 && MAX_PAGES === 60);
+const pdf70 = await pdfOf(70), pdf50 = await pdfOf(50), pdf30 = await pdfOf(30);
+r = await call('admin_1', { files: [
+  { base64: b64(pdf70), mediaType: 'application/pdf', name: 'contratto-completo.pdf' },
+  { base64: b64(pdf50), mediaType: 'application/pdf', name: 'allegati.pdf' },
+] });
+check('60 (tagliate) + 50 = 110 pagine → 400 too_many_pages PRIMA di spendere, coi nomi e «due giri»',
+  r.res.code === 400 && r.res.body?.error === 'too_many_pages' && r.anth.length === 0
+  && /110 pagine/.test(r.res.body?.detail || '') && /«contratto-completo\.pdf» 60 pag\./.test(r.res.body?.detail || '') && /due giri/.test(r.res.body?.detail || ''),
+  `${r.res.code} ${r.res.body?.error} ${r.res.body?.detail}`);
+r = await call('admin_1', { files: [
+  { base64: b64(pdf70), mediaType: 'application/pdf', name: 'contratto-completo.pdf' },
+  { base64: b64(pdf30), mediaType: 'application/pdf', name: 'ape.pdf' },
+] });
+check('60 (tagliate) + 30 = 90 pagine → si legge, e il taglio del primo è DETTO (files[] e note)',
+  r.res.code === 200 && r.anth.length === 1 && r.res.body?.files?.[0]?.clipped === true && r.res.body?.files?.[0]?.readPages === MAX_PAGES
+  && (r.res.body?.notes || []).some((n) => /70 pagine, lette le prime 60/.test(n)),
+  `${r.res.code} ${JSON.stringify(r.res.body?.files?.[0])} ${JSON.stringify(r.res.body?.notes)}`);
+
 console.log('\n\x1b[1mLe risposte del modello: mai una diagnosi sbagliata\x1b[0m');
 r = await call('admin_1', { text: 'x' }, { stop: 'refusal' });
 check('refusal → 502 ai_refused con spiegazione', r.res.code === 502 && r.res.body?.error === 'ai_refused' && r.res.body?.detail, `${r.res.code} ${r.res.body?.error}`);
@@ -250,6 +272,12 @@ r = await call('admin_1', { text: 'x' }, { stop: 'max_tokens' });
 check('max_tokens → 502 ai_truncated (e SOLO in quel caso si parla di taglio)', r.res.code === 502 && r.res.body?.error === 'ai_truncated', `${r.res.code} ${r.res.body?.error}`);
 r = await call('admin_1', { text: 'x' }, { status: 429, text: 'rate' });
 check('429 → ai_rate_limited con «riprova tra un minuto»', r.res.code === 502 && r.res.body?.error === 'ai_rate_limited' && /minuto/.test(r.res.body?.detail || ''));
+r = await call('admin_1', { text: 'x' }, { status: 400, text: '{"type":"error","error":{"type":"invalid_request_error","message":"prompt is too long: 213456 tokens > 200000 maximum"}}' });
+check('«prompt is too long» dal modello → 413 ai_too_long col rimedio (meno pagine, due giri), MAI un «riprova»',
+  r.res.code === 413 && r.res.body?.error === 'ai_too_long' && /due giri/.test(r.res.body?.detail || '') && !/[Rr]iprova/.test(r.res.body?.detail || '') && r.anth.length === 1,
+  `${r.res.code} ${r.res.body?.error} ${r.res.body?.detail}`);
+r = await call('admin_1', { text: 'x' }, { status: 400, text: '{"type":"error","error":{"type":"invalid_request_error","message":"messages.0.content.0.document: PDF exceeds the maximum of 100 pages"}}' });
+check('il tetto pagine detto dall\'API → stessa classe ai_too_long', r.res.code === 413 && r.res.body?.error === 'ai_too_long', `${r.res.code} ${r.res.body?.error}`);
 r = await call('admin_1', { text: 'x' }, { throwName: 'TimeoutError' });
 check('tempo scaduto → 504 ai_timeout con il rimedio (meno pagine)', r.res.code === 504 && r.res.body?.error === 'ai_timeout' && /pagine/.test(r.res.body?.detail || ''), `${r.res.code} ${r.res.body?.error}`);
 r = await call('admin_1', { text: 'x' }, { failFirstWith: 'unknown beta: server-side-fallback-2026-07-01' });

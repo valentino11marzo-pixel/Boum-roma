@@ -2868,7 +2868,16 @@ maxDuration di default della piattaforma. Ora:
   file inline sta sotto `INNESTO_INLINE_MAX` (3 MB) e il resto TRANSITA da
   `documents/<uid>/innesto-tmp/` (cancellato nel `finally`); `fileUrl` solo
   su `https://firebasestorage.googleapis.com`, mai un proxy. Nei log la
-  forma, mai il contenuto. Test: `node tests/innesto/run.mjs` (112 check).
+  forma, mai il contenuto.
+- **Il tetto delle pagine è per GIRO** (`MAX_TOTAL_PAGES` 100 — il limite
+  dell'API è a richiesta, non a file): due contratti da 60 pagine passano il
+  taglio per file e l'API li rifiuta insieme con un 400, che usciva come
+  «errore (400), riprova» — il rimedio sbagliato per un guasto deterministico.
+  Si rifiuta PRIMA di spendere (`too_many_pages`, coi nomi e le pagine di
+  ogni file, e la via d'uscita: la seconda lettura integra la prima). Il 400
+  «prompt is too long» del modello (finestra di contesto, che non si può
+  contare in locale) diventa `ai_too_long` col rimedio — meno pagine, due giri
+  — mai un «riprova». Test: `node tests/innesto/run.mjs` (117 check).
 
 ### POST `/api/homie/wa-outbox`
 WhatsApp OUTBOX for the Mac-side Homie agent: approved WhatsApp replies go
