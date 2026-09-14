@@ -344,6 +344,103 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
     [...store.keys()].some(k => k.startsWith('users/') && (store.get(k) || {}).name === 'Anouk G'));
 }
 
+// ═══ 9b. Sprint 1 — l'immobile DALLA proposta, la guardia sovrapposizioni, il preflight ═══
+{
+  const { convertPaToContract, overlapConflict, propertyFromPa, propertyIdForPa } = await import('../../api/preagreement/convert.js');
+  const convert = (await import('../../api/preagreement/convert.js')).default;
+
+  // ── la regola pura, verificata per mutazione ──
+  const live = { id: 'c1', status: 'active', startDate: '2026-09-01', endDate: '2027-08-31', tenantName: 'Marco', unit: '' };
+  const q = { paId: 'paX', unit: '', startDate: '2026-10-01', endDate: '2027-03-31' };
+  check('overlap: stesso immobile, entrambi attivi, date che si toccano → conflitto col nome', (overlapConflict([live], q) || {}).tenantName === 'Marco');
+  check('overlap: date disgiunte → nessun conflitto', overlapConflict([live], { ...q, startDate: '2027-09-01', endDate: '2028-08-31' }) === null);
+  check('overlap: contratto non attivo → ignorato', overlapConflict([{ ...live, status: 'ended' }], q) === null);
+  check('overlap: interni dichiarati e DIVERSI → due stanze, legittimo', overlapConflict([{ ...live, unit: 'A' }], { ...q, unit: 'B' }) === null);
+  check('overlap: stesso interno (anche scritto «int. A» / «a») → conflitto', !!overlapConflict([{ ...live, unit: 'int. A' }], { ...q, unit: 'a' }));
+  check('overlap: un interno vuoto NON esclude (vuoto ≠ diverso)', !!overlapConflict([{ ...live, unit: 'A' }], { ...q, unit: '' }) && !!overlapConflict([live], { ...q, unit: 'B' }));
+  check('overlap: il contratto della STESSA proposta (retry) non conta mai', overlapConflict([{ ...live, id: 'pa_paX' }], q) === null && overlapConflict([{ ...live, preAgreementId: 'paX' }], q) === null);
+  check('overlap: contratto vivo senza endDate = aperto → conflitto', !!overlapConflict([{ ...live, endDate: null }], { ...q, startDate: '2030-01-01', endDate: '2030-06-30' }));
+  check('overlap: senza data d\'inizio della proposta niente verdetto (mai un falso conflitto)', overlapConflict([live], { ...q, startDate: null }) === null);
+
+  // ── l'immobile che manca nasce dalla proposta ──
+  const paN = { status: 'paid', paidEur: 2000, paidAt: '2026-08-20', ref: 'BOOM-N',
+    property: { address: 'Via Simeto 12, Roma', floor: '2', unit: '7', condition: 'Furnished' },
+    landlord: { name: 'Ada Rossi', email: 'ada@x.it', phone: '+39 333' },
+    tenant: { fullName: 'Nina Test', email: 'nina@x.it', phone: '333' },
+    money: { rent: 900, deposit: 1800, depositMonths: 2 }, lease: { months: 12, startDate: '2026-10-01', endDate: '2027-09-30' } };
+  const sizeN = store.size;
+  const r0 = await convertPaToContract({ pa: paN, paId: 'paN' });
+  check('senza immobile: no_property + canCreate:true (l\'indirizzo c\'è), NIENTE scritto', !r0.ok && r0.error === 'no_property' && r0.canCreate === true && store.size === sizeN);
+  const r1 = await convertPaToContract({ pa: paN, paId: 'paN', createProperty: true, actor: 'op@x' });
+  const prop = store.get('properties/' + propertyIdForPa('paN'));
+  check('createProperty: l\'immobile nasce DALLA proposta — id deterministico, indirizzo, interno, locatore, canone, provenienza',
+    r1.ok && r1.propertyCreated === true && r1.propertyId === 'prop_pa_paN' && !!prop && prop.address === 'Via Simeto 12, Roma' && prop.unit === '7' && prop.interno === '7'
+    && prop.ownerName === 'Ada Rossi' && prop.rent === 900 && prop.source === 'preagreement' && prop.preAgreementId === 'paN' && prop.availabilityStatus === 'rented');
+  check('createProperty: il contratto porta quell\'immobile e l\'interno; la proposta riceve propertyId col back-link',
+    store.get('contracts/pa_paN').propertyId === 'prop_pa_paN' && store.get('contracts/pa_paN').unit === '7' && store.get('preAgreements/paN').propertyId === 'prop_pa_paN');
+  const nProps = () => [...store.keys()].filter(k => k.startsWith('properties/prop_pa_paN')).length;
+  const r2 = await convertPaToContract({ pa: { ...paN, contractId: 'pa_paN' }, paId: 'paN', createProperty: true });
+  check('createProperty ripetuto: already, UN immobile (mai due)', r2.ok && r2.already === true && nProps() === 1);
+  const pf = propertyFromPa({ pa: paN, paId: 'paN' });
+  check('propertyFromPa: nome dalla via + interno, arredato letto dallo stato, MAI mq/zona/catasto inventati',
+    pf.name === 'Via Simeto 12 int. 7' && pf.furnished === true && !('sqm' in pf) && !('zone' in pf) && !('cadastralData' in pf));
+
+  // ── la guardia nella conversione vera ──
+  store.set('properties/propO', { ownerId: 'llO', name: 'Duplex', ownerName: 'Bianchi' });
+  store.set('contracts/cLive', { propertyId: 'propO', status: 'active', startDate: '2026-09-01', endDate: '2027-08-31', tenantName: 'Marco Primo', signatureStatus: 'complete' });
+  const paO = { status: 'paid', paidAt: '2026-09-01', ref: 'BOOM-O', propertyId: 'propO', property: { address: 'Via Duplex 1' }, landlord: { name: 'Bianchi' },
+    tenant: { fullName: 'Secondo Inquilino', email: 'sec@x.it' }, money: { rent: 1000, deposit: 2000, depositMonths: 2 }, lease: { months: 12, startDate: '2026-11-01', endDate: '2027-10-31' } };
+  const rO = await convertPaToContract({ pa: paO, paId: 'paO' });
+  check('conversione su casa GIÀ affittata (date sovrapposte) → overlap col nome, NESSUN contratto scritto',
+    !rO.ok && rO.error === 'overlap' && rO.overlap.tenantName === 'Marco Primo' && rO.overlap.contractId === 'cLive' && !store.has('contracts/pa_paO'));
+  const rO2 = await convertPaToContract({ pa: paO, paId: 'paO', force: true, actor: 'op@x' });
+  check('force:true → creato comunque, e la scelta resta scritta nella risposta (overlapForced)',
+    rO2.ok && store.has('contracts/pa_paO') && rO2.overlapForced && rO2.overlapForced.contractId === 'cLive');
+  store.set('properties/propR', { ownerId: 'llR', name: 'Stanze', ownerName: 'Neri' });
+  store.set('contracts/cRoomA', { propertyId: 'propR', status: 'active', startDate: '2026-09-01', endDate: '2027-08-31', tenantName: 'Stanza A', unit: 'A' });
+  const paR = { ...paO, propertyId: 'propR', property: { address: 'Via Stanze 1', unit: 'B' }, tenant: { fullName: 'Terzo Inquilino', email: 'ter@x.it' } };
+  const rR = await convertPaToContract({ pa: paR, paId: 'paR' });
+  check('stanza B accanto alla stanza A (interni dichiarati): nessuna guardia, contratto creato con unit', rR.ok && !rR.overlapForced && store.get('contracts/pa_paR').unit === 'B');
+
+  // ── la porta HTTP: i codici che la console legge ──
+  store.set('users/admin1', { role: 'admin', email: 'a@b.c' });
+  store.set('preAgreements/paH', { ...paO });
+  let rh = mkRes();
+  await convert(mkReq({ id: 'paH' }, { authorization: 'Bearer t' }), rh);
+  check('HTTP convert: sovrapposizione → 409 overlap col dettaglio nel body', rh.code === 409 && rh.body.error === 'overlap' && rh.body.overlap.tenantName === 'Marco Primo');
+  store.set('preAgreements/paI', { ...paN });
+  rh = mkRes();
+  await convert(mkReq({ id: 'paI' }, { authorization: 'Bearer t' }), rh);
+  check('HTTP convert: senza immobile → 400 no_property con canCreate:true (la console offre «crea dalla proposta»)', rh.code === 400 && rh.body.error === 'no_property' && rh.body.canCreate === true);
+  rh = mkRes();
+  await convert(mkReq({ id: 'paI', createProperty: true }, { authorization: 'Bearer t' }), rh);
+  check('HTTP convert: createProperty:true → 200, propertyCreated, immobile e contratto nati', rh.code === 200 && rh.body.propertyCreated === true && store.has('properties/prop_pa_paI') && store.has('contracts/pa_paI'));
+
+  // ── il preflight: nessuna scrittura, i puntini per parte, la sovrapposizione riportata ──
+  const sizeD = store.size;
+  const rD = await convertPaToContract({ pa: { ...paR, tenant: { fullName: 'Dry Run', email: 'dry@x.it' } }, paId: 'paD', dryRun: true });
+  check('dryRun: NESSUNA scrittura (né profilo, né immobile, né contratto), contractId annunciato, exists:false',
+    rD.ok && rD.dryRun === true && rD.contractId === 'pa_paD' && rD.exists === false && store.size === sizeD && !store.has('contracts/pa_paD') && !store.has('users/auto_' + (sizeD + 1)));
+  check('dryRun: la completezza per parte — il CF del conduttore manca e sta sotto tenant (etichetta EN); il PDF stamperebbe puntini',
+    rD.completeness && rD.completeness.dots.length > 0 && rD.completeness.byOwner.tenant.some(x => x.key === 'tenantCF' && /fiscal|tax|codice/i.test(x.label)) && rD.completeness.ready.contract === false);
+  const rD2 = await convertPaToContract({ pa: { ...paO }, paId: 'paD2', dryRun: true });
+  check('dryRun su casa occupata: la sovrapposizione si RIPORTA (in preflight non è un errore), niente scritto', rD2.ok && rD2.overlap && rD2.overlap.tenantName === 'Marco Primo' && !store.has('contracts/pa_paD2'));
+  const rD3 = await convertPaToContract({ pa: paN, paId: 'paD3', createProperty: true, dryRun: true });
+  check('dryRun + createProperty: si valuta sull\'immobile CHE NASCEREBBE, senza crearlo', rD3.ok && rD3.propertyId === 'prop_pa_paD3' && !store.has('properties/prop_pa_paD3') && !!rD3.completeness);
+  rh = mkRes();
+  await convert(mkReq({ id: 'paH', dryRun: true }, { authorization: 'Bearer t' }), rh);
+  check('HTTP dryRun: 200 con overlap + completeness, contratto non scritto', rh.code === 200 && rh.body.dryRun === true && rh.body.overlap && !!rh.body.completeness && !store.has('contracts/pa_paH'));
+
+  // ── i puntini che il DATO chiude: tipo di documento e attestazione dalla proposta ──
+  const paT = { ...paN, tenant: { ...paN.tenant, email: 'tania@x.it', idDocType: 'passport' }, uploads: [{ url: 'https://s/esigenza.pdf', name: 'esigenza.pdf', kind: 'extra' }], extraDoc: 'Lettera del datore di lavoro' };
+  const rT = await convertPaToContract({ pa: paT, paId: 'paT', createProperty: true });
+  const uT = [...store.keys()].map(k => store.get(k)).find(d => d && d.email === 'tania@x.it');
+  check('convert: il TIPO di documento della proposta arriva al profilo (docType) — il contratto non stampa più «identificato/a mediante ………»',
+    rT.ok && !!uT && uT.docType === 'passport' && uT.idDocType === 'passport');
+  check('convert: l\'attestazione caricata sulla proposta NOMINA il documento (transitionalDocs), invece dei puntini',
+    store.get('contracts/pa_paT').transitionalDocs === 'Lettera del datore di lavoro' && store.get('contracts/pa_paN').transitionalDocs === '');
+}
+
 // ═══ 10. convert: lo STUDENTE riceve l'Allegato C anche quando nessuno
 // dice il tipo — è la strada di _auto.js (immobile collegato: il contratto
 // nasce da solo) e del tasto 🖊 Magic Sign. Prima uscivano tutti Allegato B.
@@ -389,7 +486,7 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
   // il generatore, letto lo stesso contratto, sceglie davvero l'altro modello
   const disp = readFileSync(new URL('../../js/contract-pdf.js', import.meta.url), 'utf8');
   check('e il generatore, su quel type, sceglie l\'Allegato C',
-    /\(env\.contract\.type === 'studenti'\) \? buildAllegatoC\(env\) : buildAllegatoB\(env\)/.test(disp));
+    /\(env\.contract\.type === 'studenti'\) \? buildAllegatoC\(env\) : is32\(env\.contract\) \? buildAllegatoA\(env\) : buildAllegatoB\(env\)/.test(disp));
 }
 
 console.log('\n' + '─'.repeat(48));

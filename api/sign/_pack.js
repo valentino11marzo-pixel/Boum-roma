@@ -62,13 +62,16 @@ const safe = (s, n) => String(s || '').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0,
 // contract va passato con i fallback nome già applicati (come per il
 // certificato). Ritorna { ok, url, missing[], files[], bytes } e persiste
 // registrationPackUrl/Missing/At sul contratto.
-export async function buildRegistrationPack(contract, property, { signedPdfUrl, certUrl, fascicoloUrl } = {}) {
+export async function buildRegistrationPack(contract, property, { signedPdfUrl, certUrl, fascicoloUrl, schedaPdfUrl } = {}) {
   if (!contract || !contract.id) return { ok: false, error: 'no_contract' };
   const t0 = Date.now();
   const left = () => PACK_BUDGET_MS - (Date.now() - t0);
   const prop = property || {};
   const dossier = prop.dossier || {};
   const studenti = contract.type === 'studenti';
+  // Il 3+2 (Allegato A) non ha un'esigenza da documentare: la voce non
+  // compare, e non compare fra i mancanti.
+  const senzaEsigenza = contract.type === '3+2';
   const attLabel = studenti ? 'Attestazione iscrizione universitaria (esigenza studenti)' : 'Attestazione esigenza transitoria';
 
   // ── Le voci del pack: cosa DEVE esserci e da dove viene ──
@@ -79,6 +82,8 @@ export async function buildRegistrationPack(contract, property, { signedPdfUrl, 
     signedPdfUrl || contract.signedPdfUrl, 'si genera alla firma completa (Magic Sign)');
   push('Certificato di firma FES', '02_Certificato_firma_FES.pdf',
     certUrl || contract.signingCertificateUrl, 'si genera alla firma completa');
+  push('Scheda di calcolo canone — Allegato 2/B ARPE', '03_Scheda_calcolo_canone_ARPE.pdf',
+    schedaPdfUrl || contract.schedaCanoneUrl, 'bottone 📑 Fascicolo sulla riga contratto nel portal (nasce insieme al fascicolo)');
   push('Fascicolo Fiscale (scheda canone + dati RLI + scadenzario)', '03_Fascicolo_Fiscale.pdf',
     fascicoloUrl || contract.fascicoloFiscaleUrl, 'bottone 📑 Fascicolo sulla riga contratto nel portal');
 
@@ -117,7 +122,17 @@ export async function buildRegistrationPack(contract, property, { signedPdfUrl, 
     }
   }
   if (!idN) push('Documento identità conduttore', '08_Documento_conduttore', '', 'manda al conduttore il suo link /scheda (Share Hub) — upload con OCR');
-  if (!extraN) push(attLabel, '09_Attestazione_esigenza', '', studenti
+  // Il MANDATO del conduttore (proposta accettata col mandato a firmare):
+  // quando il contratto è stato firmato per mandato, il documento che lo
+  // prova viaggia nel pack — chi registra deve poter vedere in forza di
+  // cosa BOOM ha sottoscritto. Senza firma per mandato, niente voce.
+  const tsd = contract.tenantSignedByDelegate;
+  if (tsd && tsd.name) {
+    const mUrl = (contract.tenantMandate && contract.tenantMandate.docUrl) || '';
+    push('Mandato a firmare del conduttore', '10_Mandato_conduttore.pdf', mUrl,
+      mUrl ? 'proposta accettata col mandato (sezione "Mandate to sign")' : 'il PDF del mandato non è stato salvato alla conversione — riapri la proposta e scarica il PDF accettato (console PA)');
+  }
+  if (!extraN && !senzaEsigenza) push(attLabel, '09_Attestazione_esigenza', '', studenti
     ? 'certificato di iscrizione/Erasmus: richiedibile dalla console PA (documenti richiesti) o via /scheda'
     : 'lettera datore di lavoro / iscrizione corso: console PA (documenti richiesti)');
 
@@ -178,8 +193,9 @@ export async function buildRegistrationPack(contract, property, { signedPdfUrl, 
   if (cfWarn.length) { L.push(''); L.push('ATTENZIONE DATI'); for (const w of cfWarn) L.push('  [!] ' + w); }
   L.push('');
   L.push('NOTE');
-  L.push('  - Il Fascicolo Fiscale contiene la scheda di calcolo per l\'attestazione di');
-  L.push('    rispondenza (accordo Roma 25/07/2023): il verdetto fascia e i 20 parametri.');
+  L.push('  - La Scheda di calcolo canone e\' l\'Allegato 2/B dell\'accordo Roma 25/07/2023,');
+  L.push('    1:1 col modulo ARPE (firmano le parti): e\' quella che va ad ARPE per');
+  L.push('    l\'attestazione. Il Fascicolo Fiscale la ripete in pagina 1 + dati RLI + scadenze.');
   L.push('  - Registrazione RLI entro 30 giorni dalla firma; la scadenza e\' gia\' nel portal.');
   L.push('  - Rigenera il pack aggiornato con il bottone 📦 Pack sulla riga contratto.');
 

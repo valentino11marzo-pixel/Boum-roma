@@ -194,6 +194,14 @@ export default async function handler(req, res) {
     // — e.g. proof of the transitional need. Never blocking: the client can
     // sign without it and send it later from the accepted page (same link).
     extraDoc: clip(b.extraDoc, 160),
+    // Il MANDATO A FIRMARE (spunta a parte sulla pagina, testo in
+    // _consent.js): con il mandato conferito BOOM può sottoscrivere il
+    // contratto per conto del cliente ai termini accettati — il cliente che
+    // ha già firmato la proposta non deve tornare a firmare. Default ON;
+    // la console lo spegne per il singolo deal.
+    // Scelta ESPLICITA della console, persistita: assente = non offerto (le
+    // proposte create prima di questa versione non cambiano comportamento).
+    askMandate: b.askMandate === true,
     // Offer expiry (YYYY-MM-DD, end of that day Rome time). Gates NEW
     // acceptances only — an accepted/paid deal is never voided. Extend it
     // any time from the console's Edit (same link revives).
@@ -221,7 +229,7 @@ export default async function handler(req, res) {
 
   try {
     const { id } = await fsCreate('preAgreements', doc);
-    logActivity('preagreement_created', 'preagreement', { id, address, rent: money.rent, tenant: doc.tenant.fullName }, auth.email || 'admin')
+    await logActivity('preagreement_created', 'preagreement', { id, address, rent: money.rent, tenant: doc.tenant.fullName }, auth.email || 'admin')
       .catch(() => {});
     return res.status(200).json({ ok: true, id, token, url: '/pre-agreement?t=' + token });
   } catch (e) {

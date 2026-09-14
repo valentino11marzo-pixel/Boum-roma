@@ -107,8 +107,10 @@ export default async function handler(req, res) {
   const resend = !!contract[stampField];
   const sent = await sendSignInvite({ contract, property, role, to, name, url, resend });
   if (sent.ok) {
-    fsPatch('contracts/' + contractId, { [stampField]: new Date().toISOString() }).catch(() => {});
-    logActivity('sign_invite_sent', 'contract', { contractId, role, to, resend }, auth.email || auth.uid).catch(() => {});
+    // Attesi: signInvite<Role>At è ciò che il journey gate e il watchdog
+    // re-inviti leggono — una scrittura persa dopo la risposta li acceca.
+    await fsPatch('contracts/' + contractId, { [stampField]: new Date().toISOString() }).catch(() => {});
+    await logActivity('sign_invite_sent', 'contract', { contractId, role, to, resend }, auth.email || auth.uid).catch(() => {});
   }
 
   // CO-FIRMA: l'invito lato-conduttori raggiunge ANCHE i co-conduttori,

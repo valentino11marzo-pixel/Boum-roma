@@ -170,7 +170,10 @@ IP = '1.2.3.2';
   r = mkRes();
   await submit(mkReq({ t: schedaRef('ctr1', 'tenant'), identity: ID, phone: '+39 333 1234567' }), r);
   const c = store.get('contracts/ctr1');
-  check('submit: 200 + complete', r.code === 200 && r.body.ok && r.body.complete === true);
+  // Identità completa ≠ contratto senza puntini: mancano ancora conviventi e
+  // (transitorio) il motivo — la risposta li NOMINA invece di dire «completa».
+  check('submit: 200 + identità scritta ma NON «complete» (il PDF avrebbe ancora puntini) + missing nominati', r.code === 200 && r.body.ok && r.body.complete === false
+    && Array.isArray(r.body.missing) && r.body.missing.some(m => m.key === 'cohabitants'));
   check('submit: campi contratto scritti', c.tenantCF === ID.cf && c.tenantDocIssuer === 'Questura' && c.tenantName === 'Mario Rossi');
   const u = store.get('users/u1');
   check('submit: profilo sync su ENTRAMBI gli schemi', u.cf === ID.cf && u.codiceFiscale === ID.cf && u.birthDate === ID.dob && u.idDocNumber === 'YA123');
@@ -187,6 +190,14 @@ IP = '1.2.3.2';
   await submit(mkReq({ t: schedaRef('ctr2', 'landlord'), identity: { ...ID, name: 'Giulia Bianchi' } }), r);
   const ll = store.get('landlords/own1');
   check('submit landlord: contratto + landlords/ aggiornati', r.code === 200 && store.get('contracts/ctr2').landlordName === 'Giulia Bianchi' && ll && ll.codiceFiscale === ID.cf);
+  // IL PDF SI RIFÀ DA SOLO (13/09/2026): dati nuovi su un contratto senza
+  // firma → contract.pdf rigenerato; ctr1 porta la firma del locatore → no.
+  check('submit landlord su contratto NON firmato: il PDF si rifà da solo (pdfRegenerated, upload contract.pdf, pdfGeneratedAt)',
+    r.body.pdfRegenerated === true && storageUploads.some(x => /ctr2(%2F|\/)contract\.pdf/.test(x.url)) && !!store.get('contracts/ctr2').pdfGeneratedAt);
+  r = mkRes();
+  await submit(mkReq({ t: schedaRef('ctr1', 'tenant'), identity: ID, phone: '+39 333 1234567' }), r);
+  check('submit su contratto con una firma viva: NESSUNA rigenerazione (il documento è congelato)', r.code === 200 && r.body.pdfRegenerated === false && !storageUploads.some(x => /ctr1(%2F|\/)contract\.pdf/.test(x.url)));
+  storageUploads = [];   // la sezione upload conta i propri
 }
 
 // ═══ 5. upload (+ OCR opzionale) ═══

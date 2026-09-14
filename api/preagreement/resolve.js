@@ -130,7 +130,7 @@ export default async function handler(req, res) {
       if (out && out.contractId) { contractId = out.contractId; actions.push('contract_ready'); }
     } catch (e) { console.error('[pa/resolve] convert:', e.message); }
 
-    logActivity('preagreement_state_repaired', 'preagreement', {
+    await logActivity('preagreement_state_repaired', 'preagreement', {
       id: paId, was: before.status, now: 'paid', viaStripe: !!session, by: auth.email || null,
     }, 'console').catch(() => {});
 
@@ -185,7 +185,7 @@ export default async function handler(req, res) {
       } catch (e) { console.error('[pa/resolve] convert:', e.message); }
     }
 
-    logActivity('preagreement_reserve_released', 'preagreement', {
+    await logActivity('preagreement_reserve_released', 'preagreement', {
       id: paId, ref, tenant: (pa.tenant || {}).fullName || null, by: auth.email || null,
     }, 'console').catch(() => {});
 

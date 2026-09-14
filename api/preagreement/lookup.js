@@ -6,8 +6,69 @@
 // Response 200: { ok, id, pa: {status, property, landlord, tenant, lease,
 //                money, note, createdAt, acceptedAt?, ref?} }
 
-import { fsList, fsPatch, readJson } from '../homie/_lib.js';
+import { fsGet, fsList, fsPatch, readJson } from '../homie/_lib.js';
 import { offeredAddons } from './_addons.js';
+import { paidOnRecord, dueAtSigning } from './_state.js';
+import { resolveCanoneInput, schedaFacts, schedaGaps } from '../fiscal/fascicolo.js';
+import CANONE from '../../js/canone-engine.js';
+
+// La scheda ARPE come la vedrebbe il contratto nato da questa proposta:
+// stessi fatti (schedaFacts), stesso motore. Senza immobile collegato o
+// senza mq/zona: `gaps` dice cosa manca, mai un numero inventato.
+async function schedaSummary(pa) {
+  if (!pa || !pa.propertyId) return { linked: false, gaps: ['immobile'] };
+  const property = await fsGet('properties/' + pa.propertyId).catch(() => null);
+  if (!property) return { linked: false, gaps: ['immobile'] };
+  let cfg = null;
+  try { cfg = await fsGet('settings/canoneAccordo'); } catch (_) {}
+  const le = pa.lease || {}, m = pa.money || {};
+  const contract = { type: /student/i.test(String(le.type || '')) ? 'studenti' : (/3\s*\+\s*2/.test(String(le.type || '')) ? '3+2' : 'transitorio'), rent: Number(m.rent) || 0 };
+  const input = resolveCanoneInput({ contract, property, listing: null, cfg: cfg || undefined });
+  const calc = input.zona && input.mq > 0 ? CANONE.solve(input) : { ok: false, error: !input.zona ? 'zona_non_trovata' : 'mq_mancanti' };
+  const f = schedaFacts({ contract, property, calc, input });
+  return {
+    linked: true, gaps: schedaGaps(f),
+    zonaCod: f.zonaCod || '', zonaNome: f.zona ? f.zona.nome : '', mq: f.mq || 0, sc: f.has ? f.sc : (f.scTotal || 0),
+    nP: f.nP, fascia: f.sub ? f.sub.fascia : '', subfascia: f.sub ? f.sub.name : '',
+    valore: f.sub ? f.sub.val : null, cMax: f.cMax, pattuito: f.pattuito, fits: f.fits,
+  };
+}
+
+const BASE = 'https://www.boomrome.com';
+
+// ── IL CLIENTE VEDE IL SUO STATO E FIRMA DA QUI (Sprint 1, 2.3) ────────
+// L'email col link del contratto restava chiusa per settimane (il caso che
+// ha fatto nascere il mandato); la pagina accettata diceva «what happens
+// next» ma non mostrava il passo quando era pronto. Ora, sulla proposta
+// chiusa, il contratto si legge (dichiarato o pa_<id> adottato) e la pagina
+// riceve lo stato della firma. IL LINK DI FIRMA compare SOLO a soldi
+// ricevuti (o a dovuto zero): chi tiene questo link ha già pagato — la
+// stessa esposizione dell'email — e a firma apposta sparisce (la pagina
+// mostra lo stato, poi il PDF firmato quando è completo). Mai i token del
+// locatore. Esportata: si testa.
+export async function contractStatus(id, data) {
+  if (!data || (data.status !== 'accepted' && data.status !== 'paid')) return null;
+  const cid = data.contractId || ('pa_' + id);
+  let c = null;
+  try { c = await fsGet('contracts/' + cid); } catch (_) { c = null; }
+  if (!c) return null;
+  const tenantSigned = !!c.tenantSignature, landlordSigned = !!c.landlordSignature;
+  const complete = c.signatureStatus === 'complete' || (tenantSigned && landlordSigned);
+  const unlocked = paidOnRecord(data) || dueAtSigning(data) === 0;
+  const iso = (v) => (!v ? null : typeof v === 'string' ? v : (v && v.seconds) ? new Date(v.seconds * 1000).toISOString() : String(v));
+  return {
+    id: cid,
+    status: complete ? 'complete' : (tenantSigned || landlordSigned) ? 'partial' : 'none',
+    tenantSigned, tenantSignedAt: iso(c.tenantSignedAt),
+    landlordSigned, landlordSignedAt: iso(c.landlordSignedAt),
+    fullySignedAt: iso(c.fullySignedAt),
+    invitedAt: iso(c.signInviteTenantAt) || iso(data.signSentAt) || null,
+    unlocked,
+    tenantSignUrl: (unlocked && !tenantSigned && c.tenantSignToken) ? `${BASE}/sign?sign=${c.tenantSignToken}` : null,
+    signedPdfUrl: complete ? (c.signedPdfUrl || null) : null,
+    byDelegate: (c.tenantSignedByDelegate && c.tenantSignedByDelegate.name) ? { name: c.tenantSignedByDelegate.name, signedAt: iso(c.tenantSignedByDelegate.signedAt) } : null,
+  };
+}
 
 // Offer expiry gates NEW acceptances only — never an accepted/paid deal.
 // "Today" is Rome's calendar day, so the offer dies at midnight in Rome.
@@ -38,11 +99,15 @@ export default async function handler(req, res) {
     const { id, ...data } = hit;   // fsList returns flat rows: {id, ...fields}
     if (data.status === 'revoked') return res.status(410).json({ ok: false, error: 'revoked' });
 
+    const scheda = await schedaSummary(data).catch(() => null);
+    const contract = await contractStatus(id, data).catch(() => null);
+
     // audit the view (best-effort)
     const ip = (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || 'unknown';
     const views = Array.isArray(data.views) ? data.views.slice(-49) : [];
     views.push({ at: new Date().toISOString(), ip, ua: String(req.headers['user-agent'] || '').slice(0, 160) });
-    fsPatch(`preAgreements/${id}`, { views, status: data.status === 'sent' ? 'viewed' : data.status }).catch(() => {});
+    // Atteso: «viewed» è ciò che la console mostra come «ha aperto il link».
+    await fsPatch(`preAgreements/${id}`, { views, status: data.status === 'sent' ? 'viewed' : data.status }).catch(() => {});
 
     return res.status(200).json({
       ok: true, id,
@@ -59,7 +124,18 @@ export default async function handler(req, res) {
         // need) — label + whether it already arrived (never blocking)
         extraDoc: data.extraDoc || null,
         extraDocCount: Array.isArray(data.uploads) ? data.uploads.filter(u => u && u.kind === 'extra').length : 0,
-        contractReady: !!data.contractId,
+        // Il mandato a firmare: chiesto? gia' conferito? (mai il testo qui —
+        // la pagina lo ha in una copia sola, uguale a _consent.js).
+        askMandate: data.askMandate === true,
+        mandate: data.mandate && data.mandate.given ? { at: data.mandate.at } : null,
+        // La scheda di calcolo del canone (Allegato 2/B) che il cliente firma
+        // con l'accettazione: i numeri che firma, calcolati DAL SERVER
+        // sull'immobile collegato — o cosa manca per calcolarli.
+        scheda,
+        contractReady: !!data.contractId || !!contract,
+        // lo stato del contratto (firma, link del conduttore a soldi
+        // ricevuti, PDF firmato): la pagina accettata lo mostra e lo apre
+        contract,
         // Gli add-on proponibili alla firma (prezzo dal catalogo server-side,
         // mai dal browser) + quelli già scelti, così un rientro sulla pagina
         // ritrova le sue spunte.

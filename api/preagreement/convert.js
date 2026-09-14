@@ -29,14 +29,30 @@
 //                               // true = agency countersigns per delega
 //   delegateName?: string,      // default 'Valentino Egidi'
 //   type?:       'transitorio'|'studenti'   // default 'transitorio'
+//   createProperty?: boolean,   // nessun immobile nel portal → lo crea DALLA
+//                               // proposta (indirizzo, piano, interno,
+//                               // locatore, canone), id prop_pa_<paId>
+//   force?:      boolean,       // ignora la guardia sovrapposizioni (stanza
+//                               // diversa non modellata, sostituzione)
+//   dryRun?:     boolean,       // NON scrive: torna completezza (puntini del
+//                               // PDF per parte) + eventuale sovrapposizione
 // }
 // Response: { ok, contractId, tenantId, tenantSignUrl, landlordSignUrl,
-//             delegate:{...}|null, already?:true }
+//             delegate:{...}|null, already?:true, propertyCreated?:true }
+//   409 overlap { overlap:{contractId, tenantName, startDate, endDate, unit} }
+//   400 no_property { canCreate }
 
 import crypto from 'node:crypto';
 import { fsGet, fsList, fsCreate, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
-import { ensureContractPdf } from '../sign/_contractpdf.js';
+import { ensureContractPdf, resolveLandlord } from '../sign/_contractpdf.js';
+import { mandateTermsHash } from '../magic-sign/_shared.js';
+import MANDATO from '../../js/mandato-engine.js';
+import { storageUpload } from '../agent/_lib.js';
+import { buildPaPdf } from './_pdf.js';
+// Il dizionario del contratto: il preflight dice PRIMA quali puntini il PDF
+// stamperebbe (per parte), invece di farli scoprire aprendo il PDF.
+import FIELDS from '../../js/contract-fields.js';
 
 const BASE = 'https://www.boomrome.com';
 const clip = (v, n = 200) => (v == null ? null : String(v).trim().slice(0, n) || null);
@@ -47,14 +63,182 @@ const clip = (v, n = 200) => (v == null ? null : String(v).trim().slice(0, n) ||
 // si legge la proposta. `lease.type` è la tendina della console
 // («Student Housing (Allegato C)»), non testo libero del cliente.
 export function leaseType(explicit, lease) {
-  if (explicit === 'studenti' || explicit === 'transitorio') return explicit;
-  return /student/i.test(String((lease || {}).type || '')) ? 'studenti' : 'transitorio';
+  // La regola vive in js/mandato-engine.js (la foto delle condizioni
+  // approvate deve derivare il modello ESATTAMENTE come la conversione).
+  return MANDATO.modelOfLease(explicit, lease);
+}
+
+// Il back-link proposta → contratto, in UNA copia (creazione e ramo «esiste
+// già»). convertedAt non si riscrive se la proposta lo porta già.
+async function backlinkPa({ paId, pa, contractId, tenantSignToken, landlordSignToken, delegated, actor, propertyId }) {
+  try {
+    await fsPatch('preAgreements/' + paId, {
+      contractId,
+      // l'immobile del contratto torna sulla proposta (scelto alla
+      // conversione o creato da essa): la console lo legge per 🖊 e per
+      // il Fascicolo, e non deve più dire «crealo prima da Immobili».
+      ...(propertyId ? { propertyId } : {}),
+      convertedAt: (pa && pa.convertedAt) || new Date().toISOString(),
+      convertedBy: (pa && pa.convertedBy) || actor,
+      tenantSignUrl: tenantSignToken ? `${BASE}/sign?sign=${tenantSignToken}` : null,
+      landlordSignUrl: landlordSignToken ? `${BASE}/sign?sign=${landlordSignToken}` : null,
+      delegated: !!delegated,   // the console shapes the landlord-link action on this
+    });
+  } catch (e) { console.warn('[preagreement/convert] pa back-link:', e.message); }
+}
+
+// ── L'IMMOBILE CHE MANCA SI CREA DALLA PROPOSTA (Sprint 1, 1.1) ──────
+// Nel backup del 13/09: 6 proposte PAGATE senza contratto, 3 su un indirizzo
+// assente da `properties`. Senza immobile non partono contratto, rate,
+// journey né registrazione — e la riga diceva «crealo prima da Immobili»,
+// cioè un'altra pagina, a mano, ribattendo dati che la proposta ha già.
+// Qui il doc `properties` minimo nasce dalla proposta, nella FORMA che il
+// portal scrive (saveProperty) e che i lettori (convert, fascicolo, pdf)
+// leggono: address/floor/interno/unit/ownerName/rent. Catasto, mq e zona
+// restano da completare dal portal — la scheda ARPE li dichiara mancanti,
+// mai inventati. Id deterministico: un doppio tap non crea due immobili.
+// L'immobile è OBBLIGATORIO alla conversione, non alla creazione della
+// proposta: una stanza o una casa in trattativa restano proponibili.
+export function propertyFromPa({ pa, paId, actor = 'system' }) {
+  const p = (pa && pa.property) || {}, ll = (pa && pa.landlord) || {}, m = (pa && pa.money) || {};
+  const address = clip(p.address, 200) || '';
+  const short = address.split(',')[0].trim();
+  const unit = clip(p.unit, 40) || '';
+  const cond = String(p.condition || '');
+  return {
+    name: [short, unit ? 'int. ' + unit : ''].filter(Boolean).join(' ') || ('Immobile ' + ((pa && pa.ref) || paId)),
+    address,
+    city: 'Roma',
+    ownerId: null,
+    ownerName: clip(ll.name, 120) || '',
+    ownerEmail: clip(ll.email, 160) || '',
+    ownerPhone: clip(ll.phone, 40) || '',
+    rent: Number(m.rent) || 0,
+    floor: clip(p.floor, 40) || '',
+    unit,
+    interno: unit,
+    furnished: /furnish/i.test(cond) ? !/unfurnish/i.test(cond) : null,
+    propertyType: 'apartment',
+    availabilityStatus: 'rented',
+    source: 'preagreement',
+    preAgreementId: paId,
+    preAgreementRef: (pa && pa.ref) || null,
+    notes: 'Creato dalla proposta ' + ((pa && pa.ref) || paId) + ' — completa catasto, mq e zona dal portal.',
+    createdAt: new Date().toISOString(),
+    createdBy: 'preagreement_convert:' + actor,
+  };
+}
+export const propertyIdForPa = (paId) => 'prop_pa_' + paId;
+
+// La scheda `users` del conduttore, nella forma che i lettori (Allegato,
+// Scheda, dizionario) conoscono. UNA copia: la usa il bootstrap vero e il
+// preflight (dove il profilo non esiste ancora).
+function tenantUserFromPa(t, uploads) {
+  return {
+    role: 'tenant',
+    name: t.fullName, email: t.email || '', phone: t.phone || '',
+    cf: t.cf || '', dob: t.dob || '', pob: t.birthPlace || '',
+    address: t.address || '', docNum: t.idDoc || '', nationality: t.nationality || '',
+    // il TIPO di documento (passport|id|permit|patente) arriva dalla
+    // proposta: senza, il contratto stampava «identificato/a mediante ………»
+    docType: t.idDocType || '', idDocType: t.idDocType || '',
+    identityDocs: (uploads || []).filter(u => (u.tenantIndex || 0) === 0).map(u => ({ url: u.url, name: u.name, at: u.at })),
+    createdBy: 'preagreement_convert', createdAt: new Date().toISOString(),
+  };
+}
+
+// ── DUE CONTRATTI VIVI SULLA STESSA CASA NON PASSANO (Sprint 1, 1.2) ──
+// Nel dump: Brand New Duplex con due contratti attivi a date sovrapposte.
+// Il lucchetto (_lock.js) protegge solo l'ACCETTAZIONE fra proposte; la
+// conversione non guardava i contratti esistenti. Regola pura, testata per
+// mutazione: stesso immobile + entrambi attivi + date che si toccano =
+// conflitto, A MENO CHE gli interni siano dichiarati e diversi (due stanze
+// della stessa casa sono legittime; la stessa stanza no; un interno vuoto
+// non esclude niente). Il contratto della STESSA proposta (retry) non
+// conta mai. `force:true` scavalca — è l'operatore che decide, a voce alta.
+const normUnit = (v) => String(v || '').trim().toLowerCase().replace(/^int(erno)?\.?\s*/, '').replace(/\s+/g, '');
+const OPEN_END = '9999-12-31';
+export function overlapConflict(contracts, { paId, unit, startDate, endDate }) {
+  if (!startDate) return null;
+  const s = String(startDate).slice(0, 10), e = String(endDate || OPEN_END).slice(0, 10);
+  const mine = normUnit(unit);
+  for (const c of (Array.isArray(contracts) ? contracts : [])) {
+    if (!c || c.status !== 'active') continue;
+    if (paId && (c.id === 'pa_' + paId || c.preAgreementId === paId)) continue;
+    if (!c.startDate) continue;
+    const cs = String(c.startDate).slice(0, 10), ce = String(c.endDate || OPEN_END).slice(0, 10);
+    if (ce < s || cs > e) continue;                 // periodi disgiunti
+    const theirs = normUnit(c.unit || c.interno);
+    if (mine && theirs && mine !== theirs) continue; // due interni diversi, dichiarati
+    return {
+      contractId: c.id || null,
+      tenantName: c.tenantName || '',
+      startDate: cs, endDate: c.endDate ? ce : null,
+      unit: c.unit || c.interno || '',
+      signatureStatus: c.signatureStatus || 'none',
+    };
+  }
+  return null;
+}
+// La fine del periodo della proposta: la data dichiarata, altrimenti i mesi
+// dopo l'inizio (basta per la guardia; il contratto vero porta la sua).
+function leaseEnd(le) {
+  if (le && le.endDate) return String(le.endDate).slice(0, 10);
+  if (!le || !le.startDate) return null;
+  const d = new Date(String(le.startDate).slice(0, 10) + 'T00:00:00Z');
+  if (Number.isNaN(d.getTime())) return null;
+  d.setUTCMonth(d.getUTCMonth() + Math.max(1, Number(le.months) || 12));
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+async function findOverlap({ propId, paId, unit, le }) {
+  try {
+    const rows = await fsList('contracts', { filter: { field: 'propertyId', op: 'EQUAL', value: propId }, limit: 60 });
+    return overlapConflict(rows || [], { paId, unit, startDate: le && le.startDate, endDate: leaseEnd(le) });
+  } catch (e) {
+    // la guardia è di cortesia: se la lettura fallisce lo si dice e si va
+    // avanti (fsGet dell'immobile avrebbe già fatto cadere la conversione)
+    console.warn('[preagreement/convert] overlap check skipped:', e.message);
+    return null;
+  }
+}
+
+// ── IL PREFLIGHT (Sprint 1, 3.3): i puntini PRIMA del PDF ─────────────
+// Lo stesso contratto che la conversione scriverebbe, passato dal dizionario
+// (js/contract-fields.js) con l'immobile, il profilo del conduttore com'è
+// sulla proposta e il locatore: cosa manca a chi, e quanti puntini
+// stamperebbe il PDF. Etichette pronte (IT per operatore/locatore, EN per
+// il conduttore). Si può procedere lo stesso — non al buio.
+function preflightOf({ contract, property, tenantUser, landlord }) {
+  const hydrated = FIELDS.hydrateParties(contract, tenantUser || {}, landlord || {}, property || {});
+  const ctx = { contract: hydrated, property: property || {}, tenant: tenantUser || {}, landlord: landlord || {} };
+  const comp = FIELDS.completeness(ctx, { level: 'registration' });
+  const lab = (e, lang) => (e && e.label && typeof e.label === 'object') ? (e.label[lang] || e.label.it || e.key) : ((e && e.label) || (e && e.key) || '');
+  const list = (arr, lang) => (arr || []).map(e => ({ key: e.key, label: lab(e, lang), group: e.group || '' }));
+  return {
+    template: comp.template,
+    ready: comp.ready,
+    dots: list(comp.dots, 'it'),
+    byOwner: {
+      tenant: list(comp.byOwner.tenant.missing, 'en'),
+      landlord: list(comp.byOwner.landlord.missing, 'it'),
+      operator: list(comp.byOwner.operator.missing, 'it'),
+    },
+    cotenants: (comp.cotenants || []).filter(c => c.missing && c.missing.length)
+      .map(c => ({ name: c.name, missing: c.missing.map(m => lab(m, 'en')) })),
+  };
+}
+// Il locatore, risolto come lo risolve il PDF (resolveLandlord: users +
+// landlords per ownerId, poi landlords per email): preflight e documento
+// non possono contraddirsi su cosa manca.
+async function landlordCtxOf(property, contract) {
+  try { return (await resolveLandlord(contract, property)) || {}; } catch (_) { return {}; }
 }
 
 // ── Core conversion, shared by the console handler and the auto pipeline ──
 // Returns { ok, already?, contractId, tenantId, tenantSignUrl,
 //           landlordSignUrl, delegate } or { ok:false, error }.
-export async function convertPaToContract({ pa, paId, propertyId, delegate = false, delegateName, type, actor = 'system' }) {
+export async function convertPaToContract({ pa, paId, propertyId, delegate = false, delegateName, type, actor = 'system', createProperty = false, force = false, dryRun = false }) {
   if (!pa || !paId) return { ok: false, error: 'no_pa' };
   if (pa.status !== 'accepted' && pa.status !== 'paid') return { ok: false, error: 'not_accepted_yet' };
 
@@ -65,6 +249,7 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
       if (c) {
         return {
           ok: true, already: true, contractId: pa.contractId, tenantId: c.tenantId || null,
+          ...(dryRun ? { dryRun: true } : {}),
           tenantSignUrl: c.tenantSignToken ? `${BASE}/sign?sign=${c.tenantSignToken}` : null,
           landlordSignUrl: c.landlordSignToken ? `${BASE}/sign?sign=${c.landlordSignToken}` : null,
           delegate: c.landlordDelegate || null,
@@ -73,17 +258,62 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     } catch (_) { /* stale pointer — fall through and convert again */ }
   }
 
-  const propId = propertyId || pa.propertyId;
-  if (!propId) return { ok: false, error: 'no_property' };
-  let property;
-  try { property = await fsGet('properties/' + propId); }
-  catch (e) { return { ok: false, error: 'property_lookup_failed' }; }
+  let propId = propertyId || pa.propertyId;
+  let property = null, propertyCreated = false;
+  const canCreate = !!((pa.property || {}).address);
+  if (!propId && createProperty === true && canCreate) {
+    const newId = propertyIdForPa(paId);
+    if (dryRun) {
+      // il preflight si valuta sull'immobile CHE NASCEREBBE, senza crearlo
+      property = propertyFromPa({ pa, paId, actor });
+    } else {
+      try {
+        await fsCreate('properties', propertyFromPa({ pa, paId, actor }), newId);
+        propertyCreated = true;
+      } catch (e) {
+        if (!e.exists) { console.error('[preagreement/convert] property create failed:', e.message); return { ok: false, error: 'property_create_failed' }; }
+      }
+    }
+    propId = newId;
+  }
+  if (!propId) return { ok: false, error: 'no_property', canCreate };
+  if (!property) {
+    try { property = await fsGet('properties/' + propId); }
+    catch (e) { return { ok: false, error: 'property_lookup_failed' }; }
+  }
   if (!property) return { ok: false, error: 'property_not_found' };
 
   const tenants = Array.isArray(pa.tenants) && pa.tenants.length ? pa.tenants : [pa.tenant || {}];
   const t = tenants[0];
   if (!t || !t.fullName) return { ok: false, error: 'no_tenant_identity' };
   const uploads = Array.isArray(pa.uploads) ? pa.uploads : [];
+  const unit = clip((pa.property || {}).unit, 40) || '';
+
+  // ID deterministico dal PA: due conversioni concorrenti (double-submit,
+  // retry del webhook con back-link stantio) collassano sullo stesso doc.
+  const contractId = 'pa_' + paId;
+  // LA PROPOSTA ORFANA / IL RETRY, riconosciuti PRIMA di ogni guardia: se
+  // contracts/pa_<paId> esiste già (il caso Léa: firmato da entrambi, back-
+  // link perso) si ricuce e si torna — la guardia sovrapposizioni non deve
+  // MAI impedire a una proposta di ritrovare il SUO contratto (il contratto
+  // vicino, attivo sullo stesso immobile, la bloccherebbe per sempre).
+  let existing = null;
+  try { existing = await fsGet('contracts/' + contractId); } catch (_) { existing = null; }
+  if (existing) {
+    if (dryRun) return { ok: true, dryRun: true, already: true, exists: true, contractId, propertyId: existing.propertyId || propId };
+    await backlinkPa({ paId, pa, contractId, tenantSignToken: existing.tenantSignToken, landlordSignToken: existing.landlordSignToken, delegated: !!(existing.landlordDelegate && existing.landlordDelegate.name), actor, propertyId: existing.propertyId || propId });
+    return {
+      ok: true, already: true, contractId, tenantId: existing.tenantId || null,
+      tenantSignUrl: existing.tenantSignToken ? `${BASE}/sign?sign=${existing.tenantSignToken}` : null,
+      landlordSignUrl: existing.landlordSignToken ? `${BASE}/sign?sign=${existing.landlordSignToken}` : null,
+      delegate: existing.landlordDelegate || null,
+    };
+  }
+
+  // La guardia sovrapposizioni: PRIMA di creare profili e contratto. In
+  // dryRun si riporta soltanto (la console avvisa prima del tap).
+  const overlap = await findOverlap({ propId, paId, unit, le: pa.lease || {} });
+  if (overlap && force !== true && !dryRun) return { ok: false, error: 'overlap', overlap };
 
   // ── 1. Tenant user: reuse by email, else bootstrap from the PA identity ──
   // The users doc MUST be keyed by a real Firebase Auth uid: /casa and
@@ -92,7 +322,7 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
   // (Identity Toolkit signUp, random password — the tenant sets their own
   // via "Password dimenticata" on /login) and key the doc on its localId.
   let tenantId = null;
-  try {
+  if (!dryRun) try {
     if (t.email) {
       const hits = await fsList('users', { filter: { field: 'email', op: 'EQUAL', value: t.email }, limit: 1 });
       if (hits && hits[0]) tenantId = hits[0].id;
@@ -115,14 +345,7 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
       // => { … })` destrutturava il ritorno del .then (undefined) e faceva
       // fallire l'INTERA conversione su ogni inquilino mai visto prima.
       try {
-        const r = await fsCreate('users', {
-          role: 'tenant',
-          name: t.fullName, email: t.email || '', phone: t.phone || '',
-          cf: t.cf || '', dob: t.dob || '', pob: t.birthPlace || '',
-          address: t.address || '', docNum: t.idDoc || '', nationality: t.nationality || '',
-          identityDocs: uploads.filter(u => (u.tenantIndex || 0) === 0).map(u => ({ url: u.url, name: u.name, at: u.at })),
-          createdBy: 'preagreement_convert', createdAt: new Date().toISOString(),
-        }, authUid || undefined);
+        const r = await fsCreate('users', tenantUserFromPa(t, uploads), authUid || undefined);
         tenantId = authUid || (r && r.id);
       } catch (e) { if (e && e.exists && authUid) tenantId = authUid; else throw e; }
     }
@@ -155,6 +378,9 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
 
   const contract = {
     propertyId: propId,
+    // l'interno viaggia sul contratto: due stanze della stessa casa sono
+    // due contratti legittimi SOLO se lo dichiarano (guardia sovrapposizioni)
+    unit,
     tenantId,
     type: cType,
     startDate: le.startDate || null,
@@ -205,7 +431,10 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     },
     durata: { text: months + ' mesi', startDate: le.startDate || null, endDate: le.endDate || null },
     transitionalReason: le.reason || '',
-    transitionalDocs: '',
+    // Il documento che prova l'esigenza: se il cliente l'ha caricato sulla
+    // proposta (kind:'extra') il contratto lo NOMINA invece di stampare
+    // puntini — è lo stesso file che il Pack allega alla registrazione.
+    transitionalDocs: uploads.some(u => u && u.kind === 'extra') ? (clip(pa.extraDoc, 120) || 'attestazione allegata alla proposta') : '',
     // I dati dello studente arrivano dalla proposta (console → lease.studenti)
     // e alimentano l'Allegato C. Su un transitorio restano vuoti: un dato
     // universitario su un contratto di lavoro sarebbe rumore sul documento.
@@ -220,7 +449,7 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
        x.cf ? 'C.F. ' + String(x.cf).toUpperCase() : ''].filter(Boolean).join(', ')).join('; '),
     coTenants: tenants.slice(1).filter(x => x && x.fullName).map((x, i) => ({
       name: x.fullName, cf: String(x.cf || '').toUpperCase(), dob: x.dob || '',
-      birthPlace: x.birthPlace || '', address: x.address || '', idDoc: x.idDoc || '',
+      birthPlace: x.birthPlace || '', address: x.address || '', idDoc: x.idDoc || '', docType: x.idDocType || '',
       nationality: x.nationality || '', email: x.email || '', phone: x.phone || '',
       tenantIndex: i + 1, paSignedName: x.signName || x.typedSignature || x.signature || '',
     })),
@@ -257,6 +486,10 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     // Landlord identity from the PA — magic-sign shows the real name even
     // when the portal property has no ownerId/users profile (owner-direct
     // signing is the default now).
+    // Il nome del conduttore sta sul contratto (prima solo sul profilo
+    // users): è una delle PARTI della foto delle condizioni approvate, e la
+    // firma per mandato la confronta sul contratto, senza risalire la catena.
+    tenantName: t.fullName || '',
     landlordName: (pa.landlord || {}).name || property.ownerName || '',
     landlordEmail: (pa.landlord || {}).email || null,
     landlordPhone: (pa.landlord || {}).phone || null,
@@ -269,17 +502,79 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
       setAt: new Date().toISOString(),
       setBy: actor,
     } : null,
+    // L'accettazione digitale della proposta viaggia sul contratto: e' la
+    // firma del conduttore sulla Scheda di calcolo del canone (Allegato
+    // 2/B) — il consenso della proposta la copre esplicitamente
+    // (_consent.js) — e la base del mandato. Solo fatti: data, protocollo,
+    // hash del testo accettato.
+    paAcceptance: (pa.consent && pa.consent.at) ? {
+      at: pa.consent.at,
+      ref: pa.ref || null,
+      hash: pa.consent.hash || null,
+      schedaSigned: pa.consent.schedaSigned === true,
+    } : null,
+    tenantMandate: null,   // riempito sotto: l'impronta si calcola sul contratto INTERO
     paymentsGenerated: false,
     welcomeEmailSent: false,
     createdAt: new Date().toISOString(),
     createdBy: 'preagreement_convert:' + actor,
   };
 
-  // ID deterministico dal PA: due conversioni concorrenti (double-submit,
-  // retry del webhook con back-link stantio) collassano sullo stesso doc —
-  // la seconda riceve 409 e restituisce il contratto della prima, con i
-  // token firma originali intatti.
-  const contractId = 'pa_' + paId;
+  // IL MANDATO DEL CONDUTTORE — conferito sulla proposta (spunta a parte,
+  // mai pre-selezionata), vale SOLO per questi termini: termsHash e' la
+  // stessa impronta che magic-sign/submit ricalcola al momento della firma
+  // (un canone o una data ritoccati dopo = 409 mandate_terms_changed, mai
+  // una firma). Senza `pa.mandate.given` il contratto NON ha mandato e la
+  // firma al posto del conduttore resta impossibile (403 mandate_missing).
+  if (pa.mandate && pa.mandate.given === true) {
+    // La BASE del mandato è la foto presa all'accettazione (pa.approvedTerms,
+    // v2). Per una proposta accettata prima della v2 la foto si prende dalla
+    // proposta stessa — che la console non lascia modificare dopo
+    // l'accettazione — e la provenienza resta dichiarata. MAI dal contratto:
+    // il contratto è ciò che si VERIFICA, non la base.
+    const snap = (pa.approvedTerms && pa.approvedTerms.terms && pa.approvedTerms.hash) ? pa.approvedTerms : null;
+    const terms = snap ? snap.terms : MANDATO.termsFromProposal(pa);
+    const termsHash = snap ? snap.hash : mandateTermsHash(terms);
+    const diff = MANDATO.diffTerms(terms, MANDATO.termsFromContract(contract));
+    contract.tenantMandate = {
+      given: true,
+      at: pa.mandate.at || null,
+      ref: pa.ref || null,
+      paId,
+      hash: pa.mandate.hash || null,
+      text: pa.mandate.text || '',
+      ip: pa.mandate.ip || '',
+      termsVersion: MANDATO.VERSION,
+      termsHash,
+      terms,
+      termsSource: snap ? 'proposal-at-acceptance' : 'proposal-at-conversion',
+      // La verifica alla CONVERSIONE: il contratto appena costruito riproduce
+      // le condizioni approvate? Se no (es. modello scelto a mano diverso
+      // dalla proposta), il mandato resta registrato ma DICHIARATO non
+      // spendibile: il server rifiuterà la firma (409) e il portal lo mostra.
+      termsMatch: diff.length === 0,
+      termsDiff: diff.map(d => d.key),
+      termsCheckedAt: new Date().toISOString(),
+    };
+  }
+
+  // (contractId: dichiarato sopra, prima del riconoscimento dell'orfana.)
+  // Nella GARA fra due conversioni la seconda riceve 409 da fsCreate e
+  // restituisce il contratto della prima, con i token firma intatti.
+
+  // Il preflight ESCE QUI: stesso contratto, nessuna scrittura (né profilo,
+  // né immobile, né contratto). La console lo chiama al cambio immobile
+  // nel modale e prima di 🖊 su un deal ancora da convertire.
+  if (dryRun) {
+    let exists = false;
+    try { exists = !!(await fsGet('contracts/' + contractId)); } catch (_) {}
+    const landlord = { ...(await landlordCtxOf(property, contract)), name: contract.landlordName || undefined, email: contract.landlordEmail || undefined, phone: contract.landlordPhone || undefined };
+    return {
+      ok: true, dryRun: true, contractId, propertyId: propId, exists,
+      overlap: overlap || null,
+      completeness: preflightOf({ contract, property, tenantUser: tenantUserFromPa(t, uploads), landlord }),
+    };
+  }
   try {
     await fsCreate('contracts', contract, contractId);
   } catch (e) {
@@ -287,6 +582,15 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
       try {
         const c = await fsGet('contracts/' + contractId);
         if (c) {
+          // LA PROPOSTA ORFANA (13/09/2026, il caso Léa): il contratto
+          // pa_<paId> esiste — firmato da entrambi il 14/08 — ma la
+          // proposta non porta contractId, perché il back-link qui sotto
+          // era fire-and-forget e si è perso dopo la risposta. Ogni volta
+          // che si arrivava qui si restituivano i link SENZA riscrivere
+          // il back-link: l'orfana restava orfana per sempre e la console
+          // la mostrava «paid · → Contratto». Ora il ramo «esiste già»
+          // ricuce la proposta al suo contratto, e lo ATTENDE.
+          await backlinkPa({ paId, pa, contractId, tenantSignToken: c.tenantSignToken, landlordSignToken: c.landlordSignToken, delegated: !!(c.landlordDelegate && c.landlordDelegate.name), actor, propertyId: c.propertyId || propId });
           return {
             ok: true, already: true, contractId, tenantId: c.tenantId || null,
             tenantSignUrl: c.tenantSignToken ? `${BASE}/sign?sign=${c.tenantSignToken}` : null,
@@ -339,16 +643,31 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     } catch (e) { console.warn('[preagreement/convert] co-tenant user:', e.message); }
   }
 
-  // Back-link on the PA (best-effort — the contract exists either way).
-  // Sign URLs are stored here too so the console can offer 🖊 Magic Sign /
+  // Il mandato ha un documento suo (best-effort): il PDF della proposta
+  // accettata — che stampa la sezione "Mandate to sign" col testo firmato —
+  // salvato accanto al contratto, cosi' il Pack Registrazione e l'archivio
+  // lo trovano senza risalire alla proposta.
+  if (contract.tenantMandate) {
+    try {
+      const buf = await buildPaPdf({ ...pa, id: paId, ref: pa.ref || paId });
+      if (buf) {
+        const url = await storageUpload(`contracts/${contractId}/mandato-conduttore.pdf`, buf, 'application/pdf');
+        if (url) {
+          contract.tenantMandate.docUrl = url;
+          // la mappa si riscrive INTERA (fsPatch non conosce i percorsi a
+          // punti): il contratto e' appena nato, nessuno l'ha toccata.
+          await fsPatch('contracts/' + contractId, { tenantMandate: contract.tenantMandate }).catch(() => {});
+        }
+      }
+    } catch (e) { console.warn('[preagreement/convert] mandato pdf:', e.message); }
+  }
+
+  // Back-link on the PA — ATTESO, non best-effort: senza contractId la
+  // console non sa che il contratto esiste (il caso Léa qui sopra). Sign
+  // URLs are stored here too so the console can offer 🖊 Magic Sign /
   // WhatsApp share without extra reads (preAgreements is admin-only).
-  fsPatch('preAgreements/' + paId, {
-    contractId, convertedAt: new Date().toISOString(), convertedBy: actor,
-    tenantSignUrl: `${BASE}/sign?sign=${contract.tenantSignToken}`,
-    landlordSignUrl: `${BASE}/sign?sign=${contract.landlordSignToken}`,
-    delegated: delegateOn,   // the console shapes the landlord-link action on this
-  }).catch(() => {});
-  logActivity('preagreement_converted', 'contract',
+  await backlinkPa({ paId, pa, contractId, tenantSignToken: contract.tenantSignToken, landlordSignToken: contract.landlordSignToken, delegated: delegateOn, actor, propertyId: propId });
+  await logActivity('preagreement_converted', 'contract',
     { paId, ref: pa.ref || '', contractId, tenant: t.fullName, delegate: delegateOn, auto: actor === 'auto' }, actor)
     .catch(() => {});
   // Il PDF del contratto nasce QUI, server-side (js/contract-pdf.js — lo
@@ -363,7 +682,7 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     pdfUrl = await ensureContractPdf(contractId, { ...contract });
   } catch (e) { console.error('[preagreement/convert] contract pdf:', e.message); }
   if (!pdfUrl) {
-    fsCreate('agentNotifications', {
+    await fsCreate('agentNotifications', {
       type: 'contract.pdf_missing',
       summary: `📄 Contratto ${contractId} creato dal pre-agreement: PDF non generato automaticamente — genera dal portal (🔄 Rigenera PDF) o ripremi 🖊 Magic Sign`,
       priority: 'low', ref: { collection: 'contracts', id: contractId },
@@ -374,9 +693,14 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
 
   return {
     ok: true, contractId, tenantId,
+    propertyId: propId,
+    ...(propertyCreated ? { propertyCreated: true } : {}),
+    ...(overlap ? { overlapForced: overlap } : {}),
     tenantSignUrl: `${BASE}/sign?sign=${contract.tenantSignToken}`,
     landlordSignUrl: `${BASE}/sign?sign=${contract.landlordSignToken}`,
     delegate: contract.landlordDelegate,
+    mandate: !!contract.tenantMandate,
+    mandateTermsMatch: contract.tenantMandate ? contract.tenantMandate.termsMatch : null,
   };
 }
 
@@ -404,13 +728,17 @@ export default async function handler(req, res) {
     delegateName: b.delegateName,
     type: b.type,
     actor: auth.email || auth.uid,
+    createProperty: b.createProperty === true,
+    force: b.force === true,
+    dryRun: b.dryRun === true,
   });
   if (!out.ok) {
     const code = out.error === 'not_accepted_yet' ? 409
       : out.error === 'no_property' ? 400
       : out.error === 'property_not_found' ? 404
+      : out.error === 'overlap' ? 409
       : out.error === 'no_tenant_identity' ? 409 : 500;
-    return res.status(code).json({ ok: false, error: out.error, status: pa.status });
+    return res.status(code).json({ ok: false, error: out.error, status: pa.status, ...(out.overlap ? { overlap: out.overlap } : {}), ...(out.canCreate != null ? { canCreate: out.canCreate } : {}) });
   }
   return res.status(200).json(out);
 }

@@ -746,6 +746,9 @@
     "api/fiscal/pack.js": {
       "maxDuration": 60
     },
+    "api/fiscal/foglio.js": {
+      "maxDuration": 60
+    },
     "api/fiscal/registra.js": {
       "maxDuration": 60
     },

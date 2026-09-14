@@ -89,7 +89,7 @@ export async function buildVerbalePdf({ contract, property, keys, meters, condit
 
   sect('Riferimento');
   row('Immobile', clip(property.address || property.name || contract.propertyAddress || '', 90));
-  row('Contratto di locazione', `${contract.type === 'studenti' ? 'per studenti universitari' : 'transitorio'} — decorrenza ${dIT(contract.startDate)} / scadenza ${dIT(contract.endDate)}`);
+  row('Contratto di locazione', `${contract.type === 'studenti' ? 'per studenti universitari' : contract.type === '3+2' ? 'a canone concordato 3+2' : 'transitorio'} — decorrenza ${dIT(contract.startDate)} / scadenza ${dIT(contract.endDate)}`);
   row('Locatore', clip(contract.landlordName || '', 90));
   const condNames = [clip(contract.tenantName || '', 60)]
     .concat((Array.isArray(contract.coTenants) ? contract.coTenants : []).map((c) => clip(c.name, 60)))

@@ -126,6 +126,12 @@ globalThis.fetch = async (url, opts = {}) => {
           const cur = docTimes.get(k) || '2026-01-01T00:00:00Z';
           if (cur !== w.currentDocument.updateTime) return new Response(JSON.stringify({ error: { status: 'FAILED_PRECONDITION', message: 'the stored version does not match' } }), { status: 400 });
         }
+        // currentDocument.exists:true = come il VERO Firestore, NOT_FOUND su un
+        // documento assente: la stampa dello stato firma sulla proposta non
+        // deve mai creare una proposta fantasma.
+        if (w.currentDocument && w.currentDocument.exists === true && !store.has(k)) {
+          return new Response(JSON.stringify({ error: { code: 404, status: 'NOT_FOUND', message: 'No document to update: ' + k } }), { status: 404 });
+        }
         const doc = store.get(k) || {};
         Object.assign(doc, fromFsFields(w.update.fields));
         store.set(k, doc); bump(k);
@@ -147,6 +153,7 @@ globalThis.fetch = async (url, opts = {}) => {
       bump(path);
       return okJson({ name: 'projects/p/databases/(default)/documents/' + path });
     }
+    if (opts.method === 'DELETE') { store.delete(path); return okJson({}); }
     const doc = store.get(path);
     if (!doc) return new Response('not found', { status: 404 });
     return okJson(docRow(path));
@@ -210,7 +217,7 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   const out = await finalizeContract({ ...FULL });
   check('finalize: ok + caf inviato', out.ok === true && out.caf === true);
 
-  const caf = mailTo('valentino@boom-rome.com').filter(m => /Asseverazione/i.test(m.subject));
+  const caf = mailTo('valentino@boom-rome.com').filter(m => /Fascicolo completo/i.test(m.subject));
   check('CAF: arriva a valentino@boom-rome.com', caf.length === 1);
   check('CAF: anagrafica completa di ENTRAMBE le parti', caf.length === 1
     && caf[0].html.includes('RSSMRA85T10A562S') && caf[0].html.includes('BNCGLI70A41H501X')
@@ -218,9 +225,22 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   check('CAF: linka il contratto FIRMATO + certificato', caf.length === 1
     && caf[0].html.includes('contratto-firmato.pdf')
     && caf[0].html.includes('signing-certificate.pdf'));
-  check('CAF: contratto firmato + certificato + fascicolo + DOCUMENTO IDENTITÀ in allegato', caf.length === 1
-    && (caf[0].attachments || []).length === 4
-    && ['BOOM_Contratto_firmato.pdf', 'BOOM_Certificato_di_firma.pdf', 'BOOM_Fascicolo_Fiscale.pdf']
+  // IL FOGLIO DI REGISTRAZIONE: la seconda email a valentino — pulita.
+  const foglio = mailTo('valentino@boom-rome.com').filter(m => /^Registrazione contratto — /.test(m.subject));
+  check('foglio: arriva a valentino, oggetto archiviale senza emoji', foglio.length === 1 && out.foglio === true
+    && /^Registrazione contratto — .* — Anna Expat — 2026-09-01$/.test(foglio[0].subject));
+  check('foglio: NESSUN bottone, NESSUN link al portal, nessuna istruzione operativa', foglio.length === 1
+    && !/class="bp-btn/.test(foglio[0].html) && !/boomrome\.com\/portal/.test(foglio[0].html)
+    && !/mancano|rigenera|📦 Pack/i.test(foglio[0].html));
+  check('foglio: i numeri del modello RLI (L2, CF di entrambi, catasto a caselle, scadenza registrazione)', foglio.length === 1
+    && foglio[0].html.includes('L2 — locazione agevolata') && foglio[0].html.includes('RSSMRA85T10A562S') && foglio[0].html.includes('BNCGLI70A41H501X')
+    && /Subalterno/.test(foglio[0].html) && /Registrazione entro/.test(foglio[0].html));
+  check('foglio: contratto firmato + certificato + fascicolo + documento in allegato', foglio.length === 1
+    && ['Contratto_firmato.pdf', 'Certificato_firma_FES.pdf', 'Scheda_calcolo_canone_ARPE.pdf', 'Fascicolo_fiscale.pdf'].every(n => (foglio[0].attachments || []).some(a => a.filename === n))
+    && (foglio[0].attachments || []).some(a => /^Documento_conduttore_1/.test(a.filename)));
+  check('CAF: contratto firmato + certificato + scheda ARPE + fascicolo + DOCUMENTO IDENTITÀ in allegato', caf.length === 1
+    && (caf[0].attachments || []).length === 5
+    && ['BOOM_Contratto_firmato.pdf', 'BOOM_Certificato_di_firma.pdf', 'BOOM_Scheda_calcolo_canone_ARPE.pdf', 'BOOM_Fascicolo_Fiscale.pdf']
         .every(n => (caf[0].attachments || []).some(a => a.filename === n))
     && (caf[0].attachments || []).some(a => a.filename === 'Documento_identita_1_passport.jpg'));
 
@@ -259,7 +279,7 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   const zNames = Object.keys(zf);
   check('pack: contiene indice, contratto firmato, certificato, fascicolo',
     zNames.includes('00_INDICE.txt') && zNames.includes('01_Contratto_firmato.pdf')
-    && zNames.includes('02_Certificato_firma_FES.pdf') && zNames.includes('03_Fascicolo_Fiscale.pdf'));
+    && zNames.includes('02_Certificato_firma_FES.pdf') && zNames.includes('03_Scheda_calcolo_canone_ARPE.pdf') && zNames.includes('03_Fascicolo_Fiscale.pdf'));
   check('pack: contiene visura, planimetria, APE, delega dal dossier immobile',
     zNames.some(n => n.startsWith('04_Visura')) && zNames.some(n => n.startsWith('05_Planimetria'))
     && zNames.some(n => n.startsWith('06_APE')) && zNames.some(n => n.startsWith('07_Delega')));
@@ -298,10 +318,13 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   const ctr = store.get('contracts/ctrF');
   check('fascicolo: PDF generato e URL sul contratto',
     typeof ctr.fascicoloFiscaleUrl === 'string' && ctr.fascicoloFiscaleUrl.includes('fascicolo-fiscale.pdf'));
+  check('scheda ARPE: PDF a se\' stante (una pagina) generato e URL sul contratto',
+    typeof ctr.schedaCanoneUrl === 'string' && ctr.schedaCanoneUrl.includes('scheda-canone-arpe.pdf')
+    && storageFiles.has('contracts/ctrF/scheda-canone-arpe.pdf'));
   check('fascicolo: calcolo canone persistito (zona B14, fascia, verdetto)',
     ctr.canoneScheda && ctr.canoneScheda.zonaCod === 'B14' && !!ctr.canoneScheda.fascia
     && typeof ctr.canoneScheda.cMax === 'number' && ctr.canoneScheda.fits === true);
-  const caf2 = mailTo('valentino@boom-rome.com').find(m => /Asseverazione/i.test(m.subject));
+  const caf2 = mailTo('valentino@boom-rome.com').find(m => /Fascicolo completo/i.test(m.subject));
   check('CAF: il Fascicolo Fiscale è linkato nell\'email', !!caf2 && caf2.html.includes('Fascicolo Fiscale'));
 
   const before = mails().length;
@@ -324,10 +347,11 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
     && (wt.attachments || []).length === 1
     && wt.attachments[0].filename === 'BOOM_Signing_Certificate.pdf'
     && /Signing certificate/.test(wt.html));
-  const caf = mails().slice(b).find(m => m.to === 'valentino@boom-rome.com' && /Asseverazione/i.test(m.subject));
-  check('legacy senza PDF: CAF onesto (PDF non ancora generato) + cert, fascicolo e identità allegati', !!caf
+  const caf = mails().slice(b).find(m => m.to === 'valentino@boom-rome.com' && /Fascicolo completo/i.test(m.subject));
+  check('legacy senza PDF: CAF onesto (PDF non ancora generato) + cert, scheda ARPE, fascicolo e identità allegati', !!caf
     && caf.html.includes('PDF non ancora generato')
-    && (caf.attachments || []).length === 3);
+    && (caf.attachments || []).length === 4
+    && (caf.attachments || []).some(a => a.filename === 'BOOM_Scheda_calcolo_canone_ARPE.pdf'));
   check('legacy senza PDF: il pack elenca "Contratto firmato" tra i mancanti',
     Array.isArray(out.packMissing) && out.packMissing.includes('Contratto firmato')
     && !!caf && /Nel pack mancano/.test(caf.html) && caf.html.includes('Contratto firmato'));
@@ -490,6 +514,158 @@ const { finalizeContract } = await import('../../api/sign/_finalize.js');
   check('reinvite: cap 2 re-inviti → no', shouldReinvite({ ...base, inviteNudgeCount: 2 }, now) === false);
 }
 
+// ═══ 1f. LA CONSOLE VEDE LA FIRMA: stampa sulla proposta + send-sign onesto ═══
+// Il caso Inês (12/09/2026, Viale Angelico 9): contratto firmato e attivo,
+// console pre-agreement cieca («paid · 🖊 Reinvia Magic Sign»), e il tasto
+// che rispediva all'inquilino un link «hai già firmato». Tre regole:
+//  · ogni firma via submit STAMPA lo stato sulla proposta (rail PA);
+//  · send-sign su un contratto già firmato dall'inquilino NON manda email,
+//    risponde lo stato e stampa la proposta (sanatoria dei deal vecchi);
+//  · la stampa non crea MAI una proposta fantasma (precondizione exists).
+{
+  const msSubmit = (await import('../../api/magic-sign/submit.js')).default;
+  const sendSignMod = await import('../../api/preagreement/send-sign.js');
+  const sendSign = sendSignMod.default;
+  const { signatureState } = sendSignMod;
+  const CONSENT = 'I confirm my identity and accept all lease terms. This digital signature is legally valid (FES — Art. 21 CAD).';
+  const SIG = 'data:image/png;base64,' + 'C'.repeat(400);
+  store.set('users/caller1', { role: 'admin' });
+  store.set('preAgreements/paSIG', {
+    status: 'paid', ref: 'BOOM-SIGTEST', contractId: 'pa_paSIG', propertyId: 'prop1',
+    tenant: { fullName: 'Ines Test', email: 'ines@test.pt' }, tenants: [{ fullName: 'Ines Test', email: 'ines@test.pt' }],
+    landlord: { name: 'Giulia Bianchi', email: 'giulia@owner.it' }, property: { address: 'Viale Angelico 9' },
+    lease: { startDate: '2026-09-01', months: 12 }, money: { rent: 1450, deposit: 2900 },
+    tenantSignUrl: 'https://www.boomrome.com/sign?sign=SIGTOK_T', landlordSignUrl: 'https://www.boomrome.com/sign?sign=SIGTOK_L',
+    signSentAt: '2026-08-20T10:00:00Z', createdAt: '2026-08-10T10:00:00Z',
+  });
+  store.set('contracts/pa_paSIG', {
+    propertyId: 'prop1', tenantId: 't1', type: 'transitorio', cedolareSecca: 'si',
+    rent: 1450, deposit: 2900, startDate: '2026-09-01', endDate: '2027-08-31', paymentDay: 5,
+    tenantName: 'Ines Test', tenantEmail: 'ines@test.pt', landlordName: 'Giulia Bianchi', landlordEmail: 'giulia@owner.it',
+    tenantSignToken: 'SIGTOK_T', landlordSignToken: 'SIGTOK_L',
+    signingOrder: 'sequential', signatureStatus: 'none', status: 'active',
+    preAgreementId: 'paSIG', preAgreementRef: 'BOOM-SIGTEST',
+    generatedPDF: 'https://storage.example/contract.pdf', clauseVersion: 2,
+  });
+  const body = (token) => ({ token, signature: SIG, consent: { text: CONSENT, hash: '' }, identity: {} });
+
+  // Prima della firma: 🖊 manda l'invito, come sempre.
+  IP = '9.1.4.1';
+  let r = mkRes(); let b0 = mails().length;
+  await sendSign(mkReq({ id: 'paSIG' }, { authorization: 'Bearer x' }), r);
+  check('send-sign PRIMA della firma: invito all\'inquilino, come sempre', r.code === 200 && r.body.emailed === true && !r.body.alreadySigned
+    && mails().slice(b0).some(m => m.to === 'ines@test.pt' && /ready to sign/.test(m.subject)));
+  // I DATI DEL LOCATORE SI CHIEDONO ALLO STESSO TAP (13/09/2026): al
+  // contratto mancano CF, nascita, residenza e catasto del locatore → la
+  // sua Scheda parte con l'invito, in italiano, col link derivato; lo stato
+  // resta sul contratto. Il conduttore non riceve quella mail.
+  const askMail = mails().slice(b0).find(m => m.to === 'giulia@owner.it' && /suoi dati per il contratto/.test(m.subject));
+  check('send-sign: al locatore parte la richiesta della Scheda (mancano CF, nascita, catasto…) — link /scheda, oggetto in italiano, stato sul contratto',
+    r.body.landlordAsked === true && r.body.landlordAskedTo === 'giulia@owner.it' && !!askMail && /scheda\?t=/.test(askMail.html || '') && /scheda\?t=/.test(askMail.text || '')
+    && (r.body.landlordMissing || []).includes('landlordCF') && !!store.get('contracts/pa_paSIG').schedaAskedLandlordAt
+    && store.get('contracts/pa_paSIG').schedaAskedLandlordTo === 'giulia@owner.it'
+    && !mails().slice(b0).some(m => m.to === 'ines@test.pt' && /suoi dati per il contratto/.test(m.subject)));
+  // LE SCRITTURE DOPO LA RISPOSTA SI PERDONO (13/09/2026): signSentAt sulla
+  // proposta e signInviteTenantAt sul contratto erano fire-and-forget e il
+  // backup di produzione li mostrava ASSENTI dopo un 200. Ora sono attesi:
+  // quando il handler risponde, sono già sul documento.
+  check('… e signSentAt / signInviteTenantAt sono GIÀ scritti quando arriva la risposta (attesi, non fire-and-forget)',
+    !!store.get('preAgreements/paSIG').signSentAt && !!store.get('contracts/pa_paSIG').signInviteTenantAt);
+
+  // L'inquilino firma → la PROPOSTA porta lo stato (la console lo legge da lì
+  // quando il contratto non è ancora arrivato dal listener).
+  r = mkRes();
+  await msSubmit(mkReq(body('SIGTOK_T')), r);
+  let pa = store.get('preAgreements/paSIG');
+  check('firma inquilino → la proposta porta contractSignatureStatus=partial + tenantSignedAt', r.code === 200
+    && pa.contractSignatureStatus === 'partial' && !!pa.tenantSignedAt && pa.contractId === 'pa_paSIG' && !pa.contractFullySignedAt);
+
+  // 🖊 Reinvia Magic Sign a un inquilino che HA GIÀ FIRMATO: zero email, stato in risposta.
+  IP = '9.1.4.2';
+  r = mkRes(); b0 = mails().length;
+  await sendSign(mkReq({ id: 'paSIG' }, { authorization: 'Bearer x' }), r);
+  check('send-sign DOPO la firma dell\'inquilino: nessuna NUOVA richiesta Scheda al locatore (una sola, prima)',
+    mails().filter(m => m.to === 'giulia@owner.it' && /suoi dati per il contratto/.test(m.subject)).length === 1);
+  check('send-sign DOPO la firma dell\'inquilino: alreadySigned partial, ZERO email all\'inquilino', r.code === 200 && r.body.ok === true
+    && r.body.alreadySigned === true && r.body.signatureStatus === 'partial' && !!r.body.tenantSignedAt && r.body.emailed === false
+    && !mails().slice(b0).some(m => m.to === 'ines@test.pt'));
+  check('… e nemmeno il recap admin «Magic Sign inviato» (non è partito niente)', !mails().slice(b0).some(m => /Magic Sign inviato/.test(m.subject)));
+
+  // Sanatoria: un deal firmato PRIMA che submit imparasse a stampare → 🖊 riscrive lo stato.
+  pa = store.get('preAgreements/paSIG'); delete pa.contractSignatureStatus; delete pa.tenantSignedAt; store.set('preAgreements/paSIG', pa);
+  r = mkRes();
+  await sendSign(mkReq({ id: 'paSIG' }, { authorization: 'Bearer x' }), r);
+  pa = store.get('preAgreements/paSIG');
+  check('sanatoria: send-sign ristampa lo stato su una proposta firmata prima del fix', r.code === 200 && pa.contractSignatureStatus === 'partial' && !!pa.tenantSignedAt);
+
+  // Il locatore controfirma → complete sulla proposta.
+  IP = '9.1.4.3';
+  r = mkRes();
+  await msSubmit(mkReq(body('SIGTOK_L')), r);
+  pa = store.get('preAgreements/paSIG');
+  check('controfirma → la proposta porta complete + landlordSignedAt + contractFullySignedAt', r.code === 200 && r.body.fullySigned === true
+    && pa.contractSignatureStatus === 'complete' && !!pa.landlordSignedAt && !!pa.contractFullySignedAt);
+  r = mkRes(); b0 = mails().length;
+  await sendSign(mkReq({ id: 'paSIG' }, { authorization: 'Bearer x' }), r);
+  check('send-sign a contratto COMPLETO: alreadySigned complete, zero email', r.code === 200 && r.body.alreadySigned === true
+    && r.body.signatureStatus === 'complete' && mails().length === b0);
+
+  // signatureState: i FATTI (le firme) battono l'etichetta stantia.
+  check('signatureState: firme presenti battono un signatureStatus stantio',
+    signatureState({ tenantSignature: 'x', landlordSignature: 'y', signatureStatus: 'partial' }).status === 'complete'
+    && signatureState({ tenantSignature: 'x' }).status === 'partial' && signatureState(null).status === 'none');
+
+  // Mai una proposta fantasma: contratto che punta a una proposta CANCELLATA.
+  store.set('contracts/ctrGhost', {
+    propertyId: 'prop1', tenantId: 't1', type: 'transitorio', cedolareSecca: 'si',
+    rent: 900, deposit: 900, startDate: '2026-10-01', endDate: '2027-03-31', paymentDay: 5,
+    tenantSignToken: 'GHOST_TOK1', landlordSignToken: 'GHOST_LOK1', signingOrder: 'sequential',
+    signatureStatus: 'none', status: 'active', preAgreementId: 'paGhost',
+  });
+  IP = '9.1.4.4';
+  r = mkRes();
+  await msSubmit(mkReq(body('GHOST_TOK1')), r);
+  check('firma su contratto con proposta cancellata: firma registrata, NESSUNA proposta fantasma creata',
+    r.code === 200 && !!store.get('contracts/ctrGhost').tenantSignature && !store.has('preAgreements/paGhost'));
+
+  // LA PROPOSTA ORFANA (il caso Léa): contratto pa_<id> esistente e firmato,
+  // proposta senza contractId (back-link perso). Il ramo «esiste già» della
+  // conversione la RICUCE — e il back-link è atteso, quindi c'è già quando
+  // convert ritorna.
+  const { convertPaToContract } = await import('../../api/preagreement/convert.js');
+  store.set('preAgreements/paOrf', {
+    status: 'paid', ref: 'BOOM-ORFANA', propertyId: 'prop1',
+    tenant: { fullName: 'Lea Test', email: 'lea@test.fr' }, tenants: [{ fullName: 'Lea Test', email: 'lea@test.fr' }],
+    landlord: { name: 'Giulia Bianchi' }, property: { address: 'Via di Tor di Quinto 39' },
+    lease: { startDate: '2026-09-01', months: 4 }, money: { rent: 1200, deposit: 2400 }, createdAt: '2026-07-15T10:00:00Z',
+  });
+  store.set('contracts/pa_paOrf', {
+    propertyId: 'prop1', tenantId: 't1', type: 'transitorio', rent: 1200, deposit: 2400,
+    startDate: '2026-09-01', endDate: '2026-12-31', tenantSignToken: 'ORF_TOKEN_T1', landlordSignToken: 'ORF_TOKEN_L1',
+    tenantSignature: 'x', landlordSignature: 'y', signatureStatus: 'complete', status: 'active', preAgreementId: 'paOrf',
+  });
+  const orf = await convertPaToContract({ pa: store.get('preAgreements/paOrf'), paId: 'paOrf', propertyId: 'prop1', actor: 'op@boom.it' });
+  const paOrf = store.get('preAgreements/paOrf');
+  check('proposta orfana: il ramo «contratto esiste già» ricuce il back-link (contractId + link firma) ed è già scritto al ritorno',
+    orf.ok === true && orf.already === true && paOrf.contractId === 'pa_paOrf'
+    && /ORF_TOKEN_T1/.test(paOrf.tenantSignUrl || '') && /ORF_TOKEN_L1/.test(paOrf.landlordSignUrl || ''));
+
+  // LA BONIFICA GLOBALE delle scadenze doppie (200 su un contratto il 13/09):
+  // si tiene la copia migliore per contratto+titolo, le altre auto-generate
+  // dal finalize spariscono, le manuali restano.
+  const { sweepFinalizeDuplicates } = await import('../../api/sign/_finalize.js');
+  const mk = (id, extra) => store.set('deadlines/' + id, { linkedContractId: 'ctrDup', title: 'Denuncia TARI', status: 'pending', source: 'finalize', autoGenerated: true, ...extra });
+  mk('auto_dup_1'); mk('auto_dup_2'); mk('auto_dup_3'); mk('dlfin_ctrDup_0');
+  store.set('deadlines/auto_dup_done', { linkedContractId: 'ctrDup', title: 'Verifica APE', status: 'done', source: 'finalize', autoGenerated: true });
+  store.set('deadlines/auto_dup_pend', { linkedContractId: 'ctrDup', title: 'Verifica APE', status: 'pending', source: 'finalize', autoGenerated: true });
+  store.set('deadlines/manual_1', { linkedContractId: 'ctrDup', title: 'Denuncia TARI', status: 'pending', source: 'portal' });
+  const sw = await sweepFinalizeDuplicates();
+  check('sweep scadenze: 4 copie di «Denuncia TARI» → resta il dlfin_, 2 copie di «Verifica APE» → resta quella DONE, la manuale non si tocca',
+    sw.removed === 4 && store.has('deadlines/dlfin_ctrDup_0') && !store.has('deadlines/auto_dup_1') && !store.has('deadlines/auto_dup_3')
+    && store.has('deadlines/auto_dup_done') && !store.has('deadlines/auto_dup_pend') && store.has('deadlines/manual_1'));
+  check('sweep scadenze: idempotente (secondo giro: zero rimozioni)', (await sweepFinalizeDuplicates()).removed === 0);
+}
+
 // ═══ 2. notifyPartialSignature: lingue e link giusti ═══
 const notify = await import('../../api/sign/_notify.js');
 {
@@ -570,11 +746,21 @@ IP = '9.1.1.3';
   store.set('contracts/ctrP', { propertyId: 'prop1', tenantId: 't1' });
   const ID = { name: 'Anna Expat', cf: 'RSSMRA85T10A562S', dob: '1998-05-04', pob: 'Boston, USA', address: 'Via Roma 1', docType: 'passport', docNum: 'USA991', docIssuer: 'US Dept of State', docIssueDate: '2022-01-01', nationality: 'American' };
 
+  // Identità sola: il PDF stamperebbe ancora puntini (motivo della
+  // transitorietà, conviventi) → NESSUNA conferma «complete», e la
+  // risposta nomina cosa manca.
   const before = mails().length;
   let r = mkRes();
   await schedaSubmit(mkReq({ t: schedaRef('ctrP', 'tenant'), identity: ID }), r);
+  check('scheda identità sola → 200 ma NON completa (mancano esigenza e conviventi)', r.code === 200 && r.body.complete === false
+    && r.body.missing.some(m => m.key === 'transitionalReason') && r.body.missing.some(m => m.key === 'cohabitants'));
+  check('scheda parziale → nessuna conferma «complete» al cliente', mails().slice(before).filter(m => /details are in/i.test(m.subject)).length === 0);
+  // Con le risposte alle sezioni extra → completa → conferma una volta.
+  r = mkRes();
+  await schedaSubmit(mkReq({ t: schedaRef('ctrP', 'tenant'), identity: ID, answers: { transitionalReason: 'Incarico di lavoro a Roma', cohabitants: { alone: true } } }), r);
   const conf = mails().slice(before).filter(m => m.to === 'anna@expat.com' && /details are in/i.test(m.subject));
-  check('scheda completa → conferma al cliente (EN)', r.code === 200 && conf.length === 1);
+  check('scheda completa → conferma al cliente (EN)', r.code === 200 && r.body.complete === true && conf.length === 1);
+  check('scheda: le risposte extra sono sul contratto (esigenza, conviventi = nessuno)', store.get('contracts/ctrP').transitionalReason === 'Incarico di lavoro a Roma' && store.get('contracts/ctrP').cohabitants === 'nessuno');
   check('scheda: flag anti-doppione sul contratto', !!store.get('contracts/ctrP').schedaTenantConfirmedAt);
 
   const b2 = mails().length;

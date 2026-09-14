@@ -11,42 +11,60 @@
 // codebase: holding a scheda link never lets you sign.
 
 import crypto from 'node:crypto';
+// Il DIZIONARIO del contratto (js/contract-fields.js, UMD): "identità
+// completa" e il checksum del CF vivono lì, una copia sola — la stessa che
+// il portal e la Scheda usano per dire cosa manca.
+import FIELDS from '../../js/contract-fields.js';
 
 const SITE = 'https://www.boomrome.com';
 
-export function schedaToken(contractId, role) {
+// I CO-CONDUTTORI sono conduttori per l'AdE (una riga RLI ciascuno, CF
+// obbligatorio): hanno il LORO link /scheda, derivato con l'indice dentro
+// la derivazione (come cosignToken per la firma) — un link di co-conduttore
+// scrive SOLO coTenants[idx], mai il conduttore principale.
+export function schedaToken(contractId, role, coIndex) {
   const salt = process.env.HOMIE_SECRET || process.env.CRON_SECRET || 'boom';
+  const ctx = role === 'cotenant' ? `cotenant:${Number(coIndex) || 0}` : role;
   return crypto.createHash('sha256')
-    .update(`scheda:${role}:${contractId}:${salt}`)
+    .update(`scheda:${ctx}:${contractId}:${salt}`)
     .digest('hex').slice(0, 24);
 }
 
-/** One opaque blob for the URL: `<contractId>.<t|l>.<token>` */
-export const schedaRef = (contractId, role) =>
-  `${contractId}.${role === 'landlord' ? 'l' : 't'}.${schedaToken(contractId, role)}`;
+/** One opaque blob for the URL: `<contractId>.<t|l|c<idx>>.<token>` */
+export const schedaRef = (contractId, role, coIndex) =>
+  `${contractId}.${role === 'landlord' ? 'l' : role === 'cotenant' ? 'c' + (Number(coIndex) || 0) : 't'}.${schedaToken(contractId, role, coIndex)}`;
 
-/** @returns { contractId, role } when the token checks out, otherwise null */
+/** @returns { contractId, role, coIndex? } when the token checks out, otherwise null */
 export function parseSchedaRef(ref) {
   const parts = String(ref || '').trim().split('.');
   if (parts.length < 3) return null;
   const token = parts.pop();
   const roleChar = parts.pop();
   const contractId = parts.join('.');
-  const role = roleChar === 'l' ? 'landlord' : (roleChar === 't' ? 'tenant' : null);
+  let role = null, coIndex;
+  if (roleChar === 'l') role = 'landlord';
+  else if (roleChar === 't') role = 'tenant';
+  else if (/^c\d{1,2}$/.test(roleChar)) { role = 'cotenant'; coIndex = Number(roleChar.slice(1)); }
   if (!contractId || !role || !token) return null;
-  const want = Buffer.from(schedaToken(contractId, role));
+  const want = Buffer.from(schedaToken(contractId, role, coIndex));
   const got = Buffer.from(token);
   if (got.length !== want.length) return null;
-  return crypto.timingSafeEqual(got, want) ? { contractId, role } : null;
+  if (!crypto.timingSafeEqual(got, want)) return null;
+  return role === 'cotenant' ? { contractId, role, coIndex } : { contractId, role };
 }
 
-export const schedaUrl = (contractId, role) => `${SITE}/scheda?t=${schedaRef(contractId, role)}`;
+export const schedaUrl = (contractId, role, coIndex) => `${SITE}/scheda?t=${schedaRef(contractId, role, coIndex)}`;
 
 // A signed party's identity is frozen: the scheda goes read-only the moment
 // that party's signature exists (mutating the anagrafica of a signed act is
-// exactly what the Magic Sign audit forbids post-firma).
-export function schedaLocked(contract, role) {
+// exactly what the Magic Sign audit forbids post-firma). A co-tenant is
+// frozen by HIS OWN signature only.
+export function schedaLocked(contract, role, coIndex) {
   if (!contract) return true;
+  if (role === 'cotenant') {
+    const co = (Array.isArray(contract.coTenants) ? contract.coTenants : [])[Number(coIndex) || 0];
+    return !co || !!co.signature;
+  }
   return role === 'tenant' ? !!contract.tenantSignature : !!contract.landlordSignature;
 }
 
@@ -73,18 +91,12 @@ export function mergedIdentity(contract, user, role) {
   };
 }
 
-export function identityComplete(d) {
-  return !!(d && d.name && d.cf && d.dob && d.pob && d.address && d.docNum && d.nationality);
+// Completa = niente puntini sul modello IN VIGORE per quella parte: su
+// Allegato C (studenti) il documento va anche con ente e data di rilascio,
+// che il modello stampa («rilasciata da … il …»). opts: { role, template }.
+export function identityComplete(d, opts) {
+  return FIELDS.identityComplete(d, opts);
 }
 
-// Italian Codice Fiscale checksum (persone fisiche). Empty input → caller
-// decides; structurally wrong or bad checksum → false.
-export function validCF(cf) {
-  const s = String(cf || '').toUpperCase().trim();
-  if (!/^[A-Z0-9]{16}$/.test(s)) return false;
-  const odd = { 0:1,1:0,2:5,3:7,4:9,5:13,6:15,7:17,8:19,9:21,A:1,B:0,C:5,D:7,E:9,F:13,G:15,H:17,I:19,J:21,K:2,L:4,M:18,N:20,O:11,P:3,Q:6,R:8,S:12,T:14,U:16,V:10,W:22,X:25,Y:24,Z:23 };
-  const even = { 0:0,1:1,2:2,3:3,4:4,5:5,6:6,7:7,8:8,9:9,A:0,B:1,C:2,D:3,E:4,F:5,G:6,H:7,I:8,J:9,K:10,L:11,M:12,N:13,O:14,P:15,Q:16,R:17,S:18,T:19,U:20,V:21,W:22,X:23,Y:24,Z:25 };
-  let sum = 0;
-  for (let i = 0; i < 15; i++) sum += (i % 2 === 0) ? odd[s[i]] : even[s[i]];
-  return String.fromCharCode(65 + (sum % 26)) === s[15];
-}
+// Italian Codice Fiscale checksum (persone fisiche) — dal dizionario.
+export const validCF = FIELDS.validCF;

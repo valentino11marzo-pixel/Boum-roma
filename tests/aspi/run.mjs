@@ -368,14 +368,14 @@ const PDFB64 = 'data:application/pdf;base64,' + Buffer.from('%PDF-1.4 finto').to
 // foglio impone al prezzo deciso dalle parti.
 {
   const src = fs.readFileSync(new URL('../../api/fiscal/fascicolo.js', import.meta.url), 'utf8');
-  check('fascicolo: nessuna via d\'uscita "non calcolabile" — il modulo esce comunque',
-    !src.includes('SCHEDA CANONE NON ANCORA CALCOLABILE') && src.includes('IL MODULO SI STAMPA SEMPRE'));
+  check('fascicolo: nessuna via d\'uscita "non calcolabile" — il modulo ARPE (Allegato 2/B) esce comunque, 1:1',
+    !src.includes('NON ANCORA CALCOLABILE') && /export async function drawSchedaArpe/.test(src) && src.includes('export const SCHEDA_TEXT'));
   check('fascicolo: il canone PATTUITO si stampa sempre, anche senza calcolo',
-    /Importo canone mensile PATTUITO/.test(src) && /calc\.canone \|\| contract\.rent/.test(src));
-  check('fascicolo: la griglia maggiorazioni A-H del modulo c\'e\' tutta',
-    ['A - Ammobiliato', 'B - Seminterrato', 'C - Senza ascensore', 'D - Attico',
-     'E - Classe energetica A/B/C', 'F - Interventi Eco Bonus', 'G - Interventi Sisma Bonus',
-     'H - Classe energetica D/E/F'].every(l => src.includes(l)));
+    /importoPatt: 'Importo canone mensile pattuito: €'/.test(src) && /Number\(input\.canone \|\| contract\.rent\)/.test(src));
+  check('fascicolo: la griglia maggiorazioni A-H del modulo c\'e\' tutta (etichette del modulo, con la lineetta del modulo)',
+    ['A – Ammobiliato + ____%', 'B – Seminterrato -10%', 'C – Senza ascensore –10%', 'D – Attico + 10%',
+     'E – Classe energetica A/B/C + 10%', 'F – Interventi Eco Bonus + 5%', 'G – Interventi Sisma Bonus + 10%',
+     'H – Classe energetica D/E/F + 5%'].every(l => src.includes(l)));
   check('fascicolo: numeri all\'italiana DETERMINISTICI (mai toLocaleString: ICU ridotta = 1250,00)',
     src.includes('function itNum') && !/toLocaleString\('it-IT'/.test(src));
 }

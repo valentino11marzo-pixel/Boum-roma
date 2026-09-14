@@ -59,6 +59,9 @@ const Z = E.matchZone('B14'); // TRASTEVERE: A 12.6–15.4 · B 15.4–22.0 · C
   check('match: PARIOLI → C1', E.matchZone('Parioli')?.cod === 'C1');
   check('match: "SALARIO" ambiguo (3 zone) → null, mai indovinare', E.matchZone('SALARIO') === null);
   check('match: spazzatura → null', E.matchZone('xyz') === null && E.matchZone('') === null);
+  check('match: una parola di toponomastica NON e\' una zona ("Via della Lungaretta" ≠ DELLA VITTORIA, "Porta Pinciana" ≠ PORTA PORTESE, "Via del Monte" ≠ MONTE MARIO)',
+    E.matchZone('Via della Lungaretta 12') === null && E.matchZone('Via di Porta Pinciana 5') === null && E.matchZone('Via del Monte Oppio') === null);
+  check('match: la zona intera nel testo vince ancora ("Via della Vittoria, Della Vittoria" → C41)', E.matchZone('Della Vittoria')?.cod === 'C41');
 }
 
 // ═══ 5. Parametri derivati SOLO da feature reali ═══
