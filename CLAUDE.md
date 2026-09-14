@@ -2753,6 +2753,43 @@ browser or Firestore.
   sulla pagina Contratti, e un contratto saltato ha card rossa PRIMA e toast
   warning DOPO che nominano la gamba. `js/dataops-engine.js` è network-first
   nel SW (cache `boom-v18`): il motore non può divergere dalla pagina.
+  **Innesto 3.0 (14/09/2026)** — dopo la lettura (vedi `/api/portal/ingest`):
+  (1) **più file, incolla, scatta**: drop zone `multiple`, Ctrl+V di uno
+  screenshot, `capture="environment"` da telefono, chip per file, progresso
+  con i secondi e la fase (transito / lettura); (2) **la card dice cosa ha
+  letto**: un verdetto per documento (tipo, pagine, illeggibile e perché),
+  il riassunto, il costo stimato (`INNESTO_RATES`, $/M token); (3) **ogni
+  campo cita** la frase del documento (`evidence` → `evMap`, percorsi del
+  modello ricondotti alla forma piatta da `innestoEvPath`), un campo
+  DERIVATO dice «calcolato: …», un valore senza citazione lo dichiara;
+  campi core sempre visibili, il resto dietro «＋ altri campi»; (4) **LA
+  MODIFICA PROPOSTA** (STUDIO_SCRIVANO §3, soffitto 1 chiuso): chi esiste
+  già in archivio non genera un doppione e non resta com'era — la card
+  mostra prima → dopo (`diffRecord`): un buco si riempie con la spunta già
+  accesa, un valore che CAMBIA parte spento e lo confermi tu; la scrittura
+  va nella collection del record (`users`/`landlords`/`properties`, `_col`
+  sul pool) nei DUE schemi users (`codiceFiscale`+`cf`, `birthDate`+`dob`…),
+  firmata `updatedBy:'innesto'`; (5) **co-conduttori** con la loro card,
+  aggancio e riga `coTenants[]` sul contratto (cf, dob, tenantIndex,
+  userId); (6) **parità con saveContract**: il contratto nasce con
+  `tenantSignToken`/`landlordSignToken`, `canone{}` (mesi di locazione da
+  `monthsSpan`, non i «11 mesi e 30 giorni» di monthsBetween), `durata{}`,
+  identità delle parti (`tenantCF/Dob/Pob/Doc*`, `landlord*`), catasto in
+  testo, APE, rendita, `studenti{}`, `cohabitants`, `otherClauses`, poi
+  `generateMonthlyPayments`, `generateContractDeadlines` e
+  `generateContractPDF` (best-effort); (7) **il documento RESTA**
+  (STUDIO_SCRIVANO §4 passo 1): i file letti si archiviano su
+  `documents/<uid>/innesto/` e in `documents` con categoria/cartella dello
+  Smistatore, legati a contratto/immobile/persona; un documento d'identità
+  entra anche negli `identityDocs` del contratto e del profilo
+  (`arrayUnion`, mai una riscrittura); spegnibile dalla barra. Motore:
+  `pruneProposal`, `cfBirth`/`cfBirthDateMatches`/`cfMatchesName` (il CF
+  che CONFERMA data e nome: data invertita = errore, CF di un'altra persona
+  = avviso), `validatePIva`, `monthsSpan`, `diffRecord`/`applyDiff`,
+  `LABELS` in una copia; controlli: deposito > 3 mensilità (art. 11 L.
+  392/78), durate per tipo (transitorio 1–18, studenti 6–36, 3+2 = 36),
+  esigenza mancante, studenti senza corso. Test: `tests/dataops/test.mjs`
+  (174 check) + `tests/innesto/run.mjs`.
 
 ### Dati aziendali (IBAN) fuori dal codice — `settings/company`
 `COMPANY` in `portal-app.js` carried `iban: 'IT00X0000000000000000000000'` with
@@ -2770,31 +2807,148 @@ console shows a red card, and admins get a toast at boot. Saving re-validates
 the IBAN before writing. `loadCompanySettings()` is fire-and-forget off the
 boot path (Safari-audit rule: nothing awaited on boot).
 
-### POST `/api/portal/ingest`
-Admin/owner/landlord (Firebase ID token). Body `{ text?, base64?, fileUrl?,
-mediaType?, context:{ known:{ landlords[], properties[] } } }` → `{ ok,
-proposal, notes[], confidence }`. Claude (haiku) extracts the four entities;
-the prompt forbids inventing values (an empty field is correct, an invented
-one ends up in a registered contract) and the response is field-whitelisted
-server-side to the portal's schema. **Writes nothing** — creation happens
-client-side after the operator reviews and confirms. `ANTHROPIC_API_KEY`
-stays server-side.
+### POST `/api/portal/ingest` — L'INNESTO 3.0 (14/09/2026)
+Admin/owner/landlord (Firebase ID token). Body `{ text?, files?:[{ base64? |
+fileUrl?, mediaType, name }] (≤8, ≤8 MB l'uno, ≤20 MB in tutto), context:{
+hint?, known:{ landlords[], tenants[], properties[] } } }` (il vecchio corpo
+a UN file `base64/fileUrl/mediaType` è ancora accettato) → `{ ok, proposal,
+derived, checks, files[], evidence[], notes[], confidence, summary, usage }`.
+**Writes nothing** — creation happens client-side after the operator reviews
+and confirms. `ANTHROPIC_API_KEY` stays server-side.
 
-**La lezione del 28 agosto 2026 (errore 413)**: il body di una function
-Vercel ha un tetto di PIATTAFORMA di **4,5 MB** — l'edge lo respinge PRIMA
-che l'handler parta, quindi il `sizeLimit: '12mb'` dichiarato nel file e il
-tetto client di 8 MB erano promesse vuote: un PDF scansionato sopra ~3,3 MB
-(base64 +33%) moriva in un "errore 413" nudo. La cura, su tre binari: le
-FOTO si riducono client-side prima di partire (`adeCompressImage`, la stessa
-del convertitore AdE — una copia sola); un file che resta sotto
-`INNESTO_INLINE_MAX` (3 MB) viaggia inline come sempre; sopra, TRANSITA
-dallo Storage (`documents/<uid>/innesto-tmp/`, cartella già ammessa dalle
-rules) e all'API va solo `fileUrl` — il server scarica i byte dove il tetto
-non esiste (cap 8 MB), e il client CANCELLA il transito nel `finally`, così
-la promessa della pagina ("niente resta salvato finché non confermi") resta
-vera. `fileUrl` è accettato SOLO su `https://firebasestorage.googleapis.com`:
-i byte finiscono ad Anthropic, e un URL libero trasformerebbe l'endpoint in
-un proxy verso host arbitrari. Test: `node tests/innesto/run.mjs`.
+**LA LEZIONE DEL 14 SETTEMBRE 2026** («quando leggo dei file non riesce mai a
+leggerli bene»): nei log di produzione delle 08:30 c'era la risposta —
+`why=truncated len=3365 fenced=1 stop=end_turn`. Il modello aveva FINITO
+(`end_turn`, non `max_tokens`), ma il JSON scritto a mano libera in un recinto
+```json non chiudeva le graffe (basta una virgoletta dentro una nota) e
+`_modeljson.js` lo diagnosticava come troncato: all'operatore arrivava il
+rimedio SBAGLIATO («documento troppo lungo, allega meno pagine») per un
+guasto di forma. A monte, tre difetti di classe: (1) 120 campi chiesti come
+testo libero a un modello sono una lotteria; (2) leggeva `claude-haiku-4-5`
+con `max_tokens: 2000` — un contratto registrato all'AdE letto col modello
+più piccolo, mentre l'inventario legge con Opus 5 «perché vale sul
+deposito»; (3) la funzione NON era in `vercel.json`, quindi girava col
+maxDuration di default della piattaforma. Ora:
+- **Output strutturato** (`output_config.format` json_schema, `INGEST_SCHEMA`
+  esportato: ogni oggetto `additionalProperties:false` e `required` completo,
+  «manca» = null): il JSON è valido PER COSTRUZIONE. `parseModelJson` resta
+  come rete; `stop_reason` è letto e detto — `refusal` → `ai_refused`,
+  `max_tokens` → `ai_truncated` (solo lì si parla di taglio), 429 →
+  `ai_rate_limited`, abort → 504 `ai_timeout`, ognuno con il rimedio in
+  `detail`. Ripiego server-side sui rifiuti (`fallbacks:'default'` + beta
+  `server-side-fallback-2026-07-01`): se la piattaforma lo rifiutasse con un
+  400 si riprova UNA volta senza — la lettura non dipende da un beta.
+- **`claude-opus-5`**, thinking adattivo, `max_tokens 16000`, prompt di
+  sistema in cache (`cache_control`). `vercel.json`: `maxDuration 120`,
+  `AI_MS` 100 s (il test pretende `AI_MS < maxDuration`).
+- **Più file in una lettura**: ogni file è un blocco `document`/`image`
+  preceduto da «DOCUMENTO n — nome»; il testo incollato è l'ultimo documento;
+  un PDF oltre `MAX_PAGES` (60) viene tagliato con pdf-lib alle prime 60 e lo
+  si dice nelle note. HEIC → 400 col rimedio («Più compatibile» su iPhone):
+  Anthropic non lo legge e Chrome non lo converte.
+- **Lo schema è il dizionario** (`js/contract-fields.js`): tenant e landlord
+  con documento (tipo/numero/ente/data), permesso di soggiorno, società
+  (kind/ragione sociale/P.IVA), `coTenants[]`, catasto a caselle (sezione/
+  foglio/particella/sub/categoria/rendita), tabelle millesimali, piano/scala/
+  interno/vani/accessori/ammobiliato/APE, contratto con durata, cadenza,
+  cedolare (null = non detto), esigenza e di chi è, blocco studenti,
+  conviventi, clausole, luogo/data di firma, ISTAT.
+- **Ogni valore cita la fonte**: `evidence[] {path, quote, file, page}` —
+  percorso validato contro lo schema, indice di documento fuori range → null.
+  `files[]` porta il verdetto per file (tipo dalla tassonomia `CATS` dello
+  Smistatore, pagine, `legible`, a quale parte appartiene un documento
+  d'identità): «non riesce a leggerli» diventa una riga per documento.
+- **Server-side**: `pruneProposal` (solo le sezioni con un'ANCORA — un
+  booleano di default non fa nascere una card «Contratto»), `normalizeProposal`
+  (forma del modello E forma piatta, idempotente), `deriveProposal` con
+  `FIELDS.parseCadastral` (una copia sola) e derivazioni DICHIARATE,
+  `validateProposal`. `usage` porta modello, token (cache compresa) e ms: il
+  portal ne fa il costo stimato della lettura.
+- **La cura del 413 (28/08) resta**: foto ridotte client-side; la SOMMA dei
+  file inline sta sotto `INNESTO_INLINE_MAX` (3 MB) e il resto TRANSITA da
+  `documents/<uid>/innesto-tmp/` (cancellato nel `finally`); `fileUrl` solo
+  su `https://firebasestorage.googleapis.com`, mai un proxy. Nei log la
+  forma, mai il contenuto.
+- **Il tetto delle pagine è per GIRO** (`MAX_TOTAL_PAGES` 100 — il limite
+  dell'API è a richiesta, non a file): due contratti da 60 pagine passano il
+  taglio per file e l'API li rifiuta insieme con un 400, che usciva come
+  «errore (400), riprova» — il rimedio sbagliato per un guasto deterministico.
+  Si rifiuta PRIMA di spendere (`too_many_pages`, coi nomi e le pagine di
+  ogni file, e la via d'uscita: la seconda lettura integra la prima). Il 400
+  «prompt is too long» del modello (finestra di contesto, che non si può
+  contare in locale) diventa `ai_too_long` col rimedio — meno pagine, due giri
+  — mai un «riprova». Test: `node tests/innesto/run.mjs` (120 check).
+
+### LO SCRIVANO — la porta dal telefono (`api/scrivano/*` + `sc:` su Telegram, 14/09/2026)
+STUDIO_SCRIVANO §4, **passo 4**: i passi 1–3 (il documento resta, la classe
+dello Smistatore, la modifica proposta) sono nell'Innesto 3.0; questo è il
+quarto — «mandi qualsiasi cosa al bot e ottieni ENTRAMBE le metà: archiviato
+*e* proposto, con la card sul telefono». Il principio: **il tap è la firma
+sulla spesa, la conferma nel portal è la firma sulla scrittura.** Qui non
+nasce mai un contratto, una persona o un immobile: solo la PROPOSTA.
+- **L'offerta** (`api/scrivano/_offer.js`): quando lo Smistatore archivia un
+  documento di una classe che l'Innesto sa leggere (`SCRIVANO_KINDS`:
+  contratto, documento d'identità, visura, APE — **esclusi di proposito**
+  rli/cedolare/istat/cessione: sono EVENTI su un contratto che c'è già e
+  oggi farebbero un doppione, finché l'Innesto sa solo CREARE), la risposta
+  porta il bottone **🌱 Leggi e proponi nel portal** (`sc:<docId>`, ≤ 64
+  byte per costruzione: un id troppo lungo NON riceve il bottone, mai una
+  tastiera morta in silenzio). UNA copia per tutte le porte: il webhook
+  Telegram mette il bottone nella propria risposta; per le porte che non
+  sono Telegram (WhatsApp ed email — le porte di Codex, PR #234) la card
+  parte da DENTRO `smistaDocument` (best-effort, `offer:false` per
+  spegnerla): chi chiama `smistaDocument` eredita l'offerta senza saperlo.
+  `dupResult` porta ora `catKey`, così anche un doppione può essere offerto.
+- **Il docId dal bot è DETERMINISTICO** (`tg_<sha1(file_unique_id)>`): lo
+  stesso file inoltrato due volte non archivia e non paga due volte («Già in
+  archivio», col bottone).
+- **Il tap NON legge dentro il webhook** (`api/telegram/_scrivano.js` →
+  `enqueueRead`): una lettura con Opus 5 dura fino a 100 s, Telegram
+  RITENTA l'update se il webhook non risponde in fretta (= due letture) e su
+  Vercel il lavoro dopo la risposta si perde (la lezione del 13/09). Il tap
+  scrive `scrivanoProposals/<docId>` `status:'queued'` (id = il documento →
+  un secondo tap non raddoppia niente e lo dice), il messaggio perde la
+  tastiera e dice «In coda».
+- **Il worker** (`api/scrivano/worker.js`, cron `* * * * *`, maxDuration
+  120, auth come i cron PFS, `?dry=1`): UNA lettura per run (`pickNext`: la
+  più vecchia; una `reading` col lease scaduto da 4' torna eleggibile — il
+  worker morto a metà non blocca la coda), scarica i BYTE archiviati dal
+  nostro Storage (`readFiles` con `fileUrl`, host inchiodato), costruisce il
+  contesto come il desktop (`knownFromStore`: users per ruolo + landlords +
+  immobili «nome — indirizzo») e legge col **CUORE dell'Innesto**:
+  `ingestRead` esportata da `api/portal/ingest.js` — stesso prompt, stesso
+  schema strutturato, stessa sanificazione, stessi errori col rimedio; il
+  handler HTTP è diventato una porta sottile sopra la stessa funzione. Poi
+  la card **«Proposta pronta»** (parti, immobile, termini, errori da
+  correggere, sicurezza, tempo) col bottone URL
+  `https://www.boomrome.com/portal#innesto=<docId>` (sempre `www`, la
+  lezione «Redirecting...»). Battito `teamHealth/scrivano` (🖋 in /team,
+  approval `parziale` come la Segretaria: il tap è il click).
+- **I guasti**: un errore DETERMINISTICO (`too_many_pages`, `ai_too_long`,
+  HEIC, file troppo grande, rifiuto, taglio) chiude subito con la card del
+  rimedio, senza riprovare a vuoto; un guasto momentaneo (500, timeout,
+  429) si riprova UNA volta (`MAX_ATTEMPTS` 2), poi si dice.
+- **Nel portal** (`#innesto=<docId>`): al boot e sul popstate
+  `innestoSeedFromHash()` legge l'id PRIMA che `goTo` riscriva l'hash (il
+  frammento sopravvive al giro di login), carica `scrivanoProposals/<id>`
+  e lo semina con lo STESSO post-processing di una lettura dal portal
+  (`innestoIngest`, estratta da `innestoAnalyze` in una copia: verdetti per
+  file, citazioni, merge a più letture). Il documento è GIÀ in archivio:
+  `readDocs` porta `{ archived }` e alla conferma `innestoArchiveDoc` non
+  ricarica niente — aggiorna il doc esistente con `contractId/propertyId/
+  userId` (`innestoBy`) e, per un documento d'identità, fa l'union negli
+  `identityDocs` di contratto e profilo (`source:'scrivano'`).
+- Rules: `scrivanoProposals` admin-only (lezione propertyLocks).
+- Test: `node tests/scrivano/run.mjs` (51 check — il giro VERO sui handler
+  reali con Firestore in memoria, Telegram e Anthropic finti: bot → id
+  deterministico + bottone → tap = coda, mai una lettura nel webhook → worker
+  → i byte archiviati ad Anthropic, contesto del desktop, output strutturato
+  → card col link → secondo run idle → tap dopo la lettura = card senza
+  rileggere; guasti deterministici vs momentanei; l'offerta ereditata dalle
+  altre porte; giunzioni sulla sorgente). Le tre guardie — rimedio subito
+  sui deterministici, offerta solo fuori da Telegram, secondo tap che non
+  raddoppia — verificate per mutazione. Più `tests/innesto/run.mjs`: il
+  documento già archiviato si LEGA senza put su Storage e senza doppioni.
 
 ### POST `/api/homie/wa-outbox`
 WhatsApp OUTBOX for the Mac-side Homie agent: approved WhatsApp replies go
@@ -4136,6 +4290,7 @@ camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
   | `tests/vetrina/run.mjs` | l'innesto della vetrina (Chromium vero su apartments.html servita): un annuncio nato DOPO la build appare, è contato e i filtri veri lo mordono (zona via hash, ricerca libera, cuore); la data testo libero passa dal motore condiviso («1 Sept 2027» → «Free from», mai «Available now»); senza foto di casa nostra o con stato ignoto la carta NON nasce; le card di build continuano ad aggiornarsi. Verificato per mutazione |
   | `tests/scheda/run.mjs` | La Scheda: token derivati (ruolo nella derivazione, timing-safe), precedenza prefill contratto→sign→wizard, lock post-firma, sync profilo su ENTRAMBI gli schemi users, upload con OCR che non blocca mai, /api/profile/link autorizzato |
   | `tests/contratto/run.mjs` | Il dizionario del contratto: ogni lettura dei modelli è dichiarata e ogni voce è letta (anti-deriva nelle due direzioni), la cedolare non torna `=== true` (mutazione), la completezza cambia per modello/owner/società/extra-UE/co-conduttori/durata di legge, la Scheda chiede SOLO ciò che manca a QUELLA parte, un token tenant non scrive mai l'immobile (e lo dice), il co-conduttore scrive solo la sua riga e la firma altrui resta, i numeri RLI (totale per durata < 12 mesi, scadenza da min(stipula, decorrenza)), il foglio pulito senza bottoni né link e con gli allegati veri, 401 senza admin |
+  | `tests/scrivano/run.mjs` | lo Scrivano, la porta dal telefono: archiviato con id deterministico e bottone 🌱, il tap mette in coda (mai una lettura nel webhook), il worker legge i byte archiviati col cuore dell'Innesto e manda la card col link `#innesto=<docId>`; mai due letture, guasti col rimedio, le porte di Codex ereditano l'offerta |
   | `tests/innesto/run.mjs` | l'Innesto e il 413 di piattaforma: il PDF grande transita da Storage e i byte che arrivano ad Anthropic sono ESATTAMENTE quelli scaricati, un host estraneo non viene MAI contattato (l'endpoint non è un proxy), i tetti restano onesti (8 MB, whitelist formati), e il transito si cancella nel finally. Più l'APPLY VERO su Firestore finto: proposta completa → contratto+rate scritti, proposta senza una gamba → il contratto non nasce MA il riepilogo non lo promette e il toast dice quale gamba manca (la lezione del 30/08: "Innesto completato" senza contratto), proprietario già in `landlords` → mai un doppione |
   | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot; §1f: ogni firma STAMPA lo stato sulla proposta (rail PA), 🖊 send-sign su contratto già firmato non manda email e ristampa la proposta, mai una proposta fantasma |
   | `tests/aspi/run.mjs` | l'iter ASPI: la checklist blocca SOLO senza contratto (il resto avverte, dichiarato nell'email), l'invio raggiunge il referente con l'operatore in copia e gli allegati veri, la fattura col markup non si duplica MAI (id deterministico), 'registered' non si degrada, l'auto-invio parte solo con la manopola girata |
