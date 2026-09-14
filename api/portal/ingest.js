@@ -43,6 +43,7 @@
 
 import { PDFDocument } from 'pdf-lib';
 import { requireRole } from '../_auth.js';
+import { fsList } from '../homie/_lib.js';
 import { parseModelJson, jsonFailureLine, jsonFailureHint } from '../_modeljson.js';
 import { aiSignal } from '../_budget.js';
 import { CATS } from '../documents/_smista.js';
@@ -267,7 +268,7 @@ function knownLine(label, list) {
 }
 
 // ─── L'INPUT: uno o più file, inline o in transito ────────────────────────
-async function readFiles(body) {
+export async function readFiles(body) {
   // Compatibilità: il vecchio client mandava UN file (base64 | fileUrl + mediaType).
   let list = Array.isArray(body.files) ? body.files : [];
   if (!list.length && (body.base64 || body.fileUrl)) {
@@ -438,6 +439,26 @@ export default async function handler(req, res) {
     return res.status(400).json({ ok: false, error: 'text_or_file_required' });
   }
 
+  const known = (body.context && body.context.known) || {};
+  const out = await ingestRead({ files, text, hint, known });
+  const { status, ...payload } = out;
+  return res.status(status).json(payload);
+}
+
+// ─── IL CUORE — una copia per tutte le porte ─────────────────────────────
+// Il portal (HTTP) e il telefono (lo Scrivano: Telegram → coda → worker,
+// api/scrivano/_core.js) leggono con QUESTA funzione: stesso prompt, stesso
+// schema, stessa sanificazione, stessi errori col rimedio. Riceve i file già
+// preparati da readFiles() e torna { status, ...payload }: l'HTTP lo traduce
+// in res.status().json(), il worker in una card. Non tocca mai Firestore.
+export async function ingestRead({ files = [], text = '', hint = '', known = {}, tag = 'portal/ingest' } = {}) {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return { status: 500, ok: false, error: 'server_missing_anthropic_key', detail: 'La lettura non è configurata sul server (manca la chiave del modello).' };
+  }
+  text = typeof text === 'string' ? text.slice(0, MAX_TEXT) : '';
+  hint = typeof hint === 'string' ? clip(hint, 500) : '';
+  if (!files.length && !text.trim()) return { status: 400, ok: false, error: 'text_or_file_required', detail: null };
+
   // ── Il materiale, documento per documento, ETICHETTATO ──────────────
   const content = [];
   files.forEach((f) => {
@@ -452,7 +473,6 @@ export default async function handler(req, res) {
   // I nomi già in archivio: servono a NON creare doppioni. L'AI non decide
   // l'aggancio (lo fa findMatch lato client, deterministico) ma sapere che
   // "Egidi" esiste già la aiuta a scrivere il nome nella stessa forma.
-  const known = (body.context && body.context.known) || {};
   const tail = [
     knownLine('Proprietari già in archivio (stessa grafia se è la stessa persona)', known.landlords),
     knownLine('Inquilini già in archivio', known.tenants),
@@ -468,42 +488,42 @@ export default async function handler(req, res) {
     out = await askModel(content);
   } catch (e) {
     const timedOut = e && (e.name === 'TimeoutError' || e.name === 'AbortError');
-    console.error('[portal/ingest] ai ' + (timedOut ? 'timeout' : 'failed') + ' files=' + files.length + ' ms=' + (Date.now() - t0));
-    return res.status(timedOut ? 504 : 502).json({ ok: false, error: timedOut ? 'ai_timeout' : 'ai_provider_error',
+    console.error('[' + tag + '] ai ' + (timedOut ? 'timeout' : 'failed') + ' files=' + files.length + ' ms=' + (Date.now() - t0));
+    return { status: timedOut ? 504 : 502, ok: false, error: timedOut ? 'ai_timeout' : 'ai_provider_error',
       detail: timedOut
         ? 'La lettura ha superato i 100 secondi. Allega meno pagine (le prime due di un contratto bastano quasi sempre) o un documento per volta.'
-        : 'Il servizio di lettura non ha risposto. Riprova tra qualche istante.' });
+        : 'Il servizio di lettura non ha risposto. Riprova tra qualche istante.' };
   }
   if (!out.ok) {
-    console.error('[portal/ingest] anthropic', out.status, clip(out.text, 200));
+    console.error('[' + tag + '] anthropic', out.status, clip(out.text, 200));
     const rate = out.status === 429;
     const tooLong = out.status === 400 && TOO_LONG_RE.test(out.text || '');
     if (tooLong) {
       const pagesSent = files.reduce((s, f) => s + (f.readPages || 0), 0);
-      return res.status(413).json({ ok: false, error: 'ai_too_long',
-        detail: `Troppo materiale in un giro (${pagesSent} pagine di PDF${files.length > 1 ? ', ' + files.length + ' documenti' : ''}): i dati di un contratto stanno nelle prime pagine. Allega meno pagine o meno documenti, oppure leggi in due giri: la seconda lettura integra la prima.` });
+      return { status: 413, ok: false, error: 'ai_too_long',
+        detail: `Troppo materiale in un giro (${pagesSent} pagine di PDF${files.length > 1 ? ', ' + files.length + ' documenti' : ''}): i dati di un contratto stanno nelle prime pagine. Allega meno pagine o meno documenti, oppure leggi in due giri: la seconda lettura integra la prima.` };
     }
-    return res.status(502).json({ ok: false, error: rate ? 'ai_rate_limited' : 'ai_provider_error',
-      detail: rate ? 'Troppe letture in questo momento: riprova tra un minuto.' : 'Il servizio di lettura ha risposto con un errore (' + out.status + '). Riprova; se ricapita, incolla il testo invece del file.' });
+    return { status: 502, ok: false, error: rate ? 'ai_rate_limited' : 'ai_provider_error',
+      detail: rate ? 'Troppe letture in questo momento: riprova tra un minuto.' : 'Il servizio di lettura ha risposto con un errore (' + out.status + '). Riprova; se ricapita, incolla il testo invece del file.' };
   }
   const data = out.data;
   const ms = Date.now() - t0;
   if (data.stop_reason === 'refusal') {
-    console.error('[portal/ingest] refusal files=' + files.length);
-    return res.status(502).json({ ok: false, error: 'ai_refused', detail: 'Il modello ha rifiutato di leggere questo materiale. Se contiene solo un documento d\'identità o un contratto, riprova con una foto più nitida o incolla il testo.' });
+    console.error('[' + tag + '] refusal files=' + files.length);
+    return { status: 502, ok: false, error: 'ai_refused', detail: 'Il modello ha rifiutato di leggere questo materiale. Se contiene solo un documento d\'identità o un contratto, riprova con una foto più nitida o incolla il testo.' };
   }
   const raw = (data.content || []).filter((c) => c.type === 'text').map((c) => c.text || '').join('');
   if (data.stop_reason === 'max_tokens') {
-    console.error('[portal/ingest] ' + jsonFailureLine(raw, 'truncated', data.stop_reason));
-    return res.status(502).json({ ok: false, error: 'ai_truncated', detail: 'La risposta è stata tagliata: allega meno documenti per volta.' });
+    console.error('[' + tag + '] ' + jsonFailureLine(raw, 'truncated', data.stop_reason));
+    return { status: 502, ok: false, error: 'ai_truncated', detail: 'La risposta è stata tagliata: allega meno documenti per volta.' };
   }
   // Con l'output strutturato il JSON è valido per costruzione; la lettura
   // difensiva resta come rete (e nei log va la forma, mai il contenuto: qui
   // dentro ci sono codici fiscali e IBAN di persone reali).
   const read = parseModelJson(raw);
   if (!read.ok) {
-    console.error('[portal/ingest] ' + jsonFailureLine(raw, read.why, data.stop_reason));
-    return res.status(502).json({ ok: false, error: 'ai_bad_json', why: read.why, detail: jsonFailureHint(read.why) });
+    console.error('[' + tag + '] ' + jsonFailureLine(raw, read.why, data.stop_reason));
+    return { status: 502, ok: false, error: 'ai_bad_json', why: read.why, detail: jsonFailureHint(read.why) };
   }
   const parsed = read.value || {};
 
@@ -531,19 +551,35 @@ export default async function handler(req, res) {
       cacheReadTokens: usage.cache_read_input_tokens || 0, cacheWriteTokens: usage.cache_creation_input_tokens || 0,
       files: files.length, pages: files.reduce((a, f) => a + (f.pages || 0), 0),
     };
-    console.log(`[portal/ingest] ok files=${meta.files} pages=${meta.pages} in=${meta.inputTokens} out=${meta.outputTokens} ms=${ms} sections=${Object.keys(proposal).join(',') || '-'}`);
+    console.log(`[${tag}] ok files=${meta.files} pages=${meta.pages} in=${meta.inputTokens} out=${meta.outputTokens} ms=${ms} sections=${Object.keys(proposal).join(',') || '-'}`);
 
     if (!Object.keys(proposal).length) {
-      return res.status(200).json({ ok: true, proposal: {}, empty: true, files: filesRead, evidence, notes, confidence,
+      return { status: 200, ok: true, proposal: {}, empty: true, files: filesRead, evidence, notes, confidence,
         summary: clip(parsed.summary, 400), usage: meta,
         message: filesRead.some((f) => !f.legible)
           ? 'Documento illeggibile: ' + filesRead.filter((f) => !f.legible).map((f) => f.summary || f.name).join(' · ')
-          : 'Nessun dato riconoscibile nel materiale fornito.' });
+          : 'Nessun dato riconoscibile nel materiale fornito.' };
     }
-    return res.status(200).json({ ok: true, proposal, derived, checks, files: filesRead, evidence, notes, confidence,
-      summary: clip(parsed.summary, 400), usage: meta });
+    return { status: 200, ok: true, proposal, derived, checks, files: filesRead, evidence, notes, confidence,
+      summary: clip(parsed.summary, 400), usage: meta };
   } catch (e) {
-    console.error('[portal/ingest] post', e && e.message);
-    return res.status(500).json({ ok: false, error: 'internal' });
+    console.error('[' + tag + '] post', e && e.message);
+    return { status: 500, ok: false, error: 'internal' };
   }
+}
+
+// I nomi già in archivio, letti dal Firestore — la STESSA forma che manda il
+// portal da S (users per ruolo + landlords, immobili «nome — indirizzo»):
+// il telefono non deve leggere con meno contesto del desktop.
+export async function knownFromStore() {
+  const safe = (pr) => pr.catch(() => []);
+  const [users, landlords, properties] = await Promise.all([
+    safe(fsList('users', { limit: 400 })), safe(fsList('landlords', { limit: 200 })), safe(fsList('properties', { limit: 200 })),
+  ]);
+  const name = (x) => String((x && x.name) || '').trim();
+  return {
+    landlords: users.filter((u) => u.role === 'landlord' || u.role === 'owner').map(name).concat(landlords.map(name)).filter(Boolean).slice(0, 60),
+    tenants: users.filter((u) => u.role === 'tenant').map(name).filter(Boolean).slice(0, 60),
+    properties: properties.map((pr) => [pr.name, pr.address].filter(Boolean).join(' — ')).filter(Boolean).slice(0, 60),
+  };
 }

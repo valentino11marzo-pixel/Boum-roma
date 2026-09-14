@@ -333,6 +333,7 @@ service cloud.firestore {
     // audience, esclusi col motivo, stato pending→sent. Solo server-side
     // con credenziali admin — stessa lezione.
     match /richiamoCampaigns/{x}           { allow read, write: if isAdmin(); }
+    match /scrivanoProposals/{x}           { allow read, write: if isAdmin(); }   // la coda dello Scrivano: proposte, mai contratti
     // IL RADAR 2.0 (La Centrale — /radar): le vedette (ricerche libere con
     // coda per il digest email, api/radar/digest.js + _tap.js) e lo stato
     // del radar (indice gemelli cross-portale, feed occasioni, card

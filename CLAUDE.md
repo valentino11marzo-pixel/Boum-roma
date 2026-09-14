@@ -2879,6 +2879,77 @@ maxDuration di default della piattaforma. Ora:
   contare in locale) diventa `ai_too_long` col rimedio — meno pagine, due giri
   — mai un «riprova». Test: `node tests/innesto/run.mjs` (117 check).
 
+### LO SCRIVANO — la porta dal telefono (`api/scrivano/*` + `sc:` su Telegram, 14/09/2026)
+STUDIO_SCRIVANO §4, **passo 4**: i passi 1–3 (il documento resta, la classe
+dello Smistatore, la modifica proposta) sono nell'Innesto 3.0; questo è il
+quarto — «mandi qualsiasi cosa al bot e ottieni ENTRAMBE le metà: archiviato
+*e* proposto, con la card sul telefono». Il principio: **il tap è la firma
+sulla spesa, la conferma nel portal è la firma sulla scrittura.** Qui non
+nasce mai un contratto, una persona o un immobile: solo la PROPOSTA.
+- **L'offerta** (`api/scrivano/_offer.js`): quando lo Smistatore archivia un
+  documento di una classe che l'Innesto sa leggere (`SCRIVANO_KINDS`:
+  contratto, documento d'identità, visura, APE — **esclusi di proposito**
+  rli/cedolare/istat/cessione: sono EVENTI su un contratto che c'è già e
+  oggi farebbero un doppione, finché l'Innesto sa solo CREARE), la risposta
+  porta il bottone **🌱 Leggi e proponi nel portal** (`sc:<docId>`, ≤ 64
+  byte per costruzione: un id troppo lungo NON riceve il bottone, mai una
+  tastiera morta in silenzio). UNA copia per tutte le porte: il webhook
+  Telegram mette il bottone nella propria risposta; per le porte che non
+  sono Telegram (WhatsApp ed email — le porte di Codex, PR #234) la card
+  parte da DENTRO `smistaDocument` (best-effort, `offer:false` per
+  spegnerla): chi chiama `smistaDocument` eredita l'offerta senza saperlo.
+  `dupResult` porta ora `catKey`, così anche un doppione può essere offerto.
+- **Il docId dal bot è DETERMINISTICO** (`tg_<sha1(file_unique_id)>`): lo
+  stesso file inoltrato due volte non archivia e non paga due volte («Già in
+  archivio», col bottone).
+- **Il tap NON legge dentro il webhook** (`api/telegram/_scrivano.js` →
+  `enqueueRead`): una lettura con Opus 5 dura fino a 100 s, Telegram
+  RITENTA l'update se il webhook non risponde in fretta (= due letture) e su
+  Vercel il lavoro dopo la risposta si perde (la lezione del 13/09). Il tap
+  scrive `scrivanoProposals/<docId>` `status:'queued'` (id = il documento →
+  un secondo tap non raddoppia niente e lo dice), il messaggio perde la
+  tastiera e dice «In coda».
+- **Il worker** (`api/scrivano/worker.js`, cron `* * * * *`, maxDuration
+  120, auth come i cron PFS, `?dry=1`): UNA lettura per run (`pickNext`: la
+  più vecchia; una `reading` col lease scaduto da 4' torna eleggibile — il
+  worker morto a metà non blocca la coda), scarica i BYTE archiviati dal
+  nostro Storage (`readFiles` con `fileUrl`, host inchiodato), costruisce il
+  contesto come il desktop (`knownFromStore`: users per ruolo + landlords +
+  immobili «nome — indirizzo») e legge col **CUORE dell'Innesto**:
+  `ingestRead` esportata da `api/portal/ingest.js` — stesso prompt, stesso
+  schema strutturato, stessa sanificazione, stessi errori col rimedio; il
+  handler HTTP è diventato una porta sottile sopra la stessa funzione. Poi
+  la card **«Proposta pronta»** (parti, immobile, termini, errori da
+  correggere, sicurezza, tempo) col bottone URL
+  `https://www.boomrome.com/portal#innesto=<docId>` (sempre `www`, la
+  lezione «Redirecting...»). Battito `teamHealth/scrivano` (🖋 in /team,
+  approval `parziale` come la Segretaria: il tap è il click).
+- **I guasti**: un errore DETERMINISTICO (`too_many_pages`, `ai_too_long`,
+  HEIC, file troppo grande, rifiuto, taglio) chiude subito con la card del
+  rimedio, senza riprovare a vuoto; un guasto momentaneo (500, timeout,
+  429) si riprova UNA volta (`MAX_ATTEMPTS` 2), poi si dice.
+- **Nel portal** (`#innesto=<docId>`): al boot e sul popstate
+  `innestoSeedFromHash()` legge l'id PRIMA che `goTo` riscriva l'hash (il
+  frammento sopravvive al giro di login), carica `scrivanoProposals/<id>`
+  e lo semina con lo STESSO post-processing di una lettura dal portal
+  (`innestoIngest`, estratta da `innestoAnalyze` in una copia: verdetti per
+  file, citazioni, merge a più letture). Il documento è GIÀ in archivio:
+  `readDocs` porta `{ archived }` e alla conferma `innestoArchiveDoc` non
+  ricarica niente — aggiorna il doc esistente con `contractId/propertyId/
+  userId` (`innestoBy`) e, per un documento d'identità, fa l'union negli
+  `identityDocs` di contratto e profilo (`source:'scrivano'`).
+- Rules: `scrivanoProposals` admin-only (lezione propertyLocks).
+- Test: `node tests/scrivano/run.mjs` (51 check — il giro VERO sui handler
+  reali con Firestore in memoria, Telegram e Anthropic finti: bot → id
+  deterministico + bottone → tap = coda, mai una lettura nel webhook → worker
+  → i byte archiviati ad Anthropic, contesto del desktop, output strutturato
+  → card col link → secondo run idle → tap dopo la lettura = card senza
+  rileggere; guasti deterministici vs momentanei; l'offerta ereditata dalle
+  altre porte; giunzioni sulla sorgente). Le tre guardie — rimedio subito
+  sui deterministici, offerta solo fuori da Telegram, secondo tap che non
+  raddoppia — verificate per mutazione. Più `tests/innesto/run.mjs`: il
+  documento già archiviato si LEGA senza put su Storage e senza doppioni.
+
 ### POST `/api/homie/wa-outbox`
 WhatsApp OUTBOX for the Mac-side Homie agent: approved WhatsApp replies go
 out AUTOMATICALLY. Executor marks the action executed (wa.me link kept as
@@ -4219,6 +4290,7 @@ camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
   | `tests/vetrina/run.mjs` | l'innesto della vetrina (Chromium vero su apartments.html servita): un annuncio nato DOPO la build appare, è contato e i filtri veri lo mordono (zona via hash, ricerca libera, cuore); la data testo libero passa dal motore condiviso («1 Sept 2027» → «Free from», mai «Available now»); senza foto di casa nostra o con stato ignoto la carta NON nasce; le card di build continuano ad aggiornarsi. Verificato per mutazione |
   | `tests/scheda/run.mjs` | La Scheda: token derivati (ruolo nella derivazione, timing-safe), precedenza prefill contratto→sign→wizard, lock post-firma, sync profilo su ENTRAMBI gli schemi users, upload con OCR che non blocca mai, /api/profile/link autorizzato |
   | `tests/contratto/run.mjs` | Il dizionario del contratto: ogni lettura dei modelli è dichiarata e ogni voce è letta (anti-deriva nelle due direzioni), la cedolare non torna `=== true` (mutazione), la completezza cambia per modello/owner/società/extra-UE/co-conduttori/durata di legge, la Scheda chiede SOLO ciò che manca a QUELLA parte, un token tenant non scrive mai l'immobile (e lo dice), il co-conduttore scrive solo la sua riga e la firma altrui resta, i numeri RLI (totale per durata < 12 mesi, scadenza da min(stipula, decorrenza)), il foglio pulito senza bottoni né link e con gli allegati veri, 401 senza admin |
+  | `tests/scrivano/run.mjs` | lo Scrivano, la porta dal telefono: archiviato con id deterministico e bottone 🌱, il tap mette in coda (mai una lettura nel webhook), il worker legge i byte archiviati col cuore dell'Innesto e manda la card col link `#innesto=<docId>`; mai due letture, guasti col rimedio, le porte di Codex ereditano l'offerta |
   | `tests/innesto/run.mjs` | l'Innesto e il 413 di piattaforma: il PDF grande transita da Storage e i byte che arrivano ad Anthropic sono ESATTAMENTE quelli scaricati, un host estraneo non viene MAI contattato (l'endpoint non è un proxy), i tetti restano onesti (8 MB, whitelist formati), e il transito si cancella nel finally. Più l'APPLY VERO su Firestore finto: proposta completa → contratto+rate scritti, proposta senza una gamba → il contratto non nasce MA il riepilogo non lo promette e il toast dice quale gamba manca (la lezione del 30/08: "Innesto completato" senza contratto), proprietario già in `landlords` → mai un doppione |
   | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot; §1f: ogni firma STAMPA lo stato sulla proposta (rail PA), 🖊 send-sign su contratto già firmato non manda email e ristampa la proposta, mai una proposta fantasma |
   | `tests/aspi/run.mjs` | l'iter ASPI: la checklist blocca SOLO senza contratto (il resto avverte, dichiarato nell'email), l'invio raggiunge il referente con l'operatore in copia e gli allegati veri, la fattura col markup non si duplica MAI (id deterministico), 'registered' non si degrada, l'auto-invio parte solo con la manopola girata |

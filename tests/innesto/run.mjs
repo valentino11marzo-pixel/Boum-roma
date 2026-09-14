@@ -450,6 +450,20 @@ check('…e il toast conta i documenti archiviati', a.toasts.some((t) => t[0] ==
 a = await runApply(structuredClone(FULL), {}, { readDocs, archive: false });
 check('con l\'archivio spento non si carica NULLA', a.puts.length === 0 && !a.writes.some((w) => w.c === 'documents'));
 
+// LO SCRIVANO (passo 4): il documento è GIÀ in archivio (arrivato dal telefono,
+// archiviato dallo Smistatore) — non si ricarica, si LEGA.
+const archivedDocs = [
+  { archived: { id: 'tg_abc', url: 'https://firebasestorage.googleapis.com/v0/b/t/o/smistatore%2F2026%2Fcontratto.pdf?alt=media&token=x', name: 'contratto.pdf', mimeType: 'application/pdf' }, meta: { kind: 'contratto', party: null, title: 'Contratto', docType: 'contract', category: 'contratto locazione', folder: '01_Contratto' } },
+  { archived: { id: 'tg_id1', url: 'https://firebasestorage.googleapis.com/v0/b/t/o/smistatore%2F2026%2Fci.jpg?alt=media&token=y', name: 'ci.jpg', mimeType: 'image/jpeg' }, meta: { kind: 'documento_identita', party: 'tenant', title: 'CI Oyku', docType: 'id', category: 'documento identità carta ID', folder: '07_Inquilino' } },
+];
+a = await runApply(structuredClone(FULL), {}, { readDocs: archivedDocs });
+const linked = a.writes.filter((w) => w.c === 'documents' && w.op === 'update');
+check('un documento GIÀ archiviato (dal telefono) non si ricarica: zero put, zero documenti nuovi', a.puts.length === 0 && !a.writes.some((w) => w.c === 'documents' && w.op === 'add'), JSON.stringify(a.puts));
+check('…si LEGA al contratto e all\'immobile appena nati (update sui doc esistenti)', linked.length === 2 && linked.every((w) => w.data.contractId && w.data.propertyId && w.data.innestoBy), JSON.stringify(linked.map((w) => [w.id, w.data])));
+check('…e la carta d\'identità archiviata entra negli identityDocs (contratto E profilo), firmata scrivano',
+  a.writes.some((w) => w.c === 'contracts' && w.op === 'update' && w.data.identityDocs?.__union?.source === 'scrivano' && w.data.identityDocs?.__union?.url)
+  && a.writes.some((w) => w.c === 'users' && w.op === 'update' && w.data.identityDocs?.__union?.url), JSON.stringify(a.writes.filter((w) => w.op === 'update').map((w) => [w.c, w.data])));
+
 // IL CASO VIA SIMETO (30/08): il PDF non porta inquilino né immobile, ma
 // ENTRAMBI esistono in anagrafica (creati da una corsa precedente). Con gli
 // agganci del fantasma il contratto nasce sui record esistenti — zero

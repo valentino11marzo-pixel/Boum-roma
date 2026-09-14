@@ -4029,7 +4029,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // La prima schermata dell'admin è la coda delle decisioni: il posto
         // dove si COMANDA, non dove si guarda. Un hash esplicito (deep link,
         // reload a metà lavoro) vince sempre; gli altri ruoli non cambiano.
-        goTo(window.location.hash.slice(1) || (isAdmin() ? 'oggi' : (localStorage.getItem('boom_lastPage') || 'dashboard')));
+        // #innesto=<docId>: la proposta letta dal telefono (lo Scrivano) apre
+        // l'Innesto già seminata — l'id viene preso PRIMA che goTo riscriva l'hash.
+        const innestoSeed = isAdmin() && innestoSeedFromHash();
+        goTo(innestoSeed ? 'innesto' : (window.location.hash.slice(1) || (isAdmin() ? 'oggi' : (localStorage.getItem('boom_lastPage') || 'dashboard'))));
 
         // Check expiring contracts for review requests (admin, once per session)
         if (isAdmin() && !window._expiryChecked) {
@@ -4164,7 +4167,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // Open the 360° person hub. kind: 'lead' | 'pfsClient' | 'crmClient' | 'user'.
     function openPerson(id, kind) { goTo('person', { id, kind: kind || 'user' }); }
     window.openPerson = openPerson;
-    window.addEventListener('popstate', () => { const page = window.location.hash.slice(1); if (page && page !== S.page) { S.page = page; buildNav(); renderPage(); } });
+    window.addEventListener('popstate', () => {
+        // Un link #innesto=<docId> aperto col portal già in pagina (dalla card
+        // Telegram sul desktop): stessa semina del boot.
+        if (isAdmin() && innestoSeedFromHash()) { goTo('innesto'); return; }
+        const page = window.location.hash.slice(1); if (page && page !== S.page) { S.page = page; buildNav(); renderPage(); }
+    });
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('sidebarOverlay').classList.toggle('open'); }
     function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); }
 
@@ -27915,13 +27923,18 @@ IBAN: ${l.iban || '-'}`;
         return {
             files: [], text: '', hint: '', proposal: null, notes: [], confidence: null, summary: '',
             filesRead: [], evMap: {}, derived: {}, usage: null, cost: 0, busy: false, phase: '', startedAt: 0,
-            links: {}, coLinks: {}, diffs: {}, expanded: {}, archive: true, readDocs: []
+            links: {}, coLinks: {}, diffs: {}, expanded: {}, archive: true, readDocs: [],
+            seedId: null, seedLoading: false, seedDone: false, seedError: '', seedDoc: null
         };
     }
     let _innesto = innestoEmpty();
     let _innestoTick = null;
 
     function innestoPage() {
+        if (_innesto.seedId && !_innesto.seedLoading && !_innesto.seedDone && !_innesto.seedError) {
+            _innesto.seedLoading = true;
+            innestoLoadSeed(_innesto.seedId);
+        }
         const p = _innesto.proposal;
         const files = _innesto.files;
         const mb = (n) => (n / 1024 / 1024).toFixed(1) + ' MB';
@@ -27930,6 +27943,7 @@ IBAN: ${l.iban || '-'}`;
         <div class="page-header"><h1>🌱 Innesto</h1>
             <p style="color:var(--text-secondary);font-size:13px">Contratto, documenti d'identità, visura, messaggi: tutto insieme, una lettura sola. Ogni campo cita la frase da cui viene, chi esiste già viene aggiornato e non duplicato, e niente si scrive prima della tua conferma.</p></div>
 
+        ${innestoSeedCard()}
         <div class="card" style="margin-bottom:16px">
             <div style="font-size:13px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
                 <span>Materiale di partenza</span>
@@ -28399,52 +28413,7 @@ IBAN: ${l.iban || '-'}`;
                     : (data.error || ('errore ' + r.status)));
                 throw new Error(why);
             }
-            const D = window.BOOM_DATAOPS;
-            const F = window.BOOM_CONTRACT_FIELDS;
-            const offset = _innesto.filesRead.length;
-            // I documenti letti restano in mano al portale (non allo Storage):
-            // alla conferma si archiviano, legati a ciò che hanno fatto nascere.
-            (data.files || []).forEach((fr, i) => {
-                const prep = prepared[fr.index - 1];
-                if (prep) _innesto.readDocs.push({ blob: prep.blob, mediaType: prep.mediaType, file: prep.file, meta: fr });
-            });
-            _innesto.filesRead = _innesto.filesRead.concat((data.files || []).map(f => Object.assign({}, f, { index: f.index + offset })));
-            (data.evidence || []).forEach(e => {
-                const path = innestoEvPath(e.path);
-                if (!_innesto.evMap[path]) _innesto.evMap[path] = { quote: e.quote, page: e.page, file: e.file ? e.file + offset : null };
-            });
-            Object.keys(data.derived || {}).forEach(k => { if (!_innesto.derived[k]) _innesto.derived[k] = data.derived[k]; });
-            if (data.usage) {
-                _innesto.usage = data.usage;
-                const rate = INNESTO_RATES[data.usage.model] || INNESTO_RATES['claude-opus-5'];
-                _innesto.cost += ((data.usage.inputTokens || 0) * rate.in + (data.usage.outputTokens || 0) * rate.out
-                    + (data.usage.cacheReadTokens || 0) * rate.cacheRead + (data.usage.cacheWriteTokens || 0) * rate.cacheWrite) / 1e6;
-            }
-            if (data.summary && !_innesto.summary) _innesto.summary = data.summary;
-            if (data.empty || !data.proposal || !Object.keys(data.proposal).length) {
-                toast('warning', 'Nessun dato riconosciuto', data.message || 'Prova ad aggiungere più contesto o un documento più leggibile');
-                _innesto.notes = (_innesto.notes || []).concat(data.notes || []);
-                // Una lettura vuota non butta via la proposta che l'operatore
-                // ha già davanti (e magari ha già corretto).
-            } else {
-                // IL FASCICOLO A PIÙ LETTURE: se una proposta è già aperta, la
-                // nuova lettura ne riempie i BUCHI (mergeProposal: un campo
-                // pieno — magari corretto a mano — non si tocca mai). Così il
-                // PDF del contratto + la foto del documento + due righe di
-                // WhatsApp diventano UNA proposta, senza ricominciare da capo.
-                const fresh = D.normalizeProposal(data.proposal);
-                const integrating = !!_innesto.proposal;
-                let next = integrating && D.mergeProposal ? D.mergeProposal(_innesto.proposal, fresh) : fresh;
-                if (D.deriveProposal) next = D.deriveProposal(next, { parseCadastral: F && F.parseCadastral });
-                Object.keys(next.derived || {}).forEach(k => { if (!_innesto.derived[k]) _innesto.derived[k] = next.derived[k]; });
-                delete next.derived;
-                _innesto.proposal = next;
-                _innesto.notes = integrating ? (_innesto.notes || []).concat(data.notes || []) : (data.notes || []);
-                _innesto.confidence = data.confidence;
-                if (!integrating) { _innesto.links = {}; _innesto.coLinks = {}; _innesto.diffs = {}; }
-                toast('success', integrating ? 'Proposta integrata' : 'Proposta pronta', 'Controlla i campi (e le citazioni) prima di confermare');
-            }
-            if (!data.empty) { _innesto.files = []; _innesto.text = ''; }   // il prossimo giro legge i PROSSIMI documenti; una lettura vuota li lascia lì per riprovare
+            innestoIngest(data, prepared);
         } catch (e) {
             console.error('[Innesto]', e);
             toast('error', 'Lettura non riuscita', e.message);
@@ -28454,6 +28423,112 @@ IBAN: ${l.iban || '-'}`;
             transitRefs.forEach(ref => ref.delete().catch(() => {}));
             _innesto.busy = false; _innesto.phase = ''; renderPage();
         }
+    }
+
+    // La risposta di una lettura → lo stato della pagina. UNA copia: la lettura
+    // dal portal (innestoAnalyze) e la proposta arrivata dal telefono
+    // (innestoLoadSeed — lo Scrivano, STUDIO_SCRIVANO §4 passo 4) passano di
+    // qui: verdetti per file, citazioni, costo, merge a più letture, documenti
+    // da archiviare o da legare.
+    function innestoIngest(data, prepared) {
+        const D = window.BOOM_DATAOPS;
+        const F = window.BOOM_CONTRACT_FIELDS;
+        const offset = _innesto.filesRead.length;
+        // I documenti letti restano in mano al portale (non allo Storage):
+        // alla conferma si archiviano, legati a ciò che hanno fatto nascere.
+        (data.files || []).forEach((fr, i) => {
+            const prep = prepared[fr.index - 1];
+            if (!prep) return;
+            // Un documento GIÀ in archivio (arrivato dal telefono, archiviato
+            // dallo Smistatore) non si ricarica: alla conferma si LEGA.
+            if (prep.archived) _innesto.readDocs.push({ archived: prep.archived, meta: fr });
+            else _innesto.readDocs.push({ blob: prep.blob, mediaType: prep.mediaType, file: prep.file, meta: fr });
+        });
+        _innesto.filesRead = _innesto.filesRead.concat((data.files || []).map(f => Object.assign({}, f, { index: f.index + offset })));
+        (data.evidence || []).forEach(e => {
+            const path = innestoEvPath(e.path);
+            if (!_innesto.evMap[path]) _innesto.evMap[path] = { quote: e.quote, page: e.page, file: e.file ? e.file + offset : null };
+        });
+        Object.keys(data.derived || {}).forEach(k => { if (!_innesto.derived[k]) _innesto.derived[k] = data.derived[k]; });
+        if (data.usage) {
+            _innesto.usage = data.usage;
+            const rate = INNESTO_RATES[data.usage.model] || INNESTO_RATES['claude-opus-5'];
+            _innesto.cost += ((data.usage.inputTokens || 0) * rate.in + (data.usage.outputTokens || 0) * rate.out
+                + (data.usage.cacheReadTokens || 0) * rate.cacheRead + (data.usage.cacheWriteTokens || 0) * rate.cacheWrite) / 1e6;
+        }
+        if (data.summary && !_innesto.summary) _innesto.summary = data.summary;
+        if (data.empty || !data.proposal || !Object.keys(data.proposal).length) {
+            toast('warning', 'Nessun dato riconosciuto', data.message || 'Prova ad aggiungere più contesto o un documento più leggibile');
+            _innesto.notes = (_innesto.notes || []).concat(data.notes || []);
+            // Una lettura vuota non butta via la proposta che l'operatore
+            // ha già davanti (e magari ha già corretto).
+        } else {
+            // IL FASCICOLO A PIÙ LETTURE: se una proposta è già aperta, la
+            // nuova lettura ne riempie i BUCHI (mergeProposal: un campo
+            // pieno — magari corretto a mano — non si tocca mai). Così il
+            // PDF del contratto + la foto del documento + due righe di
+            // WhatsApp diventano UNA proposta, senza ricominciare da capo.
+            const fresh = D.normalizeProposal(data.proposal);
+            const integrating = !!_innesto.proposal;
+            let next = integrating && D.mergeProposal ? D.mergeProposal(_innesto.proposal, fresh) : fresh;
+            if (D.deriveProposal) next = D.deriveProposal(next, { parseCadastral: F && F.parseCadastral });
+            Object.keys(next.derived || {}).forEach(k => { if (!_innesto.derived[k]) _innesto.derived[k] = next.derived[k]; });
+            delete next.derived;
+            _innesto.proposal = next;
+            _innesto.notes = integrating ? (_innesto.notes || []).concat(data.notes || []) : (data.notes || []);
+            _innesto.confidence = data.confidence;
+            if (!integrating) { _innesto.links = {}; _innesto.coLinks = {}; _innesto.diffs = {}; }
+            toast('success', integrating ? 'Proposta integrata' : 'Proposta pronta', 'Controlla i campi (e le citazioni) prima di confermare');
+        }
+        if (!data.empty) { _innesto.files = []; _innesto.text = ''; }   // il prossimo giro legge i PROSSIMI documenti; una lettura vuota li lascia lì per riprovare
+    }
+
+    // ── LA PORTA DAL TELEFONO: #innesto=<docId> ─────────────────────────
+    // Il worker dello Scrivano ha letto un documento archiviato e ha scritto
+    // la proposta in scrivanoProposals/<docId>; il link nella card Telegram
+    // apre QUI, con la proposta già seminata dallo stesso post-processing di
+    // una lettura dal portal. Il documento non viene ricaricato: alla conferma
+    // si lega a ciò che fa nascere. Il frammento sopravvive al giro di login
+    // (next = pathname + search + hash).
+    function innestoSeedFromHash() {
+        const m = /^#?innesto=([^&]+)/.exec(window.location.hash || '');
+        if (!m) return false;
+        let id = '';
+        try { id = decodeURIComponent(m[1]); } catch (_) { id = m[1]; }
+        id = String(id).replace(/[^\w.\-]+/g, '').slice(0, 120);
+        if (!id) return false;
+        if (_innesto.seedId !== id) { _innesto = innestoEmpty(); _innesto.seedId = id; }
+        return true;
+    }
+    async function innestoLoadSeed(id) {
+        try {
+            const snap = await db.collection('scrivanoProposals').doc(id).get();
+            const rec = snap.exists ? snap.data() : null;
+            if (!rec) throw new Error('Nessuna proposta per questo documento: il link è vecchio, oppure la lettura non è ancora partita.');
+            if (rec.status !== 'done') {
+                throw new Error(rec.status === 'failed'
+                    ? 'La lettura dal telefono non è riuscita: ' + (rec.detail || rec.error || 'errore') + ' — puoi rileggere il documento da qui.'
+                    : 'La lettura è ancora in corso (' + rec.status + '): riapri il link tra un minuto.');
+            }
+            const d = rec.document || {};
+            const prepared = [{ archived: { id: d.id || id, url: d.fileUrl || '', name: d.fileName || d.name || 'documento', mimeType: d.mimeType || '' } }];
+            _innesto.seedDoc = d;
+            innestoIngest(Object.assign({ ok: true }, rec), prepared);
+            _innesto.seedDone = true;
+        } catch (e) {
+            console.error('[Innesto] seed', e);
+            _innesto.seedError = e.message || String(e);
+        } finally {
+            _innesto.seedLoading = false;
+            renderPage();
+        }
+    }
+    function innestoSeedCard() {
+        if (!_innesto.seedId) return '';
+        if (_innesto.seedLoading) return `<div class="card" style="margin-bottom:16px;border-color:rgba(212,175,55,0.3)"><div style="font-size:13px;color:var(--gold)">📲 Carico la proposta letta dal telefono…</div></div>`;
+        if (_innesto.seedError) return `<div class="card" style="margin-bottom:16px;border-color:#FF6B35"><div style="font-size:12px;color:#FF6B35;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Proposta dal telefono</div><div style="font-size:13px;line-height:1.6">${esc(_innesto.seedError)}</div></div>`;
+        const d = _innesto.seedDoc || {};
+        return `<div class="card" style="margin-bottom:16px;border-color:rgba(212,175,55,0.3)"><div style="font-size:12.5px;line-height:1.6">📲 Proposta letta dal telefono da <b>${esc(d.name || d.fileName || _innesto.seedId)}</b>${d.fileUrl ? ` · <a href="${esc(d.fileUrl)}" target="_blank" rel="noopener" style="color:var(--gold)">apri il documento</a>` : ''}. Il file è già in archivio: alla conferma viene legato a ciò che nasce, non ricaricato.</div></div>`;
     }
 
     // Una modifica a mano: sezione piatta ('tenant'), annidata
@@ -28771,6 +28846,28 @@ IBAN: ${l.iban || '-'}`;
     // dello Smistatore → identityDocs se è un documento d'identità.
     async function innestoArchiveDoc(rd, ctx) {
         const meta = rd.meta || {};
+        if (rd.archived) {
+            // GIÀ in archivio (lo Smistatore l'ha messo lì dalla porta del
+            // telefono): niente upload, niente secondo documento. Si lega a
+            // ciò che ha fatto nascere e, se è un documento d'identità, entra
+            // negli identityDocs come farebbe un file appena letto.
+            const a = rd.archived;
+            const party = meta.party === 'cotenant' ? 'tenant' : meta.party;
+            const userId = party === 'tenant' ? ctx.tenantId : party === 'landlord' ? ctx.ownerId : null;
+            const patch = { innestoAt: firebase.firestore.FieldValue.serverTimestamp(), innestoBy: S.profile.id };
+            if (ctx.contractId) patch.contractId = ctx.contractId;
+            if (ctx.propertyId) patch.propertyId = ctx.propertyId;
+            if (userId) patch.userId = userId;
+            if (a.id) await db.collection('documents').doc(a.id).update(patch).catch(() => {});
+            if (meta.kind === 'documento_identita' && party && a.url) {
+                const entry = { url: a.url, path: null, name: a.name || 'documento', contentType: a.mimeType || null, bytes: null, role: party, at: new Date().toISOString(), source: 'scrivano' };
+                if (meta.party === 'cotenant') entry.tenantIndex = 1;
+                const union = firebase.firestore.FieldValue.arrayUnion;
+                if (ctx.contractId) await db.collection('contracts').doc(ctx.contractId).update({ identityDocs: union(entry) }).catch(() => {});
+                if (userId) await db.collection('users').doc(userId).update({ identityDocs: union({ url: a.url, name: entry.name, at: entry.at }) }).catch(() => {});
+            }
+            return a.url;
+        }
         const file = rd.file;
         const safeName = String(file.name || 'documento').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80);
         const path = 'documents/' + (S.profile.id || 'admin') + '/innesto/' + Date.now() + '_' + safeName;
