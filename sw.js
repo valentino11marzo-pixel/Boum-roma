@@ -142,6 +142,7 @@ self.addEventListener('fetch', (event) => {
             || url.pathname === '/css/portal-mobile.css'
             || url.pathname === '/js/portal-actions.js'
             || url.pathname === '/js/oggi-engine.js'
+            || url.pathname === '/js/segretaria-casi-engine.js'
             // il motore dell'Innesto/Bonifica è logica del portale: una copia
             // stantia farebbe divergere merge/validazioni dalla pagina che le usa
             || url.pathname === '/js/dataops-engine.js'

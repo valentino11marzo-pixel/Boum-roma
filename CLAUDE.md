@@ -3518,6 +3518,13 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
   armo → grazia → executor reale → digest, ✋ e kill switch che vincono.
 
 ### LA SEGRETARIA (`js/segretaria-engine.js` + `api/segretaria/_core.js` + 🤖 sulla card)
+
+- **Persona, voce e seguito** (14/09, Codex): `_persona.js` deriva ruoli, pratiche e fonti; un vecchio lead non nasconde tenant/landlord/PFS. Identità contraddittoria o illeggibile blocca il turno; storia parziale viene dichiarata, non spacciata per ultimo accordo.
+- `voce-engine.js` costruisce il prompt WhatsApp/email; `replyLang` e i cancelli esistenti restano autorevoli. Le regole editoriali usano le fonti storiche senza copiarne prezzi o promesse. Non cambia ancora il mandato vocale della Receptionist.
+- `_follow-up.js` conserva l'impegno in `operatorTasks.followUp`: leggere, rispondere o passare all'operatore non lo chiude. Ricevute e cursore tecnici in `heartbeat`, scritti atomicamente via `fsGetVersioned/fsCommit` di `homie/_lib`, impediscono replay e aggiornamenti persi.
+- In Oggi, `segretaria-casi-engine` mostra decisioni e attese. `/api/segretaria/follow-up` è admin-only: pratica scelta esplicitamente dalle fonti, azione, chi e ricontrollo; chiusura con esito, conflitto → ricaricare. Il ricontrollo iniziale di due ore è una proposta interna, non una promessa al cliente.
+- I seguiti non usano «Nascondi»/localStorage né i vecchi tasti Regista privi di esito. La conferma non invia messaggi, non prenota e non modifica contratti. Nessuna nuova collection o impostazione di autonomia.
+- Prove: `npm test -- persona voce seguito seguitoui seguitotracking segretaria regista oggi`. Fixture e mutazioni verificano il percorso; non attestano attivazione in produzione, qualità del modello reale o lettura automatica di vocali e allegati.
 Il "durante" della conversazione — il buco che generava la frammentazione
 misurata (metà dei messaggi dell'operatore ≤17 caratteri) e i 544 silenzi.
 Studio: `STUDIO_SEGRETARIA_2026-08.md`. È il cervello della Receptionist
@@ -3566,13 +3573,14 @@ consegna e la porta fino alla visita prenotata o all'escalation.
   executor → Nodemailer). Idempotente (`open_<leadId>`): un secondo click
   non riapre; una chat già avviata non riceve aperture doppie.
 - **La porta email** (`api/segretaria/scan-replies.js`, cron */10,
-  maxDuration 60): legge SOLO i mittenti delle conversazioni consegnate
+  maxDuration 60): legge SOLO i mittenti delle conversazioni consegnate o dei seguiti aperti
   con contactEmail (perimetro stretto — zero consegnate = un run costa una
   query), spoglia il testo citato (`stripQuoted` nel motore: il thread
   sotto la risposta farebbe rispondere a frasi NOSTRE), registra il
   messaggio in Inbox e passa il turno allo stesso cervello. Message-ID in
   `heartbeat/segretaria-mail-memory`. Sul canale email il rientro D4 non
   esiste (una tua email non passa dal sistema): si riprende da /segretaria.
+- **Tracking dopo il rientro**: gli inbound dei casi già presi aggiornano il seguito anche con `segretaria:false`, senza riaccendere AI/invii. Il retry WhatsApp ripara usando il messaggio persistito; l'email usa un ID deterministico e ritenta gli errori prima di ricordare l'evento come visto. Alias email ammessi solo con stessa identità persistita; ambiguità e limiti sono dichiarati. Prova: `tests/segretaria/tracking.mjs`.
 - **Controllo**: `/segretaria` su Telegram (chat attive, 🖐 Riprendi per
   ognuna, kill switch `sgk`), `settings/segretaria`
   {enabled, maxTurns, dailyCap, maxChars} con la disciplina resolveKnobs.

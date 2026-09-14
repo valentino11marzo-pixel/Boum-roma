@@ -44,6 +44,7 @@ import {
 // traccia i lazy import — un modulo mancante in produzione è un turno perso).
 import SEG from '../../js/segretaria-engine.js';
 import { segretariaTurn, segretariaOffConv } from '../segretaria/_core.js';
+import { refreshTrackedFollowUp } from '../segretaria/_follow-up.js';
 
 // ── Pure helpers (mirror js/conversations.js so the id/phone logic matches) ──
 function convIdFor(contactType, contactId) {
@@ -141,7 +142,31 @@ export default async function handler(req, res) {
     try {
       const dup = await fsList('messages', { filter: { field: 'waMessageId', op: 'EQUAL', value: String(body.messageId) }, limit: 1 });
       if (dup && dup.length) {
-        return res.status(200).json({ ok: true, conversationId: cid, messageId: dup[0].id, created: false, dedupHit: true });
+        // A retry can repair the secondary case after the primary message was
+        // stored. Its identity and words come only from that stored message.
+        // Keep errors inside this branch: falling through would append twice.
+        const stored = dup[0], storedCid = stored.conversationId;
+        let followUp = null;
+        if (stored.direction === 'in') {
+          try {
+            if (!/^[\w.-]{1,180}$/.test(String(storedCid || ''))) throw new Error('invalid_stored_conversation');
+            const conv = await fsGet('conversations/' + storedCid);
+            if (!conv) throw new Error('stored_conversation_missing');
+            const tracked = await refreshTrackedFollowUp({ cid: storedCid, conv,
+              text: stored.body, messageId: stored.waMessageId || stored.id, now: new Date(stored.at).getTime() });
+            if (tracked) followUp = { id: tracked.id, tracked: true };
+            if (conv.followUpTrackingError) await fsPatch('conversations/' + storedCid, { followUpTrackingError: null });
+          } catch {
+            const error = 'Messaggio ricevuto; seguito non aggiornato. Verificare il caso in Oggi.';
+            followUp = { tracked: false, error };
+            if (/^[\w.-]{1,180}$/.test(String(storedCid || ''))) {
+              await fsPatch('conversations/' + storedCid, { needsReply: true, followUpTrackingError: error }).catch(() => {});
+            }
+            console.warn('[homie/message] follow-up retry failed');
+          }
+        }
+        return res.status(200).json({ ok: true, conversationId: storedCid, messageId: stored.id,
+          created: false, dedupHit: true, ...(followUp ? { followUp } : {}) });
       }
     } catch { /* non-fatal — fall through and write */ }
   }
@@ -236,6 +261,27 @@ export default async function handler(req, res) {
   try { leadInfo = await syncLead({ direction, text, contactType, contactId, contactPhone, contactName, cid, existing, now, messageId: body.messageId }); }
   catch (e) { console.warn('[homie/message] lead sync:', e.message); }
 
+  // The case remains followed when a person takes over the conversation.
+  // Only a previously tracked chat can refresh here; this does not enrol it
+  // for automatic replies. The primary message is already safely stored.
+  let followUp = null;
+  if (direction === 'in') {
+    try {
+      const tracked = await refreshTrackedFollowUp({ cid,
+        conv: { ...existing, ...header, leadId: existing?.leadId || leadInfo?.leadId || null },
+        text, messageId: body.messageId || messageId, now: now.getTime() });
+      if (tracked) {
+        followUp = { id: tracked.id, tracked: true };
+        if (existing?.followUpTrackingError) await fsPatch('conversations/' + cid, { followUpTrackingError: null });
+      }
+    } catch {
+      const error = 'Messaggio ricevuto; seguito non aggiornato. Verificare il caso in Oggi.';
+      followUp = { tracked: false, error };
+      await fsPatch('conversations/' + cid, { needsReply: true, followUpTrackingError: error }).catch(() => {});
+      console.warn('[homie/message] follow-up tracking failed');
+    }
+  }
+
   // ── LA SEGRETARIA (STUDIO_SEGRETARIA_2026-08.md) ────────────────────────
   // Su una conversazione CONSEGNATA (il 🤖 sulla card del lead): un inbound
   // riceve il suo turno; un 'out' MANUALE dell'operatore la spegne su quella
@@ -245,7 +291,7 @@ export default async function handler(req, res) {
   // scritto sopra.
   let segretaria = null;
   try {
-    if (existing && existing.segretaria) {
+    if (existing && existing.segretaria && !followUp?.error) {
       if (direction === 'out') {
         if (!SEG.isSegretariaEcho(existing, text, now.getTime())) {
           await segretariaOffConv(cid, 'l\'operatore ha risposto a mano');
@@ -260,7 +306,7 @@ export default async function handler(req, res) {
     }
   } catch (e) { console.warn('[homie/message] segretaria:', e.message); }
 
-  return res.status(200).json({ ok: true, conversationId: cid, messageId, created, ...(leadInfo || {}), ...(segretaria ? { segretaria } : {}) });
+  return res.status(200).json({ ok: true, conversationId: cid, messageId, created, ...(leadInfo || {}), ...(segretaria ? { segretaria } : {}), ...(followUp ? { followUp } : {}) });
 }
 
 /**

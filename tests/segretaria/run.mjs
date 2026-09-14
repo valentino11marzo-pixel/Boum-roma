@@ -13,6 +13,7 @@
 import { readFileSync } from 'node:fs';
 import { register } from 'node:module';
 import SEG from '../../js/segretaria-engine.js';
+import VOCE from '../../js/voce-engine.js';
 
 // nodemailer mockato via loader (stesso mock della suite notify): la rotaia
 // d'invio passa dall'executor vero → agent/_lib, che lo importa staticamente.
@@ -127,8 +128,19 @@ const NOW = Date.parse('2026-08-28T10:00:00Z');
 }
 
 // ── 6. IL GIRO VERO: Firestore in memoria, executor reale, AI finta ────────
-const DB = new Map();
+const versions = new Map();
+let revision = 0;
+class VersionedStore extends Map {
+  set(path, value) {
+    versions.set(path, new Date(NOW + ++revision).toISOString());
+    return super.set(path, value);
+  }
+  delete(path) { versions.delete(path); return super.delete(path); }
+}
+const DB = new VersionedStore();
 const TG = [];
+const AI_REQUESTS = [];
+let failingCollection = null, failCommit = false;
 let AI_REPLY = { reply: 'Ciao! Sì, è ancora disponibile 😊 Vuoi vederla in video o di persona?', escalate: false };
 const enc = v => {
   if (v === null || v === undefined) return { nullValue: null };
@@ -151,7 +163,41 @@ const dec = f => {
   if ('mapValue' in f) return Object.fromEntries(Object.entries(f.mapValue.fields || {}).map(([k, x]) => [k, dec(x)]));
   return null;
 };
-const toDoc = (path, data) => ({ name: `projects/p/databases/(default)/documents/${path}`, fields: Object.fromEntries(Object.entries(data).map(([k, v]) => [k, enc(v)])) });
+const toDoc = (path, data) => ({ name: `projects/p/databases/(default)/documents/${path}`,
+  fields: Object.fromEntries(Object.entries(data).map(([k, v]) => [k, enc(v)])), updateTime: versions.get(path) });
+const field = (row, path) => path.split('.').reduce((value, key) => value?.[key], row);
+const comparable = value => value instanceof Date ? value.toISOString() : value;
+const matches = (row, filter) => {
+  if (!filter) return true;
+  if (filter.compositeFilter) {
+    const results = filter.compositeFilter.filters.map(f => matches(row, f));
+    return filter.compositeFilter.op === 'AND' ? results.every(Boolean) : results.some(Boolean);
+  }
+  const f = filter.fieldFilter, actual = comparable(field(row, f.field.fieldPath)), expected = dec(f.value);
+  if (actual === undefined) return false;
+  if (f.op === 'EQUAL') return actual === comparable(expected);
+  if (f.op === 'IN') return expected.map(comparable).includes(actual);
+  if (f.op === 'GREATER_THAN') return actual > comparable(expected);
+  if (f.op === 'GREATER_THAN_OR_EQUAL') return actual >= comparable(expected);
+  if (f.op === 'LESS_THAN') return actual < comparable(expected);
+  if (f.op === 'LESS_THAN_OR_EQUAL') return actual <= comparable(expected);
+  throw new Error('Unsupported Firestore test filter: ' + f.op);
+};
+const conditionFails = (path, condition) => (condition.exists === false && DB.has(path))
+  || (condition.exists === true && !DB.has(path))
+  || (condition.updateTime && versions.get(path) !== condition.updateTime);
+const applyFields = (previous, fields, mask) => {
+  const next = mask ? structuredClone(previous || {}) : {};
+  const source = Object.fromEntries(Object.entries(fields || {}).map(([k, v]) => [k, dec(v)]));
+  for (const path of mask || Object.keys(source)) {
+    const parts = path.split('.'), leaf = parts.pop();
+    let target = next;
+    for (const key of parts) target = target[key] ||= {};
+    const value = field(source, path);
+    if (value === undefined) delete target[leaf]; else target[leaf] = value;
+  }
+  return next;
+};
 
 let autoId = 0;
 globalThis.fetch = async (url, opts = {}) => {
@@ -163,25 +209,50 @@ globalThis.fetch = async (url, opts = {}) => {
     return json({ ok: true, result: { message_id: 1000 + TG.length } });
   }
   if (u.includes('api.anthropic.com')) {
+    AI_REQUESTS.push(JSON.parse(opts.body));
     return json({ content: [{ type: 'text', text: JSON.stringify(AI_REPLY) }], usage: {}, model: 'stub' });
   }
   const body = opts.body ? JSON.parse(opts.body) : null;
   const m = u.match(/documents\/([^?:]+)/);
   const path = m ? decodeURIComponent(m[1]) : '';
+  if (u.endsWith(':commit')) {
+    if (failCommit) return json({ error: { status: 'UNAVAILABLE' } }, 503);
+    const writes = body.writes || [];
+    // An atomic commit validates ALL versions before changing any document.
+    for (const w of writes) {
+      const key = w.update?.name?.split('/documents/')[1];
+      if (!key || !w.currentDocument) throw new Error('Commit requires update + precondition');
+      if (conditionFails(key, w.currentDocument)) return json({ error: { status: 'FAILED_PRECONDITION' } }, 400);
+    }
+    const results = writes.map(w => {
+      const key = w.update.name.split('/documents/')[1];
+      DB.set(key, applyFields(DB.get(key), w.update.fields, w.updateMask?.fieldPaths));
+      return { updateTime: versions.get(key) };
+    });
+    return json({ writeResults: results, commitTime: new Date(NOW + revision).toISOString() });
+  }
   if (u.includes(':runQuery')) {
     const q = body.structuredQuery;
     const coll = q.from[0].collectionId;
-    const filter = q.where && q.where.fieldFilter;
+    if (coll === failingCollection) return json({ error: { status: 'UNAVAILABLE' } }, 503);
     const lim = q.limit || 1000;
     const rows = [...DB.entries()]
-      .filter(([k]) => k.startsWith(coll + '/'))
-      .filter(([, v]) => !filter || String(v[filter.field.fieldPath]) === String(dec(filter.value)))
-      .slice(0, lim);
-    return json(rows.map(([k, v]) => ({ document: toDoc(k, v) })));
+      .filter(([k, v]) => k.startsWith(coll + '/') && k.split('/').length === 2 && matches(v, q.where))
+      .filter(([, v]) => (q.orderBy || []).every(sort => field(v, sort.field.fieldPath) !== undefined));
+    for (const sort of [...(q.orderBy || [])].reverse()) rows.sort((a, b) => {
+      const left = comparable(field(a[1], sort.field.fieldPath)), right = comparable(field(b[1], sort.field.fieldPath));
+      return (left === right ? 0 : left < right ? -1 : 1) * (sort.direction === 'DESCENDING' ? -1 : 1);
+    });
+    return json(rows.slice(0, lim).map(([k, v]) => ({ document: toDoc(k, v) })));
   }
   if (opts.method === 'PATCH') {
-    const prev = DB.get(path) || {};
-    const next = { ...prev, ...Object.fromEntries(Object.entries(body.fields || {}).map(([k, v]) => [k, dec(v)])) };
+    const params = new URL(u).searchParams;
+    const condition = {};
+    if (params.has('currentDocument.exists')) condition.exists = params.get('currentDocument.exists') === 'true';
+    if (params.has('currentDocument.updateTime')) condition.updateTime = params.get('currentDocument.updateTime');
+    if (conditionFails(path, condition)) return json({ error: { status: 'FAILED_PRECONDITION' } }, 400);
+    const mask = params.getAll('updateMask.fieldPaths');
+    const next = applyFields(DB.get(path), body.fields, mask.length ? mask : null);
     DB.set(path, next);
     return json(toDoc(path, next));
   }
@@ -206,7 +277,8 @@ process.env.TELEGRAM_CHAT_ID = '42';
 process.env.ANTHROPIC_API_KEY = 'sk-test';
 
 const { default: handler } = await import('../../api/homie/message.js');
-const { handoverSegretaria } = await import('../../api/segretaria/_core.js');
+const { handoverSegretaria, segretariaTurn } = await import('../../api/segretaria/_core.js');
+const { personaDossier } = await import('../../api/segretaria/_persona.js');
 
 const call = async payload => {
   const req = {
@@ -429,6 +501,134 @@ let leadId, cid;
     /notify-pending\.js"/.test(vjson2));
   ok('7g. la card della consegna dice la VERITÀ sul canale (executed ≠ consegnato)',
     hook2.includes('in consegna su WhatsApp via Mac'));
+}
+
+// ── 8. Persona, voce e seguito: il core vero fino alla rete del modello ────
+let fixtureNumber = 0;
+function turnFixture(label, status = 'available') {
+  const n = ++fixtureNumber;
+  const lid = 'lotto1_' + label, cid = 'conv_lead_' + lid, pid = 'home_' + label;
+  const phone = '+39333555' + String(n).padStart(4, '0');
+  const lead = { id: lid, phone, status: 'new', name: 'Integration fixture',
+    language: 'en', message: 'Hello, I am looking for an apartment in Rome.', propertyId: pid };
+  const conv = { id: cid, contactType: 'lead', contactId: lid, leadId: lid,
+    contactPhone: phone, contactName: 'Integration fixture', segretaria: true, segretariaTurns: 0, needsReply: true };
+  const listing = { name: 'Fixture home', price: 1500 };
+  if (status !== null) listing.status = status;
+  DB.set('leads/' + lid, lead);
+  DB.set('conversations/' + cid, conv);
+  DB.set('listings/' + pid, listing);
+  AI_REPLY = { reply: 'Thanks! Which day works for a visit?', escalate: false };
+  return { cid, lead, conv, text: 'Can I arrange a viewing?', messageId: 'lotto1_event_' + label, now: NOW + n * 60000 };
+}
+
+{
+  const input = turnFixture('voice');
+  const before = AI_REQUESTS.length;
+  const result = await segretariaTurn(input);
+  const request = AI_REQUESTS[before];
+  ok('8a. il core usa davvero il costruttore voce condiviso nel prompt Anthropic',
+    result.sent === true && AI_REQUESTS.length === before + 1
+      && request?.system?.[0]?.text === VOCE.systemPrompt({ channel: 'whatsapp', language: 'en', role: 'lead', opening: false }));
+  ok('8a. persona e immobile reali entrano nei fatti del turno',
+    request?.messages?.[0]?.content.includes('FASCICOLO DELLA PERSONA')
+      && request.messages[0].content.includes('Fixture home'));
+  const conversation = DB.get('conversations/' + input.cid);
+  const followUps = [...DB.values()].filter(t => t.source === 'segretaria' && t.followUp?.conversationId === input.cid);
+  ok('8b. needsReply=false dopo la risposta NON chiude il seguito operativo',
+    conversation.needsReply === false && followUps.length === 1 && followUps[0].status === 'open' && followUps[0].followUp.open === true);
+  ok('8b. restano prossima azione, responsabile e ricontrollo dopo la risposta',
+    !!followUps[0]?.followUp.nextAction && followUps[0].followUp.waitingOn === 'valentino'
+      && Date.parse(followUps[0].followUp.checkAt) > input.now && followUps[0].followUp.confirmed === false);
+}
+
+for (const role of ['tenant', 'landlord', 'pfs']) {
+  const input = turnFixture('protected_' + role);
+  const coll = role === 'pfs' ? 'pfsClients' : role === 'landlord' ? 'landlords' : 'users';
+  // The lead/conversation still say "lead", and the protected row uses the
+  // national number. The real persona lookup must find the relationship.
+  DB.set(coll + '/protected_' + role, { phone: input.lead.phone.slice(3), role });
+  const before = AI_REQUESTS.length, beforeLogs = msgLogs();
+  const result = await segretariaTurn(input);
+  ok(`8c. il vecchio lead non nasconde ${role}: escalation PRIMA dell'AI`,
+    result.escalated === true && AI_REQUESTS.length === before && msgLogs() === beforeLogs
+      && DB.get('conversations/' + input.cid).segretaria === false, result);
+}
+
+{
+  const input = turnFixture('ambiguous');
+  input.lead.email = 'identity-a@example.test';
+  input.conv.contactEmail = 'identity-b@example.test';
+  DB.set('leads/' + input.lead.id, input.lead);
+  DB.set('conversations/' + input.cid, input.conv);
+  const before = AI_REQUESTS.length, beforeLogs = msgLogs();
+  const result = await segretariaTurn(input);
+  ok('8d. identità phone/email contraddittoria blocca l\'AI e passa a Valentino',
+    result.escalated === true && AI_REQUESTS.length === before && msgLogs() === beforeLogs, result);
+}
+
+{
+  const input = turnFixture('history');
+  for (let i = 0; i < 41; i++) DB.set('messages/history_' + i, {
+    conversationId: input.cid, direction: i % 2 ? 'in' : 'out',
+    at: new Date(NOW - (50 - i) * 60000), body: 'Previous discussion about the viewing.',
+  });
+  const dossier = await personaDossier({ phone: input.lead.phone, leadId: input.lead.id, conversationId: input.cid });
+  ok('8e. storia oltre il limite segnala solo historyIncomplete',
+    dossier.historyIncomplete === true && dossier.identityIncomplete === false && dossier.identityAmbiguous === false);
+  const before = AI_REQUESTS.length;
+  const result = await segretariaTurn(input);
+  ok('8e. sola storia parziale non spegne una chat consegnata con identità verificata',
+    result.sent === true && AI_REQUESTS.length === before + 1, result);
+}
+
+for (const [label, status, expected] of [
+  ['unavailable', 'unavailable', 'STATO: NON PIÙ DISPONIBILE'],
+  ['missing_status', null, 'STATO: DA VERIFICARE'],
+]) {
+  const input = turnFixture(label, status);
+  const before = AI_REQUESTS.length;
+  const result = await segretariaTurn(input);
+  const facts = AI_REQUESTS[before]?.messages?.[0]?.content || '';
+  ok(`8f. ${label}: il prompt non dichiara disponibile la casa`,
+    result.sent === true && facts.includes(expected) && !facts.includes("IMMOBILE D'INTERESSE — STATO: DISPONIBILE"), { sent: result.sent, expected });
+}
+
+{
+  const input = turnFixture('identity_unavailable');
+  failingCollection = 'landlords';
+  const before = AI_REQUESTS.length;
+  const result = await segretariaTurn(input);
+  failingCollection = null;
+  ok('8g. fonte identità non leggibile → escalation prima dell\'AI',
+    result.escalated === true && AI_REQUESTS.length === before, result);
+}
+
+{
+  const input = turnFixture('followup_unavailable');
+  failCommit = true;
+  const before = AI_REQUESTS.length;
+  const result = await segretariaTurn(input);
+  failCommit = false;
+  ok('8h. impossibile conservare il seguito → escalation, nessuna promessa automatica',
+    result.escalated === true && AI_REQUESTS.length === before, result);
+}
+
+{
+  const input = turnFixture('human_takeover');
+  await segretariaTurn(input);
+  await call({ direction: 'out', channel: 'whatsapp', phone: input.lead.phone,
+    body: 'Da qui rispondo io personalmente.', messageId: 'lotto1_human_reply' });
+  const before = AI_REQUESTS.length;
+  const result = await call({ direction: 'in', channel: 'whatsapp', phone: input.lead.phone,
+    body: 'Grazie, attendo conferma della visita.', messageId: 'lotto1_after_human' });
+  const tasks = [...DB.values()].filter(t => t.source === 'segretaria' && t.followUp?.conversationId === input.cid);
+  ok('8i. nuovo inbound dopo risposta umana aggiorna il caso anche con Segretaria spenta',
+    result.ok === true && DB.get('conversations/' + input.cid).segretaria === false
+      && tasks.length === 1 && tasks[0].status === 'open'
+      && tasks[0].followUp.lastMessageId === 'lotto1_after_human'
+      && tasks[0].followUp.needsReview === true, { tasks: tasks.length, lastMessageId: tasks[0]?.followUp.lastMessageId });
+  ok('8i. il seguito dopo presa in carico umana non riattiva l\'AI', AI_REQUESTS.length === before);
 }
 
 console.log(fails ? `\n${fails} FAIL` : '\nOK — la Segretaria parla solo dove l\'hai consegnata (e ora apre lei, su WhatsApp o email), tace dove serve una persona, un tuo messaggio la spegne sempre — e la consegna non è mai più un atto di fede.');

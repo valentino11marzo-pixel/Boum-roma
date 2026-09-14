@@ -4599,6 +4599,281 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         window.open('/pre-agreement-admin' + (ref ? '#q=' + encodeURIComponent(ref) : ''), '_blank');
     }
     window.oggiOpenPa = oggiOpenPa;
+
+    // ═══ SEGRETERIA · SEGUITI IN OGGI — solo API operatore, nessun invio ═══
+    const oggiSegretaria = { rows: [], dossiers: {}, loaded: false, loading: false, error: '', incomplete: false, userId: null, generation: 0, timer: null, modal: null };
+    const oggiSegretariaErrors = {
+        unauthorized: 'Accedi di nuovo per leggere i seguiti.', forbidden: 'Questa vista richiede un accesso amministratore.',
+        new_message_reload: 'È arrivato un nuovo messaggio. Ho ricaricato il seguito: ricontrolla i dati prima di confermare.',
+        practice_not_verified: 'La pratica non è più verificabile. Ho ricaricato le informazioni: controlla il collegamento.',
+        case_closed: 'Questo seguito è già stato chiuso.', case_not_found: 'Questo seguito non è più disponibile.',
+        conversation_missing: 'La conversazione di origine non è disponibile: il seguito resta da verificare.',
+        invalid_follow_up: 'Controlla azione, responsabile e data futura di ricontrollo.', outcome_required: 'Scrivi l’esito prima di chiudere il seguito.'
+    };
+    function oggiSegretariaError(error) {
+        return oggiSegretariaErrors[error && error.code] || 'Non riesco ad aggiornare i seguiti. Riprova: i dati già visibili potrebbero non essere aggiornati.';
+    }
+    async function oggiSegretariaRequest(id, body) {
+        if (!isAdmin() || !auth.currentUser) throw { code: 'unauthorized' };
+        const user = auth.currentUser, controller = new AbortController();
+        let timer;
+        const request = (async () => {
+            const token = await user.getIdToken();
+            if (controller.signal.aborted || auth.currentUser !== user) throw { code: 'unauthorized' };
+            const res = await fetch('/api/segretaria/follow-up' + (id ? '?id=' + encodeURIComponent(id) : ''), {
+                method: body ? 'POST' : 'GET', cache: 'no-store', signal: controller.signal,
+                headers: { Authorization: 'Bearer ' + token, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+                ...(body ? { body: JSON.stringify(body) } : {})
+            });
+            const data = await res.json();
+            if (auth.currentUser !== user || !isAdmin()) throw { code: 'unauthorized' };
+            if (!res.ok || !data || data.ok !== true) throw { code: data && data.error || (res.status === 401 ? 'unauthorized' : res.status === 403 ? 'forbidden' : 'unavailable'), status: res.status };
+            return data;
+        })();
+        try {
+            return await Promise.race([request, new Promise((_, reject) => {
+                timer = setTimeout(() => { controller.abort(); reject({ code: 'timeout' }); }, 15000);
+            })]);
+        } finally { clearTimeout(timer); }
+    }
+    function oggiSegretariaPanel() {
+        setTimeout(oggiSegretariaMount, 0);
+        return '<section id="sgFollowPanel" class="card" aria-label="Segreteria · seguiti"><div class="card-body"><p role="status">Carico i seguiti della Segreteria…</p></div></section>';
+    }
+    function oggiSegretariaDate(ms) {
+        return ms === null ? 'Da confermare' : new Date(ms).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    }
+    function oggiSegretariaRender() {
+        const panel = document.getElementById('sgFollowPanel'), E = window.BOOM_SEGRETARIA_CASI;
+        if (!panel) return;
+        if (!E) { panel.innerHTML = '<div class="card-body" role="alert">La vista dei seguiti non è disponibile. Ricarica la pagina.</div>'; return; }
+        const groups = E.partition(oggiSegretaria.rows, Date.now());
+        const waitingExpanded = panel.querySelector('details')?.open === true;
+        const row = task => {
+            const d = E.describe(task, oggiSegretaria.dossiers[task.id], S, Date.now());
+            return `<article class="list-item og-item" data-sg-id="${esc(task.id)}" style="align-items:flex-start">
+                <div class="list-content" style="min-width:0;overflow-wrap:anywhere">
+                    <div class="list-title" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><strong>${esc(d.name)}</strong><span class="li-flag ${d.due ? 'orange' : 'gold'}">${esc(d.state)}</span></div>
+                    <div class="list-subtitle" style="margin-top:4px">${esc(d.practice)} · ${esc(d.house)}</div>
+                    ${d.preview ? `<div style="font-size:13px;color:var(--text-secondary);margin-top:8px;white-space:pre-wrap">${esc(d.preview)}</div>` : ''}
+                    <div style="font-size:13px;margin-top:8px"><strong>Prossima azione:</strong> ${esc(d.nextAction)}</div>
+                    <div class="list-subtitle" style="margin-top:4px"><strong>Chi agisce:</strong> ${esc(d.waiting)} · <strong>Ricontrollo interno:</strong> ${esc(oggiSegretariaDate(d.checkAt))}</div>
+                </div>
+                <div class="og-actions"><button class="btn btn-sm" type="button" data-sg-action="edit" data-sg-id="${esc(task.id)}">${d.state === 'Confermato' ? 'Modifica seguito' : 'Controlla seguito'}</button>
+                    <button class="btn btn-sm btn-secondary" type="button" data-sg-action="source" data-sg-id="${esc(task.id)}" ${d.conversationId ? '' : 'disabled'}>Apri conversazione</button></div>
+            </article>`;
+        };
+        panel.innerHTML = `<div class="card-header" style="gap:12px;flex-wrap:wrap"><div><h2 class="card-title">Segreteria · richieste da seguire</h2><p class="list-subtitle" style="margin-top:5px">Prossima azione, chi agisce e quando ricontrollare. Le date sono interne, non promesse al cliente.</p></div><button class="btn btn-sm btn-secondary" type="button" data-sg-action="refresh" ${oggiSegretaria.loading ? 'disabled' : ''}>${oggiSegretaria.loading ? 'Aggiorno…' : 'Aggiorna'}</button></div>
+            ${oggiSegretaria.error ? `<div class="alert warning" role="alert" style="margin:12px 16px">${esc(oggiSegretaria.error)}</div>` : ''}
+            ${oggiSegretaria.incomplete ? '<div class="alert warning" role="status" style="margin:12px 16px">Elenco parziale: raggiunto il limite di 200 seguiti. Potrebbero esserci altre richieste aperte.</div>' : ''}
+            ${groups.invalid ? '<div class="alert warning" role="status" style="margin:12px 16px">Alcuni seguiti hanno dati incompleti e non sono rappresentabili in questa vista.</div>' : ''}
+            ${!oggiSegretaria.loaded ? '<div class="card-body" role="status">' + (oggiSegretaria.loading ? 'Carico i seguiti…' : 'Seguiti non ancora caricati.') + '</div>' : `
+                <div class="card-body" style="padding-bottom:8px"><h3 style="font-size:14px">Da decidere o ricontrollare · ${groups.decisions.length}</h3></div>
+                ${groups.decisions.length ? groups.decisions.map(row).join('') : '<div class="card-body" style="padding-top:0;color:var(--text-secondary)">Nessun seguito richiede una decisione in questo elenco.</div>'}
+                <details ${waitingExpanded || !groups.waiting.length ? 'open' : ''}><summary style="padding:16px;cursor:pointer;font-size:14px;font-weight:600">Attese confermate · ${groups.waiting.length}</summary>
+                    ${groups.waiting.length ? groups.waiting.map(row).join('') : '<div class="card-body" style="padding-top:0;color:var(--text-secondary)">Le attese confermate resteranno qui fino a un nuovo messaggio, al ricontrollo o a una chiusura con esito.</div>'}</details>`}`;
+        panel.onclick = event => {
+            const button = event.target.closest('[data-sg-action]');
+            if (!button || !panel.contains(button)) return;
+            if (button.dataset.sgAction === 'refresh') return oggiSegretariaLoad(true);
+            const task = oggiSegretaria.rows.find(t => t.id === button.dataset.sgId);
+            if (!task) return;
+            if (button.dataset.sgAction === 'edit') return oggiSegretariaOpen(task.id);
+            if (button.dataset.sgAction === 'source') return oggiSegretariaSource(task);
+        };
+    }
+    function oggiSegretariaMount() {
+        if (!document.getElementById('sgFollowPanel') || !isAdmin()) return;
+        const uid = auth.currentUser && auth.currentUser.uid;
+        if (oggiSegretaria.userId !== uid) {
+            oggiSegretaria.generation++;
+            Object.assign(oggiSegretaria, { userId: uid, rows: [], dossiers: {}, loaded: false, loading: false, error: '', incomplete: false });
+        }
+        oggiSegretariaRender();
+        if (!oggiSegretaria.loading) oggiSegretariaLoad();
+    }
+    async function oggiSegretariaLoad(force) {
+        if (!isAdmin() || !document.getElementById('sgFollowPanel') || (oggiSegretaria.loading && !force)) return;
+        clearTimeout(oggiSegretaria.timer);
+        const generation = ++oggiSegretaria.generation;
+        oggiSegretaria.loading = true;
+        oggiSegretariaRender();
+        try {
+            const data = await oggiSegretariaRequest();
+            if (generation !== oggiSegretaria.generation) return;
+            if (!Array.isArray(data.rows)) throw { code: 'invalid_response' };
+            Object.assign(oggiSegretaria, { rows: data.rows, incomplete: data.incomplete === true, loaded: true, error: '' });
+        } catch (e) {
+            if (generation === oggiSegretaria.generation) oggiSegretaria.error = oggiSegretariaError(e);
+        } finally {
+            if (generation === oggiSegretaria.generation) {
+                oggiSegretaria.loading = false;
+                oggiSegretariaRender();
+                oggiSegretaria.timer = setTimeout(() => { if (S.page === 'oggi') oggiSegretariaLoad(); }, 30000);
+            }
+        }
+    }
+    async function oggiSegretariaSource(task) {
+        const id = window.BOOM_SEGRETARIA_CASI.describe(task, null, S, Date.now()).conversationId;
+        if (!id || !isAdmin() || oggiSegretaria.sourceLoading) return;
+        const page = S.page, modal = oggiSegretaria.modal, user = auth.currentUser;
+        oggiSegretaria.sourceLoading = true;
+        let timer;
+        try {
+            // Il boot carica solo le conversazioni recenti: la fonte di un
+            // seguito più vecchio deve essere letta per id prima di aprirla.
+            // Il listener Inbox resta quello esistente; uno snapshot successivo
+            // può togliere dalla lista una conversazione fuori dal suo limite.
+            if (!(S.conversations || []).some(c => c.id === id)) {
+                const snap = await Promise.race([
+                    db.collection('conversations').doc(id).get(),
+                    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('source_timeout')), 12000); })
+                ]);
+                if (!snap.exists) throw new Error('source_missing');
+                if (auth.currentUser !== user || !isAdmin()) return;
+                S.conversations = [...(S.conversations || []).filter(c => c.id !== id), { ...snap.data(), id }];
+            }
+            if (S.page !== page || oggiSegretaria.modal !== modal) return;
+            oggiSegretariaClose();
+            goTo('inbox');
+            inboxSelect(id); // unread può cambiare; il seguito resta aperto.
+        } catch {
+            const message = 'Non riesco ad aprire la conversazione di origine. Il seguito resta qui: controlla l’accesso e riprova.';
+            oggiSegretaria.error = message;
+            oggiSegretariaRender();
+            if (modal && oggiSegretaria.modal === modal) {
+                modal.error = message;
+                const box = document.getElementById('sgFollowError');
+                if (box) { box.textContent = message; box.hidden = false; box.style.display = ''; }
+            }
+        } finally { clearTimeout(timer); oggiSegretaria.sourceLoading = false; }
+    }
+    function oggiSegretariaClose() {
+        const previous = oggiSegretaria.modal;
+        oggiSegretaria.modal = null;
+        document.getElementById('sgFollowModal')?.remove();
+        if (!document.querySelector('.modal-overlay.active')) document.body.classList.remove('modal-open');
+        if (previous && window.BOOM_SEGRETARIA_CASI.validId(previous.id)) {
+            document.querySelector(`[data-sg-id="${previous.id}"] [data-sg-action="edit"]`)?.focus();
+        }
+    }
+    async function oggiSegretariaOpen(id, notice) {
+        if (!window.BOOM_SEGRETARIA_CASI.validId(id)) return;
+        const modal = { id, task: null, dossier: null, notice: notice || '', error: '', busy: false, mode: 'edit' };
+        oggiSegretaria.modal = modal;
+        oggiSegretariaModalRender();
+        try {
+            const data = await oggiSegretariaRequest(id);
+            if (oggiSegretaria.modal !== modal) return;
+            if (!data.task || !data.task.followUp || !data.dossier) throw { code: 'invalid_response' };
+            modal.task = { ...data.task, id }; modal.dossier = data.dossier;
+            oggiSegretaria.dossiers[id] = data.dossier;
+            oggiSegretaria.rows = oggiSegretaria.rows.map(t => t.id === id ? modal.task : t);
+        } catch (e) { if (oggiSegretaria.modal === modal) modal.error = oggiSegretariaError(e); }
+        if (oggiSegretaria.modal === modal) { oggiSegretariaModalRender(); oggiSegretariaRender(); }
+    }
+    function oggiSegretariaModalRender() {
+        const m = oggiSegretaria.modal, E = window.BOOM_SEGRETARIA_CASI;
+        if (!m) return;
+        const f = m.task && m.task.followUp, dossier = m.dossier || {};
+        const options = (dossier.practices || []).filter(p => p && typeof p.ref === 'string');
+        const identityBlocked = dossier.identityIncomplete === true || dossier.identityAmbiguous === true;
+        const selected = !identityBlocked && options.some(p => p.ref === (f && f.practiceRef)) ? f.practiceRef : '';
+        const d = m.task ? E.describe(m.task, dossier, S, Date.now()) : null;
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'ora locale';
+        let form = '';
+        if (m.task && m.task.status !== 'open') form = '<p role="status">Questo seguito è già chiuso.</p>';
+        else if (f && m.mode === 'close') form = `<form id="sgFollowForm"><div class="form-group"><label class="form-label" for="sgOutcome">Esito · che cosa è stato risolto</label><textarea id="sgOutcome" class="form-textarea" required maxlength="500" rows="4"></textarea></div><p class="list-subtitle">La sola lettura o risposta non chiude il seguito. Registra qui il risultato.</p></form>`;
+        else if (f) form = `<form id="sgFollowForm">
+            ${identityBlocked ? '<div class="alert warning" role="status">Identità non verificata: le pratiche non possono essere confermate ora. Puoi salvare il seguito lasciandolo da collegare.</div>' : dossier.ambiguous ? '<div class="alert warning" role="status">Ci sono più relazioni possibili. Scegli la pratica corretta; nessuna viene selezionata automaticamente.</div>' : ''}
+            ${!identityBlocked && (dossier.historyIncomplete || dossier.incomplete) ? '<div class="alert warning" role="status">Alcune informazioni o parti della cronologia non sono disponibili. Le pratiche verificate restano selezionabili; controlla anche la conversazione di origine.</div>' : ''}
+            <div class="form-group"><label class="form-label" for="sgPractice">Pratica</label><select class="form-select" id="sgPractice" ${identityBlocked ? 'disabled' : ''}><option value="">Da collegare · nessuna pratica confermata</option>${options.map(p => `<option value="${esc(p.ref)}" ${selected === p.ref ? 'selected' : ''}>${esc(E.practiceLabel(p, dossier, S))}</option>`).join('')}</select></div>
+            <div id="sgSelectedHouse" class="list-subtitle" style="margin:-4px 0 16px">${esc(selected ? d.house : 'Casa da collegare')}</div>
+            <div class="form-group"><label class="form-label" for="sgAction">Prossima azione</label><textarea id="sgAction" class="form-textarea" required maxlength="240" rows="2">${esc(f.nextAction || '')}</textarea></div>
+            <div class="form-group"><label class="form-label" for="sgWaitingOn">Chi deve agire</label><select class="form-select" id="sgWaitingOn">${Object.entries(E.WAITING).map(([key, label]) => `<option value="${key}" ${f.waitingOn === key ? 'selected' : ''}>${label}</option>`).join('')}</select></div>
+            <div class="form-group"><label class="form-label" for="sgWaitingLabel">Nome o riferimento</label><input class="form-input" id="sgWaitingLabel" required maxlength="100" value="${esc(f.waitingLabel || '')}"></div>
+            <div class="form-group"><label class="form-label" for="sgCheckAt">Ricontrollo interno · ${esc(timezone)}</label><input class="form-input" type="datetime-local" id="sgCheckAt" required value="${esc(E.localDateTime(f.checkAt))}"></div>
+            <p class="list-subtitle">${esc(f.checkBasis || 'Data da confermare.')} Questo salvataggio non invia messaggi e non crea appuntamenti.</p>
+        </form>`;
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" id="sgFollowModal"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="sgFollowTitle" style="max-width:640px">
+            <div class="modal-header"><h3 class="modal-title" id="sgFollowTitle">${m.mode === 'close' ? 'Chiudi seguito' : 'Conferma il seguito'}${d ? ' · ' + esc(d.name) : ''}</h3><button class="modal-close" type="button" data-sg-modal="cancel" aria-label="Chiudi">×</button></div>
+            <div class="modal-body" style="overflow-wrap:anywhere">
+                ${m.notice ? `<div class="alert warning" role="status">${esc(m.notice)}</div>` : ''}
+                <div id="sgFollowError" role="alert" class="alert warning" style="${m.error ? '' : 'display:none'}" ${m.error ? '' : 'hidden'}>${esc(m.error)}</div>
+                ${d ? `<div style="margin-bottom:16px"><p style="white-space:pre-wrap;font-size:13px">${esc(d.preview || 'Anteprima non disponibile.')}</p><button class="btn btn-sm btn-secondary" type="button" data-sg-modal="source" ${d.conversationId ? '' : 'disabled'}>Apri conversazione di origine</button></div>` : ''}
+                ${form || (m.error ? '<button class="btn btn-secondary" type="button" data-sg-modal="reload">Riprova</button>' : '<p role="status">Carico la richiesta e le pratiche collegate…</p>')}
+            </div><div class="modal-footer" style="flex-wrap:wrap"><button class="btn btn-secondary" type="button" data-sg-modal="cancel">Annulla</button>
+                ${f && m.task.status === 'open' ? (m.mode === 'close' ? '<button class="btn btn-secondary" type="button" data-sg-modal="back">Torna al seguito</button><button class="btn" type="submit" form="sgFollowForm" data-sg-submit>Registra esito e chiudi</button>' : `<button class="btn btn-secondary" type="button" data-sg-modal="close">Chiudi con un esito</button><button class="btn" type="submit" form="sgFollowForm" data-sg-submit>${selected ? 'Conferma seguito' : 'Salva · da collegare'}</button>`) : ''}
+            </div></div></div>`;
+        document.body.classList.add('modal-open');
+        const wrap = document.getElementById('sgFollowModal');
+        wrap.onclick = event => {
+            const button = event.target.closest('[data-sg-modal]');
+            if (event.target === wrap && !m.busy) return oggiSegretariaClose();
+            if (!button || m.busy) return;
+            const action = button.dataset.sgModal;
+            if (action === 'cancel') return oggiSegretariaClose();
+            if (action === 'reload') return oggiSegretariaOpen(m.id, m.notice);
+            if (action === 'source') return oggiSegretariaSource(m.task);
+            if (action === 'close' || action === 'back') { m.mode = action === 'close' ? 'close' : 'edit'; m.error = ''; oggiSegretariaModalRender(); }
+        };
+        wrap.onkeydown = event => {
+            if (event.key === 'Escape' && !m.busy) { event.stopPropagation(); oggiSegretariaClose(); }
+            if (event.key !== 'Tab') return;
+            const controls = [...wrap.querySelectorAll('button, input, select, textarea')].filter(el => !el.disabled && el.offsetParent !== null);
+            const first = controls[0], last = controls[controls.length - 1];
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+        };
+        wrap.querySelector('#sgFollowForm')?.addEventListener('submit', event => { event.preventDefault(); oggiSegretariaSave(); });
+        wrap.querySelector('#sgPractice')?.addEventListener('change', event => {
+            const p = options.find(p => p.ref === event.target.value);
+            wrap.querySelector('#sgSelectedHouse').textContent = p && p.propertyRefs && p.propertyRefs.length ? p.propertyRefs.map(ref => E.propertyLabel(ref, dossier, S)).join(' · ') : 'Casa da collegare';
+            wrap.querySelector('[data-sg-submit]').textContent = event.target.value ? 'Conferma seguito' : 'Salva · da collegare';
+        });
+        wrap.querySelector('#sgWaitingOn')?.addEventListener('change', event => { wrap.querySelector('#sgWaitingLabel').value = E.WAITING[event.target.value] || ''; });
+        setTimeout(() => { if (oggiSegretaria.modal === m) (wrap.querySelector('#sgPractice:not(:disabled), #sgOutcome, #sgAction') || wrap.querySelector('[data-sg-modal="cancel"]'))?.focus(); }, 0);
+    }
+    async function oggiSegretariaSave() {
+        const m = oggiSegretaria.modal, E = window.BOOM_SEGRETARIA_CASI, wrap = document.getElementById('sgFollowModal');
+        if (!m || !m.task || m.busy || !wrap) return;
+        const errorBox = wrap.querySelector('#sgFollowError');
+        const fail = message => { errorBox.textContent = message; errorBox.hidden = false; errorBox.style.display = ''; };
+        let payload;
+        if (m.mode === 'close') {
+            const outcome = wrap.querySelector('#sgOutcome').value.trim();
+            if (!outcome) return fail('Scrivi l’esito prima di chiudere il seguito.');
+            payload = { op: 'close', id: m.id, lastMessageId: m.task.followUp.lastMessageId, outcome };
+        } else {
+            const values = {};
+            for (const [key, id] of Object.entries({ practiceRef: 'sgPractice', nextAction: 'sgAction', waitingOn: 'sgWaitingOn', waitingLabel: 'sgWaitingLabel', checkAt: 'sgCheckAt' })) values[key] = wrap.querySelector('#' + id).value;
+            const result = E.confirmation(m.task, values, m.dossier, Date.now());
+            if (result.error) return fail(result.error);
+            payload = result.payload;
+        }
+        m.busy = true; errorBox.hidden = true; errorBox.style.display = 'none';
+        wrap.querySelectorAll('button').forEach(button => { button.disabled = true; });
+        try {
+            const data = await oggiSegretariaRequest(null, payload);
+            if (data.id !== m.id || (payload.op === 'close' ? data.closed !== true : !data.followUp)) throw { code: 'invalid_response' };
+            if (data.closed) oggiSegretaria.rows = oggiSegretaria.rows.filter(t => t.id !== m.id);
+            else if (data.followUp) oggiSegretaria.rows = oggiSegretaria.rows.map(t => t.id === m.id ? { ...t, followUp: data.followUp } : t);
+            oggiSegretariaClose(); oggiSegretariaRender(); oggiSegretariaLoad(true);
+            toast('success', data.closed ? 'Seguito chiuso con esito.' : 'Seguito salvato.');
+        } catch (e) {
+            if (oggiSegretaria.modal !== m) return;
+            if (e.code === 'new_message_reload' || e.code === 'practice_not_verified') {
+                oggiSegretariaOpen(m.id, oggiSegretariaError(e));
+                oggiSegretariaLoad(true);
+                return;
+            }
+            fail(oggiSegretariaError(e));
+            m.busy = false;
+            wrap.querySelectorAll('button').forEach(button => { button.disabled = false; });
+        }
+    }
+    // ═══ FINE SEGRETERIA · SEGUITI IN OGGI ═══
+
     function oggiPage() {
         const E = window.BOOM_OGGI;
         if (!E || typeof E.build !== 'function') return adminDashboard();   // motore assente: mai una pagina vuota
@@ -4637,12 +4912,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>`;
 
         return `<div class="page-header">
-                <div><h1 class="page-title">⚡ Oggi</h1><p class="page-subtitle">${live.length === 0 ? 'Zero decisioni in coda — la macchina lavora.' : `${live.length} decision${live.length === 1 ? 'e' : 'i'} in coda, ordinate per costo del ritardo`}</p></div>
+                <div><h1 class="page-title">⚡ Oggi</h1><p class="page-subtitle">Decisioni e seguiti di BOOM</p></div>
                 <div class="page-actions">
                     <button class="btn btn-secondary" onclick="goTo('dashboard')">📊 Studio</button>
                     <button class="btn btn-secondary" onclick="forceRefreshData()" title="Ricarica i dati">↻</button>
                 </div>
             </div>
+
+            ${oggiSegretariaPanel()}
 
             <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
                 <div class="stat-card green" onclick="goTo('payments')">
@@ -4664,7 +4941,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
 
             <div class="card"><div class="card-body flush">
-                ${shown.length ? shown.map(card).join('') : `<div class="empty-state"><div class="empty-icon">🌅</div><div class="empty-title">Niente da decidere</div><div class="empty-subtitle">Le code sono vuote: risposte approvate, visite confermate, incassi in pari.</div></div>`}
+                ${shown.length ? shown.map(card).join('') : `<div class="empty-state"><div class="empty-icon">🌅</div><div class="empty-title">Nessun’altra decisione in questa coda</div></div>`}
             </div></div>
             ${live.length > shown.length ? `<div style="text-align:center;margin-top:10px;font-size:12px;color:var(--text-muted)">e altre ${live.length - shown.length} più in basso nella scala — le trovi nelle loro sezioni</div>` : ''}`;
     }
