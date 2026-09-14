@@ -3627,19 +3627,22 @@ F24 IMU automatically ticks the pacchetto-commercialista checklist. Docs
 with no confident property match get `needsFiling:true` (folder
 99_DaSmistare), surfaced by the Contabile's morning report.
 
-Two intakes:
+Intakes:
 - **Telegram** (`api/telegram/webhook.js`): send ANY photo/PDF to the bot
   (caption = optional hint, e.g. "F24 IMU via Cavour"); replies with what
   it understood and where it filed it. Authorized chat only.
+- **WhatsApp** (`api/homie/message.js`): server pronto per PDF/immagini di
+  tenant/landlord risolti; il ponte Mac non produce ancora `mediaUrls`,
+  quindi l'ingresso degli allegati non è operativo.
 - **Email** (`api/documents/scan-inbox.js`, cron daily 03:50): forward an
-  email with attachments to the BOOM mailbox — processed ONLY from trusted
-  senders (operator's own addresses + `DOC_MAIL_FROM`). Processed emails
+  email with attachments to the BOOM mailbox — trusted senders (operator's
+  addresses + `DOC_MAIL_FROM`) and verified landlord/tenant relations. Emails
   remembered in `docImports`; per-run AI budget; Telegram recap.
 
 **Le porte (10/09/2026, Lotto 2 della Segretaria unica — `STUDIO_SEGRETARIA_UNICA_2026-09.md` §5).**
 Un documento può arrivare da chi NON è l'operatore: l'allegato WhatsApp
-(oggi salvato in `attachments` e mai letto) e l'email di un proprietario
-(oggi esclusa, perché fidata solo per indirizzo). Codex, incaricato delle
+(prima salvato in `attachments` e mai letto) e l'email di un proprietario
+(prima esclusa, perché fidata solo per indirizzo). Codex, incaricato delle
 porte, si è fermato in PR #234 con due obiezioni giuste: la pipeline creava
 un id casuale (un retry di Homie = due documenti) e non aveva un vincolo sul
 match (uno sconosciuto poteva finire sotto un immobile). `smistaDocument`
@@ -3652,9 +3655,18 @@ dichiarato `relationDefault`; più immobili senza scelta valida →
 `needsFiling` coi `relatedPropertyIds`); con `unknown` il documento **non
 finisce MAI sotto un immobile**, `needsFiling` forzato e la scelta del
 modello resta visibile come `suggestedPropertyId`. Senza `relation` è lo
-Smistatore di sempre. Le porte vere (WhatsApp, email per relazione) sono il
-lavoro di Codex sopra questa interfaccia. Test: `node tests/documents/smista.mjs`
+Smistatore di sempre. Le porte WhatsApp ed email per relazione usano
+questa interfaccia. Test: `node tests/documents/smista.mjs`
 (gara 409, scarto della scelta fuori relazione e dedupe verificati per mutazione).
+
+La porta WhatsApp chiama lo Smistatore solo per tenant/landlord verificati;
+lead/PFS/client/sconosciuti conservano l'allegato nel messaggio, senza modello
+né Storage né documento. Il server è pronto, ma il ponte Mac → `mediaUrls`
+resta da realizzare: questa PR non rende operativo l'ingresso dei media.
+Le relazioni condivise sono in `api/documents/_relation.js`; l'email conserva
+la fiducia dell'operatore. Retry duplicati rimborsano il budget email e nomi
+URL malformati usano il nome grezzo. `npm test -- whatsapp porte smista`
+verifica i handler e, per mutazione, esclusioni, retry e conservazione del dato.
 
 ## La Banca (open banking — api/banking/* + banca.html)
 

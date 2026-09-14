@@ -35,7 +35,11 @@
 //
 // Response: { ok, conversationId, messageId, created, dedupHit? }
 
+import crypto from 'node:crypto';
 import { fsCreate, fsGet, fsPatch, fsList, logActivity, requireSecret, readJson } from './_lib.js';
+import { smistaDocument, MAX_DOC_BYTES } from '../documents/_smista.js';
+import { loadDocumentRelations, documentRelation } from '../documents/_relation.js';
+import { runBudget, aiSignal } from '../_budget.js';
 import {
   isNoise, matchListing, mergeMessage, buildLead, recentLeadByPhone, loadCatalog,
   normalizePhone, phoneVariants,
@@ -96,6 +100,7 @@ export default async function handler(req, res) {
   if (!body || typeof body !== 'object') return res.status(400).json({ ok: false, error: 'no_body' });
 
   const direction = body.direction;
+  const documentBudget = runBudget(60_000, 6_000);
   const text = String(body.body || '').trim();
   const channel = body.channel || 'whatsapp';
   if (!['in', 'out', 'note'].includes(direction)) return res.status(400).json({ ok: false, error: 'invalid_direction' });
@@ -109,12 +114,14 @@ export default async function handler(req, res) {
   let contactEmail = body.email || '';
   let contactUid  = body.contactUid || null;
   let assignedLandlordId = body.assignedLandlordId || null;
+  let documentContact = null;
 
   if (!contactType || !contactId) {
     let resolved = null;
     if (contactPhone || body.phone) resolved = await resolveByPhone(body.phone || contactPhone);
     if (resolved) {
       const e = resolved.entity;
+      documentContact = e;
       contactType = resolved.contactType;
       contactId   = e.id;
       contactName = contactName || e.name || ((e.firstName ? (e.firstName + ' ' + (e.lastName || '')).trim() : '') ) || e.email || contactPhone;
@@ -164,6 +171,16 @@ export default async function handler(req, res) {
             }
             console.warn('[homie/message] follow-up retry failed');
           }
+        }
+        // Il testo è già salvo; un retry può recuperare un allegato fallito
+        // o rinviato per budget, usando gli URL persistiti, non nuovi input.
+        if (stored.direction === 'in' && stored.channel === 'whatsapp' && stored.attachments?.length) {
+          try {
+            const originalContact = await fsGet('conversations/' + stored.conversationId);
+            await fileWhatsAppAttachments({ urls: stored.attachments, text: stored.body,
+              contactType: originalContact?.contactType || 'whatsapp',
+              contactId: originalContact?.contactId, entity: null, budget: documentBudget });
+          } catch { console.warn('[homie/message] attachments retry: failed'); }
         }
         return res.status(200).json({ ok: true, conversationId: storedCid, messageId: stored.id,
           created: false, dedupHit: true, ...(followUp ? { followUp } : {}) });
@@ -306,7 +323,59 @@ export default async function handler(req, res) {
     }
   } catch (e) { console.warn('[homie/message] segretaria:', e.message); }
 
+  // Gli allegati sono secondari: messaggio, lead e turno sono già persistiti.
+  if (direction === 'in' && channel === 'whatsapp' && msg.attachments?.length) {
+    try {
+      await fileWhatsAppAttachments({ urls: msg.attachments, text, contactType, contactId,
+        entity: documentContact, budget: documentBudget });
+    } catch { console.warn('[homie/message] attachments: failed'); }
+  }
+
   return res.status(200).json({ ok: true, conversationId: cid, messageId, created, ...(leadInfo || {}), ...(segretaria ? { segretaria } : {}), ...(followUp ? { followUp } : {}) });
+}
+
+async function fileWhatsAppAttachments({ urls, text, contactType, contactId, entity, budget }) {
+  if (!budget.afford(45_000)) return; // download 5s + modello 20s + primo upload 20s
+  // Q3: gli allegati degli altri contatti restano nel messaggio. Nemmeno
+  // un indirizzo email dell'operatore trasforma WhatsApp in una porta libera.
+  if (!['tenant', 'landlord'].includes(contactType)) return;
+  const person = entity || await fsGet(`users/${contactId}`);
+  if (!person || person.role !== contactType) return;
+  const relation = documentRelation(await loadDocumentRelations(), {
+    email: person.email, contactType, contactId,
+  });
+  if (!relation) return;
+  for (const url of urls) {
+    if (!budget.afford(45_000)) break;
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== 'https:' || parsed.username || parsed.password) continue;
+      const docId = 'wa_' + crypto.createHash('sha1').update(url).digest('hex');
+      if (await fsGet('documents/' + docId)) continue;
+      const response = await fetch(url, { signal: aiSignal(5_000), redirect: 'error' });
+      if (!response.ok) throw new Error('attachment_download');
+      const mediaType = (response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+      if (!/^(application\/pdf|image\/(jpeg|png|webp|gif))$/.test(mediaType)
+        || Number(response.headers.get('content-length')) > MAX_DOC_BYTES) {
+        await response.body?.cancel();
+        continue;
+      }
+      // Il Content-Length può mancare o mentire: limite anche sullo stream.
+      const chunks = [];
+      let size = 0;
+      for await (const chunk of response.body) {
+        size += chunk.length;
+        if (size > MAX_DOC_BYTES) throw new Error('attachment_too_large');
+        chunks.push(Buffer.from(chunk));
+      }
+      if (!size || !budget.afford(40_000)) continue;
+      let fileName = parsed.pathname.split('/').pop() || 'allegato';
+      try { fileName = decodeURIComponent(fileName); } catch { /* nome grezzo: non perdere il documento */ }
+      await smistaDocument({ base64: Buffer.concat(chunks).toString('base64'), mediaType,
+        fileName,
+        hint: text, origin: 'whatsapp', docId, relation });
+    } catch { console.warn('[homie/message] attachment: failed'); }
+  }
 }
 
 /**
