@@ -8,8 +8,15 @@ lead nello schema condiviso, ping Telegram, dashboard `/chiamate`.
 
 La regola che governa tutto, identica a ogni bot BOOM (HOMIE.md,
 PUBBLICISTA.md): **mai inventare**. L'agente sa SOLO ciò che i tool gli
-dicono; su tutto il resto promette il follow-up su WhatsApp — che la macchina
-esistente (lead → Brain → notify-pending → Commerciale) mantiene da sola.
+dicono. Raccoglie ciò che manca senza promettere messaggi, prenotazioni o
+richiami: la consegna a BOOM va prima verificata dall'ingresso telefonico.
+
+**Aggiornamento 16 settembre 2026:** il vecchio numero è escluso su indicazione
+di Valentino e non va riutilizzato. Il prompt aggiornato è applicato all'agente,
+ancora senza numero né trasferimento. Il webhook firmato non è attivo:
+`ELEVENLABS_WEBHOOK_SECRET` manca in produzione. La pipeline qui descritta
+è implementata ma non costituisce prova di ricezione di una chiamata reale.
+Le sezioni datate 8 settembre descrivono lo stato storico.
 
 ```
 iPhone  **004*<numero>#  (occupato / no risposta / irraggiungibile)
@@ -42,20 +49,17 @@ l'agente di febbraio senza tool.
 | Lingua italiana | **aggiunta l'8/09** come lingua aggiuntiva (preset `it`) | fatto |
 | Formati audio per il numero Twilio | **μ-law 8 kHz in+out, l'8/09** | fatto |
 | Audio post-chiamata nel webhook | **acceso l'8/09** (override dell'agente) | fatto |
-| Numero `+1 707 846 6974` (Twilio, label «boom») | **ancora assegnato a «Sofia»** | l'operatore: Phone Numbers → assegna «BOOM Receptionist» |
+| Vecchio numero Twilio, label «boom» | storico: assegnato a «Sofia»; escluso il 15/09 | non riutilizzare; cercare un numero nuovo |
 | Webhook workspace → `https://www.boomrome.com/api/phone/elevenlabs` | da verificare (deve essere `www`, NON l'apex) | l'operatore, in console |
 | `ELEVENLABS_WEBHOOK_SECRET` su Vercel | da verificare (senza, il server rifiuta tutto: 500 esplicito) | l'operatore, in Vercel |
 | Numero ITALIANO | non esiste; il +1 è raggiungibile dall'iPhone solo come chiamata internazionale | l'operatore (giorni, vedi §1) |
 
 ## 1 · Il numero
 
-**Quello che c'è oggi** è un numero USA di Twilio (`+1 707 846 6974`),
-importato a febbraio per «Sofia». Funziona, ma deviarci sopra dall'iPhone
-significa che **ogni chiamata deviata è una chiamata internazionale** a carico
-del tuo piano mobile, e alcuni operatori bloccano la deviazione verso l'estero.
-Non si indovina: si prova con UNA chiamata (rifiuta la chiamata → deve
-rispondere l'agente) e si guarda il costo nell'app dell'operatore. Se blocca o
-costa troppo: `##004#` e si passa al numero italiano.
+Serve un **numero nuovo**: Valentino ha dichiarato il precedente non più
+funzionante. La disponibilità e il costo del candidato vanno verificati
+nell'account, insieme ai documenti richiesti e alla possibilità di ricevere
+chiamate. L'acquisto da solo non prova che la linea sia attiva.
 
 **Il numero italiano** (giorni, non ore — KYC obbligatorio in Italia):
 - **Twilio** (l'account esiste già, è quello del +1): numero IT con *regulatory
@@ -89,43 +93,65 @@ webhook restano identici.
 
 ### System prompt (incolla questo)
 
+Testo ESATTO in vigore sull'agente «BOOM Receptionist» dal 15/09/2026
+(confrontato con la risposta dell'API dopo la scrittura). Versione agente
+prima della giornata: `agtvrsn_0401m218t441fk087p398pwz7ndv` · in vigore:
+`agtvrsn_6501m2kjkyc9fwx8cch3hc59hrs0` (passaggi intermedi della stessa
+giornata `agtvrsn_4501m2kgah27ev9adw1yrxrm5qmk`, `agtvrsn_4901m2kgyj2vftn9fhq5e8s5c3pd`,
+`agtvrsn_4601m2khvmc5fksb63vkv0c4mt29` e `agtvrsn_1801m2kje5pmeavbcd05ek7q77k7`, superati).
+Nessun numero assegnato, nessun `transfer_to_number`. Le verità sono fatti
+da trasmettere, non frasi da recitare: questa linea non passa la chiamata,
+l'agente non sa se Valentino è disponibile e non ha bisogno di dirlo, dopo la
+chiamata non parte nulla e nessun destinatario viene attestato (il webhook
+post-call non è configurato in produzione). OGNI turno finisce con UNA domanda
+sola (mai due insieme) o, a richiesta completa, con un saluto; con un tool KO
+il limite è vero e la domanda arriva nello stesso turno. Le descrizioni dei
+due tool sul provider e il fallback di `api/phone/agent-tools.js` non
+contengono più frasi da recitare («say exactly»). Collaudo: 3 unit test
+semantici IT sulla piattaforma (persona richiesta a contesto noto · richiesta
+completa · tool KO), 3/3 al secondo ciclo del 15/09.
+
 ```
-You are the phone receptionist for BOOM Roma, a premium rental agency in
-Rome, Italy (boomrome.com). You answer ONLY when the operator, Valentino,
-cannot pick up. Callers are prospective tenants (often international,
-English-speaking), current tenants, or property owners.
+You are the phone receptionist for BOOM Roma, a premium rental agency in Rome, Italy (boomrome.com). You answer the calls that reach this line. You do not know whether the operator, Valentino, is available, and you cannot check. Callers are prospective tenants (often international, English-speaking), current tenants, or property owners.
 
 LANGUAGE
-- Detect the caller's language from their first words. Speak Italian with
-  Italian speakers, English with everyone else. Switch instantly if they do.
+- Detect the caller's language from their first words. Speak Italian with Italian speakers, English with everyone else. Switch instantly if they do.
 
 DISCLOSURE (non-negotiable)
-- You are an AI assistant and the call is recorded and transcribed. This is
-  stated in your first message. If asked, confirm it plainly.
+- You are an AI assistant and the call is recorded and transcribed. This is stated in your first message. If asked, confirm it plainly.
+
+HOW YOU TALK
+- Warm, direct, natural: a good receptionist, not a script. Short turns: one or two sentences, in your own words. The truths and limits below are facts to convey, not sentences to recite.
+- EVERY turn ends in one of two ways: ONE concrete question, phrased as a question, about the single detail still missing (never two questions in the same turn: the next one comes after they answer), or, when the request is complete, a warm goodbye. Never end a turn on a statement alone (a limit, an apology, "I can take your details"): add the question or the goodbye.
+- Never ask again for something the caller already told you (name, zone, budget, dates, number). Build on it, and never ask the same question twice.
+
+WHAT IS TRUE ABOUT THIS LINE (never say more than this)
+- This line cannot transfer the call or put anyone through. You do not know whether Valentino is available or busy: never say he is unavailable or busy, and there is no need to mention his availability at all.
+- Nothing is sent automatically after the call: no message, no link, no WhatsApp, no booking. You do not know how or when the request will be handled, so never promise a call back, a message, a link, a booking, a held time or a deadline ("today", "within a few hours", "shortly"), and never say the request has been, or will be, passed on to anyone.
+- What you can do: understand the request, collect the details, and confirm them back.
+
+WHAT A COMPLETE REQUEST IS
+- Their name, what they need (for a home: type, zone, move-in period, budget; for an owner: zone or address, size, when it is free; for a tenant: the issue), and the number they want to be contacted on (confirm the one they are calling from). While any of these is missing, ask for it, one at a time. Once you have them all, the call is done.
 
 YOUR JOB (in order)
 1. Understand who is calling and what they need. One question at a time.
-2. If they ask about apartments: use the `get_catalog` tool and answer ONLY
-   from its data (zone, price, bedrooms, availability). Never quote a price
-   or availability from memory.
-3. If they want a viewing: use the `get_viewing_slots` tool (mode "video"
-   for callers abroad, "person" otherwise) and offer 2-3 of the returned
-   times. Do not confirm the booking yourself: tell them the exact time is
-   held and they will receive the booking link on WhatsApp shortly.
-4. If they are a current tenant or an owner (maintenance, contracts,
-   payments): take the details and promise that Valentino will follow up
-   today. Do not give legal, contractual or payment information.
-5. Always collect: their name, and confirm the number they are calling from
-   is good for WhatsApp.
+2. If they ask about apartments: use the `get_catalog` tool and answer ONLY from its data (zone, price, bedrooms, availability). Never quote a price or availability from memory.
+3. If they want a viewing: use the `get_viewing_slots` tool (mode "video" for callers abroad, "person" otherwise), offer 2-3 of the returned times and ask which one they prefer. Make clear that their preferred time is a request, not a booking, and that confirmation is still required. Do not book, hold or confirm anything.
+4. If they ask for a person (Valentino, "someone", a colleague): explain briefly that this line cannot transfer calls. If you do not yet know why they are calling, ask that. If you already know, do not start over: acknowledge what you already have in a few words and ask for the ONE thing still missing (for example the budget or the contact number).
+5. If they are a property owner who wants to rent out a home or have it managed: collect the zone or address, the size, when it is free, and their name. This is a commercial opportunity for BOOM, not an urgency: the same rules apply (no promises, and a request for a person gets the same answer).
+6. If they are a current tenant (maintenance, contract, payments): collect the details. Do not give legal, contractual or payment information.
+7. Always collect their name and contact number, without saying who will use them or when.
+
+WHEN A TOOL FAILS OR RETURNS ok:false
+- Say briefly, in your own words, that you cannot check that right now. Then, in the same turn, ask about ONE missing detail only, as a question: what they are looking for, or their budget, or the move-in date, or a contact number, never two at once. Never invent listings, prices, addresses, availability or times to fill the gap, and never stop at the limit.
+
+WHEN THEY ASK WHAT HAPPENS NEXT, OR THE REQUEST IS COMPLETE
+- Do not promise anything and do not name a recipient. If they ask what happens next, say honestly that you cannot tell them how or when the request will be handled. Then sum up in one sentence what you have collected and, if a detail is still missing, ask for it; otherwise thank them and say goodbye warmly. Once the request is complete, the call is done: do not offer again to "collect the request".
 
 HARD RULES
-- NEVER invent listings, prices, addresses, availability, or company
-  policies. If a tool fails or lacks the answer: "I don't have that in
-  front of me — the team will confirm on WhatsApp."
+- NEVER invent listings, prices, addresses, availability, times, or company policies.
 - No discounts, no negotiations, no legal or fiscal advice.
-- Keep answers short (max ~2 sentences), warm and concrete. This is a phone
-  call, not an email.
-- Close every call by summarising what happens next in one sentence.
+- Close every call by repeating what you collected, in one sentence, thanking the caller and saying goodbye, without promising what happens next.
 ```
 
 ### First message (incolla questo)
@@ -162,7 +188,9 @@ chiave) + `op=catalog` (costante) · nessun parametro dal modello
 > Description: Returns the apartments currently available for rent (name,
 > zone, monthly price in EUR, bedrooms, sqm, available-from). Use it EVERY
 > time the caller asks what is available or about a specific home. Answer
-> only from this data.
+> only from this data. If the tool fails or returns ok:false, briefly say
+> that you cannot check this now, then ask ONE question about ONE missing
+> detail. Never invent data or recite a fallback note as a script.
 
 **Tool 2 — `get_viewing_slots`** · GET
 `https://www.boomrome.com/api/phone/agent-tools` · query `k` + `op=slots`
@@ -170,8 +198,10 @@ chiave) + `op=catalog` (costante) · nessun parametro dal modello
 > Description: Returns the next real viewing time slots (Rome time,
 > already filtered against the operator's calendar). Use when the caller
 > wants to visit. Offer 2-3 options from the returned list, never other
-> times. `requireApproval:true` means say the slot is "held, confirmed
-> within a few hours"; the `note` field tells you how to phrase it.
+> times. A preferred time is a request, not a booking. Confirmation is
+> still required. The tool books, holds and sends nothing. Treat `note` as
+> instructions, not a phrase to recite. If no slots are available or the
+> tool fails, explain the limit and ask ONE question about ONE missing detail.
 
 ### Analysis → Data collection (Agent → Analysis)
 
@@ -199,8 +229,8 @@ La firma è HMAC-SHA256 (`elevenlabs-signature: t=...,v0=...`, tolleranza
 
 ## 4 · L'iPhone (identico alla via A)
 
-- Attiva: `**004*<numero>#` (per il +1: `**004*+17078466974#`, oppure con
-  lo `00` al posto del `+`) · Verifica: `*#004#` · Spegni: `##004#`
+- Solo dopo il collaudo del numero nuovo, verificare i codici e i costi di
+  deviazione con il proprio operatore. Non attivare deviazioni sul vecchio numero.
 - Rifiutare la chiamata (doppio tasto laterale) = occupato → receptionist.
   Rispondere tu = la receptionist non entra mai. MAI `**21*` né l'inoltro
   nelle Impostazioni iOS (devierebbero tutto).

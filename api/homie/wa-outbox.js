@@ -16,10 +16,13 @@
 // Only actions executed in the last 48h qualify — an old backlog must never
 // fire a burst of stale messages at real people.
 
-import { fsList, fsPatch, readJson, secretEqual, logActivity } from './_lib.js';
+import { fsGet, fsList, fsPatch, readJson, secretEqual, logActivity } from './_lib.js';
+import { isPreparedAction, claimSegretariaDelivery, markSegretariaDeliveryBlocked, acknowledgeSegretariaDelivery } from '../segretaria/_delivery-guard.js';
+import { runBudget } from '../_budget.js';
 
 const MAX_AGE_MS = 48 * 3600 * 1000;
 const MAX_PER_PULL = 10;
+const PREPARED_CHECK_MS = 35_000; // Fresh dossier, context and atomic claim must fit before the response reserve.
 
 function checkSecret(req, res) {
   const supplied = req.headers['x-homie-secret'] || req.headers['x-wizard-secret'];
@@ -38,6 +41,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
   if (!checkSecret(req, res)) return;
+  const budget = runBudget(60_000, 7_000);
 
   let body;
   try { body = await readJson(req); } catch { return res.status(400).json({ ok: false, error: 'invalid_json' }); }
@@ -47,6 +51,11 @@ export default async function handler(req, res) {
     if (op === 'ack') {
       const id = String(body.actionId || '').trim();
       if (!id) return res.status(400).json({ ok: false, error: 'actionId required' });
+      const action = await fsGet('action_queue/' + id);
+      if (id.startsWith('sgreply_') || isPreparedAction(action)) {
+        const result = await acknowledgeSegretariaDelivery({ id, ok: body.ok, error: body.error });
+        return res.status(result.code).json({ ok: result.code === 200, ...result });
+      }
       const patch = body.ok
         ? { waSentAt: new Date(), waSentBy: 'homie-wacli', waSendError: null }
         : { waSendError: String(body.error || 'send failed').slice(0, 200), waSendAttemptAt: new Date() };
@@ -63,17 +72,32 @@ export default async function handler(req, res) {
     });
     const now = Date.now();
     const ts = v => (v ? new Date(v).getTime() || 0 : 0);
-    const messages = (executed || [])
+    const candidates = (executed || [])
       .filter(a => wantsWa(a) && !a.waSentAt && !a.waSendError)
       .filter(a => now - ts(a.executedAt) < MAX_AGE_MS)
-      .slice(0, MAX_PER_PULL)
-      .map(a => ({
+      .filter(a => !isPreparedAction(a) || !a.segretaria?.delivery);
+    const messages = [];
+    let preparedChecked = false;
+    for (const a of candidates) {
+      if (messages.length >= MAX_PER_PULL) break;
+      const message = {
         actionId: a.id,
         leadId: a.leadId || null,
         phone: String((a.payload && a.payload.phone) || '').trim(),
         text: String((a.payload && (a.payload.body || a.payload.draft)) || '').slice(0, 2000),
-      }))
-      .filter(m => m.phone && m.text);
+      };
+      if (!message.phone || !message.text) continue;
+      if (isPreparedAction(a)) {
+        if (preparedChecked || !budget.afford(PREPARED_CHECK_MS)) continue;
+        preparedChecked = true; // A denied verification also consumes this pull's allowance.
+        const claim = await claimSegretariaDelivery({ id: a.id, action: a, now });
+        if (!claim.allowed) {
+          await markSegretariaDeliveryBlocked({ id: a.id, reason: claim.error, now });
+          continue;
+        }
+      }
+      messages.push(message);
+    }
     return res.status(200).json({ ok: true, messages });
   } catch (err) {
     console.error('[homie/wa-outbox]', err);
