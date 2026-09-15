@@ -29,6 +29,7 @@ import crypto from 'node:crypto';
 import { secretEqual, fsGet, fsPatch, logActivity } from '../homie/_lib.js';
 import { normalizePhone, matchListing, loadCatalog } from '../homie/_lead.js';
 import { tgSend } from '../telegram/_lib.js';
+import { syncCallCase } from '../segretaria/_callcase.js';
 import {
   resolveCaller, callerLabel,
   storeCallAudio, analyzeTranscript, syncLeadFromCall, tgCallCard,
@@ -108,7 +109,10 @@ export default async function handler(req, res) {
   // ── il dato: trascrizione + esito ────────────────────────────────────────
   let doc = null;
   try { doc = await fsGet(docPath); } catch { /* si procede */ }
-  if (doc && doc.processedAt) return res.status(200).json({ ok: true, conversationId, duplicate: true });
+  if (doc && doc.processedAt) {
+    const followUp = await syncCallCase('el_' + conversationId);
+    return res.status(200).json({ ok: true, conversationId, duplicate: true, followUp });
+  }
 
   const now = new Date();
   const meta = data.metadata || {};
@@ -188,6 +192,8 @@ export default async function handler(req, res) {
     return res.status(500).json({ ok: false, error: 'doc_write_failed' });
   }
 
+  const followUp = await syncCallCase('el_' + conversationId);
+
   try {
     const chatId = process.env.TELEGRAM_CHAT_ID;
     if (chatId && process.env.TELEGRAM_BOT_TOKEN) {
@@ -204,5 +210,5 @@ export default async function handler(req, res) {
     summary: String(analysis.summary || '').slice(0, 120),
   }, 'centralino');
 
-  return res.status(200).json({ ok: true, conversationId, status: 'received', leadId, leadCreated });
+  return res.status(200).json({ ok: true, conversationId, status: 'received', leadId, leadCreated, followUp });
 }

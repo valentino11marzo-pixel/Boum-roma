@@ -192,6 +192,49 @@ try {
   let result = await call(messageHandler, inbound('untracked'));
   ok('inbound WhatsApp non consegnato resta messaggio senza nuovo caso', result.code === 200 && messages().length === 1 && tasks().length === 0);
 
+  for (const [name, config, at] of [
+    ['opt-in assente', { enabled: true }, NOW],
+    ['opt-in spento', { enabled: true, prepareCases: false, prepareSince: new Date(NOW - 1).toISOString() }, NOW],
+    ['kill switch spento', { enabled: false, prepareCases: true, prepareSince: new Date(NOW - 1).toISOString() }, NOW],
+    ['inizio mancante', { enabled: true, prepareCases: true }, NOW],
+    ['inizio impossibile', { enabled: true, prepareCases: true, prepareSince: '2026-02-30T10:00:00Z' }, NOW],
+    ['inizio senza timezone', { enabled: true, prepareCases: true, prepareSince: '2026-09-14T10:00:00' }, NOW],
+    ['evento storico', { enabled: true, prepareCases: true, prepareSince: new Date(NOW).toISOString() }, NOW - 1],
+  ]) {
+    reset(); save('settings/segretaria', config);
+    const out = await refreshTrackedFollowUp({ cid: CID, conv, text: 'Nuovo', messageId: 'opt-in-fixture', now: at });
+    ok(name + ': nessuna cattura implicita di nuovi casi', out === null && tasks().length === 0 && writes.length === 0);
+  }
+  reset();
+  const receivedBefore = new Date().getTime();
+  save('settings/segretaria', { enabled: true, prepareCases: true, prepareSince: new Date(receivedBefore - 1000).toISOString() });
+  result = await call(messageHandler, inbound('backlog-live', { timestamp: new Date(NOW - 86400000).toISOString(),
+    receivedAt: '1990-01-01T00:00:00.000Z' }));
+  const freshReceived = new Date(DB.get('messages/' + result.messageId)?.receivedAt).getTime();
+  ok('backlog ricevuto ora viene preso in carico dalla data server, conservando la data storica del contenuto', result.followUp?.tracked
+    && tasks().length === 1 && tasks()[0][1].followUp.lastInboundAt === new Date(NOW - 86400000).toISOString()
+    && freshReceived >= receivedBefore && freshReceived <= new Date().getTime(), result);
+  ok('body.receivedAt contraffatto non viene salvato e non spegne la presa in carico',
+    DB.get('messages/' + result.messageId)?.receivedAt !== '1990-01-01T00:00:00.000Z'
+    && DB.get('conversations/' + CID).segretaria === false && network.length === 0);
+  await call(messageHandler, inbound('backlog-live'));
+  ok('retry primo evento opt-in non duplica caso o messaggio', tasks().length === 1 && messages().length === 1);
+
+  for (const legacy of [false, true]) {
+    reset();
+    result = await call(messageHandler, inbound('stored-before-rollout', { timestamp: new Date(NOW - 1000).toISOString() }));
+    const oldId = result.messageId, stored = { ...DB.get('messages/' + oldId) };
+    if (legacy) delete stored.receivedAt;
+    else stored.receivedAt = new Date(NOW - 1000).toISOString();
+    save('messages/' + oldId, stored);
+    save('settings/segretaria', { enabled: true, prepareCases: true, prepareSince: new Date(NOW).toISOString() });
+    result = await call(messageHandler, inbound('stored-before-rollout', { timestamp: new Date(NOW + 1000).toISOString(),
+      receivedAt: '2099-01-01T00:00:00.000Z', body: 'RETRY MODIFICATO' }));
+    ok((legacy ? 'legacy senza receivedAt' : 'receivedAt persistito prima del rollout') + ': retry ignora data contraffatta e non iscrive archivio storico',
+      result.dedupHit && result.messageId === oldId && tasks().length === 0 && messages().length === 1
+      && DB.get('messages/' + oldId).receivedAt === stored.receivedAt, result);
+  }
+
   reset(); let path = await followed();
   result = await call(messageHandler, inbound('after-takeover'));
   ok('WhatsApp dopo presa in carico umana aggiorna il caso esistente', result.code === 200 && result.followUp?.tracked

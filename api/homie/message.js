@@ -160,7 +160,8 @@ export default async function handler(req, res) {
             const conv = await fsGet('conversations/' + storedCid);
             if (!conv) throw new Error('stored_conversation_missing');
             const tracked = await refreshTrackedFollowUp({ cid: storedCid, conv,
-              text: stored.body, messageId: stored.waMessageId || stored.id, now: new Date(stored.at).getTime() });
+              text: stored.body, messageId: stored.waMessageId || stored.id, now: new Date(stored.at).getTime(),
+              receivedAt: stored.receivedAt ? new Date(stored.receivedAt).getTime() : new Date(stored.at).getTime() });
             if (tracked) followUp = { id: tracked.id, tracked: true };
             if (conv.followUpTrackingError) await fsPatch('conversations/' + storedCid, { followUpTrackingError: null });
           } catch {
@@ -250,6 +251,7 @@ export default async function handler(req, res) {
     contactUid: contactUid || null,
     assignedLandlordId: assignedLandlordId || null,
     at: now,
+    receivedAt: new Date(),
   };
   if (body.messageId) msg.waMessageId = String(body.messageId);
   if (Array.isArray(body.mediaUrls) && body.mediaUrls.length) msg.attachments = body.mediaUrls.slice(0, 10).map(String);
@@ -279,14 +281,14 @@ export default async function handler(req, res) {
   catch (e) { console.warn('[homie/message] lead sync:', e.message); }
 
   // The case remains followed when a person takes over the conversation.
-  // Only a previously tracked chat can refresh here; this does not enrol it
-  // for automatic replies. The primary message is already safely stored.
+  // Explicit preparation rollout may enrol a new case; this never enables
+  // automatic replies. The primary message is already safely stored.
   let followUp = null;
   if (direction === 'in') {
     try {
       const tracked = await refreshTrackedFollowUp({ cid,
         conv: { ...existing, ...header, leadId: existing?.leadId || leadInfo?.leadId || null },
-        text, messageId: body.messageId || messageId, now: now.getTime() });
+        text, messageId: body.messageId || messageId, now: now.getTime(), receivedAt: msg.receivedAt.getTime() });
       if (tracked) {
         followUp = { id: tracked.id, tracked: true };
         if (existing?.followUpTrackingError) await fsPatch('conversations/' + cid, { followUpTrackingError: null });

@@ -151,16 +151,17 @@
         'Prende in mano una chat SOLO quando la consegni tu (🤖 sulla card del lead): il click è la firma',
         'Risponde con i fatti veri: stato dell\'immobile, alternative, slot visita dalla griglia vera, servizi dal catalogo',
         'Apre lei la conversazione (WhatsApp col numero, email senza) rispondendo alla richiesta originale',
-        'Ogni 10 minuti raccoglie le risposte email dei clienti che segue e continua il filo'
+        'Ogni 10 minuti raccoglie le risposte email dei clienti che segue e continua il filo',
+        'Preparazione interna opt-in: ricostruisce i casi e propone risposta e seguito in Oggi; la conferma può autorizzare quella risposta'
       ],
       autonomy: {
         solo:  ['Conversa sulla chat consegnata: disponibilità, visite, link, un servizio al massimo', 'Propone gli slot VERI e il link di prenotazione'],
         porta: ['La consegna: senza il tuo 🤖 non scrive a nessuno', 'Trattative, sconti, questioni legali: ti passa la mano con la card 🖐'],
-        mai:   ['Mai trattare il prezzo o promettere fuori catalogo', 'Mai con inquilini, proprietari o clienti PFS', 'Mai un link fuori da boomrome.com', 'Mai firmarsi con un nome di persona']
+        mai:   ['Mai trattare il prezzo o promettere fuori catalogo', 'Mai risposte autonome con inquilini, proprietari o clienti PFS', 'Mai un link fuori da boomrome.com', 'Mai firmarsi con un nome di persona']
       },
       reach: ['clienti', 'operatore', 'archivio', 'ai'],
       approval: 'parziale',
-      crons: ['/api/segretaria/scan-replies'],
+      crons: ['/api/segretaria/scan-replies', '/api/segretaria/worker'],
       health: { col: 'teamHealth', doc: 'segretaria' },
       console: null, run: null
     },

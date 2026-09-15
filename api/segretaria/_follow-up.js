@@ -9,18 +9,32 @@ const idPart = value => typeof value === 'string' && /^[\w.-]{1,180}$/.test(valu
 const clean = (value, max) => typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, max) : '';
 const inputText = (value, max) => typeof value === 'string' && value.length <= max ? clean(value, max) : '';
 export const followUpId = (cid, event) => 'sg_' + crypto.createHash('sha256').update(JSON.stringify([cid, event])).digest('hex').slice(0, 32);
+// Bind a preparation to the operator's existing decision, not only its message.
+export const followUpDecisionHash = f => crypto.createHash('sha256').update(JSON.stringify({
+  nextAction: f?.nextAction || null, waitingOn: f?.waitingOn || null, waitingLabel: f?.waitingLabel || null,
+  checkAt: f?.checkAt || null, practiceRef: f?.practiceRef || null, propertyRef: f?.propertyRef || null,
+  confirmed: f?.confirmed === true, needsReview: f?.needsReview === true,
+  confirmedAt: f?.confirmedAt || null, confirmedBy: f?.confirmedBy || null,
+})).digest('hex');
 const precondition = snapshot => snapshot ? { updateTime: snapshot.updateTime } : { exists: false };
 
-// Tracking survives manual takeover; this never enrols an untouched chat.
+// Tracking survives manual takeover. New enrolment is an explicit preparation
+// rollout, independent of automatic replies; old imports stay out of the rollout.
 export async function refreshTrackedFollowUp(input) {
   if (!idPart(input?.cid)) return null;
   const cursor = await fsGet('heartbeat/segretaria-case-' + followUpId(input.cid, 'cursor').slice(3));
-  return cursor ? captureFollowUp(input) : null;
+  if (cursor) return captureFollowUp(input);
+  const config = await fsGet('settings/segretaria');
+  const since = checkTimestamp(config?.prepareSince);
+  const receivedAt = input.receivedAt ?? input.now;
+  if (config?.enabled === false || config?.prepareCases !== true || !Number.isFinite(since)
+    || !Number.isFinite(receivedAt) || receivedAt < since) return null;
+  return captureFollowUp(input);
 }
 
 // Require an explicit timezone and a real calendar date (Date.parse alone
 // accepts and normalizes February 30, making an operator's date untrue).
-function checkTimestamp(value) {
+export function checkTimestamp(value) {
   if (typeof value !== 'string') return NaN;
   const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d{1,3})?(Z|[+-]\d{2}:\d{2})$/.exec(value);
   if (!m || +m[2] < 1 || +m[2] > 12 || +m[3] < 1

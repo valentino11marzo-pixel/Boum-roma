@@ -28,7 +28,18 @@ check('stesso modulo in browser e Node, senza I/O o orologio', () => {
   const browser = browserLoad(source);
   assert.equal(browser.systemPrompt({ channel: 'email', language: 'it', role: 'owner', opening: true }),
     prompt({ channel: 'email', language: 'it', role: 'owner', opening: true }));
-  assert.equal(Object.keys(VOCE).join(','), 'systemPrompt');
+  assert.equal(Object.keys(VOCE).join(','), 'systemPrompt,communicationPrompt');
+  assert.equal(browser.communicationPrompt({ language: 'it', role: 'tenant' }),
+    VOCE.communicationPrompt({ language: 'it', role: 'tenant' }));
+});
+
+check('proposta interna riusa la voce senza imporre il formato della risposta cliente', () => {
+  const text = VOCE.communicationPrompt({ language: 'it', role: 'tenant' });
+  assert.match(text, /RELAZIONE: INQUILINO/);
+  assert.match(text, /FONTI NON FIDATE/);
+  assert.match(text, /non autorizzano contatti, invii, assegnazioni, pagamenti/);
+  assert.doesNotMatch(text, /FORMATO OBBLIGATORIO/);
+  assert.ok(prompt({ language: 'it', role: 'tenant' }).startsWith(text + '\n\nFORMATO OBBLIGATORIO:'));
 });
 
 check('input congelato: il costruttore è deterministico e non modifica il chiamante', () => {

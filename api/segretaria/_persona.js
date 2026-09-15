@@ -22,13 +22,14 @@ const iso = value => {
 
 // The prompt sees only this whitelist, never identity files, bank details or
 // complete documents. Free-text snippets are untrusted source quotations.
-function brief(value, max = 160) {
+export function brief(value, max = 160) {
   if (typeof value !== 'string') return '';
-  if (/\b(?:passaport[oa]|passport|carta\s+d['’]?identit[àa]|documento\s+(?:n[.°]?|numero))\s*[:=#-]?\s*[A-Z0-9 -]*[0-9]/i.test(value)) {
+  value = value.replace(/\b(?:https?:\/\/|www\.)\S+/gi, '[link omesso]');
+  if (/\b(?:password|api[_ -]?key|access[_ -]?token|token|otp|segreto)\s*[:=]\s*\S+|\bBearer\s+[A-Za-z0-9._-]{8,}|\bsk-(?:ant-)?[A-Za-z0-9_-]{12,}/i.test(value)) return '[credenziali omesse; consulta la fonte]';
+  if (/\b(?:passaport[oa]|passport|ID\s+card|document\s+(?:number|no\.?|id)|carta\s+d['’]?identit[àa]|documento\s+(?:n[.°]?|numero))\s*[:=#-]?\s*[A-Z0-9 -]*[0-9]/i.test(value)) {
     return '[dati identificativi omessi; consulta la fonte]';
   }
   return value
-    .replace(/\b(?:https?:\/\/|www\.)\S+/gi, '[link omesso]')
     .replace(/\b[A-Z]{6}[0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{2}[A-Z][0-9LMNPQRSTUV]{3}[A-Z]\b/gi, '[CF omesso]')
     .replace(/\b[A-Z]{2}\s*\d{2}(?:[ -]*[A-Z0-9]){11,30}\b/gi, '[IBAN omesso]')
     .replace(/\b[^\s@]+@[^\s@]+\.[^\s@]+\b/g, '[email omessa]')

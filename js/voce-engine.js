@@ -64,5 +64,11 @@
     ].join('\n\n');
   }
 
-  return Object.freeze({ systemPrompt: systemPrompt });
+  // Same communication rules, independent of the reply-only transport format.
+  function communicationPrompt(input) {
+    const text = systemPrompt(input);
+    return text.slice(0, text.lastIndexOf('\n\nFORMATO OBBLIGATORIO:'));
+  }
+
+  return Object.freeze({ systemPrompt: systemPrompt, communicationPrompt: communicationPrompt });
 });

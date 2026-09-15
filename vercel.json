@@ -651,6 +651,9 @@
     "api/homie/message.js": {
       "maxDuration": 60
     },
+    "api/homie/wa-outbox.js": {
+      "maxDuration": 60
+    },
       "api/radar/digest.js": {
         "maxDuration": 60
       },
@@ -785,11 +788,21 @@
     "api/segretaria/follow-up.js": {
       "maxDuration": 60
     },
+    "api/segretaria/prepare.js": {
+      "maxDuration": 60
+    },
+    "api/segretaria/worker.js": {
+      "maxDuration": 60
+    },
     "api/telegram/notify-pending.js": {
       "maxDuration": 60
     }
   },
   "crons": [
+    {
+      "path": "/api/segretaria/worker",
+      "schedule": "*/2 * * * *"
+    },
     {
       "path": "/api/reminder-cron",
       "schedule": "*/15 * * * *"
