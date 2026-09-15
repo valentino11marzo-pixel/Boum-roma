@@ -78,18 +78,20 @@ export default async function handler(req, res) {
         ok: true, timezone: TZ, mode,
         requireApproval: !!cfg.requireApproval,
         slots: flat,
-        // Nessuna delle due frasi promette ciò che nessuno esegue: né uno slot
-        // «tenuto», né un link, un messaggio o un richiamo in arrivo.
+        // Istruzioni al modello, non frasi da recitare (la lezione del 15/09: una
+        // frase «esatta» ferma la conversazione). Nessuna promette ciò che nessuno
+        // esegue: né uno slot «tenuto», né un link, un messaggio o un richiamo.
         note: flat.length
-          ? 'Tell the caller: "Your preferred time is a request, not a booking. Confirmation is still required." Note the time they prefer. Do not promise a link, a message or a call back.'
-          : 'No open slots in the next days. Tell the caller: "I can take the details. Confirmation is still required." Do not promise a link, a message or a call back.',
+          ? 'Offer 2-3 of these times and ask which one the caller prefers. A preferred time is a request, not a booking: confirmation is still required, and nothing is booked, held or sent by this call. Do not promise a link, a message or a call back.'
+          : 'No open slots in the next days. Tell the caller, then ask for what is still missing (preferred days, name or contact number). Nothing is booked, held or sent by this call: do not promise a link, a message or a call back.',
       });
     }
 
     return res.status(400).json({ ok: false, error: 'unknown_op', ops: ['catalog', 'slots'] });
   } catch (e) {
     console.error('[phone/agent-tools]', op, e.message);
-    // la voce non deve mai restare muta su un nostro errore: risposta parlabile
-    return res.status(200).json({ ok: false, error: 'temporarily_unavailable', say: 'I cannot check that right now; I can take the details.' });
+    // la voce non deve mai restare muta su un nostro errore: un'istruzione al
+    // modello (limite vero + UNA domanda), non una frase da recitare
+    return res.status(200).json({ ok: false, error: 'temporarily_unavailable', note: 'Live data is not reachable right now. Tell the caller briefly that you cannot check this at the moment, then ask ONE question only, about a single missing detail (what they are looking for, or their budget, or the move-in date, or a contact number; never two questions at once). Never invent listings, prices, availability or times.' });
   }
 }
