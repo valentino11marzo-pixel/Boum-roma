@@ -10,10 +10,14 @@
 // Telegram (la disciplina "una copia sola": la voce al telefono non può
 // promettere uno slot che la pagina web negherebbe un minuto dopo).
 //
-// La receptionist NON prenota qui: propone lo slot e promette il link su
-// WhatsApp — la prenotazione vera resta sulle rail esistenti (book.html /
-// operatore), dove email e conferme funzionano già. Un booking a voce senza
-// email produrrebbe una visita senza kit: mezza feature è peggio di nessuna.
+// La receptionist NON prenota qui e NON promette messaggi che nessuno manda.
+// A fine chiamata il webhook (api/phone/elevenlabs.js) scrive phoneCalls,
+// crea il lead e manda a Valentino la card Telegram con la bozza: è LUI a
+// ricontattare. Le note dette al telefono dichiarano solo questo — la
+// lezione del 15/09/2026: «held», «the team confirms within a few hours» e
+// «booking link on WhatsApp shortly» erano promesse senza un esecutore
+// dietro. La prenotazione vera resta sulle rail esistenti (book.html /
+// operatore): un booking a voce senza email produrrebbe una visita senza kit.
 //
 // Auth: ?k=<phoneKey derivata> o X-Homie-Secret (come le altre porte phone).
 // Risposte PICCOLE e parlabili: finiscono nel contesto vocale dell'agente.
@@ -49,7 +53,7 @@ export default async function handler(req, res) {
           sqm: l.sqm != null ? Number(l.sqm) : null,
           furnished: l.furnished != null ? !!l.furnished : null,
           availableFrom: l.availableFrom || l.availableDate || null,
-          url: `https://boomrome.com/listing/${l.id}`,
+          url: `https://www.boomrome.com/listing/${l.id}`,   // sempre www (AGENTS.md): l'apex reindirizza
         }));
       return res.status(200).json({ ok: true, count: listings.length, listings });
     }
@@ -72,11 +76,11 @@ export default async function handler(req, res) {
         ok: true, timezone: TZ, mode,
         requireApproval: !!cfg.requireApproval,
         slots: flat,
+        // Nessuna delle due frasi promette ciò che nessuno esegue: né uno slot
+        // «tenuto», né un link o un messaggio in arrivo. Chi ricontatta è Valentino.
         note: flat.length
-          ? (cfg.requireApproval
-            ? 'These times are held on request: the team confirms within a few hours.'
-            : 'These times are instantly bookable.')
-          : 'No open slots in the next days — offer a WhatsApp follow-up instead.',
+          ? 'Nothing is booked during this call: note the time the caller prefers and say that Valentino will contact them to confirm it. Do not promise a link or a message.'
+          : 'No open slots in the next days: take the caller\'s request and say that Valentino will contact them. Do not promise a link or a message.',
       });
     }
 
@@ -84,6 +88,6 @@ export default async function handler(req, res) {
   } catch (e) {
     console.error('[phone/agent-tools]', op, e.message);
     // la voce non deve mai restare muta su un nostro errore: risposta parlabile
-    return res.status(200).json({ ok: false, error: 'temporarily_unavailable', say: 'I cannot check that right now — I will have the team confirm on WhatsApp.' });
+    return res.status(200).json({ ok: false, error: 'temporarily_unavailable', say: 'I cannot check that right now. I will pass your request to Valentino and he will get back to you.' });
   }
 }
