@@ -88,6 +88,7 @@ const SUITES = [
   { name: 'seguito', file: 'tests/segretaria/follow-up.mjs', what: 'impegni persistenti: conferma con provenienza, concorrenza, replay e chiusura con esito' },
   { name: 'seguitoui', file: 'tests/segretaria/casi-ui.mjs', what: 'Oggi nel browser: pratica, azione, responsabile, ricontrollo e conflitti visibili' },
   { name: 'seguitotracking', file: 'tests/segretaria/tracking.mjs', what: 'un caso resta seguito anche dopo il passaggio all’operatore, senza riaccendere le risposte automatiche' },
+  { name: 'segretariabacklog', file: 'tests/segretaria/backlog-intake.mjs', what: 'arretrato autenticato in Inbox e nei casi senza riaprire lead o avviare effetti; retry e scritture recenti preservati' },
   { name: 'segretariacontesto', file: 'tests/segretaria/context.mjs', what: 'fonti ordinate e pertinenti, copertura esplicita, parole del chiamante e attribuzione degli esempi' },
   { name: 'segretariaprepara', file: 'tests/segretaria/preparation.mjs', what: 'proposte sul caso con fonti vere, tetti e ricontrollo; niente invio durante lettura' },
   { name: 'segretariaconferma', file: 'tests/segretaria/dispatch.mjs', what: 'conferma unica e destinatario verificato, contesto aggiornato, claim contro doppia esecuzione' },

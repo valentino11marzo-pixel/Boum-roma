@@ -154,7 +154,8 @@ self.addEventListener('fetch', (event) => {
             || url.pathname === '/js/mandato-engine.js'
             || url.pathname === '/js/portal-desktop.js'
             || url.pathname === '/css/portal-desktop.css'
-            || url.pathname === '/css/portal-finish.css') ? url.pathname : null);
+            || url.pathname === '/css/portal-finish.css'
+            || url.pathname === '/css/segretaria.css') ? url.pathname : null);
     if (portalAsset) {
         // alwaysCache: la shell del portale si salva ANCHE se no-store —
         // è l'eccezione dichiarata, la sua copia è il fallback offline.

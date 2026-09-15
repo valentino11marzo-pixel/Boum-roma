@@ -10,7 +10,11 @@
 //
 // Esegui: node tests/segretaria/run.mjs
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, cpSync, mkdtempSync, rmSync, symlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { spawnSync } from 'node:child_process';
 import { register } from 'node:module';
 import SEG from '../../js/segretaria-engine.js';
 import VOCE from '../../js/voce-engine.js';
@@ -18,6 +22,18 @@ import VOCE from '../../js/voce-engine.js';
 // nodemailer mockato via loader (stesso mock della suite notify): la rotaia
 // d'invio passa dall'executor vero → agent/_lib, che lo importa staticamente.
 register('../notify/loader.mjs', import.meta.url);
+// The actual email scanner and MIME parser run; only IMAP transport is fake.
+const imapURL = 'data:text/javascript,' + encodeURIComponent(`export class ImapFlow {
+  async connect() {}
+  async getMailboxLock() { return { release() {} }; }
+  async search({ from }) { return globalThis.__imap.filter(m => m.from === from).map(m => m.uid); }
+  async fetchOne(uid) { const m = globalThis.__imap.find(m => m.uid === Number(uid)); return m ? { source: Buffer.from(m.raw) } : null; }
+  async logout() {}
+}`);
+register('data:text/javascript,' + encodeURIComponent(`export async function resolve(s,c,next) {
+  if (s === 'imapflow') return { url: ${JSON.stringify(imapURL)}, shortCircuit: true };
+  return next(s,c);
+}`), import.meta.url);
 
 let fails = 0;
 const ok = (name, cond, detail) => {
@@ -140,7 +156,7 @@ class VersionedStore extends Map {
 const DB = new VersionedStore();
 const TG = [];
 const AI_REQUESTS = [];
-let failingCollection = null, failCommit = false;
+let failingCollection = null, failCommit = false, failingPath = null, AI_HOOK = null;
 let AI_REPLY = { reply: 'Ciao! Sì, è ancora disponibile 😊 Vuoi vederla in video o di persona?', escalate: false };
 const enc = v => {
   if (v === null || v === undefined) return { nullValue: null };
@@ -210,11 +226,13 @@ globalThis.fetch = async (url, opts = {}) => {
   }
   if (u.includes('api.anthropic.com')) {
     AI_REQUESTS.push(JSON.parse(opts.body));
+    if (AI_HOOK) await AI_HOOK(JSON.parse(opts.body));
     return json({ content: [{ type: 'text', text: JSON.stringify(AI_REPLY) }], usage: {}, model: 'stub' });
   }
   const body = opts.body ? JSON.parse(opts.body) : null;
   const m = u.match(/documents\/([^?:]+)/);
   const path = m ? decodeURIComponent(m[1]) : '';
+  if (path === failingPath) return json({ error: { status: 'UNAVAILABLE' } }, 503);
   if (u.endsWith(':commit')) {
     if (failCommit) return json({ error: { status: 'UNAVAILABLE' } }, 503);
     const writes = body.writes || [];
@@ -631,5 +649,175 @@ for (const [label, status, expected] of [
   ok('8i. il seguito dopo presa in carico umana non riattiva l\'AI', AI_REQUESTS.length === before);
 }
 
-console.log(fails ? `\n${fails} FAIL` : '\nOK — la Segretaria parla solo dove l\'hai consegnata (e ora apre lei, su WhatsApp o email), tace dove serve una persona, un tuo messaggio la spegne sempre — e la consegna non è mai più un atto di fede.');
+// ── 9. Preparazione attiva, vecchie risposte sospese: porte REALI ─────────
+const { segretariaOpen, segretariaOffConv, segretariaStatusMessage, toggleSegretariaKill } = await import('../../api/segretaria/_core.js');
+const { default: telegramHandler } = await import('../../api/telegram/webhook.js');
+const { default: scanHandler } = await import('../../api/segretaria/scan-replies.js');
+const { prepareNextCase } = await import('../../api/segretaria/worker.js');
+const { approvePreparation } = await import('../../api/segretaria/_dispatch.js');
+const liveNow = Date.now();
+const pausedConfig = { enabled: true, automaticReplies: false, prepareCases: true,
+  prepareSince: new Date(liveNow - 60000).toISOString(), dailyCap: 5 };
+const collectionRows = coll => [...DB].filter(([p]) => p.startsWith(coll + '/'));
+function resetReplyGate() {
+  DB.clear(); TG.length = 0; AI_REQUESTS.length = 0; globalThis.__mails = [];
+  failingPath = null; AI_HOOK = null; globalThis.__imap = [];
+  DB.set('settings/segretaria', { ...pausedConfig });
+}
+async function invoke(actualHandler, req) {
+  let code, data;
+  await actualHandler(req, { setHeader() {}, status(n) { code = n; return this; },
+    json(v) { data = v; return this; }, end() { return this; } });
+  return { code, ...data };
+}
+const noReplyEffects = () => AI_REQUESTS.length === 0 && collectionRows('action_queue').length === 0
+  && msgLogs() === 0 && globalThis.__mails.length === 0;
+
+{
+  resetReplyGate();
+  const input = turnFixture('replies_off');
+  const r = await call({ phone: input.lead.phone, direction: 'in', channel: 'whatsapp',
+    body: input.text, messageId: 'pause_inbound', timestamp: new Date(liveNow).toISOString() });
+  const follow = collectionRows('operatorTasks').find(([, t]) => t.followUp?.conversationId === input.cid)?.[1];
+  ok('9a. automaticReplies false: WhatsApp conserva messaggio e seguito senza vecchio turno', r.ok
+    && collectionRows('messages').length === 1 && follow?.followUp.lastMessageId === 'pause_inbound'
+    && DB.get('conversations/' + input.cid).needsReply === true && noReplyEffects() && TG.length === 0, r);
+  const result = await segretariaTurn(input);
+  ok('9a. turno sospeso restituisce motivo esplicito senza spesa, coda, mail o Telegram', result.blocked
+    && result.whyCode === 'automatic_replies_disabled' && noReplyEffects() && TG.length === 0, result);
+  const status = await segretariaStatusMessage();
+  ok('9a. quadro distingue preparazione attiva e risposte sospese', status.msg.includes('Risposte automatiche sospese')
+    && status.msg.includes('Preparazione dei casi attiva') && !status.msg.includes('🟢 in servizio'));
+  await toggleSegretariaKill(); await toggleSegretariaKill();
+  ok('9a. riaccendere il kill switch non riabilita automaticReplies', DB.get('settings/segretaria').enabled === true
+    && DB.get('settings/segretaria').automaticReplies === false);
+  DB.set('action_queue/previous_legacy', { proposedBy: 'segretaria', status: 'executed',
+    payload: { channel: 'whatsapp', draft: 'Risposta preparata prima della sospensione.' } });
+  const oldAction = JSON.stringify(DB.get('action_queue/previous_legacy'));
+  await segretariaTurn(input);
+  ok('9a. sospendere i nuovi turni non cancella o altera azioni già accodate',
+    JSON.stringify(DB.get('action_queue/previous_legacy')) === oldAction);
+}
+
+{
+  resetReplyGate();
+  const leadId = 'paused_email';
+  DB.set('leads/' + leadId, { name: 'Email fixture', email: 'paused@example.test', message: 'Can I arrange a viewing?' });
+  const handover = await handoverSegretaria(leadId);
+  const r = await segretariaOpen(leadId);
+  ok('9b. apertura email-only resta sospesa dopo consegna reale', handover.ok && r.blocked && noReplyEffects(), r);
+  process.env.TELEGRAM_WEBHOOK_SECRET = 'fixture-secret';
+  const tap = await invoke(telegramHandler, { method: 'POST', headers: { 'x-telegram-bot-api-secret-token': 'fixture-secret' },
+    body: { callback_query: { id: 'pause-callback', data: 'sg:' + leadId,
+      message: { chat: { id: 42 }, message_id: 77, text: 'Richiesta sintetica' } } } });
+  const edited = TG.filter(t => t.method === 'editMessageText').at(-1)?.body.text || '';
+  ok('9b. tap Telegram comunica consegna registrata, non una risposta autonoma', tap.code === 200
+    && edited.includes('CONSEGNA REGISTRATA · RISPOSTE SOSPESE') && !edited.includes('risponde lei su questa chat')
+    && noReplyEffects(), { tap, edited });
+
+  TG.length = 0;
+  process.env.PFS_IMAP_USER = 'operator@example.test'; process.env.PFS_IMAP_PASS = 'fixture';
+  globalThis.__imap = [{ uid: 1, from: 'paused@example.test', raw: [
+    'From: paused@example.test', 'To: operator@example.test', 'Message-ID: <paused-email-fixture@example.test>',
+    'Date: ' + new Date(liveNow).toUTCString(), 'Subject: Re: Viewing', 'Content-Type: text/plain; charset=utf-8',
+    '', 'Can I arrange a viewing?', '',
+  ].join('\r\n') }];
+  const scan = await invoke(scanHandler, { method: 'GET', query: {}, headers: { 'x-homie-secret': 'test-secret' } });
+  ok('9c. cron email registra risposta e caso con automaticReplies false, senza rispondere', scan.code === 200
+    && scan.processed === 1 && scan.refreshed === 1 && scan.turns === 0 && scan.escalated === 0
+    && collectionRows('messages').some(([, m]) => m.channel === 'email' && m.direction === 'in')
+    && DB.get('conversations/' + handover.cid).needsReply === true && noReplyEffects() && TG.length === 0, scan);
+}
+
+{
+  resetReplyGate();
+  const input = turnFixture('settings_unreadable');
+  failingPath = 'settings/segretaria';
+  const result = await segretariaTurn(input);
+  ok('9d. errore lettura impostazioni non diventa autorizzazione automatica', result.blocked
+    && result.whyCode === 'reply_settings_unavailable' && noReplyEffects() && TG.length === 0, result);
+  const opened = await segretariaOpen(input.lead.id);
+  const status = await segretariaStatusMessage();
+  ok('9d. apertura e quadro dichiarano impostazioni illeggibili', opened.whyCode === 'reply_settings_unavailable'
+    && status.msg.includes('Impostazioni non verificabili') && !status.msg.includes('🟢 in servizio'));
+  failingPath = null;
+}
+
+{
+  resetReplyGate();
+  const input = turnFixture('pause_during_model');
+  DB.set('settings/segretaria', { enabled: true, automaticReplies: true });
+  AI_HOOK = () => DB.set('settings/segretaria', { ...pausedConfig });
+  const result = await segretariaTurn(input);
+  AI_HOOK = null;
+  ok('9e. sospensione durante AI impedisce la nuova azione prima di ogni invio', result.blocked
+    && result.whyCode === 'automatic_replies_disabled' && AI_REQUESTS.length === 1
+    && !collectionRows('action_queue').length && !msgLogs() && !globalThis.__mails.length && !TG.length
+    && DB.get('conversations/' + input.cid).needsReply === true, result);
+}
+
+{
+  resetReplyGate();
+  const input = turnFixture('proposal_remains_enabled');
+  // Explicit operator takeover frees reply ownership; pausing globally does
+  // not silently revoke the previously handed conversation.
+  await segretariaOffConv(input.cid);
+  await call({ phone: input.lead.phone, direction: 'in', channel: 'whatsapp', body: input.text,
+    messageId: 'paused_proposal_inbound', timestamp: new Date(liveNow).toISOString() });
+  AI_HOOK = request => {
+    const context = JSON.parse(request.messages[0].content);
+    const source = context.sources.find(s => s.id === context.coverage.lastEvent.sourceId);
+    const sourceIds = [source.id];
+    AI_REPLY = { summary: 'Il cliente chiede una visita.', recommendation: 'Verificare le opzioni di visita.',
+      facts: [{ text: 'Richiesta una visita.', sourceIds, quote: source.text }], commitments: [], uncertainties: [],
+      nextAction: { text: 'Verificare le opzioni di visita', waitingOn: 'valentino', waitingLabel: 'Valentino',
+        checkAt: new Date(liveNow + 3600000).toISOString(), practiceRef: 'leads/' + input.lead.id,
+        sourceIds, reason: 'Serve una verifica prima di confermare.' },
+      draft: { channel: 'whatsapp', text: 'Thanks, we will check the viewing options.', sourceIds },
+      handoff: { needed: false, reason: 'Valentino verifica e conferma la risposta.', sourceIds } };
+  };
+  const worker = await prepareNextCase({ now: liveNow });
+  AI_HOOK = null;
+  const task = DB.get('operatorTasks/' + worker.id);
+  ok('9f. worker prepara normalmente mentre automaticReplies è false', worker.prepared === 1
+    && task?.preparation.draft?.text && AI_REQUESTS.length === 1 && !collectionRows('action_queue').length
+    && !msgLogs() && !globalThis.__mails.length && !TG.length, worker);
+  if (task?.preparation) {
+    const approval = await approvePreparation({ id: worker.id, revision: task.preparation.revision,
+      lastMessageId: task.followUp.lastMessageId, actor: 'admin', now: liveNow });
+    ok('9f. conferma esplicita usa executor reale anche con automaticReplies false', approval.code === 200
+      && approval.delivery === 'queued' && collectionRows('action_queue').length === 1 && segActions().length === 0
+      && collectionRows('action_queue')[0][1].proposedBy === 'segretaria-proposal'
+      && AI_REQUESTS.length === 1 && !globalThis.__mails.length && !TG.length, approval);
+  } else ok('9f. proposta necessaria alla prova di conferma esplicita', false);
+}
+
+// Actually reintroduce the defects; each child must fail its named behavioural
+// assertion, not just fail to load. Portable scratch directory also runs in CI.
+if (!process.env.BOOM_REPLY_GATE_MUTATION) {
+  const root = fileURLToPath(new URL('../../', import.meta.url));
+  const scratch = mkdtempSync(join(tmpdir(), 'boom-reply-gate-'));
+  try {
+    for (const path of ['api', 'js', 'tests/segretaria', 'tests/notify', 'vercel.json'])
+      cpSync(join(root, path), join(scratch, path), { recursive: true, filter: p => !p.includes('node_modules') });
+    symlinkSync(join(root, 'node_modules'), join(scratch, 'node_modules'), 'dir');
+    const files = ['api/segretaria/_core.js', 'api/telegram/webhook.js'];
+    const sources = Object.fromEntries(files.map(f => [f, readFileSync(join(root, f), 'utf8')]));
+    for (const [name, file, from, to, expected] of [
+      ['flag rimosso', files[0], 'if (raw?.automaticReplies === false)', 'if (false)', '9a. automaticReplies false'],
+      ['rilettura rimossa', files[0], 'if (gateBeforeAction.blocked)', 'if (false)', '9e. sospensione durante AI'],
+      ['consegna ingannevole', files[1], 'const handoverLine = opened?.blocked', 'const handoverLine = false', '9b. tap Telegram'],
+    ]) {
+      for (const f of files) writeFileSync(join(scratch, f), sources[f]);
+      if (!sources[file].includes(from)) { ok('mutazione ' + name + ': bersaglio presente', false); continue; }
+      writeFileSync(join(scratch, file), sources[file].replace(from, to));
+      const child = spawnSync(process.execPath, ['tests/segretaria/run.mjs'], { cwd: scratch,
+        env: { ...process.env, BOOM_REPLY_GATE_MUTATION: '1' }, encoding: 'utf8', timeout: 30000 });
+      ok('mutazione ' + name + ' è catturata dal percorso reale', child.status === 1
+        && child.stdout.includes('FAIL ' + expected), child.status === 1 ? child.stderr.slice(-300) : { status: child.status, error: child.error?.message });
+    }
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
+}
+
+console.log(fails ? `\n${fails} FAIL` : '\nOK — risposte automatiche controllate, ricezione e preparazione conservate, conferma esplicita verificata.');
 process.exit(fails ? 1 : 0);

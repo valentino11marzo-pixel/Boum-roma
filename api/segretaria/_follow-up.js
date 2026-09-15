@@ -43,7 +43,7 @@ export function checkTimestamp(value) {
   return Date.parse(value);
 }
 
-export async function captureFollowUp({ cid, conv, messageId, text, now = Date.now() }) {
+export async function captureFollowUp({ cid, conv, messageId, text, now = Date.now(), preserveNewer = false }) {
   if (!idPart(cid) || typeof messageId !== 'string' || !messageId.trim() || messageId.length > 512) return null;
   const event = messageId;
   const receiptPath = 'heartbeat/segretaria-event-' + followUpId(cid, event).slice(3);
@@ -62,10 +62,29 @@ export async function captureFollowUp({ cid, conv, messageId, text, now = Date.n
     });
     const active = known.filter(t => t.status === 'open' && t.followUp);
     const at = new Date(now).toISOString();
-    let current = null;
+    let current = null, keepClosed = false;
     if (active.length === 1 && known.length < 30) {
       current = await fsGetVersioned('operatorTasks/' + active[0].id);
       if (!current || current.data.status !== 'open') continue;
+    }
+    // A historical event preceding an already completed case is evidence for
+    // that case, not a new obligation. Verify its identity and bind the receipt
+    // to the closed version; a concurrent change retries the whole decision.
+    if (preserveNewer && active.length === 0) {
+      const cursorId = cursor?.data.taskId;
+      const closed = known.filter(t => t.status === 'done' && Date.parse(t.followUp?.lastInboundAt) > now)
+        .sort((a, b) => Date.parse(b.followUp.lastInboundAt) - Date.parse(a.followUp.lastInboundAt))[0];
+      const candidates = [...new Set([cursorId, closed?.id])].filter(id => /^sg_[a-f0-9]{32}$/.test(String(id || '')));
+      for (const closedId of candidates) {
+        const snapshot = await fsGetVersioned('operatorTasks/' + closedId);
+        const f = snapshot?.data.followUp;
+        if (snapshot?.data.status === 'done' && f?.conversationId === cid
+          && (Date.parse(f.lastInboundAt) > now || (closedId === cursorId && Date.parse(cursor.data.at) > now))) {
+          current = snapshot;
+          keepClosed = true;
+          break;
+        }
+      }
     }
     const id = current ? current.data.id : followUpId(cid, event);
     const checkAt = new Date(now + 2 * 3600000).toISOString();
@@ -80,14 +99,16 @@ export async function captureFollowUp({ cid, conv, messageId, text, now = Date.n
         checkBasis: 'proposta interna: due ore dalla ricezione, nessun orario promesso al cliente',
         confirmed: false, needsReview: true, ambiguous: active.length > 1 || known.length >= 30 },
     };
-    const fields = current ? {
+    const keepRecent = keepClosed || (preserveNewer && current && Date.parse(current.data.followUp?.lastInboundAt) > now);
+    const fields = keepRecent ? { followUp: current.data.followUp } : current ? {
       followUp: { ...current.data.followUp, lastMessageId: event, lastInboundAt: at,
         preview: clean(text, 240), needsReview: true }, updatedAt: new Date(now),
     } : row;
     try {
       await fsCommit([
         { docPath: receiptPath, fields: { taskId: id, at }, precondition: { exists: false } },
-        { docPath: cursorPath, fields: { taskId: id, at }, precondition: precondition(cursor) },
+        { docPath: cursorPath, fields: preserveNewer && cursor && Date.parse(cursor.data.at) > now
+          ? cursor.data : { taskId: id, at }, precondition: precondition(cursor) },
         { docPath: 'operatorTasks/' + id, fields, precondition: precondition(current) },
       ]);
       return { ...(current?.data || {}), id, ...fields };

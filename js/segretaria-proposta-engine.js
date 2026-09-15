@@ -39,7 +39,9 @@
     const n = raw.nextAction || {}, text = line(n.text, 240), waitingLabel = line(n.waitingLabel, 100), reason = line(n.reason, 350), sourceIdsNext = citations(n.sourceIds);
     if (!summary || !recommendation || !facts || !commitments || !uncertainties || !text || !waitingLabel || !reason || !sourceIdsNext
       || !['valentino', 'client', 'collaborator', 'boom'].includes(n.waitingOn) || typeof n.checkAt !== 'string') return { ok: false, error: 'invalid_preparation' };
-    const practiceRef = n.practiceRef || null;
+    // The model may omit a selection, but cannot erase the operator's verified
+    // choice. Missing scheduling details do not unlink an established case.
+    const practiceRef = n.practiceRef || (!identityBlocked && allowed.has(confirmedPracticeRef) ? confirmedPracticeRef : null);
     if (practiceRef && (!allowed.has(practiceRef) || (practices.length > 1 && practiceRef !== confirmedPracticeRef) || identityBlocked))
       return { ok: false, error: 'practice_requires_selection' };
     let draft = null;
@@ -64,5 +66,24 @@
   }
   function current(task) { return !!task?.preparation && task.status === 'open'
     && task.preparation.messageId === task.followUp?.lastMessageId; }
-  return Object.freeze({ validate, wantsHuman, topicOf, current });
+  function nextActor(proposal, { followUp = {}, now } = {}) {
+    const n = proposal.nextAction;
+    if (proposal.draft || !['client', 'collaborator'].includes(n.waitingOn)) return n;
+    const same = (a, b) => typeof a === 'string' && typeof b === 'string'
+      && a.replace(/\s+/g, ' ').trim().toLowerCase() === b.replace(/\s+/g, ' ').trim().toLowerCase();
+    // Only the same operator-confirmed wait can survive without a message to
+    // send. An arbitrary old outgoing message does not prove this request was
+    // made, nor that a collaborator accepted this particular assignment.
+    const confirmedWait = followUp.confirmed === true && followUp.practiceRef === n.practiceRef
+      && followUp.waitingOn === n.waitingOn && same(followUp.waitingLabel, n.waitingLabel)
+      && same(followUp.nextAction, n.text);
+    if (confirmedWait) return n;
+    const priorCheck = Date.parse(followUp.checkAt), proposedCheck = Date.parse(n.checkAt);
+    return { ...n, waitingOn: 'valentino', waitingLabel: 'Valentino',
+      // Keep an earlier existing control instead of postponing an unstarted
+      // request as though the other party already had time to answer it.
+      checkAt: Number.isFinite(now) && priorCheck > now && priorCheck < proposedCheck ? followUp.checkAt : n.checkAt,
+      reason: ('Richiesta o incarico da verificare: non è provato che il destinatario debba già rispondere. ' + n.reason).slice(0, 350) };
+  }
+  return Object.freeze({ validate, wantsHuman, topicOf, current, nextActor });
 });

@@ -34,7 +34,7 @@ window.__dossier={identityIncomplete:false,identityAmbiguous:false,ambiguous:fal
  practices:[{ref:'viewingRequests/v1',type:'viewing',status:'confirmed',propertyRefs:['properties/p1']},{ref:'contracts/c2',type:'contract',status:'active',propertyRefs:['properties/p2']}],
  properties:[{ref:'properties/p1',label:'Casa Fiore · esempio'},{ref:'properties/p2',label:'Casa Luna · esempio'}]};
 function demoTask(id,name,cid,practice){return{id,status:'open',source:'segretaria',followUp:{open:true,conversationId:cid,contactName:name,
- preview:'Una richiesta da portare al prossimo passo.',lastMessageId:'msg-'+cid,practiceRef:practice,propertyRef:practice==='viewingRequests/v1'?'properties/p1':practice?'properties/p2':null,
+ preview:'Dettagli da verificare.',lastMessageId:'msg-'+cid,practiceRef:practice,propertyRef:practice==='viewingRequests/v1'?'properties/p1':practice?'properties/p2':null,
  nextAction:'Verificare la richiesta e confermare il seguito',waitingOn:'valentino',waitingLabel:'Valentino',checkAt:demoFuture(),checkBasis:'Controllo interno proposto',confirmed:false,needsReview:true,ambiguous:!practice}}}
 function demoPreparation(t,withDraft=true){const ambiguous=!t.followUp.practiceRef,phone=t.followUp.conversationId==='c1';return{
  version:1,revision:'revision-'+(++window.__generation),messageId:t.followUp.lastMessageId,selectedPracticeRef:t.followUp.practiceRef,
@@ -49,7 +49,7 @@ function demoPreparation(t,withDraft=true){const ambiguous=!t.followUp.practiceR
  handoff:{needed:false,reason:'Nessuna decisione commerciale richiesta.'},replyOwnership:!phone&&!ambiguous?{blocked:true,owner:'segretaria:conversation',actionId:null,incomplete:false}:{blocked:false,owner:null,actionId:null,incomplete:false},coverage:{incomplete:ambiguous,reasons:ambiguous?['practice_selection_required']:[]},
  style:{basis:'editorial_only',limitations:['Nessuna attribuzione dei messaggi importati a Valentino.']},sources:[{id:'messages/'+t.followUp.conversationId,ref:'messages/'+t.followUp.conversationId,at:new Date().toISOString(),hash:'fixture'},...(phone?[{id:'viewingRequests/v1',ref:'viewingRequests/v1',at:'2026-09-15T08:00:00Z',hash:'fixture-confirmed-2026-09-18T13:00:00Z'}]:[])]}}
 window.__rows=[demoTask(window.__ids[0],'Giulia · esempio','c1','viewingRequests/v1'),demoTask(window.__ids[1],'Oliver · esempio','c2','contracts/c2'),demoTask(window.__ids[2],'Squadra pulizie · esempio','c3',null)];
-window.__rows[0].followUp.preview='Mi confermi giorno e ora della visita?';window.__rows[0].preparation=demoPreparation(window.__rows[0]);window.__rows[1].preparation=demoPreparation(window.__rows[1],false);
+window.__rows[0].followUp.preview='Mi confermi giorno e ora della visita?';window.__rows[1].followUp.preview='Ti aggiorno appena ho la disponibilità.';window.__rows[2].followUp.preview='Abbiamo terminato le pulizie.';window.__rows[0].preparation=demoPreparation(window.__rows[0]);window.__rows[1].preparation=demoPreparation(window.__rows[1],false);
 const reply=(data,status=200)=>({ok:status<400,status,json:async()=>structuredClone(data)});
 const actualTimeout=window.setTimeout;
 window.setTimeout=(fn,ms,...args)=>actualTimeout(fn,window.__fastTimeout&&ms===60000?10:ms,...args);
@@ -89,8 +89,8 @@ window.fetch=async(url,options={})=>{
 const script = content => '<script>' + content.replace(/<\/script/gi, '<\\/script') + '</script>';
 const html = '<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
   + '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\'; img-src data:; connect-src \'none\'; form-action \'none\'; base-uri \'none\'">'
-  + '<title>BOOM · Segreteria operativa · Dati simulati</title><style>' + read('css/portal.css') + read('css/portal-finish.css')
-  + 'body{display:block}#main{max-width:1180px;margin:auto;padding:24px}#demoHeader{padding:22px 24px;background:#191d23;color:#e6c979;font:14px system-ui}#demoHeader p{margin-top:8px;color:#eee;line-height:1.5}</style></head><body>'
+  + '<title>BOOM · Segreteria operativa · Dati simulati</title><style>' + read('css/portal.css') + read('css/portal-finish.css') + read('css/segretaria.css')
+  + 'body{display:block;background:#111314}#main{max-width:1180px;margin:auto;padding:24px}#demoHeader{padding:16px 24px;background:#191b1c;color:#ffd700;font:12px Helvetica Neue,Arial,sans-serif}#demoHeader p{margin-top:8px;color:#eee;line-height:1.5}</style></head><body>'
   + '<aside id="demoHeader"><strong>BOOM · Anteprima locale della Segreteria operativa</strong><p>Dati simulati. Puoi preparare, correggere e confermare: anche «Conferma e invia» è una simulazione. Nessun messaggio parte, nessuna modifica a BOOM, rete bloccata. Ricarica per ripristinare gli esempi.</p></aside><main id="main"></main><div id="modals"></div>'
   + script(fixture) + script(read('js/segretaria-casi-engine.js')) + script(read('js/segretaria-proposta-engine.js')) + script(ui) + script("goTo('oggi')") + '</body></html>';
 writeFileSync(previewPath, html);
@@ -114,10 +114,16 @@ try {
   assert.equal(await page.locator('article[data-sg-id]').count(), 3);
   assert.match(await page.locator('#sgFollowPanel').innerText(), /Giulia chiede conferma della visita/);
   assert.equal((await posts()).length, 0);
+  const briefingBox = await page.locator('.sg-briefing').boundingBox();
+  assert.ok(briefingBox.height <= 240, 'Briefing desktop troppo alto: ' + briefingBox.height);
+  assert.equal(await page.locator('.sg-secondary-grid').count(), 0);
+  assert.equal(await page.locator('.sg-quiet-state').count(), 1);
+  assert.equal(await page.locator('#sgFollowPanel #sgDraftText').count(), 0);
+  assert.ok((await page.locator('article[data-sg-id]').first().boundingBox()).y < 600);
   await page.screenshot({ path: join(artifactDir, 'desktop.png'), fullPage: true });
   await open(ids[0]);
   assert.equal(await page.locator('#sgFollowForm').count(), 0);
-  assert.match(await page.locator('#sgRecipient').innerText(), /Giulia · esempio.*\+390000000001/);
+  assert.match(await page.locator('#sgRecipient').innerText(), /Giulia · esempio[\s\S]*\+390000000001/);
   assert.match(await page.locator('#sgDraftText').innerText(), /Ciao Giulia/);
   assert.equal(await page.locator('[data-sg-modal="approve"]').innerText(), 'Conferma e invia');
   assert.equal((await posts()).length, 0);
@@ -299,6 +305,83 @@ try {
   assert.equal(await page.evaluate(() => window.__selectedConversation), 'c1');
   assert.equal((await posts()).length, 0);
   ok('testi e destinatario non eseguono HTML; mobile senza overflow; fonte apribile senza invio');
+
+  await load();
+  await page.setViewportSize({ width: 1365, height: 1000 });
+  await page.evaluate(() => {
+    const waiting = window.__rows[1];
+    waiting.followUp = { ...waiting.followUp, confirmed: true, needsReview: false, ambiguous: false, waitingOn: 'client', waitingLabel: 'Oliver · esempio', checkAt: null };
+    waiting.preparation.nextAction.checkAt = null;
+    waiting.preparation.approval = { revision: waiting.preparation.revision, messageId: waiting.followUp.lastMessageId, actionId: null };
+    const progress = window.__rows[2];
+    progress.followUp = { ...progress.followUp, confirmed: true, needsReview: false, ambiguous: false, practiceRef: 'contracts/c2', propertyRef: 'properties/p2', waitingOn: 'boom', waitingLabel: 'BOOM' };
+    oggiSegretaria.rows = structuredClone(window.__rows);
+    oggiSegretariaRender();
+  });
+  for (const group of ['decisions', 'progress', 'waiting']) assert.equal(await page.locator(`[data-sg-group="${group}"] .sg-count`).innerText(), '1');
+  assert.equal(await page.locator('article[data-sg-id]').count(), 3);
+  assert.match(await page.locator(`article[data-sg-id="${ids[1]}"]`).innerText(), /Ricontrollo da impostare/);
+  assert.equal(await page.locator(`[data-sg-group="waiting"] article[data-sg-id="${ids[1]}"]`).count(), 1);
+  await page.screenshot({ path: join(artifactDir, 'groups.png'), fullPage: true });
+  await open(ids[1]);
+  assert.match(await page.locator('#sgPreparationReview').innerText(), /Imposta il ricontrollo in «Correggi seguito»/);
+  assert.equal(await page.locator('[data-sg-modal="approve"]').count(), 0);
+  assert.equal((await posts()).length, 0);
+  ok('tre gruppi e conteggi dai dati; attesa senza data neutra ma ricontrollo da impostare nella review');
+
+  await load();
+  await button(ids[0], 'review').focus();
+  await open(ids[0]);
+  const detail = page.locator('#sgPreparationReview details summary');
+  await detail.focus();
+  await page.keyboard.press('Enter');
+  assert.equal(await page.locator('#sgPreparationReview details').evaluate(el => el.open), true);
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('#sgFollowModal', { state: 'detached' });
+  assert.equal(await button(ids[0], 'review').evaluate(el => el === document.activeElement), true);
+  const caseDetail = page.locator(`article[data-sg-id="${ids[0]}"] details`);
+  await caseDetail.locator('summary').focus();
+  await page.keyboard.press('Enter');
+  await page.evaluate(() => oggiSegretariaRender());
+  assert.equal(await caseDetail.evaluate(el => el.open), true);
+  assert.equal(await caseDetail.locator('summary').evaluate(el => el === document.activeElement), true);
+  assert.equal((await posts()).length, 0);
+  ok('fonti e azioni secondarie da tastiera; chiusura restituisce focus alla CTA; refresh conserva dettagli e focus');
+
+  await load();
+  for (const width of [390, 320]) {
+    await page.setViewportSize({ width, height: 844 });
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
+    if (width === 390) await page.screenshot({ path: join(artifactDir, 'mobile.png'), fullPage: true });
+    await open(ids[0]);
+    assert.equal(await page.locator('#sgRecipient').isVisible(), true);
+    assert.equal(await page.locator('#sgDraftText').isVisible(), true);
+    assert.equal(await page.locator('#sgDraftText').evaluate(el => !!el.closest('details:not([open])')), false);
+    const buttonBox = await page.locator('[data-sg-modal="approve"]').boundingBox();
+    assert.ok(buttonBox.x >= 0 && buttonBox.x + buttonBox.width <= width && buttonBox.y + buttonBox.height <= 844 && buttonBox.height >= 44);
+    assert.equal(await page.locator('#sgFollowModal .modal').evaluate(el => el.scrollWidth <= el.clientWidth + 1), true);
+    if (width === 390) {
+      await page.locator('#sgDraftText').scrollIntoViewIfNeeded();
+      await page.screenshot({ path: join(artifactDir, 'review-mobile.png') });
+    }
+    await page.keyboard.press('Escape');
+  }
+  assert.equal((await posts()).length, 0);
+  ok('320/390 px: nessun overflow, conferma raggiungibile, testo e destinatario fuori da sezioni chiuse');
+
+  await load();
+  const contrast = await page.evaluate(() => {
+    const rgb = text => (text.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
+    const lum = values => values.map(v => { v /= 255; return v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }).reduce((sum, v, i) => sum + v * [.2126, .7152, .0722][i], 0);
+    return ['.sg-case-summary', '.sg-person', '.sg-state-label', '.sg-briefing-note', '.sg-footnote'].map(selector => {
+      const element = document.querySelector(selector), color = lum(rgb(getComputedStyle(element).color));
+      let parent = element, background;
+      while (parent) { const value = getComputedStyle(parent).backgroundColor; if (value !== 'rgba(0, 0, 0, 0)' && value !== 'transparent') { background = lum(rgb(value)); break; } parent = parent.parentElement; }
+      return { selector, ratio: (Math.max(color, background) + .05) / (Math.min(color, background) + .05) };
+    });
+  });
+  for (const entry of contrast) assert.ok(entry.ratio >= 4.5, `${entry.selector}: ${entry.ratio}`);
+  ok('contrasto testo delle superfici principali almeno 4.5:1');
 
   assert.deepEqual(errors, []);
   assert.deepEqual(network, []);

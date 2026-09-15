@@ -167,7 +167,7 @@ export default async function handler(req, res) {
       // Prima della lettura di action_queue: una conversazione non vive lì.
       if (verb === 'sg') {
         const r = await handoverSegretaria(actionId).catch(e => ({ ok: false, why: e.message }));
-        await tgAckCallback(cq.id, r.ok ? '🤖 Consegnata' : (r.why || 'Non riesco').slice(0, 190));
+        await tgAckCallback(cq.id, r.ok ? '🤖 Consegna registrata' : (r.why || 'Non riesco').slice(0, 190));
         // La mossa d'apertura: se il cliente non ha ancora una chat avviata,
         // la Segretaria APRE lei rispondendo alla richiesta originale —
         // il click 🤖 così vale anche per i lead da portale e dal centralino.
@@ -182,8 +182,11 @@ export default async function handler(req, res) {
               ? '\n📧 <i>Le ha scritto lei ora, via email (niente numero in archivio).</i>'
               : '\n📨 <i>Risposta scritta — in consegna su WhatsApp via Mac. Se il Mac non ritira entro 5 min ti mando io la card 📮 col testo pronto.</i>')
             : (opened && opened.escalated ? `\n🖐 <i>Ti ha subito passato la mano: ${esc(opened.why || '')}</i>` : '');
+          const handoverLine = opened?.blocked
+            ? `\n\n🤖 <b>CONSEGNA REGISTRATA · RISPOSTE SOSPESE</b>\n${esc(opened.why || '')} /segretaria per il quadro.`
+            : `\n\n🤖 <b>CONSEGNATA ALLA SEGRETARIA</b> — risponde lei su questa chat. Un tuo messaggio manuale la spegne; /segretaria per il quadro.${openLine}`;
           await tgEdit(chatId, messageId,
-            (cq.message.text || '') + `\n\n🤖 <b>CONSEGNATA ALLA SEGRETARIA</b> — risponde lei su questa chat. Un tuo messaggio manuale la spegne; /segretaria per il quadro.${openLine}`).catch(() => {});
+            (cq.message.text || '') + handoverLine).catch(() => {});
         }
         return res.status(200).json({ ok: true });
       }

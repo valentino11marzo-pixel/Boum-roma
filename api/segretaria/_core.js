@@ -27,6 +27,25 @@ import { CATALOG } from '../_catalog.js';
 const esc = s => String(s == null ? '' : s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
 const ts = v => v && v.toMillis ? v.toMillis() : (v && v._seconds ? v._seconds * 1000 : (v ? new Date(v).getTime() || 0 : 0));
 
+// Separate legacy conversation replies from proposal preparation/approval.
+// A missing flag preserves the existing per-conversation opt-in; an unreadable
+// document cannot prove that automatic replies are still authorised.
+async function automaticReplyGate() {
+  let raw;
+  try { raw = await fsGet('settings/segretaria'); }
+  catch { return { blocked: true, acted: false, whyCode: 'reply_settings_unavailable',
+    why: 'Impostazioni non verificabili: risposte automatiche sospese.' }; }
+  const { cfg, rejected } = SEG.mergeConfig(raw);
+  const state = { cfg, rejected, raw };
+  if (!cfg.enabled) return { ...state, blocked: true, acted: false,
+    whyCode: 'segretaria_disabled', why: 'Segretaria spenta: risposte automatiche sospese.' };
+  if (raw?.automaticReplies === false) return { ...state, blocked: true, acted: false,
+    whyCode: 'automatic_replies_disabled', why: 'Risposte automatiche disattivate: la consegna resta registrata, il passo successivo richiede conferma.' };
+  return state;
+}
+
+const blockedReply = gate => ({ acted: false, blocked: true, whyCode: gate.whyCode, why: gate.why });
+
 // ─── I fatti: solo fonti vere ────────────────────────────────────────────
 
 async function propertyFacts(lead) {
@@ -126,8 +145,9 @@ export async function escalateSegretaria({ cid, conv, lead, why, text }) {
 // richiesta ORIGINALE del lead presentandosi. Ritorna { acted, sent?,
 // escalated?, why? } — mai lancia verso l'alto.
 export async function segretariaTurn({ cid, conv, lead, text, messageId, opening = false, now = Date.now() }) {
-  const raw = await fsGet('settings/segretaria').catch(() => null);
-  const { cfg } = SEG.mergeConfig(raw);
+  const gate = await automaticReplyGate();
+  if (gate.blocked) return blockedReply(gate);
+  const { cfg } = gate;
   const day = romeDay(now);
   const budgetPath = `heartbeat/segretaria-${day}`;
   const budget = (await fsGet(budgetPath).catch(() => null)) || {};
@@ -213,9 +233,15 @@ export async function segretariaTurn({ cid, conv, lead, text, messageId, opening
     const { text: out } = await callClaude({ system, user: facts, maxTokens: 500 });
     parsed = extractJson(out);
   } catch (e) {
+    const gateAfterError = await automaticReplyGate();
+    if (gateAfterError.blocked) return blockedReply(gateAfterError);
     await escalateSegretaria({ cid, conv, lead, why: 'la Segretaria non riesce a scrivere (' + e.message.slice(0, 120) + ')', text });
     return { acted: true, escalated: true, why: 'ai_error' };
   }
+  // Re-read after the model: a pause during generation stops this legacy
+  // action before queue creation (without cancelling previously queued work).
+  const gateBeforeAction = await automaticReplyGate();
+  if (gateBeforeAction.blocked) return blockedReply(gateBeforeAction);
   if (!parsed || parsed.escalate) {
     await escalateSegretaria({ cid, conv, lead, why: (parsed && parsed.reason) || 'il modello chiede una persona', text });
     return { acted: true, escalated: true, why: (parsed && parsed.reason) || 'model_escalate' };
@@ -314,6 +340,8 @@ export async function handoverSegretaria(leadId) {
 // alla richiesta ORIGINALE del cliente sul canale giusto. Idempotente per
 // costruzione (contextHash 'open_<leadId>'): un secondo click non riapre.
 export async function segretariaOpen(leadId, now = Date.now()) {
+  const gate = await automaticReplyGate();
+  if (gate.blocked) return blockedReply(gate);
   const lead = await fsGet(`leads/${leadId}`).catch(() => null);
   if (!lead) return { acted: false, why: 'lead non trovato' };
   const cid = convIdLead(leadId);
@@ -335,18 +363,19 @@ export async function segretariaOffConv(cid, why = 'spenta dall\'operatore') {
 
 // ─── /segretaria — il quadro dal telefono ────────────────────────────────
 export async function segretariaStatusMessage() {
-  const raw = await fsGet('settings/segretaria').catch(() => null);
-  const { cfg, rejected } = SEG.mergeConfig(raw);
+  const gate = await automaticReplyGate();
+  const { cfg = SEG.DEFAULTS, rejected = [], raw } = gate;
   let active = [];
   try { active = await fsList('conversations', { filter: { field: 'segretaria', op: 'EQUAL', value: true }, limit: 20 }); } catch { /* ignore */ }
   const rows = (active || []).map(c =>
     `• <b>${esc(c.contactName || c.id)}</b> — ${Number(c.segretariaTurns || 0)} turni${c.lastMessagePreview ? ` · <i>${esc(String(c.lastMessagePreview).slice(0, 60))}</i>` : ''}`);
   const msg = [
-    `<b>🤖 La Segretaria</b> — ${cfg.enabled ? '🟢 in servizio' : '🔴 SPENTA (kill switch)'}`,
+    `<b>🤖 La Segretaria</b> — ${gate.blocked ? (cfg.enabled ? '⏸ Risposte automatiche sospese' : '🔴 SPENTA (kill switch)') : '🟢 in servizio'}`,
     '',
-    'Risponde SOLO sulle conversazioni che le consegni tu (🤖 sulla card del lead). Un tuo messaggio manuale nella chat la spegne su quella conversazione.',
+    gate.blocked ? esc(gate.why) : 'Risponde SOLO sulle conversazioni che le consegni tu (🤖 sulla card del lead). Un tuo messaggio manuale nella chat la spegne su quella conversazione.',
+    ...(cfg.enabled && raw?.prepareCases === true ? ['Preparazione dei casi attiva; prepara proposte in Oggi senza inviarle.'] : []),
     '',
-    active.length ? `<b>Chat in mano a lei (${active.length}):</b>` : 'Nessuna chat consegnata al momento.',
+    active.length ? `<b>Chat consegnate (${active.length}):</b>` : 'Nessuna chat consegnata al momento.',
     ...rows,
     '',
     ...await postinoStatus().then(p => [

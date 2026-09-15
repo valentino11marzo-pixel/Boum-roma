@@ -147,7 +147,7 @@ try {
     return respond({ ok: true, id: task.id, followUp: task.followUp });
   });
   await page.goto('https://fixture.invalid/fixture');
-  await page.addStyleTag({ content: read('css/portal.css') + '\n' + read('css/portal-finish.css') + '\n#main{padding:12px} body{display:block}' });
+  await page.addStyleTag({ content: read('css/portal.css') + '\n' + read('css/portal-finish.css') + '\n' + read('css/segretaria.css') + '\n#main{padding:12px} body{display:block}' });
   await page.addScriptTag({ content: `
     const S={page:'oggi',conversations:[], properties:[{id:'p1',name:'Casa Fiore'},{id:'p2',name:'Casa Luna'}]};
     const auth={currentUser:{uid:'admin',getIdToken:async()=> 'fixture-admin'}};
@@ -178,8 +178,8 @@ try {
   await page.evaluate(() => goTo('oggi'));
   await page.waitForSelector('[data-sg-id]');
   assert.equal(await page.locator('article[data-sg-id]').count(), 3);
-  assert.match(await page.locator('#sgFollowPanel').innerText(), /Da decidere o ricontrollare · 2/);
-  assert.match(await page.locator('#sgFollowPanel').innerText(), /Attese confermate · 1/);
+  assert.equal(await page.locator('[data-sg-group="decisions"] .sg-count').innerText(), '2');
+  assert.equal(await page.locator('[data-sg-group="waiting"] .sg-count').innerText(), '1');
   assert.match(await page.locator('#sgFollowPanel').innerText(), /limite di 200/);
   assert.equal(await page.locator('#sgFollowPanel img').count(), 0);
   assert.equal(await page.evaluate(() => window.__injected), undefined);
@@ -187,7 +187,11 @@ try {
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
   console.log('PASS browser: decisioni, attese e limite visibili, nessuna riga duplicata né HTML eseguito'); checks++;
 
-  await page.locator(`article[data-sg-id="${ID}"] [data-sg-action="source"]`).click();
+  const clickCase = async (id, action) => {
+    await page.locator(`article[data-sg-id="${id}"] details`).evaluate(el => { el.open = true; });
+    await page.locator(`article[data-sg-id="${id}"] [data-sg-action="${action}"]`).click();
+  };
+  await clickCase(ID, 'source');
   await page.waitForFunction(() => window.__selectedConversation === 'conv_test');
   assert.deepEqual(await page.evaluate(() => window.__sourceReads), ['conv_test']);
   assert.equal(await page.evaluate(() => S.conversations.find(c => c.id === 'conv_test').unread), 0);
@@ -199,7 +203,7 @@ try {
 
   for (const failure of ['denied', 'missing']) {
     await page.evaluate(mode => { window.__sourceReadMode = mode; }, failure);
-    await page.locator(`article[data-sg-id="${IDC}"] [data-sg-action="source"]`).click();
+    await clickCase(IDC, 'source');
     await page.waitForFunction(() => document.getElementById('sgFollowPanel')?.textContent.includes('Non riesco ad aprire la conversazione'));
     assert.equal(await page.evaluate(() => S.page), 'oggi');
     assert.equal(await page.evaluate(() => S.conversations.some(c => c.id === 'conv_c')), false);
@@ -208,7 +212,7 @@ try {
   await page.evaluate(() => { window.__sourceReadMode = 'ok'; });
   console.log('PASS browser: fonte fuori limite caricata per id; permessi negati o fonte assente restano errori visibili sul seguito'); checks++;
 
-  await page.locator(`article[data-sg-id="${ID}"] [data-sg-action="edit"]`).click();
+  await clickCase(ID, 'edit');
   await page.waitForSelector('#sgPractice');
   assert.equal(await page.locator('#sgFollowError').isVisible(), false);
   assert.equal(await page.locator('#sgPractice').inputValue(), '');
@@ -229,7 +233,7 @@ try {
   console.log('PASS browser: attesa salvata senza inventare pratica o casa'); checks++;
 
   nextPost = 'stale';
-  await page.locator(`article[data-sg-id="${ID}"] [data-sg-action="edit"]`).click();
+  await clickCase(ID, 'edit');
   await page.waitForSelector('#sgPractice');
   await page.locator('#sgPractice').selectOption('contracts/c1');
   await page.locator('[data-sg-submit]').click();
@@ -246,7 +250,7 @@ try {
   assert.equal(posts.length, 3);
   assert.equal(posts[2].lastMessageId, 'msg-new');
   assert.equal(posts[2].practiceRef, 'contracts/c2');
-  await page.locator('#sgFollowPanel details').evaluate(el => { el.open = true; });
+  await page.locator(`article[data-sg-id="${ID}"] details`).evaluate(el => { el.open = true; });
   await page.waitForSelector(`article[data-sg-id="${ID}"]`);
   assert.match(await page.locator(`article[data-sg-id="${ID}"]`).innerText(), /Casa Luna/);
   assert.match(await page.locator(`article[data-sg-id="${ID}"]`).innerText(), /Tecnico confermato/);
@@ -256,14 +260,14 @@ try {
   await page.locator('[data-sg-action="refresh"]').click();
   await page.waitForFunction(() => document.getElementById('sgFollowPanel')?.textContent.includes('potrebbero non essere aggiornati'));
   assert.equal(await page.locator('article[data-sg-id]').count(), 3);
-  assert.equal(await page.locator('#sgFollowPanel details').evaluate(el => el.open), true);
+  assert.equal(await page.locator(`article[data-sg-id="${ID}"] details`).evaluate(el => el.open), true);
   console.log('PASS browser: rete in errore conserva i seguiti e segnala dati non aggiornati'); checks++;
   listFailure = false; incomplete = false;
   await page.locator('[data-sg-action="refresh"]').click();
   await page.waitForFunction(() => !document.getElementById('sgFollowPanel')?.textContent.includes('potrebbero non essere aggiornati'));
 
   detailIncomplete = true;
-  await page.locator(`article[data-sg-id="${IDC}"] [data-sg-action="edit"]`).click();
+  await clickCase(IDC, 'edit');
   await page.waitForSelector('#sgPractice');
   assert.equal(await page.locator('#sgPractice').isDisabled(), true);
   assert.match(await page.locator('#sgFollowModal').innerText(), /Identità non verificata/);
@@ -273,7 +277,7 @@ try {
   console.log('PASS browser: dossier incompleto esplicito e uscita da tastiera disponibile'); checks++;
 
   detailHistory = true;
-  await page.locator(`article[data-sg-id="${IDC}"] [data-sg-action="edit"]`).click();
+  await clickCase(IDC, 'edit');
   await page.waitForSelector('#sgPractice');
   assert.equal(await page.locator('#sgPractice').isDisabled(), false);
   assert.equal(await page.locator('#sgPractice').inputValue(), 'contracts/c2');
@@ -283,7 +287,7 @@ try {
   detailHistory = false;
   console.log('PASS browser: storia parziale avvisa ma lascia selezionare una pratica verificata'); checks++;
 
-  await page.locator(`article[data-sg-id="${ID}"] [data-sg-action="edit"]`).click();
+  await clickCase(ID, 'edit');
   await page.waitForSelector('#sgPractice');
   await page.locator('[data-sg-modal="close"]').click();
   await page.locator('[data-sg-submit]').click();

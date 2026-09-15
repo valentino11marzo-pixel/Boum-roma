@@ -1,5 +1,7 @@
 // Real preparation, context, Persona and endpoints; only network boundaries are fake.
 import { register } from 'node:module';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 register('../notify/loader.mjs', import.meta.url);
 Object.assign(process.env, { FIREBASE_API_KEY: 'fixture', FIREBASE_ADMIN_EMAIL: 'admin@example.test',
   FIREBASE_ADMIN_PASS: 'fixture', HOMIE_SECRET: 'fixture', ANTHROPIC_API_KEY: 'fixture', CRON_SECRET: 'fixture-cron' });
@@ -209,6 +211,14 @@ try {
     && r.preparation.preparedBy === 'admin' && aiInputs[0].persona.roles.includes('tenant') && !DB.get('conversations/' + CID).segretaria, r);
   ok('preparare non scrive coda, messaggi o notifiche, e non invia email/WhatsApp', untouched()
     && rows('messages').length === 1 && writes.every(w => /^(operatorTasks|heartbeat)\//.test(w.path)));
+  ok('il modello vede capacità reali: proposta e seguito, nessun incarico, prenotazione, chiamata o invio già eseguito',
+    aiInputs[0].executionCapabilities?.assignCollaborator === false
+    && aiInputs[0].executionCapabilities?.bookMaintenance === false
+    && aiInputs[0].executionCapabilities?.callPerson === false
+    && aiInputs[0].executionCapabilities?.sendDuringPreparation === false
+    && aiInputs[0].executionCapabilities?.afterApproval.join(',') === 'record_follow_up,queue_shown_draft'
+    && aiInputs[0].executionCapabilities?.automaticRecheck === true
+    && !aiRequests[0].tools && !aiRequests[0].tool_choice && untouched());
   ok('proposta conserva fonti e impronte, senza duplicare il testo delle fonti', r.preparation.sources.some(s => s.ref === 'messages/m1')
     && r.preparation.sourceFingerprint && r.preparation.contactFingerprint && r.preparation.sources.every(s => !s.text && s.hash));
   r = await generate();
@@ -246,6 +256,26 @@ try {
   }
   reset(); aiBuilder = input => { const p = validProposal(input); p.nextAction.practiceRef = 'contracts/foreign'; return p; };
   r = await generate(); ok('pratica altrui non diventa proposta valida', r.code === 422 && r.error === 'practice_requires_selection', r);
+  for (const multiple of [false, true]) {
+    reset();
+    if (multiple) save('contracts/cB', { tenantId: 'tenantA', propertyId: 'pA', status: 'active' });
+    aiBuilder = input => { const p = validProposal(input); p.nextAction.practiceRef = null; p.draft = null; return p; };
+    r = await generate();
+    ok('la pratica confermata non si perde se il modello omette il riferimento' + (multiple ? ' tra più candidati' : ''),
+      r.code === 200 && r.preparation.nextAction.practiceRef === 'contracts/cA'
+      && r.preparation.draft === null && untouched(), r);
+  }
+  reset(); DB.delete('contracts/cA');
+  aiBuilder = input => { const p = validProposal(input); p.nextAction.practiceRef = null; return p; };
+  r = await generate();
+  ok('una pratica precedente non più verificabile non viene ripristinata e non abilita una bozza',
+    r.code === 200 && r.preparation.nextAction.practiceRef === null && r.preparation.draft === null && untouched(), r);
+  reset(); save('users/conflict', { role: 'tenant', phone: PHONE, email: 'other@example.test' });
+  aiBuilder = input => { const p = validProposal(input); p.nextAction.practiceRef = null; return p; };
+  r = await generate();
+  ok('nuova ambiguità identitaria prevale sulla pratica precedente anche se il modello la omette',
+    r.code === 200 && r.preparation.nextAction.practiceRef === null && r.preparation.identityBlocked
+    && r.preparation.draft === null && untouched(), r);
   reset(); save('contracts/cB', { tenantId: 'tenantA', propertyId: 'pA', status: 'active' });
   revise(t => { t.followUp.practiceRef = null; });
   aiBuilder = input => { const p = validProposal(input); p.nextAction.practiceRef = 'contracts/cB'; return p; };
@@ -255,6 +285,58 @@ try {
   r = await generate();
   ok('nessuna pratica selezionata: prepara seguito verificabile ma non una bozza non inviabile', r.code === 200
     && r.preparation.nextAction.practiceRef === null && r.preparation.draft === null && r.preparation.nextAction.text && untouched(), r);
+  // Reproduce the real Opus output: it told us to ask a question but placed the
+  // case on the customer for 36h, although no question or draft had been sent.
+  reset({ text: 'Il rubinetto perde. Potete fare controllare dal tecnico? Non ho indicato quale dei miei due appartamenti.' });
+  save('contracts/cB', { tenantId: 'tenantA', propertyId: 'pA', status: 'active' });
+  revise(t => { t.followUp.practiceRef = null; });
+  aiBuilder = input => {
+    const p = validProposal(input);
+    p.commitments = []; p.draft = null;
+    p.nextAction = { ...p.nextAction,
+      text: "Chiedere all'inquilino quale dei due appartamenti (Immobile sintetico A o B) presenta la perdita, poi valutare l'organizzazione del controllo tecnico.",
+      waitingOn: 'client', waitingLabel: 'Inquilino', checkAt: stamp(NOW + 36 * 3600000),
+      reason: "Serve sapere l'appartamento interessato prima di poter procedere; senza questa informazione non si può indirizzare l'intervento." };
+    return p;
+  };
+  r = await generate();
+  ok('output reale ambiguo: domanda mai inviata resta un passo dell’operatore, non attesa cliente di 36 ore', r.code === 200
+    && r.preparation.nextAction.waitingOn === 'valentino' && r.preparation.nextAction.waitingLabel === 'Valentino'
+    && r.preparation.nextAction.reason.startsWith('Richiesta o incarico da verificare:')
+    && r.preparation.nextAction.checkAt === task().followUp.checkAt
+    && r.preparation.nextAction.practiceRef === null && r.preparation.draft === null && untouched(), r);
+  for (const actor of ['client', 'collaborator']) {
+    reset();
+    save('messages/oldOut', { conversationId: CID, direction: 'out', channel: 'whatsapp',
+      body: 'Grazie, ho ricevuto la precedente comunicazione.', at: stamp(NOW - 86400000) });
+    aiBuilder = input => { const p = validProposal(input); p.draft = null;
+      p.nextAction.waitingOn = actor; p.nextAction.sourceIds.push('messages/oldOut'); return p; };
+    r = await generate();
+    ok(actor + ': un vecchio messaggio uscente citato non prova la nuova richiesta o l’incarico', r.code === 200
+      && r.preparation.nextAction.waitingOn === 'valentino' && r.preparation.draft === null && untouched(), r);
+  }
+  reset();
+  revise(t => { Object.assign(t.followUp, { confirmed: true, nextAction: 'Attendere la disponibilità del tecnico già incaricato',
+    waitingOn: 'collaborator', waitingLabel: 'Tecnico BOOM' }); });
+  aiBuilder = input => { const p = validProposal(input); p.draft = null;
+    p.nextAction.text = input.existingFollowUp.nextAction; p.nextAction.waitingLabel = 'Tecnico BOOM'; return p; };
+  r = await generate();
+  ok('attesa corrispondente già confermata dall’operatore conserva il collaboratore senza nuovo invio', r.code === 200
+    && r.preparation.nextAction.waitingOn === 'collaborator' && r.preparation.nextAction.waitingLabel === 'Tecnico BOOM'
+    && r.preparation.draft === null && untouched(), r);
+  reset();
+  revise(t => { Object.assign(t.followUp, { confirmed: true, nextAction: 'Attendere una foto della serratura',
+    waitingOn: 'collaborator', waitingLabel: 'Tecnico' }); });
+  aiBuilder = input => { const p = validProposal(input); p.draft = null; return p; };
+  r = await generate();
+  ok('stesso collaboratore su un’attesa precedente diversa non prova il nuovo incarico', r.code === 200
+    && r.preparation.nextAction.waitingOn === 'valentino' && r.preparation.draft === null && untouched(), r);
+  reset();
+  aiBuilder = input => { const p = validProposal(input); p.draft = null;
+    p.nextAction.checkAt = stamp(NOW + 366 * 86400000); return p; };
+  r = await generate();
+  ok('correggere un’attesa non rende valido un ricontrollo del modello fuori limite', r.code === 422
+    && r.error === 'invalid_preparation_time' && !task().preparation && untouched(), r);
   reset(); save('users/conflict', { role: 'tenant', phone: PHONE, email: 'other@example.test' });
   r = await generate(); ok('identità contraddittoria impedisce proposta collegata al contratto', r.code === 422 && !task().preparation, r);
 
@@ -549,6 +631,11 @@ try {
         from: 'if (identityBlocked || protectedTopic || humanRequested || !practiceRef) draft = null;', to: 'if (identityBlocked || protectedTopic || !practiceRef) draft = null;' },
       { name: 'veto pratica altrui/ambigua', file: 'js/segretaria-proposta-engine.js',
         from: 'if (practiceRef && (!allowed.has(practiceRef)', to: 'if (false && practiceRef && (!allowed.has(practiceRef)' },
+      { name: 'continuità della pratica confermata', file: 'js/segretaria-proposta-engine.js',
+        from: 'n.practiceRef || (!identityBlocked && allowed.has(confirmedPracticeRef) ? confirmedPracticeRef : null)', to: 'n.practiceRef || null' },
+      { name: 'nessuna attesa senza richiesta o incarico', file: 'js/segretaria-proposta-engine.js',
+        from: "if (proposal.draft || !['client', 'collaborator'].includes(n.waitingOn)) return n;",
+        to: "if (true || proposal.draft || !['client', 'collaborator'].includes(n.waitingOn)) return n;" },
       { name: 'risposta concorrente durante AI', file: 'api/segretaria/_prepare.js',
         from: 'if (sha(freshReplyOwner) !== replyOwnerFingerprint)', to: 'if (false)' },
       { name: 'cache della decisione manuale', file: 'api/segretaria/_prepare.js',
@@ -557,7 +644,7 @@ try {
         from: 'if (task.preparation?.approval?.actionId) {', to: 'if (false && task.preparation?.approval?.actionId) {' },
     ];
     for (const mutant of mutants) {
-      const scratch = await fs.mkdtemp('/private/tmp/boom-preparation-mutation-');
+      const scratch = await fs.mkdtemp(join(tmpdir(), 'boom-preparation-mutation-'));
       try {
         await fs.cp(root + 'api', scratch + '/api', { recursive: true });
         await fs.cp(root + 'js', scratch + '/js', { recursive: true });
