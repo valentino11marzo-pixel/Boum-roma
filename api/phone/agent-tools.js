@@ -12,12 +12,14 @@
 //
 // La receptionist NON prenota qui e NON promette messaggi che nessuno manda.
 // A fine chiamata il webhook (api/phone/elevenlabs.js) scrive phoneCalls,
-// crea il lead e manda a Valentino la card Telegram con la bozza: è LUI a
-// ricontattare. Le note dette al telefono dichiarano solo questo — la
-// lezione del 15/09/2026: «held», «the team confirms within a few hours» e
-// «booking link on WhatsApp shortly» erano promesse senza un esecutore
-// dietro. La prenotazione vera resta sulle rail esistenti (book.html /
-// operatore): un booking a voce senza email produrrebbe una visita senza kit.
+// crea il lead e manda a Valentino la card Telegram con la bozza: se e quando
+// ricontattare lo decide lui. Quindi le note dette al telefono non promettono
+// niente, nemmeno il richiamo — la lezione del 15/09/2026: «held», «the team
+// confirms within a few hours», «booking link on WhatsApp shortly» e poi
+// «he will get back to you» erano tutte promesse senza un esecutore dietro.
+// Un orario preferito è una richiesta, non una prenotazione. La prenotazione
+// vera resta sulle rail esistenti (book.html / operatore): un booking a voce
+// senza email produrrebbe una visita senza kit.
 //
 // Auth: ?k=<phoneKey derivata> o X-Homie-Secret (come le altre porte phone).
 // Risposte PICCOLE e parlabili: finiscono nel contesto vocale dell'agente.
@@ -77,10 +79,10 @@ export default async function handler(req, res) {
         requireApproval: !!cfg.requireApproval,
         slots: flat,
         // Nessuna delle due frasi promette ciò che nessuno esegue: né uno slot
-        // «tenuto», né un link o un messaggio in arrivo. Chi ricontatta è Valentino.
+        // «tenuto», né un link, un messaggio o un richiamo in arrivo.
         note: flat.length
-          ? 'Nothing is booked during this call: note the time the caller prefers and say that Valentino will contact them to confirm it. Do not promise a link or a message.'
-          : 'No open slots in the next days: take the caller\'s request and say that Valentino will contact them. Do not promise a link or a message.',
+          ? 'Tell the caller: "Your preferred time is a request, not a booking. Confirmation is still required." Note the time they prefer. Do not promise a link, a message or a call back.'
+          : 'No open slots in the next days. Tell the caller: "I can take the details. Confirmation is still required." Do not promise a link, a message or a call back.',
       });
     }
 
@@ -88,6 +90,6 @@ export default async function handler(req, res) {
   } catch (e) {
     console.error('[phone/agent-tools]', op, e.message);
     // la voce non deve mai restare muta su un nostro errore: risposta parlabile
-    return res.status(200).json({ ok: false, error: 'temporarily_unavailable', say: 'I cannot check that right now. I will pass your request to Valentino and he will get back to you.' });
+    return res.status(200).json({ ok: false, error: 'temporarily_unavailable', say: 'I cannot check that right now; I can take the details.' });
   }
 }
