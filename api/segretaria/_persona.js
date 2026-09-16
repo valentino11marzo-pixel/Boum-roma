@@ -237,25 +237,31 @@ export async function personaDossier({ phone, email, leadId, conversationId } = 
   }));
   if (practices.length > 1) note('ambiguity', 'multiple_practices');
 
-  // No composite-index dependency: when the bounded query is complete we can
-  // sort locally and name the latest words. At the cap we say what is missing
-  // instead of presenting an arbitrary Firestore prefix as the latest promise.
+  // Prefer the latest ordered source window. Without its index, retain the
+  // complete-set fallback; a capped arbitrary prefix is never recent history.
   const commitments = [];
   const cids = unique([conversationId, ...ids('conversations'), ...linked('leads', 'conversationId')]).filter(idOf);
   if (cids.length > PERSONA_LIMITS.links) note('incomplete', 'conversation_limit');
   await Promise.all(cids.slice(0, PERSONA_LIMITS.links).map(async cid => {
     let rows;
     try {
-      rows = await fsList('messages', { filter: { field: 'conversationId', op: 'EQUAL', value: cid }, limit: PERSONA_LIMITS.history + 1 });
+      rows = await fsList('messages', { filter: { field: 'conversationId', op: 'EQUAL', value: cid },
+        orderBy: { field: 'at', direction: 'DESCENDING' }, limit: PERSONA_LIMITS.history + 1 });
+      if (rows.length > PERSONA_LIMITS.history) {
+        note('incomplete', 'history_window_limited', { ref: `conversations/${cid}`, scope: 'history' });
+        rows = rows.slice(0, PERSONA_LIMITS.history);
+      }
     } catch {
-      note('incomplete', 'history_unavailable', { ref: `conversations/${cid}` });
-      return;
-    }
-    if (rows.length > PERSONA_LIMITS.history) {
-      note('incomplete', 'latest_commitments_not_verified', { ref: `conversations/${cid}` });
-      return;
+      try {
+        rows = await fsList('messages', { filter: { field: 'conversationId', op: 'EQUAL', value: cid }, limit: PERSONA_LIMITS.history + 1 });
+        if (rows.length > PERSONA_LIMITS.history) {
+          note('incomplete', 'latest_commitments_not_verified', { ref: `conversations/${cid}` });
+          return;
+        }
+      } catch { note('incomplete', 'history_unavailable', { ref: `conversations/${cid}` }); return; }
     }
     for (const row of rows) {
+      if (row.conversationId !== cid) { note('incomplete', 'history_scope_mismatch', { ref: `conversations/${cid}`, scope: 'history' }); continue; }
       if (row.direction !== 'out' || !idOf(row.id)) continue;
       const at = iso(row.at || row.createdAt || row.timestamp), text = brief(row.body, 220);
       if (!at) { note('incomplete', 'message_time_missing', { ref: `messages/${row.id}` }); continue; }

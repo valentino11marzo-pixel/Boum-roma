@@ -510,10 +510,25 @@ const elCall = async (payload, { secret = 'el-secret', t = Math.floor(Date.now()
   ok('tools senza chiave → 401', r401.code === 401);
 
   DB.set('listings/l3', { id: 'l3', name: 'Bilocale Affittato', zone: 'Monti', price: 1200, status: 'rented' });
+  DB.set('listings/type_room', { id: 'type_room', name: 'Camera campione', type: 'Room', bedrooms: 1, sqm: 30, price: 900, status: 'available' });
+  DB.set('listings/type_apartment', { id: 'type_apartment', name: 'Appartamento campione', type: 'Apartment', bedrooms: 1, sqm: 30, price: 900, status: 'available' });
+  DB.set('listings/type_missing', { id: 'type_missing', name: 'Bilocale nel titolo non verificato', bedrooms: 1, sqm: 30, price: 900, status: 'available' });
+  DB.set('listings/type_blank', { id: 'type_blank', name: 'Camera nel titolo non verificata', type: '  ', bedrooms: 1, status: 'available' });
+  DB.set('listings/type_invalid', { id: 'type_invalid', name: 'Tipo non valido', type: { label: 'Apartment' }, bedrooms: 1, status: 'available' });
   const cat = await call(agentTools, { method: 'GET', query: { k: KEY, op: 'catalog' } });
   ok('catalog: ok e case vere', cat.code === 200 && cat.out.ok && cat.out.listings.some((l) => l.id === 'l2'), cat.out && cat.out.count);
   ok('catalog: un AFFITTATO non esce mai dalla voce', !cat.out.listings.some((l) => l.id === 'l3'));
   ok('catalog: prezzo parlabile', cat.out.listings.find((l) => l.id === 'l2').priceEurMonth === 1600);
+  const byId = (id) => cat.out.listings.find((l) => l.id === id);
+  ok('catalog: stanza e appartamento con stessa camera, superficie e prezzo mantengono tipi distinti',
+    byId('type_room')?.type === 'Room' && byId('type_apartment')?.type === 'Apartment'
+    && byId('type_room').bedrooms === byId('type_apartment').bedrooms);
+  ok('catalog: tipo mancante non dedotto da camera, prezzo, superficie o titolo bilocale', byId('type_missing')?.type === null);
+  ok('catalog: tipo vuoto o non testuale resta sconosciuto', byId('type_blank')?.type === null && byId('type_invalid')?.type === null);
+  ok('catalog: contratto distingue stanza e intero e vieta deduzioni dai posti/camere',
+    typeof cat.out.note === 'string' && cat.out.note.includes('A room is not an entire apartment')
+    && cat.out.note.includes('Do not infer accommodation type or total room count from bedrooms')
+    && cat.out.note.includes('If type is missing, unknown or unclear'));
 
   const sl = await call(agentTools, { method: 'GET', query: { k: KEY, op: 'slots', mode: 'video' } });
   ok('slots: la griglia VERA risponde (stesso motore di book.html)', sl.code === 200 && sl.out.ok === true && sl.out.timezone === 'Europe/Rome' && Array.isArray(sl.out.slots), sl.out && sl.out.timezone);

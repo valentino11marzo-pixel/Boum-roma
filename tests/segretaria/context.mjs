@@ -1,5 +1,6 @@
 // Real context and Firestore helpers. Only the network is simulated.
 import assert from 'node:assert/strict';
+import crypto from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 
 process.env.FIREBASE_API_KEY = 'context-fixture';
@@ -40,7 +41,7 @@ globalThis.fetch = async (url, options = {}) => {
   }
   assert.equal(method, 'GET', 'Context never writes');
   const path = decodeURIComponent(target.split('/documents/')[1] || '');
-  assert.match(path, /^(messages|contracts|leads|pfsClients|viewingRequests|properties|listings|phoneCalls|users)\/[\w.-]+$/);
+  assert.match(path, /^(messages|contracts|leads|pfsClients|viewingRequests|properties|listings|phoneCalls|users|minieraThreads)\/[\w.-]+$/);
   calls.push({ path });
   if (failures.has(path)) return response({ error: 'unavailable' }, 503);
   return DB.has(path) ? response(document(path, DB.get(path))) : response({ error: 'missing' }, 404);
@@ -79,7 +80,7 @@ await test('exact CID, verified dossier references, chronology and last WhatsApp
   assert.equal(ctx.coverage.lastEvent.present, true);
   assert.equal(JSON.stringify([...DB]), before);
   assert.ok(!JSON.stringify(ctx).includes('FOREIGN'));
-  assert.deepEqual(calls[0], { collection: 'messages', cid: 'c1', limit: 25, ordered: true });
+  assert.deepEqual(calls[0], { collection: 'messages', cid: 'c1', limit: CONTEXT_LIMITS.messages, ordered: true });
 });
 
 await test('missing compound index uses only a complete CID set sorted locally', async () => {
@@ -90,12 +91,12 @@ await test('missing compound index uses only a complete CID set sorted locally',
   assert.equal(ctx.coverage.history.ordered, true);
   assert.equal(ctx.coverage.incomplete, false);
   assert.deepEqual(messages(ctx).map(s => s.ref), ['messages/old', 'messages/latest']);
-  assert.equal(calls[1].limit, 41);
+  assert.equal(calls[1].limit, CONTEXT_LIMITS.fallback + 1);
 });
 
 async function rejectRandomPrefix(load = loadCaseContext) {
   orderedFails = true;
-  for (let i = 0; i < 45; i++) DB.set('messages/m' + i, msg('A bounded prefix is not the latest history.', '2026-09-10T10:00:00Z'));
+  for (let i = 0; i < CONTEXT_LIMITS.fallback + 5; i++) DB.set('messages/m' + i, msg('A bounded prefix is not the latest history.', '2026-09-10T10:00:00Z'));
   const ctx = await load(input());
   assert.equal(ctx.coverage.history.ordered, false);
   assert.equal(ctx.coverage.history.limited, true);
@@ -107,13 +108,13 @@ await test('capped unordered history never becomes a claimed recent conversation
 
 await test('ordered window is bounded and declared, latest event still present', async () => {
   DB.clear();
-  for (let i = 0; i < 30; i++) DB.set('messages/m' + i, msg('Message ' + i, new Date(now - (30 - i) * 60000).toISOString(), { waMessageId: 'wa_' + i }));
-  const i = input({ dossier: { ...dossier(), practices: [], properties: [] } }); i.task.followUp.lastMessageId = 'wa_29'; i.task.followUp.practiceRef = null;
+  for (let i = 0; i < CONTEXT_LIMITS.messages + 5; i++) DB.set('messages/m' + i, msg('Message ' + i, new Date(now - (CONTEXT_LIMITS.messages + 5 - i) * 60000).toISOString(), { waMessageId: 'wa_' + i }));
+  const i = input({ dossier: { ...dossier(), practices: [], properties: [] } }); i.task.followUp.lastMessageId = 'wa_' + (CONTEXT_LIMITS.messages + 4); i.task.followUp.practiceRef = null;
   const ctx = await loadCaseContext(i);
-  assert.equal(messages(ctx).length, 25);
+  assert.equal(messages(ctx).length, CONTEXT_LIMITS.messages);
   assert.equal(ctx.coverage.history.ordered, true);
   assert.ok(has(ctx, 'history_window_limited'));
-  assert.equal(ctx.coverage.lastEvent.sourceId, 'messages/m29');
+  assert.equal(ctx.coverage.lastEvent.sourceId, 'messages/m' + (CONTEXT_LIMITS.messages + 4));
   assert.ok(!messages(ctx).some(s => s.ref === 'messages/m0'));
 });
 
@@ -368,13 +369,14 @@ await test('fingerprint ignores read time, ordering and own confirmation fields;
 
 await test('sources and text sizes are capped, omitted references are declared', async () => {
   const i = input();
-  for (let n = 0; n < 30; n++) {
+  for (let n = 0; n < CONTEXT_LIMITS.messages + 5; n++) {
     const ref = 'contracts/extra' + n; i.dossier.practices.push({ ref, propertyRefs: [] }); DB.set(ref, { status: 'active' });
     DB.set('messages/x' + n, msg('x'.repeat(5000), '2026-09-14T12:00:00Z'));
   }
   const ctx = await loadCaseContext(i);
-  assert.ok(ctx.sources.length <= 40);
-  assert.ok(ctx.sources.every(source => source.text.length <= 600));
+  assert.ok(ctx.sources.length <= CONTEXT_LIMITS.sources);
+  assert.ok(ctx.sources.every(source => source.text.length <= CONTEXT_LIMITS.eventText))
+  assert.ok(ctx.coverage.textBudget.used <= CONTEXT_LIMITS.totalText);;
   assert.ok(has(ctx, 'reference_limit'));
   assert.ok(has(ctx, 'history_window_limited'));
   assert.ok(calls.filter(call => call.path?.startsWith('contracts/') || call.path?.startsWith('properties/')).length <= 12);
@@ -398,6 +400,112 @@ await test('a malformed source time and a foreign result never become recent his
   assert.ok(has(ctx, 'history_scope_mismatch'));
   assert.equal(ctx.coverage.history.ordered, false);
   assert.ok(!JSON.stringify(ctx).includes('UNRELATED_PERSON'));
+});
+
+async function preservePriority(load = loadCaseContext) {
+  const i = input(); i.task.followUp.lastMessageId = 'trigger';
+  DB.set('messages/trigger', msg('EVENTO PRIORITARIO ' + 'x'.repeat(7000), '2026-08-01T10:00:00Z'));
+  for (let n = 0; n < 110; n++) DB.set('messages/noise' + n,
+    msg('Cronologia lunga ' + 'y'.repeat(4000), new Date(now - n * 60000).toISOString()));
+  const ctx = await load(i), event = ctx.sources.find(s => s.ref === 'messages/trigger');
+  assert.equal(ctx.coverage.lastEvent.sourceId, 'messages/trigger');
+  assert.equal(event.text.length, CONTEXT_LIMITS.eventText);
+  assert.equal(event.textTruncated, true);
+  assert.ok(event.omittedCharacters > 0);
+  assert.ok(has(ctx, 'message_text_truncated'));
+  assert.ok(has(ctx, 'history_text_limit'));
+  assert.ok(ctx.sources.some(s => s.ref === 'contracts/k1'));
+  assert.ok(ctx.sources.some(s => s.ref === 'messages/noise0'));
+  assert.ok(!ctx.sources.some(s => s.ref === 'messages/noise109'));
+  assert.equal(ctx.coverage.history.returned, messages(ctx).length);
+  const total = ctx.sources.reduce((sum, s) => sum + s.text.length + (s.analysisText?.length || 0), 0);
+  assert.equal(ctx.coverage.textBudget.used, total);
+  assert.ok(total <= CONTEXT_LIMITS.totalText);
+}
+await test('old triggering event survives a full long-message window; newest history and verified records retain priority', preservePriority);
+
+async function rejectHiddenChanges(load = loadCaseContext) {
+  DB.get('messages/latest').body = 'x'.repeat(CONTEXT_LIMITS.eventText + 200) + 'old';
+  const ctx = await load(input());
+  DB.get('messages/latest').body = 'x'.repeat(CONTEXT_LIMITS.eventText + 200) + 'new';
+  const changed = await load(input());
+  assert.equal(messages(ctx)[0].text, messages(changed)[0].text);
+  assert.notEqual(contextFingerprint(ctx), contextFingerprint(changed));
+}
+await test('a changed clause beyond the visible excerpt invalidates approval even at the same length', rejectHiddenChanges);
+
+const historicalPhone = '+393331234567', historicalChat = '393331234567@s.whatsapp.net';
+const historicalRef = 'minieraThreads/' + crypto.createHash('sha1').update(historicalChat).digest('hex');
+const historicalInput = () => input({ conversation: { id: 'c1', contactPhone: historicalPhone } });
+function setHistorical(extra = {}) {
+  DB.set(historicalRef, { chatId: historicalChat, phone: historicalPhone, msgCount: 901,
+    firstTs: now - 300 * 86400000, lastTs: now - 15 * 86400000, syncedAt: new Date(now - 86400000),
+    firstInText: 'Cerco una casa.', lastInText: 'Grazie per la visita.', lastOutText: 'Ci sentiamo venerdì.',
+    inSample: 'Preferisco la zona centrale.', ...extra });
+}
+await test('Miniera is read by one verified canonical JID and carries honest historical provenance', async () => {
+  setHistorical({ bankAccount: 'SECRET_BANK', transcript: 'SECRET_ARCHIVE' });
+  const ctx = await loadCaseContext(historicalInput()), source = ctx.sources.find(s => s.ref === historicalRef);
+  assert.equal(source.kind, 'historical_whatsapp_summary');
+  assert.equal(source.evidenceEligible, false);
+  assert.equal(source.provenance, 'miniera_reduced_samples');
+  assert.equal(source.direction, undefined);
+  assert.equal(source.at, undefined, 'No individual message date may be invented');
+  assert.equal(ctx.coverage.historical.completeness, 'samples_only');
+  assert.equal(ctx.coverage.historical.status, 'included');
+  assert.ok(has(ctx, 'historical_samples_partial'));
+  assert.ok(source.text.includes('Preferisco la zona centrale'));
+  assert.ok(!JSON.stringify(ctx).includes('SECRET'));
+  assert.deepEqual(calls.filter(c => c.path?.startsWith('minieraThreads/')).map(c => c.path), [historicalRef]);
+  assert.equal(ctx.style.basis, 'editorial_only');
+  const before = contextFingerprint(ctx); DB.get(historicalRef).lastOutText = 'Un campione corretto.';
+  assert.notEqual(contextFingerprint(await loadCaseContext(historicalInput())), before);
+});
+
+async function rejectForeignHistory(load = loadCaseContext) {
+  for (const extra of [{ phone: '+393339999999' }, { chatId: '393339999999@s.whatsapp.net' }, { chatId: '123456789@g.us' }]) {
+    setHistorical({ ...extra, inSample: 'FOREIGN_HISTORY' });
+    const ctx = await load(historicalInput());
+    assert.equal(ctx.coverage.historical.status, 'scope_mismatch');
+    assert.ok(!ctx.sources.some(s => s.kind === 'historical_whatsapp_summary'));
+    assert.ok(!JSON.stringify(ctx).includes('FOREIGN_HISTORY'));
+  }
+}
+await test('matching document id alone cannot admit another phone, chat or group', rejectForeignHistory);
+
+async function rejectAmbiguousHistory(load = loadCaseContext) {
+  setHistorical();
+  for (const field of ['identityIncomplete', 'identityAmbiguous']) {
+    const i = historicalInput(); i.dossier[field] = true; calls = [];
+    const ctx = await load(i);
+    assert.equal(ctx.coverage.historical.status, 'identity_not_verified');
+    assert.ok(!calls.some(c => c.path?.startsWith('minieraThreads/')));
+  }
+}
+await test('an unverified identity never reads Miniera', rejectAmbiguousHistory);
+
+await test('historical failure preserves current sources and states the gap, redaction precedes the prompt', async () => {
+  failures.add(historicalRef);
+  const failed = await loadCaseContext(historicalInput());
+  assert.equal(failed.coverage.lastEvent.present, true);
+  assert.equal(failed.coverage.historical.status, 'unavailable');
+  assert.ok(has(failed, 'historical_summary_unavailable'));
+  failures.clear();
+  setHistorical({ lastOutText: 'password: SECRET_FIXTURE', inSample: 'IBAN IT60X0542811101000000123456' });
+  const ctx = await loadCaseContext(historicalInput());
+  assert.ok(!JSON.stringify(ctx).includes('SECRET_FIXTURE'));
+  assert.ok(!JSON.stringify(ctx).includes('IT60X0542811101000000123456'));
+});
+
+await test('a hundred telephone events cannot expand into a hundred sequential document reads', async () => {
+  for (let n = 0; n < 100; n++) {
+    DB.set('messages/phone' + n, msg('Chiamata.', new Date(now - n * 60000).toISOString(),
+      { source: 'phone', channel: 'phone', phoneCallId: 'call' + n, callerWords: 'Richiesta leggibile.' }));
+    DB.set('phoneCalls/call' + n, { callerWords: 'Richiesta leggibile.', status: 'received' });
+  }
+  const ctx = await loadCaseContext(input());
+  assert.ok(calls.filter(c => c.path?.startsWith('phoneCalls/')).length <= CONTEXT_LIMITS.calls);
+  assert.ok(has(ctx, 'call_reference_limit'));
 });
 
 // Mutation checks use the same behavior assertions and real dependency modules;
@@ -429,6 +537,22 @@ await test('mutation: treating imported media markers as readable text is caught
 await test('mutation: trusting the absence of attachment URLs is caught', async () => {
   const mutant = await mutated('unreadAttachment: attached || !!media', 'unreadAttachment: attached');
   await assert.rejects(() => rejectUnreadImportedMedia(mutant.loadCaseContext), assert.AssertionError);
+});
+await test('mutation: losing the hidden-content fingerprint is caught', async () => {
+  const mutant = await mutated('contentHash: hash(raw)', 'contentHash: hash(text)');
+  await assert.rejects(() => rejectHiddenChanges(mutant.loadCaseContext), assert.AssertionError);
+});
+await test('mutation: letting long recent history evict the triggering event is caught', async () => {
+  const mutant = await mutated('Number(exactEvent[0]?.id === b.id) - Number(exactEvent[0]?.id === a.id)', '0');
+  await assert.rejects(() => preservePriority(mutant.loadCaseContext), assert.AssertionError);
+});
+await test('mutation: accepting a historical row for another identity is caught', async () => {
+  const mutant = await mutated("row.id !== ref.split('/')[1] || row.chatId !== chatId || normalizePhone(row.phone) !== phone", 'false');
+  await assert.rejects(() => rejectForeignHistory(mutant.loadCaseContext), assert.AssertionError);
+});
+await test('mutation: reading historical samples for an ambiguous identity is caught', async () => {
+  const mutant = await mutated("dossier?.identityIncomplete === false && dossier?.identityAmbiguous === false && conversation.identityStatus !== 'ambiguous'", 'true');
+  await assert.rejects(() => rejectAmbiguousHistory(mutant.loadCaseContext), assert.AssertionError);
 });
 
 console.log(`\nContext: ${passed} passed, ${failed} failed`);

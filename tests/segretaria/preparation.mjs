@@ -2,6 +2,7 @@
 import { register } from 'node:module';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import crypto from 'node:crypto';
 register('../notify/loader.mjs', import.meta.url);
 Object.assign(process.env, { FIREBASE_API_KEY: 'fixture', FIREBASE_ADMIN_EMAIL: 'admin@example.test',
   FIREBASE_ADMIN_PASS: 'fixture', HOMIE_SECRET: 'fixture', ANTHROPIC_API_KEY: 'fixture', CRON_SECRET: 'fixture-cron' });
@@ -725,6 +726,46 @@ try {
   r = await endpoint(followUpEndpoint, { method: 'GET', token: 'tenant', query: { id: ID } });
   ok('GET non admin resta 403 senza effetti', r.httpCode === 403 && !writes.length && !aiHits, r);
 
+  const historicalChat = PHONE.slice(1) + '@s.whatsapp.net';
+  const historicalRef = 'minieraThreads/' + crypto.createHash('sha1').update(historicalChat).digest('hex');
+  const seedHistorical = () => save(historicalRef, { chatId: historicalChat, phone: PHONE, msgCount: 800,
+    firstTs: NOW - 200 * 86400000, lastTs: NOW - 100 * 86400000, syncedAt: stamp(NOW - 86400000),
+    firstInText: 'Hello, I was looking for an apartment.', lastInText: 'Thanks.',
+    lastOutText: 'Il tecnico è disponibile venerdì.', inSample: 'Cerco un appartamento vicino alla metro.' });
+  reset(); seedHistorical(); r = await generate();
+  const historySource = aiInputs[0]?.sources.find(s => s.ref === historicalRef);
+  ok('memoria Miniera arriva al modello solo come contesto storico senza date individuali o valore probatorio', r.code === 200
+    && historySource?.kind === 'historical_whatsapp_summary' && historySource.evidenceEligible === false
+    && !historySource.at && !historySource.direction && historySource.text.includes('vicino alla metro')
+    && aiInputs[0].language === 'it' && aiInputs[0].languageEvidence.sourceId === 'messages/m1'
+    && !aiInputs[0].calendar.references.some(ref => ref.sourceId === historicalRef)
+    && r.preparation.coverage.historical.status === 'included' && untouched(), r);
+  const historicalRevision = r.preparation?.revision;
+  save(historicalRef, { ...DB.get(historicalRef), lastOutText: 'Campione corretto successivamente.' });
+  r = await endpoint(prepareEndpoint, { body: { op: 'approve', id: ID, revision: historicalRevision, lastMessageId: 'm1' } });
+  ok('una memoria storica cambiata invalida la conferma come ogni altra fonte', r.httpCode === 409
+    && r.error === 'preparation_sources_changed' && !task().preparation.approval && untouched(), r);
+
+  for (const section of ['facts', 'commitments', 'uncertainties', 'nextAction', 'draft', 'handoff']) {
+    reset(); seedHistorical();
+    aiBuilder = input => {
+      const p = validProposal(input), source = input.sources.find(s => s.ref === historicalRef);
+      const statement = Array.isArray(p[section]) ? p[section][0] : p[section];
+      statement.sourceIds = [source.id]; statement.quote = source.text.slice(0, 100);
+      return p;
+    };
+    r = await generate();
+    ok('campioni storici non possono sostenere ' + section + ' anche con citazione letterale', r.code === 422
+      && !task().preparation && untouched(), r);
+  }
+  reset({ text: 'Potete verificare venerdì 18 settembre alle 15:00?' });
+  for (let n = 0; n < 90; n++) save('messages/old' + n, { conversationId: CID, direction: 'in', channel: 'whatsapp',
+    at: stamp(NOW - (n + 2) * 60000), body: 'Messaggio storico numero ' + n });
+  r = await generate();
+  ok('il calendario conserva l’evento attuale anche con 90 messaggi precedenti', r.code === 200
+    && aiInputs[0].calendar.references.some(ref => ref.sourceId === 'messages/m1')
+    && aiInputs[0].sources.filter(s => s.kind === 'message').length === 91 && untouched(), r);
+
   // Each mutation runs this same real-module suite in its own disposable tree.
   if (!process.env.BOOM_PREPARATION_MUTANT && !fails) {
     const fs = await import('node:fs/promises');
@@ -732,6 +773,10 @@ try {
     const { spawnSync } = await import('node:child_process');
     const root = fileURLToPath(new URL('../../', import.meta.url));
     const mutants = [
+      { name: 'campioni storici non sono prove attuali', file: 'js/segretaria-proposta-engine.js',
+        from: "sourceIds.filter(id => sourceKinds[id] !== 'historical_whatsapp_summary')", to: 'sourceIds' },
+      { name: 'l’evento attuale precede la vecchia storia nel calendario', file: 'api/segretaria/_prepare.js',
+        from: 'sources: calendarSources, now', to: 'sources: context.sources, now' },
       { name: 'calendario applicato alla proposta finale', file: 'api/segretaria/_prepare.js',
         from: 'if (!calendarCheck.ok)', to: 'if (false)' },
       { name: 'impegno eventuale e reazioni', file: 'js/segretaria-proposta-engine.js',

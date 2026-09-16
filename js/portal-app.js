@@ -3110,6 +3110,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             .onSnapshot(snapshot => {
                 S.contracts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 checkAlerts();
+                oggiScheduleUpdate();
                 if (S.page === 'dashboard' || S.page === 'contracts') renderPage();
             }, err => console.error('Contracts listener error:', err));
     }
@@ -3134,6 +3135,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             .onSnapshot(snapshot => {
                 S.actionQueue = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 buildNav();
+                oggiScheduleUpdate(true);
                 if (S.page === 'dashboard' || S.page === 'command-center') renderPage();
             }, err => console.error('Action queue listener error:', err));
     }
@@ -3189,6 +3191,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     if (document.hidden) sendBrowserNotification('🔧 Nuova manutenzione', sub);
                 }
                 buildNav();
+                oggiScheduleUpdate();
                 if (S.page === 'maintenance' || S.page === 'dashboard') renderPage();
             }, err => console.error('Maintenance listener error:', err));
     }
@@ -3300,6 +3303,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const prevUnread = (S.conversations || []).reduce((n, c) => n + (Number(c.unread) || 0), 0);
             S.conversations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             buildNav();
+            oggiScheduleUpdate(true, false);
             if (S.page === 'inbox') {
                 // Preserve the open conversation + composer text across re-render.
                 const draft = (document.getElementById('inboxBody') || {}).value;
@@ -3325,11 +3329,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         stopOpenConvListener();
         if (!convId) return;
         S.openConvId = convId;
+        S.openConvStatus = { id: convId, loading: true, incomplete: false, error: '' };
         S.openConvListener = db.collection('messages')
             .where('conversationId', '==', convId)
+            .orderBy('at', 'desc')
             .limit(300)
             .onSnapshot(snapshot => {
+                if (S.openConvId !== convId) return;
                 const fresh = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                S.openConvStatus = { id: convId, loading: false, incomplete: fresh.length >= 300, error: '' };
                 // Merge: drop this conversation's old messages, splice the fresh set in.
                 S.messages = (S.messages || []).filter(m => m.conversationId !== convId).concat(fresh);
                 if (S.page === 'inbox' && _inboxState.convId === convId) {
@@ -3338,7 +3346,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     if (m) m.innerHTML = inboxPage();
                     if (draft) { const ta = document.getElementById('inboxBody'); if (ta) ta.value = draft; }
                 }
-            }, err => console.error('Open conversation listener error:', err));
+            }, () => {
+                if (S.openConvId !== convId) return;
+                S.openConvStatus = { id: convId, loading: false, incomplete: true, error: 'Non riesco ad aggiornare i messaggi. La cronologia visibile potrebbe essere incompleta: riapri la conversazione per riprovare.' };
+                const draft = (document.getElementById('inboxBody') || {}).value;
+                inboxRefresh();
+                if (draft) { const ta = document.getElementById('inboxBody'); if (ta) ta.value = draft; }
+            });
     }
     function stopOpenConvListener() {
         if (S.openConvListener) { S.openConvListener(); S.openConvListener = null; }
@@ -4609,7 +4623,99 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     window.oggiOpenPa = oggiOpenPa;
 
     // ═══ SEGRETERIA · SEGUITI IN OGGI — proposte, invio solo dopo conferma ═══
-    const oggiSegretaria = { rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false, userId: null, generation: 0, timer: null, modal: null };
+    const oggiSegretaria = { rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false, userId: null, generation: 0, timer: null, modal: null, readAt: null, monitoring: null, liveListener: null, liveObserver: null, liveError: false, updateTimer: null, refreshPending: false, decisionsPending: false };
+    // Aggiorniamo solo le regioni di Oggi: i listener non ricreano #main,
+    // il modulo aperto o la bozza che l'operatore sta controllando.
+    function oggiScheduleUpdate(followUps = false, decisions = true) {
+        if (S.page !== 'oggi' || !isAdmin()) return;
+        oggiSegretaria.refreshPending = oggiSegretaria.refreshPending || followUps;
+        oggiSegretaria.decisionsPending = oggiSegretaria.decisionsPending || decisions;
+        if (oggiSegretaria.updateTimer) return;
+        oggiSegretaria.updateTimer = setTimeout(() => {
+            oggiSegretaria.updateTimer = null;
+            if (S.page !== 'oggi' || !isAdmin()) return;
+            if (oggiSegretaria.decisionsPending) {
+                oggiSegretaria.decisionsPending = false;
+                const panel = document.getElementById('ogDecisionPanel');
+                if (panel) {
+                    const focused = panel.contains(document.activeElement) ? document.activeElement?.getAttribute('data-og-action') : null;
+                    panel.innerHTML = oggiDecisionPanel();
+                    if (focused) [...panel.querySelectorAll('[data-og-action]')].find(el => el.getAttribute('data-og-action') === focused)?.focus({ preventScroll: true });
+                }
+            }
+            oggiSegretariaFreshnessUpdate();
+            if (oggiSegretaria.refreshPending && !oggiSegretaria.loading) {
+                oggiSegretaria.refreshPending = false;
+                oggiSegretariaLoad();
+            }
+        }, 150);
+    }
+    function oggiSegretariaStopLive() {
+        if (oggiSegretaria.liveListener) oggiSegretaria.liveListener();
+        if (oggiSegretaria.liveObserver) oggiSegretaria.liveObserver.disconnect();
+        clearTimeout(oggiSegretaria.updateTimer);
+        clearTimeout(oggiSegretaria.timer);
+        Object.assign(oggiSegretaria, { liveListener: null, liveObserver: null, updateTimer: null, refreshPending: false, decisionsPending: false });
+    }
+    function oggiSegretariaStartLive() {
+        if (oggiSegretaria.liveListener) return;
+        const user = auth.currentUser;
+        try {
+            // Lo snapshot segnala soltanto che rileggere: ricevute e contenuto
+            // restano derivati dall'API autenticata, non da un secondo motore.
+            let first = true;
+            oggiSegretaria.liveListener = db.collection('operatorTasks').where('followUp.open', '==', true).limit(200).onSnapshot(() => {
+                if (auth.currentUser !== user || !isAdmin()) { oggiSegretariaStopLive(); return; }
+                oggiSegretaria.liveError = false;
+                if (first) { first = false; if (!oggiSegretaria.loaded || oggiSegretaria.loading) return; }
+                oggiScheduleUpdate(true, false);
+            }, () => {
+                oggiSegretaria.liveError = true;
+                oggiSegretariaFreshnessUpdate();
+            });
+            const main = document.getElementById('main');
+            if (main) {
+                oggiSegretaria.liveObserver = new MutationObserver(() => {
+                    if (!document.getElementById('sgFollowPanel')) oggiSegretariaStopLive();
+                });
+                oggiSegretaria.liveObserver.observe(main, { childList: true });
+            }
+        } catch { oggiSegretaria.liveError = true; } // il polling resta disponibile
+    }
+    function oggiSegretariaFreshness() {
+        const ms = value => {
+            const n = value?.toDate ? value.toDate().getTime() : new Date(value || 0).getTime();
+            return Number.isFinite(n) && n > 0 ? n : 0;
+        };
+        const incoming = Math.max(0, ...(S.conversations || []).filter(c => c.channel === 'whatsapp' && c.lastDirection === 'in').map(c => ms(c.lastMessageAt)));
+        const prepared = Math.max(0, ...oggiSegretaria.rows.map(t => ms(t?.preparation?.createdAt)));
+        return `Seguiti aggiornati: ${oggiSegretaria.readAt ? oggiSegretariaDate(oggiSegretaria.readAt) : 'in attesa'} · Ultimo WhatsApp visibile: ${incoming ? oggiSegretariaDate(incoming) : 'non disponibile'} · Ultima proposta: ${prepared ? oggiSegretariaDate(prepared) : 'non disponibile'}.${oggiSegretaria.liveError ? ' Aggiornamento immediato indisponibile; ricontrollo automatico ogni 30 secondi.' : ''}`;
+    }
+    function oggiSegretariaFreshnessUpdate() {
+        const target = document.getElementById('sgFreshness');
+        if (target) target.textContent = oggiSegretariaFreshness();
+    }
+    function oggiSegretariaMonitoring() {
+        const m = oggiSegretaria.monitoring;
+        const labels = {
+            unavailable: 'Stato della preparazione automatica non disponibile.',
+            unknown: 'Stato della preparazione automatica da verificare.',
+            disabled: 'Preparazione automatica disattivata. I seguiti restano disponibili.',
+            paused: 'Preparazione automatica sospesa. I seguiti restano disponibili.',
+            daily_cap: 'Limite giornaliero raggiunto: le nuove proposte automatiche sono in attesa.',
+            delayed: 'Il controllo della preparazione automatica è in ritardo.',
+            working: 'Nuove proposte preparate nell’ultimo ciclo.',
+            idle: 'Nessuna nuova proposta nell’ultimo ciclo.'
+        };
+        const status = m && Object.hasOwn(labels, m.status) ? m.status : 'unavailable';
+        const dates = [];
+        const at = value => { const n = Date.parse(value || ''); return Number.isFinite(n) ? oggiSegretariaDate(n) : ''; };
+        if (at(m?.checkedAt)) dates.push('Stato letto: ' + at(m.checkedAt));
+        if (at(m?.lastRunAt)) dates.push('Ultimo ciclo: ' + at(m.lastRunAt));
+        if (typeof m?.remainingToday === 'number' && Number.isFinite(m.remainingToday)) dates.push('Preparazioni residue oggi: ' + Math.max(0, m.remainingToday));
+        const warning = ['unavailable', 'unknown', 'disabled', 'paused', 'daily_cap', 'delayed'].includes(status);
+        return `<div class="sg-notice${warning ? ' sg-notice--warning' : ''}" role="status"><p>${labels[status]}</p>${dates.length ? `<p>${esc(dates.join(' · '))}</p>` : ''}${m?.incomplete ? '<p>Informazioni sulla preparazione parziali.</p>' : ''}</div>`;
+    }
     const oggiSegretariaErrors = {
         unauthorized: 'Accedi di nuovo per leggere i seguiti.', forbidden: 'Questa vista richiede un accesso amministratore.',
         new_message_reload: 'È arrivato un nuovo messaggio. Ho ricaricato il seguito: ricontrolla i dati prima di confermare.',
@@ -4753,6 +4859,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         };
         const section = (key, title, description, empty) => `<section class="sg-group sg-group--${key}" data-sg-group="${key}" aria-labelledby="sg-group-${key}"><header class="sg-group-header"><h3 id="sg-group-${key}">${title}<span class="sg-count">${groups[key].length}</span></h3><p>${description}</p></header><div class="sg-group-cases">${groups[key].length ? groups[key].map(task => row(task, key)).join('') : `<p class="sg-empty">${empty}</p>`}</div></section>`;
         panel.innerHTML = `<header class="sg-briefing"><div class="sg-briefing-top"><div><p class="sg-eyebrow">BOOM / Operazioni</p><h2>Segreteria</h2></div><button class="btn btn-secondary sg-refresh" type="button" data-sg-action="refresh" ${oggiSegretaria.loading ? 'disabled' : ''}>${oggiSegretaria.loading ? 'Aggiorno…' : 'Aggiorna'}</button></div><div class="sg-briefing-copy"><p class="sg-headline">${headline}</p><p class="sg-briefing-note">${subline}</p></div><dl class="sg-board"><div><dt>Decisioni per te</dt><dd>${oggiSegretaria.loaded ? groups.decisions.length : '—'}</dd></div><div><dt>In corso</dt><dd>${oggiSegretaria.loaded ? groups.progress.length : '—'}</dd></div><div><dt>In attesa</dt><dd>${oggiSegretaria.loaded ? groups.waiting.length : '—'}</dd></div></dl><div class="sg-briefing-foot"><span>${oggiSegretaria.loaded ? `${total} ${total === 1 ? 'seguito aperto' : 'seguiti aperti'} nell’elenco${oggiSegretaria.incomplete || groups.invalid ? ' parziale' : ''}` : 'Lettura in corso'}</span><span>${future ? 'Prossimo ricontrollo · ' + esc(oggiSegretariaDate(future)) : 'Le date di ricontrollo sono interne'}</span></div></header>
+            <p id="sgFreshness" class="sg-footnote" role="status">${esc(oggiSegretariaFreshness())}</p>
+            <details class="sg-footnote" data-sg-detail="coverage" ${opened.has('coverage') ? 'open' : ''}><summary>Copertura degli aggiornamenti</summary><p>Le date riguardano i seguiti e gli ingressi nelle chat WhatsApp caricate. Le chat miste, i messaggi già seguiti da una risposta e le conversazioni fuori dall’elenco possono non essere inclusi. La copertura di WhatsApp non è verificata da questi dati.</p></details>
+            ${oggiSegretariaMonitoring()}
             ${oggiSegretaria.error ? `<div class="sg-notice sg-notice--warning" role="alert">${esc(oggiSegretaria.error)}</div>` : ''}
             ${oggiSegretaria.incomplete ? '<div class="sg-notice sg-notice--warning" role="status">Elenco parziale: raggiunto il limite di 200 seguiti. Potrebbero esserci altre richieste aperte.</div>' : ''}
             ${groups.invalid ? '<div class="sg-notice sg-notice--warning" role="status">Alcuni seguiti hanno dati incompleti e non sono rappresentabili in questa vista.</div>' : ''}
@@ -4777,9 +4886,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!document.getElementById('sgFollowPanel') || !isAdmin()) return;
         const uid = auth.currentUser && auth.currentUser.uid;
         if (oggiSegretaria.userId !== uid) {
+            oggiSegretariaStopLive();
             oggiSegretaria.generation++;
-            Object.assign(oggiSegretaria, { userId: uid, rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false });
+            Object.assign(oggiSegretaria, { userId: uid, rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false, readAt: null, monitoring: null, liveError: false });
         }
+        oggiSegretariaStartLive();
         oggiSegretariaRender();
         if (!oggiSegretaria.loading) oggiSegretariaLoad();
     }
@@ -4793,7 +4904,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const data = await oggiSegretariaRequest();
             if (generation !== oggiSegretaria.generation) return;
             if (!Array.isArray(data.rows)) throw { code: 'invalid_response' };
-            Object.assign(oggiSegretaria, { rows: data.rows, incomplete: data.incomplete === true, loaded: true, error: '' });
+            Object.assign(oggiSegretaria, { rows: data.rows, incomplete: data.incomplete === true, loaded: true, error: '', readAt: Date.now(), monitoring: data.monitoring || null });
         } catch (e) {
             if (generation === oggiSegretaria.generation) oggiSegretaria.error = oggiSegretariaError(e);
         } finally {
@@ -4801,6 +4912,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 oggiSegretaria.loading = false;
                 oggiSegretariaRender();
                 oggiSegretaria.timer = setTimeout(() => { if (S.page === 'oggi') oggiSegretariaLoad(); }, 30000);
+                if (oggiSegretaria.refreshPending) oggiScheduleUpdate(true, false);
             }
         }
     }
@@ -5096,9 +5208,25 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             db.collection('preAgreements').limit(150).get().then((snap) => {
                 S.preAgreements = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
                 S._paLoaded = true;
-                if (S.page === 'oggi') renderPage();
+                oggiScheduleUpdate();
             }).catch(() => { S._paLoaded = true; });
         }
+        return `<div class="page-header">
+                <div><h1 class="page-title">⚡ Oggi</h1><p class="page-subtitle">Decisioni e seguiti di BOOM</p></div>
+                <div class="page-actions">
+                    <button class="btn btn-secondary" onclick="goTo('dashboard')">📊 Studio</button>
+                    <button class="btn btn-secondary" onclick="forceRefreshData()" title="Ricarica i dati">↻</button>
+                </div>
+            </div>
+
+            ${oggiSegretariaPanel()}
+
+            <section id="ogDecisionPanel" aria-label="Altre decisioni di oggi">${oggiDecisionPanel()}</section>`;
+    }
+
+    function oggiDecisionPanel() {
+        const E = window.BOOM_OGGI;
+        if (!E || typeof E.build !== 'function') return '';
         const { decisions, cash } = E.build(S, new Date().toISOString());
         window.__oggiLast = decisions;
         let hidden = [];
@@ -5116,22 +5244,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ${d.sub ? `<div class="list-subtitle li-meta" style="margin-top:3px">${esc(d.sub)}</div>` : ''}
                 </div>
                 <div class="og-actions">
-                    ${(d.actions || []).map((a, j) => `<button class="btn btn-sm ${a.primary ? '' : 'btn-secondary'}" onclick="event.stopPropagation();oggiRun('${d.id}#${j}')">${esc(a.label)}</button>`).join('')}
-                    <button class="btn btn-sm btn-secondary og-hide" title="Nascondi per oggi" onclick="event.stopPropagation();oggiDismiss('${d.id}')">✕</button>
+                    ${(d.actions || []).map((a, j) => `<button class="btn btn-sm ${a.primary ? '' : 'btn-secondary'}" data-og-action="${esc(d.id)}#${j}" onclick="event.stopPropagation();oggiRun('${d.id}#${j}')">${esc(a.label)}</button>`).join('')}
+                    <button class="btn btn-sm btn-secondary og-hide" title="Nascondi per oggi" data-og-action="${esc(d.id)}#hide" onclick="event.stopPropagation();oggiDismiss('${d.id}')">✕</button>
                 </div>
             </div>`;
 
-        return `<div class="page-header">
-                <div><h1 class="page-title">⚡ Oggi</h1><p class="page-subtitle">Decisioni e seguiti di BOOM</p></div>
-                <div class="page-actions">
-                    <button class="btn btn-secondary" onclick="goTo('dashboard')">📊 Studio</button>
-                    <button class="btn btn-secondary" onclick="forceRefreshData()" title="Ricarica i dati">↻</button>
-                </div>
-            </div>
-
-            ${oggiSegretariaPanel()}
-
-            <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+        return `<div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
                 <div class="stat-card green" onclick="goTo('payments')">
                     <div class="stat-value">€${cash.paidMonth.toLocaleString('it-IT')}</div>
                     <div class="stat-label">Incassato questo mese</div>
@@ -10994,6 +11112,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function inboxThreadPanel(conv) {
         const msgs = (S.messages || []).filter(m => m.conversationId === conv.id);
         const days = BOOM_INBOX.groupByDay(msgs);
+        const history = S.openConvStatus?.id === conv.id ? S.openConvStatus : null;
         const waUrl = BOOM_INBOX.whatsappUrl(conv.contactPhone, '');
         const canEmail = !!conv.contactEmail;
         return `
@@ -11021,6 +11140,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
 
             ${inboxHomieBanner(conv)}
+            ${history?.error ? `<p class="sg-notice sg-notice--warning" role="alert">${esc(history.error)}</p>` : history?.loading ? '<p class="sg-footnote" role="status">Carico gli ultimi messaggi…</p>' : history?.incomplete ? '<p class="sg-footnote" role="status">Sono visibili i 300 messaggi più recenti. La cronologia precedente non è inclusa in questa vista.</p>' : ''}
 
             <!-- Timeline -->
             <div style="flex:1;overflow-y:auto;padding:18px;background:#050505">

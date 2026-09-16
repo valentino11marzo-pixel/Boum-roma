@@ -801,7 +801,7 @@
   "crons": [
     {
       "path": "/api/segretaria/worker",
-      "schedule": "*/2 * * * *"
+      "schedule": "* * * * *"
     },
     {
       "path": "/api/reminder-cron",

@@ -7,7 +7,7 @@ process.env.FIREBASE_ADMIN_PASS = 'test-only';
 const { toFsFields, fsValToJs } = await import('../../api/homie/_lib.js');
 const { personaDossier, PERSONA_LIMITS } = await import('../../api/segretaria/_persona.js');
 const DB = new Map();
-let calls = [], failures = new Set(), passed = 0, failed = 0;
+let calls = [], failures = new Set(), orderedFails = false, passed = 0, failed = 0;
 const phone = '+393331234567', email = 'persona@example.test';
 const doc = (path, data) => ({ name: `projects/test/databases/(default)/documents/${path}`, fields: toFsFields(data) });
 const response = (body, status = 200) => ({ ok: status < 400, status, json: async () => body, text: async () => JSON.stringify(body) });
@@ -23,11 +23,13 @@ globalThis.fetch = async (url, options = {}) => {
     assert.ok(!/name/i.test(filter.field.fieldPath), 'Names never resolve identity');
     assert.ok(q.limit <= PERSONA_LIMITS.history + 1, 'Reads have explicit bounded limits');
     calls.push({ collection, filter, limit: q.limit });
+    if (orderedFails && q.orderBy) return response({ error: 'missing_index' }, 400);
     if (failures.has(collection) || failures.has(`${collection}.${filter.field.fieldPath}`)) return response({ error: 'unavailable' }, 503);
     const value = fsValToJs(filter.value);
-    const rows = [...DB].filter(([path]) => path.split('/').length === 2 && path.startsWith(collection + '/'))
-      .filter(([, row]) => filter.op === 'IN' ? value.includes(row[filter.field.fieldPath]) : row[filter.field.fieldPath] === value)
-      .slice(0, q.limit);
+    let rows = [...DB].filter(([path]) => path.split('/').length === 2 && path.startsWith(collection + '/'))
+      .filter(([, row]) => filter.op === 'IN' ? value.includes(row[filter.field.fieldPath]) : row[filter.field.fieldPath] === value);
+    if (q.orderBy) rows = rows.filter(([, row]) => row.at !== undefined).sort((a, b) => String(b[1].at).localeCompare(String(a[1].at)));
+    rows = rows.slice(0, q.limit);
     return response(rows.map(([path, row]) => ({ document: doc(path, row) })));
   }
   assert.equal(method, 'GET', 'Dossier must never write Firestore');
@@ -38,7 +40,7 @@ globalThis.fetch = async (url, options = {}) => {
 };
 
 async function test(name, run) {
-  DB.clear(); calls = []; failures = new Set();
+  DB.clear(); calls = []; failures = new Set(); orderedFails = false;
   try {
     await run();
     passed++;
@@ -231,7 +233,8 @@ await test('an unavailable listing does not erase identity but marks missing con
   assert.ok(reason(d, 'property_reference_not_found'));
 });
 
-await test('a capped history does not pretend an arbitrary prefix is the last promise', async () => {
+await test('a capped unordered fallback does not pretend an arbitrary prefix is the last promise', async () => {
+  orderedFails = true;
   DB.set('conversations/c', { contactPhone: phone });
   for (let i = 0; i <= PERSONA_LIMITS.history; i++) DB.set(`messages/m${i}`, { conversationId: 'c', direction: 'out', at: '2026-09-14T15:00:00Z', body: 'Un messaggio.' });
   const d = await personaDossier({ phone, conversationId: 'c' });
@@ -241,6 +244,17 @@ await test('a capped history does not pretend an arbitrary prefix is the last pr
   assert.equal(d.identityAmbiguous, false);
   assert.deepEqual(d.commitments, []);
   assert.ok(reason(d, 'latest_commitments_not_verified'));
+});
+
+await test('a long conversation retains the latest ordered outgoing words and declares its partial window', async () => {
+  DB.set('conversations/c', { contactPhone: phone });
+  for (let i = 0; i < 90; i++) DB.set(`messages/m${i}`, { conversationId: 'c', direction: 'out',
+    at: new Date(Date.parse('2026-09-14T12:00:00Z') + i * 60000).toISOString(), body: 'Impegno ' + i });
+  const d = await personaDossier({ phone, conversationId: 'c' });
+  assert.equal(d.historyIncomplete, true);
+  assert.equal(d.identityIncomplete, false);
+  assert.ok(reason(d, 'history_window_limited'));
+  assert.deepEqual(d.commitments.map(c => c.ref), ['messages/m89', 'messages/m88', 'messages/m87', 'messages/m86', 'messages/m85']);
 });
 
 await test('missing references and missing identity are declared, never fabricated', async () => {

@@ -49,6 +49,9 @@ export default async function handler(req, res) {
         .map((l) => ({
           id: l.id,
           name: l.name || null,
+          // One bedroom can belong to a room or an entire apartment. Keep
+          // the listing's declared type; missing types stay unknown.
+          type: typeof l.type === 'string' && l.type.trim() ? l.type.trim() : null,
           zone: l.zone || null,
           priceEurMonth: l.price != null ? Number(l.price) : null,
           bedrooms: l.bedrooms != null ? Number(l.bedrooms) : null,
@@ -57,7 +60,10 @@ export default async function handler(req, res) {
           availableFrom: l.availableFrom || l.availableDate || null,
           url: `https://www.boomrome.com/listing/${l.id}`,   // sempre www (AGENTS.md): l'apex reindirizza
         }));
-      return res.status(200).json({ ok: true, count: listings.length, listings });
+      return res.status(200).json({
+        ok: true, count: listings.length, listings,
+        note: 'Use each listing\'s type to distinguish rooms from entire apartments. A room is not an entire apartment. Do not infer accommodation type or total room count from bedrooms, size, price or title. If type is missing, unknown or unclear, say the accommodation type needs verification instead of calling it a room, apartment or bilocale.',
+      });
     }
 
     if (op === 'slots') {

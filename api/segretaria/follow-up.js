@@ -4,6 +4,7 @@ import { fsGet, readJson } from '../homie/_lib.js';
 import { personaDossier } from './_persona.js';
 import { listFollowUps, updateFollowUp } from './_follow-up.js';
 import { readPreparationDelivery } from './_dispatch.js';
+import { readPreparationMonitor } from './_monitor.js';
 
 async function withDelivery(task, read = true) {
   const approval = task.preparation?.approval;
@@ -21,10 +22,10 @@ export default async function handler(req, res) {
   if (!auth) return;
   try {
     if (req.method === 'GET' && !req.query?.id) {
-      const list = await listFollowUps();
+      const [list, monitoring] = await Promise.all([listFollowUps(), readPreparationMonitor()]);
       let reads = 0;
       const rows = await Promise.all(list.rows.map(t => withDelivery(t, !t.preparation?.approval?.actionId || ++reads <= 20)));
-      return res.status(200).json({ ok: true, ...list, rows, deliveryIncomplete: reads > 20 });
+      return res.status(200).json({ ok: true, ...list, rows, deliveryIncomplete: reads > 20, monitoring });
     }
     const body = req.method === 'POST' ? await readJson(req) : { id: req.query.id };
     if (!/^sg_[a-f0-9]{32}$/.test(String(body?.id || ''))) return res.status(400).json({ ok: false, error: 'invalid_case' });

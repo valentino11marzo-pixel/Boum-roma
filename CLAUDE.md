@@ -3673,6 +3673,13 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
 
 ### LA SEGRETARIA (`js/segretaria-engine.js` + `api/segretaria/_core.js` + 🤖 sulla card)
 
+- **Oggi, memoria e preparazione (17/09, Codex)**: gli eventi aggiornano i pannelli senza distruggere modali/bozze; listener dei casi e fallback 30s, Inbox ordinata su `at DESC` con limite dichiarato.
+  `_context` legge fino a 100 messaggi: evento prioritario, massimo 22k caratteri di storia e 32k complessivi; tagli e hash integrali dichiarati. Il dossier conserva gli ultimi messaggi anche oltre la vecchia soglia 40.
+  Miniera entra soltanto via JID canonico/telefono/identità verificati: estratti storici separati, mai prove citabili di impegni attuali. `coverage.version` rigenera le vecchie proposte non approvate; ricevute approvate conservate.
+  Il worker passa ogni minuto con massimo tre tentativi sequenziali nel budget esistente, priorità ai nuovi eventi ed equità per gli arretrati; lease e tetti invariati. Un concorrente che perde la lease non scrive retry sul caso in lavorazione.
+  `follow-up` espone il monitor di preparazione: pausa, cap reale, ultimo ciclo e letture parziali; questi dati non certificano la ricezione WhatsApp. Nessuna nuova collection o autorizzazione agli invii.
+  Prove: `segretarialiveui`, `segretariaworker`, `segretariamonitor`, `persona`, `segretariacontesto`, `segretariaprepara`, conferma/consegna e calendario; mutazioni sui difetti riprodotti. Il cron al minuto non garantisce inferenza istantanea né lettura di media/gruppi.
+
 - **Revisione semantica (16/09 pomeriggio)**: quattro proposte reali hanno esposto data/giorno incoerenti, reazione scambiata per conferma e lingua dedotta dal wrapper HOMIE.
   Preparazione v2 usa gli ingressi sostanziali per lingua e richiesta umana; una citazione esitante o una reazione non prova un impegno certo/completato.
   `segretaria-calendar-engine` ancora i giorni alla fonte in Europe/Rome e rifiuta incoerenze o ricontrolli descritti come precedenti ma tardivi; forme non interpretabili restano ambigue.
@@ -3698,6 +3705,11 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
 - **Conversazione telefonica, consegna Claude `40af4ed`**: fallback `say` sostituito da `note`; tool e prompt chiedono un solo dato mancante, senza frasi da recitare. Una richiesta completa viene riepilogata e chiusa, senza promesse di consegna.
   Prompt v6 verificato sul provider (`agtvrsn_6501m2kjkyc9fwx8cch3hc59hrs0`): tre prove semantiche IT superate al secondo ciclo, con tool simulati. Non sono prove audio, telefoniche o del webhook reale.
   Integrato soltanto il perimetro concordato; suite `phone` ripetuta e verde. Modello, numero e trasferimento restano configurazioni distinte.
+
+- **Tipo di alloggio nel catalogo voce (17/09)**: il tool scartava `listings.type`; nella prova reale una `Room` con una camera veniva presentata come bilocale intero.
+  `phone/agent-tools` conserva ora il tipo dichiarato; assente, vuoto o non testuale resta `null`. Non lo ricava dal titolo o dal numero di camere.
+  La nota del catalogo distingue stanza e appartamento intero e richiede verifica quando il tipo è sconosciuto; `bedrooms` non prova il numero totale di locali.
+  Prova `phone`: stanza e appartamento con stessi dati numerici, tipo mancante/invalido e mutazione che rimuove il campo. Nessun prompt live o trasferimento modificato; il collaudo conversazionale va ripetuto dopo la pubblicazione.
 
 - **Lavoro preparato sul caso** (15/09, Codex): `_prepare` e `segretaria-proposta-engine` scrivono una proposta versionata sul seguito esistente: sintesi, impegni espliciti/dedotti, fonti, risposta e prossimo controllo. `_context` legge cronologia ordinata e riferimenti verificati del dossier; campioni `out/fromMe` non attestano la voce umana di Valentino.
 - In Oggi la proposta precede il modulo manuale. `prepare` admin-only conferma insieme seguito e risposta mostrata, con destinatario derivato dal server; `_dispatch` riusa l'executor e l'outbox. Fonti, recapito, evento e decisioni manuali sono ricontrollati: una revisione vecchia non sovrascrive le nuove informazioni. Senza pratica verificata resta solo il seguito.

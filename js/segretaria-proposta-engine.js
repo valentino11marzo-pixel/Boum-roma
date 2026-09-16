@@ -42,9 +42,9 @@
   ];
   function topicOf(text) { return (TOPICS.find(([, re]) => re.test(String(text || ''))) || ['general'])[0]; }
   function wantsHuman(text) { return HUMAN.test(String(text || '')); }
-  function validate(raw, { sourceIds = [], sourceTexts = {}, sourceDirections = {}, practices = [], confirmedPracticeRef = null, identityBlocked = false, humanRequested = false, protectedTopic = null } = {}) {
+  function validate(raw, { sourceIds = [], sourceTexts = {}, sourceDirections = {}, sourceKinds = {}, practices = [], confirmedPracticeRef = null, identityBlocked = false, humanRequested = false, protectedTopic = null } = {}) {
     if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ok: false, error: 'invalid_preparation' };
-    const known = new Set(sourceIds), allowed = new Set(practices.map(p => p.ref));
+    const known = new Set(sourceIds.filter(id => sourceKinds[id] !== 'historical_whatsapp_summary')), allowed = new Set(practices.map(p => p.ref));
     const evidence = commitmentEvidence(raw, sourceTexts);
     if (!evidence.ok) return evidence;
     // An unresolved, tentative promise by BOOM needs an internal decision

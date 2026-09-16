@@ -183,6 +183,9 @@ try {
   ok('leggere o rispondere non chiude il seguito: compare ancora nella lista', result.code === 200
     && result.rows.some(t => t.id === task.id && t.status === 'open')
     && DB.get('operatorTasks/' + task.id).followUp.checkAt === agreed.checkAt);
+  ok('elenco admin include stato preparazione distinto dalla ricezione WhatsApp',
+    result.monitoring?.scope === 'preparation_only' && result.monitoring.checkedAt
+    && typeof result.monitoring.status === 'string' && !network.length);
   await capture('event-2', { text: 'Arriva una nuova risposta', now: NOW + 1000 });
   let current = DB.get('operatorTasks/' + task.id).followUp;
   ok('nuova risposta conserva pratica, azione, responsabile e controllo ma chiede verifica',
