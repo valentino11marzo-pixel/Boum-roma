@@ -3673,6 +3673,11 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
 
 ### LA SEGRETARIA (`js/segretaria-engine.js` + `api/segretaria/_core.js` + 🤖 sulla card)
 
+- **Indice cronologia (16/09)**: in produzione mancava `messages(conversationId ASC, at DESC)`;
+  le chat oltre il limite del fallback non potevano ricostruire l'evento WhatsApp, salvato con ID documento diverso.
+  `firestore.indexes.json` dichiara l'indice per la query ordinata e conserva l'indice `notifications` già presente.
+  Distribuire `firestore:indexes` e attendere la query leggibile prima di attestare la cronologia; nessun messaggio viene reimportato.
+
 - `settings/segretaria.automaticReplies:false` sospende solo i vecchi turni e aperture WhatsApp/email, conservando preparazione e conferme esplicite.
 - `_core` controlla prima del turno e dopo il modello; lettura fallita sospende, flag assente conserva la consegna per chat. Il tap `sg` e `/segretaria` dichiarano la sospensione.
 - La pausa non revoca azioni già accodate né assegnazioni `segretaria:true`: queste continuano a impedire una seconda risposta finché l'operatore non riprende la chat.
