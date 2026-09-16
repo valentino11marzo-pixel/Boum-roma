@@ -1,0 +1,786 @@
+// Real preparation, context, Persona and endpoints; only network boundaries are fake.
+import { register } from 'node:module';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+register('../notify/loader.mjs', import.meta.url);
+Object.assign(process.env, { FIREBASE_API_KEY: 'fixture', FIREBASE_ADMIN_EMAIL: 'admin@example.test',
+  FIREBASE_ADMIN_PASS: 'fixture', HOMIE_SECRET: 'fixture', ANTHROPIC_API_KEY: 'fixture', CRON_SECRET: 'fixture-cron' });
+
+const NOW = Date.parse('2026-09-15T10:00:00Z');
+const realNow = Date.now;
+let clock = NOW;
+Date.now = () => clock;
+let checks = 0, fails = 0;
+function ok(name, pass, detail) {
+  checks++;
+  console.log(`${pass ? 'PASS' : 'FAIL'} ${name}${!pass && detail !== undefined ? ' — ' + JSON.stringify(detail) : ''}`);
+  if (!pass) fails++;
+}
+const DB = new Map(), versions = new Map(), writes = [], allWrites = [], network = [], reads = [];
+globalThis.__mails = [];
+let sequence = 0, failingCollection = '', beforePatch = null, commitHook = null;
+let aiHits = 0, aiHook = null, aiBuilder = null, failFirstTaskReads = 0, listDelayMs = 0;
+const aiInputs = [], aiRequests = [];
+const enc = v => v == null ? { nullValue: null }
+  : v instanceof Date ? { timestampValue: v.toISOString() }
+  : typeof v === 'boolean' ? { booleanValue: v }
+  : typeof v === 'number' ? { integerValue: String(v) }
+  : typeof v === 'string' ? { stringValue: v }
+  : Array.isArray(v) ? { arrayValue: { values: v.map(enc) } }
+  : { mapValue: { fields: Object.fromEntries(Object.entries(v).map(([k, x]) => [k, enc(x)])) } };
+const dec = v => 'nullValue' in v ? null : 'timestampValue' in v ? v.timestampValue
+  : 'booleanValue' in v ? v.booleanValue : 'integerValue' in v ? Number(v.integerValue)
+  : 'stringValue' in v ? v.stringValue : 'arrayValue' in v ? (v.arrayValue.values || []).map(dec)
+  : Object.fromEntries(Object.entries(v.mapValue?.fields || {}).map(([k, x]) => [k, dec(x)]));
+const field = (row, path) => path.split('.').reduce((value, key) => value?.[key], row);
+function save(path, data) {
+  DB.set(path, data);
+  versions.set(path, new Date(NOW + ++sequence).toISOString());
+}
+function doc(path) {
+  return { name: 'projects/p/databases/(default)/documents/' + path,
+    fields: Object.fromEntries(Object.entries(DB.get(path)).map(([k, v]) => [k, enc(v)])),
+    updateTime: versions.get(path) };
+}
+globalThis.fetch = async (rawURL, opts = {}) => {
+  const url = new URL(String(rawURL));
+  const body = opts.body ? JSON.parse(opts.body) : {};
+  const json = (data, status = 200) => ({ ok: status < 400, status,
+    json: async () => data, text: async () => JSON.stringify(data) });
+  if (url.hostname === 'identitytoolkit.googleapis.com') {
+    if (url.pathname.includes('accounts:signInWithPassword')) return json({ idToken: 'firestore-admin' });
+    const uid = { admin: 'admin', tenant: 'tenant', orphan: 'orphan' }[body.idToken];
+    return uid ? json({ users: [{ localId: uid, email: uid + '@example.test' }] }) : json({ error: 'invalid_token' }, 401);
+  }
+  if (url.hostname === 'api.anthropic.com') {
+    aiHits++;
+    const input = JSON.parse(body.messages[0].content);
+    aiInputs.push(input); aiRequests.push(body);
+    if (aiHook) await aiHook(input);
+    const proposal = aiBuilder ? await aiBuilder(input) : validProposal(input);
+    return json({ content: [{ type: 'text', text: typeof proposal === 'string' ? proposal : JSON.stringify(proposal) }], usage: { input_tokens: 100, output_tokens: 100 } });
+  }
+  if (url.hostname !== 'firestore.googleapis.com') {
+    network.push(url.hostname);
+    throw new Error('forbidden_external_effect');
+  }
+  if (url.pathname.endsWith(':commit')) {
+    const operations = body.writes || [];
+    if (commitHook) await commitHook(operations);
+    const taskWrite = operations.find(w => w.update?.name.includes('/operatorTasks/'));
+    if (beforePatch && taskWrite) {
+      const hook = beforePatch; beforePatch = null;
+      await hook(taskWrite.update.name.split('/documents/')[1]);
+    }
+    // Validate EVERY precondition first; a failed commit changes no document.
+    for (const operation of operations) {
+      const path = operation.update?.name?.split('/documents/')[1];
+      if (!path) throw new Error('unsupported_commit_shape');
+      const condition = operation.currentDocument || {};
+      if ((condition.exists === false && DB.has(path)) || (condition.exists === true && !DB.has(path))
+        || (condition.updateTime && versions.get(path) !== condition.updateTime)) {
+        return json({ error: { status: 'FAILED_PRECONDITION' } }, 400);
+      }
+    }
+    const results = [];
+    for (const operation of operations) {
+      const path = operation.update.name.split('/documents/')[1];
+      const data = Object.fromEntries(Object.entries(operation.update.fields || {}).map(([k, v]) => [k, dec(v)]));
+      save(path, operation.updateMask ? { ...(DB.get(path) || {}), ...data } : data);
+      const write = { path, data: structuredClone(DB.get(path)) };
+      writes.push(write); allWrites.push(write);
+      results.push({ updateTime: versions.get(path) });
+    }
+    return json({ writeResults: results, commitTime: new Date(NOW + sequence).toISOString() });
+  }
+  if (url.pathname.endsWith(':runQuery')) {
+    const q = body.structuredQuery, coll = q.from[0].collectionId;
+    if (coll === 'operatorTasks' && listDelayMs) { clock += listDelayMs; listDelayMs = 0; }
+    if (coll === failingCollection) return json({ error: { status: 'UNAVAILABLE' } }, 503);
+    const matches = (row, filter) => {
+      if (!filter) return true;
+      if (filter.compositeFilter) {
+        const values = filter.compositeFilter.filters.map(f => matches(row, f));
+        return filter.compositeFilter.op === 'AND' ? values.every(Boolean) : values.some(Boolean);
+      }
+      const f = filter.fieldFilter, value = field(row, f.field.fieldPath), expected = dec(f.value);
+      if (f.op === 'EQUAL') return value === expected;
+      if (f.op === 'IN') return expected.includes(value);
+      if (f.op === 'GREATER_THAN') return value > expected;
+      throw new Error('unimplemented_filter_' + f.op);
+    };
+    let entries = [...DB].filter(([p, row]) => p.startsWith(coll + '/') && p.split('/').length === 2 && matches(row, q.where));
+    for (const sort of [...(q.orderBy || [])].reverse()) entries.sort((a, b) =>
+      String(field(a[1], sort.field.fieldPath)).localeCompare(String(field(b[1], sort.field.fieldPath))) * (sort.direction === 'DESCENDING' ? -1 : 1));
+    return json(entries.slice(0, q.limit || 1000).map(([p]) => ({ document: doc(p) })));
+  }
+  const path = decodeURIComponent(url.pathname.split('/documents/')[1] || '');
+  if (!opts.method || opts.method === 'GET') reads.push(path);
+  if (failFirstTaskReads > 0 && path === 'operatorTasks/' + ID && !opts.method) {
+    failFirstTaskReads--; return json({ error: { status: 'UNAVAILABLE' } }, 503);
+  }
+  if (failingCollection && path.startsWith(failingCollection + '/')) return json({ error: { status: 'UNAVAILABLE' } }, 503);
+  if (opts.method === 'POST') {
+    const id = url.searchParams.get('documentId') || 'auto' + ++sequence;
+    const key = path + '/' + id;
+    if (DB.has(key)) return json({ error: { status: 'ALREADY_EXISTS' } }, 409);
+    save(key, Object.fromEntries(Object.entries(body.fields || {}).map(([k, v]) => [k, dec(v)])));
+    const write = { path: key, data: structuredClone(DB.get(key)) };
+    writes.push(write); allWrites.push(write);
+    return json(doc(key));
+  }
+  if (opts.method === 'PATCH') {
+    if (beforePatch) { const hook = beforePatch; beforePatch = null; await hook(path); }
+    if (url.searchParams.get('currentDocument.exists') === 'false' && DB.has(path)) return json({ error: { status: 'ALREADY_EXISTS' } }, 409);
+    const requiredVersion = url.searchParams.get('currentDocument.updateTime');
+    if (requiredVersion && requiredVersion !== versions.get(path)) return json({ error: { status: 'FAILED_PRECONDITION' } }, 400);
+    save(path, { ...(DB.get(path) || {}), ...Object.fromEntries(Object.entries(body.fields || {}).map(([k, v]) => [k, dec(v)])) });
+    const write = { path, data: structuredClone(DB.get(path)) };
+    writes.push(write); allWrites.push(write);
+    return json(doc(path));
+  }
+  return DB.has(path) ? json(doc(path)) : json({ error: { status: 'NOT_FOUND' } }, 404);
+};
+
+const { prepareCase } = await import('../../api/segretaria/_prepare.js');
+const { default: prepareEndpoint } = await import('../../api/segretaria/prepare.js');
+const { default: followUpEndpoint } = await import('../../api/segretaria/follow-up.js');
+const { default: workerEndpoint, prepareNextCase } = await import('../../api/segretaria/worker.js');
+const { personaDossier } = await import('../../api/segretaria/_persona.js');
+const { loadCaseContext } = await import('../../api/segretaria/_context.js');
+const ID = 'sg_' + 'a'.repeat(32), ID2 = 'sg_' + 'b'.repeat(32), CID = 'conv_tenant_fixture';
+const PHONE = '+393331234567', EMAIL = 'customer@example.test';
+const stamp = n => new Date(n).toISOString();
+const task = (id = ID) => DB.get('operatorTasks/' + id);
+const rows = coll => [...DB].filter(([p]) => p.startsWith(coll + '/'));
+const count = () => rows('heartbeat').find(([p]) => p.includes('/segretaria-preparations-'))?.[1].count || 0;
+const untouched = () => !rows('action_queue').length && !rows('messageLog').length && !rows('notifications').length
+  && !globalThis.__mails.length && !network.length;
+function revise(fn, id = ID) { const t = structuredClone(task(id)); fn(t); save('operatorTasks/' + id, t); }
+function validProposal(input) {
+  const src = input.sources.find(s => s.id === input.coverage.lastEvent.sourceId);
+  const ids = [src.id], quote = src.text.slice(0, 100);
+  return { summary: 'Il cliente attende un aggiornamento sul prossimo intervento.',
+    recommendation: 'Verificare la disponibilità del tecnico e preparare la risposta.',
+    facts: [{ text: 'È arrivata una richiesta di aggiornamento.', sourceIds: ids, quote }],
+    commitments: [{ text: 'Il cliente attende una risposta.', sourceIds: ids, quote, kind: 'inferred', status: 'pending' }],
+    uncertainties: [{ text: 'La data resta da verificare.', sourceIds: ids, quote }],
+    nextAction: { text: 'Verificare la disponibilità del tecnico', waitingOn: 'collaborator', waitingLabel: 'Tecnico',
+      checkAt: stamp(Date.parse(input.now) + 3600000), practiceRef: input.existingFollowUp.practiceRef || null,
+      sourceIds: ids, reason: 'La richiesta attende una disponibilità confermata.' },
+    draft: { channel: input.channel, text: input.language === 'it'
+      ? 'Ricevuto, verifichiamo la disponibilità e ti aggiorniamo.' : 'Thanks, we will check availability and update you.', sourceIds: ids },
+    handoff: { needed: false, reason: 'La richiesta può essere preparata per la verifica.', sourceIds: ids } };
+}
+function reset({ role = 'tenant', text = 'Potete aggiornarmi sulla disponibilità del tecnico?' } = {}) {
+  DB.clear(); versions.clear(); writes.length = 0; network.length = 0; reads.length = 0; globalThis.__mails.length = 0;
+  aiInputs.length = 0; aiRequests.length = 0; aiHits = 0; aiHook = null; aiBuilder = null;
+  sequence = 0; clock = NOW; failFirstTaskReads = 0; listDelayMs = 0; failingCollection = ''; beforePatch = null; commitHook = null;
+  save('users/admin', { role: 'admin' }); save('users/tenant', { role: 'tenant' });
+  save('settings/segretaria', { enabled: true, prepareCases: true, dailyCap: 5 });
+  const personId = role === 'pfs' ? 'pfsA' : 'tenantA';
+  const practiceRef = role === 'pfs' ? 'pfsClients/pfsA' : 'contracts/cA';
+  save('conversations/' + CID, { contactType: role, contactId: personId, contactPhone: PHONE,
+    contactEmail: EMAIL, contactName: 'Cliente fixture', channel: 'whatsapp', segretaria: false });
+  save((role === 'pfs' ? 'pfsClients/' : 'users/') + personId,
+    { role, name: 'Cliente fixture', phone: PHONE, email: EMAIL, propertyId: 'pA', status: 'active' });
+  if (role !== 'pfs') save('contracts/cA', { tenantId: personId, propertyId: 'pA', status: 'active' });
+  save('properties/pA', { name: 'Immobile fixture', status: 'available' });
+  save('messages/m1', { conversationId: CID, direction: 'in', channel: 'whatsapp', body: text, at: stamp(NOW - 10000) });
+  save('operatorTasks/' + ID, { source: 'segretaria', status: 'open', calendarize: false,
+    followUp: { open: true, conversationId: CID, lastMessageId: 'm1', lastInboundAt: stamp(NOW - 10000),
+      preview: text, checkAt: stamp(NOW + 60000), practiceRef, needsReview: true } });
+}
+async function generate(extra = {}) { return prepareCase({ id: ID, actor: 'admin', now: clock, ...extra }); }
+async function endpoint(handler, { method = 'POST', token = 'admin', body = {}, headers = {}, query = {} } = {}) {
+  let code, out;
+  await handler({ method, body, query, headers: { ...(token ? { authorization: 'Bearer ' + token } : {}), ...headers } }, {
+    status(n) { code = n; return this; }, json(v) { out = v; return this; }, setHeader() {}, end() {},
+  });
+  return { httpCode: code, ...out };
+}
+function addSecond() {
+  const t = structuredClone(task()); t.followUp.checkAt = stamp(NOW + 120000);
+  save('operatorTasks/' + ID2, t);
+}
+
+try {
+  reset();
+  let r = await endpoint(prepareEndpoint, { body: { op: 'generate', id: ID, actor: 'forged' } });
+  ok('tenant: handler reale prepara pratica, responsabile e ricontrollo senza consegna preventiva', r.httpCode === 200
+    && r.preparation.nextAction.practiceRef === 'contracts/cA' && r.preparation.nextAction.waitingOn === 'collaborator'
+    && r.preparation.preparedBy === 'admin' && aiInputs[0].persona.roles.includes('tenant') && !DB.get('conversations/' + CID).segretaria, r);
+  ok('preparare non scrive coda, messaggi o notifiche, e non invia email/WhatsApp', untouched()
+    && rows('messages').length === 1 && writes.every(w => /^(operatorTasks|heartbeat)\//.test(w.path)));
+  ok('il modello vede capacità reali: proposta e seguito, nessun incarico, prenotazione, chiamata o invio già eseguito',
+    aiInputs[0].executionCapabilities?.assignCollaborator === false
+    && aiInputs[0].executionCapabilities?.bookMaintenance === false
+    && aiInputs[0].executionCapabilities?.callPerson === false
+    && aiInputs[0].executionCapabilities?.sendDuringPreparation === false
+    && aiInputs[0].executionCapabilities?.afterApproval.join(',') === 'record_follow_up,queue_shown_draft'
+    && aiInputs[0].executionCapabilities?.automaticRecheck === true
+    && !aiRequests[0].tools && !aiRequests[0].tool_choice && untouched());
+  ok('proposta conserva fonti e impronte, senza duplicare il testo delle fonti', r.preparation.sources.some(s => s.ref === 'messages/m1')
+    && r.preparation.sourceFingerprint && r.preparation.contactFingerprint && r.preparation.sources.every(s => !s.text && s.hash));
+  r = await generate();
+  ok('stesso caso e stesse fonti restituiscono stessa proposta senza seconda spesa', r.cached && aiHits === 1 && count() === 1);
+
+  reset(); const oldPolicy = await generate();
+  revise(t => { t.preparation.version = 1; });
+  r = await endpoint(prepareEndpoint, { body: { op: 'approve', id: ID, revision: oldPolicy.preparation.revision, lastMessageId: 'm1' } });
+  ok('proposta precedente ai nuovi controlli non può essere approvata né accodata', r.httpCode === 409
+    && r.error === 'preparation_policy_changed' && !task().preparation.approval && untouched(), r);
+  r = await generate();
+  ok('proposta obsoleta viene ricalcolata anche con stesse fonti e stesso evento', r.code === 200
+    && !r.cached && aiHits === 2 && r.preparation.version === 2 && untouched(), r);
+
+  reset({ text: 'Reacted 👍 to Hello, should we speak to Valentino?' });
+  save('messages/italian', { conversationId: CID, direction: 'in', body: 'Buongiorno, vorrei organizzare un sopralluogo.', at: stamp(NOW - 60000) });
+  save('messages/outEnglish', { conversationId: CID, direction: 'out', body: 'Hello, could you please confirm?', at: stamp(NOW - 20000) });
+  r = await generate();
+  ok('lingua dalla frase del contatto: reazione e testo inglese dell’operatore non sostituiscono l’italiano',
+    r.code === 200 && aiInputs[0].language === 'it' && r.preparation.language.sourceId === 'messages/italian'
+    && r.preparation.draft?.text.startsWith('Ricevuto') && !aiInputs[0].humanRequested && untouched(), r);
+  reset({ text: 'Reacted 👍 to Thanks for the update.' });
+  save('messages/italian', { conversationId: CID, direction: 'in', body: 'Buongiorno, vorrei organizzare un sopralluogo.', at: stamp(NOW - 120000) });
+  save('messages/english', { conversationId: CID, direction: 'in', body: 'Hello, could you please continue in English?', at: stamp(NOW - 60000) });
+  r = await generate();
+  ok('un cambio di lingua reale del contatto prevale sulla storia precedente', r.code === 200
+    && r.preparation.language.code === 'en' && r.preparation.language.sourceId === 'messages/english' && !!r.preparation.draft && untouched(), r);
+  reset({ text: '👍' }); r = await generate();
+  ok('sola reazione senza lingua verificabile conserva seguito interno e nessuna bozza', r.code === 200
+    && r.preparation.language.basis === 'unverified' && r.preparation.draft === null && untouched(), r);
+  reset(); aiBuilder = input => { const p = validProposal(input); p.draft.text = 'Hello, thanks for the update. Could you please confirm?'; return p; };
+  r = await generate();
+  ok('risposta inglese su fonti italiane rifiutata prima di salvare la proposta', r.code === 422
+    && r.error === 'draft_language_mismatch' && !task().preparation && untouched(), r);
+
+  reset({ text: 'Venerdì pomeriggio dovrei esserci.' });
+  aiBuilder = input => { const p = validProposal(input); p.commitments[0].kind = 'explicit'; return p; };
+  r = await generate();
+  ok('dovrei esserci non diventa impegno certo grazie a una citazione letterale', r.code === 422
+    && r.error === 'commitment_requires_confirmation' && !task().preparation && untouched(), r);
+  reset({ text: 'Reacted 👍 to Venerdì pomeriggio dovrei esserci.' });
+  aiBuilder = input => { const p = validProposal(input); p.commitments[0].kind = 'explicit'; return p; };
+  r = await generate();
+  ok('la reazione non conferma l’accordo citato', r.code === 422
+    && r.error === 'commitment_requires_confirmation' && !task().preparation && untouched(), r);
+  reset({ text: 'Venerdì pomeriggio dovrei esserci.' });
+  aiBuilder = input => { const p = validProposal(input); p.commitments[0].status = 'unclear'; p.draft = null;
+    p.summary = 'La presenza resta eventuale.'; p.commitments[0].text = 'Presenza possibile, ancora da confermare.'; return p; };
+  r = await generate();
+  ok('la stessa fonte può produrre una proposta utile che conserva l’incertezza', r.code === 200
+    && r.preparation.commitments[0].kind === 'inferred' && r.preparation.commitments[0].status === 'unclear' && untouched(), r);
+  reset({ text: 'Confermo la presenza alla visita, grazie.' });
+  aiBuilder = input => { const p = validProposal(input); p.commitments[0].kind = 'explicit'; return p; };
+  r = await generate();
+  ok('una conferma testuale effettiva resta ammessa', r.code === 200
+    && r.preparation.commitments[0].kind === 'explicit' && untouched(), r);
+  reset({ text: 'Confermo la presenza alla visita. Forse verrò in metro.' });
+  aiBuilder = input => { const p = validProposal(input); p.commitments[0].kind = 'explicit';
+    p.commitments[0].quote = 'Confermo la presenza alla visita.'; return p; };
+  r = await generate();
+  ok('la logistica eventuale in una frase separata non invalida un accordo certo', r.code === 200
+    && r.preparation.commitments[0].kind === 'explicit' && untouched(), r);
+  reset({ text: 'Buongiorno, venerdì dovrei esserci.' });
+  aiBuilder = input => { const p = validProposal(input); p.commitments[0].kind = 'explicit';
+    p.commitments[0].quote = 'venerdì'; return p; };
+  r = await generate();
+  ok('citare solo il giorno non elimina il condizionale dalla frase', r.code === 422
+    && r.error === 'commitment_requires_confirmation' && !task().preparation && untouched(), r);
+  reset({ text: 'Buongiorno, venerdì dovrei esserci.' });
+  aiBuilder = input => { const p = validProposal(input); p.commitments[0].status = 'satisfied'; return p; };
+  r = await generate();
+  ok('inferred non permette di segnare concluso un impegno ancora eventuale', r.code === 422
+    && r.error === 'commitment_requires_confirmation' && !task().preparation && untouched(), r);
+  reset({ text: 'Reacted 👍 to Venerdì pomeriggio dovrei esserci.' });
+  save('messages/request', { conversationId: CID, direction: 'in', body: 'Buongiorno, vorrei organizzare un sopralluogo.', at: stamp(NOW - 120000) });
+  save('messages/tentativeOut', { conversationId: CID, direction: 'out', body: 'Venerdì pomeriggio dovrei esserci.', at: stamp(NOW - 60000) });
+  aiBuilder = input => { const p = validProposal(input); p.commitments = [{ text: 'Presenza da confermare', kind: 'inferred', status: 'unclear',
+    quote: 'Venerdì pomeriggio dovrei esserci.', sourceIds: ['messages/tentativeOut'] }]; return p; };
+  r = await generate();
+  ok('una disponibilità BOOM ancora eventuale non produce già una bozza di organizzazione al cliente', r.code === 422
+    && r.error === 'outgoing_commitment_unconfirmed' && !task().preparation && untouched(), r);
+  reset({ text: 'Reacted 👍 to Ti può richiamare Valentino?' });
+  save('messages/human', { conversationId: CID, direction: 'in', body: 'Buongiorno, voglio parlare con Valentino.', at: stamp(NOW - 60000) });
+  r = await generate();
+  ok('una reazione non cancella la precedente richiesta esplicita di parlare con Valentino', r.code === 200
+    && aiInputs[0].humanRequested && r.preparation.handoff.needed && !r.preparation.draft
+    && r.preparation.nextAction.waitingOn === 'valentino' && untouched(), r);
+  reset({ text: '' });
+  save('messages/m1', { ...DB.get('messages/m1'), channel: 'phone', source: 'phone',
+    callerWords: 'Buongiorno, vorrei parlare con Valentino.' });
+  r = await generate();
+  ok('parole attribuite al chiamante restano valide anche senza un riepilogo testuale', r.code === 200
+    && aiInputs[0].language === 'it' && aiInputs[0].humanRequested && r.preparation.handoff.needed
+    && !r.preparation.draft && untouched(), r);
+
+  for (const [summary, checkAt, expectedError] of [
+    ['Visita giovedì 6 novembre 2026 alle 11:45.', '2026-11-04T11:00:00Z', 'calendar_weekday_date_conflict'],
+    ['Visita giovedì 5 novembre 2026 alle 11:45.', '2026-11-05T11:15:00Z', 'calendar_check_not_before_event'],
+    ['Visita giovedì 5 novembre 2026 alle 11:45.', '2026-11-04T11:00:00Z', null],
+  ]) {
+    reset({ text: 'What about Thursday at 11:45, Rome time?' }); clock = Date.parse('2026-11-04T09:00:00Z');
+    save('messages/m1', { ...DB.get('messages/m1'), at: '2026-11-02T10:00:00Z' });
+    aiBuilder = input => { const p = validProposal(input); p.summary = summary; p.draft = null;
+      p.nextAction = { ...p.nextAction, text: 'Preparare la visita', waitingOn: 'valentino', waitingLabel: 'Valentino',
+        checkAt, reason: 'Ricontrollo il giorno prima della visita.' }; return p; };
+    r = await generate();
+    ok('handler calendario: ' + (expectedError || 'riferimento corretto ammesso'),
+      (expectedError ? r.code === 422 && r.error === expectedError && !task().preparation : r.code === 200 && !!task().preparation)
+      && aiInputs[0].calendar.references[0].date === '2026-11-05' && untouched(), r);
+  }
+
+  reset(); aiBuilder = input => { const p = validProposal(input); p.draft = null; return p; };
+  const priorDecision = await generate();
+  revise(t => { t.followUp.nextAction = 'Attendere i documenti del cliente'; t.followUp.waitingOn = 'client';
+    t.followUp.waitingLabel = 'Cliente'; t.followUp.checkAt = stamp(NOW + 2 * 86400000); });
+  r = await endpoint(prepareEndpoint, { body: { op: 'approve', id: ID, revision: priorDecision.preparation.revision, lastMessageId: 'm1' } });
+  ok('decisione manuale successiva invalida approvazione della vecchia proposta senza sovrascriverla', r.httpCode === 409
+    && task().followUp.nextAction === 'Attendere i documenti del cliente' && !task().preparation.approval && untouched(), r);
+  r = await generate();
+  ok('decisione manuale successiva invalida cache anche con stesso evento, fonti e pratica', r.code === 200 && !r.cached && aiHits === 2
+    && r.preparation.followUpFingerprint && r.preparation.followUpFingerprint !== priorDecision.preparation.followUpFingerprint, r);
+
+  reset(); aiBuilder = input => { const p = validProposal(input); p.draft = null; return p; };
+  const approvedDecision = await generate();
+  const approvedResult = await endpoint(prepareEndpoint, { body: { op: 'approve', id: ID,
+    revision: approvedDecision.preparation.revision, lastMessageId: 'm1' } });
+  r = await generate();
+  ok('conferma applica la proposta e la sua impronta post-conferma resta cache valida senza altra spesa',
+    approvedResult.httpCode === 200 && r.cached && aiHits === 1 && count() === 1 && untouched(), { approvedResult, cached: r.cached, aiHits });
+
+  reset({ role: 'pfs' }); r = await generate();
+  ok('PFS: prepara sul dossier reale e sulla pratica PFS senza inviare', r.code === 200
+    && aiInputs[0].persona.roles.includes('pfs') && r.preparation.nextAction.practiceRef === 'pfsClients/pfsA' && untouched(), r);
+
+  reset(); aiBuilder = input => { const p = validProposal(input); p.facts[0].quote = 'La luna è già stata consegnata al cliente'; return p; };
+  r = await generate();
+  ok('citazione inventata con ID di fonte vero è rifiutata', r.code === 422 && !task().preparation && untouched(), r);
+  for (const section of ['commitments', 'uncertainties']) {
+    reset(); aiBuilder = input => { const p = validProposal(input); delete p[section][0].quote; return p; };
+    r = await generate(); ok(section + ': citazione obbligatoria anche fuori dai fatti', r.code === 422 && !task().preparation, r);
+  }
+  reset(); aiBuilder = input => { const p = validProposal(input); p.nextAction.practiceRef = 'contracts/foreign'; return p; };
+  r = await generate(); ok('pratica altrui non diventa proposta valida', r.code === 422 && r.error === 'practice_requires_selection', r);
+  for (const multiple of [false, true]) {
+    reset();
+    if (multiple) save('contracts/cB', { tenantId: 'tenantA', propertyId: 'pA', status: 'active' });
+    aiBuilder = input => { const p = validProposal(input); p.nextAction.practiceRef = null; p.draft = null; return p; };
+    r = await generate();
+    ok('la pratica confermata non si perde se il modello omette il riferimento' + (multiple ? ' tra più candidati' : ''),
+      r.code === 200 && r.preparation.nextAction.practiceRef === 'contracts/cA'
+      && r.preparation.draft === null && untouched(), r);
+  }
+  reset(); DB.delete('contracts/cA');
+  aiBuilder = input => { const p = validProposal(input); p.nextAction.practiceRef = null; return p; };
+  r = await generate();
+  ok('una pratica precedente non più verificabile non viene ripristinata e non abilita una bozza',
+    r.code === 200 && r.preparation.nextAction.practiceRef === null && r.preparation.draft === null && untouched(), r);
+  reset(); save('users/conflict', { role: 'tenant', phone: PHONE, email: 'other@example.test' });
+  aiBuilder = input => { const p = validProposal(input); p.nextAction.practiceRef = null; return p; };
+  r = await generate();
+  ok('nuova ambiguità identitaria prevale sulla pratica precedente anche se il modello la omette',
+    r.code === 200 && r.preparation.nextAction.practiceRef === null && r.preparation.identityBlocked
+    && r.preparation.draft === null && untouched(), r);
+  reset(); save('contracts/cB', { tenantId: 'tenantA', propertyId: 'pA', status: 'active' });
+  revise(t => { t.followUp.practiceRef = null; });
+  aiBuilder = input => { const p = validProposal(input); p.nextAction.practiceRef = 'contracts/cB'; return p; };
+  r = await generate(); ok('due pratiche senza selezione impediscono scelta arbitraria del modello', r.code === 422 && r.error === 'practice_requires_selection', r);
+  reset(); save('contracts/cB', { tenantId: 'tenantA', propertyId: 'pA', status: 'active' });
+  revise(t => { t.followUp.practiceRef = null; });
+  r = await generate();
+  ok('nessuna pratica selezionata: prepara seguito verificabile ma non una bozza non inviabile', r.code === 200
+    && r.preparation.nextAction.practiceRef === null && r.preparation.draft === null && r.preparation.nextAction.text && untouched(), r);
+  // Reproduce the real Opus output: it told us to ask a question but placed the
+  // case on the customer for 36h, although no question or draft had been sent.
+  reset({ text: 'Il rubinetto perde. Potete fare controllare dal tecnico? Non ho indicato quale dei miei due appartamenti.' });
+  save('contracts/cB', { tenantId: 'tenantA', propertyId: 'pA', status: 'active' });
+  revise(t => { t.followUp.practiceRef = null; });
+  aiBuilder = input => {
+    const p = validProposal(input);
+    p.commitments = []; p.draft = null;
+    p.nextAction = { ...p.nextAction,
+      text: "Chiedere all'inquilino quale dei due appartamenti (Immobile sintetico A o B) presenta la perdita, poi valutare l'organizzazione del controllo tecnico.",
+      waitingOn: 'client', waitingLabel: 'Inquilino', checkAt: stamp(NOW + 36 * 3600000),
+      reason: "Serve sapere l'appartamento interessato prima di poter procedere; senza questa informazione non si può indirizzare l'intervento." };
+    return p;
+  };
+  r = await generate();
+  ok('output reale ambiguo: domanda mai inviata resta un passo dell’operatore, non attesa cliente di 36 ore', r.code === 200
+    && r.preparation.nextAction.waitingOn === 'valentino' && r.preparation.nextAction.waitingLabel === 'Valentino'
+    && r.preparation.nextAction.reason.startsWith('Richiesta o incarico da verificare:')
+    && r.preparation.nextAction.checkAt === task().followUp.checkAt
+    && r.preparation.nextAction.practiceRef === null && r.preparation.draft === null && untouched(), r);
+  for (const actor of ['client', 'collaborator']) {
+    reset();
+    save('messages/oldOut', { conversationId: CID, direction: 'out', channel: 'whatsapp',
+      body: 'Grazie, ho ricevuto la precedente comunicazione.', at: stamp(NOW - 86400000) });
+    aiBuilder = input => { const p = validProposal(input); p.draft = null;
+      p.nextAction.waitingOn = actor; p.nextAction.sourceIds.push('messages/oldOut'); return p; };
+    r = await generate();
+    ok(actor + ': un vecchio messaggio uscente citato non prova la nuova richiesta o l’incarico', r.code === 200
+      && r.preparation.nextAction.waitingOn === 'valentino' && r.preparation.draft === null && untouched(), r);
+  }
+  reset();
+  revise(t => { Object.assign(t.followUp, { confirmed: true, nextAction: 'Attendere la disponibilità del tecnico già incaricato',
+    waitingOn: 'collaborator', waitingLabel: 'Tecnico BOOM' }); });
+  aiBuilder = input => { const p = validProposal(input); p.draft = null;
+    p.nextAction.text = input.existingFollowUp.nextAction; p.nextAction.waitingLabel = 'Tecnico BOOM'; return p; };
+  r = await generate();
+  ok('attesa corrispondente già confermata dall’operatore conserva il collaboratore senza nuovo invio', r.code === 200
+    && r.preparation.nextAction.waitingOn === 'collaborator' && r.preparation.nextAction.waitingLabel === 'Tecnico BOOM'
+    && r.preparation.draft === null && untouched(), r);
+  reset();
+  revise(t => { Object.assign(t.followUp, { confirmed: true, nextAction: 'Attendere una foto della serratura',
+    waitingOn: 'collaborator', waitingLabel: 'Tecnico' }); });
+  aiBuilder = input => { const p = validProposal(input); p.draft = null; return p; };
+  r = await generate();
+  ok('stesso collaboratore su un’attesa precedente diversa non prova il nuovo incarico', r.code === 200
+    && r.preparation.nextAction.waitingOn === 'valentino' && r.preparation.draft === null && untouched(), r);
+  reset();
+  aiBuilder = input => { const p = validProposal(input); p.draft = null;
+    p.nextAction.checkAt = stamp(NOW + 366 * 86400000); return p; };
+  r = await generate();
+  ok('correggere un’attesa non rende valido un ricontrollo del modello fuori limite', r.code === 422
+    && r.error === 'invalid_preparation_time' && !task().preparation && untouched(), r);
+  reset(); save('users/conflict', { role: 'tenant', phone: PHONE, email: 'other@example.test' });
+  r = await generate(); ok('identità contraddittoria impedisce proposta collegata al contratto', r.code === 422 && !task().preparation, r);
+
+  reset(); save('conversations/' + CID, { ...DB.get('conversations/' + CID), segretaria: true });
+  r = await generate();
+  ok('chat già affidata alla Segretaria conversazionale prepara solo lavoro interno, senza seconda voce', r.code === 200
+    && r.preparation.draft === null && r.preparation.routeOwner === 'segretaria:conversation'
+    && aiInputs[0].replyOwnership?.owner === 'segretaria:conversation' && untouched(), r);
+  reset(); await generate();
+  save('conversations/' + CID, { ...DB.get('conversations/' + CID), segretaria: true });
+  r = await generate();
+  ok('attivare la voce conversazionale invalida anche una bozza già in cache', r.code === 200
+    && r.preparation.draft === null && r.preparation.routeOwner === 'segretaria:conversation' && untouched(), r);
+
+  reset(); aiHook = async () => save('conversations/' + CID, { ...DB.get('conversations/' + CID), segretaria: true });
+  r = await generate();
+  ok('attivazione della voce conversazionale durante AI impedisce salvataggio della seconda bozza',
+    r.code === 409 && r.error === 'reply_owner_changed_reload' && !task().preparation && untouched(), r);
+
+  for (const status of ['pending', 'approved', 'executed']) {
+    reset();
+    save('action_queue/otherReply', { kind: 'reply', status, proposedBy: 'commerciale',
+      payload: { conversationId: CID, channel: 'whatsapp', phone: PHONE } });
+    r = await generate();
+    ok('risposta ' + status + ' di altro agente già in coda: solo seguito, niente doppia bozza o scrittura sulla sua azione',
+      r.code === 200 && r.preparation.draft === null && r.preparation.replyOwnership?.blocked
+      && r.preparation.replyOwnership?.actionId === 'otherReply' && rows('action_queue').length === 1
+      && writes.every(w => /^(operatorTasks|heartbeat)\//.test(w.path)) && !network.length && !globalThis.__mails.length, r);
+  }
+  reset();
+  aiHook = async () => save('action_queue/racingReply', { kind: 'reply', status: 'approved', proposedBy: 'gestore',
+    payload: { conversationId: CID, channel: 'whatsapp', phone: PHONE } });
+  r = await generate();
+  ok('risposta concorrente entrata in coda durante AI invalida proposta senza toccare la coda', r.code === 409
+    && r.error === 'reply_owner_changed_reload' && !task().preparation && rows('action_queue').length === 1
+    && writes.every(w => /^(operatorTasks|heartbeat)\//.test(w.path)), r);
+  reset(); failingCollection = 'action_queue'; r = await generate();
+  ok('coda illeggibile resta verifica incompleta: nessuna bozza libera inventata', r.code === 200
+    && r.preparation.draft === null && r.preparation.replyOwnership?.incomplete && untouched(), r);
+
+  reset({ text: 'Buongiorno, voglio parlare con Valentino, per favore.' }); r = await generate();
+  ok('richiesta umana forza richiamo di Valentino e nessuna bozza anche se il modello propone altro', r.code === 200
+    && r.preparation.handoff.needed && r.preparation.draft === null && r.preparation.nextAction.waitingOn === 'valentino' && untouched(), r);
+  for (const [text, owner] of [['Ho già fatto il bonifico del pagamento', 'payments'], ['Devo firmare il contratto', 'signature']]) {
+    reset({ text }); r = await generate();
+    ok(owner + ': resta al gestore specialista, senza secondo sollecito', r.code === 200
+      && r.preparation.draft === null && r.preparation.routeOwner === 'gestore:' + owner && untouched(), r);
+  }
+
+  for (const [fieldName, phrase, owner] of [
+    ['draft', 'Ti ricordo il pagamento da completare.', 'payments'],
+    ['nextAction', 'Sollecitare la firma del contratto', 'signature'],
+    ['commitments', 'È ancora atteso il bonifico concordato', 'payments'],
+  ]) {
+    reset({ text: 'Sì, grazie.' });
+    aiBuilder = input => {
+      const p = validProposal(input);
+      if (fieldName === 'commitments') p.commitments[0].text = phrase;
+      else p[fieldName].text = phrase;
+      return p;
+    };
+    r = await generate();
+    ok(fieldName + ': sollecito indiretto non aggira il gestore specialistico', r.code === 200
+      && r.preparation.draft === null && r.preparation.routeOwner === 'gestore:' + owner && untouched(), r);
+  }
+  for (const invalidTime of ['2026-02-30T12:00:00Z', '2026-09-16T12:00:00', stamp(NOW - 1), stamp(NOW + 366 * 86400000)]) {
+    reset(); aiBuilder = input => { const p = validProposal(input); p.nextAction.checkAt = invalidTime; return p; };
+    r = await generate(); ok('ricontrollo non valido/fuori finestra rifiutato: ' + invalidTime,
+      r.code === 422 && r.error === 'invalid_preparation_time' && !task().preparation, r);
+  }
+
+  reset(); save('messages/out1', { conversationId: CID, direction: 'out', fromMe: true, body: 'Certo, te lo confermo domani.',
+    at: stamp(NOW - 5000), channel: 'whatsapp' });
+  r = await generate();
+  ok('fromMe senza autore non viene imparato come voce di Valentino', r.code === 200
+    && aiInputs[0].style.basis === 'editorial_only' && aiInputs[0].style.limitations.some(s => s.includes('non identifica Valentino'))
+    && !aiInputs[0].style.examples?.length, aiInputs[0]?.style);
+
+  reset(); save('messages/m1', { conversationId: CID, direction: 'in', channel: 'phone', phoneCallId: 'phoneA',
+    sourceRef: 'phoneCalls/phoneA', body: 'Agent: Vuoi parlare con Valentino per il pagamento?\nCaller: Can you arrange the maintenance visit?',
+    callerWords: 'Can you arrange the maintenance visit?', analysisText: 'Can you arrange the maintenance visit?', at: stamp(NOW - 10000) });
+  revise(t => { t.followUp.lastMessageId = 'phone:phoneA'; });
+  save('phoneCalls/phoneA', { callerWords: 'Can you arrange the maintenance visit?', transcriptStatus: 'ok' });
+  r = await generate();
+  ok('telefonata: lingua e richiesta umana derivano dal chiamante, non dalle parole dell’agente', r.code === 200
+    && aiInputs[0].language === 'en' && !aiInputs[0].humanRequested && !aiInputs[0].protectedTopic, aiInputs[0] && {
+      language: aiInputs[0].language, humanRequested: aiInputs[0].humanRequested, protectedTopic: aiInputs[0].protectedTopic });
+
+  reset(); save('messages/m1', { conversationId: CID, direction: 'in', channel: 'phone', phoneCallId: 'phoneA',
+    sourceRef: 'phoneCalls/phoneA', body: 'Agent: Posso richiamarti domani.', at: stamp(NOW - 10000) });
+  revise(t => { t.followUp.lastMessageId = 'phone:phoneA'; });
+  save('phoneCalls/phoneA', { transcriptStatus: 'missing' });
+  r = await generate();
+  ok('chiamante non attribuibile richiede contesto e blocca bozza anche se il modello la propone', r.code === 200
+    && r.preparation.status === 'needs_context' && r.preparation.handoff.needed && r.preparation.draft === null && untouched(), r);
+
+  reset();
+  const simultaneous = await Promise.all([generate(), generate()]);
+  ok('due preparazioni contemporanee consumano una sola chiamata e un solo turno giornaliero', aiHits === 1 && count() === 1
+    && simultaneous.some(x => x.code === 200) && simultaneous.every(x => x.code === 200 || x.code === 409), simultaneous.map(x => x.code));
+  reset(); save('heartbeat/segretaria-preparing-' + ID, { busy: true, leaseId: 'other', expiresAt: stamp(NOW + 60000) });
+  r = await generate(); ok('lease attiva rifiuta prima del modello e del contatore', r.code === 409 && aiHits === 0 && count() === 0, r);
+  reset(); save('heartbeat/segretaria-preparing-' + ID, { busy: true, leaseId: 'expired', expiresAt: stamp(NOW - 1) });
+  r = await generate(); ok('lease scaduta viene recuperata e rilasciata', r.code === 200 && aiHits === 1
+    && DB.get('heartbeat/segretaria-preparing-' + ID).busy === false, r.code);
+  reset(); save('heartbeat/segretaria-preparations-2026-09-15', { count: 5 });
+  r = await generate(); ok('tetto giornaliero non spende e non acquisisce lease', r.code === 429 && aiHits === 0 && count() === 5, r);
+
+  reset();
+  commitHook = async operations => {
+    if (operations.some(op => op.update?.fields?.busy?.booleanValue === true)) clock += 54000;
+  };
+  r = await generate();
+  ok('budget consumato dopo controllo iniziale e acquisizione lease impedisce comunque partenza AI', r.code === 503
+    && r.error === 'preparation_time_budget' && aiHits === 0 && !task().preparation
+    && DB.get('heartbeat/segretaria-preparing-' + ID)?.busy === false, r);
+
+  reset(); await generate();
+  const oldProposal = structuredClone(task().preparation);
+  save('messages/m1', { ...DB.get('messages/m1'), body: 'Potete confermare la disponibilità aggiornata?' });
+  aiHook = async () => { throw new Error('fixture_model_unavailable'); };
+  r = await generate();
+  ok('errore modello mantiene esattamente la proposta precedente e libera la lease', r.code === 503
+    && JSON.stringify(task().preparation) === JSON.stringify(oldProposal)
+    && DB.get('heartbeat/segretaria-preparing-' + ID).busy === false, r);
+
+  reset(); aiHook = async () => revise(t => { t.followUp.lastMessageId = 'm2'; });
+  r = await generate(); ok('ultimo evento cambiato durante AI prevale e impedisce salvataggio', r.code === 409
+    && !task().preparation && task().followUp.lastMessageId === 'm2', r);
+  reset(); aiHook = async () => save('messages/m1', { ...DB.get('messages/m1'), body: 'Correzione del testo originale' });
+  r = await generate(); ok('stesso evento con fonte cambiata durante AI non salva proposta superata', r.code === 409 && !task().preparation, r);
+  reset(); aiHook = async () => save('contracts/cA', { ...DB.get('contracts/cA'), status: 'terminated' });
+  r = await generate(); ok('pratica cambiata durante AI non salva proposta superata', r.code === 409 && !task().preparation, r);
+  reset(); aiHook = async () => save('conversations/' + CID, { ...DB.get('conversations/' + CID), contactPhone: '+393339999999' });
+  r = await generate(); ok('recapito cambiato durante AI non conserva destinatario obsoleto', r.code === 409 && !task().preparation, r);
+  reset(); beforePatch = async () => revise(t => { t.followUp.lastMessageId = 'racing-final-commit'; });
+  r = await generate(); ok('CAS finale impedisce sovrascrittura fra ultima lettura e commit', r.code === 409 && !task().preparation, r);
+
+  reset(); await generate(); clock = NOW + 60001; r = await generate();
+  const dueRevision = r.preparation?.revision;
+  ok('scadenza del ricontrollo prepara una nuova proposta senza inviare', r.code === 200 && !r.cached && aiHits === 2
+    && r.preparation.recheckFor === stamp(NOW + 60000) && untouched(), r);
+  r = await generate(); ok('stesso ricontrollo già preparato non consuma altri turni', r.cached && aiHits === 2 && r.preparation.revision === dueRevision);
+  reset(); await generate();
+  revise(t => { t.preparation.approval = { actionId: 'pendingReply' }; });
+  save('action_queue/pendingReply', { status: 'executed', payload: { channel: 'whatsapp' } });
+  clock = NOW + 60001; r = await generate();
+  ok('ricontrollo con consegna WhatsApp incerta non prepara un nuovo messaggio', r.code === 409
+    && r.error === 'previous_delivery_unresolved' && aiHits === 1 && rows('action_queue').length === 1, r);
+
+  reset(); await generate();
+  revise(t => { t.preparation.approval = { actionId: 'pendingReply' }; t.followUp.lastMessageId = 'm2'; });
+  save('messages/m2', { conversationId: CID, direction: 'in', channel: 'whatsapp', body: 'È arrivato un altro dettaglio.', at: stamp(NOW) });
+  save('action_queue/pendingReply', { status: 'approved', payload: { channel: 'whatsapp' } });
+  const pendingRevision = task().preparation.revision;
+  r = await generate();
+  ok('nuovo ingresso con azione precedente ancora pendente non crea una seconda proposta e conserva la ricevuta',
+    r.code === 409 && r.error === 'previous_delivery_unresolved' && aiHits === 1
+    && task().preparation.revision === pendingRevision && task().preparation.approval.actionId === 'pendingReply', r);
+
+  reset(); save('settings/segretaria', { enabled: true, prepareCases: false });
+  r = await endpoint(workerEndpoint, { method: 'GET', token: 'fixture-cron' });
+  ok('worker spento non legge casi, non spende e non modifica dati', r.httpCode === 200 && !r.enabled && !aiHits && !writes.length, r);
+  reset(); save('settings/segretaria', { enabled: false, prepareCases: true });
+  r = await generate(); ok('interruttore globale blocca anche generazione manuale', r.code === 409 && !aiHits && !writes.length, r);
+  reset(); addSecond(); aiHook = async () => { if (aiHits === 1) throw new Error('fixture_first_failure'); };
+  const first = await prepareNextCase({ now: NOW }), second = await prepareNextCase({ now: NOW });
+  ok('fallimento del primo caso resta visibile e il secondo viene preparato nello stesso run senza altre spese al retry', first.prepared === 1
+    && first.id === ID2 && first.errors?.some(e => e.id === ID && e.error === 'preparation_unavailable')
+    && task().preparationRetry && second.prepared === 0 && aiHits === 2 && untouched(), { first, second });
+
+  reset(); addSecond(); failFirstTaskReads = 1;
+  const transientRuns = [];
+  for (let i = 0; i < 2; i++) {
+    try { transientRuns.push(await prepareNextCase({ now: NOW })); }
+    catch (e) { transientRuns.push({ thrown: e.message }); }
+  }
+  ok('errore iniziale fuori dal try AI diventa retry dichiarato e non affama il secondo caso',
+    transientRuns.every(x => !x.thrown) && !!task().preparationRetry && !!task(ID2).preparation && aiHits === 1, transientRuns);
+
+  reset(); addSecond(); failFirstTaskReads = Infinity;
+  const unreadableRuns = [];
+  for (let i = 0; i < 2; i++) {
+    try { unreadableRuns.push(await prepareNextCase({ now: NOW })); }
+    catch (e) { unreadableRuns.push({ thrown: e.message }); }
+  }
+  ok('primo caso sempre illeggibile non blocca gli altri nemmeno quando il retry locale non è scrivibile',
+    unreadableRuns.every(x => !x.thrown) && !!task(ID2).preparation && aiHits === 1
+    && unreadableRuns.some(x => x.errors?.some(e => e.id === ID && e.error === 'preparation_retry_not_saved')), unreadableRuns);
+
+  reset(); listDelayMs = 30000;
+  try { r = await prepareNextCase({ now: NOW }); } catch (e) { r = { thrown: e.message }; }
+  ok('worker include lettura iniziale nel budget condiviso: dopo 30s non avvia modello', !r.thrown && aiHits === 0
+    && !task().preparation, r);
+
+  reset(); r = await endpoint(prepareEndpoint, { token: null, body: { op: 'generate', id: ID } });
+  ok('endpoint preparazione senza identità restituisce 401 prima della spesa', r.httpCode === 401 && !aiHits && !writes.length, r);
+  r = await endpoint(prepareEndpoint, { token: 'tenant', body: { op: 'generate', id: ID } });
+  ok('utente non admin riceve 403 prima della spesa', r.httpCode === 403 && !aiHits && !writes.length, r);
+  r = await endpoint(prepareEndpoint, { method: 'GET', body: { op: 'generate', id: ID } });
+  ok('GET preparazione non genera o esegue', r.httpCode === 405 && !aiHits && !writes.length, r);
+  r = await endpoint(workerEndpoint, { method: 'GET', token: 'tenant' });
+  ok('worker rifiuta autenticazione diversa dal segreto cron prima della spesa', r.httpCode === 401 && !aiHits && !writes.length, r);
+  const conv = { id: CID, ...DB.get('conversations/' + CID) };
+  const dossier = await personaDossier({ phone: PHONE, email: EMAIL, conversationId: CID });
+  await loadCaseContext({ task: task(), conversation: conv, dossier, now: NOW });
+  ok('lettura dossier e fonti non prepara e non invia', !aiHits && !writes.length && untouched());
+
+  reset(); addSecond(); aiBuilder = input => { const p = validProposal(input); p.draft = null; return p; };
+  const a = await generate(), b = await generate({ id: ID2 });
+  r = await endpoint(prepareEndpoint, { body: { op: 'approve_batch', items: [
+    { id: ID, revision: a.preparation.revision, lastMessageId: 'm1' },
+    { id: ID2, revision: 'obsolete', lastMessageId: 'm1' },
+  ] } });
+  ok('batch parziale dichiara incompletezza e separa conferma riuscita da revisione scaduta', r.httpCode === 200
+    && r.complete === false && r.results?.[0].code === 200 && r.results?.[1].code === 409
+    && task().followUp.confirmed && !task(ID2).followUp.confirmed && untouched(), r);
+
+  reset(); addSecond(); aiBuilder = input => { const p = validProposal(input); p.draft = null; return p; };
+  const timeA = await generate(), timeB = await generate({ id: ID2 });
+  commitHook = async operations => {
+    if (operations.some(op => op.update?.name.endsWith('/operatorTasks/' + ID))) clock += 30000;
+  };
+  r = await endpoint(prepareEndpoint, { body: { op: 'approve_batch', items: [
+    { id: ID, revision: timeA.preparation.revision, lastMessageId: 'm1' },
+    { id: ID2, revision: timeB.preparation.revision, lastMessageId: 'm1' },
+  ] } });
+  ok('budget batch esaurito marca secondo elemento non iniziato, senza approvazione nascosta', r.httpCode === 200
+    && r.complete === false && r.results?.[0].code === 200 && r.results?.[1].started === false
+    && r.results?.[1].error === 'batch_time_budget' && !task(ID2).preparation.approval && untouched(), r);
+
+  for (const [name, action, expected, error] of [
+    ['ricevuta WhatsApp presente', { status: 'executed', waSentAt: stamp(NOW - 1) }, 'sent', null],
+    ['WhatsApp senza ricevuta', { status: 'executed' }, 'queued', null],
+    ['claim WhatsApp scaduto senza ricevuta', { status: 'executed', segretaria: { delivery: { state: 'claimed', claimedAt: stamp(NOW - 120001) } } }, 'needs_review', 'whatsapp_delivery_unconfirmed'],
+    ['consegna bloccata prima della claim', { status: 'executed', segretariaDeliveryBlock: { reason: 'reply_owner_changed' } }, 'needs_review', 'reply_owner_changed'],
+    ['azione approvata ancora da eseguire', { status: 'approved' }, 'pending_execution', null],
+  ]) {
+    reset();
+    const actionId = 'sgreply_' + 'd'.repeat(40);
+    revise(t => { t.preparation = { approval: { actionId } }; });
+    save('action_queue/' + actionId, { kind: 'reply', payload: { channel: 'whatsapp', conversationId: CID, phone: PHONE }, ...action });
+    const originalTask = JSON.stringify(task()), originalQueue = JSON.stringify(rows('action_queue'));
+    r = await endpoint(followUpEndpoint, { method: 'GET', query: { id: ID } });
+    ok('GET dettaglio rilegge ' + name + ' senza modello, executor o scrittura', r.httpCode === 200
+      && r.task.deliveryResult?.delivery === expected && (!error || r.task.deliveryResult?.error === error)
+      && aiHits === 0 && writes.length === 0 && !network.length && !globalThis.__mails.length
+      && JSON.stringify(task()) === originalTask && JSON.stringify(rows('action_queue')) === originalQueue, r.task?.deliveryResult || r);
+  }
+
+  reset();
+  const listBase = structuredClone(task());
+  for (let i = 1; i <= 22; i++) {
+    const id = 'sg_' + i.toString(16).padStart(32, '0'), actionId = 'sgreply_' + i.toString(16).padStart(40, '0');
+    save('operatorTasks/' + id, { ...listBase, preparation: { approval: { actionId } } });
+    save('action_queue/' + actionId, { kind: 'reply', status: 'executed', waSentAt: stamp(NOW - 1), payload: { channel: 'whatsapp' } });
+  }
+  r = await endpoint(followUpEndpoint, { method: 'GET' });
+  const actionReads = reads.filter(p => p.startsWith('action_queue/')).length;
+  ok('GET elenco limita a 20 letture di esito e dichiara i due rimanenti da verificare', r.httpCode === 200
+    && r.rows.length === 23 && r.deliveryIncomplete === true && actionReads === 20
+    && r.rows.filter(t => t.deliveryResult?.delivery === 'sent').length === 20
+    && r.rows.filter(t => t.deliveryResult?.delivery === 'needs_review').length === 2
+    && aiHits === 0 && writes.length === 0 && !network.length && !globalThis.__mails.length, { actionReads, incomplete: r.deliveryIncomplete });
+  const beyondCap = r.rows.find(t => t.deliveryResult?.delivery === 'needs_review');
+  r = await endpoint(followUpEndpoint, { method: 'GET', query: { id: beyondCap.id } });
+  ok('GET dettaglio verifica anche un esito escluso dal limite dell’elenco', r.httpCode === 200
+    && r.task.deliveryResult?.delivery === 'sent' && reads.filter(p => p.startsWith('action_queue/')).length === 21
+    && aiHits === 0 && writes.length === 0, r.task?.deliveryResult || r);
+
+  reset();
+  const legacyBefore = JSON.stringify(task());
+  r = await endpoint(followUpEndpoint, { method: 'GET', query: { id: ID } });
+  ok('GET admin del seguito precedente alle proposte conserva forma e dati senza inventare consegne', r.httpCode === 200
+    && !('deliveryResult' in r.task) && JSON.stringify(task()) === legacyBefore
+    && reads.every(p => !p.startsWith('action_queue/')) && !writes.length && !aiHits, r.httpCode);
+  r = await endpoint(followUpEndpoint, { method: 'GET', token: null, query: { id: ID } });
+  ok('GET anonimo resta 401 e non legge esiti né produce effetti', r.httpCode === 401 && !writes.length && !aiHits, r);
+  r = await endpoint(followUpEndpoint, { method: 'GET', token: 'tenant', query: { id: ID } });
+  ok('GET non admin resta 403 senza effetti', r.httpCode === 403 && !writes.length && !aiHits, r);
+
+  // Each mutation runs this same real-module suite in its own disposable tree.
+  if (!process.env.BOOM_PREPARATION_MUTANT && !fails) {
+    const fs = await import('node:fs/promises');
+    const { fileURLToPath } = await import('node:url');
+    const { spawnSync } = await import('node:child_process');
+    const root = fileURLToPath(new URL('../../', import.meta.url));
+    const mutants = [
+      { name: 'calendario applicato alla proposta finale', file: 'api/segretaria/_prepare.js',
+        from: 'if (!calendarCheck.ok)', to: 'if (false)' },
+      { name: 'impegno eventuale e reazioni', file: 'js/segretaria-proposta-engine.js',
+        from: 'if (!evidence.ok) return evidence;', to: 'if (false) return evidence;' },
+      { name: 'verifica interna prima della bozza', file: 'js/segretaria-proposta-engine.js',
+        from: "if (raw.draft && Array.isArray(raw.commitments)", to: "if (false && raw.draft && Array.isArray(raw.commitments)" },
+      { name: 'lingua dalle parole del contatto', file: 'api/segretaria/_prepare.js',
+        from: 'preparationLanguage(context.sources)', to: "({ code: replyLang({ message: lastSource?.text }), basis: 'incoming_text', sourceId: lastSource?.id })" },
+      { name: 'lingua della bozza', file: 'api/segretaria/_prepare.js',
+        from: 'if (draftLanguage && draftLanguage !== language)', to: 'if (false)' },
+      { name: 'approvazione proposta obsoleta', file: 'api/segretaria/_dispatch.js',
+        from: 'if (p.version !== PROPOSTA.VERSION)', to: 'if (false)' },
+      { name: 'citazione letterale', file: 'js/segretaria-proposta-engine.js',
+        from: "!sourceIds.some(id => norm(sourceTexts[id]).includes(norm(quote)))", to: 'false' },
+      { name: 'veto richiesta umana', file: 'js/segretaria-proposta-engine.js',
+        from: 'if (identityBlocked || protectedTopic || humanRequested || !practiceRef) draft = null;', to: 'if (identityBlocked || protectedTopic || !practiceRef) draft = null;' },
+      { name: 'veto pratica altrui/ambigua', file: 'js/segretaria-proposta-engine.js',
+        from: 'if (practiceRef && (!allowed.has(practiceRef)', to: 'if (false && practiceRef && (!allowed.has(practiceRef)' },
+      { name: 'continuità della pratica confermata', file: 'js/segretaria-proposta-engine.js',
+        from: 'n.practiceRef || (!identityBlocked && allowed.has(confirmedPracticeRef) ? confirmedPracticeRef : null)', to: 'n.practiceRef || null' },
+      { name: 'nessuna attesa senza richiesta o incarico', file: 'js/segretaria-proposta-engine.js',
+        from: "if (proposal.draft || !['client', 'collaborator'].includes(n.waitingOn)) return n;",
+        to: "if (true || proposal.draft || !['client', 'collaborator'].includes(n.waitingOn)) return n;" },
+      { name: 'risposta concorrente durante AI', file: 'api/segretaria/_prepare.js',
+        from: 'if (sha(freshReplyOwner) !== replyOwnerFingerprint)', to: 'if (false)' },
+      { name: 'cache della decisione manuale', file: 'api/segretaria/_prepare.js',
+        from: '(task.preparation.approval?.followUpFingerprint || task.preparation.followUpFingerprint) === followUpFingerprint', to: 'true' },
+      { name: 'consegna precedente incerta', file: 'api/segretaria/_prepare.js',
+        from: 'if (task.preparation?.approval?.actionId) {', to: 'if (false && task.preparation?.approval?.actionId) {' },
+    ];
+    for (const mutant of mutants) {
+      const scratch = await fs.mkdtemp(join(tmpdir(), 'boom-preparation-mutation-'));
+      try {
+        await fs.cp(root + 'api', scratch + '/api', { recursive: true });
+        await fs.cp(root + 'js', scratch + '/js', { recursive: true });
+        await fs.mkdir(scratch + '/tests/segretaria', { recursive: true });
+        await fs.cp(root + 'tests/notify', scratch + '/tests/notify', { recursive: true });
+        await fs.copyFile(root + 'tests/segretaria/preparation.mjs', scratch + '/tests/segretaria/preparation.mjs');
+        const path = scratch + '/' + mutant.file, source = await fs.readFile(path, 'utf8');
+        if (!source.includes(mutant.from)) throw new Error('mutation_target_missing: ' + mutant.name);
+        await fs.writeFile(path, source.replace(mutant.from, mutant.to));
+        const run = spawnSync(process.execPath, [scratch + '/tests/segretaria/preparation.mjs'], {
+          encoding: 'utf8', timeout: 30000, env: { ...process.env, BOOM_PREPARATION_MUTANT: '1' },
+        });
+        ok('mutazione intercettata: ' + mutant.name, run.status !== 0 && /^FAIL /m.test(run.stdout), run.status === 0 ? 'mutation survived' : run.stderr.slice(0, 200));
+      } finally { await fs.rm(scratch, { recursive: true, force: true }); }
+    }
+  }
+} catch (error) { ok('nessuna eccezione fuori contratto', false, { message: error.message, stack: error.stack }); }
+finally { Date.now = realNow; }
+console.log(`\nPreparation: ${checks - fails}/${checks} PASS`);
+process.exitCode = fails ? 1 : 0;
