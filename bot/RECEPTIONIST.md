@@ -13,14 +13,14 @@ richiami: la consegna a BOOM va prima verificata dall'ingresso telefonico.
 
 **Aggiornamento 16 settembre 2026:** il vecchio numero è escluso su indicazione
 di Valentino e non va riutilizzato. Il prompt aggiornato è applicato all'agente,
-ancora senza numero né trasferimento. Il webhook firmato non è attivo:
-`ELEVENLABS_WEBHOOK_SECRET` manca in produzione. La pipeline qui descritta
-è implementata ma non costituisce prova di ricezione di una chiamata reale.
+ancora senza numero né trasferimento. Il webhook post-call è stato configurato
+sull'agente e `ELEVENLABS_WEBHOOK_SECRET` è presente in produzione: una richiesta
+senza firma viene rifiutata con 401. Manca ancora la prova di una chiamata reale
+con webhook firmato ricevuto; la configurazione non equivale al collaudo.
 Le sezioni datate 8 settembre descrivono lo stato storico.
 
 ```
-iPhone  **004*<numero>#  (occupato / no risposta / irraggiungibile)
-   └→ numero (Twilio o SIP trunk) → ElevenLabs Agent ─── in chiamata ───┐
+Nuovo numero BOOM (Twilio o SIP trunk) → ElevenLabs Agent ─ in chiamata ┐
                                │                                       │
                                │   GET /api/phone/agent-tools          │
                                │   ?op=catalog · ?op=slots             │
@@ -61,6 +61,13 @@ funzionante. La disponibilità e il costo del candidato vanno verificati
 nell'account, insieme ai documenti richiesti e alla possibilità di ricevere
 chiamate. L'acquisto da solo non prova che la linea sia attiva.
 
+Verifica account del 16/09 pomeriggio: Telnyx mostra numeri locali 06 a 2 USD
+iniziali + 2 USD/mese; candidato `+39 06 9823 6589` nel carrello (totale 4 USD),
+non acquistato. Tariffa account inbound locale Italia da fisso/mobile: 0,008 USD/min.
+Mancano intestatario/documenti richiesti, attivazione e collaudo SIP con ElevenLabs;
+minuti AI e trasferimenti in uscita sono costi separati. Nessuna tariffa 800
+va presentata come prezzo di tutti i numeri Twilio.
+
 **Il numero italiano** (giorni, non ore — KYC obbligatorio in Italia):
 - **Twilio** (l'account esiste già, è quello del +1): numero IT con *regulatory
   bundle* (documento + indirizzo + visura), approvazione in giorni lavorativi;
@@ -69,8 +76,10 @@ chiamate. L'acquisto da solo non prova che la linea sia attiva.
   elevenlabs): numero IT, inbound al SIP URI di ElevenLabs
   (dashboard → Phone Numbers → *Import from SIP trunk*).
 - **didlogic** — stessa cosa (didlogic.com/ai-voice/elevenlabs).
-Quando arriva: si cambia SOLO il numero nel codice `**004*`; agente, tool e
-webhook restano identici.
+Il nuovo numero è la porta diretta della Segreteria. Un'eventuale deviazione
+dall'iPhone (codice storico `**004*`) è una scelta distinta, non risulta attivata; va verificata insieme
+all'escalation per evitare richiami circolari. Manca il recapito esplicito di
+Valentino per configurare il trasferimento.
 
 ## 2 · L'agente (dashboard ElevenLabs → Agents → BOOM Receptionist)
 
@@ -89,21 +98,24 @@ webhook restano identici.
   8000 Hz* (Voice → TTS output format; Advanced → Input format).
 - **LLM**: il più capace disponibile nel piano (se c'è Claude, scegli
   Claude). Temperatura bassa.
-- **Max call duration**: 300s. Turn timeout: default.
+- **Max call duration**: 600s letto dall'agente il 16/09 da Claude; il precedente
+  riferimento di 300s in questo documento era superato. Nessuna modifica applicata.
 
 ### System prompt (incolla questo)
 
 Testo ESATTO in vigore sull'agente «BOOM Receptionist» dal 15/09/2026
 (confrontato con la risposta dell'API dopo la scrittura). Versione agente
 prima della giornata: `agtvrsn_0401m218t441fk087p398pwz7ndv` · in vigore:
-`agtvrsn_6501m2kjkyc9fwx8cch3hc59hrs0` (passaggi intermedi della stessa
+`agtvrsn_4601m2kjy3p1fjhs4k916ce6xpe4` (16/09: solo collegamento del webhook;
+testo v6 invariato rispetto a `agtvrsn_6501m2kjkyc9fwx8cch3hc59hrs0`; passaggi intermedi della stessa
 giornata `agtvrsn_4501m2kgah27ev9adw1yrxrm5qmk`, `agtvrsn_4901m2kgyj2vftn9fhq5e8s5c3pd`,
 `agtvrsn_4601m2khvmc5fksb63vkv0c4mt29` e `agtvrsn_1801m2kje5pmeavbcd05ek7q77k7`, superati).
 Nessun numero assegnato, nessun `transfer_to_number`. Le verità sono fatti
 da trasmettere, non frasi da recitare: questa linea non passa la chiamata,
 l'agente non sa se Valentino è disponibile e non ha bisogno di dirlo, dopo la
-chiamata non parte nulla e nessun destinatario viene attestato (il webhook
-post-call non è configurato in produzione). OGNI turno finisce con UNA domanda
+chiamata la pipeline configurata può registrare il caso e notificare BOOM,
+ma manca ancora il collaudo firmato completo. Nessuna consegna a un destinatario
+va promessa senza riscontro. OGNI turno finisce con UNA domanda
 sola (mai due insieme) o, a richiesta completa, con un saluto; con un tool KO
 il limite è vero e la domanda arriva nello stesso turno. Le descrizioni dei
 due tool sul provider e il fallback di `api/phone/agent-tools.js` non

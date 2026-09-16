@@ -2,6 +2,7 @@
 // hashes only: source quotations are data, never instructions or a second archive.
 import crypto from 'node:crypto';
 import SEG from '../../js/segretaria-engine.js';
+import PROPOSTA from '../../js/segretaria-proposta-engine.js';
 import { fsGet, fsList } from '../homie/_lib.js';
 import { brief } from './_persona.js';
 
@@ -45,6 +46,22 @@ function matchesEvent(row, event) {
   return row.id === event || row.waMessageId === event
     || (typeof row.emailMessageId === 'string' && event === 'mail_' + SEG.textHash(row.emailMessageId))
     || (callRef(row) && event === 'phone:' + callRef(row).split('/')[1]);
+}
+
+function messageContent(row) {
+  const raw = typeof row.body === 'string' ? row.body.trim() : '';
+  const attached = Array.isArray(row.attachments) && row.attachments.length > 0;
+  // Historical HOMIE imports saved wacli display markers as body, without
+  // attachments. They identify missing content, not words spoken by a client.
+  // A separate caption remains readable; ordinary mentions of media do too.
+  const marker = (row.source === 'homie' || row.by === 'homie')
+    ? raw.match(/^(?:\[(audio|image|video|document|sticker)\]|Sent (audio|image|video|document|sticker)|(\(message\)))(?:\r?\n([\s\S]*))?$/i) : null;
+  const media = (marker?.[1] || marker?.[2] || '').toLowerCase();
+  const text = brief(marker ? marker[4] || '' : raw, CONTEXT_LIMITS.text);
+  const reaction = PROPOSTA.isReaction(raw);
+  return { text, textAvailable: !!text && !reaction,
+    messageKind: reaction ? 'reaction' : media || (attached ? 'attachment' : text ? 'text' : 'unavailable'),
+    unreadAttachment: attached || !!media };
 }
 
 /** Only the supplied task's exact conversation and verified dossier references. */
@@ -121,13 +138,14 @@ export async function loadCaseContext({ task, conversation, dossier, now = Date.
   for (const row of selected) {
     const at = iso(row.at);
     if (!at) note('message_time_missing');
-    const text = brief(row.body, CONTEXT_LIMITS.text);
-    if (!text) note('message_text_unavailable');
-    if (Array.isArray(row.attachments) && row.attachments.length) note('attachments_not_read');
+    const { text, textAvailable, messageKind, unreadAttachment } = messageContent(row);
+    if (!text && messageKind !== 'reaction') note('message_text_unavailable');
+    if (unreadAttachment) note('attachments_not_read');
     const phoneMessage = row.channel === 'phone' || row.source === 'phone';
     const analysisText = phoneMessage ? brief(row.callerWords || row.analysisText, CONTEXT_LIMITS.text) : null;
     if (phoneMessage && !analysisText) note('call_caller_words_unavailable');
     const source = add({ ref: 'messages/' + row.id, kind: 'message', text: text || '[messaggio senza testo leggibile; consulta la fonte]',
+      textAvailable, messageKind,
       ...(phoneMessage ? { analysisAvailable: !!analysisText,
         analysisText: analysisText || '[parole del chiamante non disponibili; intento e lingua non verificabili]' } : {}),
       ...(at ? { at } : {}), direction: ['in', 'out', 'note'].includes(row.direction) ? row.direction : 'unknown' });
@@ -182,8 +200,8 @@ export async function loadCaseContext({ task, conversation, dossier, now = Date.
     const author = await get('users/' + row.by);
     if (author?.id !== row.by || author.role !== 'admin') continue;
     const source = sources.find(s => s.ref === 'messages/' + row.id);
-    if (!source || !brief(row.body)) continue;
-    style.examples.push({ sourceId: source.id, authorRef: 'users/' + row.by, text: brief(row.body, 220), basis: 'verified_admin_author_record' });
+    if (!source?.textAvailable) continue;
+    style.examples.push({ sourceId: source.id, authorRef: 'users/' + row.by, text: brief(source.text, 220), basis: 'verified_admin_author_record' });
   }
   if (style.examples.length) style.basis = 'verified_human_examples';
   return finish();
@@ -195,8 +213,9 @@ const canonical = value => Array.isArray(value) ? value.map(canonical)
 // Changes to quotations, coverage or author provenance invalidate a proposal.
 // asOf intentionally does not: a reread of identical sources is the same basis.
 export function contextFingerprint(ctx) {
-  const basis = { sources: (ctx?.sources || []).map(({ id, ref, kind, text, analysisText, analysisAvailable, at, direction, trust }) =>
+  const basis = { sources: (ctx?.sources || []).map(({ id, ref, kind, text, textAvailable, messageKind, analysisText, analysisAvailable, at, direction, trust }) =>
     ({ id, ref, kind, text, analysisText: analysisText ?? null, analysisAvailable: analysisAvailable ?? null,
+      textAvailable: textAvailable ?? null, messageKind: messageKind ?? null,
       at: at || null, direction: direction || null, trust })).sort((a, b) => a.ref.localeCompare(b.ref)),
   coverage: { ...ctx?.coverage, reasons: [...(ctx?.coverage?.reasons || [])].sort() },
   style: { ...ctx?.style, examples: [...(ctx?.style?.examples || [])].sort((a, b) => a.sourceId.localeCompare(b.sourceId)) },

@@ -3673,6 +3673,13 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
 
 ### LA SEGRETARIA (`js/segretaria-engine.js` + `api/segretaria/_core.js` + 🤖 sulla card)
 
+- **Revisione semantica (16/09 pomeriggio)**: quattro proposte reali hanno esposto data/giorno incoerenti, reazione scambiata per conferma e lingua dedotta dal wrapper HOMIE.
+  Preparazione v2 usa gli ingressi sostanziali per lingua e richiesta umana; una citazione esitante o una reazione non prova un impegno certo/completato.
+  `segretaria-calendar-engine` ancora i giorni alla fonte in Europe/Rome e rifiuta incoerenze o ricontrolli descritti come precedenti ma tardivi; forme non interpretabili restano ambigue.
+  `_context` dichiara vocali/documenti importati non letti anche senza `attachments`, conservando eventuali caption. Stato commerciale e data passata non attestano disponibilità attuale.
+  Le vecchie proposte non approvate richiedono nuova preparazione; conferme e ricevute già esistenti restano consultabili. Il limite giornaliero non viene alzato dal codice.
+  Prove: `segretariaprepara`, `segretariacalendario`, `segretariacontesto`, `segretariapropostaui`, più conferma/consegna e mutazioni. Controlli circoscritti, non garanzia generale di comprensione del modello.
+
 - **Indice cronologia (16/09)**: in produzione mancava `messages(conversationId ASC, at DESC)`;
   le chat oltre il limite del fallback non potevano ricostruire l'evento WhatsApp, salvato con ID documento diverso.
   `firestore.indexes.json` dichiara l'indice per la query ordinata e conserva l'indice `notifications` già presente.

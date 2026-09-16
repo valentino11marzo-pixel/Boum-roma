@@ -4624,6 +4624,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         preparation_disabled: 'La preparazione della Segreteria è disattivata. Puoi comunque correggere il seguito.',
         preparation_daily_cap: 'Raggiunto il limite giornaliero di preparazioni. Il seguito resta visibile.',
         preparation_needs_context: 'Mancano informazioni necessarie: controlla il collegamento e correggi il seguito.',
+        preparation_policy_changed: 'Questa proposta va ricalcolata con i controlli aggiornati. Il seguito è conservato.',
+        commitment_requires_confirmation: 'La fonte esprime una possibilità, non una conferma. Il seguito resta da verificare.',
+        outgoing_commitment_unconfirmed: 'La disponibilità di BOOM va verificata prima di chiedere al cliente di organizzarsi.',
+        draft_language_mismatch: 'La risposta proposta non usa la lingua della conversazione. Il seguito è conservato.',
         source_message_missing: 'Non riesco a verificare il messaggio di origine. Il seguito resta da controllare.',
         previous_delivery_unresolved: 'Un invio precedente richiede ancora verifica. Apri la conversazione prima di preparare altro.',
         recipient_missing: 'Manca un recapito valido: nessun invio confermato.', recipient_not_verified: 'Il destinatario non è verificabile: nessun invio confermato.',
@@ -4634,6 +4638,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         preparation_unavailable: 'Non riesco a preparare il lavoro ora. Il seguito e le informazioni precedenti restano disponibili.'
     };
     function oggiSegretariaError(error) {
+        if (String(error && error.code || '').startsWith('calendar_'))
+            return 'La proposta contiene una data o un ricontrollo non coerente con le fonti. Il seguito resta da verificare.';
         return oggiSegretariaErrors[error && error.code] || 'Non riesco ad aggiornare i seguiti. Riprova: i dati già visibili potrebbero non essere aggiornati.';
     }
     async function oggiSegretariaRequest(id, body, preparation) {

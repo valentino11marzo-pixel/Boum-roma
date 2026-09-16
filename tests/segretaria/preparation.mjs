@@ -168,7 +168,8 @@ function validProposal(input) {
     nextAction: { text: 'Verificare la disponibilità del tecnico', waitingOn: 'collaborator', waitingLabel: 'Tecnico',
       checkAt: stamp(Date.parse(input.now) + 3600000), practiceRef: input.existingFollowUp.practiceRef || null,
       sourceIds: ids, reason: 'La richiesta attende una disponibilità confermata.' },
-    draft: { channel: input.channel, text: 'Ricevuto, verifichiamo la disponibilità e ti aggiorniamo.', sourceIds: ids },
+    draft: { channel: input.channel, text: input.language === 'it'
+      ? 'Ricevuto, verifichiamo la disponibilità e ti aggiorniamo.' : 'Thanks, we will check availability and update you.', sourceIds: ids },
     handoff: { needed: false, reason: 'La richiesta può essere preparata per la verifica.', sourceIds: ids } };
 }
 function reset({ role = 'tenant', text = 'Potete aggiornarmi sulla disponibilità del tecnico?' } = {}) {
@@ -223,6 +224,112 @@ try {
     && r.preparation.sourceFingerprint && r.preparation.contactFingerprint && r.preparation.sources.every(s => !s.text && s.hash));
   r = await generate();
   ok('stesso caso e stesse fonti restituiscono stessa proposta senza seconda spesa', r.cached && aiHits === 1 && count() === 1);
+
+  reset(); const oldPolicy = await generate();
+  revise(t => { t.preparation.version = 1; });
+  r = await endpoint(prepareEndpoint, { body: { op: 'approve', id: ID, revision: oldPolicy.preparation.revision, lastMessageId: 'm1' } });
+  ok('proposta precedente ai nuovi controlli non può essere approvata né accodata', r.httpCode === 409
+    && r.error === 'preparation_policy_changed' && !task().preparation.approval && untouched(), r);
+  r = await generate();
+  ok('proposta obsoleta viene ricalcolata anche con stesse fonti e stesso evento', r.code === 200
+    && !r.cached && aiHits === 2 && r.preparation.version === 2 && untouched(), r);
+
+  reset({ text: 'Reacted 👍 to Hello, should we speak to Valentino?' });
+  save('messages/italian', { conversationId: CID, direction: 'in', body: 'Buongiorno, vorrei organizzare un sopralluogo.', at: stamp(NOW - 60000) });
+  save('messages/outEnglish', { conversationId: CID, direction: 'out', body: 'Hello, could you please confirm?', at: stamp(NOW - 20000) });
+  r = await generate();
+  ok('lingua dalla frase del contatto: reazione e testo inglese dell’operatore non sostituiscono l’italiano',
+    r.code === 200 && aiInputs[0].language === 'it' && r.preparation.language.sourceId === 'messages/italian'
+    && r.preparation.draft?.text.startsWith('Ricevuto') && !aiInputs[0].humanRequested && untouched(), r);
+  reset({ text: 'Reacted 👍 to Thanks for the update.' });
+  save('messages/italian', { conversationId: CID, direction: 'in', body: 'Buongiorno, vorrei organizzare un sopralluogo.', at: stamp(NOW - 120000) });
+  save('messages/english', { conversationId: CID, direction: 'in', body: 'Hello, could you please continue in English?', at: stamp(NOW - 60000) });
+  r = await generate();
+  ok('un cambio di lingua reale del contatto prevale sulla storia precedente', r.code === 200
+    && r.preparation.language.code === 'en' && r.preparation.language.sourceId === 'messages/english' && !!r.preparation.draft && untouched(), r);
+  reset({ text: '👍' }); r = await generate();
+  ok('sola reazione senza lingua verificabile conserva seguito interno e nessuna bozza', r.code === 200
+    && r.preparation.language.basis === 'unverified' && r.preparation.draft === null && untouched(), r);
+  reset(); aiBuilder = input => { const p = validProposal(input); p.draft.text = 'Hello, thanks for the update. Could you please confirm?'; return p; };
+  r = await generate();
+  ok('risposta inglese su fonti italiane rifiutata prima di salvare la proposta', r.code === 422
+    && r.error === 'draft_language_mismatch' && !task().preparation && untouched(), r);
+
+  reset({ text: 'Venerdì pomeriggio dovrei esserci.' });
+  aiBuilder = input => { const p = validProposal(input); p.commitments[0].kind = 'explicit'; return p; };
+  r = await generate();
+  ok('dovrei esserci non diventa impegno certo grazie a una citazione letterale', r.code === 422
+    && r.error === 'commitment_requires_confirmation' && !task().preparation && untouched(), r);
+  reset({ text: 'Reacted 👍 to Venerdì pomeriggio dovrei esserci.' });
+  aiBuilder = input => { const p = validProposal(input); p.commitments[0].kind = 'explicit'; return p; };
+  r = await generate();
+  ok('la reazione non conferma l’accordo citato', r.code === 422
+    && r.error === 'commitment_requires_confirmation' && !task().preparation && untouched(), r);
+  reset({ text: 'Venerdì pomeriggio dovrei esserci.' });
+  aiBuilder = input => { const p = validProposal(input); p.commitments[0].status = 'unclear'; p.draft = null;
+    p.summary = 'La presenza resta eventuale.'; p.commitments[0].text = 'Presenza possibile, ancora da confermare.'; return p; };
+  r = await generate();
+  ok('la stessa fonte può produrre una proposta utile che conserva l’incertezza', r.code === 200
+    && r.preparation.commitments[0].kind === 'inferred' && r.preparation.commitments[0].status === 'unclear' && untouched(), r);
+  reset({ text: 'Confermo la presenza alla visita, grazie.' });
+  aiBuilder = input => { const p = validProposal(input); p.commitments[0].kind = 'explicit'; return p; };
+  r = await generate();
+  ok('una conferma testuale effettiva resta ammessa', r.code === 200
+    && r.preparation.commitments[0].kind === 'explicit' && untouched(), r);
+  reset({ text: 'Confermo la presenza alla visita. Forse verrò in metro.' });
+  aiBuilder = input => { const p = validProposal(input); p.commitments[0].kind = 'explicit';
+    p.commitments[0].quote = 'Confermo la presenza alla visita.'; return p; };
+  r = await generate();
+  ok('la logistica eventuale in una frase separata non invalida un accordo certo', r.code === 200
+    && r.preparation.commitments[0].kind === 'explicit' && untouched(), r);
+  reset({ text: 'Buongiorno, venerdì dovrei esserci.' });
+  aiBuilder = input => { const p = validProposal(input); p.commitments[0].kind = 'explicit';
+    p.commitments[0].quote = 'venerdì'; return p; };
+  r = await generate();
+  ok('citare solo il giorno non elimina il condizionale dalla frase', r.code === 422
+    && r.error === 'commitment_requires_confirmation' && !task().preparation && untouched(), r);
+  reset({ text: 'Buongiorno, venerdì dovrei esserci.' });
+  aiBuilder = input => { const p = validProposal(input); p.commitments[0].status = 'satisfied'; return p; };
+  r = await generate();
+  ok('inferred non permette di segnare concluso un impegno ancora eventuale', r.code === 422
+    && r.error === 'commitment_requires_confirmation' && !task().preparation && untouched(), r);
+  reset({ text: 'Reacted 👍 to Venerdì pomeriggio dovrei esserci.' });
+  save('messages/request', { conversationId: CID, direction: 'in', body: 'Buongiorno, vorrei organizzare un sopralluogo.', at: stamp(NOW - 120000) });
+  save('messages/tentativeOut', { conversationId: CID, direction: 'out', body: 'Venerdì pomeriggio dovrei esserci.', at: stamp(NOW - 60000) });
+  aiBuilder = input => { const p = validProposal(input); p.commitments = [{ text: 'Presenza da confermare', kind: 'inferred', status: 'unclear',
+    quote: 'Venerdì pomeriggio dovrei esserci.', sourceIds: ['messages/tentativeOut'] }]; return p; };
+  r = await generate();
+  ok('una disponibilità BOOM ancora eventuale non produce già una bozza di organizzazione al cliente', r.code === 422
+    && r.error === 'outgoing_commitment_unconfirmed' && !task().preparation && untouched(), r);
+  reset({ text: 'Reacted 👍 to Ti può richiamare Valentino?' });
+  save('messages/human', { conversationId: CID, direction: 'in', body: 'Buongiorno, voglio parlare con Valentino.', at: stamp(NOW - 60000) });
+  r = await generate();
+  ok('una reazione non cancella la precedente richiesta esplicita di parlare con Valentino', r.code === 200
+    && aiInputs[0].humanRequested && r.preparation.handoff.needed && !r.preparation.draft
+    && r.preparation.nextAction.waitingOn === 'valentino' && untouched(), r);
+  reset({ text: '' });
+  save('messages/m1', { ...DB.get('messages/m1'), channel: 'phone', source: 'phone',
+    callerWords: 'Buongiorno, vorrei parlare con Valentino.' });
+  r = await generate();
+  ok('parole attribuite al chiamante restano valide anche senza un riepilogo testuale', r.code === 200
+    && aiInputs[0].language === 'it' && aiInputs[0].humanRequested && r.preparation.handoff.needed
+    && !r.preparation.draft && untouched(), r);
+
+  for (const [summary, checkAt, expectedError] of [
+    ['Visita giovedì 6 novembre 2026 alle 11:45.', '2026-11-04T11:00:00Z', 'calendar_weekday_date_conflict'],
+    ['Visita giovedì 5 novembre 2026 alle 11:45.', '2026-11-05T11:15:00Z', 'calendar_check_not_before_event'],
+    ['Visita giovedì 5 novembre 2026 alle 11:45.', '2026-11-04T11:00:00Z', null],
+  ]) {
+    reset({ text: 'What about Thursday at 11:45, Rome time?' }); clock = Date.parse('2026-11-04T09:00:00Z');
+    save('messages/m1', { ...DB.get('messages/m1'), at: '2026-11-02T10:00:00Z' });
+    aiBuilder = input => { const p = validProposal(input); p.summary = summary; p.draft = null;
+      p.nextAction = { ...p.nextAction, text: 'Preparare la visita', waitingOn: 'valentino', waitingLabel: 'Valentino',
+        checkAt, reason: 'Ricontrollo il giorno prima della visita.' }; return p; };
+    r = await generate();
+    ok('handler calendario: ' + (expectedError || 'riferimento corretto ammesso'),
+      (expectedError ? r.code === 422 && r.error === expectedError && !task().preparation : r.code === 200 && !!task().preparation)
+      && aiInputs[0].calendar.references[0].date === '2026-11-05' && untouched(), r);
+  }
 
   reset(); aiBuilder = input => { const p = validProposal(input); p.draft = null; return p; };
   const priorDecision = await generate();
@@ -377,7 +484,7 @@ try {
   ok('coda illeggibile resta verifica incompleta: nessuna bozza libera inventata', r.code === 200
     && r.preparation.draft === null && r.preparation.replyOwnership?.incomplete && untouched(), r);
 
-  reset({ text: 'Voglio parlare con Valentino, per favore.' }); r = await generate();
+  reset({ text: 'Buongiorno, voglio parlare con Valentino, per favore.' }); r = await generate();
   ok('richiesta umana forza richiamo di Valentino e nessuna bozza anche se il modello propone altro', r.code === 200
     && r.preparation.handoff.needed && r.preparation.draft === null && r.preparation.nextAction.waitingOn === 'valentino' && untouched(), r);
   for (const [text, owner] of [['Ho già fatto il bonifico del pagamento', 'payments'], ['Devo firmare il contratto', 'signature']]) {
@@ -625,6 +732,18 @@ try {
     const { spawnSync } = await import('node:child_process');
     const root = fileURLToPath(new URL('../../', import.meta.url));
     const mutants = [
+      { name: 'calendario applicato alla proposta finale', file: 'api/segretaria/_prepare.js',
+        from: 'if (!calendarCheck.ok)', to: 'if (false)' },
+      { name: 'impegno eventuale e reazioni', file: 'js/segretaria-proposta-engine.js',
+        from: 'if (!evidence.ok) return evidence;', to: 'if (false) return evidence;' },
+      { name: 'verifica interna prima della bozza', file: 'js/segretaria-proposta-engine.js',
+        from: "if (raw.draft && Array.isArray(raw.commitments)", to: "if (false && raw.draft && Array.isArray(raw.commitments)" },
+      { name: 'lingua dalle parole del contatto', file: 'api/segretaria/_prepare.js',
+        from: 'preparationLanguage(context.sources)', to: "({ code: replyLang({ message: lastSource?.text }), basis: 'incoming_text', sourceId: lastSource?.id })" },
+      { name: 'lingua della bozza', file: 'api/segretaria/_prepare.js',
+        from: 'if (draftLanguage && draftLanguage !== language)', to: 'if (false)' },
+      { name: 'approvazione proposta obsoleta', file: 'api/segretaria/_dispatch.js',
+        from: 'if (p.version !== PROPOSTA.VERSION)', to: 'if (false)' },
       { name: 'citazione letterale', file: 'js/segretaria-proposta-engine.js',
         from: "!sourceIds.some(id => norm(sourceTexts[id]).includes(norm(quote)))", to: 'false' },
       { name: 'veto richiesta umana', file: 'js/segretaria-proposta-engine.js',

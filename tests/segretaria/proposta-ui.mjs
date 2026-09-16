@@ -37,7 +37,7 @@ function demoTask(id,name,cid,practice){return{id,status:'open',source:'segretar
  preview:'Dettagli da verificare.',lastMessageId:'msg-'+cid,practiceRef:practice,propertyRef:practice==='viewingRequests/v1'?'properties/p1':practice?'properties/p2':null,
  nextAction:'Verificare la richiesta e confermare il seguito',waitingOn:'valentino',waitingLabel:'Valentino',checkAt:demoFuture(),checkBasis:'Controllo interno proposto',confirmed:false,needsReview:true,ambiguous:!practice}}}
 function demoPreparation(t,withDraft=true){const ambiguous=!t.followUp.practiceRef,phone=t.followUp.conversationId==='c1';return{
- version:1,revision:'revision-'+(++window.__generation),messageId:t.followUp.lastMessageId,selectedPracticeRef:t.followUp.practiceRef,
+ version:2,revision:'revision-'+(++window.__generation),messageId:t.followUp.lastMessageId,selectedPracticeRef:t.followUp.practiceRef,
  status:'ready',identityBlocked:false,summary:ambiguous?'La squadra ha completato le pulizie, ma il messaggio non indica quale casa. Serve un solo chiarimento prima di chiudere il lavoro.':phone?'Giulia chiede conferma della visita. La richiesta visite riporta un appuntamento già confermato per il 18 settembre 2026 alle 15:00, ora di Roma, a Casa Fiore.':'Oliver deve ancora confermare la disponibilità. La prossima azione resta a lui; BOOM ricontrolla domani.',
  recommendation:ambiguous?'Chiarire se il lavoro riguarda Casa Fiore o Casa Luna. Conservare il seguito aperto.':phone?'Rispondere con l’orario già confermato nelle fonti e chiedere conferma di partecipazione. Nessuna nuova prenotazione.':'Conservare l’attesa senza inviare un altro messaggio adesso.',
  facts:[{text:ambiguous?'La squadra comunica che le pulizie sono terminate.':phone?'Visita a Casa Fiore: confermata il 18 settembre 2026 alle 15:00, ora di Roma.':'Il messaggio è collegato alla conversazione corretta.',sourceIds:[phone?'viewingRequests/v1':'messages/'+t.followUp.conversationId]}],
@@ -186,6 +186,16 @@ try {
   await page.waitForFunction(() => document.getElementById('sgFollowModal')?.textContent.includes('Seguito confermato. Nessun messaggio previsto.'));
   assert.equal((await posts()).length, 1);
   ok('attesa senza bozza conferma soltanto il seguito');
+
+  await load();
+  await page.evaluate(() => { window.__rows[0].preparation.version = 1; });
+  await button(ids[0], 'review').click();
+  await page.waitForSelector('#sgFollowModal');
+  assert.equal(await page.locator('#sgDraftText').count(), 0);
+  assert.equal(await page.locator('[data-sg-modal="approve"]').count(), 0);
+  assert.equal(await page.locator('[data-sg-modal="generate"]').innerText(), 'Prepara il lavoro');
+  assert.equal((await posts()).length, 0);
+  ok('proposta precedente ai controlli semantici non espone una vecchia bozza confermabile');
 
   for (const [ownership, expected] of [
     [{ blocked: true, owner: 'segretaria:conversation', actionId: 'PRIVATE_ACTION_ID', incomplete: false }, /Risposta già seguita dalla Segreteria BOOM; qui confermi soltanto il seguito/],

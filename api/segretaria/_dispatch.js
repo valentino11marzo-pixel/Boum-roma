@@ -1,6 +1,7 @@
 // Confirmation is the only bridge from a prepared case to action_queue.
 // Recipient, identity and practice come from current records, never the model.
 import crypto from 'node:crypto';
+import PROPOSTA from '../../js/segretaria-proposta-engine.js';
 import { fsGet, fsGetVersioned, fsCommit } from '../homie/_lib.js';
 import { normalizePhone } from '../homie/_lead.js';
 import { runExecutor } from '../employees/_fiducia.js';
@@ -79,6 +80,7 @@ export async function approvePreparation({ id, revision, lastMessageId, actor, n
       committed = true; actionId = p.approval.actionId;
       return await dispatchApproved(id, actionId, true);
     }
+    if (p.version !== PROPOSTA.VERSION) return { code: 409, id, error: 'preparation_policy_changed' };
     if (!/^[\w.-]{1,180}$/.test(f.conversationId || '')) return { code: 409, id, error: 'conversation_missing' };
     const conversation = await fsGetVersioned('conversations/' + f.conversationId), conv = conversation?.data;
     if (!conv) return { code: 409, id, error: 'conversation_missing' };

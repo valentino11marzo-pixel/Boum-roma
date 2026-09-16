@@ -171,6 +171,87 @@ await test('missing phone transcription and attachments remain explicit limitati
   assert.ok(!JSON.stringify(ctx).includes('SECRET'));
 });
 
+async function rejectUnreadImportedMedia(load = loadCaseContext) {
+  for (const [body, kind] of [['[Audio]', 'audio'], ['Sent document', 'document'], ['Sent image', 'image'], ['Sent video', 'video']]) {
+    DB.set('messages/latest', msg(body, undefined, { waMessageId: 'wa_last' }));
+    const before = JSON.stringify([...DB]), ctx = await load(input());
+    const source = ctx.sources.find(s => s.ref === 'messages/latest');
+    assert.equal(source.messageKind, kind);
+    assert.equal(source.textAvailable, false);
+    assert.notEqual(source.text, body, 'Transport placeholder is not client speech');
+    assert.equal(ctx.coverage.incomplete, true);
+    assert.ok(has(ctx, 'attachments_not_read'), 'A missing attachments array cannot prove media was read');
+    assert.ok(has(ctx, 'message_text_unavailable'));
+    assert.equal(ctx.coverage.lastEvent.present, true, 'Unread content still belongs to the received event');
+    assert.equal(JSON.stringify([...DB]), before, 'Projection does not alter the imported message');
+  }
+}
+await test('historical HOMIE media markers disclose unread content without attachment URLs', rejectUnreadImportedMedia);
+
+await test('generic imported message marker is unavailable content, never an invented media type', async () => {
+  DB.set('messages/latest', msg('(message)', undefined, { waMessageId: 'wa_last', attachments: [] }));
+  const ctx = await loadCaseContext(input()), source = ctx.sources.find(s => s.ref === 'messages/latest');
+  assert.equal(source.messageKind, 'unavailable');
+  assert.equal(source.textAvailable, false);
+  assert.ok(has(ctx, 'message_text_unavailable'));
+  assert.ok(!has(ctx, 'attachments_not_read'));
+});
+
+await test('unread media preserves its useful caption and never fetches the file', async () => {
+  for (const extra of [{}, { attachments: ['https://media.fixture.test/PRIVATE_DOCUMENT'] }]) {
+    DB.set('messages/latest', msg('Sent document\nHo allegato la planimetria, manca il secondo piano.', undefined,
+      { waMessageId: 'wa_last', ...extra }));
+    const ctx = await loadCaseContext(input()), source = ctx.sources.find(s => s.ref === 'messages/latest');
+    assert.equal(source.text, 'Ho allegato la planimetria, manca il secondo piano.');
+    assert.equal(source.textAvailable, true);
+    assert.equal(source.messageKind, 'document');
+    assert.ok(has(ctx, 'attachments_not_read'));
+    assert.ok(!has(ctx, 'message_text_unavailable'));
+    assert.ok(!JSON.stringify(ctx).includes('PRIVATE_DOCUMENT'));
+  }
+  DB.set('messages/latest', msg('Qui trovi la planimetria.', undefined,
+    { waMessageId: 'wa_last', attachments: ['https://media.fixture.test/PRIVATE_DOCUMENT'] }));
+  const ctx = await loadCaseContext(input()), source = ctx.sources.find(s => s.ref === 'messages/latest');
+  assert.equal(source.text, 'Qui trovi la planimetria.');
+  assert.equal(source.textAvailable, true);
+  assert.equal(source.messageKind, 'attachment');
+  assert.ok(has(ctx, 'attachments_not_read'));
+});
+
+await test('ordinary media mentions and non-HOMIE text remain readable client words', async () => {
+  for (const [body, extra] of [['Ho ascoltato [Audio] e inviato il documento.', {}], ['Sent document yesterday, please check it.', {}],
+    ['Sent document', { source: 'portal', by: 'contact1' }]]) {
+    DB.set('messages/latest', msg(body, undefined, { waMessageId: 'wa_last', ...extra }));
+    const ctx = await loadCaseContext(input()), source = ctx.sources.find(s => s.ref === 'messages/latest');
+    assert.equal(source.text, body);
+    assert.equal(source.textAvailable, true);
+    assert.equal(source.messageKind, 'text');
+    assert.equal(ctx.coverage.incomplete, false);
+  }
+});
+
+await test('reaction metadata cannot become readable prose or a human style example', async () => {
+  DB.set('messages/latest', msg('Reacted 👍 to Giovedì 10:30 dovrei andare', undefined,
+    { waMessageId: 'wa_last', direction: 'out', source: 'portal', by: 'admin1' }));
+  DB.set('users/admin1', { role: 'admin' });
+  const ctx = await loadCaseContext(input()), source = ctx.sources.find(s => s.ref === 'messages/latest');
+  assert.equal(source.messageKind, 'reaction');
+  assert.equal(source.textAvailable, false);
+  assert.deepEqual(ctx.style.examples, []);
+  assert.equal(ctx.coverage.incomplete, false, 'A fully visible reaction is not a missing attachment');
+});
+
+await test('media type and readable-text metadata participate in the source fingerprint', async () => {
+  DB.set('messages/latest', msg('[Audio]', undefined, { waMessageId: 'wa_last' }));
+  const ctx = await loadCaseContext(input()), before = contextFingerprint(ctx);
+  DB.get('messages/latest').body = 'Sent image';
+  const image = await loadCaseContext(input());
+  assert.equal(messages(ctx)[0].text, messages(image)[0].text, 'Both have the same safe unavailable-text label');
+  assert.notEqual(contextFingerprint(image), before);
+  const changed = { ...ctx, sources: ctx.sources.map(s => s.kind === 'message' ? { ...s, textAvailable: true } : s) };
+  assert.notEqual(contextFingerprint(changed), before);
+});
+
 await test('phone intent uses caller-only words and never an agent line in the dialogue', async () => {
   const i = input(); i.task.followUp.lastMessageId = 'phone:call1';
   DB.set('messages/latest', msg('🤖 Vuoi parlare con Valentino? 👤 Solo sapere quali documenti servono.', undefined,
@@ -340,6 +421,14 @@ await test('mutation: adding a document blob to business fields is caught', asyn
 await test('mutation: accepting a contact author as verified admin is caught', async () => {
   const mutant = await mutated("author.role !== 'admin'", 'false');
   await assert.rejects(() => rejectUnverifiedAuthor(mutant.loadCaseContext), assert.AssertionError);
+});
+await test('mutation: treating imported media markers as readable text is caught', async () => {
+  const mutant = await mutated("(row.source === 'homie' || row.by === 'homie')", 'false');
+  await assert.rejects(() => rejectUnreadImportedMedia(mutant.loadCaseContext), assert.AssertionError);
+});
+await test('mutation: trusting the absence of attachment URLs is caught', async () => {
+  const mutant = await mutated('unreadAttachment: attached || !!media', 'unreadAttachment: attached');
+  await assert.rejects(() => rejectUnreadImportedMedia(mutant.loadCaseContext), assert.AssertionError);
 });
 
 console.log(`\nContext: ${passed} passed, ${failed} failed`);
