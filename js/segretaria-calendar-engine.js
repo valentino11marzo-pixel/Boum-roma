@@ -77,7 +77,7 @@
   }
   function buildCalendarContext({ sources = [], now = Date.now() } = {}) {
     const clock = local(instant(now)), anchors = [], references = [];
-    for (const source of sources.slice(0, 40)) {
+    for (const [sourceIndex, source] of sources.slice(0, 124).entries()) {
       if (!['message', 'phone_call', undefined].includes(source.kind) || source.analysisAvailable === false
         || (source.textAvailable === false && source.analysisAvailable !== true)) continue;
       const text = source.analysisText ?? source.text;
@@ -87,6 +87,9 @@
       const id = source.id || source.ref;
       if (!id) continue;
       if (p) anchors.push({ sourceId: id, sourceAt: new Date(at).toISOString(), localDate: p.date, weekday: names[p.weekday] });
+      // Source timestamps are cheap evidence for the whole bounded context;
+      // event interpretation retains its existing forty-source window.
+      if (sourceIndex >= 40) continue;
       if (!parsed.days.length) continue;
       for (const day of parsed.days) {
         const ref = { sourceId: id, weekday: names[day.weekday], weekdayIndex: day.weekday,
@@ -126,11 +129,12 @@
     }
     return { timeZone: TIME_ZONE, today: clock?.date || null, anchors, references,
       limitations: ['Only explicit IT/EN weekdays with simple calendar dates and HH:MM are interpreted; date-only source events and free-form timezone names are not resolved.',
+        'Source timestamp anchors cover at most 124 sources; event interpretation covers the first 40 sources.',
         'A resolved date does not prove an appointment, its confirmation, its owner or completion.',
         'Missing or multiple events, qualified/same-day weekdays and DST gaps/folds require clarification.'] };
   }
   function validateCalendarProposal(proposal, { calendar } = {}) {
-    const issues = [], refs = calendar?.references || [];
+    const issues = [], refs = calendar?.references || [], anchors = calendar?.anchors || [];
     const issue = (code, matches = []) => {
       const sourceIds = unique(matches.map(r => r.sourceId));
       if (!issues.some(i => i.code === code && JSON.stringify(i.sourceIds) === JSON.stringify(sourceIds))) issues.push({ code, sourceIds });
@@ -145,6 +149,33 @@
     for (const field of fields) {
       const parsed = tokens(field.text), relevant = scoped(field);
       for (const d of parsed.dates) {
+        // A dated communication is not the appointment it describes. Accept
+        // this narrow grammatical form only against real source timestamps;
+        // an arbitrary date or an event date elsewhere still takes the normal
+        // calendar path. Never exempt an entire sentence or proposal.
+        const prefix = parsed.text.slice(0, d.index).split(/[.!?;\n]/).pop();
+        const provenanceDate = /\b(?:messaggi[oi]|email|e-mail|indicazioni|istruzioni|richiest[ae])\s+(?:(?:sono|erano|e|era|gia|stat[oaie])\s+)*(?:inviat[oaie]|ricevut[oaie]|comunicat[oaie]|dat[oaie])\s+(?:il|in data)\s*$/.test(prefix)
+          || /\b(?:messaggio|email|e-mail)\s+del\s*$/.test(prefix)
+          || /\b(?:message|email|instructions|directions|request)\s+(?:(?:was|were|already|had|been)\s+)*(?:sent|received|given|provided)\s+on\s*$/.test(prefix);
+        if (provenanceDate) {
+          const cited = Array.isArray(field.sourceIds) && field.sourceIds.length > 0;
+          const sourceDates = anchors.filter(a => !cited || field.sourceIds.includes(a.sourceId));
+          const sourceYears = unique(sourceDates.map(a => +a.localDate.slice(0, 4)));
+          const sourceYear = d.year || (sourceYears.length === 1 ? sourceYears[0] : null);
+          const verifiedProvenance = sourceYear && sourceDates.some(a => a.localDate === dateKey(sourceYear, d.month, d.day));
+          if (verifiedProvenance) {
+            const attachedGap = gap => /^[\s,()\[\]–—-]*$/.test(gap);
+            const attachedDays = parsed.days.filter(w => w.end <= d.index
+              ? attachedGap(parsed.text.slice(w.end, d.index))
+              : w.index >= d.end && attachedGap(parsed.text.slice(d.end, w.index)));
+            if (attachedDays.some(w => new Date(dateMs(dateKey(sourceYear, d.month, d.day))).getUTCDay() !== w.weekday))
+              issue('calendar_weekday_date_conflict', sourceDates);
+            continue;
+          }
+          // A source may describe an earlier communication. Its own timestamp
+          // does not disprove that account; without a verified exemption,
+          // preserve the existing event checks below, adding no new veto.
+        }
         const nearby = parsed.days.filter(w => Math.min(Math.abs(w.end - d.index), Math.abs(d.end - w.index)) < 45);
         const candidates = nearby.length === 1 ? relevant.filter(r => r.weekdayIndex === nearby[0].weekday) : relevant;
         const supported = candidates.filter(r => r.date && r.status !== 'ambiguous');

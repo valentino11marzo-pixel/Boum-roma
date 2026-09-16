@@ -145,6 +145,179 @@ test('explicit non-Rome time is not silently converted as if it were Rome', () =
   assert.equal(cet.references[0].eventAt, null, 'Fixed CET must not silently become summer Rome UTC+2');
 });
 
+
+// Exact synthetic Opus 4.8 output from the November-2026 memory probe.
+// It correctly cites the agreement but also dates the earlier communication.
+const recoveredAgreementProposal = {
+  "summary": "L'inquilino chiede di riepilogare da dove entrare per il sopralluogo di venerdì 6 novembre, precisando che non serve fissare un nuovo appuntamento. Le indicazioni sono già state date il 2 novembre.",
+  "recommendation": "Rispondere ribadendo l'accesso concordato: cancello del cortile, citofono AURORA, con le chiavi portate da BOOM, per il sopralluogo di venerdì 6 novembre alle 10:00.",
+  "facts": [
+    {
+      "text": "Sopralluogo confermato per venerdì 6 novembre alle 10:00 (ora di Roma)",
+      "sourceIds": [
+        "messages/probeAgreement"
+      ],
+      "quote": "Sopralluogo confermato venerdì 6 novembre alle 10:00, ora di Roma."
+    },
+    {
+      "text": "Accesso indicato: cancello del cortile, citofono AURORA, chiavi portate da BOOM",
+      "sourceIds": [
+        "messages/probeAgreement"
+      ],
+      "quote": "usa il cancello del cortile, citofono AURORA. Porto io le chiavi."
+    },
+    {
+      "text": "L'inquilino ha confermato il sopralluogo e le indicazioni",
+      "sourceIds": [
+        "messages/probeAcknowledgement"
+      ],
+      "quote": "Confermo il sopralluogo e ho capito le indicazioni, grazie."
+    },
+    {
+      "text": "L'inquilino non vuole fissare un nuovo appuntamento, chiede solo il riepilogo degli accessi",
+      "sourceIds": [
+        "messages/probeIncoming"
+      ],
+      "quote": "Non serve fissare un nuovo appuntamento."
+    }
+  ],
+  "commitments": [
+    {
+      "text": "BOOM porta le chiavi al sopralluogo",
+      "sourceIds": [
+        "messages/probeAgreement"
+      ],
+      "quote": "Porto io le chiavi.",
+      "kind": "explicit",
+      "status": "pending"
+    }
+  ],
+  "uncertainties": [],
+  "nextAction": {
+    "text": "Rispondere all'inquilino riepilogando le indicazioni di accesso già concordate per il sopralluogo di venerdì 6 novembre alle 10:00.",
+    "waitingOn": "valentino",
+    "waitingLabel": "Valentino",
+    "checkAt": "2026-11-06T08:00:00.000Z",
+    "practiceRef": "contracts/probeA",
+    "sourceIds": [
+      "messages/probeIncoming",
+      "messages/probeAgreement"
+    ],
+    "reason": "L'inquilino chiede solo il riepilogo degli accessi; il ricontrollo interno prima del sopralluogo di venerdì mattina conferma che tutto sia pronto."
+  },
+  "draft": {
+    "channel": "whatsapp",
+    "text": "Buongiorno! Per il sopralluogo di venerdì 6 novembre alle 10:00 l'accesso è dal cancello del cortile, citofono AURORA. Le chiavi le portiamo noi. A venerdì!",
+    "sourceIds": [
+      "messages/probeAgreement",
+      "messages/probeIncoming"
+    ]
+  },
+  "handoff": {
+    "needed": false,
+    "reason": "Richiesta informativa semplice, indicazioni già disponibili nelle fonti.",
+    "sourceIds": [
+      "messages/probeIncoming",
+      "messages/probeAgreement"
+    ]
+  }
+};
+const recoveredAgreementSources = [
+  source('Sopralluogo confermato venerdì 6 novembre alle 10:00, ora di Roma. Per entrare usa il cancello del cortile, citofono AURORA. Porto io le chiavi.',
+    '2026-11-02T09:00:00Z', 'messages/probeAgreement'),
+  source('Buongiorno, vorrei sapere da dove entrare per il sopralluogo. Potete riepilogarmi le indicazioni?',
+    '2026-11-04T08:55:00Z', 'messages/probeIncoming'),
+];
+function preservesSourceDate(api = CAL) {
+  const c = context(recoveredAgreementSources), before = JSON.stringify(recoveredAgreementProposal);
+  assert.equal(check(recoveredAgreementProposal, c, api).ok, true);
+  assert.equal(JSON.stringify(recoveredAgreementProposal), before);
+}
+test('real synthetic model output distinguishes the November 2 communication from the November 6 appointment', preservesSourceDate);
+function rejectsUnverifiedExemption(api = CAL) {
+  const p = structuredClone(recoveredAgreementProposal);
+  p.facts.push({ text: 'Sopralluogo venerdì 6 novembre. Indicazioni inviate il 4 novembre.', sourceIds: ['messages/probeAgreement'] });
+  assert.ok(has(check(p, context(recoveredAgreementSources), api), 'calendar_source_date_conflict'));
+}
+test('an exemption needs the cited source timestamp and cannot borrow another message date', rejectsUnverifiedExemption);
+test('without a source timestamp, mixed event and metadata text keeps the previous calendar guard', () => {
+  const c = context(recoveredAgreementSources); c.anchors = [];
+  assert.ok(has(check(recoveredAgreementProposal, c), 'calendar_source_date_conflict'));
+});
+test('a later message may quote an earlier communication without acquiring a new timestamp veto', () => {
+  const p = proposal('Indicazioni inviate il 2 novembre.', undefined, 'Verificare i dettagli.');
+  p.recommendation = 'Riepilogare le indicazioni.';
+  p.facts = [{ text: 'Indicazioni inviate il 2 novembre.', sourceIds: ['later'], quote: 'Indicazioni inviate il 2 novembre.' }];
+  const c = context([source('Indicazioni inviate il 2 novembre.', '2026-11-04T09:00:00Z', 'later')]);
+  assert.equal(check(p, c).ok, true);
+  // An anchor absent from the bounded calendar is also unknown, not a veto.
+  c.anchors = []; assert.equal(check(p, c).ok, true);
+});
+test('English provenance exemption also requires the exact source timestamp', () => {
+  const p = structuredClone(recoveredAgreementProposal);
+  p.summary = 'The appointment is Friday 6 November. Instructions were already sent on 2 November.';
+  assert.equal(check(p, context(recoveredAgreementSources)).ok, true);
+  p.summary = 'The appointment is Friday 6 November. Instructions were already sent on 3 November.';
+  assert.ok(has(check(p, context(recoveredAgreementSources)), 'calendar_source_date_conflict'));
+});
+function rejectsAttachedWeekday(api = CAL) {
+  const p = structuredClone(recoveredAgreementProposal);
+  for (const text of ['Le indicazioni sono state date il 2 novembre, venerdì.',
+    'Le indicazioni sono state date il 2 novembre (venerdì).',
+    'Le indicazioni sono state date il 2 novembre — venerdì.']) {
+    p.summary = text;
+    assert.ok(has(check(p, context(recoveredAgreementSources), api), 'calendar_weekday_date_conflict'), text);
+  }
+}
+test('a weekday directly attached to the communication date must still agree', rejectsAttachedWeekday);
+test('a weekday in the separate appointment sentence does not attach to the communication date', () => {
+  const p = structuredClone(recoveredAgreementProposal);
+  p.summary = 'Le indicazioni sono state date il 2 novembre. Venerdì 6 novembre è previsto il sopralluogo.';
+  assert.equal(check(p, context(recoveredAgreementSources)).ok, true);
+  p.summary = 'Le indicazioni sono state date il 2 novembre, lunedì. Sopralluogo venerdì 6 novembre.';
+  assert.equal(check(p, context(recoveredAgreementSources)).ok, true);
+});
+function rejectsFalseAppointment(api = CAL) {
+  const p = structuredClone(recoveredAgreementProposal);
+  p.summary = 'Sopralluogo venerdì 13 novembre. Le indicazioni sono già state date il 2 novembre.';
+  assert.ok(has(check(p, context(recoveredAgreementSources), api), 'calendar_source_date_conflict'));
+}
+test('correct communication metadata never excuses an appointment on the wrong Friday', rejectsFalseAppointment);
+test('matching a source timestamp alone does not turn an event date into communication metadata', () => {
+  const p = structuredClone(recoveredAgreementProposal);
+  for (const text of ['Appuntamento il 2 novembre. Le indicazioni sono state date il 2 novembre.',
+    'Il messaggio indica un appuntamento il 2 novembre.',
+    'Le indicazioni sono state date per il sopralluogo il 2 novembre.']) {
+    p.summary = text;
+    assert.ok(has(check(p, context(recoveredAgreementSources)), 'calendar_source_date_conflict'), text);
+  }
+});
+test('invalid dates in a mixed appointment statement still use the existing guard', () => {
+  const p = structuredClone(recoveredAgreementProposal); p.summary = 'Sopralluogo venerdì 6 novembre. Le indicazioni sono state date il 31 novembre 2026.';
+  assert.ok(has(check(p, context(recoveredAgreementSources)), 'calendar_invalid_date'));
+});
+
+function preservesOlderSourceTimestamp(api = CAL) {
+  const sources = [source('Sopralluogo venerdì 6 novembre alle 10:00.', '2026-11-04T08:00:00Z', 'recent_event'),
+    ...Array.from({ length: 39 }, (_, i) => source('Nessuna novità.', '2026-11-04T08:01:00Z', 'recent_' + i)),
+    source('Indicazioni inviate.', '2026-11-02T09:00:00Z', 'older_instructions')];
+  const c = context(sources, NOW, api);
+  const p = { summary: 'Sopralluogo venerdì 6 novembre. Indicazioni inviate il 2 novembre.',
+    facts: [{ text: 'Indicazioni inviate il 2 novembre.', sourceIds: ['older_instructions'] }] };
+  assert.equal(c.anchors.some(a => a.sourceId === 'older_instructions'), true);
+  assert.equal(check(p, c, api).ok, true);
+  assert.equal(c.references.length, 1, 'The event interpretation window is unchanged');
+}
+test('a verified source beyond the first forty messages retains its communication date', preservesOlderSourceTimestamp);
+test('source timestamps remain bounded and exclude historical summaries and reactions', () => {
+  const sources = Array.from({ length: 130 }, (_, i) => source('Nessuna novità.', '2026-11-02T09:00:00Z', 'bounded_' + i));
+  sources[0].kind = 'historical_whatsapp_summary';
+  sources[1].text = 'Reacted 👍 to Thursday at 11:45';
+  const c = context(sources);
+  assert.equal(c.anchors.length, 122);
+  assert.equal(c.anchors.some(a => ['bounded_0', 'bounded_1', 'bounded_124'].includes(a.sourceId)), false);
+});
+
 const code = await readFile(new URL('../../js/segretaria-calendar-engine.js', import.meta.url), 'utf8');
 function mutant(before, after) {
   assert.ok(code.includes(before), 'Mutation target must exist');
@@ -180,5 +353,27 @@ test('mutation: selecting one DST fold occurrence loses the ambiguity guarantee'
   assert.notEqual(context(sources, NOW, bad).references[0].status, 'ambiguous');
 });
 
-console.log(`\nCalendar: ${passed} passed, ${failed} failed (including 4 mutations).`);
+
+test('mutation: treating source timestamps as appointment dates reproduces the real false rejection', () => {
+  const bad = mutant('if (provenanceDate) {', 'if (false) {');
+  assert.throws(() => preservesSourceDate(bad), assert.AssertionError);
+});
+test('mutation: source metadata cannot bypass a genuine conflicting appointment', () => {
+  const bad = mutant("issue('calendar_source_date_conflict', supported);", 'void 0;');
+  assert.throws(() => rejectsFalseAppointment(bad), assert.AssertionError);
+});
+test('mutation: provenance exemption still requires the cited source timestamp', () => {
+  const bad = mutant('if (verifiedProvenance) {', 'if (true) {');
+  assert.throws(() => rejectsUnverifiedExemption(bad), assert.AssertionError);
+});
+test('mutation: exempted source dates still reject a contradictory attached weekday', () => {
+  const bad = mutant("issue('calendar_weekday_date_conflict', sourceDates);", 'void 0;');
+  assert.throws(() => rejectsAttachedWeekday(bad), assert.AssertionError);
+});
+test('mutation: shortening source timestamp coverage loses verified older communications', () => {
+  const bad = mutant('sources.slice(0, 124)', 'sources.slice(0, 40)');
+  assert.throws(() => preservesOlderSourceTimestamp(bad), assert.AssertionError);
+});
+
+console.log(`\nCalendar: ${passed} passed, ${failed} failed (including 9 mutations).`);
 if (failed) process.exitCode = 1;
