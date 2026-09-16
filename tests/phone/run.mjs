@@ -14,6 +14,7 @@
 // Esegui: node tests/phone/run.mjs
 
 import { readFileSync } from 'node:fs';
+import { Readable } from 'node:stream';
 
 process.env.HOMIE_SECRET = 'test-secret';
 process.env.FIREBASE_API_KEY = 'k';
@@ -190,7 +191,7 @@ const call = async (handler, { method = 'POST', query = {}, body = {}, headers =
   const req = {
     method, query, headers, body,
     url: '/api/phone/x' + (qs ? '?' + qs : ''),
-    on(ev, cb) { if (ev === 'data') cb(Buffer.from(new URLSearchParams(body).toString())); if (ev === 'end') cb(); return this; },
+    on(ev, cb) { if (ev === 'data') cb(Buffer.isBuffer(body) ? body : Buffer.from(typeof body === 'string' ? body : new URLSearchParams(body).toString())); if (ev === 'end') cb(); return this; },
   };
   let out = null, code = 0, sent = null; const hdrs = {};
   const res = {
@@ -398,7 +399,7 @@ const elCall = async (payload, { secret = 'el-secret', t = Math.floor(Date.now()
   const raw = JSON.stringify(payload);
   const v0 = createHmac('sha256', secret).update(`${t}.${raw}`).digest('hex');
   const header = sig !== undefined ? sig : `t=${t},v0=${v0}`;
-  return call(elevenlabs, { body: payload, headers: header ? { 'elevenlabs-signature': header } : {} });
+  return call(elevenlabs, { body: raw, headers: header ? { 'elevenlabs-signature': header } : {} });
 };
 
 // ─── 15. la firma: mai un webhook aperto ───────────────────────────────────
@@ -415,6 +416,57 @@ const elCall = async (payload, { secret = 'el-secret', t = Math.floor(Date.now()
   ok('firma falsa → 401, zero scritture', r.code === 401 && DB.size === before && !DB.has('phoneCalls/el_evil'), r.code);
   const r2 = await elCall({ type: 'post_call_transcription', data: { conversation_id: 'evil2' } }, { sig: '' });
   ok('senza firma → 401', r2.code === 401);
+}
+
+// Vercel Node restores the original stream but also adds a lazy JSON body.
+// The signature must survive whitespace, escaped Unicode and key ordering;
+// touching the getter then JSON.stringify changes all three wire formats.
+{
+  const formats = [
+    ['spazi e newline', '{\n  "type": "test_noop", "data": {}, "note": "caffè"\n}'],
+    ['Unicode escaped', '{"type":"test_noop","data":{},"note":"caff\\u00e8"}'],
+    ['ordine chiavi numeriche', '{"type":"test_noop","data":{},"2":"two","1":"one"}'],
+  ];
+  const requestRaw = async (raw, { signedRaw = raw, secret = 'el-secret', t = Math.floor(Date.now() / 1000), mode = 'stream' } = {}) => {
+    const bytes = Buffer.from(raw);
+    const accent = bytes.indexOf(Buffer.from('è'));
+    const split = accent >= 0 ? accent + 1 : Math.floor(bytes.length / 2);
+    const req = mode === 'stream' ? Readable.from([bytes.subarray(0, split), bytes.subarray(split)]) : {};
+    let getterReads = 0;
+    req.method = 'POST';
+    req.headers = { 'content-type': 'application/json', 'elevenlabs-signature': `t=${t},v0=${createHmac('sha256', secret).update(`${t}.${signedRaw}`).digest('hex')}` };
+    if (mode === 'stream') Object.defineProperty(req, 'body', {
+      configurable: true,
+      get() {
+        getterReads++;
+        const value = JSON.parse(raw);
+        Object.defineProperty(req, 'body', { value, writable: true, configurable: true });
+        return value;
+      },
+    });
+    else req.body = mode === 'parsed' ? JSON.parse(raw) : bytes;
+    let code, out;
+    await elevenlabs(req, { status(c) { code = c; return this; }, json(value) { out = value; return this; } });
+    return { code, out, getterReads };
+  };
+  const before = DB.size;
+  for (const [name, raw] of formats) {
+    const result = await requestRaw(raw);
+    ok('webhook raw: ' + name + ' firmati passano senza accedere al getter JSON',
+      result.code === 200 && result.out.reason === 'no_conversation_id' && result.getterReads === 0, result);
+  }
+  const raw = formats[0][1];
+  const tampered = await requestRaw(raw + ' ', { signedRaw: raw });
+  ok('webhook raw: un solo byte aggiunto dopo la firma viene respinto', tampered.code === 401 && tampered.out.error === 'invalid_signature');
+  const wrongKey = await requestRaw(raw, { secret: 'wrong-fixture-secret' });
+  const stale = await requestRaw(raw, { t: Math.floor(Date.now() / 1000) - 3600 });
+  ok('webhook raw: secret errato e firma scaduta restano respinti', wrongKey.code === 401 && stale.code === 401);
+  const malformed = await requestRaw('{ broken JSON');
+  ok('webhook raw: JSON malformato firmato verificato prima del parsing', malformed.code === 400 && malformed.out.error === 'invalid_json' && malformed.getterReads === 0);
+  const buffer = await requestRaw(raw, { mode: 'buffer' });
+  const parsed = await requestRaw(raw, { mode: 'parsed' });
+  ok('webhook raw: harness ammette byte originali, rifiuta oggetti già interpretati', buffer.code === 200 && parsed.code === 400 && parsed.out.error === 'raw_body_unavailable');
+  ok('webhook raw: le prove di firma non producono scritture', DB.size === before);
 }
 
 // ─── 16. la conversazione diventa lead — SOLO con le parole del chiamante ──
@@ -510,10 +562,25 @@ const elCall = async (payload, { secret = 'el-secret', t = Math.floor(Date.now()
   ok('tools senza chiave → 401', r401.code === 401);
 
   DB.set('listings/l3', { id: 'l3', name: 'Bilocale Affittato', zone: 'Monti', price: 1200, status: 'rented' });
+  DB.set('listings/type_room', { id: 'type_room', name: 'Camera campione', type: 'Room', bedrooms: 1, sqm: 30, price: 900, status: 'available' });
+  DB.set('listings/type_apartment', { id: 'type_apartment', name: 'Appartamento campione', type: 'Apartment', bedrooms: 1, sqm: 30, price: 900, status: 'available' });
+  DB.set('listings/type_missing', { id: 'type_missing', name: 'Bilocale nel titolo non verificato', bedrooms: 1, sqm: 30, price: 900, status: 'available' });
+  DB.set('listings/type_blank', { id: 'type_blank', name: 'Camera nel titolo non verificata', type: '  ', bedrooms: 1, status: 'available' });
+  DB.set('listings/type_invalid', { id: 'type_invalid', name: 'Tipo non valido', type: { label: 'Apartment' }, bedrooms: 1, status: 'available' });
   const cat = await call(agentTools, { method: 'GET', query: { k: KEY, op: 'catalog' } });
   ok('catalog: ok e case vere', cat.code === 200 && cat.out.ok && cat.out.listings.some((l) => l.id === 'l2'), cat.out && cat.out.count);
   ok('catalog: un AFFITTATO non esce mai dalla voce', !cat.out.listings.some((l) => l.id === 'l3'));
   ok('catalog: prezzo parlabile', cat.out.listings.find((l) => l.id === 'l2').priceEurMonth === 1600);
+  const byId = (id) => cat.out.listings.find((l) => l.id === id);
+  ok('catalog: stanza e appartamento con stessa camera, superficie e prezzo mantengono tipi distinti',
+    byId('type_room')?.type === 'Room' && byId('type_apartment')?.type === 'Apartment'
+    && byId('type_room').bedrooms === byId('type_apartment').bedrooms);
+  ok('catalog: tipo mancante non dedotto da camera, prezzo, superficie o titolo bilocale', byId('type_missing')?.type === null);
+  ok('catalog: tipo vuoto o non testuale resta sconosciuto', byId('type_blank')?.type === null && byId('type_invalid')?.type === null);
+  ok('catalog: contratto distingue stanza e intero e vieta deduzioni dai posti/camere',
+    typeof cat.out.note === 'string' && cat.out.note.includes('A room is not an entire apartment')
+    && cat.out.note.includes('Do not infer accommodation type or total room count from bedrooms')
+    && cat.out.note.includes('If type is missing, unknown or unclear'));
 
   const sl = await call(agentTools, { method: 'GET', query: { k: KEY, op: 'slots', mode: 'video' } });
   ok('slots: la griglia VERA risponde (stesso motore di book.html)', sl.code === 200 && sl.out.ok === true && sl.out.timezone === 'Europe/Rome' && Array.isArray(sl.out.slots), sl.out && sl.out.timezone);
@@ -551,7 +618,7 @@ const elCall = async (payload, { secret = 'el-secret', t = Math.floor(Date.now()
 
   const el = readFileSync(new URL('../../api/phone/elevenlabs.js', import.meta.url), 'utf8');
   ok('elevenlabs.js: doc patch PRIMA di tgSend (il dato batte il ping)', el.indexOf('await fsPatch(docPath, patch)') < el.indexOf('tgSend('));
-  ok('elevenlabs.js: bodyParser spento (l\'HMAC vuole i byte grezzi)', /bodyParser:\s*false/.test(el));
+  ok('elevenlabs.js: conserva hint bodyParser per compatibilità Next', /bodyParser:\s*false/.test(el));
   ok('elevenlabs.js: nel lead entrano solo i turni user', el.indexOf("t.role === 'user'") > 0 && el.indexOf("t.role === 'user'") < el.indexOf('await syncLeadFromCall('));
 
   const mandate = readFileSync(new URL('../../bot/RECEPTIONIST.md', import.meta.url), 'utf8');

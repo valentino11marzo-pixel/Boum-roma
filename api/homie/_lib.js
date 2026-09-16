@@ -227,6 +227,42 @@ export async function fsGet(docPath) {
   return fsDocToJs(await res.json());
 }
 
+// Read-modify-write callers must retain the server version. A missing
+// version is an error, never permission to fall back to an unconditional write.
+export async function fsGetVersioned(docPath) {
+  const token = await getAdminToken();
+  const res = await fetch(`${FS_BASE}/${docPath}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (res.status === 404) return null;
+  if (!res.ok) throw new Error('Firestore versioned read failed');
+  const doc = await res.json();
+  if (!doc.updateTime) throw new Error('Firestore version missing');
+  return { data: fsDocToJs(doc), updateTime: doc.updateTime };
+}
+
+// Atomic updates with explicit preconditions; used by operational follow-up
+// so a concurrent inbound cannot be erased by an operator's stale confirmation.
+export async function fsCommit(writes) {
+  const token = await getAdminToken();
+  const base = FS_BASE.replace(/^https?:\/\/[^/]+\/v1\//, '');
+  const res = await fetch(`${FS_BASE}:commit`, {
+    method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ writes: writes.map(w => {
+      if (!w.precondition || (!w.precondition.updateTime && typeof w.precondition.exists !== 'boolean'))
+        throw new Error('Firestore precondition required');
+      return { update: { name: `${base}/${w.docPath}`, fields: toFsFields(w.fields) },
+        updateMask: { fieldPaths: Object.keys(w.fields) }, currentDocument: w.precondition };
+    }) }),
+  });
+  if (!res.ok) {
+    const err = new Error('Firestore conditional commit failed');
+    const body = await res.json().catch(() => null);
+    err.conflict = [409, 412].includes(res.status)
+      || ['ABORTED', 'ALREADY_EXISTS', 'FAILED_PRECONDITION'].includes(body?.error?.status);
+    throw err;
+  }
+  return res.json();
+}
+
 // List up to `limit` docs from a collection, optionally filtered + ordered.
 // filter: { field, op: 'EQUAL'|'GREATER_THAN'|..., value }
 // orderBy: { field, direction: 'ASCENDING'|'DESCENDING' }

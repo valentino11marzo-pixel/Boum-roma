@@ -252,7 +252,7 @@ export async function ensureTask(t) {
 
 export async function closeTask(id, via = 'telegram') {
   const cur = await fsGet(`${COLL}/${id}`).catch(() => null);
-  if (!cur) return null;
+  if (!cur || cur.followUp) return null; // Follow-up needs an outcome and a current-message check in Oggi.
   if (cur.status !== 'open') return { ...cur, id };
   await fsPatch(`${COLL}/${id}`, { status: 'done', doneAt: new Date(), doneVia: via });
   if (cur.calInvited) {
@@ -265,7 +265,7 @@ export async function closeTask(id, via = 'telegram') {
 
 export async function voidTask(id) {
   const cur = await fsGet(`${COLL}/${id}`).catch(() => null);
-  if (!cur || cur.status !== 'open') return null;
+  if (!cur || cur.followUp || cur.status !== 'open') return null;
   await fsPatch(`${COLL}/${id}`, { status: 'void', voidedAt: new Date() });
   if (cur.calInvited) {
     try { await sendTaskInvite({ ...cur, id, icalSeq: (Number(cur.icalSeq) || 0) + 1 }, 'CANCEL'); }
@@ -276,7 +276,7 @@ export async function voidTask(id) {
 
 export async function snoozeTask(id, days = 1) {
   const cur = await fsGet(`${COLL}/${id}`).catch(() => null);
-  if (!cur || cur.status !== 'open') return null;
+  if (!cur || cur.followUp || cur.status !== 'open') return null;
   const due = addDaysKey(cur.due || romeDateKey(new Date()), days);
   const seq = (Number(cur.icalSeq) || 0) + 1;
   await fsPatch(`${COLL}/${id}`, { due, snoozedAt: new Date(), ...(cur.calInvited ? { icalSeq: seq } : {}) });
@@ -295,6 +295,7 @@ export async function listOpenTasks(dueBy) {
     rows = await fsList(COLL, { filter: { field: 'status', op: 'EQUAL', value: 'open' }, limit: 200 });
   } catch { /* fail-open: an unreadable list is an empty brief section, not a crash */ }
   return rows
+    .filter(t => !t.followUp) // Oggi owns the confirmed actor, precise checkAt and closure outcome.
     .filter(t => !dueBy || !t.due || t.due <= dueBy)
     .sort((a, b) => String(a.due || '9999').localeCompare(String(b.due || '9999')) ||
                     String(a.dueTime || '99').localeCompare(String(b.dueTime || '99')));

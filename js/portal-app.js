@@ -3110,6 +3110,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             .onSnapshot(snapshot => {
                 S.contracts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 checkAlerts();
+                oggiScheduleUpdate();
                 if (S.page === 'dashboard' || S.page === 'contracts') renderPage();
             }, err => console.error('Contracts listener error:', err));
     }
@@ -3134,6 +3135,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             .onSnapshot(snapshot => {
                 S.actionQueue = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 buildNav();
+                oggiScheduleUpdate(true);
                 if (S.page === 'dashboard' || S.page === 'command-center') renderPage();
             }, err => console.error('Action queue listener error:', err));
     }
@@ -3189,6 +3191,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     if (document.hidden) sendBrowserNotification('🔧 Nuova manutenzione', sub);
                 }
                 buildNav();
+                oggiScheduleUpdate();
                 if (S.page === 'maintenance' || S.page === 'dashboard') renderPage();
             }, err => console.error('Maintenance listener error:', err));
     }
@@ -3300,6 +3303,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const prevUnread = (S.conversations || []).reduce((n, c) => n + (Number(c.unread) || 0), 0);
             S.conversations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             buildNav();
+            oggiScheduleUpdate(true, false);
             if (S.page === 'inbox') {
                 // Preserve the open conversation + composer text across re-render.
                 const draft = (document.getElementById('inboxBody') || {}).value;
@@ -3325,11 +3329,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         stopOpenConvListener();
         if (!convId) return;
         S.openConvId = convId;
+        S.openConvStatus = { id: convId, loading: true, incomplete: false, error: '' };
         S.openConvListener = db.collection('messages')
             .where('conversationId', '==', convId)
+            .orderBy('at', 'desc')
             .limit(300)
             .onSnapshot(snapshot => {
+                if (S.openConvId !== convId) return;
                 const fresh = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                S.openConvStatus = { id: convId, loading: false, incomplete: fresh.length >= 300, error: '' };
                 // Merge: drop this conversation's old messages, splice the fresh set in.
                 S.messages = (S.messages || []).filter(m => m.conversationId !== convId).concat(fresh);
                 if (S.page === 'inbox' && _inboxState.convId === convId) {
@@ -3338,7 +3346,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     if (m) m.innerHTML = inboxPage();
                     if (draft) { const ta = document.getElementById('inboxBody'); if (ta) ta.value = draft; }
                 }
-            }, err => console.error('Open conversation listener error:', err));
+            }, () => {
+                if (S.openConvId !== convId) return;
+                S.openConvStatus = { id: convId, loading: false, incomplete: true, error: 'Non riesco ad aggiornare i messaggi. La cronologia visibile potrebbe essere incompleta: riapri la conversazione per riprovare.' };
+                const draft = (document.getElementById('inboxBody') || {}).value;
+                inboxRefresh();
+                if (draft) { const ta = document.getElementById('inboxBody'); if (ta) ta.value = draft; }
+            });
     }
     function stopOpenConvListener() {
         if (S.openConvListener) { S.openConvListener(); S.openConvListener = null; }
@@ -4029,7 +4043,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // La prima schermata dell'admin è la coda delle decisioni: il posto
         // dove si COMANDA, non dove si guarda. Un hash esplicito (deep link,
         // reload a metà lavoro) vince sempre; gli altri ruoli non cambiano.
-        goTo(window.location.hash.slice(1) || (isAdmin() ? 'oggi' : (localStorage.getItem('boom_lastPage') || 'dashboard')));
+        // #innesto=<docId>: la proposta letta dal telefono (lo Scrivano) apre
+        // l'Innesto già seminata — l'id viene preso PRIMA che goTo riscriva l'hash.
+        const innestoSeed = isAdmin() && innestoSeedFromHash();
+        goTo(innestoSeed ? 'innesto' : (window.location.hash.slice(1) || (isAdmin() ? 'oggi' : (localStorage.getItem('boom_lastPage') || 'dashboard'))));
 
         // Check expiring contracts for review requests (admin, once per session)
         if (isAdmin() && !window._expiryChecked) {
@@ -4164,7 +4181,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // Open the 360° person hub. kind: 'lead' | 'pfsClient' | 'crmClient' | 'user'.
     function openPerson(id, kind) { goTo('person', { id, kind: kind || 'user' }); }
     window.openPerson = openPerson;
-    window.addEventListener('popstate', () => { const page = window.location.hash.slice(1); if (page && page !== S.page) { S.page = page; buildNav(); renderPage(); } });
+    window.addEventListener('popstate', () => {
+        // Un link #innesto=<docId> aperto col portal già in pagina (dalla card
+        // Telegram sul desktop): stessa semina del boot.
+        if (isAdmin() && innestoSeedFromHash()) { goTo('innesto'); return; }
+        const page = window.location.hash.slice(1); if (page && page !== S.page) { S.page = page; buildNav(); renderPage(); }
+    });
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('sidebarOverlay').classList.toggle('open'); }
     function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); }
 
@@ -4599,6 +4621,581 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         window.open('/pre-agreement-admin' + (ref ? '#q=' + encodeURIComponent(ref) : ''), '_blank');
     }
     window.oggiOpenPa = oggiOpenPa;
+
+    // ═══ SEGRETERIA · SEGUITI IN OGGI — proposte, invio solo dopo conferma ═══
+    const oggiSegretaria = { rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false, userId: null, generation: 0, timer: null, modal: null, readAt: null, monitoring: null, liveListener: null, liveObserver: null, liveError: false, updateTimer: null, refreshPending: false, decisionsPending: false };
+    // Aggiorniamo solo le regioni di Oggi: i listener non ricreano #main,
+    // il modulo aperto o la bozza che l'operatore sta controllando.
+    function oggiScheduleUpdate(followUps = false, decisions = true) {
+        if (S.page !== 'oggi' || !isAdmin()) return;
+        oggiSegretaria.refreshPending = oggiSegretaria.refreshPending || followUps;
+        oggiSegretaria.decisionsPending = oggiSegretaria.decisionsPending || decisions;
+        if (oggiSegretaria.updateTimer) return;
+        oggiSegretaria.updateTimer = setTimeout(() => {
+            oggiSegretaria.updateTimer = null;
+            if (S.page !== 'oggi' || !isAdmin()) return;
+            if (oggiSegretaria.decisionsPending) {
+                oggiSegretaria.decisionsPending = false;
+                const panel = document.getElementById('ogDecisionPanel');
+                if (panel) {
+                    const focused = panel.contains(document.activeElement) ? document.activeElement?.getAttribute('data-og-action') : null;
+                    panel.innerHTML = oggiDecisionPanel();
+                    if (focused) [...panel.querySelectorAll('[data-og-action]')].find(el => el.getAttribute('data-og-action') === focused)?.focus({ preventScroll: true });
+                }
+            }
+            oggiSegretariaFreshnessUpdate();
+            if (oggiSegretaria.refreshPending && !oggiSegretaria.loading) {
+                oggiSegretaria.refreshPending = false;
+                oggiSegretariaLoad();
+            }
+        }, 150);
+    }
+    function oggiSegretariaStopLive() {
+        if (oggiSegretaria.liveListener) oggiSegretaria.liveListener();
+        if (oggiSegretaria.liveObserver) oggiSegretaria.liveObserver.disconnect();
+        clearTimeout(oggiSegretaria.updateTimer);
+        clearTimeout(oggiSegretaria.timer);
+        Object.assign(oggiSegretaria, { liveListener: null, liveObserver: null, updateTimer: null, refreshPending: false, decisionsPending: false });
+    }
+    function oggiSegretariaStartLive() {
+        if (oggiSegretaria.liveListener) return;
+        const user = auth.currentUser;
+        try {
+            // Lo snapshot segnala soltanto che rileggere: ricevute e contenuto
+            // restano derivati dall'API autenticata, non da un secondo motore.
+            let first = true;
+            oggiSegretaria.liveListener = db.collection('operatorTasks').where('followUp.open', '==', true).limit(200).onSnapshot(() => {
+                if (auth.currentUser !== user || !isAdmin()) { oggiSegretariaStopLive(); return; }
+                oggiSegretaria.liveError = false;
+                if (first) { first = false; if (!oggiSegretaria.loaded || oggiSegretaria.loading) return; }
+                oggiScheduleUpdate(true, false);
+            }, () => {
+                oggiSegretaria.liveError = true;
+                oggiSegretariaFreshnessUpdate();
+            });
+            const main = document.getElementById('main');
+            if (main) {
+                oggiSegretaria.liveObserver = new MutationObserver(() => {
+                    if (!document.getElementById('sgFollowPanel')) oggiSegretariaStopLive();
+                });
+                oggiSegretaria.liveObserver.observe(main, { childList: true });
+            }
+        } catch { oggiSegretaria.liveError = true; } // il polling resta disponibile
+    }
+    function oggiSegretariaFreshness() {
+        const ms = value => {
+            const n = value?.toDate ? value.toDate().getTime() : new Date(value || 0).getTime();
+            return Number.isFinite(n) && n > 0 ? n : 0;
+        };
+        const incoming = Math.max(0, ...(S.conversations || []).filter(c => c.channel === 'whatsapp' && c.lastDirection === 'in').map(c => ms(c.lastMessageAt)));
+        const prepared = Math.max(0, ...oggiSegretaria.rows.map(t => ms(t?.preparation?.createdAt)));
+        return `Seguiti aggiornati: ${oggiSegretaria.readAt ? oggiSegretariaDate(oggiSegretaria.readAt) : 'in attesa'} · Ultimo WhatsApp visibile: ${incoming ? oggiSegretariaDate(incoming) : 'non disponibile'} · Ultima proposta: ${prepared ? oggiSegretariaDate(prepared) : 'non disponibile'}.${oggiSegretaria.liveError ? ' Aggiornamento immediato indisponibile; ricontrollo automatico ogni 30 secondi.' : ''}`;
+    }
+    function oggiSegretariaFreshnessUpdate() {
+        const target = document.getElementById('sgFreshness');
+        if (target) target.textContent = oggiSegretariaFreshness();
+    }
+    function oggiSegretariaMonitoring() {
+        const m = oggiSegretaria.monitoring;
+        const labels = {
+            unavailable: 'Stato della preparazione automatica non disponibile.',
+            unknown: 'Stato della preparazione automatica da verificare.',
+            disabled: 'Preparazione automatica disattivata. I seguiti restano disponibili.',
+            paused: 'Preparazione automatica sospesa. I seguiti restano disponibili.',
+            daily_cap: 'Limite giornaliero raggiunto: le nuove proposte automatiche sono in attesa.',
+            delayed: 'Il controllo della preparazione automatica è in ritardo.',
+            working: 'Nuove proposte preparate nell’ultimo ciclo.',
+            idle: 'Nessuna nuova proposta nell’ultimo ciclo.'
+        };
+        const status = m && Object.hasOwn(labels, m.status) ? m.status : 'unavailable';
+        const dates = [];
+        const at = value => { const n = Date.parse(value || ''); return Number.isFinite(n) ? oggiSegretariaDate(n) : ''; };
+        if (at(m?.checkedAt)) dates.push('Stato letto: ' + at(m.checkedAt));
+        if (at(m?.lastRunAt)) dates.push('Ultimo ciclo: ' + at(m.lastRunAt));
+        if (typeof m?.remainingToday === 'number' && Number.isFinite(m.remainingToday)) dates.push('Preparazioni residue oggi: ' + Math.max(0, m.remainingToday));
+        const warning = ['unavailable', 'unknown', 'disabled', 'paused', 'daily_cap', 'delayed'].includes(status);
+        return `<div class="sg-notice${warning ? ' sg-notice--warning' : ''}" role="status"><p>${labels[status]}</p>${dates.length ? `<p>${esc(dates.join(' · '))}</p>` : ''}${m?.incomplete ? '<p>Informazioni sulla preparazione parziali.</p>' : ''}</div>`;
+    }
+    const oggiSegretariaErrors = {
+        unauthorized: 'Accedi di nuovo per leggere i seguiti.', forbidden: 'Questa vista richiede un accesso amministratore.',
+        new_message_reload: 'È arrivato un nuovo messaggio. Ho ricaricato il seguito: ricontrolla i dati prima di confermare.',
+        practice_not_verified: 'La pratica non è più verificabile. Ho ricaricato le informazioni: controlla il collegamento.',
+        case_closed: 'Questo seguito è già stato chiuso.', case_not_found: 'Questo seguito non è più disponibile.',
+        conversation_missing: 'La conversazione di origine non è disponibile: il seguito resta da verificare.',
+        invalid_follow_up: 'Controlla azione, responsabile e data futura di ricontrollo.', outcome_required: 'Scrivi l’esito prima di chiudere il seguito.',
+        preparation_changed: 'La proposta è cambiata. Ho ricaricato il seguito: leggi la nuova versione prima di confermare.',
+        preparation_sources_changed: 'Una fonte è cambiata. Prepara di nuovo il lavoro prima di confermare.',
+        contact_changed: 'Il destinatario è cambiato. Prepara di nuovo il lavoro e controlla il recapito.',
+        preparation_in_progress: 'La Segreteria sta già preparando questo caso. Ricarica tra poco.',
+        preparation_disabled: 'La preparazione della Segreteria è disattivata. Puoi comunque correggere il seguito.',
+        preparation_daily_cap: 'Raggiunto il limite giornaliero di preparazioni. Il seguito resta visibile.',
+        preparation_needs_context: 'Mancano informazioni necessarie: controlla il collegamento e correggi il seguito.',
+        preparation_policy_changed: 'Questa proposta va ricalcolata con i controlli aggiornati. Il seguito è conservato.',
+        commitment_requires_confirmation: 'La fonte esprime una possibilità, non una conferma. Il seguito resta da verificare.',
+        outgoing_commitment_unconfirmed: 'La disponibilità di BOOM va verificata prima di chiedere al cliente di organizzarsi.',
+        draft_language_mismatch: 'La risposta proposta non usa la lingua della conversazione. Il seguito è conservato.',
+        source_message_missing: 'Non riesco a verificare il messaggio di origine. Il seguito resta da controllare.',
+        previous_delivery_unresolved: 'Un invio precedente richiede ancora verifica. Apri la conversazione prima di preparare altro.',
+        recipient_missing: 'Manca un recapito valido: nessun invio confermato.', recipient_not_verified: 'Il destinatario non è verificabile: nessun invio confermato.',
+        practice_selection_required: 'Scegli la pratica corretta in «Correggi seguito», poi prepara di nuovo il lavoro.',
+        identity_not_verified: 'Identità da verificare prima di confermare.', identity_ambiguous: 'Identità ambigua: controlla il collegamento prima di confermare.',
+        invalid_prepared_follow_up: 'La proposta richiede un nuovo ricontrollo futuro. Prepara di nuovo il lavoro.',
+        approval_changed_reload: 'Il seguito è cambiato durante la conferma. Ho ricaricato lo stato attuale.',
+        preparation_unavailable: 'Non riesco a preparare il lavoro ora. Il seguito e le informazioni precedenti restano disponibili.'
+    };
+    function oggiSegretariaError(error) {
+        if (String(error && error.code || '').startsWith('calendar_'))
+            return 'La proposta contiene una data o un ricontrollo non coerente con le fonti. Il seguito resta da verificare.';
+        return oggiSegretariaErrors[error && error.code] || 'Non riesco ad aggiornare i seguiti. Riprova: i dati già visibili potrebbero non essere aggiornati.';
+    }
+    async function oggiSegretariaRequest(id, body, preparation) {
+        if (!isAdmin() || !auth.currentUser) throw { code: 'unauthorized' };
+        const user = auth.currentUser, controller = new AbortController();
+        let timer;
+        const request = (async () => {
+            const token = await user.getIdToken();
+            if (controller.signal.aborted || auth.currentUser !== user) throw { code: 'unauthorized' };
+            const res = await fetch('/api/segretaria/' + (preparation ? 'prepare' : 'follow-up') + (id ? '?id=' + encodeURIComponent(id) : ''), {
+                method: body ? 'POST' : 'GET', cache: 'no-store', signal: controller.signal,
+                headers: { Authorization: 'Bearer ' + token, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+                ...(body ? { body: JSON.stringify(body) } : {})
+            });
+            const data = await res.json();
+            if (auth.currentUser !== user || !isAdmin()) throw { code: 'unauthorized' };
+            if (!res.ok || !data || data.ok !== true) throw { code: data && data.error || (res.status === 401 ? 'unauthorized' : res.status === 403 ? 'forbidden' : 'unavailable'), status: res.status, data };
+            return data;
+        })();
+        try {
+            return await Promise.race([request, new Promise((_, reject) => {
+                timer = setTimeout(() => { controller.abort(); reject({ code: 'timeout' }); }, preparation ? 60000 : 15000);
+            })]);
+        } finally { clearTimeout(timer); }
+    }
+    function oggiSegretariaPanel() {
+        setTimeout(oggiSegretariaMount, 0);
+        return '<section id="sgFollowPanel" class="sg-panel" aria-label="Segreteria · seguiti"><div class="sg-state"><p role="status">Carico i seguiti della Segreteria…</p></div></section>';
+    }
+    function oggiSegretariaDate(ms) {
+        return ms === null || !Number.isFinite(Number(ms)) ? 'Ricontrollo da impostare' : new Date(ms).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+    }
+    function oggiSegretariaPreparation(task) {
+        const p = task && task.preparation;
+        const readable = p && typeof p.revision === 'string' && p.revision && typeof p.summary === 'string'
+            && typeof p.recommendation === 'string' && typeof p.nextAction?.text === 'string' && Array.isArray(p.sources);
+        return readable && window.BOOM_PROPOSTA?.current(task) && (p.approval || (p.selectedPracticeRef || null) === (task.followUp.practiceRef || null)) ? p : null;
+    }
+    function oggiSegretariaReceipt(task) {
+        const p = task && task.preparation, local = oggiSegretaria.receipts[task?.id];
+        if (!p || p.messageId !== task.followUp?.lastMessageId) return '';
+        // GET derives this state from the existing queue. It supersedes the
+        // immediate post-click receipt; opening/refreshing never dispatches.
+        const r = p.approval && task.deliveryResult ? task.deliveryResult : local?.revision === p.revision ? local : null;
+        if (r) return {
+            follow_up_only: 'Seguito confermato. Nessun messaggio previsto.',
+            queued: 'Confermato. Messaggio in coda; consegna da verificare nella conversazione.',
+            pending_execution: 'Confermato. Invio in attesa; controlla l’esito nella conversazione.',
+            sent: 'Invio registrato. L’esito del lavoro resta da seguire.',
+            needs_review: 'Confermato. L’esito dell’invio richiede verifica nella conversazione.'
+        }[r.delivery] || 'Confermato; esito nella conversazione.';
+        return p?.approval ? (p.approval.actionId ? 'Confermato; esito dell’invio nella conversazione.' : 'Seguito confermato. Nessun messaggio previsto.') : '';
+    }
+    function oggiSegretariaRecipient(p) {
+        const r = p?.recipientPreview, channel = p?.draft?.channel;
+        if (!p?.draft) return true;
+        return r && r.channel === channel && typeof r.address === 'string' && (channel === 'email'
+            ? /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(r.address) : channel === 'whatsapp' && /^\+?[0-9][0-9 ()-]{6,24}$/.test(r.address));
+    }
+    function oggiSegretariaGroups(now) {
+        const E = window.BOOM_SEGRETARIA_CASI, base = E.partition(oggiSegretaria.rows, now);
+        const groups = { decisions: [], progress: [], waiting: [], invalid: base.invalid };
+        const decisionIds = new Set(base.decisions.map(task => task.id));
+        [...base.decisions, ...base.waiting].forEach(task => {
+            const f = task.followUp, p = oggiSegretariaPreparation(task), d = E.describe(task, null, S, now);
+            const delivery = p?.approval ? task.deliveryResult?.delivery : null;
+            const confirmedWithoutDate = f.confirmed === true && !f.needsReview && !f.ambiguous && f.practiceRef && d.checkAt === null;
+            if (delivery === 'needs_review' || (p && !p.approval) || (decisionIds.has(task.id) && !confirmedWithoutDate)) groups.decisions.push(task);
+            else if (['queued', 'pending_execution'].includes(delivery) || f.waitingOn === 'boom' || f.waitingOn === 'valentino') groups.progress.push(task);
+            else groups.waiting.push(task);
+        });
+        return groups;
+    }
+    function oggiSegretariaRender() {
+        const panel = document.getElementById('sgFollowPanel'), E = window.BOOM_SEGRETARIA_CASI;
+        if (!panel) return;
+        panel.classList.add('sg-panel');
+        if (!E) { panel.innerHTML = '<div class="sg-state" role="alert">La vista dei seguiti non è disponibile. Ricarica la pagina.</div>'; return; }
+        const now = Date.now(), groups = oggiSegretariaGroups(now);
+        const opened = new Set([...panel.querySelectorAll('details[open][data-sg-detail]')].map(el => el.dataset.sgDetail));
+        const focused = panel.contains(document.activeElement) ? document.activeElement : null;
+        const focusKey = focused?.dataset.sgAction, focusId = focused?.dataset.sgId, focusDetail = focused?.parentElement?.dataset.sgDetail;
+        const all = [...groups.decisions, ...groups.progress, ...groups.waiting], total = all.length;
+        const ready = groups.decisions.filter(task => { const p = oggiSegretariaPreparation(task); return p && !p.approval && p.status === 'ready'; }).length;
+        const future = all.map(task => E.describe(task, null, S, now).checkAt).filter(at => at !== null && at > now).sort((a, b) => a - b)[0];
+        const headline = !oggiSegretaria.loaded ? 'Mettiamo a fuoco il prossimo passo.' : groups.decisions.length
+            ? (ready === groups.decisions.length ? 'Le proposte sono pronte per te.' : ready ? 'Proposte pronte e richieste da chiarire.' : groups.decisions.some(task => E.describe(task, null, S, now).due) ? 'È il momento di ricontrollare.' : 'Ci sono richieste da chiarire.')
+            : total ? 'I prossimi passi sono definiti.' : 'Nessun seguito aperto in questo elenco.';
+        const subline = !oggiSegretaria.loaded ? 'Carico richieste, proposte e ricontrolli.' : groups.decisions.length
+            ? (ready ? `${ready} ${ready === 1 ? 'proposta pronta' : 'proposte pronte'} da rivedere.` : 'I collegamenti e i ricontrolli da completare sono qui sotto.')
+            : total ? 'Il lavoro resta visibile fino a una chiusura con esito.' : 'Le nuove richieste compariranno qui con il loro prossimo passo.';
+        const row = (task, group) => {
+            const d = E.describe(task, oggiSegretaria.dossiers[task.id], S, now);
+            const p = oggiSegretariaPreparation(task), n = p?.nextAction, receipt = oggiSegretariaReceipt(task);
+            const title = p && !p.approval ? p.recommendation : n?.text || d.nextAction;
+            const action = p ? 'review' : 'generate', key = 'case-' + task.id;
+            const channel = p?.draft?.channel === 'email' ? 'Risposta email' : p?.draft?.channel === 'whatsapp' ? 'Risposta WhatsApp' : /^phone:/.test(task.followUp.lastMessageId || '') ? 'Telefono' : /^mail_/.test(task.followUp.lastMessageId || '') ? 'Email' : 'Conversazione';
+            const label = p ? (receipt ? 'Vedi seguito' : 'Rivedi proposta') : 'Prepara il lavoro';
+            return `<article class="sg-case sg-case--${group}" data-sg-id="${esc(task.id)}" aria-labelledby="sg-case-${esc(task.id)}">
+                <div class="sg-case-main">
+                    <div class="sg-case-top"><span class="sg-person">${esc(d.name)}</span><span class="sg-case-channel">${channel}</span><span class="li-flag sg-state-label ${d.due ? 'sg-due' : ''}">${esc(d.state)}</span>${p && !p.approval ? `<span class="sg-proposal-label">${p.status === 'ready' ? 'Proposta pronta' : 'Da completare'}</span>` : ''}</div>
+                    <h4 id="sg-case-${esc(task.id)}" class="sg-case-title">${esc(title)}</h4>
+                    ${p ? `<p class="sg-case-summary">${esc(p.summary || '')}</p>` : d.preview ? `<p class="sg-case-summary">${esc(d.preview)}</p>` : ''}
+                    <div class="sg-case-meta"><span><span class="sg-meta-label">Chi agisce</span>${esc(n?.waitingLabel || d.waiting)}</span><span><span class="sg-meta-label">Ricontrollo interno</span>${esc(oggiSegretariaDate(n?.checkAt ? Date.parse(n.checkAt) : d.checkAt))}</span></div>
+                    ${p?.coverage?.incomplete ? '<p class="sg-inline-notice">Contesto parziale: informazioni mancanti da controllare.</p>' : ''}
+                    ${receipt ? `<p class="sg-receipt" role="status">${esc(receipt)}</p>` : task.preparation && !p ? '<p class="sg-inline-notice">La proposta precedente va aggiornata.</p>' : ''}
+                </div>
+                <div class="sg-case-action"><button class="btn sg-primary" type="button" data-sg-primary data-sg-action="${action}" data-sg-id="${esc(task.id)}" ${window.BOOM_PROPOSTA ? '' : 'disabled'}>${label}<span aria-hidden="true">↗</span></button></div>
+                <details class="sg-case-details" data-sg-detail="${esc(key)}" ${opened.has(key) ? 'open' : ''}><summary>Contesto e altre azioni<span aria-hidden="true">+</span></summary><div class="sg-case-detail-body"><dl class="sg-relations"><div><dt>Persona</dt><dd>${esc(d.name)}</dd></div><div><dt>Flat</dt><dd>${esc(d.house)}</dd></div><div><dt>Pratica</dt><dd>${esc(d.practice)}</dd></div><div><dt>Prossima azione</dt><dd>${esc(n?.text || d.nextAction)}</dd></div></dl><div class="sg-secondary-actions"><button class="btn btn-secondary" type="button" data-sg-action="edit" data-sg-id="${esc(task.id)}">Correggi seguito</button><button class="btn btn-secondary" type="button" data-sg-action="source" data-sg-id="${esc(task.id)}" ${d.conversationId ? '' : 'disabled'}>Apri conversazione</button></div></div></details>
+            </article>`;
+        };
+        const section = (key, title, description, empty) => `<section class="sg-group sg-group--${key}" data-sg-group="${key}" aria-labelledby="sg-group-${key}"><header class="sg-group-header"><h3 id="sg-group-${key}">${title}<span class="sg-count">${groups[key].length}</span></h3><p>${description}</p></header><div class="sg-group-cases">${groups[key].length ? groups[key].map(task => row(task, key)).join('') : `<p class="sg-empty">${empty}</p>`}</div></section>`;
+        panel.innerHTML = `<header class="sg-briefing"><div class="sg-briefing-top"><div><p class="sg-eyebrow">BOOM / Operazioni</p><h2>Segreteria</h2></div><button class="btn btn-secondary sg-refresh" type="button" data-sg-action="refresh" ${oggiSegretaria.loading ? 'disabled' : ''}>${oggiSegretaria.loading ? 'Aggiorno…' : 'Aggiorna'}</button></div><div class="sg-briefing-copy"><p class="sg-headline">${headline}</p><p class="sg-briefing-note">${subline}</p></div><dl class="sg-board"><div><dt>Decisioni per te</dt><dd>${oggiSegretaria.loaded ? groups.decisions.length : '—'}</dd></div><div><dt>In corso</dt><dd>${oggiSegretaria.loaded ? groups.progress.length : '—'}</dd></div><div><dt>In attesa</dt><dd>${oggiSegretaria.loaded ? groups.waiting.length : '—'}</dd></div></dl><div class="sg-briefing-foot"><span>${oggiSegretaria.loaded ? `${total} ${total === 1 ? 'seguito aperto' : 'seguiti aperti'} nell’elenco${oggiSegretaria.incomplete || groups.invalid ? ' parziale' : ''}` : 'Lettura in corso'}</span><span>${future ? 'Prossimo ricontrollo · ' + esc(oggiSegretariaDate(future)) : 'Le date di ricontrollo sono interne'}</span></div></header>
+            <p id="sgFreshness" class="sg-footnote" role="status">${esc(oggiSegretariaFreshness())}</p>
+            <details class="sg-footnote" data-sg-detail="coverage" ${opened.has('coverage') ? 'open' : ''}><summary>Copertura degli aggiornamenti</summary><p>Le date riguardano i seguiti e gli ingressi nelle chat WhatsApp caricate. Le chat miste, i messaggi già seguiti da una risposta e le conversazioni fuori dall’elenco possono non essere inclusi. La copertura di WhatsApp non è verificata da questi dati.</p></details>
+            ${oggiSegretariaMonitoring()}
+            ${oggiSegretaria.error ? `<div class="sg-notice sg-notice--warning" role="alert">${esc(oggiSegretaria.error)}</div>` : ''}
+            ${oggiSegretaria.incomplete ? '<div class="sg-notice sg-notice--warning" role="status">Elenco parziale: raggiunto il limite di 200 seguiti. Potrebbero esserci altre richieste aperte.</div>' : ''}
+            ${groups.invalid ? '<div class="sg-notice sg-notice--warning" role="status">Alcuni seguiti hanno dati incompleti e non sono rappresentabili in questa vista.</div>' : ''}
+            ${!oggiSegretaria.loaded ? `<div class="sg-state" role="status">${oggiSegretaria.loading ? 'Carico i seguiti…' : 'Seguiti non ancora caricati.'}</div>` : `<div class="sg-workspace">${section('decisions', 'Decisioni per te', 'Proposte da confermare e ricontrolli arrivati al momento giusto.', 'Nessun seguito richiede una decisione in questo elenco.')}${groups.progress.length || groups.waiting.length ? `<div class="sg-secondary-grid">${section('progress', 'In corso', 'Prossime azioni affidate a BOOM o a Valentino, e invii in coda.', 'Nessuna attività confermata in corso in questo elenco.')}${section('waiting', 'In attesa', 'La prossima azione spetta al cliente o a un collaboratore.', 'Le attese confermate resteranno qui fino a un nuovo messaggio, al ricontrollo o a una chiusura con esito.')}</div>` : '<p class="sg-quiet-state">In corso e in attesa · nessun seguito confermato in questo elenco.</p>'}<p class="sg-footnote">Un ricontrollo interno non è una scadenza promessa al cliente. Leggere o rispondere non chiude il seguito.</p></div>`}`;
+        panel.onclick = event => {
+            const button = event.target.closest('[data-sg-action]');
+            if (!button || !panel.contains(button)) return;
+            if (button.dataset.sgAction === 'refresh') return oggiSegretariaLoad(true);
+            const task = oggiSegretaria.rows.find(t => t.id === button.dataset.sgId);
+            if (!task) return;
+            if (button.dataset.sgAction === 'edit') return oggiSegretariaOpen(task.id);
+            if (button.dataset.sgAction === 'review' || button.dataset.sgAction === 'generate') return oggiSegretariaOpen(task.id, '', 'review', button.dataset.sgAction === 'generate');
+            if (button.dataset.sgAction === 'source') return oggiSegretariaSource(task);
+        };
+        if (focused) {
+            const controls = [...panel.querySelectorAll('[data-sg-action]')];
+            (focusKey ? controls.find(el => el.dataset.sgAction === focusKey && el.dataset.sgId === focusId)
+                : [...panel.querySelectorAll('details[data-sg-detail]')].find(el => el.dataset.sgDetail === focusDetail)?.querySelector('summary'))?.focus({ preventScroll: true });
+        }
+    }
+    function oggiSegretariaMount() {
+        if (!document.getElementById('sgFollowPanel') || !isAdmin()) return;
+        const uid = auth.currentUser && auth.currentUser.uid;
+        if (oggiSegretaria.userId !== uid) {
+            oggiSegretariaStopLive();
+            oggiSegretaria.generation++;
+            Object.assign(oggiSegretaria, { userId: uid, rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false, readAt: null, monitoring: null, liveError: false });
+        }
+        oggiSegretariaStartLive();
+        oggiSegretariaRender();
+        if (!oggiSegretaria.loading) oggiSegretariaLoad();
+    }
+    async function oggiSegretariaLoad(force) {
+        if (!isAdmin() || !document.getElementById('sgFollowPanel') || (oggiSegretaria.loading && !force)) return;
+        clearTimeout(oggiSegretaria.timer);
+        const generation = ++oggiSegretaria.generation;
+        oggiSegretaria.loading = true;
+        oggiSegretariaRender();
+        try {
+            const data = await oggiSegretariaRequest();
+            if (generation !== oggiSegretaria.generation) return;
+            if (!Array.isArray(data.rows)) throw { code: 'invalid_response' };
+            Object.assign(oggiSegretaria, { rows: data.rows, incomplete: data.incomplete === true, loaded: true, error: '', readAt: Date.now(), monitoring: data.monitoring || null });
+        } catch (e) {
+            if (generation === oggiSegretaria.generation) oggiSegretaria.error = oggiSegretariaError(e);
+        } finally {
+            if (generation === oggiSegretaria.generation) {
+                oggiSegretaria.loading = false;
+                oggiSegretariaRender();
+                oggiSegretaria.timer = setTimeout(() => { if (S.page === 'oggi') oggiSegretariaLoad(); }, 30000);
+                if (oggiSegretaria.refreshPending) oggiScheduleUpdate(true, false);
+            }
+        }
+    }
+    async function oggiSegretariaSource(task) {
+        const id = window.BOOM_SEGRETARIA_CASI.describe(task, null, S, Date.now()).conversationId;
+        if (!id || !isAdmin() || oggiSegretaria.sourceLoading) return;
+        const page = S.page, modal = oggiSegretaria.modal, user = auth.currentUser;
+        oggiSegretaria.sourceLoading = true;
+        let timer;
+        try {
+            // Il boot carica solo le conversazioni recenti: la fonte di un
+            // seguito più vecchio deve essere letta per id prima di aprirla.
+            // Il listener Inbox resta quello esistente; uno snapshot successivo
+            // può togliere dalla lista una conversazione fuori dal suo limite.
+            if (!(S.conversations || []).some(c => c.id === id)) {
+                const snap = await Promise.race([
+                    db.collection('conversations').doc(id).get(),
+                    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('source_timeout')), 12000); })
+                ]);
+                if (!snap.exists) throw new Error('source_missing');
+                if (auth.currentUser !== user || !isAdmin()) return;
+                S.conversations = [...(S.conversations || []).filter(c => c.id !== id), { ...snap.data(), id }];
+            }
+            if (S.page !== page || oggiSegretaria.modal !== modal) return;
+            oggiSegretariaClose();
+            goTo('inbox');
+            inboxSelect(id); // unread può cambiare; il seguito resta aperto.
+        } catch {
+            const message = 'Non riesco ad aprire la conversazione di origine. Il seguito resta qui: controlla l’accesso e riprova.';
+            oggiSegretaria.error = message;
+            oggiSegretariaRender();
+            if (modal && oggiSegretaria.modal === modal) {
+                modal.error = message;
+                const box = document.getElementById('sgFollowError');
+                if (box) { box.textContent = message; box.hidden = false; box.style.display = ''; }
+            }
+        } finally { clearTimeout(timer); oggiSegretaria.sourceLoading = false; }
+    }
+    function oggiSegretariaClose() {
+        const previous = oggiSegretaria.modal;
+        oggiSegretaria.modal = null;
+        document.getElementById('sgFollowModal')?.remove();
+        if (!document.querySelector('.modal-overlay.active')) document.body.classList.remove('modal-open');
+        if (previous && window.BOOM_SEGRETARIA_CASI.validId(previous.id)) {
+            document.querySelector(`[data-sg-id="${previous.id}"] [data-sg-primary]`)?.focus();
+        }
+    }
+    async function oggiSegretariaOpen(id, notice, mode, generateRequested) {
+        if (!window.BOOM_SEGRETARIA_CASI.validId(id)) return;
+        const modal = { id, task: null, dossier: null, notice: notice || '', error: '', busy: false, mode: mode || 'edit', uncertain: false };
+        oggiSegretaria.modal = modal;
+        oggiSegretariaModalRender();
+        try {
+            const data = await oggiSegretariaRequest(id);
+            if (oggiSegretaria.modal !== modal) return;
+            if (!data.task || !data.task.followUp || !data.dossier) throw { code: 'invalid_response' };
+            modal.task = { ...data.task, id }; modal.dossier = data.dossier;
+            oggiSegretaria.dossiers[id] = data.dossier;
+            oggiSegretaria.rows = oggiSegretaria.rows.map(t => t.id === id ? modal.task : t);
+        } catch (e) { if (oggiSegretaria.modal === modal) modal.error = oggiSegretariaError(e); }
+        if (oggiSegretaria.modal === modal) {
+            oggiSegretariaModalRender(); oggiSegretariaRender();
+            // This is exclusively the operator's explicit "Prepara" click.
+            // GET, opening a prepared case and the refresh timer never generate.
+            if (generateRequested && modal.task) oggiSegretariaPrepare('generate');
+        }
+    }
+    function oggiSegretariaReview(m) {
+        const p = oggiSegretariaPreparation(m.task), E = window.BOOM_SEGRETARIA_CASI;
+        if (!p) return (!Number.isFinite(Date.parse(m.task?.followUp?.checkAt)) ? '<p class="sg-inline-notice">Ricontrollo da impostare. Il seguito resta aperto: scegli la data in «Correggi seguito».</p>' : '') + '<div class="sg-review-empty"><p class="sg-eyebrow">Prossimo passo</p><h4>Prepariamo il prossimo passo</h4><p>La Segreteria ricostruisce la richiesta dalle fonti disponibili e propone azione, responsabile e risposta. Potrai rivedere tutto prima di confermare.</p><p class="sg-muted">Preparare il lavoro non invia messaggi.</p></div>';
+        const n = p.nextAction || {}, recipient = p.recipientPreview || {}, receipt = oggiSegretariaReceipt(m.task);
+        const list = rows => (Array.isArray(rows) ? rows : []).map(item => `<li>${esc(item.text || '')}${item.kind ? `<span class="sg-evidence-status">${item.kind === 'inferred' ? 'Dedotto, da verificare' : 'Esplicito'} · ${esc({ pending: 'Da completare', satisfied: 'Risulta soddisfatto', unclear: 'Esito incerto' }[item.status] || 'Da verificare')}</span>` : ''}</li>`).join('');
+        const reasons = {
+            history_window_limited: 'È disponibile solo una parte recente della conversazione.', latest_history_not_verified: 'La cronologia recente non è verificabile.', history_unavailable: 'La cronologia non è disponibile.',
+            message_time_missing: 'Manca la data verificabile di un messaggio.', attachments_not_read: 'Gli allegati non sono stati letti in questa proposta.',
+            identity_not_verified: 'Identità non completamente verificata.', practice_selection_required: 'Ci sono più pratiche possibili.', dossier_incomplete: 'Il fascicolo ha informazioni mancanti.',
+            call_transcript_unavailable: 'La trascrizione della chiamata non è disponibile.', call_caller_words_unavailable: 'Le parole del chiamante non sono distinguibili con certezza.',
+            source_unavailable: 'Una fonte non è disponibile.', source_not_found: 'Una fonte non è stata trovata.', reference_limit: 'Non tutti i riferimenti sono inclusi.', source_limit: 'Non tutte le fonti sono incluse.'
+        };
+        const missing = [...new Set((Array.isArray(p.coverage?.reasons) ? p.coverage.reasons : []).map(code => reasons[code] || 'Una parte del contesto richiede verifica.'))];
+        const practice = m.dossier?.practices?.find(row => row.ref === n.practiceRef);
+        const ownership = p.replyOwnership;
+        const ownerLabel = ['segretaria:conversation', 'segretaria', 'segretaria-proposal'].includes(ownership?.owner) ? 'dalla Segreteria BOOM'
+            : ownership?.owner === 'commerciale' ? 'dal Commerciale BOOM' : 'da un altro incaricato BOOM';
+        const ownershipNotice = ownership?.incomplete ? 'Verifica delle risposte in corso incompleta: qui confermi soltanto il seguito. Prima di inviare serve ricontrollare.'
+            : ownership?.blocked ? 'Risposta già seguita ' + ownerLabel + '; qui confermi soltanto il seguito.' : '';
+        const missingCheck = !Number.isFinite(Date.parse(n.checkAt));
+        return `<div id="sgPreparationReview" class="sg-review">
+            ${receipt ? `<div class="sg-notice" role="status">${esc(receipt)}</div>` : ''}
+            ${ownershipNotice ? `<div class="sg-notice" role="status" id="sgReplyOwnership">${esc(ownershipNotice)}</div>` : ''}
+            ${p.coverage?.incomplete ? '<div class="sg-notice sg-notice--warning" role="status"><strong>Contesto parziale.</strong> Controlla le informazioni mancanti prima di confermare.</div>' : ''}
+            ${p.identityBlocked || p.status !== 'ready' ? '<div class="sg-notice sg-notice--warning" role="status">Servono informazioni prima di confermare. Apri le fonti e correggi il seguito.</div>' : ''}
+            <section class="sg-recommendation" aria-label="Raccomandazione"><p class="sg-eyebrow">Raccomandazione</p><h4>${esc(p.recommendation || '')}</h4><p class="sg-review-summary">${esc(p.summary || '')}</p></section>
+            ${p.handoff?.needed ? `<div class="sg-notice sg-notice--warning"><strong>Serve un intervento di Valentino.</strong> ${esc(p.handoff.reason || '')}</div>` : ''}
+            ${p.draft ? `<section class="sg-message" aria-label="Messaggio da confermare"><div class="sg-message-heading"><h4>Risposta pronta</h4><span class="sg-channel">${p.draft.channel === 'email' ? 'Email' : 'WhatsApp'}</span></div>
+                <p id="sgRecipient" class="sg-recipient"><span>A</span><strong>${esc(recipient.name || m.task.followUp.contactName || 'Destinatario')}</strong><span class="sg-recipient-address">${esc(recipient.address || 'Recapito mancante')}</span></p>
+                ${!oggiSegretariaRecipient(p) ? '<div class="sg-notice sg-notice--warning" role="alert">Il destinatario manca o non corrisponde al canale: la conferma dell’invio è bloccata.</div>' : ''}
+                ${!n.practiceRef ? '<div class="sg-notice sg-notice--warning" role="status">Prima dell’invio scegli la pratica corretta in «Correggi seguito», poi prepara di nuovo il lavoro.</div>' : ''}
+                ${p.draft.channel === 'email' ? `<p class="sg-message-subject"><span>Oggetto</span>${esc(p.draft.subject || '')}</p>` : ''}
+                <p id="sgDraftText" class="sg-draft">${esc(p.draft.text || '')}</p><p class="sg-message-foot">${p.approval ? 'Conferma già registrata. Verifica l’esito nella conversazione.' : 'Questo testo parte soltanto con «Conferma e invia».'}</p></section>` : '<p class="sg-no-message">Questa proposta aggiorna il seguito, senza inviare messaggi.</p>'}
+            <section class="sg-next-step" aria-label="Prossimo passo"><p class="sg-eyebrow">${p.approval ? 'Seguito confermato' : 'Dopo la tua conferma'}</p><h4>${esc(n.text || 'Da definire')}</h4><dl class="sg-next-grid"><div><dt>Chi agisce</dt><dd>${esc(n.waitingLabel || E.WAITING[n.waitingOn] || 'Da definire')}</dd></div><div><dt>Ricontrollo interno</dt><dd>${missingCheck ? 'Ricontrollo da impostare' : esc(oggiSegretariaDate(Date.parse(n.checkAt)))}</dd><small>${esc(Intl.DateTimeFormat().resolvedOptions().timeZone || 'ora locale')}</small></div></dl><p class="sg-muted">${esc(n.reason || '')} È un controllo interno, non un appuntamento promesso al cliente.</p>${missingCheck ? '<p class="sg-inline-notice">Il seguito resta aperto. Imposta il ricontrollo in «Correggi seguito».</p>' : ''}<p class="sg-practice"><span>Pratica</span>${esc(practice ? E.practiceLabel(practice, m.dossier, S) : 'Da collegare')}</p></section>
+            <details class="sg-evidence"><summary>Fonti, impegni e informazioni mancanti<span aria-hidden="true">+</span></summary><div class="sg-evidence-body">
+                ${p.facts?.length ? `<section><h4>Fatti dalle fonti</h4><ul>${list(p.facts)}</ul></section>` : ''}
+                ${p.commitments?.length ? `<section><h4>Impegni</h4><ul>${list(p.commitments)}</ul></section>` : ''}
+                ${p.uncertainties?.length ? `<section><h4>Da chiarire</h4><ul>${list(p.uncertainties)}</ul></section>` : ''}
+                ${missing.length ? `<section><h4>Copertura delle informazioni</h4><ul>${missing.map(text => `<li>${esc(text)}</li>`).join('')}</ul></section>` : ''}
+                <section><h4>Fonti consultate</h4><ul class="sg-source-list">${(p.sources || []).map(source => `<li>${esc(source.ref || source.id || 'Fonte')}${source.at ? '<span> · ' + esc(oggiSegretariaDate(Date.parse(source.at))) + '</span>' : ''}</li>`).join('')}</ul></section>
+                <p class="sg-muted">${p.style?.basis === 'verified_human_examples' ? 'Voce: esempi con autore operatore verificato.' : 'Voce BOOM editoriale; nessuna attribuzione automatica a Valentino.'}</p>${(Array.isArray(p.style?.limitations) ? p.style.limitations : []).map(text => `<p class="sg-muted">${esc(text)}</p>`).join('')}
+            </div></details>
+        </div>`;
+    }
+    function oggiSegretariaModalRender() {
+        const m = oggiSegretaria.modal, E = window.BOOM_SEGRETARIA_CASI;
+        if (!m) return;
+        const f = m.task && m.task.followUp, dossier = m.dossier || {};
+        const options = (dossier.practices || []).filter(p => p && typeof p.ref === 'string');
+        const identityBlocked = dossier.identityIncomplete === true || dossier.identityAmbiguous === true;
+        const selected = !identityBlocked && options.some(p => p.ref === (f && f.practiceRef)) ? f.practiceRef : '';
+        const d = m.task ? E.describe(m.task, dossier, S, Date.now()) : null;
+        const p = oggiSegretariaPreparation(m.task), review = m.mode === 'review';
+        const canApprove = review && p?.status === 'ready' && !p.identityBlocked && !identityBlocked && !p.approval && !m.uncertain && !m.mustRegenerate
+            && oggiSegretariaRecipient(p) && (!p.draft || p.nextAction?.practiceRef);
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'ora locale';
+        let form = '';
+        if (m.task && m.task.status !== 'open') form = '<p role="status">Questo seguito è già chiuso.</p>';
+        else if (f && review) form = oggiSegretariaReview(m);
+        else if (f && m.mode === 'close') form = `<form id="sgFollowForm"><div class="form-group"><label class="form-label" for="sgOutcome">Esito · che cosa è stato risolto</label><textarea id="sgOutcome" class="form-textarea" required maxlength="500" rows="4"></textarea></div><p class="list-subtitle">La sola lettura o risposta non chiude il seguito. Registra qui il risultato.</p></form>`;
+        else if (f) form = `<form id="sgFollowForm">
+            ${identityBlocked ? '<div class="alert warning" role="status">Identità non verificata: le pratiche non possono essere confermate ora. Puoi salvare il seguito lasciandolo da collegare.</div>' : dossier.ambiguous ? '<div class="alert warning" role="status">Ci sono più relazioni possibili. Scegli la pratica corretta; nessuna viene selezionata automaticamente.</div>' : ''}
+            ${!identityBlocked && (dossier.historyIncomplete || dossier.incomplete) ? '<div class="alert warning" role="status">Alcune informazioni o parti della cronologia non sono disponibili. Le pratiche verificate restano selezionabili; controlla anche la conversazione di origine.</div>' : ''}
+            <div class="form-group"><label class="form-label" for="sgPractice">Pratica</label><select class="form-select" id="sgPractice" ${identityBlocked ? 'disabled' : ''}><option value="">Da collegare · nessuna pratica confermata</option>${options.map(p => `<option value="${esc(p.ref)}" ${selected === p.ref ? 'selected' : ''}>${esc(E.practiceLabel(p, dossier, S))}</option>`).join('')}</select></div>
+            <div id="sgSelectedHouse" class="list-subtitle" style="margin:-4px 0 16px">${esc(selected ? d.house : 'Casa da collegare')}</div>
+            <div class="form-group"><label class="form-label" for="sgAction">Prossima azione</label><textarea id="sgAction" class="form-textarea" required maxlength="240" rows="2">${esc(f.nextAction || '')}</textarea></div>
+            <div class="form-group"><label class="form-label" for="sgWaitingOn">Chi deve agire</label><select class="form-select" id="sgWaitingOn">${Object.entries(E.WAITING).map(([key, label]) => `<option value="${key}" ${f.waitingOn === key ? 'selected' : ''}>${label}</option>`).join('')}</select></div>
+            <div class="form-group"><label class="form-label" for="sgWaitingLabel">Nome o riferimento</label><input class="form-input" id="sgWaitingLabel" required maxlength="100" value="${esc(f.waitingLabel || '')}"></div>
+            <div class="form-group"><label class="form-label" for="sgCheckAt">Ricontrollo interno · ${esc(timezone)}</label><input class="form-input" type="datetime-local" id="sgCheckAt" required value="${esc(E.localDateTime(f.checkAt))}"></div>
+            <p class="list-subtitle">${esc(f.checkBasis || 'Data da confermare.')} Questo salvataggio non invia messaggi e non crea appuntamenti.</p>
+        </form>`;
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" id="sgFollowModal"><div class="modal sg-decision-sheet" role="dialog" aria-modal="true" aria-labelledby="sgFollowTitle">
+            <div class="modal-header sg-modal-header"><div><p class="sg-eyebrow">Segreteria / ${m.mode === 'close' ? 'Esito' : review ? 'Scheda decisione' : 'Correzione'}</p><h3 class="modal-title" id="sgFollowTitle">${d ? esc(d.name) : m.mode === 'close' ? 'Chiudi seguito' : review ? 'Lavoro preparato' : 'Correggi seguito'}</h3></div><button class="modal-close" type="button" data-sg-modal="cancel" aria-label="Chiudi">×</button></div>
+            <div class="modal-body sg-modal-body">
+                ${m.notice ? `<div class="sg-notice sg-notice--warning" role="status">${esc(m.notice)}</div>` : ''}
+                <div id="sgFollowError" role="alert" class="sg-notice sg-notice--warning" style="${m.error ? '' : 'display:none'}" ${m.error ? '' : 'hidden'}>${esc(m.error)}</div>
+                ${d ? `<div class="sg-origin"><div><p class="sg-eyebrow">Richiesta ricevuta</p><blockquote>${esc(d.preview || 'Anteprima non disponibile.')}</blockquote></div><button class="btn btn-secondary" type="button" data-sg-modal="source" ${d.conversationId ? '' : 'disabled'}>Apri conversazione di origine</button></div>` : ''}
+                ${m.busy ? `<p role="status" class="sg-working">${m.operation === 'generate' ? 'La Segreteria sta preparando il lavoro…' : 'Registro la tua conferma e verifico lo stato…'}</p>` : ''}
+                ${form || (m.error ? '<button class="btn btn-secondary" type="button" data-sg-modal="reload">Riprova</button>' : '<p class="sg-state" role="status">Carico la richiesta e le pratiche collegate…</p>')}
+            </div><div class="modal-footer sg-modal-footer"><div class="sg-footer-note">${review && p?.draft && !p.approval ? 'Rivedi testo e destinatario prima di inviare.' : 'Il seguito resta aperto fino a un esito.'}</div><div class="sg-footer-actions"><button class="btn btn-secondary sg-cancel" type="button" data-sg-modal="cancel">Annulla</button>
+                ${f && m.task.status === 'open' ? (review ? `<button class="btn btn-secondary" type="button" data-sg-modal="edit">Correggi seguito</button>
+                    ${m.uncertain ? '<button class="btn sg-primary" type="button" data-sg-modal="reload">Ricarica l’esito</button>' : !p ? '<button class="btn sg-primary" type="button" data-sg-modal="generate">Prepara il lavoro</button>' : !p.approval ? `<button class="btn btn-secondary" type="button" data-sg-modal="generate">Rielabora</button><button class="btn sg-primary" type="button" data-sg-modal="approve" ${canApprove ? '' : 'disabled'}>${!canApprove ? 'Informazioni da completare' : p.draft ? 'Conferma e invia' : 'Conferma il seguito'}</button>` : ''}`
+                    : m.mode === 'close' ? '<button class="btn btn-secondary" type="button" data-sg-modal="back">Torna al seguito</button><button class="btn sg-primary" type="submit" form="sgFollowForm" data-sg-submit>Registra esito e chiudi</button>' : `<button class="btn btn-secondary" type="button" data-sg-modal="close">Chiudi con un esito</button><button class="btn sg-primary" type="submit" form="sgFollowForm" data-sg-submit>${selected ? 'Conferma seguito' : 'Salva · da collegare'}</button>`) : ''}
+            </div></div></div></div>`;
+        document.body.classList.add('modal-open');
+        const wrap = document.getElementById('sgFollowModal');
+        wrap.onclick = event => {
+            const button = event.target.closest('[data-sg-modal]');
+            if (event.target === wrap && !m.busy) return oggiSegretariaClose();
+            if (!button || m.busy) return;
+            const action = button.dataset.sgModal;
+            if (action === 'cancel') return oggiSegretariaClose();
+            if (action === 'reload') return oggiSegretariaOpen(m.id, m.notice, m.mode);
+            if (action === 'source') return oggiSegretariaSource(m.task);
+            if (action === 'edit') { m.mode = 'edit'; m.error = ''; oggiSegretariaModalRender(); return; }
+            if (action === 'generate' || action === 'approve') return oggiSegretariaPrepare(action);
+            if (action === 'close' || action === 'back') { m.mode = action === 'close' ? 'close' : 'edit'; m.error = ''; oggiSegretariaModalRender(); }
+        };
+        wrap.onkeydown = event => {
+            if (event.key === 'Escape' && !m.busy) { event.stopPropagation(); oggiSegretariaClose(); }
+            if (event.key !== 'Tab') return;
+            const controls = [...wrap.querySelectorAll('button, input, select, textarea, summary')].filter(el => !el.disabled && el.offsetParent !== null);
+            const first = controls[0], last = controls[controls.length - 1];
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+        };
+        wrap.querySelector('#sgFollowForm')?.addEventListener('submit', event => { event.preventDefault(); oggiSegretariaSave(); });
+        wrap.querySelector('#sgPractice')?.addEventListener('change', event => {
+            const p = options.find(p => p.ref === event.target.value);
+            wrap.querySelector('#sgSelectedHouse').textContent = p && p.propertyRefs && p.propertyRefs.length ? p.propertyRefs.map(ref => E.propertyLabel(ref, dossier, S)).join(' · ') : 'Casa da collegare';
+            wrap.querySelector('[data-sg-submit]').textContent = event.target.value ? 'Conferma seguito' : 'Salva · da collegare';
+        });
+        wrap.querySelector('#sgWaitingOn')?.addEventListener('change', event => { wrap.querySelector('#sgWaitingLabel').value = E.WAITING[event.target.value] || ''; });
+        if (m.busy) wrap.querySelectorAll('button, input, select, textarea').forEach(control => { control.disabled = true; });
+        setTimeout(() => { if (oggiSegretaria.modal === m) (wrap.querySelector('#sgPractice:not(:disabled), #sgOutcome, #sgAction') || wrap.querySelector('[data-sg-modal="cancel"]'))?.focus(); }, 0);
+    }
+    async function oggiSegretariaPrepare(operation) {
+        const m = oggiSegretaria.modal;
+        if (!m?.task || m.busy || m.mode !== 'review' || !['generate', 'approve'].includes(operation)) return;
+        const p = oggiSegretariaPreparation(m.task), revision = p?.revision;
+        if (operation === 'approve' && (!p || !revision || p.approval || p.status !== 'ready' || p.identityBlocked
+            || m.dossier?.identityIncomplete || m.dossier?.identityAmbiguous || m.uncertain || m.mustRegenerate
+            || !oggiSegretariaRecipient(p) || (p.draft && !p.nextAction?.practiceRef))) return;
+        const payload = operation === 'generate' ? { op: 'generate', id: m.id }
+            : { op: 'approve', id: m.id, revision, lastMessageId: m.task.followUp.lastMessageId };
+        m.busy = true; m.operation = operation; m.error = ''; m.notice = '';
+        oggiSegretariaModalRender();
+        const confirmed = async data => {
+            if (data.id !== m.id || data.confirmed !== true) throw { code: 'invalid_response' };
+            oggiSegretaria.receipts[m.id] = { revision, delivery: data.delivery || 'needs_review' };
+            m.task = { ...m.task, deliveryResult: data, preparation: { ...p, approval: { revision, messageId: payload.lastMessageId, actionId: data.actionId || null } } };
+            oggiSegretaria.rows = oggiSegretaria.rows.map(t => t.id === m.id && t.followUp.lastMessageId === payload.lastMessageId ? { ...t, deliveryResult: data, preparation: m.task.preparation } : t);
+            m.uncertain = false;
+            // Confirmation can succeed while delivery fails. Never re-enable
+            // the send button merely because the HTTP status was not 200.
+            try {
+                const fresh = await oggiSegretariaRequest(m.id);
+                if (oggiSegretaria.modal !== m) return;
+                if (fresh.task?.id === m.id && fresh.dossier) { m.task = fresh.task; m.dossier = fresh.dossier; }
+            } catch { m.notice = 'Conferma registrata. Non riesco a ricaricare il seguito; controlla l’esito nella conversazione.'; }
+            oggiSegretariaRender();
+            oggiSegretariaLoad(true);
+        };
+        try {
+            const data = await oggiSegretariaRequest(null, payload, true);
+            if (oggiSegretaria.modal !== m) return;
+            if (operation === 'generate') {
+                if (data.id !== m.id || !data.preparation?.revision || data.preparation.messageId !== m.task.followUp.lastMessageId) throw { code: 'invalid_response' };
+                m.task = { ...m.task, preparation: data.preparation };
+                m.mustRegenerate = false; m.uncertain = false;
+                oggiSegretaria.rows = oggiSegretaria.rows.map(t => t.id === m.id && t.followUp.lastMessageId === m.task.followUp.lastMessageId ? { ...t, preparation: data.preparation } : t);
+                oggiSegretariaRender();
+            } else await confirmed(data);
+        } catch (e) {
+            if (oggiSegretaria.modal !== m) return;
+            if (operation === 'approve' && e.data?.id === m.id && e.data.confirmed === true) {
+                await confirmed(e.data);
+            } else if (e.status === 409 && !['preparation_in_progress', 'preparation_disabled', 'previous_delivery_unresolved'].includes(e.code)) {
+                await oggiSegretariaOpen(m.id, oggiSegretariaError(e), 'review');
+                const current = oggiSegretaria.modal;
+                if (current?.id === m.id && ['preparation_sources_changed', 'contact_changed', 'recipient_not_verified', 'recipient_missing', 'invalid_prepared_follow_up'].includes(e.code)) {
+                    current.mustRegenerate = true; oggiSegretariaModalRender();
+                }
+                oggiSegretariaLoad(true);
+            } else {
+                m.error = oggiSegretariaError(e);
+                if (operation === 'approve' && (e.code === 'timeout' || !e.status || e.status >= 500)) {
+                    m.uncertain = true;
+                    m.error = 'Non riesco a verificare l’esito della conferma. Ricarica lo stato prima di agire di nuovo: il messaggio potrebbe essere già in coda.';
+                }
+            }
+        } finally {
+            m.busy = false;
+            if (oggiSegretaria.modal === m) oggiSegretariaModalRender();
+        }
+    }
+    async function oggiSegretariaSave() {
+        const m = oggiSegretaria.modal, E = window.BOOM_SEGRETARIA_CASI, wrap = document.getElementById('sgFollowModal');
+        if (!m || !m.task || m.busy || !wrap) return;
+        const errorBox = wrap.querySelector('#sgFollowError');
+        const fail = message => { errorBox.textContent = message; errorBox.hidden = false; errorBox.style.display = ''; };
+        let payload;
+        if (m.mode === 'close') {
+            const outcome = wrap.querySelector('#sgOutcome').value.trim();
+            if (!outcome) return fail('Scrivi l’esito prima di chiudere il seguito.');
+            payload = { op: 'close', id: m.id, lastMessageId: m.task.followUp.lastMessageId, outcome };
+        } else {
+            const values = {};
+            for (const [key, id] of Object.entries({ practiceRef: 'sgPractice', nextAction: 'sgAction', waitingOn: 'sgWaitingOn', waitingLabel: 'sgWaitingLabel', checkAt: 'sgCheckAt' })) values[key] = wrap.querySelector('#' + id).value;
+            const result = E.confirmation(m.task, values, m.dossier, Date.now());
+            if (result.error) return fail(result.error);
+            payload = result.payload;
+        }
+        m.busy = true; errorBox.hidden = true; errorBox.style.display = 'none';
+        wrap.querySelectorAll('button').forEach(button => { button.disabled = true; });
+        try {
+            const data = await oggiSegretariaRequest(null, payload);
+            if (data.id !== m.id || (payload.op === 'close' ? data.closed !== true : !data.followUp)) throw { code: 'invalid_response' };
+            if (data.closed) oggiSegretaria.rows = oggiSegretaria.rows.filter(t => t.id !== m.id);
+            else if (data.followUp) oggiSegretaria.rows = oggiSegretaria.rows.map(t => t.id === m.id ? { ...t, followUp: data.followUp } : t);
+            oggiSegretariaClose(); oggiSegretariaRender(); oggiSegretariaLoad(true);
+            toast('success', data.closed ? 'Seguito chiuso con esito.' : 'Seguito salvato.');
+        } catch (e) {
+            if (oggiSegretaria.modal !== m) return;
+            if (e.code === 'new_message_reload' || e.code === 'practice_not_verified') {
+                oggiSegretariaOpen(m.id, oggiSegretariaError(e));
+                oggiSegretariaLoad(true);
+                return;
+            }
+            fail(oggiSegretariaError(e));
+            m.busy = false;
+            wrap.querySelectorAll('button').forEach(button => { button.disabled = false; });
+        }
+    }
+    // ═══ FINE SEGRETERIA · SEGUITI IN OGGI ═══
+
     function oggiPage() {
         const E = window.BOOM_OGGI;
         if (!E || typeof E.build !== 'function') return adminDashboard();   // motore assente: mai una pagina vuota
@@ -4611,9 +5208,25 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             db.collection('preAgreements').limit(150).get().then((snap) => {
                 S.preAgreements = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
                 S._paLoaded = true;
-                if (S.page === 'oggi') renderPage();
+                oggiScheduleUpdate();
             }).catch(() => { S._paLoaded = true; });
         }
+        return `<div class="page-header">
+                <div><h1 class="page-title">⚡ Oggi</h1><p class="page-subtitle">Decisioni e seguiti di BOOM</p></div>
+                <div class="page-actions">
+                    <button class="btn btn-secondary" onclick="goTo('dashboard')">📊 Studio</button>
+                    <button class="btn btn-secondary" onclick="forceRefreshData()" title="Ricarica i dati">↻</button>
+                </div>
+            </div>
+
+            ${oggiSegretariaPanel()}
+
+            <section id="ogDecisionPanel" aria-label="Altre decisioni di oggi">${oggiDecisionPanel()}</section>`;
+    }
+
+    function oggiDecisionPanel() {
+        const E = window.BOOM_OGGI;
+        if (!E || typeof E.build !== 'function') return '';
         const { decisions, cash } = E.build(S, new Date().toISOString());
         window.__oggiLast = decisions;
         let hidden = [];
@@ -4631,20 +5244,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ${d.sub ? `<div class="list-subtitle li-meta" style="margin-top:3px">${esc(d.sub)}</div>` : ''}
                 </div>
                 <div class="og-actions">
-                    ${(d.actions || []).map((a, j) => `<button class="btn btn-sm ${a.primary ? '' : 'btn-secondary'}" onclick="event.stopPropagation();oggiRun('${d.id}#${j}')">${esc(a.label)}</button>`).join('')}
-                    <button class="btn btn-sm btn-secondary og-hide" title="Nascondi per oggi" onclick="event.stopPropagation();oggiDismiss('${d.id}')">✕</button>
+                    ${(d.actions || []).map((a, j) => `<button class="btn btn-sm ${a.primary ? '' : 'btn-secondary'}" data-og-action="${esc(d.id)}#${j}" onclick="event.stopPropagation();oggiRun('${d.id}#${j}')">${esc(a.label)}</button>`).join('')}
+                    <button class="btn btn-sm btn-secondary og-hide" title="Nascondi per oggi" data-og-action="${esc(d.id)}#hide" onclick="event.stopPropagation();oggiDismiss('${d.id}')">✕</button>
                 </div>
             </div>`;
 
-        return `<div class="page-header">
-                <div><h1 class="page-title">⚡ Oggi</h1><p class="page-subtitle">${live.length === 0 ? 'Zero decisioni in coda — la macchina lavora.' : `${live.length} decision${live.length === 1 ? 'e' : 'i'} in coda, ordinate per costo del ritardo`}</p></div>
-                <div class="page-actions">
-                    <button class="btn btn-secondary" onclick="goTo('dashboard')">📊 Studio</button>
-                    <button class="btn btn-secondary" onclick="forceRefreshData()" title="Ricarica i dati">↻</button>
-                </div>
-            </div>
-
-            <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+        return `<div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
                 <div class="stat-card green" onclick="goTo('payments')">
                     <div class="stat-value">€${cash.paidMonth.toLocaleString('it-IT')}</div>
                     <div class="stat-label">Incassato questo mese</div>
@@ -4664,7 +5269,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
 
             <div class="card"><div class="card-body flush">
-                ${shown.length ? shown.map(card).join('') : `<div class="empty-state"><div class="empty-icon">🌅</div><div class="empty-title">Niente da decidere</div><div class="empty-subtitle">Le code sono vuote: risposte approvate, visite confermate, incassi in pari.</div></div>`}
+                ${shown.length ? shown.map(card).join('') : `<div class="empty-state"><div class="empty-icon">🌅</div><div class="empty-title">Nessun’altra decisione in questa coda</div></div>`}
             </div></div>
             ${live.length > shown.length ? `<div style="text-align:center;margin-top:10px;font-size:12px;color:var(--text-muted)">e altre ${live.length - shown.length} più in basso nella scala — le trovi nelle loro sezioni</div>` : ''}`;
     }
@@ -10507,6 +11112,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function inboxThreadPanel(conv) {
         const msgs = (S.messages || []).filter(m => m.conversationId === conv.id);
         const days = BOOM_INBOX.groupByDay(msgs);
+        const history = S.openConvStatus?.id === conv.id ? S.openConvStatus : null;
         const waUrl = BOOM_INBOX.whatsappUrl(conv.contactPhone, '');
         const canEmail = !!conv.contactEmail;
         return `
@@ -10534,6 +11140,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
 
             ${inboxHomieBanner(conv)}
+            ${history?.error ? `<p class="sg-notice sg-notice--warning" role="alert">${esc(history.error)}</p>` : history?.loading ? '<p class="sg-footnote" role="status">Carico gli ultimi messaggi…</p>' : history?.incomplete ? '<p class="sg-footnote" role="status">Sono visibili i 300 messaggi più recenti. La cronologia precedente non è inclusa in questa vista.</p>' : ''}
 
             <!-- Timeline -->
             <div style="flex:1;overflow-y:auto;padding:18px;background:#050505">
@@ -27890,79 +28497,293 @@ IBAN: ${l.iban || '-'}`;
     // ═══════════════════════════════════════════════════════════════════
     // L'INNESTO — far entrare il dato reale senza riscriverlo a mano
     // ═══════════════════════════════════════════════════════════════════
-    // Incolli il contratto (o ci butti dentro il PDF, o la foto, o il
-    // messaggio del proprietario) e il portale propone proprietario,
-    // immobile, inquilino e contratto GIÀ nello schema giusto, dicendo per
-    // ognuno se è nuovo o se esiste già in archivio (e perché lo pensa).
-    // Nulla viene scritto prima della tua conferma.
+    // Ci butti dentro quello che hai in mano — il PDF del contratto, le foto
+    // dei documenti, la visura, il messaggio del proprietario, anche TUTTI
+    // insieme — e il portale propone proprietario, immobile, inquilino,
+    // co-conduttori e contratto GIÀ nello schema giusto, con sotto ogni
+    // campo la frase del documento da cui l'ha letto. Per chi ESISTE già in
+    // archivio non propone un doppione: propone le MODIFICHE, prima → dopo
+    // (un buco si riempie da solo, un valore che cambia lo confermi tu).
+    // Nulla viene scritto prima della tua conferma; alla conferma il
+    // documento letto RESTA (archiviato e legato a ciò che ha creato).
+    // La lettura sta in api/portal/ingest.js (Opus 5, output strutturato:
+    // la lezione del 14/09/2026 — «non riesce mai a leggere i file» era un
+    // JSON a mano libera diagnosticato come troncato).
 
-    let _innesto = { proposal: null, matches: null, notes: [], confidence: null, busy: false, file: null, links: {} };
+    const INNESTO_INLINE_MAX = 3 * 1024 * 1024;   // byte grezzi inline PER LETTURA (base64 +33% < 4,5 MB)
+    const INNESTO_MAX_FILES = 8;
+    const INNESTO_MAX_FILE = 8 * 1024 * 1024;
+    // $ per milione di token — per dire all'operatore quanto è costata una
+    // lettura, non per fatturare: è una stima dichiarata.
+    const INNESTO_RATES = { 'claude-opus-5': { in: 5, out: 25, cacheRead: 0.5, cacheWrite: 6.25 } };
+    const INNESTO_KIND_ICON = { contratto: '📋', documento_identita: '🪪', visura: '🏛', ape: '⚡', utenza: '💡', ricevuta_canone: '🧾', f24_registro: '🏦', f24_imu: '🏦', f24_altro: '🏦', rli: '📑', cedolare: '📑', planimetria: '📐', altro: '📄' };
+
+    function innestoEmpty() {
+        return {
+            files: [], text: '', hint: '', proposal: null, notes: [], confidence: null, summary: '',
+            filesRead: [], evMap: {}, derived: {}, usage: null, cost: 0, busy: false, phase: '', startedAt: 0,
+            links: {}, coLinks: {}, diffs: {}, expanded: {}, archive: true, readDocs: [],
+            seedId: null, seedLoading: false, seedDone: false, seedError: '', seedDoc: null
+        };
+    }
+    let _innesto = innestoEmpty();
+    let _innestoTick = null;
 
     function innestoPage() {
+        if (_innesto.seedId && !_innesto.seedLoading && !_innesto.seedDone && !_innesto.seedError) {
+            _innesto.seedLoading = true;
+            innestoLoadSeed(_innesto.seedId);
+        }
         const p = _innesto.proposal;
+        const files = _innesto.files;
+        const mb = (n) => (n / 1024 / 1024).toFixed(1) + ' MB';
+        const totalBytes = files.reduce((a, f) => a + f.size, 0);
         return `
         <div class="page-header"><h1>🌱 Innesto</h1>
-            <p style="color:var(--text-secondary);font-size:13px">Da un contratto, un documento o due righe di messaggio a dati reali nel portale. Con anteprima, controlli e nessuna scrittura prima della conferma.</p></div>
+            <p style="color:var(--text-secondary);font-size:13px">Contratto, documenti d'identità, visura, messaggi: tutto insieme, una lettura sola. Ogni campo cita la frase da cui viene, chi esiste già viene aggiornato e non duplicato, e niente si scrive prima della tua conferma.</p></div>
 
+        ${innestoSeedCard()}
         <div class="card" style="margin-bottom:16px">
-            <div style="font-size:13px;margin-bottom:10px">Materiale di partenza</div>
-            <textarea id="innestoText" rows="7" placeholder="Incolla qui il testo: un contratto, l'email del proprietario, il messaggio WhatsApp con i dati dell'inquilino, gli appunti della visita…"
-                style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:12px;font-family:inherit;font-size:13px;line-height:1.6;resize:vertical"></textarea>
-            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px">
-                <label class="btn btn-sm" style="cursor:pointer;margin:0">
-                    📎 Allega PDF o foto
-                    <input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" style="display:none" onchange="innestoFile(this)">
-                </label>
-                <span id="innestoFileName" style="font-size:12px;color:var(--text-secondary)">${_innesto.file ? esc(_innesto.file.name) : 'nessun file'}</span>
-                <div style="flex:1"></div>
-                <button class="btn" ${_innesto.busy ? 'disabled' : ''} onclick="innestoAnalyze()">${_innesto.busy ? 'Lettura in corso…' : (_innesto.proposal ? 'Leggi e integra' : 'Leggi e proponi')}</button>
+            <div style="font-size:13px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                <span>Materiale di partenza</span>
+                <span style="font-size:11.5px;color:var(--text-secondary)">${files.length ? files.length + ' file · ' + mb(totalBytes) : 'PDF, foto, screenshot — fino a ' + INNESTO_MAX_FILES + ' per lettura'}</span>
             </div>
+            <div id="innestoDrop" onclick="document.getElementById('innestoFileInput').click()"
+                 ondragover="event.preventDefault();this.style.borderColor='var(--gold)'" ondragleave="this.style.borderColor='var(--border)'"
+                 ondrop="innestoDrop(event)"
+                 style="border:1.5px dashed var(--border);border-radius:12px;padding:${files.length ? '12px 14px' : '22px 14px'};text-align:center;cursor:pointer;background:var(--bg-input);transition:border-color .15s">
+                ${files.length
+                    ? `<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-start" onclick="event.stopPropagation()">
+                        ${files.map((f, i) => `<span style="display:inline-flex;align-items:center;gap:6px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:999px;padding:5px 10px;font-size:12px">${/pdf/i.test(f.type) ? '📄' : '🖼'} ${esc(f.name.length > 34 ? f.name.slice(0, 31) + '…' : f.name)} <span style="color:var(--text-secondary)">${mb(f.size)}</span><button type="button" onclick="innestoRemoveFile(${i})" title="Togli" style="background:none;border:0;color:var(--text-secondary);cursor:pointer;font-size:14px;line-height:1;padding:0 2px">✕</button></span>`).join('')}
+                        <span style="font-size:12px;color:var(--text-secondary);align-self:center;cursor:pointer" onclick="document.getElementById('innestoFileInput').click()">＋ aggiungi</span>
+                       </div>`
+                    : `<div style="font-size:13px">📎 Trascina qui i file, oppure clicca per sceglierli</div>
+                       <div style="font-size:11.5px;color:var(--text-secondary);margin-top:4px">contratto PDF · foto dei documenti (anche più pagine) · visura · APE · screenshot di una chat — puoi anche incollare un'immagine nel riquadro qui sotto</div>`}
+            </div>
+            <input id="innestoFileInput" type="file" multiple accept="application/pdf,image/*" style="display:none" onchange="innestoAddFiles(this.files);this.value=''">
+            <input id="innestoCamInput" type="file" accept="image/*" capture="environment" style="display:none" onchange="innestoAddFiles(this.files);this.value=''">
+            <textarea id="innestoTextArea" rows="${p ? 3 : 5}" placeholder="Oppure incolla qui il testo: il contratto, l'email del proprietario, il messaggio WhatsApp con i dati dell'inquilino, gli appunti della visita… (e Ctrl+V incolla anche uno screenshot)"
+                oninput="innestoText(this.value)" onpaste="innestoPaste(event)"
+                style="width:100%;margin-top:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:12px;font-family:inherit;font-size:13px;line-height:1.6;resize:vertical">${esc(_innesto.text)}</textarea>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
+                <input value="${esc(_innesto.hint)}" oninput="innestoHint(this.value)" placeholder="Un'indicazione, se serve: «è il contratto di Pigneto, l'inquilina è Marta»"
+                    style="flex:1;min-width:220px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 10px;font-size:12.5px;font-family:inherit">
+                <button class="btn btn-sm btn-secondary" type="button" onclick="document.getElementById('innestoCamInput').click()" title="Scatta una foto al documento">📷 Scatta</button>
+                <button class="btn" ${_innesto.busy ? 'disabled' : ''} onclick="innestoAnalyze()">${_innesto.busy ? 'Lettura in corso…' : (p ? 'Leggi e integra' : 'Leggi e proponi')}</button>
+            </div>
+            ${_innesto.busy ? `<div id="innestoProgress" style="margin-top:10px;font-size:12.5px;color:var(--gold);line-height:1.5">${esc(innestoProgressText())}</div>` : ''}
             <div style="font-size:11.5px;color:var(--text-secondary);margin-top:10px;line-height:1.5">
-                Il documento viene letto dall'AI solo per estrarre i campi. Un file grande transita dal tuo Storage e viene rimosso a lettura finita: niente resta salvato finché non confermi.${_innesto.proposal ? ' <b>Con la proposta aperta, una nuova lettura riempie i buchi</b> (es. la carta d\'identità dopo il contratto) — non cancella niente.' : ''}
+                Legge Claude Opus 5 con output strutturato: ogni campo porta la frase del documento da cui viene, e ciò che non c'è resta vuoto. Un file grande transita dal tuo Storage e viene rimosso a lettura finita: niente resta salvato finché non confermi.${p ? ' <b>Con la proposta aperta, una nuova lettura riempie i buchi</b> (es. la carta d\'identità dopo il contratto) — non cancella niente.' : ''}
             </div>
         </div>
 
-        ${_innesto.notes.length ? `<div class="card" style="margin-bottom:16px;border-color:rgba(212,175,55,0.3)">
-            <div style="font-size:12px;color:var(--gold);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Note di lettura${_innesto.confidence != null ? ' · sicurezza ' + _innesto.confidence + '%' : ''}</div>
-            ${_innesto.notes.map(n => `<div style="font-size:12.5px;color:var(--text-secondary);line-height:1.6">• ${esc(n)}</div>`).join('')}
-        </div>` : ''}
-
+        ${innestoReadCard()}
         ${p ? innestoProposalCard(p) : ''}`;
+    }
+
+    function innestoProgressText() {
+        const s = Math.max(0, Math.round((Date.now() - _innesto.startedAt) / 1000));
+        const n = _innesto.files.length;
+        const what = n ? n + (n === 1 ? ' documento' : ' documenti') + (_innesto.text.trim() ? ' e il testo' : '') : 'il testo';
+        if (_innesto.phase === 'upload') return '⬆ Carico ' + what + ' in transito…';
+        return '🔎 Sto leggendo ' + what + ' con Claude Opus 5… ' + s + ' s' + (s > 25 ? ' — un contratto di molte pagine può richiedere fino a un minuto' : '');
+    }
+
+    // Il verdetto per file + le note: "non riesce a leggerli" diventa una riga
+    // per documento che dice COSA ha letto (o perché non ha potuto).
+    function innestoReadCard() {
+        const fr = _innesto.filesRead, notes = _innesto.notes;
+        if (!fr.length && !notes.length && !_innesto.summary) return '';
+        const cost = _innesto.cost ? ' · ≈ $' + _innesto.cost.toFixed(2) : '';
+        const secs = _innesto.usage ? ' · ' + Math.round(_innesto.usage.ms / 1000) + ' s' : '';
+        return `<div class="card" style="margin-bottom:16px;border-color:rgba(212,175,55,0.3)">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+                <div style="font-size:12px;color:var(--gold);letter-spacing:1px;text-transform:uppercase">Cosa ho letto${_innesto.confidence != null ? ' · sicurezza ' + _innesto.confidence + '%' : ''}</div>
+                <div style="font-size:11px;color:var(--text-secondary)">${_innesto.usage ? esc((_innesto.usage.model || 'claude-opus-5').replace('claude-', '')) + secs + cost : ''}</div>
+            </div>
+            ${_innesto.summary ? `<div style="font-size:13.5px;margin-bottom:8px">${esc(_innesto.summary)}</div>` : ''}
+            ${fr.map(f => `<div style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;line-height:1.5;padding:4px 0;border-top:1px solid var(--border)">
+                <span>${f.legible ? (INNESTO_KIND_ICON[f.kind] || '📄') : '⚠️'}</span>
+                <div style="flex:1;min-width:0"><b>${esc(f.title || f.name)}</b> <span style="color:var(--text-secondary)">— ${esc(f.label)}${f.pages ? ' · ' + f.pages + ' pagine' + (f.clipped ? ' (lette le prime ' + f.readPages + ')' : '') : ''}${f.party ? ' · ' + ({ tenant: 'inquilino', landlord: 'proprietario', cotenant: 'co-conduttore' })[f.party] : ''}</span>
+                    ${!f.legible ? `<div style="color:#FF6B35">Illeggibile${f.summary ? ': ' + esc(f.summary) : ''} — rifai la foto (nitida, dritta, ben illuminata) e rileggi.</div>` : (f.summary ? `<div style="color:var(--text-secondary)">${esc(f.summary)}</div>` : '')}
+                </div></div>`).join('')}
+            ${notes.length ? `<div style="margin-top:8px">${notes.map(n => `<div style="font-size:12.5px;color:var(--text-secondary);line-height:1.6">• ${esc(n)}</div>`).join('')}</div>` : ''}
+        </div>`;
+    }
+
+    // Il percorso di una citazione nella forma piatta della proposta
+    // (il modello cita "property.cadastral.foglio", il portale salva
+    // property.foglio).
+    function innestoEvPath(path) {
+        return String(path || '')
+            .replace(/^property\.cadastral\.rendita$/, 'property.renditaCatastale')
+            .replace(/^property\.cadastral\./, 'property.')
+            .replace(/^property\.tabelle\./, 'property.tabelleMillesimali.')
+            .replace(/^coTenants\[(\d+)\]\./, 'coTenants.$1.');
+    }
+    function innestoEvidence(path) { return _innesto.evMap[path] || null; }
+
+    // I campi che una card mostra sempre; gli altri stanno dietro «＋ altri
+    // campi» — ma un campo che il documento ha RIEMPITO si mostra comunque.
+    const INNESTO_CORE = {
+        person: ['name', 'email', 'phone', 'codiceFiscale', 'address', 'birthDate', 'birthPlace'],
+        landlord: ['name', 'email', 'phone', 'codiceFiscale', 'iban', 'address', 'birthDate', 'birthPlace'],
+        property: ['name', 'address', 'rent', 'floor', 'interno', 'sqm', 'rooms', 'foglio', 'particella', 'sub'],
+        contract: ['type', 'startDate', 'endDate', 'rent', 'deposit', 'depositMonths', 'paymentDay', 'installmentMonths', 'cedolareSecca', 'transitionalReason']
+    };
+    const INNESTO_FIELDS = {
+        person: ['name', 'email', 'phone', 'codiceFiscale', 'address', 'birthDate', 'birthPlace', 'nationality', 'docType', 'docNum', 'docIssuer', 'docIssueDate', 'permessoNumero', 'permessoScadenza'],
+        landlord: ['name', 'kind', 'businessName', 'partitaIva', 'email', 'phone', 'codiceFiscale', 'iban', 'address', 'birthDate', 'birthPlace', 'nationality', 'docType', 'docNum', 'docIssuer', 'docIssueDate'],
+        cotenant: ['name', 'email', 'phone', 'codiceFiscale', 'address', 'birthDate', 'birthPlace', 'nationality', 'docType', 'docNum'],
+        property: ['name', 'address', 'city', 'rent', 'sqm', 'rooms', 'bathrooms', 'floor', 'scala', 'interno', 'accessories', 'furnished', 'energyClass', 'sezione', 'foglio', 'particella', 'sub', 'categoria', 'renditaCatastale', 'cadastralData'],
+        contract: ['type', 'startDate', 'endDate', 'durationMonths', 'rent', 'deposit', 'depositMonths', 'paymentDay', 'installmentMonths', 'accessoryCharges', 'condoMode', 'cedolareSecca', 'transitionalReason', 'transitionalDocs', 'esigenzaDi', 'cohabitants', 'otherClauses', 'signaturePlace', 'signatureDate', 'paymentMethod', 'istatPct', 'notes'],
+        studenti: ['corsoStudi', 'universita', 'universitaIndirizzo', 'tipoIscrizione', 'annoAccademico']
+    };
+    const INNESTO_NUMERIC = ['rent', 'sqm', 'rooms', 'bathrooms', 'deposit', 'depositMonths', 'paymentDay', 'installmentMonths', 'accessoryCharges', 'renditaCatastale', 'durationMonths'];
+    const INNESTO_DATES = ['startDate', 'endDate', 'birthDate', 'docIssueDate', 'permessoScadenza', 'signatureDate'];
+    const INNESTO_SELECT = {
+        type: [['transitorio', 'Transitorio (Allegato B)'], ['studenti', 'Studenti (Allegato C)'], ['3+2', '3+2 canone concordato (Allegato A)'], ['4+4', '4+4 canone libero'], ['ordinaria', 'Ordinaria / altro']],
+        installmentMonths: [[1, 'Mensile'], [2, 'Bimestrale'], [3, 'Trimestrale'], [6, 'Semestrale'], [12, 'Annuale']],
+        cedolareSecca: [['si', 'Sì — cedolare secca'], ['no', 'No — registro + bollo']],
+        condoMode: [['', '—'], ['incluso', 'Incluse nel canone'], ['consuntivo', 'A consuntivo']],
+        esigenzaDi: [['', '—'], ['conduttore', 'Del conduttore'], ['locatore', 'Del locatore']],
+        furnished: [['', '—'], ['yes', 'Sì'], ['no', 'No']],
+        docType: [['', '—'], ['id', 'Carta d\'identità'], ['passport', 'Passaporto'], ['permit', 'Permesso di soggiorno'], ['patente', 'Patente']],
+        kind: [['', 'Persona fisica'], ['fisica', 'Persona fisica'], ['giuridica', 'Società / ente']]
+    };
+
+    function innestoFieldRow(section, key, label, value, opts) {
+        opts = opts || {};
+        const path = section + '.' + key;
+        const ev = innestoEvidence(path);
+        const derived = _innesto.derived[path];
+        const sel = INNESTO_SELECT[key];
+        const type = INNESTO_DATES.indexOf(key) >= 0 ? 'date' : (INNESTO_NUMERIC.indexOf(key) >= 0 ? 'number' : (key === 'email' ? 'email' : 'text'));
+        const v = value == null ? '' : String(value);
+        const control = sel
+            ? `<select onchange="innestoEdit('${esc(section)}','${key}',this.value);${key === 'type' ? 'renderPage()' : ''}"
+                    style="flex:1;min-width:0;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 10px;font-size:13px;font-family:inherit">
+                    ${sel.filter((o, i) => !(key === 'kind' && i === 0 && v)).map(o => `<option value="${esc(String(o[0]))}" ${String(o[0]) === v ? 'selected' : ''}>${esc(o[1])}</option>`).join('')}
+               </select>`
+            : (opts.multiline
+                ? `<textarea rows="2" oninput="innestoEdit('${esc(section)}','${key}',this.value)" style="flex:1;min-width:0;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 10px;font-size:13px;font-family:inherit;resize:vertical">${esc(v)}</textarea>`
+                : `<input value="${esc(v)}" type="${type}" ${type === 'number' ? 'step="any"' : ''} oninput="innestoEdit('${esc(section)}','${key}',this.value)"
+                    style="flex:1;min-width:0;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 10px;font-size:13px;font-family:inherit">`);
+        return `
+            <div style="padding:7px 0;border-bottom:1px solid var(--border)">
+                <div style="display:flex;gap:10px;align-items:center">
+                    <div style="width:150px;flex-shrink:0;font-size:11.5px;color:var(--text-secondary)">${esc(label)}</div>
+                    ${control}
+                </div>
+                ${ev ? `<div style="margin:3px 0 0 160px;font-size:11px;color:var(--text-secondary);line-height:1.45" title="La frase del documento da cui è stato letto">❝ ${esc(ev.quote)} ❞${ev.file || ev.page ? ` <span style="opacity:.7">— ${ev.file ? 'doc. ' + ev.file : ''}${ev.page ? (ev.file ? ', ' : '') + 'pag. ' + ev.page : ''}</span>` : ''}</div>`
+                   : (derived ? `<div style="margin:3px 0 0 160px;font-size:11px;color:var(--gold);opacity:.85">calcolato: ${esc(derived)}</div>`
+                   : (v && !opts.quiet ? `<div style="margin:3px 0 0 160px;font-size:11px;color:#FF6B35;opacity:.85">senza citazione dal documento — verifica</div>` : ''))}
+            </div>`;
+    }
+
+    function innestoFieldsBlock(section, d, kind, coIndex) {
+        const D = window.BOOM_DATAOPS;
+        const labels = kind === 'property' ? D.LABELS.property : (kind === 'contract' ? D.LABELS.contract : D.LABELS.person);
+        const all = INNESTO_FIELDS[kind === 'landlord' ? 'landlord' : kind === 'cotenant' ? 'cotenant' : kind];
+        const core = INNESTO_CORE[kind === 'landlord' ? 'landlord' : kind === 'cotenant' ? 'person' : kind === 'person' ? 'person' : kind];
+        const expKey = coIndex != null ? section : kind === 'landlord' ? 'landlord' : kind === 'person' ? 'tenant' : kind;
+        const expanded = !!_innesto.expanded[expKey];
+        const show = all.filter(k => expanded || core.indexOf(k) >= 0 || (d[k] != null && d[k] !== '' && !(kind === 'contract' && k === 'paymentDay') ));
+        const hidden = all.length - show.length;
+        let html = show.map(k => innestoFieldRow(section, k, labels[k] || k, d[k], { multiline: /transitionalReason|otherClauses|notes|cohabitants|accessories/.test(k), quiet: /^(paymentDay|installmentMonths|cedolareSecca|type|propertyType|kind|name|cadastralData)$/.test(k) })).join('');
+        if (kind === 'contract' && d.type === 'studenti') {
+            const st = d.studenti || {};
+            html += `<div style="font-size:11px;color:var(--gold);letter-spacing:1px;text-transform:uppercase;margin:10px 0 2px">Allegato C — corso di studi</div>`
+                + INNESTO_FIELDS.studenti.map(k => innestoFieldRow(section + '.studenti', k, D.LABELS.studenti[k], st[k], { quiet: true })).join('');
+        }
+        if (hidden > 0 || expanded) {
+            html += `<div style="padding-top:8px"><button class="btn btn-sm btn-secondary" type="button" onclick="_innesto.expanded['${esc(expKey)}']=${expanded ? 'false' : 'true'};renderPage()">${expanded ? '− meno campi' : '＋ altri ' + hidden + ' campi'}</button></div>`;
+        }
+        return html;
+    }
+
+    // Il pool di un aggancio: users (con ruolo) + landlords (senza), ognuno
+    // marcato con la SUA collection — è dove atterra un aggiornamento.
+    function innestoPools() {
+        const users = S.users || [];
+        return {
+            landlord: users.filter(u => u.role === 'landlord' || u.role === 'owner').map(u => Object.assign({ _col: 'users' }, u))
+                .concat((S.landlords || []).map(l => Object.assign({ _col: 'landlords' }, l))),
+            tenant: users.filter(u => u.role === 'tenant').map(u => Object.assign({ _col: 'users' }, u)),
+            property: (S.properties || []).map(p => Object.assign({ _col: 'properties' }, p))
+        };
+    }
+    // L'aggancio di una sezione: scelto (id) · rifiutato (null) · proposto.
+    function innestoLinkFor(section, d, pool, kind, linksMap) {
+        const V = window.BOOM_DATAOPS;
+        const chosen = linksMap[section];
+        if (chosen === null) return { record: null, why: '', explicit: true, auto: V.findMatch(d || {}, pool, kind) };
+        if (chosen) { const r = pool.find(x => x.id === chosen); return { record: r || null, why: r ? 'scelto dall\'archivio' : '', explicit: true, auto: null }; }
+        if (!d) return { record: null, why: '', explicit: false, auto: null };
+        const m = V.findMatch(d, pool, kind);
+        return { record: m.match, why: m.why, explicit: false, auto: m };
+    }
+
+    // LA MODIFICA PROPOSTA — prima → dopo sul record che c'è già. Un buco si
+    // riempie da solo (spunta accesa), un valore che cambia parte spento e lo
+    // confermi tu, con la frase del documento accanto.
+    function innestoDiffBlock(section, d, record, kind) {
+        const D = window.BOOM_DATAOPS;
+        const diff = D.diffRecord(kind === 'property' ? 'property' : 'person', d, record);
+        const sel = _innesto.diffs[section] || {};
+        if (!diff.rows.length) return `<div style="font-size:12.5px;color:var(--text-secondary);line-height:1.6">Verrà usato il record esistente: il documento non aggiunge né cambia nulla.</div>`;
+        return `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px">Il documento ${diff.fills ? 'riempie <b>' + diff.fills + '</b> ' + (diff.fills === 1 ? 'campo vuoto' : 'campi vuoti') : ''}${diff.fills && diff.changes ? ' e ' : ''}${diff.changes ? 'cambierebbe <b>' + diff.changes + '</b> ' + (diff.changes === 1 ? 'valore' : 'valori') + ' (da confermare)' : ''}. Nessun doppione: si aggiorna il record esistente.</div>`
+            + diff.rows.map(r => {
+                const on = sel[r.key] !== undefined ? !!sel[r.key] : r.action === 'fill';
+                const ev = innestoEvidence(section + '.' + r.key);
+                return `<label style="display:flex;gap:10px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer;font-size:12.5px">
+                    <input type="checkbox" ${on ? 'checked' : ''} onchange="innestoToggleDiff('${esc(section)}','${r.key}',this.checked)" style="margin-top:3px">
+                    <div style="width:140px;flex-shrink:0;color:var(--text-secondary)">${esc(r.label)}</div>
+                    <div style="flex:1;min-width:0;line-height:1.5">
+                        ${r.action === 'change' ? `<span style="text-decoration:line-through;opacity:.6">${esc(String(r.before))}</span> → ` : ''}<b>${esc(String(r.after))}</b>
+                        <span style="margin-left:6px;font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:${r.action === 'fill' ? '#00FF88' : '#FF6B35'}">${r.action === 'fill' ? 'riempie' : 'cambia'}</span>
+                        ${ev ? `<div style="font-size:11px;color:var(--text-secondary)">❝ ${esc(ev.quote)} ❞</div>` : ''}
+                    </div></label>`;
+            }).join('');
+    }
+
+    // Su un record agganciato i valori LETTI restano correggibili: un CF
+    // letto male non deve costringere a «scollegare» per poterlo sistemare.
+    function innestoEditToggle(section, d, kind, coIndex) {
+        const k = section + ':edit';
+        const on = !!_innesto.expanded[k];
+        return `<div style="padding-top:8px"><button class="btn btn-sm btn-secondary" type="button" onclick="_innesto.expanded['${esc(k)}']=${on ? 'false' : 'true'};renderPage()">${on ? '− nascondi i valori letti' : '✎ correggi i valori letti'}</button></div>`
+            + (on ? `<div style="margin-top:8px">${innestoFieldsBlock(section, d, kind, coIndex)}</div>` : '');
     }
 
     function innestoProposalCard(p) {
         const V = window.BOOM_DATAOPS;
         const val = V.validateProposal(p);
+        const pools = innestoPools();
         const blocks = [];
 
-        const field = (section, key, label, value, type) => `
-            <div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">
-                <div style="width:150px;flex-shrink:0;font-size:11.5px;color:var(--text-secondary)">${esc(label)}</div>
-                <input value="${esc(value == null ? '' : String(value))}" type="${type || 'text'}"
-                    oninput="innestoEdit('${section}','${key}',this.value)"
-                    style="flex:1;min-width:0;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 10px;font-size:13px;font-family:inherit">
-            </div>`;
-
-        const section = (key, icon, title, fields, matchKind, pool) => {
+        const section = (key, icon, title, kind, pool, poolKind) => {
             const d = p[key];
             if (!d) return '';
-            const m = matchKind ? V.findMatch(d, pool || [], matchKind) : { match: null };
-            const linked = _innesto.links[key];
-            const isLinked = linked === undefined ? !!m.match : linked !== null;
+            const link = innestoLinkFor(key, d, pool, poolKind, _innesto.links);
+            const rec = link.record;
             return `
             <div class="card" style="margin-bottom:14px">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-                    <strong style="font-size:14px">${icon} ${esc(title)}</strong>
-                    ${m.match
-                        ? `<label style="display:flex;gap:8px;align-items:center;font-size:12px;color:${isLinked ? '#00FF88' : 'var(--text-secondary)'};cursor:pointer">
-                             <input type="checkbox" ${isLinked ? 'checked' : ''} onchange="innestoLink('${key}',this.checked,'${esc(m.match.id)}')">
-                             Collega a «${esc(m.match.name || m.match.email || m.match.id)}» — ${esc(m.why)}
+                    <strong style="font-size:14px">${icon} ${esc(title)}${rec ? ' <span style="font-weight:300;color:var(--text-secondary)">· ' + esc(rec.name || rec.email || rec.id) + '</span>' : ''}</strong>
+                    ${rec
+                        ? `<label style="display:flex;gap:8px;align-items:center;font-size:12px;color:#00FF88;cursor:pointer">
+                             <input type="checkbox" checked onchange="innestoLink('${key}',this.checked,'${esc(rec.id)}')">
+                             già in archivio — ${esc(link.why)}
                            </label>`
-                        : `<span style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold)">nuovo</span>`}
+                        : (link.explicit && link.auto && link.auto.match
+                            ? `<label style="display:flex;gap:8px;align-items:center;font-size:12px;color:var(--text-secondary);cursor:pointer">
+                                 <input type="checkbox" onchange="innestoLink('${key}',this.checked,'${esc(link.auto.match.id)}')">
+                                 collega a «${esc(link.auto.match.name || link.auto.match.email || link.auto.match.id)}» invece di creare
+                               </label>`
+                            : `<span style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold)">nuovo</span>`)}
                 </div>
-                ${isLinked && m.match
-                    ? `<div style="font-size:12.5px;color:var(--text-secondary);line-height:1.6">Verrà usato il record esistente. I campi qui sotto non creeranno un doppione.</div>`
-                    : fields.map(f => field(key, f[0], f[1], d[f[0]], f[2])).join('')}
+                ${rec ? innestoDiffBlock(key, d, rec, poolKind) + innestoEditToggle(key, d, kind) : innestoFieldsBlock(key, d, kind)}
             </div>`;
         };
 
@@ -27972,8 +28793,6 @@ IBAN: ${l.iban || '-'}`;
         // con la persona giusta a due tap di distanza. Il "fantasma" apre
         // le tre vie: aggancio dall'archivio, compilazione a mano, o un
         // altro documento letto in integrazione.
-        const poolLandlord = (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').concat(S.landlords || []);
-        const poolTenant = (S.users || []).filter(u => u.role === 'tenant');
         const ghost = (key, icon, title, pool, required) => {
             if (p[key] || !p.contract) return '';
             const chosen = _innesto.links[key] || '';
@@ -27995,42 +28814,49 @@ IBAN: ${l.iban || '-'}`;
             </div>`;
         };
 
-        blocks.push(section('landlord', '🏛', 'Proprietario', [
-            ['name', 'Nome'], ['email', 'Email', 'email'], ['phone', 'Telefono'],
-            ['codiceFiscale', 'Codice fiscale'], ['iban', 'IBAN'], ['address', 'Residenza']
-        ], 'person', poolLandlord) || ghost('landlord', '🏛', 'Proprietario', poolLandlord, false));
+        blocks.push(section('landlord', '🏛', 'Proprietario', 'landlord', pools.landlord, 'person') || ghost('landlord', '🏛', 'Proprietario', pools.landlord, false));
+        blocks.push(section('property', '🏠', 'Immobile', 'property', pools.property, 'property') || ghost('property', '🏠', 'Immobile', pools.property, true));
+        blocks.push(section('tenant', '👤', 'Inquilino', 'person', pools.tenant, 'person') || ghost('tenant', '👤', 'Inquilino', pools.tenant, true));
+        (p.coTenants || []).forEach((co, i) => {
+            const key = 'coTenants.' + i;
+            const link = innestoLinkFor(key, co, pools.tenant, 'person', _innesto.coLinks);
+            const rec = link.record;
+            blocks.push(`
+            <div class="card" style="margin-bottom:14px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+                    <strong style="font-size:14px">👥 Co-conduttore ${i + 1}${rec ? ' <span style="font-weight:300;color:var(--text-secondary)">· ' + esc(rec.name || rec.id) + '</span>' : ''}</strong>
+                    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+                        ${rec ? `<label style="display:flex;gap:8px;align-items:center;font-size:12px;color:#00FF88;cursor:pointer"><input type="checkbox" checked onchange="innestoLinkCo(${i},this.checked,'${esc(rec.id)}')"> già in archivio — ${esc(link.why)}</label>`
+                              : `<span style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold)">nuovo</span>`}
+                        <button class="btn btn-sm btn-secondary" type="button" onclick="innestoRemoveCo(${i})" title="Non è un co-conduttore">✕ togli</button>
+                    </div>
+                </div>
+                <div style="font-size:11.5px;color:var(--text-secondary);margin-bottom:6px">Firma il contratto col PROPRIO link e per l'AdE è una riga RLI con il suo codice fiscale.</div>
+                ${rec ? innestoDiffBlock(key, co, rec, 'person') + innestoEditToggle(key, co, 'cotenant', i) : innestoFieldsBlock(key, co, 'cotenant', i)}
+            </div>`);
+        });
+        blocks.push(section('contract', '📋', 'Contratto', 'contract', [], null));
 
-        blocks.push(section('property', '🏠', 'Immobile', [
-            ['name', 'Nome'], ['address', 'Indirizzo'], ['rent', 'Canone mensile €', 'number'],
-            ['sqm', 'Metri quadri', 'number'], ['rooms', 'Locali', 'number'], ['bathrooms', 'Bagni', 'number'],
-            ['floor', 'Piano'], ['interno', 'Interno'], ['cadastralData', 'Dati catastali'], ['energyClass', 'Classe energetica']
-        ], 'property', S.properties || []) || ghost('property', '🏠', 'Immobile', S.properties || [], true));
-
-        blocks.push(section('tenant', '👤', 'Inquilino', [
-            ['name', 'Nome'], ['email', 'Email', 'email'], ['phone', 'Telefono'],
-            ['codiceFiscale', 'Codice fiscale'], ['birthDate', 'Data di nascita', 'date'],
-            ['birthPlace', 'Luogo di nascita'], ['address', 'Residenza']
-        ], 'person', poolTenant) || ghost('tenant', '👤', 'Inquilino', poolTenant, true));
-
-        blocks.push(section('contract', '📋', 'Contratto', [
-            ['type', 'Tipo'], ['startDate', 'Inizio', 'date'], ['endDate', 'Fine', 'date'],
-            ['rent', 'Canone mensile €', 'number'], ['deposit', 'Deposito €', 'number'],
-            ['paymentDay', 'Giorno pagamento', 'number'], ['installmentMonths', 'Cadenza (mesi)', 'number'],
-            ['accessoryCharges', 'Oneri accessori €', 'number'], ['transitionalReason', 'Motivo transitorio']
-        ], null, null));
-
-        // Riepilogo onesto: distingue cosa nasce da cosa viene solo collegato,
-        // così l'operatore sa in anticipo l'effetto del pulsante.
-        const willLink = (key, pool, kind) => {
-            if (_innesto.links[key] === null) return false;              // "scollega" esplicito
-            if (_innesto.links[key]) return true;                        // aggancio scelto
-            if (!p[key]) return false;                                   // sezione assente e nessuna scelta
-            return !!V.findMatch(p[key], pool, kind).match;              // aggancio proposto
+        // Riepilogo onesto: distingue cosa nasce, cosa si aggiorna, cosa si
+        // archivia, così l'operatore sa in anticipo l'effetto del pulsante.
+        const linkOf = (key, pool, kind) => innestoLinkFor(key, p[key], pool, kind, _innesto.links).record;
+        const willCreate = [], willUpdate = [];
+        const updCount = (key, d, rec, kind) => {
+            const diff = V.diffRecord(kind, d, rec);
+            const sel = _innesto.diffs[key] || {};
+            return diff.rows.filter(r => sel[r.key] !== undefined ? !!sel[r.key] : r.action === 'fill').length;
         };
-        const willCreate = [];
-        if (p.landlord && !willLink('landlord', poolLandlord, 'person')) willCreate.push('proprietario');
-        if (p.property && !willLink('property', S.properties || [], 'property')) willCreate.push('immobile');
-        if (p.tenant && !willLink('tenant', poolTenant, 'person')) willCreate.push('inquilino');
+        [['landlord', pools.landlord, 'person', 'proprietario'], ['property', pools.property, 'property', 'immobile'], ['tenant', pools.tenant, 'person', 'inquilino']].forEach(([key, pool, kind, name]) => {
+            if (!p[key]) return;
+            const rec = linkOf(key, pool, kind);
+            if (!rec) willCreate.push(name);
+            else { const n = updCount(key, p[key], rec, kind); if (n) willUpdate.push(name + ' (' + n + (n === 1 ? ' campo' : ' campi') + ')'); }
+        });
+        (p.coTenants || []).forEach((co, i) => {
+            const rec = innestoLinkFor('coTenants.' + i, co, pools.tenant, 'person', _innesto.coLinks).record;
+            if (!rec) willCreate.push('co-conduttore ' + (i + 1));
+            else { const n = updCount('coTenants.' + i, co, rec, 'person'); if (n) willUpdate.push('co-conduttore ' + (i + 1) + ' (' + n + ' campi)'); }
+        });
         // Il contratto ha bisogno di ENTRAMBE le gambe (immobile e inquilino).
         // Prometterlo quando una manca era la via per un "Innesto completato"
         // SENZA contratto: l'apply lo saltava in silenzio e l'operatore lo
@@ -28039,8 +28865,13 @@ IBAN: ${l.iban || '-'}`;
         const contractLegs = [];
         if (p.contract && !p.property && !_innesto.links.property) contractLegs.push("l'immobile");
         if (p.contract && !p.tenant && !_innesto.links.tenant) contractLegs.push("l'inquilino");
-        if (p.contract && !contractLegs.length) willCreate.push('contratto + piano rate');
-        if (!willCreate.length) willCreate.push('solo collegamenti (nessun nuovo record)');
+        if (p.contract && !contractLegs.length) willCreate.push('contratto + piano rate' + (p.coTenants && p.coTenants.length ? ' (' + (p.coTenants.length + 1) + ' conduttori)' : ''));
+        const docsN = _innesto.readDocs.length;
+        const parts = [];
+        if (willCreate.length) parts.push('creerà ' + willCreate.join(' · '));
+        if (willUpdate.length) parts.push('aggiornerà ' + willUpdate.join(' · '));
+        if (_innesto.archive && docsN) parts.push('archivierà ' + docsN + (docsN === 1 ? ' documento' : ' documenti'));
+        if (!parts.length) parts.push('solo collegamenti (nessun nuovo record)');
 
         return `
         ${blocks.join('')}
@@ -28058,48 +28889,82 @@ IBAN: ${l.iban || '-'}`;
         </div>` : ''}
         <div class="card" style="position:sticky;bottom:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
             <div style="flex:1;min-width:220px">
-                <div style="font-size:14px">${val.ok ? 'Pronto: ' + willCreate.join(' · ') : 'Correggi gli errori per procedere'}</div>
-                <div style="font-size:11.5px;color:var(--text-secondary);margin-top:3px">Le rate vengono generate con lo stesso motore della firma digitale (nessun doppione possibile).</div>
+                <div style="font-size:14px">${val.ok ? 'Pronto: ' + esc(parts.join(' — ')) : 'Correggi gli errori per procedere'}</div>
+                <div style="font-size:11.5px;color:var(--text-secondary);margin-top:3px;display:flex;gap:14px;flex-wrap:wrap;align-items:center">
+                    <span>Le rate vengono generate con lo stesso motore della firma digitale (nessun doppione possibile).</span>
+                    ${docsN ? `<label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" ${_innesto.archive ? 'checked' : ''} onchange="_innesto.archive=this.checked;renderPage()"> archivia i ${docsN} documenti letti, legati a ciò che nasce</label>` : ''}
+                </div>
             </div>
             <button class="btn btn-sm" onclick="innestoReset()">Annulla</button>
             <button class="btn" ${val.ok && !_innesto.busy ? '' : 'disabled'} onclick="innestoApply()">${_innesto.busy ? 'Creazione…' : 'Crea nel portale'}</button>
         </div>`;
     }
 
-    function innestoFile(input) {
-        const f = input.files && input.files[0];
-        if (!f) return;
-        if (f.size > 8 * 1024 * 1024) { toast('error', 'File troppo grande', 'Massimo 8 MB'); input.value = ''; return; }
-        _innesto.file = f;
-        const el = document.getElementById('innestoFileName');
-        if (el) el.textContent = f.name;
+    // ── Il materiale: file, incolla, scatta ─────────────────────────────
+    function innestoAddFiles(list) {
+        const files = Array.from(list || []);
+        if (!files.length) return;
+        for (const f of files) {
+            if (_innesto.files.length >= INNESTO_MAX_FILES) { toast('warning', 'Massimo ' + INNESTO_MAX_FILES + ' file per lettura', 'Leggi questi, poi «Leggi e integra» con gli altri'); break; }
+            const isPdf = /pdf/i.test(f.type) || /\.pdf$/i.test(f.name);
+            if (!isPdf && !/^image\//i.test(f.type)) { toast('error', 'Formato non leggibile', f.name + ' — servono PDF o immagini'); continue; }
+            if (f.size > INNESTO_MAX_FILE) { toast('error', 'File troppo grande', f.name + ' supera gli 8 MB'); continue; }
+            if (_innesto.files.some(x => x.name === f.name && x.size === f.size)) continue;
+            _innesto.files.push(f);
+        }
+        renderPage();
     }
+    function innestoRemoveFile(i) { _innesto.files.splice(i, 1); renderPage(); }
+    function innestoDrop(e) {
+        e.preventDefault();
+        const el = document.getElementById('innestoDrop'); if (el) el.style.borderColor = 'var(--border)';
+        innestoAddFiles(e.dataTransfer && e.dataTransfer.files);
+    }
+    // Ctrl+V di uno screenshot (la chat WhatsApp, la pagina della visura):
+    // l'immagine negli appunti diventa un file letto come gli altri.
+    function innestoPaste(e) {
+        const items = (e.clipboardData && e.clipboardData.items) || [];
+        const files = [];
+        for (const it of items) {
+            if (it.kind === 'file') { const f = it.getAsFile(); if (f) files.push(new File([f], f.name && f.name !== 'image.png' ? f.name : 'incollato-' + (_innesto.files.length + files.length + 1) + '.png', { type: f.type })); }
+        }
+        if (files.length) { e.preventDefault(); innestoAddFiles(files); }
+    }
+    function innestoText(v) { _innesto.text = v; }
+    function innestoHint(v) { _innesto.hint = v; }
 
     // Il body di una function Vercel ha un tetto di PIATTAFORMA di 4,5 MB:
     // un PDF base64 sopra ~3,3 MB moriva in un "errore 413" nudo emesso
     // dall'edge prima che l'endpoint partisse (la lezione del 28/08/2026).
-    // Sotto questo tetto il file viaggia inline come sempre; sopra, TRANSITA
-    // dallo Storage (cartella propria documents/<uid>/innesto-tmp/) e all'API
-    // va solo l'URL — e il transito si cancella a lettura finita, così la
-    // promessa della pagina ("niente resta salvato finché non confermi") tiene.
-    const INNESTO_INLINE_MAX = 3 * 1024 * 1024;
-
+    // Sotto questo tetto — che qui vale per la SOMMA dei file inline — il
+    // file viaggia inline; sopra, TRANSITA dallo Storage (cartella propria
+    // documents/<uid>/innesto-tmp/) e all'API va solo l'URL — e il transito
+    // si cancella a lettura finita, così la promessa della pagina ("niente
+    // resta salvato finché non confermi") tiene.
     async function innestoAnalyze() {
-        const text = (document.getElementById('innestoText') || {}).value || '';
-        if (!text.trim() && !_innesto.file) { toast('error', 'Serve del materiale', 'Incolla del testo o allega un file'); return; }
-        _innesto.busy = true; renderPage();
-        let transitRef = null;
+        const text = _innesto.text || '';
+        if (!text.trim() && !_innesto.files.length) { toast('error', 'Serve del materiale', 'Allega un file o incolla del testo'); return; }
+        _innesto.busy = true; _innesto.phase = 'prep'; _innesto.startedAt = Date.now(); renderPage();
+        clearInterval(_innestoTick);
+        _innestoTick = setInterval(() => { const el = document.getElementById('innestoProgress'); if (el) el.textContent = innestoProgressText(); }, 1000);
+        const transitRefs = [];
+        const prepared = [];   // { blob, mediaType, file } — per l'archivio alla conferma
         try {
-            const payload = { text: text.slice(0, 60000), context: { known: {
-                landlords: (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').map(u => u.name).filter(Boolean).slice(0, 60),
-                properties: (S.properties || []).map(p => p.name).filter(Boolean).slice(0, 60)
+            const payload = { text: text.slice(0, 60000), files: [], context: { hint: _innesto.hint || '', known: {
+                landlords: (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').map(u => u.name).concat((S.landlords || []).map(l => l.name)).filter(Boolean).slice(0, 60),
+                tenants: (S.users || []).filter(u => u.role === 'tenant').map(u => u.name).filter(Boolean).slice(0, 60),
+                properties: (S.properties || []).map(p => [p.name, p.address].filter(Boolean).join(' — ')).filter(Boolean).slice(0, 60)
             } } };
-            if (_innesto.file) {
-                let blob = _innesto.file;
-                let mediaType = blob.type || 'application/pdf';
+            let inlineTotal = 0;
+            for (let i = 0; i < _innesto.files.length; i++) {
+                const file = _innesto.files[i];
+                let blob = file;
+                let mediaType = file.type || (/\.pdf$/i.test(file.name) ? 'application/pdf' : 'application/octet-stream');
                 // Le foto si riducono PRIMA di scegliere la via: una foto da
                 // 8 MB diventa un JPEG leggero e viaggia inline (stessa
-                // compressione del convertitore AdE — una copia sola).
+                // compressione del convertitore AdE — una copia sola). Una
+                // HEIC che il browser sa decodificare (Safari) diventa JPEG qui;
+                // altrimenti il server lo dice con il rimedio.
                 if (/^image\//i.test(mediaType)) {
                     try {
                         const buf = await adeCompressImage(await blob.arrayBuffer(), mediaType, 0.85, 2000);
@@ -28107,21 +28972,27 @@ IBAN: ${l.iban || '-'}`;
                         mediaType = 'image/jpeg';
                     } catch (_) { /* decodifica fallita: si tenta col file originale */ }
                 }
-                if (blob.size <= INNESTO_INLINE_MAX) {
-                    payload.base64 = await new Promise((res, rej) => {
+                const entry = { name: file.name, mediaType };
+                if (inlineTotal + blob.size <= INNESTO_INLINE_MAX) {
+                    inlineTotal += blob.size;
+                    entry.base64 = await new Promise((res, rej) => {
                         const r = new FileReader();
                         r.onload = () => res(String(r.result).split(',')[1] || '');
                         r.onerror = rej;
                         r.readAsDataURL(blob);
                     });
                 } else {
-                    const safeName = String(_innesto.file.name || 'documento').replace(/[^\w.\-]+/g, '_').slice(-80);
-                    transitRef = storage.ref('documents/' + auth.currentUser.uid + '/innesto-tmp/' + Date.now() + '_' + safeName);
-                    await transitRef.put(blob, { contentType: mediaType });
-                    payload.fileUrl = await transitRef.getDownloadURL();
+                    _innesto.phase = 'upload';
+                    const safeName = String(file.name || 'documento').replace(/[^\w.\-]+/g, '_').slice(-80);
+                    const ref = storage.ref('documents/' + auth.currentUser.uid + '/innesto-tmp/' + Date.now() + '_' + i + '_' + safeName);
+                    await ref.put(blob, { contentType: mediaType });
+                    transitRefs.push(ref);
+                    entry.fileUrl = await ref.getDownloadURL();
                 }
-                payload.mediaType = mediaType;
+                payload.files.push(entry);
+                prepared.push({ blob, mediaType, file });
             }
+            _innesto.phase = 'read';
             const token = await auth.currentUser.getIdToken();
             const r = await fetch('/api/portal/ingest', {
                 method: 'POST',
@@ -28130,59 +29001,173 @@ IBAN: ${l.iban || '-'}`;
             });
             const data = await r.json().catch(() => ({}));
             if (!r.ok || !data.ok) {
-                const why = r.status === 413 || data.error === 'file_too_large'
-                        ? 'file oltre il limite di 8 MB — comprimilo o allega solo le pagine che contano'
+                // il server dice PERCHÉ la lettura non è riuscita e cosa fare
+                // (documento illeggibile, foto HEIC, troppi file, tempo scaduto):
+                // «ai_bad_json» all'operatore non diceva niente
+                const why = data.detail
+                    || (r.status === 413 || data.error === 'file_too_large' ? 'file oltre il limite di 8 MB — comprimilo o allega solo le pagine che contano'
+                    : data.error === 'files_too_large' ? 'i file insieme superano i 20 MB: leggili in due giri («Leggi e integra»)'
+                    : data.error === 'too_many_files' ? 'massimo ' + INNESTO_MAX_FILES + ' file per lettura'
                     : data.error === 'unsupported_media_type' ? 'formato non leggibile: servono PDF, JPG, PNG o WebP'
-                    // il server ora dice PERCHÉ la lettura non è riuscita e
-                    // cosa fare (documento troppo lungo, scansione illeggibile):
-                    // «ai_bad_json» all'operatore non diceva niente
-                    : (data.detail || data.error || ('errore ' + r.status));
+                    : (data.error || ('errore ' + r.status)));
                 throw new Error(why);
             }
-            if (data.empty || !data.proposal || !Object.keys(data.proposal).length) {
-                toast('warning', 'Nessun dato riconosciuto', 'Prova ad aggiungere più contesto o un documento più leggibile');
-                _innesto.notes = (_innesto.proposal ? _innesto.notes || [] : []).concat(data.notes || []);
-                // Una lettura vuota non butta via la proposta che l'operatore
-                // ha già davanti (e magari ha già corretto).
-            } else {
-                // IL FASCICOLO A PIÙ LETTURE: se una proposta è già aperta, la
-                // nuova lettura ne riempie i BUCHI (mergeProposal: un campo
-                // pieno — magari corretto a mano — non si tocca mai). Così il
-                // PDF del contratto + la foto del documento + due righe di
-                // WhatsApp diventano UNA proposta, senza ricominciare da capo.
-                const D = window.BOOM_DATAOPS;
-                const fresh = D.normalizeProposal(data.proposal);
-                const integrating = !!_innesto.proposal;
-                let next = integrating && D.mergeProposal ? D.mergeProposal(_innesto.proposal, fresh) : fresh;
-                if (D.deriveProposal) next = D.deriveProposal(next);
-                _innesto.proposal = next;
-                _innesto.notes = integrating ? (_innesto.notes || []).concat(data.notes || []) : (data.notes || []);
-                _innesto.confidence = data.confidence;
-                if (!integrating) _innesto.links = {};
-                _innesto.file = null;   // il prossimo giro legge il PROSSIMO documento
-                toast('success', integrating ? 'Proposta integrata' : 'Proposta pronta', 'Controlla i campi prima di confermare');
-            }
+            innestoIngest(data, prepared);
         } catch (e) {
             console.error('[Innesto]', e);
             toast('error', 'Lettura non riuscita', e.message);
         } finally {
+            clearInterval(_innestoTick); _innestoTick = null;
             // Il transito non resta: il file su Storage era solo il trasporto.
-            if (transitRef) transitRef.delete().catch(() => {});
-            _innesto.busy = false; renderPage();
+            transitRefs.forEach(ref => ref.delete().catch(() => {}));
+            _innesto.busy = false; _innesto.phase = ''; renderPage();
         }
     }
 
+    // La risposta di una lettura → lo stato della pagina. UNA copia: la lettura
+    // dal portal (innestoAnalyze) e la proposta arrivata dal telefono
+    // (innestoLoadSeed — lo Scrivano, STUDIO_SCRIVANO §4 passo 4) passano di
+    // qui: verdetti per file, citazioni, costo, merge a più letture, documenti
+    // da archiviare o da legare.
+    function innestoIngest(data, prepared) {
+        const D = window.BOOM_DATAOPS;
+        const F = window.BOOM_CONTRACT_FIELDS;
+        const offset = _innesto.filesRead.length;
+        // I documenti letti restano in mano al portale (non allo Storage):
+        // alla conferma si archiviano, legati a ciò che hanno fatto nascere.
+        (data.files || []).forEach((fr, i) => {
+            const prep = prepared[fr.index - 1];
+            if (!prep) return;
+            // Un documento GIÀ in archivio (arrivato dal telefono, archiviato
+            // dallo Smistatore) non si ricarica: alla conferma si LEGA.
+            if (prep.archived) _innesto.readDocs.push({ archived: prep.archived, meta: fr });
+            else _innesto.readDocs.push({ blob: prep.blob, mediaType: prep.mediaType, file: prep.file, meta: fr });
+        });
+        _innesto.filesRead = _innesto.filesRead.concat((data.files || []).map(f => Object.assign({}, f, { index: f.index + offset })));
+        (data.evidence || []).forEach(e => {
+            const path = innestoEvPath(e.path);
+            if (!_innesto.evMap[path]) _innesto.evMap[path] = { quote: e.quote, page: e.page, file: e.file ? e.file + offset : null };
+        });
+        Object.keys(data.derived || {}).forEach(k => { if (!_innesto.derived[k]) _innesto.derived[k] = data.derived[k]; });
+        if (data.usage) {
+            _innesto.usage = data.usage;
+            const rate = INNESTO_RATES[data.usage.model] || INNESTO_RATES['claude-opus-5'];
+            _innesto.cost += ((data.usage.inputTokens || 0) * rate.in + (data.usage.outputTokens || 0) * rate.out
+                + (data.usage.cacheReadTokens || 0) * rate.cacheRead + (data.usage.cacheWriteTokens || 0) * rate.cacheWrite) / 1e6;
+        }
+        if (data.summary && !_innesto.summary) _innesto.summary = data.summary;
+        if (data.empty || !data.proposal || !Object.keys(data.proposal).length) {
+            toast('warning', 'Nessun dato riconosciuto', data.message || 'Prova ad aggiungere più contesto o un documento più leggibile');
+            _innesto.notes = (_innesto.notes || []).concat(data.notes || []);
+            // Una lettura vuota non butta via la proposta che l'operatore
+            // ha già davanti (e magari ha già corretto).
+        } else {
+            // IL FASCICOLO A PIÙ LETTURE: se una proposta è già aperta, la
+            // nuova lettura ne riempie i BUCHI (mergeProposal: un campo
+            // pieno — magari corretto a mano — non si tocca mai). Così il
+            // PDF del contratto + la foto del documento + due righe di
+            // WhatsApp diventano UNA proposta, senza ricominciare da capo.
+            const fresh = D.normalizeProposal(data.proposal);
+            const integrating = !!_innesto.proposal;
+            let next = integrating && D.mergeProposal ? D.mergeProposal(_innesto.proposal, fresh) : fresh;
+            if (D.deriveProposal) next = D.deriveProposal(next, { parseCadastral: F && F.parseCadastral });
+            Object.keys(next.derived || {}).forEach(k => { if (!_innesto.derived[k]) _innesto.derived[k] = next.derived[k]; });
+            delete next.derived;
+            _innesto.proposal = next;
+            _innesto.notes = integrating ? (_innesto.notes || []).concat(data.notes || []) : (data.notes || []);
+            _innesto.confidence = data.confidence;
+            if (!integrating) { _innesto.links = {}; _innesto.coLinks = {}; _innesto.diffs = {}; }
+            toast('success', integrating ? 'Proposta integrata' : 'Proposta pronta', 'Controlla i campi (e le citazioni) prima di confermare');
+        }
+        if (!data.empty) { _innesto.files = []; _innesto.text = ''; }   // il prossimo giro legge i PROSSIMI documenti; una lettura vuota li lascia lì per riprovare
+    }
+
+    // ── LA PORTA DAL TELEFONO: #innesto=<docId> ─────────────────────────
+    // Il worker dello Scrivano ha letto un documento archiviato e ha scritto
+    // la proposta in scrivanoProposals/<docId>; il link nella card Telegram
+    // apre QUI, con la proposta già seminata dallo stesso post-processing di
+    // una lettura dal portal. Il documento non viene ricaricato: alla conferma
+    // si lega a ciò che fa nascere. Il frammento sopravvive al giro di login
+    // (next = pathname + search + hash).
+    function innestoSeedFromHash() {
+        const m = /^#?innesto=([^&]+)/.exec(window.location.hash || '');
+        if (!m) return false;
+        let id = '';
+        try { id = decodeURIComponent(m[1]); } catch (_) { id = m[1]; }
+        id = String(id).replace(/[^\w.\-]+/g, '').slice(0, 120);
+        if (!id) return false;
+        if (_innesto.seedId !== id) { _innesto = innestoEmpty(); _innesto.seedId = id; }
+        return true;
+    }
+    async function innestoLoadSeed(id) {
+        try {
+            const snap = await db.collection('scrivanoProposals').doc(id).get();
+            const rec = snap.exists ? snap.data() : null;
+            if (!rec) throw new Error('Nessuna proposta per questo documento: il link è vecchio, oppure la lettura non è ancora partita.');
+            if (rec.status !== 'done') {
+                throw new Error(rec.status === 'failed'
+                    ? 'La lettura dal telefono non è riuscita: ' + (rec.detail || rec.error || 'errore') + ' — puoi rileggere il documento da qui.'
+                    : 'La lettura è ancora in corso (' + rec.status + '): riapri il link tra un minuto.');
+            }
+            const d = rec.document || {};
+            const prepared = [{ archived: { id: d.id || id, url: d.fileUrl || '', name: d.fileName || d.name || 'documento', mimeType: d.mimeType || '' } }];
+            _innesto.seedDoc = d;
+            innestoIngest(Object.assign({ ok: true }, rec), prepared);
+            _innesto.seedDone = true;
+        } catch (e) {
+            console.error('[Innesto] seed', e);
+            _innesto.seedError = e.message || String(e);
+        } finally {
+            _innesto.seedLoading = false;
+            renderPage();
+        }
+    }
+    function innestoSeedCard() {
+        if (!_innesto.seedId) return '';
+        if (_innesto.seedLoading) return `<div class="card" style="margin-bottom:16px;border-color:rgba(212,175,55,0.3)"><div style="font-size:13px;color:var(--gold)">📲 Carico la proposta letta dal telefono…</div></div>`;
+        if (_innesto.seedError) return `<div class="card" style="margin-bottom:16px;border-color:#FF6B35"><div style="font-size:12px;color:#FF6B35;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Proposta dal telefono</div><div style="font-size:13px;line-height:1.6">${esc(_innesto.seedError)}</div></div>`;
+        const d = _innesto.seedDoc || {};
+        return `<div class="card" style="margin-bottom:16px;border-color:rgba(212,175,55,0.3)"><div style="font-size:12.5px;line-height:1.6">📲 Proposta letta dal telefono da <b>${esc(d.name || d.fileName || _innesto.seedId)}</b>${d.fileUrl ? ` · <a href="${esc(d.fileUrl)}" target="_blank" rel="noopener" style="color:var(--gold)">apri il documento</a>` : ''}. Il file è già in archivio: alla conferma viene legato a ciò che nasce, non ricaricato.</div></div>`;
+    }
+
+    // Una modifica a mano: sezione piatta ('tenant'), annidata
+    // ('contract.studenti') o co-conduttore ('coTenants.0').
+    function innestoTarget(section) {
+        const p = _innesto.proposal; if (!p) return null;
+        const parts = String(section).split('.');
+        let t = p;
+        for (const part of parts) {
+            if (t == null) return null;
+            if (Array.isArray(t)) t = t[Number(part)];
+            else { if (t[part] == null && part === 'studenti') t[part] = {}; t = t[part]; }
+        }
+        return t && typeof t === 'object' ? t : null;
+    }
     function innestoEdit(section, key, value) {
-        if (!_innesto.proposal || !_innesto.proposal[section]) return;
-        const numeric = ['rent', 'sqm', 'rooms', 'bathrooms', 'deposit', 'depositMonths',
-                         'paymentDay', 'installmentMonths', 'accessoryCharges'];
-        _innesto.proposal[section][key] = numeric.indexOf(key) >= 0
-            ? (value === '' ? null : Number(value)) : value;
+        const t = innestoTarget(section); if (!t) return;
+        t[key] = INNESTO_NUMERIC.indexOf(key) >= 0 ? (value === '' ? null : Number(value)) : value;
+        if (section === 'contract' && key === 'type' && value === 'studenti' && !t.studenti) t.studenti = { corsoStudi: '', universita: '', universitaIndirizzo: '', tipoIscrizione: '', annoAccademico: '' };
         // Nessun renderPage(): riscrivere il DOM mentre si digita farebbe
         // perdere il cursore. La validazione si aggiorna al blur/azione.
     }
     function innestoLink(section, on, matchId) {
         _innesto.links[section] = on ? matchId : null;
+        renderPage();
+    }
+    function innestoLinkCo(i, on, matchId) {
+        _innesto.coLinks['coTenants.' + i] = on ? matchId : null;
+        renderPage();
+    }
+    function innestoRemoveCo(i) {
+        if (!_innesto.proposal || !_innesto.proposal.coTenants) return;
+        _innesto.proposal.coTenants.splice(i, 1);
+        if (!_innesto.proposal.coTenants.length) delete _innesto.proposal.coTenants;
+        _innesto.coLinks = {};
+        renderPage();
+    }
+    function innestoToggleDiff(section, key, on) {
+        _innesto.diffs[section] = _innesto.diffs[section] || {};
+        _innesto.diffs[section][key] = !!on;
         renderPage();
     }
 
@@ -28201,14 +29186,39 @@ IBAN: ${l.iban || '-'}`;
         renderPage();
     }
     function innestoReset() {
-        _innesto = { proposal: null, matches: null, notes: [], confidence: null, busy: false, file: null, links: {} };
+        clearInterval(_innestoTick); _innestoTick = null;
+        _innesto = innestoEmpty();
         renderPage();
     }
 
+    // Il patch scelto sul record esistente (fill di default, change solo se
+    // spuntato) — o niente, se la sezione è nuova o non è agganciata.
+    function innestoPatchFor(sectionKey, d, record, kind) {
+        const V = window.BOOM_DATAOPS;
+        const diff = V.diffRecord(kind, d, record);
+        const sel = _innesto.diffs[sectionKey] || {};
+        const patch = V.applyDiff(diff, sel);
+        const n = diff.rows.filter(r => sel[r.key] !== undefined ? !!sel[r.key] : r.action === 'fill').length;
+        return n ? { patch, n } : null;
+    }
+    // Un profilo users nei DUE schemi (sign + wizard), come magic-sign/submit:
+    // così Allegati, Scheda e RLI vedono l'identità raccolta dal documento.
+    function innestoUserDoc(d, role) {
+        return {
+            name: d.name || d.businessName || '', email: d.email || '', phone: d.phone || '', role: role,
+            codiceFiscale: d.codiceFiscale || '', cf: d.codiceFiscale || '',
+            address: d.address || '', birthDate: d.birthDate || '', dob: d.birthDate || '',
+            birthPlace: d.birthPlace || '', pob: d.birthPlace || '', nationality: d.nationality || '',
+            idDocType: d.docType || '', docType: d.docType || '', idDocNumber: d.docNum || '', docNum: d.docNum || '',
+            docIssuer: d.docIssuer || '', docIssueDate: d.docIssueDate || ''
+        };
+    }
+
     // Creazione nell'ordine delle dipendenze: proprietario → immobile →
-    // inquilino → contratto → rate. Ogni passo riusa lo stesso schema che
-    // usano le maschere del portale, così il dato importato è
-    // indistinguibile da quello inserito a mano.
+    // inquilino → co-conduttori → contratto → rate → scadenze → PDF →
+    // archivio dei documenti. Ogni passo riusa lo stesso schema che usano le
+    // maschere del portale (saveContract, saveUser), così il dato importato
+    // è indistinguibile da quello inserito a mano — token di firma compresi.
     async function innestoApply() {
         const V = window.BOOM_DATAOPS;
         const p = _innesto.proposal;
@@ -28217,103 +29227,163 @@ IBAN: ${l.iban || '-'}`;
         if (!val.ok) { toast('error', 'Ci sono errori da correggere'); return; }
         _innesto.busy = true; renderPage();
 
-        const created = [];
+        const created = [], updated = [];
+        const pools = innestoPools();
         try {
             const now = firebase.firestore.FieldValue.serverTimestamp();
+            const uuid = () => crypto.randomUUID ? crypto.randomUUID() : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+            const resolve = async (sectionKey, d, pool, kind, linksMap, create, label) => {
+                // Lo STESSO pool della card: con pool diversi la card diceva
+                // «verrà usato il record esistente» e l'apply ne creava un doppione.
+                const link = innestoLinkFor(sectionKey, d, pool, kind, linksMap);
+                if (link.record) {
+                    const rec = link.record;
+                    if (d) {
+                        const pf = innestoPatchFor(sectionKey, d, rec, kind === 'property' ? 'property' : 'person');
+                        if (pf) {
+                            const patch = Object.assign({}, pf.patch, { updatedAt: now, updatedBy: 'innesto' });
+                            await db.collection(rec._col || 'users').doc(rec.id).update(patch);
+                            Object.assign(rec, pf.patch);
+                            updated.push(label + ' (' + pf.n + (pf.n === 1 ? ' campo' : ' campi') + ')');
+                        }
+                    }
+                    return rec.id;
+                }
+                if (!d) return null;
+                const id = await create(d);
+                created.push(label);
+                return id;
+            };
 
             // 1 — Proprietario
-            let ownerId = _innesto.links.landlord || null;
-            if (p.landlord && !ownerId) {
-                // Lo STESSO pool della card (users + landlords): con pool
-                // diversi la card diceva «verrà usato il record esistente»
-                // e l'apply ne creava un doppione.
-                const pool = (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').concat(S.landlords || []);
-                const m = _innesto.links.landlord === null ? { match: null } : V.findMatch(p.landlord, pool, 'person');
-                if (m.match) ownerId = m.match.id;
-                else {
-                    const ref = await db.collection('users').add({
-                        name: p.landlord.name, email: p.landlord.email || '', phone: p.landlord.phone || '',
-                        codiceFiscale: p.landlord.codiceFiscale || '', iban: p.landlord.iban || '',
-                        address: p.landlord.address || '', birthDate: p.landlord.birthDate || '',
-                        birthPlace: p.landlord.birthPlace || '', role: 'landlord',
-                        source: 'innesto', createdAt: now
-                    });
-                    ownerId = ref.id;
-                    S.users.push({ id: ref.id, name: p.landlord.name, email: p.landlord.email || '', role: 'landlord' });
-                    created.push('proprietario');
-                }
-            }
+            let ownerId = await resolve('landlord', p.landlord, pools.landlord, 'person', _innesto.links, async (d) => {
+                const doc = Object.assign(innestoUserDoc(d, 'landlord'), {
+                    iban: d.iban || '', kind: d.kind || '', businessName: d.businessName || '', partitaIva: d.partitaIva || '',
+                    source: 'innesto', createdAt: now
+                });
+                const ref = await db.collection('users').add(doc);
+                S.users.push(Object.assign({ id: ref.id }, doc));
+                return ref.id;
+            }, 'proprietario');
 
             // 2 — Immobile. L'aggancio SCELTO (checkbox o fantasma) vince
             // sempre sul match riderivato — e vale anche quando la sezione
             // manca dalla proposta: è la via Via Simeto.
-            let propertyId = _innesto.links.property || null;
-            if (p.property && !propertyId) {
-                const m = _innesto.links.property === null ? { match: null } : V.findMatch(p.property, S.properties || [], 'property');
-                if (m.match) { propertyId = m.match.id; }
-                else {
-                    const ref = await db.collection('properties').add({
-                        name: p.property.name, address: p.property.address || '',
-                        ownerId: ownerId || '', rent: p.property.rent || 0,
-                        sqm: p.property.sqm || null, rooms: p.property.rooms || null,
-                        bathrooms: p.property.bathrooms || null, floor: p.property.floor || '',
-                        scala: p.property.scala || '', interno: p.property.interno || '',
-                        cadastralData: p.property.cadastralData || '', energyClass: p.property.energyClass || '',
-                        propertyType: p.property.propertyType || 'apartment',
-                        availabilityStatus: p.contract ? 'rented' : 'available',
-                        source: 'innesto', createdAt: now
-                    });
-                    propertyId = ref.id;
-                    S.properties.push({ id: ref.id, name: p.property.name, address: p.property.address || '', ownerId: ownerId || '', rent: p.property.rent || 0 });
-                    created.push('immobile');
-                }
-            }
+            let propertyId = await resolve('property', p.property, pools.property, 'property', _innesto.links, async (d) => {
+                const doc = {
+                    name: d.name || d.address, address: d.address || '', city: d.city || '',
+                    ownerId: ownerId || '', rent: d.rent || 0,
+                    sqm: d.sqm || null, rooms: d.rooms || null, bathrooms: d.bathrooms || null,
+                    floor: d.floor || '', scala: d.scala || '', interno: d.interno || '', unit: d.interno || '',
+                    accessories: d.accessories || '', furnished: d.furnished || '',
+                    sezione: d.sezione || '', foglio: d.foglio || '', particella: d.particella || '', sub: d.sub || '', categoria: d.categoria || '',
+                    renditaCatastale: d.renditaCatastale || null,
+                    cadastralData: d.cadastralData || '', energyClass: d.energyClass || '',
+                    tabelleMillesimali: d.tabelleMillesimali && Object.values(d.tabelleMillesimali).some(v => v != null && v !== '') ? d.tabelleMillesimali : null,
+                    propertyType: d.propertyType || 'apartment',
+                    availabilityStatus: p.contract ? 'rented' : 'available',
+                    source: 'innesto', createdAt: now
+                };
+                const ref = await db.collection('properties').add(doc);
+                S.properties.push(Object.assign({ id: ref.id }, doc));
+                return ref.id;
+            }, 'immobile');
 
             // 3 — Inquilino (profilo Firestore; l'account di accesso si crea
             //     dalla scheda utente quando serve davvero il portale)
-            let tenantId = _innesto.links.tenant || null;
-            if (p.tenant && !tenantId) {
-                const m = _innesto.links.tenant === null
-                    ? { match: null } : V.findMatch(p.tenant, (S.users || []).filter(u => u.role === 'tenant'), 'person');
-                if (m.match) tenantId = m.match.id;
-                else {
-                    const ref = await db.collection('users').add({
-                        name: p.tenant.name, email: p.tenant.email || '', phone: p.tenant.phone || '',
-                        codiceFiscale: p.tenant.codiceFiscale || '', address: p.tenant.address || '',
-                        birthDate: p.tenant.birthDate || '', birthPlace: p.tenant.birthPlace || '',
-                        nationality: p.tenant.nationality || '', role: 'tenant',
-                        source: 'innesto', createdAt: now
-                    });
-                    tenantId = ref.id;
-                    S.users.push({ id: ref.id, name: p.tenant.name, email: p.tenant.email || '', role: 'tenant' });
-                    created.push('inquilino');
-                }
+            const newTenant = async (d) => {
+                const doc = Object.assign(innestoUserDoc(d, 'tenant'), {
+                    permessoNumero: d.permessoNumero || '', permessoScadenza: d.permessoScadenza || '',
+                    source: 'innesto', createdAt: now
+                });
+                const ref = await db.collection('users').add(doc);
+                S.users.push(Object.assign({ id: ref.id }, doc));
+                return ref.id;
+            };
+            let tenantId = await resolve('tenant', p.tenant, pools.tenant, 'person', _innesto.links, newTenant, 'inquilino');
+
+            // 3b — Co-conduttori: ognuno un profilo (esistente o nuovo) e una
+            //      riga sul contratto con il SUO codice fiscale.
+            const coRows = [];
+            for (let i = 0; i < (p.coTenants || []).length; i++) {
+                const co = p.coTenants[i];
+                const id = await resolve('coTenants.' + i, co, pools.tenant, 'person', _innesto.coLinks, newTenant, 'co-conduttore ' + (i + 1));
+                coRows.push({
+                    userId: id || '', name: co.name || '', cf: (co.codiceFiscale || '').toUpperCase(), dob: co.birthDate || '',
+                    birthPlace: co.birthPlace || '', address: co.address || '', idDoc: co.docNum || '', docType: co.docType || '',
+                    nationality: co.nationality || '', email: co.email || '', phone: co.phone || '', tenantIndex: i + 1
+                });
             }
 
-            // 4 — Contratto + rate
+            // 4 — Contratto + rate (+ scadenze + PDF, come saveContract)
+            let contractId = null;
             if (p.contract && propertyId && tenantId) {
                 const c = p.contract;
                 const monthly = Number(c.rent) || 0;
                 const step = [1, 2, 3, 6, 12].indexOf(Number(c.installmentMonths)) >= 0 ? Number(c.installmentMonths) : 1;
+                const mb = monthsBetween(c.startDate, c.endDate);
+                // I mesi di LOCAZIONE (01/09 → 31/08 = 12), gli stessi che il
+                // piano rate conta: monthsBetween li vede come 11 mesi e 30 giorni.
+                const leaseMonths = V.monthsSpan(c.startDate, c.endDate) || Number(c.durationMonths) || 12;
+                const t = p.tenant || {}, l = p.landlord || {}, pr = p.property || {};
+                const landlordRec = ownerId ? pools.landlord.find(x => x.id === ownerId) : null;
                 const contractData = {
                     propertyId, tenantId, type: c.type || 'transitorio',
                     startDate: c.startDate, endDate: c.endDate,
                     rent: monthly, deposit: Number(c.deposit) || 0,
                     depositMonths: Number(c.depositMonths) || 0,
                     accessoryCharges: Number(c.accessoryCharges) || 0,
-                    paymentMethod: 'bonifico bancario',
+                    paymentMethod: c.paymentMethod || 'bonifico bancario',
                     paymentDay: Number(c.paymentDay) || 5,
                     installmentMonths: step,
                     installmentAmount: Math.round(monthly * step * 100) / 100,
+                    canone: {
+                        monthly, total: monthly * leaseMonths, installments: leaseMonths,
+                        paymentDay: Number(c.paymentDay) || 5, paymentMethod: c.paymentMethod || 'bonifico bancario',
+                        cedolareSecca: (c.cedolareSecca || 'si') !== 'no', oneriMode: 'tabella_allegato_d'
+                    },
+                    durata: { text: mb.text, startDate: c.startDate, endDate: c.endDate },
                     cedolareSecca: c.cedolareSecca || 'si',
+                    condoMode: c.condoMode || '',
                     transitionalReason: c.transitionalReason || '',
-                    notes: (c.notes ? c.notes + ' · ' : '') + 'Importato con Innesto',
+                    transitionalDocs: c.transitionalDocs || '',
+                    esigenzaDi: c.esigenzaDi || '',
+                    studenti: c.type === 'studenti' && c.studenti ? {
+                        corsoStudi: c.studenti.corsoStudi || '', universita: c.studenti.universita || '',
+                        universitaIndirizzo: c.studenti.universitaIndirizzo || '', tipoIscrizione: c.studenti.tipoIscrizione || '',
+                        annoAccademico: c.studenti.annoAccademico || ''
+                    } : null,
+                    universityName: c.type === 'studenti' && c.studenti ? (c.studenti.universita || '') : '',
+                    courseName: c.type === 'studenti' && c.studenti ? (c.studenti.corsoStudi || '') : '',
+                    cohabitants: c.cohabitants || '',
+                    otherClauses: c.otherClauses || '',
+                    istatPct: c.istatPct || '',
+                    signaturePlace: c.signaturePlace || '',
+                    cadastral: pr.cadastralData || '',
+                    energyClass: pr.energyClass || '',
+                    renditaCatastale: Number(pr.renditaCatastale) || 0,
+                    // Le parti, nello schema che il PDF e il dizionario leggono:
+                    // quello che il documento ha detto viaggia sul contratto.
+                    tenantName: t.name || '', tenantCF: (t.codiceFiscale || '').toUpperCase(), tenantDob: t.birthDate || '',
+                    tenantPob: t.birthPlace || '', tenantAddress: t.address || '', tenantDocType: t.docType || '',
+                    tenantDocNum: t.docNum || '', tenantDocIssuer: t.docIssuer || '', tenantDocIssueDate: t.docIssueDate || '',
+                    tenantNationality: t.nationality || '', tenantEmail: t.email || '', tenantPhone: t.phone || '',
+                    landlordName: l.name || (landlordRec && landlordRec.name) || '', landlordCF: (l.codiceFiscale || (landlordRec && landlordRec.codiceFiscale) || '').toUpperCase(),
+                    landlordDob: l.birthDate || '', landlordPob: l.birthPlace || '', landlordAddress: l.address || (landlordRec && landlordRec.address) || '',
+                    landlordDocType: l.docType || '', landlordDocNum: l.docNum || '', landlordKind: l.kind || '', landlordPIva: l.partitaIva || '',
+                    landlordIban: l.iban || (landlordRec && landlordRec.iban) || '', landlordEmail: l.email || (landlordRec && landlordRec.email) || '',
+                    coTenants: coRows,
+                    notes: (c.notes ? c.notes + ' · ' : '') + 'Importato con Innesto' + (c.signatureDate ? ' (firmato il ' + c.signatureDate + ')' : ''),
                     status: 'active', signatureStatus: 'none',
+                    tenantSignToken: uuid(), landlordSignToken: uuid(),
+                    requiresAsseverazione: true,
                     paymentsGenerated: false, welcomeEmailSent: false,
                     source: 'innesto', createdAt: now
                 };
                 if (ownerId) contractData.landlordId = ownerId;
+                Object.keys(contractData).forEach(k => { if (contractData[k] === '' && /^(landlordKind|landlordPIva|esigenzaDi|condoMode|istatPct|signaturePlace)$/.test(k)) delete contractData[k]; });
                 const ref = await db.collection('contracts').add(contractData);
+                contractId = ref.id;
                 S.contracts.push({ id: ref.id, ...contractData });
                 created.push('contratto');
 
@@ -28322,6 +29392,8 @@ IBAN: ${l.iban || '-'}`;
                     await db.collection('contracts').doc(ref.id).update({ paymentsGenerated: true }).catch(() => {});
                     if (n) created.push(n + ' rate');
                 } catch (e) { console.warn('[Innesto] piano rate non generato:', e); toast('warning', 'Contratto creato', 'Il piano rate va generato a mano'); }
+                try { await generateContractDeadlines(ref.id, contractData); } catch (e) { console.warn('[Innesto] scadenze non generate:', e); }
+                try { if (typeof generateContractPDF === 'function' && await generateContractPDF(ref.id)) created.push('PDF'); } catch (e) { console.warn('[Innesto] PDF non generato:', e); }
 
                 if (propertyId) {
                     await db.collection('properties').doc(propertyId)
@@ -28329,9 +29401,26 @@ IBAN: ${l.iban || '-'}`;
                 }
             }
 
-            await logActivity('innesto_import', 'system', { creati: created, confidence: _innesto.confidence });
+            // 5 — Il documento RESTA (STUDIO_SCRIVANO §4, passo 1): il file letto
+            //     si archivia in `documents` legato a ciò che ha fatto nascere,
+            //     e un documento d'identità finisce anche fra gli identityDocs
+            //     del contratto e della persona — dove la Scheda, il pack RLI e
+            //     la checklist del commercialista già guardano.
+            if (_innesto.archive && _innesto.readDocs.length) {
+                let n = 0;
+                for (const rd of _innesto.readDocs) {
+                    try {
+                        const url = await innestoArchiveDoc(rd, { contractId, propertyId, tenantId, ownerId, coRows, startDate: p.contract && p.contract.startDate });
+                        if (url) n++;
+                    } catch (e) { console.warn('[Innesto] archivio documento fallito:', e); }
+                }
+                if (n) created.push(n + (n === 1 ? ' documento archiviato' : ' documenti archiviati'));
+                else if (_innesto.readDocs.length) toast('warning', 'Documenti non archiviati', 'I record sono stati creati, ma i file letti non sono stati salvati: caricali da Documenti');
+            }
+
+            await logActivity('innesto_import', 'system', { creati: created, aggiornati: updated, confidence: _innesto.confidence, contractId });
             try { localStorage.removeItem('boom_data_cache'); } catch (e) {}
-            toast('success', 'Innesto completato', created.join(' · '));
+            toast('success', 'Innesto completato', created.concat(updated.map(u => 'aggiornato ' + u)).join(' · ') || 'nessun nuovo record');
             // Un contratto saltato non resta MAI muto: "Innesto completato"
             // senza questa riga era indistinguibile da un contratto creato.
             if (p.contract && (!propertyId || !tenantId)) {
@@ -28349,6 +29438,62 @@ IBAN: ${l.iban || '-'}`;
             toast('error', 'Creazione non riuscita', e.message + (created.length ? ' — già creati: ' + created.join(', ') : ''));
             _innesto.busy = false; renderPage();
         }
+    }
+
+    // Un documento letto → Storage (cartella dell'operatore, la stessa
+    // regola di saveDocWithAssignment) → `documents` con categoria e cartella
+    // dello Smistatore → identityDocs se è un documento d'identità.
+    async function innestoArchiveDoc(rd, ctx) {
+        const meta = rd.meta || {};
+        if (rd.archived) {
+            // GIÀ in archivio (lo Smistatore l'ha messo lì dalla porta del
+            // telefono): niente upload, niente secondo documento. Si lega a
+            // ciò che ha fatto nascere e, se è un documento d'identità, entra
+            // negli identityDocs come farebbe un file appena letto.
+            const a = rd.archived;
+            const party = meta.party === 'cotenant' ? 'tenant' : meta.party;
+            const userId = party === 'tenant' ? ctx.tenantId : party === 'landlord' ? ctx.ownerId : null;
+            const patch = { innestoAt: firebase.firestore.FieldValue.serverTimestamp(), innestoBy: S.profile.id };
+            if (ctx.contractId) patch.contractId = ctx.contractId;
+            if (ctx.propertyId) patch.propertyId = ctx.propertyId;
+            if (userId) patch.userId = userId;
+            if (a.id) await db.collection('documents').doc(a.id).update(patch).catch(() => {});
+            if (meta.kind === 'documento_identita' && party && a.url) {
+                const entry = { url: a.url, path: null, name: a.name || 'documento', contentType: a.mimeType || null, bytes: null, role: party, at: new Date().toISOString(), source: 'scrivano' };
+                if (meta.party === 'cotenant') entry.tenantIndex = 1;
+                const union = firebase.firestore.FieldValue.arrayUnion;
+                if (ctx.contractId) await db.collection('contracts').doc(ctx.contractId).update({ identityDocs: union(entry) }).catch(() => {});
+                if (userId) await db.collection('users').doc(userId).update({ identityDocs: union({ url: a.url, name: entry.name, at: entry.at }) }).catch(() => {});
+            }
+            return a.url;
+        }
+        const file = rd.file;
+        const safeName = String(file.name || 'documento').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80);
+        const path = 'documents/' + (S.profile.id || 'admin') + '/innesto/' + Date.now() + '_' + safeName;
+        const contentType = file.type && /^(image\/|application\/pdf)/.test(file.type) ? file.type : rd.mediaType;
+        const useBlob = contentType === file.type ? file : rd.blob;
+        const up = await storage.ref(path).put(useBlob, { contentType });
+        const url = await up.ref.getDownloadURL();
+        const party = meta.party === 'cotenant' ? 'tenant' : meta.party;
+        const userId = party === 'tenant' ? ctx.tenantId : party === 'landlord' ? ctx.ownerId : null;
+        const year = ctx.startDate ? parseInt(String(ctx.startDate).slice(0, 4), 10) : new Date().getFullYear();
+        const docEntry = {
+            name: meta.title || file.name, type: meta.docType || 'other',
+            category: meta.category || null, folder: meta.folder || null, fiscalYear: year || null,
+            userId: userId || S.profile.id, propertyId: ctx.propertyId || null, contractId: ctx.contractId || null,
+            shared: false, notes: meta.summary || '',
+            fileUrl: url, fileName: file.name, fileSize: useBlob.size, storagePath: path,
+            uploadedBy: S.profile.id, source: 'innesto', createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        await db.collection('documents').add(docEntry);
+        if (meta.kind === 'documento_identita' && party) {
+            const entry = { url, path, name: safeName, contentType, bytes: useBlob.size, role: party, at: new Date().toISOString(), source: 'innesto' };
+            if (meta.party === 'cotenant') entry.tenantIndex = 1;
+            const union = firebase.firestore.FieldValue.arrayUnion;
+            if (ctx.contractId) await db.collection('contracts').doc(ctx.contractId).update({ identityDocs: union(entry) }).catch(() => {});
+            if (userId) await db.collection('users').doc(userId).update({ identityDocs: union({ url, name: safeName, at: entry.at }) }).catch(() => {});
+        }
+        return url;
     }
 
     // ═══════════════════════════════════════════════════════════════════
