@@ -3,7 +3,7 @@
 // Cache-first for static assets (icons, manifest).
 // Skips Firebase / EmailJS / 3rd-party traffic entirely.
 
-const CACHE_VERSION = 'boom-v20';
+const CACHE_VERSION = 'boom-v21';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 // NB: portal.html NON è nel precache — il sito pubblico registra questo SW e
 // non deve scaricare 2.5MB di shell in background. Il portale entra in cache
@@ -142,6 +142,9 @@ self.addEventListener('fetch', (event) => {
             || url.pathname === '/css/portal-mobile.css'
             || url.pathname === '/js/portal-actions.js'
             || url.pathname === '/js/oggi-engine.js'
+            || url.pathname === '/js/segretaria-casi-engine.js'
+            || url.pathname === '/js/segretaria-proposta-engine.js'
+            || url.pathname === '/js/segretaria-esecuzione-engine.js'
             // il motore dell'Innesto/Bonifica è logica del portale: una copia
             // stantia farebbe divergere merge/validazioni dalla pagina che le usa
             || url.pathname === '/js/dataops-engine.js'
@@ -152,7 +155,8 @@ self.addEventListener('fetch', (event) => {
             || url.pathname === '/js/mandato-engine.js'
             || url.pathname === '/js/portal-desktop.js'
             || url.pathname === '/css/portal-desktop.css'
-            || url.pathname === '/css/portal-finish.css') ? url.pathname : null);
+            || url.pathname === '/css/portal-finish.css'
+            || url.pathname === '/css/segretaria.css') ? url.pathname : null);
     if (portalAsset) {
         // alwaysCache: la shell del portale si salva ANCHE se no-store —
         // è l'eccezione dichiarata, la sua copia è il fallback offline.
