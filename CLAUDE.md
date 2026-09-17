@@ -2686,8 +2686,11 @@ payments/contracts/properties/users: nessuna copia persistente. Include unità s
 depositi/altri addebiti sono separati. Le ricevute `paymentId`/`rent-receipt` restano consultabili dai canoni,
 ma non alimentano la vista fatture servizi e i compensi BOOM. Il riepilogo non somma più canoni e compensi;
 la classificazione fiscale resta invariata finché non è distinto il canone proprio da quello per terzi.
-aggiornamento server paginato, fallimento esplicito e timbro invalidato dal caricamento cache/core.
-Test: `rent` (anche mutazioni) e `rentadmin` (funzioni vere, filtri, link, export e refresh).
+Aggiornamento server paginato, fallimento esplicito e timbro invalidato dal caricamento cache/core.
+La prova caricata dal cliente resta consultabile prima dell’incasso manuale; la ricevuta usa gli ID diretti della rata prima del contratto.
+Le ricevute storiche senza rata sono in «Ricevute da collegare»: documento accessibile, nessuna associazione inventata né ricavo di servizio.
+Sollecito email, WhatsApp e colori degli importi restano nella lista; checkout distingue anche depositi e altri addebiti.
+Test: `rent` (anche mutazioni), `rentadmin` (funzioni vere, filtri, documenti, link, export e refresh) e `finish` (controlli e azioni effettivi).
 
 ### Link di pagamento Stripe (`/api/payments/link` + `link-for`)
 Aggiornamento 17/09: `paymentBlockReason` condiviso blocca pagato/annullato/SEPA o carta in corso/stato sconosciuto.
@@ -2698,8 +2701,8 @@ Test `paymentlinks` + `paymentlinkmutations`: handler veri e rete simulata, dife
 
 Il portale può incassare QUALSIASI rata o fattura con carta, mandando un
 link su WhatsApp. Il link **non è** una Checkout Session (quella scade in 30
-minuti, per scelta): è un URL stabile di BOOM che a ogni apertura crea una
-sessione fresca e ci reindirizza dentro — si manda oggi e si paga la
+minuti, per scelta): è un URL stabile di BOOM che riusa una sessione compatibile ancora aperta
+o ne crea una quando serve — si manda oggi e si paga la
 settimana prossima. Il token è **derivato** (`_token.js`, HMAC su
 `HOMIE_SECRET`), quindi ogni rata e ogni fattura già esistente ha da subito
 un link valido senza migrazioni, e ruotando il segreto si revocano tutti.

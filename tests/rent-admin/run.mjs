@@ -5,7 +5,7 @@ const require=createRequire(import.meta.url), {build}=require('./fixture.cjs'), 
 const {source,fragment,links,fixture}=build();
 const elements=new Map(), calls=[];
 const el=id=>{if(!elements.has(id))elements.set(id,{innerHTML:'',textContent:'',value:''});return elements.get(id)};
-const ctx=vm.createContext({S:structuredClone(fixture),window:{BOOM_RENT:R},document:{getElementById:el},Intl,Date,JSON,Number,String,Set,Promise,setTimeout,clearTimeout,console,
+const ctx=vm.createContext({S:structuredClone(fixture),window:{BOOM_RENT:R},document:{getElementById:el},Intl,Date,JSON,Number,String,Set,Promise,URL,setTimeout,clearTimeout,console,
  esc:v=>String(v??'').replaceAll('&','&amp;').replaceAll('<','&lt;').replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;'),fmtDate:v=>v||'Da verificare',
  toast:(...v)=>calls.push(['toast',...v]),isAdmin:()=>true,auth:{currentUser:{uid:'admin',getIdToken:async()=> 'synthetic'}},firebase:{firestore:{FieldPath:{documentId:()=> '__name__'}}},
  refreshPaymentsView:()=>{},confirm:()=>true,markPaymentPaid:async id=>calls.push(['mark',id]),fetch:async(url,options)=>{calls.push(['fetch',url,JSON.parse(options.body)]);return {ok:true,json:async()=>({ok:true,url:'https://example.invalid/pay'})}}});
@@ -69,4 +69,107 @@ const pdfText=[];ctx.COMPANY={legal:'Company example',website:'example.invalid'}
 ctx.window.jspdf={jsPDF:function(){return new Proxy({},{get:(_,key)=>key==='text'?(text)=>pdfText.push(text):()=>{}})}};
 run("_buildReceiptDoc({id:'receipt-example',amount:950.50,type:'deposit-balance'},null,null,null)");
 check('deposit receipt preserves cents numerically and in words without calling it rent',()=>{assert(pdfText.includes('EUR 950,50'));assert(pdfText.includes('(Euro words-950/50)'));assert(pdfText.includes('Pagamento del saldo deposito cauzionale.'));assert(!pdfText.some(t=>String(t).includes('canone di locazione')))});
+
+// A reported transfer must expose the uploaded proof before confirmation.
+ctx.S=structuredClone(fixture);ctx.S.clients=[];ctx.S.documents=[];ctx.S.profile={id:'admin'};
+run("paymentFilters.month='2026-09';paymentFilters.kind='all'");
+ctx.S.payments.find(p=>p.id==='p4').proofUrl='https://files.example.invalid/proof.pdf?token=a&mode=view';
+check('reported transfer exposes the existing proof without asserting paid',()=>{
+  const h=run("rentPaymentRow(rentOverview().payments.find(r=>r.id==='p4'))");
+  assert(h.includes('Prova pagamento'));assert(h.includes('https://files.example.invalid/proof.pdf?token=a&amp;mode=view'));
+  assert(h.includes('target="_blank" rel="noopener"'));assert(h.includes('Da verificare'));assert(!h.includes('Link pagamento'));
+});
+check('proof links reject executable, relative and unsupported URL schemes',()=>{
+  for(const proofUrl of ['javascript:alert(1)','data:text/html,<script>alert(1)</script>','//files.example.invalid/proof','ftp://files.example.invalid/proof','not a url']){
+    ctx.S.payments.find(p=>p.id==='p4').proofUrl=proofUrl;
+    assert(!run("rentPaymentRow(rentOverview().payments.find(r=>r.id==='p4'))").includes('Prova pagamento'));
+  }
+  assert.equal(run("rentSafeHttpUrl('http://files.example.invalid/proof.pdf')"),'http://files.example.invalid/proof.pdf');
+});
+
+// Use the real download/archive paths, capture only their local outputs.
+vm.runInContext(source.slice(source.indexOf('    function downloadPaymentReceipt('),source.indexOf('    function generateServiceContractPDF(')),ctx);
+const savedPDFs=[],archiveWrites=[],uploads=[];
+ctx.window.jspdf={jsPDF:function(){return new Proxy({},{get:(_,key)=>key==='text'?(text)=>pdfText.push(text):key==='save'?(name)=>savedPDFs.push(name):key==='output'?()=>({size:12}):()=>{}})}};
+const direct={id:'direct-paid',status:'paid',amount:900.50,month:'2026-09',paidDate:'2026-09-17',contractId:'c1',propertyId:'u2',tenantId:'t2'};
+ctx.S.payments.push(direct);pdfText.length=0;
+run("downloadPaymentReceipt('direct-paid')");
+check('downloaded receipt honors direct tenant/property IDs over an older contract',()=>{
+  assert(pdfText.includes('Inquilino B'));assert(pdfText.includes('Unità B · Trastevere'));
+  assert(!pdfText.includes('Inquilino A'));assert(!pdfText.includes('Unità A · Prati'));assert(savedPDFs.at(-1).includes('Trastevere'));
+});
+ctx.S.payments.push({...direct,id:'direct-no-contract',contractId:''});pdfText.length=0;
+run("downloadPaymentReceipt('direct-no-contract')");
+check('receipt retains known direct identities even when no contract is linked',()=>{
+  assert(pdfText.includes('Inquilino B'));assert(pdfText.includes('Unità B · Trastevere'));
+});
+ctx.S.payments.push({...direct,id:'direct-missing',propertyId:'missing-home',tenantId:'missing-tenant'});pdfText.length=0;
+run("downloadPaymentReceipt('direct-missing')");
+check('missing direct records never borrow the incompatible contract identities',()=>{
+  assert(!pdfText.includes('Inquilino A'));assert(!pdfText.includes('Unità A · Prati'));
+});
+ctx.storage={ref(path){return {async put(){uploads.push(path);return {ref:{getDownloadURL:async()=> 'https://files.example.invalid/archived.pdf'}}}}}};
+ctx.generateDocHash=async()=> 'synthetic-hash';ctx.logActivity=()=>{};
+ctx.firebase.firestore.FieldValue={serverTimestamp:()=> 'synthetic-time'};
+ctx.db={collection(name){return {async add(data){archiveWrites.push({name,data});return {id:'stored-'+name}},doc(id){return {update:async data=>archiveWrites.push({name,id,data})}}}}};
+await run("archivePaymentReceipt(S.payments.find(p=>p.id==='direct-paid'))");
+check('receipt archive uses the same direct identities and tenant folder as the PDF',()=>{
+  const saved=archiveWrites.find(w=>w.name==='documents').data;
+  assert.equal(saved.tenantId,'t2');assert.equal(saved.userId,'t2');assert.equal(saved.propertyId,'u2');assert.equal(saved.contractId,'c1');
+  assert(uploads[0].startsWith('documents/t2/archive/'));
+});
+const autoStart=source.indexOf('    async function autoInvoiceForPayment(');
+vm.runInContext(source.slice(autoStart,source.indexOf('    async function payWithStripe(',autoStart)),ctx);
+ctx.nextInvoiceNumber=()=> 'BOOM-SYNTHETIC';
+await run("autoInvoiceForPayment(S.payments.find(p=>p.id==='direct-paid'))");
+check('generated receipt record uses direct tenant/property IDs consistently',()=>{
+  const saved=archiveWrites.find(w=>w.name==='invoices').data;
+  assert.equal(saved.recipientId,'t2');assert.equal(saved.propertyId,'u2');assert.equal(saved.paymentId,'direct-paid');
+});
+ctx.S.payments.push({...direct,id:'deposit-receipt',type:'deposit-balance'});
+await run("autoInvoiceForPayment(S.payments.find(p=>p.id==='deposit-receipt'))");
+await run("archivePaymentReceipt(S.payments.find(p=>p.id==='deposit-receipt'))");
+check('deposit metadata and archive title describe the charge without calling it rent',()=>{
+  const invoice=archiveWrites.find(w=>w.name==='invoices'&&w.data.paymentId==='deposit-receipt').data;
+  const archived=archiveWrites.find(w=>w.name==='documents'&&w.data.paymentId==='deposit-receipt').data;
+  assert(invoice.service.includes('Saldo deposito cauzionale'));assert(invoice.description.includes('saldo deposito cauzionale'));assert(archived.name.includes('saldo deposito cauzionale'));
+  assert(!/canone/i.test(invoice.service+' '+invoice.description+' '+archived.name));
+  assert.equal(run("rentChargeLabel({type:'utilities'})"),'Altro addebito contrattuale');
+});
+
+// Legacy receipts remain accessible as original records, never new income or
+// fabricated proof of payment. Missing originals are explicitly disclosed.
+ctx.S=structuredClone(fixture);ctx.S.clients=[];
+ctx.S.invoices.push({id:'legacy-receipt',number:'LEGACY-1',service:'Canone locazione 2026-09',description:'Ricevuta canone di locazione · Roma · 2026-09',recipientName:'<img src=x onerror=alert(1)>',status:'paid',amount:321,fileUrl:'https://files.example.invalid/original.pdf'},
+  {id:'orphan-receipt',number:'LEGACY-2',documentType:'rent-receipt',paymentId:'missing-payment',status:'paid',amount:654,description:'Dati originali senza file'});
+const storedBefore=JSON.stringify(ctx.S),totalsBefore=JSON.stringify(run('rentOverview().totals'));
+check('unlinked legacy receipts have a separate visible archive outside all revenue totals',()=>{
+  const h=run('paymentsPage()');assert(h.includes('Ricevute da collegare · 2'));assert(h.includes('LEGACY-1'));assert(h.includes('LEGACY-2'));assert(h.includes('Originale / PDF'));
+  assert(!h.includes('<img src=x'));assert.equal(run('boomBusinessInvoices().length'),1);assert.equal(JSON.stringify(run('rentOverview().totals')),totalsBefore);
+});
+run("viewRentReceiptDocument('legacy-receipt')");
+check('legacy receipt preview shows original stored fields safely without recording an incasso',()=>{
+  const h=el('modals').innerHTML;assert(h.includes('Documento storico · LEGACY-1'));assert(h.includes('&lt;img'));assert(h.includes('original.pdf'));
+  assert(!h.includes('markInvoicePaid'));assert(!h.includes('Registra incasso'));assert(!h.includes('downloadPaymentReceipt'));
+});
+ctx.boomOpen=url=>calls.push(['original',url]);run("downloadInvoicePDF('legacy-receipt')");
+check('legacy receipt PDF action opens its original file without regenerating an invoice',()=>{
+  assert(calls.some(c=>c[0]==='original'&&c[1]==='https://files.example.invalid/original.pdf'));
+});
+run("downloadInvoicePDF('orphan-receipt')");
+check('missing original PDF opens a truthful read-only preview instead of hiding the receipt',()=>{
+  const h=el('modals').innerHTML;assert(h.includes('Documento storico · LEGACY-2'));assert(h.includes('Nessun file originale allegato'));assert(h.includes('Dati originali senza file'));
+  assert(!h.includes('Originale / PDF'));assert.equal(JSON.stringify(ctx.S),storedBefore);
+});
+ctx.S.invoices.find(i=>i.id==='orphan-receipt').pdfUrl='javascript:alert(1)';run("viewRentReceiptDocument('orphan-receipt')");
+check('archived document URLs receive the same http(s) safety check as tenant proofs',()=>{
+  assert(!el('modals').innerHTML.includes('javascript:'));assert(!el('modals').innerHTML.includes('Originale / PDF'));
+});
+run('applyPaymentFilters()');
+check('unlinked archive has an always-present container refreshed with the live payment view',()=>{
+  assert(run('paymentsPage()').includes('id="rentUnlinkedReceipts"'));assert(el('rentUnlinkedReceipts').innerHTML.includes('LEGACY-2'));
+  ctx.S.payments.push({id:'missing-payment',amount:654,status:'paid',month:'2026-09'});run('applyPaymentFilters()');
+  assert(!el('rentUnlinkedReceipts').innerHTML.includes('LEGACY-2'));assert(el('rentUnlinkedReceipts').innerHTML.includes('LEGACY-1'));
+  assert.equal(ctx.S.invoices.find(i=>i.id==='orphan-receipt').paymentId,'missing-payment');
+});
 console.log(`${count} admin rent checks passed in total.`);
