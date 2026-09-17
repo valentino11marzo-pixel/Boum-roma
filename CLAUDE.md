@@ -1469,6 +1469,11 @@ and skip the pitch entirely for a product already bought (`leads` lookup,
 one query per run).
 
 ### Tenant lifecycle — La tua casa BOOM + Canone via BOOM + journey + Fascicolo ARPE
+- **UX pagante, chiarimento 17/09:** una rata, scelta Carta/wallet o Bonifico e solo il pannello del metodo scelto; l'addebito automatico è in un dettaglio secondario. Totali stabili, periodo e importi nella lingua scelta.
+  Commissione e totale carta sono stime dichiarate; l'importo esatto appare su Stripe prima della conferma. Il dock porta alla scheda con «Vedi pagamento».
+  Cambiare metodo aggiorna solo i due pannelli, preservando bozze e sezioni aperte. Stati dal server e veti contro il secondo pagamento rimangono invariati.
+  Bonifico con beneficiario e IBAN configurati; causale del tipo effettivo, errore visibile se mancano dati o riferimento, nessun «Copiato» se gli appunti rifiutano. Il recupero cancella l'errore precedente.
+  Prove `tenantpayments`: controller reale, scelta locale, costi, accessibilità dei pannelli, errori/riprova, bozze preservate e guardie.
 - **Pagamenti /casa, 17/09:** `?paid` non promuove più una rata a pagata: soltanto snapshot `source:'server'`.
   Refresh limitato a cinque tentativi, attesa/errore/riprova visibili; `sdd=ok` attende il contratto verificato.
   `BOOM_RENT` impedisce carta/bonifico/dock su addebiti in corso, segnalati o ritorni da verificare.
@@ -2685,7 +2690,10 @@ max_tokens 500. CORS: boomrome.com + *.vercel.app previews. Returns `{ text }`.
 payments/contracts/properties/users: nessuna copia persistente. Include unità senza rate e collegamenti mancanti;
 depositi/altri addebiti sono separati. Le ricevute `paymentId`/`rent-receipt` restano consultabili dai canoni,
 ma non alimentano la vista fatture servizi e i compensi BOOM. Il riepilogo non somma più canoni e compensi;
-la classificazione fiscale resta invariata finché non è distinto il canone proprio da quello per terzi.
+Valentino ha confermato: BOOM è solo agenzia, senza subaffitto. I canoni e le cauzioni sono somme per proprietari.
+Anche i quattro riepiloghi aziendali del portale e gli input ricavi di `contabile`/`scadenzario` escludono le ricevute tramite `businessInvoices`; formule fiscali e scadenze dei proprietari non cambiano.
+`agencyCollections` nel motore puro distingue capitale per terzi, addebiti da classificare e commissioni realmente registrate. Costi mancanti espliciti; nessuna commissione ricostruita o aggiunta due volte alle fatture.
+Prove `agencyaccounting` sugli handler reali, due mutazioni, più `rent`/`rentadmin`; anno determinato dalla data civile di Roma. Nessuna riclassificazione scritta sui record storici.
 Aggiornamento server paginato, fallimento esplicito e timbro invalidato dal caricamento cache/core.
 La prova caricata dal cliente resta consultabile prima dell’incasso manuale; la ricevuta usa gli ID diretti della rata prima del contratto.
 Le ricevute storiche senza rata sono in «Ricevute da collegare»: documento accessibile, nessuna associazione inventata né ricavo di servizio.
@@ -2697,7 +2705,9 @@ Aggiornamento 17/09: `paymentBlockReason` condiviso blocca pagato/annullato/SEPA
 `_checkout.js` riusa una sessione aperta della stessa rata/fattura; un completamento attende il webhook.
 Il ritorno dal link pubblico è solo lettura e non crea una nuova sessione. Commissione del link = quella
 misurata del portale. Nessuna garanzia di serializzazione universale fra richieste concorrenti o collector SEPA.
-Test `paymentlinks` + `paymentlinkmutations`: handler veri e rete simulata, difetti ripristinati devono fallire.
+Le pagine del link mostrano tipo, periodo, scadenza e importo salvati; una sola azione coerente con lo stato (ricevuta, verifica o ripresa).
+Nessun contesto non verificato, link ricevuta solo HTTPS, nessun auto-refresh o nuova sessione nei ritorni.
+Test `paymentlinks` + `paymentlinkmutations`: handler veri e rete simulata, contesto e azioni verificati, difetti ripristinati devono fallire.
 
 Il portale può incassare QUALSIASI rata o fattura con carta, mandando un
 link su WhatsApp. Il link **non è** una Checkout Session (quella scade in 30

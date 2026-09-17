@@ -172,4 +172,52 @@ check('unlinked archive has an always-present container refreshed with the live 
   assert(!el('rentUnlinkedReceipts').innerHTML.includes('LEGACY-2'));assert(el('rentUnlinkedReceipts').innerHTML.includes('LEGACY-1'));
   assert.equal(ctx.S.invoices.find(i=>i.id==='orphan-receipt').paymentId,'missing-payment');
 });
+
+// BOOM is an agency, not a subletter: company fiscal/reporting inputs cannot
+// turn a landlord's principal or a refundable deposit into BOOM revenue.
+const agencyStart=source.indexOf('    function egidiPaymentBreakdown(');
+vm.runInContext(source.slice(agencyStart,source.indexOf('    function commercialistaLandlordLite(',agencyStart)),ctx);
+const fiscalInputs=[];
+ctx._cmState={year:2026};ctx.fiscalScadenzarioCard=()=>'<div class="card"></div>';
+ctx.window.BOOM_FISCAL={fmtEuro:n=>'EUR'+n,companyObligations(year,quarters){fiscalInputs.push({year,quarters:{...quarters}});return []},rollup:()=>({totalDue:0,counts:{}})};
+ctx.S={...structuredClone(fixture),pfsClients:[],deadlines:[],contracts:[],invoices:[
+  {id:'service-paid',service:'Gestione immobiliare',date:'2026-09-01',amount:100,status:'paid'},
+  {id:'service-pending',service:'Consulenza',date:'2026-09-02',amount:25,status:'pending'},
+  {id:'owner-rent',paymentId:'rent',service:'Canone locazione',date:'2026-09-01',amount:50000,status:'paid'},
+  {id:'refundable-deposit',documentType:'deposit-receipt',service:'Deposito',date:'2026-09-01',amount:15000,status:'paid'},
+  {id:'receipt-pending',paymentId:'some-payment',service:'PFS',date:'2026-09-02',amount:350,status:'pending'}
+],payments:[
+  {id:'paid-rent',status:'paid',amount:1000,paidDate:'2026-09-01',paidVia:'stripe',serviceFeeEur:25,stripeCostEur:20},
+  {id:'paid-deposit',type:'deposit-balance',status:'paid',amount:2000,paidDate:'2026-09-02',paidVia:'stripe',serviceFeeEur:50,stripeCostEur:64},
+  {id:'paid-sepa',status:'paid',amount:900,paidDate:'2026-09-03',paidVia:'sepa',serviceFeeEur:4,stripeCostEur:null},
+  {id:'other-charge',type:'utilities',status:'paid',amount:40,paidDate:'2026-09-04'},
+  {id:'unknown-fee',status:'paid',amount:100,paidDate:'2026-09-05',paidVia:'stripe',serviceFeeEur:'not-recorded'},
+  {id:'pending-rent',status:'pending',amount:2000,paidDate:'2026-09-01',paidVia:'sepa',sddFeeEur:100,serviceFeeEur:100,stripeCostEur:0},
+  {id:'prior-year',status:'paid',amount:2000,paidDate:'2025-09-01',paidVia:'stripe',serviceFeeEur:99,stripeCostEur:0}
+]};
+const agencyBefore=JSON.stringify(ctx.S),agencyHTML=run('commercialistaEgidiView()');
+check('company fiscal totals contain service invoices, never owner-rent or deposit receipts',()=>{
+  assert(fiscalInputs.length>0);for(const input of fiscalInputs)assert.deepEqual(input.quarters,{1:0,2:0,3:125,4:0});
+  assert(agencyHTML.includes('Compensi BOOM 2026'));assert(agencyHTML.includes('Saldo gestionale prima dei costi'));
+});
+check('owner rent and refundable deposits stay separate from actual payment service fees',()=>{
+  const b=run('egidiPaymentBreakdown(2026)');
+  assert.equal(b.ownerRent,2000);assert.equal(b.deposits,2000);assert.equal(b.otherCharges,40);
+  assert.equal(b.fees,79);assert.equal(b.cardFees,75);assert.equal(b.sepaFees,4);
+  assert.equal(b.knownCosts,84);assert.equal(b.knownMargin,-9);
+});
+check('missing fee/cost and pending SDD attempts never invent earned fees or a full margin',()=>{
+  const b=run('egidiPaymentBreakdown(2026)');assert.equal(b.unknownFeeCount,1);assert.equal(b.unknownCostCount,1);
+  assert(agencyHTML.includes('Il costo manca su 1 incassi'));assert(agencyHTML.includes('1 pagamenti elettronici non hanno una commissione registrata'));
+  assert(agencyHTML.includes('non vengono sommate una seconda volta'));assert.equal(JSON.stringify(ctx.S),agencyBefore);
+});
+check('company collection advice and PFS reconciliation exclude receipt records',()=>{
+  assert(run('egidiAdviceBlock(2026,125,{1:0,2:0,3:125,4:0})').includes('1 fatture da incassare · EUR25'));
+  assert(!run('egidiReconcileBlock(2026)').includes('Fatture PFS non corrisposte'));
+});
+ctx.refresh=async()=>{};ctx.logActivity=()=>{};ctx.window.confirm=()=>true;
+await run("pushObligationsToDeadlines(2026,'company')");
+check('saved company deadline calculations use the same service-only invoice base',()=>{
+  assert.deepEqual(fiscalInputs.at(-1).quarters,{1:0,2:0,3:125,4:0});assert.equal(JSON.stringify(ctx.S),agencyBefore);
+});
 console.log(`${count} admin rent checks passed in total.`);

@@ -15,7 +15,7 @@ assert.ok(inline.includes(marker));
 const controller = inline.slice(0, inline.indexOf(marker));
 const bridge = `
 window.testTenant = { render:render, refresh:refreshPayments, confirm:confirmPaymentReturn,
-  retry:retryPayments, row:payRow, rows:historyRows, next:nextPending,
+  retry:retryPayments, row:payRow, rows:historyRows, next:nextPending, choose:selectPaymentMethod,
   returnState:paymentReturnState, notice:paymentNotice,
   set:function(o){
     if('payments' in o)PAYMENTS=o.payments;if('contract' in o)CONTRACT=o.contract;
@@ -34,11 +34,16 @@ todayISO='2026-09-17';
 })();`;
 const basePayment = { id:'rent-sep',contractId:'contract-test',tenantId:'tenant-test',month:'2026-09',dueDate:'2026-09-05',amount:900,status:'pending',type:'rent' };
 function payment(o={}){return {...basePayment,...o}}
-function element(id){return {id,innerHTML:'',textContent:'',style:{},disabled:false,classList:{add(){},remove(){},toggle(){}},querySelectorAll(){return []},addEventListener(){},getBoundingClientRect(){return {top:0}},scrollIntoView(){},getAttribute(){return null}}}
-async function flush(){for(let i=0;i<20;i++)await Promise.resolve()}
+function element(id){return {id,attrs:{},listeners:{},innerHTML:'',textContent:'',style:{},disabled:false,classList:{add(){},remove(){},toggle(){}},querySelectorAll(){return []},addEventListener(name,fn){this.listeners[name]=fn},focus(){this.focused=true},getBoundingClientRect(){return {top:0}},scrollIntoView(){},getAttribute(name){return this.attrs[name]??null},setAttribute(name,value){this.attrs[name]=String(value)}}}
+async function flush(){for(let i=0;i<20;i++)await Promise.resolve();await new Promise(resolve=>setImmediate(resolve));for(let i=0;i<10;i++)await Promise.resolve()}
 function fixture({query='',mutate,now}={}){
   let clock=0,sequence=0;
   const timers=new Map(),elements=new Map(),reads=[],requests=[],queues={payments:[],contracts:[]};
+  const scanChildren=value=>{for(const tag of value.matchAll(/<[^>]*\bid="([^"]+)"[^>]*>/g)){
+    const id=tag[1];if(!elements.has(id)){const el=element(id);let body='';Object.defineProperty(el,'innerHTML',{get(){return body},set(v){body=v;scanChildren(v)}});elements.set(id,el)}
+    elements.get(id).hidden=/\bhidden(?:\s|>)/.test(tag[0]);
+    elements.get(id).attrs=Object.fromEntries([...tag[0].matchAll(/([a-z-]+)="([^"]*)"/g)].map(m=>[m[1],m[2]]));
+  }};
   const fixed=new Set(['app','langBtn','footTm','payov','payAmt','paySub']);
   for(const id of fixed)elements.set(id,element(id));
   let refreshButtons=[];
@@ -46,7 +51,7 @@ function fixture({query='',mutate,now}={}){
   Object.defineProperty(app,'innerHTML',{get(){return markup},set(value){
     markup=value;
     for(const key of [...elements.keys()])if(!fixed.has(key))elements.delete(key);
-    for(const m of markup.matchAll(/\bid="([^"]+)"/g))if(!elements.has(m[1]))elements.set(m[1],element(m[1]));
+    scanChildren(markup);
     refreshButtons=[...markup.matchAll(/<button[^>]*data-refresh-payments[^>]*>/g)].map(m=>({...element(''),disabled:m[0].includes(' disabled')}));
   }});
   const timeout=(fn,ms)=>{const id=++sequence;timers.set(id,{fn,at:clock+ms,ms});return id};
@@ -103,7 +108,7 @@ await test('server paid snapshot confirms and displays receipt, leaving the next
   f.api.set({appReady:true});f.queues.payments.push([payment({status:'paid',paidVia:'stripe',paidDate:'2026-09-17',receiptUrl:'https://pay.stripe.com/synthetic-receipt'}),payment({id:'rent-oct',month:'2026-10',dueDate:'2026-10-05'})]);
   await f.api.confirm(0);
   assert.equal(f.api.returnState(),'confirmed');assert.match(f.markup,/Payment confirmed in your account/);
-  assert.match(f.markup,/synthetic-receipt/);assert.match(f.markup,/id="payBtn"/);assert.match(f.markup,/2026-10/);
+  assert.match(f.markup,/synthetic-receipt/);assert.match(f.markup,/id="payBtn"/);assert.match(f.markup,/October 2026/);
   assert.equal(f.reads[0].options.source,'server');
   assert.equal(f.api.state().checking,false);
 });
@@ -140,7 +145,8 @@ await test('persisted SDD/card processing and a reported transfer hide card, ban
 });
 await test('failed SDD restores card, Apple Pay, bank and dock; deposit balance remains payable',()=>{
   const f=fixture();let h=f.render([payment({sddPiId:'pi_synthetic',sddStatus:'failed'})],{payout:{iban:'SYNTHETIC',beneficiary:'Test'}});
-  assert.match(h,/id="payBtn"/);assert.match(h,/id="bfx"/);assert.match(h,/id="payDock"/);assert.match(h,/Apple Pay where available/);assert.match(h,/did not go through/);
+  assert.match(h,/id="payBtn"/);assert.equal(f.elements.get('payBankPanel').hidden,true);assert.match(h,/id="payDock"/);assert.match(h,/Apple Pay where available/);assert.match(h,/did not go through/);
+  f.elements.get('payMethodBank').onclick();assert.equal(f.elements.get('payBankPanel').hidden,false);assert.equal(f.elements.get('payCardPanel').hidden,true);f.elements.get('payMethodCard').onclick();assert.equal(f.elements.get('payCardPanel').hidden,false);
   h=f.render([payment({type:'deposit-balance',amount:450.5})]);assert.match(h,/Security deposit balance/);assert.match(h,/€450.50/);assert.match(h,/id="payBtn"/);
 });
 await test('cancelled/unknown amounts never produce a pay button or invented all-clear',()=>{
@@ -178,7 +184,7 @@ await test('large history is explicitly incomplete and admin reads remain contra
 });
 await test('an explicit other charge never acquires a rent label or a monthly-rent estimate',()=>{
   const f=fixture();const h=f.render([payment({type:'utilities',amount:85})],{contract:{id:'contract-test'}});
-  assert.match(h,/Other charge 2026-09/);assert.doesNotMatch(h,/Rent 2026-09/);assert.match(h,/data-roll="—"/);
+  assert.match(h,/Other charge September 2026/);assert.doesNotMatch(h,/Rent September 2026/);assert.match(h,/Monthly rent<\/div><div class="v"><span>—<\/span>/);
 });
 await test('ambiguous numeric formats cannot become a misleading next amount or a payment action',()=>{
   const f=fixture();const h=f.render([payment({amount:'1.200'})]);noPay(h);assert.equal(f.api.next(),null);assert.doesNotMatch(h,/€1.2|NaN|all clear/);
@@ -196,6 +202,79 @@ await test('payment_not_payable refreshes authoritative state instead of leaving
   const f=fixture();f.ctx.response={ok:false,error:'payment_not_payable'};f.render([payment()],{appReady:true});
   f.queues.payments.push([payment({status:'unknown'})]);f.elements.get('payBtn').onclick();await flush();
   assert.equal(f.api.state().load,'ready');assert.equal(f.api.state().payments[0].status,'unknown');noPay(f.markup);assert.match(f.markup,/To verify/);
+});
+await test('method choice reveals one payment path and never initiates a payment itself',()=>{
+  const f=fixture();f.render([payment()],{payout:{iban:'SYNTHETIC-IBAN',beneficiary:'Configured owner account'}});
+  assert.equal(f.elements.get('payMethodCard').getAttribute('aria-pressed'),'true');assert.equal(f.elements.get('payBankPanel').hidden,true);
+  f.elements.get('payMethodBank').onclick();assert.equal(f.elements.get('payMethodBank').getAttribute('aria-pressed'),'true');
+  assert.equal(f.elements.get('payBankPanel').hidden,false);assert.equal(f.elements.get('payCardPanel').hidden,true);f.elements.get('payBtn').onclick();assert.equal(f.requests.length,0);
+  assert.equal(f.elements.get('payMethodBank').focused,true);
+  f.elements.get('payMethodCard').onclick();assert.equal(f.elements.get('payCardPanel').hidden,false);assert.equal(f.elements.get('payBankPanel').hidden,true);
+});
+await test('method switching preserves other home drafts and the existing payment section',()=>{
+  const f=fixture();f.render([payment()],{payout:{iban:'SYNTHETIC',beneficiary:'Configured'}});
+  const draft=f.elements.get('mDesc'),card=f.elements.get('s-pay');draft.value='Unsaved maintenance details';
+  f.elements.get('payMethodBank').onclick();f.elements.get('payMethodCard').onclick();
+  assert.equal(f.elements.get('mDesc'),draft);assert.equal(draft.value,'Unsaved maintenance details');assert.equal(f.elements.get('s-pay'),card);
+});
+await test('principal, estimated fee and estimated total are explicit before the short action',()=>{
+  const f=fixture(),h=f.render([payment()]);
+  assert.match(h,/Instalment<\/dt><dd>€900/);assert.match(h,/Estimated card fee<\/dt><dd>€30/);
+  assert.match(h,/Estimated total<\/dt><dd>€930/);assert.match(h,/exact fee and total are shown in Stripe before you confirm/);
+  assert.match(h,/id="payBtn"[^>]*>Continue to payment/);assert.doesNotMatch(h,/max service fee|settle it now/);
+  assert.match(h,/<details class="pay-auto"><summary>Automatic payments for future rent/);
+  assert.match(h,/id="payDockBtn">View payment/);
+});
+await test('method choice survives language changes with correct Italian money formatting',()=>{
+  const f=fixture();f.render([payment({amount:1200.5})],{payout:{iban:'SYNTHETIC',beneficiary:'Configured'}});
+  f.elements.get('payMethodBank').onclick();f.api.set({lang:'it'});f.api.render();
+  assert.match(f.markup,/id="payMethodBank"[^>]*aria-pressed="true"/);assert.equal(f.elements.get('payCardPanel').hidden,true);
+  assert.match(f.markup,/€1.200,50/);assert.match(f.markup,/per conto del proprietario/);
+});
+await test('new instalment resets method and stale chooser cannot reopen processing paths',()=>{
+  const f=fixture();f.render([payment()]);const choose=f.elements.get('payMethodBank').onclick;choose();
+  f.render([payment({id:'other-rent'})]);assert.match(f.markup,/id="payMethodCard"[^>]*aria-pressed="true"/);
+  f.render([payment({status:'processing'})]);choose();noPay(f.markup);assert.doesNotMatch(f.markup,/id="payMethodBank"/);
+});
+await test('bank details require both configured beneficiary and IBAN without inventing either',()=>{
+  for(const payout of [null,{iban:'SYNTHETIC'},{beneficiary:'Configured'}]){
+    const f=fixture();f.render([payment()],{payout});f.elements.get('payMethodBank').onclick();
+    assert.match(f.markup,/Transfer details are not available/);assert.doesNotMatch(f.markup,/id="bfx"/);assert.equal(f.elements.get('payCardPanel').hidden,true);
+    assert.match(f.markup,/Need help with this payment/);
+  }
+});
+await test('bank reference keeps the matching token and the actual deposit type',async()=>{
+  const f=fixture();f.render([payment({type:'deposit-balance'})],{payout:{iban:'SYNTHETIC',beneficiary:'Actual configured beneficiary'}});
+  f.elements.get('payMethodBank').onclick();for(let i=0;i<10&&!f.elements.get('bfx').innerHTML;i++)await flush();
+  const bank=f.elements.get('bfx').innerHTML;assert.match(bank,/Actual configured beneficiary/);
+  assert.match(bank,/BOOM-[A-Z0-9]{6} saldo deposito cauzionale 2026-09/);assert.doesNotMatch(bank,/canone 2026-09/);
+});
+await test('clipboard denial is honest and successful retry clears the prior error',async()=>{
+  const f=fixture();f.ctx.navigator.clipboard={writeText(){return Promise.reject(new Error('denied'))}};
+  f.render([payment()],{payout:{iban:'SYNTHETIC',beneficiary:'Configured'}});f.elements.get('payMethodBank').onclick();
+  for(let i=0;i<10&&!f.elements.get('bfx').onclick;i++)await flush();
+  const button=element('copy-test');button.textContent='Copy';button.attrs['data-copy']='SYNTHETIC';
+  f.elements.get('bfx').onclick({target:{closest(){return button}}});await flush();
+  assert.equal(button.textContent,'Copy');assert.match(f.elements.get('bfFeedback').textContent,/Could not copy/);
+  f.ctx.navigator.clipboard.writeText=()=>Promise.resolve();f.elements.get('bfx').onclick({target:{closest(){return button}}});await flush();
+  assert.equal(f.elements.get('bfFeedback').textContent,'');assert.match(button.textContent,/Copied/);
+});
+await test('reference failure remains visible and does not leave a blank bank method',async()=>{
+  const f=fixture();f.ctx.crypto={subtle:{digest(){return Promise.reject(new Error('unavailable'))}}};
+  f.render([payment()],{payout:{iban:'SYNTHETIC',beneficiary:'Configured'}});f.elements.get('payMethodBank').onclick();await flush();
+  assert.match(f.elements.get('bfx').innerHTML,/could not prepare the transfer reference/);
+});
+await test('failed checkout keeps a clear error and a functional retry',async()=>{
+  const f=fixture();f.ctx.response={ok:false,error:'temporarily_unavailable'};f.render([payment()]);
+  f.elements.get('payBtn').onclick();await flush();assert.match(f.markup,/could not open the payment page/);
+  assert.match(f.markup,/id="payBtn"[^>]*>Try again/);
+  f.ctx.response={ok:true,checkoutUrl:'https://checkout.stripe.com/synthetic'};f.elements.get('payBtn').onclick();await flush();
+  assert.equal(f.requests.length,2);assert.equal(f.ctx.location.href,'https://checkout.stripe.com/synthetic');
+});
+await test('payment confirmation notice appears once in the payment card',()=>{
+  const f=fixture({query:'?paid=rent-sep'}),h=f.render([payment()],{checking:true});
+  const card=h.slice(h.indexOf('id="s-pay"'),h.indexOf('id="s-hist"'));
+  assert.equal((card.match(/role="status"/g)||[]).length,1);noPay(h);
 });
 await test('mutation: restoring optimistic ?paid status is caught by the rendering contract',()=>{
   const f=fixture({query:'?paid=rent-sep',mutate:s=>s.replace('function render(){',"function render(){ if(PAY_RETURN)PAYMENTS.forEach(function(p){if(p.id===PAY_RETURN)p.status='paid'});")});

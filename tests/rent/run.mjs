@@ -243,6 +243,35 @@ test('una fattura di servizio BOOM che menziona affitti resta un ricavo', () => 
   assert.deepEqual(R.businessInvoices([{ id: 'rent', paymentId: 'r1', amount: 1200 }, service, { id: 'dep', kind: 'deposit-receipt', amount: 2400 }]), [service]);
 });
 
+test('incassi agenzia: anno civile di Roma per istanti, Timestamp e date registrate', () => {
+  const instant = '2025-12-31T23:30:00Z';
+  const rows = freeze([
+    payment({ status:'paid', amount:100, paidAt:instant, serviceFeeEur:2, stripeCostEur:1 }),
+    payment({ status:'paid', amount:200, paidDate:{ seconds:Date.parse(instant)/1000 }, serviceFeeEur:2, stripeCostEur:1 }),
+    payment({ status:'paid', amount:300, paidDate:{ toDate:()=>new Date(instant) }, serviceFeeEur:2, stripeCostEur:1 }),
+    payment({ status:'paid', amount:400, paidDate:'2025-12-31', serviceFeeEur:2, stripeCostEur:1 }),
+    payment({ status:'paid', amount:999, paidDate:'2026-02-31', serviceFeeEur:99, stripeCostEur:0 })
+  ]);
+  assert.equal(R.agencyCollections(rows,2026).ownerRent,600);
+  assert.equal(R.agencyCollections(rows,2026).fees,6);
+  assert.equal(R.agencyCollections(rows,2025).ownerRent,400);
+  assert.equal(R.agencyCollections(rows,2026).knownMargin,3);
+});
+test('incassi agenzia: capitale, cauzione, compenso effettivo e costi restano distinti', () => {
+  const rows = freeze([
+    payment({ status:'paid', amount:'1000.50', paidDate:TODAY, paidVia:'stripe', serviceFeeEur:10, stripeCostEur:12 }),
+    payment({ status:'paid', type:'deposit-balance', amount:2000, paidDate:TODAY, paidVia:'sepa', serviceFeeEur:3 }),
+    payment({ status:'pending', amount:999, paidDate:TODAY, sddFeeEur:99, serviceFeeEur:99 }),
+    payment({ status:'paid', type:'utilities', amount:50, paidDate:TODAY, paidVia:'stripe' })
+  ]);
+  const before = JSON.stringify(rows), b = R.agencyCollections(rows,2026);
+  assert.equal(b.ownerRent,1000.5); assert.equal(b.deposits,2000); assert.equal(b.otherCharges,50);
+  assert.equal(b.fees,13); assert.equal(b.cardFees,10); assert.equal(b.sepaFees,3);
+  assert.equal(b.knownCosts,12); assert.equal(b.knownMargin,-2);
+  assert.equal(b.unknownFeeCount,1); assert.equal(b.unknownCostCount,1);
+  assert.equal(JSON.stringify(rows),before);
+});
+
 // Delicate invariants are exercised against purposeful mutations, not just
 // source-text assertions: restoring the defects must fail the same behavior.
 function mutant(from, to) {

@@ -203,5 +203,42 @@ for (const route of ['pay', 'link']) {
   }
 }
 
+// Recipient-facing status pages identify the authoritative document and
+// offer only the action appropriate to that state. URL text is not evidence.
+for (const [name, over, query, action] of [
+  ['paid', { status: 'paid', paidDate: '2026-09-15', receiptUrl: 'https://pay.stripe.com/receipts/context' }, {}, 'receipt'],
+  ['pending confirmation', {}, { return: 'success' }, 'refresh'],
+  ['SEPA processing', { sddPiId: 'pi_context', sddStatus: 'processing' }, {}, 'refresh'],
+  ['cancelled', { status: 'cancelled', receiptUrl: 'https://pay.stripe.com/receipts/stale' }, {}, 'none'],
+]) {
+  installment('context', { type: 'utilities', description: 'Conguaglio acqua', month: '2026-09', coversTo: '2026-10', amount: 120.50, ...over });
+  const sessionsBefore = stripe.calls.length, writesBefore = writes.length;
+  r = await call(link, get('context', { ...query, amount: '99999', month: '2030-01', type: 'rent' }));
+  check(`${name}: page identifies actual type, period and principal without trusting query parameters`,
+    r.code === 200 && r.body.includes('<h2>Addebito contrattuale</h2>') && r.body.includes('Conguaglio acqua') &&
+    r.body.includes('settembre 2026 – ottobre 2026') && r.body.includes('€120,50') &&
+    r.body.includes('Eventuali commissioni di pagamento sono separate.') && !r.body.includes('99999') && !r.body.includes('2030'));
+  const actions = [...r.body.matchAll(/<a class="action" href="([^"]+)">([^<]+)<\/a>/g)];
+  check(`${name}: primary action is ${action}`, action === 'none' ? actions.length === 0
+    : actions.length === 1 && (action === 'receipt'
+      ? actions[0][1] === 'https://pay.stripe.com/receipts/context' && actions[0][2] === 'Vedi la ricevuta'
+      : actions[0][1].endsWith('&amp;return=success') && actions[0][2] === 'Aggiorna lo stato'));
+  check(`${name}: status presentation has no financial side effects or automatic reload`,
+    stripe.calls.length === sessionsBefore && writes.length === writesBefore && !r.body.includes('<script') && !/http-equiv=["']refresh/i.test(r.body));
+}
+installment('missing-context', { amount: null, month: '', dueDate: '', status: 'processing' });
+r = await call(link, get('missing-context'));
+check('missing amount/period are explicitly unknown rather than invented zero or month',
+  r.body.includes('<dd>Non indicato</dd>') && r.body.includes('<strong>Da verificare</strong>') && !r.body.includes('€0,00'));
+
+store.set('invoices/escaped-context', { status: 'paid', amount: 500, number: '<img src=x onerror=alert(1)>',
+  service: '<script>alert(1)</script>', paidDate: '<img src=x onerror=alert(2)>', receiptUrl: 'javascript:alert(3)' });
+r = await call(link, get('escaped-context', {}, 'inv'));
+check('stored document context is escaped and unsafe receipt URL is never actionable',
+  r.body.includes('&lt;img src=x onerror=alert(1)&gt;') && r.body.includes('&lt;script&gt;alert(1)&lt;/script&gt;') &&
+  !r.body.includes('<img') && !r.body.includes('<script') && !r.body.includes('javascript:') && !r.body.includes('class="action"'));
+check('paid without available receipt offers assistance without pretending a download exists',
+  r.body.includes('Pagamento confermato') && r.body.includes('Puoi richiedere la ricevuta a BOOM.') && !r.body.includes('Vedi la ricevuta'));
+
 console.log(`\nPayment links safety: ${passed} passed, ${failed} failed`);
 process.exitCode = failed ? 1 : 0;

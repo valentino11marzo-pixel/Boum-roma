@@ -100,6 +100,33 @@
   }
   function businessInvoices(invoices) { return list(invoices).filter(function (i) { return !isRentReceipt(i); }); }
 
+  // BOOM acts as an agency: principal is separate from earned payment fees.
+  // Only recorded settled fees/costs are used; no historical split is inferred.
+  function agencyCollections(payments, year) {
+    var out = { ownerRent: 0, deposits: 0, otherCharges: 0, fees: 0, cardFees: 0, sepaFees: 0, knownCosts: 0, knownMargin: 0, unknownFeeCount: 0, unknownCostCount: 0 };
+    function add(name, value) { out[name] = round(out[name] + value); }
+    list(payments).forEach(function (p) {
+      if (paymentState(p) !== 'paid') return;
+      var raw = p.paidDate || p.paidAt;
+      // A date-only value is already a civil date. An instant is bucketed in
+      // Rome, including UTC timestamps in the last hour of December 31.
+      var recordedDay = day(typeof raw === 'string' && raw.includes('T') ? new Date(raw) : raw);
+      if (!recordedDay || recordedDay.slice(0, 4) !== String(Number(year))) return;
+      var principal = amount(p.amount), fee = amount(p.serviceFeeEur), type = key(p.type);
+      if (principal != null) add(isRentPayment(p) ? 'ownerRent' : ['deposit', 'deposit-balance'].includes(type) ? 'deposits' : 'otherCharges', principal);
+      // sddFeeEur belongs to an attempted charge; serviceFeeEur is recorded
+      // by the settled webhook for both card and SEPA.
+      if (fee == null) { if (['stripe', 'sepa'].includes(p.paidVia)) out.unknownFeeCount++; return; }
+      add('fees', fee);
+      if (p.paidVia === 'stripe') add('cardFees', fee);
+      if (p.paidVia === 'sepa') add('sepaFees', fee);
+      var cost = amount(p.stripeCostEur);
+      if (cost == null) { out.unknownCostCount++; return; }
+      add('knownCosts', cost); add('knownMargin', fee - cost);
+    });
+    return out;
+  }
+
   function emptyTotals() {
     return { count: 0, paid: 0, due: 0, overdue: 0, processing: 0, reported: 0, pending: 0, other: 0, otherCount: 0, unknownAmountCount: 0, unknownStateCount: 0 };
   }
@@ -209,7 +236,7 @@
     return { units: units, totals: summarize(visible), month: month, months: months, counts: counts, payments: visible };
   }
 
-  var API = { amount: amount, paymentBlockReason: paymentBlockReason, paymentState: paymentState, canPay: canPay, isRentPayment: isRentPayment, isRentReceipt: isRentReceipt, businessInvoices: businessInvoices, overview: overview };
+  var API = { amount: amount, paymentBlockReason: paymentBlockReason, paymentState: paymentState, canPay: canPay, isRentPayment: isRentPayment, isRentReceipt: isRentReceipt, businessInvoices: businessInvoices, agencyCollections: agencyCollections, overview: overview };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_RENT = API;
 })(typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : this);

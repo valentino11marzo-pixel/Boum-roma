@@ -4381,7 +4381,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     labels: months,
                     datasets: [
                         { label: 'BOOM Fees', data: boomRev, backgroundColor: 'rgba(212,175,55,0.7)', borderRadius: 4 },
-                        { label: 'Rent Collected', data: rentRev, backgroundColor: 'rgba(100,200,130,0.5)', borderRadius: 4 }
+                        { label: 'Canoni per proprietari', data: rentRev, backgroundColor: 'rgba(100,200,130,0.5)', borderRadius: 4 }
                     ]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#999', font: { size: 10 } } } }, scales: { x: { ticks: { color: '#888' }, grid: { display: false } }, y: { ticks: { color: '#888', callback: v => '€' + v }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
@@ -5593,7 +5593,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                                     <span style="font-weight:600;color:var(--gold)">€${yearRevenue.toLocaleString('it-IT')}</span>
                                 </div>
                                 <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-                                    <span style="font-size:12px;color:var(--text-muted)">Canoni incassati · storico</span>
+                                    <span style="font-size:12px;color:var(--text-muted)">Canoni dei proprietari · storico</span>
                                     <span style="font-weight:600;color:var(--green)">€${rentRevenue.toLocaleString('it-IT')}</span>
                                 </div>
                                 <div style="display:flex;justify-content:space-between;margin-bottom:4px">
@@ -11953,13 +11953,20 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ─── EGIDI (AZIENDA) — BOOM's own fiscality ─────────────────────────────
     // Company revenue (from invoices + paid PFS) → IVA trimestrale + corporate
     // deadlines, computed by the fiscal engine. Admin-only.
+    function egidiPaymentBreakdown(year) {
+        return window.BOOM_RENT.agencyCollections(S.payments || [], year);
+    }
+    function egidiAgencyFundsBlock(year) {
+        const b = egidiPaymentBreakdown(year), euro = window.BOOM_FISCAL.fmtEuro;
+        return `<div class="card" style="margin-bottom:20px"><div class="card-body"><h3>Gestione per conto dei proprietari · ${year}</h3><p class="rent-note">BOOM opera come agenzia. Canoni e depositi cauzionali dei clienti non sono compensi dell’azienda.</p><table style="width:100%;font-size:14px"><tbody><tr><td>Canoni dei proprietari registrati come pagati</td><td style="text-align:right">${euro(b.ownerRent)}</td></tr><tr><td>Depositi cauzionali registrati come pagati</td><td style="text-align:right">${euro(b.deposits)}</td></tr>${b.otherCharges ? `<tr><td>Altri addebiti da classificare</td><td style="text-align:right">${euro(b.otherCharges)}</td></tr>` : ''}</tbody></table><p class="rent-note">Il riepilogo descrive pagamenti registrati; non ricostruisce somme ancora detenute, riversamenti o restituzioni.</p><h3>Compensi sui pagamenti incassati</h3><table style="width:100%;font-size:14px"><tbody><tr><td>Commissioni di servizio registrate</td><td style="text-align:right">${euro(b.fees)}</td></tr><tr><td>Di cui carta / SEPA</td><td style="text-align:right">${euro(b.cardFees)} / ${euro(b.sepaFees)}</td></tr><tr><td>Costi del gestore di pagamento rilevati</td><td style="text-align:right">${euro(b.knownCosts)}</td></tr><tr><td>Residuo sui soli incassi con costo noto</td><td style="text-align:right">${euro(b.knownMargin)}</td></tr></tbody></table><p class="rent-note">Le commissioni sono mostrate separatamente dalle fatture: senza un collegamento contabile certo non vengono sommate una seconda volta ai ricavi o alla stima IVA.${b.unknownFeeCount ? ` ${b.unknownFeeCount} pagamenti elettronici non hanno una commissione registrata.` : ''}${b.unknownCostCount ? ` Il costo manca su ${b.unknownCostCount} incassi: il residuo è parziale.` : ''}</p></div></div>`;
+    }
     function commercialistaEgidiView() {
         const FX = window.BOOM_FISCAL;
         const year = _cmState.year || new Date().getFullYear();
         // Revenue by quarter from issued invoices (paid + pending) for the year.
         const revByQ = { 1: 0, 2: 0, 3: 0, 4: 0 };
         let totalRev = 0;
-        (S.invoices || []).forEach(inv => {
+        boomBusinessInvoices().forEach(inv => {
             const d = inv.date ? new Date(inv.date) : (inv.createdAt && inv.createdAt.toDate ? inv.createdAt.toDate() : null);
             if (!d || d.getFullYear() !== Number(year)) return;
             const q = Math.floor(d.getMonth() / 3) + 1;
@@ -11988,7 +11995,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const qCard = (q) => `<div class="stat-card"><div class="stat-label">Q${q} ${year}</div><div class="stat-value">${FX.fmtEuro(revByQ[q])}</div><div class="stat-description">IVA ~${FX.fmtEuro(Math.round(revByQ[q]*0.22))}</div></div>`;
 
         return `<div class="page-header">
-                <div><h1 class="page-title">🏢 Egidi Immobiliare — Fiscale</h1><p class="page-subtitle">Ricavi · IVA trimestrale · scadenze societarie · P.IVA 17322991005</p></div>
+                <div><h1 class="page-title">🏢 Egidi Immobiliare — Fiscale</h1><p class="page-subtitle">Compensi BOOM · IVA trimestrale · scadenze societarie · P.IVA 17322991005</p></div>
                 <div class="page-actions">
                     <button class="btn btn-secondary btn-sm" onclick="window._cmEgidi=false;renderPage()">← Proprietari</button>
                     <select class="form-select" style="width:auto" onchange="_cmState.year=parseInt(this.value);renderPage()">${yearOpts.join('')}</select>
@@ -11996,7 +12003,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
 
             <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
-                <div class="stat-card highlight"><div class="stat-label">Ricavi ${year}</div><div class="stat-value gold">${FX.fmtEuro(totalRev)}</div><div class="stat-description">fatture + PFS incassati</div></div>
+                <div class="stat-card highlight"><div class="stat-label">Compensi BOOM ${year}</div><div class="stat-value gold">${FX.fmtEuro(totalRev)}</div><div class="stat-description">fatture servizi + PFS incassati</div></div>
                 <div class="stat-card"><div class="stat-label">IVA stimata ${year}</div><div class="stat-value">${FX.fmtEuro(ivaTotal)}</div><div class="stat-description">22% sui ricavi imponibili</div></div>
                 <div class="stat-card ${roll.counts.overdue ? 'highlight' : ''}"><div class="stat-label">Scadute</div><div class="stat-value ${roll.counts.overdue ? '' : 'green'}">${roll.counts.overdue || 0}</div></div>
                 <div class="stat-card"><div class="stat-label">Entro 30 giorni</div><div class="stat-value">${roll.counts.dueSoon || 0}</div></div>
@@ -12008,6 +12015,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ${qCard(1)}${qCard(2)}${qCard(3)}${qCard(4)}
                 </div>
             </div>
+
+            ${egidiAgencyFundsBlock(year)}
 
             ${egidiPLBlock(year, totalRev)}
 
@@ -12026,14 +12035,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>` : ''}
 
             <div style="font-size:12px;color:var(--text-muted);margin-top:16px;padding:12px 16px;background:var(--bg-elevated);border-radius:8px">
-                I ricavi sono presi dalle fatture emesse (pagina Fatture) e dai compensi PFS incassati via Stripe. L'IVA è una stima al 22%: il calcolo definitivo (detraibile inclusa) resta al commercialista. Gli "estratti conto bancari" non sono in BOOM — questo è un riepilogo gestionale, non una contabilità sostitutiva.
+                I compensi sono presi dalle fatture servizi BOOM e dai compensi PFS incassati via Stripe. Le ricevute dei canoni e dei depositi per conto dei proprietari sono escluse. Le commissioni sui pagamenti sono mostrate a parte per la riconciliazione. L'IVA è una stima al 22%: il calcolo definitivo (detraibile inclusa) resta al commercialista. Gli "estratti conto bancari" non sono in BOOM — questo è un riepilogo gestionale, non una contabilità sostitutiva.
             </div>`;
     }
 
     // ─── Egidi · P&L semplificato ───────────────────────────────────────────
-    // Ricavi (fatture emesse + PFS Stripe incassati) vs costi (compensi
-    // gestione PAGATI ai landlord — tracciati come spese su contratti +
-    // costi tracciati su manutenzione/spese se presenti).
+    // Solo compensi dell'agenzia; canoni e cauzioni per terzi sono esclusi.
     function egidiPLBlock(year, totalRev) {
         // Costi gestionali: managementFee mensile per ogni contratto attivo nell'anno
         // (è un compenso CHE TU TRATTIENI dal canone — quindi ricavo TUO, non costo;
@@ -12055,9 +12062,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
             <div class="card-body">
                 <table style="width:100%;border-collapse:collapse;font-size:14px">
-                    <tr><td style="padding:8px 0;color:var(--text-muted)">Ricavi imponibili (fatture + PFS)</td><td style="text-align:right;font-weight:600">${FX.fmtEuro(totalRev)}</td></tr>
+                    <tr><td style="padding:8px 0;color:var(--text-muted)">Compensi BOOM (fatture servizi + PFS)</td><td style="text-align:right;font-weight:600">${FX.fmtEuro(totalRev)}</td></tr>
                     <tr><td style="padding:8px 0;color:var(--text-muted)">— Rimborsi PFS (no-match)</td><td style="text-align:right;color:var(--red)">${refundedPFS ? '−'+FX.fmtEuro(refundedPFS) : '—'}</td></tr>
-                    <tr style="border-top:1px solid var(--border)"><td style="padding:10px 0;font-weight:600">Margine netto BOOM</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:16px">${FX.fmtEuro(margin)}</td></tr>
+                    <tr style="border-top:1px solid var(--border)"><td style="padding:10px 0;font-weight:600">Saldo gestionale prima dei costi</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:16px">${FX.fmtEuro(margin)}</td></tr>
                 </table>
                 <div style="font-size:11px;color:var(--text-muted);margin-top:12px">I costi (commercialista, marketing, hosting, stipendi) non sono tracciati in BOOM. Tienili nel tuo gestionale contabile e chiedi al commercialista il risultato d'esercizio reale.</div>
             </div>
@@ -12074,7 +12081,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const d = c.paid_at ? new Date(c.paid_at) : null;
             return ok && d && d.getFullYear() === Number(year);
         });
-        const invoices = (S.invoices || []).filter(i => {
+        const invoices = boomBusinessInvoices().filter(i => {
             const d = i.date ? new Date(i.date) : null;
             return d && d.getFullYear() === Number(year);
         });
@@ -12128,7 +12135,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             advice.push({ icon: '📅', tone: 'gold', title: 'Ricavi concentrati in ' + qLabel, body: 'Più del 70% del fatturato è in un solo trimestre. Distribuire l\'emissione fatture aiuta cashflow e IVA trimestrale.' });
         }
         // 3. Fatture non pagate (di tutti i tempi)
-        const unpaid = (S.invoices || []).filter(i => i.status === 'pending' || (!i.status && !i.paidDate));
+        const unpaid = boomBusinessInvoices().filter(i => i.status === 'pending' || (!i.status && !i.paidDate));
         const unpaidAmount = unpaid.reduce((s, i) => s + (Number(i.amount) || 0), 0);
         if (unpaidAmount > 0) {
             advice.push({ icon: '💸', tone: 'gold', title: unpaid.length + ' fatture da incassare · ' + FX.fmtEuro(unpaidAmount), body: 'Hai crediti aperti per ' + FX.fmtEuro(unpaidAmount) + '. Manda solleciti dalla pagina Fatture.' });
@@ -12182,7 +12189,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         let obligations = [];
         if (party === 'company') {
             const revByQ = { 1:0, 2:0, 3:0, 4:0 };
-            (S.invoices || []).forEach(i => { const d = i.date ? new Date(i.date) : null; if (d && d.getFullYear() === Number(year)) revByQ[Math.floor(d.getMonth()/3)+1] += Number(i.amount)||0; });
+            boomBusinessInvoices().forEach(i => { const d = i.date ? new Date(i.date) : null; if (d && d.getFullYear() === Number(year)) revByQ[Math.floor(d.getMonth()/3)+1] += Number(i.amount)||0; });
             obligations = FX.companyObligations(year, revByQ);
         } else {
             // landlord: passed property+year via _cmState
