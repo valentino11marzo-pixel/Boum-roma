@@ -115,6 +115,8 @@ davanti**, dopo una settimana di card.
 
 ## 5 · I lotti: chi fa cosa, su quali file
 
+**Aggiornamento 14/09/2026 — mandato diretto di Valentino, acquisito da «BOOM · Sviluppo e integrazione».** Codex prende in carico il cuore non consegnato su `codex/segretaria-casi`: persona derivata, voce WhatsApp/email, impegno persistente e Oggi. I file del Lotto 1 restano l'ambito di regia Codex; `_facts`, politica unificata, handoff e mandato Receptionist non si dichiarano già consegnati. L'autore di #238 ha confermato il confine: Oggi (prima di `oggiPage` e dentro quella funzione), modulo, `portal.html` e asset cache a Codex; boot/hash e Innesto a Claude. Le righe seguenti conservano il piano originario; questa assegnazione lo aggiorna. Nessun deploy o invio implicito.
+
 | Lotto | Chi | Cosa | File posseduti | Fatto quando |
 |---|---|---|---|---|
 | **0** | Valentino, questa settimana | le leve già costruite: numero alla Receptionist, webhook `www` + secret, `/fiducia`, 🤖 sulle card | — | i quattro click |

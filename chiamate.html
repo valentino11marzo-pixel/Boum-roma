@@ -138,6 +138,23 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
   const TYPE_BADGE = { tenant: '🏠 Inquilino', landlord: '🔑 Proprietario', pfs: '🎯 Cliente PFS', client: '👤 Cliente', lead: '📇 Lead' };
   const ACT_LABEL = { whatsapp: '💬 Rispondi su WhatsApp', richiama: '📞 Da richiamare', visita: '📅 Vuole una visita', manutenzione: '🔧 Manutenzione', niente: '—' };
 
+  // Presentation only: an analysis suggestion establishes neither a caller's
+  // request nor a reachable recipient. Never guess a phone from the transcript.
+  function contactPresentation(call) {
+    const raw = typeof call.from === 'string' ? call.from.trim() : '';
+    const candidate = raw.replace(/[\s().-]/g, '');
+    const phone = /^\+?\d{7,15}$/.test(candidate) && /[1-9]/.test(candidate) ? candidate : null;
+    const needsPhone = ['richiama', 'whatsapp'].includes(call.suggestedAction);
+    const blocked = needsPhone && !phone;
+    return {
+      phone,
+      actionLabel: blocked
+        ? (call.suggestedAction === 'richiama' ? '📞 Richiamo da valutare · recapito mancante' : '💬 Risposta da valutare · recapito mancante')
+        : ACT_LABEL[call.suggestedAction] || '',
+      notice: blocked ? 'Recapito telefonico mancante o non utilizzabile. Verifica i dati della conversazione prima di ricontattare.' : '',
+    };
+  }
+
   let calls = [];
   let filter = 'open';
 
@@ -170,6 +187,7 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
 
     document.getElementById('list').innerHTML = rows.map((c) => {
       const st = effStatus(c);
+      const contact = contactPresentation(c);
       const cls = c.handled ? 'done' : (st === 'no-message' ? 'nomsg' : (c.leadCreated ? 'lead' : 'new'));
       const name = c.callerName || c.from || 'Numero nascosto';
       const badges = [];
@@ -179,15 +197,15 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
       else if (c.leadId) badges.push('<span class="badge green">↺ Lead aggiornato</span>');
       if (c.propertyTitle) badges.push('<span class="badge gold">🏡 ' + esc(c.propertyTitle) + '</span>');
       if (c.urgency === 'high') badges.push('<span class="badge red">⚡ urgente</span>');
-      if (c.suggestedAction && ACT_LABEL[c.suggestedAction] && st === 'received') badges.push('<span class="badge gold">' + ACT_LABEL[c.suggestedAction] + '</span>');
+      if (contact.actionLabel && st === 'received') badges.push('<span class="badge gold">' + esc(contact.actionLabel) + '</span>');
       if (st === 'no-message') badges.push('<span class="badge">☎️ riagganciata senza messaggio</span>');
       if (c.transcriptStatus && c.transcriptStatus !== 'ok' && st === 'received') badges.push('<span class="badge">🎧 solo audio (trascrizione ' + esc(c.transcriptStatus === 'unavailable' ? 'non configurata' : 'fallita') + ')</span>');
 
-      const digits = String(c.from || '').replace(/\D/g, '');
+      const digits = contact.phone ? contact.phone.replace(/\D/g, '') : '';
       const wa = digits ? 'https://wa.me/' + digits + (c.draftReply ? '?text=' + encodeURIComponent(c.draftReply) : '') : null;
       const acts = [];
       if (wa && st === 'received') acts.push('<a class="btn gold" target="_blank" rel="noopener" href="' + wa + '">💬 WhatsApp</a>');
-      if (c.from) acts.push('<a class="btn" href="tel:' + esc(c.from) + '">📞 Chiama</a>');
+      if (contact.phone) acts.push('<a class="btn" href="tel:' + esc(contact.phone) + '">📞 Chiama</a>');
       if (c.leadId) acts.push('<a class="btn quiet" href="/portal" title="Lead ' + esc(c.leadId) + '">→ Portal</a>');
       acts.push(c.handled
         ? '<span class="btn quiet" data-h="0" data-id="' + esc(c.id) + '">↩︎ Riapri</span>'
@@ -197,11 +215,12 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
         '<div class="chead"><span class="cname">' + esc(name) + '</span><span class="cwhen">' + esc(ago(c.createdAt)) + (c.durationSec ? ' · ' + c.durationSec + 's' : '') + '</span></div>' +
         (c.callerName && c.from && c.callerName !== c.from ? '<div class="cnote">' + esc(c.from) + '</div>' : '') +
         (badges.length ? '<div class="badges">' + badges.join('') + '</div>' : '') +
+        (contact.notice && st === 'received' ? '<div class="cnote" role="note">' + esc(contact.notice) + '</div>' : '') +
         (c.summary && st === 'received' ? '<div class="csum">🧠 ' + esc(c.summary) + '</div>' : '') +
         (c.audioUrl ? '<audio controls preload="none" src="' + esc(c.audioUrl) + '"></audio>'
           : (c.audioError && st === 'received' ? '<div class="cnote">⚠️ audio non recuperato (' + esc(c.audioError) + ')</div>' : '')) +
         (c.transcript ? '<details class="tr"><summary>Trascrizione</summary><blockquote>' + esc(c.transcript) + '</blockquote></details>' : '') +
-        (c.draftReply && st === 'received' && !c.handled ? '<details class="tr"><summary>Bozza risposta (' + esc(c.language || 'en') + ')</summary><blockquote>' + esc(c.draftReply) + '</blockquote></details>' : '') +
+        (c.draftReply && st === 'received' && !c.handled ? '<details class="tr"><summary>Bozza risposta' + (contact.phone ? '' : ' · recapito da verificare') + ' (' + esc(c.language || 'en') + ')</summary><blockquote>' + esc(c.draftReply) + '</blockquote></details>' : '') +
         '<div class="acts">' + acts.join('') + '</div>' +
         '</div>';
     }).join('') || '<div class="empty">' + (filter === 'open' ? 'Niente da gestire. 🎉' : 'Nessuna chiamata qui.') + '</div>';

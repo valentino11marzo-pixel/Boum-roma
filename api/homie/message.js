@@ -22,8 +22,9 @@
 //   assignedLandlordId?: string
 //   // ── message metadata ──
 //   messageId?:   string         (WhatsApp message id — idempotency key)
-//   timestamp?:   ISO string     (when the message was sent; default now)
+//   timestamp?:   ISO string     (required with timezone for backlog; otherwise default now)
 //   mediaUrls?:   string[]
+//   intakeMode?:  'backlog_review' (explicit silent intake; absence = normal)
 //   // ── optional analysis Homie attaches after reading ──
 //   analysis?: {
 //     summary?: string,          (what this thread is about / what's pending)
@@ -35,7 +36,11 @@
 //
 // Response: { ok, conversationId, messageId, created, dedupHit? }
 
-import { fsCreate, fsGet, fsPatch, fsList, logActivity, requireSecret, readJson } from './_lib.js';
+import crypto from 'node:crypto';
+import { fsCreate, fsGet, fsPatch, fsList, fsGetVersioned, fsCommit, logActivity, requireSecret, readJson } from './_lib.js';
+import { smistaDocument, MAX_DOC_BYTES } from '../documents/_smista.js';
+import { loadDocumentRelations, documentRelation } from '../documents/_relation.js';
+import { runBudget, aiSignal } from '../_budget.js';
 import {
   isNoise, matchListing, mergeMessage, buildLead, recentLeadByPhone, loadCatalog,
   normalizePhone, phoneVariants,
@@ -44,6 +49,7 @@ import {
 // traccia i lazy import — un modulo mancante in produzione è un turno perso).
 import SEG from '../../js/segretaria-engine.js';
 import { segretariaTurn, segretariaOffConv } from '../segretaria/_core.js';
+import { checkTimestamp, refreshTrackedFollowUp } from '../segretaria/_follow-up.js';
 
 // ── Pure helpers (mirror js/conversations.js so the id/phone logic matches) ──
 function convIdFor(contactType, contactId) {
@@ -81,6 +87,76 @@ async function resolveByPhone(phone) {
   return null;
 }
 
+async function repairStoredMessage(stored, documentBudget) {
+  const storedCid = stored.conversationId;
+  const backlogReview = stored.intakeMode === 'backlog_review';
+  let followUp = null;
+  if (stored.direction === 'in') {
+    try {
+      if (!/^[\w.-]{1,180}$/.test(String(storedCid || ''))) throw new Error('invalid_stored_conversation');
+      const conv = await fsGet('conversations/' + storedCid);
+      if (!conv) throw new Error('stored_conversation_missing');
+      const tracked = await refreshTrackedFollowUp({ cid: storedCid, conv,
+        text: stored.body, messageId: stored.waMessageId || stored.id, now: new Date(stored.at).getTime(),
+        receivedAt: stored.receivedAt ? new Date(stored.receivedAt).getTime() : new Date(stored.at).getTime(),
+        preserveNewer: backlogReview });
+      if (tracked) followUp = { id: tracked.id, tracked: true };
+      if (conv.followUpTrackingError) await fsPatch('conversations/' + storedCid, { followUpTrackingError: null });
+    } catch {
+      const error = 'Messaggio ricevuto; seguito non aggiornato. Verificare il caso in Oggi.';
+      followUp = { tracked: false, error };
+      if (/^[\w.-]{1,180}$/.test(String(storedCid || ''))) {
+        await fsPatch('conversations/' + storedCid, { ...(backlogReview ? {} : { needsReply: true }), followUpTrackingError: error }).catch(() => {});
+      }
+      console.warn('[homie/message] follow-up retry failed');
+    }
+  }
+  // Il testo è già salvo; un retry può recuperare un allegato fallito
+  // o rinviato per budget, usando gli URL persistiti, non nuovi input.
+  if (!backlogReview && stored.direction === 'in' && stored.channel === 'whatsapp' && stored.attachments?.length) {
+    try {
+      const originalContact = await fsGet('conversations/' + stored.conversationId);
+      await fileWhatsAppAttachments({ urls: stored.attachments, text: stored.body,
+        contactType: originalContact?.contactType || 'whatsapp',
+        contactId: originalContact?.contactId, entity: null, budget: documentBudget });
+    } catch { console.warn('[homie/message] attachments retry: failed'); }
+  }
+  return { ok: true, conversationId: storedCid, messageId: stored.id,
+    created: false, dedupHit: true, ...(followUp ? { followUp } : {}) };
+}
+
+// Only the explicit backlog path uses a conditional header + deterministic
+// message commit. Older archive rows cannot replace today's head or identity.
+async function storeBacklogMessage(cid, msg, header) {
+  const id = 'homie_' + crypto.createHash('sha256').update(msg.waMessageId).digest('hex').slice(0, 40);
+  const messagePath = 'messages/' + id;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const stored = await fsGet(messagePath);
+    if (stored) return { id, stored };
+    const snapshot = await fsGetVersioned('conversations/' + cid), current = snapshot?.data;
+    const incomingAt = msg.at.getTime(), currentAt = Date.parse(current?.lastMessageAt);
+    const canUpdate = !current?.lastMessageAt || (Number.isFinite(currentAt) && currentAt < incomingAt);
+    const fields = !current ? header : canUpdate ? {
+      channel: current.channel && current.channel !== msg.channel ? 'mixed' : msg.channel,
+      lastMessageAt: msg.at, lastMessagePreview: preview(msg.body), lastDirection: msg.direction,
+      lastSource: 'homie', updatedAt: msg.at,
+      ...(msg.direction === 'in' ? { unread: (Number(current.unread) || 0) + 1, needsReply: true }
+        : msg.direction === 'out' ? { unread: 0, needsReply: false } : {}),
+    } : null;
+    const persisted = current ? { ...msg, contactUid: current.contactUid || null,
+      assignedLandlordId: current.assignedLandlordId || null } : msg;
+    const writes = [{ docPath: messagePath, fields: persisted, precondition: { exists: false } }];
+    // Even when keeping the head, bind message access fields to this version.
+    writes.push({ docPath: 'conversations/' + cid, fields: fields || { lastMessageAt: current.lastMessageAt },
+      precondition: snapshot ? { updateTime: snapshot.updateTime } : { exists: false } });
+    try {
+      await fsCommit(writes);
+      return { id, created: !current, conversation: { ...current, ...fields } };
+    } catch (e) { if (!e?.conflict) throw e; }
+  }
+  throw new Error('backlog_changed_concurrently');
+}
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -93,8 +169,18 @@ export default async function handler(req, res) {
   try { body = await readJson(req); }
   catch { return res.status(400).json({ ok: false, error: 'invalid_json' }); }
   if (!body || typeof body !== 'object') return res.status(400).json({ ok: false, error: 'no_body' });
+  if (body.intakeMode !== undefined && body.intakeMode !== 'backlog_review')
+    return res.status(400).json({ ok: false, error: 'invalid_intake_mode' });
+  const backlogReview = body.intakeMode === 'backlog_review';
+  if (backlogReview && (typeof body.messageId !== 'string' || !body.messageId.trim() || body.messageId.length > 512))
+    return res.status(400).json({ ok: false, error: 'backlog_message_id_required' });
+  // An undated archive row must never acquire today's timestamp and replace
+  // the current conversation head. Normal intake retains its optional date.
+  if (backlogReview && !Number.isFinite(checkTimestamp(body.timestamp)))
+    return res.status(400).json({ ok: false, error: 'invalid_timestamp' });
 
   const direction = body.direction;
+  const documentBudget = runBudget(60_000, 6_000);
   const text = String(body.body || '').trim();
   const channel = body.channel || 'whatsapp';
   if (!['in', 'out', 'note'].includes(direction)) return res.status(400).json({ ok: false, error: 'invalid_direction' });
@@ -108,12 +194,14 @@ export default async function handler(req, res) {
   let contactEmail = body.email || '';
   let contactUid  = body.contactUid || null;
   let assignedLandlordId = body.assignedLandlordId || null;
+  let documentContact = null;
 
   if (!contactType || !contactId) {
     let resolved = null;
     if (contactPhone || body.phone) resolved = await resolveByPhone(body.phone || contactPhone);
     if (resolved) {
       const e = resolved.entity;
+      documentContact = e;
       contactType = resolved.contactType;
       contactId   = e.id;
       contactName = contactName || e.name || ((e.firstName ? (e.firstName + ' ' + (e.lastName || '')).trim() : '') ) || e.email || contactPhone;
@@ -134,22 +222,28 @@ export default async function handler(req, res) {
 
   const cid = convIdFor(contactType, contactId);
   const now = body.timestamp ? new Date(body.timestamp) : new Date();
-  const analysis = (body.analysis && typeof body.analysis === 'object') ? body.analysis : null;
+  const analysis = !backlogReview && (body.analysis && typeof body.analysis === 'object') ? body.analysis : null;
 
   // ── Idempotency: skip if we already logged this WhatsApp message id ─────
   if (body.messageId) {
     try {
       const dup = await fsList('messages', { filter: { field: 'waMessageId', op: 'EQUAL', value: String(body.messageId) }, limit: 1 });
       if (dup && dup.length) {
-        return res.status(200).json({ ok: true, conversationId: cid, messageId: dup[0].id, created: false, dedupHit: true });
+        // A retry can repair the secondary case after the primary message was
+        // stored. Its identity and words come only from that stored message.
+        // Keep errors inside this branch: falling through would append twice.
+        return res.status(200).json(await repairStoredMessage(dup[0], documentBudget));
       }
-    } catch { /* non-fatal — fall through and write */ }
+    } catch {
+      if (backlogReview) return res.status(503).json({ ok: false, error: 'backlog_dedup_unavailable' });
+      /* normal intake: preserve its existing best-effort fallback */
+    }
   }
 
   // ── Read current conversation (for unread math + create flag) ───────────
   let existing = null;
   try { existing = await fsGet('conversations/' + cid); } catch { /* treat as new */ }
-  const created = !existing;
+  let created = !existing;
   const prevUnread = existing && Number(existing.unread) ? Number(existing.unread) : 0;
 
   // ── Upsert the conversation header ──────────────────────────────────────
@@ -191,7 +285,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    await fsPatch('conversations/' + cid, header);
+    if (!backlogReview) await fsPatch('conversations/' + cid, header);
   } catch (e) {
     console.error('[homie/message] conversation upsert', e);
     return res.status(500).json({ ok: false, error: 'conversation_write_failed' });
@@ -208,14 +302,19 @@ export default async function handler(req, res) {
     contactUid: contactUid || null,
     assignedLandlordId: assignedLandlordId || null,
     at: now,
+    receivedAt: new Date(),
   };
   if (body.messageId) msg.waMessageId = String(body.messageId);
+  if (backlogReview) msg.intakeMode = 'backlog_review';
   if (Array.isArray(body.mediaUrls) && body.mediaUrls.length) msg.attachments = body.mediaUrls.slice(0, 10).map(String);
 
   let messageId;
+  let trackedConversation = null;
   try {
-    const r = await fsCreate('messages', msg);
+    const r = backlogReview ? await storeBacklogMessage(cid, msg, header) : await fsCreate('messages', msg);
+    if (r.stored) return res.status(200).json(await repairStoredMessage(r.stored, documentBudget));
     messageId = r.id;
+    if (backlogReview) { created = r.created; trackedConversation = r.conversation; }
   } catch (e) {
     console.error('[homie/message] message write', e);
     return res.status(500).json({ ok: false, error: 'message_write_failed' });
@@ -233,8 +332,30 @@ export default async function handler(req, res) {
   // → bozza del Commerciale. Nessuna AI in più rispetto a oggi, e una in
   // meno per messaggio sul Mac.
   let leadInfo = null;
-  try { leadInfo = await syncLead({ direction, text, contactType, contactId, contactPhone, contactName, cid, existing, now, messageId: body.messageId }); }
+  try { if (!backlogReview) leadInfo = await syncLead({ direction, text, contactType, contactId, contactPhone, contactName, cid, existing, now, messageId: body.messageId }); }
   catch (e) { console.warn('[homie/message] lead sync:', e.message); }
+
+  // The case remains followed when a person takes over the conversation.
+  // Explicit preparation rollout may enrol a new case; this never enables
+  // automatic replies. The primary message is already safely stored.
+  let followUp = null;
+  if (direction === 'in') {
+    try {
+      const tracked = await refreshTrackedFollowUp({ cid,
+        conv: trackedConversation || { ...existing, ...header, leadId: existing?.leadId || leadInfo?.leadId || null },
+        text, messageId: body.messageId || messageId, now: now.getTime(), receivedAt: msg.receivedAt.getTime(),
+        preserveNewer: backlogReview });
+      if (tracked) {
+        followUp = { id: tracked.id, tracked: true };
+        if (existing?.followUpTrackingError) await fsPatch('conversations/' + cid, { followUpTrackingError: null });
+      }
+    } catch {
+      const error = 'Messaggio ricevuto; seguito non aggiornato. Verificare il caso in Oggi.';
+      followUp = { tracked: false, error };
+      await fsPatch('conversations/' + cid, { ...(backlogReview ? {} : { needsReply: true }), followUpTrackingError: error }).catch(() => {});
+      console.warn('[homie/message] follow-up tracking failed');
+    }
+  }
 
   // ── LA SEGRETARIA (STUDIO_SEGRETARIA_2026-08.md) ────────────────────────
   // Su una conversazione CONSEGNATA (il 🤖 sulla card del lead): un inbound
@@ -245,7 +366,7 @@ export default async function handler(req, res) {
   // scritto sopra.
   let segretaria = null;
   try {
-    if (existing && existing.segretaria) {
+    if (!backlogReview && existing && existing.segretaria && !followUp?.error) {
       if (direction === 'out') {
         if (!SEG.isSegretariaEcho(existing, text, now.getTime())) {
           await segretariaOffConv(cid, 'l\'operatore ha risposto a mano');
@@ -260,7 +381,59 @@ export default async function handler(req, res) {
     }
   } catch (e) { console.warn('[homie/message] segretaria:', e.message); }
 
-  return res.status(200).json({ ok: true, conversationId: cid, messageId, created, ...(leadInfo || {}), ...(segretaria ? { segretaria } : {}) });
+  // Gli allegati sono secondari: messaggio, lead e turno sono già persistiti.
+  if (!backlogReview && direction === 'in' && channel === 'whatsapp' && msg.attachments?.length) {
+    try {
+      await fileWhatsAppAttachments({ urls: msg.attachments, text, contactType, contactId,
+        entity: documentContact, budget: documentBudget });
+    } catch { console.warn('[homie/message] attachments: failed'); }
+  }
+
+  return res.status(200).json({ ok: true, conversationId: cid, messageId, created, ...(leadInfo || {}), ...(segretaria ? { segretaria } : {}), ...(followUp ? { followUp } : {}) });
+}
+
+async function fileWhatsAppAttachments({ urls, text, contactType, contactId, entity, budget }) {
+  if (!budget.afford(45_000)) return; // download 5s + modello 20s + primo upload 20s
+  // Q3: gli allegati degli altri contatti restano nel messaggio. Nemmeno
+  // un indirizzo email dell'operatore trasforma WhatsApp in una porta libera.
+  if (!['tenant', 'landlord'].includes(contactType)) return;
+  const person = entity || await fsGet(`users/${contactId}`);
+  if (!person || person.role !== contactType) return;
+  const relation = documentRelation(await loadDocumentRelations(), {
+    email: person.email, contactType, contactId,
+  });
+  if (!relation) return;
+  for (const url of urls) {
+    if (!budget.afford(45_000)) break;
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== 'https:' || parsed.username || parsed.password) continue;
+      const docId = 'wa_' + crypto.createHash('sha1').update(url).digest('hex');
+      if (await fsGet('documents/' + docId)) continue;
+      const response = await fetch(url, { signal: aiSignal(5_000), redirect: 'error' });
+      if (!response.ok) throw new Error('attachment_download');
+      const mediaType = (response.headers.get('content-type') || '').split(';')[0].trim().toLowerCase();
+      if (!/^(application\/pdf|image\/(jpeg|png|webp|gif))$/.test(mediaType)
+        || Number(response.headers.get('content-length')) > MAX_DOC_BYTES) {
+        await response.body?.cancel();
+        continue;
+      }
+      // Il Content-Length può mancare o mentire: limite anche sullo stream.
+      const chunks = [];
+      let size = 0;
+      for await (const chunk of response.body) {
+        size += chunk.length;
+        if (size > MAX_DOC_BYTES) throw new Error('attachment_too_large');
+        chunks.push(Buffer.from(chunk));
+      }
+      if (!size || !budget.afford(40_000)) continue;
+      let fileName = parsed.pathname.split('/').pop() || 'allegato';
+      try { fileName = decodeURIComponent(fileName); } catch { /* nome grezzo: non perdere il documento */ }
+      await smistaDocument({ base64: Buffer.concat(chunks).toString('base64'), mediaType,
+        fileName,
+        hint: text, origin: 'whatsapp', docId, relation });
+    } catch { console.warn('[homie/message] attachment: failed'); }
+  }
 }
 
 /**
