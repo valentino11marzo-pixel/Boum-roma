@@ -19,7 +19,7 @@
 import Stripe from 'stripe';
 import { fsGet, fsPatch, logActivity } from '../homie/_lib.js';
 import { verifyPayToken, collectionFor } from './_token.js';
-import { rentFee } from './pay.js';
+import { rentFee, paymentLabel } from './pay.js';
 import RENT from '../../js/rent-engine.js';
 import { existingCheckout } from './_checkout.js';
 
@@ -137,16 +137,14 @@ export default async function handler(req, res) {
 
   const label = isInvoice
     ? `Fattura ${doc.number || ''}`.trim() + (doc.service ? ` — ${doc.service}` : '')
-    : doc.type === 'deposit-balance'
-      ? 'Saldo deposito cauzionale'
-      : `Canone di locazione — ${doc.month || String(doc.dueDate || '').slice(0, 7)}`;
+    : paymentLabel(doc);
 
   const lineItems = [{
     price_data: {
       currency: 'eur',
       product_data: {
         name: label.slice(0, 250),
-        description: (doc.description || 'BOOM Roma · pagamento tracciato, ricevuta automatica via email.').slice(0, 250),
+        description: String(doc.description || 'BOOM Roma · pagamento tracciato, ricevuta automatica via email.').slice(0, 250),
       },
       unit_amount: cents,
     },

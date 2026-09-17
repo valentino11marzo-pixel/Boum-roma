@@ -9,11 +9,16 @@
 //   · la riga ridisegnata che perde un handler o un data-attribute →
 //     filterContracts smette di filtrare, il layer mobile smette di
 //     trasformare, e sembrano bug di ALTRI file.
-// Qui ogni promessa è pinnata sul sorgente.
+// I canoni per unità hanno sostituito le vecchie righe e i sei chip:
+// qui eseguiamo il renderer e i suoi handler con gli stessi dati sintetici
+// della suite rent-admin. La copertura segue le azioni, non il vecchio HTML.
 
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createRequire } from 'node:module';
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const read = (p) => readFileSync(join(ROOT, p), 'utf8');
@@ -23,9 +28,43 @@ const app = read('js/portal-app.js');
 const html = read('portal.html');
 const sw = read('sw.js');
 const base = read('css/portal.css');
+const rentCSS = read('css/rent.css');
+const require = createRequire(import.meta.url);
+const RENT = require('../../js/rent-engine.js');
+const { fragment, fixture } = require('../rent-admin/fixture.cjs').build();
+const rentElements = new Map(), rentCalls = [];
+const rentElement = id => {
+  if (!rentElements.has(id)) rentElements.set(id, { innerHTML: '', textContent: '', value: '' });
+  return rentElements.get(id);
+};
+const escapeHTML = value => String(value ?? '').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&#39;');
+const rentData = structuredClone(fixture);
+Object.assign(rentData.users[0], { phone: '+39 331 234 5678', email: 'synthetic@example.invalid' });
+const rentContext = vm.createContext({
+  S: rentData, window: { BOOM_RENT: { ...RENT, overview: o => RENT.overview({ ...o, now: '2026-09-17' }), paymentState: p => RENT.paymentState(p, '2026-09-17') } },
+  document: { getElementById: rentElement }, Date, Intl, JSON, Number, String, Set, Promise,
+  esc: escapeHTML, fmtDate: value => value || 'Da verificare',
+  openModal: (...args) => rentCalls.push(['modal', ...args]),
+  showPaymentLink: (...args) => rentCalls.push(['link', ...args]),
+  sendPaymentReminder: (...args) => rentCalls.push(['reminder', ...args]),
+  markPaymentPaid: async id => rentCalls.push(['paid', id]),
+  confirm: () => true, toast: (...args) => rentCalls.push(['toast', ...args]),
+});
+vm.runInContext(fragment, rentContext);
+const runRent = code => vm.runInContext(code, rentContext);
+runRent("paymentFilters.month='2026-09'");
+const renderedPayments = runRent('paymentsPage()');
+const decodeHTML = s => s.replaceAll('&quot;', '"').replaceAll('&#39;', "'").replaceAll('&lt;', '<').replaceAll('&gt;', '>').replaceAll('&amp;', '&');
+const buttons = markup => [...markup.matchAll(/<button\b((?:[^>"']|"[^"]*"|'[^']*')*)>([\s\S]*?)<\/button>/g)].map(m => ({
+  attrs: m[1], label: decodeHTML(m[2].replace(/<[^>]*>/g, '')), handler: decodeHTML(m[1].match(/\bonclick="([^"]*)"/)?.[1] || '')
+}));
+function trigger(button) { assert.ok(button?.handler, 'rendered button has a handler'); return runRent(button.handler); }
 
 let pass = 0, fail = 0;
 const ok = (c, n) => { if (c) { pass++; console.log('PASS ' + n); } else { fail++; console.log('✗ FAIL ' + n); } };
+async function behavior(name, check) {
+  try { await check(); ok(true, name); } catch (e) { ok(false, name + ': ' + e.message); }
+}
 
 // ── 1. Cablaggio: dopo il sistema, PRIMA dei layer strutturali ──────────
 const iBase = html.indexOf('/css/portal.css');
@@ -56,7 +95,7 @@ const cssCode = finish.replace(/\/\*[\s\S]*?\*\//g, '');
 ok(!/!important/.test(cssCode), 'nessun !important nel CODICE: la finitura vince per cascata e specificità, non per forza');
 const classes = [...new Set([...cssCode.matchAll(/\.([a-z][a-z0-9-]*)/g)].map((m) => m[1]))];
 for (const c of classes) {
-  const emitted = app.includes(c) || html.includes(c) || base.includes('.' + c);
+  const emitted = app.includes(c) || html.includes(c) || base.includes('.' + c) || renderedPayments.includes(c);
   ok(emitted, `selettore ".${c}" matcha markup reale (mai una regola per nessuno)`);
 }
 
@@ -85,19 +124,59 @@ ok(/totalInst > 0 \|\| c\.deposit/.test(row) && /totalInst > 0 \? `<span class="
   'il metro delle rate compare solo se c\'è qualcosa da misurare (mai una divisione per zero)');
 ok(/\(c\.rent \|\| 0\)\.toLocaleString\('it-IT'\)/.test(row), 'il canone usa i separatori italiani (€1.200, non €1200)');
 
-// ── 6. Le 4 strisce sono .stat-card del sistema, coi filtri VIVI ────────
-for (const [fn, n] of [['filterContracts', 5], ['filterUsers', 5], ['filterPayments', 6], ['filterMaintenance', 5]]) {
+// ── 6. Le strisce mantengono filtri VIVI, incluso il nuovo riepilogo canoni ──
+for (const [fn, n] of [['filterContracts', 5], ['filterUsers', 5], ['filterMaintenance', 5]]) {
   const hits = [...app.matchAll(new RegExp(`<div class="stat-card[^"]*" onclick="${fn}\\('([^']+)'\\)"`, 'g'))];
   ok(hits.length === n, `${fn}: ${n} stat-card, tutte cliccabili (trovate ${hits.length})`);
 }
+await behavior('canoni: quattro riepiloghi leggibili filtrano davvero le rate e i totali del periodo', () => {
+  const stats = buttons(renderedPayments).filter(b => /\bclass="rent-stat"/.test(b.attrs));
+  assert.equal(stats.length, 4);
+  for (const [i, label, state, amount, ids] of [
+    [0, 'Incassato', 'paid', 1400, ['p2']],
+    [1, 'Da incassare', 'outstanding', 2850, ['d1', 'p1', 'p3', 'p4']],
+    [2, 'Di cui in ritardo', 'overdue', 950, ['d1', 'p1']],
+    [3, 'In elaborazione', 'processing', 1100, ['p3']],
+  ]) {
+    assert.ok(stats[i].label.startsWith(label));
+    assert.ok(stats[i].label.includes(runRent(`rentMoney(${amount})`)));
+    trigger(stats[i]);
+    assert.equal(runRent('paymentFilters.kind'), state);
+    assert.deepEqual(Array.from(runRent('rentOverview().payments.map(p=>p.id)')).sort(), ids);
+    assert.ok(rentElement('rentScope').textContent.includes('filtro corrente'));
+  }
+  runRent("filterPayments('all')");
+});
 ok(!/class="card" style="padding:1[24]px;text-align:center;cursor:pointer/.test(app),
   'nessuna striscia ad-hoc rimasta: le card statistiche sono UNA specie sola');
 
-// ── 7. I filtri-chip: le 5 famiglie dichiarate sono le 5 famiglie vere ──
-for (const fam of ['contract-filter', 'payment-filter', 'user-filter', 'maintenance-filter', 'rules-filter']) {
+// ── 7. I quattro filtri-chip rimasti e i controlli canoni accessibili ───
+for (const fam of ['contract-filter', 'user-filter', 'maintenance-filter', 'rules-filter']) {
   ok(new RegExp(`\\.btn\\.${fam}`).test(cssCode), `chip: famiglia .${fam} coperta`);
   ok(app.includes(fam), `famiglia .${fam} emessa davvero dal portale`);
 }
+await behavior('canoni: periodo, ricerca e stato hanno etichette e handler operativi', () => {
+  for (const id of ['rentMonth', 'paymentSearch', 'rentStatus']) assert.match(renderedPayments, new RegExp('<label[^>]*>[\\s\\S]*?id="' + id + '"'));
+  const input = renderedPayments.match(/<input\b[^>]*id="paymentSearch"[^>]*>/)?.[0];
+  assert.ok(input);
+  const searchHandler = decodeHTML(input.match(/oninput="([^"]*)"/)?.[1] || '');
+  assert.ok(searchHandler);
+  runRent(`(function(){${searchHandler}}).call({value:'Trastevere'})`);
+  assert.match(rentElement('paymentsContainer').innerHTML, /Trastevere/);
+  assert.doesNotMatch(rentElement('paymentsContainer').innerHTML, /Prati/);
+  runRent("searchPayments('')");
+  const monthHandler = decodeHTML(renderedPayments.match(/<select\b[^>]*id="rentMonth"[^>]*onchange="([^"]*)"/)?.[1] || '');
+  assert.ok(monthHandler);
+  runRent(`(function(){${monthHandler}}).call({value:'2026-08'})`);
+  assert.deepEqual(Array.from(runRent('rentOverview().payments.map(p=>p.id)')), ['p5']);
+  runRent(`(function(){${monthHandler}}).call({value:'2026-09'})`);
+  const statusHandler = decodeHTML(renderedPayments.match(/<select\b[^>]*id="rentStatus"[^>]*onchange="([^"]*)"/)?.[1] || '');
+  assert.ok(statusHandler);
+  runRent(`(function(){${statusHandler}}).call({value:'reported'})`);
+  assert.deepEqual(Array.from(runRent('rentOverview().payments.map(p=>p.id)')), ['p4']);
+  assert.equal(rentElement('rentStatus').value, 'reported');
+  runRent("filterPayments('all')");
+});
 
 // ── 8b. RIFINITURA II — le altre cinque righe (payments/maintenance/
 //        users/invoices/docs): la conversione non perde MAI un handler,
@@ -107,16 +186,54 @@ function rowOf(marker) {
   const i = app.indexOf(marker);
   return i < 0 ? '' : app.slice(i, i + 3200);
 }
-const payR = rowOf('class="list-item clickable payment-item"');
-ok(/data-status="\$\{p\.status\}"/.test(payR) && /data-overdue=/.test(payR) && /data-duesoon=/.test(payR) && /data-stripe=/.test(payR) && /data-search=/.test(payR),
-  'payments: i 5 data-attribute dei filtri/ricerca sono intatti');
-ok(/openModal\('editPayment'/.test(payR), 'payments: il tap apre ancora il modale di modifica');
-ok(/showPaymentLink\('pay'/.test(payR) && /markPaymentPaid\(/.test(payR) && /sendPaymentReminder\(/.test(payR),
-  'payments: link carta, segna-pagato e sollecito sopravvivono');
-ok(/wa\.me\//.test(payR) && payR.includes("onclick=\"event.stopPropagation()\""),
-  'payments: il WhatsApp del tenant resta un link vivo che non apre la riga');
-ok(/li-money-val \$\{p\.status === 'paid' \? 'green' : isOverdueNow \? 'red' : ''\}/.test(payR),
-  'payments: l\'importo parla il colore dello stato (verde incassato, rosso ritardo)');
+const renderPayment = id => runRent(`rentPaymentRow(rentOverview({status:'all',search:''}).payments.find(p=>p.id===${JSON.stringify(id)}))`);
+const payR = renderPayment('p1');
+await behavior('payments: la riga mostra lo stato condiviso e Dettagli apre la rata corretta', () => {
+  assert.match(payR, /class="rent-payment payment-item" data-status="overdue"/);
+  trigger(buttons(payR).find(b => b.label === 'Dettagli'));
+  const call = rentCalls.find(c => c[0] === 'modal');
+  assert.equal(call[1], 'editPayment');
+  assert.equal(call[2], rentData.payments.find(p => p.id === 'p1'));
+});
+await behavior('payments: link carta, registra incasso e sollecito conservano gli handler della rata', async () => {
+  const rowButtons = buttons(payR);
+  trigger(rowButtons.find(b => b.label === 'Link pagamento'));
+  await trigger(rowButtons.find(b => b.label === 'Registra incasso'));
+  trigger(rowButtons.find(b => /sollecito/i.test(b.label)));
+  assert.ok(rentCalls.some(c => c[0] === 'link' && c[1] === 'pay' && c[2] === 'p1'));
+  assert.ok(rentCalls.some(c => c[0] === 'paid' && c[1] === 'p1'));
+  assert.ok(rentCalls.some(c => c[0] === 'reminder' && c[1] === 'p1'));
+});
+await behavior('payments: il WhatsApp usa il telefono reale del tenant senza aprire modifica', () => {
+  const anchor = [...payR.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)].find(m => /wa\.me\//.test(m[1]));
+  assert.ok(anchor, 'tenant WhatsApp link exists');
+  const href = decodeHTML(anchor[1].match(/href="([^"]+)"/)?.[1] || '');
+  assert.equal(new URL(href).pathname, '/393312345678');
+  assert.match(anchor[1], /target="_blank"/);
+  assert.ok(/WhatsApp/.test(anchor[2]), 'link has a readable label');
+  assert.doesNotMatch(payR.match(/^<div\b[^>]*>/)?.[0] || '', /onclick=/);
+});
+await behavior('payments: importi e badge restano verdi se incassati, rossi in ritardo, con centesimi corretti', () => {
+  const paid = renderPayment('p2');
+  assert.match(paid, /class="rent-status rent-status-paid">Pagato</);
+  assert.match(payR, /class="rent-status rent-status-overdue">In ritardo</);
+  assert.match(rentCSS, /\.rent-status-paid\s*\{[^}]*color:\s*var\(--green\)/);
+  assert.match(rentCSS, /\.rent-status-overdue\s*\{[^}]*color:\s*var\(--red\)/);
+  assert.match(paid, /class="rent-amount rent-amount-paid"/);
+  assert.match(payR, /class="rent-amount rent-amount-overdue"/);
+  assert.match(rentCSS, /\.rent-amount-paid\s*\{[^}]*color:\s*var\(--green\)/);
+  assert.match(rentCSS, /\.rent-amount-overdue\s*\{[^}]*color:\s*var\(--red\)/);
+  assert.ok(paid.includes(runRent('rentMoney(1400)')));
+  assert.ok(payR.includes(runRent('rentMoney(950)')));
+});
+await behavior('payments: le azioni finanziarie non compaiono durante un incasso in elaborazione', () => {
+  const processing = renderPayment('p3');
+  assert.match(processing, /rent-status-processing/);
+  assert.doesNotMatch(processing, /Link pagamento|Registra incasso|Sollecito/);
+  const reported = renderPayment('p4');
+  assert.match(reported, /Registra incasso/);
+  assert.doesNotMatch(reported, /Link pagamento/);
+});
 ok(!/🚨 Diffida|⚠️ 2° Sollecito/.test(app), 'payments: i livelli di sollecito hanno perso le emoji');
 
 const maintR = rowOf('class="list-item clickable maintenance-item"');

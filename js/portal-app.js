@@ -9638,14 +9638,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function rentPaymentRow(row) {
         const p = row.payment, id = rentActionArg(row.id);
         const canRecord = ['due','overdue','reported'].includes(row.state) && row.amount > 0;
+        const phone = String(row.tenant?.phone || '').replace(/[^0-9]/g, '');
         const invoice = (S.invoices || []).find(i => i.paymentId === row.id);
         const receipt = row.state === 'paid' && row.amount > 0 ? `<button class="btn btn-sm btn-secondary" onclick="downloadPaymentReceipt(${id})">Ricevuta</button>${invoice ? `<button class="btn btn-sm btn-secondary" onclick="viewInvoice(${rentActionArg(invoice.id)})">Documento</button>` : ''}` : '';
         return `<div class="rent-payment payment-item" data-status="${esc(row.state)}">
-            <div><strong>${esc(p.month || row.month || 'Periodo da verificare')}</strong><small>${esc(row.tenantName || 'Inquilino da collegare')}${!row.isRent ? ' · ' + esc(p.type === 'deposit-balance' ? 'Saldo deposito' : p.type || 'Altro addebito') : ''}</small></div>
+            <div><strong>${esc(p.month || row.month || 'Periodo da verificare')}</strong><small>${esc(row.tenantName || 'Inquilino da collegare')}${!row.isRent ? ' · ' + esc(p.type === 'deposit-balance' ? 'Saldo deposito' : p.type || 'Altro addebito') : ''}${phone ? ` · <a href="https://wa.me/${phone}" target="_blank" rel="noopener">WhatsApp</a>` : ''}</small></div>
             <div class="rent-date"><small>${row.state === 'paid' ? 'Pagato il' : 'Scadenza'}</small>${esc(fmtDate(row.state === 'paid' ? p.paidDate : p.dueDate))}</div>
-            <strong class="rent-amount">${rentMoney(row.amount)}</strong>
+            <strong class="rent-amount rent-amount-${row.state}">${rentMoney(row.amount)}</strong>
             <div><span class="rent-status rent-status-${row.state}">${rentStateLabel(row.state)}</span>${p.remindersSent ? `<small>${Number(p.remindersSent)} solleciti registrati</small>` : ''}</div>
-            <div class="rent-actions">${receipt}${row.canPay ? `<button class="btn btn-sm" onclick="showPaymentLink('pay',${id})">Link pagamento</button>` : ''}${canRecord ? `<button class="btn btn-sm btn-secondary" onclick="confirmRentPayment(${id})">Registra incasso</button>` : ''}<button class="btn btn-sm btn-secondary" onclick="openModal('editPayment',S.payments.find(p=>p.id===${id}))">Dettagli</button></div>
+            <div class="rent-actions">${receipt}${row.canPay ? `<button class="btn btn-sm" onclick="showPaymentLink('pay',${id})">Link pagamento</button>` : ''}${canRecord ? `<button class="btn btn-sm btn-secondary" onclick="confirmRentPayment(${id})">Registra incasso</button>` : ''}${row.state === 'overdue' && row.canPay ? `<button class="btn btn-sm btn-secondary" onclick="sendPaymentReminder(${id})">Sollecito email</button>` : ''}<button class="btn btn-sm btn-secondary" onclick="openModal('editPayment',S.payments.find(p=>p.id===${id}))">Dettagli</button></div>
         </div>`;
     }
     function rentUnitsHTML(view) {

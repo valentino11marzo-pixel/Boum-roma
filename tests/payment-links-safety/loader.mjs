@@ -16,5 +16,6 @@ export async function load(url, context, nextLoad) {
   if (mutation === 'fee' && url.endsWith('/link.js')) source = source.replace('rentFee(amount, feeStats)', 'rentFee(amount)');
   if (mutation === 'return' && url.endsWith('/link.js')) source = source.replace("req.query.return === 'success'", 'false');
   if (mutation === 'reuse' && url.endsWith('/_checkout.js')) source = source.replace("if (!doc.checkoutSessionId)", 'if (true)');
+  if (mutation === 'labels' && url.endsWith('/pay.js')) source = source.replace('if (RENT.isRentPayment(payment))', 'if (true)');
   return { ...result, source };
 }

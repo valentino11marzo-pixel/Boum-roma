@@ -78,6 +78,16 @@ export function rentFee(amount, stats) {
   return eur2(Math.min(cap, Math.max(0, cost + buffer)));
 }
 
+// Il tipo del documento guida il nome anche su Stripe: un altro addebito
+// contrattuale non diventa canone solo perché usa lo stesso checkout.
+export function paymentLabel(payment) {
+  const type = String(payment.type || '').trim().toLowerCase();
+  if (type === 'deposit-balance') return 'Saldo deposito cauzionale';
+  if (type === 'deposit') return 'Deposito cauzionale';
+  if (RENT.isRentPayment(payment)) return `Canone di locazione — ${payment.month || String(payment.dueDate || '').slice(0, 7)}`;
+  return 'Addebito contrattuale';
+}
+
 export default async function handler(req, res) {
   setCors(req, res);
   if (req.method === 'OPTIONS') return res.status(204).end();
@@ -120,10 +130,7 @@ export default async function handler(req, res) {
   let feeStats = null;
   try { feeStats = await fsGet('settings/rentFeeStats'); } catch (_) {}
   const fee = rentFee(amount, feeStats);
-  const isDeposit = pay.type === 'deposit-balance';
-  const label = isDeposit
-    ? 'Saldo deposito cauzionale'
-    : `Canone di locazione — ${pay.month || String(pay.dueDate || '').slice(0, 7)}`;
+  const label = paymentLabel(pay);
 
   try {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -140,7 +147,10 @@ export default async function handler(req, res) {
         {
           price_data: {
             currency: 'eur',
-            product_data: { name: label, description: 'BOOM Roma · pagamento tracciato, ricevuta automatica via email.' },
+            product_data: {
+              name: label.slice(0, 250),
+              description: String(pay.description || 'BOOM Roma · pagamento tracciato, ricevuta automatica via email.').slice(0, 250),
+            },
             unit_amount: cents,
           },
           quantity: 1,

@@ -181,5 +181,27 @@ before = stripe.calls.length;
 r = await call(link, get('inv-draft', {}, 'inv'));
 check('draft invoice needs verification rather than being charged', r.code === 200 && r.body.includes('Pagamento da verificare') && stripe.calls.length === before);
 
+// Inspect the provider payload from BOTH real handlers, so UI-only labels
+// cannot conceal a utility bill being described as rent at checkout.
+for (const route of ['pay', 'link']) {
+  for (const [type, expected] of [
+    ['utilities', 'Addebito contrattuale'], ['service-fee', 'Addebito contrattuale'],
+    ['deposit', 'Deposito cauzionale'], ['deposit-balance', 'Saldo deposito cauzionale'],
+    ['rent', 'Canone di locazione — 2026-09'],
+  ]) {
+    const id = `label-${route}-${type}`;
+    const description = type === 'utilities' ? 'Conguaglio utenze settembre' : `Dettaglio ${type}`;
+    installment(id, { type, description, amount: 120.50 });
+    before = stripe.calls.length;
+    r = route === 'pay'
+      ? await call(pay, post({ paymentId: id }, 'tenant'))
+      : await call(link, get(id));
+    const principal = stripe.calls.at(-1).line_items[0].price_data;
+    check(`${route}: ${type} has its correct provider label and original description`,
+      stripe.calls.length === before + 1 && (route === 'pay' ? r.code === 200 : r.code === 303) &&
+      principal.product_data.name === expected && principal.product_data.description === description && principal.unit_amount === 12050);
+  }
+}
+
 console.log(`\nPayment links safety: ${passed} passed, ${failed} failed`);
 process.exitCode = failed ? 1 : 0;
