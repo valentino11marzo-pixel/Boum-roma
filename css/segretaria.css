@@ -201,3 +201,26 @@
 }
 
 #sgFollowPanel .sg-quiet-state { margin: 24px 4px 0; padding-top: 20px; border-top: 1px solid #454a47; color: var(--sg-light-text); font-size: 12px; line-height: 1.6; }
+
+/* A reviewed plan uses the existing confirmation and delivery receipts. */
+#sgFollowPanel .sg-case-action { display: flex; flex-direction: column; gap: 8px; }
+#sgFollowPanel .sg-start-plan { background: var(--sg-yellow); color: var(--sg-ink); border-color: #b59b18; }
+#sgFollowPanel .sg-start-plan:hover:not(:disabled) { background: #efcb00; }
+#sgFollowModal .sg-execution-plan { background: #fffefa; border: 1px solid #b6bcae; border-top: 3px solid #b49a26; padding: 20px; margin: 0 0 24px; border-radius: 3px; }
+#sgFollowModal .sg-execution-plan > .sg-eyebrow { color: #6b5914; }
+#sgFollowModal .sg-execution-plan h4 { margin: 8px 0 16px; font-size: 20px; line-height: 1.35; font-weight: 500; }
+#sgFollowModal .sg-plan-steps { list-style: none; padding: 0; margin: 0; }
+#sgFollowModal .sg-plan-steps li { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px 0; border-top: 1px solid var(--sg-line); }
+#sgFollowModal .sg-plan-steps strong { font-size: 13px; font-weight: 600; }
+#sgFollowModal .sg-plan-steps p { font-size: 12px; line-height: 1.55; margin-top: 5px; color: #505950; }
+#sgFollowModal .sg-plan-state { flex: 0 0 auto; border: 1px solid #bac1b7; padding: 4px 7px; border-radius: 3px; font-size: 10px; color: #424d43; background: #edf0e9; }
+#sgFollowModal [data-sg-step-state="needs_review"] .sg-plan-state,
+#sgFollowModal [data-sg-step-state="unavailable"] .sg-plan-state,
+#sgFollowModal [data-sg-step-state="paused"] .sg-plan-state { background: #f1ead0; border-color: #c4b67f; color: #655017; }
+#sgFollowModal .sg-plan-manual { border-left: 2px solid #858e83; padding: 4px 12px; margin-top: 10px; }
+#sgFollowModal .sg-plan-manual p, #sgFollowModal .sg-plan-notice { font-size: 12px; line-height: 1.6; margin: 8px 0; }
+#sgFollowModal .sg-execution-plan > .sg-muted { margin-top: 14px; }
+@media (max-width: 420px) {
+    #sgFollowModal .sg-execution-plan { padding: 14px; }
+    #sgFollowModal .sg-plan-steps li { flex-direction: column; gap: 7px; }
+}

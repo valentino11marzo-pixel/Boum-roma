@@ -16,6 +16,8 @@ assert.ok(begin > 0 && end > begin);
 const ui = portal.slice(begin, end);
 assert.ok(read('portal.html').indexOf('<script src="/js/segretaria-proposta-engine.js"') < read('portal.html').indexOf('<script src="/js/portal-app.js"'));
 assert.ok(read('sw.js').includes("url.pathname === '/js/segretaria-proposta-engine.js'"));
+assert.ok(read('portal.html').indexOf('<script src="/js/segretaria-esecuzione-engine.js"') < read('portal.html').indexOf('<script src="/js/portal-app.js"'));
+assert.ok(read('sw.js').includes("url.pathname === '/js/segretaria-esecuzione-engine.js'"));
 
 const artifactDir = mkdtempSync(join(tmpdir(), 'boom-proposta-ui-'));
 const previewPath = process.env.BOOM_SEGRETARIA_PREVIEW || join(artifactDir, 'preview.html');
@@ -92,8 +94,8 @@ const html = '<!doctype html><html lang="it"><head><meta charset="utf-8"><meta n
   + '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\'; img-src data:; connect-src \'none\'; form-action \'none\'; base-uri \'none\'">'
   + '<title>BOOM · Segreteria operativa · Dati simulati</title><style>' + read('css/portal.css') + read('css/portal-finish.css') + read('css/segretaria.css')
   + 'body{display:block;background:#111314}#main{max-width:1180px;margin:auto;padding:24px}#demoHeader{padding:16px 24px;background:#191b1c;color:#ffd700;font:12px Helvetica Neue,Arial,sans-serif}#demoHeader p{margin-top:8px;color:#eee;line-height:1.5}</style></head><body>'
-  + '<aside id="demoHeader"><strong>BOOM · Anteprima locale della Segreteria operativa</strong><p>Dati simulati. Puoi preparare, correggere e confermare: anche «Conferma e invia» è una simulazione. Nessun messaggio parte, nessuna modifica a BOOM, rete bloccata. Ricarica per ripristinare gli esempi.</p></aside><main id="main"></main><div id="modals"></div>'
-  + script(fixture) + script(read('js/segretaria-casi-engine.js')) + script(read('js/segretaria-proposta-engine.js')) + script(ui) + script("goTo('oggi')") + '</body></html>';
+  + '<aside id="demoHeader"><strong>BOOM · Anteprima locale della Segreteria operativa</strong><p>Dati simulati. Puoi preparare, correggere e confermare: anche «Approva ed esegui» è una simulazione. Nessun messaggio parte, nessuna modifica a BOOM, rete bloccata. Ricarica per ripristinare gli esempi.</p></aside><main id="main"></main><div id="modals"></div>'
+  + script(fixture) + script(read('js/segretaria-casi-engine.js')) + script(read('js/segretaria-proposta-engine.js')) + script(read('js/segretaria-esecuzione-engine.js')) + script(ui) + script("goTo('oggi')") + '</body></html>';
 writeFileSync(previewPath, html);
 console.log('Anteprima offline: ' + previewPath);
 const chromium = await loadChromium();
@@ -122,11 +124,20 @@ try {
   assert.equal(await page.locator('#sgFollowPanel #sgDraftText').count(), 0);
   assert.ok((await page.locator('article[data-sg-id]').first().boundingBox()).y < 600);
   await page.screenshot({ path: join(artifactDir, 'desktop.png'), fullPage: true });
+  await button(ids[0], 'plan').click();
+  await page.waitForSelector('#sgExecutionPlan');
+  assert.equal(await page.locator('#sgExecutionPlan [data-sg-step]').count(), 3);
+  assert.match(await page.locator('#sgExecutionPlan').innerText(), /WhatsApp/);
+  assert.equal(await page.locator('[data-sg-modal="approve"]').innerText(), 'Approva ed esegui');
+  assert.equal((await posts()).length, 0);
+  await page.screenshot({ path: join(artifactDir, 'execution-plan.png'), fullPage: true });
+  await page.keyboard.press('Escape');
+  ok('Esegui piano apre azioni e destinatario da approvare; nessun effetto dalla sola apertura');
   await open(ids[0]);
   assert.equal(await page.locator('#sgFollowForm').count(), 0);
   assert.match(await page.locator('#sgRecipient').innerText(), /Giulia · esempio[\s\S]*\+390000000001/);
   assert.match(await page.locator('#sgDraftText').innerText(), /Ciao Giulia/);
-  assert.equal(await page.locator('[data-sg-modal="approve"]').innerText(), 'Conferma e invia');
+  assert.equal(await page.locator('[data-sg-modal="approve"]').innerText(), 'Approva ed esegui');
   assert.equal((await posts()).length, 0);
   await page.locator('#sgFollowModal .modal').evaluate(async el => { await Promise.all(el.getAnimations({ subtree: true }).map(a => a.finished.catch(() => {}))); });
   await page.screenshot({ path: join(artifactDir, 'review.png'), fullPage: true });
@@ -144,6 +155,8 @@ try {
   await page.waitForFunction(() => document.getElementById('sgFollowModal')?.textContent.includes('Messaggio in coda'));
   assert.equal(await page.locator('[data-sg-modal="approve"]').count(), 0);
   assert.match(await page.locator('#sgFollowModal').innerText(), /consegna da verificare/);
+  assert.equal(await page.locator('[data-sg-step="reply"]').getAttribute('data-sg-step-state'), 'queued');
+  assert.equal(await page.locator('[data-sg-step="follow_up"]').getAttribute('data-sg-step-state'), 'recorded');
   ok('conferma usa la revisione vista; doppio click bloccato; coda non dichiarata consegnata');
 
   for (const [delivery, expected] of [
@@ -154,7 +167,7 @@ try {
     await load();
     await page.evaluate(state => {
       const task=window.__rows[0];task.preparation.approval={revision:task.preparation.revision,messageId:task.followUp.lastMessageId,actionId:'fixture-action'};
-      task.deliveryResult={delivery:state,code:state==='needs_review'?503:200,confirmed:true};
+      task.deliveryResult={actionId:'fixture-action',delivery:state,code:state==='needs_review'?503:200,confirmed:true};
       oggiSegretaria.receipts={};
     }, delivery);
     await page.locator('[data-sg-action="refresh"]').click();
@@ -171,7 +184,7 @@ try {
   await page.evaluate(() => {
     const task=window.__rows[0];task.preparation.approval={revision:task.preparation.revision,messageId:task.followUp.lastMessageId,actionId:'fixture-action'};
     oggiSegretaria.receipts[task.id]={revision:task.preparation.revision,delivery:'queued'};
-    task.deliveryResult={delivery:'sent',code:200,confirmed:true};
+    task.deliveryResult={actionId:'fixture-action',delivery:'sent',code:200,confirmed:true};
   });
   await page.locator('[data-sg-action="refresh"]').click();
   await page.waitForFunction(() => oggiSegretaria.rows[0]?.deliveryResult?.delivery === 'sent');
@@ -180,12 +193,29 @@ try {
   assert.equal((await posts()).length, 0);
   ok('stato fresco della coda prevale sulla ricevuta locale precedente, senza rieseguire approvazione');
 
+  await load();
+  await page.evaluate(() => {
+    const task=window.__rows[0];
+    task.preparation.approval={revision:task.preparation.revision,messageId:task.followUp.lastMessageId,actionId:'current-action'};
+    task.deliveryResult={actionId:'older-action',delivery:'sent',confirmed:true};
+  });
+  await page.locator('[data-sg-action="refresh"]').click();
+  await page.waitForFunction(() => oggiSegretaria.rows[0]?.deliveryResult?.actionId === 'older-action');
+  assert.doesNotMatch(await page.locator(`article[data-sg-id="${ids[0]}"]`).innerText(), /Invio registrato/);
+  await open(ids[0]);
+  assert.equal(await page.locator('[data-sg-step="reply"]').getAttribute('data-sg-step-state'), 'needs_review');
+  assert.doesNotMatch(await page.locator('#sgFollowModal').innerText(), /Invio registrato/);
+  assert.equal((await posts()).length, 0);
+  ok('ricevuta di altra azione: banner e piano richiedono verifica, nessun falso invio né retry');
+
+
   await load(); await open(ids[1]);
   assert.equal(await page.locator('#sgDraftText').count(), 0);
-  assert.equal(await page.locator('[data-sg-modal="approve"]').innerText(), 'Conferma il seguito');
+  assert.equal(await page.locator('[data-sg-modal="approve"]').innerText(), 'Approva ed esegui');
   await page.locator('[data-sg-modal="approve"]').click();
   await page.waitForFunction(() => document.getElementById('sgFollowModal')?.textContent.includes('Seguito confermato. Nessun messaggio previsto.'));
   assert.equal((await posts()).length, 1);
+  assert.equal(await page.locator('[data-sg-step="reply"]').count(), 0);
   ok('attesa senza bozza conferma soltanto il seguito');
 
   await load();
@@ -222,6 +252,17 @@ try {
   assert.equal((await posts()).length, 0);
   ok('attesa incerta resta da completare: niente conferma, fonti e correzione manuale disponibili');
 
+  await load();
+  await page.evaluate(() => { window.BOOM_SEGRETARIA_ESECUZIONE = undefined; });
+  await button(ids[0], 'plan').click();
+  await page.waitForSelector('#sgFollowModal');
+  assert.match(await page.locator('#sgFollowModal').innerText(), /piano di esecuzione non è disponibile/);
+  assert.equal(await page.locator('[data-sg-modal="approve"]').isDisabled(), true);
+  await page.locator('[data-sg-modal="approve"]').evaluate(el => el.click());
+  assert.equal((await posts()).length, 0);
+  ok('modulo piano assente: nessuna conferma cieca nemmeno con click forzato');
+
+
   for (const [ownership, expected] of [
     [{ blocked: true, owner: 'segretaria:conversation', actionId: 'PRIVATE_ACTION_ID', incomplete: false }, /Risposta già seguita dalla Segreteria BOOM; qui confermi soltanto il seguito/],
     [{ blocked: true, owner: 'PRIVATE_OWNER_ID', actionId: 'PRIVATE_ACTION_ID', incomplete: false }, /Risposta già seguita da un altro incaricato BOOM/],
@@ -233,7 +274,7 @@ try {
     await open(ids[1]);
     assert.match(await page.locator('#sgReplyOwnership').innerText(), expected);
     assert.ok(!(await page.locator('#sgFollowModal').innerText()).includes('PRIVATE_'));
-    assert.equal(await page.locator('[data-sg-modal="approve"]').innerText(), 'Conferma il seguito');
+    assert.equal(await page.locator('[data-sg-modal="approve"]').innerText(), 'Approva ed esegui');
     assert.equal(await page.locator('#sgDraftText').count(), 0);
     assert.equal((await posts()).length, 0);
   }
