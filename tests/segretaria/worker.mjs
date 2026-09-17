@@ -257,13 +257,19 @@ try {
   ok('contesto corrente è pronto nella regola condivisa fra home e worker',
     PROPOSTA.currentContext(task()) && task().preparation.coverage.version === CONTEXT_VERSION
       && PROPOSTA.CONTEXT_VERSION === 2 && CONTEXT_VERSION === 2);
-  const oldSchema = structuredClone(task()); oldSchema.preparation.version = 1;
+  const oldSchema = structuredClone(task()); oldSchema.preparation.version = 2;
   ok('contesto corrente non promuove una proposta con schema precedente non approvato', !PROPOSTA.currentContext(oldSchema));
   const closedCurrent = structuredClone(task()); closedCurrent.status = 'done';
   ok('contesto corrente non promuove una proposta su un caso chiuso', !PROPOSTA.currentContext(closedCurrent));
   out = await tick();
   ok('proposta con contesto corrente non viene rigenerata',
     out.prepared === 0 && out.checked === 0 && out.queue.currentProposals === 1 && aiHits === 1, out);
+  reset(); await generate();
+  revise(t => { t.preparation.version = 2; });
+  out = await tick();
+  ok('proposta v2 precedente alla correzione delle attese viene rigenerata senza ridurre il contatore',
+    out.prepared === 1 && aiHits === 2 && task().preparation.version === PROPOSTA.VERSION
+      && DB.get('heartbeat/segretaria-preparations-2026-09-15').count === 2, out);
   for (const legacy of ['missing_coverage', 'missing_version', 'old_version', 'invalid_version']) {
     reset(); await generate();
     revise(t => {

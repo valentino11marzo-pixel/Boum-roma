@@ -3009,6 +3009,10 @@ handler vero; copre entrambi gli ordini della transizione, verificati per
 mutazione).
 
 ### Il Centralino (`api/phone/*` + `/chiamate`) — la segreteria che lavora
+- **Recapito prima del richiamo (17/09)**: un suggerimento «richiama» senza numero mostrava «Da richiamare». La presentazione pura in `chiamate.html` distingue ora «Richiamo da valutare · recapito mancante» dalla priorità della chiamata.
+  Lista, dettagli e pulsanti usano lo stesso controllo del recapito salvato; testo e nome non possono inventarne uno. La bozza resta leggibile come proposta con recapito da verificare.
+  Nessuna modifica a urgenza, suggerimento o dati originali durante la lettura. Prova `phoneui`: pagina reale, filtri, dettagli, gestione manuale e due mutazioni; nessun provider contattato.
+
 Su iPhone nessuna app può rispondere a una chiamata al posto dell'operatore —
 e non serve: la segreteria È già una **deviazione condizionale di rete**.
 Puntandola a un numero Twilio (`**004*<numero>#` dal tastierino: occupato +
@@ -3675,6 +3679,12 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
   armo → grazia → executor reale → digest, ✋ e kill switch che vincono.
 
 ### LA SEGRETARIA (`js/segretaria-engine.js` + `api/segretaria/_core.js` + 🤖 sulla card)
+
+- **Prima iterazione sulle proposte osservate (17/09)**: la guardia `nextActor` poteva sovrascrivere un richiamo esplicito e lasciare una motivazione serale dopo aver anticipato l'orario. Il motore ammette ora un'attesa provata da fonte integra, ultima e odierna, citazione letterale e stesso contatto; grammatica IT/EN circoscritta, mai un generico impegno dichiarato dal modello.
+  La cronologia deve essere completa; i riscontri successivi ignorabili sono solo testo e il prossimo passo deve riguardare lo stesso richiamo. Negazioni, esitazioni, storia parziale o formulazioni non risolte producono `needs_context`, fonte e impegno consultabili, verifica umana necessaria prima della conferma. Azione, raccomandazione e motivazione diventano coerenti con questa verifica, senza assegnare come certa un’attesa dubbia.
+  I sommari Miniera privi di cronologia individuale sono esclusi dall'input fattuale e dalle fonti dichiarate consultate; archivio e fingerprint restano, `coverage.historical` esplicita l'esclusione. Le fonti attuali e lo stile verificato rimangono disponibili.
+  Proposta v3 rigenera le vecchie proposte non approvate entro il cap esistente, conservando le ricevute approvate; nessun reset, invio o correzione retroattiva del seguito.
+  Prove `segretariaattese` e `segretariaprepara` con mutazioni, più worker, conferma/consegna e UI. Il confronto sui casi reali resta distinto dalle prove sintetiche; il prompt di sintesi minimale non attesta da solo la qualità del modello.
 
 - **Richieste e decisioni distinte (17/09)**: Oggi separa «Da preparare» dalle proposte attuali, dalle scadenze confermate e dai problemi di consegna. `workGroups` deriva i quattro gruppi; nessun nuovo stato salvato.
   L'arretrato mostra dodici richieste alla volta, tutte raggiungibili. Il cap espone tentativi usati/disponibili, inclusi fallimenti; a limite raggiunto si possono leggere fonti e correggere il seguito senza avviare preparazioni destinate a fallire.

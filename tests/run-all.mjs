@@ -10,6 +10,8 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const SUITES = [
+  { name: 'phoneui', file: 'tests/phone/ui.mjs', what: 'Centralino: recapito necessario al ricontatto, priorità distinta, dettagli e filtri coerenti' },
+  { name: 'segretariaattese', file: 'tests/segretaria/next-actor.mjs', what: 'attesa del richiamo fondata sull’ultima fonte integra; motivazione e controllo coerenti' },
   { name: 'segretariamonitor', file: 'tests/segretaria/monitor.mjs', what: 'stato preparazione verificabile: cap, pausa, dati mancanti, mezzanotte Roma; nessuna attestazione impropria sulla ricezione' },
   { name: 'segretariaworker', file: 'tests/segretaria/worker.mjs', what: 'preparazione ogni minuto, batch entro budget, eventi nuovi ed equità, concorrenza senza doppia spesa' },
   { name: 'segretarialiveui', file: 'tests/segretaria/realtime-ui.mjs', what: 'Oggi reagisce agli eventi senza perdere bozze; messaggi recenti ordinati e limiti della preparazione visibili' },

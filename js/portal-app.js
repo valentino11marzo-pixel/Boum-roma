@@ -4989,6 +4989,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const n = p.nextAction || {}, recipient = p.recipientPreview || {}, receipt = oggiSegretariaReceipt(m.task);
         const list = rows => (Array.isArray(rows) ? rows : []).map(item => `<li>${esc(item.text || '')}${item.kind ? `<span class="sg-evidence-status">${item.kind === 'inferred' ? 'Dedotto, da verificare' : 'Esplicito'} · ${esc({ pending: 'Da completare', satisfied: 'Risulta soddisfatto', unclear: 'Esito incerto' }[item.status] || 'Da verificare')}</span>` : ''}</li>`).join('');
         const reasons = {
+            historical_summary_excluded: 'I riepiloghi storici non sono usati per stabilire fatti attuali: servono fonti verificabili.',
             history_window_limited: 'È disponibile solo una parte recente della conversazione.', latest_history_not_verified: 'La cronologia recente non è verificabile.', history_unavailable: 'La cronologia non è disponibile.',
             message_time_missing: 'Manca la data verificabile di un messaggio.', attachments_not_read: 'Gli allegati non sono stati letti in questa proposta.',
             identity_not_verified: 'Identità non completamente verificata.', practice_selection_required: 'Ci sono più pratiche possibili.', dossier_incomplete: 'Il fascicolo ha informazioni mancanti.',

@@ -129,6 +129,7 @@ globalThis.fetch = async (rawURL, opts = {}) => {
   return DB.has(path) ? json(doc(path)) : json({ error: { status: 'NOT_FOUND' } }, 404);
 };
 
+const { default: PROPOSTA } = await import('../../js/segretaria-proposta-engine.js');
 const { approvePreparation, readPreparationDelivery } = await import('../../api/segretaria/_dispatch.js');
 const { default: execute } = await import('../../api/agent/execute.js');
 const { personaDossier } = await import('../../api/segretaria/_persona.js');
@@ -152,7 +153,7 @@ async function reset() {
   save('operatorTasks/' + ID, { source: 'segretaria', status: 'open', calendarize: false,
     followUp: { open: true, conversationId: CID, lastMessageId: args.lastMessageId,
       lastInboundAt: new Date(NOW).toISOString(), preview: 'Verificare il seguito', needsReview: true },
-    preparation: { version: 2, revision: args.revision, messageId: args.lastMessageId, status: 'ready', createdAt: new Date(NOW).toISOString(),
+    preparation: { version: PROPOSTA.VERSION, revision: args.revision, messageId: args.lastMessageId, status: 'ready', createdAt: new Date(NOW).toISOString(),
       summary: 'Aggiornare il cliente sul seguito', recommendation: 'Confermare il ricontrollo concordato', identityBlocked: false,
       contactFingerprint: contactFingerprint(conv), recipientPreview: { channel: 'whatsapp', address: conv.contactPhone, name: conv.contactName },
       nextAction: { text: 'Verificare la risposta del cliente', waitingOn: 'client', waitingLabel: 'Cliente',
