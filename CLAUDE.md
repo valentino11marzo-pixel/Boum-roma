@@ -3691,6 +3691,11 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
   Proposte da verificare conservano la classificazione fra versioni e scadenze, a parità di fonti e decisione. Nuovi dati riaprono la preparazione; proposte pronte obsolete vanno ricalcolate, ricevute approvate restano leggibili.
   Prove `segretariacalendario`, `segretariaprepara`, `segretariaattese`, con mutazioni sulle conversioni, sulla classificazione e sull'anticipo del controllo.
 
+- **Piano da eseguire in Oggi (18/09)**: «Rivedi proposta» resta disponibile; «Esegui piano» mostra i passaggi prima di «Approva ed esegui».
+  `segretaria-esecuzione-engine` deriva registrazione del seguito, invio della bozza e ricontrollo dalla proposta e dalle ricevute esistenti. Coda, esito incerto, pausa e intervento umano restano distinti; il testo libero non inventa operazioni su telefono o portali.
+  L’unica conferma usa ancora `prepare` → `_dispatch` → executor/outbox sulla revisione vista; niente seconda coda, chiusura automatica o autonomia permanente. Nessuna azione parte aprendo il piano.
+  UI senza modulo esecuzione blocca la conferma; nuove fonti, conflitti e doppio tap conservano i controlli precedenti. Prove: `segretariaesecuzione`, `segretariapropostaui`, conferma/consegna e UI live.
+
 - **Prima iterazione sulle proposte osservate (17/09)**: la guardia `nextActor` poteva sovrascrivere un richiamo esplicito e lasciare una motivazione serale dopo aver anticipato l'orario. Il motore ammette ora un'attesa provata da fonte integra, ultima e odierna, citazione letterale e stesso contatto; grammatica IT/EN circoscritta, mai un generico impegno dichiarato dal modello.
   La cronologia deve essere completa; i riscontri successivi ignorabili sono solo testo e il prossimo passo deve riguardare lo stesso richiamo. Negazioni, esitazioni, storia parziale o formulazioni non risolte producono `needs_context`, fonte e impegno consultabili, verifica umana necessaria prima della conferma. Azione, raccomandazione e motivazione diventano coerenti con questa verifica, senza assegnare come certa un’attesa dubbia.
   I sommari Miniera privi di cronologia individuale sono esclusi dall'input fattuale e dalle fonti dichiarate consultate; archivio e fingerprint restano, `coverage.historical` esplicita l'esclusione. Le fonti attuali e lo stile verificato rimangono disponibili.
