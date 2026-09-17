@@ -58,6 +58,7 @@
       return ['processing', 'requires_capture', 'succeeded'].includes(key(s));
     })) return 'payment_processing';
     var invoice = kind === 'inv' || kind === 'invoice';
+    if (!invoice && (status === 'reported' || (p.tenantReported === true && ['pending','due','overdue'].includes(status)))) return 'payment_reported';
     if (!['pending', 'due', 'overdue', 'reported'].includes(status) && !(invoice && (status === 'sent' || (!status && !p.paidDate)))) return 'payment_not_payable';
     return '';
   }
@@ -67,6 +68,7 @@
     if (blocked === 'already_paid') return 'paid';
     if (blocked === 'payment_cancelled') return 'cancelled';
     if (blocked === 'payment_not_payable') return 'unknown';
+    if (blocked === 'payment_reported') return 'reported';
     if (blocked) return 'processing';
     if (p.tenantReported === true && (!status || ['pending', 'overdue', 'due', 'reported'].includes(status))) return 'reported';
     if (status === 'reported') return 'reported';
@@ -236,7 +238,40 @@
     return { units: units, totals: summarize(visible), month: month, months: months, counts: counts, payments: visible };
   }
 
-  var API = { amount: amount, paymentBlockReason: paymentBlockReason, paymentState: paymentState, canPay: canPay, isRentPayment: isRentPayment, isRentReceipt: isRentReceipt, businessInvoices: businessInvoices, agencyCollections: agencyCollections, overview: overview };
+  // Display projection only. Multiple installments remain separate records;
+  // an empty month is not an unpaid installment, including before a lease.
+  function rowsForMonth(unit, month) {
+    return list(unit && unit.payments).filter(function (row) {
+      var end = row.isRent && monthOf(row.payment.coversTo);
+      return row.month === month || (end && row.month && row.month < month && month <= end);
+    });
+  }
+  function timeline(unit, endMonth) {
+    var end = monthOf(endMonth) || day(new Date()).slice(0, 7);
+    var date = new Date(end + '-01T12:00:00Z');
+    return Array.from({ length: 6 }, function (_, i) {
+      var m = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() - 5 + i, 1)).toISOString().slice(0, 7);
+      var rows = rowsForMonth(unit, m).filter(function (row) { return row.isRent; });
+      return { month: m, rows: rows, state: rows.length > 1 ? 'multiple' : rows.length ? rows[0].state : 'empty' };
+    });
+  }
+  function nextAction(unit) {
+    var rows = list(unit && unit.payments);
+    // Broken associations need review before an operator sends a link.
+    var review = rows.find(function (r) { return r.unlinked || r.amount == null || !r.month || r.state === 'unknown'; });
+    if (review) return { kind: 'review', paymentId: review.id, month: review.month };
+    var reported = rows.find(function (r) { return r.state === 'reported'; });
+    if (reported) return { kind: 'reported', paymentId: reported.id, month: reported.month };
+    var overdue = rows.find(function (r) { return r.state === 'overdue' && r.canPay; });
+    if (overdue) return { kind: 'overdue', paymentId: overdue.id, month: overdue.month };
+    var due = rows.find(function (r) { return r.state === 'due' && r.canPay; });
+    if (due) return { kind: 'due', paymentId: due.id, month: due.month };
+    var processing = rows.find(function (r) { return r.state === 'processing'; });
+    if (processing) return { kind: 'processing', paymentId: processing.id, month: processing.month };
+    return { kind: 'none', paymentId: '', month: '' };
+  }
+
+  var API = { amount: amount, paymentBlockReason: paymentBlockReason, paymentState: paymentState, canPay: canPay, isRentPayment: isRentPayment, isRentReceipt: isRentReceipt, businessInvoices: businessInvoices, agencyCollections: agencyCollections, overview: overview, rowsForMonth: rowsForMonth, timeline: timeline, nextAction: nextAction };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_RENT = API;
 })(typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : this);

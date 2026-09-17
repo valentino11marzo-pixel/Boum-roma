@@ -298,3 +298,33 @@ test('mutazione: perdere il contratto di ripiego lascia la rata orfana e cade', 
 });
 
 console.log(`\n${checks} verifiche canoni superate; nessuna rete o scrittura finanziaria.`);
+
+test('timeline preserves six civil months across years and no-rate gaps',()=>{
+  const unit=overview({month:'all'}).units[0];const cells=R.timeline(unit,'2027-02');
+  assert.deepEqual(cells.map(c=>c.month),['2026-09','2026-10','2026-11','2026-12','2027-01','2027-02']);
+  assert.equal(cells[0].rows[0].id,'r1');assert.equal(cells[1].state,'empty');assert.equal(cells[1].rows.length,0);
+});
+test('a month with multiple installments never collapses them into a false paid/overdue state',()=>{
+  const unit=overview({payments:[payment(),payment({id:'r2',status:'paid'})]}).units[0];
+  const cell=R.timeline(unit,'2026-09').at(-1);assert.equal(cell.state,'multiple');assert.equal(cell.rows.length,2);
+  assert.deepEqual(cell.rows.map(r=>r.state),['overdue','paid']);
+});
+test('next step prioritizes reports, keeps historical arrears visible, never charges processing',()=>{
+  const unit=overview({payments:[payment(),payment({id:'report',tenantReported:true})]}).units[0];
+  assert.equal(R.nextAction(unit).kind,'reported');assert.equal(R.nextAction(unit).paymentId,'report');
+  assert.equal(R.nextAction(overview({payments:[payment({status:'processing'})]}).units[0]).kind,'processing');
+  assert.equal(R.nextAction(overview({payments:[payment({amount:null})]}).units[0]).kind,'review');
+});
+test('reported blocks server checkout too while unknown states stay unknown',()=>{
+  assert.equal(R.paymentBlockReason(payment({tenantReported:true})),'payment_reported');
+  assert.equal(R.paymentState(payment({tenantReported:true,status:'refunded'})),'unknown');
+  assert.equal(R.paymentBlockReason(payment({tenantReported:true,status:'paid'})),'already_paid');
+});
+console.log(`${checks} rent checks passed in total.`);
+
+test('a real prepaid period opens the original installment without inventing monthly payments',()=>{
+  const unit=overview({payments:[payment({month:'2026-06',coversTo:'2026-09',status:'paid',amount:4800})]}).units[0];
+  const cell=R.timeline(unit,'2026-10');assert.equal(cell.at(-2).state,'paid');assert.equal(cell.at(-1).state,'empty');
+  assert.equal(R.rowsForMonth(unit,'2026-09')[0].id,'r1');assert.equal(unit.payments.length,1);
+});
+console.log(`${checks} rent checks passed in total.`);

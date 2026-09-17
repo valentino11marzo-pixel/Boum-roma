@@ -139,6 +139,10 @@ export default async function handler(req, res) {
     return html(res, 200, paymentPage('Pagamento da verificare',
       'Contatta BOOM per verificare questo documento prima di effettuare il pagamento.'));
   }
+  if (blocked === 'payment_reported') {
+    return html(res, 200, paymentPage('Pagamento segnalato · in verifica',
+      'Hai segnalato un pagamento. BOOM deve verificare l’incasso: non pagare di nuovo. Se la segnalazione è un errore, puoi gestirla dalla tua area personale.', refreshAction));
+  }
   if (blocked) {
     return html(res, 200, paymentPage('Pagamento in elaborazione',
       blocked === 'sdd_processing'

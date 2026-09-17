@@ -370,6 +370,7 @@ button,.obtn,.bfc,.qnav a,.dlink,.paybtn,.svcard{touch-action:manipulation}
 .pay-support a{font-size:13px;color:var(--gold-light);text-underline-offset:4px}.pay-support small{display:block;font-size:11px;color:var(--t3);margin-top:10px;line-height:1.6}
 .paycard .obtn,.paydock .pdB{letter-spacing:0;text-transform:none;font-size:13px}
 @media(max-width:380px){.pay-methods{gap:8px}.pay-method{padding:12px 10px}.pay-method small{font-size:10.5px}.paycard .pm{align-items:flex-start}.paycard .amt{font-size:30px}}
+.pay-report{margin-top:18px;border-top:1px solid var(--line);padding-top:14px;font-size:13px;line-height:1.6}.pay-report summary{cursor:pointer;min-height:44px;display:list-item;color:var(--t2)}.pay-report p{color:var(--t2);margin:8px 0}.pay-report .obtn{min-height:44px}.pay-report summary:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 </style>
 <!-- BOOM_JSONLD:START -->
   <script type="application/ld+json">
@@ -525,7 +526,7 @@ var STR={
   s1:'Next payment',depositBal:'Security deposit balance',rentOf:'Rent',dueBy:'Due by',lateBy:'Overdue since',late:'Overdue',dueSoon:'coming up',
   payCard:'Pay by card',service:'Estimated card fee',payFoot1:'Stripe · cards & Apple Pay where available · automatic receipt by email and in your history',
   payFoot2:'Or pay by bank transfer below — free. Refresh the payment status after your transfer.',
-  methodTitle:'Choose how to pay',methodCard:'Card / wallet',methodBank:'Bank transfer',methodCardHint:'Apple Pay where available',methodBankHint:'No BOOM fee',payContinue:'Continue to payment',payPrincipal:'Instalment',payTotal:'Estimated total',payExact:'The exact fee and total are shown in Stripe before you confirm.',payHelp:'Need help with this payment?',payAgency:'BOOM manages this home for the property owner.',payBankUnavailable:'Transfer details are not available yet. Contact BOOM before making a transfer.',payCopyError:'Could not copy. Select and copy the details below.',payReferenceError:'We could not prepare the transfer reference. Refresh or contact BOOM before transferring.',payCheckoutError:'We could not open the payment page. Try again or contact BOOM.',payAutoTitle:'Automatic payments for future rent',payMethodChanged:'Payment method updated',
+  methodTitle:'Choose how to pay',methodCard:'Card / wallet',methodBank:'Bank transfer',methodCardHint:'Apple Pay where available',methodBankHint:'No BOOM fee',payContinue:'Continue to payment',payPrincipal:'Instalment',payTotal:'Estimated total',payExact:'The exact fee and total are shown in Stripe before you confirm.',payHelp:'Need help with this payment?',payAgency:'BOOM manages this home for the property owner.',reportTitle:'I have made the transfer',reportExplain:'Only report a transfer you have already sent for this instalment. BOOM will verify the money received before marking it paid.',reportConfirm:'Report bank transfer',reportWithdraw:'Cancel my report',reportWithdrawExplain:'Cancel only if you have not sent the transfer or reported it by mistake.',reportError:'We could not confirm your report. Check the current status and try again.',receiptLoad:'Load receipt',receiptMissing:'Receipt not available yet. Contact BOOM for a copy.',payBankUnavailable:'Transfer details are not available yet. Contact BOOM before making a transfer.',payCopyError:'Could not copy. Select and copy the details below.',payReferenceError:'We could not prepare the transfer reference. Refresh or contact BOOM before transferring.',payCheckoutError:'We could not open the payment page. Try again or contact BOOM.',payAutoTitle:'Automatic payments for future rent',payMethodChanged:'Payment method updated',
   bfTitle:'Bank transfer',bfFree:'No BOOM fee',
   bfWhy:'Keep the exact reference below so we can match your transfer. Once the receipt is confirmed, refresh to see the updated payment status.',
   bfBene:'Beneficiary',bfIban:'IBAN',bfRef:'Reference — please keep it exactly',bfAmt:'Amount',
@@ -587,7 +588,7 @@ var STR={
   s1:'Il prossimo pagamento',depositBal:'Saldo deposito cauzionale',rentOf:'Canone',dueBy:'Entro il',lateBy:'Scaduto il',late:'In ritardo',dueSoon:'in scadenza',
   payCard:'Paga con carta',service:'Commissione carta stimata',payFoot1:'Stripe · carte &amp; Apple Pay dove disponibile · ricevuta automatica via email e nello storico',
   payFoot2:'Oppure paga con bonifico qui sotto — gratis. Aggiorna lo stato dopo il versamento.',
-  methodTitle:'Scegli come pagare',methodCard:'Carta / wallet',methodBank:'Bonifico',methodCardHint:'Apple Pay dove disponibile',methodBankHint:'Nessuna commissione BOOM',payContinue:'Continua al pagamento',payPrincipal:'Rata',payTotal:'Totale stimato',payExact:'Commissione e totale esatti sono mostrati su Stripe prima della conferma.',payHelp:'Ti serve aiuto con questa rata?',payAgency:'BOOM gestisce questa casa per conto del proprietario.',payBankUnavailable:'I dati per il bonifico non sono ancora disponibili. Contatta BOOM prima di effettuare il versamento.',payCopyError:'Copia non riuscita. Seleziona e copia i dati qui sotto.',payReferenceError:'Non siamo riusciti a preparare la causale. Aggiorna o contatta BOOM prima del bonifico.',payCheckoutError:'Non siamo riusciti ad aprire il pagamento. Riprova oppure contatta BOOM.',payAutoTitle:'Pagamenti automatici per i prossimi canoni',payMethodChanged:'Metodo di pagamento aggiornato',
+  methodTitle:'Scegli come pagare',methodCard:'Carta / wallet',methodBank:'Bonifico',methodCardHint:'Apple Pay dove disponibile',methodBankHint:'Nessuna commissione BOOM',payContinue:'Continua al pagamento',payPrincipal:'Rata',payTotal:'Totale stimato',payExact:'Commissione e totale esatti sono mostrati su Stripe prima della conferma.',payHelp:'Ti serve aiuto con questa rata?',payAgency:'BOOM gestisce questa casa per conto del proprietario.',reportTitle:'Ho fatto il bonifico',reportExplain:'Segnala solo un bonifico già eseguito per questa rata. BOOM verificherà l’incasso prima di confermare il pagamento.',reportConfirm:'Segnala il bonifico',reportWithdraw:'Annulla la mia segnalazione',reportWithdrawExplain:'Annulla solo se non hai eseguito il bonifico o hai segnalato per errore.',reportError:'Non siamo riusciti a confermare la segnalazione. Verifica lo stato attuale e riprova.',receiptLoad:'Carica ricevuta',receiptMissing:'Ricevuta non ancora disponibile. Contatta BOOM per una copia.',payBankUnavailable:'I dati per il bonifico non sono ancora disponibili. Contatta BOOM prima di effettuare il versamento.',payCopyError:'Copia non riuscita. Seleziona e copia i dati qui sotto.',payReferenceError:'Non siamo riusciti a preparare la causale. Aggiorna o contatta BOOM prima del bonifico.',payCheckoutError:'Non siamo riusciti ad aprire il pagamento. Riprova oppure contatta BOOM.',payAutoTitle:'Pagamenti automatici per i prossimi canoni',payMethodChanged:'Metodo di pagamento aggiornato',
   bfTitle:'Bonifico bancario',bfFree:'Nessuna commissione BOOM',
   bfWhy:'Mantieni la causale qui sotto per collegare il bonifico alla rata. Dopo la conferma della ricezione, aggiorna per vedere il nuovo stato.',
   bfBene:'Beneficiario',bfIban:'IBAN',bfRef:'Causale — lasciala esattamente così',bfAmt:'Importo',
@@ -726,6 +727,7 @@ function renderBonifico(){
     };
   }).catch(function(){ if(document.getElementById('bfx')===host)host.innerHTML='<div class="paynotice" role="status">'+t('payReferenceError')+'</div>'; });   /* Un errore lascia un messaggio visibile; nessuna causale inventata. */
 }
+var PAY_REPORT_ERROR=false;
 function paymentChoices(next){
   if(PAY_METHOD_ID!==next.id){PAY_METHOD_ID=next.id;PAY_METHOD='card';PAY_ERROR=false;}
   var bank=PAY_METHOD==='bank',amount=window.BOOM_RENT.amount(next.amount),fee=feePreview(amount);
@@ -738,7 +740,41 @@ function paymentChoices(next){
       +(PAY_ERROR?'<p class="paynotice" role="alert">'+t('payCheckoutError')+'</p>':'')
       +'<button class="paybtn" id="payBtn" aria-describedby="payEstimate">'+t(PAY_ERROR?'payRetry':'payContinue')+' <span aria-hidden="true">→</span></button>'
       +'<p class="payfoot">'+t('payFoot1')+'</p></div>'
-    +'<div id="payBankPanel" aria-labelledby="payMethodBank"'+(bank?'':' hidden')+'>'+bonificoBlock(next)+'</div>';
+    +'<div id="payBankPanel" aria-labelledby="payMethodBank"'+(bank?'':' hidden')+'>'+bonificoBlock(next)+(VIEW_AS?'':'<details class="pay-report"><summary>'+t('reportTitle')+'</summary><p>'+t('reportExplain')+'</p><button class="obtn" type="button" id="reportTransferBtn">'+t('reportConfirm')+'</button></details>')+'</div>';
+}
+function reportTransfer(payment,action){
+  if(VIEW_AS||!USER||!PROFILE||PROFILE.role!=='tenant'||PAY_LOAD!=='ready'||PAY_BUSY||!CONTRACT||payment.contractId!==CONTRACT.id)return Promise.resolve();
+  if(action==='report'&&(!payable(payment)||PAY_METHOD!=='bank'))return Promise.resolve();
+  if(action==='withdraw'&&!(paymentState(payment)==='reported'&&payment.tenantReported===true))return Promise.resolve();
+  function reconcile(){
+    return refreshPayments().then(function(ok){
+      var current=homePayments().find(function(p){return p.id===payment.id});
+      if(ok&&current&&(paymentState(current)==='paid'||paymentState(current)==='cancelled'||(action==='report'&&paymentState(current)==='reported')||(action==='withdraw'&&current.tenantReported!==true))){PAY_REPORT_ERROR=false;paintPayments()}
+      return ok;
+    });
+  }
+  PAY_REPORT_ERROR=false;PAY_BUSY=payment.id;render();
+  return BoomPortal.withTimeout(USER.getIdToken().then(function(token){
+    return fetch('/api/payments/report',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({paymentId:payment.id,action:action})});
+  }).then(function(r){return r.json()}),15000).then(function(result){
+    PAY_BUSY=null;PAY_REPORT_ERROR=!(result&&result.ok);
+    return reconcile();
+  }).catch(function(){PAY_BUSY=null;PAY_REPORT_ERROR=true;return reconcile()});
+}
+function safeReceiptUrl(value){
+  try{var url=new URL(value);return url.protocol==='https:'?url.href:''}catch(e){return ''}
+}
+function loadPaymentReceipt(id,button){
+  var p=homePayments().find(function(row){return row.id===id});
+  if(!p||paymentState(p)!=='paid'||!p.receiptDocId||button.disabled)return;
+  button.disabled=true;
+  return BoomPortal.withTimeout(firebase.firestore().collection('documents').doc(p.receiptDocId).get({source:'server'}),9000).then(function(doc){
+    if(!doc||!doc.exists)throw Error('missing');
+    var receipt=doc.data(),url=safeReceiptUrl(receipt.fileUrl);
+    if(receipt.paymentId!==p.id||!url)throw Error('unlinked');
+    var link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener';link.textContent=t('receipt');
+    button.replaceWith(link);
+  }).catch(function(){button.disabled=false;var notice=$('receiptFeedback');if(notice)notice.textContent=t('receiptMissing')});
 }
 function selectPaymentMethod(method){
   var next=nextPending();if(!next||!payable(next)||['card','bank'].indexOf(method)<0)return;
@@ -984,6 +1020,7 @@ function render(){
     paymentBlocked=!payable(next);
     html+='<div class="pm"><div class="lab">'+lab+'<b>'+(late?t('lateBy'):t('dueBy'))+' '+fmtD(next.dueDate)+'</b></div>'
       +'<div><div class="amt">'+eur(next.amount)+'</div><div class="due'+(late&&!paymentBlocked?' late':'')+'">'+(paymentBlocked?t(state==='processing'?'payProcessing':next.id===PAY_RETURN?(RETURN_CHECKING?'payChecking':'payConfirmPending'):state==='reported'?'payReported':'payUnknown'):(late?t('late'):t('dueSoon')))+'</div></div></div>';
+    if(state==='reported'&&next.tenantReported===true&&['pending','due','overdue'].indexOf(next.status)>=0&&!VIEW_AS&&!PAY_BUSY)html+='<details class="pay-report"><summary>'+t('reportWithdraw')+'</summary><p>'+t('reportWithdrawExplain')+'</p><button class="obtn" type="button" id="withdrawReportBtn">'+t('reportWithdraw')+'</button></details>';
     if(sddProc){
       html+='<div class="sddproc"><b>'+t('sddProc')+'</b><br><small>'+t('sddProcSub').replace('{d}',fmtD(next.sddInitiatedAt))+'</small></div>';
     }else if(paymentBlocked){
@@ -1003,6 +1040,7 @@ function render(){
       html+='<details class="pay-auto"><summary>'+t('payAutoTitle')+'</summary><div class="sddbox"><span class="ic">🏦</span><div><b>'+t('sddT')+'</b><small>'+t('sddPitch').replace('{fee}','€2')+'</small></div><button class="obtn" id="sddBtn" style="margin:0;flex:1 1 auto;border-color:var(--line-gold);color:var(--gold)">'+t('sddBtn')+'</button></div></details>';
     }
   }
+  if(PAY_REPORT_ERROR)html+='<p class="paynotice" role="alert">'+t('reportError')+'</p>';
   html+='<div class="pay-support"><a href="'+waMsg((LANG==='it'?'Ciao BOOM, mi serve aiuto con il pagamento per ':'Hi BOOM, I need help with the payment for ')+addr+(next?' · '+paymentLabel(next):''))+'" target="_blank" rel="noopener">'+t('payHelp')+'</a><small>'+t('payAgency')+'</small></div></div>';
 
   /* ── history ── */
@@ -1012,7 +1050,7 @@ function render(){
   if(PAY_LOAD!=='ready')html+='<div role="status">'+t(PAY_LOAD==='loading'?'payLoading':'payLoadError')+'</div>';
   else if(!hist.length)html+='<div style="font-size:13px;color:var(--t3)">'+t(c.id?'payEmpty':'payNoContract')+'</div>';
   else html+=historyRows(hist,false);
-  html+='</div>'+(PAY_LOAD==='ready'&&hist.length>6?'<button class="morebtn" id="moreBtn">'+t('showAll')+' ('+hist.length+') ↓</button>':'')
+  html+='</div><p id="receiptFeedback" class="pay-feedback" role="status"></p>'+(PAY_LOAD==='ready'&&hist.length>6?'<button class="morebtn" id="moreBtn">'+t('showAll')+' ('+hist.length+') ↓</button>':'')
     +(PAY_LIMIT?'<p class="payscope">'+t('payLimited')+'</p>':'')
     +'<button class="obtn" data-refresh-payments'+(RETURN_CHECKING||PAY_LOAD==='loading'?' disabled':'')+'>'+t('payRefresh')+'</button></div>';
 
@@ -1134,7 +1172,7 @@ function payRow(p){
   var status=confirming?(RETURN_CHECKING?'payChecking':'payConfirmPending'):({paid:'paid',processing:'payProcessing',reported:'payReported',overdue:'lateSt',due:'pending',cancelled:'payCancelled',unknown:'payUnknown'}[state]||'payUnknown');
   var via={stripe:'byCard',bank:'byBank',sepa:'bySepa'}[p.paidVia];
   return '<div class="prow"><span class="mo">'+esc(lab)+'<small>'+(state==='paid'?(t('paidW')+(via?' '+t(via):'')+(p.paidDate?' · '+fmtD(p.paidDate):'')):(p.dueDate?t('dueBy')+' '+fmtD(p.dueDate):t('payUnknown')))+'</small></span>'
-    +(state==='paid'&&p.receiptUrl?'<a href="'+esc(p.receiptUrl)+'" target="_blank" rel="noopener">'+t('receipt')+'</a>':'')
+    +(state==='paid'?(safeReceiptUrl(p.receiptUrl)?'<a href="'+esc(safeReceiptUrl(p.receiptUrl))+'" target="_blank" rel="noopener">'+t('receipt')+'</a>':p.receiptDocId?'<button type="button" class="obtn" data-receipt-payment="'+esc(p.id)+'">'+t('receiptLoad')+'</button>':''):'')
     +'<span class="amt2">'+paymentAmount(p)+'</span>'
     +'<span class="st '+(state==='paid'?'paid':state==='overdue'&&!confirming?'late':'pending')+'">'+t(status)+'</span></div>';
 }
@@ -1146,6 +1184,10 @@ function maintRows(){
 }
 
 function wire(next,hist){
+  var report=$('reportTransferBtn'),withdraw=$('withdrawReportBtn');
+  if(report&&next)report.onclick=function(){return reportTransfer(next,'report')};
+  if(withdraw&&next)withdraw.onclick=function(){return reportTransfer(next,'withdraw')};
+  var rows=$('histRows');if(rows)rows.onclick=function(event){var button=event.target.closest&&event.target.closest('[data-receipt-payment]');if(button)loadPaymentReceipt(button.getAttribute('data-receipt-payment'),button)};
   var cardChoice=$('payMethodCard'),bankChoice=$('payMethodBank');
   if(cardChoice)cardChoice.onclick=function(){selectPaymentMethod('card')};
   if(bankChoice)bankChoice.onclick=function(){selectPaymentMethod('bank')};
@@ -1158,7 +1200,7 @@ function wire(next,hist){
       BoomPortal.withTimeout(USER.getIdToken().then(function(tok){
         return fetch('/api/payments/pay',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({paymentId:next.id})});
       }).then(function(r){return r.json()}),15000).then(function(j){
-        if(j&&!j.ok&&['payment_cancelled','payment_not_payable'].indexOf(j.error)>=0){PAY_BUSY=null;refreshPayments();return;}
+        if(j&&!j.ok&&['payment_cancelled','payment_not_payable','payment_reported'].indexOf(j.error)>=0){PAY_BUSY=null;refreshPayments();return;}
         if(j&&!j.ok&&['already_paid','sdd_processing','payment_processing'].indexOf(j.error)>=0){PAY_BUSY=null;PAY_RETURN=next.id;confirmPaymentReturn(0);return;}
         if(j&&j.ok&&j.checkoutUrl){
           var po=$('payov'),pa=$('payAmt'),ps=$('paySub');

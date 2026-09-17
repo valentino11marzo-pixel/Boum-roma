@@ -134,9 +134,9 @@ await behavior('canoni: quattro riepiloghi leggibili filtrano davvero le rate e 
   assert.equal(stats.length, 4);
   for (const [i, label, state, amount, ids] of [
     [0, 'Incassato', 'paid', 1400, ['p2']],
-    [1, 'Da incassare', 'outstanding', 2850, ['d1', 'p1', 'p3', 'p4']],
-    [2, 'Di cui in ritardo', 'overdue', 950, ['d1', 'p1']],
-    [3, 'In elaborazione', 'processing', 1100, ['p3']],
+    [1, 'Ancora da pagare', 'pending', 950, ['d1', 'p1']],
+    [2, 'Pagamenti segnalati', 'reported', 800, ['p4']],
+    [3, 'In corso', 'processing', 1100, ['p3']],
   ]) {
     assert.ok(stats[i].label.startsWith(label));
     assert.ok(stats[i].label.includes(runRent(`rentMoney(${amount})`)));

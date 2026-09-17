@@ -13,6 +13,8 @@ export async function load(url, context, nextLoad) {
   if (mutation === 'guards' && /\/(pay|link|link-for)\.js$/.test(url)) {
     source = source.replace(/RENT\.paymentBlockReason\((pay|doc)(?:, kind === 'inv' \? 'invoice' : 'rent')?\)/g, "''");
   }
+  if (mutation === 'report-state' && url.endsWith('/report.js')) source = source.replace("if (action === 'report' && !RENT.canPay(p))", 'if (false)');
+  if (mutation === 'report-owner' && url.endsWith('/report.js')) source = source.replace('if (p.tenantId !== auth.uid)', 'if (false)');
   if (mutation === 'fee' && url.endsWith('/link.js')) source = source.replace('rentFee(amount, feeStats)', 'rentFee(amount)');
   if (mutation === 'return' && url.endsWith('/link.js')) source = source.replace("req.query.return === 'success'", 'false');
   if (mutation === 'reuse' && url.endsWith('/_checkout.js')) source = source.replace("if (!doc.checkoutSessionId)", 'if (true)');

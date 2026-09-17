@@ -1469,6 +1469,10 @@ and skip the pitch entirely for a product already bought (`leads` lookup,
 one query per run).
 
 ### Tenant lifecycle — La tua casa BOOM + Canone via BOOM + journey + Fascicolo ARPE
+- **Confronto UX con Claude, 18/09:** `/casa` permette di segnalare il bonifico già eseguito e annullare una segnalazione erronea. `api/payments/report` ammette solo il titolare tenant; legge la versione e salva solo il flag con CAS. Mai `paid` dal client, admin preview esclusa, stato riletto dal server anche dopo errori.
+  `payment_reported` ora ferma checkout autenticato, link operatore/pubblico e nuove selezioni del collector SDD; restano fuori garanzia sessioni Stripe già aperte e gare tra canali avviate prima del riscontro.
+  Ricevute archiviate raggiungibili da `receiptDocId`, con ID rata verificato e URL HTTPS; nuove archiviazioni espongono il file sulla rata senza sostituire ricevute Stripe. Nessun PDF o associazione inventati.
+  Prove `tenantpayments`, `paymentlinks` (inclusi titolarità, conflitto e revoca), mutazioni titolarità/stato, `sdd`. La foto facoltativa rimane nel flusso precedente del portale; non è aggiunta qui.
 - **UX pagante, chiarimento 17/09:** una rata, scelta Carta/wallet o Bonifico e solo il pannello del metodo scelto; l'addebito automatico è in un dettaglio secondario. Totali stabili, periodo e importi nella lingua scelta.
   Commissione e totale carta sono stime dichiarate; l'importo esatto appare su Stripe prima della conferma. Il dock porta alla scheda con «Vedi pagamento».
   Cambiare metodo aggiorna solo i due pannelli, preservando bozze e sezioni aperte. Stati dal server e veti contro il secondo pagamento rimangono invariati.
@@ -2686,6 +2690,9 @@ prezzo, locali, mq, extra }`. The prompt is built entirely server-side from
 length-capped fields (no general proxying possible); model pinned to haiku,
 max_tokens 500. CORS: boomrome.com + *.vercel.app previews. Returns `{ text }`.
 ### Canoni per unità e ricavi BOOM — 17 settembre 2026
+**Revisione con Claude, 18/09:** prima le unità, sei mesi per riga e una sola prossima azione che apre il contesto senza inviare o registrare. Le operazioni complete restano nei dettagli. Riepiloghi sotto l'elenco: da pagare, segnalato e in corso sono somme distinte.
+`BOOM_RENT.timeline/nextAction` proietta i record esistenti; una cella con più rate dichiara il numero e le apre tutte, quella vuota non inventa debiti. Il dettaglio conserva i riferimenti per ogni rata.
+Non viene dedotta una stanza dal testo `contract.unit` (nel portale proviene anche da `interno`). Nessuna nuova chiave di unità o migrazione dati. Prove `rent/rentadmin`; revisione visiva ancora da completare.
 `js/rent-engine.js` (UMD `BOOM_RENT`) deriva unità, periodo, importi e stati da
 payments/contracts/properties/users: nessuna copia persistente. Include unità senza rate e collegamenti mancanti;
 depositi/altri addebiti sono separati. Le ricevute `paymentId`/`rent-receipt` restano consultabili dai canoni,

@@ -16,7 +16,7 @@ const controller = inline.slice(0, inline.indexOf(marker));
 const bridge = `
 window.testTenant = { render:render, refresh:refreshPayments, confirm:confirmPaymentReturn,
   retry:retryPayments, row:payRow, rows:historyRows, next:nextPending, choose:selectPaymentMethod,
-  returnState:paymentReturnState, notice:paymentNotice,
+  returnState:paymentReturnState, notice:paymentNotice, report:reportTransfer, receipt:loadPaymentReceipt,
   set:function(o){
     if('payments' in o)PAYMENTS=o.payments;if('contract' in o)CONTRACT=o.contract;
     if('load' in o)PAY_LOAD=o.load;if('returnId' in o)PAY_RETURN=o.returnId;
@@ -38,7 +38,7 @@ function element(id){return {id,attrs:{},listeners:{},innerHTML:'',textContent:'
 async function flush(){for(let i=0;i<20;i++)await Promise.resolve();await new Promise(resolve=>setImmediate(resolve));for(let i=0;i<10;i++)await Promise.resolve()}
 function fixture({query='',mutate,now}={}){
   let clock=0,sequence=0;
-  const timers=new Map(),elements=new Map(),reads=[],requests=[],queues={payments:[],contracts:[]};
+  const timers=new Map(),elements=new Map(),reads=[],requests=[],queues={payments:[],contracts:[],documents:[]};
   const scanChildren=value=>{for(const tag of value.matchAll(/<[^>]*\bid="([^"]+)"[^>]*>/g)){
     const id=tag[1];if(!elements.has(id)){const el=element(id);let body='';Object.defineProperty(el,'innerHTML',{get(){return body},set(v){body=v;scanChildren(v)}});elements.set(id,el)}
     elements.get(id).hidden=/\bhidden(?:\s|>)/.test(tag[0]);
@@ -69,9 +69,9 @@ function fixture({query='',mutate,now}={}){
     return chain;
   }};
   const ClockDate=now?class extends Date {constructor(value){super(value===undefined?now:value)}}:Date;
-  const ctx={console,URLSearchParams,Date:ClockDate,Intl,TextEncoder,Uint8Array,crypto:webcrypto,Promise,
+  const ctx={console,URL,URLSearchParams,Date:ClockDate,Intl,TextEncoder,Uint8Array,crypto:webcrypto,Promise,
     location:{search:query,href:'/casa'},navigator:{language:'en'},localStorage:{getItem(){return 'en'},setItem(){}},
-    document:{getElementById(id){return elements.get(id)||null},querySelectorAll(selector){return selector==='[data-refresh-payments]'?refreshButtons:[]}},
+    document:{createElement(tag){return element(tag)},getElementById(id){return elements.get(id)||null},querySelectorAll(selector){return selector==='[data-refresh-payments]'?refreshButtons:[]}},
     setTimeout:timeout,clearTimeout:clear,innerHeight:800,matchMedia(){return {matches:true}},
     firebase:{firestore(){return db}},
     BoomPortal:{withTimeout(p,ms){return new Promise((resolve,reject)=>{const id=timeout(()=>reject(new Error('timeout')),ms);Promise.resolve(p).then(v=>{clear(id);resolve(v)},e=>{clear(id);reject(e)})})}},
@@ -283,5 +283,59 @@ await test('mutation: restoring optimistic ?paid status is caught by the renderi
 await test('mutation: re-enabling payment paths while processing is caught',()=>{
   const f=fixture({mutate:s=>s.replace('paymentBlocked=!payable(next);','paymentBlocked=false;')});
   assert.throws(()=>noPay(f.render([payment({status:'processing'})])));
+});
+
+await test('transfer report waits for server state, never writes paid or opens checkout',async()=>{
+  const f=fixture(),p=payment();f.render([p],{appReady:true});f.api.choose('bank');
+  const before=JSON.stringify(p);f.ctx.response={ok:true,state:'reported'};
+  f.queues.payments.push([payment({tenantReported:true})]);
+  const sending=f.elements.get('reportTransferBtn').onclick();
+  assert.equal(JSON.stringify(p),before);await sending;
+  assert.equal(f.requests.length,1);assert.equal(f.requests[0].url,'/api/payments/report');
+  assert.deepEqual(JSON.parse(f.requests[0].options.body),{paymentId:'rent-sep',action:'report'});
+  assert.equal(f.api.state().payments[0].status,'pending');assert.equal(f.api.state().payments[0].tenantReported,true);
+  noPay(f.markup);assert.match(f.markup,/id="withdrawReportBtn"/);
+});
+await test('a mistaken report can be withdrawn only after authoritative refresh',async()=>{
+  const f=fixture();f.render([payment({tenantReported:true})],{appReady:true});
+  f.ctx.response={ok:true,state:'overdue'};f.queues.payments.push([payment()]);
+  await f.elements.get('withdrawReportBtn').onclick();
+  assert.equal(JSON.parse(f.requests[0].options.body).action,'withdraw');assert.match(f.markup,/id="payBtn"/);
+});
+await test('admin preview and stale paid/processing actions cannot report',async()=>{
+  const f=fixture();let p=payment();f.render([p],{viewAs:'contract-test'});
+  assert.doesNotMatch(f.markup,/id="reportTransferBtn"/);await f.api.report(p,'report');assert.equal(f.requests.length,0);
+  for(const fields of [{status:'paid'},{status:'processing'},{tenantReported:true}]){p=payment(fields);f.render([p],{viewAs:null});await f.api.report(p,'report')}
+  assert.equal(f.requests.length,0);
+});
+await test('concurrent payment confirmation during reporting stays paid after the fresh read',async()=>{
+  const f=fixture();f.render([payment()],{appReady:true});f.api.choose('bank');
+  f.ctx.response={ok:false,error:'state_changed'};f.queues.payments.push([payment({status:'paid'})]);
+  await f.elements.get('reportTransferBtn').onclick();
+  assert.equal(f.api.state().payments[0].status,'paid');noPay(f.markup);assert.doesNotMatch(f.markup,/id="withdrawReportBtn"/);
+});
+await test('report failure never invents a saved notice and a second click while busy is ignored',async()=>{
+  const f=fixture(),p=payment();f.render([p],{appReady:true});f.api.choose('bank');
+  f.ctx.response={ok:false,error:'report_unavailable'};f.queues.payments.push([payment()]);
+  const pending=f.api.report(p,'report');await f.api.report(p,'report');await pending;
+  assert.equal(f.requests.length,1);assert.equal(f.api.state().payments[0].tenantReported,undefined);assert.match(f.markup,/role="alert"/);
+});
+await test('archive receipt is looked up by its existing ID and must match the installment',async()=>{
+  const f=fixture(),p=payment({status:'paid',receiptDocId:'doc-test'});f.render([p]);
+  assert.match(f.markup,/data-receipt-payment="rent-sep"/);
+  const button={disabled:false,replaceWith(link){this.link=link}};
+  f.queues.documents.push({paymentId:'rent-sep',fileUrl:'https://files.example.invalid/receipt.pdf'});
+  await f.api.receipt('rent-sep',button);assert.equal(button.link.href,'https://files.example.invalid/receipt.pdf');assert.equal(f.reads[0].options.source,'server');
+  const wrong={disabled:false,replaceWith(){throw Error('must not expose')}};
+  f.queues.documents.push({paymentId:'someone-else',fileUrl:'https://files.example.invalid/private.pdf'});
+  await f.api.receipt('rent-sep',wrong);assert.equal(wrong.disabled,false);assert.match(f.elements.get('receiptFeedback').textContent,/not available/);
+});
+await test('receipt links reject executable and non-HTTPS URLs',()=>{
+  const f=fixture();for(const receiptUrl of ['javascript:alert(1)','data:text/html,secret','http://example.invalid/receipt'])assert.doesNotMatch(f.api.row(payment({status:'paid',receiptUrl})),/href=/);
+});
+await test('a lost report response is reconciled from the server without claiming failure or resending',async()=>{
+  const f=fixture();f.render([payment()],{appReady:true});f.api.choose('bank');
+  f.ctx.response={ok:false,error:'report_unavailable'};f.queues.payments.push([payment({tenantReported:true})]);
+  await f.elements.get('reportTransferBtn').onclick();assert.equal(f.requests.length,1);noPay(f.markup);assert.doesNotMatch(f.markup,/We could not confirm your report/);
 });
 console.log(`\n${passed} tenant payment checks passed. No live network or writes.`);

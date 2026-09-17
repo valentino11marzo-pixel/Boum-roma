@@ -9635,7 +9635,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return window.BOOM_RENT.overview({ payments: S.payments, properties: S.properties, contracts: S.contracts, users: S.users,
             month: paymentFilters.month, status: paymentFilters.kind, search: paymentFilters.search, ...overrides });
     }
-    function rentStateLabel(state) { return ({paid:'Pagato', processing:'In elaborazione', reported:'Da verificare', overdue:'In ritardo', due:'Da pagare', cancelled:'Annullato', unknown:'Stato da verificare'})[state] || 'Da verificare'; }
+    function rentStateLabel(state) { return ({paid:'Pagato', processing:'In elaborazione', reported:'Segnalato · da verificare', overdue:'In ritardo', due:'Da pagare', cancelled:'Annullato', unknown:'Stato da verificare'})[state] || 'Da verificare'; }
     function rentSafeHttpUrl(value) {
         if (typeof value !== 'string' || !value.trim()) return '';
         try { const url = new URL(value.trim()); return ['http:','https:'].includes(url.protocol) ? url.href : ''; }
@@ -9672,26 +9672,60 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const invoice = (S.invoices || []).find(i => i.paymentId === row.id);
         const receipt = row.state === 'paid' && row.amount > 0 ? `<button class="btn btn-sm btn-secondary" onclick="downloadPaymentReceipt(${id})">Ricevuta</button>${invoice ? `<button class="btn btn-sm btn-secondary" onclick="viewInvoice(${rentActionArg(invoice.id)})">Documento</button>` : ''}` : '';
         return `<div class="rent-payment payment-item" data-status="${esc(row.state)}">
-            <div><strong>${esc(p.month || row.month || 'Periodo da verificare')}</strong><small>${esc(row.tenantName || 'Inquilino da collegare')}${!row.isRent ? ' · ' + esc(p.type === 'deposit-balance' ? 'Saldo deposito' : p.type || 'Altro addebito') : ''}${phone ? ` · <a href="https://wa.me/${phone}" target="_blank" rel="noopener">WhatsApp</a>` : ''}</small></div>
+            <div><strong>${esc(rentMonthLabel(row.month))}</strong><small>${esc(row.tenantName || 'Inquilino da collegare')}${!row.isRent ? ' · ' + esc(p.type === 'deposit-balance' ? 'Saldo deposito' : p.type || 'Altro addebito') : ''}${phone ? ` · <a href="https://wa.me/${phone}" target="_blank" rel="noopener">WhatsApp</a>` : ''}</small></div>
             <div class="rent-date"><small>${row.state === 'paid' ? 'Pagato il' : 'Scadenza'}</small>${esc(fmtDate(row.state === 'paid' ? p.paidDate : p.dueDate))}</div>
             <strong class="rent-amount rent-amount-${row.state}">${rentMoney(row.amount)}</strong>
             <div><span class="rent-status rent-status-${row.state}">${rentStateLabel(row.state)}</span>${p.remindersSent ? `<small>${Number(p.remindersSent)} solleciti registrati</small>` : ''}</div>
             <div class="rent-actions">${receipt}${proof ? `<a class="btn btn-sm btn-secondary" href="${esc(proof)}" target="_blank" rel="noopener">Prova pagamento</a>` : ''}${row.canPay ? `<button class="btn btn-sm" onclick="showPaymentLink('pay',${id})">Link pagamento</button>` : ''}${canRecord ? `<button class="btn btn-sm btn-secondary" onclick="confirmRentPayment(${id})">Registra incasso</button>` : ''}${row.state === 'overdue' && row.canPay ? `<button class="btn btn-sm btn-secondary" onclick="sendPaymentReminder(${id})">Sollecito email</button>` : ''}<button class="btn btn-sm btn-secondary" onclick="openModal('editPayment',S.payments.find(p=>p.id===${id}))">Dettagli</button></div>
         </div>`;
     }
+    function rentMonthLabel(month, short = false) {
+        return /^\d{4}-(0[1-9]|1[0-2])$/.test(month || '') ? new Date(month + '-01T12:00:00Z').toLocaleDateString('it-IT', {month:short?'short':'long',year:short?'2-digit':'numeric',timeZone:'UTC'}) : 'Periodo da verificare';
+    }
+    let rentDetailOpener = null;
+    function closeRentDetail() { closeModal(); if (rentDetailOpener?.isConnected) rentDetailOpener.focus(); }
+    function rentDetailKeys(event) {
+        if (event.key === 'Escape') { event.preventDefault(); closeRentDetail(); return; }
+        if (event.key !== 'Tab') return;
+        const items = Array.from(event.currentTarget.querySelectorAll('button:not([disabled]),a[href],summary'));
+        const first = items[0], last = items[items.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    }
+    function openRentUnit(id, month, focusId) {
+        const unit = rentOverview({month:'all',status:'all',search:''}).units.find(u => u.id === id);
+        if (!unit) return;
+        const rows = month ? window.BOOM_RENT.rowsForMonth(unit, month) : unit.payments;
+        rentDetailOpener = document.activeElement;
+        document.body?.classList.add('modal-open');
+        // Opening context never records an incasso or sends a reminder.
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal rent-detail" role="dialog" aria-modal="true" aria-labelledby="rentDetailTitle" onkeydown="rentDetailKeys(event)"><div class="modal-header"><div><h2 class="modal-title" id="rentDetailTitle">${esc(unit.unlinked ? 'Unità da collegare' : unit.label)}</h2><p class="rent-scope">${esc(month ? rentMonthLabel(month) : 'Tutti i periodi')} · ${rows.length} ${rows.length === 1 ? 'rata' : 'rate'}</p></div><button class="modal-close" aria-label="Chiudi dettagli canoni" onclick="closeRentDetail()">×</button></div><div class="modal-body">${rows.length ? rows.map(r => `<section ${r.id === focusId ? 'class="rent-selected"' : ''}>${rentPaymentRow(r)}</section>`).join('') : '<p class="rent-empty">Nessuna rata registrata per questo periodo. Verifica il contratto e le rate esistenti prima di generarne altre.</p>'}<p class="rent-scope">Un pagamento segnalato richiede il riscontro dell’incasso. Le operazioni qui sotto mantengono le conferme previste.</p></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeRentDetail()">Chiudi</button></div></div></div>`;
+        document.querySelector?.('.rent-detail .modal-close')?.focus();
+    }
     function rentUnitsHTML(view) {
-        return view.units.map(unit => `<details class="rent-unit" ${unit.totals.overdue > 0 || unit.unlinked ? 'open' : ''}>
-            <summary><div class="rent-unit-name"><strong>${esc(unit.label)}</strong><small>${esc(unit.tenantNames.join(' · ') || unit.address || (unit.unlinked ? 'Verifica il collegamento al contratto' : 'Nessun inquilino collegato'))}</small></div>
-                <div><small>Incassato</small><strong>${rentMoney(unit.totals.paid)}</strong></div><div><small>Da incassare</small><strong>${rentMoney(unit.totals.due)}</strong></div>
-                <span class="rent-unit-signal">${unit.noInstallments ? 'Nessuna rata nel periodo' : unit.totals.overdue > 0 ? 'In ritardo' : unit.totals.processing > 0 ? 'In elaborazione' : unit.totals.reported > 0 ? 'Da verificare' : unit.payments.length + ' rate'} <span aria-hidden="true">⌄</span></span>
-            </summary>
-            ${unit.noInstallments ? `<div class="rent-empty">Nessuna rata registrata per questo periodo. La presenza del contratto non conferma un pagamento.</div>` : ''}
-            ${unit.rentPayments.map(rentPaymentRow).join('')}
-            ${unit.otherPayments.length ? `<div class="rent-other-label">Depositi e altri addebiti · esclusi dai totali canoni</div>${unit.otherPayments.map(rentPaymentRow).join('')}` : ''}
-        </details>`).join('') || '<div class="rent-empty">Nessuna unità corrisponde ai filtri. Cambia periodo, stato o ricerca.</div>';
+        const history = rentOverview({ month:'all', status:'all', search:'' });
+        return view.units.map(unit => {
+            const complete = history.units.find(u => u.id === unit.id) || unit;
+            const action = window.BOOM_RENT.nextAction(complete);
+            const actionLabels = {reported:'Verifica pagamento',overdue:'Gestisci ritardo',due:'Prepara link',processing:'Vedi stato',review:'Verifica dati'};
+            const unitId = rentActionArg(unit.id);
+            const timeline = window.BOOM_RENT.timeline(complete, paymentFilters.month);
+            const covered = paymentFilters.month !== 'all' && window.BOOM_RENT.rowsForMonth(complete,paymentFilters.month).some(r => r.isRent && r.month !== paymentFilters.month);
+            const chips = timeline.map(cell => {
+                const label = cell.state === 'multiple' ? cell.rows.length + ' rate' : cell.state === 'empty' ? 'Nessuna rata' : rentStateLabel(cell.state);
+                const symbol = ({paid:'✓',due:'Da pagare',overdue:'In ritardo',processing:'In corso',reported:'Segnalato',unknown:'Da verificare',cancelled:'Annullato',empty:'—',multiple:cell.rows.length+' rate'})[cell.state];
+                const amount = cell.rows.length === 1 ? ' · ' + rentMoney(cell.rows[0].amount) + (cell.rows[0].payment.coversTo ? ' · rata unica ' + rentMonthLabel(cell.rows[0].month) + ' – ' + rentMonthLabel(cell.rows[0].payment.coversTo) : '') : '';
+                return `<button class="rent-month rent-month-${cell.state}" aria-label="${esc(rentMonthLabel(cell.month) + ' · ' + label + amount)}" onclick="openRentUnit(${unitId},${rentActionArg(cell.month)})"><small>${esc(rentMonthLabel(cell.month,true))}</small><span>${esc(symbol)}</span></button>`;
+            }).join('');
+            return `<section class="rent-unit"><div class="rent-board-row"><div class="rent-unit-name"><strong>${esc(unit.unlinked ? 'Unità da collegare' : unit.label)}</strong><small>${esc(unit.tenantNames.map(n => n.startsWith('Inquilino da collegare · ') ? 'Inquilino da collegare' : n).join(' · ') || unit.address || 'Inquilino da collegare')}</small></div><div class="rent-months" role="group" aria-label="${esc('Ultimi sei mesi · ' + (unit.unlinked ? 'Unità da collegare' : unit.label))}">${chips}</div><div class="rent-next">${action.kind !== 'none' ? `<button class="btn btn-secondary" onclick="openRentUnit(${unitId},${rentActionArg(action.month)},${rentActionArg(action.paymentId)})">${actionLabels[action.kind]}</button><small>${esc(rentMonthLabel(action.month))}</small>` : unit.noInstallments && !covered ? `<button class="btn btn-secondary" onclick="openRentUnit(${unitId},${paymentFilters.month === 'all' ? "''" : rentActionArg(paymentFilters.month)})">Verifica rate</button>` : '<span>Nessuna azione sui canoni registrati</span>'}</div></div>
+                <details class="rent-unit-details"><summary><span>${covered ? 'Periodo coperto da rata unica · apri il mese' : unit.noInstallments ? 'Nessuna rata nel periodo' : unit.payments.length + ' rate nel periodo'}</span><span>Incassato ${rentMoney(unit.totals.paid)} · Non confermato ${rentMoney(unit.totals.due)}</span><span aria-hidden="true">⌄</span></summary>
+                ${unit.noInstallments ? '<div class="rent-empty">Nessuna rata registrata per questo periodo. La presenza del contratto non conferma un pagamento.</div>' : ''}
+                ${unit.rentPayments.map(rentPaymentRow).join('')}
+                ${unit.otherPayments.length ? `<div class="rent-other-label">Depositi e altri addebiti · esclusi dai totali canoni</div>${unit.otherPayments.map(rentPaymentRow).join('')}` : ''}</details></section>`;
+        }).join('') || '<div class="rent-empty">Nessuna unità corrisponde ai filtri. Cambia periodo, stato o ricerca.</div>';
     }
     function rentSummaryHTML(view) {
-        return [['Incassato',view.totals.paid,'paid'],['Da incassare',view.totals.due,'outstanding'],['Di cui in ritardo',view.totals.overdue,'overdue'],['In elaborazione',view.totals.processing,'processing']].map(([label,value,kind]) => `<button class="rent-stat" onclick="filterPayments('${kind}')"><small>${label}</small><strong>${rentMoney(value)}</strong></button>`).join('');
+        return [['Incassato',view.totals.paid,'paid'],['Ancora da pagare',view.totals.pending,'pending'],['Pagamenti segnalati',view.totals.reported,'reported'],['In corso',view.totals.processing,'processing']].map(([label,value,kind]) => `<button class="rent-stat" onclick="filterPayments('${kind}')"><small>${label}</small><strong>${rentMoney(value)}</strong></button>`).join('');
     }
     function rentLoadNotice() {
         const partial = (S.payments || []).length >= 3000 || (S.properties || []).length >= 400 || (S.contracts || []).length >= 800 || (S.users || []).length >= 800;
@@ -9705,11 +9739,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const months = Array.from(new Set([paymentFilters.month, ...all.months])).filter(m => /^\d{4}-\d{2}$/.test(m)).sort().reverse();
         const monthOptions = `<option value="all" ${paymentFilters.month === 'all' ? 'selected' : ''}>Tutti i periodi</option>` + months.map(m => `<option value="${m}" ${m === paymentFilters.month ? 'selected' : ''}>${new Date(m + '-15T12:00:00').toLocaleDateString('it-IT', {month:'long',year:'numeric'})}</option>`).join('');
         return `<section class="rent-page"><div class="page-header"><div><div class="rent-eyebrow">GESTIONE LOCAZIONI</div><h1 class="page-title">Canoni per unità</h1><p class="page-subtitle">Chi ha pagato, cosa manca e il prossimo passo per ogni casa.</p></div><div class="page-actions"><button class="btn btn-secondary" onclick="goTo('invoices')">Fatture BOOM ↗</button><button class="btn" onclick="reloadRentPayments()" ${rentLoadState.status === 'loading' ? 'disabled' : ''}>Aggiorna</button></div></div>
-            <p class="rent-note">I totali riguardano i canoni delle unità. Depositi, altri addebiti e compensi BOOM hanno voci separate.</p>
-            <div class="rent-toolbar"><label>Periodo<select class="form-input" id="rentMonth" onchange="paymentFilters.month=this.value;applyPaymentFilters()">${monthOptions}</select></label><label class="rent-search">Cerca unità o inquilino<input class="form-input" id="paymentSearch" type="search" value="${esc(paymentFilters.search)}" placeholder="Nome, indirizzo o inquilino" oninput="searchPayments(this.value)"></label><label>Stato<select class="form-input" id="rentStatus" onchange="filterPayments(this.value)">${[['all','Tutti'],['outstanding','Da incassare'],['pending','Da pagare'],['overdue','In ritardo'],['paid','Pagati'],['processing','In elaborazione'],['reported','Da verificare'],['empty','Senza rate']].map(([v,l])=>`<option value="${v}" ${v===paymentFilters.kind?'selected':''}>${l}</option>`).join('')}</select></label></div>
-            <div class="rent-stats" id="rentStats">${rentSummaryHTML(view)}</div><div id="rentScope" class="rent-scope" aria-live="polite">${view.units.length} unità · totali dei canoni nel filtro corrente${view.totals.unknownAmountCount || view.totals.unknownStateCount || view.counts.unknownMonth ? ' · Dati da verificare: alcuni importi, stati o periodi sono incompleti' : ''}</div>
+            <p class="rent-note">Canoni gestiti per i proprietari · Apri un mese per vedere le rate. La prossima azione considera anche gli arretrati fuori periodo.</p>
+            <div class="rent-toolbar"><label>Periodo<select class="form-input" id="rentMonth" onchange="paymentFilters.month=this.value;applyPaymentFilters()">${monthOptions}</select></label><label class="rent-search">Cerca unità o inquilino<input class="form-input" id="paymentSearch" type="search" value="${esc(paymentFilters.search)}" placeholder="Nome, indirizzo o inquilino" oninput="searchPayments(this.value)"></label><label>Stato<select class="form-input" id="rentStatus" onchange="filterPayments(this.value)">${[['all','Tutti'],['outstanding','Non confermati'],['pending','Da pagare'],['overdue','In ritardo'],['paid','Pagati'],['processing','In elaborazione'],['reported','Da verificare'],['empty','Senza rate']].map(([v,l])=>`<option value="${v}" ${v===paymentFilters.kind?'selected':''}>${l}</option>`).join('')}</select></label></div>
+            <div id="rentLoadNotice" class="rent-load" role="status">${rentLoadNotice()}</div><div id="paymentsContainer">${rentUnitsHTML(view)}</div><div class="rent-summary-heading">Riepilogo del periodo selezionato</div><div class="rent-stats" id="rentStats">${rentSummaryHTML(view)}</div><div id="rentScope" class="rent-scope" aria-live="polite">${view.units.length} unità · totali dei canoni nel filtro corrente${view.totals.unknownAmountCount || view.totals.unknownStateCount || view.counts.unknownMonth ? ' · Dati da verificare: alcuni importi, stati o periodi sono incompleti' : ''}</div>
             ${all.totals.overdue > 0 ? `<button class="rent-arrears" onclick="paymentFilters.month='all';document.getElementById('rentMonth').value='all';filterPayments('overdue')">${rentMoney(all.totals.overdue)} di canoni in ritardo su tutti i periodi · Apri arretrati →</button>` : ''}
-            <div id="rentLoadNotice" class="rent-load" role="status">${rentLoadNotice()}</div><div id="paymentsContainer">${rentUnitsHTML(view)}</div>
             <div id="rentUnlinkedReceipts">${rentUnlinkedReceiptsHTML()}</div>
             <details class="rent-tools"><summary>Strumenti di gestione</summary><div class="rent-actions"><button class="btn btn-secondary" onclick="exportPaymentsCSV()">Esporta elenco filtrato</button><button class="btn btn-secondary" onclick="openModal('bulkPayments')">Genera rate</button><button class="btn btn-secondary" onclick="openModal('addPayment')">Aggiungi rata</button></div></details></section>`;
     }
@@ -20820,7 +20853,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 uploadedBy: S.profile?.id || 'admin',
                 createdAt: firebase.firestore.FieldValue.serverTimestamp()
             });
-            await db.collection('payments').doc(pay.id).update({ receiptDocId: docRef.id }).catch(() => {});
+            await db.collection('payments').doc(pay.id).update({ receiptDocId: docRef.id, ...(!pay.receiptUrl ? {receiptUrl:fileUrl} : {}) }).catch(() => {});
             logActivity('Ricevuta archiviata', 'document', { paymentId: pay.id, docId: docRef.id, tenant: t?.name });
             return docRef.id;
         } catch (e) { console.warn('[archivePaymentReceipt]', e); return null; }

@@ -10,6 +10,7 @@ let passed = 0, failed = 0;
 const check = (name, ok) => { if (ok) passed++; else failed++; console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`); };
 const store = new Map();
 const writes = [];
+let reportConflict=false;
 globalThis.__checkout = { calls: [], sessions: new Map(), expired: [] };
 const stripe = globalThis.__checkout;
 const identities = { admin: { localId: 'admin1', email: 'admin@example.test' }, tenant: { localId: 'tenant1', email: 'tenant@example.test' }, owner: { localId: 'owner1' } };
@@ -38,6 +39,12 @@ globalThis.fetch = async (input, opts = {}) => {
   }
   if (url.hostname !== 'firestore.googleapis.com') throw new Error('Network not mocked: ' + url.hostname);
   const path = decodeURIComponent(url.pathname.split('/documents/')[1] || '');
+  if (url.pathname.endsWith('/documents:commit')) {
+    const batch=JSON.parse(opts.body).writes;
+    if(reportConflict || batch.some(w=>w.currentDocument?.updateTime!=='2026-09-18T00:00:00.000000Z'))return json({error:{status:'FAILED_PRECONDITION'}},409);
+    for(const w of batch){const key=w.update.name.split('/documents/')[1], patch=Object.fromEntries(Object.entries(w.update.fields).map(([k,v])=>[k,fromFs(v)]));writes.push(key);store.set(key,{...store.get(key),...patch});}
+    return json({writeResults:[]});
+  }
   if (opts.method === 'POST') {
     const id = url.searchParams.get('documentId') || 'test_' + writes.length;
     const doc = Object.fromEntries(Object.entries(JSON.parse(opts.body).fields).map(([k, v]) => [k, fromFs(v)]));
@@ -49,7 +56,7 @@ globalThis.fetch = async (input, opts = {}) => {
     writes.push(path); store.set(path, { ...store.get(path), ...doc });
     return json({ name: path });
   }
-  return store.has(path) ? json({ name: url.pathname, fields: fields(store.get(path)) }) : json({}, 404);
+  return store.has(path) ? json({ name: url.pathname, fields: fields(store.get(path)), updateTime:'2026-09-18T00:00:00.000000Z' }) : json({}, 404);
 };
 store.set('users/admin1', { role: 'admin' });
 store.set('users/tenant1', { role: 'tenant' });
@@ -72,6 +79,8 @@ for (const [label, over, error] of [
   ['paid', { status: 'paid' }, 'already_paid'], ['cancelled', { status: 'cancelled' }, 'payment_cancelled'],
   ['SDD processing', { sddPiId: 'pi_sdd', sddStatus: 'processing' }, 'sdd_processing'],
   ['SDD legacy in progress', { sddPiId: 'pi_sdd' }, 'sdd_processing'],
+  ['reported transfer', {tenantReported:true}, 'payment_reported'],
+  ['legacy reported', {status:'reported'}, 'payment_reported'],
   ['card processing', { status: 'processing' }, 'payment_processing'],
   ['unknown status', { status: 'refunded' }, 'payment_not_payable'],
 ]) {
@@ -240,5 +249,36 @@ check('stored document context is escaped and unsafe receipt URL is never action
 check('paid without available receipt offers assistance without pretending a download exists',
   r.body.includes('Pagamento confermato') && r.body.includes('Puoi richiedere la ricevuta a BOOM.') && !r.body.includes('Vedi la ricevuta'));
 
+const {default:report}=await import('../../api/payments/report.js');
+installment('transfer-report');
+const preReport=JSON.stringify(store.get('payments/transfer-report'));
+r=await call(report,post({paymentId:'transfer-report',action:'report'},'tenant'));
+check('report saves only the notice, never amount/status/paid date',r.code===200&&store.get('payments/transfer-report').tenantReported===true&&store.get('payments/transfer-report').status==='pending'&&store.get('payments/transfer-report').amount===900&&!store.get('payments/transfer-report').paidDate);
+const reportWrites=writes.length;
+r=await call(report,post({paymentId:'transfer-report',action:'report'},'tenant'));
+check('duplicate report is idempotent',r.code===200&&writes.length===reportWrites);
+r=await call(link,get('transfer-report'));
+check('old public link clearly shows reported state and does not reopen checkout',r.code===200&&r.body.includes('Pagamento segnalato')&&!r.url);
+r=await call(report,post({paymentId:'transfer-report',action:'withdraw'},'tenant'));
+check('tenant can withdraw own mistaken notice without changing the installment',r.code===200&&store.get('payments/transfer-report').tenantReported===false&&store.get('payments/transfer-report').status==='pending');
+installment('not-owned',{tenantId:'someone-else'});
+const protectedWrites=writes.length;
+r=await call(report,post({paymentId:'not-owned',action:'report'},'tenant'));
+check('report rejects another tenant installment',r.code===403&&writes.length===protectedWrites);
+r=await call(report,post({paymentId:'transfer-report',action:'report'},'admin'));
+check('admin preview cannot submit a tenant declaration',r.code===403&&writes.length===protectedWrites);
+for(const fields of [{status:'paid'},{status:'cancelled'},{sddPiId:'pi_busy',sddStatus:'processing'},{cardStatus:'processing'},{status:'unknown'},{amount:null}]){
+  installment('changed',fields);const n=writes.length;
+  r=await call(report,post({paymentId:'changed',action:'report'},'tenant'));
+  check('fresh non-payable state refuses report '+JSON.stringify(fields),r.code===409&&writes.length===n);
+}
+installment('settled',{status:'paid',tenantReported:true});
+r=await call(report,post({paymentId:'settled',action:'withdraw'},'tenant'));
+check('withdraw never resets an already confirmed payment',r.code===409&&store.get('payments/settled').status==='paid');
+installment('cas-race');reportConflict=true;const casWrites=writes.length;
+r=await call(report,post({paymentId:'cas-race',action:'report'},'tenant'));reportConflict=false;
+check('concurrent change refuses the report rather than overwriting the new state',r.code===409&&writes.length===casWrites&&!store.get('payments/cas-race').tenantReported);
+r=await call(report,post({paymentId:'../users/admin1',action:'report'},'tenant'));
+check('report rejects arbitrary document paths',r.code===400);
 console.log(`\nPayment links safety: ${passed} passed, ${failed} failed`);
 process.exitCode = failed ? 1 : 0;

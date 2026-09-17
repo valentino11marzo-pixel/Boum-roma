@@ -77,7 +77,7 @@ ctx.S.payments.find(p=>p.id==='p4').proofUrl='https://files.example.invalid/proo
 check('reported transfer exposes the existing proof without asserting paid',()=>{
   const h=run("rentPaymentRow(rentOverview().payments.find(r=>r.id==='p4'))");
   assert(h.includes('Prova pagamento'));assert(h.includes('https://files.example.invalid/proof.pdf?token=a&amp;mode=view'));
-  assert(h.includes('target="_blank" rel="noopener"'));assert(h.includes('Da verificare'));assert(!h.includes('Link pagamento'));
+  assert(h.includes('target="_blank" rel="noopener"'));assert(h.includes('Segnalato · da verificare'));assert(!h.includes('Link pagamento'));
 });
 check('proof links reject executable, relative and unsupported URL schemes',()=>{
   for(const proofUrl of ['javascript:alert(1)','data:text/html,<script>alert(1)</script>','//files.example.invalid/proof','ftp://files.example.invalid/proof','not a url']){
@@ -219,5 +219,28 @@ ctx.refresh=async()=>{};ctx.logActivity=()=>{};ctx.window.confirm=()=>true;
 await run("pushObligationsToDeadlines(2026,'company')");
 check('saved company deadline calculations use the same service-only invoice base',()=>{
   assert.deepEqual(fiscalInputs.at(-1).quarters,{1:0,2:0,3:125,4:0});assert.equal(JSON.stringify(ctx.S),agencyBefore);
+});
+console.log(`${count} admin rent checks passed in total.`);
+
+ctx.S=structuredClone(fixture);run("paymentFilters.month='2026-09';paymentFilters.kind='all';paymentFilters.search=''");
+check('overview shows six months per unit before period totals, without opening action lists',()=>{
+  const h=run('paymentsPage()');assert.equal((h.match(/class="rent-month rent-month-/g)||[]).length,30);
+  assert(h.indexOf('id="paymentsContainer"')<h.indexOf('id="rentStats"'));
+  assert(!h.includes('<details class="rent-unit-details" open'));
+  assert(h.includes('Ancora da pagare'));assert(h.includes('Pagamenti segnalati'));
+});
+const callsBefore=calls.length;
+run("openRentUnit('property:u4','2026-09','p4')");
+check('primary action opens the right context without a write, reminder or checkout',()=>{
+  const h=el('modals').innerHTML;assert(h.includes('San Giovanni'));assert(h.includes('Registra incasso'));assert(!h.includes('Link pagamento'));assert.equal(calls.length,callsBefore);
+});
+ctx.S.payments.push({...ctx.S.payments[0],id:'second-rate',amount:20});
+check('multiple installments in one month open together, with their own identities and states',()=>{
+  assert(run('paymentsPage()').includes('2 rate'));
+  run("openRentUnit('property:u1','2026-09')");const h=el('modals').innerHTML;assert(h.includes('second-rate'));assert(h.includes('p1'));assert(h.includes('d1'));
+});
+run("openRentUnit('property:u5','2026-09')");
+check('an empty month does not fabricate debt or auto-generate an installment',()=>{
+  const h=el('modals').innerHTML;assert(h.includes('Nessuna rata registrata'));assert(!h.includes('confirmRentPayment'));assert(!h.includes('bulkPayments'));
 });
 console.log(`${count} admin rent checks passed in total.`);

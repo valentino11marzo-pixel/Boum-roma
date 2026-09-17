@@ -35,6 +35,7 @@
 //     rata torna pagabile con carta/bonifico e l'operatore è avvisato.
 
 import Stripe from 'stripe';
+import RENT from '../../js/rent-engine.js';
 import { fsGet, fsList, fsPatch } from '../homie/_lib.js';
 import { tgNotify } from '../pfs/_health.js';
 
@@ -69,7 +70,7 @@ export function sddFee(amount, stats) {
  */
 export function eligibleForCharge(pay, sdd, todayISO, leadDays = Number(process.env.SDD_LEAD_DAYS || 7)) {
   if (!pay || !sdd || sdd.status !== 'active' || !sdd.customerId || !sdd.paymentMethodId) return false;
-  if (pay.status !== 'pending') return false;
+  if (pay.status !== 'pending' || RENT.paymentBlockReason(pay)) return false;
   if (pay.sddPiId || pay.sddInitError) return false;          // già iniziato, o guasto noto
   if (pay.type && pay.type !== 'rent') return false;          // solo canone, mai il deposito
   const due = String(pay.dueDate || '').slice(0, 10);
