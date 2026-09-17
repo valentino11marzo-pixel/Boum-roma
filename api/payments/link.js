@@ -2,7 +2,7 @@
 //
 // L'operatore, dal portale, copia un link e lo manda su WhatsApp. Chi lo
 // apre — inquilino o proprietario, senza login, anche settimane dopo —
-// finisce dentro una Stripe Checkout appena creata per l'importo esatto di
+// finisce dentro una Stripe Checkout aperta per l'importo esatto di
 // quel documento. Al pagamento, il webhook segna il documento pagato: la
 // gestione e la fatturazione restano allineate da sole.
 //
@@ -20,6 +20,8 @@ import Stripe from 'stripe';
 import { fsGet, fsPatch, logActivity } from '../homie/_lib.js';
 import { verifyPayToken, collectionFor } from './_token.js';
 import { rentFee } from './pay.js';
+import RENT from '../../js/rent-engine.js';
+import { existingCheckout } from './_checkout.js';
 
 const eur = (n) => '€' + Number(n || 0).toLocaleString('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
@@ -66,11 +68,6 @@ export default async function handler(req, res) {
       'Questo link di pagamento non è più valido o è stato digitato male. Chiedine uno nuovo e lo rifacciamo in un secondo.',
       { icon: '🔒' }));
   }
-  if (!process.env.STRIPE_SECRET_KEY) {
-    return html(res, 503, page('Pagamenti non disponibili',
-      'Il pagamento con carta è momentaneamente non attivo. Scrivici e ti diamo subito un\'alternativa.', { icon: '🛠' }));
-  }
-
   let doc;
   try { doc = await fsGet(`${collection}/${id}`); }
   catch (e) {
@@ -81,17 +78,48 @@ export default async function handler(req, res) {
     return html(res, 404, page('Documento non trovato',
       'Il pagamento a cui punta questo link non esiste più.', { icon: '🔍' }));
   }
-  if (doc.status === 'paid' || doc.status === 'cancelled') {
-    const paid = doc.status === 'paid';
+  const blocked = RENT.paymentBlockReason(doc, kind === 'inv' ? 'invoice' : 'rent');
+  if (blocked === 'already_paid' || blocked === 'payment_cancelled') {
+    const paid = blocked === 'already_paid';
     return html(res, 200, page(paid ? 'Risulta già pagato' : 'Pagamento annullato',
       paid
         ? `Questo importo${doc.paidDate ? ' risulta pagato il <b>' + doc.paidDate + '</b>' : ' risulta già saldato'}. Non serve fare altro.`
         : 'Questo pagamento è stato annullato. Se pensi sia un errore, scrivici.',
       { icon: paid ? '✅' : '—', href: doc.receiptUrl || null, ctaLabel: 'Vedi la ricevuta' }));
   }
+  if (blocked === 'payment_not_payable') {
+    return html(res, 200, page('Pagamento da verificare',
+      'Lo stato di questo documento deve essere verificato prima di aprire un pagamento. Contatta BOOM per assistenza.', { icon: '🔍' }));
+  }
+  if (blocked) {
+    return html(res, 200, page('Pagamento in elaborazione',
+      blocked === 'sdd_processing'
+        ? 'L\'addebito SEPA per questa rata è già in corso. Attendi la conferma prima di pagare con un altro metodo.'
+        : 'Il pagamento è in elaborazione. Attendi la conferma prima di riprovare.', { icon: '⏳' }));
+  }
 
-  const cents = Math.round((Number(doc.amount) || 0) * 100);
-  if (cents < 100 || cents > 12000000) {
+  const stableUrl = `https://www.boomrome.com/api/payments/link?k=${kind}&id=${encodeURIComponent(id)}&t=${token}`;
+  // Il ritorno da Stripe NON deve aprire un'altra sessione: il webhook può
+  // arrivare dopo il browser. Il parametro descrive il percorso, non prova
+  // un pagamento: soltanto il documento aggiornato dà la ricevuta sopra.
+  if (req.query.return === 'success') {
+    return html(res, 200, page('Conferma in arrivo',
+      'Stiamo verificando l\'esito del pagamento. Attendi la ricevuta prima di effettuare un altro pagamento.',
+      { icon: '⏳', href: stableUrl + '&return=success', ctaLabel: 'Aggiorna lo stato' }));
+  }
+  if (req.query.return === 'cancel') {
+    return html(res, 200, page('Pagamento interrotto',
+      'Puoi riprendere il pagamento quando vuoi. Lo stato si aggiorna soltanto alla conferma dell\'incasso.',
+      { icon: '↩', href: stableUrl, ctaLabel: 'Riprendi il pagamento' }));
+  }
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return html(res, 503, page('Pagamenti non disponibili',
+      'Il pagamento con carta è momentaneamente non attivo. Scrivici e ti diamo subito un\'alternativa.', { icon: '🛠' }));
+  }
+
+  const amountValue = RENT.amount(doc.amount);
+  const cents = amountValue == null ? 0 : Math.round(amountValue * 100);
+  if (amountValue == null || cents < 100 || cents > 12000000) {
     return html(res, 400, page('Importo non valido',
       'C\'è qualcosa che non torna nell\'importo. Segnalacelo e lo sistemiamo subito.', { icon: '⚠️' }));
   }
@@ -101,7 +129,11 @@ export default async function handler(req, res) {
   // carta, dichiarato come voce a sé). Su una fattura BOOM non si applica:
   // sarebbe farsi pagare due volte lo stesso servizio.
   const isInvoice = kind === 'inv';
-  const fee = isInvoice ? 0 : rentFee(amount);
+  let feeStats = null;
+  if (!isInvoice) {
+    try { feeStats = await fsGet('settings/rentFeeStats'); } catch (_) {}
+  }
+  const fee = isInvoice ? 0 : rentFee(amount, feeStats);
 
   const label = isInvoice
     ? `Fattura ${doc.number || ''}`.trim() + (doc.service ? ` — ${doc.service}` : '')
@@ -133,6 +165,16 @@ export default async function handler(req, res) {
 
   try {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+    const prior = await existingCheckout(stripe, doc, kind, id, cents + Math.round(fee * 100));
+    if (prior.state === 'complete') {
+      return html(res, 200, page('Conferma in arrivo',
+        'Il pagamento è stato completato su Stripe. Attendi la ricevuta mentre aggiorniamo il tuo portale.',
+        { icon: '⏳', href: stableUrl + '&return=success', ctaLabel: 'Aggiorna lo stato' }));
+    }
+    if (prior.state === 'open') {
+      res.setHeader('Cache-Control', 'private, no-store');
+      return res.redirect(303, prior.session.url);
+    }
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
@@ -149,15 +191,14 @@ export default async function handler(req, res) {
             contractId: String(doc.contractId || ''), tenantId: String(doc.tenantId || ''),
             month: String(doc.month || ''), amount: String(amount), fee: String(fee), via: 'link',
           },
-      success_url: `https://www.boomrome.com/api/payments/link?k=${kind}&id=${encodeURIComponent(id)}&t=${token}`,
-      cancel_url: `https://www.boomrome.com/api/payments/link?k=${kind}&id=${encodeURIComponent(id)}&t=${token}`,
-      // La sessione può scadere: il LINK no. Alla riapertura se ne crea
-      // un'altra, quindi 30 minuti bastano e restringono la finestra in cui
-      // due sessioni vive potrebbero produrre un doppio incasso.
+      success_url: stableUrl + '&return=success',
+      cancel_url: stableUrl + '&return=cancel',
+      // La sessione può scadere: il LINK no. Finché è aperta si riusa;
+      // dopo la scadenza una nuova apertura genera il checkout successivo.
       expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
     });
 
-    fsPatch(`${collection}/${id}`, { checkoutSessionId: session.id, linkOpenedAt: new Date().toISOString() }).catch(() => {});
+    await fsPatch(`${collection}/${id}`, { checkoutSessionId: session.id, linkOpenedAt: new Date().toISOString() });
     logActivity('payment_link_opened', 'payment', { kind, id, amount, fee }, 'link').catch(() => {});
 
     res.setHeader('Cache-Control', 'private, no-store');

@@ -1469,6 +1469,11 @@ and skip the pitch entirely for a product already bought (`leads` lookup,
 one query per run).
 
 ### Tenant lifecycle — La tua casa BOOM + Canone via BOOM + journey + Fascicolo ARPE
+- **Pagamenti /casa, 17/09:** `?paid` non promuove più una rata a pagata: soltanto snapshot `source:'server'`.
+  Refresh limitato a cinque tentativi, attesa/errore/riprova visibili; `sdd=ok` attende il contratto verificato.
+  `BOOM_RENT` impedisce carta/bonifico/dock su addebiti in corso, segnalati o ritorni da verificare.
+  Elenco per contratto visualizzato, aperti separati da ricevute, limite 120 dichiarato, EN/IT preservati.
+  Test `tenantpayments` (controller vero + mutazioni) e regressione `scalo`. Nessun dato reale mutato dai test.
 - **`tenant.html` (served at `/casa`)** — REBUILT on real data (the old page
   was a stub with hardcoded payments). BoomPortal auth (role tenant), reads
   own `contracts`/`payments`/`maintenance` + property client-side (allowed
@@ -2675,7 +2680,22 @@ Public, rate-limited (8/min/IP) copywriter for media-studio.html. Body:
 prezzo, locali, mq, extra }`. The prompt is built entirely server-side from
 length-capped fields (no general proxying possible); model pinned to haiku,
 max_tokens 500. CORS: boomrome.com + *.vercel.app previews. Returns `{ text }`.
+### Canoni per unità e ricavi BOOM — 17 settembre 2026
+`js/rent-engine.js` (UMD `BOOM_RENT`) deriva unità, periodo, importi e stati da
+payments/contracts/properties/users: nessuna copia persistente. Include unità senza rate e collegamenti mancanti;
+depositi/altri addebiti sono separati. Le ricevute `paymentId`/`rent-receipt` restano consultabili dai canoni,
+ma non alimentano la vista fatture servizi e i compensi BOOM. Il riepilogo non somma più canoni e compensi;
+la classificazione fiscale resta invariata finché non è distinto il canone proprio da quello per terzi.
+aggiornamento server paginato, fallimento esplicito e timbro invalidato dal caricamento cache/core.
+Test: `rent` (anche mutazioni) e `rentadmin` (funzioni vere, filtri, link, export e refresh).
+
 ### Link di pagamento Stripe (`/api/payments/link` + `link-for`)
+Aggiornamento 17/09: `paymentBlockReason` condiviso blocca pagato/annullato/SEPA o carta in corso/stato sconosciuto.
+`_checkout.js` riusa una sessione aperta della stessa rata/fattura; un completamento attende il webhook.
+Il ritorno dal link pubblico è solo lettura e non crea una nuova sessione. Commissione del link = quella
+misurata del portale. Nessuna garanzia di serializzazione universale fra richieste concorrenti o collector SEPA.
+Test `paymentlinks` + `paymentlinkmutations`: handler veri e rete simulata, difetti ripristinati devono fallire.
+
 Il portale può incassare QUALSIASI rata o fattura con carta, mandando un
 link su WhatsApp. Il link **non è** una Checkout Session (quella scade in 30
 minuti, per scelta): è un URL stabile di BOOM che a ogni apertura crea una

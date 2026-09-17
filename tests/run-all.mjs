@@ -10,6 +10,11 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const SUITES = [
+  { name: 'rent', file: 'tests/rent/run.mjs', what: 'canoni per unità, stati condivisi, ricevute separate dai ricavi e mutazioni' },
+  { name: 'rentadmin', file: 'tests/rent-admin/run.mjs', what: 'interfaccia canoni reale: filtri, azioni, export e aggiornamento completo senza false conferme' },
+  { name: 'tenantpayments', file: 'tests/tenant-payments/run.mjs', what: 'casa: pagamenti confermati dal server, errore esplicito, retry limitati e mutazioni' },
+  { name: 'paymentlinks', file: 'tests/payment-links-safety/run.mjs', what: 'link e checkout: guardie, riuso sessione, ritorno verificato e commissioni coerenti' },
+  { name: 'paymentlinkmutations', file: 'tests/payment-links-safety/mutate.mjs', what: 'i difetti ripristinati devono fallire: guardie, commissioni, ritorno e riuso checkout' },
   { name: 'segretariamonitor', file: 'tests/segretaria/monitor.mjs', what: 'stato preparazione verificabile: cap, pausa, dati mancanti, mezzanotte Roma; nessuna attestazione impropria sulla ricezione' },
   { name: 'segretariaworker', file: 'tests/segretaria/worker.mjs', what: 'preparazione ogni minuto, batch entro budget, eventi nuovi ed equità, concorrenza senza doppia spesa' },
   { name: 'segretarialiveui', file: 'tests/segretaria/realtime-ui.mjs', what: 'Oggi reagisce agli eventi senza perdere bozze; messaggi recenti ordinati e limiti della preparazione visibili' },

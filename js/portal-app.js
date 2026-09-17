@@ -2531,6 +2531,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 if (sameUser && age < cacheUsable) {
                     console.log('Using cached data (age ' + Math.round(age / 1000) + 's)');
                     Object.assign(S, data);
+                    invalidateRentSnapshot();
                     checkAlerts();
                     // Refresh in background: subito se lo snapshot è stantio,
                     // con calma se ha meno di 5 minuti.
@@ -2721,6 +2722,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             S.properties = props.docs.map(d => ({ id: d.id, ...d.data() }));
             S.contracts = contracts.docs.map(d => ({ id: d.id, ...d.data() }));
             S.payments = payments.docs.map(d => ({ id: d.id, ...d.data() }));
+            invalidateRentSnapshot();
             // Rate scadute: flip SOLO in memoria. Prima ogni boot faceva una
             // update() Firestore per ogni rata scaduta (N scritture a ogni
             // apertura, per sempre — audit 2026-08). Nessun consumatore
@@ -2842,8 +2844,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             }
         });
         // Overdue payments
-        S.payments.filter(p => p.status === 'pending').forEach(p => {
-            if (isOverdue(p.dueDate)) {
+        S.payments.filter(p => window.BOOM_RENT.paymentState(p) === 'overdue').forEach(p => {
+            {
                 const c = S.contracts.find(x => x.id === p.contractId);
                 const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
                 S.notifications.push({ type: 'danger', title: 'Pagamento in ritardo', text: `${prop?.name || ''} - €${p.amount}`, id: p.id });
@@ -3648,7 +3650,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const today = new Date();
 
         // 1. Overdue payments
-        S.payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate)).forEach(p => {
+        S.payments.filter(p => window.BOOM_RENT.paymentState(p) === 'overdue').forEach(p => {
             const contract = S.contracts.find(c => c.id === p.contractId);
             const prop = S.properties.find(x => x.id === contract?.propertyId);
             const tenant = S.users.find(u => u.id === contract?.tenantId);
@@ -3676,7 +3678,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         });
 
         // 5. Pending invoices > 30 days
-        S.invoices.filter(i => i.status === 'pending' && daysSince(i.createdAt) > 30).forEach(i => {
+        boomBusinessInvoices().filter(i => i.status === 'pending' && daysSince(i.createdAt) > 30).forEach(i => {
             const client = S.clients.find(c => c.id === i.clientId);
             reminders.push({ type: 'invoice_overdue', priority: 'medium', icon: '🧾', color: 'orange', title: 'Fattura da incassare', text: `${i.number} - ${client?.name || 'Cliente'} · €${i.amount}`, action: `viewInvoice('${i.id}')`, date: i.createdAt });
         });
@@ -4061,7 +4063,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         
         if (r === 'admin') {
             const activeClients = (S.clients || []).filter(c => !['completed', 'lost'].includes(c.stage)).length;
-            const pendingInv = S.invoices.filter(i => i.status === 'pending').length;
+            const pendingInv = boomBusinessInvoices().filter(i => i.status === 'pending').length;
         // Il badge di Burocrazia si legge dai CONTRATTI, non da
         // contractRegistrationStatus: quello si carica solo aprendo la
         // pagina, quindi al boot la sidebar taceva proprio mentre una
@@ -4071,7 +4073,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             && (c.registrationStatus || 'pending') !== 'registered' && !c.rliRegisteredAt).length;
 
             const openMaint = S.maintenance.filter(m => m.status !== 'resolved' && m.status !== 'closed' && m.status !== 'done').length;
-            const overduePayments = S.payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate)).length;
+            const overduePayments = S.payments.filter(p => window.BOOM_RENT.paymentState(p) === 'overdue').length;
             const urgentDeadlines = (S.deadlines || []).filter(d => d.status !== 'done' && daysUntil(d.date) !== null && daysUntil(d.date) <= 7).length + (S.tasks || []).filter(t => t.status !== 'done' && t.priority === 'urgent').length;
             const urgentPFS = (S.pfsClients || []).filter(c => c.stage !== 'placed' && calculatePFSPriority && calculatePFSPriority(c) >= 70).length;
             const newLeads = (S.leads || []).filter(l => l.status === 'new' || !l.status).length;
@@ -4089,14 +4091,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item ${S.page==='viewings'?'active':''}" onclick="goTo('viewings')"><span class="nav-icon">📅</span> Viewings ${pendingViewings?`<span class="nav-badge gold">${pendingViewings}</span>`:''}</div>
                     <div class="nav-item ${S.page==='inbox'?'active':''}" onclick="goTo('inbox')"><span class="nav-icon">📨</span> Inbox ${unreadInbox?`<span class="nav-badge gold">${unreadInbox}</span>`:''}</div>
                     <div class="nav-item ${S.page==='adminflats'?'active':''}" onclick="goTo('adminflats')"><span class="nav-icon">🏢</span> AdminFlats</div>
-                    <div class="nav-item ${S.page==='invoices'?'active':''}" onclick="goTo('invoices')"><span class="nav-icon">🧾</span> Fatture ${pendingInv?`<span class="nav-badge gold">${pendingInv}</span>`:''}</div>
+                    <div class="nav-item ${S.page==='invoices'?'active':''}" onclick="goTo('invoices')"><span class="nav-icon">🧾</span> Fatture BOOM ${pendingInv?`<span class="nav-badge gold">${pendingInv}</span>`:''}</div>
                 </div>
                 <div class="nav-section"><div class="nav-label">Gestione</div>
                     <div class="nav-item ${S.page==='properties'?'active':''}" onclick="goTo('properties')"><span class="nav-icon">🏠</span> Immobili</div>
                     <div class="nav-item ${S.page==='contracts'?'active':''}" onclick="goTo('contracts')"><span class="nav-icon">📋</span> Contratti</div>
                     <div class="nav-item ${S.page==='burocrazia'?'active':''}" onclick="goTo('burocrazia')" title="Registrazioni RLI, asseverazioni ASPI, archivio contratti"><span class="nav-icon">📝</span> Burocrazia ${daRegistrare?`<span class="nav-badge orange">${daRegistrare}</span>`:''}</div>
                     <div class="nav-item" onclick="window.open('/pre-agreement-admin.html','_blank')"><span class="nav-icon">🖋️</span> Pre-agreement <span class="nav-badge gold">L'ATTO</span></div>
-                    <div class="nav-item ${S.page==='payments'?'active':''}" onclick="goTo('payments')"><span class="nav-icon">💳</span> Pagamenti ${overduePayments?`<span class="nav-badge">${overduePayments}</span>`:''}</div>
+                    <div class="nav-item ${S.page==='payments'?'active':''}" onclick="goTo('payments')"><span class="nav-icon">💳</span> Canoni ${overduePayments?`<span class="nav-badge">${overduePayments}</span>`:''}</div>
                     <div class="nav-item ${S.page==='maintenance'?'active':''}" onclick="goTo('maintenance')"><span class="nav-icon">🔧</span> Manutenzione ${openMaint?`<span class="nav-badge">${openMaint}</span>`:''}</div>
                     <div class="nav-item ${S.page==='documents'?'active':''}" onclick="goTo('documents')"><span class="nav-icon">📁</span> Documenti</div>
                     <div class="nav-item ${S.page==='commercialista'?'active':''}" onclick="goTo('commercialista')"><span class="nav-icon">🧮</span> Commercialista</div>
@@ -4368,8 +4370,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 months.push(mName);
                 const mStart = new Date(d.getFullYear(), d.getMonth(), 1);
                 const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-                const boomM = (S.invoices || []).filter(inv => inv.status === 'paid' && inv.paidDate && new Date(inv.paidDate) >= mStart && new Date(inv.paidDate) <= mEnd).reduce((s, inv) => s + (inv.amount || 0), 0);
-                const rentM = (S.payments || []).filter(p => p.status === 'paid' && p.paidDate && new Date(p.paidDate) >= mStart && new Date(p.paidDate) <= mEnd).reduce((s, p) => s + (p.amount || 0), 0);
+                const boomM = boomBusinessInvoices().filter(inv => inv.status === 'paid' && inv.paidDate && new Date(inv.paidDate) >= mStart && new Date(inv.paidDate) <= mEnd).reduce((s, inv) => s + (inv.amount || 0), 0);
+                const rentM = (S.payments || []).filter(p => window.BOOM_RENT.isRentPayment(p) && p.status === 'paid' && p.paidDate && new Date(p.paidDate) >= mStart && new Date(p.paidDate) <= mEnd).reduce((s, p) => s + (p.amount || 0), 0);
                 boomRev.push(boomM);
                 rentRev.push(rentM);
             }
@@ -5286,16 +5288,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function adminDashboard() {
         // === COMPREHENSIVE DATA CALCULATIONS ===
         const activeClients = (S.clients || []).filter(c => !['completed', 'lost'].includes(c.stage));
-        const paidInvoices = S.invoices.filter(i => i.status === 'paid');
+        const paidInvoices = boomBusinessInvoices().filter(i => i.status === 'paid');
         const thisMonthRev = paidInvoices.filter(i => isThisMonth(i.paidDate)).reduce((s, i) => s + (i.amount || 0), 0);
         const lastMonthRev = paidInvoices.filter(i => isLastMonth(i.paidDate)).reduce((s, i) => s + (i.amount || 0), 0);
         const revGrowth = lastMonthRev > 0 ? Math.round(((thisMonthRev - lastMonthRev) / lastMonthRev) * 100) : 0;
         const pipeline = activeClients.reduce((s, c) => s + (SERVICES[c.service]?.price || 0), 0);
-        const pendingInv = S.invoices.filter(i => i.status === 'pending');
+        const pendingInv = boomBusinessInvoices().filter(i => i.status === 'pending');
         const pendingInvTotal = pendingInv.reduce((s, i) => s + (i.amount || 0), 0);
         const openMaint = S.maintenance.filter(m => m.status !== 'resolved');
         const urgentMaint = openMaint.filter(m => m.priority === 'urgent');
-        const overduePayments = S.payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate));
+        const overduePayments = S.payments.filter(p => window.BOOM_RENT.paymentState(p) === 'overdue');
         const overdueTotal = overduePayments.reduce((s, p) => s + (p.amount || 0), 0);
 
         // Property metrics
@@ -5306,7 +5308,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const inNegotiation = S.properties.filter(p => p.availabilityStatus === 'negotiation').length;
 
         // Rent collection
-        const thisMonthPayments = S.payments.filter(p => isThisMonth(p.dueDate));
+        const thisMonthPayments = S.payments.filter(p => window.BOOM_RENT.isRentPayment(p) && isThisMonth(p.dueDate));
         const paidThisMonth = thisMonthPayments.filter(p => p.status === 'paid').reduce((s, p) => s + (p.amount || 0), 0);
         const expectedThisMonth = thisMonthPayments.reduce((s, p) => s + (p.amount || 0), 0);
         const collectionRate = expectedThisMonth > 0 ? Math.round((paidThisMonth / expectedThisMonth) * 100) : 100;
@@ -5317,7 +5319,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const d = i.paidDate?.toDate ? i.paidDate.toDate() : new Date(i.paidDate);
             return d >= yearStart;
         }).reduce((s, i) => s + (i.amount || 0), 0);
-        const rentRevenue = S.payments.filter(p => p.status === 'paid').reduce((s, p) => s + (p.amount || 0), 0);
+        const rentRevenue = S.payments.filter(p => window.BOOM_RENT.isRentPayment(p) && p.status === 'paid').reduce((s, p) => s + (p.amount || 0), 0);
 
         // Contracts
         const activeContracts = S.contracts.filter(c => c.status === 'active');
@@ -5586,15 +5588,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         <div class="card-body">
                             <div style="margin-bottom:16px">
                                 <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-                                    <span style="font-size:12px;color:var(--text-muted)">Fatturato Anno</span>
+                                    <span style="font-size:12px;color:var(--text-muted)">Compensi BOOM incassati · anno</span>
                                     <span style="font-weight:600;color:var(--gold)">€${yearRevenue.toLocaleString('it-IT')}</span>
                                 </div>
                                 <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-                                    <span style="font-size:12px;color:var(--text-muted)">Affitti Incassati</span>
+                                    <span style="font-size:12px;color:var(--text-muted)">Canoni incassati · storico</span>
                                     <span style="font-weight:600;color:var(--green)">€${rentRevenue.toLocaleString('it-IT')}</span>
                                 </div>
                                 <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-                                    <span style="font-size:12px;color:var(--text-muted)">Fatture Pending</span>
+                                    <span style="font-size:12px;color:var(--text-muted)">Fatture servizi da incassare</span>
                                     <span style="font-weight:600;color:var(--orange)">€${pendingInvTotal.toLocaleString('it-IT')}</span>
                                 </div>
                                 <div style="display:flex;justify-content:space-between">
@@ -5603,9 +5605,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                                 </div>
                             </div>
                             <div style="border-top:1px solid var(--border);padding-top:12px">
-                                <div style="display:flex;justify-content:space-between;align-items:center">
-                                    <span style="font-size:13px;font-weight:600">Totale Atteso</span>
-                                    <span style="font-size:18px;font-weight:700;color:var(--gold)">€${(yearRevenue + rentRevenue + pendingInvTotal + overdueTotal).toLocaleString('it-IT')}</span>
+                                <div style="display:flex;gap:10px;flex-wrap:wrap">
+                                    <button class="btn btn-secondary btn-sm" onclick="goTo('payments')">Canoni per unità</button>
+                                    <button class="btn btn-secondary btn-sm" onclick="goTo('invoices')">Compensi e fatture BOOM</button>
                                 </div>
                             </div>
                         </div>
@@ -5931,12 +5933,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
             <div class="dash-money">
                 <div class="dash-money-cell dash-money-hero" onclick="goTo('invoices')">
-                    <span class="dash-money-label">Fatturato</span>
+                    <span class="dash-money-label">Compensi BOOM</span>
                     <span class="dash-money-value" style="color:var(--gold)">€${d.thisMonthRev.toLocaleString('it-IT')}</span>
                     <span class="dash-money-sub"><span style="color:var(--${d.revGrowth >= 0 ? 'green' : 'red'})">${arrow} ${Math.abs(d.revGrowth)}%</span> vs mese scorso</span>
                 </div>
                 <div class="dash-money-cell" onclick="goTo('payments')">
-                    <span class="dash-money-label">Incassi</span>
+                    <span class="dash-money-label">Canoni del mese</span>
                     <span class="dash-money-value" style="color:var(--${collTone})">${d.collectionRate}<span style="font-size:18px;color:var(--text-muted)">%</span></span>
                     <div class="dash-money-bar"><div style="width:${d.collectionRate}%;background:var(--${collTone})"></div></div>
                     <span class="dash-money-sub">€${d.paidThisMonth.toLocaleString('it-IT')} / €${d.expectedThisMonth.toLocaleString('it-IT')}</span>
@@ -8686,7 +8688,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     function invoicesPage() {
-        const all = S.invoices || [];
+        const all = boomBusinessInvoices();
         const pending = all.filter(i => i.status === 'pending');
         const paid = all.filter(i => i.status === 'paid');
         const thisYear = new Date().getFullYear();
@@ -8765,8 +8767,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             if (d > debtorMap[key].oldest) debtorMap[key].oldest = d;
         });
         const topDebtors = Object.values(debtorMap).sort((a, b) => b.total - a.total).slice(0, 3);
-        // Forecast: payments expected to invoice in next 30/60/90 days (rent payments still pending)
-        const expectedSoon = (S.payments || []).filter(p => p.status === 'pending').map(p => {
+        // Company forecast only; rent receipts never become BOOM revenue.
+        const expectedSoon = pending.filter(p => p.dueDate).map(p => {
             const due = new Date(p.dueDate);
             return { amt: p.amount || 0, in: Math.floor((due - now) / 86400000) };
         });
@@ -8796,7 +8798,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         </div>`;
 
         return `<div class="page-header">
-            <div><h1 class="page-title">Fatture</h1><div class="page-subtitle">${all.length} totali · €${ytdRevenue.toLocaleString('it-IT')} incassati nel ${thisYear} ${ytdGrowth !== 0 ? `· <span style="color:var(--${ytdGrowth > 0 ? 'green' : 'red'})">${ytdGrowth > 0 ? '+' : ''}${ytdGrowth}% YoY</span>` : ''}</div></div>
+            <div><h1 class="page-title">Fatture BOOM</h1><p class="page-subtitle">Compensi e servizi dell’azienda. Le ricevute dei canoni sono consultabili in <a href="#payments" onclick="goTo('payments');return false">Canoni per unità</a>.</p><div class="page-subtitle">${all.length} totali · €${ytdRevenue.toLocaleString('it-IT')} incassati nel ${thisYear} ${ytdGrowth !== 0 ? `· <span style="color:var(--${ytdGrowth > 0 ? 'green' : 'red'})">${ytdGrowth > 0 ? '+' : ''}${ytdGrowth}% YoY</span>` : ''}</div></div>
             <div class="page-actions">
                 <button class="btn btn-secondary btn-sm" onclick="exportInvoicesCSV()">📊 Export</button>
                 <button class="btn" onclick="openModal('addInvoice')">+ Nuova</button>
@@ -8844,7 +8846,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
             </div>
             <div class="card" style="padding:14px">
-                <div style="font-size:11px;letter-spacing:1px;color:var(--text-muted);margin-bottom:10px">💰 CASH FLOW PREVISIONALE</div>
+                <div style="font-size:11px;letter-spacing:1px;color:var(--text-muted);margin-bottom:10px">FATTURE BOOM IN SCADENZA</div>
                 <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>Prossimi 30gg</span><strong class="text-gold">€${fc30.toLocaleString('it-IT')}</strong></div>
                 <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>Prossimi 60gg</span><strong>€${fc60.toLocaleString('it-IT')}</strong></div>
                 <div style="display:flex;justify-content:space-between"><span>Prossimi 90gg</span><strong>€${fc90.toLocaleString('it-IT')}</strong></div>
@@ -9618,184 +9620,108 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         });
     }
 
+    // The collection records remain authoritative; this view only groups them.
+    const paymentFilters = { kind: 'all', search: '', month: new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit' }).format(new Date()) };
+    const rentLoadState = { status: 'initial', checkedAt: null, error: '' };
+    function invalidateRentSnapshot() {
+        rentLoadState.checkedAt = null;
+        if (rentLoadState.status !== 'loading') rentLoadState.status = 'initial';
+    }
+    function boomBusinessInvoices() { return window.BOOM_RENT.businessInvoices(S.invoices || []); }
+    function rentMoney(value) { return value === null ? 'Importo da verificare' : new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(value || 0); }
+    function rentActionArg(value) { return esc(JSON.stringify(String(value || ''))); }
+    function rentOverview(overrides) {
+        return window.BOOM_RENT.overview({ payments: S.payments, properties: S.properties, contracts: S.contracts, users: S.users,
+            month: paymentFilters.month, status: paymentFilters.kind, search: paymentFilters.search, ...overrides });
+    }
+    function rentStateLabel(state) { return ({paid:'Pagato', processing:'In elaborazione', reported:'Da verificare', overdue:'In ritardo', due:'Da pagare', cancelled:'Annullato', unknown:'Stato da verificare'})[state] || 'Da verificare'; }
+    function rentPaymentRow(row) {
+        const p = row.payment, id = rentActionArg(row.id);
+        const canRecord = ['due','overdue','reported'].includes(row.state) && row.amount > 0;
+        const invoice = (S.invoices || []).find(i => i.paymentId === row.id);
+        const receipt = row.state === 'paid' && row.amount > 0 ? `<button class="btn btn-sm btn-secondary" onclick="downloadPaymentReceipt(${id})">Ricevuta</button>${invoice ? `<button class="btn btn-sm btn-secondary" onclick="viewInvoice(${rentActionArg(invoice.id)})">Documento</button>` : ''}` : '';
+        return `<div class="rent-payment payment-item" data-status="${esc(row.state)}">
+            <div><strong>${esc(p.month || row.month || 'Periodo da verificare')}</strong><small>${esc(row.tenantName || 'Inquilino da collegare')}${!row.isRent ? ' · ' + esc(p.type === 'deposit-balance' ? 'Saldo deposito' : p.type || 'Altro addebito') : ''}</small></div>
+            <div class="rent-date"><small>${row.state === 'paid' ? 'Pagato il' : 'Scadenza'}</small>${esc(fmtDate(row.state === 'paid' ? p.paidDate : p.dueDate))}</div>
+            <strong class="rent-amount">${rentMoney(row.amount)}</strong>
+            <div><span class="rent-status rent-status-${row.state}">${rentStateLabel(row.state)}</span>${p.remindersSent ? `<small>${Number(p.remindersSent)} solleciti registrati</small>` : ''}</div>
+            <div class="rent-actions">${receipt}${row.canPay ? `<button class="btn btn-sm" onclick="showPaymentLink('pay',${id})">Link pagamento</button>` : ''}${canRecord ? `<button class="btn btn-sm btn-secondary" onclick="confirmRentPayment(${id})">Registra incasso</button>` : ''}<button class="btn btn-sm btn-secondary" onclick="openModal('editPayment',S.payments.find(p=>p.id===${id}))">Dettagli</button></div>
+        </div>`;
+    }
+    function rentUnitsHTML(view) {
+        return view.units.map(unit => `<details class="rent-unit" ${unit.totals.overdue > 0 || unit.unlinked ? 'open' : ''}>
+            <summary><div class="rent-unit-name"><strong>${esc(unit.label)}</strong><small>${esc(unit.tenantNames.join(' · ') || unit.address || (unit.unlinked ? 'Verifica il collegamento al contratto' : 'Nessun inquilino collegato'))}</small></div>
+                <div><small>Incassato</small><strong>${rentMoney(unit.totals.paid)}</strong></div><div><small>Da incassare</small><strong>${rentMoney(unit.totals.due)}</strong></div>
+                <span class="rent-unit-signal">${unit.noInstallments ? 'Nessuna rata nel periodo' : unit.totals.overdue > 0 ? 'In ritardo' : unit.totals.processing > 0 ? 'In elaborazione' : unit.totals.reported > 0 ? 'Da verificare' : unit.payments.length + ' rate'} <span aria-hidden="true">⌄</span></span>
+            </summary>
+            ${unit.noInstallments ? `<div class="rent-empty">Nessuna rata registrata per questo periodo. La presenza del contratto non conferma un pagamento.</div>` : ''}
+            ${unit.rentPayments.map(rentPaymentRow).join('')}
+            ${unit.otherPayments.length ? `<div class="rent-other-label">Depositi e altri addebiti · esclusi dai totali canoni</div>${unit.otherPayments.map(rentPaymentRow).join('')}` : ''}
+        </details>`).join('') || '<div class="rent-empty">Nessuna unità corrisponde ai filtri. Cambia periodo, stato o ricerca.</div>';
+    }
+    function rentSummaryHTML(view) {
+        return [['Incassato',view.totals.paid,'paid'],['Da incassare',view.totals.due,'outstanding'],['Di cui in ritardo',view.totals.overdue,'overdue'],['In elaborazione',view.totals.processing,'processing']].map(([label,value,kind]) => `<button class="rent-stat" onclick="filterPayments('${kind}')"><small>${label}</small><strong>${rentMoney(value)}</strong></button>`).join('');
+    }
+    function rentLoadNotice() {
+        const partial = (S.payments || []).length >= 3000 || (S.properties || []).length >= 400 || (S.contracts || []).length >= 800 || (S.users || []).length >= 800;
+        if (rentLoadState.status === 'loading') return 'Aggiornamento dei pagamenti e delle unità in corso…';
+        if (rentLoadState.status === 'error') return 'Aggiornamento non riuscito. Restano visibili i dati precedenti: riprova prima di verificare gli incassi.';
+        if (rentLoadState.status === 'ready' && rentLoadState.checkedAt) return 'Verificato alle ' + rentLoadState.checkedAt.toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' });
+        return partial ? 'Elenco iniziale potenzialmente incompleto. Aggiorna per caricare tutte le rate e le unità.' : 'Dati caricati dal portale. Aggiorna per verificare gli ultimi incassi.';
+    }
     function paymentsPage() {
-        // Calculate payment stats
-        const paid = S.payments.filter(p => p.status === 'paid');
-        const pending = S.payments.filter(p => p.status === 'pending');
-        const overdue = pending.filter(p => isOverdue(p.dueDate));
-        const dueSoon = pending.filter(p => { const d = daysUntil(p.dueDate); return d !== null && d >= 0 && d <= 5; });
-        const paidTotal = paid.reduce((s, p) => s + (p.amount || 0), 0);
-        const pendingTotal = pending.reduce((s, p) => s + (p.amount || 0), 0);
-        const overdueTotal = overdue.reduce((s, p) => s + (p.amount || 0), 0);
-        const stripePaid = paid.filter(p => p.stripeSessionId);
-        const stripeTotal = stripePaid.reduce((s, p) => s + (p.amount || 0), 0);
-
-        // Collection rate this month
-        const thisMonth = S.payments.filter(p => isThisMonth(p.dueDate));
-        const thisMonthPaid = thisMonth.filter(p => p.status === 'paid');
-        const collectionRate = thisMonth.length > 0 ? Math.round((thisMonthPaid.length / thisMonth.length) * 100) : 100;
-
-        // Payment row generator with reminder tracking
-        const paymentRow = (p) => {
-            const c = S.contracts.find(x => x.id === p.contractId);
-            const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
-            const t = c ? S.users.find(x => x.id === c.tenantId) : null;
-            const isOverdueNow = p.status === 'pending' && isOverdue(p.dueDate);
-            const daysToDue = daysUntil(p.dueDate);
-            const isDueSoon = p.status === 'pending' && !isOverdueNow && daysToDue !== null && daysToDue <= 5;
-            const daysLate = isOverdueNow ? daysSince(p.dueDate) : 0;
-
-            // Reminder escalation level
-            let reminderLevel = 0;
-            let reminderText = '';
-            if (isOverdueNow) {
-                if (daysLate >= 30) { reminderLevel = 4; reminderText = 'Diffida'; }
-                else if (daysLate >= 15) { reminderLevel = 3; reminderText = '2° sollecito'; }
-                else if (daysLate >= 5) { reminderLevel = 2; reminderText = '1° sollecito'; }
-                else { reminderLevel = 1; reminderText = 'In ritardo'; }
-            } else if (isDueSoon) {
-                reminderLevel = 0; reminderText = `Tra ${daysToDue}gg`;
-            }
-
-            const payMethod = p.stripeSessionId ? '<span class="li-flag blue">Stripe</span>' : (p.status === 'paid' ? '<span class="li-flag">Manuale</span>' : '');
-
-            let statusConfig = { color: 'green', bg: 'green-light', icon: '✔' };
-            if (isOverdueNow) statusConfig = { color: 'red', bg: 'red-light', icon: '⚠️' };
-            else if (isDueSoon) statusConfig = { color: 'orange', bg: 'orange-light', icon: '⏰' };
-            else if (p.status === 'pending') statusConfig = { color: 'gold', bg: 'gold-light', icon: '⏳' };
-
-            const _searchPay = [prop?.name, t?.name, p.month, p.amount, p.stripeSessionId ? 'stripe' : 'manuale'].filter(Boolean).join(' ').toLowerCase();
-            // Rifinitura II: stessa disciplina della riga contratto — un badge
-            // di stato (il mese resta il badge neutro: è l'identificativo),
-            // i segnali nel grappolo, metadati senza emoji, importo tabellare
-            // col colore dello stato. Handler e data-attribute IDENTICI.
-            return `<div class="list-item clickable payment-item" data-status="${p.status}" data-overdue="${isOverdueNow}" data-duesoon="${isDueSoon}" data-stripe="${!!p.stripeSessionId}" data-search="${esc(_searchPay)}" onclick="openModal('editPayment',S.payments.find(x=>x.id==='${p.id}'))">
-                <div class="list-icon" style="background:var(--${statusConfig.bg});font-size:16px">${statusConfig.icon}</div>
-                <div class="list-content" style="flex:1;min-width:0">
-                    <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-weight:600">${prop?.name || 'Pagamento'}</span>
-                        <span class="badge gray" style="font-size:10px">${p.month || ''}</span>
-                        <span class="li-flags">
-                        ${isOverdueNow ? `<span class="li-flag red">${reminderText} · ${daysLate}gg</span>` : ''}
-                        ${isDueSoon ? `<span class="li-flag orange">${reminderText}</span>` : ''}
-                        ${p.tenantReported ? `<span class="li-flag green">Segnalato${p.proofUrl ? ' + ricevuta' : ''}</span>` : ''}
-                        ${payMethod}
-                        ${p.remindersSent ? `<span class="li-flag">${p.remindersSent} sollecit${p.remindersSent == 1 ? 'o' : 'i'}</span>` : ''}
-                        </span>
-                    </div>
-                    <div class="list-subtitle li-meta" style="margin-top:4px">
-                        <b>${t?.name || 'N/A'}</b>${t?.phone ? `<span class="sep">·</span><a href="https://wa.me/${t.phone.replace(/[^0-9]/g,'')}" target="_blank" onclick="event.stopPropagation()" style="color:var(--green)">WhatsApp</a>` : ''}<span class="sep">·</span>${p.status === 'paid' ? 'Pagato ' + fmtDate(p.paidDate) : 'Scadenza ' + fmtDate(p.dueDate)}
-                    </div>
-                </div>
-                <div style="display:flex;align-items:center;gap:8px">
-                    <div class="li-money">
-                        <div class="li-money-val ${p.status === 'paid' ? 'green' : isOverdueNow ? 'red' : ''}">€${(p.amount || 0).toLocaleString('it-IT')}</div>
-                    </div>
-                    ${p.status === 'pending' ? `
-                        <div style="display:flex;flex-direction:column;gap:4px">
-                            <button class="btn btn-xs" onclick="event.stopPropagation();showPaymentLink('pay','${p.id}')" title="Link di pagamento con carta (non scade)">💳</button>
-                            <button class="btn btn-xs btn-success" onclick="event.stopPropagation();markPaymentPaid('${p.id}')" title="Segna pagato">✔</button>
-                            ${p.proofUrl ? `<a href="${p.proofUrl}" target="_blank" class="btn btn-xs btn-secondary" onclick="event.stopPropagation()" title="Vedi ricevuta">📄</a>` : ''}
-                            ${isOverdueNow ? `<button class="btn btn-xs btn-danger" onclick="event.stopPropagation();sendPaymentReminder('${p.id}')" title="Invia sollecito">📧</button>` : ''}
-                        </div>
-                    ` : ''}
-                    ${p.stripeSessionId ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();window.open('https://dashboard.stripe.com/payments/${p.stripePaymentIntent}','_blank')" title="Vedi su Stripe">🔗</button>` : ''}
-                </div>
-            </div>`;
-        };
-
-        return `<div class="page-header">
-                <div><h1 class="page-title">💳 Pagamenti</h1><p class="page-subtitle">${S.payments.length} totali · Tasso incasso mese: ${collectionRate}%</p></div>
-                <div class="page-actions">
-                    ${overdue.length > 0 ? `<span class="badge red">${overdue.length} in ritardo</span>` : ''}
-                    <button class="btn btn-secondary btn-sm" onclick="window.open('https://dashboard.stripe.com/payments','_blank')">💳 Stripe</button>
-                    <button class="btn btn-secondary btn-sm" onclick="exportPaymentsCSV()">📊 Export</button>
-                    <button class="btn btn-secondary" onclick="openModal('bulkPayments')">📅 Genera</button>
-                    <button class="btn" onclick="openModal('addPayment')">+ Registra</button>
-                </div>
-            </div>
-
-            ${overdue.length > 0 ? renderRecoveryPanel(overdue, overdueTotal) : ''}
-
-            <!-- Stats Grid -->
-            <div class="stats-grid" style="grid-template-columns:repeat(6,1fr)">
-                <div class="stat-card gold" onclick="filterPayments('all')">
-                    <div class="stat-value">${S.payments.length}</div>
-                    <div class="stat-label">Totale</div>
-                </div>
-                <div class="stat-card green" onclick="filterPayments('paid')">
-                    <div class="stat-value">€${(paidTotal/1000).toFixed(1)}k</div>
-                    <div class="stat-label">${paid.length} Incassati</div>
-                </div>
-                <div class="stat-card blue" onclick="filterPayments('stripe')">
-                    <div class="stat-value">${stripePaid.length}</div>
-                    <div class="stat-label">Stripe</div>
-                </div>
-                <div class="stat-card orange" onclick="filterPayments('pending')">
-                    <div class="stat-value">${pending.length}</div>
-                    <div class="stat-label">In attesa</div>
-                </div>
-                <div class="stat-card orange" onclick="filterPayments('duesoon')">
-                    <div class="stat-value">${dueSoon.length}</div>
-                    <div class="stat-label">Prossimi 5 giorni</div>
-                </div>
-                <div class="stat-card red" onclick="filterPayments('overdue')">
-                    <div class="stat-value">${overdue.length}</div>
-                    <div class="stat-label">In ritardo</div>
-                </div>
-            </div>
-
-            <!-- Filter Tabs + Search -->
-            <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
-                <button class="btn btn-sm payment-filter active" data-filter="all" onclick="filterPayments('all', this)">Tutti</button>
-                <button class="btn btn-sm btn-secondary payment-filter" data-filter="paid" onclick="filterPayments('paid', this)">✓ Pagati</button>
-                <button class="btn btn-sm btn-secondary payment-filter" data-filter="pending" onclick="filterPayments('pending', this)">⏳ In Attesa</button>
-                ${dueSoon.length > 0 ? `<button class="btn btn-sm btn-warning payment-filter" data-filter="duesoon" onclick="filterPayments('duesoon', this)">⏰ Prossimi (${dueSoon.length})</button>` : ''}
-                ${overdue.length > 0 ? `<button class="btn btn-sm btn-danger payment-filter" data-filter="overdue" onclick="filterPayments('overdue', this)">⚠️ In Ritardo (${overdue.length})</button>` : ''}
-                <button class="btn btn-sm btn-secondary payment-filter" data-filter="stripe" onclick="filterPayments('stripe', this)">💳 Stripe</button>
-                <input type="search" id="paymentSearch" class="form-input" placeholder="🔎 Cerca inquilino, immobile, mese…" oninput="searchPayments(this.value)" style="flex:1;min-width:200px;margin-left:auto">
-            </div>
-
-            <div class="card"><div class="card-body flush" id="paymentsContainer">${S.payments.sort((a,b) => {
-                // Sort: overdue first, then pending soon, then by date
-                const aOverdue = a.status === 'pending' && isOverdue(a.dueDate);
-                const bOverdue = b.status === 'pending' && isOverdue(b.dueDate);
-                if (aOverdue && !bOverdue) return -1;
-                if (!aOverdue && bOverdue) return 1;
-                if (a.status === 'pending' && b.status === 'paid') return -1;
-                if (a.status === 'paid' && b.status === 'pending') return 1;
-                return (b.month || '').localeCompare(a.month || '');
-            }).map(p => paymentRow(p)).join('') || '<div class="empty-state"><div class="empty-icon">💳</div><div class="empty-title">Nessun pagamento</div><button class="btn" onclick="openModal(\'bulkPayments\')">📅 Genera Pagamenti</button></div>'}</div></div>`;
+        const view = rentOverview(), all = rentOverview({ month:'all', status:'all', search:'' });
+        const months = Array.from(new Set([paymentFilters.month, ...all.months])).filter(m => /^\d{4}-\d{2}$/.test(m)).sort().reverse();
+        const monthOptions = `<option value="all" ${paymentFilters.month === 'all' ? 'selected' : ''}>Tutti i periodi</option>` + months.map(m => `<option value="${m}" ${m === paymentFilters.month ? 'selected' : ''}>${new Date(m + '-15T12:00:00').toLocaleDateString('it-IT', {month:'long',year:'numeric'})}</option>`).join('');
+        return `<section class="rent-page"><div class="page-header"><div><div class="rent-eyebrow">GESTIONE LOCAZIONI</div><h1 class="page-title">Canoni per unità</h1><p class="page-subtitle">Chi ha pagato, cosa manca e il prossimo passo per ogni casa.</p></div><div class="page-actions"><button class="btn btn-secondary" onclick="goTo('invoices')">Fatture BOOM ↗</button><button class="btn" onclick="reloadRentPayments()" ${rentLoadState.status === 'loading' ? 'disabled' : ''}>Aggiorna</button></div></div>
+            <p class="rent-note">I totali riguardano i canoni delle unità. Depositi, altri addebiti e compensi BOOM hanno voci separate.</p>
+            <div class="rent-toolbar"><label>Periodo<select class="form-input" id="rentMonth" onchange="paymentFilters.month=this.value;applyPaymentFilters()">${monthOptions}</select></label><label class="rent-search">Cerca unità o inquilino<input class="form-input" id="paymentSearch" type="search" value="${esc(paymentFilters.search)}" placeholder="Nome, indirizzo o inquilino" oninput="searchPayments(this.value)"></label><label>Stato<select class="form-input" id="rentStatus" onchange="filterPayments(this.value)">${[['all','Tutti'],['outstanding','Da incassare'],['pending','Da pagare'],['overdue','In ritardo'],['paid','Pagati'],['processing','In elaborazione'],['reported','Da verificare'],['empty','Senza rate']].map(([v,l])=>`<option value="${v}" ${v===paymentFilters.kind?'selected':''}>${l}</option>`).join('')}</select></label></div>
+            <div class="rent-stats" id="rentStats">${rentSummaryHTML(view)}</div><div id="rentScope" class="rent-scope" aria-live="polite">${view.units.length} unità · totali dei canoni nel filtro corrente${view.totals.unknownAmountCount || view.totals.unknownStateCount || view.counts.unknownMonth ? ' · Dati da verificare: alcuni importi, stati o periodi sono incompleti' : ''}</div>
+            ${all.totals.overdue > 0 ? `<button class="rent-arrears" onclick="paymentFilters.month='all';document.getElementById('rentMonth').value='all';filterPayments('overdue')">${rentMoney(all.totals.overdue)} di canoni in ritardo su tutti i periodi · Apri arretrati →</button>` : ''}
+            <div id="rentLoadNotice" class="rent-load" role="status">${rentLoadNotice()}</div><div id="paymentsContainer">${rentUnitsHTML(view)}</div>
+            <details class="rent-tools"><summary>Strumenti di gestione</summary><div class="rent-actions"><button class="btn btn-secondary" onclick="exportPaymentsCSV()">Esporta elenco filtrato</button><button class="btn btn-secondary" onclick="openModal('bulkPayments')">Genera rate</button><button class="btn btn-secondary" onclick="openModal('addPayment')">Aggiungi rata</button></div></details></section>`;
     }
-
-    const paymentFilters = { kind: 'all', search: '' };
-    function filterPayments(filter, btn) {
-        paymentFilters.kind = filter;
-        // Safely highlight active pill (works whether called from click, kbd, or programmatically).
-        document.querySelectorAll('.payment-filter').forEach(b => {
-            b.classList.add('btn-secondary'); b.classList.remove('active');
-        });
-        const active = btn || document.querySelector(`.payment-filter[data-filter="${filter}"]`);
-        if (active) { active.classList.remove('btn-secondary'); active.classList.add('active'); }
-        applyPaymentFilters();
-    }
-    function searchPayments(q) { paymentFilters.search = (q || '').toLowerCase().trim(); applyPaymentFilters(); }
+    function filterPayments(filter) { paymentFilters.kind = filter; applyPaymentFilters(); }
+    function searchPayments(q) { paymentFilters.search = String(q || '').trim(); applyPaymentFilters(); }
     function applyPaymentFilters() {
-        const { kind, search } = paymentFilters;
-        document.querySelectorAll('.payment-item').forEach(item => {
-            const status = item.dataset.status;
-            const overdue = item.dataset.overdue === 'true';
-            const duesoon = item.dataset.duesoon === 'true';
-            const stripe = item.dataset.stripe === 'true';
-            let show = kind === 'all';
-            if (kind === 'paid')    show = status === 'paid';
-            if (kind === 'pending') show = status === 'pending';
-            if (kind === 'overdue') show = overdue;
-            if (kind === 'duesoon') show = duesoon;
-            if (kind === 'stripe')  show = stripe;
-            if (show && search) show = (item.dataset.search || '').includes(search);
-            item.style.display = show ? '' : 'none';
-        });
+        const view = rentOverview();
+        const list = document.getElementById('paymentsContainer');
+        if (!list) return;
+        list.innerHTML = rentUnitsHTML(view);
+        document.getElementById('rentStats').innerHTML = rentSummaryHTML(view);
+        document.getElementById('rentScope').textContent = view.units.length + ' unità · totali dei canoni nel filtro corrente' + (view.totals.unknownAmountCount || view.totals.unknownStateCount || view.counts.unknownMonth ? ' · Dati da verificare: alcuni importi, stati o periodi sono incompleti' : '');
+        document.getElementById('rentStatus').value = paymentFilters.kind;
+    }
+    async function reloadRentPayments() {
+        if (!isAdmin() || rentLoadState.status === 'loading') return;
+        const viewerId = auth.currentUser?.uid;
+        rentLoadState.status = 'loading'; refreshPaymentsView();
+        try {
+            const load = async name => {
+                const rows = []; let cursor = null;
+                for (let page = 0; page < 100; page++) {
+                    let q = db.collection(name).orderBy(firebase.firestore.FieldPath.documentId()).limit(500);
+                    if (cursor) q = q.startAfter(cursor);
+                    const snap = await q.get({ source:'server' });
+                    rows.push(...snap.docs.map(d => ({ ...d.data(), id:d.id })));
+                    if (snap.docs.length < 500) return rows;
+                    cursor = snap.docs[snap.docs.length - 1];
+                }
+                throw new Error('read_limit');
+            };
+            let timeout;
+            const [payments, properties, contracts, users] = await Promise.race([Promise.all(['payments','properties','contracts','users'].map(load)), new Promise((_,reject) => { timeout = setTimeout(() => reject(new Error('timeout')), 30000); })]).finally(() => clearTimeout(timeout));
+            if (auth.currentUser?.uid !== viewerId || !isAdmin()) { rentLoadState.status = 'initial'; return; }
+            Object.assign(S, { payments, properties, contracts, users });
+            rentLoadState.status = 'ready'; rentLoadState.checkedAt = new Date();
+        } catch (_) { rentLoadState.status = 'error'; }
+        refreshPaymentsView();
+    }
+    async function confirmRentPayment(id) {
+        const p = (S.payments || []).find(p => p.id === id);
+        if (!p || !['due','overdue','reported'].includes(window.BOOM_RENT.paymentState(p)) || !(window.BOOM_RENT.amount(p.amount) > 0)) return toast('warning','Verifica lo stato della rata prima di registrare un incasso.');
+        if (!confirm('Confermi di aver verificato la ricezione di ' + rentMoney(window.BOOM_RENT.amount(p.amount)) + '? Verranno registrati l’incasso e la ricevuta e inviate le conferme previste.')) return;
+        await markPaymentPaid(id);
     }
 
     async function sendPaymentReminder(paymentId, level) {
@@ -10013,7 +9939,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     async function sendBulkReminders() {
-        const overdue = S.payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate));
+        const overdue = S.payments.filter(p => window.BOOM_RENT.paymentState(p) === 'overdue');
         if (!overdue.length) return toast('info', 'Nessun pagamento in ritardo');
         if (!confirm(`Inviare solleciti a ${overdue.length} pagamenti in ritardo?`)) return;
 
@@ -16790,7 +16716,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     async function markPaymentPaid(id) {
         try {
-            const payment = S.payments.find(p => p.id === id);
+            if (!isAdmin()) return;
+            const snap = await db.collection('payments').doc(id).get({ source:'server' });
+            if (!snap.exists) return toast('error','Rata non trovata');
+            const payment = { ...snap.data(), id };
+            const state = window.BOOM_RENT.paymentState(payment);
+            if (!['due','overdue','reported'].includes(state) || !(window.BOOM_RENT.amount(payment.amount) > 0)) return toast('warning','Incasso non registrato',rentStateLabel(state));
             await db.collection('payments').doc(id).update({ status: 'paid', paidDate: new Date().toISOString() });
             logActivity('payment_marked_paid', 'payment', { id: id, amount: payment?.amount, contractId: payment?.contractId });
             // Notify landlord of payment received
@@ -16854,6 +16785,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             recipientName: tenant.name || '',
             clientId: tenant.id,
             paymentId: payment.id,
+            documentType: 'rent-receipt',
             contractId: contract?.id || null,
             propertyId: property?.id || null,
             service: `Canone locazione ${payment.month || ''}`.trim(),
@@ -20793,7 +20725,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         doc.setFillColor(212, 175, 55); doc.rect(15, y - 5, 180, 25, 'F');
         doc.setTextColor(0); doc.setFontSize(12); doc.setFont('helvetica', 'bold');
         doc.text('IMPORTO RICEVUTO', 20, y + 5);
-        doc.setFontSize(20); doc.text(`EUR ${pay.amount},00`, 190, y + 8, { align: 'right' });
+        doc.setFontSize(20); doc.text(`EUR ${Number(pay.amount).toLocaleString('it-IT', {minimumFractionDigits:2,maximumFractionDigits:2})}`, 190, y + 8, { align: 'right' });
 
         doc.setTextColor(0); doc.setFontSize(10); doc.setFont('helvetica', 'normal');
         y += 35;
@@ -20855,6 +20787,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     function downloadInvoicePDF(id) {
         const inv = S.invoices.find(i => i.id === id); if (!inv) return;
+        if (window.BOOM_RENT.isRentReceipt(inv)) {
+            const payment = (S.payments || []).find(p => p.id === inv.paymentId);
+            if (!payment || window.BOOM_RENT.paymentState(payment) !== 'paid' || !(window.BOOM_RENT.amount(payment.amount) > 0)) return toast('warning','Ricevuta da verificare','Apri Canoni e aggiorna i pagamenti.');
+            return downloadPaymentReceipt(payment.id);
+        }
         const client = S.clients.find(c => c.id === inv.clientId);
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
@@ -22371,7 +22308,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ═══════════════════════════════════════════════════════════════════════════
     function exportInvoicesCSV() {
         let csv = 'Numero,Destinatario,Tipo,Servizio,Importo,Stato,Data\n';
-        S.invoices.forEach(i => {
+        boomBusinessInvoices().forEach(i => {
             const rid = i.recipientId || i.clientId;
             const client = S.clients.find(c => c.id === rid);
             const user = !client ? S.users.find(u => u.id === rid) : null;
@@ -22383,14 +22320,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     function exportPaymentsCSV() {
-        let csv = 'Immobile,Inquilino,Mese,Importo,Stato,Scadenza,Pagato\n';
-        S.payments.forEach(p => {
-            const c = S.contracts.find(x => x.id === p.contractId);
-            const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
-            const t = c ? S.users.find(x => x.id === c.tenantId) : null;
-            csv += `"${prop?.name || ''}","${t?.name || ''}","${p.month || ''}",${p.amount || 0},"${p.status}","${fmtDate(p.dueDate)}","${fmtDate(p.paidDate)}"\n`;
-        });
-        downloadCSV(csv, 'BOOM_Pagamenti.csv');
+        const cell = value => '"' + String(value ?? '').replace(/^[=+@-]/, "'$&").replace(/"/g, '""') + '"';
+        const rows = rentOverview().units.flatMap(unit => unit.payments);
+        const lines = rows.map(r => [r.propertyName, r.tenantName, r.payment.month || r.month, r.isRent ? 'Canone' : r.payment.type || 'Altro', r.amount, rentStateLabel(r.state), fmtDate(r.payment.dueDate), fmtDate(r.payment.paidDate)].map(cell).join(','));
+        downloadCSV('Immobile,Inquilino,Periodo,Tipo,Importo,Stato,Scadenza,Pagato\n' + lines.join('\n'), 'BOOM_Canoni.csv');
     }
 
     function downloadCSV(content, filename) {
@@ -29647,12 +29580,14 @@ IBAN: ${l.iban || '-'}`;
             ? (S.invoices || []).find(x => x.id === id)
             : (S.payments || []).find(x => x.id === id);
         if (!doc) { toast('error', 'Documento non trovato'); return; }
-        if (doc.status === 'paid') { toast('info', 'Già pagato', 'Non serve un link.'); return; }
+        if (doc.status === 'paid') { toast('info', 'Già pagato', 'Apri la ricevuta della rata.'); return; }
+        if (isInv && window.BOOM_RENT.paymentBlockReason(doc, 'invoice')) { toast('warning','Fattura non pagabile: aggiorna lo stato.'); return; }
+        if (!isInv && !window.BOOM_RENT.canPay(doc)) { toast('warning', 'Link non disponibile', rentStateLabel(window.BOOM_RENT.paymentState(doc))); return; }
 
         toast('info', 'Preparo il link…');
         let url;
         try { url = await paymentLinkFor(kind, id); }
-        catch (e) { toast('error', 'Link non creato', e.message); return; }
+        catch (e) { const why = {already_paid:'La rata risulta già pagata. Aggiorna l’elenco per aprire la ricevuta.',sdd_processing:'Addebito già in elaborazione. Attendi l’esito.',payment_processing:'Pagamento in elaborazione. Attendi l’esito.',payment_cancelled:'Rata annullata.',payment_not_payable:'Stato da verificare.',payment_reported:'Pagamento segnalato: verifica prima di chiedere un nuovo versamento.'}; toast('error', 'Link non creato', why[e.message] || e.message); return; }
 
         const amount = Number(doc.amount) || 0;
         let who = null, phone = '', name = '';
@@ -29661,7 +29596,8 @@ IBAN: ${l.iban || '-'}`;
                || (S.clients || []).find(c => c.id === (doc.recipientId || doc.clientId));
             name = doc.recipientName || who?.name || '';
         } else {
-            who = (S.users || []).find(u => u.id === doc.tenantId);
+            const contract = (S.contracts || []).find(c => c.id === doc.contractId);
+            who = (S.users || []).find(u => u.id === (doc.tenantId || contract?.tenantId));
             name = who?.name || '';
         }
         phone = String(who?.phone || '').replace(/[^0-9]/g, '');
@@ -29669,16 +29605,16 @@ IBAN: ${l.iban || '-'}`;
         const what = isInv
             ? `la fattura ${doc.number || ''}`.trim()
             : (doc.type === 'deposit-balance' ? 'il saldo del deposito' : `il canone di ${doc.month || fmtDate(doc.dueDate)}`);
-        const msg = `Ciao${name ? ' ' + name.split(' ')[0] : ''}, puoi pagare ${what} (€${amount.toLocaleString('it-IT')}) con carta da qui: ${url}`;
+        const msg = `Ciao${name ? ' ' + name.split(' ')[0] : ''}, puoi pagare ${what} (€${amount.toLocaleString('it-IT')}) dal portale BOOM da qui: ${url}`;
 
         document.getElementById('modals').innerHTML = `
         <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
           <div class="modal" style="max-width:520px">
-            <div class="modal-header"><h3>💳 Link di pagamento</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-header"><h3>Link pagamento · copia o reinvia</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
               <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:16px">
                 ${esc(what.charAt(0).toUpperCase() + what.slice(1))} · <strong style="color:var(--gold)">€${amount.toLocaleString('it-IT')}</strong>${name ? ' · ' + esc(name) : ''}<br>
-                Il link non scade: si può mandare adesso e pagare più avanti. Quando il pagamento arriva, ${isInv ? 'la fattura' : 'la rata'} si segna pagata da sola.
+                Puoi condividere di nuovo questo link per ${isInv ? 'la stessa fattura' : 'la stessa rata'}. Carta e Apple Pay, se disponibile sul dispositivo, si scelgono al pagamento. Quando il pagamento arriva, ${isInv ? 'la fattura' : 'la rata'} si segna pagata da sola.
               </div>
               <div style="background:var(--bg-input);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:11.5px;word-break:break-all;color:var(--text-secondary);margin-bottom:16px">${esc(url)}</div>
               <div style="display:flex;gap:10px;flex-wrap:wrap">
