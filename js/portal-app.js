@@ -20695,6 +20695,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     function _buildReceiptDoc(pay, c, p, t) {
+        const received = window.BOOM_RENT.amount(pay.amount);
+        if (!(received > 0)) throw new Error('Importo ricevuta da verificare');
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
 
@@ -20725,14 +20727,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         doc.setFillColor(212, 175, 55); doc.rect(15, y - 5, 180, 25, 'F');
         doc.setTextColor(0); doc.setFontSize(12); doc.setFont('helvetica', 'bold');
         doc.text('IMPORTO RICEVUTO', 20, y + 5);
-        doc.setFontSize(20); doc.text(`EUR ${Number(pay.amount).toLocaleString('it-IT', {minimumFractionDigits:2,maximumFractionDigits:2})}`, 190, y + 8, { align: 'right' });
+        doc.setFontSize(20); doc.text(`EUR ${received.toLocaleString('it-IT', {minimumFractionDigits:2,maximumFractionDigits:2})}`, 190, y + 8, { align: 'right' });
 
         doc.setTextColor(0); doc.setFontSize(10); doc.setFont('helvetica', 'normal');
         y += 35;
-        doc.text(`(Euro ${numberToWords(pay.amount)}/00)`, 20, y);
+        doc.text(`(Euro ${numberToWords(Math.floor(received))}/${String(Math.round(received * 100) % 100).padStart(2, '0')})`, 20, y);
 
         y += 20;
-        doc.text('Pagamento per canone di locazione mensile.', 20, y);
+        doc.text(pay.type === 'deposit-balance' ? 'Pagamento del saldo deposito cauzionale.' : pay.type === 'deposit' ? 'Pagamento del deposito cauzionale.' : window.BOOM_RENT.isRentPayment(pay) ? 'Pagamento per canone di locazione.' : 'Pagamento per altro addebito contrattuale.', 20, y);
 
         doc.setFillColor(0, 0, 0); doc.rect(0, 275, 210, 25, 'F');
         doc.setTextColor(150); doc.setFontSize(8); doc.text(`${COMPANY.legal} | ${COMPANY.website}`, 105, 285, { align: 'center' });

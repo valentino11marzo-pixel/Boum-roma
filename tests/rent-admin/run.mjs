@@ -63,3 +63,10 @@ ctx.setTimeout=()=>0;
 run("rentLoadState.status='ready';rentLoadState.checkedAt=new Date()");await run('loadData()');
 check('cache replacement invalidates previous complete-history verification',()=>{assert.equal(run('rentLoadState.checkedAt'),null);assert.equal(run('rentLoadState.status'),'initial');assert(!run('rentLoadNotice()').includes('Verificato alle'))});
 console.log(`${count} admin rent checks passed in total.`);
+// Receipt amounts and descriptions must agree with the actual charge.
+vm.runInContext(source.slice(source.indexOf('    function _buildReceiptDoc('),source.indexOf('    function downloadPaymentReceipt(')),ctx);
+const pdfText=[];ctx.COMPANY={legal:'Company example',website:'example.invalid'};ctx.numberToWords=n=>'words-'+n;
+ctx.window.jspdf={jsPDF:function(){return new Proxy({},{get:(_,key)=>key==='text'?(text)=>pdfText.push(text):()=>{}})}};
+run("_buildReceiptDoc({id:'receipt-example',amount:950.50,type:'deposit-balance'},null,null,null)");
+check('deposit receipt preserves cents numerically and in words without calling it rent',()=>{assert(pdfText.includes('EUR 950,50'));assert(pdfText.includes('(Euro words-950/50)'));assert(pdfText.includes('Pagamento del saldo deposito cauzionale.'));assert(!pdfText.some(t=>String(t).includes('canone di locazione')))});
+console.log(`${count} admin rent checks passed in total.`);
