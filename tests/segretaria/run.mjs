@@ -18,6 +18,7 @@ import { spawnSync } from 'node:child_process';
 import { register } from 'node:module';
 import SEG from '../../js/segretaria-engine.js';
 import VOCE from '../../js/voce-engine.js';
+import CALENDAR from '../../js/segretaria-calendar-engine.js';
 
 // nodemailer mockato via loader (stesso mock della suite notify): la rotaia
 // d'invio passa dall'executor vero → agent/_lib, che lo importa staticamente.
@@ -254,13 +255,24 @@ globalThis.fetch = async (url, opts = {}) => {
     const coll = q.from[0].collectionId;
     if (coll === failingCollection) return json({ error: { status: 'UNAVAILABLE' } }, 503);
     const lim = q.limit || 1000;
-    const rows = [...DB.entries()]
+    // __name__ is document metadata, not a stored field. Treating it as a
+    // missing business field hid every open follow-up from the real worker.
+    const orderedValue = ([key, row], name) => name === '__name__' ? key : comparable(field(row, name));
+    let rows = [...DB.entries()]
       .filter(([k, v]) => k.startsWith(coll + '/') && k.split('/').length === 2 && matches(v, q.where))
-      .filter(([, v]) => (q.orderBy || []).every(sort => field(v, sort.field.fieldPath) !== undefined));
+      .filter(row => (q.orderBy || []).every(sort => orderedValue(row, sort.field.fieldPath) !== undefined));
     for (const sort of [...(q.orderBy || [])].reverse()) rows.sort((a, b) => {
-      const left = comparable(field(a[1], sort.field.fieldPath)), right = comparable(field(b[1], sort.field.fieldPath));
+      const left = orderedValue(a, sort.field.fieldPath), right = orderedValue(b, sort.field.fieldPath);
       return (left === right ? 0 : left < right ? -1 : 1) * (sort.direction === 'DESCENDING' ? -1 : 1);
     });
+    if (q.startAt) {
+      if (q.orderBy?.length !== 1 || q.orderBy[0].field.fieldPath !== '__name__'
+        || q.orderBy[0].direction !== 'ASCENDING' || q.startAt.values?.length !== 1
+        || typeof q.startAt.values[0].referenceValue !== 'string') throw new Error('Unsupported Firestore test cursor');
+      const cursor = q.startAt.values[0].referenceValue.split('/documents/')[1];
+      if (!cursor?.startsWith(coll + '/')) throw new Error('Invalid Firestore test cursor collection');
+      rows = rows.filter(([key]) => q.startAt.before ? key >= cursor : key > cursor);
+    }
     return json(rows.slice(0, lim).map(([k, v]) => ({ document: toDoc(k, v) })));
   }
   if (opts.method === 'PATCH') {
@@ -771,11 +783,16 @@ const noReplyEffects = () => AI_REQUESTS.length === 0 && collectionRows('action_
     AI_REPLY = { summary: 'Il cliente chiede una visita.', recommendation: 'Verificare le opzioni di visita.',
       facts: [{ text: 'Richiesta una visita.', sourceIds, quote: source.text }], commitments: [], uncertainties: [],
       nextAction: { text: 'Verificare le opzioni di visita', waitingOn: 'valentino', waitingLabel: 'Valentino',
-        checkAt: new Date(liveNow + 3600000).toISOString(), practiceRef: 'leads/' + input.lead.id,
+        checkAt: new Date(liveNow + 3600000).toISOString(),
+        checkLocal: CALENDAR.romeLocalInstant(new Date(liveNow + 3600000).toISOString()), practiceRef: 'leads/' + input.lead.id,
         sourceIds, reason: 'Serve una verifica prima di confermare.' },
       draft: { channel: 'whatsapp', text: 'Thanks, we will check the viewing options.', sourceIds },
       handoff: { needed: false, reason: 'Valentino verifica e conferma la risposta.', sourceIds } };
   };
+  const captured = collectionRows('operatorTasks').find(([, t]) => t.followUp?.conversationId === input.cid)?.[1];
+  ok('9f. l’ingresso reale crea il caso aperto della Segretaria prima del worker', captured?.source === 'segretaria'
+    && captured.status === 'open' && captured.followUp.open === true
+    && captured.followUp.lastMessageId === 'paused_proposal_inbound');
   const worker = await prepareNextCase({ now: liveNow });
   AI_HOOK = null;
   const task = DB.get('operatorTasks/' + worker.id);
