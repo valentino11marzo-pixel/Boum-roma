@@ -157,7 +157,7 @@ try {
       await backlog.evaluate(async () => {
         const pending = i => ({id:'sg_'+i.toString(16).padStart(32,'0'),status:'open',source:'segretaria',followUp:{open:true,conversationId:'c'+i,contactName:'Contatto '+i,lastMessageId:'m'+i,nextAction:'Leggere le fonti',waitingOn:'boom',confirmed:false,needsReview:true,checkAt:new Date(Date.now()+7200000).toISOString()}});
         window.apiRows=Array.from({length:111},(_,i)=>pending(i+1));
-        const ready=pending(112);ready.preparation={version:2,revision:'r1',messageId:ready.followUp.lastMessageId,summary:'Fonti controllate',recommendation:'Ricontrollare il documento',nextAction:{text:'Ricontrollare il documento'},sources:[],coverage:{version:2},status:'ready'};
+        const ready=pending(112);ready.preparation={version:window.BOOM_PROPOSTA.VERSION,revision:'r1',messageId:ready.followUp.lastMessageId,summary:'Fonti controllate',recommendation:'Ricontrollare il documento',nextAction:{text:'Ricontrollare il documento'},sources:[],coverage:{version:2},status:'ready'};
         window.apiRows.push(ready);window.apiMonitoring={status:'daily_cap',remainingToday:0,usedToday:5,dailyCap:5};await oggiSegretariaLoad(true);
       });
       assert.equal(await backlog.locator('[data-sg-group="decisions"] .sg-count').innerText(),'1');

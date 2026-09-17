@@ -239,14 +239,16 @@ try {
         && r.preparation.sourceFingerprint === original.preparation.sourceFingerprint && untouched(), r);
   }
 
-  reset(); const oldPolicy = await generate();
-  revise(t => { t.preparation.version = 1; });
-  r = await endpoint(prepareEndpoint, { body: { op: 'approve', id: ID, revision: oldPolicy.preparation.revision, lastMessageId: 'm1' } });
-  ok('proposta precedente ai nuovi controlli non può essere approvata né accodata', r.httpCode === 409
-    && r.error === 'preparation_policy_changed' && !task().preparation.approval && untouched(), r);
-  r = await generate();
-  ok('proposta obsoleta viene ricalcolata anche con stesse fonti e stesso evento', r.code === 200
-    && !r.cached && aiHits === 2 && r.preparation.version === 2 && untouched(), r);
+  for (const version of [1, 2]) {
+    reset(); const oldPolicy = await generate();
+    revise(t => { t.preparation.version = version; });
+    r = await endpoint(prepareEndpoint, { body: { op: 'approve', id: ID, revision: oldPolicy.preparation.revision, lastMessageId: 'm1' } });
+    ok('proposta v' + version + ' precedente ai nuovi controlli non può essere approvata né accodata', r.httpCode === 409
+      && r.error === 'preparation_policy_changed' && !task().preparation.approval && untouched(), r);
+    r = await generate();
+    ok('proposta v' + version + ' obsoleta viene ricalcolata con stesse fonti ed evento entro il cap esistente', r.code === 200
+      && !r.cached && aiHits === 2 && count() === 2 && r.preparation.version === 3 && untouched(), r);
+  }
 
   reset({ text: 'Reacted 👍 to Hello, should we speak to Valentino?' });
   save('messages/italian', { conversationId: CID, direction: 'in', body: 'Buongiorno, vorrei organizzare un sopralluogo.', at: stamp(NOW - 60000) });
@@ -345,7 +347,8 @@ try {
       && aiInputs[0].calendar.references[0].date === '2026-11-05' && untouched(), r);
   }
 
-  reset(); aiBuilder = input => { const p = validProposal(input); p.draft = null; return p; };
+  reset(); aiBuilder = input => { const p = validProposal(input); p.draft = null;
+    p.nextAction.waitingOn = 'valentino'; p.nextAction.waitingLabel = 'Valentino'; return p; };
   const priorDecision = await generate();
   revise(t => { t.followUp.nextAction = 'Attendere i documenti del cliente'; t.followUp.waitingOn = 'client';
     t.followUp.waitingLabel = 'Cliente'; t.followUp.checkAt = stamp(NOW + 2 * 86400000); });
@@ -356,7 +359,8 @@ try {
   ok('decisione manuale successiva invalida cache anche con stesso evento, fonti e pratica', r.code === 200 && !r.cached && aiHits === 2
     && r.preparation.followUpFingerprint && r.preparation.followUpFingerprint !== priorDecision.preparation.followUpFingerprint, r);
 
-  reset(); aiBuilder = input => { const p = validProposal(input); p.draft = null; return p; };
+  reset(); aiBuilder = input => { const p = validProposal(input); p.draft = null;
+    p.nextAction.waitingOn = 'valentino'; p.nextAction.waitingLabel = 'Valentino'; return p; };
   const approvedDecision = await generate();
   const approvedResult = await endpoint(prepareEndpoint, { body: { op: 'approve', id: ID,
     revision: approvedDecision.preparation.revision, lastMessageId: 'm1' } });
@@ -437,7 +441,112 @@ try {
     && r.preparation.nextAction.waitingOn === 'valentino' && r.preparation.nextAction.waitingLabel === 'Valentino'
     && r.preparation.nextAction.reason.startsWith('Richiesta o incarico da verificare:')
     && r.preparation.nextAction.checkAt === task().followUp.checkAt
+    && r.preparation.status === 'needs_context' && r.preparation.nextAction.requiresReview
+    && r.preparation.nextAction.text.startsWith('Verificare nelle fonti')
+    && r.preparation.recommendation === r.preparation.nextAction.text && r.preparation.handoff.needed
     && r.preparation.nextAction.practiceRef === null && r.preparation.draft === null && untouched(), r);
+  // Synthetic reproduction of the aggregate review finding. No private text
+  // is needed: the actual pipeline must preserve a proven contact callback.
+  const callbackProposal = input => {
+    const p = validProposal(input), source = input.sources.find(s => s.id === input.coverage.lastEvent.sourceId);
+    p.draft = null; p.uncertainties = [];
+    p.commitments = [{ text: 'Il contatto ha promesso di richiamare.', sourceIds: [source.id],
+      quote: source.analysisText || source.text, kind: 'explicit', status: 'pending' }];
+    p.nextAction = { ...p.nextAction, text: 'Attendere il richiamo del contatto', waitingOn: 'client', waitingLabel: 'Cliente fixture',
+      checkAt: stamp(NOW + 8 * 3600000), reason: 'Il prossimo passo spetta al contatto; ricontrollare questa sera.' };
+    return p;
+  };
+  for (const actor of ['client', 'collaborator']) {
+    reset({ text: 'Ti richiamo io più tardi.' });
+    aiBuilder = input => { const p = callbackProposal(input); p.nextAction.waitingOn = actor; return p; };
+    r = await generate();
+    ok(actor + ': richiamo del contatto provato conserva attesa senza bozza o conferma manuale', r.code === 200
+      && r.preparation.nextAction.waitingOn === actor && r.preparation.nextAction.waitingLabel === 'Cliente fixture'
+      && r.preparation.nextAction.reason === 'Il prossimo passo spetta al contatto; ricontrollare questa sera.'
+      && r.preparation.nextAction.checkAt === stamp(NOW + 8 * 3600000)
+      && r.preparation.draft === null && !task().followUp.confirmed && untouched(), r);
+  }
+  for (const text of ['Ti richiamo appena finisco.', 'Appena ho finito ti richiamo.']) {
+    reset({ text }); aiBuilder = callbackProposal; r = await generate();
+    ok('richiamo con completamento temporale esplicito resta al contatto: ' + text, r.code === 200
+      && r.preparation.nextAction.waitingOn === 'client' && !task().followUp.confirmed
+      && r.preparation.draft === null && untouched(), r);
+  }
+  reset({ text: 'Ti richiamo non appena termino il lavoro.' });
+  aiBuilder = callbackProposal; r = await generate();
+  ok('promessa valida fuori grammatica resta da verificare con fonte e impegno conservati', r.code === 200
+    && r.preparation.status === 'needs_context' && r.preparation.nextAction.requiresReview
+    && r.preparation.nextAction.waitingOn === 'valentino' && r.preparation.handoff.needed
+    && r.preparation.nextAction.text.startsWith('Verificare nelle fonti')
+    && r.preparation.recommendation === r.preparation.nextAction.text
+    && r.preparation.commitments[0].kind === 'explicit' && r.preparation.commitments[0].sourceIds.includes('messages/m1')
+    && r.preparation.sources.some(s => s.id === 'messages/m1') && untouched(), r);
+  r = await endpoint(prepareEndpoint, { body: { op: 'approve', id: ID, revision: r.preparation.revision, lastMessageId: 'm1' } });
+  ok('promessa non riconosciuta non diventa attesa automaticamente confermabile', r.httpCode === 409
+    && r.error === 'preparation_needs_context' && !task().preparation.approval && untouched(), r);
+  reset({ text: 'Ti richiamo io più tardi.' });
+  save('messages/later', { conversationId: CID, direction: 'in', channel: 'whatsapp',
+    body: 'Annulla il richiamo, non serve più.', at: stamp(NOW - 1000) });
+  aiBuilder = callbackProposal;
+  r = await generate();
+  ok('revoca successiva impedisce che vecchio richiamo citato mantenga attesa cliente', r.code === 200
+    && r.preparation.nextAction.waitingOn === 'valentino' && untouched(), r);
+  for (const attached of [false, true]) {
+    reset({ text: 'Ti richiamo io più tardi.' });
+    save('messages/later-ack', { conversationId: CID, direction: 'in', channel: 'whatsapp',
+      body: 'Ok.', at: stamp(NOW - 1000), ...(attached ? { attachments: [{ type: 'audio', name: 'synthetic-audio.ogg' }] } : {}) });
+    aiBuilder = callbackProposal; r = await generate();
+    ok(attached ? 'riscontro con allegato non letto non prova che il richiamo sia ancora valido'
+      : 'riscontro successivo di solo testo conserva la promessa di richiamo', r.code === 200
+      && aiInputs[0].sources.find(s => s.id === 'messages/later-ack')?.messageKind === (attached ? 'attachment' : 'text')
+      && r.preparation.nextAction.waitingOn === (attached ? 'valentino' : 'client') && untouched(), r);
+  }
+  for (const text of ['Attendere il pagamento dopo la chiamata', 'Attendere la chiamata di un altro tecnico']) {
+    reset({ text: 'Ti richiamo io più tardi.' });
+    aiBuilder = input => { const p = callbackProposal(input); p.nextAction.text = text; return p; };
+    r = await generate();
+    ok('richiamo citato non autorizza un passo operativo diverso: ' + text, r.code === 200
+      && r.preparation.nextAction.waitingOn === 'valentino' && untouched(), r);
+  }
+  reset({ text: 'Ti richiamo io più tardi.' });
+  save('messages/m1', { ...DB.get('messages/m1'), at: stamp(NOW - 110000) });
+  save('messages/revoked-outside-window', { conversationId: CID, direction: 'in', channel: 'whatsapp',
+    body: 'Annulla il richiamo, non serve più.', at: stamp(NOW - 105000) });
+  for (let i = 0; i < 100; i++) save('messages/recent-ack-' + i, { conversationId: CID, direction: 'out', channel: 'whatsapp',
+    body: 'Grazie.', at: stamp(NOW - (100 - i) * 1000) });
+  aiBuilder = callbackProposal;
+  r = await generate();
+  ok('cronologia ordinata ma limitata non prova assenza di revoca fuori finestra', r.code === 200
+    && aiInputs[0].coverage.history.ordered === true && aiInputs[0].coverage.history.limited === true
+    && !aiInputs[0].sources.some(s => s.id === 'messages/revoked-outside-window')
+    && aiInputs[0].sources.some(s => s.id === 'messages/m1')
+    && r.preparation.nextAction.waitingOn === 'valentino' && untouched(), r);
+  reset({ text: 'Ti richiamo io più tardi.' });
+  save('messages/m1', { ...DB.get('messages/m1'), direction: 'out' });
+  aiBuilder = callbackProposal;
+  r = await generate();
+  ok('promessa uscente non diventa impegno del contatto', r.code === 200
+    && r.preparation.nextAction.waitingOn === 'valentino' && untouched(), r);
+  reset({ text: 'Ti richiamo io più tardi.' });
+  save('messages/m1', { ...DB.get('messages/m1'), at: stamp(NOW - 86400000) });
+  aiBuilder = callbackProposal;
+  r = await generate();
+  ok('richiamo generico di un giorno precedente torna a verifica invece di attesa automatica', r.code === 200
+    && r.preparation.nextAction.waitingOn === 'valentino' && untouched(), r);
+  reset({ text: 'Ti richiamo io più tardi.' });
+  aiBuilder = input => { const p = callbackProposal(input); p.commitments[0].status = 'satisfied'; return p; };
+  r = await generate();
+  ok('impegno marcato già soddisfatto non prova un richiamo ancora da attendere', r.code === 200
+    && r.preparation.nextAction.waitingOn === 'valentino' && untouched(), r);
+  reset();
+  revise(t => { t.followUp.checkAt = stamp(NOW + 3 * 3600000); });
+  aiBuilder = input => { const p = validProposal(input); p.draft = null;
+    p.nextAction.checkAt = stamp(NOW + 8 * 3600000); p.nextAction.reason = 'Aspettare il cliente e ricontrollare questa sera.'; return p; };
+  r = await generate();
+  ok('guardia che conserva controllo pomeridiano sostituisce motivazione serale incompatibile', r.code === 200
+    && r.preparation.nextAction.checkAt === stamp(NOW + 3 * 3600000)
+    && !/questa sera|Aspettare il cliente/.test(r.preparation.nextAction.reason)
+    && /ricontrollo interno precedente/.test(r.preparation.nextAction.reason) && untouched(), r);
   for (const actor of ['client', 'collaborator']) {
     reset();
     save('messages/oldOut', { conversationId: CID, direction: 'out', channel: 'whatsapp',
@@ -678,7 +787,8 @@ try {
   await loadCaseContext({ task: task(), conversation: conv, dossier, now: NOW });
   ok('lettura dossier e fonti non prepara e non invia', !aiHits && !writes.length && untouched());
 
-  reset(); addSecond(); aiBuilder = input => { const p = validProposal(input); p.draft = null; return p; };
+  reset(); addSecond(); aiBuilder = input => { const p = validProposal(input); p.draft = null;
+    p.nextAction.waitingOn = 'valentino'; p.nextAction.waitingLabel = 'Valentino'; return p; };
   const a = await generate(), b = await generate({ id: ID2 });
   r = await endpoint(prepareEndpoint, { body: { op: 'approve_batch', items: [
     { id: ID, revision: a.preparation.revision, lastMessageId: 'm1' },
@@ -688,7 +798,8 @@ try {
     && r.complete === false && r.results?.[0].code === 200 && r.results?.[1].code === 409
     && task().followUp.confirmed && !task(ID2).followUp.confirmed && untouched(), r);
 
-  reset(); addSecond(); aiBuilder = input => { const p = validProposal(input); p.draft = null; return p; };
+  reset(); addSecond(); aiBuilder = input => { const p = validProposal(input); p.draft = null;
+    p.nextAction.waitingOn = 'valentino'; p.nextAction.waitingLabel = 'Valentino'; return p; };
   const timeA = await generate(), timeB = await generate({ id: ID2 });
   commitHook = async operations => {
     if (operations.some(op => op.update?.name.endsWith('/operatorTasks/' + ID))) clock += 30000;
@@ -758,13 +869,19 @@ try {
     firstInText: 'Hello, I was looking for an apartment.', lastInText: 'Thanks.',
     lastOutText: 'Il tecnico è disponibile venerdì.', inSample: 'Cerco un appartamento vicino alla metro.' });
   reset(); seedHistorical(); r = await generate();
-  const historySource = aiInputs[0]?.sources.find(s => s.ref === historicalRef);
-  ok('memoria Miniera arriva al modello solo come contesto storico senza date individuali o valore probatorio', r.code === 200
-    && historySource?.kind === 'historical_whatsapp_summary' && historySource.evidenceEligible === false
-    && !historySource.at && !historySource.direction && historySource.text.includes('vicino alla metro')
+  const historySource = (await loadCaseContext({ task: task(), conversation: { id: CID, ...DB.get('conversations/' + CID) },
+    dossier: await personaDossier({ phone: PHONE, email: EMAIL, conversationId: CID }), now: NOW })).sources.find(s => s.ref === historicalRef);
+  ok('sommario Miniera resta in archivio e impronta, ma non entra nei fatti inviati al modello', r.code === 200
+    && historySource?.kind === 'historical_whatsapp_summary' && DB.has(historicalRef)
+    && !aiInputs[0].sources.some(s => s.kind === 'historical_whatsapp_summary')
+    && !JSON.stringify(aiInputs[0]).includes('vicino alla metro')
+    && aiInputs[0].sources.some(s => s.id === 'messages/m1')
+    && aiInputs[0].sources.some(s => s.kind === 'practice_record')
     && aiInputs[0].language === 'it' && aiInputs[0].languageEvidence.sourceId === 'messages/m1'
     && !aiInputs[0].calendar.references.some(ref => ref.sourceId === historicalRef)
-    && r.preparation.coverage.historical.status === 'included' && untouched(), r);
+    && !r.preparation.sources.some(s => s.ref === historicalRef)
+    && r.preparation.coverage.historical.status === 'excluded_from_preparation'
+    && r.preparation.coverage.reasons.includes('historical_summary_excluded') && untouched(), r);
   const historicalRevision = r.preparation?.revision;
   save(historicalRef, { ...DB.get(historicalRef), lastOutText: 'Campione corretto successivamente.' });
   r = await endpoint(prepareEndpoint, { body: { op: 'approve', id: ID, revision: historicalRevision, lastMessageId: 'm1' } });
@@ -774,7 +891,7 @@ try {
   for (const section of ['facts', 'commitments', 'uncertainties', 'nextAction', 'draft', 'handoff']) {
     reset(); seedHistorical();
     aiBuilder = input => {
-      const p = validProposal(input), source = input.sources.find(s => s.ref === historicalRef);
+      const p = validProposal(input), source = historySource;
       const statement = Array.isArray(p[section]) ? p[section][0] : p[section];
       statement.sourceIds = [source.id]; statement.quote = source.text.slice(0, 100);
       return p;
@@ -825,6 +942,24 @@ try {
       { name: 'nessuna attesa senza richiesta o incarico', file: 'js/segretaria-proposta-engine.js',
         from: "if (proposal.draft || !['client', 'collaborator'].includes(n.waitingOn)) return n;",
         to: "if (true || proposal.draft || !['client', 'collaborator'].includes(n.waitingOn)) return n;" },
+      { name: 'richiamo verificato non azzerato dalla guardia generica', file: 'js/segretaria-proposta-engine.js',
+        from: 'confirmedWait || provenCallbackWait(proposal, { ...evidence, now })', to: 'confirmedWait' },
+      { name: 'revoca successiva prevale sulla citazione di richiamo', file: 'js/segretaria-proposta-engine.js',
+        from: 'if (!superseded) return true;', to: 'return true;' },
+      { name: 'allegato non letto non diventa riscontro testuale puro', file: 'js/segretaria-proposta-engine.js',
+        from: "s.messageKind === 'text' && readable(s)", to: 'readable(s)' },
+      { name: 'promessa di richiamo prova soltanto la stessa attesa', file: 'js/segretaria-proposta-engine.js',
+        from: '!CALLBACK_WAIT.test(callbackNorm(n.text))', to: 'false' },
+      { name: 'finestra ordinata parziale non prova continuità della promessa', file: 'api/segretaria/_prepare.js',
+        from: 'context.coverage.history?.ordered === true && context.coverage.history?.limited !== true',
+        to: 'context.coverage.history?.ordered === true' },
+      { name: 'motivazione coerente con ricontrollo anticipato', file: 'js/segretaria-proposta-engine.js',
+        from: "(preserveEarlier ? ' Mantengo il ricontrollo interno precedente, più vicino.' : ' Il ricontrollo proposto resta una verifica interna.')",
+        to: 'n.reason' },
+      { name: 'attesa non provata richiede revisione prima di approvare', file: 'api/segretaria/_prepare.js',
+        from: 'if (proposal.nextAction.requiresReview) {', to: 'if (false) {' },
+      { name: 'sommario storico escluso anche da sintesi non citata', file: 'api/segretaria/_prepare.js',
+        from: "context.sources.filter(s => s.kind !== 'historical_whatsapp_summary')", to: 'context.sources' },
       { name: 'risposta concorrente durante AI', file: 'api/segretaria/_prepare.js',
         from: 'if (sha(freshReplyOwner) !== replyOwnerFingerprint)', to: 'if (false)' },
       { name: 'cache della decisione manuale', file: 'api/segretaria/_prepare.js',

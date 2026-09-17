@@ -4,7 +4,7 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root) root.BOOM_PROPOSTA = api;
 })(typeof window !== 'undefined' ? window : this, function () {
-  const VERSION = 2;
+  const VERSION = 3;
   const CONTEXT_VERSION = 2;
   const line = (v, n) => typeof v === 'string' && v.trim() && v.length <= n ? v.trim() : null;
   // HOMIE's reaction wrapper quotes somebody else's words; it is neither a
@@ -110,7 +110,57 @@
   // readable across context upgrades, but never becomes current for a new event.
   function currentContext(task) { return current(task)
     && (!!task.preparation.approval || task.preparation.coverage?.version === CONTEXT_VERSION); }
-  function nextActor(proposal, { followUp = {}, now } = {}) {
+  // Narrow source-backed exception to the generic next-actor guard. A model's
+  // assertion of a promise is not evidence. Only a whole, affirmative callback
+  // statement by this contact can establish a pending wait on this contact.
+  const callbackNorm = value => String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/’/g, "'").replace(/\s+/g, ' ').trim().toLowerCase();
+  const CALLBACK_PROMISE = /^(?:(?:ciao|grazie|buongiorno|va bene|ok|okay|hello|thanks)[,.! ]+)*(?:(?:io )?(?:(?:ti|vi|la) (?:richiamo|richiamero)|(?:ti|vi|la) chiamo(?: io)?|richiamo io)(?: (?:io|dopo|piu tardi|oggi))*|(?:i will|i'll) call you(?: back)?(?: later| today)?)[.!]?$/;
+  const IT_CALLBACK = '(?:(?:ti|vi|la) (?:richiamo|richiamero)(?: io)?|richiamo io)';
+  const IT_COMPLETION = 'appena (?:finisco|ho finito|termino|ho terminato)';
+  const EN_CALLBACK = "(?:i will|i'll) call you(?: back)?";
+  const EN_COMPLETION = "(?:as soon as i finish|once (?:i am|i'm) done)";
+  const CALLBACK_COMPLETION = new RegExp('^(?:' + IT_CALLBACK + ' ' + IT_COMPLETION + '|'
+    + IT_COMPLETION + ',? ' + IT_CALLBACK + '|' + EN_CALLBACK + ' ' + EN_COMPLETION + '|'
+    + EN_COMPLETION + ',? ' + EN_CALLBACK + ')[.!]?$');
+  const callbackPromise = value => CALLBACK_PROMISE.test(callbackNorm(value)) || CALLBACK_COMPLETION.test(callbackNorm(value));
+  const CALLBACK_WAIT = /^(?:(?:attendere|aspettare) (?:il richiamo|la chiamata)(?: del (?:contatto|cliente|collaboratore))?|(?:await|wait for) (?:the )?(?:call|callback)(?: from (?:the )?(?:contact|client|collaborator))?)[.]?$/;
+  const callbackDay = at => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(at));
+  function provenCallbackWait(proposal, { sources = [], rawCommitments = [], contactName, historyVerified = false, now } = {}) {
+    const n = proposal.nextAction;
+    if (!historyVerified || proposal.identityBlocked || !Number.isFinite(now)
+      || !contactName || callbackNorm(n.waitingLabel) !== callbackNorm(contactName)
+      || !CALLBACK_WAIT.test(callbackNorm(n.text))) return false;
+    const messages = sources.filter(s => s.kind === 'message');
+    // Duplicate source IDs cannot silently select the convenient version.
+    if (new Set(messages.map(s => s.id)).size !== messages.length) return false;
+    const sourceText = s => s.analysisAvailable === true ? s.analysisText : s.text;
+    const readable = s => s.evidenceEligible !== false && s.analysisAvailable !== false
+      && (s.analysisAvailable === true || s.textAvailable !== false)
+      && !s.textTruncated && !s.analysisTruncated && typeof sourceText(s) === 'string';
+    const acknowledgement = s => s.messageKind === 'text' && readable(s)
+      && /^(?:grazie(?: mille)?|ok|okay|va bene|thanks|thank you)[.!]?$/.test(callbackNorm(sourceText(s)));
+    for (const c of rawCommitments) {
+      if (c?.kind !== 'explicit' || c.status !== 'pending' || typeof c.quote !== 'string'
+        || !callbackPromise(c.quote)) continue;
+      for (const id of Array.isArray(c.sourceIds) ? c.sourceIds : []) {
+        if (!n.sourceIds?.includes(id)) continue;
+        const s = messages.find(row => row.id === id), at = Date.parse(s?.at || '');
+        if (!s || s.direction !== 'in' || !readable(s) || !Number.isFinite(at) || at > now
+          || callbackDay(at) !== callbackDay(now) || !sourceText(s).includes(c.quote)
+          || !callbackPromise(sourceText(s))) continue;
+        // A later substantive message, including unread media or an outgoing
+        // completion, may supersede the promise. A same-time conflict is also
+        // unresolved; only a plain acknowledgment can be ignored.
+        const superseded = messages.some(other => other.id !== id
+          && (!Number.isFinite(Date.parse(other.at || '')) || Date.parse(other.at) >= at)
+          && !acknowledgement(other));
+        if (!superseded) return true;
+      }
+    }
+    return false;
+  }
+  function nextActor(proposal, { followUp = {}, now, ...evidence } = {}) {
     const n = proposal.nextAction;
     if (proposal.draft || !['client', 'collaborator'].includes(n.waitingOn)) return n;
     const same = (a, b) => typeof a === 'string' && typeof b === 'string'
@@ -121,13 +171,19 @@
     const confirmedWait = followUp.confirmed === true && followUp.practiceRef === n.practiceRef
       && followUp.waitingOn === n.waitingOn && same(followUp.waitingLabel, n.waitingLabel)
       && same(followUp.nextAction, n.text);
-    if (confirmedWait) return n;
+    if (confirmedWait || provenCallbackWait(proposal, { ...evidence, now })) return n;
     const priorCheck = Date.parse(followUp.checkAt), proposedCheck = Date.parse(n.checkAt);
-    return { ...n, waitingOn: 'valentino', waitingLabel: 'Valentino',
+    const preserveEarlier = Number.isFinite(now) && priorCheck > now && priorCheck < proposedCheck;
+    return { ...n, waitingOn: 'valentino', waitingLabel: 'Valentino', requiresReview: true,
+      text: 'Verificare nelle fonti il responsabile e il prossimo passo prima di confermare l’attesa.',
       // Keep an earlier existing control instead of postponing an unstarted
       // request as though the other party already had time to answer it.
-      checkAt: Number.isFinite(now) && priorCheck > now && priorCheck < proposedCheck ? followUp.checkAt : n.checkAt,
-      reason: ('Richiesta o incarico da verificare: non è provato che il destinatario debba già rispondere. ' + n.reason).slice(0, 350) };
+      checkAt: preserveEarlier ? followUp.checkAt : n.checkAt,
+      // The model's old reason may describe another actor or a later hour.
+      // Replace it when the guard changes responsibility; never append an
+      // incompatible evening explanation to a preserved afternoon control.
+      reason: 'Richiesta o incarico da verificare: Valentino deve verificare il prossimo passo prima di considerare attesa una risposta.'
+        + (preserveEarlier ? ' Mantengo il ricontrollo interno precedente, più vicino.' : ' Il ricontrollo proposto resta una verifica interna.') };
   }
   return Object.freeze({ VERSION, CONTEXT_VERSION, validate, wantsHuman, topicOf, current, currentContext, nextActor, isReaction });
 });
