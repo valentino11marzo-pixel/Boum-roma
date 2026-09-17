@@ -24,11 +24,22 @@ export async function readPreparationMonitor({ now = Date.now() } = {}) {
   const age = lastRunAt ? now - Date.parse(lastRunAt) : null;
   const enabled = configReadable ? cfg.enabled : null;
   const prepareCases = configReadable ? settings?.prepareCases === true : null;
+  const degraded = heartbeat?.schedulerDegraded === true || heartbeat?.readingDegraded === true
+    || heartbeat?.queueObservationsIncomplete === true;
+  // Handled 422 outcomes describe cases, not a service outage. The worker
+  // either persists their review or observes a newer valid result; failed writes
+  // and unresolved races set queueObservationsIncomplete. Inspect the whole batch
+  // so a final success cannot hide an earlier transient failure.
+  const errors = Array.isArray(heartbeat?.errors) ? heartbeat.errors : [];
+  const hasFailures = Boolean(heartbeat?.error) || errors.length > 0;
+  const reviewOnlyFailure = (!heartbeat?.error || heartbeat?.code === 422)
+    && count(heartbeat?.queue?.awaitingReview) > 0 && errors.length > 0
+    && errors.every(error => error?.code === 422 && typeof error.error === 'string' && error.error.length > 0);
   let status = incomplete || usedToday === null ? 'unavailable' : 'unknown';
   if (enabled === false) status = 'disabled';
   else if (prepareCases === false) status = 'paused';
   else if (!incomplete && usedToday !== null && age !== null && age >= 0) {
-    status = age > 180000 ? 'delayed' : heartbeat?.error || heartbeat?.stoppedBy === 'daily_cap' ? 'unavailable'
+    status = age > 180000 ? 'delayed' : degraded || (hasFailures && !reviewOnlyFailure) || heartbeat?.stoppedBy === 'daily_cap' ? 'unavailable'
       : Number(heartbeat?.prepared || 0) > 0 ? 'working' : 'idle';
   }
   const counts = {};
@@ -53,6 +64,6 @@ export async function readPreparationMonitor({ now = Date.now() } = {}) {
     retryReasons, nextRetryAt: date(heartbeat?.queue?.nextRetryAt), queueScope,
     stoppedBy: ['time_budget', 'disabled', 'batch_limit'].includes(heartbeat?.stoppedBy) ? heartbeat.stoppedBy : null,
     queueIncomplete: heartbeat?.incomplete === true || queueScope === 'page',
-    incomplete: incomplete || usedToday === null || heartbeat?.schedulerDegraded === true || heartbeat?.readingDegraded === true,
+    incomplete: incomplete || usedToday === null || degraded,
     scope: 'preparation_only' };
 }
