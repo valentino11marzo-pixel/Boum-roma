@@ -151,16 +151,17 @@
         'Prende in mano una chat SOLO quando la consegni tu (🤖 sulla card del lead): il click è la firma',
         'Risponde con i fatti veri: stato dell\'immobile, alternative, slot visita dalla griglia vera, servizi dal catalogo',
         'Apre lei la conversazione (WhatsApp col numero, email senza) rispondendo alla richiesta originale',
-        'Ogni 10 minuti raccoglie le risposte email dei clienti che segue e continua il filo'
+        'Ogni 10 minuti raccoglie le risposte email dei clienti che segue e continua il filo',
+        'Preparazione interna opt-in: ricostruisce i casi e propone risposta e seguito in Oggi; la conferma può autorizzare quella risposta'
       ],
       autonomy: {
         solo:  ['Conversa sulla chat consegnata: disponibilità, visite, link, un servizio al massimo', 'Propone gli slot VERI e il link di prenotazione'],
         porta: ['La consegna: senza il tuo 🤖 non scrive a nessuno', 'Trattative, sconti, questioni legali: ti passa la mano con la card 🖐'],
-        mai:   ['Mai trattare il prezzo o promettere fuori catalogo', 'Mai con inquilini, proprietari o clienti PFS', 'Mai un link fuori da boomrome.com', 'Mai firmarsi con un nome di persona']
+        mai:   ['Mai trattare il prezzo o promettere fuori catalogo', 'Mai risposte autonome con inquilini, proprietari o clienti PFS', 'Mai un link fuori da boomrome.com', 'Mai firmarsi con un nome di persona']
       },
       reach: ['clienti', 'operatore', 'archivio', 'ai'],
       approval: 'parziale',
-      crons: ['/api/segretaria/scan-replies'],
+      crons: ['/api/segretaria/scan-replies', '/api/segretaria/worker'],
       health: { col: 'teamHealth', doc: 'segretaria' },
       console: null, run: null
     },
@@ -359,6 +360,26 @@
     },
 
     /* ── AMMINISTRAZIONE — i soldi e le carte ─────────────────────────── */
+    {
+      key: 'scrivano', emoji: '🖋', name: 'Lo Scrivano', reparto: 'Amministrazione',
+      role: 'Legge i documenti che arrivano sul telefono e prepara la proposta nel portal',
+      hired: 'Un contratto che arriva su WhatsApp mentre sei per strada finiva archiviato e basta: per farlo nascere nel gestionale dovevi riportarlo a mano dal desktop.',
+      mandate: [
+        'Su un documento archiviato dallo Smistatore (Telegram, WhatsApp, email) offre «leggi e proponi» con un bottone: il tap è la tua firma sulla spesa',
+        'Ogni minuto prende UNA lettura in coda, legge con Opus 5 col cuore dell\'Innesto (stesso schema, stesse citazioni) e ti manda la card col link al portal',
+        'Riprova UNA volta sui guasti momentanei; un documento troppo lungo o illeggibile lo dice subito col rimedio, senza riprovare a vuoto'
+      ],
+      autonomy: {
+        solo:  ['Legge il documento che hai chiesto di leggere e salva la PROPOSTA (mai un contratto, mai una persona, mai un immobile)', 'Ti manda la card con il riepilogo e il link al portal'],
+        porta: ['La proposta nel portal: campi, citazioni, aggiornamenti proposti — confermi tu, e solo allora si scrive'],
+        mai:   ['Non scrive contratti, persone o immobili: ogni scrittura passa dalla tua conferma nel portal', 'Non legge niente senza il tuo tap', 'Non inventa: ciò che il documento non dice resta vuoto']
+      },
+      reach: ['archivio', 'operatore', 'ai'],
+      approval: 'parziale',   // come la Segretaria: da solo legge e salva la PROPOSTA (il tuo tap l'ha chiesta), ogni scrittura vera passa dal portal
+      crons: ['/api/scrivano/worker'],
+      health: { col: 'teamHealth', doc: 'scrivano' },
+      console: '/portal#innesto', run: '/api/scrivano/worker'
+    },
     {
       key: 'contabile', emoji: '🧮', name: 'Il Contabile', reparto: 'Amministrazione',
       role: 'Fisco, incassi, pacchetto commercialista',

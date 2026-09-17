@@ -10,10 +10,16 @@
 // Telegram (la disciplina "una copia sola": la voce al telefono non può
 // promettere uno slot che la pagina web negherebbe un minuto dopo).
 //
-// La receptionist NON prenota qui: propone lo slot e promette il link su
-// WhatsApp — la prenotazione vera resta sulle rail esistenti (book.html /
-// operatore), dove email e conferme funzionano già. Un booking a voce senza
-// email produrrebbe una visita senza kit: mezza feature è peggio di nessuna.
+// La receptionist NON prenota qui e NON promette messaggi che nessuno manda.
+// A fine chiamata il webhook (api/phone/elevenlabs.js) scrive phoneCalls,
+// crea il lead e manda a Valentino la card Telegram con la bozza: se e quando
+// ricontattare lo decide lui. Quindi le note dette al telefono non promettono
+// niente, nemmeno il richiamo — la lezione del 15/09/2026: «held», «the team
+// confirms within a few hours», «booking link on WhatsApp shortly» e poi
+// «he will get back to you» erano tutte promesse senza un esecutore dietro.
+// Un orario preferito è una richiesta, non una prenotazione. La prenotazione
+// vera resta sulle rail esistenti (book.html / operatore): un booking a voce
+// senza email produrrebbe una visita senza kit.
 //
 // Auth: ?k=<phoneKey derivata> o X-Homie-Secret (come le altre porte phone).
 // Risposte PICCOLE e parlabili: finiscono nel contesto vocale dell'agente.
@@ -43,15 +49,21 @@ export default async function handler(req, res) {
         .map((l) => ({
           id: l.id,
           name: l.name || null,
+          // One bedroom can belong to a room or an entire apartment. Keep
+          // the listing's declared type; missing types stay unknown.
+          type: typeof l.type === 'string' && l.type.trim() ? l.type.trim() : null,
           zone: l.zone || null,
           priceEurMonth: l.price != null ? Number(l.price) : null,
           bedrooms: l.bedrooms != null ? Number(l.bedrooms) : null,
           sqm: l.sqm != null ? Number(l.sqm) : null,
           furnished: l.furnished != null ? !!l.furnished : null,
           availableFrom: l.availableFrom || l.availableDate || null,
-          url: `https://boomrome.com/listing/${l.id}`,
+          url: `https://www.boomrome.com/listing/${l.id}`,   // sempre www (AGENTS.md): l'apex reindirizza
         }));
-      return res.status(200).json({ ok: true, count: listings.length, listings });
+      return res.status(200).json({
+        ok: true, count: listings.length, listings,
+        note: 'Use each listing\'s type to distinguish rooms from entire apartments. A room is not an entire apartment. Do not infer accommodation type or total room count from bedrooms, size, price or title. If type is missing, unknown or unclear, say the accommodation type needs verification instead of calling it a room, apartment or bilocale.',
+      });
     }
 
     if (op === 'slots') {
@@ -72,18 +84,20 @@ export default async function handler(req, res) {
         ok: true, timezone: TZ, mode,
         requireApproval: !!cfg.requireApproval,
         slots: flat,
+        // Istruzioni al modello, non frasi da recitare (la lezione del 15/09: una
+        // frase «esatta» ferma la conversazione). Nessuna promette ciò che nessuno
+        // esegue: né uno slot «tenuto», né un link, un messaggio o un richiamo.
         note: flat.length
-          ? (cfg.requireApproval
-            ? 'These times are held on request: the team confirms within a few hours.'
-            : 'These times are instantly bookable.')
-          : 'No open slots in the next days — offer a WhatsApp follow-up instead.',
+          ? 'Offer 2-3 of these times and ask which one the caller prefers. A preferred time is a request, not a booking: confirmation is still required, and nothing is booked, held or sent by this call. Do not promise a link, a message or a call back.'
+          : 'No open slots in the next days. Tell the caller, then ask for what is still missing (preferred days, name or contact number). Nothing is booked, held or sent by this call: do not promise a link, a message or a call back.',
       });
     }
 
     return res.status(400).json({ ok: false, error: 'unknown_op', ops: ['catalog', 'slots'] });
   } catch (e) {
     console.error('[phone/agent-tools]', op, e.message);
-    // la voce non deve mai restare muta su un nostro errore: risposta parlabile
-    return res.status(200).json({ ok: false, error: 'temporarily_unavailable', say: 'I cannot check that right now — I will have the team confirm on WhatsApp.' });
+    // la voce non deve mai restare muta su un nostro errore: un'istruzione al
+    // modello (limite vero + UNA domanda), non una frase da recitare
+    return res.status(200).json({ ok: false, error: 'temporarily_unavailable', note: 'Live data is not reachable right now. Tell the caller briefly that you cannot check this at the moment, then ask ONE question only, about a single missing detail (what they are looking for, or their budget, or the move-in date, or a contact number; never two questions at once). Never invent listings, prices, availability or times.' });
   }
 }

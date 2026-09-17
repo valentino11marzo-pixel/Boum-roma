@@ -297,6 +297,134 @@ console.log('\n── Il fascicolo a più letture (merge + derivazioni) ──�
   eq('un deposito DICHIARATO non viene mai ricalcolato', d2.contract.deposit, 500);
 }
 
+console.log('\n── Cosa il codice fiscale DICE (data, sesso, nome) ───────');
+{
+  // RSSMRA85T10A562S: Mario Rossi, nato il 10/12/1985 (T = dicembre), uomo.
+  const b = E.cfBirth('RSSMRA85T10A562S');
+  eq('il CF porta giorno, mese, anno e sesso', b, { yy: 85, month: 12, day: 10, sex: 'M' });
+  ok('la data del documento che CONFERMA il CF passa', E.cfBirthDateMatches('RSSMRA85T10A562S', '1985-12-10') === true);
+  ok('giorno e mese invertiti (10/12 vs 12/10) → NON tornano', E.cfBirthDateMatches('RSSMRA85T10A562S', '1985-10-12') === false);
+  ok('senza data non si giudica (null, non false)', E.cfBirthDateMatches('RSSMRA85T10A562S', '') === null);
+  ok('CF non valido → null, mai un verdetto', E.cfBirthDateMatches('RSSMRA85T10A562X', '1985-12-10') === null);
+  // Donna: giorno + 40. RSSNNA80A41H501L → 01/01/1980, F (checksum reale).
+  const f = E.cfBirth('RSSNNA80A41H501L');
+  ok('il +40 del giorno dice donna e riporta il giorno vero', f && f.sex === 'F' && f.day === 1 && f.month === 1 && f.yy === 80, JSON.stringify(f));
+  ok('il nome nell\'ordine Nome Cognome torna', E.cfMatchesName('RSSMRA85T10A562S', 'Mario Rossi') === true);
+  ok('…e nell\'ordine Cognome Nome pure', E.cfMatchesName('RSSMRA85T10A562S', 'Rossi Mario') === true);
+  ok('…anche con un titolo davanti', E.cfMatchesName('RSSMRA85T10A562S', 'Sig. Mario Rossi') === true);
+  ok('il CF di un\'ALTRA persona non torna', E.cfMatchesName('RSSMRA85T10A562S', 'Anna Verdi') === false);
+  ok('un nome solo non si giudica (null)', E.cfMatchesName('RSSMRA85T10A562S', 'Mario') === null);
+  // Nome con meno di tre consonanti e cognome composto: la regola vocali/X.
+  ok('cognome composto con apostrofo (D\'Angelo)', E.cfMatchesName('DNGMRC90A01H501V', 'Marco D\'Angelo') !== null);
+  ok('partita IVA valida (Luhn)', E.validatePIva('01234567897').valid, E.validatePIva('01234567897').reason);
+  ok('partita IVA con refuso rifiutata', !E.validatePIva('01234567890').valid);
+}
+
+console.log('\n── La proposta ampia: solo le sezioni che il materiale porta ──');
+{
+  // Con l'output strutturato arrivano SEMPRE quattro sezioni piene di null:
+  // una carta d'identità non deve far nascere una card «Contratto».
+  const pruned = E.pruneProposal({
+    landlord: { name: null, email: null, kind: 'fisica' },
+    tenant: { name: 'Marta Neri', codiceFiscale: null },
+    property: { name: null, address: null, cadastral: { foglio: null } },
+    contract: { cedolareSecca: true, rent: null, type: null },
+    coTenants: [{ name: '' }, { name: 'Luca Bianchi' }],
+  });
+  eq('restano solo inquilino e co-conduttore vero', Object.keys(pruned).sort(), ['coTenants', 'tenant']);
+  ok('un booleano di default non è un\'ancora per il contratto', !pruned.contract);
+  const withCat = E.pruneProposal({ property: { name: null, address: null, cadastral: { foglio: '12' } } });
+  ok('il foglio catastale è un\'ancora per l\'immobile (una visura)', !!withCat.property);
+
+  const n = E.normalizeProposal({
+    landlord: { name: 'Rossi Immobiliare', businessName: 'Rossi Immobiliare S.r.l.', partitaIva: '01234567897', kind: 'giuridica', iban: 'it60 x054 2811 1010 0000 0123 456' },
+    tenant: { name: 'Marta Neri', codiceFiscale: 'nremrt99t41h501k ', birthDate: '01/12/1999', docType: 'Carta d\'identità', docNum: 'ca123', permessoScadenza: '2027/03/01' },
+    coTenants: [{ name: 'Luca Bianchi', birthDate: '2000-02-02' }, { name: '' }],
+    property: { address: 'Via Cavour 12', cadastral: { foglio: '12', particella: '345', sub: '6', categoria: 'a/2', rendita: '812,50' }, tabelle: { proprieta: '45,5' }, furnished: true },
+    contract: { type: '32', rent: '1.100,00', cedolareSecca: null, startDate: '2026-09-01', durationMonths: 36, installmentMonths: '3', condoMode: 'incluso', studenti: { corsoStudi: null } },
+  });
+  eq('il tipo «32» diventa 3+2', n.contract.type, '3+2');
+  eq('cedolare non detta = sì (come la legge il modello C e _finalize)', n.contract.cedolareSecca, 'si');
+  eq('cadenza dalla stringa "3"', n.contract.installmentMonths, 3);
+  eq('il canone italiano «1.100,00» è 1100', n.contract.rent, 1100);
+  eq('il catasto annidato del modello diventa piatto', [n.property.foglio, n.property.particella, n.property.sub, n.property.categoria, n.property.renditaCatastale], ['12', '345', '6', 'A/2', 812.5]);
+  eq('le tabelle millesimali', n.property.tabelleMillesimali.proprieta, 45.5);
+  eq('ammobiliato true → yes', n.property.furnished, 'yes');
+  eq('il documento in italiano diventa il codice', n.tenant.docType, 'id');
+  eq('numero documento maiuscolo', n.tenant.docNum, 'CA123');
+  eq('data aaaa/mm/gg letta', n.tenant.permessoScadenza, '2027-03-01');
+  eq('la società: kind, ragione sociale e P.IVA', [n.landlord.kind, n.landlord.businessName, n.landlord.partitaIva], ['giuridica', 'Rossi Immobiliare S.r.l.', '01234567897']);
+  eq('IBAN senza spazi, maiuscolo', n.landlord.iban, 'IT60X0542811101000000123456');
+  eq('il co-conduttore senza nome sparisce', n.coTenants.length, 1);
+  ok('un blocco studenti vuoto è null', n.contract.studenti === null);
+  eq('normalizzare due volte non cambia nulla', E.normalizeProposal(n), n);
+
+  const d = E.deriveProposal(JSON.parse(JSON.stringify(n)));
+  eq('la fine nasce dalla durata (inizio + 36 mesi − 1 giorno)', d.contract.endDate, '2029-08-31');
+  eq('il catasto in testo si compone dalle parti', d.property.cadastralData, 'foglio 12, particella 345, sub 6, cat. A/2');
+  ok('ogni derivazione è DICHIARATA', d.derived && d.derived['contract.endDate'] && d.derived['property.cadastralData']);
+  const d2 = E.deriveProposal({ contract: { rent: 900, deposit: 1800, depositMonths: null, startDate: '2026-09-01', endDate: '2027-08-31' } });
+  eq('le mensilità del deposito dal rapporto deposito/canone', d2.contract.depositMonths, 2);
+  eq('la durata in mesi dalle date', d2.contract.durationMonths, 12);
+  const d3 = E.deriveProposal({ property: { cadastralData: 'Foglio 12 Part. 345 Sub. 6 cat. A/2' } }, { parseCadastral: (b) => ({ foglio: '12', particella: '345', sub: '6', categoria: 'A/2', sezione: '' }) });
+  eq('il blob catastale si legge nelle parti col dizionario (una copia sola)', [d3.property.foglio, d3.property.sub], ['12', '6']);
+
+  eq('mesi pieni: 01/09 → 31/08 = 12', E.monthsSpan('2026-09-01', '2027-08-31'), 12);
+  eq('mesi pieni: 10/09 → 09/03 = 6', E.monthsSpan('2026-09-10', '2027-03-09'), 6);
+  eq('mesi parziali contano i soli interi: 10/09 → 01/03 = 5', E.monthsSpan('2026-09-10', '2027-03-01'), 5);
+}
+
+console.log('\n── I controlli che un modello non fa da solo ──────────────');
+{
+  const v = E.validateProposal({ tenant: { name: 'Mario Rossi', email: 'm@x.it', codiceFiscale: 'RSSMRA85T10A562S', birthDate: '1985-10-12' } });
+  ok('CF valido ma data invertita → ERRORE bloccante', !v.ok && v.errors.some(e => /letto male/.test(e)), JSON.stringify(v));
+  const v2 = E.validateProposal({ tenant: { name: 'Anna Verdi', email: 'a@x.it', codiceFiscale: 'RSSMRA85T10A562S', birthDate: '1985-12-10' } });
+  ok('CF di un\'altra persona → AVVISO col nome', v2.ok && v2.warnings.some(w => /non corrisponde al nome/.test(w)), JSON.stringify(v2));
+  const v3 = E.validateProposal({ tenant: { name: 'Mario Rossi', email: 'm@x.it', codiceFiscale: 'RSSMRA85T10A562S', birthDate: '1985-12-10' } });
+  ok('CF coerente con data e nome → nessun rilievo', v3.ok && !v3.warnings.some(w => /codice fiscale/.test(w)), JSON.stringify(v3));
+  const v4 = E.validateProposal({ contract: { type: 'transitorio', startDate: '2026-09-01', endDate: '2028-08-31', rent: 1000, deposit: 4000, depositMonths: 4 } });
+  ok('deposito oltre 3 mensilità → avviso art. 11 L. 392/78', v4.warnings.some(w => /art\. 11 L\. 392\/78/.test(w)), JSON.stringify(v4.warnings));
+  ok('transitorio di 24 mesi → avviso sulla durata di legge', v4.warnings.some(w => /da 1 a 18 mesi/.test(w)), JSON.stringify(v4.warnings));
+  ok('transitorio senza esigenza → avviso', v4.warnings.some(w => /esigenza/.test(w)));
+  const v5 = E.validateProposal({ contract: { type: '3+2', startDate: '2026-09-01', endDate: '2029-08-31', rent: 1000, transitionalReason: '' } });
+  ok('un 3+2 di 36 mesi non riceve l\'avviso del transitorio', !v5.warnings.some(w => /18 mesi|esigenza/.test(w)), JSON.stringify(v5.warnings));
+  const v6 = E.validateProposal({ landlord: { name: 'Rossi S.r.l.', kind: 'giuridica', codiceFiscale: '01234567897' } });
+  ok('una società: CF di 11 cifre valido (Luhn), nessun errore', v6.ok, JSON.stringify(v6.errors));
+  const v7 = E.validateProposal({ landlord: { name: 'Rossi S.r.l.', kind: 'giuridica', codiceFiscale: '01234567890' } });
+  ok('…e con un refuso viene fermata', !v7.ok);
+  const v8 = E.validateProposal({ coTenants: [{ name: '', codiceFiscale: '' }] });
+  ok('co-conduttore senza nome → errore', !v8.ok && v8.errors.some(e => /Co-conduttore 1: manca il nome/.test(e)));
+}
+
+console.log('\n── La modifica proposta: prima → dopo sul record che c\'è già ──');
+{
+  const rec = { id: 'u1', name: 'Marta Neri', email: '', address: 'Via Cavour 12', codiceFiscale: '', role: 'tenant' };
+  const diff = E.diffRecord('person', { name: 'Marta Neri', email: 'marta@x.it', address: 'Via Cavour 12/B', codiceFiscale: 'NREMRT99T41H501X', birthDate: '' }, rec);
+  eq('due buchi da riempire, un valore che cambia', [diff.fills, diff.changes], [2, 1]);
+  ok('il nome uguale NON compare', !diff.rows.some(r => r.key === 'name'));
+  ok('il campo vuoto della proposta NON compare', !diff.rows.some(r => r.key === 'birthDate'));
+  const patch = E.applyDiff(diff, {});
+  eq('di default si scrivono SOLO i buchi (nei due schemi users)', patch, { email: 'marta@x.it', codiceFiscale: 'NREMRT99T41H501X', cf: 'NREMRT99T41H501X' });
+  ok('…un valore che cambia NON parte da solo', !('address' in patch));
+  eq('spuntato dall\'operatore, il cambio entra', E.applyDiff(diff, { address: true }).address, 'Via Cavour 12/B');
+  eq('e un buco de-spuntato resta fuori', 'email' in E.applyDiff(diff, { email: false }), false);
+  const same = E.diffRecord('person', { codiceFiscale: 'nremrt99t41h501x' }, { cf: 'NREMRT99T41H501X' });
+  eq('il CF letto nell\'altro schema (cf) e con altra grafia è UGUALE', same.rows.length, 0);
+  const pd = E.diffRecord('property', { interno: '7', foglio: '12', rent: 1200 }, { unit: '7', rent: 1100 });
+  ok('interno letto da unit: uguale; il canone diverso è un cambio', pd.rows.length === 2 && pd.rows.some(r => r.key === 'foglio' && r.action === 'fill') && pd.rows.some(r => r.key === 'rent' && r.action === 'change'), JSON.stringify(pd));
+  ok('«fisica» non è un dato da scrivere', E.diffRecord('person', { kind: 'fisica' }, {}).rows.length === 0);
+
+  // Il merge dei co-conduttori: stessa persona → i suoi buchi; nuova → in coda.
+  const m = E.mergeProposal(
+    { tenant: { name: 'A' }, coTenants: [{ name: 'Luca Bianchi', codiceFiscale: '', email: 'l@x.it' }] },
+    { coTenants: [{ name: 'Bianchi Luca', codiceFiscale: 'BNCLCU00B02H501C', email: 'altro@x.it' }, { name: 'Sara Blu', codiceFiscale: '' }] });
+  eq('lo stesso co-conduttore (nome invertito) riceve il CF mancante', m.coTenants[0].codiceFiscale, 'BNCLCU00B02H501C');
+  eq('…ma la sua email piena non si tocca', m.coTenants[0].email, 'l@x.it');
+  eq('la persona nuova si aggiunge', m.coTenants.length, 2);
+  const m2 = E.mergeProposal({ contract: { type: 'studenti', studenti: { corsoStudi: 'Economia', universita: '' } } }, { contract: { studenti: { corsoStudi: 'Altro', universita: 'LUISS' } } });
+  eq('gli oggetti annidati si fondono campo per campo', m2.contract.studenti, { corsoStudi: 'Economia', universita: 'LUISS' });
+}
+
 console.log('\n' + '─'.repeat(56));
 if (failed) {
   console.log(`\x1b[31mDataOps: ${passed} passed, ${failed} failed\x1b[0m`);
