@@ -28,7 +28,8 @@
 
 import crypto from 'node:crypto';
 import { secretEqual, fsGet, fsPatch, logActivity } from '../homie/_lib.js';
-import { normalizePhone, matchListing, loadCatalog } from '../homie/_lead.js';
+import { normalizePhone, loadCatalog } from '../homie/_lead.js';
+import phoneListing from '../../js/phone-listing-engine.js';
 import { tgSend } from '../telegram/_lib.js';
 import { syncCallCase } from '../segretaria/_callcase.js';
 import {
@@ -145,7 +146,10 @@ export default async function handler(req, res) {
   const resolved = from ? await resolveCaller(from) : null;
   const callerType = resolved ? resolved.type : 'unknown';
   const catalog = callerWords ? await loadCatalog() : [];
-  const listing = callerWords ? matchListing(callerWords, catalog) : null;
+  const propertyAssociation = phoneListing.resolve(turns, catalog);
+  // Candidate mentions never enter the summary hint, lead or property badge.
+  const listing = propertyAssociation.listingId
+    ? catalog.find(row => row.id === propertyAssociation.listingId) || null : null;
 
   const analysisRaw = data.analysis || {};
   const analysis = await analyzeTranscript({
@@ -191,7 +195,9 @@ export default async function handler(req, res) {
     language: analysis.language,
     suggestedAction: analysis.suggestedAction,
     draftReply: analysis.draftReply,
-    ...(listing ? { propertyId: listing.id, propertyTitle: listing.name || null } : {}),
+    propertyId: listing ? listing.id : null,
+    propertyTitle: listing ? listing.name || null : null,
+    propertyAssociation,
     ...(leadId ? { leadId, leadCreated } : {}),
     ...(doc ? {} : { handled: false, createdAt: now }),
   };

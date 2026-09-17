@@ -84,7 +84,7 @@ export async function prepareCase({ id, actor, now = Date.now(), background = fa
   const followUpFingerprint = followUpDecisionHash(task.followUp);
   const replyOwnership = await replyOwner(conv, { excludeActionId: task.preparation?.approval?.actionId });
   const replyOwnerFingerprint = sha(replyOwnership);
-  if (PROPOSTA.current(task) && task.preparation.sourceFingerprint === sourceFingerprint
+  if (PROPOSTA.currentContext(task) && task.preparation.sourceFingerprint === sourceFingerprint
     && task.preparation.contactFingerprint === contactHash
     && (task.preparation.approval?.followUpFingerprint || task.preparation.followUpFingerprint) === followUpFingerprint
     && task.preparation.replyOwnerFingerprint === replyOwnerFingerprint

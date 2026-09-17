@@ -118,6 +118,8 @@ let tgDown = false;
 let whisperText = 'Buongiorno, sono Marco, cercavo un bilocale a Trastevere, potete richiamarmi?';
 let aiJson = null;   // null → 500 dal provider
 let aiHits = 0;
+let lastAiPrompt = '';
+let lastCatalogRead = null;
 
 globalThis.fetch = async (url, opts = {}) => {
   const u = String(url);
@@ -142,6 +144,7 @@ globalThis.fetch = async (url, opts = {}) => {
   }
   if (u.includes('api.anthropic.com')) {
     aiHits++;
+    lastAiPrompt = JSON.parse(opts.body).messages[0].content;
     if (!aiJson) return json({ error: 'down' }, 500);
     return json({ content: [{ type: 'text', text: JSON.stringify(aiJson) }] });
   }
@@ -157,7 +160,9 @@ globalThis.fetch = async (url, opts = {}) => {
     const filter = q.where && q.where.fieldFilter;
     const rows = [...DB.entries()]
       .filter(([k]) => k.startsWith(coll + '/'))
-      .filter(([, v]) => !filter || String(v[filter.field.fieldPath]) === String(dec(filter.value)));
+      .filter(([, v]) => !filter || String(v[filter.field.fieldPath]) === String(dec(filter.value)))
+      .slice(0, Number.isInteger(q.limit) ? q.limit : undefined);
+    if (coll === 'listings' && !filter) lastCatalogRead = { limit: q.limit, ids: rows.map(([k]) => k.split('/')[1]) };
     return json(rows.map(([k, v]) => ({ document: toDoc(k, v) })));
   }
   if (opts.method === 'PATCH') {
@@ -499,9 +504,10 @@ const elCall = async (payload, { secret = 'el-secret', t = Math.floor(Date.now()
   ok('callerWords: SOLO la voce del chiamante', doc.callerWords.includes('Trastevere') && !doc.callerWords.includes('Benvenuto'), doc.callerWords);
   ok('AI giù → il riassunto del fornitore fa da rete', doc.summary.includes('bilocale a Trastevere'), doc.summary);
   ok('lingua dalle SUE parole (inglese), non dal dialogo misto', doc.language === 'en' && doc.draftReply === fallbackDraft('en'), doc.language);
-  ok('la casa agganciata dalle sue parole', doc.propertyId === 'l2', doc.propertyId);
+  ok('zona richiesta e titolo detto solo dall\'agente non provano l\'immobile scelto', doc.propertyId === null && doc.propertyAssociation.listingId === null, doc.propertyId);
   ok('lead creato', r.out.leadCreated === true && leads().length === before.leads + 1, r.out);
   const [, lead] = leads().find(([, l]) => l.phone === '+447700900555');
+  ok('la citazione dell\'agente non assegna la casa al lead', lead.propertyId === null, lead.propertyId);
   ok('lead.message = parole del chiamante, MAI quelle dell\'agente', lead.message.includes('two bedroom') && !lead.message.includes('Benvenuto'), lead.message);
   ok('lead.name dalla data collection', lead.name === 'John Smith', lead.name);
   ok('lead source phone (a valle conta il canale, non il fornitore)', lead.source === 'phone' && lead.sourceRef === 'el_conv1');
@@ -535,9 +541,129 @@ const elCall = async (payload, { secret = 'el-secret', t = Math.floor(Date.now()
   ok('poi la trascrizione → received, audio CONSERVATO', r.code === 200 && doc.status === 'received' && !!doc.audioUrl, doc.status);
   ok('numero dal dynamic variable (fallback metadata)', doc.from === '+393360000001', doc.from);
   ok('analisi AI viva: intent visita, bozza italiana', doc.intent === 'visita' && doc.draftReply.startsWith('Ciao!'), doc.intent);
-  ok('lead creato con la casa giusta', !!r.out.leadId && DB.get('leads/' + r.out.leadId) === undefined ? true : true, r.out); // id interno: verifica sotto
+  ok('lead creato anche quando il riferimento richiede conferma', !!r.out.leadId && r.out.leadCreated === true, r.out);
   const found = leads().find(([, l]) => l.phone === '+393360000001');
-  ok('…e sta in pipeline col trilocale', !!found && found[1].propertyId === 'l1', found && found[1]);
+  ok('…la formulazione aperta con zona e condizione resta in pipeline senza associazione automatica', !!found && found[1].propertyId === null, found && found[1].propertyId);
+}
+
+// The real signed handler separates catalogue mentions from proven interest.
+// A deliberately closed whole-turn grammar cannot promise generic language
+// understanding: everything else remains reviewable in the original words.
+{
+  const room = { id: 'phone_room', name: 'Africano Premium Room', type: 'Room', zone: 'Africano/Trieste', bedrooms: 1, price: 900 };
+  const flat = { id: 'phone_flat', name: 'Trieste Garden Apartment', type: 'Apartment', zone: 'Trieste', bedrooms: 1, price: 1400 };
+  DB.set('listings/' + room.id, room);
+  DB.set('listings/' + flat.id, flat);
+  aiJson = { language: 'it', summary: 'Richiesta campione.', intent: 'nuova-richiesta', urgency: 'medium', suggestedAction: 'richiama' };
+  const user = message => ({ role: 'user', message });
+  const cases = [
+    { name: 'caso live: stanza interrogata e poi esclusa', turns: [
+      user('Cerco un intero bilocale in zona Trieste, massimo 1.400 euro al mese.'),
+      user('Nel catalogo vedo Africano Premium Room: è una stanza oppure un appartamento intero? Mi serve l’intero appartamento.'),
+      user('Africano Premium Room è esclusa: resta la richiesta di intero bilocale, senza immobile corrispondente confermato.'),
+    ], candidates: [room.id] },
+    { name: 'domanda di confronto fra due annunci', turns: [user('Quale mi consigli tra Africano Premium Room e Trieste Garden Apartment?')], candidates: [room.id, flat.id] },
+    { name: 'più parole di un annuncio nel confronto non lo rendono scelto', turns: [user('Confronta Africano Premium Room in zona Africano/Trieste con Trieste Garden Apartment.')], candidates: [room.id, flat.id] },
+    { name: 'titolo citato senza interesse', turns: [user('Ho visto Africano Premium Room sul sito.')], candidates: [room.id] },
+    { name: 'negazione esplicita', turns: [user('Non mi interessa Africano Premium Room.')], candidates: [room.id] },
+    { name: 'agente nomina la casa, chiamante conferma solo recapito', turns: [{ role: 'agent', message: 'Mi interessa Africano Premium Room.' }, user('Il mio recapito per essere richiamato è quello della chiamata.')], candidates: [] },
+    { name: 'titolo detto solo dall’agente non si attribuisce a un sì del chiamante', turns: [{ role: 'agent', message: 'Ti interessa Africano Premium Room?' }, user('Sì, grazie.')], candidates: [] },
+    { name: 'interesse positivo esatto', turns: [user('Mi interessa Africano Premium Room.')], candidates: [room.id], selected: room.id },
+    { name: 'visita richiesta è interesse, non prenotazione', turns: [user('Vorrei visitare Trieste Garden Apartment.')], candidates: [flat.id], selected: flat.id },
+    { name: 'interesse inglese con titolo completo', turns: [user('I am interested in Trieste Garden Apartment.')], candidates: [flat.id], selected: flat.id },
+    { name: 'positivo seguito da grazie e saluto', turns: [user('Mi interessa Africano Premium Room.'), user('Grazie!'), { role: 'agent', message: 'A presto.' }, user('Arrivederci.')], candidates: [room.id], selected: room.id, evidenceIndex: 0 },
+    { name: 'positivo seguito da esclusione', turns: [user('Mi interessa Africano Premium Room.'), user('Ripensandoci la escludo, cerco un appartamento intero.'), user('Grazie.')], candidates: [room.id] },
+    { name: 'positivo seguito da contenuto sostanziale non interpretato', turns: [user('Mi interessa Africano Premium Room.'), user('Però dobbiamo chiarire ancora diversi aspetti.')], candidates: [room.id] },
+    { name: 'positivo seguito da chiusura interrogativa', turns: [user('Mi interessa Africano Premium Room.'), user('Grazie?')], candidates: [room.id] },
+    { name: 'frase positiva citata', turns: [user('«Mi interessa Africano Premium Room.»')], candidates: [room.id] },
+    { name: 'frase positiva riportata come esempio', turns: [user('Il messaggio dice: Mi interessa Africano Premium Room.')], candidates: [room.id] },
+    { name: 'richiesta condizionata', turns: [user('Vorrei visitare Africano Premium Room se fosse un appartamento intero.')], candidates: [room.id] },
+    { name: 'domanda positiva non è una scelta', turns: [user('Mi interessa Africano Premium Room?')], candidates: [room.id] },
+    { name: 'seconda frase non eliminata per estrarre il positivo', turns: [user('Mi interessa Africano Premium Room. Anzi, la escludo.')], candidates: [room.id] },
+    { name: 'due interessi nello stesso turno restano ambigui', turns: [user('Mi interessa Africano Premium Room e Trieste Garden Apartment.')], candidates: [room.id, flat.id] },
+    { name: 'confronto risolto da ultimo interesse univoco', turns: [user('Confrontiamo Africano Premium Room e Trieste Garden Apartment.'), user('Confermo il mio interesse per Trieste Garden Apartment.')], candidates: [room.id, flat.id], selected: flat.id },
+    { name: 'esclusione dopo i primi 2500 caratteri', turns: [user('Mi interessa Africano Premium Room.'), user('Contesto aggiuntivo della richiesta. '.repeat(90)), user('Escludo Africano Premium Room, non voglio una stanza.')], candidates: [], incomplete: true },
+    { name: 'coda non testuale impedisce prova completa', turns: [user('Mi interessa Africano Premium Room.'), { role: 'user', message: null }], candidates: [], incomplete: true },
+  ];
+  for (let i = 0; i < cases.length; i++) {
+    const test = cases[i], id = 'property_case_' + i, phone = '+39339777' + String(i).padStart(4, '0');
+    const beforeHits = aiHits;
+    const response = await elCall({ type: 'post_call_transcription', data: {
+      conversation_id: id, transcript: test.turns,
+      metadata: { call_duration_secs: 35, phone_call: { external_number: phone } },
+    } });
+    const doc = DB.get('phoneCalls/el_' + id), lead = DB.get('leads/' + response.out.leadId);
+    const expected = test.selected || null, association = doc?.propertyAssociation;
+    ok('associazione: ' + test.name, response.code === 200 && doc?.propertyId === expected
+      && lead?.propertyId === expected && association?.listingId === expected,
+      { code: response.code, propertyId: doc?.propertyId, leadPropertyId: lead?.propertyId, association });
+    ok('candidati separati: ' + test.name, JSON.stringify(association?.candidateIds.slice().sort()) === JSON.stringify(test.candidates.slice().sort())
+      && association?.status === (test.incomplete ? 'incomplete' : expected ? 'explicit_interest' : test.candidates.length ? 'unconfirmed' : 'none'));
+    const hint = lastAiPrompt.includes('Il testo sembra riferirsi all\'annuncio "');
+    ok('stessa prova nel suggerimento al modello: ' + test.name, aiHits === beforeHits + 1 && hint === !!expected);
+    ok('evidenza solo dal chiamante: ' + test.name, expected
+      ? association.evidence?.rule === 'whole-turn-interest-v1'
+        && test.turns[association.evidence.turnIndex]?.role === 'user'
+        && association.evidence.quote === test.turns[test.evidenceIndex ?? test.turns.length - 1].message.trim()
+      : association?.evidence === null);
+  }
+  // Same complete title on two records cannot identify one of them.
+  DB.set('listings/phone_duplicate', { ...room, id: 'phone_duplicate' });
+  const ambiguous = await elCall({ type: 'post_call_transcription', data: {
+    conversation_id: 'property_duplicate', transcript: [user('Mi interessa Africano Premium Room.')],
+  } });
+  const duplicateDoc = DB.get('phoneCalls/el_property_duplicate');
+  ok('titolo catalogo duplicato resta candidato, mai associazione', ambiguous.code === 200 && duplicateDoc.propertyId === null
+    && duplicateDoc.propertyAssociation.candidateIds.length === 2 && duplicateDoc.propertyAssociation.status === 'unconfirmed');
+  DB.delete('listings/phone_duplicate');
+  DB.delete('listings/' + room.id);
+  DB.delete('listings/' + flat.id);
+}
+
+// The real loader caps Firestore at 100. Exercise that network boundary,
+// including an unseen duplicate at record 101, not an oversized fake return.
+{
+  const saved = [...DB.entries()].filter(([key]) => key.startsWith('listings/'));
+  for (const [key] of saved) DB.delete(key);
+  const name = 'Annuncio Limite Catalogo';
+  try {
+    for (let i = 0; i < 99; i++) DB.set('listings/bound_' + String(i).padStart(3, '0'), {
+      name: i === 0 ? name : 'Altro immobile campione ' + i, price: 1200,
+    });
+    for (const count of [99, 100, 101]) {
+      if (count > 99) DB.set('listings/bound_' + String(count - 1).padStart(3, '0'), {
+        name: count === 101 ? name : 'Ultimo immobile leggibile', price: 1200,
+      });
+      const id = 'catalog_bound_' + count;
+      const response = await elCall({ type: 'post_call_transcription', data: {
+        conversation_id: id, transcript: [{ role: 'user', message: 'Mi interessa ' + name + '.' }],
+        metadata: { phone_call: { external_number: '+39339778' + String(count).padStart(4, '0') } },
+      } });
+      const doc = DB.get('phoneCalls/el_' + id), lead = DB.get('leads/' + response.out.leadId);
+      const expected = count === 99 ? 'bound_000' : null;
+      ok('catalogo limite ' + count + ': query vera limit 100, duplicato 101 non consegnato', lastCatalogRead?.limit === 100
+        && lastCatalogRead.ids.length === Math.min(count, 100) && !lastCatalogRead.ids.includes('bound_100'));
+      ok('catalogo limite ' + count + ': unicità non presunta su finestra piena', response.code === 200
+        && doc.propertyId === expected && lead?.propertyId === expected && doc.propertyAssociation.listingId === expected
+        && doc.propertyAssociation.status === (count === 99 ? 'explicit_interest' : 'incomplete'));
+      ok('catalogo limite ' + count + ': modello coerente col collegamento', lastAiPrompt.includes('Il testo sembra riferirsi all\'annuncio "') === !!expected);
+    }
+    // Same closed limit for transcript turns: never silently slice at 200.
+    for (const [key] of DB) if (key.startsWith('listings/') && key !== 'listings/bound_000') DB.delete(key);
+    for (const count of [200, 201]) {
+      const transcript = Array.from({ length: count - 1 }, () => ({ role: 'agent', message: 'Contesto.' }));
+      transcript.push({ role: 'user', message: 'Mi interessa ' + name + '.' });
+      const id = 'turn_bound_' + count;
+      const response = await elCall({ type: 'post_call_transcription', data: { conversation_id: id, transcript } });
+      const doc = DB.get('phoneCalls/el_' + id);
+      ok('turni limite ' + count + ': nessuna interpretazione di prefisso parziale', response.code === 200
+        && doc.propertyId === (count === 200 ? 'bound_000' : null)
+        && doc.propertyAssociation.status === (count === 200 ? 'explicit_interest' : 'incomplete'));
+    }
+  } finally {
+    for (const [key] of DB) if (key.startsWith('listings/')) DB.delete(key);
+    for (const [key, value] of saved) DB.set(key, value);
+  }
 }
 
 // ─── 18. un inquilino che parla con la receptionist non è un lead ──────────

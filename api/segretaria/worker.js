@@ -2,14 +2,12 @@
 import { fsGet, fsGetVersioned, fsCommit, fsPatch, secretEqual } from '../homie/_lib.js';
 import { listFollowUps, followUpDecisionHash } from './_follow-up.js';
 import { prepareCase } from './_prepare.js';
-import { CONTEXT_VERSION } from './_context.js';
 import PROPOSTA from '../../js/segretaria-proposta-engine.js';
 import { runBudget } from '../_budget.js';
 
 const MAX_CASES = 3;
 const stamp = value => Number.isFinite(Date.parse(value)) ? Date.parse(value) : 0;
-const decisionCurrent = task => PROPOSTA.current(task)
-  && (!!task.preparation.approval || task.preparation.coverage?.version === CONTEXT_VERSION)
+const decisionCurrent = task => PROPOSTA.currentContext(task)
   && (task.preparation.approval?.followUpFingerprint || task.preparation.followUpFingerprint) === followUpDecisionHash(task.followUp);
 const pendingReason = (task, now) => !PROPOSTA.current(task) ? 'event'
   : !decisionCurrent(task) || (stamp(task.followUp.checkAt) > 0 && stamp(task.followUp.checkAt) <= now

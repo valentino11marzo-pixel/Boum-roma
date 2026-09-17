@@ -5,6 +5,7 @@
   if (root) root.BOOM_PROPOSTA = api;
 })(typeof window !== 'undefined' ? window : this, function () {
   const VERSION = 2;
+  const CONTEXT_VERSION = 2;
   const line = (v, n) => typeof v === 'string' && v.trim() && v.length <= n ? v.trim() : null;
   // HOMIE's reaction wrapper quotes somebody else's words; it is neither a
   // new sentence by the contact nor an unconditional commitment.
@@ -105,6 +106,10 @@
   function current(task) { return !!task?.preparation && task.status === 'open'
     && (task.preparation.version === VERSION || !!task.preparation.approval)
     && task.preparation.messageId === task.followUp?.lastMessageId; }
+  // Home and worker share the same readiness rule. An approved receipt remains
+  // readable across context upgrades, but never becomes current for a new event.
+  function currentContext(task) { return current(task)
+    && (!!task.preparation.approval || task.preparation.coverage?.version === CONTEXT_VERSION); }
   function nextActor(proposal, { followUp = {}, now } = {}) {
     const n = proposal.nextAction;
     if (proposal.draft || !['client', 'collaborator'].includes(n.waitingOn)) return n;
@@ -124,5 +129,5 @@
       checkAt: Number.isFinite(now) && priorCheck > now && priorCheck < proposedCheck ? followUp.checkAt : n.checkAt,
       reason: ('Richiesta o incarico da verificare: non è provato che il destinatario debba già rispondere. ' + n.reason).slice(0, 350) };
   }
-  return Object.freeze({ VERSION, validate, wantsHuman, topicOf, current, nextActor, isReaction });
+  return Object.freeze({ VERSION, CONTEXT_VERSION, validate, wantsHuman, topicOf, current, currentContext, nextActor, isReaction });
 });

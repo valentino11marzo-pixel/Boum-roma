@@ -3,6 +3,7 @@
 import crypto from 'node:crypto';
 import { fsGet, fsList, fsGetVersioned, fsCommit } from '../homie/_lib.js';
 import { romeDateKey } from '../viewings/_avail.js';
+import INTAKE from '../../js/segretaria-intake-engine.js';
 
 export const FOLLOW_UP_LIMIT = 200;
 const idPart = value => typeof value === 'string' && /^[\w.-]{1,180}$/.test(value);
@@ -87,7 +88,9 @@ export async function captureFollowUp({ cid, conv, messageId, text, now = Date.n
       }
     }
     const id = current ? current.data.id : followUpId(cid, event);
-    const checkAt = new Date(now + 2 * 3600000).toISOString();
+    const timing = INTAKE.proposeInitialCheck({ text, sourceAt: at, sourceMessageId: event,
+      now: Math.max(now, Date.now()) });
+    const { checkAt, checkBasis, intakeTiming } = timing;
     const row = {
       title: 'Seguire ' + clean(conv?.contactName || 'la richiesta', 100),
       due: romeDateKey(new Date(checkAt)), dueTime: null, status: 'open', kind: 'auto',
@@ -96,13 +99,22 @@ export async function captureFollowUp({ cid, conv, messageId, text, now = Date.n
         lastMessageId: event, lastInboundAt: at, preview: clean(text, 240),
         practiceRef: null, propertyRef: null, nextAction: 'Verificare la richiesta e confermare il seguito',
         waitingOn: 'valentino', waitingLabel: 'Valentino', checkAt,
-        checkBasis: 'proposta interna: due ore dalla ricezione, nessun orario promesso al cliente',
+        checkBasis, intakeTiming,
         confirmed: false, needsReview: true, ambiguous: active.length > 1 || known.length >= 30 },
     };
     const keepRecent = keepClosed || (preserveNewer && current && Date.parse(current.data.followUp?.lastInboundAt) > now);
+    const prior = current?.data.followUp;
+    // A new source can bring a deadline forward but never postpone a pending
+    // intake on every message or change an operator's decision. Even a manual
+    // choice without a verified practice has confirmedAt and stays protected.
+    const mayAdvance = intakeTiming && prior && !prior.confirmed && !prior.confirmedAt && !prior.confirmedBy
+      && (!Number.isFinite(Date.parse(prior.checkAt)) || Date.parse(checkAt) < Date.parse(prior.checkAt));
     const fields = keepRecent ? { followUp: current.data.followUp } : current ? {
       followUp: { ...current.data.followUp, lastMessageId: event, lastInboundAt: at,
-        preview: clean(text, 240), needsReview: true }, updatedAt: new Date(now),
+        preview: clean(text, 240), needsReview: true,
+        ...(intakeTiming ? { intakeTiming } : {}),
+        ...(mayAdvance ? { checkAt, checkBasis } : {}) },
+      ...(mayAdvance ? { due: romeDateKey(new Date(checkAt)) } : {}), updatedAt: new Date(now),
     } : row;
     try {
       await fsCommit([

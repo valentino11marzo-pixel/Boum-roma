@@ -40,7 +40,7 @@ async function fixture(source = portal, mobile = false) {
     function inboxPage(){return inboxThreadPanel({id:_inboxState.convId})}
     function inboxRefresh(){if(S.page==='inbox')document.getElementById('main').innerHTML=inboxThreadPanel({id:_inboxState.convId})}
     window.apiCalls=0;window.holdRequests=false;window.held=[];window.apiRows=[];window.apiMonitoring=null;
-    window.fetch=async()=>{window.apiCalls++;if(window.holdRequests)await new Promise(r=>window.held.push(r));return {ok:true,json:async()=>({ok:true,rows:window.apiRows,monitoring:window.apiMonitoring})}};
+    window.apiWrites=0;window.fetch=async(url,options={})=>{window.apiCalls++;if(options.method==='POST')window.apiWrites++;if(window.holdRequests)await new Promise(r=>window.held.push(r));return {ok:true,json:async()=>({ok:true,rows:window.apiRows,monitoring:window.apiMonitoring,task:window.apiRows.find(t=>String(url).includes(t.id)),dossier:{practices:[]}})}};
     window.subscriptions={};window.unsubscribed=0;window.messageRows=[];
     const db={collection(name){
       const query={name,filter:null,sort:null,max:Infinity,
@@ -108,13 +108,14 @@ try {
   });
   await check('limite e mancata disponibilità della preparazione sono visibili e separati dall’ingresso WhatsApp', async () => {
     await page.evaluate(async () => {
-      window.apiMonitoring={status:'daily_cap',remainingToday:0,checkedAt:'2026-09-17T08:00:00Z',lastRunAt:'2026-09-17T07:58:00Z'};
+      window.apiMonitoring={status:'daily_cap',remainingToday:0,usedToday:5,dailyCap:5,checkedAt:'2026-09-17T08:00:00Z',lastRunAt:'2026-09-17T07:58:00Z'};
       S.conversations=[{channel:'whatsapp',lastDirection:'in',lastMessageAt:'2026-09-17T07:00:00Z'}];
       await oggiSegretariaLoad(true);
     });
     await page.getByText('Copertura degli aggiornamenti',{exact:true}).click();
     const text = await page.locator('#sgFollowPanel').innerText();
-    assert.match(text,/Limite giornaliero raggiunto/);assert.match(text,/Preparazioni residue oggi: 0/);
+    assert.match(text,/Limite giornaliero raggiunto/);assert.match(text,/Tentativi disponibili oggi: 0/);
+    assert.match(text,/Tentativi utilizzati oggi: 5 di 5/);assert.match(text,/anche i tentativi non riusciti/);
     assert.match(text,/Ultimo WhatsApp visibile:/);assert.match(text,/Ultima proposta: non disponibile/);
     assert.match(text,/copertura di WhatsApp non è verificata/);
     await page.evaluate(async () => {window.apiMonitoring=null;await oggiSegretariaLoad(true)});
@@ -150,6 +151,45 @@ try {
   });
   assert.deepEqual(errors, []);
   await page.close();
+  await check('111 richieste restano da preparare; il limite lascia aprire le fonti senza consumare tentativi', async () => {
+    const { page: backlog, errors: backlogErrors } = await fixture();
+    try {
+      await backlog.evaluate(async () => {
+        const pending = i => ({id:'sg_'+i.toString(16).padStart(32,'0'),status:'open',source:'segretaria',followUp:{open:true,conversationId:'c'+i,contactName:'Contatto '+i,lastMessageId:'m'+i,nextAction:'Leggere le fonti',waitingOn:'boom',confirmed:false,needsReview:true,checkAt:new Date(Date.now()+7200000).toISOString()}});
+        window.apiRows=Array.from({length:111},(_,i)=>pending(i+1));
+        const ready=pending(112);ready.preparation={version:2,revision:'r1',messageId:ready.followUp.lastMessageId,summary:'Fonti controllate',recommendation:'Ricontrollare il documento',nextAction:{text:'Ricontrollare il documento'},sources:[],coverage:{version:2},status:'ready'};
+        window.apiRows.push(ready);window.apiMonitoring={status:'daily_cap',remainingToday:0,usedToday:5,dailyCap:5};await oggiSegretariaLoad(true);
+      });
+      assert.equal(await backlog.locator('[data-sg-group="decisions"] .sg-count').innerText(),'1');
+      assert.equal(await backlog.locator('[data-sg-group="preparing"] .sg-count').innerText(),'111');
+      assert.equal(await backlog.locator('[data-sg-group="preparing"] article').count(),12);
+      await backlog.locator('[data-sg-action="more-preparing"]').click();
+      assert.equal(await backlog.locator('[data-sg-group="preparing"] article').count(),24);
+      await backlog.locator('[data-sg-group="preparing"] [data-sg-action="inspect"]').first().click();
+      await backlog.waitForFunction(()=>document.querySelector('[data-sg-modal="generate"]')?.disabled===true);
+      assert.equal(await backlog.locator('[data-sg-modal="edit"]').isEnabled(),true);
+      assert.equal(await backlog.locator('[data-sg-modal="source"]').isEnabled(),true);
+      assert.equal(await backlog.evaluate(()=>window.apiWrites),0);
+      await backlog.locator('[data-sg-modal="cancel"]').last().click();
+      await backlog.evaluate(()=>{window.BOOM_PROPOSTA={current:()=>true};oggiSegretariaRender()});
+      assert.equal(await backlog.locator('[data-sg-group="decisions"] .sg-count').innerText(),'0','engine vecchio: proposta non dichiarata pronta');
+      assert.equal(await backlog.locator('[data-sg-group="preparing"] .sg-count').innerText(),'112');
+      await backlog.evaluate(()=>{
+        const t=window.apiRows[0];t.followUp.intakeTiming={status:'ambiguous',quote:'entro le 12:00 <img src=x onerror="window.injected=true">',sourceMessageId:'old-message'};oggiSegretariaRender();
+      });
+      assert.equal(await backlog.locator('[data-sg-group="decisions"] .sg-count').innerText(),'1');
+      assert.match(await backlog.locator('.sg-intake-timing').innerText(),/fonte precedente/);
+      assert.equal(await backlog.locator('.sg-intake-timing img').count(),0);
+      assert.equal(await backlog.evaluate(()=>window.injected===true),false);
+      await backlog.locator('[data-sg-group="decisions"] [data-sg-action="inspect"]').click();
+      await backlog.waitForFunction(()=>document.querySelector('[data-sg-modal="edit"]'));
+      await backlog.locator('[data-sg-modal="edit"]').click();
+      assert.match(await backlog.locator('#sgFollowModal .sg-intake-timing').innerText(),/entro le 12:00/);
+      assert.equal(await backlog.locator('#sgCheckAt').count(),1);
+      assert.equal(await backlog.evaluate(()=>window.apiWrites),0);
+      assert.deepEqual(backlogErrors,[]);
+    } finally { await backlog.close(); }
+  });
   await check('MUTAZIONE: togliere l’aggancio Oggi lascia la proposta invisibile e il test cade', async () => {
     const old = named(portal, 'startActionQueueListener');
     assert.ok(old.includes('oggiScheduleUpdate(true);'));

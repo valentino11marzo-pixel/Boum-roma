@@ -1,5 +1,6 @@
 // Real follow-up functions + authenticated handler; only external I/O is fake.
 import { register } from 'node:module';
+import { readFile } from 'node:fs/promises';
 register('../notify/loader.mjs', import.meta.url);
 Object.assign(process.env, { FIREBASE_API_KEY: 'fixture', FIREBASE_ADMIN_EMAIL: 'admin@example.test',
   FIREBASE_ADMIN_PASS: 'fixture', HOMIE_SECRET: 'fixture' });
@@ -166,6 +167,62 @@ try {
     && followUpId('conv_other', 'event-1') !== task.id && followUpId(CID, 'event-2') !== task.id);
 
   reset();
+  const deadlineText = 'Verificate le alternative entro oggi alle 13:00, ora di Roma.';
+  task = await capture('deadline', { text: deadlineText });
+  ok('richiesta esplicita conservata prima del modello e senza attendere il cap',
+    task.followUp.checkAt === '2026-09-14T11:00:00.000Z'
+    && task.followUp.intakeTiming?.requestedAt === task.followUp.checkAt
+    && task.followUp.intakeTiming?.sourceMessageId === 'deadline'
+    && task.followUp.intakeTiming?.sourceAt === new Date(NOW).toISOString()
+    && task.followUp.intakeTiming?.status === 'resolved' && task.followUp.confirmed === false);
+  const timingEvidence = structuredClone(task.followUp.intakeTiming), timedWrites = writes.length;
+  await capture('deadline', { text: 'Testo retry diverso entro domani alle 15:00', now: NOW + 5000 });
+  ok('retry non può cambiare la fonte o rimandare la richiesta catturata', writes.length === timedWrites
+    && JSON.stringify(DB.get('operatorTasks/' + task.id).followUp.intakeTiming) === JSON.stringify(timingEvidence));
+  await capture('neutral', { text: 'Grazie.', now: NOW + 1000 });
+  ok('messaggio neutro conserva scadenza e fonte precedente distinguibile dal nuovo evento',
+    DB.get('operatorTasks/' + task.id).followUp.lastMessageId === 'neutral'
+    && DB.get('operatorTasks/' + task.id).followUp.intakeTiming.sourceMessageId === 'deadline'
+    && DB.get('operatorTasks/' + task.id).followUp.checkAt === task.followUp.checkAt);
+  await capture('earlier', { text: 'Verificate entro oggi alle 12:30.', now: NOW + 2000 });
+  ok('nuova richiesta chiara anticipa solo il ricontrollo non confermato',
+    DB.get('operatorTasks/' + task.id).followUp.checkAt === '2026-09-14T10:30:00.000Z'
+    && DB.get('operatorTasks/' + task.id).followUp.intakeTiming.sourceMessageId === 'earlier'
+    && DB.get('operatorTasks/' + task.id).due === '2026-09-14');
+  await capture('later', { text: 'Verificate entro domani alle 18:00.', now: NOW + 3000 });
+  ok('scadenza richiesta successiva resta evidenza senza posticipare il controllo pendente',
+    DB.get('operatorTasks/' + task.id).followUp.checkAt === '2026-09-14T10:30:00.000Z'
+    && DB.get('operatorTasks/' + task.id).followUp.intakeTiming.requestedAt === '2026-09-15T16:00:00.000Z');
+
+  for (const [label, text, status] of [
+    ['ora senza giorno', 'Verificate entro le 12:00.', 'ambiguous'],
+    ['richiesta esitante', 'Forse verificate entro oggi alle 13:00.', 'ambiguous'],
+    ['orario già trascorso', 'Verificate entro oggi alle 09:00.', 'past'],
+  ]) {
+    reset(); task = await capture(label, { text });
+    ok(label + ': revisione immediata, fonte esplicita e nessuna promessa',
+      task.followUp.checkAt === new Date(NOW).toISOString() && task.followUp.intakeTiming.status === status
+      && task.followUp.needsReview && !task.followUp.confirmed);
+  }
+
+  for (const practiceRef of ['contracts/cA', null]) {
+    reset(); task = await capture();
+    await call({ body: confirmed(task, { practiceRef }) });
+    const manual = structuredClone(DB.get('operatorTasks/' + task.id).followUp);
+    await capture('urgent-after-manual', { text: deadlineText, now: NOW + 1000 });
+    const next = DB.get('operatorTasks/' + task.id).followUp;
+    ok('richiesta successiva conserva decisione manuale ' + (practiceRef ? 'con pratica' : 'senza pratica verificata'),
+      ['checkAt', 'checkBasis', 'nextAction', 'waitingOn', 'waitingLabel', 'practiceRef', 'confirmedAt'].every(k => next[k] === manual[k])
+      && next.intakeTiming?.requestedAt === '2026-09-14T11:00:00.000Z' && next.needsReview === true);
+  }
+
+  reset(); task = await capture('recent-time', { text: deadlineText });
+  const recentTiming = JSON.stringify(task.followUp);
+  await capture('old-backlog-time', { text: 'Verificate entro oggi alle 09:00.', now: NOW - 86400000, preserveNewer: true });
+  ok('backlog precedente non sovrascrive né fonte temporale né controllo recente',
+    JSON.stringify(DB.get('operatorTasks/' + task.id).followUp) === recentTiming && tasks().length === 1);
+
+  reset();
   const simultaneous = await Promise.all([capture(), capture()]);
   ok('gara di cattura dello stesso evento: create409 recupera una sola card', tasks().length === 1 && simultaneous[0].id === simultaneous[1].id);
   reset();
@@ -318,6 +375,27 @@ try {
   await closeTask('manual-fixture');
   ok('task ordinario continua a potersi rinviare e chiudere', DB.get('operatorTasks/manual-fixture').due === '2026-09-16'
     && DB.get('operatorTasks/manual-fixture').status === 'done');
+
+  // Run mutated real capture code with the SAME in-memory network boundary.
+  // This proves the checks would fail if an automatic update overrode a
+  // human decision, including a decision with no verified practice selected.
+  const followUpURL = new URL('../../api/segretaria/_follow-up.js', import.meta.url);
+  const originalCode = await readFile(followUpURL, 'utf8');
+  for (const [label, from, to, practiceRef] of [
+    ['protezione decisione confermata', '!prior.confirmed && !prior.confirmedAt && !prior.confirmedBy', 'true', 'contracts/cA'],
+    ['protezione decisione manuale senza pratica', '!prior.confirmed && !prior.confirmedAt && !prior.confirmedBy', '!prior.confirmed', null],
+  ]) {
+    if (!originalCode.includes(from)) throw new Error('mutation_target_missing');
+    const code = originalCode.replace(from, to).replace(/from '(\.\.?\/[^']+)'/g,
+      (_, relative) => 'from ' + JSON.stringify(new URL(relative, followUpURL).href));
+    const mutated = await import('data:text/javascript;base64,' + Buffer.from(code).toString('base64'));
+    reset(); task = await capture();
+    await call({ body: confirmed(task, { practiceRef }) });
+    const manualAt = DB.get('operatorTasks/' + task.id).followUp.checkAt;
+    const changed = await mutated.captureFollowUp({ cid: CID, conv, messageId: 'mutated-deadline',
+      text: deadlineText, now: NOW + 1000 });
+    ok('mutazione intercettata: ' + label, changed.followUp.checkAt !== manualAt);
+  }
 
   ok('nessun modello, Telegram, rete calendario o email chiamati', network.length === 0 && globalThis.__mails.length === 0, network);
   ok('nessuna coda di invio o calendario scritta', allWrites.every(w => w.path.startsWith('operatorTasks/')

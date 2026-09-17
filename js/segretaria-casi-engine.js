@@ -41,6 +41,28 @@
     }
     return 'Casa collegata · nome da verificare';
   }
+  // A captured request is work for BOOM to prepare, not a ready decision.
+  // Confirmed controls, delivery problems and explicit timing exceptions still
+  // reach the operator even when no model-generated proposal is available.
+  function workGroups(rows, now, preparation) {
+    var base = partition(rows, now);
+    var groups = { decisions: [], preparing: [], progress: [], waiting: [], invalid: base.invalid };
+    var decisionIds = new Set(base.decisions.map(function (task) { return task.id; }));
+    base.decisions.concat(base.waiting).forEach(function (task) {
+      var f = task.followUp, p = preparation(task), d = describe(task, null, null, now);
+      var delivery = p && p.approval ? task.deliveryResult && task.deliveryResult.delivery : null;
+      var timing = f.intakeTiming;
+      var timingNeedsReview = f.needsReview !== false && timing && (timing.status === 'ambiguous' || timing.status === 'past'
+        || (timing.status === 'resolved' && dateMs(timing.requestedAt) !== null && dateMs(timing.requestedAt) <= now));
+      var confirmedWithoutDate = f.confirmed === true && !f.needsReview && !f.ambiguous && f.practiceRef && d.checkAt === null;
+      if (delivery === 'needs_review' || (p && !p.approval) || timingNeedsReview) groups.decisions.push(task);
+      else if (decisionIds.has(task.id) && !confirmedWithoutDate) {
+        (f.confirmed === true || f.confirmedAt || f.confirmedBy || p?.approval ? groups.decisions : groups.preparing).push(task);
+      } else if (['queued', 'pending_execution'].includes(delivery) || f.waitingOn === 'boom' || f.waitingOn === 'valentino') groups.progress.push(task);
+      else groups.waiting.push(task);
+    });
+    return groups;
+  }
   function practiceLabel(practice, dossier, state) {
     if (!practice || !practice.ref) return 'Pratica da collegare';
     var parts = String(practice.ref).split('/');
@@ -86,6 +108,6 @@
     return { payload: { op: 'confirm', id: task.id, lastMessageId: f.lastMessageId, practiceRef: practiceRef,
       nextAction: action, waitingOn: fields.waitingOn, waitingLabel: label, checkAt: new Date(ms).toISOString() } };
   }
-  return Object.freeze({ partition: partition, describe: describe, practiceLabel: practiceLabel,
+  return Object.freeze({ partition: partition, workGroups: workGroups, describe: describe, practiceLabel: practiceLabel,
     propertyLabel: propertyLabel, localDateTime: localDateTime, confirmation: confirmation, validId: validId, WAITING: Object.freeze(WAITING) });
 });

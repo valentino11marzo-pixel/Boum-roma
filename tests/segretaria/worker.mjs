@@ -144,6 +144,8 @@ globalThis.fetch = async (rawURL, opts = {}) => {
 };
 
 const { prepareCase } = await import('../../api/segretaria/_prepare.js');
+const { default: PROPOSTA } = await import('../../js/segretaria-proposta-engine.js');
+const { CONTEXT_VERSION } = await import('../../api/segretaria/_context.js');
 const { default: workerEndpoint, prepareNextCase } = await import('../../api/segretaria/worker.js');
 const ID = 'sg_' + 'a'.repeat(32), ID2 = 'sg_' + 'b'.repeat(32), CID = 'conv_tenant_fixture';
 const PHONE = '+393331234567', EMAIL = 'customer@example.test';
@@ -252,18 +254,57 @@ try {
     out.prepared === 0 && out.checked === 0 && aiHits === 3, out);
 
   reset(); await generate();
-  revise(t => { delete t.preparation.coverage.version; t.preparation.sourceFingerprint = 'legacy-context-fingerprint'; });
+  ok('contesto corrente è pronto nella regola condivisa fra home e worker',
+    PROPOSTA.currentContext(task()) && task().preparation.coverage.version === CONTEXT_VERSION
+      && PROPOSTA.CONTEXT_VERSION === 2 && CONTEXT_VERSION === 2);
+  const oldSchema = structuredClone(task()); oldSchema.preparation.version = 1;
+  ok('contesto corrente non promuove una proposta con schema precedente non approvato', !PROPOSTA.currentContext(oldSchema));
+  const closedCurrent = structuredClone(task()); closedCurrent.status = 'done';
+  ok('contesto corrente non promuove una proposta su un caso chiuso', !PROPOSTA.currentContext(closedCurrent));
   out = await tick();
-  ok('proposta corrente senza approvazione viene aggiornata alla nuova copertura del contesto',
-    out.prepared === 1 && out.queue.rechecks === 1 && out.queue.newEvents === 0
-      && out.queue.currentProposals === 0 && task().preparation.coverage.version === 2 && aiHits === 2, out);
+  ok('proposta con contesto corrente non viene rigenerata',
+    out.prepared === 0 && out.checked === 0 && out.queue.currentProposals === 1 && aiHits === 1, out);
+  for (const legacy of ['missing_coverage', 'missing_version', 'old_version', 'invalid_version']) {
+    reset(); await generate();
+    revise(t => {
+      if (legacy === 'missing_coverage') delete t.preparation.coverage;
+      else if (legacy === 'missing_version') delete t.preparation.coverage.version;
+      else t.preparation.coverage.version = legacy === 'old_version' ? 1 : '2';
+      t.preparation.sourceFingerprint = 'legacy-context-fingerprint';
+    });
+    ok('contesto precedente non appare pronto nella home: ' + legacy,
+      PROPOSTA.current(task()) && !PROPOSTA.currentContext(task()));
+    out = await tick();
+    ok('contesto precedente viene rigenerato dal worker: ' + legacy,
+      out.prepared === 1 && out.queue.rechecks === 1 && out.queue.newEvents === 0
+        && out.queue.currentProposals === 0 && task().preparation.coverage.version === 2
+        && PROPOSTA.currentContext(task()) && aiHits === 2, out);
+  }
   reset(); await generate();
-  revise(t => { delete t.preparation.coverage.version; t.preparation.approval = { at: stamp(NOW) }; });
+  revise(t => { delete t.preparation.coverage.version; t.preparation.version = 1;
+    t.preparation.approval = { at: stamp(NOW), actionId: 'approved-receipt' }; });
   const approvedBefore = JSON.stringify(task().preparation);
+  ok('approvazione precedente resta consultabile con lo stesso evento', PROPOSTA.currentContext(task()));
   out = await tick();
   ok('aggiornare la memoria non rigenera proposte già approvate e non modifica ricevute',
     out.prepared === 0 && out.checked === 0 && out.queue.currentProposals === 1 && aiHits === 1
       && JSON.stringify(task().preparation) === approvedBefore, out);
+  const closedApproved = structuredClone(task()); closedApproved.status = 'done';
+  ok('una ricevuta approvata non rende corrente un caso chiuso', !PROPOSTA.currentContext(closedApproved));
+  revise(t => { t.followUp.lastMessageId = 'new-after-approval'; });
+  save('messages/new-after-approval', { ...DB.get('messages/m1'), at: stamp(NOW) });
+  ok('approvazione del vecchio messaggio non rende pronta la proposta per un nuovo evento', !PROPOSTA.currentContext(task()));
+  out = await tick();
+  ok('nuovo evento resta da preparare e ricevuta irrisolta viene preservata',
+    out.queue.currentProposals === 0 && out.queue.newEvents === 1 && out.prepared === 0
+      && out.error === 'previous_delivery_unresolved' && aiHits === 1
+      && JSON.stringify(task().preparation) === approvedBefore, out);
+  save('action_queue/approved-receipt', { status: 'executed', payload: { channel: 'whatsapp' }, waSentAt: stamp(NOW) });
+  clock = NOW + 600001; out = await tick();
+  ok('ricevuta conclusa consente preparazione del nuovo evento senza ereditare approvazione',
+    out.prepared === 1 && out.queue.newEvents === 1 && aiHits === 2
+      && task().preparation.messageId === 'new-after-approval' && !task().preparation.approval
+      && PROPOSTA.currentContext(task()), out);
 
   reset(); const generated = await generate();
   const savedPreparation = structuredClone(generated.preparation);
@@ -384,7 +425,18 @@ try {
       { name: 'evento nuovo non eredita retry del vecchio', from: 'if (cur?.data.followUp?.lastMessageId === next.followUp.lastMessageId)', to: 'if (cur)' },
       { name: 'idle cancella esito precedente', from: 'let last = { id: null, code: null, error: null }', to: 'let last = null' },
       { name: 'aggiornamento contesto delle proposte non approvate',
+        from: 'PROPOSTA.currentContext(task)', to: 'PROPOSTA.current(task)' },
+      { name: 'guardia condivisa della versione contesto', file: 'js/segretaria-proposta-engine.js',
         from: '&& (!!task.preparation.approval || task.preparation.coverage?.version === CONTEXT_VERSION)', to: '' },
+      { name: 'contesto corrente richiede proposta ancora valida', file: 'js/segretaria-proposta-engine.js',
+        from: 'function currentContext(task) { return current(task)',
+        to: 'function currentContext(task) { return true' },
+      { name: 'approvazione preservata nel cambio contesto', file: 'js/segretaria-proposta-engine.js',
+        from: '!!task.preparation.approval || task.preparation.coverage?.version === CONTEXT_VERSION',
+        to: 'task.preparation.coverage?.version === CONTEXT_VERSION' },
+      { name: 'approvazione vincolata allo stesso evento', file: 'js/segretaria-proposta-engine.js',
+        from: 'function currentContext(task) { return current(task)',
+        to: 'function currentContext(task) { return (current(task) || !!task?.preparation?.approval)' },
     ];
     for (const mutant of mutants) {
       const scratch = await fs.mkdtemp(join(tmpdir(), 'boom-worker-mutation-'));
@@ -395,7 +447,7 @@ try {
         await fs.cp(root + 'tests/notify', scratch + '/tests/notify', { recursive: true });
         await fs.copyFile(root + 'tests/segretaria/worker.mjs', scratch + '/tests/segretaria/worker.mjs');
         await fs.copyFile(root + 'vercel.json', scratch + '/vercel.json');
-        const path = scratch + '/api/segretaria/worker.js', source = await fs.readFile(path, 'utf8');
+        const path = scratch + '/' + (mutant.file || 'api/segretaria/worker.js'), source = await fs.readFile(path, 'utf8');
         if (!source.includes(mutant.from)) throw new Error('mutation_target_missing: ' + mutant.name);
         await fs.writeFile(path, source.replace(mutant.from, mutant.to));
         const run = spawnSync(process.execPath, [scratch + '/tests/segretaria/worker.mjs'], {

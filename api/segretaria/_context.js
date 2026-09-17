@@ -7,7 +7,7 @@ import { fsGet, fsList } from '../homie/_lib.js';
 import { normalizePhone } from '../homie/_lead.js';
 import { brief } from './_persona.js';
 
-export const CONTEXT_VERSION = 2;
+export const CONTEXT_VERSION = PROPOSTA.CONTEXT_VERSION;
 export const CONTEXT_LIMITS = Object.freeze({ messages: 100, fallback: 120, sources: 124, references: 12,
   examples: 3, calls: 8, text: 1200, referenceText: 600, eventText: 6000,
   historyText: 22000, totalText: 32000, historicalText: 2400 });

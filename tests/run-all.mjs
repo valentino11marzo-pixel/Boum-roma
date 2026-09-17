@@ -94,6 +94,7 @@ const SUITES = [
   { name: 'segretariabacklog', file: 'tests/segretaria/backlog-intake.mjs', what: 'arretrato autenticato in Inbox e nei casi senza riaprire lead o avviare effetti; retry e scritture recenti preservati' },
   { name: 'segretariacontesto', file: 'tests/segretaria/context.mjs', what: 'fonti ordinate e pertinenti, copertura esplicita, parole del chiamante e attribuzione degli esempi' },
   { name: 'segretariaprepara', file: 'tests/segretaria/preparation.mjs', what: 'proposte sul caso con fonti vere, tetti e ricontrollo; niente invio durante lettura' },
+  { name: 'segretariaintake', file: 'tests/segretaria/intake-timing.mjs', what: 'orari richiesti ancorati alla fonte, ambiguità e protezione delle decisioni manuali' },
   { name: 'segretariacalendario', file: 'tests/segretaria/calendar.mjs', what: 'date ancorate alla fonte in ora di Roma, ambiguità e ricontrollo prima dell’evento' },
   { name: 'segretariaconferma', file: 'tests/segretaria/dispatch.mjs', what: 'conferma unica e destinatario verificato, contesto aggiornato, claim contro doppia esecuzione' },
   { name: 'segretariatelefono', file: 'tests/segretaria/callcase.mjs', what: 'telefonata nello stesso seguito e riparazione del collegamento senza riavviare gli effetti' },

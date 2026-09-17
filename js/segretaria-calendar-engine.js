@@ -56,6 +56,18 @@
       const p = local(at); return p.date === date && p.hour === hour && p.minute === minute;
     })).sort((a, b) => a - b);
   }
+  // Public primitives for deterministic intake: reuse the same IANA/DST
+  // boundary without making up an appointment or a weekday source sentence.
+  const romeLocalDate = value => local(instant(value))?.date || null;
+  function resolveRomeWallTime(date, time) {
+    const d = /^(\d{4})-(\d{2})-(\d{2})$/.exec(date || '');
+    const t = /^(\d{2}):(\d{2})$/.exec(time || '');
+    if (!d || !validDate(+d[1], +d[2], +d[3])) return { ok: false, reason: 'invalid_source_date' };
+    if (!t || +t[1] > 23 || +t[2] > 59) return { ok: false, reason: 'invalid_source_time' };
+    const matches = wallInstants(date, +t[1], +t[2]);
+    if (matches.length !== 1) return { ok: false, reason: matches.length ? 'repeated_local_time' : 'nonexistent_local_time' };
+    return { ok: true, at: new Date(matches[0]).toISOString() };
+  }
   function tokens(text) {
     const s = clean(text), days = [], dates = [], times = [];
     const dayRe = new RegExp('\\b(' + Object.keys(weekdays).join('|') + ')\\b', 'g');
@@ -210,5 +222,5 @@
     }
     return issues.length ? { ok: false, error: issues[0].code, issues } : { ok: true, issues: [] };
   }
-  return Object.freeze({ TIME_ZONE, buildCalendarContext, validateCalendarProposal });
+  return Object.freeze({ TIME_ZONE, buildCalendarContext, validateCalendarProposal, romeLocalDate, resolveRomeWallTime });
 });

@@ -226,6 +226,19 @@ try {
   r = await generate();
   ok('stesso caso e stesse fonti restituiscono stessa proposta senza seconda spesa', r.cached && aiHits === 1 && count() === 1);
 
+  for (const version of [undefined, 1]) {
+    reset(); const original = await generate();
+    revise(t => {
+      if (version === undefined) delete t.preparation.coverage.version;
+      else t.preparation.coverage.version = version;
+    });
+    r = await generate();
+    ok('cache non riusa contesto ' + (version === undefined ? 'senza versione' : 'precedente') + ' anche con impronta fonti identica',
+      r.code === 200 && r.cached === false && aiHits === 2 && count() === 2
+        && r.preparation.coverage.version === 2
+        && r.preparation.sourceFingerprint === original.preparation.sourceFingerprint && untouched(), r);
+  }
+
   reset(); const oldPolicy = await generate();
   revise(t => { t.preparation.version = 1; });
   r = await endpoint(prepareEndpoint, { body: { op: 'approve', id: ID, revision: oldPolicy.preparation.revision, lastMessageId: 'm1' } });
@@ -350,6 +363,18 @@ try {
   r = await generate();
   ok('conferma applica la proposta e la sua impronta post-conferma resta cache valida senza altra spesa',
     approvedResult.httpCode === 200 && r.cached && aiHits === 1 && count() === 1 && untouched(), { approvedResult, cached: r.cached, aiHits });
+  for (const version of [undefined, 1]) {
+    revise(t => {
+      t.preparation.version = 1;
+      if (version === undefined) delete t.preparation.coverage.version;
+      else t.preparation.coverage.version = version;
+    });
+    const approvedBefore = JSON.stringify(task().preparation), writeCount = writes.length;
+    r = await generate();
+    ok('cache conserva approvazione esistente con contesto ' + (version === undefined ? 'senza versione' : 'precedente'),
+      r.code === 200 && r.cached === true && aiHits === 1 && count() === 1 && writes.length === writeCount
+        && JSON.stringify(task().preparation) === approvedBefore && untouched(), r);
+  }
 
   reset({ role: 'pfs' }); r = await generate();
   ok('PFS: prepara sul dossier reale e sulla pratica PFS senza inviare', r.code === 200
@@ -804,6 +829,11 @@ try {
         from: 'if (sha(freshReplyOwner) !== replyOwnerFingerprint)', to: 'if (false)' },
       { name: 'cache della decisione manuale', file: 'api/segretaria/_prepare.js',
         from: '(task.preparation.approval?.followUpFingerprint || task.preparation.followUpFingerprint) === followUpFingerprint', to: 'true' },
+      { name: 'cache richiede contesto corrente anche con impronta identica', file: 'api/segretaria/_prepare.js',
+        from: 'PROPOSTA.currentContext(task)', to: 'PROPOSTA.current(task)' },
+      { name: 'cache preserva proposte già approvate con contesto precedente', file: 'js/segretaria-proposta-engine.js',
+        from: '!!task.preparation.approval || task.preparation.coverage?.version === CONTEXT_VERSION',
+        to: 'task.preparation.coverage?.version === CONTEXT_VERSION' },
       { name: 'consegna precedente incerta', file: 'api/segretaria/_prepare.js',
         from: 'if (task.preparation?.approval?.actionId) {', to: 'if (false && task.preparation?.approval?.actionId) {' },
     ];

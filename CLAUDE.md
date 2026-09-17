@@ -614,6 +614,9 @@ viewing id + server secret).
   viewing blocks itself and can never move by 30 minutes. Unit-tested
   (`node tests/viewings/avail.mjs`): step math, the 15' gap, notice,
   horizon, max/day, and the DST boundary.
+- **Date operative di Roma (17/09)**: `romeDateKey` e `buildSlots` usano componenti numeriche in Europe/Rome. Il mese breve di `Intl` può essere «Sept», mentre la vecchia tabella accettava solo «Sep»: settembre diventava mese 00 e la griglia restava vuota.
+  Conversione condivisa, `romeParts` di visualizzazione invariato. `viewings` verifica tutti i mesi, cambi giorno/anno, bisestile e due transizioni DST; due mutazioni riproducono i difetti.
+  La correzione vale per i nuovi calcoli. Le date già salvate richiedono una verifica distinta; nessun dato storico viene riscritto.
 - `api/viewings/_busyics.js` — **il calendario Workspace dentro la griglia**
   (la risposta a "non posso avere disponibilità istantanea costante su tutti
   gli appartamenti"): legge gli indirizzi ICS segreti (`BUSY_ICS_URLS` env
@@ -3672,6 +3675,22 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
   armo → grazia → executor reale → digest, ✋ e kill switch che vincono.
 
 ### LA SEGRETARIA (`js/segretaria-engine.js` + `api/segretaria/_core.js` + 🤖 sulla card)
+
+- **Richieste e decisioni distinte (17/09)**: Oggi separa «Da preparare» dalle proposte attuali, dalle scadenze confermate e dai problemi di consegna. `workGroups` deriva i quattro gruppi; nessun nuovo stato salvato.
+  L'arretrato mostra dodici richieste alla volta, tutte raggiungibili. Il cap espone tentativi usati/disponibili, inclusi fallimenti; a limite raggiunto si possono leggere fonti e correggere il seguito senza avviare preparazioni destinate a fallire.
+  Home, worker e cache usano `currentContext` del motore proposta, con un'unica `CONTEXT_VERSION`: copertura assente/vecchia torna da preparare, ricevute approvate restano leggibili solo sullo stesso evento aperto.
+  Le conferme senza pratica restano decisioni da completare; una richiesta d'orario già gestita non riapre una conferma futura. Nuove fonti e ricontrolli restano visibili. Asset vecchi non dichiarano proposte pronte.
+  Prove: `seguitoui`, `segretarialiveui`, `segretariapropostaui`, worker e prepara; mutazioni di classificazione/copertura, 111 richieste, mobile, bozze e zero invii in lettura. Cap e HOLD invariati.
+
+- **Ricontrollo iniziale dalla fonte (17/09)**: la cattura non mette più ogni richiesta indistintamente a +2h. `segretaria-intake-engine` conserva `followUp.intakeTiming`, con fonte, citazione e istante richiesto separati dal controllo interno.
+  Entro/by + oggi/domani o data completa + HH:MM usa Europe/Rome e anticipa il controllo; giorno mancante, esitazione, negazione, passato e ambiguità chiedono revisione immediata, senza promesse né rinvio implicito a domani.
+  La grammatica è circoscritta e riusa le primitive IANA/DST del calendario. Neutralità e backlog conservano la fonte precedente; `confirmedAt`/`confirmedBy` proteggono la decisione umana anche senza pratica verificata.
+  La Home mostra la citazione e distingue una fonte precedente. Prove `segretariaintake`, `seguito`, calendario, tracking/backlog e telefonia, con sei mutazioni. Nessun backfill; l'interpretazione AI successiva resta una verifica distinta.
+
+- **Associazione immobile da voce (17/09)**: una keyword poteva collegare la stanza esclusa dal chiamante. `phone-listing-engine` separa candidati ed evidenza positiva, con titolo catalogo univoco nell'ultimo turno sostanziale e grammatica chiusa IT/EN.
+  Saluti conservano interesse; domande, citazioni, condizioni o correzioni successive impediscono l'associazione automatica. Trascrizione oltre limite coperto: associazione non confermata, mai dedotta dal prefisso troncato.
+  Lo stesso risultato vale per analisi, lead e Centralino; match WhatsApp invariato e nessuna prenotazione. Non è comprensione semantica generale, né una formula che il chiamante deve usare.
+  Prova `phone`: 237 verifiche; mutazioni su keyword, catalogo al limite100 e trascrizione oltre200turni. Nessuna modifica storica ai collegamenti live.
 
 - **Oggi, memoria e preparazione (17/09, Codex)**: gli eventi aggiornano i pannelli senza distruggere modali/bozze; listener dei casi e fallback 30s, Inbox ordinata su `at DESC` con limite dichiarato.
   `_context` legge fino a 100 messaggi: evento prioritario, massimo 22k caratteri di storia e 32k complessivi; tagli e hash integrali dichiarati. Il dossier conserva gli ultimi messaggi anche oltre la vecchia soglia 40.

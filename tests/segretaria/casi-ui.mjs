@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import vm from 'node:vm';
 import E from '../../js/segretaria-casi-engine.js';
+import PROPOSTA from '../../js/segretaria-proposta-engine.js';
 import { loadChromium, launchOptions } from '../_browser.mjs';
 
 const read = file => readFileSync(new URL('../../' + file, import.meta.url), 'utf8');
@@ -88,6 +89,98 @@ check('script della vista registrato e trattato come logica del portale nella ca
   assert.match(read('portal.html'), /<script src="\/js\/segretaria-casi-engine.js"><\/script>/);
   assert.ok(read('portal.html').indexOf('<script src="/js/segretaria-casi-engine.js"') < read('portal.html').indexOf('<script src="/js/portal-app.js"'));
   assert.match(read('sw.js'), /url.pathname === '\/js\/segretaria-casi-engine.js'/);
+});
+
+// Home adds a work stage without changing the existing partition contract.
+const currentPreparation = task => PROPOSTA.currentContext(task) ? task.preparation : null;
+const prepared = (task, overrides = {}) => ({ ...task, preparation: {
+  version: PROPOSTA.VERSION, coverage: { version: PROPOSTA.CONTEXT_VERSION },
+  messageId: task.followUp.lastMessageId, status: 'ready', ...overrides,
+} });
+const onlyGroup = (task, expected, engine = E) => {
+  const groups = engine.workGroups([task], NOW, currentPreparation);
+  for (const name of ['decisions', 'preparing', 'progress', 'waiting']) {
+    assert.equal(groups[name].length, name === expected ? 1 : 0, name + ' for ' + task.id);
+  }
+  assert.equal(groups[expected][0].id, task.id);
+};
+check('Home: una richiesta acquisita attende preparazione, senza gonfiare le decisioni', () => {
+  onlyGroup(A, 'preparing');
+  onlyGroup({ ...A, read: true, replied: true, unread: 0 }, 'preparing');
+  const groups = E.workGroups([A, A, B, C, { ...A, id: 'sg_' + 'd'.repeat(32), status: 'done' }, null], NOW, currentPreparation);
+  assert.equal(groups.preparing.length, 1);
+  assert.equal(groups.decisions.length, 1);
+  assert.equal(groups.waiting.length, 1);
+  assert.equal(groups.invalid, 1);
+});
+check('Home: soltanto una proposta del contesto corrente arriva alle decisioni', () => {
+  onlyGroup(prepared(A), 'decisions');
+  onlyGroup(prepared(A, { status: 'needs_context' }), 'decisions');
+  onlyGroup(prepared(A, { coverage: { version: PROPOSTA.CONTEXT_VERSION - 1 } }), 'preparing');
+  onlyGroup(prepared(A, { coverage: undefined }), 'preparing');
+  onlyGroup(prepared(A, { version: PROPOSTA.VERSION - 1 }), 'preparing');
+  onlyGroup(prepared(A, { messageId: 'previous-event' }), 'preparing');
+});
+check('Home: il ricontrollo confermato scaduto è una decisione anche senza nuova proposta', () => {
+  onlyGroup(C, 'decisions');
+  onlyGroup({ ...B, followUp: { ...B.followUp, needsReview: true } }, 'decisions');
+  onlyGroup({ ...B, followUp: { ...B.followUp, checkAt: new Date(NOW).toISOString() } }, 'decisions');
+});
+check('Home: conferme e ricevute approvate restano in attesa o in corso', () => {
+  onlyGroup(B, 'waiting');
+  onlyGroup(prepared(B, { approval: { actionId: 'approved-action' } }), 'waiting');
+  onlyGroup(prepared(B, { version: 0, coverage: { version: 0 }, approval: { actionId: 'legacy-approved' } }), 'waiting');
+  for (const waitingOn of ['boom', 'valentino']) {
+    onlyGroup(prepared({ ...B, followUp: { ...B.followUp, waitingOn } }, { approval: { actionId: 'approved-action' } }), 'progress');
+  }
+  for (const delivery of ['queued', 'pending_execution']) {
+    onlyGroup({ ...prepared(B, { approval: { actionId: 'approved-action' } }), deliveryResult: { delivery } }, 'progress');
+  }
+  onlyGroup({ ...prepared(B, { approval: { actionId: 'approved-action' } }), deliveryResult: { delivery: 'needs_review' } }, 'decisions');
+});
+check('Home: una scelta manuale senza pratica resta da completare, non da preparare di nuovo', () => {
+  const manual = { ...A, followUp: { ...A.followUp, practiceRef: null, confirmed: false,
+    confirmedAt: new Date(NOW - 300000).toISOString(), confirmedBy: 'fixture-admin',
+  } };
+  onlyGroup(manual, 'decisions');
+  onlyGroup(prepared(manual, { approval: { actionId: null } }), 'decisions');
+  // Legacy receipts can lack manual metadata, but approval is still proof
+  // that a proposal was already prepared and reviewed.
+  onlyGroup(prepared(A, { approval: { actionId: null } }), 'decisions');
+});
+check('Home: una data iniziale dubbia, passata o scaduta chiede una decisione', () => {
+  for (const intakeTiming of [
+    { status: 'ambiguous' }, { status: 'past' },
+    { status: 'resolved', requestedAt: new Date(NOW - 60000).toISOString() },
+    { status: 'resolved', requestedAt: new Date(NOW).toISOString() },
+  ]) {
+    onlyGroup({ ...A, followUp: { ...A.followUp, intakeTiming } }, 'decisions');
+  }
+  onlyGroup({ ...A, followUp: { ...A.followUp, intakeTiming: { status: 'resolved', requestedAt: FUTURE } } }, 'preparing');
+});
+check('Home: la data iniziale già gestita non riapre una conferma manuale futura', () => {
+  for (const status of ['ambiguous', 'past', 'resolved']) {
+    const task = { ...B, followUp: { ...B.followUp,
+      confirmedAt: new Date(NOW - 300000).toISOString(), confirmedBy: 'fixture-admin',
+      intakeTiming: { status, requestedAt: new Date(NOW - 3600000).toISOString(),
+        sourceAt: new Date(NOW - 7200000).toISOString(), sourceMessageId: B.followUp.lastMessageId },
+    } };
+    onlyGroup(task, 'waiting');
+    onlyGroup({ ...task, followUp: { ...task.followUp, waitingOn: 'valentino' } }, 'progress');
+    // A later source still returns to the operator: the old confirmation
+    // must not hide a new request simply because confirmedAt is present.
+    onlyGroup({ ...task, followUp: { ...task.followUp, needsReview: true, lastMessageId: 'new-timed-event',
+      intakeTiming: { status: 'ambiguous', sourceMessageId: 'new-timed-event', sourceAt: new Date(NOW).toISOString() },
+    } }, 'decisions');
+  }
+});
+check('MUTAZIONE Home: contare le richieste non preparate come decisioni viene rilevato', () => {
+  const source = read('js/segretaria-casi-engine.js');
+  const mutated = source.replace('(f.confirmed === true || f.confirmedAt || f.confirmedBy || p?.approval ? groups.decisions : groups.preparing).push(task);', 'groups.decisions.push(task);');
+  assert.notEqual(source, mutated);
+  const sandbox = { window: {} };
+  vm.runInNewContext(mutated, sandbox);
+  assert.throws(() => onlyGroup(A, 'preparing', sandbox.window.BOOM_SEGRETARIA_CASI));
 });
 
 const chromium = await loadChromium();
@@ -178,8 +271,12 @@ try {
   await page.evaluate(() => goTo('oggi'));
   await page.waitForSelector('[data-sg-id]');
   assert.equal(await page.locator('article[data-sg-id]').count(), 3);
-  assert.equal(await page.locator('[data-sg-group="decisions"] .sg-count').innerText(), '2');
+  assert.equal(await page.locator('[data-sg-group="decisions"] .sg-count').innerText(), '1');
+  assert.equal(await page.locator('[data-sg-group="preparing"] .sg-count').innerText(), '1');
   assert.equal(await page.locator('[data-sg-group="waiting"] .sg-count').innerText(), '1');
+  assert.equal(await page.locator(`[data-sg-group="preparing"] article[data-sg-id="${ID}"]`).count(), 1);
+  assert.equal(await page.locator(`[data-sg-group="decisions"] article[data-sg-id="${IDC}"]`).count(), 1);
+  assert.equal(await page.locator(`[data-sg-group="waiting"] article[data-sg-id="${IDB}"]`).count(), 1);
   assert.match(await page.locator('#sgFollowPanel').innerText(), /limite di 200/);
   assert.equal(await page.locator('#sgFollowPanel img').count(), 0);
   assert.equal(await page.evaluate(() => window.__injected), undefined);
