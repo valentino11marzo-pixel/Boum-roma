@@ -25,12 +25,12 @@ const aiInputs = [], aiRequests = [];
 const enc = v => v == null ? { nullValue: null }
   : v instanceof Date ? { timestampValue: v.toISOString() }
   : typeof v === 'boolean' ? { booleanValue: v }
-  : typeof v === 'number' ? { integerValue: String(v) }
+  : typeof v === 'number' ? Number.isInteger(v) ? { integerValue: String(v) } : { doubleValue: v }
   : typeof v === 'string' ? { stringValue: v }
   : Array.isArray(v) ? { arrayValue: { values: v.map(enc) } }
   : { mapValue: { fields: Object.fromEntries(Object.entries(v).map(([k, x]) => [k, enc(x)])) } };
 const dec = v => 'nullValue' in v ? null : 'timestampValue' in v ? v.timestampValue
-  : 'booleanValue' in v ? v.booleanValue : 'integerValue' in v ? Number(v.integerValue)
+  : 'booleanValue' in v ? v.booleanValue : 'integerValue' in v ? Number(v.integerValue) : 'doubleValue' in v ? v.doubleValue
   : 'stringValue' in v ? v.stringValue : 'arrayValue' in v ? (v.arrayValue.values || []).map(dec)
   : Object.fromEntries(Object.entries(v.mapValue?.fields || {}).map(([k, x]) => [k, dec(x)]));
 const field = (row, path) => path.split('.').reduce((value, key) => value?.[key], row);
@@ -111,8 +111,14 @@ globalThis.fetch = async (rawURL, opts = {}) => {
       throw new Error('unimplemented_filter_' + f.op);
     };
     let entries = [...DB].filter(([p, row]) => p.startsWith(coll + '/') && p.split('/').length === 2 && matches(row, q.where));
-    for (const sort of [...(q.orderBy || [])].reverse()) entries.sort((a, b) =>
-      String(field(a[1], sort.field.fieldPath)).localeCompare(String(field(b[1], sort.field.fieldPath))) * (sort.direction === 'DESCENDING' ? -1 : 1));
+    for (const sort of [...(q.orderBy || [])].reverse()) entries.sort((a, b) => {
+      const key = row => sort.field.fieldPath === '__name__' ? row[0] : String(field(row[1], sort.field.fieldPath));
+      return (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0) * (sort.direction === 'DESCENDING' ? -1 : 1);
+    });
+    if (q.startAt) {
+      const cursor = q.startAt.values[0].referenceValue.split('/documents/')[1];
+      entries = entries.filter(([path]) => q.startAt.before ? path >= cursor : path > cursor);
+    }
     return json(entries.slice(0, q.limit || 1000).map(([p]) => ({ document: doc(p) })));
   }
   const path = decodeURIComponent(url.pathname.split('/documents/')[1] || '');
@@ -143,6 +149,7 @@ globalThis.fetch = async (rawURL, opts = {}) => {
   return DB.has(path) ? json(doc(path)) : json({ error: { status: 'NOT_FOUND' } }, 404);
 };
 
+const { default: CALENDAR } = await import('../../js/segretaria-calendar-engine.js');
 const { prepareCase } = await import('../../api/segretaria/_prepare.js');
 const { default: prepareEndpoint } = await import('../../api/segretaria/prepare.js');
 const { default: followUpEndpoint } = await import('../../api/segretaria/follow-up.js');
@@ -167,7 +174,7 @@ function validProposal(input) {
     commitments: [{ text: 'Il cliente attende una risposta.', sourceIds: ids, quote, kind: 'inferred', status: 'pending' }],
     uncertainties: [{ text: 'La data resta da verificare.', sourceIds: ids, quote }],
     nextAction: { text: 'Verificare la disponibilità del tecnico', waitingOn: 'collaborator', waitingLabel: 'Tecnico',
-      checkAt: stamp(Date.parse(input.now) + 3600000), practiceRef: input.existingFollowUp.practiceRef || null,
+      checkAt: stamp(Date.parse(input.now) + 3600000), checkLocal: CALENDAR.romeLocalInstant(stamp(Date.parse(input.now) + 3600000)), practiceRef: input.existingFollowUp.practiceRef || null,
       sourceIds: ids, reason: 'La richiesta attende una disponibilità confermata.' },
     draft: { channel: input.channel, text: input.language === 'it'
       ? 'Ricevuto, verifichiamo la disponibilità e ti aggiorniamo.' : 'Thanks, we will check availability and update you.', sourceIds: ids },
@@ -226,6 +233,47 @@ try {
   r = await generate();
   ok('stesso caso e stesse fonti restituiscono stessa proposta senza seconda spesa', r.cached && aiHits === 1 && count() === 1);
 
+  for (const [local, reason, error] of [
+    [undefined, null, 'calendar_check_local_missing'],
+    [{ date: '2026-09-15', time: '11:00', timeZone: 'Europe/Rome' }, null, 'calendar_check_local_mismatch'],
+    [{ date: '2026-09-15', time: '13:00', timeZone: 'UTC' }, null, 'calendar_check_local_zone_invalid'],
+    [{ date: '2026-09-15', time: '13:00', timeZone: 'Europe/Rome' }, 'Ricontrollare poco dopo la visita.', 'calendar_relative_check_unquantified'],
+  ]) {
+    reset(); aiBuilder = input => { const p = validProposal(input); p.nextAction.checkLocal = local;
+      if (reason) p.nextAction.reason = reason; return p; };
+    r = await generate();
+    ok('intenzione temporale da verificare: ' + error, r.code === 200 && r.preparation.status === 'needs_context'
+      && r.preparation.draft === null && r.preparation.handoff.needed
+      && r.preparation.nextAction.checkAt === '2026-09-15T11:00:00.000Z'
+      && r.preparation.timingValidation.issues.some(x => x.code === error) && untouched(), r);
+    const confirmation = await endpoint(prepareEndpoint, { body: { op: 'approve', id: ID,
+      revision: r.preparation.revision, lastMessageId: 'm1' } });
+    ok('orario incoerente non approvabile né accodabile: ' + error,
+      confirmation.httpCode === 409 && !task().preparation.approval && untouched(), confirmation);
+  }
+  reset(); r = await generate();
+  ok('ora italiana validata e dichiarazione del modello conservate con precisione ISO', r.preparation.timingValidation.ok
+    && r.preparation.nextAction.checkLocal.time === '13:00'
+    && r.preparation.timingValidation.declaredLocal.time === '13:00'
+    && aiInputs[0].calendar.nowLocal.time === '12:00'
+    && JSON.stringify(aiRequests[0].system).includes('checkLocal') && untouched(), r.preparation.timingValidation);
+
+  reset(); await generate();
+  revise(t => { t.preparation.version = 3; t.preparation.status = 'needs_context'; delete t.preparation.coverage.version; });
+  const classifiedReview = JSON.stringify(task().preparation), reviewWrites = writes.length;
+  clock = NOW + 60001; r = await generate();
+  ok('revisione manuale conservata identica oltre versione, copertura e scadenza con stesse fonti e decisione',
+    r.cached && aiHits === 1 && writes.length === reviewWrites && JSON.stringify(task().preparation) === classifiedReview && untouched(), r);
+  revise(t => { t.followUp.nextAction = 'Verificare il nuovo dato confermato'; });
+  r = await generate();
+  ok('decisione nuova riapre revisione precedente sullo stesso evento', r.code === 200 && !r.cached && aiHits === 2
+    && r.preparation.version === 4 && r.preparation.status === 'ready' && untouched(), r);
+  reset(); await generate(); revise(t => { t.preparation.version = 3; t.preparation.status = 'needs_context'; });
+  save('messages/m1', { ...DB.get('messages/m1'), body: 'Potete verificare anche la nuova perdita?' });
+  r = await generate();
+  ok('fonte corretta sullo stesso evento riapre revisione senza riciclare la vecchia interpretazione',
+    r.code === 200 && !r.cached && aiHits === 2 && r.preparation.version === 4 && untouched(), r);
+
   for (const version of [undefined, 1]) {
     reset(); const original = await generate();
     revise(t => {
@@ -239,15 +287,15 @@ try {
         && r.preparation.sourceFingerprint === original.preparation.sourceFingerprint && untouched(), r);
   }
 
-  for (const version of [1, 2]) {
+  for (const version of [1, 2, 3]) {
     reset(); const oldPolicy = await generate();
     revise(t => { t.preparation.version = version; });
     r = await endpoint(prepareEndpoint, { body: { op: 'approve', id: ID, revision: oldPolicy.preparation.revision, lastMessageId: 'm1' } });
     ok('proposta v' + version + ' precedente ai nuovi controlli non può essere approvata né accodata', r.httpCode === 409
       && r.error === 'preparation_policy_changed' && !task().preparation.approval && untouched(), r);
     r = await generate();
-    ok('proposta v' + version + ' obsoleta viene ricalcolata con stesse fonti ed evento entro il cap esistente', r.code === 200
-      && !r.cached && aiHits === 2 && count() === 2 && r.preparation.version === 3 && untouched(), r);
+    ok('proposta v' + version + ' obsoleta viene ricalcolata con stesse fonti ed evento senza una quota giornaliera', r.code === 200
+      && !r.cached && aiHits === 2 && count() === 2 && r.preparation.version === 4 && untouched(), r);
   }
 
   reset({ text: 'Reacted 👍 to Hello, should we speak to Valentino?' });
@@ -340,7 +388,7 @@ try {
     save('messages/m1', { ...DB.get('messages/m1'), at: '2026-11-02T10:00:00Z' });
     aiBuilder = input => { const p = validProposal(input); p.summary = summary; p.draft = null;
       p.nextAction = { ...p.nextAction, text: 'Preparare la visita', waitingOn: 'valentino', waitingLabel: 'Valentino',
-        checkAt, reason: 'Ricontrollo il giorno prima della visita.' }; return p; };
+        checkAt, checkLocal: CALENDAR.romeLocalInstant(checkAt), reason: 'Ricontrollo il giorno prima della visita.' }; return p; };
     r = await generate();
     ok('handler calendario: ' + (expectedError || 'riferimento corretto ammesso'),
       (expectedError ? r.code === 422 && r.error === expectedError && !task().preparation : r.code === 200 && !!task().preparation)
@@ -432,7 +480,7 @@ try {
     p.commitments = []; p.draft = null;
     p.nextAction = { ...p.nextAction,
       text: "Chiedere all'inquilino quale dei due appartamenti (Immobile sintetico A o B) presenta la perdita, poi valutare l'organizzazione del controllo tecnico.",
-      waitingOn: 'client', waitingLabel: 'Inquilino', checkAt: stamp(NOW + 36 * 3600000),
+      waitingOn: 'client', waitingLabel: 'Inquilino', checkAt: stamp(NOW + 36 * 3600000), checkLocal: CALENDAR.romeLocalInstant(stamp(NOW + 36 * 3600000)),
       reason: "Serve sapere l'appartamento interessato prima di poter procedere; senza questa informazione non si può indirizzare l'intervento." };
     return p;
   };
@@ -453,7 +501,7 @@ try {
     p.commitments = [{ text: 'Il contatto ha promesso di richiamare.', sourceIds: [source.id],
       quote: source.analysisText || source.text, kind: 'explicit', status: 'pending' }];
     p.nextAction = { ...p.nextAction, text: 'Attendere il richiamo del contatto', waitingOn: 'client', waitingLabel: 'Cliente fixture',
-      checkAt: stamp(NOW + 8 * 3600000), reason: 'Il prossimo passo spetta al contatto; ricontrollare questa sera.' };
+      checkAt: stamp(NOW + 8 * 3600000), checkLocal: CALENDAR.romeLocalInstant(stamp(NOW + 8 * 3600000)), reason: 'Il prossimo passo spetta al contatto; ricontrollare questa sera.' };
     return p;
   };
   for (const actor of ['client', 'collaborator']) {
@@ -541,10 +589,12 @@ try {
   reset();
   revise(t => { t.followUp.checkAt = stamp(NOW + 3 * 3600000); });
   aiBuilder = input => { const p = validProposal(input); p.draft = null;
-    p.nextAction.checkAt = stamp(NOW + 8 * 3600000); p.nextAction.reason = 'Aspettare il cliente e ricontrollare questa sera.'; return p; };
+    p.nextAction.checkAt = stamp(NOW + 8 * 3600000); p.nextAction.checkLocal = CALENDAR.romeLocalInstant(p.nextAction.checkAt); p.nextAction.reason = 'Aspettare il cliente e ricontrollare questa sera.'; return p; };
   r = await generate();
   ok('guardia che conserva controllo pomeridiano sostituisce motivazione serale incompatibile', r.code === 200
     && r.preparation.nextAction.checkAt === stamp(NOW + 3 * 3600000)
+    && r.preparation.nextAction.checkLocal.time === '15:00' && r.preparation.timingValidation.ok
+    && r.preparation.timingValidation.guardChangedTime && r.preparation.timingValidation.declaredLocal.time === '20:00'
     && !/questa sera|Aspettare il cliente/.test(r.preparation.nextAction.reason)
     && /ricontrollo interno precedente/.test(r.preparation.nextAction.reason) && untouched(), r);
   for (const actor of ['client', 'collaborator']) {
@@ -684,8 +734,16 @@ try {
   reset(); save('heartbeat/segretaria-preparing-' + ID, { busy: true, leaseId: 'expired', expiresAt: stamp(NOW - 1) });
   r = await generate(); ok('lease scaduta viene recuperata e rilasciata', r.code === 200 && aiHits === 1
     && DB.get('heartbeat/segretaria-preparing-' + ID).busy === false, r.code);
-  reset(); save('heartbeat/segretaria-preparations-2026-09-15', { count: 5 });
-  r = await generate(); ok('tetto giornaliero non spende e non acquisisce lease', r.code === 429 && aiHits === 0 && count() === 5, r);
+  for (const used of [5, 50, 5000]) {
+    reset(); save('heartbeat/segretaria-preparations-2026-09-15', { count: used });
+    r = await generate(); ok('preparazione continua dopo ' + used + ' tentativi: il contatore misura senza fermare',
+      r.code === 200 && aiHits === 1 && count() === used + 1 && DB.get('settings/segretaria').dailyCap === 5 && untouched(), r);
+  }
+  for (const invalid of [-1, '5', null, 1.5, Number.MAX_SAFE_INTEGER]) {
+    reset(); save('heartbeat/segretaria-preparations-2026-09-15', { count: invalid });
+    r = await generate(); ok('contatore corrotto dichiarato senza modello o scrittura: ' + invalid,
+      r.code === 503 && r.error === 'preparation_counter_invalid' && aiHits === 0 && !writes.length, r);
+  }
 
   reset();
   commitHook = async operations => {
@@ -744,6 +802,32 @@ try {
   ok('worker spento non legge casi, non spende e non modifica dati', r.httpCode === 200 && !r.enabled && !aiHits && !writes.length, r);
   reset(); save('settings/segretaria', { enabled: false, prepareCases: true });
   r = await generate(); ok('interruttore globale blocca anche generazione manuale', r.code === 409 && !aiHits && !writes.length, r);
+
+  reset(); aiBuilder = () => ({ invalid: true });
+  await prepareNextCase({ now: NOW });
+  const reviewList = await endpoint(followUpEndpoint, { method: 'GET' });
+  ok('output rifiutato dal worker diventa revisione visibile nel GET reale',
+    task().preparationRetry?.state === 'review_required' && reviewList.rows[0].preparationReview?.reason === 'invalid_preparation', reviewList);
+  aiBuilder = null;
+  r = await generate();
+  const repairedList = await endpoint(followUpEndpoint, { method: 'GET' });
+  const repairedDetail = await endpoint(followUpEndpoint, { method: 'GET', query: { id: ID } });
+  ok('preparazione manuale riuscita cancella atomicamente errore precedente ed espone la nuova proposta',
+    r.code === 200 && r.preparation.status === 'ready' && task().preparationRetry === null && task().preparationError === null
+    && repairedList.rows[0].preparationReview === null && repairedDetail.task.preparationReview === null
+    && repairedDetail.task.preparation.revision === r.preparation.revision && untouched(), r);
+  revise(t => { t.preparationRetry = { state: 'review_required', reason: 'invalid_preparation', messageId: 'm1',
+    version: 4, followUpFingerprint: t.preparation.followUpFingerprint }; t.preparationError = 'invalid_preparation'; });
+  const beforeRecoveryHits = aiHits, beforeRecoveryRevision = task().preparation.revision;
+  r = await generate();
+  ok('cache valida ripulisce marker obsoleto senza rigenerare o mutare la proposta', r.cached && aiHits === beforeRecoveryHits
+    && r.preparation.revision === beforeRecoveryRevision && task().preparationRetry === null && task().preparationError === null && untouched(), r);
+  revise(t => { t.preparationRetry = { state: 'retry_wait' }; });
+  beforePatch = async () => revise(t => { t.followUp.lastMessageId = 'm2'; });
+  r = await generate();
+  ok('pulizia marker su cache protegge nuovo evento concorrente', r.code === 409 && r.error === 'new_message_reload'
+    && task().followUp.lastMessageId === 'm2' && task().preparationRetry.state === 'retry_wait' && aiHits === beforeRecoveryHits, r);
+
   reset(); addSecond(); aiHook = async () => { if (aiHits === 1) throw new Error('fixture_first_failure'); };
   const first = await prepareNextCase({ now: NOW }), second = await prepareNextCase({ now: NOW });
   ok('fallimento del primo caso resta visibile e il secondo viene preparato nello stesso run senza altre spese al retry', first.prepared === 1
@@ -921,6 +1005,16 @@ try {
         from: 'sources: calendarSources, now', to: 'sources: context.sources, now' },
       { name: 'calendario applicato alla proposta finale', file: 'api/segretaria/_prepare.js',
         from: 'if (!calendarCheck.ok)', to: 'if (false)' },
+      { name: 'intenzione italiana incoerente resta in revisione', file: 'api/segretaria/_prepare.js',
+        from: 'if (!timing.ok) {', to: 'if (false) {' },
+      { name: 'guardia aggiorna la rappresentazione locale del controllo anticipato', file: 'api/segretaria/_prepare.js',
+        from: '? CALENDAR.romeLocalInstant(proposal.nextAction.checkAt) : timing.checkLocal', to: '? timing.checkLocal : timing.checkLocal' },
+      { name: 'revisioni precedenti non cancellate da una versione nuova', file: 'js/segretaria-proposta-engine.js',
+        from: "|| task.preparation.status === 'needs_context')", to: ')' },
+      { name: 'revisione non rigenerata solo perché ricontrollo scaduto', file: 'api/segretaria/_prepare.js',
+        from: "task.preparation.status === 'needs_context' || !recheckFor", to: '!recheckFor' },
+      { name: 'successo manuale elimina revisione fallita precedente', file: 'api/segretaria/_prepare.js',
+        from: 'fields: { preparation, preparationError: null, preparationRetry: null }', to: 'fields: { preparation, preparationError: null }' },
       { name: 'impegno eventuale e reazioni', file: 'js/segretaria-proposta-engine.js',
         from: 'if (!evidence.ok) return evidence;', to: 'if (false) return evidence;' },
       { name: 'verifica interna prima della bozza', file: 'js/segretaria-proposta-engine.js',

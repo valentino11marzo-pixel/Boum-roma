@@ -117,8 +117,14 @@ globalThis.fetch = async (rawURL, opts = {}) => {
       throw new Error('unimplemented_filter_' + f.op);
     };
     let entries = [...DB].filter(([p, row]) => p.startsWith(coll + '/') && p.split('/').length === 2 && matches(row, q.where));
-    for (const sort of [...(q.orderBy || [])].reverse()) entries.sort((a, b) =>
-      String(field(a[1], sort.field.fieldPath)).localeCompare(String(field(b[1], sort.field.fieldPath))) * (sort.direction === 'DESCENDING' ? -1 : 1));
+    for (const sort of [...(q.orderBy || [])].reverse()) entries.sort((a, b) => {
+      const key = row => sort.field.fieldPath === '__name__' ? row[0] : String(field(row[1], sort.field.fieldPath));
+      return (key(a) < key(b) ? -1 : key(a) > key(b) ? 1 : 0) * (sort.direction === 'DESCENDING' ? -1 : 1);
+    });
+    if (q.startAt) {
+      const cursor = q.startAt.values[0].referenceValue.split('/documents/')[1];
+      entries = entries.filter(([path]) => q.startAt.before ? path >= cursor : path > cursor);
+    }
     return json(entries.slice(0, q.limit || 1000).map(([p]) => ({ document: doc(p) })));
   }
   const path = decodeURIComponent(url.pathname.split('/documents/')[1] || '');
@@ -339,7 +345,12 @@ try {
   reset(); await followed();
   for (let i = 0; i < 199; i++) save('operatorTasks/capped-' + i, { status: 'open', followUp: { open: true, conversationId: CID } });
   result = await call(scanHandler, {}, { dry: '1' });
-  ok('limite 200 dei follow-up resta finito e incompleto dichiarato', result.followUpsIncomplete === true && result.incomplete === true
+  ok('scansione legge pagina successiva dopo 200 seguiti senza dichiarare falsamente un taglio', result.followUpsIncomplete === false
+    && result.watched === 1 && globalThis.__imap.searches.length === 1, result);
+  reset(); await followed();
+  for (let i = 0; i < 1200; i++) save('operatorTasks/capped-' + i, { status: 'open', followUp: { open: true, conversationId: CID } });
+  result = await call(scanHandler, {}, { dry: '1' });
+  ok('scansione email dichiara una lettura che supera il budget di pagine del singolo ciclo', result.followUpsIncomplete === true && result.incomplete === true
     && result.watched === 1 && globalThis.__imap.searches.length === 1, result);
 
   ok('nessun modello, Telegram, email, calendario o outbox durante tracking', network.length === 0 && globalThis.__mails.length === 0

@@ -4664,7 +4664,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // Lo snapshot segnala soltanto che rileggere: ricevute e contenuto
             // restano derivati dall'API autenticata, non da un secondo motore.
             let first = true;
-            oggiSegretaria.liveListener = db.collection('operatorTasks').where('followUp.open', '==', true).limit(200).onSnapshot(() => {
+            oggiSegretaria.liveListener = db.collection('operatorTasks').where('followUp.open', '==', true).onSnapshot(() => {
                 if (auth.currentUser !== user || !isAdmin()) { oggiSegretariaStopLive(); return; }
                 oggiSegretaria.liveError = false;
                 if (first) { first = false; if (!oggiSegretaria.loaded || oggiSegretaria.loading) return; }
@@ -4695,27 +4695,45 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const target = document.getElementById('sgFreshness');
         if (target) target.textContent = oggiSegretariaFreshness();
     }
+    function oggiSegretariaLegacyCap() {
+        return oggiSegretaria.monitoring?.mode !== 'continuous' && oggiSegretaria.monitoring?.status === 'daily_cap';
+    }
     function oggiSegretariaMonitoring() {
-        const m = oggiSegretaria.monitoring;
+        const m = oggiSegretaria.monitoring, continuous = m?.mode === 'continuous';
+        const partialQueue = m?.queueIncomplete === true || m?.queueScope === 'page';
         const labels = {
             unavailable: 'Stato della preparazione automatica non disponibile.',
             unknown: 'Stato della preparazione automatica da verificare.',
             disabled: 'Preparazione automatica disattivata. I seguiti restano disponibili.',
             paused: 'Preparazione automatica sospesa. I seguiti restano disponibili.',
-            daily_cap: 'Limite giornaliero raggiunto: la preparazione riprenderà con il prossimo giorno di Roma, se resta attiva.',
+            daily_cap: 'Il servizio precedente segnala un limite giornaliero raggiunto. I seguiti restano disponibili.',
             delayed: 'Il controllo della preparazione automatica è in ritardo.',
             working: 'Nuove proposte preparate nell’ultimo ciclo.',
-            idle: 'Nessuna nuova proposta nell’ultimo ciclo.'
+            idle: 'Nessuna nuova proposta nell’ultimo ciclo. Le richieste ancora aperte restano da seguire.'
         };
-        const status = m && Object.hasOwn(labels, m.status) ? m.status : 'unavailable';
-        const dates = [];
+        const status = continuous && m.status === 'daily_cap' ? 'unknown' : m && Object.hasOwn(labels, m.status) ? m.status : 'unavailable';
+        const dates = [], counts = [];
         const at = value => { const n = Date.parse(value || ''); return Number.isFinite(n) ? oggiSegretariaDate(n) : ''; };
         if (at(m?.checkedAt)) dates.push('Stato letto: ' + at(m.checkedAt));
         if (at(m?.lastRunAt)) dates.push('Ultimo ciclo: ' + at(m.lastRunAt));
-        if (Number.isSafeInteger(m?.usedToday) && Number.isSafeInteger(m?.dailyCap)) dates.push('Tentativi utilizzati oggi: ' + m.usedToday + ' di ' + m.dailyCap);
-        if (typeof m?.remainingToday === 'number' && Number.isFinite(m.remainingToday)) dates.push('Tentativi disponibili oggi: ' + Math.max(0, m.remainingToday));
+        if (Number.isSafeInteger(m?.usedToday) && m.usedToday >= 0) dates.push('Tentativi oggi: ' + m.usedToday + ' (compresi quelli non riusciti)');
+        for (const [key, label] of [['pending', 'Richieste da valutare'], ['current', 'Proposte attuali'], ['awaitingReview', 'In attesa di verifica'], ['retrying', 'Casi da ritentare']]) {
+            if (Number.isSafeInteger(m?.counts?.[key]) && m.counts[key] >= 0) counts.push(label + ': ' + m.counts[key]);
+        }
+        const retryLabels = {
+            invalid_preparation: 'Proposta non valida', preparation_unavailable: 'Preparazione non disponibile',
+            preparation_in_progress: 'Preparazione già in corso', previous_delivery_unresolved: 'Esito di un invio da verificare',
+            preparation_needs_context: 'Informazioni da verificare', source_message_missing: 'Fonte non disponibile',
+            context_unavailable: 'Contesto non disponibile', model_timeout: 'Preparazione non conclusa in tempo',
+            unavailable: 'Servizio non disponibile'
+        };
+        const retries = Object.entries(m?.retryReasons && typeof m.retryReasons === 'object' ? m.retryReasons : {})
+            .filter(([, count]) => Number.isSafeInteger(count) && count > 0)
+            .map(([code, count]) => (retryLabels[code] || (code.startsWith('calendar_') ? 'Orario da verificare' : 'Motivo da verificare')) + ': ' + count);
         const warning = ['unavailable', 'unknown', 'disabled', 'paused', 'daily_cap', 'delayed'].includes(status);
-        return `<div id="sgPreparationStatus" class="sg-notice${warning ? ' sg-notice--warning' : ''}" role="status"><p>${labels[status]}</p>${dates.length ? `<p>${esc(dates.join(' · '))}</p>` : ''}${status === 'daily_cap' ? '<p>Il limite comprende anche i tentativi non riusciti. Puoi leggere le fonti e correggere i seguiti; aggiornare la pagina non aumenta il limite.</p>' : ''}${m?.incomplete ? '<p>Informazioni sulla preparazione parziali.</p>' : ''}</div>`;
+        const cycle = m?.stoppedBy === 'time_budget' ? 'Il ciclo ha raggiunto il tempo disponibile; le richieste residue restano in coda.'
+            : m?.stoppedBy === 'batch_limit' ? 'Il lavoro prosegue per cicli; le richieste residue restano in coda.' : '';
+        return `<div id="sgPreparationStatus" class="sg-notice${warning ? ' sg-notice--warning' : ''}" role="status">${continuous ? '<p>Preparazione continua · nessuna quota giornaliera di proposte.</p>' : ''}<p>${labels[status]}</p>${counts.length ? `<p>${partialQueue ? 'Parte della coda, ultimo ciclo' : 'Ultimo ciclo'} · ${esc(counts.join(' · '))}</p>` : ''}${m?.counts?.retrying > 0 ? '<p>I casi non riusciti restano da ritentare; non sono proposte pronte.</p>' : ''}${retries.length ? `<p>Motivi dei casi da ritentare o verificare · ${esc(retries.join(' · '))}</p>` : ''}${at(m?.nextRetryAt) ? `<p>${Date.parse(m.nextRetryAt) <= Date.now() ? 'Nuovo tentativo atteso dal' : 'Prossimo tentativo previsto'}: ${esc(at(m.nextRetryAt))}</p>` : ''}${cycle ? `<p>${cycle}</p>` : ''}${dates.length ? `<p>${esc(dates.join(' · '))}</p>` : ''}${status === 'daily_cap' ? '<p>Puoi leggere le fonti e correggere i seguiti mentre lo stato del servizio viene aggiornato.</p>' : ''}${partialQueue ? '<p>La lettura della coda è parziale: potrebbero esserci altre richieste da valutare.</p>' : ''}${m?.incomplete ? '<p>Informazioni sulla preparazione parziali.</p>' : ''}</div>`;
     }
     const oggiSegretariaErrors = {
         unauthorized: 'Accedi di nuovo per leggere i seguiti.', forbidden: 'Questa vista richiede un accesso amministratore.',
@@ -4729,7 +4747,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         contact_changed: 'Il destinatario è cambiato. Prepara di nuovo il lavoro e controlla il recapito.',
         preparation_in_progress: 'La Segreteria sta già preparando questo caso. Ricarica tra poco.',
         preparation_disabled: 'La preparazione della Segreteria è disattivata. Puoi comunque correggere il seguito.',
-        preparation_daily_cap: 'Raggiunto il limite giornaliero di preparazioni. Il seguito resta visibile.',
+        preparation_daily_cap: 'Il servizio precedente segnala un limite di preparazione. Il seguito resta visibile: aggiorna lo stato.',
         preparation_needs_context: 'Mancano informazioni necessarie: controlla il collegamento e correggi il seguito.',
         preparation_policy_changed: 'Questa proposta va ricalcolata con i controlli aggiornati. Il seguito è conservato.',
         commitment_requires_confirmation: 'La fonte esprime una possibilità, non una conferma. Il seguito resta da verificare.',
@@ -4742,21 +4760,22 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         identity_not_verified: 'Identità da verificare prima di confermare.', identity_ambiguous: 'Identità ambigua: controlla il collegamento prima di confermare.',
         invalid_prepared_follow_up: 'La proposta richiede un nuovo ricontrollo futuro. Prepara di nuovo il lavoro.',
         approval_changed_reload: 'Il seguito è cambiato durante la conferma. Ho ricaricato lo stato attuale.',
-        preparation_unavailable: 'Non riesco a preparare il lavoro ora. Il seguito e le informazioni precedenti restano disponibili.'
+        preparation_unavailable: 'Non riesco a preparare il lavoro ora. Il seguito e le informazioni precedenti restano disponibili.',
+        follow_up_page_unavailable: 'Non riesco a leggere tutti i seguiti. I dati già visibili sono conservati e potrebbero non essere aggiornati.'
     };
     function oggiSegretariaError(error) {
         if (String(error && error.code || '').startsWith('calendar_'))
             return 'La proposta contiene una data o un ricontrollo non coerente con le fonti. Il seguito resta da verificare.';
         return oggiSegretariaErrors[error && error.code] || 'Non riesco ad aggiornare i seguiti. Riprova: i dati già visibili potrebbero non essere aggiornati.';
     }
-    async function oggiSegretariaRequest(id, body, preparation) {
+    async function oggiSegretariaRequest(id, body, preparation, after) {
         if (!isAdmin() || !auth.currentUser) throw { code: 'unauthorized' };
         const user = auth.currentUser, controller = new AbortController();
         let timer;
         const request = (async () => {
             const token = await user.getIdToken();
             if (controller.signal.aborted || auth.currentUser !== user) throw { code: 'unauthorized' };
-            const res = await fetch('/api/segretaria/' + (preparation ? 'prepare' : 'follow-up') + (id ? '?id=' + encodeURIComponent(id) : ''), {
+            const res = await fetch('/api/segretaria/' + (preparation ? 'prepare' : 'follow-up') + (id ? '?id=' + encodeURIComponent(id) : after ? '?after=' + encodeURIComponent(after) : ''), {
                 method: body ? 'POST' : 'GET', cache: 'no-store', signal: controller.signal,
                 headers: { Authorization: 'Bearer ' + token, ...(body ? { 'Content-Type': 'application/json' } : {}) },
                 ...(body ? { body: JSON.stringify(body) } : {})
@@ -4780,6 +4799,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return ms === null || !Number.isFinite(Number(ms)) ? 'Ricontrollo da impostare' : new Date(ms).toLocaleString('it-IT', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
     }
     function oggiSegretariaPreparation(task) {
+        if (task?.preparationReview) return null;
         const p = task && task.preparation;
         const readable = p && typeof p.revision === 'string' && p.revision && typeof p.summary === 'string'
             && typeof p.recommendation === 'string' && typeof p.nextAction?.text === 'string' && Array.isArray(p.sources);
@@ -4831,27 +4851,29 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const future = all.map(task => E.describe(task, null, S, now).checkAt).filter(at => at !== null && at > now).sort((a, b) => a - b)[0];
         const headline = !oggiSegretaria.loaded ? 'Mettiamo a fuoco il prossimo passo.' : groups.decisions.length
             ? (ready === groups.decisions.length ? 'Le proposte sono pronte per te.' : ready ? 'Proposte pronte e richieste da chiarire.' : groups.decisions.some(task => E.describe(task, null, S, now).due) ? 'È il momento di ricontrollare.' : 'Ci sono richieste da chiarire.')
-            : groups.preparing.length ? (oggiSegretaria.monitoring?.status === 'daily_cap' ? 'Le richieste ci sono. La preparazione è al limite.' : 'BOOM deve preparare i prossimi passi.')
+            : groups.preparing.length ? (oggiSegretariaLegacyCap() ? 'Le richieste ci sono. La preparazione richiede verifica.' : 'BOOM deve preparare i prossimi passi.')
             : total ? 'I prossimi passi sono definiti.' : 'Nessun seguito aperto in questo elenco.';
         const subline = !oggiSegretaria.loaded ? 'Carico richieste, proposte e ricontrolli.' : groups.decisions.length
-            ? (ready ? `${ready} ${ready === 1 ? 'proposta pronta' : 'proposte pronte'} da rivedere.` : 'I collegamenti e i ricontrolli da completare sono qui sotto.')
+            ? (ready ? `${ready} ${ready === 1 ? 'proposta pronta' : 'proposte pronte'} da rivedere.${groups.decisions.length > ready ? ` ${groups.decisions.length - ready} ${groups.decisions.length - ready === 1 ? 'richiesta da verificare' : 'richieste da verificare'}.` : ''}` : 'I collegamenti e i ricontrolli da completare sono qui sotto.')
             : groups.preparing.length ? `${groups.preparing.length} ${groups.preparing.length === 1 ? 'richiesta ancora da preparare' : 'richieste ancora da preparare'}. Le proposte da rivedere compariranno in Decisioni per te.`
             : total ? 'Il lavoro resta visibile fino a una chiusura con esito.' : 'Le nuove richieste compariranno qui con il loro prossimo passo.';
         const row = (task, group) => {
             const d = E.describe(task, oggiSegretaria.dossiers[task.id], S, now);
-            const p = oggiSegretariaPreparation(task), n = p?.nextAction, receipt = oggiSegretariaReceipt(task);
+            const p = oggiSegretariaPreparation(task), n = p?.nextAction, receipt = oggiSegretariaReceipt(task), reviewIssue = E.reviewReason?.(task) || (task.preparationReview ? 'La richiesta richiede una verifica prima di proseguire.' : '');
             const title = p && !p.approval ? p.recommendation : n?.text || d.nextAction;
-            const capReached = oggiSegretaria.monitoring?.status === 'daily_cap';
-            const action = p ? 'review' : capReached ? 'inspect' : 'generate', key = 'case-' + task.id;
+            const capReached = oggiSegretariaLegacyCap();
+            const inspect = !!reviewIssue || capReached || oggiSegretaria.monitoring?.mode === 'continuous';
+            const action = p ? 'review' : inspect ? 'inspect' : 'generate', key = 'case-' + task.id;
             const channel = p?.draft?.channel === 'email' ? 'Risposta email' : p?.draft?.channel === 'whatsapp' ? 'Risposta WhatsApp' : /^phone:/.test(task.followUp.lastMessageId || '') ? 'Telefono' : /^mail_/.test(task.followUp.lastMessageId || '') ? 'Email' : 'Conversazione';
-            const label = p ? (receipt ? 'Vedi seguito' : 'Rivedi proposta') : capReached ? 'Esamina richiesta' : 'Prepara il lavoro';
+            const label = p ? (receipt ? 'Vedi seguito' : 'Rivedi proposta') : inspect ? 'Esamina richiesta' : 'Prepara il lavoro';
             return `<article class="sg-case sg-case--${group}" data-sg-id="${esc(task.id)}" aria-labelledby="sg-case-${esc(task.id)}">
                 <div class="sg-case-main">
-                    <div class="sg-case-top"><span class="sg-person">${esc(d.name)}</span><span class="sg-case-channel">${channel}</span><span class="li-flag sg-state-label ${d.due ? 'sg-due' : ''}">${esc(d.state)}</span>${p && !p.approval ? `<span class="sg-proposal-label">${p.status === 'ready' ? 'Proposta pronta' : 'Da completare'}</span>` : ''}</div>
+                    <div class="sg-case-top"><span class="sg-person">${esc(d.name)}</span><span class="sg-case-channel">${channel}</span><span class="li-flag sg-state-label ${d.due ? 'sg-due' : ''}">${esc(d.state)}</span>${p && !p.approval ? `<span class="sg-proposal-label">${p.status === 'ready' ? 'Proposta pronta' : 'Da verificare'}</span>` : reviewIssue ? '<span class="sg-proposal-label">Da verificare</span>' : ''}</div>
                     <h4 id="sg-case-${esc(task.id)}" class="sg-case-title">${esc(title)}</h4>
                     ${p ? `<p class="sg-case-summary">${esc(p.summary || '')}</p>` : d.preview ? `<p class="sg-case-summary">${esc(d.preview)}</p>` : ''}
                     <div class="sg-case-meta"><span><span class="sg-meta-label">Chi agisce</span>${esc(n?.waitingLabel || d.waiting)}</span><span><span class="sg-meta-label">Ricontrollo interno</span>${esc(oggiSegretariaDate(n?.checkAt ? Date.parse(n.checkAt) : d.checkAt))}</span></div>
                     ${oggiSegretariaTiming(task)}
+                    ${reviewIssue ? `<p class="sg-inline-notice" role="status">${esc(reviewIssue)} Nessun nuovo tentativo automatico finché il caso resta in verifica.</p>` : ''}
                     ${p?.coverage?.incomplete ? '<p class="sg-inline-notice">Contesto parziale: informazioni mancanti da controllare.</p>' : ''}
                     ${receipt ? `<p class="sg-receipt" role="status">${esc(receipt)}</p>` : task.preparation && !p ? '<p class="sg-inline-notice">La proposta precedente va aggiornata.</p>' : ''}
                 </div>
@@ -4865,7 +4887,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <p id="sgFreshness" class="sg-footnote" role="status">${esc(oggiSegretariaFreshness())}</p>
             <details class="sg-footnote" data-sg-detail="coverage" ${opened.has('coverage') ? 'open' : ''}><summary>Copertura degli aggiornamenti</summary><p>Le date riguardano i seguiti e gli ingressi nelle chat WhatsApp caricate. Le chat miste, i messaggi già seguiti da una risposta e le conversazioni fuori dall’elenco possono non essere inclusi. La copertura di WhatsApp non è verificata da questi dati.</p></details>
             ${oggiSegretaria.error ? `<div class="sg-notice sg-notice--warning" role="alert">${esc(oggiSegretaria.error)}</div>` : ''}
-            ${oggiSegretaria.incomplete ? '<div class="sg-notice sg-notice--warning" role="status">Elenco parziale: raggiunto il limite di 200 seguiti. Potrebbero esserci altre richieste aperte.</div>' : ''}
+            ${oggiSegretaria.incomplete ? '<div class="sg-notice sg-notice--warning" role="status">Elenco parziale: non è stato possibile leggere tutti i seguiti. Potrebbero esserci altre richieste aperte.</div>' : ''}
             ${groups.invalid ? '<div class="sg-notice sg-notice--warning" role="status">Alcuni seguiti hanno dati incompleti e non sono rappresentabili in questa vista.</div>' : ''}
             ${!oggiSegretaria.loaded ? `<div class="sg-state" role="status">${oggiSegretaria.loading ? 'Carico i seguiti…' : 'Seguiti non ancora caricati.'}</div>` : `<div class="sg-workspace">${section('decisions', 'Decisioni per te', 'Proposte da rivedere, ricontrolli confermati e richieste di orario da chiarire.', 'Nessun seguito richiede una decisione in questo elenco.')}${groups.progress.length || groups.waiting.length ? `<div class="sg-secondary-grid">${section('progress', 'In corso', 'Prossime azioni affidate a BOOM o a Valentino, e invii in coda.', 'Nessuna attività confermata in corso in questo elenco.')}${section('waiting', 'In attesa', 'La prossima azione spetta al cliente o a un collaboratore.', 'Le attese confermate resteranno qui fino a un nuovo messaggio, al ricontrollo o a una chiusura con esito.')}</div>` : '<p class="sg-quiet-state">In corso e in attesa · nessun seguito confermato in questo elenco.</p>'}${groups.preparing.length ? section('preparing', 'Da preparare', 'Richieste ricevute: BOOM deve ancora preparare una proposta. Puoi aprire le fonti o correggere il seguito.', '') : ''}<p class="sg-footnote">Un ricontrollo interno non è una scadenza promessa al cliente. Leggere o rispondere non chiude il seguito.</p></div>`}`;
         panel.onclick = event => {
@@ -4903,13 +4925,33 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const generation = ++oggiSegretaria.generation;
         oggiSegretaria.loading = true;
         oggiSegretariaRender();
+        const rows = new Map();
+        let latestMonitor = null;
         try {
-            const data = await oggiSegretariaRequest();
-            if (generation !== oggiSegretaria.generation) return;
-            if (!Array.isArray(data.rows)) throw { code: 'invalid_response' };
-            Object.assign(oggiSegretaria, { rows: data.rows, incomplete: data.incomplete === true, loaded: true, error: '', readAt: Date.now(), monitoring: data.monitoring || null });
+            // Refresh the whole list before replacing it: later pages must not
+            // disappear during a refresh, and an open draft is never recreated.
+            const seen = new Set();
+            let cursor = null, data;
+            do {
+                data = await oggiSegretariaRequest(null, null, false, cursor);
+                if (generation !== oggiSegretaria.generation || S.page !== 'oggi' || !document.getElementById('sgFollowPanel')) return;
+                if (!Array.isArray(data.rows)) throw { code: 'invalid_response' };
+                for (const task of data.rows) {
+                    if (!task || typeof task.id !== 'string' || !task.id) throw { code: 'invalid_response' };
+                    rows.set(task.id, task);
+                }
+                latestMonitor = data.monitoring || null;
+                if (data.readingDegraded === true) throw { code: 'follow_up_page_unavailable' };
+                cursor = data.nextCursor || null;
+                if (cursor !== null && (typeof cursor !== 'string' || seen.has(cursor))) throw { code: 'invalid_response' };
+                if (cursor) seen.add(cursor);
+            } while (cursor);
+            Object.assign(oggiSegretaria, { rows: [...rows.values()], incomplete: data.incomplete === true, loaded: true, error: '', readAt: Date.now(), monitoring: data.monitoring || null });
         } catch (e) {
-            if (generation === oggiSegretaria.generation) oggiSegretaria.error = oggiSegretariaError(e);
+            if (generation === oggiSegretaria.generation) {
+                if (!oggiSegretaria.loaded && rows.size) Object.assign(oggiSegretaria, { rows: [...rows.values()], loaded: true, incomplete: true, monitoring: latestMonitor });
+                oggiSegretaria.error = oggiSegretariaError(e);
+            }
         } finally {
             if (generation === oggiSegretaria.generation) {
                 oggiSegretaria.loading = false;
@@ -4985,7 +5027,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
     function oggiSegretariaReview(m) {
         const p = oggiSegretariaPreparation(m.task), E = window.BOOM_SEGRETARIA_CASI;
-        if (!p) return oggiSegretariaTiming(m.task) + (oggiSegretaria.monitoring?.status === 'daily_cap' ? '<div class="sg-notice sg-notice--warning" role="status">Limite giornaliero raggiunto. Puoi leggere le fonti e correggere il seguito; la preparazione riprenderà quando saranno disponibili altri tentativi.</div>' : '') + (!Number.isFinite(Date.parse(m.task?.followUp?.checkAt)) ? '<p class="sg-inline-notice">Ricontrollo da impostare. Il seguito resta aperto: scegli la data in «Correggi seguito».</p>' : '') + '<div class="sg-review-empty"><p class="sg-eyebrow">Prossimo passo</p><h4>Prepariamo il prossimo passo</h4><p>La Segreteria ricostruisce la richiesta dalle fonti disponibili e propone azione, responsabile e risposta. Potrai rivedere tutto prima di confermare.</p><p class="sg-muted">Preparare il lavoro non invia messaggi.</p></div>';
+        const reviewIssue = E.reviewReason?.(m.task) || (m.task?.preparationReview ? 'La richiesta richiede una verifica prima di proseguire.' : '');
+        if (!p) return oggiSegretariaTiming(m.task) + (reviewIssue ? `<div class="sg-notice sg-notice--warning" role="status"><strong>Da verificare.</strong> ${esc(reviewIssue)} Apri le fonti e correggi il seguito prima di richiedere una nuova preparazione.</div>` : '') + (oggiSegretariaLegacyCap() ? '<div class="sg-notice sg-notice--warning" role="status">Il servizio precedente segnala un limite di preparazione. Puoi leggere le fonti e correggere il seguito; aggiorna lo stato del servizio.</div>' : '') + (!Number.isFinite(Date.parse(m.task?.followUp?.checkAt)) ? '<p class="sg-inline-notice">Ricontrollo da impostare. Il seguito resta aperto: scegli la data in «Correggi seguito».</p>' : '') + '<div class="sg-review-empty"><p class="sg-eyebrow">Prossimo passo</p><h4>Prepariamo il prossimo passo</h4><p>La Segreteria ricostruisce la richiesta dalle fonti disponibili e propone azione, responsabile e risposta. Potrai rivedere tutto prima di confermare.</p><p class="sg-muted">Preparare il lavoro non invia messaggi.</p></div>';
         const n = p.nextAction || {}, recipient = p.recipientPreview || {}, receipt = oggiSegretariaReceipt(m.task);
         const list = rows => (Array.isArray(rows) ? rows : []).map(item => `<li>${esc(item.text || '')}${item.kind ? `<span class="sg-evidence-status">${item.kind === 'inferred' ? 'Dedotto, da verificare' : 'Esplicito'} · ${esc({ pending: 'Da completare', satisfied: 'Risulta soddisfatto', unclear: 'Esito incerto' }[item.status] || 'Da verificare')}</span>` : ''}</li>`).join('');
         const reasons = {
@@ -5038,7 +5081,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const selected = !identityBlocked && options.some(p => p.ref === (f && f.practiceRef)) ? f.practiceRef : '';
         const d = m.task ? E.describe(m.task, dossier, S, Date.now()) : null;
         const p = oggiSegretariaPreparation(m.task), review = m.mode === 'review';
-        const capReached = oggiSegretaria.monitoring?.status === 'daily_cap';
+        const capReached = oggiSegretariaLegacyCap();
         const canApprove = review && p?.status === 'ready' && !p.identityBlocked && !identityBlocked && !p.approval && !m.uncertain && !m.mustRegenerate
             && oggiSegretariaRecipient(p) && (!p.draft || p.nextAction?.practiceRef);
         const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'ora locale';
@@ -5067,7 +5110,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ${form || (m.error ? '<button class="btn btn-secondary" type="button" data-sg-modal="reload">Riprova</button>' : '<p class="sg-state" role="status">Carico la richiesta e le pratiche collegate…</p>')}
             </div><div class="modal-footer sg-modal-footer"><div class="sg-footer-note">${review && p?.draft && !p.approval ? 'Rivedi testo e destinatario prima di inviare.' : 'Il seguito resta aperto fino a un esito.'}</div><div class="sg-footer-actions"><button class="btn btn-secondary sg-cancel" type="button" data-sg-modal="cancel">Annulla</button>
                 ${f && m.task.status === 'open' ? (review ? `<button class="btn btn-secondary" type="button" data-sg-modal="edit">Correggi seguito</button>
-                    ${m.uncertain ? '<button class="btn sg-primary" type="button" data-sg-modal="reload">Ricarica l’esito</button>' : !p ? `<button class="btn sg-primary" type="button" data-sg-modal="generate" ${capReached ? 'disabled' : ''}>${capReached ? 'Limite giornaliero raggiunto' : 'Prepara il lavoro'}</button>` : !p.approval ? `<button class="btn btn-secondary" type="button" data-sg-modal="generate" ${capReached ? 'disabled' : ''}>Rielabora</button><button class="btn sg-primary" type="button" data-sg-modal="approve" ${canApprove ? '' : 'disabled'}>${!canApprove ? 'Informazioni da completare' : p.draft ? 'Conferma e invia' : 'Conferma il seguito'}</button>` : ''}`
+                    ${m.uncertain ? '<button class="btn sg-primary" type="button" data-sg-modal="reload">Ricarica l’esito</button>' : !p ? `<button class="btn sg-primary" type="button" data-sg-modal="generate" ${capReached ? 'disabled' : ''}>${capReached ? 'Preparazione da verificare' : 'Prepara il lavoro'}</button>` : !p.approval ? `<button class="btn btn-secondary" type="button" data-sg-modal="generate" ${capReached ? 'disabled' : ''}>Rielabora</button><button class="btn sg-primary" type="button" data-sg-modal="approve" ${canApprove ? '' : 'disabled'}>${!canApprove ? 'Informazioni da completare' : p.draft ? 'Conferma e invia' : 'Conferma il seguito'}</button>` : ''}`
                     : m.mode === 'close' ? '<button class="btn btn-secondary" type="button" data-sg-modal="back">Torna al seguito</button><button class="btn sg-primary" type="submit" form="sgFollowForm" data-sg-submit>Registra esito e chiudi</button>' : `<button class="btn btn-secondary" type="button" data-sg-modal="close">Chiudi con un esito</button><button class="btn sg-primary" type="submit" form="sgFollowForm" data-sg-submit>${selected ? 'Conferma seguito' : 'Salva · da collegare'}</button>`) : ''}
             </div></div></div></div>`;
         document.body.classList.add('modal-open');
@@ -5105,8 +5148,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     async function oggiSegretariaPrepare(operation) {
         const m = oggiSegretaria.modal;
         if (!m?.task || m.busy || m.mode !== 'review' || !['generate', 'approve'].includes(operation)) return;
-        if (operation === 'generate' && oggiSegretaria.monitoring?.status === 'daily_cap') {
-            m.error = 'Limite giornaliero raggiunto. Puoi leggere le fonti e correggere il seguito.';
+        if (operation === 'generate' && oggiSegretariaLegacyCap()) {
+            m.error = 'Il servizio precedente segnala un limite di preparazione. Puoi leggere le fonti e correggere il seguito; aggiorna lo stato del servizio.';
             oggiSegretariaModalRender(); return;
         }
         const p = oggiSegretariaPreparation(m.task), revision = p?.revision;
@@ -5138,9 +5181,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             if (oggiSegretaria.modal !== m) return;
             if (operation === 'generate') {
                 if (data.id !== m.id || !data.preparation?.revision || data.preparation.messageId !== m.task.followUp.lastMessageId) throw { code: 'invalid_response' };
-                m.task = { ...m.task, preparation: data.preparation };
+                const preparedTask = { ...m.task, preparation: data.preparation, preparationReview: null };
+                if (!oggiSegretariaPreparation(preparedTask)) throw { code: 'invalid_response' };
+                m.task = preparedTask;
                 m.mustRegenerate = false; m.uncertain = false;
-                oggiSegretaria.rows = oggiSegretaria.rows.map(t => t.id === m.id && t.followUp.lastMessageId === m.task.followUp.lastMessageId ? { ...t, preparation: data.preparation } : t);
+                oggiSegretaria.rows = oggiSegretaria.rows.map(t => t.id === m.id && t.followUp.lastMessageId === m.task.followUp.lastMessageId ? { ...t, preparation: data.preparation, preparationReview: null } : t);
                 oggiSegretariaRender();
             } else await confirmed(data);
         } catch (e) {

@@ -208,7 +208,7 @@ try {
     p.coverage = { ...p.coverage, incomplete: true, reasons: ['historical_summary_excluded'] };
     await oggiSegretariaLoad(true);
   });
-  assert.equal(await page.locator(`article[data-sg-id="${ids[0]}"] .sg-proposal-label`).innerText(), 'DA COMPLETARE');
+  assert.equal(await page.locator(`article[data-sg-id="${ids[0]}"] .sg-proposal-label`).innerText(), 'DA VERIFICARE');
   await open(ids[0]);
   assert.equal(await page.locator('[data-sg-modal="approve"]').isDisabled(), true);
   assert.match(await page.locator('#sgPreparationReview').innerText(), /Attesa da verificare nelle fonti/);

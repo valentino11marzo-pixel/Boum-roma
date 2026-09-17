@@ -50,14 +50,14 @@ export function preparationPrompt({ channel, language, role }) {
     'Se il messaggio esitante è OUT (esempio BOOM: "venerdì dovrei esserci"), manca prima di tutto la disponibilità di BOOM, non solo l\'orario del cliente. Prima azione: Valentino verifica internamente chi può esserci. draft=null finché questa disponibilità non è confermata; non chiedere prima al cliente di fissare l\'orario e non far sembrare già certa quella giornata.',
     'calendar usa Europe/Rome e ancora i giorni al timestamp della FONTE, non al momento di questa preparazione. Rispetta i riferimenti resolved; un riferimento ambiguous resta da chiarire, senza inventarne data o anno. La data risolta non prova che esista una prenotazione. Se il ricontrollo serve prima di un evento, deve precederlo realmente; se è troppo tardi segnala la verifica urgente, senza descriverlo come anticipo. Non riportare una data passata alla settimana corrente.',
     'Prepara UN prossimo passo utile e completo, non "verificare la richiesta". Usa il lavoro già concordato, senza duplicarlo. Per ogni fatto, impegno e incertezza cita sourceIds e una quote letterale presente nella fonte. Le deduzioni hanno kind inferred, non diventano fatti confermati.',
-    'nextAction.checkAt è un ricontrollo INTERNO proposto, ISO con timezone nel futuro. Sceglilo in base al passo ancora da compiere e motivalo in reason, senza prometterlo al cliente. La disponibilità del cliente (es. "domani pomeriggio") è una preferenza: prima si verifica il tecnico, poi si propone uno slot e solo dopo la sua conferma si comunica l\'orario. Non riunire questi passaggi in un intervento già organizzato.',
+    'nextAction.checkAt è un ricontrollo INTERNO proposto, ISO con timezone nel futuro. Dichiara anche nextAction.checkLocal={date:"YYYY-MM-DD",time:"HH:mm",timeZone:"Europe/Rome"}: deve essere la stessa data e ora italiana di checkAt, tenendo conto dell’ora legale. calendar.nowLocal indica l’ora italiana attuale. Scegli il ricontrollo in base al passo ancora da compiere e motivalo in reason, senza prometterlo al cliente. Motiva l’ora concreta, senza formule non quantificate come "poco dopo". La disponibilità del cliente (es. "domani pomeriggio") è una preferenza: prima si verifica il tecnico, poi si propone uno slot e solo dopo la sua conferma si comunica l\'orario. Non riunire questi passaggi in un intervento già organizzato.',
     'nextAction.waitingOn indica chi deve compiere il PROSSIMO passo adesso, non chi risponderà dopo. Usa client soltanto per una richiesta già inviata o un impegno esplicito del cliente; collaborator soltanto per un incarico o una risposta attesa già documentati nelle fonti. Se bisogna ancora fare una domanda o scegliere e incaricare il tecnico, proponi quel passo a Valentino: non mettere già il caso in attesa del destinatario. Conserva invece l\'incaricato già concordato quando è provato. Esempio: "Chiedere quale appartamento" → valentino, non client; "Attendere la foto promessa dal cliente" → client.',
     'Le executionCapabilities descrivono gli esecutori realmente disponibili. BOOM non è un collaboratore indistinto: questo passaggio prepara e ricontrolla, non assegna tecnici, non prenota interventi e non chiama. waitingOn boom è ammesso solo per un ricontrollo automatico esplicitamente supportato; per una nuova attività umana indica chi deve deciderla o avviarla. Scrivi nextAction all\'infinito come proposta, mai come presa in carico avvenuta. Non affermare "BOOM organizza" o "il tecnico passa" senza una fonte che attesti l\'incarico.',
     'practiceRef: conserva existingFollowUp.practiceRef quando è ancora tra persona.practices e l\'identità è verificata; non azzerare una scelta già confermata perché manca un orario o un tecnico. Fra più candidati senza scelta confermata usa null e spiega la sola informazione mancante. Se il cliente chiede Valentino/umano, handoff needed=true: prepara il richiamo, mai affermare trasferimento o disponibilità non verificati.',
     'Scrivi un draft soltanto se il contesto basta. Il destinatario non si genera. Se replyOwnership.blocked è vero, esiste una risposta affidata altrove o la verifica è incompleta: draft null, conserva il seguito senza duplicare. Pagamenti e firme appartengono ai flussi specialistici: nessun secondo sollecito; draft null. Prezzi negoziati, sconti, contratti e interventi non vengono eseguiti da questa proposta.',
     'Quando una risposta è ancora attesa, conserva quell\'attesa e prepara un eventuale sollecito solo se giustificato dalla data e dagli accordi. Una storia parziale resta parziale: non dichiarare che ricostruisce tutta la relazione. Non chiedere nuovamente informazioni già certe.',
     'Media e allegati non letti restano non letti: non dedurre il loro contenuto dai segnaposto. Lo stato commerciale waitlist/occupied/available e una data passata non provano da soli la disponibilità attuale: usa i flussi e le conferme pertinenti, altrimenti proponi la verifica senza anticiparne l\'esito. recommendation e nextAction descrivono lo STESSO primo passo; ometti dettagli di altri processi che non servono alla decisione.',
-    'FORMATO: solo JSON, esattamente {summary,recommendation,facts:[{text,sourceIds,quote}],commitments:[{text,sourceIds,quote,kind:"explicit|inferred",status:"pending|satisfied|unclear"}],uncertainties:[{text,sourceIds,quote}],nextAction:{text,waitingOn:"valentino|client|collaborator|boom",waitingLabel,checkAt,practiceRef:null,sourceIds,reason},draft:null oppure {channel:"whatsapp|email",text,subject,sourceIds},handoff:{needed:false,reason,sourceIds}}. Massimo 6 facts, 6 commitments, 6 uncertainties. quote è letterale, breve. Non aggiungere autoApply, tool calls o destinatari.'
+    'FORMATO: solo JSON, esattamente {summary,recommendation,facts:[{text,sourceIds,quote}],commitments:[{text,sourceIds,quote,kind:"explicit|inferred",status:"pending|satisfied|unclear"}],uncertainties:[{text,sourceIds,quote}],nextAction:{text,waitingOn:"valentino|client|collaborator|boom",waitingLabel,checkAt,checkLocal:{date,time,timeZone:"Europe/Rome"},practiceRef:null,sourceIds,reason},draft:null oppure {channel:"whatsapp|email",text,subject,sourceIds},handoff:{needed:false,reason,sourceIds}}. Massimo 6 facts, 6 commitments, 6 uncertainties. quote è letterale, breve. Non aggiungere autoApply, tool calls o destinatari.'
   ].join('\n\n');
 }
 
@@ -90,8 +90,13 @@ export async function prepareCase({ id, actor, now = Date.now(), background = fa
     && task.preparation.contactFingerprint === contactHash
     && (task.preparation.approval?.followUpFingerprint || task.preparation.followUpFingerprint) === followUpFingerprint
     && task.preparation.replyOwnerFingerprint === replyOwnerFingerprint
-    && (!recheckFor || task.preparation.recheckFor === recheckFor)
+    && (task.preparation.status === 'needs_context' || !recheckFor || task.preparation.recheckFor === recheckFor)
     && (task.preparation.selectedPracticeRef === selection || task.preparation.approval)) {
+    if (task.preparationRetry || task.preparationError) {
+      try { await fsCommit([{ docPath: path, fields: { preparationRetry: null, preparationError: null },
+        precondition: { updateTime: initial.updateTime } }]); }
+      catch (e) { if (e?.conflict) return { code: 409, error: 'new_message_reload' }; throw e; }
+    }
     return { code: 200, id, preparation: task.preparation, cached: true };
   }
   if (task.preparation?.approval?.actionId) {
@@ -105,13 +110,17 @@ export async function prepareCase({ id, actor, now = Date.now(), background = fa
   if (lease?.data.busy && Date.parse(lease.data.expiresAt) > now) return { code: 409, error: 'preparation_in_progress' };
   const counterPath = 'heartbeat/segretaria-preparations-' + day(now);
   const counter = await fsGetVersioned(counterPath);
-  if (Number(counter?.data.count || 0) >= cfg.dailyCap) return { code: 429, error: 'preparation_daily_cap' };
+  // Preparation is continuous. dailyCap belongs to conversational replies;
+  // this counter is telemetry, never permission to consider another case.
+  const attempts = counter ? counter.data.count : 0;
+  if (!Number.isSafeInteger(attempts) || attempts < 0 || attempts === Number.MAX_SAFE_INTEGER)
+    return { code: 503, error: 'preparation_counter_invalid' };
   const leaseId = crypto.randomUUID();
   try {
     if (!time.afford(35_000)) return { code: 503, error: 'preparation_time_budget' };
     await fsCommit([
       { docPath: leasePath, fields: { busy: true, leaseId, expiresAt: new Date(now + 120000).toISOString() }, precondition: guard(lease) },
-      { docPath: counterPath, fields: { count: Number(counter?.data.count || 0) + 1, at: new Date(now) }, precondition: guard(counter) },
+      { docPath: counterPath, fields: { count: attempts + 1, at: new Date(now) }, precondition: guard(counter) },
     ]);
   } catch (e) { if (e?.conflict) return { code: 409, error: 'preparation_in_progress' }; throw e; }
   try {
@@ -187,6 +196,10 @@ export async function prepareCase({ id, actor, now = Date.now(), background = fa
     }
     const proposedCheck = checkTimestamp(proposal.nextAction.checkAt);
     if (!Number.isFinite(proposedCheck) || proposedCheck <= now || proposedCheck > now + 365 * 86400000) return { code: 422, error: 'invalid_preparation_time' };
+    // Validate the model's actual intention before a deterministic guard can
+    // move the internal check. Never repair an incorrect UTC/Rome conversion.
+    const timing = CALENDAR.validateCheckTiming(proposal.nextAction, { declaredLocal: parsed.nextAction.checkLocal });
+    const proposedCheckAt = proposal.nextAction.checkAt;
     proposal.nextAction = PROPOSTA.nextActor(proposal, { followUp: task.followUp, now,
       sources: context.sources, rawCommitments: parsed.commitments, contactName: conv.contactName,
       historyVerified: context.coverage.history?.ordered === true && context.coverage.history?.limited !== true
@@ -196,6 +209,23 @@ export async function prepareCase({ id, actor, now = Date.now(), background = fa
       proposal.status = 'needs_context';
       proposal.recommendation = proposal.nextAction.text;
       proposal.handoff = { needed: true, reason: proposal.nextAction.reason, sourceIds: proposal.nextAction.sourceIds };
+    }
+    const guardChangedTime = proposal.nextAction.checkAt !== proposedCheckAt;
+    proposal.nextAction.checkLocal = guardChangedTime
+      ? CALENDAR.romeLocalInstant(proposal.nextAction.checkAt) : timing.checkLocal;
+    proposal.timingValidation = { ok: timing.ok, issues: timing.issues,
+      proposedCheckAt, proposedLocal: timing.checkLocal,
+      declaredLocal: parsed.nextAction.checkLocal && typeof parsed.nextAction.checkLocal === 'object'
+        ? { date: typeof parsed.nextAction.checkLocal.date === 'string' ? parsed.nextAction.checkLocal.date.slice(0, 10) : null,
+          time: typeof parsed.nextAction.checkLocal.time === 'string' ? parsed.nextAction.checkLocal.time.slice(0, 5) : null,
+          timeZone: typeof parsed.nextAction.checkLocal.timeZone === 'string' ? parsed.nextAction.checkLocal.timeZone.slice(0, 40) : null } : null,
+      guardChangedTime };
+    if (!timing.ok) {
+      proposal.status = 'needs_context';
+      proposal.draft = null;
+      proposal.handoff = { needed: true,
+        reason: 'Data, ora italiana o motivazione del ricontrollo da verificare prima di confermare il lavoro.',
+        sourceIds: proposal.nextAction.sourceIds };
     }
     const checkAt = checkTimestamp(proposal.nextAction.checkAt);
     if (!Number.isFinite(checkAt) || checkAt <= now || checkAt > now + 365 * 86400000) return { code: 422, error: 'invalid_preparation_time' };
@@ -229,7 +259,7 @@ export async function prepareCase({ id, actor, now = Date.now(), background = fa
         ...(s.provenance ? { provenance: s.provenance, firstAt: s.firstAt || null,
           lastAt: s.lastAt || null, syncedAt: s.syncedAt || null, limitation: s.limitation } : {}) })) };
     preparation.revision = sha(preparation);
-    try { await fsCommit([{ docPath: path, fields: { preparation, preparationError: null }, precondition: { updateTime: fresh.updateTime } }]); }
+    try { await fsCommit([{ docPath: path, fields: { preparation, preparationError: null, preparationRetry: null }, precondition: { updateTime: fresh.updateTime } }]); }
     catch (e) { if (e?.conflict) return { code: 409, error: 'new_message_reload' }; throw e; }
     return { code: 200, id, preparation, cached: false };
   } catch {

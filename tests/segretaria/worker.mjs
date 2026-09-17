@@ -18,7 +18,7 @@ const DB = new Map(), versions = new Map(), writes = [], allWrites = [], network
 globalThis.__mails = [];
 let sequence = 0, failingCollection = '', beforePatch = null, commitHook = null;
 let aiHits = 0, aiHook = null, aiBuilder = null, failFirstTaskReads = 0, listDelayMs = 0, readHook = null;
-const aiInputs = [], aiRequests = [];
+const aiInputs = [], aiRequests = [], queryReads = [];
 const enc = v => v == null ? { nullValue: null }
   : v instanceof Date ? { timestampValue: v.toISOString() }
   : typeof v === 'boolean' ? { booleanValue: v }
@@ -26,7 +26,7 @@ const enc = v => v == null ? { nullValue: null }
   : typeof v === 'string' ? { stringValue: v }
   : Array.isArray(v) ? { arrayValue: { values: v.map(enc) } }
   : { mapValue: { fields: Object.fromEntries(Object.entries(v).map(([k, x]) => [k, enc(x)])) } };
-const dec = v => 'nullValue' in v ? null : 'timestampValue' in v ? v.timestampValue
+const dec = v => 'referenceValue' in v ? v.referenceValue : 'nullValue' in v ? null : 'timestampValue' in v ? v.timestampValue
   : 'booleanValue' in v ? v.booleanValue : 'integerValue' in v ? Number(v.integerValue)
   : 'stringValue' in v ? v.stringValue : 'arrayValue' in v ? (v.arrayValue.values || []).map(dec)
   : Object.fromEntries(Object.entries(v.mapValue?.fields || {}).map(([k, x]) => [k, dec(x)]));
@@ -93,6 +93,7 @@ globalThis.fetch = async (rawURL, opts = {}) => {
   }
   if (url.pathname.endsWith(':runQuery')) {
     const q = body.structuredQuery, coll = q.from[0].collectionId;
+    queryReads.push(structuredClone(q));
     if (coll === 'operatorTasks' && listDelayMs) { clock += listDelayMs; listDelayMs = 0; }
     if (coll === failingCollection) return json({ error: { status: 'UNAVAILABLE' } }, 503);
     const matches = (row, filter) => {
@@ -109,7 +110,11 @@ globalThis.fetch = async (rawURL, opts = {}) => {
     };
     let entries = [...DB].filter(([p, row]) => p.startsWith(coll + '/') && p.split('/').length === 2 && matches(row, q.where));
     for (const sort of [...(q.orderBy || [])].reverse()) entries.sort((a, b) =>
-      String(field(a[1], sort.field.fieldPath)).localeCompare(String(field(b[1], sort.field.fieldPath))) * (sort.direction === 'DESCENDING' ? -1 : 1));
+      String(sort.field.fieldPath === '__name__' ? a[0] : field(a[1], sort.field.fieldPath)).localeCompare(String(sort.field.fieldPath === '__name__' ? b[0] : field(b[1], sort.field.fieldPath))) * (sort.direction === 'DESCENDING' ? -1 : 1));
+    if (q.startAt) {
+      const start = q.startAt.values[0].referenceValue.split('/documents/')[1];
+      entries = entries.filter(([path]) => q.startAt.before ? path >= start : path > start);
+    }
     return json(entries.slice(0, q.limit || 1000).map(([p]) => ({ document: doc(p) })));
   }
   const path = decodeURIComponent(url.pathname.split('/documents/')[1] || '');
@@ -146,6 +151,8 @@ globalThis.fetch = async (rawURL, opts = {}) => {
 const { prepareCase } = await import('../../api/segretaria/_prepare.js');
 const { default: PROPOSTA } = await import('../../js/segretaria-proposta-engine.js');
 const { CONTEXT_VERSION } = await import('../../api/segretaria/_context.js');
+const { followUpDecisionHash } = await import('../../api/segretaria/_follow-up.js');
+const { default: CALENDAR } = await import('../../js/segretaria-calendar-engine.js');
 const { default: workerEndpoint, prepareNextCase } = await import('../../api/segretaria/worker.js');
 const ID = 'sg_' + 'a'.repeat(32), ID2 = 'sg_' + 'b'.repeat(32), CID = 'conv_tenant_fixture';
 const PHONE = '+393331234567', EMAIL = 'customer@example.test';
@@ -164,8 +171,8 @@ function validProposal(input) {
     facts: [{ text: 'È arrivata una richiesta di aggiornamento.', sourceIds: ids, quote }],
     commitments: [{ text: 'Il cliente attende una risposta.', sourceIds: ids, quote, kind: 'inferred', status: 'pending' }],
     uncertainties: [{ text: 'La data resta da verificare.', sourceIds: ids, quote }],
-    nextAction: { text: 'Verificare la disponibilità del tecnico', waitingOn: 'collaborator', waitingLabel: 'Tecnico',
-      checkAt: stamp(Date.parse(input.now) + 3600000), practiceRef: input.existingFollowUp.practiceRef || null,
+    nextAction: { text: 'Verificare la disponibilità del tecnico', waitingOn: 'valentino', waitingLabel: 'Valentino',
+      checkAt: stamp(Date.parse(input.now) + 3600000), checkLocal: CALENDAR.romeLocalInstant(Date.parse(input.now) + 3600000), practiceRef: input.existingFollowUp.practiceRef || null,
       sourceIds: ids, reason: 'La richiesta attende una disponibilità confermata.' },
     draft: { channel: input.channel, text: input.language === 'it'
       ? 'Ricevuto, verifichiamo la disponibilità e ti aggiorniamo.' : 'Thanks, we will check availability and update you.', sourceIds: ids },
@@ -173,7 +180,7 @@ function validProposal(input) {
 }
 function reset({ role = 'tenant', text = 'Potete aggiornarmi sulla disponibilità del tecnico?' } = {}) {
   DB.clear(); versions.clear(); writes.length = 0; network.length = 0; reads.length = 0; globalThis.__mails.length = 0;
-  aiInputs.length = 0; aiRequests.length = 0; aiHits = 0; aiHook = null; aiBuilder = null;
+  aiInputs.length = 0; aiRequests.length = 0; queryReads.length = 0; aiHits = 0; aiHook = null; aiBuilder = null;
   sequence = 0; clock = NOW; readHook = null; failFirstTaskReads = 0; listDelayMs = 0; failingCollection = ''; beforePatch = null; commitHook = null;
   save('users/admin', { role: 'admin' }); save('users/tenant', { role: 'tenant' });
   save('settings/segretaria', { enabled: true, prepareCases: true, dailyCap: 5 });
@@ -201,6 +208,9 @@ async function endpoint(handler, { method = 'POST', token = 'admin', body = {}, 
 
 const tick = () => endpoint(workerEndpoint, { method: 'GET', token: 'fixture-cron' });
 const heartbeat = () => DB.get('heartbeat/segretaria-preparer');
+const retryMarker = (after, state = 'retry_wait', extra = {}) => ({ messageId: task().followUp.lastMessageId,
+  followUpFingerprint: followUpDecisionHash(task().followUp), version: PROPOSTA.VERSION,
+  attempts: 1, reason: 'preparation_unavailable', state, after, ...extra });
 function addCase(n, inboundAt, changes = {}) {
   const id = 'sg_' + n.toString(16).padStart(32, '0'), messageId = 'event' + n;
   save('messages/' + messageId, { ...structuredClone(DB.get('messages/m1')), at: stamp(inboundAt) });
@@ -219,12 +229,12 @@ try {
     out.httpCode === 200 && out.prepared === 3 && out.checked === 3 && aiHits === 3 && count() === 3
       && JSON.stringify(out.results.map(r => r.id)) === JSON.stringify([latest, between, ID]), out);
   ok('heartbeat aggregato descrive la coda letta, il residuo e il limite batch',
-    heartbeat().queue.openCases === 4 && heartbeat().queue.pending === 4 && heartbeat().queue.newEvents === 4
-      && heartbeat().queue.currentProposals === 0 && heartbeat().queue.retrying === 0
+    heartbeat().queueBefore.openCases === 4 && heartbeat().queueBefore.pending === 4 && heartbeat().queueBefore.newEvents === 4
+      && heartbeat().queue.currentProposals === 3 && heartbeat().queue.pending === 1 && heartbeat().queue.retrying === 0
       && heartbeat().remaining === 1 && heartbeat().stoppedBy === 'batch_limit', heartbeat());
   out = await tick();
   ok('il giro successivo prepara soltanto il residuo e conta le tre proposte già correnti',
-    out.prepared === 1 && out.id === middle && out.queue.currentProposals === 3 && out.remaining === 0
+    out.prepared === 1 && out.id === middle && out.queue.currentProposals === 4 && out.remaining === 0
       && count() === 4 && untouched(), out);
   out = await tick();
   ok('coda già aggiornata resta idle: nessun modello, nessun ricontrollo inutile',
@@ -247,11 +257,31 @@ try {
   const fresh = addCase(1, clock - 1000);
   out = await tick();
   ok('nuovo messaggio precede il vecchio ricontrollo scaduto e vengono trattati entrambi',
-    out.results[0].id === fresh && out.results[1].id === ID && out.queue.newEvents === 1
-      && out.queue.rechecks === 1 && out.prepared === 2, out);
+    out.results[0].id === fresh && out.results[1].id === ID && out.queueBefore.newEvents === 1
+      && out.queueBefore.rechecks === 1 && out.prepared === 2, out);
   out = await tick();
   ok('recheckFor impedisce nuova spesa per lo stesso ricontrollo già preparato',
     out.prepared === 0 && out.checked === 0 && aiHits === 3, out);
+
+  reset();
+  revise(t => { t.followUp.confirmed = true; t.followUp.checkAt = stamp(NOW - 60000); });
+  const nearDeadline = addCase(1, NOW - 5000, { confirmed: false, checkAt: stamp(NOW + 7200000),
+    intakeTiming: { status: 'resolved', requestedAt: stamp(NOW + 1800000), sourceAt: stamp(NOW - 5000),
+      sourceMessageId: 'event1', quote: 'Entro oggi alle 12:30.' } });
+  const freshWithoutDeadline = addCase(2, NOW - 1000, { confirmed: false, checkAt: stamp(NOW + 30000) });
+  const oldestWithoutDeadline = addCase(3, NOW - 86400000, { confirmed: false, checkAt: stamp(NOW + 7200000) });
+  out = await tick();
+  ok('scadenza confermata scaduta e richiesta esplicita entro1h precedono nuovi ingressi, terzo slot equo',
+    JSON.stringify(out.results.map(row => row.id)) === JSON.stringify([ID, nearDeadline, oldestWithoutDeadline])
+      && out.queue.pending === 1 && !task(freshWithoutDeadline).preparation, out);
+
+  reset(); addCase(1, NOW - 5000, { confirmed: false, checkAt: stamp(NOW - 1000),
+    intakeTiming: { status: 'ambiguous', requestedAt: stamp(NOW - 1000), sourceAt: stamp(NOW - 5000),
+      sourceMessageId: 'event1', quote: 'Forse oggi.' } });
+  const recentWithoutPromise = addCase(2, NOW - 1000);
+  out = await tick();
+  ok('ricontrollo interno non confermato e richiesta ambigua non diventano priorità di scadenza',
+    out.results[0].id === recentWithoutPromise, out);
 
   reset(); await generate();
   ok('contesto corrente è pronto nella regola condivisa fra home e worker',
@@ -282,8 +312,8 @@ try {
       PROPOSTA.current(task()) && !PROPOSTA.currentContext(task()));
     out = await tick();
     ok('contesto precedente viene rigenerato dal worker: ' + legacy,
-      out.prepared === 1 && out.queue.rechecks === 1 && out.queue.newEvents === 0
-        && out.queue.currentProposals === 0 && task().preparation.coverage.version === 2
+      out.prepared === 1 && out.queueBefore.rechecks === 1 && out.queueBefore.newEvents === 0
+        && out.queueBefore.currentProposals === 0 && task().preparation.coverage.version === 2
         && PROPOSTA.currentContext(task()) && aiHits === 2, out);
   }
   reset(); await generate();
@@ -308,7 +338,7 @@ try {
   save('action_queue/approved-receipt', { status: 'executed', payload: { channel: 'whatsapp' }, waSentAt: stamp(NOW) });
   clock = NOW + 600001; out = await tick();
   ok('ricevuta conclusa consente preparazione del nuovo evento senza ereditare approvazione',
-    out.prepared === 1 && out.queue.newEvents === 1 && aiHits === 2
+    out.prepared === 1 && out.queueBefore.newEvents === 1 && aiHits === 2
       && task().preparation.messageId === 'new-after-approval' && !task().preparation.approval
       && PROPOSTA.currentContext(task()), out);
 
@@ -323,22 +353,16 @@ try {
   ok('preparazione concorrente trovata in cache viene contata come cached, mai come nuova',
     out.checked === 1 && out.cached === 1 && out.prepared === 0 && out.remaining === 0 && aiHits === 1, out);
 
-  reset(); save('heartbeat/segretaria-preparations-2026-09-15', { count: 5 });
+  reset(); save('heartbeat/segretaria-preparations-2026-09-15', { count: 500 });
   out = await tick();
-  ok('cap giornaliero dichiarato senza spesa, lease o rinvio dieci minuti del caso',
-    out.prepared === 0 && out.checked === 1 && out.stoppedBy === 'daily_cap' && out.remaining === 1
-      && aiHits === 0 && count() === 5 && !task().preparationRetry && !task().preparationCheckedAt
-      && !rows('heartbeat').some(([p]) => p.includes('segretaria-preparing-')), out);
-  clock = NOW + 86400000; out = await tick();
-  ok('il giorno dopo il caso è subito eleggibile senza modificare il limite configurato',
-    out.prepared === 1 && aiHits === 1 && DB.get('settings/segretaria').dailyCap === 5, out);
-
-  reset(); addCase(1, NOW - 2000); addCase(2, NOW - 1000);
-  save('heartbeat/segretaria-preparations-2026-09-15', { count: 4 });
+  ok('vecchio cap esaurito non ferma preparazioni continue né azzera il contatore',
+    out.prepared === 1 && out.checked === 1 && out.stoppedBy !== 'daily_cap'
+      && aiHits === 1 && count() >= 500 && DB.get('settings/segretaria').dailyCap === 5, out);
+  reset(); addCase(1, NOW - 2000); addCase(2, NOW - 1000); addCase(3, NOW - 3000);
+  save('heartbeat/segretaria-preparations-2026-09-15', { count: 500 });
   out = await tick();
-  ok('batch si arresta al limite esistente anche se restano candidati',
-    out.prepared === 1 && out.checked === 2 && out.stoppedBy === 'daily_cap'
-      && aiHits === 1 && count() === 5 && out.remaining === 2, out);
+  ok('batch resta tre per durata tecnica, indipendentemente dal vecchio cap',
+    out.prepared === 3 && out.checked === 3 && out.stoppedBy === 'batch_limit' && out.remaining === 1, out);
 
   reset(); addCase(1, NOW - 2000); listDelayMs = 30000;
   out = await tick();
@@ -350,7 +374,7 @@ try {
     out.checked === 1 && out.prepared === 1 && out.stoppedBy === 'time_budget' && aiHits === 1, out);
 
   reset();
-  revise(t => { t.preparationRetry = { messageId: 'm1', after: stamp(NOW + 600000) }; });
+  revise(t => { t.preparationRetry = retryMarker(stamp(NOW + 600000)); });
   out = await tick();
   ok('backoff resta visibile nel backlog ma non viene speso',
     out.queue.pending === 1 && out.queue.retrying === 1 && out.queue.eligible === 0
@@ -361,6 +385,68 @@ try {
   ok('nuovo evento sfugge subito al backoff del precedente',
     out.prepared === 1 && out.queue.retrying === 0 && !task().preparationRetry, out);
 
+  reset();
+  revise(t => { t.preparationRetry = retryMarker(stamp(NOW + 3600000)); });
+  revise(t => { t.followUp.nextAction = 'Controllare le indicazioni aggiornate.'; });
+  out = await tick();
+  ok('decisione umana cambiata riapre il retry anche sullo stesso messaggio',
+    out.prepared === 1 && aiHits === 1 && task().preparationRetry === null, out);
+
+  reset(); aiHook = async () => { throw new Error('fixture_temporary_outage'); };
+  const retryDelays = [];
+  for (let attempt = 0; attempt < 7; attempt++) {
+    out = await tick();
+    const marker = task().preparationRetry;
+    retryDelays.push((Date.parse(marker.after) - clock) / 60000);
+    ok('retry temporaneo conserva chiave, motivo e prossimo tentativo: ' + (attempt + 1),
+      marker.state === 'retry_wait' && marker.attempts === attempt + 1 && marker.version === PROPOSTA.VERSION
+        && marker.messageId === task().followUp.lastMessageId
+        && marker.followUpFingerprint === followUpDecisionHash(task().followUp)
+        && out.queue.retrying === 1 && out.queue.retryReasons.preparation_unavailable === 1
+        && out.queue.nextRetryAt === marker.after, out);
+    clock = Date.parse(marker.after);
+  }
+  ok('backoff transitorio scala1/5/15/60/360min e resta ripetibile a360, senza rinuncia definitiva',
+    JSON.stringify(retryDelays) === '[1,5,15,60,360,360,360]' && aiHits === 7, retryDelays);
+
+  reset(); aiBuilder = () => ({}); out = await tick();
+  const reviewMarker = structuredClone(task().preparationRetry);
+  ok('errore422 deterministico appare da verificare e non resta in tentativi automatici',
+    out.code === 422 && reviewMarker.state === 'review_required' && reviewMarker.after === null
+      && out.queue.awaitingReview === 1 && out.queue.pending === 0 && out.queue.retrying === 0
+      && out.queue.retryReasons.invalid_preparation === 1, out);
+  clock = NOW + 86400000; out = await tick();
+  ok('stessa422 non viene ritentata con il solo trascorrere del tempo',
+    out.checked === 0 && aiHits === 1 && out.queue.awaitingReview === 1, out);
+  aiBuilder = null;
+  revise(t => { t.preparationRetry.version = PROPOSTA.VERSION - 1; });
+  out = await tick();
+  ok('nuova versione riapre un rifiuto deterministico precedente senza ereditare retry',
+    out.prepared === 1 && aiHits === 2 && task().preparationRetry === null && out.queue.awaitingReview === 0, out);
+
+  reset(); aiBuilder = () => ({}); await tick(); aiBuilder = null;
+  revise(t => { t.followUp.lastMessageId = 'corrected_after_rejection'; });
+  save('messages/corrected_after_rejection', { ...DB.get('messages/m1'), at: stamp(NOW) });
+  out = await tick();
+  ok('nuovo evento riapre una422 da verificare', out.prepared === 1 && aiHits === 2 && out.queue.awaitingReview === 0, out);
+  reset(); aiBuilder = () => ({}); await tick(); aiBuilder = null;
+  revise(t => { t.followUp.nextAction = 'Verificare la nuova decisione.'; });
+  out = await tick();
+  ok('nuova decisione riapre una422 sullo stesso evento', out.prepared === 1 && aiHits === 2 && out.queue.awaitingReview === 0, out);
+
+  reset(); await generate();
+  revise(t => { t.preparation.status = 'needs_context'; t.preparation.version = PROPOSTA.VERSION - 1;
+    delete t.preparation.coverage; });
+  const manualReviewBefore = JSON.stringify(task().preparation);
+  clock = NOW + 86400000; out = await tick();
+  ok('needs_context resta da verificare con stessa sorgente e decisione oltre versione e scadenza',
+    out.checked === 0 && aiHits === 1 && out.queue.awaitingReview === 1 && out.queue.currentProposals === 0
+      && JSON.stringify(task().preparation) === manualReviewBefore, out);
+  revise(t => { t.followUp.nextAction = 'Correggere la decisione sulla fonte.'; });
+  out = await tick();
+  ok('decisione cambiata rende nuovamente preparabile il caso needs_context',
+    out.prepared === 1 && aiHits === 2 && out.queue.awaitingReview === 0, out);
+
   reset(); aiHook = async () => {
     revise(t => { t.followUp.lastMessageId = 'during-model'; });
     save('messages/during-model', { ...DB.get('messages/m1'), at: stamp(NOW) });
@@ -370,14 +456,26 @@ try {
     out.prepared === 0 && !task().preparation && !task().preparationRetry
       && !task().preparationCheckedAt, out);
 
+  reset(); aiHook = async () => { revise(t => { t.followUp.nextAction = 'Decisione cambiata durante la lettura.'; }); };
+  out = await tick();
+  ok('decisione cambiata durante modello non riceve retry legato alla decisione vecchia',
+    out.prepared === 0 && !task().preparationRetry && !task().preparationCheckedAt, out);
+
+  reset(); save('heartbeat/segretaria-preparer', { schedulerCursor: 0, queueScanCursor: null }); aiHook = async () => {
+    save('heartbeat/segretaria-preparer', { schedulerCursor: 2, queueScanCursor: ID2, concurrentProof: true });
+  };
+  out = await tick();
+  ok('CAS heartbeat non sovrascrive cursori di un run concorrente',
+    out.prepared === 1 && out.schedulerDegraded === true && heartbeat().queueScanCursor === ID2
+      && heartbeat().schedulerCursor === 2 && heartbeat().concurrentProof === true, out);
+
   reset(); addCase(1, NOW - 2000);
-  save('heartbeat/segretaria-preparer', { schedulerCursor: 1 });
+  save('heartbeat/segretaria-preparer', { schedulerCursor: 1, queueScanCursor: ID });
   readHook = async path => { if (path === 'heartbeat/segretaria-preparer') throw new Error('fixture_monitor_unavailable'); };
   out = await tick();
-  ok('heartbeat illeggibile degrada scheduler esplicitamente senza bloccare né sovrascrivere il cursore',
-    out.httpCode === 200 && out.prepared === 2 && out.schedulerDegraded === true
-      && !Object.hasOwn(out, 'schedulerCursor') && heartbeat().schedulerCursor === 1
-      && out.errors.some(e => e.error === 'preparation_scheduler_unavailable'), out);
+  ok('heartbeat illeggibile lascia intatto il cursore senza saltare o ricominciare la scansione',
+    out.httpCode === 503 && aiHits === 0 && heartbeat().schedulerCursor === 1
+      && heartbeat().queueScanCursor === ID && !queryReads.some(q => q.from[0].collectionId === 'operatorTasks'), out);
 
   reset(); aiHook = async () => { throw new Error('fixture_ai_failure'); };
   out = await tick();
@@ -395,10 +493,61 @@ try {
       && untouched(), concurrent);
 
   reset();
-  for (let n = 1; n < 201; n++) addCase(n, NOW - n * 1000);
+  for (let n = 1; n < 205; n++) addCase(n, NOW - n * 1000);
   listDelayMs = 30000; out = await tick();
-  ok('limite della lettura è dichiarato: i conteggi non fingono una coda completa',
-    out.incomplete === true && out.queue.openCases === 200 && out.queue.pending === 200 && aiHits === 0, out);
+  const firstCursor = heartbeat().queueScanCursor;
+  ok('oltre200: prima pagina limitata dichiarata, cursore salvato anche senza budget modello',
+    out.incomplete === true && out.queue.scope === 'page' && out.queue.openCases === 200
+      && out.queue.pending === 200 && aiHits === 0 && !!firstCursor, out);
+  // A fresh endpoint invocation has no process-local cursor; resume the saved heartbeat.
+  clock = NOW + 60000; listDelayMs = 30000; out = await tick();
+  const scans = queryReads.filter(q => q.from[0].collectionId === 'operatorTasks');
+  ok('scansione ripresa oltre200 dopo nuovo run, senza perdere la coda finale',
+    out.queue.openCases === 5 && out.queue.scope === 'page' && out.incomplete === true
+      && heartbeat().queueScanCursor === null
+      && scans[1].startAt.values[0].referenceValue.endsWith('/' + firstCursor), out);
+  clock = NOW + 120000; listDelayMs = 30000; out = await tick();
+  ok('fine scansione torna alla prima pagina senza memoria locale aggiuntiva',
+    out.queue.openCases === 200 && heartbeat().queueScanCursor === firstCursor, out);
+  reset();
+  for (let n = 1; n < 202; n++) addCase(n, NOW - n * 1000);
+  for (const [path, row] of rows('operatorTasks')) {
+    if (path.endsWith('/' + ID)) continue;
+    row.preparationRetry = { messageId: row.followUp.lastMessageId, followUpFingerprint: followUpDecisionHash(row.followUp),
+      version: PROPOSTA.VERSION, state: 'review_required', attempts: 1, reason: 'invalid_preparation', after: null };
+    save(path, row);
+  }
+  out = await tick();
+  ok('pagina interamente in review avanza il cursore senza spesa',
+    out.checked === 0 && out.queue.awaitingReview === 200 && !!heartbeat().queueScanCursor && aiHits === 0, out);
+  out = await tick();
+  ok('il caso dopo una pagina senza candidati resta raggiungibile al prossimo cron',
+    out.prepared === 1 && out.id === ID && heartbeat().queueScanCursor === null && aiHits === 1, out);
+  for (const pages of [2, 3]) {
+    reset();
+    // One short final page makes exactly 2 or 3 scans, without an extra empty page.
+    for (let n = 1; n < pages * 200 - 1; n++) addCase(n, NOW - n * 1000);
+    const oldest = 'sg_' + (1).toString(16).padStart(32, '0');
+    revise(t => { t.followUp.lastInboundAt = stamp(NOW - 7 * 86400000); }, oldest);
+    aiHook = async () => { clock += 19000; };
+    const selected = [];
+    for (let n = 0; n < pages * 3 && !task(oldest).preparation; n++) {
+      clock = NOW + n * 60000;
+      // Fresh work on page one must not starve its oldest case.
+      if (n % pages === 0) {
+        const id = 'sg_' + (199).toString(16).padStart(32, '0'), event = 'sweep_new_' + n;
+        revise(t => { t.followUp.lastMessageId = event; t.followUp.lastInboundAt = stamp(clock - 1000); }, id);
+        save('messages/' + event, { ...DB.get('messages/m1'), at: stamp(clock - 1000) });
+      }
+      out = await tick(); selected.push(out.results[0]?.id);
+    }
+    ok('equità composta con scansione ' + pages + ' pagine e1tentativo lento raggiunge il vecchio entro3giri',
+      !!task(oldest).preparation && selected.includes(oldest) && selected.length <= pages * 3, selected);
+  }
+  reset(); save('heartbeat/segretaria-preparer', { schedulerCursor: 2, queueScanCursor: ID2 });
+  failingCollection = 'operatorTasks'; out = await tick();
+  ok('errore lettura pagina conserva cursore e non spende sul modello',
+    out.httpCode === 503 && heartbeat().queueScanCursor === ID2 && heartbeat().schedulerCursor === 2 && aiHits === 0, out);
 
   reset(); save('settings/segretaria', { enabled: true, prepareCases: false });
   out = await tick();
@@ -411,6 +560,24 @@ try {
   ok('tutte le prove scrivono solo casi e heartbeat, senza invii o altri effetti',
     allWrites.every(w => /^(operatorTasks|heartbeat)\//.test(w.path)) && untouched(), allWrites.map(w => w.path));
   const { readFileSync } = await import('node:fs');
+  const vm = await import('node:vm');
+  const priorityCode = readFileSync(new URL('../../js/segretaria-priority-engine.js', import.meta.url), 'utf8');
+  const sandbox = { window: { BOOM_PROPOSTA: PROPOSTA }, Date };
+  vm.runInNewContext(priorityCode, sandbox);
+  const priority = sandbox.window.BOOM_SEGRETARIA_PRIORITY;
+  reset();
+  const fingerprint = followUpDecisionHash(task().followUp);
+  revise(t => { t.preparationRetry = retryMarker(stamp(NOW + 60000)); });
+  ok('motore UMD condivide attualità retry e politica senza crypto o accessi browser',
+    priority.retryCurrent(task(), { decisionFingerprint: fingerprint })?.state === 'retry_wait'
+      && priority.retryDelayMinutes(7) === 360 && priority.retryCurrent(task(), { decisionFingerprint: 'changed' }) === null);
+  const malformed = structuredClone(task()); delete malformed.followUp.lastMessageId; delete malformed.preparationRetry.messageId;
+  ok('nessun evento o decisione mancanti possono attestare un retry corrente',
+    priority.retryCurrent(malformed, { decisionFingerprint: fingerprint }) === null
+      && priority.retryCurrent(task()) === null);
+  const candidates = [{ task: { ...task(), id: ID }, reason: 'event' }], candidatesBefore = JSON.stringify(candidates);
+  ok('scelta priorità pura non modifica i candidati del chiamante',
+    priority.chooseNext(candidates, 0, NOW).id === ID && JSON.stringify(candidates) === candidatesBefore);
   const vercel = JSON.parse(readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));
   ok('cron ogni minuto, limite funzione 60s invariato', vercel.crons.some(c => c.path === '/api/segretaria/worker' && c.schedule === '* * * * *')
     && vercel.functions['api/segretaria/worker.js'].maxDuration === 60);
@@ -423,17 +590,17 @@ try {
     const { spawnSync } = await import('node:child_process');
     const root = fileURLToPath(new URL('../../', import.meta.url));
     const mutants = [
-      { name: 'priorità agli eventi nuovi', from: "Number(b.reason === 'event') - Number(a.reason === 'event')", to: "Number(a.reason === 'event') - Number(b.reason === 'event')" },
-      { name: 'equità fra run lenti', from: 'cursor === 2', to: 'false' },
+      { name: 'priorità agli eventi nuovi', file: 'js/segretaria-priority-engine.js', from: 'priority(a) - priority(b)', to: 'priority(b) - priority(a)' },
+      { name: 'equità fra run lenti', file: 'js/segretaria-priority-engine.js', from: 'cursor === 2', to: 'false' },
       { name: 'batch limitato a tre', from: 'const MAX_CASES = 3;', to: 'const MAX_CASES = 4;' },
       { name: 'cache distinta da proposta nuova', from: 'if (result.cached) cached++; else prepared++;', to: 'prepared++;' },
-      { name: 'lease concorrente non invalida il proprietario', from: "if (result.error === 'preparation_in_progress') continue;", to: '/* retry concorrente non protetto */' },
-      { name: 'evento nuovo non eredita retry del vecchio', from: 'if (cur?.data.followUp?.lastMessageId === next.followUp.lastMessageId)', to: 'if (cur)' },
+      { name: 'lease concorrente non invalida il proprietario', from: "if (result.error === 'preparation_in_progress') { observationsIncomplete = true; continue; }", to: '/* retry concorrente non protetto */' },
+      { name: 'evento nuovo non eredita retry del vecchio', from: 'cur.data.followUp.lastMessageId === next.followUp.lastMessageId && decisionHash(cur.data) === inputHash', to: 'true' },
       { name: 'idle cancella esito precedente', from: 'let last = { id: null, code: null, error: null }', to: 'let last = null' },
       { name: 'aggiornamento contesto delle proposte non approvate',
         from: 'PROPOSTA.currentContext(task)', to: 'PROPOSTA.current(task)' },
       { name: 'guardia condivisa della versione contesto', file: 'js/segretaria-proposta-engine.js',
-        from: '&& (!!task.preparation.approval || task.preparation.coverage?.version === CONTEXT_VERSION)', to: '' },
+        from: "&& (!!task.preparation.approval || task.preparation.coverage?.version === CONTEXT_VERSION || task.preparation.status === 'needs_context')", to: '' },
       { name: 'contesto corrente richiede proposta ancora valida', file: 'js/segretaria-proposta-engine.js',
         from: 'function currentContext(task) { return current(task)',
         to: 'function currentContext(task) { return true' },
@@ -443,6 +610,24 @@ try {
       { name: 'approvazione vincolata allo stesso evento', file: 'js/segretaria-proposta-engine.js',
         from: 'function currentContext(task) { return current(task)',
         to: 'function currentContext(task) { return (current(task) || !!task?.preparation?.approval)' },
+      { name: 'retry legato alla decisione attuale', file: 'js/segretaria-priority-engine.js',
+        from: 'retry.followUpFingerprint === decisionFingerprint', to: 'true' },
+      { name: 'retry deterministico legato alla versione', file: 'js/segretaria-priority-engine.js',
+        from: 'retry.version === version', to: 'true' },
+      { name: 'backoff cresce dopo gli errori temporanei', file: 'js/segretaria-priority-engine.js',
+        from: 'RETRY_MINUTES[Math.min(count - 1, RETRY_MINUTES.length - 1)]', to: 'RETRY_MINUTES[0]' },
+      { name: '422 richiede review senza ripetizione identica',
+        from: "state: result.code === 422 ? 'review_required' : 'retry_wait'", to: "state: 'retry_wait'" },
+      { name: 'review needs_context non è un ricontrollo da spendere',
+        from: 'reviewCurrent(task) ? null : !PROPOSTA.current(task)', to: 'false ? null : !PROPOSTA.current(task)' },
+      { name: 'scansione riparte dal cursore persistito',
+        from: 'const afterId = previous?.queueScanCursor || null;', to: 'const afterId = null;' },
+      { name: 'pagina senza candidati conserva avanzamento',
+        from: 'queueScanCursor: list.nextCursor || null', to: 'queueScanCursor: null' },
+      { name: 'heartbeat concorrente protetto dalla versione',
+        from: 'out.heartbeatVersion ? { updateTime: out.heartbeatVersion }', to: 'out.heartbeatVersion ? { exists: true }' },
+      { name: 'equità disaccoppiata dal numero delle pagine',
+        from: 'const fairnessSweep = schedulerSweep === 2;', to: 'const fairnessSweep = false;' },
     ];
     for (const mutant of mutants) {
       const scratch = await fs.mkdtemp(join(tmpdir(), 'boom-worker-mutation-'));

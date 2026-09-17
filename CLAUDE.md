@@ -3680,6 +3680,17 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
 
 ### LA SEGRETARIA (`js/segretaria-engine.js` + `api/segretaria/_core.js` + 🤖 sulla card)
 
+- **Preparazione continua (18/09)**: le proposte non condividono più `dailyCap` con le risposte conversazionali. Il contatore misura i tentativi; attivazione, lease, budget per ciclo e veti di consegna restano distinti.
+  La scansione legge pagine per ID con cursore nel battito esistente e riparte dal principio a fine giro: nessun arresto ai primi 200 casi. Oggi legge tutte le pagine, preservando dati e modali durante refresh incompleti; il monitor dichiara i conteggi parziali.
+  Scadenze confermate e richieste datate precedono i nuovi eventi, con un turno su tre al caso meno recentemente controllato. Errori temporanei riprovano dopo 1/5/15/60/360 minuti; errori di validazione restano visibili da verificare fino a nuova evidenza, decisione o versione.
+  Retry e revisione sono legati a evento, decisione e versione; cursori e marcatori usano confronti di versione per non sovrascrivere lavoro concorrente. Nessuna nuova collection o apertura degli invii.
+  Prove `segretariaworker`, `seguito`, `segretariamonitor`, `segretarialiveui`: oltre mille casi, ripresa, concorrenza, equità, retry e revisione dichiarata.
+
+- **Ora italiana delle proposte v4 (18/09)**: il modello dichiara data e ora Europe/Rome accanto all'istante ISO. Il calendario confronta i due valori con IANA; incoerenze, ora mancante/ambigua e relativi vaghi riconosciuti producono `needs_context`, senza bozza né approvazione.
+  La prova temporale conserva la dichiarazione originale; soltanto un anticipo deterministico del controllo rigenera la rappresentazione locale. Nessuna correzione automatica degli appuntamenti o interpretazione semantica universale.
+  Proposte da verificare conservano la classificazione fra versioni e scadenze, a parità di fonti e decisione. Nuovi dati riaprono la preparazione; proposte pronte obsolete vanno ricalcolate, ricevute approvate restano leggibili.
+  Prove `segretariacalendario`, `segretariaprepara`, `segretariaattese`, con mutazioni sulle conversioni, sulla classificazione e sull'anticipo del controllo.
+
 - **Prima iterazione sulle proposte osservate (17/09)**: la guardia `nextActor` poteva sovrascrivere un richiamo esplicito e lasciare una motivazione serale dopo aver anticipato l'orario. Il motore ammette ora un'attesa provata da fonte integra, ultima e odierna, citazione letterale e stesso contatto; grammatica IT/EN circoscritta, mai un generico impegno dichiarato dal modello.
   La cronologia deve essere completa; i riscontri successivi ignorabili sono solo testo e il prossimo passo deve riguardare lo stesso richiamo. Negazioni, esitazioni, storia parziale o formulazioni non risolte producono `needs_context`, fonte e impegno consultabili, verifica umana necessaria prima della conferma. Azione, raccomandazione e motivazione diventano coerenti con questa verifica, senza assegnare come certa un’attesa dubbia.
   I sommari Miniera privi di cronologia individuale sono esclusi dall'input fattuale e dalle fonti dichiarate consultate; archivio e fingerprint restano, `coverage.historical` esplicita l'esclusione. Le fonti attuali e lo stile verificato rimangono disponibili.

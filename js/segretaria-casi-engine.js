@@ -41,6 +41,24 @@
     }
     return 'Casa collegata · nome da verificare';
   }
+  // The API derives this flag after checking the event and decision hash.
+  // A persisted retry alone does not prove that the issue is still current.
+  function reviewReason(task) {
+    var review = task && task.preparationReview;
+    if (!review || typeof review !== 'object' || Array.isArray(review)) return '';
+    var code = text(review.reason);
+    if (code.startsWith('calendar_')) return 'L’orario proposto richiede verifica rispetto alla fonte.';
+    var reasons = {
+      invalid_preparation: 'La proposta non ha superato i controlli. Verifica la richiesta e le fonti.',
+      source_message_missing: 'Il messaggio di origine non è verificabile. Controlla la conversazione.',
+      preparation_needs_context: 'Mancano informazioni necessarie per preparare una proposta affidabile.',
+      previous_delivery_unresolved: 'L’esito di un invio precedente richiede verifica.',
+      identity_not_verified: 'L’identità del contatto richiede verifica.',
+      identity_ambiguous: 'Il contatto non è associato con certezza alla persona corretta.',
+      practice_selection_required: 'Occorre verificare la pratica a cui appartiene la richiesta.'
+    };
+    return own(reasons, code) ? reasons[code] : 'La richiesta richiede una verifica prima di proseguire.';
+  }
   // A captured request is work for BOOM to prepare, not a ready decision.
   // Confirmed controls, delivery problems and explicit timing exceptions still
   // reach the operator even when no model-generated proposal is available.
@@ -55,7 +73,7 @@
       var timingNeedsReview = f.needsReview !== false && timing && (timing.status === 'ambiguous' || timing.status === 'past'
         || (timing.status === 'resolved' && dateMs(timing.requestedAt) !== null && dateMs(timing.requestedAt) <= now));
       var confirmedWithoutDate = f.confirmed === true && !f.needsReview && !f.ambiguous && f.practiceRef && d.checkAt === null;
-      if (delivery === 'needs_review' || (p && !p.approval) || timingNeedsReview) groups.decisions.push(task);
+      if (reviewReason(task) || delivery === 'needs_review' || (p && !p.approval) || timingNeedsReview) groups.decisions.push(task);
       else if (decisionIds.has(task.id) && !confirmedWithoutDate) {
         (f.confirmed === true || f.confirmedAt || f.confirmedBy || p?.approval ? groups.decisions : groups.preparing).push(task);
       } else if (['queued', 'pending_execution'].includes(delivery) || f.waitingOn === 'boom' || f.waitingOn === 'valentino') groups.progress.push(task);
@@ -108,6 +126,6 @@
     return { payload: { op: 'confirm', id: task.id, lastMessageId: f.lastMessageId, practiceRef: practiceRef,
       nextAction: action, waitingOn: fields.waitingOn, waitingLabel: label, checkAt: new Date(ms).toISOString() } };
   }
-  return Object.freeze({ partition: partition, workGroups: workGroups, describe: describe, practiceLabel: practiceLabel,
+  return Object.freeze({ partition: partition, workGroups: workGroups, reviewReason: reviewReason, describe: describe, practiceLabel: practiceLabel,
     propertyLabel: propertyLabel, localDateTime: localDateTime, confirmation: confirmation, validId: validId, WAITING: Object.freeze(WAITING) });
 });

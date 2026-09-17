@@ -4,8 +4,10 @@ import crypto from 'node:crypto';
 import { fsGet, fsList, fsGetVersioned, fsCommit } from '../homie/_lib.js';
 import { romeDateKey } from '../viewings/_avail.js';
 import INTAKE from '../../js/segretaria-intake-engine.js';
+import PRIORITY from '../../js/segretaria-priority-engine.js';
 
 export const FOLLOW_UP_LIMIT = 200;
+export const validFollowUpCursor = value => typeof value === 'string' && /^[\w.-]{1,180}$/.test(value) && !['.', '..'].includes(value);
 const idPart = value => typeof value === 'string' && /^[\w.-]{1,180}$/.test(value);
 const clean = (value, max) => typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, max) : '';
 const inputText = (value, max) => typeof value === 'string' && value.length <= max ? clean(value, max) : '';
@@ -17,6 +19,14 @@ export const followUpDecisionHash = f => crypto.createHash('sha256').update(JSON
   confirmed: f?.confirmed === true, needsReview: f?.needsReview === true,
   confirmedAt: f?.confirmedAt || null, confirmedBy: f?.confirmedBy || null,
 })).digest('hex');
+// A transient retry marker is not an operator decision. Project only a current,
+// deterministic review requirement; the browser never owns or recomputes its hash.
+export function currentPreparationReview(task) {
+  if (task?.status !== 'open' || task.followUp?.open !== true) return null;
+  const retry = PRIORITY.retryCurrent(task, { decisionFingerprint: followUpDecisionHash(task.followUp) });
+  return retry?.state === 'review_required' ? { reason: /^[a-z][a-z0-9_]{0,100}$/.test(retry.reason || '')
+    ? retry.reason : 'preparation_review_required' } : null;
+}
 const precondition = snapshot => snapshot ? { updateTime: snapshot.updateTime } : { exists: false };
 
 // Tracking survives manual takeover. New enrolment is an explicit preparation
@@ -132,11 +142,40 @@ export async function captureFollowUp({ cid, conv, messageId, text, now = Date.n
   throw new Error('Follow-up changed concurrently');
 }
 
-export async function listFollowUps() {
-  const rows = await fsList('operatorTasks', { filter: { field: 'followUp.open', op: 'EQUAL', value: true }, limit: FOLLOW_UP_LIMIT });
-  return { rows: rows.filter(t => t.status === 'open' && t.followUp)
-    .sort((a, b) => String(a.followUp.checkAt).localeCompare(String(b.followUp.checkAt))),
-  incomplete: rows.length >= FOLLOW_UP_LIMIT };
+export async function listFollowUps({ afterId = null, maxPages = 5 } = {}) {
+  if ((afterId !== null && !validFollowUpCursor(afterId)) || !Number.isSafeInteger(maxPages) || maxPages < 1 || maxPages > 5)
+    throw new Error('Invalid follow-up pagination');
+  const rows = [], end = Date.now() + 5000;
+  let cursor = afterId, pages = 0, incomplete = true, readingDegraded = false;
+  while (pages < maxPages) {
+    const left = end - Date.now();
+    if (left <= 0) {
+      if (!pages) throw new Error('Follow-up page unavailable');
+      break;
+    }
+    let page;
+    try {
+      page = await fsList('operatorTasks', { filter: { field: 'followUp.open', op: 'EQUAL', value: true },
+        limit: FOLLOW_UP_LIMIT, afterId: cursor, signal: AbortSignal.timeout(left) });
+      // The cursor follows RAW documents: a legacy closed row must not strand
+      // the scan, and a malformed/repeated page must never silently skip work.
+      if (page.some((row, index) => !validFollowUpCursor(row.id)
+        || (index ? page[index - 1].id >= row.id : cursor !== null && cursor >= row.id)))
+        throw new Error('Invalid follow-up page order');
+    } catch (error) {
+      if (!pages) throw error;
+      readingDegraded = true;
+      break;
+    }
+    pages++;
+    rows.push(...page.filter(t => t.status === 'open' && t.followUp));
+    if (page.length < FOLLOW_UP_LIMIT) { incomplete = false; cursor = null; break; }
+    cursor = page[page.length - 1].id;
+  }
+  return { rows: rows.sort((a, b) => String(a.followUp.checkAt).localeCompare(String(b.followUp.checkAt)) || a.id.localeCompare(b.id)),
+    incomplete, nextCursor: cursor, pages, readingDegraded,
+    readError: readingDegraded ? 'follow_up_page_unavailable' : null,
+    scope: afterId !== null || incomplete ? 'page' : 'all' };
 }
 
 export async function updateFollowUp({ id, input, actor, dossier, now = Date.now() }) {
