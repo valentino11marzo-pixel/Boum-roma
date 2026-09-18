@@ -2834,6 +2834,15 @@ browser or Firestore.
   esigenza mancante, studenti senza corso. Test: `tests/dataops/test.mjs`
   (174 check) + `tests/innesto/run.mjs`.
 
+**Conferma Scrivano unica (18/09/2026)** — `scrivanoProposals.application`
+prenota la conferma in transazione; ogni record primario e il suo riferimento
+sono salvati insieme. Due tab o una riapertura non ricreano contratto/rate.
+Guasti su archivio o identityDocs restano visibili con esito per file e accesso
+al contratto registrato. Un'interruzione conserva la prenotazione: recupero
+esplicito sui record, mai un nuovo import o rigenerazione automatica del piano.
+Prove `tests/innesto/confirmation.mjs`: concorrenza, interruzione dopo contratto,
+ricevuta persa e collegamenti respinti; non certificano il recupero automatico.
+
 ### Dati aziendali (IBAN) fuori dal codice — `settings/company`
 `COMPANY` in `portal-app.js` carried `iban: 'IT00X0000000000000000000000'` with
 a never-actioned "⚠️ UPDATE WITH REAL IBAN" comment — and that placeholder was
@@ -3744,6 +3753,12 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
   `segretaria-esecuzione-engine` deriva registrazione del seguito, invio della bozza e ricontrollo dalla proposta e dalle ricevute esistenti. Coda, esito incerto, pausa e intervento umano restano distinti; il testo libero non inventa operazioni su telefono o portali.
   L’unica conferma usa ancora `prepare` → `_dispatch` → executor/outbox sulla revisione vista; niente seconda coda, chiusura automatica o autonomia permanente. Nessuna azione parte aprendo il piano.
   UI senza modulo esecuzione blocca la conferma; nuove fonti, conflitti e doppio tap conservano i controlli precedenti. Prove: `segretariaesecuzione`, `segretariapropostaui`, conferma/consegna e UI live.
+
+- **Ripresa prima dell'esecuzione (18/09)**: Oggi offre «Riprendi esecuzione» solo
+  sulla ricevuta server `pending_execution` riferita all'approvazione corrente.
+  Rilegge lo stato prima del POST sulla stessa revisione; claimed/queued/sent o
+  esito incerto non diventano retry. `tests/segretaria/resume-execution.mjs`
+  verifica handler e UI veri, una sola azione/un solo effetto e mutazioni.
 
 - **Prima iterazione sulle proposte osservate (17/09)**: la guardia `nextActor` poteva sovrascrivere un richiamo esplicito e lasciare una motivazione serale dopo aver anticipato l'orario. Il motore ammette ora un'attesa provata da fonte integra, ultima e odierna, citazione letterale e stesso contatto; grammatica IT/EN circoscritta, mai un generico impegno dichiarato dal modello.
   La cronologia deve essere completa; i riscontri successivi ignorabili sono solo testo e il prossimo passo deve riguardare lo stesso richiamo. Negazioni, esitazioni, storia parziale o formulazioni non risolte producono `needs_context`, fonte e impegno consultabili, verifica umana necessaria prima della conferma. Azione, raccomandazione e motivazione diventano coerenti con questa verifica, senza assegnare come certa un’attesa dubbia.
