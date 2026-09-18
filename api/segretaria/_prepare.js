@@ -21,6 +21,27 @@ const day = now => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', y
 const guard = snap => snap ? { updateTime: snap.updateTime } : { exists: false };
 const caseId = id => typeof id === 'string' && /^sg_[a-f0-9]{32}$/.test(id);
 
+// Exclusions here are prospective only: every proven closed-case expiry must
+// retire in the SAME commit as the new proposal, guarded by its original case.
+async function preparationOwnership({ id, conversation, excludeActionId, now, budget }) {
+  const retirements = [], excluded = [];
+  let ownership = await replyOwner(conversation, { excludeActionId });
+  while (ownership.blocked && !ownership.incomplete && ownership.actionId && !excluded.includes(ownership.actionId)) {
+    if (!budget.afford(35_000)) return { error: 'preparation_time_budget' };
+    const actionId = ownership.actionId, action = await fsGetVersioned('action_queue/' + actionId);
+    const oldCaseId = action?.data.segretaria?.caseId;
+    if (!caseId(oldCaseId) || oldCaseId === id || action.data.segretaria.conversationId !== conversation.id) break;
+    const previous = await fsGetVersioned('operatorTasks/' + oldCaseId);
+    if (previous?.data.status !== 'done' || previous.data.followUp?.open !== false
+        || !canExpireUnclaimedSegretariaDelivery({ id: actionId, action: action.data,
+          task: { ...previous.data, id: oldCaseId }, now, allowClosed: true })) break;
+    retirements.push({ id: actionId, action, caseId: oldCaseId, task: previous });
+    excluded.push(actionId);
+    ownership = await replyOwner(conversation, { excludeActionId, excludeActionIds: excluded });
+  }
+  return { ownership, retirements };
+}
+
 // Reuse the house language detector, but distinguish evidence from its English
 // default. A reaction's quoted outgoing text must never select the language.
 const detectedLanguage = message => {
@@ -86,13 +107,16 @@ export async function prepareCase({ id, actor, now = Date.now(), background = fa
   const recheckFor = Date.parse(task.followUp.checkAt) <= now ? task.followUp.checkAt : null;
   const selection = task.followUp.practiceRef || null;
   const followUpFingerprint = followUpDecisionHash(task.followUp);
-  const replyOwnership = await replyOwner(conv, { excludeActionId: task.preparation?.approval?.actionId });
+  const ownershipPlan = await preparationOwnership({ id, conversation: conv,
+    excludeActionId: task.preparation?.approval?.actionId, now, budget: time });
+  if (ownershipPlan.error) return { code: 503, error: ownershipPlan.error };
+  const { ownership: replyOwnership, retirements } = ownershipPlan;
   const replyOwnerFingerprint = sha(replyOwnership);
   const priorId = task.preparation?.approval?.actionId;
   const priorSnapshot = priorId ? await fsGetVersioned('action_queue/' + priorId) : null;
   const expiresUnclaimed = !!priorSnapshot && canExpireUnclaimedSegretariaDelivery({ id: priorId,
     action: priorSnapshot.data, task: { ...task, id }, now });
-  if (!expiresUnclaimed && PROPOSTA.currentContext(task) && task.preparation.sourceFingerprint === sourceFingerprint
+  if (!expiresUnclaimed && !retirements.length && PROPOSTA.currentContext(task) && task.preparation.sourceFingerprint === sourceFingerprint
     && task.preparation.contactFingerprint === contactHash
     && (task.preparation.approval?.followUpFingerprint || task.preparation.followUpFingerprint) === followUpFingerprint
     && task.preparation.replyOwnerFingerprint === replyOwnerFingerprint
@@ -251,7 +275,8 @@ export async function prepareCase({ id, actor, now = Date.now(), background = fa
       leadId: freshConv.leadId || (freshConv.contactType === 'lead' ? freshConv.contactId : undefined), conversationId: cid });
     const freshContext = await loadCaseContext({ task: fresh.data, conversation: freshConv, dossier: freshDossier, now });
     if (contextFingerprint(freshContext) !== sourceFingerprint) return { code: 409, error: 'sources_changed_reload' };
-    const freshReplyOwner = await replyOwner(freshConv, { excludeActionId: task.preparation?.approval?.actionId });
+    const freshReplyOwner = await replyOwner(freshConv, { excludeActionId: task.preparation?.approval?.actionId,
+      excludeActionIds: retirements.map(row => row.id) });
     if (sha(freshReplyOwner) !== replyOwnerFingerprint) return { code: 409, error: 'reply_owner_changed_reload' };
     const preparation = { ...proposal, version: PROPOSTA.VERSION, language: languageEvidence, messageId: task.followUp.lastMessageId,
       sourceFingerprint, contactFingerprint: contactHash, followUpFingerprint, replyOwnerFingerprint, replyOwnership, recheckFor,
@@ -274,6 +299,17 @@ export async function prepareCase({ id, actor, now = Date.now(), background = fa
         segretaria: { ...priorSnapshot.data.segretaria, delivery: { state: 'expired',
           expiredAt: new Date(now).toISOString(), reason: 'pickup_window_elapsed' } } },
         precondition: { updateTime: priorSnapshot.updateTime } });
+    }
+    for (const retirement of retirements) {
+      operations.push({ docPath: 'action_queue/' + retirement.id, fields: { status: 'rejected',
+        segretaria: { ...retirement.action.data.segretaria, delivery: { state: 'expired',
+          expiredAt: new Date(now).toISOString(), reason: 'pickup_window_elapsed' } } },
+        precondition: { updateTime: retirement.action.updateTime } });
+      operations.push({ docPath: 'operatorTasks/' + retirement.caseId,
+        fields: { preparation: retirement.task.data.preparation },
+        precondition: { updateTime: retirement.task.updateTime } });
+    }
+    if (expiresUnclaimed || retirements.length) {
       operations.push({ docPath: 'conversations/' + cid,
         fields: { contactPhone: freshConv.contactPhone || null, contactEmail: freshConv.contactEmail || null },
         precondition: { updateTime: freshConversation.updateTime } });

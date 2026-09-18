@@ -19,7 +19,7 @@ function ok(name, pass, detail) {
 }
 const DB = new Map(), versions = new Map(), writes = [], allWrites = [], network = [], reads = [];
 globalThis.__mails = [];
-let sequence = 0, failingCollection = '', beforePatch = null, commitHook = null;
+let sequence = 0, failingCollection = '', beforePatch = null, commitHook = null, queryHook = null;
 let aiHits = 0, aiHook = null, aiBuilder = null, failFirstTaskReads = 0, listDelayMs = 0;
 const aiInputs = [], aiRequests = [];
 const enc = v => v == null ? { nullValue: null }
@@ -96,6 +96,7 @@ globalThis.fetch = async (rawURL, opts = {}) => {
   }
   if (url.pathname.endsWith(':runQuery')) {
     const q = body.structuredQuery, coll = q.from[0].collectionId;
+    if (queryHook) await queryHook(q, coll);
     if (coll === 'operatorTasks' && listDelayMs) { clock += listDelayMs; listDelayMs = 0; }
     if (coll === failingCollection) return json({ error: { status: 'UNAVAILABLE' } }, 503);
     const matches = (row, filter) => {
@@ -151,7 +152,9 @@ globalThis.fetch = async (rawURL, opts = {}) => {
 
 const { default: CALENDAR } = await import('../../js/segretaria-calendar-engine.js');
 const { prepareCase } = await import('../../api/segretaria/_prepare.js');
-const { claimSegretariaDelivery } = await import('../../api/segretaria/_delivery-guard.js');
+const { captureFollowUp } = await import('../../api/segretaria/_follow-up.js');
+const { replyOwner } = await import('../../api/segretaria/_reply-owner.js');
+const { claimSegretariaDelivery, canExpireUnclaimedSegretariaDelivery } = await import('../../api/segretaria/_delivery-guard.js');
 const { readPreparationDelivery } = await import('../../api/segretaria/_dispatch.js');
 const { default: prepareEndpoint } = await import('../../api/segretaria/prepare.js');
 const { default: followUpEndpoint } = await import('../../api/segretaria/follow-up.js');
@@ -185,7 +188,7 @@ function validProposal(input) {
 function reset({ role = 'tenant', text = 'Potete aggiornarmi sulla disponibilità del tecnico?' } = {}) {
   DB.clear(); versions.clear(); writes.length = 0; network.length = 0; reads.length = 0; globalThis.__mails.length = 0;
   aiInputs.length = 0; aiRequests.length = 0; aiHits = 0; aiHook = null; aiBuilder = null;
-  sequence = 0; clock = NOW; failFirstTaskReads = 0; listDelayMs = 0; failingCollection = ''; beforePatch = null; commitHook = null;
+  sequence = 0; clock = NOW; failFirstTaskReads = 0; listDelayMs = 0; failingCollection = ''; beforePatch = null; commitHook = null; queryHook = null;
   save('users/admin', { role: 'admin' }); save('users/tenant', { role: 'tenant' });
   save('settings/segretaria', { enabled: true, prepareCases: true, dailyCap: 5 });
   const personId = role === 'pfs' ? 'pfsA' : 'tenantA';
@@ -218,6 +221,19 @@ async function approvedDelivery({ futureCheck = false } = {}) {
   save('action_queue/' + actionId, { ...DB.get('action_queue/' + actionId), executedAt: stamp(NOW) });
   aiBuilder = null;
   return actionId;
+}
+async function closedDeliveryNextCase({ conversationId = CID, age = 49 * 3600000 } = {}) {
+  const actionId = await approvedDelivery();
+  const closed = await endpoint(followUpEndpoint, { body: { op: 'close', id: ID, lastMessageId: 'm1', outcome: 'Caso risolto internamente.' } });
+  if (!closed.closed) throw new Error('fixture_close_failed');
+  clock = NOW + age;
+  if (conversationId !== CID) save('conversations/' + conversationId, structuredClone(DB.get('conversations/' + CID)));
+  const text = 'Potete aggiornarmi sulla disponibilità del tecnico?';
+  save('messages/m2', { conversationId, direction: 'in', channel: 'whatsapp', body: text, at: stamp(clock) });
+  const next = await captureFollowUp({ cid: conversationId, conv: DB.get('conversations/' + conversationId), messageId: 'm2', text, now: clock });
+  // Explicitly select the existing verified practice for the synthetic new case.
+  revise(t => { t.followUp.practiceRef = 'contracts/cA'; }, next.id);
+  return { actionId, id: next.id };
 }
 async function endpoint(handler, { method = 'POST', token = 'admin', body = {}, headers = {}, query = {} } = {}) {
   let code, out;
@@ -912,6 +928,160 @@ try {
       && (race !== 'recipient' || DB.get('conversations/' + CID).contactPhone === '+393339999999'), r);
   }
 
+  let closedFixture = await closedDeliveryNextCase();
+  const oldClosedCase = JSON.stringify(task()), closedActionBefore = DB.get('action_queue/' + closedFixture.actionId);
+  ok('helper non ammette caso chiuso senza opzione esplicita', !canExpireUnclaimedSegretariaDelivery({ id: closedFixture.actionId,
+    action: closedActionBefore, task: { ...task(), id: ID }, now: clock }));
+  r = await generate({ id: closedFixture.id });
+  ok('caso chiuso con vecchia risposta scaduta non blocca bozza del nuovo caso nella stessa chat',
+    closedFixture.id !== ID && r.code === 200 && !!r.preparation.draft && !r.preparation.approval
+    && DB.get('action_queue/' + closedFixture.actionId).status === 'rejected', { result: r.code,
+      draft: !!r.preparation?.draft, owner: r.preparation?.replyOwnership, previousStatus: DB.get('action_queue/' + closedFixture.actionId).status });
+  ok('risoluzione del caso vecchio conserva chiusura outcome e approvazione senza riaprirlo', JSON.stringify(task()) === oldClosedCase);
+  const closedRead = await readPreparationDelivery(ID, closedFixture.actionId);
+  const ownershipAfter = await replyOwner({ ...DB.get('conversations/' + CID), id: CID });
+  ok('ricevuta vecchia resta scaduta e ownership effettiva coincide con proposta nuova', closedRead.error === 'whatsapp_delivery_expired'
+    && !ownershipAfter.blocked && JSON.stringify(ownershipAfter) === JSON.stringify(r.preparation.replyOwnership), { closedRead, ownershipAfter });
+  r = await endpoint(prepareEndpoint, { body: { op: 'approve', id: closedFixture.id, revision: r.preparation.revision, lastMessageId: 'm2' } });
+  ok('approvazione umana di B accoda solo nuova risposta: A resta terminale senza consegna', r.httpCode === 200 && r.delivery === 'queued'
+    && r.actionId !== closedFixture.actionId && rows('action_queue').length === 2
+    && rows('action_queue').filter(([, a]) => a.status === 'executed').length === 1
+    && DB.get('action_queue/' + closedFixture.actionId).status === 'rejected' && !DB.get('action_queue/' + closedFixture.actionId).waSentAt, r);
+
+  closedFixture = await closedDeliveryNextCase({ age: 47 * 3600000 });
+  r = await generate({ id: closedFixture.id });
+  ok('prima delle48h la risposta del caso chiuso continua a bloccare altra bozza', r.code === 200 && !r.preparation.draft
+    && r.preparation.replyOwnership.blocked && DB.get('action_queue/' + closedFixture.actionId).status === 'executed', r.code);
+  clock = NOW + 49 * 3600000;
+  r = await generate({ id: closedFixture.id });
+  ok('proposta B già senza bozza per A si rigenera dopo scadenza owner', r.code === 200 && !r.cached && !!r.preparation.draft
+    && DB.get('action_queue/' + closedFixture.actionId).status === 'rejected', r.code);
+
+  closedFixture = await closedDeliveryNextCase({ conversationId: 'conv_same_phone_different_chat' });
+  r = await generate({ id: closedFixture.id });
+  ok('stesso telefono su altra conversazione non autorizza retirement del vecchio caso', r.code === 200 && !r.preparation.draft
+    && r.preparation.replyOwnership.blocked && DB.get('action_queue/' + closedFixture.actionId).status === 'executed', r.code);
+
+  for (const [label, change] of [
+    ['claim incerto', a => { a.segretaria.delivery = { state: 'claimed', claimedAt: stamp(NOW) }; }],
+    ['errore di invio', a => { a.waSendError = 'fixture_failure'; }],
+    ['istante assente', a => { delete a.executedAt; }],
+    ['legacy', a => { delete a.segretaria; delete a.proposedBy; }],
+    ['approvata non eseguita', a => { a.status = 'approved'; }],
+  ]) {
+    closedFixture = await closedDeliveryNextCase();
+    const changed = structuredClone(DB.get('action_queue/' + closedFixture.actionId)); change(changed);
+    save('action_queue/' + closedFixture.actionId, changed);
+    const before = JSON.stringify(changed);
+    r = await generate({ id: closedFixture.id });
+    ok('nuovo caso non aggira vecchio owner non risolvibile: ' + label, r.code === 200 && !r.preparation.draft
+      && r.preparation.replyOwnership.blocked && JSON.stringify(DB.get('action_queue/' + closedFixture.actionId)) === before, r.code);
+  }
+
+  closedFixture = await closedDeliveryNextCase(); revise(t => { t.status = 'open'; t.followUp.open = true; });
+  r = await generate({ id: closedFixture.id });
+  ok('altro caso riaperto non viene dismesso dalla preparazione B', r.code === 200 && !r.preparation.draft
+    && DB.get('action_queue/' + closedFixture.actionId).status === 'executed', r.code);
+  closedFixture = await closedDeliveryNextCase(); save('conversations/' + CID, { ...DB.get('conversations/' + CID), segretaria: true });
+  r = await generate({ id: closedFixture.id });
+  ok('chat automatica resta owner e non avvia retirement', r.code === 200 && !r.preparation.draft
+    && r.preparation.replyOwnership.owner === 'segretaria:conversation' && DB.get('action_queue/' + closedFixture.actionId).status === 'executed', r.code);
+  closedFixture = await closedDeliveryNextCase();
+  for (let i = 0; i < 21; i++) save('action_queue/history-' + i, { kind: 'reply', status: 'rejected', payload: { conversationId: CID, phone: PHONE } });
+  r = await generate({ id: closedFixture.id });
+  ok('copertura ownership incompleta non esclude owner scaduto e conserva veto', r.code === 200 && !r.preparation.draft
+    && r.preparation.replyOwnership.incomplete && DB.get('action_queue/' + closedFixture.actionId).status === 'executed', r.code);
+
+  closedFixture = await closedDeliveryNextCase();
+  save('action_queue/' + closedFixture.actionId, { ...DB.get('action_queue/' + closedFixture.actionId), waSentAt: stamp(NOW) });
+  r = await generate({ id: closedFixture.id });
+  ok('consegna già riuscita non diventa expired e lascia preparare nuovo caso', r.code === 200 && !!r.preparation.draft
+    && DB.get('action_queue/' + closedFixture.actionId).status === 'executed'
+    && !DB.get('action_queue/' + closedFixture.actionId).segretaria.delivery
+    && DB.get('action_queue/' + closedFixture.actionId).waSentAt === stamp(NOW), r.code);
+
+  closedFixture = await closedDeliveryNextCase();
+  let ownerQueries = 0;
+  queryHook = async (_query, collection) => {
+    if (collection === 'action_queue' && ++ownerQueries === 4) {
+      for (let i = 0; i < 21; i++) save('action_queue/racing-history-' + i, { kind: 'reply', status: 'rejected', payload: { conversationId: CID, phone: PHONE } });
+    }
+  };
+  r = await generate({ id: closedFixture.id });
+  ok('copertura diventa incompleta dopo esclusione prospettica: retirement provato non sblocca bozza', r.code === 200
+    && !r.preparation.draft && r.preparation.replyOwnership.incomplete && !r.preparation.approval
+    && DB.get('action_queue/' + closedFixture.actionId).status === 'rejected', { code: r.code, draft: !!r.preparation?.draft,
+      ownership: r.preparation?.replyOwnership, queries: ownerQueries });
+
+  closedFixture = await closedDeliveryNextCase();
+  const closedBeforeAi = JSON.stringify(task());
+  aiHook = async () => { throw new Error('fixture_closed_expiry_ai_failure'); };
+  r = await generate({ id: closedFixture.id });
+  ok('fallimento AI di B non dismette risposta né riscrive caso chiuso', r.code === 503
+    && JSON.stringify(task()) === closedBeforeAi && !task(closedFixture.id).preparation
+    && DB.get('action_queue/' + closedFixture.actionId).status === 'executed', r);
+
+  for (const race of ['old_case', 'old_preparation', 'claimed', 'ack', 'new_message', 'recipient']) {
+    closedFixture = await closedDeliveryNextCase();
+    commitHook = async operations => {
+      if (!operations.some(op => op.update?.fields?.status?.stringValue === 'rejected')) return;
+      commitHook = null;
+      if (race === 'old_case') revise(t => { t.followUp.outcome = 'Esito corretto da operatore'; });
+      else if (race === 'old_preparation') revise(t => { t.preparation.summary = 'Correzione operatore sulla proposta precedente'; });
+      else if (race === 'new_message') revise(t => { t.followUp.lastMessageId = 'racing-inbound'; }, closedFixture.id);
+      else if (race === 'recipient') save('conversations/' + CID, { ...DB.get('conversations/' + CID), contactPhone: '+393339999999' });
+      else {
+        const concurrent = structuredClone(DB.get('action_queue/' + closedFixture.actionId));
+        concurrent.segretaria.delivery = { state: race === 'claimed' ? 'claimed' : 'sent', claimedAt: stamp(clock - 1000) };
+        if (race === 'ack') concurrent.waSentAt = stamp(clock);
+        save('action_queue/' + closedFixture.actionId, concurrent);
+      }
+    };
+    r = await generate({ id: closedFixture.id });
+    const oldAction = DB.get('action_queue/' + closedFixture.actionId);
+    ok('CAS fra vecchio e nuovo caso conserva concorrente ' + race, r.code === 409 && !task(closedFixture.id).preparation
+      && oldAction.status === 'executed' && task().status === 'done'
+      && (race !== 'old_case' || task().followUp.outcome === 'Esito corretto da operatore')
+      && (race !== 'old_preparation' || task().preparation.summary === 'Correzione operatore sulla proposta precedente')
+      && (race !== 'claimed' || oldAction.segretaria.delivery.state === 'claimed')
+      && (race !== 'ack' || !!oldAction.waSentAt)
+      && (race !== 'new_message' || task(closedFixture.id).followUp.lastMessageId === 'racing-inbound')
+      && (race !== 'recipient' || DB.get('conversations/' + CID).contactPhone === '+393339999999'), r);
+  }
+  closedFixture = await closedDeliveryNextCase();
+  aiHook = async () => save('action_queue/other-owner', { kind: 'reply', status: 'approved', proposedBy: 'gestore',
+    payload: { channel: 'whatsapp', conversationId: CID, phone: PHONE, draft: 'Altra risposta già affidata' } });
+  r = await generate({ id: closedFixture.id });
+  ok('nuovo owner durante AI impedisce esclusione e retirement del vecchio', r.code === 409
+    && r.error === 'reply_owner_changed_reload' && !task(closedFixture.id).preparation
+    && DB.get('action_queue/' + closedFixture.actionId).status === 'executed', r);
+
+  closedFixture = await closedDeliveryNextCase();
+  const siblingActionId = 'sgreply_' + 'b'.repeat(40), siblingTask = structuredClone(task());
+  siblingTask.preparation.approval.actionId = siblingActionId;
+  save('operatorTasks/' + ID2, siblingTask);
+  const siblingAction = structuredClone(DB.get('action_queue/' + closedFixture.actionId));
+  siblingAction.segretaria.caseId = ID2;
+  save('action_queue/' + siblingActionId, siblingAction);
+  r = await generate({ id: closedFixture.id });
+  ok('più vecchi owner provati della stessa chat vengono dismessi insieme alla nuova proposta', r.code === 200 && !!r.preparation.draft
+    && DB.get('action_queue/' + siblingActionId).status === 'rejected'
+    && DB.get('action_queue/' + closedFixture.actionId).status === 'rejected'
+    && task().status === 'done' && task(ID2).status === 'done', r.code);
+
+  closedFixture = await closedDeliveryNextCase();
+  r = await generate({ id: closedFixture.id, budget: { afford: () => false } });
+  ok('ricerca vecchi owner rispetta budget senza retirement parziale o modello', r.code === 503
+    && r.error === 'preparation_time_budget' && aiHits === 1 && !task(closedFixture.id).preparation
+    && DB.get('action_queue/' + closedFixture.actionId).status === 'executed', r);
+
+  closedFixture = await closedDeliveryNextCase();
+  const competingCases = await Promise.all([generate({ id: closedFixture.id }), generate({ id: closedFixture.id })]);
+  ok('due preparazioni B concorrenti dismettono A e preparano una sola volta', competingCases.filter(x => x.code === 200).length === 1
+    && competingCases.filter(x => x.code === 409).length === 1 && aiHits === 2
+    && DB.get('action_queue/' + closedFixture.actionId).status === 'rejected' && !!task(closedFixture.id).preparation.draft,
+    competingCases.map(x => x.code));
+
   reset(); save('settings/segretaria', { enabled: true, prepareCases: false });
   r = await endpoint(workerEndpoint, { method: 'GET', token: 'fixture-cron' });
   ok('worker spento non legge casi, non spende e non modifica dati', r.httpCode === 200 && !r.enabled && !aiHits && !writes.length, r);
@@ -1181,13 +1351,21 @@ try {
         from: '!!task.preparation.approval || task.preparation.coverage?.version === CONTEXT_VERSION',
         to: 'task.preparation.coverage?.version === CONTEXT_VERSION' },
       { name: 'scadenza non resta nella cache approvata', file: 'api/segretaria/_prepare.js',
-        from: 'if (!expiresUnclaimed && PROPOSTA.currentContext(task)', to: 'if (PROPOSTA.currentContext(task)' },
+        from: 'if (!expiresUnclaimed && !retirements.length && PROPOSTA.currentContext(task)', to: 'if (!retirements.length && PROPOSTA.currentContext(task)' },
       { name: 'scadenza richiede azione mai ritirata', file: 'api/segretaria/_delivery-guard.js',
         from: "|| action.segretaria.execution?.state !== 'started' || action.segretaria.delivery", to: "|| action.segretaria.execution?.state !== 'started'" },
       { name: 'scadenza rispetta CAS azione concorrente', file: 'api/segretaria/_prepare.js',
         from: 'precondition: { updateTime: priorSnapshot.updateTime }', to: 'precondition: { exists: true }' },
       { name: 'scadenza richiede vecchia approvazione coerente', file: 'api/segretaria/_delivery-guard.js',
         from: '&& receipt.approvedBy === s.reviewedBy && receipt.approvedAt === s.reviewedAt', to: '' },
+      { name: 'risoluzione vecchio caso richiede stessa conversazione', file: 'api/segretaria/_prepare.js',
+        from: '|| action.data.segretaria.conversationId !== conversation.id', to: '' },
+      { name: 'risoluzione vecchio caso conserva CAS della prova chiusa', file: 'api/segretaria/_prepare.js',
+        from: 'precondition: { updateTime: retirement.task.updateTime }', to: 'precondition: { exists: true }' },
+      { name: 'risoluzione vecchio caso conserva CAS della azione', file: 'api/segretaria/_prepare.js',
+        from: 'precondition: { updateTime: retirement.action.updateTime }', to: 'precondition: { exists: true }' },
+      { name: 'esclusione owner richiede dismissione nello stesso commit', file: 'api/segretaria/_prepare.js',
+        from: "docPath: 'action_queue/' + retirement.id, fields: { status: 'rejected'", to: "docPath: 'action_queue/' + retirement.id, fields: { status: 'executed'" },
       { name: 'consegna precedente incerta', file: 'api/segretaria/_prepare.js',
         from: 'if (task.preparation?.approval?.actionId) {', to: 'if (false && task.preparation?.approval?.actionId) {' },
     ];

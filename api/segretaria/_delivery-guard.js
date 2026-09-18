@@ -9,14 +9,16 @@ export const isPreparedAction = action => !!action?.segretaria || action?.propos
 
 // Only this claim-before-payload protocol proves that an unclaimed message
 // never left the server. Match the old approval, even after a newer inbound.
-export function canExpireUnclaimedSegretariaDelivery({ id, action, task, now = Date.now() }) {
+export function canExpireUnclaimedSegretariaDelivery({ id, action, task, now = Date.now(), allowClosed = false }) {
   if (!/^sgreply_[a-f0-9]{40}$/.test(id || '') || segretariaApprovalProblem(action)
       || action.status !== 'executed' || action.payload?.channel !== 'whatsapp'
       || action.segretaria.execution?.state !== 'started' || action.segretaria.delivery
       || action.waSentAt || action.waSendError || action.waSendAttemptAt
       || whatsappDeliveryWindow(action, now) !== 'expired') return false;
   const s = action.segretaria, p = task?.preparation, receipt = p?.approval;
-  return task?.source === 'segretaria' && task.status === 'open' && task.followUp?.open === true
+  const eligibleCase = task?.status === 'open' && task.followUp?.open === true
+    || allowClosed && task?.status === 'done' && task.followUp?.open === false;
+  return task?.source === 'segretaria' && eligibleCase
     && task.id === s.caseId && task.followUp.conversationId === s.conversationId
     && p?.revision === s.proposalRevision && p.messageId === s.sourceMessageId
     && preparationContentHash(p) === s.preparationHash

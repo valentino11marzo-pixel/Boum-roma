@@ -2,7 +2,7 @@
 // check for work already there, not a new ownership registry or an expiring lock.
 import { fsList } from '../homie/_lib.js';
 
-export async function replyOwner(conversation, { excludeActionId = null } = {}) {
+export async function replyOwner(conversation, { excludeActionId = null, excludeActionIds = [] } = {}) {
   if (conversation?.segretaria === true) return { blocked: true, owner: 'segretaria:conversation', actionId: null, incomplete: false };
   const probes = [['payload.conversationId', conversation?.id], ['leadId', conversation?.leadId],
     ['payload.phone', conversation?.contactPhone], ['payload.to', conversation?.contactEmail?.trim().toLowerCase()]]
@@ -13,7 +13,8 @@ export async function replyOwner(conversation, { excludeActionId = null } = {}) 
   })));
   const incomplete = results.some(r => r.status !== 'fulfilled' || r.value.length >= 21);
   const rows = [...new Map(results.flatMap(r => r.status === 'fulfilled' ? r.value : []).map(r => [r.id, r])).values()];
-  const busy = rows.filter(a => a.id !== excludeActionId && a.kind === 'reply'
+  const excluded = new Set([excludeActionId, ...excludeActionIds]);
+  const busy = rows.filter(a => !excluded.has(a.id) && a.kind === 'reply'
     && (['pending', 'approved'].includes(a.status)
       || (a.status === 'executed' && ['whatsapp', 'both'].includes(a.payload?.channel) && !a.waSentAt)
       || (a.status === 'failed' && a.segretaria?.execution)))
