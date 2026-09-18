@@ -2999,8 +2999,17 @@ out AUTOMATICALLY. Executor marks the action executed (wa.me link kept as
 manual fallback); Homie polls `{op:'pull'}` (approved-and-unsent, executed
 <48h, max 10/pull), sends via wacli/send_whatsapp.sh, then `{op:'ack',
 actionId, ok, error?}` — delivery state lives on the action doc
-(`waSentAt`/`waSendError`), nothing sends twice, failures visible. Auth
+(`waSentAt`/`waSendError`); outcomes must be checked before retry. Auth
 `X-Homie-Secret`.
+
+**Ritiro e scadenza coerenti (18/09/2026):** ogni pull legge una pagina di 50
+azioni e salva con CAS in `heartbeat/wa-outbox` il prefisso controllato prima
+delle claim; un diniego non nasconde i candidati successivi. Restano una verifica
+di proposta e dieci payload per pull. `_wa-delivery` condivide la soglia 48h:
+una bozza mai ritirata scaduta o senza data verificabile diventa `needs_review`.
+Ricevute terminali/claim conservate, nessun reinvio incerto o attivazione Mac;
+il flusso legacy conserva i limiti precedenti. Prove: `segretariaconsegna`,
+`segretariaesecuzione`, conferma/UI e sei mutazioni di scadenza e paginazione.
 
 ### POST `/api/homie/message` — da WhatsApp a lead, senza far pensare nessuno
 La CHIAVE DI VOLTA che permette a Homie di smettere di analizzare (mandato
