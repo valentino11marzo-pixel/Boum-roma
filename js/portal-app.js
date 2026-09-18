@@ -4821,6 +4821,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ? 'Seguito confermato. Nessun messaggio previsto.' : 'Stato della conferma da verificare. Ricarica l’esito.';
     }
 
+    function oggiSegretariaCanResume(m) {
+        const task = m?.task, p = oggiSegretariaPreparation(task), a = p?.approval, r = task?.deliveryResult;
+        // Only the server-derived receipt proves that execution has NOT been
+        // claimed. A local timeout or a previous post-click receipt cannot.
+        return !!(task?.status === 'open' && !m.uncertain && !m.mustRegenerate && a?.actionId
+            && a.revision === p.revision && a.messageId === p.messageId && p.messageId === task.followUp?.lastMessageId
+            && r?.confirmed === true && r.id === task.id && r.actionId === a.actionId && r.delivery === 'pending_execution');
+    }
+
     function oggiSegretariaRecipient(p) {
         const r = p?.recipientPreview, channel = p?.draft?.channel;
         if (!p?.draft) return true;
@@ -5123,7 +5132,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ${form || (m.error ? '<button class="btn btn-secondary" type="button" data-sg-modal="reload">Riprova</button>' : '<p class="sg-state" role="status">Carico la richiesta e le pratiche collegate…</p>')}
             </div><div class="modal-footer sg-modal-footer"><div class="sg-footer-note">${review && p && !p.approval ? (p.draft ? 'Approvi il piano e l’invio del testo al destinatario mostrato.' : 'Approvi il seguito e il ricontrollo. Non è previsto un messaggio.') : 'Il seguito resta aperto fino a un esito.'}</div><div class="sg-footer-actions"><button class="btn btn-secondary sg-cancel" type="button" data-sg-modal="cancel">Annulla</button>
                 ${f && m.task.status === 'open' ? (review ? `<button class="btn btn-secondary" type="button" data-sg-modal="edit">Correggi seguito</button>
-                    ${m.uncertain ? '<button class="btn sg-primary" type="button" data-sg-modal="reload">Ricarica l’esito</button>' : !p ? `<button class="btn sg-primary" type="button" data-sg-modal="generate" ${capReached ? 'disabled' : ''}>${capReached ? 'Preparazione da verificare' : 'Prepara il lavoro'}</button>` : !p.approval ? `<button class="btn btn-secondary" type="button" data-sg-modal="generate" ${capReached ? 'disabled' : ''}>Rielabora</button><button class="btn sg-primary" type="button" data-sg-modal="approve" ${canApprove ? '' : 'disabled'}>${!canApprove ? 'Informazioni da completare' : 'Approva ed esegui'}</button>` : ''}`
+                    ${m.uncertain ? '<button class="btn sg-primary" type="button" data-sg-modal="reload">Ricarica l’esito</button>' : !p ? `<button class="btn sg-primary" type="button" data-sg-modal="generate" ${capReached ? 'disabled' : ''}>${capReached ? 'Preparazione da verificare' : 'Prepara il lavoro'}</button>` : !p.approval ? `<button class="btn btn-secondary" type="button" data-sg-modal="generate" ${capReached ? 'disabled' : ''}>Rielabora</button><button class="btn sg-primary" type="button" data-sg-modal="approve" ${canApprove ? '' : 'disabled'}>${!canApprove ? 'Informazioni da completare' : 'Approva ed esegui'}</button>` : oggiSegretariaCanResume(m) ? '<button class="btn sg-primary" type="button" data-sg-modal="resume">Riprendi esecuzione</button>' : ''}`
                     : m.mode === 'close' ? '<button class="btn btn-secondary" type="button" data-sg-modal="back">Torna al seguito</button><button class="btn sg-primary" type="submit" form="sgFollowForm" data-sg-submit>Registra esito e chiudi</button>' : `<button class="btn btn-secondary" type="button" data-sg-modal="close">Chiudi con un esito</button><button class="btn sg-primary" type="submit" form="sgFollowForm" data-sg-submit>${selected ? 'Conferma seguito' : 'Salva · da collegare'}</button>`) : ''}
             </div></div></div></div>`;
         document.body.classList.add('modal-open');
@@ -5137,7 +5146,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             if (action === 'reload') return oggiSegretariaOpen(m.id, m.notice, m.mode);
             if (action === 'source') return oggiSegretariaSource(m.task);
             if (action === 'edit') { m.mode = 'edit'; m.error = ''; oggiSegretariaModalRender(); return; }
-            if (action === 'generate' || action === 'approve') return oggiSegretariaPrepare(action);
+            if (action === 'generate' || action === 'approve' || action === 'resume') return oggiSegretariaPrepare(action);
             if (action === 'close' || action === 'back') { m.mode = action === 'close' ? 'close' : 'edit'; m.error = ''; oggiSegretariaModalRender(); }
         };
         wrap.onkeydown = event => {
@@ -5160,7 +5169,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
     async function oggiSegretariaPrepare(operation) {
         const m = oggiSegretaria.modal;
-        if (!m?.task || m.busy || !['review', 'execute'].includes(m.mode) || !['generate', 'approve'].includes(operation)) return;
+        if (!m?.task || m.busy || !['review', 'execute'].includes(m.mode) || !['generate', 'approve', 'resume'].includes(operation)) return;
+        if (operation === 'resume' && !oggiSegretariaCanResume(m)) return;
         if (operation === 'generate' && oggiSegretariaLegacyCap()) {
             m.error = 'Il servizio precedente segnala un limite di preparazione. Puoi leggere le fonti e correggere il seguito; aggiorna lo stato del servizio.';
             oggiSegretariaModalRender(); return;
@@ -5190,6 +5200,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             oggiSegretariaLoad(true);
         };
         try {
+            if (operation === 'resume') {
+                // Re-read just before retrying the SAME approved action. The
+                // executor still owns the atomic claim if another tab races.
+                const fresh = await oggiSegretariaRequest(m.id);
+                if (oggiSegretaria.modal !== m) return;
+                if (fresh.task?.id !== m.id || !fresh.dossier) throw { code: 'invalid_response' };
+                m.task = fresh.task; m.dossier = fresh.dossier;
+                if (!oggiSegretariaCanResume(m) || m.task.preparation.revision !== revision
+                    || m.task.followUp.lastMessageId !== payload.lastMessageId) {
+                    m.notice = 'Lo stato è cambiato: controlla l’esito aggiornato prima di agire.';
+                    return;
+                }
+            }
             const data = await oggiSegretariaRequest(null, payload, true);
             if (oggiSegretaria.modal !== m) return;
             if (operation === 'generate') {
@@ -5203,7 +5226,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             } else await confirmed(data);
         } catch (e) {
             if (oggiSegretaria.modal !== m) return;
-            if (operation === 'approve' && e.data?.id === m.id && e.data.confirmed === true) {
+            if (operation !== 'generate' && e.data?.id === m.id && e.data.confirmed === true) {
                 await confirmed(e.data);
             } else if (e.status === 409 && !['preparation_in_progress', 'preparation_disabled', 'previous_delivery_unresolved'].includes(e.code)) {
                 await oggiSegretariaOpen(m.id, oggiSegretariaError(e), 'review');
@@ -5214,7 +5237,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 oggiSegretariaLoad(true);
             } else {
                 m.error = oggiSegretariaError(e);
-                if (operation === 'approve' && (e.code === 'timeout' || !e.status || e.status >= 500)) {
+                if (operation !== 'generate' && (e.code === 'timeout' || !e.status || e.status >= 500)) {
                     m.uncertain = true;
                     m.error = 'Non riesco a verificare l’esito della conferma. Ricarica lo stato prima di agire di nuovo: il messaggio potrebbe essere già in coda.';
                 }
@@ -29184,6 +29207,13 @@ IBAN: ${l.iban || '-'}`;
                     ? 'La lettura dal telefono non è riuscita: ' + (rec.detail || rec.error || 'errore') + ' — puoi rileggere il documento da qui.'
                     : 'La lettura è ancora in corso (' + rec.status + '): riapri il link tra un minuto.');
             }
+            if (rec.application) {
+                const a = rec.application;
+                _innesto.seedApplication = a;
+                throw new Error(a.status === 'applied'
+                    ? 'Questa proposta è già stata confermata. I record sono in archivio; apri Contratti o Documenti per consultarli.'
+                    : 'La conferma di questa proposta è già iniziata e richiede verifica. Controlla i record in archivio prima di altre modifiche; non viene creata una seconda copia.');
+            }
             const d = rec.document || {};
             const prepared = [{ archived: { id: d.id || id, url: d.fileUrl || '', name: d.fileName || d.name || 'documento', mimeType: d.mimeType || '' } }];
             _innesto.seedDoc = d;
@@ -29200,7 +29230,10 @@ IBAN: ${l.iban || '-'}`;
     function innestoSeedCard() {
         if (!_innesto.seedId) return '';
         if (_innesto.seedLoading) return `<div class="card" style="margin-bottom:16px;border-color:rgba(212,175,55,0.3)"><div style="font-size:13px;color:var(--gold)">📲 Carico la proposta letta dal telefono…</div></div>`;
-        if (_innesto.seedError) return `<div class="card" style="margin-bottom:16px;border-color:#FF6B35"><div style="font-size:12px;color:#FF6B35;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Proposta dal telefono</div><div style="font-size:13px;line-height:1.6">${esc(_innesto.seedError)}</div></div>`;
+        if (_innesto.seedError) {
+            const contract = /^contracts\/([\w-]+)$/.exec(_innesto.seedApplication?.links?.contract || '');
+            return `<div class="card" style="margin-bottom:16px;border-color:#FF6B35"><div style="font-size:12px;color:#FF6B35;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Proposta dal telefono</div><div style="font-size:13px;line-height:1.6">${esc(_innesto.seedError)}</div>${_innesto.seedApplication ? `<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">${contract ? `<button class="btn btn-secondary" onclick="viewContract('${contract[1]}')">Apri il contratto registrato</button>` : '<button class="btn btn-secondary" onclick="goTo(\'contracts\')">Apri Contratti</button>'}<button class="btn btn-secondary" onclick="goTo('documents')">Verifica Documenti</button></div>` : ''}</div>`;
+        }
         const d = _innesto.seedDoc || {};
         return `<div class="card" style="margin-bottom:16px;border-color:rgba(212,175,55,0.3)"><div style="font-size:12.5px;line-height:1.6">📲 Proposta letta dal telefono da <b>${esc(d.name || d.fileName || _innesto.seedId)}</b>${d.fileUrl ? ` · <a href="${esc(d.fileUrl)}" target="_blank" rel="noopener" style="color:var(--gold)">apri il documento</a>` : ''}. Il file è già in archivio: alla conferma viene legato a ciò che nasce, non ricaricato.</div></div>`;
     }
@@ -29297,16 +29330,73 @@ IBAN: ${l.iban || '-'}`;
     async function innestoApply() {
         const V = window.BOOM_DATAOPS;
         const p = _innesto.proposal;
-        if (!p) return;
+        if (!p || _innesto.busy) return;
         const val = V.validateProposal(p);
         if (!val.ok) { toast('error', 'Ci sono errori da correggere'); return; }
         _innesto.busy = true; renderPage();
 
-        const created = [], updated = [];
+        const created = [], updated = [], warnings = [], documentResults = [];
         const pools = innestoPools();
+        const seedRef = _innesto.seedId ? db.collection('scrivanoProposals').doc(_innesto.seedId) : null;
+        let applicationToken = null;
+        // The reservation is durable, without an expiring lease: after a crash
+        // the exact partial result needs review, never a second import. Each
+        // primary record and its link are committed in the same transaction.
+        const record = async (key, ref, data, create = false) => {
+            if (!seedRef) {
+                if (data) await ref.update(data);
+                return;
+            }
+            await db.runTransaction(async tx => {
+                const snap = await tx.get(seedRef), a = snap.data()?.application;
+                if (!a || a.token !== applicationToken || a.status !== 'applying') throw new Error('Conferma da verificare: prenotazione non disponibile.');
+                const existing = await tx.get(ref);
+                if (create && existing.exists) throw new Error('Il record esiste già: verificare prima di proseguire.');
+                if (!create && !existing.exists) throw new Error('Il record collegato non è più disponibile: ricarica i dati.');
+                if (data) { if (create) tx.set(ref, data); else tx.update(ref, data); }
+                tx.update(seedRef, { application: { ...a, links: { ...a.links, [key]: ref.path }, updatedAt: firebase.firestore.FieldValue.serverTimestamp() } });
+            });
+        };
+        const createRecord = async (collection, data, key) => {
+            if (!seedRef) return db.collection(collection).add(data);
+            const ref = db.collection(collection).doc();
+            await record(key, ref, data, true);
+            return ref;
+        };
+        const finish = async status => {
+            if (!seedRef || !applicationToken) return;
+            await db.runTransaction(async tx => {
+                const snap = await tx.get(seedRef), a = snap.data()?.application;
+                if (!a || a.token !== applicationToken || a.status !== 'applying') throw new Error('Esito della conferma da verificare.');
+                tx.update(seedRef, { application: { ...a, status, warnings: [...new Set(warnings)], created, updated,
+                    documents: documentResults.map(row => ({ ...row, ref: a.links[row.key] || row.sourceRef })),
+                    completedAt: firebase.firestore.FieldValue.serverTimestamp() } });
+            });
+        };
         try {
             const now = firebase.firestore.FieldValue.serverTimestamp();
             const uuid = () => crypto.randomUUID ? crypto.randomUUID() : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+            if (seedRef) {
+                const token = uuid();
+                const claimed = await db.runTransaction(async tx => {
+                    const snap = await tx.get(seedRef), rec = snap.exists ? snap.data() : null;
+                    if (!rec || rec.status !== 'done') throw new Error('Proposta non disponibile: ricarica la lettura dal telefono.');
+                    if (rec.application) return false;
+                    // Pre-release confirmations did not have a receipt. Do not
+                    // import again a document already linked by Innesto.
+                    const documentId = rec.document?.id || _innesto.seedId;
+                    const source = await tx.get(db.collection('documents').doc(documentId));
+                    if (source.exists && source.data()?.innestoAt) throw new Error('Documento già confermato con Innesto: controlla i record collegati in archivio.');
+                    tx.update(seedRef, { application: { status: 'applying', token, by: S.profile.id,
+                        startedAt: now, links: {}, warnings: [] } });
+                    return true;
+                });
+                if (!claimed) {
+                    toast('warning', 'Conferma già registrata', 'Controlla Contratti e Documenti: questa proposta non viene applicata una seconda volta.');
+                    _innesto.busy = false; renderPage(); return;
+                }
+                applicationToken = token;
+            }
             const resolve = async (sectionKey, d, pool, kind, linksMap, create, label) => {
                 // Lo STESSO pool della card: con pool diversi la card diceva
                 // «verrà usato il record esistente» e l'apply ne creava un doppione.
@@ -29317,15 +29407,16 @@ IBAN: ${l.iban || '-'}`;
                         const pf = innestoPatchFor(sectionKey, d, rec, kind === 'property' ? 'property' : 'person');
                         if (pf) {
                             const patch = Object.assign({}, pf.patch, { updatedAt: now, updatedBy: 'innesto' });
-                            await db.collection(rec._col || 'users').doc(rec.id).update(patch);
+                            await record(sectionKey, db.collection(rec._col || 'users').doc(rec.id), patch);
                             Object.assign(rec, pf.patch);
                             updated.push(label + ' (' + pf.n + (pf.n === 1 ? ' campo' : ' campi') + ')');
                         }
                     }
+                    if (seedRef) await record(sectionKey, db.collection(rec._col || 'users').doc(rec.id));
                     return rec.id;
                 }
                 if (!d) return null;
-                const id = await create(d);
+                const id = await create(d, sectionKey);
                 created.push(label);
                 return id;
             };
@@ -29336,7 +29427,7 @@ IBAN: ${l.iban || '-'}`;
                     iban: d.iban || '', kind: d.kind || '', businessName: d.businessName || '', partitaIva: d.partitaIva || '',
                     source: 'innesto', createdAt: now
                 });
-                const ref = await db.collection('users').add(doc);
+                const ref = await createRecord('users', doc, 'landlord');
                 S.users.push(Object.assign({ id: ref.id }, doc));
                 return ref.id;
             }, 'proprietario');
@@ -29359,19 +29450,19 @@ IBAN: ${l.iban || '-'}`;
                     availabilityStatus: p.contract ? 'rented' : 'available',
                     source: 'innesto', createdAt: now
                 };
-                const ref = await db.collection('properties').add(doc);
+                const ref = await createRecord('properties', doc, 'property');
                 S.properties.push(Object.assign({ id: ref.id }, doc));
                 return ref.id;
             }, 'immobile');
 
             // 3 — Inquilino (profilo Firestore; l'account di accesso si crea
             //     dalla scheda utente quando serve davvero il portale)
-            const newTenant = async (d) => {
+            const newTenant = async (d, key) => {
                 const doc = Object.assign(innestoUserDoc(d, 'tenant'), {
                     permessoNumero: d.permessoNumero || '', permessoScadenza: d.permessoScadenza || '',
                     source: 'innesto', createdAt: now
                 });
-                const ref = await db.collection('users').add(doc);
+                const ref = await createRecord('users', doc, key);
                 S.users.push(Object.assign({ id: ref.id }, doc));
                 return ref.id;
             };
@@ -29457,22 +29548,23 @@ IBAN: ${l.iban || '-'}`;
                 };
                 if (ownerId) contractData.landlordId = ownerId;
                 Object.keys(contractData).forEach(k => { if (contractData[k] === '' && /^(landlordKind|landlordPIva|esigenzaDi|condoMode|istatPct|signaturePlace)$/.test(k)) delete contractData[k]; });
-                const ref = await db.collection('contracts').add(contractData);
+                const ref = await createRecord('contracts', contractData, 'contract');
                 contractId = ref.id;
                 S.contracts.push({ id: ref.id, ...contractData });
                 created.push('contratto');
 
                 try {
                     const n = await generateMonthlyPayments(ref.id, contractData);
-                    await db.collection('contracts').doc(ref.id).update({ paymentsGenerated: true }).catch(() => {});
+                    await db.collection('contracts').doc(ref.id).update({ paymentsGenerated: true });
                     if (n) created.push(n + ' rate');
-                } catch (e) { console.warn('[Innesto] piano rate non generato:', e); toast('warning', 'Contratto creato', 'Il piano rate va generato a mano'); }
-                try { await generateContractDeadlines(ref.id, contractData); } catch (e) { console.warn('[Innesto] scadenze non generate:', e); }
-                try { if (typeof generateContractPDF === 'function' && await generateContractPDF(ref.id)) created.push('PDF'); } catch (e) { console.warn('[Innesto] PDF non generato:', e); }
+                } catch (e) { warnings.push('payments'); console.warn('[Innesto] piano rate da verificare'); toast('warning', 'Contratto creato', 'Verifica il piano rate prima di completarlo: alcune rate potrebbero essere già state salvate.'); }
+                try { await generateContractDeadlines(ref.id, contractData); } catch (e) { warnings.push('deadlines'); console.warn('[Innesto] scadenze non generate'); }
+                try { if (typeof generateContractPDF === 'function') { if (await generateContractPDF(ref.id)) created.push('PDF'); else warnings.push('pdf'); } } catch (e) { warnings.push('pdf'); console.warn('[Innesto] PDF non generato'); }
 
                 if (propertyId) {
-                    await db.collection('properties').doc(propertyId)
-                        .update({ currentContractId: ref.id, availabilityStatus: 'rented' }).catch(() => {});
+                    try { await db.collection('properties').doc(propertyId)
+                        .update({ currentContractId: ref.id, availabilityStatus: 'rented' }); }
+                    catch (e) { warnings.push('property_link'); }
                 }
             }
 
@@ -29483,19 +29575,30 @@ IBAN: ${l.iban || '-'}`;
             //     la checklist del commercialista già guardano.
             if (_innesto.archive && _innesto.readDocs.length) {
                 let n = 0;
-                for (const rd of _innesto.readDocs) {
+                for (const [index, rd] of _innesto.readDocs.entries()) {
+                    const result = { key: 'document_' + (index + 1), sourceRef: rd.archived?.id ? 'documents/' + rd.archived.id : null, status: 'needs_review' };
+                    documentResults.push(result);
                     try {
-                        const url = await innestoArchiveDoc(rd, { contractId, propertyId, tenantId, ownerId, coRows, startDate: p.contract && p.contract.startDate });
-                        if (url) n++;
-                    } catch (e) { console.warn('[Innesto] archivio documento fallito:', e); }
+                        const key = result.key;
+                        const url = await innestoArchiveDoc(rd, { contractId, propertyId, tenantId, ownerId, coRows, startDate: p.contract && p.contract.startDate,
+                            linkDocument: seedRef ? (ref, patch) => record(key, ref, patch) : null,
+                            createDocument: seedRef ? data => createRecord('documents', data, key) : null });
+                        if (url) { n++; result.status = 'linked'; }
+                        else warnings.push('documents');
+                    } catch (e) { warnings.push('documents'); console.warn('[Innesto] archivio documento da verificare'); }
                 }
                 if (n) created.push(n + (n === 1 ? ' documento archiviato' : ' documenti archiviati'));
-                else if (_innesto.readDocs.length) toast('warning', 'Documenti non archiviati', 'I record sono stati creati, ma i file letti non sono stati salvati: caricali da Documenti');
+                if (warnings.includes('documents')) toast('warning', 'Documenti da verificare', 'Alcuni file o collegamenti non sono stati salvati. I record creati restano in archivio: completa i collegamenti da Documenti.');
             }
 
-            await logActivity('innesto_import', 'system', { creati: created, aggiornati: updated, confidence: _innesto.confidence, contractId });
+            if (p.contract && (!propertyId || !tenantId)) warnings.push('contract_incomplete');
+            try { await logActivity('innesto_import', 'system', { creati: created, aggiornati: updated, confidence: _innesto.confidence, contractId }); }
+            catch (e) { warnings.push('activity'); }
+            await finish(warnings.length ? 'needs_review' : 'applied');
             try { localStorage.removeItem('boom_data_cache'); } catch (e) {}
-            toast('success', 'Innesto completato', created.concat(updated.map(u => 'aggiornato ' + u)).join(' · ') || 'nessun nuovo record');
+            toast(warnings.length ? 'warning' : 'success', warnings.length ? 'Innesto da completare' : 'Innesto completato',
+                (created.concat(updated.map(u => 'aggiornato ' + u)).join(' · ') || 'nessun nuovo record')
+                + (warnings.length ? ' — verifica gli elementi mancanti: ' + warnings.map(k => ({ payments: 'piano rate', deadlines: 'scadenze', pdf: 'PDF', property_link: 'collegamento immobile', documents: 'documenti', activity: 'registro attività', contract_incomplete: 'contratto' })[k]).filter(Boolean).join(', ') : ''));
             // Un contratto saltato non resta MAI muto: "Innesto completato"
             // senza questa riga era indistinguibile da un contratto creato.
             if (p.contract && (!propertyId || !tenantId)) {
@@ -29509,7 +29612,9 @@ IBAN: ${l.iban || '-'}`;
             // non su una pagina Innesto tornata vuota.
             if (madeContract) goTo('contracts'); else { buildNav(); renderPage(); }
         } catch (e) {
-            console.error('[Innesto] creazione fallita:', e);
+            warnings.push('application_interrupted');
+            try { await finish('needs_review'); } catch (_) { /* Reservation and committed links remain; never release for retry. */ }
+            console.error('[Innesto] creazione da verificare');
             toast('error', 'Creazione non riuscita', e.message + (created.length ? ' — già creati: ' + created.join(', ') : ''));
             _innesto.busy = false; renderPage();
         }
@@ -29532,13 +29637,15 @@ IBAN: ${l.iban || '-'}`;
             if (ctx.contractId) patch.contractId = ctx.contractId;
             if (ctx.propertyId) patch.propertyId = ctx.propertyId;
             if (userId) patch.userId = userId;
-            if (a.id) await db.collection('documents').doc(a.id).update(patch).catch(() => {});
+            if (!a.id) throw new Error('Documento senza riferimento in archivio.');
+            const ref = db.collection('documents').doc(a.id);
+            if (ctx.linkDocument) await ctx.linkDocument(ref, patch); else await ref.update(patch);
             if (meta.kind === 'documento_identita' && party && a.url) {
                 const entry = { url: a.url, path: null, name: a.name || 'documento', contentType: a.mimeType || null, bytes: null, role: party, at: new Date().toISOString(), source: 'scrivano' };
                 if (meta.party === 'cotenant') entry.tenantIndex = 1;
                 const union = firebase.firestore.FieldValue.arrayUnion;
-                if (ctx.contractId) await db.collection('contracts').doc(ctx.contractId).update({ identityDocs: union(entry) }).catch(() => {});
-                if (userId) await db.collection('users').doc(userId).update({ identityDocs: union({ url: a.url, name: entry.name, at: entry.at }) }).catch(() => {});
+                if (ctx.contractId) await db.collection('contracts').doc(ctx.contractId).update({ identityDocs: union(entry) });
+                if (userId) await db.collection('users').doc(userId).update({ identityDocs: union({ url: a.url, name: entry.name, at: entry.at }) });
             }
             return a.url;
         }
@@ -29560,13 +29667,13 @@ IBAN: ${l.iban || '-'}`;
             fileUrl: url, fileName: file.name, fileSize: useBlob.size, storagePath: path,
             uploadedBy: S.profile.id, source: 'innesto', createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
-        await db.collection('documents').add(docEntry);
+        if (ctx.createDocument) await ctx.createDocument(docEntry); else await db.collection('documents').add(docEntry);
         if (meta.kind === 'documento_identita' && party) {
             const entry = { url, path, name: safeName, contentType, bytes: useBlob.size, role: party, at: new Date().toISOString(), source: 'innesto' };
             if (meta.party === 'cotenant') entry.tenantIndex = 1;
             const union = firebase.firestore.FieldValue.arrayUnion;
-            if (ctx.contractId) await db.collection('contracts').doc(ctx.contractId).update({ identityDocs: union(entry) }).catch(() => {});
-            if (userId) await db.collection('users').doc(userId).update({ identityDocs: union({ url, name: safeName, at: entry.at }) }).catch(() => {});
+            if (ctx.contractId) await db.collection('contracts').doc(ctx.contractId).update({ identityDocs: union(entry) });
+            if (userId) await db.collection('users').doc(userId).update({ identityDocs: union({ url, name: safeName, at: entry.at }) });
         }
         return url;
     }
