@@ -16,6 +16,7 @@
 // obligation key, so re-imports update rather than duplicate.
 
 import FISCAL from '../../js/fiscal-engine.js';
+import RENT from '../../js/rent-engine.js';
 import { requireCronOrAdmin } from '../pfs/_guard.js';
 import { fsList } from '../homie/_lib.js';
 
@@ -40,7 +41,9 @@ export default async function handler(req, res) {
 
     // ── Company (this year + next year's carry-over deadlines) ──────────
     const revenueByQuarter = { 1: 0, 2: 0, 3: 0, 4: 0 };
-    for (const inv of invoices) {
+    // BOOM è agenzia: le ricevute di canoni/depositi custoditi per i
+    // proprietari non diventano ricavi aziendali né base IVA della società.
+    for (const inv of RENT.businessInvoices(invoices)) {
       if (inv.status !== 'paid') continue;
       const d = new Date(inv.paidDate || inv.date || 0);
       if (d.getFullYear() !== fiscalYear) continue;
@@ -52,7 +55,7 @@ export default async function handler(req, res) {
     const byClient = {};
     const clientKey = p => {
       const owner = p.ownerId ? userById[p.ownerId] : null;
-      return (owner && (owner.name || owner.email)) || p.ownerName || 'BOOM (gestione diretta)';
+      return (owner && (owner.name || owner.email)) || p.ownerName || 'Proprietario da verificare';
     };
     for (const p of properties) {
       const key = clientKey(p);

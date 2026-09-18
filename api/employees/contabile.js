@@ -24,6 +24,7 @@
 // `?dry=1` computes and returns everything without writing or notifying.
 
 import FISCAL from '../../js/fiscal-engine.js';
+import RENT from '../../js/rent-engine.js';
 import TAXPACK from '../../js/taxpack-engine.js';
 import { sendEmail } from '../agent/_lib.js';
 import { real } from '../_demo.js';
@@ -75,7 +76,9 @@ async function run({ dry, forceMonthly, yearOverride }) {
   // ── 1. Scadenze fiscali (landlord + company) ──────────────────────────
   const landlordObl = FISCAL.landlordObligations({ properties, contracts, fiscalYear });
   const revenueByQuarter = { 1: 0, 2: 0, 3: 0, 4: 0 };
-  for (const inv of invoices) {
+  // BOOM è agenzia: le ricevute di canoni/depositi custoditi per i
+  // proprietari non diventano ricavi aziendali né base IVA della società.
+  for (const inv of RENT.businessInvoices(invoices)) {
     if (inv.status !== 'paid') continue;
     const d = new Date(inv.paidDate || inv.date || 0);
     if (d.getFullYear() !== fiscalYear) continue;
@@ -164,7 +167,7 @@ async function run({ dry, forceMonthly, yearOverride }) {
   const summary =
     `Fisco: ${counts.oblOverdue} scadute · ${counts.oblDueSoon} ≤30gg | ` +
     `Pacchetto: ${counts.packsReady}/${counts.packsTotal} pronti | ` +
-    `Incassi YTD ${euro(counts.incassatoYtd)} (da incassare ${euro(counts.outstandingYtd)}) | ` +
+    `Canoni/depositi per conto dei proprietari YTD ${euro(counts.incassatoYtd)} (da incassare ${euro(counts.outstandingYtd)}) | ` +
     `${counts.paymentsLate} in ritardo` +
     (banca.accounts ? ` | Banca: ${banca.matchedLastRun} riconciliati · ${banca.toConfirm} da confermare` : '');
 
@@ -244,7 +247,7 @@ async function sendMonthlyClose({ now, payments, packs, overdue, dueSoon, propBy
       <div style="color:#999;font-size:13px">Il Contabile · Chiusura ${esc(monthLabel)}</div>
     </div>
     <div style="border:1px solid #eee;border-top:none;padding:18px 22px;border-radius:0 0 10px 10px">
-      <p style="font-size:15px"><strong>💰 Incassato:</strong> ${euro(incassato)} su ${euro(atteso)} attesi</p>
+      <p style="font-size:15px"><strong>💰 Canoni/depositi per conto dei proprietari:</strong> ${euro(incassato)} su ${euro(atteso)} attesi</p>
       ${unpaid.length ? `<p style="font-size:14px;color:#a33"><strong>Non incassato:</strong></p><ul style="font-size:14px">${unpaid.map(u => `<li>${esc(u)}</li>`).join('')}</ul>` : '<p style="color:#2a8;font-size:14px">Tutti i canoni del mese incassati ✅</p>'}
       <p style="font-weight:bold;margin-top:18px">📁 Pacchetto commercialista (anno ${now.getUTCFullYear()})</p>
       <table style="border-collapse:collapse;font-size:13px;width:100%">${rows}</table>
@@ -253,7 +256,7 @@ async function sendMonthlyClose({ now, payments, packs, overdue, dueSoon, propBy
     </div></div>`;
 
   try {
-    const r = await sendEmail({ to, subject: `BOOM · Chiusura contabile ${monthLabel}`, html, text: `Chiusura ${monthLabel}: incassato ${euro(incassato)} su ${euro(atteso)}.` });
+    const r = await sendEmail({ to, subject: `BOOM · Chiusura contabile ${monthLabel}`, html, text: `Chiusura ${monthLabel}: canoni/depositi per conto dei proprietari ${euro(incassato)} su ${euro(atteso)}.` });
     return { sent: true, to, messageId: r.messageId, month: monthKey };
   } catch (e) {
     return { sent: false, error: e.message };

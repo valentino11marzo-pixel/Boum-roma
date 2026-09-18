@@ -5,8 +5,8 @@
 // — lo apre due ore dopo e trova una pagina morta.
 //
 // Soluzione: il link NON è la sessione Stripe. È un URL stabile di BOOM che,
-// ogni volta che viene aperto, crea una sessione FRESCA e ci reindirizza
-// dentro. Non scade mai, non va salvato da nessuna parte (il token è
+// ogni volta che viene aperto, riusa il checkout aperto o ne crea uno se
+// scaduto. Non scade mai, non va salvato da nessuna parte (il token è
 // DERIVATO dall'id del documento + un segreto server), e ruotando il
 // segreto si revocano tutti i link in circolazione.
 //

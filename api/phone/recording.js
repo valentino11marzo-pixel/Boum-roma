@@ -31,6 +31,7 @@
 import { fsGet, fsPatch, logActivity } from '../homie/_lib.js';
 import { normalizePhone, matchListing, loadCatalog } from '../homie/_lead.js';
 import { tgSend } from '../telegram/_lib.js';
+import { syncCallCase } from '../segretaria/_callcase.js';
 import {
   checkPhoneAuth, readForm, resolveCaller, callerLabel,
   storeCallAudio, analyzeTranscript, syncLeadFromCall, tgCallCard,
@@ -56,7 +57,8 @@ export default async function handler(req, res) {
   let doc = null;
   try { doc = await fsGet(docPath); } catch { /* si procede senza */ }
   if (doc && doc.processedAt) {
-    return res.status(200).json({ ok: true, callSid, duplicate: true });
+    const followUp = await syncCallCase(callSid);
+    return res.status(200).json({ ok: true, callSid, duplicate: true, followUp });
   }
 
   const now = new Date();
@@ -69,7 +71,8 @@ export default async function handler(req, res) {
         ...(doc ? {} : { handled: false, createdAt: now }),
       });
     } catch (e) { console.error('[phone/recording] absent patch:', e.message); }
-    return res.status(200).json({ ok: true, callSid, status: 'no-message' });
+    const followUp = await syncCallCase(callSid);
+    return res.status(200).json({ ok: true, callSid, status: 'no-message', followUp });
   }
 
   // ── chi chiamava: dal doc, o dall'API Twilio se inbound non l'ha scritto ─
@@ -149,6 +152,8 @@ export default async function handler(req, res) {
     return res.status(500).json({ ok: false, error: 'doc_write_failed' });
   }
 
+  const followUp = await syncCallCase(callSid);
+
   // ── il ping (dopo il dato, mai al posto del dato) ────────────────────────
   try {
     const chatId = process.env.TELEGRAM_CHAT_ID;
@@ -163,7 +168,7 @@ export default async function handler(req, res) {
     summary: String(analysis.summary || '').slice(0, 120),
   }, 'centralino');
 
-  return res.status(200).json({ ok: true, callSid, status: 'received', leadId, leadCreated });
+  return res.status(200).json({ ok: true, callSid, status: 'received', leadId, leadCreated, followUp });
 }
 
 // ─── Twilio ────────────────────────────────────────────────────────────────

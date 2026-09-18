@@ -22,28 +22,39 @@
 // Auth: firma HMAC di ElevenLabs (header `elevenlabs-signature`,
 // `t=<unix>,v0=<hmac_sha256(secret, t + "." + rawBody)>`, tolleranza 30').
 // Env: ELEVENLABS_WEBHOOK_SECRET (dalla console ElevenLabs → Webhooks).
-// bodyParser DISATTIVATO: l'HMAC si calcola sui byte grezzi — un body
-// riserializzato non è mai garantito identico.
+// HMAC sui byte grezzi: Vercel Node standalone espone req.body con un
+// getter JSON anche con config.api.bodyParser=false. Leggere lo stream
+// ripristinato dal runtime, mai quel getter o un oggetto riserializzato.
 
 import crypto from 'node:crypto';
 import { secretEqual, fsGet, fsPatch, logActivity } from '../homie/_lib.js';
-import { normalizePhone, matchListing, loadCatalog } from '../homie/_lead.js';
+import { normalizePhone, loadCatalog } from '../homie/_lead.js';
+import phoneListing from '../../js/phone-listing-engine.js';
 import { tgSend } from '../telegram/_lib.js';
+import { syncCallCase } from '../segretaria/_callcase.js';
 import {
   resolveCaller, callerLabel,
   storeCallAudio, analyzeTranscript, syncLeadFromCall, tgCallCard,
 } from './_lib.js';
 
-export const config = { api: { bodyParser: false } };
+export const config = { api: { bodyParser: false } }; // compatibilità Next; non disabilita i helper Node standalone
 
 const MAX_AUDIO_BYTES = 15 * 1024 * 1024;
 const SIG_TOLERANCE_SEC = 30 * 60;
 
 async function readRaw(req) {
-  if (typeof req.body === 'string') return req.body;
-  if (req.body && typeof req.body === 'object') return JSON.stringify(req.body);   // harness/test path
-  return await new Promise((resolve) => {
+  if (typeof req.on !== 'function') {
+    // Non-stream harnesses must provide the original bytes, never parsed JSON.
+    // A descriptor avoids executing a runtime's lazy body getter.
+    const body = Object.getOwnPropertyDescriptor(req, 'body')?.value;
+    if (typeof body === 'string') return body;
+    if (Buffer.isBuffer(body)) return body.toString('utf8');
+    throw new Error('raw_body_unavailable');
+  }
+  return await new Promise((resolve, reject) => {
     const chunks = [];
+    req.on('error', reject);
+    req.on('aborted', () => reject(new Error('raw_body_aborted')));
     req.on('data', (c) => chunks.push(Buffer.isBuffer(c) ? c : Buffer.from(c)));
     req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
   });
@@ -68,7 +79,9 @@ export default async function handler(req, res) {
   const secret = process.env.ELEVENLABS_WEBHOOK_SECRET;
   if (!secret) return res.status(500).json({ ok: false, error: 'server_misconfigured: ELEVENLABS_WEBHOOK_SECRET unset' });
 
-  const raw = await readRaw(req);
+  let raw;
+  try { raw = await readRaw(req); }
+  catch { return res.status(400).json({ ok: false, error: 'raw_body_unavailable' }); }
   const sig = req.headers['elevenlabs-signature'] || req.headers['ElevenLabs-Signature'];
   if (!verifySignature(raw, sig, secret)) return res.status(401).json({ ok: false, error: 'invalid_signature' });
 
@@ -108,7 +121,10 @@ export default async function handler(req, res) {
   // ── il dato: trascrizione + esito ────────────────────────────────────────
   let doc = null;
   try { doc = await fsGet(docPath); } catch { /* si procede */ }
-  if (doc && doc.processedAt) return res.status(200).json({ ok: true, conversationId, duplicate: true });
+  if (doc && doc.processedAt) {
+    const followUp = await syncCallCase('el_' + conversationId);
+    return res.status(200).json({ ok: true, conversationId, duplicate: true, followUp });
+  }
 
   const now = new Date();
   const meta = data.metadata || {};
@@ -130,7 +146,10 @@ export default async function handler(req, res) {
   const resolved = from ? await resolveCaller(from) : null;
   const callerType = resolved ? resolved.type : 'unknown';
   const catalog = callerWords ? await loadCatalog() : [];
-  const listing = callerWords ? matchListing(callerWords, catalog) : null;
+  const propertyAssociation = phoneListing.resolve(turns, catalog);
+  // Candidate mentions never enter the summary hint, lead or property badge.
+  const listing = propertyAssociation.listingId
+    ? catalog.find(row => row.id === propertyAssociation.listingId) || null : null;
 
   const analysisRaw = data.analysis || {};
   const analysis = await analyzeTranscript({
@@ -176,7 +195,9 @@ export default async function handler(req, res) {
     language: analysis.language,
     suggestedAction: analysis.suggestedAction,
     draftReply: analysis.draftReply,
-    ...(listing ? { propertyId: listing.id, propertyTitle: listing.name || null } : {}),
+    propertyId: listing ? listing.id : null,
+    propertyTitle: listing ? listing.name || null : null,
+    propertyAssociation,
     ...(leadId ? { leadId, leadCreated } : {}),
     ...(doc ? {} : { handled: false, createdAt: now }),
   };
@@ -187,6 +208,8 @@ export default async function handler(req, res) {
     // non-2xx → ElevenLabs ritenta; processedAt non scritto → il retry rifà tutto.
     return res.status(500).json({ ok: false, error: 'doc_write_failed' });
   }
+
+  const followUp = await syncCallCase('el_' + conversationId);
 
   try {
     const chatId = process.env.TELEGRAM_CHAT_ID;
@@ -204,5 +227,5 @@ export default async function handler(req, res) {
     summary: String(analysis.summary || '').slice(0, 120),
   }, 'centralino');
 
-  return res.status(200).json({ ok: true, conversationId, status: 'received', leadId, leadCreated });
+  return res.status(200).json({ ok: true, conversationId, status: 'received', leadId, leadCreated, followUp });
 }

@@ -16,3 +16,4 @@ tests/rules/firestore.rules
 tests/rules/package-lock.json
 tests/rules/firebase-debug.log
 tests/rules/*.log
+.env*

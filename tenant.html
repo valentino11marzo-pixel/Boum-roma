@@ -257,6 +257,12 @@ button,.obtn,.bfc,.qnav a,.dlink,.paybtn,.svcard{touch-action:manipulation}
 .bfn{font-size:11px;color:var(--t4);line-height:1.7;margin-top:12px}
 @media(max-width:460px){.bfr{flex-wrap:wrap}.bfk{flex:0 0 100%}.bfv{flex:1 1 auto}}
 .payfoot .lock{color:var(--green)}
+.paynotice{padding:13px 16px;margin-top:12px;border:1px solid var(--line-gold);border-radius:12px;color:var(--t2);font-size:13px;line-height:1.65;background:var(--gold-faint)}
+.paynotice .obtn{display:block;margin-top:10px}
+.paygroup{display:flex;gap:8px;align-items:center;margin:18px 0 4px;font-size:11px;font-weight:500;color:var(--gold-light);letter-spacing:1px}
+.paygroup span{font-family:var(--mono);font-size:10px;color:var(--t3)}
+.payscope{font-size:12px;color:var(--t3);line-height:1.6;margin:0 0 10px}
+@media(max-width:460px){.prow{flex-wrap:wrap;gap:8px}.prow .mo{flex:1 1 55%}.prow .st{max-width:100%;white-space:normal;font-size:8.5px;line-height:1.5}.prow a{order:4}}
 .paidband{border:1px solid rgba(74,222,158,.3);background:var(--green-muted);border-radius:14px;padding:13px 16px;font-size:13px;color:var(--green);text-align:center;margin-top:16px}
 
 /* rows */
@@ -337,6 +343,34 @@ button,.obtn,.bfc,.qnav a,.dlink,.paybtn,.svcard{touch-action:manipulation}
 .rv{opacity:0;transform:translateY(16px)}
 .rv.in{opacity:1;transform:none;transition:opacity .7s var(--ease),transform .7s var(--ease)}
 @media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none}}
+
+/* Pagamento: una rata, una scelta, un'azione. I dati restano del server. */
+.paycard h2 .tt{font-size:16px;font-weight:500;letter-spacing:0;text-transform:none;color:var(--t1)}
+.paycard h2 .no{display:none}.paycard h2::after{display:none}
+.paycard .pm{align-items:center;padding:8px 0 20px;border-bottom:1px solid var(--line2)}
+.paycard .pm .lab{font-size:15px;line-height:1.5}.paycard .pm .lab b{font-size:13px;color:var(--t3);font-weight:400}
+.paycard .amt{font-size:clamp(30px,7vw,38px);font-weight:400;letter-spacing:-1px}
+#payCardPanel[hidden],#payBankPanel[hidden]{display:none}
+.pay-methods{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:22px 0 18px}
+.pay-method{min-width:0;min-height:76px;padding:14px 12px;border:1px solid var(--line);border-radius:14px;text-align:left;background:var(--panel);color:var(--t2);font:inherit;cursor:pointer}
+.pay-method b{display:block;font-size:14px;font-weight:500}.pay-method small{display:block;margin-top:5px;font-size:11px;line-height:1.4;color:var(--t3)}
+.pay-method[aria-pressed="true"]{border-color:var(--gold);background:var(--gold-faint);color:var(--gold-light);box-shadow:inset 0 0 0 1px var(--gold)}
+.pay-breakdown{margin:0}.pay-breakdown>div{display:flex;justify-content:space-between;gap:16px;padding:8px 0;font-size:13px;color:var(--t2)}
+.pay-breakdown dt{font-weight:400}.pay-breakdown dd{margin:0;white-space:nowrap;font-variant-numeric:tabular-nums}
+.pay-breakdown .pay-total{border-top:1px solid var(--line2);margin-top:8px;padding-top:15px;color:var(--t1);font-size:16px;font-weight:500}
+.pay-estimate{font-size:12px;color:var(--t3);line-height:1.6;margin:10px 0 0}
+.paycard .paybtn{border-radius:14px;font-size:15px;letter-spacing:0;text-transform:none;min-height:50px;justify-content:space-between;padding:15px 18px;box-shadow:none}
+.paycard .payfoot{font-size:11.5px;margin-top:12px}.paycard .bfx{margin-top:0;padding-top:0;border-top:0}
+.paycard .bfh{display:none}.paycard .bfp{margin-top:0}.paycard .bfall{font-size:13px;letter-spacing:0;text-transform:none;border-radius:12px;min-height:46px;border-color:var(--line-gold);color:var(--gold-light)}
+.pay-feedback{font-size:12px;color:var(--gold-light);line-height:1.6}
+.pay-auto{border-top:1px solid var(--line2);margin-top:22px;padding-top:18px}
+.pay-auto summary{font-size:13px;color:var(--t2);cursor:pointer;min-height:30px;line-height:1.5}
+.pay-auto .sddbox{border:0;padding:0;margin-top:12px}.pay-auto .ic{display:none}.pay-auto .sddbox small{font-size:12px}
+.pay-support{border-top:1px solid var(--line2);margin-top:20px;padding-top:16px;text-align:center}
+.pay-support a{font-size:13px;color:var(--gold-light);text-underline-offset:4px}.pay-support small{display:block;font-size:11px;color:var(--t3);margin-top:10px;line-height:1.6}
+.paycard .obtn,.paydock .pdB{letter-spacing:0;text-transform:none;font-size:13px}
+@media(max-width:380px){.pay-methods{gap:8px}.pay-method{padding:12px 10px}.pay-method small{font-size:10.5px}.paycard .pm{align-items:flex-start}.paycard .amt{font-size:30px}}
+.pay-report{margin-top:18px;border-top:1px solid var(--line);padding-top:14px;font-size:13px;line-height:1.6}.pay-report summary{cursor:pointer;min-height:44px;display:list-item;color:var(--t2)}.pay-report p{color:var(--t2);margin:8px 0}.pay-report .obtn{min-height:44px}.pay-report summary:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
 </style>
 <!-- BOOM_JSONLD:START -->
   <script type="application/ld+json">
@@ -452,7 +486,7 @@ button,.obtn,.bfc,.qnav a,.dlink,.paybtn,.svcard{touch-action:manipulation}
   <div class="ring"><svg width="25" height="25" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg></div>
   <div class="amt" id="payAmt">€0</div>
   <div class="cap">Secure payment · Stripe</div>
-  <div class="sub" id="paySub">Cards &amp; Apple Pay · automatic receipt · redirecting…</div>
+  <div class="sub" id="paySub">Cards &amp; Apple Pay where available · automatic receipt · redirecting…</div>
 </div></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
@@ -460,10 +494,18 @@ button,.obtn,.bfc,.qnav a,.dlink,.paybtn,.svcard{touch-action:manipulation}
 <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
 <script src="/js/firebase-config.js"></script>
 <script src="/js/boom-portal.js"></script>
+<script src="/js/rent-engine.js"></script>
 <script>
 (function(){
 'use strict';
 var USER=null,PROFILE=null,CONTRACT=null,PROPERTY=null,PAYMENTS=[],MAINT=[];
+/* UI state only. A Checkout return requests verification; it never changes
+   a Firestore payment. Server reads are bounded, and failed reads are visible. */
+var PAY_LOAD='loading',PAY_LIMIT=false,APP_READY=false,PAY_BUSY=null;
+var PAY_METHOD='card',PAY_METHOD_ID=null,PAY_ERROR=false;
+var PAY_RETURN=new URLSearchParams(location.search).get('paid')||null;
+var SDD_RETURN=new URLSearchParams(location.search).get('sdd')==='ok';
+var RETURN_CHECKING=!!(PAY_RETURN||SDD_RETURN),RETURN_TIMER=null,RETURN_RUN=0;
 /* Vista cliente: un ADMIN apre /casa?as=<contractId> e vede la casa di quel
    cliente ESATTAMENTE come la vede lui — dati veri, zero credenziali da
    chiedere o condividere. Le regole Firestore lo permettono già (l'admin
@@ -478,24 +520,31 @@ var STR={
  en:{home:'Your home',logout:'Log out',open:'Opening your home…',active:'Contract active',reserved:'Reserved in your name',
   gm:'Good morning',ga:'Good afternoon',ge:'Good evening',daysToKeys:'{n} days to your keys',keysToday:'keys day!',
   nPay:'Payment',nHist:'History',nDocs:'Documents',nMan:'Manual',nHood:'Area',nFix:'Repairs',nConc:'Concierge',nKit:'Rome Kit',nRef:'Invite',
-  wifiScan:'Point the camera here — joins the Wi-Fi instantly. No typing, no typos.',redirect:'Cards &amp; Apple Pay · automatic receipt · redirecting…',
+  wifiScan:'Point the camera here — joins the Wi-Fi instantly. No typing, no typos.',redirect:'Cards &amp; Apple Pay where available · automatic receipt · redirecting…',
   monthly:'Monthly rent',nextPay:'Next payment',due:'Due date',allGood:'all clear ✓',paidReg:'Payments on record',
   jSign:'Signed',jDep:'Deposit',jKeys:'Keys',jBoard:'On board',jRen:'Renewal',jAria:'Your journey in this home',
-  s1:'Next payment',depositBal:'Security deposit balance',rentOf:'Rent',dueBy:'Due by',lateBy:'Overdue since',late:'overdue — settle it now',dueSoon:'coming up',
-  payCard:'Pay by card',service:'max service fee',payFoot1:'Stripe · cards & Apple Pay · automatic receipt by email and in your history',
-  payFoot2:'Or pay by bank transfer below — free, and this page updates by itself.',
-  bfTitle:'Bank transfer',bfFree:'free',
-  bfWhy:'No card fee for you, none for us. It lands in 1–2 working days and this page ticks itself off — as long as you keep the reference below.',
+  s1:'Next payment',depositBal:'Security deposit balance',rentOf:'Rent',dueBy:'Due by',lateBy:'Overdue since',late:'Overdue',dueSoon:'coming up',
+  payCard:'Pay by card',service:'Estimated card fee',payFoot1:'Stripe · cards & Apple Pay where available · automatic receipt by email and in your history',
+  payFoot2:'Or pay by bank transfer below — free. Refresh the payment status after your transfer.',
+  methodTitle:'Choose how to pay',methodCard:'Card / wallet',methodBank:'Bank transfer',methodCardHint:'Apple Pay where available',methodBankHint:'No BOOM fee',payContinue:'Continue to payment',payPrincipal:'Instalment',payTotal:'Estimated total',payExact:'The exact fee and total are shown in Stripe before you confirm.',payHelp:'Need help with this payment?',payAgency:'BOOM manages this home for the property owner.',reportTitle:'I have made the transfer',reportExplain:'Only report a transfer you have already sent for this instalment. BOOM will verify the money received before marking it paid.',reportConfirm:'Report bank transfer',reportWithdraw:'Cancel my report',reportWithdrawExplain:'Cancel only if you have not sent the transfer or reported it by mistake.',reportError:'We could not confirm your report. Check the current status and try again.',receiptLoad:'Load receipt',receiptMissing:'Receipt not available yet. Contact BOOM for a copy.',payBankUnavailable:'Transfer details are not available yet. Contact BOOM before making a transfer.',payCopyError:'Could not copy. Select and copy the details below.',payReferenceError:'We could not prepare the transfer reference. Refresh or contact BOOM before transferring.',payCheckoutError:'We could not open the payment page. Try again or contact BOOM.',payAutoTitle:'Automatic payments for future rent',payMethodChanged:'Payment method updated',
+  bfTitle:'Bank transfer',bfFree:'No BOOM fee',
+  bfWhy:'Keep the exact reference below so we can match your transfer. Once the receipt is confirmed, refresh to see the updated payment status.',
   bfBene:'Beneficiary',bfIban:'IBAN',bfRef:'Reference — please keep it exactly',bfAmt:'Amount',
   bfCopy:'Copy',bfCopied:'Copied ✓',bfAll:'Copy all details',
-  bfNote:'The reference is what lets us match your transfer automatically. Without it we still find it — it just takes a person and a day.',
-  paidBand:'✓ Payment received — your receipt is on its way by email. Thank you!',
+  bfNote:'Use this reference to help us match your transfer. The payment stays open until the funds are confirmed.',
+  paidBand:'✓ Payment confirmed in your account. Your receipt appears below when available.',
+  payLoading:'Loading your payments…',payLoadError:'We could not verify your payments. Refresh before paying.',payRefresh:'Refresh payments',payChecking:'Checking the payment with BOOM…',payConfirmPending:'Awaiting confirmation',
+  payWaiting:'Payment confirmation is still pending. Please refresh or contact BOOM before paying this instalment again.',payMissing:'This payment could not be found in this home. Contact BOOM to check it.',
+  payProcessing:'Payment processing',payProcessingSub:'This instalment is already being collected. Please wait for confirmation before making another payment.',payReported:'Transfer reported · awaiting verification',
+  payUnknown:'To verify',payCancelled:'Cancelled',payList:'Payments for this home',payOpen:'To pay & in progress',payHistory:'Paid & receipts',payOther:'Other records',payOtherCharge:'Other charge',payEmpty:'No instalments are recorded for this home yet.',
+  payLimited:'Showing the first 120 records. Contact BOOM if an instalment is missing.',payNoContract:'No contract is available for this home. Contact BOOM to check your payments.',bySepa:'by direct debit',
+  sddChecking:'Checking the activation of automatic rent. Refresh to see the confirmed status.',
   boughtBand:'✓ {x} confirmed — we are on it. Details by email, and your advisor will follow up.',
-  noDue:'Nothing due — you are all set ✓',opening:'Opening secure checkout…',payRetry:'Try again — or message us on WhatsApp',
+  noDue:'Nothing due — you are all set ✓',opening:'Opening secure checkout…',payRetry:'Try again',
   s2:'History &amp; receipts',histEmpty:'Your history will appear here after the first payment.',showAll:'Show all',
   deposit:'Deposit',depBalance:'Deposit balance',paidW:'paid',byCard:'by card',byBank:'by transfer',receipt:'receipt →',paid:'✓ paid',pending:'upcoming',lateSt:'overdue',
   s3:'Your documents',contractDoc:'Signed contract + certificate',contractSub:'official PDF with the digital signatures',yourContract:'Your contract',
-  depositDoc:'Security deposit',depPaid:'paid ✓ — protected and refundable at the end of your stay',depSettled:'settled ✓',depDueAt:'balance of {x} at move-in',
+  depositDoc:'Security deposit',depPaid:'Payment recorded · return terms are in your contract',depSettled:'settled ✓',depDueAt:'balance of {x} at move-in',
   needMore:'Need something else?',needMoreSub:'fiscal receipts, statements, copies — ask and it arrives',
   sM:'Your home manual',manualSub:'Everything about this apartment — always in your pocket.',
   wifi:'Wi-Fi',copy:'copy',copied:'copied ✓',heating:'Heating & hot water',trash:'Waste & recycling',appliances:'Appliances',emergency:'Emergency contacts',rules:'House rules',checkin:'Building & access',
@@ -526,31 +575,38 @@ var STR={
   sddProcSub:'The SEPA debit started on {d} and settles in ~5 working days. No action needed — paying it another way too would mean paying twice.',
   sddFailNote:'⚠ The automatic debit for this instalment did not go through — please pay by card or bank transfer below.',
   sddOkBand:'✓ Auto-pay activated — from now on your rent takes care of itself.',
-  dockPay:'Pay →',
+  dockPay:'View payment',
   adminView:'Client view (admin) — you are seeing {n}\'s home exactly as they do. Buttons act on the REAL documents.',
   tmAddr:'Via dei Coronari 181/184, 00186 Roma · Registered office: Viale Liegi 42, 00198 Roma',
   tm:'BOOM® is a registered European Union trade mark (EUTM 019317594) of Egidi Immobiliare S.r.l.'},
  it:{home:'La tua casa',logout:'Esci',open:'Apro la tua casa…',active:'Contratto attivo',reserved:'Casa riservata a tuo nome',
   gm:'Buongiorno',ga:'Buon pomeriggio',ge:'Buonasera',daysToKeys:'{n} giorni alle chiavi',keysToday:'giorno delle chiavi!',
   nPay:'Pagamenti',nHist:'Storico',nDocs:'Documenti',nMan:'Manuale',nHood:'Quartiere',nFix:'Riparazioni',nConc:'Concierge',nKit:'Rome Kit',nRef:'Invita',
-  wifiScan:'Inquadra col telefono — si collega al Wi-Fi all\'istante. Zero password da battere.',redirect:'Carte &amp; Apple Pay · ricevuta automatica · reindirizzamento…',
+  wifiScan:'Inquadra col telefono — si collega al Wi-Fi all\'istante. Zero password da battere.',redirect:'Carte &amp; Apple Pay dove disponibile · ricevuta automatica · reindirizzamento…',
   monthly:'Canone mensile',nextPay:'Prossimo pagamento',due:'Scadenza',allGood:'tutto in regola ✓',paidReg:'Pagamenti registrati',
   jSign:'Firma',jDep:'Saldo',jKeys:'Chiavi',jBoard:'A bordo',jRen:'Rinnovo',jAria:'La tua rotta in questa casa',
-  s1:'Il prossimo pagamento',depositBal:'Saldo deposito cauzionale',rentOf:'Canone',dueBy:'Entro il',lateBy:'Scaduto il',late:'in ritardo — sistemalo ora',dueSoon:'in scadenza',
-  payCard:'Paga con carta',service:'di servizio max',payFoot1:'Stripe · carte &amp; Apple Pay · ricevuta automatica via email e nello storico',
-  payFoot2:'Oppure paga con bonifico qui sotto — gratis, e la pagina si aggiorna da sola.',
-  bfTitle:'Bonifico bancario',bfFree:'gratis',
-  bfWhy:'Nessuna commissione per te, nessuna per noi. Arriva in 1–2 giorni lavorativi e la pagina si spunta da sola, se lasci la causale qui sotto.',
+  s1:'Il prossimo pagamento',depositBal:'Saldo deposito cauzionale',rentOf:'Canone',dueBy:'Entro il',lateBy:'Scaduto il',late:'In ritardo',dueSoon:'in scadenza',
+  payCard:'Paga con carta',service:'Commissione carta stimata',payFoot1:'Stripe · carte &amp; Apple Pay dove disponibile · ricevuta automatica via email e nello storico',
+  payFoot2:'Oppure paga con bonifico qui sotto — gratis. Aggiorna lo stato dopo il versamento.',
+  methodTitle:'Scegli come pagare',methodCard:'Carta / wallet',methodBank:'Bonifico',methodCardHint:'Apple Pay dove disponibile',methodBankHint:'Nessuna commissione BOOM',payContinue:'Continua al pagamento',payPrincipal:'Rata',payTotal:'Totale stimato',payExact:'Commissione e totale esatti sono mostrati su Stripe prima della conferma.',payHelp:'Ti serve aiuto con questa rata?',payAgency:'BOOM gestisce questa casa per conto del proprietario.',reportTitle:'Ho fatto il bonifico',reportExplain:'Segnala solo un bonifico già eseguito per questa rata. BOOM verificherà l’incasso prima di confermare il pagamento.',reportConfirm:'Segnala il bonifico',reportWithdraw:'Annulla la mia segnalazione',reportWithdrawExplain:'Annulla solo se non hai eseguito il bonifico o hai segnalato per errore.',reportError:'Non siamo riusciti a confermare la segnalazione. Verifica lo stato attuale e riprova.',receiptLoad:'Carica ricevuta',receiptMissing:'Ricevuta non ancora disponibile. Contatta BOOM per una copia.',payBankUnavailable:'I dati per il bonifico non sono ancora disponibili. Contatta BOOM prima di effettuare il versamento.',payCopyError:'Copia non riuscita. Seleziona e copia i dati qui sotto.',payReferenceError:'Non siamo riusciti a preparare la causale. Aggiorna o contatta BOOM prima del bonifico.',payCheckoutError:'Non siamo riusciti ad aprire il pagamento. Riprova oppure contatta BOOM.',payAutoTitle:'Pagamenti automatici per i prossimi canoni',payMethodChanged:'Metodo di pagamento aggiornato',
+  bfTitle:'Bonifico bancario',bfFree:'Nessuna commissione BOOM',
+  bfWhy:'Mantieni la causale qui sotto per collegare il bonifico alla rata. Dopo la conferma della ricezione, aggiorna per vedere il nuovo stato.',
   bfBene:'Beneficiario',bfIban:'IBAN',bfRef:'Causale — lasciala esattamente così',bfAmt:'Importo',
   bfCopy:'Copia',bfCopied:'Copiato ✓',bfAll:'Copia tutti i dati',
-  bfNote:'La causale è ciò che ci permette di abbinare il bonifico da soli. Senza, lo troviamo comunque: ci vuole solo una persona e un giorno.',
-  paidBand:'✓ Pagamento ricevuto — la ricevuta è in arrivo via email. Grazie!',
+  bfNote:'Usa questa causale per aiutarci ad abbinare il versamento. La rata resta aperta finché la ricezione non è confermata.',
+  paidBand:'✓ Pagamento confermato nel tuo conto. La ricevuta compare qui sotto quando disponibile.',
+  payLoading:'Caricamento dei pagamenti…',payLoadError:'Non riusciamo a verificare i pagamenti. Aggiorna prima di pagare.',payRefresh:'Aggiorna pagamenti',payChecking:'Verifichiamo il pagamento con BOOM…',payConfirmPending:'In attesa di conferma',
+  payWaiting:'Il pagamento è ancora in attesa di conferma. Aggiorna o contatta BOOM prima di pagare di nuovo questa rata.',payMissing:'Il pagamento non risulta tra quelli di questa casa. Contatta BOOM per verificarlo.',
+  payProcessing:'Pagamento in corso',payProcessingSub:'Questa rata è già in fase di incasso. Attendi la conferma prima di effettuare un altro pagamento.',payReported:'Bonifico segnalato · da verificare',
+  payUnknown:'Da verificare',payCancelled:'Annullato',payList:'Pagamenti di questa casa',payOpen:'Da pagare e in corso',payHistory:'Pagati e ricevute',payOther:'Altre registrazioni',payOtherCharge:'Altro addebito',payEmpty:'Non risultano ancora rate registrate per questa casa.',
+  payLimited:'Sono visibili le prime 120 registrazioni. Contatta BOOM se manca una rata.',payNoContract:'Il contratto di questa casa non è disponibile. Contatta BOOM per verificare i pagamenti.',bySepa:'con addebito diretto',
+  sddChecking:'Verifichiamo l’attivazione dell’addebito automatico. Aggiorna per vedere lo stato confermato.',
   boughtBand:'✓ {x} confermato — ci pensiamo noi. Dettagli via email, il tuo advisor ti scrive.',
-  noDue:'Nessun pagamento in scadenza — sei in regola ✓',opening:'Apro il checkout sicuro…',payRetry:'Riprova — o scrivici su WhatsApp',
+  noDue:'Nessun pagamento in scadenza — sei in regola ✓',opening:'Apro il checkout sicuro…',payRetry:'Riprova',
   s2:'Storico &amp; ricevute',histEmpty:'Lo storico apparirà qui dal primo pagamento.',showAll:'Mostra tutto',
   deposit:'Deposito',depBalance:'Saldo deposito',paidW:'pagato',byCard:'con carta',byBank:'con bonifico',receipt:'ricevuta →',paid:'✓ pagato',pending:'in arrivo',lateSt:'in ritardo',
   s3:'I tuoi documenti',contractDoc:'Contratto firmato + certificato',contractSub:'PDF ufficiale con le firme digitali',yourContract:'Il tuo contratto',
-  depositDoc:'Deposito cauzionale',depPaid:'versato ✓ — protetto e restituibile a fine contratto',depSettled:'saldato ✓',depDueAt:'saldo di {x} al move-in',
+  depositDoc:'Deposito cauzionale',depPaid:'Versamento registrato · restituzione secondo il contratto',depSettled:'saldato ✓',depDueAt:'saldo di {x} al move-in',
   needMore:'Ti serve altro?',needMoreSub:'ricevute fiscali, attestazioni, copie — chiedi e arriva',
   sM:'Il manuale della casa',manualSub:'Tutto di questo appartamento — sempre in tasca.',
   wifi:'Wi-Fi',copy:'copia',copied:'copiato ✓',heating:'Riscaldamento &amp; acqua calda',trash:'Rifiuti &amp; differenziata',appliances:'Elettrodomestici',emergency:'Contatti di emergenza',rules:'Regole della casa',checkin:'Palazzo &amp; accessi',
@@ -581,7 +637,7 @@ var STR={
   sddProcSub:'L\'addebito SEPA è partito il {d} e si regola in ~5 giorni lavorativi. Non serve fare nulla — pagarla anche per altra via significherebbe pagare due volte.',
   sddFailNote:'⚠ L\'addebito automatico di questa rata non è riuscito — pagala con carta o bonifico qui sotto.',
   sddOkBand:'✓ Addebito attivato — da ora il canone si paga da solo.',
-  dockPay:'Paga →',
+  dockPay:'Vedi pagamento',
   adminView:'Vista cliente (admin) — stai vedendo la casa di {n} esattamente come la vede. I bottoni agiscono sui documenti VERI.',
   tmAddr:'Via dei Coronari 181/184, 00186 Roma · Sede legale: Viale Liegi 42, 00198 Roma',
   tm:'BOOM® è un marchio dell\'Unione europea registrato (MUE 019317594) di Egidi Immobiliare S.r.l.'}
@@ -593,21 +649,18 @@ function syncLangBtn(){var b=$('langBtn');if(b)b.textContent=LANG==='en'?'IT':'E
 
 var WA='https://wa.me/393313251961';
 var $=function(id){return document.getElementById(id)};
-var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;')};
-var eur=function(n){var f=Math.round(n*100)%100!==0;return '€'+Number(n||0).toLocaleString('en-US',{minimumFractionDigits:f?2:0,maximumFractionDigits:2})};
+var esc=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')};
+var eur=function(n){var f=Math.round(n*100)%100!==0;return '€'+Number(n||0).toLocaleString(LANG==='it'?'it-IT':'en-GB',{minimumFractionDigits:f?2:0,maximumFractionDigits:2,useGrouping:'always'})};
 /* La data segue la lingua scelta: una pagina in inglese che scrive
    "2 agosto 2026" sembra sciatta. setLang() richiama render(), quindi il
    toggle riformatta anche le date. */
 var fmtD=function(s){try{return new Date(String(s).slice(0,10)+'T00:00')
   .toLocaleDateString(LANG==='it'?'it-IT':'en-GB',{day:'numeric',month:'long',year:'numeric'})}catch(e){return s||''}};
-var todayISO=new Date().toISOString().slice(0,10);
+var todayISO=new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Rome',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
 /* mirror of api/payments/pay.js rentFee defaults — preview only; the
    Stripe page shows the exact server-side figure as its own line item */
-/* Anteprima della commissione carta. NON può conoscere il tasso misurato
-   (vive in settings/rentFeeStats, lo legge il server), quindi mostra il SEED
-   di api/payments/pay.js — il caso peggiore. Dichiarato come massimo: quando
-   la statistica converge l'addebito reale è più basso, e la sorpresa può
-   essere solo in meglio. Se cambi SEED_PCT là, cambialo anche qui. */
+/* Stima della commissione: dati e configurazione reali vivono sul server.
+   Non è un massimo garantito. Stripe espone l'importo esatto prima della conferma. */
 function feePreview(a){return Math.round((a*3.3/100+0.30)*100)/100}
 
 /* ── Il codice della causale ────────────────────────────────────────────
@@ -627,18 +680,21 @@ function payRefLocal(id){
 }
 
 /* I dati per il bonifico: impostati una volta da te in settings/payout.
-   Senza IBAN il blocco non compare — mai un IBAN inventato. */
+   Senza IBAN o beneficiario il cliente riceve una spiegazione, mai dati inventati. */
 var PAYOUT=null;
 function bonificoBlock(next){
-  if(!PAYOUT||!PAYOUT.iban)return '';
+  if(!PAYOUT||!PAYOUT.iban||!PAYOUT.beneficiary)return '<div class="paynotice" role="status">'+t('payBankUnavailable')+'</div>';
   return '<div class="bfx" id="bfx" data-pid="'+esc(next.id)+'" data-amt="'+Number(next.amount)+'"></div>';
 }
 function renderBonifico(){
-  var host=document.getElementById('bfx');if(!host||!PAYOUT||!PAYOUT.iban)return;
+  var host=document.getElementById('bfx');if(!host||!PAYOUT||!PAYOUT.iban||!PAYOUT.beneficiary)return;
   var pid=host.getAttribute('data-pid'),amt=Number(host.getAttribute('data-amt'))||0;
-  payRefLocal(pid).then(function(ref){
+  Promise.resolve().then(function(){return payRefLocal(pid)}).then(function(ref){
+    if(!ref)throw new Error('reference_unavailable');
     var period=(PAYMENTS.filter(function(p){return p.id===pid})[0]||{});
-    var caus=[ref,'canone '+(period.month||String(period.dueDate||'').slice(0,7))].filter(Boolean).join(' ');
+    if(document.getElementById('bfx')!==host)return;
+    var kind=period.type==='deposit'?'deposito cauzionale':period.type==='deposit-balance'?'saldo deposito cauzionale':window.BOOM_RENT.isRentPayment(period)?'canone':'addebito contrattuale';
+    var caus=[ref,kind,(period.month||String(period.dueDate||'').slice(0,7))].filter(Boolean).join(' ');
     var row=function(k,v,copy){
       return '<div class="bfr"><span class="bfk">'+k+'</span>'
         +'<span class="bfv">'+esc(v)+'</span>'
@@ -646,55 +702,178 @@ function renderBonifico(){
     };
     host.innerHTML='<div class="bfh">'+t('bfTitle')+'<span class="bffree">'+t('bfFree')+'</span></div>'
       +'<p class="bfp">'+t('bfWhy')+'</p>'
-      +row(t('bfBene'),PAYOUT.beneficiary||'BOOM · Egidi Immobiliare S.r.l.',1)
+      +row(t('bfBene'),PAYOUT.beneficiary,1)
       +row(t('bfIban'),PAYOUT.iban,1)
       +row(t('bfAmt'),eur(amt),1)
       +row(t('bfRef'),caus,1)
       +'<button class="bfall" type="button" id="bfAll">'+t('bfAll')+'</button>'
-      +'<p class="bfn">'+t('bfNote')+'</p>';
+      +'<p class="bfn">'+t('bfNote')+'</p><p id="bfFeedback" role="status" class="pay-feedback"></p>';
     var flash=function(b){var o=b.textContent;b.textContent=t('bfCopied');b.classList.add('ok');
       setTimeout(function(){b.textContent=o;b.classList.remove('ok')},1600);};
     var put=function(txt,b){
-      var done=function(){flash(b)};
-      if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(done,done);
+      var done=function(){var f=$('bfFeedback');if(f)f.textContent='';flash(b)};
+      var failed=function(){var f=$('bfFeedback');if(f)f.textContent=t('payCopyError')};
+      if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(txt).then(done,failed);
       else{try{var ta=document.createElement('textarea');ta.value=txt;document.body.appendChild(ta);
-        ta.select();document.execCommand('copy');ta.remove();done();}catch(e){}}
+        ta.select();var copied=document.execCommand('copy');ta.remove();if(copied)done();else failed();}catch(e){failed()}}
     };
-    host.addEventListener('click',function(ev){
+    host.onclick=function(ev){
       var b=ev.target.closest&&ev.target.closest('[data-copy]');
       if(b)return put(b.getAttribute('data-copy'),b);
       if(ev.target.id==='bfAll'){
-        put([ (PAYOUT.beneficiary||'BOOM · Egidi Immobiliare S.r.l.'),
+        put([ (PAYOUT.beneficiary),
               'IBAN: '+PAYOUT.iban, eur(amt), caus ].join('\n'), ev.target);
       }
+    };
+  }).catch(function(){ if(document.getElementById('bfx')===host)host.innerHTML='<div class="paynotice" role="status">'+t('payReferenceError')+'</div>'; });   /* Un errore lascia un messaggio visibile; nessuna causale inventata. */
+}
+var PAY_REPORT_ERROR=false;
+function paymentChoices(next){
+  if(PAY_METHOD_ID!==next.id){PAY_METHOD_ID=next.id;PAY_METHOD='card';PAY_ERROR=false;}
+  var bank=PAY_METHOD==='bank',amount=window.BOOM_RENT.amount(next.amount),fee=feePreview(amount);
+  return '<div class="pay-methods" role="group" aria-label="'+t('methodTitle')+'">'
+    +'<button type="button" id="payMethodCard" class="pay-method" aria-pressed="'+(!bank)+'" aria-controls="payCardPanel"><b>'+t('methodCard')+'</b><small>'+t('methodCardHint')+'</small></button>'
+    +'<button type="button" id="payMethodBank" class="pay-method" aria-pressed="'+bank+'" aria-controls="payBankPanel"><b>'+t('methodBank')+'</b><small>'+t('methodBankHint')+'</small></button></div>'
+    +'<div id="payCardPanel" aria-labelledby="payMethodCard"'+(bank?' hidden':'')+'>'
+      +'<dl class="pay-breakdown"><div><dt>'+t('payPrincipal')+'</dt><dd>'+eur(amount)+'</dd></div><div><dt>'+t('service')+'</dt><dd>'+eur(fee)+'</dd></div><div class="pay-total"><dt>'+t('payTotal')+'</dt><dd>'+eur(amount+fee)+'</dd></div></dl>'
+      +'<p class="pay-estimate" id="payEstimate">'+t('payExact')+'</p>'
+      +(PAY_ERROR?'<p class="paynotice" role="alert">'+t('payCheckoutError')+'</p>':'')
+      +'<button class="paybtn" id="payBtn" aria-describedby="payEstimate">'+t(PAY_ERROR?'payRetry':'payContinue')+' <span aria-hidden="true">→</span></button>'
+      +'<p class="payfoot">'+t('payFoot1')+'</p></div>'
+    +'<div id="payBankPanel" aria-labelledby="payMethodBank"'+(bank?'':' hidden')+'>'+bonificoBlock(next)+(VIEW_AS?'':'<details class="pay-report"><summary>'+t('reportTitle')+'</summary><p>'+t('reportExplain')+'</p><button class="obtn" type="button" id="reportTransferBtn">'+t('reportConfirm')+'</button></details>')+'</div>';
+}
+function reportTransfer(payment,action){
+  if(VIEW_AS||!USER||!PROFILE||PROFILE.role!=='tenant'||PAY_LOAD!=='ready'||PAY_BUSY||!CONTRACT||payment.contractId!==CONTRACT.id)return Promise.resolve();
+  if(action==='report'&&(!payable(payment)||PAY_METHOD!=='bank'))return Promise.resolve();
+  if(action==='withdraw'&&!(paymentState(payment)==='reported'&&payment.tenantReported===true))return Promise.resolve();
+  function reconcile(){
+    return refreshPayments().then(function(ok){
+      var current=homePayments().find(function(p){return p.id===payment.id});
+      if(ok&&current&&(paymentState(current)==='paid'||paymentState(current)==='cancelled'||(action==='report'&&paymentState(current)==='reported')||(action==='withdraw'&&current.tenantReported!==true))){PAY_REPORT_ERROR=false;paintPayments()}
+      return ok;
     });
-  }).catch(function(){ host.remove(); });   /* crypto.subtle assente: meglio niente che una causale sbagliata */
+  }
+  PAY_REPORT_ERROR=false;PAY_BUSY=payment.id;render();
+  return BoomPortal.withTimeout(USER.getIdToken().then(function(token){
+    return fetch('/api/payments/report',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+token},body:JSON.stringify({paymentId:payment.id,action:action})});
+  }).then(function(r){return r.json()}),15000).then(function(result){
+    PAY_BUSY=null;PAY_REPORT_ERROR=!(result&&result.ok);
+    return reconcile();
+  }).catch(function(){PAY_BUSY=null;PAY_REPORT_ERROR=true;return reconcile()});
+}
+function safeReceiptUrl(value){
+  try{var url=new URL(value);return url.protocol==='https:'?url.href:''}catch(e){return ''}
+}
+function loadPaymentReceipt(id,button){
+  var p=homePayments().find(function(row){return row.id===id});
+  if(!p||paymentState(p)!=='paid'||!p.receiptDocId||button.disabled)return;
+  button.disabled=true;
+  return BoomPortal.withTimeout(firebase.firestore().collection('documents').doc(p.receiptDocId).get({source:'server'}),9000).then(function(doc){
+    if(!doc||!doc.exists)throw Error('missing');
+    var receipt=doc.data(),url=safeReceiptUrl(receipt.fileUrl);
+    if(receipt.paymentId!==p.id||!url)throw Error('unlinked');
+    var link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener';link.textContent=t('receipt');
+    button.replaceWith(link);
+  }).catch(function(){button.disabled=false;var notice=$('receiptFeedback');if(notice)notice.textContent=t('receiptMissing')});
+}
+function selectPaymentMethod(method){
+  var next=nextPending();if(!next||!payable(next)||['card','bank'].indexOf(method)<0)return;
+  if(PAY_METHOD===method&&PAY_METHOD_ID===next.id)return;
+  PAY_METHOD=method;PAY_METHOD_ID=next.id;
+  var card=$('payCardPanel'),bank=$('payBankPanel');
+  if(card)card.hidden=method!=='card';if(bank)bank.hidden=method!=='bank';
+  $('payMethodCard').setAttribute('aria-pressed',String(method==='card'));
+  $('payMethodBank').setAttribute('aria-pressed',String(method==='bank'));
+  if(method==='bank')renderBonifico();
+  var selected=$(method==='bank'?'payMethodBank':'payMethodCard');if(selected&&selected.focus)selected.focus();
 }
 function waMsg(t){return WA+'?text='+encodeURIComponent(t)}
 function secH(no,t){return '<h2><span class="no">'+no+'</span><span class="tt">'+t+'</span></h2>'}
 
+function homePayments(){
+  if(!CONTRACT||!CONTRACT.id)return [];
+  return PAYMENTS.filter(function(p){return p.contractId===CONTRACT.id});
+}
+function paymentState(p){return window.BOOM_RENT?window.BOOM_RENT.paymentState(p,todayISO):'unknown'}
+function paymentLabel(p){
+  return p.type==='deposit'?t('deposit'):p.type==='deposit-balance'?t('depBalance'):
+    (window.BOOM_RENT&&window.BOOM_RENT.isRentPayment(p)?t('rentOf'):t('payOtherCharge'))+' '+periodLabel(p);
+}
+function paymentAmount(p){var n=window.BOOM_RENT?window.BOOM_RENT.amount(p.amount):null;return n==null?'—':eur(n)}
+function payable(p){
+  return PAY_LOAD==='ready'&&!PAY_BUSY&&p.id!==PAY_RETURN&&
+    !!(window.BOOM_RENT&&window.BOOM_RENT.canPay(p,todayISO));
+}
 function nextPending(){
-  var p=PAYMENTS.filter(function(x){return x.status!=='paid'&&Number(x.amount)>0});
+  var p=homePayments().filter(function(x){return paymentState(x)!=='paid'&&paymentState(x)!=='cancelled'&&window.BOOM_RENT&&window.BOOM_RENT.amount(x.amount)>0});
   p.sort(function(a,b){return String(a.dueDate||'').localeCompare(String(b.dueDate||''))});
-  return p[0]||null;
+  return p.filter(function(x){return x.id===PAY_RETURN})[0]||p[0]||null;
+}
+function paymentReturnState(){
+  if(!PAY_RETURN)return null;
+  if(PAY_LOAD==='error')return 'error';
+  if(PAY_LOAD==='loading')return 'checking';
+  var p=homePayments().filter(function(x){return x.id===PAY_RETURN})[0];
+  if(p&&paymentState(p)==='paid')return 'confirmed';
+  if(RETURN_CHECKING)return 'checking';
+  return p?'waiting':'missing';
+}
+function paymentNotice(){
+  var state=paymentReturnState(),key=null;
+  if(state==='confirmed')return '<div class="paidband" role="status">'+t('paidBand')+'</div>';
+  if(PAY_LOAD==='error')key='payLoadError';
+  else if(PAY_LOAD==='loading')key='payLoading';
+  else if(state==='checking')key='payChecking';
+  else if(state==='waiting')key='payWaiting';
+  else if(state==='missing')key='payMissing';
+  if(!key)return '';
+  return '<div class="paynotice" role="status" aria-live="polite">'+t(key)+
+    (PAY_LOAD==='loading'||RETURN_CHECKING?'':'<button class="obtn" data-refresh-payments>'+t('payRefresh')+'</button>')+'</div>';
+}
+function paintPayments(){if(APP_READY)render()}
+function refreshPayments(quiet){
+  if(!quiet){PAY_LOAD='loading';paintPayments()}
+  var db=firebase.firestore();
+  var query=VIEW_AS?db.collection('payments').where('contractId','==',VIEW_AS):db.collection('payments').where('tenantId','==',USER.uid);
+  return BoomPortal.withTimeout(query.limit(120).get({source:'server'}),9000).then(function(s){
+    var rows=[];s.forEach(function(d){var v=d.data();v.id=d.id;rows.push(v)});
+    PAYMENTS=rows;PAY_LIMIT=rows.length>=120;PAY_LOAD='ready';paintPayments();return true;
+  }).catch(function(){PAY_LOAD='error';paintPayments();return false});
+}
+/* At most five authoritative reads after Checkout. No infinite spinner,
+   no URL-provided success, and no second payment while confirmation is due. */
+function confirmPaymentReturn(attempt,run){
+  if(run==null){run=++RETURN_RUN;clearTimeout(RETURN_TIMER);RETURN_CHECKING=true;paintPayments()}
+  return refreshPayments(true).then(function(ok){
+    if(!ok||!SDD_RETURN||!CONTRACT||!CONTRACT.id)return ok;
+    return BoomPortal.withTimeout(firebase.firestore().collection('contracts').doc(CONTRACT.id).get({source:'server'}),9000)
+      .then(function(d){if(!d||!d.exists)throw new Error('missing_contract');var c=d.data();c.id=d.id;CONTRACT=c;return true})
+      .catch(function(){PAY_LOAD='error';return false});
+  }).then(function(ok){
+    if(run!==RETURN_RUN)return;
+    var paymentDone=!PAY_RETURN||paymentReturnState()==='confirmed';
+    var sddDone=!SDD_RETURN||!!(CONTRACT&&CONTRACT.sdd&&CONTRACT.sdd.status==='active');
+    if(!ok||(paymentDone&&sddDone)||attempt>=4){RETURN_CHECKING=false;paintPayments();return;}
+    RETURN_TIMER=setTimeout(function(){confirmPaymentReturn(attempt+1,run)},[1500,2500,4000,5000][attempt]);
+    paintPayments();
+  });
+}
+function retryPayments(){
+  if(PAY_RETURN||SDD_RETURN)return confirmPaymentReturn(0);
+  return refreshPayments();
+}
+function historyRows(hist,all){
+  var groups=[['payOpen',hist.filter(function(p){return ['paid','cancelled'].indexOf(paymentState(p))<0})],
+    ['payHistory',hist.filter(function(p){return paymentState(p)==='paid'})],
+    ['payOther',hist.filter(function(p){return paymentState(p)==='cancelled'})]];
+  return groups.map(function(g){
+    if(!g[1].length)return '';
+    var rows=g[1].slice().sort(function(a,b){return g[0]==='payOpen'?String(a.dueDate||'').localeCompare(String(b.dueDate||'')):String(b.dueDate||'').localeCompare(String(a.dueDate||''))});
+    return '<h3 class="paygroup">'+t(g[0])+' <span>'+rows.length+'</span></h3>'+(all?rows:rows.slice(0,6)).map(payRow).join('');
+  }).join('');
 }
 
 function greet(){var h=new Date().getHours();return t(h<12?'gm':h<18?'ga':'ge')}
-function countUp(scope){
-  try{
-    if(matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-    [].slice.call(scope.querySelectorAll('[data-roll]')).forEach(function(el,ix){
-      var target=el.getAttribute('data-roll'),mm=target.match(/([\d.,]+)/);if(!mm)return;
-      var num=parseFloat(mm[1].replace(/,/g,''));if(!isFinite(num))return;
-      var t0=performance.now(),D=850+ix*110;
-      (function tick(now){
-        var p=Math.min(1,(now-t0)/D),e2=1-Math.pow(1-p,4);
-        el.textContent=p<1?target.replace(mm[1],Math.round(num*e2).toLocaleString('en-US')):target;
-        if(p<1)requestAnimationFrame(tick);
-      })(t0);
-    });
-  }catch(e){}
-}
 /* Il QR del Wi-Fi arriva da un CDN. L'<img> nasceva senza src — cioè un
    rettangolo bianco vuoto — e se il CDN è lento, bloccato o giù restava così
    per sempre, senza che nulla lo spiegasse. Ora il contenitore è nascosto
@@ -780,17 +959,16 @@ function rottaCasa(c,depBal){
 function render(){
   var addr=(PROPERTY&&(PROPERTY.address||PROPERTY.name))||'La tua casa BOOM';
   var c=CONTRACT||{};
-  var paidId=new URLSearchParams(location.search).get('paid');
-  /* returning from Stripe: the webhook may not have landed yet — treat the
-     just-paid installment as paid (optimistic) so the page NEVER shows a
-     live pay button for it under the green confirmation band */
-  if(paidId){PAYMENTS.forEach(function(p){if(p.id===paidId&&p.status!=='paid'){p.status='paid';p.paidVia='stripe';p.paidDate=todayISO;}});}
+  var payments=homePayments();
   var next=nextPending();
-  var firstRent=PAYMENTS.filter(function(p){return p.type!=='deposit'&&p.type!=='deposit-balance'})[0];
-  var rent=Number(c.rent)||(firstRent?Number(firstRent.amount):0);
-  var paidCount=PAYMENTS.filter(function(p){return p.status==='paid'}).length;
+  var firstRent=payments.filter(function(p){return window.BOOM_RENT&&window.BOOM_RENT.isRentPayment(p)&&(!p.coversTo||p.coversTo===p.month)})[0];
+  var rent=window.BOOM_RENT?window.BOOM_RENT.amount(c.rent):null;
+  if(rent==null&&firstRent)rent=window.BOOM_RENT.amount(firstRent.amount);
+  var rentText=rent==null?'—':eur(rent);
+  var paidCount=payments.filter(function(p){return paymentState(p)==='paid'}).length;
   var depBal=null;
-  PAYMENTS.forEach(function(p){if(p.type==='deposit-balance')depBal=p;});
+  payments.forEach(function(p){if(p.type==='deposit-balance')depBal=p;});
+  var unresolved=payments.some(function(p){return ['paid','cancelled'].indexOf(paymentState(p))<0});
   var late=!!(next&&next.dueDate&&next.dueDate<todayISO);
   var man=(PROPERTY&&PROPERTY.manual)||null;
   var hood=(PROPERTY&&Array.isArray(PROPERTY.neighborhood))?PROPERTY.neighborhood.filter(function(x){return x&&x.name}):[];
@@ -806,10 +984,10 @@ function render(){
     +(c.startDate?'<div class="subline">'+esc(c.type||'')+' · '+fmtD(c.startDate)+' → '+fmtD(c.endDate)+'</div>':'')
     +'<div class="chip">'+(c.signatureStatus==='completed'?t('active'):t('reserved'))+(dToKeys!=null?' · '+(dToKeys===0?t('keysToday'):t('daysToKeys').replace('{n}',dToKeys)):'')+'</div>'
     +'<div class="tiles">'
-      +'<div class="tile hero"><div class="k">'+t('monthly')+'</div><div class="v"><span data-roll="'+eur(rent)+'">'+eur(rent)+'</span><small> /m</small></div></div>'
-      +'<div class="tile"><div class="k">'+t('nextPay')+'</div><div class="v">'+(next?('<span data-roll="'+eur(next.amount)+'">'+eur(next.amount)+'</span>'):'—')+'</div></div>'
-      +'<div class="tile"><div class="k">'+t('due')+'</div><div class="v" style="font-size:15px;font-weight:300">'+(next?fmtD(next.dueDate):t('allGood'))+'</div></div>'
-      +'<div class="tile"><div class="k">'+t('paidReg')+'</div><div class="v">'+paidCount+'<small> ✓</small></div></div>'
+      +'<div class="tile hero"><div class="k">'+t('monthly')+'</div><div class="v"><span>'+rentText+'</span><small> /m</small></div></div>'
+      +'<div class="tile"><div class="k">'+t('nextPay')+'</div><div class="v">'+(next?('<span>'+eur(next.amount)+'</span>'):'—')+'</div></div>'
+      +'<div class="tile"><div class="k">'+t('due')+'</div><div class="v" style="font-size:15px;font-weight:300">'+(PAY_LOAD!=='ready'?'—':next?fmtD(next.dueDate):payments.length&&!unresolved&&!PAY_LIMIT?t('allGood'):'—')+'</div></div>'
+      +'<div class="tile"><div class="k">'+t('paidReg')+'</div><div class="v">'+(PAY_LOAD==='ready'?paidCount:'—')+'<small>'+(PAY_LOAD==='ready'?' ✓':'')+'</small></div></div>'
     +'</div>'
     +rottaCasa(c,depBal);
 
@@ -819,64 +997,62 @@ function render(){
   navItems.push(['s-fix','nFix'],['s-conc','nConc'],['s-kit','nKit'],['s-ref','nRef']);
   html+='<nav class="qnav">'+navItems.map(function(x){return '<a href="#'+x[0]+'">'+t(x[1])+'</a>'}).join('')+'</nav>';
 
-  if(paidId)html+='<div class="paidband">'+t('paidBand')+'</div>';
-  if(new URLSearchParams(location.search).get('sdd')==='ok')html+='<div class="paidband">'+t('sddOkBand')+'</div>';
+  if(SDD_RETURN)html+='<div class="'+(c.sdd&&c.sdd.status==='active'&&PAY_LOAD==='ready'?'paidband':'paynotice')+'" role="status">'+t(c.sdd&&c.sdd.status==='active'&&PAY_LOAD==='ready'?'sddOkBand':'sddChecking')+(!RETURN_CHECKING&&!(c.sdd&&c.sdd.status==='active')?'<button class="obtn" data-refresh-payments>'+t('payRefresh')+'</button>':'')+'</div>';
   var bought=new URLSearchParams(location.search).get('bought');
   if(bought)html+='<div class="paidband">'+t('boughtBand').replace('{x}',esc({'movein-pack':'Move-in Pack','cleaning-premium':'Cleaning Premium'}[bought]||bought))+'</div>';
 
   /* ── next payment ── */
   var sdd=c.sdd||{};
-  var sddProcG=false;
+  var paymentBlocked=true;
   /* Desktop ≥1120px: .cols diventa una griglia a due colonne (i SOLDI |
      la VITA della casa); su telefono display:contents la fa sparire e
      l'ordine resta identico a prima. */
   html+='<div class="cols"><div class="col colA">';
-  html+='<div class="card paycard rv" id="s-pay">'+secH(no(),t('s1'));
-  if(next){
-    var lab=next.type==='deposit-balance'?t('depositBal'):t('rentOf')+' '+esc(periodLabel(next));
+  html+='<div class="card paycard rv" id="s-pay">'+secH(no(),t('s1'))+paymentNotice();
+  if(PAY_LOAD!=='ready'){
+    /* The shared notice above contains the loading/error action. */
+  }else if(next){
+    var lab=next.type==='deposit-balance'?t('depositBal'):esc(paymentLabel(next));
     /* Addebito SEPA in volo: il bottone carta e il bonifico SPARISCONO —
        offrire una seconda via mentre la prima è in corso è invitare un
        doppio pagamento. Se l'addebito fallisce (sddStatus) tornano da soli. */
-    var sddProc=sddProcG=!!(next.sddPiId&&next.status==='pending'&&next.sddStatus!=='failed');
+    var state=paymentState(next),sddProc=state==='processing'&&!!next.sddPiId;
+    paymentBlocked=!payable(next);
     html+='<div class="pm"><div class="lab">'+lab+'<b>'+(late?t('lateBy'):t('dueBy'))+' '+fmtD(next.dueDate)+'</b></div>'
-      +'<div><div class="amt">'+eur(next.amount)+'</div><div class="due'+(late&&!sddProc?' late':'')+'">'+(sddProc?'auto ✓':(late?t('late'):t('dueSoon')))+'</div></div></div>';
+      +'<div><div class="amt">'+eur(next.amount)+'</div><div class="due'+(late&&!paymentBlocked?' late':'')+'">'+(paymentBlocked?t(state==='processing'?'payProcessing':next.id===PAY_RETURN?(RETURN_CHECKING?'payChecking':'payConfirmPending'):state==='reported'?'payReported':'payUnknown'):(late?t('late'):t('dueSoon')))+'</div></div></div>';
+    if(state==='reported'&&next.tenantReported===true&&['pending','due','overdue'].indexOf(next.status)>=0&&!VIEW_AS&&!PAY_BUSY)html+='<details class="pay-report"><summary>'+t('reportWithdraw')+'</summary><p>'+t('reportWithdrawExplain')+'</p><button class="obtn" type="button" id="withdrawReportBtn">'+t('reportWithdraw')+'</button></details>';
     if(sddProc){
       html+='<div class="sddproc"><b>'+t('sddProc')+'</b><br><small>'+t('sddProcSub').replace('{d}',fmtD(next.sddInitiatedAt))+'</small></div>';
+    }else if(paymentBlocked){
+      if(next.id!==PAY_RETURN)html+='<div class="paynotice" role="status">'+t(PAY_BUSY===next.id?'opening':next.id===PAY_RETURN?(RETURN_CHECKING?'payChecking':'payWaiting'):state==='processing'?'payProcessingSub':state==='reported'?'payReported':'payUnknown')+'</div>';
     }else{
       if(next.sddStatus==='failed')html+='<div class="sddfailnote">'+t('sddFailNote')+'</div>';
-      html+='<button class="paybtn" id="payBtn">'
-      +'<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>'
-      +t('payCard')+' — '+eur(next.amount)+' + '+eur(feePreview(Number(next.amount)))+' '+t('service')+'</button>'
-      +'<div class="payfoot"><span class="lock">●</span> '+t('payFoot1')+'<br>'+t('payFoot2')+'</div>'
-      /* ── La strada gratuita, accanto a quella comoda ──────────────────
-         La carta costa a BOOM fino al 3,25%: la commissione esiste solo per
-         coprirla. Il bonifico non costa niente a nessuno dei due, quindi è
-         gratis — e la riconciliazione la fa /banca da sola, purché la
-         causale porti il codice della rata. Compare solo se l'IBAN è stato
-         impostato: mai un IBAN inventato. */
-      +bonificoBlock(next);
+      html+=paymentChoices(next);
     }
   }else{
-    html+='<div style="font-size:13.5px;color:var(--t2)">'+t('noDue')+'</div>';
+    html+='<div style="font-size:13.5px;color:var(--t2)">'+t(!c.id?'payNoContract':PAY_LIMIT?'payLimited':!payments.length?'payEmpty':unresolved?'payUnknown':'noDue')+'</div>';
   }
   /* ── canone automatico (SEPA) — attivi una volta, poi si paga da solo ── */
   if(c.id){
     if(sdd.status==='active'){
       html+='<div class="sddbox on"><span class="ic">🏦</span><div><b>'+t('sddActive').replace('{iban}',esc(sdd.ibanLast4||'····'))+'</b><small>'+t('sddActiveSub')+'</small></div><button class="obtn" id="sddCancelBtn" style="margin:0;flex:none;padding:8px 14px">'+t('sddStop')+'</button></div>';
-    }else{
-      html+='<div class="sddbox"><span class="ic">🏦</span><div><b>'+t('sddT')+'</b><small>'+t('sddPitch').replace('{fee}','€2')+'</small></div><button class="obtn" id="sddBtn" style="margin:0;flex:1 1 auto;border-color:var(--line-gold);color:var(--gold)">'+t('sddBtn')+'</button></div>';
+    }else if(PAY_LOAD==='ready'&&!PAY_BUSY&&!SDD_RETURN&&!(next&&paymentState(next)==='processing')&&!(PAY_RETURN&&paymentReturnState()!=='confirmed')){
+      html+='<details class="pay-auto"><summary>'+t('payAutoTitle')+'</summary><div class="sddbox"><span class="ic">🏦</span><div><b>'+t('sddT')+'</b><small>'+t('sddPitch').replace('{fee}','€2')+'</small></div><button class="obtn" id="sddBtn" style="margin:0;flex:1 1 auto;border-color:var(--line-gold);color:var(--gold)">'+t('sddBtn')+'</button></div></details>';
     }
   }
-  html+='</div>';
+  if(PAY_REPORT_ERROR)html+='<p class="paynotice" role="alert">'+t('reportError')+'</p>';
+  html+='<div class="pay-support"><a href="'+waMsg((LANG==='it'?'Ciao BOOM, mi serve aiuto con il pagamento per ':'Hi BOOM, I need help with the payment for ')+addr+(next?' · '+paymentLabel(next):''))+'" target="_blank" rel="noopener">'+t('payHelp')+'</a><small>'+t('payAgency')+'</small></div></div>';
 
   /* ── history ── */
-  var hist=PAYMENTS.slice().sort(function(a,b){return String(b.dueDate||'').localeCompare(String(a.dueDate||''))});
-  html+='<div class="card rv" id="s-hist">'+secH(no(),t('s2'))+'<div class="rowlist" id="histRows">';
-  if(!hist.length)html+='<div style="font-size:13px;color:var(--t3)">'+t('histEmpty')+'</div>';
-  html+=hist.slice(0,6).map(payRow).join('');
-  html+='</div>'
-    +(hist.length>6?'<button class="morebtn" id="moreBtn">'+t('showAll')+' ('+hist.length+') ↓</button>':'')
-    +'</div>';
+  var hist=payments.slice();
+  html+='<div class="card rv" id="s-hist">'+secH(no(),t('payList'))
+    +'<p class="payscope">'+esc(addr)+'</p><div class="rowlist" id="histRows">';
+  if(PAY_LOAD!=='ready')html+='<div role="status">'+t(PAY_LOAD==='loading'?'payLoading':'payLoadError')+'</div>';
+  else if(!hist.length)html+='<div style="font-size:13px;color:var(--t3)">'+t(c.id?'payEmpty':'payNoContract')+'</div>';
+  else html+=historyRows(hist,false);
+  html+='</div><p id="receiptFeedback" class="pay-feedback" role="status"></p>'+(PAY_LOAD==='ready'&&hist.length>6?'<button class="morebtn" id="moreBtn">'+t('showAll')+' ('+hist.length+') ↓</button>':'')
+    +(PAY_LIMIT?'<p class="payscope">'+t('payLimited')+'</p>':'')
+    +'<button class="obtn" data-refresh-payments'+(RETURN_CHECKING||PAY_LOAD==='loading'?' disabled':'')+'>'+t('payRefresh')+'</button></div>';
 
   /* ── documents ── */
   html+='<div class="card rv" id="s-docs">'+secH(no(),t('s3'));
@@ -971,29 +1147,36 @@ function render(){
 
   /* dock pagamento (telefono): la rata segue lo scroll, un tap riporta
      alla card. Mai col banner SDD in volo — lì non c'è nulla da pagare. */
-  if(next&&!sddProcG){
+  if(next&&!paymentBlocked){
     html+='<div class="paydock" id="payDock"><div class="pdA"><b>'+eur(next.amount)+'</b><small>'+t('dueBy')+' '+fmtD(next.dueDate)+'</small></div><button class="pdB" id="payDockBtn">'+t('dockPay')+'</button></div>';
   }
 
   $('app').innerHTML=html;
   wire(next,hist);
   reveal();
-  countUp($('app'));
   if(man&&man.wifiName&&man.wifiPass)wifiQr(man.wifiName,man.wifiPass);
+  if(PAY_METHOD==='bank')renderBonifico();
 }
 
 function periodLabel(p){
   var m=p.month||String(p.dueDate||'').slice(0,7);
-  return (p.coversTo&&p.coversTo!==m)?(m+' → '+p.coversTo):m;
+  var month=function(value){
+    if(!/^\d{4}-(0[1-9]|1[0-2])$/.test(value||''))return value||t('payUnknown');
+    return new Date(value+'-01T12:00:00Z').toLocaleDateString(LANG==='it'?'it-IT':'en-GB',{month:'long',year:'numeric',timeZone:'UTC'});
+  };
+  return (p.coversTo&&p.coversTo!==m)?(month(m)+' → '+month(p.coversTo)):month(m);
 }
 function payRow(p){
-  var late=p.status!=='paid'&&p.dueDate&&p.dueDate<todayISO;
-  var lab=p.type==='deposit'?t('deposit'):p.type==='deposit-balance'?t('depBalance'):periodLabel(p);
-  return '<div class="prow"><span class="mo">'+esc(lab)+'<small>'+(p.status==='paid'?(t('paidW')+(p.paidVia==='stripe'?' '+t('byCard'):p.paidVia==='bank'?' '+t('byBank'):'')+(p.paidDate?' · '+fmtD(p.paidDate):'')):(t('dueBy')+' '+fmtD(p.dueDate)))+'</small></span>'
-    +(p.receiptUrl?'<a href="'+p.receiptUrl+'" target="_blank" rel="noopener">'+t('receipt')+'</a>':'')
-    +'<span class="amt2">'+eur(p.amount)+'</span>'
-    +'<span class="st '+(p.status==='paid'?'paid':(late?'late':'pending'))+'">'+(p.status==='paid'?t('paid'):(late?t('lateSt'):t('pending')))+'</span></div>';
+  var state=paymentState(p),confirming=p.id===PAY_RETURN&&state!=='paid';
+  var lab=paymentLabel(p);
+  var status=confirming?(RETURN_CHECKING?'payChecking':'payConfirmPending'):({paid:'paid',processing:'payProcessing',reported:'payReported',overdue:'lateSt',due:'pending',cancelled:'payCancelled',unknown:'payUnknown'}[state]||'payUnknown');
+  var via={stripe:'byCard',bank:'byBank',sepa:'bySepa'}[p.paidVia];
+  return '<div class="prow"><span class="mo">'+esc(lab)+'<small>'+(state==='paid'?(t('paidW')+(via?' '+t(via):'')+(p.paidDate?' · '+fmtD(p.paidDate):'')):(p.dueDate?t('dueBy')+' '+fmtD(p.dueDate):t('payUnknown')))+'</small>'+(state==='paid'&&!safeReceiptUrl(p.receiptUrl)&&!p.receiptDocId?'<small>'+t('receiptMissing')+'</small>':'')+'</span>'
+    +(state==='paid'?(safeReceiptUrl(p.receiptUrl)?'<a href="'+esc(safeReceiptUrl(p.receiptUrl))+'" target="_blank" rel="noopener">'+t('receipt')+'</a>':p.receiptDocId?'<button type="button" class="obtn" data-receipt-payment="'+esc(p.id)+'">'+t('receiptLoad')+'</button>':''):'')
+    +'<span class="amt2">'+paymentAmount(p)+'</span>'
+    +'<span class="st '+(state==='paid'?'paid':state==='overdue'&&!confirming?'late':'pending')+'">'+t(status)+'</span></div>';
 }
+
 function maintRows(){
   return MAINT.slice(0,4).map(function(m){
     return '<div class="mrow"><span>'+esc((m.category||'')+(m.description?' — '+String(m.description).slice(0,60):''))+'</span><span class="st'+(m.status==='resolved'||m.status==='done'?' done':'')+'">'+esc(m.status==='pending'?t('statusOpen'):(m.status||t('statusOpen')))+'</span></div>';
@@ -1001,14 +1184,24 @@ function maintRows(){
 }
 
 function wire(next,hist){
+  var report=$('reportTransferBtn'),withdraw=$('withdrawReportBtn');
+  if(report&&next)report.onclick=function(){return reportTransfer(next,'report')};
+  if(withdraw&&next)withdraw.onclick=function(){return reportTransfer(next,'withdraw')};
+  var rows=$('histRows');if(rows)rows.onclick=function(event){var button=event.target.closest&&event.target.closest('[data-receipt-payment]');if(button)loadPaymentReceipt(button.getAttribute('data-receipt-payment'),button)};
+  var cardChoice=$('payMethodCard'),bankChoice=$('payMethodBank');
+  if(cardChoice)cardChoice.onclick=function(){selectPaymentMethod('card')};
+  if(bankChoice)bankChoice.onclick=function(){selectPaymentMethod('bank')};
+  document.querySelectorAll('[data-refresh-payments]').forEach(function(b){b.onclick=function(){if(!RETURN_CHECKING&&PAY_LOAD!=='loading')retryPayments()}});
   var pb=$('payBtn');
   if(pb&&next){
     pb.onclick=function(){
-      pb.disabled=true;pb.textContent=t('opening');
-      USER.getIdToken().then(function(tok){
+      if(!payable(next)||PAY_METHOD!=='card')return;
+      PAY_ERROR=false;PAY_BUSY=next.id;render();
+      BoomPortal.withTimeout(USER.getIdToken().then(function(tok){
         return fetch('/api/payments/pay',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({paymentId:next.id})});
-      }).then(function(r){return r.json()}).then(function(j){
-        if(j&&!j.ok&&j.error==='already_paid'){pb.textContent=t('paid');setTimeout(function(){location.href='/casa'},900);return;}
+      }).then(function(r){return r.json()}),15000).then(function(j){
+        if(j&&!j.ok&&['payment_cancelled','payment_not_payable','payment_reported'].indexOf(j.error)>=0){PAY_BUSY=null;refreshPayments();return;}
+        if(j&&!j.ok&&['already_paid','sdd_processing','payment_processing'].indexOf(j.error)>=0){PAY_BUSY=null;PAY_RETURN=next.id;confirmPaymentReturn(0);return;}
         if(j&&j.ok&&j.checkoutUrl){
           var po=$('payov'),pa=$('payAmt'),ps=$('paySub');
           if(pa)pa.textContent=eur(j.total||next.amount);
@@ -1019,12 +1212,12 @@ function wire(next,hist){
         }
         throw new Error((j&&j.error)||'failed');
       }).catch(function(){
-        pb.disabled=false;pb.textContent=t('payRetry');
+        PAY_BUSY=null;PAY_ERROR=true;render();
       });
     };
   }
   var mb=$('moreBtn');
-  if(mb){mb.onclick=function(){$('histRows').innerHTML=hist.map(payRow).join('');mb.style.display='none';};}
+  if(mb){mb.onclick=function(){$('histRows').innerHTML=historyRows(hist,true);mb.style.display='none';};}
   /* canone automatico: attiva (Checkout mode=setup) / disattiva */
   var sb=$('sddBtn');
   if(sb){sb.onclick=function(){
@@ -1117,27 +1310,21 @@ BoomPortal.requireAuth(['tenant','admin'],{loginUrl:'/login'}).then(function(res
 
   // Ogni lettura ha un watchdog: su Safari desktop una get() può restare
   // sospesa per sempre (IndexedDB/WebChannel) e la Promise.all qui sotto
-  // non si risolverebbe mai → loader eterno. Meglio una sezione vuota che
-  // una pagina bloccata.
+  // non si risolverebbe mai → loader eterno. I pagamenti hanno uno stato
+  // esplicito e un retry: un errore non significa nessuna rata da pagare.
   var T=function(p){return BoomPortal.withTimeout(p,9000)};
   var qContracts=VIEW_AS
-    ? T(db.collection('contracts').doc(VIEW_AS).get())
+    ? T(db.collection('contracts').doc(VIEW_AS).get({source:'server'}))
         .then(function(d){if(d&&d.exists){var v=d.data();v.id=d.id;CONTRACT=v;
           // il saluto e le firme mostrano il CLIENTE, non l'admin
           PROFILE={name:v.tenantName||'',role:'admin'};}})
         .catch(function(){})
-    : T(db.collection('contracts').where('tenantId','==',USER.uid).limit(10).get())
+    : T(db.collection('contracts').where('tenantId','==',USER.uid).limit(10).get({source:'server'}))
         .then(function(s){var rows=[];s.forEach(function(d){var v=d.data();v.id=d.id;rows.push(v)});
           rows.sort(function(a,b){return String(b.startDate||'').localeCompare(String(a.startDate||''))});
           CONTRACT=rows.filter(function(c){return c.status==='active'})[0]||rows[0]||null;})
         .catch(function(){});
-  var qPays=VIEW_AS
-    ? T(db.collection('payments').where('contractId','==',VIEW_AS).limit(120).get())
-        .then(function(s){PAYMENTS=[];s.forEach(function(d){var v=d.data();v.id=d.id;PAYMENTS.push(v)});})
-        .catch(function(){})
-    : T(db.collection('payments').where('tenantId','==',USER.uid).limit(120).get())
-        .then(function(s){PAYMENTS=[];s.forEach(function(d){var v=d.data();v.id=d.id;PAYMENTS.push(v)});})
-        .catch(function(){});
+  var qPays=refreshPayments();
   // Dati per il bonifico, impostati una volta da /banca in payout/default.
   // Collezione a sé perché /settings è pubblica e un IBAN non deve esserlo. Se il doc
   // non c'è, il blocco bonifico semplicemente non compare.
@@ -1153,14 +1340,14 @@ BoomPortal.requireAuth(['tenant','admin'],{loginUrl:'/login'}).then(function(res
     : T(db.collection('maintenance').where('userId','==',USER.uid).limit(20).get())
         .then(fillMaint).catch(function(){});
 
-  Promise.all([qContracts,qPays,qMaint,qPayout]).then(function(){
+  Promise.all([qContracts,qMaint,qPayout]).then(function(){
     var pid=(CONTRACT&&CONTRACT.propertyId)||PROFILE.propertyId||null;
     return pid?T(db.collection('properties').doc(pid).get()).then(function(d){if(d.exists)PROPERTY=d.data();}).catch(function(){}):null;
   }).then(function(){
     $('load').style.display='none';$('app').style.display='';$('foot').style.display='';
     document.title='La tua casa — '+((PROPERTY&&PROPERTY.address)||'BOOM Roma');
-    render();
-    renderBonifico();
+    APP_READY=true;render();
+    qPays.then(function(){if(PAY_RETURN||SDD_RETURN)confirmPaymentReturn(0)});
   });
 }).catch(function(){/* requireAuth redirects */});
 })();
