@@ -111,7 +111,25 @@ check('missing direct records never borrow the incompatible contract identities'
 ctx.storage={ref(path){return {async put(){uploads.push(path);return {ref:{getDownloadURL:async()=> 'https://files.example.invalid/archived.pdf'}}}}}};
 ctx.generateDocHash=async()=> 'synthetic-hash';ctx.logActivity=()=>{};
 ctx.firebase.firestore.FieldValue={serverTimestamp:()=> 'synthetic-time'};
-ctx.db={collection(name){return {async add(data){archiveWrites.push({name,data});return {id:'stored-'+name}},doc(id){return {update:async data=>archiveWrites.push({name,id,data})}}}}};
+const receiptStore=new Map();let receiptTransactionQueue=Promise.resolve(),receiptConflict=false;
+function storedReceipt(path){if(receiptStore.has(path))return receiptStore.get(path);if(path.startsWith('payments/')){const p=ctx.S.payments.find(p=>p.id===path.slice(9));if(p){receiptStore.set(path,structuredClone(p));return receiptStore.get(path)}}}
+function receiptSnap(ref){const data=storedReceipt(ref.path);return {id:ref.id,exists:!!data,data:()=>structuredClone(data)}}
+function receiptRef(name,id){return {id,path:name+'/'+id,async get(options){assert.equal(options.source,'server');return receiptSnap(this)},async update(data){archiveWrites.push({name,id,data});receiptStore.set(this.path,{...storedReceipt(this.path),...data})}}}
+ctx.db={
+ collection(name){return {
+   doc:id=>receiptRef(name,id),
+   async add(data){archiveWrites.push({name,data});return {id:'stored-'+name}},
+   where(field,op,value){
+     assert.equal(name,'documents');assert.equal(field,'paymentId');
+     return {limit(){return this},async get(options){
+       assert.equal(options.source,'server');
+       return {docs:[...receiptStore.entries()].filter(([key,v])=>key.startsWith('documents/')&&v.paymentId===value).map(([key])=>receiptSnap(receiptRef('documents',key.slice(10))))};
+     }};
+   }
+ };},
+ runTransaction(fn){const p=receiptTransactionQueue.then(async()=>{const staged=[];if(ctx.beforeReceiptTransaction){const cb=ctx.beforeReceiptTransaction;ctx.beforeReceiptTransaction=null;cb()}
+ const result=await fn({get:async ref=>receiptSnap(ref),set:(ref,data)=>staged.push({ref,data,set:true}),update:(ref,data)=>staged.push({ref,data})});if(receiptConflict)throw Error('transaction_failed');
+ for(const {ref,data,set} of staged){const name=ref.path.split('/')[0];archiveWrites.push({name,id:ref.id,data});receiptStore.set(ref.path,set?structuredClone(data):{...storedReceipt(ref.path),...structuredClone(data)})}return result;});receiptTransactionQueue=p.catch(()=>{});return p;}};
 await run("archivePaymentReceipt(S.payments.find(p=>p.id==='direct-paid'))");
 check('receipt archive uses the same direct identities and tenant folder as the PDF',()=>{
   const saved=archiveWrites.find(w=>w.name==='documents').data;
@@ -136,6 +154,31 @@ check('deposit metadata and archive title describe the charge without calling it
   assert(!/canone/i.test(invoice.service+' '+invoice.description+' '+archived.name));
   assert.equal(run("rentChargeLabel({type:'utilities'})"),'Altro addebito contrattuale');
 });
+
+// Receipt-only publication is based on fresh paid data and one atomic attachment.
+const archivedPayment=receiptStore.get('payments/direct-paid'), beforeMoney=JSON.stringify([archivedPayment.status,archivedPayment.amount,archivedPayment.paidDate]);
+const receiptCount=()=>[...receiptStore.keys()].filter(k=>k.startsWith('documents/')).length;
+const beforeRepeated=receiptCount(), beforeUploads=uploads.length;
+await Promise.all([run("archivePaymentReceipt({id:'direct-paid'})"),run("archivePaymentReceipt({id:'direct-paid'})")]);
+check('repeated archival reuses the existing document without new upload or settlement',()=>{assert.equal(receiptCount(),beforeRepeated);assert.equal(uploads.length,beforeUploads);const p=receiptStore.get('payments/direct-paid');assert.equal(JSON.stringify([p.status,p.amount,p.paidDate]),beforeMoney);assert.match(p.receiptDocId,/^rent-receipt-/);assert.match(p.receiptUrl,/^https:/)});
+ctx.S.payments.push({...direct,id:'bank-receipt',paidVia:'bank',bankTxId:'bank-test'});
+const beforeConcurrent=receiptCount();
+const duplicateResults=await Promise.all([run("archivePaymentReceipt({id:'bank-receipt'})"),run("archivePaymentReceipt({id:'bank-receipt'})")]);
+check('concurrent receipt requests attach one deterministic document to a bank-paid rate',()=>{assert.equal(receiptCount(),beforeConcurrent+1);assert.equal(duplicateResults[0],duplicateResults[1]);assert.equal(receiptStore.get('payments/bank-receipt').paidVia,'bank');assert.equal(receiptStore.get('payments/bank-receipt').bankTxId,'bank-test')});
+ctx.S.payments.push({...direct,id:'stale-paid'});receiptStore.set('payments/stale-paid',{...direct,id:'stale-paid',status:'pending'});
+const noUpload=uploads.length;const staleResult=await run("archivePaymentReceipt({id:'stale-paid',status:'paid'})");
+check('stale caller cannot archive a server-unpaid rate',()=>{assert.equal(staleResult,null);assert.equal(uploads.length,noUpload)});
+ctx.S.payments.push({...direct,id:'receipt-race'});ctx.beforeReceiptTransaction=()=>receiptStore.set('payments/receipt-race',{...storedReceipt('payments/receipt-race'),amount:123});
+const raced=await run("archivePaymentReceipt({id:'receipt-race'})");
+check('payment changing during upload is not attached to a stale receipt',()=>{assert.equal(raced,null);assert(!receiptStore.has('documents/rent-receipt-receipt-race'));assert(!receiptStore.get('payments/receipt-race').receiptDocId)});
+ctx.S.payments.push({...direct,id:'receipt-failed'});receiptConflict=true;const failedReceipt=await run("archivePaymentReceipt({id:'receipt-failed'})");receiptConflict=false;
+check('archive commit failure leaves neither a document nor a false receipt link',()=>{assert.equal(failedReceipt,null);assert(!receiptStore.has('documents/rent-receipt-receipt-failed'));assert(!receiptStore.get('payments/receipt-failed').receiptDocId)});
+ctx.S.payments.push({...direct,id:'receipt-legacy'});receiptStore.set('documents/legacy-valid',{paymentId:'receipt-legacy',fileUrl:'https://files.example.invalid/original.pdf',type:'receipt'});
+const beforeLegacy=uploads.length;const legacyResult=await run("archivePaymentReceipt({id:'receipt-legacy'})");
+check('a legacy document is linked and reused instead of generating another receipt',()=>{assert.equal(legacyResult,'legacy-valid');assert.equal(uploads.length,beforeLegacy);assert.equal(receiptStore.get('payments/receipt-legacy').receiptDocId,'legacy-valid')});
+ctx.S.payments.push({...direct,id:'receipt-wrong',receiptDocId:'wrong-doc'});receiptStore.set('documents/wrong-doc',{paymentId:'other-payment',fileUrl:'https://files.example.invalid/other.pdf'});
+const wrongResult=await run("archivePaymentReceipt({id:'receipt-wrong'})");check('a receipt belonging to another payment is never exposed or replaced silently',()=>assert.equal(wrongResult,null));
+check('paid bank row exposes receipt-only archival while reported row exposes reasoned admin review',()=>{assert(run("rentPaymentRow(rentReceiptContext(S.payments.find(p=>p.id==='bank-receipt')))").includes('Archivia ricevuta per il cliente'));assert(run("rentPaymentRow(rentReceiptContext(S.payments.find(p=>p.id==='p4')))").includes('Revoca segnalazione errata'))});
 
 // Legacy receipts remain accessible as original records, never new income or
 // fabricated proof of payment. Missing originals are explicitly disclosed.
@@ -244,3 +287,31 @@ check('an empty month does not fabricate debt or auto-generate an installment',(
   const h=el('modals').innerHTML;assert(h.includes('Nessuna rata registrata'));assert(!h.includes('confirmRentPayment'));assert(!h.includes('bulkPayments'));
 });
 console.log(`${count} admin rent checks passed in total.`);
+// Administrative review is explicit, reasoned and waits for the server result.
+ctx.S=structuredClone(fixture);ctx.S.profile={id:'admin',role:'admin'};ctx.isAdmin=()=>true;
+el('rentReviewReason').focus=()=>{};
+const reviewRequests=[];ctx.fetch=async(url,opts)=>{reviewRequests.push({url,body:JSON.parse(opts.body)});return {json:async()=>({ok:false,error:'state_changed'})}};
+ctx.closeModal=()=>calls.push(['close-review']);
+run("openRentReportReview('p4')");
+check('opening report review only prepares an explicit reason form',()=>{assert(el('modals').innerHTML.includes('Motivo della revoca'));assert(el('modals').innerHTML.includes('Revoca segnalazione'));assert.equal(reviewRequests.length,0)});
+el('rentReviewReason').value=' ';await run("submitRentReportReview('p4')");
+check('empty review reason never calls the server',()=>assert.equal(reviewRequests.length,0));
+el('rentReviewReason').value='Bonifico segnalato per errore, verificato dal responsabile';await run("submitRentReportReview('p4')");
+check('conflicting review preserves the report and explains that it changed',()=>{assert.equal(reviewRequests[0].body.action,'review_withdraw');assert.match(reviewRequests[0].body.reason,/verificato/);assert.match(el('rentReviewError').textContent,/è cambiata/);assert.equal(ctx.S.payments.find(p=>p.id==='p4').tenantReported,true)});
+const beforeDenied=el('modals').innerHTML;ctx.isAdmin=()=>false;run("openRentReportReview('p4')");await run("submitRentReportReview('p4')");
+check('non-admin cannot open or submit administrative report review',()=>{assert.equal(el('modals').innerHTML,beforeDenied);assert.equal(reviewRequests.length,1)});ctx.isAdmin=()=>true;
+console.log(`${count} admin rent checks passed in total.`);
+
+const archiveStart=source.indexOf('    async function archivePaymentReceipt('),archiveSource=source.slice(archiveStart,source.indexOf('    function downloadInvoicePDF(',archiveStart));
+for(const [label,mutate,initial,change] of [
+ ['fresh-paid',s=>s.replace("window.BOOM_RENT.paymentState(pay) !== 'paid'",'false'),{status:'pending'},null],
+ ['payment-version',s=>s.replace('if (!current || fingerprint(current)!==expected)','if (!current)'),{},p=>({...p,amount:1})]
+]){
+ const mutant=mutate(archiveSource);assert.notEqual(mutant,archiveSource);vm.runInContext(mutant,ctx);
+ const id='mutation-'+label;ctx.S.payments.push({...direct,id,...initial});
+ if(change)ctx.beforeReceiptTransaction=()=>receiptStore.set('payments/'+id,change(storedReceipt('payments/'+id)));
+ const result=await run("archivePaymentReceipt({id:'"+id+"'})");
+ check('receipt mutation killed: '+label,()=>assert.throws(()=>assert.equal(result,null),/Expected values/));
+ vm.runInContext(archiveSource,ctx);
+}
+console.log(`${count} admin rent checks passed in total, including receipt mutations.`);

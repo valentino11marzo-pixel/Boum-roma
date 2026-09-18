@@ -2690,6 +2690,11 @@ prezzo, locali, mq, extra }`. The prompt is built entirely server-side from
 length-capped fields (no general proxying possible); model pinned to haiku,
 max_tokens 500. CORS: boomrome.com + *.vercel.app previews. Returns `{ text }`.
 ### Canoni per unità e ricavi BOOM — 17 settembre 2026
+**Chiusura P2 Claude, 18/09:** la revoca amministrativa di un bonifico segnalato richiede motivo (10–500 caratteri), ruolo admin e stato ancora revocabile. `payments/report` salva insieme revoca e audit immutabile in `activityLog`, con CAS e attore autenticato; nessun incasso registrato. Stati pagati/in corso/incerti e prove di regolamento bloccano la revoca.
+Il pagante vede «Ricevuta non ancora disponibile» se il bonifico riconciliato non ha un file. L'admin può archiviare una ricevuta da rata già pagata riletta dal server, senza richiamare `markPaymentPaid`, fatture o comunicazioni.
+`archivePaymentReceipt` riusa documenti esistenti o un ID deterministico; documento e collegamento rata sono atomici. Pagamento cambiato durante upload, ricevuta estranea/ambigua o commit fallito non producono un collegamento falso. Un upload fallito nella fase finale può lasciare un file non collegato, mai una ricevuta dichiarata disponibile.
+Prove `paymentlinks` (ruolo, motivo, audit, retry e conflitto) e mutazioni; `rentadmin` (archivio concorrente/ripetuto, stato fresco, errore, ricevute pregresse e form admin); `tenantpayments` IT/EN.
+
 **Revisione con Claude, 18/09:** prima le unità, sei mesi per riga e una sola prossima azione che apre il contesto senza inviare o registrare. Le operazioni complete restano nei dettagli. Riepiloghi sotto l'elenco: da pagare, segnalato e in corso sono somme distinte.
 `BOOM_RENT.timeline/nextAction` proietta i record esistenti; una cella con più rate dichiara il numero e le apre tutte, quella vuota non inventa debiti. Il dettaglio conserva i riferimenti per ogni rata.
 Non viene dedotta una stanza dal testo `contract.unit` (nel portale proviene anche da `interno`). Nessuna nuova chiave di unità o migrazione dati. Prove `rent/rentadmin`; revisione visiva ancora da completare.

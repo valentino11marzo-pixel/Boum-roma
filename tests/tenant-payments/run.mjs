@@ -338,4 +338,9 @@ await test('a lost report response is reconciled from the server without claimin
   f.ctx.response={ok:false,error:'report_unavailable'};f.queues.payments.push([payment({tenantReported:true})]);
   await f.elements.get('reportTransferBtn').onclick();assert.equal(f.requests.length,1);noPay(f.markup);assert.doesNotMatch(f.markup,/We could not confirm your report/);
 });
+await test('bank-confirmed payment without receipt explicitly explains availability in both languages',()=>{
+ const f=fixture();const p=payment({status:'paid',paidVia:'bank',bankTxId:'bank-test'});
+ assert.match(f.api.row(p),/Receipt not available yet/);assert.doesNotMatch(f.api.row(p),/data-receipt-payment|href=/);
+ f.api.set({lang:'it'});assert.match(f.api.row(p),/Ricevuta non ancora disponibile/);
+});
 console.log(`\n${passed} tenant payment checks passed. No live network or writes.`);
