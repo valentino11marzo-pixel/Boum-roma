@@ -29,6 +29,8 @@ export async function readPreparationDelivery(id, actionId, cached = false) {
   const a = await fsGet('action_queue/' + actionId);
   const base = { id, actionId, confirmed: true, cached };
   if (!a) return { ...base, code: 503, error: 'approved_action_missing', delivery: 'needs_review' };
+  if (a.status === 'rejected' && a.segretaria?.delivery?.state === 'expired')
+    return { ...base, code: 409, error: 'whatsapp_delivery_expired', delivery: 'needs_review' };
   if (a.status === 'executed') {
     if (a.payload?.channel === 'whatsapp' && a.segretariaDeliveryBlock && !a.segretaria?.delivery && !a.waSentAt)
       return { ...base, code: 409, error: a.segretariaDeliveryBlock.reason || 'whatsapp_delivery_blocked', delivery: 'needs_review' };

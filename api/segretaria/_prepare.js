@@ -1,5 +1,6 @@
 // Interpret one existing case. Sources stay authoritative; only a versioned
-// proposal is saved on the existing case. No queue, client send or notification.
+// proposal is saved on the existing case. Only proven unclaimed expiry may retire
+// its old action; no new queued reply, client send or notification.
 import crypto from 'node:crypto';
 import PROPOSTA from '../../js/segretaria-proposta-engine.js';
 import CALENDAR from '../../js/segretaria-calendar-engine.js';
@@ -13,6 +14,7 @@ import { callClaude, extractJson } from '../agent/_claude.js';
 import { replyLang } from '../_lang.js';
 import { runBudget } from '../_budget.js';
 import { replyOwner } from './_reply-owner.js';
+import { canExpireUnclaimedSegretariaDelivery } from './_delivery-guard.js';
 
 const sha = x => crypto.createHash('sha256').update(typeof x === 'string' ? x : JSON.stringify(x)).digest('hex');
 const day = now => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now));
@@ -86,7 +88,11 @@ export async function prepareCase({ id, actor, now = Date.now(), background = fa
   const followUpFingerprint = followUpDecisionHash(task.followUp);
   const replyOwnership = await replyOwner(conv, { excludeActionId: task.preparation?.approval?.actionId });
   const replyOwnerFingerprint = sha(replyOwnership);
-  if (PROPOSTA.currentContext(task) && task.preparation.sourceFingerprint === sourceFingerprint
+  const priorId = task.preparation?.approval?.actionId;
+  const priorSnapshot = priorId ? await fsGetVersioned('action_queue/' + priorId) : null;
+  const expiresUnclaimed = !!priorSnapshot && canExpireUnclaimedSegretariaDelivery({ id: priorId,
+    action: priorSnapshot.data, task: { ...task, id }, now });
+  if (!expiresUnclaimed && PROPOSTA.currentContext(task) && task.preparation.sourceFingerprint === sourceFingerprint
     && task.preparation.contactFingerprint === contactHash
     && (task.preparation.approval?.followUpFingerprint || task.preparation.followUpFingerprint) === followUpFingerprint
     && task.preparation.replyOwnerFingerprint === replyOwnerFingerprint
@@ -100,8 +106,8 @@ export async function prepareCase({ id, actor, now = Date.now(), background = fa
     return { code: 200, id, preparation: task.preparation, cached: true };
   }
   if (task.preparation?.approval?.actionId) {
-    const prior = await fsGet('action_queue/' + task.preparation.approval.actionId);
-    if (!prior || !['executed', 'rejected'].includes(prior.status) || (prior.payload?.channel === 'whatsapp' && prior.status === 'executed' && !prior.waSentAt))
+    const prior = priorSnapshot?.data;
+    if (!expiresUnclaimed && (!prior || !['executed', 'rejected'].includes(prior.status) || (prior.payload?.channel === 'whatsapp' && prior.status === 'executed' && !prior.waSentAt)))
       return { code: 409, error: 'previous_delivery_unresolved' };
   }
   if (!time.afford(35_000)) return { code: 503, error: 'preparation_time_budget' };
@@ -239,7 +245,7 @@ export async function prepareCase({ id, actor, now = Date.now(), background = fa
     }
     const fresh = await fsGetVersioned(path);
     if (!fresh || fresh.updateTime !== initial.updateTime) return { code: 409, error: 'new_message_reload' };
-    const freshConv = await fsGet('conversations/' + cid);
+    const freshConversation = await fsGetVersioned('conversations/' + cid), freshConv = freshConversation?.data;
     if (!freshConv || contactFingerprint(freshConv) !== contactHash) return { code: 409, error: 'sources_changed_reload' };
     const freshDossier = await personaDossier({ phone: freshConv.contactPhone, email: freshConv.contactEmail,
       leadId: freshConv.leadId || (freshConv.contactType === 'lead' ? freshConv.contactId : undefined), conversationId: cid });
@@ -259,7 +265,20 @@ export async function prepareCase({ id, actor, now = Date.now(), background = fa
         ...(s.provenance ? { provenance: s.provenance, firstAt: s.firstAt || null,
           lastAt: s.lastAt || null, syncedAt: s.syncedAt || null, limitation: s.limitation } : {}) })) };
     preparation.revision = sha(preparation);
-    try { await fsCommit([{ docPath: path, fields: { preparation, preparationError: null, preparationRetry: null }, precondition: { updateTime: fresh.updateTime } }]); }
+    const operations = [{ docPath: path, fields: { preparation, preparationError: null, preparationRetry: null },
+      precondition: { updateTime: fresh.updateTime } }];
+    if (expiresUnclaimed) {
+      // Retire the old approval only with the new, UNAPPROVED proposal. A claim,
+      // receipt, new inbound or recipient change wins the competing CAS.
+      operations.push({ docPath: 'action_queue/' + priorId, fields: { status: 'rejected',
+        segretaria: { ...priorSnapshot.data.segretaria, delivery: { state: 'expired',
+          expiredAt: new Date(now).toISOString(), reason: 'pickup_window_elapsed' } } },
+        precondition: { updateTime: priorSnapshot.updateTime } });
+      operations.push({ docPath: 'conversations/' + cid,
+        fields: { contactPhone: freshConv.contactPhone || null, contactEmail: freshConv.contactEmail || null },
+        precondition: { updateTime: freshConversation.updateTime } });
+    }
+    try { await fsCommit(operations); }
     catch (e) { if (e?.conflict) return { code: 409, error: 'new_message_reload' }; throw e; }
     return { code: 200, id, preparation, cached: false };
   } catch {

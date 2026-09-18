@@ -1,10 +1,29 @@
 // One server-side pickup, permanently claimed before returning text to the Mac.
 // No acknowledgement means unknown outcome, never an automatic second pickup.
 import { fsGetVersioned, fsCommit } from '../homie/_lib.js';
-import { segretariaApprovalProblem, loadReviewedSegretariaContext } from './_execution-guard.js';
+import { whatsappDeliveryWindow } from '../homie/_wa-delivery.js';
+import { segretariaApprovalProblem, loadReviewedSegretariaContext, preparationContentHash } from './_execution-guard.js';
 
 const deny = error => ({ allowed: false, code: 409, error });
 export const isPreparedAction = action => !!action?.segretaria || action?.proposedBy === 'segretaria-proposal';
+
+// Only this claim-before-payload protocol proves that an unclaimed message
+// never left the server. Match the old approval, even after a newer inbound.
+export function canExpireUnclaimedSegretariaDelivery({ id, action, task, now = Date.now() }) {
+  if (!/^sgreply_[a-f0-9]{40}$/.test(id || '') || segretariaApprovalProblem(action)
+      || action.status !== 'executed' || action.payload?.channel !== 'whatsapp'
+      || action.segretaria.execution?.state !== 'started' || action.segretaria.delivery
+      || action.waSentAt || action.waSendError || action.waSendAttemptAt
+      || whatsappDeliveryWindow(action, now) !== 'expired') return false;
+  const s = action.segretaria, p = task?.preparation, receipt = p?.approval;
+  return task?.source === 'segretaria' && task.status === 'open' && task.followUp?.open === true
+    && task.id === s.caseId && task.followUp.conversationId === s.conversationId
+    && p?.revision === s.proposalRevision && p.messageId === s.sourceMessageId
+    && preparationContentHash(p) === s.preparationHash
+    && receipt?.actionId === id && receipt.revision === s.proposalRevision
+    && receipt.messageId === s.sourceMessageId && receipt.payloadHash === s.payloadHash
+    && receipt.approvedBy === s.reviewedBy && receipt.approvedAt === s.reviewedAt;
+}
 
 // A refused pickup is a reviewable block, never evidence of a failed send.
 export async function markSegretariaDeliveryBlocked({ id, reason, now = Date.now() }) {
@@ -37,6 +56,9 @@ export async function claimSegretariaDelivery({ id, action, now = Date.now() }) 
     const { queue, task, conversation } = checked, current = queue.data;
     if (current.status !== 'executed' || current.waSentAt || current.waSendError || current.segretaria.delivery)
       return deny('delivery_already_claimed');
+    // Context reads can cross the pickup deadline: check the actual clock here.
+    const claimNow = Math.max(now, Date.now()), window = whatsappDeliveryWindow(current, claimNow);
+    if (window !== 'current') return deny(window === 'expired' ? 'whatsapp_delivery_expired' : 'whatsapp_delivery_time_invalid');
     const conv = conversation.data;
     await fsCommit([
       { docPath: 'operatorTasks/' + action.segretaria.caseId, fields: { preparation: task.data.preparation },
@@ -45,7 +67,7 @@ export async function claimSegretariaDelivery({ id, action, now = Date.now() }) 
         fields: { contactPhone: conv.contactPhone || null, contactEmail: conv.contactEmail || null },
         precondition: { updateTime: conversation.updateTime } },
       { docPath: 'action_queue/' + id, fields: { segretariaDeliveryBlock: null, segretaria: { ...current.segretaria,
-        delivery: { state: 'claimed', claimedAt: new Date(now).toISOString() } } },
+        delivery: { state: 'claimed', claimedAt: new Date(claimNow).toISOString() } } },
         precondition: { updateTime: queue.updateTime } },
     ]);
     return { allowed: true };

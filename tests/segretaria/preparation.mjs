@@ -151,6 +151,8 @@ globalThis.fetch = async (rawURL, opts = {}) => {
 
 const { default: CALENDAR } = await import('../../js/segretaria-calendar-engine.js');
 const { prepareCase } = await import('../../api/segretaria/_prepare.js');
+const { claimSegretariaDelivery } = await import('../../api/segretaria/_delivery-guard.js');
+const { readPreparationDelivery } = await import('../../api/segretaria/_dispatch.js');
 const { default: prepareEndpoint } = await import('../../api/segretaria/prepare.js');
 const { default: followUpEndpoint } = await import('../../api/segretaria/follow-up.js');
 const { default: workerEndpoint, prepareNextCase } = await import('../../api/segretaria/worker.js');
@@ -200,6 +202,23 @@ function reset({ role = 'tenant', text = 'Potete aggiornarmi sulla disponibilit�
       preview: text, checkAt: stamp(NOW + 60000), practiceRef, needsReview: true } });
 }
 async function generate(extra = {}) { return prepareCase({ id: ID, actor: 'admin', now: clock, ...extra }); }
+async function approvedDelivery({ futureCheck = false } = {}) {
+  reset();
+  if (futureCheck) aiBuilder = input => {
+    const p = validProposal(input), checkAt = stamp(NOW + 100 * 3600000);
+    p.nextAction.checkAt = checkAt; p.nextAction.checkLocal = CALENDAR.romeLocalInstant(checkAt);
+    return p;
+  };
+  await generate();
+  const response = await endpoint(prepareEndpoint, { body: { op: 'approve', id: ID,
+    revision: task().preparation.revision, lastMessageId: 'm1' } });
+  if (!response.actionId || response.delivery !== 'queued') throw new Error('expiry_fixture_not_queued: ' + JSON.stringify(response));
+  const actionId = response.actionId;
+  // Executor uses new Date(); this harness controls Date.now(), so align its timestamp.
+  save('action_queue/' + actionId, { ...DB.get('action_queue/' + actionId), executedAt: stamp(NOW) });
+  aiBuilder = null;
+  return actionId;
+}
 async function endpoint(handler, { method = 'POST', token = 'admin', body = {}, headers = {}, query = {} } = {}) {
   let code, out;
   await handler({ method, body, query, headers: { ...(token ? { authorization: 'Bearer ' + token } : {}), ...headers } }, {
@@ -797,6 +816,102 @@ try {
     r.code === 409 && r.error === 'previous_delivery_unresolved' && aiHits === 1
     && task().preparation.revision === pendingRevision && task().preparation.approval.actionId === 'pendingReply', r);
 
+  let expiredId = await approvedDelivery();
+  const oldApproval = structuredClone(task().preparation.approval), oldAction = structuredClone(DB.get('action_queue/' + expiredId));
+  clock = NOW + 49 * 3600000;
+  const expiredReceipt = await readPreparationDelivery(ID, expiredId);
+  r = await generate();
+  ok('consegna scaduta mai ritirata permette nuova proposta senza nuova azione o approvazione',
+    expiredReceipt.error === 'whatsapp_delivery_expired' && r.code === 200 && !r.cached
+    && !r.preparation.approval && aiHits === 2 && rows('action_queue').length === 1
+    && DB.get('action_queue/' + expiredId).status === 'rejected', { expiredReceipt, result: r.code, error: r.error });
+  const retired = DB.get('action_queue/' + expiredId), retained = { ...retired.segretaria }; delete retained.delivery;
+  ok('ritiro scaduto conserva prova approvata, payload e audit senza inventare consegna',
+    JSON.stringify(retained) === JSON.stringify(oldAction.segretaria) && retired.segretaria.delivery.state === 'expired'
+    && JSON.stringify(retired.payload) === JSON.stringify(oldAction.payload) && !retired.waSentAt && !retired.waSendError);
+  const newRevision = task().preparation.revision, afterExpiryWrites = writes.length;
+  r = await generate();
+  ok('retry dopo risoluzione scadenza usa cache e non riscrive azione o proposta', r.cached && aiHits === 2
+    && task().preparation.revision === newRevision && writes.length === afterExpiryWrites, r);
+  const retiredRead = await readPreparationDelivery(ID, expiredId);
+  const latePickup = await claimSegretariaDelivery({ id: expiredId, action: retired, now: clock });
+  r = await endpoint(prepareEndpoint, { body: { op: 'approve', id: ID, revision: oldApproval.revision, lastMessageId: 'm1' } });
+  ok('vecchia azione resta scaduta consultabile e non riapprovabile o ritirabile',
+    retiredRead.error === 'whatsapp_delivery_expired' && !latePickup.allowed && r.httpCode === 409
+    && rows('action_queue').length === 1 && !task().preparation.approval, { retiredRead, latePickup, approval: r });
+
+  expiredId = await approvedDelivery({ futureCheck: true }); clock = NOW + 48 * 3600000;
+  r = await generate();
+  ok('scadenza alla soglia supera cache ancora valida anche senza ricontrollo dovuto', r.code === 200 && !r.cached
+    && aiHits === 2 && DB.get('action_queue/' + expiredId).status === 'rejected' && !r.preparation.approval, r.code);
+
+  expiredId = await approvedDelivery(); clock = NOW + 49 * 3600000;
+  save('messages/m2', { conversationId: CID, direction: 'in', channel: 'whatsapp', body: 'È arrivato un altro dettaglio.', at: stamp(clock) });
+  revise(t => { t.followUp.lastMessageId = 'm2'; t.followUp.lastInboundAt = stamp(clock); t.followUp.preview = 'Nuovo dettaglio'; });
+  r = await generate();
+  ok('nuovo messaggio dopo invio mai ritirato conserva vecchia prova e riceve nuova proposta da approvare', r.code === 200
+    && r.preparation.messageId === 'm2' && !r.preparation.approval && DB.get('action_queue/' + expiredId).status === 'rejected', r.code);
+
+  for (const [label, change] of [
+    ['legacy', a => { delete a.segretaria; delete a.proposedBy; }],
+    ['istante assente', a => { delete a.executedAt; }],
+    ['istante invalido', a => { a.executedAt = 'invalid'; }],
+    ['ancora nella finestra', a => { a.executedAt = stamp(NOW + 2 * 3600000); }],
+    ['approvata ma non eseguita', a => { a.status = 'approved'; }],
+    ['ritiro incerto', a => { a.segretaria.delivery = { state: 'claimed', claimedAt: stamp(NOW) }; }],
+    ['esito fallito', a => { a.waSendError = 'fixture_failure'; }],
+    ['tentativo senza esito', a => { a.waSendAttemptAt = stamp(NOW); }],
+    ['esecutore incerto', a => { delete a.segretaria.execution; }],
+    ['altro caso', a => { a.segretaria.caseId = ID2; }],
+    ['payload manomesso', a => { a.payload.draft = 'Testo non approvato'; }],
+  ]) {
+    expiredId = await approvedDelivery(); clock = NOW + 49 * 3600000;
+    const changed = structuredClone(DB.get('action_queue/' + expiredId)); change(changed); save('action_queue/' + expiredId, changed);
+    const before = JSON.stringify(changed), previousPreparation = JSON.stringify(task().preparation);
+    r = await generate();
+    ok('scadenza non risolve automaticamente stato non provato: ' + label, r.code === 409
+      && r.error === 'previous_delivery_unresolved' && aiHits === 1 && JSON.stringify(task().preparation) === previousPreparation
+      && JSON.stringify(DB.get('action_queue/' + expiredId)) === before, r);
+  }
+  expiredId = await approvedDelivery(); clock = NOW + 49 * 3600000;
+  revise(t => { t.preparation.approval.approvedBy = 'another-admin'; });
+  r = await generate();
+  ok('ricevuta della vecchia approvazione discordante non può dismettere azione', r.code === 409
+    && DB.get('action_queue/' + expiredId).status === 'executed' && aiHits === 1, r);
+
+  expiredId = await approvedDelivery(); clock = NOW + 49 * 3600000;
+  const beforeFailedModel = JSON.stringify(DB.get('action_queue/' + expiredId)), beforeFailedPreparation = JSON.stringify(task().preparation);
+  aiHook = async () => { throw new Error('fixture_expiry_model_unavailable'); };
+  r = await generate();
+  ok('AI fallita non dismette azione scaduta e non perde approvazione precedente', r.code === 503
+    && JSON.stringify(DB.get('action_queue/' + expiredId)) === beforeFailedModel
+    && JSON.stringify(task().preparation) === beforeFailedPreparation, r);
+
+  for (const race of ['claimed', 'ack', 'new_message', 'recipient']) {
+    expiredId = await approvedDelivery(); clock = NOW + 49 * 3600000;
+    const previousRevision = task().preparation.revision;
+    commitHook = async operations => {
+      if (!operations.some(op => op.update?.fields?.status?.stringValue === 'rejected')) return;
+      commitHook = null;
+      if (race === 'new_message') revise(t => { t.followUp.lastMessageId = 'racing-inbound'; });
+      else if (race === 'recipient') save('conversations/' + CID, { ...DB.get('conversations/' + CID), contactPhone: '+393339999999' });
+      else {
+        const concurrent = structuredClone(DB.get('action_queue/' + expiredId));
+        concurrent.segretaria.delivery = { state: race === 'claimed' ? 'claimed' : 'sent', claimedAt: stamp(clock - 1000) };
+        if (race === 'ack') concurrent.waSentAt = stamp(clock);
+        save('action_queue/' + expiredId, concurrent);
+      }
+    };
+    r = await generate();
+    const concurrent = DB.get('action_queue/' + expiredId);
+    ok('CAS risoluzione scadenza conserva concorrente ' + race + ' e vecchia proposta', r.code === 409
+      && task().preparation.revision === previousRevision && concurrent.status === 'executed'
+      && (race !== 'claimed' || concurrent.segretaria.delivery.state === 'claimed')
+      && (race !== 'ack' || !!concurrent.waSentAt)
+      && (race !== 'new_message' || task().followUp.lastMessageId === 'racing-inbound')
+      && (race !== 'recipient' || DB.get('conversations/' + CID).contactPhone === '+393339999999'), r);
+  }
+
   reset(); save('settings/segretaria', { enabled: true, prepareCases: false });
   r = await endpoint(workerEndpoint, { method: 'GET', token: 'fixture-cron' });
   ok('worker spento non legge casi, non spende e non modifica dati', r.httpCode === 200 && !r.enabled && !aiHits && !writes.length, r);
@@ -1065,6 +1180,14 @@ try {
       { name: 'cache preserva proposte già approvate con contesto precedente', file: 'js/segretaria-proposta-engine.js',
         from: '!!task.preparation.approval || task.preparation.coverage?.version === CONTEXT_VERSION',
         to: 'task.preparation.coverage?.version === CONTEXT_VERSION' },
+      { name: 'scadenza non resta nella cache approvata', file: 'api/segretaria/_prepare.js',
+        from: 'if (!expiresUnclaimed && PROPOSTA.currentContext(task)', to: 'if (PROPOSTA.currentContext(task)' },
+      { name: 'scadenza richiede azione mai ritirata', file: 'api/segretaria/_delivery-guard.js',
+        from: "|| action.segretaria.execution?.state !== 'started' || action.segretaria.delivery", to: "|| action.segretaria.execution?.state !== 'started'" },
+      { name: 'scadenza rispetta CAS azione concorrente', file: 'api/segretaria/_prepare.js',
+        from: 'precondition: { updateTime: priorSnapshot.updateTime }', to: 'precondition: { exists: true }' },
+      { name: 'scadenza richiede vecchia approvazione coerente', file: 'api/segretaria/_delivery-guard.js',
+        from: '&& receipt.approvedBy === s.reviewedBy && receipt.approvedAt === s.reviewedAt', to: '' },
       { name: 'consegna precedente incerta', file: 'api/segretaria/_prepare.js',
         from: 'if (task.preparation?.approval?.actionId) {', to: 'if (false && task.preparation?.approval?.actionId) {' },
     ];

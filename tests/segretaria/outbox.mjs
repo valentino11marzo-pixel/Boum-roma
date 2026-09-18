@@ -403,6 +403,28 @@ try {
         && rows('action_queue').length === 1 && !DB.get('action_queue/' + actionId).segretaria.delivery);
     }
   }
+  actionId = await ready();
+  save('action_queue/' + actionId, { ...DB.get('action_queue/' + actionId), executedAt: new Date(NOW - 48 * 3600000 + 1).toISOString() });
+  queryHook = async (_q, coll) => { if (coll === 'messages') Date.now = () => NOW + 2; };
+  r = await callOutbox();
+  ok('lettura contesto attraversa 48h: ultimo controllo usa clock fresco e non consegna', r.messages.length === 0
+    && !DB.get('action_queue/' + actionId).segretaria.delivery
+    && DB.get('action_queue/' + actionId).segretariaDeliveryBlock?.reason === 'whatsapp_delivery_expired', r);
+  Date.now = () => NOW;
+
+  actionId = await ready();
+  commitHook = async operations => {
+    if (!operations.some(op => op.update?.fields?.segretaria?.mapValue?.fields?.delivery?.mapValue?.fields?.state?.stringValue === 'claimed')) return;
+    commitHook = null;
+    const expiring = structuredClone(DB.get('action_queue/' + actionId));
+    expiring.status = 'rejected'; expiring.segretaria.delivery = { state: 'expired', expiredAt: new Date(NOW).toISOString() };
+    save('action_queue/' + actionId, expiring);
+  };
+  r = await callOutbox();
+  ok('scadenza concorrente vince prima del claim: CAS conserva stato terminale e non restituisce payload',
+    r.messages.length === 0 && DB.get('action_queue/' + actionId).status === 'rejected'
+    && DB.get('action_queue/' + actionId).segretaria.delivery.state === 'expired', r);
+
   for (const badTime of [null, 'not-a-date']) {
     actionId = await ready(); save('action_queue/' + actionId, { ...DB.get('action_queue/' + actionId), executedAt: badTime });
     const receipt = await readPreparationDelivery(ID, actionId); r = await callOutbox();
