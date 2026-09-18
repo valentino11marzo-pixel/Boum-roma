@@ -54,6 +54,23 @@ test('queued and pending never claim a sent message or completed work', () => {
     assert.match(step(o, 'follow_up').detail, /resta aperto/);
   }
 });
+test('expired pickup receipt says the draft will not be sent and preserves the follow-up', () => {
+  const o = approved('needs_review'); o.delivery.error = 'whatsapp_delivery_expired';
+  assert.equal(step(o, 'reply').state, 'needs_review');
+  assert.match(step(o, 'reply').detail, /48 ore.*Non verrà inviata/);
+  assert.equal(step(o, 'follow_up').state, 'recorded');
+});
+test('unreadable pickup time explicitly requires verification', () => {
+  const o = approved('needs_review'); o.delivery.error = 'whatsapp_delivery_time_invalid';
+  assert.match(step(o, 'reply').detail, /quando.*coda/);
+});
+test('foreign or uncertain expiry receipt cannot assert that a draft will not be sent', () => {
+  const o = approved('needs_review'); o.delivery.error = 'whatsapp_delivery_expired';
+  o.delivery.actionId = 'old';
+  assert.doesNotMatch(step(o, 'reply').detail, /Non verrà inviata/);
+  o.delivery.actionId = 'action1'; o.uncertain = true;
+  assert.doesNotMatch(step(o, 'reply').detail, /Non verrà inviata/);
+});
 test('follow-up only produces no reply or action when the API receipt matches', () => {
   const o = approved('follow_up_only'); o.preparation.draft = null;
   o.preparation.approval.actionId = null; delete o.delivery.actionId;

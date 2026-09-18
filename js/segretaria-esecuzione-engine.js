@@ -44,6 +44,10 @@
         sent: 'Invio della bozza approvata registrato. Questo non chiude il lavoro.',
         needs_review: 'Esito dell’invio da verificare. Ricarica lo stato prima di riprovare.'
       };
+      if (channel === 'whatsapp' && state === 'needs_review' && !unresolved && receiptMatches) {
+        if (delivery.error === 'whatsapp_delivery_expired') details.needs_review = 'La bozza non è stata ritirata entro 48 ore. Non verrà inviata: verifica il caso prima di preparare una nuova risposta.';
+        else if (delivery.error === 'whatsapp_delivery_time_invalid') details.needs_review = 'Non è possibile verificare quando la bozza è entrata in coda. L’invio richiede una verifica.';
+      }
       steps.push({ id: 'reply', title: channel === 'whatsapp' ? 'Invio WhatsApp' : channel === 'email' ? 'Invio email' : 'Invio da verificare',
         state, detail: details[state] });
     }

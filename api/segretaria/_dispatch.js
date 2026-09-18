@@ -11,6 +11,7 @@ import { loadCaseContext, contextFingerprint, contactFingerprint } from './_cont
 import { checkTimestamp, followUpDecisionHash } from './_follow-up.js';
 import { executionPayloadHash, followUpInputHash, preparationContentHash } from './_execution-guard.js';
 import { replyOwner } from './_reply-owner.js';
+import { whatsappDeliveryWindow } from '../homie/_wa-delivery.js';
 
 const text = (value, max) => typeof value === 'string' && value.trim() && value.length <= max ? value.trim() : '';
 const email = value => typeof value === 'string' && /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(value.trim()) ? value.trim().toLowerCase() : '';
@@ -34,6 +35,11 @@ export async function readPreparationDelivery(id, actionId, cached = false) {
     if (a.payload?.channel === 'whatsapp' && a.segretaria?.delivery?.state === 'claimed' && !a.waSentAt
         && Date.now() - Date.parse(a.segretaria.delivery.claimedAt) > 120000)
       return { ...base, code: 409, error: 'whatsapp_delivery_unconfirmed', delivery: 'needs_review' };
+    if (a.payload?.channel === 'whatsapp' && !a.waSentAt && !a.waSendError && !a.segretaria?.delivery) {
+      const window = whatsappDeliveryWindow(a);
+      if (window !== 'current') return { ...base, code: 409, delivery: 'needs_review',
+        error: window === 'expired' ? 'whatsapp_delivery_expired' : 'whatsapp_delivery_time_invalid' };
+    }
     if (a.payload?.channel === 'whatsapp') return { ...base, code: 200,
       delivery: a.waSentAt ? 'sent' : a.waSendError ? 'needs_review' : 'queued',
       ...(a.waSendError ? { error: 'whatsapp_delivery_needs_review' } : {}) };

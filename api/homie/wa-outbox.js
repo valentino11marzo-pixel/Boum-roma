@@ -16,12 +16,14 @@
 // Only actions executed in the last 48h qualify — an old backlog must never
 // fire a burst of stale messages at real people.
 
-import { fsGet, fsList, fsPatch, readJson, secretEqual, logActivity } from './_lib.js';
+import { fsGet, fsGetVersioned, fsCommit, fsList, fsPatch, readJson, secretEqual, logActivity } from './_lib.js';
+import { whatsappDeliveryWindow } from './_wa-delivery.js';
 import { isPreparedAction, claimSegretariaDelivery, markSegretariaDeliveryBlocked, acknowledgeSegretariaDelivery } from '../segretaria/_delivery-guard.js';
 import { runBudget } from '../_budget.js';
 
-const MAX_AGE_MS = 48 * 3600 * 1000;
 const MAX_PER_PULL = 10;
+const PAGE_SIZE = 50;
+const SCAN_PATH = 'heartbeat/wa-outbox';
 const PREPARED_CHECK_MS = 35_000; // Fresh dossier, context and atomic claim must fit before the response reserve.
 
 function checkSecret(req, res) {
@@ -65,31 +67,48 @@ export default async function handler(req, res) {
       return res.status(200).json({ ok: true });
     }
 
-    // pull
+    // One bounded page per pull. Persist the inspected prefix before claiming
+    // any message: a denied proposal cannot monopolize every subsequent pull.
+    // A failed cursor write produces no pickup; a crash after it only postpones
+    // untouched candidates until the next sweep, never fabricates a receipt.
+    const scan = await fsGetVersioned(SCAN_PATH);
+    const afterId = scan?.data.afterId ?? null;
     const executed = await fsList('action_queue', {
       filter: { field: 'status', op: 'EQUAL', value: 'executed' },
-      limit: 50,
+      limit: PAGE_SIZE, afterId,
     });
     const now = Date.now();
-    const ts = v => (v ? new Date(v).getTime() || 0 : 0);
-    const candidates = (executed || [])
-      .filter(a => wantsWa(a) && !a.waSentAt && !a.waSendError)
-      .filter(a => now - ts(a.executedAt) < MAX_AGE_MS)
-      .filter(a => !isPreparedAction(a) || !a.segretaria?.delivery);
-    const messages = [];
-    let preparedChecked = false;
-    for (const a of candidates) {
-      if (messages.length >= MAX_PER_PULL) break;
+    const selected = [];
+    let preparedSelected = false, inspected = 0;
+    for (const a of executed) {
+      const pending = wantsWa(a) && !a.waSentAt && !a.waSendError && whatsappDeliveryWindow(a, now) === 'current'
+        && (!isPreparedAction(a) || !a.segretaria?.delivery);
+      if (!pending) { inspected++; continue; }
       const message = {
         actionId: a.id,
         leadId: a.leadId || null,
         phone: String((a.payload && a.payload.phone) || '').trim(),
         text: String((a.payload && (a.payload.body || a.payload.draft)) || '').slice(0, 2000),
       };
-      if (!message.phone || !message.text) continue;
+      if (!message.phone || !message.text) { inspected++; continue; }
+      if (selected.length >= MAX_PER_PULL || (isPreparedAction(a) &&
+          (preparedSelected || !budget.afford(PREPARED_CHECK_MS)))) break;
+      selected.push({ action: a, message }); inspected++;
+      if (isPreparedAction(a)) preparedSelected = true;
+    }
+    const next = inspected === executed.length && executed.length < PAGE_SIZE ? null
+      : inspected ? executed[inspected - 1].id : afterId;
+    try {
+      await fsCommit([{ docPath: SCAN_PATH, fields: { afterId: next, checkedAt: new Date(now).toISOString() },
+        precondition: scan?.updateTime ? { updateTime: scan.updateTime } : { exists: false } }]);
+    } catch (error) {
+      if (error?.conflict) return res.status(200).json({ ok: true, messages: [] });
+      throw error;
+    }
+    const messages = [];
+    for (const { action: a, message } of selected) {
       if (isPreparedAction(a)) {
-        if (preparedChecked || !budget.afford(PREPARED_CHECK_MS)) continue;
-        preparedChecked = true; // A denied verification also consumes this pull's allowance.
+        if (!budget.afford(PREPARED_CHECK_MS)) continue;
         const claim = await claimSegretariaDelivery({ id: a.id, action: a, now });
         if (!claim.allowed) {
           await markSegretariaDeliveryBlocked({ id: a.id, reason: claim.error, now });
