@@ -20926,7 +20926,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const paidAt = pay.paidDate?.toDate ? pay.paidDate.toDate() : new Date(pay.paidDate);
             if (!Number.isFinite(paidAt.getTime())) return null;
             const safeUrl = value => { try {const u=new URL(value);return u.protocol==='https:'?u.href:'';} catch (_) {return '';} };
-            const validDoc = d => d?.paymentId === pay.id && !!safeUrl(d.fileUrl);
+            const validDoc = d => window.BOOM_RENT.isReceiptDocument(d,pay.id) && !!safeUrl(d.fileUrl);
             const fingerprint = p => JSON.stringify([p.status,p.amount,p.paidDate,p.type,p.month,p.coversTo,p.contractId,p.propertyId,p.tenantId]);
             const expected = fingerprint(pay);
             const deterministicId = 'rent-receipt-' + pay.id;
@@ -20935,7 +20935,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             let existing = await docRef.get({source:'server'});
             if (pay.receiptDocId && (!existing.exists || !validDoc(existing.data()))) return null;
             if (!existing.exists) {
-                const legacy = await db.collection('documents').where('paymentId','==',pay.id).limit(2).get({source:'server'});
+                const legacy = await db.collection('documents').where('paymentId','==',pay.id).where('type','==','receipt').limit(2).get({source:'server'});
                 if (legacy.docs.length > 1) return null; // Ambiguous archive requires review.
                 if (legacy.docs.length === 1) {
                     docId=legacy.docs[0].id;docRef=db.collection('documents').doc(docId);existing=legacy.docs[0];

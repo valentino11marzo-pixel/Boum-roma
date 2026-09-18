@@ -771,7 +771,7 @@ function loadPaymentReceipt(id,button){
   return BoomPortal.withTimeout(firebase.firestore().collection('documents').doc(p.receiptDocId).get({source:'server'}),9000).then(function(doc){
     if(!doc||!doc.exists)throw Error('missing');
     var receipt=doc.data(),url=safeReceiptUrl(receipt.fileUrl);
-    if(receipt.paymentId!==p.id||!url)throw Error('unlinked');
+    if(!window.BOOM_RENT.isReceiptDocument(receipt,p.id)||!url)throw Error('unlinked');
     var link=document.createElement('a');link.href=url;link.target='_blank';link.rel='noopener';link.textContent=t('receipt');
     button.replaceWith(link);
   }).catch(function(){button.disabled=false;var notice=$('receiptFeedback');if(notice)notice.textContent=t('receiptMissing')});
