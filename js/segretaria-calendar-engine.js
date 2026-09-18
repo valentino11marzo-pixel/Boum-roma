@@ -68,6 +68,47 @@
     if (matches.length !== 1) return { ok: false, reason: matches.length ? 'repeated_local_time' : 'nonexistent_local_time' };
     return { ok: true, at: new Date(matches[0]).toISOString() };
   }
+  // Describe an existing instant, never choose one. The declared wall clock is
+  // minute-precision; seconds/milliseconds on an existing follow-up are retained.
+  function romeLocalInstant(value) {
+    const at = instant(value), p = Number.isFinite(new Date(at).getTime()) ? local(at) : null;
+    if (!p) return null;
+    return { date: p.date, time: p.time, timeZone: TIME_ZONE,
+      utcOffsetMinutes: (Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second)
+        - Math.floor(at / 1000) * 1000) / 60000 };
+  }
+  // Separate from event validation: the caller can preserve an otherwise valid
+  // proposal as needs_context. Do not repair checkAt, choose a DST occurrence,
+  // infer an event date from a bare hour, or assign a duration to "shortly after".
+  function validateCheckTiming(nextAction, { declaredLocal = nextAction?.checkLocal, requireLocal = true } = {}) {
+    const n = nextAction || {}, at = instant(n.checkAt), checkLocal = romeLocalInstant(n.checkAt), issues = [];
+    const issue = code => issues.push({ code, sourceIds: unique((Array.isArray(n.sourceIds) ? n.sourceIds : [])
+      .filter(id => typeof id === 'string')) });
+    if (!checkLocal) issue('calendar_invalid_check_time');
+    if (declaredLocal == null) {
+      if (requireLocal) issue('calendar_check_local_missing');
+    } else if (!declaredLocal || typeof declaredLocal !== 'object' || Array.isArray(declaredLocal)) {
+      issue('calendar_check_local_invalid');
+    } else if (declaredLocal.timeZone !== TIME_ZONE) {
+      issue('calendar_check_local_zone_invalid');
+    } else {
+      const resolved = resolveRomeWallTime(declaredLocal.date, declaredLocal.time);
+      if (!resolved.ok) {
+        issue(resolved.reason === 'repeated_local_time' ? 'calendar_check_local_repeated'
+          : resolved.reason === 'nonexistent_local_time' ? 'calendar_check_local_nonexistent' : 'calendar_check_local_invalid');
+      } else if (Number.isFinite(at) && Math.floor(at / 60000) * 60000 !== instant(resolved.at)) {
+        issue('calendar_check_local_mismatch');
+      }
+    }
+    // This closed list is a review trigger, not a universal semantic parser.
+    // It makes no claim about unrecognised wording, and imposes no invented
+    // "soon" threshold. The caller retains the proposed date and the evidence.
+    const explanation = clean([n.text, n.reason].filter(Boolean).join(' '));
+    if (/\b(?:poco|subito|immediatamente)\s+(?:prima|dopo)\b|\b(?:shortly|soon|just|immediately)\s+(?:before|after)\b/.test(explanation))
+      issue('calendar_relative_check_unquantified');
+    return issues.length ? { ok: false, requiresReview: true, error: issues[0].code, issues, checkLocal }
+      : { ok: true, requiresReview: false, issues: [], checkLocal };
+  }
   function tokens(text) {
     const s = clean(text), days = [], dates = [], times = [];
     const dayRe = new RegExp('\\b(' + Object.keys(weekdays).join('|') + ')\\b', 'g');
@@ -139,7 +180,7 @@
         references.push(ref);
       }
     }
-    return { timeZone: TIME_ZONE, today: clock?.date || null, anchors, references,
+    return { timeZone: TIME_ZONE, today: clock?.date || null, nowLocal: romeLocalInstant(now), anchors, references,
       limitations: ['Only explicit IT/EN weekdays with simple calendar dates and HH:MM are interpreted; date-only source events and free-form timezone names are not resolved.',
         'Source timestamp anchors cover at most 124 sources; event interpretation covers the first 40 sources.',
         'A resolved date does not prove an appointment, its confirmation, its owner or completion.',
@@ -222,5 +263,6 @@
     }
     return issues.length ? { ok: false, error: issues[0].code, issues } : { ok: true, issues: [] };
   }
-  return Object.freeze({ TIME_ZONE, buildCalendarContext, validateCalendarProposal, romeLocalDate, resolveRomeWallTime });
+  return Object.freeze({ TIME_ZONE, buildCalendarContext, validateCalendarProposal, romeLocalDate, resolveRomeWallTime,
+    romeLocalInstant, validateCheckTiming });
 });

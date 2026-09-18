@@ -4,7 +4,7 @@
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   if (root) root.BOOM_PROPOSTA = api;
 })(typeof window !== 'undefined' ? window : this, function () {
-  const VERSION = 3;
+  const VERSION = 4;
   const CONTEXT_VERSION = 2;
   const line = (v, n) => typeof v === 'string' && v.trim() && v.length <= n ? v.trim() : null;
   // HOMIE's reaction wrapper quotes somebody else's words; it is neither a
@@ -104,12 +104,12 @@
       status: identityBlocked ? 'needs_context' : 'ready' } };
   }
   function current(task) { return !!task?.preparation && task.status === 'open'
-    && (task.preparation.version === VERSION || !!task.preparation.approval)
+    && (task.preparation.version === VERSION || !!task.preparation.approval || task.preparation.status === 'needs_context')
     && task.preparation.messageId === task.followUp?.lastMessageId; }
   // Home and worker share the same readiness rule. An approved receipt remains
   // readable across context upgrades, but never becomes current for a new event.
   function currentContext(task) { return current(task)
-    && (!!task.preparation.approval || task.preparation.coverage?.version === CONTEXT_VERSION); }
+    && (!!task.preparation.approval || task.preparation.coverage?.version === CONTEXT_VERSION || task.preparation.status === 'needs_context'); }
   // Narrow source-backed exception to the generic next-actor guard. A model's
   // assertion of a promise is not evidence. Only a whole, affirmative callback
   // statement by this contact can establish a pending wait on this contact.

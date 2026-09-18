@@ -19,34 +19,51 @@ export async function readPreparationMonitor({ now = Date.now() } = {}) {
   const incomplete = result.some(r => r.status !== 'fulfilled');
   const configReadable = result[0].status === 'fulfilled';
   const { cfg } = SEG.mergeConfig(settings);
-  const dailyCap = configReadable ? cfg.dailyCap : null;
   const usedToday = result[2].status !== 'fulfilled' ? null : counter === null ? 0 : count(counter.count);
   const lastRunAt = date(heartbeat?.at);
   const age = lastRunAt ? now - Date.parse(lastRunAt) : null;
   const enabled = configReadable ? cfg.enabled : null;
   const prepareCases = configReadable ? settings?.prepareCases === true : null;
+  const degraded = heartbeat?.schedulerDegraded === true || heartbeat?.readingDegraded === true
+    || heartbeat?.queueObservationsIncomplete === true;
+  // Handled 422 outcomes describe cases, not a service outage. The worker
+  // either persists their review or observes a newer valid result; failed writes
+  // and unresolved races set queueObservationsIncomplete. Inspect the whole batch
+  // so a final success cannot hide an earlier transient failure.
+  const errors = Array.isArray(heartbeat?.errors) ? heartbeat.errors : [];
+  const hasFailures = Boolean(heartbeat?.error) || errors.length > 0;
+  const reviewOnlyFailure = (!heartbeat?.error || heartbeat?.code === 422)
+    && count(heartbeat?.queue?.awaitingReview) > 0 && errors.length > 0
+    && errors.every(error => error?.code === 422 && typeof error.error === 'string' && error.error.length > 0);
   let status = incomplete || usedToday === null ? 'unavailable' : 'unknown';
   if (enabled === false) status = 'disabled';
   else if (prepareCases === false) status = 'paused';
-  else if (dailyCap !== null && usedToday !== null && usedToday >= dailyCap) status = 'daily_cap';
   else if (!incomplete && usedToday !== null && age !== null && age >= 0) {
-    status = age > 180000 ? 'delayed' : heartbeat?.error ? 'unavailable'
+    status = age > 180000 ? 'delayed' : degraded || (hasFailures && !reviewOnlyFailure) || heartbeat?.stoppedBy === 'daily_cap' ? 'unavailable'
       : Number(heartbeat?.prepared || 0) > 0 ? 'working' : 'idle';
   }
   const counts = {};
   const values = { open: heartbeat?.queue?.openCases, pending: heartbeat?.queue?.pending,
     current: heartbeat?.queue?.currentProposals, retrying: heartbeat?.queue?.retrying,
+    awaitingReview: heartbeat?.queue?.awaitingReview,
     attempted: heartbeat?.checked, prepared: heartbeat?.prepared, cached: heartbeat?.cached,
     remaining: heartbeat?.remaining };
   for (const [key, value] of Object.entries(values)) {
     const n = count(value);
     if (n !== null) counts[key] = n;
   }
-  return { enabled, prepareCases, dailyCap, usedToday,
-    remainingToday: dailyCap === null || usedToday === null ? null : Math.max(0, dailyCap - usedToday),
+  const retryReasons = {};
+  for (const [reason, value] of Object.entries(heartbeat?.queue?.retryReasons || {})) {
+    if (/^[a-z][a-z0-9_]{0,100}$/.test(reason) && count(value) !== null) retryReasons[reason] = value;
+  }
+  const queueScope = !heartbeat?.queue ? null : heartbeat?.queue?.scope === 'page' || heartbeat?.incomplete === true
+    || heartbeat?.queueScanCursor ? 'page' : heartbeat?.queue?.scope === 'all' ? 'all' : null;
+  return { enabled, prepareCases, mode: 'continuous', dailyCap: null, usedToday,
+    remainingToday: null,
     status, lastRunAt, checkedAt: new Date(now).toISOString(), counts,
-    stoppedBy: ['daily_cap', 'time_budget', 'disabled', 'batch_limit'].includes(heartbeat?.stoppedBy) ? heartbeat.stoppedBy : null,
-    queueIncomplete: heartbeat?.incomplete === true,
-    incomplete: incomplete || usedToday === null || heartbeat?.schedulerDegraded === true,
+    retryReasons, nextRetryAt: date(heartbeat?.queue?.nextRetryAt), queueScope,
+    stoppedBy: ['time_budget', 'disabled', 'batch_limit'].includes(heartbeat?.stoppedBy) ? heartbeat.stoppedBy : null,
+    queueIncomplete: heartbeat?.incomplete === true || queueScope === 'page',
+    incomplete: incomplete || usedToday === null || degraded,
     scope: 'preparation_only' };
 }

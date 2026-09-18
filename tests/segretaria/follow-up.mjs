@@ -7,7 +7,8 @@ Object.assign(process.env, { FIREBASE_API_KEY: 'fixture', FIREBASE_ADMIN_EMAIL: 
 
 const NOW = Date.parse('2026-09-14T10:00:00Z');
 const realNow = Date.now;
-Date.now = () => NOW;
+let clockOffset = 0;
+Date.now = () => NOW + clockOffset;
 let checks = 0, fails = 0;
 function ok(name, pass, detail) {
   checks++;
@@ -16,7 +17,8 @@ function ok(name, pass, detail) {
 }
 const DB = new Map(), versions = new Map(), writes = [], allWrites = [], network = [];
 globalThis.__mails = [];
-let sequence = 0, failingCollection = '', beforePatch = null;
+let sequence = 0, failingCollection = '', beforePatch = null, followUpQueries = 0, failingFollowUpPage = 0, pageCost = 0;
+const queryShapes = [];
 const enc = v => v == null ? { nullValue: null }
   : v instanceof Date ? { timestampValue: v.toISOString() }
   : typeof v === 'boolean' ? { booleanValue: v }
@@ -82,6 +84,12 @@ globalThis.fetch = async (rawURL, opts = {}) => {
   }
   if (url.pathname.endsWith(':runQuery')) {
     const q = body.structuredQuery, coll = q.from[0].collectionId;
+    if (coll === 'operatorTasks' && q.orderBy?.[0]?.field?.fieldPath === '__name__') {
+      followUpQueries++; queryShapes.push(structuredClone(q));
+      if (followUpQueries === failingFollowUpPage) return json({ error: { status: 'UNAVAILABLE' } }, 503);
+      if (!opts.signal) throw new Error('follow_up_query_requires_deadline');
+      clockOffset += pageCost;
+    }
     if (coll === failingCollection) return json({ error: { status: 'UNAVAILABLE' } }, 503);
     const matches = (row, filter) => {
       if (!filter) return true;
@@ -96,8 +104,16 @@ globalThis.fetch = async (rawURL, opts = {}) => {
       throw new Error('unimplemented_filter_' + f.op);
     };
     let entries = [...DB].filter(([p, row]) => p.startsWith(coll + '/') && p.split('/').length === 2 && matches(row, q.where));
-    for (const sort of [...(q.orderBy || [])].reverse()) entries.sort((a, b) =>
-      String(field(a[1], sort.field.fieldPath)).localeCompare(String(field(b[1], sort.field.fieldPath))) * (sort.direction === 'DESCENDING' ? -1 : 1));
+    for (const sort of [...(q.orderBy || [])].reverse()) entries.sort((a, b) => {
+      const left = String(sort.field.fieldPath === '__name__' ? a[0] : field(a[1], sort.field.fieldPath));
+      const right = String(sort.field.fieldPath === '__name__' ? b[0] : field(b[1], sort.field.fieldPath));
+      return (left < right ? -1 : left > right ? 1 : 0) * (sort.direction === 'DESCENDING' ? -1 : 1);
+    });
+    if (q.startAt) {
+      const path = q.startAt.values[0]?.referenceValue?.split('/documents/')[1];
+      if (!path) throw new Error('document_cursor_must_be_reference');
+      entries = entries.filter(([p]) => q.startAt.before ? p >= path : p > path);
+    }
     return json(entries.slice(0, q.limit || 1000).map(([p]) => ({ document: doc(p) })));
   }
   const path = decodeURIComponent(url.pathname.split('/documents/')[1] || '');
@@ -123,8 +139,9 @@ globalThis.fetch = async (rawURL, opts = {}) => {
   return DB.has(path) ? json(doc(path)) : json({ error: { status: 'NOT_FOUND' } }, 404);
 };
 
-const { captureFollowUp, followUpId, listFollowUps } = await import('../../api/segretaria/_follow-up.js');
+const { captureFollowUp, followUpId, listFollowUps, followUpDecisionHash } = await import('../../api/segretaria/_follow-up.js');
 const { default: handler } = await import('../../api/segretaria/follow-up.js');
+const { default: PROPOSTA } = await import('../../js/segretaria-proposta-engine.js');
 const { closeTask, snoozeTask, voidTask, listOpenTasks } = await import('../../api/regista/_tasks.js');
 const CID = 'conv_lead_leadA';
 const conv = { contactType: 'lead', contactId: 'leadA', leadId: 'leadA', contactName: 'Cliente fixture',
@@ -132,6 +149,8 @@ const conv = { contactType: 'lead', contactId: 'leadA', leadId: 'leadA', contact
 function reset() {
   DB.clear(); versions.clear(); writes.length = 0;
   sequence = 0; failingCollection = ''; beforePatch = null;
+  followUpQueries = 0; failingFollowUpPage = 0; queryShapes.length = 0;
+  clockOffset = 0; pageCost = 0;
   save('users/admin', { role: 'admin' }); save('users/tenant', { role: 'tenant' });
   save('conversations/' + CID, { ...conv });
   save('leads/leadA', { phone: conv.contactPhone, email: conv.contactEmail, propertyId: 'pA' });
@@ -376,11 +395,124 @@ try {
   ok('task ordinario continua a potersi rinviare e chiudere', DB.get('operatorTasks/manual-fixture').due === '2026-09-16'
     && DB.get('operatorTasks/manual-fixture').status === 'done');
 
+  reset(); task = await capture();
+  const reviewRow = structuredClone(DB.get('operatorTasks/' + task.id));
+  const reviewMarker = { messageId: task.followUp.lastMessageId, followUpFingerprint: followUpDecisionHash(task.followUp),
+    version: PROPOSTA.VERSION, state: 'review_required', reason: 'calendar_check_local_mismatch', attempts: 1, after: null };
+  save('operatorTasks/' + task.id, { ...reviewRow, preparationRetry: reviewMarker });
+  const reviewWrites = writes.length;
+  const reviewList = await call({ method: 'GET' });
+  const reviewDetail = await call({ method: 'GET', query: { id: task.id } });
+  ok('errore422 attuale senza proposta appare da verificare su lista e dettaglio',
+    reviewList.rows[0].preparationReview?.reason === reviewMarker.reason
+    && reviewDetail.task.preparationReview?.reason === reviewMarker.reason && writes.length === reviewWrites);
+  for (const [label, patch] of [
+    ['evento superato', { preparationRetry: { ...reviewMarker, messageId: 'old-event' } }],
+    ['decisione cambiata', { followUp: { ...reviewRow.followUp, checkAt: new Date(NOW + 900000).toISOString() } }],
+    ['versione precedente', { preparationRetry: { ...reviewMarker, version: PROPOSTA.VERSION - 1 } }],
+    ['retry transitorio', { preparationRetry: { ...reviewMarker, state: 'retry_wait' } }],
+    ['caso chiuso', { status: 'done' }],
+    ['seguito chiuso', { followUp: { ...reviewRow.followUp, open: false } }],
+  ]) {
+    save('operatorTasks/' + task.id, { ...reviewRow, preparationRetry: reviewMarker,
+      preparationReview: { reason: 'forged_stored_flag' }, ...patch });
+    const detail = await call({ method: 'GET', query: { id: task.id } });
+    ok('review derivata ignora ' + label + ' e flag persistito', detail.code === 200 && detail.task.preparationReview === null);
+  }
+  save('operatorTasks/' + task.id, { ...reviewRow, preparationRetry: { ...reviewMarker, reason: '<private contact payload>' } });
+  const safeReview = await call({ method: 'GET', query: { id: task.id } });
+  ok('review mostra soltanto un codice ragione sanificato', safeReview.task.preparationReview?.reason === 'preparation_review_required');
+
+  // More than a run/page worth of cases must remain reachable by an exclusive,
+  // stable cursor; filtering legacy closed records cannot change its position.
+  const pageId = n => 'sg_' + n.toString(16).padStart(32, '0');
+  const seedPages = count => {
+    for (let n = count - 1; n >= 0; n--) save('operatorTasks/' + pageId(n), {
+      source: 'segretaria', status: n === 199 ? 'done' : 'open', calendarize: false,
+      followUp: { open: true, conversationId: CID, lastMessageId: 'page-' + n,
+        checkAt: new Date(NOW + (count - n) * 1000).toISOString() },
+    });
+  };
+  reset(); seedPages(1205);
+  const firstPage = await listFollowUps({ maxPages: 1 });
+  ok('pagina oltre200: cursore sul documento RAW anche quando chiuso e filtrato',
+    firstPage.rows.length === 199 && firstPage.incomplete && firstPage.nextCursor === pageId(199)
+    && firstPage.scope === 'page' && !firstPage.readingDegraded && firstPage.pages === 1, firstPage);
+  ok('prima pagina ordina solo per nome documento e ha deadline',
+    JSON.stringify(queryShapes[0].orderBy) === JSON.stringify([{ field: { fieldPath: '__name__' }, direction: 'ASCENDING' }])
+    && !queryShapes[0].startAt);
+  const seen = new Set(firstPage.rows.map(row => row.id));
+  let cursor = firstPage.nextCursor, pageRuns = 1;
+  DB.delete('operatorTasks/' + pageId(199)); // A deleted cursor still has a valid ordering position.
+  while (cursor && pageRuns < 10) {
+    const page = await listFollowUps({ afterId: cursor, maxPages: 1 });
+    for (const row of page.rows) {
+      if (seen.has(row.id)) throw new Error('pagination_repeated_case');
+      seen.add(row.id);
+    }
+    cursor = page.nextCursor; pageRuns++;
+  }
+  ok('ripresa copre1204aperti senza duplicati, oltrelimite5pagine e cursore eliminato',
+    seen.size === 1204 && cursor === null && pageRuns === 7 && seen.has(pageId(1204)));
+  ok('continuazione Firestore esclusiva usa document referenceValue',
+    queryShapes[1].startAt?.before === false
+    && queryShapes[1].startAt.values[0].referenceValue.endsWith('/operatorTasks/' + pageId(199)));
+  save('operatorTasks/sg_0000000000000000000000000000000a', {
+    source: 'segretaria', status: 'open', calendarize: false,
+    followUp: { open: true, conversationId: CID, lastMessageId: 'new-event-behind-cursor', checkAt: new Date(NOW).toISOString() },
+  });
+  const restart = await listFollowUps({ maxPages: 1 });
+  ok('giro successivo riparte e ritrova eventi aggiornati dietro il cursore',
+    restart.rows.some(row => row.followUp.lastMessageId === 'new-event-behind-cursor'));
+  reset(); seedPages(1205);
+  result = await call({ method: 'GET' });
+  ok('handler espone1000RAW e continuazione senza simulare lista completa', result.code === 200
+    && result.rows.length === 999 && result.incomplete && result.nextCursor === pageId(999)
+    && !result.readingDegraded && result.scope === 'page');
+  result = await call({ method: 'GET', query: { after: result.nextCursor } });
+  ok('handler pagina finale oltre1000 restituisce finecoda esplicita', result.code === 200
+    && result.rows.length === 205 && !result.incomplete && result.nextCursor === null && result.scope === 'page');
+  reset(); seedPages(200);
+  let exact = await listFollowUps({ maxPages: 1 });
+  const emptyFinal = await listFollowUps({ afterId: exact.nextCursor, maxPages: 1 });
+  ok('numero esatto200 risolve pagina finale vuota senza ciclo', exact.incomplete
+    && !emptyFinal.incomplete && emptyFinal.nextCursor === null && !emptyFinal.rows.length);
+  reset(); seedPages(405); failingFollowUpPage = 2;
+  let partial = await listFollowUps();
+  ok('errore pagina2 conserva cursore pagina1 e dichiara lettura parziale',
+    partial.rows.length === 199 && partial.incomplete && partial.nextCursor === pageId(199)
+    && partial.readingDegraded && partial.readError === 'follow_up_page_unavailable' && partial.pages === 1);
+  failingFollowUpPage = 0;
+  const recovered = await listFollowUps({ afterId: partial.nextCursor });
+  ok('ripresa dopoerrore rilegge pagina fallita finoallafine senza saltarla', recovered.rows.length === 205
+    && recovered.rows.some(row => row.id === pageId(200)) && !recovered.incomplete && !recovered.readingDegraded);
+  reset(); seedPages(405); pageCost = 5000;
+  partial = await listFollowUps();
+  ok('budget lettura esaurito dopo5s rimanda pagina2 senza errore né perdita del cursore',
+    partial.pages === 1 && followUpQueries === 1 && partial.incomplete && !partial.readingDegraded
+    && partial.nextCursor === pageId(199));
+  reset(); seedPages(405); failingFollowUpPage = 1;
+  result = await call({ method: 'GET' });
+  ok('errore primapagina è503, mai una falsa coda vuota', result.code === 503 && result.error === 'follow_up_unavailable');
+  for (const invalid of ['', '.', '..', '../other', 'x/y', ['cursor'], {}, 'x'.repeat(181)]) {
+    reset(); result = await call({ method: 'GET', query: { after: invalid } });
+    ok('cursore non valido respinto prima della query: ' + JSON.stringify(invalid),
+      result.code === 400 && result.error === 'invalid_cursor' && followUpQueries === 0);
+  }
+
   // Run mutated real capture code with the SAME in-memory network boundary.
   // This proves the checks would fail if an automatic update overrode a
   // human decision, including a decision with no verified practice selected.
   const followUpURL = new URL('../../api/segretaria/_follow-up.js', import.meta.url);
   const originalCode = await readFile(followUpURL, 'utf8');
+  if (!originalCode.includes('cursor = page[page.length - 1].id;')) throw new Error('pagination_mutation_target_missing');
+  const missingCursor = originalCode.replace('cursor = page[page.length - 1].id;', 'cursor = null;')
+    .replace(/from '(\.\.?\/[^']+)'/g, (_, relative) => 'from ' + JSON.stringify(new URL(relative, followUpURL).href));
+  const missingCursorModule = await import('data:text/javascript;base64,' + Buffer.from(missingCursor).toString('base64'));
+  reset(); seedPages(405);
+  const stranded = await missingCursorModule.listFollowUps({ maxPages: 1 });
+  ok('mutazione intercettata: togliere continuazione rende irraggiungibile il resto della coda',
+    stranded.incomplete && stranded.nextCursor === null && stranded.rows.length === 199);
   for (const [label, from, to, practiceRef] of [
     ['protezione decisione confermata', '!prior.confirmed && !prior.confirmedAt && !prior.confirmedBy', 'true', 'contracts/cA'],
     ['protezione decisione manuale senza pratica', '!prior.confirmed && !prior.confirmedAt && !prior.confirmedBy', '!prior.confirmed', null],

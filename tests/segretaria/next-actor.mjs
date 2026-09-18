@@ -124,7 +124,7 @@ function alignedReason(api = P) {
 }
 test('a guard-adjusted afternoon review has no retained evening explanation', alignedReason);
 test('policy version invalidates unapproved v2 but preserves an approved receipt', () => {
-  assert.equal(P.VERSION, 3);
+  assert.equal(P.VERSION, 4);
   const t = { status: 'open', followUp: { lastMessageId: 'm1' }, preparation: { version: 2, messageId: 'm1', coverage: { version: P.CONTEXT_VERSION } } };
   assert.equal(P.currentContext(t), false); t.preparation.approval = { revision: 'old' };
   assert.equal(P.currentContext(t), true);

@@ -2,11 +2,12 @@
 import { requireRole } from '../_auth.js';
 import { fsGet, readJson } from '../homie/_lib.js';
 import { personaDossier } from './_persona.js';
-import { listFollowUps, updateFollowUp } from './_follow-up.js';
+import { listFollowUps, updateFollowUp, validFollowUpCursor, currentPreparationReview } from './_follow-up.js';
 import { readPreparationDelivery } from './_dispatch.js';
 import { readPreparationMonitor } from './_monitor.js';
 
 async function withDelivery(task, read = true) {
+  task = { ...task, preparationReview: currentPreparationReview(task) };
   const approval = task.preparation?.approval;
   if (!approval) return task;
   const unavailable = { code: 503, confirmed: true, delivery: 'needs_review', error: 'delivery_state_unavailable' };
@@ -22,7 +23,9 @@ export default async function handler(req, res) {
   if (!auth) return;
   try {
     if (req.method === 'GET' && !req.query?.id) {
-      const [list, monitoring] = await Promise.all([listFollowUps(), readPreparationMonitor()]);
+      const afterId = req.query?.after ?? null;
+      if (afterId !== null && !validFollowUpCursor(afterId)) return res.status(400).json({ ok: false, error: 'invalid_cursor' });
+      const [list, monitoring] = await Promise.all([listFollowUps({ afterId }), readPreparationMonitor()]);
       let reads = 0;
       const rows = await Promise.all(list.rows.map(t => withDelivery(t, !t.preparation?.approval?.actionId || ++reads <= 20)));
       return res.status(200).json({ ok: true, ...list, rows, deliveryIncomplete: reads > 20, monitoring });

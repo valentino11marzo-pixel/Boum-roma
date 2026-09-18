@@ -121,6 +121,19 @@ check('Home: soltanto una proposta del contesto corrente arriva alle decisioni',
   onlyGroup(prepared(A, { version: PROPOSTA.VERSION - 1 }), 'preparing');
   onlyGroup(prepared(A, { messageId: 'previous-event' }), 'preparing');
 });
+check('Home: un errore attuale richiede verifica; un retry storico non blocca la preparazione', () => {
+  onlyGroup({ ...A, preparationReview: { reason: 'invalid_preparation' } }, 'decisions');
+  onlyGroup({ ...A, preparationRetry: { state: 'review_required', reason: 'invalid_preparation', messageId: 'old-event' } }, 'preparing');
+  assert.match(E.reviewReason({ ...A, preparationReview: { reason: 'calendar_invalid' } }), /orario.*verifica/);
+  assert.doesNotMatch(E.reviewReason({ ...A, preparationReview: { reason: '<private-text>' } }), /private-text/);
+});
+check('MUTAZIONE Home: ignorare un errore che richiede verifica lo rimette in preparazione e il test cade', () => {
+  const source = read('js/segretaria-casi-engine.js');
+  const mutated = source.replace("if (reviewReason(task) || delivery === 'needs_review'", "if (delivery === 'needs_review'");
+  assert.notEqual(source, mutated);
+  const sandbox = { window: {} }; vm.runInNewContext(mutated, sandbox);
+  assert.throws(() => onlyGroup({ ...A, preparationReview: { reason: 'invalid_preparation' } }, 'decisions', sandbox.window.BOOM_SEGRETARIA_CASI));
+});
 check('Home: il ricontrollo confermato scaduto è una decisione anche senza nuova proposta', () => {
   onlyGroup(C, 'decisions');
   onlyGroup({ ...B, followUp: { ...B.followUp, needsReview: true } }, 'decisions');
@@ -277,7 +290,7 @@ try {
   assert.equal(await page.locator(`[data-sg-group="preparing"] article[data-sg-id="${ID}"]`).count(), 1);
   assert.equal(await page.locator(`[data-sg-group="decisions"] article[data-sg-id="${IDC}"]`).count(), 1);
   assert.equal(await page.locator(`[data-sg-group="waiting"] article[data-sg-id="${IDB}"]`).count(), 1);
-  assert.match(await page.locator('#sgFollowPanel').innerText(), /limite di 200/);
+  assert.match(await page.locator('#sgFollowPanel').innerText(), /Elenco parziale: non è stato possibile leggere tutti i seguiti/);
   assert.equal(await page.locator('#sgFollowPanel img').count(), 0);
   assert.equal(await page.evaluate(() => window.__injected), undefined);
   assert.match(await page.locator('#sgFollowPanel').innerText(), /<img src=x/);

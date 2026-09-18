@@ -145,6 +145,130 @@ test('explicit non-Rome time is not silently converted as if it were Rome', () =
   assert.equal(cet.references[0].eventAt, null, 'Fixed CET must not silently become summer Rome UTC+2');
 });
 
+const declared = (date = '2026-07-22', time = '16:45', timeZone = 'Europe/Rome') => ({ date, time, timeZone });
+const timingAction = (checkAt = '2026-07-22T14:45:00Z', checkLocal = declared()) => ({
+  text: 'Verificare lo stato della richiesta.', reason: 'Ricontrollo interno proposto alle 16:45, ora di Roma.',
+  checkAt, checkLocal, sourceIds: ['synthetic_timing_source'],
+});
+test('instant rendering exposes the actual Rome calendar, offset and midnight boundary', () => {
+  assert.deepEqual(CAL.romeLocalInstant('2026-07-22T14:45:12.123Z'), {
+    date: '2026-07-22', time: '16:45', timeZone: 'Europe/Rome', utcOffsetMinutes: 120,
+  });
+  assert.deepEqual(CAL.romeLocalInstant('2026-12-31T23:30:00Z'), {
+    date: '2027-01-01', time: '00:30', timeZone: 'Europe/Rome', utcOffsetMinutes: 60,
+  });
+  assert.equal(CAL.romeLocalInstant('2026-02-30T10:00:00Z'), null);
+  assert.equal(CAL.romeLocalInstant('2026-07-22T16:45:00'), null);
+  assert.equal(CAL.romeLocalInstant(NaN), null);
+  assert.equal(CAL.romeLocalInstant(1e50), null);
+});
+test('the model calendar receives the verified local current date and time', () => {
+  assert.deepEqual(context([], '2026-07-22T14:45:00Z').nowLocal, CAL.romeLocalInstant('2026-07-22T14:45:00Z'));
+});
+test('declared Rome wall time agrees with either equivalent ISO offset and does not mutate the proposal', () => {
+  for (const iso of ['2026-07-22T14:45:00Z', '2026-07-22T16:45:00+02:00', '2026-07-22T14:45:12.123Z']) {
+    const p = timingAction(iso), before = JSON.stringify(p);
+    const result = CAL.validateCheckTiming(p);
+    assert.equal(result.ok, true, iso); assert.equal(result.requiresReview, false);
+    assert.equal(JSON.stringify(p), before, 'Seconds and milliseconds are preserved at minute-precision validation');
+  }
+});
+function rejectsUtcWallClockConfusion(api = CAL) {
+  for (const [iso, wall] of [
+    ['2026-07-22T16:45:00Z', declared()],
+    ['2026-12-22T16:45:00Z', declared('2026-12-22')],
+  ]) {
+    const p = timingAction(iso, wall), before = JSON.stringify(p), result = api.validateCheckTiming(p);
+    assert.equal(result.ok, false); assert.ok(has(result, 'calendar_check_local_mismatch'));
+    assert.equal(result.requiresReview, true); assert.equal(JSON.stringify(p), before);
+    assert.notEqual(result.checkLocal.time, wall.time, 'Report the actual local clock; never rewrite the chosen instant');
+  }
+}
+test('summer and winter UTC-as-local mistakes require review without moving the check', rejectsUtcWallClockConfusion);
+test('a local date mismatch is detected even if the wall clock hour is correct', () => {
+  const p = timingAction('2026-12-31T23:30:00Z', declared('2026-12-31', '00:30'));
+  assert.ok(has(CAL.validateCheckTiming(p), 'calendar_check_local_mismatch'));
+  p.checkLocal.date = '2027-01-01'; assert.equal(CAL.validateCheckTiming(p).ok, true);
+});
+function rejectsMissingLocal(api = CAL) {
+  const p = timingAction(); delete p.checkLocal;
+  assert.ok(has(api.validateCheckTiming(p), 'calendar_check_local_missing'));
+}
+test('new model output must explicitly declare its local intention', rejectsMissingLocal);
+test('legacy callers may explicitly omit the declaration without pretending it was checked', () => {
+  const p = timingAction(); delete p.checkLocal;
+  assert.equal(CAL.validateCheckTiming(p, { requireLocal: false }).ok, true);
+});
+test('malformed or non-Rome declarations never silently fall back to host timezone', () => {
+  for (const value of ['16:45', [], declared('2026-07-22', '16:45', 'UTC'),
+    declared('2026-02-30'), declared('2026-07-22', '24:00'), declared('2026-07-22', '16:99'), {}]) {
+    assert.equal(CAL.validateCheckTiming(timingAction(undefined, value)).ok, false, JSON.stringify(value));
+  }
+});
+test('a malformed checkAt is independently rejected despite a valid local declaration', () => {
+  for (const value of ['2026-07-22T16:45:00', '2026-02-30T10:00:00Z', '2026-07-22T25:00:00Z', null, 1e50])
+    assert.ok(has(CAL.validateCheckTiming(timingAction(value)), 'calendar_invalid_check_time'));
+});
+test('the spring missing wall-clock hour cannot be repaired by choosing another instant', () => {
+  const p = timingAction('2026-03-29T01:30:00Z', declared('2026-03-29', '02:30'));
+  assert.ok(has(CAL.validateCheckTiming(p), 'calendar_check_local_nonexistent'));
+  p.checkLocal.time = '03:30'; assert.equal(CAL.validateCheckTiming(p).ok, true);
+  assert.equal(CAL.romeLocalInstant(p.checkAt).utcOffsetMinutes, 120);
+});
+function rejectsRepeatedLocal(api = CAL) {
+  for (const iso of ['2026-10-25T00:30:00Z', '2026-10-25T01:30:00Z']) {
+    const p = timingAction(iso, declared('2026-10-25', '02:30'));
+    assert.ok(has(api.validateCheckTiming(p), 'calendar_check_local_repeated'));
+  }
+}
+test('both occurrences of the autumn repeated local hour remain subject to review', rejectsRepeatedLocal);
+test('ordinary wall clocks on both sides of each DST change use IANA offsets', () => {
+  for (const [iso, date, time, offset] of [
+    ['2026-03-29T00:30:00Z', '2026-03-29', '01:30', 60],
+    ['2026-03-29T01:30:00Z', '2026-03-29', '03:30', 120],
+    ['2026-10-25T01:30:00Z', '2026-10-25', '02:30', 60],
+    ['2026-10-25T02:30:00Z', '2026-10-25', '03:30', 60],
+  ]) {
+    const rendered = CAL.romeLocalInstant(iso);
+    assert.equal(rendered.date, date); assert.equal(rendered.time, time); assert.equal(rendered.utcOffsetMinutes, offset);
+    if (time !== '02:30') assert.equal(CAL.validateCheckTiming(timingAction(iso, declared(date, time))).ok, true);
+  }
+});
+test('a deterministic earlier control can be checked against its newly rendered local time', () => {
+  const p = timingAction('2026-07-22T13:10:00Z');
+  assert.equal(CAL.validateCheckTiming(p).ok, false, 'Old model declaration must not describe a changed instant');
+  assert.equal(CAL.validateCheckTiming(p, { declaredLocal: CAL.romeLocalInstant(p.checkAt) }).ok, true);
+});
+function reviewsUnquantifiedTiming(api = CAL) {
+  for (const reason of ['Ricontrollare poco dopo il passaggio.', 'Ricontrollare subito dopo.',
+    'Verificare immediatamente prima.', 'Check shortly after the visit.', 'Check just before the visit.',
+    'Check soon after.', 'Check immediately after.']) {
+    const p = timingAction(); p.reason = reason;
+    const result = api.validateCheckTiming(p);
+    assert.ok(has(result, 'calendar_relative_check_unquantified'), reason);
+    assert.equal(result.requiresReview, true);
+  }
+}
+test('closed vague-proximity phrases require review without inventing a permitted duration', reviewsUnquantifiedTiming);
+test('vague proximity cannot be laundered through action text while reason gives a clock', () => {
+  const p = timingAction(); p.text = 'Controllare poco dopo il passaggio.';
+  assert.ok(has(CAL.validateCheckTiming(p), 'calendar_relative_check_unquantified'));
+});
+test('clock disagreement and vague proximity are both recorded when source event parsing has no match', () => {
+  const p = timingAction('2026-07-22T16:45:00Z'); p.reason = 'Ricontrollare poco dopo il passaggio.';
+  const calendar = context([source('Passo verso le 16.', '2026-07-22T10:00:00Z')]);
+  assert.equal(calendar.references.length, 0, 'No event date is invented from a bare hour');
+  const result = CAL.validateCheckTiming(p, { calendar });
+  assert.ok(has(result, 'calendar_check_local_mismatch'));
+  assert.ok(has(result, 'calendar_relative_check_unquantified'));
+});
+test('an honest explicit clock or generic post-event explanation is not assigned an invented proximity threshold', () => {
+  for (const reason of ['Ricontrollo interno proposto alle 16:45, ora di Roma.',
+    'Raccogliere l’esito dopo la visita.', 'Check the outcome after the appointment.']) {
+    const p = timingAction(); p.reason = reason;
+    assert.equal(CAL.validateCheckTiming(p).ok, true);
+  }
+});
 
 // Exact synthetic Opus 4.8 output from the November-2026 memory probe.
 // It correctly cites the agreement but also dates the earlier communication.
@@ -374,6 +498,22 @@ test('mutation: shortening source timestamp coverage loses verified older commun
   const bad = mutant('sources.slice(0, 124)', 'sources.slice(0, 40)');
   assert.throws(() => preservesOlderSourceTimestamp(bad), assert.AssertionError);
 });
+test('mutation: omitting the Rome/UTC round-trip restores summer and winter clock errors', () => {
+  const bad = mutant("issue('calendar_check_local_mismatch');", 'void 0;');
+  assert.throws(() => rejectsUtcWallClockConfusion(bad), assert.AssertionError);
+});
+test('mutation: an absent local intention cannot be treated as verified', () => {
+  const bad = mutant("if (requireLocal) issue('calendar_check_local_missing');", 'void 0;');
+  assert.throws(() => rejectsMissingLocal(bad), assert.AssertionError);
+});
+test('mutation: picking one repeated wall clock occurrence loses the new timing protection', () => {
+  const bad = mutant('if (matches.length !== 1)', 'if (matches.length === 0)');
+  assert.throws(() => rejectsRepeatedLocal(bad), assert.AssertionError);
+});
+test('mutation: accepting vague proximity restores unverified reason/check agreement', () => {
+  const bad = mutant("issue('calendar_relative_check_unquantified');", 'void 0;');
+  assert.throws(() => reviewsUnquantifiedTiming(bad), assert.AssertionError);
+});
 
-console.log(`\nCalendar: ${passed} passed, ${failed} failed (including 9 mutations).`);
+console.log(`\nCalendar: ${passed} passed, ${failed} failed (including 13 mutations).`);
 if (failed) process.exitCode = 1;
