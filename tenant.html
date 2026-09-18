@@ -1171,7 +1171,7 @@ function payRow(p){
   var lab=paymentLabel(p);
   var status=confirming?(RETURN_CHECKING?'payChecking':'payConfirmPending'):({paid:'paid',processing:'payProcessing',reported:'payReported',overdue:'lateSt',due:'pending',cancelled:'payCancelled',unknown:'payUnknown'}[state]||'payUnknown');
   var via={stripe:'byCard',bank:'byBank',sepa:'bySepa'}[p.paidVia];
-  return '<div class="prow"><span class="mo">'+esc(lab)+'<small>'+(state==='paid'?(t('paidW')+(via?' '+t(via):'')+(p.paidDate?' · '+fmtD(p.paidDate):'')):(p.dueDate?t('dueBy')+' '+fmtD(p.dueDate):t('payUnknown')))+'</small></span>'
+  return '<div class="prow"><span class="mo">'+esc(lab)+'<small>'+(state==='paid'?(t('paidW')+(via?' '+t(via):'')+(p.paidDate?' · '+fmtD(p.paidDate):'')):(p.dueDate?t('dueBy')+' '+fmtD(p.dueDate):t('payUnknown')))+'</small>'+(state==='paid'&&!safeReceiptUrl(p.receiptUrl)&&!p.receiptDocId?'<small>'+t('receiptMissing')+'</small>':'')+'</span>'
     +(state==='paid'?(safeReceiptUrl(p.receiptUrl)?'<a href="'+esc(safeReceiptUrl(p.receiptUrl))+'" target="_blank" rel="noopener">'+t('receipt')+'</a>':p.receiptDocId?'<button type="button" class="obtn" data-receipt-payment="'+esc(p.id)+'">'+t('receiptLoad')+'</button>':''):'')
     +'<span class="amt2">'+paymentAmount(p)+'</span>'
     +'<span class="st '+(state==='paid'?'paid':state==='overdue'&&!confirming?'late':'pending')+'">'+t(status)+'</span></div>';

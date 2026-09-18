@@ -43,7 +43,7 @@ Object.assign(rentData.users[0], { phone: '+39 331 234 5678', email: 'synthetic@
 const rentContext = vm.createContext({
   S: rentData, window: { BOOM_RENT: { ...RENT, overview: o => RENT.overview({ ...o, now: '2026-09-17' }), paymentState: p => RENT.paymentState(p, '2026-09-17') } },
   document: { getElementById: rentElement }, Date, Intl, JSON, Number, String, Set, Promise,
-  esc: escapeHTML, fmtDate: value => value || 'Da verificare',
+  esc: escapeHTML, fmtDate: value => value || 'Da verificare', isAdmin: () => true,
   openModal: (...args) => rentCalls.push(['modal', ...args]),
   showPaymentLink: (...args) => rentCalls.push(['link', ...args]),
   sendPaymentReminder: (...args) => rentCalls.push(['reminder', ...args]),

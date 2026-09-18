@@ -9726,13 +9726,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const phone = String(row.tenant?.phone || '').replace(/[^0-9]/g, '');
         const proof = rentSafeHttpUrl(p.proofUrl);
         const invoice = (S.invoices || []).find(i => i.paymentId === row.id);
-        const receipt = row.state === 'paid' && row.amount > 0 ? `<button class="btn btn-sm btn-secondary" onclick="downloadPaymentReceipt(${id})">Ricevuta</button>${invoice ? `<button class="btn btn-sm btn-secondary" onclick="viewInvoice(${rentActionArg(invoice.id)})">Documento</button>` : ''}` : '';
+        const receipt = row.state === 'paid' && row.amount > 0 ? `<button class="btn btn-sm btn-secondary" onclick="downloadPaymentReceipt(${id})">Ricevuta</button>${!p.receiptDocId && !rentSafeHttpUrl(p.receiptUrl) && isAdmin() ? `<button class="btn btn-sm btn-secondary" onclick="publishRentReceipt(${id},this)">Archivia ricevuta per il cliente</button>` : ''}${invoice ? `<button class="btn btn-sm btn-secondary" onclick="viewInvoice(${rentActionArg(invoice.id)})">Documento</button>` : ''}` : '';
         return `<div class="rent-payment payment-item" data-status="${esc(row.state)}">
             <div><strong>${esc(rentMonthLabel(row.month))}</strong><small>${esc(row.tenantName || 'Inquilino da collegare')}${!row.isRent ? ' · ' + esc(p.type === 'deposit-balance' ? 'Saldo deposito' : p.type || 'Altro addebito') : ''}${phone ? ` · <a href="https://wa.me/${phone}" target="_blank" rel="noopener">WhatsApp</a>` : ''}</small></div>
             <div class="rent-date"><small>${row.state === 'paid' ? 'Pagato il' : 'Scadenza'}</small>${esc(fmtDate(row.state === 'paid' ? p.paidDate : p.dueDate))}</div>
             <strong class="rent-amount rent-amount-${row.state}">${rentMoney(row.amount)}</strong>
             <div><span class="rent-status rent-status-${row.state}">${rentStateLabel(row.state)}</span>${p.remindersSent ? `<small>${Number(p.remindersSent)} solleciti registrati</small>` : ''}</div>
-            <div class="rent-actions">${receipt}${proof ? `<a class="btn btn-sm btn-secondary" href="${esc(proof)}" target="_blank" rel="noopener">Prova pagamento</a>` : ''}${row.canPay ? `<button class="btn btn-sm" onclick="showPaymentLink('pay',${id})">Link pagamento</button>` : ''}${canRecord ? `<button class="btn btn-sm btn-secondary" onclick="confirmRentPayment(${id})">Registra incasso</button>` : ''}${row.state === 'overdue' && row.canPay ? `<button class="btn btn-sm btn-secondary" onclick="sendPaymentReminder(${id})">Sollecito email</button>` : ''}<button class="btn btn-sm btn-secondary" onclick="openModal('editPayment',S.payments.find(p=>p.id===${id}))">Dettagli</button></div>
+            <div class="rent-actions">${receipt}${isAdmin() && window.BOOM_RENT.canReviewReport(p) ? `<button class="btn btn-sm btn-secondary" onclick="openRentReportReview(${id})">Revoca segnalazione errata</button>` : ''}${proof ? `<a class="btn btn-sm btn-secondary" href="${esc(proof)}" target="_blank" rel="noopener">Prova pagamento</a>` : ''}${row.canPay ? `<button class="btn btn-sm" onclick="showPaymentLink('pay',${id})">Link pagamento</button>` : ''}${canRecord ? `<button class="btn btn-sm btn-secondary" onclick="confirmRentPayment(${id})">Registra incasso</button>` : ''}${row.state === 'overdue' && row.canPay ? `<button class="btn btn-sm btn-secondary" onclick="sendPaymentReminder(${id})">Sollecito email</button>` : ''}<button class="btn btn-sm btn-secondary" onclick="openModal('editPayment',S.payments.find(p=>p.id===${id}))">Dettagli</button></div>
         </div>`;
     }
     function rentMonthLabel(month, short = false) {
@@ -9839,6 +9839,39 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             rentLoadState.status = 'ready'; rentLoadState.checkedAt = new Date();
         } catch (_) { rentLoadState.status = 'error'; }
         refreshPaymentsView();
+    }
+    function openRentReportReview(id) {
+        const p = (S.payments || []).find(p => p.id === id);
+        if (!isAdmin() || !window.BOOM_RENT.canReviewReport(p)) return;
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="rentReviewTitle"><div class="modal-header"><h3 id="rentReviewTitle">Revoca segnalazione bonifico</h3><button class="modal-close" onclick="closeModal()" aria-label="Chiudi">×</button></div><form onsubmit="event.preventDefault();submitRentReportReview(${rentActionArg(id)})"><div class="modal-body"><p>Rata di ${rentMoney(window.BOOM_RENT.amount(p.amount))} · ${esc(rentMonthLabel(p.month))}</p><p>Revoca solo una segnalazione verificata come errata. La rata tornerà da pagare; nessun incasso verrà registrato. Il motivo e il responsabile della revoca resteranno nel registro attività.</p><label class="form-label" for="rentReviewReason">Motivo della revoca</label><textarea id="rentReviewReason" class="form-input" required minlength="10" maxlength="500" rows="3"></textarea><p id="rentReviewError" role="alert"></p></div><div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">Annulla</button><button id="rentReviewSubmit" class="btn" type="submit">Revoca segnalazione</button></div></form></div></div>`;
+        document.getElementById('rentReviewReason')?.focus();
+    }
+    const rentReportReviewBusy = new Set();
+    async function submitRentReportReview(id) {
+        if (!isAdmin() || rentReportReviewBusy.has(id)) return;
+        const reason = String(document.getElementById('rentReviewReason')?.value || '').trim();
+        const error = document.getElementById('rentReviewError'), button = document.getElementById('rentReviewSubmit');
+        if (reason.length < 10 || reason.length > 500) { if (error) error.textContent = 'Scrivi un motivo tra 10 e 500 caratteri.'; return; }
+        rentReportReviewBusy.add(id); if (button) button.disabled = true;
+        let timer;
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const result = await Promise.race([fetch('/api/payments/report', {method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({paymentId:id,action:'review_withdraw',reason})}).then(r => r.json()),new Promise((_,reject) => {timer=setTimeout(() => reject(new Error('timeout')),15000);})]);
+            if (!result?.ok) throw new Error(result?.error || 'unavailable');
+            closeModal(); await reloadRentPayments(); toast('success','Segnalazione revocata e motivazione registrata.');
+        } catch (e) {
+            if (error) error.textContent = e.message === 'state_changed' ? 'La rata è cambiata. Aggiorna e verifica lo stato prima di riprovare.' : 'Esito non confermato. Aggiorna la rata prima di riprovare; il motivo resta qui.';
+        } finally { clearTimeout(timer); rentReportReviewBusy.delete(id); if (button) button.disabled = false; }
+    }
+    const rentReceiptBusy = new Set();
+    async function publishRentReceipt(id, button) {
+        if (!isAdmin() || rentReceiptBusy.has(id)) return;
+        rentReceiptBusy.add(id); if (button) button.disabled = true;
+        try {
+            const receiptId = await archivePaymentReceipt({id});
+            if (!receiptId) return toast('warning','Ricevuta non archiviata. Verifica pagamento, dati e collegamenti prima di riprovare.');
+            closeModal(); await reloadRentPayments(); toast('success','Ricevuta disponibile nell’archivio del cliente.');
+        } finally { rentReceiptBusy.delete(id); if (button) button.disabled = false; }
     }
     async function confirmRentPayment(id) {
         const p = (S.payments || []).find(p => p.id === id);
@@ -20880,38 +20913,65 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         toast('success', 'Ricevuta scaricata!');
     }
 
-    // Generate the rent-receipt PDF and file it in the archive (documents collection),
-    // linked to the tenant so it also lands in their portal (getMyDocuments).
-    // Best-effort and idempotent (skips if a receipt for this payment already exists).
+    // Archive an already-confirmed payment. A deterministic document and an
+    // atomic payment/document transaction make retries attach the same receipt.
+    // This path never settles money, creates an invoice or sends a message.
     async function archivePaymentReceipt(payment) {
         try {
-            const pay = (payment && payment.id) ? payment : null;
-            if (!pay || pay.status !== 'paid') return null;
-            if (pay.receiptDocId) return pay.receiptDocId;
-            if ((S.documents || []).some(d => d.paymentId === pay.id && d.type === 'receipt')) return null;
-            const context = rentReceiptContext(pay);
-            const c = context.contract, p = context.property, t = context.tenant;
-            const docPdf = _buildReceiptDoc(pay, c, p, t);
-            const blob = docPdf.output('blob');
-            const ref = 'RIC-' + String(pay.id).slice(-8).toUpperCase();
-            const ownerSeg = context.tenantId || 'admin';
-            const path = `documents/${ownerSeg}/archive/receipt_${ref}.pdf`;
-            const putRes = await storage.ref(path).put(blob, { contentType: 'application/pdf' });
-            const fileUrl = await putRes.ref.getDownloadURL();
-            const hash = await generateDocHash(`${ref}|receipt|${t?.name || ''}|${pay.amount}`);
-            const docRef = await db.collection('documents').add({
-                name: `Ricevuta ${rentChargeLabel(pay).toLowerCase()} — ${p?.name || t?.name || ''} ${pay.month || ''}`.trim(),
-                type: 'receipt', category: 'ricevuta', source: 'generated',
-                templateType: 'ricevuta_pigione', refCode: ref, lang: 'IT', version: 1, hash,
-                userId: context.tenantId || null, tenantId: context.tenantId || null,
-                propertyId: context.propertyId || null, contractId: c?.id || null, paymentId: pay.id,
-                shared: false, fileUrl, fileName: `${ref}.pdf`, fileSize: blob.size,
-                uploadedBy: S.profile?.id || 'admin',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            if (!isAdmin() || !payment?.id) return null;
+            const payRef = db.collection('payments').doc(payment.id);
+            const snap = await payRef.get({source:'server'});
+            const pay = snap.exists ? {...snap.data(),id:payment.id} : null;
+            if (!pay || window.BOOM_RENT.paymentState(pay) !== 'paid' || !(window.BOOM_RENT.amount(pay.amount) > 0) || !pay.paidDate) return null;
+            const paidAt = pay.paidDate?.toDate ? pay.paidDate.toDate() : new Date(pay.paidDate);
+            if (!Number.isFinite(paidAt.getTime())) return null;
+            const safeUrl = value => { try {const u=new URL(value);return u.protocol==='https:'?u.href:'';} catch (_) {return '';} };
+            const validDoc = d => d?.paymentId === pay.id && !!safeUrl(d.fileUrl);
+            const fingerprint = p => JSON.stringify([p.status,p.amount,p.paidDate,p.type,p.month,p.coversTo,p.contractId,p.propertyId,p.tenantId]);
+            const expected = fingerprint(pay);
+            const deterministicId = 'rent-receipt-' + pay.id;
+            let docId = pay.receiptDocId || deterministicId;
+            let docRef = db.collection('documents').doc(docId);
+            let existing = await docRef.get({source:'server'});
+            if (pay.receiptDocId && (!existing.exists || !validDoc(existing.data()))) return null;
+            if (!existing.exists) {
+                const legacy = await db.collection('documents').where('paymentId','==',pay.id).limit(2).get({source:'server'});
+                if (legacy.docs.length > 1) return null; // Ambiguous archive requires review.
+                if (legacy.docs.length === 1) {
+                    docId=legacy.docs[0].id;docRef=db.collection('documents').doc(docId);existing=legacy.docs[0];
+                }
+            }
+            if (existing.exists && !validDoc(existing.data())) return null;
+            let receipt = existing.exists ? existing.data() : null;
+            if (!receipt) {
+                const context=rentReceiptContext(pay), c=context.contract, p=context.property, tenant=context.tenant;
+                if (!context.tenantId || !context.propertyId || !tenant || !p) return null;
+                const ref = 'RIC-' + String(pay.id).slice(-8).toUpperCase();
+                const hash = await generateDocHash(expected+'|'+(tenant.name||'')+'|'+(p.name||'')+'|'+(p.address||''));
+                const blob = _buildReceiptDoc(pay,c,p,tenant).output('blob');
+                const path = `documents/${context.tenantId}/archive/receipt_${encodeURIComponent(pay.id)}_${hash}.pdf`;
+                const upload = await storage.ref(path).put(blob,{contentType:'application/pdf'});
+                const fileUrl = safeUrl(await upload.ref.getDownloadURL());
+                if (!fileUrl) return null;
+                receipt = {name:`Ricevuta ${rentChargeLabel(pay).toLowerCase()} — ${p.name || tenant.name || ''} ${pay.month || ''}`.trim(),
+                    type:'receipt',category:'ricevuta',source:'generated',templateType:'ricevuta_pigione',refCode:ref,lang:'IT',version:1,hash,
+                    userId:context.tenantId,tenantId:context.tenantId,propertyId:context.propertyId,contractId:c?.id || null,paymentId:pay.id,
+                    shared:false,fileUrl,fileName:`${ref}.pdf`,fileSize:blob.size,uploadedBy:S.profile?.id || 'admin',
+                    createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+            }
+            return await db.runTransaction(async tx => {
+                const currentSnap=await tx.get(payRef), current=currentSnap.exists?currentSnap.data():null;
+                if (!current || fingerprint(current)!==expected) throw new Error('payment_changed');
+                // Another session may have linked its receipt while the PDF uploaded.
+                const finalRef=db.collection('documents').doc(current.receiptDocId || docId);
+                const finalSnap=await tx.get(finalRef);
+                if (current.receiptDocId && !finalSnap.exists) throw new Error('missing_receipt');
+                const finalReceipt=finalSnap.exists?finalSnap.data():receipt;
+                if (!validDoc(finalReceipt)) throw new Error('unlinked_receipt');
+                if (!finalSnap.exists) tx.set(finalRef,finalReceipt);
+                if (current.receiptDocId !== finalRef.id || !safeUrl(current.receiptUrl)) tx.update(payRef,{receiptDocId:finalRef.id,...(!safeUrl(current.receiptUrl)?{receiptUrl:finalReceipt.fileUrl}:{})});
+                return finalRef.id;
             });
-            await db.collection('payments').doc(pay.id).update({ receiptDocId: docRef.id, ...(!pay.receiptUrl ? {receiptUrl:fileUrl} : {}) }).catch(() => {});
-            logActivity('Ricevuta archiviata', 'document', { paymentId: pay.id, docId: docRef.id, tenant: t?.name });
-            return docRef.id;
         } catch (e) { console.warn('[archivePaymentReceipt]', e); return null; }
     }
 

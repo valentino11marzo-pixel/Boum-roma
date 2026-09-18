@@ -83,6 +83,12 @@
     return (state === 'due' || state === 'overdue') && n != null && n > 0;
   }
 
+  function canReviewReport(payment) {
+    var p = payment || {};
+    return paymentState(p) === 'reported' && ['pending','due','overdue','reported'].includes(key(p.status))
+      && amount(p.amount) > 0 && !p.paidDate && !p.bankTxId;
+  }
+
   function isRentPayment(payment) {
     var type = key((payment || {}).type);
     // Old generated rent installments did not have a type. An explicit new
@@ -271,7 +277,7 @@
     return { kind: 'none', paymentId: '', month: '' };
   }
 
-  var API = { amount: amount, paymentBlockReason: paymentBlockReason, paymentState: paymentState, canPay: canPay, isRentPayment: isRentPayment, isRentReceipt: isRentReceipt, businessInvoices: businessInvoices, agencyCollections: agencyCollections, overview: overview, rowsForMonth: rowsForMonth, timeline: timeline, nextAction: nextAction };
+  var API = { amount: amount, paymentBlockReason: paymentBlockReason, paymentState: paymentState, canPay: canPay, canReviewReport: canReviewReport, isRentPayment: isRentPayment, isRentReceipt: isRentReceipt, businessInvoices: businessInvoices, agencyCollections: agencyCollections, overview: overview, rowsForMonth: rowsForMonth, timeline: timeline, nextAction: nextAction };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_RENT = API;
 })(typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : this);

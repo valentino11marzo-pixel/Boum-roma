@@ -1,7 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 let failed = 0;
-for (const mutation of ['guards', 'fee', 'return', 'reuse', 'labels', 'report-owner', 'report-state']) {
+for (const mutation of ['guards', 'fee', 'return', 'reuse', 'labels', 'report-owner', 'report-state', 'review-role', 'review-state', 'review-actor']) {
   const result = spawnSync(process.execPath, [fileURLToPath(new URL('./run.mjs', import.meta.url))], {
     encoding: 'utf8', env: { ...process.env, PAYMENT_LINKS_MUTATION: mutation },
   });

@@ -10,6 +10,7 @@ let passed = 0, failed = 0;
 const check = (name, ok) => { if (ok) passed++; else failed++; console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`); };
 const store = new Map();
 const writes = [];
+const versions = new Map(); let revision=0;
 let reportConflict=false;
 globalThis.__checkout = { calls: [], sessions: new Map(), expired: [] };
 const stripe = globalThis.__checkout;
@@ -41,8 +42,8 @@ globalThis.fetch = async (input, opts = {}) => {
   const path = decodeURIComponent(url.pathname.split('/documents/')[1] || '');
   if (url.pathname.endsWith('/documents:commit')) {
     const batch=JSON.parse(opts.body).writes;
-    if(reportConflict || batch.some(w=>w.currentDocument?.updateTime!=='2026-09-18T00:00:00.000000Z'))return json({error:{status:'FAILED_PRECONDITION'}},409);
-    for(const w of batch){const key=w.update.name.split('/documents/')[1], patch=Object.fromEntries(Object.entries(w.update.fields).map(([k,v])=>[k,fromFs(v)]));writes.push(key);store.set(key,{...store.get(key),...patch});}
+    if(reportConflict || batch.some(w=>{const key=w.update.name.split('/documents/')[1];return w.currentDocument?.exists===false?store.has(key):w.currentDocument?.updateTime!==(versions.get(key)||'2026-09-18T00:00:00.000000Z');}))return json({error:{status:'FAILED_PRECONDITION'}},409);
+    for(const w of batch){const key=w.update.name.split('/documents/')[1], patch=Object.fromEntries(Object.entries(w.update.fields).map(([k,v])=>[k,fromFs(v)]));writes.push(key);store.set(key,{...store.get(key),...patch});versions.set(key,new Date(Date.parse('2026-09-18T00:00:00Z')+(++revision)).toISOString());}
     return json({writeResults:[]});
   }
   if (opts.method === 'POST') {
@@ -56,7 +57,7 @@ globalThis.fetch = async (input, opts = {}) => {
     writes.push(path); store.set(path, { ...store.get(path), ...doc });
     return json({ name: path });
   }
-  return store.has(path) ? json({ name: url.pathname, fields: fields(store.get(path)), updateTime:'2026-09-18T00:00:00.000000Z' }) : json({}, 404);
+  return store.has(path) ? json({ name: url.pathname, fields: fields(store.get(path)), updateTime:versions.get(path)||'2026-09-18T00:00:00.000000Z' }) : json({}, 404);
 };
 store.set('users/admin1', { role: 'admin' });
 store.set('users/tenant1', { role: 'tenant' });
@@ -280,5 +281,24 @@ r=await call(report,post({paymentId:'cas-race',action:'report'},'tenant'));repor
 check('concurrent change refuses the report rather than overwriting the new state',r.code===409&&writes.length===casWrites&&!store.get('payments/cas-race').tenantReported);
 r=await call(report,post({paymentId:'../users/admin1',action:'report'},'tenant'));
 check('report rejects arbitrary document paths',r.code===400);
+// Administrative review is a separate, audited operation, never tenant impersonation.
+installment('admin-report',{tenantReported:true,tenantReportedAt:'2026-09-18T01:00:00Z'});
+const reviewBody={paymentId:'admin-report',action:'review_withdraw',reason:'Segnalazione duplicata verificata con il cliente',actor:'spoofed'};
+for(const role of ['tenant','owner']){const n=writes.length;r=await call(report,post(reviewBody,role));check('only admin may revoke report: '+role,r.code===403&&writes.length===n);}
+r=await call(report,post({...reviewBody,reason:' '}));check('review requires a meaningful reason',r.code===400);
+r=await call(report,post(reviewBody));
+const reviewed=store.get('payments/admin-report'), audit=store.get('activityLog/'+reviewed.tenantReportReviewId);
+check('admin review atomically clears flag and writes attributed reason',r.code===200&&!reviewed.tenantReported&&reviewed.status==='pending'&&audit?.actor==='admin1'&&audit?.details.reason===reviewBody.reason&&audit?.details.previousReportedAt==='2026-09-18T01:00:00Z'&&audit?.timestamp);
+check('review never changes money or generates a receipt',reviewed.amount===900&&!reviewed.paidDate&&!reviewed.receiptDocId);
+const nReview=writes.length;r=await call(report,post(reviewBody));check('retry after applied review adds no second audit',r.code===200&&writes.length===nReview);
+await call(report,post({paymentId:'admin-report',action:'report'},'tenant'));
+r=await call(report,post(reviewBody));check('a later report receives its own immutable audit entry',r.code===200&&store.get('payments/admin-report').tenantReportReviewId!==reviewed.tenantReportReviewId&&store.has('activityLog/'+reviewed.tenantReportReviewId));
+installment('legacy-report',{status:'reported'});r=await call(report,post({...reviewBody,paymentId:'legacy-report'}));check('admin can resolve explicit legacy reported status with audited prior status',r.code===200&&store.get('payments/legacy-report').status==='pending'&&store.get('activityLog/'+r.body.reviewId)?.details.previousStatus==='reported');
+for(const fields of [{status:'paid'},{status:'cancelled'},{sddPiId:'pi_busy',sddStatus:'processing'},{cardStatus:'processing'},{status:'unknown'},{paidDate:'2026-09-18'},{bankTxId:'bank-tx'},{amount:null}]){
+ installment('unsafe-review',{tenantReported:true,...fields});const n=writes.length;r=await call(report,post({...reviewBody,paymentId:'unsafe-review'}));check('admin cannot release uncertain or settled payment '+JSON.stringify(fields),r.code===409&&writes.length===n);
+}
+installment('review-race',{tenantReported:true});reportConflict=true;const beforeRace=writes.length;r=await call(report,post({...reviewBody,paymentId:'review-race'}));reportConflict=false;
+check('review CAS conflict writes neither reversal nor audit',r.code===409&&writes.length===beforeRace&&store.get('payments/review-race').tenantReported===true);
+
 console.log(`\nPayment links safety: ${passed} passed, ${failed} failed`);
 process.exitCode = failed ? 1 : 0;
