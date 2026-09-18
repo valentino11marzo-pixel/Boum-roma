@@ -10,6 +10,7 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const SUITES = [
+  { name: 'portalpassiveboot', file: 'tests/portal-passive-boot/run.mjs', what: 'apertura Home senza invii, referral o scritture operative; azioni esplicite e stati pagabili preservati' },
   { name: 'agencyaccounting', file: 'tests/agency-accounting/run.mjs', what: 'agenzia senza subaffitto: canoni e depositi per proprietari esclusi dai ricavi aziendali' },
   { name: 'rent', file: 'tests/rent/run.mjs', what: 'canoni per unità, stati condivisi, ricevute separate dai ricavi e mutazioni' },
   { name: 'rentadmin', file: 'tests/rent-admin/run.mjs', what: 'interfaccia canoni reale: filtri, azioni, export e aggiornamento completo senza false conferme' },

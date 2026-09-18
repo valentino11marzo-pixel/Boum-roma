@@ -4570,6 +4570,14 @@ pages on their loader with no signal at all):
   25s hard watchdog now enters the app shell when user+profile are
   already in hand instead of bouncing an authenticated user to login.
 
+- **Home non avvia campagne (18/09):** `setupApp` non pianifica più notifiche
+  delle scadenze né richieste recensione/referral. Aprire una pagina non è
+  un consenso a inviare o modificare record operativi; listener e navigazione restano.
+  Le funzioni esplicite restano disponibili all'admin; i solleciti rispettano
+  `BOOM_RENT.canPay`, quindi escludono segnalati e pagamenti in corso.
+  `lastLogin` resta telemetria separata. Test `portalpassiveboot`: funzioni reali,
+  apertura ripetuta, azioni esplicite e quattro mutazioni; nessun invio reale.
+
 - **La scialuppa scattava sull'indizio sbagliato** (lo spinner infinito che
   l'operatore vedeva su Safari, agosto 2026). La via d'uscita a 15s di
   portal.html usciva subito se `window.__portalAppLoaded` era vero — ma quella

@@ -2862,6 +2862,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     async function checkContractExpiry() {
+        // Explicit operator action only: reading Home must never send reviews.
+        if (!isAdmin()) return;
         var now = new Date();
         var thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
         var active = (S.contracts || []).filter(function(c) { return c.status === 'active' && !c.reviewRequestSent; });
@@ -3859,7 +3861,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         );
     }
     
-    // Check and send scheduled notifications (run periodically)
+    // Explicit operator action only; setupApp never dispatches notifications.
     async function checkScheduledNotifications() {
         if (!isAdmin()) return; // Only admin triggers scheduled notifications
         
@@ -3867,7 +3869,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         today.setHours(0, 0, 0, 0);
         
         // Check payments due in 5 days
-        for (const payment of S.payments.filter(p => p.status === 'pending')) {
+        for (const payment of S.payments.filter(p => p.status === 'pending' && window.BOOM_RENT.canPay(p))) {
             const days = daysUntil(payment.dueDate);
             if (days === 5) {
                 // Check if notification already sent today
@@ -4025,11 +4027,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         startMaintenanceListener();
         startAgentFeedListener();
 
-        // Check scheduled notifications (admin only, once per session)
-        if (isAdmin() && !window.scheduledNotifChecked) {
-            window.scheduledNotifChecked = true;
-            setTimeout(() => checkScheduledNotifications(), 5000);
-        }
+        // Notifications and review / referral campaigns must be explicit
+        // actions, never side effects of opening this screen.
         
         // Search bar for admin only
         if (isAdmin()) {
@@ -4050,11 +4049,6 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const innestoSeed = isAdmin() && innestoSeedFromHash();
         goTo(innestoSeed ? 'innesto' : (window.location.hash.slice(1) || (isAdmin() ? 'oggi' : (localStorage.getItem('boom_lastPage') || 'dashboard'))));
 
-        // Check expiring contracts for review requests (admin, once per session)
-        if (isAdmin() && !window._expiryChecked) {
-            window._expiryChecked = true;
-            setTimeout(() => checkContractExpiry(), 8000);
-        }
     }
 
     function buildNav() {
