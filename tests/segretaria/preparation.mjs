@@ -898,7 +898,9 @@ try {
 
   for (const [name, action, expected, error] of [
     ['ricevuta WhatsApp presente', { status: 'executed', waSentAt: stamp(NOW - 1) }, 'sent', null],
-    ['WhatsApp senza ricevuta', { status: 'executed' }, 'queued', null],
+    ['WhatsApp recente senza ricevuta', { status: 'executed', executedAt: stamp(NOW - 1) }, 'queued', null],
+    ['WhatsApp senza data di esecuzione', { status: 'executed' }, 'needs_review', 'whatsapp_delivery_time_invalid'],
+    ['WhatsApp non ritirato alla soglia di 48 ore', { status: 'executed', executedAt: stamp(NOW - 48 * 3600 * 1000) }, 'needs_review', 'whatsapp_delivery_expired'],
     ['claim WhatsApp scaduto senza ricevuta', { status: 'executed', segretaria: { delivery: { state: 'claimed', claimedAt: stamp(NOW - 120001) } } }, 'needs_review', 'whatsapp_delivery_unconfirmed'],
     ['consegna bloccata prima della claim', { status: 'executed', segretariaDeliveryBlock: { reason: 'reply_owner_changed' } }, 'needs_review', 'reply_owner_changed'],
     ['azione approvata ancora da eseguire', { status: 'approved' }, 'pending_execution', null],
