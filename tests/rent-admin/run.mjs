@@ -121,9 +121,9 @@ ctx.db={
    async add(data){archiveWrites.push({name,data});return {id:'stored-'+name}},
    where(field,op,value){
      assert.equal(name,'documents');assert.equal(field,'paymentId');
-     return {limit(){return this},async get(options){
+     let receiptType;return {where(key,operator,kind){assert.equal(key,'type');assert.equal(operator,'==');receiptType=kind;return this},limit(){return this},async get(options){
        assert.equal(options.source,'server');
-       return {docs:[...receiptStore.entries()].filter(([key,v])=>key.startsWith('documents/')&&v.paymentId===value).map(([key])=>receiptSnap(receiptRef('documents',key.slice(10))))};
+       return {docs:[...receiptStore.entries()].filter(([key,v])=>key.startsWith('documents/')&&v.paymentId===value&&(!receiptType||v.type===receiptType)).map(([key])=>receiptSnap(receiptRef('documents',key.slice(10))))};
      }};
    }
  };},
@@ -315,3 +315,14 @@ for(const [label,mutate,initial,change] of [
  vm.runInContext(archiveSource,ctx);
 }
 console.log(`${count} admin rent checks passed in total, including receipt mutations.`);
+ctx.S.payments.push({...direct,id:'same-payment-proof',receiptDocId:'proof-not-receipt'});
+receiptStore.set('documents/proof-not-receipt',{paymentId:'same-payment-proof',type:'bank-proof',fileUrl:'https://files.example.invalid/proof.pdf'});
+const invalidKind=await run("archivePaymentReceipt({id:'same-payment-proof'})");
+check('a bank proof with the same payment ID cannot be treated as an archived receipt',()=>assert.equal(invalidKind,null));
+console.log(`${count} admin rent checks passed in total, including document-kind regression.`);
+
+ctx.S.payments.push({...direct,id:'proof-before-receipt'});
+receiptStore.set('documents/another-proof',{paymentId:'proof-before-receipt',type:'bank-proof',fileUrl:'https://files.example.invalid/proof.pdf'});
+const properReceipt=await run("archivePaymentReceipt({id:'proof-before-receipt'})");
+check('an unrelated proof does not prevent creating the actual receipt',()=>{assert.equal(properReceipt,'rent-receipt-proof-before-receipt');assert.equal(receiptStore.get('documents/'+properReceipt).type,'receipt');assert.equal(receiptStore.get('documents/another-proof').type,'bank-proof')});
+console.log(`${count} admin rent checks passed in total, including document-kind regressions.`);

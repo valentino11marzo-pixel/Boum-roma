@@ -324,7 +324,7 @@ await test('archive receipt is looked up by its existing ID and must match the i
   const f=fixture(),p=payment({status:'paid',receiptDocId:'doc-test'});f.render([p]);
   assert.match(f.markup,/data-receipt-payment="rent-sep"/);
   const button={disabled:false,replaceWith(link){this.link=link}};
-  f.queues.documents.push({paymentId:'rent-sep',fileUrl:'https://files.example.invalid/receipt.pdf'});
+  f.queues.documents.push({paymentId:'rent-sep',type:'receipt',fileUrl:'https://files.example.invalid/receipt.pdf'});
   await f.api.receipt('rent-sep',button);assert.equal(button.link.href,'https://files.example.invalid/receipt.pdf');assert.equal(f.reads[0].options.source,'server');
   const wrong={disabled:false,replaceWith(){throw Error('must not expose')}};
   f.queues.documents.push({paymentId:'someone-else',fileUrl:'https://files.example.invalid/private.pdf'});
@@ -342,5 +342,13 @@ await test('bank-confirmed payment without receipt explicitly explains availabil
  const f=fixture();const p=payment({status:'paid',paidVia:'bank',bankTxId:'bank-test'});
  assert.match(f.api.row(p),/Receipt not available yet/);assert.doesNotMatch(f.api.row(p),/data-receipt-payment|href=/);
  f.api.set({lang:'it'});assert.match(f.api.row(p),/Ricevuta non ancora disponibile/);
+});
+await test('a same-payment proof or invoice cannot appear as the tenant receipt',async()=>{
+ const f=fixture();f.render([payment({status:'paid',receiptDocId:'not-receipt'})]);
+ for(const type of ['bank-proof','invoice',undefined]){
+   const button={disabled:false,replaceWith(){throw Error('must not expose a non-receipt')}};
+   f.queues.documents.push({paymentId:'rent-sep',type,fileUrl:'https://files.example.invalid/proof.pdf'});
+   await f.api.receipt('rent-sep',button);assert.equal(button.disabled,false);assert.match(f.elements.get('receiptFeedback').textContent,/not available/);
+ }
 });
 console.log(`\n${passed} tenant payment checks passed. No live network or writes.`);
