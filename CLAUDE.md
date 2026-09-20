@@ -4539,6 +4539,14 @@ camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
   the 3 portals via `BoomPortal.registerServiceWorker()`
 
+### Fascicolo operativo immobile — 20 settembre 2026
+La scheda admin passa dal modale al percorso `#property/<id>/<sezione>`: situazione, contratti, canoni, documenti e attività; link ricaricabili, ritorno alla ricerca/posizione e apertura dei flussi esistenti; ricerca e filtro di disponibilità ora si combinano. Le viste dei proprietari restano separate.
+`property-dossier-engine.js` deriva il fascicolo dai record caricati, riusa BOOM_RENT e non scrive uno stato parallelo. ID diretti prevalgono sui contratti legacy; conflitti e dati mancanti restano espliciti, nessun abbinamento per nome o persona.
+`property-dossier.js` e CSS dedicato rendono tutti i contratti attivi, documenti con URL sicuri e cronologia di soli eventi datati/provati. Le letture core segnalano cache, aggiornamento, errore e limiti; attività lazy aggiornano la scheda aperta.
+La modifica delle attività preserva lo stato remoto (anche una chiusura concorrente): `saveTask` invia lo stato solo alla creazione, con prova `propertytaskedit` e mutazione.
+Nessuna lettura massiva aggiuntiva, invio, incasso o chiamata AI all’apertura. Le azioni riusano le autorizzazioni/conferme esistenti. Boot, precedenza Innesto e router hash generale restano invariati.
+Prove: `propertymodel` (mutazioni), `propertyload`, `propertyrender`, `propertyui` (1440/390/320px, navigazione e dettagli reali, soli dati sintetici). `sw.js` v25 invalida gli asset precedenti.
+
 ## Portals (logged-in surfaces)
 
 Three role-scoped SPAs sit on top of the same Firestore project. All three

@@ -790,6 +790,18 @@ Valentyne - BOOM Rome`
         homieHeartbeat: null
     };
 
+    // A derived property view: navigation and mutations stay in the existing portal.
+    window.BOOM_PROPERTY_DOSSIER?.configure({
+        state: () => S, navigate: page => goTo(page), render: () => renderPage(),
+        refresh: () => loadDataFresh(true),
+        actions: { contract: id => viewContract(id), maintenance: id => viewMaintenance(id),
+            task: id => editTask(id), person: id => viewUser(id),
+            payment: (unit, month, id) => openRentUnit(unit, month, id),
+            edit: property => openModal('editProperty', property),
+            remove: property => confirmDelete('propert', property.id, property.name || 'Immobile'),
+            valuation: id => openValutazione(null, undefined, {propertyId:id}) }
+    });
+
     // ═══════════════════════════════════════════════════════════════════════════
     // TRANSLATIONS (IT/EN)
     // ═══════════════════════════════════════════════════════════════════════════
@@ -2532,6 +2544,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     console.log('Using cached data (age ' + Math.round(age / 1000) + 's)');
                     Object.assign(S, data);
                     invalidateRentSnapshot();
+                    window.BOOM_PROPERTY_DOSSIER?.setSourceState('cached');
                     checkAlerts();
                     // Refresh in background: subito se lo snapshot è stantio,
                     // con calma se ha meno di 5 minuti.
@@ -2701,6 +2714,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // (persistence differita + watchdog): Firestore multiplexa tutte
             // le query su un unico canale, quindi serializzare non proteggeva
             // nulla e costava ~2 round-trip extra a ogni boot admin.
+            window.BOOM_PROPERTY_DOSSIER?.setSourceState('loading');
             console.log('Loading core data...');
             // Tetti sulle query (audit 2026-08, I1): 9 su 10 erano .get() nudi —
             // collezioni INTERE a ogni boot, per sempre. I limiti sono guardrail
@@ -2738,6 +2752,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             S.invoices = invoices.docs.map(d => ({ id: d.id, ...d.data() }));
             S.rules = rules.docs.map(d => ({ id: d.id, ...d.data() }));
             S.ruleExecutions = ruleExecs.docs.map(d => ({ id: d.id, ...d.data() }));
+            window.BOOM_PROPERTY_DOSSIER?.setSourceState('ready');
             console.log('Core batch done:', (performance.now() - startTime).toFixed(0), 'ms');
             
             // Cache core data (tagged with uid + role for shared-device safety)
@@ -2800,6 +2815,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ]);
 
                 console.log('Lazy data loaded:', (performance.now() - startTime).toFixed(0), 'ms total');
+                if (window.BOOM_PROPERTY_DOSSIER?.parseRoute(S.page)) renderPage();
                 cacheData(); // ora la cache copre ANCHE i dati lazy: i badge partono giusti
                 if (S.page === 'command' || S.page === 'pfs-pipeline' || S.page === 'leads' || S.page === 'dashboard' || S.page === 'viewings' || S.page === 'inbox') renderPage();
                 buildNav();
@@ -2808,6 +2824,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             console.log('Core data loaded in', (performance.now() - startTime).toFixed(0), 'ms');
             if (!silent) checkAlerts();
         } catch (e) { 
+            window.BOOM_PROPERTY_DOSSIER?.setSourceState('error');
             console.error('Load data error:', e);
             if (!silent) toast('error', 'Errore caricamento', e.message); 
         }
@@ -4088,7 +4105,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item ${S.page==='invoices'?'active':''}" onclick="goTo('invoices')"><span class="nav-icon">🧾</span> Fatture BOOM ${pendingInv?`<span class="nav-badge gold">${pendingInv}</span>`:''}</div>
                 </div>
                 <div class="nav-section"><div class="nav-label">Gestione</div>
-                    <div class="nav-item ${S.page==='properties'?'active':''}" onclick="goTo('properties')"><span class="nav-icon">🏠</span> Immobili</div>
+                    <div class="nav-item ${S.page==='properties'||S.page.startsWith('property/')?'active':''}" onclick="goTo('properties')"><span class="nav-icon">🏠</span> Immobili</div>
                     <div class="nav-item ${S.page==='contracts'?'active':''}" onclick="goTo('contracts')"><span class="nav-icon">📋</span> Contratti</div>
                     <div class="nav-item ${S.page==='burocrazia'?'active':''}" onclick="goTo('burocrazia')" title="Registrazioni RLI, asseverazioni ASPI, archivio contratti"><span class="nav-icon">📝</span> Burocrazia ${daRegistrare?`<span class="nav-badge orange">${daRegistrare}</span>`:''}</div>
                     <div class="nav-item" onclick="window.open('/pre-agreement-admin.html','_blank')"><span class="nav-icon">🖋️</span> Pre-agreement <span class="nav-badge gold">L'ATTO</span></div>
@@ -4200,6 +4217,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function renderPage() {
         const m = document.getElementById('main');
         const r = S.profile.role;
+        const dossierRoute = window.BOOM_PROPERTY_DOSSIER?.parseRoute(S.page);
+        if (dossierRoute) {
+            m.innerHTML = window.BOOM_PROPERTY_DOSSIER.render(S, dossierRoute, window.BOOM_PROPERTY_DOSSIER.load);
+            window.BOOM_PROPERTY_DOSSIER.afterRender();
+            return;
+        }
         switch(S.page) {
             case 'dashboard': m.innerHTML = r === 'admin' ? adminDashboard() : r === 'landlord' ? landlordDashboard() : tenantDashboard(); break;
             // === UNIFIED CLIENTI (merges CRM + PFS Pipeline) ===
@@ -4287,6 +4310,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             case 'innesto': m.innerHTML = isAdmin() ? innestoPage() : accessDenied(); break;
             default: m.innerHTML = r === 'admin' ? adminDashboard() : r === 'landlord' ? landlordDashboard() : tenantDashboard();
         }
+        window.BOOM_PROPERTY_DOSSIER?.afterRender();
         // Post-render hooks
         // .catch obbligatorio: questo gira DENTRO il render della dashboard,
         // cioè durante il boot. Senza, una CDN irraggiungibile produce un
@@ -9489,19 +9513,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const tenant = c ? S.users.find(u => u.id === c.tenantId) : null;
             const avail = availBadge(p.availabilityStatus);
             const search = [p.name, p.address, owner?.name, tenant?.name, p.zone].filter(Boolean).join(' ').toLowerCase();
-            return `<div class="list-item clickable property-item" data-avail="${p.availabilityStatus || 'available'}" data-search="${esc(search)}" onclick="viewProperty('${p.id}')">
+            return `<div class="list-item clickable property-item" role="button" tabindex="0" data-property-id="${esc(p.id)}" data-avail="${esc(p.availabilityStatus || 'available')}" data-search="${esc(search)}" onclick="viewProperty(${rentActionArg(p.id)})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();viewProperty(${rentActionArg(p.id)})}">
                 <div class="list-icon" style="background:var(--gold-light)">🏠</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-weight:600">${p.name}</span>
+                        <span style="font-weight:600">${esc(p.name)}</span>
                         <span class="badge ${avail.color}">${avail.icon} ${avail.text}</span>
                         ${p.youtubeUrl ? '<span title="Video tour disponibile">📺</span>' : ''}
                     </div>
                     <div class="list-subtitle" style="margin-top:4px">
-                        ${owner ? `<span>🏠 ${owner.name}</span>` : ''}
-                        ${tenant ? `<span style="margin-left:8px">→ 👤 ${tenant.name}</span>` : ''}
-                        ${p.address ? `<span style="margin-left:8px">📍 ${p.address}</span>` : ''}
-                        ${p.sqm ? `<span style="margin-left:8px">📐 ${p.sqm}m²</span>` : ''}
+                        ${owner ? `<span>🏠 ${esc(owner.name)}</span>` : ''}
+                        ${tenant ? `<span style="margin-left:8px">→ 👤 ${esc(tenant.name)}</span>` : ''}
+                        ${p.address ? `<span style="margin-left:8px">📍 ${esc(p.address)}</span>` : ''}
+                        ${p.sqm ? `<span style="margin-left:8px">📐 ${esc(p.sqm)}m²</span>` : ''}
                     </div>
                 </div>
                 <div class="list-value text-gold">€${(p.rent || 0).toLocaleString('it-IT')}<span style="font-size:11px;color:var(--text-muted)">/mese</span></div>
@@ -9541,17 +9565,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function filterProperties(filter, btn) {
         if (btn?.parentElement) btn.parentElement.querySelectorAll('button.btn-sm').forEach(b => b.classList.add('btn-secondary'));
         btn?.classList.remove('btn-secondary');
-        document.querySelectorAll('.property-item').forEach(item => {
-            const avail = item.dataset.avail || 'available';
-            item.style.display = (filter === 'all' || avail === filter) ? '' : 'none';
-        });
+        searchProperties(document.getElementById('propertySearch')?.value || '');
     }
 
     function searchProperties(q) {
         const term = (q || '').toLowerCase().trim();
+        const filter = document.querySelector('#main [data-filter]:not(.btn-secondary)')?.dataset.filter || 'all';
         document.querySelectorAll('.property-item').forEach(item => {
-            if (!term) { item.style.display = ''; return; }
-            item.style.display = (item.dataset.search || '').includes(term) ? '' : 'none';
+            const matchesState = filter === 'all' || (item.dataset.avail || 'available') === filter;
+            item.style.display = matchesState && (item.dataset.search || '').includes(term) ? '' : 'none';
         });
     }
 
@@ -15135,6 +15157,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         
         try {
             if (id) {
+                // Editing details must preserve the stored workflow state,
+                // including a completion newer than this browser's snapshot.
+                delete data.status;
                 await db.collection('tasks').doc(id).update(data);
                 if (!S.tasks) S.tasks = [];
                 const idx = S.tasks.findIndex(t => t.id === id);
@@ -17823,55 +17848,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     function viewProperty(id) {
-        const p = S.properties.find(x => x.id === id); if (!p) return;
-        const owner = S.users.find(u => u.id === p.ownerId);
-        const contracts = S.contracts.filter(c => c.propertyId === id);
-        const activeContract = contracts.find(c => c.status === 'active');
-        const tenant = activeContract ? S.users.find(u => u.id === activeContract.tenantId) : null;
-        const propTypeLabels = { apartment: 'Appartamento', studio: 'Monolocale', room: 'Stanza', house: 'Casa', loft: 'Loft' };
-        const availStatusLabels = { available: { text: 'Disponibile', color: 'green', icon: '🟢' }, negotiation: { text: 'In Trattativa', color: 'orange', icon: '🟡' }, rented: { text: 'Affittato', color: 'red', icon: '🔴' }, off_market: { text: 'Fuori Mercato', color: 'gray', icon: '⚫' } };
-        const availStatus = availStatusLabels[p.availabilityStatus] || availStatusLabels.available;
-        const youtubeId = p.youtubeUrl ? extractYouTubeId(p.youtubeUrl) : null;
-        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
-            <div class="modal-header"><h3 class="modal-title">🏠 ${p.name}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
-            <div class="modal-body" style="max-height:70vh;overflow-y:auto">
-                <div class="detail-badges mb-16">
-                    <span class="badge ${availStatus.color}">${availStatus.icon} ${availStatus.text}</span>
-                    <span class="badge ${activeContract ? 'green' : 'gray'}">${activeContract ? '📋 Contratto Attivo' : '📋 Nessun Contratto'}</span>
-                    <span class="badge gray">${propTypeLabels[p.propertyType] || 'Appartamento'}</span>
-                </div>
-                ${youtubeId ? `<div style="margin-bottom:16px;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.3)"><div style="position:relative;padding-bottom:56.25%;height:0"><iframe src="https://www.youtube.com/embed/${youtubeId}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none" allowfullscreen></iframe></div></div>` : ''}
-                <div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">📍 Dettagli Immobile</div>
-                <div class="detail-grid">
-                    <div><div class="detail-label">Indirizzo</div><div class="detail-value">${p.address || 'Roma'}</div></div>
-                    <div><div class="detail-label">Affitto</div><div class="detail-value text-gold">€${p.rent}/mese</div></div>
-                    <div><div class="detail-label">Superficie</div><div class="detail-value">${p.sqm ? p.sqm + ' m²' : '—'}</div></div>
-                    <div><div class="detail-label">Stanze</div><div class="detail-value">${p.rooms || '—'}</div></div>
-                    <div><div class="detail-label">Bagni</div><div class="detail-value">${p.bathrooms || '—'}</div></div>
-                    <div><div class="detail-label">Piano</div><div class="detail-value">${p.floor || '—'}</div></div>
-                    <div><div class="detail-label">Anno</div><div class="detail-value">${p.yearBuilt || '—'}</div></div>
-                    <div><div class="detail-label">Proprietario</div><div class="detail-value">${owner?.name || 'N/A'}</div></div>
-                    <div><div class="detail-label">Disponibile Dal</div><div class="detail-value">${p.availableSince ? fmtDate(p.availableSince) : '—'}</div></div>
-                </div>
-                ${p.notes ? `<div class="mt-16"><div class="detail-label">Note</div><div class="detail-value" style="background:var(--surface);padding:10px;border-radius:8px;font-size:13px;margin-top:6px">${p.notes}</div></div>` : ''}
-                ${activeContract ? `
-                <div class="section-title mt-16" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">👤 Inquilino Attuale</div>
-                <div class="detail-grid">
-                    <div><div class="detail-label">Nome</div><div class="detail-value">${tenant?.name || 'N/A'}</div></div>
-                    <div><div class="detail-label">Email</div><div class="detail-value">${tenant?.email || 'N/A'}</div></div>
-                    <div><div class="detail-label">Contratto</div><div class="detail-value">${fmtDate(activeContract.startDate)} → ${fmtDate(activeContract.endDate)}</div></div>
-                    <div><div class="detail-label">Deposito</div><div class="detail-value">€${activeContract.deposit || 0}</div></div>
-                </div>` : ''}
-                ${contracts.length ? `<div class="mt-16"><div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">📋 Storico Contratti (${contracts.length})</div><div style="background:var(--surface);border-radius:8px;overflow:hidden">${contracts.map(c => { const t = S.users.find(u => u.id === c.tenantId); return `<div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;display:flex;align-items:center;gap:10px">${contractBadge(c)}<span style="flex:1">${t?.name || 'Inquilino'} · ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}</span><span class="text-gold">€${c.rent}/mese</span></div>`; }).join('')}</div></div>` : ''}
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-danger btn-sm" onclick="confirmDelete('propert','${p.id}','${jsq(p.name)}')">🗑</button>
-                <a class="btn btn-secondary btn-sm" href="/inventario?p=${p.id}" target="_blank" rel="noopener" title="${p.inventario ? 'Inventario del ' + String(p.inventario.at || '').slice(0,10) + ' — ' + ((p.inventario.counts && p.inventario.counts.pieces) || 0) + ' pezzi' : 'Inventario dal video: filma il giro, l\'elenco si scrive da solo'}" style="text-decoration:none">📋 Inventario${p.inventario ? ' ✓' : ''}</a>
-                ${isAdmin() ? `<button class="btn btn-secondary btn-sm" onclick="openValutazione(null, undefined, {propertyId:'${p.id}'})" title="${p.valutazioneBoomUrl ? 'Ultima valutazione del ' + String(p.valutazioneBoomAt || '').slice(0,10) + ' — rigenera' : 'Il documento per il proprietario: parere di mercato + scheda di calcolo dell\'accordo'}">💶 Valutazione${p.valutazioneBoomUrl ? ' ✓' : ''}</button>` : ''}
-                <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
-                <button class="btn" onclick="const pid='${p.id}';closeModal();setTimeout(()=>openModal('editProperty',S.properties.find(x=>x.id===pid)),250)">✏️ Modifica</button>
-            </div>
-        </div></div>`;
+        if (isAdmin()) window.BOOM_PROPERTY_DOSSIER.open(id);
     }
 
     function viewPropertyLandlord(id) {

@@ -10,6 +10,11 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const SUITES = [
+  { name: 'propertymodel', file: 'tests/property-dossier/engine.mjs', what: 'fascicolo derivato, riferimenti certi, stati e cronologia; mutazioni' },
+  { name: 'propertyload', file: 'tests/property-dossier/loader.mjs', what: 'cache, aggiornamento, errore e archivio parziale sulle letture reali' },
+  { name: 'propertyrender', file: 'tests/property-dossier/render.mjs', what: 'render reale: URL sicuri, escaping, ruoli, stati e importi' },
+  { name: 'propertytaskedit', file: 'tests/property-dossier/task-edit.mjs', what: 'modifica dettagli attività preserva stato remoto e completamento; mutazione' },
+  { name: 'propertyui', file: 'tests/property-dossier/ui.mjs', what: 'fascicolo nel browser desktop/mobile, route e ritorno al contesto' },
   { name: 'portalpassiveboot', file: 'tests/portal-passive-boot/run.mjs', what: 'apertura Home senza invii, referral o scritture operative; azioni esplicite e stati pagabili preservati' },
   { name: 'agencyaccounting', file: 'tests/agency-accounting/run.mjs', what: 'agenzia senza subaffitto: canoni e depositi per proprietari esclusi dai ricavi aziendali' },
   { name: 'rent', file: 'tests/rent/run.mjs', what: 'canoni per unità, stati condivisi, ricevute separate dai ricavi e mutazioni' },
