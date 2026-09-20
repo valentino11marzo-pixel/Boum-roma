@@ -332,6 +332,10 @@ body.pm-on .pm-full .modal-footer{
     background:rgba(8,8,10,0.92);
     -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
 }
+/* Radar e altri modali senza .modal-body: scorre l'intera finestra,
+   senza comprimere/tagliare i figli che non hanno un corpo dedicato. */
+body.pm-on .pm-scroll-modal .modal{display:block;overflow-y:auto;overscroll-behavior:contain}
+body.pm-on .pm-scroll-modal.pm-full .modal{padding-top:var(--safe-t);padding-bottom:var(--safe-b)}
 /* respiro nei form dentro le modali full: un campo alla volta, aria attorno */
 body.pm-on .pm-full .form-label{font-size:12px;letter-spacing:1.2px;margin-bottom:8px;color:var(--text-secondary)}
 body.pm-on .pm-full .form-input,

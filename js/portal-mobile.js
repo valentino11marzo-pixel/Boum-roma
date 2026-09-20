@@ -959,6 +959,9 @@ window.__pmLoaded = true;
             catch (e) { console.warn('[pm] auto-wizard fallito, si degrada a full-screen', e); }
         }
         if (!wizarded) {
+            // I modali a card (es. Radar) non hanno un corpo flex scorrevole:
+            // la superficie intera deve poter scorrere sopra la tastiera.
+            if (!modal.querySelector('.modal-body')) overlay.classList.add('pm-scroll-modal');
             if (nFields >= FULL_MIN_FIELDS || modal.classList.contains('lg') || modal.classList.contains('xl')) {
                 overlay.classList.add('pm-full');
             }

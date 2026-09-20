@@ -1867,6 +1867,10 @@ Un giro solo, otto interventi, 33 suite verdi:
   e si escludono righe/tabelle già adattate. Batch misti e modifiche esterne restano osservati.
   Gli eventi del visual viewport si accorpano per fotogramma e non riscrivono la stessa
   geometria; la rotazione desktop pulisce subito lo stato. Prove: `tests/mobile/ui.mjs`.
+- **Chiusura review mobile (20/09/2026)** — Radar e le finestre senza `.modal-body`
+  scorrono come pannello intero: con la tastiera il comando finale non viene tagliato.
+  Magic Sign conserva il proprio corpo dedicato. Il validatore rispetta i vincoli
+  numerici già dichiarati dai form. Regressioni: `tests/mobile/ui.mjs`.
 - **OGGI — la coda delle decisioni** (`js/oggi-engine.js` → `window.BOOM_OGGI`
   + `oggiPage()` nel portal, 2026-08-19): la prima schermata dell'admin. La
   macchina lavora da sola e all'operatore restano le DECISIONI — che su

@@ -25,6 +25,7 @@
 // senza lanciare Chromium; dati sintetici, nessun Firebase o endpoint API.
 // `node tests/mobile/ui.mjs --performance`: solo i controlli di lavoro DOM
 // e viewport; conta operazioni reali, senza soglie di tempo dipendenti dal PC.
+// `node tests/mobile/ui.mjs --modal-scroll`: Radar reale e scroll Magic Sign.
 
 import { loadChromium, launchOptions } from '../_browser.mjs';
 import { createServer } from 'node:http';
@@ -51,7 +52,7 @@ const appSrc = readFileSync(join(ROOT, 'js', 'portal-app.js'), 'utf8');
 const realWizardNav = extractFn(appSrc, 'contractWizardNav');
 const realPanels = ['esc', 'kindLabel', 'inboxPage', 'inboxConversationCard',
   'inboxRelativeTime', 'inboxThreadPanel', 'inboxHomieBanner', 'inboxMessageBubble',
-  'inboxComposer', 'rentMoney', 'rentActionArg', 'rentMonthLabel', 'openRentReportReview']
+  'inboxComposer', 'rentMoney', 'rentActionArg', 'rentMonthLabel', 'openRentReportReview', 'openRadarEditor']
   .map(name => extractFn(appSrc, name)).join('\n');
 
 // ── La pagina-harness ───────────────────────────────────────────────────
@@ -103,10 +104,13 @@ var S = {
   messages: Array.from({ length: 30 }, function (_, i) { return { conversationId: 'synthetic-conv', direction: i % 2 ? 'out' : 'in', channel: 'email', body: 'Messaggio sintetico ' + i + ': nessun dato reale.', at: '2026-09-20T10:00:00Z' }; }),
   payments: [{ id: 'synthetic-payment', status: 'reported', amount: 1200, month: '2026-09' }]
 };
+S.pfsClients = [];
+var PRE_ZONES = { prova: { name: 'Zona sintetica' } };
 var _inboxState = { convId: 'synthetic-conv', filter: 'all', channel: 'all', search: '', composing: 'whatsapp' };
 function isAdmin() { return true; }
 function inboxRefresh() { document.getElementById('main').innerHTML = inboxPage(); }
 function submitRentReportReview() { __calls.push(['reviewRent']); }
+function saveRadarSearch() { __calls.push(['saveRadarSearch', document.getElementById('radName').value]); }
 ${realPanels}
 let contractWizardStep = 0;
 function toggleSidebar() { __calls.push(['toggleSidebar']); }
@@ -149,6 +153,7 @@ function renderMain(p) {
       '<button class="btn" onclick="openModal(\\'compactModal\\')">Finestra lunga</button>' +
       '<button class="btn" onclick="goTo(\\'inbox\\')">Inbox sintetica</button>' +
       '<button class="btn" onclick="openRentReportReview(\\'synthetic-payment\\')">Revisione bonifico</button>' +
+      '<button class="btn" onclick="openRadarEditor({name:\\'Ricerca sintetica\\',zone:\\'prova\\'})">Ricerca Radar</button>' +
       '<button class="btn" onclick="openModal(\\'addProperty\\')">Form con un capitolo</button></div>';
     return;
   }
@@ -242,6 +247,12 @@ var TPL = {
     '<div class="modal-body"><form id="mForm">' + Array.from({ length: 8 }, function (_, i) {
       return '<div class="form-group"><label class="form-label">Campo nuovo ' + i + '</label><input class="form-input" name="unknown' + i + '" value="valore ' + i + '"></div>';
     }).join('') + '</form></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">Chiudi</button></div></div></div>',
+  magicSign:
+    '<div class="modal-overlay active"><div class="modal ms-modal">' +
+    '<div class="ms-hdr"><div class="ms-title">Contract review</div><div class="ms-sub">Dati sintetici</div></div>' +
+    '<div class="ms-body" style="max-height:55vh;overflow-y:auto">' +
+    Array.from({ length: 20 }, function (_, i) { return '<p>Condizione sintetica ' + i + ' da leggere prima di continuare.</p>'; }).join('') +
+    '<div class="ms-row"><button class="ms-cta2" onclick="closeModal()">Cancel</button><button class="ms-cta" onclick="__calls.push([\\'magic-continue\\'])">Continue</button></div></div></div></div>',
   compactModal:
     '<div class="modal-overlay"><div class="modal"><div class="modal-header"><h3 class="modal-title">Finestra lunga di prova</h3><button class="modal-close" onclick="closeModal()">×</button></div>' +
     '<div class="modal-body"><form><div class="form-group"><label class="form-label">Nota</label><input class="form-input" name="note" value="Solo dati sintetici"></div></form>' +
@@ -328,7 +339,7 @@ page.on('pageerror', (e) => console.log('  [pageerror]', String(e).split('\n')[0
 await page.goto(`http://127.0.0.1:${PORT}/pm-harness.html`);
 await page.waitForFunction(() => window.BOOM_MOBILE && document.body.classList.contains('pm-on'));
 
-if (!process.argv.includes('--performance')) {
+if (!process.argv.includes('--performance') && !process.argv.includes('--modal-scroll')) {
 console.log('— tab bar —');
 await check('a 390px il layer è acceso (body.pm-on)', () => page.evaluate(() => document.body.classList.contains('pm-on')));
 await check('la tab bar esiste, visibile, con 4 sezioni + Menu', () => page.evaluate(() => {
@@ -828,6 +839,7 @@ await check('?classic=1 spegne tutto: BOOM_MOBILE.off, niente pm-on, niente tab 
 await ctx2.close();
 }
 
+if (!process.argv.includes('--modal-scroll')) {
 console.log('— lavoro DOM: 500 righe, inserimenti e aggiornamenti vivi —');
 await page.setViewportSize({ width: 390, height: 844 });
 await page.evaluate(() => goTo('contracts'));
@@ -1015,6 +1027,79 @@ await page.evaluate(() => {
   window.__pmVpPerf.restore();
   window.visualViewport.dispatchEvent(new Event('resize'));
 });
+}
+
+if (!process.argv.includes('--performance')) {
+console.log('— modali senza modal-body: Radar reale e Magic Sign —');
+await page.setViewportSize({ width: 390, height: 844 });
+await page.evaluate(() => { closeModal(); goTo('dashboard'); });
+await page.waitForTimeout(250);
+await page.evaluate(() => {
+  document.documentElement.style.setProperty('--safe-t', '59px');
+  document.documentElement.style.setProperty('--safe-b', '34px');
+  Object.defineProperties(window.visualViewport, {
+    height: { configurable: true, value: 400 },
+    offsetTop: { configurable: true, value: 30 },
+    scale: { configurable: true, value: 1 }
+  });
+  window.visualViewport.dispatchEvent(new Event('resize'));
+  openRadarEditor({ name: 'Ricerca sintetica', zone: 'prova', maxPrice: 1200, minRooms: 2 });
+});
+await page.waitForTimeout(350);
+await check('la testata Radar e Chiudi partono sotto il notch anche con tastiera aperta', () => page.evaluate(() => {
+  const header = document.querySelector('.modal .card-header').getBoundingClientRect();
+  const close = document.querySelector('.modal .card-header button').getBoundingClientRect();
+  return header.top >= 89 && close.top >= 89 && close.bottom <= 430;
+}));
+// Gesto di scorrimento del browser: scrollTop/scrollIntoView potrebbero
+// spostare anche overflow:hidden e mascherare il taglio dei comandi.
+await page.mouse.move(195, 230);
+await page.mouse.wheel(0, 1500);
+await page.waitForTimeout(180);
+await check('con tastiera il Radar reale scorre fino a Crea ricerca e invoca la sua azione', async () => {
+  const visible = await page.evaluate(() => {
+    const button = document.querySelector('button[onclick="saveRadarSearch()"]');
+    const r = button.getBoundingClientRect();
+    const center = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    const modal = button.closest('.modal');
+    return modal.scrollTop > 0 && r.top >= 30 && r.bottom <= 431 &&
+      (center === button || button.contains(center));
+  });
+  if (!visible) return false;
+  await page.tap('button[onclick="saveRadarSearch()"]');
+  return page.evaluate(() => window.__calls.filter(c => c[0] === 'saveRadarSearch' && c[1] === 'Ricerca sintetica').length === 1);
+});
+await page.evaluate(() => {
+  closeModal();
+  delete window.visualViewport.height;
+  delete window.visualViewport.offsetTop;
+  delete window.visualViewport.scale;
+  document.documentElement.style.removeProperty('--safe-t');
+  document.documentElement.style.removeProperty('--safe-b');
+  window.visualViewport.dispatchEvent(new Event('resize'));
+  openModal('magicSign');
+});
+await page.waitForTimeout(350);
+const magicBody = await page.locator('.ms-body').boundingBox();
+await page.mouse.move(magicBody.x + magicBody.width / 2, magicBody.y + magicBody.height / 2);
+await page.mouse.wheel(0, 1500);
+await page.waitForTimeout(180);
+await check('Magic Sign conserva lo scorrimento del proprio corpo e Continue resta utilizzabile', async () => {
+  const visible = await page.evaluate(() => {
+    const modal = document.querySelector('.ms-modal');
+    const body = modal.querySelector('.ms-body');
+    const button = body.querySelector('.ms-cta');
+    const r = button.getBoundingClientRect();
+    const q = modal.getBoundingClientRect();
+    const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2);
+    return body.scrollTop > 0 && modal.scrollTop === 0 && r.top >= q.top && r.bottom <= q.bottom + 1 &&
+      r.bottom <= innerHeight && (hit === button || button.contains(hit));
+  });
+  if (!visible) return false;
+  await page.tap('.ms-body .ms-cta');
+  return page.evaluate(() => window.__calls.filter(c => c[0] === 'magic-continue').length === 1);
+});
+}
 
 await browser.close();
 server.close();
