@@ -23,6 +23,8 @@
 // Si auto-skippa senza playwright, come le altre suite del repo.
 // `node tests/mobile/ui.mjs --serve`: stessi fixture, ispezionabili a mano
 // senza lanciare Chromium; dati sintetici, nessun Firebase o endpoint API.
+// `node tests/mobile/ui.mjs --performance`: solo i controlli di lavoro DOM
+// e viewport; conta operazioni reali, senza soglie di tempo dipendenti dal PC.
 
 import { loadChromium, launchOptions } from '../_browser.mjs';
 import { createServer } from 'node:http';
@@ -326,6 +328,7 @@ page.on('pageerror', (e) => console.log('  [pageerror]', String(e).split('\n')[0
 await page.goto(`http://127.0.0.1:${PORT}/pm-harness.html`);
 await page.waitForFunction(() => window.BOOM_MOBILE && document.body.classList.contains('pm-on'));
 
+if (!process.argv.includes('--performance')) {
 console.log('— tab bar —');
 await check('a 390px il layer è acceso (body.pm-on)', () => page.evaluate(() => document.body.classList.contains('pm-on')));
 await check('la tab bar esiste, visibile, con 4 sezioni + Menu', () => page.evaluate(() => {
@@ -823,6 +826,195 @@ await check('?classic=1 spegne tutto: BOOM_MOBILE.off, niente pm-on, niente tab 
   window.BOOM_MOBILE.off === true && !document.body.classList.contains('pm-on') && !document.querySelector('.pm-tabbar')
 ));
 await ctx2.close();
+}
+
+console.log('— lavoro DOM: 500 righe, inserimenti e aggiornamenti vivi —');
+await page.setViewportSize({ width: 390, height: 844 });
+await page.evaluate(() => goTo('contracts'));
+await page.waitForTimeout(300);
+await page.evaluate(() => {
+  const perf = window.__pmPerf = { rowsReturned: 0, queriesWithRows: 0, enabled: true };
+  // Misuriamo quanto DOM torna al chiamante, qualunque sia il selettore.
+  // La verifica non legge funzioni/private state del layer mobile.
+  const patch = proto => {
+    const original = proto.querySelectorAll;
+    proto.querySelectorAll = function (...args) {
+      const found = original.apply(this, args);
+      if (perf.enabled) {
+        const rows = [...found].filter(n => n.classList.contains('list-item')).length;
+        perf.rowsReturned += rows;
+        if (rows) perf.queriesWithRows++;
+      }
+      return found;
+    };
+    return () => { proto.querySelectorAll = original; };
+  };
+  perf.restore = [patch(Document.prototype), patch(Element.prototype)];
+  const seed = document.querySelector('#contractsContainer .list-item').cloneNode(true);
+  seed.querySelector('.pm-card-actions')?.remove();
+  seed.querySelectorAll('.pm-src-btn').forEach(b => b.classList.remove('pm-src-btn'));
+  seed.removeAttribute('data-pm-done');
+  seed.classList.remove('pm-li');
+  window.__pmPerfSeed = seed;
+  const fragment = document.createDocumentFragment();
+  for (let i = 0; i < 500; i++) {
+    const row = seed.cloneNode(true);
+    row.dataset.fixtureRow = String(i);
+    fragment.appendChild(row);
+  }
+  perf.rowsReturned = 0;
+  perf.queriesWithRows = 0;
+  document.getElementById('contractsContainer').replaceChildren(fragment);
+});
+await page.waitForTimeout(350);
+const renderWork = await page.evaluate(() => {
+  const p = window.__pmPerf;
+  p.enabled = false;
+  return { rows: p.rowsReturned, scans: p.queriesWithRows,
+    enhanced: document.querySelectorAll('#contractsContainer .pm-card-actions').length };
+});
+console.log('  DOM render 500: ' + JSON.stringify(renderWork));
+await check('500 righe ricevono le azioni mobili una sola volta, senza una seconda scansione delle stesse righe', () =>
+  renderWork.enhanced === 500 && renderWork.rows <= 500
+);
+await page.evaluate(() => {
+  window.__pmPerf.rowsReturned = 0;
+  window.__pmPerf.queriesWithRows = 0;
+  window.__pmPerf.enabled = true;
+  const row = window.__pmPerfSeed.cloneNode(true);
+  row.dataset.fixtureRow = 'appended';
+  document.getElementById('contractsContainer').appendChild(row);
+});
+await page.waitForTimeout(300);
+const appendWork = await page.evaluate(() => {
+  const p = window.__pmPerf;
+  p.enabled = false;
+  const row = document.querySelector('[data-fixture-row="appended"]');
+  return { rows: p.rowsReturned, scans: p.queriesWithRows,
+    bars: row.querySelectorAll('.pm-card-actions').length };
+});
+console.log('  DOM append 1: ' + JSON.stringify(appendWork));
+await check('una nuova riga nel contenitore esistente viene migliorata senza ripassare le altre 500', () =>
+  appendWork.bars === 1 && appendWork.rows <= 1
+);
+await page.evaluate(() => {
+  window.__pmPerf.rowsReturned = 0;
+  window.__pmPerf.queriesWithRows = 0;
+  window.__pmPerf.enabled = true;
+  document.querySelector('.page-title').textContent = 'Contratti aggiornati';
+  const row = document.querySelector('[data-fixture-row="appended"]');
+  row.querySelector('.list-subtitle').textContent = 'Aggiornamento ricevuto';
+  row.querySelector('.pm-src-btn').onclick = event => {
+    event.stopPropagation();
+    window.__calls.push(['updated-row-action']);
+  };
+});
+await page.waitForTimeout(300);
+const updateWork = await page.evaluate(() => {
+  const p = window.__pmPerf;
+  p.enabled = false;
+  const row = document.querySelector('[data-fixture-row="appended"]');
+  row.querySelector('.pm-act-primary').click();
+  return { rows: p.rowsReturned, scans: p.queriesWithRows,
+    text: row.querySelector('.list-subtitle').textContent,
+    calls: window.__calls.filter(c => c[0] === 'updated-row-action').length,
+    bars: row.querySelectorAll('.pm-card-actions').length };
+});
+console.log('  DOM aggiornamento testo: ' + JSON.stringify(updateWork));
+await check('aggiornare testo e callback mantiene il bottone originale vivo senza rielaborare le righe', () =>
+  updateWork.rows === 0 && updateWork.text === 'Aggiornamento ricevuto' &&
+  updateWork.calls === 1 && updateWork.bars === 1
+);
+await page.evaluate(() => {
+  window.__pmPerf.restore.forEach(restore => restore());
+  const sidebar = document.getElementById('sidebar');
+  const updated = sidebar.cloneNode(true);
+  updated.querySelector('.nav-item[onclick*="contracts"] .nav-badge').textContent = '7';
+  sidebar.innerHTML = updated.innerHTML; // lo stesso confine di buildNav
+});
+await page.waitForTimeout(250);
+await check('la sidebar ricostruita dal render sincronizza ancora i badge della tab mobile', () => page.evaluate(() =>
+  document.querySelector('.pm-tab[data-target="contracts"] .pm-tab-badge').textContent === '7'
+));
+
+console.log('— viewport: raffiche di eventi, stato invariato e ritorno desktop —');
+await page.evaluate(() => openModal('editContract'));
+await page.waitForTimeout(200);
+await page.evaluate(() => {
+  const perf = window.__pmVpPerf = { writes: 0, height: 400, top: 30 };
+  const proto = CSSStyleDeclaration.prototype;
+  const set = proto.setProperty, remove = proto.removeProperty;
+  proto.setProperty = function (name, ...args) {
+    if (this === document.body.style && /^--pm-v/.test(name)) perf.writes++;
+    return set.call(this, name, ...args);
+  };
+  proto.removeProperty = function (name) {
+    if (this === document.body.style && /^--pm-v/.test(name)) perf.writes++;
+    return remove.call(this, name);
+  };
+  perf.restore = () => { proto.setProperty = set; proto.removeProperty = remove; };
+  Object.defineProperties(window.visualViewport, {
+    height: { configurable: true, get() { return perf.height; } },
+    offsetTop: { configurable: true, get() { return perf.top; } },
+    scale: { configurable: true, value: 1 }
+  });
+  for (let i = 0; i < 60; i++) {
+    window.visualViewport.dispatchEvent(new Event('resize'));
+    window.visualViewport.dispatchEvent(new Event('scroll'));
+  }
+});
+await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+const firstViewportWork = await page.evaluate(() => {
+  const r = document.querySelector('.pm-wiz-footer').getBoundingClientRect();
+  return { writes: window.__pmVpPerf.writes, bottom: r.bottom };
+});
+console.log('  Viewport 120 eventi: ' + JSON.stringify(firstViewportWork));
+await check('120 eventi insieme aggiornano una sola volta la geometria utilizzabile', () =>
+  firstViewportWork.writes <= 3 && firstViewportWork.bottom <= 431
+);
+await page.evaluate(() => {
+  window.__pmVpPerf.writes = 0;
+  for (let i = 0; i < 60; i++) {
+    window.visualViewport.dispatchEvent(new Event('resize'));
+    window.visualViewport.dispatchEvent(new Event('scroll'));
+  }
+});
+await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+const unchangedViewportWrites = await page.evaluate(() => window.__pmVpPerf.writes);
+console.log('  Viewport invariato, altri 120 eventi: ' + unchangedViewportWrites + ' scritture');
+await check('gli eventi a geometria invariata non riscrivono il layout', () => unchangedViewportWrites === 0);
+await page.evaluate(() => {
+  window.__pmVpPerf.writes = 0;
+  for (let i = 0; i < 60; i++) {
+    window.__pmVpPerf.height = 450 + i;
+    window.__pmVpPerf.top = 0;
+    window.visualViewport.dispatchEvent(new Event('resize'));
+  }
+});
+await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+const changedViewportWork = await page.evaluate(() => {
+  const r = document.querySelector('.pm-wiz-footer').getBoundingClientRect();
+  return { writes: window.__pmVpPerf.writes, bottom: r.bottom };
+});
+console.log('  Viewport 60 geometrie nello stesso frame: ' + JSON.stringify(changedViewportWork));
+await check('un nuovo frame usa l’ultima geometria ricevuta e mantiene Avanti raggiungibile', () =>
+  changedViewportWork.writes <= 3 && Math.abs(changedViewportWork.bottom - 509) <= 1
+);
+await page.setViewportSize({ width: 1200, height: 800 });
+await page.waitForTimeout(200);
+await check('il ritorno desktop ripristina i comandi originali e rimuove la geometria mobile', () => page.evaluate(() =>
+  !document.body.classList.contains('pm-on') && !document.body.classList.contains('pm-kb') &&
+  document.body.style.getPropertyValue('--pm-vh') === '' &&
+  document.querySelector('.modal-footer').offsetParent !== null &&
+  document.querySelector('.pm-wiz-footer').offsetParent === null
+));
+await page.evaluate(() => {
+  delete window.visualViewport.height;
+  delete window.visualViewport.offsetTop;
+  delete window.visualViewport.scale;
+  window.__pmVpPerf.restore();
+  window.visualViewport.dispatchEvent(new Event('resize'));
+});
 
 await browser.close();
 server.close();

@@ -1862,6 +1862,11 @@ Un giro solo, otto interventi, 33 suite verdi:
   Testata con notch, finestre/azioni sopra la tastiera, footer e Inbox rispettano lo spazio
   disponibile; Magic Sign conserva il layout dedicato. Test: `tests/mobile/ui.mjs`
   (dati sintetici, geometria e validazione); `--serve` espone la stessa prova locale.
+- **Lavoro mobile ridondante (20/09/2026)** — le barre azioni appena create
+  provocavano un secondo giro dell'observer; ora si ignorano solo quelle inserzioni
+  e si escludono righe/tabelle già adattate. Batch misti e modifiche esterne restano osservati.
+  Gli eventi del visual viewport si accorpano per fotogramma e non riscrivono la stessa
+  geometria; la rotazione desktop pulisce subito lo stato. Prove: `tests/mobile/ui.mjs`.
 - **OGGI — la coda delle decisioni** (`js/oggi-engine.js` → `window.BOOM_OGGI`
   + `oggiPage()` nel portal, 2026-08-19): la prima schermata dell'admin. La
   macchina lavora da sola e all'operatore restano le DECISIONI — che su

@@ -495,6 +495,7 @@ window.__pmLoaded = true;
     // ═══ LISTE → CARD (le .list-item delle sezioni operative) ═══════════
     function proxyButtonsBar(btns, contextLabel) {
         var bar = el('div', 'pm-card-actions');
+        bar.__pmOwnedActions = true;
         bar.addEventListener('click', function (e) { e.stopPropagation(); });
         function mkProxy(b, cls) {
             var p = el('button', cls);
@@ -580,9 +581,15 @@ window.__pmLoaded = true;
         if (!st.active) return;
         var cur = currentSection();
         if (cur && LIST_SECTIONS.indexOf(cur) !== -1) {
-            $$('#main .list-item').forEach(listifyRow);
+            $$('#main .list-item:not([data-pm-done])').forEach(listifyRow);
         }
-        $$('#main table').forEach(cardifyTable);
+        $$('#main table:not([data-pm-done])').forEach(cardifyTable);
+    }
+    function ownActionsMutation(record) {
+        // Il nostro append della corsia azioni non richiede un secondo giro
+        // su tutta la pagina. Batch misti e modifiche esterne restano osservati.
+        return !record.removedNodes.length && record.addedNodes.length > 0 &&
+            Array.prototype.every.call(record.addedNodes, function (n) { return n.__pmOwnedActions === true; });
     }
 
     // ═══ ERGONOMIA INPUT (la tastiera giusta al primo tap) ══════════════
@@ -968,17 +975,33 @@ window.__pmLoaded = true;
 
     // In una PWA iOS la tastiera riduce il visual viewport, non i 100dvh.
     // Modali e menu devono restare dentro lo spazio realmente visibile.
+    var viewportFrame = null;
+    var viewportState = null;
     function syncVisualViewport() {
+        // Attivazione/rotazione aggiornano subito, anche se un evento aveva
+        // già prenotato il frame successivo.
+        if (viewportFrame !== null) { cancelAnimationFrame(viewportFrame); viewportFrame = null; }
         var vv = window.visualViewport;
-        var keyboard = st.active && vv && vv.scale === 1 && (window.innerHeight - vv.height) > 140;
-        D.body.classList.toggle('pm-kb', !!keyboard);
+        var keyboard = !!(st.active && vv && vv.scale === 1 && (window.innerHeight - vv.height) > 140);
+        var bottom = keyboard ? Math.max(0, window.innerHeight - vv.height - vv.offsetTop) : 0;
+        var state = keyboard ? [vv.height, vv.offsetTop, bottom].join('|') : 'off';
+        if (state === viewportState) return;
+        viewportState = state;
+        D.body.classList.toggle('pm-kb', keyboard);
         if (keyboard) {
             D.body.style.setProperty('--pm-vh', vv.height + 'px');
             D.body.style.setProperty('--pm-vtop', vv.offsetTop + 'px');
-            D.body.style.setProperty('--pm-vbottom', Math.max(0, window.innerHeight - vv.height - vv.offsetTop) + 'px');
+            D.body.style.setProperty('--pm-vbottom', bottom + 'px');
         } else {
             ['--pm-vh', '--pm-vtop', '--pm-vbottom'].forEach(function (p) { D.body.style.removeProperty(p); });
         }
+    }
+    function scheduleVisualViewport() {
+        if (viewportFrame !== null) return;
+        viewportFrame = requestAnimationFrame(function () {
+            viewportFrame = null;
+            syncVisualViewport();
+        });
     }
 
     // ═══ ATTIVAZIONE ════════════════════════════════════════════════════
@@ -1036,12 +1059,16 @@ window.__pmLoaded = true;
         });
         window.addEventListener('resize', debounce(syncLanes, 120));
         var main = $('#main');
-        if (main) new MutationObserver(debounce(function () {
+        var refreshMain = debounce(function () {
             if (!st.active) return;
             applyMain();
             syncTabbar();
             syncLanes();
-        }, 70)).observe(main, { childList: true, subtree: true });
+        }, 70);
+        if (main) new MutationObserver(function (records) {
+            if (records.every(ownActionsMutation)) return;
+            refreshMain();
+        }).observe(main, { childList: true, subtree: true });
         var modals = $('#modals');
         if (modals) new MutationObserver(onModalsChange).observe(modals, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
         var sidebar = $('#sidebar');
@@ -1054,10 +1081,10 @@ window.__pmLoaded = true;
         // tastiera aperta → la tab bar si toglie di mezzo (Android la farebbe
         // galleggiare sopra la tastiera; mentre si scrive non serve a nulla)
         if (window.visualViewport) {
-            window.visualViewport.addEventListener('resize', syncVisualViewport);
-            window.visualViewport.addEventListener('scroll', syncVisualViewport);
+            window.visualViewport.addEventListener('resize', scheduleVisualViewport);
+            window.visualViewport.addEventListener('scroll', scheduleVisualViewport);
         }
-        window.addEventListener('resize', syncVisualViewport);
+        window.addEventListener('resize', scheduleVisualViewport);
         D.addEventListener('keydown', function (e) {
             if (!sheetState) return;
             if (e.key === 'Escape') { e.preventDefault(); closeSheet(); return; }
