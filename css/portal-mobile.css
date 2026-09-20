@@ -40,6 +40,10 @@ body:not(.pm-on) .pm-more-btn{display:none!important}
 body.pm-on{
     -webkit-tap-highlight-color:transparent;
 }
+/* La safe-area è spazio AGGIUNTO: nei 64px border-box originali il notch
+   consumava quasi tutta la testata e i comandi finivano sotto di lui. */
+body.pm-on .header{height:calc(64px + var(--safe-t))}
+body.pm-on.pm-overlay-open{overflow:hidden}
 body.pm-on .main{
     /* il contenuto non finisce mai sotto la tab bar */
     padding-bottom:calc(var(--pm-tab-h) + var(--safe-b) + 28px)!important;
@@ -147,8 +151,8 @@ body.pm-kb .pm-tabbar{transform:translateY(110%)}  /* tastiera aperta: via */
 }
 .pm-sheet-backdrop.open{opacity:1}
 .pm-sheet{
-    position:fixed;left:0;right:0;bottom:0;z-index:401;
-    max-height:calc(100dvh - 40px - var(--safe-t));
+    position:fixed;left:0;right:0;bottom:var(--pm-vbottom,0px);z-index:401;
+    max-height:calc(var(--pm-vh,100dvh) - 40px - var(--safe-t));
     display:flex;flex-direction:column;
     background:#0C0C0E;
     border:1px solid var(--pm-hairline);border-bottom:none;
@@ -168,7 +172,13 @@ body.pm-kb .pm-tabbar{transform:translateY(110%)}  /* tastiera aperta: via */
 }
 .pm-sheet-title{font-size:16px;font-weight:600;letter-spacing:.3px}
 .pm-sheet-sub{font-size:11px;color:var(--text-muted);letter-spacing:.4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:55%}
-.pm-sheet-body{overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0 12px 8px}
+.pm-sheet-close{
+    flex:0 0 44px;width:44px;height:44px;padding:0;
+    display:flex;align-items:center;justify-content:center;
+    background:var(--bg-elevated);border:1px solid var(--border);border-radius:12px;
+    color:var(--text);font-family:inherit;font-size:24px;line-height:1;cursor:pointer;
+}
+.pm-sheet-body{min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;padding:0 12px 8px}
 
 /* Righe azione dentro lo sheet: target 52px, etichetta VERA, mai icone nude */
 .pm-sheet-item{
@@ -274,17 +284,35 @@ body.pm-on .pm-cards td.pm-td-actions .pm-src-btn{display:none!important}
 body.pm-on .pm-cards tr.pm-row-plain{display:block}
 
 /* ═══ MODALI: sheet dal basso; full-screen quando il JS stampa .pm-full ═ */
-body.pm-on .modal-overlay{padding:0;align-items:flex-end}
+body.pm-on .modal-overlay{
+    padding:0;align-items:flex-end;
+    top:var(--pm-vtop,0px);bottom:auto;height:var(--pm-vh,100dvh);
+}
 body.pm-on .modal{
     max-width:100%!important;width:100%;margin:0!important;
     border-radius:20px 20px 0 0!important;   /* batte il 16px!important di portal.css:399 */
     border-left:none;border-right:none;border-bottom:none;
     animation:pmModalUp .3s var(--pm-ease);
 }
+/* Magic Sign usa .ms-hdr/.ms-body e il suo editor: il vincolo nuovo vale
+   solo per i modali standard, il cui corpo sa restringersi e scorrere. */
+body.pm-on .modal:where(:not(.ms-modal):not(.ms-editor)){
+    max-height:calc(var(--pm-vh,100dvh) - var(--safe-t) - 12px);
+    display:flex;flex-direction:column;
+}
+/* Revoca bonifico: body e footer sono figli del form, sotto la testata. */
+body.pm-on .modal:where(:not(.ms-modal):not(.ms-editor)) > form{
+    display:flex;flex-direction:column;flex:1 1 auto;min-height:0;
+}
+/* Anche un modale corto può avere un corpo lungo: il vecchio 65vh si
+   sommava a testata/footer e overflow:hidden tagliava le azioni in fondo. */
+body.pm-on .modal-header,body.pm-on .modal-footer{flex-shrink:0}
+body.pm-on .modal-body{min-height:0;flex:1 1 auto;overscroll-behavior:contain}
+body.pm-on .modal-close{flex-shrink:0;min-width:44px;min-height:44px}
 @keyframes pmModalUp{from{transform:translateY(40px);opacity:0}to{transform:translateY(0);opacity:1}}
 body.pm-on .modal-overlay.pm-full{align-items:stretch}
 body.pm-on .pm-full .modal{
-    height:100dvh;max-height:100dvh;
+    height:100%;max-height:100%;
     border-radius:0!important;border:none;
     display:flex;flex-direction:column;
 }
@@ -313,6 +341,37 @@ body.pm-on .pm-full .form-group{margin-bottom:18px}
 body.pm-on .pm-full .form-input.error,
 body.pm-on .pm-full .form-select.error,
 body.pm-on .pm-full .form-textarea.error{border-color:var(--red)}
+
+/* La scheda Segreteria ha già il proprio layout e selettori con ID:
+   mantiene quel layout, dentro la safe-area e la tastiera visibile. */
+body.pm-on #sgFollowModal{padding:calc(10px + var(--safe-t)) 10px 10px}
+body.pm-on #sgFollowModal .sg-decision-sheet{max-height:100%}
+
+/* ═══ INBOX: compositore leggibile anche nella colonna da telefono ═══ */
+/* Gli agganci sono quelli già emessi da inboxPage/inboxThreadPanel.
+   Il thread aveva un tetto desktop e quattro tab senza wrap: su telefono
+   il compositore sforava di lato e poteva essere tagliato in fondo. */
+body.pm-on [style*="grid-template-columns:minmax(280px,360px) 1fr"]{grid-template-columns:minmax(0,1fr)!important}
+body.pm-on .inbox-list-pane + div{min-width:0}
+body.pm-on .inbox-list-pane + div > .card{max-height:none!important}
+body.pm-on .inbox-list-pane + div > .card > div:first-child,
+body.pm-on .inbox-list-pane + div > .card > div:last-child{flex-shrink:0}
+body.pm-on .inbox-list-pane + div > .card > div:first-child > div{min-width:0;overflow-wrap:anywhere}
+body.pm-on .inbox-list-pane + div > .card > div:first-child > div:first-child{flex:1 1 100%!important}
+body.pm-on .inbox-list-pane + div > .card > div:first-child > div > div:first-child,
+body.pm-on .inbox-list-pane + div > .card > div:first-child > div:last-child,
+body.pm-on .inbox-list-pane + div > .card > div:last-child > div{flex-wrap:wrap}
+body.pm-on .inbox-list-pane + div > .card > div[style*="overflow-y:auto"]{
+    flex:none!important;max-height:45dvh;min-height:120px;
+    overflow-wrap:anywhere;overscroll-behavior:contain;
+}
+body.pm-on #inboxTpl{min-width:0!important;max-width:100%}
+body.pm-on .inbox-list-pane input[type="search"],
+body.pm-on .inbox-list-pane + div .input{
+    width:100%;min-width:0;min-height:44px;padding:12px 14px;
+    background:var(--bg-input);border:1px solid var(--border);border-radius:10px;
+    color:var(--text);font-family:inherit;font-size:16px!important;
+}
 
 /* ═══ FOOTER COMPRESSO (≥4 bottoni → primaria [+ Chiudi] + ⋯) ═════════ */
 body.pm-on .modal-footer.pm-collapsed{flex-wrap:nowrap;gap:8px;justify-content:stretch}
@@ -369,8 +428,10 @@ body.pm-on .pm-wiz-footer{
 body.pm-on .pm-natwiz .pm-natpill{display:none!important}
 body.pm-on .pm-natwiz [data-pm-nav="1"]{display:none!important}
 /* le card del tipo contratto diventano target degni di un pollice */
+body.pm-on .pm-natwiz #cPage0 > div:first-child{flex-wrap:wrap}
 body.pm-on .pm-natwiz #cTypeTransitorio,
-body.pm-on .pm-natwiz #cTypeStudenti{min-height:54px;flex:1;font-size:14px}
+body.pm-on .pm-natwiz #cType32,
+body.pm-on .pm-natwiz #cTypeStudenti{min-height:54px;min-width:120px;flex:1;font-size:14px;white-space:normal}
 
 /* — AUTO-wizard (modali piatti): pagina corrente via classe gated — */
 body.pm-on .pm-autowiz .pm-wiz-pane:not(.pm-cur){display:none}

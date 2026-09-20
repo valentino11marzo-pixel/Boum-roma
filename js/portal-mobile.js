@@ -170,11 +170,19 @@ window.__pmLoaded = true;
 
     // ═══ BOTTOM SHEET (uno alla volta) ══════════════════════════════════
     var sheetState = null;
+    function syncOverlayState() {
+        var modalOpen = !!$('#modals .modal-overlay.active');
+        D.body.classList.toggle('pm-overlay-open', st.active && (!!sheetState || modalOpen));
+    }
     function closeSheet() {
         if (!sheetState) return;
         var s = sheetState; sheetState = null;
         s.panel.classList.remove('open');
         s.backdrop.classList.remove('open');
+        s.panel.style.pointerEvents = 'none';
+        s.backdrop.style.pointerEvents = 'none';
+        syncOverlayState();
+        if (s.focus && s.focus.isConnected) s.focus.focus({ preventScroll: true });
         setTimeout(function () { s.panel.remove(); s.backdrop.remove(); }, 320);
     }
     function openSheet(opts) {
@@ -182,11 +190,18 @@ window.__pmLoaded = true;
         var backdrop = el('div', 'pm-sheet-backdrop');
         var panel = el('div', 'pm-sheet');
         panel.setAttribute('role', 'dialog');
+        panel.setAttribute('aria-modal', 'true');
+        panel.setAttribute('aria-label', opts.title || 'Azioni');
         panel.appendChild(el('div', 'pm-sheet-grab'));
-        if (opts.title) {
+        {
             var head = el('div', 'pm-sheet-head');
-            head.appendChild(el('div', 'pm-sheet-title', esc(opts.title)));
+            head.appendChild(el('div', 'pm-sheet-title', esc(opts.title || 'Azioni')));
             if (opts.sub) head.appendChild(el('div', 'pm-sheet-sub', esc(opts.sub)));
+            var dismiss = el('button', 'pm-sheet-close', '×');
+            dismiss.type = 'button';
+            dismiss.setAttribute('aria-label', 'Chiudi');
+            dismiss.addEventListener('click', closeSheet);
+            head.appendChild(dismiss);
             panel.appendChild(head);
         }
         var body = el('div', 'pm-sheet-body');
@@ -231,7 +246,9 @@ window.__pmLoaded = true;
             backdrop.classList.add('open');
             panel.classList.add('open');
         });
-        sheetState = { panel: panel, backdrop: backdrop };
+        sheetState = { panel: panel, backdrop: backdrop, focus: D.activeElement };
+        syncOverlayState();
+        dismiss.focus({ preventScroll: true });
         return closeSheet;
     }
 
@@ -625,20 +642,33 @@ window.__pmLoaded = true;
         if (b) b.scrollTop = 0;
     }
     function requiredOk(pane) {
-        var need = $$('[required]', pane);
+        var need = fieldsOf(pane);
         for (var i = 0; i < need.length; i++) {
             var f = need[i];
             if (f.offsetParent === null) continue; // campo in un blocco nascosto (es. studenti spento)
-            if (!f.value) {
+            if (f.willValidate && !f.validity.valid) {
                 f.classList.add('error');
                 try { f.focus(); } catch (e) {}
                 var lab = f.closest('.form-group');
-                safeToast('warning', 'Campo obbligatorio', txt(lab && lab.querySelector('.form-label') ? lab.querySelector('.form-label').textContent : ''));
+                safeToast('warning', f.validity.valueMissing ? 'Campo obbligatorio' : 'Controlla il campo', txt(lab && lab.querySelector('.form-label') ? lab.querySelector('.form-label').textContent : ''));
+                if (f.reportValidity) f.reportValidity();
                 return false;
             }
             f.classList.remove('error');
         }
         return true;
+    }
+    function revealInvalid(panes, show) {
+        for (var i = 0; i < panes.length; i++) {
+            var field = fieldsOf(panes[i]).find(function (f) { return f.willValidate && !f.validity.valid; });
+            if (!field) continue;
+            show(i);
+            field.classList.add('error');
+            field.focus();
+            if (field.reportValidity) field.reportValidity();
+            return true;
+        }
+        return false;
     }
 
     // ═══ WIZARD NATIVO addContract (#cPage0..3) — si ristruttura ════════
@@ -676,6 +706,18 @@ window.__pmLoaded = true;
             ui.update(i, 4, { lastLabel: '📋 Crea contratto', cancelLabel: 'Annulla' });
             scrollModalTop(modal);
         }
+        function navigate(to) {
+            var from = visibleIdx();
+            if (to > from) {
+                for (var i = from; i < to; i++) {
+                    if (!requiredOk(pages[i])) return;
+                    var next = nativeBtn(pages[i], i + 1);
+                    if (next) next.click();
+                    else if (typeof window.contractWizardNav === 'function') window.contractWizardNav(i + 1);
+                    if (visibleIdx() !== i + 1) return; // l'autorità resta il wizard originale
+                }
+            } else if (typeof window.contractWizardNav === 'function') window.contractWizardNav(to);
+        }
         ui.back.addEventListener('click', function () {
             var i = visibleIdx();
             if (i === 0) { if (typeof window.closeModal === 'function') window.closeModal(); return; }
@@ -685,16 +727,16 @@ window.__pmLoaded = true;
         ui.next.addEventListener('click', function () {
             var i = visibleIdx();
             if (i === 3) {
+                if (revealInvalid(pages, navigate)) return;
                 var submit = $('button[type="submit"]', pages[3]);
                 if (submit) submit.click();
                 return;
             }
-            var b = nativeBtn(pages[i], i + 1);
-            if (b) b.click(); else if (typeof window.contractWizardNav === 'function') window.contractWizardNav(i + 1);
+            navigate(i + 1);
         });
         $$('.pm-wiz-dot', ui.prog).forEach(function (d) {
             d.addEventListener('click', function () {
-                if (typeof window.contractWizardNav === 'function') window.contractWizardNav(parseInt(d.dataset.i, 10));
+                navigate(parseInt(d.dataset.i, 10));
             });
         });
         // il loro nav scrive display inline sulle pagine: il chrome si tiene
@@ -768,6 +810,9 @@ window.__pmLoaded = true;
         }
         // i capitoli vuoti (es. "Studenti" su un transitorio, che non viene
         // proprio renderizzato) spariscono dal percorso
+        // Decidere PRIMA di spostare i campi: un solo capitolo conserva
+        // il form originale, invece di lasciarlo vuoto in un pane staccato.
+        if (buckets.filter(function (b) { return b.length; }).length < 2) return false;
         var panes = [];
         var keptTitles = [];
         titles.forEach(function (t, i) {
@@ -777,7 +822,6 @@ window.__pmLoaded = true;
             buckets[i].forEach(function (b) { pane.appendChild(b); }); // MOVE, mai clone
             panes.push(pane);
         });
-        if (panes.length < 2) return false;
         keptTitles.push('Riepilogo');
         var recap = el('div', 'pm-wiz-pane pm-wiz-recappane');
         recap.appendChild(el('div', 'pm-wiz-recap'));
@@ -827,6 +871,7 @@ window.__pmLoaded = true;
         });
         ui.next.addEventListener('click', function () {
             if (cur === panes.length - 1) {
+                if (revealInvalid(panes, show)) return;
                 if (saveBtn) saveBtn.click();
                 else if (form.requestSubmit) form.requestSubmit();
                 else if (form.submit) form.submit();
@@ -838,7 +883,12 @@ window.__pmLoaded = true;
         $$('.pm-wiz-dot', ui.prog).forEach(function (d) {
             d.addEventListener('click', function () {
                 var i = parseInt(d.dataset.i, 10);
-                if (i > cur && !requiredOk(panes[cur])) return;
+                if (i > cur) {
+                    for (var step = cur; step < i; step++) {
+                        show(step);
+                        if (!requiredOk(panes[step])) return;
+                    }
+                }
                 show(i);
             });
         });
@@ -913,6 +963,22 @@ window.__pmLoaded = true;
         var overlay = $('#modals .modal-overlay');
         if (overlay) enhanceModal(overlay);
         else closeSheet(); // il modale è sparito: nessuno sheet orfano sopra il nulla
+        syncOverlayState();
+    }
+
+    // In una PWA iOS la tastiera riduce il visual viewport, non i 100dvh.
+    // Modali e menu devono restare dentro lo spazio realmente visibile.
+    function syncVisualViewport() {
+        var vv = window.visualViewport;
+        var keyboard = st.active && vv && vv.scale === 1 && (window.innerHeight - vv.height) > 140;
+        D.body.classList.toggle('pm-kb', !!keyboard);
+        if (keyboard) {
+            D.body.style.setProperty('--pm-vh', vv.height + 'px');
+            D.body.style.setProperty('--pm-vtop', vv.offsetTop + 'px');
+            D.body.style.setProperty('--pm-vbottom', Math.max(0, window.innerHeight - vv.height - vv.offsetTop) + 'px');
+        } else {
+            ['--pm-vh', '--pm-vtop', '--pm-vbottom'].forEach(function (p) { D.body.style.removeProperty(p); });
+        }
     }
 
     // ═══ ATTIVAZIONE ════════════════════════════════════════════════════
@@ -925,6 +991,8 @@ window.__pmLoaded = true;
         var overlay = $('#modals .modal-overlay');
         if (overlay && !overlay.dataset.pmDone) enhanceModal(overlay);
         syncTabbarVisibility();
+        syncOverlayState();
+        syncVisualViewport();
     }
     function deactivate() {
         if (!st.active) return;
@@ -932,6 +1000,8 @@ window.__pmLoaded = true;
         D.body.classList.remove('pm-on');
         closeSheet();
         if (tabbar) tabbar.hidden = true;
+        syncOverlayState();
+        syncVisualViewport();
     }
     function onViewportChange() { if (mq.matches) activate(); else deactivate(); }
 
@@ -973,7 +1043,7 @@ window.__pmLoaded = true;
             syncLanes();
         }, 70)).observe(main, { childList: true, subtree: true });
         var modals = $('#modals');
-        if (modals) new MutationObserver(onModalsChange).observe(modals, { childList: true });
+        if (modals) new MutationObserver(onModalsChange).observe(modals, { childList: true, subtree: true, attributes: true, attributeFilter: ['class'] });
         var sidebar = $('#sidebar');
         if (sidebar) new MutationObserver(debounce(function () {
             if (!st.active) return;
@@ -984,11 +1054,21 @@ window.__pmLoaded = true;
         // tastiera aperta → la tab bar si toglie di mezzo (Android la farebbe
         // galleggiare sopra la tastiera; mentre si scrive non serve a nulla)
         if (window.visualViewport) {
-            window.visualViewport.addEventListener('resize', function () {
-                var kb = (window.innerHeight - window.visualViewport.height) > 140;
-                D.body.classList.toggle('pm-kb', kb);
-            });
+            window.visualViewport.addEventListener('resize', syncVisualViewport);
+            window.visualViewport.addEventListener('scroll', syncVisualViewport);
         }
+        window.addEventListener('resize', syncVisualViewport);
+        D.addEventListener('keydown', function (e) {
+            if (!sheetState) return;
+            if (e.key === 'Escape') { e.preventDefault(); closeSheet(); return; }
+            if (e.key !== 'Tab') return;
+            var focusable = $$('button:not([disabled]),a[href],input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex="0"]', sheetState.panel)
+                .filter(function (n) { return n.getClientRects().length; });
+            if (!focusable.length) return;
+            var first = focusable[0], last = focusable[focusable.length - 1];
+            if (e.shiftKey && (D.activeElement === first || !sheetState.panel.contains(D.activeElement))) { e.preventDefault(); last.focus(); }
+            else if (!e.shiftKey && (D.activeElement === last || !sheetState.panel.contains(D.activeElement))) { e.preventDefault(); first.focus(); }
+        });
         // il campo che prende il focus si porta in vista sopra la tastiera
         D.addEventListener('focusin', function (e) {
             if (!st.active) return;

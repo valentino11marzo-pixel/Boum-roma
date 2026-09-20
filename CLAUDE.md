@@ -1855,6 +1855,13 @@ Un giro solo, otto interventi, 33 suite verdi:
   WIZ pinnati su portal-app.js, CSS gated, sw, -webkit-) + `node
   tests/mobile/ui.mjs` (35 check in Chromium vero a 390px col
   contractWizardNav REALE estratto).
+- **Correzioni admin mobile (20/09/2026)** — M2 conservava i campi soltanto
+  dopo averli spostati: un solo capitolo svuotava il form. Ora decide prima;
+  email/numeri invalidi e passi saltati riportano al campo visibile prima del salvataggio.
+  Menu e modali bloccano lo scroll sottostante; Menu ha Chiudi/Escape e ritorno del focus.
+  Testata con notch, finestre/azioni sopra la tastiera, footer e Inbox rispettano lo spazio
+  disponibile; Magic Sign conserva il layout dedicato. Test: `tests/mobile/ui.mjs`
+  (dati sintetici, geometria e validazione); `--serve` espone la stessa prova locale.
 - **OGGI — la coda delle decisioni** (`js/oggi-engine.js` → `window.BOOM_OGGI`
   + `oggiPage()` nel portal, 2026-08-19): la prima schermata dell'admin. La
   macchina lavora da sola e all'operatore restano le DECISIONI — che su
