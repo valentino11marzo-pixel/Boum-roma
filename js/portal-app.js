@@ -794,6 +794,10 @@ Valentyne - BOOM Rome`
     window.BOOM_PROPERTY_DOSSIER?.configure({
         state: () => S, navigate: page => goTo(page), render: () => renderPage(),
         refresh: () => loadDataFresh(true),
+        restoreOrigin: origin => {
+            if (origin.page === 'oggi' && origin.context?.taskId)
+                oggiSegretaria.propertyReturn = { ...origin.context, scroll: origin.scroll, afterGeneration: oggiSegretaria.generation + (oggiSegretaria.loading ? 0 : 1) };
+        },
         actions: { contract: id => viewContract(id), maintenance: id => viewMaintenance(id),
             task: id => editTask(id), person: id => viewUser(id),
             payment: (unit, month, id) => openRentUnit(unit, month, id),
@@ -4895,6 +4899,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             : total ? 'Il lavoro resta visibile fino a una chiusura con esito.' : 'Le nuove richieste compariranno qui con il loro prossimo passo.';
         const row = (task, group) => {
             const d = E.describe(task, oggiSegretaria.dossiers[task.id], S, now);
+            const property = isAdmin() && window.BOOM_PROPERTY_DOSSIER?.open ? E.propertyTarget?.(task, oggiSegretaria.dossiers[task.id], S) : null;
             const p = oggiSegretariaPreparation(task), n = p?.nextAction, receipt = oggiSegretariaReceipt(task), reviewIssue = E.reviewReason?.(task) || (task.preparationReview ? 'La richiesta richiede una verifica prima di proseguire.' : '');
             const title = p && !p.approval ? p.recommendation : n?.text || d.nextAction;
             const capReached = oggiSegretariaLegacyCap();
@@ -4914,7 +4919,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ${receipt ? `<p class="sg-receipt" role="status">${esc(receipt)}</p>` : task.preparation && !p ? '<p class="sg-inline-notice">La proposta precedente va aggiornata.</p>' : ''}
                 </div>
                 <div class="sg-case-action"><button class="btn ${p && !p.approval && p.status === 'ready' ? 'btn-secondary' : 'sg-primary'}" type="button" data-sg-primary data-sg-action="${action}" data-sg-id="${esc(task.id)}" ${window.BOOM_PROPOSTA ? '' : 'disabled'}>${label}<span aria-hidden="true">↗</span></button>${p && !p.approval && p.status === 'ready' ? `<button class="btn sg-primary sg-start-plan" type="button" data-sg-action="plan" data-sg-id="${esc(task.id)}">Esegui piano<span aria-hidden="true">→</span></button>` : ''}</div>
-                <details class="sg-case-details" data-sg-detail="${esc(key)}" ${opened.has(key) ? 'open' : ''}><summary>Contesto e altre azioni<span aria-hidden="true">+</span></summary><div class="sg-case-detail-body"><dl class="sg-relations"><div><dt>Persona</dt><dd>${esc(d.name)}</dd></div><div><dt>Flat</dt><dd>${esc(d.house)}</dd></div><div><dt>Pratica</dt><dd>${esc(d.practice)}</dd></div><div><dt>Prossima azione</dt><dd>${esc(n?.text || d.nextAction)}</dd></div></dl><div class="sg-secondary-actions"><button class="btn btn-secondary" type="button" data-sg-action="edit" data-sg-id="${esc(task.id)}">Correggi seguito</button><button class="btn btn-secondary" type="button" data-sg-action="source" data-sg-id="${esc(task.id)}" ${d.conversationId ? '' : 'disabled'}>Apri conversazione</button></div></div></details>
+                <details class="sg-case-details" data-sg-detail="${esc(key)}" ${opened.has(key) ? 'open' : ''}><summary>Contesto e altre azioni<span aria-hidden="true">+</span></summary><div class="sg-case-detail-body"><dl class="sg-relations"><div><dt>Persona</dt><dd>${esc(d.name)}</dd></div><div><dt>Flat</dt><dd>${esc(d.house)}</dd></div><div><dt>Pratica</dt><dd>${esc(d.practice)}</dd></div><div><dt>Prossima azione</dt><dd>${esc(n?.text || d.nextAction)}</dd></div></dl><div class="sg-secondary-actions">${property?.id ? `<button class="btn btn-secondary" type="button" data-sg-action="property" data-sg-id="${esc(task.id)}" data-sg-property="${esc(property.id)}">Apri immobile</button>` : ''}<button class="btn btn-secondary" type="button" data-sg-action="edit" data-sg-id="${esc(task.id)}">Correggi seguito</button><button class="btn btn-secondary" type="button" data-sg-action="source" data-sg-id="${esc(task.id)}" ${d.conversationId ? '' : 'disabled'}>Apri conversazione</button></div></div></details>
             </article>`;
         };
         const section = (key, title, description, empty) => `<section class="sg-group sg-group--${key}" data-sg-group="${key}" aria-labelledby="sg-group-${key}"><header class="sg-group-header"><h3 id="sg-group-${key}">${title}<span class="sg-count">${groups[key].length}</span></h3><p>${description}</p></header><div class="sg-group-cases">${groups[key].length ? groups[key].slice(0, key === 'preparing' ? oggiSegretaria.preparingVisible : groups[key].length).map(task => row(task, key)).join('') : `<p class="sg-empty">${empty}</p>`}</div>${key === 'preparing' && groups[key].length > oggiSegretaria.preparingVisible ? `<button class="btn sg-refresh sg-load-more" type="button" data-sg-action="more-preparing">Mostra altre richieste · ${groups[key].length - oggiSegretaria.preparingVisible} ancora da vedere</button>` : ''}</section>`;
@@ -4933,6 +4938,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             if (button.dataset.sgAction === 'more-preparing') { oggiSegretaria.preparingVisible += 12; oggiSegretariaRender(); return; }
             const task = oggiSegretaria.rows.find(t => t.id === button.dataset.sgId);
             if (!task) return;
+            if (button.dataset.sgAction === 'property') {
+                if (!isAdmin() || !window.BOOM_PROPERTY_DOSSIER?.open) return;
+                const target = E.propertyTarget?.(task, oggiSegretaria.dossiers[task.id], S);
+                if (!target?.id || target.id !== button.dataset.sgProperty) {
+                    toast('warning', 'Il collegamento all’immobile è cambiato. Controlla il contesto aggiornato.');
+                    oggiSegretariaRender(); return;
+                }
+                return window.BOOM_PROPERTY_DOSSIER.open(target.id, {
+                    taskId: task.id,
+                    opened: [...panel.querySelectorAll('details[open][data-sg-detail]')].map(el => el.dataset.sgDetail)
+                });
+            }
             if (button.dataset.sgAction === 'edit') return oggiSegretariaOpen(task.id);
             if (button.dataset.sgAction === 'plan') return oggiSegretariaOpen(task.id, '', 'execute');
             if (['review', 'generate', 'inspect'].includes(button.dataset.sgAction)) return oggiSegretariaOpen(task.id, '', 'review', button.dataset.sgAction === 'generate');
@@ -4943,6 +4960,29 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             (focusKey ? controls.find(el => el.dataset.sgAction === focusKey && el.dataset.sgId === focusId)
                 : [...panel.querySelectorAll('details[data-sg-detail]')].find(el => el.dataset.sgDetail === focusDetail)?.querySelector('summary'))?.focus({ preventScroll: true });
         }
+        oggiSegretariaRestorePropertyContext(panel);
+    }
+    function oggiSegretariaRestorePropertyContext(panel) {
+        const context = oggiSegretaria.propertyReturn;
+        if (!context || S.page !== 'oggi' || oggiSegretaria.loading || !oggiSegretaria.loaded || oggiSegretaria.generation < context.afterGeneration) return;
+        oggiSegretaria.propertyReturn = null;
+        const opened = new Set(context.opened || []);
+        panel.querySelectorAll('details[data-sg-detail]').forEach(el => { if (opened.has(el.dataset.sgDetail)) el.open = true; });
+        requestAnimationFrame(() => {
+            if (S.page !== 'oggi' || !panel.isConnected) return;
+            window.BOOM_MOBILE?.refresh?.();
+            requestAnimationFrame(() => {
+                if (S.page !== 'oggi' || !panel.isConnected) return;
+                const row = [...panel.querySelectorAll('article[data-sg-id]')].find(el => el.dataset.sgId === context.taskId);
+                const control = row?.querySelector('[data-sg-action="property"]') || row?.querySelector('summary');
+                if (control) {
+                    control.focus({ preventScroll: true }); window.scrollTo(0, context.scroll);
+                    const rect = control.getBoundingClientRect();
+                    if (rect.bottom < 0 || rect.top > window.innerHeight) control.scrollIntoView({ block: 'center' });
+                }
+                else { const heading = panel.querySelector('h2'); if (heading) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); heading.scrollIntoView({ block: 'start' }); } }
+            });
+        });
     }
     function oggiSegretariaMount() {
         if (!document.getElementById('sgFollowPanel') || !isAdmin()) return;
@@ -4950,7 +4990,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (oggiSegretaria.userId !== uid) {
             oggiSegretariaStopLive();
             oggiSegretaria.generation++;
-            Object.assign(oggiSegretaria, { userId: uid, rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false, readAt: null, monitoring: null, liveError: false, preparingVisible: 12 });
+            Object.assign(oggiSegretaria, { userId: uid, rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false, readAt: null, monitoring: null, liveError: false, preparingVisible: 12, propertyReturn: null });
         }
         oggiSegretariaStartLive();
         oggiSegretariaRender();

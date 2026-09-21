@@ -4545,7 +4545,8 @@ La scheda admin passa dal modale al percorso `#property/<id>/<sezione>`: situazi
 `property-dossier.js` e CSS dedicato rendono tutti i contratti attivi, documenti con URL sicuri e cronologia di soli eventi datati/provati. Core e attività lazy hanno stati di lettura separati: un errore conserva attività/scadenze precedenti con avviso persistente, senza aggiornare la data della lettura riuscita; il limite di 800 attività resta esplicito.
 La modifica delle attività preserva lo stato remoto (anche una chiusura concorrente): `saveTask` invia lo stato solo alla creazione, con prova `propertytaskedit` e mutazione.
 Nessuna lettura massiva aggiuntiva, invio, incasso o chiamata AI all’apertura. Le azioni riusano le autorizzazioni/conferme esistenti. Boot, precedenza Innesto e router hash generale restano invariati.
-Prove: `propertymodel` (mutazioni), `propertyload`, `propertyrender`, `propertyui` (1440/390/320px, navigazione e dettagli reali, soli dati sintetici). `sw.js` v25 invalida gli asset precedenti.
+Da Oggi, «Apri immobile» usa solo un riferimento `properties/<id>` confermato, presente e coerente con la pratica; ricontrolla ruolo e ID al click. Il ritorno attende la lettura dei seguiti e ripristina dettagli, posizione e focus del caso ancora presente, senza ripristinare casi chiusi. Il contesto di navigazione vive solo in memoria.
+Prove: `propertymodel` (mutazioni), `propertyload`, `propertyrender`, `propertyui`, `propertyoggitarget` e `propertyoggiui` (1440/390/320px, navigazione e dettagli reali, soli dati sintetici). `sw.js` v25 invalida gli asset precedenti.
 
 ## Portals (logged-in surfaces)
 

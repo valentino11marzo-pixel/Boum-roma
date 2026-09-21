@@ -131,10 +131,10 @@
       else if(kind==='valuation' && m.property.id===id) adapter.actions.valuation(id);
     });
   }
-  function open(id) {
+  function open(id, context=null) {
     if(!adapter || adapter.state().profile?.role!=='admin') return;
     const state=adapter.state();
-    if(!parseRoute(state.page)) origin={page:state.page,scroll:root.scrollY || 0,search:root.document.getElementById('propertySearch')?.value || '',filter:root.document.querySelector('#main [data-filter]:not(.btn-secondary)')?.dataset.filter || 'all',id};
+    if(!parseRoute(state.page)) origin={page:state.page,scroll:root.scrollY || 0,search:root.document.getElementById('propertySearch')?.value || '',filter:root.document.querySelector('#main [data-filter]:not(.btn-secondary)')?.dataset.filter || 'all',id,context};
     root.document.getElementById('modals')?.replaceChildren();
     root.document.body.classList.remove('modal-open');
     focusRequest='title';adapter.navigate(routeFor(id));
@@ -160,6 +160,9 @@
       const row=Array.from(root.document.querySelectorAll('[data-property-id]')).find(el=>el.dataset.propertyId===origin.id); row?.focus({preventScroll:true});root.scrollTo(0,origin.scroll);focusRequest=null;
       });
       });
+    } else if(changed && origin?.page===currentPage) {
+      adapter.restoreOrigin?.(origin);
+      focusRequest=null;
     }
   }
   function setSourceState(status) {

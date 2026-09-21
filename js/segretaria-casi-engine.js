@@ -41,6 +41,32 @@
     }
     return 'Casa collegata · nome da verificare';
   }
+  // Navigation uses the saved, confirmed association. A listing, a person's
+  // other homes or a suggested practice can never supply a property ID.
+  function propertyTarget(task, dossier, state) {
+    var f = task && task.followUp;
+    var unavailable = function (reason) { return { id: null, reason: reason }; };
+    if (!task || !validId(task.id) || task.status !== 'open' || !f || typeof f !== 'object' || Array.isArray(f))
+      return unavailable('Seguito non disponibile.');
+    if (f.confirmed !== true || f.needsReview === true || f.ambiguous === true)
+      return unavailable('Collegamento da confermare.');
+    if (!text(f.practiceRef)) return unavailable('Pratica da collegare.');
+    var ref = typeof f.propertyRef === 'string' ? f.propertyRef : '';
+    if (!ref) return unavailable('Immobile da collegare.');
+    var match = /^properties\/([^/\x00-\x1f\x7f]+)$/.exec(ref);
+    if (!match || match[1] !== match[1].trim() || match[1] === '.' || match[1] === '..')
+      return unavailable(ref.startsWith('listings/') ? 'Annuncio non collegato a un immobile gestito.' : 'Riferimento immobile da verificare.');
+    if (dossier != null) {
+      if (typeof dossier !== 'object' || Array.isArray(dossier)) return unavailable('Contesto della pratica da verificare.');
+      if (dossier.identityIncomplete || dossier.identityAmbiguous) return unavailable('Identità da verificare.');
+      var selected = (Array.isArray(dossier.practices) ? dossier.practices : []).filter(function (p) { return p && p.ref === f.practiceRef; });
+      if (selected.length !== 1) return unavailable('Pratica selezionata da verificare.');
+      var refs = selected[0].propertyRefs;
+      if (!Array.isArray(refs) || refs.length !== 1 || refs[0] !== ref) return unavailable('Collegamento immobile discordante o non univoco.');
+    }
+    var loaded = state && Array.isArray(state.properties) && state.properties.some(function (p) { return p && p.id === match[1]; });
+    return loaded ? { id: match[1], reason: '' } : unavailable('Immobile non presente nei dati caricati.');
+  }
   // The API derives this flag after checking the event and decision hash.
   // A persisted retry alone does not prove that the issue is still current.
   function reviewReason(task) {
@@ -127,5 +153,5 @@
       nextAction: action, waitingOn: fields.waitingOn, waitingLabel: label, checkAt: new Date(ms).toISOString() } };
   }
   return Object.freeze({ partition: partition, workGroups: workGroups, reviewReason: reviewReason, describe: describe, practiceLabel: practiceLabel,
-    propertyLabel: propertyLabel, localDateTime: localDateTime, confirmation: confirmation, validId: validId, WAITING: Object.freeze(WAITING) });
+    propertyLabel: propertyLabel, propertyTarget: propertyTarget, localDateTime: localDateTime, confirmation: confirmation, validId: validId, WAITING: Object.freeze(WAITING) });
 });
