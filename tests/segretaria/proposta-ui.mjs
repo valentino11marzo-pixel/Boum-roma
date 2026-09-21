@@ -149,6 +149,133 @@ try {
     await page.waitForFunction(before => window.__requests.filter(r => r.path.endsWith('/follow-up') && r.method === 'GET' && !r.query).length > before, before, { timeout: 5000 });
     assert.deepEqual(errors, []);
   };
+  // --review-fixes runs just the independently failing review regressions.
+  const reviewFailures = [];
+  const reviewCheck = async (name, check) => {
+    try { await check(); ok(name); }
+    catch (error) { reviewFailures.push(error); console.error('FAIL ' + name + ': ' + error.message); }
+  };
+  await reviewCheck('review non approvata: dubbi, copertura, identità, passaggio umano e ownership precedono il piano senza abilitare effetti', async () => {
+    await load();
+    await page.evaluate(async () => {
+      const p = window.__rows[0].preparation;
+      p.status = 'needs_context'; p.identityBlocked = true;
+      p.uncertainties = [{ text: 'Manca la conferma della persona che parteciperà.' }];
+      p.coverage = { version: 2, incomplete: true, reasons: ['attachments_not_read'] };
+      p.handoff = { needed: true, reason: 'Valentino deve verificare chi partecipa.' };
+      p.replyOwnership = { blocked: false, incomplete: true, owner: null };
+      await oggiSegretariaLoad(true);
+    });
+    await open(ids[0]);
+    const warnings = [
+      page.locator('#sgPreparationReview .sg-questions'),
+      page.locator('#sgReplyOwnership'),
+      page.locator('#sgPreparationReview').getByText('Servono informazioni prima di confermare. Apri le fonti e correggi il seguito.', { exact: true }),
+      page.locator('#sgPreparationReview').getByText('Valentino deve verificare chi partecipa.', { exact: false }).last()
+    ];
+    assert.match(await warnings[0].innerText(), /Manca la conferma della persona/);
+    assert.match(await warnings[0].innerText(), /Gli allegati non sono stati letti/);
+    for (const warning of warnings) {
+      await outsideDisclosure(warning);
+      assert.equal(await warning.getAttribute('role'), 'status');
+      assert.equal(await warning.evaluate(el => !!(el.compareDocumentPosition(document.getElementById('sgExecutionPlan')) & Node.DOCUMENT_POSITION_FOLLOWING)), true, 'Avviso dopo il piano: ' + await warning.innerText());
+    }
+    assert.equal(await page.locator('#sgPreparationReview .sg-questions').getAttribute('role'), 'status');
+    assert.equal(await page.locator('[data-sg-modal="approve"]').isDisabled(), true);
+    await page.locator('[data-sg-modal="approve"]').evaluate(el => el.click());
+    for (const mode of ['execute', 'review']) {
+      await page.evaluate(mode => { oggiSegretaria.modal.mode = mode; oggiSegretariaModalRender(); }, mode);
+      assert.equal(await page.locator('#sgExecutionPlan').count(), 1);
+      assert.equal(await page.locator('#sgReviewWarnings').evaluate(el => !!(el.compareDocumentPosition(document.getElementById('sgExecutionPlan')) & Node.DOCUMENT_POSITION_FOLLOWING)), true);
+      assert.equal(await page.locator('[data-sg-modal="approve"]').isDisabled(), true);
+    }
+    assert.equal((await posts()).length, 0);
+  });
+  await reviewCheck('proposta approvata: dubbi ancora leggibili con etichetta coerente, senza una nuova decisione o conferma', async () => {
+    await load();
+    await page.evaluate(async () => {
+      const task = window.__rows[0], p = task.preparation;
+      p.uncertainties = [{ text: 'L’allegato non era disponibile nella proposta approvata.' }];
+      p.approval = { revision: p.revision, messageId: task.followUp.lastMessageId, actionId: 'fixture-action' };
+      task.deliveryResult = { actionId: 'fixture-action', delivery: 'queued', confirmed: true };
+      await oggiSegretariaLoad(true);
+    });
+    assert.doesNotMatch(await card(ids[0]).locator('.sg-questions').innerText(), /prima di decidere/i);
+    assert.match(await card(ids[0]).locator('.sg-questions').innerText(), /proposta approvata/i);
+    await open(ids[0]);
+    await outsideDisclosure(page.locator('#sgPreparationReview .sg-questions'));
+    assert.doesNotMatch(await page.locator('#sgPreparationReview .sg-questions').innerText(), /prima di decidere/i);
+    assert.match(await page.locator('#sgPreparationReview .sg-questions').innerText(), /L’allegato non era disponibile/);
+    assert.equal(await page.locator('[data-sg-modal="approve"]').count(), 0);
+    assert.equal(await page.locator('#sgExecutionPlan').count(), 1);
+    assert.equal(await page.locator('[data-sg-step="reply"]').getAttribute('data-sg-step-state'), 'queued');
+    assert.equal((await posts()).length, 0);
+  });
+  const loadPreparing = async () => {
+    await load();
+    return page.evaluate(async () => {
+      const firstCheck = Date.now() + 86400000;
+      const preparing = Array.from({ length: 25 }, (_, index) => {
+        const task = demoTask('sg_' + (index + 1).toString(16).padStart(32, '0'), 'Richiesta da preparare ' + (index + 1), 'pending-' + index, 'viewingRequests/v1');
+        task.followUp.checkAt = new Date(firstCheck + index * 60000).toISOString();
+        return task;
+      });
+      const decision = demoTask('sg_' + 'f'.repeat(32), 'Decisione in lettura', 'c1', 'viewingRequests/v1');
+      decision.followUp.checkAt = new Date(firstCheck + 26 * 60000).toISOString();
+      decision.preparation = demoPreparation(decision);
+      window.__rows = [...preparing, decision];
+      await oggiSegretariaLoad(true);
+      return { pending: preparing.map(task => task.id), decision: decision.id };
+    });
+  };
+  await reviewCheck('nuovo messaggio sposta la review aperta oltre 25 richieste da preparare: card conservata e focus restituito senza POST', async () => {
+    const cases = await loadPreparing();
+    assert.equal(await page.locator('[data-sg-group="preparing"] article').count(), 12);
+    assert.equal(await page.locator('[data-sg-group="preparing"] .sg-count').innerText(), '25');
+    await open(cases.decision);
+    await page.evaluate(async () => {
+      window.__reviewBeforeInbound = document.getElementById('sgFollowModal');
+      const task = window.__rows.at(-1);
+      task.followUp.lastMessageId = 'new-inbound-after-review';
+      task.followUp.preview = 'È arrivato un documento diverso da verificare.';
+      await oggiSegretariaLoad(true);
+    });
+    assert.equal(await page.locator('[data-sg-group="preparing"] .sg-count').innerText(), '26');
+    assert.equal(await card(cases.decision).count(), 1, 'Il caso in review è sparito oltre il limite Da preparare');
+    assert.equal(await card(cases.decision).locator('.sg-source-preview').innerText(), 'È arrivato un documento diverso da verificare.');
+    assert.equal(await card(cases.decision).locator('.sg-ai-reading').count(), 0);
+    assert.equal(await page.evaluate(() => window.__reviewBeforeInbound === document.getElementById('sgFollowModal')), true);
+    await page.keyboard.press('Escape');
+    assert.equal(await card(cases.decision).locator('[data-sg-primary]').evaluate(el => el === document.activeElement), true);
+    assert.equal((await posts()).length, 0);
+  });
+  await reviewCheck('richiesta da preparare riordinata oltre il limite conserva dettagli aperti e focus durante lettura reale', async () => {
+    const cases = await loadPreparing();
+    const details = card(cases.pending[0]).locator('.sg-case-details');
+    await details.locator('summary').focus();
+    await page.keyboard.press('Enter');
+    await page.evaluate(async () => {
+      window.__rows[0].followUp.checkAt = new Date(Date.parse(window.__rows.at(-1).followUp.checkAt) + 60000).toISOString();
+      await oggiSegretariaLoad(true);
+    });
+    assert.equal(await card(cases.pending[0]).count(), 1, 'La richiesta in lettura è sparita oltre il limite Da preparare');
+    assert.equal(await details.evaluate(el => el.open), true);
+    assert.equal(await details.locator('summary').evaluate(el => el === document.activeElement), true);
+    assert.equal((await posts()).length, 0);
+  });
+  await reviewCheck('ritorno dal fascicolo conserva richieste da preparare oltre il limite e gli altri dettagli aperti', async () => {
+    const cases = await loadPreparing();
+    await page.evaluate(async pending => {
+      oggiSegretaria.propertyReturn = { taskId: pending[24], opened: ['case-' + pending[23], 'case-' + pending[24]], scroll: 0, afterGeneration: oggiSegretaria.generation + 1 };
+      await oggiSegretariaLoad(true);
+    }, cases.pending);
+    assert.equal(await card(cases.pending[24]).count(), 1, 'La richiesta di ritorno resta nascosta dal limite Da preparare');
+    await page.waitForFunction(id => document.activeElement?.closest('article')?.dataset.sgId === id, cases.pending[24]);
+    for (const id of cases.pending.slice(23)) assert.equal(await card(id).locator('.sg-case-details').evaluate(el => el.open), true);
+    assert.equal((await posts()).length, 0);
+  });
+  if (reviewFailures.length) throw new AggregateError(reviewFailures, reviewFailures.length + ' regressioni review non superate');
+  if (!process.argv.includes('--review-fixes')) {
   await load();
   assert.equal(await page.locator('article[data-sg-id]').count(), 3);
   assert.match(await page.locator('#sgFollowPanel').innerText(), /Giulia chiede conferma della visita/);
@@ -163,8 +290,10 @@ try {
   assert.equal(await card(ids[0]).locator('.sg-source-preview').innerText(), firstTask.followUp.preview);
   assert.equal(await card(ids[0]).locator('.sg-received time').getAttribute('datetime'), firstTask.followUp.lastInboundAt);
   assert.ok((await card(ids[0]).locator('.sg-received time').innerText()).trim());
+  assert.match(await card(ids[0]).locator('.sg-received time').innerText(), /2026/);
   assert.equal(await card(ids[0]).locator('.sg-ai-recommendation').innerText(), firstTask.preparation.summary);
   assert.equal(await card(ids[0]).locator('.sg-ai-reading time').getAttribute('datetime'), firstTask.preparation.createdAt);
+  assert.match(await card(ids[0]).locator('.sg-ai-reading time').innerText(), /2026/);
   assert.notEqual(await card(ids[0]).locator('.sg-received time').getAttribute('datetime'), await card(ids[0]).locator('.sg-ai-reading time').getAttribute('datetime'));
   assert.doesNotMatch(await card(ids[0]).locator('.sg-received').innerText(), /Giulia chiede conferma della visita/);
   assert.equal(await card(ids[0]).locator('h4.sg-case-title').innerText(), firstTask.preparation.nextAction.text);
@@ -190,7 +319,7 @@ try {
   await page.setViewportSize({ width: 1365, height: 1000 });
   await button(ids[0], 'review').click();
   await page.waitForSelector('#sgExecutionPlan');
-  assert.equal(await page.locator('#sgExecutionPlan').evaluate(el => !!(el.compareDocumentPosition(document.getElementById('sgPreparationReview')) & Node.DOCUMENT_POSITION_FOLLOWING)), true);
+  assert.equal(await page.locator('#sgExecutionPlan').evaluate(el => !!(el.compareDocumentPosition(document.querySelector('#sgPreparationReview .sg-recommendation')) & Node.DOCUMENT_POSITION_FOLLOWING)), true);
   assert.equal(await page.locator('#sgExecutionPlan [data-sg-step]').count(), 3);
   assert.match(await page.locator('#sgExecutionPlan').innerText(), /WhatsApp/);
   assert.equal(await page.locator('[data-sg-modal="approve"]').innerText(), 'Approva ed esegui');
@@ -302,6 +431,7 @@ try {
   });
   const doubts = card(ids[2]).locator('.sg-questions');
   await outsideDisclosure(doubts);
+  assert.equal(await doubts.getAttribute('role'), 'status');
   assert.match(await doubts.innerText(), /La casa non è indicata nel messaggio/);
   assert.match(await doubts.innerText(), /Ci sono più pratiche possibili/);
   assert.match(await doubts.innerText(), /Gli allegati non sono stati letti/);
@@ -750,6 +880,7 @@ try {
   });
   for (const entry of contrast) assert.ok(entry.ratio >= 4.5, `${entry.selector}: ${entry.ratio}`);
   ok('contrasto testo delle superfici principali almeno 4.5:1');
+  }
 
   assert.deepEqual(errors, []);
   assert.deepEqual(network, []);

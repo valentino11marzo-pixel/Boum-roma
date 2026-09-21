@@ -3798,6 +3798,10 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
 
 ### LA SEGRETARIA (`js/segretaria-engine.js` + `api/segretaria/_core.js` + 🤖 sulla card)
 
+- **Revisione Oggi dopo confronto Claude (21/09)**: le avvertenze della proposta non approvata precedono il piano, con dubbi/copertura annunciati; destinatario e testo restano esposti prima della conferma.
+  Un nuovo ingresso può spostare il caso da Decisioni a Da preparare: entrambi i limiti preservano focus, dettagli, modale e ritorno dal fascicolo. Le date di messaggio/preparazione includono l’anno; una proposta approvata non chiede di decidere di nuovo sui limiti.
+  Prova: `segretariapropostaui`, ordine avvertenze/piano e cambio di gruppo oltre dodici casi. Cancelli, tipi dei timestamp persistiti e contratto delle incertezze invariati.
+
 - **Oggi: dal messaggio al prossimo passo (21/09)**: card e review distinguono l’anteprima dell’ultimo inbound, con la sua data quando disponibile, dall’interpretazione AI e dall’azione proposta. Il testo ricevuto non è etichettato come novità.
   La card mostra azione, motivo e dubbi specifici; l’analisi completa si espande mantenendo apertura e focus durante gli aggiornamenti. Una sola azione «Rivedi proposta» apre effetti reali, destinatario e testo prima della conferma.
   Copertura parziale e allegati non letti restano espliciti; non vengono inventati scenari o un inventario documentale. Proposte obsolete e ricevute continuano a dipendere dai cancelli esistenti.
