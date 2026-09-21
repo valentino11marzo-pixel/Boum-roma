@@ -465,7 +465,7 @@ const S = { users: [], properties: [], contracts: [], landlords: [], deadlines: 
 const { createRequire } = await import('node:module');
 const requireCjs = createRequire(import.meta.url);
 const APPLY_SRC = ['generateMonthlyPayments', 'monthsBetween', 'generateContractDeadlines', 'innestoEmpty', 'innestoReset', 'innestoPools', 'innestoLinkFor',
-  'innestoPatchFor', 'innestoUserDoc', 'innestoArchiveDoc', 'innestoPaKey', 'innestoLookupPa', 'innestoLeadDup', 'innestoMoney', 'innestoApply'].map(extract).join('\n') + '\nreturn innestoApply;';
+  'innestoPatchFor', 'innestoUserDoc', 'innestoArchiveContentType', 'innestoArchiveNeedsZip', 'innestoArchiveDoc', 'innestoPaKey', 'innestoLookupPa', 'innestoLeadDup', 'innestoMoney', 'innestoApply'].map(extract).join('\n') + '\nreturn innestoApply;';
 const makeApply = new Function(
   'window', 'firebase', 'db', 'S', 'toast', 'renderPage', 'buildNav', 'loadDataFresh', 'logActivity', 'localStorage', 'console', '_innesto',
   'storage', 'auth', 'goTo', 'clearInterval', '_innestoTick', 'generateContractPDF',

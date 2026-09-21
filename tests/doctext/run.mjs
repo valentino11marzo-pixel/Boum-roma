@@ -129,6 +129,38 @@ const difatCycle = tinyOle(); difatCycle.writeUInt32LE(2, 0x44); difatCycle.writ
 check('DOC: numero DIFAT impossibile si rifiuta prima del traversal', boundedOleError(difatCycle));
 const miniOutside = tinyOle(); miniOutside.writeUInt32LE(123, 1536);
 check('DOC: miniFAT fuori dal file si rifiuta, senza troncare il documento', boundedOleError(miniOutside));
+// CFB sintetico con WordDocument e 0Table completi in settori regolari:
+// una piece table, una frase, nessun documento o corpus esterno.
+const SYNTHETIC_DOC_TEXT = 'Contratto sintetico leggibile.';
+function readableOle(extraName = '') {
+  const b = Buffer.alloc(19 * 512);
+  tinyOle().copy(b, 0, 0, 512);
+  b.writeUInt32LE(0xfffffffe, 0x3c); b.writeUInt32LE(0, 0x40);
+  for (let i = 0; i < 128; i++) b.writeUInt32LE(0xffffffff, 512 + i * 4);
+  b.writeUInt32LE(0xfffffffd, 512); b.writeUInt32LE(0xfffffffe, 516);
+  for (const first of [2, 10]) for (let i = first; i < first + 8; i++) b.writeUInt32LE(i === first + 7 ? 0xfffffffe : i + 1, 512 + i * 4);
+  const rows = [[0, 'Root Entry', 5, 0xfffffffe, 0], [1, 'WordDocument', 2, 2, 4096], [2, '0Table', 2, 10, 4096]];
+  if (extraName) rows.push([3, extraName, 2, 999, 4096]);
+  for (const [i, name, type, start, size] of rows) {
+    const o = 1024 + i * 128, nb = Buffer.from(name + '\0', 'utf16le');
+    nb.copy(b, o); b.writeUInt16LE(nb.length, o + 0x40); b[o + 0x42] = type;
+    b.writeUInt32LE(start, o + 0x74); b.writeUInt32LE(size, o + 0x78);
+  }
+  const wd = b.subarray(3 * 512, 11 * 512), tbl = b.subarray(11 * 512, 19 * 512);
+  wd.writeUInt16LE(0xa5ec, 0); wd.writeUInt16LE(0x00c1, 2);
+  wd.writeUInt32LE(SYNTHETIC_DOC_TEXT.length, 0x4c); wd.writeUInt32LE(0, 0x1a2); wd.writeUInt32LE(21, 0x1a6);
+  Buffer.from(SYNTHETIC_DOC_TEXT).copy(wd, 512);
+  tbl[0] = 2; tbl.writeUInt32LE(16, 1); tbl.writeUInt32LE(0, 5); tbl.writeUInt32LE(SYNTHETIC_DOC_TEXT.length, 9);
+  tbl.writeUInt32LE(0x40000000 | 1024, 15);
+  return b;
+}
+function syntheticDocReads(buf) { try { return docText(buf) === SYNTHETIC_DOC_TEXT; } catch (_) { return false; } }
+check('DOC sintetico: WordDocument e piece table restituiscono la frase esatta', syntheticDocReads(readableOle()));
+check('DOC: byte finali estranei non invalidano i settori completi leggibili', syntheticDocReads(Buffer.concat([readableOle(), Buffer.from([7, 8, 9])])));
+check('DOC: uno stream estraneo corrotto non impedisce di leggere il corpo sano', syntheticDocReads(readableOle('UnrelatedMetadata')));
+check('DOC: la table non selezionata non viene letta anche se corrotta', syntheticDocReads(readableOle('1Table')));
+const chosenTableCycle = readableOle(); chosenTableCycle.writeUInt32LE(10, 512 + 10 * 4);
+check('DOC: la table selezionata resta protetta contro catene cicliche', boundedOleError(chosenTableCycle));
 const EML = Buffer.from('From: Marta Neri <marta@x.com>\r\nTo: info@boomrome.com\r\nDate: Mon, 21 Sep 2026 10:00:00 +0200\r\nSubject: =?utf-8?B?Q2FzYSBhIFRyYXN0ZXZlcmU=?=\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\nCerco un bilocale, budget =E2=82=AC1200.\r\nGrazie=\r\n mille\r\n');
 t = extractText(EML, MEDIA.eml);
 check('EML semplice: From/To/Date/Subject (RFC 2047 base64) + corpo quoted-printable (€, soft line break)', /^From: Marta Neri <marta@x\.com>\nTo: info@boomrome\.com\nDate: .*\nSubject: Casa a Trastevere\n\nCerco un bilocale, budget €1200\.\nGrazie mille$/.test(t.text) && t.label === 'email', JSON.stringify(t.text));

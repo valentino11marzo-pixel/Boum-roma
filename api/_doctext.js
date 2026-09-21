@@ -205,10 +205,12 @@ export function docText(buf) {
   if (![9, 12].includes(u16(0x1E)) || u16(0x20) !== 6) throw new Error('ole_invalid_sector_size');
   const ssz = 1 << u16(0x1E), mssz = 1 << u16(0x20);
   const sectorCount = Math.floor(buf.length / ssz) - 1;
-  if (sectorCount < 1 || buf.length % ssz) throw new Error('ole_invalid_length');
+  // Un'eventuale coda parziale non appartiene ad alcun settore: si ignora,
+  // mentre i puntatori restano limitati ai settori completi del documento.
+  if (sectorCount < 1) throw new Error('ole_invalid_length');
   const nfat = u32(0x2C), dirStart = u32(0x30), miniCut = u32(0x38), miniFatStart = u32(0x3C), nMiniFat = u32(0x40);
   const difatStart = u32(0x44), nDifat = u32(0x48);
-  if (nfat > sectorCount || nMiniFat > sectorCount || nDifat > sectorCount) throw new Error('ole_invalid_sector_count');
+  if (nfat > sectorCount || nDifat > sectorCount) throw new Error('ole_invalid_sector_count');
   const sec = (i) => {
     if (!Number.isInteger(i) || i < 0 || i >= sectorCount) throw new Error('ole_invalid_sector');
     return buf.subarray((i + 1) * ssz, (i + 2) * ssz);
@@ -244,18 +246,27 @@ export function docText(buf) {
     const nl = e.readUInt16LE(0x40);
     entries.push({ name: e.subarray(0, Math.max(0, nl - 2)).toString('utf16le'), type: e[0x42], start: e.readUInt32LE(0x74), size: e.readUInt32LE(0x78) });
   }
-  const root = entries[0]; const mini = read(root.start, root.size);
-  const mfatBuf = nMiniFat ? Buffer.concat(chain(miniFatStart).map(sec)) : Buffer.alloc(0);
-  const MFAT = []; for (let i = 0; i < mfatBuf.length / 4; i++) MFAT.push(mfatBuf.readUInt32LE(4 * i));
+  let mini, MFAT;
   const mread = (start, size) => {
+    if (!MFAT) {
+      if (nMiniFat > sectorCount) throw new Error('ole_invalid_sector_count');
+      const root = entries[0]; mini = read(root.start, root.size);
+      const mfatBuf = nMiniFat ? Buffer.concat(chain(miniFatStart).map(sec)) : Buffer.alloc(0);
+      MFAT = []; for (let i = 0; i < mfatBuf.length / 4; i++) MFAT.push(mfatBuf.readUInt32LE(4 * i));
+    }
     const data = Buffer.concat(chain(start, MFAT, Math.floor(mini.length / mssz)).map(s => mini.subarray(s * mssz, (s + 1) * mssz)));
     if (size > data.length) throw new Error('ole_invalid_stream_size');
     return data.subarray(0, size);
   };
-  const streams = {};
-  for (const e of entries) if (e.type === 2) streams[e.name] = e.size >= miniCut ? read(e.start, e.size) : mread(e.start, e.size);
-  const wd = streams.WordDocument; if (!wd) throw new Error('no WordDocument stream');
-  const tbl = streams[(wd.readUInt16LE(0x0A) & 0x0200) ? '1Table' : '0Table'];
+  // Il corpo richiede solo WordDocument e la Table selezionata nel FIB.
+  // Metadati o altri stream danneggiati non devono impedire questa lettura.
+  const stream = (name) => {
+    const e = entries.find(e => e.type === 2 && e.name === name);
+    if (!e) throw new Error('no ' + name + ' stream');
+    return e.size >= miniCut ? read(e.start, e.size) : mread(e.start, e.size);
+  };
+  const wd = stream('WordDocument');
+  const tbl = stream((wd.readUInt16LE(0x0A) & 0x0200) ? '1Table' : '0Table');
   const fcClx = wd.readUInt32LE(0x1A2), lcbClx = wd.readUInt32LE(0x1A6), ccpText = wd.readUInt32LE(0x4C);
   const clx = tbl.subarray(fcClx, fcClx + lcbClx);
   let p = 0; while (clx[p] === 1) p += 3 + clx.readUInt16LE(p + 1);

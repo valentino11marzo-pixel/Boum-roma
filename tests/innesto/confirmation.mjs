@@ -16,7 +16,7 @@ function extract(name) {
  for(;i<appSrc.length;i++){if(appSrc[i]==='{')depth++;else if(appSrc[i]==='}'){depth--;if(!depth)break}}
  return appSrc.slice(start,i+1);
 }
-const APPLY_SRC=['generateMonthlyPayments','monthsBetween','generateContractDeadlines','innestoEmpty','innestoReset','innestoPools','innestoLinkFor','innestoPatchFor','innestoUserDoc','innestoArchiveDoc','innestoApply'].map(extract).join('\n')+'\nreturn innestoApply;';
+const APPLY_SRC=['generateMonthlyPayments','monthsBetween','generateContractDeadlines','innestoEmpty','innestoReset','innestoPools','innestoLinkFor','innestoPatchFor','innestoUserDoc','innestoArchiveContentType','innestoArchiveNeedsZip','innestoArchiveDoc','innestoApply'].map(extract).join('\n')+'\nreturn innestoApply;';
 const makeApply=new Function('window','firebase','db','S','toast','renderPage','buildNav','loadDataFresh','logActivity','localStorage','console','_innesto','storage','auth','goTo','clearInterval','_innestoTick','generateContractPDF',APPLY_SRC);
 const proposal={
  landlord:{name:'Owner Synthetic',email:'owner@example.invalid'},

@@ -2998,6 +2998,9 @@ Il segmento Oggi revisionato resta identico; i dieci file esclusivi Innesto rest
 Gli Office mantengono i byte originali ZIP; email, testo e DOC si archiviano dentro un vero ZIP con l'originale, usando JSZip già presente e le regole Storage invariate.
 Il parser XLSX conserva le colonne vuote; DOC rifiuta catene OLE cicliche o fuori file; MIME applica il charset ai byte una sola volta e CP1252 conserva euro/accenti anche sul runtime Node.
 Prove sintetiche RED/GREEN in `tests/innesto/review.mjs` e `tests/doctext/run.mjs`; nessuna lettura cliente, chiamata AI o attestazione di produzione derivata dai test locali.
+Il seguito della revisione mantiene leggibili DOC con byte finali estranei o stream non usati corrotti: vengono letti soltanto WordDocument e la table selezionata, con limiti invariati sulle catene utilizzate.
+Il blur senza modifica non ricrea la pagina; Riprova mostra subito la ricerca in corso. Se manca la libreria ZIP e serve un contenitore, la conferma si ferma prima di ogni scrittura conservando materiale e proposta per riprovare.
+Le regressioni sintetiche coprono entrambi i DOC irregolari, la table selezionata ciclica ancora respinta, il focus senza cambiamento e l’assenza di scritture se ZIP non è pronto.
 
 **LA SECONDA LEZIONE DEL 21 SETTEMBRE 2026 — «continuo a rifiutarmi per
 grandezza anche un semplice file»** (stesso giorno, ore dopo il fix dello

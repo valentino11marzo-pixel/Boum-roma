@@ -21,15 +21,15 @@ class ZipAdapter {
   file(name,bytes) { this.files.push({name,data:Buffer.from(bytes)}); return this; }
   async generateAsync() { return new Blob([buildZip(this.files)],{type:'application/zip'}); }
 }
-function mount(db = makeQuery(async()=>snap([])), getToken = async () => 'synthetic') {
- const puts=[],toasts=[],writes=[],http=[];
+function mount(db = makeQuery(async()=>snap([])), getToken = async () => 'synthetic', zipLib = ZipAdapter) {
+ const puts=[],toasts=[],writes=[],http=[];let renders=0;
  const storage={ref:path=>({put:async(blob,meta)=>{
   if(!typePattern.test(meta.contentType)||blob.size>=25*1024*1024)throw new Error('storage/unauthorized');
   puts.push({path,blob,meta});return{ref:{getDownloadURL:async()=>'/synthetic-archive'}};
  }})};
  const fn = new Function('window','S','db','storage','auth','toast','renderPage','goTo','esc','adeCompressImage','document','crypto','location','firebase','fetch','clearInterval',section + '\nreturn { lookup: innestoLookupPa, archive: innestoArchiveDoc, apply: innestoApply, convert: innestoConvertPa, card: innestoProposalCard, state: () => _innesto, reset: innestoReset, choose: typeof innestoChoosePa === "function" ? innestoChoosePa : null, edit: innestoEdit, refresh: typeof innestoRefreshPa === "function" ? innestoRefreshPa : null };');
- const runtime=fn({BOOM_DATAOPS:require('../../js/dataops-engine.js'),JSZip:ZipAdapter},{profile:{id:'admin'},users:[],landlords:[],properties:[],leads:[]},db,storage,{currentUser:{getIdToken:getToken}},(...args)=>toasts.push(args),()=>{},()=>{},s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),async()=>null,{}, {},{origin:'https://synthetic.invalid'},{firestore:{FieldValue:{serverTimestamp:()=>0}}},async(...args)=>{http.push(args);throw new Error('network forbidden');},()=>{});
- return{...runtime,puts,toasts,writes,http};
+ const runtime=fn({BOOM_DATAOPS:require('../../js/dataops-engine.js'),JSZip:zipLib},{profile:{id:'admin'},users:[],landlords:[],properties:[],leads:[]},db,storage,{currentUser:{getIdToken:getToken}},(...args)=>toasts.push(args),()=>{renders++;},()=>{},s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),async()=>null,{}, {},{origin:'https://synthetic.invalid'},{firestore:{FieldValue:{serverTimestamp:()=>0}}},async(...args)=>{http.push(args);throw new Error('network forbidden');},()=>{});
+ return{...runtime,puts,toasts,writes,http,renders:()=>renders};
 }
 const p = ref=>({preagreement:{ref},tenant:{email:sameEmail}});
 const old={id:'old',ref:'BOOM-OLD123',status:'paid',contractId:'old-contract',tenant:{email:sameEmail},property:{address:'Old Street'},createdAt:'2025-01-01'};
@@ -53,6 +53,22 @@ await check('editing a pending lookup exposes a refresh path and the corrected d
  resolve['BOOM-AAA123'](snap([{id:'A',ref:'BOOM-AAA123'}]));await a;resolve['BOOM-BBB123'](snap([{id:'B',ref:'BOOM-BBB123'}]));await b;
  return r.state().pa.found?.id==='B'&&!r.state().pa.loading;
 });
+await check('leaving unchanged identity fields preserves the DOM and following click',async()=>{
+ const r=mount(makeQuery(async()=>snap([{id:'A',ref:'BOOM-AAA123'}])));r.state().proposal=p('BOOM-AAA123');await r.lookup(r.state().proposal);
+ const before=r.renders();await r.refresh();return r.renders()===before;
+});
+await check('an ordinary contract email blur never renders or starts a proposal lookup',async()=>{
+ let calls=0;const r=mount(makeQuery(async()=>{calls++;return snap([])}));r.state().proposal={tenant:{email:sameEmail}};await r.refresh();return r.renders()===0&&calls===0;
+});
+await check('an empty proposal identity is rendered once, not on every unchanged blur',async()=>{
+ const r=mount();r.state().proposal={preagreement:{ref:''}};await r.refresh();const before=r.renders();await r.refresh();return r.renders()===before;
+});
+await check('retry immediately replaces the error with loading feedback',async()=>{
+ let resolve;const r=mount(makeQuery(()=>new Promise(done=>resolve=done)));r.state().proposal=p('BOOM-AAA123');r.state().pa={key:'BOOM-AAA123',loading:false,found:null,error:'offline'};
+ const card=r.card(r.state().proposal);const action=/onclick="([^"]+)"[^>]*>Riprova la ricerca/.exec(card)?.[1];if(!action)return false;
+ new Function('_innesto','innestoLookupPa','innestoRefreshPa',action)(r.state(),r.lookup,r.refresh);
+ const visible=r.card(r.state().proposal);const immediate=r.renders()>0&&/cerco la proposta/.test(visible)&&!/Riprova la ricerca/.test(visible);resolve(snap([]));await Promise.resolve();return immediate;
+});
 await check('pending lookup blocks create in the UI and direct apply',async()=>{
  const r=mount();r.state().proposal={preagreement:{ref:'BOOM-AAA123',feePct:10}};r.state().pa={key:'BOOM-AAA123',loading:true,found:null,error:''};
  const card=r.card(r.state().proposal);await r.apply();return /disabled[^>]*onclick="innestoApply\(\)"/.test(card)&&r.toasts.some(t=>/proposta|ricerca/i.test(t.join(' ')));
@@ -70,6 +86,12 @@ await check('a user can confirm an email candidate after seeing the deal',async(
 });
 await check('a user can reject email candidates and keep an independent import',async()=>{
  const r=mount(makeQuery(async()=>snap([old])));r.state().proposal=p('');await r.lookup(r.state().proposal);if(!r.choose)return false;r.choose('');return !r.state().pa.found&&!r.state().skipContract&&!r.state().pa.candidates.length;
+});
+await check('missing ZIP library preserves the import before any primary record write',async()=>{
+ const records=[];const db={collection:name=>({add:async data=>{records.push({name,data});return{id:'new-record'}}})};
+ const r=mount(db,async()=>'synthetic',null);const proposal={lead:{name:'Synthetic',email:sameEmail,request:'Synthetic request'}};const file=new Blob(['synthetic email'],{type:'message/rfc822'});file.name='source.eml';
+ r.state().proposal=proposal;r.state().readDocs=[{file,blob:file,mediaType:file.type}];await r.apply();
+ return records.length===0&&r.state().proposal===proposal&&r.state().readDocs.length===1&&!r.state().busy&&r.toasts.some(t=>/Archivio ZIP/.test(t.join(' ')));
 });
 for (const [ext,type]of Object.entries({docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',odt:'application/vnd.oasis.opendocument.text',doc:'application/msword',eml:'message/rfc822',txt:'text/plain'})) {
  await check(ext+' original is archived under the unchanged Storage policy',async()=>{

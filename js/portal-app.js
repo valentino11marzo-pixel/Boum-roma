@@ -29612,7 +29612,12 @@ IBAN: ${l.iban || '-'}`;
         renderPage();
     }
     function innestoRefreshPa() {
-        const pending = innestoLookupPa(_innesto.proposal);
+        const p = _innesto.proposal;
+        if (!p || !p.preagreement) return;
+        const key = innestoPaKey(p);
+        if (_innesto.pa && _innesto.pa.key === key) return;
+        const pending = innestoLookupPa(p);
+        if (!key) _innesto.pa = { key, loading: false, found: null, candidates: [], error: '' };
         renderPage();
         return pending;
     }
@@ -29658,7 +29663,7 @@ IBAN: ${l.iban || '-'}`;
             head = `<span style="font-size:12px;color:var(--text-secondary)">cerco la proposta nel console…</span>`;
         } else if (L.error) {
             head = `<span style="font-size:12px;color:#FF6B35">ricerca da completare</span>`;
-            body = `<div style="font-size:12px;margin-bottom:8px">Ricerca nel console non riuscita (${esc(L.error)}). Prima di creare, verifica se la proposta esiste già.</div><button class="btn btn-sm" type="button" onclick="_innesto.pa=null;innestoLookupPa(_innesto.proposal)">Riprova la ricerca</button>`;
+            body = `<div style="font-size:12px;margin-bottom:8px">Ricerca nel console non riuscita (${esc(L.error)}). Prima di creare, verifica se la proposta esiste già.</div><button class="btn btn-sm" type="button" onclick="_innesto.pa=null;innestoRefreshPa()">Riprova la ricerca</button>`;
         } else if (candidates.length) {
             head = `<span style="font-size:12px;color:#FF6B35">scegli il deal corretto</span>`;
             body = `<div style="font-size:12px;margin-bottom:8px">La ricerca ha trovato queste proposte. Verifica immobile e periodo prima di collegarne una.</div>`
@@ -29964,6 +29969,9 @@ IBAN: ${l.iban || '-'}`;
         }
         const val = V.validateProposal(p);
         if (!val.ok) { toast('error', 'Ci sono errori da correggere'); return; }
+        if (_innesto.archive && (_innesto.readDocs || []).some(innestoArchiveNeedsZip) && !window.JSZip) {
+            toast('warning', 'Archivio ZIP non pronto', 'Attendi il caricamento della pagina e riprova: nessun dato è stato creato.'); return;
+        }
         _innesto.busy = true; renderPage();
 
         const created = [], updated = [], warnings = [], documentResults = [];
@@ -30338,6 +30346,14 @@ IBAN: ${l.iban || '-'}`;
     // Un documento letto → Storage (cartella dell'operatore, la stessa
     // regola di saveDocWithAssignment) → `documents` con categoria e cartella
     // dello Smistatore → identityDocs se è un documento d'identità.
+    function innestoArchiveContentType(rd) {
+        const file = rd.file || {};
+        return file.type && /^(image\/|application\/pdf)/.test(file.type) ? file.type : rd.mediaType;
+    }
+    function innestoArchiveNeedsZip(rd) {
+        return !rd.archived && !/^(image\/|application\/pdf$|application\/zip$)/.test(innestoArchiveContentType(rd))
+            && !/\.(docx|xlsx|odt)$/i.test(rd.file && rd.file.name || '');
+    }
     async function innestoArchiveDoc(rd, ctx) {
         const meta = rd.meta || {};
         if (rd.archived) {
@@ -30367,14 +30383,14 @@ IBAN: ${l.iban || '-'}`;
         const file = rd.file;
         const safeName = String(file.name || 'documento').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80);
         let storedName = safeName;
-        let contentType = file.type && /^(image\/|application\/pdf)/.test(file.type) ? file.type : rd.mediaType;
+        let contentType = innestoArchiveContentType(rd);
         let useBlob = contentType === file.type ? file : rd.blob;
         let wrapped = false;
         if (!/^(image\/|application\/pdf$|application\/zip$)/.test(contentType)) {
             // Office moderni sono già ZIP: gli stessi byte, con il tipo di
             // trasporto consentito. Testo, email e DOC conservano l'originale
             // dentro un vero ZIP, senza allargare le regole dello Storage.
-            if (/\.(docx|xlsx|odt)$/i.test(file.name || '')) {
+            if (!innestoArchiveNeedsZip(rd)) {
                 useBlob = file;
             } else {
                 if (!window.JSZip) throw new Error('Archivio ZIP non disponibile: ricarica la pagina e conserva il file originale.');
