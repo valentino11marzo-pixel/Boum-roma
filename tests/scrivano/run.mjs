@@ -99,10 +99,11 @@ globalThis.fetch = async (url, opts = {}) => {
   }
   if (u.includes('api.anthropic.com')) {
     const body = JSON.parse(opts.body || '{}');
-    if (body.output_config) {
+    if (Array.isArray(body.tools)) {   // l'Innesto: lo strumento `proposta`; lo Smistatore risponde a testo
       aiIngest++; lastIngestBody = body;
       if (AI.status !== 200) return new Response(AI.text || 'err', { status: AI.status });
-      return json({ model: 'claude-opus-5', stop_reason: 'end_turn', usage: { input_tokens: 9000, output_tokens: 1200 }, content: [{ type: 'text', text: JSON.stringify(INGEST_OK()) }] });
+      return json({ model: 'claude-opus-5', stop_reason: 'tool_use', usage: { input_tokens: 9000, output_tokens: 1200 },
+        content: [{ type: 'tool_use', id: 'toolu_01', name: body.tools[0].name, input: INGEST_OK() }] });
     }
     aiSmista++;
     return json({ content: [{ type: 'text', text: JSON.stringify(aiSmistaJson) }] });
@@ -209,7 +210,7 @@ ok('i BYTE letti sono quelli archiviati (scaricati dallo Storage, non da Telegra
 const promptText = (lastIngestBody?.messages?.[0]?.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('\n');
 ok('il contesto è quello del desktop: i nomi in archivio (inquilini, proprietari, immobili) e l\'immobile agganciato come indicazione',
   /Oyku Testa/.test(promptText) && /Anna Rossi/.test(promptText) && /Via Cavour 12/.test(promptText), promptText.slice(-400));
-ok('output strutturato anche dal telefono (stesso cuore: output_config json_schema)', lastIngestBody?.output_config?.format?.type === 'json_schema' && lastIngestBody?.model === 'claude-opus-5');
+ok('lo strumento `proposta` anche dal telefono (stesso cuore: tools + tool_choice, nessuna grammatica)', lastIngestBody?.tools?.[0]?.name === 'proposta' && lastIngestBody?.tool_choice?.name === 'proposta' && !lastIngestBody?.output_config?.format && lastIngestBody?.model === 'claude-opus-5');
 const card = lastSend();
 ok('la card dice «Proposta pronta» con parti, immobile e termini', /Proposta pronta/.test(card?.body?.text || '') && /Oyku Testa/.test(card?.body?.text) && /Via Simeto 12/.test(card?.body?.text) && /1\.100/.test(card?.body?.text), card?.body?.text);
 ok('…e il bottone apre il portal su #innesto=<docId> (www, mai l\'apex)', card?.body?.reply_markup?.inline_keyboard?.[0]?.[0]?.url === 'https://www.boomrome.com/portal#innesto=' + DOC, card?.body?.reply_markup);

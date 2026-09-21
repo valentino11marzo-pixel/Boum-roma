@@ -73,10 +73,11 @@ const toF = (v) => (typeof v === 'string' ? { stringValue: v } : { nullValue: nu
 const json = (o, status = 200) =>
   new Response(JSON.stringify(o), { status, headers: { 'Content-Type': 'application/json' } });
 
-// La risposta STRUTTURATA del modello (tutte le chiavi, null dove non c'è
-// niente): è la forma che output_config.format garantisce. Porta anche campi
-// INVENTATI (segreto, hacker) e una citazione con percorso inesistente: la
-// normalizzazione e la whitelist delle citazioni devono fermarli.
+// La risposta del modello: l'INPUT dello strumento `proposta` (tutte le
+// chiavi; qui anche null, numeri e booleani dove lo schema chiede stringhe —
+// senza grammatica l'aderenza è del modello, e il motore deve leggerli lo
+// stesso). Porta anche campi INVENTATI (segreto, hacker) e una citazione con
+// percorso inesistente: la normalizzazione e la whitelist devono fermarli.
 const person = (o) => Object.assign({ name: null, email: null, phone: null, codiceFiscale: null, address: null, birthDate: null, birthPlace: null, nationality: null, docType: null, docNum: null, docIssuer: null, docIssueDate: null }, o);
 const AI_FULL = () => ({
   files: [{ index: 1, kind: 'Contratto', title: 'Contratto transitorio Via Simeto 12', pages: '3', legible: true, summary: 'contratto firmato', party: '' }],
@@ -107,7 +108,7 @@ const AI_EMPTY = () => Object.assign(AI_FULL(), {
 let anthCalls = [];
 let storageFetches = 0;
 let foreignFetches = 0;
-let AI = { reply: AI_FULL(), stop: 'end_turn', status: 200, text: '', throwName: '', failFirstWith: '' };
+let AI = { reply: AI_FULL(), stop: 'end_turn', status: 200, text: '', throwName: '', failFirstWith: '', viaText: false };
 
 globalThis.fetch = async (url, opts = {}) => {
   const u = String(url);
@@ -130,12 +131,19 @@ globalThis.fetch = async (url, opts = {}) => {
     return new Response(bytes, { status: 200, headers: { 'Content-Type': 'application/pdf' } });
   }
   if (u.includes('api.anthropic.com')) {
-    anthCalls.push({ headers: opts.headers, body: JSON.parse(opts.body || '{}') });
+    const body = JSON.parse(opts.body || '{}');
+    anthCalls.push({ headers: opts.headers, body });
     if (AI.throwName) { const e = new Error('aborted'); e.name = AI.throwName; throw e; }
     if (AI.failFirstWith && anthCalls.length === 1) return new Response(AI.failFirstWith, { status: 400 });
     if (AI.status !== 200) return new Response(AI.text || 'err', { status: AI.status });
-    return json({ model: 'claude-opus-5', stop_reason: AI.stop, usage: { input_tokens: 12000, output_tokens: 1800, cache_read_input_tokens: 3000 },
-      content: [{ type: 'text', text: AI.stop === 'max_tokens' ? '{"files": [' : JSON.stringify(AI.reply) }] });
+    const usage = { input_tokens: 12000, output_tokens: 1800, cache_read_input_tokens: 3000 };
+    if (AI.stop === 'max_tokens') return json({ model: 'claude-opus-5', stop_reason: 'max_tokens', usage, content: [{ type: 'text', text: '{"files": [' }] });
+    if (AI.stop === 'refusal') return json({ model: 'claude-opus-5', stop_reason: 'refusal', usage, content: [], stop_details: { type: 'refusal', category: null } });
+    // A parole (tool_choice auto e un modello che non chiama): il JSON sta nel testo, dentro un recinto.
+    if (AI.viaText) return json({ model: 'claude-opus-5', stop_reason: 'end_turn', usage, content: [{ type: 'text', text: 'Ecco la proposta:\n```json\n' + JSON.stringify(AI.reply) + '\n```' }] });
+    // La forma VERA della risposta: l'input dello strumento, già un oggetto — mai testo da parsare.
+    return json({ model: 'claude-opus-5', stop_reason: 'tool_use', usage,
+      content: [{ type: 'text', text: 'Ecco la proposta.' }, { type: 'tool_use', id: 'toolu_01', name: body.tools?.[0]?.name || 'proposta', input: AI.reply }] });
   }
   // Qualunque altro host è un buco: si conta e si nega.
   foreignFetches++;
@@ -172,7 +180,7 @@ function mkRes() {
 
 async function call(token, body, ai) {
   anthCalls = []; storageFetches = 0; foreignFetches = 0;
-  AI = Object.assign({ reply: AI_FULL(), stop: 'end_turn', status: 200, text: '', throwName: '', failFirstWith: '' }, ai || {});
+  AI = Object.assign({ reply: AI_FULL(), stop: 'end_turn', status: 200, text: '', throwName: '', failFirstWith: '', viaText: false }, ai || {});
   const req = {
     method: 'POST',
     headers: token === null ? {} : { authorization: 'Bearer ' + token },
@@ -207,7 +215,11 @@ r = await call('admin_1', { text: 'Contratto transitorio, Anna Testa, €1.100/m
 const body = r.anth[0]?.body || {};
 check('admin + testo → 200', r.res.code === 200, JSON.stringify(r.res.body).slice(0, 200));
 check('legge claude-opus-5 (il documento vale un contratto registrato: non si risparmia)', body.model === 'claude-opus-5' && MODEL === 'claude-opus-5', body.model);
-check('OUTPUT STRUTTURATO: output_config.format è un json_schema', body.output_config?.format?.type === 'json_schema' && body.output_config?.format?.schema === INGEST_SCHEMA || JSON.stringify(body.output_config?.format?.schema) === JSON.stringify(INGEST_SCHEMA));
+check('IL JSON ARRIVA GIÀ PARSATO: lo schema è l\'input_schema dello strumento `proposta`, chiamato FORZATO e uno solo — e NESSUNA grammatica (niente output_config.format, niente strict: la terza lezione del 21/09)',
+  body.tools?.length === 1 && body.tools[0].name === 'proposta' && JSON.stringify(body.tools[0].input_schema) === JSON.stringify(INGEST_SCHEMA) && body.tools[0].strict !== true
+  && !body.output_config?.format && body.tool_choice?.type === 'tool' && body.tool_choice?.name === 'proposta' && body.tool_choice?.disable_parallel_tool_use === true,
+  JSON.stringify({ tools: (body.tools || []).map((t) => [t.name, t.strict]), tool_choice: body.tool_choice, output_config: Object.keys(body.output_config || {}) }));
+check('…il prompt dice di CHIAMARE lo strumento, una volta sola', /chiamando lo strumento `proposta`/.test(body.system?.[0]?.text || '') && /UNA sola chiamata allo strumento `proposta`/.test(body.system?.[0]?.text || ''));
 check('…ogni oggetto dello schema: additionalProperties false e required COMPLETO', (() => {
   let bad = 0, n = 0;
   (function walk(x) { if (!x || typeof x !== 'object') return; if (x.type === 'object') { n++; if (x.additionalProperties !== false || !Array.isArray(x.required) || x.required.length !== Object.keys(x.properties || {}).length) bad++; } Object.values(x).forEach(walk); })(INGEST_SCHEMA);
@@ -379,6 +391,13 @@ check('un 400 di altra natura NON si riprova (niente doppia spesa) ed è DETERMI
 console.log('\n\x1b[1mIl 400 che era MIO (la lezione del 21/09/2026)\x1b[0m');
 r = await call('admin_1', { text: 'x' }, { status: 400, text: '{"type":"error","error":{"type":"invalid_request_error","message":"Schemas contains too many parameters with union types (99 parameters with type arrays or anyOf). This causes exponential compilation time."}}' });
 check('lo schema rifiutato dall\'API → 500 ai_bad_request che nomina la RICHIESTA del server, non il documento, col messaggio dell\'API dentro', r.res.code === 500 && r.res.body?.error === 'ai_bad_request' && /RICHIESTA del server/.test(r.res.body?.detail || '') && /union types/.test(r.res.body?.detail || '') && !/[Rr]iprova|incolla/.test(r.res.body?.detail || '') && r.anth.length === 1, `${r.res.code} ${r.res.body?.error} ${r.res.body?.detail}`);
+r = await call('admin_1', { text: 'x' }, { status: 400, text: '{"type":"error","error":{"type":"invalid_request_error","message":"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools."}}' });
+check('«The compiled grammar is too large» (la TERZA lezione del 21/09: il primo documento vero, dopo il fix delle unioni) → 500 ai_bad_request che nomina la RICHIESTA del server, col messaggio dentro', r.res.code === 500 && r.res.body?.error === 'ai_bad_request' && /RICHIESTA del server/.test(r.res.body?.detail || '') && /compiled grammar/.test(r.res.body?.detail || '') && r.anth.length === 1, `${r.res.code} ${r.res.body?.error} ${r.res.body?.detail}`);
+check('…e quella richiesta non compila più NIENTE: nessun output_config.format, nessuno strumento strict — il tetto interno della grammatica non può più mordere', r.anth.length === 1 && !('output_config' in r.anth[0].body) && Array.isArray(r.anth[0].body.tools) && r.anth[0].body.tools.every((t) => t.strict !== true), JSON.stringify(Object.keys(r.anth[0]?.body || {})));
+r = await call('admin_1', { text: 'x' }, { failFirstWith: '{"type":"error","error":{"type":"invalid_request_error","message":"tool_choice: type \\"tool\\" is not supported when thinking is enabled"}}' });
+check('la chiamata FORZATA rifiutata (400 che nomina tool_choice) → si riprova UNA volta con tool_choice auto, stesso strumento, e la lettura passa', r.res.code === 200 && r.anth.length === 2 && r.anth[0].body.tool_choice?.type === 'tool' && r.anth[1].body.tool_choice?.type === 'auto' && r.anth[1].body.tool_choice?.disable_parallel_tool_use === true && r.anth[1].body.tools?.[0]?.name === 'proposta' && r.res.body?.proposal?.tenant?.name === 'Oyku Testa', `${r.res.code} calls=${r.anth.length} tc=${JSON.stringify(r.anth[1]?.body?.tool_choice)}`);
+r = await call('admin_1', { text: 'x' }, { viaText: true });
+check('la RETE: se il modello risponde a PAROLE (nessun blocco tool_use), il JSON si legge dal testo e la proposta esce lo stesso', r.res.code === 200 && r.res.body?.proposal?.tenant?.name === 'Oyku Testa' && r.res.body?.proposal?.contract?.rent === 1100, `${r.res.code} ${JSON.stringify(r.res.body?.proposal?.tenant)}`);
 r = await call('admin_1', { text: 'x' }, { status: 400, text: '{"type":"error","error":{"type":"invalid_request_error","message":"messages.0.content.1.document.source.data: Could not process PDF: file is encrypted"}}' });
 check('un PDF che l\'API non apre → 422 ai_bad_document col rimedio (senza password / fotografa), non «riprova»', r.res.code === 422 && r.res.body?.error === 'ai_bad_document' && /password|fotografa/.test(r.res.body?.detail || '') && !/[Rr]iprova/.test(r.res.body?.detail || ''), `${r.res.code} ${r.res.body?.error}`);
 r = await call('admin_1', { text: 'x' }, { status: 500, text: 'overloaded' });
@@ -718,8 +737,9 @@ check('la pagina dice del transito invece di promettere il falso',
   /transita dal tuo Storage/.test(app) && !/Non viene salvato da nessuna parte finché non confermi/.test(app));
 check('il server inchioda l\'host del fileUrl al nostro Storage',
   /u\.hostname\s*!==\s*'firebasestorage\.googleapis\.com'/.test(api));
-check('il server legge con Opus 5 e output strutturato (MODEL + json_schema nel sorgente)',
-  /MODEL = 'claude-opus-5'/.test(api) && /format: \{ type: 'json_schema', schema: INGEST_SCHEMA \}/.test(api));
+check('il server legge con Opus 5 e consegna il JSON come input dello strumento (tools + tool_choice nel sorgente) — MAI più come grammatica: niente output_config.format, niente strict',
+  /MODEL = 'claude-opus-5'/.test(api) && /tools: \[INGEST_TOOL\]/.test(api) && /input_schema: INGEST_SCHEMA/.test(api)
+  && !/output_config: \{ format/.test(api) && !/type: 'json_schema'/.test(api) && !/strict: true/.test(api));
 check('la funzione ha il tempo per leggere: maxDuration in vercel.json sopra il tetto della chiamata',
   (() => { const md = vercel.functions?.['api/portal/ingest.js']?.maxDuration; const ai = Number((/const AI_MS = (\d+)/.exec(api) || [])[1]); return md >= 100 && ai > 0 && ai < md * 1000; })(),
   JSON.stringify(vercel.functions?.['api/portal/ingest.js']));
