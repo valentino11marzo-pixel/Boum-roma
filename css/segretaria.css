@@ -159,6 +159,79 @@
 #sgFollowModal .alert.warning { color: #655017; background: #f1ead0; border-color: #c4b67f; font-size: 12px; }
 #sgFollowModal button:focus-visible, #sgFollowModal summary:focus-visible, #sgFollowModal input:focus-visible, #sgFollowModal select:focus-visible, #sgFollowModal textarea:focus-visible { outline: 3px solid #896e00; outline-offset: 3px; }
 #sgFollowModal .modal-close:focus-visible { outline-color: var(--sg-yellow); }
+
+/* La fonte, la lettura AI e il prossimo passo hanno voci separate.
+   Il solo estratto AI può accorciarsi: l'analisi intera resta nel details. */
+#sgFollowPanel .sg-received, #sgFollowModal .sg-received,
+#sgFollowPanel .sg-ai-reading, #sgFollowModal .sg-ai-reading,
+#sgFollowPanel .sg-next-action, #sgFollowModal .sg-next-action,
+#sgFollowPanel .sg-action-reason, #sgFollowModal .sg-action-reason,
+#sgFollowPanel .sg-questions, #sgFollowModal .sg-questions {
+    min-width: 0; max-width: 100%; overflow-wrap: anywhere;
+}
+#sgFollowPanel .sg-received, #sgFollowModal .sg-received {
+    margin-top: 14px; padding-left: 12px; border-left: 2px solid var(--sg-line);
+}
+#sgFollowPanel .sg-received .sg-meta-label,
+#sgFollowPanel .sg-ai-reading .sg-meta-label,
+#sgFollowPanel .sg-next-action .sg-meta-label,
+#sgFollowPanel .sg-action-reason .sg-meta-label,
+#sgFollowPanel .sg-questions .sg-meta-label,
+#sgFollowModal .sg-meta-label {
+    display: block; margin: 0 0 5px; color: var(--sg-muted);
+    font-size: 10px; font-weight: 600; line-height: 1.45;
+    text-transform: uppercase; letter-spacing: .06em;
+}
+#sgFollowPanel .sg-source-date, #sgFollowModal .sg-source-date {
+    display: block; margin: 0 0 6px; color: var(--sg-muted);
+    font-size: 12px; line-height: 1.45;
+}
+#sgFollowPanel .sg-source-preview, #sgFollowModal .sg-source-preview {
+    margin: 0; color: var(--sg-ink); font-size: 14px; line-height: 1.55;
+    white-space: pre-wrap; overflow-wrap: anywhere;
+}
+#sgFollowPanel .sg-ai-reading, #sgFollowModal .sg-ai-reading { margin-top: 14px; }
+#sgFollowPanel .sg-ai-recommendation, #sgFollowModal .sg-ai-recommendation {
+    margin: 0; color: #535b57; font-size: 14px; font-weight: 400;
+    line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+#sgFollowPanel .sg-ai-reading:has(> details.sg-reading-details) > .sg-ai-recommendation {
+    display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3;
+    overflow: hidden;
+}
+#sgFollowPanel .sg-reading-details, #sgFollowModal .sg-reading-details { min-width: 0; margin-top: 4px; }
+#sgFollowPanel .sg-reading-details > summary, #sgFollowModal .sg-reading-details > summary {
+    min-height: 44px; gap: 12px; color: var(--sg-ink);
+    font-size: 13px; font-weight: 500; line-height: 1.4;
+    overflow-wrap: anywhere;
+}
+#sgFollowPanel .sg-reading-details p, #sgFollowModal .sg-reading-details p {
+    margin: 0 0 12px; font-size: 14px; line-height: 1.55;
+    color: #535b57; white-space: pre-wrap; overflow-wrap: anywhere;
+}
+#sgFollowPanel .sg-next-action, #sgFollowModal .sg-next-action {
+    margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--sg-line);
+}
+#sgFollowPanel .sg-next-action .sg-case-title, #sgFollowModal .sg-next-action .sg-case-title {
+    margin: 5px 0 0; color: var(--sg-ink); font-size: 18px;
+    font-weight: 500; line-height: 1.4; letter-spacing: -.015em;
+}
+#sgFollowPanel .sg-action-reason, #sgFollowModal .sg-action-reason { margin: 12px 0; }
+#sgFollowPanel .sg-action-reason p:not(.sg-meta-label), #sgFollowModal .sg-action-reason p:not(.sg-meta-label) {
+    margin: 0; font-size: 14px; line-height: 1.55; color: #535b57;
+    white-space: pre-wrap;
+}
+#sgFollowPanel .sg-questions, #sgFollowModal .sg-questions {
+    margin: 14px 0; padding: 10px 12px; border-left: 2px solid #a58b22;
+    background: #f1ead0; color: #655017; font-size: 14px; line-height: 1.55;
+}
+#sgFollowPanel .sg-questions .sg-meta-label, #sgFollowModal .sg-questions .sg-meta-label { color: #655017; }
+#sgFollowPanel .sg-questions ul, #sgFollowModal .sg-questions ul { margin: 0; padding-left: 18px; }
+#sgFollowPanel .sg-questions li + li, #sgFollowModal .sg-questions li + li { margin-top: 6px; }
+#sgFollowPanel .sg-questions p:not(.sg-meta-label), #sgFollowModal .sg-questions p:not(.sg-meta-label) { margin: 0; }
+#sgFollowPanel .sg-questions ul + ul, #sgFollowModal .sg-questions ul + ul,
+#sgFollowPanel .sg-questions ul + p:not(.sg-meta-label), #sgFollowModal .sg-questions ul + p:not(.sg-meta-label) { margin-top: 6px; }
+
 @media (max-width: 760px) {
     #sgFollowPanel .sg-briefing { padding: 24px 20px 0; }
     #sgFollowPanel .sg-briefing-copy { margin: 18px 0; }

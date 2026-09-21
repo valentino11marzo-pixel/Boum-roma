@@ -61,18 +61,20 @@ function demoTask(id,name,cid,practice){return{id,status:'open',source:'segretar
  nextAction:'Verificare la richiesta e confermare il seguito',waitingOn:'valentino',waitingLabel:'Valentino',checkAt:demoFuture(),checkBasis:'Controllo interno proposto',confirmed:false,needsReview:true,ambiguous:!practice}}}
 function demoPreparation(t,withDraft=true){const ambiguous=!t.followUp.practiceRef,phone=t.followUp.conversationId==='c1';return{
  version:${PROPOSTA.VERSION},revision:'revision-'+(++window.__generation),messageId:t.followUp.lastMessageId,selectedPracticeRef:t.followUp.practiceRef,
- status:'ready',identityBlocked:false,summary:ambiguous?'La squadra ha completato le pulizie, ma il messaggio non indica quale casa. Serve un solo chiarimento prima di chiudere il lavoro.':phone?'Giulia chiede conferma della visita. La richiesta visite riporta un appuntamento già confermato per il 18 settembre 2026 alle 15:00, ora di Roma, a Casa Fiore.':'Oliver deve ancora confermare la disponibilità. La prossima azione resta a lui; BOOM ricontrolla domani.',
+ status:'ready',identityBlocked:false,summary:ambiguous?'La squadra ha completato le pulizie, ma il messaggio non indica quale casa. Serve un solo chiarimento prima di chiudere il lavoro.':phone?'Giulia chiede conferma della visita. La richiesta visite riporta un appuntamento già confermato per il 24 settembre 2026 alle 15:00, ora di Roma, a Casa Fiore.':'Oliver deve ancora confermare la disponibilità. La prossima azione resta a lui; BOOM ricontrolla domani.',
  recommendation:ambiguous?'Chiarire se il lavoro riguarda Casa Fiore o Casa Luna. Conservare il seguito aperto.':phone?'Rispondere con l’orario già confermato nelle fonti e chiedere conferma di partecipazione. Nessuna nuova prenotazione.':'Conservare l’attesa senza inviare un altro messaggio adesso.',
- facts:[{text:ambiguous?'La squadra comunica che le pulizie sono terminate.':phone?'Visita a Casa Fiore: confermata il 18 settembre 2026 alle 15:00, ora di Roma.':'Il messaggio è collegato alla conversazione corretta.',sourceIds:[phone?'viewingRequests/v1':'messages/'+t.followUp.conversationId]}],
- commitments:[{text:phone?'La visita è già fissata per il 18 settembre alle 15:00.':'Attendere l’aggiornamento già richiesto.',kind:'explicit',status:'pending',sourceIds:['messages/'+t.followUp.conversationId]}],
+ facts:[{text:ambiguous?'La squadra comunica che le pulizie sono terminate.':phone?'Visita a Casa Fiore: confermata il 24 settembre 2026 alle 15:00, ora di Roma.':'Il messaggio è collegato alla conversazione corretta.',sourceIds:[phone?'viewingRequests/v1':'messages/'+t.followUp.conversationId]}],
+ commitments:[{text:phone?'La visita è già fissata per il 24 settembre alle 15:00.':'Attendere l’aggiornamento già richiesto.',kind:'explicit',status:'pending',sourceIds:['messages/'+t.followUp.conversationId]}],
  uncertainties:ambiguous?[{text:'La casa non è indicata nel messaggio.',sourceIds:['messages/'+t.followUp.conversationId]}]:[],
- nextAction:{text:ambiguous?'Identificare la casa dell’intervento':phone?'Attendere la conferma di partecipazione alla visita del 18 settembre':'Attendere la disponibilità di Oliver',waitingOn:ambiguous?'collaborator':'client',waitingLabel:ambiguous?'Squadra pulizie · esempio':phone?'Giulia · esempio':'Oliver · esempio',checkAt:phone?'2026-09-17T10:00:00Z':demoFuture(),practiceRef:t.followUp.practiceRef,sourceIds:['messages/'+t.followUp.conversationId],reason:'Ricontrollo interno proporzionato al prossimo passo, senza una scadenza promessa al cliente.'},
- draft:withDraft&&!ambiguous?{channel:phone?'whatsapp':'email',text:'Ciao Giulia, la visita a Casa Fiore è già confermata per venerdì 18 settembre alle 15:00, ora di Roma. Mi confermi che sarai presente? — Assistente BOOM',subject:'BOOM · Visita del 18 settembre alle 15:00',sourceIds:['messages/'+t.followUp.conversationId]}:null,
+ nextAction:{text:ambiguous?'Identificare la casa dell’intervento':phone?'Attendere la conferma di partecipazione alla visita del 24 settembre':'Attendere la disponibilità di Oliver',waitingOn:ambiguous?'collaborator':'client',waitingLabel:ambiguous?'Squadra pulizie · esempio':phone?'Giulia · esempio':'Oliver · esempio',checkAt:phone?'2026-09-23T10:00:00Z':demoFuture(),practiceRef:t.followUp.practiceRef,sourceIds:['messages/'+t.followUp.conversationId],reason:'Ricontrollo interno proporzionato al prossimo passo, senza una scadenza promessa al cliente.'},
+ draft:withDraft&&!ambiguous?{channel:phone?'whatsapp':'email',text:'Ciao Giulia, la visita a Casa Fiore è già confermata per giovedì 24 settembre alle 15:00, ora di Roma. Mi confermi che sarai presente? — Assistente BOOM',subject:'BOOM · Visita del 24 settembre alle 15:00',sourceIds:['messages/'+t.followUp.conversationId]}:null,
  recipientPreview:{name:t.followUp.contactName,address:phone?'+390000000001':'oliver@example.test',channel:phone?'whatsapp':'email'},
  handoff:{needed:false,reason:'Nessuna decisione commerciale richiesta.'},replyOwnership:!phone&&!ambiguous?{blocked:true,owner:'segretaria:conversation',actionId:null,incomplete:false}:{blocked:false,owner:null,actionId:null,incomplete:false},coverage:{version:2,incomplete:ambiguous,reasons:ambiguous?['practice_selection_required']:[]},
- style:{basis:'editorial_only',limitations:['Nessuna attribuzione dei messaggi importati a Valentino.']},sources:[{id:'messages/'+t.followUp.conversationId,ref:'messages/'+t.followUp.conversationId,at:new Date().toISOString(),hash:'fixture'},...(phone?[{id:'viewingRequests/v1',ref:'viewingRequests/v1',at:'2026-09-15T08:00:00Z',hash:'fixture-confirmed-2026-09-18T13:00:00Z'}]:[])]}}
+ style:{basis:'editorial_only',limitations:['Nessuna attribuzione dei messaggi importati a Valentino.']},sources:[{id:'messages/'+t.followUp.conversationId,ref:'messages/'+t.followUp.conversationId,at:new Date().toISOString(),hash:'fixture'},...(phone?[{id:'viewingRequests/v1',ref:'viewingRequests/v1',at:'2026-09-15T08:00:00Z',hash:'fixture-confirmed-2026-09-24T13:00:00Z'}]:[])]}}
 window.__rows=[demoTask(window.__ids[0],'Giulia · esempio','c1','viewingRequests/v1'),demoTask(window.__ids[1],'Oliver · esempio','c2','contracts/c2'),demoTask(window.__ids[2],'Squadra pulizie · esempio','c3',null)];
 window.__rows[0].followUp.preview='Mi confermi giorno e ora della visita?';window.__rows[1].followUp.preview='Ti aggiorno appena ho la disponibilità.';window.__rows[2].followUp.preview='Abbiamo terminato le pulizie.';window.__rows[0].preparation=demoPreparation(window.__rows[0]);window.__rows[1].preparation=demoPreparation(window.__rows[1],false);
+window.__rows[0].followUp.lastInboundAt='2026-09-21T09:15:00.000Z';
+window.__rows[0].preparation.createdAt='2026-09-21T09:17:00.000Z';
 const reply=(data,status=200)=>({ok:status<400,status,json:async()=>structuredClone(data)});
 const actualTimeout=window.setTimeout;
 window.setTimeout=(fn,ms,...args)=>actualTimeout(fn,window.__fastTimeout&&ms===60000?10:ms,...args);
@@ -131,6 +133,11 @@ try {
   const load = async () => { await page.goto(pathToFileURL(previewPath).href); await page.waitForSelector('article[data-sg-id]'); };
   const ids = ['sg_' + 'a'.repeat(32), 'sg_' + 'b'.repeat(32), 'sg_' + 'c'.repeat(32)];
   const button = (id, action) => page.locator(`article[data-sg-id="${id}"] [data-sg-action="${action}"]`);
+  const card = id => page.locator(`article[data-sg-id="${id}"]`);
+  const outsideDisclosure = async locator => {
+    assert.equal(await locator.isVisible(), true);
+    assert.equal(await locator.evaluate(el => !!el.closest('details:not([open])')), false);
+  };
   const open = async id => { await button(id, 'review').click(); await page.waitForSelector('#sgPreparationReview'); };
   const posts = () => page.evaluate(() => window.__requests.filter(r => r.path.endsWith('/prepare')));
   const refresh = async () => {
@@ -152,24 +159,62 @@ try {
   assert.equal(await page.locator('.sg-quiet-state').count(), 1);
   assert.equal(await page.locator('#sgFollowPanel #sgDraftText').count(), 0);
   assert.ok((await page.locator('article[data-sg-id]').first().boundingBox()).y < 600);
+  const firstTask = await page.evaluate(() => window.__rows[0]);
+  assert.equal(await card(ids[0]).locator('.sg-source-preview').innerText(), firstTask.followUp.preview);
+  assert.equal(await card(ids[0]).locator('.sg-received time').getAttribute('datetime'), firstTask.followUp.lastInboundAt);
+  assert.ok((await card(ids[0]).locator('.sg-received time').innerText()).trim());
+  assert.equal(await card(ids[0]).locator('.sg-ai-recommendation').innerText(), firstTask.preparation.summary);
+  assert.equal(await card(ids[0]).locator('.sg-ai-reading time').getAttribute('datetime'), firstTask.preparation.createdAt);
+  assert.notEqual(await card(ids[0]).locator('.sg-received time').getAttribute('datetime'), await card(ids[0]).locator('.sg-ai-reading time').getAttribute('datetime'));
+  assert.doesNotMatch(await card(ids[0]).locator('.sg-received').innerText(), /Giulia chiede conferma della visita/);
+  assert.equal(await card(ids[0]).locator('h4.sg-case-title').innerText(), firstTask.preparation.nextAction.text);
+  assert.equal(await card(ids[0]).locator('.sg-action-reason > p').innerText(), firstTask.preparation.nextAction.reason);
+  await outsideDisclosure(card(ids[0]).locator('.sg-action-reason'));
+  assert.equal(await card(ids[0]).locator('.sg-reading-details').evaluate(el => el.open), false);
+  await card(ids[0]).locator('.sg-reading-details > summary').click();
+  assert.equal(await card(ids[0]).locator('.sg-reading-details > p').first().innerText(), firstTask.preparation.summary);
+  assert.ok((await card(ids[0]).locator('.sg-reading-details').innerText()).includes(firstTask.preparation.recommendation));
+  await card(ids[0]).locator('.sg-reading-details > summary').click();
+  for (const id of ids) assert.equal(await card(id).locator('.sg-case-action button').count(), 1);
+  assert.equal(await page.locator('article [data-sg-action="plan"]').count(), 0);
+  assert.equal(await card(ids[1]).locator('.sg-received time').count(), 0);
+  assert.match(await card(ids[1]).locator('.sg-received .sg-source-date').innerText(), /Data del messaggio non disponibile/);
+  assert.equal(await card(ids[1]).locator('.sg-ai-reading time').count(), 0);
+  assert.match(await card(ids[1]).locator('.sg-ai-reading').innerText(), /Data della preparazione non disponibile/);
+  assert.equal(await card(ids[2]).locator('.sg-ai-reading, .sg-action-reason, .sg-questions').count(), 0);
+  assert.equal((await posts()).length, 0);
+  ok('evento e data della fonte separati dalla lettura AI; prossimo passo e motivo visibili, analisi completa apribile, una CTA');
   await page.screenshot({ path: join(artifactDir, 'desktop.png'), fullPage: true });
-  await button(ids[0], 'plan').click();
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: join(artifactDir, 'mobile-normal.png'), fullPage: true });
+  await page.setViewportSize({ width: 1365, height: 1000 });
+  await button(ids[0], 'review').click();
   await page.waitForSelector('#sgExecutionPlan');
+  assert.equal(await page.locator('#sgExecutionPlan').evaluate(el => !!(el.compareDocumentPosition(document.getElementById('sgPreparationReview')) & Node.DOCUMENT_POSITION_FOLLOWING)), true);
   assert.equal(await page.locator('#sgExecutionPlan [data-sg-step]').count(), 3);
   assert.match(await page.locator('#sgExecutionPlan').innerText(), /WhatsApp/);
   assert.equal(await page.locator('[data-sg-modal="approve"]').innerText(), 'Approva ed esegui');
   assert.equal((await posts()).length, 0);
   await page.screenshot({ path: join(artifactDir, 'execution-plan.png'), fullPage: true });
   await page.keyboard.press('Escape');
-  ok('Esegui piano apre azioni e destinatario da approvare; nessun effetto dalla sola apertura');
+  ok('Rivedi proposta apre prima il piano, poi analisi e destinatario da approvare; nessun effetto dalla sola apertura');
   await open(ids[0]);
   assert.equal(await page.locator('#sgFollowForm').count(), 0);
   assert.match(await page.locator('#sgRecipient').innerText(), /Giulia · esempio[\s\S]*\+390000000001/);
   assert.match(await page.locator('#sgDraftText').innerText(), /Ciao Giulia/);
+  assert.equal(await page.locator('.sg-origin blockquote').innerText(), firstTask.followUp.preview);
+  assert.equal(await page.locator('.sg-origin time').getAttribute('datetime'), firstTask.followUp.lastInboundAt);
+  assert.equal(await page.locator('#sgPreparationReview .sg-review-summary').innerText(), firstTask.preparation.summary);
+  assert.equal(await page.locator('#sgPreparationReview .sg-action-reason > p').last().innerText(), firstTask.preparation.nextAction.reason);
+  await outsideDisclosure(page.locator('#sgPreparationReview .sg-action-reason'));
   assert.equal(await page.locator('[data-sg-modal="approve"]').innerText(), 'Approva ed esegui');
   assert.equal((await posts()).length, 0);
   await page.locator('#sgFollowModal .modal').evaluate(async el => { await Promise.all(el.getAnimations({ subtree: true }).map(a => a.finished.catch(() => {}))); });
   await page.screenshot({ path: join(artifactDir, 'review.png'), fullPage: true });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.locator('#sgFollowModal .modal-body').evaluate(el => { el.scrollTop = 0; });
+  await page.screenshot({ path: join(artifactDir, 'review-mobile-normal.png') });
+  await page.setViewportSize({ width: 1365, height: 1000 });
   ok('proposta visibile sul caso; destinatario e bozza prima della conferma; apertura non genera né invia');
 
   const revision = await page.evaluate(() => window.__rows[0].preparation.revision);
@@ -248,6 +293,56 @@ try {
   ok('attesa senza bozza conferma soltanto il seguito');
 
   await load();
+  await page.evaluate(async () => {
+    const task = window.__rows[2];
+    task.preparation = demoPreparation(task, false);
+    task.preparation.status = 'needs_context';
+    task.preparation.coverage.reasons.push('attachments_not_read');
+    await oggiSegretariaLoad(true);
+  });
+  const doubts = card(ids[2]).locator('.sg-questions');
+  await outsideDisclosure(doubts);
+  assert.match(await doubts.innerText(), /La casa non è indicata nel messaggio/);
+  assert.match(await doubts.innerText(), /Ci sono più pratiche possibili/);
+  assert.match(await doubts.innerText(), /Gli allegati non sono stati letti/);
+  assert.doesNotMatch(await doubts.innerText(), /practice_selection_required|attachments_not_read/);
+  await open(ids[2]);
+  await outsideDisclosure(page.locator('#sgPreparationReview .sg-questions'));
+  assert.equal(await page.locator('#sgPreparationReview .sg-questions').innerText(), await doubts.innerText());
+  assert.equal(await page.locator('.sg-evidence').evaluate(el => el.open), false);
+  assert.equal(await page.locator('[data-sg-modal="approve"]').isDisabled(), true);
+  await page.locator('[data-sg-modal="approve"]').evaluate(el => el.click());
+  assert.equal((await posts()).length, 0);
+  ok('dubbi e limiti specifici sono leggibili in card e review a dettagli chiusi; informazioni mancanti bloccano la conferma');
+
+  await load();
+  await page.evaluate(async () => {
+    const task = window.__rows[1];
+    delete task.preparation.nextAction.reason;
+    delete task.preparation.uncertainties;
+    task.followUp.lastInboundAt = 'data non valida';
+    task.preparation.createdAt = 'data non valida';
+    await oggiSegretariaLoad(true);
+  });
+  assert.equal(await card(ids[1]).locator('.sg-action-reason, .sg-questions, time').count(), 0);
+  assert.match(await card(ids[1]).locator('.sg-received').innerText(), /Data del messaggio non disponibile/);
+  assert.match(await card(ids[1]).locator('.sg-ai-reading').innerText(), /Data della preparazione non disponibile/);
+  await open(ids[1]);
+  assert.equal(await page.locator('#sgPreparationReview .sg-action-reason, #sgPreparationReview .sg-questions').count(), 0);
+  assert.equal(await page.locator('#sgDraftText').count(), 0);
+  assert.equal(await page.locator('.sg-origin time').count(), 0);
+  assert.equal((await posts()).length, 0);
+  await page.keyboard.press('Escape');
+  await page.evaluate(async () => {
+    window.__rows[1].preparation.coverage = { version: 2, incomplete: true, reasons: [] };
+    await oggiSegretariaLoad(true);
+  });
+  await outsideDisclosure(card(ids[1]).locator('.sg-questions'));
+  assert.match(await card(ids[1]).locator('.sg-questions').innerText(), /Contesto parziale.*informazioni mancanti non sono specificate/);
+  assert.equal((await posts()).length, 0);
+  ok('assenze e date invalide non inventano motivi o certezze; copertura parziale senza dettagli resta dichiarata');
+
+  await load();
   await page.evaluate(() => { window.__rows[0].preparation.version = 2; });
   await button(ids[0], 'review').click();
   await page.waitForSelector('#sgFollowModal');
@@ -256,6 +351,31 @@ try {
   assert.equal(await page.locator('[data-sg-modal="generate"]').innerText(), 'Prepara il lavoro');
   assert.equal((await posts()).length, 0);
   ok('proposta precedente ai controlli semantici non espone una vecchia bozza confermabile');
+
+  await load();
+  await page.evaluate(async () => {
+    const task = window.__rows[0];
+    task.preparation.summary = 'LETTURA_SUPERATA';
+    task.preparation.nextAction.reason = 'MOTIVO_SUPERATO';
+    task.preparation.uncertainties = [{ text: 'DUBBIO_SUPERATO' }];
+    task.followUp = { ...task.followUp, confirmed: true, needsReview: true, lastMessageId: 'nuovo-messaggio', preview: 'Ho cambiato la richiesta.' };
+    await oggiSegretariaLoad(true);
+    oggiSegretaria.monitoring = { mode: 'continuous', status: 'idle' };
+    oggiSegretariaRender();
+  });
+  assert.equal(await card(ids[0]).locator('.sg-ai-reading, .sg-action-reason, .sg-questions').count(), 0);
+  assert.doesNotMatch(await card(ids[0]).innerText(), /LETTURA_SUPERATA|MOTIVO_SUPERATO|DUBBIO_SUPERATO/);
+  assert.match(await card(ids[0]).locator('.sg-next-action').innerText(), /Seguito da verificare/i);
+  assert.doesNotMatch(await card(ids[0]).locator('.sg-next-action').innerText(), /azione confermata/i);
+  assert.equal(await card(ids[0]).locator('.sg-source-preview').innerText(), 'Ho cambiato la richiesta.');
+  await button(ids[0], 'inspect').click();
+  await page.waitForSelector('#sgFollowModal');
+  assert.doesNotMatch(await page.locator('#sgFollowModal').innerText(), /LETTURA_SUPERATA|MOTIVO_SUPERATO|DUBBIO_SUPERATO/);
+  assert.equal(await page.locator('#sgDraftText').count(), 0);
+  assert.equal(await page.locator('[data-sg-modal="approve"]').count(), 0);
+  assert.equal(await page.locator('[data-sg-modal="generate"]').innerText(), 'Prepara il lavoro');
+  assert.equal((await posts()).length, 0);
+  ok('nuovo messaggio con seguito prima confermato mostra solo fonte corrente, senza analisi obsoleta né azione confermata');
 
   await load();
   await page.evaluate(async () => {
@@ -283,7 +403,7 @@ try {
 
   await load();
   await page.evaluate(() => { window.BOOM_SEGRETARIA_ESECUZIONE = undefined; });
-  await button(ids[0], 'plan').click();
+  await button(ids[0], 'review').click();
   await page.waitForSelector('#sgFollowModal');
   assert.match(await page.locator('#sgFollowModal').innerText(), /piano di esecuzione non è disponibile/);
   assert.equal(await page.locator('[data-sg-modal="approve"]').isDisabled(), true);
@@ -316,7 +436,8 @@ try {
   assert.equal(await page.locator('[data-sg-modal="generate"]').isDisabled(), true);
   await page.evaluate(() => window.__release());
   await page.waitForSelector('#sgPreparationReview');
-  assert.match(await page.locator('#sgFollowModal').innerText(), /Contesto parziale/);
+  assert.match(await page.locator('#sgPreparationReview .sg-questions').innerText(), /Ci sono più pratiche possibili/);
+  await outsideDisclosure(page.locator('#sgPreparationReview .sg-questions'));
   await page.locator('#sgPreparationReview details summary').click();
   assert.match(await page.locator('#sgFollowModal').innerText(), /La casa non è indicata/);
   assert.equal((await posts())[0].body.op, 'generate');
@@ -399,8 +520,25 @@ try {
   ok('proposta incompleta non rompe Oggi e richiede nuova preparazione');
 
   await load();
-  await page.evaluate(() => { const p=window.__rows[0].preparation;p.summary='<img src=x onerror="window.__xss=1">';p.draft.text='<svg onload="window.__xss=1">';p.recipientPreview.name='<script>window.__xss=1</script>'; });
+  const injectedText = '<img src=x onerror="window.__xss=1">';
+  await page.evaluate(async text => {
+    const task = window.__rows[0], p = task.preparation;
+    task.followUp.preview = text;
+    p.summary = text; p.recommendation = text; p.nextAction.text = text; p.nextAction.reason = text;
+    p.uncertainties = [{ text }];
+    p.draft.text = '<svg onload="window.__xss=1">'; p.recipientPreview.name = '<script>window.__xss=1</script>';
+    await oggiSegretariaLoad(true);
+  }, injectedText);
+  for (const selector of ['.sg-source-preview', '.sg-ai-recommendation', 'h4.sg-case-title', '.sg-action-reason > p', '.sg-questions li']) {
+    assert.equal(await card(ids[0]).locator(selector).innerText(), injectedText);
+  }
+  await card(ids[0]).locator('.sg-reading-details > summary').click();
+  assert.equal(await card(ids[0]).locator('.sg-reading-details > p').first().innerText(), injectedText);
+  assert.equal(await card(ids[0]).locator('img, svg, script').count(), 0);
   await open(ids[0]);
+  assert.equal(await page.locator('.sg-origin blockquote').innerText(), injectedText);
+  assert.equal(await page.locator('#sgPreparationReview .sg-questions li').innerText(), injectedText);
+  assert.equal(await page.locator('#sgPreparationReview .sg-action-reason > p').last().innerText(), injectedText);
   assert.equal(await page.locator('#sgFollowModal img, #sgFollowModal svg, #sgFollowModal script').count(), 0);
   assert.equal(await page.evaluate(() => window.__xss), undefined);
   await page.setViewportSize({ width: 390, height: 844 });
@@ -409,7 +547,7 @@ try {
   await page.waitForFunction(() => S.page === 'inbox');
   assert.equal(await page.evaluate(() => window.__selectedConversation), 'c1');
   assert.equal((await posts()).length, 0);
-  ok('testi e destinatario non eseguono HTML; mobile senza overflow; fonte apribile senza invio');
+  ok('fonte, analisi, motivo, dubbi e destinatario non eseguono HTML; mobile senza overflow; fonte apribile senza invio');
 
   await load();
   await page.setViewportSize({ width: 1365, height: 1000 });
@@ -444,24 +582,145 @@ try {
   await page.keyboard.press('Escape');
   await page.waitForSelector('#sgFollowModal', { state: 'detached' });
   assert.equal(await button(ids[0], 'review').evaluate(el => el === document.activeElement), true);
-  const caseDetail = page.locator(`article[data-sg-id="${ids[0]}"] details`);
+  const caseDetail = card(ids[0]).locator('.sg-case-details');
   await caseDetail.locator('summary').focus();
   await page.keyboard.press('Enter');
   await page.evaluate(() => oggiSegretariaRender());
   assert.equal(await caseDetail.evaluate(el => el.open), true);
   assert.equal(await caseDetail.locator('summary').evaluate(el => el === document.activeElement), true);
+  const reading = card(ids[0]).locator('.sg-reading-details');
+  await reading.locator('summary').focus();
+  await page.keyboard.press('Enter');
+  await page.evaluate(async () => {
+    window.__rows[0].preparation.summary = 'Analisi aggiornata dalle fonti disponibili.';
+    await oggiSegretariaLoad(true);
+  });
+  assert.equal(await reading.evaluate(el => el.open), true);
+  assert.equal(await reading.locator('summary').evaluate(el => el === document.activeElement), true);
+  assert.equal(await caseDetail.evaluate(el => el.open), true);
+  assert.equal(await reading.locator('p').first().innerText(), 'Analisi aggiornata dalle fonti disponibili.');
   assert.equal((await posts()).length, 0);
-  ok('fonti e azioni secondarie da tastiera; chiusura restituisce focus alla CTA; refresh conserva dettagli e focus');
+  ok('fonti e analisi da tastiera; chiusura restituisce focus alla CTA; nuova lettura conserva entrambi i dettagli e il focus sull’analisi');
+
+  const loadDecisions = async () => {
+    await load();
+    return page.evaluate(async () => {
+      const firstCheck = Date.now() + 86400000;
+      window.__rows = Array.from({ length: 25 }, (_, index) => {
+        const task = demoTask('sg_' + (index + 1).toString(16).padStart(32, '0'), 'Caso dimostrativo ' + (index + 1), 'c' + (index + 1), 'viewingRequests/v1');
+        task.followUp.checkAt = new Date(firstCheck + index * 60000).toISOString();
+        task.preparation = demoPreparation(task);
+        return task;
+      });
+      await oggiSegretariaLoad(true);
+      return window.__rows.map(task => task.id);
+    });
+  };
+  const decisionIds = await loadDecisions();
+  const visibleDecisions = page.locator('[data-sg-group="decisions"] article[data-sg-id]');
+  const moreDecisions = page.locator('[data-sg-action="more-decisions"]');
+  assert.equal(await visibleDecisions.count(), 12);
+  assert.equal(await page.locator('[data-sg-group="decisions"] .sg-count').innerText(), '25');
+  const beforeMore = await page.evaluate(() => window.__requests);
+  await moreDecisions.click();
+  assert.equal(await visibleDecisions.count(), 24);
+  assert.equal(await button(decisionIds[12], 'review').evaluate(el => el === document.activeElement), true);
+  assert.deepEqual(await page.evaluate(() => window.__requests), beforeMore);
+  await moreDecisions.click();
+  assert.equal(await visibleDecisions.count(), 25);
+  assert.equal(await button(decisionIds[24], 'review').evaluate(el => el === document.activeElement), true);
+  assert.equal(await moreDecisions.count(), 0);
+  assert.equal(await page.locator('[data-sg-group="decisions"] .sg-count').innerText(), '25');
+  assert.deepEqual(await page.evaluate(() => window.__requests), beforeMore);
+  assert.equal((await posts()).length, 0);
+  ok('25 decisioni: mostra 12, poi 24, poi tutte; conteggio totale, focus sul primo nuovo caso, nessuna lettura o scrittura aggiuntiva');
+
+  await loadDecisions();
+  const retainedReading = card(decisionIds[0]).locator('.sg-reading-details');
+  await retainedReading.locator('summary').focus();
+  await page.keyboard.press('Enter');
+  assert.equal(await visibleDecisions.count(), 12);
+  await page.evaluate(async () => {
+    const task = window.__rows[0];
+    task.followUp.checkAt = new Date(Date.parse(window.__rows[24].followUp.checkAt) + 60000).toISOString();
+    task.preparation.summary = 'Analisi aggiornata del caso ora in fondo all’elenco.';
+    await oggiSegretariaLoad(true);
+  });
+  assert.equal(await visibleDecisions.last().getAttribute('data-sg-id'), decisionIds[0]);
+  assert.equal(await retainedReading.evaluate(el => el.open), true);
+  assert.equal(await retainedReading.locator('summary').evaluate(el => el === document.activeElement), true);
+  assert.equal(await retainedReading.locator('p').first().innerText(), 'Analisi aggiornata del caso ora in fondo all’elenco.');
+  assert.equal((await posts()).length, 0);
+  ok('nuova lettura sposta il caso aperto oltre la ventiquattresima posizione senza perdere card, analisi aperta o focus');
+
+  await loadDecisions();
+  await open(decisionIds[0]);
+  await page.evaluate(async () => {
+    window.__retainedReview = document.getElementById('sgFollowModal');
+    window.__rows[0].followUp.checkAt = new Date(Date.parse(window.__rows[24].followUp.checkAt) + 60000).toISOString();
+    await oggiSegretariaLoad(true);
+  });
+  assert.equal(await card(decisionIds[0]).count(), 1);
+  assert.equal(await page.evaluate(() => window.__retainedReview === document.getElementById('sgFollowModal')), true);
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('#sgFollowModal', { state: 'detached' });
+  assert.equal(await button(decisionIds[0], 'review').evaluate(el => el === document.activeElement), true);
+  assert.equal((await posts()).length, 0);
+  ok('review aperta durante il riordino oltre il limite resta intatta e alla chiusura restituisce il focus al caso');
+
+  await loadDecisions();
+  assert.equal(await card(decisionIds[24]).count(), 0);
+  await page.evaluate(async id => {
+    oggiSegretaria.propertyReturn = { taskId: id, opened: ['reading-' + id], scroll: 0, afterGeneration: oggiSegretaria.generation + 1 };
+    await oggiSegretariaLoad(true);
+  }, decisionIds[24]);
+  await page.waitForFunction(id => document.activeElement?.closest('article')?.dataset.sgId === id, decisionIds[24]);
+  assert.equal(await card(decisionIds[24]).locator('.sg-reading-details').evaluate(el => el.open), true);
+  assert.equal((await posts()).length, 0);
+  ok('contesto di ritorno dal fascicolo ripristina il caso oltre il limite iniziale, con analisi aperta e focus');
+
+  await loadDecisions();
+  await page.evaluate(async retained => {
+    oggiSegretaria.propertyReturn = { taskId: retained[0], opened: ['case-' + retained[23], 'reading-' + retained[24]], scroll: 0, afterGeneration: oggiSegretaria.generation + 1 };
+    await oggiSegretariaLoad(true);
+  }, decisionIds);
+  await page.waitForFunction(id => document.activeElement?.closest('article')?.dataset.sgId === id, decisionIds[0]);
+  assert.equal(await card(decisionIds[23]).locator('.sg-case-details').evaluate(el => el.open), true);
+  assert.equal(await card(decisionIds[24]).locator('.sg-reading-details').evaluate(el => el.open), true);
+  assert.equal((await posts()).length, 0);
+  ok('ritorno dal fascicolo conserva anche i dettagli di altri casi aperti oltre il limite iniziale');
 
   await load();
+  await page.evaluate(async () => {
+    const p = window.__rows[0].preparation;
+    p.summary = 'Sintesi della richiesta da confrontare con le fonti. '.repeat(12);
+    p.recommendation = 'Verificare i dati disponibili prima di confermare il piano. '.repeat(8);
+    p.nextAction.reason = 'Il prossimo passo dipende dalla disponibilità comunicata dalla persona coinvolta. '.repeat(8);
+    p.uncertainties = [{ text: 'Da chiarire il riferimento della richiesta: ' + 'riferimento-lungo-'.repeat(24) }];
+    p.coverage = { version: 2, incomplete: true, reasons: ['attachments_not_read'] };
+    await oggiSegretariaLoad(true);
+  });
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
+    for (const selector of ['.sg-received', '.sg-ai-reading', '.sg-next-action', '.sg-action-reason', '.sg-questions']) {
+      const block = card(ids[0]).locator(selector);
+      await outsideDisclosure(block);
+      const box = await block.boundingBox();
+      assert.ok(box.x >= 0 && box.x + box.width <= width, selector + ' esce dalla card a ' + width + ' px');
+    }
+    await card(ids[0]).locator('.sg-reading-details > summary').click();
+    assert.equal(await card(ids[0]).locator('.sg-reading-details > p').first().innerText(), await page.evaluate(() => window.__rows[0].preparation.summary));
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
+    await card(ids[0]).locator('.sg-reading-details > summary').click();
     if (width === 390) await page.screenshot({ path: join(artifactDir, 'mobile.png'), fullPage: true });
     await open(ids[0]);
     assert.equal(await page.locator('#sgRecipient').isVisible(), true);
     assert.equal(await page.locator('#sgDraftText').isVisible(), true);
     assert.equal(await page.locator('#sgDraftText').evaluate(el => !!el.closest('details:not([open])')), false);
+    await outsideDisclosure(page.locator('#sgPreparationReview .sg-questions'));
+    await outsideDisclosure(page.locator('#sgPreparationReview .sg-action-reason'));
+    await page.locator('#sgFollowModal .modal').evaluate(async el => { await Promise.all(el.getAnimations({ subtree: true }).map(a => a.finished.catch(() => {}))); });
     const buttonBox = await page.locator('[data-sg-modal="approve"]').boundingBox();
     assert.ok(buttonBox.x >= 0 && buttonBox.x + buttonBox.width <= width && buttonBox.y + buttonBox.height <= 844 && buttonBox.height >= 44);
     assert.equal(await page.locator('#sgFollowModal .modal').evaluate(el => el.scrollWidth <= el.clientWidth + 1), true);
@@ -472,13 +731,17 @@ try {
     await page.keyboard.press('Escape');
   }
   assert.equal((await posts()).length, 0);
-  ok('320/390 px: nessun overflow, conferma raggiungibile, testo e destinatario fuori da sezioni chiuse');
+  ok('320/390 px con testi lunghi: analisi completa leggibile, nessun overflow, conferma raggiungibile, motivo e dubbi fuori da sezioni chiuse');
 
   await load();
+  await page.evaluate(async () => {
+    window.__rows[2].preparation = demoPreparation(window.__rows[2], false);
+    await oggiSegretariaLoad(true);
+  });
   const contrast = await page.evaluate(() => {
     const rgb = text => (text.match(/[\d.]+/g) || []).slice(0, 3).map(Number);
     const lum = values => values.map(v => { v /= 255; return v <= .04045 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }).reduce((sum, v, i) => sum + v * [.2126, .7152, .0722][i], 0);
-    return ['.sg-case-summary', '.sg-person', '.sg-state-label', '.sg-briefing-note', '.sg-footnote'].map(selector => {
+    return ['.sg-source-preview', '.sg-source-date', '.sg-ai-recommendation', '.sg-action-reason', '.sg-questions li', '.sg-coverage-gaps li', '.sg-person', '.sg-state-label', '.sg-briefing-note', '.sg-footnote'].map(selector => {
       const element = document.querySelector(selector), color = lum(rgb(getComputedStyle(element).color));
       let parent = element, background;
       while (parent) { const value = getComputedStyle(parent).backgroundColor; if (value !== 'rgba(0, 0, 0, 0)' && value !== 'transparent') { background = lum(rgb(value)); break; } parent = parent.parentElement; }

@@ -3798,6 +3798,12 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
 
 ### LA SEGRETARIA (`js/segretaria-engine.js` + `api/segretaria/_core.js` + 🤖 sulla card)
 
+- **Oggi: dal messaggio al prossimo passo (21/09)**: card e review distinguono l’anteprima dell’ultimo inbound, con la sua data quando disponibile, dall’interpretazione AI e dall’azione proposta. Il testo ricevuto non è etichettato come novità.
+  La card mostra azione, motivo e dubbi specifici; l’analisi completa si espande mantenendo apertura e focus durante gli aggiornamenti. Una sola azione «Rivedi proposta» apre effetti reali, destinatario e testo prima della conferma.
+  Copertura parziale e allegati non letti restano espliciti; non vengono inventati scenari o un inventario documentale. Proposte obsolete e ricevute continuano a dipendere dai cancelli esistenti.
+  Le decisioni mostrano dodici schede alla volta, con totale completo e «Mostra altre»; il caso in lettura resta raggiungibile dopo riordino o ritorno dall’immobile. Nessun caso viene eliminato o riclassificato.
+  Prove: `segretariapropostaui`, `segretarialiveui`, `segretariafreshui`, `seguitoui`, `propertyoggiui`; dati sintetici, nessun invio reale.
+
 - **Conversazione stabile (21/09)**: diventare lead conserva il CID verificato, senza migrare messaggi, casi o ACL storiche. `_conversation.js` risolve il riferimento persistito e le identità; numero condiviso, legami contraddittori o due chat con storia restano conflitti espliciti.
 - `POST /api/homie/conversation` è admin-only: restituisce `{cid,status,reason}` e crea/lega solo dopo assenza verificata nello stesso CAS. `409` = conflitto, `503` = lettura indisponibile; il portale non crea un fallback.
 - Il primo lead WhatsApp e il backlink nascono atomicamente. Handover, apertura, email e inbox-sync riusano il resolver; i retry partono dal CID del messaggio già persistito.
