@@ -154,6 +154,13 @@ serve una testa, e la testa può restare.
 >    timestamp}`. Il `body` deve essere **verbatim**: nessun riassunto,
 >    nessuna traduzione, nessuna interpretazione. `messageId` rende il rinvio
 >    innocuo: nel dubbio, rimanda.
+>    **Le risposte** (dal 21/09/2026): `200` = accettato, ANCHE quando porta
+>    `conversationStatus:'conflict'` (il messaggio è salvato sulla chat del
+>    numero; il dubbio d'identità lo scioglie l'operatore, non un rinvio);
+>    `503` = ritenta più tardi; un `4xx` = il payload è sbagliato e
+>    rimandarlo uguale non serve. Il 21/09 un 409 permanente ritentato ogni
+>    23 secondi ha tenuto ferma la coda per ore: il server ora non risponde
+>    più 409 per l'identità, e il Mac non deve ritentare all'infinito un 4xx.
 > 2. **Fai il postino in uscita**: `POST /api/homie/wa-outbox {op:'pull'}`
 >    ogni 3-5 minuti, manda il testo **esatto** che ricevi, poi
 >    `{op:'ack', actionId, ok}`. Non riscrivere i messaggi: sono già stati

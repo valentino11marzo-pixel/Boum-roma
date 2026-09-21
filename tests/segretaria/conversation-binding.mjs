@@ -258,6 +258,56 @@ try{
   blank();legacy({ref:false,backlink:false});endpoint=await api();
   ok('raw WA senza legame non genera primaria parallela per un lead esterno',endpoint.code===409&&endpoint.reason==='unbound_whatsapp_conversation'&&rows('conversations').length===1&&!DB.get('leads/'+LID).conversationId,endpoint);
 
+  // ── 21/09/2026: un messaggio non si rifiuta MAI per una questione di identità ──
+  // (946 × 409 in un pomeriggio, il Mac che ritenta ogni 23 secondi, Oggi vuota).
+  blank();legacy({ref:false,backlink:false});save('messages/old-wa',{conversationId:WA,at:new Date(NOW-5000).toISOString(),direction:'in',body:'Old WA'});
+  a=await call(messageHandler,raw('legacy-adopt'));
+  ok('chat storica del numero senza legame: il lead la ADOTTA, nessun 409, un solo CID',a.code===200&&a.conversationId===WA&&!a.conversationStatus
+    &&DB.get('conversations/'+WA).leadId===LID&&DB.get('leads/'+LID).conversationId===WA&&rows('conversations').length===1&&messages().length===2,a);
+  ok('la chat adottata entra nella preparazione: caso iscritto sul CID del numero',tasks().length===1&&tasks()[0][1].followUp.conversationId===WA&&a.followUp?.tracked===true,tasks().map(([p,t])=>[p,t.followUp]));
+  b=await call(messageHandler,raw('legacy-adopt-2',{body:'Posso vedere la stanza domani?'}));
+  ok('secondo messaggio sulla chat adottata: stesso CID, stesso caso',b.code===200&&b.conversationId===WA&&!b.conversationStatus&&tasks().length===1&&tasks()[0][1].followUp.lastMessageId==='legacy-adopt-2',b);
+
+  blank();legacy({ref:false,backlink:false});save('conversations/'+WA,{...DB.get('conversations/'+WA),leadId:'different-person'});save('leads/different-person',{phone:'+393330009999'});
+  a=await call(messageHandler,raw('foreign-binding'));
+  ok('chat del numero legata a un ALTRO lead: messaggio salvato lì col conflitto dichiarato, mai 409',a.code===200&&a.conversationId===WA&&a.conversationStatus==='conflict'&&a.conversationReason==='unbound_whatsapp_conversation'
+    &&messages().length===1&&DB.get('conversations/'+WA).leadId==='different-person'&&DB.get('conversations/'+WA).conversationBindingConflict==='unbound_whatsapp_conversation'
+    &&!DB.get('leads/'+LID).conversationId&&rows('conversations').length===1&&tasks().length===0&&network.length===0,a);
+  b=await call(messageHandler,raw('foreign-binding'));ok('retry dello stesso messaggio in conflitto: dedup e conflitto ancora dichiarato, mai 409',b.code===200&&b.dedupHit&&b.conversationStatus==='conflict'&&messages().length===1,b);
+
+  blank();save('leads/'+LID,{phone:PHONE,email:'client@example.test'});save('leads/lead-twin',{phone:PHONE.slice(3),email:'client@example.test'});
+  a=await call(messageHandler,raw('twin'));
+  ok('numero su due schede lead (doppione storico): nessun 409, messaggio sulla chat del numero, conflitto dichiarato, nessun legame scritto',a.code===200&&a.conversationId===WA&&a.conversationStatus==='conflict'&&a.conversationReason==='shared_contact_identity'
+    &&DB.get('conversations/'+WA).contactType==='whatsapp'&&!DB.get('conversations/'+WA).leadId&&!DB.get('leads/'+LID).conversationId&&!DB.get('leads/lead-twin').conversationId
+    &&messages().length===1&&rows('conversations').length===1&&tasks().length===0&&rows('leads').length===2&&network.length===0,a);
+
+  blank();legacy();save('conversations/'+WA,{...DB.get('conversations/'+WA),contactPhone:'+393330009999'});
+  a=await call(messageHandler,raw('phone-mismatch'));
+  ok('numero diverso da quello della chat legata: messaggio conservato, conflitto dichiarato, identità della chat intatta',a.code===200&&a.conversationId===WA&&a.conversationStatus==='conflict'&&a.conversationReason==='phone_conflict'
+    &&messages().length===1&&rows('conversations').length===1&&DB.get('conversations/'+WA).contactPhone==='+393330009999'&&tasks().length===0,a);
+
+  // ── L'interruttore della preparazione (prima: solo a mano su Firestore) ──
+  const { default: preparationHandler } = await import('../../api/segretaria/preparation.js');
+  async function prep(body,token='admin'){let code,out;await preparationHandler({method:'POST',headers:{authorization:'Bearer '+token},body},{setHeader(){},status(n){code=n;return this;},json(v){out=v;return this;}});return {code,...out};}
+  blank();save('users/tenant',{role:'tenant'});save('settings/segretaria',{enabled:true});
+  a=await call(messageHandler,raw('before-switch'));
+  ok('preparazione mai accesa: il WhatsApp entra in Inbox ma nessun caso nasce',a.code===200&&messages().length===1&&tasks().length===0,a);
+  let sw=await prep({prepareCases:true},'tenant');ok('l’interruttore è admin-only',sw.code===403&&DB.get('settings/segretaria').prepareCases===undefined,sw);
+  sw=await prep({prepareCases:'yes'});ok('un valore non booleano viene rifiutato',sw.code===400,sw);
+  sw=await prep({prepareCases:true});
+  ok('accensione: prepareCases true e prepareSince = adesso, stato riletto',sw.code===200&&DB.get('settings/segretaria').prepareCases===true&&Date.parse(DB.get('settings/segretaria').prepareSince)===NOW&&sw.monitoring?.prepareCases===true,{sw,settings:DB.get('settings/segretaria')});
+  const since=DB.get('settings/segretaria').prepareSince;
+  sw=await prep({prepareCases:false});const paused=DB.get('settings/segretaria');sw=await prep({prepareCases:true});
+  ok('sospendere e riaccendere non riavvolge prepareSince',paused.prepareCases===false&&paused.prepareSince===since&&DB.get('settings/segretaria').prepareSince===since&&DB.get('settings/segretaria').prepareCases===true,DB.get('settings/segretaria'));
+  b=await call(messageHandler,raw('after-switch',{body:'Posso vedere la stanza domani?'}));
+  ok('dopo l’accensione il WhatsApp successivo diventa un caso',b.code===200&&tasks().length===1&&b.followUp?.tracked===true,b);
+  save('settings/segretaria',{...DB.get('settings/segretaria'),enabled:false});sw=await prep({prepareCases:true});
+  ok('il kill switch vince: nessuna accensione su una Segretaria spenta',sw.code===409&&sw.error==='segretaria_disabled',sw);
+  {const portal=await (await import('node:fs/promises')).readFile(new URL('../../js/portal-app.js',import.meta.url),'utf8');
+    ok('il portal collega davvero l’interruttore e l’avviso di conflitto',portal.includes("oggiSegretariaRequest(null, { prepareCases: !!enable }, 'preparation')")
+      &&portal.includes('data-og-action="preparation-on"')&&portal.includes('const bindingNotice = !bindingCode')&&portal.includes("typeof preparation === 'string' ? preparation")
+      &&!portal.includes('window.oggiSegretariaPreparation')&&portal.includes('function oggiSegretariaPreparation(task)'));} // il nome dell'accessor dei casi resta suo: la collisione ha mandato tutte le richieste in «Decisioni»
+
   blank();legacy();messageCommitHook=()=>save('leads/'+LID,{...DB.get('leads/'+LID),conversationId:'conv_lead_other'});
   a=await call(messageHandler,raw('changed-pointer'));
   ok('riferimento lead cambia prima della primaria: vecchia rotta non scritta',a.code===503&&messages().length===0&&DB.get('leads/'+LID).conversationId==='conv_lead_other',a);
@@ -373,6 +423,9 @@ try{
       {name:'unavailable temporaneo recupera sul retry',file:'api/homie/message.js',from:"if (bindingConflict && bindingStatus === 'unavailable')",to:'if (false)'},
       {name:'recupero non cancella conflitto concorrente',file:'api/homie/message.js',from:"row.data.conversationBindingStatus !== 'unavailable'",to:'false'},
       {name:'binding CAS protegge identità concorrente',from:'precondition: guard(candidate)',to:'precondition: { exists: !!candidate }'},
+      {name:'un conflitto di identità non rifiuta MAI il messaggio (il 409 del 21/09)',file:'api/homie/message.js',from:"let selected = resolution.ingestFallback || (resolution.status === 'conflict' ? null : resolution);",to:"if (resolution.status === 'conflict' && !resolution.ingestFallback) return res.status(409).json({ ok: false, error: resolution.reason, conversationStatus: resolution.status });\n    let selected = resolution.ingestFallback || resolution;"},
+      {name:'la chat storica senza legame viene adottata, non rifiutata',file:'api/homie/message.js',from:'if (rawConv && !rawConv.leadId) resolution = await resolveLeadConversation({ leadId, create: true, attachCid: rawCid });',to:'/* no adoption */'},
+      {name:'sotto conflitto l’identità della chat resta la sua',file:'api/homie/message.js',from:'contactPhone = fallback.contactPhone || contactPhone;',to:'/* rewrite phone */'},
     ];
     for(const m of mutants){const scratch=await fs.mkdtemp(join(tmpdir(),'boom-cid-mutant-'));try{
       await fs.cp(root+'api',scratch+'/api',{recursive:true});await fs.cp(root+'js',scratch+'/js',{recursive:true});

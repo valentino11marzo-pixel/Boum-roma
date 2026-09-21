@@ -366,7 +366,8 @@ export async function segretariaStatusMessage() {
     `<b>🤖 La Segretaria</b> — ${gate.blocked ? (cfg.enabled ? '⏸ Risposte automatiche sospese' : '🔴 SPENTA (kill switch)') : '🟢 in servizio'}`,
     '',
     gate.blocked ? esc(gate.why) : 'Risponde SOLO sulle conversazioni che le consegni tu (🤖 sulla card del lead). Un tuo messaggio manuale nella chat la spegne su quella conversazione.',
-    ...(cfg.enabled && raw?.prepareCases === true ? ['Preparazione dei casi attiva; prepara proposte in Oggi senza inviarle.'] : []),
+    ...(cfg.enabled && raw?.prepareCases === true ? ['Preparazione dei casi attiva; prepara proposte in Oggi senza inviarle.']
+      : cfg.enabled ? ['⏸ Preparazione dei casi SOSPESA: i WhatsApp entrano in Inbox ma non diventano proposte in Oggi. Si accende dal portal → Oggi → «Attiva la preparazione automatica».'] : []),
     '',
     active.length ? `<b>Chat consegnate (${active.length}):</b>` : 'Nessuna chat consegnata al momento.',
     ...rows,

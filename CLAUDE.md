@@ -3904,6 +3904,71 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
 
 ### LA SEGRETARIA (`js/segretaria-engine.js` + `api/segretaria/_core.js` + 🤖 sulla card)
 
+- **IL 409 CHE FERMAVA WHATSAPP (21/09/2026, sera — letto nei log di Vercel,
+  non dedotto)**. Nelle 24 ore: `/api/homie/message` **946 × 409** contro
+  430 × 200, tutti da quando il ramo del 21/09 è andato in produzione (13:04
+  UTC), e dalle 21:13 UTC in poi SOLO 409, uno ogni 23 secondi: il Mac
+  ritentava lo stesso messaggio all'infinito e nessun WhatsApp entrava più in
+  Inbox né in Oggi. Causa: il resolver «Conversazione stabile» rispondeva 409
+  a OGNI conflitto d'identità senza `ingestFallback` — e i conflitti più
+  comuni sull'archivio VERO sono **permanenti**: la chat del numero nata
+  prima del lead e senza `leadId` (`unbound_whatsapp_conversation`), un
+  doppione di lead con lo stesso numero (`shared_contact_identity`), il
+  numero della chat diverso da quello del lead (`phone_conflict`). Un 409 su
+  una condizione che non può risolversi da sola è un messaggio perso — o,
+  con un client che ritenta, una coda bloccata in testa. Due regole nuove in
+  `api/homie/message.js`, entrambe verificate per mutazione:
+  1. **Un messaggio non si rifiuta MAI per una questione di identità.** Il
+     conflitto resta un conflitto (nessuna fusione, nessun legame scritto,
+     nessuna identità del lead rivendicata), ma il messaggio si SALVA sulla
+     chat onesta — quella del numero da cui è arrivato, `conv_whatsapp_<n>`,
+     creata se manca; senza numero la primaria del lead — con
+     `conversationBindingConflict` sopra e risposta **200**
+     `conversationStatus:'conflict'`. L'identità della chat esistente resta
+     la sua (telefono compreso). La Segreteria non iscrive casi su quella
+     chat finché il dubbio non è sciolto, e ora l'Inbox LO DICE
+     (`inboxBindingNotice`: prima quel campo non lo leggeva nessuno e il
+     silenzio era indistinguibile da un guasto). Il motivo va nel log come
+     codice, mai un dato.
+  2. **La chat storica senza legame viene ADOTTATA, non rifiutata.** Se la
+     chat del numero esiste, non porta alcun `leadId`, il lead non ha alcuna
+     chat e nessun'altra scheda ha quel numero (`sharedIdentity`), il lead la
+     adotta con lo stesso commit atomico del primo messaggio (`attachCid`):
+     un solo CID, backlink nei due sensi, e da lì il caso in Oggi. È il caso
+     più frequente dell'archivio (ogni contatto entrato da un'altra porta che
+     aveva già scritto su WhatsApp). Due chat con storia restano due chat
+     (regola di Codex intatta: `multiple_established_conversations` →
+     fallback sulla primaria, dichiarato).
+  Contratto per il Mac (`bot/HOMIE.md`): **200 = accettato** (anche in
+  conflitto), **503 = ritenta più tardi**, un 4xx = payload sbagliato, non
+  si ritenta uguale. Test: `tests/segretaria/conversation-binding.mjs`
+  (chat storica adottata; legata a un altro lead → 200 col conflitto e
+  nessun legame; doppione → 200 sul numero; telefono diverso → identità
+  intatta; retry → dedup; tre mutanti: il 409 rimesso, l'adozione tolta, il
+  telefono riscritto).
+
+- **L'INTERRUTTORE CHE NON ESISTEVA (stessa sera)**: `settings/segretaria.
+  prepareCases` e `prepareSince` — i due cancelli senza cui il worker esce
+  subito (`enabled:false, prepared:0`) e `refreshTrackedFollowUp` non iscrive
+  NESSUN caso nuovo — non avevano alcuna superficie che li scrivesse: né
+  portal, né Telegram, né endpoint. La Segreteria era costruita, deployata e
+  ferma per costruzione, e Oggi diceva «Preparazione automatica sospesa»
+  senza un tasto per accenderla. Ora `POST /api/segretaria/preparation`
+  (admin, `{prepareCases:boolean}`): all'accensione stampa `prepareSince`
+  SOLO se manca (sospendere e riaccendere non riavvolge la finestra:
+  l'arretrato resta fuori dal rollout, come da disegno), il kill switch
+  `enabled:false` vince e lo dice (409 `segretaria_disabled`), risponde col
+  monitor riletto. In Oggi: **▶ Attiva la preparazione automatica** /
+  «Sospendi» nel blocco di stato (`oggiSegretariaSwitchPreparation`); `/segretaria`
+  su Telegram dice quando è sospesa e dove si accende. Nessun invio nasce
+  dall'interruttore: ogni consegna resta una conferma dell'operatore.
+  **Da fare a mano una volta**: `npx firebase-tools deploy --only
+  firestore:indexes` — l'indice `messages(conversationId ASC, at DESC)` è
+  dichiarato in `firestore.indexes.json` ma la CI deploya solo rules+storage
+  (aggiungerlo alla CI in `--non-interactive` fallirebbe al primo indice
+  creato dalla console e assente dal file). Senza indice la cronologia
+  lunga degrada al fallback, non si ferma.
+
 - **Oggi, azioni ed effetti espliciti (21/09 sera)**: le schede distinguono messaggio da rivedere e seguito interno senza bozza; «Da rivedere» non chiama decisioni tutte le richieste. Sintesi breve, contesto consultabile e avviso di fonti parziali restano separati; prima della conferma sono esposti destinatario, testo e dubbi completi.
   `BOOM_PROPOSTA.approvalExpired` governa la scadenza; render e click bloccano nuove conferme scadute, con rielaborazione esplicita e gestione del 409 `preparation_expired`. Ricevute e ripresa della stessa approvazione restano valide; il modulo condiviso assente blocca la conferma.
   Il feedback `approveAgentAction` distingue prova email e WhatsApp da verificare: `executed` o un link non attestano invio. Nessuna lettura della Home genera o invia; una nota testuale non esegue telefonate o lavori.

@@ -366,19 +366,63 @@ export default async function handler(req, res) {
 
   let cid = convIdFor(contactType, contactId), bindingConflict = null, bindingGuard = null, bindingIdentity = null, bindingStatus = null;
   if (contactType === 'lead') {
-    const resolution = await resolveLeadConversation({ leadId: contactId, create: !backlogReview });
+    const leadId = contactId;
+    const rawCid = contactPhone ? convIdFor('whatsapp', contactPhone.replace(/^\+/, '')) : null;
+    let resolution = await resolveLeadConversation({ leadId, create: !backlogReview });
+    // Il caso più frequente dell'archivio VERO (21/09/2026): la chat del numero
+    // è nata PRIMA del lead (o il lead è entrato da un'altra porta) e non porta
+    // alcun legame. Non è una fusione: è l'UNICA chat di quel numero e l'UNICO
+    // lead con quel numero (sharedIdentity lo verifica) — la adotta con lo
+    // stesso commit atomico del primo messaggio (attachCid). Ogni altro dubbio
+    // (legata a un altro lead, due chat con storia, numero condiviso) resta un
+    // conflitto dichiarato, mai una fusione.
+    if (resolution.status === 'conflict' && resolution.reason === 'unbound_whatsapp_conversation' && rawCid && !backlogReview) {
+      let rawConv = null;
+      try { rawConv = await fsGet('conversations/' + rawCid); } catch { rawConv = null; }
+      if (rawConv && !rawConv.leadId) resolution = await resolveLeadConversation({ leadId, create: true, attachCid: rawCid });
+    }
     if (resolution.status === 'unavailable') return res.status(503).json({ ok: false, error: resolution.reason, conversationStatus: resolution.status });
-    if (resolution.status === 'conflict' && !resolution.ingestFallback)
-      return res.status(409).json({ ok: false, error: resolution.reason, conversationStatus: resolution.status });
-    const selected = resolution.ingestFallback || resolution;
-    cid = selected.cid; bindingGuard = selected.bindingGuard;
-    const bound = selected.conversation;
-    if (!(backlogReview && resolution.status === 'new')) bindingIdentity = bound;
-    if (contactPhone && bound.contactPhone && normalizePhone(bound.contactPhone) !== contactPhone)
-      return res.status(409).json({ ok: false, error: 'phone_conflict', conversationStatus: 'conflict' });
-    contactType = bound.contactType; contactId = bound.contactId;
-    contactUid = bound.contactUid || null; assignedLandlordId = bound.assignedLandlordId || null;
-    if (resolution.status === 'conflict') { bindingConflict = resolution.reason; bindingStatus = 'conflict'; }
+    let selected = resolution.ingestFallback || (resolution.status === 'conflict' ? null : resolution);
+    if (selected && contactPhone && selected.conversation.contactPhone && normalizePhone(selected.conversation.contactPhone) !== contactPhone) {
+      resolution = { status: 'conflict', reason: 'phone_conflict' }; selected = null;
+    }
+    if (!selected) {
+      // LA LEZIONE DEL 21/09/2026: qui rispondevamo 409. Un conflitto di identità
+      // è PERMANENTE (un doppione di lead, una chat legata a un'altra scheda) e
+      // il Mac ritentava lo stesso messaggio ogni 23 secondi per ore: 946 rifiuti
+      // in un pomeriggio, e nessun WhatsApp arrivava più in Oggi. Un messaggio
+      // non si rifiuta MAI per una questione di identità: si salva sulla chat
+      // ONESTA — quella del numero da cui è arrivato — col conflitto dichiarato
+      // sopra, senza scrivere alcun legame né rivendicare l'identità del lead.
+      // A risolvere il dubbio è l'operatore; a ritentare non serve a niente.
+      const fallbackCid = rawCid || convIdFor('lead', leadId);
+      let fallback = null;
+      try { fallback = await fsGet('conversations/' + fallbackCid); }
+      catch { return res.status(503).json({ ok: false, error: 'conversation_lookup_failed', conversationStatus: 'unavailable' }); }
+      cid = fallbackCid; bindingGuard = null; bindingIdentity = fallback || null; documentContact = null;
+      if (fallback) {
+        // La chat esiste: la sua identità resta la sua, non quella del lead in dubbio.
+        contactType = fallback.contactType || (rawCid ? 'whatsapp' : 'lead');
+        contactId = fallback.contactId || (rawCid ? contactPhone.replace(/^\+/, '') : leadId);
+        contactName = fallback.contactName || body.name || contactPhone || leadId;
+        contactPhone = fallback.contactPhone || contactPhone;
+        contactEmail = fallback.contactEmail || '';
+        contactUid = fallback.contactUid || null; assignedLandlordId = fallback.assignedLandlordId || null;
+      } else {
+        if (rawCid) { contactType = 'whatsapp'; contactId = contactPhone.replace(/^\+/, ''); }
+        contactName = body.name || contactPhone || leadId; contactEmail = body.email || '';
+        contactUid = null; assignedLandlordId = null;
+      }
+      bindingConflict = resolution.reason || 'binding_not_verified'; bindingStatus = 'conflict';
+      console.warn('[homie/message] identity conflict declared, message kept:', bindingConflict);
+    } else {
+      cid = selected.cid; bindingGuard = selected.bindingGuard;
+      const bound = selected.conversation;
+      if (!(backlogReview && resolution.status === 'new')) bindingIdentity = bound;
+      contactType = bound.contactType; contactId = bound.contactId;
+      contactUid = bound.contactUid || null; assignedLandlordId = bound.assignedLandlordId || null;
+      if (resolution.status === 'conflict') { bindingConflict = resolution.reason; bindingStatus = 'conflict'; }
+    }
   }
   const now = body.timestamp ? new Date(body.timestamp) : new Date();
   const analysis = !backlogReview && (body.analysis && typeof body.analysis === 'object') ? body.analysis : null;

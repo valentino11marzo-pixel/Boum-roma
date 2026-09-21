@@ -4899,9 +4899,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             .filter(([, count]) => Number.isSafeInteger(count) && count > 0)
             .map(([code, count]) => (retryLabels[code] || (code.startsWith('calendar_') ? 'Orario da verificare' : 'Motivo da verificare')) + ': ' + count);
         const warning = ['unavailable', 'unknown', 'disabled', 'paused', 'daily_cap', 'delayed'].includes(status);
+        // L'interruttore (21/09/2026): prima `prepareCases` si poteva accendere
+        // solo scrivendo a mano su Firestore, e la Segreteria restava «sospesa»
+        // per costruzione. Il tap scrive settings/segretaria dal server (admin).
+        const canSwitch = m && m.prepareCases !== null && m.enabled !== false;
+        const switchHtml = !canSwitch ? '' : m.prepareCases === true
+            ? `<p class="sg-footnote">I nuovi WhatsApp diventano casi da preparare. <button type="button" class="btn btn-sm btn-secondary" data-og-action="preparation-off" onclick="oggiSegretariaSwitchPreparation(false)">Sospendi la preparazione automatica</button></p>`
+            : `<p><button type="button" class="btn btn-sm" data-og-action="preparation-on" onclick="oggiSegretariaSwitchPreparation(true)">▶ Attiva la preparazione automatica</button> <span class="sg-footnote">Da questo momento ogni WhatsApp in entrata diventa un caso e la proposta arriva qui entro un paio di minuti. Niente parte da solo: ogni invio resta una tua conferma.</span></p>`;
         const cycle = m?.stoppedBy === 'time_budget' ? 'Il ciclo ha raggiunto il tempo disponibile; le richieste residue restano in coda.'
             : m?.stoppedBy === 'batch_limit' ? 'Il lavoro prosegue per cicli; le richieste residue restano in coda.' : '';
-        return `<div id="sgPreparationStatus" class="sg-notice${warning ? ' sg-notice--warning' : ''}" role="status"><p>${labels[status]}</p><details class="sg-service-details" data-sg-detail="service" ${opened.has('service') ? 'open' : ''}><summary>Dettagli della preparazione${partialQueue ? ' · conteggi parziali' : ''}<span aria-hidden="true">+</span></summary>${continuous ? '<p>Preparazione continua · nessuna quota giornaliera di proposte.</p>' : ''}${counts.length ? `<p>${partialQueue ? 'Parte della coda, ultimo ciclo' : 'Ultimo ciclo'} · ${esc(counts.join(' · '))}</p>` : ''}${m?.counts?.retrying > 0 ? '<p>I casi non riusciti restano da ritentare; non sono proposte pronte.</p>' : ''}${retries.length ? `<p>Motivi dei casi da ritentare o verificare · ${esc(retries.join(' · '))}</p>` : ''}${at(m?.nextRetryAt) ? `<p>${Date.parse(m.nextRetryAt) <= Date.now() ? 'Nuovo tentativo atteso dal' : 'Prossimo tentativo previsto'}: ${esc(at(m.nextRetryAt))}</p>` : ''}${cycle ? `<p>${cycle}</p>` : ''}${dates.length ? `<p>${esc(dates.join(' · '))}</p>` : ''}${status === 'daily_cap' ? '<p>Puoi leggere le fonti e correggere i seguiti mentre lo stato del servizio viene aggiornato.</p>' : ''}${partialQueue ? '<p>La lettura della coda è parziale: potrebbero esserci altre richieste da valutare.</p>' : ''}${m?.incomplete ? '<p>Informazioni sulla preparazione parziali.</p>' : ''}</details></div>`;
+        return `<div id="sgPreparationStatus" class="sg-notice${warning ? ' sg-notice--warning' : ''}" role="status"><p>${labels[status]}</p>${switchHtml}<details class="sg-service-details" data-sg-detail="service" ${opened.has('service') ? 'open' : ''}><summary>Dettagli della preparazione${partialQueue ? ' · conteggi parziali' : ''}<span aria-hidden="true">+</span></summary>${continuous ? '<p>Preparazione continua · nessuna quota giornaliera di proposte.</p>' : ''}${counts.length ? `<p>${partialQueue ? 'Parte della coda, ultimo ciclo' : 'Ultimo ciclo'} · ${esc(counts.join(' · '))}</p>` : ''}${m?.counts?.retrying > 0 ? '<p>I casi non riusciti restano da ritentare; non sono proposte pronte.</p>' : ''}${retries.length ? `<p>Motivi dei casi da ritentare o verificare · ${esc(retries.join(' · '))}</p>` : ''}${at(m?.nextRetryAt) ? `<p>${Date.parse(m.nextRetryAt) <= Date.now() ? 'Nuovo tentativo atteso dal' : 'Prossimo tentativo previsto'}: ${esc(at(m.nextRetryAt))}</p>` : ''}${cycle ? `<p>${cycle}</p>` : ''}${dates.length ? `<p>${esc(dates.join(' · '))}</p>` : ''}${status === 'daily_cap' ? '<p>Puoi leggere le fonti e correggere i seguiti mentre lo stato del servizio viene aggiornato.</p>' : ''}${partialQueue ? '<p>La lettura della coda è parziale: potrebbero esserci altre richieste da valutare.</p>' : ''}${m?.incomplete ? '<p>Informazioni sulla preparazione parziali.</p>' : ''}</details></div>`;
     }
     const oggiSegretariaErrors = {
         unauthorized: 'Accedi di nuovo per leggere i seguiti.', forbidden: 'Questa vista richiede un accesso amministratore.',
@@ -4937,6 +4944,22 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             return 'La proposta contiene una data o un ricontrollo non coerente con le fonti. Il seguito resta da verificare.';
         return oggiSegretariaErrors[error && error.code] || 'Non riesco ad aggiornare i seguiti. Riprova: i dati già visibili potrebbero non essere aggiornati.';
     }
+    window.oggiSegretariaSwitchPreparation = async function(enable) {
+        if (!isAdmin() || !auth.currentUser) return;
+        if (!enable && !confirm('Sospendere la preparazione automatica? I seguiti restano; i nuovi WhatsApp non diventano casi finché non la riattivi.')) return;
+        const buttons = [...document.querySelectorAll('[data-og-action="preparation-on"],[data-og-action="preparation-off"]')];
+        buttons.forEach(b => { b.disabled = true; });
+        try {
+            const data = await oggiSegretariaRequest(null, { prepareCases: !!enable }, 'preparation');
+            if (data.monitoring) oggiSegretaria.monitoring = data.monitoring;
+            toast('success', enable ? 'Preparazione automatica attiva' : 'Preparazione automatica sospesa',
+                enable ? 'Da adesso ogni WhatsApp in entrata diventa un caso in Oggi. Nessun invio parte senza la tua conferma.' : 'I seguiti restano visibili; i nuovi WhatsApp non diventano casi.');
+            oggiScheduleUpdate(true, true);
+        } catch (e) {
+            toast('error', 'Interruttore non cambiato', e && e.code === 'segretaria_disabled' ? 'La Segretaria è spenta (kill switch): riaccendila da Telegram con /segretaria prima di attivare la preparazione.' : oggiSegretariaError(e));
+            buttons.forEach(b => { b.disabled = false; });
+        }
+    };
     async function oggiSegretariaRequest(id, body, preparation, after) {
         if (!isAdmin() || !auth.currentUser) throw { code: 'unauthorized' };
         const user = auth.currentUser, controller = new AbortController();
@@ -4944,7 +4967,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const request = (async () => {
             const token = await user.getIdToken();
             if (controller.signal.aborted || auth.currentUser !== user) throw { code: 'unauthorized' };
-            const res = await fetch('/api/segretaria/' + (preparation ? 'prepare' : 'follow-up') + (id ? '?id=' + encodeURIComponent(id) : after ? '?after=' + encodeURIComponent(after) : ''), {
+            const res = await fetch('/api/segretaria/' + (preparation === true ? 'prepare' : typeof preparation === 'string' ? preparation : 'follow-up') + (id ? '?id=' + encodeURIComponent(id) : after ? '?after=' + encodeURIComponent(after) : ''), {
                 method: body ? 'POST' : 'GET', cache: 'no-store', signal: controller.signal,
                 headers: { Authorization: 'Bearer ' + token, ...(body ? { 'Content-Type': 'application/json' } : {}) },
                 ...(body ? { body: JSON.stringify(body) } : {})
@@ -4956,7 +4979,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         })();
         try {
             return await Promise.race([request, new Promise((_, reject) => {
-                timer = setTimeout(() => { controller.abort(); reject({ code: 'timeout' }); }, preparation ? 60000 : 15000);
+                timer = setTimeout(() => { controller.abort(); reject({ code: 'timeout' }); }, preparation === true ? 60000 : 15000);
             })]);
         } finally { clearTimeout(timer); }
     }
@@ -11553,6 +11576,25 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const history = S.openConvStatus?.id === conv.id ? S.openConvStatus : null;
         const waUrl = BOOM_INBOX.whatsappUrl(conv.contactPhone, '');
         const canEmail = !!conv.contactEmail;
+        // Il conflitto di identità dichiarato dal server (api/homie/message.js,
+        // 21/09/2026): il messaggio è salvato sulla chat del numero, ma finché il
+        // legame col lead non è chiarito la Segreteria non prepara casi qui.
+        // Senza questa riga il silenzio era indistinguibile da un guasto.
+        // Inline apposta: le prove UI estraggono questa funzione per nome.
+        const bindingCode = conv.conversationBindingConflict;
+        const bindingLabels = {
+            unbound_whatsapp_conversation: 'questa chat non è collegata al lead trovato per il numero',
+            shared_contact_identity: 'lo stesso numero compare su più schede (lead/utenti): probabile doppione da unire',
+            multiple_established_conversations: 'due chat con storia per la stessa persona',
+            primary_conversation_has_history: 'la chat principale del lead ha già una storia separata',
+            phone_conflict: 'il numero non coincide con quello del lead', email_conflict: 'l’email non coincide con quella del lead',
+            lead_conflict: 'la chat è collegata a un altro lead', user_binding_conflict: 'la chat è collegata a un altro utente',
+            owner_conflict: 'la chat è assegnata a un altro proprietario', binding_not_verified: 'collegamento al lead non verificato',
+            binding_already_exists: 'il lead è già collegato a un’altra chat', multiple_bound_conversations: 'il lead risulta collegato a più chat'
+        };
+        const bindingNotice = !bindingCode ? '' : `<p class="sg-notice sg-notice--warning" role="status">⚠ ${esc(conv.conversationBindingStatus === 'unavailable'
+            ? 'Collegamento al lead non verificabile al momento (verrà ritentato).'
+            : 'Identità da verificare: ' + (bindingLabels[bindingCode] || String(bindingCode).replace(/_/g, ' ')) + '.')} I messaggi restano salvati qui, sul numero. La Segreteria non prepara casi su questa chat finché il collegamento non è chiarito dalla scheda del lead.</p>`;
         return `
         <div class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:calc(100vh - 220px)">
             <!-- Header -->
@@ -11578,6 +11620,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
 
             ${inboxHomieBanner(conv)}
+            ${bindingNotice}
             ${history?.error ? `<p class="sg-notice sg-notice--warning" role="alert">${esc(history.error)}</p>` : history?.loading ? '<p class="sg-footnote" role="status">Carico gli ultimi messaggi…</p>' : history?.incomplete ? '<p class="sg-footnote" role="status">Sono visibili i 300 messaggi più recenti. La cronologia precedente non è inclusa in questa vista.</p>' : ''}
 
             <!-- Timeline -->
