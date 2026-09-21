@@ -297,3 +297,29 @@
     #sgFollowModal .sg-execution-plan { padding: 14px; }
     #sgFollowModal .sg-plan-steps li { flex-direction: column; gap: 7px; }
 }
+
+/* Oggi: the action and its real effect lead the note; sources remain one tap away. */
+#sgFollowPanel .sg-case > .sg-reading-details { grid-column: 1 / -1; border-top: 1px solid var(--sg-line); margin: 0; }
+#sgFollowPanel .sg-case .sg-next-action { margin-top: 12px; padding: 0; border: 0; }
+#sgFollowPanel .sg-case-main > .sg-ai-reading > .sg-ai-recommendation { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+#sgFollowPanel .sg-case:has(> .sg-reading-details[open]) .sg-case-main > .sg-ai-reading { display: none; }
+#sgFollowPanel .sg-action-scope { margin: 12px 0 0; padding: 10px 12px; color: #30463a; background: #e5ebe4; font-size: 13px; line-height: 1.5; border-radius: 3px; }
+#sgFollowPanel .sg-context-notice { margin: 10px 0 0; font-size: 12px; line-height: 1.5; color: #71551d; }
+#sgFollowPanel .sg-time-issue { border-left: 2px solid #a58b22; padding-left: 10px; color: #71551d; }
+#sgFollowPanel .sg-case-action { padding-top: 0; }
+#sgFollowPanel .sg-case-meta { margin: 14px 0; }
+#sgFollowPanel .sg-service-details > summary { min-height: 36px; font-size: 12px; }
+#sgFollowPanel .sg-service-details > p { margin-top: 6px; }
+#sgFollowPanel #sgPreparationStatus { margin-bottom: 8px; padding: 8px 14px; }
+#sgFollowPanel > #sgFreshness { margin: 10px 24px 0; }
+#sgFollowPanel > details.sg-footnote { margin: 4px 24px 10px; }
+#sgFollowPanel .sg-reading-details[open] { padding-bottom: 14px; }
+@media (max-width: 760px) {
+    #sgFollowPanel .sg-briefing { padding: 18px 16px 0; }
+    #sgFollowPanel .sg-briefing-copy { margin: 12px 0; }
+    #sgFollowPanel .sg-workspace { padding: 18px 12px; }
+    #sgFollowPanel .sg-case { padding: 18px 16px 0; }
+    #sgFollowPanel .sg-case-action { padding: 0 0 14px; }
+    #sgFollowPanel > .sg-notice { margin-left: 16px; margin-right: 16px; }
+    #sgFollowPanel > #sgFreshness, #sgFollowPanel > details.sg-footnote { margin-left: 16px; margin-right: 16px; }
+}

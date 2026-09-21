@@ -66,7 +66,7 @@ function demoPreparation(t,withDraft=true){const ambiguous=!t.followUp.practiceR
  facts:[{text:ambiguous?'La squadra comunica che le pulizie sono terminate.':phone?'Visita a Casa Fiore: confermata il 24 settembre 2026 alle 15:00, ora di Roma.':'Il messaggio è collegato alla conversazione corretta.',sourceIds:[phone?'viewingRequests/v1':'messages/'+t.followUp.conversationId]}],
  commitments:[{text:phone?'La visita è già fissata per il 24 settembre alle 15:00.':'Attendere l’aggiornamento già richiesto.',kind:'explicit',status:'pending',sourceIds:['messages/'+t.followUp.conversationId]}],
  uncertainties:ambiguous?[{text:'La casa non è indicata nel messaggio.',sourceIds:['messages/'+t.followUp.conversationId]}]:[],
- nextAction:{text:ambiguous?'Identificare la casa dell’intervento':phone?'Attendere la conferma di partecipazione alla visita del 24 settembre':'Attendere la disponibilità di Oliver',waitingOn:ambiguous?'collaborator':'client',waitingLabel:ambiguous?'Squadra pulizie · esempio':phone?'Giulia · esempio':'Oliver · esempio',checkAt:phone?'2026-09-23T10:00:00Z':demoFuture(),practiceRef:t.followUp.practiceRef,sourceIds:['messages/'+t.followUp.conversationId],reason:'Ricontrollo interno proporzionato al prossimo passo, senza una scadenza promessa al cliente.'},
+ nextAction:{text:ambiguous?'Identificare la casa dell’intervento':phone?'Attendere la conferma di partecipazione alla visita del 24 settembre':'Attendere la disponibilità di Oliver',waitingOn:ambiguous?'collaborator':'client',waitingLabel:ambiguous?'Squadra pulizie · esempio':phone?'Giulia · esempio':'Oliver · esempio',checkAt:demoFuture(),practiceRef:t.followUp.practiceRef,sourceIds:['messages/'+t.followUp.conversationId],reason:'Ricontrollo interno proporzionato al prossimo passo, senza una scadenza promessa al cliente.'},
  draft:withDraft&&!ambiguous?{channel:phone?'whatsapp':'email',text:'Ciao Giulia, la visita a Casa Fiore è già confermata per giovedì 24 settembre alle 15:00, ora di Roma. Mi confermi che sarai presente? — Assistente BOOM',subject:'BOOM · Visita del 24 settembre alle 15:00',sourceIds:['messages/'+t.followUp.conversationId]}:null,
  recipientPreview:{name:t.followUp.contactName,address:phone?'+390000000001':'oliver@example.test',channel:phone?'whatsapp':'email'},
  handoff:{needed:false,reason:'Nessuna decisione commerciale richiesta.'},replyOwnership:!phone&&!ambiguous?{blocked:true,owner:'segretaria:conversation',actionId:null,incomplete:false}:{blocked:false,owner:null,actionId:null,incomplete:false},coverage:{version:2,incomplete:ambiguous,reasons:ambiguous?['practice_selection_required']:[]},
@@ -116,7 +116,7 @@ const html = '<!doctype html><html lang="it"><head><meta charset="utf-8"><meta n
   + '<meta http-equiv="Content-Security-Policy" content="default-src \'none\'; script-src \'unsafe-inline\'; style-src \'unsafe-inline\'; img-src data:; connect-src \'none\'; form-action \'none\'; base-uri \'none\'">'
   + '<title>BOOM · Segreteria operativa · Dati simulati</title><style>' + read('css/portal.css') + read('css/portal-finish.css') + read('css/segretaria.css')
   + 'body{display:block;background:#111314}#main{max-width:1180px;margin:auto;padding:24px}#demoHeader{padding:16px 24px;background:#191b1c;color:#ffd700;font:12px Helvetica Neue,Arial,sans-serif}#demoHeader p{margin-top:8px;color:#eee;line-height:1.5}</style></head><body>'
-  + '<aside id="demoHeader"><strong>BOOM · Anteprima locale della Segreteria operativa</strong><p>Dati simulati. Puoi preparare, correggere e confermare: anche «Approva ed esegui» è una simulazione. Nessun messaggio parte, nessuna modifica a BOOM, rete bloccata. Ricarica per ripristinare gli esempi.</p></aside><main id="main"></main><div id="modals"></div>'
+  + '<aside id="demoHeader"><strong>BOOM · Anteprima locale della Segreteria operativa</strong><p>Dati simulati. Puoi preparare, correggere e confermare: anche le conferme e gli invii sono simulati. Nessun messaggio parte, nessuna modifica a BOOM, rete bloccata. Ricarica per ripristinare gli esempi.</p></aside><main id="main"></main><div id="modals"></div>'
   + script(fixture) + script(read('js/segretaria-casi-engine.js')) + script(read('js/segretaria-proposta-engine.js')) + script(read('js/segretaria-esecuzione-engine.js')) + script(ui + '\n' + listeners) + script("startInboxListener();goTo('oggi')") + '</body></html>';
 writeFileSync(previewPath, html);
 console.log('Anteprima offline: ' + previewPath);
@@ -170,7 +170,7 @@ try {
     const warnings = [
       page.locator('#sgPreparationReview .sg-questions'),
       page.locator('#sgReplyOwnership'),
-      page.locator('#sgPreparationReview').getByText('Servono informazioni prima di confermare. Apri le fonti e correggi il seguito.', { exact: true }),
+      page.locator('#sgPreparationReview').getByText('Servono informazioni verificate prima di confermare. Apri la conversazione di origine; «Correggi seguito» modifica l’attività interna, non verifica identità e recapiti.', { exact: true }),
       page.locator('#sgPreparationReview').getByText('Valentino deve verificare chi partecipa.', { exact: false }).last()
     ];
     assert.match(await warnings[0].innerText(), /Manca la conferma della persona/);
@@ -200,8 +200,8 @@ try {
       task.deliveryResult = { actionId: 'fixture-action', delivery: 'queued', confirmed: true };
       await oggiSegretariaLoad(true);
     });
-    assert.doesNotMatch(await card(ids[0]).locator('.sg-questions').innerText(), /prima di decidere/i);
-    assert.match(await card(ids[0]).locator('.sg-questions').innerText(), /proposta approvata/i);
+    assert.doesNotMatch(await card(ids[0]).locator('.sg-questions').textContent(), /prima di decidere/i);
+    assert.match(await card(ids[0]).locator('.sg-questions').textContent(), /proposta approvata/i);
     await open(ids[0]);
     await outsideDisclosure(page.locator('#sgPreparationReview .sg-questions'));
     assert.doesNotMatch(await page.locator('#sgPreparationReview .sg-questions').innerText(), /prima di decidere/i);
@@ -242,7 +242,7 @@ try {
     });
     assert.equal(await page.locator('[data-sg-group="preparing"] .sg-count').innerText(), '26');
     assert.equal(await card(cases.decision).count(), 1, 'Il caso in review è sparito oltre il limite Da preparare');
-    assert.equal(await card(cases.decision).locator('.sg-source-preview').innerText(), 'È arrivato un documento diverso da verificare.');
+    assert.equal(await card(cases.decision).locator('.sg-source-preview').textContent(), 'È arrivato un documento diverso da verificare.');
     assert.equal(await card(cases.decision).locator('.sg-ai-reading').count(), 0);
     assert.equal(await page.evaluate(() => window.__reviewBeforeInbound === document.getElementById('sgFollowModal')), true);
     await page.keyboard.press('Escape');
@@ -287,29 +287,33 @@ try {
   assert.equal(await page.locator('#sgFollowPanel #sgDraftText').count(), 0);
   assert.ok((await page.locator('article[data-sg-id]').first().boundingBox()).y < 600);
   const firstTask = await page.evaluate(() => window.__rows[0]);
-  assert.equal(await card(ids[0]).locator('.sg-source-preview').innerText(), firstTask.followUp.preview);
+  assert.equal(await card(ids[0]).locator('.sg-source-preview').textContent(), firstTask.followUp.preview);
   assert.equal(await card(ids[0]).locator('.sg-received time').getAttribute('datetime'), firstTask.followUp.lastInboundAt);
-  assert.ok((await card(ids[0]).locator('.sg-received time').innerText()).trim());
-  assert.match(await card(ids[0]).locator('.sg-received time').innerText(), /2026/);
-  assert.equal(await card(ids[0]).locator('.sg-ai-recommendation').innerText(), firstTask.preparation.summary);
+  assert.ok((await card(ids[0]).locator('.sg-received time').textContent()).trim());
+  assert.match(await card(ids[0]).locator('.sg-received time').textContent(), /2026/);
+  assert.equal(await card(ids[0]).locator('.sg-ai-recommendation').textContent(), firstTask.preparation.summary);
   assert.equal(await card(ids[0]).locator('.sg-ai-reading time').getAttribute('datetime'), firstTask.preparation.createdAt);
-  assert.match(await card(ids[0]).locator('.sg-ai-reading time').innerText(), /2026/);
+  assert.match(await card(ids[0]).locator('.sg-ai-reading time').textContent(), /2026/);
   assert.notEqual(await card(ids[0]).locator('.sg-received time').getAttribute('datetime'), await card(ids[0]).locator('.sg-ai-reading time').getAttribute('datetime'));
-  assert.doesNotMatch(await card(ids[0]).locator('.sg-received').innerText(), /Giulia chiede conferma della visita/);
-  assert.equal(await card(ids[0]).locator('h4.sg-case-title').innerText(), firstTask.preparation.nextAction.text);
-  assert.equal(await card(ids[0]).locator('.sg-action-reason > p').innerText(), firstTask.preparation.nextAction.reason);
-  await outsideDisclosure(card(ids[0]).locator('.sg-action-reason'));
+  assert.doesNotMatch(await card(ids[0]).locator('.sg-received').textContent(), /Giulia chiede conferma della visita/);
+  assert.equal(await card(ids[0]).locator('h4.sg-case-title').textContent(), 'Risposta WhatsApp da rivedere');
+  assert.match(await card(ids[0]).locator('.sg-action-scope').textContent(), /un messaggio WhatsApp a Giulia/);
+  assert.match(await card(ids[1]).locator('.sg-action-scope').textContent(), /Solo seguito interno.*Nessun messaggio/);
+  await outsideDisclosure(card(ids[0]).locator('.sg-action-scope'));
+  await outsideDisclosure(card(ids[1]).locator('.sg-action-scope'));
+  assert.equal(await card(ids[0]).locator('.sg-action-reason > p').textContent(), firstTask.preparation.nextAction.reason);
+  assert.equal(await card(ids[0]).locator('.sg-action-reason').evaluate(el => !!el.closest('details:not([open])')), true);
   assert.equal(await card(ids[0]).locator('.sg-reading-details').evaluate(el => el.open), false);
   await card(ids[0]).locator('.sg-reading-details > summary').click();
-  assert.equal(await card(ids[0]).locator('.sg-reading-details > p').first().innerText(), firstTask.preparation.summary);
-  assert.ok((await card(ids[0]).locator('.sg-reading-details').innerText()).includes(firstTask.preparation.recommendation));
+  assert.equal(await card(ids[0]).locator('.sg-reading-details > p').first().textContent(), firstTask.preparation.summary);
+  assert.ok((await card(ids[0]).locator('.sg-reading-details').textContent()).includes(firstTask.preparation.recommendation));
   await card(ids[0]).locator('.sg-reading-details > summary').click();
   for (const id of ids) assert.equal(await card(id).locator('.sg-case-action button').count(), 1);
   assert.equal(await page.locator('article [data-sg-action="plan"]').count(), 0);
   assert.equal(await card(ids[1]).locator('.sg-received time').count(), 0);
-  assert.match(await card(ids[1]).locator('.sg-received .sg-source-date').innerText(), /Data del messaggio non disponibile/);
+  assert.match(await card(ids[1]).locator('.sg-received .sg-source-date').textContent(), /Data del messaggio non disponibile/);
   assert.equal(await card(ids[1]).locator('.sg-ai-reading time').count(), 0);
-  assert.match(await card(ids[1]).locator('.sg-ai-reading').innerText(), /Data della preparazione non disponibile/);
+  assert.match(await card(ids[1]).locator('.sg-reading-details .sg-ai-reading').textContent(), /Data della preparazione non disponibile/);
   assert.equal(await card(ids[2]).locator('.sg-ai-reading, .sg-action-reason, .sg-questions').count(), 0);
   assert.equal((await posts()).length, 0);
   ok('evento e data della fonte separati dalla lettura AI; prossimo passo e motivo visibili, analisi completa apribile, una CTA');
@@ -322,7 +326,7 @@ try {
   assert.equal(await page.locator('#sgExecutionPlan').evaluate(el => !!(el.compareDocumentPosition(document.querySelector('#sgPreparationReview .sg-recommendation')) & Node.DOCUMENT_POSITION_FOLLOWING)), true);
   assert.equal(await page.locator('#sgExecutionPlan [data-sg-step]').count(), 3);
   assert.match(await page.locator('#sgExecutionPlan').innerText(), /WhatsApp/);
-  assert.equal(await page.locator('[data-sg-modal="approve"]').innerText(), 'Approva ed esegui');
+  assert.equal(await page.locator('[data-sg-modal="approve"]').innerText(), 'Conferma messaggio WhatsApp');
   assert.equal((await posts()).length, 0);
   await page.screenshot({ path: join(artifactDir, 'execution-plan.png'), fullPage: true });
   await page.keyboard.press('Escape');
@@ -333,10 +337,10 @@ try {
   assert.match(await page.locator('#sgDraftText').innerText(), /Ciao Giulia/);
   assert.equal(await page.locator('.sg-origin blockquote').innerText(), firstTask.followUp.preview);
   assert.equal(await page.locator('.sg-origin time').getAttribute('datetime'), firstTask.followUp.lastInboundAt);
-  assert.equal(await page.locator('#sgPreparationReview .sg-review-summary').innerText(), firstTask.preparation.summary);
+  assert.equal(await page.locator('#sgPreparationReview .sg-review-summary').textContent(), firstTask.preparation.summary);
   assert.equal(await page.locator('#sgPreparationReview .sg-action-reason > p').last().innerText(), firstTask.preparation.nextAction.reason);
   await outsideDisclosure(page.locator('#sgPreparationReview .sg-action-reason'));
-  assert.equal(await page.locator('[data-sg-modal="approve"]').innerText(), 'Approva ed esegui');
+  assert.equal(await page.locator('[data-sg-modal="approve"]').innerText(), 'Conferma messaggio WhatsApp');
   assert.equal((await posts()).length, 0);
   await page.locator('#sgFollowModal .modal').evaluate(async el => { await Promise.all(el.getAnimations({ subtree: true }).map(a => a.finished.catch(() => {}))); });
   await page.screenshot({ path: join(artifactDir, 'review.png'), fullPage: true });
@@ -414,7 +418,7 @@ try {
 
   await load(); await open(ids[1]);
   assert.equal(await page.locator('#sgDraftText').count(), 0);
-  assert.equal(await page.locator('[data-sg-modal="approve"]').innerText(), 'Approva ed esegui');
+  assert.equal(await page.locator('[data-sg-modal="approve"]').innerText(), 'Conferma seguito interno');
   await page.locator('[data-sg-modal="approve"]').click();
   await page.waitForFunction(() => document.getElementById('sgFollowModal')?.textContent.includes('Seguito confermato. Nessun messaggio previsto.'));
   assert.equal((await posts()).length, 1);
@@ -430,7 +434,9 @@ try {
     await oggiSegretariaLoad(true);
   });
   const doubts = card(ids[2]).locator('.sg-questions');
-  await outsideDisclosure(doubts);
+  await outsideDisclosure(card(ids[2]).locator('.sg-context-notice'));
+  assert.match(await card(ids[2]).locator('.sg-context-notice').textContent(), /1 punto da verificare.*Fonti parziali/);
+  await card(ids[2]).locator('.sg-reading-details > summary').click();
   assert.equal(await doubts.getAttribute('role'), 'status');
   assert.match(await doubts.innerText(), /La casa non è indicata nel messaggio/);
   assert.match(await doubts.innerText(), /Ci sono più pratiche possibili/);
@@ -443,7 +449,7 @@ try {
   assert.equal(await page.locator('[data-sg-modal="approve"]').isDisabled(), true);
   await page.locator('[data-sg-modal="approve"]').evaluate(el => el.click());
   assert.equal((await posts()).length, 0);
-  ok('dubbi e limiti specifici sono leggibili in card e review a dettagli chiusi; informazioni mancanti bloccano la conferma');
+  ok('card annuncia punti da verificare e fonti parziali; dettaglio completo al click e sempre visibile prima della conferma');
 
   await load();
   await page.evaluate(async () => {
@@ -455,8 +461,8 @@ try {
     await oggiSegretariaLoad(true);
   });
   assert.equal(await card(ids[1]).locator('.sg-action-reason, .sg-questions, time').count(), 0);
-  assert.match(await card(ids[1]).locator('.sg-received').innerText(), /Data del messaggio non disponibile/);
-  assert.match(await card(ids[1]).locator('.sg-ai-reading').innerText(), /Data della preparazione non disponibile/);
+  assert.match(await card(ids[1]).locator('.sg-received').textContent(), /Data del messaggio non disponibile/);
+  assert.match(await card(ids[1]).locator('.sg-reading-details .sg-ai-reading').textContent(), /Data della preparazione non disponibile/);
   await open(ids[1]);
   assert.equal(await page.locator('#sgPreparationReview .sg-action-reason, #sgPreparationReview .sg-questions').count(), 0);
   assert.equal(await page.locator('#sgDraftText').count(), 0);
@@ -467,8 +473,10 @@ try {
     window.__rows[1].preparation.coverage = { version: 2, incomplete: true, reasons: [] };
     await oggiSegretariaLoad(true);
   });
-  await outsideDisclosure(card(ids[1]).locator('.sg-questions'));
-  assert.match(await card(ids[1]).locator('.sg-questions').innerText(), /Contesto parziale.*informazioni mancanti non sono specificate/);
+  await outsideDisclosure(card(ids[1]).locator('.sg-context-notice'));
+  assert.match(await card(ids[1]).locator('.sg-context-notice').textContent(), /Fonti parziali/);
+  await card(ids[1]).locator('.sg-reading-details > summary').click();
+  assert.match(await card(ids[1]).locator('.sg-questions').textContent(), /Contesto parziale.*informazioni mancanti non sono specificate/);
   assert.equal((await posts()).length, 0);
   ok('assenze e date invalide non inventano motivi o certezze; copertura parziale senza dettagli resta dichiarata');
 
@@ -494,10 +502,10 @@ try {
     oggiSegretariaRender();
   });
   assert.equal(await card(ids[0]).locator('.sg-ai-reading, .sg-action-reason, .sg-questions').count(), 0);
-  assert.doesNotMatch(await card(ids[0]).innerText(), /LETTURA_SUPERATA|MOTIVO_SUPERATO|DUBBIO_SUPERATO/);
-  assert.match(await card(ids[0]).locator('.sg-next-action').innerText(), /Seguito da verificare/i);
-  assert.doesNotMatch(await card(ids[0]).locator('.sg-next-action').innerText(), /azione confermata/i);
-  assert.equal(await card(ids[0]).locator('.sg-source-preview').innerText(), 'Ho cambiato la richiesta.');
+  assert.doesNotMatch(await card(ids[0]).textContent(), /LETTURA_SUPERATA|MOTIVO_SUPERATO|DUBBIO_SUPERATO/);
+  assert.match(await card(ids[0]).locator('.sg-next-action').textContent(), /Seguito da verificare/i);
+  assert.doesNotMatch(await card(ids[0]).locator('.sg-next-action').textContent(), /azione confermata/i);
+  assert.equal(await card(ids[0]).locator('.sg-source-preview').textContent(), 'Ho cambiato la richiesta.');
   await button(ids[0], 'inspect').click();
   await page.waitForSelector('#sgFollowModal');
   assert.doesNotMatch(await page.locator('#sgFollowModal').innerText(), /LETTURA_SUPERATA|MOTIVO_SUPERATO|DUBBIO_SUPERATO/);
@@ -553,7 +561,7 @@ try {
     await open(ids[1]);
     assert.match(await page.locator('#sgReplyOwnership').innerText(), expected);
     assert.ok(!(await page.locator('#sgFollowModal').innerText()).includes('PRIVATE_'));
-    assert.equal(await page.locator('[data-sg-modal="approve"]').innerText(), 'Approva ed esegui');
+    assert.equal(await page.locator('[data-sg-modal="approve"]').innerText(), 'Conferma seguito interno');
     assert.equal(await page.locator('#sgDraftText').count(), 0);
     assert.equal((await posts()).length, 0);
   }
@@ -659,11 +667,11 @@ try {
     p.draft.text = '<svg onload="window.__xss=1">'; p.recipientPreview.name = '<script>window.__xss=1</script>';
     await oggiSegretariaLoad(true);
   }, injectedText);
-  for (const selector of ['.sg-source-preview', '.sg-ai-recommendation', 'h4.sg-case-title', '.sg-action-reason > p', '.sg-questions li']) {
-    assert.equal(await card(ids[0]).locator(selector).innerText(), injectedText);
+  for (const selector of ['.sg-source-preview', '.sg-ai-recommendation', '.sg-action-reason > p', '.sg-questions li']) {
+    assert.equal(await card(ids[0]).locator(selector).textContent(), injectedText);
   }
   await card(ids[0]).locator('.sg-reading-details > summary').click();
-  assert.equal(await card(ids[0]).locator('.sg-reading-details > p').first().innerText(), injectedText);
+  assert.equal(await card(ids[0]).locator('.sg-reading-details > p').first().textContent(), injectedText);
   assert.equal(await card(ids[0]).locator('img, svg, script').count(), 0);
   await open(ids[0]);
   assert.equal(await page.locator('.sg-origin blockquote').innerText(), injectedText);
@@ -833,14 +841,16 @@ try {
   for (const width of [390, 320]) {
     await page.setViewportSize({ width, height: 844 });
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
-    for (const selector of ['.sg-received', '.sg-ai-reading', '.sg-next-action', '.sg-action-reason', '.sg-questions']) {
+    await outsideDisclosure(card(ids[0]).locator('.sg-context-notice'));
+    await outsideDisclosure(card(ids[0]).locator('.sg-next-action'));
+    await card(ids[0]).locator('.sg-reading-details > summary').click();
+    for (const selector of ['.sg-received', '.sg-reading-details > p:first-of-type', '.sg-next-action', '.sg-action-reason', '.sg-questions']) {
       const block = card(ids[0]).locator(selector);
-      await outsideDisclosure(block);
+      assert.equal(await block.isVisible(), true);
       const box = await block.boundingBox();
       assert.ok(box.x >= 0 && box.x + box.width <= width, selector + ' esce dalla card a ' + width + ' px');
     }
-    await card(ids[0]).locator('.sg-reading-details > summary').click();
-    assert.equal(await card(ids[0]).locator('.sg-reading-details > p').first().innerText(), await page.evaluate(() => window.__rows[0].preparation.summary));
+    assert.equal(await card(ids[0]).locator('.sg-reading-details > p').first().textContent(), await page.evaluate(() => window.__rows[0].preparation.summary));
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1), true);
     await card(ids[0]).locator('.sg-reading-details > summary').click();
     if (width === 390) await page.screenshot({ path: join(artifactDir, 'mobile.png'), fullPage: true });

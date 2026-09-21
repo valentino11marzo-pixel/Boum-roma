@@ -3897,6 +3897,11 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
 
 ### LA SEGRETARIA (`js/segretaria-engine.js` + `api/segretaria/_core.js` + 🤖 sulla card)
 
+- **Oggi, azioni ed effetti espliciti (21/09 sera)**: le schede distinguono messaggio da rivedere e seguito interno senza bozza; «Da rivedere» non chiama decisioni tutte le richieste. Sintesi breve, contesto consultabile e avviso di fonti parziali restano separati; prima della conferma sono esposti destinatario, testo e dubbi completi.
+  `BOOM_PROPOSTA.approvalExpired` governa la scadenza; render e click bloccano nuove conferme scadute, con rielaborazione esplicita e gestione del 409 `preparation_expired`. Ricevute e ripresa della stessa approvazione restano valide; il modulo condiviso assente blocca la conferma.
+  Il feedback `approveAgentAction` distingue prova email e WhatsApp da verificare: `executed` o un link non attestano invio. Nessuna lettura della Home genera o invia; una nota testuale non esegue telefonate o lavori.
+  Prove: `segretariapropostaui`, `segretarialiveui`, `segretariaapprovaltimeui` e `agentactionfeedback` (mutazioni); `segretariafreshui`, `seguitoui`, `propertyoggiui` conservano bozze, focus e ritorno dal fascicolo. La disponibilità reale del trasporto richiede verifica separata.
+
 - **Revisione Oggi dopo confronto Claude (21/09)**: le avvertenze della proposta non approvata precedono il piano, con dubbi/copertura annunciati; destinatario e testo restano esposti prima della conferma.
   Un nuovo ingresso può spostare il caso da Decisioni a Da preparare: entrambi i limiti preservano focus, dettagli, modale e ritorno dal fascicolo. Le date di messaggio/preparazione includono l’anno; una proposta approvata non chiede di decidere di nuovo sui limiti.
   Prova: `segretariapropostaui`, ordine avvertenze/piano e cambio di gruppo oltre dodici casi. Cancelli, tipi dei timestamp persistiti e contratto delle incertezze invariati.

@@ -117,6 +117,7 @@ try {
       await oggiSegretariaLoad(true);
     });
     await page.getByText('Copertura degli aggiornamenti',{exact:true}).click();
+    await page.locator('.sg-service-details > summary').click();
     const text = await page.locator('#sgFollowPanel').innerText();
     assert.match(text,/servizio precedente segnala un limite giornaliero raggiunto/);
     assert.match(text,/Tentativi oggi: 5/);assert.match(text,/compresi quelli non riusciti/);
@@ -132,6 +133,7 @@ try {
         counts:{pending:81,current:19,awaitingReview:4,retrying:7},retryReasons:{invalid_preparation:3,calendar_invalid:1,unrecognized_private_text:2},nextRetryAt:'2030-09-18T13:00:00Z',queueIncomplete:true,stoppedBy:'time_budget'};
       await oggiSegretariaLoad(true);
     });
+    if (!await page.locator('.sg-service-details').evaluate(el => el.open)) await page.locator('.sg-service-details > summary').click();
     const text = await page.locator('#sgPreparationStatus').innerText();
     assert.match(text,/Preparazione continua · nessuna quota giornaliera/);
     assert.match(text,/Tentativi oggi: 1500/);
@@ -228,7 +230,7 @@ try {
         await oggiSegretariaLoad(true);
       });
       assert.match(await continuous.locator('.sg-briefing-note').innerText(),/1 proposta pronta da rivedere.*1 richiesta da verificare/);
-      assert.equal(await continuous.locator('.sg-proposal-label').filter({hasText:'Proposta pronta'}).count(),1);
+      assert.equal(await continuous.locator('.sg-proposal-label').filter({hasText:'Seguito interno'}).count(),1);
       assert.equal(await continuous.locator('.sg-proposal-label').filter({hasText:'Da verificare'}).count(),1);
       await continuous.locator('[data-sg-group="preparing"] [data-sg-action="inspect"]').click();
       await continuous.waitForFunction(()=>document.querySelector('[data-sg-modal="generate"]')?.disabled===false);
@@ -296,13 +298,13 @@ try {
       }
       await review.evaluate(()=>{
         const task=oggiSegretaria.modal.task;
-        window.generateResponse={status:200,data:{ok:true,id:task.id,preparation:{...task.preparation,revision:'new-ready'}}};
+        window.generateResponse={status:200,data:{ok:true,id:task.id,preparation:{...task.preparation,revision:'new-ready',nextAction:{...task.preparation.nextAction,checkAt:new Date(Date.now()+7200000).toISOString()}}}};
       });
       await review.locator('[data-sg-modal="generate"]').click();
       await review.waitForFunction(()=>!oggiSegretaria.modal.busy&&document.querySelector('[data-sg-modal="approve"]')?.disabled===false);
       assert.equal(await review.evaluate(()=>oggiSegretaria.modal.task.preparationReview),null,'successo validato libera la nuova proposta');
       assert.equal(await review.evaluate(()=>oggiSegretaria.rows[0].preparationReview),null);
-      assert.equal(await review.locator('.sg-proposal-label').innerText(),'Proposta pronta');
+      assert.equal(await review.locator('.sg-proposal-label').innerText(),'Seguito interno');
       assert.equal(await review.locator('[data-sg-modal="approve"]').isEnabled(),true);
       assert.equal(await review.evaluate(()=>window.apiWrites),4,'solo le quattro richieste manuali di preparazione');
       await review.locator('[data-sg-modal="cancel"]').last().click();
