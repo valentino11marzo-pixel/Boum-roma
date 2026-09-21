@@ -465,7 +465,7 @@ const S = { users: [], properties: [], contracts: [], landlords: [], deadlines: 
 const { createRequire } = await import('node:module');
 const requireCjs = createRequire(import.meta.url);
 const APPLY_SRC = ['generateMonthlyPayments', 'monthsBetween', 'generateContractDeadlines', 'innestoEmpty', 'innestoReset', 'innestoPools', 'innestoLinkFor',
-  'innestoPatchFor', 'innestoUserDoc', 'innestoArchiveDoc', 'innestoLeadDup', 'innestoMoney', 'innestoApply'].map(extract).join('\n') + '\nreturn innestoApply;';
+  'innestoPatchFor', 'innestoUserDoc', 'innestoArchiveDoc', 'innestoPaKey', 'innestoLookupPa', 'innestoLeadDup', 'innestoMoney', 'innestoApply'].map(extract).join('\n') + '\nreturn innestoApply;';
 const makeApply = new Function(
   'window', 'firebase', 'db', 'S', 'toast', 'renderPage', 'buildNav', 'loadDataFresh', 'logActivity', 'localStorage', 'console', '_innesto',
   'storage', 'auth', 'goTo', 'clearInterval', '_innestoTick', 'generateContractPDF',
@@ -699,7 +699,9 @@ check('i file di testo puro non transitano (storage.rules accetta immagini, PDF 
   /canTransit = kind !== 'text' \|\| zipBased/.test(app) && /contentType: zipBased \? 'application\/zip' : mediaType/.test(app)
   && /application\/zip/.test(readFileSync(new URL('../../storage.rules', import.meta.url), 'utf8')));
 check('le card Lead e Proposta esistono; una proposta trovata nel console SALTA il contratto (nasce da lì), e il riepilogo lo rispetta',
-  /function innestoLeadCard/.test(app) && /function innestoPaCard/.test(app) && /if \(found\) _innesto\.skipContract = true/.test(app)
+  // state è il riferimento catturato della lettura; review.mjs verifica
+  // che solo il deal confermato, mai una risposta obsoleta, salti il contratto.
+  /function innestoLeadCard/.test(app) && /function innestoPaCard/.test(app) && /if \(found\) state\.skipContract = true/.test(app)
   && /p\.contract && propertyId && tenantId && !_innesto\.skipContract/.test(app) && /const wantContract = p\.contract && !_innesto\.skipContract/.test(app));
 check('la proposta nel console e il contratto dalla proposta passano dalle STESSE API della console (create / convert), mai una scrittura diretta',
   /fetch\('\/api\/preagreement\/create'/.test(app) && /fetch\('\/api\/preagreement\/convert'/.test(app) && !/collection\('preAgreements'\)\.add/.test(app));

@@ -8,6 +8,7 @@
 //   node tests/doctext/run.mjs
 
 import { readFileSync } from 'node:fs';
+import vm from 'node:vm';
 import { deflateRawSync } from 'node:zlib';
 import { crc32 } from '../../api/_zip.js';
 import { zipEntries, zipEntryBytes, isZip } from '../../api/_unzip.js';
@@ -77,15 +78,63 @@ t = extractText(XLSX, MEDIA.xlsx);
 check('XLSX: nome del foglio dal workbook, stringhe condivise (anche a run), numeri, booleani, inlineStr, righe vuote saltate', /^FOGLIO: Rate 2026\nMese\tImporto\nSettembre\t1100\tVERO\tok$/.test(t.text) && t.label === 'Excel', JSON.stringify(t.text));
 const XLSX_NOREL = mkZip([['xl/workbook.xml', '<workbook/>'], ['xl/worksheets/sheet2.xml', '<worksheet><sheetData><row><c><v>2</v></c></row></sheetData></worksheet>'], ['xl/worksheets/sheet1.xml', '<worksheet><sheetData><row><c><v>1</v></c></row></sheetData></worksheet>']], false);
 check('XLSX senza rels: i fogli in ordine numerico', /FOGLIO: Foglio 1\n1\nFOGLIO: Foglio 2\n2/.test(extractText(XLSX_NOREL, MEDIA.xlsx).text), JSON.stringify(extractText(XLSX_NOREL, MEDIA.xlsx).text));
+const sparseSheet = (middle = '') => mkZip([
+  ['xl/workbook.xml', '<workbook/>'],
+  ['xl/worksheets/sheet1.xml', '<worksheet><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>Persona</t></is></c><c r="B1" t="inlineStr"><is><t>Deposito</t></is></c><c r="C1" t="inlineStr"><is><t>Canone</t></is></c></row><row r="2"><c r="A2" t="inlineStr"><is><t>Esempio</t></is></c>' + middle + '<c r="C2"><v>1100</v></c></row></sheetData></worksheet>'],
+], false);
+check('XLSX: B2 assente conserva il canone in C, non sotto Deposito', extractText(sparseSheet(), MEDIA.xlsx).text.endsWith('Esempio\t\t1100'));
+check('XLSX: B2 vuota autochiusa non ingloba la cella C2 seguente', extractText(sparseSheet('<c r="B2"/>'), MEDIA.xlsx).text.endsWith('Esempio\t\t1100'));
+check('XLSX: una coordinata oltre XFD si rifiuta senza creare colonne illimitate', (() => {
+  const bad = mkZip([['xl/workbook.xml', '<workbook/>'], ['xl/worksheets/sheet1.xml', '<worksheet><sheetData><row><c r="XFE1"><v>1</v></c></row></sheetData></worksheet>']], false);
+  try { extractText(bad, MEDIA.xlsx); return false; } catch (e) { return /xlsx_invalid_cell/.test(e.message); }
+})());
 t = extractText(ODT, MEDIA.odt);
 check('ODT: titoli e paragrafi a capo, tab e line-break', /^Titolo\nPrima\triga\nseconda$/.test(t.text), JSON.stringify(t.text));
 const doc = readFileSync(new URL('../../reference/contratto_tipo_32_Roma_2023.doc', import.meta.url));
 t = extractText(doc, MEDIA.doc);
 check('.doc 97-2003 VERO (il modello 3+2 dell\'associazione): il testo esce, con «locazione» e la legge 431', t.label === 'Word 97-2003' && t.chars > 5000 && /locazione/i.test(t.text) && /431/.test(t.text), `${t.chars} caratteri`);
 check('…e docText resta esportato per i test dei modelli (tests/_doc.mjs)', typeof docText === 'function' && (await import('../_doc.mjs')).docText === docText);
+// OLE sintetico: i limiti del parser si verificano senza bloccare la suite
+// se si rimette il difetto. Il timeout è solo il guardiano del test; il
+// parser deve lanciare un proprio errore, mai arrivare al timeout della VM.
+function tinyOle() {
+  const b = Buffer.alloc(512 * 5);
+  b.writeUInt32LE(0xE011CFD0, 0); b.writeUInt32LE(0xE11AB1A1, 4);
+  b.writeUInt16LE(0x003e, 24); b.writeUInt16LE(3, 26); b.writeUInt16LE(0xfffe, 28);
+  b.writeUInt16LE(9, 0x1e); b.writeUInt16LE(6, 0x20);
+  b.writeUInt32LE(1, 0x2c); b.writeUInt32LE(1, 0x30); b.writeUInt32LE(4096, 0x38);
+  b.writeUInt32LE(2, 0x3c); b.writeUInt32LE(1, 0x40); b.writeUInt32LE(0xfffffffe, 0x44);
+  for (let i = 0; i < 109; i++) b.writeUInt32LE(0xffffffff, 0x4c + i * 4);
+  b.writeUInt32LE(0, 0x4c);
+  for (let i = 0; i < 128; i++) b.writeUInt32LE(0xffffffff, 512 + i * 4);
+  b.writeUInt32LE(0xfffffffd, 512);
+  for (let i = 1; i <= 3; i++) b.writeUInt32LE(0xfffffffe, 512 + i * 4);
+  for (const [i, name, type, start, size] of [[0, 'Root Entry', 5, 3, 64], [1, 'WordDocument', 2, 0, 32]]) {
+    const o = 1024 + i * 128, nb = Buffer.from(name + '\0', 'utf16le');
+    nb.copy(b, o); b.writeUInt16LE(nb.length, o + 0x40); b[o + 0x42] = type;
+    b.writeUInt32LE(start, o + 0x74); b.writeUInt32LE(size, o + 0x78);
+  }
+  b.writeUInt32LE(0xfffffffe, 1536);
+  return b;
+}
+function boundedOleError(buf) {
+  try { new vm.Script('(' + docText.toString() + ')(buf)').runInNewContext({ Buffer, buf }, { timeout: 100 }); return false; }
+  catch (e) { return e.code !== 'ERR_SCRIPT_EXECUTION_TIMEOUT' && /^ole_invalid_/.test(e.message); }
+}
+const miniCycle = tinyOle(); miniCycle.writeUInt32LE(0, 1536);
+check('DOC: miniFAT ciclica termina con errore del parser, senza loop o timeout', boundedOleError(miniCycle));
+const fatCycle = tinyOle(); fatCycle.writeUInt32LE(1, 512 + 4);
+check('DOC: FAT ciclica termina con errore prima di duplicare i settori', boundedOleError(fatCycle));
+const difatCycle = tinyOle(); difatCycle.writeUInt32LE(2, 0x44); difatCycle.writeUInt32LE(0xffffffff, 0x48); difatCycle.writeUInt32LE(2, 2044);
+check('DOC: numero DIFAT impossibile si rifiuta prima del traversal', boundedOleError(difatCycle));
+const miniOutside = tinyOle(); miniOutside.writeUInt32LE(123, 1536);
+check('DOC: miniFAT fuori dal file si rifiuta, senza troncare il documento', boundedOleError(miniOutside));
 const EML = Buffer.from('From: Marta Neri <marta@x.com>\r\nTo: info@boomrome.com\r\nDate: Mon, 21 Sep 2026 10:00:00 +0200\r\nSubject: =?utf-8?B?Q2FzYSBhIFRyYXN0ZXZlcmU=?=\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\nCerco un bilocale, budget =E2=82=AC1200.\r\nGrazie=\r\n mille\r\n');
 t = extractText(EML, MEDIA.eml);
 check('EML semplice: From/To/Date/Subject (RFC 2047 base64) + corpo quoted-printable (€, soft line break)', /^From: Marta Neri <marta@x\.com>\nTo: info@boomrome\.com\nDate: .*\nSubject: Casa a Trastevere\n\nCerco un bilocale, budget €1200\.\nGrazie mille$/.test(t.text) && t.label === 'email', JSON.stringify(t.text));
+const UTF8_EML = Buffer.from('Subject: Disponibilità città\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: 8bit\r\n\r\nCittà, disponibilità: €1200.\r\n', 'utf8');
+check('EML UTF-8 8bit conserva accenti ed euro nei byte del corpo', extractText(UTF8_EML, MEDIA.eml).text.endsWith('Città, disponibilità: €1200.'));
+check('EML UTF-8 conserva anche un header internazionale non RFC2047', extractText(UTF8_EML, MEDIA.eml).text.startsWith('Subject: Disponibilità città'));
 const MIME = Buffer.from(['Subject: =?ISO-8859-1?Q?Propriet=E0?=', 'Content-Type: multipart/alternative; boundary="B1"', '', '--B1', 'Content-Type: text/plain; charset=iso-8859-1', 'Content-Transfer-Encoding: 8bit', '', 'Testo semplice: caff\xe8', '--B1', 'Content-Type: text/html; charset=utf-8', 'Content-Transfer-Encoding: base64', '', Buffer.from('<p>Testo <b>HTML</b></p>').toString('base64'), '--B1--', ''].join('\r\n'), 'latin1');
 t = extractText(MIME, MEDIA.eml);
 check('EML multipart: si preferisce text/plain (latin1 decodificato), l\'oggetto Q-encoded si legge', /Subject: Proprietà/.test(t.text) && /Testo semplice: caffè/.test(t.text) && !/HTML/.test(t.text), JSON.stringify(t.text));

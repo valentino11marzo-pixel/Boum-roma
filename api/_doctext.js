@@ -164,15 +164,27 @@ function xlsxText(buf) {
     out.push('FOGLIO: ' + s.name);
     for (const row of xml.matchAll(/<row\b[^>]*>([\s\S]*?)<\/row>/g)) {
       const cells = [];
-      for (const c of row[1].matchAll(/<c\b([^>]*)>([\s\S]*?)<\/c>|<c\b[^>]*\/>/g)) {
+      for (const c of row[1].matchAll(/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g)) {
         const attrs = c[1] || '', inner = c[2] || '';
         const t = (/\bt="([^"]*)"/.exec(attrs) || [])[1] || '';
+        // Excel omette le celle vuote: C2 resta la terza colonna anche
+        // quando B2 non compare nell'XML. Senza r resta l'ordine del file.
+        const ref = (/\br="([^"]*)"/.exec(attrs) || [])[1];
+        let column = cells.length;
+        if (ref != null) {
+          const coord = /^([A-Z]{1,3})([1-9]\d{0,6})$/i.exec(ref);
+          if (!coord || Number(coord[2]) > 1048576) throw new Error('xlsx_invalid_cell');
+          column = 0;
+          for (const letter of coord[1].toUpperCase()) column = column * 26 + letter.charCodeAt(0) - 64;
+          column--;
+        }
+        if (column >= 16384) throw new Error('xlsx_invalid_cell');
         let v = '';
         if (t === 's') { const i = parseInt((/<v>([^<]*)<\/v>/.exec(inner) || [])[1] || '', 10); v = shared[i] != null ? shared[i] : ''; }
         else if (t === 'inlineStr') v = decodeEntities(Array.from(inner.matchAll(/<t[^>]*>([\s\S]*?)<\/t>/g)).map((x) => x[1]).join(''));
         else if (t === 'b') v = (/<v>1<\/v>/.test(inner)) ? 'VERO' : 'FALSO';
         else v = decodeEntities((/<v>([^<]*)<\/v>/.exec(inner) || [])[1] || '');
-        cells.push(v);
+        cells[column] = v;
       }
       if (cells.some((x) => x !== '')) { out.push(cells.join('\t').replace(/\t+$/, '')); rows++; }
       if (rows >= 3000) { out.push('… (righe oltre 3000 non lette)'); break; }
@@ -189,18 +201,43 @@ function xlsxText(buf) {
 // note non interessano.
 export function docText(buf) {
   const u32 = (o) => buf.readUInt32LE(o), u16 = (o) => buf.readUInt16LE(o);
-  if (buf.readUInt32LE(0) !== 0xE011CFD0) throw new Error('not an OLE file');
+  if (buf.length < 512 || u32(0) !== 0xE011CFD0 || u32(4) !== 0xE11AB1A1) throw new Error('ole_invalid_header');
+  if (![9, 12].includes(u16(0x1E)) || u16(0x20) !== 6) throw new Error('ole_invalid_sector_size');
   const ssz = 1 << u16(0x1E), mssz = 1 << u16(0x20);
+  const sectorCount = Math.floor(buf.length / ssz) - 1;
+  if (sectorCount < 1 || buf.length % ssz) throw new Error('ole_invalid_length');
   const nfat = u32(0x2C), dirStart = u32(0x30), miniCut = u32(0x38), miniFatStart = u32(0x3C), nMiniFat = u32(0x40);
   const difatStart = u32(0x44), nDifat = u32(0x48);
-  const sec = (i) => buf.subarray((i + 1) * ssz, (i + 2) * ssz);
+  if (nfat > sectorCount || nMiniFat > sectorCount || nDifat > sectorCount) throw new Error('ole_invalid_sector_count');
+  const sec = (i) => {
+    if (!Number.isInteger(i) || i < 0 || i >= sectorCount) throw new Error('ole_invalid_sector');
+    return buf.subarray((i + 1) * ssz, (i + 2) * ssz);
+  };
   const difat = []; for (let i = 0; i < 109; i++) difat.push(u32(0x4C + 4 * i));
-  for (let s = difatStart, n = 0; n < nDifat && s < 0xFFFFFFFA; n++) { const b = sec(s); for (let i = 0; i < ssz / 4 - 1; i++) difat.push(b.readUInt32LE(4 * i)); s = b.readUInt32LE(ssz - 4); }
-  const fatBuf = Buffer.concat(difat.slice(0, nfat).filter(x => x < 0xFFFFFFFA).map(sec));
+  const difatSeen = new Set();
+  for (let s = difatStart, n = 0; n < nDifat; n++) {
+    if (difatSeen.has(s)) throw new Error('ole_invalid_difat_cycle');
+    difatSeen.add(s);
+    const b = sec(s); for (let i = 0; i < ssz / 4 - 1; i++) difat.push(b.readUInt32LE(4 * i)); s = b.readUInt32LE(ssz - 4);
+  }
+  const fatBuf = Buffer.concat(difat.slice(0, nfat).map(sec));
   const FAT = []; for (let i = 0; i < fatBuf.length / 4; i++) FAT.push(fatBuf.readUInt32LE(4 * i));
-  const chain = (start) => { const out = []; let s = start, n = 0; while (s < 0xFFFFFFFA && n++ < 1e6) { out.push(s); s = FAT[s]; } return out; };
-  const read = (start, size) => Buffer.concat(chain(start).map(sec)).subarray(0, size);
-  const dir = read(dirStart, 1e9);
+  // Ora il DOC arriva dall'utente: le catene non possono fidarsi dei
+  // puntatori del file né duplicare settori fino ad esaurire la memoria.
+  const chain = (start, table = FAT, limit = sectorCount) => {
+    const out = [], seen = new Set(); let s = start;
+    while (s !== 0xFFFFFFFE) {
+      if (!Number.isInteger(s) || s < 0 || s >= limit || s >= table.length || seen.has(s)) throw new Error('ole_invalid_chain');
+      seen.add(s); out.push(s); s = table[s];
+    }
+    return out;
+  };
+  const read = (start, size) => {
+    const data = Buffer.concat(chain(start).map(sec));
+    if (size != null && size > data.length) throw new Error('ole_invalid_stream_size');
+    return size == null ? data : data.subarray(0, size);
+  };
+  const dir = read(dirStart);
   const entries = [];
   for (let i = 0; i * 128 < dir.length; i++) {
     const e = dir.subarray(i * 128, (i + 1) * 128);
@@ -210,7 +247,11 @@ export function docText(buf) {
   const root = entries[0]; const mini = read(root.start, root.size);
   const mfatBuf = nMiniFat ? Buffer.concat(chain(miniFatStart).map(sec)) : Buffer.alloc(0);
   const MFAT = []; for (let i = 0; i < mfatBuf.length / 4; i++) MFAT.push(mfatBuf.readUInt32LE(4 * i));
-  const mread = (start, size) => { const parts = []; let s = start; while (s < 0xFFFFFFFA) { parts.push(mini.subarray(s * mssz, (s + 1) * mssz)); s = MFAT[s]; } return Buffer.concat(parts).subarray(0, size); };
+  const mread = (start, size) => {
+    const data = Buffer.concat(chain(start, MFAT, Math.floor(mini.length / mssz)).map(s => mini.subarray(s * mssz, (s + 1) * mssz)));
+    if (size > data.length) throw new Error('ole_invalid_stream_size');
+    return data.subarray(0, size);
+  };
   const streams = {};
   for (const e of entries) if (e.type === 2) streams[e.name] = e.size >= miniCut ? read(e.start, e.size) : mread(e.start, e.size);
   const wd = streams.WordDocument; if (!wd) throw new Error('no WordDocument stream');
@@ -240,12 +281,19 @@ export function docText(buf) {
 }
 
 // ── testo semplice: UTF-8 (con BOM) e, se non è UTF-8 valido, windows-1252
+// Node/ICU può trattare windows-1252 come latin1: i byte 80–9F hanno
+// invece questa mappa, identica per testo, RTF e parti/header MIME.
+const CP1252 = '€\x81‚ƒ„…†‡ˆ‰Š‹Œ\x8DŽ\x8F\x90‘’“”•–—˜™š›œ\x9DžŸ';
+function windows1252Text(buf) {
+  return buf.toString('latin1').replace(/[\x80-\x9F]/g, c => CP1252[c.charCodeAt(0) - 0x80]);
+}
+function charsetText(buf, charset) {
+  return /^(windows-1252|cp1252|latin1|iso-?8859-?1)$/i.test(charset)
+    ? windows1252Text(buf) : new TextDecoder(charset).decode(buf);
+}
 export function bytesToText(buf) {
   try { return new TextDecoder('utf-8', { fatal: true, ignoreBOM: false }).decode(buf); }
-  catch (_) {
-    try { return new TextDecoder('windows-1252').decode(buf); }
-    catch (_2) { return buf.toString('latin1'); }
-  }
+  catch (_) { return windows1252Text(buf); }
 }
 
 export function htmlText(html) {
@@ -263,7 +311,7 @@ export function rtfText(rtf) {
   // gruppi da ignorare del tutto (font, colori, info, immagini)
   s = s.replace(/\{\\\*\\[^{}]*(\{[^{}]*\})*[^{}]*\}/g, ' ')
     .replace(/\{\\(fonttbl|colortbl|stylesheet|info|pict|object|header|footer)[\s\S]*?\}(?=\s*(\\|\{|\}|$))/g, ' ');
-  s = s.replace(/\\'([0-9a-f]{2})/gi, (m, h) => { const b = Buffer.from([parseInt(h, 16)]); try { return new TextDecoder('windows-1252').decode(b); } catch (_) { return b.toString('latin1'); } })
+  s = s.replace(/\\'([0-9a-f]{2})/gi, (m, h) => windows1252Text(Buffer.from([parseInt(h, 16)])))
     .replace(/\\u(-?\d+)\??/g, (m, n) => { let c = parseInt(n, 10); if (c < 0) c += 65536; return String.fromCharCode(c); })
     .replace(/\\(par|line|row)\b/g, '\n').replace(/\\(tab|cell)\b/g, '\t')
     .replace(/\\[a-z]+-?\d* ?/gi, '').replace(/[{}]/g, '').replace(/\\([\\{}])/g, '$1');
@@ -275,7 +323,7 @@ function rfc2047(s) {
   return String(s || '').replace(/=\?([^?]+)\?([bBqQ])\?([^?]*)\?=/g, (m, cs, enc, data) => {
     try {
       const bytes = /b/i.test(enc) ? Buffer.from(data, 'base64') : qpDecode(data.replace(/_/g, ' '));
-      return new TextDecoder(cs.toLowerCase().replace(/^iso-?8859-?1$/, 'latin1')).decode(bytes);
+      return charsetText(bytes, cs.toLowerCase());
     } catch (_) { return m; }
   }).replace(/\?=\s+=\?/g, '?==?');
 }
@@ -296,14 +344,16 @@ function mimeDecode(body, headers) {
   if (cte.includes('base64')) bytes = Buffer.from(body.replace(/\s+/g, ''), 'base64');
   else if (cte.includes('quoted-printable')) bytes = qpDecode(body);
   else bytes = Buffer.from(body, 'latin1');
-  try { return new TextDecoder(cs.replace(/^iso-?8859-?1$/, 'latin1')).decode(bytes); }
+  try { return charsetText(bytes, cs); }
   catch (_) { return bytesToText(bytes); }
 }
 function parseHeaders(block) {
   const h = {};
   block.replace(/\r\n?/g, '\n').replace(/\n[ \t]+/g, ' ').split('\n').forEach((line) => {
     const i = line.indexOf(':'); if (i <= 0) return;
-    h[line.slice(0, i).trim().toLowerCase()] = line.slice(i + 1).trim();
+    // Prima del charset, 0xA0 può essere parte di un carattere UTF-8:
+    // trim() Unicode qui ne cancellerebbe l'ultimo byte.
+    h[line.slice(0, i).trim().toLowerCase()] = line.slice(i + 1).replace(/^[ \t]+|[ \t]+$/g, '');
   });
   return h;
 }
@@ -326,10 +376,12 @@ function mimeBody(raw, depth) {
   return { headers, text: '', kind: 'other' };   // allegati binari: non qui
 }
 export function emlText(buf) {
-  const raw = bytesToText(buf);
+  // latin1 qui conserva ogni byte; il charset si applica una sola volta
+  // dentro ciascuna parte MIME, che può avere una codifica diversa.
+  const raw = buf.toString('latin1');
   const r = mimeBody(raw, 0);
   const h = r.headers || {};
-  const head = ['From', 'To', 'Cc', 'Date', 'Subject'].map((k) => (h[k.toLowerCase()] ? k + ': ' + rfc2047(h[k.toLowerCase()]) : '')).filter(Boolean).join('\n');
+  const head = ['From', 'To', 'Cc', 'Date', 'Subject'].map((k) => (h[k.toLowerCase()] ? k + ': ' + rfc2047(bytesToText(Buffer.from(h[k.toLowerCase()], 'latin1'))) : '')).filter(Boolean).join('\n');
   return tidy(head + '\n\n' + (r.text || ''));
 }
 

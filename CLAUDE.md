@@ -2994,6 +2994,11 @@ test accetta qualunque schema. Tre correzioni:
 **Integrazione coordinata del 21/09**: il rilascio Innesto `2d8ddb9`, derivato da `842abcbb`, viene integrato sopra `4955110` per conservare anche gli aggiornamenti WhatsApp, i legami lead/conversazione, il recupero dei listener e la revisione Oggi.
 Il segmento Oggi revisionato resta identico; i dieci file esclusivi Innesto restano uguali alla consegna sorgente. La registrazione delle suite conserva entrambe le famiglie di test; la verifica del candidato integrato richiede una nuova CI.
 
+**Revisione Innesto prima del rilascio integrato (21/09)**: solo un riferimento BOOM univoco collega automaticamente il deal; una ricerca per email propone candidati da confermare con immobile e periodo. Le risposte di letture precedenti non cambiano la proposta corrente; creazione e conversione attendono un'associazione verificata.
+Gli Office mantengono i byte originali ZIP; email, testo e DOC si archiviano dentro un vero ZIP con l'originale, usando JSZip già presente e le regole Storage invariate.
+Il parser XLSX conserva le colonne vuote; DOC rifiuta catene OLE cicliche o fuori file; MIME applica il charset ai byte una sola volta e CP1252 conserva euro/accenti anche sul runtime Node.
+Prove sintetiche RED/GREEN in `tests/innesto/review.mjs` e `tests/doctext/run.mjs`; nessuna lettura cliente, chiamata AI o attestazione di produzione derivata dai test locali.
+
 **LA SECONDA LEZIONE DEL 21 SETTEMBRE 2026 — «continuo a rifiutarmi per
 grandezza anche un semplice file»** (stesso giorno, ore dopo il fix dello
 schema). Nei log di produzione NESSUNA chiamata a `/api/portal/ingest` dopo

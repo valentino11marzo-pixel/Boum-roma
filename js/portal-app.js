@@ -29119,6 +29119,7 @@ IBAN: ${l.iban || '-'}`;
         const sel = INNESTO_SELECT[key];
         const type = INNESTO_DATES.indexOf(key) >= 0 ? 'date' : (INNESTO_NUMERIC.indexOf(key) >= 0 ? 'number' : (key === 'email' ? 'email' : 'text'));
         const v = value == null ? '' : String(value);
+        const refreshPa = (section === 'preagreement' && key === 'ref') || ((section === 'tenant' || section === 'lead') && key === 'email');
         const control = sel
             ? `<select onchange="innestoEdit('${esc(section)}','${key}',this.value);${key === 'type' ? 'renderPage()' : ''}"
                     style="flex:1;min-width:0;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 10px;font-size:13px;font-family:inherit">
@@ -29126,7 +29127,7 @@ IBAN: ${l.iban || '-'}`;
                </select>`
             : (opts.multiline
                 ? `<textarea rows="2" oninput="innestoEdit('${esc(section)}','${key}',this.value)" style="flex:1;min-width:0;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 10px;font-size:13px;font-family:inherit;resize:vertical">${esc(v)}</textarea>`
-                : `<input value="${esc(v)}" type="${type}" ${type === 'number' ? 'step="any"' : ''} oninput="innestoEdit('${esc(section)}','${key}',this.value)"
+                : `<input value="${esc(v)}" type="${type}" ${type === 'number' ? 'step="any"' : ''} oninput="innestoEdit('${esc(section)}','${key}',this.value)" ${refreshPa ? 'onblur="innestoRefreshPa()"' : ''}
                     style="flex:1;min-width:0;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 10px;font-size:13px;font-family:inherit">`);
         return `
             <div style="padding:7px 0;border-bottom:1px solid var(--border)">
@@ -29218,6 +29219,7 @@ IBAN: ${l.iban || '-'}`;
     function innestoProposalCard(p) {
         const V = window.BOOM_DATAOPS;
         const val = V.validateProposal(p);
+        const paBlocked = !!(_innesto.pa && (_innesto.pa.loading || _innesto.pa.error || (_innesto.pa.candidates || []).length));
         const pools = innestoPools();
         const blocks = [];
 
@@ -29353,14 +29355,14 @@ IBAN: ${l.iban || '-'}`;
         </div>` : ''}
         <div class="card" style="position:sticky;bottom:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
             <div style="flex:1;min-width:220px">
-                <div style="font-size:14px">${val.ok ? 'Pronto: ' + esc(parts.join(' — ')) : 'Correggi gli errori per procedere'}</div>
+                <div style="font-size:14px">${paBlocked ? 'Verifica prima la proposta trovata nel console' : (val.ok ? 'Pronto: ' + esc(parts.join(' — ')) : 'Correggi gli errori per procedere')}</div>
                 <div style="font-size:11.5px;color:var(--text-secondary);margin-top:3px;display:flex;gap:14px;flex-wrap:wrap;align-items:center">
                     <span>Le rate vengono generate con lo stesso motore della firma digitale (nessun doppione possibile).</span>
                     ${docsN ? `<label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" ${_innesto.archive ? 'checked' : ''} onchange="_innesto.archive=this.checked;renderPage()"> archivia i ${docsN} documenti letti, legati a ciò che nasce</label>` : ''}
                 </div>
             </div>
             <button class="btn btn-sm" onclick="innestoReset()">Annulla</button>
-            <button class="btn" ${val.ok && !_innesto.busy ? '' : 'disabled'} onclick="innestoApply()">${_innesto.busy ? 'Creazione…' : 'Crea nel portale'}</button>
+            <button class="btn" ${val.ok && !_innesto.busy && !paBlocked ? '' : 'disabled'} onclick="innestoApply()">${_innesto.busy ? 'Creazione…' : 'Crea nel portale'}</button>
         </div>`;
     }
 
@@ -29581,30 +29583,46 @@ IBAN: ${l.iban || '-'}`;
     // una proposta, il contratto nasce DA quella (convert: identità,
     // documenti, cadenza, mandato) e non da qui — un secondo contratto
     // sullo stesso deal è il doppione più caro.
+    function innestoPaKey(p) {
+        const ref = String(p && p.preagreement && p.preagreement.ref || '').trim().toUpperCase();
+        const email = String(p && ((p.tenant && p.tenant.email) || (p.lead && p.lead.email)) || '').trim().toLowerCase();
+        return (/^BOOM-[A-Z0-9]{3,12}$/.test(ref) ? ref : '') || (email ? 'email:' + email : '');
+    }
     async function innestoLookupPa(p) {
-        const pa = p && p.preagreement; if (!pa) return;
-        const ref = String(pa.ref || '').toUpperCase();
-        const email = String((p.tenant && p.tenant.email) || (p.lead && p.lead.email) || '').toLowerCase();
-        const key = (/^BOOM-[A-Z0-9]{3,12}$/.test(ref) ? ref : '') || (email ? 'email:' + email : '');
-        if (!key || (_innesto.pa && _innesto.pa.key === key)) return;
-        _innesto.pa = { key, loading: true, found: null, error: '' };
+        if (!p || !p.preagreement) return;
+        const state = _innesto, key = innestoPaKey(p);
+        if (!key || (state.pa && state.pa.key === key)) return;
+        const job = { key, loading: true, found: null, candidates: [], error: '' };
+        state.pa = job; state.skipContract = false;
         try {
-            let docs = [];
-            if (/^BOOM-[A-Z0-9]{3,12}$/.test(ref)) {
-                const snap = await db.collection('preAgreements').where('ref', '==', ref).limit(1).get();
-                docs = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
-            }
-            if (!docs.length && email) {
-                const snap = await db.collection('preAgreements').where('tenant.email', '==', email).limit(5).get();
-                docs = snap.docs.map(d => Object.assign({ id: d.id }, d.data())).filter(d => d.status !== 'revoked');
-                docs.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
-            }
-            const found = docs[0] || null;
-            _innesto.pa = { key, loading: false, found, error: '' };
-            if (found) _innesto.skipContract = true;
+            const exactRef = key.indexOf('email:') !== 0;
+            const snap = await db.collection('preAgreements').where(exactRef ? 'ref' : 'tenant.email', '==', exactRef ? key : key.slice(6)).limit(exactRef ? 2 : 5).get();
+            if (_innesto !== state || state.pa !== job || innestoPaKey(state.proposal || p) !== key) return;
+            const docs = snap.docs.map(d => Object.assign({}, d.data(), { id: d.id }));
+            // Solo un riferimento BOOM univoco identifica il deal. La stessa
+            // email può avere altre case/periodi: i candidati si confermano.
+            const candidates = exactRef ? docs : docs.filter(d => d.status !== 'revoked');
+            const found = exactRef && candidates.length === 1 ? candidates[0] : null;
+            Object.assign(job, { loading: false, found, candidates: found ? [] : candidates });
+            if (found) state.skipContract = true;
         } catch (e) {
-            _innesto.pa = { key, loading: false, found: null, error: (e && e.message) || 'ricerca non riuscita' };
+            if (_innesto !== state || state.pa !== job || innestoPaKey(state.proposal || p) !== key) return;
+            Object.assign(job, { loading: false, error: (e && e.message) || 'ricerca non riuscita' });
         }
+        renderPage();
+    }
+    function innestoRefreshPa() {
+        const pending = innestoLookupPa(_innesto.proposal);
+        renderPage();
+        return pending;
+    }
+    function innestoChoosePa(id) {
+        const lookup = _innesto.pa;
+        if (!lookup || lookup.loading || _innesto.busy || lookup.key !== innestoPaKey(_innesto.proposal)) return;
+        const found = id ? (lookup.candidates || []).find(d => d.id === id) : null;
+        if (id && !found) return;
+        _innesto.pa = Object.assign({}, lookup, { found, candidates: [] });
+        _innesto.skipContract = !!found;
         renderPage();
     }
     function innestoLeadDup(ld) {
@@ -29634,9 +29652,18 @@ IBAN: ${l.iban || '-'}`;
     function innestoPaCard(p) {
         const pa = p.preagreement, L = _innesto.pa || {}, found = L.found;
         const on = _innesto.create.preagreement === true;
+        const candidates = L.candidates || [];
         let head = '', body = '';
         if (L.loading) {
             head = `<span style="font-size:12px;color:var(--text-secondary)">cerco la proposta nel console…</span>`;
+        } else if (L.error) {
+            head = `<span style="font-size:12px;color:#FF6B35">ricerca da completare</span>`;
+            body = `<div style="font-size:12px;margin-bottom:8px">Ricerca nel console non riuscita (${esc(L.error)}). Prima di creare, verifica se la proposta esiste già.</div><button class="btn btn-sm" type="button" onclick="_innesto.pa=null;innestoLookupPa(_innesto.proposal)">Riprova la ricerca</button>`;
+        } else if (candidates.length) {
+            head = `<span style="font-size:12px;color:#FF6B35">scegli il deal corretto</span>`;
+            body = `<div style="font-size:12px;margin-bottom:8px">La ricerca ha trovato queste proposte. Verifica immobile e periodo prima di collegarne una.</div>`
+                + candidates.map(d => `<div style="margin-bottom:8px;font-size:12px"><b>${esc(d.ref || d.id)}</b> · ${esc(d.property && d.property.address || 'indirizzo non disponibile')} · ${esc(d.lease && d.lease.startDate || 'decorrenza non disponibile')} · ${esc(d.status || 'stato non disponibile')}<button class="btn btn-sm" type="button" onclick="innestoChoosePa('${esc(d.id)}')">Collega questa proposta</button></div>`).join('')
+                + `<button class="btn btn-sm btn-secondary" type="button" onclick="innestoChoosePa('')">Nessuna di queste</button>`;
         } else if (found) {
             const st = found.status || 'sent';
             head = `<span style="font-size:12px;color:#00FF88">già nel console — ${esc(found.ref || found.id)} · ${esc(st)}${found.contractId ? ' · contratto creato' : ''}</span>`;
@@ -29676,13 +29703,19 @@ IBAN: ${l.iban || '-'}`;
     }
     async function innestoConvertPa(paId, opts) {
         opts = opts || {};
+        const state = _innesto, lookup = state.pa;
+        if (_innesto.busy || !lookup || lookup.loading || lookup.key !== innestoPaKey(_innesto.proposal) || !lookup.found || lookup.found.id !== paId) {
+            toast('warning', 'Verifica prima la proposta', 'Il materiale è cambiato: completa la ricerca e controlla il deal da convertire.'); return;
+        }
         try {
             const token = await auth.currentUser.getIdToken();
+            if (_innesto !== state || state.pa !== lookup || lookup.key !== innestoPaKey(state.proposal)) return;
             const r = await fetch('/api/preagreement/convert', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
                 body: JSON.stringify({ id: paId, createProperty: !!opts.createProperty }) });
             const data = await r.json().catch(() => ({}));
             if (r.ok && data.ok) {
                 toast('success', data.already ? 'Contratto già esistente' : 'Contratto creato dalla proposta', 'Firme, rate e registrazione partono dal contratto');
+                if (_innesto !== state || state.pa !== lookup || lookup.key !== innestoPaKey(state.proposal)) return;
                 innestoReset(); await loadDataFresh(true); goTo('contracts'); return;
             }
             if (data.error === 'no_property' && data.canCreate && !opts.createProperty) {
@@ -29841,6 +29874,9 @@ IBAN: ${l.iban || '-'}`;
     function innestoEdit(section, key, value) {
         const t = innestoTarget(section); if (!t) return;
         t[key] = INNESTO_NUMERIC.indexOf(key) >= 0 ? (value === '' ? null : Number(value)) : value;
+        if (_innesto.pa && _innesto.pa.key !== innestoPaKey(_innesto.proposal)) {
+            _innesto.pa = null; _innesto.skipContract = false;
+        }
         if (section === 'contract' && key === 'type' && value === 'studenti' && !t.studenti) t.studenti = { corsoStudi: '', universita: '', universitaIndirizzo: '', tipoIscrizione: '', annoAccademico: '' };
         // Nessun renderPage(): riscrivere il DOM mentre si digita farebbe
         // perdere il cursore. La validazione si aggiorna al blur/azione.
@@ -29918,6 +29954,14 @@ IBAN: ${l.iban || '-'}`;
         const V = window.BOOM_DATAOPS;
         const p = _innesto.proposal;
         if (!p || _innesto.busy) return;
+        const key = p.preagreement ? innestoPaKey(p) : '';
+        if (key && (!_innesto.pa || _innesto.pa.key !== key)) {
+            await innestoLookupPa(p);
+            toast('info', 'Ricerca della proposta aggiornata', 'Controlla il risultato prima di confermare la creazione.'); return;
+        }
+        if (key && (_innesto.pa.loading || _innesto.pa.error || (_innesto.pa.candidates || []).length)) {
+            toast('warning', 'Verifica prima la proposta', 'Completa la ricerca e scegli il deal corretto, oppure nessuno dei candidati.'); return;
+        }
         const val = V.validateProposal(p);
         if (!val.ok) { toast('error', 'Ci sono errori da correggere'); return; }
         _innesto.busy = true; renderPage();
@@ -30322,9 +30366,26 @@ IBAN: ${l.iban || '-'}`;
         }
         const file = rd.file;
         const safeName = String(file.name || 'documento').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80);
-        const path = 'documents/' + (S.profile.id || 'admin') + '/innesto/' + Date.now() + '_' + safeName;
-        const contentType = file.type && /^(image\/|application\/pdf)/.test(file.type) ? file.type : rd.mediaType;
-        const useBlob = contentType === file.type ? file : rd.blob;
+        let storedName = safeName;
+        let contentType = file.type && /^(image\/|application\/pdf)/.test(file.type) ? file.type : rd.mediaType;
+        let useBlob = contentType === file.type ? file : rd.blob;
+        let wrapped = false;
+        if (!/^(image\/|application\/pdf$|application\/zip$)/.test(contentType)) {
+            // Office moderni sono già ZIP: gli stessi byte, con il tipo di
+            // trasporto consentito. Testo, email e DOC conservano l'originale
+            // dentro un vero ZIP, senza allargare le regole dello Storage.
+            if (/\.(docx|xlsx|odt)$/i.test(file.name || '')) {
+                useBlob = file;
+            } else {
+                if (!window.JSZip) throw new Error('Archivio ZIP non disponibile: ricarica la pagina e conserva il file originale.');
+                const zip = new window.JSZip();
+                zip.file(String(file.name || 'documento').replace(/[\\/\u0000]/g, '_'), await file.arrayBuffer());
+                useBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+                storedName += '.zip'; wrapped = true;
+            }
+            contentType = 'application/zip';
+        }
+        const path = 'documents/' + (S.profile.id || 'admin') + '/innesto/' + Date.now() + '_' + storedName;
         const up = await storage.ref(path).put(useBlob, { contentType });
         const url = await up.ref.getDownloadURL();
         const party = meta.party === 'cotenant' ? 'tenant' : meta.party;
@@ -30334,8 +30395,9 @@ IBAN: ${l.iban || '-'}`;
             name: meta.title || file.name, type: meta.docType || 'other',
             category: meta.category || null, folder: meta.folder || null, fiscalYear: year || null,
             userId: userId || S.profile.id, propertyId: ctx.propertyId || null, contractId: ctx.contractId || null,
-            shared: false, notes: meta.summary || '',
-            fileUrl: url, fileName: file.name, fileSize: useBlob.size, storagePath: path,
+            shared: false, notes: (meta.summary || '') + (wrapped ? ' Originale conservato nello ZIP: estrailo prima di una nuova lettura con Innesto.' : ''),
+            fileUrl: url, fileName: wrapped ? file.name + '.zip' : file.name, fileSize: useBlob.size, storagePath: path,
+            originalFileName: file.name, originalMediaType: rd.mediaType || file.type || null, archiveContainer: wrapped ? 'zip' : null,
             uploadedBy: S.profile.id, source: 'innesto', createdAt: firebase.firestore.FieldValue.serverTimestamp()
         };
         if (ctx.createDocument) await ctx.createDocument(docEntry); else await db.collection('documents').add(docEntry);

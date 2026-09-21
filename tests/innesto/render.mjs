@@ -73,7 +73,7 @@ check('proposta TROVATA con contratto: «contratto creato», nessun bottone conv
 o = mount((st) => { st.proposal = structuredClone(PROPOSAL); st.pa = { key: 'BOOM-3K9F2A', loading: true, found: null, error: '' }; });
 check('lookup in corso: lo dice', /cerco la proposta nel console/.test(o.card));
 o = mount((st) => { st.proposal = structuredClone(PROPOSAL); st.pa = { key: 'BOOM-3K9F2A', loading: false, found: null, error: 'permission-denied' }; st.create.preagreement = true; });
-check('lookup fallito: l\'errore è detto e la spunta accesa promette la proposta nel riepilogo', /Ricerca nel console non riuscita \(permission-denied\)/.test(o.card) && /creerà [^<]*proposta nel console/.test(o.card));
+check('lookup fallito: errore e riprova sono visibili, la creazione resta bloccata prima di un possibile doppione', /Ricerca nel console non riuscita \(permission-denied\)/.test(o.card) && /Riprova la ricerca/.test(o.card) && /disabled[^>]*onclick="innestoApply\(\)"/.test(o.card) && !/Pronto:/.test(o.card));
 o = mount((st) => { st.proposal = { material: 'messaggio', lead: { name: 'Già Presente', email: 'gia@x.com', phone: '', request: 'ciao' } }; });
 check('lead già in archivio: la card lo dice, niente spunta, il riepilogo non promette nulla di nuovo', /già fra i lead — Già Presente/.test(o.card) && !/crea il lead/.test(o.card) && /solo collegamenti/.test(o.card), o.card.slice(o.card.indexOf('Pronto'), o.card.indexOf('Pronto') + 120));
 o = mount((st) => { st.proposal = { material: 'messaggio', lead: { name: 'Nuovo Cliente', email: 'nuovo@x.com', phone: '', request: 'cerco casa' } }; });
