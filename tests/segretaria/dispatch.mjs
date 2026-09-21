@@ -102,7 +102,7 @@ globalThis.fetch = async (rawURL, opts = {}) => {
     return json(entries.slice(0, q.limit || 1000).map(([p]) => ({ document: doc(p) })));
   }
   const path = decodeURIComponent(url.pathname.split('/documents/')[1] || '');
-  if (failingCollection && path.startsWith(failingCollection + '/')) return json({ error: { status: 'UNAVAILABLE' } }, 503);
+  if (failingCollection && (path === failingCollection || path.startsWith(failingCollection + '/'))) return json({ error: { status: 'UNAVAILABLE' } }, 503);
   if (failResult && path.startsWith('action_queue/') && opts.method === 'PATCH' && dec(body.fields?.status || {nullValue:null}) === 'executed') return json({error:{status:'UNAVAILABLE'}}, 503);
   if (opts.method === 'POST') {
     const id = url.searchParams.get('documentId') || 'auto' + ++sequence;
@@ -129,6 +129,7 @@ globalThis.fetch = async (rawURL, opts = {}) => {
 const { default: PROPOSTA } = await import('../../js/segretaria-proposta-engine.js');
 const { approvePreparation } = await import('../../api/segretaria/_dispatch.js');
 const { default: execute } = await import('../../api/agent/execute.js');
+const { default: messagesSend } = await import('../../api/agent/messages.send.js');
 const { personaDossier } = await import('../../api/segretaria/_persona.js');
 const { loadCaseContext, contextFingerprint, contactFingerprint } = await import('../../api/segretaria/_context.js');
 const { followUpDecisionHash } = await import('../../api/segretaria/_follow-up.js');
@@ -169,6 +170,14 @@ async function callExecutor(body) {
   });
   return { code, ...out };
 }
+async function callMessages(body) {
+  let code, out;
+  await messagesSend({ method: 'POST', body, headers: { 'x-homie-secret': 'fixture' } }, {
+    status(n) { code = n; return this; }, json(v) { out = v; return this; }, setHeader() {}, end() {},
+  });
+  return { code, ...out };
+}
+const messageActivities = () => rows('activityLog').map(([, row]) => row).filter(row => row.category === 'message');
 
 try {
   await reset();
@@ -176,6 +185,13 @@ try {
   const knownId = r.actionId;
   ok('conferma vera → executor vero → WhatsApp in consegna, mai dichiarato inviato', r.code === 200 && r.delivery === 'queued'
     && action?.status === 'executed' && action.segretaria.execution.state === 'started' && !action.waSentAt, r);
+  ok('executor conserva link WhatsApp compatibile ma dichiara solo preparazione', action.executionResult.whatsapp.status === 'prepared'
+    && action.executionResult.whatsapp.url.startsWith('https://wa.me/') && action.executionResult.whatsapp.to === conv.contactPhone
+    && !action.executionResult.whatsapp.sent && __mails.length === 0);
+  ok('registro messaggi e cronologia distinguono bozza WhatsApp da invio', rows('messageLog').length === 1
+    && JSON.stringify(rows('messageLog')[0][1].delivery) === JSON.stringify({ whatsapp: 'prepared' })
+    && messageActivities().length === 1 && messageActivities()[0].action === 'Bozza WhatsApp preparata (agent)'
+    && JSON.stringify(messageActivities()[0].details.delivery) === JSON.stringify({ whatsapp: 'prepared' }));
   ok('seguito confermato resta aperto, collegato alla pratica e con responsabile e ricontrollo', task().status === 'open'
     && task().followUp.confirmed && task().followUp.practiceRef === 'contracts/cA' && task().followUp.propertyRef === 'properties/pA'
     && task().followUp.waitingOn === 'client' && task().followUp.checkAt === new Date(NOW + 86400000).toISOString());
@@ -285,6 +301,11 @@ try {
   ok('recapiti e HTML del modello ignorati: email solo al contatto verificato', r.delivery === 'sent' && __mails.length === 1
     && __mails[0].to === conv.contactEmail && __mails[0].text === task().preparation.draft.text
     && !__mails[0].html.includes('injected'), r);
+  ok('email realmente inviata mantiene ricevuta e cronologia del solo canale email',
+    DB.get('action_queue/' + r.actionId).executionResult.email.sent === true
+    && JSON.stringify(rows('messageLog')[0][1].delivery) === JSON.stringify({ email: 'sent' })
+    && messageActivities().length === 1 && messageActivities()[0].action === 'Email inviata (agent)'
+    && JSON.stringify(messageActivities()[0].details.delivery) === JSON.stringify({ email: 'sent' }));
   await approvePreparation(args);
   ok('retry email realmente inviata non manda due volte', __mails.length === 1);
 
@@ -373,6 +394,27 @@ try {
   save('action_queue/legacy', { kind: 'reply', status: 'pending', proposedBy: 'legacy', payload: { channel: 'whatsapp', phone: conv.contactPhone, draft: 'Legacy' } });
   r = await callExecutor({ id: 'legacy' });
   ok('flusso storico non modificato dal gate delle nuove proposte', r.code === 200 && r.status === 'executed');
+
+  await reset();
+  r = await callMessages({ channel: 'both', to: conv.contactEmail, phone: conv.contactPhone,
+    subject: 'Fixture esiti separati', body: 'Test dei due canali.' });
+  ok('strumento both separa email inviata da WhatsApp preparato senza creare una coda', r.code === 200 && r.ok
+    && r.email.sent === true && r.whatsapp.status === 'prepared' && __mails.length === 1 && !rows('action_queue').length
+    && JSON.stringify(rows('messageLog')[0][1].delivery) === JSON.stringify({ email: 'sent', whatsapp: 'prepared' })
+    && messageActivities()[0].action === 'Email inviata e bozza WhatsApp preparata (agent)'
+    && JSON.stringify(messageActivities()[0].details.delivery) === JSON.stringify({ email: 'sent', whatsapp: 'prepared' }));
+
+  await reset(); failingCollection = 'messageLog';
+  r = await callMessages({ channel: 'whatsapp', phone: conv.contactPhone, body: 'Fixture registro non disponibile.' });
+  ok('registro secondario indisponibile non perde link né inventa invio in cronologia', r.code === 200 && r.ok
+    && r.whatsapp.status === 'prepared' && r.whatsapp.url.startsWith('https://wa.me/')
+    && !rows('messageLog').length && messageActivities()[0].action === 'Bozza WhatsApp preparata (agent)'
+    && messageActivities()[0].details.delivery.whatsapp === 'prepared' && !rows('action_queue').length && __mails.length === 0);
+
+  await reset();
+  r = await callMessages({ channel: 'whatsapp', body: 'Fixture senza destinatario.' });
+  ok('WhatsApp non preparabile non produce falsa ricevuta o cronologia di invio', r.code === 400 && !r.ok
+    && !rows('messageLog').length && !messageActivities().length && __mails.length === 0);
 
   ok('nessuna rete reale, AI, Telegram o secondo canale', network.length === 0, network);
 } catch (e) {

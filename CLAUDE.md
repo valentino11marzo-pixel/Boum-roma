@@ -3163,6 +3163,13 @@ actionId, ok, error?}` — delivery state lives on the action doc
 (`waSentAt`/`waSendError`); outcomes must be checked before retry. Auth
 `X-Homie-Secret`.
 
+**Registro degli esiti (21/09/2026):** `agent/messages.send` prima chiamava
+«inviato» anche il solo link WhatsApp. Ora risultato (`whatsapp.status`),
+`messageLog.delivery` e `activityLog.details.delivery` distinguono WhatsApp
+`prepared` da email `sent`; i titoli dicono quale canale è stato preparato/inviato.
+Sono esiti storici dello strumento: la ricevuta WhatsApp resta sull'azione,
+tramite ack Mac. Flusso e retry invariati. Test: `segretariaconferma`.
+
 **Ritiro e scadenza coerenti (18/09/2026):** ogni pull legge una pagina di 50
 azioni e salva con CAS in `heartbeat/wa-outbox` il prefisso controllato prima
 delle claim; un diniego non nasconde i candidati successivi. Restano una verifica
