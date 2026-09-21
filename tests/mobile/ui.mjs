@@ -51,6 +51,7 @@ function extractFn(src, name) {
 const appSrc = readFileSync(join(ROOT, 'js', 'portal-app.js'), 'utf8');
 const realWizardNav = extractFn(appSrc, 'contractWizardNav');
 const realPanels = ['esc', 'kindLabel', 'inboxPage', 'inboxConversationCard',
+  'inboxFreshness', 'portalFreshnessWarning',
   'inboxRelativeTime', 'inboxThreadPanel', 'inboxHomieBanner', 'inboxMessageBubble',
   'inboxComposer', 'rentMoney', 'rentActionArg', 'rentMonthLabel', 'openRentReportReview', 'openRadarEditor']
   .map(name => extractFn(appSrc, name)).join('\n');
@@ -109,6 +110,10 @@ var PRE_ZONES = { prova: { name: 'Zona sintetica' } };
 var _inboxState = { convId: 'synthetic-conv', filter: 'all', channel: 'all', search: '', composing: 'whatsapp' };
 function isAdmin() { return true; }
 function inboxRefresh() { document.getElementById('main').innerHTML = inboxPage(); }
+// Il layout usa renderer e helper di freschezza reali; il montaggio del
+// sottosistema live resta un confine simulato. Listener e ripresa reali
+// sono verificati separatamente in tests/segretaria/freshness-ui.mjs.
+function portalFreshnessMount() { __calls.push(['portalFreshnessMount']); }
 function submitRentReportReview() { __calls.push(['reviewRent']); }
 function saveRadarSearch() { __calls.push(['saveRadarSearch', document.getElementById('radName').value]); }
 ${realPanels}
