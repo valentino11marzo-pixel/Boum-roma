@@ -25,9 +25,23 @@
 // come «non riesce mai a leggere i file».
 //
 // Tre cambi di classe:
-//  1. OUTPUT STRUTTURATO (output_config.format, json_schema): la risposta è
-//     JSON valido PER COSTRUZIONE, aderente allo schema. `_modeljson.js`
-//     resta come rete, non come via.
+//  1. IL JSON ARRIVA GIÀ PARSATO. La risposta non è testo da leggere: è la
+//     chiamata di UNO strumento (`proposta`: tools + tool_choice) il cui
+//     input l'API consegna come OGGETTO JSON — valido per costruzione — con
+//     lo schema (INGEST_SCHEMA) come input_schema. `_modeljson.js` resta come
+//     rete per il solo caso in cui il modello risponda a parole.
+//     LA TERZA LEZIONE DEL 21 SETTEMBRE 2026: la prima via era l'output
+//     strutturato (output_config.format con json_schema), che compila lo
+//     schema in una GRAMMATICA. Tolte le 99 unioni (seconda lezione), il
+//     primo documento vero ha risposto 400 «The compiled grammar is too
+//     large, which would cause performance issues»: oltre ai 16/24 documentati
+//     c'è un tetto INTERNO sulla grammatica compilata, dichiarato nei docs
+//     senza un numero («Additional internal limits»), e 148 parametri lo
+//     superano. Uno strumento NON strict non compila niente: nessuna
+//     grammatica, nessun tetto — e il JSON resta un oggetto, perché così
+//     l'API consegna l'input di un tool_use. L'aderenza allo schema è del
+//     modello, non della grammatica: il motore (dataops-engine) legge "",
+//     null, numeri e booleani allo stesso modo, e i test lo provano.
 //  2. IL MODELLO GIUSTO. Un contratto registrato all'AdE vale più di un
 //     inventario, e l'inventario legge già con claude-opus-5 («il documento
 //     vale sul deposito: qui non si risparmia»). Qui idem. Il tempo lo paga
@@ -111,7 +125,7 @@ async function clipPdf(buf) {
   }
 }
 
-// ─── LO SCHEMA (json_schema per l'output strutturato) ────────────────────
+// ─── LO SCHEMA (input_schema dello strumento `proposta`) ─────────────────
 // Regole della piattaforma: ogni oggetto con additionalProperties:false e
 // TUTTE le chiavi in required; il "manca" si esprime con "" (vedi sotto). Le
 // descrizioni sono parte del prompt: dicono al modello cosa va in ogni campo.
@@ -284,7 +298,20 @@ export const INGEST_SCHEMA = obj({
 }, 'La proposta per il gestionale');
 
 // ─── IL PROMPT DI SISTEMA (stabile: viene messo in cache) ─────────────────
-export const SYSTEM = `Sei l'assistente di back-office di BOOM, agenzia immobiliare a Roma. Dal materiale che ricevi (uno o più documenti: PDF, foto, Word/Excel/email/pagine già ridotti a testo, testo incollato) estrai i dati per il gestionale, nello schema richiesto.
+// ─── LO STRUMENTO — il JSON viaggia come chiamata, non come grammatica ───
+// NON strict di proposito: uno strumento strict compilerebbe la STESSA
+// grammatica di output_config.format e morirebbe allo stesso tetto interno
+// (la terza lezione del 21/09, in testa al file). L'input di un tool_use
+// arriva già parsato dall'API; lo schema, con le sue descrizioni, guida il
+// modello campo per campo.
+export const TOOL_NAME = 'proposta';
+export const INGEST_TOOL = {
+  name: TOOL_NAME,
+  description: 'Consegna la proposta per il gestionale BOOM estratta dal materiale ricevuto: tutte le sezioni e tutte le chiavi dello schema, stringa vuota "" dove il materiale non dice niente (mai null, mai un dato inventato), numeri come stringhe di sole cifre, date AAAA-MM-GG, una citazione in evidence per ogni valore. Va chiamato UNA volta sola, con tutto dentro.',
+  input_schema: INGEST_SCHEMA,
+};
+
+export const SYSTEM = `Sei l'assistente di back-office di BOOM, agenzia immobiliare a Roma. Dal materiale che ricevi (uno o più documenti: PDF, foto, Word/Excel/email/pagine già ridotti a testo, testo incollato) estrai i dati per il gestionale e li consegni chiamando lo strumento \`proposta\`: il suo schema è il tracciato, ogni campo ha la sua descrizione.
 
 REGOLE NON NEGOZIABILI
 1. NON INVENTARE MAI. Se un dato non è scritto nel materiale, lascia la stringa vuota "". Un campo vuoto è corretto; un campo inventato finisce in un contratto registrato all'Agenzia delle Entrate.
@@ -293,7 +320,7 @@ REGOLE NON NEGOZIABILI
 4. Date sempre AAAA-MM-GG ("1° settembre 2026" → 2026-09-01). Importi e misure come numeri puri scritti come stringhe di sole cifre ("1100", non "€ 1.100,00"; "65.5" per i decimali). Il canone è quello MENSILE: se il documento dà l'annuo, dividi per 12 e scrivilo in notes.
 5. Non fondere mai due persone in una. Se i conduttori sono più d'uno, il primo nominato è "tenant" e gli altri vanno in "coTenants".
 6. I nomi in archivio che ti vengono forniti servono SOLO per usare la stessa grafia: non prenderne mai un dato.
-7. Rispondi nello schema JSON richiesto, in italiano, senza testo attorno.
+7. Rispondi con UNA sola chiamata allo strumento \`proposta\`, con tutte le chiavi dello schema (stringa vuota dove manca), in italiano; nessun testo fuori dalla chiamata.
 
 COME SI LEGGE UN CONTRATTO DI LOCAZIONE ITALIANO (il materiale è quasi sempre questo)
 - "Locatore" / "parte locatrice" / "concedente" = landlord. "Conduttore" / "parte conduttrice" / "locatario" / "inquilino" = tenant. Stanno in cima al documento nell'ordine locatore-poi-conduttore, ma verifica sempre dalle etichette, non dalla posizione.
@@ -430,37 +457,54 @@ export async function readFiles(body) {
 // ─── LA CHIAMATA AL MODELLO ──────────────────────────────────────────────
 const FALLBACK_BETA = 'server-side-fallback-2026-07-01';
 
+// Un 400 che parla della chiamata forzata dello strumento (la piattaforma
+// può non ammetterla insieme al thinking): si scende a tool_choice auto.
+const FORCED_RE = /tool_choice|forced tool|tool use[^.]*thinking|thinking[^.]*tool/i;
+
 async function askModel(content) {
   const key = process.env.ANTHROPIC_API_KEY;
-  const base = {
+  const build = (o) => Object.assign(o.fallback ? { fallbacks: 'default' } : {}, {
     model: MODEL,
-    max_tokens: 16000,
+    max_tokens: 20000,
     thinking: { type: 'adaptive' },
-    output_config: { format: { type: 'json_schema', schema: INGEST_SCHEMA } },
+    tools: [INGEST_TOOL],
+    tool_choice: o.forced
+      ? { type: 'tool', name: TOOL_NAME, disable_parallel_tool_use: true }
+      : { type: 'auto', disable_parallel_tool_use: true },
     system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
     messages: [{ role: 'user', content }],
-  };
-  const call = (withFallback) => fetch('https://api.anthropic.com/v1/messages', {
+  });
+  const call = (o) => fetch('https://api.anthropic.com/v1/messages', {
     signal: aiSignal(AI_MS),   // un modello appeso non deve uccidere la funzione
     method: 'POST',
     headers: Object.assign({
       'x-api-key': key,
       'anthropic-version': '2023-06-01',
       'content-type': 'application/json',
-    }, withFallback ? { 'anthropic-beta': FALLBACK_BETA } : {}),
-    body: JSON.stringify(withFallback ? Object.assign({ fallbacks: 'default' }, base) : base),
+    }, o.fallback ? { 'anthropic-beta': FALLBACK_BETA } : {}),
+    body: JSON.stringify(build(o)),
   });
-  // Il ripiego server-side (un rifiuto di policy riparte da solo su un altro
-  // modello) è opt-in; se la piattaforma dovesse non riconoscerlo, si
-  // riprova UNA volta senza — la lettura non deve dipendere da un beta.
-  let resp = await call(true);
-  if (resp.status === 400) {
+  // La scala dei 400 di FORMA — nessuno costa un token, la richiesta viene
+  // rifiutata prima che il modello legga: (1) il beta del ripiego
+  // server-side (un rifiuto di policy riparte da solo su un altro modello,
+  // opt-in) non riconosciuto → si riprova senza, la lettura non dipende da un
+  // beta; (2) la chiamata FORZATA dello strumento rifiutata → tool_choice
+  // auto: il prompt dice comunque di chiamarlo, e se il modello rispondesse a
+  // parole resta la rete di parseModelJson. Qualunque altro 400 esce così
+  // com'è: è deterministico e lo dice ingestRead.
+  const o = { fallback: true, forced: true };
+  for (let i = 0; i < 3; i++) {
+    const resp = await call(o);
+    if (resp.status !== 400) {
+      if (!resp.ok) return { ok: false, status: resp.status, text: await resp.text() };
+      return { ok: true, data: await resp.json(), forced: o.forced };
+    }
     const t = await resp.text();
-    if (/fallback|beta/i.test(t)) resp = await call(false);
-    else return { ok: false, status: 400, text: t };
+    if (o.fallback && /fallback|beta/i.test(t)) { o.fallback = false; continue; }
+    if (o.forced && FORCED_RE.test(t)) { o.forced = false; continue; }
+    return { ok: false, status: 400, text: t };
   }
-  if (!resp.ok) return { ok: false, status: resp.status, text: await resp.text() };
-  return { ok: true, data: await resp.json() };
+  return { ok: false, status: 400, text: 'form retries exhausted' };
 }
 
 const clip = (v, n) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, n);
@@ -497,8 +541,9 @@ function sanitizeEvidence(list, nFiles) {
 function sanitizeFiles(list, files) {
   const byIndex = new Map();
   (Array.isArray(list) ? list : []).forEach((f) => {
-    if (!f || typeof f !== 'object' || !Number.isInteger(f.index)) return;
-    byIndex.set(f.index, f);
+    if (!f || typeof f !== 'object') return;
+    const idx = toInt(f.index);   // senza grammatica l'indice può arrivare "1"
+    if (idx != null) byIndex.set(idx, f);
   });
   return files.map((f) => {
     const m = byIndex.get(f.index) || {};
@@ -509,7 +554,7 @@ function sanitizeFiles(list, files) {
       format: f.format || (f.isPdf ? 'PDF' : 'immagine'), isText: !!f.isText, chars: f.chars != null ? f.chars : null,
       kind, label: CATS[kind].label, docType: CATS[kind].type, category: CATS[kind].category, folder: CATS[kind].folder,
       title: clip(m.title, 120), summary: clip(m.summary, 300),
-      legible: m.legible !== false,
+      legible: !(m.legible === false || lowEnum(m.legible) === 'false' || lowEnum(m.legible) === 'no'),
       party: ['tenant', 'landlord', 'cotenant'].indexOf(lowEnum(m.party)) >= 0 ? lowEnum(m.party) : null,
       pages: f.pages != null ? f.pages : toInt(m.pages),
       clipped: f.clipped, readPages: f.readPages != null ? f.readPages : null,
@@ -639,20 +684,29 @@ export async function ingestRead({ files = [], text = '', hint = '', known = {},
     console.error('[' + tag + '] refusal files=' + files.length);
     return { status: 502, ok: false, error: 'ai_refused', detail: 'Il modello ha rifiutato di leggere questo materiale. Se contiene solo un documento d\'identità o un contratto, riprova con una foto più nitida o incolla il testo.' };
   }
-  const raw = (data.content || []).filter((c) => c.type === 'text').map((c) => c.text || '').join('');
+  const blocks = Array.isArray(data.content) ? data.content : [];
+  const raw = blocks.filter((c) => c.type === 'text').map((c) => c.text || '').join('');
   if (data.stop_reason === 'max_tokens') {
     console.error('[' + tag + '] ' + jsonFailureLine(raw, 'truncated', data.stop_reason));
     return { status: 502, ok: false, error: 'ai_truncated', detail: 'La risposta è stata tagliata: allega meno documenti per volta.' };
   }
-  // Con l'output strutturato il JSON è valido per costruzione; la lettura
-  // difensiva resta come rete (e nei log va la forma, mai il contenuto: qui
-  // dentro ci sono codici fiscali e IBAN di persone reali).
-  const read = parseModelJson(raw);
-  if (!read.ok) {
-    console.error('[' + tag + '] ' + jsonFailureLine(raw, read.why, data.stop_reason));
-    return { status: 502, ok: false, error: 'ai_bad_json', why: read.why, detail: jsonFailureHint(read.why) };
+  // La via maestra: l'input dello strumento, che l'API consegna già come
+  // oggetto (valido per costruzione, senza grammatica). La rete: se il
+  // modello ha risposto a parole (tool_choice auto, o un testo attorno), il
+  // JSON si legge dal testo — e nei log va la forma, mai il contenuto: qui
+  // dentro ci sono codici fiscali e IBAN di persone reali.
+  const tool = blocks.find((c) => c.type === 'tool_use' && c.name === TOOL_NAME) || blocks.find((c) => c.type === 'tool_use');
+  let parsed, via;
+  if (tool && tool.input && typeof tool.input === 'object' && !Array.isArray(tool.input)) {
+    parsed = tool.input; via = 'tool';
+  } else {
+    const read = parseModelJson(raw);
+    if (!read.ok) {
+      console.error('[' + tag + '] ' + jsonFailureLine(raw, read.why, data.stop_reason) + ' via=text');
+      return { status: 502, ok: false, error: 'ai_bad_json', why: read.why, detail: jsonFailureHint(read.why) };
+    }
+    parsed = read.value || {}; via = 'text';
   }
-  const parsed = read.value || {};
 
   try {
     // Whitelist e forma: SOLO le sezioni che il materiale porta (una carta
@@ -681,7 +735,7 @@ export async function ingestRead({ files = [], text = '', hint = '', known = {},
       cacheReadTokens: usage.cache_read_input_tokens || 0, cacheWriteTokens: usage.cache_creation_input_tokens || 0,
       files: files.length, pages: files.reduce((a, f) => a + (f.pages || 0), 0),
     };
-    console.log(`[${tag}] ok files=${meta.files} pages=${meta.pages} in=${meta.inputTokens} out=${meta.outputTokens} ms=${ms} sections=${Object.keys(proposal).join(',') || '-'}`);
+    console.log(`[${tag}] ok via=${via}${out.forced === false ? '(auto)' : ''} files=${meta.files} pages=${meta.pages} in=${meta.inputTokens} out=${meta.outputTokens} ms=${ms} sections=${Object.keys(proposal).join(',') || '-'}`);
 
     if (!Object.keys(proposal).length) {
       return { status: 200, ok: true, proposal: {}, empty: true, files: filesRead, evidence, notes, confidence,

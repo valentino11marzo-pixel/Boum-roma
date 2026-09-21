@@ -2908,10 +2908,14 @@ con `max_tokens: 2000` — un contratto registrato all'AdE letto col modello
 più piccolo, mentre l'inventario legge con Opus 5 «perché vale sul
 deposito»; (3) la funzione NON era in `vercel.json`, quindi girava col
 maxDuration di default della piattaforma. Ora:
-- **Output strutturato** (`output_config.format` json_schema, `INGEST_SCHEMA`
-  esportato: ogni oggetto `additionalProperties:false` e `required` completo,
-  «manca» = "" — vedi la lezione del 21/09 qui sotto): il JSON è valido PER COSTRUZIONE. `parseModelJson` resta
-  come rete; `stop_reason` è letto e detto — `refusal` → `ai_refused`,
+- **Il JSON arriva già parsato** (`INGEST_TOOL`: lo strumento `proposta`,
+  NON strict, con `INGEST_SCHEMA` come `input_schema` — ogni oggetto
+  `additionalProperties:false` e `required` completo, «manca» = "" — e
+  `tool_choice` forzato su di lui): l'API consegna l'input di un `tool_use`
+  come OGGETTO, valido per costruzione, senza compilare nessuna grammatica
+  (vedi le TRE lezioni del 21/09 qui sotto: la prima via era
+  `output_config.format`). `parseModelJson` resta come rete per il solo caso
+  in cui il modello risponda a parole; `stop_reason` è letto e detto — `refusal` → `ai_refused`,
   `max_tokens` → `ai_truncated` (solo lì si parla di taglio), 429 →
   `ai_rate_limited`, abort → 504 `ai_timeout`, ognuno con il rimedio in
   `detail`. Ripiego server-side sui rifiuti (`fallbacks:'default'` + beta
@@ -3035,8 +3039,38 @@ mandato che porta con sé — un secondo contratto sullo stesso deal è il
 doppione più caro); se non c'è, con la spunta nasce una proposta via
 `/api/preagreement/create` (la STESSA API della console) e il link finisce
 negli appunti. `CATS` dello Smistatore ha `proposta` e `messaggio`.
-Test: `node tests/doctext/run.mjs` (31), `tests/innesto/run.mjs` (167),
+Test: `node tests/doctext/run.mjs` (32), `tests/innesto/run.mjs` (172),
 `tests/dataops/test.mjs` (192).
+
+**LA TERZA LEZIONE DEL 21 SETTEMBRE 2026 — la grammatica troppo grande**
+(la sera, al primo pre-agreement caricato dopo i due fix). Risposta
+dell'API, riportata dall'operatore parola per parola: *«The compiled grammar
+is too large, which would cause performance issues. Simplify your tool
+schemas or reduce the number of strict tools»*. Oltre ai 16/24 documentati
+c'è un tetto INTERNO sulla grammatica compilata — i docs lo dichiarano
+(*Additional internal limits*) senza un numero — e uno schema da 148
+parametri, pur a zero unioni e zero facoltativi, lo supera. Cioè: con
+`output_config.format` l'Innesto 3.0 NON HA MAI letto un documento in
+produzione, e dal sandbox non si poteva sapere (nessuna chiave API, e il
+finto Anthropic dei test accetta qualunque schema). La via non è ridurre
+lo schema a tentativi ciechi (ogni tentativo = un deploy): è **non compilare
+niente**. Il JSON viaggia come chiamata di UNO strumento non strict
+(`tools: [INGEST_TOOL]`, `tool_choice: {type:'tool', name:'proposta'}`):
+l'input di un `tool_use` arriva dall'API già come oggetto — valido per
+costruzione, come prima — e lo schema, con le sue descrizioni, guida il
+modello campo per campo senza grammatica e senza tetto. L'aderenza allo
+schema è del modello, non della grammatica: il motore leggeva già "",
+`null`, numeri e booleani allo stesso modo, e `sanitizeFiles` accetta un
+indice arrivato come "1". Scala dei 400 di forma, nessuno costa un token:
+il beta del ripiego non riconosciuto → senza ripiego; la chiamata FORZATA
+rifiutata (con il thinking la piattaforma può non ammetterla) → `tool_choice`
+auto, e se il modello rispondesse a parole resta la rete di `parseModelJson`.
+`strict: true` sullo strumento è vietato per costruzione: compilerebbe la
+STESSA grammatica. Test (mutazioni: strumento strict, blocco `tool_use`
+ignorato, ritorno a `output_config.format` — tutte prese): la forma della
+richiesta, il ripiego ad auto, la rete sul testo, il 400 della grammatica
+detto come richiesta del server, le giunzioni sulla sorgente; lo Scrivano
+legge con lo stesso strumento.
 
 ### LO SCRIVANO — la porta dal telefono (`api/scrivano/*` + `sc:` su Telegram, 14/09/2026)
 STUDIO_SCRIVANO §4, **passo 4**: i passi 1–3 (il documento resta, la classe
