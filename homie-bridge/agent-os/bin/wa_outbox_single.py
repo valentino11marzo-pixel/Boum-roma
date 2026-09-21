@@ -308,7 +308,13 @@ class SingleOutbox:
             except Exception:
                 return self.result("claim_outcome_unknown")
             if status != 200:
-                return self.result("endpoint_unavailable" if status == 404 else "claim_rejected")
+                # A gateway/transport failure may hide a committed claim. Only
+                # explicit rejection statuses used by this endpoint are definite.
+                if status == 404:
+                    return self.result("endpoint_unavailable")
+                if status in (400, 401, 405, 409):
+                    return self.result("claim_rejected")
+                return self.result("claim_outcome_unknown")
             try:
                 if not self.matching(data, action_id, binding):
                     raise ValueError("binding_mismatch")

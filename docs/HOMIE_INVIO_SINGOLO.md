@@ -76,6 +76,20 @@ Leggere insieme `outcome`, `state` e `ackStatus`. Un'uscita zero segnala il comp
 - `not_sent`: il worker ha arrestato il percorso prima di avviare il mittente. Il claim non viene cancellato per riutilizzare ciecamente la stessa azione.
 - `claim_outcome_unknown`, `claim_invalid`, `local_state_error` o conflitto: fermarsi e riconciliare il caso; nessuna garanzia che il claim non sia avvenuto e nessuna procedura automatica di reset.
 
+Un errore 500/503/504, un altro 5xx, un timeout o status 0 dopo il claim è
+`claim_outcome_unknown`: il server potrebbe aver già acquisito l'azione. Solo
+400/401/405/409 sono rifiuti definiti del protocollo; 404 rimane indisponibilità
+dell'endpoint/azione. Redirect e altri status inattesi sono conservativamente
+incerti. Il worker si ferma senza mittente, secondo claim o ACK automatico e
+senza fabbricare una ricevuta. Un successivo comando esplicito non è una
+procedura di recupero: il claim permanente impedisce comunque un nuovo invio.
+
+Le verifiche HOLD/servizio/stop dopo il claim rimangono: un timeout di launchctl
+può lasciare un'approvazione acquisita senza invio, ma saltare il controllo
+permetterebbe di inviare mentre il servizio ordinario è stato riattivato o il
+consenso operativo è stato revocato. Il fallimento chiuso conserva `not_sent`
+e richiede riconciliazione; non cancella il claim né autorizza un reinvio.
+
 Il percorso singolo non richiama `/api/homie/message`: la ricevuta dell'azione viene aggiornata dall'ACK, ma non viene aggiunto il mirror del messaggio nella conversazione. Il controllo della UI dovrà distinguere la ricevuta di consegna dalla cronologia dei messaggi. Eventuali automazioni dipendenti dal mirror richiedono un lavoro separato prima di prometterne il funzionamento.
 
 ## Arresto e rollback

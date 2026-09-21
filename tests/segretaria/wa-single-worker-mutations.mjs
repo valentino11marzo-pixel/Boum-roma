@@ -10,6 +10,8 @@ const root = fileURLToPath(new URL('../../', import.meta.url));
 const workerPath = 'homie-bridge/agent-os/bin/wa_outbox_single.py';
 const original = readFileSync(join(root, workerPath), 'utf8');
 const mutations = [
+  ['claim_response_classification', 'if status in (400, 401, 405, 409):', 'if True:',
+    'test_19_claim_response_loss_permanent_server_claim_prevents_send'],
   ['payload_hash', ' or wire_hash(messages[0]) != digest', '', 'test_06_wrong_target_multiple_payload_hash_and_malformed_response'],
   ['ordinary_hold', 'if not self.hold():', 'if False:', 'test_12_hold_service_and_stop_guards_rechecked_at_send_and_ack'],
   ['ack_binding', 'not self.matching(data, action_id, binding) or data.get("delivery") != expected',
@@ -22,7 +24,10 @@ const mutations = [
     'test_22_http_transport_rejects_redirects_duplicate_json_and_general_endpoint'],
 ];
 
-for (const [name, before, after, behavioralTest] of mutations) {
+const requested = process.argv.slice(2);
+assert.ok(requested.every(name => mutations.some(mutation => mutation[0] === name)), 'Unknown mutation requested');
+const selectedMutations = requested.length ? mutations.filter(mutation => requested.includes(mutation[0])) : mutations;
+for (const [name, before, after, behavioralTest] of selectedMutations) {
   assert.equal(original.split(before).length, 2, `${name}: mutation must match exactly once`);
   const copy = mkdtempSync(join(tmpdir(), 'homie-single-mutant-'));
   try {
@@ -40,4 +45,4 @@ for (const [name, before, after, behavioralTest] of mutations) {
     console.log('PASS worker mutation killed: ' + name);
   } finally { rmSync(copy, { recursive: true, force: true }); }
 }
-console.log(`${mutations.length}/${mutations.length} worker mutations killed`);
+console.log(`${selectedMutations.length}/${selectedMutations.length} worker mutations killed`);

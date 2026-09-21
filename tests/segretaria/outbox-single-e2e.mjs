@@ -34,8 +34,13 @@ async function bridge(selection, options = {}) {
           assert.equal(event.path, endpoint, 'worker must never call bulk pull/mirror');
           observed.requests.push(event.payload);
           const { code, ...body } = await callSingle(event.payload);
-          const response = options.dropAckResponse && event.payload.op === 'ack'
+          let response = options.dropAckResponse && event.payload.op === 'ack'
             ? { transportError: true } : { status: code, body };
+          if (event.payload.op === 'claim' && Object.hasOwn(options, 'claimFailure')) {
+            assert.equal(code, 200, 'fault is injected only AFTER the real handler commits the claim');
+            response = options.claimFailure === 'lost' ? { transportError: true }
+              : { status: options.claimFailure, body: {} };
+          }
           child.stdin.write(JSON.stringify(response) + '\n');
         } else throw new Error('unexpected_bridge_event');
       } catch (error) { failure = error; child.kill(); }
@@ -101,6 +106,26 @@ try {
   const uncertainAck = await bridge(selected, { receipts: crashPath, operation: 'ack' });
   check('uncertain ACK stays explicitly unknown and never becomes a send retry', uncertainAck.sends.length === 0 && uncertainAck.result?.state === 'uncertain'
     && DB.get('action_queue/' + selected.actionId).waSendError === 'send_outcome_unknown');
+
+  for (const failure of [500, 503, 504, 0, 'lost']) {
+    selected = await selection('SYNTHETIC CLAIM RESPONSE FAILURE ' + failure);
+    const receipts = join(temp, 'claim-failure-' + failure);
+    const failed = await bridge(selected, { receipts, claimFailure: failure });
+    const committed = JSON.stringify(DB.get('action_queue/' + selected.actionId));
+    check(`${failure}: real committed claim is reported unknown`, failed.result?.outcome === 'claim_outcome_unknown'
+      && DB.get('action_queue/' + selected.actionId).segretaria.delivery.state === 'claimed');
+    check(`${failure}: no send, retry, ACK or invented receipt after uncertain response`, failed.sends.length === 0
+      && failed.requests.length === 1 && failed.requests[0].op === 'claim'
+      && !readdirSync(receipts).some(x => x.endsWith('.json')));
+    const restarted = await bridge(selected, { receipts });
+    check(`${failure}: explicit process restart cannot send or overwrite permanent claim`, restarted.sends.length === 0
+      && restarted.requests.length === 1 && restarted.requests[0].op === 'claim'
+      && restarted.result?.outcome === 'claim_rejected'
+      && JSON.stringify(DB.get('action_queue/' + selected.actionId)) === committed);
+    const noAck = await bridge(selected, { receipts, operation: 'ack' });
+    check(`${failure}: missing receipt never authorizes an ACK`, noAck.result?.outcome === 'receipt_missing'
+      && noAck.sends.length === 0 && noAck.requests.length === 0);
+  }
   check('all external server effects remained mocked', network.length === 0);
   console.log(`${checks} cross-stack checks passed`);
 } finally {

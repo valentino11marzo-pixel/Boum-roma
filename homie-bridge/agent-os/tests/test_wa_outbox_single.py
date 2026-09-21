@@ -170,10 +170,12 @@ class WorkerTests(unittest.TestCase):
         self.assertFalse(self.receipt_path().exists())
 
     def test_05_old_endpoint_redirect_unknown_protocol_http_no_fallback(self):
-        for status in (404, 301, 302, 307, 308, 500):
+        for status in (0, 301, 302, 307, 308, 400, 401, 403, 404, 405, 408, 409, 429, 500, 503, 504):
             self.server.hook = lambda p, status=status: (status, {})
             outcome = self.run_operation()['outcome']
-            self.assertEqual(outcome, 'endpoint_unavailable' if status == 404 else 'claim_rejected')
+            expected = ('endpoint_unavailable' if status == 404 else 'claim_rejected'
+                        if status in (400, 401, 405, 409) else 'claim_outcome_unknown')
+            self.assertEqual(outcome, expected, status)
         self.server.hook = lambda p: (200, {'ok': True, 'actionId': ACTION, **{**BINDING, 'protocol': 'future'}, 'messages': [MESSAGE]})
         self.assertEqual(self.run_operation()['outcome'], 'claim_invalid')
         self.assertTrue(all(c[0] == single.ENDPOINT and c[1]['op'] == 'claim' for c in self.server.calls))
@@ -400,15 +402,27 @@ class WorkerTests(unittest.TestCase):
         self.assertEqual(self.sender.calls, [])
 
     def test_19_claim_response_loss_permanent_server_claim_prevents_send(self):
-        def lost_response(payload):
-            if payload['op'] == 'claim' and not self.server.claimed:
-                self.server.claimed = True
-                return TimeoutError('Response lost after committed claim')
-        self.server.hook = lost_response
-        self.assertEqual(self.run_operation()['outcome'], 'claim_outcome_unknown')
-        self.assertFalse(self.receipt_path().exists())
-        self.assertEqual(self.run_operation()['outcome'], 'claim_rejected')
-        self.assertEqual(self.sender.calls, [])
+        for failure in (500, 503, 504, 0, TimeoutError('Response lost after committed claim')):
+            with self.subTest(failure=str(failure)):
+                server = FakeServer()
+                def lost_response(payload):
+                    if payload['op'] == 'claim' and not server.claimed:
+                        server.claimed = True
+                        return failure if isinstance(failure, BaseException) else (failure, {})
+                server.hook = lost_response
+                worker = self.make_worker(server=server)
+                self.assertEqual(worker.run('send', ACTION, REVISION, DIGEST, True)['outcome'], 'claim_outcome_unknown')
+                self.assertTrue(server.claimed)
+                self.assertFalse(self.receipt_path().exists())
+                self.assertEqual([c[1]['op'] for c in server.calls], ['claim'])
+                self.assertEqual(self.sender.calls, [])
+                # An explicit later invocation is still refused by the permanent
+                # server claim; the uncertain invocation itself never retries.
+                restarted = self.make_worker(server=server, receipts=single.TargetReceipts(self.directory))
+                self.assertEqual(restarted.run('send', ACTION, REVISION, DIGEST, True)['outcome'], 'claim_rejected')
+                self.assertEqual([c[1]['op'] for c in server.calls], ['claim', 'claim'])
+                self.assertFalse(self.receipt_path().exists())
+                self.assertEqual(self.sender.calls, [])
 
     def test_20_failure_persisting_sending_stops_before_sender(self):
         real_write = self.receipts.write

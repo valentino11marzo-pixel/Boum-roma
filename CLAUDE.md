@@ -3309,6 +3309,13 @@ Nessun mirror generico o nuova autonomia: esecuzione esplicita dopo approvazione
 Prove sintetiche: `segretariainviosingolo`, `homieinviosingolo`; istruzioni e limiti
 in `docs/HOMIE_INVIO_SINGOLO.md`. Il trasporto installato non cambia con il commit.
 
+**Risposta claim incerta (21/09):** un 5xx, timeout o status 0 può arrivare dopo
+il commit: il worker restituisce `claim_outcome_unknown`, senza mittente o retry.
+Solo i rifiuti 400/401/405/409 sono `claim_rejected`; il 404 resta indisponibilità.
+Le altre risposte inattese richiedono riconciliazione, senza inventare ricevute.
+Prove: worker `test_19`, test JS/Python con claim realmente acquisito e risposta
+persa/500/503/504/0, più mutazione della vecchia classificazione.
+
 ### POST `/api/homie/message` — da WhatsApp a lead, senza far pensare nessuno
 La CHIAVE DI VOLTA che permette a Homie di smettere di analizzare (mandato
 completo + prompt da incollare: `bot/HOMIE.md`). Finché Homie leggeva ogni
