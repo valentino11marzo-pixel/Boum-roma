@@ -15,6 +15,7 @@ import SEG from '../../js/segretaria-engine.js';
 import VOCE from '../../js/voce-engine.js';
 import { personaDossier } from './_persona.js';
 import { captureFollowUp } from './_follow-up.js';
+import { resolveLeadConversation } from '../homie/_conversation.js';
 import { fsGet, fsPatch, fsCreate, fsList, logActivity } from '../homie/_lib.js';
 import { tgSend } from '../telegram/_lib.js';
 import { runExecutor, romeDay } from '../employees/_fiducia.js';
@@ -145,6 +146,7 @@ export async function escalateSegretaria({ cid, conv, lead, why, text }) {
 // richiesta ORIGINALE del lead presentandosi. Ritorna { acted, sent?,
 // escalated?, why? } — mai lancia verso l'alto.
 export async function segretariaTurn({ cid, conv, lead, text, messageId, opening = false, now = Date.now() }) {
+  if (conv?.conversationBindingConflict) return { acted: false, why: 'conversation_binding_conflict' };
   const gate = await automaticReplyGate();
   if (gate.blocked) return blockedReply(gate);
   const { cfg } = gate;
@@ -296,24 +298,15 @@ export async function segretariaTurn({ cid, conv, lead, text, messageId, opening
 }
 
 // ─── La consegna (il click) e il rientro ─────────────────────────────────
-// LA TRAPPOLA VERA (trovata dal test sul giro reale): i primi messaggi di
-// uno sconosciuto vivono su conv_whatsapp_<numero>, ma appena il lead esiste
-// homie/message risolve il numero → contactType 'lead' e ogni messaggio
-// successivo atterra su conv_lead_<id>. Consegnare solo il doc registrato
-// sul lead significava consegnare una conversazione che non avrebbe più
-// ricevuto traffico. Si marca la PRIMARIA (conv_lead_<id>, creata se manca,
-// coi dati di contatto copiati) E quella storica, se diversa.
-function convIdLead(leadId) {
-  return 'conv_lead_' + String(leadId).replace(/[^A-Za-z0-9_-]/g, '');
-}
+// Handover and opening use the same verified persisted CID as inbound intake.
+// A historical alias is not moved or merged by granting conversation ownership.
 export async function handoverSegretaria(leadId) {
   const lead = await fsGet(`leads/${leadId}`).catch(() => null);
   if (!lead) return { ok: false, why: 'lead non trovato' };
   if (!lead.phone && !lead.email) return { ok: false, why: 'nessun recapito: la Segretaria parla su WhatsApp o via email' };
-  const primary = convIdLead(leadId);
-  const legacy = lead.conversationId && lead.conversationId !== primary ? lead.conversationId : null;
-  const legacyConv = legacy ? await fsGet('conversations/' + legacy).catch(() => null) : null;
-  const prev = await fsGet('conversations/' + primary).catch(() => null);
+  const resolution = await resolveLeadConversation({ leadId, create: true });
+  if (!['bound', 'new'].includes(resolution.status)) return { ok: false, why: resolution.reason };
+  const primary = resolution.cid, prev = resolution.conversation;
   const stamp = {
     segretaria: true,
     segretariaAt: new Date(),
@@ -321,17 +314,16 @@ export async function handoverSegretaria(leadId) {
   };
   await fsPatch('conversations/' + primary, {
     ...stamp,
-    contactType: 'lead',
-    contactId: leadId,
-    contactName: (prev && prev.contactName) || (legacyConv && legacyConv.contactName) || lead.name || lead.phone || lead.email,
+    contactType: prev.contactType,
+    contactId: prev.contactId,
+    contactName: (prev && prev.contactName) || lead.name || lead.phone || lead.email,
     contactPhone: (prev && prev.contactPhone) || lead.phone || '',
     contactEmail: (prev && prev.contactEmail) || lead.email || '',
     channel: lead.phone ? ((prev && prev.channel) || 'whatsapp') : 'email',
     segretariaTurns: Number((prev && prev.segretariaTurns) || 0),
   });
-  if (legacy && legacyConv) await fsPatch('conversations/' + legacy, stamp).catch(() => {});
   await logActivity('Segretaria: conversazione consegnata', 'segretaria', { conversationId: primary, leadId }, 'operator');
-  return { ok: true, cid: primary, name: (legacyConv && legacyConv.contactName) || lead.name || 'cliente' };
+  return { ok: true, cid: primary, name: prev.contactName || lead.name || 'cliente' };
 }
 
 // ─── La mossa d'apertura ─────────────────────────────────────────────────
@@ -344,8 +336,9 @@ export async function segretariaOpen(leadId, now = Date.now()) {
   if (gate.blocked) return blockedReply(gate);
   const lead = await fsGet(`leads/${leadId}`).catch(() => null);
   if (!lead) return { acted: false, why: 'lead non trovato' };
-  const cid = convIdLead(leadId);
-  const conv = await fsGet('conversations/' + cid).catch(() => null);
+  const resolution = await resolveLeadConversation({ leadId });
+  if (resolution.status !== 'bound') return { acted: false, why: resolution.reason };
+  const cid = resolution.cid, conv = resolution.conversation;
   if (!conv || !conv.segretaria) return { acted: false, why: 'conversazione non consegnata' };
   if (Number(conv.segretariaTurns || 0) > 0) return { acted: false, why: 'conversazione già avviata' };
   const text = String(lead.message || '').trim()

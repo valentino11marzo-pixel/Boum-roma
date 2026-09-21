@@ -3793,6 +3793,11 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
 
 ### LA SEGRETARIA (`js/segretaria-engine.js` + `api/segretaria/_core.js` + 🤖 sulla card)
 
+- **Conversazione stabile (21/09)**: diventare lead conserva il CID verificato, senza migrare messaggi, casi o ACL storiche. `_conversation.js` risolve il riferimento persistito e le identità; numero condiviso, legami contraddittori o due chat con storia restano conflitti espliciti.
+- `POST /api/homie/conversation` è admin-only: restituisce `{cid,status,reason}` e crea/lega solo dopo assenza verificata nello stesso CAS. `409` = conflitto, `503` = lettura indisponibile; il portale non crea un fallback.
+- Il primo lead WhatsApp e il backlink nascono atomicamente. Handover, apertura, email e inbox-sync riusano il resolver; i retry partono dal CID del messaggio già persistito.
+- In presenza di due chat storiche, l'ingest può conservare il percorso primario verificato dichiarando il conflitto: nessuna fusione, nuovo caso o risposta automatica. Preparazione e consegna bloccano quella fonte ambigua.
+- Prove: `npm test -- segretariaconversazione`, handler reali su fixture, corse e mutazioni; nessuna verifica su dati privati o modifica in produzione.
 - **Fonti WhatsApp aggiornate (21/09)**: un OUT su un caso già tracciato invalida la proposta tramite `contextRevision`, senza cambiare ultimo inbound, impegno confermato o ricevute; il valore assente vale zero, senza rigenerazione globale.
   Worker, retry, revisione e conferma confrontano la stessa revisione; una consegna precedente resta protetta. Ricevute idempotenti e CAS rendono riparabile un errore secondario, senza creare casi dal solo OUT.
   Il messaggio normale e la testa Inbox si salvano insieme; ingressi tardivi non arretrano testa/seguito e non cancellano unread più recenti. A timestamp uguali, il seguito confronta `updateTime` del messaggio persistito, anche se il tracking termina in ordine inverso; nessuna cronologia dedotta dagli ID.
@@ -3927,11 +3932,11 @@ consegna e la porta fino alla visita prenotata o all'escalation.
   **🤖 Passa alla Segretaria** sulla card Telegram del lead (`sg:<leadId>`,
   solo dove esiste una conversazione WhatsApp). Default: nessuna chat
   consegnata ⇒ zero invii (il deploy non cambia comportamento).
-  **LA TRAPPOLA VERA** (trovata dal test sul giro reale): i primi messaggi
-  di uno sconosciuto vivono su `conv_whatsapp_<numero>`, ma appena il lead
-  esiste homie/message risolve il numero → `conv_lead_<id>`: la consegna
-  marca la PRIMARIA (creata se manca) E quella storica, e la memoria del
-  turno legge i messaggi da entrambe.
+  Il CID viene dal legame persistito e verificato: un contatto sconosciuto
+  può restare su `conv_whatsapp_<numero>` anche dopo la creazione del lead.
+  La consegna marca quella conversazione; `conv_lead_<id>` è il fallback
+  soltanto dopo assenza verificata. Due chat già operative restano distinte
+  e il conflitto impedisce la consegna automatica.
 - **I binari duri stanno nel motore** (`BOOM_SEGRETARIA`, testati per
   mutazione), non nel prompt: mai su chat non consegnate, mai con
   inquilini/proprietari/PFS, escalation legale/rabbia (la STESSA regex
@@ -4571,7 +4576,7 @@ camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
   | `tests/whatsapp/demand.mjs` | Il misuratore della domanda: ogni intenzione dimostra di saper riconoscere una frase vera (un pattern inerte sotto-conta in SILENZIO), "business" non diventa una domanda sui bus, la classifica è per tempo risparmiato e non per frequenza, sotto campione niente percentuali, e ciò che il motore non sa nominare esce con le parole vere |
   | `tests/miniera/run.mjs` | La Miniera: il join aggancia la persona in OGNI forma del numero (parità con `_lead.js`, JID senza `+` guarito), i veti del libro dei silenzi (inquilini/firmati/morti/oltre 120gg MAI nel re-ingaggio), sotto campione NIENTE percentuali (per mutazione), il verdetto motivato coi numeri, parità cross-linguaggio con l'estrattore Python, handler vero su Firestore in memoria |
   | `tests/fiducia/run.mjs` | La scala della fiducia: parte da solo SOLO il provato (campione ≥30 + tasso ≥95%, sulle decisioni dell'OPERATORE — gli auto-invii non si contano), la prima risposta AI mai (nemmeno accesa a mano), le parole legali/di rabbia tornano a un umano, ✋ Ferma e kill switch vincono anche sulle bozze già armate, e coi DEFAULT non parte niente. Giro vero su Firestore in memoria con l'executor reale |
-  | `tests/segretaria/run.mjs` | La Segretaria: parla SOLO sulle chat consegnate col 🤖 (e la consegna marca la conversazione che riceverà davvero il traffico — conv_lead, non conv_whatsapp), mai con inquilini, mai oltre i tetti; l'eco della sua stessa risposta non la spegne, un messaggio manuale dell'operatore sì; un link fuori dominio o una trattativa diventano escalation con card 🖐, MAI un invio. Handler vero su Firestore in memoria |
+  | `tests/segretaria/run.mjs` | La Segretaria: parla SOLO sulle chat consegnate col 🤖 (e la consegna marca la conversazione che riceverà davvero il traffico — CID persistito e verificato, anche dopo la creazione del lead), mai con inquilini, mai oltre i tetti; l'eco della sua stessa risposta non la spegne, un messaggio manuale dell'operatore sì; un link fuori dominio o una trattativa diventano escalation con card 🖐, MAI un invio. Handler vero su Firestore in memoria |
   | `tests/wizard/local_brain.py` | Il cervello gratis del bot wizard (`python3`): cosa capisce senza modello e — più importante — cosa deve rifiutarsi di capire. Una domanda ("Levico è affittato?") non può diventare una scrittura; un annuncio nuovo dettato non può diventare la modifica di uno esistente. Estrae le funzioni pure dal bot via AST: gira senza `.env`, senza Telegram, senza rete |
   | `tests/executive/run.mjs` | BOOM Executive: il professionista in trasferta resta un TENANT nella macchina piena, il datore dichiarato (`employer`) non viene scambiato per l'honeypot (`company`), la voce B2B tace col tenant e parla con l'ente — con la guardia PRIMA della spesa, asserita sull'ordine nel sorgente |
   | `tests/verbale/run.mjs` | verbale consegna chiavi: il PDF vero (WinAnsi-ostile compreso) viaggia in allegato a conduttori/co-conduttori/proprietario/admin, owner solo sui contratti dei propri immobili (403 = zero scritture), firme richieste per entrambi i lati, sul contratto restano solo i NOMI mai i dataURI |

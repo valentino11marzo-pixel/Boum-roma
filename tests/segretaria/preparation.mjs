@@ -490,6 +490,11 @@ try {
   r = await generate();
   ok('una pratica precedente non più verificabile non viene ripristinata e non abilita una bozza',
     r.code === 200 && r.preparation.nextAction.practiceRef === null && r.preparation.draft === null && untouched(), r);
+  reset(); save('conversations/' + CID, { ...DB.get('conversations/' + CID), conversationBindingConflict: 'multiple_established_conversations' });
+  aiBuilder = input => { const p = validProposal(input); p.nextAction.practiceRef = null; return p; };
+  r = await generate();
+  ok('conflitto CID blocca pratica e bozza pur mantenendo il seguito', r.code === 200 && r.preparation.identityBlocked
+    && r.preparation.nextAction.practiceRef === null && r.preparation.draft === null && untouched(), r);
   reset(); save('users/conflict', { role: 'tenant', phone: PHONE, email: 'other@example.test' });
   aiBuilder = input => { const p = validProposal(input); p.nextAction.practiceRef = null; return p; };
   r = await generate();
@@ -664,6 +669,11 @@ try {
   r = await generate();
   ok('correggere un’attesa non rende valido un ricontrollo del modello fuori limite', r.code === 422
     && r.error === 'invalid_preparation_time' && !task().preparation && untouched(), r);
+  reset(); save('conversations/' + CID, { ...DB.get('conversations/' + CID), conversationBindingConflict: 'multiple_established_conversations' });
+  aiBuilder = input => { const p = validProposal(input); p.nextAction.practiceRef = null; return p; };
+  r = await generate();
+  ok('conflitto CID blocca pratica e bozza pur mantenendo il seguito', r.code === 200 && r.preparation.identityBlocked
+    && r.preparation.nextAction.practiceRef === null && r.preparation.draft === null && untouched(), r);
   reset(); save('users/conflict', { role: 'tenant', phone: PHONE, email: 'other@example.test' });
   r = await generate(); ok('identità contraddittoria impedisce proposta collegata al contratto', r.code === 422 && !task().preparation, r);
 

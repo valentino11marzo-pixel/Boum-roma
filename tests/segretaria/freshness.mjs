@@ -72,7 +72,7 @@ globalThis.fetch = async (rawURL, opts = {}) => {
     }
     // Validate EVERY precondition first; a failed commit changes no document.
     for (const operation of operations) {
-      const path = operation.update?.name?.split('/documents/')[1];
+      const path = (operation.update?.name || operation.delete)?.split('/documents/')[1];
       if (!path) throw new Error('unsupported_commit_shape');
       const condition = operation.currentDocument || {};
       if ((condition.exists === false && DB.has(path)) || (condition.exists === true && !DB.has(path))
@@ -82,6 +82,7 @@ globalThis.fetch = async (rawURL, opts = {}) => {
     }
     const results = [];
     for (const operation of operations) {
+      if (operation.delete) { results.push({}); continue; }
       const path = operation.update.name.split('/documents/')[1];
       const data = Object.fromEntries(Object.entries(operation.update.fields || {}).map(([k, v]) => [k, dec(v)]));
       save(path, operation.updateMask ? { ...(DB.get(path) || {}), ...data } : data);

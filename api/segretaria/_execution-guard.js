@@ -52,6 +52,7 @@ export async function loadReviewedSegretariaContext({ id, action, now = Date.now
   if (!s.contactFingerprint || contactFingerprint(conv) !== s.contactFingerprint) return denied('segretaria_recipient_changed');
   const dossier = await personaDossier({ phone: conv.contactPhone, email: conv.contactEmail,
     leadId: conv.leadId || (conv.contactType === 'lead' ? conv.contactId : undefined), conversationId: s.conversationId });
+  if (conv.conversationBindingConflict) return denied('segretaria_conversation_binding_conflict');
   if (dossier.identityIncomplete || dossier.identityAmbiguous || conv.identityStatus === 'ambiguous')
     return denied('segretaria_identity_changed');
   const recipientMatches = action.payload.channel === 'whatsapp'

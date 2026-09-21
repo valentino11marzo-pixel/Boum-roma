@@ -169,7 +169,7 @@ export async function prepareCase({ id, actor, now = Date.now(), background = fa
     const humanRequested = PROPOSTA.wantsHuman(incomingText);
     const topic = PROPOSTA.topicOf(incomingText);
     const protectedTopic = topic === 'general' ? null : topic;
-    const identityBlocked = !!(dossier.identityIncomplete || dossier.identityAmbiguous || conv.identityStatus === 'ambiguous');
+    const identityBlocked = !!(dossier.identityIncomplete || dossier.identityAmbiguous || conv.identityStatus === 'ambiguous' || conv.conversationBindingConflict);
     const channel = conv.channel === 'email' ? 'email' : conv.contactPhone ? 'whatsapp' : 'email';
     const languageEvidence = preparationLanguage(context.sources), language = languageEvidence.code;
     const calendarSources = context.sources.filter(s => ['message', 'phone_call'].includes(s.kind)).sort((a, b) => Number(b.id === context.coverage.lastEvent.sourceId)

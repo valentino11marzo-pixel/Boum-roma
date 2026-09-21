@@ -102,10 +102,10 @@ export async function approvePreparation({ id, revision, lastMessageId, actor, n
         || !['valentino', 'client', 'collaborator', 'boom'].includes(n?.waitingOn)
         || !Number.isFinite(checkTime) || checkTime <= now || checkTime > now + 365 * 86400000)
       return { code: 400, id, error: 'invalid_prepared_follow_up' };
-    const blocked = p.identityBlocked || dossier.identityIncomplete || dossier.identityAmbiguous || conv.identityStatus === 'ambiguous';
+    const blocked = p.identityBlocked || dossier.identityIncomplete || dossier.identityAmbiguous || conv.identityStatus === 'ambiguous' || conv.conversationBindingConflict;
     const practiceRef = n.practiceRef || null, practice = dossier.practices.find(row => row.ref === practiceRef);
     if (blocked && (p.draft || practiceRef)) return { code: 409, id,
-      error: dossier.identityAmbiguous ? 'identity_ambiguous' : 'identity_not_verified' };
+      error: conv.conversationBindingConflict ? 'conversation_binding_conflict' : dossier.identityAmbiguous ? 'identity_ambiguous' : 'identity_not_verified' };
     if (practiceRef && !practice) return { code: 409, id, error: 'practice_not_verified' };
     const context = await loadCaseContext({ task, conversation: conv, dossier, now });
     if (!context.coverage?.lastEvent?.present || !p.sourceFingerprint || contextFingerprint(context) !== p.sourceFingerprint)

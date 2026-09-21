@@ -87,7 +87,7 @@ globalThis.fetch = async (rawURL, opts = {}) => {
     }
     // Validate EVERY precondition first; a failed commit changes no document.
     for (const operation of operations) {
-      const path = operation.update?.name?.split('/documents/')[1];
+      const path = (operation.update?.name || operation.delete)?.split('/documents/')[1];
       if (!path) throw new Error('unsupported_commit_shape');
       const condition = operation.currentDocument || {};
       if ((condition.exists === false && DB.has(path)) || (condition.exists === true && !DB.has(path))
@@ -97,10 +97,12 @@ globalThis.fetch = async (rawURL, opts = {}) => {
     }
     const results = [];
     for (const operation of operations) {
+      if (operation.delete) { results.push({}); continue; }
       const path = operation.update.name.split('/documents/')[1];
       const data = Object.fromEntries(Object.entries(operation.update.fields || {}).map(([k, v]) => [k, dec(v)]));
+      const before = structuredClone(DB.get(path));
       save(path, operation.updateMask ? { ...(DB.get(path) || {}), ...data } : data);
-      const write = { path, data: structuredClone(DB.get(path)) };
+      const write = { path, data: structuredClone(DB.get(path)), before };
       writes.push(write); allWrites.push(write);
       results.push({ updateTime: versions.get(path) });
     }
@@ -192,7 +194,9 @@ const preserved = row => row.followUp.practiceRef === 'contracts/verified' && ro
 const backlog = (mid, extra = {}) => inbound(mid, { intakeMode: 'backlog_review', ...extra });
 const enable = () => save('settings/segretaria', { enabled: true, prepareCases: true, prepareSince: '2020-01-01T00:00:00.000Z' });
 const quiet = () => network.length === 0 && ![...DB.keys()].some(k => /^(action_queue|documents|messageLog)\//.test(k))
-  && !writes.some(w => w.path.startsWith('leads/'));
+  // A version guard may write the identical persisted value. Backlog must
+  // never change lead content, reopen it or rearm a commercial notification.
+  && !writes.some(w => w.path.startsWith('leads/') && JSON.stringify(w.before) !== JSON.stringify(w.data));
 const recentConversation = () => ({ ...conv, lastMessageAt: new Date(NOW + 60000).toISOString(),
   lastMessagePreview: 'Risposta recente', lastDirection: 'out', unread: 0, needsReply: false });
 const cursorPath = 'heartbeat/segretaria-case-' + followUpId(CID, 'cursor').slice(3);
@@ -325,6 +329,7 @@ try {
     lastDirection: 'out', updatedAt: new Date(NOW + 60000).toISOString(), contactUid: 'verified-uid', assignedLandlordId: 'verified-owner',
     unread: 0, needsReply: false };
   save('conversations/' + CID, recentHeader);
+  save('leads/leadA', { ...DB.get('leads/leadA'), convertedUserId: 'verified-uid', ownerId: 'verified-owner' });
   result = await call(messageHandler, backlog('older-event', { timestamp: new Date(NOW - 86400000).toISOString(), contactUid: 'stale-uid', assignedLandlordId: 'stale-owner' }));
   ok('arretrato non retrocede head, contatto, autorizzazioni o stato lettura recenti', JSON.stringify(DB.get('conversations/' + CID)) === JSON.stringify(recentHeader));
   ok('autorizzazioni del messaggio seguono la conversazione attuale, non i metadati storici', messages()[0][1].contactUid === 'verified-uid'
@@ -350,8 +355,13 @@ try {
   reset(); enable();
   beforeHeaderCommit = async () => save('conversations/' + CID, recentHeader);
   result = await call(messageHandler, backlog('header-race'));
-  ok('race head: messaggio conservato senza sovrascrivere nuovo header concorrente', result.code === 200
-    && messages().length === 1 && JSON.stringify(DB.get('conversations/' + CID)) === JSON.stringify(recentHeader), result);
+  ok('race identità: nuova associazione concorrente richiede retry senza esporre il messaggio', result.code === 503
+    && messages().length === 0 && JSON.stringify(DB.get('conversations/' + CID)) === JSON.stringify(recentHeader), result);
+  save('leads/leadA', { ...DB.get('leads/leadA'), convertedUserId: 'verified-uid', ownerId: 'verified-owner' });
+  result = await call(messageHandler, backlog('header-race'));
+  ok('retry con legame verificato conserva messaggio e nuovo header concorrente', result.code === 200
+    && messages().length === 1 && messages()[0][1].contactUid === 'verified-uid'
+    && JSON.stringify(DB.get('conversations/' + CID)) === JSON.stringify(recentHeader), result);
 
   reset(); enable();
   const simultaneous = await Promise.all([call(messageHandler, backlog('same-backlog')), call(messageHandler, backlog('same-backlog'))]);
@@ -449,6 +459,10 @@ try {
     "fsPatch('conversations/' + cid, { needsReply: true, followUpTrackingError: error })");
   await assert.rejects(() => assertTrackingErrorKeepsHeader(initialFlagRemoved.default), assert.AssertionError);
   ok('mutazione: il test ingresso intercetta needsReply riacceso da un errore storico', true);
+  const leadSyncRemoved = await mutant('../../api/homie/message.js',
+    'if (!backlogReview && !bindingConflict) leadInfo =', 'if (!bindingConflict) leadInfo =');
+  await assert.rejects(() => assertTrackingErrorKeepsHeader(leadSyncRemoved.default), assert.AssertionError);
+  ok('mutazione: no-op CAS non autorizza modifiche al contenuto del lead da backlog', true);
   const closureRemoved = await mutant('../../api/segretaria/_follow-up.js',
     'if (preserveNewer && active.length === 0)', 'if (false)');
   await assert.rejects(() => assertClosedPreserved(closureRemoved.captureFollowUp), assert.AssertionError);

@@ -248,6 +248,9 @@ export async function fsCommit(writes) {
   const res = await fetch(`${FS_BASE}:commit`, {
     method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({ writes: writes.map(w => {
+      // Conditional deletion of an absent document is only an absence check;
+      // never expose a general delete through this helper.
+      if (w.assertAbsent === true) return { delete: `${base}/${w.docPath}`, currentDocument: { exists: false } };
       if (!w.precondition || (!w.precondition.updateTime && typeof w.precondition.exists !== 'boolean'))
         throw new Error('Firestore precondition required');
       return { update: { name: `${base}/${w.docPath}`, fields: toFsFields(w.fields) },

@@ -229,6 +229,10 @@ try {
   r = await approvePreparation(args);
   ok('identità contraddittoria impedisce invio e approvazione', r.code === 409 && r.error === 'identity_ambiguous'
     && rows('action_queue').length === 0, r);
+  await reset(); save('conversations/' + CID, { ...DB.get('conversations/' + CID), conversationBindingConflict: 'multiple_established_conversations' });
+  r = await approvePreparation(args);
+  ok('conflitto CID esplicito impedisce invio e approvazione', r.code === 409 && r.error === 'conversation_binding_conflict'
+    && rows('action_queue').length === 0 && !task().preparation.approval, r);
   await reset(); failingCollection = 'users'; r = await approvePreparation(args);
   ok('lettura identità fallita non diventa assenza di conflitti', r.code === 409 && r.error === 'identity_not_verified'
     && rows('action_queue').length === 0, r);

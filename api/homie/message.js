@@ -37,7 +37,7 @@
 // Response: { ok, conversationId, messageId, created, dedupHit? }
 
 import crypto from 'node:crypto';
-import { fsCreate, fsGet, fsPatch, fsList, fsGetVersioned, fsCommit, logActivity, requireSecret, readJson } from './_lib.js';
+import { fsGet, fsPatch, fsList, fsGetVersioned, fsCommit, logActivity, requireSecret, readJson } from './_lib.js';
 import { smistaDocument, MAX_DOC_BYTES } from '../documents/_smista.js';
 import { loadDocumentRelations, documentRelation } from '../documents/_relation.js';
 import { runBudget, aiSignal } from '../_budget.js';
@@ -50,6 +50,7 @@ import {
 import SEG from '../../js/segretaria-engine.js';
 import { segretariaTurn, segretariaOffConv } from '../segretaria/_core.js';
 import { checkTimestamp, refreshTrackedFollowUp } from '../segretaria/_follow-up.js';
+import { resolveLeadConversation, createWhatsAppLead } from './_conversation.js';
 
 // ── Pure helpers (mirror js/conversations.js so the id/phone logic matches) ──
 function convIdFor(contactType, contactId) {
@@ -77,11 +78,11 @@ async function resolveByPhone(phone) {
   ];
   for (const val of candidates) {
     for (const s of scans) {
-      try {
+      {
         const rows = await fsList(s.coll, { filter: { field: s.field, op: 'EQUAL', value: val }, limit: 5 });
         const hit = s.roleEq ? rows.find(r => r.role === s.roleEq) : rows[0];
         if (hit) return { contactType: s.type, entity: hit };
-      } catch { /* keep scanning */ }
+      }
     }
   }
   return null;
@@ -90,17 +91,46 @@ async function resolveByPhone(phone) {
 async function repairStoredMessage(stored, documentBudget) {
   const storedCid = stored.conversationId;
   const backlogReview = stored.intakeMode === 'backlog_review';
-  let followUp = null;
+  let followUp = null, bindingConflict = stored.conversationBindingConflict || null;
+  let bindingStatus = stored.conversationBindingStatus || 'conflict', bindingRetry = false;
   if (stored.direction === 'in' || stored.direction === 'out') {
     try {
       if (!/^[\w.-]{1,180}$/.test(String(storedCid || ''))) throw new Error('invalid_stored_conversation');
-      const conv = await fsGet('conversations/' + storedCid);
+      let conv = await fsGet('conversations/' + storedCid);
       if (!conv) throw new Error('stored_conversation_missing');
-      const messageVersion = (await fsGetVersioned('messages/' + stored.id))?.updateTime;
+      bindingConflict ||= conv.conversationBindingConflict || null;
+      if (!stored.conversationBindingConflict && conv.conversationBindingConflict) bindingStatus = conv.conversationBindingStatus || 'conflict';
+      if (bindingConflict && bindingStatus === 'unavailable') {
+        const recovered = await recoverUnavailableBinding(stored);
+        if (recovered.status === 'bound') { bindingConflict = null; conv = recovered.conversation; }
+        else { bindingConflict = recovered.reason; bindingStatus = recovered.status; }
+      }
+      if (!bindingConflict) {
+        // Retry never chooses a new CID. Recheck the stored relationship so a
+        // post-primary binding failure remains recoverable even if its marker
+        // could not be persisted on the first attempt.
+        try {
+          let leadId = conv.leadId || (conv.contactType === 'lead' ? conv.contactId : null);
+          if (!leadId && conv.contactType === 'whatsapp' && conv.contactPhone) {
+            const found = await resolveByPhone(conv.contactPhone);
+            if (found?.contactType === 'lead') leadId = found.entity.id;
+          }
+          if (leadId) {
+            const resolution = await resolveLeadConversation({ leadId, attachCid: storedCid });
+            if (resolution.status !== 'bound') { bindingConflict = resolution.reason; bindingStatus = resolution.status; }
+          }
+        } catch { bindingConflict = 'conversation_lookup_failed'; bindingStatus = 'unavailable'; }
+      }
+      if (bindingConflict) {
+        try { await markBindingConflict(storedCid, stored.id, bindingConflict, bindingStatus); }
+        catch { bindingRetry = true; throw new Error('binding_marker_unavailable'); }
+      }
+      const source = await fsGetVersioned('messages/' + stored.id);
+      const messageVersion = source?.data.ingestVersion || source?.updateTime;
       const tracked = await refreshTrackedFollowUp({ cid: storedCid, conv,
         direction: stored.direction, text: stored.body, messageId: stored.waMessageId || stored.id, messageVersion, now: new Date(stored.at).getTime(),
         receivedAt: stored.receivedAt ? new Date(stored.receivedAt).getTime() : new Date(stored.at).getTime(),
-        preserveNewer: backlogReview });
+        preserveNewer: backlogReview, allowEnrollment: !bindingConflict });
       if (tracked) followUp = { id: tracked.id, tracked: true };
       if (conv.followUpTrackingError) await fsPatch('conversations/' + storedCid, { followUpTrackingError: null });
     } catch {
@@ -123,12 +153,80 @@ async function repairStoredMessage(stored, documentBudget) {
     } catch { console.warn('[homie/message] attachments retry: failed'); }
   }
   return { ok: true, conversationId: storedCid, messageId: stored.id,
-    created: false, dedupHit: true, ...(followUp ? { followUp } : {}) };
+    created: false, dedupHit: true, ...(followUp ? { followUp } : {}), ...(bindingRetry ? { retryable: true } : {}),
+    ...(bindingConflict ? { conversationStatus: bindingStatus, conversationReason: bindingConflict } : {}) };
+}
+
+// An unavailable lookup is retryable, unlike a contradictory persisted link.
+// Recover using only the stored message/CID, then clear just the unavailable
+// marker under the same relationship and document versions that were verified.
+async function recoverUnavailableBinding(stored) {
+  try {
+    const cid = stored.conversationId;
+    let conv = await fsGet('conversations/' + cid);
+    if (!conv) return { status: 'unavailable', reason: 'stored_conversation_missing' };
+    let leadId = conv.leadId || (conv.contactType === 'lead' ? conv.contactId : null), resolution = null;
+    if (!leadId && conv.contactType === 'whatsapp' && conv.contactPhone) {
+      const found = await resolveByPhone(conv.contactPhone);
+      if (found && found.contactType !== 'lead') return { status: 'conflict', reason: 'contact_role_changed' };
+      leadId = found?.entity.id || null;
+      if (!leadId && stored.intakeMode !== 'backlog_review' && stored.direction === 'in') {
+        const linked = await syncLead({ direction: stored.direction, text: stored.body, contactType: conv.contactType,
+          contactId: conv.contactId, contactPhone: conv.contactPhone, contactName: conv.contactName, cid,
+          existing: conv, now: new Date(stored.at), messageId: stored.waMessageId });
+        if (linked?.bindingStatus) return { status: linked.bindingStatus, reason: linked.bindingReason };
+        leadId = linked?.leadId || null;
+      }
+    }
+    if (leadId) {
+      resolution = await resolveLeadConversation({ leadId, create: stored.intakeMode !== 'backlog_review', attachCid: cid });
+      if (resolution.status !== 'bound') return resolution;
+      conv = resolution.conversation;
+    } else if (conv.contactType !== 'whatsapp' || cid !== convIdFor('whatsapp', normalizePhone(conv.contactPhone).replace(/^\+/, '')))
+      return { status: 'conflict', reason: 'binding_not_verified' };
+    const paths = ['conversations/' + cid, 'messages/' + stored.id];
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const snapshots = await Promise.all(paths.map(path => fsGetVersioned(path)));
+      if (snapshots.some(row => !row)) return { status: 'unavailable', reason: 'binding_source_missing' };
+      const conflict = snapshots.find(row => row.data.conversationBindingConflict && row.data.conversationBindingStatus !== 'unavailable');
+      if (conflict) return { status: 'conflict', reason: conflict.data.conversationBindingConflict };
+      if (bindingIdentityChanged(snapshots[0].data, conv)) return { status: 'unavailable', reason: 'conversation_changed_concurrently' };
+      const writes = snapshots.map((snapshot, i) => ({ docPath: paths[i],
+        fields: { conversationBindingConflict: null, conversationBindingStatus: null,
+          ...(i === 1 ? { ingestVersion: snapshot.data.ingestVersion || snapshot.updateTime } : {}) },
+        precondition: { updateTime: snapshot.updateTime } }));
+      if (resolution?.bindingGuard) writes.push(resolution.bindingGuard);
+      try {
+        await fsCommit(writes);
+        return { status: 'bound', conversation: { ...snapshots[0].data, conversationBindingConflict: null, conversationBindingStatus: null } };
+      } catch (error) { if (!error?.conflict) throw error; }
+    }
+    return { status: 'unavailable', reason: 'conversation_changed_concurrently' };
+  } catch { return { status: 'unavailable', reason: 'conversation_lookup_failed' }; }
+}
+
+const bindingIdentityChanged = (current, selected) => !current || ['contactType', 'contactId', 'leadId', 'contactUid', 'assignedLandlordId', 'contactPhone', 'contactEmail']
+  .some(key => (current[key] ?? null) !== (selected[key] ?? null));
+
+async function markBindingConflict(cid, messageId, reason, status) {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const paths = ['conversations/' + cid, 'messages/' + messageId];
+    const snapshots = await Promise.all(paths.map(path => fsGetVersioned(path)));
+    if (snapshots.some(row => !row)) throw new Error('binding_source_missing');
+    try {
+      await fsCommit(paths.map((docPath, i) => ({ docPath,
+        fields: { conversationBindingConflict: reason, conversationBindingStatus: status,
+          ...(i === 1 ? { ingestVersion: snapshots[i].data.ingestVersion || snapshots[i].updateTime } : {}) },
+        precondition: { updateTime: snapshots[i].updateTime } })));
+      return;
+    } catch (error) { if (!error?.conflict) throw error; }
+  }
+  throw new Error('binding_marker_changed_concurrently');
 }
 
 // The primary message and head commit together. The same WA ID is one message
 // even under concurrent retries; earlier events never replace a newer head.
-async function storeMessage(cid, msg, header, initialConversation) {
+async function storeMessage(cid, msg, header, initialConversation, bindingGuard, bindingIdentity) {
   const backlogReview = msg.intakeMode === 'backlog_review';
   const id = msg.waMessageId ? 'homie_' + crypto.createHash('sha256').update(msg.waMessageId).digest('hex').slice(0, 40)
     : 'homie_' + crypto.randomUUID();
@@ -137,6 +235,9 @@ async function storeMessage(cid, msg, header, initialConversation) {
     const stored = await fsGet(messagePath);
     if (stored) return { id, stored };
     const snapshot = await fsGetVersioned('conversations/' + cid), current = snapshot?.data;
+    if (bindingIdentity && bindingIdentityChanged(current, bindingIdentity)) {
+      const changed = new Error('conversation_identity_changed'); changed.retryable = true; throw changed;
+    }
     const incomingAt = msg.at.getTime(), currentAt = Date.parse(current?.lastMessageAt);
     // Equal timestamps use the serialization order of new, distinct receipts;
     // no ordering is inferred from WhatsApp IDs. Backlog retains its strict rule.
@@ -154,6 +255,7 @@ async function storeMessage(cid, msg, header, initialConversation) {
     // A late incoming message is still newly unread; an older OUT cannot clear
     // newer unread messages. Backlog deliberately preserves its previous policy.
     if (current && !backlogReview && msg.direction === 'in') fields = { ...fields, unread: (Number(current.unread) || 0) + 1 };
+    if (msg.conversationBindingConflict) fields = { ...fields, conversationBindingConflict: msg.conversationBindingConflict };
     if (fields) fields = Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined));
     const identityFields = ['contactType', 'contactId', 'contactUid', 'assignedLandlordId', 'contactPhone', 'contactEmail', 'contactName'];
     // The transport resolved identity before the first read. If another writer
@@ -170,12 +272,15 @@ async function storeMessage(cid, msg, header, initialConversation) {
     // Even when keeping the head, bind message access fields to this version.
     writes.push({ docPath: 'conversations/' + cid, fields: fields || { lastMessageAt: current.lastMessageAt },
       precondition: snapshot ? { updateTime: snapshot.updateTime } : { exists: false } });
+    if (bindingGuard) writes.push(bindingGuard);
     try {
       const committed = await fsCommit(writes);
       return { id, created: !current, conversation, messageVersion: committed.writeResults?.[0]?.updateTime };
     } catch (e) { if (!e?.conflict) throw e; }
   }
-  throw new Error('message_changed_concurrently');
+  const changed = new Error('message_changed_concurrently');
+  changed.retryable = !!bindingGuard;
+  throw changed;
 }
 
 export default async function handler(req, res) {
@@ -207,6 +312,23 @@ export default async function handler(req, res) {
   if (!['in', 'out', 'note'].includes(direction)) return res.status(400).json({ ok: false, error: 'invalid_direction' });
   if (!text) return res.status(400).json({ ok: false, error: 'empty_body' });
 
+  // ── Idempotency: skip if we already logged this WhatsApp message id ─────
+  if (body.messageId) {
+    try {
+      const dup = await fsList('messages', { filter: { field: 'waMessageId', op: 'EQUAL', value: String(body.messageId) }, limit: 1 });
+      if (dup && dup.length) {
+        // A retry can repair the secondary case after the primary message was
+        // stored. Its identity and words come only from that stored message.
+        // Keep errors inside this branch: falling through would append twice.
+        const repaired = await repairStoredMessage(dup[0], documentBudget);
+        return res.status(repaired.retryable ? 503 : 200).json(repaired);
+      }
+    } catch {
+      if (backlogReview) return res.status(503).json({ ok: false, error: 'backlog_dedup_unavailable' });
+      /* normal intake: preserve its existing best-effort fallback */
+    }
+  }
+
   // ── Resolve the conversation's contact ─────────────────────────────────
   let contactType = body.contactType || null;
   let contactId   = body.contactId || null;
@@ -219,7 +341,8 @@ export default async function handler(req, res) {
 
   if (!contactType || !contactId) {
     let resolved = null;
-    if (contactPhone || body.phone) resolved = await resolveByPhone(body.phone || contactPhone);
+    try { if (contactPhone || body.phone) resolved = await resolveByPhone(body.phone || contactPhone); }
+    catch { return res.status(503).json({ ok: false, error: 'contact_lookup_failed', conversationStatus: 'unavailable' }); }
     if (resolved) {
       const e = resolved.entity;
       documentContact = e;
@@ -241,25 +364,24 @@ export default async function handler(req, res) {
     }
   }
 
-  const cid = convIdFor(contactType, contactId);
+  let cid = convIdFor(contactType, contactId), bindingConflict = null, bindingGuard = null, bindingIdentity = null, bindingStatus = null;
+  if (contactType === 'lead') {
+    const resolution = await resolveLeadConversation({ leadId: contactId, create: !backlogReview });
+    if (resolution.status === 'unavailable') return res.status(503).json({ ok: false, error: resolution.reason, conversationStatus: resolution.status });
+    if (resolution.status === 'conflict' && !resolution.ingestFallback)
+      return res.status(409).json({ ok: false, error: resolution.reason, conversationStatus: resolution.status });
+    const selected = resolution.ingestFallback || resolution;
+    cid = selected.cid; bindingGuard = selected.bindingGuard;
+    const bound = selected.conversation;
+    if (!(backlogReview && resolution.status === 'new')) bindingIdentity = bound;
+    if (contactPhone && bound.contactPhone && normalizePhone(bound.contactPhone) !== contactPhone)
+      return res.status(409).json({ ok: false, error: 'phone_conflict', conversationStatus: 'conflict' });
+    contactType = bound.contactType; contactId = bound.contactId;
+    contactUid = bound.contactUid || null; assignedLandlordId = bound.assignedLandlordId || null;
+    if (resolution.status === 'conflict') { bindingConflict = resolution.reason; bindingStatus = 'conflict'; }
+  }
   const now = body.timestamp ? new Date(body.timestamp) : new Date();
   const analysis = !backlogReview && (body.analysis && typeof body.analysis === 'object') ? body.analysis : null;
-
-  // ── Idempotency: skip if we already logged this WhatsApp message id ─────
-  if (body.messageId) {
-    try {
-      const dup = await fsList('messages', { filter: { field: 'waMessageId', op: 'EQUAL', value: String(body.messageId) }, limit: 1 });
-      if (dup && dup.length) {
-        // A retry can repair the secondary case after the primary message was
-        // stored. Its identity and words come only from that stored message.
-        // Keep errors inside this branch: falling through would append twice.
-        return res.status(200).json(await repairStoredMessage(dup[0], documentBudget));
-      }
-    } catch {
-      if (backlogReview) return res.status(503).json({ ok: false, error: 'backlog_dedup_unavailable' });
-      /* normal intake: preserve its existing best-effort fallback */
-    }
-  }
 
   // ── Read current conversation (for unread math + create flag) ───────────
   let existing = null;
@@ -281,6 +403,7 @@ export default async function handler(req, res) {
     lastDirection: direction,
     lastSource: 'homie',
     updatedAt: now,
+    ...(bindingConflict ? { conversationBindingConflict: bindingConflict } : {}),
   };
   if (created) {
     header.status = 'open';
@@ -319,6 +442,7 @@ export default async function handler(req, res) {
     receivedAt: new Date(),
   };
   if (body.messageId) msg.waMessageId = String(body.messageId);
+  if (bindingConflict) msg.conversationBindingConflict = bindingConflict;
   if (backlogReview) msg.intakeMode = 'backlog_review';
   if (Array.isArray(body.mediaUrls) && body.mediaUrls.length) msg.attachments = body.mediaUrls.slice(0, 10).map(String);
 
@@ -326,14 +450,17 @@ export default async function handler(req, res) {
   let messageVersion;
   let trackedConversation = null;
   try {
-    const r = await storeMessage(cid, msg, header, existing);
-    if (r.stored) return res.status(200).json(await repairStoredMessage(r.stored, documentBudget));
+    const r = await storeMessage(cid, msg, header, existing, bindingGuard, bindingIdentity);
+    if (r.stored) {
+      const repaired = await repairStoredMessage(r.stored, documentBudget);
+      return res.status(repaired.retryable ? 503 : 200).json(repaired);
+    }
     messageId = r.id;
     messageVersion = r.messageVersion;
     created = r.created; trackedConversation = r.conversation;
   } catch (e) {
     console.error('[homie/message] message write', e);
-    return res.status(500).json({ ok: false, error: 'message_write_failed' });
+    return res.status(e.retryable ? 503 : 500).json({ ok: false, error: e.retryable ? 'conversation_changed_concurrently' : 'message_write_failed' });
   }
 
   await logActivity('inbox_message_' + direction, 'inbox', {
@@ -348,8 +475,28 @@ export default async function handler(req, res) {
   // → bozza del Commerciale. Nessuna AI in più rispetto a oggi, e una in
   // meno per messaggio sul Mac.
   let leadInfo = null;
-  try { if (!backlogReview) leadInfo = await syncLead({ direction, text, contactType, contactId, contactPhone, contactName, cid, existing, now, messageId: body.messageId }); }
+  try { if (!backlogReview && !bindingConflict) leadInfo = await syncLead({ direction, text, contactType, contactId, contactPhone, contactName, cid, existing, now, messageId: body.messageId }); }
   catch (e) { console.warn('[homie/message] lead sync:', e.message); }
+  if (!leadInfo?.bindingStatus && !bindingConflict && trackedConversation?.conversationBindingStatus === 'unavailable') {
+    const recovered = await recoverUnavailableBinding({ ...msg, id: messageId });
+    if (recovered.status === 'bound') {
+      trackedConversation = recovered.conversation;
+      if (existing) { existing.conversationBindingConflict = null; existing.conversationBindingStatus = null; }
+    } else leadInfo = { ...leadInfo, bindingStatus: recovered.status, bindingReason: recovered.reason };
+  }
+  if (leadInfo?.bindingStatus) {
+    bindingConflict = leadInfo.bindingReason; bindingStatus = leadInfo.bindingStatus;
+    // The primary is durable, but this source cannot enroll a case or authorize
+    // a turn. Persist the same declaration for the worker and future retries.
+    try {
+      await markBindingConflict(cid, messageId, bindingConflict, bindingStatus);
+      if (trackedConversation) trackedConversation.conversationBindingConflict = bindingConflict;
+    } catch {
+      console.warn('[homie/message] binding marker unavailable');
+      return res.status(503).json({ ok: false, error: 'binding_marker_unavailable', conversationId: cid, messageId,
+        conversationStatus: bindingStatus, conversationReason: bindingConflict, followUp: { tracked: false } });
+    }
+  }
 
   // The case remains followed when a person takes over the conversation.
   // Explicit preparation rollout may enrol a new case; this never enables
@@ -360,7 +507,7 @@ export default async function handler(req, res) {
       const tracked = await refreshTrackedFollowUp({ cid,
         conv: { ...(trackedConversation || { ...existing, ...header }), leadId: trackedConversation?.leadId || existing?.leadId || leadInfo?.leadId || null },
         direction, text, messageId: body.messageId || messageId, messageVersion, now: now.getTime(), receivedAt: msg.receivedAt.getTime(),
-        preserveNewer: backlogReview });
+        preserveNewer: backlogReview, allowEnrollment: !bindingConflict });
       if (tracked) {
         followUp = { id: tracked.id, tracked: true };
         if (existing?.followUpTrackingError) await fsPatch('conversations/' + cid, { followUpTrackingError: null });
@@ -388,7 +535,7 @@ export default async function handler(req, res) {
           await segretariaOffConv(cid, 'l\'operatore ha risposto a mano');
           segretaria = { off: true };
         }
-      } else if (direction === 'in' && !followUp?.error) {
+      } else if (direction === 'in' && !followUp?.error && !bindingConflict) {
         const conv = { ...existing, contactType, contactId, contactPhone: contactPhone || existing.contactPhone, contactName, leadId: existing.leadId || (leadInfo && leadInfo.leadId) || null };
         let lead = null;
         if (conv.leadId) { try { const l = await fsGet(`leads/${conv.leadId}`); if (l) lead = { id: conv.leadId, ...l }; } catch { /* non-fatal */ } }
@@ -405,7 +552,7 @@ export default async function handler(req, res) {
     } catch { console.warn('[homie/message] attachments: failed'); }
   }
 
-  return res.status(200).json({ ok: true, conversationId: cid, messageId, created, ...(leadInfo || {}), ...(segretaria ? { segretaria } : {}), ...(followUp ? { followUp } : {}) });
+  return res.status(200).json({ ok: true, conversationId: cid, messageId, created, ...(leadInfo || {}), ...(segretaria ? { segretaria } : {}), ...(followUp ? { followUp } : {}), ...(bindingConflict ? { conversationStatus: bindingStatus || 'conflict', conversationReason: bindingConflict } : {}) });
 }
 
 async function fileWhatsAppAttachments({ urls, text, contactType, contactId, entity, budget }) {
@@ -526,13 +673,14 @@ async function syncLead({ direction, text, contactType, contactId, contactPhone,
   if (prior) {
     // stesso numero già in pipeline da un'altra porta (portale, form del sito)
     try {
+      const binding = await resolveLeadConversation({ leadId: prior.id, create: true, attachCid: cid });
+      if (binding.status !== 'bound') return { bindingStatus: binding.status, bindingReason: binding.reason };
       await fsPatch(`leads/${prior.id}`, {
         message: mergeMessage(prior.message, text),
         lastInboundAt: now,
         ...(prior.phone ? {} : { phone: contactPhone }),
       });
-      await fsPatch('conversations/' + cid, { leadId: prior.id });
-    } catch { /* non-fatal */ }
+    } catch { return { bindingStatus: 'unavailable', bindingReason: 'lead_binding_unavailable' }; }
     return { leadId: prior.id, leadDeduped: true };
   }
 
@@ -541,9 +689,9 @@ async function syncLead({ direction, text, contactType, contactId, contactPhone,
     text, phone: contactPhone, name: contactName, listing,
     messageId, conversationId: cid, at: now,
   });
-  const { id } = await fsCreate('leads', doc);
-  // la conversazione ricorda il suo lead: i messaggi successivi lo arricchiscono
-  try { await fsPatch('conversations/' + cid, { leadId: id }); } catch { /* non-fatal */ }
+  const result = await createWhatsAppLead({ leadId: crypto.randomUUID(), cid, fields: doc });
+  if (!['bound', 'new'].includes(result.status)) return { bindingStatus: result.status, bindingReason: result.reason };
+  const id = result.leadId;
   await logActivity('lead_from_whatsapp', 'lead', { leadId: id, conversationId: cid, listing: doc.propertyTitle }, 'homie');
-  return { leadId: id, leadCreated: true };
+  return { leadId: id, ...(result.status === 'new' ? { leadCreated: true } : { leadDeduped: true }) };
 }

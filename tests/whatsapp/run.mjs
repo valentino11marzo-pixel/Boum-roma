@@ -144,12 +144,13 @@ globalThis.fetch = async (url, opts = {}) => {
   if (u.endsWith(':commit')) {
     const writes = body.writes || [];
     for (const w of writes) {
-      const key = w.update?.name?.split('/documents/')[1], condition = w.currentDocument || {};
+      const key = (w.update?.name || w.delete)?.split('/documents/')[1], condition = w.currentDocument || {};
       if ((condition.exists === false && DB.has(key)) || (condition.exists === true && !DB.has(key))
         || (condition.updateTime && condition.updateTime !== (versions.get(key) || '2026-01-01T00:00:00.000Z')))
         return json({ error: { status: 'FAILED_PRECONDITION' } }, 400);
     }
     const results = writes.map(w => {
+      if (w.delete) return {};
       const key = w.update.name.split('/documents/')[1];
       const values = Object.fromEntries(Object.entries(w.update.fields || {}).map(([k,v]) => [k,dec(v)]));
       DB.set(key, w.updateMask ? { ...(DB.get(key) || {}), ...values } : values);

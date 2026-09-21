@@ -23,6 +23,7 @@ import crypto from 'node:crypto';
 import SEG from '../../js/segretaria-engine.js';
 import { fsGet, fsPatch, fsCreate, fsList } from '../homie/_lib.js';
 import { normalizePhone } from '../homie/_lead.js';
+import { resolveLeadConversation } from '../homie/_conversation.js';
 import { requireCronOrAdmin } from '../pfs/_guard.js';
 import { reportEmployeeHealth } from '../employees/_lib.js';
 import { segretariaTurn } from './_core.js';
@@ -36,22 +37,17 @@ const MAX_PER_RUN = 8;
 // Handover deliberately marks both the primary lead conversation and its
 // historical WhatsApp alias. Only that exact persisted binding is one person.
 async function canonicalEmailConversation(rows) {
-  if (rows.length === 1) return rows[0];
+  if (rows.some(row => row.conversationBindingConflict)) return null;
   const leadIds = rows.map(c => c.leadId || (c.contactType === 'lead' ? c.contactId : null));
   const leadId = leadIds[0];
-  if (typeof leadId !== 'string' || !/^[\w.-]{1,180}$/.test(leadId)
-      || leadIds.some(id => id !== leadId)
-      || rows.some(c => !['lead', 'whatsapp'].includes(c.contactType)
-        || (c.contactType === 'lead' && c.contactId !== leadId))) return null;
-  const primaryId = 'conv_lead_' + leadId.replace(/[^A-Za-z0-9_-]/g, '');
-  const primary = rows.find(c => c.id === primaryId && c.contactType === 'lead' && c.contactId === leadId);
-  if (!primary) return null;
-  const lead = await fsGet('leads/' + leadId);
-  if (!lead) return null;
-  const phones = new Set([...rows.map(c => c.contactPhone), lead.phone].filter(Boolean).map(normalizePhone));
-  const emails = new Set([...rows.map(c => c.contactEmail), lead.email].filter(Boolean).map(e => String(e).trim().toLowerCase()));
+  if (!leadId) return rows.length === 1 ? rows[0] : null;
+  if (leadIds.some(id => id !== leadId)) return null;
+  const phones = new Set(rows.map(c => c.contactPhone).filter(Boolean).map(normalizePhone));
+  const emails = new Set(rows.map(c => c.contactEmail).filter(Boolean).map(e => String(e).trim().toLowerCase()));
   const uids = new Set(rows.map(c => c.contactUid).filter(Boolean));
-  return phones.size > 1 || emails.size > 1 || uids.size > 1 ? null : primary;
+  if (phones.size > 1 || emails.size > 1 || uids.size > 1) return null;
+  const result = await resolveLeadConversation({ leadId });
+  return result.status === 'bound' && rows.some(row => row.id === result.cid) ? result.conversation : null;
 }
 
 export default async function handler(req, res) {

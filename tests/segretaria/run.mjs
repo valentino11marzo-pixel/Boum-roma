@@ -239,11 +239,12 @@ globalThis.fetch = async (url, opts = {}) => {
     const writes = body.writes || [];
     // An atomic commit validates ALL versions before changing any document.
     for (const w of writes) {
-      const key = w.update?.name?.split('/documents/')[1];
+      const key = (w.update?.name || w.delete)?.split('/documents/')[1];
       if (!key || !w.currentDocument) throw new Error('Commit requires update + precondition');
       if (conditionFails(key, w.currentDocument)) return json({ error: { status: 'FAILED_PRECONDITION' } }, 400);
     }
     const results = writes.map(w => {
+      if (w.delete) return {};
       const key = w.update.name.split('/documents/')[1];
       DB.set(key, applyFields(DB.get(key), w.update.fields, w.updateMask?.fieldPaths));
       return { updateTime: versions.get(key) };
@@ -340,10 +341,9 @@ let leadId, cid;
 // 6b. la consegna (il click 🤖) → il turno parte sul prossimo inbound
 {
   const h = await handoverSegretaria(leadId);
-  // LA TRAPPOLA VERA: dal secondo messaggio in poi il traffico atterra su
-  // conv_lead_<id>, non sulla conversazione iniziale conv_whatsapp_<numero>.
-  // La consegna deve marcare quella, o non riceverebbe mai un turno.
-  ok('6b. la consegna marca la conversazione che riceverà il traffico', h.ok === true && h.cid === 'conv_lead_' + leadId, h);
+  // La consegna e il prossimo inbound devono mantenere il CID già persistito;
+  // diventare lead non apre una seconda conversazione.
+  ok('6b. la consegna marca la conversazione che riceverà il traffico', h.ok === true && h.cid === cid && h.cid === DB.get('leads/' + leadId).conversationId, h);
   cid = h.cid;
   const r = await call({ direction: 'in', channel: 'whatsapp', phone: '+393331234567',
     body: 'Great! When can I see it?', messageId: 'w2' });

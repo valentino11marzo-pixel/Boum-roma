@@ -47,6 +47,7 @@ export async function refreshTrackedFollowUp(input) {
   const cursor = await fsGet('heartbeat/segretaria-case-' + followUpId(input.cid, 'cursor').slice(3));
   if (input.direction === 'out') return cursor ? invalidateTrackedContext(input) : null;
   if (cursor) return captureFollowUp(input);
+  if (input.allowEnrollment === false) return null;
   const config = await fsGet('settings/segretaria');
   const since = checkTimestamp(config?.prepareSince);
   const receivedAt = input.receivedAt ?? input.now;
