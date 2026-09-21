@@ -17,9 +17,9 @@ import { fsList, fsGet, logActivity } from '../homie/_lib.js';
 import { requireCronOrAdmin } from './_guard.js';
 import { listActiveClients } from './_ingest.js';
 import { tgNotify } from './_health.js';
-import { aiSignal } from '../_budget.js';
+import { ai } from '../_ai.js';
 
-const MODEL = 'claude-opus-4-8';
+// Il modello (opus, una chiamata al giorno) sta nel registro: js/ai-registry.js, scopo 'pfs.brief'.
 const MAX_TOKENS = 1200;
 
 function hoursAgo(h) { return new Date(Date.now() - h * 3600 * 1000); }
@@ -115,32 +115,13 @@ export default async function handler(req, res) {
 
   let brief;
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      signal: aiSignal(40000),   // un modello appeso non deve uccidere la funzione
-      method: 'POST',
-      headers: {
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: MAX_TOKENS,
-        system,
-        messages: [{ role: 'user', content: JSON.stringify(data) }],
-      }),
-    });
-    if (!resp.ok) {
-      const t = await resp.text();
-      console.error('[pfs/brief] anthropic', resp.status, t.slice(0, 300));
-      return res.status(502).json({ ok: false, error: 'anthropic_failed', status: resp.status });
-    }
-    const out = await resp.json();
-    if (out.stop_reason === 'refusal' || !Array.isArray(out.content)) {
+    const out = await ai({ purpose: 'pfs.brief', system, messages: [{ role: 'user', content: JSON.stringify(data) }], maxTokens: MAX_TOKENS, timeoutMs: 40000 });
+    if (out.stopReason === 'refusal' || !out.text) {
       return res.status(502).json({ ok: false, error: 'anthropic_no_content' });
     }
-    brief = out.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+    brief = out.text;
   } catch (e) {
+    if (e && e.code === 'cloud_http') return res.status(502).json({ ok: false, error: 'anthropic_failed', status: e.status });
     return res.status(502).json({ ok: false, error: 'anthropic_request_failed', detail: e.message });
   }
 

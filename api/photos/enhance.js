@@ -39,10 +39,11 @@ import sharp from 'sharp';
 import crypto from 'node:crypto';
 import { getAdminToken, FS_BASE, fsPatch, fsList, readJson, fsValToJs, secretEqual } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
+import { ai as askModel } from '../_ai.js';
 
 const BUCKET = process.env.FIREBASE_BUCKET || 'boom-property-dashboards.firebasestorage.app';
 const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY;
-const MODEL = 'claude-haiku-4-5-20251001';
+// Il modello sta nel registro: js/ai-registry.js, scopo 'photos.audit'.
 const MAX_PHOTOS = 40;
 const ROOM_ORDER = ['living', 'kitchen', 'bedroom', 'bathroom', 'balcony', 'exterior', 'view', 'other'];
 
@@ -162,14 +163,7 @@ async function classify(photos) {
 - quality grades exposure/sharpness of the actual image (renders can be 10).
 - coverScore = how good as the listing's FIRST photo: bright wide real interior or striking exterior scores high; floorplans, documents, bathrooms, watermarked or dark shots score low.` });
 
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: { 'x-api-key': ANTHROPIC_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: JSON.stringify({ model: MODEL, max_tokens: 4000, messages: [{ role: 'user', content }] }),
-  });
-  if (!r.ok) throw new Error('anthropic_' + r.status);
-  const j = await r.json();
-  const text = (j.content || []).map(c => c.text || '').join('');
+  const { text } = await askModel({ purpose: 'photos.audit', messages: [{ role: 'user', content }], maxTokens: 4000, timeoutMs: 40000, json: true });
   const arr = JSON.parse(text.slice(text.indexOf('['), text.lastIndexOf(']') + 1));
   const byI = new Map(arr.map(a => [a.i, a]));
   for (const p of photos) {

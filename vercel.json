@@ -705,6 +705,9 @@
     "api/telegram/webhook.js": {
       "maxDuration": 60
     },
+    "api/ai/status.js": {
+      "maxDuration": 30
+    },
     "api/banking/import.js": {
       "maxDuration": 60
     },

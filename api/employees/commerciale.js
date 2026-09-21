@@ -247,7 +247,7 @@ async function alternatives(lead) {
   }
   const factsText = facts.filter(Boolean).join('\n');
 
-  const { text } = await callClaude({ system: SYSTEM, user: `Scrivi la prima risposta a questo lead.\n\n${factsText}`, maxTokens: 700 });
+  const { text } = await callClaude({ purpose: 'commerciale.first', system: SYSTEM, user: `Scrivi la prima risposta a questo lead.\n\n${factsText}`, maxTokens: 700 });
   const parsed = extractJson(text) || { subject: 'La tua richiesta — BOOM Roma', body: text };
 
   // Reply on the channel they used: someone who wrote on WhatsApp expects

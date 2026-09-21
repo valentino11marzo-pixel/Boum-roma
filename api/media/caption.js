@@ -9,10 +9,9 @@
 //   - POST only; CORS: boomrome.com + anteprime *.vercel.app
 //   - Logging strutturato di ogni reject e successo (come parse-docs.js)
 
-import { aiSignal } from '../_budget.js';
+import { ai } from '../_ai.js';
 
-const ALLOWED_MODEL = 'claude-haiku-4-5-20251001';
-const MAX_TOKENS = 500;
+const MAX_TOKENS = 500;   // il modello sta nel registro (js/ai-registry.js, 'media.caption')
 const RATE_LIMIT_MAX = 8;
 const RATE_LIMIT_WINDOW_MS = 60_000;
 
@@ -115,31 +114,12 @@ export default async function handler(req, res) {
     + (lingua === 'en' ? 'Scrivi il testo in INGLESE.' : 'Scrivi il testo in ITALIANO.');
 
   try {
-    const upstream = await fetch('https://api.anthropic.com/v1/messages', {
-      signal: aiSignal(20000),   // un modello appeso non deve uccidere la funzione
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: ALLOWED_MODEL,
-        max_tokens: MAX_TOKENS,
-        system,
-        messages: [{ role: 'user', content: prompt }],
-      }),
-    });
-    const data = await upstream.json().catch(() => null);
-    if (!upstream.ok || !data || !Array.isArray(data.content)) {
-      logEvent({ event: 'media-caption-error', ip, upstreamStatus: upstream.status });
-      return res.status(502).json({ error: 'Generazione non riuscita' });
-    }
-    const text = data.content.filter(b => b.type === 'text').map(b => b.text).join('\n').trim();
+    const r = await ai({ purpose: 'media.caption', system, messages: [{ role: 'user', content: prompt }], maxTokens: MAX_TOKENS, timeoutMs: 20000 });
+    const text = r.text;
     logEvent({ event: 'media-caption-ok', ip, tipo, lingua, chars: text.length });
     return res.status(200).json({ text });
   } catch (err) {
-    logEvent({ event: 'media-caption-error', ip, message: err?.message || 'unknown' });
-    return res.status(502).json({ error: 'Upstream request failed' });
+    logEvent({ event: 'media-caption-error', ip, upstreamStatus: err?.status || null, message: err?.code || err?.message || 'unknown' });
+    return res.status(502).json({ error: err?.backend ? 'Generazione non riuscita' : 'Upstream request failed' });
   }
 }

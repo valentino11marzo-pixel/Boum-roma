@@ -9,7 +9,7 @@
 // Fails SOFT — on any error it returns a friendly WhatsApp fallback, never a 5xx
 // that would break the chat UX.
 
-import { aiSignal } from './_budget.js';
+import { ai } from './_ai.js';
 
 export const config = { api: { bodyParser: { sizeLimit: '64kb' } } };
 
@@ -17,8 +17,7 @@ const PROJECT = process.env.FIREBASE_PROJECT_ID || 'boom-property-dashboards';
 // Public Firebase web API key (same default the client + api/listing.js use).
 const FB_KEY = process.env.FIREBASE_API_KEY || 'AIzaSyDDb8UeSc8RhO_VxQrhLrupu1aPD4rwRso';
 
-const MODEL = 'claude-haiku-4-5-20251001';
-const MAX_TOKENS = 500;
+const MAX_TOKENS = 500;   // il modello sta nel registro (js/ai-registry.js, 'listing.ask')
 const Q_MAX = 600;       // max question length (chars)
 const A_HIST_MAX = 1500; // max remembered answer length per turn
 const HIST_TURNS = 6;    // max prior turns considered
@@ -120,11 +119,6 @@ BOOM policies (always true):
 
 For viewings, exact availability, or anything you don't know: invite them to apply (the form on this page) or message BOOM on WhatsApp at ${WHATSAPP}. If the question isn't about this apartment, renting with BOOM, or living in Rome, gently steer back. Plain text only — no markdown, no headers, no bullet symbols.`;
 
-function answerFrom(data) {
-  if (!data || !Array.isArray(data.content)) return '';
-  return data.content.filter(b => b && b.type === 'text').map(b => b.text).join('').trim();
-}
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -167,19 +161,8 @@ export default async function handler(req, res) {
   });
 
   try {
-    const upstream = await fetch('https://api.anthropic.com/v1/messages', {
-      signal: aiSignal(20000),   // un modello appeso non deve uccidere la funzione
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({ model: MODEL, max_tokens: MAX_TOKENS, system: SYSTEM, messages }),
-    });
-    const data = await upstream.json().catch(() => null);
-    const answer = answerFrom(data);
-    return res.status(200).json({ answer: answer || FALLBACK });
+    const r = await ai({ purpose: 'listing.ask', system: SYSTEM, messages, maxTokens: MAX_TOKENS, timeoutMs: 20000 });
+    return res.status(200).json({ answer: r.text || FALLBACK });
   } catch {
     return res.status(200).json({ answer: FALLBACK });
   }

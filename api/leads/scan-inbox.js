@@ -26,11 +26,12 @@ import { normalizePhone } from '../homie/_lead.js';
 import { requireCronOrAdmin } from '../pfs/_guard.js';
 import { reportHealth } from '../pfs/_health.js';
 import { parseModelJson } from '../_modeljson.js';
-import { aiSignal, runBudget } from '../_budget.js';
+import { runBudget } from '../_budget.js';
+import { ai } from '../_ai.js';
 
 const LOOKBACK_DAYS = 2;
 const AI_BUDGET_PER_RUN = 8;
-const MODEL = 'claude-haiku-4-5-20251001';
+// Il modello sta nel registro: js/ai-registry.js, scopo 'leads.inbox'.
 
 const PORTAL_DOMAINS = ['immobiliare.it', 'idealista.it', 'idealista.com', 'casa.it', 'subito.it', 'bakeca.it'];
 const REQUEST_RE = /richiest|contatt|messagg|interessat|ti ha scritto|nuovo lead|vuole informazioni|ha risposto|request|enquiry|contacted/i;
@@ -38,22 +39,14 @@ const ALERT_RE = /nuovi annunci|ricerca salvata|annunci per te|price drop|ribass
 
 function sha1(s) { return crypto.createHash('sha1').update(String(s)).digest('hex'); }
 
-async function extractLead(key, subject, text) {
+async function extractLead(subject, text) {
   const SYSTEM = `Estrai il potenziale inquilino (lead) da un'email di notifica di un portale immobiliare italiano. Rispondi SOLO JSON:
 {"name":"...","email":"...o null","phone":"...o null","message":"il testo scritto dal cliente, o null","listingTitle":"titolo/indirizzo dell'annuncio a cui si riferisce, o null","language":"it|en"}
 Regole: SOLO dati presenti nel testo, mai inventare. Il mittente del portale non è il lead. Se l'email non contiene una richiesta di una persona reale, rispondi {"name":null}.`;
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
-    signal: aiSignal(20000),   // un modello appeso non deve uccidere la funzione
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({
-      model: MODEL, max_tokens: 400, system: SYSTEM,
-      messages: [{ role: 'user', content: `OGGETTO: ${subject}\n\nEMAIL:\n${String(text).slice(0, 6000)}` }],
-    }),
+  const { text: out } = await ai({
+    purpose: 'leads.inbox', system: SYSTEM, maxTokens: 400, timeoutMs: 20000, json: true,
+    messages: [{ role: 'user', content: `OGGETTO: ${subject}\n\nEMAIL:\n${String(text).slice(0, 6000)}` }],
   });
-  if (!r.ok) throw new Error('anthropic_' + r.status);
-  const j = await r.json();
-  const out = (j.content || []).map(b => b.text || '').join('');
   const read = parseModelJson(out);
   if (!read.ok) throw new Error('ai_json_' + read.why);
   return read.value;
@@ -158,7 +151,7 @@ export default async function handler(req, res) {
         let lead;
         try {
           stats.aiCalls++;
-          lead = await extractLead(aiKey, subject, parsed.text || parsed.html || '');
+          lead = await extractLead(subject, parsed.text || parsed.html || '');
         } catch (e) { console.warn('[leads/scan-inbox] extract', e.message); continue; }
         if (!lead || !lead.name) {
           remember(memId, 'not_a_lead');

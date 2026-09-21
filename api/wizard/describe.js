@@ -31,9 +31,9 @@
 import { secretEqual, readJson, getAdminToken, fsList, fsPatch } from '../homie/_lib.js';
 import { requireCronOrAdmin } from '../pfs/_guard.js';
 import { modelJson } from '../_modeljson.js';
-import { aiSignal } from '../_budget.js';
+import { ai } from '../_ai.js';
 
-const MODEL = 'claude-haiku-4-5-20251001';
+// Il modello sta nel registro: js/ai-registry.js, scopo 'wizard.describe'.
 
 export const FEATURE_LABELS = {
   ac: 'air conditioning', elevator: 'elevator', balcony: 'balcony',
@@ -114,21 +114,15 @@ const SYSTEM = `You write listing descriptions for BOOM, a premium rental agency
 
 // One AI call → { en, it }. Throws on transport/upstream failure so the caller
 // decides what that means (a 502 for the bot, a skipped row for the sweep).
-async function generateCopy(L, key) {
+async function generateCopy(L) {
   const messages = [{ role: 'user', content: `Write the description for this apartment:\n\n${buildFacts(L)}` }];
-  const upstream = await fetch('https://api.anthropic.com/v1/messages', {
-    signal: aiSignal(20000),   // un modello appeso non deve uccidere la funzione
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: MODEL, max_tokens: 700, system: SYSTEM, messages }),
-  });
-  if (!upstream.ok) {
-    const t = await upstream.text();
-    console.error('[wizard/describe] anthropic', upstream.status, t.slice(0, 200));
+  let text;
+  try {
+    text = (await ai({ purpose: 'wizard.describe', system: SYSTEM, messages, maxTokens: 700, timeoutMs: 20000, json: true })).text;
+  } catch (e) {
+    console.error('[wizard/describe] ' + (e.code || e.message));
     throw new Error('ai_failed');
   }
-  const data = await upstream.json();
-  const text = (data.content || []).map(b => b.text || '').join('').trim();
   let parsed;
   try {
     parsed = modelJson(text) || JSON.parse(text);
@@ -137,7 +131,7 @@ async function generateCopy(L, key) {
 }
 
 // ── the nightly sweep: no public listing stays mute ─────────────────────────
-async function sweep(key, limit) {
+async function sweep(limit) {
   const started = Date.now();
   const rows = await fsList('listings', { limit: 300 });
   const candidates = copyOrder((Array.isArray(rows) ? rows : [])
@@ -150,7 +144,7 @@ async function sweep(key, limit) {
     if (Date.now() - started > 42000) break;      // headroom inside the 60s budget
     const gap = copyGap(c.js);
     try {
-      const { en, it } = await generateCopy(c.js, key);
+      const { en, it } = await generateCopy(c.js);
       if (!en) { failed.push({ id: c.id, note: 'empty_copy' }); continue; }
       const patch = {
         description: en,
@@ -192,7 +186,7 @@ export default async function handler(req, res) {
 
   if (isSweep) {
     const limit = Math.max(1, Math.min(8, parseInt(q.limit, 10) || 6));
-    try { return res.status(200).json(await sweep(key, limit)); }
+    try { return res.status(200).json(await sweep(limit)); }
     catch (e) {
       console.error('[wizard/describe] sweep', e);
       return res.status(500).json({ ok: false, error: 'internal', detail: String(e.message || '').slice(0, 120) });
@@ -204,7 +198,7 @@ export default async function handler(req, res) {
   if (!L || typeof L !== 'object') return res.status(400).json({ ok: false, error: 'no_body' });
 
   try {
-    const { en, it } = await generateCopy(L, key);
+    const { en, it } = await generateCopy(L);
     return res.status(200).json({ ok: true, en, it });
   } catch (e) {
     if (String(e.message) === 'ai_failed') return res.status(502).json({ ok: false, error: 'ai_failed' });

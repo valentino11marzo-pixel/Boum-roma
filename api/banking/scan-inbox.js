@@ -36,13 +36,13 @@ import { simpleParser } from 'mailparser';
 import { parseBankCsv, ingestBankTransactions, fsGet, fsPatch } from './_lib.js';
 import { requireCronOrAdmin, reportEmployeeHealth, saveReport, tgNotify } from '../employees/_lib.js';
 import { callClaude, extractJson } from '../agent/_claude.js';
-import { aiSignal } from '../_budget.js';
+import { ai } from '../_ai.js';
 
 const EMPLOYEE = 'banca-mail';
 const LOOKBACK_DAYS = 7;
 const MAX_MESSAGES = 25;
 const MAX_PDF_BYTES = 8 * 1024 * 1024;
-const OCR_MODEL = 'claude-haiku-4-5-20251001';
+// Il modello (haiku) sta nel registro: js/ai-registry.js, scopi 'banking.mail' e 'banking.pdf'.
 // Statement emails (attachments) + per-movement ALERT emails ("Hai ricevuto
 // un bonifico di €1.200,00 da…") whose amounts live in the email BODY — the
 // path that works even when the bank only links the statement behind login.
@@ -243,7 +243,7 @@ async function run({ dry }) {
 async function bodyToMovements(subject, bodyText, mailDate) {
   const fallbackDate = mailDate ? new Date(mailDate).toISOString().slice(0, 10) : null;
   const { text } = await callClaude({
-    model: OCR_MODEL,
+    purpose: 'banking.mail',
     maxTokens: 1000,
     system: 'Estrai movimenti bancari da email di avviso operazione di banche italiane. Rispondi SOLO con JSON valido: {"movements":[{"date":"YYYY-MM-DD","amount":-123.45,"description":"...","counterparty":"..."}]}. amount negativo per addebiti/uscite, positivo per accrediti/entrate. Non inventare nulla: se l\'email non riporta un\'operazione con importo (es. è solo un avviso "estratto conto disponibile" o marketing), rispondi {"movements":[]}.',
     user: `Oggetto: ${subject || ''}\nData email: ${fallbackDate || 'sconosciuta'}\n\nTesto:\n${bodyText}\n\nSe la data dell'operazione non è nel testo usa la data email.`,
@@ -270,29 +270,16 @@ async function pdfToMovements(buffer) {
     'Regole: amount negativo per addebiti/uscite, positivo per accrediti/entrate. Usa la data operazione (o contabile).',
     'counterparty = ordinante/beneficiario se presente, altrimenti stringa vuota. Non inventare movimenti; ignora saldi e totali.',
   ].join('\n');
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
-    signal: aiSignal(20000),   // un modello appeso non deve uccidere la funzione
-    method: 'POST',
-    headers: {
-      'x-api-key': process.env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: OCR_MODEL,
-      max_tokens: 8000,
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: buffer.toString('base64') } },
-          { type: 'text', text: prompt },
-        ],
-      }],
-    }),
+  const { text } = await ai({
+    purpose: 'banking.pdf', maxTokens: 8000, timeoutMs: 20000, json: true,
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: buffer.toString('base64') } },
+        { type: 'text', text: prompt },
+      ],
+    }],
   });
-  if (!r.ok) throw new Error(`Anthropic ${r.status}: ${(await r.text()).slice(0, 200)}`);
-  const data = await r.json();
-  const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
   const parsed = extractJson(text);
   const movements = parsed?.movements;
   if (!Array.isArray(movements)) throw new Error('estrazione PDF non valida');

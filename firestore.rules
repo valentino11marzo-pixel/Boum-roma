@@ -47,7 +47,8 @@ service cloud.firestore {
     // legge; l'API anonima no. (Audit 2026-08, S2.)
     // 'company' (IBAN) e 'registrazione' (email personale del referente
     // ASPI) non si servono al pubblico anonimo — stessa lezione.
-    match /settings/{x}  { allow read: if !(x in ['company', 'registrazione']) || request.auth != null; allow write: if isAdmin(); }
+    // 'ai' porta l'URL del tunnel verso il Mac dell'operatore: non è per il pubblico.
+    match /settings/{x}  { allow read: if !(x in ['company', 'registrazione', 'ai']) || request.auth != null; allow write: if isAdmin(); }
     // Coordinate per il bonifico del canone. NON in /settings, che è
     // leggibile da chiunque via API: un IBAN esposto così invita scraping.
     // L'inquilino che deve pagare è comunque autenticato.
@@ -297,6 +298,12 @@ service cloud.firestore {
     match /savedSearches/{x}               { allow read, write: if isAdmin(); }
     match /teamHealth/{x}                  { allow read, write: if isAdmin(); }
     match /teamReports/{x}                 { allow read, write: if isAdmin(); }
+    // La Centrale AI: contatori per scopo (aiUsage/<giorno>) e coppie
+    // cloud/locale dell'ombra (aiShadow/<scopo>) — solo numeri, mai contenuto,
+    // e comunque admin-only (la lezione propertyLocks: senza la riga si cade
+    // nel default-deny e i contatori non si scrivono affatto).
+    match /aiUsage/{x}                     { allow read, write: if isAdmin(); }
+    match /aiShadow/{x}                    { allow read, write: if isAdmin(); }
     match /bankAccounts/{x}                { allow read, write: if isAdmin(); }
     match /bankTransactions/{x}            { allow read, write: if isAdmin(); }
     match /bankRequisitions/{x}            { allow read, write: if isAdmin(); }

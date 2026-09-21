@@ -19,9 +19,10 @@
 
 import { secretEqual, readJson, fsList } from '../homie/_lib.js';
 import { parseModelJson, jsonFailureLine } from '../_modeljson.js';
-import { aiSignal } from '../_budget.js';
+import { ai } from '../_ai.js';
 
-const MODEL = 'claude-sonnet-5';
+// Il modello (sonnet: è la chiamata più cara del bot) sta nel registro:
+// js/ai-registry.js, scopo 'wizard.interpret'.
 
 const ALLOWED = {
   price: 'num', depositMonths: 'num', videoUrl: 'str', name: 'str',
@@ -100,26 +101,16 @@ Regole sui valori:
 
   let plan;
   try {
-    const upstream = await fetch('https://api.anthropic.com/v1/messages', {
-      signal: aiSignal(25000),   // un modello appeso non deve uccidere la funzione
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-      body: JSON.stringify({
-        model: MODEL, max_tokens: 400, system: SYSTEM,
-        messages: [{
-          role: 'user',
-          content: `CATALOGO:\n${catalog}\n` +
-            (context ? `\nSCAMBIO PRECEDENTE (non risolto):\n${context}\n` : '') +
-            `\nMESSAGGIO OPERATORE:\n${text}`,
-        }],
-      }),
+    const upstream = await ai({
+      purpose: 'wizard.interpret', system: SYSTEM, maxTokens: 400, timeoutMs: 25000, json: true,
+      messages: [{
+        role: 'user',
+        content: `CATALOGO:\n${catalog}\n` +
+          (context ? `\nSCAMBIO PRECEDENTE (non risolto):\n${context}\n` : '') +
+          `\nMESSAGGIO OPERATORE:\n${text}`,
+      }],
     });
-    if (!upstream.ok) {
-      console.error('[wizard/interpret] anthropic', upstream.status, (await upstream.text()).slice(0, 200));
-      return res.status(502).json({ ok: false, error: 'ai_failed' });
-    }
-    const data = await upstream.json();
-    const out = (data.content || []).map(b => b.text || '').join('').trim();
+    const out = upstream.text;
     const read = parseModelJson(out);
     if (!read.ok) {
       console.error('[wizard/interpret] ' + jsonFailureLine(out, read.why));
@@ -127,7 +118,7 @@ Regole sui valori:
     }
     plan = read.value;
   } catch (e) {
-    console.error('[wizard/interpret]', e);
+    console.error('[wizard/interpret] ' + (e.code || e.message));   // forma, mai contenuto
     return res.status(502).json({ ok: false, error: 'ai_failed' });
   }
 

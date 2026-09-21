@@ -15,9 +15,9 @@
 
 import { requireRole } from '../_auth.js';
 import { parseModelJson, jsonFailureLine, jsonFailureHint } from '../_modeljson.js';
-import { aiSignal } from '../_budget.js';
+import { ai } from '../_ai.js';
 
-const MODEL = 'claude-haiku-4-5-20251001';
+// Il modello sta nel registro: js/ai-registry.js, scopo 'portal.ingest'.
 const MAX_TEXT = 60000;      // ~15k token di testo incollato
 const MAX_B64 = 8 * 1024 * 1024;
 const MAX_FILE_BYTES = 8 * 1024 * 1024;   // stesso tetto del client (innestoFile)
@@ -173,27 +173,14 @@ export default async function handler(req, res) {
   content.push({ type: 'text', text: buildPrompt(body.context) });
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      signal: aiSignal(45000),   // un modello appeso non deve uccidere la funzione
-      method: 'POST',
-      headers: {
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 2000,
-        messages: [{ role: 'user', content }],
-      }),
-    });
-    if (!resp.ok) {
-      const t = await resp.text();
-      console.error('[portal/ingest] anthropic', resp.status, t.slice(0, 300));
+    let resp;
+    try {
+      resp = await ai({ purpose: 'portal.ingest', messages: [{ role: 'user', content }], maxTokens: 2000, timeoutMs: 45000, json: true });
+    } catch (e) {
+      console.error('[portal/ingest] ' + (e.code || e.message));
       return res.status(502).json({ ok: false, error: 'ai_provider_error' });
     }
-    const data = await resp.json();
-    const raw = (data.content && data.content[0] && data.content[0].text) || '';
+    const raw = resp.text;
     // La lettura sta in api/_modeljson.js — una copia sola, e con le regole
     // scritte lì: si sistema solo la forma, una risposta TRONCATA non si
     // ripara mai, e nei log finisce la forma, mai il contenuto (qui il
@@ -201,7 +188,7 @@ export default async function handler(req, res) {
     // produzione ci sono già finiti una volta).
     const read = parseModelJson(raw);
     if (!read.ok) {
-      console.error('[portal/ingest] ' + jsonFailureLine(raw, read.why, data.stop_reason));
+      console.error('[portal/ingest] ' + jsonFailureLine(raw, read.why, resp.stopReason));
       return res.status(502).json({ ok: false, error: 'ai_bad_json', why: read.why, detail: jsonFailureHint(read.why) });
     }
     const parsed = read.value;

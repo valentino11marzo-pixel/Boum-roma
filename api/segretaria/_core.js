@@ -211,7 +211,7 @@ export async function segretariaTurn({ cid, conv, lead, text, messageId, opening
 
   let parsed = null;
   try {
-    const { text: out } = await callClaude({ system: SYSTEM, user: facts, maxTokens: 500 });
+    const { text: out } = await callClaude({ purpose: 'segretaria.turn', system: SYSTEM, user: facts, maxTokens: 500 });
     parsed = extractJson(out);
   } catch (e) {
     await escalateSegretaria({ cid, conv, lead, why: 'la Segretaria non riesce a scrivere (' + e.message.slice(0, 120) + ')', text });
