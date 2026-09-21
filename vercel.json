@@ -648,10 +648,7 @@
     "api/reminder-cron.js": {
       "maxDuration": 60
     },
-    "api/homie/conversation.js": {
-      "maxDuration": 60
-    },
-    "api/homie/message.js": {
+    "api/homie/{conversation,message}.js": {
       "maxDuration": 60
     },
     "api/homie/wa-outbox.js": {

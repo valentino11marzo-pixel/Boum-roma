@@ -133,6 +133,11 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 - **Deploy**: `git push` to main triggers automatic Vercel deployment
 - **Cron**: `reminder-cron.js` runs every 15 minutes (configured in vercel.json)
 - **Functions timeout**: 60s max for reminder-cron
+- **Function configuration limit (21/09)**: Vercel rejects more than 50
+  `functions` rules before building. The exact glob
+  `api/homie/{conversation,message}.js` keeps both endpoints at 60s in one
+  rule; all other function settings stay unchanged. Validate matching paths
+  and the Git preview when adding a rule.
 
 ## Environment Variables (Vercel)
 
