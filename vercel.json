@@ -654,6 +654,9 @@
     "api/homie/wa-outbox.js": {
       "maxDuration": 60
     },
+    "api/homie/wa-outbox-single.js": {
+      "maxDuration": 60
+    },
       "api/radar/digest.js": {
         "maxDuration": 60
       },

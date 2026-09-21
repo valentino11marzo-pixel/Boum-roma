@@ -3294,6 +3294,15 @@ Ricevute terminali/claim conservate, nessun reinvio incerto o attivazione Mac;
 il flusso legacy conserva i limiti precedenti. Prove: `segretariaconsegna`,
 `segretariaesecuzione`, conferma/UI e sei mutazioni di scadenza e paginazione.
 
+**Invio singolo selezionato (21/09/2026, attivazione separata):** `wa-outbox-single`
+isola una proposta già approvata: inspect senza scritture, claim con revisione/impronta
+e ACK del solo bersaglio; endpoint o protocollo sconosciuti non ricadono nel pull.
+Il worker `wa_outbox_single.py` conserva HOLD e lock/registro esistenti, non avvia
+il servizio ordinario, non recupera altre ricevute e non reinvia esiti incerti.
+Nessun mirror generico o nuova autonomia: esecuzione esplicita dopo approvazione.
+Prove sintetiche: `segretariainviosingolo`, `homieinviosingolo`; istruzioni e limiti
+in `docs/HOMIE_INVIO_SINGOLO.md`. Il trasporto installato non cambia con il commit.
+
 ### POST `/api/homie/message` — da WhatsApp a lead, senza far pensare nessuno
 La CHIAVE DI VOLTA che permette a Homie di smettere di analizzare (mandato
 completo + prompt da incollare: `bot/HOMIE.md`). Finché Homie leggeva ogni
