@@ -786,7 +786,7 @@
                 floor: str(pr.floor), scala: str(pr.scala), interno: str(pr.interno || pr.unit),
                 accessories: str(pr.accessories), furnished: yesno(pr.furnished),
                 energyClass: str(pr.energyClass).toUpperCase(),
-                propertyType: str(pr.propertyType) || 'apartment',
+                propertyType: low(pr.propertyType) || 'apartment',
                 sezione: str(pr.sezione || cat.sezione).toUpperCase(), foglio: str(pr.foglio || cat.foglio),
                 particella: str(pr.particella || cat.particella), sub: str(pr.sub || cat.sub),
                 categoria: str(pr.categoria || cat.categoria).toUpperCase().replace(/\s+/g, ''),

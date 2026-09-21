@@ -241,6 +241,7 @@ ok('un 500 del fornitore → torna in coda con attempts=1, nessuna card ancora',
 r = await call(worker, { method: 'GET', headers: { authorization: 'Bearer cron-secret' } });
 q = DB.get(core.QUEUE + '/d3');
 ok('al secondo fallimento si chiude (MAX_ATTEMPTS) e lo si dice', r.body?.failed === 'd3' && q?.status === 'failed' && q?.attempts === 2 && /Lettura non riuscita/.test(lastSend()?.body?.text || ''), q);
+ok('un 400 del modello che non è «troppo materiale» (ai_bad_request, ai_bad_document) è deterministico: il worker non lo riprova', core.DETERMINISTIC.has('ai_bad_request') && core.DETERMINISTIC.has('ai_bad_document'));
 AI = { status: 200, text: '' };
 ok('pickNext: una lettura «reading» col lease scaduto torna eleggibile, una fresca no',
   core.pickNext([{ docId: 'x', status: 'reading', leaseAt: new Date(Date.now() - 10 * 60e3).toISOString(), queuedAt: '2026-09-14T10:00:00Z' }])?.docId === 'x'
