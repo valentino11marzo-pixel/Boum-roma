@@ -350,6 +350,9 @@ console.log('\n── La proposta ampia: solo le sezioni che il materiale porta 
   eq('il catasto annidato del modello diventa piatto', [n.property.foglio, n.property.particella, n.property.sub, n.property.categoria, n.property.renditaCatastale], ['12', '345', '6', 'A/2', 812.5]);
   eq('le tabelle millesimali', n.property.tabelleMillesimali.proprieta, 45.5);
   eq('ammobiliato true → yes', n.property.furnished, 'yes');
+  eq('ammobiliato "si" (la forma del nuovo schema, senza null) → yes; "" → vuoto', [E.normalizeProposal({ property: { address: 'x', furnished: 'si' } }).property.furnished, E.normalizeProposal({ property: { address: 'x', furnished: '' } }).property.furnished], ['yes', '']);
+  eq('i numeri come stringhe di cifre: sqm "65" → 65, "" → null', [E.normalizeProposal({ property: { address: 'x', sqm: '65' } }).property.sqm, E.normalizeProposal({ property: { address: 'x', sqm: '' } }).property.sqm], [65, null]);
+  eq('propertyType senza maiuscole garantite dall\'API: «Apartment» → apartment', E.normalizeProposal({ property: { address: 'x', propertyType: 'Apartment' } }).property.propertyType, 'apartment');
   eq('il documento in italiano diventa il codice', n.tenant.docType, 'id');
   eq('numero documento maiuscolo', n.tenant.docNum, 'CA123');
   eq('data aaaa/mm/gg letta', n.tenant.permessoScadenza, '2027-03-01');

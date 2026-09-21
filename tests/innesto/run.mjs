@@ -51,17 +51,17 @@ const json = (o, status = 200) =>
 // normalizzazione e la whitelist delle citazioni devono fermarli.
 const person = (o) => Object.assign({ name: null, email: null, phone: null, codiceFiscale: null, address: null, birthDate: null, birthPlace: null, nationality: null, docType: null, docNum: null, docIssuer: null, docIssueDate: null }, o);
 const AI_FULL = () => ({
-  files: [{ index: 1, kind: 'contratto', title: 'Contratto transitorio Via Simeto 12', pages: 3, legible: true, summary: 'contratto firmato', party: null }],
+  files: [{ index: 1, kind: 'Contratto', title: 'Contratto transitorio Via Simeto 12', pages: '3', legible: true, summary: 'contratto firmato', party: '' }],
   landlord: person({ name: 'Anna Testa', email: 'anna@example.com', codiceFiscale: 'TSTNNA70A41H501J', segreto: 'mai', kind: 'fisica', businessName: null, partitaIva: null, iban: null }),
   tenant: person({ name: 'Oyku Testa', email: 'oyku@example.com', codiceFiscale: 'TSTOYK95A41H501P', birthDate: '1995-01-01', birthPlace: 'Istanbul', docType: 'passport', docNum: 'U12345678', permessoNumero: null, permessoScadenza: null }),
   coTenants: [],
-  property: { name: null, address: 'Via Simeto 12', city: null, floor: '2', scala: null, interno: '7', sqm: 65, rooms: 2, bathrooms: 1, accessories: null, furnished: true, energyClass: 'F', propertyType: 'apartment',
-    cadastral: { sezione: null, foglio: '12', particella: '345', sub: '6', categoria: 'A/2', rendita: 512.3 }, tabelle: { proprieta: null, riscaldamento: null, acqua: null, altre: null } },
-  contract: { type: 'transitorio', startDate: '2026-09-01', endDate: '2027-08-31', durationMonths: 12, rent: 1100, deposit: null, depositMonths: 2, paymentDay: 5, installmentMonths: '1', accessoryCharges: null, condoMode: null, cedolareSecca: true,
+  property: { name: '', address: 'Via Simeto 12', city: '', floor: '2', scala: '', interno: '7', sqm: '65', rooms: '2', bathrooms: 1, accessories: '', furnished: 'si', energyClass: 'F', propertyType: 'Apartment',
+    cadastral: { sezione: '', foglio: '12', particella: '345', sub: '6', categoria: 'A/2', rendita: '512.3' }, tabelle: { proprieta: '', riscaldamento: null, acqua: null, altre: '' } },
+  contract: { type: 'transitorio', startDate: '2026-09-01', endDate: '2027-08-31', durationMonths: '12', rent: '1100', deposit: '', depositMonths: '2', paymentDay: '5', installmentMonths: '1', accessoryCharges: '', condoMode: '', cedolareSecca: 'si',
     transitionalReason: 'motivi di lavoro', transitionalDocs: null, esigenzaDi: 'conduttore', studenti: { corsoStudi: null, universita: null, universitaIndirizzo: null, tipoIscrizione: null, annoAccademico: null },
     cohabitants: null, otherClauses: null, signaturePlace: 'Roma', signatureDate: null, paymentMethod: null, istatPct: null, notes: null, hacker: 'x' },
   evidence: [
-    { path: 'contract.rent', quote: 'euro millecento/00 (€ 1.100,00) mensili', file: 1, page: 1 },
+    { path: 'contract.rent', quote: 'euro millecento/00 (€ 1.100,00) mensili', file: '1', page: '1' },
     { path: 'property.cadastral.foglio', quote: 'foglio 12 particella 345 sub 6', file: 1, page: 1 },
     { path: 'hacker.x', quote: 'no', file: 1, page: 1 },
     { path: 'tenant.codiceFiscale', quote: 'C.F. TSTOYK95A41H501P', file: 9, page: 2 },
@@ -114,7 +114,24 @@ globalThis.fetch = async (url, opts = {}) => {
   return new Response('nope', { status: 200, headers: { 'Content-Type': 'application/pdf' } });
 };
 
-const { default: handler, INGEST_SCHEMA, MODEL, MAX_PAGES, MAX_TOTAL_PAGES } = await import('../../api/portal/ingest.js');
+const { default: handler, INGEST_SCHEMA, SCHEMA_LIMITS, MODEL, MAX_PAGES, MAX_TOTAL_PAGES } = await import('../../api/portal/ingest.js');
+
+// Conta ciò che l'API conta quando compila lo schema in grammatica: i
+// parametri con UNIONE (anyOf / oneOf / type array) e quelli FUORI da
+// required. I limiti documentati sono 16 e 24 per richiesta; il 21/09/2026
+// lo schema ne aveva 99 con unione e ogni lettura moriva con 400.
+function schemaComplexity(schema) {
+  let params = 0, unions = 0, optional = 0;
+  (function walk(x) {
+    if (!x || typeof x !== 'object') return;
+    if (x.type === 'object' && x.properties) {
+      const req = new Set(x.required || []);
+      Object.entries(x.properties).forEach(([k, v]) => { params++; if (!req.has(k)) optional++; if (v.anyOf || v.oneOf || Array.isArray(v.type)) unions++; });
+    }
+    Object.values(x).forEach(walk);
+  })(schema);
+  return { params, unions, optional };
+}
 
 function mkRes() {
   const r = { code: 0, body: null, headers: {} };
@@ -169,6 +186,18 @@ check('…ogni oggetto dello schema: additionalProperties false e required COMPL
   return n >= 10 && bad === 0;
 })());
 check('…nessun vincolo che la piattaforma non supporta (minimum/maxLength/pattern)', !/"(minimum|maximum|minLength|maxLength|pattern)"/.test(JSON.stringify(INGEST_SCHEMA)));
+check('…ZERO unioni e ZERO facoltativi su >100 parametri: i limiti DOCUMENTATI sono 16 unioni e 24 facoltativi PER RICHIESTA (il 21/09/2026 erano 99 unioni → 400 su OGNI lettura)', (() => {
+  const c = schemaComplexity(INGEST_SCHEMA);
+  return c.params > 100 && c.unions === 0 && c.optional === 0 && SCHEMA_LIMITS.unionParams === 16 && SCHEMA_LIMITS.optionalParams === 24 && c.unions <= SCHEMA_LIMITS.unionParams && c.optional <= SCHEMA_LIMITS.optionalParams;
+})(), JSON.stringify(schemaComplexity(INGEST_SCHEMA)));
+check('…il contatore morde (mutazione: un anyOf e un campo fuori da required vengono contati)', (() => {
+  const c = schemaComplexity({ type: 'object', properties: { a: { anyOf: [{ type: 'string' }, { type: 'null' }] }, b: { type: ['string', 'null'] }, c: { type: 'string' } }, required: ['a', 'b'], additionalProperties: false });
+  return c.params === 3 && c.unions === 2 && c.optional === 1;
+})());
+check('…«manca» è "" e MAI null: nessun tipo null nello schema, e ogni enum facoltativo ammette ""', !/"null"/.test(JSON.stringify(INGEST_SCHEMA)) && (() => {
+  let withEmpty = 0; (function walk(x) { if (!x || typeof x !== 'object') return; if (Array.isArray(x.enum) && x.enum.indexOf('') >= 0) withEmpty++; Object.values(x).forEach(walk); })(INGEST_SCHEMA); return withEmpty >= 12;
+})());
+check('…e il prompt di sistema dice «stringa vuota», non «null»', /lascia la stringa vuota ""/.test(body.system?.[0]?.text || '') && !/lascia null/.test(body.system?.[0]?.text || ''));
 check('thinking adattivo, MAI budget_tokens (400 su Opus 5)', body.thinking?.type === 'adaptive' && !('budget_tokens' in (body.thinking || {})));
 check('max_tokens generoso (un taglio a 2000 era un «troncato» garantito su 120 campi)', body.max_tokens >= 8000, String(body.max_tokens));
 check('il prompt di sistema è in cache (prefisso stabile, cache_control)', Array.isArray(body.system) && body.system[0]?.cache_control?.type === 'ephemeral');
@@ -192,6 +221,10 @@ const EV = r.res.body?.evidence || [];
 check('le citazioni arrivano (canone, foglio)', EV.some((e) => e.path === 'contract.rent' && /millecento/.test(e.quote)) && EV.some((e) => e.path === 'property.cadastral.foglio'));
 check('…un percorso fuori schema viene scartato', !EV.some((e) => e.path === 'hacker.x'));
 check('…un indice di documento inesistente diventa null, non un riferimento falso', EV.find((e) => e.path === 'tenant.codiceFiscale')?.file === null);
+check('i numeri del modello sono stringhe di cifre e tornano numeri (sqm "65" → 65, rendita "512.3", canone "1100", giorno "5")', P.property?.sqm === 65 && P.property?.renditaCatastale === 512.3 && P.contract?.rent === 1100 && P.contract?.paymentDay === 5 && P.contract?.durationMonths === 12, JSON.stringify([P.property?.sqm, P.property?.renditaCatastale, P.contract?.rent, P.contract?.paymentDay]));
+check('"si" / "no" / "" per i booleani: ammobiliato "si" → yes, cedolare "si" → si; "" resta vuoto (oneri, condominio) e il deposito "" viene DERIVATO da mensilità × canone (2 × 1100)', P.property?.furnished === 'yes' && P.contract?.cedolareSecca === 'si' && P.contract?.accessoryCharges == null && P.contract?.condoMode === '' && P.contract?.deposit === 2200, JSON.stringify([P.property?.furnished, P.contract?.cedolareSecca, P.contract?.accessoryCharges, P.contract?.deposit]));
+check('citazioni con indice come stringa: file "1" pagina "1" → 1 e 1', EV.find((e) => e.path === 'contract.rent')?.file === 1 && EV.find((e) => e.path === 'contract.rent')?.page === 1, JSON.stringify(EV.find((e) => e.path === 'contract.rent')));
+check('gli enum senza maiuscole garantite: «Contratto» → contratto, «Apartment» → apartment', (r.res.body?.files?.[0]?.kind === 'contratto' || r.res.body?.files?.length === 0) && P.property?.propertyType === 'apartment', JSON.stringify([r.res.body?.files?.[0]?.kind, P.property?.propertyType]));
 check('il verdetto per file: cosa è, quante pagine, leggibile', r.res.body?.files?.[0]?.kind === 'contratto' && r.res.body.files[0].label === 'Contratto di locazione' && r.res.body.files[0].legible === true || r.res.body?.files?.length === 0);
 check('l\'uso: modello, token, tempo (per dire all\'operatore quanto è costata)', r.res.body?.usage?.model === 'claude-opus-5' && r.res.body.usage.inputTokens === 12000 && r.res.body.usage.cacheReadTokens === 3000);
 check('summary e confidence', /Via Simeto/.test(r.res.body?.summary || '') && r.res.body?.confidence === 88);
@@ -284,7 +317,15 @@ r = await call('admin_1', { text: 'x' }, { failFirstWith: 'unknown beta: server-
 check('un 400 sul beta del ripiego → si riprova UNA volta senza, e la lettura passa', r.res.code === 200 && r.anth.length === 2
   && r.anth[0].headers['anthropic-beta'] && !r.anth[1].headers['anthropic-beta'] && !('fallbacks' in r.anth[1].body), `${r.res.code} calls=${r.anth.length}`);
 r = await call('admin_1', { text: 'x' }, { failFirstWith: 'invalid_request_error: messages' });
-check('un 400 di altra natura NON si riprova (niente doppia spesa)', r.res.code === 502 && r.anth.length === 1);
+check('un 400 di altra natura NON si riprova (niente doppia spesa) ed è DETERMINISTICO: 500 ai_bad_request, mai un «riprova»', r.res.code === 500 && r.res.body?.error === 'ai_bad_request' && r.anth.length === 1 && !/[Rr]iprova/.test(r.res.body?.detail || ''), `${r.res.code} ${r.res.body?.error} calls=${r.anth.length}`);
+
+console.log('\n\x1b[1mIl 400 che era MIO (la lezione del 21/09/2026)\x1b[0m');
+r = await call('admin_1', { text: 'x' }, { status: 400, text: '{"type":"error","error":{"type":"invalid_request_error","message":"Schemas contains too many parameters with union types (99 parameters with type arrays or anyOf). This causes exponential compilation time."}}' });
+check('lo schema rifiutato dall\'API → 500 ai_bad_request che nomina la RICHIESTA del server, non il documento, col messaggio dell\'API dentro', r.res.code === 500 && r.res.body?.error === 'ai_bad_request' && /RICHIESTA del server/.test(r.res.body?.detail || '') && /union types/.test(r.res.body?.detail || '') && !/[Rr]iprova|incolla/.test(r.res.body?.detail || '') && r.anth.length === 1, `${r.res.code} ${r.res.body?.error} ${r.res.body?.detail}`);
+r = await call('admin_1', { text: 'x' }, { status: 400, text: '{"type":"error","error":{"type":"invalid_request_error","message":"messages.0.content.1.document.source.data: Could not process PDF: file is encrypted"}}' });
+check('un PDF che l\'API non apre → 422 ai_bad_document col rimedio (senza password / fotografa), non «riprova»', r.res.code === 422 && r.res.body?.error === 'ai_bad_document' && /password|fotografa/.test(r.res.body?.detail || '') && !/[Rr]iprova/.test(r.res.body?.detail || ''), `${r.res.code} ${r.res.body?.error}`);
+r = await call('admin_1', { text: 'x' }, { status: 500, text: 'overloaded' });
+check('un 500 del servizio resta un guasto momentaneo: 502 ai_provider_error con «riprova»', r.res.code === 502 && r.res.body?.error === 'ai_provider_error' && /[Rr]iprova/.test(r.res.body?.detail || ''), `${r.res.code} ${r.res.body?.error}`);
 
 console.log('\n\x1b[1mIl vuoto detto per quello che è\x1b[0m');
 r = await call('admin_1', { files: [{ base64: b64(JPG_BYTES), mediaType: 'image/jpeg', name: 'mossa.jpg' }] }, { reply: AI_EMPTY() });

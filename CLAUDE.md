@@ -2831,7 +2831,7 @@ deposito»; (3) la funzione NON era in `vercel.json`, quindi girava col
 maxDuration di default della piattaforma. Ora:
 - **Output strutturato** (`output_config.format` json_schema, `INGEST_SCHEMA`
   esportato: ogni oggetto `additionalProperties:false` e `required` completo,
-  «manca» = null): il JSON è valido PER COSTRUZIONE. `parseModelJson` resta
+  «manca» = "" — vedi la lezione del 21/09 qui sotto): il JSON è valido PER COSTRUZIONE. `parseModelJson` resta
   come rete; `stop_reason` è letto e detto — `refusal` → `ai_refused`,
   `max_tokens` → `ai_truncated` (solo lì si parla di taglio), 429 →
   `ai_rate_limited`, abort → 504 `ai_timeout`, ognuno con il rimedio in
@@ -2877,7 +2877,40 @@ maxDuration di default della piattaforma. Ora:
   ogni file, e la via d'uscita: la seconda lettura integra la prima). Il 400
   «prompt is too long» del modello (finestra di contesto, che non si può
   contare in locale) diventa `ai_too_long` col rimedio — meno pagine, due giri
-  — mai un «riprova». Test: `node tests/innesto/run.mjs` (120 check).
+  — mai un «riprova». Test: `node tests/innesto/run.mjs` (131 check).
+
+**LA LEZIONE DEL 21 SETTEMBRE 2026 — lo schema con 99 unioni** («ho provato a
+caricare un pre-agreement, mi dà errore 400… non penso sia così pesante»). Non
+era il file: era la RICHIESTA. La prima versione dell'Innesto 3.0 scriveva ogni
+campo facoltativo come `anyOf [tipo, null]`, 99 volte, e l'API compila lo
+schema in una grammatica con limiti DOCUMENTATI per richiesta (structured
+outputs → *Schema complexity limits*): **16 parametri con unione** (anyOf o
+type array) e **24 parametri fuori da `required`**. Quindi OGNI lettura, con
+qualunque documento, moriva con 400 «Schemas contains too many parameters with
+union types» — dal deploy dell'Innesto 3.0 in poi — e il ramo lo vestiva da
+guasto momentaneo («errore (400). Riprova; se ricapita, incolla il testo»), così
+l'operatore incolpava il PDF. Era esattamente il punto «non verificato» della
+PR: nessuna lettura vera contro l'API dal sandbox, e il finto Anthropic dei
+test accetta qualunque schema. Tre correzioni:
+- **«Manca» è `""`, mai `null`**: tutte le chiavi restano in `required`,
+  zero unioni, zero facoltativi (su 120 campi né «nullable» né «facoltativo»
+  stanno nei limiti). Il motore (`num/str/date/yesno`) trattava già `""`
+  come null. Anche i numeri viaggiano come **stringhe di cifre** ("1100",
+  "65.5"): `0` non può fare da sentinella (`filled(0)` è vero: «0 mq»
+  sarebbe un dato) e un number nullable sarebbe un'unione. Booleani =
+  `"si"/"no"/""`, enum con `""` in coda. Il test conta unioni e
+  facoltativi con lo stesso criterio dell'API e pretende ZERO
+  (`SCHEMA_LIMITS` pinnato a 16/24, contatore verificato per mutazione).
+- **Gli enum non hanno maiuscole garantite** (dichiarato nei docs): si
+  confrontano in minuscolo anche server-side (`kind`, `party`,
+  `propertyType`).
+- **Un 400 che non è «troppo materiale» è DETERMINISTICO**: riprovare non
+  cambia nulla. Se il messaggio parla del documento (PDF cifrato/rotto) →
+  422 `ai_bad_document` col rimedio all'operatore; altrimenti → 500
+  `ai_bad_request` che dice «rifiutata la RICHIESTA del server, non il
+  documento» col messaggio dell'API dentro. Entrambi in `DETERMINISTIC`
+  dello Scrivano (il worker non li riprova). Nei log il messaggio d'errore
+  dell'API a 600 caratteri: era clippato a 200, e la causa vera stava dopo.
 
 ### LO SCRIVANO — la porta dal telefono (`api/scrivano/*` + `sc:` su Telegram, 14/09/2026)
 STUDIO_SCRIVANO §4, **passo 4**: i passi 1–3 (il documento resta, la classe
