@@ -4547,6 +4547,9 @@ La modifica delle attività preserva lo stato remoto (anche una chiusura concorr
 Nessuna lettura massiva aggiuntiva, invio, incasso o chiamata AI all’apertura. Le azioni riusano le autorizzazioni/conferme esistenti. Boot, precedenza Innesto e router hash generale restano invariati.
 Da Oggi, «Apri immobile» usa solo un riferimento `properties/<id>` confermato, presente e coerente con la pratica; ricontrolla ruolo e ID al click. Il ritorno attende la lettura dei seguiti e ripristina dettagli, posizione e focus del caso ancora presente, senza ripristinare casi chiusi. Il contesto di navigazione vive solo in memoria.
 Prove: `propertymodel` (mutazioni), `propertyload`, `propertyrender`, `propertyui`, `propertyoggitarget` e `propertyoggiui` (1440/390/320px, navigazione e dettagli reali, soli dati sintetici). `sw.js` v25 invalida gli asset precedenti.
+La conferma di eliminazione protegge anche l’ultimo passaggio: nome reso come testo, tipo e ID passati con `jsq` al comando finale, compresi apici e caratteri speciali.
+`escape` mantiene il minimo di 13 siti: compila tutti gli inline attuali e conta la delega immobile solo dopo aver eseguito il percorso completo fino alla conferma; mutazioni coprono dati HTML e comando finale.
+`mandato` verifica Valutazione nel browser dal fascicolo al modulo reale e all’API con Firestore/Storage simulati: immobile esatto senza contratto, annullamento senza generazione e mutazioni di destinazione/handler.
 
 ## Portals (logged-in surfaces)
 

@@ -16240,7 +16240,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
     }
 
-    function confirmDelete(type, id, name) { openModal('confirm', { icon: '🗑', title: 'Eliminare?', text: `Sei sicuro di voler eliminare "${name}"? Questa azione non può essere annullata.`, action: `deleteRecord('${type}','${id}')`, btnText: 'Elimina', danger: true }); }
+    function confirmDelete(type, id, name) { openModal('confirm', { icon: '🗑', title: 'Eliminare?', text: `Sei sicuro di voler eliminare "${esc(name)}"? Questa azione non può essere annullata.`, action: `deleteRecord('${jsq(type)}','${jsq(id)}')`, btnText: 'Elimina', danger: true }); }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // CRUD OPERATIONS
