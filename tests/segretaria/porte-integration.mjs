@@ -40,7 +40,7 @@ const DB = new Map(), versions = new Map(), writes = [], allWrites = [], network
 const aiRequests = [], downloads = [], telegram = [];
 let storageHits = 0, mediaFails = false;
 globalThis.__mails = [];
-let sequence = 0, failingCollection = '', beforePatch = null, failCommit = false;
+let sequence = 0, failingCollection = '', beforePatch = null, failFollowUpCommit = false;
 const enc = v => v == null ? { nullValue: null }
   : v instanceof Date ? { timestampValue: v.toISOString() }
   : typeof v === 'boolean' ? { booleanValue: v }
@@ -99,8 +99,11 @@ globalThis.fetch = async (rawURL, opts = {}) => {
     throw new Error('forbidden_external_effect');
   }
   if (url.pathname.endsWith(':commit')) {
-    if (failCommit) return json({ error: { status: 'UNAVAILABLE' } }, 503);
     const operations = body.writes || [];
+    // Fail the secondary case commit: the primary message/header must remain
+    // durable, as they did before their writes were made atomic.
+    if (failFollowUpCommit && operations.some(w => w.update?.name.includes('/operatorTasks/')))
+      return json({ error: { status: 'UNAVAILABLE' } }, 503);
     const taskWrite = operations.find(w => w.update?.name.includes('/operatorTasks/'));
     if (beforePatch && taskWrite) {
       const hook = beforePatch; beforePatch = null;
@@ -182,7 +185,7 @@ const conv = { contactType: 'tenant', contactId: 'tenantA', contactName: 'Tenant
 function reset() {
   DB.clear(); versions.clear(); writes.length = 0;
   aiRequests.length = downloads.length = telegram.length = 0; storageHits = 0; mediaFails = false;
-  sequence = 0; failingCollection = ''; beforePatch = null; failCommit = false;
+  sequence = 0; failingCollection = ''; beforePatch = null; failFollowUpCommit = false;
   globalThis.__imap = { connections: 0, searches: [], messages: [] };
   save('conversations/' + CID, { ...conv });
   save('users/tenantA', { role: 'tenant', phone: conv.contactPhone, email: conv.contactEmail });
@@ -211,14 +214,14 @@ try {
   const f = DB.get(taskPath).followUp;
   save(taskPath, { ...DB.get(taskPath), followUp: { ...f, practiceRef: 'contracts/cA', propertyRef: 'properties/pA',
     nextAction: 'Verificare APE', waitingOn: 'client', waitingLabel: 'Tenant fixture', checkAt: '2026-09-16T10:00:00.000Z' } });
-  failCommit = true; mediaFails = true;
+  failFollowUpCommit = true; mediaFails = true;
   let result = await call(messageHandler, payload);
   const persistedMessage = result.messageId;
   ok('primo tentativo salva messaggio/allegato, ma lascia tracking e download ritentabili', result.code === 200
     && !!result.followUp?.error && messages().length === 1 && messages()[0][1].attachments[0] === FILE
     && tasks().length === 1 && docs().length === 0 && downloads.length === 1 && aiRequests.length === 0, result);
 
-  failCommit = false; mediaFails = false;
+  failFollowUpCommit = false; mediaFails = false;
   result = await call(messageHandler, { ...payload, direction: 'out', contactId: 'forged-contact',
     body: 'TAMPERED BODY', timestamp: '2030-01-01T00:00:00Z', mediaUrls: ['https://invalid.example.test/tampered.pdf'] });
   ok('stesso retry recupera INSIEME seguito e documento da fonti salvate', result.code === 200 && result.dedupHit === true
