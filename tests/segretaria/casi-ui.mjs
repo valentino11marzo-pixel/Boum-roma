@@ -206,12 +206,21 @@ const start = portal.indexOf('    // ═══ SEGRETERIA · SEGUITI IN OGGI');
 const end = portal.indexOf('    // ═══ FINE SEGRETERIA · SEGUITI IN OGGI');
 assert.ok(start > 0 && end > start);
 const ui = portal.slice(start, end);
+const listener = name => {
+  const begin = portal.indexOf('    function ' + name + '(');
+  assert(begin >= 0, 'Listener reale presente: ' + name);
+  const next = portal.slice(begin + 5).search(/\n    (?:async )?function /);
+  assert(next >= 0, 'Fine listener reale: ' + name);
+  return portal.slice(begin, begin + 5 + next);
+};
+const listeners = ['startInboxListener', 'stopInboxListener', 'stopOpenConvListener'].map(listener).join('\n');
 const browser = await chromium.launch(launchOptions());
 try {
   const context = await browser.newContext({ viewport: { width: 390, height: 844 }, timezoneId: 'Europe/Rome' });
   const page = await context.newPage();
   const errors = [], requests = [], posts = [];
   page.on('pageerror', error => errors.push(error.message));
+  let listReads = 0;
   let items = JSON.parse(JSON.stringify([A, B, C, A]));
   let listFailure = false, incomplete = true, nextPost = '', detailIncomplete = false, detailHistory = false;
   await page.route('**/*', async route => {
@@ -222,6 +231,7 @@ try {
     assert.equal(req.headers().authorization, 'Bearer fixture-admin');
     const respond = (data, status = 200) => route.fulfill({ status, contentType: 'application/json', body: JSON.stringify(data) });
     if (req.method() === 'GET' && !url.searchParams.get('id')) {
+      listReads++;
       if (listFailure) return respond({ ok: false, error: 'follow_up_unavailable' }, 503);
       return respond({ ok: true, rows: items, incomplete });
     }
@@ -255,12 +265,19 @@ try {
   await page.goto('https://fixture.invalid/fixture');
   await page.addStyleTag({ content: read('css/portal.css') + '\n' + read('css/portal-finish.css') + '\n' + read('css/segretaria.css') + '\n#main{padding:12px} body{display:block}' });
   await page.addScriptTag({ content: `
-    const S={page:'oggi',conversations:[], properties:[{id:'p1',name:'Casa Fiore'},{id:'p2',name:'Casa Luna'}]};
+    const S={page:'oggi',profile:{id:'admin',role:'admin'},conversations:[], properties:[{id:'p1',name:'Casa Fiore'},{id:'p2',name:'Casa Luna'}]};
     const auth={currentUser:{uid:'admin',getIdToken:async()=> 'fixture-admin'}};
     const db={
       collection(name){
-        if(name!=='conversations')throw Error('unexpected collection');
+        if(!['conversations','operatorTasks'].includes(name))throw Error('unexpected collection');
         return {
+          where(){return this},orderBy(){return this},limit(){return this},
+          onSnapshot(...args){
+            const next=args.find(arg=>typeof arg==='function');
+            let stopped=false;
+            queueMicrotask(()=>{if(!stopped)next({docs:[],metadata:{fromCache:false}})});
+            return()=>{stopped=true};
+          },
           doc(id){
             return {
               async get(){
@@ -274,14 +291,16 @@ try {
       }
     };
     function isAdmin(){return true}
+    function buildNav(){}
+    function sendBrowserNotification(){}
     function esc(str){return String(str||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
     function toast(type,message){window.__lastToast={type,message}}
     function goTo(page){S.page=page;document.getElementById('main').innerHTML=page==='oggi'?oggiSegretariaPanel():'<div>Inbox</div>'}
     function inboxSelect(id){const c=S.conversations.find(c=>c.id===id);if(!c)throw Error('empty Inbox: conversation absent');c.unread=0;window.__selectedConversation=id;window.__read=true}
   ` });
   await page.addScriptTag({ content: read('js/segretaria-casi-engine.js') });
-  await page.addScriptTag({ content: ui });
-  await page.evaluate(() => goTo('oggi'));
+  await page.addScriptTag({ content: ui + '\n' + listeners });
+  await page.evaluate(() => { startInboxListener(); goTo('oggi'); });
   await page.waitForSelector('[data-sg-id]');
   assert.equal(await page.locator('article[data-sg-id]').count(), 3);
   assert.equal(await page.locator('[data-sg-group="decisions"] .sg-count').innerText(), '1');
@@ -366,15 +385,34 @@ try {
   assert.match(await page.locator(`article[data-sg-id="${ID}"]`).innerText(), /Tecnico confermato/);
   console.log('PASS browser: 409 ricarica, non reinvia; seconda conferma usa il nuovo messaggio e la pratica scelta'); checks++;
 
+  // Finish the post-save read first: only this click may produce the 503.
+  await page.waitForFunction(() => !oggiSegretaria.loading && !oggiSegretaria.updateTimer && !oggiSegretaria.refreshPending);
+  assert.deepEqual(errors, []);
   listFailure = true;
+  const beforeFailedRefresh = listReads;
+  const waitForListResponse = () => page.waitForResponse(response => {
+    const url = new URL(response.url());
+    return response.request().method() === 'GET' && url.pathname === '/api/segretaria/follow-up' && !url.searchParams.has('id');
+  }, { timeout: 5000 }); // The 30-second polling fallback must not satisfy this click.
+  const failedResponse = waitForListResponse();
   await page.locator('[data-sg-action="refresh"]').click();
+  assert.equal((await failedResponse).status(), 503);
+  await page.waitForFunction(() => !oggiSegretaria.loading && !!oggiSegretaria.error);
+  assert(listReads > beforeFailedRefresh, 'Il click di refresh deve leggere davvero la lista, anche quando fallisce');
+  assert.deepEqual(errors, []);
   await page.waitForFunction(() => document.getElementById('sgFollowPanel')?.textContent.includes('potrebbero non essere aggiornati'));
   assert.equal(await page.locator('article[data-sg-id]').count(), 3);
   assert.equal(await page.locator(`article[data-sg-id="${ID}"] details`).evaluate(el => el.open), true);
   console.log('PASS browser: rete in errore conserva i seguiti e segnala dati non aggiornati'); checks++;
   listFailure = false; incomplete = false;
+  const beforeRecoveredRefresh = listReads;
+  const recoveredResponse = waitForListResponse();
   await page.locator('[data-sg-action="refresh"]').click();
+  assert.equal((await recoveredResponse).status(), 200);
   await page.waitForFunction(() => !document.getElementById('sgFollowPanel')?.textContent.includes('potrebbero non essere aggiornati'));
+  assert(listReads > beforeRecoveredRefresh, 'Il secondo click deve leggere una nuova lista riuscita');
+  assert.deepEqual(errors, []);
+  console.log('PASS browser: il retry manuale rilegge la lista e rimuove l’avviso dopo il recupero'); checks++;
 
   detailIncomplete = true;
   await clickCase(IDC, 'edit');

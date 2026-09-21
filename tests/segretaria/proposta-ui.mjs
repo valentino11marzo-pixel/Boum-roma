@@ -14,6 +14,14 @@ const begin = portal.indexOf('    // ═══ SEGRETERIA · SEGUITI IN OGGI');
 const end = portal.indexOf('    // ═══ FINE SEGRETERIA · SEGUITI IN OGGI');
 assert.ok(begin > 0 && end > begin);
 const ui = portal.slice(begin, end);
+const listener = name => {
+  const start = portal.indexOf('    function ' + name + '(');
+  assert(start >= 0, 'Listener reale presente: ' + name);
+  const next = portal.slice(start + 5).search(/\n    (?:async )?function /);
+  assert(next >= 0, 'Fine listener reale: ' + name);
+  return portal.slice(start, start + 5 + next);
+};
+const listeners = ['startInboxListener', 'stopInboxListener', 'stopOpenConvListener'].map(listener).join('\n');
 assert.ok(read('portal.html').indexOf('<script src="/js/segretaria-proposta-engine.js"') < read('portal.html').indexOf('<script src="/js/portal-app.js"'));
 assert.ok(read('sw.js').includes("url.pathname === '/js/segretaria-proposta-engine.js'"));
 assert.ok(read('portal.html').indexOf('<script src="/js/segretaria-esecuzione-engine.js"') < read('portal.html').indexOf('<script src="/js/portal-app.js"'));
@@ -22,12 +30,24 @@ assert.ok(read('sw.js').includes("url.pathname === '/js/segretaria-esecuzione-en
 const artifactDir = mkdtempSync(join(tmpdir(), 'boom-proposta-ui-'));
 const previewPath = process.env.BOOM_SEGRETARIA_PREVIEW || join(artifactDir, 'preview.html');
 const fixture = `
-const S={page:'oggi',conversations:[],properties:[{id:'p1',name:'Casa Fiore · esempio'},{id:'p2',name:'Casa Luna · esempio'}]};
+const S={page:'oggi',profile:{id:'fixture-admin',role:'admin'},conversations:[],properties:[{id:'p1',name:'Casa Fiore · esempio'},{id:'p2',name:'Casa Luna · esempio'}]};
 const auth={currentUser:{uid:'fixture-admin',getIdToken:async()=> 'fixture-token'}};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const isAdmin=()=>!!auth.currentUser;
 const toast=(type,text)=>{window.__toast={type,text}};
-const db={collection(name){if(name!=='conversations')throw Error('Unexpected collection');return{doc(id){return{async get(){window.__sourceReads.push(id);return{exists:true,data:()=>({contactName:'Fonte dimostrativa',unread:0})}}}}}}};
+const buildNav=()=>{},sendBrowserNotification=()=>{};
+const db={collection(name){
+ if(!['conversations','operatorTasks'].includes(name))throw Error('Unexpected collection');
+ return{
+  where(){return this},orderBy(){return this},limit(){return this},
+  onSnapshot(...args){
+   const next=args.find(arg=>typeof arg==='function');let stopped=false;
+   queueMicrotask(()=>{if(!stopped)next({docs:[],metadata:{fromCache:false}})});
+   return()=>{stopped=true};
+  },
+  doc(id){return{async get(){window.__sourceReads.push(id);return{exists:true,data:()=>({contactName:'Fonte dimostrativa',unread:0})}}}}
+ };
+}};
 function goTo(page){S.page=page;if(page==='oggi'){document.getElementById('main').innerHTML=oggiSegretariaPanel()}else{document.getElementById('main').innerHTML='<section class="card"><div class="card-body"><h2>Conversazione simulata</h2><p>Nessun dato reale e nessun invio.</p><button id="demoBack" class="btn">Torna a Oggi</button></div></section>';document.getElementById('demoBack').onclick=()=>goTo('oggi')}}
 function inboxSelect(id){if(!S.conversations.some(c=>c.id===id))throw Error('Source not loaded');window.__selectedConversation=id}
 const demoFuture=()=>new Date(Date.now()+86400000).toISOString();
@@ -58,7 +78,7 @@ const actualTimeout=window.setTimeout;
 window.setTimeout=(fn,ms,...args)=>actualTimeout(fn,window.__fastTimeout&&ms===60000?10:ms,...args);
 window.fetch=async(url,options={})=>{
  const u=new URL(url,'https://demo.invalid'),body=options.body?JSON.parse(options.body):null;
- window.__requests.push({path:u.pathname,method:options.method||'GET',body,authorization:options.headers?.Authorization});
+ window.__requests.push({path:u.pathname,query:u.search,method:options.method||'GET',body,authorization:options.headers?.Authorization});
  if(options.headers?.Authorization!=='Bearer fixture-token')return reply({ok:false,error:'unauthorized'},401);
  if(u.pathname==='/api/segretaria/follow-up'){
   if(options.method==='GET'&&u.searchParams.has('id'))return reply({ok:true,task:window.__rows.find(t=>t.id===u.searchParams.get('id')),dossier:window.__dossier});
@@ -95,7 +115,7 @@ const html = '<!doctype html><html lang="it"><head><meta charset="utf-8"><meta n
   + '<title>BOOM · Segreteria operativa · Dati simulati</title><style>' + read('css/portal.css') + read('css/portal-finish.css') + read('css/segretaria.css')
   + 'body{display:block;background:#111314}#main{max-width:1180px;margin:auto;padding:24px}#demoHeader{padding:16px 24px;background:#191b1c;color:#ffd700;font:12px Helvetica Neue,Arial,sans-serif}#demoHeader p{margin-top:8px;color:#eee;line-height:1.5}</style></head><body>'
   + '<aside id="demoHeader"><strong>BOOM · Anteprima locale della Segreteria operativa</strong><p>Dati simulati. Puoi preparare, correggere e confermare: anche «Approva ed esegui» è una simulazione. Nessun messaggio parte, nessuna modifica a BOOM, rete bloccata. Ricarica per ripristinare gli esempi.</p></aside><main id="main"></main><div id="modals"></div>'
-  + script(fixture) + script(read('js/segretaria-casi-engine.js')) + script(read('js/segretaria-proposta-engine.js')) + script(read('js/segretaria-esecuzione-engine.js')) + script(ui) + script("goTo('oggi')") + '</body></html>';
+  + script(fixture) + script(read('js/segretaria-casi-engine.js')) + script(read('js/segretaria-proposta-engine.js')) + script(read('js/segretaria-esecuzione-engine.js')) + script(ui + '\n' + listeners) + script("startInboxListener();goTo('oggi')") + '</body></html>';
 writeFileSync(previewPath, html);
 console.log('Anteprima offline: ' + previewPath);
 const chromium = await loadChromium();
@@ -113,6 +133,15 @@ try {
   const button = (id, action) => page.locator(`article[data-sg-id="${id}"] [data-sg-action="${action}"]`);
   const open = async id => { await button(id, 'review').click(); await page.waitForSelector('#sgPreparationReview'); };
   const posts = () => page.evaluate(() => window.__requests.filter(r => r.path.endsWith('/prepare')));
+  const refresh = async () => {
+    await page.waitForFunction(() => !oggiSegretaria.loading && !oggiSegretaria.updateTimer && !oggiSegretaria.refreshPending, null, { timeout: 5000 });
+    assert.deepEqual(errors, []);
+    const before = await page.evaluate(() => window.__requests.filter(r => r.path.endsWith('/follow-up') && r.method === 'GET' && !r.query).length);
+    await page.locator('[data-sg-action="refresh"]').click();
+    assert.deepEqual(errors, []);
+    await page.waitForFunction(before => window.__requests.filter(r => r.path.endsWith('/follow-up') && r.method === 'GET' && !r.query).length > before, before, { timeout: 5000 });
+    assert.deepEqual(errors, []);
+  };
   await load();
   assert.equal(await page.locator('article[data-sg-id]').count(), 3);
   assert.match(await page.locator('#sgFollowPanel').innerText(), /Giulia chiede conferma della visita/);
@@ -170,7 +199,7 @@ try {
       task.deliveryResult={actionId:'fixture-action',delivery:state,code:state==='needs_review'?503:200,confirmed:true};
       oggiSegretaria.receipts={};
     }, delivery);
-    await page.locator('[data-sg-action="refresh"]').click();
+    await refresh();
     await page.waitForFunction(state => oggiSegretaria.rows[0]?.deliveryResult?.delivery === state, delivery);
     assert.match(await page.locator(`article[data-sg-id="${ids[0]}"]`).innerText(), expected);
     await open(ids[0]);
@@ -186,7 +215,7 @@ try {
     oggiSegretaria.receipts[task.id]={revision:task.preparation.revision,delivery:'queued'};
     task.deliveryResult={actionId:'fixture-action',delivery:'sent',code:200,confirmed:true};
   });
-  await page.locator('[data-sg-action="refresh"]').click();
+  await refresh();
   await page.waitForFunction(() => oggiSegretaria.rows[0]?.deliveryResult?.delivery === 'sent');
   assert.match(await page.locator(`article[data-sg-id="${ids[0]}"]`).innerText(), /Invio registrato/);
   assert.ok(!(await page.locator(`article[data-sg-id="${ids[0]}"]`).innerText()).includes('Messaggio in coda'));
@@ -199,7 +228,7 @@ try {
     task.preparation.approval={revision:task.preparation.revision,messageId:task.followUp.lastMessageId,actionId:'current-action'};
     task.deliveryResult={actionId:'older-action',delivery:'sent',confirmed:true};
   });
-  await page.locator('[data-sg-action="refresh"]').click();
+  await refresh();
   await page.waitForFunction(() => oggiSegretaria.rows[0]?.deliveryResult?.actionId === 'older-action');
   assert.doesNotMatch(await page.locator(`article[data-sg-id="${ids[0]}"]`).innerText(), /Invio registrato/);
   await open(ids[0]);
