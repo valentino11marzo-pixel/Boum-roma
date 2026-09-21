@@ -2291,6 +2291,13 @@ presente sul profilo usciva «MANCANTE».
   caratteri O 11 cifre: il locatore può essere una società), `isEU`.
   **`READS`** dichiara le letture coperte: il test anti-deriva le confronta
   in ENTRAMBE le direzioni con ciò che `contract-pdf.js` legge davvero.
+- **Date di calendario indipendenti dal fuso (21/09):** `rliFacts` convertiva
+  mezzanotte locale in ISO UTC, anticipando la scadenza in Italia di un giorno.
+  `fiscal-engine` mescolava inoltre anniversari e aggiunte locali con date UTC.
+  Ora il calcolo usa lo stesso calendario UTC della rappresentazione ISO;
+  in `fiscal-engine` anche Date/timestamp mantengono il giorno ISO UTC, senza reinterpretarlo in locale.
+  Termini, importi e formati restano invariati, nessun dato salvato è riscritto.
+  Test `fiscal`/`contratto`: UTC, Roma, Los Angeles, ora legale, bisestile e anno nuovo.
 - **Le tre letture unificate in `contract-pdf.js`** (letture, non testo
   d'articolo — i modelli CAF restano verbatim): `cedolareOn` (assente = sì,
   come C, `_finalize` e compliance-rules; il vecchio `=== true` non può
