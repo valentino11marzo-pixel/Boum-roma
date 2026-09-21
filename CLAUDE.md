@@ -2349,6 +2349,46 @@ verificato per diff). In `reference/` anche
 `contratto_tipo_32_Roma_2023.doc`, il contratto tipo 3+2 (art. 2 c. 3
 L.431/98) dell'accordo 27/07/2023.
 
+**La direzione mancante del verbatim (21/09/2026 — «il template universitario
+ogni tanto non viene rispettato»).** Il modello ricaricato dall'operatore è
+byte-identico a `reference/contratto_tipo_STUDENTI_Roma_2023.doc` (stesso
+MD5): il problema non era il modello, era ciò che il generatore aggiunge
+FUORI dal blocco `MODEL_C`. `tests/contractpdf/verbatim.mjs` leggeva le frasi
+dal SORGENTE e le cercava nel `.doc` — una direzione sola: non vedeva né una
+frase del modello che il PDF non stampa, né un testo scritto a mano che entra
+nell'articolo da una funzione di aiuto. Il confronto INVERSO (si impagina
+davvero con un jsPDF finto che registra `doc.text`, nove varianti, e ogni
+frase del `.doc` spezzata sugli slot deve uscire da almeno una — zero
+dipendenze, gira in CI) ha trovato tre scavalcamenti veri: la premessa
+**C) SICUREZZA IMPIANTI**, che senza dichiarazione del locatore stampava
+«impianti funzionanti e idonei all'uso convenuto» — frase inventata, e una
+dichiarazione positiva che nessuno ha verificato; il modello ha UNA frase
+(«non dispongono di certificazione a norma») e il 3+2 l'alternativa
+«dispongono/non dispongono»; la chiusa dell'**art. 5 Oneri** — fra i patti
+approvati ex 1341 — che da «versa una quota di € -- salvo conguaglio» era
+diventata «sono regolate a consuntivo secondo la Tabella…»; l'**art. 10
+Consegna** con la stessa frase due volte («di quanto segue: quanto risulta dal
+verbale di consegna sottoscritto… ovvero di quanto risulta dal verbale di
+consegna»). Più le rate («rate mensili eguali … entro il giorno 5» → «rate
+eguali anticipate … entro il 5 di ogni mese», la riga del modulo), le
+intestazioni «Articolo N (Titolo)» come sul modello, e **la durata con la
+data di fine inclusa**: `monthsBetween` (copie in contract-pdf.js e
+portal-app.js) contava 01/09→31/08 come «11 mesi e 30 giorni» — stampato in
+art. 1 di ogni contratto nato dal portal — e il wizard 🚀 scriveva
+`durata.text` come «2026-09-01 → 2027-08-31», tale e quale nel contratto.
+Ora `impiantiClauseConcordato`/`oneriClauseConcordato` stampano le frasi del
+modulo (varianti dichiarate: oneri compresi nel canone; «funzionanti»
+dichiarato dal locatore = frase del modello + la sua dichiarazione), il test
+copre le due direzioni per C, C senza cedolare e A, e ogni frase fissa delle
+funzioni di aiuto deve stare nel modello. **Lasciato all'operatore**: l'art. 3
+sotto i 12 mesi stampa «canone di locazione riferito all'intera durata»
+(variante dichiarata) dove il modulo dice «canone annuo» — è una scelta, non
+una svista, e va confermata con ASPI. **Non verificato**: l'Allegato B non ha
+un `.doc` in `reference/` — la sua premessa C) stampa ancora «funzionanti e
+idonei» di default. In console PA la riga mostra ora **📄 Contratto (PDF, non
+firmato)** finché le firme non sono complete: il `generatedPDF` esisteva
+dalla conversione, ma si apriva solo dal portal.
+
 ### Il terzo modello: 3+2 canone concordato — Allegato A (8/09/2026)
 Il contratto tipo dell'associazione per il **3+2** (L.431/98 art. 2 c. 3,
 accordo 27/07/2023 prot. RA/2023/0044852 —

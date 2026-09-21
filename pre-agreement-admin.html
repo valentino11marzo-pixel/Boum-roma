@@ -638,7 +638,7 @@ function sigOfContract(c){
   var status=(c.signatureStatus==='complete'||(tS&&lS))?'complete':(tS||lS||c.signatureStatus==='partial')?'partial':'none';
   return {status:status,tenantSigned:tS||status==='complete',landlordSigned:lS||status==='complete',
     tenantAt:isoOf(c.tenantSignedAt),landlordAt:isoOf(c.landlordSignedAt),fullyAt:isoOf(c.fullySignedAt),
-    pdf:c.signedPdfUrl||null,cert:c.signingCertificateUrl||null,finalized:!!c.finalizedAt,loaded:true};
+    pdf:c.signedPdfUrl||null,draft:c.generatedPDF||null,cert:c.signingCertificateUrl||null,finalized:!!c.finalizedAt,loaded:true};
 }
 function sigState(d){
   var cid=contractIdOf(d);
@@ -1184,6 +1184,11 @@ function paRow(d){
         +(llWa&&!sig.tenantSigned?'<a class="pbtn wa" href="'+llWa+'" target="_blank" rel="noopener">Firma proprietario su WhatsApp</a>':'')
         +(d.landlordSignUrl&&sig.status!=='complete'?'<button class="pbtn" onclick="copyTxt(\''+d.landlordSignUrl+'\')">'+(d.delegated?'Copia link delega':'Copia link firma proprietario')+'</button>':'')
         +(sig.status==='complete'&&sig.cert?'<a class="pbtn" href="'+sig.cert+'" target="_blank" rel="noopener">Certificato FES</a>':'')
+        /* il contratto GENERATO (non ancora firmato): il PDF esiste dalla
+           conversione (generatedPDF) ma la console lo mostrava solo a firme
+           complete — l'operatore che vuole leggerlo o stamparlo prima della
+           firma doveva passare dal portal. A firme complete resta il firmato. */
+        +(sig.status!=='complete'&&sig.draft?'<a class="pbtn" href="'+sig.draft+'" target="_blank" rel="noopener">📄 Contratto (PDF, non firmato)</a>':'')
         +'<button class="pbtn" onclick="resendCopy(\''+d.id+'\',this)">✉ Reinvia copia</button>'
         +(cid?'<button class="pbtn" onclick="fascicoloPA(\''+d.id+'\')">📦 Fascicolo ARPE</button>':'')
       ):'')

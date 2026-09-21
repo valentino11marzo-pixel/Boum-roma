@@ -430,7 +430,10 @@ const lookup = (await import('../../api/magic-sign/lookup.js')).default;
   check('B: i dati DOVUTI restano puntini (classe energetica) — li chiude il dato, non un segno', /prestazione energetica: \x85\x85\x85/.test(noScala));
   check('B: con la classe energetica il puntino sparisce', /prestazione energetica: A2/.test(textOf(sampleContract, { ...sampleProperty, energyClass: 'A2' })));
   const cText = textOf({ ...sampleContract, type: 'studenti', universityName: 'Sapienza', courseName: 'Fisica', universitaIndirizzo: 'P.le Aldo Moro 5' }, sampleProperty);
-  check('C (studenti): stesse regole — niente «scala …», tabelle «—», consegna che rinvia al verbale', !/\bscala\b/.test(cText) && /propriet\S* \x97/.test(cText) && /quanto risulta dal verbale di consegna sottoscritto/.test(cText));
+  // Sul modello dell'associazione il rinvio al verbale è GIÀ nella frase
+  // («di quanto segue: -- ovvero di quanto risulta dal verbale di consegna»):
+  // lo slot resta «--», e la frase non si raddoppia (21/09/2026).
+  check('C (studenti): stesse regole — niente «scala …», tabelle «—», consegna = la riga del modello («-- ovvero di quanto risulta dal verbale»), mai raddoppiata', !/\bscala\b/.test(cText) && /propriet\S* \x97/.test(cText) && /-- ovvero di quanto risulta dal verbale di consegna/.test(cText) && !/sottoscritto alla consegna delle chiavi/.test(cText));
 
   // ── il locatore si risolve da dove sta, e il force rispetta la firma ──
   const { resolveLandlord, ensureContractPdf } = await import('../../api/sign/_contractpdf.js');

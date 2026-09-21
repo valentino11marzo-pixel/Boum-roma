@@ -40,6 +40,10 @@
     const start = new Date(startDate);
     const end = new Date(endDate);
     if (isNaN(start) || isNaN(end) || end < start) return { months: 0, days: 0, total: 0, text: '' };
+    // La data di FINE è inclusa: una locazione dal 01/09 al 31/08 dura 12
+    // mesi, e il contratto lo deve dire («12 mesi», non «11 mesi e 30
+    // giorni» — quello che il portal stampava in art. 1 fino al 21/09/2026).
+    end.setDate(end.getDate() + 1);
     let months = (end.getFullYear() - start.getFullYear()) * 12 + (end.getMonth() - start.getMonth());
     let days = end.getDate() - start.getDate();
     if (days < 0) {
@@ -128,6 +132,47 @@
       return 'Per le spese di cui al presente articolo il conduttore versa una quota di € ' + q.toLocaleString('it-IT') + ' al mese, salvo conguaglio.';
     }
     return 'Le spese di cui al presente articolo sono regolate a consuntivo secondo la Tabella oneri accessori richiamata: il conduttore non versa alcun acconto e corrisponde la quota di sua spettanza entro sessanta giorni dalla richiesta documentata.';
+  }
+
+  // ── I MODELLI DELL'ASSOCIAZIONE (C studenti, A 3+2) STAMPANO LE LORO FRASI ──
+  // Il 21/09/2026 il confronto INVERSO col .doc (modello → generatore, la
+  // direzione che tests/contractpdf/verbatim.mjs non faceva) ha trovato tre
+  // testi scritti a mano che scavalcavano il modello da dentro le funzioni
+  // di aiuto, fuori dal blocco MODEL_* che il test leggeva:
+  //   · premessa C) SICUREZZA IMPIANTI — senza dichiarazione del locatore
+  //     usciva «impianti funzionanti e idonei all'uso convenuto»: una frase
+  //     che il modello NON ha e una dichiarazione positiva che nessuno ha
+  //     verificato. Il modello ne ha UNA («non dispongono di certificazione
+  //     a norma»); il 3+2 offre l'alternativa «dispongono/non dispongono».
+  //   · chiusa dell'art. Oneri accessori (fra i patti approvati ex 1341) —
+  //     «versa una quota di € -- salvo conguaglio» era diventata «sono
+  //     regolate a consuntivo secondo la Tabella…».
+  //   · art. Consegna — il default «quanto risulta dal verbale…» si sommava
+  //     all'«ovvero di quanto risulta dal verbale di consegna» del modello:
+  //     la stessa frase due volte, su un foglio che va ad ARPE.
+  // Qui le frasi sono quelle del modulo, con lo slot riempito dal dato o da
+  // «--» come sul modulo. Le VARIANTI (dichiarate nel test) restano due:
+  // oneri compresi nel canone e la dichiarazione esplicita «funzionanti».
+  function impiantiClauseConcordato(contract, property) {
+    const custom = (contract && contract.propertyExtra && contract.propertyExtra.sicurezzaImpianti)
+      || (property && property.safetyImplants) || '';
+    if (custom) return custom;
+    const stato = (contract && contract.impiantiStato) || (property && property.impiantiStato) || '';
+    const verbo = stato === 'conformi' ? 'dispongono' : 'non dispongono';
+    let out = 'Il conduttore prende atto che gli impianti esistenti nell’appartamento in oggetto e quelli condominiali ' + verbo + ' di certificazione a norma, ai sensi delle disposizioni vigenti in materia di sicurezza.';
+    if (stato === 'funzionanti') {
+      out += ' Il locatore dichiara altresì che gli impianti sono funzionanti e idonei all’uso convenuto e consegna al conduttore la documentazione tecnica in suo possesso.';
+    }
+    return out;
+  }
+  function oneriClauseConcordato(contract, fmtIt) {
+    if ((contract && contract.condoMode) === 'incluso') {
+      return 'Le spese di cui al presente articolo sono comprese nel canone: nessun importo a titolo di oneri accessori è dovuto dal conduttore, salvo i consumi individuali a suo carico.';
+    }
+    const q = (contract && contract.oneriQuota !== undefined && contract.oneriQuota !== null && contract.oneriQuota !== '')
+      ? Number(contract.oneriQuota) : null;
+    const quota = (q !== null && !isNaN(q) && q > 0) ? fmtIt(q) + ' al mese' : '--';
+    return 'Per le spese di cui al presente articolo il conduttore versa una quota di € ' + quota + ' salvo conguaglio.';
   }
 
   // === ALLEGATO B — Locazione abitativa di natura transitoria (verbatim CAF) ===
@@ -794,7 +839,7 @@
       y += 3;
       doc.setFont('times', 'bold');
       doc.setFontSize(11);
-      doc.text('Articolo ' + num + ' — ' + title, margin, y);
+      doc.text('Articolo ' + num + ' (' + title + ')', margin, y);
       y += 4;
       doc.setFont('times', 'normal');
       doc.setFontSize(11);
@@ -870,7 +915,7 @@
     const rendita   = (contract.renditaCatastale || (property && property.renditaCatastale))
                       ? fmtIt(contract.renditaCatastale || property.renditaCatastale) : dot;
     const energy    = (property && (property.energyCert || property.energyClass)) || contract.energyClass || dot;
-    const sicurezza = impiantiClause(contract, property);
+    const sicurezza = impiantiClauseConcordato(contract, property);
     const tab = tabelleOf(contract, property);
     const tabFmt = (v) => (v !== undefined && v !== null && v !== '') ? String(v) : NONE;
     const tabPro = tabFmt(tab['proprieta'] || tab['proprietà']);
@@ -903,8 +948,11 @@
     const nRate     = Math.max(1, Math.ceil((durMonths || canInstallments) / instStep));
     const rataAmount = Number(contract.installmentAmount) || (canMonthly * instStep);
     const payDay    = parseInt(contract.paymentDay, 10) || (contract.canone && parseInt(contract.canone.paymentDay, 10)) || 5;
+    // Cadenza mensile = la riga del modulo, parola per parola («rate eguali
+    // anticipate … entro il 5 di ogni mese»); le altre cadenze non hanno slot
+    // sul modulo e sono una variante dichiarata.
     const rateClause = instStep === 1
-      ? `in n. ${nRate} rate mensili eguali anticipate di € ${fmtIt(rataAmount)} (${fmtIt(rataAmount)}/00) ciascuna, entro il giorno ${payDay} di ogni mese`
+      ? `in n. ${nRate} rate eguali anticipate di € ${fmtIt(rataAmount)} (${fmtIt(rataAmount)}/00) ciascuna, entro il ${payDay} di ogni mese`
       : `in n. ${nRate} rate ${cadWord} eguali anticipate di € ${fmtIt(rataAmount)} (${fmtIt(rataAmount)}/00) ciascuna, entro il giorno ${payDay} del primo mese di ciascun periodo`;
 
     const depAmount = (contract.deposit && typeof contract.deposit === 'object')
@@ -932,7 +980,10 @@
     const accessiMod    = contract.accessiModalita || '--';
     const cedolareIsOn  = cedolareOn(contract);
 
-    const consegnaStato = contract.consegnaStato || 'quanto risulta dal verbale di consegna sottoscritto alla consegna delle chiavi';
+    // Sul modulo la riga è «di quanto segue: -- ovvero di quanto risulta dal
+    // verbale di consegna»: lo slot resta «--» finché le parti non
+    // dichiarano uno stato (il rinvio al verbale è già nella frase).
+    const consegnaStato = contract.consegnaStato || '--';
     const sigPlace = contract.signaturePlace || (property && property.city) || 'Roma';
     const sigDateRaw = contract.signatureDate || contract.fullySignedAt || new Date();
     const sigDateStr = fmtDate(sigDateRaw);
@@ -977,9 +1028,9 @@
     const canAnnual = canMonthly * 12;
     const nRateYear = Math.max(1, Math.round(12 / instStep));
     const rateClauseYear = instStep === 1
-      ? `in n. ${nRateYear} rate mensili eguali anticipate di € ${fmtIt(rataAmount)} (${fmtIt(rataAmount)}/00) ciascuna, entro il giorno ${payDay} di ogni mese`
+      ? `in n. ${nRateYear} rate eguali anticipate di € ${fmtIt(rataAmount)} (${fmtIt(rataAmount)}/00) ciascuna, entro il ${payDay} di ogni mese`
       : `in n. ${nRateYear} rate ${cadWord} eguali anticipate di € ${fmtIt(rataAmount)} (${fmtIt(rataAmount)}/00) ciascuna, entro il giorno ${payDay} del primo mese di ciascun periodo`;
-    const v = { durMonths, durStartStr, durEndStr, durText, isAnnual, canTotal, canAnnual, rateClause, rateClauseYear, hasDeposit, depAmount, depMonthsStr, garanzieAltre, cedolareIsOn, subentroMod, consegnaStato, accessiMod, studCorsoStudi, studUniversita, oneriQuota, contract, fmtIt, dot, oneriClause };
+    const v = { durMonths, durStartStr, durEndStr, durText, isAnnual, canTotal, canAnnual, rateClause, rateClauseYear, hasDeposit, depAmount, depMonthsStr, garanzieAltre, cedolareIsOn, subentroMod, consegnaStato, accessiMod, studCorsoStudi, studUniversita, oneriQuota, contract, fmtIt, dot, oneriClause: (c) => oneriClauseConcordato(c, fmtIt) };
     MODEL.articles(v, addArticle);
 
     // --------------- LETTO, APPROVATO, SOTTOSCRITTO ---------------
@@ -1145,6 +1196,8 @@
     monthsBetween: monthsBetween,
     impiantiClause: impiantiClause,
     oneriClause: oneriClause,
+    impiantiClauseConcordato: impiantiClauseConcordato,
+    oneriClauseConcordato: oneriClauseConcordato,
     cedolareOn: cedolareOn,
     docTypeLabel: docTypeLabel,
     tabelleOf: tabelleOf,
