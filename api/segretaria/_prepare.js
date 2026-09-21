@@ -94,6 +94,8 @@ export async function prepareCase({ id, actor, now = Date.now(), background = fa
   const initial = await fsGetVersioned(path), task = initial?.data;
   if (!task?.followUp || task.source !== 'segretaria') return { code: 404, error: 'case_not_found' };
   if (task.status !== 'open' || !task.followUp.open) return { code: 409, error: 'case_closed' };
+  if (!Number.isSafeInteger(PROPOSTA.contextRevision(task)) || PROPOSTA.contextRevision(task) < 0)
+    return { code: 503, error: 'preparation_context_invalid' };
   const cid = task.followUp.conversationId;
   if (!/^[\w.-]{1,180}$/.test(String(cid || ''))) return { code: 400, error: 'invalid_conversation' };
   const conv = await fsGet('conversations/' + cid);
@@ -278,7 +280,7 @@ export async function prepareCase({ id, actor, now = Date.now(), background = fa
     const freshReplyOwner = await replyOwner(freshConv, { excludeActionId: task.preparation?.approval?.actionId,
       excludeActionIds: retirements.map(row => row.id) });
     if (sha(freshReplyOwner) !== replyOwnerFingerprint) return { code: 409, error: 'reply_owner_changed_reload' };
-    const preparation = { ...proposal, version: PROPOSTA.VERSION, language: languageEvidence, messageId: task.followUp.lastMessageId,
+    const preparation = { ...proposal, version: PROPOSTA.VERSION, contextRevision: PROPOSTA.contextRevision(task), language: languageEvidence, messageId: task.followUp.lastMessageId,
       sourceFingerprint, contactFingerprint: contactHash, followUpFingerprint, replyOwnerFingerprint, replyOwnership, recheckFor,
       recipientPreview: { channel, address: (channel === 'whatsapp' ? conv.contactPhone : conv.contactEmail) || '', name: conv.contactName || '' },
       selectedPracticeRef: selection, preparedBy: actor || 'segretaria',

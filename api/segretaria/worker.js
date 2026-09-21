@@ -83,7 +83,8 @@ export async function prepareNextCase({ now = Date.now() } = {}) {
     try {
       const cur = await fsGetVersioned('operatorTasks/' + next.id);
       if (cur?.data.source === 'segretaria' && cur.data.status === 'open' && cur.data.followUp?.open === true
-        && cur.data.followUp.lastMessageId === next.followUp.lastMessageId && decisionHash(cur.data) === inputHash) {
+        && cur.data.followUp.lastMessageId === next.followUp.lastMessageId && decisionHash(cur.data) === inputHash
+        && PROPOSTA.contextRevision(cur.data) === PROPOSTA.contextRevision(next)) {
         // A different worker may have completed this version while ours failed.
         if (result.code !== 200 && cur.data.preparation?.revision !== next.preparation?.revision
           && (decisionCurrent(cur.data) || reviewCurrent(cur.data))) {
@@ -91,7 +92,7 @@ export async function prepareNextCase({ now = Date.now() } = {}) {
         }
         const previousRetry = retryCurrent(next);
         const attempts = (Number.isSafeInteger(previousRetry?.attempts) && previousRetry.attempts > 0 ? previousRetry.attempts : 0) + 1;
-        const retry = result.code === 200 ? null : { messageId: next.followUp.lastMessageId, followUpFingerprint: inputHash,
+        const retry = result.code === 200 ? null : { messageId: next.followUp.lastMessageId, followUpFingerprint: inputHash, contextRevision: PROPOSTA.contextRevision(next),
           version: PROPOSTA.VERSION, attempts, reason: last.error, state: result.code === 422 ? 'review_required' : 'retry_wait',
           after: result.code === 422 ? null : new Date(now + PRIORITY.retryDelayMinutes(attempts) * 60000).toISOString() };
         const fields = { preparationCheckedAt: new Date(now).toISOString(), preparationError: result.code === 200 ? null : last.error,

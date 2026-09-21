@@ -3793,6 +3793,11 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
 
 ### LA SEGRETARIA (`js/segretaria-engine.js` + `api/segretaria/_core.js` + 🤖 sulla card)
 
+- **Fonti WhatsApp aggiornate (21/09)**: un OUT su un caso già tracciato invalida la proposta tramite `contextRevision`, senza cambiare ultimo inbound, impegno confermato o ricevute; il valore assente vale zero, senza rigenerazione globale.
+  Worker, retry, revisione e conferma confrontano la stessa revisione; una consegna precedente resta protetta. Ricevute idempotenti e CAS rendono riparabile un errore secondario, senza creare casi dal solo OUT.
+  Il messaggio normale e la testa Inbox si salvano insieme; ingressi tardivi non arretrano testa/seguito e non cancellano unread più recenti. A timestamp uguali, il seguito confronta `updateTime` del messaggio persistito, anche se il tracking termina in ordine inverso; nessuna cronologia dedotta dagli ID.
+  Header e messaggio condividono le ACL della stessa identità finale; un cambio concorrente prevale sui dati del pre-read. Prove `segretariafreshness`: handler/worker/conferma/consegna reali, duplicati, corse, prima associazione, cambi ACL e mutazioni. Nessun invio implicito o migrazione dei casi.
+
 - **Preparazione continua (18/09)**: le proposte non condividono più `dailyCap` con le risposte conversazionali. Il contatore misura i tentativi; attivazione, lease, budget per ciclo e veti di consegna restano distinti.
   La scansione legge pagine per ID con cursore nel battito esistente e riparte dal principio a fine giro: nessun arresto ai primi 200 casi. Oggi legge tutte le pagine, preservando dati e modali durante refresh incompleti; il monitor dichiara i conteggi parziali.
   Scadenze confermate e richieste datate precedono i nuovi eventi, con un turno su tre al caso meno recentemente controllato. Errori temporanei riprovano dopo 1/5/15/60/360 minuti; errori di validazione restano visibili da verificare fino a nuova evidenza, decisione o versione.

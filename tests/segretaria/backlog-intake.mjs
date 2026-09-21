@@ -440,12 +440,12 @@ try {
   await assert.rejects(() => assertUndatedRejected(noDateGuard.default), assert.AssertionError);
   ok('mutazione: la regressione intercetta il ritorno della data odierna per backlog senza data', true);
   const retryFlagRemoved = await mutant('../../api/homie/message.js',
-    "fsPatch('conversations/' + storedCid, { ...(backlogReview ? {} : { needsReply: true }), followUpTrackingError: error })",
+    "fsPatch('conversations/' + storedCid, { ...(backlogReview || stored.direction !== 'in' ? {} : { needsReply: true }), followUpTrackingError: error })",
     "fsPatch('conversations/' + storedCid, { needsReply: true, followUpTrackingError: error })");
   await assert.rejects(() => assertTrackingErrorKeepsHeader(retryFlagRemoved.default, true), assert.AssertionError);
   ok('mutazione: il test retry intercetta needsReply riacceso da un errore storico', true);
   const initialFlagRemoved = await mutant('../../api/homie/message.js',
-    "fsPatch('conversations/' + cid, { ...(backlogReview ? {} : { needsReply: true }), followUpTrackingError: error })",
+    "fsPatch('conversations/' + cid, { ...(backlogReview || direction !== 'in' ? {} : { needsReply: true }), followUpTrackingError: error })",
     "fsPatch('conversations/' + cid, { needsReply: true, followUpTrackingError: error })");
   await assert.rejects(() => assertTrackingErrorKeepsHeader(initialFlagRemoved.default), assert.AssertionError);
   ok('mutazione: il test ingresso intercetta needsReply riacceso da un errore storico', true);

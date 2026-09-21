@@ -28,12 +28,24 @@ export function currentPreparationReview(task) {
     ? retry.reason : 'preparation_review_required' } : null;
 }
 const precondition = snapshot => snapshot ? { updateTime: snapshot.updateTime } : { exists: false };
+// Firestore updateTime is the primary commit order, unlike the order in which
+// secondary tracking finishes. Keep sub-millisecond precision for tied WA dates.
+const committedVersion = value => {
+  const match = typeof value === 'string' && /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,9}))?Z$/.exec(value);
+  return match && Number.isFinite(Date.parse(value)) ? match[1] + '.' + (match[2] || '').padEnd(9, '0') + 'Z' : null;
+};
+const nextContextRevision = task => {
+  const value = task?.contextRevision ?? 0;
+  if (!Number.isSafeInteger(value) || value < 0 || value === Number.MAX_SAFE_INTEGER) throw new Error('invalid_context_revision');
+  return value + 1;
+};
 
 // Tracking survives manual takeover. New enrolment is an explicit preparation
 // rollout, independent of automatic replies; old imports stay out of the rollout.
 export async function refreshTrackedFollowUp(input) {
   if (!idPart(input?.cid)) return null;
   const cursor = await fsGet('heartbeat/segretaria-case-' + followUpId(input.cid, 'cursor').slice(3));
+  if (input.direction === 'out') return cursor ? invalidateTrackedContext(input) : null;
   if (cursor) return captureFollowUp(input);
   const config = await fsGet('settings/segretaria');
   const since = checkTimestamp(config?.prepareSince);
@@ -41,6 +53,38 @@ export async function refreshTrackedFollowUp(input) {
   if (config?.enabled === false || config?.prepareCases !== true || !Number.isFinite(since)
     || !Number.isFinite(receivedAt) || receivedAt < since) return null;
   return captureFollowUp(input);
+}
+
+// Outgoing evidence changes preparation, never the client's last inbound or an
+// operator decision. Only already tracked, open cases are eligible. Per-case
+// receipts make a partially interrupted pass repairable without double bumps.
+async function invalidateTrackedContext({ cid, messageId, now = Date.now() }) {
+  if (typeof messageId !== 'string' || !messageId.trim() || messageId.length > 512) return null;
+  let afterId = null, result = null;
+  do {
+    const rows = await fsList('operatorTasks', { filter: { field: 'followUp.conversationId', op: 'EQUAL', value: cid },
+      limit: FOLLOW_UP_LIMIT, afterId });
+    for (const row of rows.filter(t => t.source === 'segretaria' && t.status === 'open' && t.followUp?.open === true)) {
+      const receiptPath = 'heartbeat/segretaria-context-' + followUpId(cid, [row.id, messageId]).slice(3);
+      let completed = false;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        if (await fsGet(receiptPath)) { result = await fsGet('operatorTasks/' + row.id); completed = true; break; }
+        const current = await fsGetVersioned('operatorTasks/' + row.id), task = current?.data;
+        if (task?.status !== 'open' || task.followUp?.open !== true || task.followUp.conversationId !== cid) { completed = true; break; }
+        const contextRevision = nextContextRevision(task);
+        try {
+          await fsCommit([
+            { docPath: receiptPath, fields: { taskId: row.id, at: new Date(now).toISOString() }, precondition: { exists: false } },
+            { docPath: 'operatorTasks/' + row.id, fields: { contextRevision }, precondition: precondition(current) },
+          ]);
+          result = { ...task, contextRevision }; completed = true; break;
+        } catch (error) { if (!error?.conflict) throw error; }
+      }
+      if (!completed) throw new Error('Follow-up context changed concurrently');
+    }
+    afterId = rows.length === FOLLOW_UP_LIMIT ? rows[rows.length - 1].id : null;
+  } while (afterId);
+  return result;
 }
 
 // Require an explicit timezone and a real calendar date (Date.parse alone
@@ -54,9 +98,10 @@ export function checkTimestamp(value) {
   return Date.parse(value);
 }
 
-export async function captureFollowUp({ cid, conv, messageId, text, now = Date.now(), preserveNewer = false }) {
+export async function captureFollowUp({ cid, conv, messageId, messageVersion, text, now = Date.now(), preserveNewer = false }) {
   if (!idPart(cid) || typeof messageId !== 'string' || !messageId.trim() || messageId.length > 512) return null;
   const event = messageId;
+  const inboundVersion = committedVersion(messageVersion);
   const receiptPath = 'heartbeat/segretaria-event-' + followUpId(cid, event).slice(3);
   const cursorPath = 'heartbeat/segretaria-case-' + followUpId(cid, 'cursor').slice(3);
   // Event receipts, the conversation cursor and the card commit together.
@@ -106,21 +151,24 @@ export async function captureFollowUp({ cid, conv, messageId, text, now = Date.n
       due: romeDateKey(new Date(checkAt)), dueTime: null, status: 'open', kind: 'auto',
       source: 'segretaria', calendarize: false, createdAt: new Date(now), createdBy: 'segretaria',
       followUp: { open: true, conversationId: cid, contactName: clean(conv?.contactName, 100),
-        lastMessageId: event, lastInboundAt: at, preview: clean(text, 240),
+        lastMessageId: event, lastInboundAt: at, lastInboundVersion: inboundVersion, preview: clean(text, 240),
         practiceRef: null, propertyRef: null, nextAction: 'Verificare la richiesta e confermare il seguito',
         waitingOn: 'valentino', waitingLabel: 'Valentino', checkAt,
         checkBasis, intakeTiming,
         confirmed: false, needsReview: true, ambiguous: active.length > 1 || known.length >= 30 },
     };
-    const keepRecent = keepClosed || (preserveNewer && current && Date.parse(current.data.followUp?.lastInboundAt) > now);
     const prior = current?.data.followUp;
+    const priorVersion = committedVersion(prior?.lastInboundVersion);
+    const keepRecent = keepClosed || (current && Date.parse(current.data.followUp?.lastInboundAt) > now)
+      || (prior && Date.parse(prior.lastInboundAt) === now && inboundVersion && priorVersion && priorVersion > inboundVersion);
     // A new source can bring a deadline forward but never postpone a pending
     // intake on every message or change an operator's decision. Even a manual
     // choice without a verified practice has confirmedAt and stays protected.
     const mayAdvance = intakeTiming && prior && !prior.confirmed && !prior.confirmedAt && !prior.confirmedBy
       && (!Number.isFinite(Date.parse(prior.checkAt)) || Date.parse(checkAt) < Date.parse(prior.checkAt));
-    const fields = keepRecent ? { followUp: current.data.followUp } : current ? {
-      followUp: { ...current.data.followUp, lastMessageId: event, lastInboundAt: at,
+    const fields = keepRecent ? { followUp: current.data.followUp,
+      ...(!keepClosed ? { contextRevision: nextContextRevision(current.data) } : {}) } : current ? {
+      followUp: { ...current.data.followUp, lastMessageId: event, lastInboundAt: at, lastInboundVersion: inboundVersion,
         preview: clean(text, 240), needsReview: true,
         ...(intakeTiming ? { intakeTiming } : {}),
         ...(mayAdvance ? { checkAt, checkBasis } : {}) },
@@ -129,7 +177,7 @@ export async function captureFollowUp({ cid, conv, messageId, text, now = Date.n
     try {
       await fsCommit([
         { docPath: receiptPath, fields: { taskId: id, at }, precondition: { exists: false } },
-        { docPath: cursorPath, fields: preserveNewer && cursor && Date.parse(cursor.data.at) > now
+        { docPath: cursorPath, fields: cursor && Date.parse(cursor.data.at) > now
           ? cursor.data : { taskId: id, at }, precondition: precondition(cursor) },
         { docPath: 'operatorTasks/' + id, fields, precondition: precondition(current) },
       ]);

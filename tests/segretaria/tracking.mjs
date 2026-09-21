@@ -73,7 +73,7 @@ globalThis.fetch = async (rawURL, opts = {}) => {
     throw new Error('forbidden_external_effect');
   }
   if (url.pathname.endsWith(':commit')) {
-    if (failCommit) return json({ error: { status: 'UNAVAILABLE' } }, 503);
+    if (failCommit && body.writes?.some(w => w.update?.name.includes('/operatorTasks/'))) return json({ error: { status: 'UNAVAILABLE' } }, 503);
     const operations = body.writes || [];
     const taskWrite = operations.find(w => w.update?.name.includes('/operatorTasks/'));
     if (beforePatch && taskWrite) {

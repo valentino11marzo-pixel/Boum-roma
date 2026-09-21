@@ -91,13 +91,14 @@ async function repairStoredMessage(stored, documentBudget) {
   const storedCid = stored.conversationId;
   const backlogReview = stored.intakeMode === 'backlog_review';
   let followUp = null;
-  if (stored.direction === 'in') {
+  if (stored.direction === 'in' || stored.direction === 'out') {
     try {
       if (!/^[\w.-]{1,180}$/.test(String(storedCid || ''))) throw new Error('invalid_stored_conversation');
       const conv = await fsGet('conversations/' + storedCid);
       if (!conv) throw new Error('stored_conversation_missing');
+      const messageVersion = (await fsGetVersioned('messages/' + stored.id))?.updateTime;
       const tracked = await refreshTrackedFollowUp({ cid: storedCid, conv,
-        text: stored.body, messageId: stored.waMessageId || stored.id, now: new Date(stored.at).getTime(),
+        direction: stored.direction, text: stored.body, messageId: stored.waMessageId || stored.id, messageVersion, now: new Date(stored.at).getTime(),
         receivedAt: stored.receivedAt ? new Date(stored.receivedAt).getTime() : new Date(stored.at).getTime(),
         preserveNewer: backlogReview });
       if (tracked) followUp = { id: tracked.id, tracked: true };
@@ -106,7 +107,7 @@ async function repairStoredMessage(stored, documentBudget) {
       const error = 'Messaggio ricevuto; seguito non aggiornato. Verificare il caso in Oggi.';
       followUp = { tracked: false, error };
       if (/^[\w.-]{1,180}$/.test(String(storedCid || ''))) {
-        await fsPatch('conversations/' + storedCid, { ...(backlogReview ? {} : { needsReply: true }), followUpTrackingError: error }).catch(() => {});
+        await fsPatch('conversations/' + storedCid, { ...(backlogReview || stored.direction !== 'in' ? {} : { needsReply: true }), followUpTrackingError: error }).catch(() => {});
       }
       console.warn('[homie/message] follow-up retry failed');
     }
@@ -125,36 +126,56 @@ async function repairStoredMessage(stored, documentBudget) {
     created: false, dedupHit: true, ...(followUp ? { followUp } : {}) };
 }
 
-// Only the explicit backlog path uses a conditional header + deterministic
-// message commit. Older archive rows cannot replace today's head or identity.
-async function storeBacklogMessage(cid, msg, header) {
-  const id = 'homie_' + crypto.createHash('sha256').update(msg.waMessageId).digest('hex').slice(0, 40);
+// The primary message and head commit together. The same WA ID is one message
+// even under concurrent retries; earlier events never replace a newer head.
+async function storeMessage(cid, msg, header, initialConversation) {
+  const backlogReview = msg.intakeMode === 'backlog_review';
+  const id = msg.waMessageId ? 'homie_' + crypto.createHash('sha256').update(msg.waMessageId).digest('hex').slice(0, 40)
+    : 'homie_' + crypto.randomUUID();
   const messagePath = 'messages/' + id;
   for (let attempt = 0; attempt < 3; attempt++) {
     const stored = await fsGet(messagePath);
     if (stored) return { id, stored };
     const snapshot = await fsGetVersioned('conversations/' + cid), current = snapshot?.data;
     const incomingAt = msg.at.getTime(), currentAt = Date.parse(current?.lastMessageAt);
-    const canUpdate = !current?.lastMessageAt || (Number.isFinite(currentAt) && currentAt < incomingAt);
-    const fields = !current ? header : canUpdate ? {
+    // Equal timestamps use the serialization order of new, distinct receipts;
+    // no ordering is inferred from WhatsApp IDs. Backlog retains its strict rule.
+    const canUpdate = !current?.lastMessageAt || (Number.isFinite(currentAt)
+      && (backlogReview ? currentAt < incomingAt : currentAt <= incomingAt));
+    const { status, createdAt, tags, ...observedHeader } = header;
+    let fields = !current ? header : canUpdate ? {
+      ...(!backlogReview ? observedHeader : {}),
       channel: current.channel && current.channel !== msg.channel ? 'mixed' : msg.channel,
       lastMessageAt: msg.at, lastMessagePreview: preview(msg.body), lastDirection: msg.direction,
       lastSource: 'homie', updatedAt: msg.at,
-      ...(msg.direction === 'in' ? { unread: (Number(current.unread) || 0) + 1, needsReply: true }
+      ...(msg.direction === 'in' ? { unread: (Number(current.unread) || 0) + 1, needsReply: backlogReview ? true : header.needsReply }
         : msg.direction === 'out' ? { unread: 0, needsReply: false } : {}),
     } : null;
-    const persisted = current ? { ...msg, contactUid: current.contactUid || null,
-      assignedLandlordId: current.assignedLandlordId || null } : msg;
+    // A late incoming message is still newly unread; an older OUT cannot clear
+    // newer unread messages. Backlog deliberately preserves its previous policy.
+    if (current && !backlogReview && msg.direction === 'in') fields = { ...fields, unread: (Number(current.unread) || 0) + 1 };
+    if (fields) fields = Object.fromEntries(Object.entries(fields).filter(([, value]) => value !== undefined));
+    const identityFields = ['contactType', 'contactId', 'contactUid', 'assignedLandlordId', 'contactPhone', 'contactEmail', 'contactName'];
+    // The transport resolved identity before the first read. If another writer
+    // changed that identity meanwhile, its current ACLs win this retry. A first
+    // association is allowed only while that original identity is unchanged.
+    if (current && fields && !backlogReview && (!initialConversation
+      || identityFields.some(key => (current[key] ?? null) !== (initialConversation[key] ?? null)))) {
+      for (const key of identityFields) if (key in fields) fields[key] = current[key] ?? null;
+    }
+    const conversation = { ...current, ...fields };
+    const persisted = { ...msg, contactUid: conversation.contactUid || null,
+      assignedLandlordId: conversation.assignedLandlordId || null };
     const writes = [{ docPath: messagePath, fields: persisted, precondition: { exists: false } }];
     // Even when keeping the head, bind message access fields to this version.
     writes.push({ docPath: 'conversations/' + cid, fields: fields || { lastMessageAt: current.lastMessageAt },
       precondition: snapshot ? { updateTime: snapshot.updateTime } : { exists: false } });
     try {
-      await fsCommit(writes);
-      return { id, created: !current, conversation: { ...current, ...fields } };
+      const committed = await fsCommit(writes);
+      return { id, created: !current, conversation, messageVersion: committed.writeResults?.[0]?.updateTime };
     } catch (e) { if (!e?.conflict) throw e; }
   }
-  throw new Error('backlog_changed_concurrently');
+  throw new Error('message_changed_concurrently');
 }
 
 export default async function handler(req, res) {
@@ -284,13 +305,6 @@ export default async function handler(req, res) {
     header.aiUpdatedAt = now;
   }
 
-  try {
-    if (!backlogReview) await fsPatch('conversations/' + cid, header);
-  } catch (e) {
-    console.error('[homie/message] conversation upsert', e);
-    return res.status(500).json({ ok: false, error: 'conversation_write_failed' });
-  }
-
   // ── Append the message ──────────────────────────────────────────────────
   const msg = {
     conversationId: cid,
@@ -309,12 +323,14 @@ export default async function handler(req, res) {
   if (Array.isArray(body.mediaUrls) && body.mediaUrls.length) msg.attachments = body.mediaUrls.slice(0, 10).map(String);
 
   let messageId;
+  let messageVersion;
   let trackedConversation = null;
   try {
-    const r = backlogReview ? await storeBacklogMessage(cid, msg, header) : await fsCreate('messages', msg);
+    const r = await storeMessage(cid, msg, header, existing);
     if (r.stored) return res.status(200).json(await repairStoredMessage(r.stored, documentBudget));
     messageId = r.id;
-    if (backlogReview) { created = r.created; trackedConversation = r.conversation; }
+    messageVersion = r.messageVersion;
+    created = r.created; trackedConversation = r.conversation;
   } catch (e) {
     console.error('[homie/message] message write', e);
     return res.status(500).json({ ok: false, error: 'message_write_failed' });
@@ -339,11 +355,11 @@ export default async function handler(req, res) {
   // Explicit preparation rollout may enrol a new case; this never enables
   // automatic replies. The primary message is already safely stored.
   let followUp = null;
-  if (direction === 'in') {
+  if (direction === 'in' || direction === 'out') {
     try {
       const tracked = await refreshTrackedFollowUp({ cid,
-        conv: trackedConversation || { ...existing, ...header, leadId: existing?.leadId || leadInfo?.leadId || null },
-        text, messageId: body.messageId || messageId, now: now.getTime(), receivedAt: msg.receivedAt.getTime(),
+        conv: { ...(trackedConversation || { ...existing, ...header }), leadId: trackedConversation?.leadId || existing?.leadId || leadInfo?.leadId || null },
+        direction, text, messageId: body.messageId || messageId, messageVersion, now: now.getTime(), receivedAt: msg.receivedAt.getTime(),
         preserveNewer: backlogReview });
       if (tracked) {
         followUp = { id: tracked.id, tracked: true };
@@ -352,7 +368,7 @@ export default async function handler(req, res) {
     } catch {
       const error = 'Messaggio ricevuto; seguito non aggiornato. Verificare il caso in Oggi.';
       followUp = { tracked: false, error };
-      await fsPatch('conversations/' + cid, { ...(backlogReview ? {} : { needsReply: true }), followUpTrackingError: error }).catch(() => {});
+      await fsPatch('conversations/' + cid, { ...(backlogReview || direction !== 'in' ? {} : { needsReply: true }), followUpTrackingError: error }).catch(() => {});
       console.warn('[homie/message] follow-up tracking failed');
     }
   }
@@ -366,13 +382,13 @@ export default async function handler(req, res) {
   // scritto sopra.
   let segretaria = null;
   try {
-    if (!backlogReview && existing && existing.segretaria && !followUp?.error) {
+    if (!backlogReview && existing && existing.segretaria) {
       if (direction === 'out') {
         if (!SEG.isSegretariaEcho(existing, text, now.getTime())) {
           await segretariaOffConv(cid, 'l\'operatore ha risposto a mano');
           segretaria = { off: true };
         }
-      } else if (direction === 'in') {
+      } else if (direction === 'in' && !followUp?.error) {
         const conv = { ...existing, contactType, contactId, contactPhone: contactPhone || existing.contactPhone, contactName, leadId: existing.leadId || (leadInfo && leadInfo.leadId) || null };
         let lead = null;
         if (conv.leadId) { try { const l = await fsGet(`leads/${conv.leadId}`); if (l) lead = { id: conv.leadId, ...l }; } catch { /* non-fatal */ } }

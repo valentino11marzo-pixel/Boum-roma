@@ -7,6 +7,7 @@ import { loadCaseContext, contextFingerprint, contactFingerprint } from './_cont
 import { normalizePhone } from '../homie/_lead.js';
 import { followUpDecisionHash } from './_follow-up.js';
 import { replyOwner } from './_reply-owner.js';
+import PROPOSTA from '../../js/segretaria-proposta-engine.js';
 
 const canonical = value => Array.isArray(value) ? value.map(canonical)
   : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map(k => [k, canonical(value[k])])) : value;
@@ -37,7 +38,7 @@ export async function loadReviewedSegretariaContext({ id, action, now = Date.now
   const t = task?.data, p = t?.preparation, receipt = p?.approval;
   if (!t || t.source !== 'segretaria' || t.status !== 'open' || t.followUp?.open === false
       || t.followUp.conversationId !== s.conversationId || t.followUp.lastMessageId !== s.sourceMessageId
-      || p?.revision !== s.proposalRevision || p.messageId !== s.sourceMessageId || p.status !== 'ready'
+      || p?.revision !== s.proposalRevision || p.messageId !== s.sourceMessageId || p.status !== 'ready' || !PROPOSTA.contextCurrent(t)
       || followUpInputHash(t.followUp) !== s.inputHash
       || preparationContentHash(p) !== s.preparationHash
       || receipt?.actionId !== id || receipt.revision !== s.proposalRevision

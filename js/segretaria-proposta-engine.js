@@ -103,7 +103,12 @@
       identityBlocked, routeOwner: protectedTopic ? 'gestore:' + protectedTopic : null,
       status: identityBlocked ? 'needs_context' : 'ready' } };
   }
-  function current(task) { return !!task?.preparation && task.status === 'open'
+  const contextRevision = record => record?.contextRevision === undefined ? 0 : record.contextRevision;
+  function contextCurrent(task, observed = task?.preparation) {
+    const revision = contextRevision(task);
+    return !!observed && Number.isSafeInteger(revision) && revision >= 0 && contextRevision(observed) === revision;
+  }
+  function current(task) { return !!task?.preparation && task.status === 'open' && contextCurrent(task)
     && (task.preparation.version === VERSION || !!task.preparation.approval || task.preparation.status === 'needs_context')
     && task.preparation.messageId === task.followUp?.lastMessageId; }
   // Home and worker share the same readiness rule. An approved receipt remains
@@ -185,5 +190,5 @@
       reason: 'Richiesta o incarico da verificare: Valentino deve verificare il prossimo passo prima di considerare attesa una risposta.'
         + (preserveEarlier ? ' Mantengo il ricontrollo interno precedente, più vicino.' : ' Il ricontrollo proposto resta una verifica interna.') };
   }
-  return Object.freeze({ VERSION, CONTEXT_VERSION, validate, wantsHuman, topicOf, current, currentContext, nextActor, isReaction });
+  return Object.freeze({ VERSION, CONTEXT_VERSION, validate, wantsHuman, topicOf, contextRevision, contextCurrent, current, currentContext, nextActor, isReaction });
 });

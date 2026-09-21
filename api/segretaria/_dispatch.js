@@ -88,6 +88,7 @@ export async function approvePreparation({ id, revision, lastMessageId, actor, n
       committed = true; actionId = p.approval.actionId;
       return await dispatchApproved(id, actionId, true);
     }
+    if (!PROPOSTA.contextCurrent(task)) return { code: 409, id, error: 'preparation_sources_changed' };
     if (p.version !== PROPOSTA.VERSION) return { code: 409, id, error: 'preparation_policy_changed' };
     if (!/^[\w.-]{1,180}$/.test(f.conversationId || '')) return { code: 409, id, error: 'conversation_missing' };
     const conversation = await fsGetVersioned('conversations/' + f.conversationId), conv = conversation?.data;

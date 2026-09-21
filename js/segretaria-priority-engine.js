@@ -13,11 +13,11 @@
   function retryCurrent(task, { decisionFingerprint, version = PROPOSTA.VERSION } = {}) {
     const retry = task?.preparationRetry;
     return openCase(task) && retry && typeof decisionFingerprint === 'string' && !!decisionFingerprint
-      && retry.messageId === task.followUp.lastMessageId && retry.followUpFingerprint === decisionFingerprint
+      && retry.messageId === task.followUp.lastMessageId && retry.followUpFingerprint === decisionFingerprint && PROPOSTA.contextCurrent(task, retry)
       && retry.version === version && ['retry_wait', 'review_required'].includes(retry.state) ? retry : null;
   }
   function reviewCurrent(task, { decisionFingerprint } = {}) {
-    return !!(openCase(task) && task.preparation?.status === 'needs_context' && !task.preparation.approval
+    return !!(openCase(task) && task.preparation?.status === 'needs_context' && !task.preparation.approval && PROPOSTA.contextCurrent(task)
       && task.preparation.messageId === task.followUp.lastMessageId && typeof decisionFingerprint === 'string'
       && !!decisionFingerprint && task.preparation.followUpFingerprint === decisionFingerprint);
   }

@@ -102,7 +102,9 @@ const dec = f => {
   if ('mapValue' in f) return Object.fromEntries(Object.entries(f.mapValue.fields || {}).map(([k, x]) => [k, dec(x)]));
   return null;
 };
-const toDoc = (path, data) => ({ name: `projects/p/databases/(default)/documents/${path}`, fields: Object.fromEntries(Object.entries(data).map(([k, v]) => [k, enc(v)])) });
+const versions = new Map();
+let version = 0;
+const toDoc = (path, data) => ({ updateTime: versions.get(path) || '2026-01-01T00:00:00.000Z', name: `projects/p/databases/(default)/documents/${path}`, fields: Object.fromEntries(Object.entries(data).map(([k, v]) => [k, enc(v)])) });
 
 let autoId = 0;
 const media = new Map();
@@ -139,6 +141,23 @@ globalThis.fetch = async (url, opts = {}) => {
   const m = u.match(/documents\/([^?:]+)/);
   const path = m ? decodeURIComponent(m[1]) : '';
 
+  if (u.endsWith(':commit')) {
+    const writes = body.writes || [];
+    for (const w of writes) {
+      const key = w.update?.name?.split('/documents/')[1], condition = w.currentDocument || {};
+      if ((condition.exists === false && DB.has(key)) || (condition.exists === true && !DB.has(key))
+        || (condition.updateTime && condition.updateTime !== (versions.get(key) || '2026-01-01T00:00:00.000Z')))
+        return json({ error: { status: 'FAILED_PRECONDITION' } }, 400);
+    }
+    const results = writes.map(w => {
+      const key = w.update.name.split('/documents/')[1];
+      const values = Object.fromEntries(Object.entries(w.update.fields || {}).map(([k,v]) => [k,dec(v)]));
+      DB.set(key, w.updateMask ? { ...(DB.get(key) || {}), ...values } : values);
+      versions.set(key, new Date(Date.parse('2026-01-01T00:00:00Z') + ++version).toISOString());
+      return { updateTime: versions.get(key) };
+    });
+    return json({ writeResults: results });
+  }
   if (u.includes(':runQuery')) {
     const q = body.structuredQuery;
     const coll = q.from[0].collectionId;
@@ -154,6 +173,7 @@ globalThis.fetch = async (url, opts = {}) => {
     const prev = DB.get(key) || {};
     const next = { ...prev, ...Object.fromEntries(Object.entries(body.fields || {}).map(([k, v]) => [k, dec(v)])) };
     DB.set(key, next);
+    versions.set(key, new Date(Date.parse('2026-01-01T00:00:00Z') + ++version).toISOString());
     return json(toDoc(key, next));
   }
   if (opts.method === 'POST') {
@@ -471,7 +491,8 @@ for (const [type, coll] of [['lead', 'leads'], ['pfs', 'pfsClients'], ['client',
   const payload = { direction: 'in', phone: '+393338000001', body: 'Allego il documento della casa', mediaUrls: [url], messageId: 'doc-budget' };
   globalThis.fetch = async (u, opts) => {
     const response = await realFetch(u, opts);
-    if (String(u).endsWith('/messages') && opts?.method === 'POST') {
+    if ((String(u).endsWith('/messages') || (String(u).endsWith(':commit')
+      && JSON.parse(opts?.body || '{}').writes?.some(w => w.update?.name.includes('/messages/')))) && opts?.method === 'POST') {
       const time = realNow(); Date.now = () => time + 25_000;
     }
     return response;

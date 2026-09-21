@@ -29,6 +29,7 @@ const SUITES = [
   { name: 'segretariaripresa', file: 'tests/segretaria/resume-execution.mjs', what: 'ripresa esplicita della stessa approvazione solo prima della claim verificata; ricevute incerte e concorrenza non duplicano effetti' },
   { name: 'segretariaattese', file: 'tests/segretaria/next-actor.mjs', what: 'attesa del richiamo fondata sull’ultima fonte integra; motivazione e controllo coerenti' },
   { name: 'segretariamonitor', file: 'tests/segretaria/monitor.mjs', what: 'preparazione continua: tentativi, pausa, retry, revisioni e letture parziali; nessuna attestazione impropria sulla ricezione' },
+  { name: 'segretariafreshness', file: 'tests/segretaria/freshness.mjs', what: 'OUT e fonti tardive invalidano la proposta, primaria atomica e decisioni preservate anche nelle corse' },
   { name: 'segretariaworker', file: 'tests/segretaria/worker.mjs', what: 'preparazione senza quota giornaliera: priorità, equità, pagine, retry progressivi e revisioni senza doppia spesa' },
   { name: 'segretarialiveui', file: 'tests/segretaria/realtime-ui.mjs', what: 'Oggi reagisce agli eventi senza perdere bozze; messaggi recenti ordinati e limiti della preparazione visibili' },
   { name: 'segretariafreshui', file: 'tests/segretaria/freshness-ui.mjs', what: 'Oggi e Inbox: cache ed errori visibili, recupero al rientro senza duplicati, callback obsolete scartate e bozze conservate' },
