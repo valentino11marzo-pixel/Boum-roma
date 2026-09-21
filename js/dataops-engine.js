@@ -452,6 +452,18 @@
 
     // ── Le etichette, in UNA copia (le card del portale le leggono da qui) ─
     var LABELS = {
+        lead: {
+            name: 'Nome', email: 'Email', phone: 'Telefono', request: 'Richiesta (parole del cliente)', zone: 'Zona',
+            budget: 'Budget mensile €', bedrooms: 'Camere', moveIn: 'Ingresso desiderato', durationMonths: 'Durata (mesi)',
+            household: 'Chi abiterà', occupation: 'Situazione', language: 'Lingua', side: 'Chi scrive',
+            listing: 'Immobile / annuncio', channel: 'Canale'
+        },
+        preagreement: {
+            ref: 'Riferimento BOOM', isBoom: 'Proposta BOOM', status: 'Stato dichiarato', acceptedAt: 'Accettata il',
+            feePct: 'Provvigione % annuo', feeMonths: 'Provvigione (mensilità)', feeEur: 'Provvigione €', feeVatPct: 'IVA provvigione %',
+            feeDue: 'Provvigione dovuta', energyCredit: 'Quota energia €/mese', depositSplitPct: 'Deposito alla firma %',
+            dueAtSigning: 'Dovuto alla firma €', validUntil: 'Valida fino al', extras: 'Altre voci'
+        },
         person: {
             name: 'Nome e cognome', businessName: 'Ragione sociale', kind: 'Persona fisica / società',
             email: 'Email', phone: 'Telefono', codiceFiscale: 'Codice fiscale', partitaIva: 'Partita IVA',
@@ -557,6 +569,20 @@
                 var vi = validateIBAN(land.iban);
                 if (!vi.valid) errors.push('Proprietario: IBAN — ' + vi.reason + '.');
             }
+        }
+        if (p.lead) {
+            var ld = p.lead;
+            if (!txt(ld.name).trim() && !txt(ld.email).trim() && !txt(ld.phone).trim()) errors.push('Lead: serve almeno un nome, un\'email o un telefono.');
+            if (ld.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(txt(ld.email))) errors.push('Lead: email non valida.');
+            if (!txt(ld.email).trim() && !txt(ld.phone).trim()) warnings.push('Lead senza recapito: non lo si potrà ricontattare (la macchina parte solo con email o telefono).');
+            if (ld.budget != null && Number(ld.budget) < 0) errors.push('Lead: budget negativo.');
+        }
+        if (p.preagreement) {
+            var pa = p.preagreement;
+            if (pa.feePct != null && (Number(pa.feePct) < 0 || Number(pa.feePct) > 100)) errors.push('Proposta: provvigione in % fuori da 0-100.');
+            if (pa.depositSplitPct != null && (Number(pa.depositSplitPct) < 0 || Number(pa.depositSplitPct) > 100)) errors.push('Proposta: quota del deposito alla firma fuori da 0-100%.');
+            if (pa.validUntil && !isISODate(pa.validUntil)) errors.push('Proposta: validità non in formato AAAA-MM-GG.');
+            if (pa.ref && !/^BOOM-[A-Z0-9]{3,12}$/.test(pa.ref)) warnings.push('Proposta: il riferimento «' + pa.ref + '» non ha la forma BOOM-XXXXXX — verifica.');
         }
         if (p.contract) {
             if (!isISODate(con.startDate)) errors.push('Contratto: data di inizio mancante o non in formato AAAA-MM-GG.');
@@ -702,8 +728,15 @@
         landlord: ['name', 'businessName', 'codiceFiscale', 'partitaIva', 'iban', 'email'],
         tenant: ['name', 'codiceFiscale', 'email'],
         property: ['name', 'address', 'foglio'],
-        contract: ['startDate', 'endDate', 'rent', 'deposit', 'durationMonths', 'type']
+        contract: ['startDate', 'endDate', 'rent', 'deposit', 'durationMonths', 'type'],
+        // Le due sezioni nate il 21/09/2026: il messaggio di un cliente
+        // (→ lead) e i termini di una proposta / pre-accordo (→ preAgreements).
+        lead: ['name', 'email', 'phone', 'request'],
+        preagreement: ['ref', 'feePct', 'feeMonths', 'feeEur', 'dueAtSigning', 'validUntil', 'depositSplitPct', 'energyCredit']
     };
+    // Che cos'è il materiale nel suo insieme: decide quali card la pagina
+    // mette in testa, mai cosa si scrive.
+    var MATERIALS = ['contratto', 'proposta', 'identita', 'immobile', 'messaggio', 'fattura', 'altro'];
     function filled(v) { return !(v == null || v === '' || (typeof v === 'number' && isNaN(v))); }
     function anchored(section, d) {
         if (!d || typeof d !== 'object') return false;
@@ -713,9 +746,11 @@
     function pruneProposal(raw) {
         raw = raw || {};
         var out = {};
-        ['landlord', 'tenant', 'property', 'contract'].forEach(function (k) { if (anchored(k, raw[k])) out[k] = raw[k]; });
+        ['landlord', 'tenant', 'property', 'contract', 'lead', 'preagreement'].forEach(function (k) { if (anchored(k, raw[k])) out[k] = raw[k]; });
         var co = Array.isArray(raw.coTenants) ? raw.coTenants.filter(function (c) { return c && txt(c.name).trim(); }) : [];
         if (co.length) out.coTenants = co;
+        var mat = low(raw.material);
+        if (MATERIALS.indexOf(mat) >= 0) out.material = mat;
         return out;
     }
 
@@ -835,6 +870,41 @@
                 out.property.rent = out.contract.rent;
             }
         }
+        if (raw.lead) {
+            var L = raw.lead;
+            var side = low(L.side), hh = low(L.household), occ = low(L.occupation), lang = low(L.language), ch = low(L.channel);
+            var mi = str(L.moveIn);
+            out.lead = {
+                name: str(L.name), email: str(L.email).toLowerCase(), phone: str(L.phone).replace(/[\s().-]/g, ''),
+                request: str(L.request || L.message).slice(0, 600), zone: str(L.zone),
+                budget: num(L.budget), bedrooms: num(L.bedrooms),
+                moveIn: isISODate(mi) || /^\d{4}-\d{2}$/.test(mi) ? mi : (date(mi) || mi),
+                durationMonths: num(L.durationMonths),
+                household: ['solo', 'couple', 'family', 'flatmates'].indexOf(hh) >= 0 ? hh : '',
+                occupation: ['employed', 'self-employed', 'student', 'relocating'].indexOf(occ) >= 0 ? occ : '',
+                language: lang === 'it' || lang === 'en' ? lang : '',
+                side: side === 'landlord' || side === 'company' || side === 'tenant' ? side : '',
+                listing: str(L.listing),
+                channel: ['whatsapp', 'email', 'portal', 'phone', 'other'].indexOf(ch) >= 0 ? ch : ''
+            };
+        }
+        if (raw.preagreement) {
+            var PA = raw.preagreement;
+            var ref = str(PA.ref).toUpperCase().replace(/\s+/g, '');
+            var fd = low(PA.feeDue), pst = low(PA.status), ib = yesno(PA.isBoom);
+            out.preagreement = {
+                ref: ref,
+                isBoom: ib === 'yes' || /^BOOM-/.test(ref) ? 'yes' : (ib === 'no' ? 'no' : ''),
+                status: ['sent', 'accepted', 'paid', 'signed'].indexOf(pst) >= 0 ? pst : '',
+                acceptedAt: date(PA.acceptedAt),
+                feePct: num(PA.feePct), feeMonths: num(PA.feeMonths), feeEur: num(PA.feeEur), feeVatPct: num(PA.feeVatPct),
+                feeDue: ['move-in', 'signing', 'separate'].indexOf(fd) >= 0 ? fd : '',
+                energyCredit: num(PA.energyCredit), depositSplitPct: num(PA.depositSplitPct), dueAtSigning: num(PA.dueAtSigning),
+                validUntil: date(PA.validUntil), extras: str(PA.extras)
+            };
+        }
+        var mat = low(raw.material);
+        if (MATERIALS.indexOf(mat) >= 0) out.material = mat;
         return out;
     }
 
@@ -862,11 +932,12 @@
     function mergeProposal(base, extra) {
         base = base || {}; extra = extra || {};
         var out = JSON.parse(JSON.stringify(base));
-        ['landlord', 'tenant', 'property', 'contract'].forEach(function (k) {
+        ['landlord', 'tenant', 'property', 'contract', 'lead', 'preagreement'].forEach(function (k) {
             if (!extra[k]) return;
             if (!out[k]) { out[k] = JSON.parse(JSON.stringify(extra[k])); return; }
             fillHoles(out[k], extra[k]);
         });
+        if (!out.material && extra.material) out.material = extra.material;
         // Co-conduttori: stessa persona (CF o nome) → si riempiono i buchi
         // della SUA riga; persona nuova → si aggiunge in coda.
         if (Array.isArray(extra.coTenants) && extra.coTenants.length) {
@@ -1073,6 +1144,6 @@
         normName: normName, normAddress: normAddress,
         mergeProposal: mergeProposal, deriveProposal: deriveProposal,
         diffRecord: diffRecord, applyDiff: applyDiff, monthsSpan: monthsSpan,
-        LABELS: LABELS, DOC_TYPES: DOC_TYPES, CONTRACT_TYPES: CONTRACT_TYPES
+        LABELS: LABELS, DOC_TYPES: DOC_TYPES, CONTRACT_TYPES: CONTRACT_TYPES, MATERIALS: MATERIALS
     };
 });

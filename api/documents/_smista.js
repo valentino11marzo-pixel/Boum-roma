@@ -59,6 +59,8 @@ export const CATS = {
   imposta_soggiorno:   { label: 'Imposta di soggiorno',          category: 'imposta soggiorno versamento',   folder: '08_BreviLocazioni',   type: 'other' },
   fattura_societa:     { label: 'Fattura società',               category: 'fattura società invoice',        folder: '09_Societa',          type: 'other' },
   estratto_conto:      { label: 'Estratto conto',                category: 'estratto conto bancario',        folder: '09_Societa',          type: 'other' },
+  proposta:            { label: 'Proposta / pre-accordo',        category: 'proposta pre-accordo rental proposal', folder: '01_Contratto',  type: 'other' },
+  messaggio:           { label: 'Messaggio / email di un cliente', category: 'messaggio cliente richiesta',   folder: '99_DaSmistare',       type: 'other' },
   altro:               { label: 'Documento',                     category: 'documento generico',             folder: '99_DaSmistare',       type: 'other' },
 };
 
