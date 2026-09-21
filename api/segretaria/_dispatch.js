@@ -88,6 +88,9 @@ export async function approvePreparation({ id, revision, lastMessageId, actor, n
       committed = true; actionId = p.approval.actionId;
       return await dispatchApproved(id, actionId, true);
     }
+    const checkTime = checkTimestamp(p.nextAction?.checkAt);
+    if (Number.isFinite(checkTime) && PROPOSTA.approvalExpired(p, now))
+      return { code: 409, id, error: 'preparation_expired' };
     if (!PROPOSTA.contextCurrent(task)) return { code: 409, id, error: 'preparation_sources_changed' };
     if (p.version !== PROPOSTA.VERSION) return { code: 409, id, error: 'preparation_policy_changed' };
     if (!/^[\w.-]{1,180}$/.test(f.conversationId || '')) return { code: 409, id, error: 'conversation_missing' };
@@ -97,7 +100,7 @@ export async function approvePreparation({ id, revision, lastMessageId, actor, n
       return { code: 409, id, error: 'contact_changed' };
     const dossier = await personaDossier({ phone: conv.contactPhone, email: conv.contactEmail,
       leadId: conv.leadId || (conv.contactType === 'lead' ? conv.contactId : undefined), conversationId: f.conversationId });
-    const n = p.nextAction, checkTime = checkTimestamp(n?.checkAt);
+    const n = p.nextAction;
     if (!text(n?.text, 240) || !text(n?.waitingLabel, 100)
         || !['valentino', 'client', 'collaborator', 'boom'].includes(n?.waitingOn)
         || !Number.isFinite(checkTime) || checkTime <= now || checkTime > now + 365 * 86400000)

@@ -115,6 +115,13 @@
   // readable across context upgrades, but never becomes current for a new event.
   function currentContext(task) { return current(task)
     && (!!task.preparation.approval || task.preparation.coverage?.version === CONTEXT_VERSION || task.preparation.status === 'needs_context'); }
+  // Expiry only: callers retain their timestamp validation and approval gates.
+  function approvalExpired(proposal, now) {
+    const value = proposal?.nextAction?.checkAt;
+    const at = typeof value === 'string' ? Date.parse(value) : NaN;
+    return proposal?.status === 'ready' && !proposal.approval
+      && Number.isFinite(now) && Number.isFinite(at) && at <= now;
+  }
   // Narrow source-backed exception to the generic next-actor guard. A model's
   // assertion of a promise is not evidence. Only a whole, affirmative callback
   // statement by this contact can establish a pending wait on this contact.
@@ -190,5 +197,5 @@
       reason: 'Richiesta o incarico da verificare: Valentino deve verificare il prossimo passo prima di considerare attesa una risposta.'
         + (preserveEarlier ? ' Mantengo il ricontrollo interno precedente, più vicino.' : ' Il ricontrollo proposto resta una verifica interna.') };
   }
-  return Object.freeze({ VERSION, CONTEXT_VERSION, validate, wantsHuman, topicOf, contextRevision, contextCurrent, current, currentContext, nextActor, isReaction });
+  return Object.freeze({ VERSION, CONTEXT_VERSION, validate, wantsHuman, topicOf, contextRevision, contextCurrent, current, currentContext, approvalExpired, nextActor, isReaction });
 });

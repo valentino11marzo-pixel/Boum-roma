@@ -4006,6 +4006,12 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
 
 - **Lavoro preparato sul caso** (15/09, Codex): `_prepare` e `segretaria-proposta-engine` scrivono una proposta versionata sul seguito esistente: sintesi, impegni espliciti/dedotti, fonti, risposta e prossimo controllo. `_context` legge cronologia ordinata e riferimenti verificati del dossier; campioni `out/fromMe` non attestano la voce umana di Valentino.
 - In Oggi la proposta precede il modulo manuale. `prepare` admin-only conferma insieme seguito e risposta mostrata, con destinatario derivato dal server; `_dispatch` riusa l'executor e l'outbox. Fonti, recapito, evento e decisioni manuali sono ricontrollati: una revisione vecchia non sovrascrive le nuove informazioni. Senza pratica verificata resta solo il seguito.
+- **Proposta pronta scaduta (21/09)**: `approvalExpired(proposal, now)` distingue
+  il ricontrollo trascorso di una `ready` non approvata da una revisione o ricevuta.
+  La conferma risponde `409 preparation_expired` prima di rileggere il contesto;
+  una richiesta di preparazione rielabora anche con lo stesso `recheckFor`.
+  Cache futura, `needs_context` e replay approvato restano invariati; un errore AI
+  conserva la proposta precedente. Prove: `segretariaprepara`, `segretariaconferma`.
 - **Freschezza Oggi/Inbox (21/09)**: il browser distingue conversazioni confermate dal server, copia locale, offline ed errore; le informazioni già lette restano visibili. Questo stato non certifica l'ingresso WhatsApp né la preparazione AI.
   Ritorno alla scheda, ripristino della pagina e connessione recuperata riattivano i listener terminati e ricontrollano Oggi, accorpando eventi ripetuti. Gli agganci si rimuovono uscendo dalla vista o dall'utente; callback e letture superate non sostituiscono dati correnti.
   Gli aggiornamenti conservano bozza, oggetto email, selezione del testo e posizione della cronologia; Oggi aggiorna solo le proprie regioni, senza ricreare il modulo aperto.

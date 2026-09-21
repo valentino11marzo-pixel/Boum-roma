@@ -218,6 +218,36 @@ try {
   r = await approvePreparation(args);
   ok('anche conferma senza invio ha ricevuta idempotente', r.cached && r.delivery === 'follow_up_only');
 
+  for (const delta of [-1, 0]) {
+    await reset(); revise(t => { t.preparation.nextAction.checkAt = new Date(NOW + delta).toISOString(); });
+    failingCollection = 'conversations';
+    r = await approvePreparation(args);
+    ok('proposta scaduta rifiutata prima di leggere contesto, soglia ' + delta,
+      r.code === 409 && r.error === 'preparation_expired' && writes.length === 0
+      && !task().preparation.approval && !rows('action_queue').length && !rows('messageLog').length && __mails.length === 0, r);
+  }
+  for (const checkAt of ['not-a-date', '2026-02-30T12:00:00.000Z', '2026-09-13', new Date(NOW + 366 * 86400000).toISOString()]) {
+    await reset(); revise(t => { t.preparation.nextAction.checkAt = checkAt; });
+    r = await approvePreparation(args);
+    ok('data malformata o oltre un anno conserva invalid_prepared_follow_up: ' + checkAt,
+      r.code === 400 && r.error === 'invalid_prepared_follow_up' && !writes.length && !rows('action_queue').length, r);
+  }
+  await reset(); r = await approvePreparation(args);
+  const replayActionId = r.actionId, replayWrites = writes.length;
+  r = await approvePreparation({ ...args, now: NOW + 86400000 });
+  ok('replay già approvato resta idempotente anche alla scadenza del ricontrollo',
+    r.code === 200 && r.cached && r.delivery === 'queued' && r.actionId === replayActionId
+    && writes.length === replayWrites && rows('action_queue').length === 1 && rows('messageLog').length === 1, r);
+  const expiryProposal = { status: 'ready', nextAction: { checkAt: new Date(NOW).toISOString() } };
+  ok('helper condiviso riconosce la soglia senza sostituire stati di revisione o ricevute',
+    PROPOSTA.approvalExpired?.(expiryProposal, NOW) === true
+    && PROPOSTA.approvalExpired?.(expiryProposal, NOW - 1) === false
+    && PROPOSTA.approvalExpired?.({ ...expiryProposal, status: 'needs_context' }, NOW) === false
+    && PROPOSTA.approvalExpired?.({ ...expiryProposal, approval: {} }, NOW) === false
+    && PROPOSTA.approvalExpired?.({ status: 'ready', nextAction: { checkAt: 'invalid' } }, NOW) === false
+    && PROPOSTA.approvalExpired?.({ status: 'ready', nextAction: { checkAt: null } }, NOW) === false
+    && PROPOSTA.approvalExpired?.(expiryProposal, NaN) === false);
+
   await reset(); r = await approvePreparation({ ...args, revision: 'old-revision' });
   ok('revisione superata rifiutata senza scrivere', r.code === 409 && r.error === 'preparation_changed' && writes.length === 0);
   await reset(); revise(t => { t.followUp.lastMessageId = 'new-message'; });

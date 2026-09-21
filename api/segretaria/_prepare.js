@@ -120,6 +120,7 @@ export async function prepareCase({ id, actor, now = Date.now(), background = fa
     action: priorSnapshot.data, task: { ...task, id }, now });
   if (!expiresUnclaimed && !retirements.length && PROPOSTA.currentContext(task) && task.preparation.sourceFingerprint === sourceFingerprint
     && task.preparation.contactFingerprint === contactHash
+    && !PROPOSTA.approvalExpired(task.preparation, now)
     && (task.preparation.approval?.followUpFingerprint || task.preparation.followUpFingerprint) === followUpFingerprint
     && task.preparation.replyOwnerFingerprint === replyOwnerFingerprint
     && (task.preparation.status === 'needs_context' || !recheckFor || task.preparation.recheckFor === recheckFor)

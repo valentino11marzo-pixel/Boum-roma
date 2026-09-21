@@ -268,6 +268,41 @@ try {
   r = await generate();
   ok('stesso caso e stesse fonti restituiscono stessa proposta senza seconda spesa', r.cached && aiHits === 1 && count() === 1);
 
+  for (const delta of [0, 1]) {
+    reset(); revise(t => { t.followUp.checkAt = stamp(NOW - 60000); });
+    await generate();
+    const expired = structuredClone(task().preparation);
+    clock = Date.parse(expired.nextAction.checkAt) + delta;
+    r = await endpoint(prepareEndpoint, { body: { op: 'generate', id: ID } });
+    ok('generate rielabora ready scaduta con stesso recheckFor, soglia ' + delta,
+      r.httpCode === 200 && !r.cached && aiHits === 2 && count() === 2
+      && r.preparation.revision !== expired.revision && Date.parse(r.preparation.nextAction.checkAt) > clock
+      && r.preparation.recheckFor === expired.recheckFor && !r.preparation.approval && untouched(), r);
+    const freshRevision = task().preparation.revision;
+    r = await generate();
+    ok('la proposta rielaborata ancora futura torna in cache, soglia ' + delta,
+      r.code === 200 && r.cached && aiHits === 2 && r.preparation.revision === freshRevision && untouched(), r);
+  }
+  reset(); revise(t => { t.followUp.checkAt = stamp(NOW - 60000); });
+  await generate(); revise(t => { t.preparation.status = 'needs_context'; });
+  const expiredReview = JSON.stringify(task().preparation);
+  clock = Date.parse(task().preparation.nextAction.checkAt);
+  r = await generate();
+  ok('needs_context scaduta resta in cache senza nuova preparazione o spesa',
+    r.code === 200 && r.cached && aiHits === 1 && count() === 1
+    && JSON.stringify(task().preparation) === expiredReview && untouched(), r);
+
+  reset(); revise(t => { t.followUp.checkAt = stamp(NOW - 60000); });
+  await generate();
+  const beforeExpiredFailure = JSON.stringify(task()), beforeFailureWrites = writes.length;
+  clock = Date.parse(task().preparation.nextAction.checkAt);
+  aiHook = async () => { throw new Error('fixture_expired_preparation_failure'); };
+  r = await endpoint(prepareEndpoint, { body: { op: 'generate', id: ID } });
+  ok('AI indisponibile durante rielaborazione non altera proposta scaduta o seguito',
+    r.httpCode === 503 && r.error === 'preparation_unavailable' && aiHits === 2
+    && JSON.stringify(task()) === beforeExpiredFailure && untouched()
+    && writes.slice(beforeFailureWrites).every(w => w.path.startsWith('heartbeat/')), r);
+
   for (const [local, reason, error] of [
     [undefined, null, 'calendar_check_local_missing'],
     [{ date: '2026-09-15', time: '11:00', timeZone: 'Europe/Rome' }, null, 'calendar_check_local_mismatch'],
@@ -1322,6 +1357,10 @@ try {
         from: 'if (draftLanguage && draftLanguage !== language)', to: 'if (false)' },
       { name: 'approvazione proposta obsoleta', file: 'api/segretaria/_dispatch.js',
         from: 'if (p.version !== PROPOSTA.VERSION)', to: 'if (false)' },
+      { name: 'ready scaduta non resta nella cache dello stesso ricontrollo', file: 'api/segretaria/_prepare.js',
+        from: '&& !PROPOSTA.approvalExpired(task.preparation, now)', to: '' },
+      { name: 'scadenza include lo stesso istante del ricontrollo', file: 'js/segretaria-proposta-engine.js',
+        from: 'Number.isFinite(at) && at <= now', to: 'Number.isFinite(at) && at < now' },
       { name: 'citazione letterale', file: 'js/segretaria-proposta-engine.js',
         from: "!sourceIds.some(id => norm(sourceTexts[id]).includes(norm(quote)))", to: 'false' },
       { name: 'veto richiesta umana', file: 'js/segretaria-proposta-engine.js',
