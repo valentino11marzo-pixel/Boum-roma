@@ -141,6 +141,12 @@ firebase.json             Firebase deploy config (firestore + storage rules)
   `api/preagreement/{submit,sign-for}.js` (the 51st rule would have blocked
   the production deploy, not a test); `tests/mandato/run.mjs` §9 pins the
   ≤50 count and resolves rules through brace expansion.
+  The single-delivery endpoint brought the count to 51;
+  `api/homie/{wa-outbox,wa-outbox-single}.js` keeps exactly
+  the two outbox endpoints at 60s and returns the count to 50.
+  All 53 configured paths keep their settings (including memory/includeFiles).
+  `npm test -- vercelfunctions` checks the tracked-file mapping, overlaps,
+  the 50-rule ceiling and negative mutations; no deployment is needed.
 
 ## Environment Variables (Vercel)
 
