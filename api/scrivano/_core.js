@@ -24,6 +24,7 @@ export const READ_COST_MS = 110 * 1000;    // AI_MS (100 s) + preparazione: quan
 export const DETERMINISTIC = new Set([
   'too_many_pages', 'ai_too_long', 'unsupported_media_type', 'file_too_large', 'files_too_large',
   'ai_refused', 'ai_truncated', 'server_missing_anthropic_key', 'bad_file_url', 'text_or_file_required',
+  'ai_bad_request', 'ai_bad_document',   // un 400 del modello che non è «troppo materiale»: schema/richiesta o documento illeggibile — riprovare non cambia nulla
 ]);
 
 const iso = (t = Date.now()) => new Date(t).toISOString();

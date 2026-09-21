@@ -107,12 +107,26 @@ async function clipPdf(buf) {
 // Regole della piattaforma: ogni oggetto con additionalProperties:false e
 // TUTTE le chiavi in required; il "manca" si esprime con null. Le
 // descrizioni sono parte del prompt: dicono al modello cosa va in ogni campo.
-const nul = (t, description) => ({ anyOf: [{ type: t }, { type: 'null' }], description });
-const nstr = (d) => nul('string', d);
-const nnum = (d) => nul('number', d);
-const nint = (d) => nul('integer', d);
-const nbool = (d) => nul('boolean', d);
-const nenum = (values, d) => ({ anyOf: [{ type: 'string', enum: values }, { type: 'null' }], description: d });
+// ─── «Manca» = stringa vuota, MAI null ───────────────────────────────────
+// LA LEZIONE DEL 21 SETTEMBRE 2026: la prima versione scriveva ogni campo
+// facoltativo come anyOf [tipo, null] — 99 unioni — e OGNI lettura moriva con
+// 400 «Schemas contains too many parameters with union types», che il
+// portal mostrava come «errore (400), riprova»: l'operatore incolpava il PDF.
+// L'API compila lo schema in una grammatica e ha limiti DOCUMENTATI per
+// richiesta: 16 parametri con unione (anyOf o type array) e 24 parametri
+// fuori da `required`. Su 120 campi né «nullable» né «facoltativo» sono
+// strade: TUTTE le chiavi restano in required, nessuna unione, e «manca» è
+// "" — che il motore (dataops-engine: num/str/date/yesno) tratta già come
+// null. Anche i numeri viaggiano come stringhe di cifre: 0 non può fare da
+// sentinella (filled(0) è vero: «0 mq» sarebbe un dato) e un number nullable
+// sarebbe un'unione. Il test conta unioni e facoltativi e pretende ZERO.
+export const SCHEMA_LIMITS = { unionParams: 16, optionalParams: 24 };   // documentati (structured outputs → Schema complexity limits)
+const VUOTO = ' Stringa vuota "" se il materiale non lo dice.';
+const nstr = (d) => ({ type: 'string', description: d + VUOTO });
+const nnum = (d) => ({ type: 'string', description: d + ' Numero puro scritto come stringa di sole cifre (es. "1100", "65.5"), senza simboli né separatori delle migliaia.' + VUOTO });
+const nint = (d) => ({ type: 'string', description: d + ' Numero intero scritto come stringa di cifre (es. "3").' + VUOTO });
+const nbool = (d) => ({ type: 'string', enum: ['si', 'no', ''], description: d + ' "si" oppure "no"; "" se non detto.' });
+const nenum = (values, d) => ({ type: 'string', enum: values.concat(['']), description: d + ' "" se non determinabile.' });
 const obj = (props, d) => ({ type: 'object', description: d, properties: props, required: Object.keys(props), additionalProperties: false });
 const arr = (items, d) => ({ type: 'array', items, description: d });
 
@@ -149,11 +163,11 @@ export const INGEST_SCHEMA = obj({
     businessName: nstr('Ragione sociale se il locatore è una società'),
     partitaIva: nstr('Partita IVA (11 cifre) se società'),
     iban: nstr('IBAN su cui va pagato il canone, senza spazi'),
-  }), 'Il LOCATORE / parte locatrice / concedente (chi dà in affitto). Tutto null se il materiale non lo nomina.'),
+  }), 'Il LOCATORE / parte locatrice / concedente (chi dà in affitto). Tutti i campi "" se il materiale non lo nomina.'),
   tenant: obj(personProps({
     permessoNumero: nstr('Numero del permesso di soggiorno o del visto (solo extra-UE)'),
     permessoScadenza: nstr('Scadenza del permesso AAAA-MM-GG'),
-  }), 'Il CONDUTTORE principale / parte conduttrice / locatario / inquilino (il primo nominato). Tutto null se assente.'),
+  }), 'Il CONDUTTORE principale / parte conduttrice / locatario / inquilino (il primo nominato). Tutti i campi "" se assente.'),
   coTenants: arr(obj(personProps()), 'Gli ALTRI conduttori che firmano (secondo, terzo…). Vuoto se è uno solo. Mai fondere due persone in una.'),
   property: obj({
     name: nstr('Nome breve dell\'immobile, es. "Via Cavour 12, int. 5"'),
@@ -166,7 +180,7 @@ export const INGEST_SCHEMA = obj({
     rooms: nint('Numero di vani/stanze (oltre cucina e servizi)'),
     bathrooms: nint('Numero di bagni'),
     accessories: nstr('Pertinenze e accessori: cantina, soffitta, posto auto, balcone…'),
-    furnished: nbool('Ammobiliato: true / false / null se non detto'),
+    furnished: nbool('Ammobiliato.'),
     energyClass: nstr('Classe energetica APE (A4…G)'),
     propertyType: nenum(['apartment', 'room', 'studio', 'house', 'office', 'other'], 'Tipologia'),
     cadastral: obj({
@@ -183,7 +197,7 @@ export const INGEST_SCHEMA = obj({
       acqua: nnum('Millesimi acqua'),
       altre: nstr('Altre tabelle millesimali, in testo'),
     }, 'Tabelle millesimali se riportate'),
-  }, 'L\'IMMOBILE locato. Tutto null se il materiale non lo descrive.'),
+  }, 'L\'IMMOBILE locato. Tutti i campi "" se il materiale non lo descrive.'),
   contract: obj({
     type: nenum(['transitorio', 'studenti', '3+2', '4+4', 'ordinaria'], 'transitorio (L.431/98 art.5 c.1, 1-18 mesi) · studenti (art.5 c.2-3) · 3+2 (art.2 c.3, canone concordato) · 4+4 (art.2 c.1, canone libero) · ordinaria (altro)'),
     startDate: nstr('Decorrenza AAAA-MM-GG'),
@@ -196,7 +210,7 @@ export const INGEST_SCHEMA = obj({
     installmentMonths: nenum(['1', '2', '3', '6', '12'], 'Cadenza delle rate in mesi: "1" mensile, "2" bimestrale, "3" trimestrale, "6" semestrale, "12" annuale'),
     accessoryCharges: nnum('Oneri accessori / spese condominiali a carico del conduttore, in euro AL MESE'),
     condoMode: nenum(['incluso', 'consuntivo'], 'Spese condominiali incluse nel canone o a consuntivo'),
-    cedolareSecca: nbool('true se il locatore opta per la cedolare secca, false se si applica il regime ordinario (registro + bollo), null se il documento non lo dice'),
+    cedolareSecca: nbool('"si" se il locatore opta per la cedolare secca, "no" se si applica il regime ordinario (registro + bollo).'),
     transitionalReason: nstr('Motivazione dell\'esigenza transitoria (solo transitorio), come scritta nel documento'),
     transitionalDocs: nstr('Documento che attesta l\'esigenza, se citato'),
     esigenzaDi: nenum(['conduttore', 'locatore'], 'Di chi è l\'esigenza transitoria'),
@@ -214,11 +228,11 @@ export const INGEST_SCHEMA = obj({
     paymentMethod: nstr('Modalità di pagamento (bonifico, contanti…)'),
     istatPct: nstr('Percentuale di aggiornamento ISTAT pattuita, se presente (es. "75")'),
     notes: nstr('Note sul contratto utili all\'operatore'),
-  }, 'Il CONTRATTO. Tutto null se il materiale non è un contratto (una carta d\'identità non ha canone).'),
+  }, 'Il CONTRATTO. Tutti i campi "" se il materiale non è un contratto (una carta d\'identità non ha canone).'),
   evidence: arr(obj({
     path: { type: 'string', description: 'Percorso del campo, es. "contract.rent", "tenant.codiceFiscale", "property.cadastral.foglio", "coTenants[0].name"' },
     quote: { type: 'string', description: 'La frase ESATTA del documento da cui hai letto il valore (max 200 caratteri)' },
-    file: nint('Indice del DOCUMENTO n (1-based) da cui viene, null se dal testo incollato'),
+    file: nint('Indice del DOCUMENTO n (1-based) da cui viene; "" se dal testo incollato.'),
     page: nint('Pagina, se è un PDF'),
   }), 'Una citazione per OGNI campo valorizzato. Un campo senza citazione non può essere valorizzato.'),
   notes: arr({ type: 'string' }, 'Osservazioni per l\'operatore, in italiano: cosa manca, cosa è stato derivato, cosa non torna'),
@@ -230,10 +244,10 @@ export const INGEST_SCHEMA = obj({
 export const SYSTEM = `Sei l'assistente di back-office di BOOM, agenzia immobiliare a Roma. Dal materiale che ricevi (uno o più documenti: PDF, foto, testo incollato) estrai i dati per il gestionale, nello schema richiesto.
 
 REGOLE NON NEGOZIABILI
-1. NON INVENTARE MAI. Se un dato non è scritto nel materiale, lascia null. Un campo vuoto è corretto; un campo inventato finisce in un contratto registrato all'Agenzia delle Entrate.
+1. NON INVENTARE MAI. Se un dato non è scritto nel materiale, lascia la stringa vuota "". Un campo vuoto è corretto; un campo inventato finisce in un contratto registrato all'Agenzia delle Entrate.
 2. OGNI VALORE HA UNA CITAZIONE. Per ogni campo che valorizzi metti in "evidence" la frase esatta da cui l'hai letto (documento e pagina). Se non riesci a citare, non valorizzare.
 3. Trascrivi codici fiscali, IBAN, numeri di documento CARATTERE PER CARATTERE, senza "correggerli". Se una lettera è ambigua (0/O, 1/I, 5/S) scegli quella più probabile per il contesto e dillo in notes.
-4. Date sempre AAAA-MM-GG ("1° settembre 2026" → 2026-09-01). Importi come numeri puri in euro (1100, non "€ 1.100,00"). Il canone è quello MENSILE: se il documento dà l'annuo, dividi per 12 e scrivilo in notes.
+4. Date sempre AAAA-MM-GG ("1° settembre 2026" → 2026-09-01). Importi e misure come numeri puri scritti come stringhe di sole cifre ("1100", non "€ 1.100,00"; "65.5" per i decimali). Il canone è quello MENSILE: se il documento dà l'annuo, dividi per 12 e scrivilo in notes.
 5. Non fondere mai due persone in una. Se i conduttori sono più d'uno, il primo nominato è "tenant" e gli altri vanno in "coTenants".
 6. I nomi in archivio che ti vengono forniti servono SOLO per usare la stessa grafia: non prenderne mai un dato.
 7. Rispondi nello schema JSON richiesto, in italiano, senza testo attorno.
@@ -247,7 +261,7 @@ COME SI LEGGE UN CONTRATTO DI LOCAZIONE ITALIANO (il materiale è quasi sempre q
 - "deposito cauzionale pari a n. X mensilità" → depositMonths X (e deposit solo se l'importo è scritto). "entro il giorno X di ogni mese" → paymentDay X.
 - Tipo: "transitorio" / "esigenze transitorie" / art. 5 c. 1 → transitorio; "studenti universitari" / art. 5 c. 2-3 → studenti; "3+2" / "canone concordato" / art. 2 c. 3 → 3+2; "4+4" / "canone libero" / art. 2 c. 1 → 4+4.
 - Per il transitorio la motivazione dell'esigenza ("per motivi di lavoro/studio/salute", "esigenza di transitorietà del conduttore") va in transitionalReason ed esigenzaDi dice di chi è.
-- "cedolare secca" con opzione esercitata → cedolareSecca true; "regime ordinario", "imposta di registro a carico 50%" o opzione non esercitata → false; se il contratto non ne parla → null.
+- "cedolare secca" con opzione esercitata → cedolareSecca "si"; "regime ordinario", "imposta di registro a carico 50%" o opzione non esercitata → "no"; se il contratto non ne parla → "".
 - "oneri accessori" / "spese condominiali" a carico del conduttore → accessoryCharges (mensili); "comprese nel canone" → condoMode incluso, "a consuntivo" → consuntivo.
 - Dati catastali ("foglio 12, particella 345, subalterno 6, categoria A/2, rendita € 812,50") → property.cadastral. Classe energetica / APE → energyClass.
 - L'indirizzo dell'immobile è quello dopo "sito in" / "posto in" / "ubicato in", con piano, scala, interno; NON la residenza delle parti.
@@ -368,6 +382,15 @@ async function askModel(content) {
 }
 
 const clip = (v, n) => String(v == null ? '' : v).replace(/\s+/g, ' ').trim().slice(0, n);
+// Gli interi dello schema sono stringhe di cifre ("" = manca); un intero vero
+// resta accettato (il worker e i test ne mandano). Tutto il resto è null.
+const toInt = (v) => { if (Number.isInteger(v)) return v; const t = String(v == null ? '' : v).trim(); return /^\d{1,7}$/.test(t) ? Number(t) : null; };
+// «Structured outputs don't guarantee the capitalization of string enum
+// values»: gli enum si confrontano in minuscolo, come fa il motore.
+const lowEnum = (v) => String(v == null ? '' : v).trim().toLowerCase();
+// Il testo di errore dell'API è JSON {type:'error', error:{message}}: nei log
+// e all'operatore va il messaggio, non la busta.
+const apiErrorMessage = (text) => { try { const j = JSON.parse(text); return String((j && j.error && j.error.message) || text || ''); } catch (_) { return String(text || ''); } };
 // Il 400 con cui l'API dice «troppo materiale» (finestra di contesto o tetto
 // pagine): non si ripara riprovando, si ripara togliendo pagine.
 const TOO_LONG_RE = /prompt is too long|too many pages|pages?\b[^.]*\b(exceed|limit|maximum)|(exceed|limit|maximum)[^.]*\bpages?\b/i;
@@ -380,8 +403,9 @@ function sanitizeEvidence(list, nFiles) {
     if (!e || typeof e !== 'object') continue;
     const path = clip(e.path, 80), quote = clip(e.quote, 240);
     if (!PATH_RE.test(path) || !quote) continue;
-    const file = Number.isInteger(e.file) && e.file >= 1 && e.file <= nFiles ? e.file : null;
-    const page = Number.isInteger(e.page) && e.page >= 1 ? e.page : null;
+    const fileN = toInt(e.file), pageN = toInt(e.page);
+    const file = fileN != null && fileN >= 1 && fileN <= nFiles ? fileN : null;
+    const page = pageN != null && pageN >= 1 ? pageN : null;
     out.push({ path, quote, file, page });
     if (out.length >= 120) break;
   }
@@ -396,14 +420,15 @@ function sanitizeFiles(list, files) {
   });
   return files.map((f) => {
     const m = byIndex.get(f.index) || {};
-    const kind = KIND_KEYS.indexOf(m.kind) >= 0 ? m.kind : 'altro';
+    const kindRaw = lowEnum(m.kind);
+    const kind = KIND_KEYS.indexOf(kindRaw) >= 0 ? kindRaw : 'altro';
     return {
       index: f.index, name: f.name, bytes: f.bytes, mediaType: f.mediaType,
       kind, label: CATS[kind].label, docType: CATS[kind].type, category: CATS[kind].category, folder: CATS[kind].folder,
       title: clip(m.title, 120), summary: clip(m.summary, 300),
       legible: m.legible !== false,
-      party: ['tenant', 'landlord', 'cotenant'].indexOf(m.party) >= 0 ? m.party : null,
-      pages: f.pages != null ? f.pages : (Number.isInteger(m.pages) ? m.pages : null),
+      party: ['tenant', 'landlord', 'cotenant'].indexOf(lowEnum(m.party)) >= 0 ? lowEnum(m.party) : null,
+      pages: f.pages != null ? f.pages : toInt(m.pages),
       clipped: f.clipped, readPages: f.readPages != null ? f.readPages : null,
     };
   });
@@ -495,13 +520,28 @@ export async function ingestRead({ files = [], text = '', hint = '', known = {},
         : 'Il servizio di lettura non ha risposto. Riprova tra qualche istante.' };
   }
   if (!out.ok) {
-    console.error('[' + tag + '] anthropic', out.status, clip(out.text, 200));
+    console.error('[' + tag + '] anthropic', out.status, clip(apiErrorMessage(out.text), 600));
     const rate = out.status === 429;
     const tooLong = out.status === 400 && TOO_LONG_RE.test(out.text || '');
     if (tooLong) {
       const pagesSent = files.reduce((s, f) => s + (f.readPages || 0), 0);
       return { status: 413, ok: false, error: 'ai_too_long',
         detail: `Troppo materiale in un giro (${pagesSent} pagine di PDF${files.length > 1 ? ', ' + files.length + ' documenti' : ''}): i dati di un contratto stanno nelle prime pagine. Allega meno pagine o meno documenti, oppure leggi in due giri: la seconda lettura integra la prima.` };
+    }
+    if (out.status === 400) {
+      // Un 400 che non è «troppo materiale» è DETERMINISTICO: riprovare non
+      // cambia nulla. O il documento non si apre (PDF cifrato o rotto), o è la
+      // NOSTRA richiesta a essere rifiutata (schema, parametri) — e allora il
+      // rimedio non è dell'operatore ma di chi mantiene il server, e va detto
+      // così. Il 21/09/2026 lo schema con 99 unioni usciva come «errore (400),
+      // riprova; incolla il testo» e l'operatore incolpava il pre-agreement.
+      const msg = apiErrorMessage(out.text);
+      if (/\bpdf\b|document|image|could not (process|parse|decode|read)|base64|media_type/i.test(msg)) {
+        return { status: 422, ok: false, error: 'ai_bad_document',
+          detail: 'Il servizio di lettura non riesce ad aprire il documento (' + clip(msg, 160) + '). Esporta di nuovo il PDF senza password, o fotografa le pagine.' };
+      }
+      return { status: 500, ok: false, error: 'ai_bad_request',
+        detail: 'Il servizio di lettura ha rifiutato la RICHIESTA del server, non il documento: ' + clip(msg, 220) + '. Non dipende dal file caricato: va corretta la richiesta sul server, segnalalo.' };
     }
     return { status: 502, ok: false, error: rate ? 'ai_rate_limited' : 'ai_provider_error',
       detail: rate ? 'Troppe letture in questo momento: riprova tra un minuto.' : 'Il servizio di lettura ha risposto con un errore (' + out.status + '). Riprova; se ricapita, incolla il testo invece del file.' };
