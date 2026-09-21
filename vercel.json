@@ -660,6 +660,9 @@
     "api/preagreement/submit.js": {
       "maxDuration": 60
     },
+    "api/preagreement/sign-for.js": {
+      "maxDuration": 60
+    },
     "api/leads/scan-inbox.js": {
       "maxDuration": 60
     },

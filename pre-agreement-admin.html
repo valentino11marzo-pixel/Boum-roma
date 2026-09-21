@@ -312,7 +312,7 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
         </div>
         <label class="fld"><span>Secondo documento (facoltativo)</span><input id="fXDoc" placeholder="es. Proof of the transitional need (work contract / enrolment)"></label>
         <p class="hintline" style="margin-top:12px">Con l'accettazione il cliente firma anche la <b>scheda di calcolo del canone</b> (Allegato 2/B) — dopo la firma del contratto esce già completa. Se lo scegli qui, può darti il <b>mandato a firmare</b> il contratto in sua vece agli stessi identici termini: spunta a parte sulla sua pagina, mai pre-selezionata. Riguarda <b>solo il conduttore principale</b> (i co-conduttori firmano col proprio link). Se le condizioni cambiano dopo l'accettazione, il mandato non vale più: il server rifiuta la firma e il portal mostra cosa è cambiato.</p>
-        <label class="fld" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="fMandate" style="width:auto"><span style="margin:0">Offri il mandato a firmare nella proposta (scelta esplicita, non attiva di default)</span></label>
+        <label class="fld" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" id="fMandate" style="width:auto" checked><span style="margin:0">Offri il mandato a firmare nella proposta (offerto di default dal 21/09/2026 — la spunta del cliente resta un atto a parte, mai pre-selezionata)</span></label>
       </div>
 
       <div class="card"><h2><span class="no">06</span><span class="tt">Cliente (prefill facoltativo)</span></h2>
@@ -754,6 +754,114 @@ function preflightHtml(j){
     +(j&&j.overlap?'<label class="dele" style="margin-top:8px"><input type="checkbox" id="cvForce"><span><b>Crea comunque</b> — è un’altra stanza/interno non modellato, oppure sostituisce quello in corso.</span></label>':'');
 }
 function ask(msg){return (typeof confirm==='function')?confirm(msg):true;}
+/* ✍️ FIRMO IO — la firma in un tap dalla console (21/09/2026).
+   Il server (api/preagreement/sign-for) firma per il conduttore in forza del
+   suo mandato scritto e, se c'è la delega, controfirma per il proprietario,
+   passando dallo STESSO magic-sign/submit (403 senza mandato, 409 a
+   condizioni cambiate). Prima si legge il piano (op:status) e si CHIEDE
+   conferma; la firma dell'operatore si disegna una volta (openSigModal). */
+window.signFor=async function(id,btn){
+  var d=PAS.find(function(x){return x.id===id});if(!d)return;
+  var was=btn?btn.textContent:'';
+  var restore=function(){if(btn){btn.disabled=false;btn.textContent=was;}};
+  if(btn){btn.disabled=true;btn.textContent='Controllo…';}
+  try{
+    var tok=await USER.getIdToken();
+    var H={'Content-Type':'application/json','Authorization':'Bearer '+tok};
+    var st=await (await fetch('/api/preagreement/sign-for',{method:'POST',headers:H,body:JSON.stringify({op:'status',id:id})})).json();
+    if(!st||!st.ok)throw new Error((st&&st.error)||'status_failed');
+    if(!st.operatorSignature){restore();return openSigModal(function(){signFor(id,btn)});}
+    var p=st.plan||{},t=d.tenant||{},ll=d.landlord||{};
+    if(p.signatureStatus==='complete'){restore();alert('Il contratto è già firmato da entrambe le parti.');return;}
+    if(!p.tenantSigned&&p.mandateReason==='mandate_missing'){restore();alert('Nessun mandato scritto del conduttore: al suo posto non si firma (sarebbe una firma falsa, non una delega). Usa 🖊 Chiedi il mandato — per lui è un tap — oppure mandagli il suo link.');return;}
+    if(!p.tenantSigned&&p.mandateOk===false){restore();alert('Le condizioni del contratto non sono più quelle su cui il cliente ha dato il mandato ('+(p.mandateDiff||'')+'): il server rifiuterebbe la firma. Rifai la proposta o manda il link al conduttore.');return;}
+    var lines=[];
+    if(!p.tenantSigned)lines.push('Firmi TU per il conduttore '+(t.fullName||'')+' in forza del mandato scritto del '+String((p.mandate&&p.mandate.at)||'').slice(0,10)+((p.mandate&&p.mandate.ref)?' (proposta '+p.mandate.ref+')':'')+'.');
+    if(p.coTenantsPending&&p.coTenantsPending.length)lines.push('I co-conduttori ('+p.coTenantsPending.join(', ')+') NON sono coperti dal mandato: firmano col proprio link, e il proprietario dopo di loro.');
+    if(!p.landlordSigned){
+      if(p.landlordDelegate)lines.push('Poi controfirmi per delega del proprietario '+(ll.name||'')+' — '+(p.landlordDelegate.basis||'delega')+'.');
+      else lines.push('Il proprietario '+(ll.name||'')+' firma col suo link (WhatsApp/copia dalla riga), a meno che tu non abbia una sua delega SCRITTA (te lo chiedo dopo).');
+    }
+    lines.push('Nome, data, ora, dispositivo e «per mandato/per delega» finiscono sulla pagina delle firme e sul certificato.');
+    if(!ask(lines.join('\n\n')+'\n\nProcedere?')){restore();return;}
+    var body={op:'sign',id:id};
+    if(!p.landlordSigned&&!p.landlordDelegate&&!(p.coTenantsPending&&p.coTenantsPending.length)&&ask('Vuoi controfirmare TU anche per il proprietario, per delega?\n\nSOLO se hai una sua delega scritta (es. nel mandato di gestione firmato). Annulla = il proprietario firma col suo link.')){
+      var basis=prompt('Base scritta della delega del proprietario (viene stampata sul certificato) — es. «mandato di gestione firmato il 12/03/2026»:','');
+      if(basis&&basis.trim().length>=8){body.landlordDelegate=true;body.landlordBasis=basis.trim();}
+      else alert('Senza una base scritta la delega non si arma: il proprietario firma col suo link.');
+    }
+    if(btn)btn.textContent='Firmo…';
+    var r=await fetch('/api/preagreement/sign-for',{method:'POST',headers:H,body:JSON.stringify(body)});
+    var j=await r.json();
+    if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
+    if(btn)btn.textContent=j.fullySigned?'✓ Firmato da entrambi':(j.steps&&j.steps.length?'✓ Firmato ('+j.steps.join(' + ')+')':'✓');
+    alert(j.alreadySigned?'Il contratto era già firmato da entrambe le parti.'
+      :j.fullySigned?'Contratto firmato da entrambe le parti'+(j.signedPdfUrl?': il PDF firmato è pronto (📥 nella riga). Certificato, fascicolo e pack sono partiti.':' — il PDF firmato e il certificato arrivano tra pochi secondi.')
+      :(j.waitingCoTenants&&j.waitingCoTenants.length)?'Firmato per il conduttore. Mancano i co-conduttori ('+j.waitingCoTenants.join(', ')+'): firmano col proprio link, poi il proprietario.'
+      :j.landlordPending?'Firmato per il conduttore. Ora il proprietario: mandagli il link firma (WhatsApp/copia nella riga).'
+      :'Fatto: '+(j.steps||[]).join(', '));
+  }catch(e){
+    restore();
+    var m=String(e&&e.message||'');
+    alert('Firma non eseguita: '+(m==='mandate_missing'?'nessun mandato scritto del conduttore sul contratto (🖊 Chiedi il mandato).'
+      :m==='mandate_terms_changed'?'le condizioni del contratto non sono più quelle del mandato: rifai la proposta o manda il link al conduttore.'
+      :m==='operator_signature_missing'?'manca la tua firma salvata: disegnala e riprova.'
+      :m==='landlord_basis_required'?'la delega del proprietario vuole una base scritta (almeno 8 caratteri).'
+      :m==='awaiting_tenant'?'il lato conduttori non è completo (co-conduttori).'
+      :m==='no_property'?'collega (o crea) la proprietà con → Contratto.'
+      :m==='overlap'?'sullo stesso immobile c’è già un contratto attivo: passa da → Contratto e decidi.'
+      :m==='forbidden'?'solo un admin può firmare per le parti.'
+      :m||'riprova'));
+  }
+};
+
+/* 🖊 CHIEDI IL MANDATO — attiva la card sulla proposta (askMandate) e manda
+   il messaggio col link #mandate: per il cliente è un tap, poi firmi tu. */
+window.askMandateFor=async function(id){
+  var d=PAS.find(function(x){return x.id===id});if(!d)return;
+  try{await firebase.firestore().collection('preAgreements').doc(id).update({askMandate:true,mandateAskedAt:new Date().toISOString()});}
+  catch(e){alert('Non riesco ad attivare la richiesta sulla proposta: '+(e.message||e));return;}
+  d.askMandate=true;
+  var t=d.tenant||{};
+  var url=location.origin+'/pre-agreement?t='+d.token+'#mandate';
+  var msg='Hi'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! To spare you the contract signing: open your BOOM pre-agreement and tap “Give BOOM the mandate to sign” — we sign the lease for you on exactly the same terms, and you get the signed contract and its certificate by email. '+url;
+  if(t.phone)window.open('https://wa.me/'+String(t.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent(msg),'_blank','noopener');
+  else{copyTxt(msg);alert('Messaggio copiato (nessun numero in archivio): incollalo dove preferisci.');}
+};
+
+/* ✍️ LA FIRMA DELL'OPERATORE — disegnata UNA volta (canvas), salvata dal
+   server su operatorSignatures/<uid> (il browser non la rilegge mai). */
+function openSigModal(then){
+  var old=document.getElementById('sigov');if(old)old.remove();
+  var ov=document.createElement('div');ov.className='cvov';ov.id='sigov';
+  ov.innerHTML='<div class="cvbox"><h3>La tua firma</h3>'
+    +'<div class="sub2">Disegnala una volta, col dito o col mouse. Il server la stampa sul contratto quando firmi per mandato o per delega; resta sul server, la pagina non la rilegge.</div>'
+    +'<canvas id="sigPad" width="640" height="220" style="width:100%;height:auto;background:#fff;border-radius:12px;touch-action:none;display:block;border:1px solid var(--line);margin-top:10px"></canvas>'
+    +'<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="pbtn" id="sigClear">Cancella</button><button class="pbtn prim" id="sigSave">Salva la firma</button><button class="pbtn" id="sigClose">Annulla</button></div>'
+    +'<p id="sigErr" style="display:none;color:#ff8a70;font-size:12px;margin-top:8px"></p></div>';
+  document.body.appendChild(ov);
+  var cv=ov.querySelector('#sigPad'),ctx=cv.getContext('2d'),drawing=false,strokes=0;
+  ctx.lineWidth=3.4;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#14110a';
+  function pos(e){var r=cv.getBoundingClientRect();return {x:(e.clientX-r.left)*cv.width/r.width,y:(e.clientY-r.top)*cv.height/r.height};}
+  cv.addEventListener('pointerdown',function(e){drawing=true;strokes++;var q=pos(e);ctx.beginPath();ctx.moveTo(q.x,q.y);try{cv.setPointerCapture(e.pointerId);}catch(_){}e.preventDefault();});
+  cv.addEventListener('pointermove',function(e){if(!drawing)return;var q=pos(e);ctx.lineTo(q.x,q.y);ctx.stroke();e.preventDefault();});
+  var up=function(){drawing=false;};cv.addEventListener('pointerup',up);cv.addEventListener('pointercancel',up);cv.addEventListener('pointerleave',up);
+  ov.querySelector('#sigClear').onclick=function(){ctx.clearRect(0,0,cv.width,cv.height);strokes=0;};
+  ov.querySelector('#sigClose').onclick=function(){ov.remove();};
+  ov.querySelector('#sigSave').onclick=async function(){
+    var err=ov.querySelector('#sigErr'),me=this;
+    if(strokes<2){err.textContent='Disegna la firma prima di salvarla.';err.style.display='block';return;}
+    me.disabled=true;me.textContent='Salvo…';
+    try{
+      var tok=await USER.getIdToken();
+      var r=await fetch('/api/preagreement/sign-for',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({op:'signature',png:cv.toDataURL('image/png')})});
+      var j=await r.json();if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
+      ov.remove();if(typeof then==='function')then();
+    }catch(e){me.disabled=false;me.textContent='Salva la firma';err.textContent='Non salvata: '+(e.message||'riprova');err.style.display='block';}
+  };
+}
+window.openSigModal=openSigModal;
+
 /* prima di 🖊: contratto da creare → convert dryRun (sovrapposizione + puntini);
    contratto già nato e non firmato → profile/link (i mancanti per parte).
    Ritorna {stop:true} se l'operatore si ferma, {force:true} se scavalca. */
@@ -1131,10 +1239,14 @@ function paRow(d){
   var ups=Array.isArray(d.uploads)?d.uploads:[];
   var xGot=ups.some(function(u){return u&&u.kind==='extra'});
   var docsLine='';
-  if(d.mandate&&d.mandate.given){
-    docsLine+='<div class="docs" style="color:var(--gold)">🖊 Mandato a firmare ricevuto il '+esc(String(d.mandate.at||'').slice(0,10))+' — dopo la conversione puoi firmare TU per il conduttore (🖊 Firma ora nel portal)</div>';
-  }else if(done&&d.askMandate===true){
-    docsLine+='<div class="docs" style="color:var(--t3)">🖊 Mandato offerto ma non dato: il conduttore firma col suo link</div>';
+  /* il mandato: sulla proposta (spunta all'accettazione, o dato dopo con
+     «🖊 Chiedi il mandato») oppure già sul contratto letto dal listener */
+  var cdoc=cid?CONTRACTS[cid]:null;
+  var hasMandate=!!(d.mandate&&d.mandate.given)||!!(cdoc&&!cdoc.missing&&cdoc.tenantMandate&&cdoc.tenantMandate.given);
+  if(hasMandate){
+    docsLine+='<div class="docs" style="color:var(--gold)">🖊 Mandato a firmare ricevuto il '+esc(String((d.mandate&&d.mandate.at)||(cdoc&&cdoc.tenantMandate&&cdoc.tenantMandate.at)||'').slice(0,10))+' — <b>✍️ Firmo io</b> firma per il conduttore dalla console, con la tua firma salvata</div>';
+  }else if(done&&!sig.tenantSigned){
+    docsLine+='<div class="docs" style="color:var(--t3)">🖊 '+(d.askMandate===true?'Mandato offerto ma non dato':'Nessun mandato a firmare')+' — <b>🖊 Chiedi il mandato</b> glielo chiede con un tap (WhatsApp); senza, il conduttore firma col suo link</div>';
   }
   if(ups.length||d.extraDoc){
     docsLine+='<div class="docs">📎 '
@@ -1178,8 +1290,17 @@ function paRow(d){
               ?'<a class="pbtn prim" href="'+d.landlordSignUrl+'" target="_blank" rel="noopener">🖊 Controfirma per delega</a>'
               :(llWa?'<a class="pbtn prim wa" href="'+llWa+'" target="_blank" rel="noopener">📲 Firma proprietario su WhatsApp</a>':''))
             :(cid||d.propertyId
-              ?'<button class="pbtn prim" onclick="sendSign(\''+d.id+'\',this)">'+(d.signSentAt?'🖊 Reinvia Magic Sign':'🖊 Invia Magic Sign')+'</button>'
+              ?(hasMandate
+                /* col mandato scritto la mossa primaria è firmare TU, dalla
+                   console (sign-for: stesse guardie di magic-sign/submit) */
+                ?'<button class="pbtn prim" onclick="signFor(\''+d.id+'\',this)" title="Firmi tu per il conduttore in forza del suo mandato scritto; poi il proprietario per delega, se c’è">✍️ Firmo io (mandato)</button>'
+                  +'<button class="pbtn" onclick="sendSign(\''+d.id+'\',this)">'+(d.signSentAt?'🖊 Reinvia Magic Sign':'🖊 Invia Magic Sign')+'</button>'
+                :'<button class="pbtn prim" onclick="sendSign(\''+d.id+'\',this)">'+(d.signSentAt?'🖊 Reinvia Magic Sign':'🖊 Invia Magic Sign')+'</button>')
               :'<button class="pbtn prim" onclick="convertPA(\''+d.id+'\')">→ Contratto</button>')))
+        /* inquilino firmato, delega del proprietario armata: la controfirma
+           anche dalla console, con la firma salvata (niente sign.html) */
+        +(sig.tenantSigned&&!sig.landlordSigned&&d.delegated&&cid?'<button class="pbtn" onclick="signFor(\''+d.id+'\',this)">✍️ Controfirmo io (delega)</button>':'')
+        +(done&&!hasMandate&&!sig.tenantSigned&&sig.status!=='complete'?'<button class="pbtn" onclick="askMandateFor(\''+d.id+'\')" title="Attiva la card sulla proposta e manda il messaggio: il cliente dà il mandato con un tap">🖊 Chiedi il mandato</button>':'')
         +(!sig.tenantSigned&&d.signSentAt&&d.tenantSignUrl&&t.phone?'<a class="pbtn wa" href="https://wa.me/'+String(t.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! Il tuo contratto per '+((d.property||{}).address||'')+' è pronto — firmi qui in 2 minuti: '+d.tenantSignUrl)+'" target="_blank" rel="noopener">Firma su WhatsApp</a>':'')
         +(llWa&&!sig.tenantSigned?'<a class="pbtn wa" href="'+llWa+'" target="_blank" rel="noopener">Firma proprietario su WhatsApp</a>':'')
         +(d.landlordSignUrl&&sig.status!=='complete'?'<button class="pbtn" onclick="copyTxt(\''+d.landlordSignUrl+'\')">'+(d.delegated?'Copia link delega':'Copia link firma proprietario')+'</button>':'')

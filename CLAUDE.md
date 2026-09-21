@@ -2599,6 +2599,71 @@ dichiarato nel testo). Le regole, tutte verificate per mutazione:
   pagina == server sui testi; Valutazione dall'immobile con la scheda a
   pagina 2, buchi dichiarati, 403 non admin).
 
+### ✍️ Firmo io — la firma in un tap dalla console (21/09/2026 — «loro perdono l'interesse»)
+Il caso vero: il cliente accetta e firma la proposta, pensa sia tutto fatto,
+e l'email col link del contratto resta chiusa per settimane — mentre i
+termini del contratto sono ESATTAMENTE quelli della proposta. L'operatore
+vuole «darlo per firmato e sbloccare tutto l'iter». La regola di sempre non
+si allenta: al posto del conduttore SENZA mandato scritto non si firma —
+quella è una firma falsa, e il server risponde 403. Quindi la velocità si
+costruisce sul mandato, in tre pezzi:
+- **`POST /api/preagreement/sign-for`** (Bearer **admin** — firmare per gli
+  altri è l'atto dell'operatore, non di un owner). `op:'signature'` salva la
+  firma dell'operatore disegnata UNA volta nella console (canvas → PNG →
+  `operatorSignatures/<uid>`, scritto e letto SOLO dal server: nessuna regola
+  Firestore da deployare, il browser non la rilegge mai). `op:'status'` è il
+  piano (mandato sul contratto? condizioni ancora quelle? delega del
+  proprietario? co-conduttori? firma salvata?) che la console LEGGE e mostra
+  prima di chiedere conferma. `op:'sign'`: crea il contratto se manca
+  (convert idempotente, come 🖊), arma `tenantDelegate`, e firma per il
+  conduttore passando **dallo STESSO `magic-sign/submit` in-process** (il
+  trucco di `employees/_fiducia.js`: stesse guardie — `mandateCheck` 403/409,
+  terms freeze, already_signed, sequenza — stesso finalize, stessa stampa
+  sulla proposta; nessuna seconda strada per scrivere una firma). Poi, se il
+  contratto porta `landlordDelegate` — o l'operatore lo arma nel tap con una
+  **base scritta dichiarata** (`landlordBasis`, ≥ 8 caratteri, stampata sul
+  certificato: senza → 400) — controfirma per il proprietario nello stesso
+  tap: contratto firmato, certificato FES, fascicolo, pack, journey, tutto
+  come dopo due firme normali. I co-conduttori NON sono coperti dal mandato
+  del principale: il tap si ferma e lo dice (`waitingCoTenants`); senza
+  delega del proprietario si ferma con il suo link (`landlordPending`). Le
+  precondizioni (firma salvata, base della delega) si controllano PRIMA di
+  qualunque scrittura: un 409 non lascia un contratto a metà. IP e UA nelle
+  prove sono quelli della richiesta dell'operatore.
+- **`POST /api/preagreement/mandate`** (pubblico, token = credenziale, rate
+  limit) — **il mandato dato DOPO l'accettazione**: per il cliente che ha già
+  accettato è UN tap, non una firma intera. Vale SOLO se la console l'ha
+  chiesto (`askMandate === true`, altrimenti 403 `not_offered`), `mandate:true`
+  esplicito (mai dedotto), stesso testo e hash della spunta all'accettazione,
+  base = la foto delle condizioni approvate (o la proposta stessa, chiusa,
+  per quelle accettate prima della v2 — dichiarato). Il contratto già nato
+  eredita il mandato con la STESSA costruzione della conversione
+  (`tenantMandateFor`, ora esportata da `convert.js`: una copia sola), mai
+  sotto una firma viva del conduttore; l'operatore riceve la card
+  `contract.mandate_given`. Idempotente (`already`).
+- **Console** (`pre-agreement-admin.html`): col mandato in archivio la
+  primaria della riga è **✍️ Firmo io (mandato)** (Magic Sign resta come
+  secondaria); senza, **🖊 Chiedi il mandato** attiva `askMandate` e apre
+  WhatsApp col link `#mandate` (la pagina della proposta mostra la card
+  «Let BOOM sign the lease for you», spunta a parte + bottone, mai
+  pre-selezionata); a inquilino firmato con delega armata, **✍️ Controfirmo
+  io (delega)**. Il tap legge il piano, chiede conferma con nomi, date e
+  base, e alla prima volta apre il pad della firma. **Il mandato è ora
+  OFFERTO di default sulle proposte nuove** (`fMandate` checked): la spunta
+  del cliente resta un atto a parte. `4+4` e «canone annuo» sotto i 12 mesi
+  restano dove erano (vedi la sezione del verbatim).
+- Test: `node tests/mandato/run.mjs` §9 — il giro VERO (Firestore in
+  memoria, jsPDF e pdf-lib reali): proposta col mandato → status senza
+  scritture → 409 senza firma salvata (contratto NON nato) → 400 senza base
+  della delega → 403 non-admin → **un tap = conduttore per mandato +
+  locatore per delega + finalize** (firmato, certificato, stampa sulla
+  proposta) → secondo tap `alreadySigned`; SENZA mandato → 403 e nessuna
+  firma → `mandate.js` 403 se non chiesto, 200 se chiesto (contratto già
+  nato che eredita il mandato col documento) → il tap firma il conduttore e
+  lascia al proprietario il suo link; condizioni cambiate → 409 con il diff;
+  giunzioni sulla sorgente (una sola strada per la firma, precondizioni
+  prima della conversione, 60s in vercel.json, console e pagina).
+
 ### Le regole IN VIGORE ≠ le regole nel file (31/08/2026)
 Il difetto più caro trovato in questa tornata, e nessuna suite poteva
 vederlo: **tutte leggono `firestore.rules`, cioè l'INTENZIONE, e nessuna la
