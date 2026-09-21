@@ -24,6 +24,7 @@
 import { readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createContext, runInContext } from 'node:vm';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const sw = readFileSync(join(ROOT, 'sw.js'), 'utf8');
@@ -193,6 +194,181 @@ ok(/NET_HARD_MS/.test(navBlock) || /NET_HARD_MS\)/.test(sw),
 const cacheVersion = /^const CACHE_VERSION = 'boom-v(\d+)';$/m.exec(sw);
 ok(cacheVersion && Number(cacheVersion[1]) >= 22,
   'la versione della cache è salita: senza, i browser terrebbero il worker vecchio');
+
+// ── 10. Il handler INTERO: /portal precede il ramo delle navigazioni ─────
+// Guidare solo netFirstCapped non basta: il ramo portalAsset può dimenticare
+// il limite duro pur lasciando verdi le prove della funzione e di /login.
+// Timer e fetch sono sintetici. Non attendiamo mai la risposta direttamente:
+// anche rimettendo il difetto, le prove arrivano all'esito invece di bloccarsi.
+const scaricaMicrotask = async () => { for (let i = 0; i < 24; i++) await Promise.resolve(); };
+class RispostaSW {
+  constructor(body, { status = 200, headers = {} } = {}) {
+    this.body = body;
+    this.status = status;
+    this.ok = status >= 200 && status < 300;
+    this.redirected = false;
+    this.headerValues = Object.fromEntries(Object.entries(headers).map(([k, v]) => [k.toLowerCase(), v]));
+    this.headers = { get: (k) => this.headerValues[k.toLowerCase()] || null };
+  }
+  clone() { return new RispostaSW(this.body, { status: this.status, headers: this.headerValues }); }
+}
+function workerFinto(iniziale = {}) {
+  const cache = fintaCache(iniziale), handlers = new Map(), timers = new Map(), rete = [];
+  let ora = 0, prossimoTimer = 0, apertureCache = 0;
+  const context = createContext({
+    URL, Response: RispostaSW,
+    self: { addEventListener: (tipo, handler) => handlers.set(tipo, handler) },
+    caches: { open: async () => { apertureCache++; return cache; } },
+    setTimeout: (callback, delay) => {
+      const id = ++prossimoTimer;
+      timers.set(id, { callback, scadenza: ora + delay });
+      return id;
+    },
+    clearTimeout: (id) => timers.delete(id),
+    fetch: (request) => new Promise((resolve) => {
+      const chiamata = { request, finita: false, rispondi: (response) => {
+        chiamata.finita = true;
+        resolve(response);
+      } };
+      rete.push(chiamata);
+    })
+  });
+  runInContext(sw, context, { filename: 'sw.js' });
+  return {
+    cache, rete,
+    get apertureCache() { return apertureCache; },
+    async chiedi(path, { method = 'GET', mode = 'navigate' } = {}) {
+      const stato = { intercettata: false, conclusa: false, risposta: null, errore: null };
+      handlers.get('fetch')({
+        request: { url: 'https://www.boomrome.com' + path, method, mode },
+        respondWith: (promise) => {
+          stato.intercettata = true;
+          Promise.resolve(promise).then(
+            (response) => { stato.conclusa = true; stato.risposta = response; },
+            (error) => { stato.conclusa = true; stato.errore = error; }
+          );
+        }
+      });
+      await scaricaMicrotask();
+      return stato;
+    },
+    async avanza(ms) {
+      const fine = ora + ms;
+      await scaricaMicrotask();
+      while (true) {
+        const prossimo = [...timers].filter(([, t]) => t.scadenza <= fine)
+          .sort((a, b) => a[1].scadenza - b[1].scadenza)[0];
+        if (!prossimo) break;
+        const [id, timer] = prossimo;
+        timers.delete(id);
+        ora = timer.scadenza;
+        timer.callback();
+        await scaricaMicrotask();
+      }
+      ora = fine;
+      await scaricaMicrotask();
+    },
+    async chiudi() {
+      // Nessuna fetch/timer resta pendente, nemmeno quando lo SW è regressivo.
+      for (const chiamata of rete) if (!chiamata.finita) chiamata.rispondi(new RispostaSW('FINE PROVA', { status: 499 }));
+      await scaricaMicrotask();
+      timers.clear();
+    }
+  };
+}
+for (const path of ['/portal', '/portal.html']) {
+  const w = workerFinto(), stato = await w.chiedi(path);
+  await w.avanza(19999);
+  ok(stato.intercettata && !stato.conclusa, `handler ${path} freddo: concede alla rete tutti i 20 secondi`);
+  await w.avanza(1);
+  ok(stato.risposta?.status === 503 && /Riprova/.test(stato.risposta.body)
+    && /text\/html/.test(stato.risposta.headers.get('content-type')),
+    `handler ${path} freddo: a 20 secondi arriva la pagina Riprova`);
+  ok(stato.risposta?.headers.get('cache-control') === 'no-store' && w.cache.store.size === 0,
+    `handler ${path}: la pagina di recupero non diventa una copia del portale`);
+  await w.chiudi();
+}
+for (const path of ['/portal', '/portal.html']) {
+  const w = workerFinto({ '/portal.html': new RispostaSW('PORTALE SALVATO') });
+  const stato = await w.chiedi(path);
+  await w.avanza(5999);
+  const primaDelTetto = !stato.conclusa;
+  await w.avanza(1);
+  ok(primaDelTetto && stato.risposta?.body === 'PORTALE SALVATO',
+    `handler ${path}: la copia disponibile arriva a 6 secondi, senza aspettarne 20`);
+  await w.chiudi();
+}
+{
+  const w = workerFinto(), stato = await w.chiedi('/portal');
+  await w.avanza(9000);
+  w.rete[0].rispondi(new RispostaSW('PORTALE DALLA RETE'));
+  await scaricaMicrotask();
+  ok(stato.risposta?.body === 'PORTALE DALLA RETE'
+    && (await w.cache.match('/portal.html'))?.body === 'PORTALE DALLA RETE',
+    'handler /portal: la rete arrivata dopo 6 ma prima di 20 secondi vince e aggiorna la copia');
+  await w.chiudi();
+}
+{
+  const w = workerFinto({ '/portal.html': new RispostaSW('PORTALE VECCHIO') });
+  const stato = await w.chiedi('/portal.html');
+  w.rete[0].rispondi(new RispostaSW('PORTALE FRESCO'));
+  await scaricaMicrotask();
+  ok(stato.risposta?.body === 'PORTALE FRESCO',
+    'handler /portal.html: la rete pronta prevale sulla copia vecchia');
+  await w.chiudi();
+}
+{
+  const w = workerFinto(), primo = await w.chiedi('/portal');
+  await w.avanza(20000);
+  ok(primo.risposta?.status === 503, 'handler /portal: il primo tentativo offre Riprova mentre la rete continua');
+  await w.avanza(1000);
+  w.rete[0].rispondi(new RispostaSW('PORTALE TARDIVO', { headers: { 'Cache-Control': 'no-store' } }));
+  await scaricaMicrotask();
+  ok((await w.cache.match('/portal.html'))?.body === 'PORTALE TARDIVO' && primo.risposta?.status === 503,
+    'handler /portal: la risposta dopo 20 secondi riempie la cache senza cambiare quella già consegnata');
+  const secondo = await w.chiedi('/portal.html');
+  await w.avanza(6000);
+  ok(secondo.risposta?.body === 'PORTALE TARDIVO',
+    'handler /portal.html: Riprova riusa a 6 secondi la risposta tardiva del tentativo precedente');
+  await w.chiudi();
+}
+for (const path of ['/js/portal-app.js', '/css/portal-mobile.css']) {
+  for (const mode of ['cors', 'navigate']) {
+    const w = workerFinto(), stato = await w.chiedi(path, { mode });
+    await w.avanza(60000);
+    const nessunFallbackHTML = stato.intercettata && !stato.conclusa;
+    w.rete[0].rispondi(new RispostaSW('ASSET ORIGINALE'));
+    await scaricaMicrotask();
+    ok(nessunFallbackHTML && stato.risposta?.body === 'ASSET ORIGINALE',
+      `handler ${path} (${mode}): nessun HTML di recupero sostituisce JS/CSS, anche aperto direttamente`);
+    await w.chiudi();
+  }
+}
+{
+  const w = workerFinto(), stato = await w.chiedi('/portal', { mode: 'cors' });
+  await w.avanza(60000);
+  const nessunaPaginaSostitutiva = stato.intercettata && !stato.conclusa;
+  w.rete[0].rispondi(new RispostaSW('PORTALE PRE-RISCALDATO'));
+  await scaricaMicrotask();
+  ok(nessunaPaginaSostitutiva && stato.risposta?.body === 'PORTALE PRE-RISCALDATO'
+    && (await w.cache.match('/portal.html'))?.body === 'PORTALE PRE-RISCALDATO',
+    'handler pre-warm /portal: una fetch ordinaria attende il documento reale, senza pagina 503');
+  await w.chiudi();
+}
+for (const method of ['GET', 'POST']) {
+  const w = workerFinto(), stato = await w.chiedi('/api/portal/ingest', { method });
+  await w.avanza(60000);
+  ok(!stato.intercettata && w.rete.length === 0 && w.apertureCache === 0,
+    `handler API ${method}: lascia interamente la richiesta al browser, senza timer o cache`);
+  await w.chiudi();
+}
+{
+  const w = workerFinto(), stato = await w.chiedi('/login');
+  await w.avanza(20000);
+  ok(stato.risposta?.status === 503 && /Riprova/.test(stato.risposta.body),
+    'handler /login: il recupero delle altre navigazioni resta a 20 secondi');
+  await w.chiudi();
+}
 
 console.log(`\n${fail ? '✗' : '✓'} rete: ${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);

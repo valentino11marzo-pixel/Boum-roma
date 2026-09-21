@@ -4657,6 +4657,13 @@ pages on their loader with no signal at all):
   wedged Safari connection the fetch used to hang for minutes; now the
   cached copy (from a previous visit or the /login pre-warm) takes over
   while the network response still refreshes the cache in background.
+- **PWA, primo ingresso senza cache (21/09):** il ramo dedicato a `/portal`
+  e `/portal.html` non passava il limite duro della navigazione: senza una
+  copia e con rete appesa restava in attesa. Ora le sole navigazioni HTML
+  ricevono la pagina Riprova dopo 20s; restano il fallback in cache a 6s e
+  l'aggiornamento della copia quando arriva la rete. Nessun HTML sostitutivo
+  per JS/CSS o pre-warm; API escluse. `tests/rete/run.mjs` guida anche il
+  fetch handler intero, con timer/rete sintetici e regressione sul ramo.
 - Login → portal handoff: login.html uses the same Firebase SDK 10.7.0 as
   the portal (HTTP-cache reuse), lands on `/portal` (never `/portal.html`,
   whose cleanUrls 308 also made the SW refuse to cache the pre-warm), and
