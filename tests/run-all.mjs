@@ -32,6 +32,7 @@ const SUITES = [
   { name: 'segretariaworker', file: 'tests/segretaria/worker.mjs', what: 'preparazione senza quota giornaliera: priorità, equità, pagine, retry progressivi e revisioni senza doppia spesa' },
   { name: 'segretarialiveui', file: 'tests/segretaria/realtime-ui.mjs', what: 'Oggi reagisce agli eventi senza perdere bozze; messaggi recenti ordinati e limiti della preparazione visibili' },
   { name: 'segretariafreshui', file: 'tests/segretaria/freshness-ui.mjs', what: 'Oggi e Inbox: cache ed errori visibili, recupero al rientro senza duplicati, callback obsolete scartate e bozze conservate' },
+  { name: 'inboxleadui', file: 'tests/inbox/lead-conversation-ui.mjs', what: 'apertura lead sul CID verificato, chat fuori elenco recente, conflitti e errori senza creazioni locali' },
   { name: 'money',    file: 'tests/money/run.mjs',        what: 'percorsi soldi: checkout, webhook, conversione PA' },
   { name: 'fiscal',   file: 'tests/fiscal/test.mjs',      what: 'motore scadenze fiscali' },
   { name: 'canone',   file: 'tests/fiscal/canone.mjs',    what: 'canone concordato: fasce, cap, superficie convenzionale, verdetto' },

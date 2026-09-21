@@ -3344,6 +3344,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             if (!changed) return;
             const prevUnread = (S.conversations || []).reduce((n, c) => n + (Number(c.unread) || 0), 0);
             S.conversations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            const selected = S.inboxExactConversation;
+            if (S.page === 'inbox' && selected?.user === user && selected.id === S.openConvId && isAdmin()) {
+                const latest = S.conversations.find(c => c.id === selected.id);
+                if (latest) selected.row = latest;
+                else S.conversations.push(selected.row);
+            }
             buildNav();
             oggiScheduleUpdate(true, false);
             inboxLiveRefresh();
@@ -3363,6 +3369,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         S.inboxGeneration = (S.inboxGeneration || 0) + 1;
         if (S.inboxListener) { S.inboxListener(); S.inboxListener = null; }
         S.inboxFeed = null;
+        S.inboxExactConversation = null;
         portalFreshnessStop();
         stopOpenConvListener();
     }
@@ -3370,8 +3377,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // the messages timeline updates in real time (e.g. Homie logs an inbound
     // while you're reading). Detached when switching conversation / leaving.
     function startOpenConvListener(convId) {
+        const selected = S.inboxExactConversation;
         stopOpenConvListener();
         if (!convId) return;
+        if (selected?.id === convId && selected.user === auth.currentUser) S.inboxExactConversation = selected;
         const generation = S.openConvGeneration, user = auth.currentUser;
         const current = () => S.openConvId === convId && S.openConvGeneration === generation && auth.currentUser === user;
         let active = true;
@@ -3401,6 +3410,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         S.openConvGeneration = (S.openConvGeneration || 0) + 1;
         if (S.openConvListener) { S.openConvListener(); S.openConvListener = null; }
         S.openConvId = null;
+        S.inboxExactConversation = null;
     }
 
     function isRecent(timestamp, seconds = 30) {
@@ -4713,6 +4723,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
     function portalFreshnessStop(page) {
         if (page && portalFreshness.page !== page) return;
+        if (portalFreshness.page === 'inbox' && (S.page !== 'inbox' || portalFreshness.user !== auth.currentUser)) stopOpenConvListener();
         document.removeEventListener('visibilitychange', portalFreshnessResume);
         window.removeEventListener('pageshow', portalFreshnessResume);
         window.removeEventListener('online', portalFreshnessResume);
@@ -11242,9 +11253,48 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return { tenant:'Inquilino', landlord:'Landlord', lead:'Lead', pfs:'PFS', client:'Cliente', whatsapp:'WhatsApp' }[k] || k;
     }
 
-    // Find-or-create a conversation for (kind, id). Admin only. Idempotent
-    // via the deterministic id from BOOM_INBOX.convIdFor.
+    // Lead identity can change after WhatsApp intake. Only the server may
+    // resolve/create its binding; reconstructing conv_lead_* splits history.
+    async function inboxResolveLeadConversation(contact) {
+        if (!isAdmin() || !auth.currentUser) throw new Error('Accedi come amministratore per aprire questa conversazione.');
+        if (typeof contact?.id !== 'string' || !contact.id) throw new Error('Il contatto non è verificabile. Riapri la sua scheda.');
+        const user = auth.currentUser, controller = new AbortController();
+        const current = () => auth.currentUser === user && isAdmin() && !controller.signal.aborted;
+        const unavailable = () => new Error('Non riesco a verificare la conversazione. Il contatto resta selezionato: riprova.');
+        let timer;
+        try {
+            const read = (async () => {
+                const token = await user.getIdToken();
+                if (!current()) throw unavailable();
+                const response = await fetch('/api/homie/conversation', {
+                    method: 'POST', cache: 'no-store', signal: controller.signal,
+                    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ leadId: contact.id })
+                });
+                const result = await response.json();
+                if (!current()) throw unavailable();
+                if (response.status === 409 || result?.status === 'conflict') throw Object.assign(new Error('Il contatto ha collegamenti da verificare. Non apro un’altra conversazione: controlla la scheda e riprova.'), { code: 'conversation_conflict' });
+                if (!response.ok || result?.ok !== true || !['bound', 'new'].includes(result.status)
+                    || typeof result.cid !== 'string' || !/^[\w.-]{1,180}$/.test(result.cid) || ['.', '..'].includes(result.cid)) throw unavailable();
+                // The selected thread may be outside the 200 recent headers.
+                const snapshot = await db.collection('conversations').doc(result.cid).get({ source: 'server' });
+                if (!current() || !snapshot.exists) throw unavailable();
+                const row = { ...snapshot.data(), id: result.cid };
+                return row;
+            })();
+            const resolved = await Promise.race([read, new Promise((_, reject) => {
+                timer = setTimeout(() => { controller.abort(); reject(unavailable()); }, 15000);
+            })]);
+            if (!current()) throw unavailable();
+            return resolved;
+        } catch (error) {
+            if (error?.code === 'conversation_conflict') throw error;
+            throw unavailable();
+        } finally { clearTimeout(timer); }
+    }
+    // Other contact types retain their existing deterministic creation path.
     async function inboxFindOrCreateConversation(kind, contact) {
+        if (kind === 'lead') return inboxResolveLeadConversation(contact);
         const cid = BOOM_INBOX.convIdFor(kind, contact.id);
         let conv = (S.conversations || []).find(c => c.id === cid);
         if (conv) return conv;
@@ -11755,10 +11805,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         ${contacts.map(c => `<option value="${c.kind}|${c.id}">${esc(c.label)}</option>`).join('')}
                     </select>
                 </div>
+                <p id="_ncError" role="alert" style="color:var(--red);font-size:13px;line-height:1.5" hidden></p>
             </div>
             <div class="modal-footer">
                 <button class="btn" onclick="closeModal()">Annulla</button>
-                <button class="btn btn-primary" onclick="inboxCreateFromModal()">Apri conversazione</button>
+                <button id="_ncOpen" class="btn btn-primary" onclick="inboxCreateFromModal()">Apri conversazione</button>
             </div>
         </div></div>`;
         window._ncContacts = contacts;
@@ -11770,18 +11821,41 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         sel.innerHTML = list.map(c => `<option value="${c.kind}|${c.id}">${esc(c.label)}</option>`).join('');
     };
     window.inboxCreateFromModal = async function() {
+        if (!isAdmin() || !auth.currentUser) return;
+        const select = document.getElementById('_ncContact'), user = auth.currentUser;
+        const modal = select?.closest('.modal-overlay');
+        if (!modal?.classList.contains('active') || select?.dataset.opening === 'true') return;
         const v = (document.getElementById('_ncContact')||{}).value || '';
         if (!v) return;
         const [kind, id] = v.split('|');
         const ref = (window._ncContacts || []).find(c => c.kind===kind && c.id===id);
         if (!ref) return;
+        if (select) select.dataset.opening = 'true';
+        const button = document.getElementById('_ncOpen'), errorBox = document.getElementById('_ncError');
+        if (button) { button.disabled = true; button.textContent = 'Apro la conversazione…'; }
+        if (errorBox) { errorBox.hidden = true; errorBox.textContent = ''; }
         try {
             const conv = await inboxFindOrCreateConversation(kind, ref.ref);
+            if (auth.currentUser !== user || !isAdmin() || S.page !== 'inbox'
+                || !modal.classList.contains('active') || document.getElementById('_ncContact') !== select || select.value !== v) return;
+            if (kind === 'lead') {
+                S.inboxExactConversation = { id: conv.id, row: conv, user };
+                S.conversations = [conv, ...(S.conversations || []).filter(c => c.id !== conv.id)];
+                _inboxState.filter = 'all'; _inboxState.channel = 'all'; _inboxState.search = '';
+                _inboxState.convId = conv.id;
+                startOpenConvListener(conv.id);
+            }
             _inboxState.convId = conv.id;
             closeModal();
             inboxRefresh();
         } catch (e) {
-            toast('error', 'Errore: ' + (e.message || e));
+            if (auth.currentUser === user && modal.classList.contains('active') && document.getElementById('_ncContact') === select) {
+                if (errorBox) { errorBox.textContent = e.message || 'Non riesco ad aprire la conversazione. Riprova.'; errorBox.hidden = false; }
+                else toast('error', 'Errore: ' + (e.message || e));
+            }
+        } finally {
+            if (select) delete select.dataset.opening;
+            if (button) { button.disabled = false; button.textContent = 'Apri conversazione'; }
         }
     };
 
