@@ -6,11 +6,12 @@ import { readFileSync } from 'node:fs';
 import { extname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadChromium, launchOptions } from '../_browser.mjs';
-import { html as propertyHtml } from './harness.mjs';
+import { html as propertyHtml, extract } from './harness.mjs';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const source = readFileSync(join(ROOT, 'js/portal-app.js'), 'utf8');
 const oggi = source.slice(source.indexOf('    function oggiDismissKey()'), source.indexOf('    function adminDashboard()'));
+const inboxListeners = ['startInboxListener', 'stopInboxListener', 'stopOpenConvListener'].map(extract).join('\n');
 const toast = source.slice(source.indexOf('    function toast('), source.indexOf("    console.log('🚀 BOOM Portal"));
 assert(oggi.includes('oggiSegretariaRestorePropertyContext'), 'Exercise the actual integrated Oggi code');
 const caseId = n => 'sg_' + n.toString(16).padStart(32, '0');
@@ -40,6 +41,7 @@ window.fetch=async(url,options={})=>{
 };
 window.releaseAPI=()=>{holdAPI=false;heldAPI.splice(0).forEach(resolve=>resolve());};
 const db={collection(name){
+  if(name==='conversations')return {orderBy(){return this;},limit(){return this;},onSnapshot(options,next){next({docs:[],metadata:{fromCache:false}});return()=>{};}};
   if(name!=='operatorTasks')throw Error('Unexpected collection: '+name);
   return {where(field,op,value){
     if(field!=='followUp.open'||op!=='=='||value!==true)throw Error('Unexpected task query');
@@ -57,7 +59,7 @@ const html = propertyHtml
   .replace('</head>', '<link rel="stylesheet" href="/css/segretaria.css"></head>')
   .replace('<script src="/js/rent-engine.js">', engines + '<script src="/js/rent-engine.js">')
   .replace("async function loadDataFresh(){BOOM_PROPERTY_DOSSIER", "async function loadDataFresh(){testIO.coreRefreshes++;BOOM_PROPERTY_DOSSIER")
-  .replace(boot, boundary + oggi + toast + '\nwindow.testCases=oggiSegretaria;\n' + "goTo(location.hash.slice(1)||'oggi');");
+  .replace(boot, boundary + oggi + inboxListeners + toast + '\nwindow.testCases=oggiSegretaria;\n' + "startInboxListener();goTo(location.hash.slice(1)||'oggi');");
 
 const server = createServer(async (req, res) => {
   try {

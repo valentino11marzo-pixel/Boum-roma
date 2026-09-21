@@ -863,7 +863,10 @@ Valentyne - BOOM Rome`
         S.isOnline = true;
         document.getElementById('offlineBanner')?.classList.remove('show');
         toast('success', 'Connessione ripristinata');
-        refresh();
+        if (['oggi', 'inbox'].includes(S.page) && auth.currentUser && (isAdmin() || isLandlord())) {
+            portalFreshnessMount();
+            portalFreshnessResume();
+        } else refresh();
     });
 
     window.addEventListener('offline', () => {
@@ -3319,6 +3322,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!S.profile?.id) return;
         if (!isAdmin() && !isLandlord()) return;
         if (S.inboxListener) S.inboxListener();
+        const user = auth.currentUser, profileId = S.profile.id;
+        const generation = S.inboxGeneration = (S.inboxGeneration || 0) + 1;
+        const current = () => generation === S.inboxGeneration && auth.currentUser === user && S.profile?.id === profileId;
+        let active = true, received = false;
+        S.inboxFeed = { state: 'loading' };
+        inboxFreshnessUpdate();
         let q;
         if (isAdmin()) {
             q = db.collection('conversations').orderBy('lastMessageAt', 'desc').limit(200);
@@ -3326,27 +3335,35 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // landlord — no orderBy (avoids a composite index); sorted client-side.
             q = db.collection('conversations').where('assignedLandlordId', '==', S.profile.id).limit(200);
         }
-        S.inboxListener = q.onSnapshot(snapshot => {
+        S.inboxListener = q.onSnapshot({ includeMetadataChanges: true }, snapshot => {
+            if (!active || !current()) return;
+            S.inboxFeed = { state: snapshot.metadata?.fromCache ? 'cached' : 'live' };
+            inboxFreshnessUpdate();
+            const changed = !received || typeof snapshot.docChanges !== 'function' || snapshot.docChanges().length > 0;
+            received = true;
+            if (!changed) return;
             const prevUnread = (S.conversations || []).reduce((n, c) => n + (Number(c.unread) || 0), 0);
             S.conversations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             buildNav();
             oggiScheduleUpdate(true, false);
-            if (S.page === 'inbox') {
-                // Preserve the open conversation + composer text across re-render.
-                const draft = (document.getElementById('inboxBody') || {}).value;
-                const m = document.getElementById('main');
-                if (m) m.innerHTML = inboxPage();
-                if (draft) { const ta = document.getElementById('inboxBody'); if (ta) ta.value = draft; }
-            }
+            inboxLiveRefresh();
             // Audible/visual cue when a new inbound arrives while away from Inbox.
             const nowUnread = (S.conversations || []).reduce((n, c) => n + (Number(c.unread) || 0), 0);
             if (nowUnread > prevUnread && S.page !== 'inbox') {
                 if (document.hidden) sendBrowserNotification('BOOM · Nuovo messaggio', 'Hai ' + nowUnread + ' messaggi da gestire in Inbox');
             }
-        }, err => console.error('Inbox listener error:', err));
+        }, () => {
+            if (!active || !current()) return;
+            active = false; // Firestore errors terminate this subscription.
+            S.inboxFeed = { state: 'error' };
+            inboxFreshnessUpdate();
+        });
     }
     function stopInboxListener() {
+        S.inboxGeneration = (S.inboxGeneration || 0) + 1;
         if (S.inboxListener) { S.inboxListener(); S.inboxListener = null; }
+        S.inboxFeed = null;
+        portalFreshnessStop();
         stopOpenConvListener();
     }
     // Per-conversation live thread — attached when a conversation is opened so
@@ -3355,6 +3372,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function startOpenConvListener(convId) {
         stopOpenConvListener();
         if (!convId) return;
+        const generation = S.openConvGeneration, user = auth.currentUser;
+        const current = () => S.openConvId === convId && S.openConvGeneration === generation && auth.currentUser === user;
+        let active = true;
         S.openConvId = convId;
         S.openConvStatus = { id: convId, loading: true, incomplete: false, error: '' };
         S.openConvListener = db.collection('messages')
@@ -3362,26 +3382,23 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             .orderBy('at', 'desc')
             .limit(300)
             .onSnapshot(snapshot => {
-                if (S.openConvId !== convId) return;
+                if (!active || !current()) return;
                 const fresh = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 S.openConvStatus = { id: convId, loading: false, incomplete: fresh.length >= 300, error: '' };
                 // Merge: drop this conversation's old messages, splice the fresh set in.
                 S.messages = (S.messages || []).filter(m => m.conversationId !== convId).concat(fresh);
                 if (S.page === 'inbox' && _inboxState.convId === convId) {
-                    const draft = (document.getElementById('inboxBody') || {}).value;
-                    const m = document.getElementById('main');
-                    if (m) m.innerHTML = inboxPage();
-                    if (draft) { const ta = document.getElementById('inboxBody'); if (ta) ta.value = draft; }
+                    inboxLiveRefresh();
                 }
             }, () => {
-                if (S.openConvId !== convId) return;
+                if (!active || !current()) return;
+                active = false;
                 S.openConvStatus = { id: convId, loading: false, incomplete: true, error: 'Non riesco ad aggiornare i messaggi. La cronologia visibile potrebbe essere incompleta: riapri la conversazione per riprovare.' };
-                const draft = (document.getElementById('inboxBody') || {}).value;
-                inboxRefresh();
-                if (draft) { const ta = document.getElementById('inboxBody'); if (ta) ta.value = draft; }
+                inboxLiveRefresh();
             });
     }
     function stopOpenConvListener() {
+        S.openConvGeneration = (S.openConvGeneration || 0) + 1;
         if (S.openConvListener) { S.openConvListener(); S.openConvListener = null; }
         S.openConvId = null;
     }
@@ -4649,7 +4666,107 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     window.oggiOpenPa = oggiOpenPa;
 
     // ═══ SEGRETERIA · SEGUITI IN OGGI — proposte, invio solo dopo conferma ═══
-    const oggiSegretaria = { rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false, userId: null, generation: 0, timer: null, modal: null, readAt: null, monitoring: null, liveListener: null, liveObserver: null, liveError: false, updateTimer: null, refreshPending: false, decisionsPending: false, preparingVisible: 12 };
+    const oggiSegretaria = { rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false, userId: null, generation: 0, timer: null, modal: null, readAt: null, monitoring: null, liveListener: null, liveObserver: null, liveError: false, liveGeneration: 0, updateTimer: null, refreshPending: false, decisionsPending: false, preparingVisible: 12 };
+    // Stato effimero della lettura nel browser: non certifica la ricezione
+    // WhatsApp sul Mac né la preparazione delle proposte sul server.
+    const portalFreshness = { page: null, user: null, observer: null, timer: null };
+    function inboxFreshness() {
+        if (navigator.onLine === false) return 'Sei offline. Le conversazioni visibili potrebbero non essere aggiornate; riprovo al ritorno della connessione.';
+        if (S.inboxFeed?.state === 'error') return 'Conversazioni non aggiornabili ora. Conservo i dati visibili e riprovo al ritorno nel portale o con Aggiorna.';
+        if (S.inboxFeed?.state === 'cached') return 'Conversazioni: dati salvati sul dispositivo. Attendo la conferma del server.';
+        if (S.inboxFeed?.state === 'loading') return 'Controllo gli aggiornamenti delle conversazioni…';
+        return S.inboxFeed?.state === 'live' ? 'Aggiornamenti delle conversazioni attivi.' : 'Aggiornamenti delle conversazioni da verificare.';
+    }
+    function inboxFreshnessUpdate() {
+        const target = document.getElementById('inboxFreshness');
+        if (target) { target.textContent = inboxFreshness(); target.style.color = portalFreshnessWarning() ? 'var(--orange)' : 'var(--text-secondary)'; }
+        oggiSegretariaFreshnessUpdate();
+    }
+    function portalFreshnessWarning() {
+        return navigator.onLine === false || ['cached', 'error'].includes(S.inboxFeed?.state);
+    }
+    function inboxLiveRefresh() {
+        if (S.page !== 'inbox') return;
+        const focused = document.activeElement;
+        const saved = ['inboxBody', 'inboxSubject', 'inboxTpl'].map(id => {
+            const el = document.getElementById(id);
+            return el && { id, value: el.value, start: el.selectionStart, end: el.selectionEnd, direction: el.selectionDirection, scroll: el.scrollTop, focused: focused === el };
+        }).filter(Boolean);
+        const searchFocused = focused?.matches('#main input[type="search"]');
+        const searchSelection = searchFocused && [focused.selectionStart, focused.selectionEnd];
+        const panes = [...document.querySelectorAll('#main .inbox-list-pane, #main .inbox-list-pane > div, #inboxTimeline')].map(el => el.scrollTop);
+        const main = document.getElementById('main');
+        if (main) main.innerHTML = inboxPage();
+        for (const field of saved) {
+            const replacement = document.getElementById(field.id);
+            if (!replacement) continue;
+            replacement.value = field.value;
+            if (field.focused) replacement.focus({ preventScroll: true });
+            if (typeof field.start === 'number') replacement.setSelectionRange(field.start, field.end, field.direction);
+            replacement.scrollTop = field.scroll;
+        }
+        if (searchFocused) {
+            const search = main?.querySelector('input[type="search"]');
+            if (search) { search.focus({ preventScroll: true }); search.setSelectionRange(...searchSelection); }
+        }
+        document.querySelectorAll('#main .inbox-list-pane, #main .inbox-list-pane > div, #inboxTimeline').forEach((el, i) => { if (panes[i] !== undefined) el.scrollTop = panes[i]; });
+    }
+    function portalFreshnessStop(page) {
+        if (page && portalFreshness.page !== page) return;
+        document.removeEventListener('visibilitychange', portalFreshnessResume);
+        window.removeEventListener('pageshow', portalFreshnessResume);
+        window.removeEventListener('online', portalFreshnessResume);
+        window.removeEventListener('offline', portalFreshnessResume);
+        portalFreshness.observer?.disconnect();
+        clearTimeout(portalFreshness.timer);
+        Object.assign(portalFreshness, { page: null, user: null, observer: null, timer: null });
+    }
+    function portalFreshnessMount() {
+        if (!auth.currentUser || !['oggi', 'inbox'].includes(S.page) || (!isAdmin() && !isLandlord())) return;
+        if (portalFreshness.page === S.page && portalFreshness.user === auth.currentUser) return;
+        portalFreshnessStop();
+        Object.assign(portalFreshness, { page: S.page, user: auth.currentUser });
+        document.addEventListener('visibilitychange', portalFreshnessResume);
+        window.addEventListener('pageshow', portalFreshnessResume);
+        window.addEventListener('online', portalFreshnessResume);
+        window.addEventListener('offline', portalFreshnessResume);
+        const main = document.getElementById('main');
+        if (main) {
+            portalFreshness.observer = new MutationObserver(() => {
+                if (portalFreshness.page !== S.page || portalFreshness.user !== auth.currentUser) portalFreshnessStop();
+            });
+            portalFreshness.observer.observe(main, { childList: true });
+        }
+    }
+    function portalFreshnessResume(event) {
+        if (portalFreshness.page !== S.page || portalFreshness.user !== auth.currentUser) { portalFreshnessStop(); return; }
+        inboxFreshnessUpdate();
+        if (document.hidden || navigator.onLine === false || (event?.type === 'pageshow' && !event.persisted)) return;
+        if (portalFreshness.timer) return;
+        portalFreshness.timer = setTimeout(() => {
+            portalFreshness.timer = null;
+            if (portalFreshness.page !== S.page || portalFreshness.user !== auth.currentUser || document.hidden || navigator.onLine === false) return;
+            portalFreshnessRecover();
+            if (S.page === 'oggi' && isAdmin()) {
+                // A foreground burst joins an in-flight read. Actual data
+                // events still queue their follow-up through oggiScheduleUpdate.
+                if (!oggiSegretaria.loading) oggiScheduleUpdate(true, false);
+            }
+        }, 80);
+    }
+    function portalFreshnessRecover() {
+        if (portalFreshness.page !== S.page || portalFreshness.user !== auth.currentUser || document.hidden || navigator.onLine === false) return;
+        if (S.inboxFeed?.state === 'error' || !S.inboxListener) startInboxListener();
+        if (S.page === 'oggi' && isAdmin() && (oggiSegretaria.liveError || !oggiSegretaria.liveListener)) oggiSegretariaStartLive();
+        if (S.page === 'inbox' && S.openConvId && S.openConvStatus?.error) startOpenConvListener(S.openConvId);
+    }
+    window.inboxRetryUpdates = function() {
+        if (S.page !== 'inbox' || !auth.currentUser || (!isAdmin() && !isLandlord())) return;
+        portalFreshnessMount();
+        if (navigator.onLine === false) { inboxFreshnessUpdate(); return; }
+        startInboxListener();
+        if (S.openConvId) startOpenConvListener(S.openConvId);
+    };
     // Aggiorniamo solo le regioni di Oggi: i listener non ricreano #main,
     // il modulo aperto o la bozza che l'operatore sta controllando.
     function oggiScheduleUpdate(followUps = false, decisions = true) {
@@ -4677,6 +4794,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }, 150);
     }
     function oggiSegretariaStopLive() {
+        oggiSegretaria.liveGeneration++;
+        portalFreshnessStop('oggi');
         if (oggiSegretaria.liveListener) oggiSegretaria.liveListener();
         if (oggiSegretaria.liveObserver) oggiSegretaria.liveObserver.disconnect();
         clearTimeout(oggiSegretaria.updateTimer);
@@ -4684,18 +4803,27 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         Object.assign(oggiSegretaria, { liveListener: null, liveObserver: null, updateTimer: null, refreshPending: false, decisionsPending: false });
     }
     function oggiSegretariaStartLive() {
-        if (oggiSegretaria.liveListener) return;
+        portalFreshnessMount();
+        if (oggiSegretaria.liveListener && !oggiSegretaria.liveError) return;
+        if (oggiSegretaria.liveListener) oggiSegretaria.liveListener();
+        if (oggiSegretaria.liveObserver) oggiSegretaria.liveObserver.disconnect();
+        const generation = ++oggiSegretaria.liveGeneration;
         const user = auth.currentUser;
+        const current = () => generation === oggiSegretaria.liveGeneration && auth.currentUser === user && isAdmin() && S.page === 'oggi';
+        let active = true;
+        oggiSegretaria.liveError = false;
         try {
             // Lo snapshot segnala soltanto che rileggere: ricevute e contenuto
             // restano derivati dall'API autenticata, non da un secondo motore.
             let first = true;
             oggiSegretaria.liveListener = db.collection('operatorTasks').where('followUp.open', '==', true).onSnapshot(() => {
-                if (auth.currentUser !== user || !isAdmin()) { oggiSegretariaStopLive(); return; }
+                if (!active || !current()) return;
                 oggiSegretaria.liveError = false;
-                if (first) { first = false; if (!oggiSegretaria.loaded || oggiSegretaria.loading) return; }
+                if (first) { first = false; return; } // mount/resume already performs the initial read
                 oggiScheduleUpdate(true, false);
             }, () => {
+                if (!active || !current()) return;
+                active = false;
                 oggiSegretaria.liveError = true;
                 oggiSegretariaFreshnessUpdate();
             });
@@ -4715,11 +4843,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         };
         const incoming = Math.max(0, ...(S.conversations || []).filter(c => c.channel === 'whatsapp' && c.lastDirection === 'in').map(c => ms(c.lastMessageAt)));
         const prepared = Math.max(0, ...oggiSegretaria.rows.map(t => ms(t?.preparation?.createdAt)));
-        return `Seguiti aggiornati: ${oggiSegretaria.readAt ? oggiSegretariaDate(oggiSegretaria.readAt) : 'in attesa'} · Ultimo WhatsApp visibile: ${incoming ? oggiSegretariaDate(incoming) : 'non disponibile'} · Ultima proposta: ${prepared ? oggiSegretariaDate(prepared) : 'non disponibile'}.${oggiSegretaria.liveError ? ' Aggiornamento immediato indisponibile; ricontrollo automatico ogni 30 secondi.' : ''}`;
+        return `Seguiti aggiornati: ${oggiSegretaria.readAt ? oggiSegretariaDate(oggiSegretaria.readAt) : 'in attesa'} · Ultimo WhatsApp visibile: ${incoming ? oggiSegretariaDate(incoming) : 'non disponibile'} · Ultima proposta: ${prepared ? oggiSegretariaDate(prepared) : 'non disponibile'}. ${inboxFreshness()}${oggiSegretaria.liveError ? ' Aggiornamento immediato indisponibile per i seguiti; ricontrollo automatico ogni 30 secondi.' : ''}`;
     }
     function oggiSegretariaFreshnessUpdate() {
         const target = document.getElementById('sgFreshness');
-        if (target) target.textContent = oggiSegretariaFreshness();
+        if (target) {
+            target.textContent = oggiSegretariaFreshness();
+            target.className = 'sg-footnote' + (portalFreshnessWarning() || oggiSegretaria.liveError ? ' sg-notice sg-notice--warning' : '');
+        }
     }
     function oggiSegretariaLegacyCap() {
         return oggiSegretaria.monitoring?.mode !== 'continuous' && oggiSegretaria.monitoring?.status === 'daily_cap';
@@ -4925,7 +5056,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const section = (key, title, description, empty) => `<section class="sg-group sg-group--${key}" data-sg-group="${key}" aria-labelledby="sg-group-${key}"><header class="sg-group-header"><h3 id="sg-group-${key}">${title}<span class="sg-count">${groups[key].length}</span></h3><p>${description}</p></header><div class="sg-group-cases">${groups[key].length ? groups[key].slice(0, key === 'preparing' ? oggiSegretaria.preparingVisible : groups[key].length).map(task => row(task, key)).join('') : `<p class="sg-empty">${empty}</p>`}</div>${key === 'preparing' && groups[key].length > oggiSegretaria.preparingVisible ? `<button class="btn sg-refresh sg-load-more" type="button" data-sg-action="more-preparing">Mostra altre richieste · ${groups[key].length - oggiSegretaria.preparingVisible} ancora da vedere</button>` : ''}</section>`;
         panel.innerHTML = `<header class="sg-briefing"><div class="sg-briefing-top"><div><p class="sg-eyebrow">BOOM / Operazioni</p><h2>Segreteria</h2></div><button class="btn btn-secondary sg-refresh" type="button" data-sg-action="refresh" ${oggiSegretaria.loading ? 'disabled' : ''}>${oggiSegretaria.loading ? 'Aggiorno…' : 'Aggiorna'}</button></div><div class="sg-briefing-copy"><p class="sg-headline">${headline}</p><p class="sg-briefing-note">${subline}</p></div><dl class="sg-board"><div><dt>Decisioni per te</dt><dd>${oggiSegretaria.loaded ? groups.decisions.length : '—'}</dd></div><div><dt>Da preparare</dt><dd>${oggiSegretaria.loaded ? groups.preparing.length : '—'}</dd></div><div><dt>In corso</dt><dd>${oggiSegretaria.loaded ? groups.progress.length : '—'}</dd></div><div><dt>In attesa</dt><dd>${oggiSegretaria.loaded ? groups.waiting.length : '—'}</dd></div></dl><div class="sg-briefing-foot"><span>${oggiSegretaria.loaded ? `${total} ${total === 1 ? 'seguito aperto' : 'seguiti aperti'} nell’elenco${oggiSegretaria.incomplete || groups.invalid ? ' parziale' : ''}` : 'Lettura in corso'}</span><span>${future ? 'Prossimo ricontrollo · ' + esc(oggiSegretariaDate(future)) : 'Le date di ricontrollo sono interne'}</span></div></header>
             ${oggiSegretariaMonitoring()}
-            <p id="sgFreshness" class="sg-footnote" role="status">${esc(oggiSegretariaFreshness())}</p>
+            <p id="sgFreshness" class="sg-footnote${portalFreshnessWarning() || oggiSegretaria.liveError ? ' sg-notice sg-notice--warning' : ''}" role="status">${esc(oggiSegretariaFreshness())}</p>
             <details class="sg-footnote" data-sg-detail="coverage" ${opened.has('coverage') ? 'open' : ''}><summary>Copertura degli aggiornamenti</summary><p>Le date riguardano i seguiti e gli ingressi nelle chat WhatsApp caricate. Le chat miste, i messaggi già seguiti da una risposta e le conversazioni fuori dall’elenco possono non essere inclusi. La copertura di WhatsApp non è verificata da questi dati.</p></details>
             ${oggiSegretaria.error ? `<div class="sg-notice sg-notice--warning" role="alert">${esc(oggiSegretaria.error)}</div>` : ''}
             ${oggiSegretaria.incomplete ? '<div class="sg-notice sg-notice--warning" role="status">Elenco parziale: non è stato possibile leggere tutti i seguiti. Potrebbero esserci altre richieste aperte.</div>' : ''}
@@ -4934,7 +5065,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         panel.onclick = event => {
             const button = event.target.closest('[data-sg-action]');
             if (!button || !panel.contains(button)) return;
-            if (button.dataset.sgAction === 'refresh') return oggiSegretariaLoad(true);
+            if (button.dataset.sgAction === 'refresh') { portalFreshnessRecover(); return oggiSegretariaLoad(true); }
             if (button.dataset.sgAction === 'more-preparing') { oggiSegretaria.preparingVisible += 12; oggiSegretariaRender(); return; }
             const task = oggiSegretaria.rows.find(t => t.id === button.dataset.sgId);
             if (!task) return;
@@ -5033,7 +5164,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             if (generation === oggiSegretaria.generation) {
                 oggiSegretaria.loading = false;
                 oggiSegretariaRender();
-                oggiSegretaria.timer = setTimeout(() => { if (S.page === 'oggi') oggiSegretariaLoad(); }, 30000);
+                if (S.page === 'oggi') oggiSegretaria.timer = setTimeout(() => { if (S.page === 'oggi') oggiSegretariaLoad(); }, 30000);
                 if (oggiSegretaria.refreshPending) oggiScheduleUpdate(true, false);
             }
         }
@@ -11176,6 +11307,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // === UI ===
     function inboxPage() {
         if (!isAdmin() && !isLandlord()) return accessDenied();
+        setTimeout(portalFreshnessMount, 0);
         const convs = (S.conversations || []).slice().sort((a, b) => {
             const ta = a.lastMessageAt && a.lastMessageAt.toMillis ? a.lastMessageAt.toMillis() : new Date(a.lastMessageAt || 0).getTime();
             const tb = b.lastMessageAt && b.lastMessageAt.toMillis ? b.lastMessageAt.toMillis() : new Date(b.lastMessageAt || 0).getTime();
@@ -11202,8 +11334,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div>
                 <h1 class="page-title">📨 Inbox ${totalUnread ? `<span class="badge gold" style="font-size:11px;vertical-align:middle">${totalUnread}</span>` : ''}</h1>
                 <div style="color:var(--text-secondary);font-size:13px;margin-top:4px">WhatsApp · Email · Note · ${convs.length} conversazioni</div>
+                <p id="inboxFreshness" role="status" style="color:${portalFreshnessWarning() ? 'var(--orange)' : 'var(--text-secondary)'};font-size:12px;margin:8px 0 0">${esc(inboxFreshness())}</p>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-sm" onclick="inboxRetryUpdates()">Aggiorna</button>
                 ${isAdmin() ? `<button class="btn btn-primary" onclick="inboxOpenNewModal()">✏️ Nuova conversazione</button>` : ''}
             </div>
         </div>
@@ -11321,7 +11455,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             ${history?.error ? `<p class="sg-notice sg-notice--warning" role="alert">${esc(history.error)}</p>` : history?.loading ? '<p class="sg-footnote" role="status">Carico gli ultimi messaggi…</p>' : history?.incomplete ? '<p class="sg-footnote" role="status">Sono visibili i 300 messaggi più recenti. La cronologia precedente non è inclusa in questa vista.</p>' : ''}
 
             <!-- Timeline -->
-            <div style="flex:1;overflow-y:auto;padding:18px;background:#050505">
+            <div id="inboxTimeline" style="flex:1;overflow-y:auto;padding:18px;background:#050505">
                 ${days.length ? days.map(g => `
                     <div style="text-align:center;margin:8px 0 14px;font-size:11px;color:var(--text-muted)">${esc(g.dateLabel)}</div>
                     ${g.items.map(m => inboxMessageBubble(m)).join('')}
