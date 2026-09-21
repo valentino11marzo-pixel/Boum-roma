@@ -2779,13 +2779,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         catch (e) { S.activityLog = []; }
                     })(),
                     (async () => {
+                        window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('loading');
                         try {
                             const [deadlines, tasks] = await Promise.all([
                                 db.collection('deadlines').limit(1500).get(),
                                 db.collection('tasks').limit(800).get()
                             ]);
                             S.deadlines = rows(deadlines); S.tasks = rows(tasks);
-                        } catch (e) { S.deadlines = []; S.tasks = []; console.error('Deadlines/tasks load:', e); toast('error', 'Errore caricamento scadenze'); }
+                            window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('ready');
+                        } catch (e) { window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('error'); console.error('Deadlines/tasks load:', e); toast('error', 'Errore caricamento scadenze e attività'); }
                     })(),
                     (async () => {
                         try {

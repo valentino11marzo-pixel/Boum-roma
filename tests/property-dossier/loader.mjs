@@ -25,7 +25,7 @@ function base() {
     payments: [{ id: 'r1', propertyId: 'p1', contractId: 'c1', tenantId: 'tenant', status: 'pending', amount: 1000, month: '2026-09', dueDate: '2020-01-01' }],
     documents: [], maintenance: [], tasks: [{ id: 'old-task', propertyId: 'p1', status: 'pending' }], clients: [], invoices: [], rules: [], ruleExecutions: [] };
 }
-function harness({ network = {}, cache = null, failure = '', hold = false } = {}) {
+function harness({ network = {}, cache = null, failure = '', hold = false, loaderSource = loaders } = {}) {
   const S = base(), reads = [], writes = [], timers = [], sourceStates = [], rendered = [], storage = new Map();
   if (cache) storage.set('boom_data_cache', JSON.stringify(cache));
   let release;
@@ -63,7 +63,7 @@ function harness({ network = {}, cache = null, failure = '', hold = false } = {}
   UI.configure({ state: () => S, render: () => rendered.push(UI.render(S, UI.parseRoute(S.page), UI.load)), navigate() {}, refresh() {}, actions: {} });
   const realSetSource = UI.setSourceState;
   UI.setSourceState = status => { sourceStates.push(status); realSetSource(status); };
-  vm.runInContext(loaders, context);
+  vm.runInContext(loaderSource, context);
   return { S, UI, reads, writes, timers, sourceStates, rendered, storage, release,
     run: code => vm.runInContext(code, context), setFailure: value => { failure = value; },
     async timer(delay) { const idx = timers.findIndex(t => t.delay === delay); assert.ok(idx >= 0, 'timer exists: ' + delay); const [timer] = timers.splice(idx, 1); return timer.callback(); }
@@ -110,6 +110,8 @@ await test('same-user cache boots as cached, clears the old stamp and refreshes 
   assert.equal(h.UI.load.status, 'cached');
   assert.equal(h.UI.load.checkedAt, null);
   assert.equal(h.S.properties[0].name, 'Cached property');
+  assert.equal(h.UI.load.tasks.status, 'cached');
+  assert.equal(h.UI.load.tasks.checkedAt, null);
   assert.equal(h.reads.length, 0);
   assert.ok(h.rendered.at(-1).includes('Ultimi dati salvati'));
   await h.timer(2000);
@@ -143,10 +145,70 @@ await test('lazy task loading and overdue display make no database writes or pay
   assert.equal(h.S.tasks[0].id, 'old-task');
   await h.timer(500);
   assert.equal(h.S.tasks[0].id, 'fresh-task');
+  assert.equal(h.UI.load.tasks.status, 'ready');
+  assert.ok(h.UI.load.tasks.checkedAt);
   assert.equal(h.reads.find(r => r.name === 'tasks').cap, 800);
   assert.equal(h.writes.length, 0);
   assert.equal(JSON.stringify(network), before);
   assert.equal(h.S.payments[0].paidDate, undefined);
   assert.equal(h.S.payments[0].bankTxId, undefined);
+});
+async function assertTaskFailure(loaderSource = loaders) {
+  const h = harness({ network: data(), failure: 'tasks', loaderSource });
+  h.S.page = 'property/p1/activity';
+  h.S.tasks[0].title = 'Attività precedente da conservare';
+  h.S.deadlines = [{ id: 'old-deadline', title: 'Scadenza precedente' }];
+  const previous = JSON.stringify({ tasks: h.S.tasks, deadlines: h.S.deadlines });
+  await h.run('loadDataFresh(false)');
+  const coreStamp = h.UI.load.checkedAt;
+  await h.timer(500);
+  assert.equal(JSON.stringify({ tasks: h.S.tasks, deadlines: h.S.deadlines }), previous);
+  assert.equal(h.UI.load.status, 'ready');
+  assert.equal(h.UI.load.checkedAt, coreStamp);
+  assert.equal(h.UI.load.tasks.status, 'error');
+  assert.equal(h.UI.load.tasks.checkedAt, null);
+  assert.ok(h.rendered.at(-1).includes('Lettura attività non riuscita'));
+  assert.ok(h.rendered.at(-1).includes('Attività precedente da conservare'));
+  assert.ok(!h.rendered.at(-1).includes('Nessuna attività collegata'));
+  assert.ok(h.UI.render(h.S, { id: 'p1', tab: 'overview' }, h.UI.load).includes('Attività non aggiornate'));
+  assert.equal(h.writes.length, 0);
+  return h;
+}
+await test('lazy task failure retains previous tasks and deadlines with a persistent source warning independent of successful core data', assertTaskFailure);
+await test('an initial task failure never presents an empty list as a successful read', async () => {
+  const h = harness({ network: data(), failure: 'tasks' });
+  h.S.page = 'property/p1/activity'; h.S.tasks = [];
+  await h.run('loadDataFresh(false)'); await h.timer(500);
+  assert.ok(h.rendered.at(-1).includes('Attività non ancora disponibili'));
+  assert.ok(h.rendered.at(-1).includes('Lettura attività non riuscita'));
+  assert.ok(!h.rendered.at(-1).includes('Nessuna attività collegata'));
+});
+await test('successful recovery replaces the retained task snapshot and clears the error', async () => {
+  const h = await assertTaskFailure();
+  h.setFailure('');
+  await h.run('loadDataFresh(false)'); await h.timer(500);
+  assert.equal(h.S.tasks[0].id, 'fresh-task');
+  assert.equal(h.UI.load.tasks.status, 'ready');
+  assert.ok(h.UI.load.tasks.checkedAt);
+  assert.ok(!h.rendered.at(-1).includes('Lettura attività non riuscita'));
+});
+await test('the 800-task query limit stays visible even when only one task belongs to this property', async () => {
+  const network = data();
+  network.tasks.push(...Array.from({ length: 799 }, (_, i) => ({ id: 'other-task-' + i, propertyId: 'elsewhere', status: 'pending' })));
+  const h = harness({ network }); h.S.page = 'property/p1/activity';
+  await h.run('loadDataFresh(false)'); await h.timer(500);
+  assert.equal(h.UI.load.tasks.count, 800);
+  assert.ok(h.rendered.at(-1).includes('Archivio attività parziale: raggiunto il limite di 800 record'));
+  assert.ok(h.UI.render(h.S, { id: 'p1', tab: 'overview' }, h.UI.load).includes('Attività parziali: limite di 800 record'));
+});
+await test('mutation: clearing tasks on failure is caught by the real-loader regression', async () => {
+  const marker = "} catch (e) { window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('error');";
+  assert.ok(loaders.includes(marker));
+  await assert.rejects(assertTaskFailure(loaders.replace(marker, "} catch (e) { S.tasks = []; window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('error');")), assert.AssertionError);
+});
+await test('mutation: omitting the persistent error state is caught by the real-loader regression', async () => {
+  const marker = "window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('error');";
+  assert.ok(loaders.includes(marker));
+  await assert.rejects(assertTaskFailure(loaders.replace(marker, '')), assert.AssertionError);
 });
 console.log(`\n${checks} verifiche caricamento fascicolo superate; rete simulata, zero scritture di gestione.`);

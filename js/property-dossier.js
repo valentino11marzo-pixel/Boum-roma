@@ -62,7 +62,12 @@
   function notice(load, m) {
     const capped=[['properties',400],['contracts',800],['users',800],['payments',3000],['documents',1500],['maintenance',600]].some(([key,max]) => (load.counts?.[key] || 0)>=max);
     const labels={initial:'Ultima lettura non ancora disponibile.',cached:'Ultimi dati salvati · aggiornamento in attesa.',loading:'Aggiornamento in corso…',error:'Aggiornamento non riuscito. I dati precedenti restano visibili.',ready:'Ultima lettura '+(load.checkedAt ? date(load.checkedAt)+' · '+new Date(load.checkedAt).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}) : '')};
-    return `<div class="pdos-source" role="status"><span>${esc(labels[load.status] || labels.initial)}${capped?' · Archivio parziale: raggiunto il limite di caricamento.':' · Sono mostrati i record caricati nel portale.'}</span><button class="pdos-button" data-pdos-action="refresh" ${load.status==='loading'?'disabled':''}>${load.status==='loading'?'Aggiornamento…':'Aggiorna'}</button></div>`;
+    const tasksWarning=load.tasks?.status==='error'?' · Attività non aggiornate: lettura non riuscita.':(load.tasks?.count || 0)>=800?' · Attività parziali: limite di 800 record.':'';
+    return `<div class="pdos-source" role="status"><span>${esc(labels[load.status] || labels.initial)}${capped?' · Archivio parziale: raggiunto il limite di caricamento.':' · Sono mostrati i record caricati nel portale.'}${tasksWarning}</span><button class="pdos-button" data-pdos-action="refresh" ${load.status==='loading'?'disabled':''}>${load.status==='loading'?'Aggiornamento…':'Aggiorna'}</button></div>`;
+  }
+  function tasksNotice(load) {
+    const tasks=load.tasks || {}, labels={initial:'Attività: lettura non ancora disponibile.',cached:'Attività salvate · aggiornamento in attesa.',loading:'Aggiornamento attività in corso…',error:'Lettura attività non riuscita. Restano visibili gli ultimi dati disponibili, anche nella cronologia.',ready:'Attività aggiornate'+(tasks.checkedAt?' il '+date(tasks.checkedAt)+' · '+new Date(tasks.checkedAt).toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'}):'.')};
+    return `<p class="pdos-note" role="status">${esc(labels[tasks.status] || labels.initial)}${tasks.count>=800?' Archivio attività parziale: raggiunto il limite di 800 record.':''}</p>`;
   }
   function render(state, route, load={status:'initial'}) {
     if (state?.profile?.role !== 'admin') return '<div class="property-dossier">'+empty('Accesso riservato','Il fascicolo operativo è disponibile agli amministratori.')+'</div>';
@@ -86,7 +91,7 @@
       body=section('Documenti dell’immobile',`<p class="pdos-note">Archivio, contratti e fascicolo ARPE. Il collegamento del file non certifica una firma o un pagamento.</p>${docs.length?`<div class="pdos-document-list">${docs.map(d=>`<article class="pdos-document"><div><p class="pdos-eyebrow">${esc(d.type)}</p><h3>${esc(d.name)}</h3><p>${esc(date(d.at))}</p></div>${safeURL(d.url)?`<a class="pdos-button" href="${esc(safeURL(d.url))}" target="_blank" rel="noopener">Apri documento <span aria-hidden="true">↗</span></a>`:badge('File non disponibile','attention')}</article>`).join('')}</div>`:empty('Nessun documento collegato','I documenti generici della persona non vengono attribuiti automaticamente a questo immobile.')}`);
     } else {
       body=section('Manutenzioni',m.maintenance.length?`<div class="pdos-records">${m.maintenanceRows.map(maintenanceCard).join('')}</div>`:empty('Nessuna richiesta collegata','Non risultano manutenzioni per questo immobile nei dati caricati.'));
-      body+=section('Attività collegate',`<p class="pdos-note">Attività con un riferimento esplicito all’immobile. Le decisioni della Segreteria restano in Oggi.</p>${m.tasks.length?m.taskRows.map(row=>{const t=row.source;return `<article class="pdos-document"><div><h3>${esc(t.title || 'Attività')}</h3><p>${esc(row.statusLabel)} · ${esc(date(row.dueDate))}</p></div>${button('Apri attività','task',t.id)}</article>`;}).join(''):empty('Nessuna attività collegata','La vista comprende solo le attività caricate e collegate in modo certo.')}`);
+      body+=section('Attività collegate',`<p class="pdos-note">Attività con un riferimento esplicito all’immobile. Le decisioni della Segreteria restano in Oggi.</p>${tasksNotice(load)}${m.tasks.length?m.taskRows.map(row=>{const t=row.source;return `<article class="pdos-document"><div><h3>${esc(t.title || 'Attività')}</h3><p>${esc(row.statusLabel)} · ${esc(date(row.dueDate))}</p></div>${button('Apri attività','task',t.id)}</article>`;}).join(''):empty(load.tasks?.status==='ready'?'Nessuna attività collegata nei dati caricati':'Attività non ancora disponibili','La vista comprende solo le attività caricate e collegate in modo certo.')}`);
     }
     if(route.tab==='activity' && m.timeline.length) {
       body+=section('Cronologia registrata',`<ol class="pdos-timeline">${m.timeline.slice(0,30).map(e=>`<li><time>${esc(date(e.date))}</time><div><h3>${esc(e.label)}</h3><p>${esc(e.detail || '')}</p></div>${['contract','maintenance','task','payment'].includes(e.kind)?button('Apri fonte',e.kind,e.recordId):''}</li>`).join('')}</ol>${m.timeline.length>30?'<p class="pdos-note">Mostrati gli ultimi 30 eventi. I record completi restano nelle sezioni del fascicolo.</p>':''}`);
@@ -96,7 +101,7 @@
   }
 
   let adapter, origin=null, focusRequest=null, bound=false, lastPage=null, sourceFocus=null;
-  const load = {status:'initial',checkedAt:null,counts:{}};
+  const load = {status:'initial',checkedAt:null,counts:{},tasks:{status:'initial',checkedAt:null,count:0}};
   function configure(value) {
     adapter=value;
     if(bound || !root.document) return; bound=true;
@@ -160,7 +165,15 @@
   function setSourceState(status) {
     load.status=status;
     if(status==='ready') {load.checkedAt=new Date().toISOString();const s=adapter?.state() || {};['properties','contracts','users','payments','documents','maintenance'].forEach(k=>load.counts[k]=(s[k]||[]).length);}
-    if(status==='cached')load.checkedAt=null;
+    if(status==='cached') {load.checkedAt=null;load.tasks={status:'cached',checkedAt:null,count:(adapter?.state().tasks || []).length};}
+    renderSourceUpdate(status);
+  }
+  function setTasksSourceState(status) {
+    load.tasks.status=status;
+    if(status==='ready') {load.tasks.checkedAt=new Date().toISOString();load.tasks.count=(adapter?.state().tasks || []).length;}
+    renderSourceUpdate(status);
+  }
+  function renderSourceUpdate(status) {
     if(adapter && parseRoute(adapter.state().page)) {
       const active=root.document.activeElement;
       const current=active?.dataset?.pdosAction ? {action:active.dataset.pdosAction,id:active.dataset.id} : active?.dataset?.pdosTab ? {tab:active.dataset.pdosTab} : null;
@@ -171,7 +184,7 @@
       if(status!=='loading')sourceFocus=null;
     }
   }
-  const API={parseRoute,routeFor,render,safeURL,configure,open,afterRender,setSourceState,load};
+  const API={parseRoute,routeFor,render,safeURL,configure,open,afterRender,setSourceState,setTasksSourceState,load};
   if(typeof module==='object' && module.exports) module.exports=API;
   root.BOOM_PROPERTY_DOSSIER=API;
 })(typeof window!=='undefined'?window:globalThis);
