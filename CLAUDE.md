@@ -2991,6 +2991,56 @@ test accetta qualunque schema. Tre correzioni:
   dello Scrivano (il worker non li riprova). Nei log il messaggio d'errore
   dell'API a 600 caratteri: era clippato a 200, e la causa vera stava dopo.
 
+**Integrazione coordinata del 21/09**: il rilascio Innesto `2d8ddb9`, derivato da `842abcbb`, viene integrato sopra `4955110` per conservare anche gli aggiornamenti WhatsApp, i legami lead/conversazione, il recupero dei listener e la revisione Oggi.
+Il segmento Oggi revisionato resta identico; i dieci file esclusivi Innesto restano uguali alla consegna sorgente. La registrazione delle suite conserva entrambe le famiglie di test; la verifica del candidato integrato richiede una nuova CI.
+
+**LA SECONDA LEZIONE DEL 21 SETTEMBRE 2026 — «continuo a rifiutarmi per
+grandezza anche un semplice file»** (stesso giorno, ore dopo il fix dello
+schema). Nei log di produzione NESSUNA chiamata a `/api/portal/ingest` dopo
+il fix: il rifiuto avveniva nel PORTAL, prima di spedire. Tre cancelli
+nostri, nessuno della piattaforma: `f.size > 8 MB` misurato sulla FOTO A
+GRANDEZZA PIENA prima di ridurla (uno scatto di iPhone da 9-12 MB rifiutato,
+mentre la stessa foto sarebbe partita come JPEG da 400 KB); 8 MB per file
+anche sul server (Anthropic accetta 32 MB a richiesta, base64 compreso); e
+un intake che accettava SOLO PDF e immagini. Ora: (1) **le foto non hanno un
+cancello** — si riducono a 2000px prima di scegliere la via (HEIC compresa:
+Safari nel canvas, Chrome via `heic2any` da jsDelivr caricato SOLO al
+bisogno); gli altri file valgono fino ai 25 MB dello Storage di transito
+(`validUpload`), il server ne legge fino a **20 MB per file e per giro**
+(`MAX_FILE_BYTES`/`MAX_TOTAL_BYTES`), e un 413 dell'edge (body oltre 4,5 MB)
+si ritenta UNA volta con tutto in transito invece di dire «8 MB»; ogni
+rifiuto residuo porta il numero e il rimedio. (2) **Qualsiasi formato**:
+`api/_doctext.js` (che apre gli ZIP con `api/_unzip.js`, il lettore del
+Pendolare, cui aggiunge solo `zipEntryBytes` — mai un secondo lettore)
+riduce a testo Word (.docx), Excel (.xlsx), OpenDocument, Word
+97-2003 (.doc — il lettore OLE nato in `tests/_doc.mjs` vive qui), email
+.eml (MIME multipart, quoted-printable, base64, RFC 2047), HTML, RTF,
+testo/CSV/Markdown/JSON; il modello li riceve come blocco di testo
+etichettato «DOCUMENTO n (Word, N caratteri)», tetto 150.000 caratteri per
+documento dichiarato nelle note. **Il tipo lo dicono i BYTE** (`sniffType`:
+firma → nome → dichiarazione): un browser manda `""` per .eml e .md e
+`octet-stream` per quasi tutto, e un JPEG etichettato HEIC è un JPEG. I
+file di testo puro NON transitano (storage.rules accetta immagini, PDF e
+ZIP): vanno inline, e sono piccoli; gli Office SONO zip e transitano come
+tali. (3) **Le creazioni in più**: lo schema ha `material` (che cos'è il
+materiale nel suo insieme), `lead` (il messaggio di un cliente: nome,
+recapiti, la richiesta con le SUE parole, zona, budget, lingua, chi scrive)
+e `preagreement` (i termini di una proposta / pre-accordo: riferimento
+BOOM-…, provvigione e quando è dovuta, quota energia, deposito alla firma,
+dovuto alla firma, validità) — sempre a zero unioni e zero facoltativi.
+Nel portal la card **Lead** crea un lead nello schema del sito (`source:
+'innesto'`, mai un doppione per email o numero in qualunque forma) e da lì
+Brain → notify-pending → Commerciale; la card **Proposta** cerca la
+proposta nel console (per `ref` o per email del cliente): se c'è, **il
+contratto NON nasce da qui** (nasce DA quella, `→ Contratto dalla
+proposta` = `/api/preagreement/convert`, con identità, documenti, cadenza e
+mandato che porta con sé — un secondo contratto sullo stesso deal è il
+doppione più caro); se non c'è, con la spunta nasce una proposta via
+`/api/preagreement/create` (la STESSA API della console) e il link finisce
+negli appunti. `CATS` dello Smistatore ha `proposta` e `messaggio`.
+Test: `node tests/doctext/run.mjs` (31), `tests/innesto/run.mjs` (167),
+`tests/dataops/test.mjs` (192).
+
 ### LO SCRIVANO — la porta dal telefono (`api/scrivano/*` + `sc:` su Telegram, 14/09/2026)
 STUDIO_SCRIVANO §4, **passo 4**: i passi 1–3 (il documento resta, la classe
 dello Smistatore, la modifica proposta) sono nell'Innesto 3.0; questo è il
@@ -4570,6 +4620,7 @@ camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
   | `tests/scheda/run.mjs` | La Scheda: token derivati (ruolo nella derivazione, timing-safe), precedenza prefill contratto→sign→wizard, lock post-firma, sync profilo su ENTRAMBI gli schemi users, upload con OCR che non blocca mai, /api/profile/link autorizzato |
   | `tests/contratto/run.mjs` | Il dizionario del contratto: ogni lettura dei modelli è dichiarata e ogni voce è letta (anti-deriva nelle due direzioni), la cedolare non torna `=== true` (mutazione), la completezza cambia per modello/owner/società/extra-UE/co-conduttori/durata di legge, la Scheda chiede SOLO ciò che manca a QUELLA parte, un token tenant non scrive mai l'immobile (e lo dice), il co-conduttore scrive solo la sua riga e la firma altrui resta, i numeri RLI (totale per durata < 12 mesi, scadenza da min(stipula, decorrenza)), il foglio pulito senza bottoni né link e con gli allegati veri, 401 senza admin |
   | `tests/scrivano/run.mjs` | lo Scrivano, la porta dal telefono: archiviato con id deterministico e bottone 🌱, il tap mette in coda (mai una lettura nel webhook), il worker legge i byte archiviati col cuore dell'Innesto e manda la card col link `#innesto=<docId>`; mai due letture, guasti col rimedio, le porte di Codex ereditano l'offerta |
+  | `tests/doctext/run.mjs` | «qualsiasi cosa» diventa testo: lo ZIP minimo (STORE/DEFLATE, mai una zip bomb), Word/Excel/OpenDocument/.doc/email/HTML/RTF/testo estratti senza dipendenze, il tipo VERO dai byte prima che dal nome (un JPEG etichettato HEIC è un JPEG; una HEIC vera è una HEIC) |
   | `tests/innesto/run.mjs` | l'Innesto e il 413 di piattaforma: il PDF grande transita da Storage e i byte che arrivano ad Anthropic sono ESATTAMENTE quelli scaricati, un host estraneo non viene MAI contattato (l'endpoint non è un proxy), i tetti restano onesti (8 MB, whitelist formati), e il transito si cancella nel finally. Più l'APPLY VERO su Firestore finto: proposta completa → contratto+rate scritti, proposta senza una gamba → il contratto non nasce MA il riepilogo non lo promette e il toast dice quale gamba manca (la lezione del 30/08: "Innesto completato" senza contratto), proprietario già in `landlords` → mai un doppione |
   | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot; §1f: ogni firma STAMPA lo stato sulla proposta (rail PA), 🖊 send-sign su contratto già firmato non manda email e ristampa la proposta, mai una proposta fantasma |
   | `tests/aspi/run.mjs` | l'iter ASPI: la checklist blocca SOLO senza contratto (il resto avverte, dichiarato nell'email), l'invio raggiunge il referente con l'operatore in copia e gli allegati veri, la fattura col markup non si duplica MAI (id deterministico), 'registered' non si degrada, l'auto-invio parte solo con la manopola girata |

@@ -28939,18 +28939,37 @@ IBAN: ${l.iban || '-'}`;
 
     const INNESTO_INLINE_MAX = 3 * 1024 * 1024;   // byte grezzi inline PER LETTURA (base64 +33% < 4,5 MB)
     const INNESTO_MAX_FILES = 8;
-    const INNESTO_MAX_FILE = 8 * 1024 * 1024;
+    // LA SECONDA LEZIONE DEL 21/09/2026: 8 MB misurati sulla foto a grandezza
+    // piena — PRIMA di ridurla — rifiutavano «per grandezza» uno scatto
+    // qualsiasi di iPhone, e un PDF scansionato da 9 MB. Le immagini non
+    // hanno più un cancello (si riducono a 2000px prima di partire); gli
+    // altri file valgono fino al tetto dello Storage di transito (25 MB,
+    // storage.rules validUpload) e il server ne legge fino a 20 MB (il
+    // tetto di Anthropic è 32 MB a richiesta, base64 compreso).
+    const INNESTO_MAX_FILE = 25 * 1024 * 1024;
+    // Qualsiasi cosa: oltre a PDF e foto, Word/Excel/OpenDocument/email/
+    // HTML/testo — il server li riduce a testo (api/_doctext.js).
+    const INNESTO_TEXTY_RE = /\.(docx?|odt|xlsx|csv|tsv|txt|md|markdown|eml|html?|json|rtf)$/i;
+    const INNESTO_ACCEPT = 'application/pdf,image/*,.pdf,.heic,.heif,.docx,.doc,.odt,.xlsx,.csv,.tsv,.txt,.md,.eml,.html,.htm,.json,.rtf';
+    // HEIC su Chrome/Windows: il canvas non la decodifica, il server non la
+    // legge. heic2any (libheif in WASM) si carica SOLO quando serve.
+    const INNESTO_HEIC_LIB = 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
     // $ per milione di token — per dire all'operatore quanto è costata una
     // lettura, non per fatturare: è una stima dichiarata.
     const INNESTO_RATES = { 'claude-opus-5': { in: 5, out: 25, cacheRead: 0.5, cacheWrite: 6.25 } };
-    const INNESTO_KIND_ICON = { contratto: '📋', documento_identita: '🪪', visura: '🏛', ape: '⚡', utenza: '💡', ricevuta_canone: '🧾', f24_registro: '🏦', f24_imu: '🏦', f24_altro: '🏦', rli: '📑', cedolare: '📑', planimetria: '📐', altro: '📄' };
+    const INNESTO_KIND_ICON = { contratto: '📋', documento_identita: '🪪', visura: '🏛', ape: '⚡', utenza: '💡', ricevuta_canone: '🧾', f24_registro: '🏦', f24_imu: '🏦', f24_altro: '🏦', rli: '📑', cedolare: '📑', planimetria: '📐', proposta: '📝', messaggio: '💬', fattura_spese: '🧾', fattura_societa: '🧾', estratto_conto: '🏦', altro: '📄' };
 
     function innestoEmpty() {
         return {
             files: [], text: '', hint: '', proposal: null, notes: [], confidence: null, summary: '',
             filesRead: [], evMap: {}, derived: {}, usage: null, cost: 0, busy: false, phase: '', startedAt: 0,
             links: {}, coLinks: {}, diffs: {}, expanded: {}, archive: true, readDocs: [],
-            seedId: null, seedLoading: false, seedDone: false, seedError: '', seedDoc: null
+            seedId: null, seedLoading: false, seedDone: false, seedError: '', seedDoc: null,
+            // le creazioni in più (21/09): il lead dal messaggio di un cliente
+            // (spunta accesa), la proposta nel console (spunta spenta: è un
+            // link che parte al cliente), il contratto saltato quando il deal
+            // è già una proposta del console (nasce DA quella, non da qui).
+            create: { lead: true, preagreement: false }, pa: null, skipContract: false
         };
     }
     let _innesto = innestoEmpty();
@@ -28967,13 +28986,13 @@ IBAN: ${l.iban || '-'}`;
         const totalBytes = files.reduce((a, f) => a + f.size, 0);
         return `
         <div class="page-header"><h1>🌱 Innesto</h1>
-            <p style="color:var(--text-secondary);font-size:13px">Contratto, documenti d'identità, visura, messaggi: tutto insieme, una lettura sola. Ogni campo cita la frase da cui viene, chi esiste già viene aggiornato e non duplicato, e niente si scrive prima della tua conferma.</p></div>
+            <p style="color:var(--text-secondary);font-size:13px">Contratto, proposta, documenti d'identità, visura, il messaggio di un cliente: qualsiasi file, tutto insieme, una lettura sola. Ogni campo cita la frase da cui viene, chi esiste già viene aggiornato e non duplicato, e niente si scrive prima della tua conferma.</p></div>
 
         ${innestoSeedCard()}
         <div class="card" style="margin-bottom:16px">
             <div style="font-size:13px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
                 <span>Materiale di partenza</span>
-                <span style="font-size:11.5px;color:var(--text-secondary)">${files.length ? files.length + ' file · ' + mb(totalBytes) : 'PDF, foto, screenshot — fino a ' + INNESTO_MAX_FILES + ' per lettura'}</span>
+                <span style="font-size:11.5px;color:var(--text-secondary)">${files.length ? files.length + ' file · ' + mb(totalBytes) : 'PDF, foto, Word, Excel, email, testo — fino a ' + INNESTO_MAX_FILES + ' per lettura'}</span>
             </div>
             <div id="innestoDrop" onclick="document.getElementById('innestoFileInput').click()"
                  ondragover="event.preventDefault();this.style.borderColor='var(--gold)'" ondragleave="this.style.borderColor='var(--border)'"
@@ -28981,13 +29000,13 @@ IBAN: ${l.iban || '-'}`;
                  style="border:1.5px dashed var(--border);border-radius:12px;padding:${files.length ? '12px 14px' : '22px 14px'};text-align:center;cursor:pointer;background:var(--bg-input);transition:border-color .15s">
                 ${files.length
                     ? `<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-start" onclick="event.stopPropagation()">
-                        ${files.map((f, i) => `<span style="display:inline-flex;align-items:center;gap:6px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:999px;padding:5px 10px;font-size:12px">${/pdf/i.test(f.type) ? '📄' : '🖼'} ${esc(f.name.length > 34 ? f.name.slice(0, 31) + '…' : f.name)} <span style="color:var(--text-secondary)">${mb(f.size)}</span><button type="button" onclick="innestoRemoveFile(${i})" title="Togli" style="background:none;border:0;color:var(--text-secondary);cursor:pointer;font-size:14px;line-height:1;padding:0 2px">✕</button></span>`).join('')}
+                        ${files.map((f, i) => `<span style="display:inline-flex;align-items:center;gap:6px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:999px;padding:5px 10px;font-size:12px">${innestoFileIcon(f)} ${esc(f.name.length > 34 ? f.name.slice(0, 31) + '…' : f.name)} <span style="color:var(--text-secondary)">${mb(f.size)}</span><button type="button" onclick="innestoRemoveFile(${i})" title="Togli" style="background:none;border:0;color:var(--text-secondary);cursor:pointer;font-size:14px;line-height:1;padding:0 2px">✕</button></span>`).join('')}
                         <span style="font-size:12px;color:var(--text-secondary);align-self:center;cursor:pointer" onclick="document.getElementById('innestoFileInput').click()">＋ aggiungi</span>
                        </div>`
                     : `<div style="font-size:13px">📎 Trascina qui i file, oppure clicca per sceglierli</div>
-                       <div style="font-size:11.5px;color:var(--text-secondary);margin-top:4px">contratto PDF · foto dei documenti (anche più pagine) · visura · APE · screenshot di una chat — puoi anche incollare un'immagine nel riquadro qui sotto</div>`}
+                       <div style="font-size:11.5px;color:var(--text-secondary);margin-top:4px">contratto PDF o Word · proposta · foto dei documenti (anche HEIC, anche più pagine) · visura · APE · email .eml · Excel · screenshot di una chat — nessun limite di formato, le foto si riducono da sole; puoi anche incollare un'immagine nel riquadro qui sotto</div>`}
             </div>
-            <input id="innestoFileInput" type="file" multiple accept="application/pdf,image/*" style="display:none" onchange="innestoAddFiles(this.files);this.value=''">
+            <input id="innestoFileInput" type="file" multiple accept="${INNESTO_ACCEPT}" style="display:none" onchange="innestoAddFiles(this.files);this.value=''">
             <input id="innestoCamInput" type="file" accept="image/*" capture="environment" style="display:none" onchange="innestoAddFiles(this.files);this.value=''">
             <textarea id="innestoTextArea" rows="${p ? 3 : 5}" placeholder="Oppure incolla qui il testo: il contratto, l'email del proprietario, il messaggio WhatsApp con i dati dell'inquilino, gli appunti della visita… (e Ctrl+V incolla anche uno screenshot)"
                 oninput="innestoText(this.value)" onpaste="innestoPaste(event)"
@@ -29025,13 +29044,13 @@ IBAN: ${l.iban || '-'}`;
         const secs = _innesto.usage ? ' · ' + Math.round(_innesto.usage.ms / 1000) + ' s' : '';
         return `<div class="card" style="margin-bottom:16px;border-color:rgba(212,175,55,0.3)">
             <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-                <div style="font-size:12px;color:var(--gold);letter-spacing:1px;text-transform:uppercase">Cosa ho letto${_innesto.confidence != null ? ' · sicurezza ' + _innesto.confidence + '%' : ''}</div>
+                <div style="font-size:12px;color:var(--gold);letter-spacing:1px;text-transform:uppercase">Cosa ho letto${_innesto.proposal && _innesto.proposal.material ? ' · ' + (INNESTO_MATERIAL_LABEL[_innesto.proposal.material] || _innesto.proposal.material) : ''}${_innesto.confidence != null ? ' · sicurezza ' + _innesto.confidence + '%' : ''}</div>
                 <div style="font-size:11px;color:var(--text-secondary)">${_innesto.usage ? esc((_innesto.usage.model || 'claude-opus-5').replace('claude-', '')) + secs + cost : ''}</div>
             </div>
             ${_innesto.summary ? `<div style="font-size:13.5px;margin-bottom:8px">${esc(_innesto.summary)}</div>` : ''}
             ${fr.map(f => `<div style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;line-height:1.5;padding:4px 0;border-top:1px solid var(--border)">
                 <span>${f.legible ? (INNESTO_KIND_ICON[f.kind] || '📄') : '⚠️'}</span>
-                <div style="flex:1;min-width:0"><b>${esc(f.title || f.name)}</b> <span style="color:var(--text-secondary)">— ${esc(f.label)}${f.pages ? ' · ' + f.pages + ' pagine' + (f.clipped ? ' (lette le prime ' + f.readPages + ')' : '') : ''}${f.party ? ' · ' + ({ tenant: 'inquilino', landlord: 'proprietario', cotenant: 'co-conduttore' })[f.party] : ''}</span>
+                <div style="flex:1;min-width:0"><b>${esc(f.title || f.name)}</b> <span style="color:var(--text-secondary)">— ${esc(f.label)}${f.pages ? ' · ' + f.pages + ' pagine' + (f.clipped ? ' (lette le prime ' + f.readPages + ')' : '') : (f.isText ? ' · ' + esc(f.format || 'testo') + (f.chars ? ', ' + f.chars + ' caratteri' : ', vuoto') : '')}${f.party ? ' · ' + ({ tenant: 'inquilino', landlord: 'proprietario', cotenant: 'co-conduttore' })[f.party] : ''}</span>
                     ${!f.legible ? `<div style="color:#FF6B35">Illeggibile${f.summary ? ': ' + esc(f.summary) : ''} — rifai la foto (nitida, dritta, ben illuminata) e rileggi.</div>` : (f.summary ? `<div style="color:var(--text-secondary)">${esc(f.summary)}</div>` : '')}
                 </div></div>`).join('')}
             ${notes.length ? `<div style="margin-top:8px">${notes.map(n => `<div style="font-size:12.5px;color:var(--text-secondary);line-height:1.6">• ${esc(n)}</div>`).join('')}</div>` : ''}
@@ -29056,18 +29075,23 @@ IBAN: ${l.iban || '-'}`;
         person: ['name', 'email', 'phone', 'codiceFiscale', 'address', 'birthDate', 'birthPlace'],
         landlord: ['name', 'email', 'phone', 'codiceFiscale', 'iban', 'address', 'birthDate', 'birthPlace'],
         property: ['name', 'address', 'rent', 'floor', 'interno', 'sqm', 'rooms', 'foglio', 'particella', 'sub'],
-        contract: ['type', 'startDate', 'endDate', 'rent', 'deposit', 'depositMonths', 'paymentDay', 'installmentMonths', 'cedolareSecca', 'transitionalReason']
+        contract: ['type', 'startDate', 'endDate', 'rent', 'deposit', 'depositMonths', 'paymentDay', 'installmentMonths', 'cedolareSecca', 'transitionalReason'],
+        lead: ['name', 'email', 'phone', 'request', 'zone', 'budget', 'moveIn', 'language'],
+        preagreement: ['ref', 'status', 'feePct', 'feeEur', 'dueAtSigning', 'depositSplitPct', 'validUntil']
     };
+    const INNESTO_MATERIAL_LABEL = { contratto: 'contratto', proposta: 'proposta / pre-accordo', identita: 'documenti d\'identità', immobile: 'immobile', messaggio: 'messaggio di un cliente', fattura: 'fattura / conto', altro: 'altro' };
     const INNESTO_FIELDS = {
         person: ['name', 'email', 'phone', 'codiceFiscale', 'address', 'birthDate', 'birthPlace', 'nationality', 'docType', 'docNum', 'docIssuer', 'docIssueDate', 'permessoNumero', 'permessoScadenza'],
         landlord: ['name', 'kind', 'businessName', 'partitaIva', 'email', 'phone', 'codiceFiscale', 'iban', 'address', 'birthDate', 'birthPlace', 'nationality', 'docType', 'docNum', 'docIssuer', 'docIssueDate'],
         cotenant: ['name', 'email', 'phone', 'codiceFiscale', 'address', 'birthDate', 'birthPlace', 'nationality', 'docType', 'docNum'],
         property: ['name', 'address', 'city', 'rent', 'sqm', 'rooms', 'bathrooms', 'floor', 'scala', 'interno', 'accessories', 'furnished', 'energyClass', 'sezione', 'foglio', 'particella', 'sub', 'categoria', 'renditaCatastale', 'cadastralData'],
         contract: ['type', 'startDate', 'endDate', 'durationMonths', 'rent', 'deposit', 'depositMonths', 'paymentDay', 'installmentMonths', 'accessoryCharges', 'condoMode', 'cedolareSecca', 'transitionalReason', 'transitionalDocs', 'esigenzaDi', 'cohabitants', 'otherClauses', 'signaturePlace', 'signatureDate', 'paymentMethod', 'istatPct', 'notes'],
-        studenti: ['corsoStudi', 'universita', 'universitaIndirizzo', 'tipoIscrizione', 'annoAccademico']
+        studenti: ['corsoStudi', 'universita', 'universitaIndirizzo', 'tipoIscrizione', 'annoAccademico'],
+        lead: ['name', 'email', 'phone', 'request', 'zone', 'budget', 'bedrooms', 'moveIn', 'durationMonths', 'household', 'occupation', 'language', 'side', 'listing', 'channel'],
+        preagreement: ['ref', 'isBoom', 'status', 'acceptedAt', 'feePct', 'feeMonths', 'feeEur', 'feeVatPct', 'feeDue', 'energyCredit', 'depositSplitPct', 'dueAtSigning', 'validUntil', 'extras']
     };
-    const INNESTO_NUMERIC = ['rent', 'sqm', 'rooms', 'bathrooms', 'deposit', 'depositMonths', 'paymentDay', 'installmentMonths', 'accessoryCharges', 'renditaCatastale', 'durationMonths'];
-    const INNESTO_DATES = ['startDate', 'endDate', 'birthDate', 'docIssueDate', 'permessoScadenza', 'signatureDate'];
+    const INNESTO_NUMERIC = ['rent', 'sqm', 'rooms', 'bathrooms', 'deposit', 'depositMonths', 'paymentDay', 'installmentMonths', 'accessoryCharges', 'renditaCatastale', 'durationMonths', 'budget', 'bedrooms', 'feePct', 'feeMonths', 'feeEur', 'feeVatPct', 'energyCredit', 'depositSplitPct', 'dueAtSigning'];
+    const INNESTO_DATES = ['startDate', 'endDate', 'birthDate', 'docIssueDate', 'permessoScadenza', 'signatureDate', 'validUntil', 'acceptedAt'];
     const INNESTO_SELECT = {
         type: [['transitorio', 'Transitorio (Allegato B)'], ['studenti', 'Studenti (Allegato C)'], ['3+2', '3+2 canone concordato (Allegato A)'], ['4+4', '4+4 canone libero'], ['ordinaria', 'Ordinaria / altro']],
         installmentMonths: [[1, 'Mensile'], [2, 'Bimestrale'], [3, 'Trimestrale'], [6, 'Semestrale'], [12, 'Annuale']],
@@ -29076,7 +29100,15 @@ IBAN: ${l.iban || '-'}`;
         esigenzaDi: [['', '—'], ['conduttore', 'Del conduttore'], ['locatore', 'Del locatore']],
         furnished: [['', '—'], ['yes', 'Sì'], ['no', 'No']],
         docType: [['', '—'], ['id', 'Carta d\'identità'], ['passport', 'Passaporto'], ['permit', 'Permesso di soggiorno'], ['patente', 'Patente']],
-        kind: [['', 'Persona fisica'], ['fisica', 'Persona fisica'], ['giuridica', 'Società / ente']]
+        kind: [['', 'Persona fisica'], ['fisica', 'Persona fisica'], ['giuridica', 'Società / ente']],
+        household: [['', '—'], ['solo', 'Da solo/a'], ['couple', 'Coppia'], ['family', 'Famiglia'], ['flatmates', 'Coinquilini']],
+        occupation: [['', '—'], ['employed', 'Dipendente'], ['self-employed', 'Autonomo'], ['student', 'Studente'], ['relocating', 'In trasferimento']],
+        language: [['', '—'], ['it', 'Italiano'], ['en', 'Inglese']],
+        side: [['', '—'], ['tenant', 'Cerca casa'], ['landlord', 'Propone un immobile'], ['company', 'Ente / azienda']],
+        channel: [['', '—'], ['whatsapp', 'WhatsApp'], ['email', 'Email'], ['portal', 'Portale'], ['phone', 'Telefono'], ['other', 'Altro']],
+        isBoom: [['', '—'], ['yes', 'Sì'], ['no', 'No']],
+        status: [['', '—'], ['sent', 'Inviata'], ['accepted', 'Accettata'], ['paid', 'Pagata'], ['signed', 'Contratto firmato']],
+        feeDue: [['', '—'], ['move-in', 'All\'ingresso'], ['signing', 'Alla firma della proposta'], ['separate', 'A parte']]
     };
 
     function innestoFieldRow(section, key, label, value, opts) {
@@ -29110,14 +29142,14 @@ IBAN: ${l.iban || '-'}`;
 
     function innestoFieldsBlock(section, d, kind, coIndex) {
         const D = window.BOOM_DATAOPS;
-        const labels = kind === 'property' ? D.LABELS.property : (kind === 'contract' ? D.LABELS.contract : D.LABELS.person);
+        const labels = kind === 'property' ? D.LABELS.property : (kind === 'contract' ? D.LABELS.contract : ((kind === 'lead' || kind === 'preagreement') && D.LABELS[kind] ? D.LABELS[kind] : D.LABELS.person));
         const all = INNESTO_FIELDS[kind === 'landlord' ? 'landlord' : kind === 'cotenant' ? 'cotenant' : kind];
         const core = INNESTO_CORE[kind === 'landlord' ? 'landlord' : kind === 'cotenant' ? 'person' : kind === 'person' ? 'person' : kind];
         const expKey = coIndex != null ? section : kind === 'landlord' ? 'landlord' : kind === 'person' ? 'tenant' : kind;
         const expanded = !!_innesto.expanded[expKey];
         const show = all.filter(k => expanded || core.indexOf(k) >= 0 || (d[k] != null && d[k] !== '' && !(kind === 'contract' && k === 'paymentDay') ));
         const hidden = all.length - show.length;
-        let html = show.map(k => innestoFieldRow(section, k, labels[k] || k, d[k], { multiline: /transitionalReason|otherClauses|notes|cohabitants|accessories/.test(k), quiet: /^(paymentDay|installmentMonths|cedolareSecca|type|propertyType|kind|name|cadastralData)$/.test(k) })).join('');
+        let html = show.map(k => innestoFieldRow(section, k, labels[k] || k, d[k], { multiline: /transitionalReason|otherClauses|notes|cohabitants|accessories|request|extras/.test(k), quiet: /^(paymentDay|installmentMonths|cedolareSecca|type|propertyType|kind|name|cadastralData)$/.test(k) })).join('');
         if (kind === 'contract' && d.type === 'studenti') {
             const st = d.studenti || {};
             html += `<div style="font-size:11px;color:var(--gold);letter-spacing:1px;text-transform:uppercase;margin:10px 0 2px">Allegato C — corso di studi</div>`
@@ -29262,7 +29294,9 @@ IBAN: ${l.iban || '-'}`;
                 ${rec ? innestoDiffBlock(key, co, rec, 'person') + innestoEditToggle(key, co, 'cotenant', i) : innestoFieldsBlock(key, co, 'cotenant', i)}
             </div>`);
         });
-        blocks.push(section('contract', '📋', 'Contratto', 'contract', [], null));
+        if (p.lead) blocks.push(innestoLeadCard(p));
+        if (p.preagreement) blocks.push(innestoPaCard(p));
+        blocks.push(_innesto.skipContract && p.contract ? innestoSkippedContractCard(p) : section('contract', '📋', 'Contratto', 'contract', [], null));
 
         // Riepilogo onesto: distingue cosa nasce, cosa si aggiorna, cosa si
         // archivia, così l'operatore sa in anticipo l'effetto del pulsante.
@@ -29290,9 +29324,12 @@ IBAN: ${l.iban || '-'}`;
         // scopriva giorni dopo, controllando l'archivio. Una gamba vale
         // anche AGGANCIATA dall'archivio (il fantasma qui sopra).
         const contractLegs = [];
-        if (p.contract && !p.property && !_innesto.links.property) contractLegs.push("l'immobile");
-        if (p.contract && !p.tenant && !_innesto.links.tenant) contractLegs.push("l'inquilino");
-        if (p.contract && !contractLegs.length) willCreate.push('contratto + piano rate' + (p.coTenants && p.coTenants.length ? ' (' + (p.coTenants.length + 1) + ' conduttori)' : ''));
+        const wantContract = p.contract && !_innesto.skipContract;
+        if (wantContract && !p.property && !_innesto.links.property) contractLegs.push("l'immobile");
+        if (wantContract && !p.tenant && !_innesto.links.tenant) contractLegs.push("l'inquilino");
+        if (wantContract && !contractLegs.length) willCreate.push('contratto + piano rate' + (p.coTenants && p.coTenants.length ? ' (' + (p.coTenants.length + 1) + ' conduttori)' : ''));
+        if (p.lead && _innesto.create.lead !== false && !innestoLeadDup(p.lead)) willCreate.push('lead');
+        if (p.preagreement && _innesto.create.preagreement === true && !(_innesto.pa && _innesto.pa.found)) willCreate.push('proposta nel console');
         const docsN = _innesto.readDocs.length;
         const parts = [];
         if (willCreate.length) parts.push('creerà ' + willCreate.join(' · '));
@@ -29333,9 +29370,12 @@ IBAN: ${l.iban || '-'}`;
         if (!files.length) return;
         for (const f of files) {
             if (_innesto.files.length >= INNESTO_MAX_FILES) { toast('warning', 'Massimo ' + INNESTO_MAX_FILES + ' file per lettura', 'Leggi questi, poi «Leggi e integra» con gli altri'); break; }
-            const isPdf = /pdf/i.test(f.type) || /\.pdf$/i.test(f.name);
-            if (!isPdf && !/^image\//i.test(f.type)) { toast('error', 'Formato non leggibile', f.name + ' — servono PDF o immagini'); continue; }
-            if (f.size > INNESTO_MAX_FILE) { toast('error', 'File troppo grande', f.name + ' supera gli 8 MB'); continue; }
+            const kind = innestoFileKind(f);
+            if (!kind) { toast('error', 'Formato non leggibile', f.name + ' — vanno bene PDF, foto, Word, Excel, OpenDocument, email, HTML, testo/CSV/RTF'); continue; }
+            // Le FOTO non hanno un cancello: si riducono a 2000px prima di
+            // partire (una da 12 MB diventa ~500 KB). Gli altri file valgono
+            // fino al tetto dello Storage di transito.
+            if (kind !== 'image' && f.size > INNESTO_MAX_FILE) { toast('error', 'File oltre i 25 MB', f.name + ' — esporta il PDF a qualità inferiore, oppure fotografa le pagine che contano'); continue; }
             if (_innesto.files.some(x => x.name === f.name && x.size === f.size)) continue;
             _innesto.files.push(f);
         }
@@ -29375,67 +29415,25 @@ IBAN: ${l.iban || '-'}`;
         clearInterval(_innestoTick);
         _innestoTick = setInterval(() => { const el = document.getElementById('innestoProgress'); if (el) el.textContent = innestoProgressText(); }, 1000);
         const transitRefs = [];
-        const prepared = [];   // { blob, mediaType, file } — per l'archivio alla conferma
         try {
-            const payload = { text: text.slice(0, 60000), files: [], context: { hint: _innesto.hint || '', known: {
-                landlords: (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').map(u => u.name).concat((S.landlords || []).map(l => l.name)).filter(Boolean).slice(0, 60),
-                tenants: (S.users || []).filter(u => u.role === 'tenant').map(u => u.name).filter(Boolean).slice(0, 60),
-                properties: (S.properties || []).map(p => [p.name, p.address].filter(Boolean).join(' — ')).filter(Boolean).slice(0, 60)
-            } } };
-            let inlineTotal = 0;
-            for (let i = 0; i < _innesto.files.length; i++) {
-                const file = _innesto.files[i];
-                let blob = file;
-                let mediaType = file.type || (/\.pdf$/i.test(file.name) ? 'application/pdf' : 'application/octet-stream');
-                // Le foto si riducono PRIMA di scegliere la via: una foto da
-                // 8 MB diventa un JPEG leggero e viaggia inline (stessa
-                // compressione del convertitore AdE — una copia sola). Una
-                // HEIC che il browser sa decodificare (Safari) diventa JPEG qui;
-                // altrimenti il server lo dice con il rimedio.
-                if (/^image\//i.test(mediaType)) {
-                    try {
-                        const buf = await adeCompressImage(await blob.arrayBuffer(), mediaType, 0.85, 2000);
-                        blob = new Blob([buf], { type: 'image/jpeg' });
-                        mediaType = 'image/jpeg';
-                    } catch (_) { /* decodifica fallita: si tenta col file originale */ }
-                }
-                const entry = { name: file.name, mediaType };
-                if (inlineTotal + blob.size <= INNESTO_INLINE_MAX) {
-                    inlineTotal += blob.size;
-                    entry.base64 = await new Promise((res, rej) => {
-                        const r = new FileReader();
-                        r.onload = () => res(String(r.result).split(',')[1] || '');
-                        r.onerror = rej;
-                        r.readAsDataURL(blob);
-                    });
-                } else {
-                    _innesto.phase = 'upload';
-                    const safeName = String(file.name || 'documento').replace(/[^\w.\-]+/g, '_').slice(-80);
-                    const ref = storage.ref('documents/' + auth.currentUser.uid + '/innesto-tmp/' + Date.now() + '_' + i + '_' + safeName);
-                    await ref.put(blob, { contentType: mediaType });
-                    transitRefs.push(ref);
-                    entry.fileUrl = await ref.getDownloadURL();
-                }
-                payload.files.push(entry);
-                prepared.push({ blob, mediaType, file });
+            let sent = await innestoSend(INNESTO_INLINE_MAX, transitRefs);
+            if (sent.r.status === 413) {
+                // Il 413 lo emette l'edge di Vercel PRIMA della function (body
+                // oltre 4,5 MB): non è «file troppo grande», è la via sbagliata.
+                // Si riprova UNA volta con tutti i file in transito.
+                sent = await innestoSend(0, transitRefs);
             }
-            _innesto.phase = 'read';
-            const token = await auth.currentUser.getIdToken();
-            const r = await fetch('/api/portal/ingest', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-                body: JSON.stringify(payload)
-            });
-            const data = await r.json().catch(() => ({}));
+            const { r, data, prepared } = sent;
             if (!r.ok || !data.ok) {
                 // il server dice PERCHÉ la lettura non è riuscita e cosa fare
                 // (documento illeggibile, foto HEIC, troppi file, tempo scaduto):
                 // «ai_bad_json» all'operatore non diceva niente
                 const why = data.detail
-                    || (r.status === 413 || data.error === 'file_too_large' ? 'file oltre il limite di 8 MB — comprimilo o allega solo le pagine che contano'
+                    || (r.status === 413 ? 'il materiale non passa in un solo invio nemmeno in transito: togli un file e riprova'
+                    : data.error === 'file_too_large' ? 'un file supera i 20 MB: esporta il PDF a qualità inferiore o fotografa le pagine che contano'
                     : data.error === 'files_too_large' ? 'i file insieme superano i 20 MB: leggili in due giri («Leggi e integra»)'
                     : data.error === 'too_many_files' ? 'massimo ' + INNESTO_MAX_FILES + ' file per lettura'
-                    : data.error === 'unsupported_media_type' ? 'formato non leggibile: servono PDF, JPG, PNG o WebP'
+                    : data.error === 'unsupported_media_type' ? 'formato non leggibile: vanno bene PDF, foto, Word, Excel, email, HTML, testo'
                     : (data.error || ('errore ' + r.status)));
                 throw new Error(why);
             }
@@ -29449,6 +29447,265 @@ IBAN: ${l.iban || '-'}`;
             transitRefs.forEach(ref => ref.delete().catch(() => {}));
             _innesto.busy = false; _innesto.phase = ''; renderPage();
         }
+    }
+
+    // Il body di una function Vercel ha un tetto di PIATTAFORMA di 4,5 MB:
+    // un PDF base64 sopra ~3,3 MB moriva in un "errore 413" nudo emesso
+    // dall'edge prima che l'endpoint partisse (la lezione del 28/08/2026).
+    // Sotto `inlineBudget` — la SOMMA dei file inline — il file viaggia
+    // inline; sopra, TRANSITA dallo Storage (cartella propria
+    // documents/<uid>/innesto-tmp/) e all'API va solo l'URL — e il transito
+    // si cancella a lettura finita, così la promessa della pagina ("niente
+    // resta salvato finché non confermi") tiene. I file di testo puro
+    // (txt, eml, csv, html) non possono transitare (storage.rules accetta
+    // immagini, PDF e ZIP): vanno inline, e sono piccoli per natura; gli
+    // Office (docx/xlsx/odt) SONO zip e transitano come tali.
+    async function innestoSend(inlineBudget, transitRefs) {
+        const text = _innesto.text || '';
+        const mb = (n) => (n / 1024 / 1024).toFixed(1) + ' MB';
+        const payload = { text: text.slice(0, 60000), files: [], context: { hint: _innesto.hint || '', known: {
+            landlords: (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').map(u => u.name).concat((S.landlords || []).map(l => l.name)).filter(Boolean).slice(0, 60),
+            tenants: (S.users || []).filter(u => u.role === 'tenant').map(u => u.name).filter(Boolean).slice(0, 60),
+            properties: (S.properties || []).map(p => [p.name, p.address].filter(Boolean).join(' — ')).filter(Boolean).slice(0, 60)
+        } } };
+        const prepared = [];   // { blob, mediaType, file } — per l'archivio alla conferma
+        let inlineTotal = 0;
+        _innesto.phase = 'prep';
+        for (let i = 0; i < _innesto.files.length; i++) {
+            const file = _innesto.files[i];
+            let blob = file;
+            let mediaType = innestoMediaType(file);
+            const kind = innestoFileKind(file);
+            const isHeic = /hei[cf]/i.test(mediaType) || /\.(heic|heif)$/i.test(file.name || '');
+            if (kind === 'image') {
+                // Le foto si riducono PRIMA di scegliere la via: una foto da
+                // 12 MB diventa un JPEG leggero e viaggia inline (stessa
+                // compressione del convertitore AdE — una copia sola). Una
+                // HEIC che il browser sa decodificare (Safari) diventa JPEG
+                // qui; su Chrome la converte heic2any, caricato al bisogno.
+                let shrunk = null;
+                try { shrunk = await adeCompressImage(await blob.arrayBuffer(), mediaType, 0.85, 2000); } catch (_) { shrunk = null; }
+                if (!shrunk && isHeic) {
+                    const jpg = await innestoHeicToJpeg(blob);
+                    if (jpg) {
+                        try { shrunk = await adeCompressImage(await jpg.arrayBuffer(), 'image/jpeg', 0.85, 2000); } catch (_) { shrunk = null; }
+                        if (!shrunk) { blob = jpg; mediaType = 'image/jpeg'; }
+                    }
+                }
+                if (shrunk) { blob = new Blob([shrunk], { type: 'image/jpeg' }); mediaType = 'image/jpeg'; }
+            }
+            const zipBased = /\.(docx|xlsx|odt)$/i.test(file.name || '') || /openxmlformats|opendocument/.test(mediaType);
+            const canTransit = kind !== 'text' || zipBased;
+            const entry = { name: file.name, mediaType };
+            const fits = inlineTotal + blob.size <= inlineBudget;
+            if (fits || !canTransit) {
+                if (!fits && blob.size > INNESTO_INLINE_MAX) throw new Error('«' + file.name + '» è un file di testo troppo grande per un solo invio (' + mb(blob.size) + '): incollane il contenuto nel riquadro, oppure dividilo.');
+                inlineTotal += blob.size;
+                entry.base64 = await new Promise((res, rej) => {
+                    const r = new FileReader();
+                    r.onload = () => res(String(r.result).split(',')[1] || '');
+                    r.onerror = rej;
+                    r.readAsDataURL(blob);
+                });
+            } else {
+                _innesto.phase = 'upload';
+                const safeName = String(file.name || 'documento').replace(/[^\w.\-]+/g, '_').slice(-80);
+                const ref = storage.ref('documents/' + auth.currentUser.uid + '/innesto-tmp/' + Date.now() + '_' + i + '_' + safeName);
+                await ref.put(blob, { contentType: zipBased ? 'application/zip' : mediaType });
+                transitRefs.push(ref);
+                entry.fileUrl = await ref.getDownloadURL();
+            }
+            payload.files.push(entry);
+            prepared.push({ blob, mediaType, file });
+        }
+        _innesto.phase = 'read';
+        const token = await auth.currentUser.getIdToken();
+        const r = await fetch('/api/portal/ingest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify(payload)
+        });
+        const data = await r.json().catch(() => ({}));
+        return { r, data, prepared };
+    }
+
+    // Che cos'è un file per l'intake: pdf · image · text · '' (non leggibile).
+    function innestoFileKind(f) {
+        const t = String(f.type || '').toLowerCase(), n = String(f.name || '');
+        if (/pdf/.test(t) || /\.pdf$/i.test(n)) return 'pdf';
+        if (/^image\//.test(t) || /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(n)) return 'image';
+        if (INNESTO_TEXTY_RE.test(n) || /^(text\/|message\/rfc822|application\/(json|rtf|msword|vnd\.openxmlformats|vnd\.oasis\.opendocument))/.test(t)) return 'text';
+        return '';
+    }
+    function innestoFileIcon(f) {
+        const k = innestoFileKind(f);
+        return k === 'pdf' ? '📄' : k === 'image' ? '🖼' : k === 'text' ? (/\.(xlsx|csv|tsv)$/i.test(f.name || '') ? '📊' : /\.eml$/i.test(f.name || '') ? '✉️' : '📝') : '📎';
+    }
+    // Il tipo dichiarato al server (che comunque riconosce i byte): un
+    // browser manda "" per .eml e .md e application/octet-stream per molto.
+    function innestoMediaType(f) {
+        const t = String(f.type || '').split(';')[0].trim().toLowerCase();
+        if (t && t !== 'application/octet-stream') return t;
+        const ext = ((/\.([a-z0-9]+)$/i.exec(f.name || '') || [])[1] || '').toLowerCase();
+        const m = { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', heic: 'image/heic', heif: 'image/heif',
+            docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', doc: 'application/msword', odt: 'application/vnd.oasis.opendocument.text',
+            xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', csv: 'text/csv', tsv: 'text/csv', txt: 'text/plain', md: 'text/markdown', markdown: 'text/markdown',
+            eml: 'message/rfc822', html: 'text/html', htm: 'text/html', json: 'application/json', rtf: 'application/rtf' };
+        return m[ext] || 'application/octet-stream';
+    }
+    let _heicLib = null;
+    function innestoHeicLib() {
+        if (window.heic2any) return Promise.resolve(window.heic2any);
+        if (_heicLib) return _heicLib;
+        _heicLib = new Promise((res, rej) => {
+            const el = document.createElement('script');
+            el.src = INNESTO_HEIC_LIB; el.async = true;
+            el.onload = () => window.heic2any ? res(window.heic2any) : rej(new Error('heic2any assente'));
+            el.onerror = () => rej(new Error('heic2any non caricato'));
+            document.head.appendChild(el);
+        }).catch(e => { _heicLib = null; throw e; });
+        return _heicLib;
+    }
+    async function innestoHeicToJpeg(blob) {
+        try {
+            const lib = await innestoHeicLib();
+            const out = await lib({ blob, toType: 'image/jpeg', quality: 0.9 });
+            const b = Array.isArray(out) ? out[0] : out;
+            return b && b.size ? b : null;
+        } catch (e) { console.warn('[Innesto] HEIC non convertita:', e && e.message); return null; }
+    }
+
+    // ── LE CREAZIONI IN PIÙ (21/09/2026) ────────────────────────────────
+    // La proposta del console, se esiste: si cerca per riferimento BOOM-…
+    // (stampato sul documento) o per email del cliente. Se il deal è già
+    // una proposta, il contratto nasce DA quella (convert: identità,
+    // documenti, cadenza, mandato) e non da qui — un secondo contratto
+    // sullo stesso deal è il doppione più caro.
+    async function innestoLookupPa(p) {
+        const pa = p && p.preagreement; if (!pa) return;
+        const ref = String(pa.ref || '').toUpperCase();
+        const email = String((p.tenant && p.tenant.email) || (p.lead && p.lead.email) || '').toLowerCase();
+        const key = (/^BOOM-[A-Z0-9]{3,12}$/.test(ref) ? ref : '') || (email ? 'email:' + email : '');
+        if (!key || (_innesto.pa && _innesto.pa.key === key)) return;
+        _innesto.pa = { key, loading: true, found: null, error: '' };
+        try {
+            let docs = [];
+            if (/^BOOM-[A-Z0-9]{3,12}$/.test(ref)) {
+                const snap = await db.collection('preAgreements').where('ref', '==', ref).limit(1).get();
+                docs = snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+            }
+            if (!docs.length && email) {
+                const snap = await db.collection('preAgreements').where('tenant.email', '==', email).limit(5).get();
+                docs = snap.docs.map(d => Object.assign({ id: d.id }, d.data())).filter(d => d.status !== 'revoked');
+                docs.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+            }
+            const found = docs[0] || null;
+            _innesto.pa = { key, loading: false, found, error: '' };
+            if (found) _innesto.skipContract = true;
+        } catch (e) {
+            _innesto.pa = { key, loading: false, found: null, error: (e && e.message) || 'ricerca non riuscita' };
+        }
+        renderPage();
+    }
+    function innestoLeadDup(ld) {
+        const email = String((ld && ld.email) || '').toLowerCase();
+        const digits = String((ld && ld.phone) || '').replace(/\D/g, '').slice(-9);
+        return (S.leads || []).find(l => (email && String(l.email || '').toLowerCase() === email)
+            || (digits.length >= 9 && String(l.phone || '').replace(/\D/g, '').slice(-9) === digits)) || null;
+    }
+    function innestoLeadCard(p) {
+        const ld = p.lead, dup = innestoLeadDup(ld);
+        const on = _innesto.create.lead !== false;
+        const sideLabel = { tenant: 'cerca casa', landlord: 'propone un immobile', company: 'ente / azienda' }[ld.side] || '';
+        return `
+            <div class="card" style="margin-bottom:14px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+                    <strong style="font-size:14px">💬 Lead${sideLabel ? ' <span style="font-weight:300;color:var(--text-secondary)">· ' + esc(sideLabel) + '</span>' : ''}</strong>
+                    ${dup
+                        ? `<span style="font-size:12px;color:#00FF88">già fra i lead — ${esc(dup.name || dup.email || dup.phone || dup.id)}</span>`
+                        : `<label style="display:flex;gap:8px;align-items:center;font-size:12px;cursor:pointer"><input type="checkbox" ${on ? 'checked' : ''} onchange="_innesto.create.lead=this.checked;renderPage()"> crea il lead</label>`}
+                </div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;line-height:1.5">${dup
+                    ? 'Questa persona è già fra i lead: non se ne crea un doppione. <a href="#" onclick="event.preventDefault();goTo(\'leads\')">Apri Lead</a> per rispondere.'
+                    : 'Nasce un lead nello stesso schema del sito e dei portali: il Lead Brain lo classifica, la card arriva su Telegram entro un minuto e il Commerciale propone la prima risposta.'}</div>
+                ${innestoFieldsBlock('lead', ld, 'lead')}
+            </div>`;
+    }
+    function innestoPaCard(p) {
+        const pa = p.preagreement, L = _innesto.pa || {}, found = L.found;
+        const on = _innesto.create.preagreement === true;
+        let head = '', body = '';
+        if (L.loading) {
+            head = `<span style="font-size:12px;color:var(--text-secondary)">cerco la proposta nel console…</span>`;
+        } else if (found) {
+            const st = found.status || 'sent';
+            head = `<span style="font-size:12px;color:#00FF88">già nel console — ${esc(found.ref || found.id)} · ${esc(st)}${found.contractId ? ' · contratto creato' : ''}</span>`;
+            body = found.contractId
+                ? `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;line-height:1.5">Questo deal è già un contratto (<a href="#" onclick="event.preventDefault();goTo('contracts')">apri Contratti</a>): l'Innesto <b>non ne crea un secondo</b>. Le persone e l'immobile letti si agganciano e si aggiornano come sempre.</div>`
+                : `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;line-height:1.5">La proposta esiste (${esc(st)}). Il contratto si crea <b>dalla proposta</b> — con identità, documenti caricati, cadenza e mandato che porta con sé — non da qui.</div>
+                   <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+                       <button class="btn btn-sm" type="button" onclick="innestoConvertPa('${esc(found.id)}')">→ Contratto dalla proposta</button>
+                       <label style="display:flex;gap:6px;align-items:center;font-size:12px;cursor:pointer"><input type="checkbox" ${_innesto.skipContract ? 'checked' : ''} onchange="_innesto.skipContract=this.checked;renderPage()"> non creare il contratto da qui</label>
+                   </div>`;
+        } else {
+            head = `<label style="display:flex;gap:8px;align-items:center;font-size:12px;cursor:pointer"><input type="checkbox" ${on ? 'checked' : ''} onchange="_innesto.create.preagreement=this.checked;renderPage()"> crea la proposta nel console</label>`;
+            body = `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;line-height:1.5">${L.error ? 'Ricerca nel console non riuscita (' + esc(L.error) + '). ' : (pa.isBoom === 'yes' ? 'Sembra una proposta BOOM ma nel console non c\'è, o il riferimento non è leggibile. ' : '')}Con la spunta nasce una proposta con questi termini (stessa API della console): il cliente riceve il link, accetta, paga, e il contratto nasce da lì. Servono indirizzo dell'immobile, proprietario, decorrenza e canone.</div>`;
+        }
+        return `
+            <div class="card" style="margin-bottom:14px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+                    <strong style="font-size:14px">📝 Proposta / pre-accordo</strong>
+                    ${head}
+                </div>
+                ${body}
+                ${innestoFieldsBlock('preagreement', pa, 'preagreement')}
+            </div>`;
+    }
+    function innestoSkippedContractCard(p) {
+        const found = _innesto.pa && _innesto.pa.found;
+        return `
+            <div class="card" style="margin-bottom:14px;border-style:dashed">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                    <strong style="font-size:14px">📋 Contratto</strong>
+                    <span style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-secondary)">non creato da qui</span>
+                </div>
+                <div style="font-size:12.5px;color:var(--text-secondary);margin-top:8px;line-height:1.5">${found && found.contractId
+                    ? 'Il contratto di questa proposta esiste già: le persone e l\'immobile letti si agganciano, il contratto no.'
+                    : 'Il contratto nasce dalla proposta nel console (→ Contratto dalla proposta, qui sopra), con tutto ciò che la proposta porta con sé.'}${found && !found.contractId ? ' <a href="#" onclick="event.preventDefault();_innesto.skipContract=false;renderPage()">Crealo comunque da qui</a>' : ''}</div>
+            </div>`;
+    }
+    async function innestoConvertPa(paId, opts) {
+        opts = opts || {};
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/preagreement/convert', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify({ id: paId, createProperty: !!opts.createProperty }) });
+            const data = await r.json().catch(() => ({}));
+            if (r.ok && data.ok) {
+                toast('success', data.already ? 'Contratto già esistente' : 'Contratto creato dalla proposta', 'Firme, rate e registrazione partono dal contratto');
+                innestoReset(); await loadDataFresh(true); goTo('contracts'); return;
+            }
+            if (data.error === 'no_property' && data.canCreate && !opts.createProperty) {
+                if (window.confirm('Nel portal non c\'è un immobile collegato a questa proposta. Crearlo dalla proposta (indirizzo e proprietario) e procedere?')) return innestoConvertPa(paId, { createProperty: true });
+                return;
+            }
+            if (data.error === 'overlap') {
+                const o = data.overlap || {};
+                toast('error', 'Contratto sovrapposto', 'Sullo stesso immobile è vivo il contratto di ' + (o.tenantName || '?') + (o.startDate ? ' (' + o.startDate + ' → ' + (o.endDate || '?') + ')' : '') + ': gestiscilo dalla console pre-accordo.');
+                return;
+            }
+            toast('error', 'Conversione non riuscita', data.detail || data.error || ('errore ' + r.status));
+        } catch (e) { toast('error', 'Conversione non riuscita', e.message); }
+    }
+    // «1.100,00» · «1100» · «250.5» → numero, senza toLocaleString.
+    function innestoMoney(v) {
+        const s = String(v == null ? '' : v).replace(/[^\d.,-]/g, '');
+        if (!s) return null;
+        let t = s;
+        if (s.indexOf(',') >= 0) t = s.replace(/\./g, '').replace(',', '.');
+        else if (/\.\d{3}$/.test(s) && (s.match(/\./g) || []).length === 1 && s.length > 4) t = s.replace('.', '');
+        const n = Number(t);
+        return isFinite(n) ? n : null;
     }
 
     // La risposta di una lettura → lo stato della pagina. UNA copia: la lettura
@@ -29501,6 +29758,7 @@ IBAN: ${l.iban || '-'}`;
             Object.keys(next.derived || {}).forEach(k => { if (!_innesto.derived[k]) _innesto.derived[k] = next.derived[k]; });
             delete next.derived;
             _innesto.proposal = next;
+            if (next.preagreement) innestoLookupPa(next);
             _innesto.notes = integrating ? (_innesto.notes || []).concat(data.notes || []) : (data.notes || []);
             _innesto.confidence = data.confidence;
             if (!integrating) { _innesto.links = {}; _innesto.coLinks = {}; _innesto.diffs = {}; }
@@ -29812,7 +30070,7 @@ IBAN: ${l.iban || '-'}`;
 
             // 4 — Contratto + rate (+ scadenze + PDF, come saveContract)
             let contractId = null;
-            if (p.contract && propertyId && tenantId) {
+            if (p.contract && propertyId && tenantId && !_innesto.skipContract) {
                 const c = p.contract;
                 const monthly = Number(c.rent) || 0;
                 const step = [1, 2, 3, 6, 12].indexOf(Number(c.installmentMonths)) >= 0 ? Number(c.installmentMonths) : 1;
@@ -29897,6 +30155,83 @@ IBAN: ${l.iban || '-'}`;
                 }
             }
 
+            // 4b — Lead: il messaggio di un cliente diventa una riga nello STESSO
+            //      schema del sito (apply-lead) e dei portali, così Brain →
+            //      notify-pending → Commerciale lo lavorano da soli. Chi è già
+            //      fra i lead non si raddoppia.
+            if (p.lead && _innesto.create.lead !== false) {
+                const ld = p.lead, dup = innestoLeadDup(ld);
+                if (dup) updated.push('lead già presente (' + (dup.name || dup.email || dup.phone) + ')');
+                else {
+                    const parts = [ld.request, ld.zone && 'zona ' + ld.zone, ld.budget && '€' + ld.budget + '/mese', ld.bedrooms && ld.bedrooms + ' camere',
+                        ld.moveIn && 'ingresso ' + ld.moveIn, ld.durationMonths && ld.durationMonths + ' mesi', ld.household, ld.occupation, ld.listing && 'immobile: ' + ld.listing].filter(Boolean);
+                    const leadDoc = {
+                        source: 'innesto', service: null,
+                        name: ld.name || '', email: ld.email || null, phone: ld.phone || null,
+                        message: parts.join(' · '), notes: ld.request || '',
+                        language: ld.language || null, budget: ld.budget || null, zone: ld.zone || '',
+                        situation: ld.occupation === 'student' ? 'student' : (ld.occupation ? 'worker' : null),
+                        arrivalDate: ld.moveIn || '', duration: ld.durationMonths ? ld.durationMonths + ' months' : '',
+                        household: ld.household || null, propertyTitle: ld.listing || null,
+                        leadType: ld.side === 'landlord' ? 'landlord' : (ld.side === 'company' ? 'company' : 'tenant'),
+                        intent: ld.side === 'landlord' ? 'owner' : 'inquiry', channel: ld.channel || null,
+                        intakeForm: false, status: 'new', grade: null, confidence: null, tier: null,
+                        ingestedBy: 'innesto', sourceRef: null,
+                        createdAt: now, ingestedAt: now
+                    };
+                    const ref = await createRecord('leads', leadDoc, 'lead');
+                    if (Array.isArray(S.leads)) S.leads.push(Object.assign({}, leadDoc, { id: ref.id, createdAt: new Date() }));
+                    created.push('lead ' + (ld.name || ld.email || ld.phone));
+                }
+            }
+
+            // 4c — Proposta nel console (pre-accordo): SOLO con la spunta e
+            //      solo se nel console non c'è già. Nasce con la STESSA API
+            //      della console (deriveMoney server-side), quindi documento,
+            //      PDF e il giro accettazione → pagamento → contratto sono
+            //      quelli di sempre.
+            let paUrl = null;
+            if (p.preagreement && _innesto.create.preagreement === true && !(_innesto.pa && _innesto.pa.found)) {
+                const pa = p.preagreement, c = p.contract || {}, pr = p.property || {}, t = p.tenant || {}, l = p.landlord || {};
+                const landlordRec = ownerId ? pools.landlord.find(x => x.id === ownerId) : null;
+                const propRec = propertyId ? (S.properties || []).find(x => x.id === propertyId) : null;
+                const months = V.monthsSpan(c.startDate, c.endDate) || Number(c.durationMonths) || 12;
+                const feeMode = pa.feeEur != null && pa.feePct == null && pa.feeMonths == null ? 'flat' : (pa.feeMonths != null && pa.feePct == null ? 'months' : 'pct');
+                const extras = String(pa.extras || '').split(';').map(x => x.trim()).filter(Boolean).map(x => {
+                    const m = /^(.*?):\s*(.+)$/.exec(x); const amount = m ? innestoMoney(m[2]) : null;
+                    return m && amount != null ? { label: m[1].trim(), amount } : null;
+                }).filter(Boolean);
+                const body = {
+                    propertyId: propertyId || undefined,
+                    property: { address: pr.address || (propRec && propRec.address) || '', floor: pr.floor || (propRec && propRec.floor) || '', unit: pr.interno || (propRec && propRec.unit) || '', condition: pr.furnished === 'no' ? 'Unfurnished' : 'Furnished' },
+                    landlord: { name: l.name || (landlordRec && landlordRec.name) || '', email: l.email || (landlordRec && landlordRec.email) || '', phone: l.phone || (landlordRec && landlordRec.phone) || '' },
+                    tenant: { fullName: t.name || (p.lead && p.lead.name) || '', email: t.email || (p.lead && p.lead.email) || '', phone: t.phone || (p.lead && p.lead.phone) || '' },
+                    lease: { startDate: c.startDate || '', months, reason: c.transitionalReason || '',
+                        type: c.type === 'studenti' ? 'Student Lease' : (c.type === '3+2' ? '3+2 Canone concordato (Allegato A)' : 'Transitional Lease'),
+                        studenti: c.type === 'studenti' && c.studenti ? c.studenti : undefined },
+                    money: { rent: Number(c.rent) || Number(pr.rent) || 0,
+                        depositMonths: Number(c.depositMonths) || (c.deposit && c.rent ? Math.max(0, Math.min(6, Math.round(Number(c.deposit) / Number(c.rent)))) : 1),
+                        depositSplitPct: pa.depositSplitPct != null ? pa.depositSplitPct : 100, feeMode,
+                        feePct: pa.feePct != null ? pa.feePct : undefined, feeMonths: pa.feeMonths != null ? pa.feeMonths : undefined, feeFlat: feeMode === 'flat' ? pa.feeEur : undefined,
+                        feeVatPct: pa.feeVatPct != null ? pa.feeVatPct : undefined, feeDue: pa.feeDue || undefined,
+                        energyCredit: pa.energyCredit != null ? pa.energyCredit : undefined,
+                        dueAtSigning: pa.dueAtSigning != null ? pa.dueAtSigning : undefined,
+                        installmentMonths: Number(c.installmentMonths) || 1 },
+                    extras, validUntil: pa.validUntil || undefined,
+                    note: 'Creata dall\'Innesto' + (pa.ref ? ' (documento ' + pa.ref + ')' : '')
+                };
+                if (!body.property.address || !body.landlord.name || !body.lease.startDate || !body.money.rent) {
+                    warnings.push('preagreement');
+                    toast('warning', 'Proposta NON creata', 'servono indirizzo dell\'immobile, nome del proprietario, decorrenza e canone');
+                } else {
+                    const token = await auth.currentUser.getIdToken();
+                    const r = await fetch('/api/preagreement/create', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify(body) });
+                    const data = await r.json().catch(() => ({}));
+                    if (r.ok && data.ok && data.url) { paUrl = data.url; created.push('proposta nel console'); }
+                    else { warnings.push('preagreement'); toast('warning', 'Proposta NON creata', data.error || ('errore ' + r.status)); }
+                }
+            }
+
             // 5 — Il documento RESTA (STUDIO_SCRIVANO §4, passo 1): il file letto
             //     si archivia in `documents` legato a ciò che ha fatto nascere,
             //     e un documento d'identità finisce anche fra gli identityDocs
@@ -29920,26 +30255,33 @@ IBAN: ${l.iban || '-'}`;
                 if (warnings.includes('documents')) toast('warning', 'Documenti da verificare', 'Alcuni file o collegamenti non sono stati salvati. I record creati restano in archivio: completa i collegamenti da Documenti.');
             }
 
-            if (p.contract && (!propertyId || !tenantId)) warnings.push('contract_incomplete');
+            if (p.contract && !_innesto.skipContract && (!propertyId || !tenantId)) warnings.push('contract_incomplete');
             try { await logActivity('innesto_import', 'system', { creati: created, aggiornati: updated, confidence: _innesto.confidence, contractId }); }
             catch (e) { warnings.push('activity'); }
             await finish(warnings.length ? 'needs_review' : 'applied');
             try { localStorage.removeItem('boom_data_cache'); } catch (e) {}
             toast(warnings.length ? 'warning' : 'success', warnings.length ? 'Innesto da completare' : 'Innesto completato',
                 (created.concat(updated.map(u => 'aggiornato ' + u)).join(' · ') || 'nessun nuovo record')
-                + (warnings.length ? ' — verifica gli elementi mancanti: ' + warnings.map(k => ({ payments: 'piano rate', deadlines: 'scadenze', pdf: 'PDF', property_link: 'collegamento immobile', documents: 'documenti', activity: 'registro attività', contract_incomplete: 'contratto' })[k]).filter(Boolean).join(', ') : ''));
+                + (warnings.length ? ' — verifica gli elementi mancanti: ' + warnings.map(k => ({ payments: 'piano rate', deadlines: 'scadenze', pdf: 'PDF', property_link: 'collegamento immobile', documents: 'documenti', activity: 'registro attività', contract_incomplete: 'contratto', preagreement: 'proposta' })[k]).filter(Boolean).join(', ') : ''));
             // Un contratto saltato non resta MAI muto: "Innesto completato"
             // senza questa riga era indistinguibile da un contratto creato.
-            if (p.contract && (!propertyId || !tenantId)) {
+            if (p.contract && !_innesto.skipContract && (!propertyId || !tenantId)) {
                 const gambe = [!propertyId && "l'immobile", !tenantId && "l'inquilino"].filter(Boolean).join(' e ');
                 toast('warning', 'Contratto NON creato', 'nella proposta manca ' + gambe + ' — agganciala dall\'archivio o completala a mano');
             }
             const madeContract = created.indexOf('contratto') >= 0;
+            const madeLead = created.some(x => /^lead /.test(x));
             innestoReset();
             await loadDataFresh(true);
             // Il contratto appena nato si VEDE: si atterra sulla sua lista,
-            // non su una pagina Innesto tornata vuota.
-            if (madeContract) goTo('contracts'); else { buildNav(); renderPage(); }
+            // non su una pagina Innesto tornata vuota. Un lead idem; una
+            // proposta creata lascia il link negli appunti (va al cliente).
+            if (paUrl) {
+                const full = location.origin + paUrl;
+                try { await copyToClipboard(full, 'Link della proposta copiato'); } catch (_) {}
+                toast('success', 'Proposta creata nel console', 'Il link è negli appunti: mandalo al cliente, o aprilo dalla console pre-accordo');
+            }
+            if (madeContract) goTo('contracts'); else if (madeLead) goTo('leads'); else { buildNav(); renderPage(); }
         } catch (e) {
             warnings.push('application_interrupted');
             try { await finish('needs_review'); } catch (_) { /* Reservation and committed links remain; never release for retry. */ }

@@ -51,13 +51,20 @@ import D from '../../js/dataops-engine.js';
 import FIELDS from '../../js/contract-fields.js';
 
 export const MODEL = 'claude-opus-5';
+import { sniffType, extractText, TEXTY, TEXTY_LABEL, FORMATS_HUMAN } from '../_doctext.js';
+
 export const MAX_FILES = 8;
-export const MAX_FILE_BYTES = 8 * 1024 * 1024;     // per file (stesso tetto del client)
-export const MAX_TOTAL_BYTES = 20 * 1024 * 1024;   // Anthropic: 32 MB a richiesta, base64 +33%
+// LA SECONDA LEZIONE DEL 21/09/2026: 8 MB per file era un tetto NOSTRO, non
+// della piattaforma (Anthropic accetta 32 MB a richiesta, base64 compreso):
+// un PDF scansionato da 9 MB veniva rifiutato «per grandezza» senza motivo.
+// 20 MB per file e per giro → 26,7 MB in base64, sotto il tetto vero.
+export const MAX_FILE_BYTES = 20 * 1024 * 1024;
+export const MAX_TOTAL_BYTES = 20 * 1024 * 1024;
 export const MAX_PAGES = 60;                       // oltre, si leggono le prime 60 e lo si dice
 export const MAX_TOTAL_PAGES = 100;                // Anthropic: 100 pagine PDF per RICHIESTA — non per file
 const MAX_TEXT = 60000;                            // ~15k token di testo incollato
-const MAX_B64 = 8 * 1024 * 1024;
+const MAX_B64 = Math.ceil(MAX_FILE_BYTES * 4 / 3) + 4;
+export const MAX_TEXT_DOC = 150000;                // caratteri per documento testuale (Word/Excel/email): oltre, si legge la testa e lo si dice
 const AI_MS = 100000;                              // sotto il maxDuration 120 di vercel.json
 
 // LA LEZIONE DEL 28 AGOSTO 2026: il body di una function Vercel ha un tetto
@@ -67,7 +74,8 @@ const AI_MS = 100000;                              // sotto il maxDuration 120 d
 // lettura finita) e qui si scaricano server-side, dove il tetto non esiste.
 export const config = { api: { bodyParser: { sizeLimit: '12mb' } } };
 
-const MEDIA_OK = /^(application\/pdf|image\/(png|jpe?g|webp|gif))$/i;
+const MEDIA_OK = /^(application\/pdf|image\/(png|jpe?g|webp|gif))$/i;   // i BINARI che il modello legge; il resto passa da _doctext come testo
+const mbOf = (n) => (n / 1024 / 1024).toFixed(1);
 const MEDIA_HEIC = /^image\/hei[cf]$/i;
 
 async function fetchTransit(fileUrl) {
@@ -105,7 +113,7 @@ async function clipPdf(buf) {
 
 // ─── LO SCHEMA (json_schema per l'output strutturato) ────────────────────
 // Regole della piattaforma: ogni oggetto con additionalProperties:false e
-// TUTTE le chiavi in required; il "manca" si esprime con null. Le
+// TUTTE le chiavi in required; il "manca" si esprime con "" (vedi sotto). Le
 // descrizioni sono parte del prompt: dicono al modello cosa va in ogni campo.
 // ─── «Manca» = stringa vuota, MAI null ───────────────────────────────────
 // LA LEZIONE DEL 21 SETTEMBRE 2026: la prima versione scriveva ogni campo
@@ -158,6 +166,8 @@ export const INGEST_SCHEMA = obj({
     summary: nstr('Una frase: cosa contiene e, se illeggibile, perché'),
     party: nenum(['tenant', 'landlord', 'cotenant', 'unknown'], 'Per un documento d\'identità: a quale parte appartiene'),
   }), 'Un elemento per ogni DOCUMENTO n ricevuto (e uno per il testo incollato, se c\'è)'),
+  material: nenum(['contratto', 'proposta', 'identita', 'immobile', 'messaggio', 'fattura', 'altro'],
+    'Che cosa è il materiale NEL SUO INSIEME: contratto (di locazione, anche bozza) · proposta (pre-accordo / rental proposal / offerta con provvigione e dovuto alla firma) · identita (solo documenti d\'identità) · immobile (visura, APE, planimetria, descrizione) · messaggio (WhatsApp, email o richiesta di un potenziale cliente) · fattura (fattura, ricevuta, estratto conto) · altro.'),
   landlord: obj(personProps({
     kind: nenum(['fisica', 'giuridica'], 'Persona fisica o società/ente'),
     businessName: nstr('Ragione sociale se il locatore è una società'),
@@ -229,8 +239,41 @@ export const INGEST_SCHEMA = obj({
     istatPct: nstr('Percentuale di aggiornamento ISTAT pattuita, se presente (es. "75")'),
     notes: nstr('Note sul contratto utili all\'operatore'),
   }, 'Il CONTRATTO. Tutti i campi "" se il materiale non è un contratto (una carta d\'identità non ha canone).'),
+  preagreement: obj({
+    ref: nstr('Riferimento della proposta BOOM stampato sul documento, es. "BOOM-3K9F2A" (forma BOOM-XXXXXX)'),
+    isBoom: nbool('"si" se è una proposta / pre-accordo / rental proposal emessa da BOOM (intestazione BOOM, boomrome.com, Egidi).'),
+    status: nenum(['sent', 'accepted', 'paid', 'signed'], 'Stato che il documento dichiara: sent (inviata), accepted (accettata/firmata dal cliente), paid (pagata), signed (contratto firmato)'),
+    acceptedAt: nstr('Data di accettazione AAAA-MM-GG, se stampata'),
+    feePct: nnum('Provvigione / onorario agenzia in % del canone ANNUO'),
+    feeMonths: nnum('Provvigione in mensilità di canone, se espressa così'),
+    feeEur: nnum('Provvigione in euro, se scritta come importo (senza IVA)'),
+    feeVatPct: nnum('IVA sulla provvigione in %'),
+    feeDue: nenum(['move-in', 'signing', 'separate'], 'Quando è dovuta la provvigione: move-in (all\'ingresso), signing (alla firma della proposta), separate (a parte)'),
+    energyCredit: nnum('Quota / credito energia mensile inclusa nel canone, in euro'),
+    depositSplitPct: nnum('Percentuale del deposito dovuta alla firma della proposta (il resto all\'ingresso)'),
+    dueAtSigning: nnum('Importo totale dovuto alla firma della proposta, in euro'),
+    validUntil: nstr('Validità dell\'offerta AAAA-MM-GG'),
+    extras: nstr('Altre voci economiche della proposta come "etichetta: importo", separate da ";"'),
+  }, 'La PROPOSTA / pre-accordo / rental proposal: i termini economici del deal oltre al contratto. Tutti i campi "" se il materiale non è una proposta.'),
+  lead: obj({
+    name: nstr('Nome (e cognome) di chi scrive'),
+    email: nstr('Email di chi scrive'),
+    phone: nstr('Telefono di chi scrive, con prefisso'),
+    request: nstr('La richiesta con le parole del cliente, in breve (max 300 caratteri): cosa cerca o cosa propone'),
+    zone: nstr('Zona / quartiere di Roma cercato o dell\'immobile proposto'),
+    budget: nnum('Budget mensile in euro'),
+    bedrooms: nint('Camere cercate'),
+    moveIn: nstr('Data di ingresso desiderata AAAA-MM-GG (o AAAA-MM se dice solo il mese)'),
+    durationMonths: nint('Durata desiderata in mesi'),
+    household: nenum(['solo', 'couple', 'family', 'flatmates'], 'Chi abiterà'),
+    occupation: nenum(['employed', 'self-employed', 'student', 'relocating'], 'Situazione di chi scrive'),
+    language: nenum(['it', 'en'], 'Lingua in cui scrive la persona'),
+    side: nenum(['tenant', 'landlord', 'company'], 'Chi scrive: tenant (cerca casa), landlord (propone il proprio immobile), company (ente/azienda che scrive per altri)'),
+    listing: nstr('Immobile / annuncio a cui si riferisce, se lo nomina'),
+    channel: nenum(['whatsapp', 'email', 'portal', 'phone', 'other'], 'Canale del messaggio, se riconoscibile'),
+  }, 'Il MESSAGGIO di un potenziale cliente (WhatsApp, email, richiesta dal portale, nota vocale trascritta). Tutti i campi "" se il materiale non è un messaggio di un cliente.'),
   evidence: arr(obj({
-    path: { type: 'string', description: 'Percorso del campo, es. "contract.rent", "tenant.codiceFiscale", "property.cadastral.foglio", "coTenants[0].name"' },
+    path: { type: 'string', description: 'Percorso del campo, es. "contract.rent", "tenant.codiceFiscale", "property.cadastral.foglio", "coTenants[0].name", "lead.phone", "preagreement.feePct"' },
     quote: { type: 'string', description: 'La frase ESATTA del documento da cui hai letto il valore (max 200 caratteri)' },
     file: nint('Indice del DOCUMENTO n (1-based) da cui viene; "" se dal testo incollato.'),
     page: nint('Pagina, se è un PDF'),
@@ -241,7 +284,7 @@ export const INGEST_SCHEMA = obj({
 }, 'La proposta per il gestionale');
 
 // ─── IL PROMPT DI SISTEMA (stabile: viene messo in cache) ─────────────────
-export const SYSTEM = `Sei l'assistente di back-office di BOOM, agenzia immobiliare a Roma. Dal materiale che ricevi (uno o più documenti: PDF, foto, testo incollato) estrai i dati per il gestionale, nello schema richiesto.
+export const SYSTEM = `Sei l'assistente di back-office di BOOM, agenzia immobiliare a Roma. Dal materiale che ricevi (uno o più documenti: PDF, foto, Word/Excel/email/pagine già ridotti a testo, testo incollato) estrai i dati per il gestionale, nello schema richiesto.
 
 REGOLE NON NEGOZIABILI
 1. NON INVENTARE MAI. Se un dato non è scritto nel materiale, lascia la stringa vuota "". Un campo vuoto è corretto; un campo inventato finisce in un contratto registrato all'Agenzia delle Entrate.
@@ -273,6 +316,9 @@ ALTRI DOCUMENTI CHE PUOI RICEVERE
 - Visura catastale: immobile (indirizzo, foglio/particella/sub, categoria, rendita, vani) e intestatario (landlord, con CF).
 - APE: energyClass e indirizzo. Planimetria: vani/mq se leggibili.
 - Email o messaggio WhatsApp: prendi solo ciò che è scritto (un IBAN, un telefono, una data di disponibilità), mai ciò che è sottinteso.
+- PROPOSTA / PRE-ACCORDO / RENTAL PROPOSAL (spesso di BOOM stessa: intestazione BOOM, "boomrome.com", riferimento "BOOM-XXXXXX", sezioni "Rental proposal", "due at signing", "agency fee"): è un deal PRIMA del contratto. Compila landlord/tenant/property/contract con ciò che c'è (canone, deposito, decorrenza, durata, cadenza, identità del cliente) E "preagreement" con i termini economici propri della proposta (riferimento, provvigione e quando è dovuta, quota energia, deposito alla firma, dovuto alla firma, validità). material = "proposta".
+- MESSAGGIO DI UN CLIENTE (screenshot di WhatsApp, email inoltrata, richiesta dal portale, nota vocale): compila "lead" con nome, recapiti e la richiesta nelle SUE parole; se scrive in inglese language = "en". Chi propone il proprio immobile è side = "landlord". material = "messaggio". Non inventare un contratto da un messaggio.
+- "material" dice che cos'è il materiale nel suo insieme: se ci sono un contratto E una carta d'identità, è "contratto"; se è solo la carta, "identita"; una visura o un APE da soli sono "immobile".
 - Se lo stesso documento arriva due volte (PDF e testo incollato), è UN documento: non raddoppiare persone né note.
 - Un documento illeggibile (scansione storta, buia, mossa, pagina bianca) va dichiarato in files[].legible=false con il motivo: non tirare a indovinare.`;
 
@@ -309,16 +355,51 @@ export async function readFiles(body) {
       continue;
     }
     if (!buf || !buf.length) continue;
-    if (buf.length > MAX_FILE_BYTES) throw Object.assign(new Error('file_too_large'), { status: 413 });
+    const shown = clip(f.name || ('documento ' + (out.length + 1)), 60);
+    if (buf.length > MAX_FILE_BYTES) {
+      throw Object.assign(new Error('file_too_large'), { status: 413,
+        detail: `«${shown}» pesa ${mbOf(buf.length)} MB: il lettore accetta fino a ${MAX_FILE_BYTES / 1024 / 1024} MB per file. Esporta il PDF a qualità inferiore, oppure fotografa le pagine che contano.` });
+    }
+    // Il tipo VERO: prima i byte, poi il nome, poi ciò che il client ha
+    // dichiarato (un browser manda "" per .eml e .md, e application/octet-stream
+    // per quasi tutto ciò che non conosce).
+    mediaType = sniffType(buf, f.name, mediaType);
     if (MEDIA_HEIC.test(mediaType)) {
       // Anthropic non legge HEIC/HEIF e il browser non sempre riesce a
       // convertirlo (Chrome no): all'operatore serve il rimedio, non un 400.
       throw Object.assign(new Error('unsupported_media_type'), { status: 400,
         detail: 'foto in formato HEIC: su iPhone imposta Fotocamera → Formati → "Più compatibile", oppure esporta in JPEG' });
     }
-    if (!MEDIA_OK.test(mediaType)) throw Object.assign(new Error('unsupported_media_type'), { status: 400 });
+    const texty = TEXTY.has(mediaType);
+    if (!texty && !MEDIA_OK.test(mediaType)) {
+      throw Object.assign(new Error('unsupported_media_type'), { status: 400,
+        detail: `«${shown}» (${mediaType || 'tipo sconosciuto'}) non è un formato che il lettore sa aprire. Vanno bene: ${FORMATS_HUMAN}.` });
+    }
     total += buf.length;
-    if (total > MAX_TOTAL_BYTES) throw Object.assign(new Error('files_too_large'), { status: 413 });
+    if (total > MAX_TOTAL_BYTES) {
+      throw Object.assign(new Error('files_too_large'), { status: 413,
+        detail: `i file insieme superano i ${MAX_TOTAL_BYTES / 1024 / 1024} MB: leggili in due giri («Leggi e integra»).` });
+    }
+    if (texty) {
+      // Word, Excel, OpenDocument, .doc, email, HTML, testo: al modello va
+      // il TESTO, estratto qui senza dipendenze (api/_doctext.js).
+      let ex;
+      try { ex = extractText(buf, mediaType); }
+      catch (e) {
+        throw Object.assign(new Error('unreadable_document'), { status: 422,
+          detail: `«${shown}» non si apre come ${TEXTY_LABEL[mediaType] || 'documento'}: il file è danneggiato o protetto. Esportalo di nuovo (anche in PDF) e rileggi.` });
+      }
+      const full = (ex && ex.text) || '';
+      const textClipped = full.length > MAX_TEXT_DOC;
+      out.push({
+        index: out.length + 1,
+        name: String(f.name || ('documento-' + (out.length + 1))).slice(0, 120),
+        mediaType, isPdf: false, isText: true, format: (ex && ex.label) || 'testo',
+        text: textClipped ? full.slice(0, MAX_TEXT_DOC) : full, chars: full.length, textClipped,
+        base64: null, bytes: buf.length, pages: null, clipped: false, readPages: null,
+      });
+      continue;
+    }
     const isPdf = /pdf/i.test(mediaType);
     let pages = null, clipped = false;
     if (isPdf) { const c = await clipPdf(buf); buf = c.buf; pages = c.pages; clipped = c.clipped; }
@@ -326,6 +407,7 @@ export async function readFiles(body) {
       index: out.length + 1,
       name: String(f.name || ('documento-' + (out.length + 1))).slice(0, 120),
       mediaType: isPdf ? 'application/pdf' : (mediaType === 'image/jpg' ? 'image/jpeg' : mediaType),
+      isText: false, format: isPdf ? 'PDF' : 'immagine',
       base64: buf.toString('base64'), bytes: buf.length, isPdf, pages, clipped,
       readPages: pages == null ? null : Math.min(pages, MAX_PAGES),
     });
@@ -394,7 +476,7 @@ const apiErrorMessage = (text) => { try { const j = JSON.parse(text); return Str
 // Il 400 con cui l'API dice «troppo materiale» (finestra di contesto o tetto
 // pagine): non si ripara riprovando, si ripara togliendo pagine.
 const TOO_LONG_RE = /prompt is too long|too many pages|pages?\b[^.]*\b(exceed|limit|maximum)|(exceed|limit|maximum)[^.]*\bpages?\b/i;
-const PATH_RE = /^(landlord|tenant|property|contract|coTenants\[\d+\])(\.[a-zA-Z]+)+$/;
+const PATH_RE = /^(landlord|tenant|property|contract|preagreement|lead|coTenants\[\d+\])(\.[a-zA-Z]+)+$/;
 
 function sanitizeEvidence(list, nFiles) {
   if (!Array.isArray(list)) return [];
@@ -424,6 +506,7 @@ function sanitizeFiles(list, files) {
     const kind = KIND_KEYS.indexOf(kindRaw) >= 0 ? kindRaw : 'altro';
     return {
       index: f.index, name: f.name, bytes: f.bytes, mediaType: f.mediaType,
+      format: f.format || (f.isPdf ? 'PDF' : 'immagine'), isText: !!f.isText, chars: f.chars != null ? f.chars : null,
       kind, label: CATS[kind].label, docType: CATS[kind].type, category: CATS[kind].category, folder: CATS[kind].folder,
       title: clip(m.title, 120), summary: clip(m.summary, 300),
       legible: m.legible !== false,
@@ -487,6 +570,10 @@ export async function ingestRead({ files = [], text = '', hint = '', known = {},
   // ── Il materiale, documento per documento, ETICHETTATO ──────────────
   const content = [];
   files.forEach((f) => {
+    if (f.isText) {
+      content.push({ type: 'text', text: `DOCUMENTO ${f.index} — «${f.name}» (${f.format}${f.chars ? ', ' + f.chars + ' caratteri' + (f.textClipped ? ', letti i primi ' + MAX_TEXT_DOC : '') : ', vuoto'}):\n\n${f.text || '(nessun testo leggibile nel file: potrebbe contenere solo immagini)'}` });
+      return;
+    }
     content.push({ type: 'text', text: `DOCUMENTO ${f.index} — «${f.name}» (${f.isPdf ? 'PDF' + (f.pages ? ', ' + f.pages + ' pagine' + (f.clipped ? ', lette le prime ' + MAX_PAGES : '') : '') : 'immagine'}):` });
     content.push(f.isPdf
       ? { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: f.base64 } }
@@ -581,7 +668,10 @@ export async function ingestRead({ files = [], text = '', hint = '', known = {},
     const evidence = sanitizeEvidence(parsed.evidence, files.length + (text.trim() ? 1 : 0));
     const notes = Array.isArray(parsed.notes)
       ? parsed.notes.filter((n) => typeof n === 'string' && n.trim()).slice(0, 14).map((n) => clip(n, 300)) : [];
-    files.forEach((f) => { if (f.clipped) notes.unshift(`«${f.name}»: ${f.pages} pagine, lette le prime ${MAX_PAGES}.`); });
+    files.forEach((f) => {
+      if (f.clipped) notes.unshift(`«${f.name}»: ${f.pages} pagine, lette le prime ${MAX_PAGES}.`);
+      if (f.textClipped) notes.unshift(`«${f.name}»: ${f.chars} caratteri, letti i primi ${MAX_TEXT_DOC}.`);
+    });
     const confidence = Number.isFinite(Number(parsed.confidence))
       ? Math.max(0, Math.min(100, Math.round(Number(parsed.confidence)))) : null;
     const usage = data.usage || {};
