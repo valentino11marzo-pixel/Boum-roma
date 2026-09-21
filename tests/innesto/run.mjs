@@ -36,7 +36,35 @@ const USERS = new Map([
 
 const PDF_BYTES = Buffer.from('%PDF-1.4 SIMETO12 TESTA OYKU — contratto di locazione transitoria');
 const JPG_BYTES = Buffer.from([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4]);
-const HUGE_BYTES = Buffer.alloc(8 * 1024 * 1024 + 1, 65);
+const HUGE_BYTES = Buffer.alloc(20 * 1024 * 1024 + 1, 65);
+// Un «PDF» da 9 MB (pdf-lib non lo apre: passa com'è) — il 21/09 era «troppo grande».
+const NINE_MB_PDF = Buffer.concat([Buffer.from('%PDF-1.4 '), Buffer.alloc(9 * 1024 * 1024, 32)]);
+const ELEVEN_MB_PDF = Buffer.concat([Buffer.from('%PDF-1.4 '), Buffer.alloc(11 * 1024 * 1024, 32)]);
+// Una HEIC VERA nella firma (ftypheic): i byte di un JPEG con l'etichetta
+// «image/heic» vengono riconosciuti come JPEG e letti — giustamente.
+const HEIC_BYTES = Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from('ftypheic'), Buffer.alloc(24, 0)]);
+// Uno ZIP minimo (STORE o DEFLATE) per costruire Word/Excel finti e un
+// archivio che non è un documento.
+import { deflateRawSync } from 'node:zlib';
+import { crc32 } from '../../api/_zip.js';
+function mkZip(entries, deflate) {
+  const locals = [], cds = []; let off = 0;
+  for (const [name, str] of entries) {
+    const nameB = Buffer.from(name), raw = Buffer.from(str), data = deflate ? deflateRawSync(raw) : raw, crc = crc32(raw);
+    const lh = Buffer.alloc(30); lh.writeUInt32LE(0x04034b50, 0); lh.writeUInt16LE(20, 4); lh.writeUInt16LE(0, 6); lh.writeUInt16LE(deflate ? 8 : 0, 8);
+    lh.writeUInt32LE(crc, 14); lh.writeUInt32LE(data.length, 18); lh.writeUInt32LE(raw.length, 22); lh.writeUInt16LE(nameB.length, 26); lh.writeUInt16LE(0, 28);
+    const cd = Buffer.alloc(46); cd.writeUInt32LE(0x02014b50, 0); cd.writeUInt16LE(20, 4); cd.writeUInt16LE(20, 6); cd.writeUInt16LE(0, 8); cd.writeUInt16LE(deflate ? 8 : 0, 10);
+    cd.writeUInt32LE(crc, 16); cd.writeUInt32LE(data.length, 20); cd.writeUInt32LE(raw.length, 24); cd.writeUInt16LE(nameB.length, 28); cd.writeUInt16LE(0, 30); cd.writeUInt16LE(0, 32); cd.writeUInt32LE(off, 42);
+    locals.push(lh, nameB, data); cds.push(cd, nameB); off += 30 + nameB.length + data.length;
+  }
+  const cdBuf = Buffer.concat(cds);
+  const eocd = Buffer.alloc(22); eocd.writeUInt32LE(0x06054b50, 0); eocd.writeUInt16LE(entries.length, 8); eocd.writeUInt16LE(entries.length, 10); eocd.writeUInt32LE(cdBuf.length, 12); eocd.writeUInt32LE(off, 16);
+  return Buffer.concat([...locals, cdBuf, eocd]);
+}
+const DOCX = mkZip([['[Content_Types].xml', '<Types/>'], ['word/document.xml', '<w:document><w:body><w:p><w:r><w:t>Contratto di locazione transitoria</w:t></w:r></w:p><w:p><w:r><w:t>Canone &#8364;1.100 al mese</w:t><w:tab/><w:t>deposito 2 mensilit&#224;</w:t></w:r></w:p></w:body></w:document>']], true);
+const XLSX = mkZip([['xl/workbook.xml', '<workbook><sheets><sheet name="Rate" sheetId="1" r:id="rId1"/></sheets></workbook>'], ['xl/_rels/workbook.xml.rels', '<Relationships><Relationship Id="rId1" Target="worksheets/sheet1.xml"/></Relationships>'], ['xl/sharedStrings.xml', '<sst><si><t>Mese</t></si><si><t>Importo</t></si><si><t>Settembre</t></si></sst>'], ['xl/worksheets/sheet1.xml', '<worksheet><sheetData><row r="1"><c r="A1" t="s"><v>0</v></c><c r="B1" t="s"><v>1</v></c></row><row r="2"><c r="A2" t="s"><v>2</v></c><c r="B2"><v>1100</v></c></row></sheetData></worksheet>']], false);
+const NOT_A_DOC = mkZip([['x.bin', 'xx']], false);
+const EML = Buffer.from('From: Marta Neri <marta@x.com>\r\nTo: info@boomrome.com\r\nSubject: =?utf-8?B?Q2FzYSBhIFRyYXN0ZXZlcmU=?=\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\nCerco un bilocale a Trastevere da settembre, budget =E2=82=AC1200 al mese.\r\n');
 
 const OUR_STORAGE = 'https://firebasestorage.googleapis.com/v0/b/test/o/documents%2Fadmin_1%2Finnesto-tmp%2F1_Simeto12.pdf?alt=media&token=t';
 const HUGE_URL    = 'https://firebasestorage.googleapis.com/v0/b/test/o/documents%2Fadmin_1%2Finnesto-tmp%2F2_enorme.pdf?alt=media&token=t';
@@ -265,18 +293,47 @@ check('http nudo (non https) → 400 anche sul nostro host', r.res.code === 400 
 
 console.log('\n\x1b[1mI tetti restano onesti — e i rifiuti dicono il rimedio\x1b[0m');
 r = await call('admin_1', { files: [{ fileUrl: HUGE_URL, mediaType: 'application/pdf' }] });
-check('file oltre 8 MB via Storage → 413 file_too_large', r.res.code === 413 && r.res.body?.error === 'file_too_large', `${r.res.code} ${r.res.body?.error}`);
+check('file oltre 20 MB via Storage → 413 file_too_large', r.res.code === 413 && r.res.body?.error === 'file_too_large', `${r.res.code} ${r.res.body?.error}`);
 check('…senza spendere un token', r.anth.length === 0);
-r = await call('admin_1', { base64: 'A'.repeat(8 * 1024 * 1024 + 1), mediaType: 'application/pdf' });
+r = await call('admin_1', { base64: 'A'.repeat(Math.ceil(20 * 1024 * 1024 * 4 / 3) + 8), mediaType: 'application/pdf' });
 check('base64 inline oltre il tetto → 413', r.res.code === 413, `ho avuto ${r.res.code}`);
+r = await call('admin_1', { files: [{ base64: b64(NINE_MB_PDF), mediaType: 'application/pdf', name: 'scansione.pdf' }] });
+check('LA SECONDA LEZIONE DEL 21/09: un PDF da 9 MB NON è più «troppo grande» (il tetto era nostro, non della piattaforma) → si legge', r.res.code === 200 && r.anth.length === 1, `${r.res.code} ${r.res.body?.error}`);
+r = await call('admin_1', { files: [{ base64: b64(HUGE_BYTES.subarray(0, 21 * 1024 * 1024)), mediaType: 'application/pdf', name: 'enorme.pdf' }] });
+check('…oltre 20 MB il rifiuto dice il numero e il rimedio (qualità inferiore / fotografa), non «8 MB»', r.res.code === 413 && r.res.body?.error === 'file_too_large' && /20 MB/.test(r.res.body?.detail || '') && /fotografa/.test(r.res.body?.detail || '') && !/8 MB/.test(r.res.body?.detail || ''), JSON.stringify(r.res.body));
+r = await call('admin_1', { files: [{ base64: b64(ELEVEN_MB_PDF), mediaType: 'application/pdf', name: 'a.pdf' }, { base64: b64(ELEVEN_MB_PDF), mediaType: 'application/pdf', name: 'b.pdf' }] });
+check('due file da 11 MB → 413 files_too_large col rimedio dei due giri', r.res.code === 413 && r.res.body?.error === 'files_too_large' && /due giri/.test(r.res.body?.detail || '') && r.anth.length === 0, `${r.res.code} ${r.res.body?.error}`);
 r = await call('admin_1', { files: Array.from({ length: 9 }, (_, i) => ({ base64: b64(PDF_BYTES), mediaType: 'application/pdf', name: 'f' + i })) });
 check('nove file → 400 too_many_files, prima di spendere', r.res.code === 400 && r.res.body?.error === 'too_many_files' && r.anth.length === 0, `${r.res.code} ${r.res.body?.error}`);
 r = await call('admin_1', { fileUrl: OUR_STORAGE, mediaType: 'application/zip' });
-check('formato fuori whitelist → 400 anche via fileUrl', r.res.code === 400
-  && r.res.body?.error === 'unsupported_media_type' && r.anth.length === 0,
-  `${r.res.code} ${r.res.body?.error}`);
-r = await call('admin_1', { files: [{ base64: b64(JPG_BYTES), mediaType: 'image/heic', name: 'IMG_1.heic' }] });
+check('un\'etichetta sbagliata non conta: i byte sono un PDF → si legge (il tipo VERO viene dai byte)', r.res.code === 200 && r.anth.length === 1, `${r.res.code} ${r.res.body?.error}`);
+r = await call('admin_1', { files: [{ base64: b64(NOT_A_DOC), mediaType: 'application/zip', name: 'archivio.zip' }] });
+check('un archivio che non è un documento → 400 unsupported_media_type con l\'ELENCO dei formati buoni', r.res.code === 400
+  && r.res.body?.error === 'unsupported_media_type' && /Word/.test(r.res.body?.detail || '') && /email/.test(r.res.body?.detail || '') && r.anth.length === 0,
+  `${r.res.code} ${r.res.body?.error} ${r.res.body?.detail}`);
+r = await call('admin_1', { files: [{ base64: b64(HEIC_BYTES), mediaType: 'image/heic', name: 'IMG_1.heic' }] });
 check('una foto HEIC (iPhone) → 400 con il RIMEDIO scritto, non un errore nudo', r.res.code === 400 && /JPEG|compatibile/i.test(r.res.body?.detail || ''), JSON.stringify(r.res.body));
+r = await call('admin_1', { files: [{ base64: b64(JPG_BYTES), mediaType: 'image/heic', name: 'IMG_2.heic' }] });
+check('…ma un JPEG etichettato HEIC (Safari l\'ha già convertito) si legge come JPEG', r.res.code === 200 && (r.anth[0]?.body?.messages?.[0]?.content || []).some((c) => c.type === 'image' && c.source?.media_type === 'image/jpeg'), `${r.res.code} ${r.res.body?.error}`);
+
+console.log('\n\x1b[1mQualsiasi formato: Word, Excel, email, testo diventano TESTO per il modello\x1b[0m');
+r = await call('admin_1', { files: [{ base64: b64(DOCX), mediaType: 'application/octet-stream', name: 'contratto.docx' }] });
+let blocks = r.anth[0]?.body?.messages?.[0]?.content || [];
+check('un .docx (dichiarato octet-stream dal browser) → 200, riconosciuto dai byte come Word', r.res.code === 200 && r.res.body?.files?.[0]?.isText === true && r.res.body?.files?.[0]?.format === 'Word', `${r.res.code} ${JSON.stringify(r.res.body?.files?.[0])}`);
+check('…al modello va il TESTO estratto (paragrafi, tab, entità), etichettato come DOCUMENTO, senza blocchi document/image', blocks[0]?.type === 'text' && /DOCUMENTO 1 — «contratto\.docx» \(Word, \d+ caratteri\)/.test(blocks[0].text) && /Canone €1\.100 al mese\tdeposito 2 mensilità/.test(blocks[0].text) && !blocks.some((c) => c.type === 'document'), JSON.stringify(blocks.map((c) => [c.type, c.text])));
+r = await call('admin_1', { files: [{ base64: b64(XLSX), mediaType: '', name: 'rate.xlsx' }] });
+blocks = r.anth[0]?.body?.messages?.[0]?.content || [];
+check('un .xlsx → righe a tabulazioni col nome del foglio e le stringhe condivise risolte', r.res.code === 200 && /FOGLIO: Rate/.test(blocks[0]?.text || '') && /Mese\tImporto/.test(blocks[0]?.text || '') && /Settembre\t1100/.test(blocks[0]?.text || ''), String(blocks[0]?.text || '').slice(0, 200));
+r = await call('admin_1', { files: [{ base64: b64(EML), mediaType: '', name: 'richiesta.eml' }] });
+blocks = r.anth[0]?.body?.messages?.[0]?.content || [];
+check('una .eml → intestazioni decodificate (RFC 2047) e corpo quoted-printable', r.res.code === 200 && /Subject: Casa a Trastevere/.test(blocks[0]?.text || '') && /budget €1200/.test(blocks[0]?.text || '') && r.res.body?.files?.[0]?.format === 'email', String(blocks[0]?.text || '').slice(0, 300));
+r = await call('admin_1', { files: [{ base64: b64(Buffer.from('Canone \xe2\x82\xac 900 - inquilino Rossi', 'latin1')), mediaType: 'text/plain', name: 'appunti.txt' }] });
+check('un .txt → testo (UTF-8), formato «testo»', r.res.code === 200 && /Canone € 900/.test((r.anth[0]?.body?.messages?.[0]?.content || [])[0]?.text || '') && r.res.body?.files?.[0]?.format === 'testo', JSON.stringify(r.res.body?.files?.[0]));
+r = await call('admin_1', { files: [{ base64: b64(Buffer.from('non sono uno zip')), mediaType: '', name: 'rotto.docx' }] });
+check('un .docx che non si apre → 422 unreadable_document col rimedio (esporta di nuovo), mai «troppo grande»', r.res.code === 422 && r.res.body?.error === 'unreadable_document' && /[Ee]sporta/.test(r.res.body?.detail || '') && r.anth.length === 0, `${r.res.code} ${r.res.body?.error} ${r.res.body?.detail}`);
+r = await call('admin_1', { files: [{ base64: b64(DOCX), mediaType: '', name: 'contratto.docx' }, { base64: b64(PDF_BYTES), mediaType: 'application/pdf', name: 'ci.pdf' }], text: 'nota' });
+blocks = r.anth[0]?.body?.messages?.[0]?.content || [];
+check('Word + PDF + testo nello stesso giro: DOCUMENTO 1 (testo), DOCUMENTO 2 (document), DOCUMENTO 3 (incollato)', r.res.code === 200 && /DOCUMENTO 1 — «contratto\.docx»/.test(blocks[0]?.text || '') && /DOCUMENTO 2 — «ci\.pdf»/.test(blocks[1]?.text || '') && blocks[2]?.type === 'document' && /\(DOCUMENTO 3\)/.test(blocks[3]?.text || ''), blocks.map((c) => c.type).join(','));
 
 console.log('\n\x1b[1mIl tetto delle pagine è per GIRO, non per file (il limite dell\'API è 100 a richiesta)\x1b[0m');
 check('il tetto per giro è quello dell\'API ed è esportato', MAX_TOTAL_PAGES === 100 && MAX_PAGES === 60);
@@ -327,6 +384,34 @@ check('un PDF che l\'API non apre → 422 ai_bad_document col rimedio (senza pas
 r = await call('admin_1', { text: 'x' }, { status: 500, text: 'overloaded' });
 check('un 500 del servizio resta un guasto momentaneo: 502 ai_provider_error con «riprova»', r.res.code === 502 && r.res.body?.error === 'ai_provider_error' && /[Rr]iprova/.test(r.res.body?.detail || ''), `${r.res.code} ${r.res.body?.error}`);
 
+console.log('\n\x1b[1mLe creazioni in più: il messaggio di un cliente, la proposta\x1b[0m');
+const AI_LEAD = () => Object.assign(AI_EMPTY(), {
+  material: 'Messaggio',
+  files: [{ index: 1, kind: 'messaggio', title: 'WhatsApp di Marta', pages: '', legible: true, summary: 'richiesta di un bilocale', party: '' }],
+  lead: { name: 'Marta Neri', email: 'MARTA@x.com', phone: '+39 333 123 4567', request: 'Looking for a 1-bed in Trastevere from September', zone: 'Trastevere', budget: '1200', bedrooms: '1', moveIn: '2026-09', durationMonths: '12', household: 'Couple', occupation: 'employed', language: 'EN', side: 'tenant', listing: '', channel: 'whatsapp' },
+  preagreement: { ref: '', isBoom: '', status: '', acceptedAt: '', feePct: '', feeMonths: '', feeEur: '', feeVatPct: '', feeDue: '', energyCredit: '', depositSplitPct: '', dueAtSigning: '', validUntil: '', extras: '' },
+  evidence: [{ path: 'lead.phone', quote: '+39 333 123 4567', file: '1', page: '' }, { path: 'lead.budget', quote: 'budget 1200', file: '1', page: '' }],
+  summary: 'Messaggio WhatsApp di Marta Neri: bilocale a Trastevere, €1.200', confidence: 80,
+});
+r = await call('admin_1', { text: 'Looking for a 1-bed in Trastevere from September, budget 1200', files: [{ base64: b64(JPG_BYTES), mediaType: 'image/jpeg', name: 'whatsapp.jpg' }] }, { reply: AI_LEAD() });
+let Q = r.res.body?.proposal || {};
+check('un messaggio → la sezione LEAD (e nessuna sezione contratto/immobile inventata), material «messaggio»', r.res.code === 200 && Q.lead && !Q.contract && !Q.property && !Q.tenant && Q.material === 'messaggio', JSON.stringify(Object.keys(Q)));
+check('…normalizzato: email minuscola, telefono senza spazi, budget numero, lingua en, coppia', Q.lead?.email === 'marta@x.com' && Q.lead?.phone === '+393331234567' && Q.lead?.budget === 1200 && Q.lead?.language === 'en' && Q.lead?.household === 'couple' && Q.lead?.moveIn === '2026-09', JSON.stringify(Q.lead));
+check('…le citazioni sui campi del lead passano la whitelist dei percorsi', (r.res.body?.evidence || []).some((e) => e.path === 'lead.phone' && e.file === 1));
+check('…una proposta tutta vuota non genera una card Proposta', !Q.preagreement);
+check('…e il verdetto per file dice «messaggio»', r.res.body?.files?.[0]?.kind === 'messaggio' && /cliente/.test(r.res.body?.files?.[0]?.label || ''), JSON.stringify(r.res.body?.files?.[0]));
+const AI_PA = () => Object.assign(AI_FULL(), {
+  material: 'proposta',
+  preagreement: { ref: 'boom-3k9f2a', isBoom: 'si', status: 'Accepted', acceptedAt: '2026-09-10', feePct: '10', feeMonths: '', feeEur: '', feeVatPct: '22', feeDue: 'Signing', energyCredit: '50', depositSplitPct: '50', dueAtSigning: '1100', validUntil: '2026-10-01', extras: 'Pulizia finale: 150' },
+  lead: { name: '', email: '', phone: '', request: '', zone: '', budget: '', bedrooms: '', moveIn: '', durationMonths: '', household: '', occupation: '', language: '', side: '', listing: '', channel: '' },
+});
+r = await call('admin_1', { text: 'Rental proposal BOOM-3K9F2A' }, { reply: AI_PA() });
+Q = r.res.body?.proposal || {};
+check('una proposta BOOM → la sezione PREAGREEMENT accanto a contratto e parti: riferimento maiuscolo, isBoom, stato, provvigione, dovuto alla firma', Q.preagreement?.ref === 'BOOM-3K9F2A' && Q.preagreement?.isBoom === 'yes' && Q.preagreement?.status === 'accepted' && Q.preagreement?.feePct === 10 && Q.preagreement?.feeDue === 'signing' && Q.preagreement?.dueAtSigning === 1100 && Q.preagreement?.depositSplitPct === 50 && Q.contract?.rent === 1100 && Q.material === 'proposta', JSON.stringify(Q.preagreement));
+check('…e un lead tutto vuoto non genera una card Lead', !Q.lead);
+check('lo schema porta le due sezioni e «material» — sempre a ZERO unioni e ZERO facoltativi', INGEST_SCHEMA.properties.lead && INGEST_SCHEMA.properties.preagreement && INGEST_SCHEMA.properties.material && (() => { const c = schemaComplexity(INGEST_SCHEMA); return c.unions === 0 && c.optional === 0 && c.params > 140; })(), JSON.stringify(schemaComplexity(INGEST_SCHEMA)));
+check('…e il prompt spiega proposta e messaggio al modello', /PROPOSTA \/ PRE-ACCORDO/.test(r.anth[0]?.body?.system?.[0]?.text || '') && /MESSAGGIO DI UN CLIENTE/.test(r.anth[0]?.body?.system?.[0]?.text || ''));
+
 console.log('\n\x1b[1mIl vuoto detto per quello che è\x1b[0m');
 r = await call('admin_1', { files: [{ base64: b64(JPG_BYTES), mediaType: 'image/jpeg', name: 'mossa.jpg' }] }, { reply: AI_EMPTY() });
 check('tutto null → 200 empty:true (non un errore)', r.res.code === 200 && r.res.body?.empty === true && r.res.body?.proposal && !Object.keys(r.res.body.proposal).length, JSON.stringify(r.res.body).slice(0, 200));
@@ -376,11 +461,11 @@ const fakeStorage = { ref: (path) => ({
   delete: async () => {},
 }) };
 const applyToasts = [];
-const S = { users: [], properties: [], contracts: [], landlords: [], deadlines: [], profile: { id: 'admin', role: 'admin' } };
+const S = { users: [], properties: [], contracts: [], landlords: [], deadlines: [], leads: [], profile: { id: 'admin', role: 'admin' } };
 const { createRequire } = await import('node:module');
 const requireCjs = createRequire(import.meta.url);
 const APPLY_SRC = ['generateMonthlyPayments', 'monthsBetween', 'generateContractDeadlines', 'innestoEmpty', 'innestoReset', 'innestoPools', 'innestoLinkFor',
-  'innestoPatchFor', 'innestoUserDoc', 'innestoArchiveDoc', 'innestoApply'].map(extract).join('\n') + '\nreturn innestoApply;';
+  'innestoPatchFor', 'innestoUserDoc', 'innestoArchiveDoc', 'innestoLeadDup', 'innestoMoney', 'innestoApply'].map(extract).join('\n') + '\nreturn innestoApply;';
 const makeApply = new Function(
   'window', 'firebase', 'db', 'S', 'toast', 'renderPage', 'buildNav', 'loadDataFresh', 'logActivity', 'localStorage', 'console', '_innesto',
   'storage', 'auth', 'goTo', 'clearInterval', '_innestoTick', 'generateContractPDF',
@@ -389,8 +474,8 @@ const makeApply = new Function(
 async function runApply(proposal, seed = {}, opts = {}) {
   applyWrites.length = 0; applyToasts.length = 0; storagePuts.length = 0; applyAutoId = 0;
   S.users = seed.users || []; S.properties = seed.properties || [];
-  S.contracts = []; S.landlords = seed.landlords || []; S.deadlines = [];
-  const innesto = Object.assign({ proposal, links: {}, coLinks: {}, diffs: {}, notes: [], confidence: 90, busy: false, files: [], readDocs: [], archive: true }, opts);
+  S.contracts = []; S.landlords = seed.landlords || []; S.deadlines = []; S.leads = seed.leads || [];
+  const innesto = Object.assign({ proposal, links: {}, coLinks: {}, diffs: {}, notes: [], confidence: 90, busy: false, files: [], readDocs: [], archive: true, create: { lead: true, preagreement: false }, pa: null, skipContract: false }, opts);
   const fn = makeApply(
     { BOOM_DATAOPS: requireCjs('../../js/dataops-engine.js') },
     { firestore: { FieldValue: { serverTimestamp: () => 'TS', arrayUnion: (v) => ({ __union: v }) } } },
@@ -537,13 +622,34 @@ check('l\'aggancio scelto dall\'operatore vince sul match automatico', (() => {
   return c && c.data.propertyId === 'p_altro' && !a.by.properties;
 })());
 
+// LE CREAZIONI IN PIÙ (21/09): un messaggio diventa un LEAD nello schema del
+// sito; chi è già fra i lead non si raddoppia; con il deal già proposta del
+// console il contratto NON nasce da qui (skipContract).
+const LEAD_ONLY = { material: 'messaggio', lead: { name: 'Marta Neri', email: 'marta@x.com', phone: '+393331234567', request: 'cerco bilocale a Trastevere', zone: 'Trastevere', budget: 1200, bedrooms: 1, moveIn: '2026-09', durationMonths: 12, household: 'couple', occupation: 'employed', language: 'en', side: 'tenant', listing: '', channel: 'whatsapp' } };
+a = await runApply(structuredClone(LEAD_ONLY));
+const LD = a.writes.find((w) => w.c === 'leads' && w.op === 'add')?.data || null;
+check('un messaggio → nasce un LEAD nello schema del sito (status new, source innesto, tenant, lingua en, richiesta nel message), nessun contratto né utente',
+  a.by.leads === 1 && LD && LD.status === 'new' && LD.source === 'innesto' && LD.leadType === 'tenant' && LD.language === 'en' && LD.intent === 'inquiry' && /bilocale/.test(LD.message) && LD.budget === 1200 && LD.zone === 'Trastevere' && !a.by.contracts && !a.by.users, JSON.stringify(a.by) + ' ' + JSON.stringify(LD));
+check('…e il toast lo dice', a.toasts.some((t) => t[0] === 'success' && /lead Marta Neri/.test(t[2] || '')), JSON.stringify(a.toasts));
+a = await runApply(structuredClone(LEAD_ONLY), { leads: [{ id: 'ld_1', name: 'M. Neri', email: 'marta@x.com', phone: '' }] });
+check('la stessa persona già fra i lead (stessa email) → NESSUN doppione', !a.by.leads && a.toasts.some((t) => /lead già presente/.test(t[2] || '')), JSON.stringify(a.by) + ' ' + JSON.stringify(a.toasts));
+a = await runApply(structuredClone(LEAD_ONLY), { leads: [{ id: 'ld_2', name: 'Marta', email: '', phone: '333 123 4567' }] });
+check('…anche con lo stesso numero scritto in altra forma (nazionale vs internazionale)', !a.by.leads, JSON.stringify(a.by));
+a = await runApply(structuredClone(LEAD_ONLY), {}, { create: { lead: false, preagreement: false } });
+check('con la spunta spenta il lead non nasce', !a.by.leads, JSON.stringify(a.by));
+const owner = structuredClone(LEAD_ONLY); owner.lead.side = 'landlord';
+a = await runApply(owner);
+check('chi propone il proprio immobile è un lead landlord (intent owner): la macchina inquilino non gli scrive «ti va una visita?»', a.writes.find((w) => w.c === 'leads')?.data.leadType === 'landlord' && a.writes.find((w) => w.c === 'leads')?.data.intent === 'owner');
+a = await runApply(structuredClone(FULL), {}, { skipContract: true, pa: { key: 'BOOM-X', loading: false, found: { id: 'pa_1', ref: 'BOOM-X', status: 'paid', contractId: 'pa_1' } } });
+check('deal già proposta del console con contratto → persone e immobile sì, contratto e rate NO, e nessun toast «Contratto NON creato»', a.by.users === 2 && a.by.properties === 1 && !a.by.contracts && !a.by.payments && !a.toasts.some((t) => /Contratto NON creato/.test(t[1] || '')), JSON.stringify(a.by) + ' ' + JSON.stringify(a.toasts));
+
 console.log('\n\x1b[1mLe giunzioni sulla sorgente\x1b[0m');
 const app = appSrc;
 const api = readFileSync(new URL('../../api/portal/ingest.js', import.meta.url), 'utf8');
 const vercel = JSON.parse(readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));
 
-check('il riepilogo promette il contratto SOLO con entrambe le gambe',
-  /p\.contract && !contractLegs\.length\) willCreate\.push\('contratto/.test(app));
+check('il riepilogo promette il contratto SOLO con entrambe le gambe (e mai se il deal è già una proposta del console)',
+  /wantContract && !contractLegs\.length\) willCreate\.push\('contratto/.test(app));
 check('…e la gamba mancante ha una card visibile, non un silenzio',
   /Contratto NON creabile/.test(app));
 check('…ma un aggancio dall\'archivio VALE come gamba (il fantasma sblocca)',
@@ -562,7 +668,7 @@ check('la card mostra la CITAZIONE sotto il campo e dichiara il calcolato',
 check('la modifica proposta: un buco si riempie da solo, un cambio si conferma',
   /r\.action === 'fill'/.test(app) && /diffRecord\(/.test(app) && /applyDiff\(/.test(app) && /innestoToggleDiff\(/.test(app));
 check('più file: input multiple, drop, incolla, scatta',
-  /type="file" multiple accept="application\/pdf,image\/\*"/.test(app) && /innestoDrop\(event\)/.test(app) && /innestoPaste\(event\)/.test(app) && /capture="environment"/.test(app));
+  /type="file" multiple accept="\$\{INNESTO_ACCEPT\}"/.test(app) && /innestoDrop\(event\)/.test(app) && /innestoPaste\(event\)/.test(app) && /capture="environment"/.test(app));
 check('il progresso dice cosa sta facendo e da quanto', /innestoProgressText\(\)/.test(app) && /setInterval/.test(app.slice(app.indexOf('async function innestoAnalyze'), app.indexOf('async function innestoAnalyze') + 800)));
 
 const sw = readFileSync(new URL('../../sw.js', import.meta.url), 'utf8');
@@ -574,13 +680,31 @@ const capM = /INNESTO_INLINE_MAX\s*=\s*(\d+)\s*\*\s*1024\s*\*\s*1024/.exec(app);
 check('il tetto inline del client sta SOTTO i 4,5 MB di piattaforma (base64 +33%)',
   capM && Number(capM[1]) * 1024 * 1024 * (4 / 3) < 4.5 * 1024 * 1024,
   capM ? `${capM[1]} MB raw` : 'INNESTO_INLINE_MAX assente');
-check('la scelta inline/transito passa dal tetto SULLA SOMMA dei file', /inlineTotal \+ blob\.size <= INNESTO_INLINE_MAX/.test(app));
+check('la scelta inline/transito passa dal tetto SULLA SOMMA dei file', /inlineTotal \+ blob\.size <= inlineBudget/.test(app) && /innestoSend\(INNESTO_INLINE_MAX, transitRefs\)/.test(app));
 check('le foto si riducono PRIMA della scelta (adeCompressImage, una copia sola)', (() => {
-  const fn = app.slice(app.indexOf('async function innestoAnalyze'));
+  const fn = app.slice(app.indexOf('async function innestoSend'));
   const body = fn.slice(0, fn.indexOf('\n    }\n'));
   return body.indexOf('adeCompressImage') !== -1
-    && body.indexOf('adeCompressImage') < body.indexOf('INNESTO_INLINE_MAX');
+    && body.indexOf('adeCompressImage') < body.indexOf('<= inlineBudget');
 })());
+check('LA SECONDA LEZIONE DEL 21/09: le FOTO non hanno più un cancello di grandezza (si riducono), il tetto vale solo per gli altri file ed è quello dello Storage di transito (25 MB)',
+  /kind !== 'image' && f\.size > INNESTO_MAX_FILE/.test(app) && !/supera gli 8 MB/.test(app) && /INNESTO_MAX_FILE = 25 \* 1024 \* 1024/.test(app));
+check('un 413 dell\'edge ritenta UNA volta con tutto in transito, e il messaggio non dice più «8 MB»',
+  /sent\.r\.status === 413/.test(app) && /innestoSend\(0, transitRefs\)/.test(app) && !/oltre il limite di 8 MB/.test(app));
+check('HEIC: heic2any caricato SOLO al bisogno, SOLO da jsDelivr, mai nel <head> della pagina',
+  /cdn\.jsdelivr\.net\/npm\/heic2any@/.test(app) && /innestoHeicToJpeg\(/.test(app) && !/heic2any/.test(readFileSync(new URL('../../portal.html', import.meta.url), 'utf8')));
+check('l\'accept apre a Word/Excel/email/HEIC e l\'intake li riconosce anche dal solo nome',
+  (() => { const m = /INNESTO_ACCEPT = '([^']*)'/.exec(app); return m && ['.docx', '.xlsx', '.eml', '.heic', '.odt', '.txt'].every((x) => m[1].indexOf(x) >= 0); })() && /INNESTO_TEXTY_RE = /.test(app) && /function innestoMediaType/.test(app));
+check('i file di testo puro non transitano (storage.rules accetta immagini, PDF e ZIP): vanno inline; gli Office transitano come ZIP, che sono',
+  /canTransit = kind !== 'text' \|\| zipBased/.test(app) && /contentType: zipBased \? 'application\/zip' : mediaType/.test(app)
+  && /application\/zip/.test(readFileSync(new URL('../../storage.rules', import.meta.url), 'utf8')));
+check('le card Lead e Proposta esistono; una proposta trovata nel console SALTA il contratto (nasce da lì), e il riepilogo lo rispetta',
+  /function innestoLeadCard/.test(app) && /function innestoPaCard/.test(app) && /if \(found\) _innesto\.skipContract = true/.test(app)
+  && /p\.contract && propertyId && tenantId && !_innesto\.skipContract/.test(app) && /const wantContract = p\.contract && !_innesto\.skipContract/.test(app));
+check('la proposta nel console e il contratto dalla proposta passano dalle STESSE API della console (create / convert), mai una scrittura diretta',
+  /fetch\('\/api\/preagreement\/create'/.test(app) && /fetch\('\/api\/preagreement\/convert'/.test(app) && !/collection\('preAgreements'\)\.add/.test(app));
+check('il server legge i formati testuali con _doctext (una copia) e li manda al modello come TESTO etichettato',
+  /from '\.\.\/_doctext\.js'/.test(api) && /if \(f\.isText\)/.test(api) && /TEXTY\.has\(mediaType\)/.test(api) && /sniffType\(buf, f\.name, mediaType\)/.test(api));
 check('il transito va nella cartella PROPRIA (documents/<uid>/innesto-tmp/)',
   /storage\.ref\('documents\/'\s*\+\s*auth\.currentUser\.uid\s*\+\s*'\/innesto-tmp\//.test(app));
 check('…e si CANCELLA a lettura finita (anche su errore: sta nel finally)', (() => {

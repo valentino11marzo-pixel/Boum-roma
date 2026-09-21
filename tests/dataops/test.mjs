@@ -428,6 +428,41 @@ console.log('\n── La modifica proposta: prima → dopo sul record che c\'è 
   eq('gli oggetti annidati si fondono campo per campo', m2.contract.studenti, { corsoStudi: 'Economia', universita: 'LUISS' });
 }
 
+console.log('\n── Le creazioni in più (21/09/2026): il messaggio di un cliente, la proposta ──');
+{
+  const raw = {
+    material: 'Messaggio',
+    lead: { name: 'Marta Neri', email: 'MARTA@X.COM', phone: '+39 333 123 4567', request: 'cerco bilocale a Trastevere da settembre', budget: '1200', bedrooms: '1', moveIn: '2026-09', durationMonths: '', household: 'Couple', occupation: 'employed', language: 'EN', side: 'tenant', listing: '', channel: 'WhatsApp' },
+    preagreement: { ref: 'boom-3k9f2a', isBoom: '', status: 'Accepted', acceptedAt: '10/09/2026', feePct: '10', feeMonths: '', feeEur: '', feeVatPct: '22', feeDue: 'Signing', energyCredit: '50', depositSplitPct: '50', dueAtSigning: '1.100', validUntil: '2026-10-01', extras: 'Pulizia finale: 150' },
+    contract: { type: '', startDate: '', endDate: '', rent: '', deposit: '' },
+    tenant: { name: '', codiceFiscale: '', email: '' },
+  };
+  const pr = E.pruneProposal(raw);
+  eq('prune: lead e proposta ANCORATI restano, contratto e inquilino vuoti no, material passa', Object.keys(pr).sort(), ['lead', 'material', 'preagreement']);
+  ok('un lead con solo un enum riempito NON è ancorato (household da solo)', !E.pruneProposal({ lead: { household: 'couple' } }).lead);
+  ok('una proposta con solo lo stato NON è ancorata', !E.pruneProposal({ preagreement: { status: 'accepted' } }).preagreement);
+  const n = E.normalizeProposal(pr);
+  eq('lead: email minuscola, telefono senza spazi, budget e camere numeri, enum minuscoli, mese AAAA-MM accettato', [n.lead.email, n.lead.phone, n.lead.budget, n.lead.bedrooms, n.lead.household, n.lead.language, n.lead.channel, n.lead.moveIn], ['marta@x.com', '+393331234567', 1200, 1, 'couple', 'en', 'whatsapp', '2026-09']);
+  eq('proposta: riferimento maiuscolo, isBoom dedotto dal riferimento, stato/feeDue minuscoli, date gg/mm/aaaa → ISO, importi all\'italiana', [n.preagreement.ref, n.preagreement.isBoom, n.preagreement.status, n.preagreement.feeDue, n.preagreement.acceptedAt, n.preagreement.dueAtSigning, n.preagreement.feePct, n.preagreement.energyCredit], ['BOOM-3K9F2A', 'yes', 'accepted', 'signing', '2026-09-10', 1100, 10, 50]);
+  eq('material minuscolo e in lista', n.material, 'messaggio');
+  eq('un material fuori lista non passa', E.normalizeProposal({ material: 'boh', lead: { name: 'x' } }).material, undefined);
+  const v = E.validateProposal(n);
+  ok('lead e proposta validi → ok', v.ok, v.errors.join(' | '));
+  const v2 = E.validateProposal({ lead: { name: '', email: '', phone: '', request: 'ciao' } });
+  ok('lead senza nome né recapito → errore', !v2.ok && v2.errors.some(e => /Lead: serve almeno/.test(e)));
+  const v3 = E.validateProposal({ lead: { name: 'Anna', email: 'non-email', phone: '' } });
+  ok('email del lead non valida → errore', !v3.ok && v3.errors.some(e => /Lead: email/.test(e)));
+  const v4 = E.validateProposal({ lead: { name: 'Anna', email: '', phone: '' } });
+  ok('lead con solo il nome → passa con AVVISO (senza recapito non si ricontatta)', v4.ok && v4.warnings.some(w => /senza recapito/.test(w)));
+  const v5 = E.validateProposal({ preagreement: { ref: 'BOOM-1', feePct: 120, depositSplitPct: 50, validUntil: '01/10/2026' } });
+  ok('proposta: provvigione oltre 100 e validità non ISO → errori', !v5.ok && v5.errors.some(e => /provvigione/.test(e)) && v5.errors.some(e => /validità/.test(e)));
+  const v6 = E.validateProposal({ preagreement: { ref: 'PROP-2026-1', feePct: 10 } });
+  ok('un riferimento che non è BOOM-XXXXXX → avviso, non errore', v6.ok && v6.warnings.some(w => /BOOM-XXXXXX/.test(w)));
+  const m = E.mergeProposal({ contract: { rent: 1100 }, lead: { name: 'Marta', email: '' } }, { lead: { name: 'Altro', email: 'marta@x.com' }, preagreement: { ref: 'BOOM-1', feePct: 10 }, material: 'proposta' });
+  eq('merge: il buco del lead si riempie, il nome pieno non si tocca, la proposta nuova entra, material si prende se manca', [m.lead.name, m.lead.email, m.preagreement.ref, m.material], ['Marta', 'marta@x.com', 'BOOM-1', 'proposta']);
+  ok('LABELS e MATERIALS esportati per le card', E.LABELS.lead && E.LABELS.preagreement && Array.isArray(E.MATERIALS) && E.MATERIALS.indexOf('messaggio') >= 0);
+}
+
 console.log('\n' + '─'.repeat(56));
 if (failed) {
   console.log(`\x1b[31mDataOps: ${passed} passed, ${failed} failed\x1b[0m`);
