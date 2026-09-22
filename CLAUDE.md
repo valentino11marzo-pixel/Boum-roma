@@ -137,7 +137,10 @@ firebase.json             Firebase deploy config (firestore + storage rules)
   `functions` rules before building. The exact glob
   `api/homie/{conversation,message}.js` keeps both endpoints at 60s in one
   rule; all other function settings stay unchanged. Validate matching paths
-  and the Git preview when adding a rule.
+  and the Git preview when adding a rule. Same move for
+  `api/preagreement/{submit,sign-for}.js` (the 51st rule would have blocked
+  the production deploy, not a test); `tests/mandato/run.mjs` §9 pins the
+  ≤50 count and resolves rules through brace expansion.
 
 ## Environment Variables (Vercel)
 

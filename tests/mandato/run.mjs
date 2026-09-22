@@ -757,8 +757,8 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
     return { status: response.code, body: response.body };
   });
   const adm = R('pre-agreement-admin.html');
-  check('console PA: interruttore "offri il mandato" (fMandate) NON preselezionato, persistito nel create E nell\'edit in place, ripristinato solo se esplicito',
-    /id="fMandate" style/.test(adm) && !/id="fMandate" checked/.test(adm) && /askMandate:!!\$\('fMandate'\)\.checked/.test(adm) && /askMandate:body\.askMandate/.test(adm) && /\$\('fMandate'\)\.checked=d\.askMandate===true/.test(adm));
+  check('console PA: interruttore "offri il mandato" (fMandate) OFFERTO di default sulle proposte nuove (21/09 — la spunta del cliente resta un atto a parte), persistito nel create E nell\'edit in place, ripristinato dall\'edit SOLO se esplicito (una proposta vecchia senza askMandate non inizia a offrirlo da sola)',
+    /id="fMandate" style="width:auto" checked/.test(adm) && /askMandate:!!\$\('fMandate'\)\.checked/.test(adm) && /askMandate:body\.askMandate/.test(adm) && /\$\('fMandate'\)\.checked=d\.askMandate===true/.test(adm));
   check('pagina cliente: la spunta del mandato compare SOLO con askMandate===true (assente = non offerto)',
     /PA\.askMandate===true/.test(R('pre-agreement.html')) && !/PA\.askMandate!==false/.test(R('pre-agreement.html')));
   check('portal Firma ora: la card dice che il mandato riguarda SOLO il conduttore principale e che i co-conduttori firmano separatamente, e mostra il diff delle condizioni',
@@ -934,7 +934,17 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
     /import msSubmit, \{ MS_CONSENT_TEXT \} from '\.\.\/magic-sign\/submit\.js'/.test(sf) && !/tenantSignature:|landlordSignature:/.test(sf) && /requireRole\(req, res, \['admin'\]\)/.test(sf));
   check('sign-for: le precondizioni (firma operatore, base della delega) stanno PRIMA della conversione',
     sf.indexOf("error: 'operator_signature_missing'") < sf.indexOf('await convertPaToContract(') && sf.indexOf("error: 'landlord_basis_required'") < sf.indexOf('await convertPaToContract('));
-  check('vercel.json: sign-for ha 60s (due firme + finalize)', /"api\/preagreement\/sign-for\.js":\s*\{\s*"maxDuration": 60/.test(vj));
+  // La regola di sign-for vive in un glob con submit.js: Vercel rifiuta più
+  // di 50 regole `functions` PRIMA di costruire (main, 21/09: la 51ª regola
+  // avrebbe bloccato il deploy di produzione, non un test). Il check espande
+  // le graffe come fa il matcher di Vercel e pinna il tetto.
+  const vfun = JSON.parse(vj).functions || {};
+  const expandBraces = k => { const m = k.match(/^(.*)\{([^}]*)\}(.*)$/); return m ? m[2].split(',').flatMap(x => expandBraces(m[1] + x + m[3])) : [k]; };
+  const ruleFor = f => Object.keys(vfun).find(k => expandBraces(k).includes(f));
+  check('vercel.json: sign-for ha 60s (due firme + finalize) — dentro un glob, non come 51ª regola',
+    !!ruleFor('api/preagreement/sign-for.js') && vfun[ruleFor('api/preagreement/sign-for.js')].maxDuration === 60
+    && !!ruleFor('api/preagreement/submit.js') && vfun[ruleFor('api/preagreement/submit.js')].maxDuration === 60);
+  check('vercel.json: al massimo 50 regole functions (il tetto che Vercel applica prima del build)', Object.keys(vfun).length <= 50);
   check('console: ✍️ Firmo io è la primaria SOLO col mandato, 🖊 Chiedi il mandato senza, la firma si disegna una volta (openSigModal → op:signature)',
     /\?\(hasMandate[\s\S]{0,400}\?'<button class="pbtn prim" onclick="signFor\(/.test(cons) && /askMandateFor\(/.test(cons) && /function openSigModal\(/.test(cons) && /op:'signature',png:cv\.toDataURL\('image\/png'\)/.test(cons) && /id="fMandate" style="width:auto" checked/.test(cons));
   check('console: il piano si LEGGE (op:status) e si CHIEDE conferma prima di firmare; la delega del proprietario vuole la base scritta',
