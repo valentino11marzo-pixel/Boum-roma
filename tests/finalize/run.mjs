@@ -331,6 +331,12 @@ const magicKeys = () => [...store.keys()].filter(k => k.startsWith('magicLinks/'
     wifAt > -1 && unsetAt > wifAt && cliAt > unsetAt);
   check('sorgente CI: seconda prova — con CRED_KIND=wif l\'avviso del token deprecato nel log e\' un errore, non un verde',
     /\[ "\$CRED_KIND" = wif \] && grep -q "FIREBASE_TOKEN" \/tmp\/fb\.log/.test(ci) && ci.indexOf('grep -q "FIREBASE_TOKEN"') > teeAt);
+  // Il principalSet da autorizzare si LEGGE dai claim del token OIDC (un
+  // passo prima della federazione), non si scrive a mano: due 403 di fila
+  // il 22/09 con una stringa copiata da una chat. Il token non si stampa.
+  const cardAt = ci.indexOf("Carta d'identita' del job");
+  check('sorgente CI: la carta d\'identita\' del job (claim OIDC → principalSet) precede il passo federato e stampa i claim, mai il token',
+    cardAt > -1 && cardAt < authAt && ci.includes('c.repository') && ci.includes('attribute.repository/') && !/console\.log\([^)]*\btok\b/.test(ci));
 
   const rules = readFileSync(new URL('../../storage.rules', import.meta.url), 'utf8');
   check('storage.rules: rendiconti/ ha il suo match (senza, l\'upload admin 403a — successo il 1/09)',

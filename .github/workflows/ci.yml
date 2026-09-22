@@ -161,6 +161,37 @@ jobs:
       # passo senza aver mai parlato con Google. Con lo scambio forzato, un
       # pool/provider/«Concedi accesso» sbagliato fallisce QUI con l'errore
       # di Google, non piu' avanti con un «Failed to authenticate» generico.
+      # La carta d'identita' del job, LETTA e non scritta a mano. Il 22/09
+      # il passo federato ha risposto 403 «iam.serviceAccounts.getAccessToken
+      # denied» due volte di fila, e l'unica cosa da sapere — con quale
+      # stringa il job si presenta a Google, cioe' quale principalSet va
+      # autorizzato sull'account di servizio — stava solo nel token OIDC che
+      # nessuno leggeva. Questo passo lo chiede a GitHub con la stessa
+      # audience del passo dopo e stampa SOLO i claim (sub, repository, ref)
+      # e le due entita' che ne derivano. Il token non si stampa MAI.
+      - name: Carta d'identita' del job (i claim del token OIDC, mai il token)
+        env:
+          WIF_PROVIDER: projects/937269017440/locations/global/workloadIdentityPools/github/providers/github
+        run: |
+          RESP="$(curl -sS -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=https://iam.googleapis.com/$WIF_PROVIDER" || true)"
+          node -e '
+            let c = null;
+            try {
+              const tok = String(JSON.parse(process.argv[1] || "{}").value || "");
+              const parts = tok.split(".");
+              if (parts.length === 3) c = JSON.parse(Buffer.from(parts[1].replace(/-/g, "+").replace(/_/g, "/"), "base64").toString("utf8"));
+            } catch {}
+            if (!c) { console.log("token OIDC non ottenuto: il job ha permissions id-token: write?"); process.exit(0); }
+            const pool = "principalSet://iam.googleapis.com/" + process.argv[2].replace(/\/providers\/.*$/, "");
+            console.log("sub        = " + c.sub);
+            console.log("repository = " + c.repository);
+            console.log("ref        = " + c.ref);
+            console.log("aud        = " + c.aud);
+            console.log("");
+            console.log("Entita da autorizzare sull account di servizio (ruolo Utente Workload Identity), una delle due:");
+            console.log("  per questo repo:                         " + pool + "/attribute.repository/" + c.repository);
+            console.log("  tutto il pool (il provider gia filtra):  " + pool + "/*");
+          ' "$RESP" "$WIF_PROVIDER"
       - name: Credenziale federata (Workload Identity Federation, nessuna chiave)
         uses: google-github-actions/auth@v2
         with:

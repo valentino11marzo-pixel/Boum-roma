@@ -2037,8 +2037,20 @@ Un giro solo, otto interventi, 33 suite verdi:
   federazione c'è, e la seconda prova sul log (avviso del token con
   `CRED_KIND=wif` = errore). I rami service-account/token restano SOLO per
   un job senza il passo federato; una volta verde con la federazione, il
-  secret `FIREBASE_TOKEN` va tolto dal repo. Test: `tests/finalize/run.mjs`
-  (36 check).
+  secret `FIREBASE_TOKEN` va tolto dal repo. **Il secondo e il terzo run
+  federato: 403 `iam.serviceAccounts.getAccessToken denied`** — lo scambio
+  col pool PASSA (pool, provider, condizione giusti), a mancare è il legame
+  sull'account di servizio: nella scheda Autorizzazioni di
+  `firebase-adminsdk-fbsvc@…` («Entità con accesso» era VUOTA) serve il
+  ruolo **Utente Workload Identity** per l'entità con cui il job si
+  presenta. Quella stringa ora si LEGGE nel log, non si scrive a mano: il
+  passo «Carta d'identità del job» chiede a GitHub il token OIDC con la
+  stessa audience e stampa i soli claim (`sub`, `repository`, `ref`) e le
+  due entità che ne derivano — `…/attribute.repository/<repo>` (esige la
+  mappatura `attribute.repository` sul provider) e `…/workloadIdentityPools/
+  github/*` (tutto il pool: sicuro perché il provider filtra già il repo
+  con la condizione). Il token non si stampa mai. Test:
+  `tests/finalize/run.mjs` (37 check).
 - **Tabella zone canone UNICA**: `scheda-canone.html` ora carica
   `js/canone-engine.js` e semina le zone dal motore (la copia inline che
   poteva divergere dal Fascicolo ARPE è stata rimossa; un edit manuale
