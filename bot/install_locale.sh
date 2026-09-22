@@ -20,9 +20,18 @@
 #   4. espone il ponte con Tailscale Funnel (https stabile, senza dominio)
 #   5. stampa le righe da incollare su Vercel e prova il giro
 #
-# Prerequisiti (due download con la GUI, una volta):
+# Prerequisiti, una volta:
 #   · Ollama:    https://ollama.com/download  (apri l'app: icona nella barra)
-#   · Tailscale: https://tailscale.com/download/mac  (apri, accedi con Google)
+#   · Tailscale, in UNA delle due forme:
+#       - senza schermo (SSH, il caso del Mac mini): il demone Homebrew —
+#           brew install tailscale
+#           sudo tailscaled install-system-daemon
+#           sudo tailscale set --operator="$USER"
+#           tailscale login          ← stampa un link: aprilo da qualsiasi browser
+#       - con lo schermo del Mac: l'app da https://tailscale.com/download/mac
+#         (la prima apertura chiede di approvare l'estensione di rete in
+#         Impostazioni di Sistema → Privacy e sicurezza, poi si accede).
+#     Questo script usa quello che RISPONDE, non il primo file che trova.
 
 set -euo pipefail
 
@@ -175,18 +184,36 @@ say "Prova in locale (la prima completion carica il modello: può volerci un min
 
 # ── 4. Il tunnel (Tailscale Funnel) ──────────────────────────────────────────
 say "Il tunnel https (Tailscale Funnel)"
-TS=""
-for c in /Applications/Tailscale.app/Contents/MacOS/Tailscale "$(command -v tailscale || true)"; do
-  [ -n "$c" ] && [ -x "$c" ] && { TS="$c"; break; }
+# Due Tailscale possibili sullo stesso Mac: l'app (GUI: la prima apertura
+# vuole lo schermo per approvare l'estensione di rete e per accedere) e il
+# demone Homebrew (headless: `tailscale login` stampa un link da aprire da
+# qualsiasi browser). Si sceglie quello che RISPONDE a `status` (demone su
+# e dentro), non il primo file che esiste: il 22/09 l'app era installata da
+# SSH senza schermo, quindi inerte, e avrebbe vinto solo per l'ordine.
+HEADLESS='brew install tailscale && sudo tailscaled install-system-daemon && sudo tailscale set --operator="$USER" && tailscale login'
+TS=""; TS_ANY=""
+for c in "$(command -v tailscale || true)" /Applications/Tailscale.app/Contents/MacOS/Tailscale; do
+  [ -n "$c" ] && [ -x "$c" ] || continue
+  [ -n "$TS_ANY" ] || TS_ANY="$c"
+  if "$c" status >/dev/null 2>&1; then TS="$c"; break; fi
 done
 URL=""
 if [ -z "$TS" ]; then
-  note "Tailscale non trovato. Scaricalo da https://tailscale.com/download/mac, apri l'app e accedi;"
-  note "poi rilancia questo comando: il resto è già installato e non si ripete."
-else
-  if ! "$TS" status >/dev/null 2>&1; then
-    note "Tailscale c'è ma non sei dentro: apri l'app dalla barra dei menu e accedi, poi rilancia."
+  if [ -z "$TS_ANY" ]; then
+    note "Tailscale non trovato. Senza schermo (SSH), dal terminale:"
   else
+    note "Tailscale c'è ($TS_ANY) ma non risponde o non sei dentro."
+    case "$TS_ANY" in
+      /Applications/*) note "  È l'app: vuole lo schermo del Mac (approva l'estensione in Impostazioni di Sistema → Privacy e sicurezza, poi accedi)."
+                       note "  Senza schermo usa il demone, dal terminale:" ;;
+      *) note "  Il demone non è su o non sei dentro; dal terminale:" ;;
+    esac
+  fi
+  note "  $HEADLESS"
+  note "  (tailscale login stampa un link: aprilo da qualsiasi browser e accedi con Google)"
+  note "Poi rilancia questo comando: il resto è già installato e non si ripete."
+else
+  {
     if "$TS" funnel --bg "$PORT" 2>&1 | sed 's/^/   /'; then
       HOSTN="$("$TS" status --json 2>/dev/null | "$PY" -c 'import sys,json; d=json.load(sys.stdin); print((d.get("Self") or {}).get("DNSName","").rstrip("."))' 2>/dev/null || true)"
       [ -n "$HOSTN" ] && URL="https://$HOSTN"
@@ -198,7 +225,7 @@ else
       note "URL pubblico: $URL"
       if curl -fsS --max-time 15 "$URL/health" >/dev/null 2>&1; then note "raggiungibile da internet ✓"; else note "⚠ $URL/health non risponde ancora (il DNS può volerci un minuto)"; fi
     fi
-  fi
+  }
 fi
 
 # ── 5. Le righe per Vercel ───────────────────────────────────────────────────

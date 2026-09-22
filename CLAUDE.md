@@ -2924,7 +2924,14 @@ Vercel; `--test` prova il ponte, `--smoke` chiede a `/api/ai/status` se il
 server lo vede. Guida per l'operatore: `bot/MODELLI_LOCALI.md`. Test:
 `python3 tests/locale/runner.py` (40 check: picker, serratura per
 mutazione, rotte, log senza contenuto, e il server VERO contro un Ollama
-finto in-thread).
+finto in-thread). **Il primo giro vero (22/09 sera, via SSH)**: il Mac mini
+si usa da terminale, quindi l'app Tailscale (estensione da approvare sullo
+schermo, login nella finestra) è inerte; la via è il demone Homebrew
+(`brew install tailscale`, `sudo tailscaled install-system-daemon`,
+`sudo tailscale set --operator`, `tailscale login` che stampa un link).
+L'installer sceglie il Tailscale che RISPONDE a `status`, non il primo file
+che esiste, e per l'altro dice cosa fare. E nei blocchi copia-incolla **mai
+un commento `#`**: zsh interattivo non li accetta e li esegue come parole.
 
 **Il merge con l'Innesto 3.0 e la Segretaria di Codex (22/09/2026).** Su
 `main` erano intanto arrivati l'Innesto 3.0 (`api/portal/ingest.js`: Opus 5,

@@ -55,41 +55,73 @@ LOCAL_AI_TOKEN=…
 Vercel → progetto boum-roma → Settings → Environment Variables →
 Production → aggiungi le righe → **Redeploy**.
 
-## Tutto dal terminale (senza aprire il sito di Vercel)
+## Tutto dal terminale (anche via SSH, senza lo schermo del Mac)
 
-Stesse cose di sopra, ma ogni passo è un comando da incollare nel Terminale
-del Mac mini, nell'ordine.
+Stesse cose di sopra, ma ogni passo è un comando da incollare, in ordine.
+**Nei blocchi non ci sono commenti**: la shell del Mac (zsh) non accetta `#`
+su una riga interattiva, e il 22/09 un blocco con i commenti ha prodotto
+`command not found: #` e file fantasma con i nomi delle parole. Le
+spiegazioni stanno fra un blocco e l'altro.
+
+**1. Tailscale senza schermo.** Il Mac mini si usa via SSH: l'app Tailscale
+(la finestra, l'icona nella barra) vuole lo schermo per approvare
+l'estensione di rete e per accedere. Il demone Homebrew no. Se l'app è già
+stata installata, prima si toglie (chiede la password di sudo):
 
 ```
-# 1) Tailscale (Ollama ce l'hai già). Se manca Homebrew, prima:
-#    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-brew install --cask tailscale
-open -a Tailscale          # nella finestra: accedi con Google, una volta
-open -a Ollama             # deve restare acceso (icona nella barra)
+brew uninstall --cask tailscale-app
+```
 
-# 2) L'installer (scarica il modello, mette il ponte, apre il tunnel,
-#    STAMPA le 4 righe LOCAL_AI_*)
+Poi il demone. L'ultimo comando stampa un link `https://login.tailscale.com/a/…`:
+aprilo dal browser del portatile e accedi con Google.
+
+```
+brew install tailscale
+sudo tailscaled install-system-daemon
+sudo tailscale set --operator="$USER"
+tailscale login
+```
+
+Controllo: `tailscale status` deve stampare il Mac con un indirizzo 100.x.
+
+**2. Ollama acceso.** Già installato; deve essere in esecuzione (l'installer
+lo apre da solo se serve):
+
+```
+open -a Ollama
+```
+
+**3. L'installer.** Scarica il modello, mette il ponte, apre il tunnel e
+**stampa le 4 righe `LOCAL_AI_*`**. Se dice che il Funnel va abilitato,
+clicca il link che stampa e rilancia lo stesso comando (non rifà quello che
+ha già fatto).
+
+```
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/valentino11marzo-pixel/Boum-roma/main/bot/install_locale.sh)"
 ```
 
-Se dice che il Funnel va abilitato: clicca il link che stampa, poi rilancia
-lo stesso comando (non rifà quello che ha già fatto).
+**4. Vercel dal terminale** (una volta; se manca Node: `brew install node`):
 
 ```
-# 3) Vercel CLI (una volta). Se manca Node: brew install node
 npm i -g vercel
 vercel login
 cd ~/boom-locale && vercel link --yes --scope valentino-boom --project boum-roma
+```
 
-# 4) Incolla qui le 4 righe stampate dall'installer (al posto degli esempi)
+**5. Le 4 righe stampate dall'installer**, incollate al posto degli esempi:
+
+```
 cat > ~/boom-locale/vercel.env <<'ENV'
 LOCAL_AI_URL=https://mac-mini.<rete>.ts.net
 LOCAL_AI_MODEL=qwen3:14b
 LOCAL_AI_VISION_MODEL=qwen2.5vl:7b
 LOCAL_AI_TOKEN=incolla-il-token
 ENV
+```
 
-# 5) Le manda a Vercel (Production) e fa ripartire il deploy
+**6. Mandarle a Vercel (Production) e far ripartire il deploy:**
+
+```
 cd ~/boom-locale && while IFS='=' read -r k v; do
   [ -z "$k" ] && continue
   vercel env rm "$k" production --yes >/dev/null 2>&1
