@@ -2220,6 +2220,13 @@ time-boxed — mai può bloccare una firma.
   `contracts/<id>/contratto-firmato.pdf` → `contract.signedPdfUrl`.
   Contratti legacy senza PDF sorgente: si salta senza rumore, alle email
   resta il certificato (mai bloccare una firma).
+- **Download e anteprima del contratto** (22/09/2026): le tre azioni del
+  portal leggono il record dal server con tetto di 12 secondi e preferiscono
+  `signedPdfUrl` al PDF sorgente. Non rigenerano né aggiornano più il contratto
+  durante una lettura; il documento mancante indica l’azione esplicita.
+  «PDF firmato» richiede la copia canonica: il vecchio flag locale non prova
+  che il file contenga le firme. Errori e popup bloccati sono visibili.
+  Test: `tests/contractpdf/downloads.mjs`, handler reali, IO simulato e mutazioni.
 - `sendWelcomeEmails` (da `_finalize.js`): welcome tenant EN (portal
   magic-link, saldo deposito se pendente, timeline utenze/TARI/residenza)
   + landlord IT (passi fiscali per regime, cessione fabbricato se

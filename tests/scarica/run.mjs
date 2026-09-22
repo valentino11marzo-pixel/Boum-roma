@@ -31,10 +31,11 @@ ok(dupes.length === 0, 'nessuna funzione definita due volte' + (dupes.length ? '
 
 // ── 2. Il PDF contratto si SCARICA, non si rigenera ─────────────────────
 ok(names.filter((n) => n === 'downloadContractPDF').length === 1, 'downloadContractPDF esiste UNA volta sola');
-const dl = app.slice(app.indexOf('async function downloadContractPDF'), app.indexOf('async function downloadContractPDF') + 3500);
-const iStored = dl.indexOf('fresh.generatedPDF');
-const iFallback = dl.indexOf('No stored PDF');
-ok(iStored > -1 && iFallback > iStored, 'il fast path sul PDF salvato viene PRIMA della rigenerazione (che resta solo fallback)');
+const dl = app.slice(app.indexOf('async function downloadContractPDF'), app.indexOf('window.downloadContractPDF = downloadContractPDF'));
+const documentActions = app.slice(app.indexOf('async function readContractPDF'), app.indexOf('window.downloadContractPDF = downloadContractPDF'));
+ok(/readContractPDF\(id\)/.test(dl) && /contract.signedPdfUrl/.test(documentActions)
+  && /contract.generatedPDF/.test(documentActions) && !/generateContractPDF\(/.test(documentActions),
+  'download e anteprima leggono il PDF archiviato: nessuna rigenerazione implicita, nemmeno come fallback');
 ok(/boomDownloadUrl\([^,]+, fileName\)/.test(dl), 'consegna dal modulo unico, col nome file vero');
 ok(/window\.downloadContractPDF = downloadContractPDF/.test(app), 'esportata (Prontuario e onclick la trovano)');
 
@@ -81,7 +82,8 @@ ok(/function boomSave\(src, name\)/.test(app) && /document\.body\.appendChild\(a
 const bd = app.slice(app.indexOf('async function boomDownloadUrl'), app.indexOf('async function boomDownloadUrl') + 1200);
 ok(/AbortController/.test(bd) && /12000/.test(bd), 'la richiesta ha un tetto di tempo (una fetch appesa era il "lentissimo")');
 ok(/return boomOpen\(url, name\)/.test(bd), 'se la rete o il CORS non collaborano si ripiega sull\'apertura nativa — mai un click che non produce niente');
-ok((app.match(/await boomDownloadUrl\(/g) || []).length >= 3, 'i tre percorsi del PDF contratto passano tutti di lì');
+ok((documentActions.match(/await boomDownloadUrl\(/g) || []).length === 2
+  && /boomOpen\(url,/.test(documentActions), 'i due download usano boomDownloadUrl e l’anteprima usa boomOpen con gli stessi dati aggiornati');
 
 console.log(`\n${fail ? '✗' : '✓'} scarica: ${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);

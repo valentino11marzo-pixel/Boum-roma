@@ -136,6 +136,8 @@ const SUITES = [
   { name: 'desk',     file: 'tests/squadra/desk.mjs',     what: 'la scrivania si disegna tutta senza Firestore, coi confini di ogni agente in chiaro' },
   { name: 'contractpdf', file: 'tests/contractpdf/run.mjs', what: 'il PDF del contratto in UNA copia: nasce anche dal rail PA (convert/send-sign/lookup), il PDF con le clausole vecchie si rigenera da solo (mai sotto una firma viva), jspdf pinnato nei due manifest' },
   { name: 'contractpdfloading', file: 'tests/contractpdf/loading.mjs', what: 'clic PDF prima del caricamento: attesa, richiesta condivisa, errore CDN, timeout e nuovo tentativo; renderer reale e mutazione' },
+  { name: 'contractpdfdownloads', file: 'tests/contractpdf/downloads.mjs', what: 'download e anteprima leggono il documento archiviato senza riscrivere contratti; PDF firmato canonico, errori e timeout, mutazioni' },
+  { name: 'contractpdfdownloadsui', file: 'tests/contractpdf/downloads-ui.mjs', what: 'clic reali nel browser: download canonico, nome file, anteprima in attesa chiusa su errore e PDF legacy' },
   { name: 'aspi', file: 'tests/aspi/run.mjs', what: 'l\'iter ASPI: registrazione+asseverazione in un tap — checklist che blocca solo senza contratto, email al referente con l\'operatore in copia, fattura col markup mai duplicata, auto-invio solo opt-in' },
   { name: 'safari',   file: 'tests/safari/boot.mjs',      what: 'nessuna pagina autenticata resta appesa' },
   { name: 'mobile',   file: 'tests/mobile/run.mjs',       what: 'M2 Portal App: giunzioni su portal-app.js (nomi campo, sezioni, ordine, CSS gated, sw)' },
