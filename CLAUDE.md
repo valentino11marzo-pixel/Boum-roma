@@ -137,7 +137,10 @@ firebase.json             Firebase deploy config (firestore + storage rules)
   `functions` rules before building. The exact glob
   `api/homie/{conversation,message}.js` keeps both endpoints at 60s in one
   rule; all other function settings stay unchanged. Validate matching paths
-  and the Git preview when adding a rule.
+  and the Git preview when adding a rule. Same move for
+  `api/preagreement/{submit,sign-for}.js` (the 51st rule would have blocked
+  the production deploy, not a test); `tests/mandato/run.mjs` §9 pins the
+  ≤50 count and resolves rules through brace expansion.
 
 ## Environment Variables (Vercel)
 
@@ -2394,6 +2397,46 @@ verificato per diff). In `reference/` anche
 `contratto_tipo_32_Roma_2023.doc`, il contratto tipo 3+2 (art. 2 c. 3
 L.431/98) dell'accordo 27/07/2023.
 
+**La direzione mancante del verbatim (21/09/2026 — «il template universitario
+ogni tanto non viene rispettato»).** Il modello ricaricato dall'operatore è
+byte-identico a `reference/contratto_tipo_STUDENTI_Roma_2023.doc` (stesso
+MD5): il problema non era il modello, era ciò che il generatore aggiunge
+FUORI dal blocco `MODEL_C`. `tests/contractpdf/verbatim.mjs` leggeva le frasi
+dal SORGENTE e le cercava nel `.doc` — una direzione sola: non vedeva né una
+frase del modello che il PDF non stampa, né un testo scritto a mano che entra
+nell'articolo da una funzione di aiuto. Il confronto INVERSO (si impagina
+davvero con un jsPDF finto che registra `doc.text`, nove varianti, e ogni
+frase del `.doc` spezzata sugli slot deve uscire da almeno una — zero
+dipendenze, gira in CI) ha trovato tre scavalcamenti veri: la premessa
+**C) SICUREZZA IMPIANTI**, che senza dichiarazione del locatore stampava
+«impianti funzionanti e idonei all'uso convenuto» — frase inventata, e una
+dichiarazione positiva che nessuno ha verificato; il modello ha UNA frase
+(«non dispongono di certificazione a norma») e il 3+2 l'alternativa
+«dispongono/non dispongono»; la chiusa dell'**art. 5 Oneri** — fra i patti
+approvati ex 1341 — che da «versa una quota di € -- salvo conguaglio» era
+diventata «sono regolate a consuntivo secondo la Tabella…»; l'**art. 10
+Consegna** con la stessa frase due volte («di quanto segue: quanto risulta dal
+verbale di consegna sottoscritto… ovvero di quanto risulta dal verbale di
+consegna»). Più le rate («rate mensili eguali … entro il giorno 5» → «rate
+eguali anticipate … entro il 5 di ogni mese», la riga del modulo), le
+intestazioni «Articolo N (Titolo)» come sul modello, e **la durata con la
+data di fine inclusa**: `monthsBetween` (copie in contract-pdf.js e
+portal-app.js) contava 01/09→31/08 come «11 mesi e 30 giorni» — stampato in
+art. 1 di ogni contratto nato dal portal — e il wizard 🚀 scriveva
+`durata.text` come «2026-09-01 → 2027-08-31», tale e quale nel contratto.
+Ora `impiantiClauseConcordato`/`oneriClauseConcordato` stampano le frasi del
+modulo (varianti dichiarate: oneri compresi nel canone; «funzionanti»
+dichiarato dal locatore = frase del modello + la sua dichiarazione), il test
+copre le due direzioni per C, C senza cedolare e A, e ogni frase fissa delle
+funzioni di aiuto deve stare nel modello. **Lasciato all'operatore**: l'art. 3
+sotto i 12 mesi stampa «canone di locazione riferito all'intera durata»
+(variante dichiarata) dove il modulo dice «canone annuo» — è una scelta, non
+una svista, e va confermata con ASPI. **Non verificato**: l'Allegato B non ha
+un `.doc` in `reference/` — la sua premessa C) stampa ancora «funzionanti e
+idonei» di default. In console PA la riga mostra ora **📄 Contratto (PDF, non
+firmato)** finché le firme non sono complete: il `generatedPDF` esisteva
+dalla conversione, ma si apriva solo dal portal.
+
 ### Il terzo modello: 3+2 canone concordato — Allegato A (8/09/2026)
 Il contratto tipo dell'associazione per il **3+2** (L.431/98 art. 2 c. 3,
 accordo 27/07/2023 prot. RA/2023/0044852 —
@@ -2603,6 +2646,71 @@ dichiarato nel testo). Le regole, tutte verificate per mutazione:
   v1); `askMandate` assente = non offerto; scheda ARPE con le firme;
   pagina == server sui testi; Valutazione dall'immobile con la scheda a
   pagina 2, buchi dichiarati, 403 non admin).
+
+### ✍️ Firmo io — la firma in un tap dalla console (21/09/2026 — «loro perdono l'interesse»)
+Il caso vero: il cliente accetta e firma la proposta, pensa sia tutto fatto,
+e l'email col link del contratto resta chiusa per settimane — mentre i
+termini del contratto sono ESATTAMENTE quelli della proposta. L'operatore
+vuole «darlo per firmato e sbloccare tutto l'iter». La regola di sempre non
+si allenta: al posto del conduttore SENZA mandato scritto non si firma —
+quella è una firma falsa, e il server risponde 403. Quindi la velocità si
+costruisce sul mandato, in tre pezzi:
+- **`POST /api/preagreement/sign-for`** (Bearer **admin** — firmare per gli
+  altri è l'atto dell'operatore, non di un owner). `op:'signature'` salva la
+  firma dell'operatore disegnata UNA volta nella console (canvas → PNG →
+  `operatorSignatures/<uid>`, scritto e letto SOLO dal server: nessuna regola
+  Firestore da deployare, il browser non la rilegge mai). `op:'status'` è il
+  piano (mandato sul contratto? condizioni ancora quelle? delega del
+  proprietario? co-conduttori? firma salvata?) che la console LEGGE e mostra
+  prima di chiedere conferma. `op:'sign'`: crea il contratto se manca
+  (convert idempotente, come 🖊), arma `tenantDelegate`, e firma per il
+  conduttore passando **dallo STESSO `magic-sign/submit` in-process** (il
+  trucco di `employees/_fiducia.js`: stesse guardie — `mandateCheck` 403/409,
+  terms freeze, already_signed, sequenza — stesso finalize, stessa stampa
+  sulla proposta; nessuna seconda strada per scrivere una firma). Poi, se il
+  contratto porta `landlordDelegate` — o l'operatore lo arma nel tap con una
+  **base scritta dichiarata** (`landlordBasis`, ≥ 8 caratteri, stampata sul
+  certificato: senza → 400) — controfirma per il proprietario nello stesso
+  tap: contratto firmato, certificato FES, fascicolo, pack, journey, tutto
+  come dopo due firme normali. I co-conduttori NON sono coperti dal mandato
+  del principale: il tap si ferma e lo dice (`waitingCoTenants`); senza
+  delega del proprietario si ferma con il suo link (`landlordPending`). Le
+  precondizioni (firma salvata, base della delega) si controllano PRIMA di
+  qualunque scrittura: un 409 non lascia un contratto a metà. IP e UA nelle
+  prove sono quelli della richiesta dell'operatore.
+- **`POST /api/preagreement/mandate`** (pubblico, token = credenziale, rate
+  limit) — **il mandato dato DOPO l'accettazione**: per il cliente che ha già
+  accettato è UN tap, non una firma intera. Vale SOLO se la console l'ha
+  chiesto (`askMandate === true`, altrimenti 403 `not_offered`), `mandate:true`
+  esplicito (mai dedotto), stesso testo e hash della spunta all'accettazione,
+  base = la foto delle condizioni approvate (o la proposta stessa, chiusa,
+  per quelle accettate prima della v2 — dichiarato). Il contratto già nato
+  eredita il mandato con la STESSA costruzione della conversione
+  (`tenantMandateFor`, ora esportata da `convert.js`: una copia sola), mai
+  sotto una firma viva del conduttore; l'operatore riceve la card
+  `contract.mandate_given`. Idempotente (`already`).
+- **Console** (`pre-agreement-admin.html`): col mandato in archivio la
+  primaria della riga è **✍️ Firmo io (mandato)** (Magic Sign resta come
+  secondaria); senza, **🖊 Chiedi il mandato** attiva `askMandate` e apre
+  WhatsApp col link `#mandate` (la pagina della proposta mostra la card
+  «Let BOOM sign the lease for you», spunta a parte + bottone, mai
+  pre-selezionata); a inquilino firmato con delega armata, **✍️ Controfirmo
+  io (delega)**. Il tap legge il piano, chiede conferma con nomi, date e
+  base, e alla prima volta apre il pad della firma. **Il mandato è ora
+  OFFERTO di default sulle proposte nuove** (`fMandate` checked): la spunta
+  del cliente resta un atto a parte. `4+4` e «canone annuo» sotto i 12 mesi
+  restano dove erano (vedi la sezione del verbatim).
+- Test: `node tests/mandato/run.mjs` §9 — il giro VERO (Firestore in
+  memoria, jsPDF e pdf-lib reali): proposta col mandato → status senza
+  scritture → 409 senza firma salvata (contratto NON nato) → 400 senza base
+  della delega → 403 non-admin → **un tap = conduttore per mandato +
+  locatore per delega + finalize** (firmato, certificato, stampa sulla
+  proposta) → secondo tap `alreadySigned`; SENZA mandato → 403 e nessuna
+  firma → `mandate.js` 403 se non chiesto, 200 se chiesto (contratto già
+  nato che eredita il mandato col documento) → il tap firma il conduttore e
+  lascia al proprietario il suo link; condizioni cambiate → 409 con il diff;
+  giunzioni sulla sorgente (una sola strada per la firma, precondizioni
+  prima della conversione, 60s in vercel.json, console e pagina).
 
 ### Le regole IN VIGORE ≠ le regole nel file (31/08/2026)
 Il difetto più caro trovato in questa tornata, e nessuna suite poteva

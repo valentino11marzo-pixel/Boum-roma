@@ -235,6 +235,44 @@ async function landlordCtxOf(property, contract) {
   try { return (await resolveLandlord(contract, property)) || {}; } catch (_) { return {}; }
 }
 
+
+// IL MANDATO SUL CONTRATTO, UNA COPIA (21/09/2026). Lo costruiscono in due:
+// la conversione (contratto che nasce da una proposta col mandato) e
+// api/preagreement/mandate.js (mandato dato DOPO l'accettazione, sul
+// contratto già nato — il caso «ha accettato, poi ha perso interesse»).
+// La BASE è la foto presa all'accettazione (pa.approvedTerms, v2). Per una
+// proposta accettata prima della v2 la foto si prende dalla proposta stessa
+// — che la console non lascia modificare dopo l'accettazione — e la
+// provenienza resta dichiarata. MAI dal contratto: il contratto è ciò che si
+// VERIFICA, non la base. termsHash è la stessa impronta che
+// magic-sign/submit ricalcola al momento della firma (un canone o una data
+// ritoccati dopo = 409 mandate_terms_changed, mai una firma).
+export function tenantMandateFor(pa, paId, contract) {
+  const snap = (pa.approvedTerms && pa.approvedTerms.terms && pa.approvedTerms.hash) ? pa.approvedTerms : null;
+  const terms = snap ? snap.terms : MANDATO.termsFromProposal(pa);
+  const termsHash = snap ? snap.hash : mandateTermsHash(terms);
+  const diff = MANDATO.diffTerms(terms, MANDATO.termsFromContract(contract));
+  return {
+    given: true,
+    at: pa.mandate.at || null,
+    ref: pa.ref || null,
+    paId,
+    hash: pa.mandate.hash || null,
+    text: pa.mandate.text || '',
+    ip: pa.mandate.ip || '',
+    termsVersion: MANDATO.VERSION,
+    termsHash,
+    terms,
+    termsSource: snap ? (snap.source || 'proposal-at-acceptance') : 'proposal-at-conversion',
+    // La verifica: il contratto riproduce le condizioni approvate? Se no
+    // (es. modello scelto a mano diverso dalla proposta), il mandato resta
+    // registrato ma DICHIARATO non spendibile: il server rifiuterà la firma
+    // (409) e il portal lo mostra.
+    termsMatch: diff.length === 0,
+    termsDiff: diff.map(d => d.key),
+    termsCheckedAt: new Date().toISOString(),
+  };
+}
 // ── Core conversion, shared by the console handler and the auto pipeline ──
 // Returns { ok, already?, contractId, tenantId, tenantSignUrl,
 //           landlordSignUrl, delegate } or { ok:false, error }.
@@ -527,35 +565,7 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
   // una firma). Senza `pa.mandate.given` il contratto NON ha mandato e la
   // firma al posto del conduttore resta impossibile (403 mandate_missing).
   if (pa.mandate && pa.mandate.given === true) {
-    // La BASE del mandato è la foto presa all'accettazione (pa.approvedTerms,
-    // v2). Per una proposta accettata prima della v2 la foto si prende dalla
-    // proposta stessa — che la console non lascia modificare dopo
-    // l'accettazione — e la provenienza resta dichiarata. MAI dal contratto:
-    // il contratto è ciò che si VERIFICA, non la base.
-    const snap = (pa.approvedTerms && pa.approvedTerms.terms && pa.approvedTerms.hash) ? pa.approvedTerms : null;
-    const terms = snap ? snap.terms : MANDATO.termsFromProposal(pa);
-    const termsHash = snap ? snap.hash : mandateTermsHash(terms);
-    const diff = MANDATO.diffTerms(terms, MANDATO.termsFromContract(contract));
-    contract.tenantMandate = {
-      given: true,
-      at: pa.mandate.at || null,
-      ref: pa.ref || null,
-      paId,
-      hash: pa.mandate.hash || null,
-      text: pa.mandate.text || '',
-      ip: pa.mandate.ip || '',
-      termsVersion: MANDATO.VERSION,
-      termsHash,
-      terms,
-      termsSource: snap ? 'proposal-at-acceptance' : 'proposal-at-conversion',
-      // La verifica alla CONVERSIONE: il contratto appena costruito riproduce
-      // le condizioni approvate? Se no (es. modello scelto a mano diverso
-      // dalla proposta), il mandato resta registrato ma DICHIARATO non
-      // spendibile: il server rifiuterà la firma (409) e il portal lo mostra.
-      termsMatch: diff.length === 0,
-      termsDiff: diff.map(d => d.key),
-      termsCheckedAt: new Date().toISOString(),
-    };
+    contract.tenantMandate = tenantMandateFor(pa, paId, contract);
   }
 
   // (contractId: dichiarato sopra, prima del riconoscimento dell'orfana.)
