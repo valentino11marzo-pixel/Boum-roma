@@ -38,7 +38,10 @@
 
 set -euo pipefail
 
-RAW_BASE='https://raw.githubusercontent.com/valentino11marzo-pixel/Boum-roma/main/bot'
+# Da dove scarica boom_locale.py. LOCALE_RAW_BASE=…/<branch>/bot davanti al
+# comando prova un ramo prima del merge (il 22/09 l'installer del ramo
+# scaricava il ponte di main, cioè quello VECCHIO).
+RAW_BASE="${LOCALE_RAW_BASE:-https://raw.githubusercontent.com/valentino11marzo-pixel/Boum-roma/main/bot}"
 DIR="$HOME/boom-locale"
 AGENTS_DIR="$HOME/Library/LaunchAgents"
 PORT="${LOCALE_PORT:-8088}"

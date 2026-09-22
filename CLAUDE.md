@@ -2953,6 +2953,25 @@ in ascolto, log vuoto). Ora 30 s e, se tace, il messaggio dice dove
 guardare (`launchctl list`: trattino = non parte, PID = sta partendo).
 `HOMIE_SECRET` per `--smoke` si legge anche nella forma `export
 HOMIE_SECRET="…"` di `~/.boom/env` (il ponte di Homie lo scrive così).
+**Il terzo intoppo, e il più istruttivo: il modello pensava.** La prova
+«completion JSON» del ponte è fallita con `Expecting value: line 1 column 1`
+— contenuto VUOTO. qwen3 è un modello «pensante», Ollama lo lascia pensare
+di default, e con 60 token di tetto li spende tutti nel ragionamento; sul
+server, col tetto di 20 s, sarebbe stata una ricaduta sul cloud a OGNI
+chiamata, e `/ai` avrebbe mostrato «ricadute» senza dire perché. La rotta
+OpenAI-compatibile di Ollama non ha un interruttore affidabile per il
+ragionamento, quindi il ponte **traduce** `/v1/chat/completions` sull'API
+NATIVA `/api/chat` (`to_native_chat`: `think:false` salvo `think` esplicito
+nel body, `response_format` → `format`, `max_tokens` → `num_predict`,
+immagini data-URI → `images`, mai streaming) e riporta la risposta nella
+forma OpenAI che `api/_ai.js` legge (`from_native_chat`: choices,
+finish_reason da `done_reason`, usage dai conteggi nativi; un
+`<think>…</think>` residuo si toglie, un `<think>` troncato è tutto
+ragionamento → contenuto vuoto con `finish_reason:'length'`). Il finto
+Ollama dei test risponde 500 sulla rotta compatibile: se il ponte tornasse
+a usarla, il test cade. `LOCALE_RAW_BASE=…/<branch>/bot` davanti
+all'installer prova il ponte di un ramo prima del merge (l'installer del
+ramo scaricava il ponte di `main`, cioè quello vecchio). 55 check.
 
 **Il merge con l'Innesto 3.0 e la Segretaria di Codex (22/09/2026).** Su
 `main` erano intanto arrivati l'Innesto 3.0 (`api/portal/ingest.js`: Opus 5,

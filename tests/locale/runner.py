@@ -93,6 +93,31 @@ os.remove(tmp)
 check('.env: virgolette tolte, commenti e righe rotte ignorati', env == {'LOCAL_AI_TOKEN': 'abc', 'LOCALE_MODEL': 'qwen3:8b'})
 check('.env assente → vuoto, mai un crollo', bl.load_env('/nonexistent/.env') == {})
 
+# ── la traduzione OpenAI ⇄ nativa (pura) ──────────────────────────────────
+n = bl.to_native_chat({'model': 'm', 'max_tokens': 7, 'temperature': 0, 'stream': True,
+                       'response_format': {'type': 'json_object'},
+                       'messages': [{'role': 'system', 'content': 's'},
+                                    {'role': 'user', 'content': [{'type': 'text', 'text': 'guarda'},
+                                                                 {'type': 'image_url', 'image_url': {'url': 'data:image/jpeg;base64,QUJD'}}]}]})
+check('to_native_chat: think False di default, stream forzato False, format json, num_predict=max_tokens, temperature',
+      n['think'] is False and n['stream'] is False and n['format'] == 'json' and n['options'] == {'num_predict': 7, 'temperature': 0.0})
+check('to_native_chat: una parte immagine data-URI → images base64 senza prefisso, il testo resta content',
+      n['messages'][1] == {'role': 'user', 'content': 'guarda', 'images': ['QUJD']})
+try:
+    bl.to_native_chat({'model': 'm', 'messages': [{'role': 'user', 'content': [{'type': 'image_url', 'image_url': {'url': 'https://x/y.jpg'}}]}]})
+    check('to_native_chat: un URL http di immagine viene rifiutato (non si scarica da qui)', False)
+except ValueError as e:
+    check('to_native_chat: un URL http di immagine viene rifiutato (non si scarica da qui)', 'image_url_not_inline' in str(e))
+n = bl.to_native_chat({'model': 'm', 'messages': [{'role': 'user', 'content': 'x'}],
+                       'response_format': {'type': 'json_schema', 'json_schema': {'schema': {'type': 'object'}}}})
+check('to_native_chat: json_schema → format = lo schema', n['format'] == {'type': 'object'})
+o = bl.from_native_chat({'model': 'm', 'message': {'role': 'assistant', 'content': '<think>bla'}, 'done_reason': 'length', 'prompt_eval_count': 4, 'eval_count': 60})
+check('from_native_chat: <think> troncato = tutto ragionamento → contenuto vuoto e finish_reason length',
+      o['choices'][0]['message']['content'] == '' and o['choices'][0]['finish_reason'] == 'length' and o['usage']['completion_tokens'] == 60)
+o = bl.from_native_chat({'message': {'content': '<think>x</think> {"a":1}'}}, 'fallback-model')
+check('from_native_chat: ragionamento chiuso tolto, modello di ripiego, finish stop',
+      o['choices'][0]['message']['content'] == '{"a":1}' and o['model'] == 'fallback-model' and o['choices'][0]['finish_reason'] == 'stop')
+
 # ── il server VERO contro un Ollama finto ─────────────────────────────────
 seen = []
 
@@ -118,9 +143,16 @@ class FakeOllama(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         n = int(self.headers.get('Content-Length') or 0)
         body = json.loads(self.rfile.read(n) or b'{}')
-        seen.append(('POST', self.path, body.get('model'), body.get('response_format')))
-        self._reply({'choices': [{'message': {'role': 'assistant', 'content': '{"ok":true}'}, 'finish_reason': 'stop'}],
-                     'usage': {'prompt_tokens': 10, 'completion_tokens': 3}, 'model': body.get('model')})
+        if self.path == '/v1/chat/completions':
+            # La rotta compatibile lascia pensare qwen3: il ponte NON deve usarla.
+            seen.append(('POST', self.path, 'COMPAT'))
+            return self._reply({'error': 'compat route must not be used'}, 500)
+        seen.append(('POST', self.path, body.get('model'), body.get('format'), body.get('think'),
+                     (body.get('options') or {}).get('num_predict'), body.get('stream')))
+        user = ''.join(m.get('content', '') for m in body.get('messages', []) if m.get('role') == 'user')
+        content = '<think>ragiono a lungo</think>{"ok":true}' if 'pensa' in user else '{"ok":true}'
+        self._reply({'model': body.get('model'), 'message': {'role': 'assistant', 'content': content},
+                     'done': True, 'done_reason': 'stop', 'prompt_eval_count': 10, 'eval_count': 3})
 
 
 class TS(socketserver.ThreadingMixIn, http.server.HTTPServer):
@@ -157,10 +189,20 @@ s, j = call('/v1/models', H)
 check('/v1/models col bearer → passa a Ollama e torna la lista', s == 200 and j['data'][0]['id'] == 'qwen3:8b' and seen[-1] == ('GET', '/v1/models'))
 s, j = call('/api/pull', H)
 check('/api/pull col bearer → 404 (API nativa mai esposta)', s == 404 and seen[-1] == ('GET', '/v1/models'))
-body = json.dumps({'model': 'qwen3:8b', 'messages': [{'role': 'user', 'content': 'x'}], 'response_format': {'type': 'json_object'}}).encode()
+body = json.dumps({'model': 'qwen3:8b', 'max_tokens': 60, 'messages': [{'role': 'user', 'content': 'x'}], 'response_format': {'type': 'json_object'}}).encode()
 s, j = call('/v1/chat/completions', H, body)
-check('completion: body inoltrato intatto (modello e json mode), risposta di Ollama restituita',
-      s == 200 and j['choices'][0]['message']['content'] == '{"ok":true}' and seen[-1] == ('POST', '/v1/chat/completions', 'qwen3:8b', {'type': 'json_object'}))
+check('completion → /api/chat NATIVA con think:false, format json, num_predict dal max_tokens, mai stream',
+      s == 200 and seen[-1] == ('POST', '/api/chat', 'qwen3:8b', 'json', False, 60, False))
+check('completion: la risposta nativa torna in forma OpenAI (choices, finish_reason, usage)',
+      s == 200 and j['choices'][0]['message']['content'] == '{"ok":true}' and j['choices'][0]['finish_reason'] == 'stop'
+      and j['usage'] == {'prompt_tokens': 10, 'completion_tokens': 3, 'total_tokens': 13} and j['model'] == 'qwen3:8b')
+check('la rotta compatibile di Ollama non viene MAI chiamata per una completion', not any(x[1] == '/v1/chat/completions' for x in seen))
+body = json.dumps({'model': 'qwen3:8b', 'think': True, 'messages': [{'role': 'user', 'content': 'pensa'}]}).encode()
+s, j = call('/v1/chat/completions', H, body)
+check('think esplicito nel body → passato al nativo; il <think> residuo nel testo viene tolto',
+      s == 200 and seen[-1][4] is True and j['choices'][0]['message']['content'] == '{"ok":true}')
+s, j = call('/v1/chat/completions', H, b'{"model":"qwen3:8b"}')
+check('completion senza messages → 400 dichiarato, Ollama non toccato', s == 400 and seen[-1][1] == '/api/chat')
 s, j = call('/v1/audio/transcriptions', H, b'x')
 check('STT senza STT_URL → 501 dichiarato', s == 501 and j.get('error') == 'stt_unconfigured')
 big_hdr = dict(H); big_hdr['Content-Length'] = str(bl.MAX_BODY + 1)

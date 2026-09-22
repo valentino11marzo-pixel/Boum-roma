@@ -168,6 +168,7 @@ Per togliere il ponte dal Mac: `launchctl unload
 | `/ai` dice «irraggiungibile» | tunnel non attivo o token diverso | sul Mac `tailscale funnel status`; il token su Vercel deve essere IDENTICO a quello in `~/boom-locale/.env` |
 | `/ai` dice «non configurato» | mancano le env su Vercel | incolla le righe e fai Redeploy |
 | le chiamate ricadono sempre sul cloud (`ricadute` alte in `/ai`) | modello troppo lento per il tetto di 20 s | modello più piccolo: `LOCALE_MODEL=qwen3:8b` nel `.env`, poi rilancia l'installer |
+| `--test` dice KO sulla completion JSON con «Expecting value» | il modello ha speso i token nel ragionamento (qwen3 «pensa» di default) | il ponte lo spegne da solo traducendo sull'API nativa di Ollama: aggiorna `boom_locale.py` (rilancia l'installer) e riprova `--test` |
 | l'ombra dice «bocciata» | il modello sbaglia su quello scopo | lascia quello scopo in cloud; prova un modello più grande se la memoria lo regge |
 | il Mac si riavvia e il ponte non torna | login automatico spento | Impostazioni → Utenti → Login automatico per `boomserver` (come per gli altri bracci) |
 
