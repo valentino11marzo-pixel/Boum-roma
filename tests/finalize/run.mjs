@@ -304,6 +304,17 @@ const magicKeys = () => [...store.keys()].filter(k => k.startsWith('magicLinks/'
     pipefailAt > -1 && teeAt > -1 && pipefailAt < teeAt);
   check('sorgente CI: il successo si dimostra (grep "Deploy complete"), non si presume',
     ci.includes('Deploy complete'));
+  // 22/09/2026: la chiave JSON della service account e' vietata dalla policy
+  // dell'organizzazione Google; la credenziale e' la FEDERAZIONE (token OIDC
+  // di GitHub → credenziale temporanea). Il passo di auth deve PRECEDERE il
+  // deploy e il job deve riconoscerla, altrimenti ricade sul token scaduto
+  // e tace.
+  const authAt = ci.indexOf('google-github-actions/auth@');
+  const deployAt = ci.indexOf('name: Deploy firestore.rules + storage.rules');
+  check('sorgente CI: la credenziale federata (google-github-actions/auth) precede il deploy e il job la riconosce (CRED_KIND=wif)',
+    authAt > -1 && deployAt > -1 && authAt < deployAt && ci.includes('CRED_KIND=wif') && ci.includes('id-token: write'));
+  check('sorgente CI: l\'avvio manuale da un ramo deploya le rules SOLO con la spunta esplicita (un ramo vecchio non regredisce la produzione)',
+    ci.includes('inputs.deploy_rules_from_branch == true') && ci.includes("github.event_name == 'push' && github.ref == 'refs/heads/main'"));
 
   const rules = readFileSync(new URL('../../storage.rules', import.meta.url), 'utf8');
   check('storage.rules: rendiconti/ ha il suo match (senza, l\'upload admin 403a — successo il 1/09)',

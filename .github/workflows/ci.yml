@@ -146,6 +146,19 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # La credenziale SENZA chiave. Il job chiede a GitHub un token OIDC
+      # («sono un job del repo valentino11marzo-pixel/Boum-roma»), lo porta
+      # al pool/provider `github` del progetto Google, e il pool — che
+      # accetta SOLO quel repo (condizione e filtro sull'attributo
+      # repository, impostati nella console il 22/09/2026) — lo scambia con
+      # una credenziale di un'ora dell'account firebase-adminsdk. Provider e
+      # account non sono segreti: senza il token firmato da GitHub non
+      # aprono niente. Niente file JSON, niente refresh token da rinnovare.
+      - name: Credenziale federata (Workload Identity Federation, nessuna chiave)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/937269017440/locations/global/workloadIdentityPools/github/providers/github
+          service_account: firebase-adminsdk-fbsvc@boom-property-dashboards.iam.gserviceaccount.com
       - name: Deploy firestore.rules + storage.rules
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
