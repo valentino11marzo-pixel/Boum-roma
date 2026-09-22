@@ -2982,7 +2982,23 @@ non in listen SCARTA il SYN (Linux risponde RST). È il motivo per cui
 l'installer «impaziente» dei 10 s aveva dichiarato morto un ponte vivo.
 `ThreadedServer.server_bind` salta la lookup (`server_name` non lo usa
 nessuno), backlog a 32; il test patcha `socket.getfqdn` e pretende che
-l'avvio non lo chiami (l'`HTTPServer` nudo lo chiama: verificato). 57 check.
+l'avvio non lo chiami (l'`HTTPServer` nudo lo chiama: verificato). **Il quinto, sull'https del Funnel: acceso, risolto, e appeso.** `tailscale
+funnel status` diceva «Funnel on», il DNS pubblico rispondeva, e l'handshake
+TLS restava senza risposta anche dopo 120 s. Let's Encrypt emette il
+certificato alla PRIMA richiesta https (sfida DNS + propagazione, fino a un
+minuto); un client che chiude a 15-20 s — il `curl --max-time 15`
+dell'installer, il server su Vercel col suo tetto di 20 s — interrompe
+l'emissione con sé, e ogni tentativo riparte da capo: l'URL non si sblocca
+MAI da solo, e il messaggio dell'installer («il DNS può volerci un minuto»)
+era la diagnosi sbagliata. Ora, subito dopo `funnel --bg`, l'installer
+chiama `tailscale cert <nome>` (aspetta quanto serve e stampa l'errore vero
+— di solito «HTTPS Certificates» spento nella console → DNS) in una
+cartella temporanea che sparisce (mai `/dev/null`: «already exists and is
+not a regular file»), poi prova `/health` a 30 s; e la prova da quel Mac
+non si spaccia per «raggiungibile da internet» — da lì il nome risolve via
+MagicDNS sull'IP del tailnet, non sull'ingresso del Funnel; la prova vera è
+un telefono su rete mobile. Il sandbox non può farla (policy di egress:
+403 sul CONNECT verso `*.ts.net`). 62 check.
 
 **Il merge con l'Innesto 3.0 e la Segretaria di Codex (22/09/2026).** Su
 `main` erano intanto arrivati l'Innesto 3.0 (`api/portal/ingest.js`: Opus 5,

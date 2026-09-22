@@ -35,7 +35,9 @@ Cosa fa da solo:
 - scarica il modello con Ollama (la prima volta qualche minuto);
 - installa il **ponte con la serratura** (`boom_locale.py`): solo chi ha il
   token può parlare col Mac, e solo per le tre rotte che servono;
-- accende il tunnel Tailscale e stampa l'indirizzo https;
+- accende il tunnel Tailscale, **emette subito il certificato https** (Let's
+  Encrypt: la prima volta fino a un minuto, e senza questo passo la prima
+  richiesta resta appesa) e stampa l'indirizzo;
 - **stampa le righe da incollare su Vercel**.
 
 Se Tailscale non è ancora dentro, lo dice e si ferma lì: entri nell'app e
@@ -166,6 +168,7 @@ Per togliere il ponte dal Mac: `launchctl unload
 | Sintomo | Causa probabile | Cosa fare |
 |---|---|---|
 | `/ai` dice «irraggiungibile» | tunnel non attivo o token diverso | sul Mac `tailscale funnel status`; il token su Vercel deve essere IDENTICO a quello in `~/boom-locale/.env` |
+| l'indirizzo https del Funnel resta appeso (curl «timed out», anche dopo 120 s) mentre `tailscale funnel status` dice «Funnel on» | il certificato non è mai stato emesso: Let's Encrypt lo emette alla PRIMA richiesta e ci vuole fino a un minuto; un client che chiude a 15-20 s interrompe l'emissione, e ogni tentativo riparte da capo | dal Mac: `mkdir -p /tmp/tscert && cd /tmp/tscert && tailscale cert mac-mini-di-boom.<rete>.ts.net; cd ~ && rm -rf /tmp/tscert` — aspetta che finisca (se fallisce, dice perché: di solito «HTTPS Certificates» spento nella console Tailscale → DNS). Poi `curl -sS -m 60 https://…/health` → `{"ok": true}`. L'installer aggiornato lo fa da solo |
 | `/ai` dice «non configurato» | mancano le env su Vercel | incolla le righe e fai Redeploy |
 | le chiamate ricadono sempre sul cloud (`ricadute` alte in `/ai`) | modello troppo lento per il tetto di 20 s | modello più piccolo: `LOCALE_MODEL=qwen3:8b` nel `.env`, poi rilancia l'installer |
 | `--test` dice KO sulla completion JSON con «Expecting value» | il modello ha speso i token nel ragionamento (qwen3 «pensa» di default) | il ponte lo spegne da solo traducendo sull'API nativa di Ollama: aggiorna `boom_locale.py` (rilancia l'installer) e riprova `--test` |

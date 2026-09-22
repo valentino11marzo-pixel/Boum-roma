@@ -19,6 +19,7 @@
 #   3. installa il PONTE con la serratura (boom_locale.py + LaunchAgent
 #      KeepAlive) e genera LOCAL_AI_TOKEN se manca
 #   4. espone il ponte con Tailscale Funnel (https stabile, senza dominio)
+#      ed emette SUBITO il certificato (la prima richiesta altrimenti resta appesa)
 #   5. stampa le righe da incollare su Vercel e prova il giro
 #
 # Prerequisiti, una volta:
@@ -305,7 +306,31 @@ else
       note "  il comando qui sopra stampa il link (Access Controls → Funnel). Poi rilancia."
     else
       note "URL pubblico: $URL"
-      if curl -fsS --max-time 15 "$URL/health" >/dev/null 2>&1; then note "raggiungibile da internet ✓"; else note "⚠ $URL/health non risponde ancora (il DNS può volerci un minuto)"; fi
+      # Il certificato https lo emette Let's Encrypt alla PRIMA richiesta, e
+      # può volerci un minuto (sfida DNS + propagazione). Un client che
+      # aspetta 15-20 s — questo curl, il server su Vercel col suo tetto —
+      # chiude prima, e l'emissione muore con lui: ogni tentativo riparte da
+      # capo e l'URL resta "appeso" per sempre (22/09: 120 s di handshake
+      # senza risposta, con il Funnel acceso e il DNS giusto). `tailscale
+      # cert` aspetta quanto serve e, se qualcosa non va, lo DICE. I file che
+      # scrive sono copie (tailscaled tiene la sua): cartella temporanea, via
+      # subito. Mai /dev/null come file: "already exists and is not a
+      # regular file".
+      note "certificato https (Let's Encrypt): la prima emissione può volerci un minuto, aspetta…"
+      CERTD="$(mktemp -d)"
+      if "$TS" cert --cert-file "$CERTD/c.crt" --key-file "$CERTD/c.key" "$HOSTN" >/dev/null 2>"$CERTD/err"; then
+        note "certificato emesso ✓"
+      else
+        note "⚠ certificato NON emesso: $(tr '\n' ' ' <"$CERTD/err" | cut -c1-300)"
+        note "  (nella console Tailscale → DNS deve essere acceso «HTTPS Certificates»; poi rilancia)"
+      fi
+      rm -rf "$CERTD"
+      if curl -fsS --max-time 30 "$URL/health" >/dev/null 2>&1; then
+        note "risponde in https ✓ (verificato da questo Mac; la prova dall'esterno è il telefono su rete mobile: $URL/health)"
+      else
+        note "⚠ $URL/health non risponde in https: senza certificato il tunnel non parla. Riprova fra un minuto:"
+        note "  curl -sS -m 60 $URL/health"
+      fi
     fi
   }
 fi

@@ -276,6 +276,27 @@ check('install_locale.sh: il ramo app resta (launchctl setenv + riapertura), dic
       'launchctl setenv OLLAMA_CONTEXT_LENGTH 16384' in inst and 'open -a Ollama' in inst
       and 'sopravvivono a un riavvio' in inst)
 
+# ── Il certificato del Funnel si emette SUBITO (22/09: l'https "appeso") ──
+# Let's Encrypt emette il certificato alla PRIMA richiesta https e ci vuole
+# fino a un minuto; un client che chiude a 15-20 s (curl, il server su
+# Vercel) interrompe l'emissione, e ogni tentativo riparte da capo: con il
+# Funnel acceso e il DNS giusto l'handshake restava senza risposta anche
+# dopo 120 s. `tailscale cert` aspetta quanto serve e dice l'errore.
+i_fun = inst.find('funnel --bg')
+i_cert = inst.find(' cert --cert-file')
+i_health = inst.find('"$URL/health"')
+check('install_locale.sh: dopo il Funnel emette il certificato con `tailscale cert`, PRIMA di provare /health',
+      0 < i_fun < i_cert < i_health)
+check('install_locale.sh: i file del certificato vanno in una cartella temporanea che sparisce',
+      'CERTD="$(mktemp -d)"' in inst and '--cert-file "$CERTD/c.crt" --key-file "$CERTD/c.key"' in inst
+      and 'rm -rf "$CERTD"' in inst and inst.find('rm -rf "$CERTD"') > i_cert)
+check('install_locale.sh: mai /dev/null come file del certificato (tailscale lo rifiuta)',
+      '--cert-file /dev/null' not in inst and '--key-file /dev/null' not in inst)
+check('install_locale.sh: un certificato non emesso viene DETTO con il suo errore, non spacciato per DNS lento',
+      'certificato NON emesso' in inst and 'il DNS può volerci un minuto' not in inst)
+check('install_locale.sh: la prova da questo Mac non si spaccia per "raggiungibile da internet"',
+      'raggiungibile da internet' not in inst and 'verificato da questo Mac' in inst)
+
 print(f"\n{'✓' if not failed else '✗'} locale: {passed} passed, {failed} failed")
 if bad:
     print('  -', '\n  - '.join(bad))
