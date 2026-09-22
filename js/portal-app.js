@@ -19589,7 +19589,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const tenant = S.users.find(u => u.id === contract.tenantId);
             const landlord = property ? S.users.find(u => u.id === property.ownerId) : null;
             const CP = window.BOOM_CONTRACT_PDF;
-            if (!CP || !window.jspdf) { console.error('[BOOM] contract-pdf module or jsPDF missing'); return false; }
+            if (!CP) { console.error('[BOOM] contract-pdf module missing'); return false; }
+            if (!window.jspdf || typeof window.jspdf.jsPDF !== 'function') await window.boomEnsureJsPDF();
 
             const built = CP.build({ jsPDF: window.jspdf.jsPDF, contractId, contract, property, tenant, landlord });
 

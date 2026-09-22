@@ -1817,6 +1817,14 @@ conversione. Il modello in vigore è VERBATIM il contratto tipo
 dell'associazione (`reference/contratto_tipo_STUDENTI_Roma_2023.doc`,
 prot. RA/2023/0044852 — stesso MD5 del file del referente).
 
+**PDF al primo clic** (22/09/2026): il loader idle di `portal.html` poteva
+non avere ancora caricato jsPDF quando `generateContractPDF` lo cercava,
+restituendo subito errore. `boomEnsureJsPDF()` avvia e condivide la richiesta
+con il preload; il generatore attende. Errore CDN o attesa oltre 20 secondi
+liberano il tentativo: il clic successivo riprova, senza ricaricare il portal.
+Test: `tests/contractpdf/loading.mjs`, handler e renderer reali, IO simulato,
+PDF effettivo, nessuna scrittura su errore e mutazione senza attesa.
+
 ### Journey consapevole (contesto nel `_run.js`)
 `steps()` riceve `missing`, `late` e `walletUrl`: il T-14 chiede PER NOME
 ciò che manca (link `/scheda` derivato — anagrafica e/o foto documento)
