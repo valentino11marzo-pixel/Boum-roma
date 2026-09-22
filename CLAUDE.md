@@ -5195,6 +5195,10 @@ riproduce lo spinner infinito e pretende la card di uscita.
 **Nota**: `owner-dashboard.html` è oggi una pagina STATICA — non carica
 Firebase né autentica nessuno, malgrado la tabella dei portali qui sopra lo
 descriva come SPA Firestore filtrata per `ownerId`.
+La misura completa (bottone ✔ morto del landlord, archivio vuoto per
+costruzione, documenti solo via email) e il piano per UNA superficie
+proprietario sui dati veri stanno in `STUDIO_ARCHIVIO_PROPRIETARIO_2026-09.md`,
+sessione condivisa Claude ⇄ Codex (prompt: `docs/PROMPT_CODEX_PROPRIETARIO.md`).
 
 **Deal Link** (`/portal#deal=<base64url JSON>`): semina il wizard
 "🚀 Nuovo cliente → contratto firmato" con un deal completo — `{tenant,

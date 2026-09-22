@@ -6,6 +6,9 @@ leggerlo PRIMA di toccare un file (è lungo: cerca la sezione del componente
 su cui lavori). La missione in corso e la divisione del lavoro stanno in
 `STUDIO_SEGRETARIA_UNICA_2026-09.md` §5: se un'istruzione contraddice lo
 studio, vince lo studio.
+Seconda missione, in parallelo: l'Archivio del Proprietario — tavolo
+condiviso e lotti in `STUDIO_ARCHIVIO_PROPRIETARIO_2026-09.md` (§6 lotti,
+§9 registro append-only: le decisioni fra Claude e Codex si scrivono lì).
 
 ## Cos'è
 
