@@ -88,6 +88,25 @@ await test('blocked CDN request times out and can be retried without reloading p
   assert.equal(await task, false); assert.equal(f.writes.length, 0); assert(f.pdfScripts()[0].removed);
   const retry = f.generate(); await flush(); f.load(f.pdfScripts()[1]); assert.equal(await retry, true);
 });
+for (const failure of ['network error', 'timeout']) {
+  await test('same-tick retries after ' + failure + ' share the exact Promise and one new script', async () => {
+    const f = fixture();
+    const first = f.generate(); await flush();
+    if (failure === 'timeout') f.fire(20000);
+    else f.pdfScripts()[0].onerror();
+    assert.equal(await first, false);
+    assert.equal(f.pdfScripts().length, 1);
+    // Deliberately no await between retries: both calls run in the same stack.
+    const a = f.ctx.boomEnsureJsPDF();
+    const b = f.ctx.boomEnsureJsPDF();
+    assert.strictEqual(a, b);
+    assert.equal(f.pdfScripts().length, 2, 'one failed script plus exactly one retry');
+    f.load(f.pdfScripts()[1]);
+    assert.equal(await a, jsPDF); assert.equal(await b, jsPDF);
+    assert.equal(await f.ctx.boomEnsureJsPDF(), jsPDF);
+    assert.equal(f.pdfScripts().length, 2, 'success fast-path never downloads again');
+  });
+}
 await test('script load without jsPDF constructor is failure, not a stored document', async () => {
   const f = fixture(); const task = f.generate(); await flush();
   assert.equal(f.pdfScripts().length, 1); f.ctx.jspdf = {}; f.pdfScripts()[0].onload();
