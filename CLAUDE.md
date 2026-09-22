@@ -2932,6 +2932,21 @@ schermo, login nella finestra) è inerte; la via è il demone Homebrew
 L'installer sceglie il Tailscale che RISPONDE a `status`, non il primo file
 che esiste, e per l'altro dice cosa fare. E nei blocchi copia-incolla **mai
 un commento `#`**: zsh interattivo non li accetta e li esegue come parole.
+**Il secondo intoppo della stessa sera: Ollama non c'era.** La guida lo
+dava per «già installato» — un'assunzione scritta come un fatto, mai letta
+dal Mac — e l'unica via dell'installer era «scaricalo da ollama.com e apri
+l'app», che via SSH non è una via. Ora, se `ollama` manca e c'è Homebrew,
+l'installer fa `brew install ollama` (la formula: solo il binario, senza
+finestra) e, senza `Ollama.app`, tiene su il server con un LaunchAgent
+NOSTRO, `com.boom.ollama`, con `OLLAMA_CONTEXT_LENGTH`/`OLLAMA_KEEP_ALIVE`
+scritti NEL plist e `OLLAMA_HOST=127.0.0.1:11434` (la serratura è il ponte:
+Ollama non si espone). Il plist sopravvive al riavvio; `launchctl setenv`
+— la via del ramo app, quella che la doc di Ollama consiglia — no: dopo un
+reboot l'app riparte col contesto di default. Dichiarato nel sorgente, non
+risolto (il Mac mini non ha l'app). Un solo server su :11434: se lo occupa
+un altro `ollama` (brew services, un `serve` a mano) l'installer lo ferma
+prima di caricare il suo, altrimenti il suo entra in crash loop. Cinque
+check in più in `tests/locale/runner.py` (45).
 
 **Il merge con l'Innesto 3.0 e la Segretaria di Codex (22/09/2026).** Su
 `main` erano intanto arrivati l'Innesto 3.0 (`api/portal/ingest.js`: Opus 5,

@@ -11,7 +11,8 @@
 # .env esistente se non per aggiungere chiavi mancanti):
 #   1. legge chip e memoria del Mac e sceglie il modello (LOCALE_MODEL nel
 #      .env vince, se lo hai già scelto tu)
-#   2. controlla Ollama (installato + acceso), scarica il modello, e gli dà
+#   2. Ollama: lo installa se manca (brew), lo tiene ACCESO (LaunchAgent
+#      com.boom.ollama, o l'app se c'è), scarica il modello, e gli dà
 #      contesto lungo + modello sempre caricato (OLLAMA_CONTEXT_LENGTH /
 #      OLLAMA_KEEP_ALIVE) — senza, la prima chiamata dopo un'ora di silenzio
 #      supera il tetto di 20 s del server
@@ -21,7 +22,9 @@
 #   5. stampa le righe da incollare su Vercel e prova il giro
 #
 # Prerequisiti, una volta:
-#   · Ollama:    https://ollama.com/download  (apri l'app: icona nella barra)
+#   · Ollama: NIENTE, se c'è Homebrew — lo installa questo script (formula,
+#     senza finestra) e lo tiene su come LaunchAgent. In alternativa l'app
+#     da https://ollama.com/download (aprila una volta): lo script usa quella.
 #   · Tailscale, in UNA delle due forme:
 #       - senza schermo (SSH, il caso del Mac mini): il demone Homebrew —
 #           brew install tailscale
@@ -97,28 +100,99 @@ note "($PICK_NOTE)"
 
 # ── 2. Ollama ────────────────────────────────────────────────────────────────
 say "Ollama"
-command -v ollama >/dev/null 2>&1 || die "Ollama non trovato. Scaricalo da https://ollama.com/download, apri l'app una volta, poi rilancia questo comando."
-if ! curl -fsS --max-time 3 http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
-  note "non risponde: lo apro…"
-  open -a Ollama 2>/dev/null || true
-  for _ in $(seq 1 20); do sleep 1; curl -fsS --max-time 2 http://127.0.0.1:11434/api/tags >/dev/null 2>&1 && break; done
-  curl -fsS --max-time 3 http://127.0.0.1:11434/api/tags >/dev/null 2>&1 || die "Ollama non risponde su :11434. Aprilo dalla cartella Applicazioni e rilancia."
+# Due forme, come per Tailscale: l'APP (Ollama.app gestisce da sé il server
+# e vuole una sessione grafica per aprirsi) o la FORMULA Homebrew (solo il
+# binario: il server lo teniamo su NOI con un LaunchAgent, senza finestra —
+# il caso del Mac mini via SSH, 22/09, dove Ollama non c'era affatto e
+# "scaricalo da ollama.com, apri l'app" non era una via percorribile).
+# Un solo server su :11434, e chi lo gestisce è deciso qui, non dal caso.
+OLLAMA_APP=/Applications/Ollama.app
+OLLAMA_BIN="$(command -v ollama || true)"
+if [ -z "$OLLAMA_BIN" ] && [ -x "$OLLAMA_APP/Contents/Resources/ollama" ]; then
+  OLLAMA_BIN="$OLLAMA_APP/Contents/Resources/ollama"
 fi
-note "acceso ✓"
-# Contesto lungo (il catalogo dell'interprete + il system prompt superano i
-# 4096 di default) e modello SEMPRE caricato (scaricarlo dopo 5' di silenzio
-# = 10-30 s di attesa alla chiamata dopo, oltre il tetto del server).
-launchctl setenv OLLAMA_CONTEXT_LENGTH 16384
-launchctl setenv OLLAMA_KEEP_ALIVE -1
-note "contesto 16k · modello sempre in memoria (riavvio Ollama per applicare)"
-osascript -e 'quit app "Ollama"' >/dev/null 2>&1 || true
-sleep 2; open -a Ollama 2>/dev/null || true
-for _ in $(seq 1 20); do sleep 1; curl -fsS --max-time 2 http://127.0.0.1:11434/api/tags >/dev/null 2>&1 && break; done
+if [ -z "$OLLAMA_BIN" ]; then
+  if command -v brew >/dev/null 2>&1; then
+    note "non trovato: lo installo con Homebrew (la formula, senza finestra: va bene via SSH)…"
+    brew install ollama || die "brew install ollama fallito"
+    OLLAMA_BIN="$(command -v ollama || true)"
+    [ -n "$OLLAMA_BIN" ] || OLLAMA_BIN="$(brew --prefix 2>/dev/null)/bin/ollama"
+  fi
+  [ -x "${OLLAMA_BIN:-/nonexistent}" ] || die "Ollama non trovato. Con Homebrew: brew install ollama — oppure scaricalo da https://ollama.com/download, apri l'app una volta, poi rilancia questo comando."
+fi
+note "binario: $OLLAMA_BIN"
+ollama_alive() { curl -fsS --max-time 2 http://127.0.0.1:11434/api/tags >/dev/null 2>&1; }
+ollama_wait()  { for _ in $(seq 1 30); do ollama_alive && return 0; sleep 1; done; ollama_alive; }
+if [ -d "$OLLAMA_APP" ]; then
+  # L'app: le variabili passano da launchctl setenv (come dice la doc di
+  # Ollama) e valgono per le app aperte DOPO, quindi si riavvia. NON
+  # sopravvivono a un riavvio del Mac: dopo un reboot l'app riparte col
+  # contesto di default (dichiarato, non risolto — il ramo formula non ha
+  # il problema perché le variabili stanno nel plist).
+  launchctl setenv OLLAMA_CONTEXT_LENGTH 16384
+  launchctl setenv OLLAMA_KEEP_ALIVE -1
+  osascript -e 'quit app "Ollama"' >/dev/null 2>&1 || true
+  sleep 2; open -a Ollama 2>/dev/null || true
+  ollama_wait || die "Ollama.app non risponde su :11434. Aprila dalla cartella Applicazioni (serve una sessione grafica) e rilancia."
+  note "app · contesto 16k · modello sempre in memoria (fino al prossimo riavvio del Mac) ✓"
+else
+  # La formula: il server è un LaunchAgent NOSTRO, con le variabili nel
+  # plist (sopravvivono al riavvio) e legato a 127.0.0.1 (la serratura è il
+  # ponte: Ollama non si espone). Se :11434 è già occupato da un altro
+  # ollama (brew services, un `ollama serve` a mano) lo fermiamo prima: due
+  # server sulla stessa porta = il nostro in crash loop.
+  if ollama_alive && ! launchctl list 2>/dev/null | grep -q 'com\.boom\.ollama$'; then
+    note "un altro server Ollama occupa :11434 — lo fermo (da ora lo tiene su launchd)"
+    brew services stop ollama >/dev/null 2>&1 || true
+    pkill -x ollama 2>/dev/null || true
+    sleep 2
+  fi
+  cat > "$AGENTS_DIR/com.boom.ollama.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.boom.ollama</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$OLLAMA_BIN</string>
+        <string>serve</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>$HOME</string>
+        <key>OLLAMA_HOST</key>
+        <string>127.0.0.1:11434</string>
+        <key>OLLAMA_CONTEXT_LENGTH</key>
+        <string>16384</string>
+        <key>OLLAMA_KEEP_ALIVE</key>
+        <string>-1</string>
+    </dict>
+    <key>KeepAlive</key>
+    <true/>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>15</integer>
+    <key>StandardOutPath</key>
+    <string>$DIR/ollama.log</string>
+    <key>StandardErrorPath</key>
+    <string>$DIR/ollama.err.log</string>
+</dict>
+</plist>
+PLIST
+  launchctl unload "$AGENTS_DIR/com.boom.ollama.plist" 2>/dev/null || true
+  launchctl load "$AGENTS_DIR/com.boom.ollama.plist"
+  ollama_wait || die "Ollama non risponde su :11434 — guarda $DIR/ollama.err.log"
+  note "com.boom.ollama · sempre acceso · contesto 16k · modello sempre in memoria ✓"
+fi
 say "Scarico $MODEL (la prima volta sono alcuni GB: qualche minuto)…"
-ollama pull "$MODEL" || die "ollama pull $MODEL fallito"
+"$OLLAMA_BIN" pull "$MODEL" || die "ollama pull $MODEL fallito"
 if [ -n "$VISION" ]; then
   say "Scarico il modello con visione $VISION…"
-  ollama pull "$VISION" || { note "⚠ visione non scaricata: le immagini restano in cloud"; VISION=''; }
+  "$OLLAMA_BIN" pull "$VISION" || { note "⚠ visione non scaricata: le immagini restano in cloud"; VISION=''; }
 fi
 
 # ── 3. Il ponte con la serratura ─────────────────────────────────────────────

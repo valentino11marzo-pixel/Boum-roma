@@ -13,8 +13,10 @@ cloud riprende da solo. Si accende e si spegne da Telegram.
 
 ## Prima di cominciare (sul Mac mini, una volta)
 
-1. **Ollama** — scaricalo da https://ollama.com/download, apri l'app
-   (compare un'icona nella barra dei menu). Fatto.
+1. **Ollama** — niente da fare, se sul Mac c'è Homebrew: l'installer lo
+   installa da solo (la formula, senza finestra) e lo tiene acceso come
+   servizio. Se preferisci l'app, scaricala da https://ollama.com/download e
+   aprila una volta (icona nella barra dei menu): l'installer usa quella.
 2. **Tailscale** — scaricalo da https://tailscale.com/download/mac, apri
    l'app, accedi con Google. Serve per far arrivare il server al Mac in
    https, senza aprire porte sul router.
@@ -84,12 +86,11 @@ tailscale login
 
 Controllo: `tailscale status` deve stampare il Mac con un indirizzo 100.x.
 
-**2. Ollama acceso.** Già installato; deve essere in esecuzione (l'installer
-lo apre da solo se serve):
-
-```
-open -a Ollama
-```
+**2. Ollama.** Niente da fare: se manca, l'installer lo installa con
+Homebrew (`brew install ollama`, un minuto) e lo tiene acceso come servizio
+`com.boom.ollama`, senza finestra e con il contesto lungo scritto nel
+servizio (sopravvive al riavvio). Il 22/09 sul Mac mini non c'era, e la
+prima versione di questa guida lo dava per «già installato».
 
 **3. L'installer.** Scarica il modello, mette il ponte, apre il tunnel e
 **stampa le 4 righe `LOCAL_AI_*`**. Se dice che il Funnel va abilitato,

@@ -197,6 +197,30 @@ check('install_locale.sh: contesto lungo e keep-alive per Ollama', 'OLLAMA_CONTE
 check('install_locale.sh: token generato con openssl, mai scritto nel repo', 'openssl rand -hex 24' in inst)
 check('install_locale.sh: .env mai clobberato (ensure_env)', 'ensure_env' in inst and 'chmod 600' in inst)
 
+# ── Ollama senza finestra (22/09: sul Mac mini non c'era affatto) ─────────
+# Se manca lo installa (formula Homebrew), e senza l'app lo tiene su come
+# LaunchAgent NOSTRO con le variabili NEL plist: `launchctl setenv` non
+# sopravvive al riavvio, un plist sì. Un solo server su :11434, legato a
+# 127.0.0.1 (la serratura è il ponte).
+check('install_locale.sh: Ollama assente → brew install ollama, mai "scaricalo e apri l\'app" come unica via',
+      'brew install ollama' in inst)
+i0 = inst.find('com.boom.ollama.plist" <<PLIST')
+i1 = inst.find('\nPLIST', i0)
+plist = inst[i0:i1] if i0 > 0 and i1 > i0 else ''
+check('install_locale.sh: LaunchAgent com.boom.ollama con contesto e keep-alive NEL plist',
+      '<string>com.boom.ollama</string>' in plist
+      and '<key>OLLAMA_CONTEXT_LENGTH</key>' in plist and '<string>16384</string>' in plist
+      and '<key>OLLAMA_KEEP_ALIVE</key>' in plist and '<string>-1</string>' in plist
+      and '<key>KeepAlive</key>' in plist and '<key>RunAtLoad</key>' in plist)
+check('install_locale.sh: il server Ollama del LaunchAgent è legato a 127.0.0.1 (mai esposto)',
+      '<key>OLLAMA_HOST</key>' in plist and '<string>127.0.0.1:11434</string>' in plist)
+check('install_locale.sh: un server estraneo su :11434 viene fermato SOLO se il nostro agente non è caricato',
+      "launchctl list 2>/dev/null | grep -q 'com\\.boom\\.ollama$'" in inst and 'pkill -x ollama' in inst
+      and inst.find("grep -q 'com\\.boom\\.ollama$'") < inst.find('pkill -x ollama'))
+check('install_locale.sh: il ramo app resta (launchctl setenv + riapertura), dichiarato non persistente',
+      'launchctl setenv OLLAMA_CONTEXT_LENGTH 16384' in inst and 'open -a Ollama' in inst
+      and 'sopravvivono a un riavvio' in inst)
+
 print(f"\n{'✓' if not failed else '✗'} locale: {passed} passed, {failed} failed")
 if bad:
     print('  -', '\n  - '.join(bad))
