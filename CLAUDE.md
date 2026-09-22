@@ -1999,6 +1999,30 @@ Un giro solo, otto interventi, 33 suite verdi:
   servizio → "Genera nuova chiave privata". `FIREBASE_TOKEN` resta come
   ripiego dichiarato (warning in job) finché la chiave non c'è; senza
   nessuna credenziale il job avvisa e salta.
+  **22/09/2026 — la chiave non si può generare.** Firebase console: «La
+  creazione di chiavi non è consentita per questo service account»: è la
+  policy dell'organizzazione Google (`iam.disableServiceAccountKeyCreation`,
+  accesa di default sulle org Workspace), e ha ragione — una chiave JSON è
+  una password perenne. La credenziale è ora la **federazione** (Workload
+  Identity Federation): sul progetto un pool `github` con provider OIDC
+  `github` (issuer `token.actions.githubusercontent.com`, mappature
+  `google.subject=assertion.sub` e `attribute.repository=assertion.repository`,
+  condizione `assertion.repository == "valentino11marzo-pixel/Boum-roma"`),
+  «Concedi accesso» verso `firebase-adminsdk-fbsvc@…` col filtro
+  `repository`, ruolo Firebase Admin sull'account. Nel job il passo
+  `google-github-actions/auth@v2` (provider e account scritti in chiaro:
+  non sono segreti, senza il token firmato da GitHub non aprono niente)
+  lascia la credenziale di un'ora in `GOOGLE_APPLICATION_CREDENTIALS` e
+  il deploy la riconosce (`CRED_KIND=wif`); serve `permissions:
+  id-token: write` sul job. Le due vecchie vie restano come ripiego
+  dichiarato. L'avvio manuale da un ramo deploya le rules SOLO con la
+  spunta `deploy_rules_from_branch`: la produzione Vercel girava sul ramo
+  Codex (PR #252, avanti di 8 commit su main) e un merge su main l'avrebbe
+  sovrascritta — la spunta è l'uscita, e un ramo vecchio dispatchato per
+  sbaglio non può regredire le regole in produzione. La GitHub App di
+  Claude non può avviare workflow (403 `Resource not accessible by
+  integration`): «Run workflow» lo preme l'operatore, i log li legge
+  Claude. Test: `tests/finalize/run.mjs` (33 check).
 - **Tabella zone canone UNICA**: `scheda-canone.html` ora carica
   `js/canone-engine.js` e semina le zone dal motore (la copia inline che
   poteva divergere dal Fascicolo ARPE è stata rimossa; un edit manuale
