@@ -66,19 +66,44 @@ function walk(dir, out = []) {
   }
   return out;
 }
+// Dal 21/09/2026 le chiamate passano dalla CENTRALE (api/_ai.js): il tetto
+// sta lì, in una copia sola, e i chiamanti dichiarano solo lo SCOPO. La
+// regola di classe resta la stessa, letta in tre pezzi: (a) la centrale ha
+// il tetto su ENTRAMBI i backend; (b) chi chiama ancora il cloud in diretta
+// (il proxy del Doc Parser, dichiarato `direct` nel registro) porta il suo
+// tetto; (c) il controllo VEDE i chiamanti — una regola che non trova nulla
+// passa sempre.
 const files = walk(join(ROOT, 'api'));
-const chiamanti = files.filter((p) => /api\.anthropic\.com\/v1\/messages/.test(readFileSync(p, 'utf8')));
-ok(chiamanti.length >= 18, `il controllo VEDE i chiamanti (${chiamanti.length}) — una regola che non trova nulla passa sempre`);
+const srcOf = (p) => readFileSync(p, 'utf8');
+const diretti = files.filter((p) => !/[\\/]_ai\.js$/.test(p) && /api\.anthropic\.com\/v1\/messages['"`]/.test(srcOf(p)));
+const viaCentrale = files.filter((p) => /from '(\.\.\/)*(\.\/)?_ai\.js'/.test(srcOf(p)) && /\b(ai|askModel)\(\{/.test(srcOf(p)));
+const viaClaude = files.filter((p) => /callClaude\(\{/.test(srcOf(p)) && /agent\/_claude\.js'|\.\/_claude\.js'/.test(srcOf(p)));
+const chiamanti = new Set([...diretti, ...viaCentrale, ...viaClaude].map((p) => relative(ROOT, p)));
+ok(chiamanti.size >= 18, `il controllo VEDE i chiamanti (${chiamanti.size}) — una regola che non trova nulla passa sempre`);
 
+const centrale = srcOf(join(ROOT, 'api/_ai.js'));
+ok((centrale.match(/signal:\s*aiSignal\(/g) || []).length >= 2,
+  'la centrale mette il tetto su ENTRAMBI i backend (cloud e locale) — e sui contatori');
 const senzaTetto = [];
-for (const p of chiamanti) {
-  const s = readFileSync(p, 'utf8');
+for (const p of diretti) {
+  const s = srcOf(p);
   // il tetto vale se la chiamata porta un signal (aiSignal condiviso o
   // AbortSignal diretto, come faceva già outreach/draft)
   if (!/signal:\s*(aiSignal\(|AbortSignal\.timeout\()/.test(s)) senzaTetto.push(relative(ROOT, p));
 }
 ok(senzaTetto.length === 0,
-  'nessun file chiama il modello senza un tetto di tempo' + (senzaTetto.length ? ' — scoperti: ' + senzaTetto.join(', ') : ''));
+  'nessun file chiama il cloud in diretta senza un tetto di tempo' + (senzaTetto.length ? ' — scoperti: ' + senzaTetto.join(', ') : ''));
+// e chi chiama in diretta deve essere DICHIARATO nel registro: la
+// centrale non può contare ciò che non passa da lei, quindi lo scopo
+// dichiara `direct` e registra l'uso da solo (recordUsage).
+{
+  const REG = (await import('../../js/ai-registry.js')).default;
+  const dichiarati = new Set(REG.PURPOSES.filter((p) => p.direct).map((p) => p.file));
+  const nonDichiarati = diretti.map((p) => relative(ROOT, p)).filter((f) => !dichiarati.has(f));
+  ok(nonDichiarati.length === 0,
+    'ogni chiamata diretta al cloud è uno scopo `direct` del registro' + (nonDichiarati.length ? ' — scoperti: ' + nonDichiarati.join(', ') : ''));
+  for (const f of dichiarati) ok(/recordUsage\(/.test(srcOf(join(ROOT, f))), `${f}: chiama in diretta ma si CONTA (recordUsage)`);
+}
 
 // ── 3. I quattro scanner che morivano contano il costo, non l'orario ────
 for (const f of ['api/leads/scan-inbox.js', 'api/pfs/scan-inbox.js',

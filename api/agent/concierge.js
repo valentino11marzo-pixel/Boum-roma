@@ -30,10 +30,11 @@
 
 import { readJson } from '../homie/_lib.js';
 import { okJson, errJson } from './_lib.js';
-import { aiSignal } from '../_budget.js';
+import { ai } from '../_ai.js';
 
-const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
-const MODEL = process.env.CONCIERGE_MODEL || 'claude-haiku-4-5-20251001';
+// Il modello sta nel registro (js/ai-registry.js, 'concierge.chat');
+// CONCIERGE_MODEL in env resta un override esplicito.
+const MODEL = process.env.CONCIERGE_MODEL || '';
 const MAX_HISTORY = 6;
 
 // Lightweight intent detector — runs before we hit Claude, so we can
@@ -56,32 +57,8 @@ function detectEmergency(msg) {
 }
 
 async function callClaude(systemPrompt, messages) {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error('ANTHROPIC_API_KEY not set');
-  }
-  const res = await fetch(ANTHROPIC_URL, {
-    signal: aiSignal(20000),   // un modello appeso non deve uccidere la funzione
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': process.env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 400,
-      system: systemPrompt,
-      messages,
-    }),
-  });
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    throw new Error(`anthropic ${res.status}: ${detail.slice(0, 200)}`);
-  }
-  const data = await res.json();
-  const text = (data.content || [])
-    .filter(c => c.type === 'text').map(c => c.text).join('\n').trim();
-  return text || 'Sono qui. Dimmi pure.';
+  const r = await ai({ purpose: 'concierge.chat', system: systemPrompt, messages, maxTokens: 400, timeoutMs: 20000, model: MODEL || undefined });
+  return r.text || 'Sono qui. Dimmi pure.';
 }
 
 export default async function handler(req, res) {

@@ -57,6 +57,7 @@ export default async function handler(req, res) {
 
   try {
     const { text, usage } = await callClaude({
+      purpose: 'agent.reply',
       system: SYSTEM,
       user: `Scrivi la prima risposta a questo lead.\n\n${facts}`,
       maxTokens: 700,

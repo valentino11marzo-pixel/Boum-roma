@@ -13,9 +13,9 @@
 
 import { fsList, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
-import { aiSignal } from '../_budget.js';
+import { ai } from '../_ai.js';
 
-const MODEL = 'claude-haiku-4-5-20251001';
+// Il modello sta nel registro: js/ai-registry.js, scopo 'docs.qa'.
 const MAX_DOCS_DEFAULT = 30;
 const MAX_DOCS_HARD = 60;
 const PER_DOC_TEXT_CAP = 6000; // chars
@@ -99,7 +99,7 @@ export default async function handler(req, res) {
   if (!docs.length) {
     return res.status(200).json({
       ok: true, answer: "Non ho documenti su cui rispondere. Carica documenti prima di fare domande.",
-      citedDocIds: [], docsConsidered: 0, modelUsed: MODEL,
+      citedDocIds: [], docsConsidered: 0, modelUsed: null,
     });
   }
 
@@ -123,28 +123,14 @@ export default async function handler(req, res) {
     )).join('\n');
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      signal: aiSignal(30000),   // un modello appeso non deve uccidere la funzione
-      method: 'POST',
-      headers: {
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 1200,
-        system: system,
-        messages: [{ role: 'user', content: userMsg }],
-      }),
-    });
-    if (!resp.ok) {
-      const t = await resp.text();
-      console.error('[documents/qa] anthropic', resp.status, t.slice(0, 300));
+    let resp;
+    try {
+      resp = await ai({ purpose: 'docs.qa', system, messages: [{ role: 'user', content: userMsg }], maxTokens: 1200, timeoutMs: 30000 });
+    } catch (e) {
+      console.error('[documents/qa] ' + (e.code || e.message));
       return res.status(502).json({ ok: false, error: 'qa_provider_error' });
     }
-    const data = await resp.json();
-    const answer = (data.content && data.content[0] && data.content[0].text) || '';
+    const answer = resp.text || '';
 
     // Extract cited doc ids from the trailing "Documenti rilevanti:" line.
     let citedDocIds = [];
@@ -159,7 +145,7 @@ export default async function handler(req, res) {
     }, auth.uid);
 
     return res.status(200).json({
-      ok: true, answer, citedDocIds, modelUsed: MODEL, docsConsidered: summaries.length,
+      ok: true, answer, citedDocIds, modelUsed: resp.model, docsConsidered: summaries.length,
     });
   } catch (e) {
     console.error('[documents/qa]', e);

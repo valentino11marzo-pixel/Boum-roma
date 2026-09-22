@@ -558,7 +558,9 @@ try {
   out = await endpoint(workerEndpoint, { method: 'POST', token: 'fixture-cron' });
   ok('metodo diverso da GET rifiutato senza effetti', out.httpCode === 405 && !writes.length, out);
   ok('tutte le prove scrivono solo casi e heartbeat, senza invii o altri effetti',
-    allWrites.every(w => /^(operatorTasks|heartbeat)\//.test(w.path)) && untouched(), allWrites.map(w => w.path));
+    // …più il contatore della Centrale AI (aiUsage/<giorno>), scritto da ogni
+    // chiamata a un modello per costruzione (22/09/2026). Il recinto resta.
+    allWrites.every(w => /^(operatorTasks|heartbeat|aiUsage)\//.test(w.path)) && untouched(), allWrites.map(w => w.path));
   const { readFileSync } = await import('node:fs');
   const vm = await import('node:vm');
   const priorityCode = readFileSync(new URL('../../js/segretaria-priority-engine.js', import.meta.url), 'utf8');

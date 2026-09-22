@@ -253,8 +253,11 @@ try {
   ok('tenant: handler reale prepara pratica, responsabile e ricontrollo senza consegna preventiva', r.httpCode === 200
     && r.preparation.nextAction.practiceRef === 'contracts/cA' && r.preparation.nextAction.waitingOn === 'collaborator'
     && r.preparation.preparedBy === 'admin' && aiInputs[0].persona.roles.includes('tenant') && !DB.get('conversations/' + CID).segretaria, r);
+  // Il recinto delle scritture ammesse: casi, battiti e — dal 22/09/2026 — il
+  // contatore della Centrale AI (aiUsage/<giorno>), che ogni chiamata a un
+  // modello scrive per costruzione. Tutto il resto resta vietato.
   ok('preparare non scrive coda, messaggi o notifiche, e non invia email/WhatsApp', untouched()
-    && rows('messages').length === 1 && writes.every(w => /^(operatorTasks|heartbeat)\//.test(w.path)));
+    && rows('messages').length === 1 && writes.every(w => /^(operatorTasks|heartbeat|aiUsage)\//.test(w.path)));
   ok('il modello vede capacità reali: proposta e seguito, nessun incarico, prenotazione, chiamata o invio già eseguito',
     aiInputs[0].executionCapabilities?.assignCollaborator === false
     && aiInputs[0].executionCapabilities?.bookMaintenance === false
@@ -301,7 +304,7 @@ try {
   ok('AI indisponibile durante rielaborazione non altera proposta scaduta o seguito',
     r.httpCode === 503 && r.error === 'preparation_unavailable' && aiHits === 2
     && JSON.stringify(task()) === beforeExpiredFailure && untouched()
-    && writes.slice(beforeFailureWrites).every(w => w.path.startsWith('heartbeat/')), r);
+    && writes.slice(beforeFailureWrites).every(w => /^(heartbeat|aiUsage)\//.test(w.path)), r);
 
   for (const [local, reason, error] of [
     [undefined, null, 'calendar_check_local_missing'],
@@ -736,7 +739,7 @@ try {
     ok('risposta ' + status + ' di altro agente già in coda: solo seguito, niente doppia bozza o scrittura sulla sua azione',
       r.code === 200 && r.preparation.draft === null && r.preparation.replyOwnership?.blocked
       && r.preparation.replyOwnership?.actionId === 'otherReply' && rows('action_queue').length === 1
-      && writes.every(w => /^(operatorTasks|heartbeat)\//.test(w.path)) && !network.length && !globalThis.__mails.length, r);
+      && writes.every(w => /^(operatorTasks|heartbeat|aiUsage)\//.test(w.path)) && !network.length && !globalThis.__mails.length, r);
   }
   reset();
   aiHook = async () => save('action_queue/racingReply', { kind: 'reply', status: 'approved', proposedBy: 'gestore',
@@ -744,7 +747,7 @@ try {
   r = await generate();
   ok('risposta concorrente entrata in coda durante AI invalida proposta senza toccare la coda', r.code === 409
     && r.error === 'reply_owner_changed_reload' && !task().preparation && rows('action_queue').length === 1
-    && writes.every(w => /^(operatorTasks|heartbeat)\//.test(w.path)), r);
+    && writes.every(w => /^(operatorTasks|heartbeat|aiUsage)\//.test(w.path)), r);
   reset(); failingCollection = 'action_queue'; r = await generate();
   ok('coda illeggibile resta verifica incompleta: nessuna bozza libera inventata', r.code === 200
     && r.preparation.draft === null && r.preparation.replyOwnership?.incomplete && untouched(), r);

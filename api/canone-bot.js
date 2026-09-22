@@ -5,7 +5,7 @@
 // Endpoint pubblico che paga un modello: senza tetti era costo aperto
 // (audit 2026-08, S4). Rate per IP + cap su ciò che entra nel prompt.
 
-import { aiSignal } from './_budget.js';
+import { ai } from './_ai.js';
 const RL = new Map(); const RL_WINDOW = 60_000, RL_MAX = 10;
 function rateOk(ip) { const n = Date.now(); const e = RL.get(ip); if (!e || n - e.t >= RL_WINDOW) { RL.set(ip, { c: 1, t: n }); return true; } e.c++; return e.c <= RL_MAX; }
 
@@ -50,24 +50,16 @@ Rispondi SOLO con JSON valido, nessun testo fuori dal JSON, formato:
 "completo" è true solo quando zona, tipo, mq e prop sono tutti noti.`;
 
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      signal: aiSignal(20000),   // un modello appeso non deve uccidere la funzione
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 600,
-        system,
-        messages,
-      }),
-    });
-    const data = await r.json();
-    if (!r.ok || data.error) return res.status(502).json({ error: 'anthropic', detail: (data.error && data.error.message) || ('HTTP ' + r.status) });
-    const txt = (data.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    // Il modello sta nel registro (js/ai-registry.js, 'canone.bot'); la
+    // centrale conta la chiamata e, se configurato, la instrada in locale.
+    let r;
+    try {
+      r = await ai({ purpose: 'canone.bot', system, messages, maxTokens: 600, timeoutMs: 20000, json: true });
+    } catch (e) {
+      if (e && e.backend) return res.status(502).json({ error: 'anthropic', detail: e.message });
+      throw e;
+    }
+    const txt = r.text;
     const clean = txt.replace(/```json|```/g,'').trim();
     let parsed;
     try { parsed = JSON.parse(clean); }

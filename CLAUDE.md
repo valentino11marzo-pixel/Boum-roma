@@ -68,6 +68,17 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
                           (jsPDF npm, STESSA versione pinnata). build() →
                           { doc, sigAnchors, hashSeed }; upload/hash/patch
                           restano ai chiamanti.
+  ai-registry.js          La Centrale AI, il registro PURO: i 26 scopi che
+                          chiamano un modello (file, modello cloud di default,
+                          modalità testo/visione/documento/audio, se può
+                          andare in locale e perché), le tre modalità
+                          cloud/shadow/local, la validazione di `settings/ai`
+                          (rifiuta, mai aggiusta), il listino prezzi e il
+                          verdetto di promozione. window.BOOM_AI.
+                          Vedi "La Centrale AI".
+  ../api/_ai.js           La porta UNICA verso qualunque modello: instrada
+                          (cloud · ombra · locale sul Mac), mette il tetto,
+                          ricade sul cloud, conta in aiUsage/aiShadow.
 firestore.rules           Firestore security rules (role-based)
 storage.rules             Storage security rules (role-based file access)
 firebase.json             Firebase deploy config (firestore + storage rules)
@@ -140,7 +151,11 @@ firebase.json             Firebase deploy config (firestore + storage rules)
   and the Git preview when adding a rule. Same move for
   `api/preagreement/{submit,sign-for}.js` (the 51st rule would have blocked
   the production deploy, not a test); `tests/mandato/run.mjs` §9 pins the
-  ≤50 count and resolves rules through brace expansion.
+  ≤50 count and resolves rules through brace expansion. **22/09**: il merge
+  della Centrale AI portava la 51ª regola (`api/ai/status.js`) — accorpate
+  `api/fiscal/{fascicolo,pack,foglio}.js` (stessa forma; nessun test le
+  legge per chiave esatta, a differenza di `fiscal/{allega,valutazione,
+  registra}` che `tests/aspi` pinna). Ora 49 regole.
 
 ## Environment Variables (Vercel)
 
@@ -167,6 +182,23 @@ REGISTRATION_EMAIL           # optional — dove arriva il Foglio di registrazio
 ANTHROPIC_API_KEY
 OPENAI_API_KEY               # optional — Whisper transcription for the
                              # wizard bot's voice notes (/api/wizard/transcribe)
+
+# La Centrale AI — il modello LOCALE sul Mac (api/_ai.js, vedi "La Centrale AI")
+LOCAL_AI_URL                 # optional — base URL OpenAI-compatibile del server
+                             # sul Mac (https del tunnel; http SOLO su rete
+                             # privata). È il default di deploy: se
+                             # settings/ai.local.url è scritto, vince quello
+LOCAL_AI_MODEL               # optional — modello testo (es. qwen3:14b)
+LOCAL_AI_VISION_MODEL        # optional — modello con visione (es. qwen2.5vl:7b);
+                             # senza, ogni immagine resta in cloud
+LOCAL_STT_URL                # optional — server Whisper OpenAI-compatibile
+                             # (POST /v1/audio/transcriptions)
+LOCAL_STT_MODEL              # optional — es. large-v3-turbo
+LOCAL_AI_TIMEOUT_MS          # optional — tetto per chiamata locale (default 20000)
+LOCAL_AI_TOKEN               # bearer del tunnel (llama-server --api-key, un
+                             # reverse proxy): SOLO in env, MAI in Firestore
+LOCAL_AI_CF_ID               # optional — service token di Cloudflare Access
+LOCAL_AI_CF_SECRET           #            (se il tunnel è cloudflared + Access)
 
 # Cron auth
 CRON_SECRET
@@ -2801,6 +2833,117 @@ tutti e tre di CLASSE, tutti e tre chiusi in un posto solo.
 - Test: `node tests/modeljson/run.mjs` (39) · `node tests/tempo/run.mjs` (33)
   · `node tests/scala/run.mjs` (8).
 
+### La Centrale AI (`api/_ai.js` + `js/ai-registry.js` + `GET/POST /api/ai/status` + `/ai` su Telegram) — 21/09/2026
+**Cos'era.** VENTITRÉ file chiamavano `api.anthropic.com` ognuno con la
+propria `fetch`, il modello scritto a mano dentro il file e NESSUN contatore:
+la spesa AI era una riga di fattura a fine mese, mai un numero per scopo. Le
+scelte care erano invisibili — `_claude.js` metteva **opus 4.8** di default
+sulla prima risposta del Commerciale, sui turni della Segretaria e su
+`ai.reply` (sonnet 5 sull'interprete del bot, opus 5 sull'inventario) — e
+«proviamo un modello locale sul Mac» avrebbe voluto dire ventitré patch senza
+alcun modo di sapere se il locale regge. Lo studio è
+`STUDIO_MODELLI_LOCALI_2026-09.md`; il lato Mac (server, tunnel, launchd) è
+il compito di Codex in `docs/PROMPT_CODEX_MODELLI_LOCALI.md`.
+
+**Cosa cambia.** Ogni chiamata a un modello passa da `ai({ purpose, system,
+messages|user, maxTokens, timeoutMs, json })` in `api/_ai.js`; il chiamante
+dichiara solo lo SCOPO, e lo scopo sta nel registro puro `js/ai-registry.js`
+(26 voci: file, modello cloud di default, modalità testo/visione/documento/
+audio, `localOk` col perché, posta in gioco, i campi su cui misurare
+l'accordo). La centrale:
+- **instrada** secondo `settings/ai` (default: TUTTO cloud, il deploy non
+  cambia niente): `cloud` com'è oggi · `shadow` (risponde il cloud, il locale
+  corre in parallelo e si registra SOLO se i due sono d'accordo — mai il
+  contenuto) · `local` (risponde il locale; giù, lento o JSON illeggibile →
+  si ricade sul cloud, `fallback:true` nel risultato e nei contatori; con
+  `local.fallback:false` è un errore dichiarato). Il locale è un endpoint
+  **OpenAI-compatibile** (`/v1/chat/completions`: Ollama, llama-server, LM
+  Studio, mlx-lm) raggiunto dal server attraverso un tunnel https; il TOKEN
+  sta solo in env. Il server pensa, il Mac esegue — e col Mac spento il cloud
+  c'è: fail-open per costruzione;
+- **tiene i confini**: `banking.pdf`, `inventario.video` (il documento vale
+  sul deposito) e `parse.docs` (proxy: la pagina legge la risposta grezza,
+  dichiarato `direct` e contato via `recordUsage`) non vanno MAI in locale
+  nemmeno se scritto nel documento (rifiutato col perché); un blocco PDF
+  forza il cloud; un'immagine esige `local.visionModel`; l'ombra NON è un
+  paracadute (cloud giù = errore, la qualità non cambia di nascosto);
+- **conta**: `aiUsage/<giorno di Roma>` con incrementi atomici (`:commit` +
+  `increment`, due funzioni in parallelo non si sovrascrivono): per scopo ×
+  backend chiamate/ok/fail/ricadute/token veri/cache/ms e il **costo dal
+  listino** (`PRICES` nel registro; modello ignoto → `null`, mai un numero
+  inventato; STT stimata dai byte e detta stima). `aiShadow/<scopo>`: coppie,
+  accordi, disaccordi, guasti del locale. Un contatore che fallisce non fa mai
+  fallire una risposta ottenuta;
+- **cambia modello senza deploy**: `purposes.<scopo>.cloudModel` in
+  `settings/ai` (validato sul listino) — «il Commerciale su sonnet invece di
+  opus» è un POST, non una PR. `ANTHROPIC_MODEL` in env resta l'override
+  globale dei quattro chiamanti di `_claude.js`;
+- **nei log mai contenuto**: codice, stato, millisecondi (il test scandaglia
+  ogni `console.*` del file).
+`/ai` su Telegram: stato del locale (sonda a `/v1/models`), spesa di oggi e
+del mese per backend, una riga per scopo con modalità e verdetto dell'ombra,
+bottoni `aitg:` che accendono/spengono il locale e ruotano la modalità
+(cloud → shadow → local; chi non può, resta). `GET /api/ai/status` è la
+stessa fotografia in JSON (auth come i cron PFS); `POST` (solo admin)
+scrive `settings/ai` DOPO la validazione del registro: un valore impossibile
+torna 400 con `rejected` e non si scrive. **La promozione la decide sempre
+l'operatore, coi numeri davanti** — `shadowVerdict`: ≥ `minSample` (30)
+coppie, accordo ≥ `minAgree` (90%), locale che fallisce ≤ 10% → «pronta»;
+per i testi liberi (bozze ai clienti) l'ombra non misura: la misura sono le
+approvazioni dell'operatore, cioè la scala della fiducia. La trascrizione
+(`api/wizard/_stt.js`, scopo `stt.transcribe`) ha lo stesso doppio backend:
+Whisper sul Mac (`local.sttUrl`, rotta OpenAI-compatibile) prima, OpenAI come
+rete. Rules: `aiUsage`/`aiShadow` admin-only, `settings/ai` non pubblico
+(porta l'URL del tunnel).
+Test: `node tests/ai/run.mjs` (140 check — default pinnati, confini per
+mutazione, ricadute, ombra, contatori e costo, porta HTTP, STT, giunzioni
+sulla sorgente, anti-deriva nelle due direzioni: ogni chiamante dichiara uno
+scopo che esiste, ogni scopo ha un chiamante, nessun modello scritto a mano
+fuori dal registro) + `tests/tempo/run.mjs` (la regola di classe «nessuna
+chiamata senza tetto» letta sulla centrale e sui `direct`).
+
+**Il lato Mac (22/09/2026 — Codex fuori crediti, fatto qui).** Ollama serve
+il modello (`:11434`) ma NON ha autenticazione: esposto nudo, chiunque
+potrebbe farci girare i propri prompt, e di lì passano i documenti dei
+clienti. `bot/boom_locale.py` è **il ponte con la serratura**: bearer
+`LOCAL_AI_TOKEN` (senza token nel `.env` il server NON PARTE — verificato
+per mutazione), inoltra SOLO le tre rotte del contratto (`/v1/models`,
+`/v1/chat/completions`, `/v1/audio/transcriptions` → `STT_URL`; l'API
+nativa `/api/pull`,`/api/delete` resta invisibile), `/health` senza auth e
+senza dettagli, body oltre 12 MB → 413, Ollama giù → 502/504 con codice, nei
+log rotta/stato/ms e mai contenuto. `bot/install_locale.sh` (un comando,
+idempotente): legge chip e memoria, sceglie il modello con `--pick-model`
+(UNA tabella, nello script — 8 GB `qwen3:4b` · 16 `qwen3:8b` · 24–32
+`qwen3:14b` + `qwen2.5vl:7b` · 64+ `qwen3:32b`), `ollama pull`, imposta
+`OLLAMA_CONTEXT_LENGTH=16384` e `OLLAMA_KEEP_ALIVE=-1` (il catalogo
+dell'interprete supera i 4096 di default; un modello scaricato dopo 5' di
+silenzio costa 10-30 s alla chiamata dopo, oltre il tetto del server),
+genera il token, installa `com.boom.locale` (KeepAlive), espone con
+**Tailscale Funnel** (https stabile senza dominio) e stampa le righe per
+Vercel; `--test` prova il ponte, `--smoke` chiede a `/api/ai/status` se il
+server lo vede. Guida per l'operatore: `bot/MODELLI_LOCALI.md`. Test:
+`python3 tests/locale/runner.py` (40 check: picker, serratura per
+mutazione, rotte, log senza contenuto, e il server VERO contro un Ollama
+finto in-thread).
+
+**Il merge con l'Innesto 3.0 e la Segretaria di Codex (22/09/2026).** Su
+`main` erano intanto arrivati l'Innesto 3.0 (`api/portal/ingest.js`: Opus 5,
+lo strumento `proposta`, thinking adattivo, la scala dei 400 di forma, 100 s
+di tetto) e `api/segretaria/_prepare.js`. Due decisioni: (1) **`portal.ingest`
+è `direct`** come il proxy del Doc Parser — strumento, thinking e la scala
+dei 400 sono del cloud e non passano dalla porta OpenAI-compatibile del
+locale, quindi `localOk:false`; il file chiama in diretta col SUO tetto
+(`AI_MS`) e **si conta** con `recordUsage` (Opus 5: la voce più cara del
+registro, ora visibile in `/ai`). Il registro pinna `claude-opus-5` e
+`tests/ai` pretende che un `direct` che scrive il modello a mano lo scriva
+UGUALE al registro (il costo si calcola col nome che arriva). (2) Lo scopo
+nuovo **`segretaria.prepare`** (opus 4.8 via `callClaude`: la proposta sul
+caso validata da `PROPOSTA` e approvata a mano). Le suite di Codex che
+recintano le scritture della preparazione a `operatorTasks|heartbeat`
+ammettono ora anche `aiUsage/` — il contatore della centrale è una
+scrittura per costruzione, e il recinto resta: qualsiasi altra scrittura fa
+cadere il test. Nulla cambia nel comportamento verso il cliente.
+
 ### POST `/api/documents/share`
 Admin/landlord (Firebase ID token via `api/_auth.js`). Creates a
 `documentShares` doc (token, ownerId, docIds, recipientName, watermark,
@@ -4892,6 +5035,7 @@ camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
   | `tests/sign/lang.mjs` | /sign bilingue guidata in un browser vero (demo mode): default per ruolo (locatore IT, inquilino EN), toggle che ridisegna lo step corrente in entrambe le direzioni, percorso intero tradotto, Skip OTP che non blocca, link WhatsApp presenti. Si auto-skippa senza playwright |
   | `tests/scalo/run.mjs` | LO SCALO lotti 1-4: la carta d'imbarco dice la verità (visita annullata/standby = Wallet spento e DETTO, codici di rotta solo dal lessico — mai inventati, pass viewing per navigazione vera mai blob:), il lessico `js/scalo-codes.js` in UNA copia (alias lungo batte il corto, parole intere, ambiguo → null, bmCode derivato), il flight status di /viewing (countdown SOLO sui momenti veri di _moments, stato temporale mai "già spedito"), il check-in di /book (la carta SOLO sulla confermata — mai sulla pending — con applyApprovalCopy unico posto delle parole), l'idrante di /board (corsie SOLO da BOOM_DISPO.marketLane — closed fuori, illeggibile = ASK mai NOW, ETA dall'iso del motore, fail-open sulla fotografia di build), la rotta di /casa (tappe = FATTI del contratto: signatureStatus, depbal, startDate, endDate−90 — l'aereo sulla prima non compiuta, niente rotta senza contratto) e il timbro di apartment-detail (visibile sempre, batte una volta, fermo con reduced-motion). Lotto 4: il handler VERO di /api/meteo su Firestore in memoria (whitelist che non lascia passare un campo non dichiarato, sotto campione SOLO il nome, cache CDN, solo GET), meteo.html che non tocca mai Firestore, lo sweep della plancia (blip = gli stessi item della strip, angolo dichiarato disposizione), e le og carte PNG verificate nei byte (IHDR 1200×630) |
   | `tests/mandato/run.mjs` | il mandato a firmare: spunta a parte sulla proposta (mai dedotta, solo se offerta ESPLICITAMENTE — assente = non offerto), la foto delle condizioni approvate presa all'accettazione (v2: immobile, parti, modello, date, soldi, oneri, clausole) è la base che conversione e firma verificano (409 con `changed`; il contratto non fa mai da base; v1 ancora valutato con la sua regola), la strada automatica non perde consenso e mandato, al posto del conduttore SOLO col mandato (403), chi ha firmato resta stampato su pagina firme/certificato/scheda ARPE/pack; il consenso della proposta firma anche la scheda 2/B (pagina == server, hash); la Valutazione BOOM esce dall'immobile con la scheda di calcolo brandizzata a pagina 2 e i buchi dichiarati |
+  | `tests/ai/run.mjs` | La Centrale AI: coi default TUTTO in cloud, `localOk:false` mai in locale, PDF → cloud, immagine → solo con modello visivo, locale giù → cloud dichiarato, ombra che misura senza toccare la risposta (e non salva un cloud giù), contatori atomici col costo dal listino, nei log mai contenuto, porta HTTP (401/403/400 senza scritture), STT locale-prima, anti-deriva chiamanti⇄registro |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
   the 3 portals via `BoomPortal.registerServiceWorker()`

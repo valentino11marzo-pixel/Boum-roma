@@ -24,6 +24,7 @@ import { handleScrivanoCallback } from './_scrivano.js';
 import { scrivanoEligible, offerKeyboard, offerLine } from '../scrivano/_offer.js';
 import crypto from 'node:crypto';
 import { fiduciaStatusMessage, toggleFiducia } from '../employees/_fiducia.js';
+import { aiStatusMessage, toggleAi } from '../ai/_status.js';
 import { handoverSegretaria, segretariaOpen, segretariaOffConv, segretariaStatusMessage, toggleSegretariaKill } from '../segretaria/_core.js';
 
 // Canonical public host for self-calls (the executor). VERCEL_URL deployment
@@ -238,6 +239,22 @@ export default async function handler(req, res) {
         return res.status(200).json({ ok: true });
       }
 
+      // ── La Centrale AI (aitg) — gli interruttori di /ai ─────────────────
+      // 'local' accende/spegne il locale; un codice ruota la modalità dello
+      // scopo (cloud → shadow → local → cloud). Anche qui prima della
+      // lettura di action_queue: un toggle non è un'azione.
+      if (verb === 'aitg') {
+        const done = await toggleAi(actionId).catch(() => false);
+        await tgAckCallback(cq.id, done ? '✓ Fatto' : 'Interruttore sconosciuto o valore rifiutato');
+        if (done && messageId) {
+          try {
+            const { msg, keyboard } = await aiStatusMessage({ probe: false });
+            await tgEdit(chatId, messageId, msg, { reply_markup: keyboard });
+          } catch (e) { console.warn('[telegram] aitg refresh:', e.message); }
+        }
+        return res.status(200).json({ ok: true });
+      }
+
       const action = await fsGet(`action_queue/${actionId}`);
       if (!action) {
         await tgAckCallback(cq.id, 'Non trovata');
@@ -392,6 +409,20 @@ export default async function handler(req, res) {
           await tgSend(chatId, msg, { reply_markup: keyboard });
         } catch (e) {
           await tgSend(chatId, '⚠️ Non riesco a leggere lo stato della scala: ' + esc(e.message));
+        }
+        return res.status(200).json({ ok: true });
+      }
+
+      // /ai — LA CENTRALE AI: dove va ogni chiamata a un modello (cloud,
+      // ombra, locale), cosa costa oggi e nel mese, se il Mac risponde, e i
+      // verdetti dell'ombra. Gli interruttori sono sotto il pollice; la
+      // promozione al locale la decide sempre l'operatore, coi numeri davanti.
+      if (text === '/ai') {
+        try {
+          const { msg, keyboard } = await aiStatusMessage({ probe: true });
+          await tgSend(chatId, msg, { reply_markup: keyboard });
+        } catch (e) {
+          await tgSend(chatId, '⚠️ Non riesco a leggere lo stato della centrale AI: ' + esc(e.message));
         }
         return res.status(200).json({ ok: true });
       }

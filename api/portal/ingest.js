@@ -60,10 +60,17 @@ import { requireRole } from '../_auth.js';
 import { fsList } from '../homie/_lib.js';
 import { parseModelJson, jsonFailureLine, jsonFailureHint } from '../_modeljson.js';
 import { aiSignal } from '../_budget.js';
+import { recordUsage } from '../_ai.js';
 import { CATS } from '../documents/_smista.js';
 import D from '../../js/dataops-engine.js';
 import FIELDS from '../../js/contract-fields.js';
 
+// Scopo `direct` nel registro (js/ai-registry.js, 'portal.ingest', come il
+// proxy del Doc Parser): lo strumento `proposta`, il thinking adattivo e la
+// scala dei 400 di forma qui sotto sono del cloud — non si instrada, ma si
+// CONTA (recordUsage): è la voce più cara del registro e /ai deve vederla.
+// Il registro pinna lo stesso modello (tests/ai: un `direct` che lo scrive a
+// mano deve scriverlo uguale, o il costo in /ai sarebbe quello di un altro).
 export const MODEL = 'claude-opus-5';
 import { sniffType, extractText, TEXTY, TEXTY_LABEL, FORMATS_HUMAN } from '../_doctext.js';
 
@@ -646,6 +653,7 @@ export async function ingestRead({ files = [], text = '', hint = '', known = {},
   } catch (e) {
     const timedOut = e && (e.name === 'TimeoutError' || e.name === 'AbortError');
     console.error('[' + tag + '] ai ' + (timedOut ? 'timeout' : 'failed') + ' files=' + files.length + ' ms=' + (Date.now() - t0));
+    await recordUsage({ purpose: 'portal.ingest', backend: 'cloud', ok: false, ms: Date.now() - t0, model: MODEL });
     return { status: timedOut ? 504 : 502, ok: false, error: timedOut ? 'ai_timeout' : 'ai_provider_error',
       detail: timedOut
         ? 'La lettura ha superato i 100 secondi. Allega meno pagine (le prime due di un contratto bastano quasi sempre) o un documento per volta.'
@@ -653,6 +661,7 @@ export async function ingestRead({ files = [], text = '', hint = '', known = {},
   }
   if (!out.ok) {
     console.error('[' + tag + '] anthropic', out.status, clip(apiErrorMessage(out.text), 600));
+    await recordUsage({ purpose: 'portal.ingest', backend: 'cloud', ok: false, ms: Date.now() - t0, model: MODEL });
     const rate = out.status === 429;
     const tooLong = out.status === 400 && TOO_LONG_RE.test(out.text || '');
     if (tooLong) {
@@ -680,6 +689,11 @@ export async function ingestRead({ files = [], text = '', hint = '', known = {},
   }
   const data = out.data;
   const ms = Date.now() - t0;
+  // Il conto della centrale (aiUsage/<giorno>, costo dal listino): atteso,
+  // perché una scrittura lanciata senza await muore col congelamento della
+  // funzione (la lezione del 13/09); non lancia mai, un contatore fallito
+  // non tocca la lettura ottenuta.
+  await recordUsage({ purpose: 'portal.ingest', backend: 'cloud', ok: true, ms, model: data.model || MODEL, usage: data.usage || null });
   if (data.stop_reason === 'refusal') {
     console.error('[' + tag + '] refusal files=' + files.length);
     return { status: 502, ok: false, error: 'ai_refused', detail: 'Il modello ha rifiutato di leggere questo materiale. Se contiene solo un documento d\'identità o un contratto, riprova con una foto più nitida o incolla il testo.' };
