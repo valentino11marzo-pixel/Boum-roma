@@ -1,5 +1,13 @@
 # BOOM Listing Wizard — Telegram bot
 
+> **I modelli locali (22/09/2026)** — nessun modello girava sul Mac; ora
+> Ollama serve `qwen3` (scelto dalla memoria del Mac) dietro
+> `boom_locale.py`, il ponte con la serratura (bearer, tre rotte, mai
+> contenuto nei log), esposto con Tailscale Funnel e installato in un
+> comando (`install_locale.sh`). Il server lo usa attraverso la Centrale AI
+> (`api/_ai.js`) e si accende da Telegram con `/ai`. Guida:
+> `MODELLI_LOCALI.md`. Test: `python3 tests/locale/runner.py`.
+
 **v3.1 — il cervello gratis.** Every free-text message used to go straight to
 `claude-sonnet-5` with the WHOLE catalog in the prompt (~1.5k input tokens per
 message) — including "affittato Cavour" and "quanto costa Pigneto?", which a

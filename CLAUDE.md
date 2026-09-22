@@ -2745,6 +2745,30 @@ scopo che esiste, ogni scopo ha un chiamante, nessun modello scritto a mano
 fuori dal registro) + `tests/tempo/run.mjs` (la regola di classe «nessuna
 chiamata senza tetto» letta sulla centrale e sui `direct`).
 
+**Il lato Mac (22/09/2026 — Codex fuori crediti, fatto qui).** Ollama serve
+il modello (`:11434`) ma NON ha autenticazione: esposto nudo, chiunque
+potrebbe farci girare i propri prompt, e di lì passano i documenti dei
+clienti. `bot/boom_locale.py` è **il ponte con la serratura**: bearer
+`LOCAL_AI_TOKEN` (senza token nel `.env` il server NON PARTE — verificato
+per mutazione), inoltra SOLO le tre rotte del contratto (`/v1/models`,
+`/v1/chat/completions`, `/v1/audio/transcriptions` → `STT_URL`; l'API
+nativa `/api/pull`,`/api/delete` resta invisibile), `/health` senza auth e
+senza dettagli, body oltre 12 MB → 413, Ollama giù → 502/504 con codice, nei
+log rotta/stato/ms e mai contenuto. `bot/install_locale.sh` (un comando,
+idempotente): legge chip e memoria, sceglie il modello con `--pick-model`
+(UNA tabella, nello script — 8 GB `qwen3:4b` · 16 `qwen3:8b` · 24–32
+`qwen3:14b` + `qwen2.5vl:7b` · 64+ `qwen3:32b`), `ollama pull`, imposta
+`OLLAMA_CONTEXT_LENGTH=16384` e `OLLAMA_KEEP_ALIVE=-1` (il catalogo
+dell'interprete supera i 4096 di default; un modello scaricato dopo 5' di
+silenzio costa 10-30 s alla chiamata dopo, oltre il tetto del server),
+genera il token, installa `com.boom.locale` (KeepAlive), espone con
+**Tailscale Funnel** (https stabile senza dominio) e stampa le righe per
+Vercel; `--test` prova il ponte, `--smoke` chiede a `/api/ai/status` se il
+server lo vede. Guida per l'operatore: `bot/MODELLI_LOCALI.md`. Test:
+`python3 tests/locale/runner.py` (40 check: picker, serratura per
+mutazione, rotte, log senza contenuto, e il server VERO contro un Ollama
+finto in-thread).
+
 ### POST `/api/documents/share`
 Admin/landlord (Firebase ID token via `api/_auth.js`). Creates a
 `documentShares` doc (token, ownerId, docIds, recipientName, watermark,

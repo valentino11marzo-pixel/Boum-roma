@@ -1,5 +1,11 @@
 # Prompt d'apertura per Codex — Lotto «i modelli locali sul Mac»
 
+> **SUPERATO il 22/09/2026**: Codex era senza crediti, il lotto è stato
+> costruito direttamente (`bot/boom_locale.py`, `bot/install_locale.sh`,
+> `bot/MODELLI_LOCALI.md`, `tests/locale/runner.py`). Il documento resta
+> come SPECIFICA del contratto server⇄Mac — vale per chiunque tocchi quel
+> lato in futuro.
+
 *Da incollare in una chat NUOVA di Codex aperta sul repo
 `valentino11marzo-pixel/Boum-roma`, DOPO il merge del ramo
 `claude/lucid-ritchie-whxmhi` (porta il registro `js/ai-registry.js`, la

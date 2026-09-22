@@ -147,6 +147,12 @@ primo deploy. Il locale si accende quando esiste (§4), da Telegram.
 
 ## 4 · Il lato Mac — il lotto di Codex
 
+> **Aggiornamento 22/09**: Codex è rimasto senza crediti e l'operatore ha
+> già installato Ollama. Il lotto è stato fatto qui: `bot/boom_locale.py`
+> (il ponte con la serratura), `bot/install_locale.sh` (un comando),
+> `bot/MODELLI_LOCALI.md` (la guida), `tests/locale/runner.py`. Il
+> contratto sotto resta valido ed è quello che il ponte rispetta.
+
 **Prima domanda, prima riga della chat con Codex**: sul Mac mini,
 `system_profiler SPHardwareDataType | grep -E "Chip|Memory"`. Un Intel → il
 progetto si ferma qui (niente accelerazione utile). Apple Silicon:
