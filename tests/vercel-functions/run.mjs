@@ -52,7 +52,11 @@ function validate(rules, inventory = files) {
 
 assert.equal(Object.keys(before.functions).length, 51);
 assert.equal(Object.keys(config.functions).length, 50);
-assert.equal(Object.keys(validate(config.functions)).length, 52);
+const actual = validate(config.functions);
+assert.equal(Object.keys(actual).length, 53);
+assert.deepEqual(actual['api/preagreement/sign-for.js'], { maxDuration: 60 }, 'Live signing settings preserved');
+assert.ok(files.includes('api/segretaria/preparation.js'), 'Live preparation handler preserved');
+assert.equal(actual['api/segretaria/preparation.js'], undefined, 'Preparation keeps its live default configuration');
 let mutations = 0;
 function rejected(name, mutate, error, inventory = files) {
   const candidate = structuredClone(config.functions);
@@ -84,5 +88,13 @@ rejected('new override on unconfigured file', r => { delete r['api/homie/miniera
 rejected('duplicate brace alternative', r => {
   r['api/homie/{wa-outbox,wa-outbox,wa-outbox-single}.js'] = r[group]; delete r[group];
 }, /Duplicate alternative/);
+rejected('live signing handler omitted', r => {
+  r['api/preagreement/submit.js'] = r['api/preagreement/{submit,sign-for}.js'];
+  delete r['api/preagreement/{submit,sign-for}.js'];
+}, /handler set changed/);
+rejected('preparation default overwritten', r => {
+  delete r['api/homie/miniera.js'];
+  r['api/segretaria/preparation.js'] = { maxDuration: 60 };
+}, /handler set changed/);
 console.log('passed ' + JSON.stringify({ trackedFiles: files.length, rulesBefore: 51, rulesAfter: 50,
-  configuredFiles: 52, selected, preservedSettings: true, overlaps: 0, mutationsRejected: mutations }));
+  configuredFiles: 53, selected, preservedSettings: true, overlaps: 0, mutationsRejected: mutations }));

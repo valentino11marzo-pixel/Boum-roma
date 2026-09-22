@@ -147,6 +147,9 @@ firebase.json             Firebase deploy config (firestore + storage rules)
   All 53 configured paths keep their settings (including memory/includeFiles).
   `npm test -- vercelfunctions` checks the tracked-file mapping, overlaps,
   the 50-rule ceiling and negative mutations; no deployment is needed.
+  On the 22/09 live base the fixture retains `sign-for` at 60s and the
+  unconfigured `segretaria/preparation.js` handler at its existing default;
+  mutations reject losing the former or adding an override to the latter.
 
 ## Environment Variables (Vercel)
 
