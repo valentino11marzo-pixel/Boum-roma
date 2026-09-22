@@ -862,6 +862,121 @@ function openSigModal(then){
 }
 window.openSigModal=openSigModal;
 
+/* 📄 BOZZA CONTRATTO (21/09/2026): lo stesso impaginato che → Contratto
+   scriverebbe, in PDF, PRIMA di creare contratto/profilo/immobile. Passa da
+   convert dryRun+draftPdf (una copia dell'impaginato: buildContractPdfBytes),
+   finisce su preagreements/<id>/bozza-contratto.pdf e sulla proposta
+   (draftPdfUrl): la riga la riapre, il cliente la legge accanto al mandato. */
+window.draftPdf=async function(id,btn){
+  var d=PAS.find(function(x){return x.id===id});if(!d)return;
+  var was=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='Impagino…';}
+  try{
+    var tok=await USER.getIdToken();
+    var r=await fetch('/api/preagreement/convert',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({id:id,dryRun:true,draftPdf:true,propertyId:d.propertyId||undefined,createProperty:!d.propertyId})});
+    var j=await r.json();
+    if(!j||!j.ok)throw new Error((j&&j.error)||('errore '+r.status));
+    if(j.already){alert('Il contratto esiste già: apri «📄 Contratto (PDF, non firmato)» sulla riga.');return;}
+    if(!j.draftPdfUrl)throw new Error(j.draftPdfError||'bozza non generata');
+    var L=preflightLines(j);
+    var old=document.getElementById('draftov');if(old)old.remove();
+    var ov=document.createElement('div');ov.className='cvov';ov.id='draftov';
+    ov.innerHTML='<div class="cvbox"><h3>📄 Bozza del contratto</h3>'
+      +'<div class="sub2">Lo stesso documento che <b>→ Contratto</b> scriverebbe: nessun contratto, profilo o immobile è stato creato. '+(j.draftPdfSame?'Identica alla bozza precedente. ':'')+'Il cliente la trova sulla sua pagina accanto al mandato, a soldi ricevuti.</div>'
+      +L.map(function(l){return '<div style="font-size:12.5px;margin-top:4px;'+(l.k==='overlap'?'color:#ff8a70':(l.n?'color:var(--gold-light)':'color:var(--green)'))+'">'+esc(l.t)+'</div>'}).join('')
+      +'<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><a class="pbtn prim" href="'+j.draftPdfUrl+'" target="_blank" rel="noopener">Apri la bozza (PDF)</a><button class="pbtn" id="draftClose">Chiudi</button></div></div>';
+    document.body.appendChild(ov);
+    ov.querySelector('#draftClose').onclick=function(){ov.remove();};
+  }catch(e){alert('Bozza non generata: '+(e.message||'riprova'));}
+  finally{if(btn){btn.disabled=false;btn.textContent=was;}}
+};
+
+/* ✎ COMPLETA I DATI (21/09/2026): ciò che il PDF stamperebbe come puntini —
+   inquilino, locatore, termini dell'operatore — si scrive DA QUI, sul rail
+   della Scheda (api/profile/submit con l'operatore autenticato): stesse
+   validazioni del dizionario, stesse scritture, il PDF si rifà da solo.
+   Il modulo si disegna dai descrittori di profile/link (ask): nessuna
+   seconda lista di campi. Chi ha firmato è congelato e lo si dice; un dato
+   che cambierebbe le condizioni del mandato torna come 409 e si dice. */
+var CD_ROLES=[['tenant','Inquilino'],['landlord','Locatore'],['operator','Termini (operatore)']];
+function cdField(role,f){
+  var id='cd_'+role+'_'+f.key,lab=(f.label&&(f.label.it||f.label.en))||f.key,hint=(f.ask&&(f.ask.it||f.ask.en))||'';
+  var h='<label class="fld'+(f.required?' req':'')+'"><span>'+esc(lab)+'</span>';
+  if(f.type==='yesno'){
+    h+='<select id="'+id+'" data-key="'+esc(f.key)+'"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select>';
+  }else if(f.type==='select'&&Array.isArray(f.options)){
+    h+='<select id="'+id+'" data-key="'+esc(f.key)+'"><option value="">—</option>'+f.options.map(function(o){return '<option value="'+esc(String(o.v))+'">'+esc((o.label&&(o.label.it||o.label.en))||String(o.v))+'</option>'}).join('')+'</select>';
+  }else if(f.type==='textarea'||f.type==='people'){
+    h+='<textarea id="'+id+'" data-key="'+esc(f.key)+'"'+(f.type==='people'?' data-people="1"':'')+' rows="2" placeholder="'+esc(f.type==='people'?'un nome per riga — oppure «solo» se vive da solo':hint)+'"></textarea>';
+  }else{
+    h+='<input id="'+id+'" data-key="'+esc(f.key)+'" type="'+(f.type==='date'?'date':(f.type==='number'?'number':'text'))+'" placeholder="'+esc(hint)+'"'+(f.type==='number'?' step="any"':'')+'>';
+  }
+  return h+'</label>';
+}
+function cdCollect(ov,role){
+  var out={},n=0;
+  ov.querySelectorAll('[data-role="'+role+'"] [data-key]').forEach(function(el){
+    var v=String(el.value||'').trim();if(!v)return;
+    var k=el.getAttribute('data-key');
+    if(el.getAttribute('data-people')==='1'){var low=v.toLowerCase();out[k]=(/^(solo|da solo|nessuno|alone|no)$/.test(low))?{alone:true}:{text:v.split(/\n+/).map(function(x){return x.trim()}).filter(Boolean).join('; ')};}
+    else out[k]=v;
+    n++;
+  });
+  return n?out:null;
+}
+window.completaDati=async function(id){
+  var d=PAS.find(function(x){return x.id===id});var cid=d?contractIdOf(d):null;
+  if(!cid){alert('Prima crea il contratto (→ Contratto).');return;}
+  var old=document.getElementById('cdov');if(old)old.remove();
+  var ov=document.createElement('div');ov.className='cvov';ov.id='cdov';
+  ov.innerHTML='<div class="cvbox" style="width:min(640px,100%)"><h3>✎ Completa i dati</h3><div class="sub2">Leggo cosa manca…</div></div>';
+  document.body.appendChild(ov);
+  async function load(summary){
+    var tok=await USER.getIdToken();
+    var r=await fetch('/api/profile/link',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({contractId:cid})});
+    var k=await r.json();if(!k||!k.ok)throw new Error((k&&k.error)||('errore '+r.status));
+    var ask=k.ask||{},any=false;
+    var h='<h3>✎ Completa i dati</h3><div class="sub2">Solo i campi che il PDF stamperebbe come puntini (o che servono alla registrazione). Si scrivono sul contratto e sull\'immobile con le regole della Scheda; a salvataggio riuscito il PDF si rigenera da solo. I campi lasciati vuoti restano vuoti.</div>'
+      +(summary?'<div class="alertline" style="margin-bottom:12px">'+summary+'</div>':'');
+    CD_ROLES.forEach(function(w){
+      var a=ask[w[0]];if(!a)return;
+      if(a.locked){h+='<div class="sub2" style="margin-top:8px"><b>'+w[1]+'</b> — ha già firmato: l\'identità è congelata. Restano solo i documenti, dal portal.</div>';return;}
+      if(!a.sections||!a.sections.length){h+='<div class="sub2" style="margin-top:8px"><b>'+w[1]+'</b> — ✓ niente da completare.</div>';return;}
+      any=true;
+      h+='<div data-role="'+w[0]+'" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)"><div style="font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--gold);margin-bottom:8px">'+w[1]+' · '+a.missingCount+' dovut'+(a.missingCount===1?'o':'i')+'</div>';
+      a.sections.forEach(function(sec){
+        h+='<div style="font-size:12px;color:var(--t2);margin:8px 0 6px">'+esc((sec.title&&(sec.title.it||sec.title.en))||sec.key)+'</div>'+(sec.fields||[]).map(function(f){return cdField(w[0],f)}).join('');
+      });
+      h+='</div>';
+    });
+    (k.cosign||[]).forEach(function(co){if(co.missing&&co.missing.length)h+='<div class="sub2" style="margin-top:8px"><b>Co-conduttore '+(co.index+1)+' · '+esc(co.name)+'</b> — mancano: '+co.missing.map(function(m){return esc(m.label)}).join(', ')+' → la sua Scheda: <a class="cvlink" href="'+co.schedaUrl+'" target="_blank" rel="noopener">link</a></div>';});
+    h+='<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">'+(any?'<button class="pbtn prim" id="cdSave">Salva e rigenera il PDF</button>':'')+'<button class="pbtn" id="cdClose">Chiudi</button></div><p id="cdErr" style="display:none;color:#ff8a70;font-size:12px;margin-top:8px"></p>';
+    ov.firstChild.innerHTML=h;
+    ov.querySelector('#cdClose').onclick=function(){ov.remove();};
+    var sv=ov.querySelector('#cdSave');
+    if(sv)sv.onclick=async function(){
+      var err=ov.querySelector('#cdErr');err.style.display='none';
+      var jobs=CD_ROLES.map(function(w){return [w,cdCollect(ov,w[0])]}).filter(function(x){return x[1]});
+      if(!jobs.length){err.textContent='Nessun campo compilato.';err.style.display='block';return;}
+      sv.disabled=true;sv.textContent='Salvo…';
+      var lines=[];
+      try{
+        var tok2=await USER.getIdToken();
+        for(var i=0;i<jobs.length;i++){
+          var w=jobs[i][0],ans=jobs[i][1];
+          var rr=await fetch('/api/profile/submit',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok2},body:JSON.stringify({contractId:cid,role:w[0],answers:ans})});
+          var jj=await rr.json().catch(function(){return null});
+          if(rr.status===409&&jj&&jj.error==='mandate_terms_frozen')lines.push('⚠ '+w[1]+': non salvato — il mandato congela le condizioni approvate ('+(jj.changed||[]).join(', ')+'). Si corregge sulla proposta, non sul contratto.');
+          else if(rr.status===410)lines.push('⚠ '+w[1]+': ha già firmato — identità congelata.');
+          else if(!rr.ok||!jj||!jj.ok)lines.push('⚠ '+w[1]+': '+((jj&&jj.error)||('errore '+rr.status)));
+          else lines.push('✓ '+w[1]+': '+(jj.applied||[]).length+' campi salvati'+((jj.rejected||[]).length?' · scartati: '+jj.rejected.map(function(x){return x.key+' ('+x.why+')'}).join(', '):'')+(jj.complete?' · completo':'')+(jj.pdfRegenerated?' · PDF rigenerato':' · PDF non rigenerato (firma viva?)'));
+        }
+      }catch(e){lines.push('⚠ '+(e.message||'errore'));}
+      try{await load(lines.map(esc).join('<br>'));}catch(e2){err.textContent=e2.message||'errore';err.style.display='block';sv.disabled=false;sv.textContent='Salva e rigenera il PDF';}
+    };
+  }
+  try{await load('');}catch(e){ov.firstChild.innerHTML='<h3>✎ Completa i dati</h3><p style="color:#ff8a70">'+esc(e.message||'errore')+'</p><button class="pbtn" onclick="this.closest(\'.cvov\').remove()">Chiudi</button>';}
+};
+
 /* prima di 🖊: contratto da creare → convert dryRun (sovrapposizione + puntini);
    contratto già nato e non firmato → profile/link (i mancanti per parte).
    Ritorna {stop:true} se l'operatore si ferma, {force:true} se scavalca. */
@@ -1310,6 +1425,14 @@ function paRow(d){
            complete — l'operatore che vuole leggerlo o stamparlo prima della
            firma doveva passare dal portal. A firme complete resta il firmato. */
         +(sig.status!=='complete'&&sig.draft?'<a class="pbtn" href="'+sig.draft+'" target="_blank" rel="noopener">📄 Contratto (PDF, non firmato)</a>':'')
+        /* ✎ COMPLETA I DATI (21/09/2026): i puntini del PDF si chiudono da
+           qui — inquilino, locatore, termini — sul rail della Scheda con
+           l'operatore autenticato; il PDF si rifà da solo. Solo con un
+           contratto e finché le firme non sono complete. */
+        +(cid&&sig.status!=='complete'?'<button class="pbtn" onclick="completaDati(\''+d.id+'\')" title="I dati che il PDF stamperebbe come puntini: si scrivono da qui, con le regole della Scheda; il PDF si rigenera da solo">✎ Completa i dati</button>':'')
+        /* 📄 BOZZA CONTRATTO: prima di → Contratto, lo stesso impaginato in
+           PDF senza creare niente (convert dryRun + draftPdf). */
+        +(!cid?'<button class="pbtn" onclick="draftPdf(\''+d.id+'\',this)" title="Il contratto che → Contratto scriverebbe, in PDF, senza creare contratto, profilo o immobile">📄 Bozza contratto</button>'+(d.draftPdfUrl?'<a class="pbtn" href="'+d.draftPdfUrl+'" target="_blank" rel="noopener">Apri bozza'+(d.draftPdfAt?' ('+String(d.draftPdfAt).slice(0,10)+')':'')+'</a>':''):'')
         +'<button class="pbtn" onclick="resendCopy(\''+d.id+'\',this)">✉ Reinvia copia</button>'
         +(cid?'<button class="pbtn" onclick="fascicoloPA(\''+d.id+'\')">📦 Fascicolo ARPE</button>':'')
       ):'')

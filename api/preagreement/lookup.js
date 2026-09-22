@@ -66,6 +66,11 @@ export async function contractStatus(id, data) {
     unlocked,
     tenantSignUrl: (unlocked && !tenantSigned && c.tenantSignToken) ? `${BASE}/sign?sign=${c.tenantSignToken}` : null,
     signedPdfUrl: complete ? (c.signedPdfUrl || null) : null,
+    // Il contratto DA FIRMARE, leggibile dal cliente (21/09/2026): il PDF
+    // generato alla conversione, con la stessa esposizione del link di
+    // firma (soldi ricevuti o dovuto zero) e mai a firme complete (lì c'è
+    // il firmato). È ciò che il mandato autorizza BOOM a sottoscrivere.
+    draftPdfUrl: (unlocked && !complete && c.generatedPDF) ? c.generatedPDF : null,
     byDelegate: (c.tenantSignedByDelegate && c.tenantSignedByDelegate.name) ? { name: c.tenantSignedByDelegate.name, signedAt: iso(c.tenantSignedByDelegate.signedAt) } : null,
   };
 }
@@ -123,6 +128,8 @@ export default async function handler(req, res) {
         // the optional second requested document (e.g. proof of transitional
         // need) — label + whether it already arrived (never blocking)
         extraDoc: data.extraDoc || null,
+        draftPdfUrl: ((paidOnRecord(data) || dueAtSigning(data) === 0) && (data.status === 'accepted' || data.status === 'paid') && data.draftPdfUrl) ? data.draftPdfUrl : null,
+        draftPdfAt: data.draftPdfAt || null,
         extraDocCount: Array.isArray(data.uploads) ? data.uploads.filter(u => u && u.kind === 'extra').length : 0,
         // Il mandato a firmare: chiesto? gia' conferito? (mai il testo qui —
         // la pagina lo ha in una copia sola, uguale a _consent.js).

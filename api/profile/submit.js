@@ -23,14 +23,36 @@
 // Body:     { t, identity?:{ name, cf?, dob, pob, address, docType, docNum,
 //             docIssuer?, docIssueDate?, nationality }, phone?,
 //             answers?: { <key>: value } }
+//           OPPURE (21/09/2026 — «✎ Completa i dati» dalla console PA):
+//           Authorization: Bearer <id token ADMIN> +
+//           { contractId, role:'tenant'|'landlord'|'operator'|'cotenant',
+//             coIndex?, identity?, answers? }
 // Response: 200 { ok, complete, missing:[{key,label}], applied:[], rejected:[{key,why}] }
 //           | 404 | 410 { error:'already_signed' }
+//           | 409 { error:'mandate_terms_frozen', changed:[chiavi] }
+//
+// DUE ATTORI, UN RAIL. La parte scrive dal suo link (token derivato); l'ope-
+// ratore scrive dalla console, autenticato. Stesse validazioni del dizionario,
+// stesse scritture (contratto · immobile · profilo), stessa rigenerazione del
+// PDF. Cambiano SOLO gli effetti che presuppongono che a scrivere sia la
+// parte: all'operatore niente email di conferma alla parte, niente ping
+// «scheda compilata» (l'ha fatto lui), fill-only rilassato (`trusted`: la
+// riga rossa protegge dal link intercettato, non da chi ha le chiavi). Il
+// ruolo 'operator' (i termini che nessuna parte compila: giorno di pagamento,
+// luogo di firma, stato di consegna…) esiste SOLO per l'attore autenticato.
+// La firma già apposta resta un 410 per tutti: l'identità di un atto firmato
+// è congelata; per i termini dell'operatore basta QUALSIASI firma viva.
+// E il mandato congela le condizioni approvate: un completamento che le
+// cambiasse (canone, date, parti, modello) farebbe rispondere 409 alla firma
+// per mandato — qui lo si dice PRIMA, senza scrivere niente.
 
 import { fsGet, fsPatch, fsCreate, readJson, logActivity } from '../homie/_lib.js';
 import { ensureContractPdf, hasAnySignature } from '../sign/_contractpdf.js';
 import { setCors, rateOk, fsGetWithTime, commitWrites } from '../magic-sign/_shared.js';
 import { parseSchedaRef, schedaLocked, identityComplete } from './_scheda.js';
 import FIELDS from '../../js/contract-fields.js';
+import MANDATO from '../../js/mandato-engine.js';
+import { requireRole, bearerFrom } from '../_auth.js';
 // Static imports (Vercel NFT non traccia i lazy import di pacchetti npm):
 // la conferma al cliente viaggia sul design system condiviso.
 import { sendEmail } from '../agent/_lib.js';
@@ -54,7 +76,19 @@ export default async function handler(req, res) {
   try { body = await readJson(req); }
   catch { return res.status(400).json({ ok: false, error: 'invalid_json' }); }
 
-  const ref = parseSchedaRef(body && body.t);
+  // ── LA CREDENZIALE: il link (token derivato) O l'operatore autenticato ──
+  let ref = parseSchedaRef(body && body.t);
+  let actor = 'party', operator = null;
+  if (!ref && bearerFrom(req)) {
+    const auth = await requireRole(req, res, ['admin']);
+    if (!auth) return;
+    const role = String((body && body.role) || '');
+    const cid = String((body && body.contractId) || '').trim().slice(0, 80);
+    if (!cid || !['tenant', 'landlord', 'operator', 'cotenant'].includes(role)) return res.status(400).json({ ok: false, error: 'contractId_and_role_required' });
+    ref = { contractId: cid, role, coIndex: role === 'cotenant' ? (Number(body.coIndex) || 0) : undefined };
+    actor = 'operator';
+    operator = { uid: auth.uid, email: auth.email || '' };
+  }
   if (!ref) return res.status(404).json({ ok: false, error: 'invalid_link' });
   const { contractId, role, coIndex } = ref;
 
@@ -63,7 +97,7 @@ export default async function handler(req, res) {
   catch (e) { return res.status(500).json({ ok: false, error: 'lookup_failed' }); }
   if (!contract) return res.status(404).json({ ok: false, error: 'not_found' });
   if (role === 'cotenant' && !(Array.isArray(contract.coTenants) ? contract.coTenants : [])[coIndex]) return res.status(404).json({ ok: false, error: 'not_found' });
-  if (schedaLocked(contract, role, coIndex)) return res.status(410).json({ ok: false, error: 'already_signed' });
+  if (role === 'operator' ? hasAnySignature(contract) : schedaLocked(contract, role, coIndex)) return res.status(410).json({ ok: false, error: 'already_signed' });
 
   // ── CO-CONDUTTORE: scrive SOLO la sua riga coTenants[idx] ─────────────
   // Un firmatario a sé per l'AdE (una riga RLI, CF obbligatorio) — il suo
@@ -100,8 +134,8 @@ export default async function handler(req, res) {
     }
     if (!list) return res.status(409).json({ ok: false, error: 'conflict' });
     const miss = FIELDS.cotenantMissing(list[coIndex]);
-    await logActivity('scheda_submitted', 'contract', { contractId, role: 'cotenant', coIndex, complete: miss.length === 0 }, 'scheda').catch(() => {});
-    try {
+    await logActivity('scheda_submitted', 'contract', { contractId, role: 'cotenant', coIndex, complete: miss.length === 0, actor }, 'scheda').catch(() => {});
+    if (actor === 'party') try {
       await fsCreate('agentNotifications', {
         type: 'scheda.completed',
         summary: `Scheda co-conduttore ${coIndex + 1} compilata · ${list[coIndex].name} · ${contractId}${miss.length ? ' (parziale)' : ' (completa)'}`,
@@ -114,7 +148,8 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, complete: miss.length === 0, missing: miss.map(m => ({ key: m.key, label: m.label.en })), applied: [], rejected: [] });
   }
 
-  const P = role === 'landlord' ? 'landlord' : 'tenant';
+  const who = FIELDS.roleWho(role);              // tenant | landlord | operator
+  const P = who === 'operator' ? null : who;     // la parte i cui campi si scrivono (nessuna per l'operatore)
   const template = FIELDS.templateOf(contract);
   const nowISO = new Date().toISOString();
 
@@ -124,11 +159,11 @@ export default async function handler(req, res) {
   if (contract.propertyId) {
     try { property = await fsGet('properties/' + contract.propertyId); } catch (_) {}
   }
-  const targetUid = role === 'tenant' ? (contract.tenantId || null) : ((property && property.ownerId) || null);
+  const targetUid = who === 'tenant' ? (contract.tenantId || null) : who === 'landlord' ? ((property && property.ownerId) || null) : null;
 
   // ── Identità (retro-compatibile: la pagina la manda sempre; un client
   //    che porta SOLO answers non viene respinto) ──────────────────────
-  const hasIdentity = body && body.identity && typeof body.identity === 'object';
+  const hasIdentity = !!P && body && body.identity && typeof body.identity === 'object';
   const raw = hasIdentity ? body.identity : {};
   const id = hasIdentity ? {
     name:         clip(raw.name, 120),
@@ -165,7 +200,7 @@ export default async function handler(req, res) {
     upd[P + 'DocIssueDate'] = id.docIssueDate;
     upd[P + 'Nationality'] = id.nationality;
   }
-  if (phone) upd[P + 'Phone'] = phone;
+  if (phone && P) upd[P + 'Phone'] = phone;
 
   // ── Le risposte alle sezioni extra: il dizionario decide ─────────────
   // ctx porta SOLO il profilo di questa parte (l'altra non entra mai).
@@ -174,11 +209,26 @@ export default async function handler(req, res) {
   if (role === 'landlord' && targetUid) {
     try { const ll = await fsGet('landlords/' + targetUid); if (ll) user = { ...ll, ...(user || {}) }; } catch (_) {}
   }
-  const ctx = { contract, property: property || {}, [P]: user || {} };
+  const ctx = { contract, property: property || {}, ...(P ? { [P]: user || {} } : {}) };
   const answers = (body && body.answers && typeof body.answers === 'object' && !Array.isArray(body.answers)) ? body.answers : {};
-  const applied = FIELDS.applyAnswers(role, answers, ctx);
+  const applied = FIELDS.applyAnswers(role, answers, ctx, { trusted: actor === 'operator' });
   Object.assign(upd, applied.contract);
-  upd['scheda' + (P === 'tenant' ? 'Tenant' : 'Landlord') + 'At'] = nowISO;
+  if (actor === 'party') upd['scheda' + (P === 'tenant' ? 'Tenant' : 'Landlord') + 'At'] = nowISO;
+  else { upd.completedByOperatorAt = nowISO; upd.completedByOperator = operator.email || operator.uid; }
+
+  // ── IL MANDATO CONGELA LE CONDIZIONI (js/mandato-engine.js) ──────────
+  // Un dato che cambiasse la foto approvata (canone, date, deposito, parti,
+  // modello, clausole) farebbe fallire la firma per mandato con 409: si dice
+  // qui, prima di scrivere, con le chiavi che cambierebbero. SOLO per
+  // l'operatore: è lui che sta per firmare per mandato. La parte dal suo
+  // link resta libera di correggere il proprio nome (è la sua identità);
+  // se poi il mandato non combacia lo dice la firma, come sempre.
+  if (actor === 'operator' && contract.tenantMandate && contract.tenantMandate.given) {
+    const before = MANDATO.termsFromContract(contract), after = MANDATO.termsFromContract({ ...contract, ...upd });
+    if (MANDATO.canonical(before) !== MANDATO.canonical(after)) {
+      return res.status(409).json({ ok: false, error: 'mandate_terms_frozen', changed: MANDATO.diffTerms(before, after).map(d => d.key), rejected: applied.rejected });
+    }
+  }
 
   try { await fsPatch('contracts/' + contractId, upd); }
   catch (e) {
@@ -243,22 +293,22 @@ export default async function handler(req, res) {
   const after = {
     contract: { ...contract, ...upd },
     property: { ...(property || {}), ...propPatch },
-    [P]: { ...(user || {}), ...applied.user, ...(id ? { name: id.name, cf: id.cf, dob: id.dob, pob: id.pob, address: id.address, docType: id.docType, docNum: id.docNum, docIssuer: id.docIssuer, docIssueDate: id.docIssueDate, nationality: id.nationality } : {}), ...(phone ? { phone } : {}) },
+    ...(P ? { [P]: { ...(user || {}), ...applied.user, ...(id ? { name: id.name, cf: id.cf, dob: id.dob, pob: id.pob, address: id.address, docType: id.docType, docNum: id.docNum, docIssuer: id.docIssuer, docIssueDate: id.docIssueDate, nationality: id.nationality } : {}), ...(phone ? { phone } : {}) } } : {}),
   };
   // `complete` = per QUESTA parte il PDF non stamperebbe puntini (livello
   // 'contract'); `missing` = ciò che serve ancora anche per la
   // registrazione (documento caricato compreso), per lo schermo finale.
   const ask = FIELDS.askFor(role, after);
-  const complete = FIELDS.completeness(after, { level: 'contract' }).byOwner[P].missing.length === 0;
-  const missing = FIELDS.missingFor(role, after, { lang: ask.lang });
-  await logActivity('scheda_submitted', 'contract', { contractId, role, complete, applied: applied.applied, rejected: applied.rejected.map(r => r.key) }, 'scheda').catch(() => {});
+  const complete = FIELDS.completeness(after, { level: 'contract' }).byOwner[who].missing.length === 0;
+  const missing = FIELDS.missingFor(who, after, { lang: ask.lang });
+  await logActivity('scheda_submitted', 'contract', { contractId, role, complete, actor, applied: applied.applied, rejected: applied.rejected.map(r => r.key) }, 'scheda').catch(() => {});
 
   // ── Conferma al cliente (una volta sola, quando la scheda è completa) ──
   // Nel design system BOOM, nella lingua del lettore. Best-effort e con
   // timeout: un SMTP piantato non deve mai bloccare il submit.
   const confirmFlag = 'scheda' + (P === 'tenant' ? 'Tenant' : 'Landlord') + 'ConfirmedAt';
   const identityOk = id ? identityComplete(id, { role, template }) : true;
-  if (complete && identityOk && !contract[confirmFlag]) {
+  if (actor === 'party' && P && complete && identityOk && !contract[confirmFlag]) {
     try {
       let to = '';
       if (user && user.email) to = user.email;
@@ -299,7 +349,7 @@ export default async function handler(req, res) {
   // Un dato SENSIBILE impostato da un link pubblico (l'IBAN dove paga
   // l'inquilino) si dice all'operatore ad ALTA priorità, col valore: fill-only
   // impedisce di cambiarne uno esistente, ma il primo va comunque visto.
-  if (Array.isArray(applied.sensitive) && applied.sensitive.length) {
+  if (actor === 'party' && Array.isArray(applied.sensitive) && applied.sensitive.length) {
     try {
       await fsCreate('agentNotifications', {
         type: 'scheda.sensitive',
@@ -314,8 +364,9 @@ export default async function handler(req, res) {
     } catch (_) {}
   }
   // Wake the operator's channels like magic-sign does — a completed scheda
-  // usually means "regenerate the PDF and send the sign link".
-  try {
+  // usually means "regenerate the PDF and send the sign link". Non quando
+  // a scrivere è l'operatore stesso.
+  if (actor === 'party') try {
     await fsCreate('agentNotifications', {
       type: 'scheda.completed',
       summary: `Scheda ${P === 'tenant' ? 'inquilino' : 'locatore'} compilata · ${(id && id.name) || contract[P + 'Name'] || ''} · ${((property || {}).name) || contractId}${complete ? ' (completa)' : ' (parziale: manca ' + missing.slice(0, 4).map(m => m.label).join(', ') + (missing.length > 4 ? '…' : '') + ')'}`,

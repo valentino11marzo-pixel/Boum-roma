@@ -622,12 +622,17 @@
   // Sezioni (oltre all'identità, che la pagina gestisce nel suo step 1)
   // con SOLO i campi vuoti di QUEL ruolo: required prima, poi gli
   // opzionali della stessa sezione. Una sezione senza campi vuoti non esiste.
+  // Il ruolo → il proprietario dei campi. 'operator' (21/09/2026) è la
+  // console: i termini che nessuna parte compila (giorno di pagamento,
+  // luogo di firma, stato di consegna…). Tutto il resto resta 'tenant'.
+  function roleWho(role) { return role === 'landlord' ? 'landlord' : role === 'operator' ? 'operator' : 'tenant'; }
+
   function askFor(role, ctx, opts) {
     ctx = ctx || {};
     opts = opts || {};
     const tpl = templateOf(ctx.contract);
-    const who = role === 'landlord' ? 'landlord' : 'tenant';
-    const lang = opts.lang || (who === 'landlord' ? 'it' : 'en');
+    const who = roleWho(role);
+    const lang = opts.lang || (who === 'tenant' ? 'en' : 'it');
     const groups = {};
     const identityMissing = [];
     fieldsFor(tpl).forEach(f => {
@@ -636,7 +641,10 @@
       const v = valueOf(f, ctx);
       const req = isRequired(f, ctx);
       const n = needsOf(f, tpl);
-      if (f.group === 'identity') { if (v === '' && req && (n.indexOf('contract') >= 0 || n.indexOf('registration') >= 0)) identityMissing.push(f.key); return; }
+      // /scheda ha il SUO step identità (identityMissing = le chiavi); la
+      // console (identityAsSection) vuole invece una sezione come le altre,
+      // coi descrittori — così un modulo solo li rende tutti.
+      if (f.group === 'identity' && !opts.identityAsSection) { if (v === '' && req && (n.indexOf('contract') >= 0 || n.indexOf('registration') >= 0)) identityMissing.push(f.key); return; }
       if (n.indexOf('contract') < 0 && n.indexOf('registration') < 0 && opts.includeOperations === false) return;
       if (v !== '' && !opts.includeFilled) return;
       const g = groups[f.group] || (groups[f.group] = { key: f.group, title: SECTIONS[f.group] || { it: f.group, en: f.group }, fields: [] });
@@ -727,9 +735,10 @@
     const parts = declared.split(/\s*[;,]\s*/).filter(Boolean).filter(p => head.toLowerCase().indexOf(p.toLowerCase()) < 0);
     return parts.length ? head + '; ' + parts.join('; ') : head;
   }
-  function applyAnswers(role, answers, ctx) {
+  function applyAnswers(role, answers, ctx, opts) {
     ctx = ctx || {};
-    const who = role === 'landlord' ? 'landlord' : 'tenant';
+    opts = opts || {};
+    const who = roleWho(role);
     const tpl = templateOf(ctx.contract);
     const out = { contract: {}, property: {}, user: {}, rejected: [], applied: [] };
     const c = obj(ctx.contract);
@@ -753,7 +762,10 @@
       if (!norm.ok) { out.rejected.push({ key, why: norm.why }); return; }
       // fillOnly: un dato che c'è già non si riscrive da un link pubblico
       // (email di firma, IBAN, indirizzo dell'immobile): si corregge dal portal.
-      if (f.fillOnly && valueOf(f, ctx) !== '' && valueOf(f, ctx) !== str(norm.value)) { out.rejected.push({ key, why: 'already_set' }); return; }
+      // `trusted` È il portal — l'operatore autenticato che corregge dalla
+      // console (21/09/2026): la riga rossa protegge dal link intercettato,
+      // non da chi ha già le chiavi di tutto.
+      if (f.fillOnly && !opts.trusted && valueOf(f, ctx) !== '' && valueOf(f, ctx) !== str(norm.value)) { out.rejected.push({ key, why: 'already_set' }); return; }
       let value = norm.value;
       if (f.sensitive) out.sensitive = (out.sensitive || []).concat([{ key, value: str(value) }]);
       if (f.type === 'people') value = composeCohabitants(c, value);
@@ -903,7 +915,7 @@
   const API = {
     FIELDS, BY_KEY, SECTIONS, DOC_TYPES, READS, GROUP_NAMES, PROPERTY_WRITE_KEYS,
     templateOf, fieldsFor, valueOf, needsOf, isRequired, ownerOf, read,
-    completeness, printCheck, missingFor, askFor, applyAnswers, missingMessage, missingNames, labels,
+    completeness, printCheck, missingFor, askFor, applyAnswers, missingMessage, missingNames, labels, roleWho,
     identityComplete, validCF, validCF16, validCFFor, validPIva, ibanOk, parseItNumber, leaseDays, leaseMonths,
     cedolareOn, docTypeCode, docTypeIt, isEU, parseCadastral, composeCadastral,
     cotenantIdentity, cotenantMissing, applyCotenantIdentity, legalChecks, rliFacts, readParty, hydrateParties,
