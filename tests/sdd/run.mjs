@@ -112,6 +112,8 @@ const SDD = { status: 'active', customerId: 'cus_1', paymentMethodId: 'pm_1', ac
 const P = { status: 'pending', dueDate: plus(3), amount: 900 };
 check('rata in finestra + mandato attivo → si addebita', eligibleForCharge(P, SDD, today) === true);
 check('mandato cancellato → no', eligibleForCharge(P, { ...SDD, status: 'cancelled' }, today) === false);
+check('bonifico segnalato → nessun nuovo addebito automatico', eligibleForCharge({ ...P, tenantReported: true }, SDD, today) === false);
+check('carta in corso → nessun nuovo addebito automatico', eligibleForCharge({ ...P, cardStatus: 'processing' }, SDD, today) === false);
 check('rata già pagata → no', eligibleForCharge({ ...P, status: 'paid' }, SDD, today) === false);
 check('addebito già iniziato (sddPiId) → mai due volte', eligibleForCharge({ ...P, sddPiId: 'pi_x' }, SDD, today) === false);
 check('guasto noto (sddInitError) → non si gira a vuoto', eligibleForCharge({ ...P, sddInitError: 'x' }, SDD, today) === false);
@@ -124,6 +126,7 @@ check('scaduta DOPO il mandato → si recupera da sola', eligibleForCharge({ ...
 store.set('contracts/ct1', { tenantName: 'Julie', tenantEmail: 'julie@x.com', tenantId: 'ten1', sdd: { ...SDD, email: 'julie@x.com' } });
 store.set('payments/p1', { contractId: 'ct1', tenantId: 'ten1', status: 'pending', dueDate: plus(3), amount: 900, month: '2026-08' });
 store.set('payments/p2', { contractId: 'ct1', status: 'pending', dueDate: plus(40), amount: 900, month: '2026-09' });
+store.set('payments/reported', { contractId: 'ct1', tenantId: 'ten1', status: 'pending', dueDate: today, amount: 500, tenantReported: true });
 store.set('payments/p3', { contractId: 'ct1', status: 'paid', dueDate: plus(1), amount: 900 });
 
 let out = await collectSdd();

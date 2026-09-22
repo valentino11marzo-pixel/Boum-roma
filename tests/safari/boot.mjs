@@ -51,7 +51,8 @@ function stub({ mode, role }) {
   const q = {
     where: () => q, orderBy: () => q, limit: () => q, doc: () => q,
     get: () => (mode === 'profileHang' ? never() : Promise.resolve(profile)),
-    onSnapshot: (onData) => {
+    onSnapshot: (...args) => {
+      const onData = args.find(arg => typeof arg === 'function');
       if (mode === 'silentChannel') return () => {};      // non chiama mai nulla
       setTimeout(() => onData(snap([])), 20);
       return () => {};

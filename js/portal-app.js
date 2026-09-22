@@ -790,6 +790,22 @@ Valentyne - BOOM Rome`
         homieHeartbeat: null
     };
 
+    // A derived property view: navigation and mutations stay in the existing portal.
+    window.BOOM_PROPERTY_DOSSIER?.configure({
+        state: () => S, navigate: page => goTo(page), render: () => renderPage(),
+        refresh: () => loadDataFresh(true),
+        restoreOrigin: origin => {
+            if (origin.page === 'oggi' && origin.context?.taskId)
+                oggiSegretaria.propertyReturn = { ...origin.context, scroll: origin.scroll, afterGeneration: oggiSegretaria.generation + (oggiSegretaria.loading ? 0 : 1) };
+        },
+        actions: { contract: id => viewContract(id), maintenance: id => viewMaintenance(id),
+            task: id => editTask(id), person: id => viewUser(id),
+            payment: (unit, month, id) => openRentUnit(unit, month, id),
+            edit: property => openModal('editProperty', property),
+            remove: property => confirmDelete('propert', property.id, property.name || 'Immobile'),
+            valuation: id => openValutazione(null, undefined, {propertyId:id}) }
+    });
+
     // ═══════════════════════════════════════════════════════════════════════════
     // TRANSLATIONS (IT/EN)
     // ═══════════════════════════════════════════════════════════════════════════
@@ -847,7 +863,10 @@ Valentyne - BOOM Rome`
         S.isOnline = true;
         document.getElementById('offlineBanner')?.classList.remove('show');
         toast('success', 'Connessione ripristinata');
-        refresh();
+        if (['oggi', 'inbox'].includes(S.page) && auth.currentUser && (isAdmin() || isLandlord())) {
+            portalFreshnessMount();
+            portalFreshnessResume();
+        } else refresh();
     });
 
     window.addEventListener('offline', () => {
@@ -2531,6 +2550,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 if (sameUser && age < cacheUsable) {
                     console.log('Using cached data (age ' + Math.round(age / 1000) + 's)');
                     Object.assign(S, data);
+                    invalidateRentSnapshot();
+                    window.BOOM_PROPERTY_DOSSIER?.setSourceState('cached');
                     checkAlerts();
                     // Refresh in background: subito se lo snapshot è stantio,
                     // con calma se ha meno di 5 minuti.
@@ -2700,6 +2721,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // (persistence differita + watchdog): Firestore multiplexa tutte
             // le query su un unico canale, quindi serializzare non proteggeva
             // nulla e costava ~2 round-trip extra a ogni boot admin.
+            window.BOOM_PROPERTY_DOSSIER?.setSourceState('loading');
             console.log('Loading core data...');
             // Tetti sulle query (audit 2026-08, I1): 9 su 10 erano .get() nudi —
             // collezioni INTERE a ogni boot, per sempre. I limiti sono guardrail
@@ -2721,6 +2743,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             S.properties = props.docs.map(d => ({ id: d.id, ...d.data() }));
             S.contracts = contracts.docs.map(d => ({ id: d.id, ...d.data() }));
             S.payments = payments.docs.map(d => ({ id: d.id, ...d.data() }));
+            invalidateRentSnapshot();
             // Rate scadute: flip SOLO in memoria. Prima ogni boot faceva una
             // update() Firestore per ogni rata scaduta (N scritture a ogni
             // apertura, per sempre — audit 2026-08). Nessun consumatore
@@ -2736,6 +2759,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             S.invoices = invoices.docs.map(d => ({ id: d.id, ...d.data() }));
             S.rules = rules.docs.map(d => ({ id: d.id, ...d.data() }));
             S.ruleExecutions = ruleExecs.docs.map(d => ({ id: d.id, ...d.data() }));
+            window.BOOM_PROPERTY_DOSSIER?.setSourceState('ready');
             console.log('Core batch done:', (performance.now() - startTime).toFixed(0), 'ms');
             
             // Cache core data (tagged with uid + role for shared-device safety)
@@ -2762,13 +2786,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         catch (e) { S.activityLog = []; }
                     })(),
                     (async () => {
+                        window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('loading');
                         try {
                             const [deadlines, tasks] = await Promise.all([
                                 db.collection('deadlines').limit(1500).get(),
                                 db.collection('tasks').limit(800).get()
                             ]);
                             S.deadlines = rows(deadlines); S.tasks = rows(tasks);
-                        } catch (e) { S.deadlines = []; S.tasks = []; console.error('Deadlines/tasks load:', e); toast('error', 'Errore caricamento scadenze'); }
+                            window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('ready');
+                        } catch (e) { window.BOOM_PROPERTY_DOSSIER?.setTasksSourceState('error'); console.error('Deadlines/tasks load:', e); toast('error', 'Errore caricamento scadenze e attività'); }
                     })(),
                     (async () => {
                         try {
@@ -2798,6 +2824,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ]);
 
                 console.log('Lazy data loaded:', (performance.now() - startTime).toFixed(0), 'ms total');
+                if (window.BOOM_PROPERTY_DOSSIER?.parseRoute(S.page)) renderPage();
                 cacheData(); // ora la cache copre ANCHE i dati lazy: i badge partono giusti
                 if (S.page === 'command' || S.page === 'pfs-pipeline' || S.page === 'leads' || S.page === 'dashboard' || S.page === 'viewings' || S.page === 'inbox') renderPage();
                 buildNav();
@@ -2806,6 +2833,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             console.log('Core data loaded in', (performance.now() - startTime).toFixed(0), 'ms');
             if (!silent) checkAlerts();
         } catch (e) { 
+            window.BOOM_PROPERTY_DOSSIER?.setSourceState('error');
             console.error('Load data error:', e);
             if (!silent) toast('error', 'Errore caricamento', e.message); 
         }
@@ -2842,8 +2870,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             }
         });
         // Overdue payments
-        S.payments.filter(p => p.status === 'pending').forEach(p => {
-            if (isOverdue(p.dueDate)) {
+        S.payments.filter(p => window.BOOM_RENT.paymentState(p) === 'overdue').forEach(p => {
+            {
                 const c = S.contracts.find(x => x.id === p.contractId);
                 const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
                 S.notifications.push({ type: 'danger', title: 'Pagamento in ritardo', text: `${prop?.name || ''} - €${p.amount}`, id: p.id });
@@ -2860,6 +2888,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     async function checkContractExpiry() {
+        // Explicit operator action only: reading Home must never send reviews.
+        if (!isAdmin()) return;
         var now = new Date();
         var thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
         var active = (S.contracts || []).filter(function(c) { return c.status === 'active' && !c.reviewRequestSent; });
@@ -3110,6 +3140,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             .onSnapshot(snapshot => {
                 S.contracts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 checkAlerts();
+                oggiScheduleUpdate();
                 if (S.page === 'dashboard' || S.page === 'contracts') renderPage();
             }, err => console.error('Contracts listener error:', err));
     }
@@ -3134,6 +3165,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             .onSnapshot(snapshot => {
                 S.actionQueue = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 buildNav();
+                oggiScheduleUpdate(true);
                 if (S.page === 'dashboard' || S.page === 'command-center') renderPage();
             }, err => console.error('Action queue listener error:', err));
     }
@@ -3189,6 +3221,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     if (document.hidden) sendBrowserNotification('🔧 Nuova manutenzione', sub);
                 }
                 buildNav();
+                oggiScheduleUpdate();
                 if (S.page === 'maintenance' || S.page === 'dashboard') renderPage();
             }, err => console.error('Maintenance listener error:', err));
     }
@@ -3289,6 +3322,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!S.profile?.id) return;
         if (!isAdmin() && !isLandlord()) return;
         if (S.inboxListener) S.inboxListener();
+        const user = auth.currentUser, profileId = S.profile.id;
+        const generation = S.inboxGeneration = (S.inboxGeneration || 0) + 1;
+        const current = () => generation === S.inboxGeneration && auth.currentUser === user && S.profile?.id === profileId;
+        let active = true, received = false;
+        S.inboxFeed = { state: 'loading' };
+        inboxFreshnessUpdate();
         let q;
         if (isAdmin()) {
             q = db.collection('conversations').orderBy('lastMessageAt', 'desc').limit(200);
@@ -3296,53 +3335,82 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // landlord — no orderBy (avoids a composite index); sorted client-side.
             q = db.collection('conversations').where('assignedLandlordId', '==', S.profile.id).limit(200);
         }
-        S.inboxListener = q.onSnapshot(snapshot => {
+        S.inboxListener = q.onSnapshot({ includeMetadataChanges: true }, snapshot => {
+            if (!active || !current()) return;
+            S.inboxFeed = { state: snapshot.metadata?.fromCache ? 'cached' : 'live' };
+            inboxFreshnessUpdate();
+            const changed = !received || typeof snapshot.docChanges !== 'function' || snapshot.docChanges().length > 0;
+            received = true;
+            if (!changed) return;
             const prevUnread = (S.conversations || []).reduce((n, c) => n + (Number(c.unread) || 0), 0);
             S.conversations = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-            buildNav();
-            if (S.page === 'inbox') {
-                // Preserve the open conversation + composer text across re-render.
-                const draft = (document.getElementById('inboxBody') || {}).value;
-                const m = document.getElementById('main');
-                if (m) m.innerHTML = inboxPage();
-                if (draft) { const ta = document.getElementById('inboxBody'); if (ta) ta.value = draft; }
+            const selected = S.inboxExactConversation;
+            if (S.page === 'inbox' && selected?.user === user && selected.id === S.openConvId && isAdmin()) {
+                const latest = S.conversations.find(c => c.id === selected.id);
+                if (latest) selected.row = latest;
+                else S.conversations.push(selected.row);
             }
+            buildNav();
+            oggiScheduleUpdate(true, false);
+            inboxLiveRefresh();
             // Audible/visual cue when a new inbound arrives while away from Inbox.
             const nowUnread = (S.conversations || []).reduce((n, c) => n + (Number(c.unread) || 0), 0);
             if (nowUnread > prevUnread && S.page !== 'inbox') {
                 if (document.hidden) sendBrowserNotification('BOOM · Nuovo messaggio', 'Hai ' + nowUnread + ' messaggi da gestire in Inbox');
             }
-        }, err => console.error('Inbox listener error:', err));
+        }, () => {
+            if (!active || !current()) return;
+            active = false; // Firestore errors terminate this subscription.
+            S.inboxFeed = { state: 'error' };
+            inboxFreshnessUpdate();
+        });
     }
     function stopInboxListener() {
+        S.inboxGeneration = (S.inboxGeneration || 0) + 1;
         if (S.inboxListener) { S.inboxListener(); S.inboxListener = null; }
+        S.inboxFeed = null;
+        S.inboxExactConversation = null;
+        portalFreshnessStop();
         stopOpenConvListener();
     }
     // Per-conversation live thread — attached when a conversation is opened so
     // the messages timeline updates in real time (e.g. Homie logs an inbound
     // while you're reading). Detached when switching conversation / leaving.
     function startOpenConvListener(convId) {
+        const selected = S.inboxExactConversation;
         stopOpenConvListener();
         if (!convId) return;
+        if (selected?.id === convId && selected.user === auth.currentUser) S.inboxExactConversation = selected;
+        const generation = S.openConvGeneration, user = auth.currentUser;
+        const current = () => S.openConvId === convId && S.openConvGeneration === generation && auth.currentUser === user;
+        let active = true;
         S.openConvId = convId;
+        S.openConvStatus = { id: convId, loading: true, incomplete: false, error: '' };
         S.openConvListener = db.collection('messages')
             .where('conversationId', '==', convId)
+            .orderBy('at', 'desc')
             .limit(300)
             .onSnapshot(snapshot => {
+                if (!active || !current()) return;
                 const fresh = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                S.openConvStatus = { id: convId, loading: false, incomplete: fresh.length >= 300, error: '' };
                 // Merge: drop this conversation's old messages, splice the fresh set in.
                 S.messages = (S.messages || []).filter(m => m.conversationId !== convId).concat(fresh);
                 if (S.page === 'inbox' && _inboxState.convId === convId) {
-                    const draft = (document.getElementById('inboxBody') || {}).value;
-                    const m = document.getElementById('main');
-                    if (m) m.innerHTML = inboxPage();
-                    if (draft) { const ta = document.getElementById('inboxBody'); if (ta) ta.value = draft; }
+                    inboxLiveRefresh();
                 }
-            }, err => console.error('Open conversation listener error:', err));
+            }, () => {
+                if (!active || !current()) return;
+                active = false;
+                S.openConvStatus = { id: convId, loading: false, incomplete: true, error: 'Non riesco ad aggiornare i messaggi. La cronologia visibile potrebbe essere incompleta: riapri la conversazione per riprovare.' };
+                inboxLiveRefresh();
+            });
     }
     function stopOpenConvListener() {
+        S.openConvGeneration = (S.openConvGeneration || 0) + 1;
         if (S.openConvListener) { S.openConvListener(); S.openConvListener = null; }
         S.openConvId = null;
+        S.inboxExactConversation = null;
     }
 
     function isRecent(timestamp, seconds = 30) {
@@ -3634,7 +3702,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const today = new Date();
 
         // 1. Overdue payments
-        S.payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate)).forEach(p => {
+        S.payments.filter(p => window.BOOM_RENT.paymentState(p) === 'overdue').forEach(p => {
             const contract = S.contracts.find(c => c.id === p.contractId);
             const prop = S.properties.find(x => x.id === contract?.propertyId);
             const tenant = S.users.find(u => u.id === contract?.tenantId);
@@ -3662,7 +3730,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         });
 
         // 5. Pending invoices > 30 days
-        S.invoices.filter(i => i.status === 'pending' && daysSince(i.createdAt) > 30).forEach(i => {
+        boomBusinessInvoices().filter(i => i.status === 'pending' && daysSince(i.createdAt) > 30).forEach(i => {
             const client = S.clients.find(c => c.id === i.clientId);
             reminders.push({ type: 'invoice_overdue', priority: 'medium', icon: '🧾', color: 'orange', title: 'Fattura da incassare', text: `${i.number} - ${client?.name || 'Cliente'} · €${i.amount}`, action: `viewInvoice('${i.id}')`, date: i.createdAt });
         });
@@ -3843,7 +3911,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         );
     }
     
-    // Check and send scheduled notifications (run periodically)
+    // Explicit operator action only; setupApp never dispatches notifications.
     async function checkScheduledNotifications() {
         if (!isAdmin()) return; // Only admin triggers scheduled notifications
         
@@ -3851,7 +3919,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         today.setHours(0, 0, 0, 0);
         
         // Check payments due in 5 days
-        for (const payment of S.payments.filter(p => p.status === 'pending')) {
+        for (const payment of S.payments.filter(p => p.status === 'pending' && window.BOOM_RENT.canPay(p))) {
             const days = daysUntil(payment.dueDate);
             if (days === 5) {
                 // Check if notification already sent today
@@ -4009,11 +4077,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         startMaintenanceListener();
         startAgentFeedListener();
 
-        // Check scheduled notifications (admin only, once per session)
-        if (isAdmin() && !window.scheduledNotifChecked) {
-            window.scheduledNotifChecked = true;
-            setTimeout(() => checkScheduledNotifications(), 5000);
-        }
+        // Notifications and review / referral campaigns must be explicit
+        // actions, never side effects of opening this screen.
         
         // Search bar for admin only
         if (isAdmin()) {
@@ -4029,13 +4094,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // La prima schermata dell'admin è la coda delle decisioni: il posto
         // dove si COMANDA, non dove si guarda. Un hash esplicito (deep link,
         // reload a metà lavoro) vince sempre; gli altri ruoli non cambiano.
-        goTo(window.location.hash.slice(1) || (isAdmin() ? 'oggi' : (localStorage.getItem('boom_lastPage') || 'dashboard')));
+        // #innesto=<docId>: la proposta letta dal telefono (lo Scrivano) apre
+        // l'Innesto già seminata — l'id viene preso PRIMA che goTo riscriva l'hash.
+        const innestoSeed = isAdmin() && innestoSeedFromHash();
+        goTo(innestoSeed ? 'innesto' : (window.location.hash.slice(1) || (isAdmin() ? 'oggi' : (localStorage.getItem('boom_lastPage') || 'dashboard'))));
 
-        // Check expiring contracts for review requests (admin, once per session)
-        if (isAdmin() && !window._expiryChecked) {
-            window._expiryChecked = true;
-            setTimeout(() => checkContractExpiry(), 8000);
-        }
     }
 
     function buildNav() {
@@ -4044,7 +4107,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         
         if (r === 'admin') {
             const activeClients = (S.clients || []).filter(c => !['completed', 'lost'].includes(c.stage)).length;
-            const pendingInv = S.invoices.filter(i => i.status === 'pending').length;
+            const pendingInv = boomBusinessInvoices().filter(i => i.status === 'pending').length;
         // Il badge di Burocrazia si legge dai CONTRATTI, non da
         // contractRegistrationStatus: quello si carica solo aprendo la
         // pagina, quindi al boot la sidebar taceva proprio mentre una
@@ -4054,7 +4117,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             && (c.registrationStatus || 'pending') !== 'registered' && !c.rliRegisteredAt).length;
 
             const openMaint = S.maintenance.filter(m => m.status !== 'resolved' && m.status !== 'closed' && m.status !== 'done').length;
-            const overduePayments = S.payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate)).length;
+            const overduePayments = S.payments.filter(p => window.BOOM_RENT.paymentState(p) === 'overdue').length;
             const urgentDeadlines = (S.deadlines || []).filter(d => d.status !== 'done' && daysUntil(d.date) !== null && daysUntil(d.date) <= 7).length + (S.tasks || []).filter(t => t.status !== 'done' && t.priority === 'urgent').length;
             const urgentPFS = (S.pfsClients || []).filter(c => c.stage !== 'placed' && calculatePFSPriority && calculatePFSPriority(c) >= 70).length;
             const newLeads = (S.leads || []).filter(l => l.status === 'new' || !l.status).length;
@@ -4072,14 +4135,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item ${S.page==='viewings'?'active':''}" onclick="goTo('viewings')"><span class="nav-icon">📅</span> Viewings ${pendingViewings?`<span class="nav-badge gold">${pendingViewings}</span>`:''}</div>
                     <div class="nav-item ${S.page==='inbox'?'active':''}" onclick="goTo('inbox')"><span class="nav-icon">📨</span> Inbox ${unreadInbox?`<span class="nav-badge gold">${unreadInbox}</span>`:''}</div>
                     <div class="nav-item ${S.page==='adminflats'?'active':''}" onclick="goTo('adminflats')"><span class="nav-icon">🏢</span> AdminFlats</div>
-                    <div class="nav-item ${S.page==='invoices'?'active':''}" onclick="goTo('invoices')"><span class="nav-icon">🧾</span> Fatture ${pendingInv?`<span class="nav-badge gold">${pendingInv}</span>`:''}</div>
+                    <div class="nav-item ${S.page==='invoices'?'active':''}" onclick="goTo('invoices')"><span class="nav-icon">🧾</span> Fatture BOOM ${pendingInv?`<span class="nav-badge gold">${pendingInv}</span>`:''}</div>
                 </div>
                 <div class="nav-section"><div class="nav-label">Gestione</div>
-                    <div class="nav-item ${S.page==='properties'?'active':''}" onclick="goTo('properties')"><span class="nav-icon">🏠</span> Immobili</div>
+                    <div class="nav-item ${S.page==='properties'||S.page.startsWith('property/')?'active':''}" onclick="goTo('properties')"><span class="nav-icon">🏠</span> Immobili</div>
                     <div class="nav-item ${S.page==='contracts'?'active':''}" onclick="goTo('contracts')"><span class="nav-icon">📋</span> Contratti</div>
                     <div class="nav-item ${S.page==='burocrazia'?'active':''}" onclick="goTo('burocrazia')" title="Registrazioni RLI, asseverazioni ASPI, archivio contratti"><span class="nav-icon">📝</span> Burocrazia ${daRegistrare?`<span class="nav-badge orange">${daRegistrare}</span>`:''}</div>
                     <div class="nav-item" onclick="window.open('/pre-agreement-admin.html','_blank')"><span class="nav-icon">🖋️</span> Pre-agreement <span class="nav-badge gold">L'ATTO</span></div>
-                    <div class="nav-item ${S.page==='payments'?'active':''}" onclick="goTo('payments')"><span class="nav-icon">💳</span> Pagamenti ${overduePayments?`<span class="nav-badge">${overduePayments}</span>`:''}</div>
+                    <div class="nav-item ${S.page==='payments'?'active':''}" onclick="goTo('payments')"><span class="nav-icon">💳</span> Canoni ${overduePayments?`<span class="nav-badge">${overduePayments}</span>`:''}</div>
                     <div class="nav-item ${S.page==='maintenance'?'active':''}" onclick="goTo('maintenance')"><span class="nav-icon">🔧</span> Manutenzione ${openMaint?`<span class="nav-badge">${openMaint}</span>`:''}</div>
                     <div class="nav-item ${S.page==='documents'?'active':''}" onclick="goTo('documents')"><span class="nav-icon">📁</span> Documenti</div>
                     <div class="nav-item ${S.page==='commercialista'?'active':''}" onclick="goTo('commercialista')"><span class="nav-icon">🧮</span> Commercialista</div>
@@ -4164,7 +4227,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // Open the 360° person hub. kind: 'lead' | 'pfsClient' | 'crmClient' | 'user'.
     function openPerson(id, kind) { goTo('person', { id, kind: kind || 'user' }); }
     window.openPerson = openPerson;
-    window.addEventListener('popstate', () => { const page = window.location.hash.slice(1); if (page && page !== S.page) { S.page = page; buildNav(); renderPage(); } });
+    window.addEventListener('popstate', () => {
+        // Un link #innesto=<docId> aperto col portal già in pagina (dalla card
+        // Telegram sul desktop): stessa semina del boot.
+        if (isAdmin() && innestoSeedFromHash()) { goTo('innesto'); return; }
+        const page = window.location.hash.slice(1); if (page && page !== S.page) { S.page = page; buildNav(); renderPage(); }
+    });
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.getElementById('sidebarOverlay').classList.toggle('open'); }
     function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.getElementById('sidebarOverlay').classList.remove('open'); }
 
@@ -4182,6 +4250,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function renderPage() {
         const m = document.getElementById('main');
         const r = S.profile.role;
+        const dossierRoute = window.BOOM_PROPERTY_DOSSIER?.parseRoute(S.page);
+        if (dossierRoute) {
+            m.innerHTML = window.BOOM_PROPERTY_DOSSIER.render(S, dossierRoute, window.BOOM_PROPERTY_DOSSIER.load);
+            window.BOOM_PROPERTY_DOSSIER.afterRender();
+            return;
+        }
         switch(S.page) {
             case 'dashboard': m.innerHTML = r === 'admin' ? adminDashboard() : r === 'landlord' ? landlordDashboard() : tenantDashboard(); break;
             // === UNIFIED CLIENTI (merges CRM + PFS Pipeline) ===
@@ -4269,6 +4343,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             case 'innesto': m.innerHTML = isAdmin() ? innestoPage() : accessDenied(); break;
             default: m.innerHTML = r === 'admin' ? adminDashboard() : r === 'landlord' ? landlordDashboard() : tenantDashboard();
         }
+        window.BOOM_PROPERTY_DOSSIER?.afterRender();
         // Post-render hooks
         // .catch obbligatorio: questo gira DENTRO il render della dashboard,
         // cioè durante il boot. Senza, una CDN irraggiungibile produce un
@@ -4346,8 +4421,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 months.push(mName);
                 const mStart = new Date(d.getFullYear(), d.getMonth(), 1);
                 const mEnd = new Date(d.getFullYear(), d.getMonth() + 1, 0);
-                const boomM = (S.invoices || []).filter(inv => inv.status === 'paid' && inv.paidDate && new Date(inv.paidDate) >= mStart && new Date(inv.paidDate) <= mEnd).reduce((s, inv) => s + (inv.amount || 0), 0);
-                const rentM = (S.payments || []).filter(p => p.status === 'paid' && p.paidDate && new Date(p.paidDate) >= mStart && new Date(p.paidDate) <= mEnd).reduce((s, p) => s + (p.amount || 0), 0);
+                const boomM = boomBusinessInvoices().filter(inv => inv.status === 'paid' && inv.paidDate && new Date(inv.paidDate) >= mStart && new Date(inv.paidDate) <= mEnd).reduce((s, inv) => s + (inv.amount || 0), 0);
+                const rentM = (S.payments || []).filter(p => window.BOOM_RENT.isRentPayment(p) && p.status === 'paid' && p.paidDate && new Date(p.paidDate) >= mStart && new Date(p.paidDate) <= mEnd).reduce((s, p) => s + (p.amount || 0), 0);
                 boomRev.push(boomM);
                 rentRev.push(rentM);
             }
@@ -4357,7 +4432,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     labels: months,
                     datasets: [
                         { label: 'BOOM Fees', data: boomRev, backgroundColor: 'rgba(212,175,55,0.7)', borderRadius: 4 },
-                        { label: 'Rent Collected', data: rentRev, backgroundColor: 'rgba(100,200,130,0.5)', borderRadius: 4 }
+                        { label: 'Canoni per proprietari', data: rentRev, backgroundColor: 'rgba(100,200,130,0.5)', borderRadius: 4 }
                     ]
                 },
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#999', font: { size: 10 } } } }, scales: { x: { ticks: { color: '#888' }, grid: { display: false } }, y: { ticks: { color: '#888', callback: v => '€' + v }, grid: { color: 'rgba(255,255,255,0.05)' } } } }
@@ -4599,6 +4674,919 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         window.open('/pre-agreement-admin' + (ref ? '#q=' + encodeURIComponent(ref) : ''), '_blank');
     }
     window.oggiOpenPa = oggiOpenPa;
+
+    // ═══ SEGRETERIA · SEGUITI IN OGGI — proposte, invio solo dopo conferma ═══
+    const oggiSegretaria = { rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false, userId: null, generation: 0, timer: null, modal: null, readAt: null, monitoring: null, liveListener: null, liveObserver: null, liveError: false, liveGeneration: 0, updateTimer: null, refreshPending: false, decisionsPending: false, preparingVisible: 12, decisionsVisible: 12 };
+    // Stato effimero della lettura nel browser: non certifica la ricezione
+    // WhatsApp sul Mac né la preparazione delle proposte sul server.
+    const portalFreshness = { page: null, user: null, observer: null, timer: null };
+    function inboxFreshness() {
+        if (navigator.onLine === false) return 'Sei offline. Le conversazioni visibili potrebbero non essere aggiornate; riprovo al ritorno della connessione.';
+        if (S.inboxFeed?.state === 'error') return 'Conversazioni non aggiornabili ora. Conservo i dati visibili e riprovo al ritorno nel portale o con Aggiorna.';
+        if (S.inboxFeed?.state === 'cached') return 'Conversazioni: dati salvati sul dispositivo. Attendo la conferma del server.';
+        if (S.inboxFeed?.state === 'loading') return 'Controllo gli aggiornamenti delle conversazioni…';
+        return S.inboxFeed?.state === 'live' ? 'Aggiornamenti delle conversazioni attivi.' : 'Aggiornamenti delle conversazioni da verificare.';
+    }
+    function inboxFreshnessUpdate() {
+        const target = document.getElementById('inboxFreshness');
+        if (target) { target.textContent = inboxFreshness(); target.style.color = portalFreshnessWarning() ? 'var(--orange)' : 'var(--text-secondary)'; }
+        oggiSegretariaFreshnessUpdate();
+    }
+    function portalFreshnessWarning() {
+        return navigator.onLine === false || ['cached', 'error'].includes(S.inboxFeed?.state);
+    }
+    function inboxLiveRefresh() {
+        if (S.page !== 'inbox') return;
+        const focused = document.activeElement;
+        const saved = ['inboxBody', 'inboxSubject', 'inboxTpl'].map(id => {
+            const el = document.getElementById(id);
+            return el && { id, value: el.value, start: el.selectionStart, end: el.selectionEnd, direction: el.selectionDirection, scroll: el.scrollTop, focused: focused === el };
+        }).filter(Boolean);
+        const searchFocused = focused?.matches('#main input[type="search"]');
+        const searchSelection = searchFocused && [focused.selectionStart, focused.selectionEnd];
+        const panes = [...document.querySelectorAll('#main .inbox-list-pane, #main .inbox-list-pane > div, #inboxTimeline')].map(el => el.scrollTop);
+        const main = document.getElementById('main');
+        if (main) main.innerHTML = inboxPage();
+        for (const field of saved) {
+            const replacement = document.getElementById(field.id);
+            if (!replacement) continue;
+            replacement.value = field.value;
+            if (field.focused) replacement.focus({ preventScroll: true });
+            if (typeof field.start === 'number') replacement.setSelectionRange(field.start, field.end, field.direction);
+            replacement.scrollTop = field.scroll;
+        }
+        if (searchFocused) {
+            const search = main?.querySelector('input[type="search"]');
+            if (search) { search.focus({ preventScroll: true }); search.setSelectionRange(...searchSelection); }
+        }
+        document.querySelectorAll('#main .inbox-list-pane, #main .inbox-list-pane > div, #inboxTimeline').forEach((el, i) => { if (panes[i] !== undefined) el.scrollTop = panes[i]; });
+    }
+    function portalFreshnessStop(page) {
+        if (page && portalFreshness.page !== page) return;
+        if (portalFreshness.page === 'inbox' && (S.page !== 'inbox' || portalFreshness.user !== auth.currentUser)) stopOpenConvListener();
+        document.removeEventListener('visibilitychange', portalFreshnessResume);
+        window.removeEventListener('pageshow', portalFreshnessResume);
+        window.removeEventListener('online', portalFreshnessResume);
+        window.removeEventListener('offline', portalFreshnessResume);
+        portalFreshness.observer?.disconnect();
+        clearTimeout(portalFreshness.timer);
+        Object.assign(portalFreshness, { page: null, user: null, observer: null, timer: null });
+    }
+    function portalFreshnessMount() {
+        if (!auth.currentUser || !['oggi', 'inbox'].includes(S.page) || (!isAdmin() && !isLandlord())) return;
+        if (portalFreshness.page === S.page && portalFreshness.user === auth.currentUser) return;
+        portalFreshnessStop();
+        Object.assign(portalFreshness, { page: S.page, user: auth.currentUser });
+        document.addEventListener('visibilitychange', portalFreshnessResume);
+        window.addEventListener('pageshow', portalFreshnessResume);
+        window.addEventListener('online', portalFreshnessResume);
+        window.addEventListener('offline', portalFreshnessResume);
+        const main = document.getElementById('main');
+        if (main) {
+            portalFreshness.observer = new MutationObserver(() => {
+                if (portalFreshness.page !== S.page || portalFreshness.user !== auth.currentUser) portalFreshnessStop();
+            });
+            portalFreshness.observer.observe(main, { childList: true });
+        }
+    }
+    function portalFreshnessResume(event) {
+        if (portalFreshness.page !== S.page || portalFreshness.user !== auth.currentUser) { portalFreshnessStop(); return; }
+        inboxFreshnessUpdate();
+        if (document.hidden || navigator.onLine === false || (event?.type === 'pageshow' && !event.persisted)) return;
+        if (portalFreshness.timer) return;
+        portalFreshness.timer = setTimeout(() => {
+            portalFreshness.timer = null;
+            if (portalFreshness.page !== S.page || portalFreshness.user !== auth.currentUser || document.hidden || navigator.onLine === false) return;
+            portalFreshnessRecover();
+            if (S.page === 'oggi' && isAdmin()) {
+                // A foreground burst joins an in-flight read. Actual data
+                // events still queue their follow-up through oggiScheduleUpdate.
+                if (!oggiSegretaria.loading) oggiScheduleUpdate(true, false);
+            }
+        }, 80);
+    }
+    function portalFreshnessRecover() {
+        if (portalFreshness.page !== S.page || portalFreshness.user !== auth.currentUser || document.hidden || navigator.onLine === false) return;
+        if (S.inboxFeed?.state === 'error' || !S.inboxListener) startInboxListener();
+        if (S.page === 'oggi' && isAdmin() && (oggiSegretaria.liveError || !oggiSegretaria.liveListener)) oggiSegretariaStartLive();
+        if (S.page === 'inbox' && S.openConvId && S.openConvStatus?.error) startOpenConvListener(S.openConvId);
+    }
+    window.inboxRetryUpdates = function() {
+        if (S.page !== 'inbox' || !auth.currentUser || (!isAdmin() && !isLandlord())) return;
+        portalFreshnessMount();
+        if (navigator.onLine === false) { inboxFreshnessUpdate(); return; }
+        startInboxListener();
+        if (S.openConvId) startOpenConvListener(S.openConvId);
+    };
+    // Aggiorniamo solo le regioni di Oggi: i listener non ricreano #main,
+    // il modulo aperto o la bozza che l'operatore sta controllando.
+    function oggiScheduleUpdate(followUps = false, decisions = true) {
+        if (S.page !== 'oggi' || !isAdmin()) return;
+        oggiSegretaria.refreshPending = oggiSegretaria.refreshPending || followUps;
+        oggiSegretaria.decisionsPending = oggiSegretaria.decisionsPending || decisions;
+        if (oggiSegretaria.updateTimer) return;
+        oggiSegretaria.updateTimer = setTimeout(() => {
+            oggiSegretaria.updateTimer = null;
+            if (S.page !== 'oggi' || !isAdmin()) return;
+            if (oggiSegretaria.decisionsPending) {
+                oggiSegretaria.decisionsPending = false;
+                const panel = document.getElementById('ogDecisionPanel');
+                if (panel) {
+                    const focused = panel.contains(document.activeElement) ? document.activeElement?.getAttribute('data-og-action') : null;
+                    panel.innerHTML = oggiDecisionPanel();
+                    if (focused) [...panel.querySelectorAll('[data-og-action]')].find(el => el.getAttribute('data-og-action') === focused)?.focus({ preventScroll: true });
+                }
+            }
+            oggiSegretariaFreshnessUpdate();
+            if (oggiSegretaria.refreshPending && !oggiSegretaria.loading) {
+                oggiSegretaria.refreshPending = false;
+                oggiSegretariaLoad();
+            }
+        }, 150);
+    }
+    function oggiSegretariaStopLive() {
+        oggiSegretaria.liveGeneration++;
+        portalFreshnessStop('oggi');
+        if (oggiSegretaria.liveListener) oggiSegretaria.liveListener();
+        if (oggiSegretaria.liveObserver) oggiSegretaria.liveObserver.disconnect();
+        clearTimeout(oggiSegretaria.updateTimer);
+        clearTimeout(oggiSegretaria.timer);
+        Object.assign(oggiSegretaria, { liveListener: null, liveObserver: null, updateTimer: null, refreshPending: false, decisionsPending: false });
+    }
+    function oggiSegretariaStartLive() {
+        portalFreshnessMount();
+        if (oggiSegretaria.liveListener && !oggiSegretaria.liveError) return;
+        if (oggiSegretaria.liveListener) oggiSegretaria.liveListener();
+        if (oggiSegretaria.liveObserver) oggiSegretaria.liveObserver.disconnect();
+        const generation = ++oggiSegretaria.liveGeneration;
+        const user = auth.currentUser;
+        const current = () => generation === oggiSegretaria.liveGeneration && auth.currentUser === user && isAdmin() && S.page === 'oggi';
+        let active = true;
+        oggiSegretaria.liveError = false;
+        try {
+            // Lo snapshot segnala soltanto che rileggere: ricevute e contenuto
+            // restano derivati dall'API autenticata, non da un secondo motore.
+            let first = true;
+            oggiSegretaria.liveListener = db.collection('operatorTasks').where('followUp.open', '==', true).onSnapshot(() => {
+                if (!active || !current()) return;
+                oggiSegretaria.liveError = false;
+                if (first) { first = false; return; } // mount/resume already performs the initial read
+                oggiScheduleUpdate(true, false);
+            }, () => {
+                if (!active || !current()) return;
+                active = false;
+                oggiSegretaria.liveError = true;
+                oggiSegretariaFreshnessUpdate();
+            });
+            const main = document.getElementById('main');
+            if (main) {
+                oggiSegretaria.liveObserver = new MutationObserver(() => {
+                    if (!document.getElementById('sgFollowPanel')) oggiSegretariaStopLive();
+                });
+                oggiSegretaria.liveObserver.observe(main, { childList: true });
+            }
+        } catch { oggiSegretaria.liveError = true; } // il polling resta disponibile
+    }
+    function oggiSegretariaFreshness() {
+        const ms = value => {
+            const n = value?.toDate ? value.toDate().getTime() : new Date(value || 0).getTime();
+            return Number.isFinite(n) && n > 0 ? n : 0;
+        };
+        const incoming = Math.max(0, ...(S.conversations || []).filter(c => c.channel === 'whatsapp' && c.lastDirection === 'in').map(c => ms(c.lastMessageAt)));
+        const prepared = Math.max(0, ...oggiSegretaria.rows.map(t => ms(t?.preparation?.createdAt)));
+        return `Seguiti aggiornati: ${oggiSegretaria.readAt ? oggiSegretariaDate(oggiSegretaria.readAt) : 'in attesa'} · Ultimo WhatsApp visibile: ${incoming ? oggiSegretariaDate(incoming) : 'non disponibile'} · Ultima proposta: ${prepared ? oggiSegretariaDate(prepared) : 'non disponibile'}. ${inboxFreshness()}${oggiSegretaria.liveError ? ' Aggiornamento immediato indisponibile per i seguiti; ricontrollo automatico ogni 30 secondi.' : ''}`;
+    }
+    function oggiSegretariaFreshnessUpdate() {
+        const target = document.getElementById('sgFreshness');
+        if (target) {
+            target.textContent = oggiSegretariaFreshness();
+            target.className = 'sg-footnote' + (portalFreshnessWarning() || oggiSegretaria.liveError ? ' sg-notice sg-notice--warning' : '');
+        }
+    }
+    function oggiSegretariaLegacyCap() {
+        return oggiSegretaria.monitoring?.mode !== 'continuous' && oggiSegretaria.monitoring?.status === 'daily_cap';
+    }
+    function oggiSegretariaMonitoring(opened = new Set()) {
+        const m = oggiSegretaria.monitoring, continuous = m?.mode === 'continuous';
+        const partialQueue = m?.queueIncomplete === true || m?.queueScope === 'page';
+        const labels = {
+            unavailable: 'Stato della preparazione automatica non disponibile.',
+            unknown: 'Stato della preparazione automatica da verificare.',
+            disabled: 'Preparazione automatica disattivata. I seguiti restano disponibili.',
+            paused: 'Preparazione automatica sospesa. I seguiti restano disponibili.',
+            daily_cap: 'Il servizio precedente segnala un limite giornaliero raggiunto. I seguiti restano disponibili.',
+            delayed: 'Il controllo della preparazione automatica è in ritardo.',
+            working: 'Nuove proposte preparate nell’ultimo ciclo.',
+            idle: 'Nessuna nuova proposta nell’ultimo ciclo. Le richieste ancora aperte restano da seguire.'
+        };
+        const status = continuous && m.status === 'daily_cap' ? 'unknown' : m && Object.hasOwn(labels, m.status) ? m.status : 'unavailable';
+        const dates = [], counts = [];
+        const at = value => { const n = Date.parse(value || ''); return Number.isFinite(n) ? oggiSegretariaDate(n) : ''; };
+        if (at(m?.checkedAt)) dates.push('Stato letto: ' + at(m.checkedAt));
+        if (at(m?.lastRunAt)) dates.push('Ultimo ciclo: ' + at(m.lastRunAt));
+        if (Number.isSafeInteger(m?.usedToday) && m.usedToday >= 0) dates.push('Tentativi oggi: ' + m.usedToday + ' (compresi quelli non riusciti)');
+        for (const [key, label] of [['pending', 'Richieste da valutare'], ['current', 'Proposte attuali'], ['awaitingReview', 'In attesa di verifica'], ['retrying', 'Casi da ritentare']]) {
+            if (Number.isSafeInteger(m?.counts?.[key]) && m.counts[key] >= 0) counts.push(label + ': ' + m.counts[key]);
+        }
+        const retryLabels = {
+            invalid_preparation: 'Proposta non valida', preparation_unavailable: 'Preparazione non disponibile',
+            preparation_in_progress: 'Preparazione già in corso', previous_delivery_unresolved: 'Esito di un invio da verificare',
+            preparation_needs_context: 'Informazioni da verificare', source_message_missing: 'Fonte non disponibile',
+            context_unavailable: 'Contesto non disponibile', model_timeout: 'Preparazione non conclusa in tempo',
+            unavailable: 'Servizio non disponibile'
+        };
+        const retries = Object.entries(m?.retryReasons && typeof m.retryReasons === 'object' ? m.retryReasons : {})
+            .filter(([, count]) => Number.isSafeInteger(count) && count > 0)
+            .map(([code, count]) => (retryLabels[code] || (code.startsWith('calendar_') ? 'Orario da verificare' : 'Motivo da verificare')) + ': ' + count);
+        const warning = ['unavailable', 'unknown', 'disabled', 'paused', 'daily_cap', 'delayed'].includes(status);
+        // L'interruttore (21/09/2026): prima `prepareCases` si poteva accendere
+        // solo scrivendo a mano su Firestore, e la Segreteria restava «sospesa»
+        // per costruzione. Il tap scrive settings/segretaria dal server (admin).
+        const canSwitch = m && m.prepareCases !== null && m.enabled !== false;
+        const switchHtml = !canSwitch ? '' : m.prepareCases === true
+            ? `<p class="sg-footnote">I nuovi WhatsApp diventano casi da preparare. <button type="button" class="btn btn-sm btn-secondary" data-og-action="preparation-off" onclick="oggiSegretariaSwitchPreparation(false)">Sospendi la preparazione automatica</button></p>`
+            : `<p><button type="button" class="btn btn-sm" data-og-action="preparation-on" onclick="oggiSegretariaSwitchPreparation(true)">▶ Attiva la preparazione automatica</button> <span class="sg-footnote">Da questo momento ogni WhatsApp in entrata diventa un caso e la proposta arriva qui entro un paio di minuti. Niente parte da solo: ogni invio resta una tua conferma.</span></p>`;
+        const cycle = m?.stoppedBy === 'time_budget' ? 'Il ciclo ha raggiunto il tempo disponibile; le richieste residue restano in coda.'
+            : m?.stoppedBy === 'batch_limit' ? 'Il lavoro prosegue per cicli; le richieste residue restano in coda.' : '';
+        return `<div id="sgPreparationStatus" class="sg-notice${warning ? ' sg-notice--warning' : ''}" role="status"><p>${labels[status]}</p>${switchHtml}<details class="sg-service-details" data-sg-detail="service" ${opened.has('service') ? 'open' : ''}><summary>Dettagli della preparazione${partialQueue ? ' · conteggi parziali' : ''}<span aria-hidden="true">+</span></summary>${continuous ? '<p>Preparazione continua · nessuna quota giornaliera di proposte.</p>' : ''}${counts.length ? `<p>${partialQueue ? 'Parte della coda, ultimo ciclo' : 'Ultimo ciclo'} · ${esc(counts.join(' · '))}</p>` : ''}${m?.counts?.retrying > 0 ? '<p>I casi non riusciti restano da ritentare; non sono proposte pronte.</p>' : ''}${retries.length ? `<p>Motivi dei casi da ritentare o verificare · ${esc(retries.join(' · '))}</p>` : ''}${at(m?.nextRetryAt) ? `<p>${Date.parse(m.nextRetryAt) <= Date.now() ? 'Nuovo tentativo atteso dal' : 'Prossimo tentativo previsto'}: ${esc(at(m.nextRetryAt))}</p>` : ''}${cycle ? `<p>${cycle}</p>` : ''}${dates.length ? `<p>${esc(dates.join(' · '))}</p>` : ''}${status === 'daily_cap' ? '<p>Puoi leggere le fonti e correggere i seguiti mentre lo stato del servizio viene aggiornato.</p>' : ''}${partialQueue ? '<p>La lettura della coda è parziale: potrebbero esserci altre richieste da valutare.</p>' : ''}${m?.incomplete ? '<p>Informazioni sulla preparazione parziali.</p>' : ''}</details></div>`;
+    }
+    const oggiSegretariaErrors = {
+        unauthorized: 'Accedi di nuovo per leggere i seguiti.', forbidden: 'Questa vista richiede un accesso amministratore.',
+        new_message_reload: 'È arrivato un nuovo messaggio. Ho ricaricato il seguito: ricontrolla i dati prima di confermare.',
+        practice_not_verified: 'La pratica non è più verificabile. Ho ricaricato le informazioni: controlla il collegamento.',
+        case_closed: 'Questo seguito è già stato chiuso.', case_not_found: 'Questo seguito non è più disponibile.',
+        conversation_missing: 'La conversazione di origine non è disponibile: il seguito resta da verificare.',
+        invalid_follow_up: 'Controlla azione, responsabile e data futura di ricontrollo.', outcome_required: 'Scrivi l’esito prima di chiudere il seguito.',
+        preparation_changed: 'La proposta è cambiata. Ho ricaricato il seguito: leggi la nuova versione prima di confermare.',
+        preparation_sources_changed: 'Una fonte è cambiata. Prepara di nuovo il lavoro prima di confermare.',
+        contact_changed: 'Il destinatario è cambiato. Prepara di nuovo il lavoro e controlla il recapito.',
+        preparation_in_progress: 'La Segreteria sta già preparando questo caso. Ricarica tra poco.',
+        preparation_disabled: 'La preparazione della Segreteria è disattivata. Puoi comunque correggere il seguito.',
+        preparation_daily_cap: 'Il servizio precedente segnala un limite di preparazione. Il seguito resta visibile: aggiorna lo stato.',
+        preparation_needs_context: 'Mancano informazioni necessarie: controlla il collegamento e correggi il seguito.',
+        preparation_expired: 'Il ricontrollo della proposta è già passato. Rielabora prima di confermare: nessun invio è stato avviato.',
+        preparation_policy_changed: 'Questa proposta va ricalcolata con i controlli aggiornati. Il seguito è conservato.',
+        commitment_requires_confirmation: 'La fonte esprime una possibilità, non una conferma. Il seguito resta da verificare.',
+        outgoing_commitment_unconfirmed: 'La disponibilità di BOOM va verificata prima di chiedere al cliente di organizzarsi.',
+        draft_language_mismatch: 'La risposta proposta non usa la lingua della conversazione. Il seguito è conservato.',
+        source_message_missing: 'Non riesco a verificare il messaggio di origine. Il seguito resta da controllare.',
+        previous_delivery_unresolved: 'Un invio precedente richiede ancora verifica. Apri la conversazione prima di preparare altro.',
+        recipient_missing: 'Manca un recapito valido: nessun invio confermato.', recipient_not_verified: 'Il destinatario non è verificabile: nessun invio confermato.',
+        practice_selection_required: 'Scegli la pratica corretta in «Correggi seguito», poi prepara di nuovo il lavoro.',
+        identity_not_verified: 'Identità da verificare prima di confermare.', identity_ambiguous: 'Identità ambigua: controlla il collegamento prima di confermare.',
+        invalid_prepared_follow_up: 'La proposta richiede un nuovo ricontrollo futuro. Prepara di nuovo il lavoro.',
+        approval_changed_reload: 'Il seguito è cambiato durante la conferma. Ho ricaricato lo stato attuale.',
+        preparation_unavailable: 'Non riesco a preparare il lavoro ora. Il seguito e le informazioni precedenti restano disponibili.',
+        follow_up_page_unavailable: 'Non riesco a leggere tutti i seguiti. I dati già visibili sono conservati e potrebbero non essere aggiornati.'
+    };
+    function oggiSegretariaError(error) {
+        if (String(error && error.code || '').startsWith('calendar_'))
+            return 'La proposta contiene una data o un ricontrollo non coerente con le fonti. Il seguito resta da verificare.';
+        return oggiSegretariaErrors[error && error.code] || 'Non riesco ad aggiornare i seguiti. Riprova: i dati già visibili potrebbero non essere aggiornati.';
+    }
+    window.oggiSegretariaSwitchPreparation = async function(enable) {
+        if (!isAdmin() || !auth.currentUser) return;
+        if (!enable && !confirm('Sospendere la preparazione automatica? I seguiti restano; i nuovi WhatsApp non diventano casi finché non la riattivi.')) return;
+        const buttons = [...document.querySelectorAll('[data-og-action="preparation-on"],[data-og-action="preparation-off"]')];
+        buttons.forEach(b => { b.disabled = true; });
+        try {
+            const data = await oggiSegretariaRequest(null, { prepareCases: !!enable }, 'preparation');
+            if (data.monitoring) oggiSegretaria.monitoring = data.monitoring;
+            toast('success', enable ? 'Preparazione automatica attiva' : 'Preparazione automatica sospesa',
+                enable ? 'Da adesso ogni WhatsApp in entrata diventa un caso in Oggi. Nessun invio parte senza la tua conferma.' : 'I seguiti restano visibili; i nuovi WhatsApp non diventano casi.');
+            oggiScheduleUpdate(true, true);
+        } catch (e) {
+            toast('error', 'Interruttore non cambiato', e && e.code === 'segretaria_disabled' ? 'La Segretaria è spenta (kill switch): riaccendila da Telegram con /segretaria prima di attivare la preparazione.' : oggiSegretariaError(e));
+            buttons.forEach(b => { b.disabled = false; });
+        }
+    };
+    async function oggiSegretariaRequest(id, body, preparation, after) {
+        if (!isAdmin() || !auth.currentUser) throw { code: 'unauthorized' };
+        const user = auth.currentUser, controller = new AbortController();
+        let timer;
+        const request = (async () => {
+            const token = await user.getIdToken();
+            if (controller.signal.aborted || auth.currentUser !== user) throw { code: 'unauthorized' };
+            const res = await fetch('/api/segretaria/' + (preparation === true ? 'prepare' : typeof preparation === 'string' ? preparation : 'follow-up') + (id ? '?id=' + encodeURIComponent(id) : after ? '?after=' + encodeURIComponent(after) : ''), {
+                method: body ? 'POST' : 'GET', cache: 'no-store', signal: controller.signal,
+                headers: { Authorization: 'Bearer ' + token, ...(body ? { 'Content-Type': 'application/json' } : {}) },
+                ...(body ? { body: JSON.stringify(body) } : {})
+            });
+            const data = await res.json();
+            if (auth.currentUser !== user || !isAdmin()) throw { code: 'unauthorized' };
+            if (!res.ok || !data || data.ok !== true) throw { code: data && data.error || (res.status === 401 ? 'unauthorized' : res.status === 403 ? 'forbidden' : 'unavailable'), status: res.status, data };
+            return data;
+        })();
+        try {
+            return await Promise.race([request, new Promise((_, reject) => {
+                timer = setTimeout(() => { controller.abort(); reject({ code: 'timeout' }); }, preparation === true ? 60000 : 15000);
+            })]);
+        } finally { clearTimeout(timer); }
+    }
+    function oggiSegretariaPanel() {
+        setTimeout(oggiSegretariaMount, 0);
+        return '<section id="sgFollowPanel" class="sg-panel" aria-label="Segreteria · seguiti"><div class="sg-state"><p role="status">Carico i seguiti della Segreteria…</p></div></section>';
+    }
+    function oggiSegretariaDate(ms, includeYear = false) {
+        return ms === null || !Number.isFinite(Number(ms)) ? 'Ricontrollo da impostare' : new Date(ms).toLocaleString('it-IT', { day: 'numeric', month: 'short', ...(includeYear ? { year: 'numeric' } : {}), hour: '2-digit', minute: '2-digit' });
+    }
+    function oggiSegretariaPreparation(task) {
+        if (task?.preparationReview) return null;
+        const p = task && task.preparation;
+        const readable = p && typeof p.revision === 'string' && p.revision && typeof p.summary === 'string'
+            && typeof p.recommendation === 'string' && typeof p.nextAction?.text === 'string' && Array.isArray(p.sources);
+        return readable && window.BOOM_PROPOSTA?.currentContext?.(task) && (p.approval || (p.selectedPracticeRef || null) === (task.followUp.practiceRef || null)) ? p : null;
+    }
+    function oggiSegretariaReceipt(task) {
+        const p = task && task.preparation, local = oggiSegretaria.receipts[task?.id];
+        if (!p || p.messageId !== task.followUp?.lastMessageId) return '';
+        // GET derives this state from the existing queue. It supersedes the
+        // immediate post-click receipt; opening/refreshing never dispatches.
+        const r = p.approval && task.deliveryResult ? task.deliveryResult : local?.revision === p.revision ? local : null;
+        if (!r && !p.approval) return '';
+        const plan = window.BOOM_SEGRETARIA_ESECUZIONE?.describe({ preparation: p, delivery: r });
+        if (!plan) return 'Stato dell’esecuzione da verificare. Ricarica la pagina.';
+        const reply = plan.steps.find(step => step.id === 'reply');
+        if (reply) return {
+            queued: 'Confermato. Messaggio in coda; consegna da verificare nella conversazione.',
+            pending: 'Confermato. Invio in attesa; controlla l’esito nella conversazione.',
+            sent: 'Invio registrato. L’esito del lavoro resta da seguire.',
+            needs_review: 'L’esito dell’invio richiede verifica nella conversazione.'
+        }[reply.state] || 'Stato dell’invio da verificare nella conversazione.';
+        return plan.steps.find(step => step.id === 'follow_up')?.state === 'recorded'
+            ? 'Seguito confermato. Nessun messaggio previsto.' : 'Stato della conferma da verificare. Ricarica l’esito.';
+    }
+
+    function oggiSegretariaCanResume(m) {
+        const task = m?.task, p = oggiSegretariaPreparation(task), a = p?.approval, r = task?.deliveryResult;
+        // Only the server-derived receipt proves that execution has NOT been
+        // claimed. A local timeout or a previous post-click receipt cannot.
+        return !!(task?.status === 'open' && !m.uncertain && !m.mustRegenerate && a?.actionId
+            && a.revision === p.revision && a.messageId === p.messageId && p.messageId === task.followUp?.lastMessageId
+            && r?.confirmed === true && r.id === task.id && r.actionId === a.actionId && r.delivery === 'pending_execution');
+    }
+
+    function oggiSegretariaRecipient(p) {
+        const r = p?.recipientPreview, channel = p?.draft?.channel;
+        if (!p?.draft) return true;
+        return r && r.channel === channel && typeof r.address === 'string' && (channel === 'email'
+            ? /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(r.address) : channel === 'whatsapp' && /^\+?[0-9][0-9 ()-]{6,24}$/.test(r.address));
+    }
+    function oggiSegretariaGroups(now) {
+        return window.BOOM_SEGRETARIA_CASI.workGroups(oggiSegretaria.rows, now, oggiSegretariaPreparation);
+    }
+    function oggiSegretariaTiming(task) {
+        const timing = task?.followUp?.intakeTiming;
+        if (!timing || !['resolved', 'ambiguous', 'past'].includes(timing.status)) return '';
+        const at = Date.parse(timing.requestedAt || '');
+        const past = timing.status === 'past' || (Number.isFinite(at) && at <= Date.now());
+        const label = past ? 'Orario richiesto già trascorso' : timing.status === 'resolved' ? 'Orario richiesto da verificare' : 'Richiesta di orario da chiarire';
+        return `<div class="sg-intake-timing"><p><strong>${label}</strong>${Number.isFinite(at) ? ' · ' + esc(oggiSegretariaDate(at)) : ''}</p>${timing.quote ? `<p>«${esc(String(timing.quote).slice(0, 350))}»</p>` : ''}<p>Richiesta nella fonte${timing.sourceMessageId !== task.followUp.lastMessageId ? ' precedente' : ''}; nessuna conferma al cliente.</p></div>`;
+    }
+    // Presentation only: source previews and AI readings never share an attribution.
+    function oggiSegretariaSourceDate(task) {
+        const at = Date.parse(task?.followUp?.lastInboundAt);
+        return Number.isFinite(at) ? `<time class="sg-source-date" datetime="${esc(new Date(at).toISOString())}">${esc(oggiSegretariaDate(at, true))}</time>` : '<span class="sg-source-date">Data del messaggio non disponibile</span>';
+    }
+    function oggiSegretariaPreparedDate(p) {
+        const at = Date.parse(p?.createdAt);
+        return Number.isFinite(at) ? `<span class="sg-source-date">Proposta preparata · <time datetime="${esc(new Date(at).toISOString())}">${esc(oggiSegretariaDate(at, true))}</time></span>` : '<span class="sg-source-date">Data della preparazione non disponibile</span>';
+    }
+    function oggiSegretariaMissing(p) {
+        const reasons = {
+            historical_summary_excluded: 'I riepiloghi storici non sono usati per stabilire fatti attuali: servono fonti verificabili.',
+            history_window_limited: 'È disponibile solo una parte recente della conversazione.', latest_history_not_verified: 'La cronologia recente non è verificabile.', history_unavailable: 'La cronologia non è disponibile.',
+            message_time_missing: 'Manca la data verificabile di un messaggio.', attachments_not_read: 'Gli allegati non sono stati letti in questa proposta.',
+            identity_not_verified: 'Identità non completamente verificata.', practice_selection_required: 'Ci sono più pratiche possibili.', dossier_incomplete: 'Il fascicolo ha informazioni mancanti.',
+            call_transcript_unavailable: 'La trascrizione della chiamata non è disponibile.', call_caller_words_unavailable: 'Le parole del chiamante non sono distinguibili con certezza.',
+            source_unavailable: 'Una fonte non è disponibile.', source_not_found: 'Una fonte non è stata trovata.', reference_limit: 'Non tutti i riferimenti sono inclusi.', source_limit: 'Non tutte le fonti sono incluse.'
+        };
+        return [...new Set((Array.isArray(p?.coverage?.reasons) ? p.coverage.reasons : []).map(code => reasons[code] || 'Una parte del contesto richiede verifica.'))];
+    }
+    function oggiSegretariaQuestions(p) {
+        const doubts = (Array.isArray(p?.uncertainties) ? p.uncertainties : []).map(item => item.text).filter(Boolean);
+        const missing = oggiSegretariaMissing(p);
+        if (!doubts.length && !missing.length && !p?.coverage?.incomplete) return '';
+        return `<section class="sg-questions" role="status" aria-label="${p?.approval ? 'Limiti della proposta approvata' : 'Da chiarire'}"><p class="sg-meta-label">${p?.approval ? 'Limiti e dubbi della proposta approvata' : 'Da chiarire prima di decidere'}</p>${doubts.length ? `<ul>${doubts.map(text => `<li>${esc(text)}</li>`).join('')}</ul>` : ''}${missing.length ? `<ul class="sg-coverage-gaps">${missing.map(text => `<li>${esc(text)}</li>`).join('')}</ul>` : p?.coverage?.incomplete ? '<p>Contesto parziale: le informazioni mancanti non sono specificate.</p>' : ''}</section>`;
+    }
+    // Approval records a future internal check. A past check is not an executable proposal.
+    // Existing approvals keep their receipt and may still need the same execution resumed.
+    function oggiSegretariaApprovalTimeIssue(p, now = Date.now()) {
+        if (!p || p.approval) return '';
+        const at = Date.parse(p.nextAction?.checkAt);
+        if (!Number.isFinite(at)) return 'Manca la data del ricontrollo. Correggi il seguito e rielabora la proposta prima di confermare.';
+        if (typeof window.BOOM_PROPOSTA?.approvalExpired !== 'function') return 'Il controllo della scadenza non è disponibile. Ricarica la pagina prima di confermare.';
+        return window.BOOM_PROPOSTA.approvalExpired(p, now) ? 'Il ricontrollo proposto è già passato. Rielabora la proposta prima di confermare.' : '';
+    }
+    function oggiSegretariaApprovalLabel(p) {
+        return p?.draft ? (p.draft.channel === 'email' ? 'Conferma e invia email' : 'Conferma messaggio WhatsApp') : 'Conferma seguito interno';
+    }
+    function oggiSegretariaRender() {
+        const panel = document.getElementById('sgFollowPanel'), E = window.BOOM_SEGRETARIA_CASI;
+        if (!panel) return;
+        panel.classList.add('sg-panel');
+        if (typeof E?.workGroups !== 'function') { panel.innerHTML = '<div class="sg-state" role="alert">La vista dei seguiti non è disponibile. Ricarica la pagina.</div>'; return; }
+        const now = Date.now(), groups = oggiSegretariaGroups(now);
+        const opened = new Set([...panel.querySelectorAll('details[open][data-sg-detail]')].map(el => el.dataset.sgDetail));
+        const focused = panel.contains(document.activeElement) ? document.activeElement : null;
+        const focusKey = focused?.dataset.sgAction, focusId = focused?.dataset.sgId, focusDetail = focused?.parentElement?.dataset.sgDetail;
+        // Bound initial rendering without losing the case being read after a reorder or property return.
+        const retained = new Set([focusId, oggiSegretaria.modal?.id, oggiSegretaria.propertyReturn?.taskId]);
+        if (/^(case|reading)-/.test(focusDetail || '')) retained.add(focusDetail.replace(/^(case|reading)-/, ''));
+        for (const key of [...opened, ...(oggiSegretaria.propertyReturn?.opened || [])]) if (key.startsWith('case-') || key.startsWith('reading-')) retained.add(key.replace(/^(case|reading)-/, ''));
+        for (const [group, visibleKey] of [['decisions', 'decisionsVisible'], ['preparing', 'preparingVisible']]) {
+            for (const [index, task] of groups[group].entries()) {
+                if (retained.has(task.id)) oggiSegretaria[visibleKey] = Math.max(oggiSegretaria[visibleKey], Math.ceil((index + 1) / 12) * 12);
+            }
+        }
+        const all = [...groups.decisions, ...groups.preparing, ...groups.progress, ...groups.waiting], total = all.length;
+        const ready = groups.decisions.filter(task => { const p = oggiSegretariaPreparation(task); return p && !p.approval && p.status === 'ready' && !oggiSegretariaApprovalTimeIssue(p, now); }).length;
+        const future = all.map(task => E.describe(task, null, S, now).checkAt).filter(at => at !== null && at > now).sort((a, b) => a - b)[0];
+        const subline = !oggiSegretaria.loaded ? 'Carico richieste, proposte e ricontrolli.' : groups.decisions.length
+            ? (ready ? `${ready} ${ready === 1 ? 'proposta pronta' : 'proposte pronte'} da rivedere.${groups.decisions.length > ready ? ` ${groups.decisions.length - ready} ${groups.decisions.length - ready === 1 ? 'richiesta da verificare' : 'richieste da verificare'}.` : ''}` : 'I collegamenti e i ricontrolli da completare sono qui sotto.')
+            : groups.preparing.length ? `${groups.preparing.length} ${groups.preparing.length === 1 ? 'richiesta ancora da preparare' : 'richieste ancora da preparare'}. Le proposte compariranno tra le richieste da rivedere.`
+            : total ? 'Il lavoro resta visibile fino a una chiusura con esito.' : 'Le nuove richieste compariranno qui con il loro prossimo passo.';
+        const row = (task, group) => {
+            const d = E.describe(task, oggiSegretaria.dossiers[task.id], S, now);
+            const property = isAdmin() && window.BOOM_PROPERTY_DOSSIER?.open ? E.propertyTarget?.(task, oggiSegretaria.dossiers[task.id], S) : null;
+            const p = oggiSegretariaPreparation(task), n = p?.nextAction, receipt = oggiSegretariaReceipt(task), reviewIssue = E.reviewReason?.(task) || (task.preparationReview ? 'La richiesta richiede una verifica prima di proseguire.' : '');
+            const timeIssue = oggiSegretariaApprovalTimeIssue(p, now);
+            const title = p?.draft && !p.approval ? `Risposta ${p.draft.channel === 'email' ? 'email' : 'WhatsApp'} da rivedere` : n?.text || d.nextAction;
+            const capReached = oggiSegretariaLegacyCap();
+            const inspect = !!reviewIssue || capReached || oggiSegretaria.monitoring?.mode === 'continuous';
+            const action = p ? 'review' : inspect ? 'inspect' : 'generate', key = 'case-' + task.id;
+            const channel = p?.draft?.channel === 'email' ? 'Email' : p?.draft?.channel === 'whatsapp' ? 'WhatsApp' : /^phone:/.test(task.followUp.lastMessageId || '') ? 'Telefono' : /^mail_/.test(task.followUp.lastMessageId || '') ? 'Email' : 'Conversazione';
+            const label = p ? (receipt ? 'Vedi esito' : timeIssue ? 'Rivedi e aggiorna' : p.draft ? 'Rivedi messaggio' : 'Rivedi seguito') : inspect ? 'Esamina richiesta' : 'Prepara il lavoro';
+            const doubts = Array.isArray(p?.uncertainties) ? p.uncertainties.filter(item => item.text).length : 0;
+            const incomplete = p?.coverage?.incomplete || oggiSegretariaMissing(p).length > 0;
+            const scope = p && !p.approval ? p.draft
+                ? `Da confermare: un messaggio ${channel} a ${p.recipientPreview?.name || d.name}. Il seguito resta aperto.`
+                : 'Solo seguito interno. Nessun messaggio WhatsApp o email preparato.' : '';
+            return `<article class="sg-case sg-case--${group}" data-sg-id="${esc(task.id)}" aria-labelledby="sg-case-${esc(task.id)}">
+                <div class="sg-case-main">
+                    <div class="sg-case-top"><span class="sg-person">${esc(d.name)}</span><span class="sg-case-channel">${channel}</span><span class="li-flag sg-state-label ${d.due ? 'sg-due' : ''}">${esc(d.state)}</span>${p && !p.approval ? `<span class="sg-proposal-label">${timeIssue ? 'Da aggiornare' : p.status === 'ready' ? (p.draft ? 'Messaggio da rivedere' : 'Seguito interno') : 'Da verificare'}</span>` : reviewIssue ? '<span class="sg-proposal-label">Da verificare</span>' : ''}</div>
+                    <div class="sg-next-action"><p class="sg-meta-label">${p && !p.approval ? (p.draft ? 'La tua decisione' : 'Attività proposta · da confermare') : p?.approval || ['Confermato', 'Da ricontrollare'].includes(d.state) ? 'Prossima azione confermata' : 'Seguito da verificare'}</p><h4 id="sg-case-${esc(task.id)}" class="sg-case-title">${esc(title)}</h4></div>
+                    ${p ? `<div class="sg-ai-reading"><p class="sg-meta-label">Sintesi AI · da verificare</p><p class="sg-ai-recommendation">${esc(p.summary)}</p></div>` : `<div class="sg-received"><p class="sg-meta-label">Ultimo messaggio ricevuto</p>${oggiSegretariaSourceDate(task)}<p class="sg-source-preview">${esc(d.preview || 'Anteprima non disponibile.')}</p></div>`}
+                    ${scope ? `<p class="sg-action-scope">${esc(scope)}</p>` : ''}
+                    ${timeIssue ? `<p class="sg-inline-notice sg-time-issue" role="status">${esc(timeIssue)}</p>` : ''}
+                    ${p && !p.approval && (p.identityBlocked || p.status !== 'ready') ? '<p class="sg-inline-notice" role="status">Conferma bloccata: servono informazioni verificate.</p>' : ''}
+                    ${doubts || incomplete ? `<p class="sg-context-notice" role="status">${doubts ? `${doubts} ${doubts === 1 ? 'punto da verificare' : 'punti da verificare'}. ` : ''}${incomplete ? 'Fonti parziali. ' : ''}Apri il contesto prima di decidere.</p>` : ''}
+                    ${oggiSegretariaTiming(task)}
+                    ${reviewIssue ? `<p class="sg-inline-notice" role="status">${esc(reviewIssue)} Nessun nuovo tentativo automatico finché il caso resta in verifica.</p>` : ''}
+                    ${receipt ? `<p class="sg-receipt" role="status">${esc(receipt)}</p>` : task.preparation && !p ? '<p class="sg-inline-notice">La proposta precedente va aggiornata.</p>' : ''}
+                    <div class="sg-case-meta"><span><span class="sg-meta-label">${p?.draft && !p.approval ? 'Dopo l’invio · chi agisce' : 'Chi agisce'}</span>${esc(n?.waitingLabel || d.waiting)}</span><span><span class="sg-meta-label">Ricontrollo interno</span>${esc(oggiSegretariaDate(n?.checkAt ? Date.parse(n.checkAt) : d.checkAt))}</span></div>
+                </div>
+                <div class="sg-case-action"><button class="btn sg-primary" type="button" data-sg-primary data-sg-action="${action}" data-sg-id="${esc(task.id)}" ${window.BOOM_PROPOSTA ? '' : 'disabled'}>${label}<span aria-hidden="true">↗</span></button></div>
+                ${p ? `<details class="sg-reading-details" data-sg-detail="${esc('reading-' + task.id)}" ${opened.has('reading-' + task.id) ? 'open' : ''}><summary>Contesto${doubts || incomplete ? ' e punti da verificare' : ' e fonti'}<span aria-hidden="true">+</span></summary><p>${esc(p.summary)}</p><div class="sg-ai-reading">${oggiSegretariaPreparedDate(p)}</div><p><strong>Raccomandazione AI</strong><br>${esc(p.recommendation)}</p><div class="sg-received"><p class="sg-meta-label">Ultimo messaggio ricevuto</p>${oggiSegretariaSourceDate(task)}<p class="sg-source-preview">${esc(d.preview || 'Anteprima non disponibile.')}</p></div>${n?.reason ? `<div class="sg-action-reason"><span class="sg-meta-label">Perché questo passo</span><p>${esc(n.reason)}</p></div>` : ''}${oggiSegretariaQuestions(p)}</details>` : ''}
+                <details class="sg-case-details" data-sg-detail="${esc(key)}" ${opened.has(key) ? 'open' : ''}><summary>Collegamenti e altre azioni<span aria-hidden="true">+</span></summary><div class="sg-case-detail-body"><dl class="sg-relations"><div><dt>Persona</dt><dd>${esc(d.name)}</dd></div><div><dt>Flat</dt><dd>${esc(d.house)}</dd></div><div><dt>Pratica</dt><dd>${esc(d.practice)}</dd></div><div><dt>Prossima azione</dt><dd>${esc(n?.text || d.nextAction)}</dd></div></dl><div class="sg-secondary-actions">${property?.id ? `<button class="btn btn-secondary" type="button" data-sg-action="property" data-sg-id="${esc(task.id)}" data-sg-property="${esc(property.id)}">Apri immobile</button>` : ''}<button class="btn btn-secondary" type="button" data-sg-action="edit" data-sg-id="${esc(task.id)}">Correggi seguito</button><button class="btn btn-secondary" type="button" data-sg-action="source" data-sg-id="${esc(task.id)}" ${d.conversationId ? '' : 'disabled'}>Apri conversazione</button></div></div></details>
+            </article>`;
+        };
+        const section = (key, title, description, empty) => {
+            const limit = key === 'preparing' ? oggiSegretaria.preparingVisible : key === 'decisions' ? oggiSegretaria.decisionsVisible : groups[key].length;
+            const visible = groups[key].slice(0, limit), remaining = groups[key].length - visible.length;
+            return `<section class="sg-group sg-group--${key}" data-sg-group="${key}" aria-labelledby="sg-group-${key}"><header class="sg-group-header"><h3 id="sg-group-${key}">${title}<span class="sg-count">${groups[key].length}</span></h3><p>${description}${remaining ? ` Mostrate ${visible.length} di ${groups[key].length}.` : ''}</p></header><div class="sg-group-cases">${visible.length ? visible.map(task => row(task, key)).join('') : `<p class="sg-empty">${empty}</p>`}</div>${remaining ? `<button class="btn sg-refresh sg-load-more" type="button" data-sg-action="more-${key}">Mostra altre ${key === 'decisions' ? 'decisioni' : 'richieste'} · ${remaining} ancora da vedere</button>` : ''}</section>`;
+        };
+        panel.innerHTML = `<header class="sg-briefing"><div class="sg-briefing-top"><div><p class="sg-eyebrow">BOOM / Operazioni</p><h2>Segreteria</h2></div><button class="btn btn-secondary sg-refresh" type="button" data-sg-action="refresh" ${oggiSegretaria.loading ? 'disabled' : ''}>${oggiSegretaria.loading ? 'Aggiorno…' : 'Aggiorna'}</button></div><div class="sg-briefing-copy"><p class="sg-briefing-note">${subline}</p></div><dl class="sg-board"><div><dt>Da rivedere</dt><dd>${oggiSegretaria.loaded ? groups.decisions.length : '—'}</dd></div><div><dt>Da preparare</dt><dd>${oggiSegretaria.loaded ? groups.preparing.length : '—'}</dd></div><div><dt>In corso</dt><dd>${oggiSegretaria.loaded ? groups.progress.length : '—'}</dd></div><div><dt>In attesa</dt><dd>${oggiSegretaria.loaded ? groups.waiting.length : '—'}</dd></div></dl><div class="sg-briefing-foot"><span>${oggiSegretaria.loaded ? `${total} ${total === 1 ? 'seguito aperto' : 'seguiti aperti'} nell’elenco${oggiSegretaria.incomplete || groups.invalid ? ' parziale' : ''}` : 'Lettura in corso'}</span><span>${future ? 'Prossimo ricontrollo · ' + esc(oggiSegretariaDate(future)) : 'Le date di ricontrollo sono interne'}</span></div></header>
+            ${oggiSegretariaMonitoring(opened)}
+            <p id="sgFreshness" class="sg-footnote${portalFreshnessWarning() || oggiSegretaria.liveError ? ' sg-notice sg-notice--warning' : ''}" role="status">${esc(oggiSegretariaFreshness())}</p>
+            <details class="sg-footnote" data-sg-detail="coverage" ${opened.has('coverage') ? 'open' : ''}><summary>Copertura degli aggiornamenti</summary><p>Le date riguardano i seguiti e gli ingressi nelle chat WhatsApp caricate. Le chat miste, i messaggi già seguiti da una risposta e le conversazioni fuori dall’elenco possono non essere inclusi. La copertura di WhatsApp non è verificata da questi dati.</p></details>
+            ${oggiSegretaria.error ? `<div class="sg-notice sg-notice--warning" role="alert">${esc(oggiSegretaria.error)}</div>` : ''}
+            ${oggiSegretaria.incomplete ? '<div class="sg-notice sg-notice--warning" role="status">Elenco parziale: non è stato possibile leggere tutti i seguiti. Potrebbero esserci altre richieste aperte.</div>' : ''}
+            ${groups.invalid ? '<div class="sg-notice sg-notice--warning" role="status">Alcuni seguiti hanno dati incompleti e non sono rappresentabili in questa vista.</div>' : ''}
+            ${!oggiSegretaria.loaded ? `<div class="sg-state" role="status">${oggiSegretaria.loading ? 'Carico i seguiti…' : 'Seguiti non ancora caricati.'}</div>` : `<div class="sg-workspace">${section('decisions', 'Da rivedere', 'Messaggi proposti, seguiti interni e richieste da chiarire.', 'Nessun seguito richiede una decisione in questo elenco.')}${groups.progress.length || groups.waiting.length ? `<div class="sg-secondary-grid">${section('progress', 'In corso', 'Prossime azioni affidate a BOOM o a Valentino, e invii in coda.', 'Nessuna attività confermata in corso in questo elenco.')}${section('waiting', 'In attesa', 'La prossima azione spetta al cliente o a un collaboratore.', 'Le attese confermate resteranno qui fino a un nuovo messaggio, al ricontrollo o a una chiusura con esito.')}</div>` : '<p class="sg-quiet-state">In corso e in attesa · nessun seguito confermato in questo elenco.</p>'}${groups.preparing.length ? section('preparing', 'Da preparare', 'Richieste ricevute: BOOM deve ancora preparare una proposta. Puoi aprire le fonti o correggere il seguito.', '') : ''}<p class="sg-footnote">Un ricontrollo interno non è una scadenza promessa al cliente. Leggere o rispondere non chiude il seguito.</p></div>`}`;
+        panel.onclick = event => {
+            const button = event.target.closest('[data-sg-action]');
+            if (!button || !panel.contains(button)) return;
+            if (button.dataset.sgAction === 'refresh') { portalFreshnessRecover(); return oggiSegretariaLoad(true); }
+            if (button.dataset.sgAction === 'more-preparing') { oggiSegretaria.preparingVisible += 12; oggiSegretariaRender(); return; }
+            if (button.dataset.sgAction === 'more-decisions') {
+                const next = oggiSegretaria.decisionsVisible;
+                oggiSegretaria.decisionsVisible += 12;
+                oggiSegretariaRender();
+                panel.querySelectorAll('[data-sg-group="decisions"] [data-sg-primary]')[next]?.focus();
+                return;
+            }
+
+            const task = oggiSegretaria.rows.find(t => t.id === button.dataset.sgId);
+            if (!task) return;
+            if (button.dataset.sgAction === 'property') {
+                if (!isAdmin() || !window.BOOM_PROPERTY_DOSSIER?.open) return;
+                const target = E.propertyTarget?.(task, oggiSegretaria.dossiers[task.id], S);
+                if (!target?.id || target.id !== button.dataset.sgProperty) {
+                    toast('warning', 'Il collegamento all’immobile è cambiato. Controlla il contesto aggiornato.');
+                    oggiSegretariaRender(); return;
+                }
+                return window.BOOM_PROPERTY_DOSSIER.open(target.id, {
+                    taskId: task.id,
+                    opened: [...panel.querySelectorAll('details[open][data-sg-detail]')].map(el => el.dataset.sgDetail)
+                });
+            }
+            if (button.dataset.sgAction === 'edit') return oggiSegretariaOpen(task.id);
+            if (button.dataset.sgAction === 'plan') return oggiSegretariaOpen(task.id, '', 'execute');
+            if (['review', 'generate', 'inspect'].includes(button.dataset.sgAction)) return oggiSegretariaOpen(task.id, '', 'review', button.dataset.sgAction === 'generate');
+            if (button.dataset.sgAction === 'source') return oggiSegretariaSource(task);
+        };
+        if (focused) {
+            const controls = [...panel.querySelectorAll('[data-sg-action]')];
+            (focusKey ? controls.find(el => el.dataset.sgAction === focusKey && el.dataset.sgId === focusId)
+                : [...panel.querySelectorAll('details[data-sg-detail]')].find(el => el.dataset.sgDetail === focusDetail)?.querySelector('summary'))?.focus({ preventScroll: true });
+        }
+        oggiSegretariaRestorePropertyContext(panel);
+    }
+    function oggiSegretariaRestorePropertyContext(panel) {
+        const context = oggiSegretaria.propertyReturn;
+        if (!context || S.page !== 'oggi' || oggiSegretaria.loading || !oggiSegretaria.loaded || oggiSegretaria.generation < context.afterGeneration) return;
+        oggiSegretaria.propertyReturn = null;
+        const opened = new Set(context.opened || []);
+        panel.querySelectorAll('details[data-sg-detail]').forEach(el => { if (opened.has(el.dataset.sgDetail)) el.open = true; });
+        requestAnimationFrame(() => {
+            if (S.page !== 'oggi' || !panel.isConnected) return;
+            window.BOOM_MOBILE?.refresh?.();
+            requestAnimationFrame(() => {
+                if (S.page !== 'oggi' || !panel.isConnected) return;
+                const row = [...panel.querySelectorAll('article[data-sg-id]')].find(el => el.dataset.sgId === context.taskId);
+                const control = row?.querySelector('[data-sg-action="property"]') || row?.querySelector('summary');
+                if (control) {
+                    control.focus({ preventScroll: true }); window.scrollTo(0, context.scroll);
+                    const rect = control.getBoundingClientRect();
+                    if (rect.bottom < 0 || rect.top > window.innerHeight) control.scrollIntoView({ block: 'center' });
+                }
+                else { const heading = panel.querySelector('h2'); if (heading) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); heading.scrollIntoView({ block: 'start' }); } }
+            });
+        });
+    }
+    function oggiSegretariaMount() {
+        if (!document.getElementById('sgFollowPanel') || !isAdmin()) return;
+        const uid = auth.currentUser && auth.currentUser.uid;
+        if (oggiSegretaria.userId !== uid) {
+            oggiSegretariaStopLive();
+            oggiSegretaria.generation++;
+            Object.assign(oggiSegretaria, { userId: uid, rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false, readAt: null, monitoring: null, liveError: false, preparingVisible: 12, decisionsVisible: 12, propertyReturn: null });
+        }
+        oggiSegretariaStartLive();
+        oggiSegretariaRender();
+        if (!oggiSegretaria.loading) oggiSegretariaLoad();
+    }
+    async function oggiSegretariaLoad(force) {
+        if (!isAdmin() || !document.getElementById('sgFollowPanel') || (oggiSegretaria.loading && !force)) return;
+        clearTimeout(oggiSegretaria.timer);
+        const generation = ++oggiSegretaria.generation;
+        oggiSegretaria.loading = true;
+        oggiSegretariaRender();
+        const rows = new Map();
+        let latestMonitor = null;
+        try {
+            // Refresh the whole list before replacing it: later pages must not
+            // disappear during a refresh, and an open draft is never recreated.
+            const seen = new Set();
+            let cursor = null, data;
+            do {
+                data = await oggiSegretariaRequest(null, null, false, cursor);
+                if (generation !== oggiSegretaria.generation || S.page !== 'oggi' || !document.getElementById('sgFollowPanel')) return;
+                if (!Array.isArray(data.rows)) throw { code: 'invalid_response' };
+                for (const task of data.rows) {
+                    if (!task || typeof task.id !== 'string' || !task.id) throw { code: 'invalid_response' };
+                    rows.set(task.id, task);
+                }
+                latestMonitor = data.monitoring || null;
+                if (data.readingDegraded === true) throw { code: 'follow_up_page_unavailable' };
+                cursor = data.nextCursor || null;
+                if (cursor !== null && (typeof cursor !== 'string' || seen.has(cursor))) throw { code: 'invalid_response' };
+                if (cursor) seen.add(cursor);
+            } while (cursor);
+            Object.assign(oggiSegretaria, { rows: [...rows.values()], incomplete: data.incomplete === true, loaded: true, error: '', readAt: Date.now(), monitoring: data.monitoring || null });
+        } catch (e) {
+            if (generation === oggiSegretaria.generation) {
+                if (!oggiSegretaria.loaded && rows.size) Object.assign(oggiSegretaria, { rows: [...rows.values()], loaded: true, incomplete: true, monitoring: latestMonitor });
+                oggiSegretaria.error = oggiSegretariaError(e);
+            }
+        } finally {
+            if (generation === oggiSegretaria.generation) {
+                oggiSegretaria.loading = false;
+                oggiSegretariaRender();
+                if (S.page === 'oggi') oggiSegretaria.timer = setTimeout(() => { if (S.page === 'oggi') oggiSegretariaLoad(); }, 30000);
+                if (oggiSegretaria.refreshPending) oggiScheduleUpdate(true, false);
+            }
+        }
+    }
+    async function oggiSegretariaSource(task) {
+        const id = window.BOOM_SEGRETARIA_CASI.describe(task, null, S, Date.now()).conversationId;
+        if (!id || !isAdmin() || oggiSegretaria.sourceLoading) return;
+        const page = S.page, modal = oggiSegretaria.modal, user = auth.currentUser;
+        oggiSegretaria.sourceLoading = true;
+        let timer;
+        try {
+            // Il boot carica solo le conversazioni recenti: la fonte di un
+            // seguito più vecchio deve essere letta per id prima di aprirla.
+            // Il listener Inbox resta quello esistente; uno snapshot successivo
+            // può togliere dalla lista una conversazione fuori dal suo limite.
+            if (!(S.conversations || []).some(c => c.id === id)) {
+                const snap = await Promise.race([
+                    db.collection('conversations').doc(id).get(),
+                    new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('source_timeout')), 12000); })
+                ]);
+                if (!snap.exists) throw new Error('source_missing');
+                if (auth.currentUser !== user || !isAdmin()) return;
+                S.conversations = [...(S.conversations || []).filter(c => c.id !== id), { ...snap.data(), id }];
+            }
+            if (S.page !== page || oggiSegretaria.modal !== modal) return;
+            oggiSegretariaClose();
+            goTo('inbox');
+            inboxSelect(id); // unread può cambiare; il seguito resta aperto.
+        } catch {
+            const message = 'Non riesco ad aprire la conversazione di origine. Il seguito resta qui: controlla l’accesso e riprova.';
+            oggiSegretaria.error = message;
+            oggiSegretariaRender();
+            if (modal && oggiSegretaria.modal === modal) {
+                modal.error = message;
+                const box = document.getElementById('sgFollowError');
+                if (box) { box.textContent = message; box.hidden = false; box.style.display = ''; }
+            }
+        } finally { clearTimeout(timer); oggiSegretaria.sourceLoading = false; }
+    }
+    function oggiSegretariaClose() {
+        const previous = oggiSegretaria.modal;
+        oggiSegretaria.modal = null;
+        document.getElementById('sgFollowModal')?.remove();
+        if (!document.querySelector('.modal-overlay.active')) document.body.classList.remove('modal-open');
+        if (previous && window.BOOM_SEGRETARIA_CASI.validId(previous.id)) {
+            document.querySelector(`[data-sg-id="${previous.id}"] [data-sg-primary]`)?.focus();
+        }
+    }
+    async function oggiSegretariaOpen(id, notice, mode, generateRequested) {
+        if (!window.BOOM_SEGRETARIA_CASI.validId(id)) return;
+        const modal = { id, task: null, dossier: null, notice: notice || '', error: '', busy: false, mode: mode || 'edit', uncertain: false };
+        oggiSegretaria.modal = modal;
+        oggiSegretariaModalRender();
+        try {
+            const data = await oggiSegretariaRequest(id);
+            if (oggiSegretaria.modal !== modal) return;
+            if (!data.task || !data.task.followUp || !data.dossier) throw { code: 'invalid_response' };
+            modal.task = { ...data.task, id }; modal.dossier = data.dossier;
+            oggiSegretaria.dossiers[id] = data.dossier;
+            oggiSegretaria.rows = oggiSegretaria.rows.map(t => t.id === id ? modal.task : t);
+        } catch (e) { if (oggiSegretaria.modal === modal) modal.error = oggiSegretariaError(e); }
+        if (oggiSegretaria.modal === modal) {
+            oggiSegretariaModalRender(); oggiSegretariaRender();
+            // This is exclusively the operator's explicit "Prepara" click.
+            // GET, opening a prepared case and the refresh timer never generate.
+            if (generateRequested && modal.task) oggiSegretariaPrepare('generate');
+        }
+    }
+    function oggiSegretariaExecution(m) {
+        const p = oggiSegretariaPreparation(m.task), E = window.BOOM_SEGRETARIA_ESECUZIONE;
+        if (!p) return '';
+        if (!E?.describe) return '<div class="sg-notice sg-notice--warning" role="alert">Il piano di esecuzione non è disponibile. Ricarica la pagina prima di confermare.</div>';
+        const local = oggiSegretaria.receipts[m.id];
+        const delivery = p.approval && m.task.deliveryResult ? m.task.deliveryResult
+            : local?.revision === p.revision ? local : null;
+        const plan = E.describe({ preparation: p, delivery, monitoring: oggiSegretaria.monitoring, uncertain: m.uncertain === true, now: Date.now() });
+        const labels = { planned: 'Da avviare', recorded: 'Registrato', pending: 'In attesa', queued: 'In coda', sent: 'Invio registrato', paused: 'In pausa', unavailable: 'Da verificare', needs_review: 'Serve verifica' };
+        return `<section id="sgExecutionPlan" class="sg-execution-plan" aria-labelledby="sgExecutionTitle"><p class="sg-eyebrow">${plan.approved ? 'Stato del piano' : 'Effetti della conferma'}</p><h4 id="sgExecutionTitle">${plan.approved ? 'Esecuzione del piano approvato' : p.draft ? 'Messaggio e seguito' : 'Solo registrazione interna'}</h4><ol class="sg-plan-steps">${plan.steps.map(step => `<li data-sg-step="${esc(step.id)}" data-sg-step-state="${esc(step.state)}"><div><strong>${esc(step.title)}</strong><p>${esc(step.detail)}</p></div><span class="sg-plan-state">${esc(labels[step.state] || 'Da verificare')}</span></li>`).join('')}</ol>${plan.approved && plan.manual.length ? `<div class="sg-plan-manual">${plan.manual.map(step => `<p><strong>${esc(step.title)}</strong><br>${esc(step.detail)}</p>`).join('')}</div>` : ''}${plan.notice ? `<p class="sg-plan-notice" role="status">${esc(plan.notice)}</p>` : ''}<p class="sg-muted">La conferma riguarda questo piano e questa risposta. Nuovi messaggi o nuove azioni richiedono una nuova valutazione.</p></section>`;
+    }
+    function oggiSegretariaReview(m) {
+        const p = oggiSegretariaPreparation(m.task), E = window.BOOM_SEGRETARIA_CASI;
+        const reviewIssue = E.reviewReason?.(m.task) || (m.task?.preparationReview ? 'La richiesta richiede una verifica prima di proseguire.' : '');
+        if (!p) return oggiSegretariaTiming(m.task) + (reviewIssue ? `<div class="sg-notice sg-notice--warning" role="status"><strong>Da verificare.</strong> ${esc(reviewIssue)} Apri le fonti e correggi il seguito prima di richiedere una nuova preparazione.</div>` : '') + (oggiSegretariaLegacyCap() ? '<div class="sg-notice sg-notice--warning" role="status">Il servizio precedente segnala un limite di preparazione. Puoi leggere le fonti e correggere il seguito; aggiorna lo stato del servizio.</div>' : '') + (!Number.isFinite(Date.parse(m.task?.followUp?.checkAt)) ? '<p class="sg-inline-notice">Ricontrollo da impostare. Il seguito resta aperto: scegli la data in «Correggi seguito».</p>' : '') + '<div class="sg-review-empty"><p class="sg-eyebrow">Prossimo passo</p><h4>Prepariamo il prossimo passo</h4><p>La Segreteria ricostruisce la richiesta dalle fonti disponibili e propone azione, responsabile e risposta. Potrai rivedere tutto prima di confermare.</p><p class="sg-muted">Preparare il lavoro non invia messaggi.</p></div>';
+        const n = p.nextAction || {}, recipient = p.recipientPreview || {}, receipt = oggiSegretariaReceipt(m.task);
+        const list = rows => (Array.isArray(rows) ? rows : []).map(item => `<li>${esc(item.text || '')}${item.kind ? `<span class="sg-evidence-status">${item.kind === 'inferred' ? 'Dedotto, da verificare' : 'Esplicito'} · ${esc({ pending: 'Da completare', satisfied: 'Risulta soddisfatto', unclear: 'Esito incerto' }[item.status] || 'Da verificare')}</span>` : ''}</li>`).join('');
+        const practice = m.dossier?.practices?.find(row => row.ref === n.practiceRef);
+        const ownership = p.replyOwnership;
+        const ownerLabel = ['segretaria:conversation', 'segretaria', 'segretaria-proposal'].includes(ownership?.owner) ? 'dalla Segreteria BOOM'
+            : ownership?.owner === 'commerciale' ? 'dal Commerciale BOOM' : 'da un altro incaricato BOOM';
+        const ownershipNotice = ownership?.incomplete ? 'Verifica delle risposte in corso incompleta: qui confermi soltanto il seguito. Prima di inviare serve ricontrollare.'
+            : ownership?.blocked ? 'Risposta già seguita ' + ownerLabel + '; qui confermi soltanto il seguito.' : '';
+        const missingCheck = !Number.isFinite(Date.parse(n.checkAt));
+        const timeIssue = oggiSegretariaApprovalTimeIssue(p);
+        return `<div id="sgPreparationReview" class="sg-review">
+            ${oggiSegretariaTiming(m.task)}
+            ${receipt ? `<div class="sg-notice" role="status">${esc(receipt)}</div>` : ''}
+            ${p.approval ? oggiSegretariaExecution(m) : ''}
+            ${p.draft ? `<section class="sg-message" aria-label="Messaggio da confermare"><div class="sg-message-heading"><h4>Risposta pronta</h4><span class="sg-channel">${p.draft.channel === 'email' ? 'Email' : 'WhatsApp'}</span></div>
+                <p id="sgRecipient" class="sg-recipient"><span>A</span><strong>${esc(recipient.name || m.task.followUp.contactName || 'Destinatario')}</strong><span class="sg-recipient-address">${esc(recipient.address || 'Recapito mancante')}</span></p>
+                ${p.draft.channel === 'email' ? `<p class="sg-message-subject"><span>Oggetto</span>${esc(p.draft.subject || '')}</p>` : ''}
+                <p id="sgDraftText" class="sg-draft">${esc(p.draft.text || '')}</p><p class="sg-message-foot">${p.approval ? 'Conferma già registrata. Verifica l’esito nella conversazione.' : 'Con «' + oggiSegretariaApprovalLabel(p) + '» autorizzi questo testo. L’esito dell’invio viene mostrato separatamente.'}</p></section>` : '<p class="sg-no-message">Questa proposta aggiorna il seguito, senza inviare messaggi.</p>'}
+            <div id="sgReviewWarnings">
+            ${timeIssue ? `<div class="sg-notice sg-notice--warning sg-time-issue" role="status">${esc(timeIssue)}</div>` : ''}
+            ${ownershipNotice ? `<div class="sg-notice" role="status" id="sgReplyOwnership">${esc(ownershipNotice)}</div>` : ''}
+            ${oggiSegretariaQuestions(p)}
+            ${p.identityBlocked || p.status !== 'ready' ? '<div class="sg-notice sg-notice--warning" role="status">Servono informazioni verificate prima di confermare. Apri la conversazione di origine; «Correggi seguito» modifica l’attività interna, non verifica identità e recapiti.</div>' : ''}
+            ${p.handoff?.needed ? `<div class="sg-notice sg-notice--warning" role="status"><strong>Serve un intervento di Valentino.</strong> ${esc(p.handoff.reason || '')}</div>` : ''}
+                ${p.draft && !oggiSegretariaRecipient(p) ? '<div class="sg-notice sg-notice--warning" role="alert">Il destinatario manca o non corrisponde al canale: la conferma dell’invio è bloccata.</div>' : ''}
+                ${p.draft && !n.practiceRef ? '<div class="sg-notice sg-notice--warning" role="status">Prima dell’invio scegli la pratica corretta in «Correggi seguito», poi prepara di nuovo il lavoro.</div>' : ''}
+            </div>
+            ${!p.approval ? oggiSegretariaExecution(m) : ''}
+
+            <section class="sg-next-step" aria-label="Prossimo passo"><p class="sg-eyebrow">${p.approval ? 'Seguito confermato' : 'Prossima azione proposta'}</p><h4>${esc(n.text || 'Da definire')}</h4><dl class="sg-next-grid"><div><dt>Chi agisce</dt><dd>${esc(n.waitingLabel || E.WAITING[n.waitingOn] || 'Da definire')}</dd></div><div><dt>Ricontrollo interno</dt><dd>${missingCheck ? 'Ricontrollo da impostare' : esc(oggiSegretariaDate(Date.parse(n.checkAt)))}</dd><small>${esc(Intl.DateTimeFormat().resolvedOptions().timeZone || 'ora locale')}</small></div></dl>${n.reason ? `<div class="sg-action-reason"><p class="sg-meta-label">Perché questo passo</p><p>${esc(n.reason)}</p></div>` : ''}<p class="sg-muted">Il ricontrollo è interno, non un appuntamento promesso al cliente.</p>${missingCheck ? '<p class="sg-inline-notice">Il seguito resta aperto. Imposta il ricontrollo in «Correggi seguito».</p>' : ''}<p class="sg-practice"><span>Pratica</span>${esc(practice ? E.practiceLabel(practice, m.dossier, S) : 'Da collegare')}</p></section>
+
+
+            <details class="sg-evidence"><summary>Fonti, impegni e informazioni mancanti<span aria-hidden="true">+</span></summary><div class="sg-evidence-body">
+            <section class="sg-recommendation sg-ai-reading" aria-label="Interpretazione AI"><p class="sg-eyebrow">Interpretazione AI · raccomandazione</p>${oggiSegretariaPreparedDate(p)}<h4>${esc(p.recommendation || '')}</h4><p class="sg-review-summary sg-ai-recommendation">${esc(p.summary || '')}</p></section>
+                ${p.facts?.length ? `<section><h4>Fatti ricostruiti dall’AI · da riscontrare nelle fonti</h4><ul>${list(p.facts)}</ul></section>` : ''}
+                ${p.commitments?.length ? `<section><h4>Impegni</h4><ul>${list(p.commitments)}</ul></section>` : ''}
+                <section><h4>Fonti consultate</h4><ul class="sg-source-list">${(p.sources || []).map(source => `<li>${esc(source.ref || source.id || 'Fonte')}${source.at ? '<span> · ' + esc(oggiSegretariaDate(Date.parse(source.at))) + '</span>' : ''}</li>`).join('')}</ul></section>
+                <p class="sg-muted">${p.style?.basis === 'verified_human_examples' ? 'Voce: esempi con autore operatore verificato.' : 'Voce BOOM editoriale; nessuna attribuzione automatica a Valentino.'}</p>${(Array.isArray(p.style?.limitations) ? p.style.limitations : []).map(text => `<p class="sg-muted">${esc(text)}</p>`).join('')}
+            </div></details>
+        </div>`;
+    }
+    function oggiSegretariaModalRender() {
+        const m = oggiSegretaria.modal, E = window.BOOM_SEGRETARIA_CASI;
+        if (!m) return;
+        const f = m.task && m.task.followUp, dossier = m.dossier || {};
+        const options = (dossier.practices || []).filter(p => p && typeof p.ref === 'string');
+        const identityBlocked = dossier.identityIncomplete === true || dossier.identityAmbiguous === true;
+        const selected = !identityBlocked && options.some(p => p.ref === (f && f.practiceRef)) ? f.practiceRef : '';
+        const d = m.task ? E.describe(m.task, dossier, S, Date.now()) : null;
+        const p = oggiSegretariaPreparation(m.task), review = ['review', 'execute'].includes(m.mode);
+        const capReached = oggiSegretariaLegacyCap();
+        const timeIssue = oggiSegretariaApprovalTimeIssue(p);
+        const canApprove = !timeIssue && review && typeof window.BOOM_SEGRETARIA_ESECUZIONE?.describe === 'function' && p?.status === 'ready' && !p.identityBlocked && !identityBlocked && !p.approval && !m.uncertain && !m.mustRegenerate
+            && oggiSegretariaRecipient(p) && (!p.draft || p.nextAction?.practiceRef);
+        const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'ora locale';
+        let form = '';
+        if (m.task && m.task.status !== 'open') form = '<p role="status">Questo seguito è già chiuso.</p>';
+        else if (f && review) form = oggiSegretariaReview(m);
+        else if (f && m.mode === 'close') form = `<form id="sgFollowForm"><div class="form-group"><label class="form-label" for="sgOutcome">Esito · che cosa è stato risolto</label><textarea id="sgOutcome" class="form-textarea" required maxlength="500" rows="4"></textarea></div><p class="list-subtitle">La sola lettura o risposta non chiude il seguito. Registra qui il risultato.</p></form>`;
+        else if (f) form = `${oggiSegretariaTiming(m.task)}<form id="sgFollowForm">
+            ${identityBlocked ? '<div class="alert warning" role="status">Identità non verificata: le pratiche non possono essere confermate ora. Puoi salvare il seguito lasciandolo da collegare.</div>' : dossier.ambiguous ? '<div class="alert warning" role="status">Ci sono più relazioni possibili. Scegli la pratica corretta; nessuna viene selezionata automaticamente.</div>' : ''}
+            ${!identityBlocked && (dossier.historyIncomplete || dossier.incomplete) ? '<div class="alert warning" role="status">Alcune informazioni o parti della cronologia non sono disponibili. Le pratiche verificate restano selezionabili; controlla anche la conversazione di origine.</div>' : ''}
+            <div class="form-group"><label class="form-label" for="sgPractice">Pratica</label><select class="form-select" id="sgPractice" ${identityBlocked ? 'disabled' : ''}><option value="">Da collegare · nessuna pratica confermata</option>${options.map(p => `<option value="${esc(p.ref)}" ${selected === p.ref ? 'selected' : ''}>${esc(E.practiceLabel(p, dossier, S))}</option>`).join('')}</select></div>
+            <div id="sgSelectedHouse" class="list-subtitle" style="margin:-4px 0 16px">${esc(selected ? d.house : 'Casa da collegare')}</div>
+            <div class="form-group"><label class="form-label" for="sgAction">Prossima azione</label><textarea id="sgAction" class="form-textarea" required maxlength="240" rows="2">${esc(f.nextAction || '')}</textarea></div>
+            <div class="form-group"><label class="form-label" for="sgWaitingOn">Chi deve agire</label><select class="form-select" id="sgWaitingOn">${Object.entries(E.WAITING).map(([key, label]) => `<option value="${key}" ${f.waitingOn === key ? 'selected' : ''}>${label}</option>`).join('')}</select></div>
+            <div class="form-group"><label class="form-label" for="sgWaitingLabel">Nome o riferimento</label><input class="form-input" id="sgWaitingLabel" required maxlength="100" value="${esc(f.waitingLabel || '')}"></div>
+            <div class="form-group"><label class="form-label" for="sgCheckAt">Ricontrollo interno · ${esc(timezone)}</label><input class="form-input" type="datetime-local" id="sgCheckAt" required value="${esc(E.localDateTime(f.checkAt))}"></div>
+            <p class="list-subtitle">${esc(f.checkBasis || 'Data da confermare.')} Questo salvataggio non invia messaggi e non crea appuntamenti.</p>
+        </form>`;
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active" id="sgFollowModal"><div class="modal sg-decision-sheet" role="dialog" aria-modal="true" aria-labelledby="sgFollowTitle">
+            <div class="modal-header sg-modal-header"><div><p class="sg-eyebrow">Segreteria / ${m.mode === 'close' ? 'Esito' : m.mode === 'execute' ? 'Piano di esecuzione' : review ? 'Scheda decisione' : 'Correzione'}</p><h3 class="modal-title" id="sgFollowTitle">${d ? esc(d.name) : m.mode === 'close' ? 'Chiudi seguito' : review ? 'Lavoro preparato' : 'Correggi seguito'}</h3></div><button class="modal-close" type="button" data-sg-modal="cancel" aria-label="Chiudi">×</button></div>
+            <div class="modal-body sg-modal-body">
+                ${m.notice ? `<div class="sg-notice sg-notice--warning" role="status">${esc(m.notice)}</div>` : ''}
+                <div id="sgFollowError" role="alert" class="sg-notice sg-notice--warning" style="${m.error ? '' : 'display:none'}" ${m.error ? '' : 'hidden'}>${esc(m.error)}</div>
+                ${d ? `<div class="sg-origin"><div><p class="sg-eyebrow">Ultimo messaggio ricevuto · anteprima</p>${oggiSegretariaSourceDate(m.task)}<blockquote class="sg-source-preview">${esc(d.preview || 'Anteprima non disponibile.')}</blockquote></div><button class="btn btn-secondary" type="button" data-sg-modal="source" ${d.conversationId ? '' : 'disabled'}>Apri conversazione di origine</button></div>` : ''}
+                ${m.busy ? `<p role="status" class="sg-working">${m.operation === 'generate' ? 'La Segreteria sta preparando il lavoro…' : 'Registro la tua conferma e verifico lo stato…'}</p>` : ''}
+                ${form || (m.error ? '<button class="btn btn-secondary" type="button" data-sg-modal="reload">Riprova</button>' : '<p class="sg-state" role="status">Carico la richiesta e le pratiche collegate…</p>')}
+            </div><div class="modal-footer sg-modal-footer"><div class="sg-footer-note">${review && p && !p.approval ? (p.draft ? 'Approvi il piano e l’invio del testo al destinatario mostrato.' : 'Approvi il seguito e il ricontrollo. Non è previsto un messaggio.') : 'Il seguito resta aperto fino a un esito.'}</div><div class="sg-footer-actions"><button class="btn btn-secondary sg-cancel" type="button" data-sg-modal="cancel">Annulla</button>
+                ${f && m.task.status === 'open' ? (review ? `<button class="btn btn-secondary" type="button" data-sg-modal="edit">Correggi seguito</button>
+                    ${m.uncertain ? '<button class="btn sg-primary" type="button" data-sg-modal="reload">Ricarica l’esito</button>' : !p ? `<button class="btn sg-primary" type="button" data-sg-modal="generate" ${capReached ? 'disabled' : ''}>${capReached ? 'Preparazione da verificare' : 'Prepara il lavoro'}</button>` : !p.approval ? `<button class="btn btn-secondary" type="button" data-sg-modal="generate" ${capReached ? 'disabled' : ''}>Rielabora</button><button class="btn sg-primary" type="button" data-sg-modal="approve" ${canApprove ? '' : 'disabled'}>${timeIssue ? 'Ricontrollo da aggiornare' : !canApprove ? 'Informazioni da completare' : oggiSegretariaApprovalLabel(p)}</button>` : oggiSegretariaCanResume(m) ? '<button class="btn sg-primary" type="button" data-sg-modal="resume">Riprendi esecuzione</button>' : ''}`
+                    : m.mode === 'close' ? '<button class="btn btn-secondary" type="button" data-sg-modal="back">Torna al seguito</button><button class="btn sg-primary" type="submit" form="sgFollowForm" data-sg-submit>Registra esito e chiudi</button>' : `<button class="btn btn-secondary" type="button" data-sg-modal="close">Chiudi con un esito</button><button class="btn sg-primary" type="submit" form="sgFollowForm" data-sg-submit>${selected ? 'Conferma seguito' : 'Salva · da collegare'}</button>`) : ''}
+            </div></div></div></div>`;
+        document.body.classList.add('modal-open');
+        const wrap = document.getElementById('sgFollowModal');
+        wrap.onclick = event => {
+            const button = event.target.closest('[data-sg-modal]');
+            if (event.target === wrap && !m.busy) return oggiSegretariaClose();
+            if (!button || m.busy) return;
+            const action = button.dataset.sgModal;
+            if (action === 'cancel') return oggiSegretariaClose();
+            if (action === 'reload') return oggiSegretariaOpen(m.id, m.notice, m.mode);
+            if (action === 'source') return oggiSegretariaSource(m.task);
+            if (action === 'edit') { m.mode = 'edit'; m.error = ''; oggiSegretariaModalRender(); return; }
+            if (action === 'generate' || action === 'approve' || action === 'resume') return oggiSegretariaPrepare(action);
+            if (action === 'close' || action === 'back') { m.mode = action === 'close' ? 'close' : 'edit'; m.error = ''; oggiSegretariaModalRender(); }
+        };
+        wrap.onkeydown = event => {
+            if (event.key === 'Escape' && !m.busy) { event.stopPropagation(); oggiSegretariaClose(); }
+            if (event.key !== 'Tab') return;
+            const controls = [...wrap.querySelectorAll('button, input, select, textarea, summary')].filter(el => !el.disabled && el.offsetParent !== null);
+            const first = controls[0], last = controls[controls.length - 1];
+            if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+        };
+        wrap.querySelector('#sgFollowForm')?.addEventListener('submit', event => { event.preventDefault(); oggiSegretariaSave(); });
+        wrap.querySelector('#sgPractice')?.addEventListener('change', event => {
+            const p = options.find(p => p.ref === event.target.value);
+            wrap.querySelector('#sgSelectedHouse').textContent = p && p.propertyRefs && p.propertyRefs.length ? p.propertyRefs.map(ref => E.propertyLabel(ref, dossier, S)).join(' · ') : 'Casa da collegare';
+            wrap.querySelector('[data-sg-submit]').textContent = event.target.value ? 'Conferma seguito' : 'Salva · da collegare';
+        });
+        wrap.querySelector('#sgWaitingOn')?.addEventListener('change', event => { wrap.querySelector('#sgWaitingLabel').value = E.WAITING[event.target.value] || ''; });
+        if (m.busy) wrap.querySelectorAll('button, input, select, textarea').forEach(control => { control.disabled = true; });
+        if (oggiSegretaria.modal === m) (wrap.querySelector('#sgPractice:not(:disabled), #sgOutcome, #sgAction') || wrap.querySelector('[data-sg-modal="cancel"]'))?.focus();
+    }
+    async function oggiSegretariaPrepare(operation) {
+        const m = oggiSegretaria.modal;
+        if (!m?.task || m.busy || !['review', 'execute'].includes(m.mode) || !['generate', 'approve', 'resume'].includes(operation)) return;
+        if (operation === 'resume' && !oggiSegretariaCanResume(m)) return;
+        if (operation === 'generate' && oggiSegretariaLegacyCap()) {
+            m.error = 'Il servizio precedente segnala un limite di preparazione. Puoi leggere le fonti e correggere il seguito; aggiorna lo stato del servizio.';
+            oggiSegretariaModalRender(); return;
+        }
+        const p = oggiSegretariaPreparation(m.task), revision = p?.revision;
+        if (operation === 'approve' && (typeof window.BOOM_SEGRETARIA_ESECUZIONE?.describe !== 'function' || !p || !revision || p.approval || p.status !== 'ready' || p.identityBlocked
+            || m.dossier?.identityIncomplete || m.dossier?.identityAmbiguous || m.uncertain || m.mustRegenerate
+            || !oggiSegretariaRecipient(p) || (p.draft && !p.nextAction?.practiceRef))) return;
+        if (operation === 'approve' && oggiSegretariaApprovalTimeIssue(p)) {
+            m.error = oggiSegretariaApprovalTimeIssue(p);
+            oggiSegretariaModalRender(); oggiSegretariaRender(); return;
+        }
+        const payload = operation === 'generate' ? { op: 'generate', id: m.id }
+            : { op: 'approve', id: m.id, revision, lastMessageId: m.task.followUp.lastMessageId };
+        m.busy = true; m.operation = operation; m.error = ''; m.notice = '';
+        oggiSegretariaModalRender();
+        const confirmed = async data => {
+            if (data.id !== m.id || data.confirmed !== true) throw { code: 'invalid_response' };
+            oggiSegretaria.receipts[m.id] = { ...data, revision, messageId: payload.lastMessageId, delivery: data.delivery || 'needs_review' };
+            m.task = { ...m.task, deliveryResult: data, preparation: { ...p, approval: { revision, messageId: payload.lastMessageId, actionId: data.actionId || null } } };
+            oggiSegretaria.rows = oggiSegretaria.rows.map(t => t.id === m.id && t.followUp.lastMessageId === payload.lastMessageId ? { ...t, deliveryResult: data, preparation: m.task.preparation } : t);
+            m.uncertain = false;
+            // Confirmation can succeed while delivery fails. Never re-enable
+            // the send button merely because the HTTP status was not 200.
+            try {
+                const fresh = await oggiSegretariaRequest(m.id);
+                if (oggiSegretaria.modal !== m) return;
+                if (fresh.task?.id === m.id && fresh.dossier) { m.task = fresh.task; m.dossier = fresh.dossier; }
+            } catch { m.notice = 'Conferma registrata. Non riesco a ricaricare il seguito; controlla l’esito nella conversazione.'; }
+            oggiSegretariaRender();
+            oggiSegretariaLoad(true);
+        };
+        try {
+            if (operation === 'resume') {
+                // Re-read just before retrying the SAME approved action. The
+                // executor still owns the atomic claim if another tab races.
+                const fresh = await oggiSegretariaRequest(m.id);
+                if (oggiSegretaria.modal !== m) return;
+                if (fresh.task?.id !== m.id || !fresh.dossier) throw { code: 'invalid_response' };
+                m.task = fresh.task; m.dossier = fresh.dossier;
+                if (!oggiSegretariaCanResume(m) || m.task.preparation.revision !== revision
+                    || m.task.followUp.lastMessageId !== payload.lastMessageId) {
+                    m.notice = 'Lo stato è cambiato: controlla l’esito aggiornato prima di agire.';
+                    return;
+                }
+            }
+            const data = await oggiSegretariaRequest(null, payload, true);
+            if (oggiSegretaria.modal !== m) return;
+            if (operation === 'generate') {
+                if (data.id !== m.id || !data.preparation?.revision || data.preparation.messageId !== m.task.followUp.lastMessageId) throw { code: 'invalid_response' };
+                const preparedTask = { ...m.task, preparation: data.preparation, preparationReview: null };
+                if (!oggiSegretariaPreparation(preparedTask)) throw { code: 'invalid_response' };
+                m.task = preparedTask;
+                m.mustRegenerate = false; m.uncertain = false;
+                oggiSegretaria.rows = oggiSegretaria.rows.map(t => t.id === m.id && t.followUp.lastMessageId === m.task.followUp.lastMessageId ? { ...t, preparation: data.preparation, preparationReview: null } : t);
+                oggiSegretariaRender();
+            } else await confirmed(data);
+        } catch (e) {
+            if (oggiSegretaria.modal !== m) return;
+            if (operation !== 'generate' && e.data?.id === m.id && e.data.confirmed === true) {
+                await confirmed(e.data);
+            } else if (e.status === 409 && !['preparation_in_progress', 'preparation_disabled', 'previous_delivery_unresolved'].includes(e.code)) {
+                await oggiSegretariaOpen(m.id, oggiSegretariaError(e), 'review');
+                const current = oggiSegretaria.modal;
+                if (current?.id === m.id && ['preparation_sources_changed', 'contact_changed', 'recipient_not_verified', 'recipient_missing', 'invalid_prepared_follow_up', 'preparation_expired'].includes(e.code)) {
+                    current.mustRegenerate = true; oggiSegretariaModalRender();
+                }
+                oggiSegretariaLoad(true);
+            } else {
+                m.error = oggiSegretariaError(e);
+                if (operation !== 'generate' && (e.code === 'timeout' || !e.status || e.status >= 500)) {
+                    m.uncertain = true;
+                    m.error = 'Non riesco a verificare l’esito della conferma. Ricarica lo stato prima di agire di nuovo: il messaggio potrebbe essere già in coda.';
+                }
+            }
+        } finally {
+            m.busy = false;
+            if (oggiSegretaria.modal === m) oggiSegretariaModalRender();
+        }
+    }
+    async function oggiSegretariaSave() {
+        const m = oggiSegretaria.modal, E = window.BOOM_SEGRETARIA_CASI, wrap = document.getElementById('sgFollowModal');
+        if (!m || !m.task || m.busy || !wrap) return;
+        const errorBox = wrap.querySelector('#sgFollowError');
+        const fail = message => { errorBox.textContent = message; errorBox.hidden = false; errorBox.style.display = ''; };
+        let payload;
+        if (m.mode === 'close') {
+            const outcome = wrap.querySelector('#sgOutcome').value.trim();
+            if (!outcome) return fail('Scrivi l’esito prima di chiudere il seguito.');
+            payload = { op: 'close', id: m.id, lastMessageId: m.task.followUp.lastMessageId, outcome };
+        } else {
+            const values = {};
+            for (const [key, id] of Object.entries({ practiceRef: 'sgPractice', nextAction: 'sgAction', waitingOn: 'sgWaitingOn', waitingLabel: 'sgWaitingLabel', checkAt: 'sgCheckAt' })) values[key] = wrap.querySelector('#' + id).value;
+            const result = E.confirmation(m.task, values, m.dossier, Date.now());
+            if (result.error) return fail(result.error);
+            payload = result.payload;
+        }
+        m.busy = true; errorBox.hidden = true; errorBox.style.display = 'none';
+        wrap.querySelectorAll('button').forEach(button => { button.disabled = true; });
+        try {
+            const data = await oggiSegretariaRequest(null, payload);
+            if (data.id !== m.id || (payload.op === 'close' ? data.closed !== true : !data.followUp)) throw { code: 'invalid_response' };
+            if (data.closed) oggiSegretaria.rows = oggiSegretaria.rows.filter(t => t.id !== m.id);
+            else if (data.followUp) oggiSegretaria.rows = oggiSegretaria.rows.map(t => t.id === m.id ? { ...t, followUp: data.followUp } : t);
+            oggiSegretariaClose(); oggiSegretariaRender(); oggiSegretariaLoad(true);
+            toast('success', data.closed ? 'Seguito chiuso con esito.' : 'Seguito salvato.');
+        } catch (e) {
+            if (oggiSegretaria.modal !== m) return;
+            if (e.code === 'new_message_reload' || e.code === 'practice_not_verified') {
+                oggiSegretariaOpen(m.id, oggiSegretariaError(e));
+                oggiSegretariaLoad(true);
+                return;
+            }
+            fail(oggiSegretariaError(e));
+            m.busy = false;
+            wrap.querySelectorAll('button').forEach(button => { button.disabled = false; });
+        }
+    }
+    // ═══ FINE SEGRETERIA · SEGUITI IN OGGI ═══
+
     function oggiPage() {
         const E = window.BOOM_OGGI;
         if (!E || typeof E.build !== 'function') return adminDashboard();   // motore assente: mai una pagina vuota
@@ -4611,9 +5599,25 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             db.collection('preAgreements').limit(150).get().then((snap) => {
                 S.preAgreements = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
                 S._paLoaded = true;
-                if (S.page === 'oggi') renderPage();
+                oggiScheduleUpdate();
             }).catch(() => { S._paLoaded = true; });
         }
+        return `<div class="page-header">
+                <div><h1 class="page-title">⚡ Oggi</h1><p class="page-subtitle">Decisioni e seguiti di BOOM</p></div>
+                <div class="page-actions">
+                    <button class="btn btn-secondary" onclick="goTo('dashboard')">📊 Studio</button>
+                    <button class="btn btn-secondary" onclick="forceRefreshData()" title="Ricarica i dati">↻</button>
+                </div>
+            </div>
+
+            ${oggiSegretariaPanel()}
+
+            <section id="ogDecisionPanel" aria-label="Altre decisioni di oggi">${oggiDecisionPanel()}</section>`;
+    }
+
+    function oggiDecisionPanel() {
+        const E = window.BOOM_OGGI;
+        if (!E || typeof E.build !== 'function') return '';
         const { decisions, cash } = E.build(S, new Date().toISOString());
         window.__oggiLast = decisions;
         let hidden = [];
@@ -4631,20 +5635,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ${d.sub ? `<div class="list-subtitle li-meta" style="margin-top:3px">${esc(d.sub)}</div>` : ''}
                 </div>
                 <div class="og-actions">
-                    ${(d.actions || []).map((a, j) => `<button class="btn btn-sm ${a.primary ? '' : 'btn-secondary'}" onclick="event.stopPropagation();oggiRun('${d.id}#${j}')">${esc(a.label)}</button>`).join('')}
-                    <button class="btn btn-sm btn-secondary og-hide" title="Nascondi per oggi" onclick="event.stopPropagation();oggiDismiss('${d.id}')">✕</button>
+                    ${(d.actions || []).map((a, j) => `<button class="btn btn-sm ${a.primary ? '' : 'btn-secondary'}" data-og-action="${esc(d.id)}#${j}" onclick="event.stopPropagation();oggiRun('${d.id}#${j}')">${esc(a.label)}</button>`).join('')}
+                    <button class="btn btn-sm btn-secondary og-hide" title="Nascondi per oggi" data-og-action="${esc(d.id)}#hide" onclick="event.stopPropagation();oggiDismiss('${d.id}')">✕</button>
                 </div>
             </div>`;
 
-        return `<div class="page-header">
-                <div><h1 class="page-title">⚡ Oggi</h1><p class="page-subtitle">${live.length === 0 ? 'Zero decisioni in coda — la macchina lavora.' : `${live.length} decision${live.length === 1 ? 'e' : 'i'} in coda, ordinate per costo del ritardo`}</p></div>
-                <div class="page-actions">
-                    <button class="btn btn-secondary" onclick="goTo('dashboard')">📊 Studio</button>
-                    <button class="btn btn-secondary" onclick="forceRefreshData()" title="Ricarica i dati">↻</button>
-                </div>
-            </div>
-
-            <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+        return `<div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
                 <div class="stat-card green" onclick="goTo('payments')">
                     <div class="stat-value">€${cash.paidMonth.toLocaleString('it-IT')}</div>
                     <div class="stat-label">Incassato questo mese</div>
@@ -4664,7 +5660,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
 
             <div class="card"><div class="card-body flush">
-                ${shown.length ? shown.map(card).join('') : `<div class="empty-state"><div class="empty-icon">🌅</div><div class="empty-title">Niente da decidere</div><div class="empty-subtitle">Le code sono vuote: risposte approvate, visite confermate, incassi in pari.</div></div>`}
+                ${shown.length ? shown.map(card).join('') : `<div class="empty-state"><div class="empty-icon">🌅</div><div class="empty-title">Nessun’altra decisione in questa coda</div></div>`}
             </div></div>
             ${live.length > shown.length ? `<div style="text-align:center;margin-top:10px;font-size:12px;color:var(--text-muted)">e altre ${live.length - shown.length} più in basso nella scala — le trovi nelle loro sezioni</div>` : ''}`;
     }
@@ -4672,16 +5668,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function adminDashboard() {
         // === COMPREHENSIVE DATA CALCULATIONS ===
         const activeClients = (S.clients || []).filter(c => !['completed', 'lost'].includes(c.stage));
-        const paidInvoices = S.invoices.filter(i => i.status === 'paid');
+        const paidInvoices = boomBusinessInvoices().filter(i => i.status === 'paid');
         const thisMonthRev = paidInvoices.filter(i => isThisMonth(i.paidDate)).reduce((s, i) => s + (i.amount || 0), 0);
         const lastMonthRev = paidInvoices.filter(i => isLastMonth(i.paidDate)).reduce((s, i) => s + (i.amount || 0), 0);
         const revGrowth = lastMonthRev > 0 ? Math.round(((thisMonthRev - lastMonthRev) / lastMonthRev) * 100) : 0;
         const pipeline = activeClients.reduce((s, c) => s + (SERVICES[c.service]?.price || 0), 0);
-        const pendingInv = S.invoices.filter(i => i.status === 'pending');
+        const pendingInv = boomBusinessInvoices().filter(i => i.status === 'pending');
         const pendingInvTotal = pendingInv.reduce((s, i) => s + (i.amount || 0), 0);
         const openMaint = S.maintenance.filter(m => m.status !== 'resolved');
         const urgentMaint = openMaint.filter(m => m.priority === 'urgent');
-        const overduePayments = S.payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate));
+        const overduePayments = S.payments.filter(p => window.BOOM_RENT.paymentState(p) === 'overdue');
         const overdueTotal = overduePayments.reduce((s, p) => s + (p.amount || 0), 0);
 
         // Property metrics
@@ -4692,7 +5688,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const inNegotiation = S.properties.filter(p => p.availabilityStatus === 'negotiation').length;
 
         // Rent collection
-        const thisMonthPayments = S.payments.filter(p => isThisMonth(p.dueDate));
+        const thisMonthPayments = S.payments.filter(p => window.BOOM_RENT.isRentPayment(p) && isThisMonth(p.dueDate));
         const paidThisMonth = thisMonthPayments.filter(p => p.status === 'paid').reduce((s, p) => s + (p.amount || 0), 0);
         const expectedThisMonth = thisMonthPayments.reduce((s, p) => s + (p.amount || 0), 0);
         const collectionRate = expectedThisMonth > 0 ? Math.round((paidThisMonth / expectedThisMonth) * 100) : 100;
@@ -4703,7 +5699,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const d = i.paidDate?.toDate ? i.paidDate.toDate() : new Date(i.paidDate);
             return d >= yearStart;
         }).reduce((s, i) => s + (i.amount || 0), 0);
-        const rentRevenue = S.payments.filter(p => p.status === 'paid').reduce((s, p) => s + (p.amount || 0), 0);
+        const rentRevenue = S.payments.filter(p => window.BOOM_RENT.isRentPayment(p) && p.status === 'paid').reduce((s, p) => s + (p.amount || 0), 0);
 
         // Contracts
         const activeContracts = S.contracts.filter(c => c.status === 'active');
@@ -4972,15 +5968,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         <div class="card-body">
                             <div style="margin-bottom:16px">
                                 <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-                                    <span style="font-size:12px;color:var(--text-muted)">Fatturato Anno</span>
+                                    <span style="font-size:12px;color:var(--text-muted)">Compensi BOOM incassati · anno</span>
                                     <span style="font-weight:600;color:var(--gold)">€${yearRevenue.toLocaleString('it-IT')}</span>
                                 </div>
                                 <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-                                    <span style="font-size:12px;color:var(--text-muted)">Affitti Incassati</span>
+                                    <span style="font-size:12px;color:var(--text-muted)">Canoni dei proprietari · storico</span>
                                     <span style="font-weight:600;color:var(--green)">€${rentRevenue.toLocaleString('it-IT')}</span>
                                 </div>
                                 <div style="display:flex;justify-content:space-between;margin-bottom:4px">
-                                    <span style="font-size:12px;color:var(--text-muted)">Fatture Pending</span>
+                                    <span style="font-size:12px;color:var(--text-muted)">Fatture servizi da incassare</span>
                                     <span style="font-weight:600;color:var(--orange)">€${pendingInvTotal.toLocaleString('it-IT')}</span>
                                 </div>
                                 <div style="display:flex;justify-content:space-between">
@@ -4989,9 +5985,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                                 </div>
                             </div>
                             <div style="border-top:1px solid var(--border);padding-top:12px">
-                                <div style="display:flex;justify-content:space-between;align-items:center">
-                                    <span style="font-size:13px;font-weight:600">Totale Atteso</span>
-                                    <span style="font-size:18px;font-weight:700;color:var(--gold)">€${(yearRevenue + rentRevenue + pendingInvTotal + overdueTotal).toLocaleString('it-IT')}</span>
+                                <div style="display:flex;gap:10px;flex-wrap:wrap">
+                                    <button class="btn btn-secondary btn-sm" onclick="goTo('payments')">Canoni per unità</button>
+                                    <button class="btn btn-secondary btn-sm" onclick="goTo('invoices')">Compensi e fatture BOOM</button>
                                 </div>
                             </div>
                         </div>
@@ -5317,12 +6313,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
             <div class="dash-money">
                 <div class="dash-money-cell dash-money-hero" onclick="goTo('invoices')">
-                    <span class="dash-money-label">Fatturato</span>
+                    <span class="dash-money-label">Compensi BOOM</span>
                     <span class="dash-money-value" style="color:var(--gold)">€${d.thisMonthRev.toLocaleString('it-IT')}</span>
                     <span class="dash-money-sub"><span style="color:var(--${d.revGrowth >= 0 ? 'green' : 'red'})">${arrow} ${Math.abs(d.revGrowth)}%</span> vs mese scorso</span>
                 </div>
                 <div class="dash-money-cell" onclick="goTo('payments')">
-                    <span class="dash-money-label">Incassi</span>
+                    <span class="dash-money-label">Canoni del mese</span>
                     <span class="dash-money-value" style="color:var(--${collTone})">${d.collectionRate}<span style="font-size:18px;color:var(--text-muted)">%</span></span>
                     <div class="dash-money-bar"><div style="width:${d.collectionRate}%;background:var(--${collTone})"></div></div>
                     <span class="dash-money-sub">€${d.paidThisMonth.toLocaleString('it-IT')} / €${d.expectedThisMonth.toLocaleString('it-IT')}</span>
@@ -5381,7 +6377,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             });
             const data = await r.json().catch(() => ({}));
             if (data?.ok && data.status === 'executed') {
-                toast('success', 'Eseguita', action.kind === 'reply' ? 'Messaggio inviato' : 'Azione applicata');
+                if (action.kind === 'reply') {
+                    // The executor can return a WhatsApp link before the Mac has sent anything.
+                    const channel = data.result?.channel || action.payload?.channel || 'email';
+                    const emailSent = data.result?.email?.sent === true;
+                    if (channel === 'email' && emailSent) toast('success', 'Email inviata', 'Invio email registrato dal servizio.');
+                    else if (channel === 'whatsapp' || channel === 'both') toast('info', 'Risposta approvata', `${channel === 'both' && emailSent ? 'Email inviata. ' : channel === 'both' ? 'Esito email da verificare. ' : ''}Invio WhatsApp da verificare: il collegamento o il passaggio alla coda non confermano che il messaggio sia partito.`);
+                    else toast('info', 'Risposta approvata', 'Esito dell’invio da verificare.');
+                } else toast('success', 'Eseguita', 'Azione applicata');
             } else if (data?.error === 'no_executor_for_kind:other' || data?.error?.startsWith('no_executor_for_kind')) {
                 toast('info', 'Approvata', 'Azione manuale — segna come fatto a mano dopo');
             } else if (data?.ok === false) {
@@ -8072,7 +9075,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     function invoicesPage() {
-        const all = S.invoices || [];
+        const all = boomBusinessInvoices();
         const pending = all.filter(i => i.status === 'pending');
         const paid = all.filter(i => i.status === 'paid');
         const thisYear = new Date().getFullYear();
@@ -8151,8 +9154,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             if (d > debtorMap[key].oldest) debtorMap[key].oldest = d;
         });
         const topDebtors = Object.values(debtorMap).sort((a, b) => b.total - a.total).slice(0, 3);
-        // Forecast: payments expected to invoice in next 30/60/90 days (rent payments still pending)
-        const expectedSoon = (S.payments || []).filter(p => p.status === 'pending').map(p => {
+        // Company forecast only; rent receipts never become BOOM revenue.
+        const expectedSoon = pending.filter(p => p.dueDate).map(p => {
             const due = new Date(p.dueDate);
             return { amt: p.amount || 0, in: Math.floor((due - now) / 86400000) };
         });
@@ -8182,7 +9185,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         </div>`;
 
         return `<div class="page-header">
-            <div><h1 class="page-title">Fatture</h1><div class="page-subtitle">${all.length} totali · €${ytdRevenue.toLocaleString('it-IT')} incassati nel ${thisYear} ${ytdGrowth !== 0 ? `· <span style="color:var(--${ytdGrowth > 0 ? 'green' : 'red'})">${ytdGrowth > 0 ? '+' : ''}${ytdGrowth}% YoY</span>` : ''}</div></div>
+            <div><h1 class="page-title">Fatture BOOM</h1><p class="page-subtitle">Compensi e servizi dell’azienda. Le ricevute dei canoni sono consultabili in <a href="#payments" onclick="goTo('payments');return false">Canoni per unità</a>.</p><div class="page-subtitle">${all.length} totali · €${ytdRevenue.toLocaleString('it-IT')} incassati nel ${thisYear} ${ytdGrowth !== 0 ? `· <span style="color:var(--${ytdGrowth > 0 ? 'green' : 'red'})">${ytdGrowth > 0 ? '+' : ''}${ytdGrowth}% YoY</span>` : ''}</div></div>
             <div class="page-actions">
                 <button class="btn btn-secondary btn-sm" onclick="exportInvoicesCSV()">📊 Export</button>
                 <button class="btn" onclick="openModal('addInvoice')">+ Nuova</button>
@@ -8230,7 +9233,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
             </div>
             <div class="card" style="padding:14px">
-                <div style="font-size:11px;letter-spacing:1px;color:var(--text-muted);margin-bottom:10px">💰 CASH FLOW PREVISIONALE</div>
+                <div style="font-size:11px;letter-spacing:1px;color:var(--text-muted);margin-bottom:10px">FATTURE BOOM IN SCADENZA</div>
                 <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>Prossimi 30gg</span><strong class="text-gold">€${fc30.toLocaleString('it-IT')}</strong></div>
                 <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>Prossimi 60gg</span><strong>€${fc60.toLocaleString('it-IT')}</strong></div>
                 <div style="display:flex;justify-content:space-between"><span>Prossimi 90gg</span><strong>€${fc90.toLocaleString('it-IT')}</strong></div>
@@ -8793,19 +9796,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const tenant = c ? S.users.find(u => u.id === c.tenantId) : null;
             const avail = availBadge(p.availabilityStatus);
             const search = [p.name, p.address, owner?.name, tenant?.name, p.zone].filter(Boolean).join(' ').toLowerCase();
-            return `<div class="list-item clickable property-item" data-avail="${p.availabilityStatus || 'available'}" data-search="${esc(search)}" onclick="viewProperty('${p.id}')">
+            return `<div class="list-item clickable property-item" role="button" tabindex="0" data-property-id="${esc(p.id)}" data-avail="${esc(p.availabilityStatus || 'available')}" data-search="${esc(search)}" onclick="viewProperty(${rentActionArg(p.id)})" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();viewProperty(${rentActionArg(p.id)})}">
                 <div class="list-icon" style="background:var(--gold-light)">🏠</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-weight:600">${p.name}</span>
+                        <span style="font-weight:600">${esc(p.name)}</span>
                         <span class="badge ${avail.color}">${avail.icon} ${avail.text}</span>
                         ${p.youtubeUrl ? '<span title="Video tour disponibile">📺</span>' : ''}
                     </div>
                     <div class="list-subtitle" style="margin-top:4px">
-                        ${owner ? `<span>🏠 ${owner.name}</span>` : ''}
-                        ${tenant ? `<span style="margin-left:8px">→ 👤 ${tenant.name}</span>` : ''}
-                        ${p.address ? `<span style="margin-left:8px">📍 ${p.address}</span>` : ''}
-                        ${p.sqm ? `<span style="margin-left:8px">📐 ${p.sqm}m²</span>` : ''}
+                        ${owner ? `<span>🏠 ${esc(owner.name)}</span>` : ''}
+                        ${tenant ? `<span style="margin-left:8px">→ 👤 ${esc(tenant.name)}</span>` : ''}
+                        ${p.address ? `<span style="margin-left:8px">📍 ${esc(p.address)}</span>` : ''}
+                        ${p.sqm ? `<span style="margin-left:8px">📐 ${esc(p.sqm)}m²</span>` : ''}
                     </div>
                 </div>
                 <div class="list-value text-gold">€${(p.rent || 0).toLocaleString('it-IT')}<span style="font-size:11px;color:var(--text-muted)">/mese</span></div>
@@ -8845,17 +9848,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function filterProperties(filter, btn) {
         if (btn?.parentElement) btn.parentElement.querySelectorAll('button.btn-sm').forEach(b => b.classList.add('btn-secondary'));
         btn?.classList.remove('btn-secondary');
-        document.querySelectorAll('.property-item').forEach(item => {
-            const avail = item.dataset.avail || 'available';
-            item.style.display = (filter === 'all' || avail === filter) ? '' : 'none';
-        });
+        searchProperties(document.getElementById('propertySearch')?.value || '');
     }
 
     function searchProperties(q) {
         const term = (q || '').toLowerCase().trim();
+        const filter = document.querySelector('#main [data-filter]:not(.btn-secondary)')?.dataset.filter || 'all';
         document.querySelectorAll('.property-item').forEach(item => {
-            if (!term) { item.style.display = ''; return; }
-            item.style.display = (item.dataset.search || '').includes(term) ? '' : 'none';
+            const matchesState = filter === 'all' || (item.dataset.avail || 'available') === filter;
+            item.style.display = matchesState && (item.dataset.search || '').includes(term) ? '' : 'none';
         });
     }
 
@@ -9004,184 +10005,207 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         });
     }
 
+    // The collection records remain authoritative; this view only groups them.
+    const paymentFilters = { kind: 'all', search: '', month: new Intl.DateTimeFormat('sv-SE', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit' }).format(new Date()) };
+    const rentLoadState = { status: 'initial', checkedAt: null, error: '' };
+    function invalidateRentSnapshot() {
+        rentLoadState.checkedAt = null;
+        if (rentLoadState.status !== 'loading') rentLoadState.status = 'initial';
+    }
+    function boomBusinessInvoices() { return window.BOOM_RENT.businessInvoices(S.invoices || []); }
+    function rentMoney(value) { return value === null ? 'Importo da verificare' : new Intl.NumberFormat('it-IT', { style: 'currency', currency: 'EUR' }).format(value || 0); }
+    function rentActionArg(value) { return esc(JSON.stringify(String(value || ''))); }
+    function rentOverview(overrides) {
+        return window.BOOM_RENT.overview({ payments: S.payments, properties: S.properties, contracts: S.contracts, users: S.users,
+            month: paymentFilters.month, status: paymentFilters.kind, search: paymentFilters.search, ...overrides });
+    }
+    function rentStateLabel(state) { return ({paid:'Pagato', processing:'In elaborazione', reported:'Segnalato · da verificare', overdue:'In ritardo', due:'Da pagare', cancelled:'Annullato', unknown:'Stato da verificare'})[state] || 'Da verificare'; }
+    function rentSafeHttpUrl(value) {
+        if (typeof value !== 'string' || !value.trim()) return '';
+        try { const url = new URL(value.trim()); return ['http:','https:'].includes(url.protocol) ? url.href : ''; }
+        catch (_) { return ''; }
+    }
+    function rentReceiptContext(payment) {
+        return rentOverview({ payments:[payment], month:'all', status:'all', search:'' }).payments[0];
+    }
+    function rentChargeLabel(payment) {
+        if (window.BOOM_RENT.isRentPayment(payment)) return 'Canone locazione';
+        return ({deposit:'Deposito cauzionale','deposit-balance':'Saldo deposito cauzionale'})[String(payment.type || '').trim().toLowerCase()] || 'Altro addebito contrattuale';
+    }
+    function rentReceiptOriginalUrl(invoice) {
+        return [invoice.fileUrl, invoice.pdfUrl, invoice.receiptUrl].map(rentSafeHttpUrl).find(Boolean) || '';
+    }
+    function rentUnlinkedReceiptsHTML() {
+        const receipts = (S.invoices || []).filter(i => window.BOOM_RENT.isRentReceipt(i) && !(S.payments || []).some(p => p.id === i.paymentId));
+        if (!receipts.length) return '';
+        return `<details class="rent-tools" open><summary>Ricevute da collegare · ${receipts.length}</summary><p class="rent-note">Documenti storici di tutti i periodi: la rata collegata non è disponibile nell’elenco. Restano esclusi dai totali canoni e dai compensi BOOM.</p>${receipts.map(i => `<div class="rent-payment"><div><strong>${esc(i.number || i.id)}</strong><small>${esc(i.recipientName || i.service || 'Documento storico')}</small></div><div class="rent-date">${esc(fmtDate(i.date || i.createdAt))}</div><strong class="rent-amount">${rentMoney(window.BOOM_RENT.amount(i.amount))}</strong><span class="rent-status">Da collegare</span><div class="rent-actions"><button class="btn btn-sm btn-secondary" onclick="viewRentReceiptDocument(${rentActionArg(i.id)})">Apri documento</button>${rentReceiptOriginalUrl(i) ? `<a class="btn btn-sm btn-secondary" href="${esc(rentReceiptOriginalUrl(i))}" target="_blank" rel="noopener">Originale / PDF</a>` : ''}</div></div>`).join('')}</details>`;
+    }
+    function viewRentReceiptDocument(id) {
+        const inv = (S.invoices || []).find(i => i.id === id);
+        if (!inv || !window.BOOM_RENT.isRentReceipt(inv)) return;
+        const payment = (S.payments || []).find(p => p.id === inv.paymentId);
+        const original = rentReceiptOriginalUrl(inv);
+        const confirmed = payment && window.BOOM_RENT.paymentState(payment) === 'paid' && window.BOOM_RENT.amount(payment.amount) > 0;
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal"><div class="modal-header"><h3 class="modal-title">Documento storico · ${esc(inv.number || inv.id)}</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body"><p class="rent-note">${payment ? 'La rata collegata è disponibile. I dati qui sotto restano quelli del documento archiviato.' : 'Rata da collegare: questi dati descrivono il documento archiviato e non confermano un nuovo incasso.'}</p><div class="detail-grid"><div><div class="detail-label">Destinatario registrato</div><div class="detail-value">${esc(inv.recipientName || 'Non indicato nel documento')}</div></div><div><div class="detail-label">Importo registrato</div><div class="detail-value">${rentMoney(window.BOOM_RENT.amount(inv.amount))}</div></div><div><div class="detail-label">Data documento</div><div class="detail-value">${esc(fmtDate(inv.date || inv.createdAt))}</div></div><div><div class="detail-label">Stato registrato</div><div class="detail-value">${esc(inv.status || 'Non indicato')}</div></div></div><p>${esc(inv.service || '')}</p><p>${esc(inv.description || '')}</p>${!original ? '<p class="rent-note">Nessun file originale allegato. I dati archiviati restano consultabili qui.</p>' : ''}</div><div class="modal-footer">${original ? `<a class="btn btn-secondary" href="${esc(original)}" target="_blank" rel="noopener">Originale / PDF</a>` : ''}${confirmed ? `<button class="btn btn-secondary" onclick="downloadPaymentReceipt(${rentActionArg(payment.id)})">Ricevuta della rata</button>` : ''}<button class="btn" onclick="closeModal()">Chiudi</button></div></div></div>`;
+    }
+    function rentPaymentRow(row) {
+        const p = row.payment, id = rentActionArg(row.id);
+        const canRecord = ['due','overdue','reported'].includes(row.state) && row.amount > 0;
+        const phone = String(row.tenant?.phone || '').replace(/[^0-9]/g, '');
+        const proof = rentSafeHttpUrl(p.proofUrl);
+        const invoice = (S.invoices || []).find(i => i.paymentId === row.id);
+        const receipt = row.state === 'paid' && row.amount > 0 ? `<button class="btn btn-sm btn-secondary" onclick="downloadPaymentReceipt(${id})">Ricevuta</button>${!p.receiptDocId && !rentSafeHttpUrl(p.receiptUrl) && isAdmin() ? `<button class="btn btn-sm btn-secondary" onclick="publishRentReceipt(${id},this)">Archivia ricevuta per il cliente</button>` : ''}${invoice ? `<button class="btn btn-sm btn-secondary" onclick="viewInvoice(${rentActionArg(invoice.id)})">Documento</button>` : ''}` : '';
+        return `<div class="rent-payment payment-item" data-status="${esc(row.state)}">
+            <div><strong>${esc(rentMonthLabel(row.month))}</strong><small>${esc(row.tenantName || 'Inquilino da collegare')}${!row.isRent ? ' · ' + esc(p.type === 'deposit-balance' ? 'Saldo deposito' : p.type || 'Altro addebito') : ''}${phone ? ` · <a href="https://wa.me/${phone}" target="_blank" rel="noopener">WhatsApp</a>` : ''}</small></div>
+            <div class="rent-date"><small>${row.state === 'paid' ? 'Pagato il' : 'Scadenza'}</small>${esc(fmtDate(row.state === 'paid' ? p.paidDate : p.dueDate))}</div>
+            <strong class="rent-amount rent-amount-${row.state}">${rentMoney(row.amount)}</strong>
+            <div><span class="rent-status rent-status-${row.state}">${rentStateLabel(row.state)}</span>${p.remindersSent ? `<small>${Number(p.remindersSent)} solleciti registrati</small>` : ''}</div>
+            <div class="rent-actions">${receipt}${isAdmin() && window.BOOM_RENT.canReviewReport(p) ? `<button class="btn btn-sm btn-secondary" onclick="openRentReportReview(${id})">Revoca segnalazione errata</button>` : ''}${proof ? `<a class="btn btn-sm btn-secondary" href="${esc(proof)}" target="_blank" rel="noopener">Prova pagamento</a>` : ''}${row.canPay ? `<button class="btn btn-sm" onclick="showPaymentLink('pay',${id})">Link pagamento</button>` : ''}${canRecord ? `<button class="btn btn-sm btn-secondary" onclick="confirmRentPayment(${id})">Registra incasso</button>` : ''}${row.state === 'overdue' && row.canPay ? `<button class="btn btn-sm btn-secondary" onclick="sendPaymentReminder(${id})">Sollecito email</button>` : ''}<button class="btn btn-sm btn-secondary" onclick="openModal('editPayment',S.payments.find(p=>p.id===${id}))">Dettagli</button></div>
+        </div>`;
+    }
+    function rentMonthLabel(month, short = false) {
+        return /^\d{4}-(0[1-9]|1[0-2])$/.test(month || '') ? new Date(month + '-01T12:00:00Z').toLocaleDateString('it-IT', {month:short?'short':'long',year:short?'2-digit':'numeric',timeZone:'UTC'}) : 'Periodo da verificare';
+    }
+    let rentDetailOpener = null;
+    function closeRentDetail() { closeModal(); if (rentDetailOpener?.isConnected) rentDetailOpener.focus(); }
+    function rentDetailKeys(event) {
+        if (event.key === 'Escape') { event.preventDefault(); closeRentDetail(); return; }
+        if (event.key !== 'Tab') return;
+        const items = Array.from(event.currentTarget.querySelectorAll('button:not([disabled]),a[href],summary'));
+        const first = items[0], last = items[items.length - 1];
+        if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+        else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+    }
+    function openRentUnit(id, month, focusId) {
+        const unit = rentOverview({month:'all',status:'all',search:''}).units.find(u => u.id === id);
+        if (!unit) return;
+        const rows = month ? window.BOOM_RENT.rowsForMonth(unit, month) : unit.payments;
+        rentDetailOpener = document.activeElement;
+        document.body?.classList.add('modal-open');
+        // Opening context never records an incasso or sends a reminder.
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal rent-detail" role="dialog" aria-modal="true" aria-labelledby="rentDetailTitle" onkeydown="rentDetailKeys(event)"><div class="modal-header"><div><h2 class="modal-title" id="rentDetailTitle">${esc(unit.unlinked ? 'Unità da collegare' : unit.label)}</h2><p class="rent-scope">${esc(month ? rentMonthLabel(month) : 'Tutti i periodi')} · ${rows.length} ${rows.length === 1 ? 'rata' : 'rate'}</p></div><button class="modal-close" aria-label="Chiudi dettagli canoni" onclick="closeRentDetail()">×</button></div><div class="modal-body">${rows.length ? rows.map(r => `<section ${r.id === focusId ? 'class="rent-selected"' : ''}>${rentPaymentRow(r)}</section>`).join('') : '<p class="rent-empty">Nessuna rata registrata per questo periodo. Verifica il contratto e le rate esistenti prima di generarne altre.</p>'}<p class="rent-scope">Un pagamento segnalato richiede il riscontro dell’incasso. Le operazioni qui sotto mantengono le conferme previste.</p></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeRentDetail()">Chiudi</button></div></div></div>`;
+        document.querySelector?.('.rent-detail .modal-close')?.focus();
+    }
+    function rentUnitsHTML(view) {
+        const history = rentOverview({ month:'all', status:'all', search:'' });
+        return view.units.map(unit => {
+            const complete = history.units.find(u => u.id === unit.id) || unit;
+            const action = window.BOOM_RENT.nextAction(complete);
+            const actionLabels = {reported:'Verifica pagamento',overdue:'Gestisci ritardo',due:'Prepara link',processing:'Vedi stato',review:'Verifica dati'};
+            const unitId = rentActionArg(unit.id);
+            const timeline = window.BOOM_RENT.timeline(complete, paymentFilters.month);
+            const covered = paymentFilters.month !== 'all' && window.BOOM_RENT.rowsForMonth(complete,paymentFilters.month).some(r => r.isRent && r.month !== paymentFilters.month);
+            const chips = timeline.map(cell => {
+                const label = cell.state === 'multiple' ? cell.rows.length + ' rate' : cell.state === 'empty' ? 'Nessuna rata' : rentStateLabel(cell.state);
+                const symbol = ({paid:'✓',due:'Da pagare',overdue:'In ritardo',processing:'In corso',reported:'Segnalato',unknown:'Da verificare',cancelled:'Annullato',empty:'—',multiple:cell.rows.length+' rate'})[cell.state];
+                const amount = cell.rows.length === 1 ? ' · ' + rentMoney(cell.rows[0].amount) + (cell.rows[0].payment.coversTo ? ' · rata unica ' + rentMonthLabel(cell.rows[0].month) + ' – ' + rentMonthLabel(cell.rows[0].payment.coversTo) : '') : '';
+                return `<button class="rent-month rent-month-${cell.state}" aria-label="${esc(rentMonthLabel(cell.month) + ' · ' + label + amount)}" onclick="openRentUnit(${unitId},${rentActionArg(cell.month)})"><small>${esc(rentMonthLabel(cell.month,true))}</small><span>${esc(symbol)}</span></button>`;
+            }).join('');
+            return `<section class="rent-unit"><div class="rent-board-row"><div class="rent-unit-name"><strong>${esc(unit.unlinked ? 'Unità da collegare' : unit.label)}</strong><small>${esc(unit.tenantNames.map(n => n.startsWith('Inquilino da collegare · ') ? 'Inquilino da collegare' : n).join(' · ') || unit.address || 'Inquilino da collegare')}</small></div><div class="rent-months" role="group" aria-label="${esc('Ultimi sei mesi · ' + (unit.unlinked ? 'Unità da collegare' : unit.label))}">${chips}</div><div class="rent-next">${action.kind !== 'none' ? `<button class="btn btn-secondary" onclick="openRentUnit(${unitId},${rentActionArg(action.month)},${rentActionArg(action.paymentId)})">${actionLabels[action.kind]}</button><small>${esc(rentMonthLabel(action.month))}</small>` : unit.noInstallments && !covered ? `<button class="btn btn-secondary" onclick="openRentUnit(${unitId},${paymentFilters.month === 'all' ? "''" : rentActionArg(paymentFilters.month)})">Verifica rate</button>` : '<span>Nessuna azione sui canoni registrati</span>'}</div></div>
+                <details class="rent-unit-details"><summary><span>${covered ? 'Periodo coperto da rata unica · apri il mese' : unit.noInstallments ? 'Nessuna rata nel periodo' : unit.payments.length + ' rate nel periodo'}</span><span>Incassato ${rentMoney(unit.totals.paid)} · Non confermato ${rentMoney(unit.totals.due)}</span><span aria-hidden="true">⌄</span></summary>
+                ${unit.noInstallments ? '<div class="rent-empty">Nessuna rata registrata per questo periodo. La presenza del contratto non conferma un pagamento.</div>' : ''}
+                ${unit.rentPayments.map(rentPaymentRow).join('')}
+                ${unit.otherPayments.length ? `<div class="rent-other-label">Depositi e altri addebiti · esclusi dai totali canoni</div>${unit.otherPayments.map(rentPaymentRow).join('')}` : ''}</details></section>`;
+        }).join('') || '<div class="rent-empty">Nessuna unità corrisponde ai filtri. Cambia periodo, stato o ricerca.</div>';
+    }
+    function rentSummaryHTML(view) {
+        return [['Incassato',view.totals.paid,'paid'],['Ancora da pagare',view.totals.pending,'pending'],['Pagamenti segnalati',view.totals.reported,'reported'],['In corso',view.totals.processing,'processing']].map(([label,value,kind]) => `<button class="rent-stat" onclick="filterPayments('${kind}')"><small>${label}</small><strong>${rentMoney(value)}</strong></button>`).join('');
+    }
+    function rentLoadNotice() {
+        const partial = (S.payments || []).length >= 3000 || (S.properties || []).length >= 400 || (S.contracts || []).length >= 800 || (S.users || []).length >= 800;
+        if (rentLoadState.status === 'loading') return 'Aggiornamento dei pagamenti e delle unità in corso…';
+        if (rentLoadState.status === 'error') return 'Aggiornamento non riuscito. Restano visibili i dati precedenti: riprova prima di verificare gli incassi.';
+        if (rentLoadState.status === 'ready' && rentLoadState.checkedAt) return 'Verificato alle ' + rentLoadState.checkedAt.toLocaleTimeString('it-IT', { hour:'2-digit', minute:'2-digit' });
+        return partial ? 'Elenco iniziale potenzialmente incompleto. Aggiorna per caricare tutte le rate e le unità.' : 'Dati caricati dal portale. Aggiorna per verificare gli ultimi incassi.';
+    }
     function paymentsPage() {
-        // Calculate payment stats
-        const paid = S.payments.filter(p => p.status === 'paid');
-        const pending = S.payments.filter(p => p.status === 'pending');
-        const overdue = pending.filter(p => isOverdue(p.dueDate));
-        const dueSoon = pending.filter(p => { const d = daysUntil(p.dueDate); return d !== null && d >= 0 && d <= 5; });
-        const paidTotal = paid.reduce((s, p) => s + (p.amount || 0), 0);
-        const pendingTotal = pending.reduce((s, p) => s + (p.amount || 0), 0);
-        const overdueTotal = overdue.reduce((s, p) => s + (p.amount || 0), 0);
-        const stripePaid = paid.filter(p => p.stripeSessionId);
-        const stripeTotal = stripePaid.reduce((s, p) => s + (p.amount || 0), 0);
-
-        // Collection rate this month
-        const thisMonth = S.payments.filter(p => isThisMonth(p.dueDate));
-        const thisMonthPaid = thisMonth.filter(p => p.status === 'paid');
-        const collectionRate = thisMonth.length > 0 ? Math.round((thisMonthPaid.length / thisMonth.length) * 100) : 100;
-
-        // Payment row generator with reminder tracking
-        const paymentRow = (p) => {
-            const c = S.contracts.find(x => x.id === p.contractId);
-            const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
-            const t = c ? S.users.find(x => x.id === c.tenantId) : null;
-            const isOverdueNow = p.status === 'pending' && isOverdue(p.dueDate);
-            const daysToDue = daysUntil(p.dueDate);
-            const isDueSoon = p.status === 'pending' && !isOverdueNow && daysToDue !== null && daysToDue <= 5;
-            const daysLate = isOverdueNow ? daysSince(p.dueDate) : 0;
-
-            // Reminder escalation level
-            let reminderLevel = 0;
-            let reminderText = '';
-            if (isOverdueNow) {
-                if (daysLate >= 30) { reminderLevel = 4; reminderText = 'Diffida'; }
-                else if (daysLate >= 15) { reminderLevel = 3; reminderText = '2° sollecito'; }
-                else if (daysLate >= 5) { reminderLevel = 2; reminderText = '1° sollecito'; }
-                else { reminderLevel = 1; reminderText = 'In ritardo'; }
-            } else if (isDueSoon) {
-                reminderLevel = 0; reminderText = `Tra ${daysToDue}gg`;
-            }
-
-            const payMethod = p.stripeSessionId ? '<span class="li-flag blue">Stripe</span>' : (p.status === 'paid' ? '<span class="li-flag">Manuale</span>' : '');
-
-            let statusConfig = { color: 'green', bg: 'green-light', icon: '✔' };
-            if (isOverdueNow) statusConfig = { color: 'red', bg: 'red-light', icon: '⚠️' };
-            else if (isDueSoon) statusConfig = { color: 'orange', bg: 'orange-light', icon: '⏰' };
-            else if (p.status === 'pending') statusConfig = { color: 'gold', bg: 'gold-light', icon: '⏳' };
-
-            const _searchPay = [prop?.name, t?.name, p.month, p.amount, p.stripeSessionId ? 'stripe' : 'manuale'].filter(Boolean).join(' ').toLowerCase();
-            // Rifinitura II: stessa disciplina della riga contratto — un badge
-            // di stato (il mese resta il badge neutro: è l'identificativo),
-            // i segnali nel grappolo, metadati senza emoji, importo tabellare
-            // col colore dello stato. Handler e data-attribute IDENTICI.
-            return `<div class="list-item clickable payment-item" data-status="${p.status}" data-overdue="${isOverdueNow}" data-duesoon="${isDueSoon}" data-stripe="${!!p.stripeSessionId}" data-search="${esc(_searchPay)}" onclick="openModal('editPayment',S.payments.find(x=>x.id==='${p.id}'))">
-                <div class="list-icon" style="background:var(--${statusConfig.bg});font-size:16px">${statusConfig.icon}</div>
-                <div class="list-content" style="flex:1;min-width:0">
-                    <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-weight:600">${prop?.name || 'Pagamento'}</span>
-                        <span class="badge gray" style="font-size:10px">${p.month || ''}</span>
-                        <span class="li-flags">
-                        ${isOverdueNow ? `<span class="li-flag red">${reminderText} · ${daysLate}gg</span>` : ''}
-                        ${isDueSoon ? `<span class="li-flag orange">${reminderText}</span>` : ''}
-                        ${p.tenantReported ? `<span class="li-flag green">Segnalato${p.proofUrl ? ' + ricevuta' : ''}</span>` : ''}
-                        ${payMethod}
-                        ${p.remindersSent ? `<span class="li-flag">${p.remindersSent} sollecit${p.remindersSent == 1 ? 'o' : 'i'}</span>` : ''}
-                        </span>
-                    </div>
-                    <div class="list-subtitle li-meta" style="margin-top:4px">
-                        <b>${t?.name || 'N/A'}</b>${t?.phone ? `<span class="sep">·</span><a href="https://wa.me/${t.phone.replace(/[^0-9]/g,'')}" target="_blank" onclick="event.stopPropagation()" style="color:var(--green)">WhatsApp</a>` : ''}<span class="sep">·</span>${p.status === 'paid' ? 'Pagato ' + fmtDate(p.paidDate) : 'Scadenza ' + fmtDate(p.dueDate)}
-                    </div>
-                </div>
-                <div style="display:flex;align-items:center;gap:8px">
-                    <div class="li-money">
-                        <div class="li-money-val ${p.status === 'paid' ? 'green' : isOverdueNow ? 'red' : ''}">€${(p.amount || 0).toLocaleString('it-IT')}</div>
-                    </div>
-                    ${p.status === 'pending' ? `
-                        <div style="display:flex;flex-direction:column;gap:4px">
-                            <button class="btn btn-xs" onclick="event.stopPropagation();showPaymentLink('pay','${p.id}')" title="Link di pagamento con carta (non scade)">💳</button>
-                            <button class="btn btn-xs btn-success" onclick="event.stopPropagation();markPaymentPaid('${p.id}')" title="Segna pagato">✔</button>
-                            ${p.proofUrl ? `<a href="${p.proofUrl}" target="_blank" class="btn btn-xs btn-secondary" onclick="event.stopPropagation()" title="Vedi ricevuta">📄</a>` : ''}
-                            ${isOverdueNow ? `<button class="btn btn-xs btn-danger" onclick="event.stopPropagation();sendPaymentReminder('${p.id}')" title="Invia sollecito">📧</button>` : ''}
-                        </div>
-                    ` : ''}
-                    ${p.stripeSessionId ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();window.open('https://dashboard.stripe.com/payments/${p.stripePaymentIntent}','_blank')" title="Vedi su Stripe">🔗</button>` : ''}
-                </div>
-            </div>`;
-        };
-
-        return `<div class="page-header">
-                <div><h1 class="page-title">💳 Pagamenti</h1><p class="page-subtitle">${S.payments.length} totali · Tasso incasso mese: ${collectionRate}%</p></div>
-                <div class="page-actions">
-                    ${overdue.length > 0 ? `<span class="badge red">${overdue.length} in ritardo</span>` : ''}
-                    <button class="btn btn-secondary btn-sm" onclick="window.open('https://dashboard.stripe.com/payments','_blank')">💳 Stripe</button>
-                    <button class="btn btn-secondary btn-sm" onclick="exportPaymentsCSV()">📊 Export</button>
-                    <button class="btn btn-secondary" onclick="openModal('bulkPayments')">📅 Genera</button>
-                    <button class="btn" onclick="openModal('addPayment')">+ Registra</button>
-                </div>
-            </div>
-
-            ${overdue.length > 0 ? renderRecoveryPanel(overdue, overdueTotal) : ''}
-
-            <!-- Stats Grid -->
-            <div class="stats-grid" style="grid-template-columns:repeat(6,1fr)">
-                <div class="stat-card gold" onclick="filterPayments('all')">
-                    <div class="stat-value">${S.payments.length}</div>
-                    <div class="stat-label">Totale</div>
-                </div>
-                <div class="stat-card green" onclick="filterPayments('paid')">
-                    <div class="stat-value">€${(paidTotal/1000).toFixed(1)}k</div>
-                    <div class="stat-label">${paid.length} Incassati</div>
-                </div>
-                <div class="stat-card blue" onclick="filterPayments('stripe')">
-                    <div class="stat-value">${stripePaid.length}</div>
-                    <div class="stat-label">Stripe</div>
-                </div>
-                <div class="stat-card orange" onclick="filterPayments('pending')">
-                    <div class="stat-value">${pending.length}</div>
-                    <div class="stat-label">In attesa</div>
-                </div>
-                <div class="stat-card orange" onclick="filterPayments('duesoon')">
-                    <div class="stat-value">${dueSoon.length}</div>
-                    <div class="stat-label">Prossimi 5 giorni</div>
-                </div>
-                <div class="stat-card red" onclick="filterPayments('overdue')">
-                    <div class="stat-value">${overdue.length}</div>
-                    <div class="stat-label">In ritardo</div>
-                </div>
-            </div>
-
-            <!-- Filter Tabs + Search -->
-            <div style="display:flex;gap:6px;margin-bottom:16px;flex-wrap:wrap;align-items:center">
-                <button class="btn btn-sm payment-filter active" data-filter="all" onclick="filterPayments('all', this)">Tutti</button>
-                <button class="btn btn-sm btn-secondary payment-filter" data-filter="paid" onclick="filterPayments('paid', this)">✓ Pagati</button>
-                <button class="btn btn-sm btn-secondary payment-filter" data-filter="pending" onclick="filterPayments('pending', this)">⏳ In Attesa</button>
-                ${dueSoon.length > 0 ? `<button class="btn btn-sm btn-warning payment-filter" data-filter="duesoon" onclick="filterPayments('duesoon', this)">⏰ Prossimi (${dueSoon.length})</button>` : ''}
-                ${overdue.length > 0 ? `<button class="btn btn-sm btn-danger payment-filter" data-filter="overdue" onclick="filterPayments('overdue', this)">⚠️ In Ritardo (${overdue.length})</button>` : ''}
-                <button class="btn btn-sm btn-secondary payment-filter" data-filter="stripe" onclick="filterPayments('stripe', this)">💳 Stripe</button>
-                <input type="search" id="paymentSearch" class="form-input" placeholder="🔎 Cerca inquilino, immobile, mese…" oninput="searchPayments(this.value)" style="flex:1;min-width:200px;margin-left:auto">
-            </div>
-
-            <div class="card"><div class="card-body flush" id="paymentsContainer">${S.payments.sort((a,b) => {
-                // Sort: overdue first, then pending soon, then by date
-                const aOverdue = a.status === 'pending' && isOverdue(a.dueDate);
-                const bOverdue = b.status === 'pending' && isOverdue(b.dueDate);
-                if (aOverdue && !bOverdue) return -1;
-                if (!aOverdue && bOverdue) return 1;
-                if (a.status === 'pending' && b.status === 'paid') return -1;
-                if (a.status === 'paid' && b.status === 'pending') return 1;
-                return (b.month || '').localeCompare(a.month || '');
-            }).map(p => paymentRow(p)).join('') || '<div class="empty-state"><div class="empty-icon">💳</div><div class="empty-title">Nessun pagamento</div><button class="btn" onclick="openModal(\'bulkPayments\')">📅 Genera Pagamenti</button></div>'}</div></div>`;
+        const view = rentOverview(), all = rentOverview({ month:'all', status:'all', search:'' });
+        const months = Array.from(new Set([paymentFilters.month, ...all.months])).filter(m => /^\d{4}-\d{2}$/.test(m)).sort().reverse();
+        const monthOptions = `<option value="all" ${paymentFilters.month === 'all' ? 'selected' : ''}>Tutti i periodi</option>` + months.map(m => `<option value="${m}" ${m === paymentFilters.month ? 'selected' : ''}>${new Date(m + '-15T12:00:00').toLocaleDateString('it-IT', {month:'long',year:'numeric'})}</option>`).join('');
+        return `<section class="rent-page"><div class="page-header"><div><div class="rent-eyebrow">GESTIONE LOCAZIONI</div><h1 class="page-title">Canoni per unità</h1><p class="page-subtitle">Chi ha pagato, cosa manca e il prossimo passo per ogni casa.</p></div><div class="page-actions"><button class="btn btn-secondary" onclick="goTo('invoices')">Fatture BOOM ↗</button><button class="btn" onclick="reloadRentPayments()" ${rentLoadState.status === 'loading' ? 'disabled' : ''}>Aggiorna</button></div></div>
+            <p class="rent-note">Canoni gestiti per i proprietari · Apri un mese per vedere le rate. La prossima azione considera anche gli arretrati fuori periodo.</p>
+            <div class="rent-toolbar"><label>Periodo<select class="form-input" id="rentMonth" onchange="paymentFilters.month=this.value;applyPaymentFilters()">${monthOptions}</select></label><label class="rent-search">Cerca unità o inquilino<input class="form-input" id="paymentSearch" type="search" value="${esc(paymentFilters.search)}" placeholder="Nome, indirizzo o inquilino" oninput="searchPayments(this.value)"></label><label>Stato<select class="form-input" id="rentStatus" onchange="filterPayments(this.value)">${[['all','Tutti'],['outstanding','Non confermati'],['pending','Da pagare'],['overdue','In ritardo'],['paid','Pagati'],['processing','In elaborazione'],['reported','Da verificare'],['empty','Senza rate']].map(([v,l])=>`<option value="${v}" ${v===paymentFilters.kind?'selected':''}>${l}</option>`).join('')}</select></label></div>
+            <div id="rentLoadNotice" class="rent-load" role="status">${rentLoadNotice()}</div><div id="paymentsContainer">${rentUnitsHTML(view)}</div><div class="rent-summary-heading">Riepilogo del periodo selezionato</div><div class="rent-stats" id="rentStats">${rentSummaryHTML(view)}</div><div id="rentScope" class="rent-scope" aria-live="polite">${view.units.length} unità · totali dei canoni nel filtro corrente${view.totals.unknownAmountCount || view.totals.unknownStateCount || view.counts.unknownMonth ? ' · Dati da verificare: alcuni importi, stati o periodi sono incompleti' : ''}</div>
+            ${all.totals.overdue > 0 ? `<button class="rent-arrears" onclick="paymentFilters.month='all';document.getElementById('rentMonth').value='all';filterPayments('overdue')">${rentMoney(all.totals.overdue)} di canoni in ritardo su tutti i periodi · Apri arretrati →</button>` : ''}
+            <div id="rentUnlinkedReceipts">${rentUnlinkedReceiptsHTML()}</div>
+            <details class="rent-tools"><summary>Strumenti di gestione</summary><div class="rent-actions"><button class="btn btn-secondary" onclick="exportPaymentsCSV()">Esporta elenco filtrato</button><button class="btn btn-secondary" onclick="openModal('bulkPayments')">Genera rate</button><button class="btn btn-secondary" onclick="openModal('addPayment')">Aggiungi rata</button></div></details></section>`;
     }
-
-    const paymentFilters = { kind: 'all', search: '' };
-    function filterPayments(filter, btn) {
-        paymentFilters.kind = filter;
-        // Safely highlight active pill (works whether called from click, kbd, or programmatically).
-        document.querySelectorAll('.payment-filter').forEach(b => {
-            b.classList.add('btn-secondary'); b.classList.remove('active');
-        });
-        const active = btn || document.querySelector(`.payment-filter[data-filter="${filter}"]`);
-        if (active) { active.classList.remove('btn-secondary'); active.classList.add('active'); }
-        applyPaymentFilters();
-    }
-    function searchPayments(q) { paymentFilters.search = (q || '').toLowerCase().trim(); applyPaymentFilters(); }
+    function filterPayments(filter) { paymentFilters.kind = filter; applyPaymentFilters(); }
+    function searchPayments(q) { paymentFilters.search = String(q || '').trim(); applyPaymentFilters(); }
     function applyPaymentFilters() {
-        const { kind, search } = paymentFilters;
-        document.querySelectorAll('.payment-item').forEach(item => {
-            const status = item.dataset.status;
-            const overdue = item.dataset.overdue === 'true';
-            const duesoon = item.dataset.duesoon === 'true';
-            const stripe = item.dataset.stripe === 'true';
-            let show = kind === 'all';
-            if (kind === 'paid')    show = status === 'paid';
-            if (kind === 'pending') show = status === 'pending';
-            if (kind === 'overdue') show = overdue;
-            if (kind === 'duesoon') show = duesoon;
-            if (kind === 'stripe')  show = stripe;
-            if (show && search) show = (item.dataset.search || '').includes(search);
-            item.style.display = show ? '' : 'none';
-        });
+        const view = rentOverview();
+        const list = document.getElementById('paymentsContainer');
+        if (!list) return;
+        list.innerHTML = rentUnitsHTML(view);
+        document.getElementById('rentStats').innerHTML = rentSummaryHTML(view);
+        document.getElementById('rentScope').textContent = view.units.length + ' unità · totali dei canoni nel filtro corrente' + (view.totals.unknownAmountCount || view.totals.unknownStateCount || view.counts.unknownMonth ? ' · Dati da verificare: alcuni importi, stati o periodi sono incompleti' : '');
+        document.getElementById('rentStatus').value = paymentFilters.kind;
+        const receipts = document.getElementById('rentUnlinkedReceipts');
+        if (receipts) receipts.innerHTML = rentUnlinkedReceiptsHTML();
+    }
+    async function reloadRentPayments() {
+        if (!isAdmin() || rentLoadState.status === 'loading') return;
+        const viewerId = auth.currentUser?.uid;
+        rentLoadState.status = 'loading'; refreshPaymentsView();
+        try {
+            const load = async name => {
+                const rows = []; let cursor = null;
+                for (let page = 0; page < 100; page++) {
+                    let q = db.collection(name).orderBy(firebase.firestore.FieldPath.documentId()).limit(500);
+                    if (cursor) q = q.startAfter(cursor);
+                    const snap = await q.get({ source:'server' });
+                    rows.push(...snap.docs.map(d => ({ ...d.data(), id:d.id })));
+                    if (snap.docs.length < 500) return rows;
+                    cursor = snap.docs[snap.docs.length - 1];
+                }
+                throw new Error('read_limit');
+            };
+            let timeout;
+            const [payments, properties, contracts, users] = await Promise.race([Promise.all(['payments','properties','contracts','users'].map(load)), new Promise((_,reject) => { timeout = setTimeout(() => reject(new Error('timeout')), 30000); })]).finally(() => clearTimeout(timeout));
+            if (auth.currentUser?.uid !== viewerId || !isAdmin()) { rentLoadState.status = 'initial'; return; }
+            Object.assign(S, { payments, properties, contracts, users });
+            rentLoadState.status = 'ready'; rentLoadState.checkedAt = new Date();
+        } catch (_) { rentLoadState.status = 'error'; }
+        refreshPaymentsView();
+    }
+    function openRentReportReview(id) {
+        const p = (S.payments || []).find(p => p.id === id);
+        if (!isAdmin() || !window.BOOM_RENT.canReviewReport(p)) return;
+        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="rentReviewTitle"><div class="modal-header"><h3 id="rentReviewTitle">Revoca segnalazione bonifico</h3><button class="modal-close" onclick="closeModal()" aria-label="Chiudi">×</button></div><form onsubmit="event.preventDefault();submitRentReportReview(${rentActionArg(id)})"><div class="modal-body"><p>Rata di ${rentMoney(window.BOOM_RENT.amount(p.amount))} · ${esc(rentMonthLabel(p.month))}</p><p>Revoca solo una segnalazione verificata come errata. La rata tornerà da pagare; nessun incasso verrà registrato. Il motivo e il responsabile della revoca resteranno nel registro attività.</p><label class="form-label" for="rentReviewReason">Motivo della revoca</label><textarea id="rentReviewReason" class="form-input" required minlength="10" maxlength="500" rows="3"></textarea><p id="rentReviewError" role="alert"></p></div><div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeModal()">Annulla</button><button id="rentReviewSubmit" class="btn" type="submit">Revoca segnalazione</button></div></form></div></div>`;
+        document.getElementById('rentReviewReason')?.focus();
+    }
+    const rentReportReviewBusy = new Set();
+    async function submitRentReportReview(id) {
+        if (!isAdmin() || rentReportReviewBusy.has(id)) return;
+        const reason = String(document.getElementById('rentReviewReason')?.value || '').trim();
+        const error = document.getElementById('rentReviewError'), button = document.getElementById('rentReviewSubmit');
+        if (reason.length < 10 || reason.length > 500) { if (error) error.textContent = 'Scrivi un motivo tra 10 e 500 caratteri.'; return; }
+        rentReportReviewBusy.add(id); if (button) button.disabled = true;
+        let timer;
+        try {
+            const token = await auth.currentUser.getIdToken();
+            const result = await Promise.race([fetch('/api/payments/report', {method:'POST',headers:{'Content-Type':'application/json',Authorization:'Bearer '+token},body:JSON.stringify({paymentId:id,action:'review_withdraw',reason})}).then(r => r.json()),new Promise((_,reject) => {timer=setTimeout(() => reject(new Error('timeout')),15000);})]);
+            if (!result?.ok) throw new Error(result?.error || 'unavailable');
+            closeModal(); await reloadRentPayments(); toast('success','Segnalazione revocata e motivazione registrata.');
+        } catch (e) {
+            if (error) error.textContent = e.message === 'state_changed' ? 'La rata è cambiata. Aggiorna e verifica lo stato prima di riprovare.' : 'Esito non confermato. Aggiorna la rata prima di riprovare; il motivo resta qui.';
+        } finally { clearTimeout(timer); rentReportReviewBusy.delete(id); if (button) button.disabled = false; }
+    }
+    const rentReceiptBusy = new Set();
+    async function publishRentReceipt(id, button) {
+        if (!isAdmin() || rentReceiptBusy.has(id)) return;
+        rentReceiptBusy.add(id); if (button) button.disabled = true;
+        try {
+            const receiptId = await archivePaymentReceipt({id});
+            if (!receiptId) return toast('warning','Ricevuta non archiviata. Verifica pagamento, dati e collegamenti prima di riprovare.');
+            closeModal(); await reloadRentPayments(); toast('success','Ricevuta disponibile nell’archivio del cliente.');
+        } finally { rentReceiptBusy.delete(id); if (button) button.disabled = false; }
+    }
+    async function confirmRentPayment(id) {
+        const p = (S.payments || []).find(p => p.id === id);
+        if (!p || !['due','overdue','reported'].includes(window.BOOM_RENT.paymentState(p)) || !(window.BOOM_RENT.amount(p.amount) > 0)) return toast('warning','Verifica lo stato della rata prima di registrare un incasso.');
+        if (!confirm('Confermi di aver verificato la ricezione di ' + rentMoney(window.BOOM_RENT.amount(p.amount)) + '? Verranno registrati l’incasso e la ricevuta e inviate le conferme previste.')) return;
+        await markPaymentPaid(id);
     }
 
     async function sendPaymentReminder(paymentId, level) {
@@ -9399,7 +10423,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     async function sendBulkReminders() {
-        const overdue = S.payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate));
+        const overdue = S.payments.filter(p => window.BOOM_RENT.paymentState(p) === 'overdue');
         if (!overdue.length) return toast('info', 'Nessun pagamento in ritardo');
         if (!confirm(`Inviare solleciti a ${overdue.length} pagamenti in ritardo?`)) return;
 
@@ -10328,9 +11352,48 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return { tenant:'Inquilino', landlord:'Landlord', lead:'Lead', pfs:'PFS', client:'Cliente', whatsapp:'WhatsApp' }[k] || k;
     }
 
-    // Find-or-create a conversation for (kind, id). Admin only. Idempotent
-    // via the deterministic id from BOOM_INBOX.convIdFor.
+    // Lead identity can change after WhatsApp intake. Only the server may
+    // resolve/create its binding; reconstructing conv_lead_* splits history.
+    async function inboxResolveLeadConversation(contact) {
+        if (!isAdmin() || !auth.currentUser) throw new Error('Accedi come amministratore per aprire questa conversazione.');
+        if (typeof contact?.id !== 'string' || !contact.id) throw new Error('Il contatto non è verificabile. Riapri la sua scheda.');
+        const user = auth.currentUser, controller = new AbortController();
+        const current = () => auth.currentUser === user && isAdmin() && !controller.signal.aborted;
+        const unavailable = () => new Error('Non riesco a verificare la conversazione. Il contatto resta selezionato: riprova.');
+        let timer;
+        try {
+            const read = (async () => {
+                const token = await user.getIdToken();
+                if (!current()) throw unavailable();
+                const response = await fetch('/api/homie/conversation', {
+                    method: 'POST', cache: 'no-store', signal: controller.signal,
+                    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ leadId: contact.id })
+                });
+                const result = await response.json();
+                if (!current()) throw unavailable();
+                if (response.status === 409 || result?.status === 'conflict') throw Object.assign(new Error('Il contatto ha collegamenti da verificare. Non apro un’altra conversazione: controlla la scheda e riprova.'), { code: 'conversation_conflict' });
+                if (!response.ok || result?.ok !== true || !['bound', 'new'].includes(result.status)
+                    || typeof result.cid !== 'string' || !/^[\w.-]{1,180}$/.test(result.cid) || ['.', '..'].includes(result.cid)) throw unavailable();
+                // The selected thread may be outside the 200 recent headers.
+                const snapshot = await db.collection('conversations').doc(result.cid).get({ source: 'server' });
+                if (!current() || !snapshot.exists) throw unavailable();
+                const row = { ...snapshot.data(), id: result.cid };
+                return row;
+            })();
+            const resolved = await Promise.race([read, new Promise((_, reject) => {
+                timer = setTimeout(() => { controller.abort(); reject(unavailable()); }, 15000);
+            })]);
+            if (!current()) throw unavailable();
+            return resolved;
+        } catch (error) {
+            if (error?.code === 'conversation_conflict') throw error;
+            throw unavailable();
+        } finally { clearTimeout(timer); }
+    }
+    // Other contact types retain their existing deterministic creation path.
     async function inboxFindOrCreateConversation(kind, contact) {
+        if (kind === 'lead') return inboxResolveLeadConversation(contact);
         const cid = BOOM_INBOX.convIdFor(kind, contact.id);
         let conv = (S.conversations || []).find(c => c.id === cid);
         if (conv) return conv;
@@ -10393,6 +11456,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // === UI ===
     function inboxPage() {
         if (!isAdmin() && !isLandlord()) return accessDenied();
+        setTimeout(portalFreshnessMount, 0);
         const convs = (S.conversations || []).slice().sort((a, b) => {
             const ta = a.lastMessageAt && a.lastMessageAt.toMillis ? a.lastMessageAt.toMillis() : new Date(a.lastMessageAt || 0).getTime();
             const tb = b.lastMessageAt && b.lastMessageAt.toMillis ? b.lastMessageAt.toMillis() : new Date(b.lastMessageAt || 0).getTime();
@@ -10419,8 +11483,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div>
                 <h1 class="page-title">📨 Inbox ${totalUnread ? `<span class="badge gold" style="font-size:11px;vertical-align:middle">${totalUnread}</span>` : ''}</h1>
                 <div style="color:var(--text-secondary);font-size:13px;margin-top:4px">WhatsApp · Email · Note · ${convs.length} conversazioni</div>
+                <p id="inboxFreshness" role="status" style="color:${portalFreshnessWarning() ? 'var(--orange)' : 'var(--text-secondary)'};font-size:12px;margin:8px 0 0">${esc(inboxFreshness())}</p>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap">
+                <button class="btn btn-sm" onclick="inboxRetryUpdates()">Aggiorna</button>
                 ${isAdmin() ? `<button class="btn btn-primary" onclick="inboxOpenNewModal()">✏️ Nuova conversazione</button>` : ''}
             </div>
         </div>
@@ -10507,8 +11573,28 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function inboxThreadPanel(conv) {
         const msgs = (S.messages || []).filter(m => m.conversationId === conv.id);
         const days = BOOM_INBOX.groupByDay(msgs);
+        const history = S.openConvStatus?.id === conv.id ? S.openConvStatus : null;
         const waUrl = BOOM_INBOX.whatsappUrl(conv.contactPhone, '');
         const canEmail = !!conv.contactEmail;
+        // Il conflitto di identità dichiarato dal server (api/homie/message.js,
+        // 21/09/2026): il messaggio è salvato sulla chat del numero, ma finché il
+        // legame col lead non è chiarito la Segreteria non prepara casi qui.
+        // Senza questa riga il silenzio era indistinguibile da un guasto.
+        // Inline apposta: le prove UI estraggono questa funzione per nome.
+        const bindingCode = conv.conversationBindingConflict;
+        const bindingLabels = {
+            unbound_whatsapp_conversation: 'questa chat non è collegata al lead trovato per il numero',
+            shared_contact_identity: 'lo stesso numero compare su più schede (lead/utenti): probabile doppione da unire',
+            multiple_established_conversations: 'due chat con storia per la stessa persona',
+            primary_conversation_has_history: 'la chat principale del lead ha già una storia separata',
+            phone_conflict: 'il numero non coincide con quello del lead', email_conflict: 'l’email non coincide con quella del lead',
+            lead_conflict: 'la chat è collegata a un altro lead', user_binding_conflict: 'la chat è collegata a un altro utente',
+            owner_conflict: 'la chat è assegnata a un altro proprietario', binding_not_verified: 'collegamento al lead non verificato',
+            binding_already_exists: 'il lead è già collegato a un’altra chat', multiple_bound_conversations: 'il lead risulta collegato a più chat'
+        };
+        const bindingNotice = !bindingCode ? '' : `<p class="sg-notice sg-notice--warning" role="status">⚠ ${esc(conv.conversationBindingStatus === 'unavailable'
+            ? 'Collegamento al lead non verificabile al momento (verrà ritentato).'
+            : 'Identità da verificare: ' + (bindingLabels[bindingCode] || String(bindingCode).replace(/_/g, ' ')) + '.')} I messaggi restano salvati qui, sul numero. La Segreteria non prepara casi su questa chat finché il collegamento non è chiarito dalla scheda del lead.</p>`;
         return `
         <div class="card" style="padding:0;overflow:hidden;display:flex;flex-direction:column;max-height:calc(100vh - 220px)">
             <!-- Header -->
@@ -10534,9 +11620,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
 
             ${inboxHomieBanner(conv)}
+            ${bindingNotice}
+            ${history?.error ? `<p class="sg-notice sg-notice--warning" role="alert">${esc(history.error)}</p>` : history?.loading ? '<p class="sg-footnote" role="status">Carico gli ultimi messaggi…</p>' : history?.incomplete ? '<p class="sg-footnote" role="status">Sono visibili i 300 messaggi più recenti. La cronologia precedente non è inclusa in questa vista.</p>' : ''}
 
             <!-- Timeline -->
-            <div style="flex:1;overflow-y:auto;padding:18px;background:#050505">
+            <div id="inboxTimeline" style="flex:1;overflow-y:auto;padding:18px;background:#050505">
                 ${days.length ? days.map(g => `
                     <div style="text-align:center;margin:8px 0 14px;font-size:11px;color:var(--text-muted)">${esc(g.dateLabel)}</div>
                     ${g.items.map(m => inboxMessageBubble(m)).join('')}
@@ -10836,10 +11924,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                         ${contacts.map(c => `<option value="${c.kind}|${c.id}">${esc(c.label)}</option>`).join('')}
                     </select>
                 </div>
+                <p id="_ncError" role="alert" style="color:var(--red);font-size:13px;line-height:1.5" hidden></p>
             </div>
             <div class="modal-footer">
                 <button class="btn" onclick="closeModal()">Annulla</button>
-                <button class="btn btn-primary" onclick="inboxCreateFromModal()">Apri conversazione</button>
+                <button id="_ncOpen" class="btn btn-primary" onclick="inboxCreateFromModal()">Apri conversazione</button>
             </div>
         </div></div>`;
         window._ncContacts = contacts;
@@ -10851,18 +11940,41 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         sel.innerHTML = list.map(c => `<option value="${c.kind}|${c.id}">${esc(c.label)}</option>`).join('');
     };
     window.inboxCreateFromModal = async function() {
+        if (!isAdmin() || !auth.currentUser) return;
+        const select = document.getElementById('_ncContact'), user = auth.currentUser;
+        const modal = select?.closest('.modal-overlay');
+        if (!modal?.classList.contains('active') || select?.dataset.opening === 'true') return;
         const v = (document.getElementById('_ncContact')||{}).value || '';
         if (!v) return;
         const [kind, id] = v.split('|');
         const ref = (window._ncContacts || []).find(c => c.kind===kind && c.id===id);
         if (!ref) return;
+        if (select) select.dataset.opening = 'true';
+        const button = document.getElementById('_ncOpen'), errorBox = document.getElementById('_ncError');
+        if (button) { button.disabled = true; button.textContent = 'Apro la conversazione…'; }
+        if (errorBox) { errorBox.hidden = true; errorBox.textContent = ''; }
         try {
             const conv = await inboxFindOrCreateConversation(kind, ref.ref);
+            if (auth.currentUser !== user || !isAdmin() || S.page !== 'inbox'
+                || !modal.classList.contains('active') || document.getElementById('_ncContact') !== select || select.value !== v) return;
+            if (kind === 'lead') {
+                S.inboxExactConversation = { id: conv.id, row: conv, user };
+                S.conversations = [conv, ...(S.conversations || []).filter(c => c.id !== conv.id)];
+                _inboxState.filter = 'all'; _inboxState.channel = 'all'; _inboxState.search = '';
+                _inboxState.convId = conv.id;
+                startOpenConvListener(conv.id);
+            }
             _inboxState.convId = conv.id;
             closeModal();
             inboxRefresh();
         } catch (e) {
-            toast('error', 'Errore: ' + (e.message || e));
+            if (auth.currentUser === user && modal.classList.contains('active') && document.getElementById('_ncContact') === select) {
+                if (errorBox) { errorBox.textContent = e.message || 'Non riesco ad aprire la conversazione. Riprova.'; errorBox.hidden = false; }
+                else toast('error', 'Errore: ' + (e.message || e));
+            }
+        } finally {
+            if (select) delete select.dataset.opening;
+            if (button) { button.disabled = false; button.textContent = 'Apri conversazione'; }
         }
     };
 
@@ -11377,13 +12489,20 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ─── EGIDI (AZIENDA) — BOOM's own fiscality ─────────────────────────────
     // Company revenue (from invoices + paid PFS) → IVA trimestrale + corporate
     // deadlines, computed by the fiscal engine. Admin-only.
+    function egidiPaymentBreakdown(year) {
+        return window.BOOM_RENT.agencyCollections(S.payments || [], year);
+    }
+    function egidiAgencyFundsBlock(year) {
+        const b = egidiPaymentBreakdown(year), euro = window.BOOM_FISCAL.fmtEuro;
+        return `<div class="card" style="margin-bottom:20px"><div class="card-body"><h3>Gestione per conto dei proprietari · ${year}</h3><p class="rent-note">BOOM opera come agenzia. Canoni e depositi cauzionali dei clienti non sono compensi dell’azienda.</p><table style="width:100%;font-size:14px"><tbody><tr><td>Canoni dei proprietari registrati come pagati</td><td style="text-align:right">${euro(b.ownerRent)}</td></tr><tr><td>Depositi cauzionali registrati come pagati</td><td style="text-align:right">${euro(b.deposits)}</td></tr>${b.otherCharges ? `<tr><td>Altri addebiti da classificare</td><td style="text-align:right">${euro(b.otherCharges)}</td></tr>` : ''}</tbody></table><p class="rent-note">Il riepilogo descrive pagamenti registrati; non ricostruisce somme ancora detenute, riversamenti o restituzioni.</p><h3>Compensi sui pagamenti incassati</h3><table style="width:100%;font-size:14px"><tbody><tr><td>Commissioni di servizio registrate</td><td style="text-align:right">${euro(b.fees)}</td></tr><tr><td>Di cui carta / SEPA</td><td style="text-align:right">${euro(b.cardFees)} / ${euro(b.sepaFees)}</td></tr><tr><td>Costi del gestore di pagamento rilevati</td><td style="text-align:right">${euro(b.knownCosts)}</td></tr><tr><td>Residuo sui soli incassi con costo noto</td><td style="text-align:right">${euro(b.knownMargin)}</td></tr></tbody></table><p class="rent-note">Le commissioni sono mostrate separatamente dalle fatture: senza un collegamento contabile certo non vengono sommate una seconda volta ai ricavi o alla stima IVA.${b.unknownFeeCount ? ` ${b.unknownFeeCount} pagamenti elettronici non hanno una commissione registrata.` : ''}${b.unknownCostCount ? ` Il costo manca su ${b.unknownCostCount} incassi: il residuo è parziale.` : ''}</p></div></div>`;
+    }
     function commercialistaEgidiView() {
         const FX = window.BOOM_FISCAL;
         const year = _cmState.year || new Date().getFullYear();
         // Revenue by quarter from issued invoices (paid + pending) for the year.
         const revByQ = { 1: 0, 2: 0, 3: 0, 4: 0 };
         let totalRev = 0;
-        (S.invoices || []).forEach(inv => {
+        boomBusinessInvoices().forEach(inv => {
             const d = inv.date ? new Date(inv.date) : (inv.createdAt && inv.createdAt.toDate ? inv.createdAt.toDate() : null);
             if (!d || d.getFullYear() !== Number(year)) return;
             const q = Math.floor(d.getMonth() / 3) + 1;
@@ -11412,7 +12531,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const qCard = (q) => `<div class="stat-card"><div class="stat-label">Q${q} ${year}</div><div class="stat-value">${FX.fmtEuro(revByQ[q])}</div><div class="stat-description">IVA ~${FX.fmtEuro(Math.round(revByQ[q]*0.22))}</div></div>`;
 
         return `<div class="page-header">
-                <div><h1 class="page-title">🏢 Egidi Immobiliare — Fiscale</h1><p class="page-subtitle">Ricavi · IVA trimestrale · scadenze societarie · P.IVA 17322991005</p></div>
+                <div><h1 class="page-title">🏢 Egidi Immobiliare — Fiscale</h1><p class="page-subtitle">Compensi BOOM · IVA trimestrale · scadenze societarie · P.IVA 17322991005</p></div>
                 <div class="page-actions">
                     <button class="btn btn-secondary btn-sm" onclick="window._cmEgidi=false;renderPage()">← Proprietari</button>
                     <select class="form-select" style="width:auto" onchange="_cmState.year=parseInt(this.value);renderPage()">${yearOpts.join('')}</select>
@@ -11420,7 +12539,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
 
             <div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
-                <div class="stat-card highlight"><div class="stat-label">Ricavi ${year}</div><div class="stat-value gold">${FX.fmtEuro(totalRev)}</div><div class="stat-description">fatture + PFS incassati</div></div>
+                <div class="stat-card highlight"><div class="stat-label">Compensi BOOM ${year}</div><div class="stat-value gold">${FX.fmtEuro(totalRev)}</div><div class="stat-description">fatture servizi + PFS incassati</div></div>
                 <div class="stat-card"><div class="stat-label">IVA stimata ${year}</div><div class="stat-value">${FX.fmtEuro(ivaTotal)}</div><div class="stat-description">22% sui ricavi imponibili</div></div>
                 <div class="stat-card ${roll.counts.overdue ? 'highlight' : ''}"><div class="stat-label">Scadute</div><div class="stat-value ${roll.counts.overdue ? '' : 'green'}">${roll.counts.overdue || 0}</div></div>
                 <div class="stat-card"><div class="stat-label">Entro 30 giorni</div><div class="stat-value">${roll.counts.dueSoon || 0}</div></div>
@@ -11432,6 +12551,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ${qCard(1)}${qCard(2)}${qCard(3)}${qCard(4)}
                 </div>
             </div>
+
+            ${egidiAgencyFundsBlock(year)}
 
             ${egidiPLBlock(year, totalRev)}
 
@@ -11450,14 +12571,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>` : ''}
 
             <div style="font-size:12px;color:var(--text-muted);margin-top:16px;padding:12px 16px;background:var(--bg-elevated);border-radius:8px">
-                I ricavi sono presi dalle fatture emesse (pagina Fatture) e dai compensi PFS incassati via Stripe. L'IVA è una stima al 22%: il calcolo definitivo (detraibile inclusa) resta al commercialista. Gli "estratti conto bancari" non sono in BOOM — questo è un riepilogo gestionale, non una contabilità sostitutiva.
+                I compensi sono presi dalle fatture servizi BOOM e dai compensi PFS incassati via Stripe. Le ricevute dei canoni e dei depositi per conto dei proprietari sono escluse. Le commissioni sui pagamenti sono mostrate a parte per la riconciliazione. L'IVA è una stima al 22%: il calcolo definitivo (detraibile inclusa) resta al commercialista. Gli "estratti conto bancari" non sono in BOOM — questo è un riepilogo gestionale, non una contabilità sostitutiva.
             </div>`;
     }
 
     // ─── Egidi · P&L semplificato ───────────────────────────────────────────
-    // Ricavi (fatture emesse + PFS Stripe incassati) vs costi (compensi
-    // gestione PAGATI ai landlord — tracciati come spese su contratti +
-    // costi tracciati su manutenzione/spese se presenti).
+    // Solo compensi dell'agenzia; canoni e cauzioni per terzi sono esclusi.
     function egidiPLBlock(year, totalRev) {
         // Costi gestionali: managementFee mensile per ogni contratto attivo nell'anno
         // (è un compenso CHE TU TRATTIENI dal canone — quindi ricavo TUO, non costo;
@@ -11479,9 +12598,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
             <div class="card-body">
                 <table style="width:100%;border-collapse:collapse;font-size:14px">
-                    <tr><td style="padding:8px 0;color:var(--text-muted)">Ricavi imponibili (fatture + PFS)</td><td style="text-align:right;font-weight:600">${FX.fmtEuro(totalRev)}</td></tr>
+                    <tr><td style="padding:8px 0;color:var(--text-muted)">Compensi BOOM (fatture servizi + PFS)</td><td style="text-align:right;font-weight:600">${FX.fmtEuro(totalRev)}</td></tr>
                     <tr><td style="padding:8px 0;color:var(--text-muted)">— Rimborsi PFS (no-match)</td><td style="text-align:right;color:var(--red)">${refundedPFS ? '−'+FX.fmtEuro(refundedPFS) : '—'}</td></tr>
-                    <tr style="border-top:1px solid var(--border)"><td style="padding:10px 0;font-weight:600">Margine netto BOOM</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:16px">${FX.fmtEuro(margin)}</td></tr>
+                    <tr style="border-top:1px solid var(--border)"><td style="padding:10px 0;font-weight:600">Saldo gestionale prima dei costi</td><td style="text-align:right;font-weight:700;color:var(--gold);font-size:16px">${FX.fmtEuro(margin)}</td></tr>
                 </table>
                 <div style="font-size:11px;color:var(--text-muted);margin-top:12px">I costi (commercialista, marketing, hosting, stipendi) non sono tracciati in BOOM. Tienili nel tuo gestionale contabile e chiedi al commercialista il risultato d'esercizio reale.</div>
             </div>
@@ -11498,7 +12617,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const d = c.paid_at ? new Date(c.paid_at) : null;
             return ok && d && d.getFullYear() === Number(year);
         });
-        const invoices = (S.invoices || []).filter(i => {
+        const invoices = boomBusinessInvoices().filter(i => {
             const d = i.date ? new Date(i.date) : null;
             return d && d.getFullYear() === Number(year);
         });
@@ -11552,7 +12671,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             advice.push({ icon: '📅', tone: 'gold', title: 'Ricavi concentrati in ' + qLabel, body: 'Più del 70% del fatturato è in un solo trimestre. Distribuire l\'emissione fatture aiuta cashflow e IVA trimestrale.' });
         }
         // 3. Fatture non pagate (di tutti i tempi)
-        const unpaid = (S.invoices || []).filter(i => i.status === 'pending' || (!i.status && !i.paidDate));
+        const unpaid = boomBusinessInvoices().filter(i => i.status === 'pending' || (!i.status && !i.paidDate));
         const unpaidAmount = unpaid.reduce((s, i) => s + (Number(i.amount) || 0), 0);
         if (unpaidAmount > 0) {
             advice.push({ icon: '💸', tone: 'gold', title: unpaid.length + ' fatture da incassare · ' + FX.fmtEuro(unpaidAmount), body: 'Hai crediti aperti per ' + FX.fmtEuro(unpaidAmount) + '. Manda solleciti dalla pagina Fatture.' });
@@ -11606,7 +12725,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         let obligations = [];
         if (party === 'company') {
             const revByQ = { 1:0, 2:0, 3:0, 4:0 };
-            (S.invoices || []).forEach(i => { const d = i.date ? new Date(i.date) : null; if (d && d.getFullYear() === Number(year)) revByQ[Math.floor(d.getMonth()/3)+1] += Number(i.amount)||0; });
+            boomBusinessInvoices().forEach(i => { const d = i.date ? new Date(i.date) : null; if (d && d.getFullYear() === Number(year)) revByQ[Math.floor(d.getMonth()/3)+1] += Number(i.amount)||0; });
             obligations = FX.companyObligations(year, revByQ);
         } else {
             // landlord: passed property+year via _cmState
@@ -14407,6 +15526,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         
         try {
             if (id) {
+                // Editing details must preserve the stored workflow state,
+                // including a completion newer than this browser's snapshot.
+                delete data.status;
                 await db.collection('tasks').doc(id).update(data);
                 if (!S.tasks) S.tasks = [];
                 const idx = S.tasks.findIndex(t => t.id === id);
@@ -15445,7 +16567,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
     }
 
-    function confirmDelete(type, id, name) { openModal('confirm', { icon: '🗑', title: 'Eliminare?', text: `Sei sicuro di voler eliminare "${name}"? Questa azione non può essere annullata.`, action: `deleteRecord('${type}','${id}')`, btnText: 'Elimina', danger: true }); }
+    function confirmDelete(type, id, name) { openModal('confirm', { icon: '🗑', title: 'Eliminare?', text: `Sei sicuro di voler eliminare "${esc(name)}"? Questa azione non può essere annullata.`, action: `deleteRecord('${jsq(type)}','${jsq(id)}')`, btnText: 'Elimina', danger: true }); }
 
     // ═══════════════════════════════════════════════════════════════════════════
     // CRUD OPERATIONS
@@ -16174,7 +17296,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     async function markPaymentPaid(id) {
         try {
-            const payment = S.payments.find(p => p.id === id);
+            if (!isAdmin()) return;
+            const snap = await db.collection('payments').doc(id).get({ source:'server' });
+            if (!snap.exists) return toast('error','Rata non trovata');
+            const payment = { ...snap.data(), id };
+            const state = window.BOOM_RENT.paymentState(payment);
+            if (!['due','overdue','reported'].includes(state) || !(window.BOOM_RENT.amount(payment.amount) > 0)) return toast('warning','Incasso non registrato',rentStateLabel(state));
             await db.collection('payments').doc(id).update({ status: 'paid', paidDate: new Date().toISOString() });
             logActivity('payment_marked_paid', 'payment', { id: id, amount: payment?.amount, contractId: payment?.contractId });
             // Notify landlord of payment received
@@ -16225,9 +17352,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const existing = (S.invoices || []).find(i => i.paymentId === payment.id);
         if (existing) return existing;
 
-        const contract = S.contracts.find(c => c.id === payment.contractId);
-        const tenant   = contract ? S.users.find(u => u.id === contract.tenantId) : null;
-        const property = contract ? S.properties.find(p => p.id === contract.propertyId) : null;
+        const context = rentReceiptContext(payment);
+        const contract = context.contract, tenant = context.tenant, property = context.property;
         if (!tenant) return null;
 
         const number = nextInvoiceNumber();
@@ -16238,10 +17364,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             recipientName: tenant.name || '',
             clientId: tenant.id,
             paymentId: payment.id,
+            documentType: 'rent-receipt',
             contractId: contract?.id || null,
             propertyId: property?.id || null,
-            service: `Canone locazione ${payment.month || ''}`.trim(),
-            description: `Ricevuta canone di locazione · ${property?.name || ''} · ${payment.month || ''}`.trim(),
+            service: `${rentChargeLabel(payment)} ${payment.month || ''}`.trim(),
+            description: `Ricevuta ${window.BOOM_RENT.isRentPayment(payment) ? 'canone di locazione' : rentChargeLabel(payment).toLowerCase()} · ${property?.name || ''} · ${payment.month || ''}`.trim(),
             amount: payment.amount || 0,
             date: payment.paidDate || new Date().toISOString().split('T')[0],
             status: 'paid',
@@ -16997,6 +18124,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     function viewInvoice(id) {
         const inv = S.invoices.find(x => x.id === id); if (!inv) return;
+        if (window.BOOM_RENT.isRentReceipt(inv)) return viewRentReceiptDocument(id);
         // Resolve recipient across clients (CRM) + users (landlord/tenant).
         const rid = inv.recipientId || inv.clientId;
         const client = S.clients.find(c => c.id === rid);
@@ -17089,55 +18217,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     function viewProperty(id) {
-        const p = S.properties.find(x => x.id === id); if (!p) return;
-        const owner = S.users.find(u => u.id === p.ownerId);
-        const contracts = S.contracts.filter(c => c.propertyId === id);
-        const activeContract = contracts.find(c => c.status === 'active');
-        const tenant = activeContract ? S.users.find(u => u.id === activeContract.tenantId) : null;
-        const propTypeLabels = { apartment: 'Appartamento', studio: 'Monolocale', room: 'Stanza', house: 'Casa', loft: 'Loft' };
-        const availStatusLabels = { available: { text: 'Disponibile', color: 'green', icon: '🟢' }, negotiation: { text: 'In Trattativa', color: 'orange', icon: '🟡' }, rented: { text: 'Affittato', color: 'red', icon: '🔴' }, off_market: { text: 'Fuori Mercato', color: 'gray', icon: '⚫' } };
-        const availStatus = availStatusLabels[p.availabilityStatus] || availStatusLabels.available;
-        const youtubeId = p.youtubeUrl ? extractYouTubeId(p.youtubeUrl) : null;
-        document.getElementById('modals').innerHTML = `<div class="modal-overlay active"><div class="modal lg">
-            <div class="modal-header"><h3 class="modal-title">🏠 ${p.name}</h3><button class="modal-close" onclick="closeModal()">×</button></div>
-            <div class="modal-body" style="max-height:70vh;overflow-y:auto">
-                <div class="detail-badges mb-16">
-                    <span class="badge ${availStatus.color}">${availStatus.icon} ${availStatus.text}</span>
-                    <span class="badge ${activeContract ? 'green' : 'gray'}">${activeContract ? '📋 Contratto Attivo' : '📋 Nessun Contratto'}</span>
-                    <span class="badge gray">${propTypeLabels[p.propertyType] || 'Appartamento'}</span>
-                </div>
-                ${youtubeId ? `<div style="margin-bottom:16px;border-radius:12px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.3)"><div style="position:relative;padding-bottom:56.25%;height:0"><iframe src="https://www.youtube.com/embed/${youtubeId}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:none" allowfullscreen></iframe></div></div>` : ''}
-                <div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">📍 Dettagli Immobile</div>
-                <div class="detail-grid">
-                    <div><div class="detail-label">Indirizzo</div><div class="detail-value">${p.address || 'Roma'}</div></div>
-                    <div><div class="detail-label">Affitto</div><div class="detail-value text-gold">€${p.rent}/mese</div></div>
-                    <div><div class="detail-label">Superficie</div><div class="detail-value">${p.sqm ? p.sqm + ' m²' : '—'}</div></div>
-                    <div><div class="detail-label">Stanze</div><div class="detail-value">${p.rooms || '—'}</div></div>
-                    <div><div class="detail-label">Bagni</div><div class="detail-value">${p.bathrooms || '—'}</div></div>
-                    <div><div class="detail-label">Piano</div><div class="detail-value">${p.floor || '—'}</div></div>
-                    <div><div class="detail-label">Anno</div><div class="detail-value">${p.yearBuilt || '—'}</div></div>
-                    <div><div class="detail-label">Proprietario</div><div class="detail-value">${owner?.name || 'N/A'}</div></div>
-                    <div><div class="detail-label">Disponibile Dal</div><div class="detail-value">${p.availableSince ? fmtDate(p.availableSince) : '—'}</div></div>
-                </div>
-                ${p.notes ? `<div class="mt-16"><div class="detail-label">Note</div><div class="detail-value" style="background:var(--surface);padding:10px;border-radius:8px;font-size:13px;margin-top:6px">${p.notes}</div></div>` : ''}
-                ${activeContract ? `
-                <div class="section-title mt-16" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">👤 Inquilino Attuale</div>
-                <div class="detail-grid">
-                    <div><div class="detail-label">Nome</div><div class="detail-value">${tenant?.name || 'N/A'}</div></div>
-                    <div><div class="detail-label">Email</div><div class="detail-value">${tenant?.email || 'N/A'}</div></div>
-                    <div><div class="detail-label">Contratto</div><div class="detail-value">${fmtDate(activeContract.startDate)} → ${fmtDate(activeContract.endDate)}</div></div>
-                    <div><div class="detail-label">Deposito</div><div class="detail-value">€${activeContract.deposit || 0}</div></div>
-                </div>` : ''}
-                ${contracts.length ? `<div class="mt-16"><div class="section-title" style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin-bottom:12px">📋 Storico Contratti (${contracts.length})</div><div style="background:var(--surface);border-radius:8px;overflow:hidden">${contracts.map(c => { const t = S.users.find(u => u.id === c.tenantId); return `<div style="padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px;display:flex;align-items:center;gap:10px">${contractBadge(c)}<span style="flex:1">${t?.name || 'Inquilino'} · ${fmtDate(c.startDate)} → ${fmtDate(c.endDate)}</span><span class="text-gold">€${c.rent}/mese</span></div>`; }).join('')}</div></div>` : ''}
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-danger btn-sm" onclick="confirmDelete('propert','${p.id}','${jsq(p.name)}')">🗑</button>
-                <a class="btn btn-secondary btn-sm" href="/inventario?p=${p.id}" target="_blank" rel="noopener" title="${p.inventario ? 'Inventario del ' + String(p.inventario.at || '').slice(0,10) + ' — ' + ((p.inventario.counts && p.inventario.counts.pieces) || 0) + ' pezzi' : 'Inventario dal video: filma il giro, l\'elenco si scrive da solo'}" style="text-decoration:none">📋 Inventario${p.inventario ? ' ✓' : ''}</a>
-                ${isAdmin() ? `<button class="btn btn-secondary btn-sm" onclick="openValutazione(null, undefined, {propertyId:'${p.id}'})" title="${p.valutazioneBoomUrl ? 'Ultima valutazione del ' + String(p.valutazioneBoomAt || '').slice(0,10) + ' — rigenera' : 'Il documento per il proprietario: parere di mercato + scheda di calcolo dell\'accordo'}">💶 Valutazione${p.valutazioneBoomUrl ? ' ✓' : ''}</button>` : ''}
-                <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
-                <button class="btn" onclick="const pid='${p.id}';closeModal();setTimeout(()=>openModal('editProperty',S.properties.find(x=>x.id===pid)),250)">✏️ Modifica</button>
-            </div>
-        </div></div>`;
+        if (isAdmin()) window.BOOM_PROPERTY_DOSSIER.open(id);
     }
 
     function viewPropertyLandlord(id) {
@@ -20147,6 +21227,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     function _buildReceiptDoc(pay, c, p, t) {
+        const received = window.BOOM_RENT.amount(pay.amount);
+        if (!(received > 0)) throw new Error('Importo ricevuta da verificare');
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
 
@@ -20177,14 +21259,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         doc.setFillColor(212, 175, 55); doc.rect(15, y - 5, 180, 25, 'F');
         doc.setTextColor(0); doc.setFontSize(12); doc.setFont('helvetica', 'bold');
         doc.text('IMPORTO RICEVUTO', 20, y + 5);
-        doc.setFontSize(20); doc.text(`EUR ${pay.amount},00`, 190, y + 8, { align: 'right' });
+        doc.setFontSize(20); doc.text(`EUR ${received.toLocaleString('it-IT', {minimumFractionDigits:2,maximumFractionDigits:2})}`, 190, y + 8, { align: 'right' });
 
         doc.setTextColor(0); doc.setFontSize(10); doc.setFont('helvetica', 'normal');
         y += 35;
-        doc.text(`(Euro ${numberToWords(pay.amount)}/00)`, 20, y);
+        doc.text(`(Euro ${numberToWords(Math.floor(received))}/${String(Math.round(received * 100) % 100).padStart(2, '0')})`, 20, y);
 
         y += 20;
-        doc.text('Pagamento per canone di locazione mensile.', 20, y);
+        doc.text(pay.type === 'deposit-balance' ? 'Pagamento del saldo deposito cauzionale.' : pay.type === 'deposit' ? 'Pagamento del deposito cauzionale.' : window.BOOM_RENT.isRentPayment(pay) ? 'Pagamento per canone di locazione.' : 'Pagamento per altro addebito contrattuale.', 20, y);
 
         doc.setFillColor(0, 0, 0); doc.rect(0, 275, 210, 25, 'F');
         doc.setTextColor(150); doc.setFontSize(8); doc.text(`${COMPANY.legal} | ${COMPANY.website}`, 105, 285, { align: 'center' });
@@ -20193,52 +21275,85 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     function downloadPaymentReceipt(id) {
         const pay = S.payments.find(x => x.id === id); if (!pay || pay.status !== 'paid') return toast('error', 'Pagamento non trovato o non pagato');
-        const c = S.contracts.find(x => x.id === pay.contractId);
-        const p = c ? S.properties.find(x => x.id === c.propertyId) : null;
-        const t = c ? S.users.find(x => x.id === c.tenantId) : null;
+        const context = rentReceiptContext(pay);
+        const c = context.contract, p = context.property, t = context.tenant;
         const doc = _buildReceiptDoc(pay, c, p, t);
         doc.save(`Ricevuta_${p?.name?.replace(/\s+/g, '_') || ''}_${pay.month || ''}.pdf`);
         toast('success', 'Ricevuta scaricata!');
     }
 
-    // Generate the rent-receipt PDF and file it in the archive (documents collection),
-    // linked to the tenant so it also lands in their portal (getMyDocuments).
-    // Best-effort and idempotent (skips if a receipt for this payment already exists).
+    // Archive an already-confirmed payment. A deterministic document and an
+    // atomic payment/document transaction make retries attach the same receipt.
+    // This path never settles money, creates an invoice or sends a message.
     async function archivePaymentReceipt(payment) {
         try {
-            const pay = (payment && payment.id) ? payment : null;
-            if (!pay || pay.status !== 'paid') return null;
-            if (pay.receiptDocId) return pay.receiptDocId;
-            if ((S.documents || []).some(d => d.paymentId === pay.id && d.type === 'receipt')) return null;
-            const c = S.contracts.find(x => x.id === pay.contractId);
-            const p = c ? S.properties.find(x => x.id === c.propertyId) : null;
-            const t = c ? S.users.find(x => x.id === c.tenantId) : null;
-            const docPdf = _buildReceiptDoc(pay, c, p, t);
-            const blob = docPdf.output('blob');
-            const ref = 'RIC-' + String(pay.id).slice(-8).toUpperCase();
-            const ownerSeg = (t && t.id) || 'admin';
-            const path = `documents/${ownerSeg}/archive/receipt_${ref}.pdf`;
-            const putRes = await storage.ref(path).put(blob, { contentType: 'application/pdf' });
-            const fileUrl = await putRes.ref.getDownloadURL();
-            const hash = await generateDocHash(`${ref}|receipt|${t?.name || ''}|${pay.amount}`);
-            const docRef = await db.collection('documents').add({
-                name: `Ricevuta canone — ${p?.name || t?.name || ''} ${pay.month || ''}`.trim(),
-                type: 'receipt', category: 'ricevuta', source: 'generated',
-                templateType: 'ricevuta_pigione', refCode: ref, lang: 'IT', version: 1, hash,
-                userId: (t && t.id) || null, tenantId: (t && t.id) || null,
-                propertyId: p?.id || null, contractId: c?.id || null, paymentId: pay.id,
-                shared: false, fileUrl, fileName: `${ref}.pdf`, fileSize: blob.size,
-                uploadedBy: S.profile?.id || 'admin',
-                createdAt: firebase.firestore.FieldValue.serverTimestamp()
+            if (!isAdmin() || !payment?.id) return null;
+            const payRef = db.collection('payments').doc(payment.id);
+            const snap = await payRef.get({source:'server'});
+            const pay = snap.exists ? {...snap.data(),id:payment.id} : null;
+            if (!pay || window.BOOM_RENT.paymentState(pay) !== 'paid' || !(window.BOOM_RENT.amount(pay.amount) > 0) || !pay.paidDate) return null;
+            const paidAt = pay.paidDate?.toDate ? pay.paidDate.toDate() : new Date(pay.paidDate);
+            if (!Number.isFinite(paidAt.getTime())) return null;
+            const safeUrl = value => { try {const u=new URL(value);return u.protocol==='https:'?u.href:'';} catch (_) {return '';} };
+            const validDoc = d => window.BOOM_RENT.isReceiptDocument(d,pay.id) && !!safeUrl(d.fileUrl);
+            const fingerprint = p => JSON.stringify([p.status,p.amount,p.paidDate,p.type,p.month,p.coversTo,p.contractId,p.propertyId,p.tenantId]);
+            const expected = fingerprint(pay);
+            const deterministicId = 'rent-receipt-' + pay.id;
+            let docId = pay.receiptDocId || deterministicId;
+            let docRef = db.collection('documents').doc(docId);
+            let existing = await docRef.get({source:'server'});
+            if (pay.receiptDocId && (!existing.exists || !validDoc(existing.data()))) return null;
+            if (!existing.exists) {
+                const legacy = await db.collection('documents').where('paymentId','==',pay.id).where('type','==','receipt').limit(2).get({source:'server'});
+                if (legacy.docs.length > 1) return null; // Ambiguous archive requires review.
+                if (legacy.docs.length === 1) {
+                    docId=legacy.docs[0].id;docRef=db.collection('documents').doc(docId);existing=legacy.docs[0];
+                }
+            }
+            if (existing.exists && !validDoc(existing.data())) return null;
+            let receipt = existing.exists ? existing.data() : null;
+            if (!receipt) {
+                const context=rentReceiptContext(pay), c=context.contract, p=context.property, tenant=context.tenant;
+                if (!context.tenantId || !context.propertyId || !tenant || !p) return null;
+                const ref = 'RIC-' + String(pay.id).slice(-8).toUpperCase();
+                const hash = await generateDocHash(expected+'|'+(tenant.name||'')+'|'+(p.name||'')+'|'+(p.address||''));
+                const blob = _buildReceiptDoc(pay,c,p,tenant).output('blob');
+                const path = `documents/${context.tenantId}/archive/receipt_${encodeURIComponent(pay.id)}_${hash}.pdf`;
+                const upload = await storage.ref(path).put(blob,{contentType:'application/pdf'});
+                const fileUrl = safeUrl(await upload.ref.getDownloadURL());
+                if (!fileUrl) return null;
+                receipt = {name:`Ricevuta ${rentChargeLabel(pay).toLowerCase()} — ${p.name || tenant.name || ''} ${pay.month || ''}`.trim(),
+                    type:'receipt',category:'ricevuta',source:'generated',templateType:'ricevuta_pigione',refCode:ref,lang:'IT',version:1,hash,
+                    userId:context.tenantId,tenantId:context.tenantId,propertyId:context.propertyId,contractId:c?.id || null,paymentId:pay.id,
+                    shared:false,fileUrl,fileName:`${ref}.pdf`,fileSize:blob.size,uploadedBy:S.profile?.id || 'admin',
+                    createdAt:firebase.firestore.FieldValue.serverTimestamp()};
+            }
+            return await db.runTransaction(async tx => {
+                const currentSnap=await tx.get(payRef), current=currentSnap.exists?currentSnap.data():null;
+                if (!current || fingerprint(current)!==expected) throw new Error('payment_changed');
+                // Another session may have linked its receipt while the PDF uploaded.
+                const finalRef=db.collection('documents').doc(current.receiptDocId || docId);
+                const finalSnap=await tx.get(finalRef);
+                if (current.receiptDocId && !finalSnap.exists) throw new Error('missing_receipt');
+                const finalReceipt=finalSnap.exists?finalSnap.data():receipt;
+                if (!validDoc(finalReceipt)) throw new Error('unlinked_receipt');
+                if (!finalSnap.exists) tx.set(finalRef,finalReceipt);
+                if (current.receiptDocId !== finalRef.id || !safeUrl(current.receiptUrl)) tx.update(payRef,{receiptDocId:finalRef.id,...(!safeUrl(current.receiptUrl)?{receiptUrl:finalReceipt.fileUrl}:{})});
+                return finalRef.id;
             });
-            await db.collection('payments').doc(pay.id).update({ receiptDocId: docRef.id }).catch(() => {});
-            logActivity('Ricevuta archiviata', 'document', { paymentId: pay.id, docId: docRef.id, tenant: t?.name });
-            return docRef.id;
         } catch (e) { console.warn('[archivePaymentReceipt]', e); return null; }
     }
 
     function downloadInvoicePDF(id) {
         const inv = S.invoices.find(i => i.id === id); if (!inv) return;
+        if (window.BOOM_RENT.isRentReceipt(inv)) {
+            const payment = (S.payments || []).find(p => p.id === inv.paymentId);
+            if (!payment || window.BOOM_RENT.paymentState(payment) !== 'paid' || !(window.BOOM_RENT.amount(payment.amount) > 0)) {
+                const original = rentReceiptOriginalUrl(inv);
+                return original ? boomOpen(original) : viewRentReceiptDocument(inv.id);
+            }
+            return downloadPaymentReceipt(payment.id);
+        }
         const client = S.clients.find(c => c.id === inv.clientId);
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
@@ -21755,7 +22870,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ═══════════════════════════════════════════════════════════════════════════
     function exportInvoicesCSV() {
         let csv = 'Numero,Destinatario,Tipo,Servizio,Importo,Stato,Data\n';
-        S.invoices.forEach(i => {
+        boomBusinessInvoices().forEach(i => {
             const rid = i.recipientId || i.clientId;
             const client = S.clients.find(c => c.id === rid);
             const user = !client ? S.users.find(u => u.id === rid) : null;
@@ -21767,14 +22882,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     function exportPaymentsCSV() {
-        let csv = 'Immobile,Inquilino,Mese,Importo,Stato,Scadenza,Pagato\n';
-        S.payments.forEach(p => {
-            const c = S.contracts.find(x => x.id === p.contractId);
-            const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
-            const t = c ? S.users.find(x => x.id === c.tenantId) : null;
-            csv += `"${prop?.name || ''}","${t?.name || ''}","${p.month || ''}",${p.amount || 0},"${p.status}","${fmtDate(p.dueDate)}","${fmtDate(p.paidDate)}"\n`;
-        });
-        downloadCSV(csv, 'BOOM_Pagamenti.csv');
+        const cell = value => '"' + String(value ?? '').replace(/^[=+@-]/, "'$&").replace(/"/g, '""') + '"';
+        const rows = rentOverview().units.flatMap(unit => unit.payments);
+        const lines = rows.map(r => [r.propertyName, r.tenantName, r.payment.month || r.month, r.isRent ? 'Canone' : r.payment.type || 'Altro', r.amount, rentStateLabel(r.state), fmtDate(r.payment.dueDate), fmtDate(r.payment.paidDate)].map(cell).join(','));
+        downloadCSV('Immobile,Inquilino,Periodo,Tipo,Importo,Stato,Scadenza,Pagato\n' + lines.join('\n'), 'BOOM_Canoni.csv');
     }
 
     function downloadCSV(content, filename) {
@@ -27890,79 +29001,327 @@ IBAN: ${l.iban || '-'}`;
     // ═══════════════════════════════════════════════════════════════════
     // L'INNESTO — far entrare il dato reale senza riscriverlo a mano
     // ═══════════════════════════════════════════════════════════════════
-    // Incolli il contratto (o ci butti dentro il PDF, o la foto, o il
-    // messaggio del proprietario) e il portale propone proprietario,
-    // immobile, inquilino e contratto GIÀ nello schema giusto, dicendo per
-    // ognuno se è nuovo o se esiste già in archivio (e perché lo pensa).
-    // Nulla viene scritto prima della tua conferma.
+    // Ci butti dentro quello che hai in mano — il PDF del contratto, le foto
+    // dei documenti, la visura, il messaggio del proprietario, anche TUTTI
+    // insieme — e il portale propone proprietario, immobile, inquilino,
+    // co-conduttori e contratto GIÀ nello schema giusto, con sotto ogni
+    // campo la frase del documento da cui l'ha letto. Per chi ESISTE già in
+    // archivio non propone un doppione: propone le MODIFICHE, prima → dopo
+    // (un buco si riempie da solo, un valore che cambia lo confermi tu).
+    // Nulla viene scritto prima della tua conferma; alla conferma il
+    // documento letto RESTA (archiviato e legato a ciò che ha creato).
+    // La lettura sta in api/portal/ingest.js (Opus 5, output strutturato:
+    // la lezione del 14/09/2026 — «non riesce mai a leggere i file» era un
+    // JSON a mano libera diagnosticato come troncato).
 
-    let _innesto = { proposal: null, matches: null, notes: [], confidence: null, busy: false, file: null, links: {} };
+    const INNESTO_INLINE_MAX = 3 * 1024 * 1024;   // byte grezzi inline PER LETTURA (base64 +33% < 4,5 MB)
+    const INNESTO_MAX_FILES = 8;
+    // LA SECONDA LEZIONE DEL 21/09/2026: 8 MB misurati sulla foto a grandezza
+    // piena — PRIMA di ridurla — rifiutavano «per grandezza» uno scatto
+    // qualsiasi di iPhone, e un PDF scansionato da 9 MB. Le immagini non
+    // hanno più un cancello (si riducono a 2000px prima di partire); gli
+    // altri file valgono fino al tetto dello Storage di transito (25 MB,
+    // storage.rules validUpload) e il server ne legge fino a 20 MB (il
+    // tetto di Anthropic è 32 MB a richiesta, base64 compreso).
+    const INNESTO_MAX_FILE = 25 * 1024 * 1024;
+    // Qualsiasi cosa: oltre a PDF e foto, Word/Excel/OpenDocument/email/
+    // HTML/testo — il server li riduce a testo (api/_doctext.js).
+    const INNESTO_TEXTY_RE = /\.(docx?|odt|xlsx|csv|tsv|txt|md|markdown|eml|html?|json|rtf)$/i;
+    const INNESTO_ACCEPT = 'application/pdf,image/*,.pdf,.heic,.heif,.docx,.doc,.odt,.xlsx,.csv,.tsv,.txt,.md,.eml,.html,.htm,.json,.rtf';
+    // HEIC su Chrome/Windows: il canvas non la decodifica, il server non la
+    // legge. heic2any (libheif in WASM) si carica SOLO quando serve.
+    const INNESTO_HEIC_LIB = 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
+    // $ per milione di token — per dire all'operatore quanto è costata una
+    // lettura, non per fatturare: è una stima dichiarata.
+    const INNESTO_RATES = { 'claude-opus-5': { in: 5, out: 25, cacheRead: 0.5, cacheWrite: 6.25 } };
+    const INNESTO_KIND_ICON = { contratto: '📋', documento_identita: '🪪', visura: '🏛', ape: '⚡', utenza: '💡', ricevuta_canone: '🧾', f24_registro: '🏦', f24_imu: '🏦', f24_altro: '🏦', rli: '📑', cedolare: '📑', planimetria: '📐', proposta: '📝', messaggio: '💬', fattura_spese: '🧾', fattura_societa: '🧾', estratto_conto: '🏦', altro: '📄' };
+
+    function innestoEmpty() {
+        return {
+            files: [], text: '', hint: '', proposal: null, notes: [], confidence: null, summary: '',
+            filesRead: [], evMap: {}, derived: {}, usage: null, cost: 0, busy: false, phase: '', startedAt: 0,
+            links: {}, coLinks: {}, diffs: {}, expanded: {}, archive: true, readDocs: [],
+            seedId: null, seedLoading: false, seedDone: false, seedError: '', seedDoc: null,
+            // le creazioni in più (21/09): il lead dal messaggio di un cliente
+            // (spunta accesa), la proposta nel console (spunta spenta: è un
+            // link che parte al cliente), il contratto saltato quando il deal
+            // è già una proposta del console (nasce DA quella, non da qui).
+            create: { lead: true, preagreement: false }, pa: null, skipContract: false
+        };
+    }
+    let _innesto = innestoEmpty();
+    let _innestoTick = null;
 
     function innestoPage() {
+        if (_innesto.seedId && !_innesto.seedLoading && !_innesto.seedDone && !_innesto.seedError) {
+            _innesto.seedLoading = true;
+            innestoLoadSeed(_innesto.seedId);
+        }
         const p = _innesto.proposal;
+        const files = _innesto.files;
+        const mb = (n) => (n / 1024 / 1024).toFixed(1) + ' MB';
+        const totalBytes = files.reduce((a, f) => a + f.size, 0);
         return `
         <div class="page-header"><h1>🌱 Innesto</h1>
-            <p style="color:var(--text-secondary);font-size:13px">Da un contratto, un documento o due righe di messaggio a dati reali nel portale. Con anteprima, controlli e nessuna scrittura prima della conferma.</p></div>
+            <p style="color:var(--text-secondary);font-size:13px">Contratto, proposta, documenti d'identità, visura, il messaggio di un cliente: qualsiasi file, tutto insieme, una lettura sola. Ogni campo cita la frase da cui viene, chi esiste già viene aggiornato e non duplicato, e niente si scrive prima della tua conferma.</p></div>
 
+        ${innestoSeedCard()}
         <div class="card" style="margin-bottom:16px">
-            <div style="font-size:13px;margin-bottom:10px">Materiale di partenza</div>
-            <textarea id="innestoText" rows="7" placeholder="Incolla qui il testo: un contratto, l'email del proprietario, il messaggio WhatsApp con i dati dell'inquilino, gli appunti della visita…"
-                style="width:100%;background:var(--bg-input);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:12px;font-family:inherit;font-size:13px;line-height:1.6;resize:vertical"></textarea>
-            <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px">
-                <label class="btn btn-sm" style="cursor:pointer;margin:0">
-                    📎 Allega PDF o foto
-                    <input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" style="display:none" onchange="innestoFile(this)">
-                </label>
-                <span id="innestoFileName" style="font-size:12px;color:var(--text-secondary)">${_innesto.file ? esc(_innesto.file.name) : 'nessun file'}</span>
-                <div style="flex:1"></div>
-                <button class="btn" ${_innesto.busy ? 'disabled' : ''} onclick="innestoAnalyze()">${_innesto.busy ? 'Lettura in corso…' : (_innesto.proposal ? 'Leggi e integra' : 'Leggi e proponi')}</button>
+            <div style="font-size:13px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                <span>Materiale di partenza</span>
+                <span style="font-size:11.5px;color:var(--text-secondary)">${files.length ? files.length + ' file · ' + mb(totalBytes) : 'PDF, foto, Word, Excel, email, testo — fino a ' + INNESTO_MAX_FILES + ' per lettura'}</span>
             </div>
+            <div id="innestoDrop" onclick="document.getElementById('innestoFileInput').click()"
+                 ondragover="event.preventDefault();this.style.borderColor='var(--gold)'" ondragleave="this.style.borderColor='var(--border)'"
+                 ondrop="innestoDrop(event)"
+                 style="border:1.5px dashed var(--border);border-radius:12px;padding:${files.length ? '12px 14px' : '22px 14px'};text-align:center;cursor:pointer;background:var(--bg-input);transition:border-color .15s">
+                ${files.length
+                    ? `<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-start" onclick="event.stopPropagation()">
+                        ${files.map((f, i) => `<span style="display:inline-flex;align-items:center;gap:6px;background:var(--bg-elevated);border:1px solid var(--border);border-radius:999px;padding:5px 10px;font-size:12px">${innestoFileIcon(f)} ${esc(f.name.length > 34 ? f.name.slice(0, 31) + '…' : f.name)} <span style="color:var(--text-secondary)">${mb(f.size)}</span><button type="button" onclick="innestoRemoveFile(${i})" title="Togli" style="background:none;border:0;color:var(--text-secondary);cursor:pointer;font-size:14px;line-height:1;padding:0 2px">✕</button></span>`).join('')}
+                        <span style="font-size:12px;color:var(--text-secondary);align-self:center;cursor:pointer" onclick="document.getElementById('innestoFileInput').click()">＋ aggiungi</span>
+                       </div>`
+                    : `<div style="font-size:13px">📎 Trascina qui i file, oppure clicca per sceglierli</div>
+                       <div style="font-size:11.5px;color:var(--text-secondary);margin-top:4px">contratto PDF o Word · proposta · foto dei documenti (anche HEIC, anche più pagine) · visura · APE · email .eml · Excel · screenshot di una chat — nessun limite di formato, le foto si riducono da sole; puoi anche incollare un'immagine nel riquadro qui sotto</div>`}
+            </div>
+            <input id="innestoFileInput" type="file" multiple accept="${INNESTO_ACCEPT}" style="display:none" onchange="innestoAddFiles(this.files);this.value=''">
+            <input id="innestoCamInput" type="file" accept="image/*" capture="environment" style="display:none" onchange="innestoAddFiles(this.files);this.value=''">
+            <textarea id="innestoTextArea" rows="${p ? 3 : 5}" placeholder="Oppure incolla qui il testo: il contratto, l'email del proprietario, il messaggio WhatsApp con i dati dell'inquilino, gli appunti della visita… (e Ctrl+V incolla anche uno screenshot)"
+                oninput="innestoText(this.value)" onpaste="innestoPaste(event)"
+                style="width:100%;margin-top:12px;background:var(--bg-input);border:1px solid var(--border);border-radius:10px;color:var(--text);padding:12px;font-family:inherit;font-size:13px;line-height:1.6;resize:vertical">${esc(_innesto.text)}</textarea>
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px">
+                <input value="${esc(_innesto.hint)}" oninput="innestoHint(this.value)" placeholder="Un'indicazione, se serve: «è il contratto di Pigneto, l'inquilina è Marta»"
+                    style="flex:1;min-width:220px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 10px;font-size:12.5px;font-family:inherit">
+                <button class="btn btn-sm btn-secondary" type="button" onclick="document.getElementById('innestoCamInput').click()" title="Scatta una foto al documento">📷 Scatta</button>
+                <button class="btn" ${_innesto.busy ? 'disabled' : ''} onclick="innestoAnalyze()">${_innesto.busy ? 'Lettura in corso…' : (p ? 'Leggi e integra' : 'Leggi e proponi')}</button>
+            </div>
+            ${_innesto.busy ? `<div id="innestoProgress" style="margin-top:10px;font-size:12.5px;color:var(--gold);line-height:1.5">${esc(innestoProgressText())}</div>` : ''}
             <div style="font-size:11.5px;color:var(--text-secondary);margin-top:10px;line-height:1.5">
-                Il documento viene letto dall'AI solo per estrarre i campi. Un file grande transita dal tuo Storage e viene rimosso a lettura finita: niente resta salvato finché non confermi.${_innesto.proposal ? ' <b>Con la proposta aperta, una nuova lettura riempie i buchi</b> (es. la carta d\'identità dopo il contratto) — non cancella niente.' : ''}
+                Legge Claude Opus 5 con output strutturato: ogni campo porta la frase del documento da cui viene, e ciò che non c'è resta vuoto. Un file grande transita dal tuo Storage e viene rimosso a lettura finita: niente resta salvato finché non confermi.${p ? ' <b>Con la proposta aperta, una nuova lettura riempie i buchi</b> (es. la carta d\'identità dopo il contratto) — non cancella niente.' : ''}
             </div>
         </div>
 
-        ${_innesto.notes.length ? `<div class="card" style="margin-bottom:16px;border-color:rgba(212,175,55,0.3)">
-            <div style="font-size:12px;color:var(--gold);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Note di lettura${_innesto.confidence != null ? ' · sicurezza ' + _innesto.confidence + '%' : ''}</div>
-            ${_innesto.notes.map(n => `<div style="font-size:12.5px;color:var(--text-secondary);line-height:1.6">• ${esc(n)}</div>`).join('')}
-        </div>` : ''}
-
+        ${innestoReadCard()}
         ${p ? innestoProposalCard(p) : ''}`;
+    }
+
+    function innestoProgressText() {
+        const s = Math.max(0, Math.round((Date.now() - _innesto.startedAt) / 1000));
+        const n = _innesto.files.length;
+        const what = n ? n + (n === 1 ? ' documento' : ' documenti') + (_innesto.text.trim() ? ' e il testo' : '') : 'il testo';
+        if (_innesto.phase === 'upload') return '⬆ Carico ' + what + ' in transito…';
+        return '🔎 Sto leggendo ' + what + ' con Claude Opus 5… ' + s + ' s' + (s > 25 ? ' — un contratto di molte pagine può richiedere fino a un minuto' : '');
+    }
+
+    // Il verdetto per file + le note: "non riesce a leggerli" diventa una riga
+    // per documento che dice COSA ha letto (o perché non ha potuto).
+    function innestoReadCard() {
+        const fr = _innesto.filesRead, notes = _innesto.notes;
+        if (!fr.length && !notes.length && !_innesto.summary) return '';
+        const cost = _innesto.cost ? ' · ≈ $' + _innesto.cost.toFixed(2) : '';
+        const secs = _innesto.usage ? ' · ' + Math.round(_innesto.usage.ms / 1000) + ' s' : '';
+        return `<div class="card" style="margin-bottom:16px;border-color:rgba(212,175,55,0.3)">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+                <div style="font-size:12px;color:var(--gold);letter-spacing:1px;text-transform:uppercase">Cosa ho letto${_innesto.proposal && _innesto.proposal.material ? ' · ' + (INNESTO_MATERIAL_LABEL[_innesto.proposal.material] || _innesto.proposal.material) : ''}${_innesto.confidence != null ? ' · sicurezza ' + _innesto.confidence + '%' : ''}</div>
+                <div style="font-size:11px;color:var(--text-secondary)">${_innesto.usage ? esc((_innesto.usage.model || 'claude-opus-5').replace('claude-', '')) + secs + cost : ''}</div>
+            </div>
+            ${_innesto.summary ? `<div style="font-size:13.5px;margin-bottom:8px">${esc(_innesto.summary)}</div>` : ''}
+            ${fr.map(f => `<div style="display:flex;gap:8px;align-items:flex-start;font-size:12.5px;line-height:1.5;padding:4px 0;border-top:1px solid var(--border)">
+                <span>${f.legible ? (INNESTO_KIND_ICON[f.kind] || '📄') : '⚠️'}</span>
+                <div style="flex:1;min-width:0"><b>${esc(f.title || f.name)}</b> <span style="color:var(--text-secondary)">— ${esc(f.label)}${f.pages ? ' · ' + f.pages + ' pagine' + (f.clipped ? ' (lette le prime ' + f.readPages + ')' : '') : (f.isText ? ' · ' + esc(f.format || 'testo') + (f.chars ? ', ' + f.chars + ' caratteri' : ', vuoto') : '')}${f.party ? ' · ' + ({ tenant: 'inquilino', landlord: 'proprietario', cotenant: 'co-conduttore' })[f.party] : ''}</span>
+                    ${!f.legible ? `<div style="color:#FF6B35">Illeggibile${f.summary ? ': ' + esc(f.summary) : ''} — rifai la foto (nitida, dritta, ben illuminata) e rileggi.</div>` : (f.summary ? `<div style="color:var(--text-secondary)">${esc(f.summary)}</div>` : '')}
+                </div></div>`).join('')}
+            ${notes.length ? `<div style="margin-top:8px">${notes.map(n => `<div style="font-size:12.5px;color:var(--text-secondary);line-height:1.6">• ${esc(n)}</div>`).join('')}</div>` : ''}
+        </div>`;
+    }
+
+    // Il percorso di una citazione nella forma piatta della proposta
+    // (il modello cita "property.cadastral.foglio", il portale salva
+    // property.foglio).
+    function innestoEvPath(path) {
+        return String(path || '')
+            .replace(/^property\.cadastral\.rendita$/, 'property.renditaCatastale')
+            .replace(/^property\.cadastral\./, 'property.')
+            .replace(/^property\.tabelle\./, 'property.tabelleMillesimali.')
+            .replace(/^coTenants\[(\d+)\]\./, 'coTenants.$1.');
+    }
+    function innestoEvidence(path) { return _innesto.evMap[path] || null; }
+
+    // I campi che una card mostra sempre; gli altri stanno dietro «＋ altri
+    // campi» — ma un campo che il documento ha RIEMPITO si mostra comunque.
+    const INNESTO_CORE = {
+        person: ['name', 'email', 'phone', 'codiceFiscale', 'address', 'birthDate', 'birthPlace'],
+        landlord: ['name', 'email', 'phone', 'codiceFiscale', 'iban', 'address', 'birthDate', 'birthPlace'],
+        property: ['name', 'address', 'rent', 'floor', 'interno', 'sqm', 'rooms', 'foglio', 'particella', 'sub'],
+        contract: ['type', 'startDate', 'endDate', 'rent', 'deposit', 'depositMonths', 'paymentDay', 'installmentMonths', 'cedolareSecca', 'transitionalReason'],
+        lead: ['name', 'email', 'phone', 'request', 'zone', 'budget', 'moveIn', 'language'],
+        preagreement: ['ref', 'status', 'feePct', 'feeEur', 'dueAtSigning', 'depositSplitPct', 'validUntil']
+    };
+    const INNESTO_MATERIAL_LABEL = { contratto: 'contratto', proposta: 'proposta / pre-accordo', identita: 'documenti d\'identità', immobile: 'immobile', messaggio: 'messaggio di un cliente', fattura: 'fattura / conto', altro: 'altro' };
+    const INNESTO_FIELDS = {
+        person: ['name', 'email', 'phone', 'codiceFiscale', 'address', 'birthDate', 'birthPlace', 'nationality', 'docType', 'docNum', 'docIssuer', 'docIssueDate', 'permessoNumero', 'permessoScadenza'],
+        landlord: ['name', 'kind', 'businessName', 'partitaIva', 'email', 'phone', 'codiceFiscale', 'iban', 'address', 'birthDate', 'birthPlace', 'nationality', 'docType', 'docNum', 'docIssuer', 'docIssueDate'],
+        cotenant: ['name', 'email', 'phone', 'codiceFiscale', 'address', 'birthDate', 'birthPlace', 'nationality', 'docType', 'docNum'],
+        property: ['name', 'address', 'city', 'rent', 'sqm', 'rooms', 'bathrooms', 'floor', 'scala', 'interno', 'accessories', 'furnished', 'energyClass', 'sezione', 'foglio', 'particella', 'sub', 'categoria', 'renditaCatastale', 'cadastralData'],
+        contract: ['type', 'startDate', 'endDate', 'durationMonths', 'rent', 'deposit', 'depositMonths', 'paymentDay', 'installmentMonths', 'accessoryCharges', 'condoMode', 'cedolareSecca', 'transitionalReason', 'transitionalDocs', 'esigenzaDi', 'cohabitants', 'otherClauses', 'signaturePlace', 'signatureDate', 'paymentMethod', 'istatPct', 'notes'],
+        studenti: ['corsoStudi', 'universita', 'universitaIndirizzo', 'tipoIscrizione', 'annoAccademico'],
+        lead: ['name', 'email', 'phone', 'request', 'zone', 'budget', 'bedrooms', 'moveIn', 'durationMonths', 'household', 'occupation', 'language', 'side', 'listing', 'channel'],
+        preagreement: ['ref', 'isBoom', 'status', 'acceptedAt', 'feePct', 'feeMonths', 'feeEur', 'feeVatPct', 'feeDue', 'energyCredit', 'depositSplitPct', 'dueAtSigning', 'validUntil', 'extras']
+    };
+    const INNESTO_NUMERIC = ['rent', 'sqm', 'rooms', 'bathrooms', 'deposit', 'depositMonths', 'paymentDay', 'installmentMonths', 'accessoryCharges', 'renditaCatastale', 'durationMonths', 'budget', 'bedrooms', 'feePct', 'feeMonths', 'feeEur', 'feeVatPct', 'energyCredit', 'depositSplitPct', 'dueAtSigning'];
+    const INNESTO_DATES = ['startDate', 'endDate', 'birthDate', 'docIssueDate', 'permessoScadenza', 'signatureDate', 'validUntil', 'acceptedAt'];
+    const INNESTO_SELECT = {
+        type: [['transitorio', 'Transitorio (Allegato B)'], ['studenti', 'Studenti (Allegato C)'], ['3+2', '3+2 canone concordato (Allegato A)'], ['4+4', '4+4 canone libero'], ['ordinaria', 'Ordinaria / altro']],
+        installmentMonths: [[1, 'Mensile'], [2, 'Bimestrale'], [3, 'Trimestrale'], [6, 'Semestrale'], [12, 'Annuale']],
+        cedolareSecca: [['si', 'Sì — cedolare secca'], ['no', 'No — registro + bollo']],
+        condoMode: [['', '—'], ['incluso', 'Incluse nel canone'], ['consuntivo', 'A consuntivo']],
+        esigenzaDi: [['', '—'], ['conduttore', 'Del conduttore'], ['locatore', 'Del locatore']],
+        furnished: [['', '—'], ['yes', 'Sì'], ['no', 'No']],
+        docType: [['', '—'], ['id', 'Carta d\'identità'], ['passport', 'Passaporto'], ['permit', 'Permesso di soggiorno'], ['patente', 'Patente']],
+        kind: [['', 'Persona fisica'], ['fisica', 'Persona fisica'], ['giuridica', 'Società / ente']],
+        household: [['', '—'], ['solo', 'Da solo/a'], ['couple', 'Coppia'], ['family', 'Famiglia'], ['flatmates', 'Coinquilini']],
+        occupation: [['', '—'], ['employed', 'Dipendente'], ['self-employed', 'Autonomo'], ['student', 'Studente'], ['relocating', 'In trasferimento']],
+        language: [['', '—'], ['it', 'Italiano'], ['en', 'Inglese']],
+        side: [['', '—'], ['tenant', 'Cerca casa'], ['landlord', 'Propone un immobile'], ['company', 'Ente / azienda']],
+        channel: [['', '—'], ['whatsapp', 'WhatsApp'], ['email', 'Email'], ['portal', 'Portale'], ['phone', 'Telefono'], ['other', 'Altro']],
+        isBoom: [['', '—'], ['yes', 'Sì'], ['no', 'No']],
+        status: [['', '—'], ['sent', 'Inviata'], ['accepted', 'Accettata'], ['paid', 'Pagata'], ['signed', 'Contratto firmato']],
+        feeDue: [['', '—'], ['move-in', 'All\'ingresso'], ['signing', 'Alla firma della proposta'], ['separate', 'A parte']]
+    };
+
+    function innestoFieldRow(section, key, label, value, opts) {
+        opts = opts || {};
+        const path = section + '.' + key;
+        const ev = innestoEvidence(path);
+        const derived = _innesto.derived[path];
+        const sel = INNESTO_SELECT[key];
+        const type = INNESTO_DATES.indexOf(key) >= 0 ? 'date' : (INNESTO_NUMERIC.indexOf(key) >= 0 ? 'number' : (key === 'email' ? 'email' : 'text'));
+        const v = value == null ? '' : String(value);
+        const refreshPa = (section === 'preagreement' && key === 'ref') || ((section === 'tenant' || section === 'lead') && key === 'email');
+        const control = sel
+            ? `<select onchange="innestoEdit('${esc(section)}','${key}',this.value);${key === 'type' ? 'renderPage()' : ''}"
+                    style="flex:1;min-width:0;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 10px;font-size:13px;font-family:inherit">
+                    ${sel.filter((o, i) => !(key === 'kind' && i === 0 && v)).map(o => `<option value="${esc(String(o[0]))}" ${String(o[0]) === v ? 'selected' : ''}>${esc(o[1])}</option>`).join('')}
+               </select>`
+            : (opts.multiline
+                ? `<textarea rows="2" oninput="innestoEdit('${esc(section)}','${key}',this.value)" style="flex:1;min-width:0;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 10px;font-size:13px;font-family:inherit;resize:vertical">${esc(v)}</textarea>`
+                : `<input value="${esc(v)}" type="${type}" ${type === 'number' ? 'step="any"' : ''} oninput="innestoEdit('${esc(section)}','${key}',this.value)" ${refreshPa ? 'onblur="innestoRefreshPa()"' : ''}
+                    style="flex:1;min-width:0;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 10px;font-size:13px;font-family:inherit">`);
+        return `
+            <div style="padding:7px 0;border-bottom:1px solid var(--border)">
+                <div style="display:flex;gap:10px;align-items:center">
+                    <div style="width:150px;flex-shrink:0;font-size:11.5px;color:var(--text-secondary)">${esc(label)}</div>
+                    ${control}
+                </div>
+                ${ev ? `<div style="margin:3px 0 0 160px;font-size:11px;color:var(--text-secondary);line-height:1.45" title="La frase del documento da cui è stato letto">❝ ${esc(ev.quote)} ❞${ev.file || ev.page ? ` <span style="opacity:.7">— ${ev.file ? 'doc. ' + ev.file : ''}${ev.page ? (ev.file ? ', ' : '') + 'pag. ' + ev.page : ''}</span>` : ''}</div>`
+                   : (derived ? `<div style="margin:3px 0 0 160px;font-size:11px;color:var(--gold);opacity:.85">calcolato: ${esc(derived)}</div>`
+                   : (v && !opts.quiet ? `<div style="margin:3px 0 0 160px;font-size:11px;color:#FF6B35;opacity:.85">senza citazione dal documento — verifica</div>` : ''))}
+            </div>`;
+    }
+
+    function innestoFieldsBlock(section, d, kind, coIndex) {
+        const D = window.BOOM_DATAOPS;
+        const labels = kind === 'property' ? D.LABELS.property : (kind === 'contract' ? D.LABELS.contract : ((kind === 'lead' || kind === 'preagreement') && D.LABELS[kind] ? D.LABELS[kind] : D.LABELS.person));
+        const all = INNESTO_FIELDS[kind === 'landlord' ? 'landlord' : kind === 'cotenant' ? 'cotenant' : kind];
+        const core = INNESTO_CORE[kind === 'landlord' ? 'landlord' : kind === 'cotenant' ? 'person' : kind === 'person' ? 'person' : kind];
+        const expKey = coIndex != null ? section : kind === 'landlord' ? 'landlord' : kind === 'person' ? 'tenant' : kind;
+        const expanded = !!_innesto.expanded[expKey];
+        const show = all.filter(k => expanded || core.indexOf(k) >= 0 || (d[k] != null && d[k] !== '' && !(kind === 'contract' && k === 'paymentDay') ));
+        const hidden = all.length - show.length;
+        let html = show.map(k => innestoFieldRow(section, k, labels[k] || k, d[k], { multiline: /transitionalReason|otherClauses|notes|cohabitants|accessories|request|extras/.test(k), quiet: /^(paymentDay|installmentMonths|cedolareSecca|type|propertyType|kind|name|cadastralData)$/.test(k) })).join('');
+        if (kind === 'contract' && d.type === 'studenti') {
+            const st = d.studenti || {};
+            html += `<div style="font-size:11px;color:var(--gold);letter-spacing:1px;text-transform:uppercase;margin:10px 0 2px">Allegato C — corso di studi</div>`
+                + INNESTO_FIELDS.studenti.map(k => innestoFieldRow(section + '.studenti', k, D.LABELS.studenti[k], st[k], { quiet: true })).join('');
+        }
+        if (hidden > 0 || expanded) {
+            html += `<div style="padding-top:8px"><button class="btn btn-sm btn-secondary" type="button" onclick="_innesto.expanded['${esc(expKey)}']=${expanded ? 'false' : 'true'};renderPage()">${expanded ? '− meno campi' : '＋ altri ' + hidden + ' campi'}</button></div>`;
+        }
+        return html;
+    }
+
+    // Il pool di un aggancio: users (con ruolo) + landlords (senza), ognuno
+    // marcato con la SUA collection — è dove atterra un aggiornamento.
+    function innestoPools() {
+        const users = S.users || [];
+        return {
+            landlord: users.filter(u => u.role === 'landlord' || u.role === 'owner').map(u => Object.assign({ _col: 'users' }, u))
+                .concat((S.landlords || []).map(l => Object.assign({ _col: 'landlords' }, l))),
+            tenant: users.filter(u => u.role === 'tenant').map(u => Object.assign({ _col: 'users' }, u)),
+            property: (S.properties || []).map(p => Object.assign({ _col: 'properties' }, p))
+        };
+    }
+    // L'aggancio di una sezione: scelto (id) · rifiutato (null) · proposto.
+    function innestoLinkFor(section, d, pool, kind, linksMap) {
+        const V = window.BOOM_DATAOPS;
+        const chosen = linksMap[section];
+        if (chosen === null) return { record: null, why: '', explicit: true, auto: V.findMatch(d || {}, pool, kind) };
+        if (chosen) { const r = pool.find(x => x.id === chosen); return { record: r || null, why: r ? 'scelto dall\'archivio' : '', explicit: true, auto: null }; }
+        if (!d) return { record: null, why: '', explicit: false, auto: null };
+        const m = V.findMatch(d, pool, kind);
+        return { record: m.match, why: m.why, explicit: false, auto: m };
+    }
+
+    // LA MODIFICA PROPOSTA — prima → dopo sul record che c'è già. Un buco si
+    // riempie da solo (spunta accesa), un valore che cambia parte spento e lo
+    // confermi tu, con la frase del documento accanto.
+    function innestoDiffBlock(section, d, record, kind) {
+        const D = window.BOOM_DATAOPS;
+        const diff = D.diffRecord(kind === 'property' ? 'property' : 'person', d, record);
+        const sel = _innesto.diffs[section] || {};
+        if (!diff.rows.length) return `<div style="font-size:12.5px;color:var(--text-secondary);line-height:1.6">Verrà usato il record esistente: il documento non aggiunge né cambia nulla.</div>`;
+        return `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:6px">Il documento ${diff.fills ? 'riempie <b>' + diff.fills + '</b> ' + (diff.fills === 1 ? 'campo vuoto' : 'campi vuoti') : ''}${diff.fills && diff.changes ? ' e ' : ''}${diff.changes ? 'cambierebbe <b>' + diff.changes + '</b> ' + (diff.changes === 1 ? 'valore' : 'valori') + ' (da confermare)' : ''}. Nessun doppione: si aggiorna il record esistente.</div>`
+            + diff.rows.map(r => {
+                const on = sel[r.key] !== undefined ? !!sel[r.key] : r.action === 'fill';
+                const ev = innestoEvidence(section + '.' + r.key);
+                return `<label style="display:flex;gap:10px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--border);cursor:pointer;font-size:12.5px">
+                    <input type="checkbox" ${on ? 'checked' : ''} onchange="innestoToggleDiff('${esc(section)}','${r.key}',this.checked)" style="margin-top:3px">
+                    <div style="width:140px;flex-shrink:0;color:var(--text-secondary)">${esc(r.label)}</div>
+                    <div style="flex:1;min-width:0;line-height:1.5">
+                        ${r.action === 'change' ? `<span style="text-decoration:line-through;opacity:.6">${esc(String(r.before))}</span> → ` : ''}<b>${esc(String(r.after))}</b>
+                        <span style="margin-left:6px;font-size:10.5px;letter-spacing:.5px;text-transform:uppercase;color:${r.action === 'fill' ? '#00FF88' : '#FF6B35'}">${r.action === 'fill' ? 'riempie' : 'cambia'}</span>
+                        ${ev ? `<div style="font-size:11px;color:var(--text-secondary)">❝ ${esc(ev.quote)} ❞</div>` : ''}
+                    </div></label>`;
+            }).join('');
+    }
+
+    // Su un record agganciato i valori LETTI restano correggibili: un CF
+    // letto male non deve costringere a «scollegare» per poterlo sistemare.
+    function innestoEditToggle(section, d, kind, coIndex) {
+        const k = section + ':edit';
+        const on = !!_innesto.expanded[k];
+        return `<div style="padding-top:8px"><button class="btn btn-sm btn-secondary" type="button" onclick="_innesto.expanded['${esc(k)}']=${on ? 'false' : 'true'};renderPage()">${on ? '− nascondi i valori letti' : '✎ correggi i valori letti'}</button></div>`
+            + (on ? `<div style="margin-top:8px">${innestoFieldsBlock(section, d, kind, coIndex)}</div>` : '');
     }
 
     function innestoProposalCard(p) {
         const V = window.BOOM_DATAOPS;
         const val = V.validateProposal(p);
+        const paBlocked = !!(_innesto.pa && (_innesto.pa.loading || _innesto.pa.error || (_innesto.pa.candidates || []).length));
+        const pools = innestoPools();
         const blocks = [];
 
-        const field = (section, key, label, value, type) => `
-            <div style="display:flex;gap:10px;align-items:center;padding:7px 0;border-bottom:1px solid var(--border)">
-                <div style="width:150px;flex-shrink:0;font-size:11.5px;color:var(--text-secondary)">${esc(label)}</div>
-                <input value="${esc(value == null ? '' : String(value))}" type="${type || 'text'}"
-                    oninput="innestoEdit('${section}','${key}',this.value)"
-                    style="flex:1;min-width:0;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:7px 10px;font-size:13px;font-family:inherit">
-            </div>`;
-
-        const section = (key, icon, title, fields, matchKind, pool) => {
+        const section = (key, icon, title, kind, pool, poolKind) => {
             const d = p[key];
             if (!d) return '';
-            const m = matchKind ? V.findMatch(d, pool || [], matchKind) : { match: null };
-            const linked = _innesto.links[key];
-            const isLinked = linked === undefined ? !!m.match : linked !== null;
+            const link = innestoLinkFor(key, d, pool, poolKind, _innesto.links);
+            const rec = link.record;
             return `
             <div class="card" style="margin-bottom:14px">
                 <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-                    <strong style="font-size:14px">${icon} ${esc(title)}</strong>
-                    ${m.match
-                        ? `<label style="display:flex;gap:8px;align-items:center;font-size:12px;color:${isLinked ? '#00FF88' : 'var(--text-secondary)'};cursor:pointer">
-                             <input type="checkbox" ${isLinked ? 'checked' : ''} onchange="innestoLink('${key}',this.checked,'${esc(m.match.id)}')">
-                             Collega a «${esc(m.match.name || m.match.email || m.match.id)}» — ${esc(m.why)}
+                    <strong style="font-size:14px">${icon} ${esc(title)}${rec ? ' <span style="font-weight:300;color:var(--text-secondary)">· ' + esc(rec.name || rec.email || rec.id) + '</span>' : ''}</strong>
+                    ${rec
+                        ? `<label style="display:flex;gap:8px;align-items:center;font-size:12px;color:#00FF88;cursor:pointer">
+                             <input type="checkbox" checked onchange="innestoLink('${key}',this.checked,'${esc(rec.id)}')">
+                             già in archivio — ${esc(link.why)}
                            </label>`
-                        : `<span style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold)">nuovo</span>`}
+                        : (link.explicit && link.auto && link.auto.match
+                            ? `<label style="display:flex;gap:8px;align-items:center;font-size:12px;color:var(--text-secondary);cursor:pointer">
+                                 <input type="checkbox" onchange="innestoLink('${key}',this.checked,'${esc(link.auto.match.id)}')">
+                                 collega a «${esc(link.auto.match.name || link.auto.match.email || link.auto.match.id)}» invece di creare
+                               </label>`
+                            : `<span style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold)">nuovo</span>`)}
                 </div>
-                ${isLinked && m.match
-                    ? `<div style="font-size:12.5px;color:var(--text-secondary);line-height:1.6">Verrà usato il record esistente. I campi qui sotto non creeranno un doppione.</div>`
-                    : fields.map(f => field(key, f[0], f[1], d[f[0]], f[2])).join('')}
+                ${rec ? innestoDiffBlock(key, d, rec, poolKind) + innestoEditToggle(key, d, kind) : innestoFieldsBlock(key, d, kind)}
             </div>`;
         };
 
@@ -27972,8 +29331,6 @@ IBAN: ${l.iban || '-'}`;
         // con la persona giusta a due tap di distanza. Il "fantasma" apre
         // le tre vie: aggancio dall'archivio, compilazione a mano, o un
         // altro documento letto in integrazione.
-        const poolLandlord = (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').concat(S.landlords || []);
-        const poolTenant = (S.users || []).filter(u => u.role === 'tenant');
         const ghost = (key, icon, title, pool, required) => {
             if (p[key] || !p.contract) return '';
             const chosen = _innesto.links[key] || '';
@@ -27995,52 +29352,69 @@ IBAN: ${l.iban || '-'}`;
             </div>`;
         };
 
-        blocks.push(section('landlord', '🏛', 'Proprietario', [
-            ['name', 'Nome'], ['email', 'Email', 'email'], ['phone', 'Telefono'],
-            ['codiceFiscale', 'Codice fiscale'], ['iban', 'IBAN'], ['address', 'Residenza']
-        ], 'person', poolLandlord) || ghost('landlord', '🏛', 'Proprietario', poolLandlord, false));
+        blocks.push(section('landlord', '🏛', 'Proprietario', 'landlord', pools.landlord, 'person') || ghost('landlord', '🏛', 'Proprietario', pools.landlord, false));
+        blocks.push(section('property', '🏠', 'Immobile', 'property', pools.property, 'property') || ghost('property', '🏠', 'Immobile', pools.property, true));
+        blocks.push(section('tenant', '👤', 'Inquilino', 'person', pools.tenant, 'person') || ghost('tenant', '👤', 'Inquilino', pools.tenant, true));
+        (p.coTenants || []).forEach((co, i) => {
+            const key = 'coTenants.' + i;
+            const link = innestoLinkFor(key, co, pools.tenant, 'person', _innesto.coLinks);
+            const rec = link.record;
+            blocks.push(`
+            <div class="card" style="margin-bottom:14px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+                    <strong style="font-size:14px">👥 Co-conduttore ${i + 1}${rec ? ' <span style="font-weight:300;color:var(--text-secondary)">· ' + esc(rec.name || rec.id) + '</span>' : ''}</strong>
+                    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+                        ${rec ? `<label style="display:flex;gap:8px;align-items:center;font-size:12px;color:#00FF88;cursor:pointer"><input type="checkbox" checked onchange="innestoLinkCo(${i},this.checked,'${esc(rec.id)}')"> già in archivio — ${esc(link.why)}</label>`
+                              : `<span style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--gold)">nuovo</span>`}
+                        <button class="btn btn-sm btn-secondary" type="button" onclick="innestoRemoveCo(${i})" title="Non è un co-conduttore">✕ togli</button>
+                    </div>
+                </div>
+                <div style="font-size:11.5px;color:var(--text-secondary);margin-bottom:6px">Firma il contratto col PROPRIO link e per l'AdE è una riga RLI con il suo codice fiscale.</div>
+                ${rec ? innestoDiffBlock(key, co, rec, 'person') + innestoEditToggle(key, co, 'cotenant', i) : innestoFieldsBlock(key, co, 'cotenant', i)}
+            </div>`);
+        });
+        if (p.lead) blocks.push(innestoLeadCard(p));
+        if (p.preagreement) blocks.push(innestoPaCard(p));
+        blocks.push(_innesto.skipContract && p.contract ? innestoSkippedContractCard(p) : section('contract', '📋', 'Contratto', 'contract', [], null));
 
-        blocks.push(section('property', '🏠', 'Immobile', [
-            ['name', 'Nome'], ['address', 'Indirizzo'], ['rent', 'Canone mensile €', 'number'],
-            ['sqm', 'Metri quadri', 'number'], ['rooms', 'Locali', 'number'], ['bathrooms', 'Bagni', 'number'],
-            ['floor', 'Piano'], ['interno', 'Interno'], ['cadastralData', 'Dati catastali'], ['energyClass', 'Classe energetica']
-        ], 'property', S.properties || []) || ghost('property', '🏠', 'Immobile', S.properties || [], true));
-
-        blocks.push(section('tenant', '👤', 'Inquilino', [
-            ['name', 'Nome'], ['email', 'Email', 'email'], ['phone', 'Telefono'],
-            ['codiceFiscale', 'Codice fiscale'], ['birthDate', 'Data di nascita', 'date'],
-            ['birthPlace', 'Luogo di nascita'], ['address', 'Residenza']
-        ], 'person', poolTenant) || ghost('tenant', '👤', 'Inquilino', poolTenant, true));
-
-        blocks.push(section('contract', '📋', 'Contratto', [
-            ['type', 'Tipo'], ['startDate', 'Inizio', 'date'], ['endDate', 'Fine', 'date'],
-            ['rent', 'Canone mensile €', 'number'], ['deposit', 'Deposito €', 'number'],
-            ['paymentDay', 'Giorno pagamento', 'number'], ['installmentMonths', 'Cadenza (mesi)', 'number'],
-            ['accessoryCharges', 'Oneri accessori €', 'number'], ['transitionalReason', 'Motivo transitorio']
-        ], null, null));
-
-        // Riepilogo onesto: distingue cosa nasce da cosa viene solo collegato,
-        // così l'operatore sa in anticipo l'effetto del pulsante.
-        const willLink = (key, pool, kind) => {
-            if (_innesto.links[key] === null) return false;              // "scollega" esplicito
-            if (_innesto.links[key]) return true;                        // aggancio scelto
-            if (!p[key]) return false;                                   // sezione assente e nessuna scelta
-            return !!V.findMatch(p[key], pool, kind).match;              // aggancio proposto
+        // Riepilogo onesto: distingue cosa nasce, cosa si aggiorna, cosa si
+        // archivia, così l'operatore sa in anticipo l'effetto del pulsante.
+        const linkOf = (key, pool, kind) => innestoLinkFor(key, p[key], pool, kind, _innesto.links).record;
+        const willCreate = [], willUpdate = [];
+        const updCount = (key, d, rec, kind) => {
+            const diff = V.diffRecord(kind, d, rec);
+            const sel = _innesto.diffs[key] || {};
+            return diff.rows.filter(r => sel[r.key] !== undefined ? !!sel[r.key] : r.action === 'fill').length;
         };
-        const willCreate = [];
-        if (p.landlord && !willLink('landlord', poolLandlord, 'person')) willCreate.push('proprietario');
-        if (p.property && !willLink('property', S.properties || [], 'property')) willCreate.push('immobile');
-        if (p.tenant && !willLink('tenant', poolTenant, 'person')) willCreate.push('inquilino');
+        [['landlord', pools.landlord, 'person', 'proprietario'], ['property', pools.property, 'property', 'immobile'], ['tenant', pools.tenant, 'person', 'inquilino']].forEach(([key, pool, kind, name]) => {
+            if (!p[key]) return;
+            const rec = linkOf(key, pool, kind);
+            if (!rec) willCreate.push(name);
+            else { const n = updCount(key, p[key], rec, kind); if (n) willUpdate.push(name + ' (' + n + (n === 1 ? ' campo' : ' campi') + ')'); }
+        });
+        (p.coTenants || []).forEach((co, i) => {
+            const rec = innestoLinkFor('coTenants.' + i, co, pools.tenant, 'person', _innesto.coLinks).record;
+            if (!rec) willCreate.push('co-conduttore ' + (i + 1));
+            else { const n = updCount('coTenants.' + i, co, rec, 'person'); if (n) willUpdate.push('co-conduttore ' + (i + 1) + ' (' + n + ' campi)'); }
+        });
         // Il contratto ha bisogno di ENTRAMBE le gambe (immobile e inquilino).
         // Prometterlo quando una manca era la via per un "Innesto completato"
         // SENZA contratto: l'apply lo saltava in silenzio e l'operatore lo
         // scopriva giorni dopo, controllando l'archivio. Una gamba vale
         // anche AGGANCIATA dall'archivio (il fantasma qui sopra).
         const contractLegs = [];
-        if (p.contract && !p.property && !_innesto.links.property) contractLegs.push("l'immobile");
-        if (p.contract && !p.tenant && !_innesto.links.tenant) contractLegs.push("l'inquilino");
-        if (p.contract && !contractLegs.length) willCreate.push('contratto + piano rate');
-        if (!willCreate.length) willCreate.push('solo collegamenti (nessun nuovo record)');
+        const wantContract = p.contract && !_innesto.skipContract;
+        if (wantContract && !p.property && !_innesto.links.property) contractLegs.push("l'immobile");
+        if (wantContract && !p.tenant && !_innesto.links.tenant) contractLegs.push("l'inquilino");
+        if (wantContract && !contractLegs.length) willCreate.push('contratto + piano rate' + (p.coTenants && p.coTenants.length ? ' (' + (p.coTenants.length + 1) + ' conduttori)' : ''));
+        if (p.lead && _innesto.create.lead !== false && !innestoLeadDup(p.lead)) willCreate.push('lead');
+        if (p.preagreement && _innesto.create.preagreement === true && !(_innesto.pa && _innesto.pa.found)) willCreate.push('proposta nel console');
+        const docsN = _innesto.readDocs.length;
+        const parts = [];
+        if (willCreate.length) parts.push('creerà ' + willCreate.join(' · '));
+        if (willUpdate.length) parts.push('aggiornerà ' + willUpdate.join(' · '));
+        if (_innesto.archive && docsN) parts.push('archivierà ' + docsN + (docsN === 1 ? ' documento' : ' documenti'));
+        if (!parts.length) parts.push('solo collegamenti (nessun nuovo record)');
 
         return `
         ${blocks.join('')}
@@ -28058,131 +29432,555 @@ IBAN: ${l.iban || '-'}`;
         </div>` : ''}
         <div class="card" style="position:sticky;bottom:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
             <div style="flex:1;min-width:220px">
-                <div style="font-size:14px">${val.ok ? 'Pronto: ' + willCreate.join(' · ') : 'Correggi gli errori per procedere'}</div>
-                <div style="font-size:11.5px;color:var(--text-secondary);margin-top:3px">Le rate vengono generate con lo stesso motore della firma digitale (nessun doppione possibile).</div>
+                <div style="font-size:14px">${paBlocked ? 'Verifica prima la proposta trovata nel console' : (val.ok ? 'Pronto: ' + esc(parts.join(' — ')) : 'Correggi gli errori per procedere')}</div>
+                <div style="font-size:11.5px;color:var(--text-secondary);margin-top:3px;display:flex;gap:14px;flex-wrap:wrap;align-items:center">
+                    <span>Le rate vengono generate con lo stesso motore della firma digitale (nessun doppione possibile).</span>
+                    ${docsN ? `<label style="display:flex;gap:6px;align-items:center;cursor:pointer"><input type="checkbox" ${_innesto.archive ? 'checked' : ''} onchange="_innesto.archive=this.checked;renderPage()"> archivia i ${docsN} documenti letti, legati a ciò che nasce</label>` : ''}
+                </div>
             </div>
             <button class="btn btn-sm" onclick="innestoReset()">Annulla</button>
-            <button class="btn" ${val.ok && !_innesto.busy ? '' : 'disabled'} onclick="innestoApply()">${_innesto.busy ? 'Creazione…' : 'Crea nel portale'}</button>
+            <button class="btn" ${val.ok && !_innesto.busy && !paBlocked ? '' : 'disabled'} onclick="innestoApply()">${_innesto.busy ? 'Creazione…' : 'Crea nel portale'}</button>
         </div>`;
     }
 
-    function innestoFile(input) {
-        const f = input.files && input.files[0];
-        if (!f) return;
-        if (f.size > 8 * 1024 * 1024) { toast('error', 'File troppo grande', 'Massimo 8 MB'); input.value = ''; return; }
-        _innesto.file = f;
-        const el = document.getElementById('innestoFileName');
-        if (el) el.textContent = f.name;
+    // ── Il materiale: file, incolla, scatta ─────────────────────────────
+    function innestoAddFiles(list) {
+        const files = Array.from(list || []);
+        if (!files.length) return;
+        for (const f of files) {
+            if (_innesto.files.length >= INNESTO_MAX_FILES) { toast('warning', 'Massimo ' + INNESTO_MAX_FILES + ' file per lettura', 'Leggi questi, poi «Leggi e integra» con gli altri'); break; }
+            const kind = innestoFileKind(f);
+            if (!kind) { toast('error', 'Formato non leggibile', f.name + ' — vanno bene PDF, foto, Word, Excel, OpenDocument, email, HTML, testo/CSV/RTF'); continue; }
+            // Le FOTO non hanno un cancello: si riducono a 2000px prima di
+            // partire (una da 12 MB diventa ~500 KB). Gli altri file valgono
+            // fino al tetto dello Storage di transito.
+            if (kind !== 'image' && f.size > INNESTO_MAX_FILE) { toast('error', 'File oltre i 25 MB', f.name + ' — esporta il PDF a qualità inferiore, oppure fotografa le pagine che contano'); continue; }
+            if (_innesto.files.some(x => x.name === f.name && x.size === f.size)) continue;
+            _innesto.files.push(f);
+        }
+        renderPage();
+    }
+    function innestoRemoveFile(i) { _innesto.files.splice(i, 1); renderPage(); }
+    function innestoDrop(e) {
+        e.preventDefault();
+        const el = document.getElementById('innestoDrop'); if (el) el.style.borderColor = 'var(--border)';
+        innestoAddFiles(e.dataTransfer && e.dataTransfer.files);
+    }
+    // Ctrl+V di uno screenshot (la chat WhatsApp, la pagina della visura):
+    // l'immagine negli appunti diventa un file letto come gli altri.
+    function innestoPaste(e) {
+        const items = (e.clipboardData && e.clipboardData.items) || [];
+        const files = [];
+        for (const it of items) {
+            if (it.kind === 'file') { const f = it.getAsFile(); if (f) files.push(new File([f], f.name && f.name !== 'image.png' ? f.name : 'incollato-' + (_innesto.files.length + files.length + 1) + '.png', { type: f.type })); }
+        }
+        if (files.length) { e.preventDefault(); innestoAddFiles(files); }
+    }
+    function innestoText(v) { _innesto.text = v; }
+    function innestoHint(v) { _innesto.hint = v; }
+
+    // Il body di una function Vercel ha un tetto di PIATTAFORMA di 4,5 MB:
+    // un PDF base64 sopra ~3,3 MB moriva in un "errore 413" nudo emesso
+    // dall'edge prima che l'endpoint partisse (la lezione del 28/08/2026).
+    // Sotto questo tetto — che qui vale per la SOMMA dei file inline — il
+    // file viaggia inline; sopra, TRANSITA dallo Storage (cartella propria
+    // documents/<uid>/innesto-tmp/) e all'API va solo l'URL — e il transito
+    // si cancella a lettura finita, così la promessa della pagina ("niente
+    // resta salvato finché non confermi") tiene.
+    async function innestoAnalyze() {
+        const text = _innesto.text || '';
+        if (!text.trim() && !_innesto.files.length) { toast('error', 'Serve del materiale', 'Allega un file o incolla del testo'); return; }
+        _innesto.busy = true; _innesto.phase = 'prep'; _innesto.startedAt = Date.now(); renderPage();
+        clearInterval(_innestoTick);
+        _innestoTick = setInterval(() => { const el = document.getElementById('innestoProgress'); if (el) el.textContent = innestoProgressText(); }, 1000);
+        const transitRefs = [];
+        try {
+            let sent = await innestoSend(INNESTO_INLINE_MAX, transitRefs);
+            if (sent.r.status === 413) {
+                // Il 413 lo emette l'edge di Vercel PRIMA della function (body
+                // oltre 4,5 MB): non è «file troppo grande», è la via sbagliata.
+                // Si riprova UNA volta con tutti i file in transito.
+                sent = await innestoSend(0, transitRefs);
+            }
+            const { r, data, prepared } = sent;
+            if (!r.ok || !data.ok) {
+                // il server dice PERCHÉ la lettura non è riuscita e cosa fare
+                // (documento illeggibile, foto HEIC, troppi file, tempo scaduto):
+                // «ai_bad_json» all'operatore non diceva niente
+                const why = data.detail
+                    || (r.status === 413 ? 'il materiale non passa in un solo invio nemmeno in transito: togli un file e riprova'
+                    : data.error === 'file_too_large' ? 'un file supera i 20 MB: esporta il PDF a qualità inferiore o fotografa le pagine che contano'
+                    : data.error === 'files_too_large' ? 'i file insieme superano i 20 MB: leggili in due giri («Leggi e integra»)'
+                    : data.error === 'too_many_files' ? 'massimo ' + INNESTO_MAX_FILES + ' file per lettura'
+                    : data.error === 'unsupported_media_type' ? 'formato non leggibile: vanno bene PDF, foto, Word, Excel, email, HTML, testo'
+                    : (data.error || ('errore ' + r.status)));
+                throw new Error(why);
+            }
+            innestoIngest(data, prepared);
+        } catch (e) {
+            console.error('[Innesto]', e);
+            toast('error', 'Lettura non riuscita', e.message);
+        } finally {
+            clearInterval(_innestoTick); _innestoTick = null;
+            // Il transito non resta: il file su Storage era solo il trasporto.
+            transitRefs.forEach(ref => ref.delete().catch(() => {}));
+            _innesto.busy = false; _innesto.phase = ''; renderPage();
+        }
     }
 
     // Il body di una function Vercel ha un tetto di PIATTAFORMA di 4,5 MB:
     // un PDF base64 sopra ~3,3 MB moriva in un "errore 413" nudo emesso
     // dall'edge prima che l'endpoint partisse (la lezione del 28/08/2026).
-    // Sotto questo tetto il file viaggia inline come sempre; sopra, TRANSITA
-    // dallo Storage (cartella propria documents/<uid>/innesto-tmp/) e all'API
-    // va solo l'URL — e il transito si cancella a lettura finita, così la
-    // promessa della pagina ("niente resta salvato finché non confermi") tiene.
-    const INNESTO_INLINE_MAX = 3 * 1024 * 1024;
-
-    async function innestoAnalyze() {
-        const text = (document.getElementById('innestoText') || {}).value || '';
-        if (!text.trim() && !_innesto.file) { toast('error', 'Serve del materiale', 'Incolla del testo o allega un file'); return; }
-        _innesto.busy = true; renderPage();
-        let transitRef = null;
-        try {
-            const payload = { text: text.slice(0, 60000), context: { known: {
-                landlords: (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').map(u => u.name).filter(Boolean).slice(0, 60),
-                properties: (S.properties || []).map(p => p.name).filter(Boolean).slice(0, 60)
-            } } };
-            if (_innesto.file) {
-                let blob = _innesto.file;
-                let mediaType = blob.type || 'application/pdf';
+    // Sotto `inlineBudget` — la SOMMA dei file inline — il file viaggia
+    // inline; sopra, TRANSITA dallo Storage (cartella propria
+    // documents/<uid>/innesto-tmp/) e all'API va solo l'URL — e il transito
+    // si cancella a lettura finita, così la promessa della pagina ("niente
+    // resta salvato finché non confermi") tiene. I file di testo puro
+    // (txt, eml, csv, html) non possono transitare (storage.rules accetta
+    // immagini, PDF e ZIP): vanno inline, e sono piccoli per natura; gli
+    // Office (docx/xlsx/odt) SONO zip e transitano come tali.
+    async function innestoSend(inlineBudget, transitRefs) {
+        const text = _innesto.text || '';
+        const mb = (n) => (n / 1024 / 1024).toFixed(1) + ' MB';
+        const payload = { text: text.slice(0, 60000), files: [], context: { hint: _innesto.hint || '', known: {
+            landlords: (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').map(u => u.name).concat((S.landlords || []).map(l => l.name)).filter(Boolean).slice(0, 60),
+            tenants: (S.users || []).filter(u => u.role === 'tenant').map(u => u.name).filter(Boolean).slice(0, 60),
+            properties: (S.properties || []).map(p => [p.name, p.address].filter(Boolean).join(' — ')).filter(Boolean).slice(0, 60)
+        } } };
+        const prepared = [];   // { blob, mediaType, file } — per l'archivio alla conferma
+        let inlineTotal = 0;
+        _innesto.phase = 'prep';
+        for (let i = 0; i < _innesto.files.length; i++) {
+            const file = _innesto.files[i];
+            let blob = file;
+            let mediaType = innestoMediaType(file);
+            const kind = innestoFileKind(file);
+            const isHeic = /hei[cf]/i.test(mediaType) || /\.(heic|heif)$/i.test(file.name || '');
+            if (kind === 'image') {
                 // Le foto si riducono PRIMA di scegliere la via: una foto da
-                // 8 MB diventa un JPEG leggero e viaggia inline (stessa
-                // compressione del convertitore AdE — una copia sola).
-                if (/^image\//i.test(mediaType)) {
-                    try {
-                        const buf = await adeCompressImage(await blob.arrayBuffer(), mediaType, 0.85, 2000);
-                        blob = new Blob([buf], { type: 'image/jpeg' });
-                        mediaType = 'image/jpeg';
-                    } catch (_) { /* decodifica fallita: si tenta col file originale */ }
+                // 12 MB diventa un JPEG leggero e viaggia inline (stessa
+                // compressione del convertitore AdE — una copia sola). Una
+                // HEIC che il browser sa decodificare (Safari) diventa JPEG
+                // qui; su Chrome la converte heic2any, caricato al bisogno.
+                let shrunk = null;
+                try { shrunk = await adeCompressImage(await blob.arrayBuffer(), mediaType, 0.85, 2000); } catch (_) { shrunk = null; }
+                if (!shrunk && isHeic) {
+                    const jpg = await innestoHeicToJpeg(blob);
+                    if (jpg) {
+                        try { shrunk = await adeCompressImage(await jpg.arrayBuffer(), 'image/jpeg', 0.85, 2000); } catch (_) { shrunk = null; }
+                        if (!shrunk) { blob = jpg; mediaType = 'image/jpeg'; }
+                    }
                 }
-                if (blob.size <= INNESTO_INLINE_MAX) {
-                    payload.base64 = await new Promise((res, rej) => {
-                        const r = new FileReader();
-                        r.onload = () => res(String(r.result).split(',')[1] || '');
-                        r.onerror = rej;
-                        r.readAsDataURL(blob);
-                    });
-                } else {
-                    const safeName = String(_innesto.file.name || 'documento').replace(/[^\w.\-]+/g, '_').slice(-80);
-                    transitRef = storage.ref('documents/' + auth.currentUser.uid + '/innesto-tmp/' + Date.now() + '_' + safeName);
-                    await transitRef.put(blob, { contentType: mediaType });
-                    payload.fileUrl = await transitRef.getDownloadURL();
-                }
-                payload.mediaType = mediaType;
+                if (shrunk) { blob = new Blob([shrunk], { type: 'image/jpeg' }); mediaType = 'image/jpeg'; }
             }
-            const token = await auth.currentUser.getIdToken();
-            const r = await fetch('/api/portal/ingest', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-                body: JSON.stringify(payload)
-            });
-            const data = await r.json().catch(() => ({}));
-            if (!r.ok || !data.ok) {
-                const why = r.status === 413 || data.error === 'file_too_large'
-                        ? 'file oltre il limite di 8 MB — comprimilo o allega solo le pagine che contano'
-                    : data.error === 'unsupported_media_type' ? 'formato non leggibile: servono PDF, JPG, PNG o WebP'
-                    // il server ora dice PERCHÉ la lettura non è riuscita e
-                    // cosa fare (documento troppo lungo, scansione illeggibile):
-                    // «ai_bad_json» all'operatore non diceva niente
-                    : (data.detail || data.error || ('errore ' + r.status));
-                throw new Error(why);
-            }
-            if (data.empty || !data.proposal || !Object.keys(data.proposal).length) {
-                toast('warning', 'Nessun dato riconosciuto', 'Prova ad aggiungere più contesto o un documento più leggibile');
-                _innesto.notes = (_innesto.proposal ? _innesto.notes || [] : []).concat(data.notes || []);
-                // Una lettura vuota non butta via la proposta che l'operatore
-                // ha già davanti (e magari ha già corretto).
+            const zipBased = /\.(docx|xlsx|odt)$/i.test(file.name || '') || /openxmlformats|opendocument/.test(mediaType);
+            const canTransit = kind !== 'text' || zipBased;
+            const entry = { name: file.name, mediaType };
+            const fits = inlineTotal + blob.size <= inlineBudget;
+            if (fits || !canTransit) {
+                if (!fits && blob.size > INNESTO_INLINE_MAX) throw new Error('«' + file.name + '» è un file di testo troppo grande per un solo invio (' + mb(blob.size) + '): incollane il contenuto nel riquadro, oppure dividilo.');
+                inlineTotal += blob.size;
+                entry.base64 = await new Promise((res, rej) => {
+                    const r = new FileReader();
+                    r.onload = () => res(String(r.result).split(',')[1] || '');
+                    r.onerror = rej;
+                    r.readAsDataURL(blob);
+                });
             } else {
-                // IL FASCICOLO A PIÙ LETTURE: se una proposta è già aperta, la
-                // nuova lettura ne riempie i BUCHI (mergeProposal: un campo
-                // pieno — magari corretto a mano — non si tocca mai). Così il
-                // PDF del contratto + la foto del documento + due righe di
-                // WhatsApp diventano UNA proposta, senza ricominciare da capo.
-                const D = window.BOOM_DATAOPS;
-                const fresh = D.normalizeProposal(data.proposal);
-                const integrating = !!_innesto.proposal;
-                let next = integrating && D.mergeProposal ? D.mergeProposal(_innesto.proposal, fresh) : fresh;
-                if (D.deriveProposal) next = D.deriveProposal(next);
-                _innesto.proposal = next;
-                _innesto.notes = integrating ? (_innesto.notes || []).concat(data.notes || []) : (data.notes || []);
-                _innesto.confidence = data.confidence;
-                if (!integrating) _innesto.links = {};
-                _innesto.file = null;   // il prossimo giro legge il PROSSIMO documento
-                toast('success', integrating ? 'Proposta integrata' : 'Proposta pronta', 'Controlla i campi prima di confermare');
+                _innesto.phase = 'upload';
+                const safeName = String(file.name || 'documento').replace(/[^\w.\-]+/g, '_').slice(-80);
+                const ref = storage.ref('documents/' + auth.currentUser.uid + '/innesto-tmp/' + Date.now() + '_' + i + '_' + safeName);
+                await ref.put(blob, { contentType: zipBased ? 'application/zip' : mediaType });
+                transitRefs.push(ref);
+                entry.fileUrl = await ref.getDownloadURL();
             }
-        } catch (e) {
-            console.error('[Innesto]', e);
-            toast('error', 'Lettura non riuscita', e.message);
-        } finally {
-            // Il transito non resta: il file su Storage era solo il trasporto.
-            if (transitRef) transitRef.delete().catch(() => {});
-            _innesto.busy = false; renderPage();
+            payload.files.push(entry);
+            prepared.push({ blob, mediaType, file });
         }
+        _innesto.phase = 'read';
+        const token = await auth.currentUser.getIdToken();
+        const r = await fetch('/api/portal/ingest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: JSON.stringify(payload)
+        });
+        const data = await r.json().catch(() => ({}));
+        return { r, data, prepared };
     }
 
+    // Che cos'è un file per l'intake: pdf · image · text · '' (non leggibile).
+    function innestoFileKind(f) {
+        const t = String(f.type || '').toLowerCase(), n = String(f.name || '');
+        if (/pdf/.test(t) || /\.pdf$/i.test(n)) return 'pdf';
+        if (/^image\//.test(t) || /\.(jpe?g|png|webp|gif|heic|heif)$/i.test(n)) return 'image';
+        if (INNESTO_TEXTY_RE.test(n) || /^(text\/|message\/rfc822|application\/(json|rtf|msword|vnd\.openxmlformats|vnd\.oasis\.opendocument))/.test(t)) return 'text';
+        return '';
+    }
+    function innestoFileIcon(f) {
+        const k = innestoFileKind(f);
+        return k === 'pdf' ? '📄' : k === 'image' ? '🖼' : k === 'text' ? (/\.(xlsx|csv|tsv)$/i.test(f.name || '') ? '📊' : /\.eml$/i.test(f.name || '') ? '✉️' : '📝') : '📎';
+    }
+    // Il tipo dichiarato al server (che comunque riconosce i byte): un
+    // browser manda "" per .eml e .md e application/octet-stream per molto.
+    function innestoMediaType(f) {
+        const t = String(f.type || '').split(';')[0].trim().toLowerCase();
+        if (t && t !== 'application/octet-stream') return t;
+        const ext = ((/\.([a-z0-9]+)$/i.exec(f.name || '') || [])[1] || '').toLowerCase();
+        const m = { pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', heic: 'image/heic', heif: 'image/heif',
+            docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', doc: 'application/msword', odt: 'application/vnd.oasis.opendocument.text',
+            xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', csv: 'text/csv', tsv: 'text/csv', txt: 'text/plain', md: 'text/markdown', markdown: 'text/markdown',
+            eml: 'message/rfc822', html: 'text/html', htm: 'text/html', json: 'application/json', rtf: 'application/rtf' };
+        return m[ext] || 'application/octet-stream';
+    }
+    let _heicLib = null;
+    function innestoHeicLib() {
+        if (window.heic2any) return Promise.resolve(window.heic2any);
+        if (_heicLib) return _heicLib;
+        _heicLib = new Promise((res, rej) => {
+            const el = document.createElement('script');
+            el.src = INNESTO_HEIC_LIB; el.async = true;
+            el.onload = () => window.heic2any ? res(window.heic2any) : rej(new Error('heic2any assente'));
+            el.onerror = () => rej(new Error('heic2any non caricato'));
+            document.head.appendChild(el);
+        }).catch(e => { _heicLib = null; throw e; });
+        return _heicLib;
+    }
+    async function innestoHeicToJpeg(blob) {
+        try {
+            const lib = await innestoHeicLib();
+            const out = await lib({ blob, toType: 'image/jpeg', quality: 0.9 });
+            const b = Array.isArray(out) ? out[0] : out;
+            return b && b.size ? b : null;
+        } catch (e) { console.warn('[Innesto] HEIC non convertita:', e && e.message); return null; }
+    }
+
+    // ── LE CREAZIONI IN PIÙ (21/09/2026) ────────────────────────────────
+    // La proposta del console, se esiste: si cerca per riferimento BOOM-…
+    // (stampato sul documento) o per email del cliente. Se il deal è già
+    // una proposta, il contratto nasce DA quella (convert: identità,
+    // documenti, cadenza, mandato) e non da qui — un secondo contratto
+    // sullo stesso deal è il doppione più caro.
+    function innestoPaKey(p) {
+        const ref = String(p && p.preagreement && p.preagreement.ref || '').trim().toUpperCase();
+        const email = String(p && ((p.tenant && p.tenant.email) || (p.lead && p.lead.email)) || '').trim().toLowerCase();
+        return (/^BOOM-[A-Z0-9]{3,12}$/.test(ref) ? ref : '') || (email ? 'email:' + email : '');
+    }
+    async function innestoLookupPa(p) {
+        if (!p || !p.preagreement) return;
+        const state = _innesto, key = innestoPaKey(p);
+        if (!key || (state.pa && state.pa.key === key)) return;
+        const job = { key, loading: true, found: null, candidates: [], error: '' };
+        state.pa = job; state.skipContract = false;
+        try {
+            const exactRef = key.indexOf('email:') !== 0;
+            const snap = await db.collection('preAgreements').where(exactRef ? 'ref' : 'tenant.email', '==', exactRef ? key : key.slice(6)).limit(exactRef ? 2 : 5).get();
+            if (_innesto !== state || state.pa !== job || innestoPaKey(state.proposal || p) !== key) return;
+            const docs = snap.docs.map(d => Object.assign({}, d.data(), { id: d.id }));
+            // Solo un riferimento BOOM univoco identifica il deal. La stessa
+            // email può avere altre case/periodi: i candidati si confermano.
+            const candidates = exactRef ? docs : docs.filter(d => d.status !== 'revoked');
+            const found = exactRef && candidates.length === 1 ? candidates[0] : null;
+            Object.assign(job, { loading: false, found, candidates: found ? [] : candidates });
+            if (found) state.skipContract = true;
+        } catch (e) {
+            if (_innesto !== state || state.pa !== job || innestoPaKey(state.proposal || p) !== key) return;
+            Object.assign(job, { loading: false, error: (e && e.message) || 'ricerca non riuscita' });
+        }
+        renderPage();
+    }
+    function innestoRefreshPa() {
+        const p = _innesto.proposal;
+        if (!p || !p.preagreement) return;
+        const key = innestoPaKey(p);
+        if (_innesto.pa && _innesto.pa.key === key) return;
+        const pending = innestoLookupPa(p);
+        if (!key) _innesto.pa = { key, loading: false, found: null, candidates: [], error: '' };
+        renderPage();
+        return pending;
+    }
+    function innestoChoosePa(id) {
+        const lookup = _innesto.pa;
+        if (!lookup || lookup.loading || _innesto.busy || lookup.key !== innestoPaKey(_innesto.proposal)) return;
+        const found = id ? (lookup.candidates || []).find(d => d.id === id) : null;
+        if (id && !found) return;
+        _innesto.pa = Object.assign({}, lookup, { found, candidates: [] });
+        _innesto.skipContract = !!found;
+        renderPage();
+    }
+    function innestoLeadDup(ld) {
+        const email = String((ld && ld.email) || '').toLowerCase();
+        const digits = String((ld && ld.phone) || '').replace(/\D/g, '').slice(-9);
+        return (S.leads || []).find(l => (email && String(l.email || '').toLowerCase() === email)
+            || (digits.length >= 9 && String(l.phone || '').replace(/\D/g, '').slice(-9) === digits)) || null;
+    }
+    function innestoLeadCard(p) {
+        const ld = p.lead, dup = innestoLeadDup(ld);
+        const on = _innesto.create.lead !== false;
+        const sideLabel = { tenant: 'cerca casa', landlord: 'propone un immobile', company: 'ente / azienda' }[ld.side] || '';
+        return `
+            <div class="card" style="margin-bottom:14px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+                    <strong style="font-size:14px">💬 Lead${sideLabel ? ' <span style="font-weight:300;color:var(--text-secondary)">· ' + esc(sideLabel) + '</span>' : ''}</strong>
+                    ${dup
+                        ? `<span style="font-size:12px;color:#00FF88">già fra i lead — ${esc(dup.name || dup.email || dup.phone || dup.id)}</span>`
+                        : `<label style="display:flex;gap:8px;align-items:center;font-size:12px;cursor:pointer"><input type="checkbox" ${on ? 'checked' : ''} onchange="_innesto.create.lead=this.checked;renderPage()"> crea il lead</label>`}
+                </div>
+                <div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;line-height:1.5">${dup
+                    ? 'Questa persona è già fra i lead: non se ne crea un doppione. <a href="#" onclick="event.preventDefault();goTo(\'leads\')">Apri Lead</a> per rispondere.'
+                    : 'Nasce un lead nello stesso schema del sito e dei portali: il Lead Brain lo classifica, la card arriva su Telegram entro un minuto e il Commerciale propone la prima risposta.'}</div>
+                ${innestoFieldsBlock('lead', ld, 'lead')}
+            </div>`;
+    }
+    function innestoPaCard(p) {
+        const pa = p.preagreement, L = _innesto.pa || {}, found = L.found;
+        const on = _innesto.create.preagreement === true;
+        const candidates = L.candidates || [];
+        let head = '', body = '';
+        if (L.loading) {
+            head = `<span style="font-size:12px;color:var(--text-secondary)">cerco la proposta nel console…</span>`;
+        } else if (L.error) {
+            head = `<span style="font-size:12px;color:#FF6B35">ricerca da completare</span>`;
+            body = `<div style="font-size:12px;margin-bottom:8px">Ricerca nel console non riuscita (${esc(L.error)}). Prima di creare, verifica se la proposta esiste già.</div><button class="btn btn-sm" type="button" onclick="_innesto.pa=null;innestoRefreshPa()">Riprova la ricerca</button>`;
+        } else if (candidates.length) {
+            head = `<span style="font-size:12px;color:#FF6B35">scegli il deal corretto</span>`;
+            body = `<div style="font-size:12px;margin-bottom:8px">La ricerca ha trovato queste proposte. Verifica immobile e periodo prima di collegarne una.</div>`
+                + candidates.map(d => `<div style="margin-bottom:8px;font-size:12px"><b>${esc(d.ref || d.id)}</b> · ${esc(d.property && d.property.address || 'indirizzo non disponibile')} · ${esc(d.lease && d.lease.startDate || 'decorrenza non disponibile')} · ${esc(d.status || 'stato non disponibile')}<button class="btn btn-sm" type="button" onclick="innestoChoosePa('${esc(d.id)}')">Collega questa proposta</button></div>`).join('')
+                + `<button class="btn btn-sm btn-secondary" type="button" onclick="innestoChoosePa('')">Nessuna di queste</button>`;
+        } else if (found) {
+            const st = found.status || 'sent';
+            head = `<span style="font-size:12px;color:#00FF88">già nel console — ${esc(found.ref || found.id)} · ${esc(st)}${found.contractId ? ' · contratto creato' : ''}</span>`;
+            body = found.contractId
+                ? `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;line-height:1.5">Questo deal è già un contratto (<a href="#" onclick="event.preventDefault();goTo('contracts')">apri Contratti</a>): l'Innesto <b>non ne crea un secondo</b>. Le persone e l'immobile letti si agganciano e si aggiornano come sempre.</div>`
+                : `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;line-height:1.5">La proposta esiste (${esc(st)}). Il contratto si crea <b>dalla proposta</b> — con identità, documenti caricati, cadenza e mandato che porta con sé — non da qui.</div>
+                   <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+                       <button class="btn btn-sm" type="button" onclick="innestoConvertPa('${esc(found.id)}')">→ Contratto dalla proposta</button>
+                       <label style="display:flex;gap:6px;align-items:center;font-size:12px;cursor:pointer"><input type="checkbox" ${_innesto.skipContract ? 'checked' : ''} onchange="_innesto.skipContract=this.checked;renderPage()"> non creare il contratto da qui</label>
+                   </div>`;
+        } else {
+            head = `<label style="display:flex;gap:8px;align-items:center;font-size:12px;cursor:pointer"><input type="checkbox" ${on ? 'checked' : ''} onchange="_innesto.create.preagreement=this.checked;renderPage()"> crea la proposta nel console</label>`;
+            body = `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px;line-height:1.5">${L.error ? 'Ricerca nel console non riuscita (' + esc(L.error) + '). ' : (pa.isBoom === 'yes' ? 'Sembra una proposta BOOM ma nel console non c\'è, o il riferimento non è leggibile. ' : '')}Con la spunta nasce una proposta con questi termini (stessa API della console): il cliente riceve il link, accetta, paga, e il contratto nasce da lì. Servono indirizzo dell'immobile, proprietario, decorrenza e canone.</div>`;
+        }
+        return `
+            <div class="card" style="margin-bottom:14px">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+                    <strong style="font-size:14px">📝 Proposta / pre-accordo</strong>
+                    ${head}
+                </div>
+                ${body}
+                ${innestoFieldsBlock('preagreement', pa, 'preagreement')}
+            </div>`;
+    }
+    function innestoSkippedContractCard(p) {
+        const found = _innesto.pa && _innesto.pa.found;
+        return `
+            <div class="card" style="margin-bottom:14px;border-style:dashed">
+                <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+                    <strong style="font-size:14px">📋 Contratto</strong>
+                    <span style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:var(--text-secondary)">non creato da qui</span>
+                </div>
+                <div style="font-size:12.5px;color:var(--text-secondary);margin-top:8px;line-height:1.5">${found && found.contractId
+                    ? 'Il contratto di questa proposta esiste già: le persone e l\'immobile letti si agganciano, il contratto no.'
+                    : 'Il contratto nasce dalla proposta nel console (→ Contratto dalla proposta, qui sopra), con tutto ciò che la proposta porta con sé.'}${found && !found.contractId ? ' <a href="#" onclick="event.preventDefault();_innesto.skipContract=false;renderPage()">Crealo comunque da qui</a>' : ''}</div>
+            </div>`;
+    }
+    async function innestoConvertPa(paId, opts) {
+        opts = opts || {};
+        const state = _innesto, lookup = state.pa;
+        if (_innesto.busy || !lookup || lookup.loading || lookup.key !== innestoPaKey(_innesto.proposal) || !lookup.found || lookup.found.id !== paId) {
+            toast('warning', 'Verifica prima la proposta', 'Il materiale è cambiato: completa la ricerca e controlla il deal da convertire.'); return;
+        }
+        try {
+            const token = await auth.currentUser.getIdToken();
+            if (_innesto !== state || state.pa !== lookup || lookup.key !== innestoPaKey(state.proposal)) return;
+            const r = await fetch('/api/preagreement/convert', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+                body: JSON.stringify({ id: paId, createProperty: !!opts.createProperty }) });
+            const data = await r.json().catch(() => ({}));
+            if (r.ok && data.ok) {
+                toast('success', data.already ? 'Contratto già esistente' : 'Contratto creato dalla proposta', 'Firme, rate e registrazione partono dal contratto');
+                if (_innesto !== state || state.pa !== lookup || lookup.key !== innestoPaKey(state.proposal)) return;
+                innestoReset(); await loadDataFresh(true); goTo('contracts'); return;
+            }
+            if (data.error === 'no_property' && data.canCreate && !opts.createProperty) {
+                if (window.confirm('Nel portal non c\'è un immobile collegato a questa proposta. Crearlo dalla proposta (indirizzo e proprietario) e procedere?')) return innestoConvertPa(paId, { createProperty: true });
+                return;
+            }
+            if (data.error === 'overlap') {
+                const o = data.overlap || {};
+                toast('error', 'Contratto sovrapposto', 'Sullo stesso immobile è vivo il contratto di ' + (o.tenantName || '?') + (o.startDate ? ' (' + o.startDate + ' → ' + (o.endDate || '?') + ')' : '') + ': gestiscilo dalla console pre-accordo.');
+                return;
+            }
+            toast('error', 'Conversione non riuscita', data.detail || data.error || ('errore ' + r.status));
+        } catch (e) { toast('error', 'Conversione non riuscita', e.message); }
+    }
+    // «1.100,00» · «1100» · «250.5» → numero, senza toLocaleString.
+    function innestoMoney(v) {
+        const s = String(v == null ? '' : v).replace(/[^\d.,-]/g, '');
+        if (!s) return null;
+        let t = s;
+        if (s.indexOf(',') >= 0) t = s.replace(/\./g, '').replace(',', '.');
+        else if (/\.\d{3}$/.test(s) && (s.match(/\./g) || []).length === 1 && s.length > 4) t = s.replace('.', '');
+        const n = Number(t);
+        return isFinite(n) ? n : null;
+    }
+
+    // La risposta di una lettura → lo stato della pagina. UNA copia: la lettura
+    // dal portal (innestoAnalyze) e la proposta arrivata dal telefono
+    // (innestoLoadSeed — lo Scrivano, STUDIO_SCRIVANO §4 passo 4) passano di
+    // qui: verdetti per file, citazioni, costo, merge a più letture, documenti
+    // da archiviare o da legare.
+    function innestoIngest(data, prepared) {
+        const D = window.BOOM_DATAOPS;
+        const F = window.BOOM_CONTRACT_FIELDS;
+        const offset = _innesto.filesRead.length;
+        // I documenti letti restano in mano al portale (non allo Storage):
+        // alla conferma si archiviano, legati a ciò che hanno fatto nascere.
+        (data.files || []).forEach((fr, i) => {
+            const prep = prepared[fr.index - 1];
+            if (!prep) return;
+            // Un documento GIÀ in archivio (arrivato dal telefono, archiviato
+            // dallo Smistatore) non si ricarica: alla conferma si LEGA.
+            if (prep.archived) _innesto.readDocs.push({ archived: prep.archived, meta: fr });
+            else _innesto.readDocs.push({ blob: prep.blob, mediaType: prep.mediaType, file: prep.file, meta: fr });
+        });
+        _innesto.filesRead = _innesto.filesRead.concat((data.files || []).map(f => Object.assign({}, f, { index: f.index + offset })));
+        (data.evidence || []).forEach(e => {
+            const path = innestoEvPath(e.path);
+            if (!_innesto.evMap[path]) _innesto.evMap[path] = { quote: e.quote, page: e.page, file: e.file ? e.file + offset : null };
+        });
+        Object.keys(data.derived || {}).forEach(k => { if (!_innesto.derived[k]) _innesto.derived[k] = data.derived[k]; });
+        if (data.usage) {
+            _innesto.usage = data.usage;
+            const rate = INNESTO_RATES[data.usage.model] || INNESTO_RATES['claude-opus-5'];
+            _innesto.cost += ((data.usage.inputTokens || 0) * rate.in + (data.usage.outputTokens || 0) * rate.out
+                + (data.usage.cacheReadTokens || 0) * rate.cacheRead + (data.usage.cacheWriteTokens || 0) * rate.cacheWrite) / 1e6;
+        }
+        if (data.summary && !_innesto.summary) _innesto.summary = data.summary;
+        if (data.empty || !data.proposal || !Object.keys(data.proposal).length) {
+            toast('warning', 'Nessun dato riconosciuto', data.message || 'Prova ad aggiungere più contesto o un documento più leggibile');
+            _innesto.notes = (_innesto.notes || []).concat(data.notes || []);
+            // Una lettura vuota non butta via la proposta che l'operatore
+            // ha già davanti (e magari ha già corretto).
+        } else {
+            // IL FASCICOLO A PIÙ LETTURE: se una proposta è già aperta, la
+            // nuova lettura ne riempie i BUCHI (mergeProposal: un campo
+            // pieno — magari corretto a mano — non si tocca mai). Così il
+            // PDF del contratto + la foto del documento + due righe di
+            // WhatsApp diventano UNA proposta, senza ricominciare da capo.
+            const fresh = D.normalizeProposal(data.proposal);
+            const integrating = !!_innesto.proposal;
+            let next = integrating && D.mergeProposal ? D.mergeProposal(_innesto.proposal, fresh) : fresh;
+            if (D.deriveProposal) next = D.deriveProposal(next, { parseCadastral: F && F.parseCadastral });
+            Object.keys(next.derived || {}).forEach(k => { if (!_innesto.derived[k]) _innesto.derived[k] = next.derived[k]; });
+            delete next.derived;
+            _innesto.proposal = next;
+            if (next.preagreement) innestoLookupPa(next);
+            _innesto.notes = integrating ? (_innesto.notes || []).concat(data.notes || []) : (data.notes || []);
+            _innesto.confidence = data.confidence;
+            if (!integrating) { _innesto.links = {}; _innesto.coLinks = {}; _innesto.diffs = {}; }
+            toast('success', integrating ? 'Proposta integrata' : 'Proposta pronta', 'Controlla i campi (e le citazioni) prima di confermare');
+        }
+        if (!data.empty) { _innesto.files = []; _innesto.text = ''; }   // il prossimo giro legge i PROSSIMI documenti; una lettura vuota li lascia lì per riprovare
+    }
+
+    // ── LA PORTA DAL TELEFONO: #innesto=<docId> ─────────────────────────
+    // Il worker dello Scrivano ha letto un documento archiviato e ha scritto
+    // la proposta in scrivanoProposals/<docId>; il link nella card Telegram
+    // apre QUI, con la proposta già seminata dallo stesso post-processing di
+    // una lettura dal portal. Il documento non viene ricaricato: alla conferma
+    // si lega a ciò che fa nascere. Il frammento sopravvive al giro di login
+    // (next = pathname + search + hash).
+    function innestoSeedFromHash() {
+        const m = /^#?innesto=([^&]+)/.exec(window.location.hash || '');
+        if (!m) return false;
+        let id = '';
+        try { id = decodeURIComponent(m[1]); } catch (_) { id = m[1]; }
+        id = String(id).replace(/[^\w.\-]+/g, '').slice(0, 120);
+        if (!id) return false;
+        if (_innesto.seedId !== id) { _innesto = innestoEmpty(); _innesto.seedId = id; }
+        return true;
+    }
+    async function innestoLoadSeed(id) {
+        try {
+            const snap = await db.collection('scrivanoProposals').doc(id).get();
+            const rec = snap.exists ? snap.data() : null;
+            if (!rec) throw new Error('Nessuna proposta per questo documento: il link è vecchio, oppure la lettura non è ancora partita.');
+            if (rec.status !== 'done') {
+                throw new Error(rec.status === 'failed'
+                    ? 'La lettura dal telefono non è riuscita: ' + (rec.detail || rec.error || 'errore') + ' — puoi rileggere il documento da qui.'
+                    : 'La lettura è ancora in corso (' + rec.status + '): riapri il link tra un minuto.');
+            }
+            if (rec.application) {
+                const a = rec.application;
+                _innesto.seedApplication = a;
+                throw new Error(a.status === 'applied'
+                    ? 'Questa proposta è già stata confermata. I record sono in archivio; apri Contratti o Documenti per consultarli.'
+                    : 'La conferma di questa proposta è già iniziata e richiede verifica. Controlla i record in archivio prima di altre modifiche; non viene creata una seconda copia.');
+            }
+            const d = rec.document || {};
+            const prepared = [{ archived: { id: d.id || id, url: d.fileUrl || '', name: d.fileName || d.name || 'documento', mimeType: d.mimeType || '' } }];
+            _innesto.seedDoc = d;
+            innestoIngest(Object.assign({ ok: true }, rec), prepared);
+            _innesto.seedDone = true;
+        } catch (e) {
+            console.error('[Innesto] seed', e);
+            _innesto.seedError = e.message || String(e);
+        } finally {
+            _innesto.seedLoading = false;
+            renderPage();
+        }
+    }
+    function innestoSeedCard() {
+        if (!_innesto.seedId) return '';
+        if (_innesto.seedLoading) return `<div class="card" style="margin-bottom:16px;border-color:rgba(212,175,55,0.3)"><div style="font-size:13px;color:var(--gold)">📲 Carico la proposta letta dal telefono…</div></div>`;
+        if (_innesto.seedError) {
+            const contract = /^contracts\/([\w-]+)$/.exec(_innesto.seedApplication?.links?.contract || '');
+            return `<div class="card" style="margin-bottom:16px;border-color:#FF6B35"><div style="font-size:12px;color:#FF6B35;letter-spacing:1px;text-transform:uppercase;margin-bottom:6px">Proposta dal telefono</div><div style="font-size:13px;line-height:1.6">${esc(_innesto.seedError)}</div>${_innesto.seedApplication ? `<div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">${contract ? `<button class="btn btn-secondary" onclick="viewContract('${contract[1]}')">Apri il contratto registrato</button>` : '<button class="btn btn-secondary" onclick="goTo(\'contracts\')">Apri Contratti</button>'}<button class="btn btn-secondary" onclick="goTo('documents')">Verifica Documenti</button></div>` : ''}</div>`;
+        }
+        const d = _innesto.seedDoc || {};
+        return `<div class="card" style="margin-bottom:16px;border-color:rgba(212,175,55,0.3)"><div style="font-size:12.5px;line-height:1.6">📲 Proposta letta dal telefono da <b>${esc(d.name || d.fileName || _innesto.seedId)}</b>${d.fileUrl ? ` · <a href="${esc(d.fileUrl)}" target="_blank" rel="noopener" style="color:var(--gold)">apri il documento</a>` : ''}. Il file è già in archivio: alla conferma viene legato a ciò che nasce, non ricaricato.</div></div>`;
+    }
+
+    // Una modifica a mano: sezione piatta ('tenant'), annidata
+    // ('contract.studenti') o co-conduttore ('coTenants.0').
+    function innestoTarget(section) {
+        const p = _innesto.proposal; if (!p) return null;
+        const parts = String(section).split('.');
+        let t = p;
+        for (const part of parts) {
+            if (t == null) return null;
+            if (Array.isArray(t)) t = t[Number(part)];
+            else { if (t[part] == null && part === 'studenti') t[part] = {}; t = t[part]; }
+        }
+        return t && typeof t === 'object' ? t : null;
+    }
     function innestoEdit(section, key, value) {
-        if (!_innesto.proposal || !_innesto.proposal[section]) return;
-        const numeric = ['rent', 'sqm', 'rooms', 'bathrooms', 'deposit', 'depositMonths',
-                         'paymentDay', 'installmentMonths', 'accessoryCharges'];
-        _innesto.proposal[section][key] = numeric.indexOf(key) >= 0
-            ? (value === '' ? null : Number(value)) : value;
+        const t = innestoTarget(section); if (!t) return;
+        t[key] = INNESTO_NUMERIC.indexOf(key) >= 0 ? (value === '' ? null : Number(value)) : value;
+        if (_innesto.pa && _innesto.pa.key !== innestoPaKey(_innesto.proposal)) {
+            _innesto.pa = null; _innesto.skipContract = false;
+        }
+        if (section === 'contract' && key === 'type' && value === 'studenti' && !t.studenti) t.studenti = { corsoStudi: '', universita: '', universitaIndirizzo: '', tipoIscrizione: '', annoAccademico: '' };
         // Nessun renderPage(): riscrivere il DOM mentre si digita farebbe
         // perdere il cursore. La validazione si aggiorna al blur/azione.
     }
     function innestoLink(section, on, matchId) {
         _innesto.links[section] = on ? matchId : null;
+        renderPage();
+    }
+    function innestoLinkCo(i, on, matchId) {
+        _innesto.coLinks['coTenants.' + i] = on ? matchId : null;
+        renderPage();
+    }
+    function innestoRemoveCo(i) {
+        if (!_innesto.proposal || !_innesto.proposal.coTenants) return;
+        _innesto.proposal.coTenants.splice(i, 1);
+        if (!_innesto.proposal.coTenants.length) delete _innesto.proposal.coTenants;
+        _innesto.coLinks = {};
+        renderPage();
+    }
+    function innestoToggleDiff(section, key, on) {
+        _innesto.diffs[section] = _innesto.diffs[section] || {};
+        _innesto.diffs[section][key] = !!on;
         renderPage();
     }
 
@@ -28201,154 +29999,509 @@ IBAN: ${l.iban || '-'}`;
         renderPage();
     }
     function innestoReset() {
-        _innesto = { proposal: null, matches: null, notes: [], confidence: null, busy: false, file: null, links: {} };
+        clearInterval(_innestoTick); _innestoTick = null;
+        _innesto = innestoEmpty();
         renderPage();
     }
 
+    // Il patch scelto sul record esistente (fill di default, change solo se
+    // spuntato) — o niente, se la sezione è nuova o non è agganciata.
+    function innestoPatchFor(sectionKey, d, record, kind) {
+        const V = window.BOOM_DATAOPS;
+        const diff = V.diffRecord(kind, d, record);
+        const sel = _innesto.diffs[sectionKey] || {};
+        const patch = V.applyDiff(diff, sel);
+        const n = diff.rows.filter(r => sel[r.key] !== undefined ? !!sel[r.key] : r.action === 'fill').length;
+        return n ? { patch, n } : null;
+    }
+    // Un profilo users nei DUE schemi (sign + wizard), come magic-sign/submit:
+    // così Allegati, Scheda e RLI vedono l'identità raccolta dal documento.
+    function innestoUserDoc(d, role) {
+        return {
+            name: d.name || d.businessName || '', email: d.email || '', phone: d.phone || '', role: role,
+            codiceFiscale: d.codiceFiscale || '', cf: d.codiceFiscale || '',
+            address: d.address || '', birthDate: d.birthDate || '', dob: d.birthDate || '',
+            birthPlace: d.birthPlace || '', pob: d.birthPlace || '', nationality: d.nationality || '',
+            idDocType: d.docType || '', docType: d.docType || '', idDocNumber: d.docNum || '', docNum: d.docNum || '',
+            docIssuer: d.docIssuer || '', docIssueDate: d.docIssueDate || ''
+        };
+    }
+
     // Creazione nell'ordine delle dipendenze: proprietario → immobile →
-    // inquilino → contratto → rate. Ogni passo riusa lo stesso schema che
-    // usano le maschere del portale, così il dato importato è
-    // indistinguibile da quello inserito a mano.
+    // inquilino → co-conduttori → contratto → rate → scadenze → PDF →
+    // archivio dei documenti. Ogni passo riusa lo stesso schema che usano le
+    // maschere del portale (saveContract, saveUser), così il dato importato
+    // è indistinguibile da quello inserito a mano — token di firma compresi.
     async function innestoApply() {
         const V = window.BOOM_DATAOPS;
         const p = _innesto.proposal;
-        if (!p) return;
+        if (!p || _innesto.busy) return;
+        const key = p.preagreement ? innestoPaKey(p) : '';
+        if (key && (!_innesto.pa || _innesto.pa.key !== key)) {
+            await innestoLookupPa(p);
+            toast('info', 'Ricerca della proposta aggiornata', 'Controlla il risultato prima di confermare la creazione.'); return;
+        }
+        if (key && (_innesto.pa.loading || _innesto.pa.error || (_innesto.pa.candidates || []).length)) {
+            toast('warning', 'Verifica prima la proposta', 'Completa la ricerca e scegli il deal corretto, oppure nessuno dei candidati.'); return;
+        }
         const val = V.validateProposal(p);
         if (!val.ok) { toast('error', 'Ci sono errori da correggere'); return; }
+        if (_innesto.archive && (_innesto.readDocs || []).some(innestoArchiveNeedsZip) && !window.JSZip) {
+            toast('warning', 'Archivio ZIP non pronto', 'Attendi il caricamento della pagina e riprova: nessun dato è stato creato.'); return;
+        }
         _innesto.busy = true; renderPage();
 
-        const created = [];
+        const created = [], updated = [], warnings = [], documentResults = [];
+        const pools = innestoPools();
+        const seedRef = _innesto.seedId ? db.collection('scrivanoProposals').doc(_innesto.seedId) : null;
+        let applicationToken = null;
+        // The reservation is durable, without an expiring lease: after a crash
+        // the exact partial result needs review, never a second import. Each
+        // primary record and its link are committed in the same transaction.
+        const record = async (key, ref, data, create = false) => {
+            if (!seedRef) {
+                if (data) await ref.update(data);
+                return;
+            }
+            await db.runTransaction(async tx => {
+                const snap = await tx.get(seedRef), a = snap.data()?.application;
+                if (!a || a.token !== applicationToken || a.status !== 'applying') throw new Error('Conferma da verificare: prenotazione non disponibile.');
+                const existing = await tx.get(ref);
+                if (create && existing.exists) throw new Error('Il record esiste già: verificare prima di proseguire.');
+                if (!create && !existing.exists) throw new Error('Il record collegato non è più disponibile: ricarica i dati.');
+                if (data) { if (create) tx.set(ref, data); else tx.update(ref, data); }
+                tx.update(seedRef, { application: { ...a, links: { ...a.links, [key]: ref.path }, updatedAt: firebase.firestore.FieldValue.serverTimestamp() } });
+            });
+        };
+        const createRecord = async (collection, data, key) => {
+            if (!seedRef) return db.collection(collection).add(data);
+            const ref = db.collection(collection).doc();
+            await record(key, ref, data, true);
+            return ref;
+        };
+        const finish = async status => {
+            if (!seedRef || !applicationToken) return;
+            await db.runTransaction(async tx => {
+                const snap = await tx.get(seedRef), a = snap.data()?.application;
+                if (!a || a.token !== applicationToken || a.status !== 'applying') throw new Error('Esito della conferma da verificare.');
+                tx.update(seedRef, { application: { ...a, status, warnings: [...new Set(warnings)], created, updated,
+                    documents: documentResults.map(row => ({ ...row, ref: a.links[row.key] || row.sourceRef })),
+                    completedAt: firebase.firestore.FieldValue.serverTimestamp() } });
+            });
+        };
         try {
             const now = firebase.firestore.FieldValue.serverTimestamp();
+            const uuid = () => crypto.randomUUID ? crypto.randomUUID() : ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c => (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16));
+            if (seedRef) {
+                const token = uuid();
+                const claimed = await db.runTransaction(async tx => {
+                    const snap = await tx.get(seedRef), rec = snap.exists ? snap.data() : null;
+                    if (!rec || rec.status !== 'done') throw new Error('Proposta non disponibile: ricarica la lettura dal telefono.');
+                    if (rec.application) return false;
+                    // Pre-release confirmations did not have a receipt. Do not
+                    // import again a document already linked by Innesto.
+                    const documentId = rec.document?.id || _innesto.seedId;
+                    const source = await tx.get(db.collection('documents').doc(documentId));
+                    if (source.exists && source.data()?.innestoAt) throw new Error('Documento già confermato con Innesto: controlla i record collegati in archivio.');
+                    tx.update(seedRef, { application: { status: 'applying', token, by: S.profile.id,
+                        startedAt: now, links: {}, warnings: [] } });
+                    return true;
+                });
+                if (!claimed) {
+                    toast('warning', 'Conferma già registrata', 'Controlla Contratti e Documenti: questa proposta non viene applicata una seconda volta.');
+                    _innesto.busy = false; renderPage(); return;
+                }
+                applicationToken = token;
+            }
+            const resolve = async (sectionKey, d, pool, kind, linksMap, create, label) => {
+                // Lo STESSO pool della card: con pool diversi la card diceva
+                // «verrà usato il record esistente» e l'apply ne creava un doppione.
+                const link = innestoLinkFor(sectionKey, d, pool, kind, linksMap);
+                if (link.record) {
+                    const rec = link.record;
+                    if (d) {
+                        const pf = innestoPatchFor(sectionKey, d, rec, kind === 'property' ? 'property' : 'person');
+                        if (pf) {
+                            const patch = Object.assign({}, pf.patch, { updatedAt: now, updatedBy: 'innesto' });
+                            await record(sectionKey, db.collection(rec._col || 'users').doc(rec.id), patch);
+                            Object.assign(rec, pf.patch);
+                            updated.push(label + ' (' + pf.n + (pf.n === 1 ? ' campo' : ' campi') + ')');
+                        }
+                    }
+                    if (seedRef) await record(sectionKey, db.collection(rec._col || 'users').doc(rec.id));
+                    return rec.id;
+                }
+                if (!d) return null;
+                const id = await create(d, sectionKey);
+                created.push(label);
+                return id;
+            };
 
             // 1 — Proprietario
-            let ownerId = _innesto.links.landlord || null;
-            if (p.landlord && !ownerId) {
-                // Lo STESSO pool della card (users + landlords): con pool
-                // diversi la card diceva «verrà usato il record esistente»
-                // e l'apply ne creava un doppione.
-                const pool = (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').concat(S.landlords || []);
-                const m = _innesto.links.landlord === null ? { match: null } : V.findMatch(p.landlord, pool, 'person');
-                if (m.match) ownerId = m.match.id;
-                else {
-                    const ref = await db.collection('users').add({
-                        name: p.landlord.name, email: p.landlord.email || '', phone: p.landlord.phone || '',
-                        codiceFiscale: p.landlord.codiceFiscale || '', iban: p.landlord.iban || '',
-                        address: p.landlord.address || '', birthDate: p.landlord.birthDate || '',
-                        birthPlace: p.landlord.birthPlace || '', role: 'landlord',
-                        source: 'innesto', createdAt: now
-                    });
-                    ownerId = ref.id;
-                    S.users.push({ id: ref.id, name: p.landlord.name, email: p.landlord.email || '', role: 'landlord' });
-                    created.push('proprietario');
-                }
-            }
+            let ownerId = await resolve('landlord', p.landlord, pools.landlord, 'person', _innesto.links, async (d) => {
+                const doc = Object.assign(innestoUserDoc(d, 'landlord'), {
+                    iban: d.iban || '', kind: d.kind || '', businessName: d.businessName || '', partitaIva: d.partitaIva || '',
+                    source: 'innesto', createdAt: now
+                });
+                const ref = await createRecord('users', doc, 'landlord');
+                S.users.push(Object.assign({ id: ref.id }, doc));
+                return ref.id;
+            }, 'proprietario');
 
             // 2 — Immobile. L'aggancio SCELTO (checkbox o fantasma) vince
             // sempre sul match riderivato — e vale anche quando la sezione
             // manca dalla proposta: è la via Via Simeto.
-            let propertyId = _innesto.links.property || null;
-            if (p.property && !propertyId) {
-                const m = _innesto.links.property === null ? { match: null } : V.findMatch(p.property, S.properties || [], 'property');
-                if (m.match) { propertyId = m.match.id; }
-                else {
-                    const ref = await db.collection('properties').add({
-                        name: p.property.name, address: p.property.address || '',
-                        ownerId: ownerId || '', rent: p.property.rent || 0,
-                        sqm: p.property.sqm || null, rooms: p.property.rooms || null,
-                        bathrooms: p.property.bathrooms || null, floor: p.property.floor || '',
-                        scala: p.property.scala || '', interno: p.property.interno || '',
-                        cadastralData: p.property.cadastralData || '', energyClass: p.property.energyClass || '',
-                        propertyType: p.property.propertyType || 'apartment',
-                        availabilityStatus: p.contract ? 'rented' : 'available',
-                        source: 'innesto', createdAt: now
-                    });
-                    propertyId = ref.id;
-                    S.properties.push({ id: ref.id, name: p.property.name, address: p.property.address || '', ownerId: ownerId || '', rent: p.property.rent || 0 });
-                    created.push('immobile');
-                }
-            }
+            let propertyId = await resolve('property', p.property, pools.property, 'property', _innesto.links, async (d) => {
+                const doc = {
+                    name: d.name || d.address, address: d.address || '', city: d.city || '',
+                    ownerId: ownerId || '', rent: d.rent || 0,
+                    sqm: d.sqm || null, rooms: d.rooms || null, bathrooms: d.bathrooms || null,
+                    floor: d.floor || '', scala: d.scala || '', interno: d.interno || '', unit: d.interno || '',
+                    accessories: d.accessories || '', furnished: d.furnished || '',
+                    sezione: d.sezione || '', foglio: d.foglio || '', particella: d.particella || '', sub: d.sub || '', categoria: d.categoria || '',
+                    renditaCatastale: d.renditaCatastale || null,
+                    cadastralData: d.cadastralData || '', energyClass: d.energyClass || '',
+                    tabelleMillesimali: d.tabelleMillesimali && Object.values(d.tabelleMillesimali).some(v => v != null && v !== '') ? d.tabelleMillesimali : null,
+                    propertyType: d.propertyType || 'apartment',
+                    availabilityStatus: p.contract ? 'rented' : 'available',
+                    source: 'innesto', createdAt: now
+                };
+                const ref = await createRecord('properties', doc, 'property');
+                S.properties.push(Object.assign({ id: ref.id }, doc));
+                return ref.id;
+            }, 'immobile');
 
             // 3 — Inquilino (profilo Firestore; l'account di accesso si crea
             //     dalla scheda utente quando serve davvero il portale)
-            let tenantId = _innesto.links.tenant || null;
-            if (p.tenant && !tenantId) {
-                const m = _innesto.links.tenant === null
-                    ? { match: null } : V.findMatch(p.tenant, (S.users || []).filter(u => u.role === 'tenant'), 'person');
-                if (m.match) tenantId = m.match.id;
-                else {
-                    const ref = await db.collection('users').add({
-                        name: p.tenant.name, email: p.tenant.email || '', phone: p.tenant.phone || '',
-                        codiceFiscale: p.tenant.codiceFiscale || '', address: p.tenant.address || '',
-                        birthDate: p.tenant.birthDate || '', birthPlace: p.tenant.birthPlace || '',
-                        nationality: p.tenant.nationality || '', role: 'tenant',
-                        source: 'innesto', createdAt: now
-                    });
-                    tenantId = ref.id;
-                    S.users.push({ id: ref.id, name: p.tenant.name, email: p.tenant.email || '', role: 'tenant' });
-                    created.push('inquilino');
-                }
+            const newTenant = async (d, key) => {
+                const doc = Object.assign(innestoUserDoc(d, 'tenant'), {
+                    permessoNumero: d.permessoNumero || '', permessoScadenza: d.permessoScadenza || '',
+                    source: 'innesto', createdAt: now
+                });
+                const ref = await createRecord('users', doc, key);
+                S.users.push(Object.assign({ id: ref.id }, doc));
+                return ref.id;
+            };
+            let tenantId = await resolve('tenant', p.tenant, pools.tenant, 'person', _innesto.links, newTenant, 'inquilino');
+
+            // 3b — Co-conduttori: ognuno un profilo (esistente o nuovo) e una
+            //      riga sul contratto con il SUO codice fiscale.
+            const coRows = [];
+            for (let i = 0; i < (p.coTenants || []).length; i++) {
+                const co = p.coTenants[i];
+                const id = await resolve('coTenants.' + i, co, pools.tenant, 'person', _innesto.coLinks, newTenant, 'co-conduttore ' + (i + 1));
+                coRows.push({
+                    userId: id || '', name: co.name || '', cf: (co.codiceFiscale || '').toUpperCase(), dob: co.birthDate || '',
+                    birthPlace: co.birthPlace || '', address: co.address || '', idDoc: co.docNum || '', docType: co.docType || '',
+                    nationality: co.nationality || '', email: co.email || '', phone: co.phone || '', tenantIndex: i + 1
+                });
             }
 
-            // 4 — Contratto + rate
-            if (p.contract && propertyId && tenantId) {
+            // 4 — Contratto + rate (+ scadenze + PDF, come saveContract)
+            let contractId = null;
+            if (p.contract && propertyId && tenantId && !_innesto.skipContract) {
                 const c = p.contract;
                 const monthly = Number(c.rent) || 0;
                 const step = [1, 2, 3, 6, 12].indexOf(Number(c.installmentMonths)) >= 0 ? Number(c.installmentMonths) : 1;
+                const mb = monthsBetween(c.startDate, c.endDate);
+                // I mesi di LOCAZIONE (01/09 → 31/08 = 12), gli stessi che il
+                // piano rate conta: monthsBetween li vede come 11 mesi e 30 giorni.
+                const leaseMonths = V.monthsSpan(c.startDate, c.endDate) || Number(c.durationMonths) || 12;
+                const t = p.tenant || {}, l = p.landlord || {}, pr = p.property || {};
+                const landlordRec = ownerId ? pools.landlord.find(x => x.id === ownerId) : null;
                 const contractData = {
                     propertyId, tenantId, type: c.type || 'transitorio',
                     startDate: c.startDate, endDate: c.endDate,
                     rent: monthly, deposit: Number(c.deposit) || 0,
                     depositMonths: Number(c.depositMonths) || 0,
                     accessoryCharges: Number(c.accessoryCharges) || 0,
-                    paymentMethod: 'bonifico bancario',
+                    paymentMethod: c.paymentMethod || 'bonifico bancario',
                     paymentDay: Number(c.paymentDay) || 5,
                     installmentMonths: step,
                     installmentAmount: Math.round(monthly * step * 100) / 100,
+                    canone: {
+                        monthly, total: monthly * leaseMonths, installments: leaseMonths,
+                        paymentDay: Number(c.paymentDay) || 5, paymentMethod: c.paymentMethod || 'bonifico bancario',
+                        cedolareSecca: (c.cedolareSecca || 'si') !== 'no', oneriMode: 'tabella_allegato_d'
+                    },
+                    durata: { text: mb.text, startDate: c.startDate, endDate: c.endDate },
                     cedolareSecca: c.cedolareSecca || 'si',
+                    condoMode: c.condoMode || '',
                     transitionalReason: c.transitionalReason || '',
-                    notes: (c.notes ? c.notes + ' · ' : '') + 'Importato con Innesto',
+                    transitionalDocs: c.transitionalDocs || '',
+                    esigenzaDi: c.esigenzaDi || '',
+                    studenti: c.type === 'studenti' && c.studenti ? {
+                        corsoStudi: c.studenti.corsoStudi || '', universita: c.studenti.universita || '',
+                        universitaIndirizzo: c.studenti.universitaIndirizzo || '', tipoIscrizione: c.studenti.tipoIscrizione || '',
+                        annoAccademico: c.studenti.annoAccademico || ''
+                    } : null,
+                    universityName: c.type === 'studenti' && c.studenti ? (c.studenti.universita || '') : '',
+                    courseName: c.type === 'studenti' && c.studenti ? (c.studenti.corsoStudi || '') : '',
+                    cohabitants: c.cohabitants || '',
+                    otherClauses: c.otherClauses || '',
+                    istatPct: c.istatPct || '',
+                    signaturePlace: c.signaturePlace || '',
+                    cadastral: pr.cadastralData || '',
+                    energyClass: pr.energyClass || '',
+                    renditaCatastale: Number(pr.renditaCatastale) || 0,
+                    // Le parti, nello schema che il PDF e il dizionario leggono:
+                    // quello che il documento ha detto viaggia sul contratto.
+                    tenantName: t.name || '', tenantCF: (t.codiceFiscale || '').toUpperCase(), tenantDob: t.birthDate || '',
+                    tenantPob: t.birthPlace || '', tenantAddress: t.address || '', tenantDocType: t.docType || '',
+                    tenantDocNum: t.docNum || '', tenantDocIssuer: t.docIssuer || '', tenantDocIssueDate: t.docIssueDate || '',
+                    tenantNationality: t.nationality || '', tenantEmail: t.email || '', tenantPhone: t.phone || '',
+                    landlordName: l.name || (landlordRec && landlordRec.name) || '', landlordCF: (l.codiceFiscale || (landlordRec && landlordRec.codiceFiscale) || '').toUpperCase(),
+                    landlordDob: l.birthDate || '', landlordPob: l.birthPlace || '', landlordAddress: l.address || (landlordRec && landlordRec.address) || '',
+                    landlordDocType: l.docType || '', landlordDocNum: l.docNum || '', landlordKind: l.kind || '', landlordPIva: l.partitaIva || '',
+                    landlordIban: l.iban || (landlordRec && landlordRec.iban) || '', landlordEmail: l.email || (landlordRec && landlordRec.email) || '',
+                    coTenants: coRows,
+                    notes: (c.notes ? c.notes + ' · ' : '') + 'Importato con Innesto' + (c.signatureDate ? ' (firmato il ' + c.signatureDate + ')' : ''),
                     status: 'active', signatureStatus: 'none',
+                    tenantSignToken: uuid(), landlordSignToken: uuid(),
+                    requiresAsseverazione: true,
                     paymentsGenerated: false, welcomeEmailSent: false,
                     source: 'innesto', createdAt: now
                 };
                 if (ownerId) contractData.landlordId = ownerId;
-                const ref = await db.collection('contracts').add(contractData);
+                Object.keys(contractData).forEach(k => { if (contractData[k] === '' && /^(landlordKind|landlordPIva|esigenzaDi|condoMode|istatPct|signaturePlace)$/.test(k)) delete contractData[k]; });
+                const ref = await createRecord('contracts', contractData, 'contract');
+                contractId = ref.id;
                 S.contracts.push({ id: ref.id, ...contractData });
                 created.push('contratto');
 
                 try {
                     const n = await generateMonthlyPayments(ref.id, contractData);
-                    await db.collection('contracts').doc(ref.id).update({ paymentsGenerated: true }).catch(() => {});
+                    await db.collection('contracts').doc(ref.id).update({ paymentsGenerated: true });
                     if (n) created.push(n + ' rate');
-                } catch (e) { console.warn('[Innesto] piano rate non generato:', e); toast('warning', 'Contratto creato', 'Il piano rate va generato a mano'); }
+                } catch (e) { warnings.push('payments'); console.warn('[Innesto] piano rate da verificare'); toast('warning', 'Contratto creato', 'Verifica il piano rate prima di completarlo: alcune rate potrebbero essere già state salvate.'); }
+                try { await generateContractDeadlines(ref.id, contractData); } catch (e) { warnings.push('deadlines'); console.warn('[Innesto] scadenze non generate'); }
+                try { if (typeof generateContractPDF === 'function') { if (await generateContractPDF(ref.id)) created.push('PDF'); else warnings.push('pdf'); } } catch (e) { warnings.push('pdf'); console.warn('[Innesto] PDF non generato'); }
 
                 if (propertyId) {
-                    await db.collection('properties').doc(propertyId)
-                        .update({ currentContractId: ref.id, availabilityStatus: 'rented' }).catch(() => {});
+                    try { await db.collection('properties').doc(propertyId)
+                        .update({ currentContractId: ref.id, availabilityStatus: 'rented' }); }
+                    catch (e) { warnings.push('property_link'); }
                 }
             }
 
-            await logActivity('innesto_import', 'system', { creati: created, confidence: _innesto.confidence });
+            // 4b — Lead: il messaggio di un cliente diventa una riga nello STESSO
+            //      schema del sito (apply-lead) e dei portali, così Brain →
+            //      notify-pending → Commerciale lo lavorano da soli. Chi è già
+            //      fra i lead non si raddoppia.
+            if (p.lead && _innesto.create.lead !== false) {
+                const ld = p.lead, dup = innestoLeadDup(ld);
+                if (dup) updated.push('lead già presente (' + (dup.name || dup.email || dup.phone) + ')');
+                else {
+                    const parts = [ld.request, ld.zone && 'zona ' + ld.zone, ld.budget && '€' + ld.budget + '/mese', ld.bedrooms && ld.bedrooms + ' camere',
+                        ld.moveIn && 'ingresso ' + ld.moveIn, ld.durationMonths && ld.durationMonths + ' mesi', ld.household, ld.occupation, ld.listing && 'immobile: ' + ld.listing].filter(Boolean);
+                    const leadDoc = {
+                        source: 'innesto', service: null,
+                        name: ld.name || '', email: ld.email || null, phone: ld.phone || null,
+                        message: parts.join(' · '), notes: ld.request || '',
+                        language: ld.language || null, budget: ld.budget || null, zone: ld.zone || '',
+                        situation: ld.occupation === 'student' ? 'student' : (ld.occupation ? 'worker' : null),
+                        arrivalDate: ld.moveIn || '', duration: ld.durationMonths ? ld.durationMonths + ' months' : '',
+                        household: ld.household || null, propertyTitle: ld.listing || null,
+                        leadType: ld.side === 'landlord' ? 'landlord' : (ld.side === 'company' ? 'company' : 'tenant'),
+                        intent: ld.side === 'landlord' ? 'owner' : 'inquiry', channel: ld.channel || null,
+                        intakeForm: false, status: 'new', grade: null, confidence: null, tier: null,
+                        ingestedBy: 'innesto', sourceRef: null,
+                        createdAt: now, ingestedAt: now
+                    };
+                    const ref = await createRecord('leads', leadDoc, 'lead');
+                    if (Array.isArray(S.leads)) S.leads.push(Object.assign({}, leadDoc, { id: ref.id, createdAt: new Date() }));
+                    created.push('lead ' + (ld.name || ld.email || ld.phone));
+                }
+            }
+
+            // 4c — Proposta nel console (pre-accordo): SOLO con la spunta e
+            //      solo se nel console non c'è già. Nasce con la STESSA API
+            //      della console (deriveMoney server-side), quindi documento,
+            //      PDF e il giro accettazione → pagamento → contratto sono
+            //      quelli di sempre.
+            let paUrl = null;
+            if (p.preagreement && _innesto.create.preagreement === true && !(_innesto.pa && _innesto.pa.found)) {
+                const pa = p.preagreement, c = p.contract || {}, pr = p.property || {}, t = p.tenant || {}, l = p.landlord || {};
+                const landlordRec = ownerId ? pools.landlord.find(x => x.id === ownerId) : null;
+                const propRec = propertyId ? (S.properties || []).find(x => x.id === propertyId) : null;
+                const months = V.monthsSpan(c.startDate, c.endDate) || Number(c.durationMonths) || 12;
+                const feeMode = pa.feeEur != null && pa.feePct == null && pa.feeMonths == null ? 'flat' : (pa.feeMonths != null && pa.feePct == null ? 'months' : 'pct');
+                const extras = String(pa.extras || '').split(';').map(x => x.trim()).filter(Boolean).map(x => {
+                    const m = /^(.*?):\s*(.+)$/.exec(x); const amount = m ? innestoMoney(m[2]) : null;
+                    return m && amount != null ? { label: m[1].trim(), amount } : null;
+                }).filter(Boolean);
+                const body = {
+                    propertyId: propertyId || undefined,
+                    property: { address: pr.address || (propRec && propRec.address) || '', floor: pr.floor || (propRec && propRec.floor) || '', unit: pr.interno || (propRec && propRec.unit) || '', condition: pr.furnished === 'no' ? 'Unfurnished' : 'Furnished' },
+                    landlord: { name: l.name || (landlordRec && landlordRec.name) || '', email: l.email || (landlordRec && landlordRec.email) || '', phone: l.phone || (landlordRec && landlordRec.phone) || '' },
+                    tenant: { fullName: t.name || (p.lead && p.lead.name) || '', email: t.email || (p.lead && p.lead.email) || '', phone: t.phone || (p.lead && p.lead.phone) || '' },
+                    lease: { startDate: c.startDate || '', months, reason: c.transitionalReason || '',
+                        type: c.type === 'studenti' ? 'Student Lease' : (c.type === '3+2' ? '3+2 Canone concordato (Allegato A)' : 'Transitional Lease'),
+                        studenti: c.type === 'studenti' && c.studenti ? c.studenti : undefined },
+                    money: { rent: Number(c.rent) || Number(pr.rent) || 0,
+                        depositMonths: Number(c.depositMonths) || (c.deposit && c.rent ? Math.max(0, Math.min(6, Math.round(Number(c.deposit) / Number(c.rent)))) : 1),
+                        depositSplitPct: pa.depositSplitPct != null ? pa.depositSplitPct : 100, feeMode,
+                        feePct: pa.feePct != null ? pa.feePct : undefined, feeMonths: pa.feeMonths != null ? pa.feeMonths : undefined, feeFlat: feeMode === 'flat' ? pa.feeEur : undefined,
+                        feeVatPct: pa.feeVatPct != null ? pa.feeVatPct : undefined, feeDue: pa.feeDue || undefined,
+                        energyCredit: pa.energyCredit != null ? pa.energyCredit : undefined,
+                        dueAtSigning: pa.dueAtSigning != null ? pa.dueAtSigning : undefined,
+                        installmentMonths: Number(c.installmentMonths) || 1 },
+                    extras, validUntil: pa.validUntil || undefined,
+                    note: 'Creata dall\'Innesto' + (pa.ref ? ' (documento ' + pa.ref + ')' : '')
+                };
+                if (!body.property.address || !body.landlord.name || !body.lease.startDate || !body.money.rent) {
+                    warnings.push('preagreement');
+                    toast('warning', 'Proposta NON creata', 'servono indirizzo dell\'immobile, nome del proprietario, decorrenza e canone');
+                } else {
+                    const token = await auth.currentUser.getIdToken();
+                    const r = await fetch('/api/preagreement/create', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }, body: JSON.stringify(body) });
+                    const data = await r.json().catch(() => ({}));
+                    if (r.ok && data.ok && data.url) { paUrl = data.url; created.push('proposta nel console'); }
+                    else { warnings.push('preagreement'); toast('warning', 'Proposta NON creata', data.error || ('errore ' + r.status)); }
+                }
+            }
+
+            // 5 — Il documento RESTA (STUDIO_SCRIVANO §4, passo 1): il file letto
+            //     si archivia in `documents` legato a ciò che ha fatto nascere,
+            //     e un documento d'identità finisce anche fra gli identityDocs
+            //     del contratto e della persona — dove la Scheda, il pack RLI e
+            //     la checklist del commercialista già guardano.
+            if (_innesto.archive && _innesto.readDocs.length) {
+                let n = 0;
+                for (const [index, rd] of _innesto.readDocs.entries()) {
+                    const result = { key: 'document_' + (index + 1), sourceRef: rd.archived?.id ? 'documents/' + rd.archived.id : null, status: 'needs_review' };
+                    documentResults.push(result);
+                    try {
+                        const key = result.key;
+                        const url = await innestoArchiveDoc(rd, { contractId, propertyId, tenantId, ownerId, coRows, startDate: p.contract && p.contract.startDate,
+                            linkDocument: seedRef ? (ref, patch) => record(key, ref, patch) : null,
+                            createDocument: seedRef ? data => createRecord('documents', data, key) : null });
+                        if (url) { n++; result.status = 'linked'; }
+                        else warnings.push('documents');
+                    } catch (e) { warnings.push('documents'); console.warn('[Innesto] archivio documento da verificare'); }
+                }
+                if (n) created.push(n + (n === 1 ? ' documento archiviato' : ' documenti archiviati'));
+                if (warnings.includes('documents')) toast('warning', 'Documenti da verificare', 'Alcuni file o collegamenti non sono stati salvati. I record creati restano in archivio: completa i collegamenti da Documenti.');
+            }
+
+            if (p.contract && !_innesto.skipContract && (!propertyId || !tenantId)) warnings.push('contract_incomplete');
+            try { await logActivity('innesto_import', 'system', { creati: created, aggiornati: updated, confidence: _innesto.confidence, contractId }); }
+            catch (e) { warnings.push('activity'); }
+            await finish(warnings.length ? 'needs_review' : 'applied');
             try { localStorage.removeItem('boom_data_cache'); } catch (e) {}
-            toast('success', 'Innesto completato', created.join(' · '));
+            toast(warnings.length ? 'warning' : 'success', warnings.length ? 'Innesto da completare' : 'Innesto completato',
+                (created.concat(updated.map(u => 'aggiornato ' + u)).join(' · ') || 'nessun nuovo record')
+                + (warnings.length ? ' — verifica gli elementi mancanti: ' + warnings.map(k => ({ payments: 'piano rate', deadlines: 'scadenze', pdf: 'PDF', property_link: 'collegamento immobile', documents: 'documenti', activity: 'registro attività', contract_incomplete: 'contratto', preagreement: 'proposta' })[k]).filter(Boolean).join(', ') : ''));
             // Un contratto saltato non resta MAI muto: "Innesto completato"
             // senza questa riga era indistinguibile da un contratto creato.
-            if (p.contract && (!propertyId || !tenantId)) {
+            if (p.contract && !_innesto.skipContract && (!propertyId || !tenantId)) {
                 const gambe = [!propertyId && "l'immobile", !tenantId && "l'inquilino"].filter(Boolean).join(' e ');
                 toast('warning', 'Contratto NON creato', 'nella proposta manca ' + gambe + ' — agganciala dall\'archivio o completala a mano');
             }
             const madeContract = created.indexOf('contratto') >= 0;
+            const madeLead = created.some(x => /^lead /.test(x));
             innestoReset();
             await loadDataFresh(true);
             // Il contratto appena nato si VEDE: si atterra sulla sua lista,
-            // non su una pagina Innesto tornata vuota.
-            if (madeContract) goTo('contracts'); else { buildNav(); renderPage(); }
+            // non su una pagina Innesto tornata vuota. Un lead idem; una
+            // proposta creata lascia il link negli appunti (va al cliente).
+            if (paUrl) {
+                const full = location.origin + paUrl;
+                try { await copyToClipboard(full, 'Link della proposta copiato'); } catch (_) {}
+                toast('success', 'Proposta creata nel console', 'Il link è negli appunti: mandalo al cliente, o aprilo dalla console pre-accordo');
+            }
+            if (madeContract) goTo('contracts'); else if (madeLead) goTo('leads'); else { buildNav(); renderPage(); }
         } catch (e) {
-            console.error('[Innesto] creazione fallita:', e);
+            warnings.push('application_interrupted');
+            try { await finish('needs_review'); } catch (_) { /* Reservation and committed links remain; never release for retry. */ }
+            console.error('[Innesto] creazione da verificare');
             toast('error', 'Creazione non riuscita', e.message + (created.length ? ' — già creati: ' + created.join(', ') : ''));
             _innesto.busy = false; renderPage();
         }
+    }
+
+    // Un documento letto → Storage (cartella dell'operatore, la stessa
+    // regola di saveDocWithAssignment) → `documents` con categoria e cartella
+    // dello Smistatore → identityDocs se è un documento d'identità.
+    function innestoArchiveContentType(rd) {
+        const file = rd.file || {};
+        return file.type && /^(image\/|application\/pdf)/.test(file.type) ? file.type : rd.mediaType;
+    }
+    function innestoArchiveNeedsZip(rd) {
+        return !rd.archived && !/^(image\/|application\/pdf$|application\/zip$)/.test(innestoArchiveContentType(rd))
+            && !/\.(docx|xlsx|odt)$/i.test(rd.file && rd.file.name || '');
+    }
+    async function innestoArchiveDoc(rd, ctx) {
+        const meta = rd.meta || {};
+        if (rd.archived) {
+            // GIÀ in archivio (lo Smistatore l'ha messo lì dalla porta del
+            // telefono): niente upload, niente secondo documento. Si lega a
+            // ciò che ha fatto nascere e, se è un documento d'identità, entra
+            // negli identityDocs come farebbe un file appena letto.
+            const a = rd.archived;
+            const party = meta.party === 'cotenant' ? 'tenant' : meta.party;
+            const userId = party === 'tenant' ? ctx.tenantId : party === 'landlord' ? ctx.ownerId : null;
+            const patch = { innestoAt: firebase.firestore.FieldValue.serverTimestamp(), innestoBy: S.profile.id };
+            if (ctx.contractId) patch.contractId = ctx.contractId;
+            if (ctx.propertyId) patch.propertyId = ctx.propertyId;
+            if (userId) patch.userId = userId;
+            if (!a.id) throw new Error('Documento senza riferimento in archivio.');
+            const ref = db.collection('documents').doc(a.id);
+            if (ctx.linkDocument) await ctx.linkDocument(ref, patch); else await ref.update(patch);
+            if (meta.kind === 'documento_identita' && party && a.url) {
+                const entry = { url: a.url, path: null, name: a.name || 'documento', contentType: a.mimeType || null, bytes: null, role: party, at: new Date().toISOString(), source: 'scrivano' };
+                if (meta.party === 'cotenant') entry.tenantIndex = 1;
+                const union = firebase.firestore.FieldValue.arrayUnion;
+                if (ctx.contractId) await db.collection('contracts').doc(ctx.contractId).update({ identityDocs: union(entry) });
+                if (userId) await db.collection('users').doc(userId).update({ identityDocs: union({ url: a.url, name: entry.name, at: entry.at }) });
+            }
+            return a.url;
+        }
+        const file = rd.file;
+        const safeName = String(file.name || 'documento').replace(/[^a-zA-Z0-9._-]/g, '_').slice(-80);
+        let storedName = safeName;
+        let contentType = innestoArchiveContentType(rd);
+        let useBlob = contentType === file.type ? file : rd.blob;
+        let wrapped = false;
+        if (!/^(image\/|application\/pdf$|application\/zip$)/.test(contentType)) {
+            // Office moderni sono già ZIP: gli stessi byte, con il tipo di
+            // trasporto consentito. Testo, email e DOC conservano l'originale
+            // dentro un vero ZIP, senza allargare le regole dello Storage.
+            if (!innestoArchiveNeedsZip(rd)) {
+                useBlob = file;
+            } else {
+                if (!window.JSZip) throw new Error('Archivio ZIP non disponibile: ricarica la pagina e conserva il file originale.');
+                const zip = new window.JSZip();
+                zip.file(String(file.name || 'documento').replace(/[\\/\u0000]/g, '_'), await file.arrayBuffer());
+                useBlob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE' });
+                storedName += '.zip'; wrapped = true;
+            }
+            contentType = 'application/zip';
+        }
+        const path = 'documents/' + (S.profile.id || 'admin') + '/innesto/' + Date.now() + '_' + storedName;
+        const up = await storage.ref(path).put(useBlob, { contentType });
+        const url = await up.ref.getDownloadURL();
+        const party = meta.party === 'cotenant' ? 'tenant' : meta.party;
+        const userId = party === 'tenant' ? ctx.tenantId : party === 'landlord' ? ctx.ownerId : null;
+        const year = ctx.startDate ? parseInt(String(ctx.startDate).slice(0, 4), 10) : new Date().getFullYear();
+        const docEntry = {
+            name: meta.title || file.name, type: meta.docType || 'other',
+            category: meta.category || null, folder: meta.folder || null, fiscalYear: year || null,
+            userId: userId || S.profile.id, propertyId: ctx.propertyId || null, contractId: ctx.contractId || null,
+            shared: false, notes: (meta.summary || '') + (wrapped ? ' Originale conservato nello ZIP: estrailo prima di una nuova lettura con Innesto.' : ''),
+            fileUrl: url, fileName: wrapped ? file.name + '.zip' : file.name, fileSize: useBlob.size, storagePath: path,
+            originalFileName: file.name, originalMediaType: rd.mediaType || file.type || null, archiveContainer: wrapped ? 'zip' : null,
+            uploadedBy: S.profile.id, source: 'innesto', createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+        if (ctx.createDocument) await ctx.createDocument(docEntry); else await db.collection('documents').add(docEntry);
+        if (meta.kind === 'documento_identita' && party) {
+            const entry = { url, path, name: safeName, contentType, bytes: useBlob.size, role: party, at: new Date().toISOString(), source: 'innesto' };
+            if (meta.party === 'cotenant') entry.tenantIndex = 1;
+            const union = firebase.firestore.FieldValue.arrayUnion;
+            if (ctx.contractId) await db.collection('contracts').doc(ctx.contractId).update({ identityDocs: union(entry) });
+            if (userId) await db.collection('users').doc(userId).update({ identityDocs: union({ url, name: safeName, at: entry.at }) });
+        }
+        return url;
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -28493,12 +30646,14 @@ IBAN: ${l.iban || '-'}`;
             ? (S.invoices || []).find(x => x.id === id)
             : (S.payments || []).find(x => x.id === id);
         if (!doc) { toast('error', 'Documento non trovato'); return; }
-        if (doc.status === 'paid') { toast('info', 'Già pagato', 'Non serve un link.'); return; }
+        if (doc.status === 'paid') { toast('info', 'Già pagato', 'Apri la ricevuta della rata.'); return; }
+        if (isInv && window.BOOM_RENT.paymentBlockReason(doc, 'invoice')) { toast('warning','Fattura non pagabile: aggiorna lo stato.'); return; }
+        if (!isInv && !window.BOOM_RENT.canPay(doc)) { toast('warning', 'Link non disponibile', rentStateLabel(window.BOOM_RENT.paymentState(doc))); return; }
 
         toast('info', 'Preparo il link…');
         let url;
         try { url = await paymentLinkFor(kind, id); }
-        catch (e) { toast('error', 'Link non creato', e.message); return; }
+        catch (e) { const why = {already_paid:'La rata risulta già pagata. Aggiorna l’elenco per aprire la ricevuta.',sdd_processing:'Addebito già in elaborazione. Attendi l’esito.',payment_processing:'Pagamento in elaborazione. Attendi l’esito.',payment_cancelled:'Rata annullata.',payment_not_payable:'Stato da verificare.',payment_reported:'Pagamento segnalato: verifica prima di chiedere un nuovo versamento.'}; toast('error', 'Link non creato', why[e.message] || e.message); return; }
 
         const amount = Number(doc.amount) || 0;
         let who = null, phone = '', name = '';
@@ -28507,7 +30662,8 @@ IBAN: ${l.iban || '-'}`;
                || (S.clients || []).find(c => c.id === (doc.recipientId || doc.clientId));
             name = doc.recipientName || who?.name || '';
         } else {
-            who = (S.users || []).find(u => u.id === doc.tenantId);
+            const contract = (S.contracts || []).find(c => c.id === doc.contractId);
+            who = (S.users || []).find(u => u.id === (doc.tenantId || contract?.tenantId));
             name = who?.name || '';
         }
         phone = String(who?.phone || '').replace(/[^0-9]/g, '');
@@ -28515,16 +30671,16 @@ IBAN: ${l.iban || '-'}`;
         const what = isInv
             ? `la fattura ${doc.number || ''}`.trim()
             : (doc.type === 'deposit-balance' ? 'il saldo del deposito' : `il canone di ${doc.month || fmtDate(doc.dueDate)}`);
-        const msg = `Ciao${name ? ' ' + name.split(' ')[0] : ''}, puoi pagare ${what} (€${amount.toLocaleString('it-IT')}) con carta da qui: ${url}`;
+        const msg = `Ciao${name ? ' ' + name.split(' ')[0] : ''}, puoi pagare ${what} (€${amount.toLocaleString('it-IT')}) dal portale BOOM da qui: ${url}`;
 
         document.getElementById('modals').innerHTML = `
         <div class="modal-overlay active" onclick="if(event.target===this)closeModal()">
           <div class="modal" style="max-width:520px">
-            <div class="modal-header"><h3>💳 Link di pagamento</h3><button class="modal-close" onclick="closeModal()">×</button></div>
+            <div class="modal-header"><h3>Link pagamento · copia o reinvia</h3><button class="modal-close" onclick="closeModal()">×</button></div>
             <div class="modal-body">
               <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;margin-bottom:16px">
                 ${esc(what.charAt(0).toUpperCase() + what.slice(1))} · <strong style="color:var(--gold)">€${amount.toLocaleString('it-IT')}</strong>${name ? ' · ' + esc(name) : ''}<br>
-                Il link non scade: si può mandare adesso e pagare più avanti. Quando il pagamento arriva, ${isInv ? 'la fattura' : 'la rata'} si segna pagata da sola.
+                Puoi condividere di nuovo questo link per ${isInv ? 'la stessa fattura' : 'la stessa rata'}. Carta e Apple Pay, se disponibile sul dispositivo, si scelgono al pagamento. Quando il pagamento arriva, ${isInv ? 'la fattura' : 'la rata'} si segna pagata da sola.
               </div>
               <div style="background:var(--bg-input);border:1px solid var(--border);border-radius:10px;padding:12px;font-size:11.5px;word-break:break-all;color:var(--text-secondary);margin-bottom:16px">${esc(url)}</div>
               <div style="display:flex;gap:10px;flex-wrap:wrap">

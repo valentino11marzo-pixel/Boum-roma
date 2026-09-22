@@ -11,6 +11,7 @@
 import { requireRole, setCors } from '../_auth.js';
 import { fsGet, readJson } from '../homie/_lib.js';
 import { payLink, collectionFor } from './_token.js';
+import RENT from '../../js/rent-engine.js';
 
 export default async function handler(req, res) {
   setCors(req, res);
@@ -32,7 +33,6 @@ export default async function handler(req, res) {
   try { doc = await fsGet(`${collection}/${id}`); }
   catch (e) { return res.status(500).json({ ok: false, error: 'lookup_failed' }); }
   if (!doc) return res.status(404).json({ ok: false, error: 'not_found' });
-  if (doc.status === 'paid') return res.status(409).json({ ok: false, error: 'already_paid' });
 
   // Un landlord può generare link solo per i propri immobili; l'admin per
   // tutto. (Le fatture restano una faccenda dell'amministrazione.)
@@ -45,6 +45,9 @@ export default async function handler(req, res) {
     } catch (_) {}
     if (!owns) return res.status(403).json({ ok: false, error: 'not_yours' });
   }
+
+  const blocked = RENT.paymentBlockReason(doc, kind === 'inv' ? 'invoice' : 'rent');
+  if (blocked) return res.status(409).json({ ok: false, error: blocked });
 
   return res.status(200).json({ ok: true, kind, id, url: payLink(kind, id) });
 }

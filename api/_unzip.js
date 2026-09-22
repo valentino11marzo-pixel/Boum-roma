@@ -116,3 +116,21 @@ export function streamEntryLines(buf, entry, onLine) {
 export function zipEntry(buf, name) {
   return zipEntries(buf).find((e) => e.name === name) || null;
 }
+
+// ── I byte di UNA voce, in memoria (per i documenti Office: DOCX, XLSX, ODT
+// sono ZIP con XML dentro — api/_doctext.js). Il Pendolare continua a usare
+// streamEntryLines per i 300 MB del GTFS; qui il tetto è esplicito e un
+// archivio che DICHIARA 50 GB non si gonfia (zip bomb).
+export const MAX_ENTRY_BYTES = 64 * 1024 * 1024;
+export function zipEntryBytes(buf, entry, max = MAX_ENTRY_BYTES) {
+  if (!entry) return null;
+  if (entry.size > max || entry.compSize > max) throw new Error('zip_entry_too_large');
+  const raw = datiVoce(buf, entry);
+  if (raw.length !== entry.compSize) throw new Error('zip: voce troncata ' + entry.name);
+  if (entry.method === 0) return Buffer.from(raw);
+  if (entry.method === 8) return zlib.inflateRawSync(raw, { maxOutputLength: max });
+  throw new Error('zip: method ' + entry.method + ' non supportato (' + entry.name + ')');
+}
+export function isZip(buf) {
+  return Buffer.isBuffer(buf) && buf.length >= 4 && buf.readUInt32LE(0) === LOC_SIG;
+}
