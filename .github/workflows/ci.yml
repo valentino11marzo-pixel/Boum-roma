@@ -14,6 +14,19 @@ on:
   # run da ri-lanciare, nessuna verifica) la CI si riavvia da Actions → CI →
   # "Run workflow", oppure via API.
   workflow_dispatch:
+    inputs:
+      deploy_rules_from_branch:
+        # Le rules di produzione si deployano da main. Questa spunta e' la
+        # via d'uscita quando main NON puo' essere toccato (22/09/2026: la
+        # produzione Vercel girava su un ramo Codex avanti di 8 commit, e un
+        # merge su main l'avrebbe cancellata dal sito) e serve comunque
+        # portare in produzione le rules di un ramo. E' un opt-in esplicito
+        # per avvio: senza la spunta, l'avvio manuale da un ramo NON deploya
+        # niente — un ramo vecchio dispatchato per sbaglio farebbe
+        # regredire le regole in produzione.
+        description: 'Deploya firestore.rules/storage.rules di QUESTO ramo (non main). Solo se sai perche.'
+        type: boolean
+        default: false
 
 jobs:
   static-checks:
@@ -119,8 +132,15 @@ jobs:
     # Anche su avvio manuale (Actions → CI → Run workflow su main): serve la
     # PRIMA volta che una credenziale viene impostata — senza, per far
     # partire il deploy bisognerebbe inventare un commit vuoto su main.
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
+    if: (github.event_name == 'push' && github.ref == 'refs/heads/main') || (github.event_name == 'workflow_dispatch' && (github.ref == 'refs/heads/main' || inputs.deploy_rules_from_branch == true))
     runs-on: ubuntu-latest
+    # `id-token: write` e' il permesso di farsi firmare da GitHub il token
+    # OIDC con cui il job si presenta a Google (Workload Identity
+    # Federation): senza, il passo di autenticazione non puo' nemmeno
+    # chiederlo. Non allarga nient'altro: contents resta in sola lettura.
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -146,8 +166,19 @@ jobs:
           # → "Genera nuova chiave privata" → contenuto del JSON nel secret
           # FIREBASE_SERVICE_ACCOUNT. Il token resta come ripiego finche' la
           # chiave non c'e'.
+          # 22/09/2026: la chiave JSON NON si puo' piu' generare — la policy
+          # dell'organizzazione Google (iam.disableServiceAccountKeyCreation,
+          # accesa di default sulle org Workspace) la vieta, e ha ragione: e'
+          # una password perenne. La via giusta e' la FEDERAZIONE (Workload
+          # Identity Federation): il passo google-github-actions/auth qui
+          # sopra scambia il token OIDC del job con una credenziale
+          # temporanea dell'account firebase-adminsdk e la lascia in
+          # GOOGLE_APPLICATION_CREDENTIALS. Niente da rubare, niente che
+          # scada. Le due vecchie vie restano come ripiego dichiarato.
           AUTH=()
-          if [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
+          if [ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ] && [ -s "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+            CRED_KIND=wif
+          elif [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
             umask 077
             printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-sa.json"
             export GOOGLE_APPLICATION_CREDENTIALS="$RUNNER_TEMP/firebase-sa.json"
@@ -157,7 +188,7 @@ jobs:
             CRED_KIND=token
             echo "::warning::Deploy col token login:ci (deprecato, scade da solo) — imposta il secret FIREBASE_SERVICE_ACCOUNT per chiudere la classe."
           else
-            echo "::warning::Nessuna credenziale (ne' FIREBASE_SERVICE_ACCOUNT ne' FIREBASE_TOKEN) — rules NON deployate. Genera la chiave della service account dalla console Firebase e salvala nel secret FIREBASE_SERVICE_ACCOUNT."
+            echo "::warning::Nessuna credenziale (ne' federazione, ne' FIREBASE_SERVICE_ACCOUNT, ne' FIREBASE_TOKEN) — rules NON deployate. La via giusta e' la federazione: pool+provider OIDC per GitHub sul progetto e il passo google-github-actions/auth in questo job (vedi CLAUDE.md, «CI deploy-rules»)."
             exit 0
           fi
           npm install --no-save firebase-tools >/dev/null
@@ -165,7 +196,9 @@ jobs:
                  --project boom-property-dashboards "${AUTH[@]}" \
                  --non-interactive 2>&1 | tee /tmp/fb.log; then
             if grep -qi "credentials are no longer valid\|Authentication Error\|invalid_grant\|PERMISSION_DENIED" /tmp/fb.log; then
-              if [ "$CRED_KIND" = sa ]; then
+              if [ "$CRED_KIND" = wif ]; then
+                echo "::error::La FEDERAZIONE e' stata rifiutata — le regole NON sono in produzione. Controlla nella console Google: il provider OIDC del pool (issuer token.actions.githubusercontent.com, mappatura attribute.repository=assertion.repository, condizione sul repo), il «Concedi accesso» del pool verso l'account firebase-adminsdk col filtro repository, e che l'account porti il ruolo Firebase Admin."
+              elif [ "$CRED_KIND" = sa ]; then
                 echo "::error::La SERVICE ACCOUNT e' stata rifiutata — le regole NON sono in produzione. Controlla che il secret FIREBASE_SERVICE_ACCOUNT contenga il JSON intero della chiave e che l'account porti un ruolo sufficiente (quello di 'Account di servizio' della console Firebase basta; in IAM: Firebase Admin o Editor)."
               else
                 echo "::error::FIREBASE_TOKEN SCADUTO — le regole NON sono in produzione. Fix duraturo: secret FIREBASE_SERVICE_ACCOUNT (chiave JSON dalla console Firebase). Tampone: rigenera con 'npx firebase-tools login:ci' e aggiorna FIREBASE_TOKEN."
