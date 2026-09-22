@@ -8,6 +8,17 @@ Il precedente `wa-outbox.sh --once` esegue un ciclo, potenzialmente fino a dieci
 
 Il protocollo `homie-wa-single-v1` vincola ID, revisione approvata e SHA-256 dei byte UTF-8 dell'array JSON compatto `[actionId, phone, text]`. I sette vettori in `tests/segretaria/fixtures/wa-single-protocol-v1.json` verificano la corrispondenza JavaScript/Python. Il trasporto conserva il testo dell'azione approvata: la normalizzazione già compiuta dall'approvazione esistente non viene modificata.
 
+I documenti usati soltanto come vincolo di versione partecipano allo stesso
+commit con `fields: {}`, `updateMask: { fieldPaths: [] }` presente e l'identico
+`currentDocument.updateTime`. Nessun campo viene riscritto per verificare una
+versione: assenza, null, stringa vuota e tipi Firestore restano distinti. Questo
+vale anche per i controlli equivalenti in conferma, esecuzione e ritiro delle
+vecchie approvazioni. Le scritture intenzionali di contenuto restano invariate.
+La [semantica della maschera](https://firebase.google.com/docs/firestore/reference/rest/v1/Write)
+e il [mantenimento della versione per un no-op](https://firebase.google.com/docs/firestore/reference/rest/v1/WriteResult)
+sono documentati; i test RAW verificano il codice locale, senza accedere a
+Firestore reale. Omettere la maschera o il controllo versione sarebbe un difetto.
+
 | Operazione | Effetti consentiti |
 |---|---|
 | `inspect` | Legge la sola selezione e il contesto richiesto dalle guardie esistenti. Restituisce ID, revisione e impronta; niente testo o destinatario, nessuna scrittura o claim. |

@@ -309,12 +309,12 @@ export async function prepareCase({ id, actor, now = Date.now(), background = fa
           expiredAt: new Date(now).toISOString(), reason: 'pickup_window_elapsed' } } },
         precondition: { updateTime: retirement.action.updateTime } });
       operations.push({ docPath: 'operatorTasks/' + retirement.caseId,
-        fields: { preparation: retirement.task.data.preparation },
+        fields: {},
         precondition: { updateTime: retirement.task.updateTime } });
     }
     if (expiresUnclaimed || retirements.length) {
       operations.push({ docPath: 'conversations/' + cid,
-        fields: { contactPhone: freshConv.contactPhone || null, contactEmail: freshConv.contactEmail || null },
+        fields: {},
         precondition: { updateTime: freshConversation.updateTime } });
     }
     try { await fsCommit(operations); }

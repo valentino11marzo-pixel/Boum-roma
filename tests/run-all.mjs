@@ -126,6 +126,8 @@ const SUITES = [
   { name: 'agentactionfeedback', file: 'tests/segretaria/action-feedback.mjs', what: 'esito reale delle azioni: link o coda WhatsApp non diventano invio, email solo con prova' },
   { name: 'segretariaconsegna', file: 'tests/segretaria/outbox.mjs', what: 'consegna WhatsApp delle nuove proposte una volta sola, con contesto ancora valido' },
   { name: 'segretariainviosingolo', file: 'tests/segretaria/outbox-single.mjs', what: 'ritiro mirato con approvazione e impronta atomiche, nessun fallback o selezione di arretrato' },
+  { name: 'segretariafirestorenoop', file: 'tests/segretaria/firestore-noop.mjs', what: 'controlli versione atomici: valori Firestore nativi preservati, maschera vuota e corse sui documenti' },
+  { name: 'segretariafirestorenoopmutazioni', file: 'tests/segretaria/firestore-noop-mutations.mjs', what: 'no-op riscritti, maschera assente e precondizioni indebolite devono fallire' },
   { name: 'homieinviosingolo', file: 'tests/segretaria/wa-single-worker.mjs', what: 'worker singolo: HOLD conservato, registro condiviso, nessun reinvio incerto e solo ACK del bersaglio' },
   { name: 'homieinviosingoloe2e', file: 'tests/segretaria/outbox-single-e2e.mjs', what: 'handler JS e worker Python reali collegati senza rete: testo esatto, ACK perso, due host e crash/restart' },
   { name: 'segretariainviosingolomutazioni', file: 'tests/segretaria/outbox-single-mutations.mjs', what: 'mutazioni server: selezione, ACK, CAS, scadenza, testo e inspect devono fallire' },

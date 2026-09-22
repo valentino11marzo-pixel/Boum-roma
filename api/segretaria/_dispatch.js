@@ -162,11 +162,8 @@ export async function approvePreparation({ id, revision, lastMessageId, actor, n
         sources: sourceRefs(context.sources) };
       operations.push({ docPath: 'action_queue/' + actionId, fields: action, precondition: { exists: false } });
       // Exact contact records cannot change between verification and approval.
-      operations.push({ docPath: 'conversations/' + f.conversationId, fields: { contactPhone: conv.contactPhone || null,
-        contactEmail: conv.contactEmail || null }, precondition: { updateTime: conversation.updateTime } });
-      const proofField = payload.channel === 'whatsapp' ? ['phone', 'contactPhone', 'whatsapp'].find(k => phone(contactProof.data[k]) === payload.phone)
-        : ['email', 'contactEmail'].find(k => email(contactProof.data[k]) === payload.to);
-      operations.push({ docPath: contactProof.ref, fields: { [proofField]: contactProof.data[proofField] }, precondition: { updateTime: contactProof.updateTime } });
+      operations.push({ docPath: 'conversations/' + f.conversationId, fields: {}, precondition: { updateTime: conversation.updateTime } });
+      operations.push({ docPath: contactProof.ref, fields: {}, precondition: { updateTime: contactProof.updateTime } });
     }
     try { await fsCommit(operations); committed = true; }
     catch (e) {

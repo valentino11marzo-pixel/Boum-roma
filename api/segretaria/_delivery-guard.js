@@ -75,13 +75,14 @@ export async function inspectSegretariaDelivery({ id, action, now = Date.now(), 
 export async function claimSegretariaDelivery({ id, action, now = Date.now(), expectedSelection }) {
   const checked = await inspectSegretariaDelivery({ id, action, now, expectedSelection });
   if (!checked.allowed) return checked;
-  const { queue, task, conversation, claimNow } = checked, current = queue.data, conv = conversation.data;
+  const { queue, task, conversation, claimNow } = checked, current = queue.data;
   try {
     await fsCommit([
-      { docPath: 'operatorTasks/' + action.segretaria.caseId, fields: { preparation: task.data.preparation },
+      // Empty masks check the versions without rewriting any stored Value.
+      { docPath: 'operatorTasks/' + action.segretaria.caseId, fields: {},
         precondition: { updateTime: task.updateTime } },
       { docPath: 'conversations/' + action.segretaria.conversationId,
-        fields: { contactPhone: conv.contactPhone || null, contactEmail: conv.contactEmail || null },
+        fields: {},
         precondition: { updateTime: conversation.updateTime } },
       { docPath: 'action_queue/' + id, fields: { segretariaDeliveryBlock: null, segretaria: { ...current.segretaria,
         delivery: { state: 'claimed', claimedAt: new Date(claimNow).toISOString(),

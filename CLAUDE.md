@@ -3316,6 +3316,14 @@ Le altre risposte inattese richiedono riconciliazione, senza inventare ricevute.
 Prove: worker `test_19`, test JS/Python con claim realmente acquisito e risposta
 persa/500/503/504/0, più mutazione della vecchia classificazione.
 
+**CAS senza riscrivere dati (21/09):** i controlli versione in conferma,
+esecuzione, consegna e ritiro di vecchie approvazioni usano `fields: {}`.
+`fsCommit` conserva la maschera vuota e le precondizioni nello stesso batch;
+non materializza null né riconverte timestamp/mappe per verificare la versione.
+Una maschera assente sostituirebbe il documento: non ometterla o saltare il no-op.
+Prove RAW con encoder vero, claim reale e corse: `segretariafirestorenoop` e
+`segretariafirestorenoopmutazioni`; scritture di contenuto e veti invariati.
+
 ### POST `/api/homie/message` — da WhatsApp a lead, senza far pensare nessuno
 La CHIAVE DI VOLTA che permette a Homie di smettere di analizzare (mandato
 completo + prompt da incollare: `bot/HOMIE.md`). Finché Homie leggeva ogni
