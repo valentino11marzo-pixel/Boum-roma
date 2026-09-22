@@ -28,13 +28,13 @@
 // Auth: cron secret / X-Homie-Secret / admin ID token. `?dry=1` read-only.
 
 import { knobs, rejectedLine } from '../_squadra.js';
-import { aiSignal } from '../_budget.js';
+import { ai } from '../_ai.js';
 import {
   requireCronOrAdmin, fsGet, fsPatch, fsList, reportEmployeeHealth, saveReport,
 } from '../employees/_lib.js';
 
 const EMPLOYEE = 'lead-brain';
-const MODEL = 'claude-haiku-4-5-20251001';
+// Il modello (haiku) sta nel registro: js/ai-registry.js, scopo 'leads.brain'.
 // Dimensione del lotto e freno di spesa non sono piu costanti qui: vivono su
 // `settings/squadra` e si cambiano dalla scrivania (portale -> La Squadra),
 // con default e intervalli in js/squadra-registry.js. Con dailyAiCallCap a 0
@@ -78,7 +78,7 @@ export function stage0(lead, listingById) {
   return { score, reason: why.join(', '), final: false };  // ambiguous → AI batch
 }
 
-async function gradeBatch(key, items) {
+async function gradeBatch(items) {
   const SYSTEM = `Sei il valutatore lead di BOOM Roma, agenzia affitti premium orientata a inquilini internazionali/expat e professionisti. Per OGNI lead assegna:
 grade: "A" (qualificato e pronto: reddito/lavoro solido o expat in arrivo, richiesta specifica, budget compatibile) | "B" (promettente ma incompleto) | "C" (generico/debole ma persona reale) | "dead" (spam, agenzia, bot, non è una persona interessata)
 intent: "visita" | "info" | "apply" | "other"
@@ -89,15 +89,9 @@ Rispondi SOLO array JSON, stesso ordine: [{"i":<n>,"grade":"...","intent":"...",
     ` | annuncio=${x.propertyTitle || '?'}${x.propertyPrice ? ' €' + x.propertyPrice : ''}` +
     `\nmessaggio: ${String(x.message || '(vuoto)').slice(0, 400)}`
   ).join('\n---\n');
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
-    signal: aiSignal(25000),   // un modello appeso non deve uccidere la funzione
-    method: 'POST',
-    headers: { 'content-type': 'application/json', 'x-api-key': key, 'anthropic-version': '2023-06-01' },
-    body: JSON.stringify({ model: MODEL, max_tokens: 1200, system: SYSTEM, messages: [{ role: 'user', content: lines }] }),
-  });
-  if (!r.ok) throw new Error('anthropic_' + r.status);
-  const j = await r.json();
-  const out = (j.content || []).map(b => b.text || '').join('');
+  // La centrale (api/_ai.js) sceglie il backend — cloud, ombra o locale —
+  // mette il tetto di tempo e conta token e costo per lo scopo.
+  const { text: out } = await ai({ purpose: 'leads.brain', system: SYSTEM, messages: [{ role: 'user', content: lines }], maxTokens: 1200, timeoutMs: 25000, json: true });
   const a = out.indexOf('['), b = out.lastIndexOf(']') + 1;
   return JSON.parse(out.slice(a, b));
 }
@@ -152,7 +146,7 @@ export default async function handler(req, res) {
       } else {
         const batch = ambiguous.slice(0, k.batchMax);
         try {
-          const out = await gradeBatch(key, batch);
+          const out = await gradeBatch(batch);
           stats.aiCalls = 1;
           if (!dry) {
             try { await fsPatch(BUDGET_DOC, { day, calls: used + 1, at: new Date() }); }

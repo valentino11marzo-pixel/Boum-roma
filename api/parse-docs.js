@@ -28,6 +28,7 @@ import crypto from 'node:crypto';
 import { verifyIdToken } from './_auth.js';
 import { fsGet } from './homie/_lib.js';
 import { aiSignal } from './_budget.js';
+import { recordUsage } from './_ai.js';
 
 export const config = {
   api: {
@@ -226,7 +227,10 @@ export default async function handler(req, res) {
     upstreamBody.system = body.system;
   }
 
-  // Forward to Anthropic
+  // Forward to Anthropic. Questo resta un PROXY (la pagina legge la risposta
+  // grezza), quindi non passa dalla centrale — ma si CONTA come tutti gli
+  // altri scopi (registro: 'parse.docs', dichiarato `direct`).
+  const t0 = Date.now();
   try {
     const upstream = await fetch('https://api.anthropic.com/v1/messages', {
       signal: aiSignal(45000),   // un modello appeso non deve uccidere la funzione
@@ -240,6 +244,7 @@ export default async function handler(req, res) {
     });
 
     const data = await upstream.json().catch(() => ({ error: 'Invalid upstream JSON' }));
+    await recordUsage({ purpose: 'parse.docs', backend: 'cloud', model: upstreamBody.model, usage: data && data.usage, ok: upstream.ok, ms: Date.now() - t0 });
 
     logEvent({
       event: 'parse-docs-ok',

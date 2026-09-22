@@ -414,8 +414,10 @@ const PDFB64 = 'data:application/pdf;base64,' + Buffer.from('%PDF-1.4 finto').to
     /^import \{ maybeAutoAspi \} from '\.\.\/fiscal\/_aspi\.js';$/m.test(finSrc) && iCaf > -1 && iAuto > iCaf);
 
   const rules = fs.readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
+  // La lista degli esclusi può crescere ('ai' porta l'URL del tunnel verso il
+  // Mac): l'invariante è che 'registrazione' ci stia, non che sia l'ultima.
   check('firestore.rules: settings/registrazione NON leggibile dall\'anonimo (email del referente)',
-    /!\(x in \['company', 'registrazione'\]\)/.test(rules));
+    /!\(x in \[[^\]]*'registrazione'[^\]]*\]\)/.test(rules));
 
   const vercel = JSON.parse(fs.readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));
   check('vercel.json: api/fiscal/registra.js con maxDuration 60 (scarica gli allegati)',

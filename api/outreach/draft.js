@@ -18,8 +18,9 @@
 import OUT from '../../js/outreach-engine.js';
 import { fsGet, readJson } from '../homie/_lib.js';
 import { requireCronOrAdmin } from '../pfs/_guard.js';
+import { ai } from '../_ai.js';
 
-const MODEL = 'claude-haiku-4-5-20251001';
+// Il modello sta nel registro: js/ai-registry.js, scopo 'outreach.draft'.
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
@@ -74,18 +75,9 @@ async function aiPolish(base, listing, opts) {
     listing.description ? 'Descrizione annuncio: ' + String(listing.description).slice(0, 500) : null,
   ].filter(Boolean).join('\n');
 
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
-    method: 'POST',
-    headers: {
-      'x-api-key': process.env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    signal: AbortSignal.timeout(9000),
-    body: JSON.stringify({
-      model: MODEL,
-      max_tokens: 400,
-      messages: [{
+  const r = await ai({
+    purpose: 'outreach.draft', maxTokens: 400, timeoutMs: 9000,
+    messages: [{
         role: 'user',
         content:
           'Rifinisci questo messaggio di primo contatto per un annuncio di affitto, da inviare nella chat del portale immobiliare.\n\n' +
@@ -98,11 +90,8 @@ async function aiPolish(base, listing, opts) {
           '- il messaggio deve chiudere con la richiesta di visita.\n' +
           'Rispondi SOLO col messaggio finale, nessun commento.',
       }],
-    }),
   });
-  if (!r.ok) throw new Error('anthropic ' + r.status);
-  const j = await r.json();
-  const text = String((j.content && j.content[0] && j.content[0].text) || '').trim();
+  const text = String(r.text || '').trim();
   if (!text || text.length < 40 || text.length > OUT.MAX_LEN + 50) return null;
   // La rete di sicurezza del motore vale anche per l'AI: un telefono nel
   // testo (comunque ci sia finito) butta la rifinitura, non il template.

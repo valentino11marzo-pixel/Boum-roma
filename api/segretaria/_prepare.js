@@ -197,6 +197,7 @@ export async function prepareCase({ id, actor, now = Date.now(), background = fa
         assignCollaborator: false, bookMaintenance: false, callPerson: false, sendDuringPreparation: false } };
     if (!time.afford(35_000)) return { code: 503, error: 'preparation_time_budget' };
     const { text: result } = await callClaude({
+      purpose: 'segretaria.prepare',
       system: preparationPrompt({ channel, language, role: dossier.roles[0] || 'unknown' }),
       user: JSON.stringify(facts), maxTokens: 2800,
     });

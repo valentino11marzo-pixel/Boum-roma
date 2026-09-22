@@ -46,10 +46,13 @@ import { transcribeAudio } from '../wizard/_stt.js';
 import { brandAssets, masthead, stampFooters, wa, INK, GREY, FAINT, GOLD, HAIR, RED } from '../_pdfbrand.js';
 import INV from '../../js/inventario-engine.js';
 import { parseModelJson } from '../_modeljson.js';
-import { aiSignal } from '../_budget.js';
+import { ai as askModel, REG as AI_REG } from '../_ai.js';
 
 const ADMIN_NOTIFY = process.env.ADMIN_NOTIFY_EMAIL || 'valentino@boom-rome.com';
-const MODEL = 'claude-opus-5';          // il documento vale sul deposito: qui non si risparmia
+// Il modello (opus 5, visione) sta nel registro: js/ai-registry.js, scopo
+// 'inventario.video' — dichiarato `localOk:false`: il documento vale sul
+// deposito, qui non si risparmia.
+const MODEL = AI_REG.purposeOf('inventario.video').cloudModel;
 const MAX_FRAMES = 12;
 const MAX_FRAME_BYTES = 1.4 * 1024 * 1024;
 
@@ -116,25 +119,14 @@ async function askClaude(frames, hint) {
   });
 
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      signal: aiSignal(45000),   // un modello appeso non deve uccidere la funzione
-      method: 'POST',
-      headers: { 'x-api-key': key, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: MODEL, max_tokens: 8000, system: SYSTEM, messages: [{ role: 'user', content }] }),
-    });
-    if (!r.ok) {
-      console.error('[inventario] anthropic', r.status, (await r.text()).slice(0, 200));
-      return { ok: false, error: 'ai_failed_' + r.status };
-    }
-    const j = await r.json();
-    if (j.stop_reason === 'refusal') return { ok: false, error: 'ai_refused' };
-    const text = (j.content || []).map((c) => c.text || '').join('');
-    const read = parseModelJson(text);
+    const r = await askModel({ purpose: 'inventario.video', system: SYSTEM, messages: [{ role: 'user', content }], maxTokens: 8000, timeoutMs: 45000, json: true });
+    if (r.stopReason === 'refusal') return { ok: false, error: 'ai_refused' };
+    const read = parseModelJson(r.text);
     if (!read.ok) return { ok: false, error: 'ai_unparsable', why: read.why };
     return { ok: true, raw: read.value };
   } catch (e) {
-    console.error('[inventario] ai', e.message);
-    return { ok: false, error: 'ai_failed' };
+    console.error('[inventario] ai', e.code || e.message);
+    return { ok: false, error: e && e.code === 'cloud_http' ? 'ai_failed_' + e.status : 'ai_failed' };
   }
 }
 

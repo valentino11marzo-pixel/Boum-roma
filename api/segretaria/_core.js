@@ -232,7 +232,7 @@ export async function segretariaTurn({ cid, conv, lead, text, messageId, opening
   try {
     const system = VOCE.systemPrompt({ channel, language: replyLang(lead || { message: text }),
       role: persona.roles[0] || 'unknown', opening });
-    const { text: out } = await callClaude({ system, user: facts, maxTokens: 500 });
+    const { text: out } = await callClaude({ purpose: 'segretaria.turn', system, user: facts, maxTokens: 500 });
     parsed = extractJson(out);
   } catch (e) {
     const gateAfterError = await automaticReplyGate();

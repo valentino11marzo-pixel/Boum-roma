@@ -1,0 +1,158 @@
+{
+  "sourceCommit": "3bed6f08d6cfcbdd49273371dc017e53371d1c5f",
+  "addition": "single endpoint declared separately before grouping; no other live setting changed",
+  "functions": {
+    "api/reminder-cron.js": {
+      "maxDuration": 60
+    },
+    "api/homie/{conversation,message}.js": {
+      "maxDuration": 60
+    },
+    "api/homie/wa-outbox.js": {
+      "maxDuration": 60
+    },
+    "api/radar/digest.js": {
+      "maxDuration": 60
+    },
+    "api/stripe-webhook.js": {
+      "maxDuration": 60
+    },
+    "api/preagreement/{submit,sign-for}.js": {
+      "maxDuration": 60
+    },
+    "api/leads/scan-inbox.js": {
+      "maxDuration": 60
+    },
+    "api/pfs/scan-inbox.js": {
+      "maxDuration": 60
+    },
+    "api/homie/miniera.js": {
+      "maxDuration": 60
+    },
+    "api/leads/richiamo.js": {
+      "maxDuration": 60
+    },
+    "api/contracts/verbale.js": {
+      "maxDuration": 60
+    },
+    "api/contracts/inventario.js": {
+      "maxDuration": 60
+    },
+    "api/portal/ingest.js": {
+      "maxDuration": 120
+    },
+    "api/scrivano/worker.js": {
+      "maxDuration": 120
+    },
+    "api/listing.js": {
+      "includeFiles": "apartment-detail.html"
+    },
+    "api/geocode-all.js": {
+      "maxDuration": 60
+    },
+    "api/geocode-bake.js": {
+      "maxDuration": 60
+    },
+    "api/magic-sign/submit.js": {
+      "maxDuration": 60
+    },
+    "api/employees/contabile.js": {
+      "maxDuration": 60
+    },
+    "api/banking/sync.js": {
+      "maxDuration": 60
+    },
+    "api/banking/scan-inbox.js": {
+      "maxDuration": 60
+    },
+    "api/documents/scan-inbox.js": {
+      "maxDuration": 60
+    },
+    "api/telegram/webhook.js": {
+      "maxDuration": 60
+    },
+    "api/ai/status.js": {
+      "maxDuration": 30
+    },
+    "api/banking/import.js": {
+      "maxDuration": 60
+    },
+    "api/banking/export.js": {
+      "maxDuration": 60
+    },
+    "api/employees/gestore.js": {
+      "maxDuration": 60
+    },
+    "api/employees/commerciale.js": {
+      "maxDuration": 60
+    },
+    "api/sign/custom/submit.js": {
+      "maxDuration": 60
+    },
+    "api/photos/enhance.js": {
+      "maxDuration": 60,
+      "memory": 1769
+    },
+    "api/ops/gtfs-tempi.js": {
+      "maxDuration": 300,
+      "memory": 1769
+    },
+    "api/wizard/describe.js": {
+      "maxDuration": 60
+    },
+    "api/profile/upload.js": {
+      "maxDuration": 60
+    },
+    "api/profile/submit.js": {
+      "maxDuration": 60
+    },
+    "api/sign/send-link.js": {
+      "maxDuration": 60
+    },
+    "api/fiscal/{fascicolo,pack,foglio}.js": {
+      "maxDuration": 60
+    },
+    "api/fiscal/registra.js": {
+      "maxDuration": 60
+    },
+    "api/fiscal/allega.js": {
+      "maxDuration": 60
+    },
+    "api/fiscal/valutazione.js": {
+      "maxDuration": 60
+    },
+    "api/owners/rendiconto.js": {
+      "maxDuration": 60
+    },
+    "api/ops/conservazione.js": {
+      "maxDuration": 60
+    },
+    "api/phone/recording.js": {
+      "maxDuration": 60
+    },
+    "api/phone/elevenlabs.js": {
+      "maxDuration": 60
+    },
+    "api/ops/cassaforte.js": {
+      "maxDuration": 60
+    },
+    "api/segretaria/scan-replies.js": {
+      "maxDuration": 60
+    },
+    "api/segretaria/follow-up.js": {
+      "maxDuration": 60
+    },
+    "api/segretaria/prepare.js": {
+      "maxDuration": 60
+    },
+    "api/segretaria/worker.js": {
+      "maxDuration": 60
+    },
+    "api/telegram/notify-pending.js": {
+      "maxDuration": 60
+    },
+    "api/homie/wa-outbox-single.js": {
+      "maxDuration": 60
+    }
+  }
+}

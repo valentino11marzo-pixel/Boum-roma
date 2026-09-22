@@ -35,9 +35,16 @@ in `api/`), modelli Anthropic solo dal server, bot Telegram, un Mac
   fsList`). Id deterministici per idempotenza (`fsCreate(..., id)` → 409 =
   già fatto). Una collection nuova va in `firestore.rules` (di norma
   admin-only) o cade nel default-deny.
-- **Modelli**: JSON letto con `api/_modeljson.js` (mai `JSON.parse` a
-  mano), chiamate con tetto (`api/_budget.js`, `aiSignal`). Nei log va la
-  FORMA, mai il contenuto (nel repo passano CF, IBAN, documenti veri).
+- **Modelli**: una chiamata a un modello passa SOLO da `api/_ai.js`
+  (`ai({ purpose, system, messages|user, maxTokens, timeoutMs, json })`),
+  con lo scopo dichiarato in `js/ai-registry.js` (file, modello cloud,
+  modalità, se può andare in locale e perché). Mai una `fetch` diretta ad
+  `api.anthropic.com`, mai un nome di modello scritto a mano in un file
+  (`tests/ai` e `tests/tempo` lo fanno cadere). JSON letto con
+  `api/_modeljson.js` (mai `JSON.parse` a mano). Nei log va la FORMA, mai
+  il contenuto (nel repo passano CF, IBAN, documenti veri). Il locale sul Mac
+  è un endpoint OpenAI-compatibile dietro un tunnel: il token sta in env
+  (`LOCAL_AI_TOKEN`), mai in Firestore né nel codice.
 - **Dipendenze**: un pacchetto importato da `api/**` va in ENTRAMBI
   `api/package.json` e `package.json` (+ lockfile). Import statici in
   cima al file: `await import()` non viene tracciato da Vercel.

@@ -14,9 +14,9 @@
 import { requireRole, setCors } from '../_auth.js';
 import { readJson } from '../homie/_lib.js';
 import { modelJson } from '../_modeljson.js';
-import { aiSignal } from '../_budget.js';
+import { ai } from '../_ai.js';
 
-const MODEL = 'claude-haiku-4-5-20251001';
+// Il modello sta nel registro: js/ai-registry.js, scopo 'docs.ocr'.
 const MAX_BYTES = 8 * 1024 * 1024; // 8 MB
 
 const CATEGORIES = [
@@ -85,27 +85,15 @@ export default async function handler(req, res) {
   ].join('\n');
 
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      signal: aiSignal(30000),   // un modello appeso non deve uccidere la funzione
-      method: 'POST',
-      headers: {
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: MODEL,
-        max_tokens: 2000,
-        messages: [{ role: 'user', content: [sourceBlock, { type: 'text', text: prompt }] }],
-      }),
-    });
-    if (!resp.ok) {
-      const t = await resp.text();
-      console.error('[documents/ocr] anthropic', resp.status, t.slice(0, 300));
+    let resp;
+    try {
+      resp = await ai({ purpose: 'docs.ocr', maxTokens: 2000, timeoutMs: 30000, json: true,
+        messages: [{ role: 'user', content: [sourceBlock, { type: 'text', text: prompt }] }] });
+    } catch (e) {
+      console.error('[documents/ocr] ' + (e.code || e.message));
       return res.status(502).json({ ok: false, error: 'ocr_provider_error' });
     }
-    const data = await resp.json();
-    const raw = (data.content && data.content[0] && data.content[0].text) || '';
+    const raw = resp.text;
     let parsed;
     try {
       parsed = modelJson(raw);

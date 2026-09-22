@@ -33,10 +33,11 @@
 
 import { fsCreate, fsGet, fsList, storageUpload, logActivity } from '../agent/_lib.js';
 import { extractJson } from '../agent/_claude.js';
-import { aiSignal } from '../_budget.js';
+import { ai } from '../_ai.js';
 import { sendScrivanoOffer } from '../scrivano/_offer.js';
 
-const MODEL = 'claude-haiku-4-5-20251001';
+// Il modello sta nel registro: js/ai-registry.js, scopo 'docs.smista'
+// (foto → anche in locale con un modello che vede; PDF → sempre cloud).
 export const MAX_DOC_BYTES = 8 * 1024 * 1024;
 
 // key → archive mapping. `category` strings are keyword-rich on purpose:
@@ -158,22 +159,10 @@ export async function smistaDocument({ base64, mediaType, fileName, hint, origin
     '\nSe non sei ragionevolmente sicuro dell\'immobile, propertyId=null. Non inventare.',
   ].join('\n');
 
-  const r = await fetch('https://api.anthropic.com/v1/messages', {
-    signal: aiSignal(20000),   // un modello appeso non deve uccidere la funzione
-    method: 'POST',
-    headers: {
-      'x-api-key': process.env.ANTHROPIC_API_KEY,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: MODEL, max_tokens: 800,
-      messages: [{ role: 'user', content: [block, { type: 'text', text: prompt }] }],
-    }),
+  const { text } = await ai({
+    purpose: 'docs.smista', maxTokens: 800, timeoutMs: 20000, json: true,
+    messages: [{ role: 'user', content: [block, { type: 'text', text: prompt }] }],
   });
-  if (!r.ok) throw new Error(`Anthropic ${r.status}: ${(await r.text()).slice(0, 200)}`);
-  const data = await r.json();
-  const text = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('');
   const parsed = extractJson(text) || {};
 
   const catKey = CATS[parsed.category] ? parsed.category : 'altro';

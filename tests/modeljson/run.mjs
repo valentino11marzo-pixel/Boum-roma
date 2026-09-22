@@ -93,7 +93,9 @@ const ing = src('api/portal/ingest.js');
 ok(!/raw\.slice\(0, ?\d+\)/.test(ing), 'ingest: il contenuto letto non finisce più nei log');
 ok(/jsonFailureLine\(/.test(ing) && /jsonFailureHint\(/.test(ing),
   'ingest: logga la forma e spiega all\'operatore cosa fare');
-ok(/stop_reason/.test(ing), 'ingest: guarda lo stop_reason di Anthropic — è la prova del taglio');
+// la centrale (api/_ai.js) lo consegna normalizzato come `stopReason`: vale
+// l'una o l'altra grafia, purché ingest lo guardi
+ok(/stop_?[rR]eason/.test(ing), 'ingest: guarda lo stop_reason di Anthropic — è la prova del taglio');
 
 console.log(`\n${fail ? '✗' : '✓'} modeljson: ${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);

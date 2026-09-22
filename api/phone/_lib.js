@@ -29,7 +29,7 @@ import crypto from 'node:crypto';
 import { secretEqual, fsList, fsPatch, fsCreate, getAdminToken, logActivity } from '../homie/_lib.js';
 import { phoneVariants, isNoise, mergeMessage, buildLead, recentLeadByPhone } from '../homie/_lead.js';
 import { replyLang } from '../_lang.js';
-import { aiSignal } from '../_budget.js';
+import { ai } from '../_ai.js';
 
 // ── la chiave del webhook: derivata, mai coniata ───────────────────────────
 // Twilio non può mandare header custom comodi: la chiave viaggia in ?k=.
@@ -201,7 +201,7 @@ export function callerLabel(resolved, phone) {
 // chiamante.
 // ═══════════════════════════════════════════════════════════════════════════
 
-export const MODEL = 'claude-haiku-4-5-20251001';
+// Il modello sta nel registro: js/ai-registry.js, scopo 'phone.analyze'.
 export const BUCKET = process.env.FIREBASE_BUCKET || 'boom-property-dashboards.firebasestorage.app';
 export const BOOM_CONTACT_TYPES = new Set(['tenant', 'landlord', 'pfs', 'client']);
 
@@ -270,22 +270,7 @@ export async function analyzeTranscript({ transcript, callerType, resolved, from
   ].filter(Boolean).join('\n');
 
   try {
-    const r = await fetch('https://api.anthropic.com/v1/messages', {
-      signal: aiSignal(25000),   // un modello appeso non deve uccidere la funzione
-      method: 'POST',
-      headers: {
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({ model: MODEL, max_tokens: 700, messages: [{ role: 'user', content: prompt }] }),
-    });
-    if (!r.ok) {
-      console.warn('[phone/_lib] anthropic', r.status, (await r.text()).slice(0, 120));
-      return sanitizeAnalysis(providerSummary ? { summary: providerSummary } : {}, transcript);
-    }
-    const data = await r.json();
-    const text = (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
+    const { text } = await ai({ purpose: 'phone.analyze', messages: [{ role: 'user', content: prompt }], maxTokens: 700, timeoutMs: 25000, json: true });
     const m = text.match(/\{[\s\S]*\}/);
     const parsed = m ? JSON.parse(m[0]) : null;
     return sanitizeAnalysis(parsed, transcript);

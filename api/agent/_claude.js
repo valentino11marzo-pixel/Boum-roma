@@ -1,63 +1,41 @@
 // api/agent/_claude.js
-// Thin Anthropic /v1/messages client for the agent layer. Mirrors the raw-HTTP
-// approach already used by api/parse-docs.js (no SDK dependency, no build step),
-// but server-side only and reusable across the AI tools (ai.reply, etc.).
+// L'ingresso storico dell'agent layer (ai.reply, commerciale, segretaria,
+// banking). Dal 21/09/2026 è un wrapper sottile sulla CENTRALE AI
+// (api/_ai.js): stessa firma per i chiamanti, ma il backend (cloud, ombra o
+// locale), il tetto di tempo e i contatori li decide la centrale in base allo
+// SCOPO dichiarato nel registro (js/ai-registry.js).
 //
 // Env:
-//   ANTHROPIC_API_KEY   (required) — same key parse-docs.js uses
-//   ANTHROPIC_MODEL     (optional) — defaults to claude-opus-4-8
+//   ANTHROPIC_API_KEY   (required) — la centrale la usa per il cloud
+//   ANTHROPIC_MODEL     (optional) — override GLOBALE del modello cloud per i
+//                       chiamanti di questo file (vince sul registro e sulle
+//                       impostazioni per scopo). Il default di registro per
+//                       questi scopi è claude-opus-4-8, com'era qui.
 //
-// Model default is Opus 4.8 (latest, most capable). Override per-deployment via
-// ANTHROPIC_MODEL if you want to trade intelligence for latency/cost (e.g.
-// claude-haiku-4-5 for high-volume reply drafting).
+// `system` viaggia come blocco cacheable (prompt caching): al cloud passa
+// intatto, al locale viene appiattito in testo.
 
+import { ai } from '../_ai.js';
 import { modelJson } from '../_modeljson.js';
-import { aiSignal } from '../_budget.js';
 
-const ANTHROPIC_URL = 'https://api.anthropic.com/v1/messages';
-const DEFAULT_MODEL = process.env.ANTHROPIC_MODEL || 'claude-opus-4-8';
+const ENV_MODEL = process.env.ANTHROPIC_MODEL || '';
 
-// Call Claude with a system prompt + a single user turn. Returns the joined
-// text of the response. `system` is sent as a cacheable block so a stable
-// persona prefix can be reused across calls (prompt caching).
-export async function callClaude({ system, user, maxTokens = 1024, model } = {}) {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error('ANTHROPIC_API_KEY not configured');
+// Call the model with a system prompt + a single user turn. Returns the joined
+// text of the response plus usage/model/backend. `purpose` è la chiave del
+// registro: senza, si conta come 'agent.reply' (il chiamante storico).
+export async function callClaude({ system, user, maxTokens = 1024, model, purpose = 'agent.reply', timeoutMs = 30000 } = {}) {
   if (!user) throw new Error('user content required');
-
-  const body = {
-    model: model || DEFAULT_MODEL,
-    max_tokens: maxTokens,
-    // Keep thinking off for short, latency-sensitive drafts; the system prompt
-    // instructs Claude to answer with the deliverable only.
+  const r = await ai({
+    purpose,
+    maxTokens,
+    timeoutMs,   // un modello appeso non deve uccidere la funzione
+    model: model || ENV_MODEL || undefined,
     system: [
       { type: 'text', text: system || 'You are a helpful assistant.', cache_control: { type: 'ephemeral' } },
     ],
     messages: [{ role: 'user', content: user }],
-  };
-
-  const res = await fetch(ANTHROPIC_URL, {
-    signal: aiSignal(30000),   // un modello appeso non deve uccidere la funzione
-    method: 'POST',
-    headers: {
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      'content-type': 'application/json',
-    },
-    body: JSON.stringify(body),
   });
-
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    throw new Error(`Anthropic ${res.status}: ${txt.slice(0, 300)}`);
-  }
-  const data = await res.json();
-  const text = (data.content || [])
-    .filter(b => b.type === 'text')
-    .map(b => b.text)
-    .join('')
-    .trim();
-  return { text, usage: data.usage || null, model: data.model || body.model };
+  return { text: r.text, usage: r.usage || null, model: r.model, backend: r.backend, fallback: r.fallback };
 }
 
 // La lettura del JSON di un modello sta in api/_modeljson.js — una copia

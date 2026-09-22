@@ -22,12 +22,13 @@ import { getAdminToken, fsGet, fsPatch, readJson, logActivity } from '../homie/_
 import { setCors, rateOk } from '../magic-sign/_shared.js';
 import { parseSchedaRef } from './_scheda.js';
 import { modelJson } from '../_modeljson.js';
-import { aiSignal } from '../_budget.js';
+import { ai } from '../_ai.js';
 
 const BUCKET = process.env.FIREBASE_BUCKET || 'boom-property-dashboards.firebasestorage.app';
 const MAX_BYTES = 10 * 1024 * 1024;
 const MAX_UPLOADS = 12;
-const MODEL = 'claude-haiku-4-5-20251001';
+// Il modello sta nel registro: js/ai-registry.js, scopo 'profile.ocr' — un
+// documento d'identità in locale NON esce di casa: l'argomento è la privacy.
 
 const clip = (v, n = 120) => String(v == null ? '' : v).trim().slice(0, n);
 
@@ -53,22 +54,9 @@ async function extractIdentity(base64, mediaType) {
     '}',
   ].join('\n');
   try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      signal: aiSignal(30000),   // un modello appeso non deve uccidere la funzione
-      method: 'POST',
-      headers: {
-        'x-api-key': process.env.ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: MODEL, max_tokens: 500,
-        messages: [{ role: 'user', content: [sourceBlock, { type: 'text', text: prompt }] }],
-      }),
-    });
-    if (!resp.ok) { console.warn('[profile/upload] anthropic', resp.status); return null; }
-    const data = await resp.json();
-    const raw = (data.content && data.content[0] && data.content[0].text) || '';
+    const resp = await ai({ purpose: 'profile.ocr', maxTokens: 500, timeoutMs: 30000, json: true,
+      messages: [{ role: 'user', content: [sourceBlock, { type: 'text', text: prompt }] }] });
+    const raw = resp.text;
     const j = modelJson(raw);
     if (!j) throw new Error('unreadable');
     return {
