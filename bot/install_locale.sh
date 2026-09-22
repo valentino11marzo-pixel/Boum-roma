@@ -209,11 +209,13 @@ ensure_env LOCALE_MODEL "$MODEL"
 [ -n "$VISION" ] && ensure_env LOCALE_VISION_MODEL "$VISION"
 ensure_env OLLAMA_URL "http://127.0.0.1:11434"
 ensure_env LOCALE_PORT "$PORT"
-# HOMIE_SECRET (solo per --smoke): dai bracci già installati
+# HOMIE_SECRET (solo per --smoke): dai bracci già installati. Il ponte di
+# Homie lo scrive in ~/.boom/env come `export HOMIE_SECRET="…"` (sh da
+# sorgere), gli altri come KEY=VALUE: si accettano entrambe le forme.
 if [ -z "$(envget HOMIE_SECRET)" ]; then
   for f in "$HOME/boom-scout/.env" "$HOME/boom-contatto/.env" "$HOME/boom-publisher/.env" "$HOME/boom-listing-wizard/.env" "$HOME/.boom/env"; do
     [ -f "$f" ] || continue
-    v="$(sed -n 's/^HOMIE_SECRET=//p' "$f" | head -1 | tr -d '"' | tr -d "'")"
+    v="$(sed -n -E 's/^(export[[:space:]]+)?HOMIE_SECRET=//p' "$f" | head -1 | tr -d '"' | tr -d "'")"
     if [ -n "$v" ]; then ensure_env HOMIE_SECRET "$v"; note "HOMIE_SECRET ritrovato da un braccio già installato ✓"; break; fi
   done
 fi
@@ -249,8 +251,11 @@ cat > "$AGENTS_DIR/com.boom.locale.plist" <<PLIST
 PLIST
 launchctl unload "$AGENTS_DIR/com.boom.locale.plist" 2>/dev/null || true
 launchctl load "$AGENTS_DIR/com.boom.locale.plist"
-for _ in $(seq 1 10); do sleep 1; curl -fsS --max-time 2 "http://127.0.0.1:$PORT/health" >/dev/null 2>&1 && break; done
-curl -fsS --max-time 2 "http://127.0.0.1:$PORT/health" >/dev/null 2>&1 || die "il ponte non risponde su :$PORT — guarda $DIR/locale.err.log"
+# 30 s, non 10: il 22/09 dopo un pull da 5 GB il primo avvio ne ha voluti
+# di più e l'installer ha dichiarato morto un ponte che era vivo (PID, porta
+# in ascolto, log vuoto). Se non risponde, si dice DOVE guardare.
+for _ in $(seq 1 30); do sleep 1; curl -fsS --max-time 2 "http://127.0.0.1:$PORT/health" >/dev/null 2>&1 && break; done
+curl -fsS --max-time 2 "http://127.0.0.1:$PORT/health" >/dev/null 2>&1 || die "il ponte non risponde su :$PORT dopo 30 s — guarda $DIR/locale.err.log e 'launchctl list | grep com.boom.locale' (un trattino al posto del PID = non parte; un PID = sta partendo, rilancia fra un minuto)"
 note "com.boom.locale · sempre acceso ✓"
 
 say "Prova in locale (la prima completion carica il modello: può volerci un minuto)"

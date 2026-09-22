@@ -2946,7 +2946,13 @@ reboot l'app riparte col contesto di default. Dichiarato nel sorgente, non
 risolto (il Mac mini non ha l'app). Un solo server su :11434: se lo occupa
 un altro `ollama` (brew services, un `serve` a mano) l'installer lo ferma
 prima di caricare il suo, altrimenti il suo entra in crash loop. Cinque
-check in più in `tests/locale/runner.py` (45).
+check in più in `tests/locale/runner.py` (45). **E l'installer era
+impaziente**: 10 s di attesa sul ponte, dopo un pull da 5 GB il primo
+avvio ne ha voluti di più, e ha dichiarato morto un ponte VIVO (PID, porta
+in ascolto, log vuoto). Ora 30 s e, se tace, il messaggio dice dove
+guardare (`launchctl list`: trattino = non parte, PID = sta partendo).
+`HOMIE_SECRET` per `--smoke` si legge anche nella forma `export
+HOMIE_SECRET="…"` di `~/.boom/env` (il ponte di Homie lo scrive così).
 
 **Il merge con l'Innesto 3.0 e la Segretaria di Codex (22/09/2026).** Su
 `main` erano intanto arrivati l'Innesto 3.0 (`api/portal/ingest.js`: Opus 5,
