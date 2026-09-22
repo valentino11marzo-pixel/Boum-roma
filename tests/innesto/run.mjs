@@ -150,7 +150,7 @@ globalThis.fetch = async (url, opts = {}) => {
   return new Response('nope', { status: 200, headers: { 'Content-Type': 'application/pdf' } });
 };
 
-const { default: handler, INGEST_SCHEMA, SCHEMA_LIMITS, MODEL, MAX_PAGES, MAX_TOTAL_PAGES } = await import('../../api/portal/ingest.js');
+const { default: handler, INGEST_SCHEMA, SCHEMA_LIMITS, MODEL, EFFORT, MAX_PAGES, MAX_TOTAL_PAGES, filledLeaves } = await import('../../api/portal/ingest.js');
 
 // Conta ciò che l'API conta quando compila lo schema in grammatica: i
 // parametri con UNIONE (anyOf / oneOf / type array) e quelli FUORI da
@@ -220,15 +220,16 @@ check('IL JSON ARRIVA GIÀ PARSATO: lo schema è l\'input_schema dello strumento
   && !body.output_config?.format && body.tool_choice?.type === 'tool' && body.tool_choice?.name === 'proposta' && body.tool_choice?.disable_parallel_tool_use === true,
   JSON.stringify({ tools: (body.tools || []).map((t) => [t.name, t.strict]), tool_choice: body.tool_choice, output_config: Object.keys(body.output_config || {}) }));
 check('…il prompt dice di CHIAMARE lo strumento, una volta sola', /chiamando lo strumento `proposta`/.test(body.system?.[0]?.text || '') && /UNA sola chiamata allo strumento `proposta`/.test(body.system?.[0]?.text || ''));
-check('…ogni oggetto dello schema: additionalProperties false e required COMPLETO', (() => {
+check('…LO SCHEMA È SPARSO (22/09): nessun `required` in nessun oggetto — una chiave omessa è «manca», e ~150 stringhe vuote a lettura erano ~900 token di output pagati e attesi ogni volta', (() => {
   let bad = 0, n = 0;
-  (function walk(x) { if (!x || typeof x !== 'object') return; if (x.type === 'object') { n++; if (x.additionalProperties !== false || !Array.isArray(x.required) || x.required.length !== Object.keys(x.properties || {}).length) bad++; } Object.values(x).forEach(walk); })(INGEST_SCHEMA);
+  (function walk(x) { if (!x || typeof x !== 'object') return; if (x.type === 'object') { n++; if (x.additionalProperties !== false || (Array.isArray(x.required) && x.required.length)) bad++; } Object.values(x).forEach(walk); })(INGEST_SCHEMA);
   return n >= 10 && bad === 0;
 })());
+check('…e lo strumento lo dice (ometti = manca) e il prompt pure (OMETTI le chiavi vuote)', /una chiave omessa significa «manca»/.test(body.tools?.[0]?.description || '') && /OMETTI le chiavi vuote/.test(body.system?.[0]?.text || ''));
 check('…nessun vincolo che la piattaforma non supporta (minimum/maxLength/pattern)', !/"(minimum|maximum|minLength|maxLength|pattern)"/.test(JSON.stringify(INGEST_SCHEMA)));
-check('…ZERO unioni e ZERO facoltativi su >100 parametri: i limiti DOCUMENTATI sono 16 unioni e 24 facoltativi PER RICHIESTA (il 21/09/2026 erano 99 unioni → 400 su OGNI lettura)', (() => {
+check('…ZERO unioni su >100 parametri (il 21/09/2026 erano 99 → 400 su OGNI lettura); i facoltativi sono LIBERI perché senza grammatica il limite dei 24 non esiste — e SCHEMA_LIMITS resta la memoria dei limiti della grammatica', (() => {
   const c = schemaComplexity(INGEST_SCHEMA);
-  return c.params > 100 && c.unions === 0 && c.optional === 0 && SCHEMA_LIMITS.unionParams === 16 && SCHEMA_LIMITS.optionalParams === 24 && c.unions <= SCHEMA_LIMITS.unionParams && c.optional <= SCHEMA_LIMITS.optionalParams;
+  return c.params > 100 && c.unions === 0 && c.optional === c.params && SCHEMA_LIMITS.unionParams === 16 && SCHEMA_LIMITS.optionalParams === 24;
 })(), JSON.stringify(schemaComplexity(INGEST_SCHEMA)));
 check('…il contatore morde (mutazione: un anyOf e un campo fuori da required vengono contati)', (() => {
   const c = schemaComplexity({ type: 'object', properties: { a: { anyOf: [{ type: 'string' }, { type: 'null' }] }, b: { type: ['string', 'null'] }, c: { type: 'string' } }, required: ['a', 'b'], additionalProperties: false });
@@ -237,8 +238,9 @@ check('…il contatore morde (mutazione: un anyOf e un campo fuori da required v
 check('…«manca» è "" e MAI null: nessun tipo null nello schema, e ogni enum facoltativo ammette ""', !/"null"/.test(JSON.stringify(INGEST_SCHEMA)) && (() => {
   let withEmpty = 0; (function walk(x) { if (!x || typeof x !== 'object') return; if (Array.isArray(x.enum) && x.enum.indexOf('') >= 0) withEmpty++; Object.values(x).forEach(walk); })(INGEST_SCHEMA); return withEmpty >= 12;
 })());
-check('…e il prompt di sistema dice «stringa vuota», non «null»', /lascia la stringa vuota ""/.test(body.system?.[0]?.text || '') && !/lascia null/.test(body.system?.[0]?.text || ''));
+check('…e il prompt di sistema dice «OMETTI la chiave», mai «null»', /OMETTI la chiave/.test(body.system?.[0]?.text || '') && !/lascia null/.test(body.system?.[0]?.text || ''));
 check('thinking adattivo, MAI budget_tokens (400 su Opus 5)', body.thinking?.type === 'adaptive' && !('budget_tokens' in (body.thinking || {})));
+check('LO SFORZO (22/09): output_config.effort «medium» — meno thinking del default «high», su Opus 5, senza beta — e SEMPRE senza format (la grammatica non torna)', body.output_config?.effort === 'medium' && EFFORT === 'medium' && !body.output_config?.format && Object.keys(body.output_config || {}).join(',') === 'effort', JSON.stringify(body.output_config));
 check('max_tokens generoso (un taglio a 2000 era un «troncato» garantito su 120 campi)', body.max_tokens >= 8000, String(body.max_tokens));
 check('il prompt di sistema è in cache (prefisso stabile, cache_control)', Array.isArray(body.system) && body.system[0]?.cache_control?.type === 'ephemeral');
 check('il ripiego server-side sui rifiuti è dichiarato (beta + fallbacks)', r.anth[0]?.headers?.['anthropic-beta'] === 'server-side-fallback-2026-07-01' && body.fallbacks === 'default');
@@ -388,12 +390,46 @@ check('un 400 sul beta del ripiego → si riprova UNA volta senza, e la lettura 
 r = await call('admin_1', { text: 'x' }, { failFirstWith: 'invalid_request_error: messages' });
 check('un 400 di altra natura NON si riprova (niente doppia spesa) ed è DETERMINISTICO: 500 ai_bad_request, mai un «riprova»', r.res.code === 500 && r.res.body?.error === 'ai_bad_request' && r.anth.length === 1 && !/[Rr]iprova/.test(r.res.body?.detail || ''), `${r.res.code} ${r.res.body?.error} calls=${r.anth.length}`);
 
+console.log('\n\x1b[1mLA LEZIONE DEL 22/09/2026 — dati catastali incollati NUDI, «da collegare a una proprietà»\x1b[0m');
+// Nei log di produzione: `ok via=tool files=0 pages=0 … ms=23445 sections=-`.
+// Il testo era arrivato al modello, la risposta era vuota di sezioni. Ora il
+// bersaglio DICHIARATO viaggia nel prompt (nome e indirizzo, mai l'id), una
+// risposta SPARSA con i soli dati catastali è una proposta con l'immobile
+// ancorato, e una lettura vuota dice quanti valori ha scritto il modello.
+const CATASTO = 'Sez. Urb. B — Fg. 545 — Part. 120 — Sub. 4 — Cat. A/3 — Cl. 5 — Cons. 4,5 vani — Rendita € 645,57';
+const SPARSE_CATASTO = { files: [{ index: '1', kind: 'visura', title: 'Dati catastali', legible: true, summary: 'estratto catastale incollato' }], material: 'immobile',
+  property: { name: 'Via Simeto 12', address: 'Via Simeto 12, 00199 Roma', cadastral: { sezione: 'B', foglio: '545', particella: '120', sub: '4', categoria: 'A/3', rendita: '645.57' } },
+  evidence: [{ path: 'property.cadastral.foglio', quote: 'Fg. 545', file: '', page: '' }, { path: 'property.address', quote: 'dichiarato dall\'operatore', file: '', page: '' }], notes: [], confidence: 85, summary: 'Dati catastali di Via Simeto 12' };
+r = await call('admin_1', { text: CATASTO, context: { hint: 'sono i dati catastali della casa di Simeto', target: { property: { name: 'Via Simeto 12', address: 'Via Simeto 12, 00199 Roma' }, landlord: { name: 'Anna Testa' }, hacker: { name: 'HACKERNAME' } } } }, { reply: SPARSE_CATASTO });
+let userTextT = (r.anth[0]?.body?.messages?.[0]?.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('\n');
+check('il bersaglio dichiarato arriva al modello come blocco RIGUARDA (immobile con indirizzo, proprietario), come FATTO', /RIGUARDA \(dichiarato dall'operatore/.test(userTextT) && /- Immobile: «Via Simeto 12 — Via Simeto 12, 00199 Roma»/.test(userTextT) && /- Proprietario: «Anna Testa»/.test(userTextT) && /fatti, non deduzioni/.test(userTextT), userTextT.slice(-500));
+check('…prima dell\'indicazione libera, e una chiave sconosciuta del bersaglio non entra', userTextT.indexOf('RIGUARDA') < userTextT.indexOf('Indicazione dell\'operatore') && !/HACKERNAME/.test(userTextT));
+check('…e il prompt di sistema spiega i DATI NUDI (catasto senza indirizzo = lettura valida) e il blocco RIGUARDA', /DATI NUDI incollati/.test(r.anth[0].body.system[0].text) && /blocco RIGUARDA/.test(r.anth[0].body.system[0].text));
+let PT = r.res.body?.proposal || {};
+check('una risposta SPARSA (solo property + files) → 200 con l\'immobile ancorato dal catasto, e NESSUNA card fantasma (niente landlord/tenant/contract)', r.res.code === 200 && !r.res.body.empty && PT.property && !PT.landlord && !PT.tenant && !PT.contract && Object.keys(PT).sort().join(',') === 'material,property', JSON.stringify(Object.keys(PT)));
+check('…col catasto piatto (foglio 545, sub 4, categoria A/3, rendita 645.57) e il blob composto per il PDF', PT.property?.foglio === '545' && PT.property?.sub === '4' && PT.property?.categoria === 'A/3' && PT.property?.renditaCatastale === 645.57 && /foglio 545, particella 120, sub 4/.test(PT.property?.cadastralData || ''), JSON.stringify(PT.property));
+check('…e la risposta dice quanti valori il modello ha scritto (stats.filled), per i log e per l\'operatore', r.res.body?.stats?.filled >= 8, JSON.stringify(r.res.body?.stats));
+r = await call('admin_1', { text: 'Sub. 4' }, { reply: { property: { cadastral: { sub: '4' } } } });
+check('anche un solo subalterno ancora l\'immobile (prima serviva il foglio: «nessun dato»)', r.res.code === 200 && r.res.body?.proposal?.property?.sub === '4' && !r.res.body.empty, JSON.stringify(r.res.body?.proposal));
+r = await call('admin_1', { text: 'Solo un nome' }, { reply: { tenant: { name: 'Solo Nome' } } });
+check('chiavi OMESSE ovunque (schema sparso): niente crash, l\'inquilino c\'è, il resto no', r.res.code === 200 && r.res.body?.proposal?.tenant?.name === 'Solo Nome' && !r.res.body.proposal.property && !r.res.body.proposal.contract, JSON.stringify(r.res.body?.proposal));
+r = await call('admin_1', { text: 'niente' }, { reply: { property: { furnished: 'no', propertyType: 'apartment', city: 'Roma' }, material: 'altro' } });
+check('solo default (furnished/propertyType/city) + material → vuoto ONESTO («material» da solo non è una proposta: prima era «Proposta pronta» a card zero): «letti 3 valori, ma nessuno identifica…»', r.res.code === 200 && r.res.body?.empty === true && r.res.body?.stats?.filled === 3 && /Letti 3 valori/.test(r.res.body?.message || '') && JSON.stringify(r.res.body?.proposal) === '{}', JSON.stringify([r.res.body?.stats, r.res.body?.message, r.res.body?.proposal]));
+r = await call('admin_1', { text: 'niente' }, { reply: {} });
+check('risposta vuota del tutto → 200 empty, filled 0, e il messaggio suggerisce «Riguarda» (nessun bersaglio dichiarato)', r.res.code === 200 && r.res.body?.empty === true && r.res.body?.stats?.filled === 0 && /«Riguarda»/.test(r.res.body?.message || ''), JSON.stringify([r.res.body?.stats, r.res.body?.message]));
+r = await call('admin_1', { text: 'niente', context: { target: { property: { name: 'Via Simeto 12', address: '' } } } }, { reply: {} });
+check('…col bersaglio già dichiarato il suggerimento «Riguarda» non compare (sarebbe una presa in giro)', r.res.code === 200 && r.res.body?.empty === true && !/«Riguarda»/.test(r.res.body?.message || '') && /RIGUARDA/.test((r.anth[0]?.body?.messages?.[0]?.content || []).map((c) => c.text || '').join('\n')), r.res.body?.message);
+r = await call('admin_1', { text: 'x', context: { target: { property: { name: 'N'.repeat(500), address: 'A'.repeat(500) } } } });
+userTextT = (r.anth[0]?.body?.messages?.[0]?.content || []).filter((c) => c.type === 'text').map((c) => c.text).join('\n');
+check('il bersaglio è clippato (nome 120, indirizzo 160): un payload gonfio non gonfia il prompt', (() => { const line = (userTextT.split('\n').find((l) => l.startsWith('- Immobile:')) || ''); return line.length > 0 && line.length < 320; })(), String((userTextT.split('\n').find((l) => l.startsWith('- Immobile:')) || '').length));
+check('filledLeaves conta i valori delle SEZIONI, non files/evidence/notes/summary (e "" non conta)', filledLeaves({ files: [{ index: 1, kind: 'x' }], evidence: [{ path: 'a', quote: 'b' }], notes: ['n'], summary: 's', confidence: 90, material: 'contratto', tenant: { name: 'A', email: '' }, property: { cadastral: { foglio: '1', sub: '' } }, coTenants: [{ name: 'B' }] }) === 3 && filledLeaves({}) === 0 && filledLeaves(null) === 0);
+
 console.log('\n\x1b[1mIl 400 che era MIO (la lezione del 21/09/2026)\x1b[0m');
 r = await call('admin_1', { text: 'x' }, { status: 400, text: '{"type":"error","error":{"type":"invalid_request_error","message":"Schemas contains too many parameters with union types (99 parameters with type arrays or anyOf). This causes exponential compilation time."}}' });
 check('lo schema rifiutato dall\'API → 500 ai_bad_request che nomina la RICHIESTA del server, non il documento, col messaggio dell\'API dentro', r.res.code === 500 && r.res.body?.error === 'ai_bad_request' && /RICHIESTA del server/.test(r.res.body?.detail || '') && /union types/.test(r.res.body?.detail || '') && !/[Rr]iprova|incolla/.test(r.res.body?.detail || '') && r.anth.length === 1, `${r.res.code} ${r.res.body?.error} ${r.res.body?.detail}`);
 r = await call('admin_1', { text: 'x' }, { status: 400, text: '{"type":"error","error":{"type":"invalid_request_error","message":"The compiled grammar is too large, which would cause performance issues. Simplify your tool schemas or reduce the number of strict tools."}}' });
 check('«The compiled grammar is too large» (la TERZA lezione del 21/09: il primo documento vero, dopo il fix delle unioni) → 500 ai_bad_request che nomina la RICHIESTA del server, col messaggio dentro', r.res.code === 500 && r.res.body?.error === 'ai_bad_request' && /RICHIESTA del server/.test(r.res.body?.detail || '') && /compiled grammar/.test(r.res.body?.detail || '') && r.anth.length === 1, `${r.res.code} ${r.res.body?.error} ${r.res.body?.detail}`);
-check('…e quella richiesta non compila più NIENTE: nessun output_config.format, nessuno strumento strict — il tetto interno della grammatica non può più mordere', r.anth.length === 1 && !('output_config' in r.anth[0].body) && Array.isArray(r.anth[0].body.tools) && r.anth[0].body.tools.every((t) => t.strict !== true), JSON.stringify(Object.keys(r.anth[0]?.body || {})));
+check('…e quella richiesta non compila più NIENTE: nessun output_config.format, nessuno strumento strict — il tetto interno della grammatica non può più mordere', r.anth.length === 1 && !r.anth[0].body.output_config?.format && Array.isArray(r.anth[0].body.tools) && r.anth[0].body.tools.every((t) => t.strict !== true), JSON.stringify(Object.keys(r.anth[0]?.body || {})));
 r = await call('admin_1', { text: 'x' }, { failFirstWith: '{"type":"error","error":{"type":"invalid_request_error","message":"tool_choice: type \\"tool\\" is not supported when thinking is enabled"}}' });
 check('la chiamata FORZATA rifiutata (400 che nomina tool_choice) → si riprova UNA volta con tool_choice auto, stesso strumento, e la lettura passa', r.res.code === 200 && r.anth.length === 2 && r.anth[0].body.tool_choice?.type === 'tool' && r.anth[1].body.tool_choice?.type === 'auto' && r.anth[1].body.tool_choice?.disable_parallel_tool_use === true && r.anth[1].body.tools?.[0]?.name === 'proposta' && r.res.body?.proposal?.tenant?.name === 'Oyku Testa', `${r.res.code} calls=${r.anth.length} tc=${JSON.stringify(r.anth[1]?.body?.tool_choice)}`);
 r = await call('admin_1', { text: 'x' }, { viaText: true });
@@ -428,7 +464,7 @@ r = await call('admin_1', { text: 'Rental proposal BOOM-3K9F2A' }, { reply: AI_P
 Q = r.res.body?.proposal || {};
 check('una proposta BOOM → la sezione PREAGREEMENT accanto a contratto e parti: riferimento maiuscolo, isBoom, stato, provvigione, dovuto alla firma', Q.preagreement?.ref === 'BOOM-3K9F2A' && Q.preagreement?.isBoom === 'yes' && Q.preagreement?.status === 'accepted' && Q.preagreement?.feePct === 10 && Q.preagreement?.feeDue === 'signing' && Q.preagreement?.dueAtSigning === 1100 && Q.preagreement?.depositSplitPct === 50 && Q.contract?.rent === 1100 && Q.material === 'proposta', JSON.stringify(Q.preagreement));
 check('…e un lead tutto vuoto non genera una card Lead', !Q.lead);
-check('lo schema porta le due sezioni e «material» — sempre a ZERO unioni e ZERO facoltativi', INGEST_SCHEMA.properties.lead && INGEST_SCHEMA.properties.preagreement && INGEST_SCHEMA.properties.material && (() => { const c = schemaComplexity(INGEST_SCHEMA); return c.unions === 0 && c.optional === 0 && c.params > 140; })(), JSON.stringify(schemaComplexity(INGEST_SCHEMA)));
+check('lo schema porta le due sezioni e «material» — sempre a ZERO unioni (i facoltativi sono liberi: schema sparso, nessuna grammatica)', INGEST_SCHEMA.properties.lead && INGEST_SCHEMA.properties.preagreement && INGEST_SCHEMA.properties.material && (() => { const c = schemaComplexity(INGEST_SCHEMA); return c.unions === 0 && c.params > 140; })(), JSON.stringify(schemaComplexity(INGEST_SCHEMA)));
 check('…e il prompt spiega proposta e messaggio al modello', /PROPOSTA \/ PRE-ACCORDO/.test(r.anth[0]?.body?.system?.[0]?.text || '') && /MESSAGGIO DI UN CLIENTE/.test(r.anth[0]?.body?.system?.[0]?.text || ''));
 
 console.log('\n\x1b[1mIl vuoto detto per quello che è\x1b[0m');

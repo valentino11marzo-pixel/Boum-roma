@@ -803,7 +803,8 @@ Valentyne - BOOM Rome`
             payment: (unit, month, id) => openRentUnit(unit, month, id),
             edit: property => openModal('editProperty', property),
             remove: property => confirmDelete('propert', property.id, property.name || 'Immobile'),
-            valuation: id => openValutazione(null, undefined, {propertyId:id}) }
+            valuation: id => openValutazione(null, undefined, {propertyId:id}),
+            innesto: id => innestoOpenFor('property', id) }
     });
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -28996,7 +28997,12 @@ IBAN: ${l.iban || '-'}`;
             // (spunta accesa), la proposta nel console (spunta spenta: è un
             // link che parte al cliente), il contratto saltato quando il deal
             // è già una proposta del console (nasce DA quella, non da qui).
-            create: { lead: true, preagreement: false }, pa: null, skipContract: false
+            create: { lead: true, preagreement: false }, pa: null, skipContract: false,
+            // «Riguarda» (22/09): l'immobile e le parti DICHIARATI dall'operatore
+            // prima della lettura — l'aggancio è certo (per id, qui) e il modello
+            // riceve nome e indirizzo come fatti; ciò che legge diventa una
+            // modifica proposta su QUEL record, non una card «nuovo».
+            target: { property: '', landlord: '', tenant: '' }
         };
     }
     let _innesto = innestoEmpty();
@@ -29044,9 +29050,10 @@ IBAN: ${l.iban || '-'}`;
                 <button class="btn btn-sm btn-secondary" type="button" onclick="document.getElementById('innestoCamInput').click()" title="Scatta una foto al documento">📷 Scatta</button>
                 <button class="btn" ${_innesto.busy ? 'disabled' : ''} onclick="innestoAnalyze()">${_innesto.busy ? 'Lettura in corso…' : (p ? 'Leggi e integra' : 'Leggi e proponi')}</button>
             </div>
+            ${innestoTargetRow()}
             ${_innesto.busy ? `<div id="innestoProgress" style="margin-top:10px;font-size:12.5px;color:var(--gold);line-height:1.5">${esc(innestoProgressText())}</div>` : ''}
             <div style="font-size:11.5px;color:var(--text-secondary);margin-top:10px;line-height:1.5">
-                Legge Claude Opus 5 con output strutturato: ogni campo porta la frase del documento da cui viene, e ciò che non c'è resta vuoto. Un file grande transita dal tuo Storage e viene rimosso a lettura finita: niente resta salvato finché non confermi.${p ? ' <b>Con la proposta aperta, una nuova lettura riempie i buchi</b> (es. la carta d\'identità dopo il contratto) — non cancella niente.' : ''}
+                Legge Claude Opus 5: ogni campo porta la frase del documento da cui viene, ciò che non c'è resta vuoto, e con <b>Riguarda</b> l'aggancio a un immobile o a una persona in archivio è certo (i dati letti diventano una modifica proposta su quel record, es. il catasto di una visura sulla casa che c'è già). Un file grande transita dal tuo Storage e viene rimosso a lettura finita: niente resta salvato finché non confermi.${p ? ' <b>Con la proposta aperta, una nuova lettura riempie i buchi</b> (es. la carta d\'identità dopo il contratto) — non cancella niente.' : ''}
             </div>
         </div>
 
@@ -29189,6 +29196,73 @@ IBAN: ${l.iban || '-'}`;
         return html;
     }
 
+    // «RIGUARDA» (22/09/2026 — «dati catastali da collegare a una proprietà …
+    // non ha rilevato nulla»): tre tendine, immobile · proprietario ·
+    // inquilino, tutte facoltative. Dichiarare il bersaglio fa due cose:
+    // il server riceve nome e indirizzo come FATTI (property.name/address
+    // non sono più da dedurre) e il portal forza l'aggancio PER ID, così i
+    // dati letti diventano la modifica proposta su quel record (diffRecord)
+    // invece di una card «nuovo» da ricollegare a mano. Nessun renderPage
+    // al cambio se non c'è una proposta aperta: una tendina non perde niente.
+    function innestoTargetRow() {
+        const pools = innestoPools();
+        const t = _innesto.target || {};
+        const sel = (kind, label, pool, withAddr) => `<select onchange="innestoSetTarget('${kind}', this.value)" title="${esc(label)}"
+                style="flex:1;min-width:170px;max-width:100%;background:var(--bg-input);border:1px solid ${t[kind] ? 'var(--gold)' : 'var(--border)'};border-radius:8px;color:var(--text);padding:7px 10px;font-size:12.5px;font-family:inherit">
+                <option value="">— ${esc(label)} —</option>
+                ${pool.map(r => `<option value="${esc(r.id)}" ${t[kind] === r.id ? 'selected' : ''}>${esc(innestoRecordLabel(r, withAddr))}</option>`).join('')}
+            </select>`;
+        return `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
+                <span style="font-size:11px;color:var(--text-secondary);letter-spacing:1px;text-transform:uppercase" title="Dichiara a cosa si riferisce il materiale: l'aggancio è certo e ciò che viene letto diventa una modifica proposta su quel record (es. i dati catastali di una visura sull'immobile che c'è già)">Riguarda</span>
+                ${sel('property', '🏠 immobile', pools.property, true)}
+                ${sel('landlord', '🏛 proprietario', pools.landlord, false)}
+                ${sel('tenant', '👤 inquilino', pools.tenant, false)}
+            </div>`;
+    }
+    function innestoRecordLabel(r, withAddr) {
+        const name = r.name || r.businessName || r.email || r.id;
+        const addr = withAddr && r.address && r.address !== r.name ? ' — ' + r.address : '';
+        const s = name + addr;
+        return s.length > 70 ? s.slice(0, 67) + '…' : s;
+    }
+    function innestoSetTarget(kind, id) {
+        if (!_innesto.target) _innesto.target = { property: '', landlord: '', tenant: '' };
+        const prev = _innesto.target[kind] || '';
+        _innesto.target[kind] = id || '';
+        if (!_innesto.proposal) return;
+        if (!id && prev && _innesto.links[kind] === prev) delete _innesto.links[kind];
+        innestoApplyTarget();
+        renderPage();
+    }
+    // Il bersaglio vince sull'aggancio dedotto: per id, sempre.
+    function innestoApplyTarget() {
+        const t = _innesto.target || {};
+        ['property', 'landlord', 'tenant'].forEach(k => { if (t[k]) _innesto.links[k] = t[k]; });
+    }
+    // Ciò che il server riceve: nome (e indirizzo) del record scelto — mai
+    // il solo id, che al modello non dice niente.
+    function innestoTargetPayload() {
+        const pools = innestoPools();
+        const t = _innesto.target || {};
+        const out = {};
+        [['property', pools.property], ['landlord', pools.landlord], ['tenant', pools.tenant]].forEach(([k, pool]) => {
+            if (!t[k]) return;
+            const r = pool.find(x => x.id === t[k]);
+            if (!r) return;
+            out[k] = k === 'property' ? { name: r.name || '', address: r.address || '' } : { name: r.name || r.businessName || '' };
+        });
+        return out;
+    }
+    // Dal fascicolo dell'immobile: l'Innesto si apre già puntato su quel
+    // record («Innesto da documento»). Una proposta aperta non si butta via.
+    function innestoOpenFor(kind, id) {
+        if (!_innesto.proposal && !_innesto.files.length && !(_innesto.text || '').trim()) _innesto = innestoEmpty();
+        if (!_innesto.target) _innesto.target = { property: '', landlord: '', tenant: '' };
+        _innesto.target[kind] = id || '';
+        if (_innesto.proposal) innestoApplyTarget();
+        goTo('innesto');
+    }
+
     // Il pool di un aggancio: users (con ruolo) + landlords (senza), ognuno
     // marcato con la SUA collection — è dove atterra un aggiornamento.
     function innestoPools() {
@@ -29282,7 +29356,10 @@ IBAN: ${l.iban || '-'}`;
         // le tre vie: aggancio dall'archivio, compilazione a mano, o un
         // altro documento letto in integrazione.
         const ghost = (key, icon, title, pool, required) => {
-            if (p[key] || !p.contract) return '';
+            // Anche senza contratto, se il record è stato DICHIARATO (Riguarda)
+            // ma il materiale non ne ha portato i dati: l'operatore vede che
+            // l'aggancio c'è e che non c'è niente da scrivere lì.
+            if (p[key] || (!p.contract && !_innesto.links[key])) return '';
             const chosen = _innesto.links[key] || '';
             return `
             <div class="card" style="margin-bottom:14px;border-style:dashed">
@@ -29290,7 +29367,7 @@ IBAN: ${l.iban || '-'}`;
                     <strong style="font-size:14px">${icon} ${esc(title)}</strong>
                     <span style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:${chosen ? '#00FF88' : '#FF6B35'}">${chosen ? '✓ agganciato dall\'archivio' : 'non letto dal documento'}</span>
                 </div>
-                <div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:10px;line-height:1.5">${required ? 'Serve per il contratto: ' : 'Facoltativo: '}scegli dall'archivio, compila a mano, oppure allega un altro documento (es. la carta d'identità) e rileggi — i dati si integrano.</div>
+                <div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:10px;line-height:1.5">${chosen && !p.contract ? 'Dichiarato in «Riguarda», ma il materiale letto non porta dati per questo record: niente da scrivere qui. Compila a mano, oppure allega un altro documento e rileggi.' : (required ? 'Serve per il contratto: ' : 'Facoltativo: ') + 'scegli dall\'archivio, compila a mano, oppure allega un altro documento (es. la carta d\'identità) e rileggi — i dati si integrano.'}</div>
                 <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
                     <select onchange="innestoPick('${key}', this.value)"
                         style="flex:1;min-width:200px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 10px;font-size:13px;font-family:inherit">
@@ -29492,7 +29569,7 @@ IBAN: ${l.iban || '-'}`;
     async function innestoSend(inlineBudget, transitRefs) {
         const text = _innesto.text || '';
         const mb = (n) => (n / 1024 / 1024).toFixed(1) + ' MB';
-        const payload = { text: text.slice(0, 60000), files: [], context: { hint: _innesto.hint || '', known: {
+        const payload = { text: text.slice(0, 60000), files: [], context: { hint: _innesto.hint || '', target: innestoTargetPayload(), known: {
             landlords: (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').map(u => u.name).concat((S.landlords || []).map(l => l.name)).filter(Boolean).slice(0, 60),
             tenants: (S.users || []).filter(u => u.role === 'tenant').map(u => u.name).filter(Boolean).slice(0, 60),
             properties: (S.properties || []).map(p => [p.name, p.address].filter(Boolean).join(' — ')).filter(Boolean).slice(0, 60)
@@ -29827,6 +29904,7 @@ IBAN: ${l.iban || '-'}`;
             _innesto.notes = integrating ? (_innesto.notes || []).concat(data.notes || []) : (data.notes || []);
             _innesto.confidence = data.confidence;
             if (!integrating) { _innesto.links = {}; _innesto.coLinks = {}; _innesto.diffs = {}; }
+            innestoApplyTarget();   // «Riguarda» batte l'aggancio dedotto: per id
             toast('success', integrating ? 'Proposta integrata' : 'Proposta pronta', 'Controlla i campi (e le citazioni) prima di confermare');
         }
         if (!data.empty) { _innesto.files = []; _innesto.text = ''; }   // il prossimo giro legge i PROSSIMI documenti; una lettura vuota li lascia lì per riprovare

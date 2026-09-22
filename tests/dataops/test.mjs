@@ -335,6 +335,15 @@ console.log('\n── La proposta ampia: solo le sezioni che il materiale porta 
   ok('un booleano di default non è un\'ancora per il contratto', !pruned.contract);
   const withCat = E.pruneProposal({ property: { name: null, address: null, cadastral: { foglio: '12' } } });
   ok('il foglio catastale è un\'ancora per l\'immobile (una visura)', !!withCat.property);
+  // 22/09/2026: dati catastali incollati NUDI uscivano come «nessun dato»
+  // quando il modello non stampava il foglio — ogni identificativo ancora.
+  ok('ancorano anche particella, sub, categoria, rendita (annidata), renditaCatastale (piatta), il blob catastale e la classe energetica',
+    !!E.pruneProposal({ property: { cadastral: { particella: '120' } } }).property && !!E.pruneProposal({ property: { cadastral: { sub: '4' } } }).property
+    && !!E.pruneProposal({ property: { cadastral: { categoria: 'A/3' } } }).property && !!E.pruneProposal({ property: { cadastral: { rendita: '645.57' } } }).property
+    && !!E.pruneProposal({ property: { renditaCatastale: 645.57 } }).property && !!E.pruneProposal({ property: { cadastralData: 'Fg 545 part 120' } }).property
+    && !!E.pruneProposal({ property: { energyClass: 'F' } }).property);
+  ok('…ma MAI i default: furnished/propertyType/city da soli non fanno nascere un immobile', !E.pruneProposal({ property: { furnished: 'no', propertyType: 'apartment', city: 'Roma', cadastral: { foglio: '' } } }).property);
+  ok('…e una sezione OMESSA (schema sparso) semplicemente non esiste', !E.pruneProposal({ tenant: { name: 'Solo' } }).property && !!E.pruneProposal({ tenant: { name: 'Solo' } }).tenant);
 
   const n = E.normalizeProposal({
     landlord: { name: 'Rossi Immobiliare', businessName: 'Rossi Immobiliare S.r.l.', partitaIva: '01234567897', kind: 'giuridica', iban: 'it60 x054 2811 1010 0000 0123 456' },

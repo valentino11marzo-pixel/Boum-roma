@@ -718,16 +718,21 @@
     }
 
     // ── La proposta: solo le sezioni che il materiale PORTA ────────────
-    // Con l'output strutturato il modello restituisce SEMPRE tutte le
-    // sezioni (piene di null): una carta d'identità non deve far nascere una
-    // card «Contratto» vuota. Una sezione esiste solo se porta un'ANCORA —
+    // Il modello può restituire sezioni vuote o piene di "" (e, con lo
+    // schema sparso del 22/09, ometterle): una carta d'identità non deve far
+    // nascere una card «Contratto» vuota. Una sezione esiste solo se porta un'ANCORA —
     // un dato che da solo identifica la cosa (un nome, un indirizzo, una
     // data, un canone) — non una spunta booleana che il modello riempie per
     // default.
     var ANCHORS = {
         landlord: ['name', 'businessName', 'codiceFiscale', 'partitaIva', 'iban', 'email'],
         tenant: ['name', 'codiceFiscale', 'email'],
-        property: ['name', 'address', 'foglio'],
+        // 22/09/2026 — dati catastali incollati NUDI («da collegare a una
+        // proprietà») uscivano come «nessun dato»: l'immobile è ancorato da
+        // QUALUNQUE identificativo catastale (forma annidata `rendita` o
+        // piatta `renditaCatastale`), dal blob catastale e dalla classe
+        // energetica. Mai dai default (furnished, propertyType, city).
+        property: ['name', 'address', 'foglio', 'particella', 'sub', 'categoria', 'rendita', 'renditaCatastale', 'cadastralData', 'energyClass'],
         contract: ['startDate', 'endDate', 'rent', 'deposit', 'durationMonths', 'type'],
         // Le due sezioni nate il 21/09/2026: il messaggio di un cliente
         // (→ lead) e i termini di una proposta / pre-accordo (→ preAgreements).
