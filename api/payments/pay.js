@@ -20,6 +20,8 @@
 import Stripe from 'stripe';
 import { fsGet, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
+import RENT from '../../js/rent-engine.js';
+import { existingCheckout } from './_checkout.js';
 
 const eur2 = n => Math.round(n * 100) / 100;
 
@@ -76,6 +78,16 @@ export function rentFee(amount, stats) {
   return eur2(Math.min(cap, Math.max(0, cost + buffer)));
 }
 
+// Il tipo del documento guida il nome anche su Stripe: un altro addebito
+// contrattuale non diventa canone solo perché usa lo stesso checkout.
+export function paymentLabel(payment) {
+  const type = String(payment.type || '').trim().toLowerCase();
+  if (type === 'deposit-balance') return 'Saldo deposito cauzionale';
+  if (type === 'deposit') return 'Deposito cauzionale';
+  if (RENT.isRentPayment(payment)) return `Canone di locazione — ${payment.month || String(payment.dueDate || '').slice(0, 7)}`;
+  return 'Addebito contrattuale';
+}
+
 export default async function handler(req, res) {
   setCors(req, res);
   if (req.method === 'OPTIONS') return res.status(204).end();
@@ -98,13 +110,15 @@ export default async function handler(req, res) {
   if (auth.profile.role !== 'admin' && pay.tenantId !== auth.uid) {
     return res.status(403).json({ ok: false, error: 'not_yours' });
   }
-  if (pay.status === 'paid') return res.status(409).json({ ok: false, error: 'already_paid' });
+  const blocked = RENT.paymentBlockReason(pay);
+  if (blocked) return res.status(409).json({ ok: false, error: blocked });
 
   // Cents-exact: deposit balances routinely carry .50 — the charge must
   // equal the payment doc to the cent or reconciliation never closes.
-  const cents = Math.round((Number(pay.amount) || 0) * 100);
+  const amountValue = RENT.amount(pay.amount);
+  const cents = amountValue == null ? 0 : Math.round(amountValue * 100);
   // ceiling sized for a full ANNUAL instalment (rent × 12), not one month
-  if (cents < 1000 || cents > 12000000) {
+  if (amountValue == null || cents < 1000 || cents > 12000000) {
     return res.status(400).json({ ok: false, error: 'bad_amount', amount: Number(pay.amount) || 0 });
   }
   const amount = cents / 100;
@@ -116,13 +130,15 @@ export default async function handler(req, res) {
   let feeStats = null;
   try { feeStats = await fsGet('settings/rentFeeStats'); } catch (_) {}
   const fee = rentFee(amount, feeStats);
-  const isDeposit = pay.type === 'deposit-balance';
-  const label = isDeposit
-    ? 'Saldo deposito cauzionale'
-    : `Canone di locazione — ${pay.month || String(pay.dueDate || '').slice(0, 7)}`;
+  const label = paymentLabel(pay);
 
   try {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+    const prior = await existingCheckout(stripe, pay, 'pay', paymentId, cents + Math.round(fee * 100));
+    if (prior.state === 'complete') return res.status(409).json({ ok: false, error: 'payment_processing' });
+    if (prior.state === 'open') {
+      return res.status(200).json({ ok: true, checkoutUrl: prior.session.url, amount, fee, total: eur2(amount + fee) });
+    }
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
@@ -131,7 +147,10 @@ export default async function handler(req, res) {
         {
           price_data: {
             currency: 'eur',
-            product_data: { name: label, description: 'BOOM Roma · pagamento tracciato, ricevuta automatica via email.' },
+            product_data: {
+              name: label.slice(0, 250),
+              description: String(pay.description || 'BOOM Roma · pagamento tracciato, ricevuta automatica via email.').slice(0, 250),
+            },
             unit_amount: cents,
           },
           quantity: 1,
@@ -156,7 +175,7 @@ export default async function handler(req, res) {
       // 24h default — shrinks the stale-session double-payment window.
       expires_at: Math.floor(Date.now() / 1000) + 30 * 60,
     });
-    fsPatch('payments/' + paymentId, { checkoutSessionId: session.id }).catch(() => {});
+    await fsPatch('payments/' + paymentId, { checkoutSessionId: session.id });
     logActivity('rent_checkout_opened', 'payment', { paymentId, amount, fee, by: auth.email }, auth.email || 'tenant').catch(() => {});
     return res.status(200).json({ ok: true, checkoutUrl: session.url, amount, fee, total: eur2(amount + fee) });
   } catch (e) {

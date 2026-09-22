@@ -648,7 +648,10 @@
     "api/reminder-cron.js": {
       "maxDuration": 60
     },
-    "api/homie/message.js": {
+    "api/homie/{conversation,message}.js": {
+      "maxDuration": 60
+    },
+    "api/homie/wa-outbox.js": {
       "maxDuration": 60
     },
       "api/radar/digest.js": {
@@ -657,7 +660,7 @@
     "api/stripe-webhook.js": {
       "maxDuration": 60
     },
-    "api/preagreement/submit.js": {
+    "api/preagreement/{submit,sign-for}.js": {
       "maxDuration": 60
     },
     "api/leads/scan-inbox.js": {
@@ -677,6 +680,12 @@
     },
     "api/contracts/inventario.js": {
       "maxDuration": 60
+    },
+    "api/portal/ingest.js": {
+      "maxDuration": 120
+    },
+    "api/scrivano/worker.js": {
+      "maxDuration": 120
     },
     "api/listing.js": {
       "includeFiles": "apartment-detail.html"
@@ -743,13 +752,7 @@
     "api/sign/send-link.js": {
       "maxDuration": 60
     },
-    "api/fiscal/fascicolo.js": {
-      "maxDuration": 60
-    },
-    "api/fiscal/pack.js": {
-      "maxDuration": 60
-    },
-    "api/fiscal/foglio.js": {
+    "api/fiscal/{fascicolo,pack,foglio}.js": {
       "maxDuration": 60
     },
     "api/fiscal/registra.js": {
@@ -779,11 +782,24 @@
     "api/segretaria/scan-replies.js": {
       "maxDuration": 60
     },
+    "api/segretaria/follow-up.js": {
+      "maxDuration": 60
+    },
+    "api/segretaria/prepare.js": {
+      "maxDuration": 60
+    },
+    "api/segretaria/worker.js": {
+      "maxDuration": 60
+    },
     "api/telegram/notify-pending.js": {
       "maxDuration": 60
     }
   },
   "crons": [
+    {
+      "path": "/api/segretaria/worker",
+      "schedule": "* * * * *"
+    },
     {
       "path": "/api/reminder-cron",
       "schedule": "*/15 * * * *"
@@ -794,6 +810,10 @@
     },
     {
       "path": "/api/telegram/notify-pending",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/scrivano/worker",
       "schedule": "* * * * *"
     },
     {

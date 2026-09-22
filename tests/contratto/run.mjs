@@ -226,6 +226,20 @@ const DOCS = { identityDocs: [{ url: 'https://storage.example/t.jpg', role: 'ten
   check('RLI: senza cedolare imponibile 70% e registro 2% (min €67), bollo 16', six.imponibileRegistro === 10080 && six.impostaRegistro === 201.6 && six.bollo === 16);
   const y = F.rliFacts({ startDate: '2026-09-01', endDate: '2027-08-31', rent: 1000, canone: { total: 12000 }, cedolareSecca: 'si', fullySignedAt: '2026-09-10T10:00:00Z' });
   check('RLI: 12 mesi → canone annuo; con cedolare imposte 0; decorrenza prima della stipula → dalla decorrenza', y.amountForRli === 12000 && y.impostaRegistro === 0 && y.registrationFrom === '2026-09-01' && y.registrationDeadline === '2026-10-01');
+  const previousTZ = process.env.TZ;
+  try {
+    for (const zone of ['UTC', 'Europe/Rome', 'America/Los_Angeles']) {
+      process.env.TZ = zone;
+      for (const [from, expected] of [['2026-08-20', '2026-09-19'], ['2026-09-01', '2026-10-01'],
+        ['2025-03-01', '2025-03-31'], ['2025-10-15', '2025-11-14'], ['2024-02-01', '2024-03-02'], ['2025-12-15', '2026-01-14']]) {
+        const facts = F.rliFacts({ startDate: from, fullySignedAt: from + 'T10:00:00Z', endDate: '2030-01-01', rent: 900 });
+        check('RLI calendario invariato in ' + zone + ' da ' + from,
+          facts.registrationFrom === from && facts.registrationDeadline === expected);
+      }
+    }
+  } finally {
+    if (previousTZ === undefined) delete process.env.TZ; else process.env.TZ = previousTZ;
+  }
 }
 
 // ═══ 8. I LETTORI RISALGONO LA CATENA users ═══

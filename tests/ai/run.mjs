@@ -51,7 +51,7 @@ const { toFsFields, fsValToJs } = await import('../../api/homie/_lib.js');
   ok(REG.PURPOSES.every(p => REG.PRICES[p.cloudModel] || p.cloudModel === 'whisper-1'), 'ogni modello cloud di default è nel listino');
   ok(REG.PURPOSES.every(p => p.why && p.why.length > 10), 'ogni scopo dice PERCHÉ può (o non può) andare in locale');
   const noLocal = REG.PURPOSES.filter(p => !p.localOk).map(p => p.key).sort();
-  ok(noLocal.join(',') === 'banking.pdf,inventario.video,parse.docs', 'chi non va MAI in locale è scritto: PDF banca, inventario, proxy', noLocal);
+  ok(noLocal.join(',') === 'banking.pdf,inventario.video,parse.docs,portal.ingest', 'chi non va MAI in locale è scritto: PDF banca, inventario, proxy, Innesto 3.0 (strumento + scala dei 400: solo cloud)', noLocal);
 
   // 1.a i default: tutto cloud
   const d = REG.mergeSettings(null);
@@ -164,6 +164,13 @@ const { toFsFields, fsValToJs } = await import('../../api/homie/_lib.js');
   // e nessun modello scritto a mano è rimasto fuori dal registro
   const hardcoded = files.filter(f => f !== 'api/_ai.js' && !allowed.has(f) && /['"]claude-(haiku|sonnet|opus)-[0-9a-z-]+['"]/.test(src(f)));
   ok(hardcoded.length === 0, 'nessun modello cloud scritto a mano fuori dal registro' + (hardcoded.length ? ' — ' + hardcoded.join(', ') : ''));
+  // …e un `direct` che il modello lo scrive a mano (il suo test lo pinna nel
+  // sorgente: l'Innesto 3.0 esporta MODEL) deve scriverlo UGUALE al registro:
+  // recordUsage prezza col nome che riceve, e /ai conterebbe un altro listino.
+  for (const p of REG.PURPOSES.filter(p => p.direct)) {
+    const lits = [...src(p.file).matchAll(/['"](claude-(?:haiku|sonnet|opus)-[0-9a-z-]+)['"]/g)].map(m => m[1]);
+    ok(lits.length > 0 && lits.every(m => m === p.cloudModel), `${p.file}: il modello scritto a mano è quello del registro (${p.cloudModel})`, lits);
+  }
 }
 
 // ═══ 3. La centrale, guidata su un Firestore in memoria ═════════════════

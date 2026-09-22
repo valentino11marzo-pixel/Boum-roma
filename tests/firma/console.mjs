@@ -80,7 +80,7 @@ paApply(snap([
   { ...base, id: 'G', status: 'accepted', paidEur: null, paidAt: null, contractId: undefined, propertyId: null, signSentAt: null },
 ]));
 const before = els.paRows.innerHTML;
-cWatch['pa_A']({ exists: true, data: () => ({ signatureStatus: 'none' }) });
+cWatch['pa_A']({ exists: true, data: () => ({ signatureStatus: 'none', generatedPDF: 'https://st/contracts/pa_A/contract.pdf' }) });
 cWatch['pa_B']({ exists: true, data: () => ({ tenantSignature: 'x', tenantSignedAt: '2026-09-02T09:00:00Z', signatureStatus: 'partial' }) });
 cWatch['pa_C']({ exists: true, data: () => ({ tenantSignature: 'x', landlordSignature: 'y', tenantSignedAt: '2026-09-02T09:00:00Z', landlordSignedAt: '2026-09-03T09:00:00Z', fullySignedAt: '2026-09-03T09:00:00Z', signatureStatus: 'complete', signedPdfUrl: 'https://s/signed.pdf', signingCertificateUrl: 'https://s/cert.pdf', finalizedAt: 'x' }) });
 cWatch['pa_E']({ exists: true, data: () => ({ tenantSignature: 'x', landlordSignature: 'y', tenantSignedAt: '2026-08-14T09:00:00Z', landlordSignedAt: '2026-08-14T10:00:00Z', fullySignedAt: '2026-08-14T10:00:00Z', signatureStatus: 'complete', signedPdfUrl: 'https://s/lea.pdf', finalizedAt: 'x' }) });
@@ -98,6 +98,8 @@ ok(before.split('<div class="parow').length === 8 && !/chip signed/.test(before)
   'PRIMA che i contratti arrivino la lista è intera e il ripiego (stampa sulla proposta) già parla');
 ok(has(0, /Reinvia Magic Sign/) && has(0, /Firma su WhatsApp/) && !has(0, /chip sign/),
   'A · nessuna firma: 🖊 Reinvia Magic Sign + Firma su WhatsApp, nessun chip firma');
+ok(has(0, /href="https:\/\/st\/contracts\/pa_A\/contract\.pdf"[^>]*>📄 Contratto \(PDF, non firmato\)/) && !has(2, /non firmato/) && !has(1, /non firmato/),
+  'A · il contratto GENERATO si apre dalla console prima della firma (generatedPDF); a firme complete (C) o senza PDF letto (B) il link non c’è');
 ok(has(1, /chip signing">✍ firmato inquilino/) && has(1, /pbtn prim wa[^>]*>📲 Firma proprietario/) && !has(1, /Reinvia Magic Sign/)
   && has(1, /L’inquilino ha firmato<\/b> il 2026-09-02/) && has(1, /non serve più/),
   'B · inquilino firmato: chip ✍, link del proprietario PRIMARIO, mai più Reinvia Magic Sign');

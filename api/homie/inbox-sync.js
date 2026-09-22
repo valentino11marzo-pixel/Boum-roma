@@ -27,6 +27,7 @@
 // Response: { ok, updated, skipped, results: [{ conversationId, ok, error? }] }
 
 import { fsPatch, fsList, logActivity, requireSecret, readJson } from './_lib.js';
+import { resolveLeadConversation } from './_conversation.js';
 
 function normalizePhone(p) {
   if (!p) return '';
@@ -44,15 +45,24 @@ function convIdFor(contactType, contactId) {
 
 async function resolveCid(u) {
   if (u.conversationId) return String(u.conversationId);
+  if (u.contactType === 'lead' && u.contactId) {
+    const result = await resolveLeadConversation({ leadId: u.contactId });
+    return result.status === 'bound' ? result.cid : null;
+  }
   if (u.contactType && u.contactId) return convIdFor(u.contactType, u.contactId);
   if (u.phone) {
     const norm = normalizePhone(u.phone);
-    // Find an existing conversation by its normalized phone.
-    for (const val of [norm, u.phone]) {
-      try {
-        const rows = await fsList('conversations', { filter: { field: 'contactPhone', op: 'EQUAL', value: val }, limit: 1 });
-        if (rows && rows.length) return rows[0].id;
-      } catch { /* keep trying */ }
+    const found = new Map();
+    for (const val of [...new Set([norm, u.phone])]) {
+      const rows = await fsList('conversations', { filter: { field: 'contactPhone', op: 'EQUAL', value: val }, limit: 3 });
+      for (const row of rows) found.set(row.id, row);
+    }
+    if (found.size === 1) return [...found.keys()][0];
+    if (found.size > 1) {
+      const leadIds = [...found.values()].map(c => c.leadId || (c.contactType === 'lead' ? c.contactId : null));
+      if (found.size > 2 || !leadIds[0] || leadIds.some(id => id !== leadIds[0])) return null;
+      const result = await resolveLeadConversation({ leadId: leadIds[0] });
+      return result.status === 'bound' ? result.cid : null;
     }
     // Fall back to the standalone WhatsApp id shape.
     return convIdFor('whatsapp', norm.replace(/^\+/, ''));
@@ -80,7 +90,8 @@ export default async function handler(req, res) {
   const now = new Date();
 
   for (const u of updates) {
-    const cid = await resolveCid(u);
+    let cid;
+    try { cid = await resolveCid(u); } catch { skipped++; results.push({ conversationId: null, ok: false, error: 'conversation_unavailable' }); continue; }
     if (!cid) { skipped++; results.push({ conversationId: null, ok: false, error: 'unresolved' }); continue; }
 
     const patch = { updatedAt: now, lastSource: 'homie' };

@@ -55,6 +55,52 @@ LOCAL_AI_TOKEN=…
 Vercel → progetto boum-roma → Settings → Environment Variables →
 Production → aggiungi le righe → **Redeploy**.
 
+## Tutto dal terminale (senza aprire il sito di Vercel)
+
+Stesse cose di sopra, ma ogni passo è un comando da incollare nel Terminale
+del Mac mini, nell'ordine.
+
+```
+# 1) Tailscale (Ollama ce l'hai già). Se manca Homebrew, prima:
+#    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+brew install --cask tailscale
+open -a Tailscale          # nella finestra: accedi con Google, una volta
+open -a Ollama             # deve restare acceso (icona nella barra)
+
+# 2) L'installer (scarica il modello, mette il ponte, apre il tunnel,
+#    STAMPA le 4 righe LOCAL_AI_*)
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/valentino11marzo-pixel/Boum-roma/main/bot/install_locale.sh)"
+```
+
+Se dice che il Funnel va abilitato: clicca il link che stampa, poi rilancia
+lo stesso comando (non rifà quello che ha già fatto).
+
+```
+# 3) Vercel CLI (una volta). Se manca Node: brew install node
+npm i -g vercel
+vercel login
+cd ~/boom-locale && vercel link --yes --scope valentino-boom --project boum-roma
+
+# 4) Incolla qui le 4 righe stampate dall'installer (al posto degli esempi)
+cat > ~/boom-locale/vercel.env <<'ENV'
+LOCAL_AI_URL=https://mac-mini.<rete>.ts.net
+LOCAL_AI_MODEL=qwen3:14b
+LOCAL_AI_VISION_MODEL=qwen2.5vl:7b
+LOCAL_AI_TOKEN=incolla-il-token
+ENV
+
+# 5) Le manda a Vercel (Production) e fa ripartire il deploy
+cd ~/boom-locale && while IFS='=' read -r k v; do
+  [ -z "$k" ] && continue
+  vercel env rm "$k" production --yes >/dev/null 2>&1
+  printf '%s' "$v" | vercel env add "$k" production
+done < vercel.env
+vercel redeploy https://boum-roma-git-main-valentino-boom.vercel.app
+```
+
+Poi su Telegram `/ai` → «🟢 Accendi il locale». Il file `vercel.env`
+contiene il token: resta sul Mac, non va condiviso.
+
 ## Accendere
 
 Su Telegram: `/ai`. In testa vedi se il server raggiunge il Mac. Premi

@@ -6,8 +6,9 @@
 // consegna allo stesso turno del canale WhatsApp.
 //
 // Il perimetro è STRETTO di proposito: si leggono SOLO le email dei mittenti
-// che corrispondono a conversazioni CONSEGNATE (segretaria: true, con
-// contactEmail). Il resto della casella non ci riguarda — i lead nuovi li
+// che corrispondono a conversazioni CONSEGNATE o con un seguito APERTO,
+// con contactEmail. Seguire un caso non autorizza una risposta automatica.
+// Il resto della casella non ci riguarda — i lead nuovi li
 // fa già leads/scan-inbox, i documenti documents/scan-inbox, la banca il suo.
 // Nessuna conversazione consegnata via email ⇒ il run costa una query e basta.
 //
@@ -18,16 +19,36 @@
 
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
+import crypto from 'node:crypto';
 import SEG from '../../js/segretaria-engine.js';
 import { fsGet, fsPatch, fsCreate, fsList } from '../homie/_lib.js';
+import { normalizePhone } from '../homie/_lead.js';
+import { resolveLeadConversation } from '../homie/_conversation.js';
 import { requireCronOrAdmin } from '../pfs/_guard.js';
 import { reportEmployeeHealth } from '../employees/_lib.js';
 import { segretariaTurn } from './_core.js';
+import { listFollowUps, refreshTrackedFollowUp } from './_follow-up.js';
 import { runBudget } from '../_budget.js';
 
 const MEMORY_DOC = 'heartbeat/segretaria-mail-memory';
 const WINDOW_DAYS = 3;
 const MAX_PER_RUN = 8;
+
+// Handover deliberately marks both the primary lead conversation and its
+// historical WhatsApp alias. Only that exact persisted binding is one person.
+async function canonicalEmailConversation(rows) {
+  if (rows.some(row => row.conversationBindingConflict)) return null;
+  const leadIds = rows.map(c => c.leadId || (c.contactType === 'lead' ? c.contactId : null));
+  const leadId = leadIds[0];
+  if (!leadId) return rows.length === 1 ? rows[0] : null;
+  if (leadIds.some(id => id !== leadId)) return null;
+  const phones = new Set(rows.map(c => c.contactPhone).filter(Boolean).map(normalizePhone));
+  const emails = new Set(rows.map(c => c.contactEmail).filter(Boolean).map(e => String(e).trim().toLowerCase()));
+  const uids = new Set(rows.map(c => c.contactUid).filter(Boolean));
+  if (phones.size > 1 || emails.size > 1 || uids.size > 1) return null;
+  const result = await resolveLeadConversation({ leadId });
+  return result.status === 'bound' && rows.some(row => row.id === result.cid) ? result.conversation : null;
+}
 
 export default async function handler(req, res) {
   const actor = await requireCronOrAdmin(req, res);
@@ -36,7 +57,8 @@ export default async function handler(req, res) {
 
   try {
     const out = await run({ dry });
-    if (!dry) await reportEmployeeHealth('segretaria', { ok: true, stats: out });
+    if (!dry) await reportEmployeeHealth('segretaria', { ok: !out.trackingErrors, stats: out,
+      ...(out.trackingErrors ? { error: 'Messaggi ricevuti; seguito non aggiornato, riprova al prossimo giro.' } : {}) });
     return res.status(200).json({ ok: true, actor, dry, ...out });
   } catch (e) {
     console.error('[segretaria/scan-replies]', e);
@@ -46,29 +68,47 @@ export default async function handler(req, res) {
 }
 
 async function run({ dry }) {
-  // Le conversazioni email consegnate: il perimetro di lettura.
-  let convs = [];
-  try { convs = await fsList('conversations', { filter: { field: 'segretaria', op: 'EQUAL', value: true }, limit: 50 }); }
-  catch { convs = []; }
+  const B = runBudget(60_000, 7_000);
+  const COST_SEARCH = 25_000, COST_TURN = 45_000;
+  // Reuse the existing cases, including conversations returned to a person.
+  // A failed source must not turn a partial identity list into a unique match.
+  const convs = await fsList('conversations', { filter: { field: 'segretaria', op: 'EQUAL', value: true }, limit: 50 });
+  const tracked = await listFollowUps();
+  const selected = new Map(convs.map(c => [c.id, c]));
+  let missingConversations = 0;
+  const trackedIds = [...new Set(tracked.rows.map(t => t.followUp.conversationId))];
+  await Promise.all(trackedIds.filter(cid => !selected.has(cid)).map(async cid => {
+    if (!/^[\w.-]{1,180}$/.test(String(cid || ''))) { missingConversations++; return; }
+    const c = await fsGet('conversations/' + cid);
+    if (c) selected.set(cid, c); else missingConversations++;
+  }));
   const byEmail = new Map();
-  for (const c of convs) {
+  for (const c of selected.values()) {
     const e = String(c.contactEmail || '').trim().toLowerCase();
-    if (e) byEmail.set(e, c);
+    if (e) byEmail.set(e, [...(byEmail.get(e) || []), c]);
   }
-  if (!byEmail.size) return { watched: 0, seen: 0, turns: 0 };
+  const ambiguous = [];
+  let knownAliases = 0;
+  for (const [email, rows] of byEmail) {
+    const canonical = await canonicalEmailConversation(rows);
+    if (canonical) { byEmail.set(email, canonical); knownAliases += rows.length - 1; }
+    else { ambiguous.push(rows); byEmail.delete(email); }
+  }
+  const stats = { watched: byEmail.size, seen: 0, processed: 0, turns: 0, escalated: 0, refreshed: 0,
+    trackingErrors: 0, incomplete: tracked.incomplete || convs.length >= 50 || missingConversations > 0,
+    followUpsIncomplete: tracked.incomplete, missingConversations, knownAliases,
+    ambiguousEmails: ambiguous.length, ambiguousConversationIds: ambiguous.flatMap(rows => rows.map(c => c.id)) };
+  if (!byEmail.size) return stats;
 
   const user = process.env.PFS_IMAP_USER || process.env.GMAIL_USER;
   const pass = process.env.PFS_IMAP_PASS || process.env.GMAIL_APP_PASS;
-  if (!user || !pass) return { watched: byEmail.size, skipped: 'imap_unconfigured' };
+  if (!user || !pass) return { ...stats, skipped: 'imap_unconfigured' };
 
   const memory = (await fsGet(MEMORY_DOC).catch(() => null)) || {};
   const seenIds = new Set(Array.isArray(memory.ids) ? memory.ids : []);
   const since = new Date(Date.now() - WINDOW_DAYS * 86400000);
   // Vedi api/_budget.js: il residuo deve coprire il COSTO del passo, non
   // solo essere positivo (un turno = fetch IMAP 25s + una chiamata al modello).
-  const B = runBudget(60_000, 7_000);
-  const COST_SEARCH = 25_000, COST_TURN = 45_000;
-  const stats = { watched: byEmail.size, seen: 0, turns: 0, escalated: 0 };
   const newIds = [];
 
   const client = new ImapFlow({
@@ -89,12 +129,12 @@ async function run({ dry }) {
         try {
           const uids = await client.search({ since, from }, { uid: true });
           for (const u of uids || []) uidSet.add(u);
-        } catch (e) { console.warn('[segretaria/scan-replies] search', from, e.message); }
+        } catch { console.warn('[segretaria/scan-replies] search failed'); stats.incomplete = true; }
       }
       const uids = [...uidSet].sort((a, b) => a - b).slice(-MAX_PER_RUN * 3);
 
       for (const uid of uids) {
-        if (!B.afford(COST_TURN) || stats.turns >= MAX_PER_RUN) break;
+        if (!B.afford(COST_TURN) || stats.processed >= MAX_PER_RUN) break;
         let parsed;
         try {
           const msg = await client.fetchOne(String(uid), { source: true }, { uid: true });
@@ -114,22 +154,47 @@ async function run({ dry }) {
         const text = SEG.stripQuoted(parsed.text || '');
         if (!text) { newIds.push(mid); continue; }
 
-        if (dry) { stats.turns++; newIds.push(mid); continue; }
+        stats.processed++;
+        if (dry) { if (conv.segretaria) stats.turns++; newIds.push(mid); continue; }
 
         // Il messaggio entra nell'Inbox come ogni altro, poi il turno.
         const at = parsed.date ? new Date(parsed.date) : new Date();
-        await fsCreate('messages', {
+        const eventId = 'mail_' + SEG.textHash(mid);
+        const storedId = 'segretaria_mail_' + crypto.createHash('sha256').update(mid).digest('hex');
+        try { await fsCreate('messages', {
           conversationId: conv.id, direction: 'in', channel: 'email',
-          body: text, by: 'segretaria-mail', source: 'segretaria-mail', at,
-        }).catch(() => {});
+          body: text, by: 'segretaria-mail', source: 'segretaria-mail', emailMessageId: mid, at,
+        }, storedId); }
+        catch (e) {
+          if (!e.exists) throw e;
+          const prior = await fsGet('messages/' + storedId);
+          if (prior?.conversationId !== conv.id || prior.emailMessageId !== mid || prior.body !== text)
+            throw new Error('email_message_identity_conflict');
+        }
         await fsPatch('conversations/' + conv.id, {
           lastMessageAt: at, lastDirection: 'in', needsReply: true,
           lastMessagePreview: text.slice(0, 90), updatedAt: at,
-        }).catch(() => {});
+        });
+
+        try {
+          const followed = await refreshTrackedFollowUp({ cid: conv.id, conv, text, messageId: eventId, now: at.getTime() });
+          if (followed) stats.refreshed++;
+          if (conv.followUpTrackingError) await fsPatch('conversations/' + conv.id, { followUpTrackingError: null });
+        } catch {
+          stats.trackingErrors++;
+          await fsPatch('conversations/' + conv.id, { needsReply: true,
+            followUpTrackingError: 'Email ricevuta; seguito non aggiornato. Verificare il caso in Oggi.' }).catch(() => {});
+          continue; // No memory acknowledgement or automatic turn; retry next run.
+        }
+
+        // Recheck the actual handover: watching an open case is never consent
+        // for a model call, an email, or a WhatsApp action.
+        const current = await fsGet('conversations/' + conv.id);
+        if (!current?.segretaria) { newIds.push(mid); continue; }
 
         let lead = null;
         if (conv.leadId) { try { const l = await fsGet(`leads/${conv.leadId}`); if (l) lead = { id: conv.leadId, ...l }; } catch { /* ignore */ } }
-        const r = await segretariaTurn({ cid: conv.id, conv, lead, text, messageId: 'mail_' + SEG.textHash(mid), now: Date.now() });
+        const r = await segretariaTurn({ cid: conv.id, conv: current, lead, text, messageId: eventId, now: Date.now() });
         if (r && r.sent) stats.turns++;
         if (r && r.escalated) stats.escalated++;
         newIds.push(mid);

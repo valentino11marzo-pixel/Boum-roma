@@ -1154,6 +1154,18 @@ function renderAccepted(){
      signs from HERE — the same link the email carries, shown only once the
      money is in (lookup decides); then the state, then the signed PDF. */
   var CT=PA.contract||null;
+  /* IL MANDATO DATO DOPO L'ACCETTAZIONE (21/09/2026): il cliente ha accettato
+     e non torna a firmare il contratto. Se la console l'ha CHIESTO
+     (askMandate, «🖊 Chiedi il mandato») e non l'ha ancora dato, qui lo dà
+     con un tap — stesso testo, stesso hash, atto a parte (spunta + bottone):
+     poi firma l'operatore. Mai offerto se il conduttore ha già firmato. */
+  if(!(PA.mandate&&PA.mandate.at)&&PA.askMandate===true&&!(CT&&CT.tenantSigned)){
+    html+='<div class="mandate" id="mandateBox2" style="max-width:430px;margin:18px auto 0;text-align:left"><div class="mh"><b>Let BOOM sign the lease for you</b><span>one tap · nothing else to do</span></div>'
+      +'<p>'+esc(PA_MANDATE_TEXT)+'</p>'
+      +'<label class="consent" style="margin-top:8px"><input type="checkbox" id="paMandate2" onchange="var b=document.getElementById(\'mandBtn\');if(b)b.disabled=!this.checked"><span>I give BOOM this mandate. BOOM signs the lease in my name on exactly these terms; I receive the signed contract and its certificate by email.</span></label>'
+      +'<button class="gbtn" id="mandBtn" disabled onclick="giveMandate()" style="margin-top:12px">Give BOOM the mandate to sign →</button>'
+      +'<p class="err" id="mandErr" role="alert"></p></div>';
+  }
   if(CT&&CT.tenantSignUrl){
     html+='<div class="ctc" id="ctcard"><div class="ch"><b>Your contract is ready</b><span>'+(CT.invitedAt?'sent '+esc(String(CT.invitedAt).slice(0,10)):'')+'</span></div>'
       +'<p>Prepared from this document, on exactly these terms. Signing takes two minutes on your phone — no app, no account.</p>'
@@ -1198,6 +1210,7 @@ function renderAccepted(){
     +'<a class="obtn" href="https://wa.me/393313251961" target="_blank" rel="noopener">Talk to BOOM →</a></div>'
     +'</div></div></div>';
   $('pAcc').innerHTML=html;
+  if(location.hash==='#mandate'){var mb=$('mandateBox2');if(mb)setTimeout(function(){mb.scrollIntoView({behavior:'smooth',block:'center'})},250);}
   [].slice.call(document.querySelectorAll('.panel')).forEach(function(x){x.classList.remove('on')});
   $('pAcc').classList.add('on');
   $('segs').style.display='none';
@@ -1353,6 +1366,24 @@ function accept(){
 }
 
 /* ═══ boot ═══ */
+/* il mandato dato dopo l'accettazione: POST pubblico, token = credenziale,
+   il server lo accetta SOLO se la console l'ha chiesto (askMandate) */
+window.giveMandate=function(){
+  var b=$('mandBtn'),e=$('mandErr');
+  if(b){b.disabled=true;b.textContent='Saving…';}
+  if(e)e.style.display='none';
+  fetch('/api/preagreement/mandate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN,mandate:true})})
+  .then(function(r){return r.json()})
+  .then(function(j){
+    if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
+    PA.mandate={at:j.at};
+    renderAccepted();
+  })
+  .catch(function(err){
+    if(b){b.disabled=false;b.textContent='Give BOOM the mandate to sign →';}
+    if(e){e.textContent=String(err&&err.message)==='not_offered'?'This mandate wasn’t requested for your proposal — message BOOM and we’ll sort it.':'Couldn’t save your mandate — please try again, or message BOOM.';e.style.display='block';}
+  });
+};
 function boot(){
   $('load').style.display='none';
   $('foot').style.display='';

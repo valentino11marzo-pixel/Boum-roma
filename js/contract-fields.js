@@ -340,7 +340,7 @@
       label: { it: 'Classe energetica (APE)', en: 'Energy class (APE)' }, ask: { it: 'Es. E — dall’attestato', en: 'e.g. E — from the APE certificate' } }),
     { key: 'impiantiStato', group: 'property', owner: 'landlord', templates: ['B', 'C'], needs: ['contract'], required: false, type: 'select', options: IMPIANTI,
       read: (ctx) => pick(obj(ctx.contract).impiantiStato, obj(ctx.property).impiantiStato), write: { doc: 'contract', path: 'impiantiStato', also: { doc: 'property', path: 'impiantiStato' } },
-      label: { it: 'Sicurezza impianti', en: 'Systems safety (electric, gas)' }, ask: { it: 'Vuoto = “funzionanti e idonei”', en: 'Empty = “working and fit for use”' } },
+      label: { it: 'Sicurezza impianti', en: 'Systems safety (electric, gas)' }, ask: { it: 'Vuoto = formula del modello (senza certificazione a norma)', en: 'Empty = the model’s own wording (no compliance certificate)' } },
     tabField('tabProprieta', 'proprieta', { label: { it: 'Millesimi proprietà', en: 'Ownership shares' }, ask: { it: 'Dalla tabella condominiale', en: 'From the condominium table' } }),
     tabField('tabRiscaldamento', 'riscaldamento', { label: { it: 'Millesimi riscaldamento', en: 'Heating shares' }, ask: { it: '', en: '' } }),
     tabField('tabAcqua', 'acqua', { label: { it: 'Millesimi acqua', en: 'Water shares' }, ask: { it: '', en: '' } }),
@@ -793,7 +793,8 @@
     const decorrenza = str(c.startDate || '').slice(0, 10);
     const from = [stipula, decorrenza].filter(Boolean).sort()[0] || '';
     let deadline = '';
-    if (from) { const d = new Date(from + 'T00:00'); if (!isNaN(d)) { d.setDate(d.getDate() + 30); deadline = d.toISOString().slice(0, 10); } }
+    // This is a calendar day, not local midnight converted back to UTC.
+    if (from) { const d = new Date(from + 'T00:00:00Z'); if (!isNaN(d)) { d.setUTCDate(d.getUTCDate() + 30); deadline = d.toISOString().slice(0, 10); } }
     const base = cedolare ? 0 : Math.round(annual * 0.7 * 100) / 100;
     return {
       tipologia: 'L2', tipologiaLabel: 'L2 — locazione agevolata ad uso abitativo (canone concordato)',

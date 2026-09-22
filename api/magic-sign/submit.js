@@ -37,7 +37,9 @@ export { termsFingerprint };
 
 // Canonical consent — MUST equal sign.html's CONSENT and _finalize.js's
 // MS_CONSENT: the certificate attests exactly this text.
-const MS_CONSENT_TEXT = 'I confirm my identity and accept all lease terms. This digital signature is legally valid (FES — Art. 21 CAD).';
+// Esportato (21/09/2026): api/preagreement/sign-for.js firma in-process con
+// QUESTO testo — una copia sola, l'hash è lo stesso che il certificato attesta.
+export const MS_CONSENT_TEXT = 'I confirm my identity and accept all lease terms. This digital signature is legally valid (FES — Art. 21 CAD).';
 // finalizeContract is imported lazily at the call site (below) so a load
 // failure in the post-signature step (e.g. an unresolved pdf-lib) can NEVER
 // crash the signature write itself.
