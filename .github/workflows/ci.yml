@@ -154,11 +154,19 @@ jobs:
       # una credenziale di un'ora dell'account firebase-adminsdk. Provider e
       # account non sono segreti: senza il token firmato da GitHub non
       # aprono niente. Niente file JSON, niente refresh token da rinnovare.
+      # `token_format: access_token` NON serve al CLI (che legge il file in
+      # GOOGLE_APPLICATION_CREDENTIALS): serve a PROVARE la federazione qui,
+      # subito. Senza, il passo scrive solo un file di configurazione e
+      # riesce SEMPRE — il 22/09 il primo run e' uscito «success» su questo
+      # passo senza aver mai parlato con Google. Con lo scambio forzato, un
+      # pool/provider/«Concedi accesso» sbagliato fallisce QUI con l'errore
+      # di Google, non piu' avanti con un «Failed to authenticate» generico.
       - name: Credenziale federata (Workload Identity Federation, nessuna chiave)
         uses: google-github-actions/auth@v2
         with:
           workload_identity_provider: projects/937269017440/locations/global/workloadIdentityPools/github/providers/github
           service_account: firebase-adminsdk-fbsvc@boom-property-dashboards.iam.gserviceaccount.com
+          token_format: access_token
       - name: Deploy firestore.rules + storage.rules
         env:
           FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
@@ -187,10 +195,21 @@ jobs:
           # sopra scambia il token OIDC del job con una credenziale
           # temporanea dell'account firebase-adminsdk e la lascia in
           # GOOGLE_APPLICATION_CREDENTIALS. Niente da rubare, niente che
-          # scada. Le due vecchie vie restano come ripiego dichiarato.
+          # scada. Le due vecchie vie restano SOLO per un job SENZA il passo
+          # federato (se qualcuno lo toglie): con la federazione in mano non
+          # si arriva mai qui sotto.
           AUTH=()
           if [ -n "${GOOGLE_APPLICATION_CREDENTIALS:-}" ] && [ -s "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
             CRED_KIND=wif
+            # Il CLI PREFERISCE la variabile d'ambiente FIREBASE_TOKEN a
+            # GOOGLE_APPLICATION_CREDENTIALS. Nel primo run federato (22/09)
+            # il job diceva «wif» e il CLI ha firmato col token deprecato
+            # («Authenticating with FIREBASE_TOKEN is deprecated» nel log):
+            # federazione scavalcata in silenzio, verde che non provava
+            # niente. Con la federazione in mano i vecchi segreti si tolgono
+            # dall'ambiente: UNA credenziale, quella che si puo' provare.
+            unset FIREBASE_TOKEN FIREBASE_SERVICE_ACCOUNT
+            echo "credenziale: federazione (file temporaneo di google-github-actions/auth, nessun segreto del repo)"
           elif [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
             umask 077
             printf '%s' "$FIREBASE_SERVICE_ACCOUNT" > "$RUNNER_TEMP/firebase-sa.json"
@@ -199,7 +218,7 @@ jobs:
           elif [ -n "$FIREBASE_TOKEN" ]; then
             AUTH=(--token "$FIREBASE_TOKEN")
             CRED_KIND=token
-            echo "::warning::Deploy col token login:ci (deprecato, scade da solo) — imposta il secret FIREBASE_SERVICE_ACCOUNT per chiudere la classe."
+            echo "::warning::Deploy col token login:ci (deprecato, scade da solo): questo ramo gira SOLO se il passo di federazione (google-github-actions/auth) manca — rimettilo, e' la credenziale che si prova (CLAUDE.md, «CI deploy-rules»)."
           else
             echo "::warning::Nessuna credenziale (ne' federazione, ne' FIREBASE_SERVICE_ACCOUNT, ne' FIREBASE_TOKEN) — rules NON deployate. La via giusta e' la federazione: pool+provider OIDC per GitHub sul progetto e il passo google-github-actions/auth in questo job (vedi CLAUDE.md, «CI deploy-rules»)."
             exit 0
@@ -208,13 +227,13 @@ jobs:
           if ! npx firebase-tools deploy --only firestore:rules,storage \
                  --project boom-property-dashboards "${AUTH[@]}" \
                  --non-interactive 2>&1 | tee /tmp/fb.log; then
-            if grep -qi "credentials are no longer valid\|Authentication Error\|invalid_grant\|PERMISSION_DENIED" /tmp/fb.log; then
+            if grep -qi "credentials are no longer valid\|Authentication Error\|invalid_grant\|PERMISSION_DENIED\|Failed to authenticate\|default credentials\|unauthorized_client" /tmp/fb.log; then
               if [ "$CRED_KIND" = wif ]; then
                 echo "::error::La FEDERAZIONE e' stata rifiutata — le regole NON sono in produzione. Controlla nella console Google: il provider OIDC del pool (issuer token.actions.githubusercontent.com, mappatura attribute.repository=assertion.repository, condizione sul repo), il «Concedi accesso» del pool verso l'account firebase-adminsdk col filtro repository, e che l'account porti il ruolo Firebase Admin."
               elif [ "$CRED_KIND" = sa ]; then
                 echo "::error::La SERVICE ACCOUNT e' stata rifiutata — le regole NON sono in produzione. Controlla che il secret FIREBASE_SERVICE_ACCOUNT contenga il JSON intero della chiave e che l'account porti un ruolo sufficiente (quello di 'Account di servizio' della console Firebase basta; in IAM: Firebase Admin o Editor)."
               else
-                echo "::error::FIREBASE_TOKEN SCADUTO — le regole NON sono in produzione. Fix duraturo: secret FIREBASE_SERVICE_ACCOUNT (chiave JSON dalla console Firebase). Tampone: rigenera con 'npx firebase-tools login:ci' e aggiorna FIREBASE_TOKEN."
+                echo "::error::FIREBASE_TOKEN SCADUTO — le regole NON sono in produzione. Fix duraturo: la federazione (passo google-github-actions/auth in questo job, vedi CLAUDE.md «CI deploy-rules»). Tampone: rigenera con 'npx firebase-tools login:ci' e aggiorna FIREBASE_TOKEN."
               fi
             else
               echo "::error::Deploy delle regole fallito — vedi il log sopra. Le regole del repo NON sono in produzione."
@@ -226,5 +245,13 @@ jobs:
           # anche con exit status 0.
           if ! grep -q "Deploy complete" /tmp/fb.log; then
             echo "::error::Il CLI e' uscito 0 ma il log NON dice 'Deploy complete' — le regole potrebbero NON essere in produzione. Vedi il log sopra."
+            exit 1
+          fi
+          # Seconda prova, solo con la federazione: il log NON deve portare
+          # l'avviso del token deprecato. Se c'e', il CLI ha firmato con
+          # FIREBASE_TOKEN e la federazione e' stata scavalcata — le regole
+          # sono in produzione, ma la credenziale provata non e' quella.
+          if [ "$CRED_KIND" = wif ] && grep -q "FIREBASE_TOKEN" /tmp/fb.log; then
+            echo "::error::Il CLI ha firmato col token deprecato (FIREBASE_TOKEN) invece che con la federazione. Le regole SONO in produzione, ma la federazione NON e' stata provata: togli FIREBASE_TOKEN dall'ambiente di questo passo (o il secret dal repo)."
             exit 1
           fi

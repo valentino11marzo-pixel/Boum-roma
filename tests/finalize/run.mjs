@@ -315,6 +315,22 @@ const magicKeys = () => [...store.keys()].filter(k => k.startsWith('magicLinks/'
     authAt > -1 && deployAt > -1 && authAt < deployAt && ci.includes('CRED_KIND=wif') && ci.includes('id-token: write'));
   check('sorgente CI: l\'avvio manuale da un ramo deploya le rules SOLO con la spunta esplicita (un ramo vecchio non regredisce la produzione)',
     ci.includes('inputs.deploy_rules_from_branch == true') && ci.includes("github.event_name == 'push' && github.ref == 'refs/heads/main'"));
+  // 22/09/2026, sera — letto nel log del primo run federato, non dedotto: il
+  // job usciva VERDE senza federazione. google-github-actions/auth senza
+  // `token_format` scrive un file e riesce sempre (nessuno scambio con
+  // Google), e il CLI preferisce la variabile FIREBASE_TOKEN a
+  // GOOGLE_APPLICATION_CREDENTIALS («Authenticating with FIREBASE_TOKEN is
+  // deprecated» nel log, con CRED_KIND=wif). Tre guardie.
+  const tokenFormatAt = ci.search(/^ +token_format: access_token *$/m);
+  check('sorgente CI: il passo federato PROVA lo scambio con Google (token_format: access_token) — senza, riesce sempre e non dice niente',
+    tokenFormatAt > authAt && tokenFormatAt < deployAt);
+  const wifAt = ci.indexOf('CRED_KIND=wif');
+  const unsetAt = ci.indexOf('unset FIREBASE_TOKEN FIREBASE_SERVICE_ACCOUNT');
+  const cliAt = ci.indexOf('npx firebase-tools deploy');
+  check('sorgente CI: con la federazione in mano i vecchi segreti escono dall\'ambiente PRIMA del CLI (che altrimenti firma con FIREBASE_TOKEN)',
+    wifAt > -1 && unsetAt > wifAt && cliAt > unsetAt);
+  check('sorgente CI: seconda prova — con CRED_KIND=wif l\'avviso del token deprecato nel log e\' un errore, non un verde',
+    /\[ "\$CRED_KIND" = wif \] && grep -q "FIREBASE_TOKEN" \/tmp\/fb\.log/.test(ci) && ci.indexOf('grep -q "FIREBASE_TOKEN"') > teeAt);
 
   const rules = readFileSync(new URL('../../storage.rules', import.meta.url), 'utf8');
   check('storage.rules: rendiconti/ ha il suo match (senza, l\'upload admin 403a — successo il 1/09)',

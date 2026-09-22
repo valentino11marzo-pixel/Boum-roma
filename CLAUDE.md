@@ -2022,7 +2022,23 @@ Un giro solo, otto interventi, 33 suite verdi:
   sbaglio non può regredire le regole in produzione. La GitHub App di
   Claude non può avviare workflow (403 `Resource not accessible by
   integration`): «Run workflow» lo preme l'operatore, i log li legge
-  Claude. Test: `tests/finalize/run.mjs` (33 check).
+  Claude. **Il primo run federato era verde senza federazione** (letto nel
+  log del job, non dedotto): `google-github-actions/auth` senza
+  `token_format` scrive solo il file di configurazione e riesce SEMPRE —
+  nessuno scambio con Google — e il CLI **preferisce la variabile
+  `FIREBASE_TOKEN`** a `GOOGLE_APPLICATION_CREDENTIALS`: il job diceva
+  `wif`, il log diceva «Authenticating with FIREBASE_TOKEN is deprecated»,
+  e le regole sono uscite col token deprecato (valido quel giorno). Un
+  verde che non prova la credenziale è il difetto di classe del 31/08 in
+  altra forma. Ora: `token_format: access_token` sul passo federato (lo
+  scambio OIDC → STS → impersonazione si fa LÌ, e un pool/provider/«Concedi
+  accesso» sbagliato fallisce con l'errore di Google), `unset
+  FIREBASE_TOKEN FIREBASE_SERVICE_ACCOUNT` prima del CLI quando la
+  federazione c'è, e la seconda prova sul log (avviso del token con
+  `CRED_KIND=wif` = errore). I rami service-account/token restano SOLO per
+  un job senza il passo federato; una volta verde con la federazione, il
+  secret `FIREBASE_TOKEN` va tolto dal repo. Test: `tests/finalize/run.mjs`
+  (36 check).
 - **Tabella zone canone UNICA**: `scheda-canone.html` ora carica
   `js/canone-engine.js` e semina le zone dal motore (la copia inline che
   poteva divergere dal Fascicolo ARPE è stata rimossa; un edit manuale
