@@ -396,6 +396,20 @@ def make_handler(conf):
 class ThreadedServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
     allow_reuse_address = True
+    request_queue_size = 32
+
+    def server_bind(self):
+        """Senza la reverse-DNS di HTTPServer. `HTTPServer.server_bind` chiama
+        `socket.getfqdn(host)` — una risoluzione INVERSA di 127.0.0.1 — fra il
+        bind e il listen. Sul Mac mini (22/09/2026, col resolver appena passato a
+        Tailscale) quella chiamata ha impiegato ~28 s, e su macOS una porta
+        bound ma non ancora in listen SCARTA il SYN invece di rifiutarlo (Linux
+        risponde RST): il client vede «Operation timed out» e ogni riavvio del
+        ponte — anche dopo un reboot — regalava 28 s di buio con ricadute sul
+        cloud. `server_name` non lo usa nessuno: si salta la lookup."""
+        socketserver.TCPServer.server_bind(self)
+        self.server_name = self.server_address[0]
+        self.server_port = self.server_address[1]
 
 
 def serve(conf, port=None, bind='127.0.0.1'):

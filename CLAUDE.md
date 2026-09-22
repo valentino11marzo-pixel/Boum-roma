@@ -2971,7 +2971,18 @@ ragionamento → contenuto vuoto con `finish_reason:'length'`). Il finto
 Ollama dei test risponde 500 sulla rotta compatibile: se il ponte tornasse
 a usarla, il test cade. `LOCALE_RAW_BASE=…/<branch>/bot` davanti
 all'installer prova il ponte di un ramo prima del merge (l'installer del
-ramo scaricava il ponte di `main`, cioè quello vecchio). 55 check.
+ramo scaricava il ponte di `main`, cioè quello vecchio). **E il quarto,
+quello che spiegava tutti gli altri timeout: la porta aperta ma sorda.**
+Dopo ogni riavvio del ponte, per ~28 s ogni connessione a 127.0.0.1:8088
+moriva in «Operation timed out» (non «refused») — poi la quarta prova
+passava. `HTTPServer.server_bind` chiama `socket.getfqdn(host)`, una
+reverse-DNS di 127.0.0.1, FRA il bind e il listen: sul Mac mini, col
+resolver appena passato a Tailscale, ~28 s; e su macOS un socket bound ma
+non in listen SCARTA il SYN (Linux risponde RST). È il motivo per cui
+l'installer «impaziente» dei 10 s aveva dichiarato morto un ponte vivo.
+`ThreadedServer.server_bind` salta la lookup (`server_name` non lo usa
+nessuno), backlog a 32; il test patcha `socket.getfqdn` e pretende che
+l'avvio non lo chiami (l'`HTTPServer` nudo lo chiama: verificato). 57 check.
 
 **Il merge con l'Innesto 3.0 e la Segretaria di Codex (22/09/2026).** Su
 `main` erano intanto arrivati l'Innesto 3.0 (`api/portal/ingest.js`: Opus 5,

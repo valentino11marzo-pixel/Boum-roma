@@ -118,6 +118,19 @@ o = bl.from_native_chat({'message': {'content': '<think>x</think> {"a":1}'}}, 'f
 check('from_native_chat: ragionamento chiuso tolto, modello di ripiego, finish stop',
       o['choices'][0]['message']['content'] == '{"a":1}' and o['model'] == 'fallback-model' and o['choices'][0]['finish_reason'] == 'stop')
 
+# ── l'avvio non fa reverse-DNS (28 s di buio sul Mac mini, 22/09) ───────
+import socket as _socket
+_calls = []
+_orig_getfqdn = _socket.getfqdn
+_socket.getfqdn = lambda *a, **k: (_calls.append(a), 'x')[1]
+try:
+    _srv = bl.ThreadedServer(('127.0.0.1', 0), bl.make_handler({'token': 't', 'model': '', 'vision': '', 'ollama': 'http://127.0.0.1:1', 'stt': '', 'homie': '', 'port': 0, 'timeout': 1, 'base': ''}))
+    _srv.server_close()
+finally:
+    _socket.getfqdn = _orig_getfqdn
+check('ThreadedServer non chiama MAI socket.getfqdn all\'avvio (la reverse-DNS che teneva la porta aperta ma sorda)', not _calls)
+check('ThreadedServer: backlog di ascolto ≥ 16 (tailscaled + server insieme non lo riempiono)', bl.ThreadedServer.request_queue_size >= 16)
+
 # ── il server VERO contro un Ollama finto ─────────────────────────────────
 seen = []
 
