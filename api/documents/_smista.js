@@ -34,6 +34,7 @@
 import { fsCreate, fsGet, fsList, storageUpload, logActivity } from '../agent/_lib.js';
 import { extractJson } from '../agent/_claude.js';
 import { aiSignal } from '../_budget.js';
+import { sendScrivanoOffer } from '../scrivano/_offer.js';
 
 const MODEL = 'claude-haiku-4-5-20251001';
 export const MAX_DOC_BYTES = 8 * 1024 * 1024;
@@ -58,6 +59,8 @@ export const CATS = {
   imposta_soggiorno:   { label: 'Imposta di soggiorno',          category: 'imposta soggiorno versamento',   folder: '08_BreviLocazioni',   type: 'other' },
   fattura_societa:     { label: 'Fattura società',               category: 'fattura società invoice',        folder: '09_Societa',          type: 'other' },
   estratto_conto:      { label: 'Estratto conto',                category: 'estratto conto bancario',        folder: '09_Societa',          type: 'other' },
+  proposta:            { label: 'Proposta / pre-accordo',        category: 'proposta pre-accordo rental proposal', folder: '01_Contratto',  type: 'other' },
+  messaggio:           { label: 'Messaggio / email di un cliente', category: 'messaggio cliente richiesta',   folder: '99_DaSmistare',       type: 'other' },
   altro:               { label: 'Documento',                     category: 'documento generico',             folder: '99_DaSmistare',       type: 'other' },
 };
 
@@ -78,10 +81,18 @@ export function normalizeRelation(relation) {
   };
 }
 
+// La classe (chiave di CATS) di un documento già archiviato, dalla sua
+// categoria: serve allo Scrivano per sapere se vale una lettura.
+export function catKeyOf(doc) {
+  const cat = doc && doc.category;
+  if (!cat) return null;
+  return Object.keys(CATS).find((k) => CATS[k].category === cat) || null;
+}
+
 function dupResult(id, prev) {
   return {
     ok: true, duplicate: true, id,
-    catKey: null, label: (prev && prev.name) || null, folder: null,
+    catKey: catKeyOf(prev), label: (prev && prev.name) || null, folder: null,
     propertyLabel: null, fiscalYear: (prev && prev.fiscalYear) || null,
     needsFiling: !!(prev && prev.needsFiling), summary: (prev && prev.notes) || '',
   };
@@ -90,7 +101,7 @@ function dupResult(id, prev) {
 // Classify + file one document. Returns
 // { ok, id, catKey, label, propertyLabel, fiscalYear, folder, needsFiling, summary,
 //   duplicate, suggestedPropertyId, relationDefault, relatedPropertyIds }
-export async function smistaDocument({ base64, mediaType, fileName, hint, origin, docId = null, relation = null }) {
+export async function smistaDocument({ base64, mediaType, fileName, hint, origin, docId = null, relation = null, offer = true }) {
   if (!process.env.ANTHROPIC_API_KEY) throw new Error('ANTHROPIC_API_KEY missing');
   const bytes = Math.floor((base64.length * 3) / 4);
   if (bytes > MAX_DOC_BYTES) throw new Error('file troppo grande (max 8MB)');
@@ -247,11 +258,17 @@ export async function smistaDocument({ base64, mediaType, fileName, hint, origin
   await logActivity('Documento smistato', 'document',
     { id, catKey, propertyId: property?.id || null, fiscalYear, origin, needsFiling, relationKind: rel.kind }, 'smistatore');
 
-  return {
+  const result = {
     ok: true, duplicate: false, id, catKey,
     label: cat.label, folder: cat.folder,
     propertyLabel, fiscalYear, needsFiling,
     summary: String(parsed.summary || '').slice(0, 200),
     suggestedPropertyId, relationDefault, relatedPropertyIds,
   };
+  // Lo Scrivano: per le porte che NON sono Telegram (WhatsApp, email — le
+  // porte di Codex) l'offerta «leggi e proponi» parte da qui, best-effort:
+  // chi chiama smistaDocument la eredita. Telegram mette il bottone nella
+  // propria risposta (origin === 'telegram' → qui non parte nulla).
+  if (offer) { try { await sendScrivanoOffer(result, { origin }); } catch (_) { /* mai bloccare un'archiviazione riuscita */ } }
+  return result;
 }

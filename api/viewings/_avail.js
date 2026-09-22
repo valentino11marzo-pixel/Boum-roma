@@ -87,8 +87,6 @@ export const DEFAULTS = {
   requireApproval: true,
 };
 
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
 // ── Rome-time helpers ───────────────────────────────────────────────────────
 export function romeOffsetMinutes(utcDate) {
   const s = new Intl.DateTimeFormat('en-US', {
@@ -113,11 +111,18 @@ export function romeParts(date) {
   }).formatToParts(date).reduce((a, x) => (a[x.type] = x.value, a), {});
 }
 
+// Calendar arithmetic must not parse localized labels: ICU can spell the
+// same short month as "Sep" or "Sept". Keep romeParts for display only.
+function romeCalendarParts(date) {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(date).reduce((a, x) => (a[x.type] = x.value, a), {});
+}
+
 // the Rome calendar day of an instant, as YYYY-MM-DD
 export function romeDateKey(date) {
-  const p = romeParts(date);
-  const mo = MONTHS.indexOf(p.month) + 1;
-  return `${p.year}-${String(mo).padStart(2, '0')}-${p.day}`;
+  const p = romeCalendarParts(date);
+  return `${p.year}-${p.month}-${p.day}`;
 }
 
 const hhmm = str => { const [h, m] = String(str).split(':').map(Number); return { h: h || 0, m: m || 0 }; };
@@ -198,8 +203,8 @@ export function buildSlots(cfg, busy, mode, now = new Date(), ctx = null) {
 
   for (let i = 0; i <= cfg.horizonDays; i++) {
     const probe = new Date(now.getTime() + i * 86400000);
-    const p = romeParts(probe);
-    const y = +p.year, mo = MONTHS.indexOf(p.month) + 1, d = +p.day;
+    const p = romeCalendarParts(probe);
+    const y = +p.year, mo = +p.month, d = +p.day;
     const dow = romeToUtc(y, mo, d, 12, 0).getUTCDay();
     const wins = cfg.windows[dow] || cfg.windows[String(dow)] || [];
     if (!wins.length) continue;

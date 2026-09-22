@@ -26,7 +26,7 @@
    ricadeva sul bottone oro pieno — un filtro vestito da azione primaria.
    Ora sono chip: quieti da spenti, velo oro da attivi. La specificità
    .btn.x-filter batte .btn-secondary senza !important. */
-.btn.contract-filter, .btn.payment-filter, .btn.user-filter,
+.btn.contract-filter, .btn.user-filter,
 .btn.maintenance-filter, .btn.rules-filter {
     background: transparent;
     border: 1px solid var(--border);
@@ -38,7 +38,7 @@
     letter-spacing: .3px;
     box-shadow: none;
 }
-.btn.contract-filter:hover:not(:disabled), .btn.payment-filter:hover:not(:disabled),
+.btn.contract-filter:hover:not(:disabled),
 .btn.user-filter:hover:not(:disabled), .btn.maintenance-filter:hover:not(:disabled),
 .btn.rules-filter:hover:not(:disabled) {
     background: rgba(255,255,255,0.04);
@@ -47,7 +47,7 @@
     transform: none;
     box-shadow: none;
 }
-.btn.contract-filter.active, .btn.payment-filter.active, .btn.user-filter.active,
+.btn.contract-filter.active, .btn.user-filter.active,
 .btn.maintenance-filter.active, .btn.rules-filter.active {
     background: var(--gold-light);
     border-color: rgba(212,175,55,0.45);
@@ -56,10 +56,10 @@
 }
 /* i filtri d'allarme (Urgenti/In scadenza) restano chip, ma parlano col
    colore del testo — non con un fondo pieno che urla quanto lo stato vero */
-.btn.btn-danger.contract-filter, .btn.btn-danger.payment-filter {
+.btn.btn-danger.contract-filter {
     color: var(--red); border-color: var(--red-light); background: transparent;
 }
-.btn.btn-warning.contract-filter, .btn.btn-warning.payment-filter {
+.btn.btn-warning.contract-filter {
     color: var(--orange); border-color: var(--orange-light); background: transparent;
 }
 

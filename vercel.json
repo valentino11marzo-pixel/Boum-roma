@@ -648,7 +648,10 @@
     "api/reminder-cron.js": {
       "maxDuration": 60
     },
-    "api/homie/message.js": {
+    "api/homie/{conversation,message}.js": {
+      "maxDuration": 60
+    },
+    "api/homie/wa-outbox.js": {
       "maxDuration": 60
     },
       "api/radar/digest.js": {
@@ -680,6 +683,12 @@
     },
     "api/contracts/inventario.js": {
       "maxDuration": 60
+    },
+    "api/portal/ingest.js": {
+      "maxDuration": 120
+    },
+    "api/scrivano/worker.js": {
+      "maxDuration": 120
     },
     "api/listing.js": {
       "includeFiles": "apartment-detail.html"
@@ -779,11 +788,24 @@
     "api/segretaria/scan-replies.js": {
       "maxDuration": 60
     },
+    "api/segretaria/follow-up.js": {
+      "maxDuration": 60
+    },
+    "api/segretaria/prepare.js": {
+      "maxDuration": 60
+    },
+    "api/segretaria/worker.js": {
+      "maxDuration": 60
+    },
     "api/telegram/notify-pending.js": {
       "maxDuration": 60
     }
   },
   "crons": [
+    {
+      "path": "/api/segretaria/worker",
+      "schedule": "* * * * *"
+    },
     {
       "path": "/api/reminder-cron",
       "schedule": "*/15 * * * *"
@@ -794,6 +816,10 @@
     },
     {
       "path": "/api/telegram/notify-pending",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/scrivano/worker",
       "schedule": "* * * * *"
     },
     {

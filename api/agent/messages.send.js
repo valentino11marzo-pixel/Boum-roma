@@ -61,16 +61,23 @@ export default async function handler(req, res) {
     }
     if (channel === 'whatsapp' || channel === 'both') {
       if (!phone) return errJson(res, 400, 'phone required for whatsapp channel');
-      out.whatsapp = { url: waLink(phone, text), to: phone };
+      out.whatsapp = { url: waLink(phone, text), to: phone, status: 'prepared' };
     }
-    // Persist a small message-log entry so the cockpit can show "Homie ha
-    // risposto a Anna B." in the activity timeline.
+    // These are this tool's historical outcomes, not live delivery receipts.
+    // A WhatsApp link is only prepared; the action's Mac ack proves sending.
+    const delivery = {
+      ...(out.email?.sent ? { email: 'sent' } : {}),
+      ...(out.whatsapp ? { whatsapp: out.whatsapp.status } : {}),
+    };
     await fsCreate('messageLog', {
       channel, leadId: body.leadId || null, to, phone,
       subject: subject || null, body: text,
-      actor: 'agent', createdAt: new Date(),
+      actor: 'agent', createdAt: new Date(), delivery,
     }).catch(() => {});
-    await logActivity('Messaggio inviato (agent)', 'message', { channel, to: to || phone, leadId: body.leadId || null });
+    const activity = out.whatsapp
+      ? (out.email?.sent ? 'Email inviata e bozza WhatsApp preparata (agent)' : 'Bozza WhatsApp preparata (agent)')
+      : 'Email inviata (agent)';
+    await logActivity(activity, 'message', { channel, to: to || phone, leadId: body.leadId || null, delivery });
     return okJson(res, out);
   } catch (e) { return errJson(res, 500, e.message); }
 }

@@ -32,8 +32,10 @@
     return isNaN(dt.getTime()) ? null : dt;
   }
   function iso(d) { return d ? d.toISOString().slice(0, 10) : null; }
-  function addDays(d, n) { var x = new Date(d); x.setDate(x.getDate() + n); return x; }
-  function addMonths(d, n) { var x = new Date(d); x.setMonth(x.getMonth() + n); return x; }
+  // Arithmetic follows the UTC calendar day already exposed by iso(), also
+  // for Date/timestamp inputs; it never reinterprets them as local midnight.
+  function addDays(d, n) { var x = new Date(d); x.setUTCDate(x.getUTCDate() + n); return x; }
+  function addMonths(d, n) { var x = new Date(d); x.setUTCMonth(x.getUTCMonth() + n); return x; }
   function addYears(d, n) { var x = new Date(d); x.setFullYear(x.getFullYear() + n); return x; }
   function daysBetween(a, b) { return Math.round((toDate(b) - toDate(a)) / 86400000); }
 
@@ -102,8 +104,8 @@
     // 2) Imposta di registro ANNUALE — only if NOT cedolare and contract spans >1 year.
     if (!f.isCedolare && start && end && daysBetween(start, end) > 366) {
       // Anniversary within the fiscal year.
-      var anniv = new Date(y, start.getMonth(), start.getDate());
-      if (start.getFullYear() < y) {
+      var anniv = new Date(Date.UTC(y, start.getUTCMonth(), start.getUTCDate()));
+      if (start.getUTCFullYear() < y) {
         out.push(obl({
           key: 'registro_annuale_' + (c.id || 'x') + '_' + y,
           label: 'Imposta di registro annuale ' + y,
@@ -119,8 +121,8 @@
     }
 
     // 3) ISTAT adjustment reminder — annual at anniversary (not cedolare).
-    if (!f.isCedolare && !f.isShortLet && start && start.getFullYear() < y) {
-      var istatDate = new Date(y, start.getMonth(), start.getDate());
+    if (!f.isCedolare && !f.isShortLet && start && start.getUTCFullYear() < y) {
+      var istatDate = new Date(Date.UTC(y, start.getUTCMonth(), start.getUTCDate()));
       out.push(obl({
         key: 'istat_' + (c.id || 'x') + '_' + y,
         label: 'Adeguamento ISTAT canone ' + y,

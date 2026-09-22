@@ -64,6 +64,7 @@ export async function postinoTick({ chatId, now = Date.now() }) {
   catch { executed = []; }
   const stalled = executed
     .filter(a => isWa(a) && waPhone(a) && waText(a)
+      && !a.segretaria && a.proposedBy !== 'segretaria-proposal' // Claimed delivery may have happened: never offer a duplicate manual send.
       && !a.waSentAt && !a.waSendError && !a.waStallNotifiedAt
       && now - ts(a.executedAt) > STALL_MS)
     .sort((a, b) => ts(a.executedAt) - ts(b.executedAt))

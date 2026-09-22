@@ -749,8 +749,13 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
     /tenantSignature\) return toast\('error'/.test(sm) && /Nessun mandato scritto/.test(sm) && /tenantDelegate: payload/.test(sm) && /onBehalfOf/.test(sm));
   check('portal: un rinnovo NON eredita mandato/deleghe/accettazione (atti di QUEL contratto)',
     /'tenantMandate', 'tenantDelegate', 'tenantSignedByDelegate', 'landlordSignedByDelegate', 'paAcceptance'/.test(app));
-  check('portal: 💶 Valutazione sulla scheda immobile → openValutazione(null, undefined, {propertyId})',
-    /openValutazione\(null, undefined, \{propertyId:'\$\{p\.id\}'\}\)/.test(app) && /propertyId: \(!contractId && p\) \? p\.id : undefined/.test(app));
+  const { verifyPropertyValuation } = await import('./property-valuation.mjs');
+  const valuation = (await import('../../api/fiscal/valutazione.js')).default;
+  await verifyPropertyValuation(check, async body => {
+    const response = mkRes();
+    await valuation(mkReq(body, { authorization: 'Bearer tok' }), response);
+    return { status: response.code, body: response.body };
+  });
   const adm = R('pre-agreement-admin.html');
   check('console PA: interruttore "offri il mandato" (fMandate) NON preselezionato, persistito nel create E nell\'edit in place, ripristinato solo se esplicito',
     /id="fMandate" style/.test(adm) && !/id="fMandate" checked/.test(adm) && /askMandate:!!\$\('fMandate'\)\.checked/.test(adm) && /askMandate:body\.askMandate/.test(adm) && /\$\('fMandate'\)\.checked=d\.askMandate===true/.test(adm));

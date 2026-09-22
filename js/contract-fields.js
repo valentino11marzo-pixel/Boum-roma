@@ -793,7 +793,8 @@
     const decorrenza = str(c.startDate || '').slice(0, 10);
     const from = [stipula, decorrenza].filter(Boolean).sort()[0] || '';
     let deadline = '';
-    if (from) { const d = new Date(from + 'T00:00'); if (!isNaN(d)) { d.setDate(d.getDate() + 30); deadline = d.toISOString().slice(0, 10); } }
+    // This is a calendar day, not local midnight converted back to UTC.
+    if (from) { const d = new Date(from + 'T00:00:00Z'); if (!isNaN(d)) { d.setUTCDate(d.getUTCDate() + 30); deadline = d.toISOString().slice(0, 10); } }
     const base = cedolare ? 0 : Math.round(annual * 0.7 * 100) / 100;
     return {
       tipologia: 'L2', tipologiaLabel: 'L2 — locazione agevolata ad uso abitativo (canone concordato)',

@@ -23,6 +23,7 @@ import { fsGet, fsPatch, logActivity, guardPost, okJson, errJson } from './_lib.
 import messagesSend from './messages.send.js';
 import viewingsSchedule from './viewings.schedule.js';
 import leadsUpdate from './leads.update.js';
+import { claimSegretariaExecution } from '../segretaria/_execution-guard.js';
 
 // Tool dispatch table — kind → { tool handler, payload-to-args transform }
 const DISPATCH = {
@@ -114,6 +115,14 @@ export default async function handler(req, res) {
 
   const action = await fsGet(`action_queue/${id}`);
   if (!action) return errJson(res, 404, 'action_not_found');
+
+  // New case proposals require their exact operator review on EVERY entry
+  // point; existing agent kinds and their historical approval flow are intact.
+  if (action.segretaria || action.proposedBy === 'segretaria-proposal') {
+    const gate = await claimSegretariaExecution({ id, action, override: body.override });
+    if (gate.cached) return okJson(res, { id, status: gate.status, cached: true, result: gate.result });
+    if (!gate.allowed) return errJson(res, gate.code, gate.error);
+  }
 
   // Idempotency — but a FAILED action stays retryable: pressing Approva again
   // re-runs it (transient Firestore/SMTP hiccups must not need a new proposal).

@@ -35,6 +35,35 @@ ok('notice window emitted', !!find(obl1, 'disdetta_'));
 const disd = find(obl1, 'disdetta_');
 ok('transitorio notice 3 months before end', disd.dueDate === '2025-10-01');
 
+// Calendar dates must not change with the machine's zone or a DST boundary.
+const previousTZ = process.env.TZ;
+try {
+  for (const zone of ['UTC', 'Europe/Rome', 'America/Los_Angeles']) {
+    process.env.TZ = zone;
+    const obligations = F.contractObligations(cOrdinario, { id: 'p1' }, 2025);
+    ok(zone + ': notice and yearly anniversaries preserve their calendar day',
+      find(obligations, 'disdetta_').dueDate === '2025-10-01'
+      && find(obligations, 'registro_annuale_').dueDate === '2025-01-31'
+      && find(obligations, 'istat_').dueDate === '2025-01-01');
+    const monthEnd = F.contractObligations({ ...cOrdinario, endDate: '2025-05-31' }, { id: 'p1' }, 2025);
+    ok(zone + ': end-of-month keeps the previous UTC overflow, without clamping',
+      find(monthEnd, 'disdetta_').dueDate === '2025-03-03');
+    const timestamp = F.contractObligations({ ...cOrdinario,
+      startDate: new Date('2024-01-01T00:30:00+02:00'), endDate: '2026-01-01T00:30:00+02:00' }, { id: 'p1' }, 2025);
+    ok(zone + ': Date and offset timestamps retain their existing ISO UTC day',
+      find(timestamp, 'rli_').dueDate === '2024-01-30'
+      && find(timestamp, 'scadenza_').dueDate === '2025-12-31'
+      && find(timestamp, 'istat_').dueDate === '2025-12-31');
+    for (const [startDate, expected] of [['2025-03-01', '2025-03-31'], ['2025-10-15', '2025-11-14'],
+      ['2024-02-01', '2024-03-02'], ['2025-12-15', '2026-01-14']]) {
+      const values = F.contractObligations({ ...cOrdinario, startDate, endDate: '2028-01-01' }, { id: 'p1' }, 2025);
+      ok(zone + ': calendar +30 days from ' + startDate, find(values, 'rli_').dueDate === expected);
+    }
+  }
+} finally {
+  if (previousTZ === undefined) delete process.env.TZ; else process.env.TZ = previousTZ;
+}
+
 // Cedolare contract: no registro, no ISTAT, RLI amount 0
 const cCedolare = { id: 'c2', type: 'concordato', rent: 1000, startDate: '2024-01-01', endDate: '2028-01-01', cedolare: true };
 const obl2 = F.contractObligations(cCedolare, { id: 'p1' }, 2025);
