@@ -306,16 +306,14 @@ else
       note "  il comando qui sopra stampa il link (Access Controls → Funnel). Poi rilancia."
     else
       note "URL pubblico: $URL"
-      # Il certificato https lo emette Let's Encrypt alla PRIMA richiesta, e
-      # può volerci un minuto (sfida DNS + propagazione). Un client che
-      # aspetta 15-20 s — questo curl, il server su Vercel col suo tetto —
-      # chiude prima, e l'emissione muore con lui: ogni tentativo riparte da
-      # capo e l'URL resta "appeso" per sempre (22/09: 120 s di handshake
-      # senza risposta, con il Funnel acceso e il DNS giusto). `tailscale
-      # cert` aspetta quanto serve e, se qualcosa non va, lo DICE. I file che
-      # scrive sono copie (tailscaled tiene la sua): cartella temporanea, via
-      # subito. Mai /dev/null come file: "already exists and is not a
-      # regular file".
+      # Il certificato https lo emette Let's Encrypt alla PRIMA richiesta e
+      # può volerci fino a un minuto; `tailscale cert` lo forza qui, aspetta
+      # quanto serve e, se il tailnet non ha «HTTPS Certificates» acceso, lo
+      # DICE. I file che scrive sono copie (tailscaled tiene la sua):
+      # cartella temporanea, via subito. Mai /dev/null come file: "already
+      # exists and is not a regular file". (22/09: i file sono usciti
+      # subito, e l'https dal Mac restava comunque appeso: era il giro
+      # locale, vedi la prova qui sotto.)
       note "certificato https (Let's Encrypt): la prima emissione può volerci un minuto, aspetta…"
       CERTD="$(mktemp -d)"
       if "$TS" cert --cert-file "$CERTD/c.crt" --key-file "$CERTD/c.key" "$HOSTN" >/dev/null 2>"$CERTD/err"; then
@@ -325,11 +323,22 @@ else
         note "  (nella console Tailscale → DNS deve essere acceso «HTTPS Certificates»; poi rilancia)"
       fi
       rm -rf "$CERTD"
-      if curl -fsS --max-time 30 "$URL/health" >/dev/null 2>&1; then
-        note "risponde in https ✓ (verificato da questo Mac; la prova dall'esterno è il telefono su rete mobile: $URL/health)"
+      # La prova da QUESTO Mac deve passare dall'ingresso del Funnel, non dal
+      # giro su sé stesso: qui il nome risolve via MagicDNS sull'IP del
+      # tailnet e la connessione al listener locale di tailscaled resta
+      # appesa (22/09: 60-120 s senza ServerHello, con certificato emesso e
+      # percorso pubblico VIVO — verificato). Si chiede a un resolver
+      # pubblico l'IP dell'ingresso e si forza curl su quello (--resolve):
+      # è lo stesso percorso che fa Vercel.
+      INGRESS="$(dig +short +time=3 +tries=1 "$HOSTN" @1.1.1.1 2>/dev/null | grep -E '^[0-9.]+$' | head -1 || true)"
+      if [ -z "$INGRESS" ]; then
+        note "⚠ il DNS pubblico non risolve ancora $HOSTN (può volerci qualche minuto). Riprova più tardi:"
+        note "  curl -sS -m 60 --resolve $HOSTN:443:\$(dig +short $HOSTN @1.1.1.1 | head -1) $URL/health"
+      elif curl -fsS --max-time 30 --resolve "$HOSTN:443:$INGRESS" "$URL/health" >/dev/null 2>&1; then
+        note "raggiungibile dall'esterno ✓ (via l'ingresso del Funnel $INGRESS: lo stesso percorso di Vercel)"
       else
-        note "⚠ $URL/health non risponde in https: senza certificato il tunnel non parla. Riprova fra un minuto:"
-        note "  curl -sS -m 60 $URL/health"
+        note "⚠ $URL/health non risponde dall'esterno (ingresso $INGRESS): controlla \`tailscale funnel status\` (deve dire Funnel on → http://127.0.0.1:$PORT) e riprova:"
+        note "  curl -sS -m 60 --resolve $HOSTN:443:$INGRESS $URL/health"
       fi
     fi
   }

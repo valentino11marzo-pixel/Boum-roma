@@ -2982,23 +2982,31 @@ non in listen SCARTA il SYN (Linux risponde RST). È il motivo per cui
 l'installer «impaziente» dei 10 s aveva dichiarato morto un ponte vivo.
 `ThreadedServer.server_bind` salta la lookup (`server_name` non lo usa
 nessuno), backlog a 32; il test patcha `socket.getfqdn` e pretende che
-l'avvio non lo chiami (l'`HTTPServer` nudo lo chiama: verificato). **Il quinto, sull'https del Funnel: acceso, risolto, e appeso.** `tailscale
-funnel status` diceva «Funnel on», il DNS pubblico rispondeva, e l'handshake
-TLS restava senza risposta anche dopo 120 s. Let's Encrypt emette il
-certificato alla PRIMA richiesta https (sfida DNS + propagazione, fino a un
-minuto); un client che chiude a 15-20 s — il `curl --max-time 15`
-dell'installer, il server su Vercel col suo tetto di 20 s — interrompe
-l'emissione con sé, e ogni tentativo riparte da capo: l'URL non si sblocca
-MAI da solo, e il messaggio dell'installer («il DNS può volerci un minuto»)
-era la diagnosi sbagliata. Ora, subito dopo `funnel --bg`, l'installer
-chiama `tailscale cert <nome>` (aspetta quanto serve e stampa l'errore vero
-— di solito «HTTPS Certificates» spento nella console → DNS) in una
-cartella temporanea che sparisce (mai `/dev/null`: «already exists and is
-not a regular file»), poi prova `/health` a 30 s; e la prova da quel Mac
-non si spaccia per «raggiungibile da internet» — da lì il nome risolve via
-MagicDNS sull'IP del tailnet, non sull'ingresso del Funnel; la prova vera è
-un telefono su rete mobile. Il sandbox non può farla (policy di egress:
-403 sul CONNECT verso `*.ts.net`). 62 check.
+l'avvio non lo chiami (l'`HTTPServer` nudo lo chiama: verificato). **Il quinto, sull'https del Funnel: acceso, risolto, e appeso — e la
+prima diagnosi era sbagliata.** `tailscale funnel status` diceva «Funnel
+on», il DNS pubblico rispondeva, e `curl` DAL MAC verso il proprio nome
+`.ts.net` restava senza ServerHello anche dopo 120 s. Prima ipotesi:
+Let's Encrypt emette il certificato alla prima richiesta e un client che
+chiude a 15-20 s interrompe l'emissione. Smentita dai fatti: `tailscale
+cert <nome>` ha scritto i file SUBITO e il curl locale restava appeso
+lo stesso. Il fatto verificato: dallo STESSO Mac, `curl --resolve
+<nome>:443:<IP dell'ingresso del Funnel>` risponde `{"ok": true}`.
+Cioè il percorso pubblico — quello che fa Vercel — funziona; quello che
+si inceppa è il giro del Mac su sé stesso (MagicDNS → IP del tailnet →
+listener locale di tailscaled), e la sua causa NON è stabilita: non
+serve alla produzione. Regola: la prova di un tunnel si fa sul percorso
+che userà il server, non su quello comodo. L'installer ora chiede a un
+resolver pubblico (`dig +short … @1.1.1.1`) l'IP dell'ingresso e prova
+`/health` con `--resolve` su quello; un record pubblico ancora assente
+viene detto come tale, mai come guasto; `tailscale cert` resta (costa
+niente, e stampa l'errore vero quando «HTTPS Certificates» è spento nel
+tailnet — mai `/dev/null` come file: «already exists and is not a
+regular file»). Il sandbox non può provare nulla di tutto questo
+(policy di egress: 403 sul CONNECT verso `*.ts.net`); il telefono su
+rete mobile è l'altra prova onesta. E le env su Vercel le mette
+l'operatore: il token del ponte non passa da una chat, e comunque la
+connessione Vercel di Claude non può né leggere né scrivere le env di
+produzione (403 su entrambe, provato). 63 check.
 
 **Il merge con l'Innesto 3.0 e la Segretaria di Codex (22/09/2026).** Su
 `main` erano intanto arrivati l'Innesto 3.0 (`api/portal/ingest.js`: Opus 5,

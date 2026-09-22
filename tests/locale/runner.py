@@ -294,8 +294,17 @@ check('install_locale.sh: mai /dev/null come file del certificato (tailscale lo 
       '--cert-file /dev/null' not in inst and '--key-file /dev/null' not in inst)
 check('install_locale.sh: un certificato non emesso viene DETTO con il suo errore, non spacciato per DNS lento',
       'certificato NON emesso' in inst and 'il DNS può volerci un minuto' not in inst)
-check('install_locale.sh: la prova da questo Mac non si spaccia per "raggiungibile da internet"',
-      'raggiungibile da internet' not in inst and 'verificato da questo Mac' in inst)
+# La prova da quel Mac passa dall'INGRESSO del Funnel (--resolve su un A record
+# chiesto a un resolver pubblico), mai dal giro su sé stesso: lì il nome
+# risolve via MagicDNS sull'IP del tailnet e il listener locale di tailscaled
+# resta appeso — 60-120 s senza ServerHello con certificato emesso e percorso
+# pubblico vivo (22/09, verificato con `curl --resolve … → {"ok": true}`).
+check('install_locale.sh: /health si prova via l\'ingresso del Funnel (--resolve su un A record pubblico), mai col giro locale',
+      '--resolve "$HOSTN:443:$INGRESS"' in inst and 'dig +short' in inst and '@1.1.1.1' in inst
+      and 'curl -fsS --max-time 30 "$URL/health"' not in inst)
+check('install_locale.sh: il verdetto positivo nomina l\'ingresso, e un DNS pubblico ancora vuoto viene detto (non "rotto")',
+      "via l'ingresso del Funnel" in inst and 'raggiungibile da internet' not in inst
+      and 'il DNS pubblico non risolve ancora' in inst)
 
 print(f"\n{'✓' if not failed else '✗'} locale: {passed} passed, {failed} failed")
 if bad:
