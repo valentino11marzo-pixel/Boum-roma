@@ -22,7 +22,7 @@
 // Response 4xx: { ok:false, error }
 
 import { fsGet, fsPatch, fsList, readJson, logActivity } from '../homie/_lib.js';
-import { findContractByToken, commitWrites, fsGetWithTime, tenantSideComplete, termsFingerprint, mandateCheck, setCors, rateOk } from './_shared.js';
+import { findContractByToken, commitWrites, fsGetWithTime, tenantSideComplete, termsFingerprint, mandateCheck, coMandateCheck, setCors, rateOk } from './_shared.js';
 import { ensureContractPdf, hasAnySignature } from '../sign/_contractpdf.js';
 
 // ── TERMS FREEZE ──────────────────────────────────────────────────────────
@@ -151,6 +151,26 @@ export default async function handler(req, res) {
     if (!chk.ok) {
       const changed = chk.diff.map(d => d.key);
       alertSignFailure(contractId, role, 'mandate_terms_changed', 'le condizioni non sono più quelle del mandato' + (changed.length ? ': ' + changed.join(', ') : ''));
+      return res.status(409).json({ ok: false, error: 'mandate_terms_changed', changed });
+    }
+  }
+
+  // IL CO-CONDUTTORE PER MANDATO: stessa disciplina del principale. Il
+  // mandato è SUO (coTenants[idx].mandate), la firma per suo conto la
+  // dichiara chi la compie (asDelegate) e l'operatore l'ha armata
+  // (coTenants[idx].delegate, da sign-for). Senza → 403; condizioni
+  // cambiate → 409. Il link nudo del co-conduttore firma sempre come lui.
+  const coEntry = role === 'cotenant' ? ((contract.coTenants || [])[coIndex] || {}) : null;
+  const coDele = (coEntry && asDelegate && coEntry.delegate && coEntry.delegate.name) ? coEntry.delegate : null;
+  if (coDele) {
+    const chk = coMandateCheck(contract, coIndex);
+    if (chk.reason === 'mandate_missing') {
+      alertSignFailure(contractId, role, 'mandate_missing', 'firma per conto del co-conduttore ' + (coEntry.name || coIndex + 1) + ' senza il SUO mandato scritto');
+      return res.status(403).json({ ok: false, error: 'mandate_missing' });
+    }
+    if (!chk.ok) {
+      const changed = chk.diff.map(d => d.key);
+      alertSignFailure(contractId, role, 'mandate_terms_changed', 'co-conduttore: condizioni diverse dal mandato' + (changed.length ? ': ' + changed.join(', ') : ''));
       return res.status(409).json({ ok: false, error: 'mandate_terms_changed', changed });
     }
   }
@@ -406,6 +426,12 @@ export default async function handler(req, res) {
       signedIP: reqIP || body.signerIP || '',
       signedUA: reqUA || (body.signerUA || '').slice(0, 200),
       consentText: consent.text, consentHash: consent.hash, consentAt: nowISO,
+      ...(coDele ? { signedByDelegate: {
+        ...coDele, signedAt: nowISO,
+        mandateRef: (list[coIndex].mandate || {}).ref || '',
+        mandateAt: (list[coIndex].mandate || {}).at || '',
+        mandateHash: (list[coIndex].mandate || {}).hash || '',
+      } } : {}),
       ...(phoneVerified ? { phone: phoneNumber, phoneVerified: true }
         : (phone.number ? { phone: String(phone.number).slice(0, 30) } : {})),
     });

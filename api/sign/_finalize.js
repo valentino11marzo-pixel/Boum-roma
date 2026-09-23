@@ -552,7 +552,7 @@ async function buildSignedContract(c, property){
     const shown = coSigList.slice(0, 2);
     for (let i = 0; i < shown.length; i++) {
       const cv = shown[i];
-      await block(`IL CO-CONDUTTORE ${i + 1} (Co-tenant)`, cv.name, cv.cf, cv.signature, cv.signedAt, i % 2 === 0 ? 40 : 320, null,
+      await block(`IL CO-CONDUTTORE ${i + 1} (Co-tenant)`, cv.name, cv.cf, cv.signature, cv.signedAt, i % 2 === 0 ? 40 : 320, cv.signedByDelegate || null,
         identityLines('co', { coDob: cv.dob, coPob: cv.birthPlace || cv.pob, coAddress: cv.address, coDocType: cv.docType, coDocNum: cv.idDoc || cv.docNum }));
     }
     if (coSigList.length > 2) T('+ ' + (coSigList.length - 2) + ' ulteriori co-conduttori — firme registrate a sistema.', 40, Math.max(160, y - 150), 8, font, grey);
@@ -633,7 +633,7 @@ async function buildCertificate(c, property){
     const coShown = coList.slice(0, 2);
     for (let i = 0; i < coShown.length; i++) {
       const cv = coShown[i];
-      await block(`CO-CONDUTTORE ${i + 1} (Co-tenant)`, cv.name, cv.cf, cv.signature, cv.signedAt, cv.signedIP, cv.consentHash, i % 2 === 0 ? 40 : 320);
+      await block(`CO-CONDUTTORE ${i + 1} (Co-tenant)`, cv.name, cv.cf, cv.signature, cv.signedAt, cv.signedIP, cv.consentHash, i % 2 === 0 ? 40 : 320, cv.signedByDelegate || null);
     }
     if (coList.length > 2) T('+ ' + (coList.length - 2) + ' ulteriori co-conduttori — firme registrate a sistema.', 40, Math.max(150, y - 170), 8, font, grey);
   }

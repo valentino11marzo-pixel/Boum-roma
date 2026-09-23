@@ -113,7 +113,13 @@ export default async function handler(req, res) {
       ok: true, id,
       pa: {
         status: data.status, property: data.property, landlord: data.landlord,
-        tenant: data.tenant, tenants: Array.isArray(data.tenants) ? data.tenants : null,
+        tenant: data.tenant,
+        // il mandato di ogni co-conduttore: solo QUANDO (mai ip/ua/testo)
+        tenants: Array.isArray(data.tenants) ? data.tenants.map(t => {
+          if (!t || !t.mandate) return t;
+          const { mandate, ...rest } = t;
+          return { ...rest, mandate: mandate.given ? { at: mandate.at } : null };
+        }) : null,
         lease: data.lease, money: data.money,
         extras: Array.isArray(data.extras) ? data.extras : null,
         customClauses: Array.isArray(data.customClauses) ? data.customClauses : null,

@@ -38,6 +38,7 @@
 // fee, feeVat, feeTotal, dueAtSigning default, endDate (month-end clamp).
 // Response: { ok, id, token, url }
 
+import MANDATO from '../../js/mandato-engine.js';
 import crypto from 'node:crypto';
 import { fsCreate, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
@@ -213,7 +214,7 @@ export default async function handler(req, res) {
       months,
       endDate: endDate(startDate, months),
       type: clip(l.type, 80) || 'Transitional Lease',
-      lawRef: clip(l.lawRef, 80) || 'uso transitorio · L.431/98 art.5 c.1',
+      lawRef: MANDATO.lawRefOf(l),   // derivata dal tipo, mai quella della console
       reason: clip(l.reason, 300),
       studenti: studentBlock(l.studenti),
     },

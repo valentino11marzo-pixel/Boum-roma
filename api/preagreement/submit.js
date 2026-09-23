@@ -62,7 +62,10 @@ export default async function handler(req, res) {
     nationality: clip((t || {}).nationality, 80), address: clip((t || {}).address, 200),
     cf: clip((t || {}).cf, 40), idDoc: clip((t || {}).idDoc, 80), idDocType: docCode((t || {}).idDocType),
   });
-  const tenants = rawList.map(sanitizeTenant)
+  // la spunta del mandato viaggia accanto alla persona (il filtro sotto
+  // cambia gli indici: mai rileggerla da rawList[i])
+  const coWants = new Map();
+  const tenants = rawList.map((t) => { const x = sanitizeTenant(t); coWants.set(x, !!(t && t.mandate === true)); return x; })
     .filter((t, i) => i === 0 || (t.fullName && t.fullName.length >= 3));
   const primary = tenants[0];
   const { fullName, email, phone } = primary;
@@ -118,7 +121,15 @@ export default async function handler(req, res) {
 
     // Each party's typed full name IS their signature (like the paper doc,
     // where every co-tenant signs the same signature box).
-    const signed = tenants.map(t => ({ ...t, signature: t.fullName }));
+    // Il mandato di OGNI co-conduttore è un atto SUO: la sua spunta nel suo
+    // blocco (tenants[i].mandate === true), solo se la console l'ha offerto.
+    // Quella del principale non vale per gli altri, mai.
+    const coMandate = (i) => (i > 0 && data.askMandate === true && coWants.get(tenants[i]) === true)
+      ? { given: true, at: acceptedAt, ip, ua, text: PA_MANDATE_TEXT, hash: PA_MANDATE_HASH } : null;
+    const signed = tenants.map((t, i) => {
+      const cm = coMandate(i);
+      return cm ? { ...t, signature: t.fullName, mandate: cm } : { ...t, signature: t.fullName };
+    });
     const tenant = signed[0];   // primary alias — everything downstream (Stripe,
                                 // emails, webhook, reminders) keeps working on it
 

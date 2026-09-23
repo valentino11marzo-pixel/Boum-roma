@@ -671,6 +671,15 @@ function condList(nTenants){
   conds.push('Any changes to these terms must be agreed upon in writing by both parties.');
   return '<ul class="conds">'+conds.map(function(c,i){return '<li><span class="cn">5.'+(i+1)+'</span><span>'+esc(c)+'</span></li>'}).join('')+'</ul>';
 }
+/* la dicitura di legge dal TIPO (copia di js/mandato-engine.js lawRefOf —
+   tests/preagreement pretende che coincidano): mai più «uso transitorio» su
+   una proposta Studenti o 3+2, qualunque cosa porti le.lawRef */
+function lawRefOf(le){
+  var t=String((le||{}).type||'');
+  if(/student/i.test(t))return 'studenti universitari · L.431/98 art.5 c.2-3';
+  if(/3\s*\+\s*2|allegato a\b/i.test(t))return 'canone concordato 3+2 · L.431/98 art.2 c.3';
+  return 'uso transitorio · L.431/98 art.5 c.1';
+}
 function tenantsNow(){
   var g=function(id){var e=$(id);return e?e.value.trim():''};
   var list=[{fullName:g('tFullName'),dob:g('tDob'),birthPlace:g('tBirthPlace'),nationality:g('tNationality'),
@@ -768,7 +777,7 @@ function renderStep1(){
   $('p1').innerHTML=
     '<span class="eyebrow">Rental proposal · Pre-agreement'+(PA.ref?' · <span class="mono" style="letter-spacing:1px">'+esc(PA.ref)+'</span>':'')+'</span>'
     +'<h1 class="big">'+esc(p.address).replace(/,([^,]*)$/,',<em>$1</em>')+'</h1>'
-    +'<div class="subline">'+esc(le.type)+' · '+esc(le.lawRef)+'</div>'
+    +'<div class="subline">'+esc(le.type)+' · '+esc(lawRefOf(le))+'</div>'
     +'<div class="chip">'+validityChip()+'</div>'
     +'<div class="tiles">'
       +'<div class="tile hero"><div class="k">Monthly'+((ec>0||(PA.money||{}).utilities==='included')?' all-in':'')+'</div><div class="v"><span data-roll="'+eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent)+'">'+eur(m.monthlyTotal!=null?m.monthlyTotal:m.rent)+'</span><small> /month</small></div></div>'
@@ -1003,7 +1012,7 @@ function renderStep4(){
     +'<svg class="wm" viewBox="0 0 1024 1024" aria-hidden="true"><use href="#boomMark"/></svg>'
     +'<span class="cm tl"></span><span class="cm tr"></span><span class="cm bl"></span><span class="cm br"></span>'
     +'<div class="doc-h"><div><span class="eyebrow">BOOM · Rental Proposal</span>'
-    +'<h1>Pre-<em>Agreement</em></h1><div class="sub">'+esc(le.type)+' · '+esc(le.lawRef)+'</div>'
+    +'<h1>Pre-<em>Agreement</em></h1><div class="sub">'+esc(le.type)+' · '+esc(lawRefOf(le))+'</div>'
     +'<div class="meta">'
       +(issued?'<span>Issued<b>'+fmtD(issued)+'</b></span>':'')
       +'<span>Property<b>'+esc((p.address||'').split(',')[0])+'</b></span>'
@@ -1034,7 +1043,7 @@ function renderStep4(){
     +(p.floor?kv('Floor',esc(p.floor)):'')+(p.unit?kv('Unit',esc(p.unit)):'')+'</div>';
   html+='<div class="sec"><span class="ghost">03</span><h2>Lease term</h2>'
     +kv('Start date',fmtD(le.startDate))
-    +kv('Initial duration',le.months+' months',esc(le.lawRef))
+    +kv('Initial duration',le.months+' months',esc(lawRefOf(le)))
     +kv('End date',fmtD(le.endDate))+'</div>';
   html+='<div class="sec"><span class="ghost">04</span><h2>Financial terms</h2>'+moneyRows()+'</div>';
   html+=addonsBlock();
@@ -1064,6 +1073,12 @@ function renderStep4(){
         +'<p>'+esc(PA_MANDATE_TEXT)+'</p>'
         +'<label class="consent" style="margin-top:8px"><input type="checkbox" id="paMandate" onchange="barSync()">'
         +'<span>I give BOOM this mandate. If I prefer to sign the lease myself, I leave this unticked and I’ll receive my personal signing link by email.</span></label>'
+        /* ogni co-conduttore dà il SUO mandato, con la SUA spunta: quella
+           del principale non vale per gli altri (23/09/2026) */
+        +TS.filter(function(x){return x._n!=null&&x.fullName.length>=3}).map(function(x){
+          return '<label class="consent" style="margin-top:6px"><input type="checkbox" id="paMandateC'+x._n+'">'
+            +'<span><b>'+esc(x.fullName)+'</b> — I also give BOOM this mandate for myself, on the same terms.</span></label>';
+        }).join('')
         +'</div>'
       :'')
     +'<p class="err" id="paErr" role="alert"></p>'
@@ -1165,6 +1180,22 @@ function renderAccepted(){
       +'<label class="consent" style="margin-top:8px"><input type="checkbox" id="paMandate2" onchange="var b=document.getElementById(\'mandBtn\');if(b)b.disabled=!this.checked"><span>I give BOOM this mandate. BOOM signs the lease in my name on exactly these terms; I receive the signed contract and its certificate by email.</span></label>'
       +'<button class="gbtn" id="mandBtn" disabled onclick="giveMandate()" style="margin-top:12px">Give BOOM the mandate to sign →</button>'
       +'<p class="err" id="mandErr" role="alert"></p></div>';
+  }
+  /* I CO-CONDUTTORI che non hanno ancora dato il mandato: ognuno lo dà per
+     sé, digitando il SUO nome (sulla proposta il nome digitato è la firma).
+     Solo se la console l'ha chiesto. */
+  if(PA.askMandate===true&&!(CT&&CT.status==='complete')){
+    TS.forEach(function(tt,ci){
+      if(ci===0||!tt.fullName||(tt.mandate&&tt.mandate.at))return;
+      html+='<div class="mandate" style="max-width:430px;margin:14px auto 0;text-align:left"><div class="mh"><b>'+esc(tt.fullName)+' · mandate to sign</b><span>co-tenant · one tap</span></div>'
+        +'<p>'+esc(PA_MANDATE_TEXT)+'</p>'
+        +'<label class="fld" style="margin-top:8px"><span>Type your full name to give it</span><input id="coMandName'+ci+'" autocomplete="off" placeholder="'+esc(tt.fullName)+'"></label>'
+        +'<button class="gbtn" onclick="giveCoMandate('+ci+')" style="margin-top:10px">Give BOOM my mandate →</button>'
+        +'<p class="err" id="coMandErr'+ci+'" role="alert"></p></div>';
+    });
+    TS.forEach(function(tt,ci){
+      if(ci>0&&tt.mandate&&tt.mandate.at)html+='<div class="mandate given" style="max-width:430px;margin:12px auto 0;text-align:left"><div class="mh"><b>✓ '+esc(tt.fullName)+' · mandate given</b><span>'+esc(String(tt.mandate.at).slice(0,10))+'</span></div></div>';
+    });
   }
   if(CT&&CT.tenantSignUrl){
     html+='<div class="ctc" id="ctcard"><div class="ch"><b>Your contract is ready</b><span>'+(CT.invitedAt?'sent '+esc(String(CT.invitedAt).slice(0,10)):'')+'</span></div>'
@@ -1327,7 +1358,9 @@ function accept(){
     var any=Object.keys(ct).some(function(k){return k!=='_n'&&ct[k]});
     if(!any){if(ct._n!=null)removeCoTenant(ct._n);return;}
     if(ct.fullName.length<3){incomplete=true;return;}
-    ct.signature=ct.fullName;delete ct._n;
+    ct.signature=ct.fullName;
+    var cm=$('paMandateC'+ct._n);if(cm&&cm.checked)ct.mandate=true;
+    delete ct._n;
     tenants.push(ct);
   });
   if(incomplete){err.textContent='Every co-tenant needs at least their full name — or remove the empty block in step 2.';err.style.display='block';return;}
@@ -1382,6 +1415,23 @@ window.giveMandate=function(){
   .catch(function(err){
     if(b){b.disabled=false;b.textContent='Give BOOM the mandate to sign →';}
     if(e){e.textContent=String(err&&err.message)==='not_offered'?'This mandate wasn’t requested for your proposal — message BOOM and we’ll sort it.':'Couldn’t save your mandate — please try again, or message BOOM.';e.style.display='block';}
+  });
+};
+window.giveCoMandate=function(ci){
+  var inp=$('coMandName'+ci),e=$('coMandErr'+ci);
+  var name=inp?inp.value.trim():'';
+  if(e)e.style.display='none';
+  if(name.length<3){if(e){e.textContent='Type your full name exactly as on the agreement.';e.style.display='block';}return;}
+  fetch('/api/preagreement/mandate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN,mandate:true,coIndex:ci,name:name})})
+  .then(function(r){return r.json()})
+  .then(function(j){
+    if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
+    if(Array.isArray(PA.tenants)&&PA.tenants[ci])PA.tenants[ci].mandate={at:j.at};
+    renderAccepted();
+  })
+  .catch(function(err){
+    var m=String(err&&err.message);
+    if(e){e.textContent=m==='name_mismatch'?'The name doesn’t match the one on the agreement — type it exactly as written there.':m==='not_offered'?'This mandate wasn’t requested for your proposal — message BOOM.':'Couldn’t save your mandate — please try again, or message BOOM.';e.style.display='block';}
   });
 };
 function boot(){

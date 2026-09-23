@@ -108,7 +108,21 @@ export function mandateTermsHash(terms) {
 //    termsFingerprint — versionato, non rotto.
 // Una copia sola: submit (409), lookup (avviso), convert (registrazione).
 export function mandateCheck(contract) {
-  const m = contract && contract.tenantMandate;
+  return mandateCheckFor(contract && contract.tenantMandate, contract);
+}
+
+// IL MANDATO DEL CO-CONDUTTORE (23/09/2026 — «quando devo firmare anche per
+// il secondo coinquilino non me la fa fare»). Il mandato del principale NON
+// copre gli altri: ognuno lo conferisce per sé, sulla proposta, e vive in
+// coTenants[idx].mandate con la STESSA forma di tenantMandate (stessa foto
+// delle condizioni approvate). Stessa regola: senza → mandate_missing,
+// condizioni cambiate → mandate_terms_changed.
+export function coMandateCheck(contract, idx) {
+  const co = ((contract && Array.isArray(contract.coTenants)) ? contract.coTenants : [])[idx];
+  return mandateCheckFor(co && co.mandate, contract);
+}
+
+export function mandateCheckFor(m, contract) {
   if (!m || m.given !== true || !m.termsHash) return { ok: false, version: 0, reason: 'mandate_missing', diff: [] };
   if (Number(m.termsVersion) >= 2) {
     const current = MANDATO.termsFromContract(contract);

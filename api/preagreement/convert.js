@@ -248,18 +248,26 @@ async function landlordCtxOf(property, contract) {
 // magic-sign/submit ricalcola al momento della firma (un canone o una data
 // ritoccati dopo = 409 mandate_terms_changed, mai una firma).
 export function tenantMandateFor(pa, paId, contract) {
+  return mandateRecordFor(pa.mandate || {}, pa, paId, contract);
+}
+// Il mandato del CO-CONDUTTORE (pa.tenants[idx].mandate): stessa foto delle
+// condizioni approvate, stessa forma — vive in coTenants[idx-1].mandate.
+export function coTenantMandateFor(pa, paId, contract, t) {
+  return (t && t.mandate && t.mandate.given === true) ? mandateRecordFor(t.mandate, pa, paId, contract) : null;
+}
+function mandateRecordFor(pm, pa, paId, contract) {
   const snap = (pa.approvedTerms && pa.approvedTerms.terms && pa.approvedTerms.hash) ? pa.approvedTerms : null;
   const terms = snap ? snap.terms : MANDATO.termsFromProposal(pa);
   const termsHash = snap ? snap.hash : mandateTermsHash(terms);
   const diff = MANDATO.diffTerms(terms, MANDATO.termsFromContract(contract));
   return {
     given: true,
-    at: pa.mandate.at || null,
+    at: pm.at || null,
     ref: pa.ref || null,
     paId,
-    hash: pa.mandate.hash || null,
-    text: pa.mandate.text || '',
-    ip: pa.mandate.ip || '',
+    hash: pm.hash || null,
+    text: pm.text || '',
+    ip: pm.ip || '',
     termsVersion: MANDATO.VERSION,
     termsHash,
     terms,
@@ -567,6 +575,13 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
   if (pa.mandate && pa.mandate.given === true) {
     contract.tenantMandate = tenantMandateFor(pa, paId, contract);
   }
+  // Ogni co-conduttore che ha dato il SUO mandato sulla proposta lo porta
+  // sul contratto: la foto è la stessa (una proposta, un'accettazione).
+  const coSrc = tenants.slice(1).filter(x => x && x.fullName);
+  contract.coTenants = (contract.coTenants || []).map((ct, i) => {
+    const cm = coTenantMandateFor(pa, paId, contract, coSrc[i]);
+    return cm ? { ...ct, mandate: cm } : ct;
+  });
 
   // (contractId: dichiarato sopra, prima del riconoscimento dell'orfana.)
   // Nella GARA fra due conversioni la seconda riceve 409 da fsCreate e

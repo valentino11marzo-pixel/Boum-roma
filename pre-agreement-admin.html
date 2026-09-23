@@ -240,9 +240,10 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
       <div class="card"><h2><span class="no">02</span><span class="tt">Contratto</span></h2>
         <div class="g3">
           <label class="fld req"><span>Inizio</span><input id="fStart" type="date"></label>
-          <label class="fld"><span>Mesi</span><input id="fMonths" type="number" value="12" min="1" max="48"></label>
+          <label class="fld"><span>Mesi</span><input id="fMonths" type="number" value="12" min="1" max="48" oninput="syncStud()"></label>
           <label class="fld"><span>Tipo</span><select id="fType" onchange="syncStud()"><option>Transitional Lease</option><option>Student Housing (Allegato C)</option><option>3+2 Canone concordato (Allegato A)</option><option>4+4 Residential</option><option>3+2 Concordato</option></select></label>
         </div>
+        <p class="hintline" id="typeHint" style="margin:-4px 0 12px"></p>
         <div id="studBox" style="display:none;border:1px solid var(--line-gold);background:var(--gold-faint);border-radius:12px;padding:12px 14px;margin-bottom:12px">
           <div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);margin-bottom:9px">🎓 Dati dello studente — finiscono nell'Allegato C</div>
           <label class="fld"><span>Corso di studi</span><input id="fStudCourse" placeholder="es. Laurea Magistrale in International Management"></label>
@@ -518,7 +519,22 @@ function readStud(){
     annoAccademico:$('fStudYear').value.trim()};
   return Object.keys(o).some(function(k){return o[k]})?o:null;
 }
-window.syncStud=function(){try{$('studBox').style.display=isStud()?'block':'none'}catch(e){}};
+/* QUALE CONTRATTO USCIRÀ, detto prima (23/09/2026 — «mi stampa sempre il
+   transitorio»): il tipo di questa tendina decide il modello del PDF. Il
+   default è Transitional Lease, e «4+4 Residential» non ha un modello: esce
+   un Allegato B transitorio. Qui si vede, prima di mandare la proposta. */
+function typeHint(){
+  var t=String($('fType').value||''),mo=Number($('fMonths').value)||0;
+  var model=/student/i.test(t)?'C':/3\s*\+\s*2|allegato a\b/i.test(t)?'A':'B';
+  var out='Il contratto uscirà: <b>'+(model==='C'?'Allegato C — studenti universitari':model==='A'?'Allegato A — 3+2 canone concordato':'Allegato B — transitorio')+'</b>.';
+  var warn='';
+  if(/4\s*\+\s*4/.test(t))warn='Non esiste un modello 4+4 in piattaforma: con questa scelta esce un TRANSITORIO. Scegli il tipo giusto.';
+  else if(model==='C'&&mo&&(mo<6||mo>36))warn='Studenti: la legge ammette da 6 a 36 mesi (art. 5 c. 2-3 L. 431/98). Sotto i 6 mesi lo studente va sul Transitorio (esigenza: iscrizione/Erasmus).';
+  else if(model==='B'&&mo&&mo>18)warn='Transitorio: massimo 18 mesi. Per uno studente 6–36 mesi usa Studenti; per un residente 3+2.';
+  else if(model==='A'&&mo&&mo!==36)warn='3+2: la durata di legge è 36 mesi.';
+  return out+(warn?' <span style="color:#e0a23a">⚠ '+warn+'</span>':'');
+}
+window.syncStud=function(){try{$('studBox').style.display=isStud()?'block':'none';var h=$('typeHint');if(h)h.innerHTML=typeHint();}catch(e){}};
 function readForm(){
   var months=Math.max(1,Math.min(48,+$('fMonths').value||12)),start=$('fStart').value;
   var knobs=moneyKnobs();
@@ -531,7 +547,7 @@ function readForm(){
     askMandate:!!$('fMandate').checked,
     validUntil:$('fValid').value||null,
     tenant:{fullName:$('fTName').value.trim()||null,email:$('fTEmail').value.trim()||null,phone:$('fTPhone').value.trim()||null},
-    lease:{startDate:start,months:months,endDate:start?endDateISO(start,months):null,type:$('fType').value,lawRef:'uso transitorio · L.431/98 art.5 c.1',reason:$('fReason').value.trim()||null,studenti:readStud()},
+    lease:{startDate:start,months:months,endDate:start?endDateISO(start,months):null,type:$('fType').value,reason:$('fReason').value.trim()||null,studenti:readStud()},
     knobs:knobs,                 // raw inputs → the create API derives server-side
     money:deriveMoney(knobs),    // full derived object → edit-in-place + preview
     extras:parseExtras(),
@@ -773,11 +789,14 @@ window.signFor=async function(id,btn){
     if(!st.operatorSignature){restore();return openSigModal(function(){signFor(id,btn)});}
     var p=st.plan||{},t=d.tenant||{},ll=d.landlord||{};
     if(p.signatureStatus==='complete'){restore();alert('Il contratto è già firmato da entrambe le parti.');return;}
+    var coP=Array.isArray(p.coTenants)?p.coTenants.filter(function(x){return !x.signed}):[];
+    var coOk=coP.filter(function(x){return x.mandateOk}), coKo=coP.filter(function(x){return !x.mandateOk});
     if(!p.tenantSigned&&p.mandateReason==='mandate_missing'){restore();alert('Nessun mandato scritto del conduttore: al suo posto non si firma (sarebbe una firma falsa, non una delega). Usa 🖊 Chiedi il mandato — per lui è un tap — oppure mandagli il suo link.');return;}
     if(!p.tenantSigned&&p.mandateOk===false){restore();alert('Le condizioni del contratto non sono più quelle su cui il cliente ha dato il mandato ('+(p.mandateDiff||'')+'): il server rifiuterebbe la firma. Rifai la proposta o manda il link al conduttore.');return;}
     var lines=[];
     if(!p.tenantSigned)lines.push('Firmi TU per il conduttore '+(t.fullName||'')+' in forza del mandato scritto del '+String((p.mandate&&p.mandate.at)||'').slice(0,10)+((p.mandate&&p.mandate.ref)?' (proposta '+p.mandate.ref+')':'')+'.');
-    if(p.coTenantsPending&&p.coTenantsPending.length)lines.push('I co-conduttori ('+p.coTenantsPending.join(', ')+') NON sono coperti dal mandato: firmano col proprio link, e il proprietario dopo di loro.');
+    if(coOk.length)lines.push('Firmi TU anche per '+coOk.map(function(x){return x.name}).join(', ')+' — ognuno in forza del PROPRIO mandato scritto.');
+    if(coKo.length)lines.push(coKo.map(function(x){return x.name+(x.mandateReason==='mandate_terms_changed'?' (mandato su condizioni diverse: '+(x.mandateDiff||'')+')':' (nessun mandato)')}).join(', ')+': firma'+(coKo.length>1?'no':'')+' col proprio link, e il proprietario dopo. Il mandato del principale non copre gli altri.');
     if(!p.landlordSigned){
       if(p.landlordDelegate)lines.push('Poi controfirmi per delega del proprietario '+(ll.name||'')+' — '+(p.landlordDelegate.basis||'delega')+'.');
       else lines.push('Il proprietario '+(ll.name||'')+' firma col suo link (WhatsApp/copia dalla riga), a meno che tu non abbia una sua delega SCRITTA (te lo chiedo dopo).');
@@ -785,7 +804,7 @@ window.signFor=async function(id,btn){
     lines.push('Nome, data, ora, dispositivo e «per mandato/per delega» finiscono sulla pagina delle firme e sul certificato.');
     if(!ask(lines.join('\n\n')+'\n\nProcedere?')){restore();return;}
     var body={op:'sign',id:id};
-    if(!p.landlordSigned&&!p.landlordDelegate&&!(p.coTenantsPending&&p.coTenantsPending.length)&&ask('Vuoi controfirmare TU anche per il proprietario, per delega?\n\nSOLO se hai una sua delega scritta (es. nel mandato di gestione firmato). Annulla = il proprietario firma col suo link.')){
+    if(!p.landlordSigned&&!p.landlordDelegate&&!coKo.length&&ask('Vuoi controfirmare TU anche per il proprietario, per delega?\n\nSOLO se hai una sua delega scritta (es. nel mandato di gestione firmato). Annulla = il proprietario firma col suo link.')){
       var basis=prompt('Base scritta della delega del proprietario (viene stampata sul certificato) — es. «mandato di gestione firmato il 12/03/2026»:','');
       if(basis&&basis.trim().length>=8){body.landlordDelegate=true;body.landlordBasis=basis.trim();}
       else alert('Senza una base scritta la delega non si arma: il proprietario firma col suo link.');
@@ -797,7 +816,7 @@ window.signFor=async function(id,btn){
     if(btn)btn.textContent=j.fullySigned?'✓ Firmato da entrambi':(j.steps&&j.steps.length?'✓ Firmato ('+j.steps.join(' + ')+')':'✓');
     alert(j.alreadySigned?'Il contratto era già firmato da entrambe le parti.'
       :j.fullySigned?'Contratto firmato da entrambe le parti'+(j.signedPdfUrl?': il PDF firmato è pronto (📥 nella riga). Certificato, fascicolo e pack sono partiti.':' — il PDF firmato e il certificato arrivano tra pochi secondi.')
-      :(j.waitingCoTenants&&j.waitingCoTenants.length)?'Firmato per il conduttore. Mancano i co-conduttori ('+j.waitingCoTenants.join(', ')+'): firmano col proprio link, poi il proprietario.'
+      :(j.waitingCoTenants&&j.waitingCoTenants.length)?'Firmato ('+(j.steps||[]).length+' firme). Mancano: '+j.waitingCoTenants.join(', ')+' — senza il loro mandato firmano col proprio link'+((j.coTenantLinks&&j.coTenantLinks.length)?':\n\n'+j.coTenantLinks.map(function(x){return x.name+': '+x.url}).join('\n'):'')+'\n\nPoi il proprietario.'
       :j.landlordPending?'Firmato per il conduttore. Ora il proprietario: mandagli il link firma (WhatsApp/copia nella riga).'
       :'Fatto: '+(j.steps||[]).join(', '));
   }catch(e){
@@ -1243,6 +1262,16 @@ function paRow(d){
      «🖊 Chiedi il mandato») oppure già sul contratto letto dal listener */
   var cdoc=cid?CONTRACTS[cid]:null;
   var hasMandate=!!(d.mandate&&d.mandate.given)||!!(cdoc&&!cdoc.missing&&cdoc.tenantMandate&&cdoc.tenantMandate.given);
+  /* I CO-CONDUTTORI (23/09/2026): ognuno ha il SUO mandato — quello del
+     principale non li copre. Stato letto dal contratto se c'è, altrimenti
+     dalla proposta. coMand = firmabili da te adesso; coNoMand = col loro link. */
+  var coRows=(cdoc&&!cdoc.missing&&Array.isArray(cdoc.coTenants))
+    ?cdoc.coTenants.filter(function(x){return x&&x.name}).map(function(x){return {name:x.name,signed:!!x.signature,mand:!!(x.mandate&&x.mandate.given)}})
+    :(Array.isArray(d.tenants)?d.tenants.slice(1):[]).filter(function(x){return x&&x.fullName}).map(function(x){return {name:x.fullName,signed:false,mand:!!(x.mandate&&x.mandate.given)}});
+  var coMand=coRows.filter(function(x){return !x.signed&&x.mand}), coNoMand=coRows.filter(function(x){return !x.signed&&!x.mand});
+  if(coRows.length&&sig.status!=='complete'){
+    docsLine+='<div class="docs" style="color:var(--t2)">👥 Co-conduttori: '+coRows.map(function(x){return esc(x.name)+(x.signed?' ✓ firmato':x.mand?' · 🖊 mandato':' · link proprio')}).join(' · ')+'</div>';
+  }
   if(hasMandate){
     docsLine+='<div class="docs" style="color:var(--gold)">🖊 Mandato a firmare ricevuto il '+esc(String((d.mandate&&d.mandate.at)||(cdoc&&cdoc.tenantMandate&&cdoc.tenantMandate.at)||'').slice(0,10))+' — <b>✍️ Firmo io</b> firma per il conduttore dalla console, con la tua firma salvata</div>';
   }else if(done&&!sig.tenantSigned){
@@ -1299,7 +1328,9 @@ function paRow(d){
               :'<button class="pbtn prim" onclick="convertPA(\''+d.id+'\')">→ Contratto</button>')))
         /* inquilino firmato, delega del proprietario armata: la controfirma
            anche dalla console, con la firma salvata (niente sign.html) */
-        +(sig.tenantSigned&&!sig.landlordSigned&&d.delegated&&cid?'<button class="pbtn" onclick="signFor(\''+d.id+'\',this)">✍️ Controfirmo io (delega)</button>':'')
+        +(sig.tenantSigned&&coMand.length&&cid?'<button class="pbtn prim" onclick="signFor(\''+d.id+'\',this)" title="Firmi tu per i co-conduttori che hanno dato il LORO mandato scritto">✍️ Firmo io per '+esc(coMand.map(function(x){return x.name.split(' ')[0]}).join(', '))+'</button>':'')
+        +(sig.tenantSigned&&!coMand.length&&!sig.landlordSigned&&d.delegated&&cid?'<button class="pbtn" onclick="signFor(\''+d.id+'\',this)">✍️ Controfirmo io (delega)</button>':'')
+        +(done&&(hasMandate||sig.tenantSigned)&&coNoMand.length&&sig.status!=='complete'?'<button class="pbtn" onclick="askMandateFor(\''+d.id+'\')" title="I co-conduttori senza mandato lo danno col loro nome, dalla stessa pagina della proposta">🖊 Chiedi il mandato ai co-conduttori</button>':'')
         +(done&&!hasMandate&&!sig.tenantSigned&&sig.status!=='complete'?'<button class="pbtn" onclick="askMandateFor(\''+d.id+'\')" title="Attiva la card sulla proposta e manda il messaggio: il cliente dà il mandato con un tap">🖊 Chiedi il mandato</button>':'')
         +(!sig.tenantSigned&&d.signSentAt&&d.tenantSignUrl&&t.phone?'<a class="pbtn wa" href="https://wa.me/'+String(t.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! Il tuo contratto per '+((d.property||{}).address||'')+' è pronto — firmi qui in 2 minuti: '+d.tenantSignUrl)+'" target="_blank" rel="noopener">Firma su WhatsApp</a>':'')
         +(llWa&&!sig.tenantSigned?'<a class="pbtn wa" href="'+llWa+'" target="_blank" rel="noopener">Firma proprietario su WhatsApp</a>':'')

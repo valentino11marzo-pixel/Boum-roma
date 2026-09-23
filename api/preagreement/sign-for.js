@@ -26,8 +26,10 @@
 //  · la delega del proprietario si arma da qui SOLO con una base scritta
 //    dichiarata dall'operatore (landlordBasis), che viene stampata;
 //  · SOLO admin: firmare per altri è l'atto dell'operatore, non di un owner;
-//  · i co-conduttori NON sono coperti dal mandato (è del principale):
-//    firmano col proprio link, e il proprietario aspetta loro.
+//  · i co-conduttori NON sono coperti dal mandato del principale: ognuno
+//    lo conferisce PER SÉ (spunta nel suo blocco della proposta, o dopo con
+//    mandate.js + il suo nome). Chi l'ha dato viene firmato nello stesso tap
+//    (23/09/2026); chi no firma col proprio link, e il proprietario aspetta.
 //
 // Method: POST · Bearer admin
 //   { op:'signature', png }      salva la firma dell'operatore (una volta)
@@ -39,7 +41,7 @@ import { fsGet, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import { convertPaToContract } from './convert.js';
 import { ensureContractPdf } from '../sign/_contractpdf.js';
-import { mandateCheck } from '../magic-sign/_shared.js';
+import { mandateCheck, coMandateCheck, cosignRef } from '../magic-sign/_shared.js';
 import msSubmit, { MS_CONSENT_TEXT } from '../magic-sign/submit.js';
 import { signatureState } from './send-sign.js';
 import MANDATO from '../../js/mandato-engine.js';
@@ -62,8 +64,17 @@ export function signPlan(contract, opSig) {
   const c = contract || {};
   const sig = signatureState(c);
   const chk = mandateCheck(c);
-  const coT = (Array.isArray(c.coTenants) ? c.coTenants : []).filter(x => x && x.name);
-  const coPending = coT.filter(x => !x.signature).map(x => x.name);
+  const coAll = Array.isArray(c.coTenants) ? c.coTenants : [];
+  const coState = coAll.map((x, idx) => {
+    if (!x || !x.name) return null;
+    const k = coMandateCheck(c, idx);
+    return { idx, name: x.name, signed: !!x.signature, mandateOk: k.ok, mandateReason: k.reason || null,
+      mandateDiff: k.ok ? '' : MANDATO.describeDiff(k.diff || []) };
+  }).filter(Boolean);
+  const coPending = coState.filter(x => !x.signed).map(x => x.name);
+  // i co-conduttori che il tap NON può coprire: senza mandato, o col mandato
+  // su condizioni che non sono più quelle
+  const coBlocked = coState.filter(x => !x.signed && !x.mandateOk);
   const m = c.tenantMandate && c.tenantMandate.given === true ? c.tenantMandate : null;
   const dele = c.landlordDelegate && c.landlordDelegate.name ? c.landlordDelegate : null;
   return {
@@ -76,9 +87,12 @@ export function signPlan(contract, opSig) {
     mandateDiff: chk.ok ? '' : MANDATO.describeDiff(chk.diff || []),
     landlordDelegate: dele ? { name: dele.name, basis: dele.basis || '', onBehalfOf: dele.onBehalfOf || '' } : null,
     coTenantsPending: coPending,
+    coTenants: coState,
+    coTenantsBlocked: coBlocked.map(x => x.name),
     operatorSignature: !!opSig,
     canSignTenant: !sig.tenantSigned && chk.ok && !!opSig,
-    canSignLandlord: !sig.landlordSigned && !!dele && (sig.tenantSigned || chk.ok) && coPending.length === 0 && !!opSig,
+    canSignCoTenants: coState.some(x => !x.signed && x.mandateOk) && !!opSig,
+    canSignLandlord: !sig.landlordSigned && !!dele && (sig.tenantSigned || chk.ok) && coBlocked.length === 0 && !!opSig,
   };
 }
 
@@ -172,7 +186,11 @@ export default async function handler(req, res) {
       signatureStatus: 'none', tenantSigned: false, landlordSigned: false, needsContract: true,
       mandate: (pa.mandate && pa.mandate.given) ? { at: pa.mandate.at || null, ref: pa.ref || null } : null,
       mandateOk: !!(pa.mandate && pa.mandate.given), mandateReason: (pa.mandate && pa.mandate.given) ? null : 'mandate_missing',
-      mandateDiff: '', landlordDelegate: null, coTenantsPending: [], operatorSignature: !!opSig,
+      mandateDiff: '', landlordDelegate: null,
+      coTenantsPending: (Array.isArray(pa.tenants) ? pa.tenants.slice(1) : []).filter(t => t && t.fullName).map(t => t.fullName),
+      coTenants: (Array.isArray(pa.tenants) ? pa.tenants.slice(1) : []).filter(t => t && t.fullName)
+        .map((t, idx) => ({ idx, name: t.fullName, signed: false, mandateOk: !!(t.mandate && t.mandate.given), mandateReason: (t.mandate && t.mandate.given) ? null : 'mandate_missing', mandateDiff: '' })),
+      operatorSignature: !!opSig,
       canSignTenant: !!(pa.mandate && pa.mandate.given) && !!opSig, canSignLandlord: false,
     };
     return res.status(200).json({ ok: true, contractId, hasContract: !!contract, operatorSignature: !!opSig, operatorName: opName, plan });
@@ -245,15 +263,46 @@ export default async function handler(req, res) {
     steps.push('tenant');
   }
 
-  // ── 2. I CO-CONDUTTORI firmano col proprio link (il mandato è del principale) ──
+  // ── 2. I CO-CONDUTTORI: per mandato chi l'ha dato, col link gli altri ──
   let fresh = null;
   try { fresh = await fsGet('contracts/' + contractId); } catch (_) { fresh = null; }
   if (!fresh) return res.status(500).json({ ok: false, error: 'reread_failed', steps });
+  const coList0 = Array.isArray(fresh.coTenants) ? fresh.coTenants : [];
+  for (let idx = 0; idx < coList0.length; idx++) {
+    const co = coList0[idx];
+    if (!co || !co.name || co.signature) continue;
+    if (!coMandateCheck(fresh, idx).ok) continue;         // senza il SUO mandato: il suo link
+    if (!(co.delegate && co.delegate.name)) {
+      const m = co.mandate || {};
+      const cur = (await fsGet('contracts/' + contractId).catch(() => null)) || fresh;
+      const list = (Array.isArray(cur.coTenants) ? cur.coTenants : []).map(x => ({ ...x }));
+      if (!list[idx] || list[idx].signature) continue;
+      list[idx].delegate = {
+        name: opName, onBehalfOf: co.name,
+        basis: 'mandato scritto del co-conduttore' + (m.ref ? ' (proposta ' + m.ref + ')' : ''),
+        at: nowISO, by: auth.uid, via: 'console',
+      };
+      await fsPatch('contracts/' + contractId, { coTenants: list });
+    }
+    const coId = {
+      cf: co.cf || '', address: co.address || '', dob: co.dob || '', pob: co.birthPlace || '',
+      docType: co.docType || '', docNum: co.idDoc || '', nationality: co.nationality || '',
+    };
+    const rc = await signInProcess({ token: cosignRef(contractId, idx), signature: opSig.png, identity: coId, asDelegate: true, ip, ua });
+    if (rc.status !== 200 && !(rc.body && rc.body.error === 'already_signed')) {
+      const err = (rc.body && rc.body.error) || 'cotenant_sign_failed';
+      return res.status(rc.status || 500).json({ ok: false, error: err, step: 'cotenant', coTenant: co.name, steps, contractId, changed: (rc.body && rc.body.changed) || [] });
+    }
+    steps.push('cotenant:' + idx);
+  }
+  try { fresh = (await fsGet('contracts/' + contractId)) || fresh; } catch (_) {}
   const coPending = (Array.isArray(fresh.coTenants) ? fresh.coTenants : []).filter(x => x && x.name && !x.signature).map(x => x.name);
+  const coLinks = (Array.isArray(fresh.coTenants) ? fresh.coTenants : [])
+    .map((x, idx) => (x && x.name && !x.signature) ? { name: x.name, url: `${BASE}/sign?sign=${cosignRef(contractId, idx)}` } : null).filter(Boolean);
   const landlordSignUrl = fresh.landlordSignToken ? `${BASE}/sign?sign=${fresh.landlordSignToken}` : null;
   if (coPending.length) {
     await logActivity('preagreement_sign_for', 'contract', { paId, contractId, steps, waitingCoTenants: coPending }, auth.email || 'admin');
-    return res.status(200).json({ ok: true, partial: true, steps, waitingCoTenants: coPending, contractId, signatureStatus: fresh.signatureStatus || 'partial', landlordSignUrl });
+    return res.status(200).json({ ok: true, partial: true, steps, waitingCoTenants: coPending, coTenantLinks: coLinks, contractId, signatureStatus: fresh.signatureStatus || 'partial', landlordSignUrl });
   }
 
   // ── 3. IL LOCATORE, per delega (solo con una base scritta dichiarata) ──

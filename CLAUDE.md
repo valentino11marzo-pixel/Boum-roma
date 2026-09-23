@@ -2744,6 +2744,30 @@ costruisce sul mandato, in tre pezzi:
   giunzioni sulla sorgente (una sola strada per la firma, precondizioni
   prima della conversione, 60s in vercel.json, console e pagina).
 
+### I co-conduttori col LORO mandato + il tipo che si vede (23/09/2026)
+«Quando devo firmare anche per il secondo coinquilino non me la fa fare»:
+✍️ Firmo io si fermava sempre sui co-conduttori, perché il mandato del
+principale non li copre — e non deve (firmare per Anna col mandato di Paola
+è una firma falsa). Ora ognuno dà il SUO: spunta nel suo blocco della
+proposta (`tenants[i].mandate`, solo con `askMandate`), oppure dopo, dalla
+stessa pagina, digitando il SUO nome (`mandate.js` `{coIndex, name}` →
+400 `name_mismatch` se non combacia). Il mandato viaggia su
+`coTenants[idx].mandate` (stessa foto delle condizioni approvate,
+`coTenantMandateFor`), `coMandateCheck` è la stessa regola del principale
+(403/409), `magic-sign/submit` firma il co-conduttore per mandato solo con
+`asDelegate` + `coTenants[idx].delegate` e stampa `signedByDelegate` (pagina
+firme e certificato). `sign-for` firma nello stesso tap principale + ogni
+co-conduttore col mandato, si ferma su chi non ce l'ha e restituisce i LORO
+link (`coTenantLinks`); la console mostra lo stato per persona, «✍️ Firmo io
+per <nome>» anche a principale già firmato, e «🖊 Chiedi il mandato ai
+co-conduttori». **Il transitorio sulle proposte studenti**: la console
+mandava sempre `lawRef: 'uso transitorio · art.5 c.1'` e la proposta
+stampava «Student Housing (Allegato C) · uso transitorio». Ora la dicitura
+si DERIVA dal tipo (`MANDATO.lawRefOf`, copia in pre-agreement.html pinnata
+uguale), e la console dice sotto la tendina quale Allegato uscirà, avvertendo
+su studenti fuori 6–36 mesi, transitorio oltre 18 e «4+4 Residential» (non
+ha modello: esce un transitorio). Test: `tests/mandato/run.mjs` §9c.
+
 ### Le regole IN VIGORE ≠ le regole nel file (31/08/2026)
 Il difetto più caro trovato in questa tornata, e nessuna suite poteva
 vederlo: **tutte leggono `firestore.rules`, cioè l'INTENZIONE, e nessuna la

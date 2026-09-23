@@ -85,6 +85,17 @@
     return 'transitorio';
   }
 
+  // La dicitura di legge SI DERIVA dal modello, mai dalla console (23/09/2026):
+  // la console mandava sempre «uso transitorio · art.5 c.1», e una proposta
+  // Studenti usciva «Student Housing (Allegato C) · uso transitorio» — il
+  // cliente leggeva transitorio sul documento che firmava.
+  function lawRefOf(lease) {
+    const m = modelOfLease(undefined, lease);
+    if (m === 'studenti') return 'studenti universitari · L.431/98 art.5 c.2-3';
+    if (m === '3+2') return 'canone concordato 3+2 · L.431/98 art.2 c.3';
+    return 'uso transitorio · L.431/98 art.5 c.1';
+  }
+
   const cadence = (n) => ([1, 2, 3, 6, 12].includes(Number(n)) ? Number(n) : 1);
   const num = (v) => { const n = Number(v); return Number.isFinite(n) ? Math.round(n * 100) / 100 : 0; };
   const day = (v) => String(v || '').slice(0, 10) || null;
@@ -190,7 +201,7 @@
       : d.label + ': ' + fmt(d.from) + ' → ' + fmt(d.to)).join(' · ');
   }
 
-  const API = { VERSION, LABELS, normText, normClauses, modelOfLease, modelOfContract, termsFromProposal, termsFromContract, canonical, diffTerms, describeDiff };
+  const API = { VERSION, LABELS, normText, normClauses, modelOfLease, lawRefOf, modelOfContract, termsFromProposal, termsFromContract, canonical, diffTerms, describeDiff };
   if (typeof module !== 'undefined' && module.exports) module.exports = API;
   if (root) root.BOOM_MANDATO = API;
 })(typeof window !== 'undefined' ? window : this);

@@ -263,10 +263,13 @@ export async function buildPaPdf(pa, opts = {}) {
   // col momento del conferimento, perche' questo PDF e' il documento che
   // accompagna il contratto firmato per conto del cliente (pack, ARPE).
   let sigNo = 6;
-  if (pa.mandate && pa.mandate.given) {
+  const coMandates = tenants.slice(1).filter(t => t && t.mandate && t.mandate.given);
+  if ((pa.mandate && pa.mandate.given) || coMandates.length) {
     secTitle(6, 'Mandate to sign');
     para(PA_MANDATE_TEXT, font, 8.5, INK, W, 1.42);
-    para(`Granted by the tenant together with the acceptance below - ${String(pa.mandate.at || '').replace('T', ' ').slice(0, 16)} UTC - hash ${String(pa.mandate.hash || '').slice(0, 16)}`, font, 7, SOFT);
+    if (pa.mandate && pa.mandate.given) para(`Granted by the tenant ${clean((tenants[0] || {}).fullName || '')} - ${String(pa.mandate.at || '').replace('T', ' ').slice(0, 16)} UTC - hash ${String(pa.mandate.hash || '').slice(0, 16)}`, font, 7, SOFT);
+    // ogni co-conduttore per sé: il mandato del principale non copre gli altri
+    for (const t of coMandates) para(`Granted by the co-tenant ${clean(t.fullName || '')} - ${String(t.mandate.at || '').replace('T', ' ').slice(0, 16)} UTC - hash ${String(t.mandate.hash || '').slice(0, 16)}`, font, 7, SOFT);
     y -= 6;
     sigNo = 7;
   }

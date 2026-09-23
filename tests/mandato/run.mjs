@@ -928,6 +928,81 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
   await signFor(admin({ op: 'sign', id: 'paX' }), r);
   check('sign con condizioni cambiate → 409 mandate_terms_changed, nessuna firma', r.code === 409 && r.body.error === 'mandate_terms_changed' && r.body.changed.includes('rent') && !store.get('contracts/pa_paX').tenantSignature);
 
+  // (c2) I CO-CONDUTTORI (23/09/2026 — «quando devo firmare anche per il
+  // secondo coinquilino non me la fa fare»). Ognuno dà il SUO mandato: il
+  // principale non copre gli altri. Luca lo dà all'accettazione (spunta nel
+  // suo blocco), Anna no → il tap firma principale + Luca e si ferma su Anna
+  // col SUO link; Anna lo dà dopo col suo nome → il tap chiude tutto.
+  IP = '9.7.9.2';
+  const T_C = '8d'.repeat(16);
+  store.set('preAgreements/paC', paSeed(T_C, { propertyId: 'prop2', lease: { startDate: '2062-01-01', months: 12, endDate: '2062-12-31', type: 'Student Housing (Allegato C)', lawRef: 'uso transitorio · L.431/98 art.5 c.1' } }));
+  r = mkRes();
+  await paSubmit(mkReq({ token: T_C, accept: true, mandate: true, tenants: [
+    { fullName: 'Paola Prima', email: 'paola@x.com', phone: '+39333000111', cf: 'PRMPLA95A41H501X' },
+    { fullName: 'Luca Secondo', cf: 'SCNLCU95A01H501Y', mandate: true },
+    { fullName: 'Anna Terza', cf: 'TRZNNA96A41H501Z' },
+  ] }), r);
+  const paC0 = store.get('preAgreements/paC');
+  check('§9c accettazione: il mandato di Luca è SUO (spunta nel suo blocco), Anna senza — quello di Paola non si propaga',
+    r.code === 200 && paC0.mandate.given === true && paC0.tenants[1].mandate && paC0.tenants[1].mandate.given === true && paC0.tenants[1].mandate.hash === PA_MANDATE_HASH && !paC0.tenants[2].mandate);
+  r = mkRes();
+  await signFor(admin({ op: 'status', id: 'paC' }), r);
+  check('§9c status (senza contratto): per ogni co-conduttore chi ha il mandato e chi no',
+    r.code === 200 && r.body.plan.coTenants.length === 2 && r.body.plan.coTenants[0].mandateOk === true && r.body.plan.coTenants[1].mandateOk === false);
+  r = mkRes();
+  await signFor(admin({ op: 'sign', id: 'paC', landlordDelegate: true, landlordBasis: 'mandato di gestione firmato il 12/03/2026' }), r);
+  const cC1 = store.get('contracts/pa_paC');
+  check('§9c il tap: principale + Luca per mandato, si ferma su Anna col SUO link, proprietario NON firmato',
+    r.code === 200 && r.body.partial === true && r.body.steps.join('+') === 'tenant+cotenant:0' && r.body.waitingCoTenants.join() === 'Anna Terza'
+    && r.body.coTenantLinks.length === 1 && /\/sign\?sign=pa_paC\.c1\./.test(r.body.coTenantLinks[0].url)
+    && !!cC1.tenantSignature && !!cC1.coTenants[0].signature && !cC1.coTenants[1].signature && !cC1.landlordSignature);
+  check('§9c Luca è firmato PER MANDATO (signedByDelegate col SUO mandato), Anna nemmeno armata',
+    !!cC1.coTenants[0].signedByDelegate && cC1.coTenants[0].signedByDelegate.onBehalfOf === 'Luca Secondo' && cC1.coTenants[0].signedByDelegate.mandateHash === PA_MANDATE_HASH
+    && !!cC1.coTenants[0].mandate && cC1.coTenants[0].mandate.termsMatch === true && !cC1.coTenants[1].delegate);
+  check('§9c il contratto è un Allegato C (studenti) anche senza che nessuno lo dica', cC1.type === 'studenti');
+  // la guardia del server, diretta: armare Anna senza il suo mandato → 403
+  const { coMandateCheck, cosignRef } = await import('../../api/magic-sign/_shared.js');
+  check('coMandateCheck: Anna senza mandato → mandate_missing; Luca ok', coMandateCheck(cC1, 1).reason === 'mandate_missing' && coMandateCheck(cC1, 0).ok === true);
+  const msSubmit = (await import('../../api/magic-sign/submit.js')).default;
+  const { MS_CONSENT_TEXT } = await import('../../api/magic-sign/submit.js');
+  store.get('contracts/pa_paC').coTenants[1].delegate = { name: 'Valentino', onBehalfOf: 'Anna Terza', basis: 'nessuno' };
+  r = mkRes();
+  await msSubmit(mkReq({ token: cosignRef('pa_paC', 1), signature: PNG, asDelegate: true, identity: {}, phone: {}, consent: { text: MS_CONSENT_TEXT, hash: sha256(MS_CONSENT_TEXT) } }), r);
+  check('magic-sign: firma per conto di Anna SENZA il suo mandato → 403 mandate_missing, nessuna firma', r.code === 403 && r.body.error === 'mandate_missing' && !store.get('contracts/pa_paC').coTenants[1].signature);
+  delete store.get('contracts/pa_paC').coTenants[1].delegate;
+  // Anna dà il mandato dopo, col SUO nome
+  r = mkRes();
+  await giveMandate(mkReq({ token: T_C, mandate: true, coIndex: 2, name: 'Paola Prima' }), r);
+  check('mandate.js co-conduttore: nome sbagliato → 400 name_mismatch, niente scritto', r.code === 400 && r.body.error === 'name_mismatch' && !store.get('preAgreements/paC').tenants[2].mandate);
+  r = mkRes();
+  await giveMandate(mkReq({ token: T_C, mandate: true, coIndex: 2, name: 'anna  TERZA' }), r);
+  const cC2 = store.get('contracts/pa_paC');
+  check('mandate.js co-conduttore: col suo nome → 200, mandato sulla proposta E sul contratto (Anna), quello di Paola intatto',
+    r.code === 200 && r.body.onContract === true && store.get('preAgreements/paC').tenants[2].mandate.given === true && !!cC2.coTenants[1].mandate && cC2.coTenants[1].mandate.given === true
+    && store.get('preAgreements/paC').mandate.at === paC0.mandate.at);
+  r = mkRes();
+  await signFor(admin({ op: 'sign', id: 'paC' }), r);
+  const cC3 = store.get('contracts/pa_paC');
+  check('§9c secondo tap: Anna per mandato + locatore per delega → contratto firmato da tutti',
+    r.code === 200 && r.body.steps.join('+') === 'cotenant:1+landlord' && r.body.fullySigned === true && cC3.signatureStatus === 'complete' && !!cC3.coTenants[1].signedByDelegate);
+  // la lettura pubblica non espone ip/ua del mandato del co-conduttore
+  const paLookup = (await import('../../api/preagreement/lookup.js')).default;
+  r = mkRes();
+  await paLookup(mkReq({ token: T_C }), r);
+  check('lookup: il mandato dei co-conduttori esce solo come data (mai ip/ua/testo)',
+    r.code === 200 && r.body.pa.tenants[1].mandate && r.body.pa.tenants[1].mandate.at && !r.body.pa.tenants[1].mandate.ip && !r.body.pa.tenants[1].mandate.text);
+
+  // (c3) la dicitura di legge SI DERIVA dal tipo: una proposta studenti non dice più «uso transitorio»
+  const MAND = (await import('../../js/mandato-engine.js')).default;
+  check('lawRefOf: studenti → art.5 c.2-3, 3+2 → art.2 c.3, transitorio → art.5 c.1',
+    /art\.5 c\.2-3/.test(MAND.lawRefOf({ type: 'Student Housing (Allegato C)' })) && /art\.2 c\.3/.test(MAND.lawRefOf({ type: '3+2 Concordato' })) && /transitorio/.test(MAND.lawRefOf({ type: 'Transitional Lease' })));
+  const pageSrc = R('pre-agreement.html');
+  const pageFn = new Function(pageSrc.match(/function lawRefOf\(le\)\{[\s\S]*?\n\}/)[0] + ';return lawRefOf;')();
+  check('pagina proposta: lawRefOf == motore (tre tipi), e nessun esc(le.lawRef) rimasto',
+    ['Student Housing (Allegato C)', '3+2 Canone concordato (Allegato A)', 'Transitional Lease', '4+4 Residential'].every(t => pageFn({ type: t }) === MAND.lawRefOf({ type: t })) && !/esc\(le\.lawRef\)/.test(pageSrc));
+  check('console: non manda più lawRef transitorio fisso; dice quale Allegato uscirà e avverte (studenti <6 mesi, 4+4)',
+    !/lawRef:'uso transitorio/.test(R('pre-agreement-admin.html')) && /Il contratto uscirà/.test(R('pre-agreement-admin.html')) && /Non esiste un modello 4\+4/.test(R('pre-agreement-admin.html')));
+
   // (d) le giunzioni sulla sorgente: una strada sola per scrivere una firma
   const sf = R('api/preagreement/sign-for.js'), cons = R('pre-agreement-admin.html'), page = R('pre-agreement.html'), vj = R('vercel.json');
   check('sign-for firma SOLO attraverso magic-sign/submit in-process (mai una scrittura di firma propria)',

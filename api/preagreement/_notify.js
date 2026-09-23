@@ -17,6 +17,7 @@
 // All sends are best-effort: callers must never fail the client flow on a
 // mail error.
 
+import MANDATO from '../../js/mandato-engine.js';
 import { sendEmail } from '../agent/_lib.js';
 import { buildPaPdf } from './_pdf.js';
 
@@ -76,7 +77,7 @@ export function paDocumentHtml(pa, opts = {}) {
     <tr>
       <td style="font-family:${SANS}">
         <div style="font-size:26px;font-weight:200;color:${INK};letter-spacing:-.3px">Pre-Agreement <span style="color:${FAINT}">· Rental Proposal</span></div>
-        <div style="font-size:12px;color:${SOFT};margin-top:5px">${esc(le.type || 'Transitional Lease')} · ${esc(le.lawRef || 'uso transitorio · L.431/98 art.5 c.1')}</div>
+        <div style="font-size:12px;color:${SOFT};margin-top:5px">${esc(le.type || 'Transitional Lease')} · ${esc(MANDATO.lawRefOf(le))}</div>
       </td>
       <td align="right" style="vertical-align:top;font-family:${SANS}">
         ${ref ? `<div style="display:inline-block;border:1px solid ${GOLD_DEEP};padding:8px 14px;font-size:12px;letter-spacing:1.8px;color:${GOLD_DEEP}">N° ${esc(ref)}</div>` : ''}
