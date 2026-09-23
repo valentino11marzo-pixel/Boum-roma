@@ -35,6 +35,13 @@ function wa(s) {
     .replace(/[→➔➡]/g, '->').replace(/[✓✔]/g, 'ok').replace(/−/g, '-')
     .replace(/[^\x20-\xFF–—‘’“”…€]/g, '');
 }
+// Il proprietario legge un documento in italiano: il codice interno della
+// modalità (stripe, sepa, bank…) non ci finisce mai grezzo — prima usciva
+// «Incassata rata 2026-07 (bank)».
+const VIA_IT = { stripe: 'carta', card: 'carta', sepa: 'addebito SEPA', bank: 'bonifico', bonifico: 'bonifico',
+  transfer: 'bonifico', manual: 'registrato a mano', cash: 'contanti', contanti: 'contanti' };
+export function viaIT(v) { const k = String(v || '').toLowerCase(); return VIA_IT[k] || k; }
+
 const dIT = (s) => { try { const d = new Date(String(s).slice(0, 10) + 'T00:00'); return isNaN(d) ? '' : d.toLocaleDateString('it-IT'); } catch { return ''; } };
 const MESI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 
@@ -193,7 +200,7 @@ export async function buildPdf({ ownerName, label, month, sections, collected, e
   for (const s of sections) {
     sect(clip(s.prop.address || s.prop.name || 'Immobile', 70));
     if (s.contract) row('Contratto', `${clip(s.contract.tenantName, 40)} — ${euro(s.contract.rent)}/mese`);
-    for (const p of s.paid) row(`Incassata rata ${p.month}${p.paidVia ? ` (${p.paidVia})` : ''}${p.paidDate ? ` il ${dIT(p.paidDate)}` : ''}`, euro(p.amount), green);
+    for (const p of s.paid) row(`Incassata rata ${p.month}${p.paidVia ? ` (${viaIT(p.paidVia)})` : ''}${p.paidDate ? ` il ${dIT(p.paidDate)}` : ''}`, euro(p.amount), green);
     for (const p of s.open) row(`Rata ${p.month} — in attesa (scad. ${dIT(p.dueDate)})`, euro(p.amount), grey);
     for (const p of s.late) row(`ARRETRATO rata ${p.month} (scad. ${dIT(p.dueDate)})`, euro(p.amount), red);
     for (const mt of s.maint) row(`Manutenzione: ${clip(mt.title || mt.description || mt.category, 50)}`, clip(mt.status === 'resolved' || mt.status === 'done' ? 'risolta' : 'in corso', 20));

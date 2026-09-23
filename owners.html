@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="it" data-canone="chiuso">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-    <title>Affittare casa a Roma con BOOM — per i proprietari</title>
+    <title>Affittare casa a Roma: il fascicolo BOOM per i proprietari</title>
 <!-- BOOM_SEO:START -->
-  <meta name="description" content="Valutazione del canone, inquilini verificati, contratto registrato sui modelli dell'accordo di Roma, verbale, inventario e rendiconto mensile in PDF.">
-  <meta name="keywords" content="affittare casa Roma, gestione affitti Roma, canone concordato Roma, proprietari Roma, contratto transitorio Roma">
+  <meta name="description" content="Prima locazione a 0 € di provvigione: la paga l'inquilino. Contratti sui modelli dell'accordo di Roma, firma dal telefono, registrazione, verbale e rendiconto.">
+  <meta name="keywords" content="affittare casa Roma, gestione affitti Roma, agenzia affitti proprietari Roma, canone concordato Roma, contratto transitorio Roma, affitto a studenti Roma, provvigione agenzia affitto, rendiconto mensile proprietario">
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
   <meta name="googlebot" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1">
   <meta name="author" content="BOOM Rome">
@@ -26,27 +26,28 @@
   <meta property="og:site_name" content="BOOM Rome">
   <meta property="og:locale" content="it_IT">
   <meta property="og:locale:alternate" content="en_US">
-  <meta property="og:title" content="Affittare casa a Roma con BOOM — per i proprietari">
-  <meta property="og:description" content="Valutazione del canone, inquilini verificati, contratto registrato sui modelli dell'accordo di Roma, verbale, inventario e rendiconto mensile in PDF.">
+  <meta property="og:title" content="Affittare casa a Roma: il fascicolo BOOM per i proprietari">
+  <meta property="og:description" content="Prima locazione a 0 € di provvigione: la paga l'inquilino. Contratti sui modelli dell'accordo di Roma, firma dal telefono, registrazione, verbale e rendiconto.">
   <meta property="og:url" content="https://www.boomrome.com/owners">
-  <meta property="og:image" content="https://www.boomrome.com/og-home.png">
-  <meta property="og:image:secure_url" content="https://www.boomrome.com/og-home.png">
+  <meta property="og:image" content="https://www.boomrome.com/og-owners.png">
+  <meta property="og:image:secure_url" content="https://www.boomrome.com/og-owners.png">
   <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
-  <meta property="og:image:alt" content="Affittare casa a Roma con BOOM — per i proprietari">
+  <meta property="og:image:alt" content="Affittare casa a Roma: il fascicolo BOOM per i proprietari">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:site" content="@boomrome">
   <meta name="twitter:creator" content="@boomrome">
-  <meta name="twitter:title" content="Affittare casa a Roma con BOOM — per i proprietari">
-  <meta name="twitter:description" content="Valutazione del canone, inquilini verificati, contratto registrato sui modelli dell'accordo di Roma, verbale, inventario e rendiconto mensile in PDF.">
-  <meta name="twitter:image" content="https://www.boomrome.com/og-home.png">
-  <meta name="twitter:image:alt" content="Affittare casa a Roma con BOOM — per i proprietari">
+  <meta name="twitter:title" content="Affittare casa a Roma: il fascicolo BOOM per i proprietari">
+  <meta name="twitter:description" content="Prima locazione a 0 € di provvigione: la paga l'inquilino. Contratti sui modelli dell'accordo di Roma, firma dal telefono, registrazione, verbale e rendiconto.">
+  <meta name="twitter:image" content="https://www.boomrome.com/og-owners.png">
+  <meta name="twitter:image:alt" content="Affittare casa a Roma: il fascicolo BOOM per i proprietari">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="dns-prefetch" href="https://www.googletagmanager.com">
   <link rel="dns-prefetch" href="https://www.google-analytics.com">
 <!-- BOOM_SEO:END -->
+    <script>(function(h,q){h.classList.add('js');try{if(localStorage.getItem('boom:still')==='1')h.classList.add('still')}catch(e){}if(/[?&]still=1/.test(q))h.classList.add('still');if(/[?&]flat=1/.test(q))h.classList.add('flat')})(document.documentElement,location.search)</script>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-EYCD59RDVJ"></script>
     <script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500});gtag('config','G-EYCD59RDVJ');</script>
@@ -56,159 +57,184 @@
     <link rel="manifest" href="/site.webmanifest">
     <link rel="stylesheet" href="/css/boom-2026.css">
 <style>
-/* ═══ /owners — la pagina dei PROPRIETARI, rifatta (23/09/2026).
-   Grammatica di /executive v4 (STUDIO_EXECUTIVE_CONVERSIONE.md): UNA porta
-   (il modulo nell'hero), prova subito, ≤8 blocchi, sistema boom-2026.css.
-   Regola di contenuto, più dura della grafica: si scrive SOLO ciò che la
-   macchina fa davvero. La vecchia pagina prometteva una «garanzia di
-   solvibilità scritta nel mandato» che il mandato generato dal portale
-   non contiene, un «portale in tempo reale» con numeri finti, «supporto
-   24/7» e statistiche senza fonte. Qui ogni riga ha un file dietro:
-   rendiconto (api/owners/rendiconto.js), verbale e inventario
-   (api/contracts/*), modelli dell'accordo (js/contract-pdf.js), lucchetto
-   (api/preagreement/_lock.js), prezzo del pacchetto (api/_catalog.js). ═══ */
-
-body::before{content:'';position:fixed;inset:0;opacity:.012;pointer-events:none;z-index:9999;
-  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")}
-.tech-bg{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
-.tech-orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:.05}
-.tech-orb-1{width:620px;height:620px;background:radial-gradient(circle,var(--gold) 0%,transparent 70%);top:-200px;right:-100px}
-.tech-grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,215,0,.015) 1px,transparent 1px),linear-gradient(90deg,rgba(255,215,0,.015) 1px,transparent 1px);background-size:80px 80px;mask-image:radial-gradient(ellipse at center,black 0%,transparent 70%);-webkit-mask-image:radial-gradient(ellipse at center,black 0%,transparent 70%)}
-@media(max-width:768px){.tech-orb-1{width:300px;height:300px}}
-
-/* il lockup: BOOM │ PROPRIETARI ROMA */
-.logo-mark{width:44px;height:44px}
-.logo-text{font-size:22px}
-.bl-div{width:1px;height:26px;background:var(--line-gold);margin:0 2px}
-.bl-desk{font-size:9px;letter-spacing:3px;color:var(--gold);text-transform:uppercase;line-height:1.6;font-weight:500}
-.footer-brand-logo .bl-desk{font-size:11px;letter-spacing:3.6px;line-height:1.7;font-family:var(--sans)}
-
-.fam{top:76px}
-main{padding-top:172px}
-@media(max-width:640px){main{padding-top:162px}}
-section{margin-top:96px}
-
-/* ── HERO ── */
-.hero{align-items:start}
-.hero h1{font-size:clamp(34px,5.6vw,58px)}
-.live{display:inline-flex;align-items:center;gap:8px}
-.live i{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:0 0 10px rgba(61,220,151,.8)}
-.trust{display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:26px;font-size:12px;color:var(--t3)}
-.trust b{color:var(--t1);font-weight:400}
-.trust .c{color:var(--green)}
-.who-line{margin-top:22px;padding-top:18px;border-top:1px solid var(--line-soft);font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;font-size:10px;letter-spacing:1.8px;color:var(--t4);text-transform:uppercase;line-height:2}
-.who-line b{color:var(--t2);font-weight:400}
-
-/* la porta: la scheda della casa */
-.filecard{border:1px solid var(--line-gold);border-radius:20px;background:var(--card);box-shadow:0 30px 80px rgba(0,0,0,.5),0 0 60px rgba(255,215,0,.04);padding:24px 24px 20px}
-@media(max-width:640px){.filecard{padding:20px 18px 16px}}
-.refline{display:flex;justify-content:space-between;gap:12px;font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--t4);margin-bottom:6px}
-.refline b{color:var(--gold);font-weight:400}
-.frow{display:grid;gap:0 12px;grid-template-columns:minmax(0,1fr)}
-@media(min-width:480px){.frow.two{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.filecard .fld{margin-top:12px}
-.fld select{width:100%;background:var(--input);border:1px solid var(--line);border-radius:12px;padding:13px 14px;font-size:15px;color:var(--t1);outline:none;transition:border-color .3s;-webkit-appearance:none;appearance:none;
-  background-image:linear-gradient(45deg,transparent 50%,var(--t3) 50%),linear-gradient(135deg,var(--t3) 50%,transparent 50%);
-  background-position:calc(100% - 19px) 21px,calc(100% - 14px) 21px;background-size:5px 5px,5px 5px;background-repeat:no-repeat}
-.fld select:focus{border-color:var(--line-gold)}
-.fld .hint{font-size:10.5px;color:var(--t4);margin-top:5px}
-.more{margin-top:14px;border:1px solid var(--line-soft);border-radius:12px;background:rgba(255,255,255,.015)}
-.more summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:11px 14px;font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t3)}
-.more summary::-webkit-details-marker{display:none}
-.more summary::before{content:'+';color:var(--gold);font-size:15px;font-weight:300;transition:transform .3s var(--ease)}
-.more[open] summary::before{transform:rotate(45deg)}
-.more .morein{padding:2px 14px 14px}
-.consent{font-size:10.5px;color:var(--t4);margin-top:11px;text-align:center;line-height:1.6}
-.consent a{color:var(--t3);text-decoration:underline}
-.sent{display:none;text-align:center;padding:14px 0 6px}
-.sent.on{display:block}
-.sent .tick{width:54px;height:54px;margin:0 auto;border-radius:50%;display:grid;place-items:center;font-size:24px;color:var(--green);border:1px solid rgba(61,220,151,.45);background:var(--green-muted)}
-.sent h3{font-weight:200;font-size:22px;margin-top:14px}
-.sent h3 em{font-style:normal;color:var(--gold)}
-.sent p{font-size:13px;color:var(--t2);margin-top:8px}
-.sent a{color:var(--gold)}
-.hidden{display:none!important}
-.side-links{margin-top:12px;text-align:center;font-size:11.5px;color:var(--t4);line-height:1.8}
-.side-links a{color:var(--t3);transition:color .3s}
-.side-links a:hover{color:var(--gold)}
-.side-links b{color:var(--t2);font-weight:400}
-
-/* quattro passi, non tre: 2×2 dove il sistema ne mette tre in fila */
-@media(min-width:700px){#come .steps{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}#come .step+.step{margin:0}}
-@media(min-width:1000px){#come .steps{grid-template-columns:repeat(4,minmax(0,1fr))}}
-
-/* ── chi arriva: la domanda che portiamo ── */
-.flows{margin-top:26px;display:grid;grid-template-columns:minmax(0,1fr);border:1px solid var(--line);border-radius:16px;background:var(--card);overflow:hidden}
-@media(min-width:760px){.flows{grid-template-columns:repeat(3,minmax(0,1fr))}}
-.flow{padding:20px 20px;border-bottom:1px solid var(--line-soft)}
-@media(min-width:760px){.flow{border-bottom:none}.flow+.flow{border-left:1px solid var(--line-soft)}}
-@media(max-width:759px){.flow:last-child{border-bottom:none}}
-.flow .k{font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;font-size:9px;letter-spacing:1.6px;color:var(--gold);text-transform:uppercase}
-.flow b{display:block;font-weight:400;font-size:15px;margin-top:8px}
-.flow p{font-size:12.5px;color:var(--t3);margin-top:6px;line-height:1.6}
-.flow a{color:var(--t2);text-decoration:underline}
-
-/* ── il fascicolo: cosa ti resta in mano ── */
-.dossier{margin-top:26px;border:1px solid var(--line-gold);border-radius:16px;overflow:hidden;background:var(--surface)}
-.dhead{padding:12px 16px;border-bottom:1px solid var(--line-gold);font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;font-size:9.5px;letter-spacing:1.8px;color:var(--gold);text-transform:uppercase;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap}
-.dhead span:last-child{color:var(--t4)}
-.drow{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;padding:14px 16px;border-bottom:1px solid var(--line-soft)}
-@media(min-width:700px){.drow{grid-template-columns:230px minmax(0,1fr);gap:18px;align-items:baseline}}
-.drow:last-child{border-bottom:none}
-.drow .k{font-size:13.5px;color:var(--t1);font-weight:400}
-.drow .k i{font-style:normal;color:var(--green);margin-right:8px}
-.drow .v{font-size:12.5px;color:var(--t3);line-height:1.6}
-.drow .v b{color:var(--t2);font-weight:400}
-
-/* ── il conto del concordato ── */
-.calc{margin-top:26px;display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
-@media(min-width:760px){.calc{grid-template-columns:repeat(3,minmax(0,1fr))}}
-.cbox{border:1px solid var(--line);border-radius:15px;padding:18px 18px;background:var(--card)}
-.cbox.win{border-color:var(--line-gold);background:radial-gradient(120% 100% at 10% 0%,rgba(255,215,0,.08),transparent 60%),var(--card)}
-.cbox .k{font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:var(--t4)}
-.cbox .n{font-weight:200;font-size:32px;margin-top:6px;font-variant-numeric:tabular-nums}
-.cbox.win .n{color:var(--gold)}
-.cbox p{font-size:12px;color:var(--t3);margin-top:4px}
-.calc-note{margin-top:14px;font-size:12.5px;color:var(--t3);max-width:72ch}
-.calc-note a{color:var(--gold)}
-
-/* ── costi ── */
-.prices{margin-top:26px;display:grid;gap:12px;grid-template-columns:minmax(0,1fr)}
-@media(min-width:760px){.prices{grid-template-columns:repeat(3,minmax(0,1fr))}}
-.price{border:1px solid var(--line);border-radius:16px;padding:20px;background:var(--card);display:flex;flex-direction:column}
-.price.lead{border-color:var(--line-gold)}
-.price .k{font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:var(--gold)}
-.price .n{font-weight:200;font-size:26px;margin-top:8px}
-.price p{font-size:12.5px;color:var(--t3);margin-top:8px;line-height:1.6;flex:1}
-.price a{margin-top:12px;font-size:12px;color:var(--t2);text-decoration:underline}
-
-/* ── in breve (GEO: il nome della classe è portante per speakable) ── */
-.itbref{border:1px solid var(--line);border-left:2px solid var(--gold);border-radius:0 16px 16px 0;background:linear-gradient(90deg,var(--gold-faint),transparent 55%),var(--card);padding:24px 26px}
-.itbref h2{display:flex;align-items:baseline;gap:14px;font-size:11px;letter-spacing:2.8px;text-transform:uppercase;color:var(--gold);font-weight:400}
-.itbref h2 .ref{margin-left:auto;font-family:'SF Mono',ui-monospace,Menlo,Consolas,monospace;font-size:8.5px;letter-spacing:1.6px;color:var(--t4)}
-.itbref dl{display:grid;grid-template-columns:minmax(0,1fr);margin-top:12px}
-@media(min-width:660px){.itbref dl{grid-template-columns:172px minmax(0,1fr);column-gap:22px}}
-.itbref dt{font-size:10px;letter-spacing:1.8px;text-transform:uppercase;color:var(--t4);padding-top:12px}
-.itbref dd{font-size:13.5px;line-height:1.65;color:var(--t2);padding:3px 0 12px;border-bottom:1px solid var(--line-soft)}
-@media(min-width:660px){.itbref dt{border-bottom:1px solid var(--line-soft);padding-bottom:12px}}
-.itbref dt:last-of-type,.itbref dd:last-of-type{border-bottom:none}
-.itbref b{color:var(--t1);font-weight:400}
-.itbref a{color:var(--gold)}
-.faq .a a{color:var(--gold)}
-
-.skip{position:absolute;left:-9999px;top:0;z-index:10002;background:var(--gold);color:#1a1407;padding:12px 18px;border-radius:0 0 12px 0;font-size:13px;font-weight:600}
-.skip:focus{left:0}
-a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,summary:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:6px}
-@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
-
-/* IL TOCCO: su un dito un campo sotto i 16px fa zoomare iPhone al primo
-   tap (tests/telefono). */
-@media (pointer:coarse) {
-  input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=hidden]),
-  select, textarea { font-size:16px !important; }
+/* ═══ /owners — «LA PIANTA CHE SI ALZA» (V1, 23/09/2026).
+   Una casa d'esempio disegnata come un disegno tecnico: in ogni stanza una
+   carta vera, generata dai builder di produzione (carte/), nel punto dove
+   sta la paura che quella carta risolve. Due luci restano spente, e la
+   pagina lo dice per prima. Studio: STUDIO_PROPRIETARI_2026-09.md.
+   Regole: nessuna richiesta esterna oltre al tag di misura sotto consenso,
+   nessuna animazione al caricamento (getAnimations() vuoto), un solo
+   Solari (la targhetta), la pianta si alza SOLO su un gesto del lettore.
+   Pezzi generati: design/owners/costruisci-owners.mjs (non a mano). */
+:root{--void:#060607;--t1:#F2F0EA;--t2:#A8A8AE;--line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.16);
+  --gold:#FFD700;--gold-soft:rgba(255,215,0,.12);--paper:#F4F1EA;--ink:#141416;--red:#E0826B;
+  --mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace;--sans:'Helvetica Neue',Helvetica,Arial,sans-serif}
+html{background:var(--void)}
+body{background:var(--void);color:var(--t1);font:300 18px/1.6 var(--sans);margin:0;overflow-x:clip}
+a{color:inherit}
+p{margin:0 0 16px}
+.vh{position:absolute!important;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+.skip{position:absolute;left:-9999px;top:0}.skip:focus{left:16px;top:16px;z-index:10001;background:var(--gold);color:#000;padding:10px 14px}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px}
+/* la barra: fissa, OPACA, niente transizione dello sfondo (tests/testata) */
+.nav{position:fixed;top:0;left:0;right:0;z-index:10000;background:#030303;padding:12px 0;border-bottom:1px solid var(--line);transition:none}
+.nav-in{max-width:1280px;margin:0 auto;padding:0 16px;display:flex;align-items:center;gap:24px}
+.marca{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--t1);margin-right:auto}
+.marca-m{width:34px;height:34px}.marca-t{font-size:22px;letter-spacing:4px;font-weight:300}
+.marca-d{width:1px;height:22px;background:rgba(255,215,0,.4)}
+.marca-s{font:400 10.5px/1.25 var(--mono);letter-spacing:2px;text-transform:uppercase;color:var(--t2)}
+.nav-l{display:none;gap:26px}.nav-l a{font:400 11px var(--mono);letter-spacing:1.8px;text-transform:uppercase;color:var(--t2);text-decoration:none}
+.nav-l a:hover{color:var(--t1)}
+.nav-tel{font:500 12px var(--sans);letter-spacing:1.4px;text-transform:uppercase;color:var(--gold);border:1px solid rgba(255,215,0,.5);padding:11px 16px;min-height:44px;box-sizing:border-box;display:inline-flex;align-items:center;text-decoration:none}
+@media(min-width:900px){.nav-l{display:flex}}
+.marca-s{white-space:nowrap}
+@media(max-width:560px){.marca-t{font-size:19px;letter-spacing:3px}.marca-m{width:28px;height:28px}.marca-s .roma{display:none}.nav-tel{padding:10px 12px}}
+@media(max-width:340px){.marca-s{display:none}}
+/* la camminata */
+main{max-width:none;margin:0;padding:calc(var(--boom-barra,76px) + 20px) 0 0}
+.casa{max-width:1280px;margin:0 auto;padding:0 16px}
+.soglia{padding:12px 0 8px}
+.occhiello{font:400 11px var(--mono);letter-spacing:2.6px;text-transform:uppercase;color:var(--gold);margin:0 0 14px}
+.soglia h1{font-weight:200;font-size:clamp(34px,7.6vw,60px);line-height:1.06;letter-spacing:-.5px;margin:0 0 18px}
+.soglia h1 em{font-style:normal;color:var(--gold)}
+.sub{font-size:18px;color:var(--t1);max-width:40em;margin:0 0 20px}
+.colpianta{margin:8px 0 26px}
+.didas{font-size:16px;color:var(--t2);margin:12px 0 4px}
+.sole-didas{font:400 13px/1.5 var(--mono);color:var(--t2);min-height:1.5em;margin:0 0 14px}
+.targhetta{display:flex;align-items:center;gap:12px;border:1px solid var(--line2);padding:12px 14px;margin:0 0 12px;background:#0B0B0D}
+.tg-cells{font:500 15px/1 var(--mono);letter-spacing:.14em;color:var(--gold);white-space:nowrap;overflow:hidden}
+.cartiglio{border:1px solid var(--line2);border-top:0;padding:12px 14px 10px;font:400 13px/1.9 var(--mono);color:var(--t2);margin:-12px 0 14px}
+.cartiglio label{color:var(--t1)}
+.cartiglio select,.cartiglio input{font:400 16px var(--sans);color:var(--t1);background:#111114;border:1px solid var(--line2);padding:9px 10px;min-height:44px;box-sizing:border-box;margin:4px 0}
+.cartiglio select{max-width:100%;width:100%}
+.cartiglio input{width:5.2em}
+.cartiglio .nota{font:300 14px/1.5 var(--sans);color:var(--t2);margin:8px 0 0}
+.ferma{font:400 12px var(--mono);letter-spacing:1px;color:var(--t2);border:1px solid var(--line);padding:10px 12px;min-height:44px;background:transparent}
+.ferma[aria-pressed="true"]{color:var(--gold);border-color:rgba(255,215,0,.45)}
+html:not(.js) .ferma,html:not(.js) .cartiglio .ctl{display:none}
+#esito{min-height:7.5em;border-left:2px solid var(--gold);padding:4px 0 4px 16px;margin:0 0 20px;font-size:17px}
+#esito a{color:var(--gold)}
+.serratura{font-size:17px;color:var(--t1)}
+.serratura a,.aport a{color:var(--gold);text-decoration:none;border-bottom:1px solid rgba(255,215,0,.35)}
+.chi{font:400 13px/1.5 var(--mono);color:var(--t2);margin:26px 0 0;letter-spacing:.3px}
+.stanza{border-top:1px solid var(--line);padding:56px 0 24px;margin-top:40px}
+.luogo{font:400 11px var(--mono);letter-spacing:2.4px;text-transform:uppercase;color:var(--t2);margin:0 0 12px}
+.luogo b{color:var(--gold);font-weight:400}
+.stanza h2,#acceso h2,#uscita h2,#domande h2,#inbreve h2{font-weight:300;font-size:clamp(26px,4.4vw,36px);line-height:1.18;letter-spacing:-.2px;margin:0 0 14px}
+.lead{font-size:20px;color:var(--t1);font-weight:300}
+.stanza h3{font:400 13px var(--mono);letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin:30px 0 10px}
+.stanza p,.stanza li{color:var(--t1)}
+.stanza .piano{color:var(--t2)}
+.due{list-style:none;padding:0;margin:0 0 18px}
+.due li{padding:10px 0 10px 0;border-top:1px solid var(--line)}
+.due b{font-weight:500}
+details{border-top:1px solid var(--line);padding:0}
+summary{cursor:pointer;min-height:44px;display:flex;align-items:center;font-size:17px;color:var(--t1);list-style:none;padding:8px 0}
+summary::-webkit-details-marker{display:none}
+summary::before{content:'+';color:var(--gold);font-weight:200;font-size:22px;width:26px;flex:none}
+details[open]>summary::before{content:'–'}
+details>div{padding:0 0 12px 26px;color:var(--t1)}
+.spento{border:1px dashed rgba(224,130,107,.5);padding:14px 16px;margin:20px 0}
+.spento b{color:var(--red);font-weight:500}
+.scala-giorni{padding-left:20px;margin:0 0 16px}.scala-giorni li{margin:0 0 8px}
+/* le carte: miniature del PDF vero, la riga che conta trascritta */
+.carta{margin:26px 0}
+.carta-apri{display:block;position:relative;max-width:300px;text-decoration:none;background:var(--paper);box-shadow:0 18px 40px rgba(0,0,0,.45);outline-offset:4px}
+.carta-apri img{display:block;width:100%;height:auto}
+.lente{display:none}
+.carta figcaption{margin-top:14px;max-width:34em}
+.riga{font:400 19px/1.45 var(--sans);color:var(--t1);border-left:2px solid var(--gold);padding-left:14px;margin:0 0 8px}
+.didasc{font:400 13px/1.5 var(--mono);color:var(--t2);margin:0}
+.link-carta{color:var(--gold)}
+.seg{border:0;padding:0;margin:18px 0 6px;display:flex;gap:0}
+.seg legend{font:400 13px var(--mono);color:var(--t2);margin-bottom:8px;float:left;width:100%}
+.seg input{position:absolute;opacity:0}
+.seg label{min-height:44px;min-width:110px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line2);font:400 14px var(--mono);letter-spacing:1px;color:var(--t2);cursor:pointer}
+.seg input:checked+label{color:#000;background:var(--gold);border-color:var(--gold)}
+.seg input:focus-visible+label{outline:2px solid var(--gold);outline-offset:3px}
+#soggiorno:has(#invU:checked) .figs [data-inv=ingresso],#soggiorno:has(#invI:checked) .figs [data-inv=uscita]{display:none}
+/* i conti */
+.prezzi{width:100%;border-collapse:collapse;margin:14px 0 18px;font-size:16px}
+.prezzi caption{text-align:left;font:400 13px var(--mono);letter-spacing:1px;color:var(--t2);padding:0 0 10px}
+.prezzi th,.prezzi td{text-align:left;vertical-align:top;padding:12px 10px 12px 0;border-top:1px solid var(--line)}
+.prezzi th{font-weight:400;width:50%}
+.prezzi .chi-paga{display:block;font:400 12px var(--mono);letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-top:4px}
+.prezzi td b{font-weight:500}
+/* tutto acceso · i portafogli */
+#acceso,#uscita,#domande,#inbreve{max-width:1280px;margin:0 auto;padding:64px 16px 8px;box-sizing:border-box}
+.acceso-in,.uscita-in,.domande-in{max-width:760px}
+.pianta-piccola{max-width:520px;margin:10px 0 22px}
+.non-facciamo{list-style:none;padding:0;margin:0 0 26px}
+.non-facciamo li{padding:10px 0;border-top:1px solid var(--line)}
+.non-facciamo li::before{content:'✕ ';color:var(--t2)}
+#portafogli>summary{font-size:20px}
+.pf-grid{display:grid;gap:10px 28px}
+.pf-grid h4{font:400 12px var(--mono);letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin:18px 0 6px}
+.pf-grid ul{padding-left:18px;margin:0}.pf-grid li{margin:0 0 8px}
+.assente li{color:var(--t2)}
+/* il modulo */
+.uscita-box{border:1px solid var(--line2);padding:22px 18px;background:#0A0A0C;max-width:560px}
+.campo{margin:0 0 16px}
+.campo label{display:block;font-size:15px;color:var(--t1);margin:0 0 6px}
+.campo input,.campo select,.campo textarea{width:100%;box-sizing:border-box;font:400 17px var(--sans);color:var(--t1);background:#141417;border:1px solid var(--line2);padding:12px;min-height:48px}
+.campo textarea{min-height:96px;resize:vertical}
+.aiuto{font-size:14px;color:var(--t2);margin:6px 0 0}
+.err{font-size:15px;color:#FFB4A2;margin:6px 0 0}
+.err:empty{display:none}
+.spunta{display:flex;gap:10px;align-items:flex-start;font-size:16px;margin:0 0 14px}
+.spunta input{width:22px;height:22px;margin:2px 0 0;flex:none;accent-color:var(--gold)}
+.piu{margin:4px 0 16px}
+.hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
+.invia{width:100%;min-height:52px;background:var(--gold);color:#111;font:500 16px var(--sans);letter-spacing:1px;border:0;cursor:pointer}
+.invia[disabled]{opacity:.6}
+.sotto-invio{font-size:15px;color:var(--t2);margin:12px 0 0}
+#formErr{color:#FFB4A2;font-size:16px}
+#formErr:empty{display:none}
+.aport{font-size:16px;color:var(--t2);margin:18px 0 0}
+/* domande · in breve */
+.domande-lista details>div p{margin:0 0 8px}
+.itbref{max-width:760px;font-size:18px}
+.itbref ul{padding-left:20px}
+.fonti{max-width:760px;margin-top:20px}
+.fonti li{font-size:15px;color:var(--t2);margin-bottom:6px}
+/* il piede */
+.piede{border-top:1px solid var(--line);margin-top:64px;padding:40px 16px 120px}
+.piede-in{max-width:1280px;margin:0 auto;display:grid;gap:26px}
+.piede p,.piede li{font-size:15px;color:var(--t2)}
+.piede a{color:var(--t1)}
+.piede ul{list-style:none;padding:0;margin:0;display:flex;flex-wrap:wrap;gap:6px 18px}
+.piede ul a{display:inline-block;padding:10px 0;min-height:24px}
+.piede-id b{color:var(--t1);font-weight:500}
+@media(max-width:1099.98px){main{padding-bottom:84px}}
+@media(min-width:1100px){
+  .casa{display:grid;grid-template-columns:minmax(0,44fr) minmax(0,56fr);column-gap:64px;align-items:start}
+  .soglia{grid-column:2;grid-row:1;padding-top:28px}
+  .colpianta{grid-column:1;grid-row:1/3;position:sticky;top:calc(var(--boom-barra,76px) + 16px);margin:0;align-self:start}
+  .dopo{grid-column:2;grid-row:2}
+  .carta-apri{max-width:340px}
+  .lente{display:block;position:absolute;left:calc(var(--lx)*100%);top:calc(var(--ly)*100%);width:calc(var(--lw)*100%);height:calc(var(--lh)*100%);border:2px solid var(--gold);box-sizing:border-box;margin:-3px}
+  .pf-grid{grid-template-columns:1fr 1fr}
+  .piede-in{grid-template-columns:2fr 1fr 1fr}
 }
+@media (pointer:coarse){input,select,textarea{font-size:16px!important}}
+/* il foglio del canone (solo a cancello aperto) */
+.foglio{background:var(--paper);color:var(--ink);padding:22px 18px;margin:24px 0}
+.foglio h3{color:var(--ink)}
+.foglio label{display:flex;gap:10px;align-items:flex-start;font-size:16px;min-height:44px;align-items:center}
+.foglio input[type=checkbox],.foglio input[type=radio]{width:22px;height:22px;flex:none;accent-color:#8a6d00}
+.foglio input:not([type]){font:400 16px var(--sans);width:5em;min-height:40px;border:1px solid #bbb;background:#fff;color:var(--ink);padding:6px}
+.foglio fieldset{border:0;padding:0;margin:0 0 14px}.foglio legend{font:400 12px var(--mono);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:6px}
+.foglio details{border-color:rgba(0,0,0,.12)}.foglio summary{color:var(--ink)}
+.f-esito{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:16px;margin:16px 0}
+.f-esito dt{font-weight:500}.f-esito dd{margin:0}
+.timbro{display:inline-block;font:500 11px var(--mono);letter-spacing:1.5px;color:#8a1c0c;border:1px solid currentColor;padding:3px 7px;margin:4px 6px 0 0}
+#esito .timbro{color:var(--gold)}
+.carta-apri.testo{display:inline;background:none;box-shadow:none;max-width:none}
+/* OWNERS_CSS_PIANTA:START */
+/* OWNERS_CSS_PIANTA:END */
+/* OWNERS_CSS_APP:START */
+/* OWNERS_CSS_APP:END */
 </style>
-<noscript><style>.rv{opacity:1!important;transform:none!important}</style></noscript>
 <script defer src="/js/boom-consent.js"></script>
 <!-- BOOM_SCROLL:START -->
 <style>
@@ -310,6 +336,11 @@ html {
 })();
 </script>
 <!-- BOOM_SCROLL:END -->
+<!-- OWNERS_JSONLD:START -->
+  <script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://www.boomrome.com/owners#page","url":"https://www.boomrome.com/owners","name":"Affittare casa a Roma: il fascicolo BOOM per i proprietari","inLanguage":"it","isPartOf":{"@id":"https://www.boomrome.com/#website"},"about":{"@id":"https://www.boomrome.com/#organization"},"speakable":{"@type":"SpeakableSpecification","cssSelector":[".soglia .sub",".itbref"]},"significantLink":["https://www.boomrome.com/corporate","https://www.boomrome.com/executive","https://www.boomrome.com/pacchetto-concordato"]},{"@type":"FAQPage","@id":"https://www.boomrome.com/owners#faq","inLanguage":"it","mainEntity":[{"@type":"Question","name":"Chi paga la provvigione della prima locazione?","acceptedAnswer":{"@type":"Answer","text":"L'inquilino: di norma il 10% del canone di un anno più IVA, scritto nella proposta che firma prima delle chiavi. Su 1.200 € al mese sono 1.756,80 €, a suo carico. A te la prima locazione costa 0 € di provvigione; le pratiche si pagano a parte (registrazione 89 €, attestazione del concordato 189 €), salvo nell'accordo pluriennale."}},{"@type":"Question","name":"Che cosa conta come prima locazione?","acceptedAnswer":{"@type":"Answer","text":"Conta la casa, non il proprietario: è la prima volta che troviamo un inquilino per quell'immobile. Dalla ricerca successiva vale la mezza mensilità o la mensilità scritta nel mandato. Il rinnovo con lo stesso inquilino non è una nuova ricerca."}},{"@type":"Question","name":"E se l'inquilino non paga?","acceptedAnswer":{"@type":"Answer","text":"Dal terzo giorno di ritardo il sollecito è già scritto e parte dopo il via di una persona. Un addebito automatico rifiutato non si ritenta alla cieca: la rata torna pagabile e lo vede una persona. Oltre il sollecito la procedura è del tuo avvocato, e noi gli diamo contratto, verbale, inventario e storico dei pagamenti. Una garanzia sui canoni oggi non la vendiamo: non esiste."}},{"@type":"Question","name":"Il canone concordato conviene sempre?","acceptedAnswer":{"@type":"Answer","text":"No. Con i contratti per studenti, transitori e 3+2 il canone ha un tetto di zona; in cambio, con l'attestazione di rispondenza, hai la cedolare al 10% invece del 21% e l'IMU ridotta del 25%. Se nella tua zona un 4+4 a canone libero rende di più, te lo diciamo: il 4+4 non lo facciamo."}},{"@type":"Question","name":"Vivo fuori Roma o all'estero: posso fare tutto a distanza?","acceptedAnswer":{"@type":"Answer","text":"Sì. Firmi dal telefono, senza app. Contratto firmato, certificato di firma, verbale e rendiconto ti arrivano per email. Chi cerca casa da lontano può fare la visita in video. Se vuoi vederci di persona, siamo in via dei Coronari 181, su appuntamento."}},{"@type":"Question","name":"Affittate anche ad aziende per i loro dipendenti?","acceptedAnswer":{"@type":"Answer","text":"Sì, da un'altra porta: /corporate. Con un conduttore che è un'impresa la cedolare va valutata caso per caso, e te lo diciamo prima."}}]}]}
+  </script>
+<!-- OWNERS_JSONLD:END -->
 <!-- BOOM_JSONLD:START -->
   <script type="application/ld+json">
 {
@@ -407,11 +438,6 @@ html {
 }
   </script>
 <!-- BOOM_JSONLD:END -->
-<!-- OWNERS_JSONLD:START — derivato dalle <details> visibili, non scritto a mano -->
-  <script type="application/ld+json">
-{"@context":"https://schema.org","@graph":[{"@type":"WebPage","@id":"https://www.boomrome.com/owners#page","url":"https://www.boomrome.com/owners","name":"Affittare casa a Roma con BOOM — per i proprietari","inLanguage":"it","isPartOf":{"@id":"https://www.boomrome.com/#website"},"about":{"@id":"https://www.boomrome.com/#organization"},"speakable":{"@type":"SpeakableSpecification","cssSelector":[".hero .sub",".itbref"]},"significantLink":["https://www.boomrome.com/canone","https://www.boomrome.com/pacchetto-concordato","https://www.boomrome.com/executive"]},{"@type":"FAQPage","@id":"https://www.boomrome.com/owners#faq","inLanguage":"it","mainEntity":[{"@type":"Question","name":"Chi paga la provvigione?","acceptedAnswer":{"@type":"Answer","text":"Sulla prima locazione, per te la provvigione è zero. Se poi ci affidi la gestione continuativa, il compenso è quello scritto nel mandato — percentuale sul canone o cifra fissa al mese — e lo conosci prima di firmare."}},{"@type":"Question","name":"E se l'inquilino non paga?","acceptedAnswer":{"@type":"Answer","text":"Il lavoro vero si fa prima: documenti controllati e proposta firmata prima del contratto. Durante la locazione ogni rata è tracciata — carta, bonifico con causale o addebito SEPA — e un ritardo lo vedi nel rendiconto e lo sollecitiamo noi. Resta il deposito cauzionale, fino a tre mensilità per legge (art. 11 L. 392/1978). Non vendiamo assicurazioni sui canoni: ciò che ci impegniamo a fare è quello che c'è scritto nel mandato, non quello che dice una pagina web."}},{"@type":"Question","name":"Che contratto conviene per la mia casa?","acceptedAnswer":{"@type":"Answer","text":"Dipende da chi entra e per quanto. Transitorio (1–18 mesi) per chi è a Roma per un incarico, contratto per studenti universitari (6–36 mesi), 3+2 per chi si stabilisce. A Roma tutti e tre possono essere a canone concordato, con cedolare al 10%: te lo diciamo in fase di valutazione, con i numeri."}},{"@type":"Question","name":"Vivo fuori Roma: posso seguire tutto a distanza?","acceptedAnswer":{"@type":"Answer","text":"Sì. Firmi il contratto dal telefono, il verbale di consegna lo firmiamo sul posto con l'inquilino e ti arriva in PDF, il rendiconto arriva ogni mese per email, e nell'area proprietari trovi contratti, pagamenti e documenti."}},{"@type":"Question","name":"Come fate a sapere quanto vale la mia casa in affitto?","acceptedAnswer":{"@type":"Answer","text":"Leggiamo ogni giorno gli annunci della tua zona e sappiamo a quanto si sono chiusi i contratti che abbiamo firmato noi — il dato che nessun portale ha. Sopra c'è la fascia dell'accordo territoriale, se vuoi il concordato. Dove i dati sono pochi lo diciamo, invece di inventare un numero."}},{"@type":"Question","name":"Chi decide quale inquilino entra?","acceptedAnswer":{"@type":"Answer","text":"Tu. Noi facciamo le visite, controlliamo i documenti e ti presentiamo il candidato con quello che abbiamo verificato. Se qualcosa non ci convince, te lo scriviamo."}},{"@type":"Question","name":"Siete un'agenzia vera?","acceptedAnswer":{"@type":"Answer","text":"BOOM è il marchio di Egidi Immobiliare S.r.l., P.IVA 17322991005, sede operativa in via dei Coronari 181/184 a Roma. Le fatture sono di una società italiana, i contratti sono registrati all'Agenzia delle Entrate."}}]}]}
-  </script>
-<!-- OWNERS_JSONLD:END -->
 </head>
 <body>
 
@@ -422,482 +448,562 @@ html {
 
 <a class="skip" href="#main">Vai al contenuto</a>
 
-<div class="tech-bg" aria-hidden="true">
-  <div class="tech-orb tech-orb-1"></div>
-  <div class="tech-grid"></div>
-</div>
-
-<nav class="nav" id="nav">
-  <div class="container nav-inner">
-    <a href="/" class="logo" aria-label="BOOM — home">
-      <svg class="logo-mark" aria-hidden="true"><use href="#boomMark"/></svg>
-      <span class="logo-text">BOOM</span>
-      <span class="bl-div" aria-hidden="true"></span>
-      <span class="bl-desk">Proprietari<br>Roma</span>
+<nav class="nav" id="nav" aria-label="Principale">
+  <div class="nav-in">
+    <a href="/" class="marca" aria-label="BOOM — home">
+      <svg class="marca-m" aria-hidden="true"><use href="#boomMark"/></svg>
+      <span class="marca-t">BOOM</span>
+      <span class="marca-d" aria-hidden="true"></span>
+      <span class="marca-s">Proprietari<span class="roma"> · Roma</span></span>
     </a>
-    <div class="nav-links">
-      <a href="#come" class="nav-link">Come funziona</a>
-      <a href="#fascicolo" class="nav-link">Cosa ricevi</a>
-      <a href="#concordato" class="nav-link">Concordato</a>
-      <a href="#costi" class="nav-link">Costi</a>
-      <a href="/login?next=/portal" class="nav-link">Area proprietari</a>
-      <a href="#valuta" class="nav-cta">Valuta la tua casa</a>
+    <div class="nav-l">
+      <a href="#pianta">La casa</a>
+      <a href="#cassaforte">I conti</a>
+      <a href="#portafogli">Più case</a>
+      <a href="#domande">Domande</a>
     </div>
-    <button class="nav-toggle" id="navToggle" aria-label="Menu"><span></span><span></span><span></span></button>
+    <a class="nav-tel" href="tel:+393313251961">Chiama</a>
   </div>
 </nav>
 
-<div class="mobile-menu" id="mobileMenu">
-  <div class="mobile-menu-links">
-    <a href="#come" class="mobile-menu-link">Come funziona</a>
-    <a href="#fascicolo" class="mobile-menu-link">Cosa ricevi</a>
-    <a href="#concordato" class="mobile-menu-link">Canone concordato</a>
-    <a href="#costi" class="mobile-menu-link">Costi</a>
-    <a href="#domande" class="mobile-menu-link">Domande</a>
-    <a href="/login?next=/portal" class="mobile-menu-link">Area proprietari</a>
-  </div>
-  <a href="#valuta" class="mobile-menu-cta">Valuta la tua casa</a>
-</div>
-
-<div class="fam" aria-label="BOOM per i proprietari">
-  <a class="on" href="/owners">Proprietari</a>
-  <a href="/canone">Calcola il canone</a>
-  <a href="/pacchetto-concordato">Pacchetto concordato</a>
-  <a href="/apartments">Le case online</a>
-  <a href="/login?next=/portal">Area proprietari</a>
-</div>
-
 <main id="main">
+<div class="casa">
 
-  <!-- ═══ HERO — una porta sola ═══ -->
-  <header class="hero">
-    <div>
-      <p class="eyebrow live"><i aria-hidden="true"></i><span>BOOM · Proprietari · Roma</span></p>
-      <h1>La tua casa a Roma, affittata <em>e documentata.</em></h1>
-      <p class="sub">Inquilini che arrivano a Roma per lavoro e per studio, verificati prima della firma. Contratto sui modelli dell'accordo territoriale, firmato online e registrato. E il 1° di ogni mese, il rendiconto in PDF nella tua casella.</p>
-      <div class="trust">
-        <span>★ <b>4.9</b> su Google · 47 recensioni</span>
-        <span><span class="c">✓</span> Contratti <b>registrati</b> all'Agenzia delle Entrate</span>
-        <span><span class="c">✓</span> Egidi Immobiliare S.r.l. · P.IVA 17322991005</span>
-      </div>
-      <p class="who-line">Chi cerca casa con noi — <b>studenti internazionali</b> · <b>professionisti in trasferta</b> · FAO · WFP · IFAD · ambasciate · università</p>
-    </div>
-
-    <!-- LA PORTA: cinque campi, il resto si apre a richiesta -->
-    <div id="valuta">
-      <div class="filecard">
-        <div class="refline"><span>Nuova scheda — immobile · Roma</span><b>risposta in giornata</b></div>
-        <form id="ownForm" novalidate>
-          <div class="frow two">
-            <div class="fld"><label for="fName">Nome e cognome</label><input id="fName" autocomplete="name" placeholder="Maria Rossi"></div>
-            <div class="fld"><label for="fPhone">Telefono / WhatsApp</label><input id="fPhone" type="tel" autocomplete="tel" inputmode="tel" placeholder="+39 333 …"></div>
-          </div>
-          <div class="fld"><label for="fEmail">Email</label><input id="fEmail" type="email" autocomplete="email" inputmode="email" placeholder="maria.rossi@email.it"><div class="hint">Basta uno fra telefono ed email.</div></div>
-          <div class="frow two">
-            <div class="fld"><label for="fZone">Indirizzo o zona</label><input id="fZone" autocomplete="street-address" placeholder="Via Cola di Rienzo / Prati"></div>
-            <div class="fld"><label for="fFree">Libera da</label><input id="fFree" placeholder="subito / ottobre 2026"></div>
-          </div>
-
-          <details class="more">
-            <summary>Altri dettagli (facoltativi)</summary>
-            <div class="morein">
-              <div class="frow two">
-                <div class="fld"><label for="fType">Che casa è</label><select id="fType">
-                  <option value="">—</option>
-                  <option value="stanza">Stanza</option>
-                  <option value="monolocale">Monolocale</option>
-                  <option value="bilocale">Bilocale</option>
-                  <option value="trilocale">Trilocale</option>
-                  <option value="quadrilocale o più">Quadrilocale o più</option>
-                </select></div>
-                <div class="fld"><label for="fSqm">Metri quadri</label><input id="fSqm" inputmode="numeric" placeholder="65"></div>
-              </div>
-              <div class="frow two">
-                <div class="fld"><label for="fFurn">Arredata?</label><select id="fFurn">
-                  <option value="">—</option>
-                  <option value="arredata">Sì, arredata</option>
-                  <option value="parzialmente arredata">In parte</option>
-                  <option value="non arredata">No</option>
-                </select></div>
-                <div class="fld"><label for="fWant">Cosa ti serve</label><select id="fWant">
-                  <option value="">—</option>
-                  <option value="affittarla">Affittarla</option>
-                  <option value="solo una valutazione del canone">Solo una valutazione del canone</option>
-                  <option value="passare al canone concordato">Passare al canone concordato</option>
-                  <option value="la gestione continuativa">La gestione continuativa</option>
-                </select></div>
-              </div>
-              <div class="fld"><label for="fMsg">Altro</label><textarea id="fMsg" rows="2" placeholder="Ultimo piano, ascensore, la casa è ancora occupata fino a…"></textarea></div>
-            </div>
-          </details>
-
-          <input id="fCompany" type="text" tabindex="-1" autocomplete="off" style="position:absolute;left:-9999px" aria-hidden="true">
-          <div class="ferr" id="fErr" role="alert" aria-live="polite"></div>
-
-          <button type="submit" class="paybtn" id="fGo" style="margin-top:16px">
-            <span class="lk">⌂</span>
-            <span class="tx"><b>Valuta la tua casa</b><small>una stima del canone · senza impegno</small></span>
-            <span class="amt">→</span>
-          </button>
-          <p class="consent">Usiamo i dati solo per risponderti — <a href="/privacy">privacy</a>. Preferisci scrivere? <a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a> · <a href="mailto:hello@boom-rome.com?subject=Proprietario%20%E2%80%94%20la%20mia%20casa">hello@boom-rome.com</a></p>
-        </form>
-
-        <div class="sent" id="fDone">
-          <div class="tick">✓</div>
-          <h3>La scheda della tua casa è <em>aperta.</em></h3>
-          <p>Ti ricontattiamo <b>in giornata lavorativa</b> — su WhatsApp se hai lasciato il numero, altrimenti per email. Niente entro domani? Scrivi a <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a>.</p>
-        </div>
-      </div>
-      <p class="side-links">Vuoi prima fare i conti da solo? <a href="/canone"><b>Calcola il canone concordato</b> — gratis →</a><br>Hai già un contratto con noi? <a href="/login?next=/portal">Entra nell'area proprietari →</a></p>
-    </div>
+  <header class="soglia" id="soglia">
+    <p class="occhiello">BOOM · Proprietari · Roma</p>
+    <h1>Non ti chiediamo fiducia. <em>Ti diamo le carte.</em></h1>
+    <p class="sub">Affittiamo la tua casa a chi arriva a Roma per studiare o lavorare. Ogni passaggio lascia una carta: qui sotto le vedi stanza per stanza, su una casa d'esempio. La prima locazione ti costa 0&nbsp;€ di provvigione: la paga l'inquilino. Pratiche e imposte no: il conto è nell'armadio.</p>
   </header>
 
-  <!-- ═══ 01 · CHI ARRIVA ═══ -->
-  <section id="chi" class="rv">
-    <div class="sec-h">
-      <span class="num">01 — CHI ARRIVA</span>
-      <h2>Chi cerca casa con noi <span class="g">ha una ragione e una data.</span></h2>
-    </div>
-    <p class="sec-sub">Non portiamo «chiunque». Il nostro inquilino arriva a Roma per un motivo che si documenta, e il contratto si sceglie di conseguenza.</p>
-    <div class="flows">
-      <div class="flow">
-        <span class="k">Studenti · 6–36 mesi</span>
-        <b>Università e programmi internazionali</b>
-        <p>Contratto per studenti universitari, iscrizione documentata. Spesso con la famiglia dietro come garante.</p>
-      </div>
-      <div class="flow">
-        <span class="k">Transitorio · 1–18 mesi</span>
-        <b>Professionisti in trasferta</b>
-        <p>Consulenti ONU, personale di ambasciate, distacchi aziendali, ricercatori. La lettera d'incarico prova l'esigenza transitoria. <a href="/executive">Lo sportello executive →</a></p>
-      </div>
-      <div class="flow">
-        <span class="k">3+2 · canone concordato</span>
-        <b>Chi resta a lungo</b>
-        <p>Per chi si stabilisce a Roma: il contratto 3+2 dell'accordo territoriale, con i vantaggi fiscali per te.</p>
+  <aside class="colpianta" id="pianta" aria-label="La pianta della casa d'esempio">
+    <div class="cornice">
+      <div class="riquadro" id="riquadro">
+<!-- OWNERS_PIANTA:START -->
+<!-- OWNERS_PIANTA:END -->
+        <button id="alza" class="alza" type="button">↥ Alza la pianta</button>
       </div>
     </div>
-  </section>
+    <p class="didas" id="didas">In ogni stanza resta una carta. Due luci restano spente (⚑): te le spieghiamo per prime ↓</p>
+    <p class="sole-didas" id="soleDidas"></p>
+    <div class="targhetta" id="targhetta">
+      <span class="tg-cells" id="tgCells" aria-hidden="true">C40 · PRATI · 70 M²</span>
+      <span class="vh" id="tgTxt">Casa d'esempio: zona C40 Prati, 70 metri quadri</span>
+    </div>
+    <form class="cartiglio" id="cartiglio" action="#uscita">
+      <span>Pianta di esempio disegnata da BOOM · Roma</span>
+      <span class="ctl"> · <label for="zona">Zona dell'accordo</label>
+      <select id="zona" name="z">
+        <option value="">scegli la zona…</option>
+<!-- OWNERS_ZONE:START -->
+        <option value="D37">Appia Antica · D37</option>
+        <option value="C51">Appio Latino · C51</option>
+        <option value="C9">Appio Metronio · C9</option>
+        <option value="C8">Appio Nocera Umbra · C8</option>
+        <option value="C7">Appio Villa Fiorelli · C7</option>
+        <option value="D15">Ardeatino Ottavo Colle · D15</option>
+        <option value="C15">Aurelio Gregorio Vii · C15</option>
+        <option value="C35">Aurelio Madonna del Riposo · C35</option>
+        <option value="C14">Aurelio Monte di Creta · C14</option>
+        <option value="B12">Aventino · B12</option>
+        <option value="C47">Balduina Belsito · C47</option>
+        <option value="C17">Balduina Giovenale · C17</option>
+        <option value="C22">Batteria Nomentana Lanciani · C22</option>
+        <option value="C24">Bologna · C24</option>
+        <option value="B15">Borgo · B15</option>
+        <option value="C44">Camilluccia · C44</option>
+        <option value="C29">Casal Bertone · C29</option>
+        <option value="C38">Casilino Marranella · C38</option>
+        <option value="D31">Cassia Due Ponti · D31</option>
+        <option value="C16">Cavalleggeri · C16</option>
+        <option value="B3">Celio · B3</option>
+        <option value="C18">Cipro · C18</option>
+        <option value="D9">Colli Portuensi · D9</option>
+        <option value="C52">Collina Fleming · C52</option>
+        <option value="D46">Conca d'Oro · D46</option>
+        <option value="B32">Corso Vittorio · B32</option>
+        <option value="D68">Cortina d'Ampezzo · D68</option>
+        <option value="C41">Della Vittoria (Cavalier d'Arpino) · C41</option>
+        <option value="B18">Esquilino · B18</option>
+        <option value="D29">EUR · D29</option>
+        <option value="D78">Ferratella · D78</option>
+        <option value="C49">Flaminio · C49</option>
+        <option value="C50">Flaminio Porta del Popolo · C50</option>
+        <option value="D32">Fonte Meravigliosa · D32</option>
+        <option value="C10">Garbatella · C10</option>
+        <option value="D36">Grottaperfetta Roma 70 · D36</option>
+        <option value="B25">Ludovisi · B25</option>
+        <option value="C31">Marco Polo · C31</option>
+        <option value="C11">Marconi · C11</option>
+        <option value="D34">Montagnola · D34</option>
+        <option value="D69">Monte Mario Alto · D69</option>
+        <option value="D11">Montesacro · D11</option>
+        <option value="C13">Monteverde Nuovo · C13</option>
+        <option value="C12">Monteverde Vecchio · C12</option>
+        <option value="B4">Monti · B4</option>
+        <option value="C45">Nocetta · C45</option>
+        <option value="C4">Nomentano Torlonia · C4</option>
+        <option value="D71">Nuovo Salario Prati Fiscali · D71</option>
+        <option value="C32">Ostiense · C32</option>
+        <option value="C1">Parioli · C1</option>
+        <option value="C30">Pigneto · C30</option>
+        <option value="C3">Pinciano · C3</option>
+        <option value="C19">Ponte Milvio Farnesina · C19</option>
+        <option value="C27">Porta Portese · C27</option>
+        <option value="D7">Portuense · D7</option>
+        <option value="C40">Prati · C40</option>
+        <option value="D47">Sacco Pastore · D47</option>
+        <option value="C2">Salario (Via Nizza) · C2</option>
+        <option value="C21">Salario Africano (V.le Libia) · C21</option>
+        <option value="C46">Salario Trieste (Via dei Laghi/Corsica) · C46</option>
+        <option value="B17">Sallustiano-Castro Pretorio · B17</option>
+        <option value="C5">San Lorenzo · C5</option>
+        <option value="D5">San Paolo · D5</option>
+        <option value="B2">San Saba · B2</option>
+        <option value="B13">Sant'Angelo-Campitelli · B13</option>
+        <option value="D27">Talenti · D27</option>
+        <option value="B1">Testaccio · B1</option>
+        <option value="D38">Tintoretto · D38</option>
+        <option value="C48">Tor Marancia Navigatori · C48</option>
+        <option value="B14">Trastevere · B14</option>
+        <option value="B31">Tridente · B31</option>
+        <option value="C43">Trionfale Igea · C43</option>
+        <option value="C42">Vigna Clara · C42</option>
+        <option value="C26">Villaggio Olimpico · C26</option>
+        <option value="B29">Viminale · B29</option>
+<!-- OWNERS_ZONE:END -->
+        <option value="__wa">Non la trovo → scrivici la via su WhatsApp</option>
+      </select>
+      <label for="mq">Metri quadri</label> <input id="mq" name="mq" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="70"> m²</span>
+      <p class="nota ctl">Zona e metri restano sul tuo telefono: non partono verso nessuno.</p>
+    </form>
+    <button class="ferma" type="button" aria-pressed="false">⏸ Ferma animazioni</button>
+  </aside>
 
-  <!-- ═══ 02 · COME FUNZIONA ═══ -->
-  <section id="come" class="rv">
-    <div class="sec-h">
-      <span class="num">02 — COME FUNZIONA</span>
-      <h2>Dalla prima telefonata <span class="g">alle chiavi.</span></h2>
+  <div class="dopo">
+    <div id="esito" role="status" aria-live="polite">
+<!-- OWNERS_ESITO:START -->
+      <p><b>Casa d'esempio: Prati (zona C40), 70 m².</b> Il tetto del canone concordato lo calcoliamo sulla scheda ufficiale: la nostra tabella delle zone la sta ricontrollando l'associazione, e finché non l'ha confermata un numero qui non te lo scriviamo. Scegli zona e metri nel cartiglio della pianta, o <a href="#uscita">lasciaci il numero</a>: te lo diciamo al telefono.</p>
+<!-- OWNERS_ESITO:END -->
     </div>
-    <div class="steps">
-      <div class="step"><span class="dot"></span>
-        <div class="k">1 · Valutazione</div>
-        <div class="v">Quanto chiedere, e con quale contratto</div>
-        <div class="s">Il canone lo argomentiamo con gli annunci della tua zona e con i contratti che abbiamo firmato davvero, e ti diciamo se la casa rientra nella fascia del concordato. Se c'è qualcosa da sistemare prima, lo diciamo prima.</div>
-      </div>
-      <div class="step"><span class="dot"></span>
-        <div class="k">2 · Online</div>
-        <div class="v">Foto, video, annuncio — e chi l'aveva già chiesta</div>
-        <div class="s">La casa va sul nostro sito e sui portali. E la proponiamo subito a chi ci aveva scritto cercando una casa come la tua: non si aspetta solo il traffico nuovo.</div>
-      </div>
-      <div class="step"><span class="dot"></span>
-        <div class="k">3 · Selezione</div>
-        <div class="v">Visite su appuntamento, candidati verificati</div>
-        <div class="s">Visita di persona o in video in diretta per chi è ancora all'estero. Identità e documenti raccolti e controllati, proposta firmata online — con l'eventuale acconto — <b>prima</b> del contratto. Chi decide chi entra sei tu.</div>
-      </div>
-      <div class="step"><span class="dot"></span>
-        <div class="k">4 · Contratto e chiavi</div>
-        <div class="v">Firmato online, registrato, consegnato con verbale</div>
-        <div class="s">Contratto sui modelli dell'accordo di Roma, firma elettronica dal telefono per te e per l'inquilino, registrazione all'Agenzia delle Entrate. Il giorno delle chiavi: verbale con letture dei contatori, foto e firme.</div>
-      </div>
-    </div>
-  </section>
+    <p class="serratura">Se un inquilino smette di pagare, per riavere la casa servono mesi di tribunale, e la legge non la cambiamo noi. <a href="#porta">È la prima stanza qui sotto ↓</a></p>
+    <p class="serratura"><a href="#portafogli" id="linkPortafogli">Hai più case, una società o un fondo? ↓</a></p>
+<!-- CLAIM:stelle:START -->
+<!-- CLAIM:stelle:END -->
+    <p class="chi">Egidi Immobiliare S.r.l. · P.IVA 17322991005 · REA RM-1710623 · via dei Coronari 181, Roma</p>
 
-  <!-- ═══ 03 · IL FASCICOLO — la prova del lavoro ═══ -->
-  <section id="fascicolo" class="rv">
-    <div class="sec-h">
-      <span class="num">03 — COSA RICEVI</span>
-      <h2>Non «fidati di noi». <span class="g">Carte.</span></h2>
-    </div>
-    <p class="sec-sub">Ogni passaggio lascia un documento. Tutto arriva nella tua email e resta nella tua area proprietari.</p>
-    <div class="dossier">
-      <div class="dhead"><span>Il fascicolo della tua casa</span><span>PDF · email · area proprietari</span></div>
-      <div class="drow"><span class="k"><i>✓</i>Contratto firmato</span><span class="v">Sui modelli dell'accordo territoriale di Roma (transitorio, studenti, 3+2), con il <b>certificato di firma elettronica</b>: chi ha firmato, quando, da quale dispositivo.</span></div>
-      <div class="drow"><span class="k"><i>✓</i>Registrazione</span><span class="v">Registrazione del contratto all'Agenzia delle Entrate; per il concordato, la scheda di calcolo del canone e l'attestazione di rispondenza con un'organizzazione firmataria dell'accordo.</span></div>
-      <div class="drow"><span class="k"><i>✓</i>Verbale di consegna</span><span class="v">Firmato sul posto il giorno delle chiavi: chiavi consegnate, <b>letture dei contatori con foto</b>, stato della casa.</span></div>
-      <div class="drow"><span class="k"><i>✓</i>Inventario dal video</span><span class="v">Stanza per stanza, cosa c'è e in che stato. Alla riconsegna si confronta con l'ingresso: mancanti e danni nuovi escono nero su bianco — il deposito si discute sui fatti, non sui ricordi.</span></div>
-      <div class="drow"><span class="k"><i>✓</i>Rendiconto mensile</span><span class="v">Il <b>1° di ogni mese</b>, per ogni tua casa: canoni incassati con data e modalità, rate aperte, eventuali arretrati, manutenzioni del periodo. In PDF, in allegato.</span></div>
-      <div class="drow"><span class="k"><i>✓</i>Area proprietari</span><span class="v">Con le tue credenziali: i tuoi immobili, i contratti, i pagamenti, i documenti pronti per il commercialista.</span></div>
-    </div>
-  </section>
-
-  <!-- ═══ 04 · IL CONCORDATO ═══ -->
-  <section id="concordato" class="rv">
-    <div class="sec-h">
-      <span class="num">04 — CANONE CONCORDATO</span>
-      <h2>Stesso canone, <span class="g">meno tasse.</span></h2>
-    </div>
-    <p class="sec-sub">A Roma i contratti a canone concordato hanno la cedolare secca al 10% invece che al 21%, e l'IMU ridotta del 25%. Il conto su una casa affittata a 1.200 € al mese:</p>
-    <div class="calc">
-      <div class="cbox"><span class="k">Canone annuo</span><div class="n">14.400 €</div><p>1.200 € × 12 mesi</p></div>
-      <div class="cbox"><span class="k">Cedolare al 21% · libero</span><div class="n">3.024 €</div><p>imposta sostitutiva, contratto a canone libero</p></div>
-      <div class="cbox win"><span class="k">Cedolare al 10% · concordato</span><div class="n">1.440 €</div><p><b>1.584 € l'anno</b> che restano a te</p></div>
-    </div>
-    <p class="calc-note">La condizione: il canone deve stare nella fascia che l'accordo fissa per zona, superficie e dotazioni. La calcoliamo prima di tutto — e se la tua casa non ci sta, te lo diciamo. <a href="/canone">Fai il calcolo da solo →</a> · <a href="/pacchetto-concordato">Pacchetto concordato chiavi in mano →</a></p>
-  </section>
-
-  <!-- ═══ onestà ═══ -->
-  <section id="metodo" class="rv">
-    <div class="truth">
-      <h3>Ti diremo anche <em>cosa non va.</em></h3>
-      <p>Un affitto che va storto costa più a noi che una casa non affittata. Quindi lo diciamo prima, per iscritto.</p>
-      <div class="flags">
-        <span class="flag"><b>⚑</b>un canone sopra quello che la zona paga davvero</span>
-        <span class="flag"><b>⚑</b>una caldaia o un impianto da sistemare prima di entrare</span>
-        <span class="flag"><b>⚑</b>un candidato che non ci convince</span>
-      </div>
-    </div>
-  </section>
-
-  <!-- ═══ 05 · COSTI ═══ -->
-  <section id="costi" class="rv">
-    <div class="sec-h">
-      <span class="num">05 — COSTI</span>
-      <h2>Tre cose, <span class="g">tre prezzi chiari.</span></h2>
-    </div>
-    <div class="prices">
-      <div class="price lead">
-        <span class="k">Prima locazione</span>
-        <div class="n">0 € di provvigione</div>
-        <p>Per te, la prima volta che affittiamo la tua casa: valutazione, foto e annuncio, visite, selezione, contratto, registrazione, verbale.</p>
-        <a href="#valuta">Parti dalla valutazione</a>
-      </div>
-      <div class="price">
-        <span class="k">Gestione continuativa</span>
-        <div class="n">Nel mandato</div>
-        <p>Incasso tracciato, rendiconto mensile, rapporti con l'inquilino, manutenzioni, scadenze. Il compenso — percentuale sul canone o fisso mensile — è scritto nel mandato, dopo il sopralluogo.</p>
-        <a href="#valuta">Chiedi un preventivo</a>
-      </div>
-      <div class="price">
-        <span class="k">Pacchetto concordato</span>
-        <div class="n">349 €</div>
-        <p>Per immobile: verifica del canone sull'accordo di Roma, contratto conforme, attestazione di rispondenza, registrazione. Rimborso integrale se la casa non può rientrare in fascia.</p>
-        <a href="/pacchetto-concordato">Il pacchetto →</a>
-      </div>
-    </div>
-  </section>
-
-  <!-- ═══ in breve — scritto per essere citato (GEO) ═══ -->
-  <section id="inbreve" class="rv">
-    <div class="itbref" id="itbref">
-      <h2>BOOM per i proprietari — la scheda<span class="ref">REF · PROPRIETARI / ROMA</span></h2>
-      <dl>
-        <dt>Chi</dt>
-        <dd>BOOM, agenzia di affitti a Roma — gestita da <b>Egidi Immobiliare S.r.l.</b> (P.IVA 17322991005), via dei Coronari 181, Roma.</dd>
-        <dt>Cosa fa</dt>
-        <dd>Valuta il canone, pubblica la casa, seleziona l'inquilino, prepara il contratto sui modelli dell'accordo territoriale di Roma (transitorio, studenti, 3+2), lo fa firmare online e lo registra. Su mandato, gestisce la locazione e manda un <b>rendiconto mensile</b> in PDF.</dd>
-        <dt>Inquilini</dt>
-        <dd>Soprattutto studenti internazionali e professionisti in trasferta a Roma (agenzie ONU, ambasciate, aziende, università), con un'esigenza documentata.</dd>
-        <dt>Costi</dt>
-        <dd>Prima locazione: nessuna provvigione per il proprietario. Gestione continuativa: compenso scritto nel mandato. Pacchetto canone concordato: <b>349 €</b> per immobile, rimborsato se la casa non rientra in fascia.</dd>
-        <dt>Cosa non fa</dt>
-        <dd>Non è uno studio legale né un'assicurazione: non promette l'esito di uno sfratto e non assicura i canoni. Non pubblica una casa a un prezzo che la zona non paga.</dd>
-        <dt>Contatto</dt>
-        <dd><a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a> · <a href="https://wa.me/393313251961" rel="noopener">WhatsApp +39 331 325 1961</a></dd>
-      </dl>
-    </div>
-  </section>
-
-  <!-- ═══ 06 · DOMANDE ═══ -->
-  <section id="domande" class="rv">
-    <div class="sec-h">
-      <span class="num">06 — DOMANDE</span>
-      <h2>Le domande <span class="g">che ci fanno i proprietari.</span></h2>
-    </div>
-    <div class="faq">
+    <section class="stanza" id="porta" aria-labelledby="h-porta">
+      <p class="luogo"><b>Alla porta</b> · il citofono, la serratura</p>
+      <h2 id="h-porta">Chi entra ha firmato e pagato prima delle chiavi.</h2>
+      <p class="lead">Riaverla, se smette di pagare, dipende dalla legge.</p>
+<!-- RITAGLIO:porta:START -->
+<!-- RITAGLIO:porta:END -->
+      <h3>Prima delle chiavi</h3>
+      <p>Chi cerca con noi arriva a Roma per studio o per lavoro. Le visite si fissano solo negli orari liberi, e ogni richiesta la approva una persona. Poi una proposta con nome, codice fiscale e coinquilini obbligati in solido, e il pagamento prima delle chiavi. La stessa casa non si promette a due persone.</p>
+      <ul class="due">
+        <li><b>Verifichiamo:</b> identità, codice fiscale, documento caricato, proposta firmata, e che quanto dovuto alla firma sia arrivato.</li>
+        <li><b>Non verifichiamo:</b> reddito e garante nelle banche dati. Li dichiara l'inquilino.</li>
+      </ul>
       <details>
-        <summary>Chi paga la provvigione?</summary>
-        <div class="a">Sulla prima locazione, per te la provvigione è zero. Se poi ci affidi la gestione continuativa, il compenso è quello scritto nel mandato — percentuale sul canone o cifra fissa al mese — e lo conosci prima di firmare.</div>
+        <summary>Cosa verifichiamo, esattamente</summary>
+        <div>
+          <p>Non scegliamo per nazionalità: la legge lo vieta (art. 43 del D.Lgs. 286/1998), e comunque non è un indizio di niente.</p>
+          <p>Quando una casa si libera la proponiamo prima a chi, negli ultimi 120 giorni, ha chiesto quella zona e quel budget. A firma fatta la data in cui la casa si libera è già scritta, e il prossimo inquilino si cerca mentre il precedente è ancora dentro.</p>
+        </div>
       </details>
+      <h3>Il giorno delle chiavi</h3>
+      <p>Il verbale si compila e si firma sul posto, dal telefono: chiavi consegnate, letture dei contatori, stato della casa. Il PDF arriva a te in italiano e all'inquilino in inglese.</p>
+      <figure class="carta" data-carta="verbale">
+<!-- CARTA:verbale:START -->
+        <a class="carta-apri" data-carta="verbale" href="/carte/verbale-consegna-esempio.pdf" target="_blank" rel="noopener"><img src="/carte/verbale-consegna-esempio.webp" width="560" height="792" loading="lazy" decoding="async" alt="Prima pagina del verbale di consegna d’esempio: chiavi consegnate, letture dei contatori e stato della casa, con il timbro «ESEMPIO — dati inventati»."><span class="lente" aria-hidden="true" style="--lx:0.0756;--ly:0.4599;--lw:0.5866;--lh:0.0177"></span></a>
+        <figcaption><p class="riga">Le letture sopra riportate fanno fede tra le parti ai fini delle volture e del riparto dei consumi.</p><p class="didasc">Verbale di consegna delle chiavi · ESEMPIO — dati inventati · PDF, 2 pagine, 32 KB — si apre nel visore del telefono</p></figcaption>
+<!-- CARTA:verbale:END -->
+      </figure>
+      <h3>Se smette di pagare</h3>
+      <div class="spento">
+        <p><b>⚑ La serratura è una luce spenta.</b> Per riavere la casa da un inquilino che non paga serve il tribunale, con i suoi tempi. Noi non li accorciamo, e non te lo prometteremo.</p>
+      </div>
+      <ol class="scala-giorni">
+        <li>Prima delle chiavi: deposito fino a 3 mensilità (art. 11 della L. 392/1978), e il saldo si incassa prima dell'ingresso.</li>
+        <li>Dal 3° giorno di ritardo il sollecito è già scritto, e parte col via di una persona.</li>
+        <li>Un addebito SEPA rifiutato non si ritenta alla cieca: la rata torna pagabile e lo vede una persona.</li>
+        <li>Oltre, serve il tuo avvocato, e noi gli diamo contratto, verbale, inventario e storico dei pagamenti.</li>
+      </ol>
+      <p class="piano">Un avvocato convenzionato oggi non l'abbiamo.</p>
       <details>
-        <summary>E se l'inquilino non paga?</summary>
-        <div class="a">Il lavoro vero si fa prima: documenti controllati e proposta firmata prima del contratto. Durante la locazione ogni rata è tracciata — carta, bonifico con causale o addebito SEPA — e un ritardo lo vedi nel rendiconto e lo sollecitiamo noi. Resta il deposito cauzionale, fino a tre mensilità per legge (art. 11 L. 392/1978). Non vendiamo assicurazioni sui canoni: ciò che ci impegniamo a fare è quello che c'è scritto nel mandato, non quello che dice una pagina web.</div>
+        <summary>E se BOOM chiudesse?</summary>
+        <div><p>Il contratto è fra te e l'inquilino, registrato all'Agenzia delle Entrate. La copia firmata e il certificato di firma li hai già nella tua email.</p></div>
       </details>
-      <details>
-        <summary>Che contratto conviene per la mia casa?</summary>
-        <div class="a">Dipende da chi entra e per quanto. Transitorio (1–18 mesi) per chi è a Roma per un incarico, contratto per studenti universitari (6–36 mesi), 3+2 per chi si stabilisce. A Roma tutti e tre possono essere a canone concordato, con cedolare al 10%: te lo diciamo in fase di valutazione, con i numeri.</div>
-      </details>
-      <details>
-        <summary>Vivo fuori Roma: posso seguire tutto a distanza?</summary>
-        <div class="a">Sì. Firmi il contratto dal telefono, il verbale di consegna lo firmiamo sul posto con l'inquilino e ti arriva in PDF, il rendiconto arriva ogni mese per email, e nell'area proprietari trovi contratti, pagamenti e documenti.</div>
-      </details>
-      <details>
-        <summary>Come fate a sapere quanto vale la mia casa in affitto?</summary>
-        <div class="a">Leggiamo ogni giorno gli annunci della tua zona e sappiamo a quanto si sono chiusi i contratti che abbiamo firmato noi — il dato che nessun portale ha. Sopra c'è la fascia dell'accordo territoriale, se vuoi il concordato. Dove i dati sono pochi lo diciamo, invece di inventare un numero.</div>
-      </details>
-      <details>
-        <summary>Chi decide quale inquilino entra?</summary>
-        <div class="a">Tu. Noi facciamo le visite, controlliamo i documenti e ti presentiamo il candidato con quello che abbiamo verificato. Se qualcosa non ci convince, te lo scriviamo.</div>
-      </details>
-      <details>
-        <summary>Siete un'agenzia vera?</summary>
-        <div class="a">BOOM è il marchio di Egidi Immobiliare S.r.l., P.IVA 17322991005, sede operativa in via dei Coronari 181/184 a Roma. Le fatture sono di una società italiana, i contratti sono registrati all'Agenzia delle Entrate.</div>
-      </details>
-    </div>
-  </section>
+    </section>
 
-  <!-- ═══ fascia finale — la stessa porta ═══ -->
-  <div class="band rv">
-    <h2>Prima di affittarla, <em>sappi quanto vale.</em></h2>
-    <p>Due minuti adesso — una stima del canone e il contratto giusto, in giornata.</p>
-    <a class="paybtn" href="#valuta">
-      <span class="lk">⌂</span>
-      <span class="tx"><b>Valuta la tua casa</b><small>risposta in giornata · senza impegno</small></span>
-      <span class="amt">→</span>
-    </a>
+    <section class="stanza" id="cassaforte" aria-labelledby="h-cassaforte">
+      <p class="luogo"><b>Nell'armadio d'ingresso</b> · la cassaforte</p>
+      <h2 id="h-cassaforte">Chi ci paga, e quanto. La cassaforte, invece, è vuota.</h2>
+<!-- RITAGLIO:cassaforte:START -->
+<!-- RITAGLIO:cassaforte:END -->
+      <p class="lead">0&nbsp;€ di provvigione non vuol dire 0&nbsp;€ in tutto.</p>
+      <table class="prezzi">
+        <caption>Quanto costa, e chi lo paga (IVA compresa)</caption>
+<!-- OWNERS_PREZZI:START -->
+        <tbody>
+        <tr><th scope="row">Provvigione della prima locazione<span class="chi-paga">la paga l'inquilino</span></th><td>10% del canone di un anno + IVA: su 1.200 € al mese sono <b>1.756,80 €</b>. <b>A te: 0 €.</b></td></tr>
+        <tr><th scope="row">Provvigione dalla seconda locazione<span class="chi-paga">la paghi tu</span></th><td>½ o 1 mensilità + IVA, scritta nel mandato prima di iniziare: su 1.200 € sono <b>732 €</b> o <b>1.464 €</b>.</td></tr>
+        <tr><th scope="row">Accordo pluriennale<span class="chi-paga">lo paghi tu</span></th><td>Una fee annua fissa, su preventivo. Registrazione e attestazione incluse, imposte escluse.</td></tr>
+        <tr><th scope="row">Incasso dei canoni e gestione<span class="chi-paga">tu, se ce la affidi</span></th><td>Il compenso è scritto nel mandato, prima di firmare: una percentuale del canone o una cifra fissa al mese.</td></tr>
+        <tr><th scope="row">Registrazione del contratto<span class="chi-paga">tu, fuori dal pluriennale</span></th><td><b>89 €</b></td></tr>
+        <tr><th scope="row">Attestazione del canone concordato<span class="chi-paga">tu, fuori dal pluriennale</span></th><td><b>189 €</b></td></tr>
+        <tr><th scope="row">Imposte: registro e bolli<span class="chi-paga">chi dice la legge</span></th><td>Se dovuti: con la cedolare secca non lo sono. Nessuna agenzia le paga al posto tuo.</td></tr>
+        <tr><th scope="row">Commissioni di carta e addebito SEPA<span class="chi-paga">l'inquilino</span></th><td>Il bonifico non costa niente a nessuno.</td></tr>
+        </tbody>
+<!-- OWNERS_PREZZI:END -->
+      </table>
+      <p>La provvigione della prima locazione la paga l'inquilino perché siamo noi a trovarlo: è così che guadagniamo, ed è giusto che tu lo sappia. Eccola, com'è stampata sulla proposta che l'inquilino firma — in inglese, perché di solito arriva dall'estero:</p>
+      <figure class="carta carta-solo-riga" data-carta="proposta">
+<!-- CARTA:proposta:START -->
+        <figcaption><p class="riga">Note: Agency fee: 10% of annual rent = €1,440 + VAT 22% (€316.80) = €1,756.80 - due upon move-in, not at pre-agreement signing.</p><p class="didasc"><a class="carta-apri testo link-carta" data-carta="proposta" href="/carte/proposta-esempio.pdf" target="_blank" rel="noopener">Apri il PDF: Proposta di locazione (Rental Proposal), 31 KB</a> · ESEMPIO — dati inventati</p></figcaption>
+<!-- CARTA:proposta:END -->
+      </figure>
+<!-- CLAIM:mandato-link:START -->
+<!-- CLAIM:mandato-link:END -->
+      <h3>Dove arrivano i soldi</h3>
+<!-- CLAIM:riversamento:START -->
+      <p>Li incassiamo noi — con carta, bonifico con la causale della rata o addebito SEPA — e li riversiamo a te nei termini scritti nel mandato. Nei nostri conti sono somme per conto terzi, non ricavi: il rendiconto del mese ti dice cosa è entrato e quando.</p>
+<!-- CLAIM:riversamento:END -->
+      <h3>Più case o più anni</h3>
+      <p>Una cifra fissa all'anno, su preventivo, scontata rispetto alle provvigioni singole. Dentro: la gestione della locazione, la registrazione e l'attestazione, il rendiconto del mese. Fuori: imposta di registro e bolli, se dovuti.</p>
+<!-- CLAIM:pluriennale-struttura:START -->
+<!-- CLAIM:pluriennale-struttura:END -->
+      <div class="spento">
+        <p><b>⚑ La cassaforte resta spenta.</b> Una garanzia sui canoni oggi non c'è, e non te la vendiamo. Se ti interessa quando ci sarà, dillo nel modulo.</p>
+      </div>
+    </section>
+
+    <section class="stanza" id="soggiorno" aria-labelledby="h-soggiorno">
+      <p class="luogo"><b>In soggiorno</b> · il divano</p>
+      <h2 id="h-soggiorno">Il divano aveva già lo strappo? Lo dice l'inventario, non la memoria.</h2>
+<!-- RITAGLIO:soggiorno:START -->
+<!-- RITAGLIO:soggiorno:END -->
+      <p>Il giro della casa si filma. L'intelligenza artificiale propone l'elenco stanza per stanza, e una persona lo corregge riga per riga. L'AI non può scrivere «buono stato»: lo dichiara solo chi ha guardato, e ciò che nessuno ha verificato resta vuoto.</p>
+      <p>Alla riconsegna il confronto esce da solo: cosa manca, cosa si è rotto, cosa è comparso. Un danno su un oggetto di cui all'ingresso non era scritto niente non si addebita: finisce fra i «non verificabili», con il perché.</p>
+      <p class="piano">Lo diciamo apertamente: agli inquilini vendiamo anche un servizio per recuperare un deposito trattenuto senza prove. È per questo che l'inventario lo facciamo così: quando una trattenuta è giusta, la prova c'è.</p>
+      <fieldset class="seg">
+        <legend>Lo stesso inventario, all'ingresso e all'uscita</legend>
+        <input type="radio" name="inv" id="invI" checked><label for="invI">Ingresso</label>
+        <input type="radio" name="inv" id="invU"><label for="invU">Uscita</label>
+      </fieldset>
+      <div class="figs">
+        <figure class="carta" data-carta="inventario-ingresso" data-inv="ingresso">
+<!-- CARTA:inventario-ingresso:START -->
+        <a class="carta-apri" data-carta="inventario-ingresso" href="/carte/inventario-ingresso-esempio.pdf" target="_blank" rel="noopener"><img src="/carte/inventario-ingresso-esempio.webp" width="560" height="792" loading="lazy" decoding="async" alt="Prima pagina dell’inventario d’ingresso d’esempio: arredi stanza per stanza con la condizione dichiarata, timbro «ESEMPIO — dati inventati»."><span class="lente" aria-hidden="true" style="--lx:0.0756;--ly:0.4399;--lw:0.6450;--lh:0.0340"></span></a>
+        <figcaption><p class="riga">n. 1 Divano 3 posti danneggiato — strappo sul bracciolo destro</p><p class="didasc">Inventario alla consegna · ESEMPIO — dati inventati · PDF, 2 pagine, 17 KB — si apre nel visore del telefono</p></figcaption>
+<!-- CARTA:inventario-ingresso:END -->
+        </figure>
+        <figure class="carta" data-carta="inventario-uscita" data-inv="uscita">
+<!-- CARTA:inventario-uscita:START -->
+        <a class="carta-apri" data-carta="inventario-uscita" href="/carte/inventario-uscita-esempio.pdf" target="_blank" rel="noopener"><img src="/carte/inventario-uscita-esempio.webp" width="560" height="792" loading="lazy" decoding="async" alt="Prima pagina dell’inventario alla riconsegna d’esempio: lo stato di ogni oggetto all’uscita, timbro «ESEMPIO — dati inventati»."></a>
+        <figcaption><p class="riga">- Camera: Armadio a due ante — condizione alla consegna non dichiarata</p><p class="didasc">Inventario alla riconsegna, con il confronto · ESEMPIO — dati inventati · PDF, 2 pagine, 17 KB — si apre nel visore del telefono</p></figcaption>
+<!-- CARTA:inventario-uscita:END -->
+        </figure>
+      </div>
+    </section>
+
+    <section class="stanza" id="cucina" aria-labelledby="h-cucina">
+      <p class="luogo"><b>In cucina</b> · accanto alla caldaia, sul balcone di servizio</p>
+      <h2 id="h-cucina">La caldaia non la chiamano a te.</h2>
+      <p class="lead">Il tuo inquilino ha un'app. Tu, un'email al mese.</p>
+<!-- RITAGLIO:cucina:START -->
+<!-- RITAGLIO:cucina:END -->
+      <p>Si chiama /casa, in inglese e in italiano. Dentro c'è il manuale della casa — Wi-Fi, riscaldamento, rifiuti, elettrodomestici, accesso al palazzo, emergenze, regole — che compiliamo con te una volta. I guasti si segnalano da lì, con categoria e priorità: arrivano a noi, e tu li vedi in sola lettura. Prima dell'ingresso l'inquilino riceve le email che lo preparano, a 30, 14, 7 e 1 giorno: documenti, utenze, chiavi.</p>
+      <figure class="carta" data-carta="casa-guasti">
+<!-- CARTA:casa-guasti:START -->
+        <div class="carta-apri"><img src="/carte/casa-guasti-esempio.webp" width="560" height="658" loading="lazy" decoding="async" alt="La sezione dei guasti dell’app dell’inquilino (/casa) con due segnalazioni d’esempio, una aperta e una risolta, timbro «ESEMPIO — dati inventati»."></div>
+        <figcaption><p class="riga">Clima / riscaldamento — Caldaia: acqua tiepida</p><p class="didasc">L’app dell’inquilino (/casa): i guasti · ESEMPIO — dati inventati</p></figcaption>
+<!-- CARTA:casa-guasti:END -->
+      </figure>
+    </section>
+
+    <section class="stanza" id="scrivania" aria-labelledby="h-scrivania">
+      <p class="luogo"><b>Alla scrivania</b> · lo studio</p>
+      <h2 id="h-scrivania">Il contratto è quello dell'accordo di Roma, e lo firmi dal telefono.</h2>
+<!-- RITAGLIO:scrivania:START -->
+<!-- RITAGLIO:scrivania:END -->
+      <p>Usiamo i modelli dell'accordo territoriale di Roma del 27 luglio 2023: per studenti, transitorio e 3+2. Per studenti e 3+2 un test automatico confronta ogni frase col modello depositato; il transitorio usa lo stesso accordo, e il confronto automatico arriverà quando avremo il file del modello.</p>
+      <p>Si firma dal telefono, con firma elettronica semplice (art. 21 del Codice dell'amministrazione digitale). Firma prima l'inquilino, poi a te arriva «Tocca a Lei».</p>
+      <figure class="carta" data-carta="contratto-studenti">
+<!-- CARTA:contratto-studenti:START -->
+        <a class="carta-apri" data-carta="contratto-studenti" href="/carte/contratto-studenti-esempio.pdf" target="_blank" rel="noopener"><img src="/carte/contratto-studenti-esempio.webp" width="560" height="792" loading="lazy" decoding="async" alt="Prima pagina del contratto per studenti d’esempio (Allegato C dell’accordo territoriale di Roma), timbro «ESEMPIO — dati inventati»."><span class="lente" aria-hidden="true" style="--lx:0.0903;--ly:0.5730;--lw:0.6358;--lh:0.0209"></span></a>
+        <figcaption><p class="riga">Il contratto è stipulato per la durata di 12 mesi, dal 31/08/2025 al 30/08/2026.</p><p class="didasc">Contratto di locazione per studenti universitari (Allegato C) · ESEMPIO — dati inventati · PDF, 4 pagine, 29 KB — si apre nel visore del telefono</p></figcaption>
+<!-- CARTA:contratto-studenti:END -->
+      </figure>
+      <p class="aport"><a href="/sign?demo=landlord">✍︎ Firma come proprietario: è un esempio →</a></p>
+      <h3>Le tasse, in tre righe</h3>
+      <p>Noi: la registrazione entro 30 giorni e l'attestazione del concordato, con l'associazione. Tu: l'IMU; e se l'inquilino è extra-UE, la comunicazione entro 48 ore, che ti ricordiamo per email. Tutto è nello scadenzario dell'immobile.</p>
+<!-- CLAIM:canone-foglio:START -->
+      <p>Il conto del concordato lo facciamo sulla scheda ufficiale: <a class="link-carta" href="#uscita">lasciaci il numero ↓</a></p>
+<!-- CLAIM:canone-foglio:END -->
+    </section>
+
+    <section class="stanza" id="cassetta" aria-labelledby="h-cassetta">
+      <p class="luogo"><b>Al portone</b> · la cassetta della posta</p>
+      <h2 id="h-cassetta">Il 1° del mese, il rendiconto. Senza doverlo chiedere.</h2>
+<!-- RITAGLIO:cassetta:START -->
+<!-- RITAGLIO:cassetta:END -->
+      <p>Arriva per email la mattina del 1° di ogni mese in cui c'è stato un movimento: incassi con data e modalità, rate aperte, arretrati, manutenzioni. Se nel mese non si muove nulla, non arriva.</p>
+      <figure class="carta" data-carta="rendiconto">
+<!-- CARTA:rendiconto:START -->
+        <a class="carta-apri" data-carta="rendiconto" href="/carte/rendiconto-esempio.pdf" target="_blank" rel="noopener"><img src="/carte/rendiconto-esempio.webp" width="560" height="792" loading="lazy" decoding="async" alt="Il rendiconto mensile d’esempio di un immobile: canone incassato con data e modalità, arretrati, manutenzioni, timbro «ESEMPIO — dati inventati»."><span class="lente" aria-hidden="true" style="--lx:0.0857;--ly:0.2178;--lw:0.8286;--lh:0.0190"></span></a>
+        <figcaption><p class="riga">Incassata rata 2026-07 (bonifico) il 03/07/2026 €1200</p><p class="didasc">Rendiconto mensile — Luglio 2026 · ESEMPIO — dati inventati · PDF, 1 pagina, 3 KB — si apre nel visore del telefono</p></figcaption>
+<!-- CARTA:rendiconto:END -->
+      </figure>
+      <p>Le altre email che ricevi hanno oggetti così:</p>
+      <ul class="due">
+        <li>✍️ Tocca a Lei — l’inquilino ha firmato</li>
+        <li>✓ Contratto firmato — i prossimi passi</li>
+        <li>🔑 Consegna chiavi effettuata — verbale in allegato</li>
+      </ul>
+      <p class="piano">Nell'area riservata vedi immobili, contratti, pagamenti, manutenzioni e documenti; i dati si leggono quando la apri. L'accesso te lo apriamo noi.</p>
+    </section>
   </div>
+</div>
+
+<section id="acceso" aria-labelledby="h-acceso">
+  <div class="acceso-in">
+    <p class="luogo"><b>Sul pianerottolo</b> · voltandosi</p>
+    <h2 id="h-acceso">Tutto acceso, tranne due luci.</h2>
+    <div class="pianta-piccola">
+<!-- OWNERS_ACCESO:START -->
+<!-- OWNERS_ACCESO:END -->
+    </div>
+    <h3 class="luogo">Le cose che non facciamo</h3>
+    <ul class="non-facciamo">
+      <li>Non garantiamo i canoni (non ancora).</li>
+      <li>Non accorciamo i tempi della legge.</li>
+      <li>Non controlliamo il reddito nelle banche dati.</li>
+      <li>Non scegliamo per nazionalità.</li>
+      <li>Non facciamo affitti brevi né contratti 4+4.</li>
+      <li>Non rispondiamo 24 ore su 24.</li>
+      <li>Non ti chiediamo di firmare oggi.</li>
+    </ul>
+    <details id="portafogli">
+      <summary>Hai più case, una società o un fondo?</summary>
+      <div>
+<!-- OWNERS_PALAZZO:START -->
+<!-- OWNERS_PALAZZO:END -->
+        <h3 class="luogo"><b>Venti case, un solo interlocutore.</b></h3>
+        <div class="pf-grid">
+          <div>
+            <h4>Cosa c'è</h4>
+            <ul>
+              <li>Un rendiconto al mese, con una sezione per ogni immobile.</li>
+              <li>Il fascicolo dell'immobile (visura, planimetria, APE, delega): si carica una volta, e ogni contratto futuro lo eredita.</li>
+              <li>Firma a distanza, dal telefono.</li>
+              <li>Ogni mese contratti firmati e certificati copiati fuori dalla nostra piattaforma.</li>
+              <li>L'accordo pluriennale: una cifra all'anno, registrazione inclusa, imposte escluse.</li>
+              <li>Chi siamo, verificabile: P.IVA, REA, marchio UE registrato.</li>
+<!-- CLAIM:referente:START -->
+<!-- CLAIM:referente:END -->
+<!-- CLAIM:polizza:START -->
+<!-- CLAIM:polizza:END -->
+            </ul>
+          </div>
+          <div class="assente">
+            <h4>Cosa non c'è ancora</h4>
+            <ul>
+              <li>Un accordo standard sul trattamento dei dati degli inquilini (art. 28 GDPR): lo scriviamo con te.</li>
+              <li>Un'esportazione contabile per singolo proprietario.</li>
+              <li>Un conto dedicato ai soli canoni.</li>
+              <li>I giorni di riversamento scritti su questa pagina.</li>
+              <li>Un referente con nome e sostituto, scritti qui.</li>
+              <li>Tempi di risposta misurati.</li>
+            </ul>
+          </div>
+        </div>
+        <figure class="carta" data-carta="rendiconto-tre-case">
+<!-- CARTA:rendiconto-tre-case:START -->
+        <a class="carta-apri" data-carta="rendiconto-tre-case" href="/carte/rendiconto-tre-case-esempio.pdf" target="_blank" rel="noopener"><img src="/carte/rendiconto-tre-case-esempio.webp" width="560" height="792" loading="lazy" decoding="async" alt="Il rendiconto mensile d’esempio con tre immobili, una sezione per casa, timbro «ESEMPIO — dati inventati»."><span class="lente" aria-hidden="true" style="--lx:0.0756;--ly:0.1760;--lw:0.3008;--lh:0.0209"></span></a>
+        <figcaption><p class="riga">Via dell’Esempio 12, 00193 Roma</p><p class="didasc">Rendiconto mensile di tre immobili — Luglio 2026 · ESEMPIO — dati inventati · PDF, 1 pagina, 4 KB — si apre nel visore del telefono</p></figcaption>
+<!-- CARTA:rendiconto-tre-case:END -->
+        </figure>
+        <p>Lavoriamo solo a Roma e siamo un'agenzia piccola: ti risponde chi decide.</p>
+<!-- OWNERS_ZIP:START -->
+        <p><a class="link-carta" href="/carte/fascicolo-esempio.zip" download>Il pacchetto per chi valuta (ZIP, 0,1 MB)</a>: i documenti d'esempio di questa pagina e un LEGGIMI che dice cosa non c'è dentro, e perché.</p>
+<!-- OWNERS_ZIP:END -->
+        <p>Cerchi case per i tuoi dipendenti? È un'altra porta: <a class="link-carta" href="/corporate">/corporate →</a>. Con un conduttore che è un'impresa, la cedolare va valutata caso per caso.</p>
+      </div>
+    </details>
+  </div>
+</section>
+
+<section id="uscita" aria-labelledby="h-uscita">
+  <div class="uscita-in">
+    <p class="luogo"><b>Alla porta d'uscita</b></p>
+    <h2 id="h-uscita">Si esce dalla porta. Lasciaci un numero.</h2>
+    <p>Ti richiama Valentino in giornata lavorativa, con cosa faremmo e i numeri per iscritto.</p>
+    <div class="uscita-box" id="uscitaBox">
+      <noscript><p>Il modulo ha bisogno di JavaScript. Chiamaci al +39 331 325 1961, scrivici su WhatsApp o a hello@boom-rome.com: rispondiamo in giornata lavorativa.</p></noscript>
+      <form id="ownForm" novalidate>
+        <div class="campo">
+          <label for="fName">Nome e cognome</label>
+          <input id="fName" name="name" autocomplete="name" maxlength="120" required aria-describedby="err-fName">
+          <p class="err" id="err-fName"></p>
+        </div>
+        <div class="campo">
+          <label for="fPhone">Telefono o WhatsApp</label>
+          <input id="fPhone" name="phone" type="tel" inputmode="tel" autocomplete="tel" maxlength="40" required aria-describedby="help-fPhone err-fPhone">
+          <p class="aiuto" id="help-fPhone">Basta questo. Ti richiamiamo in giornata lavorativa.</p>
+          <p class="err" id="err-fPhone"></p>
+        </div>
+        <div class="campo" id="fCasa" hidden>
+          <p class="aiuto"><span id="fCasaTxt"></span> · <a href="#pianta">Modifica</a> · <button type="button" id="fCasaTogli" class="ferma" aria-label="Togli il riepilogo della casa">Togli</button></p>
+        </div>
+        <div class="campo" id="fWhereBox">
+          <label for="fWhere">Dov'è la casa? (quartiere o via, facoltativo)</label>
+          <input id="fWhere" name="where" autocomplete="street-address" maxlength="160">
+        </div>
+        <details class="piu">
+          <summary>Aggiungi dettagli (facoltativo)</summary>
+          <div>
+            <div class="campo">
+              <label for="fEmail">Email</label>
+              <input id="fEmail" name="email" type="email" autocomplete="email" maxlength="160" aria-describedby="help-fEmail err-fEmail">
+              <p class="aiuto" id="help-fEmail">Serve per il rendiconto del mese. Va bene anche quella di tuo figlio.</p>
+              <p class="err" id="err-fEmail"></p>
+            </div>
+            <div class="campo">
+              <label for="fVol">Quante case?</label>
+              <select id="fVol" name="volume">
+                <option value="">Una</option>
+                <option value="2-5">Da 2 a 5</option>
+                <option value="6-20">Da 6 a 20</option>
+                <option value="oltre 20">Più di 20</option>
+              </select>
+            </div>
+            <label class="spunta"><input type="checkbox" id="fCo"> Scrivo per una società, un fondo o un ente</label>
+            <div class="campo" id="fOrgBox" hidden>
+              <label for="fOrgName">Nome della società o dell'ente</label>
+              <input id="fOrgName" name="role" autocomplete="organization" maxlength="120" aria-describedby="err-fOrgName">
+              <p class="err" id="err-fOrgName"></p>
+            </div>
+            <div class="campo">
+              <label for="fMsg">Vuoi dirci altro?</label>
+              <textarea id="fMsg" name="message" maxlength="300"></textarea>
+            </div>
+            <label class="spunta"><input type="checkbox" id="fGar"> Mi interessa la garanzia sui canoni quando ci sarà (oggi non esiste)</label>
+          </div>
+        </details>
+        <div class="hp" aria-hidden="true"><label>Company <input id="fCompany" name="company" tabindex="-1" autocomplete="off"></label></div>
+        <p id="formErr" role="alert"></p>
+        <button class="invia" id="fSend" type="submit">Richiamami</button>
+        <p class="sotto-invio">Ti richiamiamo in giornata lavorativa. Nessun contratto al telefono. Usiamo i dati solo per risponderti — <a href="/privacy">informativa privacy</a>.</p>
+      </form>
+    </div>
+    <p class="aport">Preferisci subito? <a href="tel:+393313251961">Chiama +39 331 325 1961</a> · <a href="https://wa.me/393313251961?text=Ciao%2C%20sono%20un%20proprietario%20con%20una%20casa%20a%20Roma%20e%20vorrei%20capire%20come%20lavorate." target="_blank" rel="noopener">WhatsApp</a> · <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a></p>
+    <p class="aport">Siamo in via dei Coronari 181, a Roma: se preferisci vederci in faccia, fissiamo un appuntamento.</p>
+  </div>
+</section>
+
+<section id="domande" aria-labelledby="h-domande">
+  <div class="domande-in domande-lista">
+    <h2 id="h-domande">Domande che ci fanno</h2>
+    <details>
+      <summary>Chi paga la provvigione della prima locazione?</summary>
+      <div><p>L'inquilino: di norma il 10% del canone di un anno più IVA, scritto nella proposta che firma prima delle chiavi. Su 1.200 € al mese sono 1.756,80 €, a suo carico. A te la prima locazione costa 0 € di provvigione; le pratiche si pagano a parte (registrazione 89 €, attestazione del concordato 189 €), salvo nell'accordo pluriennale.</p></div>
+    </details>
+    <details>
+      <summary>Che cosa conta come prima locazione?</summary>
+      <div><p>Conta la casa, non il proprietario: è la prima volta che troviamo un inquilino per quell'immobile. Dalla ricerca successiva vale la mezza mensilità o la mensilità scritta nel mandato. Il rinnovo con lo stesso inquilino non è una nuova ricerca.</p></div>
+    </details>
+    <details>
+      <summary>E se l'inquilino non paga?</summary>
+      <div><p>Dal terzo giorno di ritardo il sollecito è già scritto e parte dopo il via di una persona. Un addebito automatico rifiutato non si ritenta alla cieca: la rata torna pagabile e lo vede una persona. Oltre il sollecito la procedura è del tuo avvocato, e noi gli diamo contratto, verbale, inventario e storico dei pagamenti. Una garanzia sui canoni oggi non la vendiamo: non esiste.</p></div>
+    </details>
+    <details>
+      <summary>Il canone concordato conviene sempre?</summary>
+      <div><p>No. Con i contratti per studenti, transitori e 3+2 il canone ha un tetto di zona; in cambio, con l'attestazione di rispondenza, hai la cedolare al 10% invece del 21% e l'IMU ridotta del 25%. Se nella tua zona un 4+4 a canone libero rende di più, te lo diciamo: il 4+4 non lo facciamo.</p></div>
+    </details>
+    <details>
+      <summary>Vivo fuori Roma o all'estero: posso fare tutto a distanza?</summary>
+      <div><p>Sì. Firmi dal telefono, senza app. Contratto firmato, certificato di firma, verbale e rendiconto ti arrivano per email. Chi cerca casa da lontano può fare la visita in video. Se vuoi vederci di persona, siamo in via dei Coronari 181, su appuntamento.</p></div>
+    </details>
+    <details>
+      <summary>Affittate anche ad aziende per i loro dipendenti?</summary>
+      <div><p>Sì, da un'altra porta: <a class="link-carta" href="/corporate">/corporate</a>. Con un conduttore che è un'impresa la cedolare va valutata caso per caso, e te lo diciamo prima.</p></div>
+    </details>
+<!-- CLAIM:faq-recesso:START -->
+<!-- CLAIM:faq-recesso:END -->
+  </div>
+</section>
+
+<section id="inbreve" aria-labelledby="h-inbreve">
+  <h2 id="h-inbreve">In breve</h2>
+  <div class="itbref">
+    <p>BOOM è il marchio di Egidi Immobiliare S.r.l. (P.IVA 17322991005, REA RM-1710623), agenzia immobiliare con sede operativa in via dei Coronari 181, a Roma. Affitta le case di privati, società ed enti a studenti universitari e a persone che arrivano a Roma per lavoro, con i contratti tipo dell'accordo territoriale di Roma del 27 luglio 2023: per studenti, transitorio e 3+2, a canone concordato.</p>
+    <p>Segue la parte documentale: proposta firmata dall'inquilino, contratto, firma elettronica dal telefono, registrazione e attestazione con l'associazione, verbale di consegna, inventario dal video, rendiconto mensile in PDF. L'inquilino ha un'app, in inglese o in italiano, per pagare, leggere il manuale della casa e segnalare i guasti.</p>
+<!-- OWNERS_BREVE_PREZZI:START -->
+    <p>Costi per il proprietario:</p>
+    <ul>
+      <li>prima locazione: 0 € di provvigione, perché la paga l'inquilino (di norma il 10% del canone di un anno più IVA);</li>
+      <li>dalla seconda: mezza mensilità o una mensilità più IVA, scritta nel mandato;</li>
+      <li>accordo pluriennale: una fee annua fissa su preventivo, con registrazione e attestazione incluse e le imposte escluse;</li>
+      <li>fuori dall'accordo pluriennale: registrazione 89 €, attestazione del concordato 189 €;</li>
+      <li>Pacchetto Canone Concordato: 349 €, rimborsato se la casa non rientra in fascia.</li>
+    </ul>
+    <p>I canoni li incassa BOOM, con carta, bonifico o addebito SEPA, e li riversa al proprietario nei termini scritti nel mandato.</p>
+<!-- OWNERS_BREVE_PREZZI:END -->
+    <p>Cosa non fa: non offre garanzia sui canoni, non verifica il reddito su banche dati, non fa contratti 4+4 né affitti brevi, non accorcia i tempi degli sfratti, non risponde 24 ore su 24. Oggi lavora solo a Roma. Contatti: +39 331 325 1961, WhatsApp, hello@boom-rome.com.</p>
+  </div>
+  <details class="fonti">
+    <summary>Fonti e metodo</summary>
+    <div>
+      <ul>
+        <li>Ogni documento di questa pagina è un esempio con dati inventati, prodotto dallo stesso codice che produce quelli veri: <a class="link-carta" href="/carte/LEGGIMI.txt">leggi cosa c'è e cosa manca</a>.</li>
+        <li>Deposito cauzionale fino a 3 mensilità: art. 11 della L. 392/1978.</li>
+        <li>Divieto di discriminazione per nazionalità nell'accesso all'alloggio: art. 43 del D.Lgs. 286/1998.</li>
+        <li>Firma elettronica semplice: art. 21 del D.Lgs. 82/2005 (Codice dell'amministrazione digitale).</li>
+        <li>Contratti a canone concordato: art. 2 comma 3 e art. 5 della L. 431/1998; accordo territoriale di Roma del 27/07/2023 (prot. RA/2023/0044852).</li>
+        <li>Cedolare secca al 10% sui contratti a canone concordato: art. 3 del D.Lgs. 23/2011. IMU al 75% per gli immobili locati a canone concordato: L. 208/2015, art. 1 comma 53.</li>
+        <li>Le cifre prese da fonti esterne entrano in questa pagina solo con la fonte aperta e una data. Per questo non ci sono statistiche sugli sfratti o sulla domanda.</li>
+      </ul>
+    </div>
+  </details>
+</section>
 </main>
 
-<footer class="footer">
-  <div class="container">
-    <div class="footer-grid">
-      <div>
-        <div class="footer-brand-logo" style="gap:14px">
-          <svg aria-hidden="true" style="width:56px;height:56px"><use href="#boomMark"/></svg>
-          <span style="font-size:26px">BOOM</span>
-          <span class="bl-div" aria-hidden="true" style="height:30px"></span>
-          <span class="bl-desk">Proprietari<br>Roma</span>
-        </div>
-        <p class="footer-tagline">Nato a Roma. Chi mettiamo nella tua casa è la nostra pubblicità — e ogni passaggio lascia un documento.</p>
-        <div class="footer-company">
-          <strong>Egidi Immobiliare S.r.l.</strong><br>Via dei Coronari 181/184, 00186 Roma<br>Sede legale: Viale Liegi 42, 00198 Roma<br>P.IVA 17322991005 · REA RM-1710623
-        </div>
-        <div class="footer-tm">BOOM&reg; è un marchio dell'Unione europea registrato (MUE 019317594) di Egidi Immobiliare S.r.l.</div>
-      </div>
-      <div>
-        <h4 class="footer-links-title">Proprietari</h4>
-        <ul class="footer-links-list">
-          <li><a href="#come">Come funziona</a></li>
-          <li><a href="#fascicolo">Cosa ricevi</a></li>
-          <li><a href="#costi">Costi</a></li>
-          <li><a href="/canone">Calcola il canone</a></li>
-          <li><a href="/pacchetto-concordato">Pacchetto concordato</a></li>
-          <li><a href="/login?next=/portal">Area proprietari</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4 class="footer-links-title">BOOM Roma</h4>
-        <ul class="footer-links-list">
-          <li><a href="/">Home</a></li>
-          <li><a href="/apartments">Appartamenti</a></li>
-          <li><a href="/services">Servizi</a></li>
-          <li><a href="/executive">Executive</a></li>
-          <li><a href="https://wa.me/393313251961" target="_blank" rel="noopener">WhatsApp</a></li>
-        </ul>
-      </div>
-      <div>
-        <h4 class="footer-links-title">Legale</h4>
-        <ul class="footer-links-list">
-          <li><a href="/terms">Condizioni</a></li>
-          <li><a href="/privacy">Privacy</a></li>
-        </ul>
-      </div>
+<footer class="piede">
+  <div class="piede-in">
+    <div class="piede-id">
+      <p><b>Egidi Immobiliare S.r.l.</b> · BOOM®, marchio dell'Unione europea registrato (MUE 019317594)<br>Sede operativa: via dei Coronari 181/184, 00186 Roma · Sede legale: viale Liegi 42, 00198 Roma<br>P.IVA 17322991005 · REA RM-1710623</p>
+      <p><a href="tel:+393313251961">+39 331 325 1961</a> · <a href="mailto:hello@boom-rome.com">hello@boom-rome.com</a></p>
+<!-- CLAIM:polizza-piede:START -->
+<!-- CLAIM:polizza-piede:END -->
     </div>
-    <div class="footer-bottom">
-      <span>© 2026 BOOM</span>
-      <div class="footer-status"><span class="footer-status-dot"></span>In attività — risposte in giornata</div>
-    </div>
+    <ul aria-label="Collegamenti">
+      <li><a href="/login?next=/portal">Area proprietari</a></li>
+      <li><a href="/welcome-to-rome">Welcome to Rome</a></li>
+      <li><a href="/board">Le case in arrivo</a></li>
+      <li><a href="/executive">Executive</a></li>
+      <li><a href="/corporate">Aziende</a></li>
+      <li><a href="/privacy">Privacy</a></li>
+      <li><a href="/terms">Condizioni</a></li>
+    </ul>
+    <div><button class="ferma" type="button" aria-pressed="false">⏸ Ferma animazioni</button></div>
   </div>
 </footer>
 
-<div class="paybar" id="paybar">
-  <div class="pinfo">
-    <b>BOOM · Proprietari</b>
-    <small>stima del canone in giornata</small>
-  </div>
-  <a class="go" href="#valuta">Valuta la casa</a>
-</div>
+<nav class="barra" id="barra" aria-label="Contatti rapidi">
+  <a href="tel:+393313251961">Chiama</a>
+  <a href="https://wa.me/393313251961?text=Ciao%2C%20sono%20un%20proprietario%20con%20una%20casa%20a%20Roma%20e%20vorrei%20capire%20come%20lavorate." target="_blank" rel="noopener">WhatsApp</a>
+  <a href="#uscita">Richiamami</a>
+</nav>
 
 <script>
-function boomTrack(name,params){try{if(typeof gtag==='function')gtag('event',name,params||{});}catch(e){}}
-
-/* ── invio: il proprietario diventa un LEAD (api/partners/submit, kind
-   owner) — la card 🔑 su Telegram col messaggio già scritto, e il
-   Commerciale che tace (è un proprietario, non un inquilino). Il telefono
-   BASTA: un proprietario romano risponde al telefono prima che all'email. */
-var ERR={
-  name:'Il tuo nome, così sappiamo chi richiamare.',
-  contact:'Un telefono o un\'email — altrimenti non possiamo risponderti.',
-  email:'Questa email sembra incompleta — puoi controllarla?',
-  net:'L\'invio non è riuscito da parte nostra. Riprova, o scrivici su WhatsApp al +39 331 325 1961.'
-};
-function fail(k){var e=document.getElementById('fErr');e.textContent=ERR[k];e.classList.add('on');}
-function ownerSummary(v){
-  var bits=[];
-  if(v('fWant'))bits.push('Vuole: '+v('fWant'));
-  var casa=[v('fType'),v('fSqm')?v('fSqm')+' mq':'',v('fFurn')].filter(Boolean).join(', ');
-  if(casa)bits.push('Casa: '+casa);
-  if(v('fFree'))bits.push('Libera da: '+v('fFree'));
-  if(v('fMsg'))bits.push(v('fMsg'));
-  return bits.join(' · ');
-}
-document.getElementById('ownForm').addEventListener('submit',function(ev){
-  ev.preventDefault();
-  var v=function(id){var el=document.getElementById(id);return el?(el.value||'').trim():''};
-  var name=v('fName'),email=v('fEmail'),phone=v('fPhone');
-  document.getElementById('fErr').classList.remove('on');
-  if(name.length<2)return fail('name');
-  var hasEmail=/^\S+@\S+\.\S+$/.test(email), hasPhone=phone.replace(/\D/g,'').length>=8;
-  if(email&&!hasEmail)return fail('email');
-  if(!hasEmail&&!hasPhone)return fail('contact');
-
-  var go=document.getElementById('fGo');
-  go.style.opacity=.6;go.style.pointerEvents='none';
-  boomTrack('generate_lead',{channel:'form',source_page:'owners'});
-
-  fetch('/api/partners/submit',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      kind:'owner',
-      name:name,email:email,phone:phone,
-      org:v('fZone'),
-      message:ownerSummary(v),
-      company:document.getElementById('fCompany').value
-    })})
-  .then(function(r){return r.json()})
-  .then(function(j){
-    if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
-    document.getElementById('ownForm').classList.add('hidden');
-    document.getElementById('fDone').classList.add('on');
-    boomTrack('sign_up',{method:'owner_form'});
-  })
-  .catch(function(){
-    go.style.opacity=1;go.style.pointerEvents='';
-    fail('net');
-  });
-});
-
-/* ── nav, menu ── */
-(function(){
-  var nav=document.getElementById('nav');
-  addEventListener('scroll',function(){nav.classList.toggle('scrolled',scrollY>30);},{passive:true});
-  var t=document.getElementById('navToggle'),m=document.getElementById('mobileMenu');
-  t.addEventListener('click',function(){t.classList.toggle('active');m.classList.toggle('active');
-    document.body.style.overflow=m.classList.contains('active')?'hidden':'';});
-  m.querySelectorAll('a').forEach(function(a){a.addEventListener('click',function(){
-    t.classList.remove('active');m.classList.remove('active');document.body.style.overflow='';});});
-})();
-
-/* ── reveal (senza observer: nessun nascondimento — il contenuto vince) ── */
-(function(){
-  var els=document.querySelectorAll('.rv:not(.in)');
-  if(!('IntersectionObserver' in window)){els.forEach(function(el){el.classList.add('in')});return;}
-  var io=new IntersectionObserver(function(es){es.forEach(function(e){
-    if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}})},{rootMargin:'0px 0px -8% 0px'});
-  els.forEach(function(el){io.observe(el)});
-})();
-
-/* ── barra mobile: compare dopo l'hero ── */
-(function(){
-  var bar=document.getElementById('paybar'),hero=document.querySelector('.hero');
-  if(!bar||!hero)return;
-  function upd(){bar.classList.toggle('on',hero.getBoundingClientRect().bottom<0);}
-  addEventListener('scroll',upd,{passive:true});upd();
-})();
+/* boot: il gesto che arriva prima dello script della pagina non si perde
+   (va in coda), e i due script partono DOPO 'load' — la pianta e la pagina
+   si leggono senza aspettarli. */
+function boomTrack(n,p){try{if(typeof gtag==='function')gtag('event',n,p||{})}catch(e){}}
+(function(){window.__ownQ=[];
+document.addEventListener('click',function(e){if(window.BOOM_OWNERS||!e.target.closest)return;if(e.target.closest('#alza')){window.__ownQ.push('bottone');e.preventDefault()}},true);
+function carica(){var l=['/js/owners-pianta.js','/js/owners-app.js'];if(document.documentElement.getAttribute('data-canone')==='aperto')l.push('/js/canone-engine.js','/js/owners-foglio.js');l.forEach(function(s){var x=document.createElement('script');x.src=s;x.async=false;document.body.appendChild(x)})}
+if(document.readyState==='complete')setTimeout(carica,0);else addEventListener('load',function(){setTimeout(carica,0)})})();
 </script>
 </body>
 </html>

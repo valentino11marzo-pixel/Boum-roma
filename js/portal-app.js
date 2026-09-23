@@ -21671,6 +21671,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="form-row"><div class="form-group"><label class="form-label">Data Inizio *</label><input type="date" class="form-input" name="startDate" value="${new Date().toISOString().split('T')[0]}" required></div><div class="form-group"><label class="form-label">Durata</label><select class="form-select" name="duration"><option value="12 mesi">12 mesi</option><option value="24 mesi">24 mesi</option><option value="36 mesi">36 mesi</option><option value="indeterminata">Indeterminata</option></select></div></div>
                     <div class="form-row"><div class="form-group"><label class="form-label">Compenso % sul canone</label><input type="number" class="form-input" name="feePercent" value="10" min="0" max="100"></div><div class="form-group"><label class="form-label">Oppure Fisso €/mese</label><input type="number" class="form-input" name="feeFixed" placeholder="0"></div></div>
                 </div>
+                <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
+                    <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">💶 PROVVIGIONE SULLA LOCAZIONE — come su /owners</h4>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Modello</label><select class="form-select" name="feeModel"><option value="prima">Prima locazione 0 € al proprietario (paga il conduttore)</option><option value="pluriennale">Accordo pluriennale: fee annua fissa</option></select></div><div class="form-group"><label class="form-label">Dalla seconda locazione</label><select class="form-select" name="feeNext"><option value="0.5">Mezza mensilità + IVA</option><option value="1">Una mensilità + IVA</option></select></div></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Fee annua pluriennale € (+IVA)</label><input type="number" class="form-input" name="feeAnnual" min="0" placeholder="solo per il pluriennale"></div><div class="form-group"><label class="form-label">Riversamento canoni (giorni lavorativi)</label><input type="number" class="form-input" name="payoutDays" min="0" placeholder="es. 5"></div></div>
+                    <div class="form-group"><label class="form-label">Recesso: preavviso (giorni)</label><input type="number" class="form-input" name="noticeDays" min="0" placeholder="es. 30"></div>
+                    <div style="font-size:11.5px;color:var(--text-muted)">Le righe le scrive js/owner-offer.js (mandatoRighe): sono le stesse della pagina /owners. Riversamento e recesso escono solo se compilati.</div>
+                </div>
                 <div style="background:var(--bg);padding:16px;border-radius:8px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">✅ SERVIZI INCLUSI</h4>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
@@ -22319,9 +22326,24 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             section('TERMINI DEL MANDATO');
             fieldRow('Decorrenza', data.startDate, 'Durata', data.duration);
             const fee = data.feePercent ? `${data.feePercent}% sul canone` : `€${data.feeFixed}/mese`;
-            field('Compenso', fee);
+            field('Compenso gestione incassi', fee);
             y += 5;
+
+            // La provvigione sulla locazione: le righe vengono da
+            // js/owner-offer.js (mandatoRighe), la stessa copia della pagina
+            // /owners — mandato e pagina non possono dire prezzi diversi.
+            if (window.BOOM_OWNER_OFFER && typeof window.BOOM_OWNER_OFFER.mandatoRighe === 'function') {
+                section('PROVVIGIONE SULLA LOCAZIONE');
+                doc.setFontSize(9);
+                window.BOOM_OWNER_OFFER.mandatoRighe({
+                    modello: data.feeModel === 'pluriennale' ? 'pluriennale' : 'prima',
+                    successive: Number(data.feeNext) === 1 ? 1 : 0.5,
+                    feeAnnua: data.feeAnnual, riversamentoGiorni: data.payoutDays, recessoGiorni: data.noticeDays,
+                }).forEach(r => { if (y > 255) { doc.addPage(); y = 30; } text(r); });
+                y += 5;
+            }
             
+            if (y > 245) { doc.addPage(); y = 30; }
             section('SERVIZI INCLUSI');
             doc.setFontSize(9);
             const services = [];

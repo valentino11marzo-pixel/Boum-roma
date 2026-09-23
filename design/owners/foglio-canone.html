@@ -1,0 +1,56 @@
+      <!-- IL FOGLIO VIVO DEL CANONE — esce SOLO a cancello P0-canone aperto
+           (js/owner-offer.js OFFER.canone.verificato === true): lo inserisce
+           design/owners/costruisci-owners.mjs, lo fa vivere js/owners-foglio.js.
+           Nessun numero è scritto qui: li calcola js/canone-engine.js, lo
+           stesso motore della scheda ufficiale e del Fascicolo Fiscale. -->
+      <div class="foglio" id="foglio">
+        <h3>Il foglio del canone</h3>
+        <p class="f-zona">Zona e metri sono quelli del cartiglio della pianta: <span id="fgZona">Prati (C40) · 70 m²</span>. <a href="#pianta">Cambiali lì</a>.</p>
+        <fieldset class="f-tipo">
+          <legend>Che contratto</legend>
+          <label><input type="radio" name="fgTipo" value="stud" checked> per studenti</label>
+          <label><input type="radio" name="fgTipo" value="trans"> transitorio</label>
+          <label><input type="radio" name="fgTipo" value="32"> 3+2</label>
+        </fieldset>
+        <fieldset class="f-dot">
+          <legend>Cosa ha la casa (le dotazioni dell'accordo)</legend>
+          <label><input type="checkbox" data-par="3"> Terrazzo o balcone</label>
+          <label><input type="checkbox" data-par="5"> Aria condizionata</label>
+          <label><input type="checkbox" data-par="6"> Stabile con ascensore</label>
+          <label><input type="checkbox" data-par="7"> Bagno con finestra o doppi servizi</label>
+          <label><input type="checkbox" data-par="8"> Porta blindata</label>
+          <label><input type="checkbox" data-par="9"> Doppi vetri</label>
+          <label><input type="checkbox" data-par="13"> Cucina abitabile con finestra</label>
+          <label><input type="checkbox" data-par="16"> Riscaldamento autonomo</label>
+          <details>
+            <summary>Le altre 12, parola per parola</summary>
+            <div>
+              <label><input type="checkbox" data-par="0"> Posto auto</label>
+              <label><input type="checkbox" data-par="1"> Cortile d’uso comune, area verde o impianto sportivo</label>
+              <label><input type="checkbox" data-par="2"> Cantina</label>
+              <label><input type="checkbox" data-par="4"> Area verde di pertinenza</label>
+              <label><input type="checkbox" data-par="10"> Stabile con servizio di portierato</label>
+              <label><input type="checkbox" data-par="11"> Stabile o UI ultimati o completamente ristrutturati negli ultimi 10 anni</label>
+              <label><input type="checkbox" data-par="12"> Sistema di sicurezza o sistema di allarme</label>
+              <label><input type="checkbox" data-par="14"> Videocitofono o videosorveglianza</label>
+              <label><input type="checkbox" data-par="15"> Antenna centralizzata o impianto satellitare</label>
+              <label><input type="checkbox" data-par="17"> Stabile non superiore a 4 piani</label>
+              <label><input type="checkbox" data-par="18"> Strutture di superamento di barriere architettoniche</label>
+              <label><input type="checkbox" data-par="19"> Terrazzo o locale condominiale ad uso comune</label>
+            </div>
+          </details>
+          <details>
+            <summary>Balconi, box e cortile</summary>
+            <div>
+              <label>Balconi, terrazze, cantine (m²) <input id="fgBal" inputmode="numeric" maxlength="4"></label>
+              <label>Box o posto auto esclusivo (m²) <input id="fgBox" inputmode="numeric" maxlength="4"></label>
+              <label>Cortile o giardino esclusivo (m²) <input id="fgSc" inputmode="numeric" maxlength="4"></label>
+            </div>
+          </details>
+        </fieldset>
+        <label class="f-libero">Il canone che chiederesti a libero (facoltativo) <input id="fgLibero" inputmode="numeric" maxlength="5"> € al mese</label>
+        <dl class="f-esito" id="fgEsito" aria-live="polite"></dl>
+        <p class="f-timbro"><span class="timbro">STIMA · DA CONFERMARE CON LA SCHEDA</span> <a class="link-carta carta-apri testo" data-carta="scheda-canone" href="/carte/scheda-canone-esempio.pdf" target="_blank" rel="noopener">la scheda di calcolo d'esempio (PDF)</a></p>
+        <p><button type="button" class="invia" id="fgTieni">Tieni questi numeri: ti richiamiamo</button></p>
+        <p><button type="button" class="ferma" id="fgManda">Manda questi numeri a chi decide con te</button></p>
+      </div>

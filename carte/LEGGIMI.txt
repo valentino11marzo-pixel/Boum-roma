@@ -1,0 +1,47 @@
+FASCICOLO D'ESEMPIO — BOOM Roma
+==================================
+
+Questi documenti sono ESEMPI con dati inventati. Anna Esempio (la proprietaria),
+Lukas Beispiel (l'inquilino) e Via dell'Esempio 12, 00193 Roma non esistono:
+nomi, indirizzi, codici fiscali, documenti, date e cifre sono di fantasia.
+Ogni pagina porta il timbro «ESEMPIO — dati inventati».
+
+Non sono impaginati a mano: li ha prodotti lo stesso codice che produce i
+documenti veri di BOOM, a cui abbiamo dato questi dati inventati al posto di
+quelli di un cliente.
+
+La storia d'esempio: proposta accettata il 20/08/2025; contratto per studenti
+dal 01/09/2025 al 31/08/2026, canone 1.200 euro al mese, deposito di due
+mensilità, cedolare secca; chiavi consegnate il 01/09/2025; rendiconto di
+luglio 2026; riconsegna il 31/08/2026.
+
+COSA C'È DENTRO
+
+- 01_Proposta_di_locazione_ESEMPIO.pdf
+  la proposta che l'inquilino accetta e firma prima del contratto (in questo esempio paga il deposito alla firma). È in inglese perché l'inquilino tipo arriva dall'estero. Nelle condizioni economiche c'è la provvigione di agenzia, 10% del canone annuo più IVA: la paga l'inquilino.
+- 02_Contratto_studenti_Allegato_C_ESEMPIO.pdf
+  il contratto per studenti universitari sul modello del contratto tipo dell'accordo territoriale di Roma depositato il 27/07/2023 (Allegato C), così come arriva alle parti per la firma elettronica dal telefono. Le firme grafiche, la pagina delle firme e il certificato di firma non sono in questo esempio.
+- 03_Verbale_di_consegna_ESEMPIO.pdf
+  il verbale di consegna delle chiavi: chiavi consegnate, letture dei contatori, stato della casa, firme.
+- 04_Inventario_ingresso_ESEMPIO.pdf
+  l'inventario d'ingresso, stanza per stanza. Dove nessuno ha verificato lo stato di un oggetto c'è scritto «non dichiarata», mai «buono stato».
+- 05_Inventario_uscita_con_confronto_ESEMPIO.pdf
+  l'inventario alla riconsegna con il confronto: cosa manca, cosa è rovinato rispetto all'ingresso, e cosa non si può verificare perché all'ingresso il suo stato non era scritto.
+- 06_Rendiconto_mensile_ESEMPIO.pdf
+  il rendiconto mensile di un immobile: canoni incassati con data e modalità, rate aperte, arretrati, manutenzioni.
+- 07_Rendiconto_tre_immobili_ESEMPIO.pdf
+  lo stesso rendiconto per chi ha più immobili: una sezione per casa, in un solo documento.
+- LEGGIMI.txt
+  questo file.
+
+COSA NON C'È, E PERCHÉ
+
+- Il mandato di gestione: il modello aggiornato con i prezzi della pagina
+  /owners non c'è ancora. Entrerà qui quando esisterà.
+- Il certificato di firma e il fascicolo fiscale: arrivano nella prossima
+  versione di questo pacchetto.
+- La scheda di calcolo del canone concordato: la tabella delle zone la sta
+  ricontrollando l'associazione. Finché non è confermata, la scheda
+  d'esempio resta fuori.
+
+Egidi Immobiliare S.r.l. · P.IVA 17322991005 · via dei Coronari 181, Roma · boomrome.com

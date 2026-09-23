@@ -553,7 +553,7 @@ var STR={
   s4:'Need a hand at home?',mCat:'What is it about',mPri:'Urgency',mDesc:'Tell us what happened',
   cat1:'Plumbing',cat2:'Electricity',cat3:'Appliances',cat4:'Heating / AC',cat5:'Doors & locks',cat6:'Other',
   pri1:'Whenever possible',pri2:'Urgent',pri3:'Emergency',
-  mSend:'Send the request →',mOk:'✓ Received — we will get back to you shortly.',mShort:'A few more words so we arrive prepared.',mFail:'Did not go through — try again or WhatsApp us.',statusOpen:'open',
+  mSend:'Send the request →',mOk:'✓ Received — we will get back to you shortly.',mShort:'A few more words so we arrive prepared.',mFail:'Did not go through — try again or WhatsApp us.',statusOpen:'open',statusWork:'in progress',statusDone:'resolved',
   s5:'BOOM Concierge',s5Sub:'Rome, handled. One message and we take care of it.',
   svc1:'Move-in Pack',svc1d:'Electricity &amp; gas in your name, internet activated, residency guide — arrive and live.',
   svc2:'Cleaning Premium',svc2d:'Professional deep clean — a spotless home in one afternoon.',
@@ -615,7 +615,7 @@ var STR={
   s4:'Serve una mano in casa?',mCat:'Cosa riguarda',mPri:'Urgenza',mDesc:'Racconta il problema',
   cat1:'Idraulica',cat2:'Elettricità',cat3:'Elettrodomestici',cat4:'Clima / riscaldamento',cat5:'Porte &amp; serrature',cat6:'Altro',
   pri1:'Quando possibile',pri2:'Urgente',pri3:'Emergenza',
-  mSend:'Invia la richiesta →',mOk:'✓ Ricevuta — ti ricontattiamo a breve.',mShort:'Due parole in più, così arriviamo preparati.',mFail:'Non è partita — riprova o scrivici su WhatsApp.',statusOpen:'aperta',
+  mSend:'Invia la richiesta →',mOk:'✓ Ricevuta — ti ricontattiamo a breve.',mShort:'Due parole in più, così arriviamo preparati.',mFail:'Non è partita — riprova o scrivici su WhatsApp.',statusOpen:'aperta',statusWork:'in lavorazione',statusDone:'risolta',
   s5:'BOOM Concierge',s5Sub:'La città, risolta. Un messaggio e ci pensiamo noi.',
   svc1:'Move-in Pack',svc1d:'Volture luce &amp; gas, internet attivato, guida residenza — arrivi e vivi.',
   svc2:'Cleaning Premium',svc2d:'Pulizia profonda professionale — casa perfetta in un pomeriggio.',
@@ -1179,7 +1179,14 @@ function payRow(p){
 
 function maintRows(){
   return MAINT.slice(0,4).map(function(m){
-    return '<div class="mrow"><span>'+esc((m.category||'')+(m.description?' — '+String(m.description).slice(0,60):''))+'</span><span class="st'+(m.status==='resolved'||m.status==='done'?' done':'')+'">'+esc(m.status==='pending'?t('statusOpen'):(m.status||t('statusOpen')))+'</span></div>';
+    // La categoria e lo stato sono CODICI (idraulica, resolved…): a schermo
+    // vanno le parole della lingua scelta — prima uscivano grezzi, e in
+    // italiano si leggeva «riscaldamento — … RESOLVED».
+    var CAT={idraulica:'cat1',elettricita:'cat2',elettrodomestici:'cat3',riscaldamento:'cat4',serrature:'cat5',altro:'cat6'};
+    var cat=CAT[m.category]?String(t(CAT[m.category])).replace(/&amp;/g,'&'):(m.category||'');
+    var done=m.status==='resolved'||m.status==='done'||m.status==='closed';
+    var st=done?t('statusDone'):(m.status==='in_progress'||m.status==='assigned')?t('statusWork'):(m.status==='pending'||m.status==='open'||!m.status)?t('statusOpen'):m.status;
+    return '<div class="mrow"><span>'+esc(cat+(m.description?' — '+String(m.description).slice(0,60):''))+'</span><span class="st'+(done?' done':'')+'">'+esc(st)+'</span></div>';
   }).join('');
 }
 

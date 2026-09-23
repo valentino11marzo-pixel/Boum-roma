@@ -1,0 +1,107 @@
+{
+  "nota": "La casa d'esempio di /owners: appartamento romano di 70 m² calpestabili, zona C40 Prati. Unica sorgente del disegno: tutto in centimetri, x verso destra, y verso il basso (asse del foglio). Lo legge design/owners/pianta.mjs. Dati inventati.",
+  "unita": "cm",
+  "esterno": [0, 0, 1020, 840],
+  "muri": [
+    [0, 0, 1020, 30],
+    [0, 810, 1020, 840],
+    [0, 0, 30, 840],
+    [990, 0, 1020, 840],
+    [360, 30, 370, 390],
+    [580, 30, 590, 810],
+    [30, 390, 580, 400],
+    [30, 510, 580, 520],
+    [280, 520, 290, 810],
+    [590, 500, 990, 510],
+    [600, 960, 1020, 990]
+  ],
+  "porte": [
+    { "id": "ingresso", "vano": [390, 810, 480, 840], "cardine": [480, 810], "battuta": [390, 810], "verso": [0, -1] },
+    { "id": "camera", "vano": [250, 390, 330, 400], "cardine": [330, 390], "battuta": [250, 390], "verso": [0, -1] },
+    { "id": "studio", "vano": [400, 390, 480, 400], "cardine": [400, 390], "battuta": [480, 390], "verso": [0, -1] },
+    { "id": "bagno", "vano": [150, 510, 220, 520], "cardine": [150, 520], "battuta": [220, 520], "verso": [0, 1] },
+    { "id": "soggiorno", "vano": [580, 410, 590, 500], "cardine": [590, 500], "battuta": [590, 410], "verso": [1, 0] },
+    { "id": "cucina", "vano": [620, 500, 700, 510], "cardine": [620, 510], "battuta": [700, 510], "verso": [0, 1] },
+    { "id": "balcone", "vano": [990, 560, 1020, 640], "cardine": [990, 640], "battuta": [990, 560], "verso": [-1, 0], "portafinestra": true },
+    { "id": "portone-s", "vano": [730, 960, 810, 990], "cardine": [730, 960], "battuta": [810, 960], "verso": [0, -1] },
+    { "id": "portone-d", "vano": [810, 960, 890, 990], "cardine": [890, 960], "battuta": [810, 960], "verso": [0, -1] },
+    { "id": "arco", "vano": [330, 510, 450, 520], "arco": true }
+  ],
+  "finestre": [
+    { "id": "soggiorno-1", "vano": [650, 0, 770, 30], "davanzale": 90, "architrave": 230, "sole": true },
+    { "id": "soggiorno-2", "vano": [830, 0, 950, 30], "davanzale": 90, "architrave": 230, "sole": true },
+    { "id": "studio", "vano": [420, 0, 530, 30], "davanzale": 90, "architrave": 230 },
+    { "id": "camera", "vano": [0, 160, 30, 280], "davanzale": 90, "architrave": 230 },
+    { "id": "bagno", "vano": [0, 630, 30, 690], "davanzale": 135, "architrave": 225 },
+    { "id": "cucina", "vano": [990, 690, 1020, 780], "davanzale": 100, "architrave": 230 }
+  ],
+  "stanze": [
+    { "id": "camera", "luce": "casa", "poli": [[30, 30], [360, 30], [360, 390], [30, 390]] },
+    { "id": "studio", "luce": "scrivania", "poli": [[370, 30], [580, 30], [580, 390], [370, 390]] },
+    { "id": "soggiorno", "luce": "soggiorno", "poli": [[590, 30], [990, 30], [990, 500], [590, 500]] },
+    { "id": "corridoio", "luce": "casa", "poli": [[30, 400], [580, 400], [580, 510], [30, 510]] },
+    { "id": "bagno", "luce": "casa", "poli": [[30, 520], [280, 520], [280, 810], [30, 810]] },
+    { "id": "ingresso", "luce": "porta", "poli": [[290, 520], [580, 520], [580, 560], [520, 560], [520, 780], [580, 780], [580, 810], [290, 810]] },
+    { "id": "armadio", "luce": "cassaforte", "poli": [[520, 560], [580, 560], [580, 780], [520, 780]], "nonCalpestabile": true },
+    { "id": "cucina", "luce": "cucina", "poli": [[590, 510], [990, 510], [990, 810], [590, 810]] },
+    { "id": "balcone", "luce": "cucina", "poli": [[1020, 540], [1140, 540], [1140, 800], [1020, 800]], "esterno": true },
+    { "id": "portone", "luce": "cassetta", "poli": [[600, 880], [1020, 880], [1020, 960], [600, 960]], "esterno": true }
+  ],
+  "simboli": {
+    "letto": { "r": [115, 30, 275, 230], "cuscini": [[125, 40, 190, 75], [200, 40, 265, 75]], "piega": 110 },
+    "scrivania": { "r": [405, 32, 545, 100], "sedia": [452, 112, 498, 156] },
+    "divano": { "r": [600, 150, 690, 370], "schienale": 622, "braccioli": [172, 348] },
+    "tavolo": { "r": [790, 320, 930, 410] },
+    "tavoloCucina": { "c": [790, 660], "raggio": 45 },
+    "piano": { "r": [620, 750, 960, 810] },
+    "lavello": { "r": [690, 756, 790, 806], "vasca": [698, 763, 782, 800] },
+    "cottura": { "r": [860, 756, 920, 806], "fuochi": [[874, 770], [906, 770], [874, 793], [906, 793]], "raggio": 8 },
+    "doccia": { "r": [30, 730, 110, 810] },
+    "wc": { "cassetta": [136, 792, 176, 810], "tazza": [156, 772, 18, 21] },
+    "bidet": { "tazza": [216, 778, 17, 24] },
+    "lavabo": { "r": [30, 545, 80, 605], "vasca": [55, 575, 16, 22] },
+    "armadio": { "r": [520, 560, 580, 780] },
+    "cassaforte": { "r": [535, 692, 565, 722] },
+    "caldaia": { "r": [1022, 748, 1056, 796], "c": [1039, 772], "raggio": 9 },
+    "lavatrice": { "r": [1022, 682, 1080, 740], "c": [1051, 711], "raggio": 21 },
+    "ringhiera": [[1020, 540], [1140, 540], [1140, 800], [1020, 800]],
+    "cassetta": { "r": [910, 936, 990, 960], "divisioni": [930, 950, 970] }
+  },
+  "bandiere": [
+    { "id": "serratura", "piede": [398, 800] },
+    { "id": "cassaforte", "piede": [550, 716] }
+  ],
+  "quote": {
+    "orizzontale": { "y": -80, "da": 0, "a": 1020, "testo": "10,20" },
+    "verticale": { "x": -80, "da": 0, "a": 840, "testo": "8,40" },
+    "corpo": 30
+  },
+  "nord": { "c": [1098, -62], "r": 36, "angolo": 115 },
+  "scala": { "x": 0, "y": 912, "h": 14, "tacche": [0, 100, 200, 500], "etichette": ["0", "1", "2", "5 m"] },
+  "marcatori": [[0, 0], [1020, 0], [1020, 840], [0, 840]],
+  "alzata": {
+    "rotateX": 56,
+    "rotateZ": -38,
+    "taglio": 120,
+    "margine": 0.04,
+    "bandiera": { "asta": 100, "drappo": [34, 22] }
+  },
+  "etichette": [
+    { "stanza": "porta", "href": "#porta", "testo": "Porta", "spenta": "serratura", "ancora": [435, 825] },
+    { "stanza": "cassaforte", "href": "#cassaforte", "testo": "Armadio", "spenta": "cassaforte", "ancora": [550, 670] },
+    { "stanza": "soggiorno", "href": "#soggiorno", "testo": "Soggiorno", "ancora": [790, 250] },
+    { "stanza": "cucina", "href": "#cucina", "testo": "Cucina", "ancora": [790, 640] },
+    { "stanza": "scrivania", "href": "#scrivania", "testo": "Scrivania", "ancora": [475, 66] },
+    { "stanza": "cassetta", "href": "#cassetta", "testo": "Cassetta", "ancora": [950, 948] }
+  ],
+  "ritagli": {
+    "porta": [260, 500, 620, 900],
+    "cassaforte": [420, 520, 640, 820],
+    "soggiorno": [560, -10, 1030, 540],
+    "cucina": [560, 480, 1160, 850],
+    "scrivania": [340, -10, 610, 420],
+    "cassetta": [580, 860, 1040, 1010]
+  },
+  "palazzo": { "piani": 5, "interpiano": 300 },
+  "sole": { "lat": 41.9028, "lng": 12.4964 }
+}

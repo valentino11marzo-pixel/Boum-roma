@@ -1,0 +1,257 @@
+{
+  "generatedBy": "design/owners/genera-fascicolo.mjs",
+  "stamp": "ESEMPIO — dati inventati",
+  "items": [
+    {
+      "id": "verbale",
+      "titolo": "Verbale di consegna delle chiavi",
+      "pdf": "/carte/verbale-consegna-esempio.pdf",
+      "bytes": 32928,
+      "pages": 2,
+      "thumb": {
+        "src": "/carte/verbale-consegna-esempio.webp",
+        "w": 560,
+        "h": 792,
+        "bytes": 49076
+      },
+      "alt": "Prima pagina del verbale di consegna d’esempio: chiavi consegnate, letture dei contatori e stato della casa, con il timbro «ESEMPIO — dati inventati».",
+      "riga": "Le letture sopra riportate fanno fede tra le parti ai fini delle volture e del riparto dei consumi.",
+      "riquadro": {
+        "page": 1,
+        "x": 45,
+        "y": 387.2,
+        "w": 349,
+        "h": 14.9
+      },
+      "gate": null
+    },
+    {
+      "id": "inventario-ingresso",
+      "titolo": "Inventario alla consegna",
+      "pdf": "/carte/inventario-ingresso-esempio.pdf",
+      "bytes": 17298,
+      "pages": 2,
+      "thumb": {
+        "src": "/carte/inventario-ingresso-esempio.webp",
+        "w": 560,
+        "h": 792,
+        "bytes": 34276
+      },
+      "alt": "Prima pagina dell’inventario d’ingresso d’esempio: arredi stanza per stanza con la condizione dichiarata, timbro «ESEMPIO — dati inventati».",
+      "riga": "n. 1 Divano 3 posti danneggiato — strappo sul bracciolo destro",
+      "riquadro": {
+        "page": 1,
+        "x": 45,
+        "y": 370.4,
+        "w": 383.8,
+        "h": 28.6
+      },
+      "gate": null
+    },
+    {
+      "id": "inventario-uscita",
+      "titolo": "Inventario alla riconsegna, con il confronto",
+      "pdf": "/carte/inventario-uscita-esempio.pdf",
+      "bytes": 17860,
+      "pages": 2,
+      "thumb": {
+        "src": "/carte/inventario-uscita-esempio.webp",
+        "w": 560,
+        "h": 792,
+        "bytes": 34132
+      },
+      "alt": "Prima pagina dell’inventario alla riconsegna d’esempio: lo stato di ogni oggetto all’uscita, timbro «ESEMPIO — dati inventati».",
+      "riga": "- Camera: Armadio a due ante — condizione alla consegna non dichiarata",
+      "riquadro": {
+        "page": 2,
+        "x": 51,
+        "y": 252.4,
+        "w": 317.5,
+        "h": 16
+      },
+      "rigaAlternativa": {
+        "riga": "- Cucina: Tavolo allungabile — alla consegna buono stato",
+        "riquadro": {
+          "page": 2,
+          "x": 51,
+          "y": 221.4,
+          "w": 248.9,
+          "h": 16
+        }
+      },
+      "gate": null
+    },
+    {
+      "id": "contratto-studenti",
+      "titolo": "Contratto di locazione per studenti universitari (Allegato C)",
+      "pdf": "/carte/contratto-studenti-esempio.pdf",
+      "bytes": 29768,
+      "pages": 4,
+      "thumb": {
+        "src": "/carte/contratto-studenti-esempio.webp",
+        "w": 560,
+        "h": 792,
+        "bytes": 59690
+      },
+      "alt": "Prima pagina del contratto per studenti d’esempio (Allegato C dell’accordo territoriale di Roma), timbro «ESEMPIO — dati inventati».",
+      "riga": "Il contratto è stipulato per la durata di 12 mesi, dal 01/09/2025 al 31/08/2026.",
+      "riquadro": {
+        "page": 1,
+        "x": 53.7,
+        "y": 482.5,
+        "w": 378.3,
+        "h": 17.6
+      },
+      "rigaAlternativa": {
+        "riga": "in n. 12 rate eguali anticipate di € 1200 (1200/00) ciascuna, entro il 5 di ogni mese.",
+        "riquadro": {
+          "page": 1,
+          "x": 53.7,
+          "y": 698,
+          "w": 488.5,
+          "h": 30.2
+        }
+      },
+      "gate": null
+    },
+    {
+      "id": "rendiconto",
+      "titolo": "Rendiconto mensile — Luglio 2026",
+      "pdf": "/carte/rendiconto-esempio.pdf",
+      "bytes": 3332,
+      "pages": 1,
+      "thumb": {
+        "src": "/carte/rendiconto-esempio.webp",
+        "w": 560,
+        "h": 792,
+        "bytes": 17164
+      },
+      "alt": "Il rendiconto mensile d’esempio di un immobile: canone incassato con data e modalità, arretrati, manutenzioni, timbro «ESEMPIO — dati inventati».",
+      "riga": "Incassata rata 2026-07 (bonifico) il 03/07/2026 €1200",
+      "riquadro": {
+        "page": 1,
+        "x": 51,
+        "y": 183.4,
+        "w": 493,
+        "h": 16
+      },
+      "gate": null
+    },
+    {
+      "id": "rendiconto-tre-case",
+      "titolo": "Rendiconto mensile di tre immobili — Luglio 2026",
+      "pdf": "/carte/rendiconto-tre-case-esempio.pdf",
+      "bytes": 3862,
+      "pages": 1,
+      "thumb": {
+        "src": "/carte/rendiconto-tre-case-esempio.webp",
+        "w": 560,
+        "h": 792,
+        "bytes": 25534
+      },
+      "alt": "Il rendiconto mensile d’esempio con tre immobili, una sezione per casa, timbro «ESEMPIO — dati inventati».",
+      "riga": "Via dell’Esempio 12, 00193 Roma",
+      "riquadro": {
+        "page": 1,
+        "x": 45,
+        "y": 148.2,
+        "w": 179,
+        "h": 17.6
+      },
+      "rigaAlternativa": {
+        "riga": "ARRETRATO rata 2026-06 (scad. 05/06/2026) €1450",
+        "riquadro": {
+          "page": 1,
+          "x": 51,
+          "y": 341.4,
+          "w": 493,
+          "h": 16
+        }
+      },
+      "gate": null
+    },
+    {
+      "id": "proposta",
+      "titolo": "Proposta di locazione (Rental Proposal)",
+      "pdf": "/carte/proposta-esempio.pdf",
+      "bytes": 31874,
+      "pages": 2,
+      "thumb": {
+        "src": "/carte/proposta-esempio.webp",
+        "w": 560,
+        "h": 792,
+        "bytes": 26006
+      },
+      "alt": "Prima pagina della proposta di locazione d’esempio, in inglese, con le parti e l’immobile, timbro «ESEMPIO — dati inventati».",
+      "riga": "Note: Agency fee: 10% of annual rent = €1,440 + VAT 22% (€316.80) = €1,756.80 - due upon move-in, not at pre-agreement signing.",
+      "riquadro": {
+        "page": 2,
+        "x": 53,
+        "y": 289.2,
+        "w": 474.5,
+        "h": 27.3
+      },
+      "gate": null
+    },
+    {
+      "id": "scheda-canone",
+      "titolo": "Scheda di calcolo del canone concordato (Allegato 2/B)",
+      "pdf": "/carte/scheda-canone-esempio.pdf",
+      "bytes": 24719,
+      "pages": 1,
+      "thumb": {
+        "src": "/carte/scheda-canone-esempio.webp",
+        "w": 560,
+        "h": 792,
+        "bytes": 57910
+      },
+      "alt": "La scheda di calcolo del canone concordato d’esempio (Allegato 2/B), timbro «ESEMPIO — dati inventati».",
+      "riga": "Importo massimo canone mensile: € 1.306,40; Importo canone mensile pattuito: € 1.200,00;",
+      "riquadro": {
+        "page": 1,
+        "x": 35,
+        "y": 690.6,
+        "w": 340.8,
+        "h": 14.4
+      },
+      "gate": "canone.verificato"
+    },
+    {
+      "id": "casa-guasti",
+      "titolo": "L’app dell’inquilino (/casa): i guasti",
+      "pdf": null,
+      "bytes": null,
+      "pages": null,
+      "thumb": {
+        "src": "/carte/casa-guasti-esempio.webp",
+        "w": 560,
+        "h": 658,
+        "bytes": 19162,
+        "riquadroPx": {
+          "x": 36,
+          "y": 477,
+          "w": 373,
+          "h": 63
+        }
+      },
+      "alt": "La sezione dei guasti dell’app dell’inquilino (/casa) con due segnalazioni d’esempio, una aperta e una risolta, timbro «ESEMPIO — dati inventati».",
+      "riga": "Clima / riscaldamento — Caldaia: acqua tiepida",
+      "riquadro": null,
+      "gate": null
+    }
+  ],
+  "zip": {
+    "file": "/carte/fascicolo-esempio.zip",
+    "bytes": 141058,
+    "entries": [
+      "01_Proposta_di_locazione_ESEMPIO.pdf",
+      "02_Contratto_studenti_Allegato_C_ESEMPIO.pdf",
+      "03_Verbale_di_consegna_ESEMPIO.pdf",
+      "04_Inventario_ingresso_ESEMPIO.pdf",
+      "05_Inventario_uscita_con_confronto_ESEMPIO.pdf",
+      "06_Rendiconto_mensile_ESEMPIO.pdf",
+      "07_Rendiconto_tre_immobili_ESEMPIO.pdf",
+      "LEGGIMI.txt"
+    ]
+  }
+}

@@ -299,10 +299,11 @@ const PAGES = {
   // ════════════════════════════════════════════════════════════════════
   'owners.html': {
     path: '/owners',
-    title: 'Affittare casa a Roma con BOOM — per i proprietari',
+    title: 'Affittare casa a Roma: il fascicolo BOOM per i proprietari',
     description:
-      "Valutazione del canone, inquilini verificati, contratto registrato sui modelli dell'accordo di Roma, verbale, inventario e rendiconto mensile in PDF.",
-    keywords: ['affittare casa Roma', 'gestione affitti Roma', 'canone concordato Roma', 'proprietari Roma', 'contratto transitorio Roma'],
+      "Prima locazione a 0 € di provvigione: la paga l'inquilino. Contratti sui modelli dell'accordo di Roma, firma dal telefono, registrazione, verbale e rendiconto.",
+    keywords: ['affittare casa Roma', 'gestione affitti Roma', 'agenzia affitti proprietari Roma', 'canone concordato Roma', 'contratto transitorio Roma', 'affitto a studenti Roma', 'provvigione agenzia affitto', 'rendiconto mensile proprietario'],
+    ogImage: 'https://www.boomrome.com/og-owners.png',
     type: 'website',
     lang: 'it',
     locale: 'it_IT',
