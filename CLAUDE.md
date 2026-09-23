@@ -2051,6 +2051,28 @@ Un giro solo, otto interventi, 33 suite verdi:
   github/*` (tutto il pool: sicuro perché il provider filtra già il repo
   con la condizione). Il token non si stampa mai. Test:
   `tests/finalize/run.mjs` (37 check).
+  **Il quarto run federato (23/09/2026, CI #483) è verde CON la
+  federazione**, letto nel log: la carta d'identità stampa `sub =
+  repo:valentino11marzo-pixel/Boum-roma:ref:refs/heads/<ramo>` e
+  `repository = valentino11marzo-pixel/Boum-roma`; il passo federato con
+  `token_format: access_token` passa; il deploy dice «credenziale:
+  federazione», NESSUN avviso del token, «Deploy complete!». Il legame che
+  ha sbloccato tutto è `…/workloadIdentityPools/github/*` col ruolo Utente
+  Workload Identity, dato dalla scheda **«Entità con accesso» → «Concedi
+  l'accesso»** dell'account (NON «Autorizzazioni → Gestisci accesso», che
+  cambia i ruoli dell'account SUL PROGETTO, non chi può impersonarlo). Le
+  due righe `…/attribute.repository/…Boum-roma` presenti dalla sera prima
+  non hanno mai combaciato (con quelle sole: 403 nei run 477/478) — più
+  strette di `*`, innocue, si possono togliere. Con `*` qualunque workflow
+  di QUESTO repo può impersonare l'account (il provider filtra il repo);
+  per stringere a `main` si userà `attribute.ref`, dopo aver verificato la
+  mappatura sul provider — che è ciò che quelle due righe non hanno mai
+  provato. Lo stesso giorno alle 17:25 UTC il token `login:ci` è morto per
+  la QUARTA volta (push su main, «Your credentials are no longer valid»;
+  regole invariate, verificato per diff): il secret `FIREBASE_TOKEN` va
+  tolto dal repo — il ramo token del job resta come ripiego dichiarato per
+  un job senza il passo federato. Su `main` la federazione entra col merge
+  del ramo che la porta (PR #253).
 - **Tabella zone canone UNICA**: `scheda-canone.html` ora carica
   `js/canone-engine.js` e semina le zone dal motore (la copia inline che
   poteva divergere dal Fascicolo ARPE è stata rimossa; un edit manuale
