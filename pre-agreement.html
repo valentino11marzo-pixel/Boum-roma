@@ -1154,6 +1154,12 @@ function renderAccepted(){
      signs from HERE — the same link the email carries, shown only once the
      money is in (lookup decides); then the state, then the signed PDF. */
   var CT=PA.contract||null;
+  /* THE LEASE TO READ (21/09/2026): the contract PDF BOOM would sign — the
+     draft made from the proposal before conversion (pa.draftPdfUrl) or the
+     generated contract once it exists (contract.draftPdfUrl). lookup shows
+     it only once the money is in, exactly like the signing link. It sits
+     next to the mandate on purpose: what you authorise, you can read. */
+  var draftUrl=(CT&&CT.draftPdfUrl)||PA.draftPdfUrl||null;
   /* IL MANDATO DATO DOPO L'ACCETTAZIONE (21/09/2026): il cliente ha accettato
      e non torna a firmare il contratto. Se la console l'ha CHIESTO
      (askMandate, «🖊 Chiedi il mandato») e non l'ha ancora dato, qui lo dà
@@ -1162,6 +1168,7 @@ function renderAccepted(){
   if(!(PA.mandate&&PA.mandate.at)&&PA.askMandate===true&&!(CT&&CT.tenantSigned)){
     html+='<div class="mandate" id="mandateBox2" style="max-width:430px;margin:18px auto 0;text-align:left"><div class="mh"><b>Let BOOM sign the lease for you</b><span>one tap · nothing else to do</span></div>'
       +'<p>'+esc(PA_MANDATE_TEXT)+'</p>'
+      +(draftUrl?'<a class="obtn" id="draftLink" href="'+esc(draftUrl)+'" target="_blank" rel="noopener" style="margin:6px 0 4px">📄 Read the lease BOOM would sign for you</a>':'')
       +'<label class="consent" style="margin-top:8px"><input type="checkbox" id="paMandate2" onchange="var b=document.getElementById(\'mandBtn\');if(b)b.disabled=!this.checked"><span>I give BOOM this mandate. BOOM signs the lease in my name on exactly these terms; I receive the signed contract and its certificate by email.</span></label>'
       +'<button class="gbtn" id="mandBtn" disabled onclick="giveMandate()" style="margin-top:12px">Give BOOM the mandate to sign →</button>'
       +'<p class="err" id="mandErr" role="alert"></p></div>';
@@ -1169,6 +1176,7 @@ function renderAccepted(){
   if(CT&&CT.tenantSignUrl){
     html+='<div class="ctc" id="ctcard"><div class="ch"><b>Your contract is ready</b><span>'+(CT.invitedAt?'sent '+esc(String(CT.invitedAt).slice(0,10)):'')+'</span></div>'
       +'<p>Prepared from this document, on exactly these terms. Signing takes two minutes on your phone — no app, no account.</p>'
+      +(draftUrl?'<a class="obtn" href="'+esc(draftUrl)+'" target="_blank" rel="noopener" style="margin-bottom:8px">📄 Read the full contract first</a>':'')
       +'<a class="gbtn" href="'+esc(CT.tenantSignUrl)+'">Sign your contract now →</a></div>';
   }else if(CT&&CT.tenantSigned&&CT.status!=='complete'){
     html+='<div class="ctc" id="ctcard"><div class="ch"><b>✓ Contract signed by you</b><span>'+esc(String(CT.tenantSignedAt||'').slice(0,10))+'</span></div>'

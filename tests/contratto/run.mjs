@@ -498,6 +498,42 @@ const foglioEndpoint = (await import('../../api/fiscal/foglio.js')).default;
     F.needsOf(F.BY_KEY.tenantDocIssuer, 'A').includes('contract') && F.needsOf(F.BY_KEY.propertyRendita, 'A').includes('contract') && !F.needsOf(F.BY_KEY.tenantDocIssuer, 'B').includes('contract'));
 }
 
+// ═══ 9. Il ruolo OPERATORE e l'attore autenticato (21/09/2026 — «✎ Completa
+// i dati» dalla console PA). Il dizionario conosceva due ruoli; i termini
+// che nessuna parte compila (giorno di pagamento, luogo di firma, stato di
+// consegna…) restavano senza modulo. Regole: l'operatore vede e scrive SOLO
+// i suoi campi vuoti; la console riceve l'identità come SEZIONE (descrittori)
+// invece delle sole chiavi; `trusted` (attore autenticato) rilassa il
+// fill-only del link pubblico — e SOLO quello.
+{
+  const ctx = { contract: { type: 'transitorio', rent: 1000, deposit: 2000, startDate: '2026-10-01', endDate: '2027-09-30', cedolareSecca: 'si', installmentMonths: 1, tenantName: 'Anna Expat', tenantEmail: 'anna@expat.com' }, property: {}, tenant: {}, landlord: {} };
+  check('roleWho: operator resta operator, tutto il resto è tenant salvo landlord', F.roleWho('operator') === 'operator' && F.roleWho('landlord') === 'landlord' && F.roleWho('tenant') === 'tenant' && F.roleWho('cotenant') === 'tenant');
+  const ao = F.askFor('operator', ctx);
+  const keys = ao.sections.flatMap(sc => sc.fields.map(f => f.key));
+  check('askFor(operator): lingua IT, una sezione «termini», SOLO campi dell\'operatore ancora vuoti (paymentDay, signaturePlace, consegnaStato…) — mai canone/date già pieni, mai l\'identità di una parte',
+    ao.role === 'operator' && ao.lang === 'it' && ao.sections.length === 1 && ao.sections[0].key === 'terms'
+    && keys.includes('paymentDay') && keys.includes('signaturePlace') && keys.includes('consegnaStato')
+    && !keys.includes('rent') && !keys.includes('startDate') && !keys.includes('installmentMonths') && !keys.some(k => /^tenant|^landlord|^cat/.test(k))
+    && ao.identityMissing.length === 0);
+  const at = F.askFor('tenant', ctx, { identityAsSection: true, lang: 'it' });
+  const atDefault = F.askFor('tenant', ctx);
+  check('askFor(identityAsSection): l\'identità mancante diventa una SEZIONE coi descrittori (CF, nascita, documento…) e identityMissing resta vuoto; senza l\'opzione (la pagina /scheda) restano le sole chiavi',
+    at.sections[0] && at.sections[0].key === 'identity' && at.sections[0].fields.some(f => f.key === 'tenantCF' && f.type === 'cf' && f.label && f.label.it) && at.identityMissing.length === 0
+    && atDefault.identityMissing.includes('tenantCF') && !atDefault.sections.some(sc => sc.key === 'identity'));
+  check('askFor(identityAsSection): il nome GIÀ presente non viene richiesto (solo i vuoti)', !at.sections[0].fields.some(f => f.key === 'tenantName'));
+  const wo = F.applyAnswers('operator', { paymentDay: '10', signaturePlace: 'Roma', tenantCF: 'RSSMRA85T10A562S', catFoglio: '9', propertyFloor: '2' }, ctx);
+  check('applyAnswers(operator): scrive i SUOI campi sul contratto (giorno 10, luogo Roma); CF del conduttore, catasto e immobile → not_yours',
+    wo.contract.paymentDay === 10 && wo.contract.signaturePlace === 'Roma' && Object.keys(wo.property).length === 0
+    && wo.rejected.length === 3 && wo.rejected.every(r => r.why === 'not_yours'));
+  const ctxE = { ...ctx, contract: { ...ctx.contract, tenantEmail: 'anna@expat.com' } };
+  const un = F.applyAnswers('tenant', { tenantEmail: 'attacker@evil.example' }, ctxE);
+  const tr = F.applyAnswers('tenant', { tenantEmail: 'anna.new@expat.com' }, ctxE, { trusted: true });
+  check('fill-only: dal link pubblico un\'email già presente resta already_set; dall\'attore autenticato (trusted) si corregge — la riga rossa protegge dal link intercettato, non da chi ha le chiavi',
+    un.rejected.length === 1 && un.rejected[0].why === 'already_set' && tr.rejected.length === 0 && tr.contract.tenantEmail === 'anna.new@expat.com');
+  check('trusted NON allarga i proprietari: l\'operatore trusted non scrive comunque l\'immobile', F.applyAnswers('operator', { propertyFloor: '2' }, ctx, { trusted: true }).rejected[0].why === 'not_yours');
+  check('missingFor(operator) vuoto sui termini pieni: i dovuti dell\'operatore arrivano dalla proposta', F.missingFor('operator', ctx).length === 0);
+}
+
 console.log('────────────────────────────────────────────────');
 console.log(`Il dizionario del contratto: ${passed} passed, ${failed} failed`);
 if (failed) { console.log('FAILED: ' + bad.join(' | ')); process.exit(1); }

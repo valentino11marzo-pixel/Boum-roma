@@ -2744,6 +2744,60 @@ costruisce sul mandato, in tre pezzi:
   giunzioni sulla sorgente (una sola strada per la firma, precondizioni
   prima della conversione, 60s in vercel.json, console e pagina).
 
+### ✎ Completa i dati + 📄 Bozza contratto — la console chiude i puntini (22/09/2026)
+Dopo «✍️ Firmo io» restava il pezzo di mezzo della richiesta dell'operatore:
+«scaricare il contratto auto creato dalle cose del pre-agreement, aggiustato
+con quello che manca». Il PDF nasceva SOLO alla conversione, e per chiudere
+un puntino (catasto, nascita del locatore, giorno di pagamento) si passava
+dal portal o si mandava il link della Scheda alla parte. Due pezzi, entrambi
+sul rail che c'era già:
+- **📄 Bozza contratto** (riga senza contratto): `convert` dryRun +
+  `draftPdf:true` impagina lo STESSO documento che → Contratto scriverebbe
+  (`buildContractPdfBytes` in `api/sign/_contractpdf.js` — una copia:
+  `ensureContractPdf` la usa per il contratto vero, il dryRun per la bozza),
+  lo mette su `preagreements/<paId>/bozza-contratto.pdf` e lo ricorda sulla
+  proposta (`draftPdfUrl/Hash/At/Dots`); stesso hash = stessa bozza, non si
+  ricarica. Nessun contratto, profilo o immobile scritto (con `createProperty`
+  si valuta sull'immobile che nascerebbe). Il cliente la trova sulla sua
+  pagina **accanto al mandato** («Read the lease BOOM would sign for you»:
+  ciò che autorizzi, lo leggi) e sopra il tasto di firma; `lookup` la espone
+  con la stessa regola del link di firma (soldi ricevuti o dovuto zero) e, a
+  contratto nato, espone `contract.draftPdfUrl` = `generatedPDF` finché le
+  firme non sono complete.
+- **✎ Completa i dati** (riga con contratto non ancora firmato da entrambi):
+  il modulo si disegna dai DESCRITTORI del dizionario (`api/profile/link.js`
+  → `ask` per parte: `askFor` con `identityAsSection`, etichette IT, i soli
+  campi vuoti, `locked` per chi ha firmato) e salva su `api/profile/submit`
+  con il **secondo attore**: Bearer ADMIN + `{contractId, role, answers}` al
+  posto del token del link. Stesso rail, stesse validazioni (`applyAnswers`),
+  stesse scritture (contratto · immobile · profilo nei due schemi), stessa
+  rigenerazione del PDF; cambiano SOLO gli effetti che presuppongono la
+  parte: all'operatore niente email di conferma alla parte, niente ping
+  «scheda compilata», fill-only rilassato (`trusted`: la riga rossa protegge
+  dal link intercettato, non da chi ha le chiavi). Il **ruolo 'operator'**
+  (`roleWho` nel dizionario) esiste solo per l'attore autenticato: i termini
+  che nessuna parte compila (giorno di pagamento, luogo di firma, stato di
+  consegna, acconto oneri…). La firma già apposta resta 410 per tutti; i
+  termini dell'operatore lo sono con QUALSIASI firma viva. E **il mandato
+  congela le condizioni approvate**: un dato che cambiasse la foto (canone,
+  date, deposito, parti, modello, clausole — `termsFromContract` di
+  `js/mandato-engine.js`) farebbe fallire la firma per mandato con 409;
+  `submit` lo dice PRIMA di scrivere (`409 mandate_terms_frozen` con le
+  chiavi), e la console lo scrive in chiaro. I co-conduttori restano sulla
+  LORO Scheda (link in modale): la loro riga si scrive con la precondizione.
+- Test: `tests/contratto/run.mjs` §9 (ruolo operatore: solo i suoi campi
+  vuoti, identità come sezione, trusted che rilassa SOLO il fill-only),
+  `tests/scheda/run.mjs` §9 (il giro VERO: 404 senza credenziale, 403 non
+  admin, termini sul contratto + PDF rigenerato, catasto dal ruolo landlord
+  senza email né ping, IBAN corretto da trusted, contrasto con la parte dal
+  link, 409 del mandato senza scritture, 410 a firma viva, `link.ask`,
+  giunzioni sulla sorgente: guardia prima della scrittura, conferma gated
+  sull'attore, impaginato in una copia), `tests/mandato/run.mjs` §10 (bozza:
+  PDF vero, proposta aggiornata, store invariato, stesso hash non ricarica,
+  esposizione al cliente come il link di firma, porta HTTP, contratto nato →
+  generatedPDF, firme complete → null; giunzioni console e pagina),
+  `tests/firma/console.mjs` (i bottoni SOLO dove hanno senso).
+
 ### Le regole IN VIGORE ≠ le regole nel file (31/08/2026)
 Il difetto più caro trovato in questa tornata, e nessuna suite poteva
 vederlo: **tutte leggono `firestore.rules`, cioè l'INTENZIONE, e nessuna la
