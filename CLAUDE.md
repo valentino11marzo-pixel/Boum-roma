@@ -4561,6 +4561,31 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
   Il messaggio normale e la testa Inbox si salvano insieme; ingressi tardivi non arretrano testa/seguito e non cancellano unread più recenti. A timestamp uguali, il seguito confronta `updateTime` del messaggio persistito, anche se il tracking termina in ordine inverso; nessuna cronologia dedotta dagli ID.
   Header e messaggio condividono le ACL della stessa identità finale; un cambio concorrente prevale sui dati del pre-read. Prove `segretariafreshness`: handler/worker/conferma/consegna reali, duplicati, corse, prima associazione, cambi ACL e mutazioni. Nessun invio implicito o migrazione dei casi.
 
+- **LA FINESTRA DI QUIETE (23/09/2026 — letta in `/ai`, non dedotta)**: la
+  preparazione del caso è il 96% della spesa AI del giorno (193 chiamate opus
+  su 251, $16,57 su $17,27), e ogni inbound rifà la preparazione INTERA:
+  `contextRevision` sale a ogni messaggio e il worker (ogni minuto) ripaga il
+  modello. WhatsApp arriva a raffiche («ciao» · «cercavo un bilocale» · «per
+  settembre» — lo stesso esempio di `mergeMessage`), quindi una raffica da tre
+  pagava tre proposte, due delle quali già superate all'arrivo. Ora un caso
+  con evento nuovo aspetta che la chat sia FERMA da `prepareQuietMinutes`
+  (`settings/segretaria`, default **3**, 0–30: un valore impossibile torna al
+  default e si dichiara in `rejected`, mai un aggiustamento) e si prepara UNA
+  volta sull'insieme. La regola è pura in `PRIORITY.quiet` (priority-engine):
+  vale SOLO per gli eventi nuovi — un ricontrollo scaduto e una decisione
+  dell'operatore non sono raffiche — e MAI per una scadenza confermata o una
+  richiesta datata entro l'ora (lo stesso rango che in `chooseNext` batte gli
+  eventi nuovi). Il monitor lo dichiara: `queue.quiet` nel battito,
+  `counts.quiet` in Oggi («In arrivo a raffica»), `quietMinutes` sul run,
+  la riga dei tetti in `/segretaria`. Le prove esistenti del worker misurano
+  ORDINE ed equità su messaggi di pochi secondi fa e dichiarano
+  `prepareQuietMinutes: 0`; la finestra ha le sue (default, raffica che si
+  prepara una volta, scadenza che non aspetta, 999 → default, ricontrollo
+  che non aspetta) e due mutanti. Qualità invariata per costruzione: la
+  proposta arriva comunque, dopo la raffica, e copre tutto. Il guadagno VERO
+  si legge in `/ai` nei giorni successivi (193 chiamate/giorno è la base).
+  Il modello (opus 4.8) non è stato toccato: la sua qualità si misura sulle
+  approvazioni (`agreeOn:false`), e cambiarlo è una decisione dell'operatore.
 - **Preparazione continua (18/09)**: le proposte non condividono più `dailyCap` con le risposte conversazionali. Il contatore misura i tentativi; attivazione, lease, budget per ciclo e veti di consegna restano distinti.
   La scansione legge pagine per ID con cursore nel battito esistente e riparte dal principio a fine giro: nessun arresto ai primi 200 casi. Oggi legge tutte le pagine, preservando dati e modali durante refresh incompleti; il monitor dichiara i conteggi parziali.
   Scadenze confermate e richieste datate precedono i nuovi eventi, con un turno su tre al caso meno recentemente controllato. Errori temporanei riprovano dopo 1/5/15/60/360 minuti; errori di validazione restano visibili da verificare fino a nuova evidenza, decisione o versione.

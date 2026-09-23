@@ -668,7 +668,9 @@ const { default: scanHandler } = await import('../../api/segretaria/scan-replies
 const { prepareNextCase } = await import('../../api/segretaria/worker.js');
 const { approvePreparation } = await import('../../api/segretaria/_dispatch.js');
 const liveNow = Date.now();
-const pausedConfig = { enabled: true, automaticReplies: false, prepareCases: true,
+// prepareQuietMinutes: 0 — qui si prova la PAUSA delle risposte, non la
+// finestra di quiete (che ha le sue prove in tests/segretaria/worker.mjs).
+const pausedConfig = { enabled: true, automaticReplies: false, prepareCases: true, prepareQuietMinutes: 0,
   prepareSince: new Date(liveNow - 60000).toISOString(), dailyCap: 5 };
 const collectionRows = coll => [...DB].filter(([p]) => p.startsWith(coll + '/'));
 function resetReplyGate() {

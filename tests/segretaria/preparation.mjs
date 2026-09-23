@@ -190,7 +190,9 @@ function reset({ role = 'tenant', text = 'Potete aggiornarmi sulla disponibilitÃ
   aiInputs.length = 0; aiRequests.length = 0; aiHits = 0; aiHook = null; aiBuilder = null;
   sequence = 0; clock = NOW; failFirstTaskReads = 0; listDelayMs = 0; failingCollection = ''; beforePatch = null; commitHook = null; queryHook = null;
   save('users/admin', { role: 'admin' }); save('users/tenant', { role: 'tenant' });
-  save('settings/segretaria', { enabled: true, prepareCases: true, dailyCap: 5 });
+  // prepareQuietMinutes: 0 â€” qui si prova la PREPARAZIONE su eventi di pochi
+  // secondi fa; la finestra di quiete ha le sue prove nel worker.
+  save('settings/segretaria', { enabled: true, prepareCases: true, dailyCap: 5, prepareQuietMinutes: 0 });
   const personId = role === 'pfs' ? 'pfsA' : 'tenantA';
   const practiceRef = role === 'pfs' ? 'pfsClients/pfsA' : 'contracts/cA';
   save('conversations/' + CID, { contactType: role, contactId: personId, contactPhone: PHONE,

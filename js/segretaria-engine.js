@@ -29,15 +29,17 @@
     maxTurns: 12,         // turni della Segretaria per conversazione
     dailyCap: 60,         // turni totali al giorno (tutte le chat)
     maxChars: 700,        // tetto duro sulla lunghezza della risposta
+    prepareQuietMinutes: 3, // minuti di silenzio della chat prima che il worker prepari un caso nuovo (0 = subito)
   };
-  var LIMITS = { maxTurns: [2, 40], dailyCap: [5, 500], maxChars: [200, 1500] };
+  var LIMITS = { maxTurns: [2, 40], dailyCap: [5, 500], maxChars: [200, 1500], prepareQuietMinutes: [0, 30] };
 
   function mergeConfig(raw) {
-    var cfg = { enabled: DEFAULTS.enabled, maxTurns: DEFAULTS.maxTurns, dailyCap: DEFAULTS.dailyCap, maxChars: DEFAULTS.maxChars };
+    var cfg = { enabled: DEFAULTS.enabled, maxTurns: DEFAULTS.maxTurns, dailyCap: DEFAULTS.dailyCap, maxChars: DEFAULTS.maxChars,
+      prepareQuietMinutes: DEFAULTS.prepareQuietMinutes };
     var rejected = [];
     if (!raw || typeof raw !== 'object') return { cfg: cfg, rejected: rejected };
     if (raw.enabled === false) cfg.enabled = false;
-    ['maxTurns', 'dailyCap', 'maxChars'].forEach(function (k) {
+    ['maxTurns', 'dailyCap', 'maxChars', 'prepareQuietMinutes'].forEach(function (k) {
       if (raw[k] == null) return;
       var n = Number(raw[k]);
       if (!isFinite(n) || n < LIMITS[k][0] || n > LIMITS[k][1]) {

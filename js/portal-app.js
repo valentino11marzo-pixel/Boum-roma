@@ -4886,7 +4886,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (at(m?.checkedAt)) dates.push('Stato letto: ' + at(m.checkedAt));
         if (at(m?.lastRunAt)) dates.push('Ultimo ciclo: ' + at(m.lastRunAt));
         if (Number.isSafeInteger(m?.usedToday) && m.usedToday >= 0) dates.push('Tentativi oggi: ' + m.usedToday + ' (compresi quelli non riusciti)');
-        for (const [key, label] of [['pending', 'Richieste da valutare'], ['current', 'Proposte attuali'], ['awaitingReview', 'In attesa di verifica'], ['retrying', 'Casi da ritentare']]) {
+        for (const [key, label] of [['pending', 'Richieste da valutare'], ['quiet', 'In arrivo a raffica (si preparano a chat ferma)'], ['current', 'Proposte attuali'], ['awaitingReview', 'In attesa di verifica'], ['retrying', 'Casi da ritentare']]) {
             if (Number.isSafeInteger(m?.counts?.[key]) && m.counts[key] >= 0) counts.push(label + ': ' + m.counts[key]);
         }
         const retryLabels = {

@@ -49,5 +49,19 @@ function chooseNext(candidates, cursor, now) {
     || stamp(a.task.followUp.checkAt) - stamp(b.task.followUp.checkAt)
     || String(a.task.id).localeCompare(String(b.task.id)))[0]?.task || null;
 }
-  return Object.freeze({ retryCurrent, reviewCurrent, retryDelayMinutes, dueAt, chooseNext });
+// The quiet window (23/09/2026): WhatsApp arrives in bursts («ciao» ·
+// «cercavo un bilocale» · «per settembre») and every inbound bumps
+// contextRevision, so a preparation started mid-burst is paid in full and
+// obsolete on arrival. A new-event row waits until the chat has been silent
+// for quietMs and is then prepared ONCE, on the whole burst. A confirmed
+// deadline or a dated request within the hour never waits: the same rank
+// that outranks new events in chooseNext. Rechecks and operator decisions
+// are not bursts and never wait.
+function quiet(row, now, quietMs) {
+  if (!row || row.reason !== 'event' || !(quietMs > 0)) return false;
+  const last = stamp(row.task?.followUp?.lastInboundAt);
+  if (!(last > 0) || now - last >= quietMs) return false;
+  return !(dueAt(row.task) <= now + 3600000);
+}
+  return Object.freeze({ retryCurrent, reviewCurrent, retryDelayMinutes, dueAt, chooseNext, quiet });
 });

@@ -183,7 +183,9 @@ function reset({ role = 'tenant', text = 'Potete aggiornarmi sulla disponibilit�
   aiInputs.length = 0; aiRequests.length = 0; queryReads.length = 0; aiHits = 0; aiHook = null; aiBuilder = null;
   sequence = 0; clock = NOW; readHook = null; failFirstTaskReads = 0; listDelayMs = 0; failingCollection = ''; beforePatch = null; commitHook = null;
   save('users/admin', { role: 'admin' }); save('users/tenant', { role: 'tenant' });
-  save('settings/segretaria', { enabled: true, prepareCases: true, dailyCap: 5 });
+  // prepareQuietMinutes: 0 — queste prove misurano ORDINE ed equità su
+  // messaggi di pochi secondi fa; la finestra di quiete ha le sue prove sotto.
+  save('settings/segretaria', { enabled: true, prepareCases: true, dailyCap: 5, prepareQuietMinutes: 0 });
   const personId = role === 'pfs' ? 'pfsA' : 'tenantA';
   const practiceRef = role === 'pfs' ? 'pfsClients/pfsA' : 'contracts/cA';
   save('conversations/' + CID, { contactType: role, contactId: personId, contactPhone: PHONE,
@@ -584,6 +586,37 @@ try {
   ok('cron ogni minuto, limite funzione 60s invariato', vercel.crons.some(c => c.path === '/api/segretaria/worker' && c.schedule === '* * * * *')
     && vercel.functions['api/segretaria/worker.js'].maxDuration === 60);
 
+  // ── La finestra di quiete (23/09/2026) ──────────────────────────────────
+  // Ogni inbound rifà la preparazione intera (opus): una raffica di tre
+  // messaggi pagava tre proposte, due delle quali già superate. Col default
+  // (3′) un caso appena scritto aspetta, e si prepara UNA volta a chat ferma.
+  reset(); save('settings/segretaria', { enabled: true, prepareCases: true });
+  const burst = addCase(1, NOW - 10000), settled = addCase(2, NOW - 4 * 60000, { checkAt: stamp(NOW + 3600000) });
+  out = await tick();
+  ok('default 3′: i casi scritti 10s fa aspettano, quello fermo da 4′ si prepara',
+    out.prepared === 1 && out.id === settled && out.quietMinutes === 3 && out.queueBefore.quiet === 2
+      && out.queueBefore.pending === 3 && out.queueBefore.eligible === 1 && aiHits === 1, out);
+  clock = NOW + 3 * 60000; out = await tick();
+  ok('a chat ferma da 3′ la raffica si prepara, una volta per caso',
+    out.prepared === 2 && out.queue.quiet === 0 && out.queue.pending === 0 && aiHits === 3
+      && out.results.every(r => [burst, ID].includes(r.id)), out);
+  reset(); save('settings/segretaria', { enabled: true, prepareCases: true });
+  const dueNow = addCase(1, NOW - 10000, { confirmed: true, checkAt: stamp(NOW - 1000) });
+  out = await tick();
+  ok('una scadenza confermata non aspetta la quiete; il caso senza scadenza sì',
+    out.prepared === 1 && out.id === dueNow && out.queueBefore.quiet === 1 && aiHits === 1, out);
+  reset(); save('settings/segretaria', { enabled: true, prepareCases: true, prepareQuietMinutes: 999 });
+  addCase(1, NOW - 2 * 60000); out = await tick();
+  ok('valore impossibile (999′) → default 3′, mai un aggiustamento silenzioso',
+    out.checked === 0 && out.quietMinutes === 3 && out.queueBefore.quiet === 2 && aiHits === 0, out);
+  save('settings/segretaria', { enabled: true, prepareCases: true, prepareQuietMinutes: 1 });
+  out = await tick();
+  ok('finestra a 1′: il caso di 2′ fa si prepara, quello di 10s aspetta ancora',
+    out.prepared === 1 && out.quietMinutes === 1 && out.queueBefore.quiet === 1 && aiHits === 1, out);
+  reset(); await generate(); clock = NOW + 60001; out = await tick();
+  ok('un ricontrollo scaduto non è una raffica: non aspetta la quiete',
+    out.prepared === 1 && out.id === ID && out.queueBefore.rechecks === 1 && out.queueBefore.quiet === 0, out);
+
   if (!process.env.BOOM_WORKER_MUTANT && !fails) {
     const fs = await import('node:fs/promises');
     const { fileURLToPath } = await import('node:url');
@@ -630,6 +663,10 @@ try {
         from: 'out.heartbeatVersion ? { updateTime: out.heartbeatVersion }', to: 'out.heartbeatVersion ? { exists: true }' },
       { name: 'equità disaccoppiata dal numero delle pagine',
         from: 'const fairnessSweep = schedulerSweep === 2;', to: 'const fairnessSweep = false;' },
+      { name: 'finestra di quiete sugli eventi nuovi', file: 'js/segretaria-priority-engine.js',
+        from: "if (!row || row.reason !== 'event' || !(quietMs > 0)) return false;", to: 'return false;' },
+      { name: 'la scadenza confermata non aspetta la quiete', file: 'js/segretaria-priority-engine.js',
+        from: 'return !(dueAt(row.task) <= now + 3600000);', to: 'return true;' },
     ];
     for (const mutant of mutants) {
       const scratch = await fs.mkdtemp(join(tmpdir(), 'boom-worker-mutation-'));
