@@ -103,6 +103,14 @@ console.log('\n\x1b[1m▸ i quattro tipi, e nient\'altro\x1b[0m');
   ok('proprietario col solo telefono: entra', ownPhone.code === 200 && ownPhone.leads.length === 1);
   const of = ownPhone.leads[0] && ownPhone.leads[0].body.fields;
   ok('…come proprietario (leadType landlord) con la zona', !!of && of.leadType.stringValue === 'landlord' && of.zone.stringValue === 'Prati');
+  // La pagina /owners è in italiano e lo dichiara: senza, replyLang non
+  // trova parole italiane nel riassunto e il WhatsApp precompilato esce in
+  // inglese a un proprietario romano.
+  const ownIt = await callPartner({ kind: 'owner', name: 'Maria Rossi', phone: '+39 333 123 4567', org: 'Prati', lang: 'it', volume: '12' });
+  const oi = ownIt.leads[0] && ownIt.leads[0].body.fields;
+  ok('la lingua dichiarata dalla pagina arriva sul lead', !!oi && oi.language.stringValue === 'it');
+  ok('una lingua inventata non passa', (await callPartner({ kind: 'owner', name: 'X', phone: '+39 333 123 4567', lang: 'xx' })).leads[0].body.fields.language.nullValue !== undefined);
+  ok('il portafoglio del proprietario si legge in unità, non in persone', !!oi && oi.message.stringValue.includes('PORTAFOGLIO — 12 unità') && !oi.message.stringValue.includes('persone/anno'));
   const uniPhone = await callPartner({ kind: 'university', name: 'X', phone: '+39 333 123 4567' });
   ok('un ente col solo telefono: no', uniPhone.code === 400 && uniPhone.leads.length === 0);
   const ownBad = await callPartner({ kind: 'owner', name: 'X', email: 'non-una-email', phone: '+39 333 123 4567' });

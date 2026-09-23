@@ -378,7 +378,12 @@ export async function sendAspiRequest(contractId, opts = {}) {
   try { await fsPatch('contracts/' + contractId, patch); } catch (e) { console.warn('[aspi] patch:', e.message); }
 
   // ── La fattura col markup (idempotente: un kind, una fattura) ─────────
-  const bill = opts.bill !== undefined ? !!opts.bill : settings.autoInvoice;
+  // Con l'accordo pluriennale la pratica è INCLUSA nella fee annua (la
+  // promessa della pagina /owners): fatturarla sarebbe farsi pagare due
+  // volte lo stesso servizio. Il flag vince anche su un bill:true arrivato
+  // per abitudine dal pannello — la regola è del contratto col proprietario.
+  const included = registrazioneInclusa(contract, property);
+  const bill = included ? false : (opts.bill !== undefined ? !!opts.bill : settings.autoInvoice);
   let invoice = null;
   if (bill) {
     const amount = kindPrice(kind, settings);
@@ -413,9 +418,19 @@ export async function sendAspiRequest(contractId, opts = {}) {
   return {
     ok: true, kind, to: settings.email,
     attachments: attachments.map(a => a.filename),
-    missing, invoice,
+    missing, invoice, included,
     cost: kindCost(kind, settings), price: kindPrice(kind, settings),
   };
+}
+
+// ── Registrazione inclusa (accordo pluriennale) ─────────────────────────
+// Il servizio di registrazione/attestazione è compreso nella fee annua
+// dell'accordo pluriennale: si dichiara sull'immobile (vale per ogni
+// contratto futuro) o sul singolo contratto. Le IMPOSTE (registro, bolli)
+// restano fuori per costruzione: qui si decide solo la fattura del servizio.
+export function registrazioneInclusa(contract, property) {
+  return !!((contract && contract.registrazioneInclusa === true)
+    || (property && property.registrazioneInclusa === true));
 }
 
 // ── Zero tap (opt-in): la richiesta parte da sola alla firma completa ───

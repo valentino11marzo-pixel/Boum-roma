@@ -23456,9 +23456,36 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const el = document.getElementById('aspiChecklist');
         if (el) el.innerHTML = _aspiChecklistHtml(items);
         const bl = document.getElementById('aspiBillLbl');
-        if (bl) bl.textContent = `Crea fattura ${st.settings.billTo === 'tenant' ? 'all\'inquilino' : 'al proprietario'} — €${st.settings.prezzi[kind]} (costo pratica ASPI €${st.settings.costi[kind]})`;
+        const bx = document.getElementById('aspiBill');
+        if (st.included) {
+            if (bx) { bx.checked = false; bx.disabled = true; }
+            if (bl) bl.textContent = `Nessuna fattura: la pratica è inclusa nell'accordo pluriennale (costo ASPI €${st.settings.costi[kind]} a carico di BOOM)`;
+        } else {
+            if (bx) bx.disabled = false;
+            if (bl) bl.textContent = `Crea fattura ${st.settings.billTo === 'tenant' ? 'all\'inquilino' : 'al proprietario'} — €${st.settings.prezzi[kind]} (costo pratica ASPI €${st.settings.costi[kind]})`;
+        }
     }
     window._aspiRenderKind = _aspiRenderKind;
+    // L'accordo pluriennale include la pratica di registrazione: il flag vive
+    // sull'IMMOBILE (ogni contratto futuro lo eredita) e il server lo legge
+    // prima di fatturare (api/fiscal/_aspi.js registrazioneInclusa).
+    async function aspiSetIncluded(on) {
+        const st = window._aspiStatus; if (!st || !st.propertyId) return;
+        try {
+            await db.collection('properties').doc(st.propertyId).set({ registrazioneInclusa: !!on }, { merge: true });
+            st.included = !!on;
+            const lp = (S.properties || []).find(x => x.id === st.propertyId);
+            if (lp) lp.registrazioneInclusa = !!on;
+            const bx = document.getElementById('aspiBill');
+            if (bx && !on) bx.checked = !!st.settings.autoInvoice;
+            _aspiRenderKind();
+            toast('success', on ? '🤝 Registrazione inclusa per questo immobile' : 'Registrazione di nuovo fatturabile');
+        } catch (e) {
+            const bi = document.getElementById('aspiIncluded'); if (bi) bi.checked = !on;
+            toast('error', 'Non salvato: ' + e.message);
+        }
+    }
+    window.aspiSetIncluded = aspiSetIncluded;
     async function openAspi(contractId) {
         toast('info', '🏛 Leggo lo stato della pratica…');
         let st = null;
@@ -23493,7 +23520,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
                 <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin:10px 0 4px">Il fascicolo che parte</div>
                 <div id="aspiChecklist" style="margin-bottom:12px"></div>
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;margin-bottom:10px"><input type="checkbox" id="aspiBill" ${s.autoInvoice ? 'checked' : ''}> <span id="aspiBillLbl"></span></label>
+                ${st.propertyId ? `<label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;margin-bottom:6px"><input type="checkbox" id="aspiIncluded" ${st.included ? 'checked' : ''} onchange="aspiSetIncluded(this.checked)"> <span>🤝 Accordo pluriennale con il proprietario: registrazione inclusa (vale per l'immobile)</span></label>` : ''}
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;margin-bottom:10px"><input type="checkbox" id="aspiBill" ${s.autoInvoice && !st.included ? 'checked' : ''}> <span id="aspiBillLbl"></span></label>
                 <div class="form-group"><textarea class="form-textarea" id="aspiNote" rows="2" placeholder="Nota per il referente (opzionale) — es. urgenza, dettagli catastali…"></textarea></div>
             </div>
             <div class="modal-footer">

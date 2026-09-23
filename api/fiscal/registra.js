@@ -16,6 +16,7 @@ import { readJson, fsGet } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import {
   loadAspiSettings, aspiChecklist, sendAspiRequest, defaultKind, kindPrice, kindCost,
+  registrazioneInclusa,
 } from './_aspi.js';
 
 const clip = (v, n = 120) => String(v == null ? '' : v).trim().slice(0, n);
@@ -60,6 +61,10 @@ export default async function handler(req, res) {
         costi: { registrazione: kindCost('registrazione', settings), completo: kindCost('completo', settings), asseverazione: kindCost('asseverazione', settings) },
       },
       kind: defaultKind(contract),
+      // Accordo pluriennale: la pratica è inclusa, il pannello non propone
+      // la fattura (e il server non la emetterebbe comunque).
+      included: registrazioneInclusa(contract, property),
+      propertyId: contract.propertyId || null,
       kinds: {
         registrazione: aspiChecklist(contract, property, 'registrazione'),
         completo: aspiChecklist(contract, property, 'completo'),

@@ -94,6 +94,7 @@ export default async function handler(req, res) {
   const volume = clip(body.volume, 80);
   const phone = clip(body.phone, 40);
   const note = clip(body.message, 600);
+  const pageLang = ['it', 'en'].includes(clip(body.lang, 5).toLowerCase()) ? clip(body.lang, 5).toLowerCase() : null;
 
   // Un ente risponde per email; un PROPRIETARIO romano risponde al
   // telefono. Per lui basta un numero vero (≥ 8 cifre): la card 🔑 di
@@ -113,7 +114,11 @@ export default async function handler(req, res) {
   const bits = [`${kind.label}${org ? ': ' + org : ''}`];
   if (role) bits.push(role);
   if (country) bits.push(country);
-  if (volume) bits.push(volume + ' persone/anno');
+  // Per un ente il volume sono le persone da alloggiare; per un proprietario
+  // sono le unità che possiede: un portafoglio da 40 case non è «40
+  // persone/anno», e la testa del riassunto è la prima cosa che l'operatore
+  // legge prima di richiamare.
+  if (volume) bits.push(kindKey === 'owner' ? `PORTAFOGLIO — ${volume} unità` : volume + ' persone/anno');
   if (note) bits.push(note);
   const message = bits.join(' · ');
 
@@ -126,7 +131,12 @@ export default async function handler(req, res) {
     phone: phone || null,
     message,
     notes: message,
-    language: null,          // la decide replyLang dalle parole di chi scrive
+    // La decide replyLang dalle parole di chi scrive; quando la pagina la
+    // DICHIARA (la /owners è in italiano) vale come ripiego: il riassunto
+    // «Proprietario: Prati · Vuole: …» non ha parole che replyLang
+    // riconosca, e senza questo il WhatsApp precompilato per un proprietario
+    // romano usciva in inglese.
+    language: pageLang,
     budget: null,
     zone: null,
     situation: null,

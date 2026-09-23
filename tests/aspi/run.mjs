@@ -278,6 +278,24 @@ store.set('users/own1', { name: 'Mario Bianchi' });
   store.delete('settings/registrazione');
 }
 
+// ═══ 5b. Accordo pluriennale: la registrazione è INCLUSA, mai fatturata ═══
+{
+  store.set('properties/pPlur', { ...(store.get('properties/p1') || {}), registrazioneInclusa: true });
+  store.set('contracts/cPlur', { ...baseContract, propertyId: 'pPlur', tenantId: 'u1' });
+  const r = mkRes();
+  await handler(mkReq({ op: 'send', contractId: 'cPlur', kind: 'completo', bill: true }, { authorization: 'Bearer faketoken' }), r);
+  check('pluriennale (flag sull\'immobile): email sì, fattura NO — anche con bill:true dal pannello',
+    r.code === 200 && r.body.included === true && r.body.invoice === null && !store.has('invoices/aspi_completo_cPlur'));
+  const rs = mkRes();
+  await handler(mkReq({ op: 'status', contractId: 'cPlur' }, { authorization: 'Bearer faketoken' }), rs);
+  check('status: il pannello sa che è inclusa (e su quale immobile scrivere il flag)',
+    rs.code === 200 && rs.body.included === true && rs.body.propertyId === 'pPlur');
+  store.set('contracts/cPlur2', { ...baseContract, propertyId: 'p1', tenantId: 'u1', registrazioneInclusa: true });
+  const r2 = mkRes();
+  await handler(mkReq({ op: 'send', contractId: 'cPlur2', kind: 'registrazione' }, { authorization: 'Bearer faketoken' }), r2);
+  check('pluriennale (flag sul contratto): nessuna fattura', r2.code === 200 && !store.has('invoices/aspi_registrazione_cPlur2'));
+}
+
 // ═══ 6. Senza PDF niente invio · 'registered' non si degrada ═══
 {
   store.set('contracts/c3', { ...baseContract, signedPdfUrl: '', generatedPDF: '', propertyId: 'p1' });
