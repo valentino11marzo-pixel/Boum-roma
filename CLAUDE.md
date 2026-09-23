@@ -2969,7 +2969,7 @@ approvazioni dell'operatore, cioè la scala della fiducia. La trascrizione
 Whisper sul Mac (`local.sttUrl`, rotta OpenAI-compatibile) prima, OpenAI come
 rete. Rules: `aiUsage`/`aiShadow` admin-only, `settings/ai` non pubblico
 (porta l'URL del tunnel).
-Test: `node tests/ai/run.mjs` (140 check — default pinnati, confini per
+Test: `node tests/ai/run.mjs` (145 check — default pinnati, confini per
 mutazione, ricadute, ombra, contatori e costo, porta HTTP, STT, giunzioni
 sulla sorgente, anti-deriva nelle due direzioni: ogni chiamante dichiara uno
 scopo che esiste, ogni scopo ha un chiamante, nessun modello scritto a mano
@@ -3099,6 +3099,21 @@ recintano le scritture della preparazione a `operatorTasks|heartbeat`
 ammettono ora anche `aiUsage/` — il contatore della centrale è una
 scrittura per costruzione, e il recinto resta: qualsiasi altra scrittura fa
 cadere il test. Nulla cambia nel comportamento verso il cliente.
+
+**Il primo tap sul locale lo spegneva (23/09/2026 — letto nel `/ai`
+dell'operatore, non dedotto).** Con `LOCAL_AI_URL` e `LOCAL_AI_MODEL`
+regolarmente in env su Vercel, dopo «🟢 Accendi il locale» `/ai` diceva
+«🔴 locale non configurato» e lo scopo in shadow cadeva su «→ cloud (nessun
+URL locale)». Il toggle scriveva su `settings/ai` la forma VALIDATA intera di
+`local` — `url:''`, `model:''`, `timeoutMs:20000`… — e `loadAiSettings`
+faceva `{ ...env, ...doc.local }`: «il documento vince sull'env» valeva anche
+per un vuoto, quindi la stringa vuota del documento spegneva l'URL in env. Un
+difetto che si accende al PRIMO uso del bottone, invisibile alla suite perché
+nessun check metteva insieme env e documento. Ora l'env riempie dove il
+documento TACE (`''`/`null` non sono una scelta) e il tap scrive SOLO le voci
+che qualcuno ha scritto — mai i default, che maschererebbero l'env
+(`LOCAL_AI_TIMEOUT_MS` compreso). Il documento già scritto in produzione si
+sana da solo alla lettura. Le due mutazioni riproducono il messaggio visto.
 
 ### POST `/api/documents/share`
 Admin/landlord (Firebase ID token via `api/_auth.js`). Creates a
