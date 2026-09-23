@@ -516,11 +516,11 @@ Buongiorno [NOME], sono Valentino di BOOM — Egidi Immobiliare.
 
 Affittiamo a chi sceglie Roma per lavoro: professionisti in trasferta, personale ONU e ambasciate, ricercatori. Persone che pagano puntuali anche perché il datore di lavoro chiede la ricevuta.
 
-Selezione documentata, contratto registrato, incassi tracciati e scadenze seguite da noi: lei riceve un rendiconto il primo del mese.
+Selezione documentata, contratto registrato, incassi tracciati: lei riceve un rendiconto il primo del mese. La prima locazione, per lei, è senza provvigione.
 
-Mi dica zona, metri quadri e se è arredato: le dico a quanto si affitta davvero. https://www.boomrome.com/canone
+Mi dica zona, metri e se è arredato: le dico quanto si affitta davvero. https://www.boomrome.com/owners
 ```
-<sub>Da riempire: [NOME] — 505 caratteri</sub>
+<sub>Da riempire: [NOME] — 520 caratteri</sub>
 
 #### `/prpack` · Pacchetto concordato (€349) · 🪑 panchina
 

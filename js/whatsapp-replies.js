@@ -262,9 +262,9 @@ Se preferisci, dimmi quando posso chiamarti: in due minuti capiamo se ha senso.`
 
 Affittiamo a chi sceglie Roma per lavoro: professionisti in trasferta, personale ONU e ambasciate, ricercatori. Persone che pagano puntuali anche perché il datore di lavoro chiede la ricevuta.
 
-Selezione documentata, contratto registrato, incassi tracciati e scadenze seguite da noi: lei riceve un rendiconto il primo del mese.
+Selezione documentata, contratto registrato, incassi tracciati: lei riceve un rendiconto il primo del mese. La prima locazione, per lei, è senza provvigione.
 
-Mi dica zona, metri quadri e se è arredato: le dico a quanto si affitta davvero. ${SITE}/canone`,
+Mi dica zona, metri e se è arredato: le dico quanto si affitta davvero. ${SITE}/owners`,
     },
 
     // ── NEL MAZZO ──────────────────────────────────────────────────────────

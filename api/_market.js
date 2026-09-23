@@ -134,6 +134,21 @@ export function b2bSide(lead = {}) {
 }
 
 /**
+ * L'etichetta della sorgente sulla card Telegram per un lead partner. Un
+ * proprietario privato che ha compilato /owners non è «un ente»: letto così,
+ * l'operatore si prepara alla telefonata sbagliata. Il portafoglio (il
+ * riassunto porta «PORTAFOGLIO — N unità», api/partners/submit.js) si
+ * distingue dal privato perché si richiama con altre prove in mano.
+ * @returns {string}
+ */
+export function b2bLabel(lead = {}) {
+  if (b2bSide(lead) === 'owner') {
+    return /PORTAFOGLIO/.test(String(lead && lead.message || '')) ? '🔑 portafoglio' : '🔑 proprietario';
+  }
+  return '🏢 ente / azienda';
+}
+
+/**
  * Il messaggio WhatsApp già scritto per un lead B2B, nella lingua delle SUE
  * parole (replyLang — la casa parla inglese, l'italiano è l'eccezione vera).
  * Firmato Valentino: qui il mercato È Roma, la firma è quella giusta.

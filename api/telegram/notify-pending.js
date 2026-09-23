@@ -17,7 +17,7 @@ import { postinoTick } from './_postino.js';
 import { fmtViewingCard, viewingKeyboard } from './_viewings.js';
 import { loadViewing } from '../viewings/_apply.js';
 import { replyLang } from '../_lang.js';
-import { isReunion, reunionReplyText, isB2B, b2bReplyText } from '../_market.js';
+import { isReunion, reunionReplyText, isB2B, b2bReplyText, b2bLabel } from '../_market.js';
 
 const MAX_PER_RUN = 10; // cap so a backlog doesn't spam Telegram
 const esc = s => String(s || '').replace(/[&<>]/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c]));
@@ -191,7 +191,7 @@ export default async function handler(req, res) {
       // WhatsApp reads as a live thread, not as a source label — the operator
       // must see at a glance that someone is waiting on the other side.
       const src = isReunion(l) ? '🇷🇪 La Réunion'
-        : isB2B(l) ? '🏢 ente / azienda'
+        : isB2B(l) ? b2bLabel(l)
         : String(l.source || '') === 'whatsapp' ? '💬 ti ha scritto su WhatsApp'
         : esc(l.source || '?');
       const head = l.grade

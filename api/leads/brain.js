@@ -56,6 +56,16 @@ export function stage0(lead, listingById) {
   }
   if (!msg && !lead.phone && !lead.email) return { grade: 'dead', reason: 'no content, no contact', final: true };
 
+  // Un PROPRIETARIO raggiungibile si richiama sempre. Le regole qui sotto
+  // (expat, budget, data d'ingresso) e il prompt AI sono scritti per chi
+  // CERCA casa: un proprietario col solo telefono finiva nel lotto AI con
+  // un metro da inquilino, e «agenzia → dead» è a un passo da «proprietario
+  // con più case». Nessuna spesa di modello, mai morto, mai archiviato.
+  const owner = String(lead.leadType || '') === 'landlord' || String(lead.intent || '').toLowerCase() === 'owner';
+  if (owner && (lead.phone || lead.email)) {
+    return { grade: 'A', reason: 'proprietario: si richiama sempre', final: true };
+  }
+
   let score = 0;
   const why = [];
   if (lead.phone) { score += 25; why.push('phone'); }
