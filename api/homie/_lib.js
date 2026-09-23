@@ -242,6 +242,8 @@ export async function fsGetVersioned(docPath) {
 
 // Atomic updates with explicit preconditions; used by operational follow-up
 // so a concurrent inbound cannot be erased by an operator's stale confirmation.
+// fields:{} deliberately emits an empty updateMask for a version-only check.
+// Never omit that mask (document replacement) or drop the conditional operation.
 export async function fsCommit(writes) {
   const token = await getAdminToken();
   const base = FS_BASE.replace(/^https?:\/\/[^/]+\/v1\//, '');

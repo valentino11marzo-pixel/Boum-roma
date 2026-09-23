@@ -489,6 +489,36 @@ const LOCAL = { enabled: true, url: 'http://127.0.0.1:11434', model: 'qwen3:14b'
   ok(buttons.every(b => Buffer.byteLength(b.callback_data) <= 64 && b.text.length <= 64), 'callback ≤ 64 byte (Telegram), testi corti');
   ok(!buttons.some(b => b.callback_data === 'aitg:iv'), 'nessun bottone per chi non va mai in locale');
   ok(msg.length < 4000, 'il messaggio sta nel limite di Telegram');
+
+  // LA LEZIONE DEL 23/09/2026 (dal /ai dell'operatore, non dedotta): il primo
+  // «🟢 Accendi il locale» in produzione scriveva la forma validata intera
+  // (url:'', model:'' ...) e, siccome il documento vince sull'env, da li' /ai
+  // diceva «locale non configurato» con LOCAL_AI_URL regolarmente in env.
+  // Un vuoto nel documento non e' una scelta: l'env riempie dove il doc tace.
+  {
+    const { loadAiSettings } = await import('../../api/_ai.js');
+    process.env.LOCAL_AI_URL = 'https://ai.local.test'; process.env.LOCAL_AI_MODEL = 'qwen3:14b';
+    // (a) il documento come lo ha lasciato la produzione: i vuoti scritti
+    store.set('settings/ai', { local: { enabled: true, url: '', model: '', visionModel: '', sttUrl: '', sttModel: '', timeoutMs: 20000, fallback: true } });
+    forgetAiSettings();
+    const l1 = await loadAiSettings({ fresh: true });
+    ok(l1.cfg.local.url === 'https://ai.local.test' && l1.cfg.local.model === 'qwen3:14b' && l1.cfg.local.enabled === true, 'url:"" nel documento NON spegne LOCAL_AI_URL: l\'env riempie dove il documento tace', l1.cfg.local);
+    const m1 = await aiStatusMessage({ probe: false });
+    ok(/locale.*acceso/.test(m1.msg) && !/non configurato/.test(m1.msg), '...e /ai dice «acceso», non «non configurato»', m1.msg.split('\n')[1]);
+    // (b) da oggi il tap non scrive piu' i vuoti: un doc nuovo porta solo enabled
+    store.delete('settings/ai'); forgetAiSettings();
+    const t1 = await toggleAi('local');
+    const L = store.get('settings/ai').local;
+    ok(t1 && L.enabled === true && !('url' in L) && !('model' in L) && !('timeoutMs' in L), 'il tap scrive SOLO enabled: ne\' url:"" ne\' i default (maschererebbero l\'env)', L);
+    const l2 = await loadAiSettings({ fresh: true });
+    ok(l2.cfg.local.url === 'https://ai.local.test' && l2.cfg.local.enabled === true, '...e dopo il tap il locale resta configurato dall\'env');
+    // (c) un valore SCRITTO nel documento vince ancora sull'env
+    await setAiSettings({ local: { url: 'https://ai.boom.example' } });
+    const l3 = await loadAiSettings({ fresh: true });
+    ok(l3.cfg.local.url === 'https://ai.boom.example' && l3.cfg.local.model === 'qwen3:14b' && l3.cfg.local.enabled === true, 'un URL scritto nel documento vince sull\'env; modello ed enabled restano');
+    delete process.env.LOCAL_AI_URL; delete process.env.LOCAL_AI_MODEL;
+    store.delete('settings/ai'); forgetAiSettings();
+  }
 }
 
 // ═══ 6. Le giunzioni sulla sorgente ═════════════════════════════════════

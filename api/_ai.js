@@ -77,7 +77,15 @@ export async function loadAiSettings({ fresh = false } = {}) {
   let raw = null;
   try { raw = await fsGet('settings/ai'); } catch { raw = null; }   // fail-open: senza documento si lavora in cloud
   const base = raw && typeof raw === 'object' ? raw : {};
-  const merged = { ...base, local: { ...envLocal(), ...(base.local && typeof base.local === 'object' ? base.local : {}) } };
+  // Il documento vince sull'env SOLO dove dice qualcosa: un valore vuoto
+  // ('' o null) nel documento non e' una scelta, e' l'assenza di scelta, e
+  // non puo' spegnere LOCAL_AI_URL. LA LEZIONE DEL 23/09/2026: il primo
+  // «🟢 Accendi il locale» scriveva la forma validata intera (url:'',
+  // model:'' ...) e da li' /ai diceva «locale non configurato» con l'URL
+  // regolarmente in env.
+  const docLocal = base.local && typeof base.local === 'object' ? base.local : {};
+  const docLocalSet = Object.fromEntries(Object.entries(docLocal).filter(([, v]) => v !== '' && v != null));
+  const merged = { ...base, local: { ...envLocal(), ...docLocalSet } };
   const { cfg, rejected } = REG.mergeSettings(merged);
   _cache = { cfg, rejected, raw: raw || null };
   _cacheAt = Date.now();

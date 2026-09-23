@@ -93,6 +93,44 @@ os.remove(tmp)
 check('.env: virgolette tolte, commenti e righe rotte ignorati', env == {'LOCAL_AI_TOKEN': 'abc', 'LOCALE_MODEL': 'qwen3:8b'})
 check('.env assente → vuoto, mai un crollo', bl.load_env('/nonexistent/.env') == {})
 
+# ── la traduzione OpenAI ⇄ nativa (pura) ──────────────────────────────────
+n = bl.to_native_chat({'model': 'm', 'max_tokens': 7, 'temperature': 0, 'stream': True,
+                       'response_format': {'type': 'json_object'},
+                       'messages': [{'role': 'system', 'content': 's'},
+                                    {'role': 'user', 'content': [{'type': 'text', 'text': 'guarda'},
+                                                                 {'type': 'image_url', 'image_url': {'url': 'data:image/jpeg;base64,QUJD'}}]}]})
+check('to_native_chat: think False di default, stream forzato False, format json, num_predict=max_tokens, temperature',
+      n['think'] is False and n['stream'] is False and n['format'] == 'json' and n['options'] == {'num_predict': 7, 'temperature': 0.0})
+check('to_native_chat: una parte immagine data-URI → images base64 senza prefisso, il testo resta content',
+      n['messages'][1] == {'role': 'user', 'content': 'guarda', 'images': ['QUJD']})
+try:
+    bl.to_native_chat({'model': 'm', 'messages': [{'role': 'user', 'content': [{'type': 'image_url', 'image_url': {'url': 'https://x/y.jpg'}}]}]})
+    check('to_native_chat: un URL http di immagine viene rifiutato (non si scarica da qui)', False)
+except ValueError as e:
+    check('to_native_chat: un URL http di immagine viene rifiutato (non si scarica da qui)', 'image_url_not_inline' in str(e))
+n = bl.to_native_chat({'model': 'm', 'messages': [{'role': 'user', 'content': 'x'}],
+                       'response_format': {'type': 'json_schema', 'json_schema': {'schema': {'type': 'object'}}}})
+check('to_native_chat: json_schema → format = lo schema', n['format'] == {'type': 'object'})
+o = bl.from_native_chat({'model': 'm', 'message': {'role': 'assistant', 'content': '<think>bla'}, 'done_reason': 'length', 'prompt_eval_count': 4, 'eval_count': 60})
+check('from_native_chat: <think> troncato = tutto ragionamento → contenuto vuoto e finish_reason length',
+      o['choices'][0]['message']['content'] == '' and o['choices'][0]['finish_reason'] == 'length' and o['usage']['completion_tokens'] == 60)
+o = bl.from_native_chat({'message': {'content': '<think>x</think> {"a":1}'}}, 'fallback-model')
+check('from_native_chat: ragionamento chiuso tolto, modello di ripiego, finish stop',
+      o['choices'][0]['message']['content'] == '{"a":1}' and o['model'] == 'fallback-model' and o['choices'][0]['finish_reason'] == 'stop')
+
+# ── l'avvio non fa reverse-DNS (28 s di buio sul Mac mini, 22/09) ───────
+import socket as _socket
+_calls = []
+_orig_getfqdn = _socket.getfqdn
+_socket.getfqdn = lambda *a, **k: (_calls.append(a), 'x')[1]
+try:
+    _srv = bl.ThreadedServer(('127.0.0.1', 0), bl.make_handler({'token': 't', 'model': '', 'vision': '', 'ollama': 'http://127.0.0.1:1', 'stt': '', 'homie': '', 'port': 0, 'timeout': 1, 'base': ''}))
+    _srv.server_close()
+finally:
+    _socket.getfqdn = _orig_getfqdn
+check('ThreadedServer non chiama MAI socket.getfqdn all\'avvio (la reverse-DNS che teneva la porta aperta ma sorda)', not _calls)
+check('ThreadedServer: backlog di ascolto ≥ 16 (tailscaled + server insieme non lo riempiono)', bl.ThreadedServer.request_queue_size >= 16)
+
 # ── il server VERO contro un Ollama finto ─────────────────────────────────
 seen = []
 
@@ -118,9 +156,16 @@ class FakeOllama(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         n = int(self.headers.get('Content-Length') or 0)
         body = json.loads(self.rfile.read(n) or b'{}')
-        seen.append(('POST', self.path, body.get('model'), body.get('response_format')))
-        self._reply({'choices': [{'message': {'role': 'assistant', 'content': '{"ok":true}'}, 'finish_reason': 'stop'}],
-                     'usage': {'prompt_tokens': 10, 'completion_tokens': 3}, 'model': body.get('model')})
+        if self.path == '/v1/chat/completions':
+            # La rotta compatibile lascia pensare qwen3: il ponte NON deve usarla.
+            seen.append(('POST', self.path, 'COMPAT'))
+            return self._reply({'error': 'compat route must not be used'}, 500)
+        seen.append(('POST', self.path, body.get('model'), body.get('format'), body.get('think'),
+                     (body.get('options') or {}).get('num_predict'), body.get('stream')))
+        user = ''.join(m.get('content', '') for m in body.get('messages', []) if m.get('role') == 'user')
+        content = '<think>ragiono a lungo</think>{"ok":true}' if 'pensa' in user else '{"ok":true}'
+        self._reply({'model': body.get('model'), 'message': {'role': 'assistant', 'content': content},
+                     'done': True, 'done_reason': 'stop', 'prompt_eval_count': 10, 'eval_count': 3})
 
 
 class TS(socketserver.ThreadingMixIn, http.server.HTTPServer):
@@ -157,10 +202,20 @@ s, j = call('/v1/models', H)
 check('/v1/models col bearer → passa a Ollama e torna la lista', s == 200 and j['data'][0]['id'] == 'qwen3:8b' and seen[-1] == ('GET', '/v1/models'))
 s, j = call('/api/pull', H)
 check('/api/pull col bearer → 404 (API nativa mai esposta)', s == 404 and seen[-1] == ('GET', '/v1/models'))
-body = json.dumps({'model': 'qwen3:8b', 'messages': [{'role': 'user', 'content': 'x'}], 'response_format': {'type': 'json_object'}}).encode()
+body = json.dumps({'model': 'qwen3:8b', 'max_tokens': 60, 'messages': [{'role': 'user', 'content': 'x'}], 'response_format': {'type': 'json_object'}}).encode()
 s, j = call('/v1/chat/completions', H, body)
-check('completion: body inoltrato intatto (modello e json mode), risposta di Ollama restituita',
-      s == 200 and j['choices'][0]['message']['content'] == '{"ok":true}' and seen[-1] == ('POST', '/v1/chat/completions', 'qwen3:8b', {'type': 'json_object'}))
+check('completion → /api/chat NATIVA con think:false, format json, num_predict dal max_tokens, mai stream',
+      s == 200 and seen[-1] == ('POST', '/api/chat', 'qwen3:8b', 'json', False, 60, False))
+check('completion: la risposta nativa torna in forma OpenAI (choices, finish_reason, usage)',
+      s == 200 and j['choices'][0]['message']['content'] == '{"ok":true}' and j['choices'][0]['finish_reason'] == 'stop'
+      and j['usage'] == {'prompt_tokens': 10, 'completion_tokens': 3, 'total_tokens': 13} and j['model'] == 'qwen3:8b')
+check('la rotta compatibile di Ollama non viene MAI chiamata per una completion', not any(x[1] == '/v1/chat/completions' for x in seen))
+body = json.dumps({'model': 'qwen3:8b', 'think': True, 'messages': [{'role': 'user', 'content': 'pensa'}]}).encode()
+s, j = call('/v1/chat/completions', H, body)
+check('think esplicito nel body → passato al nativo; il <think> residuo nel testo viene tolto',
+      s == 200 and seen[-1][4] is True and j['choices'][0]['message']['content'] == '{"ok":true}')
+s, j = call('/v1/chat/completions', H, b'{"model":"qwen3:8b"}')
+check('completion senza messages → 400 dichiarato, Ollama non toccato', s == 400 and seen[-1][1] == '/api/chat')
 s, j = call('/v1/audio/transcriptions', H, b'x')
 check('STT senza STT_URL → 501 dichiarato', s == 501 and j.get('error') == 'stt_unconfigured')
 big_hdr = dict(H); big_hdr['Content-Length'] = str(bl.MAX_BODY + 1)
@@ -196,6 +251,60 @@ check('install_locale.sh chiede il modello a boom_locale.py --pick-model (mai un
 check('install_locale.sh: contesto lungo e keep-alive per Ollama', 'OLLAMA_CONTEXT_LENGTH' in inst and 'OLLAMA_KEEP_ALIVE' in inst)
 check('install_locale.sh: token generato con openssl, mai scritto nel repo', 'openssl rand -hex 24' in inst)
 check('install_locale.sh: .env mai clobberato (ensure_env)', 'ensure_env' in inst and 'chmod 600' in inst)
+
+# ── Ollama senza finestra (22/09: sul Mac mini non c'era affatto) ─────────
+# Se manca lo installa (formula Homebrew), e senza l'app lo tiene su come
+# LaunchAgent NOSTRO con le variabili NEL plist: `launchctl setenv` non
+# sopravvive al riavvio, un plist sì. Un solo server su :11434, legato a
+# 127.0.0.1 (la serratura è il ponte).
+check('install_locale.sh: Ollama assente → brew install ollama, mai "scaricalo e apri l\'app" come unica via',
+      'brew install ollama' in inst)
+i0 = inst.find('com.boom.ollama.plist" <<PLIST')
+i1 = inst.find('\nPLIST', i0)
+plist = inst[i0:i1] if i0 > 0 and i1 > i0 else ''
+check('install_locale.sh: LaunchAgent com.boom.ollama con contesto e keep-alive NEL plist',
+      '<string>com.boom.ollama</string>' in plist
+      and '<key>OLLAMA_CONTEXT_LENGTH</key>' in plist and '<string>16384</string>' in plist
+      and '<key>OLLAMA_KEEP_ALIVE</key>' in plist and '<string>-1</string>' in plist
+      and '<key>KeepAlive</key>' in plist and '<key>RunAtLoad</key>' in plist)
+check('install_locale.sh: il server Ollama del LaunchAgent è legato a 127.0.0.1 (mai esposto)',
+      '<key>OLLAMA_HOST</key>' in plist and '<string>127.0.0.1:11434</string>' in plist)
+check('install_locale.sh: un server estraneo su :11434 viene fermato SOLO se il nostro agente non è caricato',
+      "launchctl list 2>/dev/null | grep -q 'com\\.boom\\.ollama$'" in inst and 'pkill -x ollama' in inst
+      and inst.find("grep -q 'com\\.boom\\.ollama$'") < inst.find('pkill -x ollama'))
+check('install_locale.sh: il ramo app resta (launchctl setenv + riapertura), dichiarato non persistente',
+      'launchctl setenv OLLAMA_CONTEXT_LENGTH 16384' in inst and 'open -a Ollama' in inst
+      and 'sopravvivono a un riavvio' in inst)
+
+# ── Il certificato del Funnel si emette SUBITO (22/09: l'https "appeso") ──
+# Let's Encrypt emette il certificato alla PRIMA richiesta https e ci vuole
+# fino a un minuto; un client che chiude a 15-20 s (curl, il server su
+# Vercel) interrompe l'emissione, e ogni tentativo riparte da capo: con il
+# Funnel acceso e il DNS giusto l'handshake restava senza risposta anche
+# dopo 120 s. `tailscale cert` aspetta quanto serve e dice l'errore.
+i_fun = inst.find('funnel --bg')
+i_cert = inst.find(' cert --cert-file')
+i_health = inst.find('"$URL/health"')
+check('install_locale.sh: dopo il Funnel emette il certificato con `tailscale cert`, PRIMA di provare /health',
+      0 < i_fun < i_cert < i_health)
+check('install_locale.sh: i file del certificato vanno in una cartella temporanea che sparisce',
+      'CERTD="$(mktemp -d)"' in inst and '--cert-file "$CERTD/c.crt" --key-file "$CERTD/c.key"' in inst
+      and 'rm -rf "$CERTD"' in inst and inst.find('rm -rf "$CERTD"') > i_cert)
+check('install_locale.sh: mai /dev/null come file del certificato (tailscale lo rifiuta)',
+      '--cert-file /dev/null' not in inst and '--key-file /dev/null' not in inst)
+check('install_locale.sh: un certificato non emesso viene DETTO con il suo errore, non spacciato per DNS lento',
+      'certificato NON emesso' in inst and 'il DNS può volerci un minuto' not in inst)
+# La prova da quel Mac passa dall'INGRESSO del Funnel (--resolve su un A record
+# chiesto a un resolver pubblico), mai dal giro su sé stesso: lì il nome
+# risolve via MagicDNS sull'IP del tailnet e il listener locale di tailscaled
+# resta appeso — 60-120 s senza ServerHello con certificato emesso e percorso
+# pubblico vivo (22/09, verificato con `curl --resolve … → {"ok": true}`).
+check('install_locale.sh: /health si prova via l\'ingresso del Funnel (--resolve su un A record pubblico), mai col giro locale',
+      '--resolve "$HOSTN:443:$INGRESS"' in inst and 'dig +short' in inst and '@1.1.1.1' in inst
+      and 'curl -fsS --max-time 30 "$URL/health"' not in inst)
+check('install_locale.sh: il verdetto positivo nomina l\'ingresso, e un DNS pubblico ancora vuoto viene detto (non "rotto")',
+      "via l'ingresso del Funnel" in inst and 'raggiungibile da internet' not in inst
+      and 'il DNS pubblico non risolve ancora' in inst)
 
 print(f"\n{'✓' if not failed else '✗'} locale: {passed} passed, {failed} failed")
 if bad:

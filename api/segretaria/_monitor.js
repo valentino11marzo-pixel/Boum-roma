@@ -45,7 +45,7 @@ export async function readPreparationMonitor({ now = Date.now() } = {}) {
   const counts = {};
   const values = { open: heartbeat?.queue?.openCases, pending: heartbeat?.queue?.pending,
     current: heartbeat?.queue?.currentProposals, retrying: heartbeat?.queue?.retrying,
-    awaitingReview: heartbeat?.queue?.awaitingReview,
+    awaitingReview: heartbeat?.queue?.awaitingReview, quiet: heartbeat?.queue?.quiet,
     attempted: heartbeat?.checked, prepared: heartbeat?.prepared, cached: heartbeat?.cached,
     remaining: heartbeat?.remaining };
   for (const [key, value] of Object.entries(values)) {

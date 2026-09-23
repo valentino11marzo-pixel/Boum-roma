@@ -95,7 +95,14 @@ export async function setAiSettings(patch) {
   if (blocking.length) return { ok: false, rejected: blocking };
   // si scrive la forma VALIDATA (cfg), non il grezzo: una modalità o un
   // URL rifiutati non entrano mai nel documento
-  const doc = { local: { ...cfg.local }, purposes: cfg.purposes, shadow: cfg.shadow, updatedAt: new Date() };
+  // Nel documento entrano SOLO le voci di local che qualcuno ha scritto (gia'
+  // nel doc o nel patch) e che dicono qualcosa: la forma validata intera porta
+  // i default ('' per url/model, 20000 per timeoutMs) e, una volta nel
+  // documento, quei default VINCONO sull'env. Il primo «Accendi il locale»
+  // del 23/09/2026 ha spento LOCAL_AI_URL esattamente cosi'.
+  const localKeys = new Set(Object.keys(next.local || {}));
+  const localOut = Object.fromEntries(Object.entries(cfg.local).filter(([k, v]) => localKeys.has(k) && v !== '' && v != null));
+  const doc = { local: localOut, purposes: cfg.purposes, shadow: cfg.shadow, updatedAt: new Date() };
   await fsPatch('settings/ai', doc);
   forgetAiSettings();
   return { ok: true, cfg, rejected };

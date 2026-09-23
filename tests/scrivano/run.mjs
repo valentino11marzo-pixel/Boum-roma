@@ -278,7 +278,7 @@ const app = rd('js/portal-app.js'), rules = rd('firestore.rules'), vercel = JSON
 const iSc = hook.indexOf("verb === 'sc'"), iAq = hook.indexOf('fsGet(`action_queue/');
 ok('webhook: il dispatch sc: sta PRIMA della lettura di action_queue', iSc > -1 && iAq > -1 && iSc < iAq);
 ok('webhook: il docId deriva dal file_unique_id', /file_unique_id/.test(hook) && /createHash\('sha1'\)/.test(hook));
-ok('il cuore è UNA copia: l\'HTTP chiama ingestRead, il worker importa ingestRead da portal/ingest', /export async function ingestRead\(/.test(ingest) && /const out = await ingestRead\(\{ files, text, hint, known \}\)/.test(ingest) && /import \{ readFiles, ingestRead, knownFromStore \} from '\.\.\/portal\/ingest\.js'/.test(coreSrc));
+ok('il cuore è UNA copia: l\'HTTP chiama ingestRead, il worker importa ingestRead da portal/ingest', /export async function ingestRead\(/.test(ingest) && /const out = await ingestRead\(\{ files, text, hint, known, target \}\)/.test(ingest) && /import \{ readFiles, ingestRead, knownFromStore \} from '\.\.\/portal\/ingest\.js'/.test(coreSrc));
 ok('smistaDocument offre DOPO l\'archiviazione (le porte ereditano)', smista.indexOf("fsCreate('documents'") > -1 && smista.indexOf('sendScrivanoOffer(result') > smista.indexOf("fsCreate('documents'"));
 ok('_offer.js non importa lo Smistatore (niente ciclo _smista → _offer → _smista)', !/_smista\.js/.test(rd('api/scrivano/_offer.js')));
 ok('rules: scrivanoProposals è admin-only', /match \/scrivanoProposals\/\{x\}\s+\{ allow read, write: if isAdmin\(\); \}/.test(rules));

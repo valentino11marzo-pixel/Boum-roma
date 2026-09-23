@@ -3,6 +3,7 @@
 import { fsGetVersioned, fsCommit } from '../homie/_lib.js';
 import { whatsappDeliveryWindow } from '../homie/_wa-delivery.js';
 import { segretariaApprovalProblem, loadReviewedSegretariaContext, preparationContentHash } from './_execution-guard.js';
+import { singleSelectionMatches, sameSingleSelection, singleActionMessage } from '../homie/_wa-single-protocol.js';
 
 const deny = error => ({ allowed: false, code: 409, error });
 export const isPreparedAction = action => !!action?.segretaria || action?.proposedBy === 'segretaria-proposal';
@@ -46,7 +47,9 @@ export async function markSegretariaDeliveryBlocked({ id, reason, now = Date.now
   }
 }
 
-export async function claimSegretariaDelivery({ id, action, now = Date.now() }) {
+// The inspect operation shares every pickup veto, but never writes a claim,
+// a scan cursor or a block marker. Claim checks these again with fresh versions.
+export async function inspectSegretariaDelivery({ id, action, now = Date.now(), expectedSelection }) {
   const problem = segretariaApprovalProblem(action);
   if (problem) return problem;
   if (action.status !== 'executed' || action.payload?.channel !== 'whatsapp'
@@ -61,31 +64,52 @@ export async function claimSegretariaDelivery({ id, action, now = Date.now() }) 
     // Context reads can cross the pickup deadline: check the actual clock here.
     const claimNow = Math.max(now, Date.now()), window = whatsappDeliveryWindow(current, claimNow);
     if (window !== 'current') return deny(window === 'expired' ? 'whatsapp_delivery_expired' : 'whatsapp_delivery_time_invalid');
-    const conv = conversation.data;
-    await fsCommit([
-      { docPath: 'operatorTasks/' + action.segretaria.caseId, fields: { preparation: task.data.preparation },
-        precondition: { updateTime: task.updateTime } },
-      { docPath: 'conversations/' + action.segretaria.conversationId,
-        fields: { contactPhone: conv.contactPhone || null, contactEmail: conv.contactEmail || null },
-        precondition: { updateTime: conversation.updateTime } },
-      { docPath: 'action_queue/' + id, fields: { segretariaDeliveryBlock: null, segretaria: { ...current.segretaria,
-        delivery: { state: 'claimed', claimedAt: new Date(claimNow).toISOString() } } },
-        precondition: { updateTime: queue.updateTime } },
-    ]);
-    return { allowed: true };
+    if (expectedSelection && !singleSelectionMatches(id, current, expectedSelection)) return deny('delivery_selection_changed');
+    return { allowed: true, queue, task, conversation, claimNow };
   } catch (e) {
     return { allowed: false, code: e?.conflict ? 409 : 503,
       error: e?.conflict ? 'delivery_changed' : 'delivery_unavailable' };
   }
 }
 
-export async function acknowledgeSegretariaDelivery({ id, ok, error, now = Date.now() }) {
+export async function claimSegretariaDelivery({ id, action, now = Date.now(), expectedSelection }) {
+  const checked = await inspectSegretariaDelivery({ id, action, now, expectedSelection });
+  if (!checked.allowed) return checked;
+  const { queue, task, conversation, claimNow } = checked, current = queue.data;
+  try {
+    await fsCommit([
+      // Empty masks check the versions without rewriting any stored Value.
+      { docPath: 'operatorTasks/' + action.segretaria.caseId, fields: {},
+        precondition: { updateTime: task.updateTime } },
+      { docPath: 'conversations/' + action.segretaria.conversationId,
+        fields: {},
+        precondition: { updateTime: conversation.updateTime } },
+      { docPath: 'action_queue/' + id, fields: { segretariaDeliveryBlock: null, segretaria: { ...current.segretaria,
+        delivery: { state: 'claimed', claimedAt: new Date(claimNow).toISOString(),
+          ...(expectedSelection ? { single: { protocol: expectedSelection.protocol,
+            revision: expectedSelection.revision, payloadHash: expectedSelection.payloadHash } } : {}) } } },
+        precondition: { updateTime: queue.updateTime } },
+    ]);
+    return { allowed: true, ...(expectedSelection ? { message: singleActionMessage(id, current) } : {}) };
+  } catch (e) {
+    return { allowed: false, code: e?.conflict ? 409 : 503,
+      error: e?.conflict ? 'delivery_changed' : 'delivery_unavailable' };
+  }
+}
+
+export async function acknowledgeSegretariaDelivery({ id, ok, error, now = Date.now(), expectedSelection }) {
   if (!/^sgreply_[a-f0-9]{40}$/.test(id || '') || typeof ok !== 'boolean')
     return { code: 400, error: 'invalid_delivery_ack' };
   for (let attempt = 0; attempt < 2; attempt++) {
     const snapshot = await fsGetVersioned('action_queue/' + id), a = snapshot?.data;
     if (!a || !isPreparedAction(a)) return { code: 404, error: 'delivery_action_missing' };
     const receipt = a.segretaria?.delivery;
+    // Selected claims cannot be acknowledged through the unrestricted bulk
+    // endpoint; legacy claims keep their existing contract. Bind even retries.
+    if (expectedSelection || receipt?.single) {
+      if (!sameSingleSelection(receipt?.single, expectedSelection)
+          || !singleSelectionMatches(id, a, expectedSelection)) return { code: 409, error: 'delivery_selection_changed' };
+    }
     if (a.status !== 'executed' || !receipt?.claimedAt) return { code: 409, error: 'delivery_not_claimed' };
     if (['sent', 'failed'].includes(receipt.state)) return receipt.state === (ok ? 'sent' : 'failed')
       ? { code: 200, cached: true, delivery: receipt.state }

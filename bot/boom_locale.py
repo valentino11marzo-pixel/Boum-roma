@@ -11,6 +11,8 @@ clienti passano di qui. Questo script è la porta con la serratura:
                                          │ Authorization: Bearer LOCAL_AI_TOKEN
                                          │ solo /v1/models, /v1/chat/completions
                                          │ (e /v1/audio/transcriptions → STT_URL)
+                                         │ /v1/chat/completions è TRADOTTA su /api/chat
+                                         │ nativa con think:false (vedi sotto)
                                          └ nei log: metodo, rotta, stato, ms — MAI il contenuto
 
 Regole (verificate in tests/locale/runner.py):
@@ -21,7 +23,18 @@ Regole (verificate in tests/locale/runner.py):
   · /health risponde {ok:true} senza auth e senza dettagli (è la sonda
     del tunnel, non dice quali modelli ci sono);
   · body oltre 12 MB → 413; Ollama che non risponde → 502/504 con un
-    codice, mai una traccia.
+    codice, mai una traccia;
+  · IL RAGIONAMENTO È SPENTO (22/09/2026, la prima prova vera sul Mac mini):
+    qwen3 è un modello "pensante" e Ollama lo lascia pensare di default —
+    con 60 token di tetto li spende TUTTI nel ragionamento e il contenuto
+    torna vuoto ("Expecting value: line 1 column 1"); sul server, col tetto
+    di 20 s, sarebbe una ricaduta sul cloud a ogni chiamata. La rotta
+    OpenAI-compatibile di Ollama non offre un interruttore affidabile,
+    quindi il ponte traduce /v1/chat/completions sull'API NATIVA /api/chat
+    (think:false salvo `think` esplicito nel body, response_format →
+    format, max_tokens → num_predict, immagini data-URI → images) e
+    riporta la risposta nella forma OpenAI che api/_ai.js legge (choices,
+    finish_reason, usage). Un <think>…</think> residuo viene tolto comunque.
 
 Uso:
   python3 boom_locale.py --serve            (launchd: com.boom.locale)
@@ -42,6 +55,7 @@ import hmac
 import http.server
 import json
 import os
+import re
 import socketserver
 import subprocess
 import sys
@@ -126,6 +140,102 @@ def mac_chip():
         return ''
 
 
+# ── La traduzione OpenAI ⇄ Ollama nativa ─────────────────────────────────────
+THINK_RE = re.compile(r'<think>[\s\S]*?</think>\s*')
+
+
+def _native_message(m):
+    """Un messaggio OpenAI (content stringa o lista di parti) → messaggio nativo.
+    Le immagini viaggiano SOLO come data-URI base64 (è ciò che manda il server):
+    un URL http non si scarica da qui e si rifiuta dichiarandolo."""
+    role = str(m.get('role') or 'user')
+    c = m.get('content')
+    if isinstance(c, list):
+        texts, images = [], []
+        for part in c:
+            if not isinstance(part, dict):
+                continue
+            t = part.get('type')
+            if t == 'text':
+                texts.append(str(part.get('text') or ''))
+            elif t == 'image_url':
+                iu = part.get('image_url')
+                url = str((iu.get('url') if isinstance(iu, dict) else iu) or '')
+                if url.startswith('data:') and ';base64,' in url:
+                    images.append(url.split(';base64,', 1)[1])
+                else:
+                    raise ValueError('image_url_not_inline')
+        out = {'role': role, 'content': '\n'.join(texts)}
+        if images:
+            out['images'] = images
+        return out
+    return {'role': role, 'content': '' if c is None else str(c)}
+
+
+def to_native_chat(body):
+    """Richiesta OpenAI /v1/chat/completions → richiesta Ollama /api/chat.
+    Ragionamento SPENTO salvo `think` esplicito; mai streaming (il server non
+    lo usa); response_format → format; max_tokens → options.num_predict."""
+    if not isinstance(body, dict):
+        raise ValueError('bad_request')
+    msgs = body.get('messages')
+    if not isinstance(msgs, list) or not msgs:
+        raise ValueError('messages_required')
+    native = {
+        'model': str(body.get('model') or ''),
+        'messages': [_native_message(m) for m in msgs if isinstance(m, dict)],
+        'stream': False,
+        'think': body['think'] if isinstance(body.get('think'), bool) else False,
+    }
+    opts = {}
+    if body.get('max_tokens') is not None:
+        opts['num_predict'] = int(body['max_tokens'])
+    for k in ('temperature', 'top_p'):
+        if body.get(k) is not None:
+            opts[k] = float(body[k])
+    stop = body.get('stop')
+    if stop:
+        opts['stop'] = [str(stop)] if isinstance(stop, str) else [str(x) for x in stop]
+    if opts:
+        native['options'] = opts
+    rf = body.get('response_format')
+    if isinstance(rf, dict):
+        if rf.get('type') == 'json_object':
+            native['format'] = 'json'
+        elif rf.get('type') == 'json_schema':
+            js = rf.get('json_schema')
+            schema = js.get('schema') if isinstance(js, dict) else None
+            native['format'] = schema if isinstance(schema, dict) else 'json'
+    if body.get('keep_alive') is not None:
+        native['keep_alive'] = body['keep_alive']
+    return native
+
+
+def from_native_chat(r, model=''):
+    """Risposta Ollama /api/chat (non stream) → risposta OpenAI chat.completion.
+    Il ragionamento residuo nel testo si toglie; un <think> troncato senza
+    chiusura È tutto ragionamento → contenuto vuoto (finish_reason 'length'
+    lo spiega: il chiamante lo vede come risposta mancante, mai come dato)."""
+    r = r if isinstance(r, dict) else {}
+    msg = r.get('message') if isinstance(r.get('message'), dict) else {}
+    content = msg.get('content')
+    content = '' if content is None else str(content)
+    content = THINK_RE.sub('', content).strip()
+    if content.startswith('<think>') and '</think>' not in content:
+        content = ''
+    finish = 'length' if r.get('done_reason') == 'length' else 'stop'
+    pin = int(r.get('prompt_eval_count') or 0)
+    pout = int(r.get('eval_count') or 0)
+    return {
+        'id': f'chatcmpl-{int(time.time() * 1000):x}',
+        'object': 'chat.completion',
+        'created': int(time.time()),
+        'model': r.get('model') or model,
+        'choices': [{'index': 0, 'message': {'role': 'assistant', 'content': content}, 'finish_reason': finish}],
+        'usage': {'prompt_tokens': pin, 'completion_tokens': pout, 'total_tokens': pin + pout},
+    }
+
+
 # ── Le regole della porta ────────────────────────────────────────────────────
 ROUTES = {
     '/v1/models': 'ollama',
@@ -208,6 +318,9 @@ def make_handler(conf):
                 return
             body = self.rfile.read(length) if length else None
             base = conf['ollama'] if target == 'ollama' else conf['stt']
+            if target == 'ollama' and path.split('?', 1)[0].rstrip('/') == '/v1/chat/completions' and self.command == 'POST':
+                self._chat(body, base, path, t0)
+                return
             req = urllib.request.Request(base + path, data=body, method=self.command)
             ctype = self.headers.get('Content-Type')
             if ctype:
@@ -232,6 +345,45 @@ def make_handler(conf):
                 self._send(status, {'error': 'upstream_error'})
             print(log_line(self.command, path, status, (time.time() - t0) * 1000, note), flush=True)
 
+        def _chat(self, body, base, path, t0):
+            """La completion: tradotta sull'API nativa (think:false), risposta in forma OpenAI."""
+            try:
+                native = to_native_chat(json.loads(body or b'{}'))
+            except (ValueError, TypeError) as e:
+                self._send(400, {'error': {'type': 'bad_request', 'message': str(e)[:120]}})
+                print(log_line(self.command, path, 400, (time.time() - t0) * 1000, 'bad_request'), flush=True)
+                return
+            req = urllib.request.Request(base + '/api/chat', data=json.dumps(native).encode(), method='POST',
+                                         headers={'Content-Type': 'application/json'})
+            status, note = 502, 'native'
+            try:
+                with urllib.request.urlopen(req, timeout=conf['timeout']) as r:
+                    raw = r.read()
+                try:
+                    out = from_native_chat(json.loads(raw), native['model'])
+                except ValueError:
+                    status, note = 502, 'upstream_bad_json'
+                    self._send(status, {'error': note})
+                else:
+                    status = 200
+                    self._send(200, out)
+            except urllib.error.HTTPError as e:
+                status = e.code
+                try:
+                    msg = (json.loads(e.read() or b'{}') or {}).get('error')
+                except ValueError:
+                    msg = None
+                self._send(status, {'error': {'type': 'ollama', 'message': str(msg or '')[:200]}})
+                note = 'upstream_http'
+            except urllib.error.URLError as e:
+                status = 504 if 'timed out' in str(e.reason).lower() else 502
+                note = 'upstream_timeout' if status == 504 else 'upstream_unreachable'
+                self._send(status, {'error': note})
+            except Exception as e:  # noqa: BLE001
+                status, note = 502, 'upstream_error:' + type(e).__name__
+                self._send(status, {'error': 'upstream_error'})
+            print(log_line(self.command, path, status, (time.time() - t0) * 1000, note), flush=True)
+
         def do_GET(self):
             self._handle()
 
@@ -244,6 +396,20 @@ def make_handler(conf):
 class ThreadedServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
     daemon_threads = True
     allow_reuse_address = True
+    request_queue_size = 32
+
+    def server_bind(self):
+        """Senza la reverse-DNS di HTTPServer. `HTTPServer.server_bind` chiama
+        `socket.getfqdn(host)` — una risoluzione INVERSA di 127.0.0.1 — fra il
+        bind e il listen. Sul Mac mini (22/09/2026, col resolver appena passato a
+        Tailscale) quella chiamata ha impiegato ~28 s, e su macOS una porta
+        bound ma non ancora in listen SCARTA il SYN invece di rifiutarlo (Linux
+        risponde RST): il client vede «Operation timed out» e ogni riavvio del
+        ponte — anche dopo un reboot — regalava 28 s di buio con ricadute sul
+        cloud. `server_name` non lo usa nessuno: si salta la lookup."""
+        socketserver.TCPServer.server_bind(self)
+        self.server_name = self.server_address[0]
+        self.server_port = self.server_address[1]
 
 
 def serve(conf, port=None, bind='127.0.0.1'):

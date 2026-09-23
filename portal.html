@@ -67,6 +67,39 @@
             'https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js',
             'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js'
         ];
+        // A PDF action can arrive before idle, or after a failed CDN request.
+        // Share the in-flight request with the preload, and release it on failure.
+        var jsPDFLoading = null;
+        window.boomEnsureJsPDF = function () {
+            if (window.jspdf && typeof window.jspdf.jsPDF === 'function') return Promise.resolve(window.jspdf.jsPDF);
+            if (jsPDFLoading) return jsPDFLoading;
+            jsPDFLoading = new Promise(function (resolve, reject) {
+                var s = document.createElement('script');
+                var done = false;
+                var timer = setTimeout(function () { finish(new Error('PDF library loading timed out')); }, 20000);
+                function finish(error) {
+                    if (done) return;
+                    done = true;
+                    clearTimeout(timer);
+                    s.onload = s.onerror = null;
+                    if (error) { s.remove(); reject(error); }
+                    else resolve(window.jspdf.jsPDF);
+                }
+                s.src = HEAVY_LIBS[0]; s.async = true;
+                s.onload = function () {
+                    finish(window.jspdf && typeof window.jspdf.jsPDF === 'function' ? null : new Error('PDF library unavailable'));
+                };
+                s.onerror = function () { finish(new Error('PDF library download failed')); };
+                document.head.appendChild(s);
+            }).then(function (constructor) {
+                jsPDFLoading = null;
+                return constructor;
+            }, function (error) {
+                jsPDFLoading = null;
+                throw error;
+            });
+            return jsPDFLoading;
+        };
         function inject(src) {
             return new Promise(function (resolve) {
                 var s = document.createElement('script');
@@ -78,7 +111,8 @@
         var started = false;
         function loadAll() {
             if (started) return; started = true;
-            HEAVY_LIBS.reduce(function (p, src) { return p.then(function () { return inject(src); }); }, Promise.resolve());
+            HEAVY_LIBS.slice(1).reduce(function (p, src) { return p.then(function () { return inject(src); }); },
+                window.boomEnsureJsPDF().catch(function () { /* next PDF action can retry */ }));
         }
         window.addEventListener('load', function () {
             (window.requestIdleCallback || function (f) { setTimeout(f, 2000); })(loadAll);

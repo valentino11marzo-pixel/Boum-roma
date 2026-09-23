@@ -377,7 +377,7 @@ export async function segretariaStatusMessage() {
       ...(p.handedToOperator ? [`📲 Passati a te dal Postino (consegna manuale): <b>${p.handedToOperator}</b>`] : []),
     ]).catch(() => []),
     '',
-    `Tetti: ${cfg.maxTurns} turni/chat · ${cfg.dailyCap} turni/giorno.`,
+    `Tetti: ${cfg.maxTurns} turni/chat · ${cfg.dailyCap} turni/giorno · un caso nuovo si prepara dopo ${cfg.prepareQuietMinutes}′ di chat ferma.`,
     ...(rejected.length ? ['⚠️ Impostazioni ignorate: ' + rejected.map(r => r.key).join(', ')] : []),
   ].join('\n');
   const keyboard = { inline_keyboard: [

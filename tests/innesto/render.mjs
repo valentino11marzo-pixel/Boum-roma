@@ -28,7 +28,7 @@ const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&':
 function mount(setup) {
   const toasts = [];
   const fn = new Function('window', 'S', 'db', 'storage', 'auth', 'toast', 'renderPage', 'goTo', 'esc', 'adeCompressImage', 'document', 'crypto', 'location', 'SETUP',
-    SECTION + '\n_innesto = innestoEmpty(); SETUP(_innesto);\nreturn { page: innestoPage(), card: _innesto.proposal ? innestoProposalCard(_innesto.proposal) : "", read: innestoReadCard(), kind: innestoFileKind, icon: innestoFileIcon, media: innestoMediaType, money: innestoMoney, dup: innestoLeadDup };');
+    SECTION + '\n_innesto = innestoEmpty(); SETUP(_innesto);\nreturn { page: innestoPage(), card: _innesto.proposal ? innestoProposalCard(_innesto.proposal) : "", read: innestoReadCard(), kind: innestoFileKind, icon: innestoFileIcon, media: innestoMediaType, money: innestoMoney, dup: innestoLeadDup, setTarget: innestoSetTarget, targetPayload: innestoTargetPayload, state: () => _innesto, cardOf: (p) => innestoProposalCard(p) };');
   const out = fn(
     { BOOM_DATAOPS: requireCjs('../../js/dataops-engine.js'), location: { hash: '' } },
     { users: [{ id: 'u1', name: 'Anna Rossi', role: 'landlord' }], properties: [{ id: 'p1', name: 'Via Simeto 12', address: 'Via Simeto 12' }], landlords: [], leads: [{ id: 'l1', name: 'Già Presente', email: 'gia@x.com', phone: '' }], profile: { id: 'admin' } },
@@ -49,6 +49,16 @@ check('icone per tipo', o.icon({ name: 'rate.xlsx', type: '' }) === '📊' && o.
 check('mediaType dal nome quando il browser tace', o.media({ name: 'm.eml', type: '' }) === 'message/rfc822' && o.media({ name: 'c.docx', type: 'application/octet-stream' }) === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' && o.media({ name: 'x.jpg', type: 'image/jpeg' }) === 'image/jpeg');
 check('innestoMoney: 1.100,00 · 1100 · 250.5 · 1.100 · €900', o.money('1.100,00') === 1100 && o.money('1100') === 1100 && o.money('250.5') === 250.5 && o.money('1.100') === 1100 && o.money('€ 900') === 900 && o.money('') === null);
 check('dedupe lead per email (qualunque maiuscola)', !!o.dup({ email: 'GIA@x.com' }) && !o.dup({ email: 'nuova@x.com', phone: '' }));
+
+console.log('\n\x1b[1m«Riguarda» — il bersaglio dichiarato (22/09)\x1b[0m');
+check('la riga Riguarda si disegna con le tre tendine (immobile con indirizzo, proprietario, inquilino) dai pool veri', /Riguarda/.test(o.page) && /innestoSetTarget\('property'/.test(o.page) && /innestoSetTarget\('landlord'/.test(o.page) && /innestoSetTarget\('tenant'/.test(o.page) && /<option value="p1"[^>]*>Via Simeto 12<\/option>/.test(o.page) && /<option value="u1"[^>]*>Anna Rossi<\/option>/.test(o.page), o.page.slice(o.page.indexOf('Riguarda') - 50, o.page.indexOf('Riguarda') + 400));
+o = mount((st) => { st.target.property = 'p1'; });
+check('un bersaglio scelto resta selezionato dopo un ridisegno, e il payload per il server porta nome e indirizzo (mai il solo id)', /<option value="p1" selected>/.test(o.page) && JSON.stringify(o.targetPayload()) === JSON.stringify({ property: { name: 'Via Simeto 12', address: 'Via Simeto 12' } }), JSON.stringify(o.targetPayload()));
+o = mount((st) => { st.target.property = 'p1'; st.links.property = 'p1'; st.proposal = { material: 'immobile', property: { name: 'Via Simeto 12', address: 'Via Simeto 12', foglio: '545', particella: '120', sub: '4', categoria: 'A/3', renditaCatastale: 645.57, cadastralData: 'foglio 545, particella 120, sub 4, categoria A/3' } }; st.evMap['property.foglio'] = { quote: 'Fg. 545', file: null, page: null }; });
+check('catasto letto + immobile dichiarato = LA MODIFICA PROPOSTA sul record che c\'è già: «già in archivio — scelto dall\'archivio», righe che RIEMPIONO foglio/particella/sub, riepilogo «aggiornerà immobile»', /🏠 Immobile/.test(o.card) && /già in archivio — scelto dall&#39;archivio/.test(o.card) && /riempie/.test(o.card) && /<b>545<\/b>/.test(o.card) && /❝ Fg\. 545 ❞/.test(o.card) && /aggiornerà immobile \(\d+ campi\)/.test(o.card) && !/creerà [^<]*immobile/.test(o.card) && !/Contratto NON creabile/.test(o.card), o.card.slice(o.card.indexOf('🏠 Immobile'), o.card.indexOf('🏠 Immobile') + 600));
+check('…e il bersaglio scelto a proposta aperta cambia l\'aggancio subito (setTarget → links)', (() => { o.setTarget('property', ''); const s1 = o.state(); const gone = s1.links.property === undefined; o.setTarget('property', 'p1'); return gone && o.state().links.property === 'p1'; })());
+o = mount((st) => { st.target.property = 'p1'; st.links.property = 'p1'; st.proposal = { material: 'altro', tenant: { name: 'Marta Neri' } }; });
+check('immobile dichiarato ma NON letto (e nessun contratto): la card lo dice — «Dichiarato in «Riguarda» … niente da scrivere» — invece di sparire', /🏠 Immobile/.test(o.card) && /Dichiarato in «Riguarda»/.test(o.card) && /✓ agganciato dall'archivio/.test(o.card), o.card.slice(0, 500));
 
 console.log('\n\x1b[1mLe card nuove\x1b[0m');
 const PROPOSAL = {

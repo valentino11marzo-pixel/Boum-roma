@@ -11,22 +11,38 @@
 # .env esistente se non per aggiungere chiavi mancanti):
 #   1. legge chip e memoria del Mac e sceglie il modello (LOCALE_MODEL nel
 #      .env vince, se lo hai già scelto tu)
-#   2. controlla Ollama (installato + acceso), scarica il modello, e gli dà
+#   2. Ollama: lo installa se manca (brew), lo tiene ACCESO (LaunchAgent
+#      com.boom.ollama, o l'app se c'è), scarica il modello, e gli dà
 #      contesto lungo + modello sempre caricato (OLLAMA_CONTEXT_LENGTH /
 #      OLLAMA_KEEP_ALIVE) — senza, la prima chiamata dopo un'ora di silenzio
 #      supera il tetto di 20 s del server
 #   3. installa il PONTE con la serratura (boom_locale.py + LaunchAgent
 #      KeepAlive) e genera LOCAL_AI_TOKEN se manca
 #   4. espone il ponte con Tailscale Funnel (https stabile, senza dominio)
+#      ed emette SUBITO il certificato (la prima richiesta altrimenti resta appesa)
 #   5. stampa le righe da incollare su Vercel e prova il giro
 #
-# Prerequisiti (due download con la GUI, una volta):
-#   · Ollama:    https://ollama.com/download  (apri l'app: icona nella barra)
-#   · Tailscale: https://tailscale.com/download/mac  (apri, accedi con Google)
+# Prerequisiti, una volta:
+#   · Ollama: NIENTE, se c'è Homebrew — lo installa questo script (formula,
+#     senza finestra) e lo tiene su come LaunchAgent. In alternativa l'app
+#     da https://ollama.com/download (aprila una volta): lo script usa quella.
+#   · Tailscale, in UNA delle due forme:
+#       - senza schermo (SSH, il caso del Mac mini): il demone Homebrew —
+#           brew install tailscale
+#           sudo tailscaled install-system-daemon
+#           sudo tailscale set --operator="$USER"
+#           tailscale login          ← stampa un link: aprilo da qualsiasi browser
+#       - con lo schermo del Mac: l'app da https://tailscale.com/download/mac
+#         (la prima apertura chiede di approvare l'estensione di rete in
+#         Impostazioni di Sistema → Privacy e sicurezza, poi si accede).
+#     Questo script usa quello che RISPONDE, non il primo file che trova.
 
 set -euo pipefail
 
-RAW_BASE='https://raw.githubusercontent.com/valentino11marzo-pixel/Boum-roma/main/bot'
+# Da dove scarica boom_locale.py. LOCALE_RAW_BASE=…/<branch>/bot davanti al
+# comando prova un ramo prima del merge (il 22/09 l'installer del ramo
+# scaricava il ponte di main, cioè quello VECCHIO).
+RAW_BASE="${LOCALE_RAW_BASE:-https://raw.githubusercontent.com/valentino11marzo-pixel/Boum-roma/main/bot}"
 DIR="$HOME/boom-locale"
 AGENTS_DIR="$HOME/Library/LaunchAgents"
 PORT="${LOCALE_PORT:-8088}"
@@ -88,28 +104,99 @@ note "($PICK_NOTE)"
 
 # ── 2. Ollama ────────────────────────────────────────────────────────────────
 say "Ollama"
-command -v ollama >/dev/null 2>&1 || die "Ollama non trovato. Scaricalo da https://ollama.com/download, apri l'app una volta, poi rilancia questo comando."
-if ! curl -fsS --max-time 3 http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
-  note "non risponde: lo apro…"
-  open -a Ollama 2>/dev/null || true
-  for _ in $(seq 1 20); do sleep 1; curl -fsS --max-time 2 http://127.0.0.1:11434/api/tags >/dev/null 2>&1 && break; done
-  curl -fsS --max-time 3 http://127.0.0.1:11434/api/tags >/dev/null 2>&1 || die "Ollama non risponde su :11434. Aprilo dalla cartella Applicazioni e rilancia."
+# Due forme, come per Tailscale: l'APP (Ollama.app gestisce da sé il server
+# e vuole una sessione grafica per aprirsi) o la FORMULA Homebrew (solo il
+# binario: il server lo teniamo su NOI con un LaunchAgent, senza finestra —
+# il caso del Mac mini via SSH, 22/09, dove Ollama non c'era affatto e
+# "scaricalo da ollama.com, apri l'app" non era una via percorribile).
+# Un solo server su :11434, e chi lo gestisce è deciso qui, non dal caso.
+OLLAMA_APP=/Applications/Ollama.app
+OLLAMA_BIN="$(command -v ollama || true)"
+if [ -z "$OLLAMA_BIN" ] && [ -x "$OLLAMA_APP/Contents/Resources/ollama" ]; then
+  OLLAMA_BIN="$OLLAMA_APP/Contents/Resources/ollama"
 fi
-note "acceso ✓"
-# Contesto lungo (il catalogo dell'interprete + il system prompt superano i
-# 4096 di default) e modello SEMPRE caricato (scaricarlo dopo 5' di silenzio
-# = 10-30 s di attesa alla chiamata dopo, oltre il tetto del server).
-launchctl setenv OLLAMA_CONTEXT_LENGTH 16384
-launchctl setenv OLLAMA_KEEP_ALIVE -1
-note "contesto 16k · modello sempre in memoria (riavvio Ollama per applicare)"
-osascript -e 'quit app "Ollama"' >/dev/null 2>&1 || true
-sleep 2; open -a Ollama 2>/dev/null || true
-for _ in $(seq 1 20); do sleep 1; curl -fsS --max-time 2 http://127.0.0.1:11434/api/tags >/dev/null 2>&1 && break; done
+if [ -z "$OLLAMA_BIN" ]; then
+  if command -v brew >/dev/null 2>&1; then
+    note "non trovato: lo installo con Homebrew (la formula, senza finestra: va bene via SSH)…"
+    brew install ollama || die "brew install ollama fallito"
+    OLLAMA_BIN="$(command -v ollama || true)"
+    [ -n "$OLLAMA_BIN" ] || OLLAMA_BIN="$(brew --prefix 2>/dev/null)/bin/ollama"
+  fi
+  [ -x "${OLLAMA_BIN:-/nonexistent}" ] || die "Ollama non trovato. Con Homebrew: brew install ollama — oppure scaricalo da https://ollama.com/download, apri l'app una volta, poi rilancia questo comando."
+fi
+note "binario: $OLLAMA_BIN"
+ollama_alive() { curl -fsS --max-time 2 http://127.0.0.1:11434/api/tags >/dev/null 2>&1; }
+ollama_wait()  { for _ in $(seq 1 30); do ollama_alive && return 0; sleep 1; done; ollama_alive; }
+if [ -d "$OLLAMA_APP" ]; then
+  # L'app: le variabili passano da launchctl setenv (come dice la doc di
+  # Ollama) e valgono per le app aperte DOPO, quindi si riavvia. NON
+  # sopravvivono a un riavvio del Mac: dopo un reboot l'app riparte col
+  # contesto di default (dichiarato, non risolto — il ramo formula non ha
+  # il problema perché le variabili stanno nel plist).
+  launchctl setenv OLLAMA_CONTEXT_LENGTH 16384
+  launchctl setenv OLLAMA_KEEP_ALIVE -1
+  osascript -e 'quit app "Ollama"' >/dev/null 2>&1 || true
+  sleep 2; open -a Ollama 2>/dev/null || true
+  ollama_wait || die "Ollama.app non risponde su :11434. Aprila dalla cartella Applicazioni (serve una sessione grafica) e rilancia."
+  note "app · contesto 16k · modello sempre in memoria (fino al prossimo riavvio del Mac) ✓"
+else
+  # La formula: il server è un LaunchAgent NOSTRO, con le variabili nel
+  # plist (sopravvivono al riavvio) e legato a 127.0.0.1 (la serratura è il
+  # ponte: Ollama non si espone). Se :11434 è già occupato da un altro
+  # ollama (brew services, un `ollama serve` a mano) lo fermiamo prima: due
+  # server sulla stessa porta = il nostro in crash loop.
+  if ollama_alive && ! launchctl list 2>/dev/null | grep -q 'com\.boom\.ollama$'; then
+    note "un altro server Ollama occupa :11434 — lo fermo (da ora lo tiene su launchd)"
+    brew services stop ollama >/dev/null 2>&1 || true
+    pkill -x ollama 2>/dev/null || true
+    sleep 2
+  fi
+  cat > "$AGENTS_DIR/com.boom.ollama.plist" <<PLIST
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.boom.ollama</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>$OLLAMA_BIN</string>
+        <string>serve</string>
+    </array>
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>HOME</key>
+        <string>$HOME</string>
+        <key>OLLAMA_HOST</key>
+        <string>127.0.0.1:11434</string>
+        <key>OLLAMA_CONTEXT_LENGTH</key>
+        <string>16384</string>
+        <key>OLLAMA_KEEP_ALIVE</key>
+        <string>-1</string>
+    </dict>
+    <key>KeepAlive</key>
+    <true/>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>ThrottleInterval</key>
+    <integer>15</integer>
+    <key>StandardOutPath</key>
+    <string>$DIR/ollama.log</string>
+    <key>StandardErrorPath</key>
+    <string>$DIR/ollama.err.log</string>
+</dict>
+</plist>
+PLIST
+  launchctl unload "$AGENTS_DIR/com.boom.ollama.plist" 2>/dev/null || true
+  launchctl load "$AGENTS_DIR/com.boom.ollama.plist"
+  ollama_wait || die "Ollama non risponde su :11434 — guarda $DIR/ollama.err.log"
+  note "com.boom.ollama · sempre acceso · contesto 16k · modello sempre in memoria ✓"
+fi
 say "Scarico $MODEL (la prima volta sono alcuni GB: qualche minuto)…"
-ollama pull "$MODEL" || die "ollama pull $MODEL fallito"
+"$OLLAMA_BIN" pull "$MODEL" || die "ollama pull $MODEL fallito"
 if [ -n "$VISION" ]; then
   say "Scarico il modello con visione $VISION…"
-  ollama pull "$VISION" || { note "⚠ visione non scaricata: le immagini restano in cloud"; VISION=''; }
+  "$OLLAMA_BIN" pull "$VISION" || { note "⚠ visione non scaricata: le immagini restano in cloud"; VISION=''; }
 fi
 
 # ── 3. Il ponte con la serratura ─────────────────────────────────────────────
@@ -126,11 +213,13 @@ ensure_env LOCALE_MODEL "$MODEL"
 [ -n "$VISION" ] && ensure_env LOCALE_VISION_MODEL "$VISION"
 ensure_env OLLAMA_URL "http://127.0.0.1:11434"
 ensure_env LOCALE_PORT "$PORT"
-# HOMIE_SECRET (solo per --smoke): dai bracci già installati
+# HOMIE_SECRET (solo per --smoke): dai bracci già installati. Il ponte di
+# Homie lo scrive in ~/.boom/env come `export HOMIE_SECRET="…"` (sh da
+# sorgere), gli altri come KEY=VALUE: si accettano entrambe le forme.
 if [ -z "$(envget HOMIE_SECRET)" ]; then
   for f in "$HOME/boom-scout/.env" "$HOME/boom-contatto/.env" "$HOME/boom-publisher/.env" "$HOME/boom-listing-wizard/.env" "$HOME/.boom/env"; do
     [ -f "$f" ] || continue
-    v="$(sed -n 's/^HOMIE_SECRET=//p' "$f" | head -1 | tr -d '"' | tr -d "'")"
+    v="$(sed -n -E 's/^(export[[:space:]]+)?HOMIE_SECRET=//p' "$f" | head -1 | tr -d '"' | tr -d "'")"
     if [ -n "$v" ]; then ensure_env HOMIE_SECRET "$v"; note "HOMIE_SECRET ritrovato da un braccio già installato ✓"; break; fi
   done
 fi
@@ -166,8 +255,11 @@ cat > "$AGENTS_DIR/com.boom.locale.plist" <<PLIST
 PLIST
 launchctl unload "$AGENTS_DIR/com.boom.locale.plist" 2>/dev/null || true
 launchctl load "$AGENTS_DIR/com.boom.locale.plist"
-for _ in $(seq 1 10); do sleep 1; curl -fsS --max-time 2 "http://127.0.0.1:$PORT/health" >/dev/null 2>&1 && break; done
-curl -fsS --max-time 2 "http://127.0.0.1:$PORT/health" >/dev/null 2>&1 || die "il ponte non risponde su :$PORT — guarda $DIR/locale.err.log"
+# 30 s, non 10: il 22/09 dopo un pull da 5 GB il primo avvio ne ha voluti
+# di più e l'installer ha dichiarato morto un ponte che era vivo (PID, porta
+# in ascolto, log vuoto). Se non risponde, si dice DOVE guardare.
+for _ in $(seq 1 30); do sleep 1; curl -fsS --max-time 2 "http://127.0.0.1:$PORT/health" >/dev/null 2>&1 && break; done
+curl -fsS --max-time 2 "http://127.0.0.1:$PORT/health" >/dev/null 2>&1 || die "il ponte non risponde su :$PORT dopo 30 s — guarda $DIR/locale.err.log e 'launchctl list | grep com.boom.locale' (un trattino al posto del PID = non parte; un PID = sta partendo, rilancia fra un minuto)"
 note "com.boom.locale · sempre acceso ✓"
 
 say "Prova in locale (la prima completion carica il modello: può volerci un minuto)"
@@ -175,18 +267,36 @@ say "Prova in locale (la prima completion carica il modello: può volerci un min
 
 # ── 4. Il tunnel (Tailscale Funnel) ──────────────────────────────────────────
 say "Il tunnel https (Tailscale Funnel)"
-TS=""
-for c in /Applications/Tailscale.app/Contents/MacOS/Tailscale "$(command -v tailscale || true)"; do
-  [ -n "$c" ] && [ -x "$c" ] && { TS="$c"; break; }
+# Due Tailscale possibili sullo stesso Mac: l'app (GUI: la prima apertura
+# vuole lo schermo per approvare l'estensione di rete e per accedere) e il
+# demone Homebrew (headless: `tailscale login` stampa un link da aprire da
+# qualsiasi browser). Si sceglie quello che RISPONDE a `status` (demone su
+# e dentro), non il primo file che esiste: il 22/09 l'app era installata da
+# SSH senza schermo, quindi inerte, e avrebbe vinto solo per l'ordine.
+HEADLESS='brew install tailscale && sudo tailscaled install-system-daemon && sudo tailscale set --operator="$USER" && tailscale login'
+TS=""; TS_ANY=""
+for c in "$(command -v tailscale || true)" /Applications/Tailscale.app/Contents/MacOS/Tailscale; do
+  [ -n "$c" ] && [ -x "$c" ] || continue
+  [ -n "$TS_ANY" ] || TS_ANY="$c"
+  if "$c" status >/dev/null 2>&1; then TS="$c"; break; fi
 done
 URL=""
 if [ -z "$TS" ]; then
-  note "Tailscale non trovato. Scaricalo da https://tailscale.com/download/mac, apri l'app e accedi;"
-  note "poi rilancia questo comando: il resto è già installato e non si ripete."
-else
-  if ! "$TS" status >/dev/null 2>&1; then
-    note "Tailscale c'è ma non sei dentro: apri l'app dalla barra dei menu e accedi, poi rilancia."
+  if [ -z "$TS_ANY" ]; then
+    note "Tailscale non trovato. Senza schermo (SSH), dal terminale:"
   else
+    note "Tailscale c'è ($TS_ANY) ma non risponde o non sei dentro."
+    case "$TS_ANY" in
+      /Applications/*) note "  È l'app: vuole lo schermo del Mac (approva l'estensione in Impostazioni di Sistema → Privacy e sicurezza, poi accedi)."
+                       note "  Senza schermo usa il demone, dal terminale:" ;;
+      *) note "  Il demone non è su o non sei dentro; dal terminale:" ;;
+    esac
+  fi
+  note "  $HEADLESS"
+  note "  (tailscale login stampa un link: aprilo da qualsiasi browser e accedi con Google)"
+  note "Poi rilancia questo comando: il resto è già installato e non si ripete."
+else
+  {
     if "$TS" funnel --bg "$PORT" 2>&1 | sed 's/^/   /'; then
       HOSTN="$("$TS" status --json 2>/dev/null | "$PY" -c 'import sys,json; d=json.load(sys.stdin); print((d.get("Self") or {}).get("DNSName","").rstrip("."))' 2>/dev/null || true)"
       [ -n "$HOSTN" ] && URL="https://$HOSTN"
@@ -196,9 +306,42 @@ else
       note "  il comando qui sopra stampa il link (Access Controls → Funnel). Poi rilancia."
     else
       note "URL pubblico: $URL"
-      if curl -fsS --max-time 15 "$URL/health" >/dev/null 2>&1; then note "raggiungibile da internet ✓"; else note "⚠ $URL/health non risponde ancora (il DNS può volerci un minuto)"; fi
+      # Il certificato https lo emette Let's Encrypt alla PRIMA richiesta e
+      # può volerci fino a un minuto; `tailscale cert` lo forza qui, aspetta
+      # quanto serve e, se il tailnet non ha «HTTPS Certificates» acceso, lo
+      # DICE. I file che scrive sono copie (tailscaled tiene la sua):
+      # cartella temporanea, via subito. Mai /dev/null come file: "already
+      # exists and is not a regular file". (22/09: i file sono usciti
+      # subito, e l'https dal Mac restava comunque appeso: era il giro
+      # locale, vedi la prova qui sotto.)
+      note "certificato https (Let's Encrypt): la prima emissione può volerci un minuto, aspetta…"
+      CERTD="$(mktemp -d)"
+      if "$TS" cert --cert-file "$CERTD/c.crt" --key-file "$CERTD/c.key" "$HOSTN" >/dev/null 2>"$CERTD/err"; then
+        note "certificato emesso ✓"
+      else
+        note "⚠ certificato NON emesso: $(tr '\n' ' ' <"$CERTD/err" | cut -c1-300)"
+        note "  (nella console Tailscale → DNS deve essere acceso «HTTPS Certificates»; poi rilancia)"
+      fi
+      rm -rf "$CERTD"
+      # La prova da QUESTO Mac deve passare dall'ingresso del Funnel, non dal
+      # giro su sé stesso: qui il nome risolve via MagicDNS sull'IP del
+      # tailnet e la connessione al listener locale di tailscaled resta
+      # appesa (22/09: 60-120 s senza ServerHello, con certificato emesso e
+      # percorso pubblico VIVO — verificato). Si chiede a un resolver
+      # pubblico l'IP dell'ingresso e si forza curl su quello (--resolve):
+      # è lo stesso percorso che fa Vercel.
+      INGRESS="$(dig +short +time=3 +tries=1 "$HOSTN" @1.1.1.1 2>/dev/null | grep -E '^[0-9.]+$' | head -1 || true)"
+      if [ -z "$INGRESS" ]; then
+        note "⚠ il DNS pubblico non risolve ancora $HOSTN (può volerci qualche minuto). Riprova più tardi:"
+        note "  curl -sS -m 60 --resolve $HOSTN:443:\$(dig +short $HOSTN @1.1.1.1 | head -1) $URL/health"
+      elif curl -fsS --max-time 30 --resolve "$HOSTN:443:$INGRESS" "$URL/health" >/dev/null 2>&1; then
+        note "raggiungibile dall'esterno ✓ (via l'ingresso del Funnel $INGRESS: lo stesso percorso di Vercel)"
+      else
+        note "⚠ $URL/health non risponde dall'esterno (ingresso $INGRESS): controlla \`tailscale funnel status\` (deve dire Funnel on → http://127.0.0.1:$PORT) e riprova:"
+        note "  curl -sS -m 60 --resolve $HOSTN:443:$INGRESS $URL/health"
+      fi
     fi
-  fi
+  }
 fi
 
 # ── 5. Le righe per Vercel ───────────────────────────────────────────────────

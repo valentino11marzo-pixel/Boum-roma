@@ -151,11 +151,18 @@ firebase.json             Firebase deploy config (firestore + storage rules)
   and the Git preview when adding a rule. Same move for
   `api/preagreement/{submit,sign-for}.js` (the 51st rule would have blocked
   the production deploy, not a test); `tests/mandato/run.mjs` §9 pins the
-  ≤50 count and resolves rules through brace expansion. **22/09**: il merge
-  della Centrale AI portava la 51ª regola (`api/ai/status.js`) — accorpate
-  `api/fiscal/{fascicolo,pack,foglio}.js` (stessa forma; nessun test le
-  legge per chiave esatta, a differenza di `fiscal/{allega,valutazione,
-  registra}` che `tests/aspi` pinna). Ora 49 regole.
+  ≤50 count and resolves rules through brace expansion.
+  The single-delivery endpoint uses the exact group
+  `api/homie/{wa-outbox,wa-outbox-single}.js`, both at 60s.
+  The 22/09 Centrale AI release also groups
+  `api/fiscal/{fascicolo,pack,foglio}.js` and adds `api/ai/status.js` at 30s.
+  The combined configuration has 49 rules for 54 configured paths;
+  all live settings, memory and includeFiles remain unchanged.
+  `npm test -- vercelfunctions` compares the current live baseline plus the
+  single endpoint, keeps the original 51-rule regression fixture and rejects
+  overlaps, lost settings and new overrides on default-configured handlers.
+  `sign-for` stays at 60s; `segretaria/preparation.js` keeps its default.
+
 
 ## Environment Variables (Vercel)
 
@@ -1840,6 +1847,14 @@ conversione. Il modello in vigore è VERBATIM il contratto tipo
 dell'associazione (`reference/contratto_tipo_STUDENTI_Roma_2023.doc`,
 prot. RA/2023/0044852 — stesso MD5 del file del referente).
 
+**PDF al primo clic** (22/09/2026): il loader idle di `portal.html` poteva
+non avere ancora caricato jsPDF quando `generateContractPDF` lo cercava,
+restituendo subito errore. `boomEnsureJsPDF()` avvia e condivide la richiesta
+con il preload; il generatore attende. Errore CDN o attesa oltre 20 secondi
+liberano il tentativo: il clic successivo riprova, senza ricaricare il portal.
+Test: `tests/contractpdf/loading.mjs`, handler e renderer reali, IO simulato,
+PDF effettivo, nessuna scrittura su errore e mutazione senza attesa.
+
 ### Journey consapevole (contesto nel `_run.js`)
 `steps()` riceve `missing`, `late` e `walletUrl`: il T-14 chiede PER NOME
 ciò che manca (link `/scheda` derivato — anagrafica e/o foto documento)
@@ -1999,6 +2014,80 @@ Un giro solo, otto interventi, 33 suite verdi:
   servizio → "Genera nuova chiave privata". `FIREBASE_TOKEN` resta come
   ripiego dichiarato (warning in job) finché la chiave non c'è; senza
   nessuna credenziale il job avvisa e salta.
+  **22/09/2026 — la chiave non si può generare.** Firebase console: «La
+  creazione di chiavi non è consentita per questo service account»: è la
+  policy dell'organizzazione Google (`iam.disableServiceAccountKeyCreation`,
+  accesa di default sulle org Workspace), e ha ragione — una chiave JSON è
+  una password perenne. La credenziale è ora la **federazione** (Workload
+  Identity Federation): sul progetto un pool `github` con provider OIDC
+  `github` (issuer `token.actions.githubusercontent.com`, mappature
+  `google.subject=assertion.sub` e `attribute.repository=assertion.repository`,
+  condizione `assertion.repository == "valentino11marzo-pixel/Boum-roma"`),
+  «Concedi accesso» verso `firebase-adminsdk-fbsvc@…` col filtro
+  `repository`, ruolo Firebase Admin sull'account. Nel job il passo
+  `google-github-actions/auth@v2` (provider e account scritti in chiaro:
+  non sono segreti, senza il token firmato da GitHub non aprono niente)
+  lascia la credenziale di un'ora in `GOOGLE_APPLICATION_CREDENTIALS` e
+  il deploy la riconosce (`CRED_KIND=wif`); serve `permissions:
+  id-token: write` sul job. Le due vecchie vie restano come ripiego
+  dichiarato. L'avvio manuale da un ramo deploya le rules SOLO con la
+  spunta `deploy_rules_from_branch`: la produzione Vercel girava sul ramo
+  Codex (PR #252, avanti di 8 commit su main) e un merge su main l'avrebbe
+  sovrascritta — la spunta è l'uscita, e un ramo vecchio dispatchato per
+  sbaglio non può regredire le regole in produzione. La GitHub App di
+  Claude non può avviare workflow (403 `Resource not accessible by
+  integration`): «Run workflow» lo preme l'operatore, i log li legge
+  Claude. **Il primo run federato era verde senza federazione** (letto nel
+  log del job, non dedotto): `google-github-actions/auth` senza
+  `token_format` scrive solo il file di configurazione e riesce SEMPRE —
+  nessuno scambio con Google — e il CLI **preferisce la variabile
+  `FIREBASE_TOKEN`** a `GOOGLE_APPLICATION_CREDENTIALS`: il job diceva
+  `wif`, il log diceva «Authenticating with FIREBASE_TOKEN is deprecated»,
+  e le regole sono uscite col token deprecato (valido quel giorno). Un
+  verde che non prova la credenziale è il difetto di classe del 31/08 in
+  altra forma. Ora: `token_format: access_token` sul passo federato (lo
+  scambio OIDC → STS → impersonazione si fa LÌ, e un pool/provider/«Concedi
+  accesso» sbagliato fallisce con l'errore di Google), `unset
+  FIREBASE_TOKEN FIREBASE_SERVICE_ACCOUNT` prima del CLI quando la
+  federazione c'è, e la seconda prova sul log (avviso del token con
+  `CRED_KIND=wif` = errore). I rami service-account/token restano SOLO per
+  un job senza il passo federato; una volta verde con la federazione, il
+  secret `FIREBASE_TOKEN` va tolto dal repo. **Il secondo e il terzo run
+  federato: 403 `iam.serviceAccounts.getAccessToken denied`** — lo scambio
+  col pool PASSA (pool, provider, condizione giusti), a mancare è il legame
+  sull'account di servizio: nella scheda Autorizzazioni di
+  `firebase-adminsdk-fbsvc@…` («Entità con accesso» era VUOTA) serve il
+  ruolo **Utente Workload Identity** per l'entità con cui il job si
+  presenta. Quella stringa ora si LEGGE nel log, non si scrive a mano: il
+  passo «Carta d'identità del job» chiede a GitHub il token OIDC con la
+  stessa audience e stampa i soli claim (`sub`, `repository`, `ref`) e le
+  due entità che ne derivano — `…/attribute.repository/<repo>` (esige la
+  mappatura `attribute.repository` sul provider) e `…/workloadIdentityPools/
+  github/*` (tutto il pool: sicuro perché il provider filtra già il repo
+  con la condizione). Il token non si stampa mai. Test:
+  `tests/finalize/run.mjs` (37 check).
+  **Il quarto run federato (23/09/2026, CI #483) è verde CON la
+  federazione**, letto nel log: la carta d'identità stampa `sub =
+  repo:valentino11marzo-pixel/Boum-roma:ref:refs/heads/<ramo>` e
+  `repository = valentino11marzo-pixel/Boum-roma`; il passo federato con
+  `token_format: access_token` passa; il deploy dice «credenziale:
+  federazione», NESSUN avviso del token, «Deploy complete!». Il legame che
+  ha sbloccato tutto è `…/workloadIdentityPools/github/*` col ruolo Utente
+  Workload Identity, dato dalla scheda **«Entità con accesso» → «Concedi
+  l'accesso»** dell'account (NON «Autorizzazioni → Gestisci accesso», che
+  cambia i ruoli dell'account SUL PROGETTO, non chi può impersonarlo). Le
+  due righe `…/attribute.repository/…Boum-roma` presenti dalla sera prima
+  non hanno mai combaciato (con quelle sole: 403 nei run 477/478) — più
+  strette di `*`, innocue, si possono togliere. Con `*` qualunque workflow
+  di QUESTO repo può impersonare l'account (il provider filtra il repo);
+  per stringere a `main` si userà `attribute.ref`, dopo aver verificato la
+  mappatura sul provider — che è ciò che quelle due righe non hanno mai
+  provato. Lo stesso giorno alle 17:25 UTC il token `login:ci` è morto per
+  la QUARTA volta (push su main, «Your credentials are no longer valid»;
+  regole invariate, verificato per diff): il secret `FIREBASE_TOKEN` va
+  tolto dal repo — il ramo token del job resta come ripiego dichiarato per
+  un job senza il passo federato. Su `main` la federazione entra col merge
+  del ramo che la porta (PR #253).
 - **Tabella zone canone UNICA**: `scheda-canone.html` ora carica
   `js/canone-engine.js` e semina le zone dal motore (la copia inline che
   poteva divergere dal Fascicolo ARPE è stata rimossa; un edit manuale
@@ -2205,6 +2294,13 @@ time-boxed — mai può bloccare una firma.
   `contracts/<id>/contratto-firmato.pdf` → `contract.signedPdfUrl`.
   Contratti legacy senza PDF sorgente: si salta senza rumore, alle email
   resta il certificato (mai bloccare una firma).
+- **Download e anteprima del contratto** (22/09/2026): le tre azioni del
+  portal leggono il record dal server con tetto di 12 secondi e preferiscono
+  `signedPdfUrl` al PDF sorgente. Non rigenerano né aggiornano più il contratto
+  durante una lettura; il documento mancante indica l’azione esplicita.
+  «PDF firmato» richiede la copia canonica: il vecchio flag locale non prova
+  che il file contenga le firme. Errori e popup bloccati sono visibili.
+  Test: `tests/contractpdf/downloads.mjs`, handler reali, IO simulato e mutazioni.
 - `sendWelcomeEmails` (da `_finalize.js`): welcome tenant EN (portal
   magic-link, saldo deposito se pendente, timeline utenze/TARI/residenza)
   + landlord IT (passi fiscali per regime, cessione fabbricato se
@@ -2949,7 +3045,7 @@ approvazioni dell'operatore, cioè la scala della fiducia. La trascrizione
 Whisper sul Mac (`local.sttUrl`, rotta OpenAI-compatibile) prima, OpenAI come
 rete. Rules: `aiUsage`/`aiShadow` admin-only, `settings/ai` non pubblico
 (porta l'URL del tunnel).
-Test: `node tests/ai/run.mjs` (140 check — default pinnati, confini per
+Test: `node tests/ai/run.mjs` (145 check — default pinnati, confini per
 mutazione, ricadute, ombra, contatori e costo, porta HTTP, STT, giunzioni
 sulla sorgente, anti-deriva nelle due direzioni: ogni chiamante dichiara uno
 scopo che esiste, ogni scopo ha un chiamante, nessun modello scritto a mano
@@ -2978,7 +3074,89 @@ Vercel; `--test` prova il ponte, `--smoke` chiede a `/api/ai/status` se il
 server lo vede. Guida per l'operatore: `bot/MODELLI_LOCALI.md`. Test:
 `python3 tests/locale/runner.py` (40 check: picker, serratura per
 mutazione, rotte, log senza contenuto, e il server VERO contro un Ollama
-finto in-thread).
+finto in-thread). **Il primo giro vero (22/09 sera, via SSH)**: il Mac mini
+si usa da terminale, quindi l'app Tailscale (estensione da approvare sullo
+schermo, login nella finestra) è inerte; la via è il demone Homebrew
+(`brew install tailscale`, `sudo tailscaled install-system-daemon`,
+`sudo tailscale set --operator`, `tailscale login` che stampa un link).
+L'installer sceglie il Tailscale che RISPONDE a `status`, non il primo file
+che esiste, e per l'altro dice cosa fare. E nei blocchi copia-incolla **mai
+un commento `#`**: zsh interattivo non li accetta e li esegue come parole.
+**Il secondo intoppo della stessa sera: Ollama non c'era.** La guida lo
+dava per «già installato» — un'assunzione scritta come un fatto, mai letta
+dal Mac — e l'unica via dell'installer era «scaricalo da ollama.com e apri
+l'app», che via SSH non è una via. Ora, se `ollama` manca e c'è Homebrew,
+l'installer fa `brew install ollama` (la formula: solo il binario, senza
+finestra) e, senza `Ollama.app`, tiene su il server con un LaunchAgent
+NOSTRO, `com.boom.ollama`, con `OLLAMA_CONTEXT_LENGTH`/`OLLAMA_KEEP_ALIVE`
+scritti NEL plist e `OLLAMA_HOST=127.0.0.1:11434` (la serratura è il ponte:
+Ollama non si espone). Il plist sopravvive al riavvio; `launchctl setenv`
+— la via del ramo app, quella che la doc di Ollama consiglia — no: dopo un
+reboot l'app riparte col contesto di default. Dichiarato nel sorgente, non
+risolto (il Mac mini non ha l'app). Un solo server su :11434: se lo occupa
+un altro `ollama` (brew services, un `serve` a mano) l'installer lo ferma
+prima di caricare il suo, altrimenti il suo entra in crash loop. Cinque
+check in più in `tests/locale/runner.py` (45). **E l'installer era
+impaziente**: 10 s di attesa sul ponte, dopo un pull da 5 GB il primo
+avvio ne ha voluti di più, e ha dichiarato morto un ponte VIVO (PID, porta
+in ascolto, log vuoto). Ora 30 s e, se tace, il messaggio dice dove
+guardare (`launchctl list`: trattino = non parte, PID = sta partendo).
+`HOMIE_SECRET` per `--smoke` si legge anche nella forma `export
+HOMIE_SECRET="…"` di `~/.boom/env` (il ponte di Homie lo scrive così).
+**Il terzo intoppo, e il più istruttivo: il modello pensava.** La prova
+«completion JSON» del ponte è fallita con `Expecting value: line 1 column 1`
+— contenuto VUOTO. qwen3 è un modello «pensante», Ollama lo lascia pensare
+di default, e con 60 token di tetto li spende tutti nel ragionamento; sul
+server, col tetto di 20 s, sarebbe stata una ricaduta sul cloud a OGNI
+chiamata, e `/ai` avrebbe mostrato «ricadute» senza dire perché. La rotta
+OpenAI-compatibile di Ollama non ha un interruttore affidabile per il
+ragionamento, quindi il ponte **traduce** `/v1/chat/completions` sull'API
+NATIVA `/api/chat` (`to_native_chat`: `think:false` salvo `think` esplicito
+nel body, `response_format` → `format`, `max_tokens` → `num_predict`,
+immagini data-URI → `images`, mai streaming) e riporta la risposta nella
+forma OpenAI che `api/_ai.js` legge (`from_native_chat`: choices,
+finish_reason da `done_reason`, usage dai conteggi nativi; un
+`<think>…</think>` residuo si toglie, un `<think>` troncato è tutto
+ragionamento → contenuto vuoto con `finish_reason:'length'`). Il finto
+Ollama dei test risponde 500 sulla rotta compatibile: se il ponte tornasse
+a usarla, il test cade. `LOCALE_RAW_BASE=…/<branch>/bot` davanti
+all'installer prova il ponte di un ramo prima del merge (l'installer del
+ramo scaricava il ponte di `main`, cioè quello vecchio). **E il quarto,
+quello che spiegava tutti gli altri timeout: la porta aperta ma sorda.**
+Dopo ogni riavvio del ponte, per ~28 s ogni connessione a 127.0.0.1:8088
+moriva in «Operation timed out» (non «refused») — poi la quarta prova
+passava. `HTTPServer.server_bind` chiama `socket.getfqdn(host)`, una
+reverse-DNS di 127.0.0.1, FRA il bind e il listen: sul Mac mini, col
+resolver appena passato a Tailscale, ~28 s; e su macOS un socket bound ma
+non in listen SCARTA il SYN (Linux risponde RST). È il motivo per cui
+l'installer «impaziente» dei 10 s aveva dichiarato morto un ponte vivo.
+`ThreadedServer.server_bind` salta la lookup (`server_name` non lo usa
+nessuno), backlog a 32; il test patcha `socket.getfqdn` e pretende che
+l'avvio non lo chiami (l'`HTTPServer` nudo lo chiama: verificato). **Il quinto, sull'https del Funnel: acceso, risolto, e appeso — e la
+prima diagnosi era sbagliata.** `tailscale funnel status` diceva «Funnel
+on», il DNS pubblico rispondeva, e `curl` DAL MAC verso il proprio nome
+`.ts.net` restava senza ServerHello anche dopo 120 s. Prima ipotesi:
+Let's Encrypt emette il certificato alla prima richiesta e un client che
+chiude a 15-20 s interrompe l'emissione. Smentita dai fatti: `tailscale
+cert <nome>` ha scritto i file SUBITO e il curl locale restava appeso
+lo stesso. Il fatto verificato: dallo STESSO Mac, `curl --resolve
+<nome>:443:<IP dell'ingresso del Funnel>` risponde `{"ok": true}`.
+Cioè il percorso pubblico — quello che fa Vercel — funziona; quello che
+si inceppa è il giro del Mac su sé stesso (MagicDNS → IP del tailnet →
+listener locale di tailscaled), e la sua causa NON è stabilita: non
+serve alla produzione. Regola: la prova di un tunnel si fa sul percorso
+che userà il server, non su quello comodo. L'installer ora chiede a un
+resolver pubblico (`dig +short … @1.1.1.1`) l'IP dell'ingresso e prova
+`/health` con `--resolve` su quello; un record pubblico ancora assente
+viene detto come tale, mai come guasto; `tailscale cert` resta (costa
+niente, e stampa l'errore vero quando «HTTPS Certificates» è spento nel
+tailnet — mai `/dev/null` come file: «already exists and is not a
+regular file»). Il sandbox non può provare nulla di tutto questo
+(policy di egress: 403 sul CONNECT verso `*.ts.net`); il telefono su
+rete mobile è l'altra prova onesta. E le env su Vercel le mette
+l'operatore: il token del ponte non passa da una chat, e comunque la
+connessione Vercel di Claude non può né leggere né scrivere le env di
+produzione (403 su entrambe, provato). 63 check.
 
 **Il merge con l'Innesto 3.0 e la Segretaria di Codex (22/09/2026).** Su
 `main` erano intanto arrivati l'Innesto 3.0 (`api/portal/ingest.js`: Opus 5,
@@ -2997,6 +3175,21 @@ recintano le scritture della preparazione a `operatorTasks|heartbeat`
 ammettono ora anche `aiUsage/` — il contatore della centrale è una
 scrittura per costruzione, e il recinto resta: qualsiasi altra scrittura fa
 cadere il test. Nulla cambia nel comportamento verso il cliente.
+
+**Il primo tap sul locale lo spegneva (23/09/2026 — letto nel `/ai`
+dell'operatore, non dedotto).** Con `LOCAL_AI_URL` e `LOCAL_AI_MODEL`
+regolarmente in env su Vercel, dopo «🟢 Accendi il locale» `/ai` diceva
+«🔴 locale non configurato» e lo scopo in shadow cadeva su «→ cloud (nessun
+URL locale)». Il toggle scriveva su `settings/ai` la forma VALIDATA intera di
+`local` — `url:''`, `model:''`, `timeoutMs:20000`… — e `loadAiSettings`
+faceva `{ ...env, ...doc.local }`: «il documento vince sull'env» valeva anche
+per un vuoto, quindi la stringa vuota del documento spegneva l'URL in env. Un
+difetto che si accende al PRIMO uso del bottone, invisibile alla suite perché
+nessun check metteva insieme env e documento. Ora l'env riempie dove il
+documento TACE (`''`/`null` non sono una scelta) e il tap scrive SOLO le voci
+che qualcuno ha scritto — mai i default, che maschererebbero l'env
+(`LOCAL_AI_TIMEOUT_MS` compreso). Il documento già scritto in produzione si
+sana da solo alla lettura. Le due mutazioni riproducono il messaggio visto.
 
 ### POST `/api/documents/share`
 Admin/landlord (Firebase ID token via `api/_auth.js`). Creates a
@@ -3395,6 +3588,51 @@ richiesta, il ripiego ad auto, la rete sul testo, il 400 della grammatica
 detto come richiesta del server, le giunzioni sulla sorgente; lo Scrivano
 legge con lo stesso strumento.
 
+**LA LEZIONE DEL 22 SETTEMBRE 2026 — «ho incollato i dati catastali da
+collegare a una proprietà e non ha rilevato nulla», e i 23 secondi.** Nei
+log di produzione: `ok via=tool files=0 pages=0 in=1917 out=2130 ms=23445
+sections=-` — il testo era arrivato al modello e la risposta era senza
+sezioni; e le letture di PDF da 2-3 pagine facevano 43-50 s con `out` fra
+4.600 e 5.300 token: a ~100 token/s il tempo era quasi tutto OUTPUT, e ~900
+di quei token erano le ~150 chiavi con `""` che il `required` completo
+imponeva a ogni lettura — un residuo della grammatica del 21/09, che non
+c'è più. Quattro mosse:
+- **«Riguarda»** (portal, la riga sotto l'indicazione): immobile ·
+  proprietario · inquilino, tendine dai pool VERI. Il server riceve nome e
+  indirizzo (`context.target`, mai il solo id) come blocco RIGUARDA nel
+  prompt — fatti dichiarati, non deduzioni — e il portal forza l'aggancio
+  PER ID (`innestoApplyTarget` → `_innesto.links`): ciò che viene letto
+  diventa la MODIFICA PROPOSTA sul record che c'è già (`diffRecord`, i
+  buchi si riempiono con la spunta accesa), non una card «nuovo» da
+  ricollegare a mano. Dal fascicolo immobile, **Innesto da documento** apre
+  l'Innesto già puntato su quella casa (`innestoOpenFor`). Un record
+  dichiarato ma non letto ha la sua card che lo dice, invece di sparire.
+- **L'immobile è ancorato da QUALUNQUE identificativo catastale**
+  (`ANCHORS.property`: foglio, particella, sub, categoria, rendita in
+  entrambe le forme, il blob, la classe energetica — mai i default), e il
+  prompt dice che i DATI NUDI (catasto senza indirizzo, un CF, un IBAN)
+  sono una lettura valida.
+- **Lo schema è SPARSO e lo sforzo è `medium`**: nessun `required` (una
+  chiave omessa = manca; il motore leggeva già `""` e `undefined` allo
+  stesso modo), prompt e strumento dicono di OMETTERE le vuote;
+  `output_config: { effort: 'medium' }` (Opus 5, senza beta, con gli
+  strumenti) taglia il thinking — «effort controls thinking volume, not
+  visible response length»: la lunghezza la taglia lo schema sparso.
+  Costante su ogni richiesta, perché cambiarlo invalida la cache. Il fast
+  mode (`speed:'fast'`, fino a 2,5× i token/s) è in research preview su
+  richiesta all'account manager: non attivabile da qui, è la leva successiva.
+- **Il vuoto si spiega**: `filled=N` nel log e `stats.filled` nella
+  risposta (i valori che il modello ha scritto nelle sezioni): «non ha
+  riconosciuto nessun dato» ≠ «letti 3 valori ma nessuno ancora una
+  sezione»; e `material` da solo non è più una proposta (prima usciva
+  «Proposta pronta» a card zero).
+Dal sandbox nulla è misurato (nessuna chiave): il guadagno VERO si legge
+nei log (`ms=`, `out=`) alle prossime letture. Test: `tests/innesto/run.mjs`
+(187 — RIGUARDA nel prompt e clippato, risposta sparsa → immobile ancorato,
+vuoto onesto), `tests/innesto/render.mjs` (21 — la riga, il payload, la
+modifica proposta sul record dichiarato), `tests/dataops/test.mjs` (195 — le
+ancore, mai i default).
+
 ### LO SCRIVANO — la porta dal telefono (`api/scrivano/*` + `sc:` su Telegram, 14/09/2026)
 STUDIO_SCRIVANO §4, **passo 4**: i passi 1–3 (il documento resta, la classe
 dello Smistatore, la modifica proposta) sono nell'Innesto 3.0; questo è il
@@ -3490,6 +3728,30 @@ una bozza mai ritirata scaduta o senza data verificabile diventa `needs_review`.
 Ricevute terminali/claim conservate, nessun reinvio incerto o attivazione Mac;
 il flusso legacy conserva i limiti precedenti. Prove: `segretariaconsegna`,
 `segretariaesecuzione`, conferma/UI e sei mutazioni di scadenza e paginazione.
+
+**Invio singolo selezionato (21/09/2026, attivazione separata):** `wa-outbox-single`
+isola una proposta già approvata: inspect senza scritture, claim con revisione/impronta
+e ACK del solo bersaglio; endpoint o protocollo sconosciuti non ricadono nel pull.
+Il worker `wa_outbox_single.py` conserva HOLD e lock/registro esistenti, non avvia
+il servizio ordinario, non recupera altre ricevute e non reinvia esiti incerti.
+Nessun mirror generico o nuova autonomia: esecuzione esplicita dopo approvazione.
+Prove sintetiche: `segretariainviosingolo`, `homieinviosingolo`; istruzioni e limiti
+in `docs/HOMIE_INVIO_SINGOLO.md`. Il trasporto installato non cambia con il commit.
+
+**Risposta claim incerta (21/09):** un 5xx, timeout o status 0 può arrivare dopo
+il commit: il worker restituisce `claim_outcome_unknown`, senza mittente o retry.
+Solo i rifiuti 400/401/405/409 sono `claim_rejected`; il 404 resta indisponibilità.
+Le altre risposte inattese richiedono riconciliazione, senza inventare ricevute.
+Prove: worker `test_19`, test JS/Python con claim realmente acquisito e risposta
+persa/500/503/504/0, più mutazione della vecchia classificazione.
+
+**CAS senza riscrivere dati (21/09):** i controlli versione in conferma,
+esecuzione, consegna e ritiro di vecchie approvazioni usano `fields: {}`.
+`fsCommit` conserva la maschera vuota e le precondizioni nello stesso batch;
+non materializza null né riconverte timestamp/mappe per verificare la versione.
+Una maschera assente sostituirebbe il documento: non ometterla o saltare il no-op.
+Prove RAW con encoder vero, claim reale e corse: `segretariafirestorenoop` e
+`segretariafirestorenoopmutazioni`; scritture di contenuto e veti invariati.
 
 ### POST `/api/homie/message` — da WhatsApp a lead, senza far pensare nessuno
 La CHIAVE DI VOLTA che permette a Homie di smettere di analizzare (mandato
@@ -4299,6 +4561,31 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
   Il messaggio normale e la testa Inbox si salvano insieme; ingressi tardivi non arretrano testa/seguito e non cancellano unread più recenti. A timestamp uguali, il seguito confronta `updateTime` del messaggio persistito, anche se il tracking termina in ordine inverso; nessuna cronologia dedotta dagli ID.
   Header e messaggio condividono le ACL della stessa identità finale; un cambio concorrente prevale sui dati del pre-read. Prove `segretariafreshness`: handler/worker/conferma/consegna reali, duplicati, corse, prima associazione, cambi ACL e mutazioni. Nessun invio implicito o migrazione dei casi.
 
+- **LA FINESTRA DI QUIETE (23/09/2026 — letta in `/ai`, non dedotta)**: la
+  preparazione del caso è il 96% della spesa AI del giorno (193 chiamate opus
+  su 251, $16,57 su $17,27), e ogni inbound rifà la preparazione INTERA:
+  `contextRevision` sale a ogni messaggio e il worker (ogni minuto) ripaga il
+  modello. WhatsApp arriva a raffiche («ciao» · «cercavo un bilocale» · «per
+  settembre» — lo stesso esempio di `mergeMessage`), quindi una raffica da tre
+  pagava tre proposte, due delle quali già superate all'arrivo. Ora un caso
+  con evento nuovo aspetta che la chat sia FERMA da `prepareQuietMinutes`
+  (`settings/segretaria`, default **3**, 0–30: un valore impossibile torna al
+  default e si dichiara in `rejected`, mai un aggiustamento) e si prepara UNA
+  volta sull'insieme. La regola è pura in `PRIORITY.quiet` (priority-engine):
+  vale SOLO per gli eventi nuovi — un ricontrollo scaduto e una decisione
+  dell'operatore non sono raffiche — e MAI per una scadenza confermata o una
+  richiesta datata entro l'ora (lo stesso rango che in `chooseNext` batte gli
+  eventi nuovi). Il monitor lo dichiara: `queue.quiet` nel battito,
+  `counts.quiet` in Oggi («In arrivo a raffica»), `quietMinutes` sul run,
+  la riga dei tetti in `/segretaria`. Le prove esistenti del worker misurano
+  ORDINE ed equità su messaggi di pochi secondi fa e dichiarano
+  `prepareQuietMinutes: 0`; la finestra ha le sue (default, raffica che si
+  prepara una volta, scadenza che non aspetta, 999 → default, ricontrollo
+  che non aspetta) e due mutanti. Qualità invariata per costruzione: la
+  proposta arriva comunque, dopo la raffica, e copre tutto. Il guadagno VERO
+  si legge in `/ai` nei giorni successivi (193 chiamate/giorno è la base).
+  Il modello (opus 4.8) non è stato toccato: la sua qualità si misura sulle
+  approvazioni (`agreeOn:false`), e cambiarlo è una decisione dell'operatore.
 - **Preparazione continua (18/09)**: le proposte non condividono più `dailyCap` con le risposte conversazionali. Il contatore misura i tentativi; attivazione, lease, budget per ciclo e veti di consegna restano distinti.
   La scansione legge pagine per ID con cursore nel battito esistente e riparte dal principio a fine giro: nessun arresto ai primi 200 casi. Oggi legge tutte le pagine, preservando dati e modali durante refresh incompleti; il monitor dichiara i conteggi parziali.
   Scadenze confermate e richieste datate precedono i nuovi eventi, con un turno su tre al caso meno recentemente controllato. Errori temporanei riprovano dopo 1/5/15/60/360 minuti; errori di validazione restano visibili da verificare fino a nuova evidenza, decisione o versione.

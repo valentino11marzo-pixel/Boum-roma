@@ -13,8 +13,10 @@ cloud riprende da solo. Si accende e si spegne da Telegram.
 
 ## Prima di cominciare (sul Mac mini, una volta)
 
-1. **Ollama** — scaricalo da https://ollama.com/download, apri l'app
-   (compare un'icona nella barra dei menu). Fatto.
+1. **Ollama** — niente da fare, se sul Mac c'è Homebrew: l'installer lo
+   installa da solo (la formula, senza finestra) e lo tiene acceso come
+   servizio. Se preferisci l'app, scaricala da https://ollama.com/download e
+   aprila una volta (icona nella barra dei menu): l'installer usa quella.
 2. **Tailscale** — scaricalo da https://tailscale.com/download/mac, apri
    l'app, accedi con Google. Serve per far arrivare il server al Mac in
    https, senza aprire porte sul router.
@@ -33,7 +35,9 @@ Cosa fa da solo:
 - scarica il modello con Ollama (la prima volta qualche minuto);
 - installa il **ponte con la serratura** (`boom_locale.py`): solo chi ha il
   token può parlare col Mac, e solo per le tre rotte che servono;
-- accende il tunnel Tailscale e stampa l'indirizzo https;
+- accende il tunnel Tailscale, **emette subito il certificato https** (Let's
+  Encrypt: la prima volta fino a un minuto, e senza questo passo la prima
+  richiesta resta appesa) e stampa l'indirizzo;
 - **stampa le righe da incollare su Vercel**.
 
 Se Tailscale non è ancora dentro, lo dice e si ferma lì: entri nell'app e
@@ -55,41 +59,72 @@ LOCAL_AI_TOKEN=…
 Vercel → progetto boum-roma → Settings → Environment Variables →
 Production → aggiungi le righe → **Redeploy**.
 
-## Tutto dal terminale (senza aprire il sito di Vercel)
+## Tutto dal terminale (anche via SSH, senza lo schermo del Mac)
 
-Stesse cose di sopra, ma ogni passo è un comando da incollare nel Terminale
-del Mac mini, nell'ordine.
+Stesse cose di sopra, ma ogni passo è un comando da incollare, in ordine.
+**Nei blocchi non ci sono commenti**: la shell del Mac (zsh) non accetta `#`
+su una riga interattiva, e il 22/09 un blocco con i commenti ha prodotto
+`command not found: #` e file fantasma con i nomi delle parole. Le
+spiegazioni stanno fra un blocco e l'altro.
+
+**1. Tailscale senza schermo.** Il Mac mini si usa via SSH: l'app Tailscale
+(la finestra, l'icona nella barra) vuole lo schermo per approvare
+l'estensione di rete e per accedere. Il demone Homebrew no. Se l'app è già
+stata installata, prima si toglie (chiede la password di sudo):
 
 ```
-# 1) Tailscale (Ollama ce l'hai già). Se manca Homebrew, prima:
-#    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-brew install --cask tailscale
-open -a Tailscale          # nella finestra: accedi con Google, una volta
-open -a Ollama             # deve restare acceso (icona nella barra)
+brew uninstall --cask tailscale-app
+```
 
-# 2) L'installer (scarica il modello, mette il ponte, apre il tunnel,
-#    STAMPA le 4 righe LOCAL_AI_*)
+Poi il demone. L'ultimo comando stampa un link `https://login.tailscale.com/a/…`:
+aprilo dal browser del portatile e accedi con Google.
+
+```
+brew install tailscale
+sudo tailscaled install-system-daemon
+sudo tailscale set --operator="$USER"
+tailscale login
+```
+
+Controllo: `tailscale status` deve stampare il Mac con un indirizzo 100.x.
+
+**2. Ollama.** Niente da fare: se manca, l'installer lo installa con
+Homebrew (`brew install ollama`, un minuto) e lo tiene acceso come servizio
+`com.boom.ollama`, senza finestra e con il contesto lungo scritto nel
+servizio (sopravvive al riavvio). Il 22/09 sul Mac mini non c'era, e la
+prima versione di questa guida lo dava per «già installato».
+
+**3. L'installer.** Scarica il modello, mette il ponte, apre il tunnel e
+**stampa le 4 righe `LOCAL_AI_*`**. Se dice che il Funnel va abilitato,
+clicca il link che stampa e rilancia lo stesso comando (non rifà quello che
+ha già fatto).
+
+```
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/valentino11marzo-pixel/Boum-roma/main/bot/install_locale.sh)"
 ```
 
-Se dice che il Funnel va abilitato: clicca il link che stampa, poi rilancia
-lo stesso comando (non rifà quello che ha già fatto).
+**4. Vercel dal terminale** (una volta; se manca Node: `brew install node`):
 
 ```
-# 3) Vercel CLI (una volta). Se manca Node: brew install node
 npm i -g vercel
 vercel login
 cd ~/boom-locale && vercel link --yes --scope valentino-boom --project boum-roma
+```
 
-# 4) Incolla qui le 4 righe stampate dall'installer (al posto degli esempi)
+**5. Le 4 righe stampate dall'installer**, incollate al posto degli esempi:
+
+```
 cat > ~/boom-locale/vercel.env <<'ENV'
 LOCAL_AI_URL=https://mac-mini.<rete>.ts.net
 LOCAL_AI_MODEL=qwen3:14b
 LOCAL_AI_VISION_MODEL=qwen2.5vl:7b
 LOCAL_AI_TOKEN=incolla-il-token
 ENV
+```
 
-# 5) Le manda a Vercel (Production) e fa ripartire il deploy
+**6. Mandarle a Vercel (Production) e far ripartire il deploy:**
+
+```
 cd ~/boom-locale && while IFS='=' read -r k v; do
   [ -z "$k" ] && continue
   vercel env rm "$k" production --yes >/dev/null 2>&1
@@ -133,8 +168,11 @@ Per togliere il ponte dal Mac: `launchctl unload
 | Sintomo | Causa probabile | Cosa fare |
 |---|---|---|
 | `/ai` dice «irraggiungibile» | tunnel non attivo o token diverso | sul Mac `tailscale funnel status`; il token su Vercel deve essere IDENTICO a quello in `~/boom-locale/.env` |
+| `curl` DAL MAC verso l'indirizzo del Funnel resta appeso (timeout anche a 120 s) mentre `tailscale funnel status` dice «Funnel on» | è il giro del Mac su sé stesso: lì il nome risolve via MagicDNS sull'IP del tailnet e il listener locale di tailscaled non risponde. Il percorso pubblico (quello di Vercel) è un'altra strada | prova il percorso pubblico dal Mac forzando l'IP dell'ingresso: `curl -sS -m 60 --resolve mac-mini-di-boom.<rete>.ts.net:443:$(dig +short mac-mini-di-boom.<rete>.ts.net @1.1.1.1 \| head -1) https://mac-mini-di-boom.<rete>.ts.net/health` → `{"ok": true}` = a posto (l'installer aggiornato fa questa prova). In alternativa il telefono con Wi‑Fi spento |
+| `tailscale cert <nome>` stampa un errore invece di «Wrote public cert» | «HTTPS Certificates» spento nella console Tailscale → DNS | accendilo e rilancia l'installer |
 | `/ai` dice «non configurato» | mancano le env su Vercel | incolla le righe e fai Redeploy |
 | le chiamate ricadono sempre sul cloud (`ricadute` alte in `/ai`) | modello troppo lento per il tetto di 20 s | modello più piccolo: `LOCALE_MODEL=qwen3:8b` nel `.env`, poi rilancia l'installer |
+| `--test` dice KO sulla completion JSON con «Expecting value» | il modello ha speso i token nel ragionamento (qwen3 «pensa» di default) | il ponte lo spegne da solo traducendo sull'API nativa di Ollama: aggiorna `boom_locale.py` (rilancia l'installer) e riprova `--test` |
 | l'ombra dice «bocciata» | il modello sbaglia su quello scopo | lascia quello scopo in cloud; prova un modello più grande se la memoria lo regge |
 | il Mac si riavvia e il ponte non torna | login automatico spento | Impostazioni → Utenti → Login automatico per `boomserver` (come per gli altri bracci) |
 
