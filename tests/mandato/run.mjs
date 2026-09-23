@@ -953,5 +953,65 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
     /PA\.askMandate===true&&!\(CT&&CT\.tenantSigned\)/.test(page) && /id="paMandate2"/.test(page) && !/id="paMandate2" checked/.test(page) && /fetch\('\/api\/preagreement\/mandate'/.test(page) && /mandate:true/.test(page));
 }
 
+// ═══ 10. LA BOZZA PRIMA DELLA CONVERSIONE (21/09/2026 — «scaricare il
+// contratto auto creato dalle cose del pre-agreement»): convert dryRun +
+// draftPdf impagina lo STESSO documento che → Contratto scriverebbe, lo mette
+// su preagreements/<id>/bozza-contratto.pdf e lo ricorda sulla proposta —
+// senza creare contratto, profilo o immobile. Il cliente la legge dalla sua
+// pagina accanto al mandato, con la stessa esposizione del link di firma.
+{
+  const { convertPaToContract } = await import('../../api/preagreement/convert.js');
+  const convert = (await import('../../api/preagreement/convert.js')).default;
+  const lookup = (await import('../../api/preagreement/lookup.js')).default;
+  const T_D = '8f'.repeat(16);   // libero: '9e' è già di paL
+  const tenant = { fullName: 'Draft Client', email: 'draft@x.com', dob: '1994-04-04', nationality: 'German' };
+  store.set('preAgreements/paDraft', paSeed(T_D, { propertyId: 'prop2', status: 'accepted', acceptedAt: '2026-09-20T10:00:00Z', tenant, tenants: [tenant], ref: 'BOOM-DRAFT' }));
+  const docsBefore = store.size, filesBefore = storageFiles.size;
+  const r1 = await convertPaToContract({ pa: store.get('preAgreements/paDraft'), paId: 'paDraft', dryRun: true, draftPdf: true });
+  const pa1 = store.get('preAgreements/paDraft');
+  check('bozza: dryRun+draftPdf → PDF su preagreements/paDraft/bozza-contratto.pdf, URL/hash/data/puntini sulla proposta, NESSUN contratto, profilo o immobile (store invariato in numero)',
+    r1.ok && r1.dryRun === true && !!r1.draftPdfUrl && r1.draftPdfSame === false && storageFiles.has('preagreements/paDraft/bozza-contratto.pdf')
+    && pa1.draftPdfUrl === r1.draftPdfUrl && pa1.draftPdfHash === r1.draftPdfHash && !!pa1.draftPdfAt && typeof pa1.draftPdfDots === 'number'
+    && !store.has('contracts/pa_paDraft') && store.size === docsBefore && storageFiles.size === filesBefore + 1);
+  const bytes = storageFiles.get('preagreements/paDraft/bozza-contratto.pdf');
+  check('bozza: è un PDF vero (jsPDF reale) e la completezza viaggia insieme (i puntini per parte)', !!bytes && bytes.slice(0, 5).toString() === '%PDF-' && !!r1.completeness && Array.isArray(r1.completeness.dots));
+  const r2 = await convertPaToContract({ pa: store.get('preAgreements/paDraft'), paId: 'paDraft', dryRun: true, draftPdf: true });
+  check('bozza: stessi dati = stesso hash → non si ricarica (draftPdfSame), stesso URL', r2.ok && r2.draftPdfSame === true && r2.draftPdfUrl === r1.draftPdfUrl && storageFiles.size === filesBefore + 1);
+  const r3 = await convertPaToContract({ pa: store.get('preAgreements/paDraft'), paId: 'paDraft', dryRun: true });
+  check('dryRun SENZA draftPdf resta com\'era: nessun PDF, nessuna scrittura', r3.ok && r3.draftPdfUrl === undefined && storageFiles.size === filesBefore + 1);
+  // l'esposizione al cliente: come il link di firma — dovuto zero o pagato
+  let rl = mkRes();
+  await lookup(mkReq({ token: T_D }), rl);
+  check('lookup: dovuto zero → draftPdfUrl esposto alla pagina (accanto al mandato)', rl.code === 200 && rl.body.pa.draftPdfUrl === r1.draftPdfUrl && !!rl.body.pa.draftPdfAt);
+  store.set('preAgreements/paDraft', { ...store.get('preAgreements/paDraft'), money: { ...store.get('preAgreements/paDraft').money, dueAtSigning: 500 } });
+  rl = mkRes();
+  await lookup(mkReq({ token: T_D }), rl);
+  check('lookup: dovuto > 0 e non pagato → draftPdfUrl null (la bozza non esce prima dei soldi, come il link di firma)', rl.code === 200 && rl.body.pa.draftPdfUrl === null);
+  store.set('preAgreements/paDraft', { ...store.get('preAgreements/paDraft'), money: { ...store.get('preAgreements/paDraft').money, dueAtSigning: 0 } });
+  // la porta HTTP
+  const rh = mkRes();
+  await convert(mkReq({ id: 'paDraft', dryRun: true, draftPdf: true }, { authorization: 'Bearer admin-token' }), rh);
+  check('HTTP convert dryRun+draftPdf: 200 con draftPdfUrl, contratto non scritto', rh.code === 200 && rh.body.dryRun === true && !!rh.body.draftPdfUrl && !store.has('contracts/pa_paDraft'));
+  // il contratto nato: al cliente arriva il PDF generato (generatedPDF) finché non è firmato da entrambi
+  const rc = await convertPaToContract({ pa: store.get('preAgreements/paDraft'), paId: 'paDraft', actor: 'test' });
+  const ctr = store.get('contracts/pa_paDraft');
+  rl = mkRes();
+  await lookup(mkReq({ token: T_D }), rl);
+  check('contratto nato: lookup espone contract.draftPdfUrl = generatedPDF (a dovuto zero, non firmato)', rc.ok && !!ctr && !!ctr.generatedPDF && rl.code === 200 && rl.body.pa.contract && rl.body.pa.contract.draftPdfUrl === ctr.generatedPDF);
+  store.set('contracts/pa_paDraft', { ...ctr, tenantSignature: 'data:image/png;base64,x', landlordSignature: 'data:image/png;base64,y', signatureStatus: 'complete', signedPdfUrl: 'https://st/signed.pdf' });
+  rl = mkRes();
+  await lookup(mkReq({ token: T_D }), rl);
+  check('firme complete: draftPdfUrl null (resta il firmato)', rl.code === 200 && rl.body.pa.contract.draftPdfUrl === null && rl.body.pa.contract.signedPdfUrl === 'https://st/signed.pdf');
+  // giunzioni: console e pagina
+  const cons = R('pre-agreement-admin.html'), pg = R('pre-agreement.html');
+  check('console: 📄 Bozza contratto SOLO senza contratto (draftPdf con createProperty se l\'immobile non è collegato), ✎ Completa i dati SOLO col contratto non completo; il modulo si disegna dai descrittori di profile/link (ask) e salva su profile/submit per ruolo',
+    /\(!cid\?'<button class="pbtn" onclick="draftPdf\(/.test(cons) && /dryRun:true,draftPdf:true,propertyId:d\.propertyId\|\|undefined,createProperty:!d\.propertyId/.test(cons)
+    && /\(cid&&sig\.status!=='complete'\?'<button class="pbtn" onclick="completaDati\(/.test(cons) && /fetch\('\/api\/profile\/link'/.test(cons) && /var ask=k\.ask\|\|\{\}/.test(cons)
+    && /fetch\('\/api\/profile\/submit',\{method:'POST',headers:\{'Content-Type':'application\/json','Authorization':'Bearer '\+tok2\},body:JSON\.stringify\(\{contractId:cid,role:w\[0\],answers:ans\}\)\}\)/.test(cons)
+    && /mandate_terms_frozen/.test(cons));
+  check('pagina proposta: il contratto da leggere accanto al mandato e sopra la firma (draftUrl = contratto nato, poi bozza), mai inventato',
+    /var draftUrl=\(CT&&CT\.draftPdfUrl\)\|\|PA\.draftPdfUrl\|\|null;/.test(pg) && /id="draftLink"/.test(pg) && /Read the lease BOOM would sign for you/.test(pg) && /Read the full contract first/.test(pg));
+}
+
 console.log(`\nMandato: ${passed} passed, ${failed} failed`);
 if (failed) { console.log('FAILED:\n - ' + bad.join('\n - ')); process.exit(1); }

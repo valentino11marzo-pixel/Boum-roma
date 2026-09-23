@@ -8,7 +8,13 @@
 // Headers:  Authorization: Bearer <firebase-id-token>
 // Body:     { contractId }
 // Response: { ok, tenantUrl, landlordUrl, tenantLocked, landlordLocked,
-//             cosign: [{ index, name, url, signed }] }
+//             cosign: [{ index, name, url, signed }],
+//             ask: { tenant, landlord, operator } }
+// ask (21/09/2026): per ogni parte le SEZIONI coi soli campi vuoti — i
+// descrittori del dizionario (askFor con identityAsSection, etichette IT:
+// è la console che li rende) — così «✎ Completa i dati» nella console PA
+// disegna il modulo senza una seconda lista di campi. Chi ha già firmato
+// è `locked`: la sua identità è congelata (410 al submit).
 // cosign: anche i link FIRMA dei co-conduttori sono derivati (cosignRef da
 // HOMIE_SECRET) — il browser non può calcolarli, e senza questo campo lo
 // Share Hub non aveva nulla da incollare su WhatsApp per un co-conduttore.
@@ -16,6 +22,7 @@
 import { fsGet, readJson } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import { schedaUrl, schedaLocked } from './_scheda.js';
+import { hasAnySignature } from '../sign/_contractpdf.js';
 import { cosignRef } from '../magic-sign/_shared.js';
 // Il dizionario: cosa manca a chi, e il messaggio già scritto che lo nomina.
 import FIELDS from '../../js/contract-fields.js';
@@ -63,6 +70,13 @@ export default async function handler(req, res) {
   const propLabel = property.name || property.address || '';
   const tenantUrl = schedaUrl(contractId, 'tenant');
   const landlordUrl = schedaUrl(contractId, 'landlord');
+  const askOf = (role) => {
+    const a = FIELDS.askFor(role, ctx, { lang: 'it', identityAsSection: true });
+    return { role: a.role, template: a.template, missingCount: a.missingCount, complete: a.complete, sections: a.sections,
+      // i termini dell'operatore entrano nel corpo del PDF: congelati da
+      // QUALSIASI firma viva (submit risponde 410), non solo dalla sua parte
+      locked: role === 'operator' ? hasAnySignature(contract) : schedaLocked(contract, role) };
+  };
   const missT = FIELDS.missingFor('tenant', ctx, { lang: 'en' });
   const missL = FIELDS.missingFor('landlord', ctx, { lang: 'it' });
   const tName = contract.tenantName || (tenant && tenant.name) || '';
@@ -90,6 +104,7 @@ export default async function handler(req, res) {
     landlordLocked: schedaLocked(contract, 'landlord'),
     template: FIELDS.templateOf(contract),
     missing: { tenant: missT, landlord: missL, operator: FIELDS.missingFor('operator', ctx, { lang: 'it' }) },
+    ask: { tenant: askOf('tenant'), landlord: askOf('landlord'), operator: askOf('operator') },
     messages: {
       tenant: FIELDS.missingMessage('tenant', missT, { name: tName, url: tenantUrl, propLabel }),
       landlord: FIELDS.missingMessage('landlord', missL, { name: lName, url: landlordUrl, propLabel }),

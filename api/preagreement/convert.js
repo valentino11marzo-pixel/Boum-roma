@@ -45,10 +45,10 @@
 import crypto from 'node:crypto';
 import { fsGet, fsList, fsCreate, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
-import { ensureContractPdf, resolveLandlord } from '../sign/_contractpdf.js';
+import { ensureContractPdf, resolveLandlord, buildContractPdfBytes } from '../sign/_contractpdf.js';
+import { storageUpload } from '../agent/_lib.js';
 import { mandateTermsHash } from '../magic-sign/_shared.js';
 import MANDATO from '../../js/mandato-engine.js';
-import { storageUpload } from '../agent/_lib.js';
 import { buildPaPdf } from './_pdf.js';
 // Il dizionario del contratto: il preflight dice PRIMA quali puntini il PDF
 // stamperebbe (per parte), invece di farli scoprire aprendo il PDF.
@@ -276,7 +276,7 @@ export function tenantMandateFor(pa, paId, contract) {
 // ── Core conversion, shared by the console handler and the auto pipeline ──
 // Returns { ok, already?, contractId, tenantId, tenantSignUrl,
 //           landlordSignUrl, delegate } or { ok:false, error }.
-export async function convertPaToContract({ pa, paId, propertyId, delegate = false, delegateName, type, actor = 'system', createProperty = false, force = false, dryRun = false }) {
+export async function convertPaToContract({ pa, paId, propertyId, delegate = false, delegateName, type, actor = 'system', createProperty = false, force = false, dryRun = false, draftPdf = false }) {
   if (!pa || !paId) return { ok: false, error: 'no_pa' };
   if (pa.status !== 'accepted' && pa.status !== 'paid') return { ok: false, error: 'not_accepted_yet' };
 
@@ -579,11 +579,38 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     let exists = false;
     try { exists = !!(await fsGet('contracts/' + contractId)); } catch (_) {}
     const landlord = { ...(await landlordCtxOf(property, contract)), name: contract.landlordName || undefined, email: contract.landlordEmail || undefined, phone: contract.landlordPhone || undefined };
-    return {
+    const tenantUser = tenantUserFromPa(t, uploads);
+    const out = {
       ok: true, dryRun: true, contractId, propertyId: propId, exists,
       overlap: overlap || null,
-      completeness: preflightOf({ contract, property, tenantUser: tenantUserFromPa(t, uploads), landlord }),
+      completeness: preflightOf({ contract, property, tenantUser, landlord }),
     };
+    // LA BOZZA PRIMA DELLA CONVERSIONE (21/09/2026 — «scaricare il contratto
+    // auto creato dalle cose del pre-agreement»): lo STESSO impaginato che
+    // la conversione scriverebbe (buildContractPdfBytes, una copia), su
+    // preagreements/<paId>/bozza-contratto.pdf, ricordato sulla proposta —
+    // e nessun contratto, profilo o immobile scritto. La console la apre
+    // prima di → Contratto; la pagina della proposta la mostra al cliente
+    // accanto al mandato (lookup: solo a soldi ricevuti o dovuto zero).
+    // Stesso hash = stessa bozza: non si ricarica.
+    if (draftPdf === true) {
+      try {
+        const built = buildContractPdfBytes({ contractId, contract, property, tenant: tenantUser, landlord });
+        if (pa.draftPdfUrl && pa.draftPdfHash === built.hash) {
+          out.draftPdfUrl = pa.draftPdfUrl; out.draftPdfHash = built.hash; out.draftPdfAt = pa.draftPdfAt || null; out.draftPdfSame = true;
+        } else {
+          const url = await storageUpload(`preagreements/${paId}/bozza-contratto.pdf`, built.bytes, 'application/pdf');
+          if (!url) throw new Error('storage_upload_failed');
+          const at = new Date().toISOString();
+          await fsPatch('preAgreements/' + paId, { draftPdfUrl: url, draftPdfHash: built.hash, draftPdfAt: at, draftPdfDots: (out.completeness && Array.isArray(out.completeness.dots)) ? out.completeness.dots.length : null });
+          out.draftPdfUrl = url; out.draftPdfHash = built.hash; out.draftPdfAt = at; out.draftPdfSame = false;
+        }
+      } catch (e) {
+        console.warn('[preagreement/convert] draft pdf:', e.message);
+        out.draftPdfError = String(e.message || 'draft_failed').slice(0, 120);
+      }
+    }
+    return out;
   }
   try {
     await fsCreate('contracts', contract, contractId);
@@ -741,6 +768,7 @@ export default async function handler(req, res) {
     createProperty: b.createProperty === true,
     force: b.force === true,
     dryRun: b.dryRun === true,
+    draftPdf: b.draftPdf === true,
   });
   if (!out.ok) {
     const code = out.error === 'not_accepted_yet' ? 409

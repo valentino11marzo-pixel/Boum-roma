@@ -109,6 +109,12 @@ ok(has(2, /chip signed">✓ firmato/) && has(2, /📥 Contratto firmato/) && has
   'C · firmato da entrambi: chip ✓, PDF firmato + certificato, niente inviti, prossimo passo = registrazione');
 ok(has(3, /chip signing">✍ firmato inquilino/) && !has(3, /Reinvia Magic Sign/),
   'D · contratto non letto: la stampa sulla proposta basta a togliere il Reinvia');
+/* ✎ COMPLETA I DATI + 📄 BOZZA (21/09/2026): il completamento SOLO con un
+   contratto non ancora firmato da entrambi; la bozza SOLO senza contratto. */
+ok(has(0, /onclick="completaDati\('A'\)"[^>]*>✎ Completa i dati/) && !has(2, /Completa i dati/) && !has(0, /Bozza contratto/),
+  'A · contratto nato e non firmato: ✎ Completa i dati (mai la bozza); C · firmato da entrambi: niente da completare');
+ok(has(6, /onclick="draftPdf\('G',this\)"[^>]*>📄 Bozza contratto/) && !has(6, /Completa i dati/) && has(5, /Bozza contratto/),
+  'G/F · senza contratto: 📄 Bozza contratto (lo stesso impaginato, senza creare niente), mai ✎ Completa i dati');
 ok(has(4, /chip signed">✓ firmato/) && has(4, /📥 Contratto firmato/) && !has(4, /→ Contratto/),
   'E · proposta orfana: il contratto pa_E viene ADOTTATO — chip ✓, PDF firmato, niente «→ Contratto»');
 ok(updates.some(u => u.name === 'preAgreements' && u.id === 'E' && u.patch.contractId === 'pa_E' && u.patch.contractAdoptedAt),

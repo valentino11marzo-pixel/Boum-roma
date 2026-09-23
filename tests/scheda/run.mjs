@@ -270,6 +270,112 @@ IP = '1.2.3.4';
   check('link landlord: immobile altrui → 403', r.code === 403 && r.body.error === 'not_your_contract');
 }
 
+// ═══ 9. L'ATTORE OPERATORE sullo stesso rail (21/09/2026 — «✎ Completa i
+// dati» dalla console PA). Credenziale = Bearer ADMIN + {contractId, role}
+// invece del token del link; stesse validazioni e scritture, PDF rigenerato;
+// ma NIENTE email di conferma alla parte, NIENTE ping «scheda compilata»,
+// fill-only rilassato; la firma già apposta resta 410; il mandato congela le
+// condizioni approvate (409 PRIMA di scrivere). Il ruolo 'operator' esiste
+// solo qui: i termini che nessuna parte compila.
+{
+  IP = '9.9.9.1';
+  const fsMod = await import('node:fs');
+  store.set('users/caller1', { role: 'admin', email: 'op@boom.it' });
+  store.set('properties/prop9', { name: 'Casa Nove', address: 'Via Nove 9', ownerId: 'own9' });
+  store.set('users/own9', { name: 'Paola Locatrice', email: 'paola@x.it' });
+  store.set('landlords/own9', { name: 'Paola Locatrice', iban: 'IT60X0542811101000000123456' });
+  store.set('contracts/c9', { propertyId: 'prop9', tenantId: 'u1', type: 'transitorio', rent: 1200, deposit: 2400, startDate: '2026-11-01', endDate: '2027-10-31', cedolareSecca: 'si', installmentMonths: 1, tenantName: 'Mario Rossi', tenantEmail: 'm@x.it', landlordName: 'Paola Locatrice', landlordEmail: 'paola@x.it' });
+  const notifsBefore = [...store.keys()].filter(k => k.startsWith('agentNotifications/')).length;
+  const upBefore = storageUploads.length;
+  const H = { authorization: 'Bearer faketoken' };
+
+  // senza link e senza bearer → invalid_link (404), come sempre
+  let r = mkRes();
+  await submit(mkReq({ contractId: 'c9', role: 'operator', answers: { paymentDay: '10' } }), r);
+  check('operatore: senza token né Bearer → 404 invalid_link, nessuna scrittura', r.code === 404 && r.body.error === 'invalid_link' && !store.get('contracts/c9').paymentDay);
+  // bearer di chi NON è admin → 403 dalla porta (requireRole), nessuna scrittura
+  store.set('users/caller1', { role: 'landlord', email: 'op@boom.it' });
+  r = mkRes();
+  await submit(mkReq({ contractId: 'c9', role: 'operator', answers: { paymentDay: '10' } }, H), r);
+  check('operatore: Bearer di un non-admin → 403, nessuna scrittura', r.code === 403 && !store.get('contracts/c9').paymentDay);
+  store.set('users/caller1', { role: 'admin', email: 'op@boom.it' });
+  r = mkRes();
+  await submit(mkReq({ contractId: 'c9', role: 'operator', answers: { paymentDay: '10', signaturePlace: 'Roma', consegnaStato: 'buono', rent: 'abc' } }, H), r);
+  const c9 = store.get('contracts/c9');
+  check('operatore (ruolo operator): i termini finiscono sul contratto (giorno 10, Roma, consegna), il valore invalido è scartato e DETTO, il timbro è dell\'operatore (completedByOperator), non schedaTenantAt',
+    r.code === 200 && r.body.ok && c9.paymentDay === 10 && c9.signaturePlace === 'Roma' && c9.consegnaStato === 'buono'
+    && r.body.rejected.some(x => x.key === 'rent') && c9.completedByOperator === 'op@boom.it' && !!c9.completedByOperatorAt && !c9.schedaTenantAt && !c9.schedaLandlordAt);
+  check('operatore: il PDF si rigenera (upload contracts/c9/contract.pdf) e la risposta lo dice',
+    r.body.pdfRegenerated === true && storageUploads.slice(upBefore).some(u => u.url.includes('contracts%2Fc9%2Fcontract.pdf') || u.url.includes('contracts/c9/contract.pdf')) && !!store.get('contracts/c9').generatedPDF);
+  // ruolo landlord dall'operatore: catasto sull'immobile E sul contratto, IBAN già presente riscritto (trusted), niente email né ping
+  r = mkRes();
+  await submit(mkReq({ contractId: 'c9', role: 'landlord', answers: { catFoglio: '123', catParticella: '45', catSub: '6', landlordIban: 'IT40S0542811101000000123456', tenantCF: 'RSSMRA85T10A562S' } }, H), r);
+  const p9 = store.get('properties/prop9'), c9b = store.get('contracts/c9');
+  check('operatore (ruolo landlord): il catasto atterra sull\'immobile e sul contratto, il CF del conduttore è not_yours anche per l\'operatore',
+    r.code === 200 && p9.foglio === '123' && p9.particella === '45' && /123/.test(String(c9b.cadastral || p9.cadastralData || '')) && r.body.rejected.some(x => x.key === 'tenantCF' && x.why === 'not_yours'));
+  check('operatore: l\'IBAN GIÀ presente si corregge (trusted — dal link pubblico sarebbe already_set) e finisce sul profilo del locatore',
+    r.body.applied.includes('landlordIban') && store.get('landlords/own9').iban === 'IT40S0542811101000000123456');
+  const notifsAfter = [...store.keys()].filter(k => k.startsWith('agentNotifications/')).length;
+  check('operatore: NESSUN ping «scheda compilata» né «dato sensibile», NESSUNA conferma alla parte (schedaLandlordConfirmedAt assente)',
+    notifsAfter === notifsBefore && !store.get('contracts/c9').schedaLandlordConfirmedAt && !store.get('contracts/c9').schedaTenantConfirmedAt);
+  // la parte dal LINK, per contrasto: il ping parte
+  IP = '9.9.9.2';
+  r = mkRes();
+  await submit(mkReq({ t: schedaRef('c9', 'tenant'), answers: { transitionalReason: 'Lavoro a Roma' } }), r);
+  check('la parte dal link (contrasto): stesso rail, il ping «scheda compilata» parte e il timbro è schedaTenantAt',
+    r.code === 200 && [...store.keys()].filter(k => k.startsWith('agentNotifications/')).length === notifsAfter + 1 && !!store.get('contracts/c9').schedaTenantAt);
+  // il mandato congela le condizioni: un termine della foto → 409, niente scritto
+  store.set('contracts/c9', { ...store.get('contracts/c9'), tenantMandate: { given: true, termsHash: 'x' } });
+  IP = '9.9.9.3';
+  r = mkRes();
+  await submit(mkReq({ contractId: 'c9', role: 'operator', answers: { rent: '1500', paymentMethod: 'bonifico' } }, H), r);
+  check('mandato sul contratto: un dato che cambia le condizioni approvate (canone) → 409 mandate_terms_frozen con la chiave, e NIENTE scritto (nemmeno il metodo di pagamento)',
+    r.code === 409 && r.body.error === 'mandate_terms_frozen' && r.body.changed.includes('rent') && store.get('contracts/c9').rent === 1200 && !store.get('contracts/c9').paymentMethod);
+  r = mkRes();
+  await submit(mkReq({ contractId: 'c9', role: 'operator', answers: { paymentMethod: 'bonifico' } }, H), r);
+  check('mandato sul contratto: un termine FUORI dalla foto (metodo di pagamento) passa', r.code === 200 && store.get('contracts/c9').paymentMethod === 'bonifico');
+  IP = '9.9.9.4';
+  r = mkRes();
+  await submit(mkReq({ t: schedaRef('c9', 'tenant'), identity: { name: 'Mario Rossi Bis', cf: 'RSSMRA85T10A562S', dob: '1985-12-10', pob: 'Roma', address: 'Via Roma 1', docType: 'passport', docNum: 'YA1', nationality: 'Italian' } }), r);
+  check('la parte dal link NON è fermata dalla guardia del mandato (è la sua identità: il nome si corregge; se il mandato poi non combacia lo dice la firma)', r.code === 200 && store.get('contracts/c9').tenantName === 'Mario Rossi Bis');
+  // firma viva: la parte firmata è congelata anche per l'operatore; i termini dell'operatore con QUALSIASI firma
+  store.set('contracts/c9', { ...store.get('contracts/c9'), tenantSignature: 'data:image/png;base64,x' });
+  r = mkRes();
+  await submit(mkReq({ contractId: 'c9', role: 'tenant', answers: { tenantPob: 'Roma' } }, H), r);
+  const r2 = mkRes();
+  await submit(mkReq({ contractId: 'c9', role: 'operator', answers: { signaturePlace: 'Milano' } }, H), r2);
+  const r3 = mkRes();
+  await submit(mkReq({ contractId: 'c9', role: 'landlord', answers: { catCategoria: 'A/2' } }, H), r3);
+  check('firma viva: l\'identità del firmatario è congelata anche per l\'operatore (410); i termini dell\'operatore lo sono con QUALSIASI firma (410); il locatore non firmato resta scrivibile (dato per la registrazione, PDF non rigenerato)',
+    r.code === 410 && r2.code === 410 && store.get('contracts/c9').signaturePlace === 'Roma' && r3.code === 200 && r3.body.pdfRegenerated === false && store.get('properties/prop9').categoria === 'A/2');
+  r = mkRes();
+  await submit(mkReq({ contractId: 'c9', role: 'boss', answers: {} }, H), r);
+  check('operatore: ruolo sconosciuto → 400', r.code === 400 && r.body.error === 'contractId_and_role_required');
+
+  // profile/link porta i DESCRITTORI per la console (ask per parte)
+  // un conduttore SENZA profilo compilato (u1 ha già il CF dalla Scheda di §4): i vuoti devono esserci
+  store.set('users/u10', { name: 'Mario Dieci', email: 'd@x.it' });
+  store.set('contracts/c10', { propertyId: 'prop9', tenantId: 'u10', type: 'transitorio', rent: 900, deposit: 1800, startDate: '2026-11-01', endDate: '2027-04-30', cedolareSecca: 'si', tenantName: 'Mario Rossi', landlordName: 'Paola Locatrice', landlordSignature: 'data:image/png;base64,x' });
+  r = mkRes();
+  await link(mkReq({ contractId: 'c10' }, H), r);
+  const ask = r.body && r.body.ask;
+  check('link.ask: per parte le sezioni coi soli campi vuoti — l\'identità del conduttore come SEZIONE coi descrittori (tipo, etichetta IT, opzioni), i termini dell\'operatore; il locatore firmato = locked, e con una firma viva anche i termini dell\'operatore sono locked',
+    r.code === 200 && ask && ask.tenant.sections.some(sc => sc.key === 'identity' && sc.fields.some(f => f.key === 'tenantCF' && f.type === 'cf' && f.label.it))
+    && ask.operator.sections.some(sc => sc.fields.some(f => f.key === 'paymentDay' && f.type === 'number'))
+    && ask.tenant.locked === false && ask.landlord.locked === true && ask.operator.locked === true
+    && ask.tenant.sections.every(sc => sc.fields.every(f => f.value === '')));
+
+  // giunzioni sulla sorgente: la guardia del mandato PRIMA della scrittura, la conferma SOLO alla parte, l'impaginato in una copia
+  const src = fsMod.readFileSync(new URL('../../api/profile/submit.js', import.meta.url), 'utf8');
+  const iGuard = src.indexOf("error: 'mandate_terms_frozen'"), iPatch = src.indexOf("await fsPatch('contracts/' + contractId, upd)");
+  check('sorgente submit: la guardia del mandato precede la scrittura del contratto; la credenziale admin passa da requireRole; la conferma email e i ping sono gated su actor === \'party\'',
+    iGuard > 0 && iPatch > iGuard && /requireRole\(req, res, \['admin'\]\)/.test(src) && src.indexOf("actor === 'party' && P && complete") < src.indexOf('sendEmail({') && /if \(actor === 'party'\) try \{\s*await fsCreate\('agentNotifications'/.test(src));
+  const cp = fsMod.readFileSync(new URL('../../api/sign/_contractpdf.js', import.meta.url), 'utf8');
+  const cv = fsMod.readFileSync(new URL('../../api/preagreement/convert.js', import.meta.url), 'utf8');
+  check('sorgente: l\'impaginato in byte è UNA copia (buildContractPdfBytes) — un solo CONTRACT_PDF.build in _contractpdf.js, nessuno in convert.js, che importa la funzione',
+    cp.split('CONTRACT_PDF.build(').length === 2 && !cv.includes('CONTRACT_PDF.build(') && /buildContractPdfBytes\(\{ contractId, contract, property, tenant: tenantUser, landlord \}\)/.test(cv));
+}
+
 console.log('\n' + '─'.repeat(48));
 console.log(`La Scheda: ${passed} passed, ${failed} failed`);
 if (failed) { console.error('FAILED: ' + bad.join(' | ')); process.exit(1); }

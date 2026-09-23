@@ -95,6 +95,18 @@ const withBudget = (p, ms, label) => Promise.race([
 // `opts.force` (13/09/2026): rigenera ANCHE se il PDF è fresco — quando
 // arrivano dati nuovi (Scheda, identità dichiarata alla firma) il documento
 // va rifatto; la guardia sulla firma viva resta assoluta.
+// L'IMPAGINATO IN BYTE, UNA COPIA (21/09/2026): lo chiama ensureContractPdf
+// (il PDF del contratto) e preagreement/convert.js in dryRun (la BOZZA
+// prima della conversione — stesso documento, nessun contratto scritto).
+// Ritorna { bytes, hash, sigAnchors, hashSeed }; upload e patch restano ai
+// chiamanti, ciascuno sul proprio path.
+export function buildContractPdfBytes({ contractId, contract, property, tenant, landlord }) {
+  const built = CONTRACT_PDF.build({ jsPDF, contractId, contract, property, tenant, landlord });
+  const bytes = Buffer.from(built.doc.output('arraybuffer'));
+  if (!bytes.length) throw new Error('empty_pdf');
+  return { bytes, hash: sha16(built.hashSeed), hashSeed: built.hashSeed, sigAnchors: built.sigAnchors };
+}
+
 export async function ensureContractPdf(contractId, preloaded = null, opts = {}) {
   if (!contractId) return null;
   const contract = preloaded || await fsGet('contracts/' + contractId);
@@ -122,9 +134,8 @@ export async function ensureContractPdf(contractId, preloaded = null, opts = {})
   }
   try { landlord = await resolveLandlord(contract, property); } catch (_) { landlord = null; }
 
-  const built = CONTRACT_PDF.build({ jsPDF, contractId, contract, property, tenant, landlord });
-  const bytes = Buffer.from(built.doc.output('arraybuffer'));
-  if (!bytes.length) throw new Error('empty_pdf');
+  const built = buildContractPdfBytes({ contractId, contract, property, tenant, landlord });
+  const bytes = built.bytes;
 
   // Stesso path del portal: contracts/<id>/contract.pdf (sovrascrive la
   // versione precedente, mai una copia orfana).
@@ -136,7 +147,7 @@ export async function ensureContractPdf(contractId, preloaded = null, opts = {})
 
   await fsPatch('contracts/' + contractId, {
     generatedPDF: url,
-    pdfHash: sha16(built.hashSeed),
+    pdfHash: built.hash,
     sigAnchors: { v: 1, blocks: built.sigAnchors },
     pdfSizeKB: Math.round(bytes.length / 1024),
     pdfGeneratedAt: new Date().toISOString(),
