@@ -2162,6 +2162,28 @@ sicurezza: `firestore.rules` gli dava l'intero documento del contratto, cioè
 dei documenti d'identità e i margini BOOM sulle rate. Studio, misura e
 decisioni: `STUDIO_ARCHIVIO_PROPRIETARIO_2026-09.md` (§9 è il registro).
 
+**La faccia a tre stanze (24/09/2026 — «troppo basilare, identico all'altro»).**
+La prima versione portava letteralmente gli stessi token di `/casa` (nero
+assoluto, griglia a puntini, oro ovunque, pagina lunga): il proprietario
+vedeva la casa dell'inquilino. Ora è un'app sua, **Titanio**: grafite e
+platino, carattere di sistema Apple (`-apple-system` in testa: SF sui suoi
+dispositivi), l'oro SOLO dove dice uno stato, barra in basso sul telefono e
+colonna a sinistra sul desktop. Tre stanze, l'indirizzo le segue
+(`#oggi` · `#case` · `#p=<id>` · `#archivio`, «indietro» funziona): **Oggi**
+(la risposta, il da fare, tre numeri VERI — pagato dal conduttore
+quest'anno, prossima rata solo se ce n'è una, fine del contratto — e cosa è
+arrivato in archivio), **Case** (una carta Wallet per casa, poi la casa come
+un pass: l'anello dei giorni del contratto calcolato dalle sue date, la vita
+del contratto in verticale coi documenti attaccati a ogni tappa, i canoni
+come capsule, interventi, immobile coi suoi documenti), **Archivio**
+(quattro cartelle coi conteggi, la linea del tempo per mese, i buchi
+dichiarati in testa, la frase che dice come si aprono i file). Motore, API e
+sicurezza invariati: cambia solo la faccia. Le parole nuove stanno nello
+`STRINGS` del motore (`tab.*`, `pulse.*`, `ring.*`, `house.*`, `feed.*`,
+`arch.*`). Test: `tests/owner/ui.mjs` §11c (identità ≠ `/casa`, stanze,
+portafoglio a 320/390/1440, anello, cartelle); foto: `node
+tests/owner/shots.mjs <cartella> [scenario…]`.
+
 **Cosa fa.** Una pagina che risponde in quest'ordine: **va tutto bene?** (una
 frase: «Tutto in ordine.» / «Serve una tua firma.» / «Una rata in ritardo da N
 giorni.» / «Non posso dirlo con certezza.» — il pallino d'oro «respira» SOLO

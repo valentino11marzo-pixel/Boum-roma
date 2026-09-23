@@ -278,6 +278,26 @@ export function projection(name, opts = {}) {
   return engine.build(inp, opts.deps || deps);
 }
 
+// Due case (la faccia a tre stanze, 24/09): la seconda è la prima ribattezzata
+// — Via dei Serpenti 40, contratto c9 con Giulia Neri — con la rata di
+// settembre ancora aperta. Basta per vedere il portafoglio e la casa scelta.
+export function multiProjection(opts = {}) {
+  return projection('ok', { ...opts, mutate: (i) => {
+    const p2 = clone(i.properties[0]);
+    Object.assign(p2, { id: 'p2', address: 'Via dei Serpenti 40, Roma', name: 'Via dei Serpenti 40' });
+    i.properties.push(p2);
+    const c2 = clone(i.contracts[0]);
+    Object.assign(c2, { id: 'c9', propertyId: 'p2', tenantName: 'Giulia Neri', rent: 1480, startDate: '2025-10-01', endDate: '2026-12-31' });
+    i.contracts.push(c2);
+    i.payments.filter((x) => x.contractId === 'c1').forEach((x) => {
+      const q = clone(x); q.id = x.id.replace('c1', 'c9'); q.contractId = 'c9'; q.propertyId = 'p2'; q.amount = 1480;
+      if (q.month === '2026-09') { q.status = 'pending'; delete q.paidDate; delete q.paidVia; }
+      i.payments.push(q);
+    });
+    if (typeof opts.mutate === 'function') opts.mutate(i);
+  } });
+}
+
 // Lo stesso scenario come seme Firestore per createHarness({ seed }).
 export function seedFor(name) {
   const inp = input(name), seed = {};

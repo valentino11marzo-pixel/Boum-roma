@@ -27,7 +27,7 @@
 import { readFileSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadChromium, launchOptions } from '../_browser.mjs';
-import { projection, POISON, OWNER as ENGINE, OWNER_UID, ADMIN_UID } from './fixtures.mjs';
+import { projection, multiProjection, POISON, OWNER as ENGINE, OWNER_UID, ADMIN_UID } from './fixtures.mjs';
 
 const chromium = await loadChromium();
 if (!chromium) { console.log('SKIP: playwright non disponibile'); process.exit(0); }
@@ -148,6 +148,8 @@ const overflowX = (page) => page.evaluate(() => Math.max(document.documentElemen
 // capo): nei confronti di testo vale come uno spazio normale.
 const tx = (page, sel) => page.textContent(sel).then((s) => String(s || '').replace(/\u00a0/g, ' '));
 const html = (page) => page.evaluate(() => document.body.innerHTML);
+// Le tre stanze: si entra toccando la barra, come farebbe il proprietario.
+const room = async (page, r) => { await page.click('#tabs [data-tab="' + r + '"]'); await page.waitForSelector('.view[data-view="' + r + '"]:not([hidden])', { timeout: 3000 }).catch(() => null); };
 
 // ── 1 · I cinque stati, a 390 e a 1440 ─────────────────────────────────
 for (const w of [390, 1440]) {
@@ -256,6 +258,7 @@ for (const s of ['ok', 'tu', 'rooms', 'renewal', 'paper']) {
   const { ctx, page, log } = await open({ proj: P.ok });
   await settled(page);
   const cell = '.ribbon .rb[data-ym="2026-08"]';
+  await room(page, 'case');
   await page.click(cell);
   await page.waitForSelector('dialog#sheet[open]', { timeout: 3000 }).catch(() => null);
   check('nastro: una cella apre dialog#sheet[open]', await page.$('dialog#sheet[open]') !== null);
@@ -293,6 +296,7 @@ for (const s of ['ok', 'tu', 'rooms', 'renewal', 'paper']) {
   const noModal = { fn: () => { try { HTMLDialogElement.prototype.showModal = undefined; } catch (e) {} } };
   const { ctx, page, log } = await open({ proj: P.ok, init: noModal });
   await settled(page);
+  await room(page, 'case');
   await page.click('.ribbon .rb[data-ym="2026-07"]');
   check('senza showModal: il foglio si apre lo stesso', await page.$('dialog#sheet[open]') !== null);
   await page.keyboard.press('Escape');
@@ -308,6 +312,7 @@ for (const s of ['ok', 'tu', 'rooms', 'renewal', 'paper']) {
 {
   const { ctx, page, log } = await open({ proj: P.ok });
   await settled(page);
+  await room(page, 'archivio');
   const nav = page.waitForRequest((r) => r.url().includes('/api/owner/file?ticket='), { timeout: 5000 }).catch(() => null);
   await page.click('.arow[data-ref="c:c1:signed"] .arow-main');
   const r = await nav;
@@ -327,6 +332,7 @@ for (const s of ['ok', 'tu', 'rooms', 'renewal', 'paper']) {
   } };
   const { ctx, page, log } = await open({ proj: P.ok, width: 1440, init: initOpen });
   await settled(page);
+  await room(page, 'archivio');
   await page.click('.arow[data-ref="c:c1:signed"] .arow-main');
   const early = await page.evaluate(() => window.__opened.map((o) => ({ u: o.u, n: o.n, loc: o.loc })));
   check('desktop: la finestra si apre DENTRO il click, prima della risposta', early.length === 1 && early[0].u === '' && early[0].n === '_blank' && early[0].loc === null, JSON.stringify(early));
@@ -335,6 +341,7 @@ for (const s of ['ok', 'tu', 'rooms', 'renewal', 'paper']) {
   check('desktop: poi la finestra va sull\'URL del biglietto', late === ORIGIN + '/api/owner/file?ticket=TKT.' + encodeURIComponent('c:c1:signed'), late);
   check('desktop: la pagina resta dov\'è', page.url().startsWith(ORIGIN + '/proprietario'));
   // un documento di un chip della linea
+  await room(page, 'case');
   await page.click('.linea .docchip[data-ref="c:c1:verbale"]');
   await page.waitForTimeout(500);
   check('desktop: il chip della linea apre il suo documento', log.posts.some((p) => p.body.ref === 'c:c1:verbale'));
@@ -347,6 +354,7 @@ for (const s of ['ok', 'tu', 'rooms', 'renewal', 'paper']) {
   for (const w of [390, 1440]) {
     const { ctx, page, log } = await open({ proj: P.ok, width: w, file: tooBig, init: initOpen });
     await settled(page);
+    await room(page, 'archivio');
     await page.click('.arow[data-ref="c:c1:verbale"] .arow-main');
     await page.waitForSelector('dialog#sheet[open]', { timeout: 3000 }).catch(() => null);
     const sb = await tx(page, '#sheetBody').catch(() => '');
@@ -362,6 +370,7 @@ for (const s of ['ok', 'tu', 'rooms', 'renewal', 'paper']) {
   // «Invia al commercialista»: GET ?ref col Bearer (mai il biglietto nudo)
   const { ctx, page, log } = await open({ proj: P.ok, width: 1440 });
   await settled(page);
+  await room(page, 'archivio');
   await page.click('.arow[data-ref="c:c1:signed"] [data-share]');
   await page.waitForTimeout(600);
   check('condividi: il file si chiede col Bearer su /api/owner/file?ref=', log.shares.length === 1 && log.shares[0].auth === 'Bearer tok-' + OWNER_UID
@@ -404,6 +413,7 @@ for (const s of ['ok', 'tu', 'rooms', 'renewal', 'paper']) {
   check('vedi-come: la lettura chiede ?as=<proprietario>', log.archivio[0] && log.archivio[0].url.endsWith('/api/owner/archivio?as=' + OWNER_UID));
   const ls = await page.evaluate(() => Object.keys(localStorage).filter((k) => k.startsWith('boom:proprietario:') && k !== 'boom:proprietario:lang'));
   check('vedi-come: né ultima visita né cache scritte', ls.length === 0, ls.join(','));
+  await room(page, 'archivio');
   await page.click('.arow[data-ref="c:c1:draft"] .arow-main').catch(() => null);
   await page.waitForTimeout(400);
   check('vedi-come: anche il file si chiede con as', log.posts.length === 0 || log.posts[0].body.as === OWNER_UID);
@@ -521,6 +531,7 @@ for (const s of ['ok', 'tu', 'rooms', 'renewal', 'paper']) {
   const seed = { fn: (uid) => { try { localStorage.setItem('boom:proprietario:seen:' + uid, '2026-08-15'); } catch (e) {} }, arg: OWNER_UID };
   const { ctx, page } = await open({ proj: P.ok, init: seed });
   await settled(page);
+  await room(page, 'archivio');
   const chip = await tx(page, '#newchip').catch(() => '');
   check('ultima visita: «un nuovo documento dall\'ultima visita»', chip.includes('un nuovo documento dall’ultima visita'), chip);
   check('ultima visita: il nuovo ha il puntino d\'oro', (await page.$$('.arow[data-ref="r:own_1:2026-08"] .nu')).length === 1 && (await page.$$('.arow .nu')).length === 1);
@@ -622,6 +633,7 @@ for (const s of ['ok', 'tu', 'rooms', 'renewal', 'paper']) {
     const { ctx, page } = await open({ proj: R.terminated, html });
     await settled(page);
     const hero = await tx(page, '#hero'), st = await page.getAttribute('#hero', 'data-state');
+    await room(page, 'case');
     await page.click('.ribbon .rb[data-ym="2026-08"]');
     await page.waitForSelector('dialog#sheet[open]', { timeout: 3000 }).catch(() => null);
     const sb = await tx(page, '#sheetBody').catch(() => '');
@@ -673,6 +685,7 @@ for (const s of ['ok', 'tu', 'rooms', 'renewal', 'paper']) {
     const { ctx, page } = await open({ proj: R.termUndated, html });
     await settled(page);
     const hero = await tx(page, '#hero'), st = await page.getAttribute('#hero', 'data-state');
+    await room(page, 'case');
     await page.click('.ribbon .rb[data-ym="2026-08"]');
     await page.waitForSelector('dialog#sheet[open]', { timeout: 3000 }).catch(() => null);
     const sb = await tx(page, '#sheetBody').catch(() => '');
@@ -706,6 +719,7 @@ for (const s of ['ok', 'tu', 'rooms', 'renewal', 'paper']) {
   const roomsSheet = async (html) => {
     const { ctx, page } = await open({ proj: R.roomsLate, html });
     await settled(page);
+    await room(page, 'case');
     await page.click('.ribbon .rb[data-ym="2026-09"]');
     await page.waitForSelector('dialog#sheet[open]', { timeout: 3000 }).catch(() => null);
     const sb = await tx(page, '#sheetBody');
@@ -727,6 +741,7 @@ for (const s of ['ok', 'tu', 'rooms', 'renewal', 'paper']) {
     const { ctx, page } = await open({ proj: P.ok, html });
     await settled(page);
     let okAll = true;
+    await room(page, 'archivio');
     for (const q of ['fattura', 'BOOM-2026-014', 'Fattura BOOM']) {
       await page.fill('#q', q);
       const n = (await page.$$('#alist [data-invoice="aspi_registrazione_c1"]')).length, t = await tx(page, '#alist');
@@ -772,6 +787,7 @@ for (const s of ['ok', 'tu', 'rooms', 'renewal', 'paper']) {
   await redGreen('desktop: il doppio clic su un documento apre UNA scheda e manda UN POST', async (html) => {
     const { ctx, page, log } = await open({ proj: P.ok, html, width: 1440, init: initOpen, file: slowFile });
     await settled(page);
+    await room(page, 'archivio');
     await page.dblclick('.arow[data-ref="c:c1:signed"] .arow-main');
     await page.waitForTimeout(2200);
     const w = await page.evaluate(() => window.__opened.length);
@@ -782,6 +798,7 @@ for (const s of ['ok', 'tu', 'rooms', 'renewal', 'paper']) {
     const { ctx, page, log } = await open({ proj: P.ok, html, file: slowFile });
     await settled(page);
     const sel = '.arow[data-ref="c:c1:signed"] .arow-main';
+    await room(page, 'archivio');
     await page.tap(sel);
     const during = await page.evaluate((s) => { const e = document.querySelector(s); return { busy: e.getAttribute('aria-busy'), op: +getComputedStyle(e).opacity }; }, sel);
     await page.tap(sel, { force: true }); await page.tap(sel, { force: true });
@@ -797,6 +814,7 @@ for (const s of ['ok', 'tu', 'rooms', 'renewal', 'paper']) {
   await redGreen('condividi dall\'icona: gesto perso → il foglio dice «Tocca di nuovo per inviare», il secondo tocco condivide il file già pronto', async (html) => {
     const { ctx, page, log } = await open({ proj: P.ok, html, init: shareInit });
     await settled(page);
+    await room(page, 'archivio');
     await page.tap('.arow[data-ref="c:c1:signed"] [data-share]');
     await page.waitForSelector('dialog#sheet[open]', { timeout: 3000 }).catch(() => null);
     const sb = await tx(page, '#sheetBody').catch(() => '');
@@ -811,22 +829,23 @@ for (const s of ['ok', 'tu', 'rooms', 'renewal', 'paper']) {
   await redGreen('vedi-come@390: il campo di ricerca attaccato in alto si può toccare', async (html) => {
     const { ctx, page } = await open({ proj: R.okAs, html, role: 'admin', uid: ADMIN_UID, url: '/proprietario?as=' + OWNER_UID, reduced: true });
     await settled(page); await page.waitForTimeout(200);
-    await page.evaluate(() => { const a = document.getElementById('archivio'); window.scrollTo(0, a.getBoundingClientRect().top + scrollY + 400); });
+    await room(page, 'archivio');
+    await page.evaluate(() => { window.scrollTo(0, 900); });
     await page.waitForTimeout(300);
     const hit = await page.evaluate(() => { const q = document.getElementById('q'), b = q.getBoundingClientRect(); return document.elementFromPoint(b.left + 60, b.top + b.height / 2) === q; });
     await ctx.close();
     return hit;
-  }, mut('body.va .search{top:calc(var(--hh) + env(safe-area-inset-top,0px) + var(--band,58px) + 58px)}\n', ''));
-  await redGreen('vedi-come@390: #c= porta il contratto SOTTO la banda e la navigazione, e si può toccare', async (html) => {
+  }, mut('body.va .search{top:calc(var(--top) + 6px + var(--band,58px))}\n', ''));
+  await redGreen('vedi-come@390: #c= porta il contratto SOTTO la banda e il salto della casa, e si può toccare', async (html) => {
     const { ctx, page } = await open({ proj: R.okAs, html, role: 'admin', uid: ADMIN_UID, url: '/proprietario?as=' + OWNER_UID, reduced: true });
     await settled(page); await page.waitForTimeout(200);
     await page.evaluate(() => { location.hash = 'c=c1'; });
     await page.waitForTimeout(600);
-    const r = await page.evaluate(() => { const el = document.querySelector('[data-contract-id="c1"] .ct-title'), b = el.getBoundingClientRect(), qn = document.querySelector('.qnav').getBoundingClientRect();
+    const r = await page.evaluate(() => { const el = document.querySelector('[data-contract-id="c1"] .ct-title'), b = el.getBoundingClientRect(), qn = document.querySelector('article[data-property-id] .jump').getBoundingClientRect();
       const hit = document.elementFromPoint(b.left + 20, b.top + b.height / 2); return { top: b.top, qnav: qn.bottom, hit: el.contains(hit) }; });
     await ctx.close();
     return r.top >= r.qnav && r.hit;
-  }, mut("body.va section,body.va article,body.va [data-contract-id]{scroll-margin-top:calc(124px + var(--band,58px))}\n", ''));
+  }, mut("body.va section,body.va article,body.va [data-contract-id],body.va .hsec{scroll-margin-top:calc(var(--top) + 72px + var(--band,58px))}\n", ''));
 
   // (m) Esci: il proprietario alla sua porta, l'admin al portal
   const logoutMut = mut("var dest=PROFILE&&PROFILE.role==='admin'?'/portal':'/login?next=%2Fproprietario';", "var dest='/login';");
@@ -859,6 +878,97 @@ for (const s of ['ok', 'tu', 'rooms', 'renewal', 'paper']) {
       await ctx.close();
     }
   }
+}
+
+// ── 11c · Le tre stanze (24/09): la faccia del proprietario ──────────────
+// «Troppo basilare, identico all'altro»: la pagina portava gli STESSI token
+// di /casa (l'inquilino). Qui si pretende l'identità propria e il modello a
+// stanze: Oggi (la risposta) · Case · Archivio, con l'indirizzo che segue.
+{
+  const TENANT = read('tenant.html');
+  const tok = (src) => { const m = /:root\{([\s\S]*?)\}/.exec(src); return m ? m[1].replace(/\s+/g, '') : ''; };
+  check('identità: il blocco :root del proprietario NON è quello di /casa', tok(HTML) && tok(HTML) !== tok(TENANT));
+  check('identità: niente token di /casa (--void:#050506) né la griglia a puntini', !/--void:#050506/.test(HTML) && !/\.bg \.grid/.test(HTML));
+  check('identità: carattere di sistema Apple in testa alla pila', /--font:-apple-system,BlinkMacSystemFont/.test(HTML));
+}
+{
+  const { ctx, page, log } = await open({ proj: P.ok });
+  await settled(page);
+  const vis = () => page.evaluate(() => [...document.querySelectorAll('.view')].filter((v) => !v.hidden).map((v) => v.getAttribute('data-view')));
+  const tabNames = (pg) => pg.$$eval('#tabs .tab > span:not(.bd)', (x) => x.map((e) => e.textContent).join(' '));
+  check('stanze: tre bottoni nella barra (Oggi · Casa · Archivio)', (await tabNames(page)) === 'Oggi Casa Archivio', await tabNames(page));
+  check('stanze: si apre su Oggi, e si vede SOLO Oggi', JSON.stringify(await vis()) === '["oggi"]' && await page.getAttribute('#tabs [data-tab="oggi"]', 'aria-current') === 'page');
+  await room(page, 'case');
+  check('stanze: Casa → la casa, con l\'indirizzo che segue (#case)', JSON.stringify(await vis()) === '["case"]' && page.url().endsWith('#case') && await page.getAttribute('#tabs [data-tab="case"]', 'aria-current') === 'page');
+  const ring = await page.getAttribute('.ring', 'aria-label').catch(() => '');
+  check('anello: «131 giorni alla fine · Giorno 234 di 365» (dalle date del contratto)', ring === '131 giorni alla fine · Giorno 234 di 365', ring);
+  const jumps = await page.$$eval('article[data-property-id="p1"] .jump [data-jump]', (b) => b.map((x) => x.textContent));
+  check('casa: il salto Contratto · Soldi · Interventi · Immobile', JSON.stringify(jumps) === '["Contratto","Soldi","Interventi","Immobile"]', JSON.stringify(jumps));
+  await page.click('article[data-property-id="p1"] .jump [data-jump$="-soldi"]');
+  await page.waitForTimeout(900);
+  const sj = await page.evaluate(() => ({ top: document.getElementById('hs-p1-soldi').getBoundingClientRect().top, bottom: innerHeight + scrollY >= document.documentElement.scrollHeight - 2, y: scrollY }));
+  check('casa: il salto porta a «Soldi» sotto le barre (o in fondo, se la pagina finisce prima)', sj.y > 0 && sj.top > 50 && (sj.top < 260 || sj.bottom), JSON.stringify(sj));
+  await room(page, 'archivio');
+  check('stanze: Archivio → #archivio', JSON.stringify(await vis()) === '["archivio"]' && page.url().endsWith('#archivio'));
+  const folds = await page.$$eval('.fold', (b) => b.map((x) => x.querySelector('b').textContent + ':' + x.querySelector('small').textContent));
+  check('archivio: le quattro cartelle coi conteggi veri', JSON.stringify(folds) === '["Contratto:3 documenti","Consegna:2 documenti","Soldi:5 documenti","Immobile:4 documenti"]', JSON.stringify(folds));
+  await page.click('.fold[data-folder="consegna"]');
+  const refs = await page.$$eval('#alist .arow[data-ref]', (r) => r.map((x) => x.getAttribute('data-ref')).sort());
+  check('archivio: la cartella Consegna mostra SOLO verbale e inventario', JSON.stringify(refs) === '["c:c1:inv-in","c:c1:verbale"]', JSON.stringify(refs));
+  await page.click('.fclear');
+  check('archivio: «× Tutto» riporta l\'archivio intero', (await page.$$('#alist .arow')).length >= 10);
+  const heads = await page.$$eval('#alist .agroup > h3', (h) => h.map((x) => x.textContent));
+  check('archivio: una linea del tempo per mese, dal più recente («Settembre 2026» in testa)', heads[0] === 'Settembre 2026' && heads.includes('Febbraio 2026'), heads.join(' | '));
+  check('archivio: dice come si aprono i documenti (link personale di 60 secondi)', (await tx(page, '#archivio')).includes('link personale che vale 60 secondi'));
+  await page.goBack();
+  await page.waitForTimeout(200);
+  check('stanze: «indietro» torna alla stanza di prima', JSON.stringify(await vis()) === '["case"]');
+  await room(page, 'oggi');
+  const tiles = await tx(page, '.pulse');
+  check('Oggi: il polso dice i numeri veri (€ 10.000,00 · tra 131 giorni)', tiles.includes('€ 10.000,00') && tiles.includes('tra 131 giorni'), tiles);
+  check('Oggi: senza rata in arrivo, nessuna tessera inventata', !tiles.includes('Prossima rata'));
+  await page.click('#novita .frow[data-ref="r:own_1:2026-08"]');
+  await page.waitForTimeout(500);
+  check('Oggi: un documento del feed si apre col suo ref', log.posts.some((x) => x.body.ref === 'r:own_1:2026-08'));
+  check('stanze: nessun errore JS', log.errors.length === 0, log.errors[0]);
+  await ctx.close();
+}
+{
+  const proj = multiProjection();
+  check('fixture multi: la proiezione passa assertClean', ENGINE.assertClean(proj).ok);
+  for (const w of [320, 390, 1440]) {
+    const { ctx, page, log } = await open({ proj, width: w, height: 800 });
+    await settled(page);
+    await room(page, 'case');
+    const cards = await page.$$eval('.pcard', (c) => c.map((x) => x.querySelector('h3').textContent));
+    check(`più case@${w}: il portafoglio ha una carta per casa`, JSON.stringify(cards) === '["Via Cavour 12","Via dei Serpenti 40"]', JSON.stringify(cards));
+    check(`più case@${w}: nessuna casa aperta finché non la scegli`, (await page.$$('article.house:not([hidden])')).length === 0);
+    await page.click('.pcard[data-goto="p=p2"]');
+    await page.waitForFunction(() => location.hash === '#p=p2' && !document.getElementById('cback').hidden, null, { timeout: 3000 }).catch(() => null);
+    const open1 = await page.$$eval('article.house:not([hidden])', (a) => a.map((x) => x.getAttribute('data-property-id')));
+    check(`più case@${w}: la carta apre SOLO la sua casa, col ritorno`, JSON.stringify(open1) === '["p2"]' && await page.isVisible('#cback') && !(await page.isVisible('#clist')));
+    check(`più case@${w}: la barra dice il nome della casa`, (await tx(page, '#hl')) === 'Via dei Serpenti 40');
+    check(`più case@${w}: la rata in ritardo è sul nastro della SUA casa`, (await page.$$('article[data-property-id="p2"] .rb[data-ym="2026-09"][data-state="overdue"]')).length === 1);
+    await room(page, 'case');
+    // l'indirizzo cambia subito, l'evento hashchange arriva dopo: si aspetta la pagina, non l'indirizzo
+    await page.waitForFunction(() => !document.getElementById('clist').hidden, null, { timeout: 3000 }).catch(() => null);
+    const back = await page.evaluate(() => ({ h: location.hash, clist: document.getElementById('clist').hidden, open: document.querySelectorAll('article.house:not([hidden])').length }));
+    check(`più case@${w}: Case di nuovo → il portafoglio`, back.h === '#case' && !back.clist && back.open === 0, JSON.stringify(back));
+    check(`più case@${w}: il badge rosso sulla stanza Case`, (await tx(page, '#tabs [data-tab="case"] .bd.red')) === '1');
+    const ov = await overflowX(page);
+    check(`più case@${w}: nessuno scorrimento orizzontale`, ov <= 0, ov + 'px');
+    const h = await html(page);
+    check(`più case@${w}: nessuna stringa veleno`, POISON.every((x) => !h.includes(x)));
+    check(`più case@${w}: nessun errore JS`, log.errors.length === 0, log.errors[0]);
+    await ctx.close();
+  }
+}
+{
+  const { ctx, page } = await open({ proj: P.ok, url: '/proprietario?lang=en' });
+  await settled(page);
+  const en = await page.$$eval('#tabs .tab > span:not(.bd)', (x) => x.map((e) => e.textContent).join(' '));
+  check('stanze EN: Today · Home · Archive', en === 'Today Home Archive', en);
+  await ctx.close();
 }
 
 // ── 12 · La porta: /login verso /proprietario parla SOLO italiano ──────
