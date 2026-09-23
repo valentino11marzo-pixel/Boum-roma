@@ -1,0 +1,48 @@
+{
+  "protocol": "homie-wa-single-v1",
+  "encoding": "SHA-256 over UTF-8 compact JSON array [actionId,phone,text], no normalization",
+  "vectors": [
+    {
+      "actionId": "sgreply_0000000000000000000000000000000000000001",
+      "phone": "+390000000000",
+      "text": "SYNTHETIC ONLY",
+      "payloadHash": "13a3171a404b03450fd9d93110785f9e68e34ebb9d6f8a7580acdd9a6ef1105c"
+    },
+    {
+      "actionId": "sgreply_0000000000000000000000000000000000000002",
+      "phone": "+390000000000",
+      "text": "  Riga uno\nRiga due\t  ",
+      "payloadHash": "64902a14e86f64a135564ed8f0577304c756a1055cab2e99c5052b2d375726b3"
+    },
+    {
+      "actionId": "sgreply_0000000000000000000000000000000000000003",
+      "phone": "+390000000000",
+      "text": "Caffè ☕ — casa 🏠",
+      "payloadHash": "fe76189cc1926c49963f5d4e98c915cc849571e8b7799aa3fcca162688056a25"
+    },
+    {
+      "actionId": "sgreply_0000000000000000000000000000000000000004",
+      "phone": "+390000000000",
+      "text": "é / é",
+      "payloadHash": "8fbd03969b49495b805ff42fff8c9aedddb2024c376a205661a325bd8be78612"
+    },
+    {
+      "actionId": "sgreply_0000000000000000000000000000000000000005",
+      "phone": "+390000000000",
+      "text": "\"quote\" \\ slash / control \b\f\r\n\t",
+      "payloadHash": "afb0b39fe77803768cd1a5c3a3dfa3a57f5633b4caf4b2c81aab7e14434f2e81"
+    },
+    {
+      "actionId": "sgreply_0000000000000000000000000000000000000006",
+      "phone": "+390000000000",
+      "text": "A B C",
+      "payloadHash": "d4c6da2a579fc42d3b9dc393938a3c241813d6fada130236bad9d06c84ff4c51"
+    },
+    {
+      "actionId": "sgreply_0000000000000000000000000000000000000007",
+      "phone": "+390000000000",
+      "text": "שלום مرحبا",
+      "payloadHash": "07831e893c678de327b6abd2603b15062a3b7a7a269036ec4540d91122ad9abc"
+    }
+  ]
+}

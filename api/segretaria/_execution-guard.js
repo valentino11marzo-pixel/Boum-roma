@@ -75,14 +75,13 @@ export async function claimSegretariaExecution({ id, action, override, now = Dat
   try {
     const checked = await loadReviewedSegretariaContext({ id, action, now });
     if (!checked.allowed) return checked;
-    const { queue, task, conversation } = checked, p = task.data.preparation, conv = conversation.data;
+    const { queue, task, conversation } = checked;
     if (queue.data.status !== 'approved' || s.execution) return denied('segretaria_execution_needs_review');
     await fsCommit([
-      // A no-op field write supplies a case precondition in the same commit.
+      // Empty masks preserve stored values while checking the same versions.
       // An inbound racing with the claim wins or loses atomically, never hides.
-      { docPath: 'operatorTasks/' + s.caseId, fields: { preparation: p }, precondition: { updateTime: task.updateTime } },
-      { docPath: 'conversations/' + s.conversationId, fields: { contactPhone: conv.contactPhone || null,
-        contactEmail: conv.contactEmail || null }, precondition: { updateTime: conversation.updateTime } },
+      { docPath: 'operatorTasks/' + s.caseId, fields: {}, precondition: { updateTime: task.updateTime } },
+      { docPath: 'conversations/' + s.conversationId, fields: {}, precondition: { updateTime: conversation.updateTime } },
       { docPath: 'action_queue/' + id, fields: { segretaria: { ...s,
         execution: { state: 'started', at: new Date(now).toISOString() } } }, precondition: { updateTime: queue.updateTime } },
     ]);

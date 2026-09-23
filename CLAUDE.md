@@ -151,11 +151,18 @@ firebase.json             Firebase deploy config (firestore + storage rules)
   and the Git preview when adding a rule. Same move for
   `api/preagreement/{submit,sign-for}.js` (the 51st rule would have blocked
   the production deploy, not a test); `tests/mandato/run.mjs` §9 pins the
-  ≤50 count and resolves rules through brace expansion. **22/09**: il merge
-  della Centrale AI portava la 51ª regola (`api/ai/status.js`) — accorpate
-  `api/fiscal/{fascicolo,pack,foglio}.js` (stessa forma; nessun test le
-  legge per chiave esatta, a differenza di `fiscal/{allega,valutazione,
-  registra}` che `tests/aspi` pinna). Ora 49 regole.
+  ≤50 count and resolves rules through brace expansion.
+  The single-delivery endpoint uses the exact group
+  `api/homie/{wa-outbox,wa-outbox-single}.js`, both at 60s.
+  The 22/09 Centrale AI release also groups
+  `api/fiscal/{fascicolo,pack,foglio}.js` and adds `api/ai/status.js` at 30s.
+  The combined configuration has 49 rules for 54 configured paths;
+  all live settings, memory and includeFiles remain unchanged.
+  `npm test -- vercelfunctions` compares the current live baseline plus the
+  single endpoint, keeps the original 51-rule regression fixture and rejects
+  overlaps, lost settings and new overrides on default-configured handlers.
+  `sign-for` stays at 60s; `segretaria/preparation.js` keeps its default.
+
 
 ## Environment Variables (Vercel)
 
@@ -1840,6 +1847,14 @@ conversione. Il modello in vigore è VERBATIM il contratto tipo
 dell'associazione (`reference/contratto_tipo_STUDENTI_Roma_2023.doc`,
 prot. RA/2023/0044852 — stesso MD5 del file del referente).
 
+**PDF al primo clic** (22/09/2026): il loader idle di `portal.html` poteva
+non avere ancora caricato jsPDF quando `generateContractPDF` lo cercava,
+restituendo subito errore. `boomEnsureJsPDF()` avvia e condivide la richiesta
+con il preload; il generatore attende. Errore CDN o attesa oltre 20 secondi
+liberano il tentativo: il clic successivo riprova, senza ricaricare il portal.
+Test: `tests/contractpdf/loading.mjs`, handler e renderer reali, IO simulato,
+PDF effettivo, nessuna scrittura su errore e mutazione senza attesa.
+
 ### Journey consapevole (contesto nel `_run.js`)
 `steps()` riceve `missing`, `late` e `walletUrl`: il T-14 chiede PER NOME
 ciò che manca (link `/scheda` derivato — anagrafica e/o foto documento)
@@ -2279,6 +2294,13 @@ time-boxed — mai può bloccare una firma.
   `contracts/<id>/contratto-firmato.pdf` → `contract.signedPdfUrl`.
   Contratti legacy senza PDF sorgente: si salta senza rumore, alle email
   resta il certificato (mai bloccare una firma).
+- **Download e anteprima del contratto** (22/09/2026): le tre azioni del
+  portal leggono il record dal server con tetto di 12 secondi e preferiscono
+  `signedPdfUrl` al PDF sorgente. Non rigenerano né aggiornano più il contratto
+  durante una lettura; il documento mancante indica l’azione esplicita.
+  «PDF firmato» richiede la copia canonica: il vecchio flag locale non prova
+  che il file contenga le firme. Errori e popup bloccati sono visibili.
+  Test: `tests/contractpdf/downloads.mjs`, handler reali, IO simulato e mutazioni.
 - `sendWelcomeEmails` (da `_finalize.js`): welcome tenant EN (portal
   magic-link, saldo deposito se pendente, timeline utenze/TARI/residenza)
   + landlord IT (passi fiscali per regime, cessione fabbricato se
@@ -3512,6 +3534,51 @@ richiesta, il ripiego ad auto, la rete sul testo, il 400 della grammatica
 detto come richiesta del server, le giunzioni sulla sorgente; lo Scrivano
 legge con lo stesso strumento.
 
+**LA LEZIONE DEL 22 SETTEMBRE 2026 — «ho incollato i dati catastali da
+collegare a una proprietà e non ha rilevato nulla», e i 23 secondi.** Nei
+log di produzione: `ok via=tool files=0 pages=0 in=1917 out=2130 ms=23445
+sections=-` — il testo era arrivato al modello e la risposta era senza
+sezioni; e le letture di PDF da 2-3 pagine facevano 43-50 s con `out` fra
+4.600 e 5.300 token: a ~100 token/s il tempo era quasi tutto OUTPUT, e ~900
+di quei token erano le ~150 chiavi con `""` che il `required` completo
+imponeva a ogni lettura — un residuo della grammatica del 21/09, che non
+c'è più. Quattro mosse:
+- **«Riguarda»** (portal, la riga sotto l'indicazione): immobile ·
+  proprietario · inquilino, tendine dai pool VERI. Il server riceve nome e
+  indirizzo (`context.target`, mai il solo id) come blocco RIGUARDA nel
+  prompt — fatti dichiarati, non deduzioni — e il portal forza l'aggancio
+  PER ID (`innestoApplyTarget` → `_innesto.links`): ciò che viene letto
+  diventa la MODIFICA PROPOSTA sul record che c'è già (`diffRecord`, i
+  buchi si riempiono con la spunta accesa), non una card «nuovo» da
+  ricollegare a mano. Dal fascicolo immobile, **Innesto da documento** apre
+  l'Innesto già puntato su quella casa (`innestoOpenFor`). Un record
+  dichiarato ma non letto ha la sua card che lo dice, invece di sparire.
+- **L'immobile è ancorato da QUALUNQUE identificativo catastale**
+  (`ANCHORS.property`: foglio, particella, sub, categoria, rendita in
+  entrambe le forme, il blob, la classe energetica — mai i default), e il
+  prompt dice che i DATI NUDI (catasto senza indirizzo, un CF, un IBAN)
+  sono una lettura valida.
+- **Lo schema è SPARSO e lo sforzo è `medium`**: nessun `required` (una
+  chiave omessa = manca; il motore leggeva già `""` e `undefined` allo
+  stesso modo), prompt e strumento dicono di OMETTERE le vuote;
+  `output_config: { effort: 'medium' }` (Opus 5, senza beta, con gli
+  strumenti) taglia il thinking — «effort controls thinking volume, not
+  visible response length»: la lunghezza la taglia lo schema sparso.
+  Costante su ogni richiesta, perché cambiarlo invalida la cache. Il fast
+  mode (`speed:'fast'`, fino a 2,5× i token/s) è in research preview su
+  richiesta all'account manager: non attivabile da qui, è la leva successiva.
+- **Il vuoto si spiega**: `filled=N` nel log e `stats.filled` nella
+  risposta (i valori che il modello ha scritto nelle sezioni): «non ha
+  riconosciuto nessun dato» ≠ «letti 3 valori ma nessuno ancora una
+  sezione»; e `material` da solo non è più una proposta (prima usciva
+  «Proposta pronta» a card zero).
+Dal sandbox nulla è misurato (nessuna chiave): il guadagno VERO si legge
+nei log (`ms=`, `out=`) alle prossime letture. Test: `tests/innesto/run.mjs`
+(187 — RIGUARDA nel prompt e clippato, risposta sparsa → immobile ancorato,
+vuoto onesto), `tests/innesto/render.mjs` (21 — la riga, il payload, la
+modifica proposta sul record dichiarato), `tests/dataops/test.mjs` (195 — le
+ancore, mai i default).
+
 ### LO SCRIVANO — la porta dal telefono (`api/scrivano/*` + `sc:` su Telegram, 14/09/2026)
 STUDIO_SCRIVANO §4, **passo 4**: i passi 1–3 (il documento resta, la classe
 dello Smistatore, la modifica proposta) sono nell'Innesto 3.0; questo è il
@@ -3607,6 +3674,30 @@ una bozza mai ritirata scaduta o senza data verificabile diventa `needs_review`.
 Ricevute terminali/claim conservate, nessun reinvio incerto o attivazione Mac;
 il flusso legacy conserva i limiti precedenti. Prove: `segretariaconsegna`,
 `segretariaesecuzione`, conferma/UI e sei mutazioni di scadenza e paginazione.
+
+**Invio singolo selezionato (21/09/2026, attivazione separata):** `wa-outbox-single`
+isola una proposta già approvata: inspect senza scritture, claim con revisione/impronta
+e ACK del solo bersaglio; endpoint o protocollo sconosciuti non ricadono nel pull.
+Il worker `wa_outbox_single.py` conserva HOLD e lock/registro esistenti, non avvia
+il servizio ordinario, non recupera altre ricevute e non reinvia esiti incerti.
+Nessun mirror generico o nuova autonomia: esecuzione esplicita dopo approvazione.
+Prove sintetiche: `segretariainviosingolo`, `homieinviosingolo`; istruzioni e limiti
+in `docs/HOMIE_INVIO_SINGOLO.md`. Il trasporto installato non cambia con il commit.
+
+**Risposta claim incerta (21/09):** un 5xx, timeout o status 0 può arrivare dopo
+il commit: il worker restituisce `claim_outcome_unknown`, senza mittente o retry.
+Solo i rifiuti 400/401/405/409 sono `claim_rejected`; il 404 resta indisponibilità.
+Le altre risposte inattese richiedono riconciliazione, senza inventare ricevute.
+Prove: worker `test_19`, test JS/Python con claim realmente acquisito e risposta
+persa/500/503/504/0, più mutazione della vecchia classificazione.
+
+**CAS senza riscrivere dati (21/09):** i controlli versione in conferma,
+esecuzione, consegna e ritiro di vecchie approvazioni usano `fields: {}`.
+`fsCommit` conserva la maschera vuota e le precondizioni nello stesso batch;
+non materializza null né riconverte timestamp/mappe per verificare la versione.
+Una maschera assente sostituirebbe il documento: non ometterla o saltare il no-op.
+Prove RAW con encoder vero, claim reale e corse: `segretariafirestorenoop` e
+`segretariafirestorenoopmutazioni`; scritture di contenuto e veti invariati.
 
 ### POST `/api/homie/message` — da WhatsApp a lead, senza far pensare nessuno
 La CHIAVE DI VOLTA che permette a Homie di smettere di analizzare (mandato

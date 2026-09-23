@@ -72,6 +72,7 @@ import FIELDS from '../../js/contract-fields.js';
 // Il registro pinna lo stesso modello (tests/ai: un `direct` che lo scrive a
 // mano deve scriverlo uguale, o il costo in /ai sarebbe quello di un altro).
 export const MODEL = 'claude-opus-5';
+export const EFFORT = 'medium';   // output_config.effort — vedi askModel
 import { sniffType, extractText, TEXTY, TEXTY_LABEL, FORMATS_HUMAN } from '../_doctext.js';
 
 export const MAX_FILES = 8;
@@ -148,15 +149,27 @@ async function clipPdf(buf) {
 // "" — che il motore (dataops-engine: num/str/date/yesno) tratta già come
 // null. Anche i numeri viaggiano come stringhe di cifre: 0 non può fare da
 // sentinella (filled(0) è vero: «0 mq» sarebbe un dato) e un number nullable
-// sarebbe un'unione. Il test conta unioni e facoltativi e pretende ZERO.
-export const SCHEMA_LIMITS = { unionParams: 16, optionalParams: 24 };   // documentati (structured outputs → Schema complexity limits)
-const VUOTO = ' Stringa vuota "" se il materiale non lo dice.';
+// sarebbe un'unione.
+// LA LEZIONE DEL 22 SETTEMBRE 2026 — LO SCHEMA È SPARSO. Con lo strumento
+// NON strict (la terza lezione del 21/09) nessuna grammatica viene compilata,
+// quindi i limiti 16/24 non valgono più — e il `required` completo era
+// rimasto solo come COSTO: il modello stampava ~150 chiavi con "" a OGNI
+// lettura, ~900 token di output pagati e attesi (a ~100 token/s sono ~9 s per
+// giro; su un testo catastale incollato erano metà dei 23 s misurati nei log).
+// Ora nessun `required`: una chiave omessa = «manca», e il prompt dice di
+// omettere le vuote. Il motore leggeva già "" e undefined allo stesso modo
+// (num/str/date/yesno), quindi la forma piatta non cambia. SCHEMA_LIMITS
+// resta esportata come memoria: vale SOLO per output_config.format / tool
+// strict, che qui non si usano più.
+export const SCHEMA_LIMITS = { unionParams: 16, optionalParams: 24 };   // documentati (structured outputs → Schema complexity limits) — solo per una grammatica, che qui non c'è
+const VUOTO = ' Omettila se il materiale non lo dice.';
 const nstr = (d) => ({ type: 'string', description: d + VUOTO });
 const nnum = (d) => ({ type: 'string', description: d + ' Numero puro scritto come stringa di sole cifre (es. "1100", "65.5"), senza simboli né separatori delle migliaia.' + VUOTO });
 const nint = (d) => ({ type: 'string', description: d + ' Numero intero scritto come stringa di cifre (es. "3").' + VUOTO });
-const nbool = (d) => ({ type: 'string', enum: ['si', 'no', ''], description: d + ' "si" oppure "no"; "" se non detto.' });
-const nenum = (values, d) => ({ type: 'string', enum: values.concat(['']), description: d + ' "" se non determinabile.' });
-const obj = (props, d) => ({ type: 'object', description: d, properties: props, required: Object.keys(props), additionalProperties: false });
+const nbool = (d) => ({ type: 'string', enum: ['si', 'no', ''], description: d + ' "si" oppure "no"; omettila se non detto.' });
+const nenum = (values, d) => ({ type: 'string', enum: values.concat(['']), description: d + ' Omettila se non determinabile.' });
+// Nessun `required`, di proposito (22/09): una chiave omessa è «manca».
+const obj = (props, d) => ({ type: 'object', description: d, properties: props, additionalProperties: false });
 const arr = (items, d) => ({ type: 'array', items, description: d });
 
 const DOC_TYPE = ['passport', 'id', 'permit', 'patente'];
@@ -314,20 +327,20 @@ export const INGEST_SCHEMA = obj({
 export const TOOL_NAME = 'proposta';
 export const INGEST_TOOL = {
   name: TOOL_NAME,
-  description: 'Consegna la proposta per il gestionale BOOM estratta dal materiale ricevuto: tutte le sezioni e tutte le chiavi dello schema, stringa vuota "" dove il materiale non dice niente (mai null, mai un dato inventato), numeri come stringhe di sole cifre, date AAAA-MM-GG, una citazione in evidence per ogni valore. Va chiamato UNA volta sola, con tutto dentro.',
+  description: 'Consegna la proposta per il gestionale BOOM estratta dal materiale ricevuto. SOLO le chiavi che il materiale valorizza: una chiave omessa significa «manca» (mai null, mai "" di riempimento, mai un dato inventato). Numeri come stringhe di sole cifre, date AAAA-MM-GG, una citazione in evidence per ogni valore, un elemento in files per ogni DOCUMENTO n. Una sezione con un solo dato (es. property.cadastral da dati catastali incollati) è una consegna valida. Va chiamato UNA volta sola, con tutto dentro.',
   input_schema: INGEST_SCHEMA,
 };
 
 export const SYSTEM = `Sei l'assistente di back-office di BOOM, agenzia immobiliare a Roma. Dal materiale che ricevi (uno o più documenti: PDF, foto, Word/Excel/email/pagine già ridotti a testo, testo incollato) estrai i dati per il gestionale e li consegni chiamando lo strumento \`proposta\`: il suo schema è il tracciato, ogni campo ha la sua descrizione.
 
 REGOLE NON NEGOZIABILI
-1. NON INVENTARE MAI. Se un dato non è scritto nel materiale, lascia la stringa vuota "". Un campo vuoto è corretto; un campo inventato finisce in un contratto registrato all'Agenzia delle Entrate.
+1. NON INVENTARE MAI. Se un dato non è scritto nel materiale, OMETTI la chiave (o lascia ""): un campo assente è corretto, un campo inventato finisce in un contratto registrato all'Agenzia delle Entrate.
 2. OGNI VALORE HA UNA CITAZIONE. Per ogni campo che valorizzi metti in "evidence" la frase esatta da cui l'hai letto (documento e pagina). Se non riesci a citare, non valorizzare.
 3. Trascrivi codici fiscali, IBAN, numeri di documento CARATTERE PER CARATTERE, senza "correggerli". Se una lettera è ambigua (0/O, 1/I, 5/S) scegli quella più probabile per il contesto e dillo in notes.
 4. Date sempre AAAA-MM-GG ("1° settembre 2026" → 2026-09-01). Importi e misure come numeri puri scritti come stringhe di sole cifre ("1100", non "€ 1.100,00"; "65.5" per i decimali). Il canone è quello MENSILE: se il documento dà l'annuo, dividi per 12 e scrivilo in notes.
 5. Non fondere mai due persone in una. Se i conduttori sono più d'uno, il primo nominato è "tenant" e gli altri vanno in "coTenants".
 6. I nomi in archivio che ti vengono forniti servono SOLO per usare la stessa grafia: non prenderne mai un dato.
-7. Rispondi con UNA sola chiamata allo strumento \`proposta\`, con tutte le chiavi dello schema (stringa vuota dove manca), in italiano; nessun testo fuori dalla chiamata.
+7. Rispondi con UNA sola chiamata allo strumento \`proposta\`, con le SOLE chiavi che valorizzi — OMETTI le chiavi vuote e le sezioni che il materiale non porta (decine di stringhe vuote sono tempo perso) — in italiano; nessun testo fuori dalla chiamata.
 
 COME SI LEGGE UN CONTRATTO DI LOCAZIONE ITALIANO (il materiale è quasi sempre questo)
 - "Locatore" / "parte locatrice" / "concedente" = landlord. "Conduttore" / "parte conduttrice" / "locatario" / "inquilino" = tenant. Stanno in cima al documento nell'ordine locatore-poi-conduttore, ma verifica sempre dalle etichette, non dalla posizione.
@@ -348,13 +361,50 @@ COME SI LEGGE UN CONTRATTO DI LOCAZIONE ITALIANO (il materiale è quasi sempre q
 ALTRI DOCUMENTI CHE PUOI RICEVERE
 - Documento d'identità (carta d'identità, passaporto, permesso di soggiorno, patente): dà i dati anagrafici di UNA persona (nome, nascita, CF se stampato, numero, ente e data di rilascio, scadenza, cittadinanza). Se nel materiale c'è anche un contratto, assegnalo alla parte che porta quel nome; altrimenti mettilo come tenant e dillo in notes. Mai un contratto da una carta d'identità.
 - Visura catastale: immobile (indirizzo, foglio/particella/sub, categoria, rendita, vani) e intestatario (landlord, con CF).
+- DATI NUDI incollati dall'operatore — soli dati catastali (sezione, foglio, particella, subalterno, categoria, classe, consistenza, rendita), un codice fiscale, un IBAN, una classe energetica, anche SENZA indirizzo: sono una lettura VALIDA. Compila la sezione a cui appartengono (property.cadastral, landlord/tenant.codiceFiscale, landlord.iban, property.energyClass) anche se non c'è nient'altro: non serve un indirizzo per riportare un foglio. Per il catasto material = "immobile".
 - APE: energyClass e indirizzo. Planimetria: vani/mq se leggibili.
 - Email o messaggio WhatsApp: prendi solo ciò che è scritto (un IBAN, un telefono, una data di disponibilità), mai ciò che è sottinteso.
 - PROPOSTA / PRE-ACCORDO / RENTAL PROPOSAL (spesso di BOOM stessa: intestazione BOOM, "boomrome.com", riferimento "BOOM-XXXXXX", sezioni "Rental proposal", "due at signing", "agency fee"): è un deal PRIMA del contratto. Compila landlord/tenant/property/contract con ciò che c'è (canone, deposito, decorrenza, durata, cadenza, identità del cliente) E "preagreement" con i termini economici propri della proposta (riferimento, provvigione e quando è dovuta, quota energia, deposito alla firma, dovuto alla firma, validità). material = "proposta".
 - MESSAGGIO DI UN CLIENTE (screenshot di WhatsApp, email inoltrata, richiesta dal portale, nota vocale): compila "lead" con nome, recapiti e la richiesta nelle SUE parole; se scrive in inglese language = "en". Chi propone il proprio immobile è side = "landlord". material = "messaggio". Non inventare un contratto da un messaggio.
 - "material" dice che cos'è il materiale nel suo insieme: se ci sono un contratto E una carta d'identità, è "contratto"; se è solo la carta, "identita"; una visura o un APE da soli sono "immobile".
+- Se in coda c'è il blocco RIGUARDA, l'operatore DICHIARA a quale immobile e a quali persone si riferisce il materiale: sono fatti dichiarati, non deduzioni. Usa quei nomi e quell'indirizzo per property.name / property.address e per i nomi delle parti (citazione in evidence: "dichiarato dall'operatore") e attribuisci a quelle entità ciò che il materiale dice di loro.
 - Se lo stesso documento arriva due volte (PDF e testo incollato), è UN documento: non raddoppiare persone né note.
 - Un documento illeggibile (scansione storta, buia, mossa, pagina bianca) va dichiarato in files[].legible=false con il motivo: non tirare a indovinare.`;
+
+// Il bersaglio dichiarato dall'operatore («Riguarda» nel portal, 22/09):
+// l'immobile e le parti a cui il materiale si riferisce. Al modello vanno
+// nome e indirizzo (un id non gli dice niente); l'aggancio VERO lo fa il
+// portal per id, deterministico. Solo forma: stringhe clippate, chiavi note.
+function declaredLines(target) {
+  if (!target || typeof target !== 'object') return [];
+  const out = [];
+  const one = (label, t, withAddress) => {
+    if (!t || typeof t !== 'object') return;
+    const name = clip(t.name, 120), address = withAddress ? clip(t.address, 160) : '';
+    if (!name && !address) return;
+    out.push(`- ${label}: «${[name, address].filter(Boolean).join(' — ')}»`);
+  };
+  one('Immobile', target.property, true);
+  one('Proprietario', target.landlord, false);
+  one('Inquilino', target.tenant, false);
+  return out;
+}
+// Quanti valori il modello ha davvero scritto nelle sezioni (files, evidence,
+// notes, summary, confidence e material esclusi): distingue «non ha letto
+// niente» da «ha letto, ma nessuna sezione è ancorabile». Nei log del 22/09
+// `sections=-` non diceva quale dei due fosse.
+const SECTION_KEYS = ['landlord', 'tenant', 'coTenants', 'property', 'contract', 'preagreement', 'lead'];
+export function filledLeaves(parsed) {
+  let n = 0;
+  const walk = (v) => {
+    if (v == null) return;
+    if (Array.isArray(v)) { v.forEach(walk); return; }
+    if (typeof v === 'object') { Object.values(v).forEach(walk); return; }
+    if (typeof v !== 'string' || v.trim() !== '') n++;
+  };
+  SECTION_KEYS.forEach((k) => walk(parsed && parsed[k]));
+  return n;
+}
 
 function knownLine(label, list) {
   const items = Array.isArray(list) ? list.map((x) => String(x || '').trim()).filter(Boolean).slice(0, 60).map((x) => x.slice(0, 90)) : [];
@@ -474,6 +524,13 @@ async function askModel(content) {
     model: MODEL,
     max_tokens: 20000,
     thinking: { type: 'adaptive' },
+    // Lo sforzo (22/09): `medium` invece del default `high`. Governa QUANTO
+    // il modello pensa (thinking adattivo), non quanto scrive — «changing
+    // effort does not reliably shorten responses» (docs effort): la
+    // lunghezza la taglia lo schema sparso. Funziona con gli strumenti,
+    // senza beta, su claude-opus-5. Costante su ogni richiesta: cambiarlo
+    // fra una richiesta e l'altra invalida la cache del prefisso.
+    output_config: { effort: EFFORT },
     tools: [INGEST_TOOL],
     tool_choice: o.forced
       ? { type: 'tool', name: TOOL_NAME, disable_parallel_tool_use: true }
@@ -600,7 +657,8 @@ export default async function handler(req, res) {
   }
 
   const known = (body.context && body.context.known) || {};
-  const out = await ingestRead({ files, text, hint, known });
+  const target = (body.context && body.context.target) || null;
+  const out = await ingestRead({ files, text, hint, known, target });
   const { status, ...payload } = out;
   return res.status(status).json(payload);
 }
@@ -611,12 +669,13 @@ export default async function handler(req, res) {
 // schema, stessa sanificazione, stessi errori col rimedio. Riceve i file già
 // preparati da readFiles() e torna { status, ...payload }: l'HTTP lo traduce
 // in res.status().json(), il worker in una card. Non tocca mai Firestore.
-export async function ingestRead({ files = [], text = '', hint = '', known = {}, tag = 'portal/ingest' } = {}) {
+export async function ingestRead({ files = [], text = '', hint = '', known = {}, target = null, tag = 'portal/ingest' } = {}) {
   if (!process.env.ANTHROPIC_API_KEY) {
     return { status: 500, ok: false, error: 'server_missing_anthropic_key', detail: 'La lettura non è configurata sul server (manca la chiave del modello).' };
   }
   text = typeof text === 'string' ? text.slice(0, MAX_TEXT) : '';
   hint = typeof hint === 'string' ? clip(hint, 500) : '';
+  const declared = declaredLines(target);
   if (!files.length && !text.trim()) return { status: 400, ok: false, error: 'text_or_file_required', detail: null };
 
   // ── Il materiale, documento per documento, ETICHETTATO ──────────────
@@ -641,6 +700,7 @@ export async function ingestRead({ files = [], text = '', hint = '', known = {},
     knownLine('Proprietari già in archivio (stessa grafia se è la stessa persona)', known.landlords),
     knownLine('Inquilini già in archivio', known.tenants),
     knownLine('Immobili già in archivio', known.properties),
+    declared.length ? 'RIGUARDA (dichiarato dall\'operatore — fatti, non deduzioni: usa questi nomi e questo indirizzo e attribuisci a queste entità ciò che il materiale dice di loro):\n' + declared.join('\n') : '',
     hint ? `Indicazione dell'operatore (ha precedenza sulle deduzioni, ma non inventare ciò che non nomina): "${hint}"` : '',
     `Produci ora la proposta. Hai ricevuto ${files.length} documento/i${text.trim() ? ' più il testo incollato' : ''}.`,
   ].filter(Boolean).join('\n');
@@ -727,6 +787,7 @@ export async function ingestRead({ files = [], text = '', hint = '', known = {},
     // d'identità non fa nascere una card «Contratto» vuota), normalizzate nello
     // schema che il portale salva, con le derivazioni dichiarate e i controlli
     // (CF con checksum, CF che conferma data e nome, IBAN, date, durate).
+    const filled = filledLeaves(parsed);
     const pruned = D.pruneProposal(parsed);
     const proposal = D.deriveProposal(D.normalizeProposal(pruned), { parseCadastral: FIELDS.parseCadastral });
     const derived = proposal.derived || {};
@@ -749,17 +810,22 @@ export async function ingestRead({ files = [], text = '', hint = '', known = {},
       cacheReadTokens: usage.cache_read_input_tokens || 0, cacheWriteTokens: usage.cache_creation_input_tokens || 0,
       files: files.length, pages: files.reduce((a, f) => a + (f.pages || 0), 0),
     };
-    console.log(`[${tag}] ok via=${via}${out.forced === false ? '(auto)' : ''} files=${meta.files} pages=${meta.pages} in=${meta.inputTokens} out=${meta.outputTokens} ms=${ms} sections=${Object.keys(proposal).join(',') || '-'}`);
+    console.log(`[${tag}] ok via=${via}${out.forced === false ? '(auto)' : ''} files=${meta.files} pages=${meta.pages} in=${meta.inputTokens} out=${meta.outputTokens} ms=${ms} filled=${filled} sections=${Object.keys(proposal).join(',') || '-'}`);
 
-    if (!Object.keys(proposal).length) {
+    // `material` da solo non è una proposta: dice che cos'è il materiale,
+    // non porta niente da scrivere (prima passava per «Proposta pronta» a
+    // card zero).
+    if (!Object.keys(proposal).some((k) => k !== 'material')) {
       return { status: 200, ok: true, proposal: {}, empty: true, files: filesRead, evidence, notes, confidence,
-        summary: clip(parsed.summary, 400), usage: meta,
+        summary: clip(parsed.summary, 400), usage: meta, stats: { filled },
         message: filesRead.some((f) => !f.legible)
           ? 'Documento illeggibile: ' + filesRead.filter((f) => !f.legible).map((f) => f.summary || f.name).join(' · ')
-          : 'Nessun dato riconoscibile nel materiale fornito.' };
+          : (filled === 0
+            ? 'Il modello non ha riconosciuto nessun dato per il gestionale in questo materiale.' + (declared.length ? '' : ' Se sono dati di un immobile o di una persona già in archivio, indicalo in «Riguarda» e rileggi.')
+            : `Letti ${filled} valori, ma nessuno identifica un immobile, una persona, un contratto, una proposta o un lead.`) };
     }
     return { status: 200, ok: true, proposal, derived, checks, files: filesRead, evidence, notes, confidence,
-      summary: clip(parsed.summary, 400), usage: meta };
+      summary: clip(parsed.summary, 400), usage: meta, stats: { filled } };
   } catch (e) {
     console.error('[' + tag + '] post', e && e.message);
     return { status: 500, ok: false, error: 'internal' };

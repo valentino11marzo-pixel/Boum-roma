@@ -803,7 +803,8 @@ Valentyne - BOOM Rome`
             payment: (unit, month, id) => openRentUnit(unit, month, id),
             edit: property => openModal('editProperty', property),
             remove: property => confirmDelete('propert', property.id, property.name || 'Immobile'),
-            valuation: id => openValutazione(null, undefined, {propertyId:id}) }
+            valuation: id => openValutazione(null, undefined, {propertyId:id}),
+            innesto: id => innestoOpenFor('property', id) }
     });
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -19589,7 +19590,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const tenant = S.users.find(u => u.id === contract.tenantId);
             const landlord = property ? S.users.find(u => u.id === property.ownerId) : null;
             const CP = window.BOOM_CONTRACT_PDF;
-            if (!CP || !window.jspdf) { console.error('[BOOM] contract-pdf module or jsPDF missing'); return false; }
+            if (!CP) { console.error('[BOOM] contract-pdf module missing'); return false; }
+            if (!window.jspdf || typeof window.jspdf.jsPDF !== 'function') await window.boomEnsureJsPDF();
 
             const built = CP.build({ jsPDF: window.jspdf.jsPDF, contractId, contract, property, tenant, landlord });
 
@@ -20916,91 +20918,82 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         toast('success', sent ? '📧 Promemoria inviato!' : 'Nessun promemoria da inviare');
     }
     
-    // Preview the signed/draft PDF in a new tab.
-    // Single source of truth: contract.generatedPDF. If absent, regenerate live
-    // via canonical generateContractPDF; never produces a from-scratch fallback.
-    async function previewContractPDF(contractId) {
-        const contract = S.contracts.find(c => c.id === contractId);
-        if (!contract) return;
-
-        let dataUri = contract.generatedPDF;
-
-        if (!dataUri) {
-            toast('info', 'Generazione anteprima...');
-            const ok = await generateContractPDF(contractId);
-            if (!ok) return toast('error', 'Errore generazione PDF');
-            const refreshed = S.contracts.find(c => c.id === contractId);
-            dataUri = refreshed && refreshed.generatedPDF;
-        }
-        if (!dataUri) return toast('error', 'PDF non disponibile');
-
-        // HTTPS URLs (Firebase Storage): open directly on desktop + Android (native PDF viewer is fine).
-        // iOS Safari/iPadOS: built-in PDF mini-viewer renders only first page on multi-page docs —
-        // wrap with Google Docs viewer for reliable multi-page rendering.
-        if (dataUri.startsWith('https://')) {
-            const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent) && !window.MSStream;
-            const isIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
-            if (isIOS || isIPadOS) {
-                window.open('https://docs.google.com/viewer?url=' + encodeURIComponent(dataUri) + '&embedded=false', '_blank');
-            } else {
-                window.open(dataUri, '_blank');
-            }
-            return;
-        }
-        // Legacy base64 path — fall back to blob conversion
+    // Document actions only read the archived file. Generation is explicit:
+    // a download must never rewrite the document/hash under existing signatures.
+    async function readContractPDF(contractId, signedOnly = false) {
+        let timer;
+        toast('info', 'Verifica del PDF…');
         try {
-            const blob = await fetch(dataUri).then(r => r.blob());
-            window.open(URL.createObjectURL(blob), '_blank');
+            const snapshot = await Promise.race([
+                db.collection('contracts').doc(contractId).get({ source: 'server' }),
+                new Promise((_, reject) => { timer = setTimeout(() => reject(new Error('contract_read_timeout')), 12000); })
+            ]);
+            if (!snapshot.exists) {
+                toast('error', 'Contratto non disponibile. Aggiorna l’elenco e riprova.');
+                return null;
+            }
+            const contract = snapshot.data();
+            const signed = !!contract.signedPdfUrl;
+            const url = contract.signedPdfUrl || (!signedOnly && contract.generatedPDF);
+            if (!url) {
+                const signatureStarted = contract.signatureStatus === 'complete' || contract.tenantSignature || contract.landlordSignature
+                    || (Array.isArray(contract.coTenants) && contract.coTenants.some(c => c && c.signature));
+                const detail = signedOnly || signatureStarted
+                    ? 'Il PDF firmato non è ancora disponibile. Contatta BOOM per verificare il documento.'
+                    : isAdmin() ? 'PDF non ancora disponibile. Apri la scheda contratto e scegli «Rigenera PDF».'
+                    : 'PDF non ancora disponibile. Contatta BOOM per ricevere il documento.';
+                toast('error', detail);
+                return null;
+            }
+            if (typeof url !== 'string' || !/^(https:\/\/|data:application\/pdf;base64,)/i.test(url)) {
+                toast('error', 'Il collegamento al PDF non è valido. Contatta BOOM.');
+                return null;
+            }
+            return { contract, url, signed };
         } catch (e) {
-            console.error('Preview decode error:', e);
-            toast('error', 'Impossibile aprire il PDF');
-        }
+            toast('error', 'Non riesco a verificare il documento. Controlla la connessione e riprova.');
+            return null;
+        } finally { clearTimeout(timer); }
     }
 
-    // Download the contract as a file. Single source of truth: contract.generatedPDF.
-    // If absent: regenerate live via canonical generateContractPDF.
-    // If still absent: error toast. No from-scratch fallback.
-    // Filename reflects state: pdfRegeneratedAfterSign === true => _Firmato; else _Bozza.
-    async function downloadSignedContractPDF(contractId) {
-        const contract = S.contracts.find(c => c.id === contractId);
-        if (!contract) return;
-        const tenant = S.users.find(u => u.id === contract.tenantId);
-
-        let dataUri = contract.generatedPDF;
-        let isSigned = contract.pdfRegeneratedAfterSign === true;
-        if (!dataUri) {
-            try {
-                const fresh = await db.collection('contracts').doc(contractId).get();
-                if (fresh.exists) {
-                    const fd = fresh.data();
-                    dataUri = fd.generatedPDF;
-                    isSigned = fd.pdfRegeneratedAfterSign === true;
-                }
-            } catch (e) { console.error('Fresh fetch:', e); }
+    async function previewContractPDF(contractId) {
+        // Reserve the tab inside the click gesture; opening it after the server
+        // read would be blocked on browsers that require transient activation.
+        const preview = window.open('about:blank', '_blank');
+        if (!preview) {
+            toast('error', 'Il browser ha bloccato l’apertura — consenti i pop-up per boomrome.com');
+            return;
         }
-
-        if (!dataUri) {
-            toast('info', 'Generazione PDF...');
-            const ok = await generateContractPDF(contractId);
-            if (!ok) return toast('error', 'Errore generazione PDF');
-            const after = S.contracts.find(c => c.id === contractId);
-            dataUri = after && after.generatedPDF;
-            isSigned = !!(after && after.pdfRegeneratedAfterSign === true);
-        }
-        if (!dataUri) return toast('error', 'PDF non disponibile');
-
-        const tName = ((tenant && tenant.name) || 'Conduttore').replace(/\s+/g, '_');
-        const fileName = `Contratto_${tName}_${isSigned ? 'Firmato' : 'Bozza'}.pdf`;
-
-        // vale sia per i data: URI (base64 legacy) sia per gli https:// di Storage
+        preview.opener = null;
+        preview.document.title = 'Anteprima contratto';
+        preview.document.body.textContent = 'Caricamento del PDF…';
+        const pdf = await readContractPDF(contractId);
+        if (!pdf) { preview.close(); return; }
+        if (preview.closed) return;
+        // Preserve the existing multi-page viewer on iOS/iPadOS.
+        const isIOS = /iPad|iPhone|iPod/i.test(navigator.userAgent) && !window.MSStream;
+        const isIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+        const url = pdf.url.startsWith('https://') && (isIOS || isIPadOS)
+            ? 'https://docs.google.com/viewer?url=' + encodeURIComponent(pdf.url) + '&embedded=false' : pdf.url;
         try {
-            const how = await boomDownloadUrl(dataUri, fileName);
+            if (url.startsWith('data:')) {
+                preview.close();
+                boomOpen(url, pdf.signed ? 'Contratto_Firmato.pdf' : 'Contratto.pdf');
+            } else preview.location.replace(url);
+        } catch (e) { preview.close(); toast('error', 'Impossibile aprire il PDF. Riprova.'); }
+    }
+
+    async function downloadSignedContractPDF(contractId) {
+        const pdf = await readContractPDF(contractId, true);
+        if (!pdf) return;
+        const tenant = S.users.find(u => u.id === pdf.contract.tenantId);
+        const tName = ((tenant && tenant.name) || 'Conduttore').replace(/\s+/g, '_');
+        const fileName = `Contratto_${tName}_Firmato.pdf`;
+        try {
+            const how = await boomDownloadUrl(pdf.url, fileName);
             if (how === 'failed') throw new Error('consegna non riuscita');
-            toast('success', isSigned ? 'Contratto firmato scaricato' : 'Bozza scaricata');
-        } catch (e) {
-            console.error('Download decode error:', e);
-            toast('error', 'Impossibile scaricare il PDF');
-        }
+            toast('success', how === 'opened' ? 'PDF firmato aperto' : 'Download del PDF firmato avviato');
+        } catch (e) { toast('error', 'Impossibile scaricare il PDF. Riprova.'); }
     }
 
 
@@ -21014,62 +21007,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     async function downloadContractPDF(id) {
-        const c = S.contracts.find(x => x.id === id); if (!c) return;
+        const pdf = await readContractPDF(id);
+        if (!pdf) return;
+        const c = pdf.contract;
         const p = S.properties.find(x => x.id === c.propertyId);
         const t = S.users.find(x => x.id === c.tenantId);
-        const fileName = `Contratto_${p?.name?.replace(/\s+/g, '_') || 'Immobile'}_${t?.name?.replace(/\s+/g, '_') || 'Inquilino'}.pdf`;
-
-        // Fetch fresh contract data from Firestore
-        let fresh = null;
+        const fileName = `Contratto_${p?.name?.replace(/\s+/g, '_') || 'Immobile'}_${t?.name?.replace(/\s+/g, '_') || 'Inquilino'}${pdf.signed ? '_Firmato' : ''}.pdf`;
         try {
-            const doc = await db.collection('contracts').doc(id).get();
-            if (doc.exists) fresh = doc.data();
-        } catch (e) { console.warn('Fetch contract:', e); }
-
-        // If signed but PDF was generated BEFORE signature → regenerate to embed signatures
-        const hasSignatures = fresh && (fresh.tenantSignature || fresh.landlordSignature);
-        const needsRebuild = hasSignatures && !fresh.pdfRegeneratedAfterSign;
-        if (needsRebuild) {
-            toast('info', 'Rigenerazione PDF con firme...');
-            const ok = await generateContractPDF(id);
-            if (ok) {
-                await db.collection('contracts').doc(id).update({ pdfRegeneratedAfterSign: true }).catch(function(e){ console.warn('pdfRegeneratedAfterSign flag:', e); });
-                const localContract = S.contracts.find(x => x.id === id);
-                if (localContract) localContract.pdfRegeneratedAfterSign = true;
-                // Re-fetch the updated PDF
-                try {
-                    const doc2 = await db.collection('contracts').doc(id).get();
-                    if (doc2.exists) fresh = doc2.data();
-                } catch (e) {}
-            } else {
-                toast('error', 'Errore rigenerazione PDF');
-                return;
-            }
-        }
-
-        const storedPDF = fresh && fresh.generatedPDF;
-        if (storedPDF) {
-            try {
-                const how = await boomDownloadUrl(storedPDF, fileName);
-                if (how === 'failed') throw new Error('consegna non riuscita');
-                toast('success', hasSignatures ? 'Contratto firmato scaricato' : 'Contratto Allegato B scaricato');
-            } catch (e) { console.error('Download error:', e); toast('error', 'Errore download PDF'); }
-            return;
-        }
-
-        // No stored PDF (old contracts) — generate on the fly as fallback
-        toast('info', 'Generazione PDF in corso...');
-        const ok = await generateContractPDF(id);
-        if (ok) {
-            const after = S.contracts.find(x => x.id === id);
-            if (after?.generatedPDF) {
-                try {
-                    const how = await boomDownloadUrl(after.generatedPDF, fileName);
-                    if (how === 'failed') throw new Error('consegna non riuscita');
-                    toast('success', 'Contratto Allegato B generato e scaricato!');
-                } catch (e) { console.error('Download error:', e); toast('error', 'Errore download PDF'); }
-            }
-        } else { toast('error', 'Errore generazione PDF'); }
+            const how = await boomDownloadUrl(pdf.url, fileName);
+            if (how === 'failed') throw new Error('consegna non riuscita');
+            toast('success', how === 'opened' ? 'PDF aperto' : 'Download del PDF avviato');
+        } catch (e) { toast('error', 'Impossibile scaricare il PDF. Riprova.'); }
     }
     window.downloadContractPDF = downloadContractPDF;
 
@@ -29049,7 +28997,12 @@ IBAN: ${l.iban || '-'}`;
             // (spunta accesa), la proposta nel console (spunta spenta: è un
             // link che parte al cliente), il contratto saltato quando il deal
             // è già una proposta del console (nasce DA quella, non da qui).
-            create: { lead: true, preagreement: false }, pa: null, skipContract: false
+            create: { lead: true, preagreement: false }, pa: null, skipContract: false,
+            // «Riguarda» (22/09): l'immobile e le parti DICHIARATI dall'operatore
+            // prima della lettura — l'aggancio è certo (per id, qui) e il modello
+            // riceve nome e indirizzo come fatti; ciò che legge diventa una
+            // modifica proposta su QUEL record, non una card «nuovo».
+            target: { property: '', landlord: '', tenant: '' }
         };
     }
     let _innesto = innestoEmpty();
@@ -29097,9 +29050,10 @@ IBAN: ${l.iban || '-'}`;
                 <button class="btn btn-sm btn-secondary" type="button" onclick="document.getElementById('innestoCamInput').click()" title="Scatta una foto al documento">📷 Scatta</button>
                 <button class="btn" ${_innesto.busy ? 'disabled' : ''} onclick="innestoAnalyze()">${_innesto.busy ? 'Lettura in corso…' : (p ? 'Leggi e integra' : 'Leggi e proponi')}</button>
             </div>
+            ${innestoTargetRow()}
             ${_innesto.busy ? `<div id="innestoProgress" style="margin-top:10px;font-size:12.5px;color:var(--gold);line-height:1.5">${esc(innestoProgressText())}</div>` : ''}
             <div style="font-size:11.5px;color:var(--text-secondary);margin-top:10px;line-height:1.5">
-                Legge Claude Opus 5 con output strutturato: ogni campo porta la frase del documento da cui viene, e ciò che non c'è resta vuoto. Un file grande transita dal tuo Storage e viene rimosso a lettura finita: niente resta salvato finché non confermi.${p ? ' <b>Con la proposta aperta, una nuova lettura riempie i buchi</b> (es. la carta d\'identità dopo il contratto) — non cancella niente.' : ''}
+                Legge Claude Opus 5: ogni campo porta la frase del documento da cui viene, ciò che non c'è resta vuoto, e con <b>Riguarda</b> l'aggancio a un immobile o a una persona in archivio è certo (i dati letti diventano una modifica proposta su quel record, es. il catasto di una visura sulla casa che c'è già). Un file grande transita dal tuo Storage e viene rimosso a lettura finita: niente resta salvato finché non confermi.${p ? ' <b>Con la proposta aperta, una nuova lettura riempie i buchi</b> (es. la carta d\'identità dopo il contratto) — non cancella niente.' : ''}
             </div>
         </div>
 
@@ -29242,6 +29196,73 @@ IBAN: ${l.iban || '-'}`;
         return html;
     }
 
+    // «RIGUARDA» (22/09/2026 — «dati catastali da collegare a una proprietà …
+    // non ha rilevato nulla»): tre tendine, immobile · proprietario ·
+    // inquilino, tutte facoltative. Dichiarare il bersaglio fa due cose:
+    // il server riceve nome e indirizzo come FATTI (property.name/address
+    // non sono più da dedurre) e il portal forza l'aggancio PER ID, così i
+    // dati letti diventano la modifica proposta su quel record (diffRecord)
+    // invece di una card «nuovo» da ricollegare a mano. Nessun renderPage
+    // al cambio se non c'è una proposta aperta: una tendina non perde niente.
+    function innestoTargetRow() {
+        const pools = innestoPools();
+        const t = _innesto.target || {};
+        const sel = (kind, label, pool, withAddr) => `<select onchange="innestoSetTarget('${kind}', this.value)" title="${esc(label)}"
+                style="flex:1;min-width:170px;max-width:100%;background:var(--bg-input);border:1px solid ${t[kind] ? 'var(--gold)' : 'var(--border)'};border-radius:8px;color:var(--text);padding:7px 10px;font-size:12.5px;font-family:inherit">
+                <option value="">— ${esc(label)} —</option>
+                ${pool.map(r => `<option value="${esc(r.id)}" ${t[kind] === r.id ? 'selected' : ''}>${esc(innestoRecordLabel(r, withAddr))}</option>`).join('')}
+            </select>`;
+        return `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px">
+                <span style="font-size:11px;color:var(--text-secondary);letter-spacing:1px;text-transform:uppercase" title="Dichiara a cosa si riferisce il materiale: l'aggancio è certo e ciò che viene letto diventa una modifica proposta su quel record (es. i dati catastali di una visura sull'immobile che c'è già)">Riguarda</span>
+                ${sel('property', '🏠 immobile', pools.property, true)}
+                ${sel('landlord', '🏛 proprietario', pools.landlord, false)}
+                ${sel('tenant', '👤 inquilino', pools.tenant, false)}
+            </div>`;
+    }
+    function innestoRecordLabel(r, withAddr) {
+        const name = r.name || r.businessName || r.email || r.id;
+        const addr = withAddr && r.address && r.address !== r.name ? ' — ' + r.address : '';
+        const s = name + addr;
+        return s.length > 70 ? s.slice(0, 67) + '…' : s;
+    }
+    function innestoSetTarget(kind, id) {
+        if (!_innesto.target) _innesto.target = { property: '', landlord: '', tenant: '' };
+        const prev = _innesto.target[kind] || '';
+        _innesto.target[kind] = id || '';
+        if (!_innesto.proposal) return;
+        if (!id && prev && _innesto.links[kind] === prev) delete _innesto.links[kind];
+        innestoApplyTarget();
+        renderPage();
+    }
+    // Il bersaglio vince sull'aggancio dedotto: per id, sempre.
+    function innestoApplyTarget() {
+        const t = _innesto.target || {};
+        ['property', 'landlord', 'tenant'].forEach(k => { if (t[k]) _innesto.links[k] = t[k]; });
+    }
+    // Ciò che il server riceve: nome (e indirizzo) del record scelto — mai
+    // il solo id, che al modello non dice niente.
+    function innestoTargetPayload() {
+        const pools = innestoPools();
+        const t = _innesto.target || {};
+        const out = {};
+        [['property', pools.property], ['landlord', pools.landlord], ['tenant', pools.tenant]].forEach(([k, pool]) => {
+            if (!t[k]) return;
+            const r = pool.find(x => x.id === t[k]);
+            if (!r) return;
+            out[k] = k === 'property' ? { name: r.name || '', address: r.address || '' } : { name: r.name || r.businessName || '' };
+        });
+        return out;
+    }
+    // Dal fascicolo dell'immobile: l'Innesto si apre già puntato su quel
+    // record («Innesto da documento»). Una proposta aperta non si butta via.
+    function innestoOpenFor(kind, id) {
+        if (!_innesto.proposal && !_innesto.files.length && !(_innesto.text || '').trim()) _innesto = innestoEmpty();
+        if (!_innesto.target) _innesto.target = { property: '', landlord: '', tenant: '' };
+        _innesto.target[kind] = id || '';
+        if (_innesto.proposal) innestoApplyTarget();
+        goTo('innesto');
+    }
+
     // Il pool di un aggancio: users (con ruolo) + landlords (senza), ognuno
     // marcato con la SUA collection — è dove atterra un aggiornamento.
     function innestoPools() {
@@ -29335,7 +29356,10 @@ IBAN: ${l.iban || '-'}`;
         // le tre vie: aggancio dall'archivio, compilazione a mano, o un
         // altro documento letto in integrazione.
         const ghost = (key, icon, title, pool, required) => {
-            if (p[key] || !p.contract) return '';
+            // Anche senza contratto, se il record è stato DICHIARATO (Riguarda)
+            // ma il materiale non ne ha portato i dati: l'operatore vede che
+            // l'aggancio c'è e che non c'è niente da scrivere lì.
+            if (p[key] || (!p.contract && !_innesto.links[key])) return '';
             const chosen = _innesto.links[key] || '';
             return `
             <div class="card" style="margin-bottom:14px;border-style:dashed">
@@ -29343,7 +29367,7 @@ IBAN: ${l.iban || '-'}`;
                     <strong style="font-size:14px">${icon} ${esc(title)}</strong>
                     <span style="font-size:11px;letter-spacing:1px;text-transform:uppercase;color:${chosen ? '#00FF88' : '#FF6B35'}">${chosen ? '✓ agganciato dall\'archivio' : 'non letto dal documento'}</span>
                 </div>
-                <div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:10px;line-height:1.5">${required ? 'Serve per il contratto: ' : 'Facoltativo: '}scegli dall'archivio, compila a mano, oppure allega un altro documento (es. la carta d'identità) e rileggi — i dati si integrano.</div>
+                <div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:10px;line-height:1.5">${chosen && !p.contract ? 'Dichiarato in «Riguarda», ma il materiale letto non porta dati per questo record: niente da scrivere qui. Compila a mano, oppure allega un altro documento e rileggi.' : (required ? 'Serve per il contratto: ' : 'Facoltativo: ') + 'scegli dall\'archivio, compila a mano, oppure allega un altro documento (es. la carta d\'identità) e rileggi — i dati si integrano.'}</div>
                 <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
                     <select onchange="innestoPick('${key}', this.value)"
                         style="flex:1;min-width:200px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:8px 10px;font-size:13px;font-family:inherit">
@@ -29545,7 +29569,7 @@ IBAN: ${l.iban || '-'}`;
     async function innestoSend(inlineBudget, transitRefs) {
         const text = _innesto.text || '';
         const mb = (n) => (n / 1024 / 1024).toFixed(1) + ' MB';
-        const payload = { text: text.slice(0, 60000), files: [], context: { hint: _innesto.hint || '', known: {
+        const payload = { text: text.slice(0, 60000), files: [], context: { hint: _innesto.hint || '', target: innestoTargetPayload(), known: {
             landlords: (S.users || []).filter(u => u.role === 'landlord' || u.role === 'owner').map(u => u.name).concat((S.landlords || []).map(l => l.name)).filter(Boolean).slice(0, 60),
             tenants: (S.users || []).filter(u => u.role === 'tenant').map(u => u.name).filter(Boolean).slice(0, 60),
             properties: (S.properties || []).map(p => [p.name, p.address].filter(Boolean).join(' — ')).filter(Boolean).slice(0, 60)
@@ -29880,6 +29904,7 @@ IBAN: ${l.iban || '-'}`;
             _innesto.notes = integrating ? (_innesto.notes || []).concat(data.notes || []) : (data.notes || []);
             _innesto.confidence = data.confidence;
             if (!integrating) { _innesto.links = {}; _innesto.coLinks = {}; _innesto.diffs = {}; }
+            innestoApplyTarget();   // «Riguarda» batte l'aggancio dedotto: per id
             toast('success', integrating ? 'Proposta integrata' : 'Proposta pronta', 'Controlla i campi (e le citazioni) prima di confermare');
         }
         if (!data.empty) { _innesto.files = []; _innesto.text = ''; }   // il prossimo giro legge i PROSSIMI documenti; una lettura vuota li lascia lì per riprovare
