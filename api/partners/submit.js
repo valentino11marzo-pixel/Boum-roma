@@ -95,7 +95,17 @@ export default async function handler(req, res) {
   const phone = clip(body.phone, 40);
   const note = clip(body.message, 600);
 
-  if (!name || !EMAIL_RE.test(email)) {
+  // Un ente risponde per email; un PROPRIETARIO romano risponde al
+  // telefono. Per lui basta un numero vero (≥ 8 cifre): la card 🔑 di
+  // notify-pending porta già il WhatsApp one-tap. Un'email scritta MALE
+  // resta un rifiuto anche col telefono: salvarla vorrebbe dire che
+  // qualcuno, prima o poi, ci scrive a vuoto.
+  const phoneOk = phone.replace(/\D/g, '').length >= 8;
+  const emailOk = EMAIL_RE.test(email);
+  const reachable = kindKey === 'owner'
+    ? (emailOk || (!email && phoneOk))
+    : emailOk;
+  if (!name || !reachable) {
     return res.status(400).json({ ok: false, error: 'contact_required' });
   }
 
@@ -112,7 +122,7 @@ export default async function handler(req, res) {
     source: 'partner',
     service: null,
     name,
-    email,
+    email: email || null,
     phone: phone || null,
     message,
     notes: message,
@@ -145,6 +155,9 @@ export default async function handler(req, res) {
     raw: { ip, ua: clip(req.headers['user-agent'], 300) },
     createdAt: now,
     ingestedAt: now,
+    // Il proprietario non è un inquilino: il lato lo fissa la porta. In
+    // CODA all'oggetto, o lo `zone: null` di sopra lo cancellerebbe.
+    ...(kindKey === 'owner' ? { leadType: 'landlord', zone: org || null } : {}),
   };
 
   let id = null;

@@ -299,10 +299,10 @@ const PAGES = {
   // ════════════════════════════════════════════════════════════════════
   'owners.html': {
     path: '/owners',
-    title: 'Proprietari — Gestione Immobiliare Premium a Roma | BOOM',
+    title: 'Affittare casa a Roma con BOOM — per i proprietari',
     description:
-      'Affida il tuo immobile a chi ne risponde legalmente. Prima locazione gratuita, garanzia di solvibilità, screening rigoroso e portale esclusivo per proprietari.',
-    keywords: ['gestione immobiliare Roma', 'property management Rome', 'affittare casa Roma sicuro', 'proprietari Roma'],
+      "Valutazione del canone, inquilini verificati, contratto registrato sui modelli dell'accordo di Roma, verbale, inventario e rendiconto mensile in PDF.",
+    keywords: ['affittare casa Roma', 'gestione affitti Roma', 'canone concordato Roma', 'proprietari Roma', 'contratto transitorio Roma'],
     type: 'website',
     lang: 'it',
     locale: 'it_IT',

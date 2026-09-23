@@ -340,9 +340,9 @@ function serviceJsonLd(serviceKey, canonicalUrl) {
       type: 'PropertyManagement',
     },
     propertyManagement: {
-      name: 'Premium Property Management',
+      name: 'Affitto e gestione per i proprietari a Roma',
       description:
-        'End-to-end property management for Rome landlords: tenant screening, legal contracts, rent collection, maintenance.',
+        "Valutazione del canone, pubblicazione, selezione dell'inquilino, contratto sui modelli dell'accordo territoriale di Roma firmato online e registrato, verbale di consegna e inventario, rendiconto mensile in PDF.",
       type: 'PropertyManagement',
     },
   };

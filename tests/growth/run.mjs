@@ -97,6 +97,18 @@ console.log('\n\x1b[1m▸ i quattro tipi, e nient\'altro\x1b[0m');
   ok('un tipo inventato è rifiutato', bad.code === 400 && bad.leads.length === 0);
   const noMail = await callPartner({ kind: 'university', name: 'X', email: 'non-una-email' });
   ok('senza email valida non entra', noMail.code === 400 && noMail.leads.length === 0);
+  // Il proprietario risponde al telefono: per lui il numero BASTA, per un
+  // ente no. E un'email scritta male resta un rifiuto anche col telefono.
+  const ownPhone = await callPartner({ kind: 'owner', name: 'Maria Rossi', phone: '+39 333 123 4567', org: 'Prati' });
+  ok('proprietario col solo telefono: entra', ownPhone.code === 200 && ownPhone.leads.length === 1);
+  const of = ownPhone.leads[0] && ownPhone.leads[0].body.fields;
+  ok('…come proprietario (leadType landlord) con la zona', !!of && of.leadType.stringValue === 'landlord' && of.zone.stringValue === 'Prati');
+  const uniPhone = await callPartner({ kind: 'university', name: 'X', phone: '+39 333 123 4567' });
+  ok('un ente col solo telefono: no', uniPhone.code === 400 && uniPhone.leads.length === 0);
+  const ownBad = await callPartner({ kind: 'owner', name: 'X', email: 'non-una-email', phone: '+39 333 123 4567' });
+  ok('proprietario con email rotta: no, anche col telefono', ownBad.code === 400 && ownBad.leads.length === 0);
+  const ownShort = await callPartner({ kind: 'owner', name: 'X', phone: '123' });
+  ok('proprietario con un numero finto: no', ownShort.code === 400 && ownShort.leads.length === 0);
   const hp = await callPartner({ kind: 'university', name: 'X', email: 'x@y.it', company: 'bot' });
   ok('honeypot: nessuna scrittura', hp.code === 200 && hp.leads.length === 0);
 
