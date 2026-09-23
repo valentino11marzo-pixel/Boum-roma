@@ -33,6 +33,7 @@ const HIDDEN_STATUSES = new Set(['draft', 'hidden', 'archived']);
 const UNAVAILABLE_STATUSES = new Set(['rented', 'affittato', 'off_market', 'reserved']);
 const CATALOG_LIMIT = 200;
 const text = (v, max = 180) => typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null;
+const floorText = (v) => typeof v === 'number' && Number.isFinite(v) ? String(v) : text(v);
 const number = (v) => (typeof v === 'number' || typeof v === 'string' && v.trim())
   && Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : null;
 
@@ -52,7 +53,7 @@ function catalogEntry(l, today) {
     id: l.id, name: text(l.name), address: text(l.address), zone: text(l.zone),
     type: text(l.type), status,
     priceEurMonth: number(l.price), bedrooms: number(l.bedrooms ?? l.beds),
-    sqm: number(l.sqm ?? l.size), bathrooms: number(l.bathrooms), floor: text(l.floor),
+    sqm: number(l.sqm ?? l.size), bathrooms: number(l.bathrooms), floor: floorText(l.floor),
     furnished: typeof l.furnished === 'boolean' ? l.furnished : null,
     depositMonths: number(l.depositMonths),
     availableFrom: text(l.availableFrom) || text(l.availableDate),

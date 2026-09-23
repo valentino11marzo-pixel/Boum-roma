@@ -3531,7 +3531,7 @@ mutazione).
 
 ### Il Centralino (`api/phone/*` + `/chiamate`) — la segreteria che lavora
 - **Catalogo consultabile per indirizzo (23/09)**: la voce perdeva indirizzo, descrizione e stato; gli affittati sparivano, quindi un annuncio ancora sui portali sembrava inesistente.
-  `phone/agent-tools` conserva i dettagli pubblici con whitelist, descrizioni IT/originale e disponibilità da `dispo-engine`; waitlist e date illeggibili non diventano disponibilità immediata.
+  `phone/agent-tools` conserva i dettagli pubblici con whitelist, descrizioni IT/originale e disponibilità da `dispo-engine`; waitlist e date illeggibili non diventano disponibilità immediata. Il piano accetta testo o numero finito, incluso zero; valori invalidi restano `null`.
   Gli affittati/riservati restano riconoscibili nell'indice separato `unavailableListings`, mai tra le alternative; nascosti, bozze e archiviati restano esclusi.
   Rimossi i tagli silenziosi a 60/25: sentinella oltre 200, `complete:false` e istruzione esplicita. Fonti discordanti/spese assenti richiedono verifica, senza copia privata o ricerca fittizia sui portali.
   Prove `phone` + `dispo`, incluse mutazioni su indirizzo, stato e indice affittati. Nessuna modifica a dati live, prompt ElevenLabs, invii o prenotazioni; collaudo vocale necessario dopo il rilascio.

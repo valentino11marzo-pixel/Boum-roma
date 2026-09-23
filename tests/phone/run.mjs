@@ -722,10 +722,19 @@ const elCall = async (payload, { secret = 'el-secret', t = Math.floor(Date.now()
   DB.set('listings/malformed', { id: 'malformed', status: 'available', type: 'Room',
     availableDate: 'da concordare', furnished: 'false', price: '', bedrooms: '1+1',
     description: 'a'.repeat(601) });
+  const floorCases = [
+    [0, '0'], [5, '5'], [-1, '-1'], ['  rialzato  ', 'rialzato'],
+    [null, null], [true, null], [{ value: 5 }, null], [[], null], ['', null],
+    [NaN, null], [Infinity, null],
+  ];
+  floorCases.forEach(([floor], i) => DB.set('listings/floor_' + i,
+    { id: 'floor_' + i, status: 'available', floor }));
   const expanded = await call(agentTools, { method: 'GET', query: { k: KEY, op: 'catalog' } });
   const waiting = expanded.out.listings.find(l => l.id === 'waiting');
   const malformed = expanded.out.listings.find(l => l.id === 'malformed');
   const old = expanded.out.unavailableListings?.find(l => l.id === 'old_ad');
+  ok('catalog: piano numerico incluso zero e negativo, testo preservato; valori invalidi null',
+    floorCases.every(([, expected], i) => expanded.out.listings.find(l => l.id === 'floor_' + i)?.floor === expected));
   ok('catalog: annuncio affittato riconoscibile per indirizzo, mai fra le alternative',
     old?.address === 'Via Esempio 16' && old.status === 'rented'
     && !expanded.out.listings.some(l => l.id === 'old_ad'));
