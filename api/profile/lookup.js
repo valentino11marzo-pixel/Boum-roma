@@ -25,6 +25,7 @@ import { fsGet, readJson } from '../homie/_lib.js';
 import { setCors, rateOk } from '../magic-sign/_shared.js';
 import { parseSchedaRef, schedaLocked, mergedIdentity } from './_scheda.js';
 import FIELDS from '../../js/contract-fields.js';
+import { LL_MANDATE_TEXT } from '../preagreement/_consent.js';
 
 export default async function handler(req, res) {
   setCors(req, res);
@@ -108,6 +109,34 @@ export default async function handler(req, res) {
   // `complete` = il PDF non stamperebbe puntini per questa parte.
   const complete = FIELDS.completeness(ctx, { level: 'contract' }).byOwner[role].missing.length === 0;
 
+  // IL MANDATO DEL PROPRIETARIO (23/09/2026, solo per il ruolo landlord): la
+  // card sulla Scheda esce SOLO se la console l'ha chiesto
+  // (contract.askLandlordMandate) — mai un mandato che nessuno ha offerto —
+  // col TESTO che il server registrerà (una copia: _consent.js) e le
+  // condizioni che copre, lette dal contratto: le stesse che la firma per
+  // mandato verificherà (landlordMandateCheck). A mandato dato, lo stato.
+  let landlordMandate = null;
+  if (role === 'landlord') {
+    const m = (contract.landlordMandate && contract.landlordMandate.given === true) ? contract.landlordMandate : null;
+    const offered = contract.askLandlordMandate === true;
+    if (offered || m) {
+      const coT = (Array.isArray(contract.coTenants) ? contract.coTenants : []).map(x => x && x.name).filter(Boolean);
+      landlordMandate = {
+        offered, given: !!m, at: m ? (m.at || null) : null, docUrl: m ? (m.docUrl || null) : null,
+        signed: !!contract.landlordSignature,
+        text: LL_MANDATE_TEXT,
+        terms: {
+          tenants: [contract.tenantName || '', ...coT].filter(Boolean),
+          rent: Number(contract.rent) || 0, deposit: Number(contract.deposit) || 0,
+          startDate: contract.startDate || null, endDate: contract.endDate || null,
+          installmentMonths: [1, 2, 3, 6, 12].includes(Number(contract.installmentMonths)) ? Number(contract.installmentMonths) : 1,
+          model: template, type: contract.type || null,
+          cedolare: ((contract.cedolareSecca || 'si') !== 'no' && contract.cedolareSecca !== false),
+        },
+      };
+    }
+  }
+
   return res.status(200).json({
     ok: true,
     role,
@@ -120,5 +149,6 @@ export default async function handler(req, res) {
     docsCount,
     ask: { sections: ask.sections, identityMissing: ask.identityMissing, missingCount: ask.missingCount, lang: ask.lang },
     missing,
+    ...(landlordMandate ? { landlordMandate } : {}),
   });
 }

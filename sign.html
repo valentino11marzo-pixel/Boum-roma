@@ -585,7 +585,14 @@
       var otherLabel = S.role==='tenant' ? t('r_landlord') : t('r_tenant');
       var otherName = (S.data.otherParty && S.data.otherParty.name) || '—';
       var pdf = (S.data.contract && S.data.contract.generatedPDF) || '';
-      var dele=(S.role==='landlord'&&c.landlordDelegate&&c.landlordDelegate.name)?c.landlordDelegate:null;
+      // La delega/il mandato del PROPRIETARIO: la pagina lo dichiara SOLO
+      // quando è l'operatore ad aprire il link (&delegate=1) — il locatore
+      // che apre il proprio link nudo firma come sé stesso, e il server
+      // stampa «per delega» solo con asDelegate:true (stessa regola del
+      // conduttore). Col mandato scritto dalla Scheda, la data e l'avviso
+      // se le condizioni non sono più quelle (il server rifiuterebbe: 409).
+      var dele=(S.role==='landlord'&&ASDELE&&c.landlordDelegate&&c.landlordDelegate.name)?c.landlordDelegate:null;
+      var lmand=c.landlordMandate||null;
       // Il mandato del conduttore: l'operatore apre il link del CONDUTTORE
       // e firma in sua vece — solo se il contratto porta tenantDelegate E un
       // mandato scritto (il server lo verifica di nuovo al submit: senza
@@ -597,7 +604,7 @@
         '<div class="step">'+
           '<h1 class="t">'+t('rev_t')+'</h1>'+
           '<p class="sub">'+t('rev_welcome')+(signer.name?(', '+esc(signer.name)):'')+'. '+t('rev_d')+'</p>'+
-          (dele?'<p class="sub" style="border:1px dashed rgba(212,175,55,.4);border-radius:10px;padding:10px 14px">✍️ You are countersigning as <b>'+esc(dele.name)+'</b> on behalf of <b>'+esc(dele.onBehalfOf||'the landlord')+'</b>'+(dele.basis?(' — '+esc(dele.basis)):'')+'. The signature will be recorded as a delegate signature.</p>':'')+
+          (dele?'<p class="sub" style="border:1px dashed rgba(212,175,55,.4);border-radius:10px;padding:10px 14px">✍️ You are countersigning as <b>'+esc(dele.name)+'</b> on behalf of <b>'+esc(dele.onBehalfOf||'the landlord')+'</b>'+(lmand&&lmand.at?(' — written mandate given by the landlord on '+esc(String(lmand.at).slice(0,10))+(lmand.ref?(' ('+esc(lmand.ref)+')'):'')+(lmand.termsOk===false?'. <b style="color:#F08585">The contract terms are no longer those of the mandate ('+esc((lmand.termsChanged||[]).join(', '))+'): the server will refuse this signature.</b>':'')):(dele.basis?(' — '+esc(dele.basis)):''))+'. The signature will be recorded as a delegate signature.</p>':'')+
           (tdele?'<p class="sub" style="border:1px dashed rgba(212,175,55,.4);border-radius:10px;padding:10px 14px">✍️ You are signing as <b>'+esc(tdele.name)+'</b> on behalf of the tenant <b>'+esc(tdele.onBehalfOf||signer.name||'')+'</b>'+(tmand&&tmand.at?(' — written mandate given on '+esc(String(tmand.at).slice(0,10))+(tmand.ref?(' with proposal '+esc(tmand.ref)):'')):' — <b>no written mandate on file: the server will refuse this signature</b>')+'. The signature will be recorded as signed under mandate.'+(tmand&&tmand.termsOk===false?'<br><b style="color:#E08573">The contract terms no longer match the conditions the tenant accepted'+((tmand.termsChanged||[]).length?' ('+esc((tmand.termsChanged||[]).join(', '))+')':'')+': the server will refuse this signature. Send the tenant their own link, or issue a new proposal.</b>':'')+'</p>':'')+
           '<div class="summary">'+
             '<div class="prop"><div class="lbl">'+t('k_prop')+'</div><div class="name">'+esc(p.name||p.title||'Apartment')+'</div><div class="addr">'+esc(p.address||'')+'</div></div>'+
@@ -907,7 +914,7 @@
       Promise.all([ sha256Hex(CONSENT), fetchIP() ]).then(function(arr){
         var payload = {
           token: TOKEN,
-          asDelegate: !!(ASDELE && S.role==='tenant'),
+          asDelegate: !!(ASDELE && (S.role==='tenant' || S.role==='landlord')),
           signature: S.signature,
           signerIP: arr[1],
           signerName: S.id.name || signer.name || '',

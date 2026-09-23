@@ -169,6 +169,19 @@
     .upl .big{font-size:26px;margin-bottom:6px}
     .upl .tt{font-size:13px;font-weight:600;color:var(--text-2)}
     .upl .dd{font-size:11.5px;color:var(--text-4);margin-top:3px}
+    /* Il mandato del proprietario: la card (dashed finché non è dato, solid dopo) */
+    .mand{margin:14px 0 6px;border:1px dashed rgba(233,199,102,.45);border-radius:14px;padding:14px 16px;background:rgba(233,199,102,.05)}
+    .mand.given{border-style:solid;border-color:rgba(95,208,140,.45);background:rgba(95,208,140,.05)}
+    .mand .mh{display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap;margin-bottom:4px}
+    .mand .mh b{font-size:11px;letter-spacing:1.4px;text-transform:uppercase;color:var(--gold);font-weight:600}
+    .mand.given .mh b{color:var(--green)}
+    .mand .mh span{font-size:11px;color:var(--text-3)}
+    .mand p{font-size:12.5px;color:var(--text-2);line-height:1.55;margin:4px 0 0}
+    .mand .mtl{font-size:9.5px;font-weight:600;letter-spacing:1.4px;text-transform:uppercase;color:var(--text-4);margin:10px 0 5px}
+    .mand .txt{font-size:11.5px;color:var(--text-3);line-height:1.55;max-height:150px;overflow:auto;padding:9px 11px;border:1px solid var(--line-2);border-radius:9px;background:rgba(0,0,0,.25)}
+    .mand label.cb{display:flex;gap:10px;align-items:flex-start;font-size:12.5px;color:var(--text-2);line-height:1.5;margin:12px 0 6px;cursor:pointer}
+    .mand label.cb input{margin-top:3px;accent-color:#E9C766;flex:0 0 auto}
+    .mand .mlink{display:inline-block;margin-top:10px;font-size:12px;color:var(--gold);text-decoration:underline}
     .docrow{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:11px;
       padding:10px 13px;margin-bottom:8px;font-size:12.5px;color:var(--text-2)}
     .docrow .ok{color:var(--green);flex-shrink:0}
@@ -308,6 +321,16 @@
         alone:'I’ll live alone', people_more:'Anyone else living with you?', people_ph:'Full names, separated by commas',
         cotenants:'Already on the contract as co-tenants', yes:'Yes', no:'No',
         still:'We still need', more:'and %1 more',
+        mand_t:'Mandate to sign the lease', mand_sub:'so you don’t have to come back for the signature',
+        mand_tenant:'Tenant', mand_tenants:'Tenants', mand_rent:'Monthly rent', mand_dep:'Deposit', mand_period:'Term', mand_cad:'Instalments', mand_model:'Contract model',
+        mand_mA:'Allegato A · 3+2 agreed rent', mand_mB:'Allegato B · transitional', mand_mC:'Allegato C · students',
+        cad1:'monthly', cad2:'every 2 months', cad3:'quarterly', cad6:'every 6 months', cad12:'yearly',
+        mand_text:'The mandate text',
+        mand_cb:'I give BOOM this mandate. BOOM signs the lease in my name on exactly these terms; I receive the signed contract and its certificate by email.',
+        mand_btn:'Give BOOM the mandate to sign →',
+        mand_given:'Mandate given', mand_given_d:'BOOM will sign the lease for you on exactly these terms. You’ll receive the signed contract and its certificate by email.',
+        mand_doc:'Open the mandate document (PDF)',
+        mand_fail:'Couldn’t save the mandate — please try again or message BOOM.', mand_notoffered:'This mandate wasn’t requested for your contract — message BOOM.', mand_signed:'You already signed this contract.',
         e_val:'Some answers weren’t accepted — check the highlighted fields.',
       },
       it: {
@@ -345,6 +368,16 @@
         alone:'Vivo da solo', people_more:'Chi altro abiterà con te?', people_ph:'Nome e cognome, separati da virgola',
         cotenants:'Già sul contratto come co-conduttori', yes:'Sì', no:'No',
         still:'Ci manca ancora', more:'e altri %1',
+        mand_t:'Mandato a firmare il contratto', mand_sub:'così non devi tornare per la firma',
+        mand_tenant:'Conduttore', mand_tenants:'Conduttori', mand_rent:'Canone mensile', mand_dep:'Deposito', mand_period:'Durata', mand_cad:'Rate', mand_model:'Modello',
+        mand_mA:'Allegato A · 3+2 canone concordato', mand_mB:'Allegato B · transitorio', mand_mC:'Allegato C · studenti',
+        cad1:'mensili', cad2:'bimestrali', cad3:'trimestrali', cad6:'semestrali', cad12:'annuali',
+        mand_text:'Il testo del mandato',
+        mand_cb:'Conferisco a BOOM questo mandato. BOOM firma il contratto in mio nome esattamente a queste condizioni; ricevo via email il contratto firmato e il certificato.',
+        mand_btn:'Do a BOOM il mandato a firmare →',
+        mand_given:'Mandato conferito', mand_given_d:'BOOM firmerà il contratto per te esattamente a queste condizioni. Riceverai via email il contratto firmato e il certificato.',
+        mand_doc:'Apri il documento del mandato (PDF)',
+        mand_fail:'Non sono riuscito a registrare il mandato — riprova o scrivi a BOOM.', mand_notoffered:'Questo mandato non è stato richiesto per il tuo contratto — scrivi a BOOM.', mand_signed:'Hai già firmato questo contratto.',
         e_val:'Alcune risposte non sono valide — controlla i campi evidenziati.',
       }
     };
@@ -440,6 +473,7 @@
             return centered(ICON_WARN, t('err_t'), t('err_d'), SUPPORT);
           }
           S.data=j; S.role=j.role||'tenant'; S.locked=!!j.locked; S.docs=j.docsCount||0;
+          S.mandate = (S.role==='landlord' && j.landlordMandate) ? j.landlordMandate : null;
           S.id = idFrom(j.signer||{});
           S.answers={}; setAsk(j.ask, j.missing, j.template);
           if(!LANG_CHOSEN) setLang(S.role==='landlord' ? 'it' : 'en');
@@ -460,6 +494,7 @@
         signer: known||ll ? { name: ll?'Giulia Bianchi':'Anna Smith', cf:'RSSMRA85T10A562S', dob:'1998-05-04', pob: ll?'Roma':'Boston, USA', address: ll?'Via dei Coronari 8, Roma':'Via della Lungaretta 12, Roma', docType: ll?'id':'passport', docNum: ll?'CA9988776':'USA991', docIssuer: ll?'Comune di Roma':'US Dept of State', docIssueDate:'2022-01-01', nationality: ll?'Italiana':'American' } : {},
       };
       S.role = S.data.role; S.locked=false; S.docs=0;
+      S.mandate = ll ? { offered:true, given:false, signed:false, text:'MANDATO A FIRMARE. Conferisco a Egidi Immobiliare S.r.l. (BOOM) mandato con rappresentanza a sottoscrivere in mio nome e per mio conto il contratto di locazione dell’immobile indicato, esattamente alle condizioni qui riportate, senza modifiche. (demo)', terms:{ tenants:['Anna Smith'], rent:1500, deposit:3000, startDate:'2026-09-01', endDate:'2027-08-31', installmentMonths:1, model:'B' } } : null;
       S.id = idFrom(S.data.signer||{});
       // Le sezioni extra della demo, nella STESSA forma della risposta di
       // /api/profile/lookup (label/ask/title bilingui, options {v,label}).
@@ -501,6 +536,66 @@
         '<div class="name">'+esc(p.name||'Apartment')+'</div><div class="addr">'+esc(p.address||'')+(period?(' · '+esc(period)):'')+'</div></div></div>';
     }
 
+    // ═══ IL MANDATO DEL PROPRIETARIO (23/09/2026) ═══
+    // La card esce SOLO per il locatore e SOLO se la console l'ha chiesta
+    // (lookup.landlordMandate.offered) — col testo che il server registra
+    // (una copia: il server lo manda, la pagina lo mostra) e le condizioni che
+    // copre. La spunta non è mai pre-selezionata; un tap = POST
+    // /api/profile/mandate {t, mandate:true}. A mandato dato, lo stato.
+    function mEur(n){ n=Number(n)||0; return '€ '+n.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g,'.'); }
+    function mandateCard(){
+      var m=S.mandate; if(!m||S.role!=='landlord'||!(m.offered||m.given)) return '';
+      if(m.signed&&!m.given) return '';
+      var tm=m.terms||{}; var tn=Array.isArray(tm.tenants)?tm.tenants:[];
+      var model={A:t('mand_mA'),B:t('mand_mB'),C:t('mand_mC')}[tm.model]||'';
+      var terms='<div class="summary" style="margin:12px 0 10px"><div class="grid2">'
+        +'<div class="cell"><div class="k">'+esc(tn.length>1?t('mand_tenants'):t('mand_tenant'))+'</div><div class="v">'+esc(tn.join(' · ')||'—')+'</div></div>'
+        +'<div class="cell"><div class="k">'+esc(t('mand_rent'))+'</div><div class="v">'+esc(mEur(tm.rent))+'</div></div>'
+        +'<div class="cell"><div class="k">'+esc(t('mand_dep'))+'</div><div class="v">'+esc(mEur(tm.deposit))+'</div></div>'
+        +'<div class="cell"><div class="k">'+esc(t('mand_period'))+'</div><div class="v">'+esc((tm.startDate||'—')+' → '+(tm.endDate||'—'))+'</div></div>'
+        +'<div class="cell"><div class="k">'+esc(t('mand_cad'))+'</div><div class="v">'+esc(t('cad'+(tm.installmentMonths||1)))+'</div></div>'
+        +'<div class="cell"><div class="k">'+esc(t('mand_model'))+'</div><div class="v">'+esc(model||'—')+'</div></div>'
+        +'</div></div>';
+      if(m.given){
+        setTimeout(mandateScroll,0);
+        return '<div class="mand given" id="mandato"><div class="mh"><b>✓ '+esc(t('mand_given'))+'</b><span>'+esc(String(m.at||'').slice(0,10))+'</span></div>'
+          +'<p>'+esc(t('mand_given_d'))+'</p>'+terms
+          +(m.docUrl?'<a class="mlink" href="'+esc(m.docUrl)+'" target="_blank" rel="noopener">'+esc(t('mand_doc'))+'</a>':'')+'</div>';
+      }
+      setTimeout(wireMandate,0);
+      return '<div class="mand" id="mandato"><div class="mh"><b>'+esc(t('mand_t'))+'</b><span>'+esc(t('mand_sub'))+'</span></div>'
+        +terms
+        +'<div class="mtl">'+esc(t('mand_text'))+'</div><div class="txt">'+esc(m.text||'')+'</div>'
+        +'<label class="cb"><input type="checkbox" id="mand-cb"><span>'+esc(t('mand_cb'))+'</span></label>'
+        +'<button class="btn" id="mand-btn" disabled>'+esc(t('mand_btn'))+'</button>'
+        +'<div class="err" id="mand-err"></div></div>';
+    }
+    function mandateScroll(){
+      if(S.mandScrolled||location.hash!=='#mandato') return;
+      var box=document.getElementById('mandato'); if(!box) return;
+      S.mandScrolled=true; setTimeout(function(){ box.scrollIntoView({behavior:'smooth',block:'center'}); },250);
+    }
+    function wireMandate(){
+      var cb=document.getElementById('mand-cb'), b=document.getElementById('mand-btn'); if(!cb||!b) return;
+      cb.onchange=function(){ b.disabled=!cb.checked; };
+      b.onclick=function(){ giveMandate(b); };
+      mandateScroll();
+    }
+    function giveMandate(btn){
+      var err=document.getElementById('mand-err'); if(err) err.style.display='none';
+      var lbl=btn.textContent; btn.disabled=true; btn.innerHTML='<span class="spin"></span>';
+      var fail=function(msg){ btn.disabled=false; btn.textContent=lbl; if(err){ err.textContent=msg; err.style.display='block'; } };
+      var done=function(j){ S.mandate.given=true; S.mandate.at=j.at||new Date().toISOString(); S.mandate.docUrl=j.docUrl||null; S.mandScrolled=false; location.hash='#mandato'; if(S.view) S.view(); };
+      if(DEMO){ setTimeout(function(){ done({ at:new Date().toISOString() }); }, 600); return; }
+      fetch('/api/profile/mandate',{ method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ t:T, mandate:true }) })
+        .then(function(r){ return r.json().catch(function(){return {ok:false};}); })
+        .then(function(j){
+          if(!j.ok) return fail(j.error==='not_offered'?t('mand_notoffered'):(j.error==='already_signed'?t('mand_signed'):(j.error==='rate_limited'?t('rate'):t('mand_fail'))));
+          done(j);
+        })
+        .catch(function(){ fail(t('conn_d')); });
+    }
+
     // ═══ SCREEN — locked (signed contract: read-only + doc upload) ═══
     function renderLocked(){
       setProgress(-1); S.view=renderLocked;
@@ -510,7 +605,7 @@
         '<div class="step">'+
           '<h1 class="t">'+esc(t('locked_t'))+'</h1>'+
           '<p class="sub">'+esc(t('locked_d'))+'</p>'+
-          propCard()+
+          propCard()+mandateCard()+
           '<div class="summary"><div class="grid2">'+
             '<div class="cell"><div class="k">'+esc(t('k_name'))+'</div><div class="v">'+esc(d.name||'—')+'</div></div>'+
             '<div class="cell"><div class="k">'+esc(t('k_cf'))+'</div><div class="v">'+esc(d.cf||'—')+'</div></div>'+
@@ -536,7 +631,7 @@
         '<div class="step">'+
           '<h1 class="t">'+esc(t('confirm_t'))+'</h1>'+
           '<p class="sub">'+esc(t('confirm_d'))+'</p>'+
-          propCard()+
+          propCard()+mandateCard()+
           '<div class="summary"><div class="grid2">'+
             '<div class="cell"><div class="k">'+esc(t('k_name'))+'</div><div class="v">'+esc(d.name)+'</div></div>'+
             '<div class="cell"><div class="k">'+esc(t('k_cf'))+'</div><div class="v">'+esc(d.cf||'—')+'</div></div>'+
@@ -560,7 +655,7 @@
         '<div class="step">'+
           '<h1 class="t">'+esc(t('who_t'))+'</h1>'+
           '<p class="sub">'+esc(t('who_d'))+'</p>'+
-          propCard()+
+          propCard()+mandateCard()+
           '<div class="ocr" id="ocr"><div class="ic"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg></div>'+
             '<div><div class="tt" id="ocr-t">'+esc(t('ocr_t'))+'</div><div class="dd" id="ocr-d">'+esc(t('ocr_d'))+'</div></div></div>'+
           '<div class="field"><label>'+esc(t('f_name'))+'</label><input class="inp" id="i-name" value="'+esc(s.name)+'" placeholder="Name Surname" autocomplete="name"></div>'+
@@ -971,6 +1066,7 @@
           '<h2>'+esc(complete?t('done_t'):t('done_partial_t'))+'</h2>'+
           '<p>'+esc(complete?t('done_d'):t('done_partial_d'))+'</p>'+
           (still ? '<div class="next" style="width:100%" id="still"><div class="n" style="color:var(--text-2)"><span><b style="font-weight:500;color:var(--gold)">'+esc(t('still'))+':</b> '+esc(still)+'</span></div></div>' : '')+
+          mandateCard()+
           '<div class="next" style="width:100%">'+
             '<div class="n">'+esc(t('next1'))+'</div>'+
             '<div class="n">'+esc(t('next2'))+'</div>'+

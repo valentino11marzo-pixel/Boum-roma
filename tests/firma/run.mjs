@@ -111,7 +111,8 @@ ok(/boomOpen\(/.test(fo), 'usa la consegna unica (niente window.open crudo)');
 ok(/non si firma mai/.test(fo) && /firma falsa/.test(fo), 'la riga rossa è SCRITTA nel pannello: al posto del conduttore non si firma');
 ok(/🖊 Firma ora/.test(app), 'il bottone è sulla riga contratto');
 
-const sd = app.slice(app.indexOf('async function setDelega'), app.indexOf('async function setDelega') + 1800);
+// (la finestra copre setDelega intero: col mandato del proprietario la funzione è cresciuta)
+const sd = app.slice(app.indexOf('async function setDelega'), app.indexOf('async function setDelega') + 3600);
 ok(/landlordSignature\) return toast\('error'/.test(sd), 'delega bloccata se il locatore ha GIÀ firmato (un atto firmato non si riscrive)');
 ok(/landlordDelegate: payload/.test(sd) && /onBehalfOf/.test(sd), 'scrive la delega nello schema che il rail firma già legge');
 ok(/logActivity\(on \? 'delega_attivata'/.test(sd), 'la delega lascia traccia nel registro attività');

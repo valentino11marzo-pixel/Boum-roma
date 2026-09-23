@@ -2798,6 +2798,103 @@ sul rail che c'era già:
   generatedPDF, firme complete → null; giunzioni console e pagina),
   `tests/firma/console.mjs` (i bottoni SOLO dove hanno senso).
 
+### 🏠 Il mandato scritto del proprietario — la controfirma smette di reggersi sulla parola dell'operatore (23/09/2026)
+Il pezzo lasciato fuori dal 21/09: ✍️ Firmo io firmava per il conduttore in
+forza del SUO mandato scritto, poi controfirmava per il proprietario «per
+delega» su una **base scritta dichiarata dall'operatore nel tap**
+(`landlordBasis`) — cioè sulla parola dell'operatore, non su un atto del
+proprietario. Ora il mandato lo dà **il proprietario**, con un tap, dal link
+che ha già: la sua Scheda (`/scheda?t=<contratto>.l.<token>#mandato` — dati,
+documento e mandato in una visita, in italiano perché il locatore è
+italiano). Lo specchio esatto del mandato del conduttore:
+- **`api/preagreement/_consent.js` → `LL_MANDATE_TEXT`/`LL_MANDATE_HASH`**
+  (IT, art. 1703 ss. e 1395 c.c., revocabile per iscritto fino alla firma):
+  il testo è UNO — `profile/lookup` lo manda alla Scheda, che lo mostra
+  così com'è (nessuna copia nella pagina), `profile/mandate` lo registra.
+- **`POST /api/profile/mandate`** (pubblico, token della Scheda = credenziale,
+  rate limit): SOLO il token del **locatore** (un token del conduttore →
+  403 `wrong_role`: il ruolo sta nella derivazione), SOLO se la console
+  l'ha chiesto (`contract.askLandlordMandate === true`, altrimenti 403
+  `not_offered` — mai un mandato che nessuno ha offerto), `mandate:true`
+  esplicito (mai dedotto), a locatore già firmato 410. Scrive
+  `contract.landlordMandate {given, at, ip, ua, text, hash, name, ref,
+  termsVersion:2, termsHash, terms, termsSource:'contract-at-mandate',
+  via:'scheda', docUrl}`: la base è la **foto delle condizioni del
+  contratto** al momento del conferimento (`termsFromContract` →
+  `mandateTermsHash`, la stessa impronta del mandato del conduttore).
+  Il documento del mandato nasce qui (`api/profile/_mandatopdf.js`,
+  `_pdfbrand`: locatore, immobile, condizioni riga per riga coi nomi VERI
+  delle parti dal contratto — la foto li porta normalizzati, servono
+  all'impronta non alla lettura — testo integrale, data/IP/dispositivo, hash
+  del testo, impronta delle condizioni) su
+  `contracts/<id>/mandato-locatore.pdf` — best-effort: il conferimento è il
+  dato. Stampa `landlordMandateAt` sulla proposta (precondizione
+  `exists:true`), card Telegram `contract.landlord_mandate_given`. Idempotente.
+- **`landlordMandateCheck`** (`api/magic-sign/_shared.js`, una copia): il
+  contratto di ADESSO riproduce la foto? Lo leggono `sign-for` (409
+  `landlord_mandate_terms_changed` PRIMA di armare la delega e di firmare),
+  `magic-sign/submit` (409 alla firma), `magic-sign/lookup` (avviso su
+  /sign), e `profile/submit` congela le condizioni anche sotto il mandato
+  del proprietario (`mandate_terms_frozen`, `mandates:[…]`).
+- **`sign-for`**: `op:'ask-landlord-mandate'` arma `askLandlordMandate` sul
+  contratto (creato se manca, idempotente come 🖊), manda l'email al
+  locatore se c'è (design system), ritorna `{url, message, phone, email,
+  emailed}`; il piano (`op:'status'`) porta `landlordMandate`,
+  `landlordMandateOk/Diff`, `askLandlordMandate`, `landlordMandateUrl`;
+  al tap il locatore si controfirma **per mandato** — `landlordDelegate`
+  armato DAL mandato (`basisKind:'mandate'`, `mandateRef/At/Hash`) — e
+  senza mandato resta la delega a base dichiarata (`basisKind:'declared'`,
+  `landlord_basis_required` solo in quel caso); il ramo `landlordPending`
+  ritorna `landlordMandateUrl` e la console offre di chiederlo subito.
+- **«Per delega/per mandato» SOLO quando firma davvero l'operatore, anche
+  per il locatore** (la regola di Sprint 1.3 estesa): `magic-sign/submit`
+  stampa `landlordSignedByDelegate` SOLO con `asDelegate:true` (con
+  `mandateRef/At/Hash` e `basisKind:'mandate'` quando c'è il mandato);
+  prima bastava `landlordDelegate` armato perché QUALSIASI firma dal link del
+  locatore — anche la sua — uscisse «per delega». Quindi il link del
+  proprietario aperto dall'operatore porta `&delegate=1`: `delegaUrl()`
+  nella console (🖊 Controfirma per delega, Copia link delega, il link dopo
+  la conversione), `lLink` in 🖊 Firma ora del portal, `sign.html` manda
+  `asDelegate` per entrambi i ruoli e dichiara la delega del locatore SOLO
+  con `&delegate=1` (col mandato: «written mandate given by the landlord on
+  …», rosso se le condizioni non sono più quelle). `sign-for` firma il
+  locatore con `asDelegate:true`. Il certificato stampa «Firma per mandato:
+  X / per conto di Y - mandato del gg/mm/aaaa (ref)» (`delegateLines`,
+  invariata).
+- **Console**: riga con «🏠 Mandato del proprietario ricevuto il … · PDF»
+  o «🏠 Nessun mandato del proprietario / chiesto, non ancora dato»;
+  **🏠 Chiedi il mandato al proprietario** (WhatsApp col numero, copia
+  senza; l'email parte dal server); a inquilino firmato la primaria diventa
+  **✍️ Controfirmo io (mandato)**; il piano di ✍️ dice «in forza del SUO
+  mandato scritto del …» o avvisa se le condizioni sono cambiate; il prompt
+  della base dichiarata resta SOLO senza mandato e senza delega. **Portal**
+  (🖊 Firma ora): card «Mandato / delega del proprietario» con lo stato del
+  mandato (verificato ora sul motore), «Firmo io per il proprietario
+  (mandato)» arma `landlordDelegate` dal mandato, «🏠 Chiedi il mandato al
+  proprietario» via `/api/profile/link` + WhatsApp/copia. **Scheda**
+  (`scheda.html`): card «Mandato a firmare il contratto» (IT/EN) con le
+  condizioni coperte, il testo del server, spunta mai pre-selezionata, un
+  tap; poi «✓ Mandato conferito» col documento; `#mandato` scorre alla
+  card; `?demo=landlord` la mostra.
+- Test: `node tests/mandato/run.mjs` §11 — handler VERI su Firestore in
+  memoria: 403 col token del conduttore, 403 non offerto, 400 senza
+  `mandate:true`, la card in lookup SOLO per il locatore e SOLO se chiesta,
+  l'op della console (contratto, `askLandlordMandate`, link `#mandato`,
+  email), il tap (mandato, foto, PDF vero letto parola per parola,
+  notifica, proposta stampata, `already`), ✍️ un tap = conduttore per
+  mandato + locatore per MANDATO (`basisKind`, hash, certificato «Firma per
+  mandato»), 410 a firma apposta, condizioni cambiate DOPO il mandato →
+  status lo dice e sign 409 senza controfirma (e passa a condizioni
+  ripristinate), il link del locatore PRIMA della firma del conduttore resta
+  409 `awaiting_tenant` (il mandato non salta la sequenza), il link NUDO del
+  locatore firma come il locatore (mai `landlordSignedByDelegate` —
+  mutazione), ✎ Completa i dati → 409 sotto il mandato del proprietario,
+  giunzioni sulla sorgente (submit, sign.html, console, portal, Scheda,
+  scritture attese). Nota di harness: `rateOk` è UNA mappa per IP condivisa
+  da tutte le porte pubbliche (12/min su magic-sign/submit), quindi il test
+  ruota l'IP a ogni sotto-sezione — il tap ✍️ sono due submit dallo stesso
+  IP dell'operatore.
+
 ### Le regole IN VIGORE ≠ le regole nel file (31/08/2026)
 Il difetto più caro trovato in questa tornata, e nessuna suite poteva
 vederlo: **tutte leggono `firestore.rules`, cioè l'INTENZIONE, e nessuna la

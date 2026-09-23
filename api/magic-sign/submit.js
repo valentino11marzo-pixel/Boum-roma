@@ -22,7 +22,7 @@
 // Response 4xx: { ok:false, error }
 
 import { fsGet, fsPatch, fsList, readJson, logActivity } from '../homie/_lib.js';
-import { findContractByToken, commitWrites, fsGetWithTime, tenantSideComplete, termsFingerprint, mandateCheck, setCors, rateOk } from './_shared.js';
+import { findContractByToken, commitWrites, fsGetWithTime, tenantSideComplete, termsFingerprint, mandateCheck, landlordMandateCheck, setCors, rateOk } from './_shared.js';
 import { ensureContractPdf, hasAnySignature } from '../sign/_contractpdf.js';
 
 // ── TERMS FREEZE ──────────────────────────────────────────────────────────
@@ -152,6 +152,23 @@ export default async function handler(req, res) {
       const changed = chk.diff.map(d => d.key);
       alertSignFailure(contractId, role, 'mandate_terms_changed', 'le condizioni non sono più quelle del mandato' + (changed.length ? ': ' + changed.join(', ') : ''));
       return res.status(409).json({ ok: false, error: 'mandate_terms_changed', changed });
+    }
+  }
+  // ── IL LATO LOCATORE: «per delega / per mandato» SOLO quando firma
+  // davvero l'operatore (asDelegate:true — la stessa regola del conduttore,
+  // Sprint 1.3; prima bastava landlordDelegate armato perché QUALSIASI firma
+  // dal link del locatore, anche la sua, uscisse «per delega»). E se il
+  // proprietario ha dato il MANDATO scritto dalla sua Scheda (23/09/2026),
+  // vale SOLO alle condizioni su cui l'ha dato: cambiate → 409, mai una
+  // firma. La delega a base DICHIARATA (senza mandato) resta quella di
+  // sempre: l'operatore ne risponde, e il certificato stampa la base.
+  const landlordDele = (role === 'landlord' && asDelegate && contract.landlordDelegate && contract.landlordDelegate.name) ? contract.landlordDelegate : null;
+  if (landlordDele && contract.landlordMandate && contract.landlordMandate.given === true) {
+    const lchk = landlordMandateCheck(contract);
+    if (!lchk.ok) {
+      const changed = lchk.diff.map(d => d.key);
+      alertSignFailure(contractId, role, 'landlord_mandate_terms_changed', 'le condizioni non sono più quelle del mandato del proprietario' + (changed.length ? ': ' + changed.join(', ') : ''));
+      return res.status(409).json({ ok: false, error: 'landlord_mandate_terms_changed', changed });
     }
   }
 
@@ -286,13 +303,19 @@ export default async function handler(req, res) {
       upd.landlordPhone = String(phone.number).slice(0, 30);
       upd.landlordPhoneVerified = false;
     }
-    // Delegate protocol: when the contract carries landlordDelegate, this
-    // countersignature is recorded as signed per delega ("X on behalf of Y")
-    // — the audit trail and any certificate can attest who actually signed.
-    if (contract.landlordDelegate && contract.landlordDelegate.name) {
+    // Delegate protocol: when the OPERATOR countersigns (asDelegate) on a
+    // contract that carries landlordDelegate, the signature is recorded as
+    // signed per delega ("X on behalf of Y") — and, when the landlord gave
+    // the written mandate from the Scheda, with the mandate's reference,
+    // date and hash, so the signatures page and the certificate print
+    // «per mandato del …». The landlord's own signature from the bare link
+    // is the landlord's, whatever delegation is armed.
+    if (landlordDele) {
+      const lm = (contract.landlordMandate && contract.landlordMandate.given === true) ? contract.landlordMandate : null;
       upd.landlordSignedByDelegate = {
-        ...contract.landlordDelegate,
+        ...landlordDele,
         signedAt: nowISO,
+        ...(lm ? { mandateRef: lm.ref || '', mandateAt: lm.at || '', mandateHash: lm.hash || '', basisKind: 'mandate' } : {}),
       };
     }
   }

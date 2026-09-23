@@ -20684,9 +20684,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // mandato è armato: è l'unico modo in cui la firma esce «per
         // mandato». Il link nudo (Share Hub, email) firma come il cliente.
         const tLink = c.tenantSignToken ? `${base}/sign?sign=${c.tenantSignToken}${(c.tenantDelegate && c.tenantDelegate.name) ? '&delegate=1' : ''}` : '';
-        const lLink = c.landlordSignToken ? `${base}/sign?sign=${c.landlordSignToken}` : '';
-        const tDone = !!c.tenantSignature, lDone = !!c.landlordSignature;
         const dele = c.landlordDelegate && c.landlordDelegate.name ? c.landlordDelegate : null;
+        // Stessa regola per il locatore (23/09/2026): il link aperto DA QUI
+        // porta &delegate=1 quando la delega è armata — solo così submit
+        // stampa «per delega/per mandato»; il link nudo firma come il locatore.
+        const lLink = c.landlordSignToken ? `${base}/sign?sign=${c.landlordSignToken}${dele ? '&delegate=1' : ''}` : '';
+        const tDone = !!c.tenantSignature, lDone = !!c.landlordSignature;
+        // Il MANDATO del proprietario (dato da lui sulla sua Scheda): la base
+        // vera della controfirma per suo conto — verificata sulle condizioni.
+        const lmand = c.landlordMandate && c.landlordMandate.given === true ? c.landlordMandate : null;
         const mand = c.tenantMandate && c.tenantMandate.given === true ? c.tenantMandate : null;
         const tdele = c.tenantDelegate && c.tenantDelegate.name ? c.tenantDelegate : null;
         const dIT = iso => iso ? new Date(iso).toLocaleDateString('it-IT') : '—';
@@ -20697,6 +20703,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const ME = window.BOOM_MANDATO;
         const mandDiff = (mand && ME && Number(mand.termsVersion) >= 2) ? ME.diffTerms(mand.terms || {}, ME.termsFromContract(c)) : null;
         const mandBroken = !!(mandDiff && mandDiff.length);
+        const lmDiff = (lmand && ME) ? ME.diffTerms(lmand.terms || {}, ME.termsFromContract(c)) : null;
+        const lmBroken = !!(lmDiff && lmDiff.length);
         const nCo = (Array.isArray(c.coTenants) ? c.coTenants : []).filter(x => x && x.name).length;
         const coNote = `<div style="font-size:11.5px;color:var(--text-muted);margin-top:8px">Il mandato riguarda <b>solo il conduttore principale</b>${nCo ? `: i ${nCo} co-conduttori firmano separatamente, ciascuno col proprio link` : '; eventuali co-conduttori firmano separatamente col proprio link'}. Il locatore controfirma dopo.</div>`;
         const row = (icon, who, name, done, link, extra) => `
@@ -20718,13 +20726,21 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ${row('👤', tdele ? 'Conduttore — firmi TU per mandato' : 'Conduttore', tdele ? `per conto di ${(t && t.name) || c.tenantName || ''}` : ((t && t.name) || c.tenantName), tDone, tLink)}
                 ${row('🏠', dele ? 'Locatore — firmi TU per delega' : 'Locatore', dele ? `per conto di ${dele.onBehalfOf || (ll && ll.name) || ''}` : ((ll && ll.name) || c.landlordName), lDone, lLink)}
                 <div class="card" style="margin-top:14px"><div class="card-body" style="padding:12px 14px">
-                    <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:6px">Delega del proprietario</div>
-                    ${lDone ? '<div style="font-size:12.5px;color:var(--text-secondary)">Il locatore ha già firmato: la delega non si tocca più.</div>'
+                    <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:6px">Mandato / delega del proprietario</div>
+                    ${lDone ? '<div style="font-size:12.5px;color:var(--text-secondary)">Il locatore ha già firmato' + (c.landlordSignedByDelegate ? ' — per ' + (c.landlordSignedByDelegate.mandateHash ? 'mandato' : 'delega') + ', da ' + esc(c.landlordSignedByDelegate.name || '') : '') + ': la delega non si tocca più.</div>'
+                        : lmand && lmBroken
+                            ? `<div style="font-size:12.5px;color:var(--danger, #E08573);margin-bottom:8px">⚠ Il proprietario ha dato il mandato il <b>${dIT(lmand.at)}</b>, ma le condizioni del contratto <b>non sono più quelle</b>: <b>${esc(ME.describeDiff(lmDiff))}</b>. Il server rifiuterà la controfirma per mandato. Rifai la proposta, oppure mandagli il suo link.</div>
+                               ${dele ? `<button class="btn btn-secondary btn-sm" onclick="setDelega('${c.id}', false)">Annulla la delega</button>` : ''}`
+                        : lmand
+                            ? `<div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:8px">Mandato scritto del proprietario ricevuto il <b>${dIT(lmand.at)}</b> dalla sua scheda${lmand.docUrl ? ' · <a href="' + lmand.docUrl + '" target="_blank" rel="noopener">apri il documento</a>' : ''}. Le condizioni del contratto coincidono con quelle su cui l'ha dato (verificato ora).${dele ? ` Attiva: firmi tu (<b>${esc(dele.name)}</b>) per suo conto — apri il suo link qui sopra.` : ' Registra che firmi tu per suo conto, poi apri il suo link qui sopra.'}</div>
+                               ${dele ? `<button class="btn btn-secondary btn-sm" onclick="setDelega('${c.id}', false)">Non firmo io: mando il link al proprietario</button>` : `<button class="btn btn-sm" onclick="setDelega('${c.id}', true)">Firmo io per il proprietario (mandato)</button>`}`
                         : dele
-                            ? `<div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:8px">Attiva: firmi tu (<b>${esc(dele.name)}</b>) per conto del proprietario.</div>
-                               <button class="btn btn-secondary btn-sm" onclick="setDelega('${c.id}', false)">Annulla la delega</button>`
-                            : `<div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:8px">Il proprietario ti ha detto «fai tu»? Registra la delega: da quel momento il suo link ti fa firmare per suo conto, dichiarandolo sul documento.</div>
-                               <button class="btn btn-sm" onclick="setDelega('${c.id}', true)">Prendo io la firma del proprietario</button>`}
+                            ? `<div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:8px">Attiva: firmi tu (<b>${esc(dele.name)}</b>) per conto del proprietario${dele.basis ? ' — ' + esc(dele.basis) : ''} (base dichiarata da te: nessun mandato scritto del proprietario in archivio).</div>
+                               <button class="btn btn-secondary btn-sm" onclick="setDelega('${c.id}', false)">Annulla la delega</button>
+                               <button class="btn btn-secondary btn-sm" onclick="askLandlordMandate('${c.id}')">🏠 Chiedi il mandato al proprietario</button>`
+                            : `<div style="font-size:12.5px;color:var(--text-secondary);margin-bottom:8px">Il proprietario può darti il <b>mandato scritto</b> con un tap dalla sua scheda (WhatsApp/email col link): da lì firmi tu per suo conto, «per mandato», con la base stampata sul certificato. Se ti ha già lasciato una delega scritta altrove, puoi registrarla tu.</div>
+                               <button class="btn btn-sm" onclick="askLandlordMandate('${c.id}')">🏠 Chiedi il mandato al proprietario</button>
+                               <button class="btn btn-secondary btn-sm" onclick="setDelega('${c.id}', true)">Ho una sua delega scritta: prendo io la firma</button>`}
                 </div></div>
                 <div class="card" style="margin-top:10px"><div class="card-body" style="padding:12px 14px">
                     <div style="font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:6px">Mandato del conduttore</div>
@@ -20755,17 +20771,59 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const ll = p ? (S.users || []).find(u => u.id === p.ownerId) : null;
         try {
             const me = (S.profile && (S.profile.name || S.profile.email)) || 'Amministratore BOOM';
+            // Con il mandato scritto del proprietario la base È il mandato
+            // (riferimento, data, hash → «per mandato» sul certificato);
+            // senza, la base resta dichiarata dall'operatore.
+            const lm = c.landlordMandate && c.landlordMandate.given === true ? c.landlordMandate : null;
+            if (on && lm && window.BOOM_MANDATO) {
+                const d = window.BOOM_MANDATO.diffTerms(lm.terms || {}, window.BOOM_MANDATO.termsFromContract(c));
+                if (d.length) return toast('error', 'Condizioni cambiate rispetto al mandato del proprietario: ' + window.BOOM_MANDATO.describeDiff(d));
+            }
+            const dIT = iso => iso ? new Date(iso).toLocaleDateString('it-IT') : '';
             const payload = on
-                ? { name: me, onBehalfOf: (ll && ll.name) || c.landlordName || 'il proprietario', at: new Date().toISOString(), by: (S.profile && S.profile.id) || null }
+                ? (lm
+                    ? { name: me, onBehalfOf: lm.name || (ll && ll.name) || c.landlordName || 'il proprietario', basis: 'mandato scritto del proprietario' + (lm.at ? ' del ' + dIT(lm.at) : '') + (lm.ref ? ' (' + lm.ref + ')' : ''), basisKind: 'mandate', mandateRef: lm.ref || '', mandateAt: lm.at || '', mandateHash: lm.hash || '', at: new Date().toISOString(), by: (S.profile && S.profile.id) || null }
+                    : { name: me, onBehalfOf: (ll && ll.name) || c.landlordName || 'il proprietario', basis: 'delega scritta del proprietario, dichiarata dall\'operatore', basisKind: 'declared', at: new Date().toISOString(), by: (S.profile && S.profile.id) || null })
                 : null;
             await db.collection('contracts').doc(contractId).update({ landlordDelegate: payload });
             c.landlordDelegate = payload;
-            toast('success', on ? 'Delega registrata: ora firmi tu per il proprietario' : 'Delega annullata');
+            toast('success', on ? (lm ? 'Firmi tu per il proprietario, in forza del suo mandato' : 'Delega registrata: ora firmi tu per il proprietario') : 'Delega annullata');
             try { if (typeof logActivity === 'function') await logActivity(on ? 'delega_attivata' : 'delega_annullata', 'contract', { contractId }); } catch (e) { }
             openFirmaOra(contractId);
         } catch (e) { toast('error', 'Errore: ' + (e.message || e)); }
     }
     window.setDelega = setDelega;
+
+    // 🏠 CHIEDI IL MANDATO AL PROPRIETARIO (23/09/2026): arma la card sulla
+    // SUA Scheda (askLandlordMandate) e manda il link — WhatsApp col numero,
+    // copia senza. Il link è derivato dal server (/api/profile/link); il
+    // testo è lo stesso della console pre-accordo.
+    async function askLandlordMandate(contractId) {
+        const c = (S.contracts || []).find(x => x.id === contractId);
+        if (!c) return toast('error', 'Contratto non trovato');
+        if (c.landlordSignature) return toast('error', 'Il locatore ha già firmato');
+        const p = (S.properties || []).find(x => x.id === c.propertyId);
+        const ll = p ? (S.users || []).find(u => u.id === p.ownerId) : null;
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/profile/link', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + idToken }, body: JSON.stringify({ contractId }) });
+            const j = await r.json();
+            if (!j || !j.ok || !j.landlordUrl) throw new Error((j && j.error) || 'link_failed');
+            await db.collection('contracts').doc(contractId).update({ askLandlordMandate: true, landlordMandateAskedAt: new Date().toISOString() });
+            c.askLandlordMandate = true;
+            const url = j.landlordUrl + '#mandato';
+            const name = (ll && ll.name) || c.landlordName || '';
+            const first = String(name).trim().split(/\s+/)[0] || '';
+            const propLabel = (p && (p.name || p.address)) || '';
+            const msg = 'Ciao' + (first ? ' ' + first : '') + '! Per risparmiarti la firma del contratto' + (propLabel ? ' di ' + propLabel : '') + ': apri la tua scheda BOOM e tocca «Do a BOOM il mandato a firmare» — firmiamo noi il contratto per te, esattamente alle condizioni concordate (conduttore, canone, durata, deposito), e ricevi via email il contratto firmato e il suo certificato. ' + url;
+            const phone = (ll && ll.phone) || c.landlordPhone || '';
+            if (phone) window.open('https://wa.me/' + String(phone).replace(/[^\d]/g, '') + '?text=' + encodeURIComponent(msg), '_blank', 'noopener');
+            else { copyToClipboard(msg); toast('success', 'Messaggio col link copiato (nessun numero del proprietario)'); }
+            try { if (typeof logActivity === 'function') await logActivity('mandato_proprietario_chiesto', 'contract', { contractId }); } catch (e) { }
+            openFirmaOra(contractId);
+        } catch (e) { toast('error', 'Errore: ' + (e.message || e)); }
+    }
+    window.askLandlordMandate = askLandlordMandate;
 
     // Firma per MANDATO del conduttore: si accende solo con un mandato
     // scritto sul contratto (tenantMandate.given, dalla proposta). Scrive
