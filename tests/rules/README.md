@@ -4,7 +4,7 @@ Proves `firestore.rules` behaves correctly **before** you deploy it to the
 live Firebase project. Runs against the local Firestore emulator; touches
 nothing in production.
 
-## What it checks (39 assertions)
+## What it checks (90 assertions)
 
 - **Admin** can read/write everything (contracts, leads, pfsClients, config).
 - **Tenant A** reads only their own contract / payment / maintenance / user
@@ -14,8 +14,25 @@ nothing in production.
   flag a payment reported (allowed fields only), sign their own contract
   (signature fields only) — and is blocked from changing amount, rent, or
   their own role.
-- **Landlord A** reads only their own properties + the contracts/payments on
-  them; denied landlord B's data and the lead pool; cannot write properties.
+- **Landlord A** reads NOTHING operational from the browser (since
+  22/09/2026 the owner reads only through `/api/owner/*`, a clean server-side
+  projection): denied its own property, contracts, payments, maintenance,
+  shared documents, documents carrying its own `userId` (the activation copy
+  of an unsigned PDF), and conversations/messages assigned to it. It still
+  reads its own `users` doc, its own `invoices` (`recipientId`), its own
+  `documentShares` and `taxPacks`; cannot write properties or read the lead
+  pool, and cannot create, update or delete a `documents` record either (a
+  `shared` document created by a landlord would reach that home's tenant
+  as a BOOM-branded link to anywhere). The tenant keeps its own documents and the shared ones of the
+  property it rents.
+- **Own `users` doc** (since 23/09/2026): a landlord or tenant still writes
+  its own name, phone, `lastLogin`, onboarding, push and identity fields, but
+  is **denied** `role`, `email`, `authUid`, `ownerAliases` and the owner
+  invite stamps (`ownerInvitedAt/By`, `ownerInviteSentAt`,
+  `ownerPortalFirstAt`) and the admin's vouching stamps (`accountConfirmedAt/By`) — also when slipped in next to an allowed field.
+  A self-written `ownerAliases` let a landlord read another owner's
+  statements and documents through `/api/owner/*`; a self-written `email`
+  let the owner invite pick the wrong account.
 - **Anonymous** is denied all private reads but can POST a viewingRequest
   (public booking form).
 - **Default-deny** catch-all blocks any undeclared collection.
@@ -39,7 +56,7 @@ Requires: Node 18+, Java 17+ (for the emulator), and `firebase-tools`
 Expected output ends with:
 
 ```
-Result: 39 passed, 0 failed
+Result: 90 passed, 0 failed
 All rules behave as intended.
 ```
 

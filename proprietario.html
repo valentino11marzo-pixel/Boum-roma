@@ -1,0 +1,1320 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="robots" content="noindex, nofollow">
+<meta name="googlebot" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#08080A">
+<meta name="color-scheme" content="dark">
+<meta name="format-detection" content="telephone=no">
+<meta name="referrer" content="no-referrer">
+<meta name="description" content="L'archivio del proprietario BOOM: contratti, verbali, rendiconti e lo stato delle tue case in un posto solo.">
+<title>Il tuo archivio — BOOM Roma</title>
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<script defer src="/js/boom-err.js"></script>
+<!--
+  L'ARCHIVIO DEL PROPRIETARIO (/proprietario) — la faccia.
+
+  Una pagina, una domanda: «le mie case sono in ordine?». La risposta è una
+  frase sola, poi solo ciò che deve fare LUI, poi le case, poi l'archivio.
+  Ogni numero apre la sua prova, ogni documento dice da dove viene, e ciò
+  che il sistema non sa esce come «non lo so».
+
+  REGOLE DURE DI QUESTA PAGINA
+   1. I dati arrivano SOLO da GET /api/owner/archivio (la proiezione già
+      pulita dal server, assertClean) e i file SOLO da /api/owner/file con
+      un biglietto da 60 secondi. Nessuna lettura Firestore dal browser:
+      le regole la negano comunque al proprietario (22/09/2026).
+   2. Il token viene dall'utente che BoomPortal.requireAuth consegna, a
+      ogni chiamata (dura un'ora e si rinnova da solo).
+   3. Nessuna formattazione della macchina: importi e date passano dai
+      formattatori deterministici del motore (window.BOOM_OWNER), le parole
+      dal suo STRINGS — una copia sola per pagina, email e test.
+   4. Nessuna analytics: l'indirizzo in modalità «vedi come» porta l'uid
+      del proprietario, e non deve uscire di casa.
+   5. Il puntino d'oro «respira» SOLO su un «in ordine» verificato; tutto il
+      movimento sta dentro prefers-reduced-motion: no-preference.
+  Test: node tests/owner/ui.mjs · node tests/safari/boot.mjs
+-->
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --void:#050506;--panel:rgba(255,255,255,.022);--panel2:rgba(255,255,255,.04);
+  --gold:#D4AF37;--gold-light:#F1DFA0;--gold-deep:#8A6D1D;
+  --line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.05);--line-gold:rgba(212,175,55,.32);
+  --gold-muted:rgba(212,175,55,.12);--gold-faint:rgba(212,175,55,.05);
+  --t1:#FFF;--t2:rgba(255,255,255,.72);--t3:rgba(255,255,255,.5);--t4:rgba(255,255,255,.25);
+  --green:#4ADE9E;--green-muted:rgba(74,222,158,.12);--wa:#25D366;--red:#FF8A70;--amber:#F2B558;
+  --sans:'Helvetica Neue',Helvetica,'Inter',-apple-system,sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,monospace;
+  --ease:cubic-bezier(.16,1,.3,1);--safe:env(safe-area-inset-bottom,0px);--r:18px;
+  --hh:56px}
+html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+@media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+body{font-family:var(--sans);background:var(--void);color:var(--t1);font-weight:300;line-height:1.6;
+  -webkit-font-smoothing:antialiased;overflow-x:hidden;font-variant-numeric:tabular-nums;
+  padding-left:env(safe-area-inset-left,0px);padding-right:env(safe-area-inset-right,0px)}
+button{font-family:inherit;font-size:inherit;font-weight:inherit;cursor:pointer;border:none;background:none;color:inherit;text-align:inherit}
+a{color:inherit}
+button,a{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+::selection{background:rgba(212,175,55,.3)}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:8px}
+[hidden]{display:none!important}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* la stanza: solo la griglia e una luce ferma. Calma, niente scansioni. */
+.bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.bg .grid{position:absolute;inset:-2px;background-image:radial-gradient(rgba(255,255,255,.045) 1px,transparent 1.5px);background-size:34px 34px;
+  -webkit-mask-image:radial-gradient(110% 70% at 50% 0%,#000 20%,transparent 72%);mask-image:radial-gradient(110% 70% at 50% 0%,#000 20%,transparent 72%)}
+.bg .aur{position:absolute;left:50%;top:-60vmax;width:120vmax;height:110vmax;transform:translateX(-50%);border-radius:50%;
+  background:radial-gradient(circle,rgba(212,175,55,.085),transparent 60%);filter:blur(60px)}
+
+/* ── testata ── */
+header{position:sticky;top:0;z-index:60;height:calc(var(--hh) + env(safe-area-inset-top,0px));padding-top:env(safe-area-inset-top,0px);
+  background:rgba(5,5,6,.74);-webkit-backdrop-filter:blur(20px) saturate(1.5);backdrop-filter:blur(20px) saturate(1.5);border-bottom:1px solid var(--line2)}
+.hrow{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;height:var(--hh);padding:0 18px;max-width:1240px;margin:0 auto}
+.hl{font-size:9px;letter-spacing:2.4px;text-transform:uppercase;color:var(--t3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.brand{display:flex;align-items:center;gap:9px;justify-self:center;text-decoration:none}
+.brand .mark{filter:drop-shadow(0 0 10px rgba(212,175,55,.35))}
+.brand b{font-weight:300;letter-spacing:6px;font-size:13.5px;margin-right:-6px}
+.hr{justify-self:end;display:flex;gap:4px;align-items:center}
+.hbtn{min-height:44px;min-width:44px;padding:0 8px;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);transition:color .25s}
+.hbtn:hover{color:var(--gold)}
+@media(max-width:379px){.hl{visibility:hidden}.hrow{padding:0 8px}.brand b{letter-spacing:4px;margin-right:-4px}.hbtn{padding:0 5px;letter-spacing:1.4px}}
+
+/* vedi come (admin): la banda che non lascia dubbi su COSA stai guardando */
+#adminband{position:sticky;top:calc(var(--hh) + env(safe-area-inset-top,0px));z-index:55;display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:10px 18px;background:linear-gradient(180deg,rgba(212,175,55,.2),rgba(212,175,55,.1));border-bottom:1px solid rgba(212,175,55,.45);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);font-size:12.5px;line-height:1.5;color:var(--gold-light)}
+#adminband span{flex:1 1 240px;min-width:0}
+#adminband a{flex:none;min-height:36px;display:inline-flex;align-items:center;border:1px solid var(--line-gold);border-radius:100px;padding:0 14px;
+  font-size:10px;letter-spacing:1.6px;text-transform:uppercase;text-decoration:none;color:var(--gold)}
+
+main{position:relative;z-index:5;max-width:680px;margin:0 auto;padding:0 18px calc(64px + var(--safe))}
+
+/* ── attesa: minima, niente spettacolo ── */
+#load{display:grid;place-items:center;gap:14px;text-align:center;padding:120px 20px;color:var(--t3);font-size:12px;letter-spacing:.3px}
+#load .mark{opacity:.75}
+
+/* ── navigazione rapida ── */
+.qnav{position:sticky;top:calc(var(--hh) + env(safe-area-inset-top,0px));z-index:40;display:flex;gap:6px;overflow-x:auto;
+  margin:0 -18px;padding:10px 18px 12px;scrollbar-width:none;
+  background:rgba(5,5,6,.86);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);border-bottom:1px solid var(--line2)}
+body.va .qnav{top:calc(var(--hh) + env(safe-area-inset-top,0px) + var(--band,58px))}
+.qnav::-webkit-scrollbar{display:none}
+.qnav a{flex:none;display:inline-flex;align-items:center;min-height:36px;border:1px solid var(--line);border-radius:100px;padding:0 14px;
+  font-size:9.5px;letter-spacing:1.8px;text-transform:uppercase;color:var(--t3);text-decoration:none;background:rgba(255,255,255,.02);transition:.25s}
+.qnav a:hover{border-color:var(--line-gold);color:var(--gold)}
+section,article,[data-contract-id]{scroll-margin-top:124px}
+/* vedi come sul telefono: la banda dell'admin sta sopra la navigazione, quindi
+   la ricerca e i punti d'arrivo dei link (#c= #p= e la navigazione rapida)
+   scendono della sua altezza — prima il campo di ricerca finiva SOTTO la
+   banda e non si poteva toccare. Il desktop ha la sua regola più sotto. */
+body.va .search{top:calc(var(--hh) + env(safe-area-inset-top,0px) + var(--band,58px) + 58px)}
+body.va section,body.va article,body.va [data-contract-id]{scroll-margin-top:calc(124px + var(--band,58px))}
+
+/* ── i puntini di stato: la forma dice lo stato anche senza colore ── */
+.dot{display:inline-block;flex:none;width:9px;height:9px;border-radius:50%;vertical-align:middle;background:transparent;box-shadow:inset 0 0 0 1.5px var(--t4)}
+.dot[data-dot="ok"]{background:var(--gold);box-shadow:0 0 12px rgba(212,175,55,.55)}
+.dot[data-dot="tu"]{box-shadow:inset 0 0 0 1.7px var(--gold)}
+.dot[data-dot="osservo"]{background:var(--red);box-shadow:none}
+.dot[data-dot="nonso"]{box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.4)}
+.dot[data-dot="vuoto"]{box-shadow:inset 0 0 0 1.5px var(--t4)}
+@media(prefers-reduced-motion:no-preference){
+  .dot[data-dot="ok"]{animation:breathe 3.6s ease-in-out infinite}
+  @keyframes breathe{0%,100%{box-shadow:0 0 6px rgba(212,175,55,.35);opacity:.82}50%{box-shadow:0 0 16px rgba(212,175,55,.75);opacity:1}}
+}
+
+/* ── #hero: la risposta ── */
+#hero{padding:22px 0 8px;transition:opacity .18s linear}
+#hero.dim .verdict,#hero.dim .hfacts{opacity:.42}
+#hero.fade{opacity:0}
+.eyebrow{display:flex;align-items:center;gap:10px;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--gold);font-weight:400}
+.eyebrow .dot{width:10px;height:10px}
+.verdict{font-weight:200;font-size:clamp(34px,9.4vw,52px);letter-spacing:-1.2px;line-height:1.06;margin:16px 0 0;overflow-wrap:break-word}
+.verdict .rem{display:block;font-size:14px;letter-spacing:0;line-height:1.5;color:var(--t3);font-weight:300;margin-top:10px}
+.verdict .verif{display:block;font-size:13px;letter-spacing:.2px;color:var(--t3);margin-top:12px;font-weight:300}
+.sweep{height:1px;margin:22px 0 0;background:linear-gradient(90deg,var(--gold),rgba(212,175,55,.2) 55%,transparent);transform-origin:left;opacity:.55}
+@media(prefers-reduced-motion:no-preference){.sweep.go{animation:sweep 1.1s var(--ease) both}@keyframes sweep{from{transform:scaleX(0);opacity:1}60%{opacity:1}to{transform:scaleX(1);opacity:.55}}}
+.reasons{list-style:none;margin:16px 0 0;display:grid;gap:2px}
+.reasons li{font-size:13.5px;line-height:1.55;color:var(--t2);padding-left:18px;position:relative}
+.reasons li::before{content:"";position:absolute;left:2px;top:.62em;width:6px;height:6px;border-radius:50%;box-shadow:inset 0 0 0 1.3px var(--t3)}
+.reasons li.warn::before{box-shadow:inset 0 0 0 1.3px var(--amber)}
+.reasons button{text-align:left;min-height:32px;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:4px}
+.hfacts{list-style:none;margin:20px 0 0;border-top:1px solid var(--line2)}
+.hfacts li{border-bottom:1px solid var(--line2)}
+.hfact{display:flex;align-items:flex-start;gap:12px;width:100%;min-height:56px;padding:13px 2px;transition:background .2s}
+.hfact:hover{background:rgba(255,255,255,.015)}
+.hfact .dot{margin-top:7px}
+.hfact .tx{flex:1;min-width:0}
+.hfact b{display:block;font-weight:400;font-size:14.5px;color:var(--t1);letter-spacing:.1px;overflow-wrap:anywhere}
+.hfact small{display:block;font-size:12.5px;color:var(--t3);line-height:1.55;margin-top:2px}
+.hfact .go{color:var(--t4);margin-top:3px;flex:none}
+.hmore{display:inline-flex;align-items:center;min-height:44px;font-size:12px;color:var(--t3);text-decoration:none}
+.hfoot{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:14px;font-size:12px;color:var(--t3)}
+.hfoot .none{color:var(--t2)}
+.hfoot time{color:var(--t3)}
+.vcta{margin-top:18px;font-size:15px;color:var(--t2)}
+
+/* ── pulsanti ── */
+.gbtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;padding:0 22px;border-radius:100px;
+  background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:500;font-size:13px;letter-spacing:.2px;
+  text-decoration:none;box-shadow:0 10px 30px rgba(212,175,55,.14);transition:filter .25s,transform .25s var(--ease)}
+.gbtn:hover{filter:brightness(1.06)}
+.obtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:0 18px;border:1px solid var(--line);border-radius:100px;
+  font-size:12.5px;color:var(--t1);text-decoration:none;background:rgba(255,255,255,.02);transition:.25s}
+.obtn:hover{border-color:var(--line-gold);color:var(--gold)}
+.obtn.wa{border-color:rgba(37,211,102,.4);color:var(--wa)}
+.obtn[aria-busy="true"],.gbtn[aria-busy="true"]{opacity:.55;pointer-events:none}
+/* una riga d'archivio, un gettone, l'icona condividi mentre il biglietto
+   arriva: smorzati e col cursore d'attesa (il doppio tocco lo ferma openDoc) */
+.arow-main[aria-busy="true"],.aside-b[aria-busy="true"],.docchip[aria-busy="true"]{opacity:.5;cursor:progress}
+@media(prefers-reduced-motion:no-preference){
+  .arow-main[aria-busy="true"] .ic,.aside-b[aria-busy="true"] svg,.docchip[aria-busy="true"] svg{animation:busy 1s ease-in-out infinite}
+  @keyframes busy{50%{opacity:.35}}
+}
+
+/* ── sezioni ── */
+.sec{margin-top:34px}
+.sech{display:flex;align-items:center;gap:12px;margin-bottom:14px;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--t3);font-weight:400}
+.sech::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
+.sech .n{font-family:var(--mono);font-size:10px;letter-spacing:0;color:var(--gold);border:1px solid var(--line-gold);border-radius:6px;padding:1px 7px;background:var(--gold-faint)}
+
+/* ── #todo ── */
+.todo{list-style:none;border:1px solid var(--line-gold);border-radius:var(--r);background:linear-gradient(180deg,rgba(212,175,55,.06),rgba(212,175,55,.015));overflow:hidden}
+.todo>li{padding:18px 18px 18px;border-top:1px solid rgba(212,175,55,.14)}
+.todo>li:first-child{border-top:none}
+.todo h3{font-size:16px;font-weight:400;letter-spacing:.1px;line-height:1.4;overflow-wrap:anywhere}
+.todo p{font-size:13px;color:var(--t2);margin-top:4px;line-height:1.55}
+.todo .meta{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12px;color:var(--t3);margin-top:6px}
+.todo .meta .lr{font-family:var(--mono);font-size:11px;color:var(--t3)}
+.todo .late{color:var(--red)}
+.todo .act{margin-top:14px}
+.todo .hid{font-size:12px;color:var(--t3);font-style:italic}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.pills span{font-size:11.5px;color:var(--t2);border:1px solid var(--line);border-radius:100px;padding:3px 10px;line-height:1.5}
+
+/* ── #case ── */
+.house{position:relative;margin-top:18px;padding:22px 20px 20px;border:1px solid var(--line2);border-radius:22px;
+  background:linear-gradient(180deg,rgba(255,252,240,.028),rgba(255,255,255,.012));-webkit-backdrop-filter:blur(8px);backdrop-filter:blur(8px);overflow:hidden;overflow:clip}
+.house::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,rgba(212,175,55,.55),rgba(212,175,55,.1),transparent 75%)}
+.house.flash{animation:flash 1.6s var(--ease)}
+@keyframes flash{0%{box-shadow:0 0 0 1px rgba(212,175,55,.6)}100%{box-shadow:0 0 0 1px rgba(212,175,55,0)}}
+@media(prefers-reduced-motion:reduce){.house.flash{animation:none}}
+.h-st{display:flex;align-items:center;gap:9px;font-size:9.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--t3)}
+.h-name{font-weight:300;font-size:clamp(23px,6vw,28px);letter-spacing:-.5px;line-height:1.15;margin-top:10px;overflow-wrap:anywhere}
+.h-addr{font-size:13px;color:var(--t3);margin-top:3px;overflow-wrap:anywhere}
+.h-cat{font-family:var(--mono);font-size:11px;color:var(--t3);margin-top:6px;letter-spacing:.2px;overflow-wrap:anywhere}
+.h-cat.miss{font-family:var(--sans);font-style:italic}
+.facts{list-style:none;margin-top:14px;display:grid;gap:1px}
+.facts li{font-size:13.5px;color:var(--t2);line-height:1.5}
+.facts button{display:flex;align-items:center;gap:8px;min-height:36px;width:100%;text-align:left}
+.facts button::after{content:"›";color:var(--t4);margin-left:auto}
+.sub{margin-top:24px;padding-top:18px;border-top:1px solid var(--line2)}
+.subh{font-size:9.5px;letter-spacing:2.6px;text-transform:uppercase;color:var(--t3);margin-bottom:12px;font-weight:400}
+
+/* un contratto */
+.ct{container-type:inline-size}
+.ct+.ct{margin-top:22px;padding-top:20px;border-top:1px dashed var(--line)}
+.ct-title{font-size:16.5px;font-weight:400;line-height:1.4;letter-spacing:.1px;overflow-wrap:anywhere}
+.ct-title .co{color:var(--t3);font-weight:300}
+.ct-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tag{display:inline-flex;align-items:center;gap:6px;font-size:10px;letter-spacing:1.4px;text-transform:uppercase;color:var(--t3);border:1px solid var(--line);border-radius:100px;padding:3px 10px;line-height:1.5}
+.tag.gold{color:var(--gold);border-color:var(--line-gold);background:var(--gold-faint)}
+.tag.amber{color:var(--amber);border-color:rgba(242,181,88,.4)}
+.kv{list-style:none;margin-top:12px;display:grid;gap:4px}
+.kv li{font-size:13.5px;color:var(--t2);line-height:1.5}
+.kv li.q{color:var(--t3);font-size:12.5px}
+
+/* LA LINEA — la rotta di /casa (tratteggio e aereo sulla prima tappa non
+   compiuta), in verticale dove lo spazio è stretto e in orizzontale dove
+   la riga ci sta. Ogni tappa è un FATTO del contratto: una tappa che non si
+   applica non c'è; una che non si sa, dice che non si sa. */
+.linea{list-style:none;position:relative;margin:18px 0 4px;padding:0}
+.linea>li{position:relative;display:grid;grid-template-columns:22px minmax(0,1fr);column-gap:12px;padding:0 0 16px}
+.linea>li::before{content:"";position:absolute;left:10px;top:14px;bottom:-2px;width:1px;background:repeating-linear-gradient(180deg,rgba(255,255,255,.24) 0 4px,transparent 4px 8px)}
+.linea>li:last-child::before{display:none}
+.linea>li.done::before{background:linear-gradient(180deg,rgba(212,175,55,.55),rgba(212,175,55,.3))}
+.rc-m{position:relative;z-index:1;width:22px;height:22px;display:grid;place-items:center}
+.rc-m i{width:10px;height:10px;border-radius:50%;background:var(--void);box-shadow:inset 0 0 0 1.5px var(--t4)}
+.done .rc-m i{background:var(--gold);box-shadow:0 0 9px rgba(212,175,55,.45)}
+.conflict .rc-m i{background:rgba(242,181,88,.15);box-shadow:inset 0 0 0 1.5px var(--amber)}
+.unknown .rc-m i{box-shadow:none;border:1.5px dashed rgba(255,255,255,.35)}
+.rc-aereo{width:18px;height:18px;color:var(--gold);filter:drop-shadow(0 0 8px rgba(212,175,55,.55));transform:rotate(180deg)}
+.rc-b{min-width:0;padding-top:1px}
+.rc-b b{display:block;font-size:13.5px;font-weight:400;color:var(--t2);line-height:1.4}
+.done .rc-b b,.now .rc-b b{color:var(--t1)}
+.next .rc-b b{color:var(--t3)}
+.rc-b b a{color:inherit;text-underline-offset:4px;text-decoration-color:var(--line-gold)}
+.rc-d{display:block;font-size:12px;color:var(--t3);margin-top:1px}
+.rc-d .ds{display:none}
+.rc-n{display:block;font-size:12px;color:var(--t3);font-style:italic;margin-top:1px}
+.conflict .rc-n,.unknown .rc-n{color:var(--amber);font-style:normal}
+.rc-docs{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.docchip{display:inline-flex;align-items:center;gap:6px;min-height:32px;max-width:100%;padding:0 12px;border:1px solid var(--line-gold);border-radius:100px;
+  font-size:11.5px;color:var(--gold-light);background:var(--gold-faint);transition:.2s}
+.docchip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.docchip:hover{background:var(--gold-muted)}
+@container (min-width:560px){
+  .linea{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));margin-top:22px}
+  .linea>li{display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 3px}
+  .linea>li::before{left:50%;right:-50%;top:10px;bottom:auto;width:auto;height:1px;background:repeating-linear-gradient(90deg,rgba(255,255,255,.24) 0 4px,transparent 4px 8px)}
+  .linea>li.done::before{background:linear-gradient(90deg,rgba(212,175,55,.55),rgba(212,175,55,.3))}
+  .rc-aereo{transform:rotate(90deg)}
+  .rc-b{padding-top:8px;max-width:100%}
+  .rc-b b{font-size:11.5px;line-height:1.3;overflow-wrap:anywhere}
+  .rc-d,.rc-n{font-size:10.5px;line-height:1.4;margin-top:3px}
+  .rc-d .dl{display:none}.rc-d .ds{display:inline}
+  /* in riga le tappe sono strette: i documenti diventano gettoni con
+     l'icona (il titolo resta per il lettore di schermo e al passaggio) */
+  .rc-docs{justify-content:center;gap:5px}
+  .linea .docchip{width:32px;height:32px;min-height:32px;padding:0;justify-content:center;border-radius:50%}
+  .linea .docchip span{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+}
+@media(prefers-reduced-motion:no-preference){.now .rc-aereo{animation:glide 2.8s ease-in-out infinite}@keyframes glide{50%{opacity:.6}}}
+
+/* IL NASTRO — dodici mesi. Lo stato si legge dalla FORMA oltre che dal
+   colore: pieno = pagata · anello = in scadenza · barrato = in ritardo ·
+   metà = segnalata/in elaborazione · tratteggio = non registrato ·
+   anello tratteggiato = nessuna rata a sistema · punto = fuori contratto. */
+.nastro{margin:6px -20px 0;position:relative}
+.nastro::before,.nastro::after{content:"";position:absolute;top:0;bottom:0;width:22px;z-index:2;pointer-events:none}
+.nastro::before{left:0;background:linear-gradient(90deg,rgba(10,10,11,1),rgba(10,10,11,0))}
+.nastro::after{right:0;background:linear-gradient(270deg,rgba(10,10,11,1),rgba(10,10,11,0))}
+.ribbon{display:flex;gap:2px;overflow-x:auto;scroll-snap-type:x proximity;padding:4px 20px 6px;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+.ribbon::-webkit-scrollbar{display:none}
+.rb{position:relative;flex:1 0 48px;width:48px;min-height:66px;display:grid;justify-items:center;align-content:start;gap:7px;padding:6px 0 4px;border-radius:12px;scroll-snap-align:center;transition:background .2s}
+.rb:hover{background:rgba(255,255,255,.03)}
+.rb .ml{font-size:9.5px;letter-spacing:1.2px;text-transform:uppercase;color:var(--t3);line-height:1}
+.rb .yl{position:absolute;bottom:-3px;font-size:8.5px;color:var(--t3);letter-spacing:.5px;font-family:var(--mono)}
+.rb.cur .ml{color:var(--gold);font-weight:500}
+.rb.cur::after{content:"";position:absolute;bottom:2px;width:4px;height:4px;border-radius:50%;background:var(--gold)}
+.rb .s{position:relative;width:26px;height:26px;border-radius:50%;overflow:hidden}
+.rb[data-state="paid"] .s{background:linear-gradient(180deg,var(--gold-light),var(--gold));box-shadow:0 0 12px rgba(212,175,55,.28)}
+.rb[data-state="due"] .s{box-shadow:inset 0 0 0 1.7px var(--gold)}
+.rb[data-state="overdue"] .s{background:rgba(255,138,112,.16);box-shadow:inset 0 0 0 1.7px var(--red)}
+.rb[data-state="overdue"] .s::after{content:"";position:absolute;left:50%;top:-3px;bottom:-3px;width:1.7px;background:var(--red);transform:rotate(45deg)}
+.rb[data-state="reported"] .s,.rb[data-state="processing"] .s{background:linear-gradient(90deg,var(--gold) 50%,transparent 50%);box-shadow:inset 0 0 0 1.7px var(--gold)}
+.rb[data-state="unknown"] .s{background:repeating-linear-gradient(45deg,rgba(255,255,255,.28) 0 2px,transparent 2px 5px);box-shadow:inset 0 0 0 1.5px rgba(255,255,255,.3)}
+.rb[data-state="empty"] .s{border:1.5px dashed rgba(255,255,255,.3)}
+.rb[data-state="cancelled"] .s{box-shadow:inset 0 0 0 1.5px var(--t4)}
+.rb[data-state="cancelled"] .s::after{content:"";position:absolute;left:4px;right:4px;top:50%;height:1.5px;background:var(--t4)}
+.rb[data-state="fuori"] .s{width:26px;height:26px;background:radial-gradient(circle,rgba(255,255,255,.2) 0 2.5px,transparent 3px)}
+.rb .cnt{position:absolute;top:2px;right:6px;min-width:15px;height:15px;border-radius:8px;padding:0 4px;background:#1a1a1c;border:1px solid var(--line);font-family:var(--mono);font-size:9px;line-height:13px;color:var(--t2);text-align:center}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;margin-top:10px;font-size:11px;color:var(--t3)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:9px;height:9px;border-radius:50%;display:inline-block}
+
+.yline{display:flex;align-items:center;justify-content:space-between;gap:14px;width:100%;margin-top:14px;padding:14px 16px;border:1px solid var(--line2);border-radius:14px;background:var(--panel);transition:border-color .2s}
+.yline:hover{border-color:var(--line-gold)}
+.yline .yk{font-size:12.5px;color:var(--t3);line-height:1.4}
+.yline .yv{font-size:clamp(19px,5vw,23px);font-weight:200;letter-spacing:-.3px;text-align:right;line-height:1.25}
+.yline .yv small{display:block;font-size:11.5px;letter-spacing:0;color:var(--t3);font-weight:300}
+.note{font-size:12px;color:var(--t3);line-height:1.6;margin-top:10px}
+.olines{list-style:none;margin-top:12px}
+.olines li{display:flex;flex-wrap:wrap;gap:2px 10px;justify-content:space-between;padding:10px 0;border-top:1px solid var(--line2);font-size:13px;color:var(--t2)}
+.olines li:first-child{border-top:none}
+.olines .a{color:var(--t1);font-weight:400}
+.olines small{flex-basis:100%;font-size:12px;color:var(--t3)}
+
+.mlist{list-style:none}
+.mlist li{padding:11px 0;border-top:1px solid var(--line2);font-size:13.5px;color:var(--t2);line-height:1.5}
+.mlist li:first-child{border-top:none}
+.mlist b{font-weight:400;color:var(--t1)}
+.mlist small{display:block;font-size:12px;color:var(--t3);margin-top:2px}
+.mlist .urg{color:var(--red)}
+.linkbtn{display:inline-flex;align-items:center;min-height:40px;font-size:12px;color:var(--gold-light);text-decoration:underline;text-decoration-color:var(--line-gold);text-underline-offset:4px}
+details.past{margin-top:20px;border-top:1px solid var(--line2);padding-top:6px}
+details.past summary{list-style:none;min-height:44px;display:flex;align-items:center;gap:10px;cursor:pointer;font-size:12.5px;color:var(--t3)}
+details.past summary::-webkit-details-marker{display:none}
+details.past summary::before{content:"›";display:inline-block;transition:transform .2s;color:var(--t4)}
+details.past[open] summary::before{transform:rotate(90deg)}
+
+/* ── #archivio ── */
+.search{position:sticky;top:calc(var(--hh) + env(safe-area-inset-top,0px) + 58px);z-index:30;margin:0 -18px;padding:8px 18px 10px;background:rgba(5,5,6,.9);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4)}
+.sbox{position:relative}
+.sbox svg{position:absolute;left:15px;top:50%;transform:translateY(-50%);color:var(--t4);pointer-events:none}
+#q{width:100%;min-height:48px;border:1px solid var(--line);border-radius:14px;background:#0f0f11;color:var(--t1);font:inherit;font-size:16px;font-weight:300;padding:0 44px 0 42px;transition:border-color .2s,background .2s;-webkit-appearance:none;appearance:none}
+#q::placeholder{color:var(--t3)}
+#q:focus{outline:none;border-color:var(--line-gold);background:#131315}
+.sbox kbd{position:absolute;right:12px;top:50%;transform:translateY(-50%);font-family:var(--mono);font-size:10.5px;color:var(--t3);border:1px solid var(--line);border-radius:6px;padding:1px 7px}
+@media(pointer:coarse){.sbox kbd{display:none}}
+.newchip{display:inline-flex;align-items:center;gap:8px;margin-top:10px;min-height:34px;padding:0 14px;border:1px solid var(--line-gold);border-radius:100px;font-size:12px;color:var(--gold-light);background:var(--gold-faint)}
+.newchip::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--gold)}
+.newchip[aria-pressed="true"]{background:var(--gold-muted);border-color:var(--gold)}
+.agroup{margin-top:14px}
+.agroup>h3{font-size:14px;font-weight:400;color:var(--t1);letter-spacing:.1px;margin:18px 0 2px;overflow-wrap:anywhere}
+.afold{font-size:9.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--t3);margin:16px 0 4px;font-weight:400}
+.alist{list-style:none}
+.arow{display:flex;align-items:stretch;border-top:1px solid var(--line2)}
+.alist>.arow:first-child{border-top:none}
+.arow-main{flex:1;min-width:0;display:flex;align-items:flex-start;gap:12px;min-height:56px;padding:11px 2px;transition:color .2s}
+.arow-main:hover .at{color:var(--gold-light)}
+.ic{flex:none;width:34px;height:34px;border-radius:10px;border:1px solid var(--line-gold);background:var(--gold-faint);display:grid;place-items:center;color:var(--gold)}
+.arow.nofile .ic{border-color:var(--line);background:transparent;color:var(--t3)}
+.ab{flex:1;min-width:0}
+.at{display:block;font-size:14px;color:var(--t1);line-height:1.4;overflow-wrap:anywhere;transition:color .2s}
+.as{display:block;font-size:11.5px;color:var(--t3);line-height:1.5;margin-top:2px}
+.as .st{color:var(--gold);letter-spacing:.2px}
+.nu{display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--gold);margin-left:7px;vertical-align:middle;box-shadow:0 0 8px rgba(212,175,55,.7)}
+.aside-b{flex:none;width:44px;min-height:44px;display:grid;place-items:center;color:var(--t3);border-radius:10px;transition:color .2s}
+.aside-b:hover{color:var(--gold)}
+.arow.ghost .arow-main{cursor:default}
+.arow.ghost .ic{border:1px dashed rgba(255,255,255,.25);background:transparent;color:var(--t4)}
+.arow.ghost .at{color:var(--t3)}
+.arow.inv .arow-main{cursor:default}
+.path{display:block;font-size:11px;color:var(--t3);margin-top:2px;overflow-wrap:anywhere}
+.aempty{font-size:13.5px;color:var(--t3);line-height:1.65;padding:18px 0}
+
+/* ── #contatto ── */
+.advisor{display:flex;flex-wrap:wrap;gap:14px;align-items:center;border:1px solid var(--line2);background:var(--panel);border-radius:var(--r);padding:18px}
+.advisor .av{width:44px;height:44px;border-radius:50%;border:1px solid var(--line-gold);background:var(--gold-faint);display:grid;place-items:center;flex:none}
+.advisor .who{flex:1 1 150px;min-width:0}
+.advisor .who small{display:block;font-size:9.5px;letter-spacing:2.2px;text-transform:uppercase;color:var(--t3)}
+.advisor .who b{display:block;font-size:15px;font-weight:400;margin-top:2px}
+.advisor .acts{display:flex;gap:8px;flex-wrap:wrap;flex:1 1 100%}
+.advisor .acts a{flex:1 1 140px}
+.intro{display:inline-flex;align-items:center;min-height:44px;margin-top:10px;font-size:12.5px;color:var(--t3);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:4px}
+.intro:hover{color:var(--gold)}
+.legal{font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);text-align:center;margin-top:34px;line-height:1.8}
+
+/* ── la card d'errore: mai un loader appeso ── */
+.errcard{margin-top:40px;padding:28px 22px;border:1px solid var(--line);border-radius:22px;background:var(--panel);text-align:center}
+.errcard h2{font-weight:200;font-size:26px;letter-spacing:-.4px;line-height:1.2}
+.errcard .acts{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:20px}
+
+/* ── dialog#sheet: il foglio unico delle prove ── */
+#sheet{position:fixed;inset:auto 0 0 0;margin:0 auto;width:100%;max-width:560px;max-height:min(86vh,760px);padding:0;border:1px solid var(--line);border-bottom:none;
+  border-radius:22px 22px 0 0;background:#0d0d0f;color:var(--t1);box-shadow:0 -20px 60px rgba(0,0,0,.6);overflow:hidden;display:none;flex-direction:column}
+#sheet[open]{display:flex}
+#sheet::backdrop{background:rgba(0,0,0,.58);-webkit-backdrop-filter:blur(3px);backdrop-filter:blur(3px)}
+@media(prefers-reduced-motion:no-preference){
+  #sheet[open]{animation:shUp .32s var(--ease)}
+  @keyframes shUp{from{transform:translateY(100%)}to{transform:none}}
+  #sheet.closing{transform:translateY(105%)!important;transition:transform .22s ease-in}
+  #sheet[open]::backdrop{animation:bdIn .3s ease}
+  @keyframes bdIn{from{opacity:0}}
+}
+.sh-top{flex:none;padding:10px 20px 0;cursor:grab;touch-action:none}
+.sh-grab{width:38px;height:5px;border-radius:3px;background:rgba(255,255,255,.2);margin:0 auto 12px}
+.sh-head{display:flex;align-items:flex-start;gap:12px}
+.sh-head .tx{flex:1;min-width:0}
+.sh-eb{font-size:9.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--gold)}
+#sheetTitle{font-weight:300;font-size:21px;letter-spacing:-.3px;line-height:1.25;margin-top:4px;overflow-wrap:anywhere}
+.sh-x{flex:none;width:44px;height:44px;margin:-6px -10px 0 0;border-radius:50%;display:grid;place-items:center;color:var(--t3);font-size:22px;line-height:1}
+.sh-x:hover{color:var(--t1)}
+#sheetBody{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:14px 20px calc(24px + var(--safe))}
+.srow{padding:13px 0;border-top:1px solid var(--line2)}
+.srow:first-child{border-top:none}
+.sr-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
+.sr-top b{font-weight:400;font-size:14.5px}
+.sr-top .amt{font-size:17px;font-weight:300;letter-spacing:-.2px;white-space:nowrap}
+.srow p{font-size:13px;color:var(--t2);margin-top:3px;line-height:1.5}
+.srow p.q{color:var(--t3);font-size:12px}
+.srow p.late{color:var(--red)}
+.stot{display:flex;justify-content:space-between;gap:12px;margin-top:6px;padding-top:14px;border-top:1px solid var(--line);font-size:14px}
+.stot b{font-weight:400}
+.ssec{font-size:9.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--t3);margin:20px 0 6px}
+.sacts{display:flex;gap:10px;flex-wrap:wrap;margin-top:20px}
+.sacts>*{flex:1 1 180px}
+.pline{font-size:13.5px;color:var(--t2);line-height:1.6;padding:9px 0;border-top:1px solid var(--line2)}
+.pline:first-child{border-top:none}
+.pline small{display:block;font-size:9.5px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:2px}
+.smsg{font-size:14px;color:var(--t2);line-height:1.6}
+.smsg.err{color:var(--gold-light)}
+
+/* ═══ DESKTOP ≥1120px: due colonne — la risposta e le case a sinistra,
+   l'archivio a destra con la ricerca che resta in vista. ═══ */
+.cols{display:contents}
+.col{display:contents}
+@media(min-width:1120px){
+  .hrow{padding:0 34px}
+  .search{margin:0;padding:14px 0 14px;background:linear-gradient(180deg,rgba(5,5,6,.95) 70%,rgba(5,5,6,0));-webkit-backdrop-filter:none;backdrop-filter:none}
+  main{max-width:1240px;padding:34px 34px calc(90px + var(--safe))}
+  .qnav{display:none}
+  .cols{display:grid;grid-template-columns:minmax(0,1fr) 420px;gap:0 56px;align-items:start}
+  .col{display:block;min-width:0}
+  .col.side{position:relative}
+  .verdict{font-size:58px;letter-spacing:-1.6px}
+  .search{top:var(--hh);padding-top:14px}
+  body.va .search{top:calc(var(--hh) + var(--band,48px))}
+  #archivio{margin-top:22px}
+  .house{padding:28px 30px 26px}
+  .nastro{margin:6px -30px 0}
+  .ribbon{padding-left:30px;padding-right:30px}
+  #sheet{bottom:24px;border-radius:22px;border-bottom:1px solid var(--line)}
+  #sheetBody{padding-bottom:26px}
+}
+@media(max-width:380px){
+  main{padding-left:14px;padding-right:14px}
+  .qnav{margin:0 -14px;padding-left:14px;padding-right:14px}
+  .search{margin:0 -14px;padding-left:14px;padding-right:14px}
+  .house{padding:20px 16px 18px}
+  .nastro{margin:6px -16px 0}
+  .ribbon{padding-left:16px;padding-right:16px}
+  .rb{flex-basis:44px;width:44px}
+}
+@media print{.bg,header,.qnav,#adminband,.search,.aside-b{display:none!important}body{background:#fff;color:#000}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="bmGold" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%" stop-color="#F1DFA0"/><stop offset="100%" stop-color="#D4AF37"/>
+  </linearGradient>
+  <g id="boomMark"><g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#bmGold)">
+    <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
+  </g></g>
+</defs></svg>
+<div class="bg" aria-hidden="true"><span class="grid"></span><span class="aur"></span></div>
+
+<header>
+  <div class="hrow">
+    <span class="hl" id="hl">Il tuo archivio</span>
+    <a class="brand" href="/proprietario" aria-label="BOOM"><svg class="mark" viewBox="0 0 1024 1024" width="26" height="26" aria-hidden="true"><use href="#boomMark"/></svg><b>BOOM</b></a>
+    <span class="hr"><button class="hbtn" id="lang" type="button">EN</button><button class="hbtn" id="logout" type="button">Esci</button></span>
+  </div>
+</header>
+<div id="adminband" hidden></div>
+
+<main>
+  <div id="load" role="status">
+    <svg class="mark" viewBox="0 0 1024 1024" width="44" height="44" aria-hidden="true"><use href="#boomMark"/></svg>
+    <span id="loadTx">Apro il tuo archivio…</span>
+  </div>
+  <div id="app" hidden></div>
+</main>
+
+<dialog id="sheet" aria-labelledby="sheetTitle">
+  <div class="sh-top" id="sheetTop">
+    <div class="sh-grab" aria-hidden="true"></div>
+    <div class="sh-head"><div class="tx"><div class="sh-eb" id="sheetEb"></div><h2 id="sheetTitle"></h2></div>
+      <button class="sh-x" id="sheetX" type="button" aria-label="Chiudi">×</button></div>
+  </div>
+  <div id="sheetBody"></div>
+</dialog>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-config.js"></script>
+<script src="/js/boom-portal.js"></script>
+<script src="/js/owner-archive-engine.js"></script>
+<script>
+(function(){
+'use strict';
+var O=window.BOOM_OWNER;
+var $=function(id){return document.getElementById(id)};
+var APP=$('app');
+
+/* ── Lingua: italiano di default, MAI dedotta dal browser. ?lang=en o il
+   bottone, ricordata per questo browser (try/catch: Safari privato lancia). ── */
+function lsGet(k){try{return localStorage.getItem(k)}catch(e){return null}}
+function lsSet(k,v){try{localStorage.setItem(k,v)}catch(e){}}
+var QS=new URLSearchParams(location.search);
+var LANG=(function(){var q=QS.get('lang');if(q==='en'||q==='it'){lsSet('boom:proprietario:lang',q);return q}
+  var s=lsGet('boom:proprietario:lang');return s==='en'?'en':'it'})();
+var AS=QS.get('as')||null;
+
+/* La carta NFC porta ?via=carta: è un indirizzo, non una credenziale. Lo
+   togliamo subito, così non finisce in un link copiato o nel ritorno. */
+if(QS.has('via')){QS.delete('via');var qs=QS.toString();
+  try{history.replaceState(null,'',location.pathname+(qs?'?'+qs:'')+location.hash)}catch(e){}}
+
+/* Ogni parola della pagina viene dal motore (STRINGS it/en): nessuna
+   tabella locale, così la pagina non può dire una cosa diversa. L'UNICA
+   eccezione è la cornice d'errore: se il motore stesso non arriva (rete del
+   telefono, un 404 a cavallo di un deploy) la pagina deve comunque dire che
+   non riesce, in italiano o in inglese, e offrire WhatsApp — prima restava
+   nera con «UI.TITLE». Test di parità: queste frasi e il numero sono quelli
+   del motore (tests/owner/ui.mjs). */
+var WA_NUMBER='393313251961';
+var FALLBACK={
+  it:{'ui.title':'Il tuo archivio','ui.exit':'Esci','ui.lang':'English','ui.loading':'Apro il tuo archivio…','ui.close':'Chiudi',
+    'ui.error':'Non riesco a leggere il tuo archivio adesso.','ui.retry':'Riprova','ui.whatsapp':'Scrivi su WhatsApp'},
+  en:{'ui.title':'Your archive','ui.exit':'Sign out','ui.lang':'Italiano','ui.loading':'Opening your archive…','ui.close':'Close',
+    'ui.error':'I can’t read your archive right now.','ui.retry':'Try again','ui.whatsapp':'Write on WhatsApp'}
+};
+function t(k,p){if(O)return O.t(k,LANG,p);var f=FALLBACK[LANG][k];return f!=null?f:(FALLBACK.it[k]!=null?FALLBACK.it[k]:'')}
+function has(k){return !!(O&&(O.STRINGS[LANG][k]!=null||O.STRINGS.it[k]!=null))}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function cap(s){s=String(s||'');return s.charAt(0).toUpperCase()+s.slice(1)}
+function D(ymd){return O.dateLong(ymd,LANG)}
+function M(ym){return O.monthLabel(ym,LANG)}
+function E(n){return O.eur(n,{lang:LANG}).replace('€ ','€\u00a0')}
+function monAbbr(ym){var s=O.dateShort(ym+'-01',LANG);return s.split(' ')[1]||''}
+function wa(text){return 'https://wa.me/'+(O?O.CONTACT.wa:WA_NUMBER)+(text?'?text='+encodeURIComponent(text):'')}
+function mailto(){return 'mailto:'+O.CONTACT.email}
+
+var USER=null,PROFILE=null,A=null,PROP={},ITEM={},ROWS={},INV={},FILES={},BUSY={},SEEN=null,ONLY_NEW=false,LAST_STATE=null;
+var ICON={
+  contratto:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5M9 13h6M9 17h4"/></svg>',
+  consegna:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="15" r="4"/><path d="M11 12l8-8M16 7l2 2M14 9l2 2"/></svg>',
+  soldi:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 6.5A7 7 0 1 0 17 17.5"/><path d="M4 10h9M4 14h9"/></svg>',
+  immobile:'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11l9-7 9 7"/><path d="M5 10v10h14V10M10 20v-6h4v6"/></svg>'
+};
+var I_INFO='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>';
+var I_SHARE='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 15V3M8 7l4-4 4 4"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7"/></svg>';
+var I_GO='<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+var PLANE='<svg class="rc-aereo" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.5 15.5v-2l-8.5-5V3.2a1.4 1.4 0 0 0-2.8 0v5.3l-8.5 5v2l8.5-2.6v5.4l-2.3 1.6v1.6l3.7-1.1 3.7 1.1v-1.6l-2.3-1.6v-5.4z"/></svg>';
+
+/* ── Cornice che non dipende dai dati ── */
+function chrome(){
+  document.documentElement.lang=LANG;
+  $('hl').textContent=t('ui.title');
+  $('lang').textContent=LANG==='it'?'EN':'IT';
+  $('lang').setAttribute('aria-label',t('ui.lang'));
+  $('logout').textContent=t('ui.exit');
+  $('loadTx').textContent=t('ui.loading');
+  $('sheetX').setAttribute('aria-label',t('ui.close'));
+  document.title=t('ui.title')+' — BOOM Roma';
+}
+
+/* ════════════════ LA RISPOSTA ════════════════ */
+function reasonsOf(c){return (A.verdict.reasons||[]).filter(function(r){return r.code===c})}
+function verdictSentence(){
+  var v=A.verdict,st=v.state,f=reasonsOf;
+  if(st==='ok')return {s:t('verdict.ok')};
+  if(st==='vuoto')return {s:t('verdict.vuoto')};
+  if(st==='nonso')return {s:t('verdict.nonso')};
+  if(st==='tu'){
+    if(f('sign_needed').length)return {s:t('verdict.tu.sign'),used:'sign_needed'};
+    var sc=f('scheda_needed')[0];if(sc)return {s:t('verdict.tu.scheda',{n:sc.n}),used:'scheda_needed'};
+    var ds=f('deadline_soon')[0];if(ds)return {s:t('verdict.tu.deadline',{date:D(ds.date)}),used:'deadline_soon'};
+    var dov=f('deadline_overdue')[0];if(dov)return {s:t('verdict.tu.deadline_overdue',{date:D(dov.date)}),used:'deadline_overdue'};
+    return {s:t('dot.tu')};
+  }
+  if(st==='osservo'){
+    var od=f('rent_overdue');
+    if(od.length){
+      var rem=od.length===1&&od[0].reminderLast?t('verdict.reminder',{date:D(od[0].reminderLast)}):'';
+      return {s:od.length===1?t('verdict.osservo.overdue',{n:1,days:od[0].days}):t('verdict.osservo.overdue',{n:od.length}),rem:rem,used:'rent_overdue'};
+    }
+    if(f('rent_reported').length)return {s:t('verdict.osservo.reported'),used:'rent_reported'};
+    if(f('rent_processing_sepa').length)return {s:t('verdict.osservo.processing_sepa'),used:'rent_processing_sepa'};
+    if(f('rent_processing').length)return {s:t('verdict.osservo.processing'),used:'rent_processing'};
+    // Gli altri addebiti (saldo deposito, …) hanno la loro frase.
+    var co=f('charge_overdue');
+    if(co.length===1)return {s:t('verdict.osservo.charge_overdue',{what:whatOf(co[0]),days:co[0].days}),used:'charge_overdue'};
+    if(co.length)return {s:t('verdict.osservo.overdue',{n:co.length}),used:'charge_overdue'};
+    if(f('charge_reported').length)return {s:t('verdict.osservo.reported'),used:'charge_reported'};
+    if(f('charge_processing').length)return {s:t('verdict.osservo.processing'),used:'charge_processing'};
+    return {s:t('dot.osservo')};
+  }
+  return {s:t('dot.'+st)};
+}
+/* Le righe sotto la frase: ciò che non so e le scadenze passate, max 3. */
+var SHOW_REASON=['deadline_overdue','rent_unlinked','rent_amount_missing','rent_state_unknown','rent_month_missing','installments_missing',
+  'rented_without_contract','contract_expired_open','multiple_active_contracts','contract_date_conflict','read_partial','registration_unknown',
+  'lease_unsigned','charges_after_termination','charge_overdue','charge_reported','charge_processing','charge_state_unknown','charge_amount_missing',
+  'signature_unrecorded'];
+function whatOf(r){return r&&r.what==='deposit-balance'?t('money.deposit_balance'):t('money.other_charge')}
+/* Le stanze: «Interno A · Anna Verdi» — interno e nome come sul contratto. */
+function whoOf(x){var b=[];if(x&&x.unit)b.push(t('ui.unit',{unit:x.unit}));if(x&&x.tenantName)b.push(x.tenantName);return b.join(' · ')}
+function reasonLines(used){
+  var seen={},out=[];
+  (A.verdict.reasons||[]).forEach(function(r){
+    if(out.length>=3||r.code===used||SHOW_REASON.indexOf(r.code)<0)return;
+    var key=r.code+'|'+(r.propertyId||'');if(seen[key])return;seen[key]=1;
+    var p={date:r.date?D(r.date):'',month:r.month?M(r.month):'',days:r.days,n:r.n,what:whatOf(r)};
+    // Un cessato senza data di cessazione: la frase senza «del {date}».
+    var txt=t('reason.'+r.code+(r.code==='charges_after_termination'&&!r.date?'_undated':''),p);
+    if(r.code.indexOf('charge_')===0)txt=cap(txt);
+    out.push('<li class="'+(r.code==='deadline_overdue'||r.code==='read_partial'?'warn':'')+'">'
+      +(r.propertyId&&PROP[r.propertyId]&&A.properties.length>1?'<button type="button" data-goto="p='+esc(r.propertyId)+'">'+esc(txt)+'</button>':esc(txt))+'</li>');
+  });
+  return out.length?'<ul class="reasons">'+out.join('')+'</ul>':'';
+}
+function factText(f){
+  switch(f.k){
+    case 'lease':
+      if(f.n>1)return t('facts.leases',{n:f.n});
+      // «firma non registrata a sistema» non si incastra in «Contratto … fino al»
+      if(f.status==='unrecorded'&&f.to)return t('facts.lease_unrecorded',{date:D(f.to)});
+      return f.to?t('facts.lease',{status:t('status.'+f.status),date:D(f.to)}):cap(t('status.'+f.status));
+    case 'vacant':return t('facts.vacant');
+    case 'no_lease':return t('facts.no_lease');
+    case 'month':
+      var k='facts.month.'+(f.state==='paid'&&!f.via?'paid_novia':f.state);
+      var s=has(k)?t(k,{month:M(f.month),date:f.date?D(f.date):'',days:f.days}):cap(M(f.month))+': '+t('ribbon.'+f.state);
+      var who=whoOf(f);
+      return who?s+' · '+who:s;
+    case 'no_rows':return t('facts.no_rows',{month:M(f.month)});
+    case 'deadlines':return t('facts.deadlines',{n:f.n30});
+  }
+  return '';
+}
+function heroHtml(){
+  var v=A.verdict,st=v.state,vs=verdictSentence(),h='';
+  h+='<div class="eyebrow"><span class="dot" data-dot="'+esc(st)+'"></span><span>'+esc(t('ui.eyebrow',{date:D(A.today)}))+'</span></div>';
+  h+='<h1 class="verdict" id="verdictTx">'+esc(vs.s)+(vs.rem?'<span class="rem">'+esc(cap(vs.rem.replace(/^·\s*/,'')))+'</span>':'')+'</h1>';
+  h+='<div class="sweep" id="sweep"></div>';
+  if(st==='vuoto'){
+    h+='<p class="vcta">'+esc(t('verdict.vuoto.cta'))+'</p><p style="margin-top:16px"><a class="obtn wa" href="'+esc(wa(''))+'" target="_blank" rel="noopener">'+esc(t('ui.whatsapp'))+'</a></p>';
+    h+='<div class="hfoot"><time>'+esc(t('ui.updated',{time:A.updated.time}))+'</time></div>';
+    return h;
+  }
+  h+=reasonLines(vs.used);
+  var lines=v.lines||[],shown=lines.slice(0,3);
+  if(shown.length){
+    h+='<ul class="hfacts">'+shown.map(function(l){
+      var p=PROP[l.propertyId]||{};
+      var tx=(l.facts||[]).map(factText).filter(Boolean).join(' · ');
+      return '<li><button type="button" class="hfact" data-goto="p='+esc(l.propertyId)+'"><span class="dot" data-dot="'+esc(l.dot)+'" title="'+esc(t('dot.'+l.dot))+'"></span>'
+        +'<span class="tx"><b>'+esc(p.label||'')+'</b><small>'+esc(tx)+'</small></span><span class="go">'+I_GO+'</span></button></li>';
+    }).join('')+'</ul>';
+    if(lines.length>3)h+='<a class="hmore" href="#case">'+esc(t('ui.more_houses',{n:lines.length-3}))+'</a>';
+  }
+  h+='<div class="hfoot">'+(A.todo.length?'':'<span class="none">'+esc(t('todo.none'))+'</span>')
+    +'<time>'+esc(t('ui.updated',{time:A.updated.time}))+'</time></div>';
+  return h;
+}
+
+/* ════════════════ DA FARE ════════════════ */
+function todoHtml(){
+  if(!A.todo.length)return '';
+  var items=A.todo.map(function(it){
+    var p=PROP[it.propertyId]||{},addr=p.label||p.address||'';
+    if(it.kind==='sign'){
+      return '<li><h3>'+esc(t('todo.sign',{address:addr}))+'</h3>'
+        +(it.url?'<div class="act"><a class="gbtn" href="'+esc(it.url)+'" rel="noopener">'+esc(t('todo.sign.cta'))+' '+I_GO+'</a></div>'
+               :'<p class="hid">'+esc(t('todo.viewas_hidden'))+'</p>')+'</li>';
+    }
+    if(it.kind==='scheda'){
+      var miss=it.missing||[];
+      var lbl=function(m){return (m.label&&(m.label[LANG]||m.label.it))||m.key};
+      var head=it.docsOnly
+        ? miss.map(function(m){return t('todo.docs',{doc:lbl(m)})}).join(' · ')
+        : t('todo.scheda',{n:miss.length,list:''}).replace(/[:\s]+$/,'');
+      return '<li><h3>'+esc(head)+'</h3><p>'+esc(addr)+'</p>'
+        +(it.docsOnly?'':'<div class="pills">'+miss.map(function(m){return '<span>'+esc(lbl(m))+'</span>'}).join('')+'</div>')
+        +(it.url?'<div class="act"><a class="obtn" href="'+esc(it.url)+'" rel="noopener">'+esc(t('todo.scheda.cta'))+' '+I_GO+'</a></div>'
+               :'<p class="hid" style="margin-top:10px">'+esc(t('todo.viewas_hidden'))+'</p>')+'</li>';
+    }
+    if(it.kind==='deadline'){
+      return '<li><h3>'+esc(it.title)+'</h3><div class="meta">'
+        +(it.overdue?'<span class="late">'+esc(t('todo.overdue',{date:D(it.date)}))+'</span>':'<span>'+esc(D(it.date))+'</span>')
+        +(it.legalRef?'<span class="lr">'+esc(it.legalRef)+'</span>':'')+(addr?'<span>'+esc(addr)+'</span>':'')+'</div>'
+        +'<p>'+esc(t('todo.outcome'))+'</p></li>';
+    }
+    return '';
+  }).join('');
+  return '<section class="sec" id="todo" aria-labelledby="todoH"><h2 class="sech" id="todoH">'+esc(t('qnav.todo'))+' <span class="n">'+A.todo.length+'</span></h2><ol class="todo">'+items+'</ol></section>';
+}
+
+/* ════════════════ LE CASE ════════════════ */
+function rowSentence(r){
+  if(r.afterEnd)return t('row.after_end',{date:D(r.afterEnd)});
+  if(r.afterTermination)return t('row.after_end_undated');
+  switch(r.state){
+    case 'paid':return r.paidDate?(r.via?t('row.paid',{date:D(r.paidDate),via:t('via.'+r.via)}):t('row.paid_novia',{date:D(r.paidDate)})):cap(t('ribbon.paid'));
+    case 'due':return t('row.due',{date:D(r.dueDate)});
+    case 'overdue':return t('row.overdue',{days:r.overdueDays,date:D(r.dueDate)});
+    case 'reported':return t('row.reported',{date:D(r.reportedDate)});
+    case 'processing':return t(r.sepa?'row.processing_sepa':'row.processing');
+    case 'cancelled':return t('row.cancelled');
+  }
+  return t('row.unknown');
+}
+function docChip(ref){
+  var it=ITEM[ref];if(!it)return '';
+  var tt=it.title[LANG]||it.title.it;
+  return '<button type="button" class="docchip" data-ref="'+esc(ref)+'" title="'+esc(tt)+'">'+ICON[it.folder||'contratto']+'<span>'+esc(it.title[LANG]||it.title.it)+'</span></button>';
+}
+function lineaHtml(c){
+  var st=c.stages||[];if(!st.length)return '';
+  return '<ol class="linea" style="--n:'+st.length+'">'+st.map(function(s){
+    var label=esc(t('stage.'+s.key));
+    if(s.key==='rinnovo'&&c.renewedToId)label='<a href="#c='+esc(encodeURIComponent(c.renewedToId))+'">'+label+'</a>';
+    var sub='';
+    // Due forme della stessa data: lunga in verticale, corta («1 feb 2026»)
+    // quando la linea è orizzontale e le colonne sono strette. La nascosta è
+    // display:none, quindi un lettore di schermo ne legge una sola.
+    if(s.date)sub+='<span class="rc-d"><span class="dl">'+esc(D(s.date))+'</span><span class="ds">'+esc(O.dateShort(s.date,LANG)+' '+String(s.date).slice(0,4))+'</span></span>';
+    if(s.note)sub+='<span class="rc-n">'+esc(t('note.'+s.note))+'</span>';
+    else if(s.state==='unknown'||s.state==='conflict')sub+='<span class="rc-n">'+esc(t('stagestate.'+s.state))+'</span>';
+    var chips=(s.refs||[]).map(docChip).join('');
+    return '<li class="'+esc(s.state)+'"><span class="rc-m">'+(s.state==='now'?PLANE:'<i></i>')+'</span>'
+      +'<div class="rc-b"><b>'+label+'</b>'+sub+(chips?'<div class="rc-docs">'+chips+'</div>':'')+'</div></li>';
+  }).join('')+'</ol>';
+}
+function contractHtml(c){
+  var type=c.type?t('type.'+c.type):'';
+  var title=cap(t('ui.contract_line',{type:type,name:c.tenantName||'—'}).replace(/\s{2,}/g,' ').trim());
+  var co=(c.coTenantNames||[]).length?' <span class="co">'+esc(t('ui.cotenants',{n:c.coTenantNames.length}))+'</span>':'';
+  var chips='<span class="tag'+(c.status==='signed'||c.status==='signed_paper'?' gold':'')+'">'+esc(t('status.'+c.status))+'</span>';
+  if(!c.type)chips+='<span class="tag">'+esc(t('type.none'))+'</span>';
+  if(c.unit)chips+='<span class="tag">'+esc(t('ui.unit',{unit:c.unit}))+'</span>';
+  var kv=[];
+  // Un cessato finisce alla cessazione (la tappa «Cessato» ne porta la data),
+  // non alla fine scritta sul contratto: prima diceva «mancano 131 giorni».
+  var cess=c.status==='terminated'?(c.stages||[]).filter(function(s){return s.key==='cessazione'&&s.date})[0]:null;
+  var to=cess&&(!c.endDate||cess.date<c.endDate)?cess.date:c.endDate;
+  if(c.startDate&&to){
+    kv.push(c.daysToEnd!=null&&c.daysToEnd>0
+      ?t('ui.lease_dates',{from:D(c.startDate),to:D(to),n:c.daysToEnd})
+      :t('ui.lease_dates_only',{from:D(c.startDate),to:D(to)}));
+  }
+  kv.push(c.rent!=null?t('ui.rent_line',{amount:E(c.rent),cadence:t('cadence.'+(c.installmentMonths||'none'))}):t('ui.rent_missing'));
+  kv.push(c.cedolare===true?t('ui.cedolare.yes'):c.cedolare===false?t('ui.cedolare.no'):t('ui.cedolare.null'));
+  var q=[];
+  if(c.certificate==='present')q.push(t('fact.certificate'));
+  if(c.sealed&&c.sealed.tsr)q.push(t('fact.tsr'));
+  return '<div class="ct" data-contract-id="'+esc(c.id)+'" id="c-'+esc(c.id)+'">'
+    +'<h4 class="ct-title">'+esc(title)+co+'</h4><div class="ct-chips">'+chips+'</div>'
+    +'<ul class="kv">'+kv.map(function(x){return '<li>'+esc(x)+'</li>'}).join('')
+    +(q.length?'<li class="q">'+esc(q.join(' · '))+'</li>':'')+'</ul>'
+    +lineaHtml(c)+'</div>';
+}
+function ribbonHtml(p){
+  var rb=p.ribbon||{},ms=rb.months||[];if(!ms.length)return '';
+  var cells=ms.map(function(m,i){
+    var yr=(i===0||m.ym.slice(5)==='01')?'<span class="yl">\u2019'+esc(m.ym.slice(2,4))+'</span>':'';
+    var aria=cap(M(m.ym))+' · '+t('ribbon.'+m.state)+(m.count>1?' · '+m.count:'');
+    return '<button type="button" class="rb'+(i===rb.currentIndex?' cur':'')+'" data-ym="'+esc(m.ym)+'" data-state="'+esc(m.state)+'" data-pid="'+esc(p.id)+'" aria-label="'+esc(aria)+'"'
+      +(i===rb.currentIndex?' aria-current="date"':'')+'><span class="ml">'+esc(monAbbr(m.ym))+'</span><span class="s"></span>'
+      +(m.count>1?'<span class="cnt">'+m.count+'</span>':'')+yr+'</button>';
+  }).join('');
+  var used={};ms.forEach(function(m){used[m.state]=1});
+  var legend=['paid','due','overdue','reported','processing','unknown','empty','fuori'].filter(function(s){return used[s]}).map(function(s){
+    return '<span><i class="lg-'+s+'" style="'+legendStyle(s)+'"></i>'+esc(t('ribbon.'+s))+'</span>';
+  }).join('');
+  return '<div class="nastro"><div class="ribbon" data-pid="'+esc(p.id)+'">'+cells+'</div></div><div class="legend">'+legend+'</div>';
+}
+function legendStyle(s){
+  return {paid:'background:var(--gold)',due:'box-shadow:inset 0 0 0 1.5px var(--gold)',overdue:'background:var(--red)',
+    reported:'background:linear-gradient(90deg,var(--gold) 50%,transparent 50%);box-shadow:inset 0 0 0 1.5px var(--gold)',
+    processing:'background:linear-gradient(90deg,var(--gold) 50%,transparent 50%);box-shadow:inset 0 0 0 1.5px var(--gold)',
+    unknown:'background:repeating-linear-gradient(45deg,rgba(255,255,255,.4) 0 2px,transparent 2px 4px)',
+    empty:'border:1.2px dashed rgba(255,255,255,.35)',fuori:'background:radial-gradient(circle,rgba(255,255,255,.3) 0 2px,transparent 2.5px)'}[s]||'';
+}
+function yearAllVia(y,p){return (y.rowIds||[]).every(function(id){var r=ROWS[p.id+'|'+id];return r&&r.via})}
+function moneyHtml(p){
+  var y=p.year,h='';
+  h+=ribbonHtml(p);
+  if(y&&(y.paidCount||y.unknownAmountCount)){
+    var lab=yearAllVia(y,p)?t('money.year',{year:y.year}):t('money.year_registered',{year:y.year});
+    h+='<button type="button" class="yline" data-year="'+esc(p.id)+'"><span class="yk">'+esc(lab)+'</span><span class="yv">'+esc(E(y.paid))
+      +'<small>'+esc(t('money.year_count',{paid:'',n:y.paidCount}).replace(/^\s+/,''))+'</small>'
+      +(y.unknownAmountCount?'<small>'+esc(t('money.unknown_amount',{n:y.unknownAmountCount}))+'</small>':'')+'</span></button>';
+  }
+  if(A.notes&&A.notes.payoutNotTracked)h+='<p class="note">'+esc(t('money.payout_note'))+'</p>';
+  var others=p.others||[];
+  if(others.length){
+    h+='<ul class="olines">'+others.map(function(r){
+      var lab=r.type==='deposit-balance'?t('money.deposit_balance'):t('money.other_charge');
+      return '<li><span>'+esc(lab)+'</span><span class="a">'+esc(r.amount!=null?E(r.amount):t('row.no_amount'))+'</span><small>'+esc(rowSentence(r))+'</small></li>';
+    }).join('')+'</ul>';
+  }
+  return h;
+}
+function maintHtml(p){
+  var m=p.maintenance||[];
+  if(!m.length)return '<p class="note" style="margin-top:0">'+esc(t('ui.no_maint'))+'</p>';
+  var li=function(x){
+    var bits=[];
+    if(x.openedAt)bits.push(t('ui.maint_opened',{date:D(x.openedAt)}));
+    if(x.resolvedAt)bits.push(t('ui.maint_resolved',{date:D(x.resolvedAt)}));
+    else bits.push(t('maint.status.'+(x.status||'unknown')));
+    if(x.cost!=null)bits.push(t('ui.maint_cost',{amount:E(x.cost)}));
+    if(x.hasPhoto)bits.push(t('fact.photo'));
+    return '<li><b>'+esc(t('ui.maint_line',{category:t('maint.'+(x.category||'other')),title:x.title||''}).replace(/:\s*$/,''))+'</b>'
+      +(x.urgent?' <span class="tag amber">!</span>':'')+'<small>'+esc(bits.join(' · '))+'</small></li>';
+  };
+  var h='<ul class="mlist">'+m.slice(0,3).map(li).join('')+'</ul>';
+  if(m.length>3)h+='<details class="past" style="border:0;margin:0;padding:0"><summary>'+esc(t('ui.see_all'))+' ('+m.length+')</summary><ul class="mlist">'+m.slice(3).map(li).join('')+'</ul></details>';
+  return h;
+}
+function houseHtml(p){
+  var cad=p.cadastral;
+  var cadTx=cad&&(cad.foglio||cad.particella||cad.sub||cad.categoria)
+    ?'<p class="h-cat">'+esc(t('ui.cadastral',{foglio:cad.foglio||'—',particella:cad.particella||'—',sub:cad.sub||'—',categoria:cad.categoria||'—'}))+'</p>'
+    :'<p class="h-cat miss">'+esc(t('ui.cadastral_missing'))+'</p>';
+  var facts=(p.facts||[]).map(function(f){
+    var tx=factText(f);if(!tx)return '';
+    if(f.k==='month')return '<li><button type="button" data-ym="'+esc(f.month)+'" data-pid="'+esc(p.id)+'"><span>'+esc(tx)+'</span></button></li>';
+    return '<li>'+esc(tx)+'</li>';
+  }).join('');
+  var cur=(p.contracts&&p.contracts.current)||[],past=(p.contracts&&p.contracts.past)||[];
+  // Senza contratto in corso la casa dice il fatto del motore: «libero» o
+  // «risulta affittato» — mai «libero» scritto a mano accanto a un verdetto
+  // che dice il contrario.
+  var leaseFact=(p.facts||[]).filter(function(f){return f.k==='vacant'||f.k==='no_lease'})[0];
+  var h='<article class="house" id="p-'+esc(p.id)+'" data-property-id="'+esc(p.id)+'">'
+    +'<div class="h-st"><span class="dot" data-dot="'+esc(p.dot)+'"></span>'+esc(t('dot.'+p.dot))+'</div>'
+    +'<h3 class="h-name">'+esc(p.label)+'</h3>'+(p.address&&p.address!==p.label?'<p class="h-addr">'+esc(p.address)+'</p>':'')+cadTx
+    +(facts&&A.properties.length>1?'<ul class="facts">'+facts+'</ul>':'');
+  h+='<div class="sub"><h4 class="subh">'+esc(t('folder.contratto'))+'</h4>'
+    +(cur.length?cur.map(contractHtml).join(''):leaseFact?'<p class="note" style="margin-top:0" data-fact="'+esc(leaseFact.k)+'">'+esc(factText(leaseFact))+'</p>':'')+'</div>';
+  if(cur.length||(p.rows||[]).length||(p.others||[]).length)h+='<div class="sub"><h4 class="subh">'+esc(t('folder.soldi'))+'</h4>'+moneyHtml(p)+'</div>';
+  h+='<div class="sub"><h4 class="subh">'+esc(t('ui.maint_title'))+'</h4>'+maintHtml(p)+'</div>';
+  if(p.valuation){
+    h+='<div class="sub"><h4 class="subh">'+esc(t('folder.immobile'))+'</h4><p style="font-size:13.5px;color:var(--t2)">'
+      +esc(t('ui.valuation',{date:D(p.valuation.at),amount:E(p.valuation.canone)}))+'</p>'
+      +(p.valuation.ref&&ITEM[p.valuation.ref]?'<div class="rc-docs">'+docChip(p.valuation.ref)+'</div>':'')+'</div>';
+  }
+  if(past.length){
+    h+='<details class="past"><summary>'+esc(t('ui.past_contracts',{n:past.length}))+'</summary>'+past.map(contractHtml).join('')+'</details>';
+  }
+  return h+'</article>';
+}
+function casesHtml(){
+  if(!A.properties.length)return '';
+  return '<section class="sec" id="case" aria-labelledby="caseH"><h2 class="sech" id="caseH">'+esc(t('qnav.houses'))+'</h2>'+A.properties.map(houseHtml).join('')+'</section>';
+}
+
+/* ════════════════ L'ARCHIVIO ════════════════ */
+var FOLDERS=['contratto','consegna','soldi','immobile'];
+function isNew(it){return !!(SEEN&&it.date&&it.date>SEEN)}
+function arowHtml(it,path){
+  if(it.ghost){
+    return '<li class="arow ghost"><div class="arow-main"><span class="ic">'+ICON[it.folder]+'</span><span class="ab"><span class="at">'+esc(t('ghost.'+it.kind))+'</span></span></div></li>';
+  }
+  var title=it.title[LANG]||it.title.it;
+  var bits=[];
+  if(it.date)bits.push(esc(D(it.date)));
+  if(it.state)bits.push('<span class="st">'+esc(t('state.'+it.state))+'</span>');
+  if(it.note)bits.push(esc(t('file.'+it.note)));
+  else if(it.provenance)bits.push(esc(t('prov.'+it.provenance.event)));
+  return '<li class="arow'+(it.file?'':' nofile')+'" data-ref="'+esc(it.ref)+'">'
+    +'<button type="button" class="arow-main"><span class="ic">'+ICON[it.folder]+'</span><span class="ab"><span class="at">'+esc(title)+(isNew(it)?'<span class="nu" title="'+esc(t('ui.nuovo'))+'"></span>':'')+'</span>'
+    +'<span class="as">'+bits.join(' · ')+'</span>'+(path?'<span class="path">'+esc(path)+'</span>':'')+'</span></button>'
+    +(it.file?'<button type="button" class="aside-b" data-share="'+esc(it.ref)+'" aria-label="'+esc(t('ui.share'))+'" title="'+esc(t('ui.share'))+'">'+I_SHARE+'</button>':'')
+    +'<button type="button" class="aside-b" data-info="'+esc(it.ref)+'" aria-label="'+esc(t('ui.details'))+'" title="'+esc(t('ui.details'))+'">'+I_INFO+'</button></li>';
+}
+function invHtml(v,path){
+  return '<li class="arow inv nofile" data-invoice="'+esc(v.id)+'"><div class="arow-main"><span class="ic">'+ICON.soldi+'</span><span class="ab"><span class="at">'
+    +esc(t('ui.invoice_line',{number:v.number||'—',service:v.service||'',amount:E(v.amount),status:t('invoice.'+(v.status||'open'))}))+'</span>'
+    +(v.date?'<span class="as">'+esc(D(v.date))+'</span>':'')+(path?'<span class="path">'+esc(path)+'</span>':'')+'</span></div></li>';
+}
+function archiveGroups(){
+  var props=A.properties,one=props.length===1,groups=[],gen={id:null,label:t('ui.rendiconti'),items:[],inv:[]},byP={};
+  props.forEach(function(p){byP[p.id]={id:p.id,label:p.label,items:[],inv:[]}});
+  A.archive.forEach(function(it){
+    if(ONLY_NEW&&!isNew(it))return;
+    var g=it.propertyId&&byP[it.propertyId]?byP[it.propertyId]:(one?byP[props[0].id]:gen);g.items.push(it);
+  });
+  if(!ONLY_NEW)(A.invoices||[]).forEach(function(v){var g=v.propertyId&&byP[v.propertyId]?byP[v.propertyId]:(one?byP[props[0].id]:gen);g.inv.push(v)});
+  if(gen.items.length||gen.inv.length)groups.push(gen);
+  props.forEach(function(p){groups.push(byP[p.id])});
+  return groups.filter(function(g){return g.items.length||g.inv.length});
+}
+function archiveListHtml(){
+  var gs=archiveGroups();
+  if(!gs.length)return '<p class="aempty">'+esc(t('ui.archive_empty'))+'</p>';
+  var multi=gs.length>1;
+  return gs.map(function(g){
+    var h='<div class="agroup">'+(multi?'<h3>'+esc(g.label)+'</h3>':'');
+    FOLDERS.forEach(function(f){
+      var rows=g.items.filter(function(it){return it.folder===f});
+      var inv=f==='soldi'?g.inv:[];
+      if(!rows.length&&!inv.length)return;
+      h+='<h4 class="afold">'+esc(t('folder.'+f))+'</h4><ul class="alist">'+rows.map(function(it){return arowHtml(it)}).join('')+inv.map(invHtml).join('')+'</ul>';
+    });
+    return h+'</div>';
+  }).join('');
+}
+function newCount(){return A.archive.filter(isNew).length}
+function archiveHtml(){
+  var n=newCount();
+  return '<section class="sec" id="archivio" aria-labelledby="archH"><h2 class="sech" id="archH">'+esc(t('qnav.archive'))+'</h2>'
+    +'<div class="search"><div class="sbox"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>'
+    +'<input id="q" type="search" enterkeyhint="search" autocomplete="off" spellcheck="false" placeholder="'+esc(t('ui.search_placeholder'))+'" aria-label="'+esc(t('ui.search_placeholder'))+'"><kbd>/</kbd></div>'
+    +(n?'<button type="button" class="newchip" id="newchip" aria-pressed="'+(ONLY_NEW?'true':'false')+'">'+esc(t('ui.new_since',{n:n}))+'</button>':'')+'</div>'
+    +'<div id="alist">'+archiveListHtml()+'</div></section>';
+}
+function searchHtml(q){
+  var res=O.search(A,q,LANG);
+  if(!res.length)return '<p class="aempty">'+esc(t('ui.search_none',{q:q}))+'</p>';
+  return '<ul class="alist">'+res.map(function(r){
+    var path=(r.path||[]).join(' › ');
+    if(r.type==='archive'&&ITEM[r.ref])return arowHtml(ITEM[r.ref],path);
+    if(r.type==='invoice')return INV[r.id]?invHtml(INV[r.id],path):'';
+    var attr=r.type==='month'?'data-ym="'+esc(r.id)+'" data-pid="'+esc(r.propertyId)+'"'
+      :'data-goto="'+(r.type==='contract'?'c=':'p=')+esc(r.id)+'"';
+    return '<li class="arow"><button type="button" class="arow-main" '+attr+'><span class="ic">'+ICON[r.type==='month'?'soldi':r.type==='contract'?'contratto':'immobile']+'</span>'
+      +'<span class="ab"><span class="at">'+esc(cap(r.title))+'</span><span class="path">'+esc(path)+'</span></span></button></li>';
+  }).join('')+'</ul>';
+}
+function runSearch(){
+  var q=($('q')&&$('q').value||'').trim();
+  $('alist').innerHTML=q?searchHtml(q):archiveListHtml();
+}
+
+/* ════════════════ CONTATTO ════════════════ */
+function contactHtml(){
+  var C=O.CONTACT;
+  return '<section class="sec" id="contatto"><div class="advisor"><span class="av"><svg viewBox="0 0 1024 1024" width="24" height="24" aria-hidden="true"><use href="#boomMark"/></svg></span>'
+    +'<span class="who"><small>'+esc(t('ui.advisor'))+'</small><b>'+esc(C.name)+'</b></span>'
+    +'<span class="acts"><a class="obtn wa" href="'+esc(wa(''))+'" target="_blank" rel="noopener">WhatsApp</a>'
+    +'<a class="obtn" href="'+esc(mailto())+'" title="'+esc(C.email)+'">'+esc(t('ui.email'))+'</a></span></div>'
+    +'<a class="intro" href="'+esc(wa(t('ui.introduce_text')))+'" target="_blank" rel="noopener">'+esc(t('ui.introduce'))+'</a>'
+    +'<p class="legal">'+esc(t('ui.legal'))+'<br>P.IVA 17322991005 · boomrome.com</p></section>';
+}
+
+/* ════════════════ IL DISEGNO ════════════════ */
+function index(){
+  PROP={};ITEM={};ROWS={};INV={};
+  A.properties.forEach(function(p){PROP[p.id]=p;(p.rows||[]).concat(p.others||[]).forEach(function(r){ROWS[p.id+'|'+r.id]=r})});
+  (A.invoices||[]).forEach(function(v){if(v&&v.id)INV[v.id]=v});
+  A.archive.forEach(function(it){if(it.ref)ITEM[it.ref]=it});
+}
+function render(){
+  index();
+  chrome();
+  var band=$('adminband');
+  if(A.viewAs){
+    band.innerHTML='<span>'+esc(t('ui.adminband',{name:A.owner&&A.owner.name||'—'}))+'</span><a href="/portal">'+esc(t('ui.back_portal'))+'</a>';
+    band.hidden=false;document.body.classList.add('va');
+    // L'altezza della banda SUBITO (applyHash scorre appena dopo render: con
+    // la variabile ancora vuota un #c= atterrava sotto la banda), e di nuovo
+    // al fotogramma dopo, se i caratteri l'hanno cambiata.
+    document.body.style.setProperty('--band',band.offsetHeight+'px');
+    requestAnimationFrame(function(){document.body.style.setProperty('--band',band.offsetHeight+'px')});
+  }else{band.hidden=true;document.body.classList.remove('va')}
+  var qv=$('q')?$('q').value:'';
+  var empty=A.verdict.state==='vuoto';
+  var qnav=empty?'':'<nav class="qnav" aria-label="'+esc(t('ui.title'))+'"><a href="#hero">'+esc(t('qnav.verdict'))+'</a>'
+    +(A.todo.length?'<a href="#todo">'+esc(t('qnav.todo'))+'</a>':'')+'<a href="#case">'+esc(t('qnav.houses'))+'</a><a href="#archivio">'+esc(t('qnav.archive'))+'</a></nav>';
+  APP.innerHTML=qnav+'<div class="cols"><div class="col main">'
+    +'<section id="hero" data-state="'+esc(A.verdict.state)+'" aria-live="polite">'+heroHtml()+'</section>'
+    +todoHtml()+casesHtml()+'</div><div class="col side">'+(empty?'':archiveHtml())+contactHtml()+'</div></div>';
+  $('load').hidden=true;APP.hidden=false;
+  if(qv&&$('q')){$('q').value=qv;runSearch()}
+  centerRibbons();
+}
+function centerRibbons(){
+  [].forEach.call(document.querySelectorAll('.ribbon'),function(r){
+    var cur=r.querySelector('.rb.cur');if(!cur)return;
+    // il mese corrente al centro, senza muovere la pagina (scrollIntoView lo farebbe)
+    r.scrollLeft=Math.max(0,cur.offsetLeft-(r.clientWidth-cur.offsetWidth)/2);
+  });
+}
+
+/* ── la risposta che si conferma da sola: l'ultimo verdetto (niente importi,
+   niente nomi) si dipinge smorzato mentre il server risponde ── */
+function cacheKey(){return 'boom:proprietario:v1:'+USER.uid}
+function paintCached(){
+  if(AS)return;
+  var c=null;try{c=JSON.parse(lsGet(cacheKey())||'null')}catch(e){c=null}
+  if(!c||!c.state||!c.at||Date.now()-Date.parse(c.at)>864e5)return;
+  LAST_STATE=c.state;
+  var s=c.state==='ok'?t('verdict.ok'):c.state==='nonso'?t('verdict.nonso'):c.state==='vuoto'?t('verdict.vuoto')
+    :(c.state==='tu'&&(c.reasonCodes||[]).indexOf('sign_needed')>=0)?t('verdict.tu.sign'):t('dot.'+c.state);
+  APP.innerHTML='<div class="cols"><div class="col main"><section id="hero" class="dim" data-state="cached">'
+    +'<div class="eyebrow"><span class="dot" data-dot="'+(c.state==='ok'?'nonso':esc(c.state))+'"></span><span>'+esc(t('ui.title'))+'</span></div>'
+    +'<h1 class="verdict">'+esc(s)+'<span class="verif">'+esc(t('ui.verifying'))+'</span></h1></section></div></div>';
+  $('load').hidden=true;APP.hidden=false;
+}
+function saveCache(){
+  if(AS||!A||!A.verdict)return;
+  lsSet(cacheKey(),JSON.stringify({state:A.verdict.state,reasonCodes:(A.verdict.reasons||[]).map(function(r){return r.code}),at:new Date().toISOString()}));
+}
+function seenKey(){return 'boom:proprietario:seen:'+USER.uid}
+
+/* ════════════════ IL CARICAMENTO ════════════════ */
+function showError(){
+  $('load').hidden=true;APP.hidden=false;
+  APP.innerHTML='<div class="errcard" role="alert"><svg viewBox="0 0 1024 1024" width="36" height="36" aria-hidden="true" style="opacity:.8"><use href="#boomMark"/></svg>'
+    +'<h2 style="margin-top:14px">'+esc(t('ui.error'))+'</h2><div class="acts"><button type="button" class="gbtn" id="retry">'+esc(t('ui.retry'))+'</button>'
+    +'<a class="obtn wa" href="'+esc(wa(''))+'" target="_blank" rel="noopener">'+esc(t('ui.whatsapp'))+'</a></div></div>';
+  // Senza motore, senza BoomPortal o senza utente non c'è niente da
+  // rileggere: «Riprova» ricarica la pagina (prima restava spento, busy).
+  $('retry').onclick=function(){
+    if(!O||!window.BoomPortal||!USER){location.reload();return}
+    this.setAttribute('aria-busy','true');load();
+  };
+}
+function token(){return USER.getIdToken()}
+function load(){
+  var ctl=typeof AbortController!=='undefined'?new AbortController():null;
+  var timer=setTimeout(function(){if(ctl)ctl.abort()},20000);
+  return Promise.resolve().then(token).then(function(tok){
+    return fetch('/api/owner/archivio'+(AS?'?as='+encodeURIComponent(AS):''),{headers:{Authorization:'Bearer '+tok},cache:'no-store',signal:ctl?ctl.signal:undefined});
+  }).then(function(r){
+    return r.json().catch(function(){return null}).then(function(j){return {status:r.status,j:j}});
+  }).then(function(x){
+    clearTimeout(timer);
+    if(x.status!==200||!x.j||!x.j.ok||!x.j.archive||!x.j.archive.verdict)throw new Error('archivio_'+x.status);
+    A=x.j.archive;
+    var prevState=LAST_STATE;
+    if(!AS){SEEN=lsGet(seenKey());if(SEEN&&!/^\d{4}-\d{2}-\d{2}$/.test(SEEN))SEEN=null}
+    var hero=$('hero'),crossfade=!!(hero&&hero.classList.contains('dim'));
+    var paint=function(){
+      render();
+      if(crossfade){var nh=$('hero');if(nh&&!matchMedia('(prefers-reduced-motion: reduce)').matches){nh.classList.add('fade');
+        requestAnimationFrame(function(){requestAnimationFrame(function(){nh.classList.remove('fade')})})}}
+      var sw=$('sweep');
+      if(prevState&&prevState!==A.verdict.state&&sw){sw.classList.add('go')}
+      LAST_STATE=A.verdict.state;
+      if(!AS){saveCache();lsSet(seenKey(),A.today)}
+      applyHash();
+    };
+    if(crossfade&&!matchMedia('(prefers-reduced-motion: reduce)').matches){hero.classList.add('fade');setTimeout(paint,180)}
+    else paint();
+  }).catch(function(e){
+    clearTimeout(timer);
+    try{console.warn('[proprietario] lettura non riuscita:',e&&e.message)}catch(_){}
+    showError();
+  });
+}
+
+/* ════════════════ IL FOGLIO (dialog#sheet) ════════════════ */
+var SHEET=$('sheet'),TRIG=null;
+function openSheet(eb,title,body,trig){
+  // il foglio già aperto si RIUSA: il fuoco deve tornare a chi l'ha aperto per primo
+  if(!SHEET.open)TRIG=trig||document.activeElement;
+  $('sheetEb').textContent=eb||'';$('sheetTitle').textContent=title||'';$('sheetBody').innerHTML=body||'';
+  $('sheetBody').scrollTop=0;
+  SHEET.classList.remove('closing');SHEET.style.transform='';
+  if(!SHEET.open){if(typeof SHEET.showModal==='function')SHEET.showModal();
+    else{SHEET.setAttribute('open','');try{$('sheetX').focus({preventScroll:true})}catch(e){}}}
+}
+function closeSheet(){
+  if(!SHEET.open)return;
+  var done=function(){SHEET.classList.remove('closing');SHEET.style.transform='';SHEET.style.transition='';
+    if(typeof SHEET.close==='function')SHEET.close();else SHEET.removeAttribute('open');
+    if(TRIG&&document.contains(TRIG)){try{TRIG.focus({preventScroll:true})}catch(e){}}TRIG=null};
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches){done();return}
+  SHEET.classList.add('closing');setTimeout(done,220);
+}
+SHEET.addEventListener('cancel',function(e){e.preventDefault();closeSheet()});
+// Safari < 15.4 non ha showModal: il foglio si apre come attributo e Esc lo
+// chiudiamo noi (con showModal ci pensa l'evento cancel qui sopra).
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&SHEET.open&&typeof SHEET.showModal!=='function'){e.preventDefault();closeSheet()}});
+SHEET.addEventListener('click',function(e){if(e.target===SHEET)closeSheet()});
+$('sheetX').addEventListener('click',closeSheet);
+/* trascina giù per chiudere: distanza O velocità, come un foglio di iOS */
+(function(){
+  var top=$('sheetTop'),y0=0,t0=0,dy=0,drag=false;
+  top.addEventListener('pointerdown',function(e){if(e.target.closest('.sh-x'))return;drag=true;y0=e.clientY;t0=performance.now();dy=0;SHEET.style.transition='none';try{top.setPointerCapture(e.pointerId)}catch(_){}});
+  top.addEventListener('pointermove',function(e){if(!drag)return;dy=Math.max(0,e.clientY-y0);SHEET.style.transform='translateY('+dy+'px)'});
+  var end=function(){if(!drag)return;drag=false;var v=dy/Math.max(1,performance.now()-t0);SHEET.style.transition='';
+    if(dy>110||(v>.55&&dy>24))closeSheet();else SHEET.style.transform=''};
+  top.addEventListener('pointerup',end);top.addEventListener('pointercancel',end);
+})();
+
+function rowBlock(r){
+  var cls=r.state==='overdue'?' class="late"':'';
+  return '<div class="srow"><div class="sr-top"><b>'+esc(cap(M(r.month||String(r.dueDate||'').slice(0,7))))+'</b><span class="amt">'+esc(r.amount!=null?E(r.amount):t('row.no_amount'))+'</span></div>'
+    +(whoOf(r)?'<p class="q who">'+esc(whoOf(r))+'</p>':'')
+    +'<p'+cls+'>'+esc(rowSentence(r))+'</p>'
+    +(r.dueDate&&r.state!=='overdue'&&r.state!=='due'?'<p class="q">'+esc(cap(t('sheet.due',{date:D(r.dueDate)})))+'</p>':'')
+    +(r.reminders&&r.reminders.count?'<p class="q">'+esc(cap(t('row.reminders',{n:r.reminders.count,date:D(r.reminders.last)})))+'</p>':'')+'</div>';
+}
+function statementFor(ym){
+  return A.archive.filter(function(it){return it.kind==='rendiconto'&&it.ref&&it.ref.slice(-7)===ym});
+}
+function monthSheet(pid,ym,trig){
+  var p=PROP[pid];if(!p)return;
+  var cell=((p.ribbon||{}).months||[]).filter(function(m){return m.ym===ym})[0];
+  var rows=(cell&&cell.rowIds&&cell.rowIds.length?cell.rowIds.map(function(id){return ROWS[pid+'|'+id]}):(p.rows||[]).filter(function(r){return r.month===ym})).filter(Boolean);
+  var b='';
+  if(rows.length){b+='<div class="ssec">'+esc(t('sheet.rows'))+'</div>'+rows.map(rowBlock).join('')}
+  else b+='<p class="smsg">'+esc(cap(t('ribbon.'+(cell?cell.state:'empty'))))+'</p>';
+  var st=statementFor(ym);
+  if(st.length)b+='<div class="ssec">'+esc(t('sheet.statement'))+'</div><ul class="alist">'+st.map(function(it){return arowHtml(it)}).join('')+'</ul>';
+  openSheet(t('sheet.proof'),cap(M(ym))+' · '+p.label,b,trig);
+}
+function yearSheet(pid,trig){
+  var p=PROP[pid];if(!p||!p.year)return;var y=p.year;
+  var rows=(y.rowIds||[]).map(function(id){return ROWS[pid+'|'+id]}).filter(Boolean);
+  var lab=yearAllVia(y,p)?t('money.year',{year:y.year}):t('money.year_registered',{year:y.year});
+  var b='<div class="ssec">'+esc(t('sheet.rows'))+'</div>'+rows.map(rowBlock).join('')
+    +'<div class="stot"><b>'+esc(lab)+'</b><span>'+esc(E(y.paid))+'</span></div>'
+    +(y.unknownAmountCount?'<p class="note">'+esc(cap(t('money.unknown_amount',{n:y.unknownAmountCount})))+'</p>':'')
+    +'<p class="note">'+esc(t('money.payout_note'))+'</p>';
+  openSheet(t('sheet.proof'),lab+' · '+p.label,b,trig);
+}
+function infoSheet(ref,trig,msg){
+  var it=ITEM[ref];if(!it)return;
+  var p=PROP[it.propertyId],lines=[];
+  if(it.date)lines.push(D(it.date));
+  if(it.provenance)lines.push(t('prov.'+it.provenance.event)+' · '+t('by.'+it.provenance.by));
+  if(it.state)lines.push(cap(t('state.'+it.state)));
+  var where=[];if(p)where.push(p.label);where.push(t('folder.'+it.folder));
+  var b=(msg?'<p class="smsg err" role="alert">'+msg+'</p>':'')
+    +(it.note?'<p class="smsg">'+esc(t('file.'+it.note))+'</p>':'')
+    +'<div style="margin-top:6px">'+lines.map(function(l){return '<div class="pline">'+esc(l)+'</div>'}).join('')
+    +'<div class="pline">'+esc(where.join(' › '))+'</div></div>';
+  if(it.file){
+    b+='<div class="sacts"><button type="button" class="gbtn" data-open="'+esc(ref)+'">'+esc(t('ui.open'))+'</button>'
+      +'<button type="button" class="obtn" data-share="'+esc(ref)+'">'+I_SHARE+' <span>'+esc(t('ui.share'))+'</span></button></div>';
+  }
+  openSheet(t('sheet.provenance'),it.title[LANG]||it.title.it,b,trig);
+}
+
+/* ════════════════ UN TOCCO, IL PDF ════════════════
+   POST /api/owner/file → biglietto da 60 secondi. Sul telefono si naviga
+   (il visore nativo di iOS); sul desktop la finestra si apre DENTRO il
+   click, prima di qualunque attesa, o il blocco popup la mangia. */
+function fileErrorMsg(code,j){
+  if(code==='too_large'){
+    var mb=j&&j.size?(LANG==='en'?O.enNum(j.size/1e6,1):O.itNum(j.size/1e6,1)):'';
+    return esc(t('file.too_large',{mb:mb}))+'<br><a class="obtn wa" style="margin-top:14px" href="'+esc(wa(''))+'" target="_blank" rel="noopener">'+esc(t('ui.whatsapp'))+'</a>';
+  }
+  return esc(t('file.error'));
+}
+function postFile(ref){
+  return token().then(function(tok){
+    return fetch('/api/owner/file',{method:'POST',headers:{Authorization:'Bearer '+tok,'Content-Type':'application/json'},
+      body:JSON.stringify(AS?{ref:ref,as:AS}:{ref:ref})});
+  }).then(function(r){return r.json().catch(function(){return null}).then(function(j){return {status:r.status,j:j||{}}})});
+}
+function openDoc(ref,trig){
+  var it=ITEM[ref];
+  if(!it||!it.file){infoSheet(ref,trig);return}
+  // Un biglietto per volta per documento: il secondo tocco (o il doppio clic
+  // sul desktop, che apriva DUE schede) mentre il primo è in volo non fa
+  // niente. La chiave è il ref, non il bottone: col bottone smorzato il clic
+  // può arrivare alla riga che lo contiene.
+  if(BUSY[ref]||(trig&&trig.getAttribute('aria-busy')==='true'))return;
+  BUSY[ref]=1;
+  var coarse=matchMedia('(pointer: coarse)').matches;
+  var w=null;
+  if(!coarse){try{w=window.open('','_blank')}catch(e){w=null}}
+  if(trig)trig.setAttribute('aria-busy','true');
+  var done=function(){delete BUSY[ref];if(trig)trig.removeAttribute('aria-busy')};
+  postFile(ref).then(function(x){
+    done();
+    if(x.status===200&&x.j.ok&&x.j.url){
+      var url=new URL(x.j.url,location.origin).href;
+      if(w){try{w.location=url;return}catch(e){}}
+      location.assign(url);return;
+    }
+    if(w){try{w.close()}catch(e){}}
+    infoSheet(ref,trig,fileErrorMsg(x.j.error,x.j));
+  }).catch(function(){
+    done();
+    if(w){try{w.close()}catch(e){}}
+    infoSheet(ref,trig,esc(t('file.error')));
+  });
+}
+/* «Invia al commercialista»: il file arriva col Bearer, poi il foglio di
+   condivisione del telefono. Se iOS ha perso il gesto durante l'attesa,
+   il secondo tocco condivide il file già pronto (niente seconda lettura). */
+function shareDoc(ref,btn){
+  var ready=btn._file||FILES[ref];
+  if(ready){doShare(ready,btn);return}
+  if(btn.getAttribute('aria-busy')==='true')return;
+  var lab=btn.querySelector('span');
+  btn.setAttribute('aria-busy','true');if(lab)lab.textContent=t('share.preparing');
+  token().then(function(tok){
+    return fetch('/api/owner/file?ref='+encodeURIComponent(ref)+(AS?'&as='+encodeURIComponent(AS):''),{headers:{Authorization:'Bearer '+tok}});
+  }).then(function(r){
+    if(!r.ok)return r.json().catch(function(){return {}}).then(function(j){throw {code:j.error,j:j}});
+    var cd=r.headers.get('Content-Disposition')||'',m=/filename="([^"]+)"/.exec(cd);
+    var name=m?m[1]:'BOOM_documento.pdf',type=(r.headers.get('Content-Type')||'application/pdf').split(';')[0];
+    return r.blob().then(function(b){return new File([b],name,{type:type})});
+  }).then(function(file){
+    btn.removeAttribute('aria-busy');btn._file=file;FILES[ref]=file;
+    if(navigator.canShare&&navigator.canShare({files:[file]})){
+      navigator.share({files:[file]}).then(function(){if(lab)lab.textContent=t('ui.share')}).catch(function(e){
+        if(!(e&&e.name==='NotAllowedError')){if(lab)lab.textContent=t('ui.share');return}
+        // iOS ha perso il gesto durante l'attesa: il file è pronto, serve un
+        // tocco nuovo. Col bottone etichettato lo dice l'etichetta; l'icona
+        // della riga non ne ha, quindi si apre il foglio del documento col
+        // messaggio e il suo «Invia al commercialista» (già pronto, niente
+        // seconda lettura). Prima il primo tocco non diceva niente.
+        if(lab)lab.textContent=t('share.tap');
+        else infoSheet(ref,btn,esc(t('share.tap')));
+      });
+    }else{download(file);if(lab)lab.textContent=t('ui.share')}
+  }).catch(function(e){
+    btn.removeAttribute('aria-busy');if(lab)lab.textContent=t('ui.share');
+    infoSheet(ref,SHEET.open?TRIG:btn,fileErrorMsg(e&&e.code,e&&e.j));
+  });
+}
+function doShare(file,btn){
+  if(navigator.canShare&&navigator.canShare({files:[file]}))navigator.share({files:[file]}).catch(function(){});
+  else download(file);
+}
+function download(file){
+  var u=URL.createObjectURL(file),a=document.createElement('a');a.href=u;a.download=file.name;document.body.appendChild(a);a.click();
+  setTimeout(function(){URL.revokeObjectURL(u);a.remove()},4000);
+}
+
+/* ════════════════ I LINK PROFONDI ════════════════
+   #p= casa · #c= contratto · #r=AAAA-MM rendiconto · #doc= documento · #q= ricerca */
+function scrollToEl(el){
+  if(!el)return;
+  var d=el.closest('details');if(d)d.open=true;
+  // Si scorre la FINESTRA, non scrollIntoView: la casa ha overflow nascosto
+  // (è un contenitore di scorrimento) e scrollIntoView scorreva anche lei,
+  // tagliandone la testa — col margine alto del «vedi come» il contratto
+  // atterrava sotto la banda. Il margine è quello del CSS (scroll-margin-top).
+  var sm=parseFloat(getComputedStyle(el).scrollMarginTop)||0;
+  window.scrollTo({top:Math.max(0,el.getBoundingClientRect().top+(window.pageYOffset||0)-sm),behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});
+  var h=el.closest('.house');if(h){h.classList.remove('flash');void h.offsetWidth;h.classList.add('flash')}
+}
+function applyHash(){
+  if(!A)return;
+  var h=location.hash.replace(/^#/,'');if(!h)return;
+  var i=h.indexOf('='),k=i>0?h.slice(0,i):h,v='';
+  try{v=decodeURIComponent(i>0?h.slice(i+1):'')}catch(e){v=''}
+  if(k==='p')scrollToEl(document.querySelector('[data-property-id="'+cssEsc(v)+'"]'));
+  else if(k==='c')scrollToEl(document.querySelector('[data-contract-id="'+cssEsc(v)+'"]'));
+  else if(k==='r'&&/^\d{4}-(0[1-9]|1[0-2])$/.test(v)){
+    var st=statementFor(v)[0];
+    if(st)infoSheet(st.ref,null);
+    else{var pid=Object.keys(PROP).filter(function(id){return (PROP[id].ribbon.months||[]).some(function(m){return m.ym===v})})[0];if(pid)monthSheet(pid,v,null)}
+  }
+  else if(k==='doc'&&ITEM[v])infoSheet(v,null);
+  else if(k==='q'&&$('q')){$('q').value=v;runSearch();scrollToEl($('archivio'))}
+}
+function cssEsc(s){return window.CSS&&CSS.escape?CSS.escape(s):String(s).replace(/["\\]/g,'\\$&')}
+window.addEventListener('hashchange',applyHash);
+
+/* ════════════════ I GESTI (delega unica) ════════════════ */
+function onClick(e){
+  var el;
+  if((el=e.target.closest('[data-goto]'))){e.preventDefault();var g=el.getAttribute('data-goto');
+    if(location.hash==='#'+g)applyHash();else location.hash=g;return}
+  if((el=e.target.closest('[data-open]'))){openDoc(el.getAttribute('data-open'),el);return}
+  if((el=e.target.closest('[data-share]'))){shareDoc(el.getAttribute('data-share'),el);return}
+  if((el=e.target.closest('[data-info]'))){infoSheet(el.getAttribute('data-info'),el);return}
+  if((el=e.target.closest('[data-ym]'))){monthSheet(el.getAttribute('data-pid'),el.getAttribute('data-ym'),el);return}
+  if((el=e.target.closest('[data-year]'))){yearSheet(el.getAttribute('data-year'),el);return}
+  if((el=e.target.closest('[data-ref]'))){var b=e.target.closest('button')||el;openDoc(el.getAttribute('data-ref'),b);return}
+  if(e.target.closest('#newchip')){ONLY_NEW=!ONLY_NEW;$('newchip').setAttribute('aria-pressed',ONLY_NEW?'true':'false');if($('q'))$('q').value='';runSearch();return}
+}
+APP.addEventListener('click',onClick);
+$('sheetBody').addEventListener('click',onClick);
+APP.addEventListener('input',function(e){if(e.target.id==='q')runSearch()});
+document.addEventListener('keydown',function(e){
+  if(e.key==='/'&&!e.metaKey&&!e.ctrlKey&&!e.altKey&&!/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement||{}).tagName||'')&&!SHEET.open&&$('q')){
+    e.preventDefault();$('q').focus();
+  }
+});
+var rz=null;window.addEventListener('resize',function(){clearTimeout(rz);rz=setTimeout(centerRibbons,150)});
+
+/* ════════════════ L'AVVIO ════════════════ */
+chrome();
+$('lang').addEventListener('click',function(){
+  LANG=LANG==='it'?'en':'it';lsSet('boom:proprietario:lang',LANG);
+  chrome();if(A){var open=SHEET.open;if(open)closeSheet();render()}
+});
+$('logout').addEventListener('click',function(){
+  // Il proprietario esce verso la porta del proprietario (/login?next=
+  // /proprietario parla italiano e ha «Primo accesso?»); prima finiva sul
+  // login inglese degli inquilini. L'admin in «vedi come» torna al portal.
+  var dest=PROFILE&&PROFILE.role==='admin'?'/portal':'/login?next=%2Fproprietario';
+  try{firebase.auth().signOut().then(function(){location.href=dest},function(){location.href=dest})}catch(e){location.href=dest}
+});
+if(!O||!window.BoomPortal){showError();return}
+BoomPortal.requireAuth(['landlord','admin'],{loginUrl:'/login'}).then(function(res){
+  USER=res.user;PROFILE=res.profile||{};
+  // Il proprietario vede SEMPRE il suo archivio (?as ignorato anche dal
+  // server); l'admin senza ?as non ha niente da vedere qui.
+  if(PROFILE.role!=='admin')AS=null;
+  else if(!AS){location.replace('/portal');return}
+  paintCached();
+  load();
+}).catch(function(){/* requireAuth rimanda al login o mostra la via d'uscita */});
+})();
+</script>
+</body>
+</html>

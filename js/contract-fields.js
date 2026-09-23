@@ -95,6 +95,42 @@
     return true;
   }
 
+  // La firma su carta REGISTRATA dallo staff (portal «📄 Firmato su carta»):
+  // `paperSigned {at: giorno della firma, by: chi l'ha registrata,
+  // recordedAt}`. Vale solo con giorno e autore leggibili, e su un RINNOVO
+  // solo se registrata dopo la nascita del rinnovo (la carta del contratto
+  // vecchio non firma il nuovo). UNA regola per chi la legge: i solleciti
+  // automatici del server (reminder-cron, Gestore, journey) e — con una copia
+  // tenuta uguale da un test di parità, perché è UMD senza import — il motore
+  // dell'Archivio del Proprietario. Restituisce il giorno della firma, o ''.
+  function ymdAny(v) {
+    if (v == null || v === '') return '';
+    let s = '';
+    if (typeof v === 'string') s = v;
+    else if (typeof v.toDate === 'function') { try { s = v.toDate().toISOString(); } catch (_) { s = ''; } }
+    else if (typeof v.seconds === 'number') s = new Date(v.seconds * 1000).toISOString();
+    else if (typeof v.getTime === 'function' && isFinite(v.getTime())) s = v.toISOString();
+    s = String(s).slice(0, 10);
+    return /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : '';
+  }
+  function paperSignedOn(contract, day) {
+    const c = obj(contract), ps = obj(c.paperSigned), d = typeof day === 'function' ? day : ymdAny;
+    const at = ymdAny(ps.at);
+    if (!at || !str(ps.by)) return '';
+    if (c.renewalOf) {
+      const anchor = d(c.createdAt) || d(c.startDate), rec = d(ps.recordedAt);
+      if (!anchor || !rec || rec < anchor) return '';
+    }
+    return at;
+  }
+  // La firma che ferma i solleciti: digitale completa, o su carta registrata.
+  // Chi chiede di firmare (inviti, re-inviti, «Tocca a Lei», il Gestore) non
+  // lo chiede più a chi l'archivio dice che ha firmato.
+  function signatureSettled(contract) {
+    const c = obj(contract);
+    return c.signatureStatus === 'complete' || !!paperSignedOn(c);
+  }
+
   // Tipo di documento: la Scheda scrive CODICI (passport|id|permit|patente),
   // il portal etichette italiane. Una mappa sola, in entrambe le direzioni.
   const DOC_TYPES = [
@@ -905,7 +941,7 @@
     templateOf, fieldsFor, valueOf, needsOf, isRequired, ownerOf, read,
     completeness, printCheck, missingFor, askFor, applyAnswers, missingMessage, missingNames, labels,
     identityComplete, validCF, validCF16, validCFFor, validPIva, ibanOk, parseItNumber, leaseDays, leaseMonths,
-    cedolareOn, docTypeCode, docTypeIt, isEU, parseCadastral, composeCadastral,
+    cedolareOn, paperSignedOn, signatureSettled, docTypeCode, docTypeIt, isEU, parseCadastral, composeCadastral,
     cotenantIdentity, cotenantMissing, applyCotenantIdentity, legalChecks, rliFacts, readParty, hydrateParties,
   };
 

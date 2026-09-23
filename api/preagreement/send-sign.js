@@ -7,7 +7,7 @@
 // each signature request goes out. Re-pressing = resend (idempotent convert).
 //
 // Method:   POST
-// Headers:  Authorization: Bearer <firebase-id-token>  (admin/owner/landlord)
+// Headers:  Authorization: Bearer <firebase-id-token>  (solo admin, dal 22/09/2026)
 // Body:     { id }                            // preAgreements doc id
 // Response: { ok, contractId, tenantSignUrl, landlordSignUrl, emailed }
 
@@ -42,7 +42,11 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
-  const auth = await requireRole(req, res, ['admin', 'owner', 'landlord']);
+  // SOLO ADMIN (22/09/2026). Accettava qualunque owner/landlord SENZA
+  // controllo di proprietà, e la risposta porta tenantSignUrl: il link per
+  // firmare COME l'inquilino, su una proposta qualsiasi. La console
+  // proposte è dello staff. tests/owner/security.mjs.
+  const auth = await requireRole(req, res, ['admin']);
   if (!auth) return;
 
   const b = await readJson(req);

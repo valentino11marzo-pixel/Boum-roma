@@ -23,8 +23,7 @@ Disallow: /dashboard
 Disallow: /dashboard.html
 Disallow: /client-portal
 Disallow: /client-portal.html
-Disallow: /owner-dashboard
-Disallow: /owner-dashboard.html
+Disallow: /proprietario
 Disallow: /tenant-registration
 Disallow: /tenant-registration.html
 Disallow: /login

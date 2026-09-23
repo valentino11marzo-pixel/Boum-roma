@@ -19,7 +19,7 @@
 // il token di QUESTA proposta. Senza prova non tocca lo status e lo dice.
 //
 // Method:   POST
-// Headers:  Authorization: Bearer <firebase-id-token>  (admin/owner/landlord)
+// Headers:  Authorization: Bearer <firebase-id-token>  (solo admin, dal 22/09/2026)
 // Body:     { id }                                     // preAgreements doc id
 // Response: { ok, verdict, actions[], status, paid, blocked?, contractId? }
 
@@ -70,7 +70,11 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
-  const auth = await requireRole(req, res, ['admin', 'owner', 'landlord']);
+  // SOLO ADMIN (22/09/2026). Accettava qualunque owner/landlord SENZA
+  // controllo di proprietà: riporta a `paid`, sblocca riserve e converte in
+  // contratto proposte di chiunque. È un gesto dell'operatore, dalla console
+  // proposte dello staff. tests/owner/security.mjs.
+  const auth = await requireRole(req, res, ['admin']);
   if (!auth) return;
 
   const b = await readJson(req);

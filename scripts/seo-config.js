@@ -315,21 +315,6 @@ const PAGES = {
     schemas: ['Service:propertyManagement'],
   },
 
-  'owner.html': {
-    path: '/owner',
-    title: 'Owner Portal — Login for BOOM Property Owners',
-    description:
-      'Secure login for BOOM property owners. Track contracts, payments, maintenance, and tenant updates from one dashboard.',
-    keywords: ['BOOM owner login', 'property owner portal'],
-    type: 'website',
-    robots: 'noindex, follow',
-    priority: 0.3,
-    breadcrumbs: [
-      { name: 'Home', url: '/' },
-      { name: 'Owner Portal', url: '/owner' },
-    ],
-  },
-
   // ════════════════════════════════════════════════════════════════════
   // TENANT
   // ════════════════════════════════════════════════════════════════════
@@ -498,7 +483,11 @@ const PAGES = {
   'precheck.html': noindex('/precheck', 'Apartment Pre-Check — BOOM Rome', 'BOOM pre-check verification.'),
   'thank-you.html': noindex('/thank-you', 'Thank You — BOOM Rome', 'Thanks — we\'ll be in touch shortly.'),
   '404.html': noindex('/404', 'Page Not Found — BOOM Rome', 'We couldn\'t find that page. Browse verified apartments instead.'),
-  'owner-dashboard.html': noindex('/owner-dashboard', 'Owner Dashboard — BOOM Rome', 'BOOM owner dashboard.'),
+  // L'Archivio del Proprietario (22/09/2026) sostituisce owner.html e
+  // owner-dashboard.html (cancellate; /owner* → 308 /proprietario). Pagina
+  // autenticata: nofollow oltre a noindex, come la dichiara la pagina stessa
+  // (tests/owner/ui.mjs pretende la meta robots nei primi 4000 caratteri).
+  'proprietario.html': { ...noindex('/proprietario', 'Archivio proprietario — BOOM Roma', 'Il tuo archivio di proprietario BOOM: contratti, verbali e rendiconti dei tuoi immobili.'), robots: 'noindex, nofollow' },
   'proppass.html': noindex('/proppass', 'PropPass — BOOM Rome', 'BOOM PropPass generator.'),
   'pass-delivery.html': noindex('/pass-delivery', 'Pass Delivery — BOOM Rome', 'Your BOOM pass.'),
 };

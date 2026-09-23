@@ -39,6 +39,38 @@
   function addYears(d, n) { var x = new Date(d); x.setFullYear(x.getFullYear() + n); return x; }
   function daysBetween(a, b) { return Math.round((toDate(b) - toDate(a)) / 86400000); }
 
+  // Cedolare secca: quando il contratto porta il campo ESPLICITO
+  // (`cedolareSecca` o `canone.cedolareSecca`, come scrivono portal e
+  // convert: 'si'/'no'/booleano) decide la lettura unica del dizionario,
+  // la stessa che stampa il PDF (FIELDS.cedolareOn). Prima qui si leggeva
+  // solo `cedolare === true`: un contratto con 'si' finiva nel regime
+  // ordinario → un costo RLI di €256, l'imposta di registro annuale e un
+  // promemoria ISTAT che non esistono. Senza il campo resta la lettura di
+  // sempre (divergenza dal PDF dichiarata, non corretta in questa versione).
+  var _fields = null, _fieldsTried = false;
+  function contractFields() {
+    if (_fieldsTried) return _fields;
+    _fieldsTried = true;
+    try {
+      if (typeof module !== 'undefined' && module.exports && typeof require === 'function') _fields = require('./contract-fields.js');
+    } catch (_) { _fields = null; }
+    if (!_fields && typeof window !== 'undefined' && window.BOOM_CONTRACT_FIELDS) _fields = window.BOOM_CONTRACT_FIELDS;
+    if (!_fields || typeof _fields.cedolareOn !== 'function') {
+      _fields = null;
+      if (typeof console !== 'undefined' && console.warn) console.warn('[fiscal-engine] BOOM_CONTRACT_FIELDS assente: cedolare letta col solo campo legacy');
+    }
+    return _fields;
+  }
+  function explicitCedolare(c) {
+    var v = c.cedolareSecca, w = c.canone && typeof c.canone === 'object' ? c.canone.cedolareSecca : undefined;
+    return (v !== undefined && v !== null && v !== '') || (w !== undefined && w !== null && w !== '');
+  }
+  function isCedolareOf(c, regime) {
+    var F = explicitCedolare(c) ? contractFields() : null;
+    if (F) return !!F.cedolareOn(c);
+    return c.cedolare === true || /cedolar/.test(regime);
+  }
+
   // Reuse contract classification if the taxpack engine is present; else inline.
   function classify(contract) {
     if (root && root.BOOM_TAXPACK && root.BOOM_TAXPACK.classifyContract) {
@@ -48,7 +80,7 @@
     var type = String(c.type || '').toLowerCase();
     var regime = String(c.taxRegime || c.regime || '').toLowerCase();
     return {
-      isCedolare: c.cedolare === true || /cedolar/.test(regime),
+      isCedolare: isCedolareOf(c, regime),
       isConcordato: c.concordato === true || /concordat|3\+2/.test(regime) || type === 'concordato',
       isShortLet: type === 'breve' || type === 'short' || c.shortLet === true,
     };

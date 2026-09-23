@@ -4,7 +4,16 @@ rules_version = '2';
 // Companion to firestore.rules. Until now Storage had NO rules in the repo,
 // meaning contract scans, ID documents, and payment proofs were readable/
 // writable by anyone. These lock every object to the owning user + the
-// admin, with landlords able to read files attached to their properties.
+// admin.
+//
+// 22/09/2026 — il landlord NON legge più le cartelle degli altri. Fino a
+// questa data `documents/`, `maintenance/` e `payment-proofs/` erano
+// leggibili da QUALSIASI landlord (non solo quello dell'immobile: la regola
+// non sapeva di quale immobile fosse il file), e `documents/<uid>/innesto/`
+// contiene le scansioni dei documenti d'identità degli inquilini. Il
+// proprietario riceve i file del suo archivio da /api/owner/file (biglietto
+// firmato, download per path con credenziali admin). I pass Wallet li emette
+// solo l'admin. Asserito da tests/owner/security.mjs.
 //
 // Storage layout (verified against portal.html upload paths):
 //   documents/{userId}/{timestamp}_{filename}        general doc archive
@@ -34,30 +43,26 @@ service firebase.storage {
     }
 
     // ─── documents/{userId}/** ────────────────────────────────────────
-    // Owner reads/writes their own folder. Admin everything. Landlords can
-    // read (not write) any document folder — they may need a tenant's
-    // uploaded receipt for their own property; the Firestore `documents`
-    // doc-level rule is the finer gate on which ones surface in the UI.
+    // Owner reads/writes their own folder. Admin everything.
     match /documents/{userId}/{allPaths=**} {
-      allow read:  if isAdmin() || uid() == userId || isLandlord();
+      allow read:  if isAdmin() || uid() == userId;
       allow write: if (isAdmin() || uid() == userId) && validUpload();
       allow delete: if isAdmin() || uid() == userId;
     }
 
     // ─── maintenance/{userId}/** ──────────────────────────────────────
-    // Tenant uploads issue photos to their own folder; admin + the
-    // property's landlord can view.
+    // Tenant uploads issue photos to their own folder; admin can view.
     match /maintenance/{userId}/{allPaths=**} {
-      allow read:  if isAdmin() || uid() == userId || isLandlord();
+      allow read:  if isAdmin() || uid() == userId;
       allow write: if (isAdmin() || uid() == userId) && validUpload();
       allow delete: if isAdmin() || uid() == userId;
     }
 
     // ─── payment-proofs/{userId}/** ───────────────────────────────────
-    // Tenant uploads payment receipts to their own folder; admin + landlord
-    // can view to reconcile.
+    // Tenant uploads payment receipts to their own folder; admin can view
+    // to reconcile.
     match /payment-proofs/{userId}/{allPaths=**} {
-      allow read:  if isAdmin() || uid() == userId || isLandlord();
+      allow read:  if isAdmin() || uid() == userId;
       allow write: if (isAdmin() || uid() == userId) && validUpload();
       allow delete: if isAdmin() || uid() == userId;
     }
@@ -115,12 +120,14 @@ service firebase.storage {
     // consegna e regalava l'ENUMERAZIONE pubblica dei pass (nome, immobile,
     // ora della visita = PII). E `write: isSignedIn()` includeva l'anonimo
     // (magic-link) che poteva caricare qualsiasi file fino a 5MB in una
-    // cartella a lettura pubblica. Stretto a admin/landlord (i soli generatori
-    // legittimi) — audit 2026-08-18 P1.9. `validUpload()` NON si usa qui: la
-    // sua whitelist esclude il content-type dei .pkpass.
+    // cartella a lettura pubblica. Stretto a admin/landlord — audit
+    // 2026-08-18 P1.9 — e dal 22/09/2026 al solo admin: il landlord non ha
+    // più il portal (va su /proprietario) e i pass li emette BOOM.
+    // `validUpload()` NON si usa qui: la sua whitelist esclude il
+    // content-type dei .pkpass.
     match /passes/{allPaths=**} {
       allow read:   if isAdmin();
-      allow write:  if (isAdmin() || isLandlord()) && request.resource.size < 5 * 1024 * 1024;
+      allow write:  if isAdmin() && request.resource.size < 5 * 1024 * 1024;
       allow delete: if isAdmin();
     }
 

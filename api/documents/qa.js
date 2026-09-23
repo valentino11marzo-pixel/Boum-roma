@@ -1,9 +1,16 @@
 // api/documents/qa.js
-// AI Q&A across the caller's document archive. Admin or landlord asks a
+// AI Q&A across the document archive. The admin asks a
 // natural-language question; the server gathers the relevant documents'
 // metadata + ocrText (already extracted by /api/documents/ocr at upload
 // time), packages them with the question, sends to Claude, returns the
 // answer + cited document ids. Keeps the Anthropic key server-side.
+//
+// SOLO ADMIN (22/09/2026). Il ramo landlord raccoglieva TUTTI i documenti
+// dei suoi immobili — anagrafiche, documenti d'identità, ricevute degli
+// inquilini — e ne passava il testo OCR al modello, che poi lo riassumeva al
+// proprietario: una fuga di dati dell'inquilino con in mezzo un modello.
+// Il proprietario vede i documenti del suo archivio dalla proiezione pulita
+// di /api/owner/archivio, dove la tabella di visibilità decide cosa è suo.
 //
 // Method:   POST
 // URL:      /api/documents/qa
@@ -45,7 +52,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
-  const auth = await requireRole(req, res, ['admin', 'landlord']);
+  const auth = await requireRole(req, res, ['admin']);
   if (!auth) return;
   if (!process.env.ANTHROPIC_API_KEY) {
     return res.status(500).json({ ok: false, error: 'server_missing_anthropic_key' });
@@ -60,29 +67,10 @@ export default async function handler(req, res) {
 
   const maxDocs = Math.min(MAX_DOCS_HARD, Math.max(1, Number(body.maxDocs) || MAX_DOCS_DEFAULT));
 
-  // Scope: admin sees every doc; landlord sees own + docs on their properties.
+  // Scope: l'admin vede tutto l'archivio (unico ruolo ammesso, vedi testa).
   let docs = [];
   try {
-    if (auth.profile.role === 'admin') {
-      docs = await fsList('documents', { limit: maxDocs * 2 });
-    } else {
-      const ownProps = await fsList('properties', {
-        filter: { field: 'ownerId', op: 'EQUAL', value: auth.uid }, limit: 100,
-      });
-      const own = await fsList('documents', {
-        filter: { field: 'userId', op: 'EQUAL', value: auth.uid }, limit: maxDocs,
-      });
-      const propDocs = [];
-      for (const p of ownProps) {
-        const ds = await fsList('documents', {
-          filter: { field: 'propertyId', op: 'EQUAL', value: p.id }, limit: 30,
-        });
-        ds.forEach(d => propDocs.push(d));
-        if (own.length + propDocs.length >= maxDocs * 2) break;
-      }
-      const seen = new Set();
-      [...own, ...propDocs].forEach(d => { if (!seen.has(d.id)) { seen.add(d.id); docs.push(d); } });
-    }
+    docs = await fsList('documents', { limit: maxDocs * 2 });
   } catch (err) {
     console.error('[documents/qa] list', err.message);
     return res.status(500).json({ ok: false, error: 'fetch_failed' });

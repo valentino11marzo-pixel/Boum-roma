@@ -23,6 +23,33 @@ ok('short-let', T.classifyContract({ type: 'breve' }).isShortLet);
 ok('foreign tenant from nationality', T.classifyContract({ tenantNationality: 'Spagnola' }).foreignTenant);
 ok('italian tenant not foreign', !T.classifyContract({ tenantNationality: 'Italiana' }).foreignTenant);
 
+// Cedolare dal campo esplicito: la stessa lettura del PDF (FIELDS.cedolareOn).
+{
+  const { readFileSync } = await import('node:fs');
+  const vm = await import('node:vm');
+  const checks = (E) => ({
+    si: E.classifyContract({ cedolareSecca: 'si' }).isCedolare === true,
+    no: E.classifyContract({ cedolareSecca: 'no', taxRegime: 'cedolare' }).isCedolare === false,
+    canone: E.classifyContract({ canone: { cedolareSecca: 'si' } }).isCedolare === true,
+    absent: E.classifyContract({}).isCedolare === false && E.classifyContract({ cedolare: true }).isCedolare === true
+      && E.classifyContract({ taxRegime: 'Cedolare secca 21%' }).isCedolare === true,
+  });
+  const r = checks(T);
+  ok("cedolareSecca:'si' → cedolare", r.si);
+  ok("cedolareSecca:'no' → ordinario (il campo esplicito vince sul testo del regime)", r.no);
+  ok("canone.cedolareSecca:'si' → cedolare", r.canone);
+  ok('campo assente → lettura storica pinnata', r.absent);
+  const src = readFileSync(new URL('../../js/taxpack-engine.js', import.meta.url), 'utf8');
+  const target = 'var F = explicitCedolare(c) ? contractFields() : null;';
+  ok('mutazione: il bersaglio esiste nel sorgente', src.includes(target));
+  const ctx = { module: { exports: {} }, require, console: { warn() {} } };
+  vm.runInNewContext(src.replace(target, 'var F = null;'), ctx);
+  ok("mutazione: senza il ramo esplicito il caso 'si' cade", !checks(ctx.module.exports).si);
+  // computeTotals: un 'si' ora dà il regime cedolare anche nel pacchetto.
+  const tot = T.computeTotals({ contract: { cedolareSecca: 'si', type: 'transitorio', rent: 1000 }, payments: [], fiscalYear: 2025 });
+  ok("computeTotals con 'si' → regime cedolare", /^cedolare/.test(tot.regime));
+}
+
 // ── monthsActiveInYear ───────────────────────────────────────────────
 console.log('\nmonthsActiveInYear');
 eq('full year', T.monthsActiveInYear({ startDate: '2024-06-01', endDate: '2026-06-01' }, 2025), 12);

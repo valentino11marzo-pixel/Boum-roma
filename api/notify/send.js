@@ -10,11 +10,16 @@
 // Method:   POST { to, params } — params è l'oggetto del vecchio template
 //           EmailJS: heading, subheading, intro, card_title, r1..r4
 //           (icon/label/value), closing, cta_text, portal_link.
-// Headers:  Authorization: Bearer <firebase-id-token> (admin/owner/landlord)
+// Headers:  Authorization: Bearer <firebase-id-token> (SOLO admin)
 // Response: { ok } | { ok:false, error }
 //
 // I tenant NON passano di qui: un endpoint che spedisce email a
-// destinatari arbitrari con il marchio BOOM è roba da operatore.
+// destinatari arbitrari con il marchio BOOM è roba da operatore. E dal
+// 22/09/2026 nemmeno owner/landlord: 30 email al minuto a QUALSIASI
+// indirizzo, dalla casella Gmail di BOOM e col suo marchio, sono un canale
+// di phishing, e l'invito dei proprietari moltiplica quegli account. Il
+// proprietario non ha più il portal (va su /proprietario), quindi nessun
+// suo flusso passava davvero di qui. tests/owner/security.mjs.
 
 import { requireRole, setCors } from '../_auth.js';
 import { readJson } from '../homie/_lib.js';
@@ -34,7 +39,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
-  const auth = await requireRole(req, res, ['admin', 'owner', 'landlord']);
+  const auth = await requireRole(req, res, ['admin']);
   if (!auth) return;
   if (!rateOk(auth.uid)) return res.status(429).json({ ok: false, error: 'rate_limited' });
 

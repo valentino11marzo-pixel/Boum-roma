@@ -9,6 +9,18 @@ rules_version = '2';
 // website reads them unauthenticated — apartments grid, /listing/:id, hubs,
 // homepage video). Writes stay admin-only. Locking their READ is what took
 // /apartments down with PERMISSION_DENIED — keep it open.
+//
+// IL PROPRIETARIO LEGGE SOLO VIA /api/owner/* (22/09/2026). Fino a questa
+// data un landlord leggeva dal browser properties/contracts/payments/
+// maintenance dei propri immobili, i documenti condivisi e l'Inbox: il
+// contratto portava tenantSignToken (firmare COME l'inquilino), gli URL
+// tokenizzati degli identityDocs, CF e IP del conduttore; i pagamenti i
+// margini. Ora quei rami non esistono più: l'Archivio del Proprietario
+// (/proprietario) legge dal server una proiezione pulita (assertClean) e
+// il browser del proprietario non tocca più Firestore per quei dati.
+// Restano: il proprio users, invoices (recipientId), documentShares e
+// taxPacks. tests/owner/security.mjs lo asserisce sul testo; il job CI
+// firestore-rules (tests/rules/runner.mjs) sull'emulatore.
 
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -29,9 +41,9 @@ service cloud.firestore {
     function contractData(cid) {
       return get(/databases/$(database)/documents/contracts/$(cid)).data;
     }
-    function ownsProperty(pid) {
-      return isLandlord() && propertyData(pid).ownerId == uid();
-    }
+    // ownsProperty() è stato RIMOSSO (22/09/2026): era la porta con cui un
+    // landlord leggeva contratti e pagamenti dal browser. Non reintrodurlo:
+    // il proprietario legge via /api/owner/* (vedi l'intestazione).
     function onlyChanges(allowed) {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(allowed);
     }
@@ -55,19 +67,37 @@ service cloud.firestore {
     match /payout/{x}    { allow read: if request.auth != null; allow write: if isAdmin(); }
 
     // ─── users ────────────────────────────────────────────────────────
+    // Chi possiede la scheda la aggiorna (nome, telefono, lastLogin,
+    // onboarding, push, i dati d'identità), MAI i campi che decidono CHI è e
+    // COSA vede. 23/09/2026 (revisione avversariale dell'Archivio del
+    // Proprietario): fino a qui era chiuso solo `role`, e un landlord poteva
+    // scriversi `ownerAliases:[<uid di un altro>]` sulla propria scheda —
+    // /api/owner/* legge lì gli alias e gli consegnava rendiconti e documenti
+    // dell'altro. Con `email` e i timbri d'invito scrivibili, poi, l'invito
+    // prendeva per "suo" un account che si era dato l'email di un altro
+    // proprietario. `accountConfirmedAt/By` sono la firma dell'admin che ha
+    // garantito l'account all'invito: scritti da sé, direbbero che qualcuno
+    // ha garantito ciò che nessuno ha visto. Questi campi li scrivono solo l'admin e il server
+    // (api/owner/invite.js, api/owner/archivio.js), con credenziali admin.
+    // Nessuna pagina li aggiorna sulla propria scheda (verificato: portal,
+    // login, tenant, scheda/sign passano dalle API). tests/rules/runner.mjs
+    // e tests/owner/security.mjs lo tengono.
     match /users/{userId} {
       allow read:   if isAdmin() || uid() == userId;
       allow create: if isAdmin();
       allow update: if isAdmin()
                     || (uid() == userId
-                        && !('role' in request.resource.data.diff(resource.data).affectedKeys()));
+                        && !request.resource.data.diff(resource.data).affectedKeys()
+                              .hasAny(['role', 'email', 'authUid', 'ownerAliases',
+                                       'ownerInvitedAt', 'ownerInvitedBy',
+                                       'ownerInviteSentAt', 'ownerPortalFirstAt',
+                                       'accountConfirmedAt', 'accountConfirmedBy']));
       allow delete: if isAdmin();
     }
 
     // ─── properties ───────────────────────────────────────────────────
     match /properties/{propId} {
       allow read: if isAdmin()
-                  || (isLandlord() && resource.data.ownerId == uid())
                   || (isTenant()
                       && resource.data.currentContractId != null
                       && contractData(resource.data.currentContractId).tenantId == uid());
@@ -77,8 +107,7 @@ service cloud.firestore {
     // ─── contracts ────────────────────────────────────────────────────
     match /contracts/{cId} {
       allow read: if isAdmin()
-                  || (isTenant() && resource.data.tenantId == uid())
-                  || (isLandlord() && ownsProperty(resource.data.propertyId));
+                  || (isTenant() && resource.data.tenantId == uid());
       allow create, delete: if isAdmin();
       allow update: if isAdmin()
                     || (isTenant() && resource.data.tenantId == uid()
@@ -89,9 +118,7 @@ service cloud.firestore {
     // ─── payments ─────────────────────────────────────────────────────
     match /payments/{pId} {
       allow read: if isAdmin()
-                  || (isTenant() && resource.data.tenantId == uid())
-                  || (isLandlord() && resource.data.propertyId != null
-                      && ownsProperty(resource.data.propertyId));
+                  || (isTenant() && resource.data.tenantId == uid());
       allow create, delete: if isAdmin();
       allow update: if isAdmin()
                     || (isTenant() && resource.data.tenantId == uid()
@@ -102,9 +129,7 @@ service cloud.firestore {
     // ─── maintenance ──────────────────────────────────────────────────
     match /maintenance/{mId} {
       allow read:   if isAdmin()
-                    || (isTenant() && resource.data.userId == uid())
-                    || (isLandlord() && resource.data.propertyId != null
-                        && ownsProperty(resource.data.propertyId));
+                    || (isTenant() && resource.data.userId == uid());
       // L'admin può aprire una segnalazione PER un inquilino: succede ogni
       // volta che qualcuno telefona invece di usare l'app, e serve
       // all'inquilino di prova. Senza `isAdmin()` la regola ammetteva solo
@@ -117,21 +142,30 @@ service cloud.firestore {
 
     // ─── documents ────────────────────────────────────────────────────
     match /documents/{dId} {
+      // Il proprio documento NON vale per il landlord: la copia di
+      // attivazione (userId = landlord, fileUrl = generatedPDF, un PDF con
+      // l'identità del conduttore) e i documenti dell'Innesto con
+      // party:'landlord' (il party è la stima del modello) gli
+      // consegnerebbero URL tokenizzati. Il proprietario li vede solo dalla
+      // proiezione del server, che applica la tabella di visibilità.
       allow read: if isAdmin()
-                  || resource.data.userId == uid()
+                  || (resource.data.userId == uid() && !isLandlord())
                   || (resource.data.shared == true && resource.data.propertyId != null
-                      && (ownsProperty(resource.data.propertyId)
-                          || (isTenant()
-                              && propertyData(resource.data.propertyId).currentContractId != null
-                              && contractData(propertyData(resource.data.propertyId).currentContractId).tenantId == uid())));
+                      && isTenant()
+                      && propertyData(resource.data.propertyId).currentContractId != null
+                      && contractData(propertyData(resource.data.propertyId).currentContractId).tenantId == uid());
       // `isAdmin()` come in maintenance: il server archivia i documenti legali
       // PER conto di terzi (contratto firmato → userId dell'inquilino, bozza
       // RLI, deal-archive). Senza questo ramo ogni scrittura post-firma
       // tornava PERMISSION_DENIED e l'archiviazione legale non avveniva mai
       // (portal-app.js:1818/17263/17276/19468 — audit 2026-08-18 P0.3).
+      // Scrittura: nemmeno il landlord scrive dal browser (22/09/2026). Prima
+      // poteva creare un documento `shared` su un immobile QUALSIASI con un
+      // fileUrl qualsiasi, e il ramo inquilino qui sopra lo mostrava al
+      // conduttore di quella casa: un link arbitrario firmato BOOM.
       allow create: if isAdmin()
-                    || (isSignedIn() && request.resource.data.userId == uid());
-      allow update, delete: if isAdmin() || resource.data.userId == uid();
+                    || (isSignedIn() && !isLandlord() && request.resource.data.userId == uid());
+      allow update, delete: if isAdmin() || (resource.data.userId == uid() && !isLandlord());
     }
 
     // ─── notifications ────────────────────────────────────────────────
@@ -162,16 +196,14 @@ service cloud.firestore {
     // ─── conversations + messages (Inbox unificato) ──────────────────
     match /conversations/{convId} {
       allow read:   if isAdmin()
-                    || (resource.data.contactUid == uid())
-                    || (isLandlord() && resource.data.assignedLandlordId == uid());
+                    || (resource.data.contactUid == uid());
       allow create: if isAdmin();
       allow update, delete: if isAdmin();
     }
 
     match /messages/{msgId} {
       allow read:   if isAdmin()
-                    || (resource.data.contactUid == uid())
-                    || (isLandlord() && resource.data.assignedLandlordId == uid());
+                    || (resource.data.contactUid == uid());
       allow create: if isAdmin()
                     || (isSignedIn()
                         && request.resource.data.by == uid()

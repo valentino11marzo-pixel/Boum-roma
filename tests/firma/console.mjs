@@ -51,7 +51,9 @@ const ctx = {
   location: { origin: 'https://www.boomrome.com', hash: '' }, navigator: { clipboard: { writeText() {} } },
   localStorage: { getItem: () => null, setItem() {} }, alert() {}, prompt: () => null,
   firebase: { firestore },
-  BoomPortal: { requireAuth: () => ({ then: (fn) => { fn({ user: { email: 'op@x', uid: 'u1', getIdToken: async () => 't' } }); return { catch() {} }; } }) },
+  // Il profilo admin: dal 22/09/2026 la console controlla il ruolo PRIMA di
+  // leggere Firestore (un non-admin vede il cartello verso /proprietario).
+  BoomPortal: { requireAuth: () => ({ then: (fn) => { fn({ user: { email: 'op@x', uid: 'u1', getIdToken: async () => 't' }, profile: { role: 'admin' } }); return { catch() {} }; } }) },
   fetch: async () => ({ json: async () => ({ ok: true }) }),
 };
 ctx.window = ctx; ctx.self = ctx;

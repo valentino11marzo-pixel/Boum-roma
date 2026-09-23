@@ -2,7 +2,10 @@
 // THE unified photo brain: AI curation + enhancement for the catalog.
 // One pipeline, three doors:
 //   1. photo-lab.html console → Authorization: Bearer <Firebase ID token>
-//      (role admin/owner/landlord)
+//      (SOLO role admin, dal 22/09/2026: `apply` riscrive le foto di
+//      QUALSIASI annuncio, senza alcun controllo di proprietà — aperto ai
+//      landlord, ogni account di proprietario poteva cambiare la vetrina di
+//      tutti. La console è dello staff; wizard e cron restano come prima)
 //   2. the Telegram listing wizard bot → X-Wizard-Secret (same shared secret
 //      as every other wizard→server call; X-Homie-Secret accepted too)
 //   3. the nightly sweep cron → GET ?mode=sweep with Bearer CRON_SECRET —
@@ -59,7 +62,7 @@ async function authAny(req, res) {
     return { actor: 'cron' };
   }
 
-  const auth = await requireRole(req, res, ['admin', 'owner', 'landlord']); // writes 401/403 itself
+  const auth = await requireRole(req, res, ['admin']); // writes 401/403 itself
   return auth ? { actor: 'admin:' + (auth.email || auth.uid) } : null;
 }
 

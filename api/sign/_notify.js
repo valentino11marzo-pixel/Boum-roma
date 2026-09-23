@@ -31,6 +31,9 @@ import { generateAuthToken } from '../generate-pass.js';
 import FIELDS from '../../js/contract-fields.js';
 import { schedaUrl } from '../profile/_scheda.js';
 import { sheetRows, tableHtml, H as sheetH } from './_foglio.js';
+// La regola UNICA del bottone «Apri il suo archivio» (invitato o già entrato):
+// vive con l'invito del proprietario, qui si legge e basta.
+import { ownerArchiveOpen, ownerArchiveUrl } from '../owner/_entry.js';
 
 export const tenantWalletUrl = (contractId) =>
   `${'https://www.boomrome.com'}/api/my-pass?type=tenant&id=${encodeURIComponent(contractId)}&t=${generateAuthToken(String(contractId))}`;
@@ -281,10 +284,17 @@ export async function sendWelcomeEmails(contract, property, { portalLink, certUr
     const atts = attachFor('BOOM_Contratto_firmato.pdf', 'BOOM_Certificato_di_firma.pdf');
     out.landlord = await trySend(g.landlordEmail, '✓ Contratto firmato — i prossimi passi', shell(
       para(`Gentile ${esc(first)},<br>il contratto per <b>${esc(g.propLabel)}</b> è <b>firmato da entrambe le parti</b>. BOOM ha già messo a scadenzario i passi qui sotto — la registrazione la seguiamo insieme.`)
-      + (contractPdf ? fine('📎 In allegato: il <b>contratto firmato</b> e il certificato di firma (PDF) — da conservare.', 'text-align:center') : '')
+      + (contractPdf ? fine('📎 In allegato: il <b>contratto firmato</b> e il certificato di firma (PDF) — da conservare.', 'text-align:center')
+        : certPdf ? fine('📎 In allegato: il <b>certificato di firma</b> (PDF) — da conservare.', 'text-align:center') : '')
       + includes(fiscal.map(esc))
-      + btn(BASE + '/portal', 'Apri la dashboard')
-      + (contractPdf ? '' : (certHref ? fine(`⬇ <a href="${esc(certHref)}" style="color:#8A6D1D">Certificato di firma (PDF)</a>`, 'text-align:center') : '')),
+      // Il bottone porta all'archivio SOLO a chi l'account ce l'ha davvero
+      // (invitato o già entrato): prima puntava a /portal, dove un proprietario
+      // senza account non poteva entrare. E nessun link tokenizzato al
+      // certificato nel corpo (22/09/2026): quel link è una credenziale che
+      // non scade — il certificato resta IN ALLEGATO, come il contratto.
+      + (ownerArchiveOpen(g.landlordU)
+        ? btn(ownerArchiveUrl(contract.id ? 'c=' + encodeURIComponent(contract.id) : ''), 'Apri il suo archivio')
+        : fine('L’accesso online al suo archivio lo attiviamo noi: risponda a questa email.', 'text-align:center')),
       'Contratto perfezionato — copia firmata in allegato.'), atts);
   }
   return out;

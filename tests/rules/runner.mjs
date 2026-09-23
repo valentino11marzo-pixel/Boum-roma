@@ -37,9 +37,9 @@ const env = await initializeTestEnvironment({
 await env.withSecurityRulesDisabled(async (ctx) => {
   const db = ctx.firestore();
   await setDoc(doc(db, 'users/adminUid'), { role: 'admin', name: 'Admin' });
-  await setDoc(doc(db, 'users/llA'),      { role: 'landlord', name: 'Landlord A' });
+  await setDoc(doc(db, 'users/llA'),      { role: 'landlord', name: 'Landlord A', email: 'lla@example.com', ownerInvitedAt: '2026-09-01T00:00:00Z' });
   await setDoc(doc(db, 'users/llB'),      { role: 'landlord', name: 'Landlord B' });
-  await setDoc(doc(db, 'users/tA'),       { role: 'tenant', name: 'Tenant A' });
+  await setDoc(doc(db, 'users/tA'),       { role: 'tenant', name: 'Tenant A', email: 'ta@example.com' });
   await setDoc(doc(db, 'users/tB'),       { role: 'tenant', name: 'Tenant B' });
 
   await setDoc(doc(db, 'properties/propA'), { ownerId: 'llA', currentContractId: 'contractA', name: 'Prop A' });
@@ -55,6 +55,15 @@ await env.withSecurityRulesDisabled(async (ctx) => {
   await setDoc(doc(db, 'maintenance/mB'), { userId: 'tB', propertyId: 'propB', title: 'Heater' });
 
   await setDoc(doc(db, 'documents/docA'), { userId: 'tA', propertyId: 'propA', shared: false });
+  // 22/09/2026 — il proprietario legge solo via /api/owner/*: questi
+  // documenti sono porte che il browser del landlord NON deve più aprire.
+  await setDoc(doc(db, 'documents/docShared'), { userId: 'adminUid', propertyId: 'propA', shared: true, fileUrl: 'https://x/o/a?alt=media&token=T' });
+  // La copia di attivazione: userId = landlord, fileUrl = PDF non firmato con
+  // l'identità del conduttore. Il "proprio documento" non vale per il landlord.
+  await setDoc(doc(db, 'documents/docOwnLl'), { userId: 'llA', propertyId: 'propA', shared: true, fileUrl: 'https://x/o/b?alt=media&token=T' });
+  await setDoc(doc(db, 'conversations/convA'), { assignedLandlordId: 'llA', contactUid: 'leadX' });
+  await setDoc(doc(db, 'messages/msgA'), { assignedLandlordId: 'llA', contactUid: 'leadX', text: 'hi' });
+  await setDoc(doc(db, 'invoices/invA'), { recipientId: 'llA', amount: 89, status: 'pending' });
   await setDoc(doc(db, 'leads/lead1'), { name: 'Hot lead', email: 'x@y.com' });
   await setDoc(doc(db, 'pfsClients/c1'), { name: 'PFS client', budget: '€1000' });
   await setDoc(doc(db, 'config/parse_docs'), { bearer: 'super-secret-token' });
@@ -118,16 +127,57 @@ await check('signs OWN contract (signature fields only)',
 await check('CANNOT change rent on own contract',
   assertFails(updateDoc(doc(tA, 'contracts/contractA'), { rent: 1 })));
 
-// ── LANDLORD A: own properties only ─────────────────────────────────────
-console.log('\nLandlord A (owns propA)');
-await check('reads OWN property',             assertSucceeds(getDoc(doc(llA, 'properties/propA'))));
-await check('CANNOT read landlord B property',assertFails(getDoc(doc(llA, 'properties/propB'))));
-await check('reads contract on OWN property',  assertSucceeds(getDoc(doc(llA, 'contracts/contractA'))));
-await check('CANNOT read contract on B prop',  assertFails(getDoc(doc(llA, 'contracts/contractB'))));
-await check('reads payment on OWN property',   assertSucceeds(getDoc(doc(llA, 'payments/payA'))));
+// ── LANDLORD A: nothing from the browser (22/09/2026) ───────────────────
+// Il proprietario legge solo via /api/owner/* (proiezione pulita dal server).
+// Fino al 22/09 i quattro "reads … OWN" qui sotto erano assertSucceeds: il
+// contratto gli portava tenantSignToken, identityDocs, CF e IP del conduttore.
+console.log('\nLandlord A (owns propA) — reads only via /api/owner/*');
+await check('CANNOT read OWN property from the browser',   assertFails(getDoc(doc(llA, 'properties/propA'))));
+await check('CANNOT read landlord B property',             assertFails(getDoc(doc(llA, 'properties/propB'))));
+await check('CANNOT read contract on OWN property',        assertFails(getDoc(doc(llA, 'contracts/contractA'))));
+await check('CANNOT read contract on B prop',              assertFails(getDoc(doc(llA, 'contracts/contractB'))));
+await check('CANNOT read payment on OWN property',         assertFails(getDoc(doc(llA, 'payments/payA'))));
+await check('CANNOT read maintenance on OWN property',     assertFails(getDoc(doc(llA, 'maintenance/mA'))));
+await check('CANNOT read a SHARED document on OWN property', assertFails(getDoc(doc(llA, 'documents/docShared'))));
+await check('CANNOT read a document with OWN userId (activation copy)', assertFails(getDoc(doc(llA, 'documents/docOwnLl'))));
+await check('CANNOT read a conversation assigned to self', assertFails(getDoc(doc(llA, 'conversations/convA'))));
+await check('CANNOT read a message assigned to self',      assertFails(getDoc(doc(llA, 'messages/msgA'))));
+await check('reads OWN user doc',                          assertSucceeds(getDoc(doc(llA, 'users/llA'))));
+await check('reads OWN invoice (recipientId)',             assertSucceeds(getDoc(doc(llA, 'invoices/invA'))));
 await check('CANNOT write a property (admin only)',
   assertFails(setDoc(doc(llA, 'properties/propA'), { ownerId: 'llA', hacked: true })));
 await check('CANNOT read the lead pool',       assertFails(getDoc(doc(llA, 'leads/lead1'))));
+// 23/09/2026 — la PROPRIA scheda users: i campi d'identità e d'accesso li
+// scrivono solo admin e server. ownerAliases scritto da sé era la chiave per
+// leggere rendiconti e documenti di un ALTRO proprietario via /api/owner/*;
+// email e timbri d'invito, la prova falsa con cui l'invito sceglieva l'account.
+await check('landlord A CANNOT add another owner to OWN ownerAliases',
+  assertFails(updateDoc(doc(llA, 'users/llA'), { ownerAliases: ['llB'] })));
+await check('landlord A CANNOT rewrite OWN email',
+  assertFails(updateDoc(doc(llA, 'users/llA'), { email: 'victim@example.com' })));
+await check('landlord A CANNOT stamp OWN ownerInvitedAt',
+  assertFails(updateDoc(doc(llA, 'users/llA'), { ownerInvitedAt: '2026-09-23T09:00:00Z' })));
+await check('landlord A CANNOT stamp OWN ownerPortalFirstAt / authUid',
+  assertFails(updateDoc(doc(llA, 'users/llA'), { ownerPortalFirstAt: '2026-09-01T00:00:00Z', authUid: 'llA' })));
+await check('landlord A CANNOT stamp OWN accountConfirmedAt / accountConfirmedBy',
+  assertFails(updateDoc(doc(llA, 'users/llA'), { accountConfirmedAt: '2026-09-23T09:00:00Z', accountConfirmedBy: 'admin' })));
+await check('landlord A CANNOT slip accountConfirmedBy in next to phone',
+  assertFails(updateDoc(doc(llA, 'users/llA'), { phone: '+39 333 1111111', accountConfirmedBy: 'admin' })));
+await check('landlord A CANNOT slip ownerAliases in next to lastLogin',
+  assertFails(updateDoc(doc(llA, 'users/llA'), { lastLogin: 'now', ownerAliases: ['llB'] })));
+await check('landlord A still writes OWN name / phone / lastLogin',
+  assertSucceeds(updateDoc(doc(llA, 'users/llA'), { name: 'Landlord A.', phone: '+39 333 0000000', lastLogin: 'now' })));
+await check('tenant A still writes OWN identity / onboarding / push fields',
+  assertSucceeds(updateDoc(doc(tA, 'users/tA'), { cf: 'RSSMRA80A01H501U', dob: '1980-01-01', onboardingPending: false, pushEnabled: true })));
+await check('tenant A CANNOT rewrite OWN email',
+  assertFails(updateDoc(doc(tA, 'users/tA'), { email: 'owner@example.com' })));
+// Il ramo tenant dei documenti condivisi resta: l'inquilino li legge ancora.
+await check('tenant A still reads a SHARED document on the property they rent',
+  assertSucceeds(getDoc(doc(tA, 'documents/docShared'))));
+await check('tenant A still reads OWN document',
+  assertSucceeds(getDoc(doc(tA, 'documents/docA'))));
+await check('tenant B CANNOT read the shared document of propA',
+  assertFails(getDoc(doc(tB, 'documents/docShared'))));
 
 // ── ANONYMOUS — Magic-Sign moved server-side ────────────────────────────
 console.log('\nAnonymous on contracts — magic-sign moved to /api/magic-sign/*');
@@ -167,6 +217,10 @@ await check('tenant still creates a document only for SELF',
   assertSucceeds(setDoc(doc(tA, 'documents/docSelf'), { userId: 'tA', name: 'My upload' })));
 await check('tenant CANNOT create a document for ANOTHER user',
   assertFails(setDoc(doc(tA, 'documents/docSpoof'), { userId: 'tB', name: 'Spoof' })));
+await check('landlord CANNOT create a shared document (phishing link to the tenant)',
+  assertFails(setDoc(doc(llA, 'documents/docLlShared'), { userId: 'llA', propertyId: 'propA', shared: true, fileUrl: 'https://evil.example/x.pdf' })));
+await check('landlord CANNOT update or delete a document with its own userId',
+  assertFails(updateDoc(doc(llA, 'documents/docOwnLl'), { fileUrl: 'https://evil.example/y.pdf' })));
 
 // ── Sessioni anonime: niente notifiche né audit log ─────────────────────
 console.log('\nAnonymous PROVIDER session (magic-link/intake)');

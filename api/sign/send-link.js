@@ -8,7 +8,8 @@
 //
 // Method:   POST
 // Headers:  Authorization: Bearer <firebase-id-token>  (admin/owner/landlord;
-//           owners only for their own property's contracts)
+//           owners only for their own property's contracts, and ONLY their
+//           own side: role 'landlord' — vedi sotto)
 // Body:     { contractId, role?: 'tenant'|'landlord' (default 'tenant') }
 // Response: 200 { ok, url, sent }
 //           409 { error:'already_signed' | 'awaiting_tenant' }
@@ -39,6 +40,13 @@ export default async function handler(req, res) {
   const contractId = String((b && b.contractId) || '').trim().slice(0, 80);
   const role = b && b.role === 'landlord' ? 'landlord' : 'tenant';
   if (!contractId) return res.status(400).json({ ok: false, error: 'contractId_required' });
+  // Chi non è admin chiede SOLO il PROPRIO link (22/09/2026). La risposta
+  // porta `url`, il link di firma della parte richiesta: con role 'tenant'
+  // (anche per default, a campo assente) un proprietario riceveva il link
+  // per firmare COME l'inquilino. Il rifiuto sta prima di qualunque lettura.
+  if (auth.profile.role !== 'admin' && role !== 'landlord') {
+    return res.status(403).json({ ok: false, error: 'landlord_link_only' });
+  }
 
   let contract;
   try { contract = await fsGet('contracts/' + contractId); }

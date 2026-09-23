@@ -1,8 +1,13 @@
 // api/profile/link.js
 // Admin-side resolver: the scheda token is DERIVED from HOMIE_SECRET, so the
 // browser can never compute it — the portal's Share Hub asks this endpoint
-// for the two /scheda URLs of a contract. Admin gets any contract; an
-// owner/landlord only contracts on their own property.
+// for the two /scheda URLs of a contract. SOLO ADMIN (22/09/2026): fino a
+// questa data anche un owner/landlord riceveva, per i contratti dei propri
+// immobili, la Scheda del CONDUTTORE e i link di FIRMA dei co-conduttori
+// (cosignRef) — cioè poteva compilare l'anagrafica o firmare al posto
+// dell'inquilino. Il proprietario raggiunge la PROPRIA Scheda dall'Archivio
+// (/proprietario, che la deriva server-side); lo Share Hub è dello staff.
+// tests/owner/security.mjs e tests/scheda/run.mjs: landlord → 403 forbidden.
 //
 // Method:   POST
 // Headers:  Authorization: Bearer <firebase-id-token>
@@ -27,7 +32,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
-  const auth = await requireRole(req, res, ['admin', 'owner', 'landlord']);
+  const auth = await requireRole(req, res, ['admin']);
   if (!auth) return;
 
   const b = await readJson(req).catch(() => ({}));
@@ -38,14 +43,6 @@ export default async function handler(req, res) {
   try { contract = await fsGet('contracts/' + contractId); }
   catch (e) { return res.status(500).json({ ok: false, error: 'lookup_failed' }); }
   if (!contract) return res.status(404).json({ ok: false, error: 'not_found' });
-
-  if (auth.profile.role !== 'admin') {
-    let ownerId = null;
-    if (contract.propertyId) {
-      try { ownerId = ((await fsGet('properties/' + contract.propertyId)) || {}).ownerId || null; } catch (_) {}
-    }
-    if (ownerId !== auth.uid) return res.status(403).json({ ok: false, error: 'not_your_contract' });
-  }
 
   // La completezza per parte (dizionario) + il messaggio che NOMINA i
   // mancanti nella lingua della parte, col link dentro: il portal non

@@ -114,6 +114,50 @@ ok('noDate bucket', r.buckets.noDate.some(o => o.key === 'e'));
 ok('totalDue sums known amounts', r.totalDue === 100 + 200 + 500 + 50);
 ok('counts.overdue correct', r.counts.overdue === 1);
 
+// ── Cedolare dal campo esplicito (il campo che i contratti veri portano) ──
+// I contratti reali scrivono cedolareSecca:'si'/'no' (portal, convert) o
+// canone.cedolareSecca (pre-accordo): prima classify leggeva solo il booleano
+// `cedolare` e un 'si' finiva nel regime ordinario (RLI €256, registro €240,
+// ISTAT). Senza il campo esplicito il risultato storico resta identico.
+console.log('\ncedolare dal campo esplicito');
+{
+  const { readFileSync } = await import('node:fs');
+  const vm = await import('node:vm');
+  const baseC = { id: 'cx', type: 'transitorio', rent: 1000, startDate: '2024-01-01', endDate: '2026-01-01' };
+  const run = (E, extra) => E.contractObligations({ ...baseC, ...extra }, { id: 'p1' }, 2025);
+  const checks = (E) => {
+    const si = run(E, { cedolareSecca: 'si' });
+    const no = run(E, { cedolareSecca: 'no' });
+    const canone = run(E, { canone: { cedolareSecca: 'si' } });
+    const absent = run(E, {});
+    return {
+      siRli0: find(si, 'rli_').amount === 0,
+      siNoRegistro: !find(si, 'registro_annuale_'),
+      siNoIstat: !find(si, 'istat_'),
+      noRegistro: !!find(no, 'registro_annuale_') && find(no, 'rli_').amount === 256,
+      canoneCed: find(canone, 'rli_').amount === 0 && !find(canone, 'istat_'),
+      // Campo assente: la lettura storica, pinnata (regime ordinario, €256).
+      absentLegacy: find(absent, 'rli_').amount === 256 && !!find(absent, 'registro_annuale_') && !!find(absent, 'istat_')
+        && F.classify({}).isCedolare === false && F.classify({ cedolare: true }).isCedolare === true,
+    };
+  };
+  const r = checks(F);
+  ok("cedolareSecca:'si' → RLI a zero", r.siRli0);
+  ok("cedolareSecca:'si' → nessuna imposta di registro annuale", r.siNoRegistro);
+  ok("cedolareSecca:'si' → nessun promemoria ISTAT", r.siNoIstat);
+  ok("cedolareSecca:'no' → registro annuale presente, RLI €256", r.noRegistro);
+  ok("canone.cedolareSecca:'si' → cedolare", r.canoneCed);
+  ok('campo assente → risultato storico pinnato', r.absentLegacy);
+  // Mutazione: tolto il ramo esplicito, il caso 'si' deve cadere.
+  const src = readFileSync(new URL('../../js/fiscal-engine.js', import.meta.url), 'utf8');
+  const target = 'var F = explicitCedolare(c) ? contractFields() : null;';
+  ok('mutazione: il bersaglio esiste nel sorgente', src.includes(target));
+  const ctx = { module: { exports: {} }, require, console: { warn() {} } };
+  vm.runInNewContext(src.replace(target, 'var F = null;'), ctx);
+  const m = checks(ctx.module.exports);
+  ok('mutazione: senza il ramo esplicito il caso \'si\' cade', !m.siRli0 && !m.siNoIstat);
+}
+
 // ── landlordObligations integration ──────────────────────────────────
 console.log('\nlandlordObligations (integration)');
 const all = F.landlordObligations({

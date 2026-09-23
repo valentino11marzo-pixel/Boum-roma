@@ -15,7 +15,7 @@
 //     all are jointly and severally liable (condition added automatically)
 //
 // Method:   POST
-// Headers:  Authorization: Bearer <firebase-id-token>   (admin/owner/landlord)
+// Headers:  Authorization: Bearer <firebase-id-token>   (solo admin, dal 22/09/2026)
 // Body: {
 //   listingId?: string,
 //   propertyId?: string,        // portal `properties` doc — set it and the
@@ -140,7 +140,12 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
-  const auth = await requireRole(req, res, ['admin', 'owner', 'landlord']);
+  // SOLO ADMIN (22/09/2026). Accettava qualunque owner/landlord: una
+  // proposta BOOM (col suo link pubblico, i soldi e la Checkout) nata da un
+  // account di proprietario, fuori dalla console dello staff. Il prezzo e
+  // la trattativa non si delegano (AGENTS.md, regola 7).
+  // tests/owner/security.mjs.
+  const auth = await requireRole(req, res, ['admin']);
   if (!auth) return;
 
   const b = await readJson(req);

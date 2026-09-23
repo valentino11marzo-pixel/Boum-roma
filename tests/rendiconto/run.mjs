@@ -4,7 +4,11 @@
 // LE REGOLE: solo il mese giusto entra nei numeri, il PDF vero viaggia in
 // allegato al proprietario, un rerun NON rispedisce (idempotenza per
 // proprietario+mese), dry non scrive né spedisce, chi non ha email viene
-// segnalato e mai perso in silenzio.
+// segnalato e mai perso in silenzio. Dal 22/09/2026 (§6): l'ordine è leggi
+// segno → upload → crea segno → email (un rerun non riscrive il PDF già
+// spedito), un proprietario che si rompe non ferma gli altri, e nell'HTML
+// nessun URL tokenizzato: il bottone porta a /proprietario#r= solo a chi è
+// stato invitato o è già entrato.
 // Uso: node tests/rendiconto/run.mjs
 import { register } from 'node:module';
 register('../notify/loader.mjs', import.meta.url);
@@ -16,7 +20,9 @@ process.env.FIREBASE_PROJECT_ID = 'test-proj';
 process.env.CRON_SECRET = 'cron-test-secret';
 process.env.GMAIL_USER = 'sistema@test.it';
 process.env.GMAIL_APP_PASS = 'x';
-delete process.env.TELEGRAM_BOT_TOKEN; // tgNotify si spegne da solo
+// Telegram ACCESO sullo stub: il recap e l'allerta dei 3 run si leggono (§7).
+process.env.TELEGRAM_BOT_TOKEN = 'tg-test';
+process.env.TELEGRAM_CHAT_ID = 'chat-test';
 
 let passed = 0, failed = 0; const bad = [];
 const check = (n, c) => { c ? passed++ : (failed++, bad.push(n)); console.log((c ? 'PASS ' : 'FAIL ') + n); };
@@ -24,6 +30,7 @@ const mails = () => globalThis.__mails || [];
 
 // ── Stub in-memory: Firestore (get/patch/create/runQuery) + Storage ─────
 const store = new Map(); const storageFiles = new Map();
+const uploads = []; let failUploadFor = null; let failMarkerRead = null; const tg = [];
 const okJson = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'Content-Type': 'application/json' } });
 function toFs(v) {
   if (v === null || v === undefined) return { nullValue: null };
@@ -58,10 +65,14 @@ globalThis.fetch = async (url, opts = {}) => {
     if (url.includes('signInWithPassword')) return okJson({ idToken: 'tok', localId: 'srv' });
     return new Response(JSON.stringify({ error: { message: 'INVALID_ID_TOKEN' } }), { status: 400 });
   }
-  if (url.includes('api.telegram.org')) return okJson({ ok: true });
+  if (url.includes('api.telegram.org')) { try { tg.push(JSON.parse(opts.body).text); } catch { /* */ } return okJson({ ok: true, result: {} }); }
   if (url.includes('firebasestorage.googleapis.com')) {
     if (opts.method === 'POST') {
       const name = new URL(url).searchParams.get('name');
+      uploads.push(name);
+      // Storage che rifiuta UN proprietario (403: non si ritenta — un 5xx
+      // costerebbe i 2 secondi di attese di storageUpload).
+      if (failUploadFor && name && [].concat(failUploadFor).some((o) => name.startsWith(`rendiconti/${o}/`))) return new Response('denied', { status: 403 });
       if (name) storageFiles.set(name, Buffer.from(opts.body));
       return okJson({ downloadTokens: 'dltok' });
     }
@@ -70,6 +81,8 @@ globalThis.fetch = async (url, opts = {}) => {
   if (url.includes('firestore.googleapis.com')) {
     const path = (url.split('(default)/documents')[1] || '').replace(/^\//, '').split('?')[0];
     const qs = new URL(url).searchParams;
+    // Lettura del segno che fallisce (503) — §7: il create poi riesce lo stesso.
+    if (failMarkerRead && path === failMarkerRead && (!opts.method || opts.method === 'GET')) return new Response('unavailable', { status: 503 });
     const row = (k) => ({ name: 'projects/p/databases/(default)/documents/' + k, fields: toFsFields(store.get(k)), updateTime: '2026-01-01T00:00:00Z', createTime: '2026-01-01T00:00:00Z' });
     if (path.startsWith(':runQuery')) {
       const sq = (JSON.parse(opts.body || '{}') || {}).structuredQuery || {};
@@ -91,6 +104,7 @@ globalThis.fetch = async (url, opts = {}) => {
       store.set(key, fromFsFields(JSON.parse(opts.body).fields));
       return okJson({ name: 'projects/p/databases/(default)/documents/' + key });
     }
+    if (opts.method === 'DELETE') { store.delete(path); return okJson({}); }
     if (opts.method === 'PATCH') {
       store.set(path, Object.assign(store.get(path) || {}, fromFsFields(JSON.parse(opts.body).fields)));
       return okJson({ name: 'projects/p/databases/(default)/documents/' + path });
@@ -104,7 +118,7 @@ globalThis.fetch = async (url, opts = {}) => {
 // ── Dati: un proprietario, due immobili, un mese vero di movimenti ──────
 const MONTH = '2026-07';
 function seed() {
-  store.clear(); storageFiles.clear(); globalThis.__mails = [];
+  store.clear(); storageFiles.clear(); globalThis.__mails = []; uploads.length = 0; failUploadFor = null; failMarkerRead = null; tg.length = 0;
   store.set('users/own1', { role: 'landlord', name: 'Stefano Compierchio', email: 'stefano@own.it' });
   store.set('properties/p1', { ownerId: 'own1', address: 'Via Squarcialupo 36', name: 'Squarcialupo' });
   store.set('properties/p2', { ownerId: 'own1', address: 'Via Levico 7', name: 'Levico' });
@@ -177,6 +191,146 @@ const drive = async (query = {}, authz = 'Bearer cron-test-secret') => {
   const r = await drive({ month: MONTH });
   check('senza email: segnalato nel recap, mai perso in silenzio',
     r.body.counts.skippedNoEmail === 1 && r.body.results.some(x => x.skipped === 'no_email') && mails().length === 0);
+}
+
+// ═══ 6. L'ordine del segno (E6, 22/09/2026) ═════════════════════════════
+// Prima: segno → upload → email, e un rerun (o ?month=) RISCRIVEVA il PDF già
+// spedito, così l'archivio divergeva dall'allegato. Ora: si legge il segno;
+// c'è → niente, nemmeno l'upload. Un upload rifiutato non lascia segno e non
+// ferma gli altri proprietari; un'email fallita toglie il segno (si ritenta).
+function seedTwo() {
+  seed();
+  store.set('users/own3', { role: 'landlord', name: 'Anna Bianchi', email: 'anna@own.it', ownerInvitedAt: '2026-09-01T10:00:00.000Z' });
+  store.set('properties/p3', { ownerId: 'own3', address: 'Via Cavour 12', name: 'Cavour' });
+  store.set('contracts/c3', { propertyId: 'p3', tenantName: 'Luca Neri', rent: 1100, status: 'active' });
+  store.set('payments/pay_c3_2026-07', { contractId: 'c3', propertyId: 'p3', amount: 1100, month: '2026-07', dueDate: '2026-07-01', status: 'paid', paidDate: '2026-07-02', paidVia: 'bank' });
+}
+{
+  seedTwo();
+  failUploadFor = 'own1';
+  const r = await drive({ month: MONTH });
+  check('upload rifiutato per own1: niente segno, niente email, errore dichiarato',
+    r.code === 200 && !store.has(`rendiconti/own1_${MONTH}`) && !mails().some((m) => m.to === 'stefano@own.it')
+    && r.body.results.some((x) => x.ownerId === 'own1' && x.error === 'upload_failed') && r.body.counts.failed === 1);
+  check('...e il proprietario successivo è servito lo stesso', store.has(`rendiconti/own3_${MONTH}`) && mails().some((m) => m.to === 'anna@own.it'));
+
+  failUploadFor = null;
+  const r2 = await drive({ month: MONTH });
+  check('rerun: own1 recuperato, own3 NON rispedito', r2.body.counts.sent === 1 && r2.body.counts.alreadySent === 1
+    && mails().filter((m) => m.to === 'anna@own.it').length === 1 && mails().filter((m) => m.to === 'stefano@own.it').length === 1);
+  const up3 = uploads.filter((n) => n.startsWith('rendiconti/own3/')).length;
+  const r3 = await drive({ month: MONTH });
+  check('segno presente: il PDF già spedito NON viene ricaricato (archivio = allegato)',
+    r3.body.counts.alreadySent === 2 && uploads.filter((n) => n.startsWith('rendiconti/own3/')).length === up3 && up3 === 1);
+}
+{
+  seedTwo();
+  await drive({ month: MONTH });
+  const html = mails().map((m) => m.html).join('\n');
+  check('nessun URL tokenizzato nell\'HTML dei rendiconti', !/token=/.test(html) && !/firebasestorage/.test(html));
+  const invited = mails().find((m) => m.to === 'anna@own.it');
+  check('invitato: bottone all\'archivio sul mese (#r=)', !!invited && invited.html.includes('https://www.boomrome.com/proprietario#r=' + MONTH)
+    && /Apri il suo archivio/i.test(invited.html));
+  const plain = mails().find((m) => m.to === 'stefano@own.it');
+  check('non invitato: niente bottone, la riga che lo offre, PDF in allegato',
+    !!plain && !plain.html.includes('/proprietario') && /Risponda a questa email/.test(plain.html) && plain.attachments && plain.attachments.length === 1);
+}
+{
+  // Email che fallisce → il segno si toglie, il mese si ritenta.
+  seed();
+  globalThis.__mails = Object.freeze([]);   // il mock di nodemailer fa push: su un array congelato lancia
+  const r = await drive({ month: MONTH });
+  check('email fallita: errore dichiarato e segno TOLTO (si ritenta)', r.code === 200
+    && r.body.results.some((x) => x.ownerId === 'own1' && x.error === 'email_failed') && !store.has(`rendiconti/own1_${MONTH}`));
+  globalThis.__mails = [];
+  const r2 = await drive({ month: MONTH });
+  check('...e al giro dopo parte', r2.body.counts.sent === 1 && mails().some((m) => m.to === 'stefano@own.it'));
+}
+{
+  // Sorgente: nessun btn(url…) sopravvive, la regola del bottone è quella unica.
+  const src = await (await import('node:fs/promises')).readFile(new URL('../../api/owners/rendiconto.js', import.meta.url), 'utf8');
+  check('sorgente: niente btn(url, …) e la regola unica ownerArchiveOpen', !/btn\(url/.test(src) && /ownerArchiveOpen\(u\)/.test(src));
+  const iRead = src.indexOf('await fsGet(markerPath)'), iUp = src.indexOf('await storageUpload('), iCreate = src.indexOf("await fsCreate('rendiconti'"), iMail = src.indexOf('await sendOwnerEmail(');
+  check('sorgente: l\'ordine è leggi segno → upload → crea segno → email', iRead > 0 && iRead < iUp && iUp < iCreate && iCreate < iMail);
+}
+
+// ═══ 7. Il fallimento si VEDE e si dice come rimediare (22/09/2026) ═══════
+// Dalla review: (1) un giro con upload/email falliti riportava il battito
+// VERDE (il try/catch per proprietario assorbiva tutto, /team non vedeva
+// niente, l'allerta dei 3 run non poteva scattare); (2) il recap prometteva
+// «si ritentano al prossimo giro», ma il cron del 1° fa SOLO il mese appena
+// chiuso — il mese fallito non tornava mai; (3) con la lettura del segno
+// fallita, un'email fallita LASCIAVA il segno creato: il mese risultava
+// inviato e ogni rilancio lo saltava.
+const health = () => store.get('teamHealth/rendiconto') || {};
+{
+  seedTwo();
+  await drive({ month: MONTH });
+  check('giro pulito: battito ok, zero errori di fila', health().ok === true && health().consecutiveErrors === 0);
+
+  seedTwo();
+  failUploadFor = 'own1';
+  const r = await drive({ month: MONTH });
+  check('upload fallito per own1: il battito NON è ok e dice quanti e come rimediare',
+    r.code === 200 && r.body.counts.failed === 1 && health().ok === false && health().consecutiveErrors === 1
+    && /1 rendiconti 2026-07 non riusciti/.test(health().lastError || '') && /\?month=2026-07/.test(health().lastError || ''));
+  const recap = tg.find((t) => /Rendiconti Luglio 2026/.test(t)) || '';
+  check('recap: niente promessa di ritentativo automatico, il rimedio manuale col proprietario',
+    !/prossimo giro/.test(recap) && /non si ritentano da soli/.test(recap)
+    && recap.includes('rilancia con ?month=2026-07&amp;ownerId=own1'));
+  check('risposta: il rimedio viaggia anche nel JSON', r.body.retry === 'rilancia con ?month=2026-07&ownerId=own1');
+
+  // Le 3 cadute di fila → l'allerta di sempre di reportEmployeeHealth.
+  await drive({ month: MONTH }); await drive({ month: MONTH });
+  check('tre giri falliti di fila: consecutiveErrors 3 e l\'allerta «fermo» parte', health().consecutiveErrors === 3
+    && tg.some((t) => /"rendiconto" fermo/.test(t)));
+  failUploadFor = null;
+  tg.length = 0;
+  const ok = await drive({ month: MONTH });
+  check('il rilancio indicato recupera own1 e il battito torna verde (con l\'avviso di ripresa)',
+    ok.body.counts.sent === 1 && ok.body.retry === null && health().ok === true && health().consecutiveErrors === 0
+    && tg.some((t) => /di nuovo operativo/.test(t)));
+}
+{
+  // Due proprietari falliti: il rimedio è il mese intero (i segni proteggono chi l'ha già).
+  seedTwo();
+  failUploadFor = ['own1', 'own3'];
+  const r = await drive({ month: MONTH });
+  const recap = tg.find((t) => /Rendiconti Luglio 2026/.test(t)) || '';
+  check('due falliti: rilancia il mese, senza un ownerId solo', r.body.counts.failed === 2
+    && /rilancia con \?month=2026-07(?!&)/.test(recap) && !recap.includes('ownerId') && health().ok === false);
+}
+{
+  // Lettura del segno fallita + create riuscito + email fallita → il segno si TOGLIE.
+  seed();
+  failMarkerRead = `rendiconti/own1_${MONTH}`;
+  globalThis.__mails = Object.freeze([]);
+  const r = await drive({ month: MONTH });
+  check('segno letto male, email fallita: il segno creato da questo giro viene tolto',
+    r.body.results.some((x) => x.ownerId === 'own1' && x.error === 'email_failed') && !store.has(`rendiconti/own1_${MONTH}`));
+  failMarkerRead = null;
+  globalThis.__mails = [];
+  const r2 = await drive({ month: MONTH });
+  check('...e il rilancio lo spedisce davvero (non «already_sent»)', r2.body.counts.sent === 1 && r2.body.counts.alreadySent === 0
+    && mails().some((m) => m.to === 'stefano@own.it'));
+}
+{
+  // Un segno che questo giro NON ha scritto non si tocca mai: create rifiutato
+  // (403, rules non deployate) + email fallita → nessuna DELETE sul segno.
+  seed();
+  const realFetch = globalThis.fetch;
+  const deletes = [];
+  globalThis.fetch = async (url, opts = {}) => {
+    const u = String(url);
+    if (u.includes('firestore.googleapis.com') && u.includes('/rendiconti') && opts.method === 'POST') return new Response('{"error":{"code":403,"message":"denied"}}', { status: 403 });
+    if (u.includes('firestore.googleapis.com') && opts.method === 'DELETE') deletes.push(u);
+    return realFetch(url, opts);
+  };
+  globalThis.__mails = Object.freeze([]);
+  const r = await drive({ month: MONTH });
+  globalThis.fetch = realFetch; globalThis.__mails = [];
+  check('create rifiutato + email fallita: nessuna cancellazione di un segno altrui',
+    r.body.results.some((x) => x.ownerId === 'own1' && x.error === 'email_failed') && !deletes.some((u) => u.includes('/rendiconti/')));
 }
 
 console.log(`\nRendiconto: ${passed} passed, ${failed} failed`);

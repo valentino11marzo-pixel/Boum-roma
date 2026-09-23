@@ -482,6 +482,7 @@ export default async function handler(req, res) {
   // I flussi cliente moderni non passano da qui (my-pass e viewings/pass
   // hanno i loro token derivati): chi chiama è SEMPRE un operatore.
   const secretOk = req.headers["x-homie-secret"] && req.headers["x-homie-secret"] === process.env.HOMIE_SECRET;
+  let signer = null;   // { uid, role } per la via col token Firebase
   if (!secretOk) {
     const tok = req.headers["x-firebase-token"] || bearerFrom(req);
     const u = tok ? await verifyIdToken(tok).catch(() => null) : null;
@@ -489,12 +490,22 @@ export default async function handler(req, res) {
     if (!prof || !["admin", "owner", "landlord"].includes(prof.role)) {
       return res.status(401).json({ error: "auth_required", hint: "Pass signing is operator-only. Open your pass from the link BOOM sent you, or ask for a fresh one." });
     }
+    signer = { uid: u.localId, role: prof.role };
   }
 
   try {
     const { type = "tenant", data } = req.body || {};
     if (!data) return res.status(400).json({ error: "Missing data" });
     if (!BUILDERS[type]) return res.status(400).json({ error: "Unknown type: " + type });
+    // Un proprietario firma SOLO la PROPRIA carta (22/09/2026). Prima un
+    // landlord/owner poteva firmare col certificato di produzione qualunque
+    // tipo (carta inquilino, visita, referral) con qualunque contenuto — e
+    // l'invito dei proprietari moltiplica quegli account. Admin e segreto
+    // Homie restano liberi: sono l'operatore.
+    if (signer && signer.role !== "admin"
+        && (type !== "landlord" || String(data.landlordId || "") !== signer.uid)) {
+      return res.status(403).json({ error: "own_landlord_pass_only" });
+    }
 
     const { buffer: buf, passJson } = buildAndSign(type, data);
 

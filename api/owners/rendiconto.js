@@ -25,6 +25,8 @@ import {
 } from '../employees/_lib.js';
 import { storageUpload, sendEmail } from '../agent/_lib.js';
 import { shell, para, fine, btn, rule } from '../preagreement/_notify.js';
+import { fsDelete } from '../homie/_lib.js';
+import { ownerArchiveOpen, ownerArchiveUrl } from '../owner/_entry.js';
 
 const EMPLOYEE = 'rendiconto';
 const clip = (v, n = 120) => String(v == null ? '' : v).trim().slice(0, n);
@@ -49,7 +51,17 @@ export default async function handler(req, res) {
       monthOverride: /^\d{4}-\d{2}$/.test(String(req.query?.month || '')) ? req.query.month : null,
       onlyOwner: clip(req.query?.ownerId, 80) || null,
     });
-    if (!dry) await reportEmployeeHealth(EMPLOYEE, { ok: true, stats: out.counts });
+    // Un giro in cui qualche rendiconto NON è partito non è un giro sano
+    // (22/09/2026 — la lezione del 1/09: Storage giù per tutti, e /team
+    // restava verde perché il try/catch per proprietario assorbiva tutto).
+    // Il battito è ok solo a zero fallimenti: così la card si accende e
+    // l'allerta dei 3 run di fila di reportEmployeeHealth resta quella di sempre.
+    if (!dry) {
+      const failed = out.counts.failed || 0;
+      await reportEmployeeHealth(EMPLOYEE, failed
+        ? { ok: false, error: `${failed} rendiconti ${out.month} non riusciti — ${out.retry}`, stats: out.counts }
+        : { ok: true, stats: out.counts });
+    }
     return res.status(200).json({ ok: true, actor, dry, ...out });
   } catch (e) {
     console.error('[rendiconto]', e);
@@ -89,7 +101,7 @@ async function run({ dry, monthOverride, onlyOwner }) {
   const today = new Date().toISOString().slice(0, 10);
 
   const results = [];
-  const counts = { owners: 0, sent: 0, skippedNoEmail: 0, skippedNoActivity: 0, alreadySent: 0, totalCollected: 0 };
+  const counts = { owners: 0, sent: 0, skippedNoEmail: 0, skippedNoActivity: 0, alreadySent: 0, failed: 0, totalCollected: 0 };
 
   for (const [ownerId, props] of byOwner) {
     counts.owners++;
@@ -130,28 +142,70 @@ async function run({ dry, monthOverride, onlyOwner }) {
 
     if (dry) { results.push({ ownerId, ownerName, ownerEmail, month, collected, expected, arrears, properties: sections.length, dry: true }); continue; }
 
-    // Idempotenza per (proprietario, mese) — fail-open con avviso.
-    let idemWarn = null;
-    try { await fsCreate('rendiconti', { ownerId, month, at: new Date().toISOString() }, `${ownerId}_${month}`); }
-    catch (e) {
-      if (e.exists) { counts.alreadySent++; results.push({ ownerId, ownerName, skipped: 'already_sent' }); continue; }
-      idemWarn = e.message; // 403 rules non deployate → si procede, il recap lo dice
+    // L'ORDINE (22/09/2026 — la lezione del segno scritto prima del file):
+    //   1. si LEGGE il segno: c'è → già inviato, e il PDF archiviato NON si
+    //      riscrive (un rerun o un ?month= sovrascriveva la copia già
+    //      spedita, e l'archivio divergeva in silenzio dall'allegato);
+    //   2. si carica il PDF (percorso deterministico): se Storage rifiuta,
+    //      niente segno e niente email — il mese resta da fare, non «fatto»;
+    //   3. si CREA il segno (409 = un'altra esecuzione ci è arrivata prima →
+    //      niente seconda email);
+    //   4. l'email. Se fallisce il segno si toglie: meglio un doppio invio
+    //      raro che un mese saltato in silenzio (la regola scritta in testa).
+    // Ogni proprietario nel suo try/catch: uno che si rompe non ferma gli altri.
+    try {
+      const markerPath = `rendiconti/${ownerId}_${month}`;
+      let idemWarn = null;
+      let markerCreated = false;   // il segno l'ha scritto QUESTO giro? (solo allora si toglie)
+      try {
+        if (await fsGet(markerPath)) { counts.alreadySent++; results.push({ ownerId, ownerName, skipped: 'already_sent' }); continue; }
+      } catch (e) { idemWarn = 'marker_read_failed'; }   // fail-open dichiarato, come il create qui sotto
+
+      const pdfBytes = await buildPdf({ ownerName, label, month, sections, collected, expected, arrears });
+      let url;
+      try { url = await storageUpload(`rendiconti/${ownerId}/rendiconto_${month}.pdf`, pdfBytes, 'application/pdf'); }
+      catch (e) { counts.failed++; results.push({ ownerId, ownerName, error: 'upload_failed' }); console.warn('[rendiconto] upload_failed', e && e.status ? e.status : ''); continue; }
+
+      try { await fsCreate('rendiconti', { ownerId, month, at: new Date().toISOString() }, `${ownerId}_${month}`); markerCreated = true; }
+      catch (e) {
+        if (e.exists) { counts.alreadySent++; results.push({ ownerId, ownerName, skipped: 'already_sent' }); continue; }
+        idemWarn = e.message; // 403 rules non deployate → si procede, il recap lo dice
+      }
+
+      try {
+        await sendOwnerEmail({ ownerEmail, ownerName, label, month, sections, collected, expected, arrears, pdfBytes, archiveOpen: ownerArchiveOpen(u) });
+      } catch (e) {
+        counts.failed++;
+        results.push({ ownerId, ownerName, error: e && e.message === 'email_timeout' ? 'email_timeout' : 'email_failed' });
+        // Si toglie il segno che QUESTO giro ha creato, qualunque cosa sia
+        // successo prima: se la lettura del segno era fallita (idemWarn) il
+        // create era riuscito lo stesso, e lasciarlo registrava come
+        // «inviato» un mese mai spedito — ogni rilancio l'avrebbe saltato.
+        if (markerCreated) { try { await fsDelete(markerPath); } catch { /* il recap lo dice comunque */ } }
+        continue;
+      }
+      counts.sent++; counts.totalCollected += collected;
+      results.push({ ownerId, ownerName, ownerEmail, month, collected, expected, arrears, properties: sections.length, url, ...(idemWarn ? { idemWarn } : {}) });
+    } catch (e) {
+      counts.failed++;
+      results.push({ ownerId, ownerName, error: 'owner_failed' });
+      console.warn('[rendiconto] owner_failed');
     }
-
-    const pdfBytes = await buildPdf({ ownerName, label, month, sections, collected, expected, arrears });
-    const url = await storageUpload(`rendiconti/${ownerId}/rendiconto_${month}.pdf`, pdfBytes, 'application/pdf');
-
-    await sendOwnerEmail({ ownerEmail, ownerName, label, sections, collected, expected, arrears, url, pdfBytes });
-    counts.sent++; counts.totalCollected += collected;
-    results.push({ ownerId, ownerName, ownerEmail, month, collected, expected, arrears, properties: sections.length, url, ...(idemWarn ? { idemWarn } : {}) });
   }
 
-  if (!dry && counts.sent) {
-    await saveReport(EMPLOYEE, { summary: `${counts.sent} rendiconti ${label} inviati — ${euro(counts.totalCollected)} incassati`, counts, results: results.slice(0, 20) });
-    await tgNotify(`📒 <b>Rendiconti ${esc(label)}</b>\n${counts.sent} proprietari · incassato ${esc(euro(counts.totalCollected))}${counts.skippedNoEmail ? `\n⚠️ ${counts.skippedNoEmail} senza email` : ''}${results.some((r) => r.idemWarn) ? '\n⚠️ idempotenza non garantita (deploy rules!)' : ''}`);
+  // Il rimedio, scritto (22/09/2026): il cron gira il 1° e fa SOLO il mese
+  // appena chiuso — un mese fallito non torna da solo al giro dopo. Si
+  // rilancia a mano quel mese; i segni rendono il rilancio sicuro (chi l'ha
+  // già ricevuto viene saltato), e con un solo fallito basta quel proprietario.
+  const failedIds = results.filter((r) => r.error).map((r) => r.ownerId);
+  const retry = `rilancia con ?month=${month}${failedIds.length === 1 ? `&ownerId=${encodeURIComponent(failedIds[0])}` : ''}`;
+
+  if (!dry && (counts.sent || counts.failed)) {
+    await saveReport(EMPLOYEE, { summary: `${counts.sent} rendiconti ${label} inviati — ${euro(counts.totalCollected)} incassati${counts.failed ? ` · ${counts.failed} non riusciti (${retry})` : ''}`, counts, results: results.slice(0, 20) });
+    await tgNotify(`📒 <b>Rendiconti ${esc(label)}</b>\n${counts.sent} proprietari · incassato ${esc(euro(counts.totalCollected))}${counts.skippedNoEmail ? `\n⚠️ ${counts.skippedNoEmail} senza email` : ''}${counts.failed ? `\n⚠️ ${counts.failed} non riusciti — non si ritentano da soli: ${esc(retry)}` : ''}${results.some((r) => r.idemWarn) ? '\n⚠️ idempotenza non garantita (deploy rules!)' : ''}`);
     await logActivity('Rendiconti mensili inviati', 'employee', counts, EMPLOYEE);
   }
-  return { month, label, counts, results };
+  return { month, label, counts, results, retry: counts.failed ? retry : null };
 }
 
 // ── Il PDF ───────────────────────────────────────────────────────────────
@@ -209,7 +263,12 @@ export async function buildPdf({ ownerName, label, month, sections, collected, e
 }
 
 // ── L'email (IT, design system, PDF in allegato) ─────────────────────────
-async function sendOwnerEmail({ ownerEmail, ownerName, label, sections, collected, expected, arrears, url, pdfBytes }) {
+// Il bottone porta all'archivio del proprietario (#r=<mese>) SOLO se
+// l'account ce l'ha davvero (invitato o già entrato); altrimenti niente
+// bottone e una riga. L'URL tokenizzato di Storage non entra MAI nell'HTML:
+// è una credenziale senza scadenza dentro un'email che si inoltra — il PDF
+// viaggia comunque in allegato.
+async function sendOwnerEmail({ ownerEmail, ownerName, label, month, sections, collected, expected, arrears, pdfBytes, archiveOpen }) {
   const first = ownerName.split(' ')[0] || 'Gentile proprietario';
   const props = sections.map((s) => clip(s.prop.address || s.prop.name, 60)).join(' · ');
   const att = pdfBytes.length < 8 * 1024 * 1024
@@ -226,7 +285,9 @@ async function sendOwnerEmail({ ownerEmail, ownerName, label, sections, collecte
         + fine(`📅 <strong>Atteso nel mese</strong> — ${esc(euro(expected))}`)
         + (arrears > 0 ? fine(`⚠️ <strong>Arretrati totali</strong> — ${esc(euro(arrears))} (ci stiamo già lavorando)`) : fine('✅ <strong>Nessun arretrato</strong>'))
         + rule()
-        + btn(url, 'Apri il rendiconto')
+        + (archiveOpen
+          ? btn(ownerArchiveUrl('r=' + month), 'Apri il suo archivio')
+          : fine('Vuole l’archivio online di tutti i rendiconti? Risponda a questa email.'))
         + fine('Il rendiconto arriva automaticamente il 1° di ogni mese. Per qualsiasi domanda basta rispondere a questa email.'),
         `Rendiconto ${label} — incassato ${euro(collected)}`),
       attachments: att,

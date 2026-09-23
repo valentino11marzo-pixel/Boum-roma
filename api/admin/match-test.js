@@ -31,7 +31,8 @@ import crypto from 'node:crypto';
 import { fsList, fsPatch, fsGet, readJson, logActivity } from '../homie/_lib.js';
 import { scoreMatch, DEFAULT_THRESHOLD } from '../homie/_match.js';
 
-const ADMIN_ROLES = new Set(['admin', 'owner', 'landlord']);
+// Solo lo staff (22/09/2026): il proprietario legge solo dalle porte /api/owner.
+const ADMIN_ROLES = new Set(['admin']);
 const ACTIVE_STAGES = new Set([
   'payment_confirmed', 'searching', 'options', 'viewing', 'closing',
 ]);

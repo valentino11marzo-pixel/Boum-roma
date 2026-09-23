@@ -113,6 +113,15 @@ const CASES = [
   { name: 'null spurio da Safari → niente rimbalzo',    page: 'pre-agreement-admin', role: 'admin',  mode: 'spuriousNull',  wait: 3000,  expect: 'app' },
   { name: 'null spurio su /casa → niente rimbalzo',     page: 'tenant',              role: 'tenant', mode: 'spuriousNull',  wait: 3000,  expect: 'app' },
 
+  // ── /proprietario ──────────────────────────────────────────────────────────
+  // L'archivio del proprietario legge SOLO /api/owner/archivio: qui il server
+  // locale risponde 404, quindi "app" vuol dire la card d'errore con Riprova
+  // — l'importante è che #load non resti acceso. Il profilo appeso deve
+  // invece portare alla via d'uscita di BoomPortal, non a uno spinner.
+  { name: '/proprietario: boot normale (API giù → card, mai loader)', page: 'proprietario', role: 'landlord', mode: 'ok',           wait: 1600,  expect: 'app' },
+  { name: '/proprietario: null spurio → niente rimbalzo',              page: 'proprietario', role: 'landlord', mode: 'spuriousNull', wait: 3000,  expect: 'app' },
+  { name: '/proprietario: lettura profilo appesa → recovery',          page: 'proprietario', role: 'landlord', mode: 'profileHang',  wait: 17000, expect: 'recovery' },
+
   // ── portal.html ────────────────────────────────────────────────────────────
   // La superficie più grande (portal-app.js, 2,3 MB) e l'unica con un boot
   // proprio invece di BoomPortal.requireAuth: restava fuori da questa suite,

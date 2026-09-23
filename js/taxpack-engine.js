@@ -87,11 +87,35 @@
     }
   }
 
+  // Cedolare secca: con il campo ESPLICITO (`cedolareSecca` o
+  // `canone.cedolareSecca`, 'si'/'no'/booleano) decide FIELDS.cedolareOn —
+  // la stessa lettura del PDF. Senza il campo, la lettura di sempre.
+  // Stessa regola di js/fiscal-engine.js (che delega qui quando c'è).
+  var _fields = null, _fieldsTried = false;
+  function contractFields() {
+    if (_fieldsTried) return _fields;
+    _fieldsTried = true;
+    try {
+      if (typeof module !== 'undefined' && module.exports && typeof require === 'function') _fields = require('./contract-fields.js');
+    } catch (_) { _fields = null; }
+    if (!_fields && typeof window !== 'undefined' && window.BOOM_CONTRACT_FIELDS) _fields = window.BOOM_CONTRACT_FIELDS;
+    if (!_fields || typeof _fields.cedolareOn !== 'function') {
+      _fields = null;
+      if (typeof console !== 'undefined' && console.warn) console.warn('[taxpack-engine] BOOM_CONTRACT_FIELDS assente: cedolare letta col solo campo legacy');
+    }
+    return _fields;
+  }
+  function explicitCedolare(c) {
+    var v = c.cedolareSecca, w = c.canone && typeof c.canone === 'object' ? c.canone.cedolareSecca : undefined;
+    return (v !== undefined && v !== null && v !== '') || (w !== undefined && w !== null && w !== '');
+  }
+
   function classifyContract(contract) {
     var c = contract || {};
     var type = String(c.type || '').toLowerCase();
     var regime = String(c.taxRegime || c.regime || '').toLowerCase();
-    var isCedolare = c.cedolare === true || /cedolar/.test(regime);
+    var F = explicitCedolare(c) ? contractFields() : null;
+    var isCedolare = F ? !!F.cedolareOn(c) : (c.cedolare === true || /cedolar/.test(regime));
     var isConcordato = c.concordato === true || /concordat|3\+2|10%/.test(regime) || type === 'concordato';
     var isStudenti = type === 'studenti' || type === 'student';
     var isTransitorio = type === 'transitorio' || type === 'transitional';

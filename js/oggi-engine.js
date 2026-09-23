@@ -20,10 +20,17 @@
    Test: node tests/oggi/run.mjs
    ════════════════════════════════════════════════════════════════════════ */
 (function (root, factory) {
-    if (typeof module === 'object' && module.exports) module.exports = factory();
-    else root.BOOM_OGGI = factory();
-}(typeof self !== 'undefined' ? self : this, function () {
+    // Il dizionario del contratto (js/contract-fields.js, caricato PRIMA nel
+    // portal) porta la regola della firma su carta registrata: una copia sola.
+    if (typeof module === 'object' && module.exports) module.exports = factory(require('./contract-fields.js'));
+    else root.BOOM_OGGI = factory(root.BOOM_CONTRACT_FIELDS);
+}(typeof self !== 'undefined' ? self : this, function (FIELDS) {
     'use strict';
+
+    // Firmato su carta e registrato dallo staff (portal «📄 Firmato su
+    // carta»): non è una firma a metà, e la registrazione RLI torna a correre.
+    // Senza il dizionario caricato, il comportamento di prima.
+    const paperOn = (c) => (FIELDS && typeof FIELDS.paperSignedOn === 'function' ? FIELDS.paperSignedOn(c) : '');
 
     const DAY = 86400000;
     const num = (v) => (typeof v === 'number' && isFinite(v) ? v : parseFloat(v) || 0);
@@ -149,7 +156,7 @@
         // ── 6. Firme a metà ──────────────────────────────────────────────
         // Il watchdog server-side re-invita da solo; qui sta la DECISIONE:
         // un contratto mezzo firmato è un immobile bloccato.
-        C.filter((c) => c.signatureStatus === 'partial')
+        C.filter((c) => c.signatureStatus === 'partial' && !paperOn(c))
             .forEach((c) => out.push({
                 id: 'sig_' + c.id, kind: 'firme', icon: '🖊', tint: 'orange',
                 title: `Firma a metà — ${propName(c.propertyId) || 'contratto'}`,
@@ -220,11 +227,11 @@
         // il giro — la conferma della registrazione.
         const RLI_DAYS = 30;
         C.filter((c) => {
-            const signed = c.signatureStatus === 'complete' || !!(c.tenantSignature && c.landlordSignature);
+            const signed = c.signatureStatus === 'complete' || !!(c.tenantSignature && c.landlordSignature) || !!paperOn(c);
             const done = c.registrationStatus === 'registered' || !!c.rliRegisteredAt;
             return signed && !done;
         }).forEach((c) => {
-            const el = days(c.fullySignedAt || c.landlordSignedAt || c.tenantSignedAt || c.startDate, now);
+            const el = days(c.fullySignedAt || c.landlordSignedAt || c.tenantSignedAt || paperOn(c) || c.startDate, now);
             const left = Math.ceil(RLI_DAYS - el);
             const over = Math.max(0, Math.round(el - RLI_DAYS));
             const late = left <= 0;

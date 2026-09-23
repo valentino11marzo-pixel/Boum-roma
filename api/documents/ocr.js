@@ -1,9 +1,15 @@
 // api/documents/ocr.js
-// Server-side OCR + classification for an uploaded document. Admin or
-// landlord calls it with a file URL (or inline base64); the server fetches
+// Server-side OCR + classification for an uploaded document. The admin
+// calls it with a file URL (or inline base64); the server fetches
 // the bytes, sends them to Claude, and returns extracted text + an inferred
 // category + structured entities (dates, amounts, codice fiscale, IBAN,
 // partita IVA). The Anthropic key stays server-side (never in the browser).
+//
+// SOLO ADMIN (22/09/2026). Il server scarica QUALSIASI `fileUrl` ricevuto
+// (una SSRF a costo di chi la chiede) e spende credito Claude: aperto ai
+// landlord, ogni account di proprietario che l'invito crea era una porta in
+// più. Il proprietario non carica documenti dal portal (va su
+// /proprietario, in sola lettura). tests/owner/security.mjs.
 //
 // Method:   POST
 // URL:      /api/documents/ocr
@@ -38,7 +44,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
-  const auth = await requireRole(req, res, ['admin', 'landlord']);
+  const auth = await requireRole(req, res, ['admin']);
   if (!auth) return;
 
   if (!process.env.ANTHROPIC_API_KEY) {

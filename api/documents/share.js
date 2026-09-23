@@ -1,14 +1,23 @@
 // api/documents/share.js
-// Create a share link for the commercialista. Admin or the owning
-// landlord posts the set of document ids (or a property+year scope) and
-// gets back a tokenized URL that opens /share.html — no login required
-// for the accountant, expiring, audit-logged, watermarked.
+// Create a share link for the commercialista. The admin posts the set of
+// document ids (or a property+year scope) and gets back a tokenized URL that
+// opens /share.html — no login required for the accountant, expiring,
+// audit-logged, watermarked.
+//
+// SOLO ADMIN (22/09/2026). Il ramo landlord controllava soltanto
+// `ownerId === uid`, mai i `docIds`: un proprietario poteva condividere
+// QUALSIASI documento di cui conoscesse l'id (l'anagrafica di un inquilino,
+// il contratto di un altro immobile) e share/lookup glielo serviva. Nessuna
+// pagina del proprietario chiama più questo endpoint (il vecchio portal non
+// è più suo: va su /proprietario, che condivide un file alla volta dal
+// proprio archivio), quindi la via semplice è chiuderlo allo staff invece di
+// replicare qui la tabella di visibilità. tests/owner/security.mjs.
 //
 // Method:   POST
 // URL:      /api/documents/share
 // Headers:  Authorization: Bearer <firebase-id-token>
 // Body:     {
-//   ownerId:        string                       // landlord uid (must == caller if landlord)
+//   ownerId:        string                       // landlord uid whose bundle is shared
 //   propertyId?:    string
 //   fiscalYear?:    number
 //   docIds:         string[]                      // documents to expose
@@ -27,7 +36,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
-  const auth = await requireRole(req, res, ['admin', 'landlord']);
+  const auth = await requireRole(req, res, ['admin']);
   if (!auth) return;
 
   let body;
@@ -39,11 +48,6 @@ export default async function handler(req, res) {
   const docIds = Array.isArray(body.docIds) ? body.docIds.filter(Boolean).slice(0, 200) : [];
   if (!ownerId) return res.status(400).json({ ok: false, error: 'ownerId_required' });
   if (!docIds.length) return res.status(400).json({ ok: false, error: 'no_documents' });
-
-  // Landlords can only share their own bundle.
-  if (auth.profile.role === 'landlord' && ownerId !== auth.uid) {
-    return res.status(403).json({ ok: false, error: 'cannot_share_others_documents' });
-  }
 
   const days = Math.min(365, Math.max(1, parseInt(body.expiresInDays, 10) || 60));
   const expiresAt = new Date(Date.now() + days * 86400000).toISOString();

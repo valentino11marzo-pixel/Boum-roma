@@ -4,6 +4,14 @@
 `valentino11marzo-pixel/Boum-roma`, ramo di partenza
 `claude/amazing-darwin-rdl1q0` (o `main` dopo il merge).*
 
+> **Stato al 23/09/2026 — leggere prima di incollare.** Valentino ha deciso di
+> partire senza Codex: i lotti P0–P4 sono stati costruiti da Claude
+> (`/proprietario`, `api/owner/*`, `js/owner-archive-engine.js`, la chiusura
+> delle regole) e passati da una revisione avversariale. Questo prompt descrive
+> il P0 come era stato pensato ed è superato: quando Codex entra, il suo primo
+> lavoro è la revisione ostile di ciò che esiste e gli aperti in fondo al §9
+> dello studio — va riscritto su quello prima di usarlo.
+
 ---
 
 Lavori nel repo BOOM Roma insieme a Claude, su una sessione condivisa il cui

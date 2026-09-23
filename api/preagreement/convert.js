@@ -21,7 +21,7 @@
 // link stays with the admin instead.
 //
 // Method:   POST
-// Headers:  Authorization: Bearer <firebase-id-token>  (admin/owner/landlord)
+// Headers:  Authorization: Bearer <firebase-id-token>  (solo admin, dal 22/09/2026)
 // Body: {
 //   id:          string,        // preAgreements doc id
 //   propertyId?: string,        // defaults to pa.propertyId
@@ -719,7 +719,12 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
-  const auth = await requireRole(req, res, ['admin', 'owner', 'landlord']);
+  // SOLO ADMIN (22/09/2026). Accettava qualunque owner/landlord SENZA
+  // controllo di proprietà, e la risposta porta i link di firma — anche
+  // quello del CONDUTTORE (tenantSignUrl): un proprietario poteva convertire
+  // una proposta non sua e firmare al posto dell'inquilino. La console
+  // proposte è dello staff. tests/owner/security.mjs.
+  const auth = await requireRole(req, res, ['admin']);
   if (!auth) return;
 
   const b = await readJson(req);

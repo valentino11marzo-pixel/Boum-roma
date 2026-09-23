@@ -68,6 +68,13 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
                           (jsPDF npm, STESSA versione pinnata). build() →
                           { doc, sigAnchors, hashSeed }; upload/hash/patch
                           restano ai chiamanti.
+  owner-archive-engine.js L'Archivio del Proprietario, puro: dai record
+                          veri la proiezione che il proprietario può vedere
+                          (verdetto, da fare, contratti e tappe, canoni,
+                          archivio con provenienza), la tabella di visibilità
+                          per tipo di documento e assertClean che rifiuta ogni
+                          dato dell'inquilino. window.BOOM_OWNER. Vedi
+                          "L'Archivio del Proprietario".
   ai-registry.js          La Centrale AI, il registro PURO: i 26 scopi che
                           chiamano un modello (file, modello cloud di default,
                           modalità testo/visione/documento/audio, se può
@@ -107,7 +114,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `vercel.json` | Deployment config, rewrites, cron schedule. |
 | `js/firebase-config.js` | Firebase project config (`boom-property-dashboards`). |
 | `js/boom-portal.js` | Shared portal lib — `window.BoomPortal` API. |
-| `owner-dashboard.html` | Landlord/owner SPA. Firestore-backed, filtered by `ownerId`. |
+| `proprietario.html` | **L'Archivio del Proprietario** (`/proprietario`, landlord + admin «vedi come» `?as=`, noindex/no-store): l'unica superficie del proprietario. Nessuna lettura Firestore dal browser — tutto da `GET /api/owner/archivio`, i PDF da `/api/owner/file`. Sostituisce `owner-dashboard.html` e `owner.html` (cancellate, `/owner*` → 308 qui). Vedi "L'Archivio del Proprietario". |
 | `tenant.html` | Tenant SPA. Realtime property + maintenance feed. |
 | `client-portal.html` | PFS client swipe app. Reads `pfsClients` collection. |
 | `pfs-command.html` | **La plancia unica del PFS** (admin): TUTTO il flusso Property Finding in una pagina. Pipeline per stage (giorni-in-stage, chip lenti in ambra) → fascicolo cliente a drawer (criteri, ricerche, mazzo con esiti/rimozione, attività, link portale con codice BM…, WhatsApp, cambio stage con la STESSA scrittura del portal) → creazione cliente (nasce col portale attivo) → feed radar con fiuto 💎/badge cluster/filtro occasioni + azione «→ Proponi a…» (push curato via `api/casafari/import`, conferma sulle agenzie) → strip occasioni (radarState) → ricerche automatiche + **vedette** (stessa collection della Centrale) → triage swipe, ⌘K, brief AI, salute fonti. |
@@ -155,7 +162,10 @@ firebase.json             Firebase deploy config (firestore + storage rules)
   della Centrale AI portava la 51ª regola (`api/ai/status.js`) — accorpate
   `api/fiscal/{fascicolo,pack,foglio}.js` (stessa forma; nessun test le
   legge per chiave esatta, a differenza di `fiscal/{allega,valutazione,
-  registra}` che `tests/aspi` pinna). Ora 49 regole.
+  registra}` che `tests/aspi` pinna). Ora 49 regole. **22/09 sera**:
+  l'Archivio del Proprietario prende l'ultima, `api/owner/{archivio,file,
+  invite}.js` in UNA glob → **50/50**. La prossima regola va accorpata a una
+  glob esistente (stessa forma), mai aggiunta.
 
 ## Environment Variables (Vercel)
 
@@ -199,6 +209,14 @@ LOCAL_AI_TOKEN               # bearer del tunnel (llama-server --api-key, un
                              # reverse proxy): SOLO in env, MAI in Firestore
 LOCAL_AI_CF_ID               # optional — service token di Cloudflare Access
 LOCAL_AI_CF_SECRET           #            (se il tunnel è cloudflared + Access)
+
+# L'Archivio del Proprietario (api/owner/*)
+OWNER_FILE_MAX_BYTES         # optional — tetto dei PDF serviti da
+                             # /api/owner/file (default 4400000, sotto il
+                             # limite di 4,5 MB delle risposte Vercel)
+BOOM_CANARY_LANDLORD_EMAIL   # optional — solo per tests/regole: un landlord
+BOOM_CANARY_LANDLORD_PASS    # di prova che deve RICEVERE 403 sui contratti
+BOOM_CANARY_LANDLORD_CONTRACT # optional — id di un suo contratto per il get
 
 # Cron auth
 CRON_SECRET
@@ -2113,7 +2131,204 @@ Idempotente per (proprietario, mese) via `rendiconti/<ownerId>_<YYYY-MM>`
 (fsCreate 409 → skip; collection admin-only in firestore.rules — la
 lezione propertyLocks). `?dry=1`, `?month=YYYY-MM`, `?ownerId=`; auth
 come i cron PFS. Heartbeat `teamHealth/rendiconto`.
+**L'ordine che non perde un mese** (22/09/2026): il marcatore nasceva PRIMA
+dell'upload e nessun try/catch proteggeva il giro — un upload fallito lasciava
+il marcatore senza PDF, fermava tutti i proprietari dopo, e il rerun diceva
+`already_sent`. Ora: marcatore letto → esiste = salta; altrimenti upload →
+`fsCreate` del marcatore (409 = già fatto, niente email) → email; ogni
+proprietario nel suo try/catch, e un'email fallita cancella il marcatore
+(meglio un doppio invio raro che un mese saltato). Il bottone dell'email non
+porta più l'URL tokenizzato: compare solo a chi può entrare nell'Archivio
+(`ownerArchiveOpen`) e apre `/proprietario#r=<mese>`; il PDF resta allegato.
+Un giro con proprietari falliti non si dichiara più sano: la salute va a
+`ok:false` («N rendiconti non riusciti», l'allerta dopo 3 giri resta quella)
+e il recap dice il rimedio vero — **non si ritentano da soli**, si rilancia
+con `?month=YYYY-MM` (`&ownerId=` se è uno solo): il cron del mese dopo
+lavora solo il mese dopo.
 Test: `node tests/rendiconto/run.mjs`.
+
+### L'Archivio del Proprietario (`/proprietario` + `api/owner/*` + `js/owner-archive-engine.js`) — 22/09/2026
+**Cos'era.** Tre superfici e nessuna vera: `owner-dashboard.html` salvava in
+`localStorage` (niente login, niente Firestore, badge «↑ 12%» scritti a mano),
+`owner.html` accettava solo un ruolo che le regole non conoscono, e il ruolo
+`landlord` dentro `/portal` era una copia ridotta dell'admin — col bottone ✔
+«segna pagata» che usciva in silenzio, le rate scadute che sparivano (il
+loader le riscriveva `overdue` e la pagina contava solo `pending`), i nomi
+degli inquilini assenti e l'archivio vuoto per costruzione (il contratto
+firmato nasce col `userId` dell'inquilino). Tutto ciò che la macchina produce
+per il proprietario gli arrivava SOLO per email. E il difetto peggiore era di
+sicurezza: `firestore.rules` gli dava l'intero documento del contratto, cioè
+`tenantSignToken` (poteva firmare AL POSTO dell'inquilino), CF, IP, scansioni
+dei documenti d'identità e i margini BOOM sulle rate. Studio, misura e
+decisioni: `STUDIO_ARCHIVIO_PROPRIETARIO_2026-09.md` (§9 è il registro).
+
+**Cosa fa.** Una pagina che risponde in quest'ordine: **va tutto bene?** (una
+frase: «Tutto in ordine.» / «Serve una tua firma.» / «Una rata in ritardo da N
+giorni.» / «Non posso dirlo con certezza.» — il pallino d'oro «respira» SOLO
+su un ok verificato), **cosa devo fare io?** (solo il suo: firmare col SUO
+link, completare la sua Scheda, una scadenza fiscale che BOOM ha scritto per
+lui — mai un importo fiscale), **le case** (per contratto: le tappe della vita
+del contratto dai FATTI — proposta, firme, registrazione, chiavi, inventario,
+inizio, fine — col documento agganciato a ogni tappa; il nastro dei 12 mesi;
+«pagato dal conduttore nel 2026» con le righe esatte che fanno la somma), e
+**l'archivio** (Contratto · Consegna · Soldi · Immobile, ogni documento con la
+sua provenienza, ricerca per sinonimo «chiavi» → verbale, «marzo 2026» →
+rendiconto, i buchi dichiarati come fantasmi «non ancora in archivio»). Ogni
+numero apre la sua prova in un foglio dal basso. IT di default, EN al tocco.
+- **`js/owner-archive-engine.js`** (UMD, `window.BOOM_OWNER`, import default da
+  `api/`): `build(input, deps)` → la proiezione (chiavi fissate dal test di
+  forma), `scopeFor`, `fileFor(ref, scope, deps)`, `documentVisibility`,
+  `stagesFor`, `assertClean`, formatter deterministici (`itNum` in parità con
+  `_foglio.js`, mai `toLocaleString`), `STRINGS` IT/EN, `search`. Riusa
+  `BOOM_RENT` (stati e ritardi: la regola di Roma, una copia), `contract-fields`
+  (Scheda, cedolare) e `property-dossier-engine`. **Le regole dure**: (1) la
+  tabella `VISIBILITY` decide per OGNI tipo di documento `file` / `fact` /
+  `never`, e un campo URL nuovo non dichiarato fa cadere il test (anti-deriva,
+  campi annidati compresi); il proprietario riceve i documenti di cui è PARTE
+  (contratto firmato, scheda 2/B, verbale, inventari, valutazione, fascicolo
+  immobile, rendiconti) — mai pack di registrazione, documenti d'identità,
+  mandato, certificato FES (solo il fatto), ricevute Stripe, prove di
+  bonifico, fotogrammi; (2) all'inquilino si passa uno STUB `{id, name}` dal
+  contratto — mai il record `users` (il motore dei canoni risolveva il nome
+  con l'email); (3) il **renewal guard**: il rinnovo clona sul contratto nuovo
+  verbale, inventario, registrazione e delega del vecchio, quindi un documento
+  vale per un contratto solo se il suo PATH sta sotto `contracts/<quel id>/`,
+  e i fatti senza path solo se datati dopo la nascita del rinnovo; (4)
+  `assertClean` rifiuta la proiezione (500 `projection_unsafe`, mai spedita)
+  se contiene una chiave vietata, un URL di Storage, un `token=`, un'email, un
+  CF, un IBAN o un telefono — e nei log dice DOVE, mai il valore.
+- **`GET /api/owner/archivio[?as=]`** (landlord sui propri immobili; admin con
+  `as` obbligatorio, anche per proprietari non ancora invitati): legge con
+  credenziali admin SOLO lo scopo del proprietario, ogni query con un `limit`
+  esplicito — riempito il limite, `partial: truncated:<collezione>` e il
+  verdetto diventa «non posso dirlo» (mai una somma su dati tagliati).
+  Al primo accesso stampa `users.ownerPortalFirstAt` e una card Telegram
+  «🔑 ha aperto il suo archivio» (una volta, id deterministico).
+- **`/api/owner/file`**: `POST {ref}` → biglietto HMAC di 60 secondi
+  (`_ticket.js`, chiave derivata da `HOMIE_SECRET`); `GET ?ticket=` riverifica
+  ruolo e proprietà e serve i byte. **Nessun URL tokenizzato arriva mai al
+  browser**: il file si scarica per PATH con il Bearer admin; solo se Storage
+  lo rifiutasse si ricade sull'URL salvato, e SOLO se è lo stesso bucket e lo
+  stesso path (host inchiodato — un URL su un altro host non viene mai
+  contattato). Sopra `OWNER_FILE_MAX_BYTES` (4,4 MB, sotto il limite delle
+  risposte Vercel) 413 onesto: «chiedilo a BOOM». **Non verificato in
+  produzione**: il download per path con `?alt=media` + Bearer admin (il
+  metadata GET con lo stesso Bearer funziona già in `photos/enhance`).
+- **L'ingresso** (`POST /api/owner/invite`, solo admin, dal fascicolo
+  immobile → Strumenti → «Invita il proprietario»): `preview` (non scrive,
+  non crea account) mostra email e da dove viene, stato dell'account, cosa
+  succede a ogni immobile — `bind` (senza proprietario), `keep`, `claim` (un
+  alias provato con la stessa email) o **`blocked` (di un altro: MAI
+  riassegnato, verificato per mutazione)**; `invite` richiede l'hash del
+  piano visto (409 `plan_changed` se nel frattempo è cambiato), crea
+  l'account Firebase se manca (`createAuthUri` → `signUp`; il marcatore di
+  recupero `heartbeat/owner-invite-<hash email>` nasce PRIMA del commit, così
+  un invito rotto a metà si riprende), lega gli immobili in UN commit con
+  precondizioni (`ownerIdHistory` per ogni cambio) e manda l'email «Il suo
+  archivio BOOM è attivo» (IT, Lei, design system). Il primo accesso passa da
+  `/login?next=%2Fproprietario&primo=1` (l'email nel FRAMMENTO, mai nella
+  query): «Ricevi il link per scegliere la password». Le email esistenti —
+  benvenuto post-firma, rendiconto, verbale — portano «Apri il suo archivio»
+  SOLO a chi può entrare (`api/owner/_entry.js`, modulo senza import: un
+  guasto dell'invito non ferma mai l'email di una firma).
+- **La carta NFC (contratto fissato, non costruita)**: la carta porterà
+  `https://www.boomrome.com/proprietario?via=carta` — un indirizzo, MAI una
+  credenziale: una carta persa apre una schermata di login; sul telefono già
+  entrato il tocco atterra sul verdetto.
+- **La chiusura che viaggia insieme** (gli account landlord si moltiplicano
+  con gli inviti): `firestore.rules` — il landlord non legge più properties,
+  contracts, payments, maintenance, documents, conversations, messages e non
+  scrive `documents` (poteva creare un documento `shared` che arrivava
+  all'inquilino di quella casa); `storage.rules` — cartelle altrui e pass
+  Wallet solo admin; `api/pfs/_guard.js` (la porta di ~35 endpoint: banca,
+  lead, visite, scadenzario, radar, cron), `listings-availability` e
+  `admin/match-test` **solo admin** (prima `owner`/`landlord` passavano come
+  admin); solo admin anche `profile/link` (dava al proprietario i link di
+  FIRMA dei co-conduttori), `preagreement/{convert,send-sign,resolve,create,
+  notify}` (restituivano il link di firma dell'inquilino), `documents/{share,
+  qa,ocr}`, `notify/send` (email firmate BOOM a qualunque indirizzo),
+  `portal/ingest`, il ramo token di `photos/enhance`; `send-link` a un
+  non-admin dà solo il link del locatore; `generate-pass` a un landlord solo
+  il SUO pass. **Il proprio profilo non è più un pennarello** (dalla
+  revisione avversariale, 23/09): la regola `users` vietava all'utente di
+  cambiare solo `role`; un landlord poteva scriversi `ownerAliases:[<id di
+  un altro>]` e l'archivio gli avrebbe servito rendiconti e documenti
+  dell'altro. Ora il self-update non tocca `role`, `email`, `authUid`,
+  `ownerAliases`, i timbri d'invito (`ownerInvited*`,
+  `ownerInviteSentAt`, `ownerPortalFirstAt`) e la firma della garanzia
+  dell'admin (`accountConfirmedAt/By`) — nome, telefono, `lastLogin`,
+  onboarding e identità restano suoi. E l'invito non si fida più di un
+  profilo provato solo da `lastLogin` per prendere gli immobili di un
+  ALTRO record (`claim_needs_proof`): serve un account nato dall'invito o
+  timbrato dal server — oppure **la garanzia esplicita dell'admin**: nella
+  finestra d'invito la spunta «Confermo che questo account è di …»
+  (`confirmAccount:true`, solo su prova `weak`, mai su un `authUid` che
+  contraddice la scheda) entra nell'hash del piano e, all'invito, stampa
+  `authUid` + `accountConfirmedAt/By` sulla scheda e nel registro attività. `verbale.html`, `inventario.html`, `manuale.html` e
+  `pre-agreement-admin.html` diventano dello staff (cartello verso
+  `/proprietario` prima di ogni lettura). **Perso dal proprietario il primo
+  giorno, dichiarato**: upload dal portal, ZIP commercialista, condivisione,
+  inbox, Tessera Wallet (v1 è in sola lettura).
+- **La firma che il dato non prova** (chiusura del 23/09). Quattro stati, mai
+  un quinto dedotto: `signed` (firma digitale completa), **`signed_paper`**,
+  `awaiting_signatures` (SOLO con una prova positiva del giro digitale —
+  invito partito, proposta convertita, PDF del server, una firma o una data
+  di firma, stato parziale, un rinnovo del portal) e **`unrecorded`** («firma
+  non registrata a sistema», verdetto «non posso dirlo», motivo
+  `signature_unrecorded`). I token di firma NON sono una prova:
+  `saveContract` e l'Innesto li coniano sempre, anche per un contratto
+  firmato su carta e inserito a mano — dirgli «in attesa delle firme»
+  affermava un fatto non registrato. Il seguito: senza un modo di dire «è
+  firmato su carta», un proprietario con contratto cartaceo avrebbe letto
+  «non posso dirlo» per sempre. Nel dettaglio contratto del portal (solo
+  admin) **📄 Firmato su carta** registra `contract.paperSigned {at: giorno
+  della firma, by: uid, recordedAt}` (mai nel futuro in ora di Roma, mai su
+  una firma digitale completa; si toglie col ✕). Il motore
+  (`paperSignedOn`) la legge come dichiarazione di BOOM, non come firma: la
+  tappa «Firmato» porta il giorno e la nota «firmato su carta, registrato da
+  BOOM», nessuna tappa di firma delle parti, nessuna «bozza», nessuna firma
+  né Scheda da chiedergli, la registrazione torna a contare (oltre 30 giorni
+  senza esito → «non posso dirlo» finché lo staff non preme ✓ RLI
+  registrato). Su un rinnovo vale solo se registrata DOPO la sua nascita, e
+  `renewContract` non la copia: un contratto firmato su carta si rinnova come
+  contratto nuovo, da rifirmare. **La regola è UNA per tutta la macchina**
+  (`FIELDS.paperSignedOn` / `signatureSettled` in `js/contract-fields.js`;
+  il motore, UMD senza import, ne tiene una copia legata da un test di
+  parità): la seconda revisione ostile ha trovato che la leggevano solo
+  l'archivio e il badge, mentre il cron (firma parziale, re-invito, «aperto
+  ma non firmato»), il Gestore («Manca la tua firma»), il journey e Oggi la
+  ignoravano — il proprietario avrebbe letto «firmato su carta» e ricevuto
+  «Tocca a Lei». Ora nessun sollecito di firma parte su un contratto
+  firmato su carta (il cron legge la mappa `paperSigned`, le altre mappe
+  restano come prima), il journey lo tratta come una locazione vera, Oggi
+  non lo mette fra le firme a metà e gli rimette in coda la registrazione
+  RLI. Il portal non cambia i TERMINI sotto la carta (immobile, parti, date,
+  canone, deposito, tipo: `paperTermsChanged` blocca ✎ Modifica e dice di
+  togliere prima la registrazione); gli altri dati si correggono. L'archivio
+  segnala i buchi del cartaceo come fantasmi: la copia firmata finché non è
+  caricata come «Contratto di locazione», il verbale di consegna a contratto
+  iniziato. Test: `node tests/owner/paper.mjs` (cron e Gestore VERI, ognuno
+  col controllo che senza la carta il sollecito parte). Cessato senza data di cessazione: le rate
+  aperte non sono «in ritardo», sono da verificare (`charges_after_termination`
+  senza data).
+- **Il motore fiscale leggeva la cedolare al contrario** sui contratti veri
+  (`cedolareSecca:'si'` → `isCedolare:false`: costi RLI, imposta di registro
+  annua e promemoria ISTAT che non esistono). Ora con il campo esplicito vale
+  `FIELDS.cedolareOn` in `fiscal-engine` e `taxpack-engine`; senza il campo
+  resta la classificazione di prima (pinnata).
+- Test: `node tests/owner/engine.mjs` (privacy col veleno — email, CF, token
+  di firma, URL tokenizzati, margini — che non deve MAI uscire; tabelle
+  anti-deriva; tappe e renewal guard; soldi con l'anno di Roma; sei mutazioni
+  vere del sorgente), `tests/owner/api.mjs` e `tests/owner/file.mjs` (handler
+  veri su Firestore e Storage in memoria: 401/403/proprietà, nessun URL
+  tokenizzato in nessuna risposta, lo scarico per path col Bearer admin),
+  `tests/owner/invite.mjs` (mai una riassegnazione, recupero, email, login),
+  `tests/owner/ui.mjs` (Chromium vero a 320/390/1440 con proiezioni del motore
+  VERO: nessun veleno nel DOM, foglio delle prove, ricerca, vedi-come senza
+  link personali), `tests/owner/security.mjs` (regole, handler chiusi,
+  guardiani solo admin, pagine dello staff montate — con mutazioni),
+  `tests/owner/paper.mjs` (la firma su carta ferma i solleciti), più
+  `tests/rules/runner.mjs` sull'emulatore (90 asserzioni, job CI).
 
 ### Conservazione (`GET/POST /api/ops/conservazione`, cron il 2 del mese 05:40 UTC)
 L'archivio legale FUORI da Firebase, senza nuovi servizi: il 2 del mese i
@@ -2237,7 +2452,9 @@ time-boxed — mai può bloccare una firma.
   contratto invitato alla firma digitale ma non `complete` è nel funnel
   firma, NON nel ciclo casa — niente T-30 di benvenuto a chi non ha
   firmato. I legacy firmati su carta (nessun invito a sistema) restano
-  dentro il journey.
+  dentro il journey, e ci rientra anche un contratto con la firma su carta
+  registrata dallo staff (`FIELDS.signatureSettled`) pure se un invito
+  digitale era partito prima.
 - La Scheda completa manda al cliente una conferma one-shot
   (`scheda<Role>ConfirmedAt`) nel suo idioma (`api/profile/submit.js`).
 - Due bug di produzione trovati dai test (pdf-lib REALE nella suite):
@@ -5036,6 +5253,7 @@ camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
   | `tests/scalo/run.mjs` | LO SCALO lotti 1-4: la carta d'imbarco dice la verità (visita annullata/standby = Wallet spento e DETTO, codici di rotta solo dal lessico — mai inventati, pass viewing per navigazione vera mai blob:), il lessico `js/scalo-codes.js` in UNA copia (alias lungo batte il corto, parole intere, ambiguo → null, bmCode derivato), il flight status di /viewing (countdown SOLO sui momenti veri di _moments, stato temporale mai "già spedito"), il check-in di /book (la carta SOLO sulla confermata — mai sulla pending — con applyApprovalCopy unico posto delle parole), l'idrante di /board (corsie SOLO da BOOM_DISPO.marketLane — closed fuori, illeggibile = ASK mai NOW, ETA dall'iso del motore, fail-open sulla fotografia di build), la rotta di /casa (tappe = FATTI del contratto: signatureStatus, depbal, startDate, endDate−90 — l'aereo sulla prima non compiuta, niente rotta senza contratto) e il timbro di apartment-detail (visibile sempre, batte una volta, fermo con reduced-motion). Lotto 4: il handler VERO di /api/meteo su Firestore in memoria (whitelist che non lascia passare un campo non dichiarato, sotto campione SOLO il nome, cache CDN, solo GET), meteo.html che non tocca mai Firestore, lo sweep della plancia (blip = gli stessi item della strip, angolo dichiarato disposizione), e le og carte PNG verificate nei byte (IHDR 1200×630) |
   | `tests/mandato/run.mjs` | il mandato a firmare: spunta a parte sulla proposta (mai dedotta, solo se offerta ESPLICITAMENTE — assente = non offerto), la foto delle condizioni approvate presa all'accettazione (v2: immobile, parti, modello, date, soldi, oneri, clausole) è la base che conversione e firma verificano (409 con `changed`; il contratto non fa mai da base; v1 ancora valutato con la sua regola), la strada automatica non perde consenso e mandato, al posto del conduttore SOLO col mandato (403), chi ha firmato resta stampato su pagina firme/certificato/scheda ARPE/pack; il consenso della proposta firma anche la scheda 2/B (pagina == server, hash); la Valutazione BOOM esce dall'immobile con la scheda di calcolo brandizzata a pagina 2 e i buchi dichiarati |
   | `tests/ai/run.mjs` | La Centrale AI: coi default TUTTO in cloud, `localOk:false` mai in locale, PDF → cloud, immagine → solo con modello visivo, locale giù → cloud dichiarato, ombra che misura senza toccare la risposta (e non salva un cloud giù), contatori atomici col costo dal listino, nei log mai contenuto, porta HTTP (401/403/400 senza scritture), STT locale-prima, anti-deriva chiamanti⇄registro |
+  | `tests/owner/engine.mjs` · `api.mjs` · `file.mjs` · `invite.mjs` · `ui.mjs` · `paper.mjs` · `security.mjs` | L'Archivio del Proprietario: nessun dato dell'inquilino né URL tokenizzato esce mai (veleno + `assertClean` + mutazioni), il documento di un rinnovo non si attribuisce al contratto sbagliato, i file per path col Bearer admin e un host estraneo mai contattato, l'invito che non riassegna mai l'immobile di un altro, la pagina in Chromium a 320/390/1440, e la chiusura: regole, endpoint e guardiani solo staff |
   | `tests/safari/boot.mjs` | nessuna superficie autenticata resta appesa su un loader |
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
   the 3 portals via `BoomPortal.registerServiceWorker()`
@@ -5060,7 +5278,7 @@ loader, confirm dialog) — see `BoomPortal.*` API.
 
 | Portal | Role(s) accepted | Collections read/written |
 |---|---|---|
-| `owner-dashboard.html` | `owner`, `landlord`, `admin` | reads/writes `properties` filtered by `ownerId` |
+| `proprietario.html` | `landlord`, `admin` (`?as=<ownerId>`) | **nothing from the browser**: `GET /api/owner/archivio` + `/api/owner/file` (server projection, ownership re-checked per file) |
 | `tenant.html` | `tenant` | reads `properties` (own), writes `maintenance` |
 | `client-portal.html` | access code on `pfsClients` doc | reads/writes `pfsClients.portalProperties` |
 
@@ -5192,13 +5410,12 @@ dichiarava "nessuna superficie autenticata resta appesa": verde e cieca sulla
 pagina che si piantava davvero. Il caso *"lo script muore dopo la riga 1"*
 riproduce lo spinner infinito e pretende la card di uscita.
 
-**Nota**: `owner-dashboard.html` è oggi una pagina STATICA — non carica
-Firebase né autentica nessuno, malgrado la tabella dei portali qui sopra lo
-descriva come SPA Firestore filtrata per `ownerId`.
-La misura completa (bottone ✔ morto del landlord, archivio vuoto per
-costruzione, documenti solo via email) e il piano per UNA superficie
-proprietario sui dati veri stanno in `STUDIO_ARCHIVIO_PROPRIETARIO_2026-09.md`,
-sessione condivisa Claude ⇄ Codex (prompt: `docs/PROMPT_CODEX_PROPRIETARIO.md`).
+**Il proprietario non usa più `/portal`** (22/09/2026): un profilo `landlord`
+che apre il portal esce verso `/proprietario` prima di qualunque lettura
+(`landlordToArchive()` in portal-app.js, cache locale buttata), e dopo il
+login senza `next` un landlord atterra direttamente lì. `owner-dashboard.html`
+(una pagina statica su localStorage, senza login né Firestore) e `owner.html`
+non esistono più. Vedi "L'Archivio del Proprietario".
 
 **Deal Link** (`/portal#deal=<base64url JSON>`): semina il wizard
 "🚀 Nuovo cliente → contratto firmato" con un deal completo — `{tenant,

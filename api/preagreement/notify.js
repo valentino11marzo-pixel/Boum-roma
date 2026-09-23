@@ -5,7 +5,7 @@
 // ricevuta", one tap re-delivers their copy.
 //
 // Method:   POST
-// Headers:  Authorization: Bearer <firebase-id-token>  (admin/owner/landlord)
+// Headers:  Authorization: Bearer <firebase-id-token>  (solo admin, dal 22/09/2026)
 // Body:     { id }
 // Response: { ok, client, admin }
 
@@ -18,7 +18,11 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
-  const auth = await requireRole(req, res, ['admin', 'owner', 'landlord']);
+  // SOLO ADMIN (22/09/2026). Accettava qualunque owner/landlord SENZA
+  // controllo di proprietà: rispediva il documento di QUALSIASI proposta
+  // (anagrafica del cliente compresa) col marchio BOOM. È il «✉ Reinvia
+  // copia» della console dello staff. tests/owner/security.mjs.
+  const auth = await requireRole(req, res, ['admin']);
   if (!auth) return;
 
   const b = await readJson(req);

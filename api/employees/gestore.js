@@ -19,6 +19,7 @@
 // Auth: cron secret / X-Homie-Secret / admin ID token. `?dry=1` = read-only.
 
 import COMPLIANCE from '../../js/compliance-rules.js';
+import FIELDS from '../../js/contract-fields.js';
 import { real } from '../_demo.js';
 import { knobs, rejectedLine } from '../_squadra.js';
 import {
@@ -117,6 +118,8 @@ async function run({ dry }) {
   // ── 2. Firme mancanti (nudge col link Magic Sign) ─────────────────────
   for (const c of contracts) {
     if (!liveContract(c)) continue;
+    // Firmato su carta e registrato dallo staff: non manca nessuna firma.
+    if (FIELDS.paperSignedOn(c)) continue;
     const created = Date.parse(c.createdAt || c.startDate || 0);
     if (created && (now - created) < k.unsignedAfterDays * 86400000) continue;
     const targets = [];

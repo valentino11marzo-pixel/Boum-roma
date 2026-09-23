@@ -30,6 +30,7 @@ import { fsGet, fsCreate, fsPatch, readJson, logActivity } from '../homie/_lib.j
 import { storageUpload, sendEmail } from '../agent/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import { shell, btn, para, fine } from '../preagreement/_notify.js';
+import { ownerArchiveOpen, ownerArchiveUrl } from '../owner/_entry.js';
 import INV from '../../js/inventario-engine.js';
 import { brandAssets, masthead, stampFooters, wa, INK, GREY, FAINT, GOLD, HAIR } from '../_pdfbrand.js';
 
@@ -238,12 +239,17 @@ async function sendVerbaleEmails({ contract, property, url, pdfBytes, when, keys
       + fine('Meter readings in this report are the official starting point for your utility bills.'),
       'Your keys + handover report'), att);
   }
-  // Locatore — IT
+  // Locatore — IT. Il PDF viaggia in allegato; il bottone porta al SUO
+  // archivio (#c=<contratto>) solo se l'account ce l'ha davvero (invitato o
+  // già entrato) — mai più l'URL tokenizzato di Storage, che è una
+  // credenziale senza scadenza dentro un'email che si inoltra.
   if (landlordEmail) {
     await trySend(landlordEmail, '🔑 Consegna chiavi effettuata — verbale in allegato', shell(
       para(`In data ${when.d} sono state consegnate le chiavi di <strong>${propLabel}</strong> al conduttore.`)
       + para('In allegato il <strong>verbale di consegna</strong> firmato: chiavi, letture contatori e stato dell\'immobile. Le letture fanno fede per volture e riparto consumi.')
-      + btn(url, 'Apri il verbale')
+      + (ownerArchiveOpen(landlordU)
+        ? btn(ownerArchiveUrl('c=' + encodeURIComponent(contract.id || '')), 'Apri il suo archivio')
+        : fine('L’accesso online al suo archivio lo attiviamo noi: risponda a questa email.'))
       + fine('Documento archiviato automaticamente nel fascicolo del contratto.'),
       'Verbale di consegna firmato'), att);
   }

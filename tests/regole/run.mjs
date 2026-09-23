@@ -87,6 +87,68 @@ for (const [coll, cosa] of CHIUSE) {
   ok(st === 403, `CHIUSA in produzione: ${coll} — ${cosa}${st !== 403 ? `  ⛔ risponde ${st} da ANONIMO` : ''}`);
 }
 
+// ── IL PROPRIETARIO NON LEGGE DAL BROWSER (22/09/2026) ──────────────────
+// Dal rilascio dell'Archivio del Proprietario un landlord legge solo via
+// /api/owner/* (proiezione pulita): i rami landlord di properties/contracts/
+// payments/maintenance/documents/conversations sono stati tolti dal file.
+// Qui si misura se lo sono anche IN PRODUZIONE — ma con un account vero,
+// perché da anonimo quelle collezioni erano già chiuse e il test non
+// distinguerebbe le regole vecchie dalle nuove. Due cautele:
+//   · una query NON filtrata su contracts è negata anche dalle regole
+//     vecchie (le regole non sono filtri): proverebbe nulla. Si usa la query
+//     FILTRATA che le vecchie regole ammettevano (properties where ownerId ==
+//     uid) e, se dichiarato, il GET di un contratto di un suo immobile;
+//   · il controllo positivo (il proprio users/<uid> si legge ancora) dice
+//     che il token è buono: senza, un 403 ovunque passerebbe per sicurezza.
+// Account di prova in env (mai nel codice): BOOM_CANARY_LANDLORD_EMAIL /
+// BOOM_CANARY_LANDLORD_PASS, opzionale BOOM_CANARY_LANDLORD_CONTRACT (id di
+// un contratto su un suo immobile). Senza env si dice e si va avanti: una
+// NOTA, mai "SKIP:" — segnerebbe saltata l'intera suite.
+const LL_EMAIL = process.env.BOOM_CANARY_LANDLORD_EMAIL;
+const LL_PASS = process.env.BOOM_CANARY_LANDLORD_PASS;
+const LL_CONTRACT = process.env.BOOM_CANARY_LANDLORD_CONTRACT;
+if (!LL_EMAIL || !LL_PASS) {
+  console.log('nota: canary proprietario non configurato (BOOM_CANARY_LANDLORD_EMAIL/PASS)');
+} else {
+  let login = null;
+  try {
+    const r = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: LL_EMAIL, password: LL_PASS, returnSecureToken: true }),
+      signal: AbortSignal.timeout(15000),
+    });
+    login = r.ok ? await r.json() : null;
+    // mai l'email né la risposta nei log: solo lo stato
+    ok(!!(login && login.idToken && login.localId), `canary proprietario: login riuscito (HTTP ${r.status})`);
+  } catch (e) {
+    ok(false, 'canary proprietario: login non riuscito (' + (e.name || 'errore') + ')');
+  }
+  if (login && login.idToken) {
+    const auth = { Authorization: 'Bearer ' + login.idToken };
+    const uid = login.localId;
+    const self = await fetch(`${base}/users/${encodeURIComponent(uid)}`, { headers: auth, signal: AbortSignal.timeout(15000) });
+    ok(self.status === 200, `canary proprietario: legge ancora il PROPRIO users/<uid> (controllo positivo, HTTP ${self.status})`);
+    const q = await fetch(`${base}:runQuery`, {
+      method: 'POST', headers: { ...auth, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ structuredQuery: {
+        from: [{ collectionId: 'properties' }],
+        where: { fieldFilter: { field: { fieldPath: 'ownerId' }, op: 'EQUAL', value: { stringValue: uid } } },
+        limit: 1,
+      } }),
+      signal: AbortSignal.timeout(15000),
+    });
+    ok(q.status === 403,
+      `canary proprietario: la query filtrata sui PROPRI immobili è negata dal browser${q.status !== 403 ? `  ⛔ risponde ${q.status}: le regole in vigore danno ancora al landlord i suoi immobili — rideploya firestore.rules` : ''}`);
+    if (LL_CONTRACT) {
+      const c = await fetch(`${base}/contracts/${encodeURIComponent(LL_CONTRACT)}`, { headers: auth, signal: AbortSignal.timeout(15000) });
+      ok(c.status === 403,
+        `canary proprietario: il GET di un contratto del suo immobile è negato${c.status !== 403 ? `  ⛔ risponde ${c.status}: il contratto (con tenantSignToken) esce dal browser del proprietario` : ''}`);
+    } else {
+      console.log('nota: BOOM_CANARY_LANDLORD_CONTRACT non dichiarato — il GET del contratto non si misura');
+    }
+  }
+}
+
 // ── e il file dichiara le stesse due liste (o il test misura altro) ─────
 const rules = read('firestore.rules');
 for (const [coll] of APERTE) {

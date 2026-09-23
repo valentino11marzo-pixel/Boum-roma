@@ -1,4 +1,5 @@
-/* BOOM Portal Core — shared utilities for owner-dashboard, tenant, client-portal.
+/* BOOM Portal Core — shared utilities for the logged-in pages (proprietario, tenant,
+ * client-portal, the staff consoles).
  * No build step. Load via <script src="/js/boom-portal.js" defer></script>.
  * Exposes window.BoomPortal.
  *

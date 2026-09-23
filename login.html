@@ -231,6 +231,7 @@
       color:var(--text);font-family:var(--ui);font-size:14px;font-weight:400;letter-spacing:-.01em;outline:none;
       transition:border-color .2s var(--ease),background .2s var(--ease),box-shadow .2s var(--ease)}
     #password{padding-right:60px}
+    .owner #password{padding-right:84px}
     .field input::placeholder{color:var(--text-4)}
     .field input:hover{background:var(--field-hover);border-color:rgba(255,255,255,.16)}
     .field input:focus{border-color:rgba(233,199,102,.6);background:var(--field-focus);box-shadow:0 0 0 3px rgba(233,199,102,.13)}
@@ -266,6 +267,19 @@
       border:2px solid rgba(28,21,3,.3);border-top-color:#1c1503;border-radius:50%;animation:rot .7s linear infinite}
     .submit.loading .spin{opacity:1}
     @keyframes rot{to{transform:rotate(360deg)}}
+
+    /* ── Proprietario: il primo accesso (22/09/2026) ── */
+    .primo{margin-top:18px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:rgba(255,255,255,.02)}
+    .primo summary{cursor:pointer;font-size:13px;font-weight:500;color:var(--text-2);min-height:28px;display:flex;align-items:center}
+    .primo summary:focus-visible{outline:1px solid var(--line);outline-offset:3px;border-radius:4px}
+    .primo p{margin:8px 0 10px;font-size:12.5px;color:var(--text-3);line-height:1.55}
+    .primo-btn{width:100%;min-height:44px;border-radius:10px;border:1px solid rgba(233,199,102,.45);background:transparent;color:var(--gold);
+      font-family:var(--ui);font-size:13.5px;font-weight:600;cursor:pointer;transition:background .2s var(--ease)}
+    .primo-btn:hover:not(:disabled){background:rgba(233,199,102,.08)}
+    .primo-btn:disabled{opacity:.6;cursor:wait}
+    .door{margin-top:14px;text-align:center;font-size:12.5px;color:var(--text-3)}
+    .door a{color:var(--text-2);text-decoration:none;font-weight:500}
+    .door a:hover{color:var(--gold)}
 
     .alt{margin-top:20px;text-align:center;font-size:12.5px;color:var(--text-3)}
     .alt a{color:var(--text-2);text-decoration:none;font-weight:500;transition:color .2s var(--ease)}
@@ -476,6 +490,16 @@
           </button>
         </form>
 
+        <!-- Il primo accesso del proprietario: NESSUN secondo form (/login resta
+             l'unica superficie di accesso). Compare solo quando si torna a
+             /proprietario; aperto da solo quando si arriva dall'invito (primo=1). -->
+        <details class="primo" id="primoBox" hidden>
+          <summary>Primo accesso?</summary>
+          <p>Scrivi qui sopra l’email con cui ti abbiamo invitato: ti mandiamo il link per scegliere la password.</p>
+          <button type="button" class="primo-btn" id="primoBtn">Ricevi il link per scegliere la password</button>
+        </details>
+        <p class="door" id="ownersDoor" hidden>Non sei ancora proprietario BOOM? <a href="/owners">Scopri come lavoriamo&nbsp;→</a></p>
+
         <div class="alt">
           <a href="/apartments">Browse apartments</a>
           <span class="sep">·</span>
@@ -492,12 +516,24 @@
 
   <script>
     document.addEventListener('DOMContentLoaded',()=>{
+      const NEXT_DEST=getNextDest();
+
+      // ── Modalità proprietario (/login?next=/proprietario…) ──────────────
+      // La pagina parla SOLO italiano al proprietario: titolo, etichette,
+      // «Password dimenticata?», ogni messaggio. Si decide qui, prima di tutto,
+      // così anche l'avviso «servizio irraggiungibile» esce in italiano.
+      // Per ogni altra destinazione la pagina resta quella di sempre.
+      const PROP_MODE=NEXT_DEST.startsWith('/proprietario');
+      const L=(en,it)=>PROP_MODE?it:en;
+      if(PROP_MODE) ownerCopy();
+
       // Resilience: if the auth SDK couldn't load (offline / blocked / flaky
       // connection), fail gracefully instead of throwing.
       if(typeof firebase==='undefined'){
         const m=document.getElementById('message');
         if(m){ m.className='msg show error';
-          m.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>Couldn’t reach the sign-in service. Check your connection and refresh.</span>'; }
+          m.innerHTML='<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg><span>'
+            +L('Couldn’t reach the sign-in service. Check your connection and refresh.','Non riesco a raggiungere il servizio di accesso. Controlla la connessione e ricarica la pagina.')+'</span>'; }
         return;
       }
       firebase.initializeApp({
@@ -524,7 +560,6 @@
           return v;
         }catch{ return '/portal'; }
       }
-      const NEXT_DEST=getNextDest();
 
       // Warm-up del portale: mentre l'utente digita, il SW mette in cache la
       // shell di portal.html (stale-while-revalidate) così il post-login è
@@ -570,7 +605,37 @@
         }catch(e){/* storage bloccato: niente da fare, ma nessun crash */}
       }
 
-      auth.onAuthStateChanged(u=>{ if(u) window.location.href=NEXT_DEST; });
+      // ── Dove si va dopo l'accesso ───────────────────────────────────────
+      // Con un ?next= esplicito vince SEMPRE lui. Senza, un proprietario
+      // (role landlord) va dritto al suo archivio invece di scaricare i ~2 MB
+      // del portale per esserne poi rimandato indietro: si legge SOLO il campo
+      // role del proprio users/<uid> via REST (le regole lo permettono a chi è
+      // quell'utente), con un tetto di 4s. Qualunque intoppo → la destinazione
+      // di sempre: il portale sa rimandare un proprietario al posto giusto.
+      const HAS_NEXT=(()=>{ try{ return !!new URLSearchParams(location.search).get('next'); }catch{ return false; } })();
+      async function destFor(u){
+        if(HAS_NEXT||!u) return NEXT_DEST;
+        try{
+          const tok=await u.getIdToken();
+          const r=await Promise.race([
+            fetch('https://firestore.googleapis.com/v1/projects/boom-property-dashboards/databases/(default)/documents/users/'
+              +encodeURIComponent(u.uid)+'?mask.fieldPaths=role',{headers:{Authorization:'Bearer '+tok}}),
+            new Promise((_,rej)=>setTimeout(()=>rej(new Error('boom/timeout')),4000))
+          ]);
+          if(r&&r.ok){
+            const d=await r.json();
+            if(d&&d.fields&&d.fields.role&&d.fields.role.stringValue==='landlord') return '/proprietario';
+          }
+        }catch(_){ /* la destinazione di sempre */ }
+        return NEXT_DEST;
+      }
+      let leaving=false;
+      function go(u){
+        if(leaving) return; leaving=true;
+        destFor(u).then(d=>{ window.location.href=d; },()=>{ window.location.href=NEXT_DEST; });
+      }
+
+      auth.onAuthStateChanged(u=>{ if(u) go(u); });
 
       const form=document.getElementById('loginForm');
       const emailInput=document.getElementById('email');
@@ -597,9 +662,9 @@
       revealBtn.addEventListener('click',()=>{
         const show=pwInput.type==='password';
         pwInput.type=show?'text':'password';
-        revealBtn.textContent=show?'Hide':'Show';
+        revealBtn.textContent=show?L('Hide','Nascondi'):L('Show','Mostra');
         revealBtn.setAttribute('aria-pressed',String(show));
-        revealBtn.setAttribute('aria-label',show?'Hide password':'Show password');
+        revealBtn.setAttribute('aria-label',show?L('Hide password','Nascondi la password'):L('Show password','Mostra la password'));
         pwInput.focus();
       });
 
@@ -615,7 +680,7 @@
         e.preventDefault();
         const email=emailInput.value.trim();
         const password=pwInput.value;
-        if(!email||!password){ showMessage('Please enter your email and password.','error'); return; }
+        if(!email||!password){ showMessage(L('Please enter your email and password.','Scrivi la tua email e la password.'),'error'); return; }
         setLoading(true); clearMessage();
         try{
           // Tetto sul sign-in. Su WebKit incastrato (IndexedDB/WebChannel)
@@ -628,19 +693,22 @@
             auth.signInWithEmailAndPassword(email,password),
             new Promise((_,rej)=>setTimeout(()=>rej(new Error('boom/timeout')),20000))
           ]);
-          showMessage('Welcome back — signing you in…','success');
-          setTimeout(()=>{ window.location.href=NEXT_DEST; }, isSafari?500:120);
+          showMessage(L('Welcome back — signing you in…','Accesso riuscito: apro il tuo archivio…'),'success');
+          setTimeout(()=>{ go(auth.currentUser); }, isSafari?500:120);
         }catch(err){
-          let msg='Incorrect email or password. Please try again.';
-          if(err && err.message==='boom/timeout') msg='Sign-in is taking too long — your browser may be stuck. Reload the page, or try a private window.';
-          else if(err.code==='auth/too-many-requests') msg='Too many attempts. Please wait a moment and try again.';
-          else if(err.code==='auth/network-request-failed') msg='Network error. Check your connection and try again.';
-          else if(err.code==='auth/user-disabled') msg='This account has been disabled. Contact support.';
+          let msg=L('Incorrect email or password. Please try again.','Email o password non corrette. Riprova.');
+          if(err && err.message==='boom/timeout') msg=L('Sign-in is taking too long — your browser may be stuck. Reload the page, or try a private window.','L’accesso sta impiegando troppo: il browser potrebbe essere bloccato. Ricarica la pagina o prova in una finestra privata.');
+          else if(err.code==='auth/too-many-requests') msg=L('Too many attempts. Please wait a moment and try again.','Troppi tentativi. Aspetta un momento e riprova.');
+          else if(err.code==='auth/network-request-failed') msg=L('Network error. Check your connection and try again.','Errore di rete. Controlla la connessione e riprova.');
+          else if(err.code==='auth/user-disabled') msg=L('This account has been disabled. Contact support.','Questo account è disattivato. Scrivi a BOOM su WhatsApp.');
           showMessage(msg,'error'); setLoading(false); pwInput.focus(); pwInput.select();
         }
       });
 
       forgotBtn.addEventListener('click',async()=>{
+        // Il proprietario: lo stesso reset del «Primo accesso?» (ritorno a
+        // /proprietario, un messaggio solo qualunque sia l'esito).
+        if(PROP_MODE) return ownerReset(forgotBtn,'«Password dimenticata?»');
         const email=emailInput.value.trim();
         if(!email){ showMessage('Enter your email above, then tap “Forgot?” again.','error'); emailInput.focus(); return; }
         forgotBtn.disabled=true;
@@ -652,6 +720,93 @@
         showMessage('If an account exists for that email, a reset link is on its way.','success');
         setTimeout(()=>{ forgotBtn.disabled=false; },4000);
       });
+
+      // ── Modalità proprietario: il primo accesso ─────────────────────────
+      // Il «Primo accesso?» chiede il link per scegliere la password
+      // (l'account l'ha creato l'invito, con una password che nessuno
+      // conosce), e una riga per chi arriva da una carta o da un link ma
+      // proprietario BOOM non lo è ancora.
+      // L'email dell'invito arriva nel FRAMMENTO (#e=…): non passa mai da un
+      // server né da un log. Si valida, si precompila e si toglie dall'URL.
+      const EMAIL_RE=/^[^\s@<>"(),;:]{1,64}@[^\s@<>"(),;:]{1,190}\.[a-z]{2,24}$/i;
+      const RESET_MSG='Se l’email è registrata ti abbiamo scritto: apri il link, scegli la password, poi torna qui.';
+      // UN reset per il proprietario, dal «Primo accesso?» e da «Password
+      // dimenticata?»: ritorno a /proprietario, e sempre lo stesso messaggio.
+      async function ownerReset(btn,again){
+        const email=emailInput.value.trim();
+        if(!email){ showMessage('Scrivi la tua email qui sopra, poi tocca di nuovo '+again+'.','error'); emailInput.focus(); return; }
+        if(!EMAIL_RE.test(email)){ showMessage('Questo indirizzo email non sembra valido: controllalo e riprova.','error'); emailInput.focus(); return; }
+        btn.disabled=true; clearMessage();
+        const cap=(p)=>Promise.race([p,new Promise((_,rej)=>setTimeout(()=>rej(new Error('boom/timeout')),15000))]);
+        try{ await cap(auth.sendPasswordResetEmail(email,{url:'https://www.boomrome.com/proprietario'})); }
+        catch(err){
+          // Il dominio del ritorno non autorizzato nel progetto Firebase non
+          // deve costare l'email: si rimanda senza indirizzo di ritorno.
+          if(err&&(err.code==='auth/unauthorized-continue-uri'||err.code==='auth/invalid-continue-uri')){
+            try{ await cap(auth.sendPasswordResetEmail(email)); }catch(_){}
+          }
+        }
+        // Sempre lo stesso messaggio: non diciamo a nessuno se un'email ha un account.
+        showMessage(RESET_MSG,'success');
+        setTimeout(()=>{ btn.disabled=false; },4000);
+      }
+      if(PROP_MODE){
+        const box=document.getElementById('primoBox'), door=document.getElementById('ownersDoor');
+        box.hidden=false; door.hidden=false;
+        let primo=false;
+        try{ primo=new URLSearchParams(location.search).get('primo')==='1'; }catch{}
+        if(primo) box.open=true;
+        try{
+          const h=new URLSearchParams(String(location.hash||'').replace(/^#/,''));
+          const e=(h.get('e')||'').trim();
+          if(e&&EMAIL_RE.test(e)&&!emailInput.value) emailInput.value=e;
+          if(h.has('e')) history.replaceState(null,'',location.pathname+location.search);
+        }catch{}
+        const primoBtn=document.getElementById('primoBtn');
+        primoBtn.addEventListener('click',()=>ownerReset(primoBtn,'il pulsante'));
+      }
+
+      // Le parole della pagina, in italiano, per il proprietario. Solo testo
+      // fisso del modulo: nessun dato, nessuna seconda superficie.
+      function ownerCopy(){
+        document.documentElement.lang='it';
+        document.body.classList.add('owner');
+        document.title='Accedi — Il tuo archivio BOOM';
+        const q=(sel)=>document.querySelector(sel);
+        const set=(sel,v)=>{ const el=q(sel); if(el) el.textContent=v; };
+        set('.home span','Torna al sito');
+        const mk=q('.marchio'); if(mk) mk.setAttribute('aria-label','BOOM — pagina iniziale');
+        const eb=q('.hero .eyebrow'); if(eb) eb.innerHTML='<span class="pip"></span> Gestione affitti · Roma';
+        const head='I tuoi immobili,<br><span class="grad">in un solo posto</span>.';
+        const h1=q('.hero .h1'); if(h1) h1.innerHTML=head;
+        const h2=q('.mhead h2'); if(h2) h2.innerHTML=head;
+        set('.hero .lede','Contratti, rate, verbali e rendiconti dei tuoi immobili: quello che BOOM gestisce per te, sempre consultabile. Accedi e ritrovi tutto dove l’hai lasciato.');
+        set('.mhead p','Quello che BOOM gestisce per te, sempre consultabile.');
+        const FEATS=[['Il contratto','Firme, registrazione e scadenze, tappa per tappa.'],
+          ['Le rate','Cosa ha pagato il conduttore, mese per mese.'],
+          ['I documenti','Verbali, inventari, APE e rendiconti, sempre a portata.'],
+          ['Il tuo riferimento','Una persona di BOOM, su WhatsApp o per email.']];
+        document.querySelectorAll('.feat').forEach((f,i)=>{
+          const t=FEATS[i]; if(!t) return;
+          const a=f.querySelector('h3'), b=f.querySelector('p');
+          if(a) a.textContent=t[0]; if(b) b.textContent=t[1];
+        });
+        const tr=q('.trust'); if(tr) tr.innerHTML='<span class="ln"></span> boomrome.com · Scelto dai proprietari di tutta Roma';
+        set('.a-title','Il tuo archivio BOOM');
+        set('.a-sub','Contratti, verbali e rendiconti dei tuoi immobili. Accedi con la tua email.');
+        set('label[for="email"]','Indirizzo email');
+        set('label[for="password"]','Password');
+        const em=q('#email'); if(em) em.placeholder='nome@esempio.it';
+        set('#forgotBtn','Password dimenticata?');
+        set('#revealBtn','Mostra');
+        const rv=q('#revealBtn'); if(rv) rv.setAttribute('aria-label','Mostra la password');
+        set('#capsHint','⇪ Blocco maiuscole attivo');
+        set('#submitBtn .t','Accedi');
+        set('.alt a[href="/apartments"]','Gli appartamenti');
+        set('.alt a[href^="https://wa.me/"]','Scrivi a BOOM');
+        const ft=q('.foot');
+        if(ft) Array.prototype.forEach.call(ft.childNodes,(n)=>{ if(n.nodeType===3&&n.nodeValue.trim()) n.nodeValue=' Connessione cifrata · Firebase Auth '; });
+      }
 
       bounceCheck();   // dopo i const del DOM: showMessage ha bisogno di messageEl
     });

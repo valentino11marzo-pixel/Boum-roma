@@ -1,10 +1,15 @@
 // api/agent/concierge.js — "Chiedi a Homie" for tenants and landlords.
 //
-// One endpoint, two callers:
+// One endpoint. Caller today:
 //   - tenant.html         → tenant asks about their flat (maintenance,
 //                            payments, contract dates, neighborhood tips)
-//   - owner-dashboard.html → landlord asks about their portfolio
-//                            (yields, expiries, who hasn't paid)
+// Il secondo chiamante storico, la vecchia pagina del proprietario, è stato
+// ritirato il 22/09/2026 (/owner* → /proprietario, che non usa questo
+// endpoint). NOTA APERTA: qui manca un controllo del ruolo sul token
+// Firebase (basta un account qualsiasi) e le fsCreate di agentNotifications
+// partono senza await (la lezione del 13/09: su Vercel una scrittura dopo
+// la risposta può morire in volo) — rischi noti, da chiudere in un compito
+// a sé.
 //
 // The point: a real concierge feel — first-aid for emergencies, a clear
 // next step always, and (when the message describes a real issue) an
@@ -70,8 +75,8 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return errJson(res, 405, 'method_not_allowed');
 
   // Auth: accept either the public secret (for landing-page widgets) OR
-  // a Firebase user ID token (tenant.html / owner-dashboard.html, both
-  // post-login). Either is fine — the secret is shorthand and the token
+  // a Firebase user ID token (tenant.html, post-login). Either is fine —
+  // the secret is shorthand and the token
   // proves a real account.
   const pub = req.headers['x-agent-public-secret'];
   const tok = req.headers['x-firebase-token'];

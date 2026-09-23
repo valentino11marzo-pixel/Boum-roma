@@ -44,7 +44,8 @@
 import DISPO from '../js/dispo-engine.js';
 import { fsList, fsPatch, fsGet, readJson, secretEqual, logActivity } from './homie/_lib.js';
 
-const ADMIN_ROLES = new Set(['admin', 'owner', 'landlord']);
+// Solo lo staff (22/09/2026): il proprietario legge solo dalle porte /api/owner.
+const ADMIN_ROLES = new Set(['admin']);
 const MAX_UPDATES = 60;          // il catalogo vero è ~20: largo, ma non infinito
 const CATALOG_LIMIT = 400;
 

@@ -11,6 +11,7 @@
 //   CRON_SECRET             → boom-cron-2026
 
 import nodemailer from 'nodemailer';
+import FIELDS from '../js/contract-fields.js';
 
 // Wallet push is OPTIONAL — it must never take down the reminder cron.
 // A static `import … from './_passkit.js'` crashed the whole function at load
@@ -77,10 +78,21 @@ function fsVal(v) {
   return null;
 }
 
+// Le mappe restano null qui (fsVal non le legge, e i blocchi sotto sono nati
+// così), TRANNE `paperSigned`: la firma su carta registrata dallo staff deve
+// fermare i solleciti di firma, e letta come null non li fermerebbe mai.
+function fsShallowMap(v) {
+  const f = v && v.mapValue && v.mapValue.fields;
+  if (!f) return null;
+  const out = {};
+  for (const [k, x] of Object.entries(f)) out[k] = fsVal(x);
+  return out;
+}
+
 function parseDoc(doc) {
   if (!doc?.fields) return null;
   const obj = { id: doc.name?.split('/').pop() };
-  for (const [k, v] of Object.entries(doc.fields)) obj[k] = fsVal(v);
+  for (const [k, v] of Object.entries(doc.fields)) obj[k] = k === 'paperSigned' ? fsShallowMap(v) : fsVal(v);
   return obj;
 }
 
@@ -97,6 +109,7 @@ export function shouldReinvite(c, nowMs) {
   const H72 = 72 * 3600 * 1000, H24 = 24 * 3600 * 1000;
   if (!c) return false;
   if (c.status && c.status !== 'active') return false;
+  if (FIELDS.paperSignedOn(c)) return false;                     // firmato su carta: niente da firmare
   if (c.tenantSignature || c.landlordSignature) return false;   // partial → ci pensa l'altro nudge
   if (!c.tenantSignToken || !c.signInviteTenantAt) return false;
   if (nowMs - new Date(c.signInviteTenantAt).getTime() < H72) return false;
@@ -191,6 +204,9 @@ export default async function handler(req, res) {
       let nudged = 0;
       const H48 = 48 * 3600 * 1000, H24 = 24 * 3600 * 1000;
       for (const c of parts) {
+        // Chiuso su carta e registrato dallo staff: il proprietario lo legge
+        // «firmato» nel suo archivio — mai un «Tocca a Lei» sopra.
+        if (FIELDS.paperSignedOn(c)) continue;
         const signedRole = c.tenantSignature ? 'tenant' : (c.landlordSignature ? 'landlord' : null);
         if (!signedRole) continue;
         const pendingToken = signedRole === 'tenant' ? c.landlordSignToken : c.tenantSignToken;
@@ -266,6 +282,7 @@ export default async function handler(req, res) {
       let viewNudged = 0;
       for (const c of seen) {
         if (c.status && c.status !== 'active') continue;
+        if (FIELDS.paperSignedOn(c)) continue;
         // UN SOLO sollecito al giorno per contratto, qualunque sia la
         // sorgente: senza questa guardia il re-invito 72h, il nudge della
         // firma parziale e questo "ha aperto e non ha firmato" potevano

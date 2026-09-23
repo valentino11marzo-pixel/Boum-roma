@@ -262,12 +262,20 @@ IP = '1.2.3.4';
     && r.body.cosign[0].signed === false && r.body.cosign[1].signed === true);
   store.set('contracts/ctr1', { ...store.get('contracts/ctr1'), coTenants: undefined });
 
-  // owner non admin: contratto di un ALTRO owner → 403
+  // Dal 22/09/2026 profile/link è SOLO dell'admin: prima un landlord, sul
+  // PROPRIO immobile, riceveva la Scheda del conduttore e i link di FIRMA dei
+  // co-conduttori. Il vecchio check (immobile altrui → not_your_contract)
+  // resta coperto, più stretto: il landlord riceve 403 `forbidden` sia
+  // sull'immobile altrui sia sul proprio, senza alcun URL nella risposta.
   store.set('users/caller1', { role: 'landlord' });
   store.set('properties/prop1', { ...store.get('properties/prop1'), ownerId: 'somebody-else' });
   r = mkRes();
   await link(mkReq({ contractId: 'ctr1' }, { authorization: 'Bearer faketoken' }), r);
-  check('link landlord: immobile altrui → 403', r.code === 403 && r.body.error === 'not_your_contract');
+  check('link landlord: immobile altrui → 403 forbidden', r.code === 403 && r.body.error === 'forbidden' && !r.body.tenantUrl);
+  store.set('properties/prop1', { ...store.get('properties/prop1'), ownerId: 'caller1' });
+  r = mkRes();
+  await link(mkReq({ contractId: 'ctr1' }, { authorization: 'Bearer faketoken' }), r);
+  check('link landlord: anche sul PROPRIO immobile → 403 forbidden (niente Scheda del conduttore)', r.code === 403 && r.body.error === 'forbidden' && !r.body.tenantUrl && !r.body.cosign);
 }
 
 console.log('\n' + '─'.repeat(48));

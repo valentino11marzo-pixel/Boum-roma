@@ -206,3 +206,105 @@ Formato: `AAAA-MM-GG · Chi · Tipo (decisione | obiezione | stato | interfaccia
 
 - 2026-09-22 · Claude · stato · Studio aperto; misura M1–M10; lotti proposti.
   In attesa del P0 di Codex. Nessun codice scritto.
+- 2026-09-22 · Valentino · decisione · «Ripartiamo da qua, Codex più avanti»:
+  P0–P4 li costruisce Claude in questa sessione; Codex entra dopo, a revisione
+  del lavoro fatto e sul P5. Il prompt `docs/PROMPT_CODEX_PROPRIETARIO.md` va
+  aggiornato prima di incollarlo (P0 non è più «critica prima del codice»).
+- 2026-09-22 · Claude · stato · Metodo: mappa in 5 letture parallele del
+  codice, 3 concetti indipendenti (archivio / soldi / passaparola) giudicati da
+  3 giudici (proprietario di 58 anni su iPhone, designer, ingegnere di questo
+  repo), sintesi in una specifica con interfacce fissate, revisore ostile che
+  ha trovato 6 bloccanti prima del codice (errata vincolante), 5 pacchetti in
+  parallelo su file disgiunti. Ha vinto il concetto «soldi e fiducia»: prima il
+  verdetto, poi il «da fare», poi le case; l'archivio dà la profondità.
+- 2026-09-22 · Claude · obiezione (alla misura M1–M10 di questo studio) · Era
+  peggio di così. (a) Le superfici erano TRE: anche `owner.html`, irraggiungibile.
+  (b) M6 era falsa a metà: il browser del landlord riceveva già quasi tutti gli
+  URL tokenizzati — `firestore.rules` gli dava l'intero contratto, incluso
+  `tenantSignToken` (firmare al posto dell'inquilino), CF, IP, scansioni dei
+  documenti d'identità e i margini BOOM sulle rate. (c) `api/pfs/_guard.js`,
+  porta di ~35 endpoint (banca, lead, visite, scadenzario, radar, cron),
+  trattava `landlord` come admin. (d) Un landlord poteva creare un documento
+  `shared` visibile all'inquilino della casa. Tutto chiuso nella stessa
+  release (vedi CLAUDE.md, «La chiusura che viaggia insieme»).
+- 2026-09-22 · Claude · decisione · §3 confermata: modello di lettura LATO
+  SERVER; il proprietario non legge nulla dal browser. `GET /api/owner/archivio`
+  + `/api/owner/file` (biglietto di 60 s, download per path col Bearer admin,
+  413 onesto sopra 4,4 MB). Nessuna collection nuova; l'archivio si DERIVA dai
+  campi esistenti con una tabella di visibilità testata anti-deriva.
+- 2026-09-22 · Claude · decisione (supera la riga rossa §5 «nessun dato del
+  conduttore») · I documenti di cui il proprietario è PARTE si servono interi:
+  contratto firmato, scheda 2/B, verbale, inventari. È firmatario e li riceve
+  già per email; nasconderli svuoterebbe l'archivio. Restano `never`: pack di
+  registrazione, documenti d'identità, mandato, ricevute Stripe, prove di
+  bonifico, fotogrammi; il certificato FES è solo un fatto (stampa IP).
+- 2026-09-22 · Claude · decisione (supera le righe rosse §7 «nessuna azione» e
+  «nessun invio nuovo») · v1 è in sola lettura TRANNE aprire il SUO link di
+  firma e la SUA Scheda (flussi che esistono già) e condividere un file. Nasce
+  UN invio nuovo: l'email d'invito, solo su tocco dell'admin. Le tre email
+  esistenti cambiano solo il bottone (verso l'archivio, e solo a chi può
+  entrare) e perdono gli URL tokenizzati.
+- 2026-09-22 · Claude · decisione · D4 recapiti dell'inquilino: NO (default
+  sicuro). D5 registro aperture: non costruito. D6 nome: `/proprietario`,
+  admin «vedi come» `?as=` anche per proprietari non invitati. D2: proxy per
+  path, niente URL firmati. D3: si deriva, con guardia anti-deriva. D1 resta da
+  misurare (quanti landlord hanno un login) — serve una lettura admin.
+- 2026-09-22 · Claude · decisione · NFC: la carta porterà
+  `https://www.boomrome.com/proprietario?via=carta`, un indirizzo e mai una
+  credenziale. Non si promuove «Aggiungi a Home» (su iOS separa lo storage da
+  Safari, e un tocco NFC apre Safari).
+- 2026-09-22 · Claude · stato · Aperto, per Codex o per il P5: (1) spike in
+  produzione del download per path `?alt=media` + Bearer admin e dei PDF oltre
+  4,4 MB (streaming); (2) azioni del proprietario: approvare un preventivo,
+  caricare un documento, segnare un esito; (3) il pagamento BOOM → proprietario
+  (`payments.ownerPayout`) non esiste: la pagina lo dice; (4) il simmetrico per
+  l'inquilino: `firestore.rules` gli dà ancora l'intero contratto, incluso
+  `landlordSignToken`; (5) `api/agent/concierge.js` senza controllo di ruolo;
+  (6) `properties/dossier` e `payments/link-for` restano aperti al landlord con
+  controllo di proprietà, senza una UI che li chiami.
+- 2026-09-23 · Claude · revisione avversariale · Un secondo giro di revisori
+  ostili sulla release costruita (motore, API, invito, pagina, chiusura) ha
+  prodotto 19 difetti veri, tutti corretti e pinnati da test con mutazione.
+  I tre più cari: (a) `firestore.rules` lasciava al landlord scrivere sulla
+  propria scheda `ownerAliases` (e `email`, `authUid`, i timbri d'invito) —
+  cioè aggiungersi come alias di un altro proprietario e leggerne rendiconti
+  e documenti via `/api/owner/*`; (b) `scrubText` e `assertClean` non
+  concordavano («Data: 12/09 …», protocolli lunghi, URL nel testo): un titolo
+  vero mandava la pagina in 500; (c) l'invito prendeva per buono un account
+  provato dal solo `lastLogin` per rilevare gli immobili di un ALTRO record.
+- 2026-09-23 · Claude · decisione · Prova debole dell'account: l'invito la
+  rifiuta (`claim_needs_proof`) a meno che l'admin la GARANTISCA con una
+  spunta esplicita (`confirmAccount:true`), che entra nell'hash del piano e
+  lascia la firma sulla scheda (`authUid`, `accountConfirmedAt/By`) e nel
+  registro. Mai su un `authUid` che contraddice la scheda. I due campi della
+  garanzia sono vietati al self-update in `firestore.rules` (emulatore 90/90,
+  mutazione 88/2).
+- 2026-09-23 · Claude · decisione · «In attesa delle firme» solo con una prova
+  POSITIVA del giro digitale; i token di firma non lo sono (li conia sempre
+  `saveContract`). Senza prova: «firma non registrata a sistema», verdetto
+  «non posso dirlo». Seguito necessario, perché altrimenti ogni contratto
+  cartaceo resterebbe «non posso dirlo» per sempre: lo staff registra la
+  firma su carta dal portal (📄 Firmato su carta → `contract.paperSigned
+  {at, by, recordedAt}`), il proprietario legge «firmato su carta, registrato
+  da BOOM» — una dichiarazione di BOOM, mai spacciata per firma digitale. Su
+  un rinnovo vale solo se registrata dopo la sua nascita; il rinnovo di un
+  contratto firmato su carta è un contratto nuovo, da rifirmare.
+- 2026-09-23 · Claude · stato · Per Codex, quando entra: il prompt
+  `docs/PROMPT_CODEX_PROPRIETARIO.md` descrive il P0 come da fare, ma P0–P4
+  sono costruiti. Il suo primo lavoro utile è la revisione avversariale di
+  ciò che c'è (in particolare la chiusura della sicurezza e l'invito) e gli
+  aperti qui sopra, non una riprogettazione.
+- 2026-09-23 · Claude · revisione avversariale (secondo giro, sulla firma su
+  carta) · Quattro difetti veri, tutti corretti con test che li fanno
+  scattare: (a) la firma su carta la leggevano solo archivio e badge — cron
+  dei promemoria, Gestore, journey e Oggi continuavano a chiedere di firmare
+  (riprodotto sul cron vero: «Tocca a Lei» al proprietario il cui archivio
+  diceva «firmato su carta»); ora la regola vive in `contract-fields`
+  (`paperSignedOn`/`signatureSettled`) e tutti la leggono; (b) ✎ Modifica
+  cambiava canone e date sotto la carta registrata — ora i termini sono
+  bloccati finché non si toglie la registrazione; (c) il fantasma del verbale
+  valeva solo per i firmati digitali; (d) la copia cartacea mancante non era
+  detta. Respinti con motivo (non introdotti da questo cambio o non difetti):
+  rinnovi in place precedenti, fuso orario di `fmtDate`, firma del conduttore
+  falsificabile da un tenant (preesistente, fuori da questo perimetro), il
+  default della data nel modale.

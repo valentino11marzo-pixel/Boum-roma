@@ -1424,7 +1424,23 @@ function fillFromListing(id){
   mathLine();
 }
 
+/* ── Solo staff (22/09/2026) ──
+   Questa pagina è dello staff BOOM. Un proprietario ci entrava (il ruolo
+   landlord era ammesso) ma le sue letture ora sono negate dalle rules: si
+   vedeva una pagina vuota o rotta. Il controllo del ruolo sta PRIMA di
+   qualunque lettura Firestore (tests/owner/security.mjs), e al proprietario
+   si indica il suo archivio invece di un errore. */
+function staffOnly(){
+  var l=$('load');if(!l)return;
+  l.innerHTML='<div style="max-width:420px;margin:0 auto;line-height:1.6">'
+    +'<p style="margin:0 0 18px">Questa pagina è dello staff BOOM. Il verbale, l\'inventario e i documenti del tuo immobile sono nel tuo archivio.</p>'
+    +'<a href="/proprietario" style="display:inline-block;padding:12px 22px;border-radius:999px;background:#D4AF37;color:#000;text-decoration:none;font-weight:500;letter-spacing:.5px">Apri il tuo archivio</a>'
+    +'</div>';
+  l.style.display='';
+  var a=$('app');if(a)a.style.display='none';
+}
 BoomPortal.requireAuth(['admin','owner','landlord'],{loginUrl:'/login'}).then(function(res){
+  if(!res.profile||res.profile.role!=='admin'){staffOnly();return;}
   USER=res.user;
   $('load').style.display='none';$('app').style.display='';
   // Deep-link da Oggi (#q=BOOM-XYZ): il protocollo entra nella ricerca e

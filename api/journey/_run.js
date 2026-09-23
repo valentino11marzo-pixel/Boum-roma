@@ -22,6 +22,7 @@
 // packages — this file is itself lazy-imported, which is fine: it's local).
 
 import { fsList, fsGet, fsPatch } from '../homie/_lib.js';
+import FIELDS from '../../js/contract-fields.js';
 import { isDemo } from '../_demo.js';
 import { sendEmail } from '../agent/_lib.js';
 // Un solo sistema di design per tutte le email della piattaforma.
@@ -82,7 +83,9 @@ const dayDiff = (iso) => {
 // digitale a sistema) è una locazione vera: per lui il journey resta attivo.
 export function journeyEligible(c) {
   if (!c) return false;
-  if (c.signatureStatus === 'complete') return true;
+  // Completa in digitale, o firmata su carta e registrata dallo staff: è una
+  // locazione vera anche se un invito digitale era partito prima.
+  if (FIELDS.signatureSettled(c)) return true;
   // Nel funnel firma (journey muto) se: invitato alla firma digitale, firma
   // parziale, oppure NATO dal pre-agreement (digitale per costruzione — il
   // rail PA non stampava l'invito e il T-30 partiva su contratti mai

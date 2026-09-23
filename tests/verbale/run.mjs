@@ -185,6 +185,33 @@ const FULL = () => ({
   check('contratto inesistente: 404', r4.code === 404 && r4.body.error === 'contract_not_found');
 }
 
+// ═══ 4. Il bottone del proprietario (22/09/2026) ═══════════════════════
+// Prima l'email al locatore portava l'URL TOKENIZZATO di Storage (una
+// credenziale senza scadenza). Ora: allegato sempre; bottone all'archivio
+// (#c=<contratto>) solo a chi è stato invitato o è già entrato; altrimenti
+// la riga «lo attiviamo noi». Il conduttore resta com'era.
+{
+  seed('admin', 'own1');
+  await drive(FULL());
+  const lm = mailTo('stefano@landlord.it')[0];
+  check('non invitato: niente link tokenizzato, niente bottone, la riga', !!lm && !/token=|firebasestorage/.test(lm.html)
+    && !lm.html.includes('/proprietario') && /lo attiviamo noi/.test(lm.html) && lm.attachments && lm.attachments.length === 1);
+  const jm = mailTo('julie@tenant.fr')[0];
+  check('il conduttore è invariato (il suo bottone al verbale resta)', !!jm && /Open the handover report/i.test(jm.html));
+
+  seed('admin', 'own1');
+  store.set('users/own1', { role: 'landlord', name: 'Stefano C', email: 'stefano@landlord.it', ownerInvitedAt: '2026-09-01T10:00:00.000Z' });
+  await drive(FULL());
+  const lm2 = mailTo('stefano@landlord.it')[0];
+  check('invitato: bottone all\'archivio sul contratto (#c=ctr1), mai il token', !!lm2
+    && lm2.html.includes('https://www.boomrome.com/proprietario#c=ctr1') && !/token=|firebasestorage/.test(lm2.html));
+
+  seed('admin', 'own1');
+  store.set('users/own1', { role: 'landlord', name: 'Stefano C', email: 'stefano@landlord.it' });   // scheda landlord, mai invitato
+  await drive(FULL());
+  check('scheda landlord SENZA invito né accesso: niente bottone (non basta il ruolo)', !mailTo('stefano@landlord.it')[0].html.includes('/proprietario'));
+}
+
 // ═══ Esito ══════════════════════════════════════════════════════════════
 console.log(`\nVerbale: ${passed} passed, ${failed} failed`);
 if (failed) { console.log('FALLITI: ' + bad.join(' | ')); process.exit(1); }

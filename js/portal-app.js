@@ -2343,6 +2343,25 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
     }
 
+    // IL PROPRIETARIO NON STA NEL PORTAL (22/09/2026). Il suo posto è
+    // /proprietario: una proiezione pulita letta dal server. Qui dentro un
+    // landlord caricava dal browser contratti con tenantSignToken, URL degli
+    // identityDocs, CF e IP dell'inquilino — e le rules ora gli negano quelle
+    // letture, quindi le pagine sarebbero comunque vuote o rotte. Si esce
+    // SUBITO dopo aver letto il ruolo, PRIMA di qualunque caricamento dati o
+    // listener (tests/owner/security.mjs lo asserisce sull'ordine), e si
+    // butta la cache locale: uno snapshot di ieri porterebbe ancora i token.
+    // Nessuna mappatura degli hash: le pagine del portal non hanno un
+    // equivalente 1:1 nell'archivio.
+    let leavingForArchive = false;
+    function landlordToArchive() {
+        if (!S.profile || S.profile.role !== 'landlord') return false;
+        leavingForArchive = true;
+        try { localStorage.removeItem('boom_data_cache'); } catch (e) {}
+        location.replace('/proprietario');
+        return true;
+    }
+
     // Track if auth already processed
     let authProcessed = false;
     let authRetryCount = 0;
@@ -2452,6 +2471,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ]);
                 if (doc.exists) {
                     S.profile = { id: u.uid, ...doc.data() };
+                    if (landlordToArchive()) return;
                     // lastLogin è telemetria: MAI awaitarla sul boot path. Una
                     // write Firestore senza timeout su un canale Safari
                     // incastrato non risolve mai → boot appeso fino al
@@ -2503,6 +2523,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                             const retryDoc = await db.collection('users').doc(u.uid).get();
                             if (retryDoc.exists) {
                                 S.profile = { id: u.uid, ...retryDoc.data() };
+                                if (landlordToArchive()) return;
                                 await loadData();
                                 showApp();
                                 startSessionCheck();
@@ -4008,6 +4029,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // dei 25s — la seconda chiamata non deve rifare setup/listener.
         const app = document.getElementById('app');
         if (app.classList.contains('active')) { hideLoading(); return; }
+        // Un proprietario in uscita verso /proprietario non entra mai nella
+        // shell: nemmeno il watchdog dei 25s deve avviare setup e listener.
+        if (leavingForArchive) return;
         hideLoading();
         document.getElementById('authScreen').classList.add('hidden');
         app.classList.add('active');
@@ -17545,6 +17569,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             toast('error', '🔒 Contratto firmato: non modificabile', 'Le firme sono legate a questi termini. Crea una NUOVA versione (duplica) e falla rifirmare.');
             return;
         }
+        // Firmato su carta e registrato: i dati si correggono, i TERMINI no —
+        // il proprietario li legge come «firmati su carta», e la carta dice
+        // quelli. Se la carta dice altro, prima si toglie la registrazione.
+        const _paperChanged = paperTermsChanged(_existingContract, data);
+        if (_paperChanged.length) {
+            toast('error', '🔒 Firmato su carta: termini bloccati', 'Cambierebbe: ' + _paperChanged.join(', ') + '. Se la copia firmata dice altro, togli la firma su carta (📄 ✕), correggi e registrala di nuovo.');
+            return;
+        }
         // Canone math validation (Muky bug guard)
         const _monthly = parseInt(data.rent) || 0;
         const _total = parseInt(data.canoneTotal) || 0;
@@ -17618,7 +17650,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
 
         const _signed = contract.tenantSignature || contract.landlordSignature
-            || contract.signatureStatus === 'partial' || contract.signatureStatus === 'complete';
+            || contract.signatureStatus === 'partial' || contract.signatureStatus === 'complete'
+            // firmato su carta e registrato: anche lui si rinnova come contratto NUOVO
+            || !!(contract.paperSigned && contract.paperSigned.at);
         try {
             if (_signed) {
                 // IL RINNOVO DI UN CONTRATTO FIRMATO È UN NUOVO CONTRATTO.
@@ -17641,6 +17675,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                  'depositPayToken', 'depositPaid', 'inviteNudgeCount', 'lastReminderAt', 'welcomeEmailSent',
                  // mandato e deleghe sono atti su QUEL contratto: un rinnovo non li eredita
                  'tenantMandate', 'tenantDelegate', 'tenantSignedByDelegate', 'landlordSignedByDelegate', 'paAcceptance',
+                 // la firma su carta è della carta di QUEL contratto: il rinnovo si rifirma
+                 'paperSigned',
                  'createdAt', 'updatedAt', 'renewalHistory'].forEach(k => delete clone[k]);
                 const _inst = (contract.canone && contract.canone.installments) || 12;
                 Object.assign(clone, {
@@ -18262,8 +18298,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         
         // Signature status
         const sigStatus = c.signatureStatus || 'none';
+        const paperAt = sigStatus !== 'complete' && c.paperSigned && /^\d{4}-\d{2}-\d{2}$/.test(String(c.paperSigned.at || '')) ? String(c.paperSigned.at) : '';
         const sigBadge = sigStatus === 'complete' 
             ? '<span class="badge green">✅ Firmato</span>'
+            : paperAt
+            ? `<span class="badge green" title="Registrato da BOOM: firma su carta di entrambe le parti">📄 Firmato su carta · ${fmtDate(paperAt)}</span>`
             : sigStatus === 'partial'
             ? '<span class="badge orange">✏️ Firma parziale</span>'
             : '<span class="badge gray">📝 Da firmare</span>';
@@ -18388,6 +18427,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ${c.verbaleConsegna && c.verbaleConsegna.url ? `<a class="btn btn-secondary btn-sm" href="${c.verbaleConsegna.url}" target="_blank" rel="noopener" title="Verbale di consegna firmato il ${String(c.verbaleConsegna.at || '').slice(0,10)}" style="text-decoration:none">🔑 Verbale ✓</a>` : `<a class="btn btn-secondary btn-sm" href="/verbale?c=${c.id}" target="_blank" rel="noopener" title="Il giorno delle chiavi: chiavi + letture contatori + stato, firme sullo schermo → PDF via email alle parti (l'Art. 3 del contratto rinvia a questo verbale)" style="text-decoration:none">🔑 Verbale consegna</a>`}
                 <a class="btn btn-secondary btn-sm" href="/inventario?c=${c.id}" target="_blank" rel="noopener" title="${c.inventario ? 'Inventario del ' + String(c.inventario.at || '').slice(0,10) + ' — ' + ((c.inventario.counts && c.inventario.counts.pieces) || 0) + ' pezzi. Riaprilo per la riconsegna (il confronto lo fa da solo)' : 'Filma il giro di casa: la pagina legge il video sul telefono e propone l\'elenco stanza per stanza. Diventa allegato del verbale e, alla riconsegna, il confronto che decide il deposito'}" style="text-decoration:none">📋 Inventario${c.inventario ? ' ✓' : ''}</a>
                 <a class="btn btn-secondary btn-sm" href="/casa?as=${c.id}" target="_blank" rel="noopener" title="La tua casa BOOM come la vede QUESTO cliente — dati veri, vista admin, zero credenziali da chiedere" style="text-decoration:none">👁 Casa</a>
+                ${isAdmin() && sigStatus !== 'complete' ? (paperAt ? `<button class="btn btn-secondary btn-sm" onclick="unmarkPaperSigned('${c.id}')" title="Firma su carta registrata il ${fmtDate(paperAt)} — tocca per toglierla se è stato un errore">📄 Carta ${fmtDate(paperAt)} ✕</button>` : `<button class="btn btn-secondary btn-sm" onclick="markPaperSigned('${c.id}')" title="Il contratto è firmato su carta da entrambe le parti: registralo, così il proprietario lo vede firmato nel suo archivio (con scritto che lo registra BOOM)">📄 Firmato su carta</button>`) : ''}
                 ${!c.rliRegisteredAt ? `<button class="btn btn-secondary btn-sm" onclick="markRliRegistered('${c.id}')" title="Segna la registrazione RLI fatta: chiude la scadenza e aggiorna il fascicolo">✓ RLI registrato</button>` : `<span class="btn btn-sm" style="background:rgba(52,199,89,.12);color:var(--green);cursor:default" title="Registrato il ${c.rliRegisteredAt ? String(c.rliRegisteredAt).slice(0,10) : ''}">✓ RLI ${String(c.rliRegisteredAt).slice(0,10)}</span>`}
                 ${sigStatus === 'complete' ? `<button class="btn btn-secondary btn-sm" onclick="archiveDeal('${c.id}')" title="Archivia deal completo su Storage">${c.dealArchived ? '✅ Archiviato' : '📦 Archive Deal'}</button>` : ''}
                 <button class="btn btn-secondary" onclick="closeModal()">Chiudi</button>
@@ -23634,6 +23674,76 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         } catch (e) { console.error(e); toast('error', 'RLI: ' + e.message); }
     }
     window.markRliRegistered = markRliRegistered;
+
+    // ── 📄 Firmato su carta: il contratto firmato a mano da entrambe le parti
+    // e inserito nel portal non ha nessuna firma a sistema — per l'Archivio
+    // del Proprietario è «firma non registrata a sistema» per sempre (onesto,
+    // ma inservibile). Qui lo staff REGISTRA la firma su carta: il giorno, chi
+    // l'ha registrata, quando. Il proprietario lo legge come «firmato su
+    // carta, registrato da BOOM» — una dichiarazione di BOOM, mai spacciata per
+    // una firma digitale (js/owner-archive-engine.js, paperSignedOn). Su un
+    // rinnovo vale solo se registrata dopo la sua nascita.
+    function romeToday() {
+        try { return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome' }).format(new Date()); }
+        catch (_) { return new Date().toISOString().slice(0, 10); }
+    }
+    // I termini che la carta firmata fissa: parti, immobile, date, canone,
+    // deposito, modello. Su un contratto con la firma su carta registrata una
+    // modifica di questi si rifiuta (updateContract); il resto si corregge.
+    function paperTermsChanged(existing, data) {
+        const c = existing || {}, d = data || {};
+        if (!(c.paperSigned && /^\d{4}-\d{2}-\d{2}$/.test(String(c.paperSigned.at || '')))) return [];
+        const typeOf = (t) => (t === 'studenti' ? 'studenti' : (t === '3+2' || t === '32' || t === 'concordato') ? '3+2' : 'transitorio');
+        const num = (v) => { const n = parseInt(v, 10); return isFinite(n) ? n : 0; };
+        const out = [];
+        if (String(d.propertyId || '') !== String(c.propertyId || '')) out.push('immobile');
+        if (String(d.tenantId || '') !== String(c.tenantId || '')) out.push('inquilino');
+        if (String(d.startDate || '').slice(0, 10) !== String(c.startDate || '').slice(0, 10)) out.push('decorrenza');
+        if (String(d.endDate || '').slice(0, 10) !== String(c.endDate || '').slice(0, 10)) out.push('scadenza');
+        if (num(d.rent) !== num(c.rent)) out.push('canone');
+        if (num(d.deposit) !== num(c.deposit)) out.push('deposito');
+        if (typeOf(d.type) !== typeOf(c.type)) out.push('tipo');
+        return out;
+    }
+    async function markPaperSigned(contractId) {
+        if (!isAdmin()) return toast('error', 'Solo lo staff registra una firma su carta');
+        const c = (S.contracts || []).find(x => x.id === contractId);
+        if (!c) return toast('error', 'Contratto non trovato');
+        if (c.signatureStatus === 'complete') return toast('info', 'Il contratto è già firmato digitalmente');
+        const today = romeToday();
+        const start = /^\d{4}-\d{2}-\d{2}$/.test(String(c.startDate || '')) ? String(c.startDate) : '';
+        const when = await askModal({
+            title: '📄 Firmato su carta',
+            message: 'Registra solo se hai la copia firmata da ENTRAMBE le parti.\nIl proprietario leggerà «firmato su carta, registrato da BOOM».\n\nGiorno della firma:',
+            value: start && start <= today ? start : today, type: 'date', okLabel: 'Registra la firma' });
+        if (when == null) return;
+        const at = String(when).trim();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(at)) return toast('error', 'Data non valida');
+        if (at > today) return toast('error', 'Una firma non può essere nel futuro');
+        try {
+            const uid = (auth.currentUser && auth.currentUser.uid) || (S.user && S.user.uid) || '';
+            if (!uid) return toast('error', 'Sessione non valida: ricarica la pagina');
+            const paperSigned = { at, by: uid, recordedAt: new Date().toISOString() };
+            await db.collection('contracts').doc(contractId).update({ paperSigned, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+            c.paperSigned = paperSigned;
+            toast('success', `📄 Firma su carta registrata (${fmtDate(at)})`);
+            closeModal(); setTimeout(() => viewContract(contractId), 200);
+        } catch (e) { console.error(e); toast('error', 'Firma su carta: ' + e.message); }
+    }
+    async function unmarkPaperSigned(contractId) {
+        if (!isAdmin()) return;
+        const c = (S.contracts || []).find(x => x.id === contractId);
+        if (!c || !c.paperSigned) return;
+        if (!confirm('Togliere la firma su carta registrata il ' + fmtDate(c.paperSigned.at) + '?\nIl proprietario tornerà a leggere «firma non registrata a sistema».')) return;
+        try {
+            await db.collection('contracts').doc(contractId).update({ paperSigned: firebase.firestore.FieldValue.delete(), updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+            delete c.paperSigned;
+            toast('success', 'Firma su carta tolta');
+            closeModal(); setTimeout(() => viewContract(contractId), 200);
+        } catch (e) { console.error(e); toast('error', 'Firma su carta: ' + e.message); }
+    }
+    window.markPaperSigned = markPaperSigned;
+    window.unmarkPaperSigned = unmarkPaperSigned;
 
     // 🔗 Share Hub — single place that surfaces every shareable link for a contract
     // and *backfills missing tokens on the fly* so legacy contracts (created before
