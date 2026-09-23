@@ -131,10 +131,17 @@ function parseLoose(text) {
 }
 
 // ─── Cloud (Anthropic, raw HTTP come sempre: nessuna dipendenza) ────────────
-async function callCloud(req, { model, maxTokens, timeoutMs, temperature, stopSequences }) {
+async function callCloud(req, { model, maxTokens, timeoutMs, temperature, stopSequences, purpose, effort }) {
   const key = process.env.ANTHROPIC_API_KEY;
   if (!key) throw new AiError('cloud_unconfigured', { backend: 'cloud' });
-  const body = { model, max_tokens: maxTokens, messages: req.messages };
+  // Il thinking per modello (REG.cloudShape): omettere il parametro vuol dire
+  // "niente" su Opus 4.8 ma "adattivo" su Sonnet 5 / Opus 5, e su Opus 5.5 non
+  // si spegne affatto — lo scopo si comporta com'è dichiarato su qualunque
+  // modello gli si metta sotto.
+  const shape = REG.cloudShape(model, purpose, { maxTokens, effort });
+  const body = { model, max_tokens: shape.maxTokens, messages: req.messages };
+  if (shape.thinking) body.thinking = shape.thinking;
+  if (shape.effort) body.output_config = { effort: shape.effort };
   if (req.system != null && req.system !== '') body.system = req.system;
   if (temperature != null) body.temperature = temperature;
   if (stopSequences && stopSequences.length) body.stop_sequences = stopSequences;
@@ -361,7 +368,7 @@ export async function ai(opts = {}) {
   const { cfg } = await loadAiSettings();
   const pol = REG.resolvePolicy(purpose.key, cfg, { hasImage: req.hasImage, hasDocument: req.hasDocument });
   const cloudModel = opts.model || pol.cloudModel;
-  const common = { maxTokens, timeoutMs, temperature: opts.temperature, stopSequences: opts.stopSequences };
+  const common = { maxTokens, timeoutMs, temperature: opts.temperature, stopSequences: opts.stopSequences, purpose, effort: pol.effort };
   const started = Date.now();
 
   let result = null, failed = null, fallback = false, localFail = false, shadow = null;

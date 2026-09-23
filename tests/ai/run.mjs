@@ -491,6 +491,54 @@ const LOCAL = { enabled: true, url: 'http://127.0.0.1:11434', model: 'qwen3:14b'
   ok(msg.length < 4000, 'il messaggio sta nel limite di Telegram');
 }
 
+// ═══ 5b. Il thinking per modello (cloudShape) — il costo nascosto ════════
+// Omettere `thinking` vuol dire "niente" su Opus 4.8, "adattivo" (pagato) su
+// Sonnet 5 / Opus 5, e su Opus 5.5 il thinking non si spegne: disabled è un
+// 400. Uno scopo deve comportarsi come dichiarato su qualunque modello.
+{
+  const P = (k) => REG.purposeOf(k);
+  const s48 = REG.cloudShape('claude-opus-4-8', P('commerciale.first'), { maxTokens: 700 });
+  ok(!s48.thinking && !s48.effort && s48.maxTokens === 700, 'Opus 4.8: il body di sempre, al byte', s48);
+  const sh = REG.cloudShape('claude-haiku-4-5-20251001', P('inventario.video'), { maxTokens: 800, effort: 'high' });
+  ok(!sh.thinking && !sh.effort && sh.maxTokens === 800, 'Haiku: mai thinking né effort (rifiuterebbe), anche su uno scopo che ragiona', sh);
+  const s5 = REG.cloudShape('claude-sonnet-5', P('wizard.interpret'), { maxTokens: 400 });
+  ok(s5.thinking && s5.thinking.type === 'disabled' && s5.maxTokens === 400, 'Sonnet 5 su uno scopo senza ragionamento: thinking SPENTO (prima mangiava i 400 token)', s5);
+  const so5 = REG.cloudShape('claude-opus-5', P('inventario.video'), { maxTokens: 8000 });
+  ok(!so5.thinking && !so5.effort, 'Opus 5 sull\'inventario: nessun parametro → adattivo come prima (qui non si risparmia)', so5);
+  const s55 = REG.cloudShape('claude-opus-5-5', P('commerciale.first'), { maxTokens: 700 });
+  ok(!s55.thinking && s55.effort === 'low' && s55.maxTokens >= 700 + 1024, 'Opus 5.5: MAI disabled (è un 400), effort low e margine sul tetto', s55);
+  const s55r = REG.cloudShape('claude-opus-5-5', P('inventario.video'), { maxTokens: 8000 });
+  ok(s55r.effort === 'high' && s55r.maxTokens === 16000, 'Opus 5.5 su uno scopo che ragiona: effort high, tetto al massimo non-streaming', s55r);
+  const s55e = REG.cloudShape('claude-opus-5-5', P('commerciale.first'), { maxTokens: 700, effort: 'medium' });
+  ok(s55e.effort === 'medium', 'l\'effort impostato per lo scopo vince sul default', s55e);
+  ok(REG.cloudShape('claude-fable-5-1', P('agent.reply'), { maxTokens: 700 }).thinking === undefined, 'Fable 5.1: nessun parametro thinking (disabled è un 400)');
+  ok(REG.cloudShape('modello-ignoto', P('agent.reply'), { maxTokens: 50 }).maxTokens === 50, 'modello ignoto: body di sempre');
+  // listino
+  const u = { input_tokens: 1e6, output_tokens: 1e6, cache_read_input_tokens: 1e6 };
+  ok(Math.abs(REG.costUsd('claude-opus-5-5', u) - 24.2) < 1e-9, 'Opus 5.5: $4 in + $20 out + $0.20 lettura cache', REG.costUsd('claude-opus-5-5', u));
+  ok(Math.abs(REG.costUsd('claude-opus-4-8', u) - 30.5) < 1e-9, 'Opus 4.8 invariato ($5 + $25 + $0.50)', REG.costUsd('claude-opus-4-8', u));
+  // effort in settings/ai: rifiutato, mai aggiustato
+  const m = REG.mergeSettings({ purposes: { 'commerciale.first': { cloudModel: 'claude-opus-5-5', effort: 'medium' }, 'agent.reply': { effort: 'xhigh' } } });
+  ok(m.cfg.purposes['commerciale.first'].cloudModel === 'claude-opus-5-5' && m.cfg.purposes['commerciale.first'].effort === 'medium', 'settings/ai accetta Opus 5.5 ed effort medium');
+  ok(m.rejected.some(r => r.key === 'purposes.agent.reply.effort'), 'effort fuori lista (xhigh) RIFIUTATO e dichiarato', m.rejected);
+  ok(REG.resolvePolicy('commerciale.first', m.cfg, {}).effort === 'medium', 'la politica porta l\'effort alla chiamata');
+}
+// Il giro vero: il body che parte davvero verso Anthropic.
+{
+  reset({ purposes: { 'commerciale.first': { cloudModel: 'claude-opus-5-5' } } });
+  await ai({ purpose: 'commerciale.first', system: 'SYS', user: 'lead', maxTokens: 700 });
+  const b = cloudCalls[0].body;
+  ok(b.model === 'claude-opus-5-5' && b.thinking === undefined && b.output_config && b.output_config.effort === 'low' && b.max_tokens >= 1724, 'handler: Opus 5.5 parte con effort low e margine, senza thinking disabled', b);
+  reset(null);
+  await ai({ purpose: 'wizard.interpret', system: 'SYS', user: 'x', maxTokens: 400 });
+  const w = cloudCalls[0].body;
+  ok(w.model === 'claude-sonnet-5' && w.thinking && w.thinking.type === 'disabled' && w.max_tokens === 400, 'handler: wizard.interpret su Sonnet 5 col thinking spento', w);
+  reset(null);
+  await ai({ purpose: 'agent.reply', system: 'SYS', user: 'x', maxTokens: 700 });
+  const a = cloudCalls[0].body;
+  ok(a.model === 'claude-opus-4-8' && a.thinking === undefined && a.output_config === undefined && a.max_tokens === 700, 'handler: coi default gli scopi su Opus 4.8 mandano il body di sempre', a);
+}
+
 // ═══ 6. Le giunzioni sulla sorgente ═════════════════════════════════════
 {
   ok(/from '\.\.\/_ai\.js'/.test(src('api/agent/_claude.js')) && /purpose/.test(src('api/agent/_claude.js')), '_claude.js è un wrapper della centrale, con lo scopo');

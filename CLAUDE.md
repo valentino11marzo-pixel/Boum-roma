@@ -2956,6 +2956,25 @@ scopo che esiste, ogni scopo ha un chiamante, nessun modello scritto a mano
 fuori dal registro) + `tests/tempo/run.mjs` (la regola di classe «nessuna
 chiamata senza tetto» letta sulla centrale e sui `direct`).
 
+**Il thinking per modello (23/09/2026).** `callCloud` non mandava mai il
+parametro `thinking`, e ometterlo NON vuol dire la stessa cosa ovunque: su
+Opus 4.8/Haiku = niente thinking, su **Sonnet 5 / Opus 5 = adattivo** (pagato
+come output e dentro `max_tokens` — `wizard.interpret` ha un tetto di 400),
+su **Opus 5.5 / Fable non si spegne affatto** (`disabled` = 400). Quindi
+cambiare modello a uno scopo cambiava in silenzio costo e rischio di
+risposta vuota. Ora `REG.cloudShape(model, purpose, {maxTokens, effort})`
+(pura, nel registro) decide il body: modelli `off` → body di sempre al byte;
+`on` → `thinking:{type:'disabled'}` salvo gli scopi `reasoning:'on'`
+(l'inventario); `always` → `output_config.effort` (default `low`, `high`
+per chi ragiona) e margine sul tetto (cap 16000, non-streaming). Listino con
+`claude-opus-5-5` ($4/$20, cache $0.20), `claude-fable-5-1`/`claude-fable-5`
+($10/$50); `settings/ai.purposes.<scopo>.effort` ∈ low|medium|high (fuori
+lista = rifiutato). **Unico cambio di comportamento coi default**:
+`wizard.interpret` su Sonnet 5 gira col thinking spento. I defaults del
+registro NON cambiano modello: un cambio (es. Commerciale su Opus 5.5 o
+Sonnet 5) si fa da `settings/ai` guardando `usd/chiamata` in `/ai` prima e
+dopo. Test: `tests/ai/run.mjs` §5b (mutazioni prese).
+
 **Il lato Mac (22/09/2026 — Codex fuori crediti, fatto qui).** Ollama serve
 il modello (`:11434`) ma NON ha autenticazione: esposto nudo, chiunque
 potrebbe farci girare i propri prompt, e di lì passano i documenti dei

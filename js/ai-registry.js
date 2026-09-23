@@ -55,8 +55,31 @@
     'claude-opus-5':             { in: 5,  out: 25, tier: 'opus' },
     'claude-opus-4-8':           { in: 5,  out: 25, tier: 'opus' },
     'claude-opus-4-7':           { in: 5,  out: 25, tier: 'opus' },
-    'claude-opus-4-6':           { in: 5,  out: 25, tier: 'opus' }
+    'claude-opus-4-6':           { in: 5,  out: 25, tier: 'opus' },
+    /* I 5.x nuovi: Opus 5.5 costa il 20% in meno di Opus 4.8/5 per token,
+     * ma il thinking NON si spegne — vedi THINKING. `cr` = lettura cache in
+     * $/M quando il listino non è il solito ×0.1. */
+    'claude-opus-5-5':           { in: 4,  out: 20, tier: 'opus', cr: 0.20 },
+    'claude-fable-5-1':          { in: 10, out: 50, tier: 'fable', cr: 0.25 },
+    'claude-fable-5':            { in: 10, out: 50, tier: 'fable' }
   };
+  /* ── Il thinking per modello, perché omettere il parametro NON vuol dire
+   *    la stessa cosa ovunque:
+   *    - 'off'    (Haiku 4.5, Opus 4.6–4.8): omesso = niente thinking;
+   *    - 'on'     (Sonnet 5, Opus 5): omesso = thinking ADATTIVO, pagato
+   *               come output e dentro max_tokens (su wizard.interpret, 400
+   *               token di tetto, il ragionamento mangiava la risposta);
+   *               {type:'disabled'} è accettato (Opus 5 solo a effort ≤ high);
+   *    - 'always' (Opus 5.5, Fable 5/5.1): NON si spegne — disabled è un
+   *               400. L'unica manopola è l'effort, e al tetto va dato
+   *               margine o la risposta esce vuota.
+   *    Modello ignoto → 'off' (si manda il body di sempre). ── */
+  var THINKING = {
+    'claude-sonnet-5': 'on', 'claude-opus-5': 'on',
+    'claude-opus-5-5': 'always', 'claude-fable-5-1': 'always', 'claude-fable-5': 'always'
+  };
+  var EFFORTS = ['low', 'medium', 'high'];
+  var MAX_TOKENS_CAP = 16000;   // non-streaming: oltre, timeout HTTP
   var CACHE_READ_FACTOR = 0.1, CACHE_WRITE_FACTOR = 1.25;
   /* STT: OpenAI Whisper si paga al minuto di audio. */
   var STT_PRICES = { 'whisper-1': { perMinuteUsd: 0.006 } };
@@ -143,7 +166,7 @@
       cloudModel: 'claude-opus-4-8', modality: 'text', localOk: true, stakes: 'interno', json: false, agreeOn: false,
       why: 'una chiamata al giorno, letta dall\'operatore' },
     { key: 'inventario.video',  code: 'iv', label: 'Inventario dal video',                       file: 'api/contracts/inventario.js',
-      cloudModel: 'claude-opus-5', modality: 'vision', localOk: false, stakes: 'legale', json: true, agreeOn: false,
+      cloudModel: 'claude-opus-5', modality: 'vision', localOk: false, stakes: 'legale', json: true, agreeOn: false, reasoning: 'on',
       why: 'il documento vale sul deposito: qui non si risparmia (CLAUDE.md, L\'inventario dal video)' },
     { key: 'stt.transcribe',    code: 'st', label: 'Trascrizione vocale (note e chiamate)',      file: 'api/wizard/_stt.js',
       cloudModel: 'whisper-1', modality: 'audio', localOk: true, stakes: 'interno', json: false, agreeOn: false,
@@ -235,6 +258,11 @@
         if (!PRICES[cm]) rejected.push({ key: 'purposes.' + key + '.cloudModel', got: cm.slice(0, 80), why: 'modello non in tabella prezzi' });
         else out.cloudModel = cm;
       }
+      if (v.effort != null && v.effort !== '') {
+        var ef = String(v.effort).trim();
+        if (EFFORTS.indexOf(ef) < 0) rejected.push({ key: 'purposes.' + key + '.effort', got: ef.slice(0, 20), why: 'effort ammessi: ' + EFFORTS.join('|') });
+        else out.effort = ef;
+      }
       if (v.localModel != null && v.localModel !== '') {
         var lm = String(v.localModel).trim();
         if (!MODEL_RE.test(lm)) rejected.push({ key: 'purposes.' + key + '.localModel', got: lm.slice(0, 80), why: 'nome modello non valido' });
@@ -259,6 +287,7 @@
     var out = {
       key: key, purpose: p, mode: mode, effective: mode, why: '',
       cloudModel: pv.cloudModel || p.cloudModel,
+      effort: pv.effort || '',
       localModel: pv.localModel || (req.hasImage ? cfg.local.visionModel : cfg.local.model) || '',
       localOk: !!p.localOk
     };
@@ -285,7 +314,7 @@
     if (!p) return null;
     var inT = Number(usage.input_tokens) || 0, outT = Number(usage.output_tokens) || 0;
     var cr = Number(usage.cache_read_input_tokens) || 0, cw = Number(usage.cache_creation_input_tokens) || 0;
-    return (inT * p.in + outT * p.out + cr * p.in * CACHE_READ_FACTOR + cw * p.in * CACHE_WRITE_FACTOR) / 1e6;
+    return (inT * p.in + outT * p.out + cr * (p.cr != null ? p.cr : p.in * CACHE_READ_FACTOR) + cw * p.in * CACHE_WRITE_FACTOR) / 1e6;
   }
   function sttCostUsd(model, seconds) {
     var p = STT_PRICES[model];
@@ -377,6 +406,30 @@
   function fmtUsd(n) { return '$' + (Math.round((Number(n) || 0) * 100) / 100).toFixed(2); }
   function fmtEur(usd) { return '≈€' + (Math.round((Number(usd) || 0) * EUR_PER_USD * 100) / 100).toFixed(2); }
 
+  /* ── Cosa aggiungere al body cloud perché lo scopo si comporti come
+   *    dichiarato su QUALSIASI modello. `reasoning` dello scopo: 'off'
+   *    (default — bozze, estrazioni, classificazioni col JSON validato a
+   *    valle) o 'on' (l'inventario: il documento vale sul deposito).
+   *    Pura: torna { thinking?, effort?, maxTokens, why }. ── */
+  function cloudShape(model, purpose, opts) {
+    opts = opts || {};
+    var mode = THINKING[model] || 'off';
+    var on = !!(purpose && purpose.reasoning === 'on');
+    var effort = EFFORTS.indexOf(opts.effort) >= 0 ? opts.effort : '';
+    var max = Math.max(1, Number(opts.maxTokens) || 1024);
+    var out = { maxTokens: max, why: mode };
+    if (mode === 'off') return out;   // Haiku/Opus 4.x: il body di sempre, al byte (Haiku rifiuta l'adattivo)
+    if (mode === 'on') {
+      if (!on) { out.thinking = { type: 'disabled' }; return out; }   // come Opus 4.8 senza parametro
+      if (effort) out.effort = effort;
+      return out;
+    }
+    // 'always': il thinking c'è comunque — si decide QUANTO, e si dà margine.
+    out.effort = effort || (on ? 'high' : 'low');
+    out.maxTokens = Math.min(MAX_TOKENS_CAP, Math.max(max * 2, max + (on ? 4096 : 1024)));
+    return out;
+  }
+
   /* Le righe per il comando /ai: uno scopo, la sua modalità, cosa vale davvero. */
   function statusRows(cfg) {
     cfg = cfg || mergeSettings(null).cfg;
@@ -398,6 +451,7 @@
     PURPOSES: PURPOSES, DEFAULTS: DEFAULTS, LIMITS: LIMITS, FIELDS: FIELDS,
     purposeOf: purposeOf, byCode: byCode, slugOf: slugOf, keyOfSlug: keyOfSlug,
     mergeSettings: mergeSettings, resolvePolicy: resolvePolicy,
+    THINKING: THINKING, EFFORTS: EFFORTS, cloudShape: cloudShape,
     costUsd: costUsd, sttCostUsd: sttCostUsd, tierOf: tierOf,
     agreement: agreement, shadowVerdict: shadowVerdict,
     usageSummary: usageSummary, fmtUsd: fmtUsd, fmtEur: fmtEur, statusRows: statusRows, nextMode: nextMode
