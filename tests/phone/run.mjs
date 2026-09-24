@@ -708,6 +708,68 @@ const elCall = async (payload, { secret = 'el-secret', t = Math.floor(Date.now()
     && cat.out.note.includes('Do not infer accommodation type or total room count from bedrooms')
     && cat.out.note.includes('If type is missing, unknown or unclear'));
 
+  // Real failure: a caller knew the street, but voice discarded addresses
+  // and removed rented homes entirely. Synthetic fixtures only.
+  DB.set('listings/old_ad', { id: 'old_ad', name: 'Centro Studio', address: 'Via Esempio 16',
+    status: 'rented', type: 'Studio', price: 1350, ownerPhone: '+390000000000' });
+  DB.set('listings/waiting', { id: 'waiting', name: 'Attico campione', address: 'Via Prova 5',
+    status: ' WAITLIST ', type: 'Attic', availableFrom: '2020-09-01', price: 1300,
+    description: 'One bedroom, bills excluded.', descriptionIt: 'Monolocale, spese incluse.',
+    features: ['Ascensore', { privateNote: 'secret' }], depositMonths: 2, floor: '5',
+    furnished: false, ownerPhone: '+390000000000', internalNotes: 'never share' });
+  for (const status of ['draft', 'hidden', 'archived']) DB.set('listings/private_' + status,
+    { id: 'private_' + status, name: 'Invisible', status: ' ' + status.toUpperCase() + ' ' });
+  DB.set('listings/malformed', { id: 'malformed', status: 'available', type: 'Room',
+    availableDate: 'da concordare', furnished: 'false', price: '', bedrooms: '1+1',
+    description: 'a'.repeat(601) });
+  const floorCases = [
+    [0, '0'], [5, '5'], [-1, '-1'], ['  rialzato  ', 'rialzato'],
+    [null, null], [true, null], [{ value: 5 }, null], [[], null], ['', null],
+    [NaN, null], [Infinity, null],
+  ];
+  floorCases.forEach(([floor], i) => DB.set('listings/floor_' + i,
+    { id: 'floor_' + i, status: 'available', floor }));
+  const expanded = await call(agentTools, { method: 'GET', query: { k: KEY, op: 'catalog' } });
+  const waiting = expanded.out.listings.find(l => l.id === 'waiting');
+  const malformed = expanded.out.listings.find(l => l.id === 'malformed');
+  const old = expanded.out.unavailableListings?.find(l => l.id === 'old_ad');
+  ok('catalog: piano numerico incluso zero e negativo, testo preservato; valori invalidi null',
+    floorCases.every(([, expected], i) => expanded.out.listings.find(l => l.id === 'floor_' + i)?.floor === expected));
+  ok('catalog: annuncio affittato riconoscibile per indirizzo, mai fra le alternative',
+    old?.address === 'Via Esempio 16' && old.status === 'rented'
+    && !expanded.out.listings.some(l => l.id === 'old_ad'));
+  ok('catalog: indirizzo e fonti descrittive discordanti conservati senza risolverli per invenzione',
+    waiting?.address === 'Via Prova 5' && waiting.description === 'One bedroom, bills excluded.'
+    && waiting.descriptionIt === 'Monolocale, spese incluse.' && expanded.out.note.includes('conflicting descriptions'));
+  ok('catalog: waitlist non diventa libera ora per una data passata',
+    waiting?.status === 'waitlist' && waiting.availability.state === 'available_later' && waiting.availability.date === null);
+  ok('catalog: dettagli dichiarati e valori falsi conservati, nessun campo privato',
+    waiting?.furnished === false && waiting.depositMonths === 2 && waiting.floor === '5'
+    && waiting.features.length === 1 && !JSON.stringify(expanded.out).includes('ownerPhone')
+    && !JSON.stringify(expanded.out).includes('internalNotes') && !JSON.stringify(expanded.out).includes('privateNote'));
+  ok('catalog: bozze, nascosti e archiviati assenti anche dall’indice non disponibile',
+    !JSON.stringify(expanded.out).includes('private_'));
+  ok('catalog: campi sconosciuti non diventano zero, arredato o disponibile',
+    malformed?.furnished === null && malformed.priceEurMonth === null && malformed.bedrooms === null
+    && malformed.availability.state === 'needs_confirmation' && malformed.descriptionTruncated === true);
+  const savedCatalog = [...DB.entries()].filter(([key]) => key.startsWith('listings/'));
+  try {
+    for (const [key] of savedCatalog) DB.delete(key);
+    for (let i = 0; i < 61; i++) DB.set('listings/catalog_' + i,
+      { id: 'catalog_' + i, name: 'Casa ' + i, status: 'available', type: 'Apartment' });
+    const all = await call(agentTools, { method: 'GET', query: { k: KEY, op: 'catalog' } });
+    ok('catalog: niente tagli silenziosi a 25 o 60 immobili', all.out.count === 61
+      && all.out.complete === true && all.out.listings.some(l => l.id === 'catalog_60'));
+    for (let i = 61; i < 201; i++) DB.set('listings/catalog_' + i,
+      { id: 'catalog_' + i, name: 'Casa ' + i, status: 'available' });
+    const partial = await call(agentTools, { method: 'GET', query: { k: KEY, op: 'catalog' } });
+    ok('catalog: superato limite di sicurezza, incompletezza esplicita e mai assenza certa',
+      partial.out.complete === false && partial.out.count === 200 && partial.out.note.includes('partial response'));
+  } finally {
+    for (const [key] of DB) if (key.startsWith('listings/')) DB.delete(key);
+    for (const [key, value] of savedCatalog) DB.set(key, value);
+  }
+
   const sl = await call(agentTools, { method: 'GET', query: { k: KEY, op: 'slots', mode: 'video' } });
   ok('slots: la griglia VERA risponde (stesso motore di book.html)', sl.code === 200 && sl.out.ok === true && sl.out.timezone === 'Europe/Rome' && Array.isArray(sl.out.slots), sl.out && sl.out.timezone);
   ok('slots: capati per una voce (≤8)', sl.out.slots.length <= 8, sl.out.slots.length);
