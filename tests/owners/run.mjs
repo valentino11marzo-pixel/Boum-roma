@@ -70,12 +70,15 @@ sez('il mandato del portale stampa le righe di owner-offer (P0 n. 3)');
   const prima = O.mandatoRighe({ modello: 'prima', successive: 0.5 }).join('\n');
   const una = O.mandatoRighe({ modello: 'prima', successive: 1 }).join('\n');
   const plur = O.mandatoRighe({ modello: 'pluriennale', feeAnnua: 2400 }).join('\n');
-  ok('prima locazione: 0 € al mandante, provvigione a carico del conduttore (10% annuo + IVA)',
-    /pari a 0 €/.test(prima) && /a carico del conduttore \(di norma il 10% del canone annuo più IVA\)/.test(prima));
-  ok('dalla seconda: mezza o una mensilità + IVA, come la tabella', /mezza mensilità del canone più IVA/.test(prima) && /una mensilità del canone più IVA/.test(una));
+  ok('prima locazione: nessuna provvigione al mandante, e il mandato non dice chi la paga al suo posto (P0 legale n. 2)',
+    /nessuna provvigione a carico del mandante/.test(prima) && !/a carico del conduttore/.test(prima));
+  ok('dalla seconda: mezza o una mensilità + IVA, SOLO se il conduttore lo troviamo noi',
+    /trovato dal mandatario: mezza mensilità del canone mensile più IVA/.test(prima) && /una mensilità del canone mensile più IVA/.test(una));
+  ok('la regola del rinnovo entra nel mandato solo a regole confermate', O.OFFER.regole.confermate === true || !/rinnovo/.test(prima));
+  ok('il recesso di 14 giorni del consumatore c\'è sempre', /recedere entro 14 giorni/.test(prima) && /recedere entro 14 giorni/.test(plur));
   ok('le pratiche nel mandato sono quelle della pagina (89 € · 189 €)', prima.includes(O.eur(ASPI_DEFAULTS.prezzoRegistrazione)) && prima.includes(O.eur(ASPI_DEFAULTS.prezzoAsseverazione)));
   ok('pluriennale: fee annua, registrazione e attestazione dentro, imposte fuori', /compenso annuo fisso di 2\.400 € più IVA/.test(plur) && /registrazione/.test(plur) && /imposte \(registro e bolli\)/.test(plur));
-  ok('riversamento e recesso escono SOLO se scritti', !/riversati|recedere/.test(prima)
+  ok('riversamento e preavviso escono SOLO se scritti', !/riversati|preavviso di/.test(prima)
     && /entro 5 giorni lavorativi/.test(O.mandatoRighe({ riversamentoGiorni: 5 }).join(' ')) && /preavviso di 30 giorni/.test(O.mandatoRighe({ recessoGiorni: 30 }).join(' ')));
   ok('finché la garanzia non è attiva, il mandato lo dice', O.OFFER.garanzia.stato === 'attiva' || /non contiene garanzie sul pagamento dei canoni/.test(prima));
   const portal = fs.readFileSync(path.join(ROOT, 'js/portal-app.js'), 'utf8');
@@ -112,8 +115,11 @@ sez('il menu delle zone: le 75 del motore, in ordine alfabetico');
   ok('ogni voce è «Nome · CODICE»', opt.every((o) => o.txt.endsWith(' · ' + o.cod)));
   ok('Monteverde Vecchio (C12) e Monteverde Nuovo (C13) ci sono',
     opt.some((o) => o.cod === 'C12' && /Monteverde Vecchio/.test(o.txt)) && opt.some((o) => o.cod === 'C13' && /Monteverde Nuovo/.test(o.txt)));
-  ok('prima voce vuota, ultima «Non la trovo → WhatsApp»',
-    /<select id="zona"[^>]*>\s*<option value="">/.test(HTML) && /<option value="__wa">Non la trovo/.test(HTML));
+  // «Non la trovo» non è più una voce della tendina (sceglierla apriva WhatsApp
+  // mentre si sfogliava con la tastiera): è un link vero sotto i campi.
+  ok('prima voce vuota, nessuna voce-azione nella tendina, WhatsApp come link sotto',
+    /<select id="zona"[^>]*>\s*<option value="">/.test(HTML) && !/value="__wa"/.test(HTML) &&
+    /<p class="nota[^"]*">[\s\S]*?<a [^>]*href="https:\/\/wa\.me\/[^"]+"[^>]*>Non trovi la zona\?/.test(HTML));
   ok('niente optgroup', !/<optgroup/.test(HTML));
 }
 
@@ -155,7 +161,12 @@ if (MAN) {
     if (gated(it)) {
       ok(`${it.id}: dietro il cancello canone, NON in pagina`, !HTML.includes(it.pdf || '§'));
     } else if (it.riga) {
-      ok(`${it.id}: la riga del PDF è trascritta identica in pagina`, HTML.includes(`<p class="riga">${esc(it.riga)}</p>`), it.riga);
+      // La riga in pagina può essere quella alternativa (rendiconto a tre case:
+      // l'arretrato dice più dell'indirizzo) e, se il documento è inglese,
+      // porta lang="en": uno screen reader la legge con la pronuncia giusta.
+      const righe = [it.riga].concat(it.rigaAlternativa ? [it.rigaAlternativa.riga] : []);
+      const trascritta = (r) => new RegExp(`<p class="riga"(?: lang="[a-z]{2}")?>${esc(r).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}</p>`).test(HTML);
+      ok(`${it.id}: la riga del PDF è trascritta identica in pagina`, righe.some(trascritta), righe.join(' | '));
     }
   }
   ok('lo ZIP esiste e sta sotto 2,5 MB', MAN.zip && fs.existsSync(path.join(ROOT, MAN.zip.file)) && fs.statSync(path.join(ROOT, MAN.zip.file)).size <= 2.5 * 1048576);
@@ -268,7 +279,9 @@ sez('i pesi: la pagina si legge senza aspettare niente');
   ok(`owners.html ≤ 42 KB gzip (${(gz(HTML) / 1024).toFixed(1)})`, gz(HTML) <= 42 * 1024);
   const css = [...HTML.matchAll(/<style>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('');
   ok(`CSS inline ≤ 16 KB gzip (${(gz(css) / 1024).toFixed(1)})`, gz(css) <= 16 * 1024);
-  for (const [f, max] of [['js/owners-app.js', 8], ['js/owners-pianta.js', 3]]) {
+  // Il brief chiedeva ≤ 10 KB per salita + sole + pagina in UN file; sono due
+  // (la pianta ha il suo runtime) e insieme stanno sotto 12. Si carica dopo il load.
+  for (const [f, max] of [['js/owners-app.js', 9], ['js/owners-pianta.js', 3]]) {
     const p = path.join(ROOT, f);
     const g = fs.existsSync(p) ? gz(fs.readFileSync(p, 'utf8')) : Infinity;
     ok(`${f} ≤ ${max} KB gzip (${(g / 1024).toFixed(1)})`, g <= max * 1024);

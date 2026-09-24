@@ -150,11 +150,14 @@ La pagina vive sul branch; il merge su main aspetta questi punti.
 2. **Parere legale** su «la provvigione la paga l'inquilino» mentre BOOM è
    mandataria del proprietario (Cass. SU 19161/2017, mediazione atipica) e
    sulla struttura della garanzia (§6).
-3. **Il mandato coi prezzi della pagina**: oggi il template del portale ha
-   «compenso 10% sul canone o fisso €/mese» e nessuna delle voci della pagina
-   (0 € prima locazione, ½ o 1 mensilità, pluriennale, riversamento, recesso).
-   Finché `OFFER.mandato.pdf` è `null` la pagina non linka un mandato e non ha
-   la FAQ sul recesso.
+3. **Il mandato coi prezzi della pagina**: il template «Mandato di Gestione»
+   del portale ora stampa le righe di `mandatoRighe()` (js/owner-offer.js) —
+   0 € prima locazione, ½ o 1 mensilità scritta caso per caso, pluriennale,
+   pratiche, nessuna garanzia, recesso del consumatore — e non esce più con
+   un compenso di default né con l'incasso dei canoni senza termine di
+   riversamento. Resta da fare: il PDF del mandato riletto dal legale, poi
+   `OFFER.mandato.pdf` (finché è `null` la pagina non linka un mandato e non
+   ha la FAQ sul recesso).
 4. **Cifre esterne**: nessuna in pagina; entrano solo con fonte primaria aperta
    e data.
 5. **★ su Google**: esce solo con il link al profilo (`OFFER.prova.google`).
@@ -168,6 +171,42 @@ La pagina vive sul branch; il merge su main aspetta questi punti.
    vetrina prima che della pagina.
 7. Da scrivere quando esistono: giorni di riversamento, preavviso di recesso,
    polizza RC (compagnia e numero), referente e sostituto, conto dedicato.
+
+8. **Firma dei contratti di locazione** (legale, PRIMA di tutto il resto):
+   la locazione abitativa vuole la forma scritta (art. 1 c. 4 L. 431/1998),
+   e per gli atti dell'art. 1350 n. 13 c.c. su documento informatico il CAD
+   (art. 21 c. 2-bis) chiede firma elettronica **avanzata**, qualificata o
+   digitale a pena di nullità. Il Magic Sign oggi è una firma elettronica
+   semplice (FES, art. 20 c. 1-bis). La pagina è stata corretta per non
+   promettere più di «firma elettronica»; il prodotto va verificato con il
+   legale — se il rischio è reale, riguarda ogni contratto già firmato così.
+9. **Sovrapprezzo sui pagamenti** (legale): D.Lgs. 11/2010 art. 3 c. 4 vieta
+   al beneficiario di applicare spese per l'uso di uno strumento di pagamento
+   (carte dei consumatori, bonifici e addebiti SEPA). `/casa` applica una
+   commissione carta (`api/payments/pay.js` `rentFee`) e una commissione SEPA
+   (`api/payments/_sdd.js` `sddFee`). Tolto dalla pagina /owners; il prodotto
+   va deciso (commissione assorbita nel compenso, oppure parere che la
+   escluda).
+10. **Recesso del consumatore**: il mandato ora porta l'informazione (artt.
+    49, 52, 57 Cod. consumo); manca il modulo tipo di recesso (allegato I,
+    parte B) da allegare al mandato firmato a distanza.
+11. **terms.html** contraddice la pagina (regola della provvigione, depositi,
+    commissioni): va riscritta sulle stesse fonti (`js/owner-offer.js`,
+    `api/_catalog.js`).
+12. **privacy.html**: nessuna sezione per i proprietari (il modulo /owners
+    raccoglie nome, telefono, zona, metri) e l'elenco dei responsabili del
+    trattamento non corrisponde ai servizi usati. La pagina /owners ha già
+    «Che fine fanno questi dati»; l'informativa deve dire lo stesso.
+13. **Identità della società sul sito**: il capitale sociale (art. 2250 c.c.)
+    non compare; il JSON-LD delle altre pagine dichiara `legalName` «BOOM
+    Rome» invece di Egidi Immobiliare S.r.l.
+14. **Banner cookie in inglese**: «No ads following you» mentre «Accept»
+    concede anche i cookie pubblicitari (`ad_*`). Corretto il ramo italiano
+    (`js/boom-consent.js`); quello inglese va riscritto.
+15. **Deposito oltre tre mensilità**: la console delle proposte accetta
+    `depositMonths` fino a 6 (`api/preagreement/create.js`), l'art. 11
+    L. 392/1978 fissa il tetto a tre. L'Innesto già lo segnala come avviso;
+    la console no.
 
 ## 8 · V2
 

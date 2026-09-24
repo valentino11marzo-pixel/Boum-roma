@@ -12,7 +12,8 @@
         "src": "/carte/verbale-consegna-esempio.webp",
         "w": 560,
         "h": 792,
-        "bytes": 49076
+        "bytes": 49076,
+        "page": 1
       },
       "alt": "Prima pagina del verbale di consegna d’esempio: chiavi consegnate, letture dei contatori e stato della casa, con il timbro «ESEMPIO — dati inventati».",
       "riga": "Le letture sopra riportate fanno fede tra le parti ai fini delle volture e del riparto dei consumi.",
@@ -35,7 +36,8 @@
         "src": "/carte/inventario-ingresso-esempio.webp",
         "w": 560,
         "h": 792,
-        "bytes": 34276
+        "bytes": 34276,
+        "page": 1
       },
       "alt": "Prima pagina dell’inventario d’ingresso d’esempio: arredi stanza per stanza con la condizione dichiarata, timbro «ESEMPIO — dati inventati».",
       "riga": "n. 1 Divano 3 posti danneggiato — strappo sul bracciolo destro",
@@ -58,9 +60,10 @@
         "src": "/carte/inventario-uscita-esempio.webp",
         "w": 560,
         "h": 792,
-        "bytes": 34132
+        "bytes": 22632,
+        "page": 2
       },
-      "alt": "Prima pagina dell’inventario alla riconsegna d’esempio: lo stato di ogni oggetto all’uscita, timbro «ESEMPIO — dati inventati».",
+      "alt": "Seconda pagina dell’inventario alla riconsegna d’esempio: il confronto con la consegna, voce per voce, timbro «ESEMPIO — dati inventati».",
       "riga": "- Camera: Armadio a due ante — condizione alla consegna non dichiarata",
       "riquadro": {
         "page": 2,
@@ -91,7 +94,8 @@
         "src": "/carte/contratto-studenti-esempio.webp",
         "w": 560,
         "h": 792,
-        "bytes": 59600
+        "bytes": 59600,
+        "page": 1
       },
       "alt": "Prima pagina del contratto per studenti d’esempio (Allegato C dell’accordo territoriale di Roma), timbro «ESEMPIO — dati inventati».",
       "riga": "Il contratto è stipulato per la durata di 12 mesi, dal 01/09/2025 al 31/08/2026.",
@@ -124,7 +128,8 @@
         "src": "/carte/rendiconto-esempio.webp",
         "w": 560,
         "h": 792,
-        "bytes": 17212
+        "bytes": 17212,
+        "page": 1
       },
       "alt": "Il rendiconto mensile d’esempio di un immobile: canone incassato con data e modalità, arretrati, manutenzioni, timbro «ESEMPIO — dati inventati».",
       "riga": "Incassata rata 2026-07 (bonifico) il 03/07/2026 €1.200",
@@ -147,7 +152,8 @@
         "src": "/carte/rendiconto-tre-case-esempio.webp",
         "w": 560,
         "h": 792,
-        "bytes": 25652
+        "bytes": 25652,
+        "page": 1
       },
       "alt": "Il rendiconto mensile d’esempio con tre immobili, una sezione per casa, timbro «ESEMPIO — dati inventati».",
       "riga": "Via dell’Esempio 12, 00193 Roma",
@@ -174,13 +180,14 @@
       "id": "proposta",
       "titolo": "Proposta di locazione (Rental Proposal)",
       "pdf": "/carte/proposta-esempio.pdf",
-      "bytes": 31874,
+      "bytes": 31901,
       "pages": 2,
       "thumb": {
         "src": "/carte/proposta-esempio.webp",
         "w": 560,
         "h": 792,
-        "bytes": 26006
+        "bytes": 26006,
+        "page": 1
       },
       "alt": "Prima pagina della proposta di locazione d’esempio, in inglese, con le parti e l’immobile, timbro «ESEMPIO — dati inventati».",
       "riga": "Note: Agency fee: 10% of annual rent = €1,440 + VAT 22% (€316.80) = €1,756.80 - due upon move-in, not at pre-agreement signing.",
@@ -203,7 +210,8 @@
         "src": "/carte/scheda-canone-esempio.webp",
         "w": 560,
         "h": 792,
-        "bytes": 57910
+        "bytes": 57910,
+        "page": 1
       },
       "alt": "La scheda di calcolo del canone concordato d’esempio (Allegato 2/B), timbro «ESEMPIO — dati inventati».",
       "riga": "Importo massimo canone mensile: € 1.306,40; Importo canone mensile pattuito: € 1.200,00;",
@@ -242,7 +250,7 @@
   ],
   "zip": {
     "file": "/carte/fascicolo-esempio.zip",
-    "bytes": 141061,
+    "bytes": 141086,
     "entries": [
       "01_Proposta_di_locazione_ESEMPIO.pdf",
       "02_Contratto_studenti_Allegato_C_ESEMPIO.pdf",

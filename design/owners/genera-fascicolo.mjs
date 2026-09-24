@@ -719,9 +719,9 @@ const RENDER_HTML = `<!doctype html><meta charset="utf-8"><body style="margin:0;
 <script type="module">
 import * as pdfjs from '/pdfjs/build/pdf.mjs';
 pdfjs.GlobalWorkerOptions.workerSrc = '/pdfjs/build/pdf.worker.mjs';
-window.renderFirst = async (url, width) => {
+window.renderFirst = async (url, width, pageNo) => {
   const doc = await pdfjs.getDocument({ url, standardFontDataUrl: '/pdfjs/standard_fonts/', cMapUrl: '/pdfjs/cmaps/', cMapPacked: true, useSystemFonts: false, isEvalSupported: false }).promise;
-  const page = await doc.getPage(1);
+  const page = await doc.getPage(pageNo || 1);
   const v1 = page.getViewport({ scale: 1 });
   const vp = page.getViewport({ scale: width / v1.width });
   const c = document.getElementById('c');
@@ -980,8 +980,8 @@ function leggimi(entries, schedaIn) {
   L.push('- Il certificato di firma e il fascicolo fiscale: arrivano nella prossima');
   L.push('  versione di questo pacchetto.');
   if (!schedaIn) {
-    L.push('- La scheda di calcolo del canone concordato: la tabella delle zone la sta');
-    L.push('  ricontrollando l\'associazione. Finché non è confermata, la scheda');
+    L.push('- La scheda di calcolo del canone concordato: la tabella delle zone non è');
+    L.push('  ancora confermata dall\'associazione. Finché non lo è, la scheda');
     L.push('  d\'esempio resta fuori.');
   }
   L.push('');
@@ -992,7 +992,7 @@ function leggimi(entries, schedaIn) {
 const ALT = {
   verbale: 'Prima pagina del verbale di consegna d’esempio: chiavi consegnate, letture dei contatori e stato della casa, con il timbro «ESEMPIO — dati inventati».',
   'inventario-ingresso': 'Prima pagina dell’inventario d’ingresso d’esempio: arredi stanza per stanza con la condizione dichiarata, timbro «ESEMPIO — dati inventati».',
-  'inventario-uscita': 'Prima pagina dell’inventario alla riconsegna d’esempio: lo stato di ogni oggetto all’uscita, timbro «ESEMPIO — dati inventati».',
+  'inventario-uscita': 'Seconda pagina dell’inventario alla riconsegna d’esempio: il confronto con la consegna, voce per voce, timbro «ESEMPIO — dati inventati».',
   'contratto-studenti': 'Prima pagina del contratto per studenti d’esempio (Allegato C dell’accordo territoriale di Roma), timbro «ESEMPIO — dati inventati».',
   rendiconto: 'Il rendiconto mensile d’esempio di un immobile: canone incassato con data e modalità, arretrati, manutenzioni, timbro «ESEMPIO — dati inventati».',
   'rendiconto-tre-case': 'Il rendiconto mensile d’esempio con tre immobili, una sezione per casa, timbro «ESEMPIO — dati inventati».',
@@ -1066,14 +1066,16 @@ async function main() {
       await pg.goto(base + '/__render.html');
       await pg.waitForFunction(() => window.__ready === true, null, { timeout: 15000 });
       for (const d of docs) {
-        const dataUrl = await pg.evaluate(([u, w]) => window.renderFirst(u, w), ['/carte/' + d.file + '.pdf', 1120]);
+        // l'inventario d'uscita mostra la pagina del CONFRONTO, dove sta la sua riga
+        const pageNo = d.id === 'inventario-uscita' && d.riquadro ? d.riquadro.page : 1;
+        const dataUrl = await pg.evaluate(([u, w, n]) => window.renderFirst(u, w, n), ['/carte/' + d.file + '.pdf', 1120, pageNo]);
         const png = Buffer.from(dataUrl.split(',')[1], 'base64');
         // l'altezza dalla pagina vera (595×842 → 560×792), non dal canvas
         // arrotondato: la miniatura resta proporzionale al riquadro in punti
         const W = 560, H = Math.round(560 * d.lines[0].H / d.lines[0].W);
         const { buf, q } = await toWebp(png, W, H, 60 * 1024);
         await writeFile(join(OUT, d.file + '.webp'), buf);
-        d.thumb = { src: '/carte/' + d.file + '.webp', w: W, h: H, bytes: buf.length, q };
+        d.thumb = { src: '/carte/' + d.file + '.webp', w: W, h: H, bytes: buf.length, q, page: pageNo };
       }
       if (perr.length) throw new Error('pdfjs in Chromium: ' + perr[0]);
       await ctx.close();
@@ -1124,7 +1126,7 @@ async function main() {
     pdf: '/carte/' + d.file + '.pdf',
     bytes: d.stamped.length,
     pages: d.pages,
-    thumb: d.thumb ? { src: d.thumb.src, w: d.thumb.w, h: d.thumb.h, bytes: d.thumb.bytes } : null,
+    thumb: d.thumb ? { src: d.thumb.src, w: d.thumb.w, h: d.thumb.h, bytes: d.thumb.bytes, page: d.thumb.page || 1 } : null,
     alt: ALT[d.id],
     riga: d.riga,
     riquadro: d.riquadro,

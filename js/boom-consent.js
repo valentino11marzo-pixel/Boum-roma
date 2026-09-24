@@ -71,12 +71,22 @@
     // the browser's, because the page has already decided what language the
     // reader is being served — an English cookie plate on the French /reunion
     // page is the one element that gives away that it is a translation.
-    var T = (String(document.documentElement.lang || 'en').toLowerCase().slice(0, 2) === 'fr')
+    var LANG = String(document.documentElement.lang || 'en').toLowerCase().slice(0, 2);
+    // Italiano: dice cosa fa DAVVERO «Accetta» (grant() dà il consenso anche
+    // ai cookie pubblicitari; alcune pagine hanno il pixel di Meta), invece di
+    // tradurre «No ads following you». Visto su /owners, dove il resto è vero.
+    // Stessa regola in inglese e francese: il vecchio testo prometteva «niente
+    // pubblicità che ti segue» mentre grant() concede ad_storage/ad_user_data.
+    var T = LANG === 'it'
+      ? { e: 'Privacy',
+          p: 'Un cookie di misura ci dice quali pagine servono. Con «Accetta» dai il consenso anche ai cookie pubblicitari di Google e, dove c\'è, di Meta; con «Solo essenziali» a nessuno dei due — <a href="/privacy">come trattiamo i dati</a>.',
+          no: 'Solo essenziali', ok: 'Accetta', aria: 'Preferenze cookie' }
+      : (LANG === 'fr')
       ? { e: 'Confidentialité',
-          p: 'Un cookie de mesure d\'audience nous aide à améliorer BOOM. Aucune publicité qui vous suit, aucune revente de données — <a href="/privacy">comment nous traitons vos données</a>.',
+          p: 'Un cookie de mesure nous dit quelles pages servent. Avec « Accepter » vous consentez aussi aux cookies publicitaires de Google et, là où il y en a, de Meta ; avec « Essentiels uniquement », à aucun des deux — <a href="/privacy">comment nous traitons vos données</a>.',
           no: 'Essentiels uniquement', ok: 'Accepter', aria: 'Préférences cookies' }
       : { e: 'Privacy',
-          p: 'One analytics cookie helps us make BOOM better. No ads following you, no data resale — <a href="/privacy">how we handle data</a>.',
+          p: 'One measurement cookie tells us which pages are useful. «Accept» also consents to Google\'s advertising cookies and, where present, Meta\'s; «Essential only» consents to neither — <a href="/privacy">how we handle data</a>.',
           no: 'Essential only', ok: 'Accept', aria: 'Cookie preferences' };
 
     el = document.createElement('div');

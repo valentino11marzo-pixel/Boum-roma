@@ -29,6 +29,7 @@
 
 import { parseBudgetRange, normalizeForMatch } from '../homie/_match.js';
 import { replyLang } from '../_lang.js';
+import { isB2B } from '../_market.js';
 
 // ── quanto vale un lead che invecchia ──────────────────────────────────────
 // Mai zero: una persona che cercava casa due mesi fa è ancora una persona, e
@@ -145,6 +146,9 @@ export const MAX_AGE_DAYS = 120;
 // perché — un'esclusione silenziosa è indistinguibile da un bug.
 export function vetoFor(lead, listing, now = Date.now()) {
   const status = String(lead.status || '').toLowerCase();
+  // un proprietario (o un ente) che ha lasciato il numero su /owners NON cerca
+  // casa: un messaggio «stai ancora cercando?» sarebbe la voce sbagliata
+  if (String(lead.leadType || '') === 'landlord' || isB2B(lead)) return 'proprietario o ente: non cerca casa';
   if (lead.grade === 'dead') return 'lead morto (spam o non raggiungibile)';
   const t = new Date(lead.createdAt || 0).getTime();
   if (t && (now - t) / 86400000 > MAX_AGE_DAYS) return `scritto oltre ${MAX_AGE_DAYS} giorni fa`;

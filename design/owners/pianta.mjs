@@ -427,7 +427,16 @@ export function ritaglio(stanza) {
 
 export function accesa() {
   const b = flatBox, m = 10;
-  return `<svg class="pianta-accesa" viewBox="${b[0] - m} ${b[1] - m} ${b[2] - b[0] + 2 * m} ${b[3] - b[1] + 2 * m}" aria-hidden="true" focusable="false">${USE('pq')}${USE('pp')}</svg>`;
+  // Le due luci spente devono VEDERSI anche a 320 px: sopra la pianta si
+  // ridisegnano le bandiere al doppio, grigie, col bordo — la didascalia
+  // sotto la figura dice quali sono e perché.
+  const grandi = J.bandiere.map((q) => {
+    const [x, y] = q.piede;
+    return `<path d="M${x} ${y}v-116" stroke="#8a877e" stroke-width="2" fill="none" ${VE}/>` +
+      `<path d="M${x} ${y - 116}h64v36h-64z" fill="#060607" stroke="#8a877e" stroke-width="1.5" ${VE}/>` +
+      `<path d="M${x + 14} ${y - 106}l36 16M${x + 50} ${y - 106}l-36 16" stroke="#8a877e" stroke-width="1.5" ${VE}/>`;
+  }).join('');
+  return `<svg class="pianta-accesa" viewBox="${b[0] - m} ${b[1] - m} ${b[2] - b[0] + 2 * m} ${b[3] - b[1] + 2 * m}" aria-hidden="true" focusable="false">${USE('pq')}${USE('pp')}<g class="spente">${grandi}</g></svg>`;
 }
 
 // Il palazzo: cinque piani della stessa pianta, in assonometria, impilati.

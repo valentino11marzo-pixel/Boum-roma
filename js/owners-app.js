@@ -18,7 +18,8 @@
   const str = (s) => (s == null ? '' : String(s));
   const clip = (s, n) => str(s).trim().slice(0, n);
   const esc = (s) => str(s).replace(/[&<>"]/g, (c) => '&#' + c.charCodeAt(0) + ';');
-  const eur = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ' €';   // mai toLocaleString
+  // mai toLocaleString; spazio NON divisibile prima di €: a 390 px «1.756,80» andava a capo senza il suo €
+  const eur = (n) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '\u00a0€';
   const leggiMq = (v) => { const n = parseInt(str(v).trim(), 10); return n >= 15 && n <= 1000 ? n : 0; };
   // «Prati · C40» → «Prati»; ripiego per un nome del motore: «SAN LORENZO» → «San Lorenzo»
   const titleZone = (nome) => str(nome).replace(/\s*·\s*[A-Z]{1,2}\d+\s*$/, '').trim().split(' ').map((w) => /[a-z]|^EUR$/.test(w) ? w
@@ -33,7 +34,8 @@
   }
   const targaAperta = (max) => ('FINO A ' + eur(max) + '/MESE').slice(0, 22);
   const testa = (nome, cod, mq) => `<p><b>${esc(nome)} (zona ${esc(cod)}), ${mq} m²:</b> `;
-  const esitoChiuso = (nome, cod, mq) => testa(nome, cod, mq) + "il tetto per la tua zona lo calcoliamo sulla scheda ufficiale. La nostra tabella delle zone la sta ricontrollando l'associazione, e finché non l'ha confermata un numero qui non te lo scriviamo. Lasciaci il numero e te lo diciamo al telefono. <a href=\"#uscita\">Richiamami ↓</a></p>";
+  // Il tetto si DICE anche a cancello chiuso (è la regola dei contratti che facciamo); il NUMERO no.
+  const esitoChiuso = (nome, cod, mq) => testa(nome, cod, mq) + "con i contratti che facciamo (per studenti, transitorio, 3+2) l'affitto ha un tetto, fissato per zona dall'accordo di Roma; in cambio, con l'attestazione di rispondenza, la cedolare è al 10% invece del 21%. Il tetto della tua zona qui non te lo scriviamo ancora: la nostra tabella delle zone non è ancora confermata dall'associazione. Lasciaci il numero e te lo diciamo al telefono. <a href=\"#uscita\">Richiamami ↓</a></p>";
   const testoManda = (nome, cod, mq, max) => `Casa a Roma, ${nome} (zona ${cod}), ${mq} m²: a canone concordato fino a ${eur(max)} al mese, con almeno 7 delle 20 dotazioni dell'accordo. Stima BOOM, da confermare con la scheda: https://www.boomrome.com/owners?z=${cod}&mq=${mq}`;
   const esitoAperto = (nome, cod, mq, max) => testa(nome, cod, mq) + `a canone concordato fino a ${eur(max)} al mese, se la casa ha almeno 7 delle 20 dotazioni dell'accordo; con meno il tetto scende, e le spunti <a href="#scrivania">alla scrivania ↓</a>. Il tetto lo fissa l'accordo di Roma per i contratti che facciamo. Con l'attestazione di rispondenza, la cedolare al 10% ti lascia ${eur(max * 0.9)} al mese e l'IMU scende del 25%. Se a libero la tua casa vale di più, un 4+4 rende di più: non lo facciamo, e te lo diciamo adesso. <span class="timbro">STIMA · DA CONFERMARE CON LA SCHEDA</span></p>` +
     `<p class="manda"><a class="condividi" href="https://wa.me/?text=${encodeURIComponent(testoManda(nome, cod, mq, max))}" target="_blank" rel="noopener">Manda questi numeri a chi decide con te</a></p>`;
@@ -43,7 +45,8 @@
   // s = { name, phone, email, where, casa:{cod,nome,mq,max?}|null, vol, co, orgName, msg, gar, company }
   function ownersPayload(s = {}) {
     const c = s.casa && s.casa.cod ? s.casa : null;
-    const parti = c ? [c.mq + ' m²', c.max > 0 && `max stimato ${eur(c.max)}/mese con almeno 7 dotazioni (stima)`] : [];
+    const TIPO = { stud: 'per studenti', trans: 'transitorio', '32': '3+2' };
+    const parti = c ? [c.mq + ' m²', c.max > 0 && `max stimato ${eur(c.max)}/mese ${c.nP ? 'con ' + c.nP + ' dotazioni' : 'con almeno 7 dotazioni'}${TIPO[c.tipo] ? ', ' + TIPO[c.tipo] : ''} (stima)`] : [];
     parti.push(s.gar && 'Garanzia: interessato', clip(s.msg, 300));
     return {
       kind: 'owner', lang: 'it', name: clip(s.name, 120), phone: clip(s.phone, 40), email: clip(s.email, 160),
@@ -150,7 +153,7 @@
     // ── il cartiglio
     const zona = $('zona'), mq = $('mq');
     let ultimaZ = '';
-    const opzione = (cod) => (cod && cod !== '__wa' && [...zona.options].find((o) => o.value === cod)) || null;
+    const opzione = (cod) => (cod && [...zona.options].find((o) => o.value === cod)) || null;
     function calcola(gesto) {
       const cod = zona.value, o = opzione(cod), n = leggiMq(mq.value), chiave = cod + '|' + n;
       if (mq.value.trim() && !n) {
@@ -164,8 +167,10 @@
       casa = { cod, nome, mq: n, max: 0 };
       chipOn = true;
       if (gesto) {
-        track('owners_calcolo', { zona: cod });
-        try { const u = new URL(location.href); u.searchParams.set('z', cod); u.searchParams.set('mq', n); history.replaceState(history.state, '', u.pathname + u.search + u.hash); } catch (e) { }
+        // «Zona e metri restano sul tuo telefono»: all'analisi arriva che un
+        // conto è stato fatto, MAI quale zona; e l'indirizzo non se li scrive
+        // (ogni evento porterebbe ?z=&mq= nella pagina vista).
+        track('owners_calcolo');
         if (!alzata()) alza('cartiglio');
       }
       const chiuso = () => { esito(esitoChiuso(nome, cod, n)); chip(); tg(targa(casa, n), frase, gesto); };
@@ -183,11 +188,16 @@
       if (opzione(z)) zona.value = ultimaZ = z;
       if (m) mq.value = m;
       calcola(false);   // ?z=&mq= compila, ma NON alza
-      zona.addEventListener('change', () => {
-        if (zona.value !== '__wa') { ultimaZ = zona.value; return calcola(true); }
-        open('https://wa.me/393313251961?text=' + encodeURIComponent("Ciao, sono un proprietario: la mia casa a Roma è in via … e non trovo la zona nell'elenco."), '_blank', 'noopener');
-        zona.value = ultimaZ;
+      // Con la tastiera, su Windows e Linux, ogni freccia sul menu CHIUSO fa
+      // «change»: si sfoglia senza conseguenze e si decide con Invio o
+      // uscendo dal campo (WCAG 3.2.2). Mouse e rotella di iOS: subito.
+      let sfoglia = false;
+      zona.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { sfoglia = false; e.preventDefault(); ultimaZ = zona.value; return calcola(true); }
+        if (/^(Arrow|Home$|End$|Page)/.test(e.key) || e.key.length === 1) sfoglia = true;
       });
+      zona.addEventListener('change', () => { if (!sfoglia) { ultimaZ = zona.value; calcola(true); } });
+      zona.addEventListener('blur', () => { if (sfoglia) { sfoglia = false; ultimaZ = zona.value; calcola(true); } });
       mq.addEventListener('change', () => calcola(true));
       mq.addEventListener('blur', () => calcola(true));
       on('cartiglio', 'submit', (e) => { e.preventDefault(); calcola(true); });
@@ -210,6 +220,7 @@
         }, su && !fermo() ? 1100 : 0);
       });
       if (q.includes('bottone')) daBottone();
+      if (q.includes('cartiglio')) { ultima = ''; calcola(true); }   // zona e metri scelti prima dello script
       q.length = 0;
     });
 
@@ -289,11 +300,14 @@
       W.addEventListener('hashchange', perHash);
       perHash();
     });
-    on('linkPortafogli', 'click', () => {
-      const pf = $('portafogli'), vol = $('fVol'), d = vol && vol.closest('details');
-      if (pf) pf.open = true;
-      if (vol) vol.value = '2-5';
-      if (d) d.open = true;
+    // una DOMANDA non è una dichiarazione: aprire i portafogli non scrive «Da 2 a 5» nel modulo
+    on('linkPortafogli', 'click', () => { const pf = $('portafogli'); if (pf) pf.open = true; });
+    // il foglio del canone (solo a cancello aperto) consegna al modulo i numeri SPUNTATI, non la stima fissa
+    D.addEventListener('owners:tieni', (e) => {
+      const d = e.detail || {};
+      if (!d.cod) return;
+      casa = { cod: d.cod, nome: d.nome, mq: d.mq, max: d.max, nP: d.nP, tipo: d.tipo };
+      chipOn = true; chip();
     });
 
     // ── la stanza accesa (da 1100 px) e il primo sguardo a ogni stanza

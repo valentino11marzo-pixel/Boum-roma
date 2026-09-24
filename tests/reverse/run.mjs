@@ -126,6 +126,8 @@ const ZONES = CATALOG.map(l => l.zone);
   ok('lead morto → mai', vetoFor({ grade: 'dead', phone: '+39333' }, L) !== null);
   ok('già inquilino → mai', vetoFor({ status: 'converted', phone: '+39333' }, L) !== null);
   ok('senza recapito → mai', vetoFor({ name: 'X' }, L) !== null);
+  ok('proprietario (/owners) → mai', /proprietario/.test(vetoFor({ phone: '+39333', leadType: 'landlord' }, L) || ''));
+  ok('ente → mai', /proprietario o ente/.test(vetoFor({ phone: '+39333', source: 'partner', intent: 'partner-university' }, L) || ''));
   ok('la casa che aveva già chiesto → mai',
     vetoFor({ phone: '+39333', propertyId: 'l2' }, L) === 'è già diventato inquilino' ? false
       : vetoFor({ phone: '+39333', propertyId: 'l2' }, L) !== null);

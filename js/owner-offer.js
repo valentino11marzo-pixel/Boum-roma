@@ -164,16 +164,18 @@
   function mandatoRighe(o) {
     o = o || {};
     var r = [];
-    var pct = OFFER.primaLocazione.provvigioneInquilinoDefaultPct;
     var succ = Number(o.successive) === 1 ? 'una mensilità' : 'mezza mensilità';
     if (o.modello === 'pluriennale') {
       var fee = Number(o.feeAnnua);
       r.push('Accordo pluriennale: compenso annuo fisso di ' + (fee > 0 ? eur(fee) : '€ ________') + ' più IVA, comprensivo della gestione della locazione, del servizio di registrazione del contratto e di attestazione del canone concordato e del rendiconto mensile.');
       r.push('Restano a carico del mandante le imposte (registro e bolli), se dovute.');
     } else {
-      r.push('Prima locazione dell\'immobile: provvigione a carico del mandante pari a ' + eur(OFFER.primaLocazione.provvigioneProprietario) + '. La provvigione di agenzia è a carico del conduttore (di norma il ' + pct + '% del canone annuo più IVA) ed è indicata nella proposta che il conduttore sottoscrive.');
-      r.push('Locazioni successive dello stesso immobile: ' + succ + ' del canone più IVA, per ogni nuova locazione.');
-      if (OFFER.regole.rinnovoStessoInquilinoGratis) r.push('Il rinnovo del contratto con lo stesso conduttore non è una nuova locazione.');
+      // Il mandato NON dice chi paga la provvigione al posto del mandante: con
+      // BOOM mandataria del proprietario è la domanda aperta al legale (Cass.
+      // SU 19161/2017, STUDIO_PROPRIETARI §7 n. 2). Dice solo cosa paga LUI.
+      r.push('Prima locazione dell\'immobile: nessuna provvigione a carico del mandante.');
+      r.push('Locazioni successive dello stesso immobile concluse con un conduttore trovato dal mandatario: ' + succ + ' del canone mensile più IVA, per ciascuna.');
+      if (OFFER.regole.confermate && OFFER.regole.rinnovoStessoInquilinoGratis) r.push('Il rinnovo del contratto con lo stesso conduttore non è una nuova locazione.');
       r.push('Servizi di registrazione del contratto e di attestazione del canone concordato: ' + eur(OFFER.pratiche.registrazioneEur) + ' e ' + eur(OFFER.pratiche.attestazioneEur) + ', IVA compresa. Le imposte (registro e bolli), se dovute, restano a carico delle parti secondo legge.');
     }
     var g = Number(o.riversamentoGiorni);
@@ -181,6 +183,10 @@
     var d = Number(o.recessoGiorni);
     if (d > 0) r.push('Ciascuna parte può recedere dal mandato con un preavviso di ' + d + ' giorni. I contratti di locazione già stipulati restano validi.');
     if (OFFER.garanzia.stato !== 'attiva') r.push('Il presente mandato non contiene garanzie sul pagamento dei canoni da parte del conduttore.');
+    // Un proprietario privato è un consumatore, e la pagina spinge la firma a
+    // distanza: l'informazione sul recesso (artt. 49, 52, 57 Cod. consumo) c'è
+    // SEMPRE — senza, il termine si allunga di 12 mesi e il compenso è a rischio.
+    r.push('Se il mandante è un consumatore e il mandato è concluso a distanza o fuori dai locali del mandatario, può recedere entro 14 giorni dalla firma senza dare motivi, scrivendo a ' + OFFER.emailPubblica + ' o a Egidi Immobiliare S.r.l., via dei Coronari 181/184, 00186 Roma. Se chiede espressamente che il servizio inizi prima, in caso di recesso paga solo quanto già prestato (artt. 49, 52 e 57 del Codice del consumo).');
     return r;
   }
 

@@ -550,7 +550,7 @@ function composeJsonLd(file, cfg, canonicalUrl) {
 /* ────────────────────────────────────────────────────────────────────────
  * Build the SEO meta block
  * ──────────────────────────────────────────────────────────────────────── */
-function buildMetaBlock(file, cfg) {
+function buildMetaBlock(file, cfg, opts = {}) {
   const canonical = absoluteUrl(cfg.path);
   const desc = cfg.description || '';
   const lang = cfg.lang || 'en';
@@ -625,8 +625,14 @@ function buildMetaBlock(file, cfg) {
   lines.push(`  <meta name="twitter:image:alt" content="${escapeHtml(cfg.title)}">`);
 
   // Perf hints
-  lines.push(`  <link rel="preconnect" href="https://fonts.googleapis.com">`);
-  lines.push(`  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>`);
+  // Le due connessioni ai font di Google solo se la pagina li carica davvero:
+  // su /owners (che non ne usa) erano due handshake verso Google a ogni visita,
+  // prima di qualunque consenso. Le pagine esistenti le perdono solo quando
+  // vengono rigenerate.
+  if (opts.fonts !== false) {
+    lines.push(`  <link rel="preconnect" href="https://fonts.googleapis.com">`);
+    lines.push(`  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>`);
+  }
   lines.push(`  <link rel="dns-prefetch" href="https://www.googletagmanager.com">`);
   lines.push(`  <link rel="dns-prefetch" href="https://www.google-analytics.com">`);
 
@@ -728,7 +734,7 @@ function processFile(file, cfg) {
   }
 
   // Build new blocks
-  const metaBlock = buildMetaBlock(file, cfg);
+  const metaBlock = buildMetaBlock(file, cfg, { fonts: /fonts\.googleapis\.com\/css/.test(original) });
   const jsonLdBlocks = composeJsonLd(file, cfg, absoluteUrl(cfg.path));
   const jsonLdBlock = buildJsonLdBlock(jsonLdBlocks);
 

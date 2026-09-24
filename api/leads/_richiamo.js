@@ -37,6 +37,7 @@ import { phoneVariants } from '../homie/_lead.js';
 import { replyLang } from '../_lang.js';
 import { rankLeadsForListing, outreachText, MAX_AGE_DAYS } from './_reverse.js';
 import { tgSend } from '../telegram/_lib.js';
+import { isB2B } from '../_market.js';
 
 const SITE = 'https://www.boomrome.com';
 export const COOLDOWN_DAYS = 7;      // due richiami alla stessa persona in una
@@ -51,6 +52,9 @@ const D = 86400000;
 export function vetoRichiamo(lead, ctx = {}) {
   const now = ctx.now || Date.now();
   const status = String(lead.status || '').toLowerCase();
+  // un proprietario (o un ente) che ha lasciato il numero su /owners NON cerca
+  // casa: un messaggio «stai ancora cercando?» sarebbe la voce sbagliata
+  if (String(lead.leadType || '') === 'landlord' || isB2B(lead)) return 'proprietario o ente: non cerca casa';
   if (lead.grade === 'dead') return 'lead morto (spam o irraggiungibile)';
   if (status === 'archived') return 'archiviato';
   if (['converted', 'won', 'tenant'].includes(status)) return 'è già diventato inquilino';

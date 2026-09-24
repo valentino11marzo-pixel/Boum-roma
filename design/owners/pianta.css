@@ -24,6 +24,7 @@ svg.alzata .sole,svg.alzata .ld{opacity:0}
 /* la luce delle stanze: ereditata dentro <use> con le variabili */
 html:not(.js) .riquadro,html.flat .riquadro,.pianta-accesa{color:#FFD700;--r-porta:var(--pp-l);--r-cassaforte:var(--pp-l);--r-soggiorno:var(--pp-l);--r-cucina:var(--pp-l);--r-scrivania:var(--pp-l);--r-cassetta:var(--pp-l);--r-casa:var(--pp-l)}
 .pianta-accesa{--pp-l:rgba(255,215,0,.13)}
+.riquadro.alzando,.riquadro.alzata{--pp-l:rgba(255,215,0,.28)}
 .riquadro[data-accesa=porta]{--r-porta:var(--pp-l)}
 .riquadro[data-accesa=cassaforte]{--r-cassaforte:var(--pp-l)}
 .riquadro[data-accesa=soggiorno]{--r-soggiorno:var(--pp-l)}
@@ -37,8 +38,10 @@ html:not(.js) svg.alzata,html.flat svg.alzata,html:not(.js) .alza,html.flat .alz
 .et{position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);pointer-events:auto;box-sizing:border-box;min-width:44px;min-height:44px;padding:3px 2px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;text-decoration:none;text-align:center;color:#d8d4c6;-webkit-tap-highlight-color:transparent}
 .et>span{display:block;background:rgba(6,6,7,.9);border:1px solid rgba(138,135,126,.55);padding:2px 5px 2px;white-space:nowrap}
 .et b,.et i{display:block}
-.et b{font:400 10px/1.3 ui-monospace,'SF Mono',Menlo,Consolas,monospace;letter-spacing:.09em;text-transform:uppercase}
-.et i{font:300 10.5px/1.2 'Helvetica Neue',Helvetica,Arial,sans-serif;font-style:normal;color:#aaa698;max-width:6.4em;white-space:normal;margin:1px auto 0}
+.et b{font:400 12px/1.25 ui-monospace,'SF Mono',Menlo,Consolas,monospace;letter-spacing:.09em;text-transform:uppercase}
+.et i{font:300 12px/1.2 'Helvetica Neue',Helvetica,Arial,sans-serif;font-style:normal;color:#aaa698;max-width:6.4em;white-space:normal;margin:1px auto 0}
+/* sotto i 330 px di riquadro (telefoni da 320) il 12 px si pesta: si torna al corpo stretto */
+@container (max-width:330px){.et b{font-size:10px;line-height:1.3}.et i{font-size:10.5px}}
 .et:focus-visible{outline:2px solid #FFD700;outline-offset:2px}
 .et:hover>span{border-color:currentColor}
 html:not(.js) .et,html.flat .et,.riquadro.alzata .et{color:#FFD700}
@@ -46,7 +49,7 @@ html:not(.js) .et>span,html.flat .et>span,.riquadro.alzata .et>span{border-color
 .riquadro[data-accesa=porta] [data-stanza=porta]>span,.riquadro[data-accesa=cassaforte] [data-stanza=cassaforte]>span,.riquadro[data-accesa=soggiorno] [data-stanza=soggiorno]>span,.riquadro[data-accesa=cucina] [data-stanza=cucina]>span,.riquadro[data-accesa=scrivania] [data-stanza=scrivania]>span,.riquadro[data-accesa=cassetta] [data-stanza=cassetta]>span{border-color:#FFD700;box-shadow:inset 0 -2px 0 #FFD700}
 
 /* il timbro-bottone, nell'angolo libero del riquadro (in alto a destra) */
-.alza{position:absolute;right:6px;top:6px;z-index:2;box-sizing:border-box;min-width:44px;min-height:44px;max-width:6.6em;padding:5px 7px;margin:0;background:#060607;color:#FFD700;border:1px solid #FFD700;border-radius:2px;font:400 10px/1.25 ui-monospace,'SF Mono',Menlo,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase;text-align:left;cursor:pointer}
+.alza{position:absolute;right:6px;top:6px;z-index:2;box-sizing:border-box;min-width:44px;min-height:44px;max-width:6.6em;padding:5px 7px;margin:0;background:#060607;color:#FFD700;border:1px solid #FFD700;border-radius:2px;font:400 12px/1.2 ui-monospace,'SF Mono',Menlo,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase;text-align:left;cursor:pointer}
 .alza:focus-visible{outline:2px solid #FFD700;outline-offset:2px}
 .alza:hover{background:#FFD700;color:#060607}
 
@@ -90,3 +93,5 @@ html.still .riquadro,html.still .riquadro *{transition:none!important;animation:
 .pianta-accesa,.palazzo{display:block;width:100%;height:auto}
 .palazzo{color:#FFD700;max-width:520px}
 .sole-didas{min-height:1.4em}
+/* il timbro «Alza» sta fuori dal contenitore del riquadro: sui telefoni da 320 torna stretto (dopo la sua regola) */
+@media (max-width:370px){.alza{font-size:10px;line-height:1.25}}

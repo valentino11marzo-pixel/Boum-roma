@@ -120,6 +120,10 @@ const countIn = coll => [...DB.keys()].filter(k => k.startsWith(coll + '/')).len
   ok('visita già in agenda → veto', /visita/.test(R.vetoRichiamo({ ...base }, { upcomingViewingPhones: booked }) || ''));
   ok('richiamato 2gg fa → cooldown', /cooldown/.test(R.vetoRichiamo({ ...base, lastOutreachAt: days(2) }) || ''));
   ok('richiamato 10gg fa → passa', R.vetoRichiamo({ ...base, lastRichiamoAt: days(10) }) === null);
+  // il proprietario che ha lasciato il numero su /owners non cerca casa:
+  // «stai ancora cercando?» dal nostro numero sarebbe la voce sbagliata
+  ok('proprietario (/owners) → veto', /proprietario/.test(R.vetoRichiamo({ ...base, leadType: 'landlord', source: 'partner' }) || ''));
+  ok('ente/azienda → veto', /proprietario o ente/.test(R.vetoRichiamo({ ...base, leadType: 'company' }) || ''));
 }
 
 // ── 2. canale e messaggi ───────────────────────────────────────────────────

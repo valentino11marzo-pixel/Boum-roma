@@ -54,14 +54,15 @@ export function eur(n, dec) {
   if (n == null || !isFinite(n)) return '—';
   const d = dec == null ? (Math.round(n) === n ? 0 : 2) : dec;
   const [i, f] = Math.abs(n).toFixed(d).split('.');
-  return (n < 0 ? '−' : '') + i.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + (f ? ',' + f : '') + ' €';
+  // spazio NON divisibile: a 390 px «1.756,80» andava a capo e lasciava «€» da solo
+  return (n < 0 ? '−' : '') + i.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + (f ? ',' + f : '') + '\u00a0€';
 }
 const kb = (b) => Math.max(1, Math.round(b / 1024)) + ' KB';
 const mb = (b) => (b / 1048576).toFixed(1).replace('.', ',') + ' MB';
 
 // ── le zone: «Monteverde Nuovo · C13», in ordine alfabetico ─────────────
 const PICCOLE = new Set(['di', 'da', 'del', 'della', 'delle', 'dei', 'degli', 'dello', 'e', 'a', 'al', 'in']);
-const SIGLE = new Set(['EUR']);
+const SIGLE = new Set(['EUR', 'VII']);   // «Aurelio Gregorio VII», non «Vii»
 export function titoloZona(nome) {
   let primo = true;
   return String(nome).split(' ').map((w) => {
@@ -106,14 +107,17 @@ export function righePrezzi(O, ASPI) {
     r('Provvigione dalla seconda locazione', 'la paghi tu',
       `½ o 1 mensilità + IVA, scritta nel mandato prima di iniziare: su ${eur(CANONE_ESEMPIO)} sono <b>${eur(mezza.totale)}</b> o <b>${eur(una.totale)}</b>.`),
     r('Accordo pluriennale', 'lo paghi tu',
-      'Una fee annua fissa, su preventivo. Registrazione e attestazione incluse, imposte escluse.'),
-    r('Incasso dei canoni e gestione', 'tu, se ce la affidi',
-      'Il compenso è scritto nel mandato, prima di firmare: una percentuale del canone o una cifra fissa al mese.'),
+      'Un compenso annuo fisso, su preventivo. Registrazione e attestazione incluse, imposte escluse.'),
+    r('Incasso dei canoni e gestione della casa', 'la paghi tu',
+      'Un compenso in percentuale del canone o in cifra fissa al mese. Su questa pagina il numero non c\'è ancora: te lo scriviamo nel mandato prima di firmare. Chiedilo nella prima telefonata.'),
     r('Registrazione del contratto', 'tu, fuori dal pluriennale', `<b>${eur(ASPI.prezzoRegistrazione)}</b>`),
     r('Attestazione del canone concordato', 'tu, fuori dal pluriennale', `<b>${eur(ASPI.prezzoAsseverazione)}</b>`),
     r('Imposte: registro e bolli', 'chi dice la legge',
-      'Se dovuti: con la cedolare secca non lo sono. Nessuna agenzia le paga al posto tuo.'),
-    r('Commissioni di carta e addebito SEPA', "l'inquilino", 'Il bonifico non costa niente a nessuno.'),
+      'Se dovuti: con la cedolare secca non lo sono. Non entrano nei nostri prezzi.'),
+    // NON c'è la riga «commissioni di carta e SEPA a carico dell'inquilino»:
+    // in Italia il supplemento per strumento di pagamento è vietato (art. 3
+    // c. 4 D.Lgs. 11/2010; art. 62 Cod. Consumo). È un P0 di prodotto per il
+    // legale (STUDIO_PROPRIETARI §7), e la pagina non lo pubblicizza.
     '        </tbody>',
   ].join('\n');
 }
@@ -122,15 +126,16 @@ export function brevePrezzi(O, ASPI, CATALOG) {
   const pack = CATALOG['concordato-pack'];
   const dove = off.incasso.riversamentoGiorniLavorativi
     ? `entro ${off.incasso.riversamentoGiorniLavorativi} giorni lavorativi dall'incasso`
-    : 'nei termini scritti nel mandato';
+    : 'nel termine scritto nel mandato';
   return [
     '    <p>Costi per il proprietario:</p>',
     '    <ul>',
     `      <li>prima locazione: ${eur(off.primaLocazione.provvigioneProprietario)} di provvigione, perché la paga l'inquilino (di norma il ${off.primaLocazione.provvigioneInquilinoDefaultPct}% del canone di un anno più IVA);</li>`,
     '      <li>dalla seconda: mezza mensilità o una mensilità più IVA, scritta nel mandato;</li>',
-    '      <li>accordo pluriennale: una fee annua fissa su preventivo, con registrazione e attestazione incluse e le imposte escluse;</li>',
+    '      <li>incasso dei canoni e gestione: un compenso scritto nel mandato, in percentuale del canone o in cifra fissa al mese;</li>',
+    '      <li>accordo pluriennale: un compenso annuo fisso su preventivo, con registrazione e attestazione incluse e le imposte escluse;</li>',
     `      <li>fuori dall'accordo pluriennale: registrazione ${eur(ASPI.prezzoRegistrazione)}, attestazione del concordato ${eur(ASPI.prezzoAsseverazione)};</li>`,
-    `      <li>Pacchetto Canone Concordato: ${eur(pack.eur)}, rimborsato se la casa non rientra in fascia.</li>`,
+    `      <li>per chi l'inquilino lo trova da solo: Pacchetto Canone Concordato, ${eur(pack.eur)} (verifica del canone, contratto, attestazione e registrazione), rimborsato se la casa non rientra in fascia.</li>`,
     '    </ul>',
     `    <p>I canoni li incassa BOOM, con carta, bonifico o addebito SEPA, e li riversa al proprietario ${dove}.</p>`,
   ].join('\n');
@@ -140,7 +145,8 @@ export function brevePrezzi(O, ASPI, CATALOG) {
 export function esitoEsempio(O, CAN) {
   const aperto = O.OFFER.canone.verificato === true;
   if (!aperto) {
-    return '      <p><b>Casa d\'esempio: Prati (zona C40), 70 m².</b> Il tetto del canone concordato lo calcoliamo sulla scheda ufficiale: la nostra tabella delle zone la sta ricontrollando l\'associazione, e finché non l\'ha confermata un numero qui non te lo scriviamo. Scegli zona e metri nel cartiglio della pianta, o <a href="#uscita">lasciaci il numero</a>: te lo diciamo al telefono.</p>';
+    // il tetto si DICE (è la regola dei contratti che facciamo); il numero no
+    return '      <p><b>Casa d\'esempio: Prati (zona C40), 70 m².</b> Con i contratti che facciamo (per studenti, transitorio, 3+2) l\'affitto ha un tetto, fissato per zona dall\'accordo di Roma; in cambio, con l\'attestazione di rispondenza, la cedolare è al 10% invece del 21%. Il tetto della tua zona qui non te lo scriviamo ancora: la nostra tabella delle zone non è ancora confermata dall\'associazione. Scegli zona e metri nei due campi sotto la pianta, o <a href="#uscita">lasciaci il numero</a>: te lo diciamo al telefono.</p>';
   }
   const z = CAN.ZONES.find((x) => x.cod === 'C40');
   const r = CAN.computeCanone({ zona: z, mq: 70, tipo: 'stud', parIdx: [0, 1, 2, 3, 4, 5, 6] });
@@ -153,7 +159,7 @@ export function claims(O) {
   const off = O.OFFER;
   const g = off.prova && off.prova.google;
   const giorni = off.incasso.riversamentoGiorniLavorativi;
-  const soldi = `      <p>Li incassiamo noi — con carta, bonifico con la causale della rata o addebito SEPA — e li riversiamo a te ${giorni ? `entro ${giorni} giorni lavorativi dall'incasso` : 'nei termini scritti nel mandato'}. Nei nostri conti sono somme per conto terzi, non ricavi: il rendiconto del mese ti dice cosa è entrato e quando.</p>`
+  const soldi = `      <p>Li incassiamo noi — con carta, bonifico con la causale della rata o addebito automatico sul conto (SEPA) — e li riversiamo a te ${giorni ? `entro ${giorni} giorni lavorativi dall'incasso` : 'nel termine che scriviamo nel mandato: se il mandato non lo dice, non firmarlo'}. Nella nostra contabilità sono somme per conto terzi, non ricavi. Il rendiconto del mese ti mostra quanto ha pagato l'inquilino, al lordo: quanto ti riversiamo, e quando, lo dice il mandato.</p>`
     + (off.incasso.direttoDisponibile ? '\n      <p>Oppure li incassi tu, direttamente: noi teniamo il calendario delle rate e il rendiconto arriva lo stesso.</p>' : '');
   const S = off.pluriennale.struttura;
   return {
@@ -170,6 +176,13 @@ export function claims(O) {
       ? `              <li>Polizza di responsabilità civile del mediatore: ${esc(off.polizzaRC.compagnia)}, n. ${esc(off.polizzaRC.numero)}.</li>` : '',
     'polizza-piede': off.polizzaRC && off.polizzaRC.compagnia && off.polizzaRC.numero
       ? `      <p>Polizza RC del mediatore: ${esc(off.polizzaRC.compagnia)}, n. ${esc(off.polizzaRC.numero)}.</p>` : '',
+    // LE REGOLE DELLO ZERO: finché il fondatore non le conferma, la FAQ non
+    // le enuncia come regola — dice dove stanno (nel mandato) e cosa pretendere
+    'faq-prima-locazione': '    <details>\n      <summary>Che cosa conta come prima locazione?</summary>\n      <div><p>'
+      + (off.regole.confermate === true
+        ? 'Conta la casa, non il proprietario: è la prima volta che troviamo un inquilino per quell\'immobile. Dalla ricerca successiva vale la mezza mensilità o la mensilità scritta nel mandato, solo se l\'inquilino lo troviamo noi.' + (off.regole.rinnovoStessoInquilinoGratis ? ' Il rinnovo con lo stesso inquilino non è una nuova ricerca.' : '')
+        : 'Lo scriviamo nel mandato prima di iniziare: quale locazione è a 0\u00a0€, quanto costa la successiva, e se il rinnovo con lo stesso inquilino costa qualcosa. Se una di queste righe manca, non firmarlo.')
+      + '</p></div>\n    </details>',
     'faq-recesso': off.mandato.recessoPreavvisoGiorni && off.mandato.pdf
       ? `    <details>\n      <summary>Posso uscire dal mandato?</summary>\n      <div><p>Sì: con ${esc(off.mandato.recessoPreavvisoGiorni)} giorni di preavviso, come è scritto nel mandato che leggi prima di firmare. I contratti già firmati restano validi e restano tuoi.</p></div>\n    </details>` : '',
     'canone-foglio': off.canone.verificato === true
@@ -180,26 +193,34 @@ export function claims(O) {
 
 // ── le carte d'esempio ─────────────────────────────────────────────────
 const SOLO_LINK = new Set(['proposta']);
+// la riga trascritta nella SUA lingua (WCAG 3.1.2): la proposta è in inglese
+const LINGUA = { proposta: 'en' };
+// che cosa si guarda, quando la riga sola non basta a capirlo
+const PRIMA_DELLA_RIGA = { 'inventario-uscita': 'Nel confronto, fra i «segnalati ma non verificabili»:' };
 export function figura(it) {
   if (!it) return '';
   const didasc = it.pdf
     ? `${esc(it.titolo)} · ESEMPIO — dati inventati · PDF, ${it.pages} pagin${it.pages === 1 ? 'a' : 'e'}, ${kb(it.bytes)}`
     : `${esc(it.titolo)} · ESEMPIO — dati inventati`;
-  const riga = it.riga ? `<p class="riga">${esc(it.riga)}</p>` : '';
+  // per il rendiconto a tre case la riga che prova qualcosa è l'ARRETRATO, non l'indirizzo
+  const alt = it.id === 'rendiconto-tre-case' && it.rigaAlternativa && it.rigaAlternativa.riga ? it.rigaAlternativa : null;
+  const testoRiga = alt ? alt.riga : it.riga;
+  const riga = (PRIMA_DELLA_RIGA[it.id] ? `<p class="didasc">${esc(PRIMA_DELLA_RIGA[it.id])}</p>` : '')
+    + (testoRiga ? `<p class="riga"${LINGUA[it.id] ? ` lang="${LINGUA[it.id]}"` : ''}>${esc(testoRiga)}</p>` : '');
   // La proposta resta un LINK: sul percorso del telefono le miniature sono
   // cinque (verbale, inventario, /casa, contratto, rendiconto), non sei.
   if (!it.thumb || SOLO_LINK.has(it.id)) {
     // la carta senza miniatura (la proposta): un link, e la riga che conta
     return `        <figcaption>${riga}<p class="didasc"><a class="carta-apri testo link-carta" data-carta="${esc(it.id)}" href="${esc(it.pdf)}" target="_blank" rel="noopener">Apri il PDF: ${esc(it.titolo)}, ${kb(it.bytes)}</a> · ESEMPIO — dati inventati</p></figcaption>`;
   }
-  const q = it.riquadro;
-  const lente = q && q.page === 1
+  const q = (alt && alt.riquadro) || it.riquadro;
+  const lente = q && q.page === ((it.thumb && it.thumb.page) || 1)
     ? `<span class="lente" aria-hidden="true" style="--lx:${(q.x / 595).toFixed(4)};--ly:${(q.y / 842).toFixed(4)};--lw:${(q.w / 595).toFixed(4)};--lh:${(q.h / 842).toFixed(4)}"></span>` : '';
   const img = `<img src="${esc(it.thumb.src)}" width="${it.thumb.w}" height="${it.thumb.h}" loading="lazy" decoding="async" alt="${esc(it.alt)}">`;
   const box = it.pdf
     ? `<a class="carta-apri" data-carta="${esc(it.id)}" href="${esc(it.pdf)}" target="_blank" rel="noopener">${img}${lente}</a>`
     : `<div class="carta-apri">${img}</div>`;
-  return `        ${box}\n        <figcaption>${riga}<p class="didasc">${didasc}${it.pdf ? ' — si apre nel visore del telefono' : ''}</p></figcaption>`;
+  return `        ${box}\n        <figcaption>${riga}<p class="didasc">${didasc}${it.pdf ? ' — si apre nel visore PDF' : ''}</p></figcaption>`;
 }
 export function linkZip(man) {
   if (!man || !man.zip) return '';
@@ -278,7 +299,11 @@ export function costruisci(html, src) {
   const cl = claims(O);
   for (const [k, v] of Object.entries(cl)) h = sostituisci(h, `CLAIM:${k}`, v);
   const items = new Map(((manifest && manifest.items) || []).map((it) => [it.id, it]));
-  for (const id of CARTE) h = sostituisci(h, `CARTA:${id}`, figura(items.get(id)));
+  for (const id of CARTE) {
+    // una carta che manca nel manifest non diventa una figura vuota in silenzio
+    if (manifest && !items.get(id)) throw new Error('carta mancante nel manifest: ' + id);
+    h = sostituisci(h, `CARTA:${id}`, figura(items.get(id)));
+  }
   h = sostituisci(h, 'OWNERS_ZIP', linkZip(manifest));
   h = sostituisci(h, 'OWNERS_JSONLD', jsonLd(h));
   return h;
@@ -294,6 +319,7 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
   if (!src.pianta) mancano.push('pianta.mjs');
   if (!src.manifest) mancano.push('carte/manifest.json');
   if (!src.cssApp) mancano.push('owners-app.css');
+  if (!src.manifest && !process.argv.includes('--check')) { console.error('manca carte/manifest.json (node design/owners/genera-fascicolo.mjs): non scrivo'); process.exit(1); }
   if (process.argv.includes('--check')) {
     if (dopo !== prima) { console.error('owners.html NON è quella che il costruttore produce: rilancia node design/owners/costruisci-owners.mjs'); process.exit(1); }
     console.log('owners.html è allineata alle sorgenti' + (mancano.length ? ' (mancano: ' + mancano.join(', ') + ')' : ''));

@@ -282,7 +282,13 @@ export async function buildPaPdf(pa, opts = {}) {
     page.drawText(cap, { x, y: boxTop, size: 8, font: bold, color: INK });
     page.drawRectangle({ x, y: boxTop - 74, width: colW, height: 62, borderColor: LINE, borderWidth: .8 });
     page.drawText('(signature)', { x: x + 8, y: boxTop - 24, size: 6.5, font: italic, color: SOFT });
-    const sigNames = cap.startsWith('T') ? tenants.map(t => t.signature || t.fullName).filter(Boolean) : [who];
+    // Il locatore sulla proposta NON firma: nessuna accettazione del locatore
+    // è registrata. Il suo nome disegnato in corsivo nel riquadro firma, sopra
+    // «Digitally accepted with typed signature(s)», faceva sembrare firmata da
+    // lui una proposta che non ha mai visto (visto sulla proposta d'esempio di
+    // /owners). Si scrive solo se un'accettazione del locatore c'è davvero.
+    const sigNames = cap.startsWith('T') ? tenants.map(t => t.signature || t.fullName).filter(Boolean) : (pa.landlordAcceptedAt ? [who] : []);
+    if (!cap.startsWith('T') && !sigNames.length) page.drawText('(to be accepted by the landlord / da accettare dal locatore)', { x: x + 8, y: boxTop - 44, size: 7.5, font: italic, color: SOFT });
     let sy = boxTop - 42;
     sigNames.slice(0, 3).forEach(n => { page.drawText(clean(n), { x: x + 12, y: sy, size: sigNames.length > 2 ? 9.5 : 12, font: italic, color: INK }); sy -= sigNames.length > 2 ? 12 : 15; });
     page.drawText(clean(who).slice(0, 62), { x, y: boxTop - 86, size: 7.5, font, color: SOFT });

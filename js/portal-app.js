@@ -21669,12 +21669,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">📋 TERMINI MANDATO</h4>
                     <div class="form-row"><div class="form-group"><label class="form-label">Data Inizio *</label><input type="date" class="form-input" name="startDate" value="${new Date().toISOString().split('T')[0]}" required></div><div class="form-group"><label class="form-label">Durata</label><select class="form-select" name="duration"><option value="12 mesi">12 mesi</option><option value="24 mesi">24 mesi</option><option value="36 mesi">36 mesi</option><option value="indeterminata">Indeterminata</option></select></div></div>
-                    <div class="form-row"><div class="form-group"><label class="form-label">Compenso % sul canone</label><input type="number" class="form-input" name="feePercent" value="10" min="0" max="100"></div><div class="form-group"><label class="form-label">Oppure Fisso €/mese</label><input type="number" class="form-input" name="feeFixed" placeholder="0"></div></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Compenso gestione % sul canone (+IVA)</label><input type="number" class="form-input" name="feePercent" min="0" max="100" placeholder="es. 8"></div><div class="form-group"><label class="form-label">Oppure fisso €/mese (+IVA)</label><input type="number" class="form-input" name="feeFixed" placeholder="0"></div></div>
                 </div>
                 <div style="background:var(--bg);padding:16px;border-radius:8px;margin-bottom:16px">
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">💶 PROVVIGIONE SULLA LOCAZIONE — come su /owners</h4>
                     <div class="form-row"><div class="form-group"><label class="form-label">Modello</label><select class="form-select" name="feeModel"><option value="prima">Prima locazione 0 € al proprietario (paga il conduttore)</option><option value="pluriennale">Accordo pluriennale: fee annua fissa</option></select></div><div class="form-group"><label class="form-label">Dalla seconda locazione</label><select class="form-select" name="feeNext"><option value="0.5">Mezza mensilità + IVA</option><option value="1">Una mensilità + IVA</option></select></div></div>
-                    <div class="form-row"><div class="form-group"><label class="form-label">Fee annua pluriennale € (+IVA)</label><input type="number" class="form-input" name="feeAnnual" min="0" placeholder="solo per il pluriennale"></div><div class="form-group"><label class="form-label">Riversamento canoni (giorni lavorativi)</label><input type="number" class="form-input" name="payoutDays" min="0" placeholder="es. 5"></div></div>
+                    <div class="form-row"><div class="form-group"><label class="form-label">Fee annua pluriennale € (+IVA)</label><input type="number" class="form-input" name="feeAnnual" min="0" placeholder="solo per il pluriennale"></div><div class="form-group"><label class="form-label">Riversamento canoni (giorni lavorativi) — obbligatorio se incassiamo noi</label><input type="number" class="form-input" name="payoutDays" min="0" placeholder="es. 5"></div></div>
                     <div class="form-group"><label class="form-label">Recesso: preavviso (giorni)</label><input type="number" class="form-input" name="noticeDays" min="0" placeholder="es. 30"></div>
                     <div style="font-size:11.5px;color:var(--text-muted)">Le righe le scrive js/owner-offer.js (mandatoRighe): sono le stesse della pagina /owners. Riversamento e recesso escono solo se compilati.</div>
                 </div>
@@ -21682,7 +21682,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <h4 style="margin:0 0 12px 0;color:var(--gold);font-size:13px">✅ SERVIZI INCLUSI</h4>
                     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
                         <label style="display:flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" name="svc_rent" checked> Riscossione canoni</label>
-                        <label style="display:flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" name="svc_payments" checked> Pagamento utenze</label>
+                        <label style="display:flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" name="svc_payments"> Pagamento utenze</label>
                         <label style="display:flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" name="svc_maint" checked> Gestione manutenzioni</label>
                         <label style="display:flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" name="svc_tenant" checked> Rapporti con inquilino</label>
                         <label style="display:flex;align-items:center;gap:6px;font-size:12px"><input type="checkbox" name="svc_condo"> Rapporti condominiali</label>
@@ -22060,6 +22060,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             return toast('error', 'Compila i campi obbligatori');
         }
         
+        // /owners promette che il termine di riversamento dei canoni è scritto nel
+        // mandato («se non c'è, non firmarlo»): se incassiamo noi, senza giorni non si genera
+        if (data.templateType === 'mandato_gestione' && data.svc_rent && !(Number(data.payoutDays) > 0)) {
+            return toast('error', 'Scrivi in quanti giorni lavorativi riversi i canoni: se incassiamo noi, il mandato deve dirlo');
+        }
         const { jsPDF } = window.jspdf;
         const doc = new jsPDF();
         const type = data.templateType;
@@ -22325,8 +22330,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             
             section('TERMINI DEL MANDATO');
             fieldRow('Decorrenza', data.startDate, 'Durata', data.duration);
-            const fee = data.feePercent ? `${data.feePercent}% sul canone` : `€${data.feeFixed}/mese`;
-            field('Compenso gestione incassi', fee);
+            const fee = data.feePercent ? `${data.feePercent}% del canone più IVA` : (data.feeFixed ? `€${data.feeFixed}/mese più IVA` : '');
+            if (fee) field('Compenso gestione incassi', fee);
             y += 5;
 
             // La provvigione sulla locazione: le righe vengono da

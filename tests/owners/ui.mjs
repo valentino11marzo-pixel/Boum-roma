@@ -151,17 +151,38 @@ sez('il cartiglio: ?z= compila senza alzare; zona + metri alzano una volta');
 }
 {
   const { ctx, pg } = await apri(390, 844, { mobile: true });
+  await pg.evaluate(() => { window.__ev = []; window.boomTrack = (n, p) => window.__ev.push([n, p || {}]); });
   await pg.selectOption('#zona', 'C40');
   await pg.fill('#mq', '70');
   await pg.locator('#mq').blur();
   await pg.waitForTimeout(1500);
-  const s = await pg.evaluate(() => ({ alzata: document.getElementById('riquadro').classList.contains('alzata'), q: location.search }));
+  const s = await pg.evaluate(() => ({ alzata: document.getElementById('riquadro').classList.contains('alzata'), q: location.search, ev: window.__ev }));
   ok('zona + metri validi alzano la pianta', s.alzata);
-  ok('e l\'indirizzo si ricorda la casa (?z=C40&mq=70)', /z=C40/.test(s.q) && /mq=70/.test(s.q), s.q);
-  await pg.selectOption('#zona', '__wa');
-  await pg.waitForTimeout(200);
-  const aperti = await pg.evaluate(() => ({ a: window.__aperti, v: document.getElementById('zona').value }));
-  ok('«Non la trovo» apre WhatsApp e rimette il menu a posto', aperti.a.some((u) => /wa\.me\/393313251961/.test(u)) && aperti.v !== '__wa', aperti);
+  // zona e metri restano sul telefono: né nell'indirizzo (che finisce nei
+  // log del tag di misura e nella cronologia) né nell'evento di misura.
+  ok('l\'indirizzo NON si riscrive con la casa', !/z=|mq=/.test(s.q), s.q);
+  const calc = s.ev.filter((e) => e[0] === 'owners_calcolo');
+  ok('owners_calcolo parte, senza zona né metri', calc.length >= 1 && calc.every((e) => !('zone' in e[1]) && !('zona' in e[1]) && !('mq' in e[1])), s.ev);
+  const wa = await pg.evaluate(() => { const a = document.querySelector('#cartiglio .nota a[href*="wa.me"]'); return a && { href: a.href, t: a.textContent }; });
+  ok('«Non trovi la zona?» è un link WhatsApp sotto i campi, non una voce della tendina',
+    !!wa && /wa\.me\/393313251961/.test(wa.href) && !(await pg.$('#zona option[value="__wa"]')), wa);
+  await ctx.close();
+}
+{
+  // sfogliare la tendina con la tastiera non alza la pianta a ogni freccia:
+  // si decide con Invio (o uscendo dal campo)
+  const { ctx, pg } = await apri(1440, 900, {});
+  await pg.fill('#mq', '70');
+  await pg.focus('#zona');
+  await pg.keyboard.press('ArrowDown');
+  await pg.keyboard.press('ArrowDown');
+  await pg.waitForTimeout(1500);
+  const a = await pg.evaluate(() => { const c = document.getElementById('riquadro').classList; return { v: document.getElementById('zona').value, alzata: c.contains('alzata') || c.contains('alzando') }; });
+  ok('frecce sulla zona: si sfoglia, la pianta resta giù', !a.alzata, a);
+  await pg.keyboard.press('Enter');
+  await pg.waitForTimeout(1500);
+  const b = await pg.evaluate(() => ({ v: document.getElementById('zona').value, alzata: document.getElementById('riquadro').classList.contains('alzata'), esito: document.getElementById('esito').textContent.trim().length }));
+  ok('Invio conferma: la pianta si alza e l\'esito si scrive', b.alzata && b.esito > 0, b);
   await ctx.close();
 }
 

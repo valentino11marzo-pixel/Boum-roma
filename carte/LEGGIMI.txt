@@ -40,8 +40,8 @@ COSA NON C'È, E PERCHÉ
   /owners non c'è ancora. Entrerà qui quando esisterà.
 - Il certificato di firma e il fascicolo fiscale: arrivano nella prossima
   versione di questo pacchetto.
-- La scheda di calcolo del canone concordato: la tabella delle zone la sta
-  ricontrollando l'associazione. Finché non è confermata, la scheda
+- La scheda di calcolo del canone concordato: la tabella delle zone non è
+  ancora confermata dall'associazione. Finché non lo è, la scheda
   d'esempio resta fuori.
 
 Egidi Immobiliare S.r.l. · P.IVA 17322991005 · via dei Coronari 181, Roma · boomrome.com
