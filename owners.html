@@ -103,12 +103,18 @@ main{max-width:none;margin:0;padding:calc(var(--boom-barra,76px) + 20px) 0 0}
 .sole-didas{font:400 13px/1.5 var(--mono);color:var(--t2);min-height:1.5em;margin:0 0 14px}
 .targhetta{display:flex;align-items:center;gap:12px;border:1px solid var(--line2);padding:12px 14px;margin:0 0 12px;background:#0B0B0D}
 .tg-cells{font:500 15px/1 var(--mono);letter-spacing:.14em;color:var(--gold);white-space:nowrap;overflow:hidden}
-.cartiglio{border:1px solid var(--line2);border-top:0;padding:12px 14px 10px;font:400 13px/1.9 var(--mono);color:var(--t2);margin:-12px 0 14px}
-.cartiglio label{color:var(--t1)}
-.cartiglio select,.cartiglio input{font:400 16px var(--sans);color:var(--t1);background:#111114;border:1px solid var(--line2);padding:9px 10px;min-height:44px;box-sizing:border-box;margin:4px 0}
-.cartiglio select{max-width:100%;width:100%}
-.cartiglio input{width:5.2em}
+.cartiglio{border:1px solid var(--line2);border-top:0;padding:10px 14px 10px;color:var(--t2);margin:-12px 0 14px}
+.c-tit{font:400 12px/1.5 var(--mono);letter-spacing:.5px;color:var(--t2);margin:0 0 8px}
+.cartiglio .ctl{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px}
+.cartiglio label{display:block;color:var(--t1)}
+.cartiglio label>span:first-child{display:block;font:400 11px var(--mono);letter-spacing:1.2px;text-transform:uppercase;color:var(--t2);margin:0 0 4px}
+.cartiglio select,.cartiglio input{font:400 16px var(--sans);color:var(--t1);background:#111114;border:1px solid var(--line2);padding:9px 10px;min-height:44px;box-sizing:border-box;margin:0}
+.cartiglio select{width:100%}
+.c-mq{display:flex;align-items:center;gap:6px;font:400 13px var(--mono)}
+.cartiglio input{width:4.6em}
 .cartiglio .nota{font:300 14px/1.5 var(--sans);color:var(--t2);margin:8px 0 0}
+.targhetta{flex-wrap:wrap}
+.targhetta .ferma{margin-left:auto}
 .ferma{font:400 12px var(--mono);letter-spacing:1px;color:var(--t2);border:1px solid var(--line);padding:10px 12px;min-height:44px;background:transparent}
 .ferma[aria-pressed="true"]{color:var(--gold);border-color:rgba(255,215,0,.45)}
 html:not(.js) .ferma,html:not(.js) .cartiglio .ctl{display:none}
@@ -210,6 +216,11 @@ details>div{padding:0 0 12px 26px;color:var(--t1)}
   .casa{display:grid;grid-template-columns:minmax(0,44fr) minmax(0,56fr);column-gap:64px;align-items:start}
   .soglia{grid-column:2;grid-row:1;padding-top:28px}
   .colpianta{grid-column:1;grid-row:1/3;position:sticky;top:calc(var(--boom-barra,76px) + 16px);margin:0;align-self:start}
+  /* la colonna ferma deve stare TUTTA in uno schermo da portatile (≈780 px
+     utili): la pianta si stringe con l'altezza della finestra, non la pagina */
+  .colpianta .cornice{max-width:min(100%,calc((100vh - var(--boom-barra,76px) - 290px) * 1.3333))}
+  .didas{font-size:15px;margin-top:10px}
+  .cartiglio .nota{margin-top:6px;font-size:13px}
   .dopo{grid-column:2;grid-row:2}
   .carta-apri{max-width:340px}
   .lente{display:block;position:absolute;left:calc(var(--lx)*100%);top:calc(var(--ly)*100%);width:calc(var(--lw)*100%);height:calc(var(--lh)*100%);border:2px solid var(--gold);box-sizing:border-box;margin:-3px}
@@ -231,6 +242,98 @@ details>div{padding:0 0 12px 26px;color:var(--t1)}
 #esito .timbro{color:var(--gold)}
 .carta-apri.testo{display:inline;background:none;box-shadow:none;max-width:none}
 /* OWNERS_CSS_PIANTA:START */
+/* design/owners/pianta.css — LA PIANTA CHE SI ALZA (pezzo A). Inlined in
+   owners.html dal costruttore. Valori legati a pianta.mjs: aspect-ratio =
+   VIEWBOX (1516/1137 = ASPECT 4/3) e scale(.9) = s. Il banco di prova
+   (anteprima-pianta.mjs) fallisce se divergono. Stati sul #riquadro:
+   nessuno (piatta grigia con html.js) → .alzando (1,1 s) → .alzata (finale).
+   Senza JS e con html.flat: la piatta GIÀ accesa, due luci spente. */
+.cornice{position:relative;overflow:clip;background:#060607;outline:1px solid rgba(138,135,126,.26);outline-offset:-1px}
+.riquadro{position:relative;width:100%;aspect-ratio:1516/1137;container-type:size;color:#8a877e;--pp-l:rgba(255,215,0,.13)}
+.riquadro>svg{position:absolute;left:0;top:0;width:100%;height:100%;display:block;overflow:visible}
+.riquadro>.pp-defs{width:0;height:0;overflow:hidden}
+.riquadro text{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace}
+.piatta{transform-origin:50% 50%}
+svg.alzata{visibility:hidden}
+svg.alzata path{stroke-width:.75;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+/* muri alzati: facce opache (nascondono ciò che sta dietro), tono per verso */
+svg.alzata .m1 path{fill:#0c0c0b;fill:color-mix(in srgb,currentColor 6%,#060607);stroke:currentColor}
+svg.alzata .m1 .x{fill:#121211;fill:color-mix(in srgb,currentColor 11%,#060607)}
+svg.alzata .m1 .t{fill:#0a0a0a;fill:color-mix(in srgb,currentColor 4%,#060607)}
+svg.alzata .m1,svg.alzata .m2,svg.alzata .m3{transform:translateY(var(--dy,0));opacity:0}
+svg.alzata .sole polygon{fill:#FFD700;fill-opacity:.12;stroke:none}
+svg.alzata .sole,svg.alzata .ld{opacity:0}
+.riquadro .mk rect{fill:none;stroke:none}
+
+/* la luce delle stanze: ereditata dentro <use> con le variabili */
+html:not(.js) .riquadro,html.flat .riquadro,.pianta-accesa{color:#FFD700;--r-porta:var(--pp-l);--r-cassaforte:var(--pp-l);--r-soggiorno:var(--pp-l);--r-cucina:var(--pp-l);--r-scrivania:var(--pp-l);--r-cassetta:var(--pp-l);--r-casa:var(--pp-l)}
+.pianta-accesa{--pp-l:rgba(255,215,0,.13)}
+.riquadro[data-accesa=porta]{--r-porta:var(--pp-l)}
+.riquadro[data-accesa=cassaforte]{--r-cassaforte:var(--pp-l)}
+.riquadro[data-accesa=soggiorno]{--r-soggiorno:var(--pp-l)}
+.riquadro[data-accesa=cucina]{--r-cucina:var(--pp-l)}
+.riquadro[data-accesa=scrivania]{--r-scrivania:var(--pp-l)}
+.riquadro[data-accesa=cassetta]{--r-cassetta:var(--pp-l)}
+html:not(.js) svg.alzata,html.flat svg.alzata,html:not(.js) .alza,html.flat .alza{display:none}
+
+/* le sei etichette: link veri, bersaglio >= 44x44, testo mai solo colore */
+.stanze{position:absolute;inset:0;pointer-events:none;margin:0;padding:0}
+.et{position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);pointer-events:auto;box-sizing:border-box;min-width:44px;min-height:44px;padding:3px 2px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;text-decoration:none;text-align:center;color:#d8d4c6;-webkit-tap-highlight-color:transparent}
+.et>span{display:block;background:rgba(6,6,7,.9);border:1px solid rgba(138,135,126,.55);padding:2px 5px 2px;white-space:nowrap}
+.et b,.et i{display:block}
+.et b{font:400 10px/1.3 ui-monospace,'SF Mono',Menlo,Consolas,monospace;letter-spacing:.09em;text-transform:uppercase}
+.et i{font:300 10.5px/1.2 'Helvetica Neue',Helvetica,Arial,sans-serif;font-style:normal;color:#aaa698;max-width:6.4em;white-space:normal;margin:1px auto 0}
+.et:focus-visible{outline:2px solid #FFD700;outline-offset:2px}
+.et:hover>span{border-color:currentColor}
+html:not(.js) .et,html.flat .et,.riquadro.alzata .et{color:#FFD700}
+html:not(.js) .et>span,html.flat .et>span,.riquadro.alzata .et>span{border-color:rgba(255,215,0,.5)}
+.riquadro[data-accesa=porta] [data-stanza=porta]>span,.riquadro[data-accesa=cassaforte] [data-stanza=cassaforte]>span,.riquadro[data-accesa=soggiorno] [data-stanza=soggiorno]>span,.riquadro[data-accesa=cucina] [data-stanza=cucina]>span,.riquadro[data-accesa=scrivania] [data-stanza=scrivania]>span,.riquadro[data-accesa=cassetta] [data-stanza=cassetta]>span{border-color:#FFD700;box-shadow:inset 0 -2px 0 #FFD700}
+
+/* il timbro-bottone, nell'angolo libero del riquadro (in alto a destra) */
+.alza{position:absolute;right:6px;top:6px;z-index:2;box-sizing:border-box;min-width:44px;min-height:44px;max-width:6.6em;padding:5px 7px;margin:0;background:#060607;color:#FFD700;border:1px solid #FFD700;border-radius:2px;font:400 10px/1.25 ui-monospace,'SF Mono',Menlo,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase;text-align:left;cursor:pointer}
+.alza:focus-visible{outline:2px solid #FFD700;outline-offset:2px}
+.alza:hover{background:#FFD700;color:#060607}
+
+/* LA SALITA: 0–650 ms ruota UN elemento (la piatta), niente perspective e
+   niente preserve-3d; a 650 ms passa la mano all'alzata già proiettata;
+   650–1100 ms salgono tre strati, sfalsati di 60 ms; grigio→oro 300 ms. */
+.riquadro.alzando .piatta{transform:rotateX(56deg) rotateZ(-38deg) scale(.9);visibility:hidden;will-change:transform;transition:transform .65s cubic-bezier(.2,.7,.2,1),visibility 0s .7s}
+.riquadro.alzando .pq-o{opacity:0;transition:opacity .15s}
+.riquadro.alzando svg.alzata{visibility:visible;color:#FFD700;transition:visibility 0s .65s,color .3s .8s}
+.riquadro.alzando svg.alzata .m1,.riquadro.alzando svg.alzata .m2,.riquadro.alzando svg.alzata .m3{transform:none;opacity:1;transition:transform .3s .65s cubic-bezier(.2,.7,.2,1),opacity .2s .65s}
+.riquadro.alzando svg.alzata .m2{transition-delay:.71s}
+.riquadro.alzando svg.alzata .sole{opacity:1;transition:opacity .3s .8s}
+.riquadro.alzando svg.alzata .ld{opacity:1;transition:opacity .15s .95s}
+.riquadro.alzando svg.alzata .m3{transition-delay:.77s}
+.riquadro.alzando .et,.riquadro.alzata .et{left:var(--xa);top:var(--ya)}
+/* alzate, le etichette si spostano con un transform (in cqw/cqh): nessuno
+   spostamento di layout, CLS 0 anche senza un input recente */
+@supports (width:1cqw){.riquadro.alzando .et,.riquadro.alzata .et{left:var(--x);top:var(--y);transform:translate(calc(var(--ex) * 1cqw - 50%),calc(var(--ey) * 1cqh - 50%))}}
+.riquadro.alzando .et{transition:left 0s .3s,top 0s .3s,transform 0s .3s;animation:pp-et 1.1s linear both}
+.riquadro.alzando .alza,.riquadro.alzata .alza{visibility:hidden;opacity:0;transition:opacity .15s,visibility 0s .15s}
+@keyframes pp-et{0%{opacity:1}13.6%{opacity:0}86.4%{opacity:0}100%{opacity:1}}
+/* lo stato finale: nulla si muove più, nessun livello promosso */
+.riquadro.alzata .piatta,.riquadro.alzata .pq-o{display:none}
+.riquadro.alzata svg.alzata{visibility:visible;color:#FFD700}
+.riquadro.alzata svg.alzata .m1,.riquadro.alzata svg.alzata .m2,.riquadro.alzata svg.alzata .m3{transform:none;opacity:1}
+.riquadro.alzata svg.alzata .sole,.riquadro.alzata svg.alzata .ld{opacity:1}
+.riquadro.alzata .alza{transition:none}
+/* ⏸ e riduzione del movimento: .alzata subito, nessuna transizione */
+html.still .riquadro,html.still .riquadro *{transition:none!important;animation:none!important}
+@media (prefers-reduced-motion:reduce){.riquadro,.riquadro *{transition:none!important;animation:none!important}}
+
+/* i ritagli 2D per telefono (una stanza accesa), spenti da 1100 px */
+.ritaglio{display:block;width:100%;max-width:420px;height:auto;color:#FFD700;margin:0 0 12px}
+.ritaglio[data-stanza=porta]{--r-porta:rgba(255,215,0,.16)}
+.ritaglio[data-stanza=cassaforte]{--r-cassaforte:rgba(255,215,0,.16)}
+.ritaglio[data-stanza=soggiorno]{--r-soggiorno:rgba(255,215,0,.16)}
+.ritaglio[data-stanza=cucina]{--r-cucina:rgba(255,215,0,.16)}
+.ritaglio[data-stanza=scrivania]{--r-scrivania:rgba(255,215,0,.16)}
+.ritaglio[data-stanza=cassetta]{--r-cassetta:rgba(255,215,0,.16)}
+@media (min-width:1100px){.ritaglio{display:none}}
+.pianta-accesa,.palazzo{display:block;width:100%;height:auto}
+.palazzo{color:#FFD700;max-width:520px}
+.sole-didas{min-height:1.4em}
 /* OWNERS_CSS_PIANTA:END */
 /* OWNERS_CSS_APP:START */
 /* OWNERS_CSS_APP:END */
@@ -479,6 +582,7 @@ html {
     <div class="cornice">
       <div class="riquadro" id="riquadro">
 <!-- OWNERS_PIANTA:START -->
+<svg class="pp-defs" width="0" height="0" aria-hidden="true" focusable="false"><defs><pattern id="pph" width="11" height="11" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 0V11" stroke="#fff" stroke-width="2.2"/></pattern><mask id="ppm" maskUnits="userSpaceOnUse" x="-600" y="-600" width="2800" height="2800"><rect x="-600" y="-600" width="2800" height="2800" fill="url(#pph)"/></mask><symbol id="pp" viewBox="-210 -135.5 1516 1137"><g stroke="none"><path d="M30 30h330v360h-330z" style="fill:var(--r-casa,none)"/><path d="M370 30h210v360h-210z" style="fill:var(--r-scrivania,none)"/><path d="M590 30h400v470h-400z" style="fill:var(--r-soggiorno,none)"/><path d="M30 400h550v110h-550z" style="fill:var(--r-casa,none)"/><path d="M30 520h250v290h-250z" style="fill:var(--r-casa,none)"/><path d="M290 520h290v40h-60v220h60v30h-290z" style="fill:var(--r-porta,none)"/><path d="M520 560h60v220h-60z" style="fill:var(--r-cassaforte,none)"/><path d="M590 510h400v300h-400z" style="fill:var(--r-cucina,none)"/><path d="M1020 540h120v260h-120z" style="fill:var(--r-cucina,none)"/><path d="M-110 880h440v80h-440z" style="fill:var(--r-cassetta,none)"/></g><g fill="none" stroke="currentColor" stroke-width=".75"><g style="display:var(--pp-fx,inline)"><path d="M115 30h160v200h-160zM125 40h65v35h-65zM200 40h65v35h-65zM115 110H275M405 32h140v68h-140zM452 112h46v44h-46zM452 148H498M600 150h90v220h-90zM622 172V348M600 172H690M600 348H690M790 320h140v90h-140zM745 660a45 45 0 1 0 90 0a45 45 0 1 0 -90 0zM620 750h340v60h-340zM690 756h100v50h-100zM698 763h84v37h-84zM860 756h60v50h-60zM866 770a8 8 0 1 0 16 0a8 8 0 1 0 -16 0zM898 770a8 8 0 1 0 16 0a8 8 0 1 0 -16 0zM866 793a8 8 0 1 0 16 0a8 8 0 1 0 -16 0zM898 793a8 8 0 1 0 16 0a8 8 0 1 0 -16 0zM30 730h80v80h-80zM30 730L110 810M110 730L30 810M136 792h40v18h-40zM138 772a18 21 0 1 0 36 0a18 21 0 1 0 -36 0zM199 778a17 24 0 1 0 34 0a17 24 0 1 0 -34 0zM30 545h50v60h-50zM39 575a16 22 0 1 0 32 0a16 22 0 1 0 -32 0zM520 560h60v220h-60zM520 560L580 780M580 560L520 780M1022 748h34v48h-34zM1030 772a9 9 0 1 0 18 0a9 9 0 1 0 -18 0zM1022 682h58v58h-58zM1030 711a21 21 0 1 0 42 0a21 21 0 1 0 -42 0zM1020 540h120v260h-120M1020 545h115v250h-115M-90 936h80v24h-80zM-70 936V960M-50 936V960M-30 936V960" stroke-opacity=".72" vector-effect="non-scaling-stroke"/><path d="M480 720A90 90 0 0 0 390 810M330 310A80 80 0 0 0 250 390M400 310A80 80 0 0 1 480 390M150 590A70 70 0 0 0 220 520M680 500A90 90 0 0 0 590 410M620 590A80 80 0 0 0 700 510M910 640A80 80 0 0 1 990 560M20 880A80 80 0 0 1 100 960M180 880A80 80 0 0 0 100 960M650 90A60 60 0 0 0 710 30M770 90A60 60 0 0 1 710 30M830 90A60 60 0 0 0 890 30M950 90A60 60 0 0 1 890 30" stroke-opacity=".5" vector-effect="non-scaling-stroke"/><path d="M480 810L480 720M330 390L330 310M400 390L400 310M150 520L150 590M590 500L680 500M620 510L620 590M990 640L910 640M20 960L20 880M180 960L180 880M650 30L650 90M770 30L770 90M830 30L830 90M950 30L950 90" vector-effect="non-scaling-stroke"/></g><path d="M650 12H770M650 18H770M830 12H950M830 18H950M420 12H530M420 18H530M12 160V280M18 160V280M12 630V690M18 630V690M1002 690V780M1008 690V780" vector-effect="non-scaling-stroke"/><use href="#ppw" fill="currentColor" stroke="none" mask="url(#ppm)"/><path id="ppw" d="M0 0h420v30h-50v360h30v10h-70v-10h30v-360h-330v130h-30zM0 280h30v110h220v10h-220v110h120v10h-120v110h-30zM0 690h30v120h250v-290h-60v-10h110v10h-40v290h100v30h-390zM450 510h130v-10h40v10h-30v300h400v-30h30v60h-540v-30h100v-290h-130zM480 390h100v-360h-50v-30h120v30h-60v380h-10v-10h-100zM700 500h290v-470h-40v-30h70v560h-30v-50h-290zM770 0h60v30h-60zM990 640h30v50h-30z" vector-effect="non-scaling-stroke"/><g style="display:var(--pp-pt,inline)"><use href="#ppf" fill="currentColor" stroke="none" mask="url(#ppm)"/><path id="ppf" d="M-110 960h130v30h-130zM180 960h150v30h-150z" vector-effect="non-scaling-stroke"/></g></g><g style="display:var(--pp-fd,inline)"><path d="M398 742h32v18h-32z" style="fill:var(--f-serratura,#8a877e)"/><path d="M398 800v-58" stroke="#8a877e" fill="none" vector-effect="non-scaling-stroke"/><path d="M550 658h32v18h-32z" style="fill:var(--f-cassaforte,#8a877e)"/><path d="M550 716v-58" stroke="#8a877e" fill="none" vector-effect="non-scaling-stroke"/></g></symbol><symbol id="pq" viewBox="-210 -135.5 1516 1137"><g fill="none" stroke="currentColor" stroke-width=".75" stroke-opacity=".62"><path d="M0 -80H1020M-9 -71l18 -18M1011 -71l18 -18M0 -18V-94M1020 -18V-94M-80 0V840M-89 9l18 -18M-89 849l18 -18M-18 0H-94M-18 840H-94M810 912h100v14h-100z" vector-effect="non-scaling-stroke"/><g transform="rotate(115 1236 800)"><path d="M1208 800a28 28 0 1 0 56 0a28 28 0 1 0 -56 0zM1236 819.6V765" vector-effect="non-scaling-stroke"/><path d="M1236 765l-9 22h18z" fill="currentColor" stroke="none"/></g><text x="1280" y="831" text-anchor="middle" fill="currentColor" stroke="none" font-size="30">N</text></g><path d="M710 912h100v14h-100zM910 912h300v14h-300z" fill="currentColor" fill-opacity=".62"/><g fill="currentColor" fill-opacity=".8" font-size="30" font-family="ui-monospace,SF Mono,Menlo,Consolas,monospace" letter-spacing="1"><text x="510" y="-94" text-anchor="middle">10,20</text><text x="-94" y="420" text-anchor="middle" transform="rotate(-90 -94 420)">8,40</text><text x="710" y="962" text-anchor="middle">0</text><text x="810" y="962" text-anchor="middle">1</text><text x="910" y="962" text-anchor="middle">2</text><text x="1210" y="962" text-anchor="middle">5 m</text></g></symbol></defs></svg><svg class="piatta" viewBox="-210 -135.5 1516 1137" aria-hidden="true" focusable="false"><use href="#pp" x="-210" y="-135.5" width="1516" height="1137"/><g class="mk"><rect data-mk="0" x="-0.5" y="-0.5" width="1" height="1"/><rect data-mk="1" x="1019.5" y="-0.5" width="1" height="1"/><rect data-mk="2" x="1019.5" y="839.5" width="1" height="1"/><rect data-mk="3" x="-0.5" y="839.5" width="1" height="1"/></g></svg><svg class="pq-o" viewBox="-210 -135.5 1516 1137" aria-hidden="true" focusable="false"><use href="#pq" x="-210" y="-135.5" width="1516" height="1137"/><g class="ld"><path d="M435 825l19 28.7M550 707l-23.2 -154.6M790 265l-90.4 8.8M790 650l168.8 -16.9M475 66l-215 8.8M-50 948l50.7 -72.7" fill="none" stroke="currentColor" stroke-opacity=".6" vector-effect="non-scaling-stroke"/><path d="M428 825a7 7 0 1 0 14 0a7 7 0 1 0 -14 0zM543 707a7 7 0 1 0 14 0a7 7 0 1 0 -14 0zM783 265a7 7 0 1 0 14 0a7 7 0 1 0 -14 0zM783 650a7 7 0 1 0 14 0a7 7 0 1 0 -14 0zM468 66a7 7 0 1 0 14 0a7 7 0 1 0 -14 0zM-57 948a7 7 0 1 0 14 0a7 7 0 1 0 -14 0z" fill="currentColor"/></g></svg><svg class="alzata" viewBox="-210 -135.5 1516 1137" aria-hidden="true" focusable="false" data-sole='{"lat":41.9028,"lng":12.4964,"n":115,"o":[0,-1],"m":[0.70921,-0.309846,0.554095,0.396585,-80.570181,431.074391],"f":[[650,30,770,30,0,240],[830,30,950,30,0,240]]}'><defs><clipPath id="pp-sc"><path d="M354.5 260.2l283.7 -124l260.4 186.4l-283.7 124z"/></clipPath></defs><use href="#pp" x="-210" y="-135.5" width="1516" height="1137" transform="matrix(0.70921 -0.309846 0.554095 0.396585 -80.570181 431.074391)" style="--pp-fd:none"/><g class="sole" clip-path="url(#pp-sc)"></g><g class="m1" style="--dy:89.5px"><path d="M609.8 148.6l28.4 -12.4v-89.5l-28.4 12.4z"/><path class="x" d="M593.2 136.7l16.6 11.9v-89.5l-16.6 -11.9z"/><path d="M482.1 204.4l42.6 -18.6v-89.5l-42.6 18.6z"/><path class="x" d="M465.5 192.5l16.6 11.9v-89.5l-16.6 -11.9z"/><path class="x" d="M638.2 136.2l260.4 186.4v-89.5l-260.4 -186.4z"/><path d="M354.5 260.2l42.5 -18.6v-89.6l-42.5 18.6z"/><path d="M311.9 278.8l35.5 -15.5v-89.6l-35.5 15.5z"/><path class="x" d="M295.3 266.9l16.6 11.9v-89.6l-16.6 -11.9z"/><path class="t" d="M217.3 233.8l78 -34.1l16.6 11.9l-78 34.1z"/><path d="M233.9 312.8l78 -34v-67.2l-78 34.1z"/><path class="x" d="M217.3 300.9l16.6 11.9v-67.1l-16.6 -11.9z"/><path d="M198.5 328.3l35.4 -15.5v-89.5l-35.4 15.5z"/><path class="x" d="M347.4 263.3l199.5 142.7v-89.5l-199.5 -142.8z"/><path class="x" d="M904.1 326.6l27.7 19.8v-89.5l-27.7 -19.9z"/><path d="M931.8 346.4l21.3 -9.3v-89.5l-21.3 9.3z"/><path d="M698.5 416.4l205.6 -89.8v-89.6l-205.6 89.9z"/><path d="M-42.7 433.7l234.1 -102.3v-89.5l-234.1 102.2z"/><path class="x" d="M976.2 378.1l27.7 19.9v-89.6l-27.7 -19.8z"/><path d="M1003.9 398l21.2 -9.3v-89.6l-21.2 9.3z"/><path class="x" d="M191.4 331.4l199.4 142.8v-89.5l-199.4 -142.8z"/><path class="t" d="M1003.9 323.4l21.2 -9.3l49.9 35.7l-21.3 9.2z"/><path class="x" d="M552.4 410l5.6 4v-89.6l-5.6 -3.9z"/><path d="M558 414l7 -3.1v-89.6l-7 3.1z"/><path class="x" d="M692.9 412.5l5.6 3.9v-89.5l-5.6 -4z"/><path class="x" d="M1003.9 398l49.8 35.7v-74.7l-49.8 -35.6z"/><path d="M481.5 441l70.9 -31v-89.5l-70.9 30.9z"/><path d="M1053.7 433.7l21.3 -9.3v-74.6l-21.3 9.2z"/><path class="x" d="M475.9 437l5.6 4v-89.6l-5.6 -3.9z"/><path class="x" d="M1053.7 433.7l16.7 11.9v-89.6l-16.7 -11.9z"/><path d="M620.5 450.5l21.2 -9.3v-89.5l-21.2 9.3z"/><path class="x" d="M607.8 449.7l5.6 3.9v-89.5l-5.6 -4z"/><path class="x" d="M-80.6 431.1l88.7 63.4v-89.5l-88.7 -63.5z"/><path d="M375.1 487.5l49.7 -21.7v-89.6l-49.7 21.7z"/><path d="M526.7 497.9l92.2 -40.3v-89.5l-92.2 40.2z"/><path class="x" d="M369.6 483.5l5.5 4v-89.6l-5.5 -3.9z"/><path d="M8.1 494.5l21.3 -9.3v-89.5l-21.3 9.3z"/><path class="x" d="M521.2 493.9l5.5 4v-89.6l-5.5 -3.9z"/><path class="t" d="M8.1 427.4l21.3 -9.3l66.5 47.6l-21.3 9.3z"/><path class="x" d="M618.9 457.6l160.7 115v-89.5l-160.7 -115z"/><path class="x" d="M8.1 494.5l66.5 47.6v-67.1l-66.5 -47.6z"/><path d="M725.3 615.5l383 -167.3v-89.6l-383 167.3z"/><path d="M74.6 542.1l21.3 -9.3v-67.1l-21.3 9.3z"/><path d="M413.2 547.4l28.4 -12.4v-89.5l-28.4 12.4z"/><path d="M162.3 580.4l156.1 -68.2v-89.5l-156.1 68.2z"/><path d="M363.6 569.1l42.5 -18.6v-89.5l-42.5 18.6z"/><path class="x" d="M358 565.2l5.6 3.9v-89.5l-5.6 -4z"/><path class="x" d="M406.1 550.5l160.7 115.1v-89.6l-160.7 -115z"/><path d="M228.8 628l85.1 -37.2v-89.5l-85.1 37.2z"/><path class="x" d="M708.7 603.6l16.6 11.9v-89.6l-16.6 -11.9z"/><path class="x" d="M74.6 542.1l310.3 222.1v-89.5l-310.3 -222.1z"/><path d="M384.9 764.2l276.6 -120.8v-89.6l-276.6 120.9z"/><path d="M595.6 767.9l106.4 -46.5v-89.5l-106.4 46.5z"/><path class="x" d="M579 756l16.6 11.9v-89.5l-16.6 -11.9z"/><path d="M390 857.8l92.2 -40.3v-89.5l-92.2 40.2z"/><path class="x" d="M373.3 845.9l16.7 11.9v-89.6l-16.7 -11.9z"/></g><g class="m2" style="--dy:59.1px"><g fill="#060607" stroke="none"><path id="ppc" d="M-80.6 341.5l297.9 -130.1l16.6 11.9l-35.4 15.5l199.4 142.8l21.3 -9.3l5.6 3.9l-49.7 21.7l-5.5 -3.9l21.2 -9.3l-199.4 -142.8l-234.1 102.2l72.1 51.6l-21.3 9.3zM74.6 452.6l21.3 -9.3l60.9 43.6l156 -68.2l5.6 4l-156.1 68.2l61 43.6l85.1 -37.2l5.5 4l-85.1 37.2l160.7 115l177.3 -77.5l-160.7 -115l-42.5 18.6l-5.6 -4l78.1 -34.1l5.5 4l-28.4 12.4l160.7 115l70.9 -31l16.7 11.9l-276.6 120.9zM521.2 404.4l92.2 -40.3l-5.6 -4l28.4 -12.4l5.5 4l-21.2 9.3l166.2 119l283.7 -124l-16.7 -11.9l21.3 -9.3l33.3 23.8l-383 167.3l-16.6 -11.9l70.9 -30.9l-160.7 -115l-92.2 40.2zM475.9 347.5l71 -31l-199.5 -142.8l-35.5 15.5l-16.6 -11.9l85.1 -37.2l16.6 11.9l-42.5 18.6l210.5 150.7l-7 3.1l-5.6 -3.9l-70.9 30.9zM692.9 322.9l205.7 -89.8l-260.4 -186.4l-28.4 12.4l-16.6 -11.9l49.6 -21.7l310.3 222.1l-21.3 9.3l-27.7 -19.9l-205.6 89.9zM465.5 103l42.6 -18.6l16.6 11.9l-42.6 18.6zM976.2 288.6l21.2 -9.3l27.7 19.8l-21.2 9.3zM373.3 756.3l92.2 -40.2l16.7 11.9l-92.2 40.2zM579 666.5l106.4 -46.5l16.6 11.9l-106.4 46.5z"/></g><use href="#ppc" fill="currentColor" stroke="none" mask="url(#ppm)"/><use href="#ppc" fill="none" stroke="currentColor"/></g><g class="m3" style="--dy:29.5px"><path d="M387.1 144.9l85.1 -37.2M390.4 147.3l85.1 -37.2M514.7 89.1l85.1 -37.2M518 91.5l85.2 -37.2M223.9 216.2l78.1 -34.1M227.3 218.5l78 -34M16.6 401.3l66.5 47.6M20.9 399.4l66.4 47.6M1012.4 304.7l49.9 35.7M1016.6 302.9l49.9 35.6" fill="none" stroke="currentColor"/><path d="M645 625v-74.6" stroke="#8a877e"/><path d="M645 550.4l24.1 -10.5v16.4l-24.1 10.5z" stroke="none" style="fill:var(--f-serratura,#8a877e)"/><path d="M706.2 544.6v-74.6" stroke="#8a877e"/><path d="M706.2 470l24.1 -10.5v16.4l-24.1 10.5z" stroke="none" style="fill:var(--f-cassaforte,#8a877e)"/><g class="ld"><path d="M685.1 623.5l120.6 154M701.2 541l-127.4 -78.4M626.5 291.4l-14.8 -123.3M839.9 444.1l156.8 8.2M292.9 310.1l-196.7 5.8M409.3 822.5l-59.9 9.6" fill="none" stroke="currentColor" stroke-opacity=".6" vector-effect="non-scaling-stroke"/><path d="M678.1 623.5a7 7 0 1 0 14 0a7 7 0 1 0 -14 0zM694.2 541a7 7 0 1 0 14 0a7 7 0 1 0 -14 0zM619.5 291.4a7 7 0 1 0 14 0a7 7 0 1 0 -14 0zM832.9 444.1a7 7 0 1 0 14 0a7 7 0 1 0 -14 0zM285.9 310.1a7 7 0 1 0 14 0a7 7 0 1 0 -14 0zM402.3 822.5a7 7 0 1 0 14 0a7 7 0 1 0 -14 0z" fill="currentColor"/></g></g><g class="mk"><rect data-mk="0" x="-81.1" y="430.6" width="1" height="1"/><rect data-mk="1" x="642.3" y="114.5" width="1" height="1"/><rect data-mk="2" x="1107.8" y="447.7" width="1" height="1"/><rect data-mk="3" x="384.4" y="763.7" width="1" height="1"/></g></svg><nav class="stanze" aria-label="Le stanze"><a class="et sp" href="#porta" data-stanza="porta" style="--x:43.8%;--y:87%;--xa:67%;--ya:80.3%;--ex:23.2;--ey:-6.7"><span><b>Porta</b> <i><span aria-hidden="true">⚑ </span>serratura spenta</i></span></a><a class="et sp" href="#cassaforte" data-stanza="cassaforte" style="--x:48.6%;--y:60.5%;--xa:51.7%;--ya:52.6%;--ex:3.1;--ey:-7.9"><span><b>Armadio</b> <i><span aria-hidden="true">⚑ </span>cassaforte spenta</i></span></a><a class="et" href="#soggiorno" data-stanza="soggiorno" style="--x:60%;--y:36%;--xa:54.2%;--ya:26.7%;--ex:-5.8;--ey:-9.3"><span><b>Soggiorno</b></span></a><a class="et" href="#cucina" data-stanza="cucina" style="--x:77.1%;--y:67.6%;--xa:79.6%;--ya:51.7%;--ex:2.5;--ey:-15.9"><span><b>Cucina</b></span></a><a class="et" href="#scrivania" data-stanza="scrivania" style="--x:31%;--y:18.5%;--xa:20.2%;--ya:39.7%;--ex:-10.8;--ey:21.2"><span><b>Scrivania</b></span></a><a class="et" href="#cassetta" data-stanza="cassetta" style="--x:13.9%;--y:88.9%;--xa:36.9%;--ya:85.1%;--ex:23;--ey:-3.8"><span><b>Cassetta</b></span></a></nav>
 <!-- OWNERS_PIANTA:END -->
         <button id="alza" class="alza" type="button">↥ Alza la pianta</button>
       </div>
@@ -488,12 +592,14 @@ html {
     <div class="targhetta" id="targhetta">
       <span class="tg-cells" id="tgCells" aria-hidden="true">C40 · PRATI · 70 M²</span>
       <span class="vh" id="tgTxt">Casa d'esempio: zona C40 Prati, 70 metri quadri</span>
+      <button class="ferma" type="button" aria-pressed="false">⏸ Ferma animazioni</button>
     </div>
     <form class="cartiglio" id="cartiglio" action="#uscita">
-      <span>Pianta di esempio disegnata da BOOM · Roma</span>
-      <span class="ctl"> · <label for="zona">Zona dell'accordo</label>
-      <select id="zona" name="z">
-        <option value="">scegli la zona…</option>
+      <p class="c-tit">Pianta di esempio disegnata da BOOM · Roma</p>
+      <div class="ctl">
+        <label class="c-z" for="zona"><span>Zona dell'accordo</span>
+        <select id="zona" name="z">
+          <option value="">scegli la zona…</option>
 <!-- OWNERS_ZONE:START -->
         <option value="D37">Appia Antica · D37</option>
         <option value="C51">Appio Latino · C51</option>
@@ -571,12 +677,12 @@ html {
         <option value="C26">Villaggio Olimpico · C26</option>
         <option value="B29">Viminale · B29</option>
 <!-- OWNERS_ZONE:END -->
-        <option value="__wa">Non la trovo → scrivici la via su WhatsApp</option>
-      </select>
-      <label for="mq">Metri quadri</label> <input id="mq" name="mq" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="70"> m²</span>
+          <option value="__wa">Non la trovo → scrivici la via su WhatsApp</option>
+        </select></label>
+        <label class="c-m" for="mq"><span>Metri quadri</span><span class="c-mq"><input id="mq" name="mq" inputmode="numeric" autocomplete="off" maxlength="4" placeholder="70"> m²</span></label>
+      </div>
       <p class="nota ctl">Zona e metri restano sul tuo telefono: non partono verso nessuno.</p>
     </form>
-    <button class="ferma" type="button" aria-pressed="false">⏸ Ferma animazioni</button>
   </aside>
 
   <div class="dopo">
@@ -596,6 +702,7 @@ html {
       <h2 id="h-porta">Chi entra ha firmato e pagato prima delle chiavi.</h2>
       <p class="lead">Riaverla, se smette di pagare, dipende dalla legge.</p>
 <!-- RITAGLIO:porta:START -->
+      <svg class="ritaglio" data-stanza="porta" viewBox="160 520 560 350" aria-hidden="true" focusable="false"><use href="#pp" x="-210" y="-135.5" width="1516" height="1137"/></svg>
 <!-- RITAGLIO:porta:END -->
       <h3>Prima delle chiavi</h3>
       <p>Chi cerca con noi arriva a Roma per studio o per lavoro. Le visite si fissano solo negli orari liberi, e ogni richiesta la approva una persona. Poi una proposta con nome, codice fiscale e coinquilini obbligati in solido, e il pagamento prima delle chiavi. La stessa casa non si promette a due persone.</p>
@@ -639,6 +746,7 @@ html {
       <p class="luogo"><b>Nell'armadio d'ingresso</b> · la cassaforte</p>
       <h2 id="h-cassaforte">Chi ci paga, e quanto. La cassaforte, invece, è vuota.</h2>
 <!-- RITAGLIO:cassaforte:START -->
+      <svg class="ritaglio" data-stanza="cassaforte" viewBox="330 520 480 300" aria-hidden="true" focusable="false"><use href="#pp" x="-210" y="-135.5" width="1516" height="1137"/></svg>
 <!-- RITAGLIO:cassaforte:END -->
       <p class="lead">0&nbsp;€ di provvigione non vuol dire 0&nbsp;€ in tutto.</p>
       <table class="prezzi">
@@ -681,6 +789,7 @@ html {
       <p class="luogo"><b>In soggiorno</b> · il divano</p>
       <h2 id="h-soggiorno">Il divano aveva già lo strappo? Lo dice l'inventario, non la memoria.</h2>
 <!-- RITAGLIO:soggiorno:START -->
+      <svg class="ritaglio" data-stanza="soggiorno" viewBox="230 -10 832 520" aria-hidden="true" focusable="false"><use href="#pp" x="-210" y="-135.5" width="1516" height="1137"/></svg>
 <!-- RITAGLIO:soggiorno:END -->
       <p>Il giro della casa si filma. L'intelligenza artificiale propone l'elenco stanza per stanza, e una persona lo corregge riga per riga. L'AI non può scrivere «buono stato»: lo dichiara solo chi ha guardato, e ciò che nessuno ha verificato resta vuoto.</p>
       <p>Alla riconsegna il confronto esce da solo: cosa manca, cosa si è rotto, cosa è comparso. Un danno su un oggetto di cui all'ingresso non era scritto niente non si addebita: finisce fra i «non verificabili», con il perché.</p>
@@ -711,6 +820,7 @@ html {
       <h2 id="h-cucina">La caldaia non la chiamano a te.</h2>
       <p class="lead">Il tuo inquilino ha un'app. Tu, un'email al mese.</p>
 <!-- RITAGLIO:cucina:START -->
+      <svg class="ritaglio" data-stanza="cucina" viewBox="560 470 600 375" aria-hidden="true" focusable="false"><use href="#pp" x="-210" y="-135.5" width="1516" height="1137"/></svg>
 <!-- RITAGLIO:cucina:END -->
       <p>Si chiama /casa, in inglese e in italiano. Dentro c'è il manuale della casa — Wi-Fi, riscaldamento, rifiuti, elettrodomestici, accesso al palazzo, emergenze, regole — che compiliamo con te una volta. I guasti si segnalano da lì, con categoria e priorità: arrivano a noi, e tu li vedi in sola lettura. Prima dell'ingresso l'inquilino riceve le email che lo preparano, a 30, 14, 7 e 1 giorno: documenti, utenze, chiavi.</p>
       <figure class="carta" data-carta="casa-guasti">
@@ -725,13 +835,14 @@ html {
       <p class="luogo"><b>Alla scrivania</b> · lo studio</p>
       <h2 id="h-scrivania">Il contratto è quello dell'accordo di Roma, e lo firmi dal telefono.</h2>
 <!-- RITAGLIO:scrivania:START -->
+      <svg class="ritaglio" data-stanza="scrivania" viewBox="155 -10 640 400" aria-hidden="true" focusable="false"><use href="#pp" x="-210" y="-135.5" width="1516" height="1137"/></svg>
 <!-- RITAGLIO:scrivania:END -->
       <p>Usiamo i modelli dell'accordo territoriale di Roma del 27 luglio 2023: per studenti, transitorio e 3+2. Per studenti e 3+2 un test automatico confronta ogni frase col modello depositato; il transitorio usa lo stesso accordo, e il confronto automatico arriverà quando avremo il file del modello.</p>
       <p>Si firma dal telefono, con firma elettronica semplice (art. 21 del Codice dell'amministrazione digitale). Firma prima l'inquilino, poi a te arriva «Tocca a Lei».</p>
       <figure class="carta" data-carta="contratto-studenti">
 <!-- CARTA:contratto-studenti:START -->
         <a class="carta-apri" data-carta="contratto-studenti" href="/carte/contratto-studenti-esempio.pdf" target="_blank" rel="noopener"><img src="/carte/contratto-studenti-esempio.webp" width="560" height="792" loading="lazy" decoding="async" alt="Prima pagina del contratto per studenti d’esempio (Allegato C dell’accordo territoriale di Roma), timbro «ESEMPIO — dati inventati»."><span class="lente" aria-hidden="true" style="--lx:0.0903;--ly:0.5730;--lw:0.6358;--lh:0.0209"></span></a>
-        <figcaption><p class="riga">Il contratto è stipulato per la durata di 12 mesi, dal 31/08/2025 al 30/08/2026.</p><p class="didasc">Contratto di locazione per studenti universitari (Allegato C) · ESEMPIO — dati inventati · PDF, 4 pagine, 29 KB — si apre nel visore del telefono</p></figcaption>
+        <figcaption><p class="riga">Il contratto è stipulato per la durata di 12 mesi, dal 01/09/2025 al 31/08/2026.</p><p class="didasc">Contratto di locazione per studenti universitari (Allegato C) · ESEMPIO — dati inventati · PDF, 4 pagine, 29 KB — si apre nel visore del telefono</p></figcaption>
 <!-- CARTA:contratto-studenti:END -->
       </figure>
       <p class="aport"><a href="/sign?demo=landlord">✍︎ Firma come proprietario: è un esempio →</a></p>
@@ -746,12 +857,13 @@ html {
       <p class="luogo"><b>Al portone</b> · la cassetta della posta</p>
       <h2 id="h-cassetta">Il 1° del mese, il rendiconto. Senza doverlo chiedere.</h2>
 <!-- RITAGLIO:cassetta:START -->
+      <svg class="ritaglio" data-stanza="cassetta" viewBox="-140 715 500 312" aria-hidden="true" focusable="false"><use href="#pp" x="-210" y="-135.5" width="1516" height="1137"/></svg>
 <!-- RITAGLIO:cassetta:END -->
       <p>Arriva per email la mattina del 1° di ogni mese in cui c'è stato un movimento: incassi con data e modalità, rate aperte, arretrati, manutenzioni. Se nel mese non si muove nulla, non arriva.</p>
       <figure class="carta" data-carta="rendiconto">
 <!-- CARTA:rendiconto:START -->
         <a class="carta-apri" data-carta="rendiconto" href="/carte/rendiconto-esempio.pdf" target="_blank" rel="noopener"><img src="/carte/rendiconto-esempio.webp" width="560" height="792" loading="lazy" decoding="async" alt="Il rendiconto mensile d’esempio di un immobile: canone incassato con data e modalità, arretrati, manutenzioni, timbro «ESEMPIO — dati inventati»."><span class="lente" aria-hidden="true" style="--lx:0.0857;--ly:0.2178;--lw:0.8286;--lh:0.0190"></span></a>
-        <figcaption><p class="riga">Incassata rata 2026-07 (bonifico) il 03/07/2026 €1200</p><p class="didasc">Rendiconto mensile — Luglio 2026 · ESEMPIO — dati inventati · PDF, 1 pagina, 3 KB — si apre nel visore del telefono</p></figcaption>
+        <figcaption><p class="riga">Incassata rata 2026-07 (bonifico) il 03/07/2026 €1.200</p><p class="didasc">Rendiconto mensile — Luglio 2026 · ESEMPIO — dati inventati · PDF, 1 pagina, 3 KB — si apre nel visore del telefono</p></figcaption>
 <!-- CARTA:rendiconto:END -->
       </figure>
       <p>Le altre email che ricevi hanno oggetti così:</p>
@@ -771,6 +883,7 @@ html {
     <h2 id="h-acceso">Tutto acceso, tranne due luci.</h2>
     <div class="pianta-piccola">
 <!-- OWNERS_ACCESO:START -->
+<svg class="pianta-accesa" viewBox="-134 -134 1424.8 1134" aria-hidden="true" focusable="false"><use href="#pq" x="-210" y="-135.5" width="1516" height="1137"/><use href="#pp" x="-210" y="-135.5" width="1516" height="1137"/></svg>
 <!-- OWNERS_ACCESO:END -->
     </div>
     <h3 class="luogo">Le cose che non facciamo</h3>
@@ -787,6 +900,7 @@ html {
       <summary>Hai più case, una società o un fondo?</summary>
       <div>
 <!-- OWNERS_PALAZZO:START -->
+<svg class="palazzo" viewBox="-12 -751.3 719.4 1000.4" aria-hidden="true" focusable="false"><path d="M0 0V-563.7M258.6 185.1V-378.7M660.5 9.5V-554.3" fill="none" stroke="currentColor" stroke-width=".75" stroke-opacity=".5" vector-effect="non-scaling-stroke"/><path d="M0 0l401.9 -175.6l166.2 119l47.3 -20.7l80 57.3l-47.2 20.7l12.3 8.8l-401.9 175.6z" fill="#060607" stroke="none"/><use href="#pp" x="-210" y="-135.5" width="1516" height="1137" transform="matrix(0.394 -0.1721 0.3078 0.22030000000000002 0 0)" style="--pp-fd:none;--pp-fx:none"/><path d="M0 -140.9l401.9 -175.6l166.2 119l47.3 -20.7l80 57.3l-47.2 20.6l12.3 8.9l-401.9 175.5z" fill="#060607" stroke="none"/><use href="#pp" x="-210" y="-135.5" width="1516" height="1137" transform="matrix(0.394 -0.1721 0.3078 0.22030000000000002 0 -140.9364)" style="--pp-pt:none;--pp-fd:none;--pp-fx:none"/><path d="M0 -281.9l401.9 -175.6l166.2 119l47.3 -20.6l80 57.3l-47.2 20.6l12.3 8.8l-401.9 175.6z" fill="#060607" stroke="none"/><use href="#pp" x="-210" y="-135.5" width="1516" height="1137" transform="matrix(0.394 -0.1721 0.3078 0.22030000000000002 0 -281.8728)" style="--pp-pt:none;--pp-fd:none;--pp-fx:none"/><path d="M0 -422.8l401.9 -175.6l166.2 119l47.3 -20.7l80 57.3l-47.2 20.7l12.3 8.8l-401.9 175.6z" fill="#060607" stroke="none"/><use href="#pp" x="-210" y="-135.5" width="1516" height="1137" transform="matrix(0.394 -0.1721 0.3078 0.22030000000000002 0 -422.80920000000003)" style="--pp-pt:none;--pp-fd:none;--pp-fx:none"/><path d="M0 -563.7l401.9 -175.6l166.2 119l47.3 -20.7l80 57.3l-47.2 20.6l12.3 8.8l-401.9 175.6z" fill="#060607" stroke="none"/><use href="#pp" x="-210" y="-135.5" width="1516" height="1137" transform="matrix(0.394 -0.1721 0.3078 0.22030000000000002 0 -563.7455)" style="--pp-pt:none;--pp-fd:none;--pp-fx:none"/></svg>
 <!-- OWNERS_PALAZZO:END -->
         <h3 class="luogo"><b>Venti case, un solo interlocutore.</b></h3>
         <div class="pf-grid">

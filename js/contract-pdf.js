@@ -33,7 +33,17 @@
 
   // ── Helper condivisi dai due modelli (copie locali: il modulo deve
   // impaginare identico ovunque, senza dipendere dal portal) ──────────────
-  function fmtDate(d) { if (!d) return '—'; const dt = d.toDate ? d.toDate() : new Date(d); return isNaN(dt.getTime()) ? '—' : dt.toLocaleDateString('it-IT'); }
+  /* «via Via dell'Esempio 12»: il modello dice «posta in …, via …», ma gli
+   indirizzi veri cominciano già col tipo di strada (Via, Viale, Piazza…).
+   Se c'è, il «via» del modello non si ripete; se l'indirizzo manca resta il
+   puntino del modello. Trovato generando i documenti d'esempio di /owners. */
+  var TIPO_STRADA = /^(via|viale|v\.le|piazza|p\.zza|piazzale|piazzetta|largo|corso|c\.so|vicolo|lungotevere|lungomare|circonvallazione|borgo|salita|strada|clivo|galleria|passeggiata|rampa|scalinata|localit[aà]|contrada|traversa|via\.)\b/i;
+  function viaDi(indirizzo) {
+    var s = String(indirizzo == null ? '' : indirizzo).trim();
+    return TIPO_STRADA.test(s) ? s : 'via ' + s;
+  }
+
+function fmtDate(d) { if (!d) return '—'; const dt = d.toDate ? d.toDate() : new Date(d); return isNaN(dt.getTime()) ? '—' : dt.toLocaleDateString('it-IT'); }
 
   function monthsBetween(startDate, endDate) {
     if (!startDate || !endDate) return { months: 0, days: 0, total: 0, text: '' };
@@ -369,7 +379,7 @@
     addParagraph(`Il/La sig./soc. ${locName}, nato/a il ${locDOB} a ${locPOB}, domiciliato/a in ${locDom}, C.F. ${locCF}, di seguito denominato/a locatore`);
     addParagraph(`concede in locazione al/alla sig. ${tenName}, nato/a il ${tenDOB} a ${tenPOB}, domiciliato/a in ${tenDom}, C.F. ${tenCF}, di seguito denominato/a conduttore, identificato/a mediante ${tenDoc}, che accetta, per sé e suoi aventi causa,`);
 
-    addParagraph(`A) l'unità immobiliare posta in ${propCity}, via ${propStreet}, piano ${propFloor}${propScala ? ', scala ' + propScala : ''}, int. ${propInt}, composta di n. ${propRooms} vani, oltre cucina e servizi, e dotata altresì dei seguenti elementi accessori ${propAcc}`);
+    addParagraph(`A) l'unità immobiliare posta in ${propCity}, ${viaDi(propStreet)}, piano ${propFloor}${propScala ? ', scala ' + propScala : ''}, int. ${propInt}, composta di n. ${propRooms} vani, oltre cucina e servizi, e dotata altresì dei seguenti elementi accessori ${propAcc}`);
     addParagraph(`${propFurnished} come da elenco a parte sottoscritto dalle parti.`);
 
     addParagraph(`a) estremi catastali identificativi dell'unità immobiliare: ${cadast}`);
@@ -1012,7 +1022,7 @@
     addParagraph(`al sig. ${tenName}, C.F. ${tenCF}, nato/a a ${tenPOB} il ${tenDOB}, domiciliato/a nei locali oggetto della locazione, identificato/a mediante ${tenDocLabel} n. ${tenDocNum} rilasciata da ${tenDocIssuer} il ${tenDocIssued}, di seguito denominato/a conduttore,`);
     addParagraph('CHE ACCETTA, PER SÉ E SUOI AVENTI CAUSA,', { bold: true, align: 'center', x: pageW / 2, after: 4 });
 
-    addParagraph(`l'unità immobiliare posta in ${propCity}, via ${propStreet}, piano ${propFloor}${propScala ? ', scala ' + propScala : ''}, int. ${propInt}, composta di n. ${propRooms} vani, oltre cucina e servizi, e dotata altresì dei seguenti elementi accessori: ${propAcc}, ${propFurnished} come da elenco a parte sottoscritto dalle parti.`);
+    addParagraph(`l'unità immobiliare posta in ${propCity}, ${viaDi(propStreet)}, piano ${propFloor}${propScala ? ', scala ' + propScala : ''}, int. ${propInt}, composta di n. ${propRooms} vani, oltre cucina e servizi, e dotata altresì dei seguenti elementi accessori: ${propAcc}, ${propFurnished} come da elenco a parte sottoscritto dalle parti.`);
 
     addParagraph(`A) estremi catastali identificativi dell'unità immobiliare: ${cadast}, rendita catastale € ${rendita}.`);
     addParagraph(`B) PRESTAZIONE ENERGETICA: classe ${energy}. Il conduttore dichiara di aver ricevuto le informazioni e la documentazione in ordine alla attestazione della prestazione energetica dell'immobile.`);

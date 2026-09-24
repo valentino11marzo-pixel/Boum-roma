@@ -142,8 +142,16 @@ export function isoWeek(date = new Date()) {
   return `${d.getUTCFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
+// Deterministico: toLocaleString('it-IT') NON raggruppa sotto 10.000 (la
+// regola CLDR del minimo di due cifre), quindi il rendiconto ai proprietari
+// stampava «€1200» accanto a «€12.000». Migliaia col punto, decimali con la
+// virgola solo quando ci sono.
 export function euro(n) {
-  return '€' + (Number(n) || 0).toLocaleString('it-IT');
+  const v = Number(n) || 0;
+  const cent = Math.round(Math.abs(v) * 100);
+  const int = String(Math.floor(cent / 100)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  const dec = cent % 100 ? ',' + String(cent % 100).padStart(2, '0') : '';
+  return (v < 0 ? '−€' : '€') + int + dec;
 }
 
 export function esc(s) {

@@ -85,13 +85,13 @@
       "id": "contratto-studenti",
       "titolo": "Contratto di locazione per studenti universitari (Allegato C)",
       "pdf": "/carte/contratto-studenti-esempio.pdf",
-      "bytes": 29768,
+      "bytes": 29766,
       "pages": 4,
       "thumb": {
         "src": "/carte/contratto-studenti-esempio.webp",
         "w": 560,
         "h": 792,
-        "bytes": 59690
+        "bytes": 59600
       },
       "alt": "Prima pagina del contratto per studenti d’esempio (Allegato C dell’accordo territoriale di Roma), timbro «ESEMPIO — dati inventati».",
       "riga": "Il contratto è stipulato per la durata di 12 mesi, dal 01/09/2025 al 31/08/2026.",
@@ -118,16 +118,16 @@
       "id": "rendiconto",
       "titolo": "Rendiconto mensile — Luglio 2026",
       "pdf": "/carte/rendiconto-esempio.pdf",
-      "bytes": 3332,
+      "bytes": 3333,
       "pages": 1,
       "thumb": {
         "src": "/carte/rendiconto-esempio.webp",
         "w": 560,
         "h": 792,
-        "bytes": 17164
+        "bytes": 17212
       },
       "alt": "Il rendiconto mensile d’esempio di un immobile: canone incassato con data e modalità, arretrati, manutenzioni, timbro «ESEMPIO — dati inventati».",
-      "riga": "Incassata rata 2026-07 (bonifico) il 03/07/2026 €1200",
+      "riga": "Incassata rata 2026-07 (bonifico) il 03/07/2026 €1.200",
       "riquadro": {
         "page": 1,
         "x": 51,
@@ -141,13 +141,13 @@
       "id": "rendiconto-tre-case",
       "titolo": "Rendiconto mensile di tre immobili — Luglio 2026",
       "pdf": "/carte/rendiconto-tre-case-esempio.pdf",
-      "bytes": 3862,
+      "bytes": 3866,
       "pages": 1,
       "thumb": {
         "src": "/carte/rendiconto-tre-case-esempio.webp",
         "w": 560,
         "h": 792,
-        "bytes": 25534
+        "bytes": 25652
       },
       "alt": "Il rendiconto mensile d’esempio con tre immobili, una sezione per casa, timbro «ESEMPIO — dati inventati».",
       "riga": "Via dell’Esempio 12, 00193 Roma",
@@ -159,7 +159,7 @@
         "h": 17.6
       },
       "rigaAlternativa": {
-        "riga": "ARRETRATO rata 2026-06 (scad. 05/06/2026) €1450",
+        "riga": "ARRETRATO rata 2026-06 (scad. 05/06/2026) €1.450",
         "riquadro": {
           "page": 1,
           "x": 51,
@@ -226,7 +226,7 @@
         "src": "/carte/casa-guasti-esempio.webp",
         "w": 560,
         "h": 658,
-        "bytes": 19162,
+        "bytes": 19766,
         "riquadroPx": {
           "x": 36,
           "y": 477,
@@ -242,7 +242,7 @@
   ],
   "zip": {
     "file": "/carte/fascicolo-esempio.zip",
-    "bytes": 141058,
+    "bytes": 141061,
     "entries": [
       "01_Proposta_di_locazione_ESEMPIO.pdf",
       "02_Contratto_studenti_Allegato_C_ESEMPIO.pdf",

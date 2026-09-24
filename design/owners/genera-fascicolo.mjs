@@ -13,7 +13,7 @@
 //     contratto studenti Allegato C, rendiconto di uno e di tre immobili,
 //     proposta, scheda di calcolo del canone);
 //   - una miniatura WebP 560px della prima pagina di ciascuno (pdfjs-dist in
-//     Chromium, MAI nel repo: PDFJS_DIR, default nella scratchpad);
+//     Chromium, MAI nel repo: PDFJS_DIR, default <tmpdir>/pdfjs);
 //   - la schermata dei guasti di /casa (tenant.html vero, Firebase finto);
 //   - fascicolo-esempio.zip (api/_zip.js) + LEGGIMI.txt;
 //   - manifest.json (la forma del contratto §6: la legge l'integratore).
@@ -22,8 +22,12 @@
 //   - nessuna rete, nessun Firestore: i builder ricevono i dati in mano;
 //   - le date le passiamo noi (una linea del tempo TUTTA nel passato): un
 //     builder che stamperebbe «oggi» riceve la data del fatto;
-//   - idempotente: PDF e ZIP a byte identici fra due giri (date fisse, ID
-//     del file derivato dal contenuto);
+//   - idempotente: PDF, ZIP, miniature e manifest a byte identici fra due
+//     giri, su qualunque fuso orario (date fisse, fuso di Roma, ID del file
+//     derivato dai fatti del documento, file vecchi in carte/ rimossi);
+//   - nessuna richiesta esce dalla macchina: le pagine aperte in Chromium
+//     hanno ogni host esterno bloccato, e il browser stesso esce da un proxy
+//     morto (127.0.0.1:9) per il suo traffico di fondo;
 //   - «la riga che conta» si legge dal PDF con pdfjs (getTextContent), non
 //     si scrive a mano: il manifest dice ciò che il PDF stampa davvero.
 //
@@ -39,20 +43,20 @@ import { existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { extname, join } from 'node:path';
+import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
   PDFDocument, PDFName, PDFDict, PDFHexString, StandardFonts,
 } from 'pdf-lib';
 
-// Le date dei builder passano da toLocaleDateString senza fuso: a Los
-// Angeles «2025-09-01» diventerebbe il 31/08. Il fuso è quello di Roma, così
-// il fascicolo esce uguale su qualunque macchina.
-process.env.TZ = 'Europe/Rome';
-
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const OUT = join(ROOT, 'carte');
+// pdfjs-dist serve SOLO a questo generatore e non entra nel repo né nel
+// package.json: si installa a parte, una volta, in una cartella temporanea
+//   npm i --prefix "$TMPDIR/pdfjs" pdfjs-dist@4
+// e si passa con PDFJS_DIR (default: <tmpdir>/pdfjs/node_modules/pdfjs-dist).
 const PDFJS_DIR = process.env.PDFJS_DIR
-  || '/tmp/claude-0/-home-user-Boum-roma/949450a3-956e-518a-aaeb-45f957d66bc3/scratchpad/pdfjs/node_modules/pdfjs-dist';
+  || join(tmpdir(), 'pdfjs', 'node_modules', 'pdfjs-dist');
 const DUMP = process.argv.includes('--dump');          // stampa le righe di ogni PDF
 const NO_RASTER = process.argv.includes('--no-raster');
 
@@ -850,10 +854,14 @@ async function shootCasa(browser, base) {
   await page.addInitScript(casaStub, casaData());
   await page.goto(base + '/tenant.html', { waitUntil: 'domcontentloaded' });
   await page.waitForSelector('#s-fix .mrow', { timeout: 15000 });
-  await page.waitForTimeout(400);
-  const info = await page.evaluate((stamp) => {
+  // I font di ripiego (quelli di Google sono bloccati) si risolvono in modo
+  // asincrono: si aspettano prima di toccare la pagina.
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForTimeout(900);
+  await page.evaluate((stamp) => {
     document.querySelectorAll('.rv').forEach((e) => { e.classList.add('in'); e.style.transition = 'none'; e.style.transitionDelay = '0ms'; });
     const card = document.getElementById('s-fix');
+    document.documentElement.style.scrollBehavior = 'auto';
     // Barra in alto, navigazione rapida e dock del pagamento sono fissi o
     // «sticky»: in una schermata della sola card finirebbero sopra di lei.
     document.querySelectorAll('body *').forEach((el) => {
@@ -861,7 +869,8 @@ async function shootCasa(browser, base) {
       const pos = getComputedStyle(el).position;
       if (pos === 'fixed' || pos === 'sticky') el.style.setProperty('visibility', 'hidden', 'important');
     });
-    card.scrollIntoView({ block: 'start' });
+    // scroll a un intero: la card sta a ~24px dal bordo alto della finestra
+    window.scrollTo(0, Math.round(card.getBoundingClientRect().top + window.scrollY - 24));
     card.style.position = 'relative';
     const s = document.createElement('div');
     // Il timbro sta nel vuoto a destra del bottone «Invia»: non copre né il
@@ -878,22 +887,34 @@ async function shootCasa(browser, base) {
     const send = card.querySelector('#mSend');
     const cr0 = card.getBoundingClientRect(), br = send.getBoundingClientRect();
     s.style.top = Math.round(br.top - cr0.top + (br.height - s.getBoundingClientRect().height) / 2) + 'px';
-    const cr = card.getBoundingClientRect();
+  }, STAMP);
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForTimeout(400);
+  // Ritaglio della finestra (la card ci sta intera): niente scroll fatto dal
+  // browser al momento dello scatto, quindi niente mezzi pixel che cambiano
+  // da un giro all'altro.
+  // Le misure si prendono QUI, con la card sullo schermo (fuori schermo la
+  // pagina può saltarne il contenuto, e innerText torna vuoto).
+  const { clip, info } = await page.evaluate(async () => {
+    const card = document.getElementById('s-fix');
+    window.scrollTo(0, Math.round(card.getBoundingClientRect().top + window.scrollY - 24));
+    await new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)));
+    const r = card.getBoundingClientRect();
     const row = card.querySelector('.mrow');
     const span = row.querySelector('span');
     const rr = span.getBoundingClientRect();
-    const sr = s.getBoundingClientRect();
     return {
-      riga: span.textContent.replace(/\s+/g, ' ').trim(),
-      stato: row.querySelectorAll('span')[1] ? row.querySelectorAll('span')[1].textContent.trim() : '',
-      rows: [...card.querySelectorAll('.mrow')].map((m) => m.innerText.replace(/\s+/g, ' ').trim()),
-      card: { w: cr.width, h: cr.height },
-      box: { x: rr.left - cr.left, y: rr.top - cr.top, w: rr.width, h: rr.height },
-      stampBox: { x: sr.left - cr.left, y: sr.top - cr.top, w: sr.width, h: sr.height },
+      clip: { x: Math.floor(r.left), y: Math.floor(r.top), width: Math.ceil(r.right) - Math.floor(r.left), height: Math.ceil(r.bottom) - Math.floor(r.top) },
+      info: {
+        riga: span.textContent.replace(/\s+/g, ' ').trim(),
+        rows: [...card.querySelectorAll('.mrow')].map((m) => [...m.children].map((c) => c.textContent.replace(/\s+/g, ' ').trim()).join(' · ')),
+        card: { w: Math.ceil(r.right) - Math.floor(r.left), h: Math.ceil(r.bottom) - Math.floor(r.top) },
+        box: { x: rr.left - Math.floor(r.left), y: rr.top - Math.floor(r.top), w: rr.width, h: rr.height },
+      },
     };
-  }, STAMP);
-  await page.waitForTimeout(150);
-  const png = await page.locator('#s-fix').screenshot({ animations: 'disabled' });
+  });
+  if (clip.y < 0 || clip.y + clip.height > 844) throw new Error('/casa: la card dei guasti non sta nella finestra ' + JSON.stringify(clip));
+  const png = await page.screenshot({ clip, animations: 'disabled', caret: 'hide' });
   await ctx.close();
   return { png, info, errors };
 }
@@ -988,6 +1009,10 @@ async function cleanOut(keep) {
 // 7 · IL GIRO
 // ─────────────────────────────────────────────────────────────────────────
 async function main() {
+  // Le date dei builder passano da toLocaleDateString senza fuso: a Los
+  // Angeles «2025-09-01» diventerebbe il 31/08. Il fuso è quello di Roma,
+  // così il fascicolo esce uguale su qualunque macchina.
+  process.env.TZ = 'Europe/Rome';
   await mkdir(OUT, { recursive: true });
   const docs = await buildAll();
   const report = [];
@@ -1025,7 +1050,11 @@ async function main() {
     process.env.PLAYWRIGHT_DISABLE_FORCED_CHROMIUM_PROXIED_LOOPBACK = '1';
     // Chromium senza traffico di fondo (aggiornamenti, metriche): nessuna
     // richiesta esce dalla macchina, nemmeno quelle del browser.
-    const browser = await chromium.launch(launchOptions({ args: ['--no-sandbox', '--disable-background-networking', '--disable-component-update', '--disable-sync', '--disable-default-apps', '--no-first-run', '--metrics-recording-only', '--disable-domain-reliability', '--disable-client-side-phishing-detection', '--safebrowsing-disable-auto-update', '--no-pings', '--dns-prefetch-disable', '--disable-features=NetworkTimeServiceQuerying,OptimizationHints,Translate,MediaRouter,DialMediaRouteProvider,AutofillServerCommunication,NetworkPrediction'],
+    const browser = await chromium.launch(launchOptions({ args: ['--no-sandbox', '--disable-background-networking', '--disable-component-update', '--disable-sync', '--disable-default-apps', '--no-first-run', '--metrics-recording-only', '--disable-domain-reliability', '--disable-client-side-phishing-detection', '--safebrowsing-disable-auto-update', '--no-pings', '--dns-prefetch-disable', '--disable-gpu', '--force-color-profile=srgb', '--disable-lcd-text', '--disable-partial-raster', '--disable-checker-imaging', '--num-raster-threads=1',
+      // senza questi due il testo dei <select> di /casa cambia antialias da un
+      // avvio all'altro (layout identico al millesimo: misurato) → miniatura
+      // diversa a ogni giro. Con questi, 10 giri su 10 danno gli stessi byte.
+      '--font-render-hinting=none', '--disable-font-subpixel-positioning', '--disable-features=NetworkTimeServiceQuerying,OptimizationHints,Translate,MediaRouter,DialMediaRouteProvider,AutofillServerCommunication,NetworkPrediction'],
       // ogni richiesta che non sia la nostra (127.0.0.1) va a una porta morta
       proxy: { server: 'http://127.0.0.1:9', bypass: '127.0.0.1,localhost' } }));
     try {

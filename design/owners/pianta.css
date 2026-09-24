@@ -1,0 +1,92 @@
+/* design/owners/pianta.css — LA PIANTA CHE SI ALZA (pezzo A). Inlined in
+   owners.html dal costruttore. Valori legati a pianta.mjs: aspect-ratio =
+   VIEWBOX (1516/1137 = ASPECT 4/3) e scale(.9) = s. Il banco di prova
+   (anteprima-pianta.mjs) fallisce se divergono. Stati sul #riquadro:
+   nessuno (piatta grigia con html.js) → .alzando (1,1 s) → .alzata (finale).
+   Senza JS e con html.flat: la piatta GIÀ accesa, due luci spente. */
+.cornice{position:relative;overflow:clip;background:#060607;outline:1px solid rgba(138,135,126,.26);outline-offset:-1px}
+.riquadro{position:relative;width:100%;aspect-ratio:1516/1137;container-type:size;color:#8a877e;--pp-l:rgba(255,215,0,.13)}
+.riquadro>svg{position:absolute;left:0;top:0;width:100%;height:100%;display:block;overflow:visible}
+.riquadro>.pp-defs{width:0;height:0;overflow:hidden}
+.riquadro text{font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace}
+.piatta{transform-origin:50% 50%}
+svg.alzata{visibility:hidden}
+svg.alzata path{stroke-width:.75;vector-effect:non-scaling-stroke;stroke-linejoin:round}
+/* muri alzati: facce opache (nascondono ciò che sta dietro), tono per verso */
+svg.alzata .m1 path{fill:#0c0c0b;fill:color-mix(in srgb,currentColor 6%,#060607);stroke:currentColor}
+svg.alzata .m1 .x{fill:#121211;fill:color-mix(in srgb,currentColor 11%,#060607)}
+svg.alzata .m1 .t{fill:#0a0a0a;fill:color-mix(in srgb,currentColor 4%,#060607)}
+svg.alzata .m1,svg.alzata .m2,svg.alzata .m3{transform:translateY(var(--dy,0));opacity:0}
+svg.alzata .sole polygon{fill:#FFD700;fill-opacity:.12;stroke:none}
+svg.alzata .sole,svg.alzata .ld{opacity:0}
+.riquadro .mk rect{fill:none;stroke:none}
+
+/* la luce delle stanze: ereditata dentro <use> con le variabili */
+html:not(.js) .riquadro,html.flat .riquadro,.pianta-accesa{color:#FFD700;--r-porta:var(--pp-l);--r-cassaforte:var(--pp-l);--r-soggiorno:var(--pp-l);--r-cucina:var(--pp-l);--r-scrivania:var(--pp-l);--r-cassetta:var(--pp-l);--r-casa:var(--pp-l)}
+.pianta-accesa{--pp-l:rgba(255,215,0,.13)}
+.riquadro[data-accesa=porta]{--r-porta:var(--pp-l)}
+.riquadro[data-accesa=cassaforte]{--r-cassaforte:var(--pp-l)}
+.riquadro[data-accesa=soggiorno]{--r-soggiorno:var(--pp-l)}
+.riquadro[data-accesa=cucina]{--r-cucina:var(--pp-l)}
+.riquadro[data-accesa=scrivania]{--r-scrivania:var(--pp-l)}
+.riquadro[data-accesa=cassetta]{--r-cassetta:var(--pp-l)}
+html:not(.js) svg.alzata,html.flat svg.alzata,html:not(.js) .alza,html.flat .alza{display:none}
+
+/* le sei etichette: link veri, bersaglio >= 44x44, testo mai solo colore */
+.stanze{position:absolute;inset:0;pointer-events:none;margin:0;padding:0}
+.et{position:absolute;left:var(--x);top:var(--y);transform:translate(-50%,-50%);pointer-events:auto;box-sizing:border-box;min-width:44px;min-height:44px;padding:3px 2px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:0;text-decoration:none;text-align:center;color:#d8d4c6;-webkit-tap-highlight-color:transparent}
+.et>span{display:block;background:rgba(6,6,7,.9);border:1px solid rgba(138,135,126,.55);padding:2px 5px 2px;white-space:nowrap}
+.et b,.et i{display:block}
+.et b{font:400 10px/1.3 ui-monospace,'SF Mono',Menlo,Consolas,monospace;letter-spacing:.09em;text-transform:uppercase}
+.et i{font:300 10.5px/1.2 'Helvetica Neue',Helvetica,Arial,sans-serif;font-style:normal;color:#aaa698;max-width:6.4em;white-space:normal;margin:1px auto 0}
+.et:focus-visible{outline:2px solid #FFD700;outline-offset:2px}
+.et:hover>span{border-color:currentColor}
+html:not(.js) .et,html.flat .et,.riquadro.alzata .et{color:#FFD700}
+html:not(.js) .et>span,html.flat .et>span,.riquadro.alzata .et>span{border-color:rgba(255,215,0,.5)}
+.riquadro[data-accesa=porta] [data-stanza=porta]>span,.riquadro[data-accesa=cassaforte] [data-stanza=cassaforte]>span,.riquadro[data-accesa=soggiorno] [data-stanza=soggiorno]>span,.riquadro[data-accesa=cucina] [data-stanza=cucina]>span,.riquadro[data-accesa=scrivania] [data-stanza=scrivania]>span,.riquadro[data-accesa=cassetta] [data-stanza=cassetta]>span{border-color:#FFD700;box-shadow:inset 0 -2px 0 #FFD700}
+
+/* il timbro-bottone, nell'angolo libero del riquadro (in alto a destra) */
+.alza{position:absolute;right:6px;top:6px;z-index:2;box-sizing:border-box;min-width:44px;min-height:44px;max-width:6.6em;padding:5px 7px;margin:0;background:#060607;color:#FFD700;border:1px solid #FFD700;border-radius:2px;font:400 10px/1.25 ui-monospace,'SF Mono',Menlo,Consolas,monospace;letter-spacing:.08em;text-transform:uppercase;text-align:left;cursor:pointer}
+.alza:focus-visible{outline:2px solid #FFD700;outline-offset:2px}
+.alza:hover{background:#FFD700;color:#060607}
+
+/* LA SALITA: 0–650 ms ruota UN elemento (la piatta), niente perspective e
+   niente preserve-3d; a 650 ms passa la mano all'alzata già proiettata;
+   650–1100 ms salgono tre strati, sfalsati di 60 ms; grigio→oro 300 ms. */
+.riquadro.alzando .piatta{transform:rotateX(56deg) rotateZ(-38deg) scale(.9);visibility:hidden;will-change:transform;transition:transform .65s cubic-bezier(.2,.7,.2,1),visibility 0s .7s}
+.riquadro.alzando .pq-o{opacity:0;transition:opacity .15s}
+.riquadro.alzando svg.alzata{visibility:visible;color:#FFD700;transition:visibility 0s .65s,color .3s .8s}
+.riquadro.alzando svg.alzata .m1,.riquadro.alzando svg.alzata .m2,.riquadro.alzando svg.alzata .m3{transform:none;opacity:1;transition:transform .3s .65s cubic-bezier(.2,.7,.2,1),opacity .2s .65s}
+.riquadro.alzando svg.alzata .m2{transition-delay:.71s}
+.riquadro.alzando svg.alzata .sole{opacity:1;transition:opacity .3s .8s}
+.riquadro.alzando svg.alzata .ld{opacity:1;transition:opacity .15s .95s}
+.riquadro.alzando svg.alzata .m3{transition-delay:.77s}
+.riquadro.alzando .et,.riquadro.alzata .et{left:var(--xa);top:var(--ya)}
+/* alzate, le etichette si spostano con un transform (in cqw/cqh): nessuno
+   spostamento di layout, CLS 0 anche senza un input recente */
+@supports (width:1cqw){.riquadro.alzando .et,.riquadro.alzata .et{left:var(--x);top:var(--y);transform:translate(calc(var(--ex) * 1cqw - 50%),calc(var(--ey) * 1cqh - 50%))}}
+.riquadro.alzando .et{transition:left 0s .3s,top 0s .3s,transform 0s .3s;animation:pp-et 1.1s linear both}
+.riquadro.alzando .alza,.riquadro.alzata .alza{visibility:hidden;opacity:0;transition:opacity .15s,visibility 0s .15s}
+@keyframes pp-et{0%{opacity:1}13.6%{opacity:0}86.4%{opacity:0}100%{opacity:1}}
+/* lo stato finale: nulla si muove più, nessun livello promosso */
+.riquadro.alzata .piatta,.riquadro.alzata .pq-o{display:none}
+.riquadro.alzata svg.alzata{visibility:visible;color:#FFD700}
+.riquadro.alzata svg.alzata .m1,.riquadro.alzata svg.alzata .m2,.riquadro.alzata svg.alzata .m3{transform:none;opacity:1}
+.riquadro.alzata svg.alzata .sole,.riquadro.alzata svg.alzata .ld{opacity:1}
+.riquadro.alzata .alza{transition:none}
+/* ⏸ e riduzione del movimento: .alzata subito, nessuna transizione */
+html.still .riquadro,html.still .riquadro *{transition:none!important;animation:none!important}
+@media (prefers-reduced-motion:reduce){.riquadro,.riquadro *{transition:none!important;animation:none!important}}
+
+/* i ritagli 2D per telefono (una stanza accesa), spenti da 1100 px */
+.ritaglio{display:block;width:100%;max-width:420px;height:auto;color:#FFD700;margin:0 0 12px}
+.ritaglio[data-stanza=porta]{--r-porta:rgba(255,215,0,.16)}
+.ritaglio[data-stanza=cassaforte]{--r-cassaforte:rgba(255,215,0,.16)}
+.ritaglio[data-stanza=soggiorno]{--r-soggiorno:rgba(255,215,0,.16)}
+.ritaglio[data-stanza=cucina]{--r-cucina:rgba(255,215,0,.16)}
+.ritaglio[data-stanza=scrivania]{--r-scrivania:rgba(255,215,0,.16)}
+.ritaglio[data-stanza=cassetta]{--r-cassetta:rgba(255,215,0,.16)}
+@media (min-width:1100px){.ritaglio{display:none}}
+.pianta-accesa,.palazzo{display:block;width:100%;height:auto}
+.palazzo{color:#FFD700;max-width:520px}
+.sole-didas{min-height:1.4em}

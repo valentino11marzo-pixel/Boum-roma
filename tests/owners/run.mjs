@@ -167,9 +167,8 @@ if (MAN) {
 // ── 5 · la pianta: ogni stanza un'ancora, ogni luce accesa un file ──────
 sez('la pianta: stanze, ancore, file');
 {
-  const et = [...HTML.matchAll(/<a class="et"[^>]*href="#([a-z]+)"[^>]*data-stanza="([a-z]+)"|<a class="et"[^>]*data-stanza="([a-z]+)"[^>]*href="#([a-z]+)"/g)]
-    .map((m) => m[1] || m[4]);
-  ok('sei etichette sulla pianta', new Set(et).size === 6, et.join(','));
+  const et = [...HTML.matchAll(/<a class="et[^"]*"[^>]*>/g)].map((m) => (/href="#([a-z]+)"/.exec(m[0]) || [])[1]).filter(Boolean);
+  ok('sei etichette sulla pianta, una per stanza', et.length === 6 && new Set(et).size === 6 && K.STANZE.every((s) => et.includes(s)), et.join(','));
   for (const s of K.STANZE) ok(`#${s}: la sezione esiste`, HTML.includes(`<section class="stanza" id="${s}"`));
   const CARTA_DI = { porta: 'verbale', cassaforte: 'proposta', soggiorno: 'inventario-ingresso', cucina: 'casa-guasti', scrivania: 'contratto-studenti', cassetta: 'rendiconto' };
   for (const [s, id] of Object.entries(CARTA_DI)) {

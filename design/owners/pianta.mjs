@@ -180,9 +180,9 @@ function simboloPP() {
   return `<symbol id="pp" viewBox="${VB.join(' ')}">` +
     `<g stroke="none">${stanze}</g>` +
     `<g fill="none" stroke="currentColor" stroke-width=".75">` +
-    `<path d="${simboliD()}" stroke-opacity=".72" ${VE}/>` +
-    `<path d="${archi}" stroke-opacity=".5" ${VE}/>` +
-    `<path d="${ante}${finestreD()}" ${VE}/>` +
+    `<g style="display:var(--pp-fx,inline)"><path d="${simboliD()}" stroke-opacity=".72" ${VE}/>` +
+    `<path d="${archi}" stroke-opacity=".5" ${VE}/><path d="${ante}" ${VE}/></g>` +
+    `<path d="${finestreD()}" ${VE}/>` +
     `<use href="#ppw" fill="currentColor" stroke="none" mask="url(#ppm)"/>` +
     `<path id="ppw" d="${loopsD(casaPiatta.loops)}" ${VE}/>` +
     piede + `</g>` +
@@ -210,8 +210,8 @@ function simboloPQ() {
     `<g fill="none" stroke="currentColor" stroke-width=".75" stroke-opacity=".62">` +
     `<path d="${d}${vuoti}" ${VE}/>` +
     `<g transform="rotate(${N.angolo} ${nx} ${ny})"><path d="${ellD(nx, ny, r, r)}M${nx} ${ny + r * 0.7}V${ny - r * 1.25}" ${VE}/>` +
-    `<path d="M${nx} ${ny - r * 1.25}l-9 22h18z" fill="currentColor" stroke="none"/>` +
-    `<text x="${nx}" y="${ny - r * 1.5}" text-anchor="middle" fill="currentColor" stroke="none" font-size="${k}">N</text></g>` +
+    `<path d="M${nx} ${ny - r * 1.25}l-9 22h18z" fill="currentColor" stroke="none"/></g>` +
+    `<text x="${f0(nx + Math.sin(N.angolo * RAD) * r * 1.75)}" y="${f0(ny - Math.cos(N.angolo * RAD) * r * 1.75 + k * 0.35)}" text-anchor="middle" fill="currentColor" stroke="none" font-size="${k}">N</text>` +
     `</g>` +
     `<path d="${pieni}" fill="currentColor" fill-opacity=".62"/>` +
     `<g fill="currentColor" fill-opacity=".8" font-size="${k}" font-family="ui-monospace,SF Mono,Menlo,Consolas,monospace" letter-spacing="1">` +
@@ -247,9 +247,11 @@ const pts3d = (() => {
   return p;
 })();
 
-// La scelta: ASPECT fisso 4/3 (riquadro basso nel primo schermo a 390 px),
-// s il più grande possibile perché l'alzata (+4%) stia nel riquadro; il
-// centro c si cerca su una griglia fine; vw minimo che contiene tutto.
+// La scelta: ASPECT fisso 4/3 (riquadro basso nel primo schermo a 390 px) e
+// s scritto nel JSON (alzata.s, lo stesso numero di scale() in pianta.css).
+// Il centro c si cerca su una griglia fine: il riquadro più piccolo che
+// contiene la piatta (+2%) e l'alzata (+4%). Se s fosse troppo grande il
+// riquadro crescerebbe e la piatta rimpicciolirebbe: il banco lo dice.
 export const ASPECT = 4 / 3;
 function misura(s, c) {
   const A = s * ca, C = -s * sa, B = s * cb * sa, D = s * cb * ca, Z = s * sb;
@@ -264,23 +266,19 @@ function misura(s, c) {
   hh = Math.max(hh, (c[1] - flatBox[1]) * mf, (flatBox[3] - c[1]) * mf);
   return Math.max(hw, hh * ASPECT); // semi-larghezza necessaria
 }
-function scegli() {
+function scegli(s) {
   const cx0 = (flatBox[0] + flatBox[2]) / 2, cy0 = (flatBox[1] + flatBox[3]) / 2;
-  // semi-larghezza della sola piatta: l'alzata non deve allargare il riquadro
-  const solo = Math.max((flatBox[2] - flatBox[0]) / 2 * 1.02, (flatBox[3] - flatBox[1]) / 2 * 1.02 * ASPECT);
   let best = null;
-  for (let s = 0.7; s <= 1.4001; s += 0.005) {
-    for (let dx = -200; dx <= 200; dx += 10) for (let dy = -200; dy <= 200; dy += 10) {
-      const c = [cx0 + dx, cy0 + dy];
-      const hw = misura(s, c);
-      // prima: nessun ingrandimento del riquadro oltre la piatta; poi s massimo
-      if (hw <= solo + 0.5 && (!best || s > best.s + 1e-9 || (Math.abs(s - best.s) < 1e-9 && hw < best.hw))) best = { s, c, hw };
-    }
+  for (let dx = -200; dx <= 200; dx += 5) for (let dy = -200; dy <= 200; dy += 5) {
+    const c = [cx0 + dx, cy0 + dy], hw = misura(s, c);
+    if (!best || hw < best.hw - 1e-9) best = { s, c, hw };
   }
   return best;
 }
-const SCELTA = scegli();
-export const s = Math.round(SCELTA.s * 1000) / 1000;
+export const s = AL.s;
+const SCELTA = scegli(s);
+// semi-larghezza che basterebbe alla sola piatta: l'alzata non deve allargarla
+export const ALZATA_ENTRA = SCELTA.hw <= Math.max((flatBox[2] - flatBox[0]) / 2 * 1.02, (flatBox[3] - flatBox[1]) / 2 * 1.02 * ASPECT) + 0.5;
 const HW = Math.ceil(misura(s, SCELTA.c));
 const VW = HW * 2, VH = Math.round(VW / ASPECT);
 const CX = Math.round(SCELTA.c[0]), CY = Math.round(SCELTA.c[1]);
@@ -307,7 +305,7 @@ function facce() {
     L.push({ d: prof([(f.a[0] + f.b[0]) / 2, (f.a[1] + f.b[1]) / 2]), el: `<path${f.n[0] ? ' class="x"' : ''} d="${pathRel(q)}"/>` });
   }
   // parapetti sotto le finestre (davanzale sotto il taglio)
-  for (const w of finTaglio) {
+  for (const w of finTaglio.filter((q) => q.davanzale > 0)) {
     const [x0, y0, x1, y1] = w.vano, z = w.davanzale;
     const U = unione([w.vano], []);
     for (const f of U.faces) {
@@ -346,11 +344,18 @@ function bandiere3d() {
 const mkPiatta = () => J.marcatori.map(([x, y], i) => `<rect data-mk="${i}" x="${x - 0.5}" y="${y - 0.5}" width="1" height="1"/>`).join('');
 const mkAlzata = () => J.marcatori.map((p, i) => { const [X, Y] = P2(p); return `<rect data-mk="${i}" x="${f1(X - 0.5)}" y="${f1(Y - 0.5)}" width="1" height="1"/>`; }).join('');
 const soggiorno = J.stanze.find((q) => q.id === 'soggiorno');
-const datiSole = () => {
-  const facciata = fin.filter((w) => w.sole);
-  const f = facciata.map((w) => { const [x0, , x1, y1] = w.vano; return [x0, y1, x1, y1, w.davanzale, w.architrave]; });
-  return JSON.stringify({ lat: J.sole.lat, lng: J.sole.lng, n: J.nord.angolo, o: [0, -1], m: M, f });
-};
+// Il sole: le finestre con "sole" stanno su UNA facciata; di ciascuna la
+// linea del filo interno (x0,y0,x1,y1), davanzale e architrave. La normale
+// uscente della facciata si deduce dal muro esterno su cui sta il vano.
+function facciataSole() {
+  const E = J.esterno, fs = fin.filter((w) => w.sole);
+  const lato = ([x0, y0, x1, y1]) => y0 === E[1] ? [[0, -1], [x0, y1, x1, y1]] : y1 === E[3] ? [[0, 1], [x0, y0, x1, y0]]
+    : x0 === E[0] ? [[-1, 0], [x1, y0, x1, y1]] : [[1, 0], [x0, y0, x0, y1]];
+  const L = fs.map((w) => lato(w.vano));
+  if (!fs.length || L.some((l) => l[0].join() !== L[0][0].join())) throw new Error('pianta.json: le finestre "sole" devono stare su una sola facciata');
+  return { o: L[0][0], f: fs.map((w, i) => [...L[i][1], w.davanzale, w.architrave]) };
+}
+const datiSole = () => { const F = facciataSole(); return JSON.stringify({ lat: J.sole.lat, lng: J.sole.lng, n: J.nord.angolo, o: F.o, m: M, f: F.f }); };
 function alzataSVG() {
   const flo = `<use href="#pp" x="${VB[0]}" y="${VB[1]}" width="${VB[2]}" height="${VB[3]}" transform="matrix(${M.join(' ')})" style="--pp-fd:none"/>`;
   const cap = loopsD(casa3d.loops.concat(piede3d.loops), (p) => P3(p, H), f1);
@@ -362,35 +367,40 @@ function alzataSVG() {
     `<g class="m1" style="${dy(H)}">${facce()}</g>` +
     `<g class="m2" style="${dy(H * 0.66)}"><g fill="#060607" stroke="none"><path id="ppc" d="${cap}"/></g>` +
     `<use href="#ppc" fill="currentColor" stroke="none" mask="url(#ppm)"/><use href="#ppc" fill="none" stroke="currentColor"/></g>` +
-    `<g class="m3" style="${dy(H * 0.33)}"><path d="${vetriAlTaglio()}" fill="none" stroke="currentColor"/>${bandiere3d()}</g>` +
+    `<g class="m3" style="${dy(H * 0.33)}"><path d="${vetriAlTaglio()}" fill="none" stroke="currentColor"/>${bandiere3d()}${richiami(true)}</g>` +
     `<g class="mk">${mkAlzata()}</g></svg>`;
 }
 
 // ------------------------------------------------------------ etichette
-// Posizioni in % del riquadro. Piatta: l'ancora del disegno + scarto; alzata:
-// l'ancora proiettata + scarto. Gli scarti stanno qui (non nel JSON) perché
-// sono decisioni d'impaginato verificate dal banco di prova a 288/358/560 px.
-const SCARTI = {
-  porta: { p: [0, 7.5], a: [0, 5] },
-  cassaforte: { p: [5, -2], a: [3, -4] },
-  soggiorno: { p: [0, 0], a: [0, -3] },
-  cucina: { p: [0, 0], a: [0, -2] },
-  scrivania: { p: [-2, 7], a: [-3, 4] },
-  cassetta: { p: [6, 0], a: [4, 1] }
-};
+// Posizioni in % del riquadro, scritte nel JSON: a 288 px sei bersagli da
+// 44 px non stanno tutti esattamente sopra la loro stanza, quindi si
+// impaginano VICINO alla cosa che nominano (l'ancora, in pianta e proiettata
+// con M). Il banco di prova misura sovrapposizioni e distanza dall'ancora.
 export function posizioni() {
   return J.etichette.map((e) => {
-    const sc = SCARTI[e.stanza] || { p: [0, 0], a: [0, 0] };
-    const pf = pct(e.ancora), pa = pct(P2(e.ancora));
-    return { stanza: e.stanza, x: pf[0] + sc.p[0], y: pf[1] + sc.p[1], xa: pa[0] + sc.a[0], ya: pa[1] + sc.a[1] };
+    const pf = e.piatta || pct(e.ancora), pa = e.alzata || pct(P2(e.ancora));
+    return { stanza: e.stanza, x: pf[0], y: pf[1], xa: pa[0], ya: pa[1], ancora: pct(e.ancora), ancoraAlzata: pct(P2(e.ancora)) };
   });
+}
+// Le linee di richiamo: dall'ancora (un punto) al centro dell'etichetta; il
+// cartellino copre la parte finale. Piatte sopra la piatta (svg .pq-o, che
+// si spegne alla salita), alzate dentro lo strato m3 dell'alzata.
+const daPct = ([x, y]) => [VB[0] + (x / 100) * VB[2], VB[1] + (y / 100) * VB[3]];
+function richiami(alzata) {
+  let linee = '', punti = '';
+  for (const e of J.etichette) {
+    const a = alzata ? P2(e.ancora) : e.ancora, t = daPct(alzata ? e.alzata : e.piatta);
+    linee += pathRel([a, t], false);
+    punti += ellD(a[0], a[1], 7, 7);
+  }
+  return `<g class="ld"><path d="${linee}" fill="none" stroke="currentColor" stroke-opacity=".6" ${VE}/><path d="${punti}" fill="currentColor"/></g>`;
 }
 function etichette() {
   const pos = posizioni();
   return `<nav class="stanze" aria-label="Le stanze">` + J.etichette.map((e, i) => {
     const q = pos[i];
     const sp = e.spenta ? ` <i><span aria-hidden="true">⚑ </span>${e.spenta} spenta</i>` : '';
-    return `<a class="et${e.spenta ? ' sp' : ''}" href="${e.href}" data-stanza="${e.stanza}" style="--x:${f1(q.x)}%;--y:${f1(q.y)}%;--xa:${f1(q.xa)}%;--ya:${f1(q.ya)}%"><b>${e.testo}</b>${sp}</a>`;
+    return `<a class="et${e.spenta ? ' sp' : ''}" href="${e.href}" data-stanza="${e.stanza}" style="--x:${f1(q.x)}%;--y:${f1(q.y)}%;--xa:${f1(q.xa)}%;--ya:${f1(q.ya)}%;--ex:${f1(q.xa - q.x)};--ey:${f1(q.ya - q.y)}"><span><b>${e.testo}</b>${sp}</span></a>`;
   }).join('') + `</nav>`;
 }
 
@@ -403,8 +413,8 @@ const DEFS = () => `<svg class="pp-defs" width="0" height="0" aria-hidden="true"
 
 export function riquadro() {
   return DEFS() +
-    `<svg class="pq-o" viewBox="${VB.join(' ')}" aria-hidden="true" focusable="false">${USE('pq')}</svg>` +
     `<svg class="piatta" viewBox="${VB.join(' ')}" aria-hidden="true" focusable="false">${USE('pp')}<g class="mk">${mkPiatta()}</g></svg>` +
+    `<svg class="pq-o" viewBox="${VB.join(' ')}" aria-hidden="true" focusable="false">${USE('pq')}${richiami(false)}</svg>` +
     alzataSVG() + etichette();
 }
 
@@ -426,21 +436,22 @@ export function palazzo() {
   const n = J.palazzo.piani, dz = J.palazzo.interpiano;
   const sp = 0.5; // scala del disegno del palazzo
   const a = sp * ca, c = -sp * sa, b = sp * cb * sa, d = sp * cb * ca, zz = sp * sb * dz;
-  const casa = [[0, 0], [1020, 0], [1020, 540], [1140, 540], [1140, 800], [1020, 800], [1020, 840], [0, 840]];
+  const E = J.esterno, bal = bbox(J.stanze.find((q) => q.id === 'balcone').poli);
+  const casa = [[E[0], E[1]], [E[2], E[1]], [E[2], bal[1]], [bal[2], bal[1]], [bal[2], bal[3]], [E[2], bal[3]], [E[2], E[3]], [E[0], E[3]]];
   const pr = ([x, y]) => [a * x + c * y, b * x + d * y];
   const pts = [];
   for (let i = 0; i < n; i++) casa.forEach((p) => { const [X, Y] = pr(p); pts.push([X, Y - zz * i]); });
-  const foot = rectPts([600, 880, 1020, 990]).map(pr);
+  const foot = J.stanze.find((q) => q.id === 'portone').poli.concat(rectPts(muriPiede[0])).map(pr);
   const bb = bbox(pts.concat(foot)), m = 12;
   let g = '';
   for (let i = 0; i < n; i++) {
     const ty = -zz * i;
     const sol = pathRel(casa.map(pr).map(([X, Y]) => [X, Y + ty]));
     g += `<path d="${sol}" fill="#060607" stroke="none"/>` +
-      `<use href="#pp" x="${VB[0]}" y="${VB[1]}" width="${VB[2]}" height="${VB[3]}" transform="matrix(${[a, b, c, d, 0, ty].map((v) => f1(v * 1000) / 1000).join(' ')})"${i ? ' style="--pp-pt:none;--pp-fd:none"' : ' style="--pp-fd:none"'}/>`;
+      `<use href="#pp" x="${VB[0]}" y="${VB[1]}" width="${VB[2]}" height="${VB[3]}" transform="matrix(${[a, b, c, d, 0, ty].map((v) => f1(v * 1000) / 1000).join(' ')})"${i ? ' style="--pp-pt:none;--pp-fd:none;--pp-fx:none"' : ' style="--pp-fd:none;--pp-fx:none"'}/>`;
   }
   // gli spigoli del palazzo, da terra all'ultimo solaio
-  const spig = [[0, 0], [0, 840], [1020, 840]].map((p) => { const [X, Y] = pr(p); return `M${f1(X)} ${f1(Y)}V${f1(Y - zz * (n - 1))}`; }).join('');
+  const spig = [[E[0], E[1]], [E[0], E[3]], [E[2], E[3]]].map((p) => { const [X, Y] = pr(p); return `M${f1(X)} ${f1(Y)}V${f1(Y - zz * (n - 1))}`; }).join('');
   return `<svg class="palazzo" viewBox="${f1(bb[0] - m)} ${f1(bb[1] - m)} ${f1(bb[2] - bb[0] + 2 * m)} ${f1(bb[3] - bb[1] + 2 * m)}" aria-hidden="true" focusable="false">` +
     `<path d="${spig}" fill="none" stroke="currentColor" stroke-width=".75" stroke-opacity=".5" ${VE}/>${g}</svg>`;
 }
@@ -460,5 +471,15 @@ export function superficie() {
   const area = (poly) => Math.abs(poly.reduce((acc, [x, y], i) => { const [u, v] = poly[(i + 1) % poly.length]; return acc + x * v - u * y; }, 0)) / 2;
   return J.stanze.filter((q) => !q.esterno && !q.nonCalpestabile).reduce((acc, q) => acc + area(q.poli), 0) / 10000;
 }
+// Le zone della piatta che un'etichetta non deve coprire: la scala grafica
+// (è vera a ogni zoom solo se si legge) e la freccia del nord. In % del riquadro.
+export function riservate() {
+  const sc = J.scala, N = J.nord, k = J.quote.corpo;
+  const r = (x0, y0, x1, y1, nome) => { const a = pct([x0, y0]), b = pct([x1, y1]); return { nome, x0: a[0], y0: a[1], x1: b[0], y1: b[1] }; };
+  return [
+    r(sc.x - 12, sc.y, sc.x + sc.tacche[sc.tacche.length - 1] + 40, sc.y + sc.h + k + 12, 'scala grafica'),
+    r(N.c[0] - N.r * 2.2, N.c[1] - N.r * 2.2, N.c[0] + N.r * 2.2, N.c[1] + N.r * 2.2, 'nord')
+  ];
+}
 export const VIEWBOX = VB.slice();
-export const INFO = { flatBox, centro: [CX, CY], sScelto: SCELTA.s };
+export const INFO = { flatBox, centro: [CX, CY] };
