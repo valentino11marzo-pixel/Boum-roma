@@ -52,7 +52,10 @@ s = re.sub(r'<script\b(?![^>]*\bsrc=)[^>]*>.*?</script>',
            lambda m: _serba(m.group(0)), s, flags=re.S)
 
 # ora, e solo ora, i riferimenti locali puntano al sito vero
-s = re.sub(r'(?<=["\'(])/(?!/)', lambda _m: 'https://boomrome.com/', s)
+# `"/>` e' la chiusura di un elemento SVG, non un percorso: senza
+# l'esclusione di `>` ogni <path .../> diventava `"https://boomrome.com/>`
+# e la pianta di /owners usciva a pezzi (trovato alla prima anteprima).
+s = re.sub(r'(?<=["\'(])/(?![/>])', lambda _m: 'https://boomrome.com/', s)
 
 # testa e corpo
 mb = re.search(r'<body[^>]*>', s)
