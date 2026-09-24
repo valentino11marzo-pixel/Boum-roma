@@ -78,7 +78,7 @@ const geom = (pg) => pg.evaluate(() => {
     return { s: a.dataset.stanza, x: r.left, y: r.top, w: r.width, h: r.height, vis: getComputedStyle(a).visibility !== 'hidden' && getComputedStyle(a).opacity !== '0' };
   });
   const dentro = et.every((e) => e.x >= box.left - 1 && e.y >= box.top - 1 && e.x + e.w <= box.right + 1 && e.y + e.h <= box.bottom + 1);
-  const grandi = et.every((e) => e.w >= 44 && e.h >= 44);
+  const grandi = et.every((e) => e.w >= 43.9 && e.h >= 43.9);   // 44 px, meno l'arrotondamento subpixel
   let sovrap = [];
   for (let i = 0; i < et.length; i++) for (let j = i + 1; j < et.length; j++) {
     const a = et[i], b = et[j];
@@ -182,7 +182,7 @@ sez('1440px: la stanza accesa è quella che stai leggendo');
 {
   const { ctx, pg } = await apri(1440, 900, {});
   for (const s of ['cassaforte', 'soggiorno', 'cassetta']) {
-    await pg.evaluate((id) => document.getElementById('h-' + id).scrollIntoView({ block: 'center' }), s);
+    await pg.evaluate((id) => document.getElementById('h-' + id).scrollIntoView({ block: 'center', behavior: 'instant' }), s);
     await pg.waitForTimeout(400);
     const acc = await pg.evaluate(() => document.getElementById('riquadro').dataset.accesa);
     ok(`leggendo #${s} si accende «${s}»`, acc === s, acc);

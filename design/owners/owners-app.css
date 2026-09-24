@@ -1,0 +1,63 @@
+/* design/owners/owners-app.css — la pagina viva di /owners (pezzo C, con
+   js/owners-app.js). Inlined in owners.html dal costruttore (OWNERS_CSS_APP).
+
+   LA TARGHETTA — le misure, in em del font di .tg-cells (15px mono):
+     cella 0,72em + margine 0,06em = passo 0,78em; 22 celle = 17,16em;
+     altezza 1,26em. La scatola è riservata QUI con html.js, prima che lo
+     script monti le celle: il testo statico e le 22 celle occupano la stessa
+     scatola, quindi il montaggio non sposta niente (CLS 0). Il testo statico
+     prende già il passo delle celle (letter-spacing .18em + .06em a sinistra
+     su un monospazio da 0,6em), così al montaggio le lettere non saltano. */
+html.js .tg-cells{display:block;flex:0 1 auto;box-sizing:border-box;width:17.16em;max-width:100%;height:1.26em;line-height:1.26em;padding-left:.06em;letter-spacing:.18em;overflow:hidden;white-space:nowrap}
+html.js .tg-cells.fl{padding-left:0;letter-spacing:0}
+@media (max-width:374px){html.js .tg-cells{font-size:13px}}
+.fc{position:relative;display:inline-block;vertical-align:top;width:.72em;height:1.26em;margin-right:.06em;line-height:1.26em;text-align:center;border-radius:.08em;background:#040405;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);perspective:3em;color:var(--gold,#FFD700)}
+.fc i{position:absolute;left:0;top:0;width:100%;height:50%;overflow:hidden;font-style:normal;background:linear-gradient(#18181B,#0F0F11);border-radius:.08em .08em 0 0}
+.fc .sb,.fc .lb{top:auto;bottom:0;background:linear-gradient(#0A0A0C,#121215);border-radius:0 0 .08em .08em}
+.fc b{position:absolute;left:0;top:0;width:100%;height:1.26em;font-weight:inherit}
+.fc .sb b,.fc .lb b{top:-100%}
+.fc .lt,.fc .lb{display:none;z-index:2}
+.fc .lt{transform-origin:50% 100%}
+.fc .lb{transform-origin:50% 0}
+.fc s{position:absolute;left:0;right:0;top:50%;height:1px;margin-top:-.5px;background:#000;z-index:3}
+
+/* l'esito: l'esempio statico resta sotto, invisibile, nella stessa cella
+   della griglia — il risultato può crescere, mai accorciare la regione */
+#esito.vivo{display:grid}
+#esito.vivo>div{grid-area:1/1;min-width:0}
+#esito .fantasma{visibility:hidden}
+#esito a{color:var(--gold,#FFD700);text-decoration:none;border-bottom:1px solid rgba(255,215,0,.35)}
+#esito .manda{margin:.7em 0 0;font-size:15px}
+.timbro{display:inline-block;max-width:100%;margin:.5em 0 0;padding:2px 8px;border:1px solid rgba(255,215,0,.55);color:var(--gold,#FFD700);font:500 11px/1.6 ui-monospace,'SF Mono',Menlo,Consolas,monospace;letter-spacing:.14em}
+
+/* il riepilogo della casa nel modulo */
+#fCasa{border:1px solid rgba(255,215,0,.35);background:rgba(255,215,0,.05);padding:4px 12px}
+#fCasa p{margin:0}
+#fCasaTxt{color:var(--t1,#F2F0EA)}
+#fCasa a{color:var(--gold,#FFD700)}
+#fCasaTogli{min-height:44px;cursor:pointer}
+
+/* il modulo: errori leggibili anche senza colore (il testo è in #err-*) */
+#ownForm [hidden]{display:none!important}
+#ownForm [aria-invalid="true"],.cartiglio [aria-invalid="true"]{border-color:#FFB4A2!important;box-shadow:0 0 0 1px #FFB4A2}
+#fSend[disabled]{opacity:.7;cursor:progress}
+.ricevuto h3{font:300 26px/1.25 'Helvetica Neue',Helvetica,Arial,sans-serif;color:var(--gold,#FFD700);margin:0 0 12px}
+.ricevuto p{margin:0 0 12px}
+.ricevuto a{color:var(--gold,#FFD700)}
+
+/* ⏸ premuto: niente più movimento, nemmeno lo scorrimento morbido delle ancore */
+.ferma[aria-pressed="true"]{color:var(--gold,#FFD700);border-color:rgba(255,215,0,.5);background:rgba(255,215,0,.07)}
+html.still{scroll-behavior:auto}
+
+/* la barra bassa (mobile): si muove solo in transform; senza JS resta sempre su */
+.barra{position:fixed;left:0;right:0;bottom:0;z-index:9990;display:flex;background:#08080A;border-top:1px solid var(--line,rgba(255,255,255,.08));padding-bottom:env(safe-area-inset-bottom,0px);transform:translateY(110%);visibility:hidden;transition:transform .22s cubic-bezier(.2,.7,.2,1),visibility 0s .22s}
+.barra.su{transform:none;visibility:visible;transition:transform .22s cubic-bezier(.2,.7,.2,1)}
+.barra a{flex:1 1 0;min-height:52px;display:flex;align-items:center;justify-content:center;color:var(--t1,#F2F0EA);font:500 13px/1 'Helvetica Neue',Helvetica,Arial,sans-serif;letter-spacing:1.2px;text-transform:uppercase;text-decoration:none}
+.barra a+a{border-left:1px solid var(--line,rgba(255,255,255,.08))}
+.barra a[href="#uscita"]{background:var(--gold,#FFD700);color:#111}
+html:not(.js) .barra{transform:none;visibility:visible}
+html.still .barra{transition:none}
+@media (prefers-reduced-motion:reduce){.barra{transition:none}}
+@media (min-width:1100px){.barra{display:none}}
+
+@media (pointer:coarse){#zona,#mq,#ownForm input,#ownForm select,#ownForm textarea{font-size:16px}}
