@@ -23,8 +23,12 @@
 //    strada per scrivere una firma;
 //  · chi ha firmato resta scritto: tenantSignedByDelegate /
 //    landlordSignedByDelegate → pagina firme, certificato, scheda ARPE;
-//  · la delega del proprietario si arma da qui SOLO con una base scritta
-//    dichiarata dall'operatore (landlordBasis), che viene stampata;
+//  · il proprietario: col suo MANDATO scritto (dato da lui, con un tap
+//    dalla sua Scheda — profile/mandate.js, 23/09/2026) la controfirma
+//    parte da qui «per mandato del …», SOLO alle stesse condizioni (409
+//    landlord_mandate_terms_changed); senza mandato resta la delega a base
+//    scritta DICHIARATA dall'operatore (landlordBasis), che viene stampata
+//    — e la console offre «🏠 Chiedi il mandato al proprietario»;
 //  · SOLO admin: firmare per altri è l'atto dell'operatore, non di un owner;
 //  · i co-conduttori NON sono coperti dal mandato (è del principale):
 //    firmano col proprio link, e il proprietario aspetta loro.
@@ -32,22 +36,40 @@
 // Method: POST · Bearer admin
 //   { op:'signature', png }      salva la firma dell'operatore (una volta)
 //   { op:'status', id }          il piano: cosa succederebbe premendo ✍️
+//   { op:'ask-landlord-mandate', id, propertyId?, createProperty? }
+//                                arma la richiesta sulla Scheda del locatore
+//                                (contratto creato se manca) → { url, message }
 //   { op:'sign', id, landlordDelegate?, landlordBasis?, propertyId?,
-//     createProperty?, force? }  firma (conduttore per mandato → locatore per delega)
+//     createProperty?, force? }  firma (conduttore per mandato → locatore per
+//                                mandato, o per delega dichiarata)
 import crypto from 'node:crypto';
 import { fsGet, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import { convertPaToContract } from './convert.js';
 import { ensureContractPdf } from '../sign/_contractpdf.js';
-import { mandateCheck } from '../magic-sign/_shared.js';
+import { mandateCheck, landlordMandateCheck } from '../magic-sign/_shared.js';
 import msSubmit, { MS_CONSENT_TEXT } from '../magic-sign/submit.js';
 import { signatureState } from './send-sign.js';
+import { schedaUrl } from '../profile/_scheda.js';
+import { sendEmail } from '../agent/_lib.js';
+import { shell, btn, para, fine } from './_notify.js';
 import MANDATO from '../../js/mandato-engine.js';
 
 const BASE = 'https://www.boomrome.com';
 const SIG_MAX_LEN = 800_000;
 const sha256 = (s) => crypto.createHash('sha256').update(String(s), 'utf8').digest('hex');
 const clip = (s, n) => String(s == null ? '' : s).trim().slice(0, n);
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const itDate = (iso) => { try { return new Date(iso).toLocaleDateString('it-IT'); } catch (_) { return String(iso || '').slice(0, 10); } };
+// Il link della Scheda del locatore, con l'ancora della card del mandato.
+export const landlordMandateUrl = (contractId) => schedaUrl(contractId, 'landlord') + '#mandato';
+// Il messaggio (IT — il locatore è italiano) che la console manda su
+// WhatsApp o copia: una copia sola, testata.
+export function landlordMandateMessage({ name, propLabel, url }) {
+  const first = String(name || '').trim().split(/\s+/)[0] || '';
+  return 'Ciao' + (first ? ' ' + first : '') + '! Per risparmiarti la firma del contratto' + (propLabel ? ' di ' + propLabel : '') + ': apri la tua scheda BOOM e tocca «Do a BOOM il mandato a firmare» — firmiamo noi il contratto per te, esattamente alle condizioni concordate (conduttore, canone, durata, deposito), e ricevi via email il contratto firmato e il suo certificato. ' + url;
+}
 
 // La firma dell'operatore: un PNG/JPEG disegnato UNA volta nella console
 // (canvas → data URI), stessi limiti di magic-sign/submit.
@@ -66,6 +88,10 @@ export function signPlan(contract, opSig) {
   const coPending = coT.filter(x => !x.signature).map(x => x.name);
   const m = c.tenantMandate && c.tenantMandate.given === true ? c.tenantMandate : null;
   const dele = c.landlordDelegate && c.landlordDelegate.name ? c.landlordDelegate : null;
+  // Il mandato del PROPRIETARIO (dalla sua Scheda): vale solo alle condizioni
+  // su cui l'ha dato — il verdetto lo stesso che sign e submit ricalcolano.
+  const lm = c.landlordMandate && c.landlordMandate.given === true ? c.landlordMandate : null;
+  const lchk = lm ? landlordMandateCheck(c) : null;
   return {
     signatureStatus: sig.status,
     tenantSigned: sig.tenantSigned,
@@ -74,11 +100,18 @@ export function signPlan(contract, opSig) {
     mandateOk: chk.ok,
     mandateReason: chk.reason || null,
     mandateDiff: chk.ok ? '' : MANDATO.describeDiff(chk.diff || []),
-    landlordDelegate: dele ? { name: dele.name, basis: dele.basis || '', onBehalfOf: dele.onBehalfOf || '' } : null,
+    landlordDelegate: dele ? { name: dele.name, basis: dele.basis || '', onBehalfOf: dele.onBehalfOf || '', basisKind: dele.basisKind || (dele.mandateHash ? 'mandate' : 'declared') } : null,
+    landlordMandate: lm ? { at: lm.at || null, ref: lm.ref || null, docUrl: lm.docUrl || null, name: lm.name || '' } : null,
+    landlordMandateOk: lm ? lchk.ok : false,
+    landlordMandateReason: lm ? (lchk.reason || null) : 'landlord_mandate_missing',
+    landlordMandateDiff: lm && !lchk.ok ? MANDATO.describeDiff(lchk.diff || []) : '',
+    askLandlordMandate: c.askLandlordMandate === true,
     coTenantsPending: coPending,
     operatorSignature: !!opSig,
     canSignTenant: !sig.tenantSigned && chk.ok && !!opSig,
-    canSignLandlord: !sig.landlordSigned && !!dele && (sig.tenantSigned || chk.ok) && coPending.length === 0 && !!opSig,
+    // il locatore si controfirma da qui col SUO mandato (verificato) oppure
+    // con una delega armata; sempre dopo il lato conduttori completo
+    canSignLandlord: !sig.landlordSigned && ((lm && lchk.ok) || (!!dele && !lm)) && (sig.tenantSigned || chk.ok) && coPending.length === 0 && !!opSig,
   };
 }
 
@@ -121,7 +154,7 @@ const landlordIdentity = (c) => ({
   nationality: c.landlordNationality || '',
 });
 
-const errStatus = (e) => ({ mandate_missing: 403, mandate_terms_changed: 409, terms_changed: 409, awaiting_tenant: 409, already_signed: 410, invalid_or_used: 404, otp_required: 428, rate_limited: 429 })[e] || 500;
+const errStatus = (e) => ({ mandate_missing: 403, mandate_terms_changed: 409, landlord_mandate_terms_changed: 409, terms_changed: 409, awaiting_tenant: 409, already_signed: 410, invalid_or_used: 404, otp_required: 428, rate_limited: 429 })[e] || 500;
 
 export default async function handler(req, res) {
   setCors(req, res);
@@ -172,10 +205,62 @@ export default async function handler(req, res) {
       signatureStatus: 'none', tenantSigned: false, landlordSigned: false, needsContract: true,
       mandate: (pa.mandate && pa.mandate.given) ? { at: pa.mandate.at || null, ref: pa.ref || null } : null,
       mandateOk: !!(pa.mandate && pa.mandate.given), mandateReason: (pa.mandate && pa.mandate.given) ? null : 'mandate_missing',
-      mandateDiff: '', landlordDelegate: null, coTenantsPending: [], operatorSignature: !!opSig,
+      mandateDiff: '', landlordDelegate: null, landlordMandate: null, landlordMandateOk: false, landlordMandateReason: 'landlord_mandate_missing', landlordMandateDiff: '', askLandlordMandate: false,
+      coTenantsPending: [], operatorSignature: !!opSig,
       canSignTenant: !!(pa.mandate && pa.mandate.given) && !!opSig, canSignLandlord: false,
     };
-    return res.status(200).json({ ok: true, contractId, hasContract: !!contract, operatorSignature: !!opSig, operatorName: opName, plan });
+    return res.status(200).json({ ok: true, contractId, hasContract: !!contract, operatorSignature: !!opSig, operatorName: opName, plan, landlordMandateUrl: contract ? landlordMandateUrl(contractId) : null });
+  }
+
+  // ── 🏠 CHIEDI IL MANDATO AL PROPRIETARIO ─────────────────────────────
+  // Arma la card sulla Scheda del locatore (askLandlordMandate — mai un
+  // mandato che nessuno ha offerto) e restituisce il link e il messaggio
+  // pronto; al locatore con un'email parte anche l'email (best-effort). Il
+  // contratto nasce qui se manca (idempotente, come 🖊): la Scheda è del
+  // contratto, e il mandato copre le condizioni di QUEL contratto.
+  if (op === 'ask-landlord-mandate') {
+    if (!contract) {
+      const out = await convertPaToContract({
+        pa, paId, propertyId: b.propertyId || pa.propertyId,
+        actor: auth.email || auth.uid, createProperty: b.createProperty === true, force: b.force === true,
+      });
+      if (!out.ok) {
+        const code = out.error === 'no_property' ? 400 : out.error === 'property_not_found' ? 404 : out.error === 'overlap' ? 409 : 500;
+        return res.status(code).json({ ok: false, error: out.error, ...(out.overlap ? { overlap: out.overlap } : {}), ...(out.canCreate != null ? { canCreate: out.canCreate } : {}) });
+      }
+      contractId = out.contractId;
+      try { contract = await fsGet('contracts/' + contractId); } catch (_) { contract = null; }
+      if (!contract) return res.status(500).json({ ok: false, error: 'contract_missing' });
+    }
+    if (contract.landlordSignature) return res.status(410).json({ ok: false, error: 'already_signed', contractId });
+    const already = !!(contract.landlordMandate && contract.landlordMandate.given === true);
+    if (!already && contract.askLandlordMandate !== true) {
+      await fsPatch('contracts/' + contractId, { askLandlordMandate: true, landlordMandateAskedAt: nowISO, landlordMandateAskedBy: auth.email || auth.uid });
+    }
+    let property = null;
+    if (contract.propertyId) { try { property = await fsGet('properties/' + contract.propertyId); } catch (_) { property = null; } }
+    const propLabel = (property && (property.name || property.address)) || ((pa.property || {}).address) || '';
+    const name = contract.landlordName || ((pa.landlord || {}).name) || (property && property.ownerName) || '';
+    const url = landlordMandateUrl(contractId);
+    const message = landlordMandateMessage({ name, propLabel, url });
+    const email = String(contract.landlordEmail || ((pa.landlord || {}).email) || '').trim();
+    const phone = String(contract.landlordPhone || ((pa.landlord || {}).phone) || '').trim();
+    let emailed = false;
+    if (!already && email && EMAIL_RE.test(email)) {
+      try {
+        const html = shell(
+          para('Gentile ' + esc(name || 'proprietario') + ',<br><br>per risparmiarle la firma del contratto' + (propLabel ? ' di <b>' + esc(propLabel) + '</b>' : '') + ' può conferire a BOOM il mandato a firmarlo per suo conto, esattamente alle condizioni concordate (conduttore, canone, durata, deposito, modello). Bastano due tap dalla sua scheda: legge le condizioni, spunta, conferma. Riceverà via email il contratto firmato e il suo certificato.')
+          + btn(url, 'Apri la scheda e dai il mandato')
+          + fine('Il link è personale. Il mandato è gratuito, vale solo per quelle condizioni ed è revocabile per iscritto fino alla firma. Se preferisce firmare di persona, ignori questa email: le manderemo il suo link di firma.'),
+          'Il mandato a firmare — due tap dalla sua scheda.',
+        );
+        await sendEmail({ to: email, subject: ('Contratto ' + (propLabel ? propLabel + ' ' : '') + '— il mandato a firmare (due tap)').replace(/\s+/g, ' ').trim(), html, text: message });
+        emailed = true;
+        await fsPatch('contracts/' + contractId, { landlordMandateAskedTo: email });
+      } catch (e) { console.warn('[pa/sign-for] ask landlord mandate email:', e.message); }
+    }
+    await logActivity('preagreement_ask_landlord_mandate', 'contract', { paId, contractId, emailed, already }, auth.email || 'admin');
+    return res.status(200).json({ ok: true, contractId, url, message, phone: phone || null, email: email || null, emailed, already, at: already ? (contract.landlordMandate.at || null) : null });
   }
   if (op !== 'sign') return res.status(400).json({ ok: false, error: 'bad_op' });
 
@@ -183,7 +268,8 @@ export default async function handler(req, res) {
   if (!opSig) return res.status(409).json({ ok: false, error: 'operator_signature_missing' });
   const wantLandlordDelega = b.landlordDelegate === true;
   const landlordBasis = clip(b.landlordBasis, 200);
-  if (wantLandlordDelega && !(contract && contract.landlordDelegate && contract.landlordDelegate.name) && landlordBasis.length < 8) {
+  const hasLandlordMandate = !!(contract && contract.landlordMandate && contract.landlordMandate.given === true);
+  if (wantLandlordDelega && !hasLandlordMandate && !(contract && contract.landlordDelegate && contract.landlordDelegate.name) && landlordBasis.length < 8) {
     return res.status(400).json({ ok: false, error: 'landlord_basis_required' });
   }
 
@@ -256,22 +342,45 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, partial: true, steps, waitingCoTenants: coPending, contractId, signatureStatus: fresh.signatureStatus || 'partial', landlordSignUrl });
   }
 
-  // ── 3. IL LOCATORE, per delega (solo con una base scritta dichiarata) ──
+  // ── 3. IL LOCATORE: per MANDATO (dato da lui sulla Scheda) o per delega
+  //      a base scritta dichiarata dall'operatore ──────────────────────────
   if (!fresh.landlordSignature) {
     let dele = (fresh.landlordDelegate && fresh.landlordDelegate.name) ? fresh.landlordDelegate : null;
-    if (!dele && wantLandlordDelega) {
+    const lm = (fresh.landlordMandate && fresh.landlordMandate.given === true) ? fresh.landlordMandate : null;
+    if (lm) {
+      // Il mandato vale SOLO alle condizioni su cui il proprietario l'ha
+      // dato: si verifica QUI, prima di armare la delega e di firmare
+      // (submit lo ricontrolla comunque). Cambiate → 409, nessuna firma.
+      const lchk = landlordMandateCheck(fresh);
+      if (!lchk.ok) {
+        await logActivity('preagreement_sign_for', 'contract', { paId, contractId, steps, landlordMandateTermsChanged: lchk.diff.map(d => d.key) }, auth.email || 'admin');
+        return res.status(409).json({ ok: false, error: 'landlord_mandate_terms_changed', step: 'landlord', steps, contractId, changed: lchk.diff.map(d => d.key), changedText: MANDATO.describeDiff(lchk.diff || []), landlordSignUrl });
+      }
+      if (!dele || dele.basisKind !== 'mandate' || dele.mandateHash !== (lm.hash || '')) {
+        dele = {
+          name: opName,
+          onBehalfOf: lm.name || fresh.landlordName || ((pa.landlord || {}).name) || 'il proprietario',
+          basis: 'mandato scritto del proprietario' + (lm.at ? ' del ' + itDate(lm.at) : '') + (lm.ref ? ' (' + lm.ref + ')' : ''),
+          basisKind: 'mandate', mandateRef: lm.ref || '', mandateAt: lm.at || '', mandateHash: lm.hash || '',
+          setAt: nowISO, setBy: auth.email || auth.uid, via: 'console',
+        };
+        await fsPatch('contracts/' + contractId, { landlordDelegate: dele });
+      }
+    } else if (!dele && wantLandlordDelega) {
       dele = {
         name: opName,
         onBehalfOf: fresh.landlordName || ((pa.landlord || {}).name) || 'il proprietario',
-        basis: landlordBasis, setAt: nowISO, setBy: auth.email || auth.uid, via: 'console',
+        basis: landlordBasis, basisKind: 'declared', setAt: nowISO, setBy: auth.email || auth.uid, via: 'console',
       };
       await fsPatch('contracts/' + contractId, { landlordDelegate: dele });
     }
     if (!dele) {
       await logActivity('preagreement_sign_for', 'contract', { paId, contractId, steps, landlordPending: true }, auth.email || 'admin');
-      return res.status(200).json({ ok: true, partial: true, steps, landlordPending: true, landlordSignUrl, contractId, signatureStatus: fresh.signatureStatus || 'partial' });
+      return res.status(200).json({ ok: true, partial: true, steps, landlordPending: true, landlordSignUrl, landlordMandateUrl: landlordMandateUrl(contractId), askLandlordMandate: fresh.askLandlordMandate === true, contractId, signatureStatus: fresh.signatureStatus || 'partial' });
     }
-    const r2 = await signInProcess({ token: fresh.landlordSignToken, signature: opSig.png, identity: landlordIdentity(fresh), asDelegate: false, ip, ua });
+    // asDelegate:true — è l'OPERATORE che firma: submit stampa
+    // landlordSignedByDelegate (con mandateRef/At/Hash quando c'è il mandato)
+    const r2 = await signInProcess({ token: fresh.landlordSignToken, signature: opSig.png, identity: landlordIdentity(fresh), asDelegate: true, ip, ua });
     if (r2.status !== 200) {
       const err = (r2.body && r2.body.error) || 'landlord_sign_failed';
       return res.status(r2.status || 500).json({ ok: false, error: err, step: 'landlord', steps, contractId, landlordSignUrl });

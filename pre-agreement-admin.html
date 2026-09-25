@@ -754,6 +754,11 @@ function preflightHtml(j){
     +(j&&j.overlap?'<label class="dele" style="margin-top:8px"><input type="checkbox" id="cvForce"><span><b>Crea comunque</b> — è un’altra stanza/interno non modellato, oppure sostituisce quello in corso.</span></label>':'');
 }
 function ask(msg){return (typeof confirm==='function')?confirm(msg):true;}
+/* Il link del proprietario aperto DALL'OPERATORE porta &delegate=1: è
+   l'unico modo in cui la controfirma esce «per delega/per mandato» (submit
+   stampa landlordSignedByDelegate SOLO con asDelegate:true — il link nudo
+   del proprietario firma sempre come il proprietario). */
+function delegaUrl(u){return u?(u+(u.indexOf('?')>=0?'&':'?')+'delegate=1'):u;}
 /* ✍️ FIRMO IO — la firma in un tap dalla console (21/09/2026).
    Il server (api/preagreement/sign-for) firma per il conduttore in forza del
    suo mandato scritto e, se c'è la delega, controfirma per il proprietario,
@@ -778,14 +783,17 @@ window.signFor=async function(id,btn){
     var lines=[];
     if(!p.tenantSigned)lines.push('Firmi TU per il conduttore '+(t.fullName||'')+' in forza del mandato scritto del '+String((p.mandate&&p.mandate.at)||'').slice(0,10)+((p.mandate&&p.mandate.ref)?' (proposta '+p.mandate.ref+')':'')+'.');
     if(p.coTenantsPending&&p.coTenantsPending.length)lines.push('I co-conduttori ('+p.coTenantsPending.join(', ')+') NON sono coperti dal mandato: firmano col proprio link, e il proprietario dopo di loro.');
+    var lm=p.landlordMandate||null;
     if(!p.landlordSigned){
-      if(p.landlordDelegate)lines.push('Poi controfirmi per delega del proprietario '+(ll.name||'')+' — '+(p.landlordDelegate.basis||'delega')+'.');
-      else lines.push('Il proprietario '+(ll.name||'')+' firma col suo link (WhatsApp/copia dalla riga), a meno che tu non abbia una sua delega SCRITTA (te lo chiedo dopo).');
+      if(lm&&p.landlordMandateOk)lines.push('Poi controfirmi per il proprietario '+(ll.name||lm.name||'')+' in forza del SUO mandato scritto del '+String(lm.at||'').slice(0,10)+' (dato dalla sua scheda).');
+      else if(lm&&p.landlordMandateOk===false)lines.push('⚠ Il proprietario ha dato il mandato, ma le condizioni del contratto sono cambiate ('+(p.landlordMandateDiff||'')+'): il server RIFIUTERÀ la controfirma. Rifai la proposta, oppure mandagli il suo link.');
+      else if(p.landlordDelegate)lines.push('Poi controfirmi per delega del proprietario '+(ll.name||'')+' — '+(p.landlordDelegate.basis||'delega')+'.');
+      else lines.push('Il proprietario '+(ll.name||'')+' firma col suo link (WhatsApp/copia dalla riga) — oppure gli chiedi il mandato scritto (🏠 Chiedi il mandato al proprietario: per lui è un tap sulla sua scheda), o dichiari una sua delega SCRITTA (te lo chiedo dopo).');
     }
     lines.push('Nome, data, ora, dispositivo e «per mandato/per delega» finiscono sulla pagina delle firme e sul certificato.');
     if(!ask(lines.join('\n\n')+'\n\nProcedere?')){restore();return;}
     var body={op:'sign',id:id};
-    if(!p.landlordSigned&&!p.landlordDelegate&&!(p.coTenantsPending&&p.coTenantsPending.length)&&ask('Vuoi controfirmare TU anche per il proprietario, per delega?\n\nSOLO se hai una sua delega scritta (es. nel mandato di gestione firmato). Annulla = il proprietario firma col suo link.')){
+    if(!p.landlordSigned&&!lm&&!p.landlordDelegate&&!(p.coTenantsPending&&p.coTenantsPending.length)&&ask('Vuoi controfirmare TU anche per il proprietario, per delega?\n\nSOLO se hai una sua delega scritta (es. nel mandato di gestione firmato). Annulla = il proprietario firma col suo link (o gli chiedi il mandato dalla riga).')){
       var basis=prompt('Base scritta della delega del proprietario (viene stampata sul certificato) — es. «mandato di gestione firmato il 12/03/2026»:','');
       if(basis&&basis.trim().length>=8){body.landlordDelegate=true;body.landlordBasis=basis.trim();}
       else alert('Senza una base scritta la delega non si arma: il proprietario firma col suo link.');
@@ -798,8 +806,9 @@ window.signFor=async function(id,btn){
     alert(j.alreadySigned?'Il contratto era già firmato da entrambe le parti.'
       :j.fullySigned?'Contratto firmato da entrambe le parti'+(j.signedPdfUrl?': il PDF firmato è pronto (📥 nella riga). Certificato, fascicolo e pack sono partiti.':' — il PDF firmato e il certificato arrivano tra pochi secondi.')
       :(j.waitingCoTenants&&j.waitingCoTenants.length)?'Firmato per il conduttore. Mancano i co-conduttori ('+j.waitingCoTenants.join(', ')+'): firmano col proprio link, poi il proprietario.'
-      :j.landlordPending?'Firmato per il conduttore. Ora il proprietario: mandagli il link firma (WhatsApp/copia nella riga).'
+      :j.landlordPending?'Firmato per il conduttore. Ora il proprietario: '+(j.askLandlordMandate?'il mandato gli è già stato chiesto — appena lo dà, ✍️ Controfirmo io.':'chiedigli il mandato (🏠, un tap sulla sua scheda) oppure mandagli il link firma (WhatsApp/copia nella riga).')
       :'Fatto: '+(j.steps||[]).join(', '));
+    if(j.landlordPending&&!j.askLandlordMandate&&ask('Vuoi chiedere ORA al proprietario il mandato a firmare (WhatsApp/email con il link della sua scheda)?'))askLandlordMandateFor(id);
   }catch(e){
     restore();
     var m=String(e&&e.message||'');
@@ -807,6 +816,7 @@ window.signFor=async function(id,btn){
       :m==='mandate_terms_changed'?'le condizioni del contratto non sono più quelle del mandato: rifai la proposta o manda il link al conduttore.'
       :m==='operator_signature_missing'?'manca la tua firma salvata: disegnala e riprova.'
       :m==='landlord_basis_required'?'la delega del proprietario vuole una base scritta (almeno 8 caratteri).'
+      :m==='landlord_mandate_terms_changed'?'le condizioni del contratto non sono più quelle del mandato del proprietario: rifai la proposta o mandagli il suo link.'
       :m==='awaiting_tenant'?'il lato conduttori non è completo (co-conduttori).'
       :m==='no_property'?'collega (o crea) la proprietà con → Contratto.'
       :m==='overlap'?'sullo stesso immobile c’è già un contratto attivo: passa da → Contratto e decidi.'
@@ -827,6 +837,27 @@ window.askMandateFor=async function(id){
   var msg='Hi'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! To spare you the contract signing: open your BOOM pre-agreement and tap “Give BOOM the mandate to sign” — we sign the lease for you on exactly the same terms, and you get the signed contract and its certificate by email. '+url;
   if(t.phone)window.open('https://wa.me/'+String(t.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent(msg),'_blank','noopener');
   else{copyTxt(msg);alert('Messaggio copiato (nessun numero in archivio): incollalo dove preferisci.');}
+};
+
+/* 🏠 CHIEDI IL MANDATO AL PROPRIETARIO (23/09/2026) — il server arma la
+   card sulla SUA Scheda (askLandlordMandate, contratto creato se manca),
+   manda l'email se c'è, e restituisce link e messaggio: WhatsApp col numero,
+   copia senza. Per il proprietario è un tap; poi ✍️ Controfirmo io. */
+window.askLandlordMandateFor=async function(id){
+  var d=PAS.find(function(x){return x.id===id});if(!d)return;
+  try{
+    var tok=await USER.getIdToken();
+    var r=await fetch('/api/preagreement/sign-for',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({op:'ask-landlord-mandate',id:id,propertyId:d.propertyId||undefined,createProperty:!d.propertyId})});
+    var j=await r.json();
+    if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
+    if(j.already){alert('Il proprietario ha già dato il mandato'+(j.at?' il '+String(j.at).slice(0,10):'')+': puoi controfirmare tu (✍️ Controfirmo io).');return;}
+    if(j.phone)window.open('https://wa.me/'+String(j.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent(j.message),'_blank','noopener');
+    else{copyTxt(j.message);alert('Messaggio copiato (nessun numero del proprietario in archivio): incollalo dove preferisci.'+(j.emailed?'\n\nGli è partita anche l’email con il link.':''));}
+    if(j.emailed&&j.phone)alert('Email con il link inviata a '+j.email+'. Appena il proprietario dà il mandato, nella riga compare ✍️ Controfirmo io.');
+  }catch(e){
+    var m=String(e&&e.message||'');
+    alert('Non riesco a chiedere il mandato: '+(m==='no_property'?'collega (o crea) la proprietà con → Contratto.':m==='overlap'?'sullo stesso immobile c’è già un contratto attivo: passa da → Contratto e decidi.':m==='already_signed'?'il proprietario ha già firmato.':m||'riprova'));
+  }
 };
 
 /* ✍️ LA FIRMA DELL'OPERATORE — disegnata UNA volta (canvas), salvata dal
@@ -1177,10 +1208,10 @@ window.convertPA=async function(id){
         +'<div class="cvlink"><b>Firma inquilino — prima lui</b><span class="u">'+j.tenantSignUrl+'</span>'
         +'<div class="row2"><button class="pbtn" onclick="copyTxt(\''+j.tenantSignUrl+'\')">Copia</button>'
         +(waT?'<a class="pbtn wa" href="'+waT+'" target="_blank" rel="noopener">WhatsApp</a>':'')+'</div></div>'
-        +'<div class="cvlink"><b>'+(isDele?'La tua controfirma per delega — tienilo tu':'Firma proprietario — '+esc(ll.name||''))+'</b><span class="u">'+j.landlordSignUrl+'</span>'
-        +'<div class="row2"><button class="pbtn" onclick="copyTxt(\''+j.landlordSignUrl+'\')">Copia</button>'
+        +'<div class="cvlink"><b>'+(isDele?'La tua controfirma per delega — tienilo tu':'Firma proprietario — '+esc(ll.name||''))+'</b><span class="u">'+(isDele?delegaUrl(j.landlordSignUrl):j.landlordSignUrl)+'</span>'
+        +'<div class="row2"><button class="pbtn" onclick="copyTxt(\''+(isDele?delegaUrl(j.landlordSignUrl):j.landlordSignUrl)+'\')">Copia</button>'
         +(waL?'<a class="pbtn wa" href="'+waL+'" target="_blank" rel="noopener">WhatsApp al proprietario</a>':'')
-        +(isDele?'<a class="pbtn" href="'+j.landlordSignUrl+'" target="_blank" rel="noopener">Apri per firmare</a>':'')+'</div>'
+        +(isDele?'<a class="pbtn" href="'+delegaUrl(j.landlordSignUrl)+'" target="_blank" rel="noopener">Apri per firmare</a>':'')+'</div>'
         +'<div style="font-size:11px;color:var(--t3);margin-top:7px">'+(isDele
           ?'Si sblocca dopo la firma dell’inquilino — firmi “'+esc((j.delegate||{}).name||'')+' per conto di '+esc((j.delegate||{}).onBehalfOf||'')+'”.'
           :'Si sblocca dopo la firma dell’inquilino — mandaglielo quando è il momento.')+'</div>'
@@ -1363,6 +1394,15 @@ function paRow(d){
   }else if(done&&!sig.tenantSigned){
     docsLine+='<div class="docs" style="color:var(--t3)">🖊 '+(d.askMandate===true?'Mandato offerto ma non dato':'Nessun mandato a firmare')+' — <b>🖊 Chiedi il mandato</b> glielo chiede con un tap (WhatsApp); senza, il conduttore firma col suo link</div>';
   }
+  /* il mandato del PROPRIETARIO (dalla sua Scheda, sul contratto): con
+     quello ✍️ Controfirmo io firma per lui dalla console, «per mandato» */
+  var lmand=(cdoc&&!cdoc.missing&&cdoc.landlordMandate&&cdoc.landlordMandate.given===true)?cdoc.landlordMandate:null;
+  var lask=!!(cdoc&&!cdoc.missing&&cdoc.askLandlordMandate===true);
+  if(lmand){
+    docsLine+='<div class="docs" style="color:var(--gold)">🏠 Mandato del proprietario ricevuto il '+esc(String(lmand.at||'').slice(0,10))+(lmand.docUrl?' · <a href="'+lmand.docUrl+'" target="_blank" rel="noopener">PDF</a>':'')+' — <b>✍️ Controfirmo io</b> firma per il proprietario dalla console (dopo il conduttore)</div>';
+  }else if(done&&!sig.landlordSigned&&sig.status!=='complete'){
+    docsLine+='<div class="docs" style="color:var(--t3)">🏠 '+(lask?'Mandato chiesto al proprietario, non ancora dato':(d.delegated?'Delega del proprietario a base dichiarata dall’operatore':'Nessun mandato del proprietario'))+' — <b>🏠 Chiedi il mandato al proprietario</b>: per lui è un tap sulla sua scheda; senza, firma col suo link</div>';
+  }
   if(ups.length||d.extraDoc){
     docsLine+='<div class="docs">📎 '
       +(ups.length?ups.map(function(u,i){var n=(u.name||'doc '+(i+1));return '<a href="'+u.url+'" target="_blank" rel="noopener">'+esc(n.length>22?n.slice(0,20)+'…':n)+(u.kind==='extra'?' (extra)':'')+'</a>'}).join(' · '):'<span class="miss">nessun documento</span>')
@@ -1401,9 +1441,11 @@ function paRow(d){
         (sig.status==='complete'
           ?(sig.pdf?'<a class="pbtn prim" href="'+sig.pdf+'" target="_blank" rel="noopener">📥 Contratto firmato</a>':'')
           :(sig.tenantSigned
-            ?(d.delegated&&d.landlordSignUrl
-              ?'<a class="pbtn prim" href="'+d.landlordSignUrl+'" target="_blank" rel="noopener">🖊 Controfirma per delega</a>'
-              :(llWa?'<a class="pbtn prim wa" href="'+llWa+'" target="_blank" rel="noopener">📲 Firma proprietario su WhatsApp</a>':''))
+            ?(lmand&&cid
+              ?'<button class="pbtn prim" onclick="signFor(\''+d.id+'\',this)" title="Controfirmi tu per il proprietario in forza del suo mandato scritto (dato dalla sua scheda)">✍️ Controfirmo io (mandato)</button>'
+              :(d.delegated&&d.landlordSignUrl
+                ?'<a class="pbtn prim" href="'+delegaUrl(d.landlordSignUrl)+'" target="_blank" rel="noopener">🖊 Controfirma per delega</a>'
+                :(llWa?'<a class="pbtn prim wa" href="'+llWa+'" target="_blank" rel="noopener">📲 Firma proprietario su WhatsApp</a>':'')))
             :(cid||d.propertyId
               ?(hasMandate
                 /* col mandato scritto la mossa primaria è firmare TU, dalla
@@ -1414,11 +1456,14 @@ function paRow(d){
               :'<button class="pbtn prim" onclick="convertPA(\''+d.id+'\')">→ Contratto</button>')))
         /* inquilino firmato, delega del proprietario armata: la controfirma
            anche dalla console, con la firma salvata (niente sign.html) */
-        +(sig.tenantSigned&&!sig.landlordSigned&&d.delegated&&cid?'<button class="pbtn" onclick="signFor(\''+d.id+'\',this)">✍️ Controfirmo io (delega)</button>':'')
+        +(sig.tenantSigned&&!sig.landlordSigned&&d.delegated&&!lmand&&cid?'<button class="pbtn" onclick="signFor(\''+d.id+'\',this)">✍️ Controfirmo io (delega)</button>':'')
+        /* 🏠 il mandato del proprietario: chiesto dalla riga, dato con un tap
+           dalla sua Scheda — senza, resta il suo link o la delega dichiarata */
+        +(done&&!sig.landlordSigned&&sig.status!=='complete'&&!lmand&&!d.delegated?'<button class="pbtn" onclick="askLandlordMandateFor(\''+d.id+'\')" title="Arma la card sulla scheda del proprietario e manda il messaggio (WhatsApp/email): per lui è un tap, poi controfirmi tu">🏠 '+(lask?'Richiedi di nuovo il mandato':'Chiedi il mandato al proprietario')+'</button>':'')
         +(done&&!hasMandate&&!sig.tenantSigned&&sig.status!=='complete'?'<button class="pbtn" onclick="askMandateFor(\''+d.id+'\')" title="Attiva la card sulla proposta e manda il messaggio: il cliente dà il mandato con un tap">🖊 Chiedi il mandato</button>':'')
         +(!sig.tenantSigned&&d.signSentAt&&d.tenantSignUrl&&t.phone?'<a class="pbtn wa" href="https://wa.me/'+String(t.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! Il tuo contratto per '+((d.property||{}).address||'')+' è pronto — firmi qui in 2 minuti: '+d.tenantSignUrl)+'" target="_blank" rel="noopener">Firma su WhatsApp</a>':'')
         +(llWa&&!sig.tenantSigned?'<a class="pbtn wa" href="'+llWa+'" target="_blank" rel="noopener">Firma proprietario su WhatsApp</a>':'')
-        +(d.landlordSignUrl&&sig.status!=='complete'?'<button class="pbtn" onclick="copyTxt(\''+d.landlordSignUrl+'\')">'+(d.delegated?'Copia link delega':'Copia link firma proprietario')+'</button>':'')
+        +(d.landlordSignUrl&&sig.status!=='complete'?'<button class="pbtn" onclick="copyTxt(\''+(d.delegated?delegaUrl(d.landlordSignUrl):d.landlordSignUrl)+'\')">'+(d.delegated?'Copia link delega':'Copia link firma proprietario')+'</button>':'')
         +(sig.status==='complete'&&sig.cert?'<a class="pbtn" href="'+sig.cert+'" target="_blank" rel="noopener">Certificato FES</a>':'')
         /* il contratto GENERATO (non ancora firmato): il PDF esiste dalla
            conversione (generatedPDF) ma la console lo mostrava solo a firme

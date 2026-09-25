@@ -537,6 +537,7 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
       name: dName,
       onBehalfOf: (pa.landlord || {}).name || property.ownerName || '',
       basis: 'delega scritta del proprietario',
+      basisKind: 'declared',   // base dichiarata dall'operatore (non un atto del proprietario)
       setAt: new Date().toISOString(),
       setBy: actor,
     } : null,

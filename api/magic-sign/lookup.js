@@ -14,7 +14,7 @@
 //            400 { ok:false, error:'missing_token' }
 
 import { fsGet, fsPatch, fsCreate, readJson } from '../homie/_lib.js';
-import { findContractByToken, mandateCheck, tenantSideComplete, setCors, rateOk } from './_shared.js';
+import { findContractByToken, mandateCheck, landlordMandateCheck, tenantSideComplete, setCors, rateOk } from './_shared.js';
 import { ensureContractPdf } from '../sign/_contractpdf.js';
 
 export default async function handler(req, res) {
@@ -162,6 +162,12 @@ export default async function handler(req, res) {
     // PRIMA del tentativo, e il rifiuto al submit non è una sorpresa.
     tenantMandate: (contract.tenantMandate && contract.tenantMandate.given === true)
       ? (() => { const chk = mandateCheck(contract); return { at: contract.tenantMandate.at || null, ref: contract.tenantMandate.ref || null, termsVersion: Number(contract.tenantMandate.termsVersion) || 1, termsOk: chk.ok, termsChanged: chk.diff.map(d => d.label || d.key) }; })()
+      : null,
+    // il mandato del PROPRIETARIO (dalla sua Scheda): quando l'operatore apre
+    // il link del locatore con &delegate=1, la pagina dice «per mandato del
+    // <data>» e avvisa PRIMA se le condizioni non sono più quelle.
+    landlordMandate: (contract.landlordMandate && contract.landlordMandate.given === true)
+      ? (() => { const chk = landlordMandateCheck(contract); return { at: contract.landlordMandate.at || null, ref: contract.landlordMandate.ref || null, termsOk: chk.ok, termsChanged: chk.diff.map(d => d.label || d.key) }; })()
       : null,
     preAgreementRef: contract.preAgreementRef || null,
   };

@@ -120,6 +120,22 @@ export function mandateCheck(contract) {
   return { ok, version: 1, reason: ok ? null : 'mandate_terms_changed', diff: [] };
 }
 
+// IL MANDATO DEL PROPRIETARIO (23/09/2026) — lo specchio di mandateCheck.
+// Nasce SUL CONTRATTO (profile/mandate.js, dalla Scheda del locatore), quindi
+// la base è la foto delle condizioni del contratto al momento del
+// conferimento (termsFromContract → mandateTermsHash, v2 soltanto: non
+// esiste un v1). Il contratto di ADESSO deve riprodurla; il diff dice cosa è
+// cambiato. Una copia sola: submit (409), sign-for (409 prima di firmare),
+// lookup (avviso), la Scheda (stato).
+export function landlordMandateCheck(contract) {
+  const m = contract && contract.landlordMandate;
+  if (!m || m.given !== true || !m.termsHash) return { ok: false, version: 0, reason: 'landlord_mandate_missing', diff: [] };
+  const current = MANDATO.termsFromContract(contract);
+  const ok = mandateTermsHash(current) === m.termsHash;
+  const diff = ok ? [] : MANDATO.diffTerms(m.terms || {}, current);
+  return { ok, version: 2, reason: ok ? null : 'landlord_mandate_terms_changed', diff, current };
+}
+
 export function tenantSideComplete(contract) {
   if (!contract || !contract.tenantSignature) return false;
   const list = Array.isArray(contract.coTenants) ? contract.coTenants : [];

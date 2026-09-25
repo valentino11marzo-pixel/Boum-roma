@@ -25,3 +25,16 @@ export const PA_MANDATE_TEXT = 'MANDATE TO SIGN. I appoint Egidi Immobiliare S.r
 export const sha256 = (s) => crypto.createHash('sha256').update(String(s), 'utf8').digest('hex');
 export const PA_CONSENT_HASH = sha256(PA_CONSENT_TEXT);
 export const PA_MANDATE_HASH = sha256(PA_MANDATE_TEXT);
+
+// ── IL MANDATO DEL PROPRIETARIO (23/09/2026) ─────────────────────────────
+// Lo specchio del mandato del conduttore, dal lato del locatore: fino a
+// oggi la controfirma «per delega» del proprietario si reggeva su una base
+// scritta DICHIARATA dall'operatore nel tap (landlordBasis) — la parola
+// dell'operatore, non un atto del proprietario. Qui il proprietario
+// conferisce lui il mandato, con un tap sulla SUA Scheda (/scheda, link
+// derivato), in italiano perché il locatore è italiano (regola della casa),
+// e il testo è UNO: la Scheda lo mostra così come il server lo manda,
+// profile/mandate lo registra con hash, data, IP, UA e la foto delle
+// condizioni del contratto; il certificato stampa «per mandato del …».
+export const LL_MANDATE_TEXT = "MANDATO A FIRMARE. Conferisco a Egidi Immobiliare S.r.l. (BOOM), Via dei Coronari 181/184, 00186 Roma, mandato con rappresentanza a sottoscrivere in mio nome e per mio conto il contratto di locazione dell'immobile indicato, esattamente alle condizioni qui riportate (conduttore, canone, durata, deposito, modello contrattuale dell'accordo territoriale di Roma), senza modifiche. Il mandato è gratuito e revocabile per iscritto fino alla firma del contratto. Riceverò via email il contratto firmato e il relativo certificato di firma. Prendo atto che BOOM assiste anche il conduttore: essendo le condizioni interamente predeterminate, non sussiste conflitto di interessi (art. 1395 c.c.).";
+export const LL_MANDATE_HASH = sha256(LL_MANDATE_TEXT);

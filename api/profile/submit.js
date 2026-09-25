@@ -223,10 +223,14 @@ export default async function handler(req, res) {
   // l'operatore: è lui che sta per firmare per mandato. La parte dal suo
   // link resta libera di correggere il proprio nome (è la sua identità);
   // se poi il mandato non combacia lo dice la firma, come sempre.
-  if (actor === 'operator' && contract.tenantMandate && contract.tenantMandate.given) {
+  // Vale per ENTRAMBI i mandati: quello del conduttore (dalla proposta) e
+  // quello del proprietario (dalla sua Scheda, 23/09/2026) — la foto è la
+  // stessa (termsFromContract), e una firma per mandato la ricontrolla.
+  const frozenBy = actor === 'operator' ? ['tenantMandate', 'landlordMandate'].filter(k => contract[k] && contract[k].given === true) : [];
+  if (frozenBy.length) {
     const before = MANDATO.termsFromContract(contract), after = MANDATO.termsFromContract({ ...contract, ...upd });
     if (MANDATO.canonical(before) !== MANDATO.canonical(after)) {
-      return res.status(409).json({ ok: false, error: 'mandate_terms_frozen', changed: MANDATO.diffTerms(before, after).map(d => d.key), rejected: applied.rejected });
+      return res.status(409).json({ ok: false, error: 'mandate_terms_frozen', changed: MANDATO.diffTerms(before, after).map(d => d.key), mandates: frozenBy, rejected: applied.rejected });
     }
   }
 
