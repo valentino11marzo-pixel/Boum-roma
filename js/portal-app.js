@@ -4886,6 +4886,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (at(m?.checkedAt)) dates.push('Stato letto: ' + at(m.checkedAt));
         if (at(m?.lastRunAt)) dates.push('Ultimo ciclo: ' + at(m.lastRunAt));
         if (Number.isSafeInteger(m?.usedToday) && m.usedToday >= 0) dates.push('Tentativi oggi: ' + m.usedToday + ' (compresi quelli non riusciti)');
+        // Perché (25/09/2026): il contatore diceva solo QUANTE preparazioni, mai
+        // il motivo — e la preparazione è il 95% della spesa AI del giorno.
+        const triggerLabels = [['inbound', 'da messaggi del cliente'], ['outbound', 'dopo una tua risposta'], ['recheck', 'ricontrolli'],
+            ['decision', 'dopo una tua decisione'], ['manual', 'su tua richiesta'], ['other', 'altro']];
+        const triggers = triggerLabels.filter(([key]) => Number.isSafeInteger(m?.triggersToday?.[key]) && m.triggersToday[key] > 0)
+            .map(([key, label]) => m.triggersToday[key] + ' ' + label);
+        if (triggers.length) dates.push('Perché: ' + triggers.join(' · '));
         for (const [key, label] of [['pending', 'Richieste da valutare'], ['quiet', 'In arrivo a raffica (si preparano a chat ferma)'], ['current', 'Proposte attuali'], ['awaitingReview', 'In attesa di verifica'], ['retrying', 'Casi da ritentare']]) {
             if (Number.isSafeInteger(m?.counts?.[key]) && m.counts[key] >= 0) counts.push(label + ': ' + m.counts[key]);
         }

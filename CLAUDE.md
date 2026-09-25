@@ -4683,6 +4683,34 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
   si legge in `/ai` nei giorni successivi (193 chiamate/giorno è la base).
   Il modello (opus 4.8) non è stato toccato: la sua qualità si misura sulle
   approvazioni (`agreeOn:false`), e cambiarlo è una decisione dell'operatore.
+- **LE TUE RISPOSTE E IL PERCHÉ (25/09/2026 — letto in `/ai` e nei log di
+  Vercel, non dedotto)**: due giorni dopo la finestra di quiete `/ai` diceva
+  ancora `segretaria.prepare` $10,29 su 142 chiamate (95% della spesa del
+  giorno) e i log di Vercel contano 344 chiamate a `/api/homie/message` in
+  24 ore — circa una preparazione ogni due messaggi WhatsApp, in entrata O in
+  uscita. Il motivo: ogni OUT dell'operatore invalida la proposta
+  (`contextRevision`, la regola del 21/09) e la quiete guardava SOLO
+  `followUp.lastInboundAt`, quindi una risposta dell'operatore veniva
+  ripreparata al ciclo dopo — e l'operatore scrive a raffica quanto il cliente
+  (mediana ≤17 caratteri, misurata sui suoi 29.255 messaggi). Due mosse:
+  (1) `invalidateTrackedContext` stampa `lastOutboundAt` sul caso — top level,
+  MAI dentro `followUp`: «l'OUT non tocca l'ultimo inbound né la decisione»
+  resta — e `PRIORITY.quiet` conta «chat ferma» in ENTRAMBE le direzioni; un
+  caso legacy senza il campo si comporta come prima. (2) Il contatore del
+  giorno (`heartbeat/segretaria-preparations-<giorno>`) archivia la CAUSA di
+  ogni tentativo (`triggers`: inbound · outbound · recheck · decision · manual
+  · other — lista in `SEG.PREPARATION_TRIGGERS`, `tallyTriggers` scarta chiavi
+  ignote e valori impossibili invece di aggiustarli); il monitor la espone
+  (`triggersToday`), Oggi la stampa («Perché: …») e `/segretaria` la dice —
+  prima di cambiare modello si legge da cosa partono i soldi. Il modello resta
+  opus 4.8: la sua qualità si misura sulle approvazioni, e cambiarlo è una
+  decisione dell'operatore. Test: `tests/segretaria/worker.mjs` (una tua
+  risposta di 10s fa aspetta, a chat ferma UNA preparazione, un OUT senza
+  cambio di contesto non è un evento, le cause archiviate; due mutanti presi:
+  risposta esclusa dalla quiete, causa falsa), `freshness.mjs` (il handler
+  VERO stampa `lastOutboundAt` con l'ora del messaggio, mai in `followUp`; con
+  la quiete al default il secondo OUT aspetta e poi UNA ripreparazione),
+  `monitor.mjs`, `realtime-ui.mjs`.
 - **Preparazione continua (18/09)**: le proposte non condividono più `dailyCap` con le risposte conversazionali. Il contatore misura i tentativi; attivazione, lease, budget per ciclo e veti di consegna restano distinti.
   La scansione legge pagine per ID con cursore nel battito esistente e riparte dal principio a fine giro: nessun arresto ai primi 200 casi. Oggi legge tutte le pagine, preservando dati e modali durante refresh incompleti; il monitor dichiara i conteggi parziali.
   Scadenze confermate e richieste datate precedono i nuovi eventi, con un turno su tre al caso meno recentemente controllato. Errori temporanei riprovano dopo 1/5/15/60/360 minuti; errori di validazione restano visibili da verificare fino a nuova evidenza, decisione o versione.

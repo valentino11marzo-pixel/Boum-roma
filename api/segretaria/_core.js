@@ -20,6 +20,7 @@ import { fsGet, fsPatch, fsCreate, fsList, logActivity } from '../homie/_lib.js'
 import { tgSend } from '../telegram/_lib.js';
 import { runExecutor, romeDay } from '../employees/_fiducia.js';
 import { postinoStatus } from '../telegram/_postino.js';
+import { readPreparationMonitor } from './_monitor.js';
 import { callClaude, extractJson } from '../agent/_claude.js';
 import { replyLang } from '../_lang.js';
 import { loadConfig, busyBlocks, buildSlots, listingCtx } from '../viewings/_avail.js';
@@ -378,6 +379,15 @@ export async function segretariaStatusMessage() {
     ]).catch(() => []),
     '',
     `Tetti: ${cfg.maxTurns} turni/chat · ${cfg.dailyCap} turni/giorno · un caso nuovo si prepara dopo ${cfg.prepareQuietMinutes}′ di chat ferma.`,
+    // Perché (25/09/2026): la preparazione del caso è il 95% della spesa AI
+    // letta in /ai; qui si dice da cosa è partita ogni preparazione di oggi.
+    ...await readPreparationMonitor().then(m => {
+      const labels = [['inbound', 'da messaggi del cliente'], ['outbound', 'dopo una tua risposta'], ['recheck', 'ricontrolli'],
+        ['decision', 'dopo una tua decisione'], ['manual', 'su tua richiesta'], ['other', 'altro']];
+      const parts = labels.filter(([k]) => Number.isSafeInteger(m.triggersToday?.[k]) && m.triggersToday[k] > 0)
+        .map(([k, l]) => `${m.triggersToday[k]} ${l}`);
+      return Number.isSafeInteger(m.usedToday) ? [`Preparazioni oggi: <b>${m.usedToday}</b> tentativi${parts.length ? ' — ' + parts.join(' · ') : ''}.`] : [];
+    }).catch(() => []),
     ...(rejected.length ? ['⚠️ Impostazioni ignorate: ' + rejected.map(r => r.key).join(', ')] : []),
   ].join('\n');
   const keyboard = { inline_keyboard: [

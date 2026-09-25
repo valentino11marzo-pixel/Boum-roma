@@ -616,6 +616,36 @@ try {
   reset(); await generate(); clock = NOW + 60001; out = await tick();
   ok('un ricontrollo scaduto non è una raffica: non aspetta la quiete',
     out.prepared === 1 && out.id === ID && out.queueBefore.rechecks === 1 && out.queueBefore.quiet === 0, out);
+  const tally = () => rows('heartbeat').find(([p]) => p.includes('/segretaria-preparations-'))?.[1].triggers || {};
+  ok('il contatore del giorno dice PERCHÉ: una manuale, un ricontrollo',
+    tally().manual === 1 && tally().recheck === 1 && Object.keys(tally()).length === 2 && count() === 2, tally());
+  revise(t => { Object.assign(t.followUp, { confirmed: true, confirmedAt: stamp(clock), confirmedBy: 'admin', checkAt: stamp(clock + 3600000) }); });
+  out = await tick();
+  ok('una tua decisione sul seguito si prepara subito e si archivia come decisione',
+    out.prepared === 1 && tally().decision === 1 && count() === 3, { out, tally: tally() });
+
+  // ── Le TUE risposte (25/09/2026) ────────────────────────────────────────
+  // Ogni OUT invalida la proposta (contextRevision) e prima si ripreparava al
+  // ciclo dopo: le risposte dell'operatore arrivano a raffica quanto quelle del
+  // cliente («ok» · «ti mando il link» · il link). lastOutboundAt, stampato
+  // dall'invalidazione, entra nella quiete accanto a lastInboundAt.
+  reset(); save('settings/segretaria', { enabled: true, prepareCases: true });
+  await generate();
+  clock = NOW + 10 * 60000;
+  const stillCase = addCase(1, clock - 4 * 60000, { checkAt: stamp(clock + 3600000) });
+  revise(t => { t.contextRevision = 1; t.lastOutboundAt = stamp(clock - 10000); });
+  out = await tick();
+  ok('una tua risposta di 10s fa aspetta la quiete come un messaggio del cliente; il caso fermo da 4′ si prepara',
+    out.prepared === 1 && out.id === stillCase && out.queueBefore.newEvents === 2 && out.queueBefore.quiet === 1 && aiHits === 2, out);
+  clock += 3 * 60000; out = await tick();
+  ok('a chat ferma da 3′ dopo la tua risposta il caso si prepara una volta',
+    out.prepared === 1 && out.id === ID && out.queue.quiet === 0 && out.queue.pending === 0 && aiHits === 3, out);
+  ok('il contatore archivia le tre cause: manuale, messaggio del cliente, tua risposta',
+    tally().manual === 1 && tally().inbound === 1 && tally().outbound === 1 && !tally().recheck && count() === 3, tally());
+  revise(t => { t.lastOutboundAt = stamp(clock); });
+  out = await tick();
+  ok('un OUT senza cambio di contesto non è un evento: niente preparazione, niente quiete',
+    out.checked === 0 && out.queueBefore.pending === 0 && out.queueBefore.quiet === 0 && aiHits === 3, out);
 
   if (!process.env.BOOM_WORKER_MUTANT && !fails) {
     const fs = await import('node:fs/promises');
@@ -667,6 +697,11 @@ try {
         from: "if (!row || row.reason !== 'event' || !(quietMs > 0)) return false;", to: 'return false;' },
       { name: 'la scadenza confermata non aspetta la quiete', file: 'js/segretaria-priority-engine.js',
         from: 'return !(dueAt(row.task) <= now + 3600000);', to: 'return true;' },
+      { name: 'la tua risposta conta per la quiete', file: 'js/segretaria-priority-engine.js',
+        from: 'Math.max(stamp(row.task?.followUp?.lastInboundAt), stamp(row.task?.lastOutboundAt))',
+        to: 'stamp(row.task?.followUp?.lastInboundAt)' },
+      { name: 'il contatore archivia la causa vera', file: 'api/segretaria/_prepare.js',
+        from: "? 'outbound'", to: "? 'inbound'" },
     ];
     for (const mutant of mutants) {
       const scratch = await fs.mkdtemp(join(tmpdir(), 'boom-worker-mutation-'));

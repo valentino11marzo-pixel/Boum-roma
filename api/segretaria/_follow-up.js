@@ -59,6 +59,9 @@ export async function refreshTrackedFollowUp(input) {
 // Outgoing evidence changes preparation, never the client's last inbound or an
 // operator decision. Only already tracked, open cases are eligible. Per-case
 // receipts make a partially interrupted pass repairable without double bumps.
+// lastOutboundAt (25/09/2026) is the task-level stamp of that outgoing
+// evidence: the quiet window reads it next to followUp.lastInboundAt, so the
+// operator's own burst of replies is prepared once, when the chat is still.
 async function invalidateTrackedContext({ cid, messageId, now = Date.now() }) {
   if (typeof messageId !== 'string' || !messageId.trim() || messageId.length > 512) return null;
   let afterId = null, result = null;
@@ -72,13 +75,13 @@ async function invalidateTrackedContext({ cid, messageId, now = Date.now() }) {
         if (await fsGet(receiptPath)) { result = await fsGet('operatorTasks/' + row.id); completed = true; break; }
         const current = await fsGetVersioned('operatorTasks/' + row.id), task = current?.data;
         if (task?.status !== 'open' || task.followUp?.open !== true || task.followUp.conversationId !== cid) { completed = true; break; }
-        const contextRevision = nextContextRevision(task);
+        const contextRevision = nextContextRevision(task), lastOutboundAt = new Date(now).toISOString();
         try {
           await fsCommit([
-            { docPath: receiptPath, fields: { taskId: row.id, at: new Date(now).toISOString() }, precondition: { exists: false } },
-            { docPath: 'operatorTasks/' + row.id, fields: { contextRevision }, precondition: precondition(current) },
+            { docPath: receiptPath, fields: { taskId: row.id, at: lastOutboundAt }, precondition: { exists: false } },
+            { docPath: 'operatorTasks/' + row.id, fields: { contextRevision, lastOutboundAt }, precondition: precondition(current) },
           ]);
-          result = { ...task, contextRevision }; completed = true; break;
+          result = { ...task, contextRevision, lastOutboundAt }; completed = true; break;
         } catch (error) { if (!error?.conflict) throw error; }
       }
       if (!completed) throw new Error('Follow-up context changed concurrently');

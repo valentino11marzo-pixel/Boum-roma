@@ -130,6 +130,7 @@ try {
   await check('preparazione continua: tentativi osservativi, arretrato e retry non diventano completamento', async () => {
     await page.evaluate(async () => {
       window.apiMonitoring={mode:'continuous',status:'working',dailyCap:null,remainingToday:null,usedToday:1500,
+        triggersToday:{inbound:900,outbound:500,recheck:80,decision:0,manual:20,other:0},
         counts:{pending:81,current:19,awaitingReview:4,retrying:7},retryReasons:{invalid_preparation:3,calendar_invalid:1,unrecognized_private_text:2},nextRetryAt:'2030-09-18T13:00:00Z',queueIncomplete:true,stoppedBy:'time_budget'};
       await oggiSegretariaLoad(true);
     });
@@ -137,6 +138,8 @@ try {
     const text = await page.locator('#sgPreparationStatus').innerText();
     assert.match(text,/Preparazione continua · nessuna quota giornaliera/);
     assert.match(text,/Tentativi oggi: 1500/);
+    assert.match(text,/Perché: 900 da messaggi del cliente · 500 dopo una tua risposta · 80 ricontrolli · 20 su tua richiesta/);
+    assert.doesNotMatch(text,/0 dopo una tua decisione|0 altro/);
     assert.match(text,/Richieste da valutare: 81/);assert.match(text,/Proposte attuali: 19/);
     assert.match(text,/In attesa di verifica: 4/);assert.match(text,/Casi da ritentare: 7/);assert.match(text,/non sono proposte pronte/);
     assert.match(text,/Parte della coda, ultimo ciclo/);assert.match(text,/Proposta non valida: 3/);assert.match(text,/Orario da verificare: 1/);

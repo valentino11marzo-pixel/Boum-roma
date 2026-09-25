@@ -57,9 +57,14 @@ function chooseNext(candidates, cursor, now) {
 // deadline or a dated request within the hour never waits: the same rank
 // that outranks new events in chooseNext. Rechecks and operator decisions
 // are not bursts and never wait.
+// Both directions (25/09/2026): the operator's own replies come in bursts too
+// («ok» · «ti mando il link» · the link) and each OUT invalidates the
+// proposal through contextRevision, so «chat ferma» counts the last inbound
+// AND the last outbound (task.lastOutboundAt, stamped by the OUT invalidation;
+// absent on legacy rows = inbound only, exactly as before).
 function quiet(row, now, quietMs) {
   if (!row || row.reason !== 'event' || !(quietMs > 0)) return false;
-  const last = stamp(row.task?.followUp?.lastInboundAt);
+  const last = Math.max(stamp(row.task?.followUp?.lastInboundAt), stamp(row.task?.lastOutboundAt));
   if (!(last > 0) || now - last >= quietMs) return false;
   return !(dueAt(row.task) <= now + 3600000);
 }

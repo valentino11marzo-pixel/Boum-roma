@@ -246,6 +246,8 @@ try {
   let out = await message('manual-out');
   ok('OUT invalida proposta senza cambiare ultimo inbound o decisione confermata',out.httpCode===200&&out.followUp?.tracked
     &&task().contextRevision===1&&!PROPOSTA.currentContext(task())&&copy(task().followUp)===priorFollow&&copy(task().preparation)===priorProposal,out);
+  ok('l’OUT stampa lastOutboundAt sul caso, fuori da followUp (la quiete lo legge)',
+    Number.isFinite(Date.parse(task().lastOutboundAt))&&!('lastOutboundAt' in task().followUp),task().lastOutboundAt);
   const stale = await approvePreparation({id:ID,revision:prepared.preparation.revision,lastMessageId:'m1',actor:'admin',now:clock});
   ok('conferma vecchia proposta rifiutata dopo OUT',stale.code===409&&stale.error==='preparation_sources_changed',stale);
   out = await tick();
@@ -254,6 +256,17 @@ try {
   out = await message('manual-out',{direction:'in',body:'REPLAY ALTERATO',timestamp:stamp(NOW+9000)});
   ok('replay OUT usa fonte persistita senza nuovo contesto né nuovo inbound',out.dedupHit&&task().contextRevision===1
     &&task().followUp.lastMessageId==='m1'&&rows('messages').length===2,out);
+  // La quiete sulle TUE risposte (25/09/2026): con la finestra al default (3′)
+  // un OUT di pochi secondi fa aspetta, poi il caso si riprepara UNA volta.
+  save('settings/segretaria',{enabled:true,prepareCases:true,dailyCap:5});
+  out = await message('manual-out-2',{timestamp:stamp(clock+2000)});
+  ok('secondo OUT: contesto avanzato e lastOutboundAt = l’ora del messaggio',out.httpCode===200&&task().contextRevision===2
+    &&Date.parse(task().lastOutboundAt)===clock+2000,{out,at:task().lastOutboundAt});
+  out = await tick();
+  ok('con la quiete a 3′ il tuo OUT di adesso aspetta: nessuna chiamata al modello',out.checked===0&&out.queueBefore.quiet===1&&aiHits===2,out);
+  clock += 4*60000; out = await tick();
+  ok('a chat ferma il caso si riprepara una volta sul contesto nuovo',out.prepared===1&&task().preparation.contextRevision===2&&aiHits===3,out);
+  save('settings/segretaria',{enabled:true,prepareCases:true,dailyCap:5,prepareQuietMinutes:0});
 
   await tracked(); await generate();
   revise(t=>{t.preparation.status='needs_context';t.preparationRetry=retryMarker(null,'review_required');});

@@ -35,6 +35,13 @@ for (const used of [5, 50, 5000]) {
   r = await monitor(); assert.equal(r.status, 'working'); assert.equal(r.usedToday, used);
   assert.equal(r.dailyCap, null); assert.equal(r.remainingToday, null);
 }
+// Perché (25/09/2026): the per-cause tally rides on the same counter document;
+// unknown keys and impossible values never reach the page.
+DB.set('heartbeat/segretaria-preparations-2026-09-17', { count: 9, triggers: { inbound: 4, outbound: 3, recheck: 1, manual: 1, bogus: 7, decision: -2 } });
+r = await monitor();
+assert.deepEqual(r.triggersToday, { inbound: 4, outbound: 3, recheck: 1, decision: 0, manual: 1, other: 0 });
+DB.set('heartbeat/segretaria-preparations-2026-09-17', { count: 2 });
+r = await monitor(); assert.deepEqual(r.triggersToday, { inbound: 0, outbound: 0, recheck: 0, decision: 0, manual: 0, other: 0 });
 heartbeat({ queue: { openCases: 200, awaitingReview: 7, retrying: 3, scope: 'page',
   retryReasons: { preparation_unavailable: 2, model_unavailable: 1, invalid: -1, 'bad reason': 10 },
   nextRetryAt: new Date(NOW + 60000).toISOString() }, incomplete: false });
@@ -91,7 +98,7 @@ r = await monitor(); assert.equal(r.incomplete, true); assert.equal(r.status, 'u
 heartbeat({}); failing = 'settings/segretaria';
 r = await monitor(); assert.equal(r.status, 'unavailable'); assert.equal(r.enabled, null); assert.equal(r.dailyCap, null);
 failing = 'heartbeat/segretaria-preparations-2026-09-17';
-r = await monitor(); assert.equal(r.usedToday, null); assert.equal(r.status, 'unavailable');
+r = await monitor(); assert.equal(r.usedToday, null); assert.equal(r.status, 'unavailable'); assert.equal(r.triggersToday, null);
 failing = '';
 for (const count of [-1, '5', 1.5, Number.MAX_SAFE_INTEGER + 1]) {
   DB.set('heartbeat/segretaria-preparations-2026-09-17', { count });
