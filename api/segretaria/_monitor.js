@@ -20,6 +20,9 @@ export async function readPreparationMonitor({ now = Date.now() } = {}) {
   const configReadable = result[0].status === 'fulfilled';
   const { cfg } = SEG.mergeConfig(settings);
   const usedToday = result[2].status !== 'fulfilled' ? null : counter === null ? 0 : count(counter.count);
+  // Perché (25/09/2026): the per-cause tally lives on the same counter document.
+  const triggersToday = result[2].status !== 'fulfilled' ? null
+    : Object.fromEntries(SEG.PREPARATION_TRIGGERS.map(key => [key, count(counter?.triggers?.[key]) ?? 0]));
   const lastRunAt = date(heartbeat?.at);
   const age = lastRunAt ? now - Date.parse(lastRunAt) : null;
   const enabled = configReadable ? cfg.enabled : null;
@@ -58,7 +61,7 @@ export async function readPreparationMonitor({ now = Date.now() } = {}) {
   }
   const queueScope = !heartbeat?.queue ? null : heartbeat?.queue?.scope === 'page' || heartbeat?.incomplete === true
     || heartbeat?.queueScanCursor ? 'page' : heartbeat?.queue?.scope === 'all' ? 'all' : null;
-  return { enabled, prepareCases, mode: 'continuous', dailyCap: null, usedToday,
+  return { enabled, prepareCases, mode: 'continuous', dailyCap: null, usedToday, triggersToday,
     remainingToday: null,
     status, lastRunAt, checkedAt: new Date(now).toISOString(), counts,
     retryReasons, nextRetryAt: date(heartbeat?.queue?.nextRetryAt), queueScope,

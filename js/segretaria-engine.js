@@ -32,6 +32,11 @@
     prepareQuietMinutes: 3, // minuti di silenzio della chat prima che il worker prepari un caso nuovo (0 = subito)
   };
   var LIMITS = { maxTurns: [2, 40], dailyCap: [5, 500], maxChars: [200, 1500], prepareQuietMinutes: [0, 30] };
+  // Le cause di una preparazione (25/09/2026), una copia per contatore, monitor
+  // e pagine: messaggio del cliente · risposta dell'operatore (contesto cambiato,
+  // stesso messaggio) · ricontrollo scaduto · decisione sul seguito · richiesta
+  // manuale · altro (versione del contesto, regole aggiornate).
+  var PREPARATION_TRIGGERS = ['inbound', 'outbound', 'recheck', 'decision', 'manual', 'other'];
 
   function mergeConfig(raw) {
     var cfg = { enabled: DEFAULTS.enabled, maxTurns: DEFAULTS.maxTurns, dailyCap: DEFAULTS.dailyCap, maxChars: DEFAULTS.maxChars,
@@ -155,6 +160,7 @@
 
   var API = {
     DEFAULTS: DEFAULTS,
+    PREPARATION_TRIGGERS: PREPARATION_TRIGGERS,
     mergeConfig: mergeConfig,
     turnVerdict: turnVerdict,
     isSegretariaEcho: isSegretariaEcho,

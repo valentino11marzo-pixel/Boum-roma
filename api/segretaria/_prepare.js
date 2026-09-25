@@ -20,6 +20,17 @@ const sha = x => crypto.createHash('sha256').update(typeof x === 'string' ? x : 
 const day = now => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(now));
 const guard = snap => snap ? { updateTime: snap.updateTime } : { exists: false };
 const caseId = id => typeof id === 'string' && /^sg_[a-f0-9]{32}$/.test(id);
+// One attempt, one cause (25/09/2026). Unknown keys and impossible values in a
+// stored tally are dropped, never repaired into a number nobody counted.
+export function tallyTriggers(previous, trigger) {
+  const tally = {};
+  for (const key of SEG.PREPARATION_TRIGGERS) {
+    const n = previous?.[key];
+    if (Number.isSafeInteger(n) && n > 0) tally[key] = n;
+  }
+  if (SEG.PREPARATION_TRIGGERS.includes(trigger)) tally[trigger] = (tally[trigger] || 0) + 1;
+  return tally;
+}
 
 // Exclusions here are prospective only: every proven closed-case expiry must
 // retire in the SAME commit as the new proposal, guarded by its original case.
@@ -141,6 +152,17 @@ export async function prepareCase({ id, actor, now = Date.now(), background = fa
   const leasePath = 'heartbeat/segretaria-preparing-' + id;
   const lease = await fsGetVersioned(leasePath);
   if (lease?.data.busy && Date.parse(lease.data.expiresAt) > now) return { code: 409, error: 'preparation_in_progress' };
+  // The trigger tally (25/09/2026): read in /ai, the case preparation is
+  // ~95% of the day's AI spend, and this counter said only HOW MANY attempts,
+  // never WHY. Each attempt is filed under one cause — a client's message, one
+  // of the operator's replies (context changed, same client message), a
+  // recheck that came due, an operator decision, a manual request — so
+  // /segretaria and Oggi can say where the money goes before anyone decides.
+  const trigger = actor !== 'segretaria-worker' ? 'manual'
+    : !task.preparation || task.followUp.lastMessageId !== task.preparation.messageId ? 'inbound'
+    : !PROPOSTA.contextCurrent(task) ? 'outbound'
+    : (task.preparation.approval?.followUpFingerprint || task.preparation.followUpFingerprint) !== followUpFingerprint ? 'decision'
+    : recheckFor ? 'recheck' : 'other';
   const counterPath = 'heartbeat/segretaria-preparations-' + day(now);
   const counter = await fsGetVersioned(counterPath);
   // Preparation is continuous. dailyCap belongs to conversational replies;
@@ -153,7 +175,8 @@ export async function prepareCase({ id, actor, now = Date.now(), background = fa
     if (!time.afford(35_000)) return { code: 503, error: 'preparation_time_budget' };
     await fsCommit([
       { docPath: leasePath, fields: { busy: true, leaseId, expiresAt: new Date(now + 120000).toISOString() }, precondition: guard(lease) },
-      { docPath: counterPath, fields: { count: attempts + 1, at: new Date(now) }, precondition: guard(counter) },
+      { docPath: counterPath, fields: { count: attempts + 1, at: new Date(now), triggers: tallyTriggers(counter?.data.triggers, trigger) },
+        precondition: guard(counter) },
     ]);
   } catch (e) { if (e?.conflict) return { code: 409, error: 'preparation_in_progress' }; throw e; }
   try {
