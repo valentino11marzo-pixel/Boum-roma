@@ -89,11 +89,11 @@ const recordMatches = (row, query) => {
 
 async function queryCollection(collection, query) {
   const rows = new Map();
-  let incomplete = false;
+  const limitations = new Set();
   const read = async (field, values) => {
     for (const value of unique(values)) {
       const found = await fsList(collection, { filter: { field, op: 'EQUAL', value }, limit: OWNER_COMMAND_LIMITS.query + 1 });
-      if (found.length > OWNER_COMMAND_LIMITS.query) incomplete = true;
+      if (found.length > OWNER_COMMAND_LIMITS.query) limitations.add('indexed_query_limit');
       for (const row of found.slice(0, OWNER_COMMAND_LIMITS.query)) if (idPart(row.id)) rows.set(row.id, row);
     }
   };
@@ -107,11 +107,12 @@ async function queryCollection(collection, query) {
   // uniqueness while older rows may store a formatted phone, mixed-case email
   // or full name in another field. A capped window is explicitly incomplete.
   const fallback = await fsList(collection, { limit: OWNER_COMMAND_LIMITS.fallback + 1 });
-  if (fallback.length > OWNER_COMMAND_LIMITS.fallback) incomplete = true;
+  if (fallback.length > OWNER_COMMAND_LIMITS.fallback) limitations.add('legacy_scan_limit');
   for (const row of fallback.slice(0, OWNER_COMMAND_LIMITS.fallback)) {
     if (idPart(row.id) && recordMatches(row, query)) rows.set(row.id, row);
   }
-  return { rows: [...rows.values()].filter(row => recordMatches(row, query)), incomplete };
+  return { rows: [...rows.values()].filter(row => recordMatches(row, query)),
+    incomplete: limitations.size > 0, limitations: [...limitations].sort() };
 }
 
 function conversationBound(collection, row, conversation) {
@@ -167,15 +168,28 @@ export async function resolvePeople(rawQuery) {
   const query = parsePeopleQuery(rawQuery);
   const results = await Promise.all(COLLECTIONS.map(collection => queryCollection(collection, query)));
   let incomplete = results.some(result => result.incomplete);
+  const limitations = new Set(results.flatMap(result => result.limitations || []));
   const matches = results.flatMap((result, index) => result.rows.map(row => [COLLECTIONS[index], row]));
   const truncated = matches.length > OWNER_COMMAND_LIMITS.candidates;
-  if (truncated) incomplete = true;
+  if (truncated) { incomplete = true; limitations.add('candidate_limit'); }
   const candidates = await Promise.all(matches.slice(0, OWNER_COMMAND_LIMITS.candidates).map(([collection, row]) => projectCandidate(collection, row)));
   candidates.sort((a, b) => a.name.localeCompare(b.name, 'it') || a.personRef.localeCompare(b.personRef));
-  incomplete ||= candidates.some(candidate => candidate.incomplete);
+  if (candidates.some(candidate => candidate.incomplete)) {
+    incomplete = true; limitations.add('candidate_context_incomplete');
+  }
+  const candidateAmbiguous = candidates.some(candidate => candidate.ambiguous === true);
+  const resolution = incomplete
+    ? { status: 'incomplete', requiresExplicitSelection: candidates.length > 0,
+      nextAction: candidates.length ? 'select_candidate_or_refine_query' : 'refine_query',
+      reasons: [...limitations].sort() }
+    : candidates.length === 0
+      ? { status: 'not_found', requiresExplicitSelection: false, nextAction: 'refine_query', reasons: [] }
+      : candidates.length !== 1 || candidateAmbiguous
+        ? { status: 'ambiguous', requiresExplicitSelection: true, nextAction: 'select_candidate', reasons: [] }
+        : { status: 'candidate_available', requiresExplicitSelection: true, nextAction: 'confirm_candidate', reasons: [] };
   return { query: { kind: query.kind, display: query.display }, count: candidates.length,
-    ambiguous: incomplete || candidates.length !== 1 || candidates[0]?.ambiguous === true,
-    incomplete, truncated, candidates };
+    ambiguous: incomplete || candidates.length !== 1 || candidateAmbiguous,
+    incomplete, truncated, resolution, candidates };
 }
 
 async function exactTarget(input) {
