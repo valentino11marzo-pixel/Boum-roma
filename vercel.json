@@ -785,7 +785,7 @@
     "api/segretaria/follow-up.js": {
       "maxDuration": 60
     },
-    "api/segretaria/prepare.js": {
+    "api/segretaria/{prepare,owner-command}.js": {
       "maxDuration": 60
     },
     "api/segretaria/worker.js": {

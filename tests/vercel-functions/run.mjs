@@ -13,6 +13,8 @@ const config = JSON.parse(readFileSync(new URL('../../vercel.json', import.meta.
 const files = execFileSync('git', ['ls-files', '-z'], { cwd: root, encoding: 'utf8' }).split('\0').filter(Boolean);
 const group = 'api/homie/{wa-outbox,wa-outbox-single}.js';
 const selected = ['wa-outbox', 'wa-outbox-single'].map(x => `api/homie/${x}.js`).sort();
+const ownerGroup = 'api/segretaria/{prepare,owner-command}.js';
+const ownerSelected = ['api/segretaria/owner-command.js', 'api/segretaria/prepare.js'];
 
 function expand(pattern) {
   assert.match(pattern, /^api\/[a-zA-Z0-9_./{},-]+\.js$/, `Unsupported pattern: ${pattern}`);
@@ -39,7 +41,7 @@ function mapping(rules, inventory) {
   return result;
 }
 
-const expected = mapping(before.functions, files);
+const expected = { ...mapping(before.functions, files), 'api/segretaria/owner-command.js': { maxDuration: 60 } };
 function validate(rules, inventory = files) {
   assert.ok(Object.keys(rules).length <= 50, 'More than 50 function rules');
   const actual = mapping(rules, inventory);
@@ -48,6 +50,8 @@ function validate(rules, inventory = files) {
   for (const file of inventory) assert.deepEqual(actual[file], expected[file], `Settings changed: ${file}`);
   assert.deepEqual(expand(group).sort(), selected, 'Selected handler set changed');
   assert.deepEqual(rules[group], { maxDuration: 60 }, 'Single-delivery group missing or changed');
+  assert.deepEqual(expand(ownerGroup).sort(), ownerSelected, 'Owner Command handler set changed');
+  assert.deepEqual(rules[ownerGroup], { maxDuration: 60 }, 'Owner Command group missing or changed');
   return actual;
 }
 
@@ -55,7 +59,7 @@ assert.equal(Object.keys(originalBefore.functions).length, 51);
 assert.equal(Object.keys(before.functions).length, 50);
 assert.equal(Object.keys(config.functions).length, 49);
 const actual = validate(config.functions);
-assert.equal(Object.keys(actual).length, 54);
+assert.equal(Object.keys(actual).length, 55);
 assert.deepEqual(actual['api/ai/status.js'], { maxDuration: 30 }, 'Live AI status settings preserved');
 assert.deepEqual(actual['api/preagreement/sign-for.js'], { maxDuration: 60 }, 'Live signing settings preserved');
 assert.ok(files.includes('api/segretaria/preparation.js'), 'Live preparation handler preserved');
@@ -100,4 +104,4 @@ rejected('preparation default overwritten', r => {
   r['api/segretaria/preparation.js'] = { maxDuration: 60 };
 }, /handler set changed/);
 console.log('passed ' + JSON.stringify({ trackedFiles: files.length, rulesBefore: 50, rulesAfter: 49,
-  configuredFiles: 54, selected, preservedSettings: true, overlaps: 0, mutationsRejected: mutations }));
+  configuredFiles: 55, selected, ownerSelected, preservedSettings: true, overlaps: 0, mutationsRejected: mutations }));

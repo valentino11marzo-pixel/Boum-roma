@@ -12,6 +12,7 @@ import { checkTimestamp, followUpDecisionHash } from './_follow-up.js';
 import { executionPayloadHash, followUpInputHash, preparationContentHash } from './_execution-guard.js';
 import { replyOwner } from './_reply-owner.js';
 import { whatsappDeliveryWindow } from '../homie/_wa-delivery.js';
+import { storedOwnerTarget, conversationTarget, dossierHasOwnerTarget } from './_owner-target.js';
 
 const text = (value, max) => typeof value === 'string' && value.trim() && value.length <= max ? value.trim() : '';
 const email = value => typeof value === 'string' && /^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(value.trim()) ? value.trim().toLowerCase() : '';
@@ -101,6 +102,19 @@ export async function approvePreparation({ id, revision, lastMessageId, actor, n
     const dossier = await personaDossier({ phone: conv.contactPhone, email: conv.contactEmail,
       leadId: conv.leadId || (conv.contactType === 'lead' ? conv.contactId : undefined), conversationId: f.conversationId });
     const n = p.nextAction;
+    let ownerTarget = null, ownerSnapshots = [];
+    if (f.source === 'owner-command') {
+      ownerTarget = storedOwnerTarget(f);
+      const current = conversationTarget(conv);
+      if (!ownerTarget || current.conversationId !== ownerTarget.conversationId
+          || current.channel !== ownerTarget.channel || current.address !== ownerTarget.address
+          || contactFingerprint(conv) !== ownerTarget.contactFingerprint
+          || f.practiceRef !== ownerTarget.practiceRef || f.propertyRef !== ownerTarget.propertyRef
+          || p.selectedPracticeRef !== ownerTarget.practiceRef || n?.practiceRef !== ownerTarget.practiceRef
+          || !dossierHasOwnerTarget(dossier, ownerTarget)) return { code: 409, id, error: 'owner_command_target_changed' };
+      ownerSnapshots = await Promise.all([ownerTarget.personRef, ownerTarget.practiceRef, ownerTarget.propertyRef].map(fsGetVersioned));
+      if (ownerSnapshots.some(row => !row)) return { code: 409, id, error: 'owner_command_target_changed' };
+    }
     if (!text(n?.text, 240) || !text(n?.waitingLabel, 100)
         || !['valentino', 'client', 'collaborator', 'boom'].includes(n?.waitingOn)
         || !Number.isFinite(checkTime) || checkTime <= now || checkTime > now + 365 * 86400000)
@@ -128,7 +142,9 @@ export async function approvePreparation({ id, revision, lastMessageId, actor, n
       if (p.recipientPreview?.channel !== d.channel || previewRecipient !== recipient)
         return { code: 409, id, error: 'contact_changed' };
       // A persisted conversation + a matching, dossier-related person are required.
-      for (const person of dossier.people.filter(row => validRef(row.ref)).slice(0, 12)) {
+      const people = dossier.people.filter(row => validRef(row.ref)
+        && (!ownerTarget || row.ref === ownerTarget.personRef)).slice(0, 12);
+      for (const person of people) {
         const version = await fsGetVersioned(person.ref), row = version?.data;
         const values = d.channel === 'whatsapp' ? [row?.phone, row?.contactPhone, row?.whatsapp].map(phone)
           : [row?.email, row?.contactEmail].map(email);
@@ -161,10 +177,16 @@ export async function approvePreparation({ id, revision, lastMessageId, actor, n
         sourceIds: [...new Set([...(n.sourceIds || []), ...(p.draft.sourceIds || [])])].filter(x => text(x, 180)).slice(0, 40),
         sources: sourceRefs(context.sources) };
       operations.push({ docPath: 'action_queue/' + actionId, fields: action, precondition: { exists: false } });
-      // Exact contact records cannot change between verification and approval.
-      operations.push({ docPath: 'conversations/' + f.conversationId, fields: {}, precondition: { updateTime: conversation.updateTime } });
-      operations.push({ docPath: contactProof.ref, fields: {}, precondition: { updateTime: contactProof.updateTime } });
     }
+    // Exact contact records cannot change between verification and approval.
+    if (action || ownerTarget) operations.push({ docPath: 'conversations/' + f.conversationId,
+      fields: {}, precondition: { updateTime: conversation.updateTime } });
+    if (ownerTarget) operations.push(
+      { docPath: ownerTarget.personRef, fields: {}, precondition: { updateTime: ownerSnapshots[0].updateTime } },
+      { docPath: ownerTarget.practiceRef, fields: {}, precondition: { updateTime: ownerSnapshots[1].updateTime } },
+      { docPath: ownerTarget.propertyRef, fields: {}, precondition: { updateTime: ownerSnapshots[2].updateTime } },
+    );
+    else if (action) operations.push({ docPath: contactProof.ref, fields: {}, precondition: { updateTime: contactProof.updateTime } });
     try { await fsCommit(operations); committed = true; }
     catch (e) {
       if (!e?.conflict) throw e;
