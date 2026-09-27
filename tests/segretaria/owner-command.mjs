@@ -137,6 +137,7 @@ globalThis.fetch = async (rawUrl, options = {}) => {
 
 const { default: handler } = await import('../../api/segretaria/owner-command.js');
 const { loadCaseContext } = await import('../../api/segretaria/_context.js');
+const { captureFollowUp } = await import('../../api/segretaria/_follow-up.js');
 const { prepareCase } = await import('../../api/segretaria/_prepare.js');
 const { prepareOwnerCommand } = await import('../../api/segretaria/_owner-command.js');
 const { approvePreparation } = await import('../../api/segretaria/_dispatch.js');
@@ -179,7 +180,28 @@ try {
   expect('un nome univoco torna come candidato verificabile, senza selezione implicita', result.status === 200 && result.count === 1
     && result.ambiguous === false && result.candidates[0].personRef === 'users/giuliano'
     && result.candidates[0].evidence.practices.includes('contracts/pratica_uno')
+    && result.resolution?.status === 'candidate_available' && result.resolution.requiresExplicitSelection === true
+    && result.resolution.nextAction === 'confirm_candidate'
     && !('selected' in result), result);
+
+  result = await call({ op: 'resolve', query: { name: 'Nessuno Presente' } });
+  expect('nessun candidato chiede di affinare la ricerca senza fingere una scelta possibile', result.status === 200
+    && result.count === 0 && result.resolution?.status === 'not_found'
+    && result.resolution.requiresExplicitSelection === false && result.resolution.nextAction === 'refine_query', result);
+
+  reset();
+  for (let index = 0; index < 101; index++) save('leads/unrelated-' + String(index).padStart(3, '0'),
+    { name: `Persona diversa ${index}`, phone: `+39335${String(index).padStart(7, '0')}` });
+  result = await call({ op: 'resolve', query: { name: 'Giuliano' } });
+  expect('un solo candidato con scansione legacy incompleta resta una scelta esplicita e spiegata', result.status === 200
+    && result.count === 1 && result.ambiguous === true && result.incomplete === true
+    && result.resolution?.status === 'incomplete' && result.resolution.requiresExplicitSelection === true
+    && result.resolution.nextAction === 'select_candidate_or_refine_query'
+    && result.resolution.reasons.includes('legacy_scan_limit')
+    && result.candidates[0].personRef === 'users/giuliano' && !('selected' in result), result);
+  result = await call(prepare({ commandId: 'call-incomplete-resolve' }));
+  expect('la copertura incompleta non blocca opacamente un target esatto scelto dall’operatore', result.status === 200
+    && result.personRef === 'users/giuliano' && result.practiceRef === 'contracts/pratica_uno', result);
 
   reset();
   save('leads/secondo', { name: 'Giuliano Neri', firstName: 'Giuliano', phone: '+393332222222', email: 'secondo@example.test' });
@@ -296,6 +318,21 @@ try {
   expect('lo stesso commandId non può creare una seconda bozza cambiando destinatario', targetConflict.status === 409
     && targetConflict.error === 'command_id_conflict'
     && [...DB.keys()].filter(path => path.startsWith('messages/owner_')).length === 1, targetConflict);
+
+  reset();
+  result = await call(prepare({ commandId: 'call-new-inbound' }));
+  const supersededTask = DB.get('operatorTasks/' + result.caseId);
+  save('messages/client_after_owner', { conversationId: 'conv_giuliano', direction: 'in', channel: 'whatsapp',
+    body: 'Prima di scrivere, c’è una novità.', at: new Date(NOW + 1000).toISOString() });
+  await captureFollowUp({ cid: 'conv_giuliano', conv: DB.get('conversations/conv_giuliano'),
+    messageId: 'client_after_owner', text: 'Prima di scrivere, c’è una novità.', now: NOW + 1000 });
+  const superseded = DB.get('operatorTasks/' + result.caseId);
+  const staleApproval = await approvePreparation({ id: result.caseId, revision: supersededTask.preparation.revision,
+    lastMessageId: result.messageId, actor: 'admin', now: NOW + 1000 });
+  expect('un nuovo messaggio reale sostituisce la nota corrente e invalida la vecchia conferma Owner Command',
+    superseded.followUp.lastMessageId === 'client_after_owner' && superseded.followUp.source === null
+    && superseded.followUp.ownerCommand === null && staleApproval.code === 409 && staleApproval.error === 'new_message_reload'
+    && ![...DB.keys()].some(path => path.startsWith('action_queue/')), { followUp: superseded.followUp, staleApproval });
 
   reset();
   afterOwnerMessageCommit = () => save('conversations/conv_giuliano',
