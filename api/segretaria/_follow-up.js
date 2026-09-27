@@ -5,6 +5,7 @@ import { fsGet, fsList, fsGetVersioned, fsCommit } from '../homie/_lib.js';
 import { romeDateKey } from '../viewings/_avail.js';
 import INTAKE from '../../js/segretaria-intake-engine.js';
 import PRIORITY from '../../js/segretaria-priority-engine.js';
+import { cleanOwnerTarget } from './_owner-target.js';
 
 export const FOLLOW_UP_LIMIT = 200;
 export const validFollowUpCursor = value => typeof value === 'string' && /^[\w.-]{1,180}$/.test(value) && !['.', '..'].includes(value);
@@ -18,6 +19,7 @@ export const followUpDecisionHash = f => crypto.createHash('sha256').update(JSON
   checkAt: f?.checkAt || null, practiceRef: f?.practiceRef || null, propertyRef: f?.propertyRef || null,
   confirmed: f?.confirmed === true, needsReview: f?.needsReview === true,
   confirmedAt: f?.confirmedAt || null, confirmedBy: f?.confirmedBy || null,
+  ...(f?.source === 'owner-command' ? { ownerCommand: f.ownerCommand || null } : {}),
 })).digest('hex');
 // A transient retry marker is not an operator decision. Project only a current,
 // deterministic review requirement; the browser never owns or recomputes its hash.
@@ -102,8 +104,12 @@ export function checkTimestamp(value) {
   return Date.parse(value);
 }
 
-export async function captureFollowUp({ cid, conv, messageId, messageVersion, text, now = Date.now(), preserveNewer = false }) {
+export async function captureFollowUp({ cid, conv, messageId, messageVersion, text, now = Date.now(), preserveNewer = false,
+  origin = null, ownerCommandTarget = null }) {
   if (!idPart(cid) || typeof messageId !== 'string' || !messageId.trim() || messageId.length > 512) return null;
+  origin = origin === 'owner-command' ? origin : null;
+  ownerCommandTarget = origin ? cleanOwnerTarget(ownerCommandTarget, cid) : null;
+  if (origin && !ownerCommandTarget) throw new Error('Invalid owner command target');
   const event = messageId;
   const inboundVersion = committedVersion(messageVersion);
   const receiptPath = 'heartbeat/segretaria-event-' + followUpId(cid, event).slice(3);
@@ -156,7 +162,8 @@ export async function captureFollowUp({ cid, conv, messageId, messageVersion, te
       source: 'segretaria', calendarize: false, createdAt: new Date(now), createdBy: 'segretaria',
       followUp: { open: true, conversationId: cid, contactName: clean(conv?.contactName, 100),
         lastMessageId: event, lastInboundAt: at, lastInboundVersion: inboundVersion, preview: clean(text, 240),
-        practiceRef: null, propertyRef: null, nextAction: 'Verificare la richiesta e confermare il seguito',
+        practiceRef: null, propertyRef: null, ...(origin ? { source: origin, ownerCommand: ownerCommandTarget } : {}),
+        nextAction: 'Verificare la richiesta e confermare il seguito',
         waitingOn: 'valentino', waitingLabel: 'Valentino', checkAt,
         checkBasis, intakeTiming,
         confirmed: false, needsReview: true, ambiguous: active.length > 1 || known.length >= 30 },
@@ -173,6 +180,8 @@ export async function captureFollowUp({ cid, conv, messageId, messageVersion, te
     const fields = keepRecent ? { followUp: current.data.followUp,
       ...(!keepClosed ? { contextRevision: nextContextRevision(current.data) } : {}) } : current ? {
       followUp: { ...current.data.followUp, lastMessageId: event, lastInboundAt: at, lastInboundVersion: inboundVersion,
+        ...(origin ? { source: origin, ownerCommand: ownerCommandTarget }
+          : current.data.followUp.source === 'owner-command' ? { source: null, ownerCommand: null } : {}),
         preview: clean(text, 240), needsReview: true,
         ...(intakeTiming ? { intakeTiming } : {}),
         ...(mayAdvance ? { checkAt, checkBasis } : {}) },

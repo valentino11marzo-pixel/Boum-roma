@@ -175,7 +175,12 @@ service cloud.firestore {
       allow create: if isAdmin()
                     || (isSignedIn()
                         && request.resource.data.by == uid()
-                        && request.resource.data.direction in ['out','in','note']);
+                        && request.resource.data.direction in ['out','in','note']
+                        // Server-only evidence: clients may still write their
+                        // existing message shapes, but cannot impersonate an
+                        // authenticated Owner Command in Segreteria context.
+                        && request.resource.data.get('source', '') != 'owner-command'
+                        && !msgId.matches('^owner_.*'));
       allow update, delete: if isAdmin();
     }
 

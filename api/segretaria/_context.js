@@ -53,6 +53,23 @@ function matchesEvent(row, event) {
     || (callRef(row) && event === 'phone:' + callRef(row).split('/')[1]);
 }
 
+function verifiedOwnerCommand(row) {
+  if (row?.source !== 'owner-command' || row.direction !== 'note' || row.channel !== 'internal') return false;
+  const command = row.ownerCommand;
+  if (!command || row.by !== command.requestedBy
+      || typeof command.commandId !== 'string' || !/^[\w.:+-]{1,180}$/.test(command.commandId)
+      || typeof command.requestHash !== 'string' || !/^[a-f0-9]{64}$/.test(command.requestHash)
+      || !idPart(command.requestedBy) || !idPart(row.conversationId)
+      || !allowedRef(command.personRef, new Set(['users', 'landlords', 'clients', 'pfsClients', 'leads']))
+      || !allowedRef(command.practiceRef, practiceCollections) || !allowedRef(command.propertyRef, propertyCollections)
+      || !['whatsapp', 'email'].includes(command.channel) || typeof command.address !== 'string') return false;
+  const request = { commandId: command.commandId, instruction: row.body, personRef: command.personRef,
+    conversationId: row.conversationId, practiceRef: command.practiceRef, propertyRef: command.propertyRef,
+    channel: command.channel, address: command.address, requestedBy: command.requestedBy };
+  const expectedId = 'owner_' + hash(JSON.stringify([command.requestedBy, command.commandId])).slice(0, 40);
+  return row.id === expectedId && hash(JSON.stringify(request)) === command.requestHash;
+}
+
 function messageContent(row, limit = CONTEXT_LIMITS.text) {
   const raw = typeof row.body === 'string' ? row.body.trim() : '';
   const attached = Array.isArray(row.attachments) && row.attachments.length > 0;
@@ -153,6 +170,8 @@ export async function loadCaseContext({ task, conversation, dossier, now = Date.
   selected.sort((a, b) => Number(exactEvent[0]?.id === b.id) - Number(exactEvent[0]?.id === a.id)
     || String(iso(b.at)).localeCompare(String(iso(a.at))) || a.id.localeCompare(b.id));
   for (const row of selected) {
+    const ownerCommand = row.source === 'owner-command';
+    if (ownerCommand && !verifiedOwnerCommand(row)) { note('owner_command_unverified'); continue; }
     const at = iso(row.at);
     if (!at) note('message_time_missing');
     const remaining = CONTEXT_LIMITS.historyText - historyText;
@@ -173,7 +192,9 @@ export async function loadCaseContext({ task, conversation, dossier, now = Date.
       ...(phoneMessage ? { analysisAvailable: !!analysisText,
         analysisTruncated: fullAnalysis.length > limit, analysisHash: hash(row.callerWords || row.analysisText),
         analysisText: analysisText || '[parole del chiamante non disponibili; intento e lingua non verificabili]' } : {}),
-      ...(at ? { at } : {}), direction: ['in', 'out', 'note'].includes(row.direction) ? row.direction : 'unknown' });
+      ...(at ? { at } : {}),
+      ...(ownerCommand ? { provenance: 'owner_command' } : {}),
+      direction: ['in', 'out', 'note'].includes(row.direction) ? row.direction : 'unknown' });
     if (source) { history.returned++; historyText += source.text.length + (source.analysisText?.length || 0); }
     if (source && exactEvent.length === 1 && exactEvent[0].id === row.id) {
       lastEvent.present = true; lastEvent.sourceId = source.id;

@@ -121,6 +121,8 @@ const SUITES = [
   { name: 'segretariacalendario', file: 'tests/segretaria/calendar.mjs', what: 'date ancorate alla fonte in ora di Roma, ambiguità e ricontrollo prima dell’evento' },
   { name: 'segretariaconferma', file: 'tests/segretaria/dispatch.mjs', what: 'conferma unica e destinatario verificato, contesto aggiornato, claim contro doppia esecuzione' },
   { name: 'segretariatelefono', file: 'tests/segretaria/callcase.mjs', what: 'telefonata nello stesso seguito e riparazione del collegamento senza riavviare gli effetti' },
+  { name: 'segretariaownercommand', file: 'tests/segretaria/owner-command.mjs', what: 'ordine di Valentino: persona/pratica/Flat esatti, bozza idempotente e zero invii senza conferma' },
+  { name: 'segretariaownercommandmutazioni', file: 'tests/segretaria/owner-command-mutations.mjs', what: 'Owner Command cade se tornano first-match, auth debole, replay mutabile, target concorrente o budget tardivo' },
   { name: 'segretariapropostaui', file: 'tests/segretaria/proposta-ui.mjs', what: 'riepilogo, seguito e bozza già pronti; revisione esplicita e conflitto visibile' },
   { name: 'segretariaapprovaltimeui', file: 'tests/segretaria/approval-time-ui.mjs', what: 'ricontrollo scaduto bloccato al render e al click, ricevute approvate intatte' },
   { name: 'agentactionfeedback', file: 'tests/segretaria/action-feedback.mjs', what: 'esito reale delle azioni: link o coda WhatsApp non diventano invio, email solo con prova' },
