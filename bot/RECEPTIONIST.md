@@ -210,8 +210,17 @@ tutti opzionali e passati dal modello solo quando il cliente li ha forniti:
 
 Se il cliente cita una casa, inviare `reference` quando esiste un id/URL;
 altrimenti `query`. Per una ricerca usare soltanto i filtri realmente detti.
-Senza parametri il tool conserva il catalogo breve generico. Non indovinare
-mai un parametro e non trasformare «settembre» in una data completa.
+Senza parametri il tool conserva il catalogo breve generico: `listings`
+contiene soltanto alternative offribili; `unavailableListings` è un indice
+di identità compatto e limitato (nome, indirizzo, tipo, stato, prezzo) per
+riconoscere affittati/riservati senza proporli. I dettagli restano nel lookup
+mirato. Non indovinare mai un parametro e non trasformare «settembre» in una
+data completa.
+
+Il rollout è atomico: nello stesso rilascio si configurano sul provider i sei
+parametri dinamici qui sopra e questa description. Finché il provider ha solo
+`k`/`op`, l'indice compatto garantisce la promessa minima; non si pubblica una
+description che prometta il lookup mirato senza il relativo schema.
 
 > Description: Returns verified BOOM property data. For a cited property,
 > pass its exact reference or name/address; for a search, pass only filters
@@ -220,8 +229,10 @@ mai un parametro e non trasformare «settembre» in una data completa.
 > For `match:ambiguous`, `certainty:needs_confirmation`, or availability
 > `needs_confirmation`, ask ONE distinguishing question and do not choose or
 > promise availability. An `unverified_external_reference` is not BOOM data.
-> With no parameters the response is the short current catalog. Answer only
-> from returned fields. If the tool fails or returns ok:false, briefly say
+> With no parameters, `listings` is the short offerable catalog and
+> `unavailableListings` is a compact recognition-only index: never offer an
+> item from it. Answer only from returned fields. If the tool fails or returns
+> ok:false, briefly say
 > that you cannot check this now, then ask ONE question about ONE missing
 > detail. Never invent data or recite a fallback note as a script.
 

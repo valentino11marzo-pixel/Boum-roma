@@ -695,7 +695,9 @@ const elCall = async (payload, { secret = 'el-secret', t = Math.floor(Date.now()
   DB.set('listings/type_invalid', { id: 'type_invalid', name: 'Tipo non valido', type: { label: 'Apartment' }, bedrooms: 1, status: 'available' });
   const cat = await call(agentTools, { method: 'GET', query: { k: KEY, op: 'catalog' } });
   ok('catalog: ok e case vere', cat.code === 200 && cat.out.ok && cat.out.listings.some((l) => l.id === 'l2'), cat.out && cat.out.count);
-  ok('catalog: un AFFITTATO non esce mai dalla voce', !cat.out.listings.some((l) => l.id === 'l3'));
+  ok('catalog: un AFFITTATO non esce mai fra le alternative', !cat.out.listings.some((l) => l.id === 'l3'));
+  ok('catalog: un AFFITTATO resta riconoscibile nell indice compatto separato',
+    cat.out.unavailableListings.some((l) => l.id === 'l3' && l.status === 'rented'));
   ok('catalog: prezzo parlabile', cat.out.listings.find((l) => l.id === 'l2').priceEurMonth === 1600);
   const byId = (id) => cat.out.listings.find((l) => l.id === id);
   ok('catalog: stanza e appartamento con stessa camera, superficie e prezzo mantengono tipi distinti',

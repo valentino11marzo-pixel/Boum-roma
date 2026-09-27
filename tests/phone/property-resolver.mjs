@@ -15,6 +15,7 @@ const check = (name, condition, detail) => {
 };
 
 const DB = new Map();
+let runQueryCalls = 0;
 const encode = (value) => {
   if (value === null || value === undefined) return { nullValue: null };
   if (typeof value === 'string') return { stringValue: value };
@@ -38,6 +39,7 @@ globalThis.fetch = async (url, options = {}) => {
   const href = String(url);
   if (href.includes('identitytoolkit')) return json({ idToken: 'firebase-test-token' });
   if (href.includes(':runQuery')) {
+    runQueryCalls++;
     const query = JSON.parse(options.body).structuredQuery;
     const collection = query.from[0].collectionId;
     const rows = [...DB.entries()]
@@ -128,6 +130,7 @@ const call = async (query) => {
 // Retrocompatibilita: op=catalog senza input conserva la risposta storica,
 // ma non gonfia il contesto della chiamata con schede complete.
 {
+  const queriesBefore = runQueryCalls;
   const { status, body } = await call({ op: 'catalog' });
   const a = body.listings.find(row => row.id === 'apt-a');
   check('catalogo senza input resta compatibile', status === 200 && body.ok && Array.isArray(body.listings));
@@ -139,11 +142,39 @@ const call = async (query) => {
   check('proiezione pubblica non espone campi privati',
     !JSON.stringify(body).includes('ownerPhone') && !JSON.stringify(body).includes('internalNotes'));
   check('affittato mai fra le alternative generiche', !body.listings.some(row => row.id === 'rent-a'));
+  const unavailable = body.unavailableListings.find(row => row.id === 'rent-a');
+  check('affittato riconoscibile soltanto nell indice compatto separato', unavailable?.name === 'Casa Affittata'
+    && unavailable.address === 'Via Chiusa 9, Roma' && unavailable.type === 'Apartment'
+    && unavailable.status === 'rented' && unavailable.priceEurMonth === 1400
+    && unavailable.description === undefined && unavailable.features === undefined, unavailable);
+  check('indice chiusi dichiara cap e copertura senza una seconda lettura',
+    body.coverage.listings.unavailableReturned === body.unavailableListings.length
+      && body.coverage.listings.unavailableResponseLimit === 8
+      && typeof body.coverage.listings.unavailableComplete === 'boolean'
+      && runQueryCalls === queriesBefore + 1, body.coverage);
   check('bozza privata assente dal catalogo', !JSON.stringify(body).includes('private-a'));
   check('catalogo dichiara fonte, istante e copertura',
     body.source === 'BOOM listings' && !Number.isNaN(Date.parse(body.checkedAt))
       && body.coverage.listings.complete === false
       && body.coverage.listings.sourceComplete === true, body.coverage);
+}
+
+{
+  const reserved = [];
+  for (let i = 0; i < 9; i++) {
+    const path = 'listings/reserved-' + i;
+    reserved.push(path);
+    DB.set(path, {
+      name: 'Casa riservata ' + i, address: 'Via Riserva ' + i + ', Roma',
+      zone: 'Roma', type: 'Apartment', price: 1100 + i, status: 'reserved',
+    });
+  }
+  const capped = await call({ op: 'catalog' });
+  check('indice chiusi resta capato e non pretende copertura completa',
+    capped.body.unavailableListings.length === 8
+      && capped.body.coverage.listings.unavailableComplete === false,
+  capped.body.coverage);
+  for (const path of reserved) DB.delete(path);
 }
 
 {
@@ -197,6 +228,31 @@ const call = async (query) => {
     && filtered.body.results.length === 2, filtered.body.results);
   check('ricerca di alternative non offre mai la casa affittata',
     !filtered.body.results.some(row => row.id === 'rent-a'));
+
+  const namedOutsideBudget = await call({
+    op: 'catalog', query: 'Casa Aurelia', maxPrice: '1200',
+  });
+  check('identita nominata non scompare quando e fuori budget', namedOutsideBudget.body.match === 'exact'
+    && namedOutsideBudget.body.results[0].id === 'apt-a'
+    && namedOutsideBudget.body.results[0].criteriaMatch === false
+    && namedOutsideBudget.body.results[0].criteriaMismatches.includes('maxPrice')
+    && namedOutsideBudget.body.note.includes('does not satisfy')
+    && !namedOutsideBudget.body.note.includes('No verified BOOM property'), namedOutsideBudget.body);
+
+  const alternativesOutsideBudget = await call({ op: 'catalog', type: 'Apartment', maxPrice: '1100' });
+  check('senza identita il budget continua a filtrare le alternative',
+    alternativesOutsideBudget.body.match === 'none' && alternativesOutsideBudget.body.results.length === 0,
+    alternativesOutsideBudget.body);
+
+  const duplicateWithBudget = await call({
+    op: 'catalog', query: 'Via Doppia 8, Roma', maxPrice: '1225',
+  });
+  check('il budget non sceglie fra due identita uguali', duplicateWithBudget.body.match === 'ambiguous'
+    && duplicateWithBudget.body.results.length === 2
+    && duplicateWithBudget.body.results.some(row => row.id === 'dup-a' && row.criteriaMatch === true)
+    && duplicateWithBudget.body.results.some(row => row.id === 'dup-b'
+      && row.criteriaMatch === false && row.criteriaMismatches.includes('maxPrice')),
+  duplicateWithBudget.body);
 }
 
 {
@@ -205,7 +261,11 @@ const call = async (query) => {
     && waiting.body.results[0].availability.state === 'available_later'
     && waiting.body.results[0].availability.date === '2099-05-01', waiting.body.results[0]);
   const tooEarly = await call({ op: 'catalog', query: 'Attico Futuro', moveIn: '2099-04-01' });
-  check('move-in precedente non trasforma la waitlist in disponibile', tooEarly.body.match === 'none');
+  check('move-in precedente conserva identita ma segnala incompatibilita', tooEarly.body.match === 'exact'
+    && tooEarly.body.results[0].id === 'wait-a'
+    && tooEarly.body.results[0].availability.state === 'available_later'
+    && tooEarly.body.results[0].criteriaMatch === false
+    && tooEarly.body.results[0].criteriaMismatches.includes('moveIn'), tooEarly.body);
   const rented = await call({ op: 'catalog', reference: 'rent-a' });
   check('reference esatta riconosce l’affittato ma lo marca unavailable', rented.body.match === 'exact'
     && rented.body.results[0].availability.state === 'unavailable');
@@ -225,7 +285,11 @@ const call = async (query) => {
   const unreadableMoveIn = await call({
     op: 'catalog', query: 'Casa Da Confermare', moveIn: '2099-12-31',
   });
-  check('testo illeggibile non supera il filtro move-in', unreadableMoveIn.body.match === 'none', unreadableMoveIn.body);
+  check('testo illeggibile conserva identita senza superare il filtro move-in',
+    unreadableMoveIn.body.match === 'exact'
+      && unreadableMoveIn.body.results[0].availability.state === 'needs_confirmation'
+      && unreadableMoveIn.body.results[0].criteriaMatch === false
+      && unreadableMoveIn.body.results[0].criteriaMismatches.includes('moveIn'), unreadableMoveIn.body);
 }
 
 {
@@ -236,6 +300,10 @@ const call = async (query) => {
       && !contract.includes('nessun parametro dal modello'));
   check('contratto provider insegna match e certezza', contract.includes('match:exact')
     && contract.includes('certainty:verified') && contract.includes('certainty:needs_confirmation'));
+  check('contratto provider descrive indice chiusi compatto e lookup mirato atomico',
+    contract.includes('`unavailableListings`')
+      && contract.includes('identità compatto')
+      && contract.includes('stesso rilascio'));
 }
 
 {

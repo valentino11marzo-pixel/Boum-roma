@@ -4798,6 +4798,9 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
   Il contratto configurabile del tool (`bot/RECEPTIONIST.md`) dichiara `reference`, `query`, `type`, `zone`, `maxPrice` e `moveIn`; non attesta che i parametri siano già stati applicati sul provider live.
   Un URL esterno senza mapping risponde `unverified_external_reference`; un affittato resta riconoscibile ma non entra fra le alternative, una waitlist conserva la sua data reale.
   Prova `phoneresolver`: handler vero su Firestore in memoria, con ID/indirizzo, mapping portale, ambiguità, filtri, cap e stati; nessun portale contattato.
+  Il catalogo generico espone gli affittati/riservati soltanto in `unavailableListings`, indice identitario compatto capato a 8 e derivato dalla stessa scansione: nessuna seconda lettura né descrizioni lunghe; copertura esplicita impedisce di dedurre assenza dal cap.
+  Nella ricerca nominativa l'identità viene risolta prima dei filtri: una casa fuori budget resta la casa giusta con `criteriaMatch:false` e il motivo, invece di diventare inesistente. Senza nome/riferimento i filtri continuano a selezionare soltanto alternative compatibili.
+  Schema dinamico e description del tool vanno pubblicati insieme; fino ad allora l'indice compatto mantiene coerente la promessa minima. Prova `phoneresolver` sui due confini e sull'ambiguità non risolta dal budget.
 
 - **Firma webhook voce su Vercel Node (17/09)**: `req.body` è un getter JSON del runtime standalone; l'hint Next `api.bodyParser:false` non lo disabilita. Riscrivere l'oggetto cambiava i byte firmati e rifiutava payload validi con `401 invalid_signature`.
   `phone/elevenlabs` legge ora lo stream originale ripristinato da Vercel senza attivare il getter. Negli harness senza stream accetta solo stringa/Buffer grezzi, mai oggetti JSON; lettura fallita = 400 esplicito.

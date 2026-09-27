@@ -36,6 +36,7 @@ const HIDDEN_STATUSES = new Set(['draft', 'hidden', 'archived']);
 const UNAVAILABLE_STATUSES = new Set(['rented', 'affittato', 'off_market', 'reserved']);
 const CATALOG_SCAN_LIMIT = 60;
 const CATALOG_RESPONSE_LIMIT = 25;
+const UNAVAILABLE_RESPONSE_LIMIT = 8;
 const CATALOG_LIMIT = 200;
 const PORTAL_PUBS_LIMIT = 800;
 const text = (v, max = 180) => typeof v === 'string' && v.trim() ? v.trim().slice(0, max) : null;
@@ -89,6 +90,17 @@ function catalogSummary(entry) {
     id: entry.id, name: entry.name, type: entry.type, zone: entry.zone,
     priceEurMonth: entry.priceEurMonth, bedrooms: entry.bedrooms, sqm: entry.sqm,
     furnished: entry.furnished, availableFrom: entry.availableFrom, url: entry.url,
+  };
+}
+
+// Ponte compatto per il tool live ancora senza parametri dinamici: permette
+// di riconoscere una casa chiusa senza offrirla come alternativa. Non ripete
+// descrizioni e feature (sono nel lookup mirato), non fa altre letture e ha
+// un cap separato per non rallentare la conversazione.
+function unavailableIdentity(entry) {
+  return {
+    id: entry.id, name: entry.name, address: entry.address, type: entry.type,
+    status: entry.status, priceEurMonth: entry.priceEurMonth, url: entry.url,
   };
 }
 
@@ -155,15 +167,24 @@ async function getPublicListing(id, today) {
 }
 
 function criteriaMatch(entry, filters) {
-  if (filters.type && fold(entry.type) !== fold(filters.type)) return false;
-  if (filters.zone && !fold(`${entry.zone || ''} ${entry.address || ''}`).includes(fold(filters.zone))) return false;
-  if (filters.maxPrice != null && (entry.priceEurMonth == null || entry.priceEurMonth > filters.maxPrice)) return false;
-  if (filters.moveIn) {
-    if (entry.availability.state === 'available_now') return true;
-    if (entry.availability.state !== 'available_later' || !entry.availability.date
-      || entry.availability.date > filters.moveIn) return false;
+  return criteriaMismatches(entry, filters).length === 0;
+}
+
+function criteriaMismatches(entry, filters) {
+  const mismatches = [];
+  if (filters.type && fold(entry.type) !== fold(filters.type)) mismatches.push('type');
+  if (filters.zone && !fold(`${entry.zone || ''} ${entry.address || ''}`).includes(fold(filters.zone))) {
+    mismatches.push('zone');
   }
-  return true;
+  if (filters.maxPrice != null && (entry.priceEurMonth == null || entry.priceEurMonth > filters.maxPrice)) {
+    mismatches.push('maxPrice');
+  }
+  if (filters.moveIn && entry.availability.state !== 'available_now'
+    && (entry.availability.state !== 'available_later' || !entry.availability.date
+      || entry.availability.date > filters.moveIn)) {
+    mismatches.push('moveIn');
+  }
+  return mismatches;
 }
 
 function conservativeQuery(query, entries) {
@@ -230,6 +251,8 @@ async function resolveCatalog(req, entries, listingCoverage, checkedAt, today) {
   if (moveIn && !isoDay(moveIn)) {
     return { status: 400, body: { ok: false, error: 'invalid_move_in' } };
   }
+  const filters = { type, zone, maxPrice, moveIn };
+  const hasFilters = Object.values(filters).some(value => value !== '' && value != null);
 
   const coverage = {
     listings: { complete: listingCoverage.complete, scanned: listingCoverage.scanned,
@@ -278,10 +301,14 @@ async function resolveCatalog(req, entries, listingCoverage, checkedAt, today) {
       }
     }
   } else {
-    const filters = { type, zone, maxPrice, moveIn };
-    const filtered = entries.filter(row => criteriaMatch(row, filters));
-    if (query) resolution = { ...conservativeQuery(query, filtered), proof: 'listings_scan' };
+    if (query) {
+      // Prima si stabilisce QUALE casa il cliente ha nominato. Budget, zona e
+      // data descrivono poi se quella casa soddisfa la richiesta: non possono
+      // cancellarne l'identita e farla sembrare inesistente.
+      resolution = { ...conservativeQuery(query, entries), proof: 'listings_scan' };
+    }
     else {
+      const filtered = entries.filter(row => criteriaMatch(row, filters));
       // Senza un'identita da riconoscere stiamo cercando alternative: una
       // casa chiusa non entra mai nei suggerimenti, neppure se zona/prezzo
       // coincidono. Con query/reference resta invece identificabile.
@@ -309,12 +336,21 @@ async function resolveCatalog(req, entries, listingCoverage, checkedAt, today) {
   else if (reason !== 'unverified_external_reference') reason = 'none';
 
   const candidateCount = resolution.candidateCount ?? resolution.rows.length;
-  const results = resolution.rows.slice().sort((a, b) => String(a.id).localeCompare(String(b.id))).slice(0, 2);
+  const results = resolution.rows.slice().sort((a, b) => String(a.id).localeCompare(String(b.id))).slice(0, 2)
+    .map(row => {
+      if (!hasFilters) return row;
+      const mismatches = criteriaMismatches(row, filters);
+      return { ...row, criteriaMatch: mismatches.length === 0, criteriaMismatches: mismatches };
+    });
+  const mismatchedCriteria = [...new Set(results.flatMap(row => row.criteriaMismatches || []))];
+  const filterNote = mismatchedCriteria.length
+    ? ` The identified property does not satisfy these requested filters: ${mismatchedCriteria.join(', ')}. Do not describe it as within the caller's criteria, unavailable, or nonexistent.`
+    : '';
   return { status: 200, body: {
     ok: true, match, certainty, reason, source, checkedAt, coverage,
     candidateCount, truncated: candidateCount > results.length, results,
     ...(match === 'none' && reason === 'unverified_external_reference' ? { error: reason } : {}),
-    note: resolverNote(reason),
+    note: resolverNote(reason) + filterNote,
   } };
 }
 
@@ -350,15 +386,20 @@ export default async function handler(req, res) {
       }
 
       const offerable = entries.filter(l => !UNAVAILABLE_STATUSES.has(l.status));
+      const unavailable = entries.filter(l => UNAVAILABLE_STATUSES.has(l.status));
       const listings = offerable.slice(0, CATALOG_RESPONSE_LIMIT).map(catalogSummary);
+      const unavailableListings = unavailable.slice(0, UNAVAILABLE_RESPONSE_LIMIT).map(unavailableIdentity);
       const complete = sourceComplete && offerable.length <= CATALOG_RESPONSE_LIMIT;
+      const unavailableComplete = sourceComplete && unavailable.length <= UNAVAILABLE_RESPONSE_LIMIT;
       return res.status(200).json({
         ok: true, source: 'BOOM listings', checkedAt,
         coverage: { listings: { complete, sourceComplete,
           scanned: Math.min(rows.length, CATALOG_SCAN_LIMIT), returned: listings.length,
-          scanLimit: CATALOG_SCAN_LIMIT, responseLimit: CATALOG_RESPONSE_LIMIT } },
-        complete, count: listings.length, listings,
-        note: 'Use each listing\'s type to distinguish rooms from entire apartments. A room is not an entire apartment. Do not infer accommodation type or total room count from bedrooms, size, price or title. If type is missing, unknown or unclear, say the accommodation type needs verification instead of calling it a room, apartment or bilocale. This short catalog is bounded for a live call and excludes rented/reserved homes. If complete is false or the caller cites a name, address, BOOM link or portal reference, call this tool again with reference or query instead of assuming absence. This is the BOOM catalog, not a fresh search of external portals; a portal ad may be stale.',
+          scanLimit: CATALOG_SCAN_LIMIT, responseLimit: CATALOG_RESPONSE_LIMIT,
+          unavailableComplete, unavailableReturned: unavailableListings.length,
+          unavailableResponseLimit: UNAVAILABLE_RESPONSE_LIMIT } },
+        complete, count: listings.length, listings, unavailableListings,
+        note: 'Use each listing\'s type to distinguish rooms from entire apartments. A room is not an entire apartment. Do not infer accommodation type or total room count from bedrooms, size, price or title. If type is missing, unknown or unclear, say the accommodation type needs verification instead of calling it a room, apartment or bilocale. listings contains only offerable homes. unavailableListings is a compact identity index of rented/reserved homes: recognize them but never offer them, and use a targeted reference or query lookup for details. Both lists are bounded; if complete or unavailableComplete is false, or the caller cites a name, address, BOOM link or portal reference, call this tool again with reference or query instead of assuming absence. This is the BOOM catalog, not a fresh search of external portals; a portal ad may be stale.',
       });
     }
 
