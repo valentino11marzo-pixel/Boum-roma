@@ -4793,6 +4793,11 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
   La nota del catalogo distingue stanza e appartamento intero e richiede verifica quando il tipo è sconosciuto; `bedrooms` non prova il numero totale di locali.
   Prova `phone`: stanza e appartamento con stessi dati numerici, tipo mancante/invalido e mutazione che rimuove il campo. Nessun prompt live o trasferimento modificato; il collaudo conversazionale va ripetuto dopo la pubblicazione.
 
+- **Risolutore Immobile Unico v1 (27/09)**: `phone/agent-tools` conserva il catalogo senza input e accetta riferimenti BOOM/portale mappati, nome o indirizzo e filtri dichiarati.
+  Legge soltanto `listings` e `portalPubs`, riusa `DISPO`, espone fonte, istante e copertura e restituisce al massimo due risultati; pareggi e coperture parziali non diventano certezze.
+  Un URL esterno senza mapping risponde `unverified_external_reference`; un affittato resta riconoscibile ma non entra fra le alternative, una waitlist conserva la sua data reale.
+  Prova `phoneresolver`: handler vero su Firestore in memoria, con ID/indirizzo, mapping portale, ambiguità, filtri, cap e stati; nessun portale contattato.
+
 - **Firma webhook voce su Vercel Node (17/09)**: `req.body` è un getter JSON del runtime standalone; l'hint Next `api.bodyParser:false` non lo disabilita. Riscrivere l'oggetto cambiava i byte firmati e rifiutava payload validi con `401 invalid_signature`.
   `phone/elevenlabs` legge ora lo stream originale ripristinato da Vercel senza attivare il getter. Negli harness senza stream accetta solo stringa/Buffer grezzi, mai oggetti JSON; lettura fallita = 400 esplicito.
   La verifica HMAC e la tolleranza restano invariate. Prova `phone`: spazi/newline, Unicode escaped e spezzato fra chunk, ordine chiavi, un byte alterato, secret errato e firma scaduta; mutazione ripristina il difetto.
