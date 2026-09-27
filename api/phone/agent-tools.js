@@ -27,7 +27,7 @@
 // Auth: ?k=<phoneKey derivata> o X-Homie-Secret (come le altre porte phone).
 // Risposte PICCOLE e parlabili: finiscono nel contesto vocale dell'agente.
 
-import { fsList } from '../homie/_lib.js';
+import { fsGet, fsList } from '../homie/_lib.js';
 import DISPO from '../../js/dispo-engine.js';
 import { checkPhoneAuth, qparam } from './_lib.js';
 import { TZ, loadConfig, busyBlocks, buildSlots, listingCtx } from '../viewings/_avail.js';
@@ -58,11 +58,10 @@ const isoDay = (v) => {
 function catalogEntry(l, today) {
   const status = text(l.status)?.toLowerCase() || null;
   const normalized = { ...l, status };
-  const resolved = DISPO.resolve(normalized, today);
   const lane = DISPO.marketLane(normalized, today);
   const unavailable = UNAVAILABLE_STATUSES.has(status);
   const state = unavailable ? 'unavailable'
-    : !['available', 'waitlist'].includes(status) || resolved.kind === 'unknown' ? 'needs_confirmation'
+    : !['available', 'waitlist'].includes(status) || lane.dateUnreadable ? 'needs_confirmation'
     : lane.lane === 'ahead' ? 'available_later' : lane.lane === 'now' ? 'available_now' : 'unavailable';
   return {
     id: l.id, name: text(l.name), address: text(l.address), zone: text(l.zone),
@@ -138,6 +137,23 @@ function remoteIdFromUrl(raw) {
   } catch { return null; }
 }
 
+// Il riferimento arriva da una conversazione: non diventa mai liberamente
+// un path Firestore. Accettiamo un singolo segmento (anche per eventuali id
+// Unicode esistenti), poi lo codifichiamo prima del GET.
+function safeListingId(raw) {
+  const id = typeof raw === 'string' ? raw.trim() : '';
+  return id && id.length <= 180 && id !== '.' && id !== '..'
+    && !/[\/\u0000-\u001f\u007f]/.test(id) ? id : null;
+}
+
+async function getPublicListing(id, today) {
+  const safeId = safeListingId(id);
+  if (!safeId) return null;
+  const listing = await fsGet(`listings/${encodeURIComponent(safeId)}`);
+  if (!listing || HIDDEN_STATUSES.has(String(listing.status || '').trim().toLowerCase())) return null;
+  return catalogEntry(listing, today);
+}
+
 function criteriaMatch(entry, filters) {
   if (filters.type && fold(entry.type) !== fold(filters.type)) return false;
   if (filters.zone && !fold(`${entry.zone || ''} ${entry.address || ''}`).includes(fold(filters.zone))) return false;
@@ -192,13 +208,15 @@ function portalListingIds(reference, pubs) {
 }
 
 function resolverNote(reason) {
+  if (reason === 'exact') return 'This BOOM property identity is verified. Use only the returned fields and preserve any needs_confirmation availability state.';
   if (reason === 'unverified_external_reference') return 'This external listing reference is not mapped to a BOOM property. Do not claim its availability, price or identity; ask for the BOOM listing or say it needs verification.';
   if (reason === 'ambiguous') return 'More than one BOOM property matches. Ask for one distinguishing detail, preferably the full address or BOOM link; do not choose one.';
+  if (reason === 'coverage_incomplete') return 'The checked source is only partially covered, so absence or uniqueness is not verified. Ask for the full BOOM link, listing id or exact address before making a claim.';
   if (reason === 'none') return 'No verified BOOM property matches these facts. Do not invent a listing or treat an external portal ad as current.';
   return 'Use the verified status and availability fields. An unavailable property may be identified, but it is never an alternative to offer.';
 }
 
-async function resolveCatalog(req, entries, listingCoverage, checkedAt) {
+async function resolveCatalog(req, entries, listingCoverage, checkedAt, today) {
   const reference = inputValue(req, 'reference');
   const query = inputValue(req, 'query');
   const type = inputValue(req, 'type', 80);
@@ -214,51 +232,88 @@ async function resolveCatalog(req, entries, listingCoverage, checkedAt) {
   }
 
   const coverage = {
-    listings: { complete: listingCoverage.complete, scanned: listingCoverage.scanned, limit: CATALOG_LIMIT },
+    listings: { complete: listingCoverage.complete, scanned: listingCoverage.scanned,
+      limit: CATALOG_LIMIT, directChecked: false },
     portalPubs: { checked: false, complete: null, scanned: 0, limit: PORTAL_PUBS_LIMIT },
   };
   let source = 'BOOM listings';
-  let resolution = { match: 'none', rows: [] };
+  let resolution = { match: 'none', rows: [], proof: 'listings_scan' };
   let reason = 'none';
 
   if (reference) {
     const boomId = boomListingId(reference);
-    const directId = boomId || (!normalizedUrl(reference) ? reference : null);
-    const direct = directId ? entries.filter(row => row.id === directId) : [];
-    if (direct.length) resolution = { match: direct.length === 1 ? 'exact' : 'ambiguous', rows: direct };
-    else {
+    const rawId = !normalizedUrl(reference) ? safeListingId(reference) : null;
+    const directId = boomId || rawId;
+    let direct = null;
+    if (directId) {
+      coverage.listings.directChecked = true;
+      direct = await getPublicListing(directId, today);
+    }
+    if (direct) {
+      resolution = { match: 'exact', rows: [direct], proof: 'direct_document' };
+    } else if (boomId) {
+      // Un URL BOOM porta un id canonico: il GET del documento e un controllo
+      // completo per quell'identita, anche quando il catalogo supera il cap.
+      resolution = { match: 'none', rows: [], proof: 'direct_document' };
+    } else {
       const pubRows = await fsList('portalPubs', { limit: PORTAL_PUBS_LIMIT + 1 });
       coverage.portalPubs = { checked: true, complete: pubRows.length <= PORTAL_PUBS_LIMIT,
         scanned: Math.min(pubRows.length, PORTAL_PUBS_LIMIT), limit: PORTAL_PUBS_LIMIT };
       source = 'BOOM listings + portalPubs';
       const ids = portalListingIds(reference, pubRows.slice(0, PORTAL_PUBS_LIMIT));
-      const mapped = entries.filter(row => ids.includes(String(row.id)));
-      if (mapped.length) resolution = { match: mapped.length === 1 ? 'exact' : 'ambiguous', rows: mapped };
-      else reason = externalPortal(reference) ? 'unverified_external_reference' : 'none';
+      // Tre letture bastano a provare un conflitto e tengono il costo bounded;
+      // la risposta pubblica mostra comunque al massimo due risultati.
+      const mapped = (await Promise.all(ids.slice(0, 3).map(id => getPublicListing(id, today)))).filter(Boolean);
+      if (mapped.length) resolution = {
+        match: mapped.length === 1 && ids.length === 1 ? 'exact' : 'ambiguous',
+        rows: mapped, proof: 'portal_mapping', candidateCount: Math.max(ids.length, mapped.length),
+      };
+      else if (ids.length > 3) resolution = {
+        match: 'ambiguous', rows: [], proof: 'portal_mapping', candidateCount: ids.length,
+      };
+      else {
+        resolution = { match: 'none', rows: [], proof: 'portal_mapping' };
+        reason = ids.length === 0 && externalPortal(reference)
+          ? 'unverified_external_reference' : 'none';
+      }
     }
   } else {
     const filters = { type, zone, maxPrice, moveIn };
     const filtered = entries.filter(row => criteriaMatch(row, filters));
-    if (query) resolution = conservativeQuery(query, filtered);
+    if (query) resolution = { ...conservativeQuery(query, filtered), proof: 'listings_scan' };
     else {
       // Senza un'identita da riconoscere stiamo cercando alternative: una
       // casa chiusa non entra mai nei suggerimenti, neppure se zona/prezzo
       // coincidono. Con query/reference resta invece identificabile.
       const offerable = filtered.filter(row => row.availability.state !== 'unavailable');
-      resolution = offerable.length === 1 ? { match: 'exact', rows: offerable }
-        : offerable.length > 1 ? { match: 'ambiguous', rows: offerable }
-        : { match: 'none', rows: [] };
+      resolution = offerable.length === 1 ? { match: 'exact', rows: offerable, proof: 'listings_scan' }
+        : offerable.length > 1 ? { match: 'ambiguous', rows: offerable, proof: 'listings_scan' }
+        : { match: 'none', rows: [], proof: 'listings_scan' };
     }
   }
 
-  if (resolution.match === 'ambiguous') reason = 'ambiguous';
-  else if (resolution.match === 'none' && reason !== 'unverified_external_reference') reason = 'none';
-  const candidateCount = resolution.rows.length;
+  const proofComplete = resolution.proof === 'direct_document'
+    || resolution.proof === 'portal_mapping' && coverage.portalPubs.complete === true
+    || resolution.proof === 'listings_scan' && coverage.listings.complete === true;
+  let match = resolution.match;
+  let certainty = match === 'ambiguous' ? 'needs_confirmation' : 'verified';
+  if (!proofComplete) {
+    // Un cap raggiunto non dimostra ne assenza ne unicita. L'esito resta
+    // esplicitamente da confermare, anche quando il primo blocco ha trovato
+    // zero o una sola scheda.
+    if (match === 'exact' || match === 'none') match = 'ambiguous';
+    certainty = 'needs_confirmation';
+    reason = 'coverage_incomplete';
+  } else if (match === 'exact') reason = 'exact';
+  else if (match === 'ambiguous') reason = 'ambiguous';
+  else if (reason !== 'unverified_external_reference') reason = 'none';
+
+  const candidateCount = resolution.candidateCount ?? resolution.rows.length;
   const results = resolution.rows.slice().sort((a, b) => String(a.id).localeCompare(String(b.id))).slice(0, 2);
   return { status: 200, body: {
-    ok: true, match: resolution.match, source, checkedAt, coverage,
+    ok: true, match, certainty, reason, source, checkedAt, coverage,
     candidateCount, truncated: candidateCount > results.length, results,
-    ...(reason === 'unverified_external_reference' ? { error: reason } : {}),
+    ...(match === 'none' && reason === 'unverified_external_reference' ? { error: reason } : {}),
     note: resolverNote(reason),
   } };
 }
@@ -290,7 +345,7 @@ export default async function handler(req, res) {
         .map(l => catalogEntry(l, today));
       if (hasInput) {
         const resolved = await resolveCatalog(req, entries,
-          { complete: sourceComplete, scanned: Math.min(rows.length, CATALOG_LIMIT) }, checkedAt);
+          { complete: sourceComplete, scanned: Math.min(rows.length, CATALOG_LIMIT) }, checkedAt, today);
         return res.status(resolved.status).json(resolved.body);
       }
 

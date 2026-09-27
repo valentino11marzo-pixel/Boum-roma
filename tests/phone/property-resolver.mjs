@@ -1,6 +1,8 @@
 // Risolutore Immobile Unico v1: guida l'handler vero con Firestore in memoria.
 // Nessun portale o provider esterno viene contattato.
 
+import { readFileSync } from 'node:fs';
+
 process.env.HOMIE_SECRET = 'resolver-test-secret';
 process.env.FIREBASE_API_KEY = 'test-key';
 process.env.FIREBASE_ADMIN_EMAIL = 'admin@example.test';
@@ -43,6 +45,13 @@ globalThis.fetch = async (url, options = {}) => {
       .slice(0, query.limit);
     return json(rows.map(([path, value]) => ({ document: document(path, value) })));
   }
+  const marker = '/documents/';
+  if (href.includes('firestore.googleapis.com') && href.includes(marker)
+    && (!options.method || options.method === 'GET')) {
+    const encodedPath = href.slice(href.indexOf(marker) + marker.length).split('?')[0];
+    const path = encodedPath.split('/').map(decodeURIComponent).join('/');
+    return DB.has(path) ? json(document(path, DB.get(path))) : json({ error: 'not found' }, 404);
+  }
   throw new Error('unexpected network call: ' + href);
 };
 
@@ -77,6 +86,14 @@ listing('wait-a', {
 listing('rent-a', {
   name: 'Casa Affittata', address: 'Via Chiusa 9, Roma', zone: 'Prati',
   type: 'Apartment', price: 1400, status: 'rented', availableFrom: '2099-06-01',
+});
+listing('nodate-a', {
+  name: 'Casa Senza Data', address: 'Via Libera 7, Roma', zone: 'EUR',
+  type: 'Apartment', price: 1300, status: 'available',
+});
+listing('unreadable-a', {
+  name: 'Casa Da Confermare', address: 'Via Incerta 4, Roma', zone: 'EUR',
+  type: 'Apartment', price: 1350, status: 'available', availableDate: 'da concordare',
 });
 listing('private-a', {
   name: 'Bozza privata', address: 'Via Segreta 1', zone: 'Prati',
@@ -133,6 +150,10 @@ const call = async (query) => {
   const byId = await call({ op: 'catalog', reference: 'apt-a' });
   check('reference per listing id e esatta', byId.body.match === 'exact'
     && byId.body.results.length === 1 && byId.body.results[0].id === 'apt-a');
+  check('match esatto ha ragione e nota coerenti', byId.body.reason === 'exact'
+    && byId.body.certainty === 'verified'
+    && byId.body.note.includes('identity is verified')
+    && !byId.body.note.includes('No verified BOOM property'), byId.body);
   const rich = byId.body.results[0];
   check('lookup mirato restituisce la proiezione ricca con DISPO',
     rich.address === 'Via Aurelia 10, Roma' && rich.bathrooms === 1 && rich.floor === '0'
@@ -188,6 +209,89 @@ const call = async (query) => {
   const rented = await call({ op: 'catalog', reference: 'rent-a' });
   check('reference esatta riconosce l’affittato ma lo marca unavailable', rented.body.match === 'exact'
     && rented.body.results[0].availability.state === 'unavailable');
+}
+
+{
+  const noDate = await call({
+    op: 'catalog', query: 'Casa Senza Data', moveIn: '2099-12-31',
+  });
+  check('available senza data e disponibile ora anche col filtro move-in', noDate.body.match === 'exact'
+    && noDate.body.results[0].id === 'nodate-a'
+    && noDate.body.results[0].availability.state === 'available_now', noDate.body);
+
+  const unreadable = await call({ op: 'catalog', reference: 'unreadable-a' });
+  check('testo disponibilita illeggibile resta needs_confirmation', unreadable.body.match === 'exact'
+    && unreadable.body.results[0].availability.state === 'needs_confirmation', unreadable.body);
+  const unreadableMoveIn = await call({
+    op: 'catalog', query: 'Casa Da Confermare', moveIn: '2099-12-31',
+  });
+  check('testo illeggibile non supera il filtro move-in', unreadableMoveIn.body.match === 'none', unreadableMoveIn.body);
+}
+
+{
+  const contract = readFileSync(new URL('../../bot/RECEPTIONIST.md', import.meta.url), 'utf8');
+  check('contratto provider dichiara tutti gli input del resolver',
+    ['reference', 'query', 'type', 'zone', 'maxPrice', 'moveIn']
+      .every(name => contract.includes('`' + name + '`'))
+      && !contract.includes('nessun parametro dal modello'));
+  check('contratto provider insegna match e certezza', contract.includes('match:exact')
+    && contract.includes('certainty:verified') && contract.includes('certainty:needs_confirmation'));
+}
+
+{
+  // Il cap viene raggiunto apposta: una scansione parziale non puo provare
+  // che il primo risultato sia unico o che un riferimento esterno non esista.
+  const addedListings = [];
+  for (let i = 0; i < 205; i++) {
+    const path = 'listings/partial-' + String(i).padStart(3, '0');
+    addedListings.push(path);
+    DB.set(path, {
+      name: 'Copertura campione ' + i, address: 'Via Copertura ' + i + ', Roma',
+      zone: 'Test', type: 'Studio', price: 800 + i, status: 'available', availableFrom: 'Immediate',
+    });
+  }
+  const lateDuplicate = 'listings/late-aurelia-duplicate';
+  addedListings.push(lateDuplicate);
+  DB.set(lateDuplicate, {
+    name: 'Aurelia duplicata', address: 'Via Aurelia 10, Roma', zone: 'Prati',
+    type: 'Apartment', price: 1550, status: 'available', availableFrom: 'Immediate',
+  });
+
+  const partialQuery = await call({ op: 'catalog', query: 'Via Aurelia 10, Roma' });
+  check('scansione listing parziale non dichiara un exact definitivo',
+    partialQuery.body.coverage.listings.complete === false
+      && partialQuery.body.match === 'ambiguous'
+      && partialQuery.body.certainty === 'needs_confirmation'
+      && partialQuery.body.reason === 'coverage_incomplete', partialQuery.body);
+
+  const directUnderPartial = await call({ op: 'catalog', reference: 'apt-a' });
+  check('id noto usa il documento diretto anche con catalogo parziale',
+    directUnderPartial.body.coverage.listings.complete === false
+      && directUnderPartial.body.coverage.listings.directChecked === true
+      && directUnderPartial.body.match === 'exact'
+      && directUnderPartial.body.certainty === 'verified', directUnderPartial.body);
+
+  const addedPubs = [];
+  for (let i = 0; i < 801; i++) {
+    const path = 'portalPubs/partial_' + String(i).padStart(3, '0');
+    addedPubs.push(path);
+    DB.set(path, {
+      portal: 'idealista', listingId: 'apt-b', status: 'live',
+      remoteId: 'partial-' + i,
+      remoteUrl: 'https://www.idealista.it/immobile/partial-' + i + '/',
+    });
+  }
+  const partialExternal = await call({
+    op: 'catalog', reference: 'https://www.idealista.it/immobile/not-seen/',
+  });
+  check('copertura portalPubs parziale non dichiara reference esterna non mappata',
+    partialExternal.body.coverage.portalPubs.complete === false
+      && partialExternal.body.match === 'ambiguous'
+      && partialExternal.body.certainty === 'needs_confirmation'
+      && partialExternal.body.reason === 'coverage_incomplete'
+      && partialExternal.body.error === undefined, partialExternal.body);
+
+  for (const path of addedListings.concat(addedPubs)) DB.delete(path);
 }
 
 console.log(failed ? `\n${failed} FAILED (${passed} passed)` : `\nAll ${passed} property resolver checks passed`);

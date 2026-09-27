@@ -4794,7 +4794,8 @@ bottiglia) possono partire da sole — ma solo il PROVATO, e sotto controllo.
   Prova `phone`: stanza e appartamento con stessi dati numerici, tipo mancante/invalido e mutazione che rimuove il campo. Nessun prompt live o trasferimento modificato; il collaudo conversazionale va ripetuto dopo la pubblicazione.
 
 - **Risolutore Immobile Unico v1 (27/09)**: `phone/agent-tools` conserva il catalogo senza input e accetta riferimenti BOOM/portale mappati, nome o indirizzo e filtri dichiarati.
-  Legge soltanto `listings` e `portalPubs`, riusa `DISPO`, espone fonte, istante e copertura e restituisce al massimo due risultati; pareggi e coperture parziali non diventano certezze.
+  Legge soltanto `listings` e `portalPubs`, riusa `DISPO`, espone fonte, istante e copertura e restituisce al massimo due risultati; pareggi e coperture parziali diventano `needs_confirmation`, mentre un id BOOM noto viene controllato sul documento esatto.
+  Il contratto configurabile del tool (`bot/RECEPTIONIST.md`) dichiara `reference`, `query`, `type`, `zone`, `maxPrice` e `moveIn`; non attesta che i parametri siano già stati applicati sul provider live.
   Un URL esterno senza mapping risponde `unverified_external_reference`; un affittato resta riconoscibile ma non entra fra le alternative, una waitlist conserva la sua data reale.
   Prova `phoneresolver`: handler vero su Firestore in memoria, con ID/indirizzo, mapping portale, ambiguità, filtri, cap e stati; nessun portale contattato.
 
