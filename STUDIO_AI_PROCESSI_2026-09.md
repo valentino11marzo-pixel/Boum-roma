@@ -228,3 +228,60 @@ importi per la tabella completa.
 Immobiliare (+39 331 3251 961) risultano «Non risposta». Deviare quel numero
 sulla Receptionist quando occupato o senza risposta costa zero e recupera
 contatti già pagati al portale.
+
+---
+
+## 9 · Il Mac mini: si può mettere un modello migliore? (aggiunto il 28/09 sera)
+
+**Sì, e qwen3:8b è ormai il modello sbagliato.** È di aprile 2025; da allora
+sono usciti modelli piccoli molto più forti. I limiti veri del Mac:
+- **16 GB unificati → ~11 GB utilizzabili dalla GPU** (macOS ne concede circa
+  il 70%); il resto lo dividono Homie, wacli, Scout, il bot e il sistema.
+- **Contesto 16k** impostato dall'installer: la cache del contesto occupa
+  memoria in più rispetto al file del modello.
+
+| Candidato | Uscita | Memoria (Q4) | Velocità su M4 16 GB | Punti forti | Verdetto |
+|---|---|---|---|---|---|
+| qwen3:8b (attuale) | apr 2025 | ~5,2 GB | — | già installato | da sostituire |
+| **qwen3.5:9b** | mar 2026 | ~7 GB | ~17–22 tok/s (Ollama), 25–35 (MLX) | ragionamento da modello 30B della generazione prima; **vede le immagini**; 201 lingue; Apache 2.0 | **candidato principale** |
+| **gemma4:12b** | giu 2026 | ~8–9 GB | ~15–19 tok/s | un filo più forte nel ragionamento; ottimo sulle lingue europee; vede immagini | **sfidante**: più stretto in memoria |
+| gemma4:26b (MoE) | apr 2026 | ~16 GB | — | forte | **no**: non entra con il resto acceso |
+| qwen3.6-35B-A3B «su 16 GB» | 2026 | 9–13 GB a 2–4 bit + pagine dall'SSD | ~17 tok/s nelle demo | impressiona nelle demo | **no in produzione**: quantizzazione a 2 bit (qualità), esperti letti dal disco a ogni token, e sul Mac girano altri 10 servizi |
+
+**Cosa cambia davvero con qwen3.5:9b.** Un solo modello per testo e
+immagini: nel registro `local.visionModel` = lo stesso modello, niente
+secondo modello in memoria. Diventano candidati all'ombra anche gli scopi
+con immagini (`profile.ocr`, `photos.audit`, le foto dello Smistatore). I
+PDF restano cloud: il ponte non li converte.
+
+**Cosa NON cambia.** Anche il migliore a 9–12 miliardi di parametri non
+sostituisce Sonnet/Opus sulle bozze ai clienti con 20.000 caratteri di
+storia. Il confine del §3.3 resta: il Mac fa i lavori interni.
+
+**Hardware più grande?** Un Mac con 48–64 GB farebbe girare i 26–35B veri
+(non compressi a 2 bit). Si giustifica solo se il locale deve prendere le
+bozze ai clienti, che oggi valgono ~$3/giorno dopo il lotto 1: il ritorno
+non c'è. Da riconsiderare solo coi numeri dei lotti 3–5.
+
+### Come si decide: una gara sui NOSTRI compiti, non sui benchmark
+
+I numeri qui sopra vengono da prove di terzi (fonti in fondo). Per BOOM
+contano quattro compiti, provati sul Mac vero con testi finti ma realistici:
+1. lead estratto da un'email Immobiliare/Idealista (IT ed EN) → JSON;
+2. riassunto e intento di una chiamata trascritta;
+3. movimento bancario da un avviso email;
+4. categoria e dati da una foto di documento d'identità.
+
+Per ogni modello (qwen3:8b, qwen3.5:9b, gemma4:12b): JSON valido,
+campi giusti contro la risposta attesa, secondi per risposta, memoria
+occupata con tutti i servizi accesi (`ollama ps`, `memory_pressure`).
+Vince il più preciso che resta sotto i 20 s di tetto del server. Poi
+l'ombra in produzione (§5, lotto 5) conferma o smentisce.
+
+Fonti: [Qwen3.5 small models — Artificial Analysis](https://artificialanalysis.ai/articles/qwen3-5-small-models) ·
+[Qwen/Qwen3.5-9B — Hugging Face](https://huggingface.co/Qwen/Qwen3.5-9B) ·
+[Gemma 4 — Google](https://blog.google/innovation-and-ai/technology/developers-tools/gemma-4/) ·
+[Qwen 3.5 MLX su Apple Silicon](https://willitrunai.com/blog/qwen-3-5-mlx-apple-silicon-guide) ·
+[LLM migliori per Mac mini M4 16 GB](https://modelfit.io/blog/best-llm-mac-mini-m4-16gb/) ·
+[Gemma 4 12B vs Qwen 3.5 9B](https://www.betterclaw.io/blog/gemma-4-12b-vs-qwen-3-5-9b) ·
+[35B su Mac mini 16 GB con mmap](https://modelfit.io/blog/run-35b-llm-mac-mini-m4-16gb-mmap/)
