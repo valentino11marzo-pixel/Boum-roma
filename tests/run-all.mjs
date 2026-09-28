@@ -80,6 +80,7 @@ const SUITES = [
   { name: 'eyes',     file: 'tests/pfs/eyes.mjs',        what: 'occhi di Homie sul radar PFS: lista di lavoro viva, e un radar cieco non sembra un mercato fermo' },
   { name: 'whatsapp', file: 'tests/whatsapp/run.mjs',     what: 'WhatsApp → lead senza AI: rumore fuori, persona vera dentro, un lead per persona' },
   { name: 'phone',    file: 'tests/phone/run.mjs',        what: 'Il Centralino: la segreteria risponde solo quando l\'operatore non può, il messaggio diventa lead (mai un inquilino), Whisper/AI giù non perdono MAI la chiamata' },
+  { name: 'phoneresolver', file: 'tests/phone/property-resolver.mjs', what: 'Risolutore Immobile voce: id, indirizzo e mapping portali conservativi; ambiguità, copertura e disponibilità esplicite' },
   { name: 'smista',   file: 'tests/documents/smista.mjs', what: 'lo Smistatore dalle porte: un docId non archivia due volte e il doppione non paga il modello; uno sconosciuto MAI sotto un immobile; un proprietario solo fra i suoi, e con più immobili senza scelta resta da smistare coi candidati' },
   { name: 'porte', file: 'tests/documents/porte.mjs', what: 'email per relazione: mittenti riconosciuti, ignoti esclusi, match prima delle scritture e retry degli allegati' },
   { name: 'seguitiporte', file: 'tests/segretaria/porte-integration.mjs', what: 'retry congiunto del seguito e degli allegati: una sola fonte salvata, nessun doppione o risposta cliente; recap email unico con Scrivano' },

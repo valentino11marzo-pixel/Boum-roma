@@ -196,11 +196,43 @@ la risposta. Il modello, onesto, dice che non ha il catalogo. Quindi: URL su
 
 **Tool 1 — `get_catalog`** · GET
 `https://www.boomrome.com/api/phone/agent-tools` · query `k` (costante, la
-chiave) + `op=catalog` (costante) · nessun parametro dal modello
-> Description: Returns the apartments currently available for rent (name,
-> zone, monthly price in EUR, bedrooms, sqm, available-from). Use it EVERY
-> time the caller asks what is available or about a specific home. Answer
-> only from this data. If the tool fails or returns ok:false, briefly say
+chiave) + `op=catalog` (costante). Configurare questi parametri dinamici,
+tutti opzionali e passati dal modello solo quando il cliente li ha forniti:
+
+| parametro | tipo | valore ammesso |
+|---|---|---|
+| `reference` | string | id annuncio BOOM, URL BOOM, oppure id/URL Immobiliare.it o Idealista citato dal cliente |
+| `query` | string | nome dell'immobile o indirizzo pronunciato/scritto dal cliente |
+| `type` | string | tipologia richiesta, senza dedurla da camere, prezzo o titolo |
+| `zone` | string | zona richiesta |
+| `maxPrice` | number | budget mensile massimo in euro |
+| `moveIn` | string | data di ingresso completa nel formato `YYYY-MM-DD`; omettere se incompleta |
+
+Se il cliente cita una casa, inviare `reference` quando esiste un id/URL;
+altrimenti `query`. Per una ricerca usare soltanto i filtri realmente detti.
+Senza parametri il tool conserva il catalogo breve generico: `listings`
+contiene soltanto alternative offribili; `unavailableListings` è un indice
+di identità compatto e limitato (nome, indirizzo, tipo, stato, prezzo) per
+riconoscere affittati/riservati senza proporli. I dettagli restano nel lookup
+mirato. Non indovinare mai un parametro e non trasformare «settembre» in una
+data completa.
+
+Il rollout è atomico: nello stesso rilascio si configurano sul provider i sei
+parametri dinamici qui sopra e questa description. Finché il provider ha solo
+`k`/`op`, l'indice compatto garantisce la promessa minima; non si pubblica una
+description che prometta il lookup mirato senza il relativo schema.
+
+> Description: Returns verified BOOM property data. For a cited property,
+> pass its exact reference or name/address; for a search, pass only filters
+> explicitly stated by the caller. The targeted response returns at most two
+> results. `match:exact` with `certainty:verified` identifies one property.
+> For `match:ambiguous`, `certainty:needs_confirmation`, or availability
+> `needs_confirmation`, ask ONE distinguishing question and do not choose or
+> promise availability. An `unverified_external_reference` is not BOOM data.
+> With no parameters, `listings` is the short offerable catalog and
+> `unavailableListings` is a compact recognition-only index: never offer an
+> item from it. Answer only from returned fields. If the tool fails or returns
+> ok:false, briefly say
 > that you cannot check this now, then ask ONE question about ONE missing
 > detail. Never invent data or recite a fallback note as a script.
 
