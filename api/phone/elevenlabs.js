@@ -106,7 +106,6 @@ export function buildTurnTimeline(rawTurns) {
     chars += message.length;
     if (message.length < original.length) {
       truncated = true;
-      break;
     }
   }
   return { timeline, truncated };

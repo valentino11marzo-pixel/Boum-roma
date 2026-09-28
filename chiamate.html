@@ -156,6 +156,12 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
   ];
 
   const normalizeTimingTags = (tags) => TIMING_TAGS.filter((tag) => Array.isArray(tags) && tags.includes(tag));
+  const toggleTimingTag = (tags, tag) => {
+    const current = normalizeTimingTags(tags);
+    if (!TIMING_TAGS.includes(tag)) return current;
+    return normalizeTimingTags(current.includes(tag)
+      ? current.filter((item) => item !== tag) : [...current, tag]);
+  };
   const turnTime = (seconds) => {
     if (seconds == null || seconds === '') return '—';
     const n = Number(seconds);
@@ -209,6 +215,8 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
 
   let calls = [];
   let filter = 'open';
+  const reviewWrites = new Map();
+  const reviewConfirmed = new Map();
 
   // Una chiamata 'in-progress' vecchia = riagganciata prima del bip (o il
   // callback non è arrivato): si mostra per quello che sappiamo, senza inventare.
@@ -285,6 +293,47 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
     }).join('') || '<div class="empty">' + (filter === 'open' ? 'Niente da gestire. 🎉' : 'Nessuna chiamata qui.') + '</div>';
   }
 
+  const withPendingReviews = (rows) => rows.map((row) => {
+    const pending = reviewWrites.get(row.id);
+    return pending ? { ...row, reviewTags: pending.desired } : row;
+  });
+
+  async function persistTimingTag(callId, tag) {
+    const call = calls.find((row) => row.id === callId);
+    if (!call || !TIMING_TAGS.includes(tag)) return null;
+    const before = normalizeTimingTags(call.reviewTags);
+    const reviewTags = toggleTimingTag(before, tag);
+    const previous = reviewWrites.get(callId);
+    if (!previous) reviewConfirmed.set(callId, before);
+    const version = (previous ? previous.version : 0) + 1;
+    calls = calls.map((row) => row.id === callId ? { ...row, reviewTags } : row);
+
+    // Firestore writes the full closed array, but always in click order for the
+    // same call. A live snapshot from an earlier write cannot erase a later tap.
+    const write = (previous ? previous.promise.catch(() => {}) : Promise.resolve()).then(async () => {
+      try {
+        await db.collection('phoneCalls').doc(callId).update({ reviewTags, reviewTagsUpdatedAt: new Date().toISOString() });
+        reviewConfirmed.set(callId, reviewTags);
+        return reviewTags;
+      } catch (err) {
+        const active = reviewWrites.get(callId);
+        if (active && active.version === version) {
+          const rollback = reviewConfirmed.get(callId) || before;
+          calls = calls.map((row) => row.id === callId ? { ...row, reviewTags: rollback } : row);
+          render();
+        }
+        throw err;
+      }
+    });
+    const tracked = write.finally(() => {
+      const active = reviewWrites.get(callId);
+      if (active && active.version === version) reviewWrites.delete(callId);
+    });
+    reviewWrites.set(callId, { version, promise: tracked, desired: reviewTags });
+    render();
+    return tracked;
+  }
+
   document.getElementById('chips').addEventListener('click', (e) => {
     const chip = e.target.closest('.chip');
     if (!chip) return;
@@ -297,13 +346,11 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
     const timingButton = e.target.closest('[data-timing-tag]');
     if (timingButton) {
       const tag = timingButton.dataset.timingTag;
-      const call = calls.find((row) => row.id === timingButton.dataset.id);
-      if (!call || !TIMING_TAGS.includes(tag)) return;
-      const current = normalizeTimingTags(call.reviewTags);
-      const reviewTags = current.includes(tag) ? current.filter((item) => item !== tag) : [...current, tag];
+      const callId = timingButton.dataset.id;
+      if (!calls.some((row) => row.id === callId) || !TIMING_TAGS.includes(tag)) return;
       timingButton.disabled = true;
       try {
-        await db.collection('phoneCalls').doc(call.id).update({ reviewTags, reviewTagsUpdatedAt: new Date().toISOString() });
+        const reviewTags = await persistTimingTag(callId, tag);
         BoomPortal.toast && BoomPortal.toast(reviewTags.includes(tag) ? 'Nota ritmo aggiunta' : 'Nota ritmo rimossa');
       } catch (err) { BoomPortal.toast ? BoomPortal.toast('Errore: ' + err.message) : alert(err.message); }
       finally { timingButton.disabled = false; }
@@ -335,7 +382,7 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
   BoomPortal.listen(
     db.collection('phoneCalls').orderBy('createdAt', 'desc').limit(120),
     (snap) => {
-      calls = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      calls = withPendingReviews(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       document.getElementById('loading').style.display = 'none';
       document.getElementById('content').style.display = '';
       render();
@@ -350,7 +397,7 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
     if (document.getElementById('content').style.display !== 'none') return;
     try {
       const snap = await db.collection('phoneCalls').orderBy('createdAt', 'desc').limit(120).get();
-      calls = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      calls = withPendingReviews(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       document.getElementById('loading').style.display = 'none';
       document.getElementById('content').style.display = '';
       render();

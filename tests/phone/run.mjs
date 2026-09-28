@@ -434,6 +434,15 @@ const elCall = async (payload, { secret = 'el-secret', t = Math.floor(Date.now()
   ok('timeline provider: tool, usage, ruolo estraneo e metrica ignota non entrano nel doc',
     !serialized.includes('tool_calls') && !serialized.includes('llm_usage')
       && !serialized.includes('provider_private_detail') && !serialized.includes('campo non ammesso'), built);
+
+  const clipped = buildTurnTimeline([
+    { role: 'agent', message: 'A'.repeat(900), time_in_call_secs: 1 },
+    { role: 'user', message: 'Il turno successivo deve restare.', time_in_call_secs: 3 },
+  ]);
+  ok('timeline provider: un messaggio lungo viene clippato senza perdere i turni successivi',
+    clipped.truncated === true && clipped.timeline.length === 2
+      && clipped.timeline[0].message.length === 800
+      && clipped.timeline[1].message === 'Il turno successivo deve restare.', clipped);
 }
 
 // ─── 15. la firma: mai un webhook aperto ───────────────────────────────────
