@@ -5434,7 +5434,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     const rect = control.getBoundingClientRect();
                     if (rect.bottom < 0 || rect.top > window.innerHeight) control.scrollIntoView({ block: 'center' });
                 }
-                else { const heading = panel.querySelector('h2'); if (heading) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); heading.scrollIntoView({ block: 'start' }); } }
+                else { const heading = panel.querySelector('h2'); if (heading) { heading.tabIndex = -1; heading.focus({ preventScroll: true }); heading.scrollIntoView({ block: 'center' }); } }
             });
         });
     }
