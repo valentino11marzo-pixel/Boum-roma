@@ -1,5 +1,6 @@
-/* Segreteria in Oggi. Styles are confined to the existing case panel/dialog.
+/* Segreteria in Oggi. Styles are confined to Owner Command, case panel/dialog.
    Paper = work to review; yellow = decision. No new state or status logic. */
+#ogOwnerCommand,
 #sgFollowPanel,
 #sgFollowModal {
     --sg-carbon: #191b1c;
@@ -14,8 +15,50 @@
     font-variant-numeric: tabular-nums;
     -webkit-font-smoothing: antialiased;
 }
+#ogOwnerCommand { margin-bottom: 20px; padding: 24px 28px; color: var(--sg-paper); background: var(--sg-carbon); border: 1px solid #3a3d3c; border-top: 4px solid var(--sg-yellow); border-radius: 6px; overflow: hidden; }
 #sgFollowPanel { margin-bottom: 32px; color: var(--sg-paper); background: var(--sg-carbon); border: 1px solid #3a3d3c; border-radius: 6px; overflow: hidden; }
-#sgFollowPanel *, #sgFollowModal * { box-sizing: border-box; }
+#ogOwnerCommand *, #sgFollowPanel *, #sgFollowModal * { box-sizing: border-box; }
+#ogOwnerCommand .og-owner-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+#ogOwnerCommand .og-owner-heading p { margin: 0 0 6px; color: var(--sg-yellow); font-size: 10px; font-weight: 600; line-height: 1.5; letter-spacing: .16em; }
+#ogOwnerCommand .og-owner-heading h2 { margin: 0; font: 500 27px/1.15 "Helvetica Neue", Helvetica, Arial, sans-serif; letter-spacing: -.035em; }
+#ogOwnerCommand .og-owner-heading > span { padding: 6px 9px; color: var(--sg-light-text); border: 1px solid #565b58; border-radius: 999px; font-size: 10px; line-height: 1; text-transform: uppercase; letter-spacing: .07em; }
+#ogOwnerCommand .og-owner-form { display: grid; grid-template-columns: minmax(210px, .8fr) minmax(300px, 1.45fr) auto; align-items: end; gap: 12px; margin-top: 22px; }
+#ogOwnerCommand .form-group { min-width: 0; margin: 0; }
+#ogOwnerCommand .form-label { display: block; margin-bottom: 6px; color: var(--sg-light-text); font-size: 10px; line-height: 1.4; letter-spacing: .035em; }
+#ogOwnerCommand .form-input, #ogOwnerCommand .form-textarea, #ogOwnerCommand .form-select { width: 100%; min-height: 44px; color: var(--sg-paper); background: #111314; border: 1px solid #555b58; border-radius: 3px; font: 400 13px/1.5 "Helvetica Neue", Helvetica, Arial, sans-serif; }
+#ogOwnerCommand .form-textarea { resize: vertical; }
+#ogOwnerCommand .btn { min-height: 44px; padding: 10px 16px; border-radius: 3px; color: var(--sg-ink); background: var(--sg-yellow); border: 1px solid #b59b18; box-shadow: none; font: 600 12px/1.35 "Helvetica Neue", Helvetica, Arial, sans-serif; white-space: normal; }
+#ogOwnerCommand .btn:hover:not(:disabled) { background: #efcb00; box-shadow: none; transform: none; }
+#ogOwnerCommand .btn:disabled { opacity: .55; }
+#ogOwnerCommand button:focus-visible, #ogOwnerCommand input:focus-visible, #ogOwnerCommand textarea:focus-visible, #ogOwnerCommand select:focus-visible { outline: 3px solid var(--sg-yellow); outline-offset: 3px; }
+#ogOwnerCommand .og-owner-boundary { margin: 10px 0 0; color: var(--sg-light-text); font-size: 11px; line-height: 1.5; }
+#ogOwnerCommand .og-owner-notice, #ogOwnerCommand .og-owner-empty { display: flex; gap: 7px; flex-direction: column; margin-top: 16px; padding: 13px 15px; color: #d9eee0; background: #20332a; border: 1px solid #496757; border-radius: 3px; font-size: 12px; line-height: 1.5; }
+#ogOwnerCommand .og-owner-notice.is-error { color: #f2e4b4; background: #382f16; border-color: #6f5e27; }
+#ogOwnerCommand .og-owner-empty { color: var(--sg-light-text); background: transparent; border-style: dashed; border-color: #555b58; }
+#ogOwnerCommand .og-owner-results { margin-top: 20px; padding-top: 18px; border-top: 1px solid #444946; }
+#ogOwnerCommand .og-owner-results-head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; margin-bottom: 10px; font-size: 12px; }
+#ogOwnerCommand .og-owner-results-head > span { color: var(--sg-light-text); font-size: 11px; text-align: right; }
+#ogOwnerCommand .og-owner-candidates { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; }
+#ogOwnerCommand .og-owner-candidate { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 58px; padding: 11px 13px; color: var(--sg-paper); background: #222526; border: 1px solid #505553; border-radius: 3px; text-align: left; cursor: pointer; }
+#ogOwnerCommand .og-owner-candidate:hover, #ogOwnerCommand .og-owner-candidate.is-selected { border-color: var(--sg-yellow); background: #2d2f2d; }
+#ogOwnerCommand .og-owner-candidate.is-selected { box-shadow: inset 3px 0 0 var(--sg-yellow); }
+#ogOwnerCommand .og-owner-candidate span { min-width: 0; overflow-wrap: anywhere; }
+#ogOwnerCommand .og-owner-candidate span:first-child { display: flex; flex-direction: column; gap: 3px; }
+#ogOwnerCommand .og-owner-candidate strong { font-size: 13px; font-weight: 600; }
+#ogOwnerCommand .og-owner-candidate small, #ogOwnerCommand .og-owner-candidate > span:last-child { color: var(--sg-light-text); font-size: 10px; line-height: 1.35; }
+#ogOwnerCommand .og-owner-selection { margin-top: 12px; padding: 20px; color: var(--sg-ink); background: var(--sg-paper); border-radius: 3px; }
+#ogOwnerCommand .og-owner-selected-person { display: grid; grid-template-columns: auto 1fr auto; align-items: baseline; gap: 12px; padding-bottom: 13px; border-bottom: 1px solid var(--sg-line); }
+#ogOwnerCommand .og-owner-selected-person span { color: var(--sg-muted); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
+#ogOwnerCommand .og-owner-selected-person strong { font-size: 14px; }
+#ogOwnerCommand .og-owner-selected-person small { color: var(--sg-muted); font-size: 10px; overflow-wrap: anywhere; }
+#ogOwnerCommand .og-owner-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin-top: 16px; }
+#ogOwnerCommand .og-owner-selection .form-label { color: #59615c; }
+#ogOwnerCommand .og-owner-selection .form-select { color: var(--sg-ink); background: #fffefa; border-color: #afb6aa; color-scheme: light; }
+#ogOwnerCommand .og-owner-warning { margin: 14px 0 0; padding: 10px 12px; color: #655017; background: #f1ead0; border-left: 2px solid #a58b22; font-size: 12px; line-height: 1.5; }
+#ogOwnerCommand .og-owner-final { display: flex; align-items: center; justify-content: space-between; gap: 24px; margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--sg-line); }
+#ogOwnerCommand .og-owner-final p { max-width: 620px; margin: 0; color: #5c635f; font-size: 11px; line-height: 1.55; }
+#ogOwnerCommand .og-owner-final .btn { flex: 0 0 auto; background: var(--sg-ink); color: var(--sg-paper); border-color: var(--sg-ink); }
+#ogOwnerCommand .og-owner-final .btn:hover:not(:disabled) { background: #3e423f; }
 #sgFollowPanel h2, #sgFollowPanel h3, #sgFollowPanel h4, #sgFollowModal h3, #sgFollowModal h4 { font-family: inherit; }
 #sgFollowPanel .sg-eyebrow, #sgFollowModal .sg-eyebrow { font-size: 10px; line-height: 1.5; font-weight: 600; text-transform: uppercase; letter-spacing: .16em; }
 #sgFollowPanel .sg-briefing { padding: 18px 28px 0; border-top: 4px solid var(--sg-yellow); }
@@ -233,6 +276,17 @@
 #sgFollowPanel .sg-questions ul + p:not(.sg-meta-label), #sgFollowModal .sg-questions ul + p:not(.sg-meta-label) { margin-top: 6px; }
 
 @media (max-width: 760px) {
+    #ogOwnerCommand { padding: 21px 18px; }
+    #ogOwnerCommand .og-owner-heading { display: block; }
+    #ogOwnerCommand .og-owner-heading > span { display: inline-block; margin-top: 10px; }
+    #ogOwnerCommand .og-owner-heading h2 { font-size: 24px; }
+    #ogOwnerCommand .og-owner-form, #ogOwnerCommand .og-owner-grid { grid-template-columns: 1fr; }
+    #ogOwnerCommand .og-owner-form .btn { width: 100%; }
+    #ogOwnerCommand .og-owner-results-head, #ogOwnerCommand .og-owner-final { align-items: stretch; flex-direction: column; }
+    #ogOwnerCommand .og-owner-results-head > span { text-align: left; }
+    #ogOwnerCommand .og-owner-candidates { grid-template-columns: 1fr; }
+    #ogOwnerCommand .og-owner-selected-person { grid-template-columns: 1fr; gap: 4px; }
+    #ogOwnerCommand .og-owner-final .btn { width: 100%; }
     #sgFollowPanel .sg-briefing { padding: 24px 20px 0; }
     #sgFollowPanel .sg-briefing-copy { margin: 18px 0; }
     #sgFollowPanel .sg-headline { font-size: 24px; }
@@ -270,7 +324,7 @@
     #sgFollowModal .sg-footer-actions .sg-cancel { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
-    #sgFollowPanel *, #sgFollowModal * { scroll-behavior: auto; transition: none; animation: none; }
+    #ogOwnerCommand *, #sgFollowPanel *, #sgFollowModal * { scroll-behavior: auto; transition: none; animation: none; }
 }
 
 #sgFollowPanel .sg-quiet-state { margin: 24px 4px 0; padding-top: 20px; border-top: 1px solid #454a47; color: var(--sg-light-text); font-size: 12px; line-height: 1.6; }

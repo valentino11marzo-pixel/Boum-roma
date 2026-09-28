@@ -21,8 +21,8 @@ const mutations = {
   omitted_conversation_guard: ['api/segretaria/_delivery-guard.js', conversationGuard, ''],
   old_execution_task: ['api/segretaria/_execution-guard.js', "{ docPath: 'operatorTasks/' + s.caseId, fields: {},",
     "{ docPath: 'operatorTasks/' + s.caseId, fields: { preparation: task.data.preparation },"],
-  old_approval_contact: ['api/segretaria/_dispatch.js', "{ docPath: 'conversations/' + f.conversationId, fields: {},",
-    "{ docPath: 'conversations/' + f.conversationId, fields: { contactPhone: conv.contactPhone || null, contactEmail: conv.contactEmail || null },"],
+  old_approval_contact: ['api/segretaria/_dispatch.js', "{ docPath: 'conversations/' + f.conversationId,\n      fields: {},",
+    "{ docPath: 'conversations/' + f.conversationId,\n      fields: { contactPhone: conv.contactPhone || null, contactEmail: conv.contactEmail || null },"],
   old_approval_proof: ['api/segretaria/_dispatch.js', '{ docPath: contactProof.ref, fields: {},',
     '{ docPath: contactProof.ref, fields: { phone: contactProof.data.phone },'],
 };
