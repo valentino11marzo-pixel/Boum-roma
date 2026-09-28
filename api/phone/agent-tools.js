@@ -45,6 +45,8 @@ const number = (v) => (typeof v === 'number' || typeof v === 'string' && v.trim(
   && Number.isFinite(Number(v)) && Number(v) >= 0 ? Number(v) : null;
 const fold = (v) => String(v || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '')
   .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
+const compactAddressIdentity = (v) => (fold(v).match(/[a-z]+|\d+/g) || [])
+  .map(token => /^\d+$/.test(token) ? `#${token}#` : token).join('');
 const searchTokens = (v) => [...new Set(fold(v).split(' ').filter(w => w.length >= 4))];
 const isoDay = (v) => {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) return false;
@@ -190,7 +192,13 @@ function criteriaMismatches(entry, filters) {
 function conservativeQuery(query, entries) {
   const q = fold(query);
   if (!q) return { match: 'none', rows: [] };
-  const exact = entries.filter(row => [row.id, row.name, row.address].some(v => fold(v) === q));
+  const compactAddressQ = compactAddressIdentity(query);
+  const exact = entries.filter(row => {
+    if ([row.id, row.name].some(v => fold(v) === q)) return true;
+    const address = fold(row.address);
+    return address === q || (compactAddressQ.length >= 8
+      && compactAddressIdentity(row.address) === compactAddressQ);
+  });
   if (exact.length === 1) return { match: 'exact', rows: exact };
   if (exact.length > 1) return { match: 'ambiguous', rows: exact };
 

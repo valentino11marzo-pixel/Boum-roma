@@ -97,6 +97,18 @@ listing('unreadable-a', {
   name: 'Casa Da Confermare', address: 'Via Incerta 4, Roma', zone: 'EUR',
   type: 'Apartment', price: 1350, status: 'available', availableDate: 'da concordare',
 });
+listing('montezebio-a', {
+  name: 'Prati cozy', address: 'Via Montezebio', zone: 'Prati',
+  type: 'Loft', price: 1500, status: 'available', availableFrom: '2099-03-01',
+});
+listing('numeric-spaces-a', {
+  name: 'Casa civici separati', address: 'Via Roma 1 2', zone: 'Test',
+  type: 'Apartment', price: 3100, status: 'available', availableFrom: 'Immediate',
+});
+listing('numeric-spaces-b', {
+  name: 'Casa civico frazionato', address: 'Via Roma 12 3', zone: 'Test',
+  type: 'Apartment', price: 3200, status: 'available', availableFrom: 'Immediate',
+});
 listing('private-a', {
   name: 'Bozza privata', address: 'Via Segreta 1', zone: 'Prati',
   type: 'Apartment', price: 1000, status: 'draft', availableFrom: 'Immediate',
@@ -197,6 +209,40 @@ const call = async (query) => {
   const byAddress = await call({ op: 'catalog', query: 'Via Aurelia 10, Roma' });
   check('query per indirizzo esatto e esatta', byAddress.body.match === 'exact'
     && byAddress.body.results[0].id === 'apt-a');
+
+  const joinedAddress = await call({ op: 'catalog', query: 'Via Monte Zebio' });
+  check('spazi ASR dentro un toponimo conservano il match esatto', joinedAddress.body.match === 'exact'
+    && joinedAddress.body.certainty === 'verified'
+    && joinedAddress.body.results.length === 1
+    && joinedAddress.body.results[0].id === 'montezebio-a', joinedAddress.body);
+
+  listing('montezebio-b', {
+    name: 'Seconda casa Montezebio', address: 'Via Monte Zebio', zone: 'Prati',
+    type: 'Apartment', price: 1550, status: 'available', availableFrom: 'Immediate',
+  });
+  const joinedDuplicate = await call({ op: 'catalog', query: 'Via Monte Zebio' });
+  check('normalizzazione degli spazi non sceglie fra indirizzi duplicati',
+    joinedDuplicate.body.match === 'ambiguous'
+      && joinedDuplicate.body.certainty === 'needs_confirmation'
+      && joinedDuplicate.body.results.length === 2
+      && joinedDuplicate.body.results.some(row => row.id === 'montezebio-a')
+      && joinedDuplicate.body.results.some(row => row.id === 'montezebio-b'), joinedDuplicate.body);
+  DB.delete('listings/montezebio-b');
+
+  const partialAddress = await call({ op: 'catalog', query: 'Via Monte' });
+  check('normalizzazione degli spazi non promuove un indirizzo parziale a exact',
+    partialAddress.body.match !== 'exact' && partialAddress.body.results.length === 0,
+    partialAddress.body);
+
+  const mergedCivic = await call({ op: 'catalog', query: 'Via Roma 12' });
+  check('i gruppi numerici 1 e 2 non collidono con il civico 12',
+    mergedCivic.body.match === 'none' && mergedCivic.body.results.length === 0,
+    mergedCivic.body);
+
+  const mergedLongCivic = await call({ op: 'catalog', query: 'Via Roma 123' });
+  check('i gruppi numerici 12 e 3 non collidono con il civico 123',
+    mergedLongCivic.body.match === 'none' && mergedLongCivic.body.results.length === 0,
+    mergedLongCivic.body);
 }
 
 {
