@@ -154,6 +154,16 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
     ['asrLatencySec', 'ASR'], ['llmTtfbSec', 'LLM'], ['llmFirstSentenceSec', 'LLM frase'],
     ['ttsTtfbSec', 'TTS'], ['ttsFirstSentenceSec', 'TTS frase'], ['turnLatencySec', 'Turno'],
   ];
+  const TRANSFER_STATUS = Object.freeze({
+    connected: { badge: '↗ Passaggio collegato', detail: 'Collegato: ElevenLabs ha restituito un esito esplicito di trasferimento riuscito.' },
+    failed: { badge: '↗ Passaggio non riuscito', detail: 'Non riuscito: ElevenLabs ha segnato il risultato del tool come errore.' },
+    unknown: { badge: '↗ Passaggio · esito da verificare', detail: 'Esito non attestato: il tool compare, ma il payload non prova che la persona abbia risposto.' },
+  });
+  const TRANSFER_REASON = Object.freeze({
+    missing_sip_credentials: 'credenziali SIP mancanti', busy: 'occupato', no_answer: 'nessuna risposta',
+    declined: 'rifiutata', unreachable: 'non raggiungibile', timeout: 'tempo scaduto',
+    blocked: 'tool bloccato', provider_error: 'errore del provider',
+  });
 
   const normalizeTimingTags = (tags) => TIMING_TAGS.filter((tag) => Array.isArray(tags) && tags.includes(tag));
   const toggleTimingTag = (tags, tag) => {
@@ -194,6 +204,32 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
     }).join('');
     return '<details class="tr"><summary>Timeline' + (call.turnTimelineStatus === 'partial' ? ' · parziale' : '') +
       '</summary><div class="turns">' + rows + '</div></details>';
+  }
+
+  function transferReceipts(call) {
+    return (Array.isArray(call.toolReceipts) ? call.toolReceipts : []).filter((receipt) =>
+      receipt && receipt.tool === 'transfer_to_number' && receipt.provider === 'elevenlabs'
+      && TRANSFER_STATUS[receipt.status] && ['tool_call', 'tool_result'].includes(receipt.evidence));
+  }
+
+  function renderToolReceipts(call) {
+    const receipts = transferReceipts(call);
+    if (!receipts.length) return '';
+    const latest = receipts[receipts.length - 1];
+    const rows = receipts.map((receipt, index) => {
+      const status = TRANSFER_STATUS[receipt.status];
+      const moment = receipt.resultAtSec != null ? receipt.resultAtSec : receipt.requestedAtSec;
+      const facts = [
+        moment != null ? turnTime(moment) : '',
+        receipt.latencySec != null ? latency(receipt.latencySec) : '',
+        receipt.reason && TRANSFER_REASON[receipt.reason] ? TRANSFER_REASON[receipt.reason] : '',
+      ].filter(Boolean).join(' · ');
+      return 'Tentativo ' + (index + 1) + ' — ' + status.detail + (facts ? ' ' + facts + '.' : '');
+    }).join('\n');
+    return '<details class="tr" data-tool-receipts><summary>Prova passaggio · ' +
+      esc(TRANSFER_STATUS[latest.status].badge.replace(/^↗\s*/, '')) +
+      (call.toolReceiptsStatus === 'partial' ? ' · parziale' : '') +
+      '</summary><blockquote>' + esc(rows) + '</blockquote></details>';
   }
 
   // Presentation only: an analysis suggestion establishes neither a caller's
@@ -260,6 +296,9 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
       if (contact.actionLabel && st === 'received') badges.push('<span class="badge gold">' + esc(contact.actionLabel) + '</span>');
       if (st === 'no-message') badges.push('<span class="badge">☎️ riagganciata senza messaggio</span>');
       if (c.transcriptStatus && c.transcriptStatus !== 'ok' && st === 'received') badges.push('<span class="badge">🎧 solo audio (trascrizione ' + esc(c.transcriptStatus === 'unavailable' ? 'non configurata' : 'fallita') + ')</span>');
+      const transfer = transferReceipts(c);
+      const latestTransfer = transfer.length ? transfer[transfer.length - 1] : null;
+      if (latestTransfer) badges.push('<span class="badge ' + (latestTransfer.status === 'connected' ? 'green' : latestTransfer.status === 'failed' ? 'red' : '') + '">' + esc(TRANSFER_STATUS[latestTransfer.status].badge) + '</span>');
 
       const digits = contact.phone ? contact.phone.replace(/\D/g, '') : '';
       const wa = digits ? 'https://wa.me/' + digits + (c.draftReply ? '?text=' + encodeURIComponent(c.draftReply) : '') : null;
@@ -286,6 +325,7 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
         (c.audioUrl ? '<audio controls preload="none" src="' + esc(c.audioUrl) + '"></audio>'
           : (c.audioError && st === 'received' ? '<div class="cnote">⚠️ audio non recuperato (' + esc(c.audioError) + ')</div>' : '')) +
         renderTranscript(c) +
+        renderToolReceipts(c) +
         (c.draftReply && st === 'received' && !c.handled ? '<details class="tr"><summary>Bozza risposta' + (contact.phone ? '' : ' · recapito da verificare') + ' (' + esc(c.language || 'en') + ')</summary><blockquote>' + esc(c.draftReply) + '</blockquote></details>' : '') +
         timingReview +
         '<div class="acts">' + acts.join('') + '</div>' +

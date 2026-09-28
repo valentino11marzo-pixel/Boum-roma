@@ -567,6 +567,81 @@ const elCall = async (payload, { secret = 'el-secret', t = Math.floor(Date.now()
   ok('audio push (dopo) → URL tokenizzato sul doc, stato intatto', au.code === 200 && String(doc2.audioUrl).includes('el_conv1.mp3') && doc2.status === 'received', doc2.audioUrl);
 }
 
+// Il payload post-call ufficiale porta call/result sul turno. La frase
+// pronunciata non è prova: il Centralino conserva solo la ricevuta chiusa.
+{
+  const r = await elCall({
+    type: 'post_call_transcription',
+    data: {
+      conversation_id: 'conv_transfer_failed',
+      transcript: [
+        { role: 'user', message: 'Vorrei parlare con Valentino.', time_in_call_secs: 3 },
+        {
+          role: 'agent', message: 'La metto in contatto.', time_in_call_secs: 4,
+          tool_calls: [{
+            type: 'system', request_id: 'transfer_call_1', tool_name: 'transfer_to_number',
+            params_as_json: '{"transfer_number":"+393313251961","password":"PRIVATE"}',
+            tool_has_been_called: true,
+          }],
+        },
+        {
+          role: 'agent', message: null, time_in_call_secs: 5,
+          tool_results: [{
+            type: 'system', request_id: 'transfer_call_1', tool_name: 'transfer_to_number',
+            tool_has_been_called: true, is_error: true, error_type: 'system_tool_error',
+            raw_error_message: 'Missing SIP Trunking credentials for +393313251961',
+            result_value: 'Agent failed to transfer the call to Unknown number', tool_latency_secs: 0.42,
+          }],
+        },
+      ],
+      metadata: { call_duration_secs: 18, phone_call: { external_number: '+393390000088' } },
+    },
+  });
+  const doc = DB.get('phoneCalls/el_conv_transfer_failed');
+  ok('tool transfer: webhook firmato conserva il fallimento provider', r.code === 200
+    && doc.toolReceiptsStatus === 'complete' && doc.toolReceipts.length === 1
+    && doc.toolReceipts[0].status === 'failed'
+    && doc.toolReceipts[0].reason === 'missing_sip_credentials', doc.toolReceipts);
+  const persisted = JSON.stringify(doc.toolReceipts);
+  ok('tool transfer: destinazione, params, errore grezzo e segreti non persistono',
+    !/3313251961|PRIVATE|params_as_json|raw_error_message|result_value/.test(persisted), persisted);
+
+  const retry = await elCall({
+    type: 'post_call_transcription',
+    data: { conversation_id: 'conv_transfer_failed', transcript: [
+      { role: 'agent', tool_results: [{
+        request_id: 'transfer_call_1', tool_name: 'transfer_to_number', tool_has_been_called: true,
+        is_error: false, result_value: 'Call transferred successfully.',
+      }] },
+    ] },
+  });
+  ok('tool transfer: un retry non riscrive una ricevuta già attestata', retry.out.duplicate === true
+    && DB.get('phoneCalls/el_conv_transfer_failed').toolReceipts[0].status === 'failed');
+
+  DB.set('phoneCalls/el_conv_transfer_legacy', {
+    source: 'elevenlabs', conversationId: 'conv_transfer_legacy', status: 'received',
+    processedAt: new Date().toISOString(), createdAt: new Date().toISOString(), handled: false,
+    callerWords: 'Vorrei parlare con Valentino.', transcriptStatus: 'ok',
+  });
+  const before = { leads: leads().length, tg: tgCalls };
+  const legacy = await elCall({
+    type: 'post_call_transcription',
+    data: { conversation_id: 'conv_transfer_legacy', transcript: [
+      { role: 'agent', time_in_call_secs: 4, tool_calls: [{
+        request_id: 'legacy_transfer_1', tool_name: 'transfer_to_number', tool_has_been_called: true,
+      }] },
+      { role: 'agent', time_in_call_secs: 5, tool_results: [{
+        request_id: 'legacy_transfer_1', tool_name: 'transfer_to_number', tool_has_been_called: true,
+        is_error: true, raw_error_message: 'Missing SIP Trunking credentials',
+      }] },
+    ] },
+  });
+  const legacyDoc = DB.get('phoneCalls/el_conv_transfer_legacy');
+  ok('tool transfer: retry firmato sana un doc legacy senza ricevuta', legacy.out.duplicate === true
+    && legacyDoc.toolReceipts[0].status === 'failed'
+    && leads().length === before.leads && tgCalls === before.tg, legacyDoc.toolReceipts);
+}
+
 // ─── 17. audio PRIMA della trascrizione: qualsiasi ordine funziona ─────────
 {
   aiJson = { callerName: null, language: 'it', summary: 'Vuole visitare il trilocale a Pigneto.', intent: 'visita', urgency: 'medium', suggestedAction: 'whatsapp', draftReply: 'Ciao! Ti mando gli orari per la visita. Valentino · BOOM' };

@@ -32,6 +32,7 @@ import { normalizePhone, loadCatalog } from '../homie/_lead.js';
 import phoneListing from '../../js/phone-listing-engine.js';
 import { tgSend } from '../telegram/_lib.js';
 import { syncCallCase } from '../segretaria/_callcase.js';
+import { buildPhoneToolReceipts } from './_tool-receipts.js';
 import {
   resolveCaller, callerLabel,
   storeCallAudio, analyzeTranscript, syncLeadFromCall, tgCallCard,
@@ -190,7 +191,24 @@ export default async function handler(req, res) {
   // ── il dato: trascrizione + esito ────────────────────────────────────────
   let doc = null;
   try { doc = await fsGet(docPath); } catch { /* si procede */ }
+  const turns = Array.isArray(data.transcript) ? data.transcript : [];
+  const toolReceiptBatch = buildPhoneToolReceipts(turns);
   if (doc && doc.processedAt) {
+    // I documenti elaborati prima delle ricevute possono essere sanati da un
+    // retry firmato dello stesso provider. Un record già attestato non viene
+    // mai sovrascritto da un secondo payload.
+    if (!Array.isArray(doc.toolReceipts) && toolReceiptBatch.receipts.length) {
+      try {
+        await fsPatch(docPath, {
+          toolReceipts: toolReceiptBatch.receipts,
+          toolReceiptsStatus: toolReceiptBatch.status,
+          toolReceiptsTruncated: toolReceiptBatch.truncated,
+        });
+      } catch (e) {
+        console.error('[phone/elevenlabs] tool receipt backfill:', e.message);
+        return res.status(500).json({ ok: false, error: 'tool_receipt_write_failed' });
+      }
+    }
     const followUp = await syncCallCase('el_' + conversationId);
     return res.status(200).json({ ok: true, conversationId, duplicate: true, followUp });
   }
@@ -201,7 +219,6 @@ export default async function handler(req, res) {
   const from = normalizePhone((meta.phone_call && meta.phone_call.external_number) || dyn.system__caller_id || '');
   const durationSec = Number.isFinite(Number(meta.call_duration_secs)) ? Number(meta.call_duration_secs) : null;
 
-  const turns = Array.isArray(data.transcript) ? data.transcript : [];
   const turnTimeline = buildTurnTimeline(turns);
   // SOLO la voce del chiamante: è ciò che replyLang e il Commerciale leggono.
   const callerWords = turns
@@ -257,6 +274,11 @@ export default async function handler(req, res) {
     turnTimeline: turnTimeline.timeline.length ? turnTimeline.timeline : null,
     turnTimelineStatus: turnTimeline.timeline.length
       ? (turnTimeline.truncated ? 'partial' : 'complete') : 'unavailable',
+    ...(toolReceiptBatch.receipts.length ? {
+      toolReceipts: toolReceiptBatch.receipts,
+      toolReceiptsStatus: toolReceiptBatch.status,
+      toolReceiptsTruncated: toolReceiptBatch.truncated,
+    } : {}),
     callerWords: callerWords || null,
     callSuccessful: analysisRaw.call_successful != null ? String(analysisRaw.call_successful) : null,
     callerType,

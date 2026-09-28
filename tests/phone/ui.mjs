@@ -16,7 +16,7 @@ assert.ok(start >= 0 && end > start);
 const presentationSource = script.slice(start, end);
 const presentation = source => vm.runInNewContext(source + '\ncontactPresentation;', {});
 const contact = presentation(presentationSource);
-const helpers = vm.runInNewContext(presentationSource + '\n({ normalizeTimingTags, toggleTimingTag, turnTime, latency, renderTranscript });', {
+const helpers = vm.runInNewContext(presentationSource + '\n({ normalizeTimingTags, toggleTimingTag, turnTime, latency, renderTranscript, transferReceipts, renderToolReceipts });', {
   esc: s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
 });
 let checks = 0;
@@ -89,6 +89,28 @@ check('tag ritmo puri: solo anticipa, taglia e lenta possono essere persistiti',
   assert.deepEqual([...helpers.toggleTimingTag(['anticipa', 'lenta'], 'anticipa')], ['lenta']);
   assert.deepEqual([...helpers.toggleTimingTag(['anticipa'], 'campo-estraneo')], ['anticipa']);
 });
+check('ricevute transfer: esito provider visibile, campi estranei e PII mai renderizzati', () => {
+  const rendered = helpers.renderToolReceipts({ toolReceiptsStatus: 'complete', toolReceipts: [
+    { tool: 'transfer_to_number', provider: 'elevenlabs', evidence: 'tool_result', status: 'failed',
+      reason: 'missing_sip_credentials', requestedAtSec: 7.2, resultAtSec: 8.1, latencySec: 0.42,
+      raw_error_message: 'PRIVATE +393313251961', destination: '+393313251961' },
+    { tool: 'search_catalog', provider: 'elevenlabs', evidence: 'tool_result', status: 'connected' },
+    { tool: 'transfer_to_number', provider: 'other', evidence: 'tool_result', status: 'connected' },
+  ] });
+  assert.match(rendered, /Prova passaggio · Passaggio non riuscito/);
+  assert.match(rendered, /credenziali SIP mancanti/);
+  assert.match(rendered, /8.1|0:08.1/);
+  assert.match(rendered, /420 ms/);
+  assert.doesNotMatch(rendered, /PRIVATE|3313251961|destination|search_catalog/);
+});
+check('ricevute transfer: un tool senza prova esplicita dichiara unknown', () => {
+  const rendered = helpers.renderToolReceipts({ toolReceiptsStatus: 'partial', toolReceipts: [
+    { tool: 'transfer_to_number', provider: 'elevenlabs', evidence: 'tool_call', status: 'unknown', requestedAtSec: 4 },
+  ] });
+  assert.match(rendered, /esito non attestato/i);
+  assert.match(rendered, /parziale/);
+  assert.doesNotMatch(rendered, /Collegato:/);
+});
 
 const chromium = await loadChromium();
 if (!chromium) {
@@ -105,6 +127,9 @@ const rows = [
         providerMetrics: { llmTtfbSec: 0.52, ttsTtfbSec: 0.09, hiddenMetric: 99 } },
       { role: 'user', message: 'Quali documenti servono per la visita?', timeInCallSec: 2.4,
         providerMetrics: { asrLatencySec: 0.021 } },
+    ], toolReceiptsStatus: 'complete', toolReceipts: [
+      { tool: 'transfer_to_number', provider: 'elevenlabs', evidence: 'tool_result', status: 'failed',
+        reason: 'missing_sip_credentials', requestedAtSec: 6, resultAtSec: 6.4, latencySec: 0.4 },
     ] },
   { ...base, id: 'phone', from: '+39 333 1234567', callerName: 'Recapito disponibile', suggestedAction: 'richiama', draftReply: 'Buongiorno, ricevuto.',
     callerType: 'lead', leadId: 'synthetic-lead', leadCreated: true },
@@ -162,6 +187,7 @@ try {
   const anonymous = card('Numero nascosto');
   assert.match(await anonymous.locator('.badges').innerText(), /urgente/);
   assert.match(await anonymous.locator('.badges').innerText(), /Richiamo da valutare.*recapito mancante/);
+  assert.match(await anonymous.locator('.badges').innerText(), /Passaggio non riuscito/);
   assert.doesNotMatch(await anonymous.locator('.badges').innerText(), /richiest[oa]/i);
   assert.doesNotMatch(await anonymous.locator('.badges').innerText(), /Da richiamare/);
   assert.match(await anonymous.locator('[role="note"]').innerText(), /Verifica i dati/);
@@ -170,8 +196,10 @@ try {
   console.log('PASS browser: richiamo impossibile esplicito, urgenza conservata e verifica interna disponibile'); checks++;
 
   const transcript = anonymous.locator('details').filter({ has: page.locator('summary', { hasText: 'Timeline' }) });
+  const toolReceipts = anonymous.locator('[data-tool-receipts]');
   const draft = anonymous.locator('details').filter({ has: page.locator('summary', { hasText: 'Bozza risposta' }) });
   await transcript.locator('summary').click();
+  await toolReceipts.locator('summary').click();
   await draft.locator('summary').click();
   assert.equal(await transcript.locator('[data-turn]').count(), 2);
   assert.deepEqual(await transcript.locator('.turn-time').allInnerTexts(), ['0:00.0', '0:02.4']);
@@ -179,6 +207,8 @@ try {
   assert.deepEqual(await transcript.locator('.turn-text').allInnerTexts(), rows[0].turnTimeline.map(turn => turn.message));
   assert.match((await transcript.locator('.turn-metrics').allInnerTexts()).join(' '), /LLM 520 ms.*TTS 90 ms.*ASR 21 ms/);
   assert.doesNotMatch(await transcript.innerText(), /hiddenMetric|99/);
+  assert.match(await toolReceipts.innerText(), /credenziali SIP mancanti/);
+  assert.match(await toolReceipts.innerText(), /400 ms/);
   assert.equal(await draft.locator('blockquote').innerText(), rows[0].draftReply);
   assert.match(await draft.locator('summary').innerText(), /recapito da verificare/);
   assert.equal(await anonymous.locator('a[href^="tel:"], a[href^="https://wa.me/"]').count(), 0);
