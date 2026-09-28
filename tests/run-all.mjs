@@ -123,6 +123,7 @@ const SUITES = [
   { name: 'segretariaconferma', file: 'tests/segretaria/dispatch.mjs', what: 'conferma unica e destinatario verificato, contesto aggiornato, claim contro doppia esecuzione' },
   { name: 'segretariatelefono', file: 'tests/segretaria/callcase.mjs', what: 'telefonata nello stesso seguito e riparazione del collegamento senza riavviare gli effetti' },
   { name: 'segretariaownercommand', file: 'tests/segretaria/owner-command.mjs', what: 'ordine di Valentino: persona/pratica/Flat esatti, bozza idempotente e zero invii senza conferma' },
+  { name: 'segretariaownercommandui', file: 'tests/segretaria/owner-command-ui.mjs', what: 'Oggi: 0/1/N persone senza first-match, scelta esplicita di conversazione/pratica/Flat/canale, prepare-only idempotente e apertura del caso esistente' },
   { name: 'segretariaownercommandmutazioni', file: 'tests/segretaria/owner-command-mutations.mjs', what: 'Owner Command cade se tornano first-match, auth debole, replay mutabile, target concorrente o budget tardivo' },
   { name: 'segretariapropostaui', file: 'tests/segretaria/proposta-ui.mjs', what: 'riepilogo, seguito e bozza già pronti; revisione esplicita e conflitto visibile' },
   { name: 'segretariaapprovaltimeui', file: 'tests/segretaria/approval-time-ui.mjs', what: 'ricontrollo scaduto bloccato al render e al click, ricevute approvate intatte' },

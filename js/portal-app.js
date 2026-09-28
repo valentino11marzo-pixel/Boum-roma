@@ -4676,6 +4676,221 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
     window.oggiOpenPa = oggiOpenPa;
 
+    // ═══ OWNER COMMAND · DA UNA FRASE A UNA BOZZA VERIFICATA ═══════════
+    // Stato solo visivo della sessione: persone, pratiche, immobili e casi
+    // restano letti e scritti dal server in Firestore. Questo pannello non
+    // sceglie mai il primo risultato e non dispone di alcuna via di invio.
+    const oggiOwnerCommand = { query: '', instruction: '', result: null, candidateIndex: null,
+        conversationRef: '', practiceRef: '', propertyRef: '', route: '', loading: false,
+        preparing: false, error: '', notice: '', requestKey: '', commandId: '' };
+    const oggiOwnerCommandErrors = {
+        unauthorized: 'Accedi di nuovo per dare un incarico alla Segreteria.',
+        forbidden: 'Questa funzione richiede un accesso amministratore.',
+        invalid_query: 'Scrivi un nome, un telefono o un’email.',
+        invalid_name: 'Il nome deve contenere almeno due caratteri.',
+        invalid_phone: 'Il numero di telefono non è valido.',
+        invalid_email: 'L’indirizzo email non è valido.',
+        person_not_found: 'La persona scelta non è più disponibile. Ripeti la ricerca.',
+        conversation_not_found: 'La conversazione scelta non è più disponibile. Ripeti la ricerca.',
+        practice_not_found: 'La pratica scelta non è più disponibile. Ripeti la ricerca.',
+        property_not_found: 'Il Flat scelto non è più disponibile. Ripeti la ricerca.',
+        conversation_not_verified: 'La conversazione non risulta collegata a questa persona.',
+        channel_not_verified: 'Il canale scelto non coincide più con la conversazione.',
+        contact_missing: 'Nella conversazione manca un recapito verificato.',
+        contact_stale: 'Il recapito è cambiato. Ripeti la ricerca prima di preparare.',
+        person_not_verified: 'L’identità non è verificabile con le fonti attuali.',
+        practice_not_verified: 'La pratica non è verificabile con le fonti attuali.',
+        property_not_verified: 'Il collegamento tra pratica e Flat non è univoco.',
+        sources_changed_reload: 'Una fonte è cambiata durante il controllo. Ripeti la ricerca.',
+        command_id_conflict: 'Questo incarico è cambiato durante un tentativo precedente. Ripeti la ricerca per crearne uno nuovo.',
+        preparation_needs_context: 'Mancano informazioni necessarie per preparare una bozza affidabile.',
+        preparation_failed: 'La bozza non è stata preparata. Il caso resta senza invii.',
+        preparation_time_budget: 'La verifica richiede più tempo del previsto. Riprova lo stesso incarico.',
+        draft_not_prepared: 'La Segreteria non ha prodotto una bozza verificabile. Nessun invio è partito.',
+        invalid_response: 'La risposta del servizio non è verificabile. Nessun invio è partito.'
+    };
+    function oggiOwnerCommandError(error) {
+        if (error?.code === 'timeout') return 'Esito non verificato. Riprova senza cambiare i riferimenti: lo stesso incarico è idempotente e non può creare due bozze.';
+        return oggiOwnerCommandErrors[error?.code] || 'Non riesco a completare il controllo ora. Nessun invio è partito.';
+    }
+    async function oggiOwnerCommandRequest(body) {
+        if (!isAdmin() || !auth.currentUser) throw { code: 'unauthorized' };
+        const user = auth.currentUser, controller = new AbortController();
+        let timer;
+        const request = (async () => {
+            const token = await user.getIdToken();
+            if (controller.signal.aborted || auth.currentUser !== user) throw { code: 'unauthorized' };
+            const response = await fetch('/api/segretaria/owner-command', {
+                method: 'POST', cache: 'no-store', signal: controller.signal,
+                headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+            });
+            const data = await response.json();
+            if (auth.currentUser !== user || !isAdmin()) throw { code: 'unauthorized' };
+            if (!response.ok || !data || data.ok !== true) throw { code: data?.error || (response.status === 401 ? 'unauthorized' : response.status === 403 ? 'forbidden' : 'unavailable'), status: response.status, data };
+            return data;
+        })();
+        try {
+            return await Promise.race([request, new Promise((_, reject) => {
+                timer = setTimeout(() => { controller.abort(); reject({ code: 'timeout' }); }, body.op === 'prepare-only' ? 60000 : 20000);
+            })]);
+        } finally { clearTimeout(timer); }
+    }
+    function oggiOwnerCommandSyncInputs() {
+        const query = document.getElementById('ogOwnerQuery'), instruction = document.getElementById('ogOwnerInstruction');
+        if (query) oggiOwnerCommand.query = query.value;
+        if (instruction) oggiOwnerCommand.instruction = instruction.value;
+    }
+    function oggiOwnerCommandCandidate() {
+        const list = oggiOwnerCommand.result?.candidates;
+        return Number.isInteger(oggiOwnerCommand.candidateIndex) && Array.isArray(list)
+            ? list[oggiOwnerCommand.candidateIndex] || null : null;
+    }
+    function oggiOwnerCommandRoute(candidate, conversationRef) {
+        const conversation = candidate?.conversations?.find(item => item.ref === conversationRef);
+        if (!conversation) return [];
+        const phones = Array.isArray(candidate.contact?.phones) ? candidate.contact.phones : [];
+        const emails = Array.isArray(candidate.contact?.emails) ? candidate.contact.emails : [];
+        if (conversation.channel === 'email') return conversation.email && emails.includes(conversation.email)
+            ? [{ value: 'email\t' + conversation.email, label: 'Email · ' + conversation.email }] : [];
+        return conversation.phone && phones.includes(conversation.phone)
+            ? [{ value: 'whatsapp\t' + conversation.phone, label: 'WhatsApp · ' + conversation.phone }] : [];
+    }
+    function oggiOwnerCommandPropertyOptions(candidate) {
+        const practice = candidate?.practices?.find(item => item.ref === oggiOwnerCommand.practiceRef);
+        if (!practice || practice.propertyRefs?.length !== 1) return [];
+        const allowed = new Set(practice.propertyRefs);
+        return (candidate.properties || []).filter(item => allowed.has(item.ref));
+    }
+    function oggiOwnerCommandSelection(candidate) {
+        if (!candidate) return '';
+        const conversations = Array.isArray(candidate.conversations) ? candidate.conversations : [];
+        const practices = Array.isArray(candidate.practices) ? candidate.practices : [];
+        const properties = oggiOwnerCommandPropertyOptions(candidate);
+        const routes = oggiOwnerCommandRoute(candidate, oggiOwnerCommand.conversationRef);
+        const ready = !!(oggiOwnerCommand.conversationRef && oggiOwnerCommand.practiceRef
+            && oggiOwnerCommand.propertyRef && oggiOwnerCommand.route && routes.some(item => item.value === oggiOwnerCommand.route)
+            && properties.some(item => item.ref === oggiOwnerCommand.propertyRef));
+        const option = (value, label, selected, disabled = false) => `<option value="${esc(value)}" ${selected === value ? 'selected' : ''} ${disabled ? 'disabled' : ''}>${esc(label)}</option>`;
+        return `<div class="og-owner-selection" aria-label="Riferimenti verificati">
+            <div class="og-owner-selected-person"><span>People scelto</span><strong>${esc(candidate.name || 'Senza nome')}</strong><small>${esc(candidate.personRef)}</small></div>
+            <div class="og-owner-grid">
+                <div class="form-group"><label class="form-label" for="ogOwnerConversation">Conversazione</label><select class="form-select" id="ogOwnerConversation" onchange="oggiOwnerPick('conversationRef',this.value)"><option value="">Scegli la conversazione</option>${conversations.map(item => option(item.ref, `${item.channel || 'canale'} · ${item.ref}`, oggiOwnerCommand.conversationRef)).join('')}</select></div>
+                <div class="form-group"><label class="form-label" for="ogOwnerPractice">Pratica</label><select class="form-select" id="ogOwnerPractice" onchange="oggiOwnerPick('practiceRef',this.value)"><option value="">Scegli la pratica</option>${practices.map(item => option(item.ref, `${item.type || 'pratica'} · ${item.status || 'stato non indicato'} · ${item.ref}${item.propertyRefs?.length === 1 ? '' : ' · Flat non univoco'}`, oggiOwnerCommand.practiceRef, item.propertyRefs?.length !== 1)).join('')}</select></div>
+                <div class="form-group"><label class="form-label" for="ogOwnerProperty">Flat</label><select class="form-select" id="ogOwnerProperty" onchange="oggiOwnerPick('propertyRef',this.value)" ${oggiOwnerCommand.practiceRef ? '' : 'disabled'}><option value="">${oggiOwnerCommand.practiceRef ? 'Scegli il Flat collegato' : 'Prima scegli la pratica'}</option>${properties.map(item => option(item.ref, `${item.label || 'Flat'} · ${item.ref}`, oggiOwnerCommand.propertyRef)).join('')}</select></div>
+                <div class="form-group"><label class="form-label" for="ogOwnerRoute">Canale e recapito</label><select class="form-select" id="ogOwnerRoute" onchange="oggiOwnerPick('route',this.value)" ${oggiOwnerCommand.conversationRef ? '' : 'disabled'}><option value="">${oggiOwnerCommand.conversationRef ? 'Scegli il canale verificato' : 'Prima scegli la conversazione'}</option>${routes.map(item => option(item.value, item.label, oggiOwnerCommand.route)).join('')}</select></div>
+            </div>
+            ${practices.length && !practices.some(item => item.propertyRefs?.length === 1) ? '<p class="og-owner-warning" role="status">Nessuna pratica ha un solo Flat verificato. Correggi il collegamento nei dati prima di preparare.</p>' : ''}
+            ${oggiOwnerCommand.practiceRef && !properties.length ? '<p class="og-owner-warning" role="status">Il Flat collegato non è verificabile nei dati attuali.</p>' : ''}
+            ${oggiOwnerCommand.conversationRef && !routes.length ? '<p class="og-owner-warning" role="status">Questa conversazione non ha un recapito che coincide con People.</p>' : ''}
+            <div class="og-owner-final"><p>Il prossimo passo crea bozza e seguito in Oggi. La conferma e l’eventuale invio restano nel flusso di revisione esistente.</p><button class="btn" type="button" data-og-owner-action="prepare" onclick="oggiOwnerPrepare()" ${ready && !oggiOwnerCommand.preparing ? '' : 'disabled'}>${oggiOwnerCommand.preparing ? 'Preparo e verifico…' : 'Prepara la bozza'}</button></div>
+        </div>`;
+    }
+    function oggiOwnerCommandResults() {
+        const result = oggiOwnerCommand.result;
+        if (!result) return '';
+        const candidates = Array.isArray(result.candidates) ? result.candidates : [];
+        if (!candidates.length) return '<div class="og-owner-empty" role="status"><strong>Nessuna persona verificata.</strong><span>Correggi nome, telefono o email e ripeti la ricerca.</span></div>';
+        const selected = oggiOwnerCommandCandidate();
+        return `<div class="og-owner-results">
+            <div class="og-owner-results-head"><strong>${candidates.length} ${candidates.length === 1 ? 'persona trovata' : 'persone trovate'}</strong><span>${result.incomplete ? 'Ricerca parziale: riconosci la persona e verifica ogni riferimento.' : candidates.length === 1 ? 'Conferma comunque People: la Segreteria non sceglie al posto tuo.' : 'Scegli People: nessun first-match.'}</span></div>
+            <div class="og-owner-candidates">${candidates.map((candidate, index) => {
+                const contacts = [...(candidate.contact?.phones || []), ...(candidate.contact?.emails || [])].slice(0, 2);
+                return `<button type="button" class="og-owner-candidate ${oggiOwnerCommand.candidateIndex === index ? 'is-selected' : ''}" data-og-owner-person="${index}" aria-pressed="${oggiOwnerCommand.candidateIndex === index}" onclick="oggiOwnerSelect(${index})"><span><strong>${esc(candidate.name || 'Senza nome')}</strong><small>${esc([...(candidate.roles || []), ...contacts].join(' · ') || 'ruolo da verificare')}</small></span><span>${esc(candidate.personRef)}</span></button>`;
+            }).join('')}</div>
+            ${oggiOwnerCommandSelection(selected)}
+        </div>`;
+    }
+    function oggiOwnerCommandRender() {
+        const panel = document.getElementById('ogOwnerCommand');
+        if (!panel) return;
+        panel.outerHTML = oggiOwnerCommandPanel();
+    }
+    function oggiOwnerCommandPanel() {
+        if (!isAdmin()) return '';
+        return `<section id="ogOwnerCommand" aria-labelledby="ogOwnerTitle">
+            <div class="og-owner-heading"><div><p>SEGRETERIA / INCARICO</p><h2 id="ogOwnerTitle">Dille chi. Dille cosa.</h2></div><span>Prepara soltanto</span></div>
+            <form id="ogOwnerResolveForm" class="og-owner-form" onsubmit="oggiOwnerResolve(event)">
+                <div class="form-group"><label class="form-label" for="ogOwnerQuery">Persona · nome, telefono o email</label><input class="form-input" id="ogOwnerQuery" maxlength="120" autocomplete="off" value="${esc(oggiOwnerCommand.query)}" placeholder="Es. Giuliano oppure +39…" ${oggiOwnerCommand.loading || oggiOwnerCommand.preparing ? 'disabled' : ''}></div>
+                <div class="form-group og-owner-instruction"><label class="form-label" for="ogOwnerInstruction">Istruzione</label><textarea class="form-textarea" id="ogOwnerInstruction" maxlength="1200" rows="2" placeholder="Es. Avvisa il portiere che il tecnico arriva alle 15" ${oggiOwnerCommand.loading || oggiOwnerCommand.preparing ? 'disabled' : ''}>${esc(oggiOwnerCommand.instruction)}</textarea></div>
+                <button class="btn" type="submit" data-og-owner-action="resolve" ${oggiOwnerCommand.loading || oggiOwnerCommand.preparing ? 'disabled' : ''}>${oggiOwnerCommand.loading ? 'Verifico…' : 'Trova e verifica'}</button>
+            </form>
+            <p class="og-owner-boundary">People → conversazione → pratica → Flat → canale. Nessun messaggio parte da questa schermata.</p>
+            ${oggiOwnerCommand.error ? `<div class="og-owner-notice is-error" role="alert">${esc(oggiOwnerCommand.error)}</div>` : ''}
+            ${oggiOwnerCommand.notice ? `<div class="og-owner-notice" role="status">${esc(oggiOwnerCommand.notice)}</div>` : ''}
+            ${oggiOwnerCommandResults()}
+        </section>`;
+    }
+    window.oggiOwnerResolve = async function(event) {
+        event?.preventDefault();
+        if (oggiOwnerCommand.loading || oggiOwnerCommand.preparing) return;
+        oggiOwnerCommandSyncInputs();
+        oggiOwnerCommand.query = oggiOwnerCommand.query.trim();
+        oggiOwnerCommand.instruction = oggiOwnerCommand.instruction.trim();
+        if (!oggiOwnerCommand.query || !oggiOwnerCommand.instruction) {
+            oggiOwnerCommand.error = 'Scrivi sia la persona sia l’istruzione.'; oggiOwnerCommand.notice = ''; oggiOwnerCommandRender(); return;
+        }
+        oggiOwnerCommand.loading = true; oggiOwnerCommand.error = ''; oggiOwnerCommand.notice = '';
+        oggiOwnerCommand.result = null; oggiOwnerCommand.candidateIndex = null;
+        Object.assign(oggiOwnerCommand, { conversationRef: '', practiceRef: '', propertyRef: '', route: '', requestKey: '', commandId: '' });
+        oggiOwnerCommandRender();
+        try {
+            const result = await oggiOwnerCommandRequest({ op: 'resolve', query: oggiOwnerCommand.query });
+            if (result.operation !== 'resolve' || !Array.isArray(result.candidates)) throw { code: 'invalid_response' };
+            oggiOwnerCommand.result = result;
+        } catch (error) { oggiOwnerCommand.error = oggiOwnerCommandError(error); }
+        finally { oggiOwnerCommand.loading = false; oggiOwnerCommandRender(); }
+    };
+    window.oggiOwnerSelect = function(index) {
+        if (oggiOwnerCommand.loading || oggiOwnerCommand.preparing || !oggiOwnerCommand.result?.candidates?.[index]) return;
+        oggiOwnerCommandSyncInputs();
+        oggiOwnerCommand.candidateIndex = index;
+        Object.assign(oggiOwnerCommand, { conversationRef: '', practiceRef: '', propertyRef: '', route: '', error: '', notice: '', requestKey: '', commandId: '' });
+        oggiOwnerCommandRender();
+    };
+    window.oggiOwnerPick = function(field, value) {
+        if (!['conversationRef', 'practiceRef', 'propertyRef', 'route'].includes(field) || oggiOwnerCommand.preparing) return;
+        oggiOwnerCommandSyncInputs();
+        oggiOwnerCommand[field] = value;
+        if (field === 'conversationRef') oggiOwnerCommand.route = '';
+        if (field === 'practiceRef') oggiOwnerCommand.propertyRef = '';
+        oggiOwnerCommand.error = ''; oggiOwnerCommand.notice = '';
+        oggiOwnerCommandRender();
+    };
+    window.oggiOwnerPrepare = async function() {
+        const candidate = oggiOwnerCommandCandidate();
+        if (!candidate || oggiOwnerCommand.loading || oggiOwnerCommand.preparing) return;
+        oggiOwnerCommandSyncInputs();
+        const route = oggiOwnerCommand.route.split('\t');
+        const payload = { op: 'prepare-only', instruction: oggiOwnerCommand.instruction.trim(), personRef: candidate.personRef,
+            conversationId: oggiOwnerCommand.conversationRef.replace(/^conversations\//, ''), practiceRef: oggiOwnerCommand.practiceRef,
+            propertyRef: oggiOwnerCommand.propertyRef, channel: route[0], address: route.slice(1).join('\t') };
+        const requestKey = JSON.stringify(payload);
+        if (requestKey !== oggiOwnerCommand.requestKey) {
+            oggiOwnerCommand.requestKey = requestKey;
+            oggiOwnerCommand.commandId = 'owner-ui-' + (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2));
+        }
+        payload.commandId = oggiOwnerCommand.commandId;
+        if (!payload.instruction || !payload.conversationId || !payload.practiceRef || !payload.propertyRef
+            || !['whatsapp', 'email'].includes(payload.channel) || !payload.address) {
+            oggiOwnerCommand.error = 'Completa tutti i riferimenti verificati prima di preparare.'; oggiOwnerCommandRender(); return;
+        }
+        oggiOwnerCommand.preparing = true; oggiOwnerCommand.error = ''; oggiOwnerCommand.notice = '';
+        oggiOwnerCommandRender();
+        try {
+            const data = await oggiOwnerCommandRequest(payload);
+            if (data.operation !== 'prepare-only' || !/^[\w.-]{1,180}$/.test(data.caseId || '') || !data.preparation?.draft) throw { code: 'invalid_response' };
+            oggiOwnerCommand.notice = 'Bozza preparata. Controllala nel caso Oggi prima di confermare.';
+            oggiOwnerCommandRender();
+            oggiSegretariaLoad(true);
+            await oggiSegretariaOpen(data.caseId, 'Incarico preparato da Valentino. Controlla destinatario, testo e seguito prima di confermare.', 'review');
+        } catch (error) {
+            oggiOwnerCommand.error = oggiOwnerCommandError(error);
+            if (error?.code === 'timeout') oggiSegretariaLoad(true);
+        } finally { oggiOwnerCommand.preparing = false; oggiOwnerCommandRender(); }
+    };
+    // ═══ FINE OWNER COMMAND ═════════════════════════════════════════════
+
     // ═══ SEGRETERIA · SEGUITI IN OGGI — proposte, invio solo dopo conferma ═══
     const oggiSegretaria = { rows: [], dossiers: {}, receipts: {}, loaded: false, loading: false, error: '', incomplete: false, userId: null, generation: 0, timer: null, modal: null, readAt: null, monitoring: null, liveListener: null, liveObserver: null, liveError: false, liveGeneration: 0, updateTimer: null, refreshPending: false, decisionsPending: false, preparingVisible: 12, decisionsVisible: 12 };
     // Stato effimero della lettura nel browser: non certifica la ricezione
@@ -5617,6 +5832,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <button class="btn btn-secondary" onclick="forceRefreshData()" title="Ricarica i dati">↻</button>
                 </div>
             </div>
+
+            ${oggiOwnerCommandPanel()}
 
             ${oggiSegretariaPanel()}
 
