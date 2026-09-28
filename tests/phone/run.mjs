@@ -397,7 +397,7 @@ DB.set('listings/l2', { id: 'l2', name: 'Bilocale Trastevere', zone: 'Trastevere
 // ═══════════════════════════════════════════════════════════════════════════
 process.env.ELEVENLABS_WEBHOOK_SECRET = 'el-secret';
 const { createHmac } = await import('node:crypto');
-const { default: elevenlabs, verifySignature } = await import('../../api/phone/elevenlabs.js');
+const { default: elevenlabs, verifySignature, buildTurnTimeline } = await import('../../api/phone/elevenlabs.js');
 const { default: agentTools } = await import('../../api/phone/agent-tools.js');
 
 const elCall = async (payload, { secret = 'el-secret', t = Math.floor(Date.now() / 1000), sig } = {}) => {
@@ -406,6 +406,44 @@ const elCall = async (payload, { secret = 'el-secret', t = Math.floor(Date.now()
   const header = sig !== undefined ? sig : `t=${t},v0=${v0}`;
   return call(elevenlabs, { body: raw, headers: header ? { 'elevenlabs-signature': header } : {} });
 };
+
+{
+  const built = buildTurnTimeline([
+    {
+      role: 'agent', message: 'Buonasera.', time_in_call_secs: 1.25,
+      conversation_turn_metrics: {
+        convai_llm_service_ttfb: { elapsed_time: 0.52 },
+        convai_llm_service_ttf_sentence: { elapsed_time: 0.78 },
+        provider_private_detail: { elapsed_time: 9 },
+      },
+      tool_calls: [{ params_as_json: '{"private":true}' }],
+    },
+    {
+      role: 'user', message: 'Cerco casa.', time_in_call_secs: 2.5,
+      conversation_turn_metrics: { metrics: { convai_asr_service_latency: { elapsed_time: 0.021 } } },
+      llm_usage: { secret_model_detail: 1 },
+    },
+    { role: 'system', message: 'campo non ammesso', time_in_call_secs: 3 },
+  ]);
+  ok('timeline provider: conserva ruolo, testo, tempo e sole metriche ammesse',
+    JSON.stringify(built) === JSON.stringify({ timeline: [
+      { role: 'agent', message: 'Buonasera.', timeInCallSec: 1.25, providerMetrics: { llmTtfbSec: 0.52, llmFirstSentenceSec: 0.78 } },
+      { role: 'user', message: 'Cerco casa.', timeInCallSec: 2.5, providerMetrics: { asrLatencySec: 0.021 } },
+    ], truncated: false }), built);
+  const serialized = JSON.stringify(built);
+  ok('timeline provider: tool, usage, ruolo estraneo e metrica ignota non entrano nel doc',
+    !serialized.includes('tool_calls') && !serialized.includes('llm_usage')
+      && !serialized.includes('provider_private_detail') && !serialized.includes('campo non ammesso'), built);
+
+  const clipped = buildTurnTimeline([
+    { role: 'agent', message: 'A'.repeat(900), time_in_call_secs: 1 },
+    { role: 'user', message: 'Il turno successivo deve restare.', time_in_call_secs: 3 },
+  ]);
+  ok('timeline provider: un messaggio lungo viene clippato senza perdere i turni successivi',
+    clipped.truncated === true && clipped.timeline.length === 2
+      && clipped.timeline[0].message.length === 800
+      && clipped.timeline[1].message === 'Il turno successivo deve restare.', clipped);
+}
 
 // ─── 15. la firma: mai un webhook aperto ───────────────────────────────────
 {
@@ -485,10 +523,12 @@ const elCall = async (payload, { secret = 'el-secret', t = Math.floor(Date.now()
     data: {
       agent_id: 'ag_1', conversation_id: 'conv1', status: 'done',
       transcript: [
-        { role: 'agent', message: AGENT_PHRASE },
-        { role: 'user', message: 'Hi! I am looking for a two bedroom flat in Trastevere from October' },
-        { role: 'agent', message: 'Certo! Abbiamo il Bilocale Trastevere disponibile.' },
-        { role: 'user', message: 'Great, my number is fine for WhatsApp' },
+        { role: 'agent', message: AGENT_PHRASE, time_in_call_secs: 0,
+          conversation_turn_metrics: { convai_llm_service_ttfb: { elapsed_time: 0.52 } } },
+        { role: 'user', message: 'Hi! I am looking for a two bedroom flat in Trastevere from October', time_in_call_secs: 2.4 },
+        { role: 'agent', message: 'Certo! Abbiamo il Bilocale Trastevere disponibile.', time_in_call_secs: 3.8,
+          conversation_turn_metrics: { metrics: { convai_tts_service_ttfb: { elapsed_time: 0.09 } } } },
+        { role: 'user', message: 'Great, my number is fine for WhatsApp', time_in_call_secs: 7.1 },
       ],
       metadata: { call_duration_secs: 92, phone_call: { external_number: '+44 7700 900555', direction: 'inbound' } },
       analysis: {
@@ -501,6 +541,11 @@ const elCall = async (payload, { secret = 'el-secret', t = Math.floor(Date.now()
   ok('transcription → 200 received', r.code === 200 && r.out.status === 'received', r.out);
   const doc = DB.get('phoneCalls/el_conv1');
   ok('doc receptionist: source elevenlabs, durata, dialogo 🤖/👤', doc.source === 'elevenlabs' && doc.durationSec === 92 && doc.transcript.includes('🤖'), doc && doc.transcript);
+  ok('doc receptionist: timeline temporale allowlisted disponibile al Centralino',
+    doc.turnTimelineStatus === 'complete' && doc.turnTimeline.length === 4
+      && doc.turnTimeline[0].timeInCallSec === 0 && doc.turnTimeline[0].providerMetrics.llmTtfbSec === 0.52
+      && doc.turnTimeline[2].providerMetrics.ttsTtfbSec === 0.09,
+    doc.turnTimeline);
   ok('callerWords: SOLO la voce del chiamante', doc.callerWords.includes('Trastevere') && !doc.callerWords.includes('Benvenuto'), doc.callerWords);
   ok('AI giù → il riassunto del fornitore fa da rete', doc.summary.includes('bilocale a Trastevere'), doc.summary);
   ok('lingua dalle SUE parole (inglese), non dal dialogo misto', doc.language === 'en' && doc.draftReply === fallbackDraft('en'), doc.language);

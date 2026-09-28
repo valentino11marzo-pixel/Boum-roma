@@ -3897,6 +3897,7 @@ handler vero; copre entrambi gli ordini della transizione, verificati per
 mutazione).
 
 ### Il Centralino (`api/phone/*` + `/chiamate`) — la segreteria che lavora
+- **Timeline conversazionale a costo zero (28/09)**: il webhook ElevenLabs conserva per ogni turno solo ruolo, testo, `time_in_call_secs` e una whitelist chiusa delle latenze già fornite dal provider; tool, usage e campi estranei non entrano nel doc. `/chiamate` mostra la timeline con tempo e metriche disponibili e permette a Valentino di marcare `anticipa`, `taglia`, `lenta` in `reviewTags` sullo stesso `phoneCalls`, tramite l'update admin già esistente; i tap sullo stesso doc sono serializzati e restano visibili durante gli snapshot intermedi. Nessuna nuova chiamata a modelli o provider. Prove: `phone` (payload vero firmato + whitelist) e `phoneui` (pagina reale, timeline, click rapidi e persistenza tag).
 - **Recapito prima del richiamo (17/09)**: un suggerimento «richiama» senza numero mostrava «Da richiamare». La presentazione pura in `chiamate.html` distingue ora «Richiamo da valutare · recapito mancante» dalla priorità della chiamata.
   Lista, dettagli e pulsanti usano lo stesso controllo del recapito salvato; testo e nome non possono inventarne uno. La bozza resta leggibile come proposta con recapito da verificare.
   Nessuna modifica a urgenza, suggerimento o dati originali durante la lettura. Prova `phoneui`: pagina reale, filtri, dettagli, gestione manuale e due mutazioni; nessun provider contattato.

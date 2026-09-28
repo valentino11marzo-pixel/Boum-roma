@@ -63,6 +63,18 @@ header a:hover { color: var(--gold); }
 details.tr { margin-top: 8px; }
 details.tr summary { font-size: 11px; color: var(--text-secondary); cursor: pointer; }
 details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-left: 2px solid var(--border); padding: 6px 10px; margin-top: 6px; line-height: 1.55; white-space: pre-wrap; word-break: break-word; }
+.turns { display: grid; gap: 7px; margin-top: 8px; }
+.turn { display: grid; grid-template-columns: 48px minmax(0,1fr); gap: 8px; padding: 8px 9px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg-elevated); }
+.turn-time { color: var(--gold); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.turn-head { display: flex; gap: 7px; align-items: baseline; flex-wrap: wrap; margin-bottom: 3px; }
+.turn-role { color: var(--text); font-size: 10.5px; }
+.turn-metrics { color: var(--text-muted); font-size: 9.5px; font-variant-numeric: tabular-nums; }
+.turn-text { color: var(--text-secondary); font-size: 12px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.timing-review { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.timing-review .label { color: var(--text-muted); font-size: 10px; letter-spacing: .5px; text-transform: uppercase; }
+.timing-tag { appearance: none; padding: 4px 9px; border-radius: 999px; font: inherit; font-size: 10px; color: var(--text-secondary); background: var(--bg-elevated); border: 1px solid var(--border); cursor: pointer; }
+.timing-tag.on { color: var(--gold); border-color: var(--gold); background: var(--gold-light); }
+.timing-tag:disabled { opacity: .55; cursor: wait; }
 .acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
 .btn { display: inline-block; padding: 8px 14px; border-radius: 10px; font-size: 12px; font-weight: 500; text-decoration: none; cursor: pointer; border: 1px solid var(--border); background: var(--bg-elevated); color: var(--text); min-height: 20px; }
 .btn.gold { background: var(--gold); color: #000; border-color: var(--gold); font-weight: 600; }
@@ -137,6 +149,52 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
 
   const TYPE_BADGE = { tenant: '🏠 Inquilino', landlord: '🔑 Proprietario', pfs: '🎯 Cliente PFS', client: '👤 Cliente', lead: '📇 Lead' };
   const ACT_LABEL = { whatsapp: '💬 Rispondi su WhatsApp', richiama: '📞 Da richiamare', visita: '📅 Vuole una visita', manutenzione: '🔧 Manutenzione', niente: '—' };
+  const TIMING_TAGS = ['anticipa', 'taglia', 'lenta'];
+  const TURN_METRICS = [
+    ['asrLatencySec', 'ASR'], ['llmTtfbSec', 'LLM'], ['llmFirstSentenceSec', 'LLM frase'],
+    ['ttsTtfbSec', 'TTS'], ['ttsFirstSentenceSec', 'TTS frase'], ['turnLatencySec', 'Turno'],
+  ];
+
+  const normalizeTimingTags = (tags) => TIMING_TAGS.filter((tag) => Array.isArray(tags) && tags.includes(tag));
+  const toggleTimingTag = (tags, tag) => {
+    const current = normalizeTimingTags(tags);
+    if (!TIMING_TAGS.includes(tag)) return current;
+    return normalizeTimingTags(current.includes(tag)
+      ? current.filter((item) => item !== tag) : [...current, tag]);
+  };
+  const turnTime = (seconds) => {
+    if (seconds == null || seconds === '') return '—';
+    const n = Number(seconds);
+    if (!Number.isFinite(n) || n < 0) return '—';
+    const minutes = Math.floor(n / 60);
+    return minutes + ':' + (n % 60).toFixed(1).padStart(4, '0');
+  };
+  const latency = (seconds) => {
+    if (seconds == null || seconds === '') return null;
+    const n = Number(seconds);
+    if (!Number.isFinite(n) || n < 0) return null;
+    return n < 1 ? Math.round(n * 1000) + ' ms' : n.toFixed(n < 10 ? 2 : 1) + ' s';
+  };
+  function renderTranscript(call) {
+    const turns = Array.isArray(call.turnTimeline)
+      ? call.turnTimeline.filter((turn) => turn && ['agent', 'user'].includes(turn.role) && turn.message != null)
+      : [];
+    if (!turns.length) return call.transcript
+      ? '<details class="tr"><summary>Trascrizione</summary><blockquote>' + esc(call.transcript) + '</blockquote></details>' : '';
+    const rows = turns.map((turn) => {
+      const metrics = TURN_METRICS.map(([key, label]) => {
+        const value = latency(turn.providerMetrics && turn.providerMetrics[key]);
+        return value ? label + ' ' + value : '';
+      }).filter(Boolean).join(' · ');
+      return '<div class="turn" data-turn>' +
+        '<span class="turn-time">' + esc(turnTime(turn.timeInCallSec)) + '</span>' +
+        '<div><div class="turn-head"><span class="turn-role">' + (turn.role === 'agent' ? 'Segretaria' : 'Cliente') + '</span>' +
+        (metrics ? '<span class="turn-metrics">' + esc(metrics) + '</span>' : '') +
+        '</div><div class="turn-text">' + esc(turn.message) + '</div></div></div>';
+    }).join('');
+    return '<details class="tr"><summary>Timeline' + (call.turnTimelineStatus === 'partial' ? ' · parziale' : '') +
+      '</summary><div class="turns">' + rows + '</div></details>';
+  }
 
   // Presentation only: an analysis suggestion establishes neither a caller's
   // request nor a reachable recipient. Never guess a phone from the transcript.
@@ -157,6 +215,8 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
 
   let calls = [];
   let filter = 'open';
+  const reviewWrites = new Map();
+  const reviewConfirmed = new Map();
 
   // Una chiamata 'in-progress' vecchia = riagganciata prima del bip (o il
   // callback non è arrivato): si mostra per quello che sappiamo, senza inventare.
@@ -210,6 +270,12 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
       acts.push(c.handled
         ? '<span class="btn quiet" data-h="0" data-id="' + esc(c.id) + '">↩︎ Riapri</span>'
         : '<span class="btn" data-h="1" data-id="' + esc(c.id) + '">✓ Gestita</span>');
+      const timingTags = normalizeTimingTags(c.reviewTags);
+      const timingReview = c.source === 'elevenlabs'
+        ? '<div class="timing-review"><span class="label">Ritmo</span>' + TIMING_TAGS.map((tag) =>
+          '<button type="button" class="timing-tag' + (timingTags.includes(tag) ? ' on' : '') + '" aria-pressed="' +
+          (timingTags.includes(tag) ? 'true' : 'false') + '" data-timing-tag="' + tag + '" data-id="' + esc(c.id) + '">' + tag + '</button>'
+        ).join('') + '</div>' : '';
 
       return '<div class="call ' + cls + '">' +
         '<div class="chead"><span class="cname">' + esc(name) + '</span><span class="cwhen">' + esc(ago(c.createdAt)) + (c.durationSec ? ' · ' + c.durationSec + 's' : '') + '</span></div>' +
@@ -219,11 +285,53 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
         (c.summary && st === 'received' ? '<div class="csum">🧠 ' + esc(c.summary) + '</div>' : '') +
         (c.audioUrl ? '<audio controls preload="none" src="' + esc(c.audioUrl) + '"></audio>'
           : (c.audioError && st === 'received' ? '<div class="cnote">⚠️ audio non recuperato (' + esc(c.audioError) + ')</div>' : '')) +
-        (c.transcript ? '<details class="tr"><summary>Trascrizione</summary><blockquote>' + esc(c.transcript) + '</blockquote></details>' : '') +
+        renderTranscript(c) +
         (c.draftReply && st === 'received' && !c.handled ? '<details class="tr"><summary>Bozza risposta' + (contact.phone ? '' : ' · recapito da verificare') + ' (' + esc(c.language || 'en') + ')</summary><blockquote>' + esc(c.draftReply) + '</blockquote></details>' : '') +
+        timingReview +
         '<div class="acts">' + acts.join('') + '</div>' +
         '</div>';
     }).join('') || '<div class="empty">' + (filter === 'open' ? 'Niente da gestire. 🎉' : 'Nessuna chiamata qui.') + '</div>';
+  }
+
+  const withPendingReviews = (rows) => rows.map((row) => {
+    const pending = reviewWrites.get(row.id);
+    return pending ? { ...row, reviewTags: pending.desired } : row;
+  });
+
+  async function persistTimingTag(callId, tag) {
+    const call = calls.find((row) => row.id === callId);
+    if (!call || !TIMING_TAGS.includes(tag)) return null;
+    const before = normalizeTimingTags(call.reviewTags);
+    const reviewTags = toggleTimingTag(before, tag);
+    const previous = reviewWrites.get(callId);
+    if (!previous) reviewConfirmed.set(callId, before);
+    const version = (previous ? previous.version : 0) + 1;
+    calls = calls.map((row) => row.id === callId ? { ...row, reviewTags } : row);
+
+    // Firestore writes the full closed array, but always in click order for the
+    // same call. A live snapshot from an earlier write cannot erase a later tap.
+    const write = (previous ? previous.promise.catch(() => {}) : Promise.resolve()).then(async () => {
+      try {
+        await db.collection('phoneCalls').doc(callId).update({ reviewTags, reviewTagsUpdatedAt: new Date().toISOString() });
+        reviewConfirmed.set(callId, reviewTags);
+        return reviewTags;
+      } catch (err) {
+        const active = reviewWrites.get(callId);
+        if (active && active.version === version) {
+          const rollback = reviewConfirmed.get(callId) || before;
+          calls = calls.map((row) => row.id === callId ? { ...row, reviewTags: rollback } : row);
+          render();
+        }
+        throw err;
+      }
+    });
+    const tracked = write.finally(() => {
+      const active = reviewWrites.get(callId);
+      if (active && active.version === version) reviewWrites.delete(callId);
+    });
+    reviewWrites.set(callId, { version, promise: tracked, desired: reviewTags });
+    render();
+    return tracked;
   }
 
   document.getElementById('chips').addEventListener('click', (e) => {
@@ -235,6 +343,19 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
   });
 
   document.getElementById('list').addEventListener('click', async (e) => {
+    const timingButton = e.target.closest('[data-timing-tag]');
+    if (timingButton) {
+      const tag = timingButton.dataset.timingTag;
+      const callId = timingButton.dataset.id;
+      if (!calls.some((row) => row.id === callId) || !TIMING_TAGS.includes(tag)) return;
+      timingButton.disabled = true;
+      try {
+        const reviewTags = await persistTimingTag(callId, tag);
+        BoomPortal.toast && BoomPortal.toast(reviewTags.includes(tag) ? 'Nota ritmo aggiunta' : 'Nota ritmo rimossa');
+      } catch (err) { BoomPortal.toast ? BoomPortal.toast('Errore: ' + err.message) : alert(err.message); }
+      finally { timingButton.disabled = false; }
+      return;
+    }
     const b = e.target.closest('[data-h]');
     if (!b) return;
     const handled = b.dataset.h === '1';
@@ -261,7 +382,7 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
   BoomPortal.listen(
     db.collection('phoneCalls').orderBy('createdAt', 'desc').limit(120),
     (snap) => {
-      calls = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      calls = withPendingReviews(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       document.getElementById('loading').style.display = 'none';
       document.getElementById('content').style.display = '';
       render();
@@ -276,7 +397,7 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
     if (document.getElementById('content').style.display !== 'none') return;
     try {
       const snap = await db.collection('phoneCalls').orderBy('createdAt', 'desc').limit(120).get();
-      calls = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      calls = withPendingReviews(snap.docs.map((d) => ({ id: d.id, ...d.data() })));
       document.getElementById('loading').style.display = 'none';
       document.getElementById('content').style.display = '';
       render();
