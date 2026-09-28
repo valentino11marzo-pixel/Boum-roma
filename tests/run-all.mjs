@@ -25,7 +25,7 @@ const SUITES = [
   { name: 'tenantpayments', file: 'tests/tenant-payments/run.mjs', what: 'casa: pagamenti confermati dal server, errore esplicito, retry limitati e mutazioni' },
   { name: 'paymentlinks', file: 'tests/payment-links-safety/run.mjs', what: 'link e checkout: guardie, riuso sessione, ritorno verificato e commissioni coerenti' },
   { name: 'paymentlinkmutations', file: 'tests/payment-links-safety/mutate.mjs', what: 'i difetti ripristinati devono fallire: guardie, commissioni, ritorno e riuso checkout' },
-  { name: 'phoneui', file: 'tests/phone/ui.mjs', what: 'Centralino: recapito necessario al ricontatto, priorità distinta, dettagli e filtri coerenti' },
+  { name: 'phoneui', file: 'tests/phone/ui.mjs', what: 'Centralino: recapito necessario, timeline provider allowlisted, tag ritmo persistenti, dettagli e filtri coerenti' },
   { name: 'segretariaesecuzione', file: 'tests/segretaria/esecuzione.mjs', what: 'piano approvato: capacità reali, ricevute coerenti, coda distinta da invio e lavoro manuale esplicito' },
   { name: 'segretariaripresa', file: 'tests/segretaria/resume-execution.mjs', what: 'ripresa esplicita della stessa approvazione solo prima della claim verificata; ricevute incerte e concorrenza non duplicano effetti' },
   { name: 'segretariaattese', file: 'tests/segretaria/next-actor.mjs', what: 'attesa del richiamo fondata sull’ultima fonte integra; motivazione e controllo coerenti' },

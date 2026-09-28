@@ -16,6 +16,9 @@ assert.ok(start >= 0 && end > start);
 const presentationSource = script.slice(start, end);
 const presentation = source => vm.runInNewContext(source + '\ncontactPresentation;', {});
 const contact = presentation(presentationSource);
+const helpers = vm.runInNewContext(presentationSource + '\n({ normalizeTimingTags, turnTime, latency, renderTranscript });', {
+  esc: s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),
+});
 let checks = 0;
 const check = (name, fn) => { fn(); console.log('PASS ' + name); checks++; };
 
@@ -67,6 +70,22 @@ check('MUTAZIONE: usare un from truthy non telefonico viene rilevato', () => {
   assert.notEqual(mutant, presentationSource);
   assert.throws(() => assert.equal(presentation(mutant)({ from: 'anonymous', suggestedAction: 'richiama' }).phone, null));
 });
+check('timeline pura: tempo e metriche disponibili sono leggibili, testo sempre escaped', () => {
+  const rendered = helpers.renderTranscript({ turnTimelineStatus: 'complete', turnTimeline: [
+    { role: 'agent', message: '<saluto>', timeInCallSec: 61.2, providerMetrics: { llmTtfbSec: 0.52, ttsTtfbSec: 1.04, ignored: 8 } },
+    { role: 'user', message: 'Cerco casa', timeInCallSec: 64 },
+  ] });
+  assert.match(rendered, /<summary>Timeline<\/summary>/);
+  assert.match(rendered, /1:01\.2/);
+  assert.match(rendered, /LLM 520 ms/);
+  assert.match(rendered, /TTS 1\.04 s/);
+  assert.match(rendered, /&lt;saluto&gt;/);
+  assert.doesNotMatch(rendered, /ignored|>8</);
+});
+check('tag ritmo puri: solo anticipa, taglia e lenta possono essere persistiti', () => {
+  assert.deepEqual([...helpers.normalizeTimingTags(['lenta', 'campo-estraneo', 'anticipa'])], ['anticipa', 'lenta']);
+  assert.deepEqual([...helpers.normalizeTimingTags(null)], []);
+});
 
 const chromium = await loadChromium();
 if (!chromium) {
@@ -77,7 +96,13 @@ const now = Date.now();
 const base = { status: 'received', createdAt: new Date(now - 60000).toISOString(), handled: false, language: 'it' };
 const rows = [
   { ...base, id: 'anonymous', source: 'elevenlabs', from: '', callerName: 'Numero nascosto', urgency: 'high', suggestedAction: 'richiama',
-    summary: 'Il chiamante chiede informazioni sui documenti.', transcript: 'Quali documenti servono per la visita?', draftReply: 'Possiamo verificare la richiesta.' },
+    summary: 'Il chiamante chiede informazioni sui documenti.', transcript: 'Quali documenti servono per la visita?', draftReply: 'Possiamo verificare la richiesta.',
+    reviewTags: ['anticipa', 'campo-estraneo'], turnTimelineStatus: 'complete', turnTimeline: [
+      { role: 'agent', message: 'BOOM Immobiliare, come posso aiutarla?', timeInCallSec: 0,
+        providerMetrics: { llmTtfbSec: 0.52, ttsTtfbSec: 0.09, hiddenMetric: 99 } },
+      { role: 'user', message: 'Quali documenti servono per la visita?', timeInCallSec: 2.4,
+        providerMetrics: { asrLatencySec: 0.021 } },
+    ] },
   { ...base, id: 'phone', from: '+39 333 1234567', callerName: 'Recapito disponibile', suggestedAction: 'richiama', draftReply: 'Buongiorno, ricevuto.',
     callerType: 'lead', leadId: 'synthetic-lead', leadCreated: true },
   { ...base, id: 'legacy', from: 'anonymous', callerName: 'Vecchia importazione', suggestedAction: 'whatsapp' },
@@ -135,15 +160,26 @@ try {
   assert.equal(await anonymous.locator('[data-h="1"]').count(), 1);
   console.log('PASS browser: richiamo impossibile esplicito, urgenza conservata e verifica interna disponibile'); checks++;
 
-  const transcript = anonymous.locator('details').filter({ has: page.locator('summary', { hasText: 'Trascrizione' }) });
+  const transcript = anonymous.locator('details').filter({ has: page.locator('summary', { hasText: 'Timeline' }) });
   const draft = anonymous.locator('details').filter({ has: page.locator('summary', { hasText: 'Bozza risposta' }) });
   await transcript.locator('summary').click();
   await draft.locator('summary').click();
-  assert.equal(await transcript.locator('blockquote').innerText(), rows[0].transcript);
+  assert.equal(await transcript.locator('[data-turn]').count(), 2);
+  assert.deepEqual(await transcript.locator('.turn-time').allInnerTexts(), ['0:00.0', '0:02.4']);
+  assert.deepEqual(await transcript.locator('.turn-role').allInnerTexts(), ['Segretaria', 'Cliente']);
+  assert.deepEqual(await transcript.locator('.turn-text').allInnerTexts(), rows[0].turnTimeline.map(turn => turn.message));
+  assert.match((await transcript.locator('.turn-metrics').allInnerTexts()).join(' '), /LLM 520 ms.*TTS 90 ms.*ASR 21 ms/);
+  assert.doesNotMatch(await transcript.innerText(), /hiddenMetric|99/);
   assert.equal(await draft.locator('blockquote').innerText(), rows[0].draftReply);
   assert.match(await draft.locator('summary').innerText(), /recapito da verificare/);
   assert.equal(await anonymous.locator('a[href^="tel:"], a[href^="https://wa.me/"]').count(), 0);
-  console.log('PASS browser: dettagli e bozza espansi conservano il contenuto senza suggerire invio pronto'); checks++;
+  assert.equal(await anonymous.locator('[data-timing-tag]').count(), 3);
+  assert.equal(await anonymous.locator('[data-timing-tag="anticipa"]').getAttribute('aria-pressed'), 'true');
+  assert.equal(await anonymous.locator('[data-timing-tag="campo-estraneo"]').count(), 0);
+  await anonymous.locator('[data-timing-tag="lenta"]').click();
+  await page.waitForFunction(() => window.__phoneRows[0].reviewTags.includes('lenta'));
+  assert.equal(await anonymous.locator('[data-timing-tag="lenta"]').getAttribute('aria-pressed'), 'true');
+  console.log('PASS browser: timeline, metriche allowlisted, bozza e tag ritmo Firestore restano coerenti'); checks++;
 
   const reachable = card('Recapito disponibile');
   assert.match(await reachable.locator('.badges').innerText(), /Da richiamare/);
@@ -155,7 +191,13 @@ try {
   assert.equal(await card('Segnalazione manutenzione').locator('[role="note"]').count(), 0);
   assert.match(await card('Richiesta visita').locator('.badges').innerText(), /Vuole una visita/);
   assert.equal(await card('Richiesta visita').locator('[role="note"]').count(), 0);
-  assert.deepEqual(await page.evaluate(() => window.__phoneRows), rows);
+  const afterReview = await page.evaluate(() => window.__phoneRows);
+  assert.deepEqual(afterReview.slice(1), rows.slice(1));
+  const { reviewTags, reviewTagsUpdatedAt, ...reviewedCall } = afterReview[0];
+  const { reviewTags: originalTags, ...originalCall } = rows[0];
+  assert.deepEqual(reviewedCall, originalCall);
+  assert.deepEqual(reviewTags, ['anticipa', 'lenta']);
+  assert.equal(typeof reviewTagsUpdatedAt, 'string');
   console.log('PASS browser: recapito valido, record vecchi e azioni diverse dal richiamo mantengono il comportamento pertinente'); checks++;
 
   for (const [filter, expected] of [['open', 5], ['all', 7], ['lead', 1], ['known', 1], ['nomsg', 1]]) {
@@ -168,10 +210,13 @@ try {
   await page.waitForFunction(() => document.getElementById('stOpen').textContent === '4');
   assert.equal(await card('Numero nascosto').count(), 0);
   const writes = await page.evaluate(() => window.__writes);
-  assert.equal(writes.length, 1);
+  assert.equal(writes.length, 2);
   assert.equal(writes[0].id, 'anonymous');
-  assert.equal(writes[0].fields.handled, true);
-  assert.deepEqual(Object.keys(writes[0].fields).sort(), ['handled', 'handledAt']);
+  assert.deepEqual(writes[0].fields.reviewTags, ['anticipa', 'lenta']);
+  assert.deepEqual(Object.keys(writes[0].fields).sort(), ['reviewTags', 'reviewTagsUpdatedAt']);
+  assert.equal(writes[1].id, 'anonymous');
+  assert.equal(writes[1].fields.handled, true);
+  assert.deepEqual(Object.keys(writes[1].fields).sort(), ['handled', 'handledAt']);
   await page.locator('[data-f="all"]').click();
   assert.equal(await card('Numero nascosto').locator('a[href^="tel:"], a[href^="https://wa.me/"]').count(), 0);
   assert.match(await card('Numero nascosto').locator('.badges').innerText(), /urgente/);

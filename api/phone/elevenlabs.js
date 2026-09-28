@@ -41,6 +41,76 @@ export const config = { api: { bodyParser: false } }; // compatibilità Next; no
 
 const MAX_AUDIO_BYTES = 15 * 1024 * 1024;
 const SIG_TOLERANCE_SEC = 30 * 60;
+const MAX_TIMELINE_TURNS = 120;
+const MAX_TIMELINE_TEXT = 24_000;
+const MAX_TURN_TEXT = 800;
+
+// ElevenLabs can add fields to transcript turns without notice. The Centralino
+// stores only the timings we actually use, never the raw provider object (which
+// can also contain tool params, model usage and other unrelated metadata).
+const TURN_METRIC_ALLOWLIST = Object.freeze({
+  convai_asr_service_latency: 'asrLatencySec',
+  convai_llm_service_ttfb: 'llmTtfbSec',
+  convai_llm_service_ttf_sentence: 'llmFirstSentenceSec',
+  convai_tts_service_ttfb: 'ttsTtfbSec',
+  convai_tts_service_ttf_sentence: 'ttsFirstSentenceSec',
+  convai_turn_latency: 'turnLatencySec',
+});
+
+function safeSeconds(value, max) {
+  if (value == null) return null;
+  const candidate = typeof value === 'object' ? value.elapsed_time : value;
+  if (candidate == null || candidate === '') return null;
+  const n = Number(candidate);
+  return Number.isFinite(n) && n >= 0 && n <= max ? Math.round(n * 1000) / 1000 : null;
+}
+
+function allowlistedTurnMetrics(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  // The webhook examples expose metrics directly; newer API schemas wrap them
+  // in `metrics`. Accept both shapes, but only copy the closed list above.
+  const nested = raw.metrics && typeof raw.metrics === 'object' && !Array.isArray(raw.metrics)
+    ? raw.metrics : null;
+  const out = {};
+  for (const [providerKey, storedKey] of Object.entries(TURN_METRIC_ALLOWLIST)) {
+    const value = nested && nested[providerKey] != null ? nested[providerKey] : raw[providerKey];
+    const seconds = safeSeconds(value, 60);
+    if (seconds != null) out[storedKey] = seconds;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
+/** Compact, bounded and field-whitelisted timeline for the authenticated dashboard. */
+export function buildTurnTimeline(rawTurns) {
+  const timeline = [];
+  let chars = 0;
+  let truncated = false;
+  for (const raw of Array.isArray(rawTurns) ? rawTurns : []) {
+    if (!raw || !['agent', 'user'].includes(raw.role) || raw.message == null) continue;
+    const original = String(raw.message).trim();
+    if (!original) continue;
+    if (timeline.length >= MAX_TIMELINE_TURNS || chars >= MAX_TIMELINE_TEXT) {
+      truncated = true;
+      break;
+    }
+    const room = Math.min(MAX_TURN_TEXT, MAX_TIMELINE_TEXT - chars);
+    const message = original.slice(0, room);
+    const timeInCallSec = safeSeconds(raw.time_in_call_secs, 24 * 60 * 60);
+    const providerMetrics = allowlistedTurnMetrics(raw.conversation_turn_metrics);
+    timeline.push({
+      role: raw.role,
+      message,
+      ...(timeInCallSec != null ? { timeInCallSec } : {}),
+      ...(providerMetrics ? { providerMetrics } : {}),
+    });
+    chars += message.length;
+    if (message.length < original.length) {
+      truncated = true;
+      break;
+    }
+  }
+  return { timeline, truncated };
+}
 
 async function readRaw(req) {
   if (typeof req.on !== 'function') {
@@ -133,6 +203,7 @@ export default async function handler(req, res) {
   const durationSec = Number.isFinite(Number(meta.call_duration_secs)) ? Number(meta.call_duration_secs) : null;
 
   const turns = Array.isArray(data.transcript) ? data.transcript : [];
+  const turnTimeline = buildTurnTimeline(turns);
   // SOLO la voce del chiamante: è ciò che replyLang e il Commerciale leggono.
   const callerWords = turns
     .filter((t) => t && t.role === 'user' && t.message)
@@ -184,6 +255,9 @@ export default async function handler(req, res) {
     durationSec,
     transcript: displayTranscript,
     transcriptStatus: turns.length ? 'ok' : 'unavailable',
+    turnTimeline: turnTimeline.timeline.length ? turnTimeline.timeline : null,
+    turnTimelineStatus: turnTimeline.timeline.length
+      ? (turnTimeline.truncated ? 'partial' : 'complete') : 'unavailable',
     callerWords: callerWords || null,
     callSuccessful: analysisRaw.call_successful != null ? String(analysisRaw.call_successful) : null,
     callerType,
