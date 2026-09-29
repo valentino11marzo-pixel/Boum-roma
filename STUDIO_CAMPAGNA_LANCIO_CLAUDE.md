@@ -89,6 +89,12 @@ pubblica senza un tap.**
 | Statico 1:1 / 4:5 | "3.000 € to a stranger? No." + le 4 prove (registrato, video, firma online, ricevute) | image | 4 |
 | Carosello LinkedIn | Executive: "Your Rome lease, closed before your posting starts" | image | 1 × 6 slide |
 
+**Registro produzione** (crediti Higgsfield, piano Ultra, 85,38 all'inizio):
+
+| Data | Annuncio | Modello | Formato | Crediti | Esito |
+|---|---|---|---|---|---|
+| 29/09 | Bilocale Ponte Milvio (`ttvrjazww9oe4tA0wHTf`, copertina) | `kling3_0` std, senza audio | 9:16 · 5" · 720×1280 | 6,25 | test — da verificare a occhio: la casa deve restare IDENTICA alla foto; job `08c66a0e-8ab7-42ae-9dbf-5f554036290f` |
+
 Ogni creatività porta un link con UTM (`utm_source=meta|google|linkedin`,
 `utm_campaign=lancio-2026-10`, `utm_content=<id creatività>`), così si sa
 quale creatività ha prodotto una firma.
