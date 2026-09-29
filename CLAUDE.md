@@ -164,26 +164,32 @@ firebase.json             Firebase deploy config (firestore + storage rules)
   `sign-for` stays at 60s; `segretaria/preparation.js` keeps its default.
 
 ### Il sito della casa madre — `egidi/` → egidimmobiliare.it (29/09/2026)
-Il sito di Egidi Immobiliare S.r.l. esce da GoDaddy e vive in `egidi/`, con
-un progetto Vercel **suo** (Root Directory `egidi`, stesso team, stesso repo)
-e un proprio `egidi/vercel.json` (statico, `cleanUrls`, `ignoreCommand` che
-salta la build quando `egidi/` non cambia). Non dentro `boum-roma`: su Vercel
-una riscrittura non batte un file esistente, quindi `egidimmobiliare.it/`
-avrebbe servito la home di BOOM, e ogni pagina BOOM sarebbe uscita anche sul
-dominio Egidi. Il `vercel.json` di BOOM rimanda `/egidi` e `/egidi/*` a
-`www.egidimmobiliare.it` (niente copia duplicata). La home è l'ipotesi A di
-giugno («la casa madre»: vendite = Valentino Egidi, affitti = BOOM) ripulita
-dei difetti trovati prima della pubblicazione: anno «MMXXX» (2030) nel piè di
-pagina, barra di scelta design, «affittare in 48 ore» promesso ai proprietari
-(la FAQ BOOM dichiara 8 giorni di media: le 48 ore sono firma→chiavi), REA e
-sede legale assenti (art. 2250 c.c.), sezioni invisibili senza JS. Le pagine
-Dossier e Cinema restano fuori: il «ritratto di Valentino» era una foto stock
-di uno sconosciuto. **L'email `valentino@egidimmobiliare.it` è viva** (Outlook,
-probabile Microsoft 365 di GoDaddy): al passaggio si cambiano SOLO i record
-`A @` e `CNAME www`, mai MX/TXT/autodiscover/DKIM. `.it` non è registrabile su
-Vercel (`tld_not_supported`). Procedura e fasi: `docs/EGIDI_MIGRAZIONE.md`.
-Test: `node tests/egidi/run.mjs` (63 check, 8 mutazioni verificate, browser
-a 390/1440px con e senza JS).
+**Rifondazione in corso, passo 2 di 5 (proposta in attesa dell'ok di Valentino).**
+Il brief del 29/09 sera («Il Fascicolo») rifà il sito da capo: casa madre in
+italiano per i proprietari romani, tesi «prima l'ordine, poi il mercato», tre
+porte (Vendere · Affittare → BOOM · check «Il tuo immobile è in ordine?»),
+carta calda + inchiostro BOOM + oro solo come sigillo/campitura, un solo
+movimento (il fascicolo che si ricompone), niente foto stock. La home attuale
+in `egidi/index.html` (ipotesi A di giugno, ripulita) è **provvisoria** e va
+sostituita al passo 3. Proposta (sitemap, wireframe, token, redirect, lead,
+domande): artifact «Rifondazione Egidi Immobiliare». Infrastruttura che resta:
+progetto Vercel **suo** con Root Directory `egidi` (dentro `boum-roma`
+`egidimmobiliare.it/` servirebbe la home BOOM: una riscrittura non batte un
+file esistente), `egidi/vercel.json` statico con `ignoreCommand`, e il
+redirect `/egidi/*` del `vercel.json` BOOM. Fatti verificati che vincolano il
+lavoro: **l'email `valentino@egidimmobiliare.it` è viva** (Outlook, probabile
+Microsoft 365 di GoDaddy) → al go-live solo `A @` e `CNAME www`, mai i
+nameserver; `.it` non registrabile su Vercel; **BOOM Proprietari (`/owners`)
+non parla di concordato/asseverazione/cedolare 10%** (stanno su
+`/pacchetto-concordato` e `/canone`) e il suo menu linka `/proprietari`, che
+non esiste; un lead proprietario oggi riceve dal Commerciale e da
+notify-pending testi da inquilino (solo `source:'partner'` è protetto da
+`isB2B`, e il Lead Brain riscrive `intent`) → serve `api/egidi-lead` +
+guardia `isEgidi` su `source`; il banner `js/boom-consent.js` non ha testo
+italiano; il marchio BOOM (MUE 019317594) ha avuto un'opposizione
+(003262913) e un avviso EUIPO non ufficiale del 15/08/2026 dice «Domanda
+registrata» → ® su Egidi solo col certificato. Procedura DNS/email:
+`docs/EGIDI_MIGRAZIONE.md`. Test: `node tests/egidi/run.mjs`.
 
 
 ## Environment Variables (Vercel)

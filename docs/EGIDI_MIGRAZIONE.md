@@ -1,14 +1,13 @@
 # egidimmobiliare.it — da GoDaddy a BOOM
 
-Stato al 29/09/2026. Il sito nuovo è in `egidi/` (repo Boum-roma) e si
-pubblica con un progetto Vercel **suo**, nel team «Valentino - BOOM», con
-Root Directory `egidi`. Perché non dentro il progetto `boum-roma`: su Vercel
-una riscrittura non batte un file esistente, quindi `egidimmobiliare.it/`
-avrebbe servito la home di BOOM (`index.html`), e ogni pagina di BOOM sarebbe
-stata raggiungibile anche sul dominio Egidi. Progetto separato vuol dire che un
-errore sul sito Egidi non può toccare boomrome.com, e viceversa.
-`boomrome.com/egidi/*` rimanda a `www.egidimmobiliare.it`: niente copia
-duplicata.
+Stato al 29/09/2026 sera: **rifondazione da brief, passo 2 di 5** (proposta
+inviata a Valentino, si attende l'ok prima di disegnare la home). La home
+oggi in `egidi/index.html` è provvisoria. Il sito si pubblica con un progetto
+Vercel **suo** (Root Directory `egidi`, team «Valentino - BOOM»): dentro il
+progetto `boum-roma`, `egidimmobiliare.it/` servirebbe la home di BOOM,
+perché su Vercel una riscrittura non batte un file esistente.
+`boomrome.com/egidi/*` rimanda a `www.egidimmobiliare.it`. Il brief vuole i
+nameserver fermi su GoDaddy: al go-live cambiano solo `A @` e `CNAME www`.
 
 ## Cosa sappiamo e cosa no
 
@@ -68,18 +67,13 @@ Vercel non registra `.it`. Due strade, entrambe dopo la fase 3:
 - lasciare il dominio su GoDaddy solo come registrazione (circa 20 €/anno),
   coi DNS già puntati altrove;
 - trasferirlo a un registrar che gestisce `.it` (codice AuthInfo da GoDaddy).
-In entrambi i casi conviene spostare prima i nameserver su Vercel
-(`ns1.vercel-dns.com`, `ns2.vercel-dns.com`) ricreando i record email.
+Il brief del 29/09 tiene i nameserver su GoDaddy: si cambiano solo i
+record `A`/`CNAME` del sito, e la verifica di Search Console resta valida
+(se è un meta tag nel vecchio sito, va ricopiata nella home nuova).
 
-## Cosa manca al sito (non inventato, da fornire)
-- **Capitale sociale** della S.r.l.: l'art. 2250 c.c. lo vuole sul sito
-  insieme a sede e REA. Non è nel repo, e non va scritto a caso.
-- **Foto vera di Valentino**: le pagine «Dossier» e «Cinema» di giugno la
-  usano come elemento centrale e ora hanno una foto stock di uno sconosciuto.
-  Restano fuori finché non c'è quella vera.
-- **Vecchi indirizzi del sito GoDaddy** (da Search Console o dal Builder): per
-  i redirect verso la home. Oggi tutto quello che non esiste va sulla 404,
-  che rimanda alla home.
-- **Immagine social (og:image)**: da generare, come per le altre pagine BOOM.
-- Le due foto di sfondo della home sono ancora su Unsplash (decorative,
-  `alt` vuoto): da riportare in casa.
+## Cosa manca al sito (da fornire, mai inventato)
+L'elenco completo sta nella proposta del passo 2 (sezione «Da te»):
+capitale sociale (art. 2250 c.c.), provvigione di vendita, immobili in vendita
+reali, polizza RC, conferma del certificato del marchio BOOM, Entratel,
+scheda Google di Egidi, foto vere di Valentino e dello studio, codice di
+verifica di Search Console se è un meta tag, ID GA4 della proprietà Egidi.
