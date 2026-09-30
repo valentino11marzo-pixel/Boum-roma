@@ -173,23 +173,38 @@ firebase.json             Firebase deploy config (firestore + storage rules)
   `sign-for` stays at 60s; `segretaria/preparation.js` keeps its default.
 
 ### Il sito della casa madre — `egidi/` → egidimmobiliare.it (29/09/2026)
-**Rifondazione in corso, passo 3 di 5 (terza direzione in anteprima).**
-Il 30/09 sera il fondatore ha bocciato «Il Fascicolo» (troppo basilare) e poi
-chiesto di spingere oltre la v2: il brand è **Valentino Egidi Immobiliare**
-(vendite: vendere, comprare, investire) e BOOM (affitti) si raggiunge in modo
-esplicito da sei punti, tutti con UTM. La home v3 in `egidi/index.html`:
-hero = **tabellone delle partenze** (celle split-flap: VENDERE/COMPRARE/
-INVESTIRE → Valentino Egidi, AFFITTARE → BOOM in oro; stesso lessico dello
-scalo di BOOM), tesi «Prima i documenti. Poi il prezzo.», **Archivo** con
-l'asse della larghezza e **JetBrains Mono** ospitati in `egidi/fonts/` (OFL,
-cache immutable, zero richieste esterne), il **metodo recitato** da un modello
-3D in CSS sullo scroll (cinque atti, l'ultimo «la affitta BOOM»), quattro
-micro-demo degli strumenti veri marcate «Esempio», calcolo del rendimento sui
-numeri del visitatore e la **candidatura** in quattro passi che apre WhatsApp
-col riepilogo (nessun dato parte dalla pagina; «Affittare» va subito a BOOM).
+**Rifondazione in corso, passo 3 di 5 (quarta direzione in anteprima).**
+Il 30/09 il fondatore ha bocciato «Il Fascicolo» (troppo basilare), trovato la
+v2 «carina» e chiesto per la v3 «ancora di meglio». Il brand è **Valentino
+Egidi Immobiliare** (vendite: vendere, comprare, investire); BOOM (affitti) si
+raggiunge in modo esplicito da sei punti, tutti con UTM. La home v4 in
+`egidi/index.html`:
+- palette **Inchiostro**: notte `#111D36`, distinta dal nero BOOM di ΔE_OK
+  ≥ 11, verificato;
+- hero = **tabellone delle partenze** meccanico (palette WAAPI che cadono,
+  orologio a palette sull'ora di Roma, un giro poi «Riavvia»);
+- tesi «Prima i documenti. Poi il prezzo.»; **Archivo** con l'asse della
+  larghezza e **JetBrains Mono** in `egidi/fonts/` (OFL, immutable, zero
+  richieste esterne);
+- il **metodo recitato da un appartamento in WebGL**:
+  - three.js 0.186.1 impacchettato con esbuild in `egidi/js/metodo3d.js`,
+    versione `?v=` = sha8 del manifest, sorgenti in `design/egidi-3d/`;
+  - cinque atti su T 0…5 legati allo scroll: rilievo, planimetria che «non
+    combacia» e si corregge sulla carta, casa arredata con tre scatti,
+    palazzo in strada, sera nei colori BOOM;
+  - poster WebP quando il 3D non si può o non si deve (movimento ridotto,
+    risparmio dati, poca memoria, niente WebGL2, pacchetto mancante, contesto
+    perso);
+  - `?m3d=0|forza|diag`;
+  - i metri stampati vengono da `PIANTA` della scena, e i test li confrontano;
+- le micro-demo della macchina; il calcolo del rendimento con i risultati su
+  palette; la **candidatura** in quattro passi che apre WhatsApp col
+  riepilogo (nessun dato parte dalla pagina; «Affittare» va subito a BOOM).
+
 Niente rosso: il nome Valentino in rosso è la casa di moda. Segnaposto
-`.solo-anteprima` e varianti `?c=verde|nero` solo fuori da egidimmobiliare.it.
-PRD del passo 3 (decisioni
+`.solo-anteprima` e varianti `?c=persiana|travertino` solo fuori da
+egidimmobiliare.it.
+PRD della v4 (decisioni
 predefinite, criteri di accettazione misurati, domande aperte):
 `docs/EGIDI_PRD.md`. Infrastruttura che resta:
 progetto Vercel **suo** con Root Directory `egidi` (dentro `boum-roma`

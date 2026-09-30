@@ -4,15 +4,15 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Valentino Egidi Immobiliare · Vendite e acquisti a Roma</title>
-<meta name="description" content="Compravendite e investimenti immobiliari nel centro di Roma, dai documenti al rogito. Per affittare c'è BOOM, il marchio di Egidi Immobiliare.">
+<meta name="description" content="Vendere o comprare casa nel centro di Roma: prima leggiamo documenti e conformità, poi parliamo di prezzo. Per affittare c'è BOOM, marchio di Egidi Immobiliare.">
 <link rel="canonical" href="https://www.egidimmobiliare.it/">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="it_IT">
 <meta property="og:site_name" content="Valentino Egidi Immobiliare">
 <meta property="og:title" content="Valentino Egidi Immobiliare · Prima i documenti. Poi il prezzo.">
-<meta property="og:description" content="Compravendite e investimenti nel centro di Roma. Per affittare c'è BOOM, il marchio di Egidi Immobiliare.">
+<meta property="og:description" content="Vendite, acquisti e investimenti nel centro di Roma. Per affittare c'è BOOM, il marchio di Egidi Immobiliare.">
 <meta property="og:url" content="https://www.egidimmobiliare.it/">
-<meta name="theme-color" content="#070A2B">
+<meta name="theme-color" content="#111D36">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preload" href="/fonts/archivo-wdth.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/fonts/jetbrains-mono.woff2" as="font" type="font/woff2" crossorigin>
@@ -47,25 +47,42 @@
     d.classList.add('js');
     // Anteprima = ogni host che non sia il dominio vero: segnaposto e varianti
     // di colore si vedono solo lì.
+    var q = location.search;
     if (!/(^|\.)egidimmobiliare\.it$/.test(location.hostname)) d.classList.add('anteprima');
-    var c = new URLSearchParams(location.search).get('c');
-    if (d.classList.contains('anteprima') && /^(verde|nero)$/.test(c || '')) d.setAttribute('data-colore', c);
+    var c = (q.match(/[?&]c=([a-z]+)/) || [])[1];
+    if (d.classList.contains('anteprima') && /^(travertino|persiana)$/.test(c || '')) d.setAttribute('data-colore', c);
+    // Il metodo in 3D o coi poster: si decide qui, prima del primo disegno,
+    // così l'altezza della sezione non cambia più dopo.
+    try {
+        var mm = function (s) { return matchMedia(s).matches; }, n = navigator;
+        var forza = /[?&]m3d=forza/.test(q);
+        var off = /[?&]m3d=0/.test(q) || (!forza && (mm('(prefers-reduced-motion: reduce)') || mm('(prefers-reduced-data: reduce)') ||
+            (n.connection && n.connection.saveData) || (n.deviceMemory && n.deviceMemory < 4) || !window.WebGL2RenderingContext));
+        d.classList.add(off ? 'm3d-off' : 'm3d-on');
+    } catch (e) { d.classList.add('m3d-off'); }
 })(document.documentElement);
 </script>
 <style>
 @font-face{font-family:'Archivo';src:url(/fonts/archivo-wdth.woff2) format('woff2-variations'),url(/fonts/archivo-wdth.woff2) format('woff2');font-weight:100 900;font-stretch:62% 125%;font-display:swap}
 @font-face{font-family:'JetBrains Mono';src:url(/fonts/jetbrains-mono.woff2) format('woff2-variations'),url(/fonts/jetbrains-mono.woff2) format('woff2');font-weight:100 800;font-display:swap}
 :root{
-  --carta:#F3F1EC; --carta-2:#E7E4DC; --ink:#0A0A0C; --grigio:#56555C; --grigio-2:#6B6A72;
-  --accento:#2436F5; --notte:#070A2B; --cella:#16208A; --cella-2:#101874;
-  --boom:#060607; --oro:#FFD700; --bianco:#FFFFFF; --nebbia:#C9CAD6;
+  --notte:#111D36; --notte-2:#1B2A45; --notte-3:#24365A; --filo:rgba(197,206,222,.14);
+  --bianco:#FFFFFF; --luce:#F2EFE8; --nebbia:#C5CEDE; --accento-chiaro:#96C0FE;
+  --accento:#173FA4;
+  --carta:#F4F0E8; --carta-2:#E5DFD5; --tile:#FFFFFF; --filo-chiaro:#CFCAC0;
+  --ink:#0D1626; --grigio:#4E5663;
+  --boom:#060607; --oro:#FFD700;
+  --hero-fondo:var(--notte); --hero-luce:#1B2A45; --hero-testo:var(--bianco); --hero-sec:var(--nebbia);
+  --cassa:#0C1222; --vano:#050608; --perno:#1F2025;
+  --flap-su:#1E1F24; --flap-lustro:#232429; --flap-giu:#17181C; --flap-fondo:#131417; --ink-su:#EFEBDF; --ink-giu:#E2DED2;
   --sans:'Archivo','Helvetica Neue',Helvetica,Arial,sans-serif;
   --mono:'JetBrains Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace;
   --ease:cubic-bezier(.16,1,.3,1);
   --w:1280px; --pad:32px; --head:72px;
 }
-html[data-colore=verde]{--accento:#0B7A57;--notte:#03170F;--cella:#0C5A41;--cella-2:#084632}
-html[data-colore=nero]{--accento:#0A0A0C;--notte:#0A0A0C;--cella:#1E1E23;--cella-2:#16161A}
+/* le due alternative, solo in anteprima (?c=) */
+html[data-colore=persiana]{--notte:#0C231A;--notte-2:#153025;--notte-3:#1E3D30;--accento:#245C41;--accento-chiaro:#8CCEB6;--carta:#F4F0E7;--ink:#0F1B16;--hero-luce:#153025;--cassa:#07130D}
+html[data-colore=travertino]{--hero-fondo:#EFE7D9;--hero-luce:#F7F2EA;--hero-testo:#13161A;--hero-sec:#53595F;--notte:#233036;--notte-2:#2C3B42;--notte-3:#36484F;--nebbia:#D0D9DE;--accento-chiaro:#C4D4DB;--accento:#32464F;--carta:#F6F3ED;--ink:#13161A;--cassa:#151B1E}
 *,*::before,*::after{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;scroll-padding-top:calc(var(--head) + 8px)}
 body{margin:0;background:var(--carta);color:var(--ink);font:400 17px/1.6 var(--sans);font-stretch:100%;-webkit-font-smoothing:antialiased}
@@ -75,7 +92,7 @@ h1,h2,h3,p,ul,ol,dl,dd{margin:0}
 ul,ol{padding:0;list-style:none}
 svg{display:block}
 fieldset{border:0;margin:0;padding:0;min-width:0}
-button{font:inherit}
+button{font:inherit;color:inherit}
 .wrap{max-width:var(--w);margin:0 auto;padding-left:var(--pad);padding-right:var(--pad)}
 .mono{font-family:var(--mono);font-weight:500;font-size:12px;letter-spacing:.12em;text-transform:uppercase}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
@@ -84,11 +101,7 @@ button{font:inherit}
 html.anteprima .solo-anteprima{display:revert!important}
 html.anteprima span.solo-anteprima{display:inline-block!important}
 .segnaposto{font-family:var(--mono);font-size:11px;letter-spacing:.08em;border:1px dashed currentColor;padding:2px 7px}
-
-/* la tipografia che respira: larghezza variabile, condensata → espansa */
-.respira{font-stretch:62%;transition:font-stretch 1.6s var(--ease),letter-spacing 1.6s var(--ease)}
-.respira.dentro{font-stretch:125%}
-html:not(.js) .respira{font-stretch:125%}
+[hidden]:not(.passo){display:none!important}
 
 /* bottoni: rettangoli netti, il gesto è la freccia */
 .btn{display:inline-flex;align-items:center;justify-content:space-between;gap:18px;min-height:56px;padding:0 22px;border:1.5px solid currentColor;border-radius:4px;font:600 15px/1 var(--sans);font-stretch:105%;letter-spacing:.01em;text-decoration:none;cursor:pointer;background:transparent;color:inherit;transition:background-color .3s var(--ease),color .3s var(--ease),border-color .3s var(--ease)}
@@ -97,197 +110,293 @@ html:not(.js) .respira{font-stretch:125%}
 .btn-accento{background:var(--accento);border-color:var(--accento);color:var(--bianco)}
 .btn-bianco{background:var(--bianco);border-color:var(--bianco);color:var(--ink)}
 .btn-oro{background:var(--oro);border-color:var(--oro);color:var(--boom)}
-.btn-ink{background:var(--ink);border-color:var(--ink);color:var(--bianco)}
 
-/* testata */
+/* testata: trasparente sull'hero, velata sulle sezioni scure, chiara sulla carta, nera nell'atto BOOM */
 header{position:fixed;top:0;left:0;right:0;z-index:40;color:var(--bianco);transition:background-color .4s var(--ease),color .4s var(--ease),box-shadow .4s var(--ease)}
-header.chiara{background:rgba(243,241,236,.9);-webkit-backdrop-filter:saturate(1.4) blur(14px);backdrop-filter:saturate(1.4) blur(14px);color:var(--ink);box-shadow:0 1px 0 rgba(10,10,12,.08)}
+header.scura{background:linear-gradient(180deg,rgba(17,29,54,.94) 0,rgba(17,29,54,.78) 72%,rgba(17,29,54,0));-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+header.chiara{background:rgba(244,240,232,.92);-webkit-backdrop-filter:saturate(1.4) blur(14px);backdrop-filter:saturate(1.4) blur(14px);color:var(--ink);box-shadow:0 1px 0 rgba(13,22,38,.08)}
+header.boom{background:rgba(6,6,7,.9);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);color:var(--bianco)}
+html[data-colore=travertino] header:not(.scura):not(.chiara):not(.boom){color:var(--ink)}
 .testata{height:var(--head);display:flex;align-items:center;justify-content:space-between;gap:24px}
 .marchio{display:flex;flex-direction:column;gap:5px;text-decoration:none;line-height:1}
 .marchio b{font-weight:700;font-stretch:125%;font-size:15px;letter-spacing:.2em;white-space:nowrap}
-.marchio span{font-family:var(--mono);font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;opacity:.8}
+.marchio span{font-family:var(--mono);font-size:11px;letter-spacing:.22em;text-transform:uppercase}
+header:not(.chiara) .marchio span{color:var(--nebbia)}
+header.chiara .marchio span{color:var(--grigio)}
+html[data-colore=travertino] header:not(.scura):not(.chiara):not(.boom) .marchio span{color:var(--hero-sec)}
 .voci{display:flex;gap:28px;align-items:center}
 .voci a{text-decoration:none;font-size:14.5px;font-weight:500;padding:6px 0;background:linear-gradient(currentColor,currentColor) 0 100%/0 1px no-repeat;transition:background-size .35s var(--ease)}
 .voci a:hover{background-size:100% 1px}
-.voci .a-boom{display:inline-flex;align-items:center;gap:8px}
-.voci .a-boom::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--oro);box-shadow:0 0 0 1.5px var(--boom)}
+.voci a.a-boom{padding:7px 10px;border-radius:3px;background:#060607;color:#FFD700;font-weight:600;box-shadow:inset 0 0 0 1px rgba(255,215,0,.35)}
 .azioni-testata{display:flex;align-items:center;gap:14px}
 .azioni-testata .btn{min-height:44px;padding:0 16px;font-size:14px}
 header:not(.chiara) .azioni-testata .btn{background:var(--bianco);border-color:var(--bianco);color:var(--ink)}
-header.chiara .azioni-testata .btn{background:var(--accento);border-color:var(--accento);color:var(--bianco)}
+header.chiara .azioni-testata .btn,html[data-colore=travertino] header:not(.scura):not(.boom) .azioni-testata .btn{background:var(--accento);border-color:var(--accento);color:var(--bianco)}
 .menu{display:none;position:relative}
 .menu summary{list-style:none;cursor:pointer;min-height:44px;display:flex;align-items:center;gap:10px;font-size:15px;font-weight:500}
 .menu summary::-webkit-details-marker{display:none}
 .menu summary i{width:22px;height:10px;border-top:1.5px solid currentColor;border-bottom:1.5px solid currentColor}
 .menu:not([open]) .voci{display:none}
-.menu[open] .voci{position:absolute;right:0;top:54px;flex-direction:column;align-items:stretch;gap:0;background:var(--carta);color:var(--ink);border-radius:6px;padding:8px;min-width:240px;box-shadow:0 24px 60px -24px rgba(10,10,12,.45)}
+.menu[open] .voci{position:absolute;right:0;top:54px;flex-direction:column;align-items:stretch;gap:0;background:var(--carta);color:var(--ink);border-radius:6px;padding:8px;min-width:250px;box-shadow:0 24px 60px -24px rgba(13,22,38,.45)}
 .menu[open] .voci a{padding:13px 14px;background:none}
 .menu[open] .voci a:hover{background:var(--carta-2)}
-.barra{position:fixed;top:0;left:0;height:2px;width:100%;background:var(--oro);transform-origin:0 50%;transform:scaleX(0);z-index:50}
+.menu[open] .voci a.a-boom{background:#060607;color:#FFD700;margin-top:6px}
+.barra{position:fixed;top:0;left:0;height:2px;width:100%;background:var(--accento-chiaro);transform-origin:0 50%;transform:scaleX(0);z-index:50;transition:background-color .3s linear}
+html.testata-chiara .barra{background:var(--accento)}
+html.testata-boom .barra{background:var(--oro)}
 
-/* HERO: il tabellone */
-.hero{position:relative;isolation:isolate;min-height:100vh;min-height:100svh;background:var(--notte);color:var(--bianco);padding:calc(var(--head) + 44px) 0 56px;overflow:hidden;display:flex;align-items:center}
-.hero::before{content:'';position:absolute;inset:0;z-index:-1;background:radial-gradient(90% 70% at 85% 10%,color-mix(in srgb,var(--accento) 55%,transparent),transparent 60%),radial-gradient(60% 50% at 0% 100%,color-mix(in srgb,var(--accento) 25%,transparent),transparent 70%)}
-.hero::after{content:'';position:absolute;inset:0;z-index:-1;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:64px 64px;-webkit-mask:radial-gradient(80% 80% at 50% 40%,#000,transparent);mask:radial-gradient(80% 80% at 50% 40%,#000,transparent)}
+/* HERO */
+.hero{position:relative;isolation:isolate;min-height:100vh;min-height:100svh;background:radial-gradient(120% 90% at 72% 18%,var(--hero-luce) 0%,var(--hero-fondo) 62%);color:var(--hero-testo);padding:calc(var(--head) + 28px) 0 44px;display:flex;align-items:center}
 .hero .wrap{width:100%}
-.hero-alto{display:flex;justify-content:space-between;align-items:baseline;gap:20px;color:var(--nebbia)}
-.orologio{font-variant-numeric:tabular-nums}
-.titolo{margin:28px 0 22px;font-weight:300;font-size:clamp(48px,7.4vw,118px);line-height:.94;letter-spacing:-.02em;text-wrap:balance}
-.titolo .r1{display:block}
-.titolo .r2{display:block;font-weight:800;font-stretch:62%;text-transform:uppercase;letter-spacing:-.01em}
-.hero .sotto{font-size:18px;line-height:1.55;max-width:36em;color:var(--nebbia)}
-.hero .sotto b{font-weight:600;color:var(--bianco)}
-
-.tabellone{margin-top:40px;--cw:clamp(22px,2.45vw,38px);border-top:1px solid rgba(255,255,255,.14)}
-.tab-testa{display:grid;grid-template-columns:calc(var(--cw) * 9 + 24px) minmax(0,1fr) 190px 40px;gap:0 20px;padding:14px 0 10px;color:var(--nebbia);font-size:11px}
-.riga{display:grid;grid-template-columns:calc(var(--cw) * 9 + 24px) minmax(0,1fr) 190px 40px;gap:0 20px;align-items:center;padding:10px 0;border-top:1px solid rgba(255,255,255,.08);text-decoration:none;transition:background-color .3s var(--ease)}
-.riga:hover{background:rgba(255,255,255,.04)}
-.celle{display:flex;gap:3px}
-.f{position:relative;flex:none;width:var(--cw);height:calc(var(--cw) * 1.42);display:grid;place-items:center;border-radius:3px;background:linear-gradient(180deg,var(--cella) 0 50%,var(--cella-2) 50% 100%);font:700 calc(var(--cw) * .74)/1 var(--mono);color:var(--bianco);box-shadow:inset 0 -1px 0 rgba(0,0,0,.35),0 1px 0 rgba(255,255,255,.05)}
-.f::after{content:'';position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(0,0,0,.55)}
-.f b{display:block;font-weight:inherit;transform-origin:50% 50%}
-.f.gira b{animation:flap .09s linear}
-@keyframes flap{0%{transform:scaleY(1)}50%{transform:scaleY(.08)}100%{transform:scaleY(1)}}
-.riga.a-boom .f{background:linear-gradient(180deg,#141416 0 50%,#0b0b0d 50% 100%);color:var(--oro)}
-.dest{font-weight:700;font-stretch:115%;font-size:clamp(18px,1.9vw,28px);letter-spacing:.04em;text-transform:uppercase}
-.riga.a-boom .dest{color:var(--oro)}
-.cosa{font-size:11.5px;color:var(--nebbia)}
-.freccia{font-size:22px;text-align:right;transition:transform .35s var(--ease)}
-.riga:hover .freccia{transform:translateX(6px)}
-.hero-basso{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;margin-top:34px}
-.ferma{display:inline-flex;align-items:center;gap:10px;background:none;border:0;color:var(--nebbia);font:500 11.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;cursor:pointer;padding:10px 0}
+.hero-alto{color:var(--hero-sec)}
+.titolo{margin:18px 0 16px;font-size:clamp(44px,6vw,96px);line-height:.94;letter-spacing:-.02em;text-wrap:balance}
+.titolo .r1{display:block;font-weight:300;font-stretch:104%}
+.titolo .r2{display:block;font-weight:800;font-stretch:62%;text-transform:uppercase;letter-spacing:-.005em}
+.hero .sotto{font-size:18px;line-height:1.55;max-width:38em;color:var(--hero-sec)}
+.hero .sotto b{font-weight:600;color:var(--hero-testo)}
+.hero-basso{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;margin-top:22px}
+html[data-colore=travertino] .hero .btn-bianco{background:var(--accento);border-color:var(--accento);color:var(--bianco)}
+.ferma{display:inline-flex;align-items:center;gap:10px;background:none;border:0;color:var(--hero-sec);font:500 12px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;cursor:pointer;padding:12px 0;min-height:44px}
 .ferma i{width:10px;height:12px;border-left:3px solid currentColor;border-right:3px solid currentColor}
 .ferma[aria-pressed=true] i{border-right:0;border-left:10px solid currentColor;border-top:6px solid transparent;border-bottom:6px solid transparent;width:0;height:0}
 
-/* sezioni */
-section{padding:128px 0}
-.kicker{color:var(--accento);display:flex;align-items:center;gap:12px}
-.kicker::before{content:'';width:28px;height:2px;background:currentColor}
-h2{font-weight:300;font-size:clamp(40px,5.8vw,92px);line-height:.98;letter-spacing:-.025em;margin-top:22px;text-wrap:balance}
+/* il tabellone delle partenze: una cassa, palette antracite che cadono davvero */
+.tabellone{--cw:clamp(24px,2.45vw,36px);margin-top:28px;padding:10px 18px 6px;background:var(--cassa);color:var(--luce);border:1px solid rgba(255,255,255,.06);border-radius:6px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 40px 80px -40px rgba(0,0,0,.7)}
+.tab-cima{display:flex;justify-content:space-between;align-items:center;padding:4px 0 10px;border-bottom:1px solid rgba(255,255,255,.06);color:#C5CEDE;font:500 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase}
+.tab-testa,.riga{display:grid;grid-template-columns:calc(var(--cw) * 9 + 32px) 56px minmax(0,1fr) 220px 28px;gap:0 18px;align-items:center}
+.tab-testa{padding:10px 0 8px;color:#C5CEDE;font:500 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase}
+.riga{padding:8px 0;border-top:1px solid rgba(255,255,255,.06);text-decoration:none;color:#F2EFE8;transition:background-color .3s var(--ease)}
+.riga:hover{background:rgba(255,255,255,.035)}
+.riga .volo{font:500 12px/1 var(--mono);letter-spacing:.08em;color:#C5CEDE}
+.riga .dest{font:600 16px/1.2 var(--sans);font-stretch:100%}
+.riga .cosa{font-size:13px;line-height:1.35;color:#C5CEDE}
+.riga .freccia{font-size:20px;text-align:right;color:#C5CEDE;transition:transform .35s var(--ease)}
+.riga:hover .freccia{transform:translateX(6px)}
+.riga.a-boom{margin:0 -18px;padding:8px 18px;background:#060607;box-shadow:inset 3px 0 0 #FFD700;--flap-su:#141416;--flap-lustro:#18181A;--flap-giu:#0B0B0D;--flap-fondo:#08080A;--ink-su:#FFD700;--ink-giu:#F2CC00}
+.riga.a-boom .dest,.riga.a-boom .volo,.riga.a-boom .freccia{color:#FFD700}
+.riga.a-boom .cosa{color:#D9D6CE}
+.celle{display:flex;gap:4px;padding:5px;margin:-5px;border-radius:5px;background:var(--vano);box-shadow:inset 0 1px 0 rgba(255,255,255,.04),inset 0 -1px 0 rgba(0,0,0,.6)}
+.f{--h:calc(var(--cw) * 1.42);position:relative;flex:none;width:var(--cw);height:var(--h);perspective:calc(var(--cw) * 7);font:700 calc(var(--cw) * 1.22)/1 var(--sans);font-stretch:64%;contain:size layout style}
+.f>b{position:absolute;inset:0;display:grid;place-items:center;font-weight:inherit;border-radius:3px;color:var(--ink-su);background:linear-gradient(180deg,var(--flap-su) calc(50% - 1px),var(--vano) 0 calc(50% + 1px),var(--flap-giu) 0)}
+html.js .tabellone:not(.pronto) .f>b{color:transparent;animation:rivela 0s 2.5s forwards}
+html.js .orologio .f>b{color:transparent;animation:none}
+html:not(.js) .orologio{display:none}
+@keyframes rivela{to{color:var(--ink-su)}}
+.f::before,.f::after{content:'';position:absolute;top:calc(50% - var(--cw) * .13);width:1.5px;height:calc(var(--cw) * .26);background:var(--perno);border-radius:1px}
+.f::before{left:-2.75px}.f::after{right:-2.75px}
+.f .m{position:absolute;left:0;right:0;top:0;height:calc(50% - 1px);overflow:hidden;background:linear-gradient(180deg,var(--flap-lustro),var(--flap-su) 40%);color:var(--ink-su);border-radius:3px 3px 1px 1px}
+.f .m.giu{top:calc(50% + 1px);background:linear-gradient(180deg,var(--flap-giu) 60%,var(--flap-fondo));color:var(--ink-giu);border-radius:1px 1px 3px 3px}
+.f>.m.su{box-shadow:0 -1px 0 #0B0C0E,0 -2px 0 rgba(255,255,255,.035)}
+.f>.m.giu{box-shadow:0 1px 0 #0B0C0E,0 2px 0 rgba(255,255,255,.03)}
+.f .m i{position:absolute;left:0;right:0;top:0;height:var(--h);display:grid;place-items:center;font-style:normal}
+.f .m.giu i{top:auto;bottom:0}
+.f .m u{position:absolute;inset:0;background:#000;opacity:0;pointer-events:none}
+.f>.m.su u{background:linear-gradient(0deg,#000,transparent 85%)}
+.f>.m.giu u{background:linear-gradient(180deg,#000,transparent 75%)}
+.f .pala{position:absolute;left:0;right:0;top:0;height:calc(50% - 1px);transform-origin:50% calc(100% + 1px);transform-style:preserve-3d}
+.f .pala .m{height:100%;-webkit-backface-visibility:hidden;backface-visibility:hidden;transform:rotateX(0deg)}
+.f .pala .m.giu{top:0;transform:rotateX(180deg)}
+.orologio{display:inline-flex;align-items:center;gap:10px}
+.orologio .celle{--cw:13px;gap:3px;padding:3px;margin:-3px}
+.orologio .celle i.dp{font:700 12px/1 var(--sans);color:var(--ink-giu);align-self:center;padding:0 1px;font-style:normal}
+@media (forced-colors:active){.f,.f .m{forced-color-adjust:none}}
+
+/* sezioni e titoli: scala chiusa 96 · 64 · 40 · 24 · 17 · 13 · 11 */
+section{padding:120px 0}
+.kicker{font-family:var(--mono);font-weight:500;font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accento);display:flex;align-items:center;gap:12px}
+.kicker::before{content:'';width:24px;height:2px;background:currentColor}
+h2{font-weight:300;font-size:clamp(36px,4.6vw,64px);line-height:1;letter-spacing:-.02em;margin-top:20px;text-wrap:balance}
 h2 strong{font-weight:800;font-stretch:62%;text-transform:uppercase;letter-spacing:0}
 h2 em{font-style:normal;color:var(--accento)}
-.lead{font-size:19px;line-height:1.55;color:var(--grigio);max-width:36em;margin-top:24px}
-.rv{transition:opacity .9s var(--ease),transform .9s var(--ease)}
-html.js .rv:not(.dentro){opacity:0;transform:translateY(24px)}
+.lead{font-size:18px;line-height:1.55;color:var(--grigio);max-width:36em;margin-top:22px}
+.scuro{background:var(--notte);color:var(--bianco)}
+.scuro .kicker{color:var(--accento-chiaro)}
+.scuro .lead{color:var(--nebbia)}
+.scuro h2 em{color:var(--accento-chiaro)}
 
-/* due case */
-.due{display:flex;gap:14px;margin-top:56px;min-height:540px}
-.casa{flex:1;border-radius:6px;padding:40px;display:flex;flex-direction:column;position:relative;overflow:hidden;transition:flex-grow .7s var(--ease)}
-.due:hover .casa{flex-grow:.82}
-.due .casa:hover{flex-grow:1.3}
-.casa-egidi{background:var(--accento);color:var(--bianco)}
-.casa-boom{background:var(--boom);color:var(--bianco)}
-.casa h3{font-weight:800;font-stretch:62%;text-transform:uppercase;font-size:clamp(40px,4.6vw,72px);line-height:.92;margin:18px 0 26px;letter-spacing:0}
+/* una società, due case */
+.due{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-top:48px}
+.casa{border-radius:6px;padding:36px;display:flex;flex-direction:column;min-height:360px;position:relative;overflow:hidden}
+.casa-egidi{background:var(--notte-2);color:var(--luce)}
+.casa-boom{background:var(--boom);color:var(--luce)}
+.casa .marca{font-family:var(--mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase}
+.casa-egidi .marca{color:var(--accento-chiaro)}
+.casa-boom .marca{color:var(--oro)}
+.casa h3{font-weight:800;font-stretch:62%;text-transform:uppercase;font-size:clamp(34px,3.6vw,52px);line-height:.94;margin:14px 0 22px;letter-spacing:0}
 .casa-boom h3{color:var(--oro)}
-.casa ul{display:grid;gap:13px;font-size:16.5px;max-width:24em;position:relative;z-index:1}
-.casa li{display:flex;gap:14px;align-items:baseline}
-.casa li::before{content:'';flex:none;width:16px;height:2px;background:currentColor;transform:translateY(-4px)}
-.casa .btn{margin-top:auto;align-self:flex-start;position:relative;z-index:1}
-.casa .grande{position:absolute;right:-8px;bottom:-30px;font-weight:900;font-stretch:125%;font-size:200px;line-height:1;color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.22);pointer-events:none}
-.casa-boom .grande{-webkit-text-stroke-color:rgba(255,215,0,.35)}
-.frase-boom{margin-top:26px;font-size:15px;color:var(--grigio);max-width:44em}
+.casa ul{display:grid;gap:11px;font-size:16px;max-width:26em}
+.casa li{display:flex;gap:14px;align-items:baseline;color:var(--nebbia)}
+.casa li::before{content:'';flex:none;width:14px;height:2px;transform:translateY(-4px)}
+.casa-egidi li::before{background:var(--accento-chiaro)}
+.casa-boom li::before{background:var(--oro)}
+.casa .btn{margin-top:28px;align-self:flex-start}
+.casa-egidi .btn{background:var(--bianco);border-color:var(--bianco);color:var(--ink)}
+.frase-boom{margin-top:22px;font-size:15px;color:var(--grigio);max-width:46em}
 
-/* il metodo: il modello racconta, lo scroll comanda (sticky, niente dirottamento) */
-.metodo{background:var(--notte);color:var(--bianco);padding-bottom:0}
-.metodo .kicker{color:var(--nebbia)}
-.metodo .lead{color:var(--nebbia)}
-.atti{position:relative;height:460vh;margin-top:40px}
-.palco{position:sticky;top:var(--head);height:calc(100vh - var(--head));display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:40px;align-items:center}
-.atto-lista{position:relative;height:320px}
-.atto{position:absolute;inset:0;opacity:0;transform:translateY(20px);transition:opacity .6s var(--ease),transform .6s var(--ease)}
-.atto.su{opacity:1;transform:none}
-.atto .num{font-family:var(--mono);font-size:13px;color:var(--oro);letter-spacing:.14em}
-.atto h3{font-weight:800;font-stretch:62%;text-transform:uppercase;font-size:clamp(44px,5vw,78px);line-height:.92;margin:14px 0 18px}
-.atto p{font-size:18px;color:var(--nebbia);max-width:26em}
+/* IL METODO: la scena segue lo scroll, lo scroll non viene mai toccato */
+.metodo{--t:0;--fondo:var(--notte);background:var(--fondo);color:var(--bianco);padding-bottom:0}
+@supports (background:color-mix(in oklab,red,blue)){.metodo{--fondo:color-mix(in oklab,var(--notte),var(--boom) calc(var(--t) * 100%))}}
+@supports not (background:color-mix(in oklab,red,blue)){.metodo.s5{--fondo:var(--boom);transition:background-color .7s linear}}
+.metodo .kicker{color:var(--accento-chiaro)}
+.metodo-testa{padding-bottom:36px}
+.atti{position:relative;height:680vh}
+html.m3d-off .atti{height:420vh}
+.palco{position:sticky;top:var(--head);height:calc(100vh - var(--head));overflow:hidden}
+.m3d-strato{position:absolute;inset:0;pointer-events:none}
+.m3d-tela{position:absolute;inset:0;width:100%;height:100%;display:block;opacity:0;transition:opacity .4s linear}
+html.m3d-pronto .m3d-tela{opacity:1}
+html.m3d-off .m3d-tela,html.m3d-ripiego .m3d-tela{display:none}
+.m3d-poster{position:absolute;left:40%;width:56%;top:50%;height:auto;aspect-ratio:4/3;object-fit:contain;transform:translateY(-50%);transition:opacity .4s linear}
+html.m3d-pronto .m3d-poster{opacity:0}
+.m3d-strato::after{content:'';position:absolute;inset:0;background:linear-gradient(90deg,color-mix(in oklab,var(--fondo) 92%,transparent) 0,color-mix(in oklab,var(--fondo) 92%,transparent) 30%,color-mix(in oklab,var(--fondo) 85%,transparent) 38%,transparent 56%)}
+html.m3d-off .m3d-strato::after,html.m3d-ripiego .m3d-strato::after{display:none}
+.m3d-tag{position:absolute;right:20px;bottom:16px;font:500 11px/1.3 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--nebbia);background:rgba(17,29,54,.7);padding:6px 9px;border-radius:3px;z-index:2}
+.m3d-eti-box,.m3d-pin,.m3d-mirino,.m3d-lampo{display:none}
+html.m3d-pronto .m3d-eti-box{display:block;position:absolute;inset:0;z-index:1}
+.m3d-eti{position:absolute;left:0;top:0;transform:translate(-50%,-50%);display:grid;gap:2px;padding:5px 8px;border-radius:3px;background:rgba(17,29,54,.84);color:var(--luce);font:500 11px/1.25 var(--mono);letter-spacing:.06em;text-align:center;white-space:nowrap;opacity:0;transition:opacity .25s linear}
+.m3d-eti b{font-weight:700;letter-spacing:.12em;text-transform:uppercase}
+.m3d-eti i{font-style:normal;color:var(--accento-chiaro)}
+.m3d-eti.accesa{opacity:1}
+html.m3d-pronto .m3d-pin{display:inline-flex;position:absolute;left:0;top:0;z-index:2;align-items:center;gap:8px;padding:7px 11px;border-radius:3px;background:var(--luce);color:var(--ink);font:600 11.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;box-shadow:0 12px 30px -12px rgba(0,0,0,.6);opacity:0;transition:opacity .3s linear;will-change:transform}
+.m3d-pin::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--accento)}
+html.m3d-pronto .m3d-pin.acceso{opacity:1}
+.m3d-pin[data-pin=noncombacia]{background:var(--nebbia)}
+.m3d-pin.boom{background:#FFD700;color:#060607}
+.m3d-pin.boom::before{background:#060607}
+html.m3d-pronto .m3d-mirino{display:block;position:absolute;left:44%;right:5%;top:12%;bottom:12%;z-index:1;opacity:0;transition:opacity .2s linear}
+html.m3d-pronto .m3d-mirino.acceso{opacity:1}
+.m3d-mirino i{position:absolute;width:18px;height:18px;border-color:var(--luce);border-style:solid;border-width:0}
+.m3d-mirino i:nth-child(1){left:0;top:0;border-left-width:2px;border-top-width:2px}
+.m3d-mirino i:nth-child(2){right:0;top:0;border-right-width:2px;border-top-width:2px}
+.m3d-mirino i:nth-child(3){left:0;bottom:0;border-left-width:2px;border-bottom-width:2px}
+.m3d-mirino i:nth-child(4){right:0;bottom:0;border-right-width:2px;border-bottom-width:2px}
+.m3d-mirino span{position:absolute;right:0;top:-24px;font:500 11px/1 var(--mono);letter-spacing:.14em;color:var(--luce)}
+html.m3d-pronto .m3d-lampo{display:block;position:absolute;inset:0;background:#fff;opacity:0;z-index:3}
+.m3d-lampo.via{animation:lampo .18s linear}
+@keyframes lampo{0%{opacity:0}35%{opacity:.35}100%{opacity:0}}
+.palco-testo{position:relative;z-index:2;height:100%;display:flex;flex-direction:column;justify-content:center;pointer-events:none}
+.palco-testo a,.palco-testo button,.palco-testo .atto{pointer-events:auto}
+.salta{position:absolute;left:var(--pad);top:14px;padding:10px 14px;border-radius:3px;background:var(--luce);color:var(--ink);font:600 14px/1 var(--sans);text-decoration:none;transform:translateY(-200%);transition:transform .2s var(--ease)}
+.salta:focus{transform:none}
+.atti-testi{position:relative;height:340px;max-width:30em}
+.atto{position:absolute;left:0;right:0;top:0}
+html.js .atto:not(:first-child){opacity:0}
+.atto .num{font-family:var(--mono);font-size:12px;color:var(--accento-chiaro);letter-spacing:.16em}
+.atto h3{font-weight:800;font-stretch:62%;text-transform:uppercase;font-size:clamp(36px,4.2vw,64px);line-height:.94;margin:12px 0 16px;letter-spacing:0}
+.atto p{font-size:17px;color:var(--nebbia)}
 .atto p a{color:var(--bianco)}
-.segni{display:flex;gap:6px;margin-top:28px}
-.segni i{width:36px;height:3px;background:rgba(255,255,255,.18);transition:background-color .4s var(--ease)}
-.segni i.su{background:var(--oro)}
+.atto-5 .num{color:var(--oro)}
+.m3d-extra{margin-top:18px;font:500 12px/1.5 var(--mono);letter-spacing:.06em;color:var(--luce)}
+.m3d-lista,.tappe{display:flex;flex-wrap:wrap;gap:8px}
+.m3d-lista li,.tappe li{display:inline-flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--filo);border-radius:3px;text-transform:uppercase;letter-spacing:.1em;font-size:11.5px}
+.m3d-lista li::before,.tappe li::before{content:'';width:10px;height:10px;border-radius:50%;border:1.5px solid var(--nebbia);transition:background-color .25s linear,border-color .25s linear}
+.m3d-lista li.fatto::before,.tappe li.fatto::before{background:var(--accento-chiaro);border-color:var(--accento-chiaro)}
+.timbro{display:inline-block;margin-top:12px;padding:6px 10px;border:1.5px solid var(--accento-chiaro);border-radius:3px;color:var(--accento-chiaro);text-transform:uppercase;letter-spacing:.12em;font-size:11px;transform-origin:0 50%}
+html.m3d-pronto .timbro{opacity:0}
+.provini{display:none}
+html.m3d-pronto .provini{display:flex;gap:8px;margin-top:16px}
+.provini canvas{width:112px;height:75px;border-radius:2px;background:var(--notte-2);box-shadow:0 0 0 1px var(--filo);opacity:0;transition:opacity .3s linear}
+.provini canvas.preso{opacity:1}
+.binario{display:flex;gap:6px;margin-top:22px}
+.binario a{display:flex;align-items:flex-end;height:44px;width:40px;text-decoration:none}
+.binario a span{display:block;width:100%;height:3px;background:rgba(255,255,255,.2);transition:background-color .3s linear}
+.binario a.su span{background:var(--accento-chiaro)}
+.binario a.ultimo{margin-left:16px}
+.binario a.ultimo.su span{background:var(--oro)}
+.binario a:focus-visible{outline-offset:2px}
+.diag{position:fixed;left:12px;bottom:12px;z-index:60;background:rgba(0,0,0,.8);color:#9f9;font:500 11px/1.4 var(--mono);padding:8px 10px;border-radius:4px;white-space:pre;pointer-events:none}
+/* senza JS: gli atti impilati, ognuno col suo poster */
 html:not(.js) .atti{height:auto}
-html:not(.js) .palco{position:static;height:auto;grid-template-columns:1fr}
-html:not(.js) .atto-lista{height:auto;display:grid;gap:40px}
-html:not(.js) .atto{position:static;opacity:1;transform:none}
+html:not(.js) .palco{position:static;height:auto;overflow:visible}
+html:not(.js) .m3d-strato,html:not(.js) .binario{display:none}
+html:not(.js) .palco-testo{height:auto;padding-bottom:80px}
+html:not(.js) .atti-testi{height:auto;max-width:none;display:grid;gap:56px}
+html:not(.js) .atto{position:static}
+.atto noscript img{display:block;width:100%;max-width:720px;height:auto;margin-top:22px;border-radius:4px}
 
-.scena{position:relative;height:min(64vh,560px);perspective:1500px;display:grid;place-items:center}
-.modello{--rz:-38deg;--rx:57deg;--tz:0em;position:relative;width:380em;height:280em;font-size:1.25px;transform-style:preserve-3d;transform:rotateX(var(--rx)) rotateZ(var(--rz)) translateZ(var(--tz));transition:transform 1.2s var(--ease)}
-.ombra{position:absolute;inset:-8%;background:radial-gradient(closest-side,rgba(0,0,0,.5),transparent);transform:translateZ(-50em);filter:blur(12px)}
-.lastra{position:absolute;inset:0;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.8);transform-style:preserve-3d;transition:border-color .8s var(--ease)}
-.stanza{position:absolute;background:rgba(255,255,255,.05);transition:background-color .8s var(--ease)}
-.muro{position:absolute;height:12em;transform-origin:0 0;background:linear-gradient(to bottom,rgba(255,255,255,.3),rgba(255,255,255,.08));border:1.5px solid rgba(255,255,255,.85);border-bottom:0;transform:rotateZ(var(--a,0deg)) rotateX(90deg);transition:height 1.1s var(--ease),background .8s var(--ease),border-color .8s var(--ease)}
-.muro.basso{--h:34em}
-.foglio3d{position:absolute;width:74em;height:96em;background:var(--bianco);border-radius:2em;transform-style:preserve-3d;transform:translateZ(260em) rotateX(-20deg);opacity:0;transition:transform 1.1s var(--ease),opacity .6s var(--ease);box-shadow:0 20em 40em rgba(0,0,0,.35);padding:10em 9em}
-.foglio3d i{display:block;height:4em;background:#D5D6E2;margin-bottom:7em;border-radius:1em}
-.foglio3d i:first-child{width:60%;background:var(--accento)}
-.foglio3d::after{content:'';position:absolute;right:-12em;top:-12em;width:34em;height:34em;border-radius:50%;background:var(--oro);box-shadow:inset 0 0 0 4em rgba(0,0,0,.08)}
-.etichetta{position:absolute;transform-style:preserve-3d;transform:translateZ(var(--z,150em))}
-.etichetta > span{display:block;transform:rotateZ(calc(-1 * var(--rz))) rotateX(calc(-1 * var(--rx)));transform-origin:50% 100%;transition:transform 1.2s var(--ease)}
-.pin{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;padding:7px 12px;border-radius:4px;background:var(--bianco);color:var(--ink);font:600 11.5px/1 var(--mono);font-style:normal;letter-spacing:.08em;text-transform:uppercase;box-shadow:0 12px 30px -12px rgba(0,0,0,.6);opacity:0;transform:translateY(10px);transition:opacity .5s var(--ease),transform .5s var(--ease),background-color .5s var(--ease)}
-.pin::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--accento)}
-/* gli stati: 1 valutazione · 2 documenti · 3 presentazione · 4 rogito · 5 BOOM */
-.s1 .stanza:nth-child(1){background:color-mix(in srgb,var(--accento) 70%,transparent)}
-.s1 .stanza:nth-child(2){background:color-mix(in srgb,var(--accento) 45%,transparent)}
-.s1 .stanza:nth-child(3){background:color-mix(in srgb,var(--accento) 30%,transparent)}
-.s1 .stanza:nth-child(4){background:color-mix(in srgb,var(--accento) 55%,transparent)}
-.s1 .stanza:nth-child(5){background:color-mix(in srgb,var(--accento) 20%,transparent)}
-.s1 .p1,.s2 .p2,.s3 .p3,.s4 .p4,.s5 .p5{opacity:1;transform:none}
-.s2 .muro,.s3 .muro,.s4 .muro,.s5 .muro{height:var(--h,86em)}
-.s2 .foglio3d{opacity:1}
-.s2 .foglio3d.d1{transform:translateZ(150em) translateX(-40em) rotateX(-8deg) rotateZ(-6deg)}
-.s2 .foglio3d.d2{transform:translateZ(190em) translateX(10em) rotateX(-8deg) rotateZ(4deg)}
-.s2 .foglio3d.d3{transform:translateZ(230em) translateX(60em) rotateX(-8deg) rotateZ(-2deg)}
-.s3 .modello,.s3.modello{--rz:-128deg}
-.s4.modello{--rz:-218deg;--tz:40em}
-.s5.modello{--rz:-398deg;--tz:0em}
-.s5 .muro{border-color:var(--oro);background:linear-gradient(to bottom,rgba(255,215,0,.32),rgba(255,215,0,.06))}
-.s5 .lastra{border-color:var(--oro)}
-.s5 .stanza:nth-child(odd){background:rgba(255,215,0,.14)}
-.s5 .pin{background:var(--oro);color:var(--boom)}
-.s5 .pin::before{background:var(--boom)}
-html:not(.js) .muro{height:var(--h,86em)}
+/* Valentino */
+.persona{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:64px;align-items:center}
+.targa{position:relative;aspect-ratio:16/11;border-radius:6px;background:linear-gradient(135deg,#223252 0%,var(--notte-2) 45%,#16233B 100%);box-shadow:inset 0 1px 0 rgba(255,255,255,.08),inset 0 -2px 0 rgba(0,0,0,.35),0 40px 70px -40px rgba(13,22,38,.7);display:flex;flex-direction:column;justify-content:center;align-items:center;gap:12px;text-align:center;color:var(--luce);overflow:hidden}
+.targa::before{content:'';position:absolute;inset:14px;border:1px solid rgba(242,239,232,.18);border-radius:3px}
+.targa .n{font-weight:700;font-stretch:125%;font-size:clamp(22px,2.6vw,36px);letter-spacing:.22em;text-shadow:0 1px 0 rgba(0,0,0,.5),0 -1px 0 rgba(255,255,255,.08)}
+.targa .s{font-family:var(--mono);font-size:12px;letter-spacing:.34em;color:var(--nebbia)}
+.targa .i{font-family:var(--mono);font-size:12px;letter-spacing:.16em;color:var(--nebbia);margin-top:10px}
+.targa .v{position:absolute;width:10px;height:10px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#6F7C93,#2A3650);box-shadow:inset 0 0 0 1px rgba(0,0,0,.4)}
+.targa .v::after{content:'';position:absolute;left:2px;right:2px;top:4.5px;height:1px;background:rgba(0,0,0,.5);transform:rotate(35deg)}
+.targa .v1{left:24px;top:24px}.targa .v2{right:24px;top:24px}.targa .v3{left:24px;bottom:24px}.targa .v4{right:24px;bottom:24px}
+.targa .segnaposto{position:absolute;left:28px;bottom:44px;color:var(--nebbia)}
+.dati{margin-top:32px;border-top:1px solid rgba(13,22,38,.14)}
+.dati div{display:grid;grid-template-columns:150px minmax(0,1fr);gap:16px;padding:13px 0;border-bottom:1px solid rgba(13,22,38,.1);font-size:16px}
+.dati dt{color:var(--grigio);font:500 12px/1.9 var(--mono);letter-spacing:.08em;text-transform:uppercase}
 
-/* la macchina */
-.macchina-grid{margin-top:56px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
-.tile{background:var(--bianco);border-radius:6px;padding:26px;display:flex;flex-direction:column;gap:16px;min-height:360px;box-shadow:0 0 0 1px rgba(10,10,12,.07)}
-.tile h3{font-weight:700;font-stretch:90%;font-size:21px;line-height:1.15}
-.tile p{font-size:15px;color:var(--grigio)}
-.demo{flex:1;border-radius:4px;background:var(--notte);color:var(--bianco);position:relative;overflow:hidden;display:grid;place-items:center;min-height:170px;padding:18px}
-.demo .mono{font-size:10.5px;color:var(--nebbia)}
-.tag-es{position:absolute;right:10px;top:10px;font:500 9.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--nebbia);border:1px solid rgba(255,255,255,.2);padding:3px 6px;border-radius:2px}
-.firma-svg{width:100%;max-width:220px}
-.firma-svg path{stroke:var(--oro);stroke-width:2.2;fill:none;stroke-linecap:round;stroke-dasharray:600;stroke-dashoffset:600;transition:stroke-dashoffset 2.4s var(--ease)}
-.dentro .firma-svg path{stroke-dashoffset:0}
-.cert{width:100%;margin-top:10px;display:grid;gap:4px}
-.cert span{font:500 10.5px/1.4 var(--mono);color:var(--nebbia);opacity:0;transition:opacity .4s var(--ease)}
-.dentro .cert span{opacity:1}
-.dentro .cert span:nth-child(2){transition-delay:.4s}.dentro .cert span:nth-child(3){transition-delay:.8s}
-.docs{width:100%;display:grid;gap:8px}
-.docs li{display:flex;justify-content:space-between;align-items:center;font:500 12px/1 var(--mono);letter-spacing:.06em;padding:9px 10px;border:1px solid rgba(255,255,255,.12);border-radius:3px}
-.docs li i{width:16px;height:16px;border-radius:50%;border:1.5px solid rgba(255,255,255,.35);transition:background-color .3s var(--ease),border-color .3s var(--ease)}
-.dentro .docs li i{background:var(--oro);border-color:var(--oro)}
-.dentro .docs li:nth-child(2) i{transition-delay:.35s}.dentro .docs li:nth-child(3) i{transition-delay:.7s}.dentro .docs li:nth-child(4) i{transition-delay:1.05s}
-.barre{width:100%;height:120px;display:flex;align-items:flex-end;gap:7px}
-.barre i{flex:1;height:8%;background:color-mix(in srgb,var(--accento) 80%,#fff 0%);border-radius:2px 2px 0 0;transition:height 1.2s var(--ease)}
-.barre i.voi{background:var(--oro)}
-.dentro .barre i:nth-child(1){height:38%}.dentro .barre i:nth-child(2){height:55%}.dentro .barre i:nth-child(3){height:47%}.dentro .barre i:nth-child(4){height:72%}.dentro .barre i:nth-child(5){height:64%}.dentro .barre i:nth-child(6){height:86%}.dentro .barre i:nth-child(7){height:58%}
-.pass{width:78%;max-width:200px;border-radius:12px;background:linear-gradient(160deg,#1a1a1f,#0b0b0d);border:1px solid rgba(255,215,0,.35);padding:14px;display:grid;gap:10px;transform:translateY(40px) rotate(-4deg);opacity:0;transition:transform 1s var(--ease),opacity .6s var(--ease)}
-.dentro .pass{transform:none;opacity:1}
-.pass b{font-weight:800;font-stretch:125%;letter-spacing:.18em;color:var(--oro);font-size:13px}
-.pass .rotta{display:flex;justify-content:space-between;font:700 22px/1 var(--mono)}
-.pass .qr{height:34px;background:repeating-linear-gradient(90deg,#fff 0 2px,transparent 2px 5px,#fff 5px 6px,transparent 6px 9px);opacity:.85;border-radius:2px}
+/* la macchina: una console, non quattro cartoline */
+.console{margin-top:48px;display:grid;grid-template-columns:260px minmax(0,1fr);gap:14px;align-items:start}
+.schede{display:grid;gap:6px}
+.scheda-tab{display:flex;gap:14px;align-items:baseline;width:100%;text-align:left;padding:16px 16px;border:1px solid var(--filo);border-radius:4px;background:transparent;color:var(--nebbia);cursor:pointer;font:500 15px/1.3 var(--sans);transition:background-color .25s var(--ease),color .25s var(--ease),border-color .25s var(--ease)}
+.scheda-tab span{font:500 12px/1 var(--mono);letter-spacing:.1em;color:var(--accento-chiaro)}
+.scheda-tab[aria-selected=true]{background:var(--notte-3);color:var(--bianco);border-color:rgba(150,192,254,.4)}
+.pannello{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:0;border-radius:6px;overflow:hidden;background:var(--notte-2);box-shadow:inset 0 0 0 1px var(--filo)}
+.schermo{position:relative;aspect-ratio:16/10;background:radial-gradient(90% 90% at 70% 20%,#223454,var(--notte) 70%);display:grid;place-items:center;padding:28px;overflow:hidden}
+.didascalia{padding:30px 28px;display:flex;flex-direction:column;gap:12px}
+.didascalia h3{font-weight:700;font-stretch:90%;font-size:24px;line-height:1.15;color:var(--bianco)}
+.didascalia p{font-size:15.5px;color:var(--nebbia)}
+.tag-es{position:absolute;left:14px;top:14px;font:500 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--nebbia);border:1px solid rgba(197,206,222,.3);padding:4px 7px;border-radius:2px}
+html:not(.js) .schede{display:none}
+html:not(.js) .pannelli{display:grid;gap:14px}
+.console .pannelli{min-width:0}
+/* firma */
+.firma-box{width:100%;max-width:420px;display:grid;gap:12px}
+.firma-svg{width:100%;height:auto}
+.firma-svg path{stroke:var(--accento-chiaro);stroke-width:2.2;fill:none;stroke-linecap:round;stroke-linejoin:round}
+html.js .firma-svg path{stroke-dasharray:var(--l);stroke-dashoffset:var(--l)}
+html.js .attivo .firma-svg path{animation:traccia var(--d) cubic-bezier(.3,.1,.3,1) var(--r) forwards}
+@keyframes traccia{to{stroke-dashoffset:0}}
+.pad{display:none;width:100%;height:150px;border-radius:4px;background:rgba(242,239,232,.04);box-shadow:inset 0 0 0 1px var(--filo),inset 0 -1px 0 rgba(150,192,254,.5);touch-action:none;cursor:crosshair}
+.firmando .pad{display:block}
+.firmando .firma-svg{display:none}
+.cert{display:grid;gap:3px;font:500 11.5px/1.45 var(--mono);color:var(--nebbia);letter-spacing:.04em}
+.cert b{color:var(--luce);font-weight:500}
+.prova{justify-self:start;background:none;border:1px solid rgba(150,192,254,.5);border-radius:3px;padding:10px 14px;min-height:44px;color:var(--accento-chiaro);font:600 14px/1 var(--sans);cursor:pointer}
+/* fascicolo */
+.fasc{width:100%;max-width:440px;display:grid;gap:7px;counter-reset:f}
+.fasc button{display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;border:1px solid var(--filo);border-radius:3px;background:rgba(242,239,232,.03);cursor:pointer;font:500 12.5px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--luce);text-align:left}
+.fasc button::before{counter-increment:f;content:counter(f,decimal-leading-zero);color:var(--nebbia);width:22px}
+.fasc button i{margin-left:auto;width:18px;height:18px;border-radius:50%;border:1.5px dashed var(--nebbia);display:grid;place-items:center;font-style:normal;font-size:11px;transition:background-color .25s var(--ease),border-color .25s var(--ease)}
+.fasc button[aria-pressed=true] i{border-style:solid;border-color:var(--accento-chiaro);background:var(--accento-chiaro);color:var(--notte)}
+.fasc button[aria-pressed=true] i::after{content:'✓'}
+.fasc button[aria-pressed=false] em{font-style:normal;margin-left:auto;margin-right:-6px;color:var(--nebbia);font-size:11px;letter-spacing:.14em}
+.fasc button[aria-pressed=true] em{display:none}
+/* valutazione */
+.fascia{width:100%;max-width:460px}
+.fascia .asse{position:relative;height:56px;margin:40px 0 10px;border-radius:3px;background:linear-gradient(90deg,rgba(150,192,254,.12),rgba(150,192,254,.5) 45%,rgba(150,192,254,.5) 60%,rgba(150,192,254,.12))}
+.fascia .asse::before,.fascia .asse::after{content:'';position:absolute;top:-8px;bottom:-8px;width:1.5px;background:var(--nebbia)}
+.fascia .asse::before{left:22%}.fascia .asse::after{left:78%}
+.fascia .tu{position:absolute;left:var(--x,50%);top:-34px;transform:translateX(-50%);display:grid;justify-items:center;gap:6px;transition:left 1.2s var(--ease)}
+.fascia .tu span{font:600 11px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;background:var(--luce);color:var(--ink);padding:5px 8px;border-radius:2px;white-space:nowrap}
+.fascia .tu i{width:2px;height:62px;background:var(--luce)}
+.fascia .gambe{display:flex;justify-content:space-between;font:500 11px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--nebbia)}
+/* visita */
+.carta-i{perspective:900px;background:none;border:0;padding:0;cursor:pointer;width:min(100%,260px)}
+.carta-i .gira{position:relative;display:block;aspect-ratio:5/6;transform-style:preserve-3d;transition:transform .6s var(--ease)}
+.carta-i[aria-pressed=true] .gira{transform:rotateY(180deg)}
+.carta-i .faccia{position:absolute;inset:0;display:flex;flex-direction:column;gap:12px;padding:18px;border-radius:14px;background:linear-gradient(160deg,#1C2B47,#0F1A30);box-shadow:inset 0 0 0 1px rgba(150,192,254,.35),0 30px 50px -30px rgba(0,0,0,.7);-webkit-backface-visibility:hidden;backface-visibility:hidden;text-align:left;color:var(--luce)}
+.carta-i .retro{transform:rotateY(180deg);justify-content:center}
+.carta-i b{font-weight:800;font-stretch:125%;letter-spacing:.2em;font-size:13px;color:var(--accento-chiaro)}
+.carta-i .rotta{display:flex;justify-content:space-between;align-items:center;font:700 30px/1 var(--mono)}
+.carta-i .rotta i{font-style:normal;font-size:18px;color:var(--nebbia)}
+.carta-i small{font:500 11px/1.5 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--nebbia)}
+.carta-i .qr{margin-top:auto;height:40px;background:repeating-linear-gradient(90deg,var(--luce) 0 2px,transparent 2px 5px,var(--luce) 5px 6px,transparent 6px 9px);border-radius:2px;opacity:.9}
 
 /* investire */
-.investire{background:var(--accento);color:var(--bianco)}
-.investire .kicker{color:var(--bianco)}
-.investire h2 em{color:var(--oro)}
-.investire .lead{color:var(--bianco)}
-.calc{margin-top:56px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:14px}
+.investire{background:var(--carta-2)}
+.calc{margin-top:48px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:14px}
 .calc-in,.calc-out{border-radius:6px;padding:36px}
-.calc-in{background:var(--bianco);color:var(--ink);display:grid;grid-template-columns:minmax(0,1fr);gap:10px;align-content:start}
-.calc-in label{font-size:13px;color:var(--grigio);margin-top:12px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase}
+.calc-in{background:var(--tile);color:var(--ink);display:grid;grid-template-columns:minmax(0,1fr);gap:10px;align-content:start}
+.calc-in label{font:500 12px/1.4 var(--mono);color:var(--grigio);margin-top:12px;letter-spacing:.08em;text-transform:uppercase}
 .campo{display:flex;align-items:center;min-width:0;border-bottom:1.5px solid var(--ink)}
 .campo span{font-size:28px;font-weight:300;color:var(--ink)}
 .campo input{flex:1;min-width:0;border:0;background:transparent;font:300 42px/1.2 var(--sans);font-stretch:90%;color:var(--ink);padding:6px 8px;letter-spacing:-.01em}
-.campo input::placeholder{color:#8A8993}
+.campo input::placeholder{color:#8A8F98}
 .campo input:focus{outline:none}
 .campo:focus-within{border-color:var(--accento);box-shadow:0 1.5px 0 var(--accento)}
 .scelte{display:flex;gap:8px;flex-wrap:wrap}
@@ -297,28 +406,38 @@ html:not(.js) .muro{height:var(--h,86em)}
 .scelte input:checked + span{background:var(--ink);color:var(--bianco)}
 .scelte input:focus-visible + span{outline:2px solid var(--accento);outline-offset:3px}
 .calc-in fieldset{margin-top:22px}
-.calc-in legend{font:500 13px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--grigio);margin-bottom:10px}
-.esempio{justify-self:start;margin-top:18px;background:none;border:0;padding:0;color:var(--accento);font:600 15px/1.4 var(--sans);text-decoration:underline;text-underline-offset:4px;cursor:pointer}
-.calc-out{background:var(--boom);color:var(--bianco);display:flex;flex-direction:column;gap:26px}
-.risultati{display:grid;grid-template-columns:1fr 1fr;gap:26px}
+.calc-in legend{font:500 12px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--grigio);margin-bottom:10px}
+.esempio{justify-self:start;margin-top:18px;background:none;border:0;padding:0;color:var(--accento);font:600 15px/1.4 var(--sans);text-decoration:underline;text-underline-offset:4px;cursor:pointer;min-height:44px}
+.calc-out{background:var(--notte-2);color:var(--bianco);display:flex;flex-direction:column;gap:24px}
+.risultati{display:grid;grid-template-columns:1fr 1fr;gap:26px 20px}
 .risultati .mono{color:var(--nebbia)}
-.cifra{font-weight:300;font-stretch:90%;font-size:clamp(48px,6vw,88px);line-height:1;letter-spacing:-.02em;margin-top:10px;font-variant-numeric:tabular-nums}
-.cifra.oro{color:var(--oro)}
-.cifra.piccola{font-size:clamp(30px,3.2vw,44px)}
-.calc-out .nota{font-size:14px;color:var(--nebbia);max-width:34em}
+.cifra{margin-top:12px;min-height:calc(var(--cw) * 1.42)}
+.cifra .celle{display:inline-flex}
+.cifra.grande{--cw:clamp(26px,2.9vw,40px)}
+.cifra.piccola{--cw:clamp(20px,2.1vw,28px)}
+.risultati .largo{grid-column:1 / -1}
+html:not(.js) .cifra .celle{display:none}
+html:not(.js) .risultati .sr{position:static;width:auto;height:auto;clip:auto;font:300 44px/1 var(--sans)}
+.calc-out .nota{font-size:14px;color:var(--nebbia);max-width:36em}
 .calc-out .azioni{display:flex;flex-wrap:wrap;gap:12px;margin-top:auto}
+.calc-out .btn:not(.btn-oro){border-color:var(--luce);color:var(--luce)}
 
 /* candidatura */
-.cand{margin-top:56px;display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:40px;align-items:start}
+.cand{margin-top:48px;display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:40px;align-items:start}
 .cand-lato p{font-size:16px;color:var(--grigio);max-width:26em}
 .cand-lato p + p{margin-top:14px}
 .fasi{display:flex;gap:6px;margin-bottom:22px}
-.fasi i{flex:1;height:3px;background:var(--carta-2);transition:background-color .4s var(--ease)}
-.fasi i.su{background:var(--accento)}
-.scheda{background:var(--bianco);border-radius:6px;padding:36px;box-shadow:0 0 0 1px rgba(10,10,12,.07),0 30px 60px -40px rgba(10,10,12,.35)}
+.fasi i{flex:1;height:3px;background:var(--carta-2);position:relative;overflow:hidden}
+.fasi i::after{content:'';position:absolute;inset:0;background:var(--accento);transform:scaleX(0);transform-origin:0 50%;transition:transform .36s var(--ease)}
+.fasi i.su::after{transform:none}
+.scheda{background:var(--tile);border-radius:6px;padding:36px;box-shadow:0 0 0 1px rgba(13,22,38,.07),0 30px 60px -40px rgba(13,22,38,.35)}
 .passo[hidden]{display:none}
-.passo h3{font-weight:800;font-stretch:62%;text-transform:uppercase;font-size:clamp(32px,3.4vw,48px);line-height:.95;margin-bottom:22px}
-.passo .mono{color:var(--grigio-2)}
+.passo.entra{animation:entra .22s var(--ease)}
+@keyframes entra{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.passo h3{font-weight:800;font-stretch:62%;text-transform:uppercase;font-size:clamp(30px,3.2vw,44px);line-height:.95;margin-bottom:22px}
+.passo h3:focus{outline:none}
+.passo h3:focus::after{content:'';display:block;width:24px;height:2px;margin-top:10px;background:var(--accento)}
+.passo .mono{color:var(--grigio)}
 .intenti{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
 .intenti label{position:relative;display:block}
 .intenti input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
@@ -327,105 +446,106 @@ html:not(.js) .muro{height:var(--h,86em)}
 .intenti span small{font-size:13.5px;color:var(--grigio)}
 .intenti input:checked + span{border-color:var(--accento);background:color-mix(in srgb,var(--accento) 6%,#fff)}
 .intenti input:focus-visible + span{outline:2px solid var(--accento);outline-offset:2px}
-.intenti .i-boom input:checked + span{border-color:var(--boom);background:#FFFBE0}
+.intenti .i-boom input:checked + span{border-color:#060607;background:#060607;color:#FFD700}
+.intenti .i-boom input:checked + span small{color:#E7E3D8}
 .campi{display:grid;gap:14px}
 .campi label{display:grid;gap:6px;font:500 12px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--grigio)}
 .campi input,.campi select{font:400 17px/1.4 var(--sans);color:var(--ink);background:var(--carta);border:1.5px solid transparent;border-radius:4px;padding:13px 14px;width:100%;text-transform:none;letter-spacing:0}
-.campi input:focus,.campi select:focus{outline:none;border-color:var(--accento);background:var(--bianco)}
+.campi input:focus,.campi select:focus{outline:none;border-color:var(--accento);background:var(--tile)}
 .voci-doc{display:grid;gap:8px}
 .vd{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--carta-2)}
 .vd > span{font-size:15px}
 .tri{display:flex;border:1.5px solid var(--ink);border-radius:4px;overflow:hidden}
 .tri label{position:relative}
 .tri input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
-.tri span{display:block;min-width:52px;padding:9px 8px;text-align:center;font-size:13px;font-weight:600;cursor:pointer}
+.tri span{display:block;min-width:52px;padding:10px 8px;text-align:center;font-size:13px;font-weight:600;cursor:pointer}
 .tri label + label span{border-left:1.5px solid var(--ink)}
 .tri input:checked + span{background:var(--ink);color:var(--bianco)}
 .tri input:focus-visible + span{outline:2px solid var(--accento);outline-offset:-3px}
 .punteggio{display:flex;align-items:center;gap:16px;margin-top:18px;padding:14px 16px;background:var(--carta);border-radius:4px}
 .punteggio b{font-weight:300;font-stretch:90%;font-size:40px;line-height:1;font-variant-numeric:tabular-nums}
 .punteggio span{font-size:14px;color:var(--grigio)}
-.riepilogo{background:var(--carta);border-radius:4px;padding:16px 18px;font:500 13px/1.7 var(--mono);white-space:pre-wrap;color:var(--ink);max-height:220px;overflow:auto}
+.riepilogo{position:relative;background:var(--carta);border-radius:4px;padding:18px 20px;font:500 13px/1.7 var(--mono);white-space:pre-wrap;color:var(--ink);max-height:240px;overflow:auto;-webkit-mask:radial-gradient(circle 8px at 0 50%,transparent 98%,#000) left/51% 100% no-repeat,radial-gradient(circle 8px at 100% 50%,transparent 98%,#000) right/51% 100% no-repeat;mask:radial-gradient(circle 8px at 0 50%,transparent 98%,#000) left/51% 100% no-repeat,radial-gradient(circle 8px at 100% 50%,transparent 98%,#000) right/51% 100% no-repeat}
 .nav-passi{display:flex;justify-content:space-between;gap:12px;margin-top:26px}
-.nav-passi .btn[disabled]{opacity:.4;cursor:not-allowed}
 .indietro{background:none;border:0;padding:0 4px;color:var(--grigio);font:600 15px/1 var(--sans);cursor:pointer;min-height:56px}
 .privacy-nota{margin-top:14px;font-size:13px;color:var(--grigio)}
 html:not(.js) .passo[hidden]{display:block}
 html:not(.js) .nav-passi,html:not(.js) .fasi{display:none}
 
-/* Valentino */
-.persona{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:64px;align-items:center}
-.ritratto{aspect-ratio:4/5;border-radius:6px;background:var(--notte);color:var(--bianco);display:grid;place-items:center;position:relative;overflow:hidden}
-.ritratto::before{content:'';position:absolute;inset:0;background:radial-gradient(70% 60% at 70% 20%,color-mix(in srgb,var(--accento) 60%,transparent),transparent 70%)}
-.ritratto .ve{position:relative;font-weight:900;font-stretch:125%;font-size:clamp(110px,15vw,210px);line-height:1;color:transparent;-webkit-text-stroke:1.5px rgba(255,255,255,.8)}
-.ritratto .segnaposto{position:absolute;left:24px;bottom:24px}
-.dati{margin-top:36px;border-top:1px solid rgba(10,10,12,.14)}
-.dati div{display:grid;grid-template-columns:150px minmax(0,1fr);gap:16px;padding:14px 0;border-bottom:1px solid rgba(10,10,12,.1);font-size:16px}
-.dati dt{color:var(--grigio);font:500 12px/1.9 var(--mono);letter-spacing:.08em;text-transform:uppercase}
-
 /* contatti + piede */
-.contatti{background:var(--ink);color:var(--bianco);padding:110px 0 70px}
-.contatti .kicker{color:var(--oro)}
-.contatti .lead{color:var(--nebbia)}
+.contatti{padding:110px 0 70px}
 .contatti .azioni{display:flex;flex-wrap:wrap;gap:12px;margin-top:40px}
-.recapiti{margin-top:52px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;border-top:1px solid rgba(255,255,255,.16);padding-top:26px;font-size:15px;color:#DADADF}
-.recapiti .mono{color:#A6A6AE;display:block;margin-bottom:8px}
-footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
-.piede{border-top:1px solid rgba(255,255,255,.16);padding-top:26px;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:32px}
+.recapiti{margin-top:52px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;border-top:1px solid var(--filo);padding-top:26px;font-size:15px;color:var(--luce)}
+.recapiti .mono{color:var(--nebbia);display:block;margin-bottom:8px}
+footer{background:var(--notte);color:var(--nebbia);font-size:14px;padding:0 0 56px}
+.piede{border-top:1px solid var(--filo);padding-top:26px;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:32px}
 .piede p + p{margin-top:6px}
 .piede a,.piede .forte{color:var(--bianco)}
 .wa-fissa{display:none}
-[hidden]:not(.passo){display:none!important}
 
-@media (max-width:1100px){
-  .macchina-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
-  .tab-testa,.riga{grid-template-columns:calc(var(--cw) * 9 + 24px) minmax(0,1fr) 40px}
-  .tab-testa .c3,.riga .cosa{display:none}
+@media (max-width:1099px){
+  .tab-testa,.riga{grid-template-columns:calc(var(--cw) * 9 + 32px) minmax(0,1fr) 180px 24px}
+  .c-volo,.riga .volo{display:none}
+  .console{grid-template-columns:1fr}
+  .schede{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .scheda-tab{flex-direction:column;gap:6px;padding:12px}
+}
+@media (max-width:1023px){
+  .palco{top:0;height:100vh;height:100svh}
+  .m3d-poster{left:4%;width:92%;top:calc(var(--head) + 2svh);transform:none;max-height:46svh}
+  .m3d-strato::after{background:linear-gradient(180deg,transparent 0,transparent 46%,color-mix(in oklab,var(--fondo) 88%,transparent) 58%,var(--fondo) 68%)}
+  html.m3d-off .m3d-strato::after,html.m3d-ripiego .m3d-strato::after{display:block}
+  .palco-testo{justify-content:flex-end;padding-bottom:calc(84px + env(safe-area-inset-bottom))}
+  .atti-testi{height:250px}
+  .atto h3{font-size:clamp(30px,8.6vw,44px);margin:8px 0 10px}
+  .atto p{font-size:15.5px}
+  .m3d-extra{margin-top:12px}
+  .provini canvas{width:84px;height:56px}
+  .binario{margin-top:10px}
+  .m3d-mirino{left:6%!important;right:6%!important;top:14%!important;bottom:48%!important}
+  .m3d-tag{top:calc(var(--head) + 8px);bottom:auto;right:12px;font-size:9.5px;letter-spacing:.05em;white-space:nowrap}
+  html.m3d-off .m3d-tag,html.m3d-ripiego .m3d-tag{top:calc(var(--head) + 2svh + min(46svh, 69vw) + 6px)}
 }
 @media (max-width:900px){
   :root{--pad:20px;--head:64px}
   .voci-desktop,.azioni-testata .btn{display:none}
   .menu{display:block}
-  .hero{min-height:0;padding:calc(var(--head) + 26px) 0 44px}
-  .titolo{font-size:clamp(44px,12.4vw,72px);margin:18px 0 16px}
-  .hero .sotto{font-size:16.5px}
-  .tabellone{--cw:min(6.9vw,34px);margin-top:24px}
-  .tab-testa{display:none}
-  .riga{grid-template-columns:minmax(0,1fr) 28px;grid-template-rows:auto auto;gap:6px 10px;padding:9px 0}
-  .riga .celle{grid-column:1;grid-row:1}
-  .riga .dest{grid-column:1;grid-row:2;font-size:13px;letter-spacing:.08em}
-  .riga .dest::before{content:'→ '}
-  .riga .freccia{grid-column:2;grid-row:1 / span 2;align-self:center}
-  section{padding:88px 0}
-  .due{flex-direction:column;min-height:0}
-  .due:hover .casa,.due .casa:hover{flex-grow:1}
-  .casa{padding:28px;min-height:420px}
-  .atti{height:420vh}
-  .palco{grid-template-columns:1fr;grid-template-rows:auto 1fr;gap:0;align-content:start;padding-top:12px}
-  .scena{height:34vh;order:-1}
-  .modello{font-size:.62px}
-  .pin{font-size:10px;padding:6px 9px}
-  .modello{--zf:.6}
-  .atto-lista{height:300px}
-  .atto p{font-size:16px}
-  .macchina-grid{grid-template-columns:1fr}
-  .calc,.cand,.persona{grid-template-columns:1fr;gap:24px}
+  .hero{min-height:0;padding:calc(var(--head) + 20px) 0 40px}
+  .titolo{font-size:clamp(40px,11vw,60px);margin:14px 0 12px}
+  .hero .sotto{font-size:15.5px}
+  .tabellone{--cw:min(6.4vw,30px);padding:8px 12px 4px;margin-top:20px}
+  .riga.a-boom{margin:0 -12px;padding:8px 12px}
+  .tab-testa,.riga{grid-template-columns:calc(var(--cw) * 9 + 32px) minmax(0,1fr);gap:0 10px}
+  .tab-testa .c3,.tab-testa .c4,.riga .cosa,.riga .freccia{display:none}
+  .riga .dest{font-size:12px}
+  section{padding:84px 0}
+  .due,.persona,.calc,.cand{grid-template-columns:1fr;gap:24px}
+  .casa{padding:26px;min-height:0}
+  .pannello{grid-template-columns:1fr}
+  .schede{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;gap:6px;padding-bottom:4px}
+  .scheda-tab{flex:none;scroll-snap-align:start;flex-direction:row;padding:12px 14px;min-height:44px}
   .calc-in,.calc-out,.scheda{padding:24px}
   .intenti{grid-template-columns:1fr}
   .recapiti,.piede{grid-template-columns:1fr}
-  .wa-fissa{display:flex;position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:45;justify-content:center;align-items:center;min-height:56px;border-radius:4px;background:var(--bianco);color:var(--ink);border:1px solid rgba(10,10,12,.14);text-decoration:none;font-size:16px;font-weight:600;box-shadow:0 16px 40px -14px rgba(10,10,12,.55)}
+  .wa-fissa{display:flex;position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:45;justify-content:center;align-items:center;min-height:56px;border-radius:4px;background:var(--bianco);color:var(--ink);border:1px solid rgba(13,22,38,.14);text-decoration:none;font-size:16px;font-weight:600;box-shadow:0 16px 40px -14px rgba(13,22,38,.55);transition:transform .3s var(--ease)}
+  html.js .wa-fissa.nascosta{transform:translateY(140%)}
   footer{padding-bottom:110px}
 }
 @media (max-width:560px){
-  .hero-alto span:first-child{display:none}
+  .hero-alto{display:none}
   .risultati{grid-template-columns:1fr}
   .dati div{grid-template-columns:110px minmax(0,1fr)}
   .vd{grid-template-columns:1fr}
 }
+@media (max-width:359px){
+  .tabellone{--cw:min(6.8vw,24px)}
+  .riga{grid-template-columns:1fr;row-gap:6px}
+  .tab-testa{display:none}
+  .marchio b{font-size:13px;letter-spacing:.14em}
+}
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{transition-duration:0s!important;animation:none!important}
-  .respira{font-stretch:125%}
-  html.js .rv:not(.dentro){opacity:1;transform:none}
+  html.js .firma-svg path{stroke-dashoffset:0}
 }
 @supports (animation-timeline:scroll()){
   @media (prefers-reduced-motion:no-preference){
@@ -445,9 +565,9 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
       <ul class="voci">
         <li><a href="#vendere">Vendere</a></li>
         <li><a href="#metodo">Metodo</a></li>
-        <li><a href="#investire">Investire</a></li>
         <li><a href="#valentino">Valentino</a></li>
-        <li><a class="a-boom" href="#affittare">Affittare</a></li>
+        <li><a href="#investire">Investire</a></li>
+        <li><a class="a-boom" href="#affittare">Affittare → BOOM</a></li>
       </ul>
     </nav>
     <div class="azioni-testata">
@@ -458,11 +578,11 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
           <ul class="voci">
             <li><a href="#vendere">Vendere</a></li>
             <li><a href="#metodo">Metodo</a></li>
+            <li><a href="#valentino">Valentino</a></li>
             <li><a href="#investire">Investire</a></li>
             <li><a href="#candidatura">Candida l'immobile</a></li>
-            <li><a href="#valentino">Valentino</a></li>
-            <li><a class="a-boom" href="#affittare">Affittare con BOOM</a></li>
             <li><a href="#contatti">Contatti</a></li>
+            <li><a class="a-boom" href="#affittare">Affittare → BOOM</a></li>
           </ul>
         </nav>
       </details>
@@ -473,19 +593,18 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
 <main id="principale">
   <section class="hero" id="hero" data-scuro aria-labelledby="titolo">
     <div class="wrap">
-      <div class="hero-alto mono">
-        <span>Valentino Egidi Immobiliare · Roma</span>
-        <span class="orologio" id="orologio" aria-label="Ora di Roma"></span>
-      </div>
-      <h1 class="titolo" id="titolo"><span class="r1 respira">Prima i documenti.</span><span class="r2">Poi il prezzo.</span></h1>
-      <p class="sotto"><b>Valentino Egidi Immobiliare</b> segue compravendite e investimenti nel centro di Roma, dal primo documento al rogito. Per affittare c'è <b>BOOM</b>, il nostro marchio per studenti e professionisti internazionali.</p>
+      <p class="hero-alto mono">Valentino Egidi Immobiliare · Roma centro</p>
+      <h1 class="titolo" id="titolo"><span class="r1">Prima i documenti.</span><span class="r2">Poi il prezzo.</span></h1>
+      <p class="sotto"><b>Valentino Egidi Immobiliare</b> segue vendite, acquisti e investimenti nel centro di Roma. Prima dell'incarico leggiamo le carte: se non tornano, lo sai prima del mercato. Per affittare c'è <b>BOOM</b>.</p>
 
       <div class="tabellone" id="tabellone" role="navigation" aria-label="Scegli cosa vuoi fare">
-        <div class="tab-testa mono" aria-hidden="true"><span>Intenzione</span><span>Destinazione</span><span class="c3">Cosa succede</span><span></span></div>
-        <a class="riga" href="#vendere" data-parola="VENDERE"><span class="celle" aria-hidden="true"><span class="f"><b>V</b></span><span class="f"><b>E</b></span><span class="f"><b>N</b></span><span class="f"><b>D</b></span><span class="f"><b>E</b></span><span class="f"><b>R</b></span><span class="f"><b>E</b></span><span class="f"><b>&nbsp;</b></span><span class="f"><b>&nbsp;</b></span></span><span class="dest">Valentino Egidi</span><span class="cosa mono">Valutazione e vendita</span><span class="freccia" aria-hidden="true">→</span><span class="sr">Vendere con Valentino Egidi</span></a>
-        <a class="riga" href="#candidatura" data-parola="COMPRARE" data-intento="comprare"><span class="celle" aria-hidden="true"><span class="f"><b>C</b></span><span class="f"><b>O</b></span><span class="f"><b>M</b></span><span class="f"><b>P</b></span><span class="f"><b>R</b></span><span class="f"><b>A</b></span><span class="f"><b>R</b></span><span class="f"><b>E</b></span><span class="f"><b>&nbsp;</b></span></span><span class="dest">Valentino Egidi</span><span class="cosa mono">Ricerca su misura</span><span class="freccia" aria-hidden="true">→</span><span class="sr">Comprare con Valentino Egidi</span></a>
-        <a class="riga" href="#investire" data-parola="INVESTIRE"><span class="celle" aria-hidden="true"><span class="f"><b>I</b></span><span class="f"><b>N</b></span><span class="f"><b>V</b></span><span class="f"><b>E</b></span><span class="f"><b>S</b></span><span class="f"><b>T</b></span><span class="f"><b>I</b></span><span class="f"><b>R</b></span><span class="f"><b>E</b></span></span><span class="dest">Valentino Egidi</span><span class="cosa mono">Rendimento e acquisto</span><span class="freccia" aria-hidden="true">→</span><span class="sr">Investire con Valentino Egidi</span></a>
-        <a class="riga a-boom" data-evento="handoff_boom" href="https://www.boomrome.com/owners?utm_source=egidimmobiliare&amp;utm_medium=referral&amp;utm_campaign=tabellone" data-parola="AFFITTARE"><span class="celle" aria-hidden="true"><span class="f"><b>A</b></span><span class="f"><b>F</b></span><span class="f"><b>F</b></span><span class="f"><b>I</b></span><span class="f"><b>T</b></span><span class="f"><b>T</b></span><span class="f"><b>A</b></span><span class="f"><b>R</b></span><span class="f"><b>E</b></span></span><span class="dest">BOOM</span><span class="cosa mono">Affitto gestito</span><span class="freccia" aria-hidden="true">→</span><span class="sr">Affittare con BOOM</span></a>
+        <div class="tab-cima"><span aria-hidden="true">Partenze · Roma</span>
+          <span class="orologio" id="orologio"><span class="sr"></span><span class="celle" aria-hidden="true"><span class="f"><b>0</b></span><span class="f"><b>0</b></span><i class="dp">:</i><span class="f"><b>0</b></span><span class="f"><b>0</b></span></span></span></div>
+        <div class="tab-testa" aria-hidden="true"><span>Intenzione</span><span class="c-volo">Volo</span><span>Compagnia</span><span class="c3">Cosa succede</span><span class="c4"></span></div>
+        <a class="riga" href="#vendere" data-parola="VENDERE"><span class="sr">Vendere · </span><span class="celle" aria-hidden="true"><span class="f"><b>V</b></span><span class="f"><b>E</b></span><span class="f"><b>N</b></span><span class="f"><b>D</b></span><span class="f"><b>E</b></span><span class="f"><b>R</b></span><span class="f"><b>E</b></span><span class="f"><b>&nbsp;</b></span><span class="f"><b>&nbsp;</b></span></span><span class="volo" aria-hidden="true">VE 01</span><span class="dest">Valentino Egidi</span><span class="cosa">Valutazione e vendita</span><span class="freccia" aria-hidden="true">→</span></a>
+        <a class="riga" href="#candidatura" data-parola="COMPRARE" data-intento="comprare"><span class="sr">Comprare · </span><span class="celle" aria-hidden="true"><span class="f"><b>C</b></span><span class="f"><b>O</b></span><span class="f"><b>M</b></span><span class="f"><b>P</b></span><span class="f"><b>R</b></span><span class="f"><b>A</b></span><span class="f"><b>R</b></span><span class="f"><b>E</b></span><span class="f"><b>&nbsp;</b></span></span><span class="volo" aria-hidden="true">VE 02</span><span class="dest">Valentino Egidi</span><span class="cosa">Ricerca su misura</span><span class="freccia" aria-hidden="true">→</span></a>
+        <a class="riga" href="#investire" data-parola="INVESTIRE"><span class="sr">Investire · </span><span class="celle" aria-hidden="true"><span class="f"><b>I</b></span><span class="f"><b>N</b></span><span class="f"><b>V</b></span><span class="f"><b>E</b></span><span class="f"><b>S</b></span><span class="f"><b>T</b></span><span class="f"><b>I</b></span><span class="f"><b>R</b></span><span class="f"><b>E</b></span></span><span class="volo" aria-hidden="true">VE 03</span><span class="dest">Valentino Egidi</span><span class="cosa">Acquisto per il reddito</span><span class="freccia" aria-hidden="true">→</span></a>
+        <a class="riga a-boom" data-evento="handoff_boom" href="https://www.boomrome.com/owners?utm_source=egidimmobiliare&amp;utm_medium=referral&amp;utm_campaign=tabellone" data-parola="AFFITTARE"><span class="sr">Affittare · </span><span class="celle" aria-hidden="true"><span class="f"><b>A</b></span><span class="f"><b>F</b></span><span class="f"><b>F</b></span><span class="f"><b>I</b></span><span class="f"><b>T</b></span><span class="f"><b>T</b></span><span class="f"><b>A</b></span><span class="f"><b>R</b></span><span class="f"><b>E</b></span></span><span class="volo" aria-hidden="true">BM 01</span><span class="dest">BOOM</span><span class="cosa">Affitti a studenti e professionisti internazionali</span><span class="freccia" aria-hidden="true">→</span></a>
       </div>
       <div class="hero-basso">
         <a class="btn btn-bianco" href="#candidatura">Candida il tuo immobile <span class="fr" aria-hidden="true">→</span></a>
@@ -496,11 +615,11 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
 
   <section id="case" aria-labelledby="t-case">
     <div class="wrap">
-      <p class="mono kicker rv">Una società, due case</p>
-      <h2 id="t-case" class="rv">Vendere è <em>Valentino Egidi</em>.<br><strong>Affittare è BOOM.</strong></h2>
-      <div class="due rv">
+      <p class="kicker">Una società, due case</p>
+      <h2 id="t-case">Vendere è <em>Valentino Egidi</em>.<br><strong>Affittare è BOOM.</strong></h2>
+      <div class="due">
         <article class="casa casa-egidi" id="vendere">
-          <p class="mono">Valentino Egidi · Vendite</p>
+          <p class="marca">Valentino Egidi · Vendite</p>
           <h3>Vendi, compra, investi.</h3>
           <ul>
             <li>Valutazioni sui numeri del mercato, non a sensazione</li>
@@ -508,11 +627,10 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
             <li>Ricerca su misura per chi compra e per chi investe</li>
             <li>Trattativa seguita fino al rogito</li>
           </ul>
-          <a class="btn btn-bianco" href="#candidatura">Candida l'immobile <span class="fr" aria-hidden="true">→</span></a>
-          <span class="grande" aria-hidden="true">VE</span>
+          <a class="btn" href="#candidatura">Candida l'immobile <span class="fr" aria-hidden="true">→</span></a>
         </article>
         <article class="casa casa-boom" id="affittare">
-          <p class="mono">BOOM · Affitti</p>
+          <p class="marca">BOOM · Affitti</p>
           <h3>Affitta con BOOM.</h3>
           <ul>
             <li>Inquilini internazionali: studenti e professionisti</li>
@@ -520,111 +638,177 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
             <li>Contratti a norma, anche a canone concordato</li>
             <li>Gestione dell'affitto dopo la firma</li>
           </ul>
-          <a class="btn btn-oro" data-evento="handoff_boom" href="https://www.boomrome.com/owners?utm_source=egidimmobiliare&amp;utm_medium=referral&amp;utm_campaign=home">Vai a BOOM Proprietari <span class="fr" aria-hidden="true">→</span></a>
-          <span class="grande" aria-hidden="true">BOOM</span>
+          <a class="btn btn-oro" data-evento="handoff_boom" href="https://www.boomrome.com/owners?utm_source=egidimmobiliare&amp;utm_medium=referral&amp;utm_campaign=case">Vai a BOOM Proprietari <span class="fr" aria-hidden="true">→</span></a>
         </article>
       </div>
-      <p class="frase-boom rv">BOOM è il marchio di Egidi Immobiliare S.r.l. per gli affitti a studenti e professionisti internazionali.</p>
+      <p class="frase-boom">BOOM è il marchio di Egidi Immobiliare S.r.l. per gli affitti a studenti e professionisti internazionali.</p>
     </div>
   </section>
 
   <section class="metodo" id="metodo" data-scuro aria-labelledby="t-metodo">
-    <div class="wrap">
-      <p class="mono kicker rv">Il metodo</p>
-      <h2 id="t-metodo" class="rv">Quattro atti.<br><strong>Le sorprese si trovano prima del rogito.</strong></h2>
+    <div class="wrap metodo-testa">
+      <p class="kicker">Il metodo</p>
+      <h2 id="t-metodo">Quattro atti e un'uscita.<br><strong>Le sorprese si cercano prima del rogito.</strong></h2>
     </div>
     <div class="atti" id="atti">
-      <div class="wrap palco">
-        <div>
-          <div class="atto-lista">
-            <div class="atto su" data-atto="1"><p class="num">ATTO 01</p><h3>Valutazione</h3><p>Partiamo dai numeri della zona, dallo stato dell'immobile e dai suoi documenti. Il prezzo si spiega, non si indovina.</p></div>
-            <div class="atto" data-atto="2"><p class="num">ATTO 02</p><h3>Documenti in ordine</h3><p>Visura, planimetria, APE e conformità si verificano prima dell'annuncio, con tecnici abilitati dove serve.</p></div>
-            <div class="atto" data-atto="3"><p class="num">ATTO 03</p><h3>Presentazione</h3><p>Foto e video curati, annuncio sui portali, visite con acquirenti già qualificati.</p></div>
-            <div class="atto" data-atto="4"><p class="num">ATTO 04</p><h3>Trattativa e rogito</h3><p>Proposte scritte, verifiche su chi compra, accompagnamento fino alla firma dal notaio.</p></div>
-            <div class="atto" data-atto="5"><p class="num">E SE NON VENDI</p><h3>La affitta BOOM</h3><p>Se preferisci mettere a reddito, l'immobile passa a BOOM, già in ordine. <a data-evento="handoff_boom" href="https://www.boomrome.com/owners?utm_source=egidimmobiliare&amp;utm_medium=referral&amp;utm_campaign=metodo">BOOM Proprietari</a>.</p></div>
-          </div>
-          <div class="segni" aria-hidden="true"><i class="su"></i><i></i><i></i><i></i><i></i></div>
+      <div class="palco" role="region" aria-label="Il metodo in cinque atti">
+        <div class="m3d-strato" aria-hidden="true">
+          <img class="m3d-poster" id="poster3d" src="/img/metodo-1.webp?v=e12bf919" width="1200" height="900" alt="" decoding="async" loading="lazy">
+          <canvas class="m3d-tela" id="tela3d"></canvas>
+          <div class="m3d-eti-box" id="etichette3d"></div>
+          <span class="m3d-pin" data-pin="noncombacia">Non combacia</span>
+          <span class="m3d-pin" data-pin="rogito">Rogito</span>
+          <span class="m3d-pin boom" data-pin="boom">Oppure la affitta BOOM</span>
+          <div class="m3d-mirino" id="mirino3d"><i></i><i></i><i></i><i></i><span>FOTO 1/3</span></div>
+          <div class="m3d-lampo" id="lampo3d"></div>
+          <p class="m3d-tag">Illustrazione · appartamento tipo, non in vendita</p>
         </div>
-        <div class="scena" aria-hidden="true">
-          <div class="modello s1" id="modello">
-            <div class="ombra"></div>
-            <div class="lastra">
-              <div class="stanza" style="left:0;top:0;width:170em;height:150em"></div>
-              <div class="stanza" style="left:170em;top:0;width:210em;height:150em"></div>
-              <div class="stanza" style="left:0;top:150em;width:150em;height:130em"></div>
-              <div class="stanza" style="left:150em;top:150em;width:130em;height:130em"></div>
-              <div class="stanza" style="left:280em;top:150em;width:100em;height:130em"></div>
-              <i class="muro" style="left:0;top:0;width:380em;--a:0deg"></i>
-              <i class="muro" style="left:380em;top:0;width:280em;--a:90deg"></i>
-              <i class="muro basso" style="left:380em;top:280em;width:380em;--a:180deg"></i>
-              <i class="muro basso" style="left:0;top:280em;width:280em;--a:270deg"></i>
-              <i class="muro" style="left:170em;top:0;width:150em;--a:90deg"></i>
-              <i class="muro" style="left:0;top:150em;width:100em;--a:0deg"></i>
-              <i class="muro" style="left:140em;top:150em;width:240em;--a:0deg"></i>
-              <i class="muro" style="left:150em;top:190em;width:90em;--a:90deg"></i>
-              <i class="muro" style="left:280em;top:150em;width:130em;--a:90deg"></i>
-              <div class="foglio3d d1" style="left:40em;top:40em"><i></i><i></i><i></i><i></i></div>
-              <div class="foglio3d d2" style="left:150em;top:60em"><i></i><i></i><i></i><i></i></div>
-              <div class="foglio3d d3" style="left:260em;top:80em"><i></i><i></i><i></i><i></i></div>
-              <span class="etichetta" style="left:50em;top:70em;--z:120em"><span><em class="pin p1">Dati di zona</em></span></span>
-              <span class="etichetta" style="left:230em;top:60em;--z:300em"><span><em class="pin p2">Visura · Planimetria · APE</em></span></span>
-              <span class="etichetta" style="left:180em;top:200em;--z:140em"><span><em class="pin p3">Foto · Video · Portali</em></span></span>
-              <span class="etichetta" style="left:120em;top:120em;--z:200em"><span><em class="pin p4">Rogito</em></span></span>
-              <span class="etichetta" style="left:150em;top:100em;--z:170em"><span><em class="pin p5">Affittata con BOOM</em></span></span>
-            </div>
+        <div class="wrap palco-testo">
+          <a class="salta" href="#valentino" data-evento="salta_metodo">Salta il metodo ↓</a>
+          <div class="atti-testi">
+            <article class="atto atto-1" id="atto-1" data-atto="1">
+              <p class="num">ATTO 01</p>
+              <h3>Valutazione</h3>
+              <p>Partiamo dai numeri della zona, dallo stato dell'immobile e dai suoi documenti. Il prezzo si spiega, non si indovina.</p>
+              <p class="m3d-extra" id="totale3d">Nell'esempio: 85,6 m² calpestabili · circa 107 m² commerciali (DPR 138/98, all. C).</p>
+              <noscript><img src="/img/metodo-1.webp?v=e12bf919" width="1200" height="900" loading="lazy" alt="Illustrazione: pianta dell'appartamento tipo con le misure delle stanze"></noscript>
+            </article>
+            <article class="atto atto-2" id="atto-2" data-atto="2">
+              <p class="num">ATTO 02</p>
+              <h3>Documenti in ordine</h3>
+              <p>Visura, planimetria, APE e conformità si verificano prima dell'annuncio. Se qualcosa va sistemato, lo fa un tecnico abilitato, prima che lo scopra il notaio.</p>
+              <div class="m3d-extra">
+                <ul class="m3d-lista" id="lista3d"><li class="fatto" data-t="1.18">Visura</li><li class="fatto" data-t="1.26">Planimetria</li><li class="fatto" data-t="1.34">APE</li><li class="fatto" data-t="1.42">Conformità</li></ul>
+                <p class="timbro" id="timbro3d">Planimetria aggiornata allo stato di fatto</p>
+              </div>
+              <noscript><img src="/img/metodo-2.webp?v=e12bf919" width="1200" height="900" loading="lazy" alt="Illustrazione: la planimetria sovrapposta ai muri dell'appartamento tipo"></noscript>
+            </article>
+            <article class="atto atto-3" id="atto-3" data-atto="3">
+              <p class="num">ATTO 03</p>
+              <h3>Presentazione</h3>
+              <p>Foto e video curati, annuncio sui portali, visite con acquirenti già qualificati.</p>
+              <div class="provini" aria-hidden="true"><canvas width="224" height="150"></canvas><canvas width="224" height="150"></canvas><canvas width="224" height="150"></canvas></div>
+              <noscript><img src="/img/metodo-3.webp?v=e12bf919" width="1200" height="900" loading="lazy" alt="Illustrazione: l'appartamento tipo arredato, visto dall'ingresso"></noscript>
+            </article>
+            <article class="atto atto-4" id="atto-4" data-atto="4">
+              <p class="num">ATTO 04</p>
+              <h3>Trattativa e rogito</h3>
+              <p>Proposte scritte, verifiche su chi compra, accompagnamento fino alla firma dal notaio.</p>
+              <div class="m3d-extra"><ol class="tappe" id="tappe3d"><li class="fatto" data-t="3.30">Proposta scritta</li><li class="fatto" data-t="3.50">Verifiche su chi compra</li><li class="fatto" data-t="3.70">Rogito</li></ol></div>
+              <noscript><img src="/img/metodo-4.webp?v=e12bf919" width="1200" height="900" loading="lazy" alt="Illustrazione: l'appartamento tipo richiuso nel suo palazzo"></noscript>
+            </article>
+            <article class="atto atto-5" id="atto-5" data-atto="5">
+              <p class="num">E SE NON VENDI</p>
+              <h3>La affitta BOOM</h3>
+              <p>Se preferisci mettere a reddito, l'immobile passa a BOOM, già in ordine. <a data-evento="handoff_boom" href="https://www.boomrome.com/owners?utm_source=egidimmobiliare&amp;utm_medium=referral&amp;utm_campaign=metodo">BOOM Proprietari</a>.</p>
+              <noscript><img src="/img/metodo-5.webp?v=e12bf919" width="1200" height="900" loading="lazy" alt="Illustrazione: l'appartamento tipo di sera, con le luci accese, nei colori di BOOM"></noscript>
+            </article>
           </div>
+          <nav class="binario" aria-label="Atti del metodo">
+            <a href="#atto-1" class="su" aria-current="step"><span></span><b class="sr">Atto 1, valutazione</b></a>
+            <a href="#atto-2"><span></span><b class="sr">Atto 2, documenti</b></a>
+            <a href="#atto-3"><span></span><b class="sr">Atto 3, presentazione</b></a>
+            <a href="#atto-4"><span></span><b class="sr">Atto 4, trattativa e rogito</b></a>
+            <a href="#atto-5" class="ultimo"><span></span><b class="sr">Uscita, la affitta BOOM</b></a>
+          </nav>
         </div>
       </div>
     </div>
   </section>
 
-  <section id="macchina" aria-labelledby="t-macchina">
+  <section id="valentino" aria-labelledby="t-valentino">
+    <div class="wrap persona">
+      <div class="targa" role="img" aria-label="Targa dello studio: Valentino Egidi Immobiliare, Via dei Coronari 181/184">
+        <i class="v v1"></i><i class="v v2"></i><i class="v v3"></i><i class="v v4"></i>
+        <span class="n" aria-hidden="true">VALENTINO EGIDI</span>
+        <span class="s" aria-hidden="true">IMMOBILIARE</span>
+        <span class="i" aria-hidden="true">VIA DEI CORONARI 181/184 · ROMA</span>
+        <span class="segnaposto solo-anteprima">FOTO VERA DA FORNIRE</span>
+      </div>
+      <div>
+        <p class="kicker">Il nome sulla porta</p>
+        <h2 id="t-valentino">Valentino <strong>Egidi.</strong></h2>
+        <p class="lead">Ha fondato Egidi Immobiliare e BOOM. Lo studio è in Via dei Coronari, nel centro storico di Roma.</p>
+        <p class="lead solo-anteprima"><span class="segnaposto">DA FORNIRE</span> Due righe in prima persona: perché fa questo mestiere, e la regola che applica sempre.</p>
+        <p class="lead solo-anteprima"><span class="segnaposto">VERIFICARE</span> Agente d'affari in mediazione · iscrizione e polizza RC da indicare.</p>
+        <dl class="dati">
+          <div><dt>Studio</dt><dd>Via dei Coronari 181/184, 00186 Roma</dd></div>
+          <div><dt>Sede legale</dt><dd>Viale Liegi 42, 00198 Roma</dd></div>
+          <div><dt>Società</dt><dd>Egidi Immobiliare S.r.l.</dd></div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section class="scuro" id="macchina" data-scuro aria-labelledby="t-macchina">
     <div class="wrap">
-      <p class="mono kicker rv">La macchina</p>
-      <h2 id="t-macchina" class="rv">Un'agenzia costruita<br><strong>come un software.</strong></h2>
-      <p class="lead rv">Gira sulla stessa piattaforma di BOOM: meno carta, meno attese, ogni passaggio tracciato.</p>
-      <div class="macchina-grid">
-        <article class="tile rv">
-          <div class="demo"><span class="tag-es">Esempio</span>
-            <div style="width:100%">
-              <svg class="firma-svg" viewBox="0 0 220 70" aria-hidden="true"><path d="M8 50c14-30 24-36 28-24s-6 28 2 26 14-30 22-28-2 22 8 22 16-26 26-22-4 18 6 18c12 0 20-20 34-20s10 14 22 12 20-12 30-14 16 4 26 2"/></svg>
-              <div class="cert"><span>FIRMATO · DATA E ORA</span><span>DISPOSITIVO REGISTRATO</span><span>CERTIFICATO ALLEGATO</span></div>
+      <p class="kicker">La macchina</p>
+      <h2 id="t-macchina">Un'agenzia costruita<br><strong>come un software.</strong></h2>
+      <p class="lead">Gira sulla stessa piattaforma di BOOM: meno carta, meno attese, ogni passaggio tracciato.</p>
+      <div class="console">
+        <div class="schede" role="tablist" aria-label="Gli strumenti">
+          <button class="scheda-tab" role="tab" type="button" id="tab-firma" aria-controls="pan-firma" aria-selected="true"><span>01</span>Firma digitale</button>
+          <button class="scheda-tab" role="tab" type="button" id="tab-fasc" aria-controls="pan-fasc" aria-selected="false" tabindex="-1"><span>02</span>Fascicolo dell'immobile</button>
+          <button class="scheda-tab" role="tab" type="button" id="tab-val" aria-controls="pan-val" aria-selected="false" tabindex="-1"><span>03</span>Valutazioni sui dati</button>
+          <button class="scheda-tab" role="tab" type="button" id="tab-vis" aria-controls="pan-vis" aria-selected="false" tabindex="-1"><span>04</span>Visite nel Wallet</button>
+        </div>
+        <div class="pannelli">
+          <article class="pannello attivo" id="pan-firma" role="tabpanel" aria-labelledby="tab-firma">
+            <div class="schermo"><span class="tag-es">Esempio · non inviato</span>
+              <div class="firma-box" id="firma-box">
+                <svg class="firma-svg" viewBox="0 0 420 120" aria-hidden="true">
+                  <path style="--l:430;--d:520ms;--r:200ms" d="M20 84c18-40 34-58 44-50s-12 44 2 44 30-52 44-48-6 40 10 38 26-34 40-30"/>
+                  <path style="--l:330;--d:380ms;--r:810ms" d="M178 70c10-12 24-18 34-10s-4 26 8 24 22-30 36-28 4 22 16 20 18-12 26-14"/>
+                  <path style="--l:470;--d:640ms;--r:1280ms" d="M300 60c14-4 30 2 36 14s-8 24-20 20 4-26 26-30 44 8 58 2"/>
+                </svg>
+                <canvas class="pad" id="pad" width="840" height="300" aria-label="Riquadro per firmare con il dito"></canvas>
+                <div class="cert" id="cert"><span>Firmato il <b data-c="data">gg/mm/aaaa</b> alle <b data-c="ora">hh:mm</b> (ora di Roma)</span><span>Dispositivo: <b data-c="disp">rilevato alla firma</b></span><span>Certificato di data, ora e dispositivo allegato</span></div>
+                <button class="prova" type="button" id="prova">Prova a firmare</button>
+              </div>
             </div>
-          </div>
-          <h3>Firma digitale</h3>
-          <p>Contratti firmati dal telefono, con certificato di data, ora e dispositivo.</p>
-        </article>
-        <article class="tile rv">
-          <div class="demo"><span class="tag-es">Esempio</span>
-            <ul class="docs"><li>VISURA<i></i></li><li>PLANIMETRIA<i></i></li><li>APE<i></i></li><li>CONTRATTO<i></i></li></ul>
-          </div>
-          <h3>Fascicolo dell'immobile</h3>
-          <p>Visura, planimetria, APE e contratti in un solo posto, con quello che manca in evidenza.</p>
-        </article>
-        <article class="tile rv">
-          <div class="demo"><span class="tag-es">Illustrazione</span>
-            <div style="width:100%"><div class="barre" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i class="voi"></i><i></i></div><p class="mono" style="margin-top:10px">Zona · confronto</p></div>
-          </div>
-          <h3>Valutazioni sui dati</h3>
-          <p>Il prezzo nasce dal mercato della zona e dallo stato reale dell'immobile.</p>
-        </article>
-        <article class="tile rv">
-          <div class="demo"><span class="tag-es">Esempio</span>
-            <div class="pass"><b>VISITA</b><div class="rotta"><span>ROM</span><span>→</span><span>VE</span></div><span class="mono">Ora · indirizzo · accesso</span><div class="qr"></div></div>
-          </div>
-          <h3>Visite nel Wallet</h3>
-          <p>Con BOOM ogni visita arriva sul telefono come una carta d'imbarco: ora, indirizzo, accesso.</p>
-        </article>
+            <div class="didascalia"><h3>Firma digitale</h3><p>L'incarico e i documenti di servizio si firmano dal telefono, con certificato di data, ora e dispositivo. Preliminare e rogito seguono la forma che chiede la legge.</p></div>
+          </article>
+          <article class="pannello" id="pan-fasc" role="tabpanel" aria-labelledby="tab-fasc" hidden>
+            <div class="schermo"><span class="tag-es">Esempio</span>
+              <div class="fasc" id="fasc">
+                <button type="button" aria-pressed="true">Visura<i></i></button>
+                <button type="button" aria-pressed="true">Planimetria<i></i></button>
+                <button type="button" aria-pressed="true">APE<i></i></button>
+                <button type="button" aria-pressed="true">Provenienza<i></i></button>
+                <button type="button" aria-pressed="false">Conformità urbanistica<em>MANCA</em><i></i></button>
+                <button type="button" aria-pressed="true">Impianti<i></i></button>
+              </div>
+            </div>
+            <div class="didascalia"><h3>Fascicolo dell'immobile</h3><p>Visura, planimetria, APE e contratti in un solo posto, con quello che manca in evidenza. Tocca una voce per spuntarla.</p></div>
+          </article>
+          <article class="pannello" id="pan-val" role="tabpanel" aria-labelledby="tab-val" hidden>
+            <div class="schermo"><span class="tag-es">Illustrazione</span>
+              <div class="fascia" id="fascia"><div class="asse"><div class="tu"><span>Il tuo immobile</span><i></i></div></div><div class="gambe"><span>Fascia della zona</span><span>Stato e documenti</span></div></div>
+            </div>
+            <div class="didascalia"><h3>Valutazioni sui dati</h3><p>Il prezzo nasce dal mercato della zona e dallo stato reale dell'immobile, e si spiega riga per riga.</p></div>
+          </article>
+          <article class="pannello" id="pan-vis" role="tabpanel" aria-labelledby="tab-vis" hidden>
+            <div class="schermo"><span class="tag-es">Esempio</span>
+              <button class="carta-i" type="button" id="carta-i" aria-pressed="false" aria-label="Carta della visita: tocca per girarla">
+                <span class="gira">
+                  <span class="faccia"><b>VISITA</b><span class="rotta"><span>ROM</span><i>→</i><span>CEN</span></span><small>Ora · indirizzo · accesso</small><span class="qr"></span></span>
+                  <span class="faccia retro"><b>NEL WALLET</b><small>La carta si aggiorna da sola se la visita si sposta, e al portone ti ricorda il piano e il citofono.</small></span>
+                </span>
+              </button>
+            </div>
+            <div class="didascalia"><h3>Visite nel Wallet</h3><p>Con BOOM ogni visita arriva sul telefono come una carta d'imbarco: ora, indirizzo, accesso.</p></div>
+          </article>
+        </div>
       </div>
     </div>
   </section>
 
   <section class="investire" id="investire" aria-labelledby="t-investire">
     <div class="wrap">
-      <p class="mono kicker rv">Investire</p>
-      <h2 id="t-investire" class="rv">Compri per metterla a reddito?<br><strong>L'affitto lo fa <em>BOOM</em>.</strong></h2>
-      <p class="lead rv">Valentino trova l'immobile, BOOM lo affitta a studenti e professionisti internazionali. Fai due conti prima di scriverci.</p>
-      <div class="calc rv">
+      <p class="kicker">Investire</p>
+      <h2 id="t-investire">Compri per metterla a reddito?<br><strong>L'affitto lo fa <em>BOOM</em>.</strong></h2>
+      <p class="lead">Valentino trova l'immobile, BOOM lo affitta a studenti e professionisti internazionali. Fai due conti prima di scriverci.</p>
+      <div class="calc">
         <form class="calc-in" id="calc" onsubmit="return false">
           <label for="prezzo">Prezzo d'acquisto</label>
           <span class="campo"><span aria-hidden="true">€</span><input id="prezzo" inputmode="numeric" autocomplete="off" placeholder="es. 250.000" aria-describedby="calc-nota"></span>
@@ -639,11 +823,11 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
           </fieldset>
           <button class="esempio" type="button" id="esempio">Prova con un esempio</button>
         </form>
-        <div class="calc-out" aria-live="polite">
+        <div class="calc-out">
           <div class="risultati">
-            <div><p class="mono">Rendimento lordo</p><p class="cifra" id="lordo">—</p></div>
-            <div><p class="mono">Netto dopo la cedolare</p><p class="cifra oro" id="netto">—</p></div>
-            <div><p class="mono">Canone annuo</p><p class="cifra piccola" id="annuo">—</p></div>
+            <div><p class="mono">Rendimento lordo</p><p class="sr" id="lordo" aria-live="polite">—</p><div class="cifra grande" data-cifra="lordo" data-n="5" aria-hidden="true"></div></div>
+            <div><p class="mono">Netto dopo la cedolare</p><p class="sr" id="netto" aria-live="polite">—</p><div class="cifra grande" data-cifra="netto" data-n="5" aria-hidden="true"></div></div>
+            <div class="largo"><p class="mono">Canone annuo</p><p class="sr" id="annuo" aria-live="polite">—</p><div class="cifra piccola" data-cifra="annuo" data-n="9" aria-hidden="true"></div></div>
           </div>
           <p class="nota" id="calc-nota">Stima indicativa: lordo = canone annuo diviso prezzo; il netto toglie solo la cedolare. Spese, IMU e mesi sfitti sono esclusi, e la cedolare al 10% vale quando ricorrono le condizioni del concordato. Il canone vero della zona te lo dice BOOM.</p>
           <div class="azioni">
@@ -657,14 +841,14 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
 
   <section id="candidatura" aria-labelledby="t-cand">
     <div class="wrap">
-      <p class="mono kicker rv">Candidatura</p>
-      <h2 id="t-cand" class="rv">Candida il tuo immobile.<br><strong>Poi ne parliamo.</strong></h2>
+      <p class="kicker">Candidatura</p>
+      <h2 id="t-cand">Candida il tuo immobile.<br><strong>Prima lo leggiamo.</strong></h2>
       <div class="cand">
-        <div class="cand-lato rv">
+        <div class="cand-lato">
           <p>Prima di accettare un incarico leggiamo i documenti. Se qualcosa non torna, te lo diciamo prima del mercato, non al rogito.</p>
           <p>Quattro passaggi, due minuti. Nessun dato parte finché non premi l'ultimo bottone: si apre WhatsApp col riepilogo, e decidi tu se inviarlo.</p>
         </div>
-        <div class="scheda rv">
+        <div class="scheda">
           <div class="fasi" aria-hidden="true"><i class="su"></i><i></i><i></i><i></i></div>
           <form id="candida" onsubmit="return false" novalidate>
             <fieldset class="passo" data-passo="1">
@@ -727,32 +911,12 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
     </div>
   </section>
 
-  <section id="valentino" aria-labelledby="t-valentino">
-    <div class="wrap persona">
-      <div class="ritratto rv" role="img" aria-label="Monogramma VE di Valentino Egidi">
-        <span class="ve" aria-hidden="true">VE</span>
-        <span class="segnaposto solo-anteprima">FOTO VERA DA FORNIRE</span>
-      </div>
-      <div>
-        <p class="mono kicker rv">Il nome sulla porta</p>
-        <h2 id="t-valentino" class="rv">Valentino <strong>Egidi.</strong></h2>
-        <p class="lead rv">Ha fondato Egidi Immobiliare e BOOM. Lo studio è in Via dei Coronari, nel centro storico di Roma.</p>
-        <p class="lead solo-anteprima"><span class="segnaposto">DA FORNIRE</span> Due righe in prima persona: perché fa questo mestiere, e come.</p>
-        <dl class="dati rv">
-          <div><dt>Studio</dt><dd>Via dei Coronari 181/184, 00186 Roma</dd></div>
-          <div><dt>Sede legale</dt><dd>Viale Liegi 42, 00198 Roma</dd></div>
-          <div><dt>Società</dt><dd>Egidi Immobiliare S.r.l.</dd></div>
-        </dl>
-      </div>
-    </div>
-  </section>
-
-  <section class="contatti" id="contatti" aria-labelledby="t-contatti">
+  <section class="scuro contatti" id="contatti" data-scuro aria-labelledby="t-contatti">
     <div class="wrap">
-      <p class="mono kicker rv">Contatti</p>
-      <h2 id="t-contatti" class="rv">Parliamo del<br><strong>tuo immobile.</strong></h2>
-      <p class="lead rv">Scrivi dove si trova e cosa vuoi fare. Risponde Valentino, non un call center.</p>
-      <div class="azioni rv">
+      <p class="kicker">Contatti</p>
+      <h2 id="t-contatti">Mandaci le carte.<br><strong>Poi parliamo di prezzo.</strong></h2>
+      <p class="lead">Scrivi dove si trova e cosa vuoi fare. Risponde Valentino, non un call center.</p>
+      <div class="azioni">
         <a class="btn btn-bianco" data-evento="whatsapp_click" href="https://wa.me/393313251961?text=Buongiorno%20Valentino%2C%20vi%20scrivo%20per%20un%20immobile%20a%20Roma.">Scrivi su WhatsApp <span class="fr" aria-hidden="true">→</span></a>
         <a class="btn btn-oro" data-evento="handoff_boom" href="https://www.boomrome.com/?utm_source=egidimmobiliare&amp;utm_medium=referral&amp;utm_campaign=contatti">Affitti? BOOM <span class="fr" aria-hidden="true">→</span></a>
       </div>
@@ -765,7 +929,7 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
   </section>
 </main>
 
-<footer>
+<footer data-scuro>
   <div class="wrap piede">
     <div>
       <p class="forte">Valentino Egidi Immobiliare è un marchio di Egidi Immobiliare S.r.l.</p>
@@ -780,14 +944,22 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
   </div>
 </footer>
 
-<a class="wa-fissa" data-evento="whatsapp_click" href="https://wa.me/393313251961?text=Buongiorno%20Valentino%2C%20vi%20scrivo%20dal%20sito.">Scrivi a Valentino su WhatsApp</a>
+<a class="wa-fissa nascosta" data-evento="whatsapp_click" href="https://wa.me/393313251961?text=Buongiorno%20Valentino%2C%20vi%20scrivo%20dal%20sito.">Scrivi a Valentino su WhatsApp</a>
 
 <script>
 (function () {
     var d = document, html = d.documentElement, w = window;
-    var calmo = w.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    var calmoMq = w.matchMedia('(prefers-reduced-motion: reduce)');
+    var calmo = calmoMq.matches;
     var $ = function (id) { return d.getElementById(id); };
+    var cl = function (x) { return x < 0 ? 0 : x > 1 ? 1 : x; };
+    var seg = function (T, a, b) { return cl((T - a) / (b - a)); };
+    var liscio = function (x) { return x * x * (3 - 2 * x); };
     var WA = 'https://wa.me/393313251961?text=';
+    var ANTEPRIMA = html.classList.contains('anteprima');
+    // La versione del modulo 3D: la scrive a mano chi ricostruisce il bundle,
+    // e il test la confronta col manifest (egidi/js/metodo3d.manifest.json).
+    var V3D = 'e12bf919';
 
     // Misura: GA4 parte solo con l'ID della proprietà Egidi e col consenso.
     // Finché l'ID manca non c'è nulla da consentire, quindi nessun banner.
@@ -798,88 +970,412 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
         if (a) evento(a.getAttribute('data-evento'), { link_url: a.href || '' });
     });
 
-    // Testata: scura sopra le sezioni scure (hero, metodo), chiara sulla carta.
-    var testata = $('testata'), scure = [].slice.call(d.querySelectorAll('[data-scuro]')), rafT = 0;
+    // Nella variante travertino l'hero è chiaro: la testata lo sa.
+    if (html.getAttribute('data-colore') === 'travertino') $('hero').removeAttribute('data-scuro');
+
+    // ── IL TABELLONE: il motore delle palette, uno solo per tutta la pagina ──
+    var FLAP = (function () {
+        var ok = !!(d.body && d.body.animate);
+        var P = 76, D = 70, FINE = 210;                                       // passo ≈ 13 lettere/s · caduta · ultima col rimbalzo
+        var CADUTA = [0, 3.4, 9, 20, 36, 59, 92, 133, 180];                   // θ'' = sin θ, liberata a 20°, tempo uniforme
+        var RIMB = [[128, 171], [148, 168], [168, 171], [186, 180], [198, 177.5], [210, 180]];
+        function ombre(a) {
+            return { fr: a <= 90 ? .62 * Math.pow(a / 90, 1.3) : .62, re: a >= 90 ? .58 * Math.pow((180 - a) / 90, 1.15) : .58,
+                     su: Math.max(0, .42 * (1 - a / 110)), giu: a < 90 ? 0 : .5 * (a - 90) / 90 };
+        }
+        function chiavi(pt, tot) {
+            var k = { pala: [], fr: [], re: [], su: [], giu: [] };
+            pt.forEach(function (p) {
+                var o = p[0] / tot, s = ombre(p[1]);
+                k.pala.push({ offset: o, transform: 'rotateX(' + -p[1] + 'deg)' });
+                for (var n in s) k[n].push({ offset: o, opacity: s[n] });
+            });
+            return k;
+        }
+        var K1 = chiavi(CADUTA.map(function (a, i) { return [i * D / 8, a]; }), D);
+        var K2 = chiavi(CADUTA.map(function (a, i) { return [i * 108 / 8, a]; }).concat(RIMB), FINE);
+        function meta(cls) { var m = d.createElement('span'); m.className = 'm ' + cls; m.innerHTML = '<i></i><u></u>'; return m; }
+        function scrivi(m, ch) { m.firstChild.textContent = ch; }
+        function posa(c, ch) { ferma1(c); c.ora = ch; c.el.setAttribute('data-c', ch); [c.su, c.giu, c.fr, c.re].forEach(function (m) { scrivi(m, ch); }); }
+        function monta(f, tam, h) {
+            var fine = (f.textContent || ' ').replace(/ /g, ' ').toUpperCase().charAt(0) || ' ';
+            if (tam.indexOf(fine) < 0) fine = tam[0];
+            var c = { el: f, tam: tam, su: meta('su'), giu: meta('giu'), fr: meta('su'), re: meta('giu'), pala: d.createElement('span'),
+                      ora: fine, fine: fine, an: [], passo: Math.round(P * (1 + (((h || 0) % 7) - 3) * .012)) };
+            c.pala.className = 'pala'; c.pala.appendChild(c.fr); c.pala.appendChild(c.re);
+            f.textContent = ''; f.appendChild(c.su); f.appendChild(c.giu); f.appendChild(c.pala);
+            posa(c, fine); return c;
+        }
+        function ferma1(c) { if (c.an) c.an.forEach(function (x) { x.cancel(); }); c.an = []; c.el.classList.remove('gira'); }
+        function gira(c, ritardo) {
+            var T = c.tam, n = (T.indexOf(c.fine) - T.indexOf(c.ora) + T.length) % T.length, k = 0;
+            ferma1(c); if (!n) return;
+            if (!ok) { posa(c, c.fine); return; }
+            c.el.classList.add('gira');
+            (function passo(dopo) {
+                var a = T[(T.indexOf(c.ora) + 1) % T.length], ultimo = ++k === n, K = ultimo ? K2 : K1;
+                var t = { duration: ultimo ? FINE : D, delay: dopo, easing: 'linear', fill: 'forwards' };
+                scrivi(c.su, a); scrivi(c.re, a);                                // dietro la paletta a riposo
+                c.an = [c.pala.animate(K.pala, t), c.fr.lastChild.animate(K.fr, t), c.re.lastChild.animate(K.re, t)];
+                if (ultimo) c.an.push(c.su.lastChild.animate(K.su, t), c.giu.lastChild.animate(K.giu, t));
+                c.an[0].onfinish = function () {                                 // testo e ritorno a 0° nello stesso commit
+                    c.ora = a; c.el.setAttribute('data-c', a); scrivi(c.giu, a); scrivi(c.fr, a);
+                    c.an.forEach(function (x) { x.cancel(); }); c.an = [];
+                    if (ultimo) c.el.classList.remove('gira'); else passo(c.passo - D);
+                };
+            })(ritardo || 0);
+        }
+        return { ok: ok, monta: monta, posa: posa, gira: gira, ferma1: ferma1 };
+    })();
+
+    var fermo = false;
+    (function () {
+        var tab = $('tabellone'), ferma = $('ferma');
+        var ALFA = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.-/';
+        var celle = [], cifre = [];
+        [].forEach.call(tab.querySelectorAll('.riga'), function (riga, r) {
+            [].forEach.call(riga.querySelectorAll('.celle .f'), function (f, i) {
+                var h = (r * 9 + i) * 37 % 101, c = FLAP.monta(f, ALFA, h);
+                c.via = r * 170 + i * 28 + h % 13; celle.push(c);
+            });
+        });
+        var oro = $('orologio');
+        [].forEach.call(oro.querySelectorAll('.f'), function (f, i) { cifre.push(FLAP.monta(f, '0123456789', i)); });
+        function oraRoma() { try { return new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date()).replace(/\D/g, ''); } catch (e) { return ''; } }
+        function orologio(hhmm) {
+            if (hhmm.length !== 4) return;
+            oro.querySelector('.sr').textContent = 'Ora di Roma ' + hhmm.slice(0, 2) + ':' + hhmm.slice(2);
+            cifre.forEach(function (c, i) { c.fine = hhmm[i]; if (c.fine !== c.ora) (fermo ? FLAP.posa(c, c.fine) : FLAP.gira(c, i * 40)); });
+            oro.classList.add('pronto');
+            [].forEach.call(oro.querySelectorAll('.f'), function (f) { f.style.color = ''; });
+        }
+        function stato(s) { ferma.setAttribute('aria-pressed', String(s)); ferma.lastChild.textContent = s ? 'Riavvia il tabellone' : 'Ferma il tabellone'; }
+        var fine = 0;
+        function accendi() {
+            fermo = false; tab.classList.add('pronto'); celle.forEach(function (c) { FLAP.posa(c, ' '); c.fine = c.el.getAttribute('data-fine'); FLAP.gira(c, c.via); }); stato(false);
+            clearInterval(fine);                                              // finito il giro, il bottone offre di rifarlo
+            fine = setInterval(function () { if (!tab.querySelector('.celle .gira')) { clearInterval(fine); if (!fermo) stato(true); } }, 400);
+        }
+        function spegni() { clearInterval(fine); fermo = true; tab.classList.add('pronto'); celle.concat(cifre).forEach(function (c) { FLAP.posa(c, c.fine); }); stato(true); }
+        celle.forEach(function (c) { c.el.setAttribute('data-fine', c.fine); });
+        function ricorda(v) { try { v ? localStorage.setItem('egidi-fermo', '1') : localStorage.removeItem('egidi-fermo'); } catch (e) {} }
+        function ricordato() { try { return localStorage.getItem('egidi-fermo') === '1'; } catch (e) { return false; } }
+        ferma.addEventListener('click', function () { var s = ferma.getAttribute('aria-pressed') === 'true'; ricorda(!s); s ? accendi() : spegni(); });
+        if (calmoMq.addEventListener) calmoMq.addEventListener('change', function (e) { if (e.matches) spegni(); });
+        w.__solari = { celle: celle, cifre: cifre, accendi: accendi, spegni: spegni, orologio: orologio };
+        fermo = calmo || ricordato() || !FLAP.ok;
+        (function minuto() { orologio(oraRoma()); setTimeout(minuto, 60050 - Date.now() % 60000); })();
+        if (fermo) { spegni(); if (calmo) ferma.hidden = true; return; }
+        var pronto = Promise.race([d.fonts && d.fonts.load ? d.fonts.load('700 40px Archivo') : 0, new Promise(function (ok) { setTimeout(ok, 800); })]);
+        var partito = false;
+        function via() { if (!partito) { partito = true; pronto.then(function () { setTimeout(accendi, 250); }); } }
+        if ('IntersectionObserver' in w) { var io = new IntersectionObserver(function (v) { if (v[0].isIntersecting) { io.disconnect(); via(); } }, { threshold: .35 }); io.observe(tab); } else via();
+    })();
+
+    // ── TESTATA: legge il fondo che ha sotto ─────────────────────────────────
+    var testata = $('testata'), scure = [].slice.call(d.querySelectorAll('[data-scuro]')), metodo = $('metodo'), waFissa = d.querySelector('.wa-fissa');
+    var boomOra = false, rafT = 0;
     function tinta() {
         rafT = 0;
-        var y = testata.offsetHeight / 2;
-        testata.classList.toggle('chiara', !scure.some(function (s) { var r = s.getBoundingClientRect(); return r.top <= y && r.bottom > y; }));
+        var y = testata.offsetHeight / 2, sopra = null;
+        for (var i = 0; i < scure.length; i++) { var r = scure[i].getBoundingClientRect(); if (r.top <= y && r.bottom > y) { sopra = scure[i]; break; } }
+        var cima = w.scrollY <= 8 && sopra && sopra.id === 'hero';
+        var boom = !!(sopra && sopra === metodo && boomOra);
+        testata.classList.toggle('boom', boom);
+        testata.classList.toggle('scura', !!sopra && !cima && !boom);
+        testata.classList.toggle('chiara', !sopra && !(w.scrollY <= 8 && html.getAttribute('data-colore') === 'travertino'));
+        html.classList.toggle('testata-chiara', testata.classList.contains('chiara'));
+        html.classList.toggle('testata-boom', boom);
+        var hr = $('hero').getBoundingClientRect();
+        if (waFissa) waFissa.classList.toggle('nascosta', hr.bottom > innerHeight * .35);
     }
     w.addEventListener('scroll', function () { if (!rafT) rafT = requestAnimationFrame(tinta); }, { passive: true });
     w.addEventListener('resize', tinta);
     tinta();
 
-    // L'ora di Roma, vera.
-    var oro = $('orologio');
-    function ora() {
-        try { oro.textContent = 'Roma ' + new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', hour: '2-digit', minute: '2-digit' }).format(new Date()); } catch (e) { oro.textContent = ''; }
-    }
-    ora(); setInterval(ora, 20000);
+    // ── IL METODO: scroll → T (0…5), la scena recita T, il DOM la segue ────────
+    (function () {
+        var atti = $('atti'), tela = $('tela3d'), poster = $('poster3d');
+        var articoli = [].slice.call(d.querySelectorAll('.atto'));
+        var segni = [].slice.call(d.querySelectorAll('.binario a'));
+        var W = [0.9, 1.0, 2.2, 0.9, 0.8], B = [0, 0.9, 1.9, 4.1, 5.0, 5.8];
+        var POSE = [0.85, 1.70, 2.48, 3.85, 4.85];
+        var SCATTI = [[2.44, 2.52], [2.655, 2.72], [2.875, 2.95]], LAMPI = [2.445, 2.66, 2.88];
+        var q = location.search, forza = /[?&]m3d=forza/.test(q), diag = ANTEPRIMA && /[?&]m3d=diag/.test(q);
+        var tre = html.classList.contains('m3d-on');
+        var scena = null, mod = null, T = 0, Tf = 0, v = 0, raf = 0, ultimoT = -1, attoOra = 0;
+        var visibile = false, ema = 16, lenti = 0, lentissimi = 0, livello = 0, tPrima = 0, perdite = 0;
+        var etichette = [], pins = [].slice.call(d.querySelectorAll('.m3d-pin'));
+        var provini = [].slice.call(d.querySelectorAll('.provini canvas')), presi = [false, false, false];
+        var mirino = $('mirino3d'), lampo = $('lampo3d'), timbro = $('timbro3d'), totale = $('totale3d');
+        var lista = [].slice.call(d.querySelectorAll('#lista3d li, #tappe3d li'));
+        var diagBox = null;
 
-    // Il tabellone Solari: ogni cella gira fino alla sua lettera.
-    var ALFA = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-    var righe = [].slice.call(d.querySelectorAll('.riga'));
-    righe.forEach(function (r) {
-        var p = r.getAttribute('data-parola'), box = r.querySelector('.celle'), h = '';
-        if (box.children.length) return; // le celle sono già nell'HTML: senza JavaScript la parola si legge
-        for (var i = 0; i < 9; i++) h += '<span class="f"><b>' + (p[i] || ' ').replace(' ', '&nbsp;') + '</b></span>';
-        box.innerHTML = h;
+        function pDaScroll() { var r = atti.getBoundingClientRect(), corsa = r.height - innerHeight; return corsa > 0 ? cl(-r.top / corsa) : 0; }
+        function tDaP(p) { var u = p * 5.8; for (var k = 0; k < 5; k++) if (u < B[k + 1] || k === 4) return Math.min(5, k + (u - B[k]) / W[k]); return 5; }
+        function pDaT(t) { var k = Math.min(4, Math.floor(t)); return (B[k] + (t - k) * W[k]) / 5.8; }
+        function mobile() { return w.matchMedia('(max-width:1023px)').matches; }
+
+        // il testo dell'atto: entra e esce col tempo della scena, nessuna classe a tempo
+        function testi(t) {
+            var k = Math.min(4, Math.floor(t)), f = t - k;
+            articoli.forEach(function (a, i) {
+                var op = 0;
+                if (i === k) op = (i === 0 ? 1 : seg(f, 0, .08)) * (i === 4 ? 1 : 1 - seg(f, .94, 1));
+                a.style.opacity = op.toFixed(3);
+                a.style.visibility = op < .01 ? 'hidden' : '';
+            });
+            if (k + 1 !== attoOra) {
+                attoOra = k + 1;
+                segni.forEach(function (s, i) { s.classList.toggle('su', i <= k); if (i === k) s.setAttribute('aria-current', 'step'); else s.removeAttribute('aria-current'); });
+                if (!scena) cambiaPoster(attoOra);
+            }
+            metodo.style.setProperty('--t', liscio(seg(t, 4.0, 4.35)).toFixed(3));
+            metodo.classList.toggle('s5', t >= 4.2);
+            var b = t >= 4.2; if (b !== boomOra) { boomOra = b; tinta(); }
+        }
+        function cambiaPoster(n) {
+            var src = '/img/metodo-' + n + '.webp?v=' + V3D;
+            if (poster.getAttribute('src') !== src) poster.setAttribute('src', src);
+            if (n < 5) { var pre = new Image(); pre.src = '/img/metodo-' + (n + 1) + '.webp?v=' + V3D; }
+        }
+        // le spunte e il timbro: con la scena seguono T, senza scena sono già fatte
+        function extra(t) {
+            if (!scena) return;
+            lista.forEach(function (li) { li.classList.toggle('fatto', t >= parseFloat(li.getAttribute('data-t'))); });
+            var ts = seg(t, 1.66, 1.80);
+            timbro.style.opacity = t >= 1.66 ? '1' : '0';
+            timbro.style.transform = 'scale(' + (1.15 - .15 * ts).toFixed(3) + ')';
+            totale.style.opacity = t < 1 ? seg(t, .62, .70).toFixed(3) : '1';
+        }
+        function overlay(t) {
+            var mob = mobile(), bordoGiu = mob ? innerHeight * .56 : atti.querySelector('.palco').clientHeight - 12, bordoSu = 12;
+            var rx = mod.rilievoX ? mod.rilievoX(t) : 99;
+            etichette.forEach(function (e) {
+                var acc = t < 1.05 && rx >= e.s.cx && !(mob && e.s.netta < 6);
+                var p = acc ? scena.proietta(e.s.id) : null;
+                acc = acc && p && p.visibile;
+                e.el.classList.toggle('accesa', acc && t < .97);
+                if (p) e.el.style.transform = 'translate3d(' + p.x.toFixed(1) + 'px,' + p.y.toFixed(1) + 'px,0) translate(-50%,-50%)';
+            });
+            pins.forEach(function (el) {
+                var id = el.getAttribute('data-pin'), on = false;
+                if (id === 'noncombacia') on = t >= 1.60 && t < 1.72;
+                if (id === 'rogito') on = t >= 3.60 && t < 4.05;
+                if (id === 'boom') on = t >= 4.35;
+                var p = on ? scena.proietta(id) : null;
+                on = on && p && p.visibile;
+                if (on) {
+                    var y = Math.max(bordoSu, Math.min(bordoGiu, p.y));
+                    el.style.transform = 'translate3d(' + p.x.toFixed(1) + 'px,' + y.toFixed(1) + 'px,0) translate(-50%,-100%)';
+                }
+                el.classList.toggle('acceso', !!on);
+            });
+            var s = -1; SCATTI.forEach(function (w2, i) { if (t >= w2[0] && t <= w2[1]) s = i; });
+            mirino.classList.toggle('acceso', s >= 0);
+            if (s >= 0) mirino.lastChild.textContent = 'FOTO ' + (s + 1) + '/3';
+        }
+        function scatti(prima, t) {
+            LAMPI.forEach(function (l, i) {
+                if (prima < l && t >= l) {                     // solo passando in avanti
+                    lampo.classList.remove('via'); void lampo.offsetWidth; lampo.classList.add('via');
+                    provino(i);
+                } else if (!presi[i] && t > SCATTI[i][1] && prima <= t) {
+                    var ora = t; scena.imposta(l + .02); provino(i); scena.imposta(ora);   // arrivato con un salto
+                }
+            });
+        }
+        function provino(i) {
+            var c = provini[i]; if (!c) return;
+            try { var g = c.getContext('2d'); g.drawImage(tela, 0, 0, tela.width, tela.height, 0, 0, c.width, c.height); c.classList.add('preso'); presi[i] = true; } catch (e) {}
+        }
+        function disegna(forzato) {
+            if (!forzato && Math.abs(T - ultimoT) < 1e-5) return;
+            var prima = ultimoT; ultimoT = T;
+            testi(T); extra(T);
+            if (scena) {
+                scena.imposta(T);
+                overlay(T);
+                if (prima >= 0) scatti(prima, T);
+            }
+            if (diagBox && scena) { var i = scena.info(); diagBox.textContent = 'T ' + T.toFixed(3) + '\nms ' + ema.toFixed(1) + '\ndpr ' + i.dpr + ' · ' + i.profilo + ' · q' + i.qualita + '\nprog ' + i.programs + ' · calls ' + i.calls + ' · tris ' + i.tris; }
+        }
+        // la molla: la scena segue il dito e poi si posa (ω = 9 rad/s, smorzamento critico)
+        function tick(now) {
+            raf = 0;
+            var dt = tPrima ? Math.min(.25, (now - tPrima) / 1000) : 1 / 60; tPrima = now;   // fotogrammi lenti: la scena recupera in tempo reale, non resta indietro
+            if (scena) {
+                var om = 9, lim = (T > 2.26 && T < 3.08) ? 1.0 : 2.2;
+                var n = Math.ceil(dt / .008);
+                for (var i = 0; i < n; i++) { var h = dt / n, a = om * om * (Tf - T) - 2 * om * v; v += a * h; v = Math.max(-lim, Math.min(lim, v)); T += v * h; }
+                if (Math.abs(Tf - T) < 1e-4 && Math.abs(v) < 1e-3) { T = Tf; v = 0; }
+                qualita(dt * 1000);
+            } else T = Tf;
+            disegna();
+            if (T !== Tf && visibile) raf = requestAnimationFrame(tick); else tPrima = 0;
+        }
+        function qualita(ms) {
+            ema = ema * .9 + ms * .1;
+            if (livello >= 4) return;
+            if (ema > 40 && !forza) { if (++lentissimi > 60) ripiego('lento'); } else lentissimi = 0;   // con ?m3d=forza si scende di qualità ma non ci si arrende
+            if (ema > 22) { if (++lenti > 30 && livello < 3) { livello++; lenti = 0; scena.qualita(livello); } } else lenti = 0;
+        }
+        function sveglia() { Tf = tDaP(pDaScroll()); if (!raf && visibile) raf = requestAnimationFrame(tick); }
+        w.addEventListener('scroll', sveglia, { passive: true });
+        w.addEventListener('resize', function () { dimensiona(); sveglia(); });
+        if ('IntersectionObserver' in w) new IntersectionObserver(function (v2) { visibile = v2[0].isIntersecting; if (visibile) sveglia(); }, { rootMargin: '10% 0px' }).observe(atti);
+        else visibile = true;
+        d.addEventListener('visibilitychange', function () { if (!d.hidden) sveglia(); });
+        // il binario: un salto chiesto da chi legge, sulla posa di riposo dell'atto
+        segni.forEach(function (s, i) {
+            s.addEventListener('click', function (e) {
+                e.preventDefault();
+                var top = atti.getBoundingClientRect().top + w.scrollY, corsa = atti.offsetHeight - innerHeight;
+                w.scrollTo({ top: top + pDaT(POSE[i]) * corsa + 1, behavior: calmo ? 'auto' : 'smooth' });
+            });
+        });
+
+        function dimensiona() {
+            if (!scena) return;
+            var palco = atti.querySelector('.palco'), r = palco.getBoundingClientRect();
+            scena.dimensiona(r.width, r.height, Math.min(w.devicePixelRatio || 1, 1.5), mobile() ? 'mobile' : 'desktop');
+            ultimoT = -1; disegna(true);
+        }
+        function leggi(nome, def) { var v2 = getComputedStyle(html).getPropertyValue(nome).trim(); return v2 || def; }
+        function ripiego(perche) {
+            html.classList.remove('m3d-pronto'); html.classList.add('m3d-ripiego');
+            if (scena) { try { scena.distruggi(); } catch (e) {} }
+            scena = null; livello = 4; attoOra = 0; ultimoT = -1; disegna(true);
+            if (diagBox) diagBox.textContent = 'ripiego: ' + perche;
+            lista.forEach(function (li) { li.classList.add('fatto'); }); timbro.style.opacity = ''; timbro.style.transform = ''; totale.style.opacity = '';
+        }
+        function etichetteDa(pianta) {
+            var box = $('etichette3d'), mob = mobile();
+            (pianta.stanze || []).forEach(function (s) {
+                var el = d.createElement('span'); el.className = 'm3d-eti';
+                var m2 = s.netta.toFixed(2).replace('.', ',');
+                el.innerHTML = '<b></b><span></span>' + (mob ? '' : '<i></i>');
+                el.children[0].textContent = s.nome; el.children[1].textContent = m2 + ' m²';
+                if (!mob && s.w && el.children[2]) el.children[2].textContent = s.w.toFixed(2).replace('.', ',') + ' × ' + s.d.toFixed(2).replace('.', ',');
+                box.appendChild(el); etichette.push({ el: el, s: s });
+            });
+        }
+        var avviato = false;
+        function carica() {
+            if (avviato || !tre) return; avviato = true;
+            var scadenza = forza ? 0 : setTimeout(function () { if (!scena) ripiego('tempo'); }, 8000);
+            var prof = (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) ? 'leggero' : 'pieno';
+            import('/js/metodo3d.js?v=' + V3D).then(function (M) {
+                mod = M;
+                var palco = atti.querySelector('.palco'), r = palco.getBoundingClientRect();
+                return M.monta(tela, {
+                    token: { notte: leggi('--notte', '#111D36'), notte2: leggi('--notte-2', '#1B2A45'), luce: leggi('--luce', '#F2EFE8'), nebbia: leggi('--nebbia', '#C5CEDE'), accentoChiaro: leggi('--accento-chiaro', '#96C0FE'), accento: leggi('--accento', '#173FA4'), oro: '#FFD700', boom: '#060607' },
+                    layout: mobile() ? 'mobile' : 'desktop', profilo: prof, dpr: Math.min(w.devicePixelRatio || 1, 1.5), esigente: !forza,
+                    larghezza: r.width, altezza: r.height,
+                    onPerso: function () { if (++perdite >= 2) ripiego('contesto'); else html.classList.remove('m3d-pronto'); },
+                    onRipristino: function () { if (scena) { html.classList.add('m3d-pronto'); ultimoT = -1; disegna(true); } }
+                });
+            }).then(function (s) {
+                if (livello >= 4) { try { s.distruggi(); } catch (e) {} return; }
+                clearTimeout(scadenza);
+                scena = s; etichetteDa(mod.PIANTA || {}); dimensiona();
+                T = Tf = tDaP(pDaScroll()); ultimoT = -1; disegna(true);
+                html.classList.add('m3d-pronto');
+                if (diag) { diagBox = d.createElement('div'); diagBox.className = 'diag'; d.body.appendChild(diagBox); disegna(true); }
+            }).catch(function (e) { clearTimeout(scadenza); ripiego('errore'); });
+        }
+        if (tre) {
+            if ('IntersectionObserver' in w) {
+                var io = new IntersectionObserver(function (v2) { if (v2[0].isIntersecting) { io.disconnect(); carica(); } }, { rootMargin: '150% 0px' });
+                io.observe(metodo);
+            } else carica();
+        }
+        // i ganci per i test: portare la scena su un T o su un atto senza scorrere
+        w.__metodo = {
+            T: function () { return T; },
+            vai: function (t) { Tf = T = t; v = 0; ultimoT = -1; disegna(true); },
+            atto: function (n) { w.__metodo.vai(POSE[n - 1]); },
+            scena: function () { return scena; },
+            pDaT: pDaT, tDaP: tDaP
+        };
+        w.__egidiAtto = w.__metodo.atto;
+        Tf = T = tDaP(pDaScroll()); disegna(true);
+    })();
+
+    // ── LA MACCHINA: quattro schede, niente in ciclo ─────────────────────────
+    (function () {
+        var tabs = [].slice.call(d.querySelectorAll('.scheda-tab'));
+        function apri(t, fuoco) {
+            tabs.forEach(function (x) {
+                var on = x === t, p = $(x.getAttribute('aria-controls'));
+                x.setAttribute('aria-selected', String(on)); x.tabIndex = on ? 0 : -1;
+                p.hidden = !on; p.classList.toggle('attivo', on);
+            });
+            if (fuoco) t.focus();
+            if (t.id === 'tab-val') { var tu = d.querySelector('.fascia .tu'); tu.style.setProperty('--x', '30%'); requestAnimationFrame(function () { requestAnimationFrame(function () { tu.style.setProperty('--x', '58%'); }); }); }
+        }
+        tabs.forEach(function (t, i) {
+            t.addEventListener('click', function () { apri(t); });
+            t.addEventListener('keydown', function (e) {
+                var k = e.key, j = k === 'ArrowRight' || k === 'ArrowDown' ? i + 1 : k === 'ArrowLeft' || k === 'ArrowUp' ? i - 1 : k === 'Home' ? 0 : k === 'End' ? tabs.length - 1 : null;
+                if (j === null) return; e.preventDefault(); apri(tabs[(j + tabs.length) % tabs.length], true);
+            });
+        });
+        // la firma: i tuoi dati veri nel certificato, niente parte da qui
+        var box = $('firma-box'), pad = $('pad'), prova = $('prova'), cert = $('cert');
+        function dispositivo() {
+            var u = navigator.userAgent, s = /iPhone/.test(u) ? 'iPhone' : /iPad/.test(u) ? 'iPad' : /Android/.test(u) ? 'Android' : /Macintosh/.test(u) ? 'Mac' : /Windows/.test(u) ? 'Windows' : 'computer';
+            var b = /Edg\//.test(u) ? 'Edge' : /OPR\//.test(u) ? 'Opera' : /Firefox\//.test(u) ? 'Firefox' : /CriOS|Chrome\//.test(u) ? 'Chrome' : /Safari\//.test(u) ? 'Safari' : 'browser';
+            return s + ' · ' + b;
+        }
+        function timbra() {
+            var n = new Date(), o = { timeZone: 'Europe/Rome' };
+            try {
+                cert.querySelector('[data-c=data]').textContent = new Intl.DateTimeFormat('it-IT', Object.assign({ day: '2-digit', month: '2-digit', year: 'numeric' }, o)).format(n);
+                cert.querySelector('[data-c=ora]').textContent = new Intl.DateTimeFormat('it-IT', Object.assign({ hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }, o)).format(n);
+            } catch (e) {}
+            cert.querySelector('[data-c=disp]').textContent = dispositivo();
+        }
+        prova.addEventListener('click', function () {
+            box.classList.add('firmando'); prova.textContent = 'Cancella e rifai';
+            var g = pad.getContext('2d'); g.clearRect(0, 0, pad.width, pad.height);
+        });
+        (function () {
+            var g = pad.getContext('2d'), giu = false, ult = null;
+            function pt(e) { var r = pad.getBoundingClientRect(); return [(e.clientX - r.left) * pad.width / r.width, (e.clientY - r.top) * pad.height / r.height]; }
+            pad.addEventListener('pointerdown', function (e) { giu = true; ult = pt(e); pad.setPointerCapture(e.pointerId); });
+            pad.addEventListener('pointermove', function (e) {
+                if (!giu) return; var p = pt(e);
+                g.strokeStyle = getComputedStyle(html).getPropertyValue('--accento-chiaro').trim() || '#96C0FE'; g.lineWidth = 4.4; g.lineCap = 'round'; g.lineJoin = 'round';
+                g.beginPath(); g.moveTo(ult[0], ult[1]); g.lineTo(p[0], p[1]); g.stroke(); ult = p;
+            });
+            function su() { if (giu) { giu = false; timbra(); } }
+            pad.addEventListener('pointerup', su); pad.addEventListener('pointercancel', su);
+        })();
+        [].forEach.call(d.querySelectorAll('#fasc button'), function (b) {
+            b.addEventListener('click', function () { b.setAttribute('aria-pressed', String(b.getAttribute('aria-pressed') !== 'true')); });
+        });
+        var carta = $('carta-i');
+        carta.addEventListener('click', function () { carta.setAttribute('aria-pressed', String(carta.getAttribute('aria-pressed') !== 'true')); });
+    })();
+
+    // ── IL CALCOLO: solo aritmetica sui numeri di chi visita, posata sulle palette ──
+    var tamCifre = '0123456789,.%€— ';
+    var tabelle = {};
+    [].forEach.call(d.querySelectorAll('[data-cifra]'), function (box) {
+        var n = +box.getAttribute('data-n'), s = d.createElement('span'); s.className = 'celle';
+        var celle = [];
+        for (var i = 0; i < n; i++) { var f = d.createElement('span'); f.className = 'f'; f.innerHTML = '<b>&nbsp;</b>'; s.appendChild(f); celle.push(FLAP.monta(f, tamCifre, i)); }
+        box.appendChild(s); tabelle[box.getAttribute('data-cifra')] = celle;
+        scriviCifre(celle, '—');
     });
-    var timers = [];
-    function giraRiga(r, ritardo) {
-        var p = (r.getAttribute('data-parola') + '         ').slice(0, 9);
-        [].slice.call(r.querySelectorAll('.f')).forEach(function (cella, i) {
-            var b = cella.firstChild, fine = ALFA.indexOf(p[i]), passi = 6 + ((i * 7 + p.charCodeAt(0)) % 9), k = 0;
-            if (fine < 0) fine = 0;
-            var da = (fine - passi + ALFA.length * 3) % ALFA.length;
-            timers.push(setTimeout(function tick() {
-                var c = ALFA[(da + k) % ALFA.length];
-                b.textContent = c === ' ' ? ' ' : c;
-                cella.classList.remove('gira'); void cella.offsetWidth; cella.classList.add('gira');
-                if (k++ < passi) timers.push(setTimeout(tick, 48));
-            }, ritardo + i * 38));
+    function scriviCifre(celle, testo) {
+        var t = testo.length > celle.length ? testo.slice(-celle.length) : new Array(celle.length - testo.length + 1).join(' ') + testo;
+        celle.forEach(function (c, i) {
+            c.fine = t[i]; if (tamCifre.indexOf(c.fine) < 0) c.fine = ' ';
+            if (calmo || fermo) FLAP.posa(c, c.fine); else FLAP.gira(c, (celle.length - 1 - i) * 30);
         });
     }
-    var giri = 0, loop = null, ferma = $('ferma');
-    function tutto() { righe.forEach(function (r, i) { giraRiga(r, i * 260); }); }
-    function stop() { clearInterval(loop); loop = null; timers.forEach(clearTimeout); timers = [];
-        righe.forEach(function (r) { var p = r.getAttribute('data-parola'); [].slice.call(r.querySelectorAll('.f b')).forEach(function (b, i) { b.textContent = (p[i] || ' '); }); });
-        ferma.setAttribute('aria-pressed', 'true'); ferma.lastChild.textContent = 'Riavvia il tabellone'; }
-    function via() { giri = 0; tutto(); loop = setInterval(function () { if (++giri > 2) return stop(); giraRiga(righe[3], 0); }, 7000);
-        ferma.setAttribute('aria-pressed', 'false'); ferma.lastChild.textContent = 'Ferma il tabellone'; }
-    ferma.addEventListener('click', function () { if (loop || timers.length) stop(); else via(); });
-    if (calmo) { ferma.hidden = true; } else via();
-
-    // Comparsa delle sezioni e respiro della tipografia.
-    var rv = d.querySelectorAll('.rv, .respira');
-    if ('IntersectionObserver' in w && !calmo) {
-        var io = new IntersectionObserver(function (v) {
-            v.forEach(function (x) { if (x.isIntersecting) { x.target.classList.add('dentro'); io.unobserve(x.target); } });
-        }, { rootMargin: '0px 0px -8% 0px' });
-        rv.forEach(function (e) { io.observe(e); });
-    } else rv.forEach(function (e) { e.classList.add('dentro'); });
-
-    // Il metodo: lo scroll dentro la sezione sceglie l'atto, il modello lo recita.
-    var atti = $('atti'), modello = $('modello'), voci = [].slice.call(d.querySelectorAll('.atto')), segni = [].slice.call(d.querySelectorAll('.segni i'));
-    var attuale = 1;
-    function atto(n) {
-        if (n === attuale) return; attuale = n;
-        modello.className = 'modello s' + n;
-        voci.forEach(function (v) { v.classList.toggle('su', +v.getAttribute('data-atto') === n); });
-        segni.forEach(function (s, i) { s.classList.toggle('su', i < n); });
-    }
-    w.__egidiAtto = atto; // per i test: portare il modello su un atto senza scorrere
-    var rafA = 0;
-    function misura() {
-        rafA = 0;
-        var r = atti.getBoundingClientRect(), corsa = r.height - innerHeight;
-        var p = corsa > 0 ? Math.min(1, Math.max(0, -r.top / corsa)) : 0;
-        atto(Math.min(5, 1 + Math.floor(p * 5)));
-    }
-    w.addEventListener('scroll', function () { if (!rafA) rafA = requestAnimationFrame(misura); }, { passive: true });
-    misura();
-
-    // Il calcolo: solo aritmetica sui numeri che scrive chi visita.
     function fmt(n, dec) {
         var s = n.toFixed(dec).split('.'), int = s[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
         return dec ? int + ',' + s[1] : int;
@@ -888,21 +1384,23 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
         var v = parseFloat(String(el.value).replace(/\./g, '').replace(',', '.').replace(/[^\d.]/g, ''));
         return isFinite(v) ? v : 0;
     }
+    var tCalc = 0;
     function calcola() {
         var p = leggi($('prezzo')), c = leggi($('canone'));
-        var t = +d.querySelector('input[name=regime]:checked').value;
+        var t = +d.querySelector('input[name=regime]:checked').value, out;
         if (p > 0 && c > 0) {
             var a = c * 12;
-            $('lordo').textContent = fmt(a / p * 100, 1) + '%';
-            $('netto').textContent = fmt(a * (1 - t) / p * 100, 1) + '%';
-            $('annuo').textContent = '€ ' + fmt(a, 0);
-        } else { $('lordo').textContent = $('netto').textContent = $('annuo').textContent = '—'; }
+            out = { lordo: fmt(a / p * 100, 1) + '%', netto: fmt(a * (1 - t) / p * 100, 1) + '%', annuo: '€ ' + fmt(a, 0) };
+        } else out = { lordo: '—', netto: '—', annuo: '—' };
+        for (var k in out) $(k).textContent = out[k];
+        clearTimeout(tCalc);
+        tCalc = setTimeout(function () { for (var k2 in out) if (tabelle[k2]) scriviCifre(tabelle[k2], out[k2]); }, 280);
     }
     $('calc').addEventListener('input', calcola);
     $('calc').addEventListener('change', calcola);
     $('esempio').addEventListener('click', function () { $('prezzo').value = '250.000'; $('canone').value = '1.200'; calcola(); });
 
-    // La candidatura: quattro passi, tutto nel browser; alla fine WhatsApp.
+    // ── LA CANDIDATURA: quattro passi, tutto nel browser; alla fine WhatsApp ──
     var form = $('candida'), passi = [].slice.call(form.querySelectorAll('.passo')), fasi = [].slice.call(d.querySelectorAll('.fasi i'));
     var avanti = $('avanti'), indietro = $('indietro'), invia = $('invia'), n = 1, checkFatto = false;
     function val(nome) { var el = form.elements[nome]; if (!el) return ''; if (el.length && !el.tagName) { var c = [].filter.call(el, function (x) { return x.checked; })[0]; return c ? c.value : ''; } return (el.value || '').trim(); }
@@ -929,8 +1427,8 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
         return righe.join('\n');
     }
     function mostra(k) {
-        n = k;
-        passi.forEach(function (p) { p.hidden = +p.getAttribute('data-passo') !== k; });
+        var cambia = k !== n; n = k;
+        passi.forEach(function (p) { var on = +p.getAttribute('data-passo') === k; p.hidden = !on; if (on && cambia && !calmo) { p.classList.remove('entra'); void p.offsetWidth; p.classList.add('entra'); } });
         fasi.forEach(function (f, j) { f.classList.toggle('su', j < k); });
         indietro.hidden = k === 1;
         var i = val('intento'), boom = k === 1 && i === 'affittare', ultimo = k === 4 || boom;
@@ -946,7 +1444,7 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
             $('voci-doc').hidden = comprando; d.querySelector('.punteggio').hidden = comprando; $('doc-comprare').hidden = !comprando;
         }
         if (ultimo) aggiornaInvio();
-        var t = passi[k - 1].querySelector('h3'); if (t && k > 1) { t.setAttribute('tabindex', '-1'); t.focus({ preventScroll: true }); }
+        var t = passi[k - 1].querySelector('h3'); if (t && k > 1 && cambia) { t.setAttribute('tabindex', '-1'); t.focus({ preventScroll: true }); }
     }
     function aggiornaInvio() {
         var testo = riepilogo();
@@ -969,7 +1467,7 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
         if (/^d\d$/.test(e.target.name)) {
             var doc = documenti();
             $('punti').textContent = doc.si + '/6';
-            $('punti-testo').textContent = doc.date < 6 ? 'Hai risposto a ' + doc.date + ' voci su 6.' : (doc.manca.length ? 'Da guardare: ' + doc.manca.join(', ') + '.' : 'Tutto in ordine sulla carta. Lo verifichiamo insieme.');
+            $('punti-testo').textContent = doc.date < 6 ? 'Hai risposto a ' + doc.date + ' voci su 6.' : (doc.manca.length ? 'Da guardare: ' + doc.manca.join(', ') + '. Meglio saperlo adesso che dal notaio.' : 'Tutto in ordine sulla carta. Lo verifichiamo insieme.');
             if (doc.date === 6 && !checkFatto) { checkFatto = true; evento('check_complete', { in_ordine: doc.si }); }
         }
         if (n === 4) aggiornaInvio();
@@ -981,7 +1479,7 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
         var i = a.getAttribute('data-intento') || a.getAttribute('data-intento-link');
         var r = form.querySelector('input[name=intento][value="' + i + '"]'); if (r) { r.checked = true; mostra(1); }
     });
-    mostra(1);
+    n = 0; mostra(1);
 })();
 </script>
 </body>

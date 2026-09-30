@@ -1,0 +1,37 @@
+{
+  "bundle": "/js/metodo3d.js",
+  "versione": "4.0.0",
+  "sha256": "e12bf919fbe10d3dc125d3016ca3eda0c871704556317be84a6e998f2743abd7",
+  "sha8": "e12bf919",
+  "bytes": 584705,
+  "gzip": 154828,
+  "brotli": 128441,
+  "sourceHash": "0a2e2c96dd249aa054f6d5457747382b6e831f1781dd8f4b85ed868a28296f46",
+  "sorgenti": [
+    "design/egidi-3d/plan.js",
+    "design/egidi-3d/textures.js",
+    "design/egidi-3d/scena.js"
+  ],
+  "three": "0.186.1",
+  "posters": [
+    "/img/metodo-1.webp",
+    "/img/metodo-2.webp",
+    "/img/metodo-3.webp",
+    "/img/metodo-4.webp",
+    "/img/metodo-5.webp"
+  ],
+  "pose": [
+    0.85,
+    1.7,
+    2.48,
+    3.85,
+    4.85
+  ],
+  "posterT": [
+    0.85,
+    1.635,
+    2.48,
+    3.85,
+    4.85
+  ]
+}

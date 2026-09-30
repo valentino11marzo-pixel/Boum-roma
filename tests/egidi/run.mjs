@@ -30,8 +30,18 @@
 // metodo recitato da un modello 3D sullo scroll, la candidatura in quattro
 // passi che finisce su WhatsApp senza passare da un server. Niente rosso fra
 // le varianti: il nome Valentino in rosso è la casa di moda.
-import { readFileSync, existsSync } from 'node:fs';
-import { gzipSync } from 'node:zlib';
+// Quarta direzione (v4, «ancora di meglio»): palette Inchiostro (notte
+// #111D36 che si distingue davvero dal nero BOOM), tabellone meccanico con le
+// palette che cadono una per una (e un orologio vero), e il metodo recitato da
+// un appartamento in WebGL (three.js impacchettato qui, caricato solo quando
+// serve, con poster al posto suo quando il telefono non regge o chi legge non
+// vuole movimento). Il 3D è un'illustrazione dichiarata: i numeri che stampa
+// la pagina (85,6 m², 107 m²) vengono dalla STESSA pianta della scena.
+import { readFileSync, existsSync, writeFileSync, unlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { gzipSync, brotliCompressSync } from 'node:zlib';
+import { createHash } from 'node:crypto';
+import { pathToFileURL } from 'node:url';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -120,9 +130,10 @@ const css = (html.match(/<style>([\s\S]*?)<\/style>/) || [])[1] || '';
 ok(/prefers-reduced-motion:reduce/.test(css), 'riduzione del movimento rispettata');
 ok(/id="ferma"[^>]*aria-pressed/.test(html), 'un bottone ferma le animazioni che si ripetono (WCAG 2.2.2)');
 ok(!/cursor\s*:\s*none|lenis|locomotive/i.test(html), 'niente cursore custom né scroll dirottato');
-// Oro solo su fondi scuri (BOOM, notte, blu), mai su carta.
-const oro = [...css.matchAll(/([^{}]+)\{(?:[^{}]*;)?color:var\(--oro\)/g)].map((m) => m[1].trim());
-ok(oro.length > 0 && oro.every((sel) => /a-boom|casa-boom|\.atto|\.pass|investire|cifra\.oro|contatti/.test(sel)), `testo oro solo su fondi scuri o blu (${oro.join(' | ')})`);
+// Oro solo su fondi scuri (BOOM, notte), mai su carta: ogni regola che scrive
+// in oro sta dentro un contenitore nero o porta il proprio fondo nero.
+const oro = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter((m) => /(^|;)\s*(color|--ink-su):\s*(var\(--oro\)|#FFD700)/i.test(m[2])).map((m) => ({ sel: m[1].trim(), fondo: /background:(#060607|var\(--boom\))/.test(m[2]) }));
+ok(oro.length > 0 && oro.every((r) => r.fondo || /casa-boom|\.atto-5|a-boom|i-boom|m3d-pin/.test(r.sel)), `testo oro solo su fondi scuri (${oro.map((r) => r.sel).join(' | ')})`);
 // I caratteri: scelti, ospitati qui, con licenza. Nessuna richiesta a terzi.
 for (const f of ['archivo-wdth.woff2', 'jetbrains-mono.woff2']) {
     const b = existsSync(path.join(SITE, 'fonts', f)) ? readFileSync(path.join(SITE, 'fonts', f)) : Buffer.alloc(0);
@@ -135,21 +146,31 @@ ok(!/fonts\.googleapis|fonts\.gstatic|use\.typekit/.test(html), 'nessun caratter
 ok(/"source":"\/fonts\/\(\.\*\)"[^\]]*immutable/.test(JSON.stringify(JSON.parse(read('vercel.json')))), 'i caratteri hanno cache lunga (immutable)');
 ok(!/data-colore=rosso|c=rosso|\brosso\b/i.test(html), 'nessuna variante rossa (il rosso Valentino è della casa di moda)');
 // Contrasto AA sulle coppie di testo, per ogni variante di colore.
-const hex = (h) => h.replace('#', '').match(/\w\w/g).map((x) => parseInt(x, 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
-const lum = (h) => { const [r, g, b] = hex(h); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+const lin = (c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4);
+const rgb = (h) => h.replace('#', '').match(/\w\w/g).map((x) => lin(parseInt(x, 16) / 255));
+const lum = (h) => { const [r, g, b] = rgb(h); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
 const cr = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+// OKLab, per sapere se due scuri si distinguono a occhio (la notte dal nero BOOM)
+const oklab = (h) => { const [r, g, b] = rgb(h); const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b), m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b), s2 = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b); return [0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s2, 1.9779984951 * l - 2.4285922050 * m + 0.4505937099 * s2, 0.0259040371 * l + 0.7827717662 * m - 0.8086757660 * s2]; };
+const dE = (a, b) => { const [p, q] = [oklab(a), oklab(b)]; return 100 * Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); };
 const tok = Object.fromEntries([...css.match(/:root\{[^}]*\}/)[0].matchAll(/--([\w-]+):(#[0-9A-Fa-f]{6})/g)].map((m) => [m[1], m[2]]));
-const varianti = [tok, ...[...css.matchAll(/data-colore=\w+\]\{([^}]*)\}/g)].map((m) => ({ ...tok, ...Object.fromEntries([...m[1].matchAll(/--([\w-]+):(#[0-9A-Fa-f]{6})/g)].map((x) => [x[1], x[2]])) }))];
-ok(varianti.length === 3, 'tre varianti di accento in anteprima (blu, verde, nero)');
-for (const v of varianti) {
-    ok(cr('#FFFFFF', v.accento) >= 4.5, `bianco su accento ${v.accento}: ${cr('#FFFFFF', v.accento).toFixed(2)}`);
-    ok(cr(v.accento, tok.carta) >= 3, `accento ${v.accento} su carta (titoli grandi): ${cr(v.accento, tok.carta).toFixed(2)}`);
-    ok(cr(tok.nebbia, v.notte) >= 4.5, `nebbia su notte ${v.notte}: ${cr(tok.nebbia, v.notte).toFixed(2)}`);
-    ok(cr('#FFFFFF', v['cella-2']) >= 4.5, `lettere del tabellone su cella ${v['cella-2']}: ${cr('#FFFFFF', v['cella-2']).toFixed(2)}`);
-    ok(cr(tok.oro, v.accento) >= 3 || v.accento === tok.ink, `oro su accento ${v.accento} (titoli grandi): ${cr(tok.oro, v.accento).toFixed(2)}`);
-}
-for (const [fg, bg] of [[tok.ink, tok.carta], [tok.grigio, tok.carta], [tok['grigio-2'], '#FFFFFF'], [tok.boom, tok.oro], [tok.oro, tok.boom], [tok.oro, '#0B0B0D'], ['#DADADF', tok.ink], ['#A6A6AE', tok.ink], ['#B4B4BB', tok.ink]]) {
-    ok(cr(fg, bg) >= 4.5, `contrasto ${fg} su ${bg}: ${cr(fg, bg).toFixed(2)}`);
+const pieno = (v) => ({ ...v, 'hero-fondo': v['hero-fondo'] && v['hero-fondo'].startsWith('#') ? v['hero-fondo'] : v.notte, 'hero-testo': v['hero-testo'] && v['hero-testo'].startsWith('#') ? v['hero-testo'] : '#FFFFFF', 'hero-sec': v['hero-sec'] && v['hero-sec'].startsWith('#') ? v['hero-sec'] : v.nebbia });
+const nomi = ['inchiostro', ...[...css.matchAll(/data-colore=(\w+)\]\{/g)].map((m) => m[1])];
+const varianti = [tok, ...[...css.matchAll(/data-colore=\w+\]\{([^}]*)\}/g)].map((m) => ({ ...tok, ...Object.fromEntries([...m[1].matchAll(/--([\w-]+):(#[0-9A-Fa-f]{6})/g)].map((x) => [x[1], x[2]])) }))].map(pieno);
+ok(varianti.length === 3 && nomi.join(',') === 'inchiostro,persiana,travertino', `tre palette: inchiostro in produzione, persiana e travertino solo in anteprima (${nomi.join(', ')})`);
+ok(/\^\(travertino\|persiana\)\$/.test(html) && /classList\.contains\('anteprima'\) && \/\^/.test(html), 'le varianti si accendono solo in anteprima, con ?c= fra quelle dichiarate');
+varianti.forEach((v, i) => {
+    const n = nomi[i];
+    ok(cr('#FFFFFF', v.accento) >= 4.5, `${n}: bianco su accento ${v.accento} (bottoni): ${cr('#FFFFFF', v.accento).toFixed(2)}`);
+    ok(cr(v.accento, v.carta) >= 4.5, `${n}: accento ${v.accento} su carta (etichette piccole): ${cr(v.accento, v.carta).toFixed(2)}`);
+    for (const k of ['nebbia', 'luce', 'accento-chiaro']) ok(cr(v[k], v.notte) >= 4.5, `${n}: ${k} su notte ${v.notte}: ${cr(v[k], v.notte).toFixed(2)}`);
+    ok(cr(v.nebbia, v['notte-2']) >= 4.5, `${n}: nebbia su notte-2 (le carte del metodo): ${cr(v.nebbia, v['notte-2']).toFixed(2)}`);
+    ok(cr(v['hero-testo'], v['hero-fondo']) >= 7 && cr(v['hero-sec'], v['hero-fondo']) >= 4.5, `${n}: testo dell'hero su ${v['hero-fondo']} (${cr(v['hero-testo'], v['hero-fondo']).toFixed(2)} · ${cr(v['hero-sec'], v['hero-fondo']).toFixed(2)})`);
+    ok(cr(v.ink, v.carta) >= 7 && cr(v.grigio, v.carta) >= 4.5, `${n}: inchiostro e grigio su carta (${cr(v.ink, v.carta).toFixed(2)} · ${cr(v.grigio, v.carta).toFixed(2)})`);
+    ok(dE(v.notte, tok.boom) >= 11, `${n}: la notte ${v.notte} si distingue dal nero BOOM (ΔE_OK ${dE(v.notte, tok.boom).toFixed(1)} ≥ 11): il passaggio dell'atto 5 si vede`);
+});
+for (const [fg, bg, cosa] of [[tok['ink-su'], tok['flap-su'], 'lettere del tabellone'], [tok['ink-giu'], tok['flap-giu'], 'metà bassa delle palette'], ['#FFD700', '#141416', 'AFFITTARE in oro sulla palette'], [tok.boom, tok.oro, 'nero su oro (pin BOOM)'], [tok.oro, tok.boom, 'oro su nero BOOM'], [tok.luce, tok.boom, 'testo sulla casa BOOM'], [tok.nebbia, tok.cassa, 'intestazioni del tabellone']]) {
+    ok(cr(fg, bg) >= 4.5, `contrasto ${cosa}: ${fg} su ${bg}: ${cr(fg, bg).toFixed(2)}`);
 }
 ok(gzipSync(Buffer.from(html)).length < 60000, `home sotto 60 KB compressi (${gzipSync(Buffer.from(html)).length} B)`);
 
@@ -174,12 +195,52 @@ ok(read('robots.txt').includes('Sitemap: https://www.egidimmobiliare.it/sitemap.
 ok(read('sitemap.xml').includes(`<loc>${CANON}</loc>`), 'sitemap con la home canonica');
 ok(/noindex/.test(read('404.html')), '404 non indicizzabile');
 
+// 9b. Il metodo in 3D: il pacchetto è quello dichiarato nel manifest, la
+//     pagina chiede QUELLA versione, i poster ci sono e i numeri che la pagina
+//     stampa escono dalla stessa pianta della scena.
+const MAN = path.join(SITE, 'js', 'metodo3d.manifest.json'), BUNDLE = path.join(SITE, 'js', 'metodo3d.js');
+let man = null; try { man = JSON.parse(readFileSync(MAN, 'utf8')); } catch { /* sotto */ }
+const bundle = existsSync(BUNDLE) ? readFileSync(BUNDLE) : Buffer.alloc(0);
+ok(man && bundle.length > 0, 'egidi/js/metodo3d.js e il suo manifest esistono');
+const sha = createHash('sha256').update(bundle).digest('hex');
+ok(man && man.sha256 === sha, 'il manifest dichiara lo sha256 del pacchetto vero (rigenerato con design/egidi-3d/build.mjs)');
+const V3D = (html.match(/var V3D = '([0-9a-f]{8})'/) || [])[1];
+ok(man && V3D === sha.slice(0, 8), `la pagina chiede la versione del pacchetto (V3D ${V3D} = ${sha.slice(0, 8)})`);
+const versioni = [...html.matchAll(/\/(?:js\/metodo3d\.js|img\/metodo-\d\.webp)\?v=([0-9a-f]{8}|' \+ V3D)/g)].map((m) => m[1]);
+ok(versioni.length >= 7 && versioni.every((v) => v === V3D || v === "' + V3D"), `ogni riferimento a pacchetto e poster porta ?v= della versione (${versioni.length})`);
+ok(!/00000000/.test(html), 'nessuna versione segnaposto rimasta nella pagina');
+ok(bundle.length <= 620000 && brotliCompressSync(bundle).length <= 140000, `pacchetto ≤ 620 KB e ≤ 140 KB brotli (${bundle.length} B · ${brotliCompressSync(bundle).length} B)`);
+ok(man && man.three === '0.186.1', 'three.js alla versione fissata (0.186.1)');
+const host = [...new Set([...bundle.toString('latin1').matchAll(/https?:\/\/([a-z0-9.-]+)/gi)].map((m) => m[1].toLowerCase()))].filter((h) => !['www.w3.org', 'threejs.org', 'github.com', 'jcgt.org'].includes(h));
+ok(host.length === 0, `il pacchetto non nomina server esterni (${host.join(', ')})`);
+ok(existsSync(path.join(SITE, 'js', 'LICENSE-three.txt')) && /MIT License/.test(readFileSync(path.join(SITE, 'js', 'LICENSE-three.txt'), 'utf8')) && /three\.js authors/i.test(readFileSync(path.join(SITE, 'js', 'LICENSE-three.txt'), 'utf8')), 'licenza MIT di three.js accanto al pacchetto');
+const webpDim = (b) => { if (b.subarray(0, 4).toString('latin1') !== 'RIFF' || b.subarray(8, 12).toString('latin1') !== 'WEBP') return null; const k = b.subarray(12, 16).toString('latin1'); if (k === 'VP8X') return [1 + b.readUIntLE(24, 3), 1 + b.readUIntLE(27, 3)]; if (k === 'VP8 ') return [b.readUInt16LE(26) & 0x3fff, b.readUInt16LE(28) & 0x3fff]; if (k === 'VP8L') { const v = b.readUInt32LE(21); return [1 + (v & 0x3fff), 1 + ((v >> 14) & 0x3fff)]; } return null; };
+for (let n = 1; n <= 5; n++) {
+    const f = path.join(SITE, 'img', `metodo-${n}.webp`), b = existsSync(f) ? readFileSync(f) : Buffer.alloc(0), d = webpDim(b);
+    ok(d && d[0] === 1200 && d[1] === 900 && b.length <= 92160, `img/metodo-${n}.webp: WebP vero 1200×900, ≤ 90 KB (${d ? d.join('×') : 'non webp'} · ${b.length} B)`);
+}
+ok(/"source":"\/js\/\(\.\*\)"[^\]]*immutable/.test(JSON.stringify(vj)) && /"source":"\/img\/\(\.\*\)"[^\]]*immutable/.test(JSON.stringify(vj)), 'pacchetto e poster con cache lunga (immutable): la versione sta nella query');
+ok(/html\.m3d-off \.atti\{/.test(css.replace(/\s+/g, ' ')) || /m3d-off \.atti/.test(css), 'senza 3D la sezione si accorcia (niente scroll a vuoto)');
+ok(/prefers-reduced-motion: reduce/.test(html) && /saveData/.test(html) && /deviceMemory/.test(html) && /WebGL2RenderingContext/.test(html), 'il 3D si spegne da solo con movimento ridotto, risparmio dati, poca memoria o senza WebGL2');
+ok(/Illustrazione · appartamento tipo, non in vendita/.test(html), 'il 3D si dichiara: illustrazione, appartamento tipo, non in vendita');
+try {
+    // egidi/ non ha un package.json di tipo module: Node leggerebbe il pacchetto come CommonJS. Una copia .mjs lo importa com'è.
+    const tmp = path.join(tmpdir(), `egidi-metodo3d-${process.pid}.mjs`); writeFileSync(tmp, bundle);
+    const M = await import(pathToFileURL(tmp).href); unlinkSync(tmp);
+    const P = M.PIANTA || {};
+    const netta = (P.netta || 0).toFixed(1).replace('.', ','), comm = P.commerciale;
+    ok(html.includes(`${netta} m² calpestabili · circa ${comm} m² commerciali`), `la pagina stampa gli stessi metri della scena (${netta} m² · ${comm} m²)`);
+    ok(Array.isArray(P.stanze) && P.stanze.length === 8 && Math.abs(P.stanze.reduce((a, x) => a + x.netta, 0) - P.netta) < 0.05, `otto stanze, e la somma fa la superficie netta (${(P.stanze || []).length})`);
+    const posePagina = JSON.parse('[' + ((html.match(/var POSE = \[([^\]]+)\]/) || [])[1] || '') + ']');
+    ok(typeof M.monta === 'function' && typeof M.rilievoX === 'function' && Array.isArray(M.POSE) && M.POSE.length === 5 && M.POSE.every((x, k) => Math.abs(x - posePagina[k]) < 1e-9), `il pacchetto esporta monta, rilievoX e le stesse pose della pagina (${M.POSE} · ${posePagina})`);
+} catch (e) { ok(false, 'il pacchetto si importa in Node senza toccare il DOM: ' + e.message); }
+
 // 10. Nel browser vero: nessun errore, niente scroll laterale, leggibile senza JS.
 const chromium = await loadChromium();
 if (!chromium) {
     console.log('  (browser: SKIP — playwright non disponibile)');
 } else {
-    const TIPI = { '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8' };
+    const TIPI = { '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8', '.js': 'text/javascript', '.webp': 'image/webp', '.json': 'application/json' };
     const srv = http.createServer((q, r) => {
         let u = decodeURIComponent(q.url.split('?')[0]); if (u === '/') u = '/index.html';
         const f = path.join(SITE, u);
@@ -192,23 +253,26 @@ if (!chromium) {
     const b = await chromium.launch(launchOptions());
     try {
         const esterne = [];
-        const apri = async (w, { js = true, h = 844, rm = 'no-preference', q = '' } = {}) => {
+        // di norma senza 3D (?m3d=0): il WebGL si prova a parte, una volta, perché in un runner è lento
+        const apri = async (w, { js = true, h = 844, rm = 'no-preference', q = '?m3d=0', blocca = null } = {}) => {
             const ctx = await b.newContext({ viewport: { width: w, height: h }, javaScriptEnabled: js, reducedMotion: rm });
             await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, (rt) => { esterne.push(rt.request().url()); rt.abort(); });
+            if (blocca) await ctx.route(blocca, (rt) => rt.fulfill({ status: 404, body: '' }));
             const p = await ctx.newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message));
             await p.goto(url + q, { waitUntil: 'load' }); await p.waitForTimeout(300);
             return { ctx, p, errs };
         };
-        const parole = () => [...document.querySelectorAll('#tabellone .riga')].map((r) => [...r.querySelectorAll('.f b')].map((x) => x.textContent).join('').replace(/ /g, ' ').trim() + '=' + r.dataset.parola);
+        const parole = () => [...document.querySelectorAll('#tabellone .riga')].map((r) => [...r.querySelectorAll('.celle .f')].map((x) => x.getAttribute('data-c') ?? x.textContent).join('').replace(/ /g, ' ').trim() + '=' + r.dataset.parola);
         for (const [w, js] of [[320, true], [390, true], [1440, true], [390, false]]) {
-            const { ctx, p, errs } = await apri(w, { js });
+            const { ctx, p, errs } = await apri(w, { js, q: js ? '?m3d=0' : '' });
             const m = await p.evaluate((parole) => ({
                 sw: document.documentElement.scrollWidth, iw: innerWidth,
                 anteprimaVisibili: [...document.querySelectorAll('.solo-anteprima')].filter((e) => e.getClientRects().length).length,
                 segnapostoFuori: [...document.querySelectorAll('body *')].filter((e) => e.children.length === 0 && /DA FORNIRE|VERIFICARE|PASSO 4/.test(e.textContent) && !e.closest('.solo-anteprima')).length,
                 marchioRighe: Math.round(document.querySelector('.marchio b').getBoundingClientRect().height / parseFloat(getComputedStyle(document.querySelector('.marchio b')).lineHeight === 'normal' ? getComputedStyle(document.querySelector('.marchio b')).fontSize * 1.3 : getComputedStyle(document.querySelector('.marchio b')).lineHeight)),
                 parole: new Function('return (' + parole + ')()')(),
-                atti: [...document.querySelectorAll('.atto')].filter((a) => a.getClientRects().length && +getComputedStyle(a).opacity > 0.99).length
+                atti: [...document.querySelectorAll('.atto')].filter((a) => a.getClientRects().length && +getComputedStyle(a).opacity > 0.99).length,
+                poster: [...document.querySelectorAll('noscript')].length
             }), parole.toString());
             const tag = `${w}px ${js ? 'con' : 'senza'} JS`;
             ok(errs.length === 0, `${tag}: nessun errore JS (${errs.join(' | ')})`);
@@ -220,21 +284,41 @@ if (!chromium) {
                 ok(m.anteprimaVisibili === 0, `${tag}: senza JS nessun segnaposto visibile`);
                 ok(m.parole.every((x) => x.split('=')[0] === x.split('=')[1]), `${tag}: il tabellone si legge anche senza JS (${m.parole.join(' ')})`);
                 ok(m.atti === 5, `${tag}: i cinque atti del metodo sono tutti visibili (${m.atti})`);
+                const img = await p.evaluate(() => [...document.querySelectorAll('.atto noscript')].map((n) => n.innerHTML + n.textContent).join(' ') + [...document.querySelectorAll('.atto img')].map((i) => i.getAttribute('src')).join(' '));
+                ok(new Set(img.match(/metodo-\d\.webp/g) || []).size === 5, `${tag}: ogni atto ha il suo poster anche senza JS`);
             }
             await ctx.close();
         }
-        // Test dei 5 secondi a 390×844: sopra la barra WhatsApp si legge chi
-        // siamo, dove, e che per affittare c'è BOOM — anche la riga del tabellone.
+        // Test dei 5 secondi a 390×844 e la piega: sopra la barra WhatsApp si legge
+        // chi siamo, dove, che per affittare c'è BOOM; il bottone sta sopra la piega.
         {
             const { ctx, p } = await apri(390);
             const r = await p.evaluate(() => {
-                const s = document.querySelector('.hero .sotto'), t = document.querySelector('.titolo');
-                return { fondo: s.getBoundingClientRect().bottom, boom: document.querySelector('.riga.a-boom').getBoundingClientRect().bottom, bar: document.querySelector('.wa-fissa').getBoundingClientRect().top, testo: s.textContent, sx: Math.min(s.getBoundingClientRect().left, t.getBoundingClientRect().left) };
+                const s = document.querySelector('.hero .sotto'), t = document.querySelector('.titolo'), wa = document.querySelector('.wa-fissa');
+                return { fondo: s.getBoundingClientRect().bottom, boom: document.querySelector('.riga.a-boom').getBoundingClientRect().bottom, bar: wa.classList.contains('nascosta') ? innerHeight : wa.getBoundingClientRect().top, btn: document.querySelector('.hero-basso .btn').getBoundingClientRect().bottom, testo: s.textContent, sx: Math.min(s.getBoundingClientRect().left, t.getBoundingClientRect().left) };
             });
             ok(r.fondo <= r.bar, `390px: la tesi sta sopra la piega (${Math.round(r.fondo)} ≤ ${Math.round(r.bar)})`);
             ok(r.boom <= r.bar, `390px: la riga AFFITTARE → BOOM sta sopra la barra WhatsApp (${Math.round(r.boom)} ≤ ${Math.round(r.bar)})`);
+            ok(r.btn <= 828, `390×844: il bottone «Candida» sta sopra la piega (${Math.round(r.btn)} ≤ 828)`);
             ok(/Valentino Egidi Immobiliare/.test(r.testo) && /Roma/.test(r.testo) && /BOOM/.test(r.testo), '390px: brand, Roma e BOOM nella tesi');
             ok(r.sx >= 16, `390px: margine sinistro ${Math.round(r.sx)}px ≥ 16`);
+            await ctx.close();
+        }
+        {
+            const { ctx, p } = await apri(1440, { h: 900 });
+            const y = await p.evaluate(() => document.querySelector('.hero-basso .btn').getBoundingClientRect().bottom);
+            ok(y <= 860, `1440×900: il bottone «Candida» sta sopra la piega (${Math.round(y)} ≤ 860)`);
+            await ctx.close();
+        }
+        // Niente salti mentre il tabellone gira: le celle hanno la loro misura dall'inizio.
+        for (const [w, h] of [[1440, 900], [390, 844]]) {
+            const ctx = await b.newContext({ viewport: { width: w, height: h } });
+            await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, (rt) => rt.abort());
+            const p = await ctx.newPage();
+            await p.addInitScript(() => { window.__cls = 0; new PerformanceObserver((l) => { for (const e of l.getEntries()) if (!e.hadRecentInput) window.__cls += e.value; }).observe({ type: 'layout-shift', buffered: true }); });
+            await p.goto(url + '?m3d=0', { waitUntil: 'load' }); await p.waitForTimeout(3500);
+            const cls = await p.evaluate(() => window.__cls);
+            ok(cls <= 0.02, `${w}px: CLS ${cls.toFixed(4)} ≤ 0,02 durante il giro del tabellone`);
             await ctx.close();
         }
         // I caratteri arrivano davvero (dal nostro server) e il titolo li usa.
@@ -245,62 +329,141 @@ if (!chromium) {
             ok(f.a && f.m && !/error/.test(f.stato), `Archivo e JetBrains Mono caricati (${f.stato})`);
             await ctx.close();
         }
-        // Il tabellone: gira, si posa sulle parole giuste, AFFITTARE porta a BOOM
-        // in oro, «Ferma» lo ferma subito (WCAG 2.2.2) e lo riavvia.
+        // Il tabellone: gira palette per palette, si posa sulle parole giuste,
+        // AFFITTARE porta a BOOM in oro, «Ferma» posa subito (WCAG 2.2.2); finito
+        // il giro il bottone offre di rifarlo. L'orologio dice l'ora di Roma.
         for (const w of [1440, 390]) {
             const { ctx, p } = await apri(w, { h: w > 900 ? 900 : 844 });
-            const gira = await p.evaluate(() => new Promise((res) => setTimeout(() => res(document.querySelectorAll('.f.gira').length), 250)));
-            await p.waitForTimeout(4200);
-            const posato = await p.evaluate(parole);
-            ok(gira > 0, `${w}px: il tabellone gira all'apertura (${gira} celle in movimento)`);
-            ok(posato.every((x) => x.split('=')[0] === x.split('=')[1]), `${w}px: si posa su VENDERE · COMPRARE · INVESTIRE · AFFITTARE (${posato.join(' ')})`);
-            const boom = await p.evaluate(() => { const r = document.querySelector('.riga.a-boom'); return { href: r.getAttribute('href'), dest: r.querySelector('.dest').textContent, col: getComputedStyle(r.querySelector('.dest')).color, altre: [...document.querySelectorAll('.riga:not(.a-boom)')].map((x) => x.querySelector('.dest').textContent) }; });
+            const gira = await p.evaluate(() => new Promise((res) => setTimeout(() => res({ celle: document.querySelectorAll('#tabellone .riga .f.gira').length, an: document.getAnimations().filter((a) => a.effect && a.effect.target && a.effect.target.closest && a.effect.target.closest('#tabellone')).length }), 900)));
+            ok(gira.celle > 0 && gira.an > 0, `${w}px: il tabellone gira all'apertura, con palette animate (${gira.celle} celle · ${gira.an} animazioni)`);
+            const stop = await p.evaluate((parole) => { const f = document.getElementById('ferma'); f.click(); return { pressed: f.getAttribute('aria-pressed'), testo: f.textContent.trim(), dopo: new Function('return (' + parole + ')()')(), gira: document.querySelectorAll('#tabellone .riga .f.gira').length }; }, parole.toString());
+            ok(stop.pressed === 'true' && stop.gira === 0 && stop.dopo.every((x) => x.split('=')[0] === x.split('=')[1]), `${w}px: «Ferma» posa subito le parole (${stop.dopo.join(' ')})`);
+            ok(/Riavvia/.test(stop.testo), `${w}px: fermo, il bottone dice «Riavvia»`);
+            const riparte = await p.evaluate(() => { const f = document.getElementById('ferma'); f.click(); return new Promise((res) => setTimeout(() => res({ pressed: f.getAttribute('aria-pressed'), gira: document.querySelectorAll('#tabellone .riga .f.gira').length }), 400)); });
+            ok(riparte.pressed === 'false' && riparte.gira > 0, `${w}px: «Riavvia» lo fa ripartire (${riparte.gira} celle)`);
+            await p.waitForTimeout(5200);
+            const fine = await p.evaluate((parole) => ({ parole: new Function('return (' + parole + ')()')(), testo: document.getElementById('ferma').textContent.trim(), gira: document.querySelectorAll('#tabellone .f.gira').length }), parole.toString());
+            ok(fine.gira === 0 && fine.parole.every((x) => x.split('=')[0] === x.split('=')[1]), `${w}px: si posa su VENDERE · COMPRARE · INVESTIRE · AFFITTARE (${fine.parole.join(' ')})`);
+            ok(/Riavvia/.test(fine.testo), `${w}px: finito il giro, il bottone offre di rifarlo (${fine.testo})`);
+            const boom = await p.evaluate(() => { const r = document.querySelector('.riga.a-boom'); return { href: r.getAttribute('href'), dest: r.querySelector('.dest').textContent, col: getComputedStyle(r.querySelector('.dest')).color, lettera: getComputedStyle(r.querySelector('.f .m')).color, altre: [...document.querySelectorAll('.riga:not(.a-boom)')].map((x) => x.querySelector('.dest').textContent) }; });
             ok(boom.dest === 'BOOM' && boom.col === 'rgb(255, 215, 0)' && /boomrome\.com\/owners\?utm_source=egidimmobiliare&utm_medium=referral&utm_campaign=tabellone/.test(boom.href), `${w}px: AFFITTARE → BOOM, in oro, con gli UTM`);
             ok(boom.altre.every((x) => x === 'Valentino Egidi'), `${w}px: le altre partenze vanno a Valentino Egidi`);
-            const stop = await p.evaluate(parole => { const f = document.getElementById('ferma'); f.click(); const dopo = new Function('return (' + parole + ')()')(); return new Promise((res) => setTimeout(() => res({ pressed: f.getAttribute('aria-pressed'), dopo, gira: document.querySelectorAll('.f.gira b').length && [...document.querySelectorAll('.f b')].some((b) => getComputedStyle(b).animationName !== 'none' && b.parentNode.classList.contains('gira')) }), 400)); }, parole.toString());
-            ok(stop.pressed === 'true' && stop.dopo.every((x) => x.split('=')[0] === x.split('=')[1]), `${w}px: «Ferma» posa subito le parole e resta fermo`);
-            const riparte = await p.evaluate(() => { const f = document.getElementById('ferma'); f.click(); return new Promise((res) => setTimeout(() => res({ pressed: f.getAttribute('aria-pressed'), gira: document.querySelectorAll('.f.gira').length }), 150)); });
-            ok(riparte.pressed === 'false', `${w}px: «Riavvia» lo fa ripartire`);
+            const ora = await p.evaluate(() => ({ sr: document.querySelector('#orologio .sr').textContent, celle: [...document.querySelectorAll('#orologio .f')].map((f) => f.getAttribute('data-c')).join(''), roma: new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date()).replace(/\D/g, '') }));
+            ok(ora.celle === ora.roma && ora.sr === `Ora di Roma ${ora.roma.slice(0, 2)}:${ora.roma.slice(2)}`, `${w}px: l'orologio del tabellone segna l'ora di Roma (${ora.celle} · ${ora.sr})`);
             await ctx.close();
         }
-        // Movimento ridotto: niente tabellone che gira, niente bottone inutile, modello già in piedi.
-        {
-            const { ctx, p } = await apri(1440, { h: 900, rm: 'reduce' });
-            const r = await p.evaluate((parole) => ({ ferma: getComputedStyle(document.getElementById('ferma')).display, parole: new Function('return (' + parole + ')()')(), muro: parseFloat(getComputedStyle(document.querySelector('.muro')).height) }), parole.toString());
-            ok(r.ferma === 'none', 'movimento ridotto: il bottone «Ferma» non serve e non si vede');
-            ok(r.parole.every((x) => x.split('=')[0] === x.split('=')[1]), 'movimento ridotto: le parole sono già al loro posto');
-            ok(r.muro > 0, 'movimento ridotto: il modello è già in piedi');
-            await ctx.close();
-        }
-        // Il metodo: lo scroll VERO sceglie l'atto, il modello lo recita, i muri
-        // salgono sopra il pavimento (il difetto della v2 era il segno della rotazione).
-        for (const [w, h] of [[1440, 900], [390, 844]]) {
-            const { ctx, p } = await apri(w, { h });
-            const top = await p.evaluate(() => document.getElementById('atti').offsetTop);
-            const corsa = await p.evaluate(() => document.getElementById('atti').offsetHeight - innerHeight);
-            const visti = [];
-            for (let i = 0; i < 5; i++) {
-                await p.evaluate((y) => scrollTo(0, y), top + corsa * (i + 0.5) / 5); await p.waitForTimeout(150);
-                visti.push(await p.evaluate(() => document.getElementById('modello').className.replace('modello ', '') + ':' + [...document.querySelectorAll('.atto.su')].map((a) => a.dataset.atto).join('')));
-            }
-            ok(visti.join(' ') === 's1:1 s2:2 s3:3 s4:4 s5:5', `${w}px: lo scroll recita i cinque atti (${visti.join(' ')})`);
-            await p.waitForTimeout(1300);
-            const m = await p.evaluate(() => { const l = document.querySelector('.lastra').getBoundingClientRect(), mu = document.querySelector('.muro').getBoundingClientRect(), pin = document.querySelector('.p5'); return { muroTop: mu.top, lastraTop: l.top, pin: pin.textContent.trim(), pinOp: +getComputedStyle(pin).opacity, testata: document.getElementById('testata').classList.contains('chiara') }; });
-            ok(m.muroTop < m.lastraTop - 10, `${w}px: il muro di fondo sale sopra il pavimento (${Math.round(m.muroTop)} < ${Math.round(m.lastraTop)})`);
-            ok(m.pinOp > 0.99 && /BOOM/i.test(m.pin), `${w}px: all'ultimo atto il modello dice BOOM (${m.pin})`);
-            ok(!m.testata, `${w}px: la testata resta scura sopra il metodo`);
-            await ctx.close();
-        }
-        // Testata: scura sull'hero, chiara sulla carta, di nuovo scura sul metodo.
+        // «Ferma» si ricorda: chi l'ha fermato non se lo ritrova in moto alla visita dopo.
         {
             const { ctx, p } = await apri(1440, { h: 900 });
-            const at = async (id) => { await p.evaluate((i) => scrollTo(0, document.getElementById(i).offsetTop + 200), id); await p.waitForTimeout(200); return p.evaluate(() => document.getElementById('testata').classList.contains('chiara')); };
-            const hero = await p.evaluate(() => document.getElementById('testata').classList.contains('chiara'));
-            const carta = await at('case'), macchina = await at('macchina');
-            ok(!hero && carta && macchina, `testata scura sull'hero, chiara sulla carta (${hero} ${carta} ${macchina})`);
+            await p.evaluate(() => document.getElementById('ferma').click());
+            await p.reload({ waitUntil: 'load' }); await p.waitForTimeout(600);
+            const r = await p.evaluate((parole) => ({ gira: document.querySelectorAll('#tabellone .f.gira').length, parole: new Function('return (' + parole + ')()')(), pressed: document.getElementById('ferma').getAttribute('aria-pressed') }), parole.toString());
+            ok(r.gira === 0 && r.pressed === 'true' && r.parole.every((x) => x.split('=')[0] === x.split('=')[1]), 'fermato una volta, alla visita dopo il tabellone resta fermo');
             await ctx.close();
         }
-        // Il calcolo: aritmetica vera, nessun numero prima che il visitatore scriva.
+        // Movimento ridotto: niente tabellone che gira, niente bottone inutile, niente 3D.
+        {
+            const { ctx, p, errs } = await apri(1440, { h: 900, rm: 'reduce', q: '' });
+            const r = await p.evaluate((parole) => ({ ferma: getComputedStyle(document.getElementById('ferma')).display, parole: new Function('return (' + parole + ')()')(), m3d: document.documentElement.classList.contains('m3d-off'), an: document.getAnimations().filter((a) => a.playState === 'running' && !(a.animationName === 'barra')).length }), parole.toString());
+            ok(r.ferma === 'none', 'movimento ridotto: il bottone «Ferma» non serve e non si vede');
+            ok(r.parole.every((x) => x.split('=')[0] === x.split('=')[1]), 'movimento ridotto: le parole sono già al loro posto');
+            ok(r.m3d, 'movimento ridotto: il metodo usa i poster, niente WebGL');
+            ok(r.an === 0 && errs.length === 0, `movimento ridotto: nessuna animazione in corso (${r.an})`);
+            await ctx.close();
+        }
+        // Il metodo senza 3D: lo scroll VERO porta ogni atto sulla sua posa, il testo
+        // giusto si accende, il poster cambia, all'ultimo atto il fondo diventa BOOM.
+        for (const [w, h] of [[1440, 900], [390, 844]]) {
+            const { ctx, p } = await apri(w, { h });
+            const g = await p.evaluate(() => ({ top: document.getElementById('atti').offsetTop, alt: document.getElementById('atti').offsetHeight, pose: window.__metodo ? [0.85, 1.70, 2.48, 3.85, 4.85].map((t) => window.__metodo.pDaT(t)) : null }));
+            ok(g.pose && g.alt / h > 3.5 && g.alt / h < 5, `${w}px: senza 3D il metodo dura ${(g.alt / h).toFixed(1)} schermi (non 6,8)`);
+            const visti = [];
+            for (let i = 0; i < 5; i++) {
+                await p.evaluate(([y]) => scrollTo(0, y), [g.top + g.pose[i] * (g.alt - h) + 1]); await p.waitForTimeout(260);
+                visti.push(await p.evaluate(() => ({ T: window.__metodo.T(), su: [...document.querySelectorAll('.atto')].map((a) => +a.style.opacity > 0.99 ? 1 : 0).join(''), poster: (document.getElementById('poster3d').getAttribute('src').match(/metodo-(\d)/) || [])[1], segni: document.querySelectorAll('.binario a.su').length, s5: document.getElementById('metodo').classList.contains('s5'), testata: document.getElementById('testata').className })));
+            }
+            ok(visti.every((v, i) => Math.abs(v.T - [0.85, 1.70, 2.48, 3.85, 4.85][i]) < 0.02), `${w}px: lo scroll porta ogni atto sulla sua posa (${visti.map((v) => v.T.toFixed(2)).join(' ')})`);
+            ok(visti.map((v) => v.su).join(' ') === '10000 01000 00100 00010 00001', `${w}px: un atto per volta nel testo (${visti.map((v) => v.su).join(' ')})`);
+            ok(visti.map((v) => v.poster).join('') === '12345', `${w}px: il poster segue l'atto (${visti.map((v) => v.poster).join('')})`);
+            ok(visti.map((v) => v.segni).join('') === '12345', `${w}px: il binario segna gli atti fatti`);
+            ok(visti.slice(0, 4).every((v) => !v.s5 && v.testata === 'scura') && visti[4].s5 && visti[4].testata === 'boom', `${w}px: testata scura sul metodo, nera BOOM all'ultimo atto (${visti.map((v) => v.testata).join(' ')})`);
+            const salto = await p.evaluate(async () => { document.querySelectorAll('.binario a')[2].click(); await new Promise((r) => setTimeout(r, 900)); return window.__metodo.T(); });
+            ok(Math.abs(salto - 2.48) < 0.05, `${w}px: un tocco sul binario porta all'atto (T ${salto.toFixed(2)})`);
+            await ctx.close();
+        }
+        // Il metodo in WebGL, una volta sola (è lento in un runner senza GPU):
+        // la scena si monta, disegna, recita l'atto e aggancia etichette e pin.
+        // Se il pacchetto non arriva, i poster prendono il posto senza errori.
+        {
+            const ctx = await b.newContext({ viewport: { width: 1280, height: 800 } });
+            await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, (rt) => { esterne.push(rt.request().url()); rt.abort(); });
+            const p = await ctx.newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message));
+            await p.goto(url + '?m3d=forza', { waitUntil: 'load' });
+            await p.evaluate(() => document.getElementById('metodo').scrollIntoView());
+            const pronto = await p.waitForFunction(() => document.documentElement.classList.contains('m3d-pronto') || document.documentElement.classList.contains('m3d-ripiego'), null, { timeout: 90000 }).then(() => p.evaluate(() => document.documentElement.className)).catch(() => 'tempo scaduto');
+            if (/m3d-pronto/.test(pronto)) {
+                const r = await p.evaluate(async () => {
+                    const M = window.__metodo; M.vai(0.85);
+                    const t = document.getElementById('tela3d'), c = document.createElement('canvas'); c.width = 64; c.height = 40; const g = c.getContext('2d'); g.drawImage(t, 0, 0, 64, 40);
+                    const px = g.getImageData(0, 0, 64, 40).data; let n = 0; for (let i = 3; i < px.length; i += 4) if (px[i] > 20) n++;
+                    const i1 = M.scena().info(), eti = document.querySelectorAll('.m3d-eti.accesa').length;
+                    // l'opacità CALCOLATA, non la classe: una regola più pesante può tenere spento un pin «acceso»
+                    const visto = async (sel, t) => { const e = document.querySelector(sel); for (let k = 0; k < 16; k++) { M.vai(t); await new Promise((ok) => setTimeout(ok, 160)); if (e.classList.contains('acceso') && +getComputedStyle(e).opacity > 0.9) return true; } return 'T ' + M.T().toFixed(2) + ' ' + e.className + ' op ' + getComputedStyle(e).opacity; };
+                    const nc = await visto('.m3d-pin[data-pin=noncombacia]', 1.63);
+                    M.vai(1.5); const fatti = document.querySelectorAll('#lista3d li.fatto').length;
+                    const mirino = await visto('#mirino3d', 2.48);
+                    const boom = await visto('.m3d-pin.boom', 4.85);
+                    return { pieni: n / (64 * 40), info: i1, eti, nc, fatti, mirino, boom, tag: getComputedStyle(document.querySelector('.m3d-tag')).display };
+                });
+                ok(r.pieni > 0.2, `3D: la scena disegna davvero (${Math.round(r.pieni * 100)}% della tela)`);
+                ok(r.info.programs > 0 && r.info.programs <= 24 && r.info.calls > 0 && r.info.calls <= 160, `3D: budget GPU (programmi ${r.info.programs} · chiamate ${r.info.calls} · triangoli ${r.info.tris})`);
+                ok(r.eti >= 6, `3D: all'atto 1 le stanze si etichettano sulla pianta (${r.eti})`);
+                ok(r.nc === true && r.fatti === 4 && r.boom === true, `3D: «Non combacia» all'atto 2, documenti spuntati, «Oppure la affitta BOOM» all'atto 5, e si VEDONO (${r.nc} ${r.fatti} ${r.boom})`);
+                ok(r.mirino === true, `3D: il mirino delle foto si vede durante lo scatto (${r.mirino})`);
+                ok(r.tag !== 'none', '3D: il cartellino «Illustrazione» resta visibile');
+            } else ok(false, `3D: con ?m3d=forza la scena si monta (${pronto})`);
+            ok(errs.length === 0, `3D: nessun errore JS (${errs.join(' | ')})`);
+            await ctx.close();
+        }
+        {
+            const { ctx, p, errs } = await apri(1280, { h: 800, q: '?m3d=forza', blocca: /\/js\/metodo3d\.js/ });
+            await p.evaluate(() => document.getElementById('metodo').scrollIntoView());
+            const r = await p.waitForFunction(() => document.documentElement.classList.contains('m3d-ripiego'), null, { timeout: 15000 }).then(() => p.evaluate(() => ({ poster: getComputedStyle(document.getElementById('poster3d')).display, op: getComputedStyle(document.getElementById('poster3d')).opacity, fatti: document.querySelectorAll('#lista3d li.fatto').length }))).catch(() => null);
+            ok(r && r.poster !== 'none' && +r.op > 0.9 && r.fatti === 4, `3D: se il pacchetto non arriva, restano i poster e le spunte (${JSON.stringify(r)})`);
+            ok(errs.length === 0, `3D mancante: nessun errore JS (${errs.join(' | ')})`);
+            await ctx.close();
+        }
+        // Testata: trasparente sull'hero, chiara sulla carta, scura sulle sezioni notte.
+        {
+            const { ctx, p } = await apri(1440, { h: 900 });
+            const at = async (id) => { await p.evaluate((i) => scrollTo(0, document.getElementById(i).offsetTop + 200), id); await p.waitForTimeout(200); return p.evaluate(() => document.getElementById('testata').className); };
+            const hero = await p.evaluate(() => document.getElementById('testata').className);
+            const v = { hero, case: await at('case'), valentino: await at('valentino'), macchina: await at('macchina'), investire: await at('investire') };
+            ok(v.hero === '' && v.case === 'chiara' && v.valentino === 'chiara' && v.macchina === 'scura' && v.investire === 'chiara', `testata: nulla sull'hero, chiara sulla carta, scura sulla notte (${JSON.stringify(v)})`);
+            await ctx.close();
+        }
+        // La macchina: quattro schede, frecce da tastiera, niente in ciclo.
+        {
+            const { ctx, p, errs } = await apri(1440, { h: 900 });
+            const r = await p.evaluate(async () => {
+                const sl = (ms) => new Promise((res) => setTimeout(res, ms)), vis = () => [...document.querySelectorAll('[role=tabpanel]')].filter((x) => !x.hidden).map((x) => x.id).join(',');
+                const o = { inizio: vis() };
+                document.getElementById('tab-firma').focus(); document.getElementById('tab-firma').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true })); await sl(50);
+                o.freccia = vis() + '/' + document.activeElement.id;
+                document.getElementById('tab-fasc').click(); await sl(50);
+                const voci = [...document.querySelectorAll('#pan-fasc button[aria-pressed]')]; o.voci = voci.length; o.manca = voci.filter((x) => /MANCA/.test(x.textContent)).length;
+                const m = voci.find((x) => /MANCA/.test(x.textContent)); m.click(); await sl(50); o.spunta = m.getAttribute('aria-pressed');
+                o.cicli = document.getAnimations().filter((a) => a.effect && a.effect.getTiming && a.effect.getTiming().iterations === Infinity && a.effect.target && a.effect.target.closest && a.effect.target.closest('#macchina')).length;
+                return o;
+            });
+            ok(r.inizio === 'pan-firma', `macchina: si apre sulla firma (${r.inizio})`);
+            ok(r.freccia === 'pan-fasc/tab-fasc', `macchina: le frecce passano alla scheda dopo (${r.freccia})`);
+            ok(r.voci === 6 && r.manca === 1 && r.spunta === 'true', `macchina: il fascicolo ha sei voci, una che manca, e si spunta (${r.voci} · ${r.manca} · ${r.spunta})`);
+            ok(r.cicli === 0 && errs.length === 0, `macchina: niente che gira in ciclo (${r.cicli})`);
+            await ctx.close();
+        }
+        // Il calcolo: aritmetica vera, nessun numero prima che il visitatore scriva,
+        // e le palette dei risultati si posano sul numero giusto.
         {
             const { ctx, p } = await apri(390);
             const vuoto = await p.evaluate(() => document.getElementById('lordo').textContent);
@@ -309,6 +472,9 @@ if (!chromium) {
             ok(vuoto === '—', 'calcolo: nessun numero prima che il visitatore scriva');
             ok(c1.join('|') === '5,8%|4,6%|€ 14.400', `calcolo: 250.000 e 1.200 danno 5,8% lordo, 4,6% netto, € 14.400 (${c1.join('|')})`);
             ok(c2 === '5,2%', `calcolo: col concordato il netto sale al 5,2% (${c2})`);
+            await p.waitForTimeout(3200);
+            const pal = await p.evaluate(() => ['lordo', 'netto', 'annuo'].map((k) => [...document.querySelectorAll(`[data-cifra=${k}] .f`)].map((f) => f.getAttribute('data-c') || ' ').join('').trim() + '=' + document.getElementById(k).textContent));
+            ok(pal.every((x) => x.split('=')[0] === x.split('=')[1]), `calcolo: le palette si posano sul risultato (${pal.join(' ')})`);
             await ctx.close();
         }
         // La candidatura: quattro passi, tutto nel browser, alla fine WhatsApp

@@ -1,0 +1,15 @@
+{
+  "name": "egidi-3d",
+  "private": true,
+  "version": "4.0.0",
+  "description": "Sorgenti della scena 3D del metodo (egidimmobiliare.it). Si costruisce in egidi/js/metodo3d.js con build.mjs.",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "shoot": "node shoot.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.24.2",
+    "three": "0.186.1"
+  }
+}
