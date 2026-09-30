@@ -24,6 +24,12 @@
 // la home diventa «Valentino Egidi Immobiliare» (vendite) col passaggio
 // esplicito a BOOM (affitti). Le regole di sostanza restano, quelle di gusto
 // seguono la nuova direzione.
+// Terza direzione (v3, stessa sera): il tabellone Solari come hero (le
+// partenze VENDERE/COMPRARE/INVESTIRE → Valentino Egidi, AFFITTARE → BOOM),
+// Archivo con l'asse della larghezza e JetBrains Mono ospitati QUI, il
+// metodo recitato da un modello 3D sullo scroll, la candidatura in quattro
+// passi che finisce su WhatsApp senza passare da un server. Niente rosso fra
+// le varianti: il nome Valentino in rosso è la casa di moda.
 import { readFileSync, existsSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import http from 'node:http';
@@ -114,22 +120,35 @@ const css = (html.match(/<style>([\s\S]*?)<\/style>/) || [])[1] || '';
 ok(/prefers-reduced-motion:reduce/.test(css), 'riduzione del movimento rispettata');
 ok(/id="ferma"[^>]*aria-pressed/.test(html), 'un bottone ferma le animazioni che si ripetono (WCAG 2.2.2)');
 ok(!/cursor\s*:\s*none|lenis|locomotive/i.test(html), 'niente cursore custom né scroll dirottato');
-// Oro solo su fondi scuri (BOOM) o sul blu, mai su carta.
+// Oro solo su fondi scuri (BOOM, notte, blu), mai su carta.
 const oro = [...css.matchAll(/([^{}]+)\{(?:[^{}]*;)?color:var\(--oro\)/g)].map((m) => m[1].trim());
-ok(oro.length > 0 && oro.every((sel) => /casa-boom|investire|cifra\.oro|contatti|modo-boom|nastro/.test(sel)), `testo oro solo su fondi scuri o blu (${oro.join(' | ')})`);
+ok(oro.length > 0 && oro.every((sel) => /a-boom|casa-boom|\.atto|\.pass|investire|cifra\.oro|contatti/.test(sel)), `testo oro solo su fondi scuri o blu (${oro.join(' | ')})`);
+// I caratteri: scelti, ospitati qui, con licenza. Nessuna richiesta a terzi.
+for (const f of ['archivo-wdth.woff2', 'jetbrains-mono.woff2']) {
+    const b = existsSync(path.join(SITE, 'fonts', f)) ? readFileSync(path.join(SITE, 'fonts', f)) : Buffer.alloc(0);
+    ok(b.subarray(0, 4).toString('latin1') === 'wOF2' && b.length < 120000, `fonts/${f}: woff2 vero e leggero (${b.length} B)`);
+    ok(html.includes(`<link rel="preload" href="/fonts/${f}" as="font" type="font/woff2" crossorigin>`), `fonts/${f} precaricato`);
+}
+ok(/SIL Open Font License/.test(read('fonts/OFL.txt')) && /Archivo/.test(read('fonts/OFL.txt')) && /JetBrains Mono/.test(read('fonts/OFL.txt')), 'fonts/OFL.txt: licenza e attribuzione dei due caratteri');
+ok(/font-stretch:62% 125%/.test(css), "Archivo dichiara l'asse della larghezza (62–125%)");
+ok(!/fonts\.googleapis|fonts\.gstatic|use\.typekit/.test(html), 'nessun carattere da servizi esterni');
+ok(/"source":"\/fonts\/\(\.\*\)"[^\]]*immutable/.test(JSON.stringify(JSON.parse(read('vercel.json')))), 'i caratteri hanno cache lunga (immutable)');
+ok(!/data-colore=rosso|c=rosso|\brosso\b/i.test(html), 'nessuna variante rossa (il rosso Valentino è della casa di moda)');
 // Contrasto AA sulle coppie di testo, per ogni variante di colore.
 const hex = (h) => h.replace('#', '').match(/\w\w/g).map((x) => parseInt(x, 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
 const lum = (h) => { const [r, g, b] = hex(h); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
 const cr = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
 const tok = Object.fromEntries([...css.match(/:root\{[^}]*\}/)[0].matchAll(/--([\w-]+):(#[0-9A-Fa-f]{6})/g)].map((m) => [m[1], m[2]]));
-const accenti = [tok.accento, ...[...css.matchAll(/data-colore=\w+\]\{--accento:(#[0-9A-Fa-f]{6})/g)].map((m) => m[1])];
-ok(accenti.length === 3, 'tre varianti di accento in anteprima');
-for (const a of accenti) {
-    ok(cr('#FFFFFF', a) >= 4.5, `bianco su accento ${a}: ${cr('#FFFFFF', a).toFixed(2)}`);
-    ok(cr(a, tok.carta) >= 3, `accento ${a} su carta (titoli grandi): ${cr(a, tok.carta).toFixed(2)}`);
+const varianti = [tok, ...[...css.matchAll(/data-colore=\w+\]\{([^}]*)\}/g)].map((m) => ({ ...tok, ...Object.fromEntries([...m[1].matchAll(/--([\w-]+):(#[0-9A-Fa-f]{6})/g)].map((x) => [x[1], x[2]])) }))];
+ok(varianti.length === 3, 'tre varianti di accento in anteprima (blu, verde, nero)');
+for (const v of varianti) {
+    ok(cr('#FFFFFF', v.accento) >= 4.5, `bianco su accento ${v.accento}: ${cr('#FFFFFF', v.accento).toFixed(2)}`);
+    ok(cr(v.accento, tok.carta) >= 3, `accento ${v.accento} su carta (titoli grandi): ${cr(v.accento, tok.carta).toFixed(2)}`);
+    ok(cr(tok.nebbia, v.notte) >= 4.5, `nebbia su notte ${v.notte}: ${cr(tok.nebbia, v.notte).toFixed(2)}`);
+    ok(cr('#FFFFFF', v['cella-2']) >= 4.5, `lettere del tabellone su cella ${v['cella-2']}: ${cr('#FFFFFF', v['cella-2']).toFixed(2)}`);
+    ok(cr(tok.oro, v.accento) >= 3 || v.accento === tok.ink, `oro su accento ${v.accento} (titoli grandi): ${cr(tok.oro, v.accento).toFixed(2)}`);
 }
-ok(cr(tok.oro, tok.accento) >= 3, `oro sul blu (titoli grandi): ${cr(tok.oro, tok.accento).toFixed(2)}`);
-for (const [fg, bg] of [[tok.ink, tok.carta], [tok.grigio, tok.carta], [tok['grigio-2'], '#FFFFFF'], [tok.boom, tok.oro], [tok.oro, tok.boom], ['#C9C9CF', tok.boom], ['#A6A6AE', tok.ink], ['#B4B4BB', tok.ink]]) {
+for (const [fg, bg] of [[tok.ink, tok.carta], [tok.grigio, tok.carta], [tok['grigio-2'], '#FFFFFF'], [tok.boom, tok.oro], [tok.oro, tok.boom], [tok.oro, '#0B0B0D'], ['#DADADF', tok.ink], ['#A6A6AE', tok.ink], ['#B4B4BB', tok.ink]]) {
     ok(cr(fg, bg) >= 4.5, `contrasto ${fg} su ${bg}: ${cr(fg, bg).toFixed(2)}`);
 }
 ok(gzipSync(Buffer.from(html)).length < 60000, `home sotto 60 KB compressi (${gzipSync(Buffer.from(html)).length} B)`);
@@ -160,11 +179,12 @@ const chromium = await loadChromium();
 if (!chromium) {
     console.log('  (browser: SKIP — playwright non disponibile)');
 } else {
+    const TIPI = { '.svg': 'image/svg+xml', '.woff2': 'font/woff2', '.txt': 'text/plain; charset=utf-8' };
     const srv = http.createServer((q, r) => {
         let u = decodeURIComponent(q.url.split('?')[0]); if (u === '/') u = '/index.html';
         const f = path.join(SITE, u);
         if (f.startsWith(SITE) && existsSync(f) && !f.endsWith(path.sep)) {
-            r.writeHead(200, { 'content-type': f.endsWith('.svg') ? 'image/svg+xml' : 'text/html; charset=utf-8' }); r.end(readFileSync(f));
+            r.writeHead(200, { 'content-type': TIPI[path.extname(f)] || 'text/html; charset=utf-8' }); r.end(readFileSync(f));
         } else { r.writeHead(404, { 'content-type': 'text/html; charset=utf-8' }); r.end(read('404.html')); }
     });
     await new Promise((res) => srv.listen(0, '127.0.0.1', res));
@@ -179,97 +199,161 @@ if (!chromium) {
             await p.goto(url + q, { waitUntil: 'load' }); await p.waitForTimeout(300);
             return { ctx, p, errs };
         };
-        const incrocia = (a, b) => a && b && !(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top);
+        const parole = () => [...document.querySelectorAll('#tabellone .riga')].map((r) => [...r.querySelectorAll('.f b')].map((x) => x.textContent).join('').replace(/ /g, ' ').trim() + '=' + r.dataset.parola);
         for (const [w, js] of [[320, true], [390, true], [1440, true], [390, false]]) {
             const { ctx, p, errs } = await apri(w, { js });
-            const m = await p.evaluate(() => ({
+            const m = await p.evaluate((parole) => ({
                 sw: document.documentElement.scrollWidth, iw: innerWidth,
                 anteprimaVisibili: [...document.querySelectorAll('.solo-anteprima')].filter((e) => e.getClientRects().length).length,
                 segnapostoFuori: [...document.querySelectorAll('body *')].filter((e) => e.children.length === 0 && /DA FORNIRE|VERIFICARE|PASSO 4/.test(e.textContent) && !e.closest('.solo-anteprima')).length,
-                marchioRighe: Math.round(document.querySelector('.marchio-testo b').getBoundingClientRect().height / parseFloat(getComputedStyle(document.querySelector('.marchio-testo b')).fontSize))
-            }));
+                marchioRighe: Math.round(document.querySelector('.marchio b').getBoundingClientRect().height / parseFloat(getComputedStyle(document.querySelector('.marchio b')).lineHeight === 'normal' ? getComputedStyle(document.querySelector('.marchio b')).fontSize * 1.3 : getComputedStyle(document.querySelector('.marchio b')).lineHeight)),
+                parole: new Function('return (' + parole + ')()')(),
+                atti: [...document.querySelectorAll('.atto')].filter((a) => a.getClientRects().length && +getComputedStyle(a).opacity > 0.99).length
+            }), parole.toString());
             const tag = `${w}px ${js ? 'con' : 'senza'} JS`;
             ok(errs.length === 0, `${tag}: nessun errore JS (${errs.join(' | ')})`);
             ok(m.sw <= m.iw, `${tag}: nessuno scroll orizzontale (${m.sw} > ${m.iw})`);
             ok(m.segnapostoFuori === 0, `${tag}: ogni segnaposto sta dentro .solo-anteprima`);
             ok(m.marchioRighe <= 1, `${tag}: «VALENTINO EGIDI» su una riga sola`);
             if (js) ok(m.anteprimaVisibili > 0, `${tag}: in anteprima (host locale) i segnaposto si vedono`);
-            else ok(m.anteprimaVisibili === 0, `${tag}: senza JS nessun segnaposto visibile`);
+            else {
+                ok(m.anteprimaVisibili === 0, `${tag}: senza JS nessun segnaposto visibile`);
+                ok(m.parole.every((x) => x.split('=')[0] === x.split('=')[1]), `${tag}: il tabellone si legge anche senza JS (${m.parole.join(' ')})`);
+                ok(m.atti === 5, `${tag}: i cinque atti del metodo sono tutti visibili (${m.atti})`);
+            }
             await ctx.close();
         }
         // Test dei 5 secondi a 390×844: sopra la barra WhatsApp si legge chi
-        // siamo, dove, e che per affittare c'è BOOM. E il testo non tocca il bordo.
+        // siamo, dove, e che per affittare c'è BOOM — anche la riga del tabellone.
         {
             const { ctx, p } = await apri(390);
             const r = await p.evaluate(() => {
                 const s = document.querySelector('.hero .sotto'), t = document.querySelector('.titolo');
-                return { fondo: s.getBoundingClientRect().bottom, bar: document.querySelector('.wa-fissa').getBoundingClientRect().top, testo: s.textContent, sx: Math.min(s.getBoundingClientRect().left, t.getBoundingClientRect().left) };
+                return { fondo: s.getBoundingClientRect().bottom, boom: document.querySelector('.riga.a-boom').getBoundingClientRect().bottom, bar: document.querySelector('.wa-fissa').getBoundingClientRect().top, testo: s.textContent, sx: Math.min(s.getBoundingClientRect().left, t.getBoundingClientRect().left) };
             });
             ok(r.fondo <= r.bar, `390px: la tesi sta sopra la piega (${Math.round(r.fondo)} ≤ ${Math.round(r.bar)})`);
+            ok(r.boom <= r.bar, `390px: la riga AFFITTARE → BOOM sta sopra la barra WhatsApp (${Math.round(r.boom)} ≤ ${Math.round(r.bar)})`);
             ok(/Valentino Egidi Immobiliare/.test(r.testo) && /Roma/.test(r.testo) && /BOOM/.test(r.testo), '390px: brand, Roma e BOOM nella tesi');
             ok(r.sx >= 16, `390px: margine sinistro ${Math.round(r.sx)}px ≥ 16`);
             await ctx.close();
         }
-        // L'hero: i muri si ALZANO (il difetto della prima prova era il segno
-        // della rotazione: pendevano sotto il pavimento), il verbo diventa BOOM,
-        // la pillola BOOM non copre niente, il bottone ferma tutto.
-        for (const w of [1440, 390]) {
-            const { ctx, p } = await apri(w, { h: w > 900 ? 900 : 844 });
-            await p.waitForTimeout(1600);
-            const muri = await p.evaluate(() => {
-                const l = document.querySelector('.lastra').getBoundingClientRect(), m = document.querySelector('.muro').getBoundingClientRect();
-                return { h: parseFloat(getComputedStyle(document.querySelector('.muro')).height), muroTop: m.top, lastraTop: l.top };
-            });
-            ok(muri.h > 0 && muri.muroTop < muri.lastraTop - 10, `${w}px: il muro di fondo sale sopra il pavimento (${Math.round(muri.muroTop)} < ${Math.round(muri.lastraTop)})`);
-            const boom = await p.evaluate(() => {
-                document.getElementById('ferma').click(); window.__egidiVerbo(3);
-                const chip = document.querySelector('.boom-chip');
-                return new Promise((res) => setTimeout(() => res({
-                    modo: document.getElementById('hero').classList.contains('modo-boom'),
-                    bg: getComputedStyle(document.getElementById('hero')).backgroundColor,
-                    chip: chip.getBoundingClientRect().toJSON(), chipTab: chip.tabIndex, chipOp: +getComputedStyle(chip).opacity,
-                    ferma: document.getElementById('ferma').getBoundingClientRect().toJSON(),
-                    cta: [...document.querySelectorAll('.hero-cta .btn')].map((e) => e.getBoundingClientRect().toJSON())
-                }), 900));
-            });
-            ok(boom.modo && boom.bg === 'rgb(6, 6, 7)', `${w}px: su «Affitta» l'hero diventa BOOM (${boom.bg})`);
-            ok(boom.chipOp > 0.99 && boom.chipTab === 0, `${w}px: la pillola BOOM è visibile e raggiungibile da tastiera`);
-            ok(!incrocia(boom.chip, boom.ferma) && boom.cta.every((c) => !incrocia(boom.chip, c)), `${w}px: la pillola BOOM non copre bottoni`);
-            const stop = await p.evaluate(() => { document.getElementById('ferma').click(); document.getElementById('ferma').click(); return { pressed: document.getElementById('ferma').getAttribute('aria-pressed'), modo: document.getElementById('hero').classList.contains('modo-boom') }; });
-            ok(stop.pressed === 'true' && !stop.modo, `${w}px: «Ferma» riporta su «Vendi» e resta fermo`);
-            await ctx.close();
-        }
-        // Movimento ridotto: nessun giro di verbi, muri e pin già al loro posto.
-        {
-            const { ctx, p } = await apri(1440, { h: 900, rm: 'reduce' });
-            const r = await p.evaluate(() => ({ ferma: document.getElementById('ferma').hidden, muro: parseFloat(getComputedStyle(document.querySelector('.muro')).height), pin: getComputedStyle(document.querySelector('.pin')).opacity }));
-            await p.waitForTimeout(3000);
-            const modo = await p.evaluate(() => document.getElementById('hero').classList.contains('modo-boom'));
-            ok(r.ferma && r.muro > 0 && r.pin === '1' && !modo, `movimento ridotto: fermo, muri alzati, pin visibili (${JSON.stringify(r)})`);
-            await ctx.close();
-        }
-        // Testata: trasparente sull'hero, chiara dopo.
+        // I caratteri arrivano davvero (dal nostro server) e il titolo li usa.
         {
             const { ctx, p } = await apri(1440, { h: 900 });
-            const prima = await p.evaluate(() => document.getElementById('testata').classList.contains('chiara'));
-            await p.evaluate(() => scrollTo(0, innerHeight * 1.5)); await p.waitForTimeout(300);
-            const dopo = await p.evaluate(() => document.getElementById('testata').classList.contains('chiara'));
-            ok(!prima && dopo, 'testata trasparente sull\'hero, chiara dopo');
+            await p.evaluate(() => document.fonts.ready);
+            const f = await p.evaluate(() => ({ a: document.fonts.check('700 20px Archivo'), m: document.fonts.check('500 12px "JetBrains Mono"'), stato: [...document.fonts].map((x) => x.family + ':' + x.status).join(',') }));
+            ok(f.a && f.m && !/error/.test(f.stato), `Archivo e JetBrains Mono caricati (${f.stato})`);
             await ctx.close();
         }
-        // Il calcolo e il check: aritmetica vera, niente riepilogo a vuoto.
+        // Il tabellone: gira, si posa sulle parole giuste, AFFITTARE porta a BOOM
+        // in oro, «Ferma» lo ferma subito (WCAG 2.2.2) e lo riavvia.
+        for (const w of [1440, 390]) {
+            const { ctx, p } = await apri(w, { h: w > 900 ? 900 : 844 });
+            const gira = await p.evaluate(() => new Promise((res) => setTimeout(() => res(document.querySelectorAll('.f.gira').length), 250)));
+            await p.waitForTimeout(4200);
+            const posato = await p.evaluate(parole);
+            ok(gira > 0, `${w}px: il tabellone gira all'apertura (${gira} celle in movimento)`);
+            ok(posato.every((x) => x.split('=')[0] === x.split('=')[1]), `${w}px: si posa su VENDERE · COMPRARE · INVESTIRE · AFFITTARE (${posato.join(' ')})`);
+            const boom = await p.evaluate(() => { const r = document.querySelector('.riga.a-boom'); return { href: r.getAttribute('href'), dest: r.querySelector('.dest').textContent, col: getComputedStyle(r.querySelector('.dest')).color, altre: [...document.querySelectorAll('.riga:not(.a-boom)')].map((x) => x.querySelector('.dest').textContent) }; });
+            ok(boom.dest === 'BOOM' && boom.col === 'rgb(255, 215, 0)' && /boomrome\.com\/owners\?utm_source=egidimmobiliare&utm_medium=referral&utm_campaign=tabellone/.test(boom.href), `${w}px: AFFITTARE → BOOM, in oro, con gli UTM`);
+            ok(boom.altre.every((x) => x === 'Valentino Egidi'), `${w}px: le altre partenze vanno a Valentino Egidi`);
+            const stop = await p.evaluate(parole => { const f = document.getElementById('ferma'); f.click(); const dopo = new Function('return (' + parole + ')()')(); return new Promise((res) => setTimeout(() => res({ pressed: f.getAttribute('aria-pressed'), dopo, gira: document.querySelectorAll('.f.gira b').length && [...document.querySelectorAll('.f b')].some((b) => getComputedStyle(b).animationName !== 'none' && b.parentNode.classList.contains('gira')) }), 400)); }, parole.toString());
+            ok(stop.pressed === 'true' && stop.dopo.every((x) => x.split('=')[0] === x.split('=')[1]), `${w}px: «Ferma» posa subito le parole e resta fermo`);
+            const riparte = await p.evaluate(() => { const f = document.getElementById('ferma'); f.click(); return new Promise((res) => setTimeout(() => res({ pressed: f.getAttribute('aria-pressed'), gira: document.querySelectorAll('.f.gira').length }), 150)); });
+            ok(riparte.pressed === 'false', `${w}px: «Riavvia» lo fa ripartire`);
+            await ctx.close();
+        }
+        // Movimento ridotto: niente tabellone che gira, niente bottone inutile, modello già in piedi.
+        {
+            const { ctx, p } = await apri(1440, { h: 900, rm: 'reduce' });
+            const r = await p.evaluate((parole) => ({ ferma: getComputedStyle(document.getElementById('ferma')).display, parole: new Function('return (' + parole + ')()')(), muro: parseFloat(getComputedStyle(document.querySelector('.muro')).height) }), parole.toString());
+            ok(r.ferma === 'none', 'movimento ridotto: il bottone «Ferma» non serve e non si vede');
+            ok(r.parole.every((x) => x.split('=')[0] === x.split('=')[1]), 'movimento ridotto: le parole sono già al loro posto');
+            ok(r.muro > 0, 'movimento ridotto: il modello è già in piedi');
+            await ctx.close();
+        }
+        // Il metodo: lo scroll VERO sceglie l'atto, il modello lo recita, i muri
+        // salgono sopra il pavimento (il difetto della v2 era il segno della rotazione).
+        for (const [w, h] of [[1440, 900], [390, 844]]) {
+            const { ctx, p } = await apri(w, { h });
+            const top = await p.evaluate(() => document.getElementById('atti').offsetTop);
+            const corsa = await p.evaluate(() => document.getElementById('atti').offsetHeight - innerHeight);
+            const visti = [];
+            for (let i = 0; i < 5; i++) {
+                await p.evaluate((y) => scrollTo(0, y), top + corsa * (i + 0.5) / 5); await p.waitForTimeout(150);
+                visti.push(await p.evaluate(() => document.getElementById('modello').className.replace('modello ', '') + ':' + [...document.querySelectorAll('.atto.su')].map((a) => a.dataset.atto).join('')));
+            }
+            ok(visti.join(' ') === 's1:1 s2:2 s3:3 s4:4 s5:5', `${w}px: lo scroll recita i cinque atti (${visti.join(' ')})`);
+            await p.waitForTimeout(1300);
+            const m = await p.evaluate(() => { const l = document.querySelector('.lastra').getBoundingClientRect(), mu = document.querySelector('.muro').getBoundingClientRect(), pin = document.querySelector('.p5'); return { muroTop: mu.top, lastraTop: l.top, pin: pin.textContent.trim(), pinOp: +getComputedStyle(pin).opacity, testata: document.getElementById('testata').classList.contains('chiara') }; });
+            ok(m.muroTop < m.lastraTop - 10, `${w}px: il muro di fondo sale sopra il pavimento (${Math.round(m.muroTop)} < ${Math.round(m.lastraTop)})`);
+            ok(m.pinOp > 0.99 && /BOOM/i.test(m.pin), `${w}px: all'ultimo atto il modello dice BOOM (${m.pin})`);
+            ok(!m.testata, `${w}px: la testata resta scura sopra il metodo`);
+            await ctx.close();
+        }
+        // Testata: scura sull'hero, chiara sulla carta, di nuovo scura sul metodo.
+        {
+            const { ctx, p } = await apri(1440, { h: 900 });
+            const at = async (id) => { await p.evaluate((i) => scrollTo(0, document.getElementById(i).offsetTop + 200), id); await p.waitForTimeout(200); return p.evaluate(() => document.getElementById('testata').classList.contains('chiara')); };
+            const hero = await p.evaluate(() => document.getElementById('testata').classList.contains('chiara'));
+            const carta = await at('case'), macchina = await at('macchina');
+            ok(!hero && carta && macchina, `testata scura sull'hero, chiara sulla carta (${hero} ${carta} ${macchina})`);
+            await ctx.close();
+        }
+        // Il calcolo: aritmetica vera, nessun numero prima che il visitatore scriva.
         {
             const { ctx, p } = await apri(390);
-            const vuoto = await p.evaluate(() => [document.getElementById('lordo').textContent, document.getElementById('esito').getClientRects().length]);
+            const vuoto = await p.evaluate(() => document.getElementById('lordo').textContent);
             const c1 = await p.evaluate(() => { document.getElementById('esempio').click(); return ['lordo', 'netto', 'annuo'].map((k) => document.getElementById(k).textContent); });
             const c2 = await p.evaluate(() => { document.querySelector('input[name=regime][value="0.10"]').click(); return document.getElementById('netto').textContent; });
-            ok(vuoto[0] === '—', 'calcolo: nessun numero prima che il visitatore scriva');
+            ok(vuoto === '—', 'calcolo: nessun numero prima che il visitatore scriva');
             ok(c1.join('|') === '5,8%|4,6%|€ 14.400', `calcolo: 250.000 e 1.200 danno 5,8% lordo, 4,6% netto, € 14.400 (${c1.join('|')})`);
             ok(c2 === '5,2%', `calcolo: col concordato il netto sale al 5,2% (${c2})`);
-            await p.evaluate(() => { ['si', 'no', 'ns', 'si', 'si', 'si', 'no', 'si'].forEach((x, i) => document.querySelector(`input[name=v${i + 1}][value=${x}]`).click()); });
-            const ch = await p.evaluate(() => ({ punti: document.getElementById('punti').textContent, righe: document.querySelectorAll('#manca li').length, titolo: document.getElementById('esito-titolo').textContent }));
-            ok(vuoto[1] === 0, 'check: nessun riepilogo prima della prima risposta');
-            ok(ch.punti === '5' && ch.righe === 3 && ch.titolo === 'Cosa manca', `check: 5 su 8 e tre voci da sistemare o verificare (${JSON.stringify(ch)})`);
+            await ctx.close();
+        }
+        // La candidatura: quattro passi, tutto nel browser, alla fine WhatsApp
+        // col riepilogo. «Affittare» va a BOOM subito, senza passi inutili.
+        {
+            const { ctx, p } = await apri(390);
+            const r = await p.evaluate(async () => {
+                const sl = (ms) => new Promise((res) => setTimeout(res, ms)), $ = (i) => document.getElementById(i);
+                const vis = () => [...document.querySelectorAll('.passo')].map((x) => (x.hidden ? 0 : 1)).join('');
+                const shown = (e) => getComputedStyle(e).display !== 'none';
+                const o = { passi: [vis()] };
+                o.inviaPrima = shown($('invia'));
+                document.querySelector('input[name=intento][value=vendere]').click(); $('avanti').click(); await sl(30); o.passi.push(vis());
+                const z = document.querySelector('#candida [name=zona]'); z.value = 'Monti'; z.dispatchEvent(new Event('input', { bubbles: true }));
+                $('avanti').click(); await sl(30); o.passi.push(vis());
+                ['si', 'si', 'si', 'si', 'no', 'ns'].forEach((x, i) => document.querySelector(`input[name=d${i + 1}][value=${x}]`).click());
+                o.punti = $('punti').textContent;
+                $('avanti').click(); await sl(30); o.passi.push(vis());
+                const n = document.querySelector('#candida [name=nome]'); n.value = 'Mario Rossi'; n.dispatchEvent(new Event('input', { bubbles: true }));
+                o.href = $('invia').href; o.riep = $('riepilogo').textContent; o.inviaDopo = shown($('invia')); o.avantiDopo = shown($('avanti'));
+                for (let i = 0; i < 4; i++) $('indietro').click();
+                document.querySelector('input[name=intento][value=affittare]').click(); await sl(30);
+                o.aff = { href: $('invia').href, testo: $('invia').textContent, invia: shown($('invia')), avanti: shown($('avanti')), passo: vis() };
+                document.querySelector('input[name=intento][value=comprare]').click(); await sl(30);
+                o.comp = { invia: shown($('invia')), avanti: shown($('avanti')) };
+                $('avanti').click(); $('avanti').click(); await sl(30);
+                o.comp.doc = [$('voci-doc').hidden, $('doc-comprare').hidden];
+                return o;
+            });
+            ok(r.passi.join(' ') === '1000 0100 0010 0001' && !r.inviaPrima, `candidatura: quattro passi in ordine, niente invio prima dell'ultimo (${r.passi.join(' ')})`);
+            ok(r.punti === '4/6', `candidatura: i documenti in ordine si contano (${r.punti})`);
+            ok(r.href.startsWith('https://wa.me/393313251961?text=') && decodeURIComponent(r.href.split('text=')[1]) === r.riep, 'candidatura: WhatsApp si apre col riepilogo mostrato, parola per parola');
+            ok(/Intenzione: Vendere/.test(r.riep) && /Zona: Monti/.test(r.riep) && /Documenti in ordine: 4 su 6/.test(r.riep) && /Impianti certificati \(da sistemare\)/.test(r.riep) && /Contratto registrato \(da verificare\)/.test(r.riep) && /Nome: Mario Rossi/.test(r.riep), 'candidatura: il riepilogo dice cosa manca');
+            ok(r.inviaDopo && !r.avantiDopo, 'candidatura: all\'ultimo passo c\'è solo «Invia»');
+            ok(r.aff.invia && !r.aff.avanti && r.aff.passo === '1000' && /Continua su BOOM/.test(r.aff.testo) && /boomrome\.com\/owners\?utm_source=egidimmobiliare&utm_medium=referral&utm_campaign=candidatura/.test(r.aff.href), `candidatura: «Affittare» porta subito a BOOM (${JSON.stringify(r.aff)})`);
+            ok(!r.comp.invia && r.comp.avanti, 'candidatura: tornando a «Comprare» il percorso torna a quattro passi');
+            ok(r.comp.doc[0] === true && r.comp.doc[1] === false, 'candidatura: chi compra non deve dichiarare i documenti di una casa che non ha');
+            await ctx.close();
+        }
+        // Dal tabellone: COMPRARE apre la candidatura già scelta.
+        {
+            const { ctx, p } = await apri(1440, { h: 900 });
+            await p.evaluate(() => { document.getElementById('ferma').click(); document.querySelector('.riga[data-intento=comprare]').click(); });
+            const v = await p.evaluate(() => (document.querySelector('input[name=intento]:checked') || {}).value);
+            ok(v === 'comprare', `dal tabellone COMPRARE la candidatura parte già su «comprare» (${v})`);
             await ctx.close();
         }
         ok(esterne.length === 0, `zero richieste esterne per disegnare la pagina (${esterne.slice(0, 3).join(' | ')})`);

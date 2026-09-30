@@ -4,16 +4,18 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Valentino Egidi Immobiliare · Vendite e acquisti a Roma</title>
-<meta name="description" content="Compravendite e investimenti immobiliari nel centro di Roma, dalla valutazione al rogito. Per affittare c'è BOOM, il marchio di Egidi Immobiliare.">
+<meta name="description" content="Compravendite e investimenti immobiliari nel centro di Roma, dai documenti al rogito. Per affittare c'è BOOM, il marchio di Egidi Immobiliare.">
 <link rel="canonical" href="https://www.egidimmobiliare.it/">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="it_IT">
 <meta property="og:site_name" content="Valentino Egidi Immobiliare">
-<meta property="og:title" content="Valentino Egidi Immobiliare · Vendi, compra, investi a Roma">
+<meta property="og:title" content="Valentino Egidi Immobiliare · Prima i documenti. Poi il prezzo.">
 <meta property="og:description" content="Compravendite e investimenti nel centro di Roma. Per affittare c'è BOOM, il marchio di Egidi Immobiliare.">
 <meta property="og:url" content="https://www.egidimmobiliare.it/">
-<meta name="theme-color" content="#2436F5">
+<meta name="theme-color" content="#070A2B">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preload" href="/fonts/archivo-wdth.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="/fonts/jetbrains-mono.woff2" as="font" type="font/woff2" crossorigin>
 <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -47,306 +49,382 @@
     // di colore si vedono solo lì.
     if (!/(^|\.)egidimmobiliare\.it$/.test(location.hostname)) d.classList.add('anteprima');
     var c = new URLSearchParams(location.search).get('c');
-    if (d.classList.contains('anteprima') && /^(rosso|verde)$/.test(c || '')) d.setAttribute('data-colore', c);
+    if (d.classList.contains('anteprima') && /^(verde|nero)$/.test(c || '')) d.setAttribute('data-colore', c);
 })(document.documentElement);
 </script>
 <style>
+@font-face{font-family:'Archivo';src:url(/fonts/archivo-wdth.woff2) format('woff2-variations'),url(/fonts/archivo-wdth.woff2) format('woff2');font-weight:100 900;font-stretch:62% 125%;font-display:swap}
+@font-face{font-family:'JetBrains Mono';src:url(/fonts/jetbrains-mono.woff2) format('woff2-variations'),url(/fonts/jetbrains-mono.woff2) format('woff2');font-weight:100 800;font-display:swap}
 :root{
-  --carta:#F4F2EE; --carta-2:#E9E6DF; --ink:#0B0B0F; --grigio:#55545C; --grigio-2:#6A6972;
-  --accento:#2436F5; --accento-scuro:#1624B8;
-  --boom:#060607; --oro:#FFD700; --bianco:#FFFFFF;
-  --sans:'Helvetica Neue',HelveticaNeue,Helvetica,Inter,Arial,sans-serif;
-  --mono:'SF Mono',ui-monospace,Menlo,Consolas,monospace;
+  --carta:#F3F1EC; --carta-2:#E7E4DC; --ink:#0A0A0C; --grigio:#56555C; --grigio-2:#6B6A72;
+  --accento:#2436F5; --notte:#070A2B; --cella:#16208A; --cella-2:#101874;
+  --boom:#060607; --oro:#FFD700; --bianco:#FFFFFF; --nebbia:#C9CAD6;
+  --sans:'Archivo','Helvetica Neue',Helvetica,Arial,sans-serif;
+  --mono:'JetBrains Mono','SF Mono',ui-monospace,Menlo,Consolas,monospace;
   --ease:cubic-bezier(.16,1,.3,1);
   --w:1280px; --pad:32px; --head:72px;
 }
-html[data-colore=rosso]{--accento:#D3261D;--accento-scuro:#9E1A13}
-html[data-colore=verde]{--accento:#0B7A57;--accento-scuro:#075A40}
+html[data-colore=verde]{--accento:#0B7A57;--notte:#03170F;--cella:#0C5A41;--cella-2:#084632}
+html[data-colore=nero]{--accento:#0A0A0C;--notte:#0A0A0C;--cella:#1E1E23;--cella-2:#16161A}
 *,*::before,*::after{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;scroll-padding-top:calc(var(--head) + 8px)}
-body{margin:0;background:var(--carta);color:var(--ink);font:300 17px/1.6 var(--sans);-webkit-font-smoothing:antialiased}
+body{margin:0;background:var(--carta);color:var(--ink);font:400 17px/1.6 var(--sans);font-stretch:100%;-webkit-font-smoothing:antialiased}
 main{overflow-x:clip}
 a{color:inherit}
 h1,h2,h3,p,ul,ol,dl,dd{margin:0}
 ul,ol{padding:0;list-style:none}
 svg{display:block}
 fieldset{border:0;margin:0;padding:0;min-width:0}
+button{font:inherit}
 .wrap{max-width:var(--w);margin:0 auto;padding-left:var(--pad);padding-right:var(--pad)}
-.mono{font-family:var(--mono);font-weight:400;font-size:12px;letter-spacing:.14em;text-transform:uppercase}
+.mono{font-family:var(--mono);font-weight:500;font-size:12px;letter-spacing:.12em;text-transform:uppercase}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 :focus-visible{outline:2px solid currentColor;outline-offset:3px}
 .solo-anteprima{display:none!important}
 html.anteprima .solo-anteprima{display:revert!important}
 html.anteprima span.solo-anteprima{display:inline-block!important}
-.segnaposto{font-family:var(--mono);font-size:11px;letter-spacing:.1em;border:1px dashed currentColor;padding:2px 7px}
+.segnaposto{font-family:var(--mono);font-size:11px;letter-spacing:.08em;border:1px dashed currentColor;padding:2px 7px}
 
-/* bottoni */
-.btn{display:inline-flex;align-items:center;gap:12px;min-height:54px;padding:0 26px;border-radius:999px;border:1.5px solid currentColor;font:400 16px/1 var(--sans);text-decoration:none;cursor:pointer;background:transparent;color:inherit;transition:transform .35s var(--ease),background-color .35s var(--ease),color .35s var(--ease)}
-.btn:hover{transform:translateY(-2px)}
-.btn .fr{transition:transform .35s var(--ease)}
-.btn:hover .fr{transform:translateX(4px)}
-.btn-pieno{background:var(--accento);border-color:var(--accento);color:var(--bianco)}
+/* la tipografia che respira: larghezza variabile, condensata → espansa */
+.respira{font-stretch:62%;transition:font-stretch 1.6s var(--ease),letter-spacing 1.6s var(--ease)}
+.respira.dentro{font-stretch:125%}
+html:not(.js) .respira{font-stretch:125%}
+
+/* bottoni: rettangoli netti, il gesto è la freccia */
+.btn{display:inline-flex;align-items:center;justify-content:space-between;gap:18px;min-height:56px;padding:0 22px;border:1.5px solid currentColor;border-radius:4px;font:600 15px/1 var(--sans);font-stretch:105%;letter-spacing:.01em;text-decoration:none;cursor:pointer;background:transparent;color:inherit;transition:background-color .3s var(--ease),color .3s var(--ease),border-color .3s var(--ease)}
+.btn .fr{display:inline-block;transition:transform .35s var(--ease)}
+.btn:hover .fr{transform:translateX(5px)}
+.btn-accento{background:var(--accento);border-color:var(--accento);color:var(--bianco)}
 .btn-bianco{background:var(--bianco);border-color:var(--bianco);color:var(--ink)}
 .btn-oro{background:var(--oro);border-color:var(--oro);color:var(--boom)}
+.btn-ink{background:var(--ink);border-color:var(--ink);color:var(--bianco)}
 
-/* testata: trasparente sull'hero, carta dopo */
+/* testata */
 header{position:fixed;top:0;left:0;right:0;z-index:40;color:var(--bianco);transition:background-color .4s var(--ease),color .4s var(--ease),box-shadow .4s var(--ease)}
-header.chiara{background:rgba(244,242,238,.92);-webkit-backdrop-filter:saturate(1.4) blur(14px);backdrop-filter:saturate(1.4) blur(14px);color:var(--ink);box-shadow:0 1px 0 rgba(11,11,15,.08)}
-header.chiara .azioni-testata .btn-bianco{background:var(--accento);border-color:var(--accento);color:var(--bianco)}
+header.chiara{background:rgba(243,241,236,.9);-webkit-backdrop-filter:saturate(1.4) blur(14px);backdrop-filter:saturate(1.4) blur(14px);color:var(--ink);box-shadow:0 1px 0 rgba(10,10,12,.08)}
 .testata{height:var(--head);display:flex;align-items:center;justify-content:space-between;gap:24px}
-.marchio{display:flex;align-items:center;gap:12px;text-decoration:none}
-.monogramma{width:38px;height:38px;border:1.5px solid currentColor;border-radius:50%;display:grid;place-items:center;font-size:12px;letter-spacing:.06em;font-weight:400}
-.marchio-testo{display:flex;flex-direction:column;line-height:1;gap:6px}
-.marchio-testo b{font-weight:300;font-size:16px;letter-spacing:.3em;white-space:nowrap}
-.marchio-testo .mono{font-size:9px;letter-spacing:.3em;opacity:.85}
-.voci{display:flex;gap:30px;align-items:center}
-.voci a{text-decoration:none;font-size:15px;position:relative;padding:6px 0}
-.voci a::after{content:'';position:absolute;left:0;right:0;bottom:0;height:1px;background:currentColor;transform:scaleX(0);transform-origin:left;transition:transform .35s var(--ease)}
-.voci a:hover::after{transform:scaleX(1)}
+.marchio{display:flex;flex-direction:column;gap:5px;text-decoration:none;line-height:1}
+.marchio b{font-weight:700;font-stretch:125%;font-size:15px;letter-spacing:.2em;white-space:nowrap}
+.marchio span{font-family:var(--mono);font-size:9.5px;letter-spacing:.26em;text-transform:uppercase;opacity:.8}
+.voci{display:flex;gap:28px;align-items:center}
+.voci a{text-decoration:none;font-size:14.5px;font-weight:500;padding:6px 0;background:linear-gradient(currentColor,currentColor) 0 100%/0 1px no-repeat;transition:background-size .35s var(--ease)}
+.voci a:hover{background-size:100% 1px}
 .voci .a-boom{display:inline-flex;align-items:center;gap:8px}
 .voci .a-boom::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--oro);box-shadow:0 0 0 1.5px var(--boom)}
 .azioni-testata{display:flex;align-items:center;gap:14px}
-.azioni-testata .btn{min-height:44px;padding:0 20px;font-size:15px}
+.azioni-testata .btn{min-height:44px;padding:0 16px;font-size:14px}
+header:not(.chiara) .azioni-testata .btn{background:var(--bianco);border-color:var(--bianco);color:var(--ink)}
+header.chiara .azioni-testata .btn{background:var(--accento);border-color:var(--accento);color:var(--bianco)}
 .menu{display:none;position:relative}
-.menu summary{list-style:none;cursor:pointer;min-height:44px;display:flex;align-items:center;gap:10px;font-size:15px}
+.menu summary{list-style:none;cursor:pointer;min-height:44px;display:flex;align-items:center;gap:10px;font-size:15px;font-weight:500}
 .menu summary::-webkit-details-marker{display:none}
 .menu summary i{width:22px;height:10px;border-top:1.5px solid currentColor;border-bottom:1.5px solid currentColor}
 .menu:not([open]) .voci{display:none}
-.menu[open] .voci{position:absolute;right:0;top:54px;flex-direction:column;align-items:stretch;gap:0;background:var(--carta);color:var(--ink);border-radius:18px;padding:8px;min-width:230px;box-shadow:0 20px 50px -20px rgba(11,11,15,.35)}
-.menu[open] .voci a{padding:13px 16px;border-radius:12px}
+.menu[open] .voci{position:absolute;right:0;top:54px;flex-direction:column;align-items:stretch;gap:0;background:var(--carta);color:var(--ink);border-radius:6px;padding:8px;min-width:240px;box-shadow:0 24px 60px -24px rgba(10,10,12,.45)}
+.menu[open] .voci a{padding:13px 14px;background:none}
 .menu[open] .voci a:hover{background:var(--carta-2)}
-.menu[open] .voci a::after{display:none}
 .barra{position:fixed;top:0;left:0;height:2px;width:100%;background:var(--oro);transform-origin:0 50%;transform:scaleX(0);z-index:50}
 
-/* HERO */
-.hero{position:relative;isolation:isolate;z-index:0;min-height:100vh;min-height:100svh;background:var(--accento);color:var(--bianco);display:flex;align-items:center;padding:calc(var(--head) + 40px) 0 64px;overflow:hidden;transition:background-color .7s var(--ease)}
-.hero::before{content:'';position:absolute;inset:0;background:radial-gradient(120% 90% at 78% 40%,rgba(255,255,255,.18),transparent 55%),radial-gradient(80% 60% at 10% 100%,rgba(0,0,0,.2),transparent 60%);pointer-events:none}
-.hero-griglia{position:relative;display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);gap:40px;align-items:center;width:100%}
-.titolo{margin:22px 0 26px;font-weight:200;font-size:clamp(64px,10.2vw,168px);line-height:.92;letter-spacing:-.035em}
-.verbo{display:block;position:relative;height:1em;overflow:hidden}
-.verbo span{position:absolute;left:0;top:0;white-space:nowrap;transform:translateY(105%);transition:transform .9s var(--ease),color .7s var(--ease)}
-.verbo span.su{transform:translateY(0)}
-.verbo span.via{transform:translateY(-105%)}
-html:not(.js) .verbo span:first-child{transform:none}
-.dove{display:block}
-.hero .sotto{font-size:19px;line-height:1.55;max-width:31em}
-.hero .sotto b{font-weight:400}
-.hero-cta{display:flex;flex-wrap:wrap;gap:12px;margin-top:34px}
-.ferma{margin-top:6px;display:inline-flex;align-items:center;gap:10px;background:none;border:0;color:inherit;font:400 12px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;cursor:pointer;padding:8px 0}
+/* HERO: il tabellone */
+.hero{position:relative;isolation:isolate;min-height:100vh;min-height:100svh;background:var(--notte);color:var(--bianco);padding:calc(var(--head) + 44px) 0 56px;overflow:hidden;display:flex;align-items:center}
+.hero::before{content:'';position:absolute;inset:0;z-index:-1;background:radial-gradient(90% 70% at 85% 10%,color-mix(in srgb,var(--accento) 55%,transparent),transparent 60%),radial-gradient(60% 50% at 0% 100%,color-mix(in srgb,var(--accento) 25%,transparent),transparent 70%)}
+.hero::after{content:'';position:absolute;inset:0;z-index:-1;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:64px 64px;-webkit-mask:radial-gradient(80% 80% at 50% 40%,#000,transparent);mask:radial-gradient(80% 80% at 50% 40%,#000,transparent)}
+.hero .wrap{width:100%}
+.hero-alto{display:flex;justify-content:space-between;align-items:baseline;gap:20px;color:var(--nebbia)}
+.orologio{font-variant-numeric:tabular-nums}
+.titolo{margin:28px 0 22px;font-weight:300;font-size:clamp(48px,7.4vw,118px);line-height:.94;letter-spacing:-.02em;text-wrap:balance}
+.titolo .r1{display:block}
+.titolo .r2{display:block;font-weight:800;font-stretch:62%;text-transform:uppercase;letter-spacing:-.01em}
+.hero .sotto{font-size:18px;line-height:1.55;max-width:36em;color:var(--nebbia)}
+.hero .sotto b{font-weight:600;color:var(--bianco)}
+
+.tabellone{margin-top:40px;--cw:clamp(22px,2.45vw,38px);border-top:1px solid rgba(255,255,255,.14)}
+.tab-testa{display:grid;grid-template-columns:calc(var(--cw) * 9 + 24px) minmax(0,1fr) 190px 40px;gap:0 20px;padding:14px 0 10px;color:var(--nebbia);font-size:11px}
+.riga{display:grid;grid-template-columns:calc(var(--cw) * 9 + 24px) minmax(0,1fr) 190px 40px;gap:0 20px;align-items:center;padding:10px 0;border-top:1px solid rgba(255,255,255,.08);text-decoration:none;transition:background-color .3s var(--ease)}
+.riga:hover{background:rgba(255,255,255,.04)}
+.celle{display:flex;gap:3px}
+.f{position:relative;flex:none;width:var(--cw);height:calc(var(--cw) * 1.42);display:grid;place-items:center;border-radius:3px;background:linear-gradient(180deg,var(--cella) 0 50%,var(--cella-2) 50% 100%);font:700 calc(var(--cw) * .74)/1 var(--mono);color:var(--bianco);box-shadow:inset 0 -1px 0 rgba(0,0,0,.35),0 1px 0 rgba(255,255,255,.05)}
+.f::after{content:'';position:absolute;left:0;right:0;top:50%;height:1px;background:rgba(0,0,0,.55)}
+.f b{display:block;font-weight:inherit;transform-origin:50% 50%}
+.f.gira b{animation:flap .09s linear}
+@keyframes flap{0%{transform:scaleY(1)}50%{transform:scaleY(.08)}100%{transform:scaleY(1)}}
+.riga.a-boom .f{background:linear-gradient(180deg,#141416 0 50%,#0b0b0d 50% 100%);color:var(--oro)}
+.dest{font-weight:700;font-stretch:115%;font-size:clamp(18px,1.9vw,28px);letter-spacing:.04em;text-transform:uppercase}
+.riga.a-boom .dest{color:var(--oro)}
+.cosa{font-size:11.5px;color:var(--nebbia)}
+.freccia{font-size:22px;text-align:right;transition:transform .35s var(--ease)}
+.riga:hover .freccia{transform:translateX(6px)}
+.hero-basso{display:flex;flex-wrap:wrap;gap:12px 18px;align-items:center;margin-top:34px}
+.ferma{display:inline-flex;align-items:center;gap:10px;background:none;border:0;color:var(--nebbia);font:500 11.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;cursor:pointer;padding:10px 0}
 .ferma i{width:10px;height:12px;border-left:3px solid currentColor;border-right:3px solid currentColor}
 .ferma[aria-pressed=true] i{border-right:0;border-left:10px solid currentColor;border-top:6px solid transparent;border-bottom:6px solid transparent;width:0;height:0}
-.boom-riga{height:44px;margin-top:18px}
-.boom-chip{display:inline-flex;align-items:center;gap:10px;padding:9px 16px 9px 12px;border-radius:999px;background:var(--oro);color:var(--boom);font-size:14px;text-decoration:none;opacity:0;transform:translateY(8px);transition:opacity .5s var(--ease),transform .5s var(--ease);pointer-events:none}
-.boom-chip b{font-weight:500;letter-spacing:.24em;font-size:12px}
-.hero.modo-boom .boom-chip{opacity:1;transform:none;pointer-events:auto}
-.hero.modo-boom{background:var(--boom)}
-.hero.modo-boom .verbo span.su{color:var(--oro)}
-
-/* il modello 3D: un appartamento in assonometria, CSS puro */
-.scena{position:relative;height:min(62vh,560px);perspective:1500px;display:grid;place-items:center}
-.modello{--tx:0deg;--ty:0deg;position:relative;width:380em;height:280em;font-size:1.25px;transform-style:preserve-3d;transform:rotateX(calc(57deg + var(--ty))) rotateZ(calc(-38deg + var(--tx)));transition:transform .6s var(--ease)}
-.ombra{position:absolute;inset:-8%;background:radial-gradient(closest-side,rgba(0,0,0,.38),transparent);transform:translateZ(-40em);filter:blur(10px)}
-.lastra{position:absolute;inset:0;background:rgba(255,255,255,.1);border:1.5px solid rgba(255,255,255,.85);transform-style:preserve-3d;transition:border-color .7s var(--ease)}
-.stanza{position:absolute;background:rgba(255,255,255,.06);transition:background-color .7s var(--ease)}
-.stanza:nth-child(odd){background:rgba(255,255,255,.15)}
-.muro{position:absolute;height:0;transform-origin:0 0;background:linear-gradient(to bottom,rgba(255,255,255,.34),rgba(255,255,255,.1));border:1.5px solid rgba(255,255,255,.9);border-bottom:0;transform:rotateZ(var(--a,0deg)) rotateX(90deg);transition:height 1.1s var(--ease),background .7s var(--ease),border-color .7s var(--ease)}
-.pronto .muro{height:var(--h,86em)}
-.muro.basso{--h:34em}
-.etichetta{position:absolute;transform-style:preserve-3d;transform:translateZ(calc(var(--z,140em) * var(--zf,1)))}
-.etichetta > span{display:block;transform:rotateZ(calc(38deg - var(--tx))) rotateX(calc(-57deg - var(--ty)));transform-origin:50% 100%;transition:transform .6s var(--ease)}
-.pin{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;padding:7px 12px;border-radius:999px;background:var(--bianco);color:var(--ink);font:400 12px/1 var(--mono);font-style:normal;letter-spacing:.08em;text-transform:uppercase;box-shadow:0 12px 30px -12px rgba(0,0,0,.45);opacity:0;transform:translateY(10px) scale(.96);transition:opacity .5s var(--ease),transform .5s var(--ease),background-color .5s var(--ease)}
-.pin::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--accento)}
-.pronto .pin{opacity:1;transform:none}
-.pin .b{display:none}
-.modo-boom .pin{background:var(--oro);color:var(--boom)}
-.modo-boom .pin::before{background:var(--boom)}
-.modo-boom .pin .a{display:none}
-.modo-boom .pin .b{display:inline}
-.modo-boom .muro{border-color:var(--oro);background:linear-gradient(to bottom,rgba(255,215,0,.3),rgba(255,215,0,.06))}
-.modo-boom .lastra{border-color:var(--oro)}
-.modo-boom .stanza:nth-child(odd){background:rgba(255,215,0,.12)}
-
-/* nastro */
-.nastro{background:var(--ink);color:var(--bianco);overflow:hidden}
-.nastro-pista{display:flex;width:max-content;animation:nastro 38s linear infinite}
-.nastro:hover .nastro-pista,.fermo .nastro-pista{animation-play-state:paused}
-.nastro ul{display:flex;align-items:center;gap:36px;padding:18px}
-.nastro li{font:400 13px/1 var(--mono);letter-spacing:.2em;text-transform:uppercase;display:flex;align-items:center;gap:36px;white-space:nowrap}
-.nastro li::after{content:'';width:6px;height:6px;border-radius:50%;background:var(--accento)}
-.nastro li.boom-li{color:var(--oro)}
-@keyframes nastro{to{transform:translateX(-50%)}}
 
 /* sezioni */
-section{padding:120px 0}
+section{padding:128px 0}
 .kicker{color:var(--accento);display:flex;align-items:center;gap:12px}
 .kicker::before{content:'';width:28px;height:2px;background:currentColor}
-h2{font-weight:200;font-size:clamp(40px,5.6vw,84px);line-height:1;letter-spacing:-.03em;margin-top:22px;text-wrap:balance}
+h2{font-weight:300;font-size:clamp(40px,5.8vw,92px);line-height:.98;letter-spacing:-.025em;margin-top:22px;text-wrap:balance}
+h2 strong{font-weight:800;font-stretch:62%;text-transform:uppercase;letter-spacing:0}
 h2 em{font-style:normal;color:var(--accento)}
-.lead{font-size:20px;line-height:1.55;color:var(--grigio);max-width:36em;margin-top:24px}
+.lead{font-size:19px;line-height:1.55;color:var(--grigio);max-width:36em;margin-top:24px}
 .rv{transition:opacity .9s var(--ease),transform .9s var(--ease)}
-html.js .rv:not(.dentro){opacity:0;transform:translateY(28px)}
+html.js .rv:not(.dentro){opacity:0;transform:translateY(24px)}
 
 /* due case */
-.due{display:flex;gap:16px;margin-top:56px;min-height:560px}
-.casa{flex:1;border-radius:32px;padding:44px;display:flex;flex-direction:column;position:relative;overflow:hidden;transition:flex-grow .7s var(--ease)}
-.due:hover .casa{flex-grow:.8}
-.due .casa:hover{flex-grow:1.35}
+.due{display:flex;gap:14px;margin-top:56px;min-height:540px}
+.casa{flex:1;border-radius:6px;padding:40px;display:flex;flex-direction:column;position:relative;overflow:hidden;transition:flex-grow .7s var(--ease)}
+.due:hover .casa{flex-grow:.82}
+.due .casa:hover{flex-grow:1.3}
 .casa-egidi{background:var(--accento);color:var(--bianco)}
 .casa-boom{background:var(--boom);color:var(--bianco)}
-.casa h3{font-weight:200;font-size:clamp(36px,4vw,60px);line-height:1;letter-spacing:-.02em;margin:18px 0 28px}
+.casa h3{font-weight:800;font-stretch:62%;text-transform:uppercase;font-size:clamp(40px,4.6vw,72px);line-height:.92;margin:18px 0 26px;letter-spacing:0}
 .casa-boom h3{color:var(--oro)}
-.casa ul{display:grid;gap:14px;font-size:17px;max-width:24em;position:relative;z-index:1}
+.casa ul{display:grid;gap:13px;font-size:16.5px;max-width:24em;position:relative;z-index:1}
 .casa li{display:flex;gap:14px;align-items:baseline}
-.casa li::before{content:'';flex:none;width:18px;height:2px;background:currentColor;transform:translateY(-4px)}
+.casa li::before{content:'';flex:none;width:16px;height:2px;background:currentColor;transform:translateY(-4px)}
 .casa .btn{margin-top:auto;align-self:flex-start;position:relative;z-index:1}
-.casa .grande{position:absolute;right:-10px;bottom:-44px;font-weight:200;font-size:230px;line-height:1;letter-spacing:-.04em;opacity:.1;pointer-events:none}
-.casa-boom .grande{color:var(--oro);opacity:.14;letter-spacing:.14em}
-.frase-boom{margin-top:28px;font-size:15px;color:var(--grigio);max-width:44em}
+.casa .grande{position:absolute;right:-8px;bottom:-30px;font-weight:900;font-stretch:125%;font-size:200px;line-height:1;color:transparent;-webkit-text-stroke:1px rgba(255,255,255,.22);pointer-events:none}
+.casa-boom .grande{-webkit-text-stroke-color:rgba(255,215,0,.35)}
+.frase-boom{margin-top:26px;font-size:15px;color:var(--grigio);max-width:44em}
 
-/* metodo: carte che si impilano (sticky, nessun dirottamento dello scroll) */
-.pila{margin-top:64px;display:grid;gap:24px}
-.carta{position:sticky;top:calc(var(--head) + 24px + var(--i) * 18px);background:var(--bianco);border-radius:32px;padding:48px;display:grid;grid-template-columns:180px minmax(0,1fr) 220px;gap:40px;align-items:center;min-height:320px;box-shadow:0 30px 60px -40px rgba(11,11,15,.35),0 0 0 1px rgba(11,11,15,.06)}
-.carta .num{font-weight:200;font-size:120px;line-height:.8;letter-spacing:-.04em;color:var(--accento)}
-.carta h3{font-weight:300;font-size:36px;line-height:1.1;letter-spacing:-.015em}
-.carta p{margin-top:14px;color:var(--grigio);font-size:18px;max-width:30em}
-.carta p a{color:var(--accento)}
-.carta svg{width:100%;height:auto;color:var(--accento)}
+/* il metodo: il modello racconta, lo scroll comanda (sticky, niente dirottamento) */
+.metodo{background:var(--notte);color:var(--bianco);padding-bottom:0}
+.metodo .kicker{color:var(--nebbia)}
+.metodo .lead{color:var(--nebbia)}
+.atti{position:relative;height:460vh;margin-top:40px}
+.palco{position:sticky;top:var(--head);height:calc(100vh - var(--head));display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:40px;align-items:center}
+.atto-lista{position:relative;height:320px}
+.atto{position:absolute;inset:0;opacity:0;transform:translateY(20px);transition:opacity .6s var(--ease),transform .6s var(--ease)}
+.atto.su{opacity:1;transform:none}
+.atto .num{font-family:var(--mono);font-size:13px;color:var(--oro);letter-spacing:.14em}
+.atto h3{font-weight:800;font-stretch:62%;text-transform:uppercase;font-size:clamp(44px,5vw,78px);line-height:.92;margin:14px 0 18px}
+.atto p{font-size:18px;color:var(--nebbia);max-width:26em}
+.atto p a{color:var(--bianco)}
+.segni{display:flex;gap:6px;margin-top:28px}
+.segni i{width:36px;height:3px;background:rgba(255,255,255,.18);transition:background-color .4s var(--ease)}
+.segni i.su{background:var(--oro)}
+html:not(.js) .atti{height:auto}
+html:not(.js) .palco{position:static;height:auto;grid-template-columns:1fr}
+html:not(.js) .atto-lista{height:auto;display:grid;gap:40px}
+html:not(.js) .atto{position:static;opacity:1;transform:none}
 
-/* investire → BOOM */
+.scena{position:relative;height:min(64vh,560px);perspective:1500px;display:grid;place-items:center}
+.modello{--rz:-38deg;--rx:57deg;--tz:0em;position:relative;width:380em;height:280em;font-size:1.25px;transform-style:preserve-3d;transform:rotateX(var(--rx)) rotateZ(var(--rz)) translateZ(var(--tz));transition:transform 1.2s var(--ease)}
+.ombra{position:absolute;inset:-8%;background:radial-gradient(closest-side,rgba(0,0,0,.5),transparent);transform:translateZ(-50em);filter:blur(12px)}
+.lastra{position:absolute;inset:0;background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.8);transform-style:preserve-3d;transition:border-color .8s var(--ease)}
+.stanza{position:absolute;background:rgba(255,255,255,.05);transition:background-color .8s var(--ease)}
+.muro{position:absolute;height:12em;transform-origin:0 0;background:linear-gradient(to bottom,rgba(255,255,255,.3),rgba(255,255,255,.08));border:1.5px solid rgba(255,255,255,.85);border-bottom:0;transform:rotateZ(var(--a,0deg)) rotateX(90deg);transition:height 1.1s var(--ease),background .8s var(--ease),border-color .8s var(--ease)}
+.muro.basso{--h:34em}
+.foglio3d{position:absolute;width:74em;height:96em;background:var(--bianco);border-radius:2em;transform-style:preserve-3d;transform:translateZ(260em) rotateX(-20deg);opacity:0;transition:transform 1.1s var(--ease),opacity .6s var(--ease);box-shadow:0 20em 40em rgba(0,0,0,.35);padding:10em 9em}
+.foglio3d i{display:block;height:4em;background:#D5D6E2;margin-bottom:7em;border-radius:1em}
+.foglio3d i:first-child{width:60%;background:var(--accento)}
+.foglio3d::after{content:'';position:absolute;right:-12em;top:-12em;width:34em;height:34em;border-radius:50%;background:var(--oro);box-shadow:inset 0 0 0 4em rgba(0,0,0,.08)}
+.etichetta{position:absolute;transform-style:preserve-3d;transform:translateZ(var(--z,150em))}
+.etichetta > span{display:block;transform:rotateZ(calc(-1 * var(--rz))) rotateX(calc(-1 * var(--rx)));transform-origin:50% 100%;transition:transform 1.2s var(--ease)}
+.pin{display:inline-flex;align-items:center;gap:8px;white-space:nowrap;padding:7px 12px;border-radius:4px;background:var(--bianco);color:var(--ink);font:600 11.5px/1 var(--mono);font-style:normal;letter-spacing:.08em;text-transform:uppercase;box-shadow:0 12px 30px -12px rgba(0,0,0,.6);opacity:0;transform:translateY(10px);transition:opacity .5s var(--ease),transform .5s var(--ease),background-color .5s var(--ease)}
+.pin::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--accento)}
+/* gli stati: 1 valutazione · 2 documenti · 3 presentazione · 4 rogito · 5 BOOM */
+.s1 .stanza:nth-child(1){background:color-mix(in srgb,var(--accento) 70%,transparent)}
+.s1 .stanza:nth-child(2){background:color-mix(in srgb,var(--accento) 45%,transparent)}
+.s1 .stanza:nth-child(3){background:color-mix(in srgb,var(--accento) 30%,transparent)}
+.s1 .stanza:nth-child(4){background:color-mix(in srgb,var(--accento) 55%,transparent)}
+.s1 .stanza:nth-child(5){background:color-mix(in srgb,var(--accento) 20%,transparent)}
+.s1 .p1,.s2 .p2,.s3 .p3,.s4 .p4,.s5 .p5{opacity:1;transform:none}
+.s2 .muro,.s3 .muro,.s4 .muro,.s5 .muro{height:var(--h,86em)}
+.s2 .foglio3d{opacity:1}
+.s2 .foglio3d.d1{transform:translateZ(150em) translateX(-40em) rotateX(-8deg) rotateZ(-6deg)}
+.s2 .foglio3d.d2{transform:translateZ(190em) translateX(10em) rotateX(-8deg) rotateZ(4deg)}
+.s2 .foglio3d.d3{transform:translateZ(230em) translateX(60em) rotateX(-8deg) rotateZ(-2deg)}
+.s3 .modello,.s3.modello{--rz:-128deg}
+.s4.modello{--rz:-218deg;--tz:40em}
+.s5.modello{--rz:-398deg;--tz:0em}
+.s5 .muro{border-color:var(--oro);background:linear-gradient(to bottom,rgba(255,215,0,.32),rgba(255,215,0,.06))}
+.s5 .lastra{border-color:var(--oro)}
+.s5 .stanza:nth-child(odd){background:rgba(255,215,0,.14)}
+.s5 .pin{background:var(--oro);color:var(--boom)}
+.s5 .pin::before{background:var(--boom)}
+html:not(.js) .muro{height:var(--h,86em)}
+
+/* la macchina */
+.macchina-grid{margin-top:56px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.tile{background:var(--bianco);border-radius:6px;padding:26px;display:flex;flex-direction:column;gap:16px;min-height:360px;box-shadow:0 0 0 1px rgba(10,10,12,.07)}
+.tile h3{font-weight:700;font-stretch:90%;font-size:21px;line-height:1.15}
+.tile p{font-size:15px;color:var(--grigio)}
+.demo{flex:1;border-radius:4px;background:var(--notte);color:var(--bianco);position:relative;overflow:hidden;display:grid;place-items:center;min-height:170px;padding:18px}
+.demo .mono{font-size:10.5px;color:var(--nebbia)}
+.tag-es{position:absolute;right:10px;top:10px;font:500 9.5px/1 var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--nebbia);border:1px solid rgba(255,255,255,.2);padding:3px 6px;border-radius:2px}
+.firma-svg{width:100%;max-width:220px}
+.firma-svg path{stroke:var(--oro);stroke-width:2.2;fill:none;stroke-linecap:round;stroke-dasharray:600;stroke-dashoffset:600;transition:stroke-dashoffset 2.4s var(--ease)}
+.dentro .firma-svg path{stroke-dashoffset:0}
+.cert{width:100%;margin-top:10px;display:grid;gap:4px}
+.cert span{font:500 10.5px/1.4 var(--mono);color:var(--nebbia);opacity:0;transition:opacity .4s var(--ease)}
+.dentro .cert span{opacity:1}
+.dentro .cert span:nth-child(2){transition-delay:.4s}.dentro .cert span:nth-child(3){transition-delay:.8s}
+.docs{width:100%;display:grid;gap:8px}
+.docs li{display:flex;justify-content:space-between;align-items:center;font:500 12px/1 var(--mono);letter-spacing:.06em;padding:9px 10px;border:1px solid rgba(255,255,255,.12);border-radius:3px}
+.docs li i{width:16px;height:16px;border-radius:50%;border:1.5px solid rgba(255,255,255,.35);transition:background-color .3s var(--ease),border-color .3s var(--ease)}
+.dentro .docs li i{background:var(--oro);border-color:var(--oro)}
+.dentro .docs li:nth-child(2) i{transition-delay:.35s}.dentro .docs li:nth-child(3) i{transition-delay:.7s}.dentro .docs li:nth-child(4) i{transition-delay:1.05s}
+.barre{width:100%;height:120px;display:flex;align-items:flex-end;gap:7px}
+.barre i{flex:1;height:8%;background:color-mix(in srgb,var(--accento) 80%,#fff 0%);border-radius:2px 2px 0 0;transition:height 1.2s var(--ease)}
+.barre i.voi{background:var(--oro)}
+.dentro .barre i:nth-child(1){height:38%}.dentro .barre i:nth-child(2){height:55%}.dentro .barre i:nth-child(3){height:47%}.dentro .barre i:nth-child(4){height:72%}.dentro .barre i:nth-child(5){height:64%}.dentro .barre i:nth-child(6){height:86%}.dentro .barre i:nth-child(7){height:58%}
+.pass{width:78%;max-width:200px;border-radius:12px;background:linear-gradient(160deg,#1a1a1f,#0b0b0d);border:1px solid rgba(255,215,0,.35);padding:14px;display:grid;gap:10px;transform:translateY(40px) rotate(-4deg);opacity:0;transition:transform 1s var(--ease),opacity .6s var(--ease)}
+.dentro .pass{transform:none;opacity:1}
+.pass b{font-weight:800;font-stretch:125%;letter-spacing:.18em;color:var(--oro);font-size:13px}
+.pass .rotta{display:flex;justify-content:space-between;font:700 22px/1 var(--mono)}
+.pass .qr{height:34px;background:repeating-linear-gradient(90deg,#fff 0 2px,transparent 2px 5px,#fff 5px 6px,transparent 6px 9px);opacity:.85;border-radius:2px}
+
+/* investire */
 .investire{background:var(--accento);color:var(--bianco)}
 .investire .kicker{color:var(--bianco)}
 .investire h2 em{color:var(--oro)}
 .investire .lead{color:var(--bianco)}
-.calc{margin-top:56px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:16px}
-.calc-in,.calc-out{border-radius:32px;padding:40px}
+.calc{margin-top:56px;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:14px}
+.calc-in,.calc-out{border-radius:6px;padding:36px}
 .calc-in{background:var(--bianco);color:var(--ink);display:grid;grid-template-columns:minmax(0,1fr);gap:10px;align-content:start}
-.calc-in label{margin-top:12px}
-.calc-in fieldset{margin-top:22px}
-.calc-in .esempio{margin-top:18px}
-.calc-in label{display:grid;gap:8px;font-size:14px;color:var(--grigio)}
+.calc-in label{font-size:13px;color:var(--grigio);margin-top:12px;font-family:var(--mono);letter-spacing:.08em;text-transform:uppercase}
 .campo{display:flex;align-items:center;min-width:0;border-bottom:1.5px solid var(--ink)}
-.campo span{font-size:28px;font-weight:200;color:var(--ink)}
-.campo input{flex:1;min-width:0;border:0;background:transparent;font:200 40px/1.2 var(--sans);color:var(--ink);padding:6px 8px;letter-spacing:-.02em}
+.campo span{font-size:28px;font-weight:300;color:var(--ink)}
+.campo input{flex:1;min-width:0;border:0;background:transparent;font:300 42px/1.2 var(--sans);font-stretch:90%;color:var(--ink);padding:6px 8px;letter-spacing:-.01em}
 .campo input::placeholder{color:#8A8993}
 .campo input:focus{outline:none}
 .campo:focus-within{border-color:var(--accento);box-shadow:0 1.5px 0 var(--accento)}
-.regime{display:flex;gap:8px;flex-wrap:wrap}
-.regime label{display:block;position:relative}
-.regime input{position:absolute;opacity:0;inset:0;cursor:pointer;margin:0}
-.regime span{display:block;padding:12px 18px;border-radius:999px;border:1.5px solid var(--ink);font-size:15px;color:var(--ink);cursor:pointer}
-.regime input:checked + span{background:var(--ink);color:var(--bianco)}
-.regime input:focus-visible + span{outline:2px solid var(--accento);outline-offset:3px}
-.esempio{justify-self:start;background:none;border:0;padding:0;color:var(--accento);font:400 15px/1.4 var(--sans);text-decoration:underline;text-underline-offset:4px;cursor:pointer}
+.scelte{display:flex;gap:8px;flex-wrap:wrap}
+.scelte label{display:block;position:relative;margin:0;font:inherit;text-transform:none;letter-spacing:0;color:inherit}
+.scelte input{position:absolute;opacity:0;inset:0;cursor:pointer;margin:0}
+.scelte span{display:block;padding:12px 16px;border-radius:4px;border:1.5px solid var(--ink);font-size:15px;font-weight:500;color:var(--ink);cursor:pointer}
+.scelte input:checked + span{background:var(--ink);color:var(--bianco)}
+.scelte input:focus-visible + span{outline:2px solid var(--accento);outline-offset:3px}
+.calc-in fieldset{margin-top:22px}
+.calc-in legend{font:500 13px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--grigio);margin-bottom:10px}
+.esempio{justify-self:start;margin-top:18px;background:none;border:0;padding:0;color:var(--accento);font:600 15px/1.4 var(--sans);text-decoration:underline;text-underline-offset:4px;cursor:pointer}
 .calc-out{background:var(--boom);color:var(--bianco);display:flex;flex-direction:column;gap:26px}
 .risultati{display:grid;grid-template-columns:1fr 1fr;gap:26px}
-.risultati .mono{color:#C9C9CF}
-.cifra{font-weight:200;font-size:clamp(48px,6vw,84px);line-height:1;letter-spacing:-.03em;margin-top:10px}
+.risultati .mono{color:var(--nebbia)}
+.cifra{font-weight:300;font-stretch:90%;font-size:clamp(48px,6vw,88px);line-height:1;letter-spacing:-.02em;margin-top:10px;font-variant-numeric:tabular-nums}
 .cifra.oro{color:var(--oro)}
-.cifra.piccola{font-size:clamp(32px,3.4vw,44px)}
-.calc-out .nota{font-size:14px;color:#C9C9CF;max-width:34em}
+.cifra.piccola{font-size:clamp(30px,3.2vw,44px)}
+.calc-out .nota{font-size:14px;color:var(--nebbia);max-width:34em}
 .calc-out .azioni{display:flex;flex-wrap:wrap;gap:12px;margin-top:auto}
 
-/* check */
-.check-grid{margin-top:56px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
-.voce{background:var(--bianco);border-radius:24px;padding:24px;display:flex;flex-direction:column;gap:12px;box-shadow:0 0 0 1px rgba(11,11,15,.08);transition:box-shadow .3s var(--ease),transform .3s var(--ease)}
-.voce:hover{transform:translateY(-3px)}
-.voce[data-stato=si]{box-shadow:0 0 0 2px var(--accento)}
-.voce[data-stato=no],.voce[data-stato=ns]{box-shadow:0 0 0 2px var(--ink)}
-.voce .n{font-family:var(--mono);font-size:12px;color:var(--grigio-2)}
-.voce h3{font-weight:400;font-size:18px;line-height:1.25}
-.voce p{font-size:14px;color:var(--grigio);line-height:1.5}
-.scelta{display:flex;gap:6px;margin-top:auto}
-.scelta label{flex:1;position:relative}
-.scelta input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
-.scelta span{display:block;text-align:center;padding:10px 4px;border-radius:999px;border:1.5px solid var(--ink);font-size:14px;cursor:pointer}
-.scelta input:checked + span{background:var(--ink);color:var(--bianco)}
-.voce[data-stato=si] .scelta input:checked + span{background:var(--accento);border-color:var(--accento)}
-.scelta input:focus-visible + span{outline:2px solid var(--accento);outline-offset:2px}
-.esito{margin-top:18px;border-radius:32px;background:var(--ink);color:var(--bianco);padding:40px;display:grid;grid-template-columns:auto minmax(0,1fr);gap:40px;align-items:center}
-.esito[hidden]{display:none}
-.anello{width:160px;height:160px;position:relative}
-.anello svg{width:100%;height:100%;transform:rotate(-90deg)}
-.anello circle{fill:none;stroke-width:8}
-.anello .fondo{stroke:rgba(255,255,255,.16)}
-.anello .pieno{stroke:var(--oro);stroke-linecap:round;transition:stroke-dashoffset .8s var(--ease)}
-.anello .centro{position:absolute;inset:0;display:grid;place-items:center;text-align:center;font-weight:200;font-size:44px;line-height:1}
-.anello .centro small{display:block;font-size:13px;color:#C9C9CF;margin-top:6px}
-.esito ul{display:grid;gap:12px;margin-top:14px}
-.esito li b{font-weight:400}
-.esito li span{color:#C9C9CF;font-size:15px}
-.esito .mono{color:#C9C9CF}
-.nota-check{margin-top:20px;font-size:14px;color:var(--grigio);max-width:48em}
+/* candidatura */
+.cand{margin-top:56px;display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:40px;align-items:start}
+.cand-lato p{font-size:16px;color:var(--grigio);max-width:26em}
+.cand-lato p + p{margin-top:14px}
+.fasi{display:flex;gap:6px;margin-bottom:22px}
+.fasi i{flex:1;height:3px;background:var(--carta-2);transition:background-color .4s var(--ease)}
+.fasi i.su{background:var(--accento)}
+.scheda{background:var(--bianco);border-radius:6px;padding:36px;box-shadow:0 0 0 1px rgba(10,10,12,.07),0 30px 60px -40px rgba(10,10,12,.35)}
+.passo[hidden]{display:none}
+.passo h3{font-weight:800;font-stretch:62%;text-transform:uppercase;font-size:clamp(32px,3.4vw,48px);line-height:.95;margin-bottom:22px}
+.passo .mono{color:var(--grigio-2)}
+.intenti{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.intenti label{position:relative;display:block}
+.intenti input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.intenti span{display:flex;flex-direction:column;gap:6px;padding:18px;border:1.5px solid var(--carta-2);border-radius:4px;cursor:pointer;transition:border-color .25s var(--ease),background-color .25s var(--ease)}
+.intenti span b{font-weight:800;font-stretch:80%;text-transform:uppercase;font-size:22px;letter-spacing:.01em}
+.intenti span small{font-size:13.5px;color:var(--grigio)}
+.intenti input:checked + span{border-color:var(--accento);background:color-mix(in srgb,var(--accento) 6%,#fff)}
+.intenti input:focus-visible + span{outline:2px solid var(--accento);outline-offset:2px}
+.intenti .i-boom input:checked + span{border-color:var(--boom);background:#FFFBE0}
+.campi{display:grid;gap:14px}
+.campi label{display:grid;gap:6px;font:500 12px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--grigio)}
+.campi input,.campi select{font:400 17px/1.4 var(--sans);color:var(--ink);background:var(--carta);border:1.5px solid transparent;border-radius:4px;padding:13px 14px;width:100%;text-transform:none;letter-spacing:0}
+.campi input:focus,.campi select:focus{outline:none;border-color:var(--accento);background:var(--bianco)}
+.voci-doc{display:grid;gap:8px}
+.vd{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--carta-2)}
+.vd > span{font-size:15px}
+.tri{display:flex;border:1.5px solid var(--ink);border-radius:4px;overflow:hidden}
+.tri label{position:relative}
+.tri input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.tri span{display:block;min-width:52px;padding:9px 8px;text-align:center;font-size:13px;font-weight:600;cursor:pointer}
+.tri label + label span{border-left:1.5px solid var(--ink)}
+.tri input:checked + span{background:var(--ink);color:var(--bianco)}
+.tri input:focus-visible + span{outline:2px solid var(--accento);outline-offset:-3px}
+.punteggio{display:flex;align-items:center;gap:16px;margin-top:18px;padding:14px 16px;background:var(--carta);border-radius:4px}
+.punteggio b{font-weight:300;font-stretch:90%;font-size:40px;line-height:1;font-variant-numeric:tabular-nums}
+.punteggio span{font-size:14px;color:var(--grigio)}
+.riepilogo{background:var(--carta);border-radius:4px;padding:16px 18px;font:500 13px/1.7 var(--mono);white-space:pre-wrap;color:var(--ink);max-height:220px;overflow:auto}
+.nav-passi{display:flex;justify-content:space-between;gap:12px;margin-top:26px}
+.nav-passi .btn[disabled]{opacity:.4;cursor:not-allowed}
+.indietro{background:none;border:0;padding:0 4px;color:var(--grigio);font:600 15px/1 var(--sans);cursor:pointer;min-height:56px}
+.privacy-nota{margin-top:14px;font-size:13px;color:var(--grigio)}
+html:not(.js) .passo[hidden]{display:block}
+html:not(.js) .nav-passi,html:not(.js) .fasi{display:none}
 
 /* Valentino */
 .persona{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:64px;align-items:center}
-.ritratto{aspect-ratio:4/5;border-radius:32px;background:var(--accento);color:var(--bianco);display:grid;place-items:center;position:relative;overflow:hidden}
-.ritratto .ve{font-weight:200;font-size:clamp(120px,16vw,220px);letter-spacing:-.04em;line-height:1}
-.ritratto .segnaposto{position:absolute;left:30px;bottom:30px}
-.ritratto::after{content:'';position:absolute;inset:18px;border:1px solid rgba(255,255,255,.4);border-radius:22px;pointer-events:none}
-.dati{margin-top:36px;border-top:1px solid rgba(11,11,15,.14)}
-.dati div{display:grid;grid-template-columns:160px minmax(0,1fr);gap:16px;padding:14px 0;border-bottom:1px solid rgba(11,11,15,.1);font-size:16px}
-.dati dt{color:var(--grigio)}
+.ritratto{aspect-ratio:4/5;border-radius:6px;background:var(--notte);color:var(--bianco);display:grid;place-items:center;position:relative;overflow:hidden}
+.ritratto::before{content:'';position:absolute;inset:0;background:radial-gradient(70% 60% at 70% 20%,color-mix(in srgb,var(--accento) 60%,transparent),transparent 70%)}
+.ritratto .ve{position:relative;font-weight:900;font-stretch:125%;font-size:clamp(110px,15vw,210px);line-height:1;color:transparent;-webkit-text-stroke:1.5px rgba(255,255,255,.8)}
+.ritratto .segnaposto{position:absolute;left:24px;bottom:24px}
+.dati{margin-top:36px;border-top:1px solid rgba(10,10,12,.14)}
+.dati div{display:grid;grid-template-columns:150px minmax(0,1fr);gap:16px;padding:14px 0;border-bottom:1px solid rgba(10,10,12,.1);font-size:16px}
+.dati dt{color:var(--grigio);font:500 12px/1.9 var(--mono);letter-spacing:.08em;text-transform:uppercase}
 
-/* contatti */
-.contatti{background:var(--ink);color:var(--bianco)}
+/* contatti + piede */
+.contatti{background:var(--ink);color:var(--bianco);padding:110px 0 70px}
 .contatti .kicker{color:var(--oro)}
-.contatti h2{max-width:12em}
-.contatti .lead{color:#C9C9CF}
+.contatti .lead{color:var(--nebbia)}
 .contatti .azioni{display:flex;flex-wrap:wrap;gap:12px;margin-top:40px}
-.contatti .recapiti{margin-top:48px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;border-top:1px solid rgba(255,255,255,.16);padding-top:28px;font-size:15px;color:#DADADF}
-.contatti .recapiti .mono{color:#A6A6AE;display:block;margin-bottom:8px}
-
+.recapiti{margin-top:52px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:24px;border-top:1px solid rgba(255,255,255,.16);padding-top:26px;font-size:15px;color:#DADADF}
+.recapiti .mono{color:#A6A6AE;display:block;margin-bottom:8px}
 footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
-.piede{border-top:1px solid rgba(255,255,255,.16);padding-top:28px;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:32px}
+.piede{border-top:1px solid rgba(255,255,255,.16);padding-top:26px;display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:32px}
 .piede p + p{margin-top:6px}
 .piede a,.piede .forte{color:var(--bianco)}
 .wa-fissa{display:none}
+[hidden]:not(.passo){display:none!important}
 
 @media (max-width:1100px){
-  .carta{grid-template-columns:120px minmax(0,1fr)}
-  .carta svg{display:none}
-  .check-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .macchina-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tab-testa,.riga{grid-template-columns:calc(var(--cw) * 9 + 24px) minmax(0,1fr) 40px}
+  .tab-testa .c3,.riga .cosa{display:none}
 }
 @media (max-width:900px){
   :root{--pad:20px;--head:64px}
   .voci-desktop,.azioni-testata .btn{display:none}
   .menu{display:block}
-  .hero{min-height:0;padding:calc(var(--head) + 20px) 0 48px}
-  .hero-griglia{grid-template-columns:1fr;gap:0}
-  .titolo{font-size:clamp(56px,16vw,92px);margin:12px 0 18px}
-  .hero .sotto{font-size:17px}
-  .scena{height:250px;order:-1;margin:8px 0 0;overflow:hidden}
-  .modello{font-size:.7px}
-  .pin{font-size:10px;padding:6px 10px}
-  .modello{--zf:.55}
-  .hero .occhiello{display:none}
-  .marchio-testo b{font-size:13px;letter-spacing:.22em}
-  .marchio-testo .mono{font-size:8px;letter-spacing:.24em}
-  .monogramma{width:34px;height:34px;font-size:11px}
-  .boom-riga{margin-top:14px}
-  section{padding:84px 0}
+  .hero{min-height:0;padding:calc(var(--head) + 26px) 0 44px}
+  .titolo{font-size:clamp(44px,12.4vw,72px);margin:18px 0 16px}
+  .hero .sotto{font-size:16.5px}
+  .tabellone{--cw:min(6.9vw,34px);margin-top:24px}
+  .tab-testa{display:none}
+  .riga{grid-template-columns:minmax(0,1fr) 28px;grid-template-rows:auto auto;gap:6px 10px;padding:9px 0}
+  .riga .celle{grid-column:1;grid-row:1}
+  .riga .dest{grid-column:1;grid-row:2;font-size:13px;letter-spacing:.08em}
+  .riga .dest::before{content:'→ '}
+  .riga .freccia{grid-column:2;grid-row:1 / span 2;align-self:center}
+  section{padding:88px 0}
   .due{flex-direction:column;min-height:0}
   .due:hover .casa,.due .casa:hover{flex-grow:1}
-  .casa{padding:32px;min-height:440px;border-radius:26px}
-  .carta{grid-template-columns:1fr;padding:32px;gap:14px;min-height:0;border-radius:26px}
-  .carta .num{font-size:72px}
-  .calc{grid-template-columns:1fr}
-  .calc-in,.calc-out{padding:28px;border-radius:26px}
-  .persona{grid-template-columns:1fr;gap:36px}
-  .contatti .recapiti,.piede{grid-template-columns:1fr}
-  .esito{grid-template-columns:1fr;padding:28px}
-  .wa-fissa{display:flex;position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:45;justify-content:center;align-items:center;min-height:56px;border-radius:999px;background:var(--bianco);color:var(--ink);border:1px solid rgba(11,11,15,.12);text-decoration:none;font-size:16px;box-shadow:0 16px 40px -14px rgba(11,11,15,.55)}
+  .casa{padding:28px;min-height:420px}
+  .atti{height:420vh}
+  .palco{grid-template-columns:1fr;grid-template-rows:auto 1fr;gap:0;align-content:start;padding-top:12px}
+  .scena{height:34vh;order:-1}
+  .modello{font-size:.62px}
+  .pin{font-size:10px;padding:6px 9px}
+  .modello{--zf:.6}
+  .atto-lista{height:300px}
+  .atto p{font-size:16px}
+  .macchina-grid{grid-template-columns:1fr}
+  .calc,.cand,.persona{grid-template-columns:1fr;gap:24px}
+  .calc-in,.calc-out,.scheda{padding:24px}
+  .intenti{grid-template-columns:1fr}
+  .recapiti,.piede{grid-template-columns:1fr}
+  .wa-fissa{display:flex;position:fixed;left:12px;right:12px;bottom:calc(12px + env(safe-area-inset-bottom));z-index:45;justify-content:center;align-items:center;min-height:56px;border-radius:4px;background:var(--bianco);color:var(--ink);border:1px solid rgba(10,10,12,.14);text-decoration:none;font-size:16px;font-weight:600;box-shadow:0 16px 40px -14px rgba(10,10,12,.55)}
   footer{padding-bottom:110px}
 }
 @media (max-width:560px){
-  .check-grid{grid-template-columns:1fr}
+  .hero-alto span:first-child{display:none}
   .risultati{grid-template-columns:1fr}
   .dati div{grid-template-columns:110px minmax(0,1fr)}
+  .vd{grid-template-columns:1fr}
 }
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{transition-duration:0s!important;animation:none!important}
-  .muro{height:var(--h,86em)!important}
-  .pin{opacity:1!important;transform:none!important}
+  .respira{font-stretch:125%}
   html.js .rv:not(.dentro){opacity:1;transform:none}
 }
 @supports (animation-timeline:scroll()){
@@ -362,28 +440,26 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
 <div class="barra" aria-hidden="true"></div>
 <header id="testata">
   <div class="wrap testata">
-    <a class="marchio" href="/" aria-label="Valentino Egidi Immobiliare, Roma">
-      <span class="monogramma" aria-hidden="true">VE</span>
-      <span class="marchio-testo"><b>VALENTINO EGIDI</b><span class="mono">Immobiliare · Roma</span></span>
-    </a>
+    <a class="marchio" href="/" aria-label="Valentino Egidi Immobiliare, Roma"><b>VALENTINO EGIDI</b><span>Immobiliare · Roma</span></a>
     <nav class="voci-desktop" aria-label="Principale">
       <ul class="voci">
         <li><a href="#vendere">Vendere</a></li>
+        <li><a href="#metodo">Metodo</a></li>
         <li><a href="#investire">Investire</a></li>
-        <li><a href="#in-ordine">In ordine?</a></li>
         <li><a href="#valentino">Valentino</a></li>
         <li><a class="a-boom" href="#affittare">Affittare</a></li>
       </ul>
     </nav>
     <div class="azioni-testata">
-      <a class="btn btn-bianco" data-evento="whatsapp_click" href="https://wa.me/393313251961?text=Buongiorno%20Valentino%2C%20vi%20scrivo%20dal%20sito.">WhatsApp</a>
+      <a class="btn" href="#candidatura">Candida l'immobile <span class="fr" aria-hidden="true">→</span></a>
       <details class="menu">
         <summary><i aria-hidden="true"></i>Menu</summary>
         <nav aria-label="Principale, telefono">
           <ul class="voci">
             <li><a href="#vendere">Vendere</a></li>
+            <li><a href="#metodo">Metodo</a></li>
             <li><a href="#investire">Investire</a></li>
-            <li><a href="#in-ordine">In ordine?</a></li>
+            <li><a href="#candidatura">Candida l'immobile</a></li>
             <li><a href="#valentino">Valentino</a></li>
             <li><a class="a-boom" href="#affittare">Affittare con BOOM</a></li>
             <li><a href="#contatti">Contatti</a></li>
@@ -395,61 +471,33 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
 </header>
 
 <main id="principale">
-  <section class="hero" id="hero" aria-labelledby="titolo">
-    <div class="wrap hero-griglia">
-      <div class="hero-testo">
-        <p class="mono occhiello">Valentino Egidi · Immobiliare · Roma</p>
-        <h1 class="titolo" id="titolo">
-          <span class="sr">Valentino Egidi Immobiliare: vendi, compra e investi a Roma. Per affittare c'è BOOM.</span>
-          <span class="verbo" aria-hidden="true"><span class="su">Vendi</span><span>Compra</span><span>Investi</span><span>Affitta</span></span>
-          <span class="dove" aria-hidden="true">a Roma.</span>
-        </h1>
-        <p class="sotto"><b>Valentino Egidi Immobiliare</b> segue compravendite e investimenti nel centro di Roma, dalla valutazione al rogito. Per affittare c'è <b>BOOM</b>, il nostro marchio per studenti e professionisti internazionali.</p>
-        <div class="hero-cta">
-          <a class="btn btn-bianco" data-evento="whatsapp_click" href="https://wa.me/393313251961?text=Buongiorno%20Valentino%2C%20vorrei%20una%20valutazione%20del%20mio%20immobile.">Richiedi una valutazione <span class="fr" aria-hidden="true">→</span></a>
-          <a class="btn" href="#affittare">Devi affittare? <span class="fr" aria-hidden="true">→</span></a>
-        </div>
-        <div class="boom-riga"><a class="boom-chip" data-evento="handoff_boom" tabindex="-1" href="https://www.boomrome.com/owners?utm_source=egidimmobiliare&amp;utm_medium=referral&amp;utm_campaign=hero"><b>BOOM</b> affitta per te <span aria-hidden="true">→</span></a></div>
-        <button class="ferma" id="ferma" type="button" aria-pressed="false"><i aria-hidden="true"></i><span>Ferma le animazioni</span></button>
+  <section class="hero" id="hero" data-scuro aria-labelledby="titolo">
+    <div class="wrap">
+      <div class="hero-alto mono">
+        <span>Valentino Egidi Immobiliare · Roma</span>
+        <span class="orologio" id="orologio" aria-label="Ora di Roma"></span>
       </div>
-      <div class="scena" id="scena" aria-hidden="true">
-        <div class="modello" id="modello">
-          <div class="ombra"></div>
-          <div class="lastra">
-            <div class="stanza" style="left:0;top:0;width:170em;height:150em"></div>
-            <div class="stanza" style="left:170em;top:0;width:210em;height:150em"></div>
-            <div class="stanza" style="left:0;top:150em;width:150em;height:130em"></div>
-            <div class="stanza" style="left:150em;top:150em;width:130em;height:130em"></div>
-            <div class="stanza" style="left:280em;top:150em;width:100em;height:130em"></div>
-            <i class="muro" style="left:0;top:0;width:380em;--a:0deg;transition-delay:.05s"></i>
-            <i class="muro" style="left:380em;top:0;width:280em;--a:90deg;transition-delay:.12s"></i>
-            <i class="muro basso" style="left:380em;top:280em;width:380em;--a:180deg;transition-delay:.19s"></i>
-            <i class="muro basso" style="left:0;top:280em;width:280em;--a:270deg;transition-delay:.26s"></i>
-            <i class="muro" style="left:170em;top:0;width:150em;--a:90deg;transition-delay:.34s"></i>
-            <i class="muro" style="left:0;top:150em;width:100em;--a:0deg;transition-delay:.4s"></i>
-            <i class="muro" style="left:140em;top:150em;width:240em;--a:0deg;transition-delay:.46s"></i>
-            <i class="muro" style="left:150em;top:190em;width:90em;--a:90deg;transition-delay:.52s"></i>
-            <i class="muro" style="left:280em;top:150em;width:130em;--a:90deg;transition-delay:.58s"></i>
-            <span class="etichetta" style="left:40em;top:60em;--z:130em"><span><em class="pin" style="transition-delay:.9s"><span class="a">Valutazione</span><span class="b">Inquilino verificato</span></em></span></span>
-            <span class="etichetta" style="left:230em;top:40em;--z:170em"><span><em class="pin" style="transition-delay:1.05s"><span class="a">Documenti in ordine</span><span class="b">Contratto a norma</span></em></span></span>
-            <span class="etichetta" style="left:170em;top:200em;--z:110em"><span><em class="pin" style="transition-delay:1.2s"><span class="a">Rogito</span><span class="b">Affitto gestito</span></em></span></span>
-          </div>
-        </div>
+      <h1 class="titolo" id="titolo"><span class="r1 respira">Prima i documenti.</span><span class="r2">Poi il prezzo.</span></h1>
+      <p class="sotto"><b>Valentino Egidi Immobiliare</b> segue compravendite e investimenti nel centro di Roma, dal primo documento al rogito. Per affittare c'è <b>BOOM</b>, il nostro marchio per studenti e professionisti internazionali.</p>
+
+      <div class="tabellone" id="tabellone" role="navigation" aria-label="Scegli cosa vuoi fare">
+        <div class="tab-testa mono" aria-hidden="true"><span>Intenzione</span><span>Destinazione</span><span class="c3">Cosa succede</span><span></span></div>
+        <a class="riga" href="#vendere" data-parola="VENDERE"><span class="celle" aria-hidden="true"><span class="f"><b>V</b></span><span class="f"><b>E</b></span><span class="f"><b>N</b></span><span class="f"><b>D</b></span><span class="f"><b>E</b></span><span class="f"><b>R</b></span><span class="f"><b>E</b></span><span class="f"><b>&nbsp;</b></span><span class="f"><b>&nbsp;</b></span></span><span class="dest">Valentino Egidi</span><span class="cosa mono">Valutazione e vendita</span><span class="freccia" aria-hidden="true">→</span><span class="sr">Vendere con Valentino Egidi</span></a>
+        <a class="riga" href="#candidatura" data-parola="COMPRARE" data-intento="comprare"><span class="celle" aria-hidden="true"><span class="f"><b>C</b></span><span class="f"><b>O</b></span><span class="f"><b>M</b></span><span class="f"><b>P</b></span><span class="f"><b>R</b></span><span class="f"><b>A</b></span><span class="f"><b>R</b></span><span class="f"><b>E</b></span><span class="f"><b>&nbsp;</b></span></span><span class="dest">Valentino Egidi</span><span class="cosa mono">Ricerca su misura</span><span class="freccia" aria-hidden="true">→</span><span class="sr">Comprare con Valentino Egidi</span></a>
+        <a class="riga" href="#investire" data-parola="INVESTIRE"><span class="celle" aria-hidden="true"><span class="f"><b>I</b></span><span class="f"><b>N</b></span><span class="f"><b>V</b></span><span class="f"><b>E</b></span><span class="f"><b>S</b></span><span class="f"><b>T</b></span><span class="f"><b>I</b></span><span class="f"><b>R</b></span><span class="f"><b>E</b></span></span><span class="dest">Valentino Egidi</span><span class="cosa mono">Rendimento e acquisto</span><span class="freccia" aria-hidden="true">→</span><span class="sr">Investire con Valentino Egidi</span></a>
+        <a class="riga a-boom" data-evento="handoff_boom" href="https://www.boomrome.com/owners?utm_source=egidimmobiliare&amp;utm_medium=referral&amp;utm_campaign=tabellone" data-parola="AFFITTARE"><span class="celle" aria-hidden="true"><span class="f"><b>A</b></span><span class="f"><b>F</b></span><span class="f"><b>F</b></span><span class="f"><b>I</b></span><span class="f"><b>T</b></span><span class="f"><b>T</b></span><span class="f"><b>A</b></span><span class="f"><b>R</b></span><span class="f"><b>E</b></span></span><span class="dest">BOOM</span><span class="cosa mono">Affitto gestito</span><span class="freccia" aria-hidden="true">→</span><span class="sr">Affittare con BOOM</span></a>
+      </div>
+      <div class="hero-basso">
+        <a class="btn btn-bianco" href="#candidatura">Candida il tuo immobile <span class="fr" aria-hidden="true">→</span></a>
+        <button class="ferma" id="ferma" type="button" aria-pressed="false"><i aria-hidden="true"></i><span>Ferma il tabellone</span></button>
       </div>
     </div>
   </section>
 
-  <div class="nastro" aria-hidden="true">
-    <div class="nastro-pista">
-      <ul><li>Vendite</li><li>Acquisti</li><li>Investimenti</li><li>Valutazioni</li><li class="boom-li">Affitti con BOOM</li><li>Roma centro</li></ul>
-      <ul><li>Vendite</li><li>Acquisti</li><li>Investimenti</li><li>Valutazioni</li><li class="boom-li">Affitti con BOOM</li><li>Roma centro</li></ul>
-    </div>
-  </div>
-
   <section id="case" aria-labelledby="t-case">
     <div class="wrap">
       <p class="mono kicker rv">Una società, due case</p>
-      <h2 id="t-case" class="rv">Vendere è <em>Valentino Egidi</em>.<br>Affittare è BOOM.</h2>
+      <h2 id="t-case" class="rv">Vendere è <em>Valentino Egidi</em>.<br><strong>Affittare è BOOM.</strong></h2>
       <div class="due rv">
         <article class="casa casa-egidi" id="vendere">
           <p class="mono">Valentino Egidi · Vendite</p>
@@ -460,7 +508,7 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
             <li>Ricerca su misura per chi compra e per chi investe</li>
             <li>Trattativa seguita fino al rogito</li>
           </ul>
-          <a class="btn btn-bianco" data-evento="whatsapp_click" href="https://wa.me/393313251961?text=Buongiorno%20Valentino%2C%20vorrei%20parlare%20di%20una%20compravendita.">Parla con Valentino <span class="fr" aria-hidden="true">→</span></a>
+          <a class="btn btn-bianco" href="#candidatura">Candida l'immobile <span class="fr" aria-hidden="true">→</span></a>
           <span class="grande" aria-hidden="true">VE</span>
         </article>
         <article class="casa casa-boom" id="affittare">
@@ -480,49 +528,111 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
     </div>
   </section>
 
-  <section id="metodo" aria-labelledby="t-metodo">
+  <section class="metodo" id="metodo" data-scuro aria-labelledby="t-metodo">
     <div class="wrap">
-      <p class="mono kicker rv">Come vendiamo</p>
-      <h2 id="t-metodo" class="rv">Quattro passi.<br><em>Nessuna sorpresa</em> al rogito.</h2>
-      <ol class="pila">
-        <li class="carta" style="--i:0">
-          <span class="num" aria-hidden="true">01</span>
-          <div><h3>Valutazione</h3><p>Partiamo dai numeri della zona, dallo stato dell'immobile e dai suoi documenti. Il prezzo si spiega, non si indovina.</p></div>
-          <svg viewBox="0 0 200 120" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M10 110h180"/><path d="M20 110V70h24v40M58 110V50h24v60M96 110V62h24v48M134 110V30h24v80"/><path d="M20 58l38-20 38 12 38-30 38-10" stroke-dasharray="3 5"/></svg>
-        </li>
-        <li class="carta" style="--i:1">
-          <span class="num" aria-hidden="true">02</span>
-          <div><h3>Documenti in ordine</h3><p>Visura, planimetria, APE e conformità si verificano prima dell'annuncio, con tecnici abilitati dove serve. <a href="#in-ordine">Fai il check</a>.</p></div>
-          <svg viewBox="0 0 200 120" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="40" y="14" width="80" height="100"/><rect x="60" y="6" width="80" height="100" fill="#fff"/><path d="M74 30h52M74 44h52M74 58h36"/><circle cx="140" cy="92" r="20" fill="#fff"/><path d="M131 92l6 6 12-13"/></svg>
-        </li>
-        <li class="carta" style="--i:2">
-          <span class="num" aria-hidden="true">03</span>
-          <div><h3>Presentazione</h3><p>Foto e video curati, annuncio sui portali, visite con acquirenti già qualificati.</p></div>
-          <svg viewBox="0 0 200 120" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="26" y="18" width="148" height="88" rx="10"/><path d="M26 86l40-34 30 26 22-18 56 44"/><circle cx="140" cy="44" r="10"/></svg>
-        </li>
-        <li class="carta" style="--i:3">
-          <span class="num" aria-hidden="true">04</span>
-          <div><h3>Trattativa e rogito</h3><p>Proposte scritte, verifiche su chi compra, accompagnamento fino alla firma dal notaio.</p></div>
-          <svg viewBox="0 0 200 120" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M20 96c30 0 30-40 60-40s30 30 50 30 20-26 50-26"/><path d="M20 108h160"/><circle cx="170" cy="36" r="14"/><path d="M164 36l4 4 9-9"/></svg>
-        </li>
-      </ol>
+      <p class="mono kicker rv">Il metodo</p>
+      <h2 id="t-metodo" class="rv">Quattro atti.<br><strong>Le sorprese si trovano prima del rogito.</strong></h2>
+    </div>
+    <div class="atti" id="atti">
+      <div class="wrap palco">
+        <div>
+          <div class="atto-lista">
+            <div class="atto su" data-atto="1"><p class="num">ATTO 01</p><h3>Valutazione</h3><p>Partiamo dai numeri della zona, dallo stato dell'immobile e dai suoi documenti. Il prezzo si spiega, non si indovina.</p></div>
+            <div class="atto" data-atto="2"><p class="num">ATTO 02</p><h3>Documenti in ordine</h3><p>Visura, planimetria, APE e conformità si verificano prima dell'annuncio, con tecnici abilitati dove serve.</p></div>
+            <div class="atto" data-atto="3"><p class="num">ATTO 03</p><h3>Presentazione</h3><p>Foto e video curati, annuncio sui portali, visite con acquirenti già qualificati.</p></div>
+            <div class="atto" data-atto="4"><p class="num">ATTO 04</p><h3>Trattativa e rogito</h3><p>Proposte scritte, verifiche su chi compra, accompagnamento fino alla firma dal notaio.</p></div>
+            <div class="atto" data-atto="5"><p class="num">E SE NON VENDI</p><h3>La affitta BOOM</h3><p>Se preferisci mettere a reddito, l'immobile passa a BOOM, già in ordine. <a data-evento="handoff_boom" href="https://www.boomrome.com/owners?utm_source=egidimmobiliare&amp;utm_medium=referral&amp;utm_campaign=metodo">BOOM Proprietari</a>.</p></div>
+          </div>
+          <div class="segni" aria-hidden="true"><i class="su"></i><i></i><i></i><i></i><i></i></div>
+        </div>
+        <div class="scena" aria-hidden="true">
+          <div class="modello s1" id="modello">
+            <div class="ombra"></div>
+            <div class="lastra">
+              <div class="stanza" style="left:0;top:0;width:170em;height:150em"></div>
+              <div class="stanza" style="left:170em;top:0;width:210em;height:150em"></div>
+              <div class="stanza" style="left:0;top:150em;width:150em;height:130em"></div>
+              <div class="stanza" style="left:150em;top:150em;width:130em;height:130em"></div>
+              <div class="stanza" style="left:280em;top:150em;width:100em;height:130em"></div>
+              <i class="muro" style="left:0;top:0;width:380em;--a:0deg"></i>
+              <i class="muro" style="left:380em;top:0;width:280em;--a:90deg"></i>
+              <i class="muro basso" style="left:380em;top:280em;width:380em;--a:180deg"></i>
+              <i class="muro basso" style="left:0;top:280em;width:280em;--a:270deg"></i>
+              <i class="muro" style="left:170em;top:0;width:150em;--a:90deg"></i>
+              <i class="muro" style="left:0;top:150em;width:100em;--a:0deg"></i>
+              <i class="muro" style="left:140em;top:150em;width:240em;--a:0deg"></i>
+              <i class="muro" style="left:150em;top:190em;width:90em;--a:90deg"></i>
+              <i class="muro" style="left:280em;top:150em;width:130em;--a:90deg"></i>
+              <div class="foglio3d d1" style="left:40em;top:40em"><i></i><i></i><i></i><i></i></div>
+              <div class="foglio3d d2" style="left:150em;top:60em"><i></i><i></i><i></i><i></i></div>
+              <div class="foglio3d d3" style="left:260em;top:80em"><i></i><i></i><i></i><i></i></div>
+              <span class="etichetta" style="left:50em;top:70em;--z:120em"><span><em class="pin p1">Dati di zona</em></span></span>
+              <span class="etichetta" style="left:230em;top:60em;--z:300em"><span><em class="pin p2">Visura · Planimetria · APE</em></span></span>
+              <span class="etichetta" style="left:180em;top:200em;--z:140em"><span><em class="pin p3">Foto · Video · Portali</em></span></span>
+              <span class="etichetta" style="left:120em;top:120em;--z:200em"><span><em class="pin p4">Rogito</em></span></span>
+              <span class="etichetta" style="left:150em;top:100em;--z:170em"><span><em class="pin p5">Affittata con BOOM</em></span></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="macchina" aria-labelledby="t-macchina">
+    <div class="wrap">
+      <p class="mono kicker rv">La macchina</p>
+      <h2 id="t-macchina" class="rv">Un'agenzia costruita<br><strong>come un software.</strong></h2>
+      <p class="lead rv">Gira sulla stessa piattaforma di BOOM: meno carta, meno attese, ogni passaggio tracciato.</p>
+      <div class="macchina-grid">
+        <article class="tile rv">
+          <div class="demo"><span class="tag-es">Esempio</span>
+            <div style="width:100%">
+              <svg class="firma-svg" viewBox="0 0 220 70" aria-hidden="true"><path d="M8 50c14-30 24-36 28-24s-6 28 2 26 14-30 22-28-2 22 8 22 16-26 26-22-4 18 6 18c12 0 20-20 34-20s10 14 22 12 20-12 30-14 16 4 26 2"/></svg>
+              <div class="cert"><span>FIRMATO · DATA E ORA</span><span>DISPOSITIVO REGISTRATO</span><span>CERTIFICATO ALLEGATO</span></div>
+            </div>
+          </div>
+          <h3>Firma digitale</h3>
+          <p>Contratti firmati dal telefono, con certificato di data, ora e dispositivo.</p>
+        </article>
+        <article class="tile rv">
+          <div class="demo"><span class="tag-es">Esempio</span>
+            <ul class="docs"><li>VISURA<i></i></li><li>PLANIMETRIA<i></i></li><li>APE<i></i></li><li>CONTRATTO<i></i></li></ul>
+          </div>
+          <h3>Fascicolo dell'immobile</h3>
+          <p>Visura, planimetria, APE e contratti in un solo posto, con quello che manca in evidenza.</p>
+        </article>
+        <article class="tile rv">
+          <div class="demo"><span class="tag-es">Illustrazione</span>
+            <div style="width:100%"><div class="barre" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i class="voi"></i><i></i></div><p class="mono" style="margin-top:10px">Zona · confronto</p></div>
+          </div>
+          <h3>Valutazioni sui dati</h3>
+          <p>Il prezzo nasce dal mercato della zona e dallo stato reale dell'immobile.</p>
+        </article>
+        <article class="tile rv">
+          <div class="demo"><span class="tag-es">Esempio</span>
+            <div class="pass"><b>VISITA</b><div class="rotta"><span>ROM</span><span>→</span><span>VE</span></div><span class="mono">Ora · indirizzo · accesso</span><div class="qr"></div></div>
+          </div>
+          <h3>Visite nel Wallet</h3>
+          <p>Con BOOM ogni visita arriva sul telefono come una carta d'imbarco: ora, indirizzo, accesso.</p>
+        </article>
+      </div>
     </div>
   </section>
 
   <section class="investire" id="investire" aria-labelledby="t-investire">
     <div class="wrap">
       <p class="mono kicker rv">Investire</p>
-      <h2 id="t-investire" class="rv">Compri per metterla a reddito?<br>L'affitto lo fa <em>BOOM</em>.</h2>
+      <h2 id="t-investire" class="rv">Compri per metterla a reddito?<br><strong>L'affitto lo fa <em>BOOM</em>.</strong></h2>
       <p class="lead rv">Valentino trova l'immobile, BOOM lo affitta a studenti e professionisti internazionali. Fai due conti prima di scriverci.</p>
       <div class="calc rv">
         <form class="calc-in" id="calc" onsubmit="return false">
           <label for="prezzo">Prezzo d'acquisto</label>
           <span class="campo"><span aria-hidden="true">€</span><input id="prezzo" inputmode="numeric" autocomplete="off" placeholder="es. 250.000" aria-describedby="calc-nota"></span>
-          <label for="canone">Canone mensile che ti aspetti</label>
+          <label for="canone">Canone mensile atteso</label>
           <span class="campo"><span aria-hidden="true">€</span><input id="canone" inputmode="numeric" autocomplete="off" placeholder="es. 1.200"></span>
           <fieldset>
-            <legend style="font-size:14px;color:var(--grigio);margin-bottom:8px">Regime del contratto</legend>
-            <div class="regime">
+            <legend>Regime del contratto</legend>
+            <div class="scelte">
               <label><input type="radio" name="regime" value="0.21" checked><span>Cedolare 21%</span></label>
               <label><input type="radio" name="regime" value="0.10"><span>Concordato, cedolare 10%</span></label>
             </div>
@@ -538,40 +648,82 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
           <p class="nota" id="calc-nota">Stima indicativa: lordo = canone annuo diviso prezzo; il netto toglie solo la cedolare. Spese, IMU e mesi sfitti sono esclusi, e la cedolare al 10% vale quando ricorrono le condizioni del concordato. Il canone vero della zona te lo dice BOOM.</p>
           <div class="azioni">
             <a class="btn btn-oro" data-evento="handoff_boom" href="https://www.boomrome.com/owners?utm_source=egidimmobiliare&amp;utm_medium=referral&amp;utm_campaign=investire">Chiedi a BOOM il canone vero <span class="fr" aria-hidden="true">→</span></a>
-            <a class="btn" data-evento="whatsapp_click" href="https://wa.me/393313251961?text=Buongiorno%20Valentino%2C%20cerco%20un%20immobile%20da%20mettere%20a%20reddito.">Cerca con Valentino <span class="fr" aria-hidden="true">→</span></a>
+            <a class="btn" href="#candidatura" data-intento-link="investire">Cerca con Valentino <span class="fr" aria-hidden="true">→</span></a>
           </div>
         </div>
       </div>
     </div>
   </section>
 
-  <section id="in-ordine" aria-labelledby="t-ordine">
+  <section id="candidatura" aria-labelledby="t-cand">
     <div class="wrap">
-      <p class="mono kicker rv">Il tuo immobile è in ordine?</p>
-      <h2 id="t-ordine" class="rv">Otto domande.<br><em>Due minuti</em>. Gratis.</h2>
-      <p class="lead rv">Rispondi sì, no o non so. Il riepilogo si compone qui sotto e resta sul tuo dispositivo.</p>
-      <form id="check" class="check-grid rv" onsubmit="return false">
-        <fieldset class="voce" data-voce="Visura catastale" data-chi="la verifica lo studio"><legend class="sr">Visura catastale</legend><span class="n">01</span><h3>Visura aggiornata e coerente</h3><p>Al rogito e alla registrazione i dati devono coincidere.</p><span class="scelta"><label><input type="radio" name="v1" value="si"><span>Sì</span></label><label><input type="radio" name="v1" value="no"><span>No</span></label><label><input type="radio" name="v1" value="ns"><span>Non so</span></label></span></fieldset>
-        <fieldset class="voce" data-voce="Planimetria conforme" data-chi="serve un tecnico abilitato"><legend class="sr">Planimetria conforme</legend><span class="n">02</span><h3>Planimetria uguale allo stato di fatto</h3><p>La conformità va dichiarata nell'atto di vendita (L. 122/2010).</p><span class="scelta"><label><input type="radio" name="v2" value="si"><span>Sì</span></label><label><input type="radio" name="v2" value="no"><span>No</span></label><label><input type="radio" name="v2" value="ns"><span>Non so</span></label></span></fieldset>
-        <fieldset class="voce" data-voce="APE valido" data-chi="serve un certificatore abilitato"><legend class="sr">APE valido</legend><span class="n">03</span><h3>APE valido e non scaduto</h3><p>Serve per l'annuncio, per l'affitto e per il rogito.</p><span class="scelta"><label><input type="radio" name="v3" value="si"><span>Sì</span></label><label><input type="radio" name="v3" value="no"><span>No</span></label><label><input type="radio" name="v3" value="ns"><span>Non so</span></label></span></fieldset>
-        <fieldset class="voce" data-voce="Conformità urbanistica" data-chi="serve un tecnico abilitato"><legend class="sr">Conformità urbanistica</legend><span class="n">04</span><h3>Conformità urbanistica verificata</h3><p>Un abuso scoperto in trattativa blocca la vendita o il mutuo.</p><span class="scelta"><label><input type="radio" name="v4" value="si"><span>Sì</span></label><label><input type="radio" name="v4" value="no"><span>No</span></label><label><input type="radio" name="v4" value="ns"><span>Non so</span></label></span></fieldset>
-        <fieldset class="voce" data-voce="Certificazioni degli impianti" data-chi="serve un impiantista abilitato"><legend class="sr">Certificazioni degli impianti</legend><span class="n">05</span><h3>Impianti certificati</h3><p>Chi compra le chiede, e senza si tratta sul prezzo.</p><span class="scelta"><label><input type="radio" name="v5" value="si"><span>Sì</span></label><label><input type="radio" name="v5" value="no"><span>No</span></label><label><input type="radio" name="v5" value="ns"><span>Non so</span></label></span></fieldset>
-        <fieldset class="voce" data-voce="Registrazione del contratto" data-chi="la verifica lo studio"><legend class="sr">Registrazione del contratto</legend><span class="n">06</span><h3>Se è affittato, contratto registrato</h3><p>Senza registrazione il contratto è nullo (L. 311/2004).</p><span class="scelta"><label><input type="radio" name="v6" value="si"><span>Sì</span></label><label><input type="radio" name="v6" value="no"><span>No</span></label><label><input type="radio" name="v6" value="ns"><span>Non so</span></label></span></fieldset>
-        <fieldset class="voce" data-voce="Regime fiscale del contratto" data-chi="ne parli col tuo commercialista"><legend class="sr">Regime fiscale del contratto</legend><span class="n">07</span><h3>Regime fiscale chiaro</h3><p>Cedolare o ordinario: col concordato, a Roma, la cedolare è al 10%.</p><span class="scelta"><label><input type="radio" name="v7" value="si"><span>Sì</span></label><label><input type="radio" name="v7" value="no"><span>No</span></label><label><input type="radio" name="v7" value="ns"><span>Non so</span></label></span></fieldset>
-        <fieldset class="voce" data-voce="Scadenze annuali" data-chi="lo studio ti aiuta a metterle in calendario"><legend class="sr">Scadenze annuali</legend><span class="n">08</span><h3>Scadenze sotto controllo</h3><p>Proroghe, registro, RLI: una scadenza persa costa sanzioni.</p><span class="scelta"><label><input type="radio" name="v8" value="si"><span>Sì</span></label><label><input type="radio" name="v8" value="no"><span>No</span></label><label><input type="radio" name="v8" value="ns"><span>Non so</span></label></span></fieldset>
-      </form>
-      <div class="esito" id="esito" hidden aria-live="polite">
-        <div class="anello">
-          <svg viewBox="0 0 160 160" aria-hidden="true"><circle class="fondo" cx="80" cy="80" r="70"/><circle class="pieno" id="anello" cx="80" cy="80" r="70" stroke-dasharray="439.8" stroke-dashoffset="439.8"/></svg>
-          <p class="centro"><span><span id="punti">0</span><small>su 8 in ordine</small></span></p>
+      <p class="mono kicker rv">Candidatura</p>
+      <h2 id="t-cand" class="rv">Candida il tuo immobile.<br><strong>Poi ne parliamo.</strong></h2>
+      <div class="cand">
+        <div class="cand-lato rv">
+          <p>Prima di accettare un incarico leggiamo i documenti. Se qualcosa non torna, te lo diciamo prima del mercato, non al rogito.</p>
+          <p>Quattro passaggi, due minuti. Nessun dato parte finché non premi l'ultimo bottone: si apre WhatsApp col riepilogo, e decidi tu se inviarlo.</p>
         </div>
-        <div>
-          <p class="mono" id="esito-titolo">Rispondi alle otto voci</p>
-          <ul id="manca"></ul>
-          <p class="solo-anteprima" style="margin-top:16px;font-size:14px;color:#C9C9CF"><span class="segnaposto">PASSO 4</span> Qui arriva l'invio del riepilogo allo studio, solo con il tuo consenso.</p>
+        <div class="scheda rv">
+          <div class="fasi" aria-hidden="true"><i class="su"></i><i></i><i></i><i></i></div>
+          <form id="candida" onsubmit="return false" novalidate>
+            <fieldset class="passo" data-passo="1">
+              <legend class="sr">Passo 1 di 4</legend>
+              <p class="mono">Passo 1 di 4</p>
+              <h3>Cosa vuoi fare?</h3>
+              <div class="intenti">
+                <label><input type="radio" name="intento" value="vendere" checked><span><b>Vendere</b><small>Valutazione, documenti, vendita</small></span></label>
+                <label><input type="radio" name="intento" value="comprare"><span><b>Comprare</b><small>Ricerca su misura</small></span></label>
+                <label><input type="radio" name="intento" value="investire"><span><b>Investire</b><small>Comprare per affittare</small></span></label>
+                <label class="i-boom"><input type="radio" name="intento" value="affittare"><span><b>Affittare</b><small>Con BOOM, il nostro marchio</small></span></label>
+              </div>
+            </fieldset>
+            <fieldset class="passo" data-passo="2" hidden>
+              <legend class="sr">Passo 2 di 4</legend>
+              <p class="mono">Passo 2 di 4</p>
+              <h3 id="t-passo2">L'immobile</h3>
+              <div class="campi">
+                <label>Zona<input name="zona" autocomplete="off" placeholder="Es. Prati, Monti, Trastevere"></label>
+                <label>Tipologia<select name="tipo"><option>Appartamento</option><option>Attico</option><option>Villa o villino</option><option>Negozio o ufficio</option><option>Altro</option></select></label>
+                <label><span id="l-misura">Metri quadri</span><input name="misura" inputmode="numeric" autocomplete="off" placeholder="Es. 85"></label>
+              </div>
+            </fieldset>
+            <fieldset class="passo" data-passo="3" hidden>
+              <legend class="sr">Passo 3 di 4</legend>
+              <p class="mono">Passo 3 di 4</p>
+              <h3>I documenti</h3>
+              <div class="voci-doc" id="voci-doc">
+                <div class="vd" data-voce="Visura catastale"><span>Visura aggiornata e coerente</span><span class="tri"><label><input type="radio" name="d1" value="si"><span>Sì</span></label><label><input type="radio" name="d1" value="no"><span>No</span></label><label><input type="radio" name="d1" value="ns"><span>Non so</span></label></span></div>
+                <div class="vd" data-voce="Planimetria conforme"><span>Planimetria uguale allo stato di fatto</span><span class="tri"><label><input type="radio" name="d2" value="si"><span>Sì</span></label><label><input type="radio" name="d2" value="no"><span>No</span></label><label><input type="radio" name="d2" value="ns"><span>Non so</span></label></span></div>
+                <div class="vd" data-voce="APE valido"><span>APE valido e non scaduto</span><span class="tri"><label><input type="radio" name="d3" value="si"><span>Sì</span></label><label><input type="radio" name="d3" value="no"><span>No</span></label><label><input type="radio" name="d3" value="ns"><span>Non so</span></label></span></div>
+                <div class="vd" data-voce="Conformità urbanistica"><span>Conformità urbanistica verificata</span><span class="tri"><label><input type="radio" name="d4" value="si"><span>Sì</span></label><label><input type="radio" name="d4" value="no"><span>No</span></label><label><input type="radio" name="d4" value="ns"><span>Non so</span></label></span></div>
+                <div class="vd" data-voce="Impianti certificati"><span>Impianti elettrico e gas certificati</span><span class="tri"><label><input type="radio" name="d5" value="si"><span>Sì</span></label><label><input type="radio" name="d5" value="no"><span>No</span></label><label><input type="radio" name="d5" value="ns"><span>Non so</span></label></span></div>
+                <div class="vd" data-voce="Contratto registrato"><span>Se affittato, contratto registrato</span><span class="tri"><label><input type="radio" name="d6" value="si"><span>Sì</span></label><label><input type="radio" name="d6" value="no"><span>No</span></label><label><input type="radio" name="d6" value="ns"><span>Non so</span></label></span></div>
+              </div>
+              <div class="punteggio" aria-live="polite"><b id="punti">0/6</b><span id="punti-testo">Rispondi alle voci: le regolarizzazioni passano da tecnici abilitati, le scelte fiscali dal tuo commercialista.</span></div>
+              <p class="privacy-nota" id="doc-comprare" hidden>Stai comprando: i documenti dell'immobile che sceglierai li controlliamo noi, prima della proposta.</p>
+            </fieldset>
+            <fieldset class="passo" data-passo="4" hidden>
+              <legend class="sr">Passo 4 di 4</legend>
+              <p class="mono">Passo 4 di 4</p>
+              <h3>Chi sei</h3>
+              <div class="campi">
+                <label>Nome<input name="nome" autocomplete="name" placeholder="Nome e cognome"></label>
+                <label>Quando vuoi procedere<select name="quando"><option>Subito</option><option>Entro tre mesi</option><option>Più avanti</option></select></label>
+              </div>
+              <p class="mono" style="margin:22px 0 10px">Il riepilogo che invierai</p>
+              <div class="riepilogo" id="riepilogo" aria-live="polite"></div>
+            </fieldset>
+            <div class="nav-passi">
+              <button class="indietro" type="button" id="indietro" hidden>← Indietro</button>
+              <span></span>
+              <button class="btn btn-accento" type="button" id="avanti">Continua <span class="fr" aria-hidden="true">→</span></button>
+              <a class="btn btn-accento" id="invia" data-evento="form_submit" href="https://wa.me/393313251961" hidden>Invia su WhatsApp <span class="fr" aria-hidden="true">→</span></a>
+            </div>
+            <p class="privacy-nota">Niente viene salvato né inviato da questa pagina. Il messaggio parte solo da WhatsApp, se lo invii tu.</p>
+          </form>
         </div>
       </div>
-      <p class="nota-check">Le regolarizzazioni tecniche passano da tecnici abilitati, le scelte fiscali dal tuo commercialista. Lo studio ti dice cosa manca e con chi sistemarlo.</p>
     </div>
   </section>
 
@@ -583,7 +735,7 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
       </div>
       <div>
         <p class="mono kicker rv">Il nome sulla porta</p>
-        <h2 id="t-valentino" class="rv">Valentino Egidi.</h2>
+        <h2 id="t-valentino" class="rv">Valentino <strong>Egidi.</strong></h2>
         <p class="lead rv">Ha fondato Egidi Immobiliare e BOOM. Lo studio è in Via dei Coronari, nel centro storico di Roma.</p>
         <p class="lead solo-anteprima"><span class="segnaposto">DA FORNIRE</span> Due righe in prima persona: perché fa questo mestiere, e come.</p>
         <dl class="dati rv">
@@ -598,10 +750,10 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
   <section class="contatti" id="contatti" aria-labelledby="t-contatti">
     <div class="wrap">
       <p class="mono kicker rv">Contatti</p>
-      <h2 id="t-contatti" class="rv">Parliamo del tuo immobile.</h2>
+      <h2 id="t-contatti" class="rv">Parliamo del<br><strong>tuo immobile.</strong></h2>
       <p class="lead rv">Scrivi dove si trova e cosa vuoi fare. Risponde Valentino, non un call center.</p>
       <div class="azioni rv">
-        <a class="btn btn-pieno" data-evento="whatsapp_click" href="https://wa.me/393313251961?text=Buongiorno%20Valentino%2C%20vi%20scrivo%20per%20un%20immobile%20a%20Roma.">Scrivi su WhatsApp <span class="fr" aria-hidden="true">→</span></a>
+        <a class="btn btn-bianco" data-evento="whatsapp_click" href="https://wa.me/393313251961?text=Buongiorno%20Valentino%2C%20vi%20scrivo%20per%20un%20immobile%20a%20Roma.">Scrivi su WhatsApp <span class="fr" aria-hidden="true">→</span></a>
         <a class="btn btn-oro" data-evento="handoff_boom" href="https://www.boomrome.com/?utm_source=egidimmobiliare&amp;utm_medium=referral&amp;utm_campaign=contatti">Affitti? BOOM <span class="fr" aria-hidden="true">→</span></a>
       </div>
       <div class="recapiti">
@@ -635,6 +787,7 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
     var d = document, html = d.documentElement, w = window;
     var calmo = w.matchMedia('(prefers-reduced-motion: reduce)').matches;
     var $ = function (id) { return d.getElementById(id); };
+    var WA = 'https://wa.me/393313251961?text=';
 
     // Misura: GA4 parte solo con l'ID della proprietà Egidi e col consenso.
     // Finché l'ID manca non c'è nulla da consentire, quindi nessun banner.
@@ -645,61 +798,86 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
         if (a) evento(a.getAttribute('data-evento'), { link_url: a.href || '' });
     });
 
-    // Testata: trasparente sopra l'hero, carta dopo.
-    var testata = $('testata'), hero = $('hero');
-    if ('IntersectionObserver' in w) {
-        new IntersectionObserver(function (v) { testata.classList.toggle('chiara', !v[0].isIntersecting); },
-            { rootMargin: '-72px 0px 0px 0px' }).observe(hero);
-    } else testata.classList.add('chiara');
+    // Testata: scura sopra le sezioni scure (hero, metodo), chiara sulla carta.
+    var testata = $('testata'), scure = [].slice.call(d.querySelectorAll('[data-scuro]')), rafT = 0;
+    function tinta() {
+        rafT = 0;
+        var y = testata.offsetHeight / 2;
+        testata.classList.toggle('chiara', !scure.some(function (s) { var r = s.getBoundingClientRect(); return r.top <= y && r.bottom > y; }));
+    }
+    w.addEventListener('scroll', function () { if (!rafT) rafT = requestAnimationFrame(tinta); }, { passive: true });
+    w.addEventListener('resize', tinta);
+    tinta();
 
-    // Il modello: i muri si alzano, poi segue il puntatore (solo mouse, niente sensori).
-    var modello = $('modello'), scena = $('scena');
-    requestAnimationFrame(function () { requestAnimationFrame(function () { scena.classList.add('pronto'); }); });
-    if (!calmo && w.matchMedia('(pointer:fine)').matches) {
-        var raf = 0, px = 0, py = 0;
-        hero.addEventListener('pointermove', function (e) {
-            var r = hero.getBoundingClientRect();
-            px = (e.clientX - r.left) / r.width - .5; py = (e.clientY - r.top) / r.height - .5;
-            if (!raf) raf = requestAnimationFrame(function () {
-                raf = 0;
-                modello.style.setProperty('--tx', (px * 14).toFixed(2) + 'deg');
-                modello.style.setProperty('--ty', (-py * 8).toFixed(2) + 'deg');
-            });
+    // L'ora di Roma, vera.
+    var oro = $('orologio');
+    function ora() {
+        try { oro.textContent = 'Roma ' + new Intl.DateTimeFormat('it-IT', { timeZone: 'Europe/Rome', hour: '2-digit', minute: '2-digit' }).format(new Date()); } catch (e) { oro.textContent = ''; }
+    }
+    ora(); setInterval(ora, 20000);
+
+    // Il tabellone Solari: ogni cella gira fino alla sua lettera.
+    var ALFA = ' ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    var righe = [].slice.call(d.querySelectorAll('.riga'));
+    righe.forEach(function (r) {
+        var p = r.getAttribute('data-parola'), box = r.querySelector('.celle'), h = '';
+        if (box.children.length) return; // le celle sono già nell'HTML: senza JavaScript la parola si legge
+        for (var i = 0; i < 9; i++) h += '<span class="f"><b>' + (p[i] || ' ').replace(' ', '&nbsp;') + '</b></span>';
+        box.innerHTML = h;
+    });
+    var timers = [];
+    function giraRiga(r, ritardo) {
+        var p = (r.getAttribute('data-parola') + '         ').slice(0, 9);
+        [].slice.call(r.querySelectorAll('.f')).forEach(function (cella, i) {
+            var b = cella.firstChild, fine = ALFA.indexOf(p[i]), passi = 6 + ((i * 7 + p.charCodeAt(0)) % 9), k = 0;
+            if (fine < 0) fine = 0;
+            var da = (fine - passi + ALFA.length * 3) % ALFA.length;
+            timers.push(setTimeout(function tick() {
+                var c = ALFA[(da + k) % ALFA.length];
+                b.textContent = c === ' ' ? ' ' : c;
+                cella.classList.remove('gira'); void cella.offsetWidth; cella.classList.add('gira');
+                if (k++ < passi) timers.push(setTimeout(tick, 48));
+            }, ritardo + i * 38));
         });
-        hero.addEventListener('pointerleave', function () { modello.style.setProperty('--tx', '0deg'); modello.style.setProperty('--ty', '0deg'); });
     }
+    var giri = 0, loop = null, ferma = $('ferma');
+    function tutto() { righe.forEach(function (r, i) { giraRiga(r, i * 260); }); }
+    function stop() { clearInterval(loop); loop = null; timers.forEach(clearTimeout); timers = [];
+        righe.forEach(function (r) { var p = r.getAttribute('data-parola'); [].slice.call(r.querySelectorAll('.f b')).forEach(function (b, i) { b.textContent = (p[i] || ' '); }); });
+        ferma.setAttribute('aria-pressed', 'true'); ferma.lastChild.textContent = 'Riavvia il tabellone'; }
+    function via() { giri = 0; tutto(); loop = setInterval(function () { if (++giri > 2) return stop(); giraRiga(righe[3], 0); }, 7000);
+        ferma.setAttribute('aria-pressed', 'false'); ferma.lastChild.textContent = 'Ferma il tabellone'; }
+    ferma.addEventListener('click', function () { if (loop || timers.length) stop(); else via(); });
+    if (calmo) { ferma.hidden = true; } else via();
 
-    // Il verbo: Vendi, Compra, Investi, Affitta. Su «Affitta» l'hero diventa BOOM.
-    // Due giri e si ferma su «Vendi»; il bottone lo ferma subito (WCAG 2.2.2).
-    var verbi = [].slice.call(d.querySelectorAll('.verbo span')), i = 0, giri = 0, timer = null;
-    var ferma = $('ferma'), chip = d.querySelector('.boom-chip');
-    function mostra(n) {
-        verbi.forEach(function (s, k) { s.className = k === n ? 'su' : (k === i && k !== n ? 'via' : ''); });
-        i = n;
-        var boom = n === 3;
-        hero.classList.toggle('modo-boom', boom);
-        chip.tabIndex = boom ? 0 : -1;
-    }
-    function passo() {
-        var n = (i + 1) % verbi.length;
-        if (n === 0 && ++giri >= 2) { stop(); mostra(0); return; }
-        mostra(n);
-    }
-    function etichetta(t) { ferma.lastChild.textContent = t; }
-    function stop() { clearInterval(timer); timer = null; ferma.setAttribute('aria-pressed', 'true'); etichetta('Riprendi le animazioni'); html.classList.add('fermo'); }
-    function via() { giri = 0; timer = setInterval(passo, 2600); ferma.setAttribute('aria-pressed', 'false'); etichetta('Ferma le animazioni'); html.classList.remove('fermo'); }
-    ferma.addEventListener('click', function () { if (timer) { stop(); mostra(0); } else via(); });
-    if (calmo) { stop(); ferma.hidden = true; } else via();
-    w.__egidiVerbo = mostra; // per i test: portare l'hero su un verbo senza aspettare
-
-    // Comparsa delle sezioni.
-    var rv = d.querySelectorAll('.rv');
+    // Comparsa delle sezioni e respiro della tipografia.
+    var rv = d.querySelectorAll('.rv, .respira');
     if ('IntersectionObserver' in w && !calmo) {
         var io = new IntersectionObserver(function (v) {
             v.forEach(function (x) { if (x.isIntersecting) { x.target.classList.add('dentro'); io.unobserve(x.target); } });
         }, { rootMargin: '0px 0px -8% 0px' });
         rv.forEach(function (e) { io.observe(e); });
     } else rv.forEach(function (e) { e.classList.add('dentro'); });
+
+    // Il metodo: lo scroll dentro la sezione sceglie l'atto, il modello lo recita.
+    var atti = $('atti'), modello = $('modello'), voci = [].slice.call(d.querySelectorAll('.atto')), segni = [].slice.call(d.querySelectorAll('.segni i'));
+    var attuale = 1;
+    function atto(n) {
+        if (n === attuale) return; attuale = n;
+        modello.className = 'modello s' + n;
+        voci.forEach(function (v) { v.classList.toggle('su', +v.getAttribute('data-atto') === n); });
+        segni.forEach(function (s, i) { s.classList.toggle('su', i < n); });
+    }
+    w.__egidiAtto = atto; // per i test: portare il modello su un atto senza scorrere
+    var rafA = 0;
+    function misura() {
+        rafA = 0;
+        var r = atti.getBoundingClientRect(), corsa = r.height - innerHeight;
+        var p = corsa > 0 ? Math.min(1, Math.max(0, -r.top / corsa)) : 0;
+        atto(Math.min(5, 1 + Math.floor(p * 5)));
+    }
+    w.addEventListener('scroll', function () { if (!rafA) rafA = requestAnimationFrame(misura); }, { passive: true });
+    misura();
 
     // Il calcolo: solo aritmetica sui numeri che scrive chi visita.
     function fmt(n, dec) {
@@ -724,25 +902,86 @@ footer{background:var(--ink);color:#B4B4BB;font-size:14px;padding:0 0 56px}
     $('calc').addEventListener('change', calcola);
     $('esempio').addEventListener('click', function () { $('prezzo').value = '250.000'; $('canone').value = '1.200'; calcola(); });
 
-    // Il check: tutto nel browser, niente esce senza consenso.
-    var voci = [].slice.call(d.querySelectorAll('.voce')), chiuso = false;
-    $('check').addEventListener('change', function () {
-        var si = 0, date = 0, righe = [];
-        voci.forEach(function (v) {
-            var r = v.querySelector('input:checked');
-            v.setAttribute('data-stato', r ? r.value : '');
-            if (!r) return;
-            date++;
-            if (r.value === 'si') { si++; return; }
-            righe.push('<li><b>' + v.getAttribute('data-voce') + '</b> · ' + (r.value === 'no' ? 'da sistemare' : 'da verificare') + '<br><span>' + v.getAttribute('data-chi') + '</span></li>');
+    // La candidatura: quattro passi, tutto nel browser; alla fine WhatsApp.
+    var form = $('candida'), passi = [].slice.call(form.querySelectorAll('.passo')), fasi = [].slice.call(d.querySelectorAll('.fasi i'));
+    var avanti = $('avanti'), indietro = $('indietro'), invia = $('invia'), n = 1, checkFatto = false;
+    function val(nome) { var el = form.elements[nome]; if (!el) return ''; if (el.length && !el.tagName) { var c = [].filter.call(el, function (x) { return x.checked; })[0]; return c ? c.value : ''; } return (el.value || '').trim(); }
+    var ETIC = { vendere: 'Vendere', comprare: 'Comprare', investire: 'Investire', affittare: 'Affittare con BOOM' };
+    function documenti() {
+        var si = 0, date = 0, manca = [];
+        [].slice.call(d.querySelectorAll('.vd')).forEach(function (v) {
+            var r = v.querySelector('input:checked'); if (!r) return; date++;
+            if (r.value === 'si') si++; else manca.push(v.getAttribute('data-voce') + (r.value === 'no' ? ' (da sistemare)' : ' (da verificare)'));
         });
-        $('esito').hidden = date === 0;
-        $('punti').textContent = si;
-        $('anello').style.strokeDashoffset = (439.8 * (1 - si / 8)).toFixed(1);
-        $('esito-titolo').textContent = date < 8 ? 'Hai risposto a ' + date + ' voci su 8' : (righe.length ? 'Cosa manca' : 'Tutto in ordine');
-        $('manca').innerHTML = righe.join('');
-        if (date === 8 && !chiuso) { chiuso = true; evento('check_complete', { in_ordine: si }); }
+        return { si: si, date: date, manca: manca };
+    }
+    function riepilogo() {
+        var i = val('intento'), doc = documenti(), righe = [
+            'Candidatura dal sito di Valentino Egidi Immobiliare',
+            'Intenzione: ' + (ETIC[i] || i),
+            'Zona: ' + (val('zona') || 'non indicata'),
+            'Tipologia: ' + val('tipo'),
+            (i === 'comprare' || i === 'investire' ? 'Budget: ' : 'Metri quadri: ') + (val('misura') || 'non indicato')
+        ];
+        if (i !== 'comprare') righe.push('Documenti in ordine: ' + doc.si + ' su 6' + (doc.manca.length ? '\nDa guardare: ' + doc.manca.join(', ') : ''));
+        righe.push('Tempi: ' + val('quando'));
+        righe.push('Nome: ' + (val('nome') || 'non indicato'));
+        return righe.join('\n');
+    }
+    function mostra(k) {
+        n = k;
+        passi.forEach(function (p) { p.hidden = +p.getAttribute('data-passo') !== k; });
+        fasi.forEach(function (f, j) { f.classList.toggle('su', j < k); });
+        indietro.hidden = k === 1;
+        var i = val('intento'), boom = k === 1 && i === 'affittare', ultimo = k === 4 || boom;
+        avanti.hidden = ultimo; invia.hidden = !ultimo;
+        if (k === 2) {
+            var compra = i === 'comprare' || i === 'investire';
+            $('t-passo2').textContent = compra ? 'Cosa cerchi' : "L'immobile";
+            $('l-misura').textContent = compra ? 'Budget indicativo' : 'Metri quadri';
+            form.elements.misura.placeholder = compra ? 'Es. 300.000' : 'Es. 85';
+        }
+        if (k === 3) {
+            var comprando = i === 'comprare';
+            $('voci-doc').hidden = comprando; d.querySelector('.punteggio').hidden = comprando; $('doc-comprare').hidden = !comprando;
+        }
+        if (ultimo) aggiornaInvio();
+        var t = passi[k - 1].querySelector('h3'); if (t && k > 1) { t.setAttribute('tabindex', '-1'); t.focus({ preventScroll: true }); }
+    }
+    function aggiornaInvio() {
+        var testo = riepilogo();
+        $('riepilogo').textContent = testo;
+        if (val('intento') === 'affittare') {
+            invia.href = 'https://www.boomrome.com/owners?utm_source=egidimmobiliare&utm_medium=referral&utm_campaign=candidatura';
+            invia.setAttribute('data-evento', 'handoff_boom');
+            invia.firstChild.textContent = 'Continua su BOOM ';
+        } else {
+            invia.href = WA + encodeURIComponent(testo);
+            invia.setAttribute('data-evento', 'form_submit');
+            invia.firstChild.textContent = 'Invia su WhatsApp ';
+        }
+    }
+    avanti.addEventListener('click', function () { mostra(Math.min(4, n + 1)); });
+    indietro.addEventListener('click', function () { mostra(Math.max(1, n - 1)); });
+    form.addEventListener('input', function () { if (n === 4) aggiornaInvio(); });
+    form.addEventListener('change', function (e) {
+        if (e.target.name === 'intento') return mostra(1); // «Affittare» passa subito a BOOM, niente passi inutili
+        if (/^d\d$/.test(e.target.name)) {
+            var doc = documenti();
+            $('punti').textContent = doc.si + '/6';
+            $('punti-testo').textContent = doc.date < 6 ? 'Hai risposto a ' + doc.date + ' voci su 6.' : (doc.manca.length ? 'Da guardare: ' + doc.manca.join(', ') + '.' : 'Tutto in ordine sulla carta. Lo verifichiamo insieme.');
+            if (doc.date === 6 && !checkFatto) { checkFatto = true; evento('check_complete', { in_ordine: doc.si }); }
+        }
+        if (n === 4) aggiornaInvio();
     });
+    // Chi arriva dal tabellone (COMPRARE) o dal calcolo (INVESTIRE) trova già scelto.
+    d.addEventListener('click', function (e) {
+        var a = e.target.closest && e.target.closest('[data-intento],[data-intento-link]');
+        if (!a) return;
+        var i = a.getAttribute('data-intento') || a.getAttribute('data-intento-link');
+        var r = form.querySelector('input[name=intento][value="' + i + '"]'); if (r) { r.checked = true; mostra(1); }
+    });
+    mostra(1);
 })();
 </script>
 </body>

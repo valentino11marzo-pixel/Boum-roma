@@ -173,17 +173,23 @@ firebase.json             Firebase deploy config (firestore + storage rules)
   `sign-for` stays at 60s; `segretaria/preparation.js` keeps its default.
 
 ### Il sito della casa madre — `egidi/` → egidimmobiliare.it (29/09/2026)
-**Rifondazione in corso, passo 3 di 5 (seconda direzione in anteprima).**
-Il 30/09 sera il fondatore ha bocciato «Il Fascicolo» (carta, inchiostro, un
-solo movimento) come troppo basilare: il brand diventa **Valentino Egidi
-Immobiliare** (vendite: vendere, comprare, investire) e BOOM (affitti) si
-raggiunge in modo esplicito da cinque punti della home, tutti con UTM. La home
-in `egidi/index.html`: blu elettrico #2436F5 per le vendite, nero+oro BOOM
-per gli affitti, hero col verbo che gira (su «Affitta» tutto diventa BOOM) e
-un appartamento in assonometria 3D in CSS puro, calcolo del rendimento sui
-numeri del visitatore, check a 8 voci, «Ferma le animazioni» (WCAG 2.2.2) e
-movimento ridotto rispettato. Segnaposto `.solo-anteprima` e varianti colore
-`?c=rosso|verde` solo fuori da egidimmobiliare.it. PRD del passo 3 (decisioni
+**Rifondazione in corso, passo 3 di 5 (terza direzione in anteprima).**
+Il 30/09 sera il fondatore ha bocciato «Il Fascicolo» (troppo basilare) e poi
+chiesto di spingere oltre la v2: il brand è **Valentino Egidi Immobiliare**
+(vendite: vendere, comprare, investire) e BOOM (affitti) si raggiunge in modo
+esplicito da sei punti, tutti con UTM. La home v3 in `egidi/index.html`:
+hero = **tabellone delle partenze** (celle split-flap: VENDERE/COMPRARE/
+INVESTIRE → Valentino Egidi, AFFITTARE → BOOM in oro; stesso lessico dello
+scalo di BOOM), tesi «Prima i documenti. Poi il prezzo.», **Archivo** con
+l'asse della larghezza e **JetBrains Mono** ospitati in `egidi/fonts/` (OFL,
+cache immutable, zero richieste esterne), il **metodo recitato** da un modello
+3D in CSS sullo scroll (cinque atti, l'ultimo «la affitta BOOM»), quattro
+micro-demo degli strumenti veri marcate «Esempio», calcolo del rendimento sui
+numeri del visitatore e la **candidatura** in quattro passi che apre WhatsApp
+col riepilogo (nessun dato parte dalla pagina; «Affittare» va subito a BOOM).
+Niente rosso: il nome Valentino in rosso è la casa di moda. Segnaposto
+`.solo-anteprima` e varianti `?c=verde|nero` solo fuori da egidimmobiliare.it.
+PRD del passo 3 (decisioni
 predefinite, criteri di accettazione misurati, domande aperte):
 `docs/EGIDI_PRD.md`. Infrastruttura che resta:
 progetto Vercel **suo** con Root Directory `egidi` (dentro `boum-roma`
