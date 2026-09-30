@@ -107,6 +107,7 @@ const SUITES = [
   { name: 'signlang', file: 'tests/sign/lang.mjs',        what: 'la pagina di firma parla la lingua di chi firma' },
   { name: 'market',   file: 'tests/market/engine.mjs',   what: 'il libro mastro del Perito: un blocco non e una morte, i contatti non entrano, sotto campione niente numeri' },
   { name: 'marketwiring', file: 'tests/market/wiring.mjs', what: 'le giunzioni del Perito: tap best-effort dopo il master, verdetto solo lato server, rules e cron presenti' },
+  { name: 'marketalerts', file: 'tests/market/alerts.mjs', what: 'dall\'alert email al meteo, giro vero: una casa in VENDITA non entra mai come affitto (il 6.507 €/m² letto come canone), la zona viene dal titolo dell\'annuncio e non dalla ricerca, pulse dice quando non ha zone, meteo dichiara la soglia anche vuoto' },
   { name: 'radar',    file: 'tests/radar/run.mjs',        what: 'Il Radar 2.0: due portali = UNA casa (mai falsi merge), il fiuto tace senza campione, le vedette vedono solo il futuro, il Valutatore corregge sui canoni FIRMATI, e con il radar rotto il servizio pagato non si ferma' },
   { name: 'outreach', file: 'tests/outreach/run.mjs',     what: 'Il Contatto: solo il messaggio APPROVATO e intatto, mai un telefono nel testo, lease anti doppio-invio, esito incerto = parcheggio immediato, il battito anche a coda vuota' },
   { name: 'fiducia',  file: 'tests/fiducia/run.mjs',      what: 'la scala della fiducia: parte da solo SOLO il provato (campione+tasso), la prima risposta AI mai, ✋ Ferma e kill switch vincono sempre, e coi default non parte niente' },

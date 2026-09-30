@@ -24,7 +24,7 @@ import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import { requireCronOrAdmin } from './_guard.js';
 import { ingestProperty } from './_ingest.js';
-import { classifyAlertEmail, extractListings } from './_alertparse.js';
+import { classifyAlertEmail, extractListings, rentGate } from './_alertparse.js';
 import { fetchHtml, parseListing, detectAdvertiser } from './_fetch.js';
 import { reportHealth, reportNeedsAttention } from './_health.js';
 import { runBudget } from '../_budget.js';
@@ -59,7 +59,7 @@ export default async function handler(req, res) {
   // controllare «sono in ritardo?» lasciava sforare la funzione a metà giro.
   const B = runBudget(60_000, 7_000);
   const COST_SEARCH = 25_000, COST_ITER = 25_000;
-  const stats = { emailsSeen: 0, alerts: 0, listingsFound: 0, ingested: 0, pushedTotal: 0, droppedAgency: 0, skippedFresh: 0, timeBoxed: 0 };
+  const stats = { emailsSeen: 0, alerts: 0, listingsFound: 0, ingested: 0, pushedTotal: 0, droppedAgency: 0, skippedFresh: 0, skippedSale: 0, timeBoxed: 0 };
   const needsAttention = [];
   const results = [];
   let detailBudget = MAX_DETAIL_FETCHES;
@@ -120,6 +120,12 @@ export default async function handler(req, res) {
         stats.listingsFound += listings.length;
 
         for (const l of listings) {
+          // Una casa in VENDITA non è un affitto: non entra nel radar dei
+          // clienti PFS né nel libro mastro del Perito (dove il suo prezzo
+          // diventerebbe un «canone» inventato). Prima del fetch di dettaglio:
+          // non si spende budget su ciò che si scarta. Il conteggio va nel
+          // battito (pfs-command → Inbox → «Scartati (vendita)»).
+          if (!rentGate(l, l.price).ok) { stats.skippedSale++; continue; }
           let { price, bedrooms, sqm } = l;
           let title = null, images = [], description = null;
           let advertiser = cls.advertiserHint || 'unknown';
@@ -146,12 +152,17 @@ export default async function handler(req, res) {
             needsAttention.push({ sourceUrl: l.sourceUrl, source: l.source, reason: 'no_price', subject: subject.slice(0, 120) });
             continue;
           }
+          // Il prezzo arrivato dalla pagina di dettaglio ripassa dal cancello.
+          if (!rentGate(l, price).ok) { stats.skippedSale++; continue; }
 
           const r = await ingestProperty({
             sourceUrl: l.sourceUrl,
             source: l.source,
             price,
-            title: title || subject.slice(0, 120),
+            // Il titolo dell'ANNUNCIO ("Trilocale in Via Domenichino, 4,
+            // Monti, Roma") prima dell'oggetto dell'email, che è l'etichetta
+            // della RICERCA: è dal titolo che _ingest deduce la zona.
+            title: title || l.title || subject.slice(0, 120),
             bedrooms,
             sqm,
             images,

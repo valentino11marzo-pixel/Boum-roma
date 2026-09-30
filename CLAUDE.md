@@ -4315,6 +4315,31 @@ zona). Studio: `STUDIO_BOOM_AUTONOMA.md`. Architettura a ciclo di vita:
   contatti→dentro, campione piccolo→pubblica — tutte catturate) e
   `node tests/market/wiring.mjs` (giunzioni sulla sorgente: ordine del tap,
   verdetto solo server, rules, cron).
+- **/meteo vuoto (30/09/2026 — letto nei log e nella casella, non dedotto)**:
+  `/api/meteo` rispondeva `zones:[]`, `measuring:[]`, `minSample:null`;
+  pulse girava ogni mattina con 200 e nessun errore. Nessun `marketStats`
+  perché nessun annuncio a libro portava una zona. Le cause, in ordine di
+  peso: (1) **a monte non arriva l'affitto** — nella casella degli alert,
+  12 alert di ricerca in 120 giorni, tutti da UNA ricerca Idealista di
+  VENDITA («Case e appartamenti a Centro», 75k–710k €); nessun alert
+  Immobiliare né Casafari; `scan-market` bloccato dai portali; gli occhi di
+  Homie e del Perito (`/api/homie/searches|property|market`) zero chiamate
+  in 24h; (2) **il parser leggeva il 6.507 €/m² della vendita come canone**
+  e (3) **buttava via il titolo dell'annuncio**, passando come titolo
+  l'oggetto dell'email (l'etichetta della ricerca) → `inferZone` null →
+  nessuna zona. Correggere solo (3) sarebbe stato peggio: la vendita finiva
+  nella statistica di Monti. Ora `_alertparse.js` legge prezzo al mese,
+  titolo dal link dell'annuncio (sottopagine escluse, entità decodificate) e
+  `transaction` sale/rent dalla prova strutturale (campagna utm, percorso
+  `/vendita-*/`) prima delle parole; `rentGate` ferma vendite e prezzi oltre
+  `MAX_PLAUSIBLE_RENT` PRIMA del fetch di dettaglio (`stats.skippedSale`,
+  «Scartati (vendita)» in pfs-command); pulse conta e dice gli annunci
+  `noZone`; meteo dichiara la soglia in vigore (knobs) anche senza documenti.
+  **Il bollettino torna a riempirsi solo con fonti d'affitto**: ricerche
+  salvate di AFFITTO con alert email sulla casella, e/o lo Scatto di Homie
+  sul Mac. Test: `node tests/market/alerts.mjs` (giro vero: alert reale in
+  `tests/pfs/fixtures/` → scan-inbox con mailparser vero → libro mastro →
+  pulse → meteo; mutazioni prese su cancello, titolo, prezzo, soglia, report).
 
 ## Il Radar 2.0 — La Centrale (js/radar-engine.js + api/radar/* + /radar)
 
