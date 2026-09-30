@@ -20,6 +20,10 @@
 // ogni titolo candidato, segnaposto solo in anteprima, un solo movimento,
 // contrasto AA, zero richieste esterne, fascicolo composto con riduzione del
 // movimento.
+// Il 30/09 sera il fondatore ha bocciato «Il Fascicolo» come troppo basilare:
+// la home diventa «Valentino Egidi Immobiliare» (vendite) col passaggio
+// esplicito a BOOM (affitti). Le regole di sostanza restano, quelle di gusto
+// seguono la nuova direzione.
 import { readFileSync, existsSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';
 import http from 'node:http';
@@ -91,42 +95,50 @@ for (const f of PAGES) {
     }
 }
 
-// 7. Un solo movimento (il fascicolo) e niente che dipenda da JS per esistere.
-ok(html.includes("document.documentElement.classList.add('js')") || html.includes("d.classList.add('js')"), 'la classe js si accende prima del render');
-const css = (html.match(/<style>([\s\S]*?)<\/style>/) || [])[1] || '';
-const animati = [...css.matchAll(/([^{}]+)\{[^{}]*\banimation\s*:/g)].map((m) => m[1].trim().split(/\s*,\s*/)).flat();
-ok(animati.length > 0 && animati.every((sel) => /\.foglio|\.sigillo/.test(sel)), `si muovono solo fogli e sigillo (${animati.join(' | ')})`);
-ok(!/\btransition\s*:/.test(css), 'nessuna transizione: il brief vuole un movimento solo');
-ok(/prefers-reduced-motion:\s*no-preference/.test(css) && /@supports \(animation-timeline/.test(css), 'animazione solo con movimento consentito e timeline supportata (altrimenti fascicolo composto)');
-ok(!/cursor\s*:\s*none|parallax|lenis/i.test(html), 'niente cursore custom, parallax o scroll hijacking');
-// Oro mai come testo su carta; contrasto AA sulle coppie di testo usate.
-ok(!/(^|[;{\s])color\s*:\s*var\(--oro\)/.test(css), 'nessun testo oro');
-const hex = (h) => h.match(/\w\w/g).map((x) => parseInt(x, 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
-const lum = (h) => { const [r, g, b] = hex(h.replace('#', '')); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
-const cr = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
-const tok = Object.fromEntries([...css.matchAll(/--([\w-]+):(#[0-9A-Fa-f]{6})/g)].map((m) => [m[1], m[2]]));
-for (const [fg, bg] of [['ink', 'carta'], ['grafite', 'carta'], ['grafite-2', 'carta'], ['grafite-2', 'carta-2'], ['ink', 'oro'], ['carta', 'ink'], ['grafite', 'carta-2']]) {
-    const r = tok[fg] && tok[bg] ? cr(tok[fg], tok[bg]) : 0;
-    ok(r >= 4.5, `contrasto ${fg} su ${bg}: ${r.toFixed(2)} ≥ 4.5`);
-}
-ok(cr(tok.grafite_2 || tok['grafite-2'], '#FBF8F1') >= 4.5, 'contrasto grafite-2 sul foglio #FBF8F1');
-// Tono e contenuti del brief.
+// 7. Il brand e il ponte verso BOOM (rifondazione del 30/09: «Valentino
+//    Egidi Immobiliare» = vendite, BOOM = affitti, e il passaggio si vede).
+ok(html.includes("classList.add('js')"), 'la classe js si accende prima del render');
+ok(/Valentino Egidi Immobiliare/.test(title), 'il titolo porta il brand');
+ok(html.includes('Valentino Egidi Immobiliare è un marchio di Egidi Immobiliare S.r.l.'), 'il piede dichiara di chi è il marchio');
 const testo = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ');
-ok(!/!/.test(testo.replace(/<!--[\s\S]*?-->/g, '')), 'nessun punto esclamativo');
+ok(testo.includes('BOOM è il marchio di Egidi Immobiliare S.r.l. per gli affitti a studenti e professionisti internazionali.'), 'la frase fissa su BOOM');
+const boomLinks = [...html.matchAll(/href="(https:\/\/www\.boomrome\.com\/[^"]*)"/g)].map((m) => m[1]).filter((u) => !/\/privacy$/.test(u));
+ok(boomLinks.length >= 4 && boomLinks.every((u) => /utm_source=egidimmobiliare&amp;utm_medium=referral&amp;utm_campaign=\w+/.test(u)), `ogni link verso BOOM porta gli UTM (${boomLinks.length})`);
+ok(/data-evento="handoff_boom"/.test(html) && /data-evento="whatsapp_click"/.test(html), 'eventi handoff_boom e whatsapp_click sui link');
+ok(!/!/.test(testo), 'nessun punto esclamativo');
 ok(!/\p{Extended_Pictographic}/u.test(testo), 'nessuna emoji');
 ok(!/consulenza fiscale/i.test(testo), 'nessuna «consulenza fiscale»');
 ok(!/entratel/i.test(html), 'Entratel non citato finché non è attivo');
-ok(testo.includes("BOOM è il marchio di Egidi Immobiliare S.r.l. per gli affitti a studenti e professionisti internazionali."), 'la frase fissa su BOOM');
-const boomLinks = [...html.matchAll(/href="(https:\/\/www\.boomrome\.com\/[^"]*)"/g)].map((m) => m[1]).filter((u) => !/\/privacy$/.test(u));
-ok(boomLinks.length > 0 && boomLinks.every((u) => /utm_source=egidimmobiliare&amp;utm_medium=referral&amp;utm_campaign=\w+/.test(u)), 'ogni link verso BOOM porta gli UTM del brief');
-const titoli = ['data-h1', 'data-h2', 'data-h3'].map((a) => (html.match(new RegExp(a + '="([^"]+)"')) || [])[1]);
-ok(titoli.join('|') === "Prima l'ordine. Poi il mercato.|Il tuo immobile, in ordine.|Prima controlliamo i documenti. Poi parliamo di prezzo.", 'i tre titoli candidati del brief, parola per parola');
+// Movimento con le regole di chi non vuole movimento.
+const css = (html.match(/<style>([\s\S]*?)<\/style>/) || [])[1] || '';
+ok(/prefers-reduced-motion:reduce/.test(css), 'riduzione del movimento rispettata');
+ok(/id="ferma"[^>]*aria-pressed/.test(html), 'un bottone ferma le animazioni che si ripetono (WCAG 2.2.2)');
+ok(!/cursor\s*:\s*none|lenis|locomotive/i.test(html), 'niente cursore custom né scroll dirottato');
+// Oro solo su fondi scuri (BOOM) o sul blu, mai su carta.
+const oro = [...css.matchAll(/([^{}]+)\{(?:[^{}]*;)?color:var\(--oro\)/g)].map((m) => m[1].trim());
+ok(oro.length > 0 && oro.every((sel) => /casa-boom|investire|cifra\.oro|contatti|modo-boom|nastro/.test(sel)), `testo oro solo su fondi scuri o blu (${oro.join(' | ')})`);
+// Contrasto AA sulle coppie di testo, per ogni variante di colore.
+const hex = (h) => h.replace('#', '').match(/\w\w/g).map((x) => parseInt(x, 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+const lum = (h) => { const [r, g, b] = hex(h); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+const cr = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+const tok = Object.fromEntries([...css.match(/:root\{[^}]*\}/)[0].matchAll(/--([\w-]+):(#[0-9A-Fa-f]{6})/g)].map((m) => [m[1], m[2]]));
+const accenti = [tok.accento, ...[...css.matchAll(/data-colore=\w+\]\{--accento:(#[0-9A-Fa-f]{6})/g)].map((m) => m[1])];
+ok(accenti.length === 3, 'tre varianti di accento in anteprima');
+for (const a of accenti) {
+    ok(cr('#FFFFFF', a) >= 4.5, `bianco su accento ${a}: ${cr('#FFFFFF', a).toFixed(2)}`);
+    ok(cr(a, tok.carta) >= 3, `accento ${a} su carta (titoli grandi): ${cr(a, tok.carta).toFixed(2)}`);
+}
+ok(cr(tok.oro, tok.accento) >= 3, `oro sul blu (titoli grandi): ${cr(tok.oro, tok.accento).toFixed(2)}`);
+for (const [fg, bg] of [[tok.ink, tok.carta], [tok.grigio, tok.carta], [tok['grigio-2'], '#FFFFFF'], [tok.boom, tok.oro], [tok.oro, tok.boom], ['#C9C9CF', tok.boom], ['#A6A6AE', tok.ink], ['#B4B4BB', tok.ink]]) {
+    ok(cr(fg, bg) >= 4.5, `contrasto ${fg} su ${bg}: ${cr(fg, bg).toFixed(2)}`);
+}
 ok(gzipSync(Buffer.from(html)).length < 60000, `home sotto 60 KB compressi (${gzipSync(Buffer.from(html)).length} B)`);
 
 // 8. Dati strutturati: fatti verificabili, JSON valido.
 const ldRaw = (html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/) || [])[1];
 let ld = null; try { ld = JSON.parse(ldRaw); } catch { /* sotto */ }
 ok(ld && ld['@type'] === 'RealEstateAgent', 'JSON-LD valido (RealEstateAgent)');
+ok(ld && ld.name === 'Valentino Egidi Immobiliare' && ld.legalName === 'Egidi Immobiliare S.r.l.', 'JSON-LD: brand e ragione sociale distinti');
 ok(ld && ld.vatID === 'IT17322991005' && ld.address?.postalCode === '00186' && ld.url === CANON, 'JSON-LD: partita IVA, CAP, url canonico');
 
 // 9. Il progetto Vercel del sito: statico, pulito, e boomrome.com non ne serve una copia.
@@ -164,75 +176,100 @@ if (!chromium) {
             const ctx = await b.newContext({ viewport: { width: w, height: h }, javaScriptEnabled: js, reducedMotion: rm });
             await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, (rt) => { esterne.push(rt.request().url()); rt.abort(); });
             const p = await ctx.newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message));
-            await p.goto(url + q, { waitUntil: 'load' }); await p.waitForTimeout(250);
+            await p.goto(url + q, { waitUntil: 'load' }); await p.waitForTimeout(300);
             return { ctx, p, errs };
         };
+        const incrocia = (a, b) => a && b && !(a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top);
         for (const [w, js] of [[320, true], [390, true], [1440, true], [390, false]]) {
             const { ctx, p, errs } = await apri(w, { js });
             const m = await p.evaluate(() => ({
                 sw: document.documentElement.scrollWidth, iw: innerWidth,
                 anteprimaVisibili: [...document.querySelectorAll('.solo-anteprima')].filter((e) => e.getClientRects().length).length,
-                segnapostoFuori: [...document.querySelectorAll('body *')].filter((e) => e.children.length === 0 && /DA FORNIRE|VERIFICARE|PASSO 4/.test(e.textContent) && !e.closest('.solo-anteprima')).length
+                segnapostoFuori: [...document.querySelectorAll('body *')].filter((e) => e.children.length === 0 && /DA FORNIRE|VERIFICARE|PASSO 4/.test(e.textContent) && !e.closest('.solo-anteprima')).length,
+                marchioRighe: Math.round(document.querySelector('.marchio-testo b').getBoundingClientRect().height / parseFloat(getComputedStyle(document.querySelector('.marchio-testo b')).fontSize))
             }));
             const tag = `${w}px ${js ? 'con' : 'senza'} JS`;
             ok(errs.length === 0, `${tag}: nessun errore JS (${errs.join(' | ')})`);
             ok(m.sw <= m.iw, `${tag}: nessuno scroll orizzontale (${m.sw} > ${m.iw})`);
             ok(m.segnapostoFuori === 0, `${tag}: ogni segnaposto sta dentro .solo-anteprima`);
-            // Senza JS la pagina si comporta come in produzione: segnaposto nascosti.
+            ok(m.marchioRighe <= 1, `${tag}: «VALENTINO EGIDI» su una riga sola`);
             if (js) ok(m.anteprimaVisibili > 0, `${tag}: in anteprima (host locale) i segnaposto si vedono`);
             else ok(m.anteprimaVisibili === 0, `${tag}: senza JS nessun segnaposto visibile`);
             await ctx.close();
         }
-        // Il test dei 5 secondi, per ogni titolo: sopra la piega a 390×844
-        // (tolta la barra WhatsApp) si leggono titolo, «studio immobiliare a
-        // Roma» e «la società dietro BOOM».
-        for (const hN of ['1', '2', '3']) {
-            const { ctx, p } = await apri(390, { q: '?h=' + hN });
-            const r = await p.evaluate(() => {
-                const t = document.getElementById('titolo'), s = document.querySelector('.sotto');
-                const bar = document.querySelector('.wa-fissa').getBoundingClientRect().top;
-                return { titolo: t.textContent, fondo: s.getBoundingClientRect().bottom, bar, testo: s.textContent, sx: Math.min(t.getBoundingClientRect().left, s.getBoundingClientRect().left) };
-            });
-            ok(r.fondo <= r.bar, `h=${hN} «${r.titolo}»: tesi sopra la piega (${Math.round(r.fondo)} ≤ ${Math.round(r.bar)})`);
-            ok(r.sx >= 16, `h=${hN}: il testo non tocca il bordo (margine ${Math.round(r.sx)}px ≥ 16)`);
-            ok(/Studio immobiliare a Roma/.test(r.testo) && /la società dietro BOOM/.test(r.testo), `h=${hN}: le due frasi del test dei 5 secondi`);
-            await ctx.close();
-        }
-        // Il check: niente riepilogo prima di rispondere, riepilogo vero dopo.
+        // Test dei 5 secondi a 390×844: sopra la barra WhatsApp si legge chi
+        // siamo, dove, e che per affittare c'è BOOM. E il testo non tocca il bordo.
         {
             const { ctx, p } = await apri(390);
-            const prima = await p.evaluate(() => document.getElementById('esito').getClientRects().length);
-            await p.evaluate(() => { const v = ['si', 'no', 'ns', 'si', 'si', 'si', 'no', 'si']; v.forEach((x, i) => document.querySelector(`input[name=v${i + 1}][value=${x}]`).click()); });
-            const dopo = await p.evaluate(() => ({ punti: document.getElementById('punti').textContent, righe: document.querySelectorAll('#manca li').length, titolo: document.getElementById('esito-titolo').textContent }));
-            ok(prima === 0, 'check: nessun riepilogo prima della prima risposta');
-            ok(dopo.punti === '5' && dopo.righe === 3 && dopo.titolo === 'Cosa manca', `check: 5 su 8 e tre voci da sistemare o verificare (${JSON.stringify(dopo)})`);
+            const r = await p.evaluate(() => {
+                const s = document.querySelector('.hero .sotto'), t = document.querySelector('.titolo');
+                return { fondo: s.getBoundingClientRect().bottom, bar: document.querySelector('.wa-fissa').getBoundingClientRect().top, testo: s.textContent, sx: Math.min(s.getBoundingClientRect().left, t.getBoundingClientRect().left) };
+            });
+            ok(r.fondo <= r.bar, `390px: la tesi sta sopra la piega (${Math.round(r.fondo)} ≤ ${Math.round(r.bar)})`);
+            ok(/Valentino Egidi Immobiliare/.test(r.testo) && /Roma/.test(r.testo) && /BOOM/.test(r.testo), '390px: brand, Roma e BOOM nella tesi');
+            ok(r.sx >= 16, `390px: margine sinistro ${Math.round(r.sx)}px ≥ 16`);
             await ctx.close();
         }
-        // Riduzione del movimento: il fascicolo è composto dal primo frame.
-        for (const w of [390, 1440]) {
-            const { ctx, p } = await apri(w, { rm: 'reduce' });
-            const f = await p.evaluate(() => ({
-                ruotati: [...document.querySelectorAll('.foglio')].filter((e) => { const m = new DOMMatrix(getComputedStyle(e).transform); return Math.abs(m.b) > 0.001; }).length,
-                sigillo: getComputedStyle(document.querySelector('.sigillo')).opacity
-            }));
-            ok(f.ruotati === 0 && f.sigillo === '1', `${w}px movimento ridotto: fogli allineati e sigillo presente (${f.ruotati} ruotati, sigillo ${f.sigillo})`);
+        // L'hero: i muri si ALZANO (il difetto della prima prova era il segno
+        // della rotazione: pendevano sotto il pavimento), il verbo diventa BOOM,
+        // la pillola BOOM non copre niente, il bottone ferma tutto.
+        for (const w of [1440, 390]) {
+            const { ctx, p } = await apri(w, { h: w > 900 ? 900 : 844 });
+            await p.waitForTimeout(1600);
+            const muri = await p.evaluate(() => {
+                const l = document.querySelector('.lastra').getBoundingClientRect(), m = document.querySelector('.muro').getBoundingClientRect();
+                return { h: parseFloat(getComputedStyle(document.querySelector('.muro')).height), muroTop: m.top, lastraTop: l.top };
+            });
+            ok(muri.h > 0 && muri.muroTop < muri.lastraTop - 10, `${w}px: il muro di fondo sale sopra il pavimento (${Math.round(muri.muroTop)} < ${Math.round(muri.lastraTop)})`);
+            const boom = await p.evaluate(() => {
+                document.getElementById('ferma').click(); window.__egidiVerbo(3);
+                const chip = document.querySelector('.boom-chip');
+                return new Promise((res) => setTimeout(() => res({
+                    modo: document.getElementById('hero').classList.contains('modo-boom'),
+                    bg: getComputedStyle(document.getElementById('hero')).backgroundColor,
+                    chip: chip.getBoundingClientRect().toJSON(), chipTab: chip.tabIndex, chipOp: +getComputedStyle(chip).opacity,
+                    ferma: document.getElementById('ferma').getBoundingClientRect().toJSON(),
+                    cta: [...document.querySelectorAll('.hero-cta .btn')].map((e) => e.getBoundingClientRect().toJSON())
+                }), 900));
+            });
+            ok(boom.modo && boom.bg === 'rgb(6, 6, 7)', `${w}px: su «Affitta» l'hero diventa BOOM (${boom.bg})`);
+            ok(boom.chipOp > 0.99 && boom.chipTab === 0, `${w}px: la pillola BOOM è visibile e raggiungibile da tastiera`);
+            ok(!incrocia(boom.chip, boom.ferma) && boom.cta.every((c) => !incrocia(boom.chip, c)), `${w}px: la pillola BOOM non copre bottoni`);
+            const stop = await p.evaluate(() => { document.getElementById('ferma').click(); document.getElementById('ferma').click(); return { pressed: document.getElementById('ferma').getAttribute('aria-pressed'), modo: document.getElementById('hero').classList.contains('modo-boom') }; });
+            ok(stop.pressed === 'true' && !stop.modo, `${w}px: «Ferma» riporta su «Vendi» e resta fermo`);
             await ctx.close();
         }
-        // Con movimento: in cima i fogli sono sparsi, dopo lo scroll composti e sigillati.
+        // Movimento ridotto: nessun giro di verbi, muri e pin già al loro posto.
+        {
+            const { ctx, p } = await apri(1440, { h: 900, rm: 'reduce' });
+            const r = await p.evaluate(() => ({ ferma: document.getElementById('ferma').hidden, muro: parseFloat(getComputedStyle(document.querySelector('.muro')).height), pin: getComputedStyle(document.querySelector('.pin')).opacity }));
+            await p.waitForTimeout(3000);
+            const modo = await p.evaluate(() => document.getElementById('hero').classList.contains('modo-boom'));
+            ok(r.ferma && r.muro > 0 && r.pin === '1' && !modo, `movimento ridotto: fermo, muri alzati, pin visibili (${JSON.stringify(r)})`);
+            await ctx.close();
+        }
+        // Testata: trasparente sull'hero, chiara dopo.
         {
             const { ctx, p } = await apri(1440, { h: 900 });
-            const stato = () => p.evaluate(() => ({
-                ruotati: [...document.querySelectorAll('.foglio')].filter((e) => Math.abs(new DOMMatrix(getComputedStyle(e).transform).b) > 0.01).length,
-                sigillo: +getComputedStyle(document.querySelector('.sigillo')).opacity,
-                supporta: CSS.supports('animation-timeline: view()')
-            }));
-            const inizio = await stato();
-            if (inizio.supporta) {
-                await p.evaluate(() => scrollTo(0, innerHeight * 0.26)); await p.waitForTimeout(250);
-                const dopo = await stato();
-                ok(inizio.ruotati >= 5 && inizio.sigillo < 0.1, `1440px in cima: fascicolo sparso (${inizio.ruotati} fogli ruotati, sigillo ${inizio.sigillo})`);
-                ok(dopo.ruotati === 0 && dopo.sigillo > 0.99, `1440px dopo lo scroll: composto e sigillato (${dopo.ruotati}, ${dopo.sigillo})`);
-            } else console.log('  (scroll-timeline non supportata da questo Chromium: salto il controllo del movimento)');
+            const prima = await p.evaluate(() => document.getElementById('testata').classList.contains('chiara'));
+            await p.evaluate(() => scrollTo(0, innerHeight * 1.5)); await p.waitForTimeout(300);
+            const dopo = await p.evaluate(() => document.getElementById('testata').classList.contains('chiara'));
+            ok(!prima && dopo, 'testata trasparente sull\'hero, chiara dopo');
+            await ctx.close();
+        }
+        // Il calcolo e il check: aritmetica vera, niente riepilogo a vuoto.
+        {
+            const { ctx, p } = await apri(390);
+            const vuoto = await p.evaluate(() => [document.getElementById('lordo').textContent, document.getElementById('esito').getClientRects().length]);
+            const c1 = await p.evaluate(() => { document.getElementById('esempio').click(); return ['lordo', 'netto', 'annuo'].map((k) => document.getElementById(k).textContent); });
+            const c2 = await p.evaluate(() => { document.querySelector('input[name=regime][value="0.10"]').click(); return document.getElementById('netto').textContent; });
+            ok(vuoto[0] === '—', 'calcolo: nessun numero prima che il visitatore scriva');
+            ok(c1.join('|') === '5,8%|4,6%|€ 14.400', `calcolo: 250.000 e 1.200 danno 5,8% lordo, 4,6% netto, € 14.400 (${c1.join('|')})`);
+            ok(c2 === '5,2%', `calcolo: col concordato il netto sale al 5,2% (${c2})`);
+            await p.evaluate(() => { ['si', 'no', 'ns', 'si', 'si', 'si', 'no', 'si'].forEach((x, i) => document.querySelector(`input[name=v${i + 1}][value=${x}]`).click()); });
+            const ch = await p.evaluate(() => ({ punti: document.getElementById('punti').textContent, righe: document.querySelectorAll('#manca li').length, titolo: document.getElementById('esito-titolo').textContent }));
+            ok(vuoto[1] === 0, 'check: nessun riepilogo prima della prima risposta');
+            ok(ch.punti === '5' && ch.righe === 3 && ch.titolo === 'Cosa manca', `check: 5 su 8 e tre voci da sistemare o verificare (${JSON.stringify(ch)})`);
             await ctx.close();
         }
         ok(esterne.length === 0, `zero richieste esterne per disegnare la pagina (${esterne.slice(0, 3).join(' | ')})`);

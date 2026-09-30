@@ -1,40 +1,31 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="it">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pagina non trovata · Egidi Immobiliare</title>
-<meta name="robots" content="noindex, follow">
-<meta name="theme-color" content="#F1EEE6">
-<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pagina non trovata · Valentino Egidi Immobiliare</title>
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#2436F5">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <style>
-*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
-:root{--carta:#F1EEE6;--ink:#1B1813;--ink-2:rgba(27,24,19,.62);--ink-3:rgba(27,24,19,.38);--line:rgba(27,24,19,.16);--terra:#A03227;
-  --font:'Helvetica Neue','HelveticaNeue',Helvetica,Arial,sans-serif;--mono:ui-monospace,'SF Mono',Menlo,Consolas,monospace}
-html{-webkit-font-smoothing:antialiased}
-body{font-family:var(--font);font-weight:300;background:var(--carta);color:var(--ink);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:40px 22px;text-align:center}
-.crest{width:72px;height:72px;margin:0 auto 28px}
-.crest rect{fill:none;stroke:var(--ink);stroke-width:3}
-.crest text{font-family:Georgia,serif;font-size:40px;fill:var(--ink)}
-.k{font-family:var(--mono);font-size:10.5px;letter-spacing:.3em;text-transform:uppercase;color:var(--ink-3)}
-h1{font-size:clamp(30px,6vw,56px);font-weight:700;letter-spacing:-.035em;line-height:1;text-transform:uppercase;margin:18px 0 16px}
-p{font-size:16px;color:var(--ink-2);max-width:46ch;margin:0 auto}
-.acts{display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:32px}
-a{font-family:var(--mono);font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:15px 24px;text-decoration:none;transition:.3s}
-.a1{background:var(--ink);color:var(--carta)}.a1:hover{background:var(--terra)}
-.a2{border:1.5px solid var(--line);color:var(--ink-2)}.a2:hover{border-color:var(--terra);color:var(--terra)}
-a:focus-visible{outline:2px solid var(--terra);outline-offset:3px}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:#2436F5;color:#fff;font:300 18px/1.6 'Helvetica Neue',Helvetica,Inter,Arial,sans-serif;padding:32px 20px;text-align:center}
+.mono{font:400 12px/1 'SF Mono',ui-monospace,Menlo,Consolas,monospace;letter-spacing:.2em;text-transform:uppercase}
+h1{font-weight:200;font-size:clamp(56px,14vw,140px);line-height:.95;letter-spacing:-.035em;margin:20px 0}
+p{max-width:30em;margin:0 auto}
+.azioni{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin-top:32px}
+a.btn{display:inline-flex;align-items:center;min-height:52px;padding:0 24px;border-radius:999px;border:1.5px solid #fff;color:#fff;text-decoration:none}
+a.btn.pieno{background:#fff;color:#0B0B0F}
 </style>
 </head>
 <body>
 <main>
-  <svg class="crest" viewBox="0 0 100 100" aria-hidden="true"><rect x="8" y="8" width="84" height="84"/><text x="50" y="64" text-anchor="middle">EI</text></svg>
-  <div class="k">Errore 404</div>
-  <h1>Questa pagina non c'è più.</h1>
-  <p>Il sito di Egidi Immobiliare è stato rinnovato e alcuni indirizzi sono cambiati. Tutto quello che serve è nella pagina principale, oppure scrivici direttamente.</p>
-  <div class="acts">
-    <a class="a1" href="/">Vai alla pagina principale →</a>
-    <a class="a2" href="https://wa.me/393313251961" target="_blank" rel="noopener">Scrivici su WhatsApp</a>
+  <p class="mono">Valentino Egidi · Immobiliare · Roma</p>
+  <h1>Pagina<br>non trovata.</h1>
+  <p>Il sito è stato rinnovato e alcuni indirizzi sono cambiati. Riparti dalla home o scrivici.</p>
+  <div class="azioni">
+    <a class="btn pieno" href="/">Torna alla home</a>
+    <a class="btn" href="https://wa.me/393313251961?text=Buongiorno%20Valentino%2C%20vi%20scrivo%20dal%20sito.">Scrivi su WhatsApp</a>
   </div>
 </main>
 </body>
