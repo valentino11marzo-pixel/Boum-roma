@@ -141,6 +141,15 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 - **Platform**: Vercel
 - **Build**: None — static files served as-is
 - **outputDirectory**: Must be `"."` (root), NOT `"public"`. All HTML lives in root.
+- **Ogni file del repo è una URL pubblica, salvo `.vercelignore`** (30/09/2026):
+  `/CLAUDE.md` e `/docs/portal-security-audit.md` rispondevano 200 su
+  boomrome.com. Ora restano fuori dal deploy ogni `.md` in radice e in
+  `api/`, `docs/`, `tests/`, `bot/`, `homie-bridge/`, `design/`,
+  `reference/`, `scripts/`, `.github/` e i file delle regole. Un documento
+  interno nuovo va in una di quelle cartelle (o è un `.md` in radice).
+  `package*.json` restano (`npm ci`). `npm test -- deploy` pretende le due
+  direzioni: interno escluso, e ogni file chiamato da una pagina servita, dal
+  service worker o da una funzione ancora dentro.
 - **Deploy**: `git push` to main triggers automatic Vercel deployment
 - **Cron**: `reminder-cron.js` runs every 15 minutes (configured in vercel.json)
 - **Functions timeout**: 60s max for reminder-cron

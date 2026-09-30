@@ -14,3 +14,29 @@ admin-flats.html
 tenant-registration.html
 js/boom-bg-roma.js
 v2-immersive.html
+
+# Documenti interni: restano nel repo, NON vanno serviti da boomrome.com.
+# Il 30/09/2026 https://www.boomrome.com/CLAUDE.md e
+# /docs/portal-security-audit.md rispondevano 200 — la mappa del sistema e
+# l'elenco dei suoi punti deboli, pubblici. Nessuna pagina e nessuna funzione
+# legge questi file a runtime (le funzioni importano solo da api/ e js/;
+# il bot si aggiorna da raw.githubusercontent.com, non da qui).
+# package.json e package-lock.json restano: installCommand è `npm ci`.
+# Guardia: tests/deploy/run.mjs.
+/*.md
+api/**/*.md
+/docs
+/tests
+/bot
+/homie-bridge
+/design
+/reference
+/scripts
+/.github
+/.journey-preview.html
+/firestore.rules
+/storage.rules
+/firebase.json
+/firestore.indexes.json
+/flats.json
+/flats-2.json
