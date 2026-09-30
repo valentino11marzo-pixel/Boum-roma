@@ -26,6 +26,7 @@ import { sendRegistrationSheet } from './_foglio.js';
 import { buildFascicolo } from '../fiscal/fascicolo.js';
 import { buildRegistrationPack } from './_pack.js';
 import { maybeAutoAspi } from '../fiscal/_aspi.js';
+import { maybeOwnerArea, markInvited } from '../owners/_invite.js';
 // Il dizionario del contratto: i lettori RLI (fascicolo, pack, ASPI, foglio)
 // guardavano SOLO i campi del contratto mentre il PDF risale la catena
 // users — un CF presente solo sul profilo usciva «MANCANTE» in tre posti.
@@ -295,13 +296,30 @@ export async function finalizeContract(contract){
   // Tre email all'operatore, tre mestieri: il milestone (breve), il
   // FASCICOLO COMPLETO (interno: verdetto, link da copiare, pack) e il
   // FOGLIO DI REGISTRAZIONE (pulito: si inoltra, si stampa, fa da archivio).
+  // ── L'area proprietario nasce qui (settings/ownerArea.autoInvite, default
+  // acceso): l'account del locatore si crea — o si ritrova — PRIMA del
+  // benvenuto, così la sua email porta il tasto «Attiva la tua area» invece
+  // del vecchio «Apri la dashboard» verso /portal, che per un proprietario
+  // senza account era un muro di login. Time-boxed: la firma non aspetta.
+  let ownerArea = null;
+  try {
+    ownerArea = await Promise.race([
+      maybeOwnerArea(contract, property),
+      new Promise((resolve) => setTimeout(() => resolve(null), 8000)),
+    ]);
+  } catch (e) { console.warn('[finalize] owner area:', e.message); }
+
   const [welcome, caf, foglio] = await Promise.all([
-    sendWelcomeEmails(contract, property, { portalLink, certUrl, cedolare, nonEU, signedPdfUrl }),
+    sendWelcomeEmails(contract, property, { portalLink, certUrl, cedolare, nonEU, signedPdfUrl, ownerArea }),
     sendCafDossier(contract, property, { certUrl, fascicoloUrl, schedaPdfUrl, signedPdfUrl, packUrl: pack.url, packMissing: pack.missing, tenant, landlord }),
     sendRegistrationSheet(contract, property, { certUrl, fascicoloUrl, schedaPdfUrl, signedPdfUrl, tenant, landlord, now }),
   ]);
   const tenantEmail = !!(welcome && welcome.tenant);
   const landlordEmail = !!(welcome && welcome.landlord);
+  if (ownerArea && ownerArea.uid && welcome && welcome.ownerAreaLinked) {
+    try { await markInvited(ownerArea.uid, landlordEmail, { via: 'finalize', propertyId: contract.propertyId || null, status: ownerArea.status }); }
+    catch (e) { console.warn('[finalize] owner invited mark:', e.message); }
+  }
 
   // ── L'iter ASPI in automatico (opt-in: settings/registrazione.auto) ──
   // DOPO welcome + fascicolo CAF: la richiesta al referente ASPI parte da

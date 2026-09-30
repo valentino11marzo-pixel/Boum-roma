@@ -59,7 +59,9 @@ async function authAny(req, res) {
     return { actor: 'cron' };
   }
 
-  const auth = await requireRole(req, res, ['admin', 'owner', 'landlord']); // writes 401/403 itself
+  // Solo admin (30/09/2026): qui non c'è alcun controllo di proprietà, e con
+  // 'landlord' ammesso ogni proprietario con un account era un operatore.
+  const auth = await requireRole(req, res, ['admin']); // writes 401/403 itself
   return auth ? { actor: 'admin:' + (auth.email || auth.uid) } : null;
 }
 

@@ -15,9 +15,18 @@
 //
 // I tenant NON passano di qui: un endpoint che spedisce email a
 // destinatari arbitrari con il marchio BOOM è roba da operatore.
+//
+// E il proprietario? Il portale in modalità landlord la usa (manutenzione,
+// pagamenti segnalati → l'inquilino e BOOM), ma fino al 30/09/2026 un
+// landlord poteva scrivere a CHIUNQUE, col marchio e la casella Gmail di BOOM
+// e un bottone verso un URL a scelta: un relay di phishing con la nostra
+// firma. Con l'area proprietario gli account li creiamo noi, per tutti. Ora
+// per un non-admin i destinatari sono SOLO: sé stesso, BOOM, e gli inquilini
+// (e co-inquilini) dei SUOI immobili; il bottone solo verso boomrome.com.
 
 import { requireRole, setCors } from '../_auth.js';
-import { readJson } from '../homie/_lib.js';
+import { readJson, fsList } from '../homie/_lib.js';
+import { ownerKeys, ownerProperties, normEmail } from '../owners/_owner.js';
 import { sendEmail } from '../agent/_lib.js';
 import { shell, para, fine, btn, rule } from '../preagreement/_notify.js';
 
@@ -28,6 +37,26 @@ const esc = (s) => clip(s, 1200).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<':
 // evento), non centinaia — un client impazzito non svuota il quota Gmail.
 const RL = new Map(); const RL_WINDOW = 60_000, RL_MAX = 30;
 const rateOk = (uid) => { const n = Date.now(); const e = RL.get(uid); if (!e || n - e.t >= RL_WINDOW) { RL.set(uid, { c: 1, t: n }); return true; } e.c++; return e.c <= RL_MAX; };
+
+const BOOM_LINK = /^https:\/\/(www\.)?boomrome\.com(\/|$)/;
+
+// Chi può ricevere un'email mandata da un proprietario: sé stesso, BOOM, e le
+// persone sui contratti dei SUOI immobili. Esportata per i test.
+export async function landlordRecipients(auth) {
+  const out = new Set();
+  const add = (e) => { const n = normEmail(e); if (n) out.add(n); };
+  add(auth.email); // l'email dell'account, non quella del profilo (che l'utente può riscrivere)
+  add(process.env.ADMIN_NOTIFY_EMAIL || 'valentino@boom-rome.com');
+  add(process.env.GMAIL_USER);
+  const props = await ownerProperties(await ownerKeys(auth.uid, auth.profile || {}));
+  const lists = await Promise.all(props.map((pr) =>
+    fsList('contracts', { filter: { field: 'propertyId', op: 'EQUAL', value: pr.id }, limit: 50 }).catch(() => [])));
+  for (const list of lists) for (const c of list || []) {
+    add(c.tenantEmail);
+    for (const co of Array.isArray(c.coTenants) ? c.coTenants : []) add((co || {}).email);
+  }
+  return out;
+}
 
 export default async function handler(req, res) {
   setCors(req, res);
@@ -43,6 +72,11 @@ export default async function handler(req, res) {
   const to = clip((body || {}).to, 120);
   const p = (body || {}).params || {};
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return res.status(400).json({ ok: false, error: 'bad_recipient' });
+  if (auth.profile.role !== 'admin') {
+    const allowed = await landlordRecipients(auth).catch(() => new Set());
+    if (!allowed.has(normEmail(to))) return res.status(403).json({ ok: false, error: 'recipient_not_allowed' });
+    if (p.portal_link && !BOOM_LINK.test(String(p.portal_link))) p.portal_link = '';
+  }
 
   const heading = clip(p.heading, 140) || clip(p.card_title, 140) || 'Notifica BOOM';
   const rows = [1, 2, 3, 4]

@@ -231,9 +231,9 @@ export async function notifyAdminContractSigned(contract, property) {
 // Il contratto FIRMATO viaggia in ALLEGATO a entrambe le parti (insieme al
 // certificato di firma): nessuno deve entrare da nessuna parte per avere il
 // proprio documento. I link restano nel corpo come rete di sicurezza.
-export async function sendWelcomeEmails(contract, property, { portalLink, certUrl, cedolare, nonEU, signedPdfUrl } = {}) {
+export async function sendWelcomeEmails(contract, property, { portalLink, certUrl, cedolare, nonEU, signedPdfUrl, ownerArea } = {}) {
   const g = await gather(contract, property);
-  const out = { tenant: false, landlord: false };
+  const out = { tenant: false, landlord: false, ownerAreaLinked: false };
   const certHref = certUrl || contract.signingCertificateUrl || '';
   const signedHref = signedPdfUrl || contract.signedPdfUrl || '';
   const [contractPdf, certPdf] = await Promise.all([
@@ -279,11 +279,22 @@ export async function sendWelcomeEmails(contract, property, { portalLink, certUr
       .concat(['Registrazione contratto (RLI) entro 30 giorni — la seguiamo noi'])
       .concat(nonEU ? ['Cessione di fabbricato alla Questura entro 48h (conduttore extra-UE)'] : []);
     const atts = attachFor('BOOM_Contratto_firmato.pdf', 'BOOM_Certificato_di_firma.pdf');
+    // Il link di ATTIVAZIONE vale per l'account di QUELLA email: se il
+    // benvenuto va a un indirizzo diverso (un delegato, una PEC) si manda
+    // solo l'ingresso all'area, che passa dal login — mai un link che fa
+    // scegliere la password dell'account di un altro.
+    const sameInbox = !!(ownerArea && ownerArea.email && String(ownerArea.email).toLowerCase() === String(g.landlordEmail).trim().toLowerCase());
+    const areaUrl = sameInbox && ownerArea.activationUrl ? ownerArea.activationUrl : BASE + '/owner';
+    out.ownerAreaLinked = sameInbox;
+    const ownerAreaBlock = () => rule()
+      + para('<b>La tua area proprietario</b> — il contratto firmato, i documenti del conduttore, il fascicolo fiscale, i canoni e le scadenze, sempre aggiornati in un posto solo.')
+      + btn(areaUrl, sameInbox && ownerArea.activationUrl ? 'Attiva la tua area proprietario' : 'Apri la tua area proprietario')
+      + (sameInbox && ownerArea.activationUrl ? fine('Il tasto ti fa scegliere la password. Link personale, monouso, valido 14 giorni.', 'text-align:center') : '');
     out.landlord = await trySend(g.landlordEmail, '✓ Contratto firmato — i prossimi passi', shell(
       para(`Gentile ${esc(first)},<br>il contratto per <b>${esc(g.propLabel)}</b> è <b>firmato da entrambe le parti</b>. BOOM ha già messo a scadenzario i passi qui sotto — la registrazione la seguiamo insieme.`)
       + (contractPdf ? fine('📎 In allegato: il <b>contratto firmato</b> e il certificato di firma (PDF) — da conservare.', 'text-align:center') : '')
       + includes(fiscal.map(esc))
-      + btn(BASE + '/portal', 'Apri la dashboard')
+      + ownerAreaBlock()
       + (contractPdf ? '' : (certHref ? fine(`⬇ <a href="${esc(certHref)}" style="color:#8A6D1D">Certificato di firma (PDF)</a>`, 'text-align:center') : '')),
       'Contratto perfezionato — copia firmata in allegato.'), atts);
   }

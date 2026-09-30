@@ -31,7 +31,10 @@ import crypto from 'node:crypto';
 import { fsList, fsPatch, fsGet, readJson, logActivity } from '../homie/_lib.js';
 import { scoreMatch, DEFAULT_THRESHOLD } from '../homie/_match.js';
 
-const ADMIN_ROLES = new Set(['admin', 'owner', 'landlord']);
+// SOLO admin (30/09/2026): 'owner'/'landlord' qui dentro facevano di ogni
+// proprietario con un account un operatore sull'INTERO catalogo (nessun
+// controllo di proprietà). Il proprietario ha la sua porta: api/owners/*.
+const ADMIN_ROLES = new Set(['admin']);
 const ACTIVE_STAGES = new Set([
   'payment_confirmed', 'searching', 'options', 'viewing', 'closing',
 ]);

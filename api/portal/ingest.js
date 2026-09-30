@@ -631,7 +631,9 @@ export default async function handler(req, res) {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ ok: false, error: 'method_not_allowed' });
   }
-  const auth = await requireRole(req, res, ['admin', 'owner', 'landlord']);
+  // Solo admin (30/09/2026): qui non c'è alcun controllo di proprietà, e con
+  // 'landlord' ammesso ogni proprietario con un account era un operatore.
+  const auth = await requireRole(req, res, ['admin']);
   if (!auth) return;
 
   if (!process.env.ANTHROPIC_API_KEY) {

@@ -1622,7 +1622,7 @@ function fillFromListing(id){
   mathLine();
 }
 
-BoomPortal.requireAuth(['admin','owner','landlord'],{loginUrl:'/login'}).then(function(res){
+BoomPortal.requireAuth(['admin'],{loginUrl:'/login'}).then(function(res){
   USER=res.user;ROLE=((res.profile||{}).role)||'';
   $('load').style.display='none';$('app').style.display='';
   // Deep-link da Oggi (#q=BOOM-XYZ): il protocollo entra nella ricerca e

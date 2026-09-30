@@ -804,7 +804,8 @@ Valentyne - BOOM Rome`
             edit: property => openModal('editProperty', property),
             remove: property => confirmDelete('propert', property.id, property.name || 'Immobile'),
             valuation: id => openValutazione(null, undefined, {propertyId:id}),
-            innesto: id => innestoOpenFor('property', id) }
+            innesto: id => innestoOpenFor('property', id),
+            ownerArea: id => openOwnerArea(id) }
     });
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -4194,6 +4195,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item ${S.page==='my-payments'?'active':''}" onclick="goTo('my-payments')"><span class="nav-icon">💳</span> Pagamenti ${myOverdue?`<span class="nav-badge">${myOverdue}</span>`:''}</div>
                     <div class="nav-item ${S.page==='my-maintenance'?'active':''}" onclick="goTo('my-maintenance')"><span class="nav-icon">🔧</span> Manutenzione ${myMaint?`<span class="nav-badge">${myMaint}</span>`:''}</div>
                     <div class="nav-item ${S.page==='my-documents'?'active':''}" onclick="goTo('my-documents')"><span class="nav-icon">📁</span> Documenti</div>
+                    <div class="nav-item" onclick="location.href='/owner'"><span class="nav-icon">🗄️</span> La mia area <span class="nav-badge gold">NUOVO</span></div>
                     <div class="nav-item ${S.page==='commercialista'?'active':''}" onclick="goTo('commercialista')"><span class="nav-icon">🧮</span> Commercialista</div>
                 </div>
                 <div class="nav-section"><div class="nav-label">Insight</div>
@@ -23833,6 +23835,51 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         } catch (e) { console.error(e); toast('error', 'Valutazione: ' + e.message); }
     }
     window.openValutazione = openValutazione;
+
+    // ── 🏠 L'AREA PROPRIETARIO (/owner, api/owners/*) dal fascicolo immobile:
+    // lo stato dell'account del proprietario (c'è? l'ha attivato? quando l'ha
+    // aperta l'ultima volta?), l'invito con il link di attivazione monouso
+    // (anche da girare su WhatsApp) e «vedi come la vede lui» — l'anteprima
+    // admin della STESSA pagina, senza timbrare la visita.
+    async function openOwnerArea(propertyId) {
+        const p = (S.properties || []).find(x => x.id === propertyId);
+        if (!p) return toast('error', 'Immobile non trovato');
+        const call = async (body) => {
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/owners/invite', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken }, body: JSON.stringify(body) });
+            return (await r.json().catch(() => null)) || { ok: false, error: 'http_' + r.status };
+        };
+        const d = (iso) => iso ? new Date(iso).toLocaleDateString('it-IT', { day: 'numeric', month: 'short', year: 'numeric' }) : '—';
+        const show = (st, extra) => {
+            const a = st.account;
+            const line = !a ? 'Nessun account: l\'invito lo crea, e il proprietario sceglie la sua password dal link.'
+                : a.activated ? `Attiva · ultima apertura ${d(a.lastSeenAt)}`
+                : a.pendingActivation ? `Invitato ${d(a.invitedAt)} · non ancora attivata`
+                : `Account esistente · invitato ${d(a.invitedAt)}`;
+            const reasons = { no_email: 'Manca l\'email del proprietario (scheda o contratto).', admin_account: 'Quell\'email è di un amministratore: non diventa un proprietario.', role_conflict: 'Quell\'email appartiene a un inquilino: serve un\'email diversa.', auth_exists_without_profile: 'Esiste un accesso Firebase senza profilo: collegalo da Utenti.' };
+            const res = extra ? (extra.ok
+                ? `<div style="margin-top:14px;padding:12px;border:1px solid var(--gold);border-radius:10px;font-size:13px">${extra.emailed ? '✓ Invito inviato a ' + esc(extra.email) : '⚠ Account pronto, ma l\'email non è partita'}${extra.activationUrl ? `<div style="margin-top:8px;font-size:11px;word-break:break-all;color:var(--text-muted)">${esc(extra.activationUrl)}</div><div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap"><button class="btn btn-secondary btn-sm" onclick="copyToClipboard(${esc(JSON.stringify(extra.activationUrl))}, 'Link copiato')">Copia link</button><a class="btn btn-secondary btn-sm" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent('La tua area proprietario BOOM è pronta: contratto, documenti, canoni e scadenze in un posto solo. Attivala qui (scegli tu la password): ' + extra.activationUrl)}">WhatsApp</a></div>` : ''}</div>`
+                : `<div style="margin-top:14px;color:var(--red);font-size:13px">${esc(reasons[extra.reason] || reasons[extra.error] || ('Invito non riuscito: ' + (extra.reason || extra.error || 'errore')))}</div>`) : '';
+            document.body.classList.add('modal-open');
+            document.getElementById('modals').innerHTML = `<div class="modal-overlay active" onclick="if(event.target===this)closeModal()"><div class="modal"><div class="modal-header"><h3 class="modal-title">🏠 Area proprietario</h3><button class="modal-close" onclick="closeModal()">×</button></div><div class="modal-body">
+                <div style="font-size:14px">${esc((st.contact && st.contact.name) || 'Proprietario')} <span style="color:var(--text-muted)">${esc((st.contact && st.contact.email) || 'email mancante')}</span></div>
+                <div style="font-size:12.5px;color:var(--text-muted);margin-top:6px">${esc(line)}</div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:10px;line-height:1.6">Nell'area trova il contratto firmato, i documenti del conduttore (solo a firma completa), il fascicolo fiscale, i canoni, le scadenze e i rendiconti. Alla firma completa di ogni contratto l'account nasce da solo e il link viaggia nell'email di benvenuto.</div>${res}
+            </div><div class="modal-footer">${st.previewId ? `<button class="btn btn-secondary" onclick="window.open('/owner?as=${encodeURIComponent(st.previewId)}','_blank','noopener')">👁 Vedi come lui</button>` : ''}<button class="btn" id="ownerInviteBtn" ${st.contact && st.contact.email ? '' : 'disabled'}>${a ? 'Invia di nuovo' : 'Crea e invita'}</button></div></div></div>`;
+            const b = document.getElementById('ownerInviteBtn');
+            if (b) b.onclick = async () => {
+                b.disabled = true; b.textContent = 'Invio…';
+                try { const out = await call({ op: 'invite', propertyId }); const st2 = await call({ op: 'status', propertyId }); show(st2.ok ? st2 : st, out); }
+                catch (e) { b.disabled = false; b.textContent = 'Riprova'; toast('error', 'Invito: ' + e.message); }
+            };
+        };
+        try {
+            const st = await call({ op: 'status', propertyId });
+            if (!st.ok) return toast('error', 'Area proprietario: ' + (st.error || 'errore'));
+            show(st);
+        } catch (e) { toast('error', 'Area proprietario: ' + e.message); }
+    }
+    window.openOwnerArea = openOwnerArea;
 
     // ── ✓ RLI registrato: chiude il loop della registrazione in un tap —
     // stampa la data sul contratto, spegne la scadenza "Registrare RLI" e

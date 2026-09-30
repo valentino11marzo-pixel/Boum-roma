@@ -20,7 +20,7 @@
 
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
 import {
-  requireCronOrAdmin, fsGet, fsList, fsCreate, logActivity, tgNotify,
+  requireCronOrAdmin, fsGet, fsList, fsCreate, fsPatch, logActivity, tgNotify,
   reportEmployeeHealth, saveReport, euro, esc,
 } from '../employees/_lib.js';
 import { storageUpload, sendEmail } from '../agent/_lib.js';
@@ -140,6 +140,11 @@ async function run({ dry, monthOverride, onlyOwner }) {
 
     const pdfBytes = await buildPdf({ ownerName, label, month, sections, collected, expected, arrears });
     const url = await storageUpload(`rendiconti/${ownerId}/rendiconto_${month}.pdf`, pdfBytes, 'application/pdf');
+    // Il PDF si ricorda sul doc di idempotenza: l'area proprietario
+    // (/owner, api/owners/vault.js) elenca i rendiconti da qui. Prima il doc
+    // portava solo {ownerId, month, at} e il rendiconto viveva SOLO nella
+    // casella del proprietario.
+    if (url) await fsPatch(`rendiconti/${ownerId}_${month}`, { url, collected, expected, arrears }).catch((e) => console.warn('[rendiconto] url on doc:', e.message));
 
     await sendOwnerEmail({ ownerEmail, ownerName, label, sections, collected, expected, arrears, url, pdfBytes });
     counts.sent++; counts.totalCollected += collected;
@@ -227,7 +232,7 @@ async function sendOwnerEmail({ ownerEmail, ownerName, label, sections, collecte
         + (arrears > 0 ? fine(`⚠️ <strong>Arretrati totali</strong> — ${esc(euro(arrears))} (ci stiamo già lavorando)`) : fine('✅ <strong>Nessun arretrato</strong>'))
         + rule()
         + btn(url, 'Apri il rendiconto')
-        + fine('Il rendiconto arriva automaticamente il 1° di ogni mese. Per qualsiasi domanda basta rispondere a questa email.'),
+        + fine('Il rendiconto arriva automaticamente il 1° di ogni mese, e resta nella tua <a href="https://www.boomrome.com/owner" style="color:#8A6D1D">area proprietario</a> insieme al contratto e ai documenti. Per qualsiasi domanda basta rispondere a questa email.'),
         `Rendiconto ${label} — incassato ${euro(collected)}`),
       attachments: att,
     }),

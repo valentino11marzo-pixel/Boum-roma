@@ -68,6 +68,11 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
                           (jsPDF npm, STESSA versione pinnata). build() →
                           { doc, sigAnchors, hashSeed }; upload/hash/patch
                           restano ai chiamanti.
+  owner-vault-engine.js   L'area proprietario, il cervello PURO: la cassaforte
+                          di un proprietario (immobili, contratto, soldi,
+                          scadenze, storia, cosa manca, documenti in cartelle)
+                          e le regole di cosa può vedere. window.BOOM_OWNER.
+                          Vedi "L'area proprietario".
   ai-registry.js          La Centrale AI, il registro PURO: i 26 scopi che
                           chiamano un modello (file, modello cloud di default,
                           modalità testo/visione/documento/audio, se può
@@ -107,7 +112,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `vercel.json` | Deployment config, rewrites, cron schedule. |
 | `js/firebase-config.js` | Firebase project config (`boom-property-dashboards`). |
 | `js/boom-portal.js` | Shared portal lib — `window.BoomPortal` API. |
-| `owner-dashboard.html` | Landlord/owner SPA. Firestore-backed, filtered by `ownerId`. |
+| `owner-dashboard.html` | **L'area proprietario** (`/owner`, rewrite — il `?attiva=` non si perde): tutto quello che il proprietario ha con BOOM da UNA chiamata a `/api/owners/vault` (motore `js/owner-vault-engine.js`). Vedi "L'area proprietario". Test: `node tests/owner/run.mjs` + `tests/owner/ui.mjs`. |
 | `tenant.html` | Tenant SPA. Realtime property + maintenance feed. |
 | `client-portal.html` | PFS client swipe app. Reads `pfsClients` collection. |
 | `pfs-command.html` | **La plancia unica del PFS** (admin): TUTTO il flusso Property Finding in una pagina. Pipeline per stage (giorni-in-stage, chip lenti in ambra) → fascicolo cliente a drawer (criteri, ricerche, mazzo con esiti/rimozione, attività, link portale con codice BM…, WhatsApp, cambio stage con la STESSA scrittura del portal) → creazione cliente (nasce col portale attivo) → feed radar con fiuto 💎/badge cluster/filtro occasioni + azione «→ Proponi a…» (push curato via `api/casafari/import`, conferma sulle agenzie) → strip occasioni (radarState) → ricerche automatiche + **vedette** (stessa collection della Centrale) → triage swipe, ⌘K, brief AI, salute fonti. |
@@ -1051,7 +1056,7 @@ dal repo (`design/scalo/genera-og-scalo.py` → `og-board.png`,
 Sendable RENTAL PROPOSAL / pre-agreement, modeled on the real BOOM document
 (parties landlord⇄tenant, transitional lease L.431/98 art.5 c.1, fee % of
 annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
-- `POST /api/preagreement/create` — admin/owner/landlord (Bearer ID token).
+- `POST /api/preagreement/create` — admin (Bearer ID token; owner/landlord tolti il 30/09/2026 — nessun controllo di proprietà, vedi "L'area proprietario").
   Deal fields (property, landlord, lease, money knobs: rent/energyCredit/
   depositMonths/depositSplitPct/feeMode(pct|months)/feePct/feeMonths/
   feeVatPct/feeDue(move-in|signing|separate)/dueAtSigning/
@@ -1074,7 +1079,7 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
   liability clause auto-added) + consent → status `accepted`, quotable ref
   `BOOM-<base36>`, and when `money.dueAtSigning>0` returns a Stripe Checkout
   URL (acceptance is never voided by a failed checkout).
-- `POST /api/preagreement/convert` — admin/owner/landlord. One tap from the
+- `POST /api/preagreement/convert` — admin (dal 30/09/2026). One tap from the
   console: accepted/paid PA → `contracts` doc (identity/lease/money carried
   over, tenant `users` profile bootstrapped by email match, Magic-Sign
   tokens minted, `signingOrder:'sequential'`). By DEFAULT the OWNER signs
@@ -2217,6 +2222,133 @@ Idempotente per (proprietario, mese) via `rendiconti/<ownerId>_<YYYY-MM>`
 lezione propertyLocks). `?dry=1`, `?month=YYYY-MM`, `?ownerId=`; auth
 come i cron PFS. Heartbeat `teamHealth/rendiconto`.
 Test: `node tests/rendiconto/run.mjs`.
+
+**Il PDF si ricorda** (30/09/2026): dopo l'upload il doc di idempotenza
+`rendiconti/<ownerId>_<mese>` riceve `url` (+ incassato/atteso/arretrati),
+così l'area proprietario elenca i rendiconti; l'email rimanda all'area.
+
+### L'area proprietario (`/owner` + `api/owners/{vault,invite,activate}` + `js/owner-vault-engine.js`) — 30/09/2026
+**Cos'era.** Tre cose che non si parlavano: `owner-dashboard.html` era un
+mockup con dati finti; la vera «modalità landlord» stava dentro il portale
+admin da 30.000 righe e vedeva solo i documenti caricati DAL proprietario
+(`documents.userId == uid`) — il contratto firmato, il certificato, il
+fascicolo, il verbale, i documenti del conduttore, i rendiconti non gli
+arrivavano mai; e il benvenuto al locatore a firma completa diceva «Apri la
+dashboard» verso `/portal`, un muro di login per chi un account non l'aveva.
+Sotto, il nodo di identità: `properties.ownerId` punta a volte a
+`users/<uid>` e a volte a `landlords/<id>` (la scheda CRM) — le rules
+confrontano solo `ownerId == auth.uid`, e riscrivere ownerId spezzerebbe
+ogni lettore di `landlords/<ownerId>` (IBAN, CF).
+
+**LA PRIMA COSA, PRIMA DELL'AREA: il proprietario era un operatore.**
+`api/pfs/_guard.js` (`requireCronOrAdmin`, **34 endpoint**: export
+dell'estratto conto BOOM, i dipendenti che scrivono ai clienti, il
+rendiconto che spedisce a TUTTI i proprietari, conferma/annullo visite di
+chiunque, il Pubblicista…) e otto `requireRole` senza controllo di
+proprietà (`preagreement/{create,convert,resolve,send-sign,notify}`,
+`portal/ingest` — Opus a nostre spese —, `photos/enhance`,
+`listings-availability`, `admin/match-test`) accettavano `owner`/`landlord`
+come `admin`. Con gli account creati da noi per TUTTI i proprietari sarebbe
+diventato un incidente: ora sono solo admin (le console che li usano
+esigevano già admin nel browser; `pre-agreement-admin.html` idem).
+`notify/send` resta aperta al proprietario (la modalità landlord del portale
+avvisa l'inquilino) ma i destinatari sono SOLO sé stesso, BOOM e i
+(co-)conduttori dei SUOI immobili, e il bottone solo verso boomrome.com —
+prima era un relay di phishing con la nostra firma. `documents/ocr` scarica
+per un non-admin solo dal nostro Storage (era un proxy verso qualsiasi URL).
+
+**Chi è il proprietario** (`api/owners/_owner.js`, una copia): le CHIAVI =
+il suo uid + le schede `landlords` con `userId == uid` (scritto all'invito;
+`landlords` è admin-only). `users.landlordId` vale solo se la scheda lo
+conferma, e l'email NON apre niente: il profilo `users` l'utente lo aggiorna
+da sé, quindi niente di ciò che decide cosa vede può stare lì senza
+conferma. La prima stesura adottava le schede per email — bastava
+riscriversela: trovato rileggendo, mai uscito. In più `firestore.rules`
+vieta ora all'utente di riscriversi `email`, `landlordId` e i campi
+`owner*` (oltre a `role`). `ownsProperty(auth, prop)` è la regola usata
+anche da `properties/dossier.js`.
+
+**La cassaforte** (`GET /api/owners/vault`, Bearer landlord; admin con
+`?ownerId=<uid|landlordsId>` = anteprima «vedi come lui», senza timbrare la
+visita): legge con credenziali admin immobili/contratti/rate (anche quelle
+senza propertyId, per contratto)/documenti/manutenzioni/rendiconti e passa
+tutto a `buildVault()`. Le regole del motore, testate per mutazione:
+1. **mai un token di firma** dell'altra parte (il contratto li porta
+   entrambi in chiaro); il SUO link di firma solo quando tocca a lui
+   (`tenantSideComplete`, co-conduttori compresi) e la sua Scheda solo
+   finché non ha firmato;
+2. **mai un URL non nostro** (solo https su Firebase Storage/boomrome.com);
+3. **i documenti d'identità del conduttore solo a contratto che vincola**
+   (firmato a sistema, o storico cartaceo in vigore) — prima della firma il
+   proprietario sa che esistono e quando li vedrà;
+4. **dall'archivio `documents` solo le categorie del proprietario**
+   (contratto, RLI, cedolare, F24, ISTAT, APE, visura, utenze, spese,
+   verbale, inventario, identità/cessione a firma) o `shared:true` — mai le
+   fatture o gli estratti conto di BOOM, mai un documento da smistare;
+5. **la storia è fatta di fatti datati** (firme, registrazione, chiavi,
+   inventari, ASPI, dossier); una registrazione oltre il termine SENZA data
+   a sistema si dice «da confermare», mai «in ritardo» (può essere solo
+   non spuntata);
+6. **soldi**: solo il canone (il deposito non è un incasso), «atteso» e
+   «arretrati» non contano mai lo stesso euro.
+Cosa manca ha due livelli: **urgente** (i suoi dati per un contratto in
+corso, l'APE che va scritto nel contratto, la firma) → «Richiede te» in
+testa alla pagina; visura/planimetria/delega → «Da caricare» in tono
+quieto nel fascicolo dell'immobile. Nove allarmi ne nascondono uno vero.
+
+**La pagina** (`/owner`): IT di default, EN a un tocco; in testa la
+risposta a «devo fare qualcosa?» in una riga; tile (in gestione /
+incassato nell'anno / atteso / arretrati), «Richiede te» con i tasti veri
+(Firma ora, Completa i dati, Carica → `properties/dossier`: un non-admin
+carica SOLO dove lo slot è vuoto, e l'operatore riceve
+`agentNotifications` `owner.document_uploaded`), scadenze, immobili,
+ricerca su tutti i documenti, rendiconti, contatto. Il dettaglio immobile
+(`#immobile/<id>`): contratto, canoni, «Cosa ha fatto BOOM», documenti in
+cartelle (Contratto · Fiscale · Conduttore · Immobile), manutenzione,
+contratti precedenti. Nessuna lettura Firestore nella pagina.
+
+**L'account nasce da solo, la password la sceglie LUI da un'email NOSTRA**
+(`api/owners/_provision.js`). Senza service account (policy
+dell'organizzazione, vedi 22/09) il server non può generare link di reset
+né impostare la password di un altro; l'email di reset di Firebase (mittente
+noreply@…firebaseapp, inglese, «Reset your password») a un proprietario che
+non ha chiesto niente sembra phishing. Quindi: alla creazione
+(`accounts:signUp`) il server sceglie una password iniziale casuale e la
+conserva CIFRATA (AES-256-GCM, chiave derivata da `HOMIE_SECRET`) sul
+profilo con l'hash di un segreto monouso; il link
+`/owner?attiva=<uid>.<segreto>` (14 giorni, una volta) porta a
+`POST /api/owners/activate` che entra con la password iniziale, la
+sostituisce con quella scelta (`accounts:update` col SUO idToken) e cancella
+tutto. Un re-invito ruota il segreto (il link vecchio muore). Guardie:
+un'email di un ADMIN o di un INQUILINO non diventa mai un proprietario
+(`admin_account` / `role_conflict`, detto, mai convertito); un account Auth
+esistente senza profilo si segnala (`auth_exists_without_profile`).
+
+**L'automazione**: a firma completa (`_finalize.js`, prima del benvenuto,
+time-boxed 8s) `maybeOwnerArea()` crea/ritrova l'account e il benvenuto al
+locatore porta il tasto **«Attiva la tua area proprietario»** — una email,
+non due; il link di attivazione SOLO se il benvenuto va alla stessa email
+dell'account (mai far scegliere la password dell'account di un altro).
+Interruttore `settings/ownerArea.autoInvite` (assente = acceso). Per i
+proprietari che esistevano prima: `POST /api/owners/invite`
+(`op:'backfill'`, dry di default, solo chi ha un contratto che vincola e
+un'email, mai chi è già attivo o è stato invitato da meno di 30 giorni).
+**Nel portale**: fascicolo immobile → Strumenti → **Area proprietario**
+(stato dell'account, «Crea e invita» / «Invia di nuovo» col link anche per
+WhatsApp, «👁 Vedi come lui»); nella sidebar del landlord «🗄️ La mia area».
+Il rendiconto mensile rimanda all'area.
+
+**Da fare fuori dal codice**: il template email di reset di Firebase
+(Authentication → Templates) andrebbe comunque tradotto e firmato BOOM —
+resta la via di «Password dimenticata» dopo l'attivazione.
+**Non risolto qui (spawn_task)**: i token di firma stanno in chiaro sul
+contratto, che conduttore e locatore leggono dal browser via rules — un
+conduttore può leggere il token del locatore.
+Test: `node tests/owner/run.mjs` (88 check — motore con 3 mutazioni,
+perimetro dell'identità, porta della cassaforte, invito→attivazione col
+giro VERO di Identity Toolkit, backfill, finalize, il proprietario che non
+è un operatore, upload) + `node tests/owner/ui.mjs` (38 check in Chromium a
+390/1440px).
 
 ### Conservazione (`GET/POST /api/ops/conservazione`, cron il 2 del mese 05:40 UTC)
 L'archivio legale FUORI da Firebase, senza nuovi servizi: il 2 del mese i
@@ -5050,7 +5182,7 @@ confermare/consensi scaduti).
 One pipeline, three doors:
 1. **Console** (`photo-lab.html`, renders the catalog unauthenticated; auth on
    action): `POST { listingId, mode:'audit'|'apply' }` with a Firebase ID
-   token (role admin/owner/landlord).
+   token (role admin — owner/landlord tolti il 30/09/2026).
 2. **Telegram wizard bot** (`bot/boom_listing_wizard.py` → `photos_enhance()`):
    same POST with `X-Wizard-Secret` (or `X-Homie-Secret`) — the SAME shared
    secret as every other wizard→server call; no Firebase login needed. The
@@ -5088,7 +5220,7 @@ fallback when ANTHROPIC_API_KEY is absent. sharp is a real dependency
 
 ### POST `/api/admin/match-test`
 Admin test harness + manual-ingest endpoint (Firebase ID token, role
-admin/owner/landlord). `dryRun:true` scores a hypothetical listing against
+admin — solo admin dal 30/09/2026). `dryRun:true` scores a hypothetical listing against
 every active client without writing; `dryRun:false` ingests + pushes for
 real. Backs the "Aggiungi annuncio" modal in `pfs-command.html`.
 
@@ -5567,7 +5699,7 @@ loader, confirm dialog) — see `BoomPortal.*` API.
 
 | Portal | Role(s) accepted | Collections read/written |
 |---|---|---|
-| `owner-dashboard.html` | `owner`, `landlord`, `admin` | reads/writes `properties` filtered by `ownerId` |
+| `owner-dashboard.html` (`/owner`) | `landlord`, `owner`, `admin` (anteprima `?as=`) | NESSUNA lettura Firestore: tutto da `/api/owners/vault` (credenziali admin server-side, perimetro in `api/owners/_owner.js`) |
 | `tenant.html` | `tenant` | reads `properties` (own), writes `maintenance` |
 | `client-portal.html` | access code on `pfsClients` doc | reads/writes `pfsClients.portalProperties` |
 
@@ -5699,9 +5831,9 @@ dichiarava "nessuna superficie autenticata resta appesa": verde e cieca sulla
 pagina che si piantava davvero. Il caso *"lo script muore dopo la riga 1"*
 riproduce lo spinner infinito e pretende la card di uscita.
 
-**Nota**: `owner-dashboard.html` è oggi una pagina STATICA — non carica
-Firebase né autentica nessuno, malgrado la tabella dei portali qui sopra lo
-descriva come SPA Firestore filtrata per `ownerId`.
+**Nota (fino al 30/09/2026)**: `owner-dashboard.html` era una pagina
+STATICA con dati finti (Chart.js, «Luxury Penthouse»). Ora è l'area
+proprietario vera — vedi "L'area proprietario".
 
 **Deal Link** (`/portal#deal=<base64url JSON>`): semina il wizard
 "🚀 Nuovo cliente → contratto firmato" con un deal completo — `{tenant,

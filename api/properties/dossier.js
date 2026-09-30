@@ -8,13 +8,15 @@
 // properties/{id}.dossier.<slot>.
 //
 // Method:   POST
-// Headers:  Authorization: Bearer <firebase-id-token>  (admin/owner/landlord)
+// Headers:  Authorization: Bearer <firebase-id-token>  (admin, or the owner
+//           of THAT property — also from /owner, only where the slot is empty)
 // Body:     { propertyId, slot('visura'|'planimetria'|'ape'|'delega'),
 //             base64, name?, contentType? }
 // Response: { ok, slot, url } — url is admin-side only (the caller is admin)
 
-import { getAdminToken, fsGet, fsPatch, readJson, logActivity } from '../homie/_lib.js';
+import { getAdminToken, fsGet, fsPatch, fsCreate, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
+import { ownsProperty } from '../owners/_owner.js';
 
 const BUCKET = process.env.FIREBASE_BUCKET || 'boom-property-dashboards.firebasestorage.app';
 const MAX_BYTES = 15 * 1024 * 1024;
@@ -46,10 +48,18 @@ export default async function handler(req, res) {
   try {
     const prop = await fsGet('properties/' + propertyId);
     if (!prop) return res.status(404).json({ ok: false, error: 'property_not_found' });
-    // Object-level authorization, same rule as firestore.rules ownsProperty:
-    // a landlord/owner can only touch THEIR property's dossier.
-    if (auth.profile.role !== 'admin' && String(prop.ownerId || '') !== auth.uid) {
+    // Object-level authorization: a landlord/owner can only touch THEIR
+    // property's dossier. «Suo» = ownerId è il suo uid OPPURE la scheda
+    // landlords legata a lui (api/owners/_owner.js) — l'area proprietario
+    // carica da qui, e metà degli immobili è intestata a una scheda CRM.
+    if (!(await ownsProperty(auth, prop))) {
       return res.status(403).json({ ok: false, error: 'not_your_property' });
+    }
+    // Un documento già caricato dall'operatore non si sostituisce dall'area
+    // proprietario: il fascicolo ARPE è partito con QUELLO. Si aggiunge
+    // solo dove manca (l'operatore può sempre sostituire).
+    if (auth.profile.role !== 'admin' && prop.dossier && prop.dossier[slot] && prop.dossier[slot].url) {
+      return res.status(409).json({ ok: false, error: 'slot_filled' });
     }
 
     const safeName = String(body.name || slot).replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 60);
@@ -70,7 +80,18 @@ export default async function handler(req, res) {
     const dossier = { ...(prop.dossier || {}) };
     dossier[slot] = { url, name: safeName, contentType, bytes: buf.length, at: new Date().toISOString(), by: auth.email || auth.uid };
     await fsPatch('properties/' + propertyId, { dossier });
-    logActivity('property_dossier_uploaded', 'property', { propertyId, slot, name: safeName }, auth.email || 'admin').catch(() => {});
+    await logActivity('property_dossier_uploaded', 'property', { propertyId, slot, name: safeName }, auth.email || 'admin');
+    // Il proprietario che carica da solo è una notizia per l'operatore (→
+    // Telegram entro un minuto via notify-pending): il pezzo che mancava al
+    // fascicolo è arrivato, senza che nessuno l'abbia rincorso.
+    if (auth.profile.role !== 'admin') {
+      await fsCreate('agentNotifications', {
+        type: 'owner.document_uploaded', priority: 'normal', status: 'pending',
+        title: `📎 Il proprietario ha caricato: ${slot}`,
+        body: `${prop.address || prop.name || propertyId} — ${safeName}`,
+        propertyId, slot, url, by: auth.email || auth.uid, createdAt: new Date(),
+      }).catch((e) => console.warn('[properties/dossier] notify:', e.message));
+    }
 
     return res.status(200).json({ ok: true, slot, url });
   } catch (e) {

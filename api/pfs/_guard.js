@@ -3,14 +3,24 @@
 //   1. Vercel cron        → Authorization: Bearer <CRON_SECRET>
 //   2. Homie (Mac bridge) → X-Homie-Secret: <HOMIE_SECRET>
 //   3. The command center → Authorization: Bearer <firebase-id-token> of an
-//                           admin/owner/landlord user ("Scansiona ora" button)
+//                           ADMIN user ("Scansiona ora" button)
+//
+// SOLO admin (30/09/2026). Fino a oggi ADMIN_ROLES conteneva anche 'owner' e
+// 'landlord': un proprietario con un account BOOM — e con l'area proprietario
+// gli account li creiamo NOI, per tutti — passava da questa porta come un
+// operatore. Dietro ci sono 34 endpoint: l'export dell'estratto conto BOOM
+// (banking/export), i dipendenti che scrivono ai clienti, il rendiconto che
+// spedisce a TUTTI i proprietari, la conferma/annullo delle visite di
+// chiunque, il Pubblicista. Nessuna pagina proprietario li chiama: le console
+// che li usano (pfs-command, banca, team, radar, chiamate) già esigono admin
+// nel browser. Il proprietario ha la SUA porta (api/owners/*), con i SUOI dati.
 //
 // Returns an actor string ('cron' | 'homie' | 'admin:<uid>') on success.
 // On failure it writes the 401/403 response and returns null.
 
 import { secretEqual, fsGet } from '../homie/_lib.js';
 
-const ADMIN_ROLES = new Set(['admin', 'owner', 'landlord']);
+export const ADMIN_ROLES = new Set(['admin']);
 
 async function verifyFirebaseToken(token) {
   const apiKey = process.env.FIREBASE_API_KEY;

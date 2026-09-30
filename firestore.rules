@@ -58,9 +58,17 @@ service cloud.firestore {
     match /users/{userId} {
       allow read:   if isAdmin() || uid() == userId;
       allow create: if isAdmin();
+      // Da sé si aggiorna il proprio profilo, MAI i campi che decidono chi
+      // si è e cosa si vede: il ruolo, l'email (fa da chiave per l'invito
+      // all'area proprietario e per i destinatari delle email), il legame
+      // con la scheda landlords e lo stato dell'area proprietario (lo scrive
+      // il server: api/owners/*). 30/09/2026.
       allow update: if isAdmin()
                     || (uid() == userId
-                        && !('role' in request.resource.data.diff(resource.data).affectedKeys()));
+                        && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+                             'role', 'email', 'landlordId', 'ownerSetup', 'ownerActivatedAt',
+                             'ownerInvitedAt', 'ownerInviteCount', 'ownerInviteError',
+                             'ownerLastSeenAt', 'ownerAreaSince']));
       allow delete: if isAdmin();
     }
 

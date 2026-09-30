@@ -44,7 +44,10 @@
 import DISPO from '../js/dispo-engine.js';
 import { fsList, fsPatch, fsGet, readJson, secretEqual, logActivity } from './homie/_lib.js';
 
-const ADMIN_ROLES = new Set(['admin', 'owner', 'landlord']);
+// SOLO admin (30/09/2026): 'owner'/'landlord' qui dentro facevano di ogni
+// proprietario con un account un operatore sull'INTERO catalogo (nessun
+// controllo di proprietà). Il proprietario ha la sua porta: api/owners/*.
+const ADMIN_ROLES = new Set(['admin']);
 const MAX_UPDATES = 60;          // il catalogo vero è ~20: largo, ma non infinito
 const CATALOG_LIMIT = 400;
 

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="it">
 <head>
 <script defer src="/js/boom-err.js"></script>
     <link rel="icon" href="/favicon.ico" sizes="any">
@@ -51,1049 +51,208 @@
   <link rel="dns-prefetch" href="https://www.googletagmanager.com">
   <link rel="dns-prefetch" href="https://www.google-analytics.com">
 <!-- BOOM_SEO:END -->
-    
-    <!-- Meta Tags -->
-    <!-- Google Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <!-- Font async: su Safari uno stylesheet sincrono verso fonts.googleapis.com blocca il primo paint -->
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Bebas+Neue&family=Oswald:wght@200;300;400;500;600;700&display=swap" media="print" onload="this.media='all'">
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Bebas+Neue&family=Oswald:wght@200;300;400;500;600;700&display=swap"></noscript>
-    <!-- Chart.js for beautiful analytics -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-        }
-
-        :root {
-            /* BOOM Colors */
-            --boom-yellow: #FFD700;
-            --boom-cyan: #00CED1;
-            --boom-green: #00FF88;
-            --boom-red: #FF3B3B;
-            --boom-purple: #9D4EDD;
-            --boom-orange: #FF6B35;
-            --boom-blue: #4A90E2;
-            
-            /* Dark Theme */
-            --dark-bg: #0A0A0A;
-            --dark-surface: #1A1A1A;
-            --dark-elevated: #252525;
-            --dark-border: rgba(255, 255, 255, 0.08);
-            --dark-hover: rgba(255, 255, 255, 0.05);
-            
-            /* Text */
-            --text-primary: #FFFFFF;
-            --text-secondary: #888888;
-            --text-tertiary: #555555;
-            
-            /* Fonts */
-            --font-display: 'Bebas Neue', sans-serif;
-            --font-heading: 'Oswald', sans-serif;
-            --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            
-            /* Shadows */
-            --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
-            --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.4);
-            --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
-            --shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6);
-            
-            /* Transitions */
-            --transition-fast: 0.15s ease;
-            --transition-base: 0.3s ease;
-            --transition-slow: 0.5s ease;
-        }
-
-        body {
-            font-family: var(--font-body);
-            background: var(--dark-bg);
-            color: var(--text-primary);
-            line-height: 1.6;
-            overflow-x: hidden;
-        }
-
-        /* Scrollbar Styling */
-        ::-webkit-scrollbar {
-            width: 8px;
-            height: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: var(--dark-bg);
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: var(--dark-elevated);
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #333;
-        }
-
-        /* Dashboard Layout */
-        .dashboard-container {
-            display: grid;
-            grid-template-columns: 280px 1fr;
-            min-height: 100vh;
-        }
-
-        /* Sidebar */
-        .sidebar {
-            background: var(--dark-surface);
-            border-right: 1px solid var(--dark-border);
-            padding: 30px 20px;
-            position: sticky;
-            top: 0;
-            height: 100vh;
-            overflow-y: auto;
-            z-index: 100;
-        }
-
-        .logo-container {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            margin-bottom: 40px;
-            padding: 10px;
-            cursor: pointer;
-            transition: var(--transition-base);
-        }
-
-        .logo-container:hover {
-            transform: translateX(5px);
-        }
-
-        .logo-circle {
-            width: 40px;
-            height: 40px;
-            background: var(--boom-yellow);
-            border-radius: 50%;
-            box-shadow: 0 0 30px rgba(255, 215, 0, 0.6), 0 0 60px rgba(255, 215, 0, 0.3);
-            animation: pulse 3s ease-in-out infinite;
-        }
-
-        @keyframes pulse {
-            0%, 100% { box-shadow: 0 0 30px rgba(255, 215, 0, 0.6), 0 0 60px rgba(255, 215, 0, 0.3); }
-            50% { box-shadow: 0 0 40px rgba(255, 215, 0, 0.8), 0 0 80px rgba(255, 215, 0, 0.4); }
-        }
-
-        .logo-text {
-            font-family: var(--font-display);
-            font-size: 32px;
-            letter-spacing: 2px;
-            color: var(--text-primary);
-        }
-
-        .owner-badge {
-            padding: 10px 20px;
-            background: linear-gradient(135deg, rgba(157, 78, 221, 0.15), rgba(74, 144, 226, 0.15));
-            border: 1px solid var(--boom-purple);
-            border-radius: 100px;
-            text-align: center;
-            margin-bottom: 30px;
-            box-shadow: 0 0 20px rgba(157, 78, 221, 0.2);
-        }
-
-        .owner-badge-title {
-            font-size: 11px;
-            color: var(--boom-purple);
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-        }
-
-        .owner-name {
-            font-size: 14px;
-            color: var(--text-primary);
-            font-weight: 600;
-            margin-top: 4px;
-        }
-
-        .nav-menu {
-            list-style: none;
-        }
-
-        .nav-section-title {
-            font-size: 11px;
-            color: var(--text-tertiary);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-weight: 600;
-            margin: 25px 0 10px 15px;
-        }
-
-        .nav-item {
-            margin-bottom: 4px;
-        }
-
-        .nav-link {
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            padding: 12px 16px;
-            color: var(--text-secondary);
-            text-decoration: none;
-            border-radius: 12px;
-            transition: all var(--transition-fast);
-            font-size: 14px;
-            font-weight: 500;
-            cursor: pointer;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .nav-link::before {
-            content: '';
-            position: absolute;
-            left: 0;
-            top: 0;
-            height: 100%;
-            width: 3px;
-            background: var(--boom-purple);
-            transform: scaleY(0);
-            transition: transform var(--transition-base);
-        }
-
-        .nav-link:hover,
-        .nav-link.active {
-            background: var(--dark-hover);
-            color: var(--boom-purple);
-        }
-
-        .nav-link.active::before {
-            transform: scaleY(1);
-        }
-
-        .nav-icon {
-            font-size: 20px;
-            width: 24px;
-            text-align: center;
-        }
-
-        .nav-badge {
-            margin-left: auto;
-            padding: 2px 8px;
-            background: var(--boom-red);
-            color: white;
-            border-radius: 10px;
-            font-size: 11px;
-            font-weight: 700;
-        }
-
-        /* Main Content */
-        .main-content {
-            padding: 40px;
-            max-width: 1600px;
-            overflow-y: auto;
-        }
-
-        /* Header */
-        .page-header {
-            margin-bottom: 40px;
-        }
-
-        .header-top {
-            display: flex;
-            justify-content: space-between;
-            align-items: flex-start;
-            margin-bottom: 30px;
-            flex-wrap: wrap;
-            gap: 20px;
-        }
-
-        .header-title {
-            font-family: var(--font-heading);
-            font-size: 48px;
-            font-weight: 300;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            background: linear-gradient(135deg, var(--text-primary), var(--boom-purple));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .header-subtitle {
-            font-size: 16px;
-            color: var(--text-secondary);
-            font-weight: 400;
-            margin-top: 8px;
-        }
-
-        .header-actions {
-            display: flex;
-            gap: 12px;
-            align-items: center;
-        }
-
-        .btn {
-            padding: 14px 28px;
-            border: none;
-            border-radius: 100px;
-            font-size: 14px;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            cursor: pointer;
-            transition: all var(--transition-base);
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            font-family: var(--font-body);
-        }
-
-        .btn-primary {
-            background: linear-gradient(135deg, var(--boom-purple), var(--boom-blue));
-            color: white;
-            box-shadow: 0 4px 20px rgba(157, 78, 221, 0.4);
-        }
-
-        .btn-primary:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 8px 30px rgba(157, 78, 221, 0.6);
-        }
-
-        .btn-secondary {
-            background: var(--dark-elevated);
-            color: var(--text-primary);
-            border: 1px solid var(--dark-border);
-        }
-
-        .btn-secondary:hover {
-            background: var(--dark-surface);
-            border-color: var(--boom-purple);
-        }
-
-        /* Quick Stats */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-            gap: 20px;
-            margin-bottom: 40px;
-        }
-
-        .stat-card {
-            background: var(--dark-surface);
-            border: 1px solid var(--dark-border);
-            border-radius: 20px;
-            padding: 28px;
-            position: relative;
-            overflow: hidden;
-            transition: all var(--transition-base);
-        }
-
-        .stat-card::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            height: 4px;
-            background: linear-gradient(90deg, var(--boom-purple), var(--boom-cyan));
-            transform: scaleX(0);
-            transition: transform var(--transition-base);
-        }
-
-        .stat-card:hover {
-            transform: translateY(-5px);
-            border-color: var(--boom-purple);
-            box-shadow: var(--shadow-lg);
-        }
-
-        .stat-card:hover::before {
-            transform: scaleX(1);
-        }
-
-        .stat-card.highlight {
-            background: linear-gradient(135deg, rgba(157, 78, 221, 0.12), rgba(0, 206, 209, 0.12));
-            border-color: var(--boom-purple);
-        }
-
-        .stat-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .stat-icon {
-            width: 50px;
-            height: 50px;
-            background: linear-gradient(135deg, rgba(157, 78, 221, 0.2), rgba(74, 144, 226, 0.2));
-            border-radius: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 24px;
-        }
-
-        .stat-trend {
-            font-size: 12px;
-            font-weight: 600;
-            padding: 4px 10px;
-            border-radius: 20px;
-        }
-
-        .trend-up {
-            background: rgba(0, 255, 136, 0.15);
-            color: var(--boom-green);
-        }
-
-        .trend-down {
-            background: rgba(255, 59, 59, 0.15);
-            color: var(--boom-red);
-        }
-
-        .stat-label {
-            font-size: 13px;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-weight: 600;
-            margin-bottom: 8px;
-        }
-
-        .stat-value {
-            font-family: var(--font-display);
-            font-size: 42px;
-            letter-spacing: 1px;
-            line-height: 1;
-            background: linear-gradient(135deg, var(--text-primary), var(--boom-purple));
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            background-clip: text;
-        }
-
-        .stat-description {
-            font-size: 13px;
-            color: var(--text-tertiary);
-            margin-top: 8px;
-        }
-
-        /* Search & Filter Bar */
-        .controls-bar {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 30px;
-            flex-wrap: wrap;
-        }
-
-        .search-box {
-            flex: 1;
-            min-width: 280px;
-            position: relative;
-        }
-
-        .search-icon {
-            position: absolute;
-            left: 18px;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 18px;
-            color: var(--text-tertiary);
-            pointer-events: none;
-        }
-
-        .search-input {
-            width: 100%;
-            padding: 14px 20px 14px 50px;
-            background: var(--dark-surface);
-            border: 1px solid var(--dark-border);
-            border-radius: 100px;
-            color: var(--text-primary);
-            font-size: 14px;
-            font-family: var(--font-body);
-            transition: all var(--transition-base);
-        }
-
-        .search-input:focus {
-            outline: none;
-            border-color: var(--boom-purple);
-            background: var(--dark-elevated);
-            box-shadow: 0 0 0 4px rgba(157, 78, 221, 0.1);
-        }
-
-        .search-input::placeholder {
-            color: var(--text-tertiary);
-        }
-
-        .filter-group {
-            display: flex;
-            gap: 8px;
-        }
-
-        .filter-btn {
-            padding: 12px 20px;
-            background: var(--dark-surface);
-            border: 1px solid var(--dark-border);
-            color: var(--text-secondary);
-            border-radius: 100px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all var(--transition-fast);
-            white-space: nowrap;
-        }
-
-        .filter-btn:hover,
-        .filter-btn.active {
-            background: var(--boom-purple);
-            border-color: var(--boom-purple);
-            color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(157, 78, 221, 0.3);
-        }
-
-        /* Properties Grid */
-        .properties-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
-            gap: 24px;
-            margin-bottom: 40px;
-        }
-
-        .property-card {
-            background: var(--dark-surface);
-            border: 1px solid var(--dark-border);
-            border-radius: 20px;
-            overflow: hidden;
-            transition: all var(--transition-base);
-            position: relative;
-        }
-
-        .property-card:hover {
-            transform: translateY(-8px);
-            border-color: var(--boom-purple);
-            box-shadow: var(--shadow-xl);
-        }
-
-        .property-image-container {
-            width: 100%;
-            height: 220px;
-            background: linear-gradient(135deg, rgba(157, 78, 221, 0.15), rgba(0, 206, 209, 0.15));
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .property-image-placeholder {
-            font-size: 64px;
-            opacity: 0.6;
-        }
-
-        .property-status-badge {
-            position: absolute;
-            top: 16px;
-            right: 16px;
-            padding: 8px 16px;
-            border-radius: 100px;
-            font-size: 11px;
-            font-weight: 700;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            -webkit-backdrop-filter:blur(10px);backdrop-filter: blur(10px);
-            box-shadow: var(--shadow-md);
-        }
-
-        .status-occupied {
-            background: rgba(0, 255, 136, 0.2);
-            border: 1px solid var(--boom-green);
-            color: var(--boom-green);
-        }
-
-        .status-vacant {
-            background: rgba(255, 215, 0, 0.2);
-            border: 1px solid var(--boom-yellow);
-            color: var(--boom-yellow);
-        }
-
-        .property-content {
-            padding: 24px;
-        }
-
-        .property-title {
-            font-family: var(--font-heading);
-            font-size: 22px;
-            font-weight: 500;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 8px;
-            color: var(--text-primary);
-        }
-
-        .property-address {
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-
-        .property-stats {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 16px;
-            margin-bottom: 20px;
-        }
-
-        .property-stat {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .stat-label-small {
-            font-size: 11px;
-            color: var(--text-tertiary);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
-        .stat-value-small {
-            font-size: 16px;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .property-tenant {
-            padding: 12px 16px;
-            background: var(--dark-elevated);
-            border-radius: 12px;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .tenant-avatar {
-            width: 36px;
-            height: 36px;
-            background: var(--boom-purple);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 14px;
-        }
-
-        .tenant-info {
-            flex: 1;
-        }
-
-        .tenant-name {
-            font-size: 14px;
-            font-weight: 600;
-            color: var(--text-primary);
-        }
-
-        .tenant-label {
-            font-size: 11px;
-            color: var(--text-tertiary);
-            text-transform: uppercase;
-        }
-
-        .property-actions {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-
-        .btn-action {
-            padding: 12px;
-            background: var(--dark-elevated);
-            border: 1px solid var(--dark-border);
-            color: var(--text-primary);
-            border-radius: 10px;
-            font-size: 13px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all var(--transition-fast);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-        }
-
-        .btn-action:hover {
-            background: var(--boom-purple);
-            border-color: var(--boom-purple);
-            color: white;
-            transform: translateY(-2px);
-        }
-
-        .btn-action.danger:hover {
-            background: var(--boom-red);
-            border-color: var(--boom-red);
-        }
-
-        /* Modal */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.92);
-            -webkit-backdrop-filter:blur(8px);backdrop-filter: blur(8px);
-            z-index: 1000;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-            animation: fadeIn 0.3s ease;
-        }
-
-        .modal-overlay.active {
-            display: flex;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; }
-            to { opacity: 1; }
-        }
-
-        .modal-container {
-            background: var(--dark-surface);
-            border: 1px solid var(--dark-border);
-            border-radius: 24px;
-            max-width: 700px;
-            width: 100%;
-            max-height: 90vh;
-            overflow-y: auto;
-            box-shadow: var(--shadow-xl);
-            animation: slideUp 0.3s ease;
-        }
-
-        @keyframes slideUp {
-            from { transform: translateY(30px); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-        }
-
-        .modal-header {
-            padding: 30px 35px;
-            border-bottom: 1px solid var(--dark-border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .modal-title {
-            font-family: var(--font-heading);
-            font-size: 32px;
-            font-weight: 400;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .modal-close {
-            width: 40px;
-            height: 40px;
-            background: var(--dark-elevated);
-            border: 1px solid var(--dark-border);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all var(--transition-fast);
-            font-size: 24px;
-            color: var(--text-secondary);
-        }
-
-        .modal-close:hover {
-            background: var(--boom-red);
-            border-color: var(--boom-red);
-            color: white;
-            transform: rotate(90deg);
-        }
-
-        .modal-body {
-            padding: 35px;
-        }
-
-        .form-grid {
-            display: grid;
-            gap: 24px;
-        }
-
-        .form-row {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 20px;
-        }
-
-        .form-field {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .form-label {
-            font-size: 13px;
-            color: var(--text-secondary);
-            text-transform: uppercase;
-            letter-spacing: 1px;
-            font-weight: 600;
-        }
-
-        .form-label.required::after {
-            content: '*';
-            color: var(--boom-red);
-            margin-left: 4px;
-        }
-
-        .form-input,
-        .form-textarea,
-        .form-select {
-            width: 100%;
-            padding: 14px 18px;
-            background: var(--dark-elevated);
-            border: 1px solid var(--dark-border);
-            border-radius: 12px;
-            color: var(--text-primary);
-            font-family: var(--font-body);
-            font-size: 14px;
-            transition: all var(--transition-base);
-        }
-
-        .form-input:focus,
-        .form-textarea:focus,
-        .form-select:focus {
-            outline: none;
-            border-color: var(--boom-purple);
-            background: var(--dark-bg);
-            box-shadow: 0 0 0 4px rgba(157, 78, 221, 0.1);
-        }
-
-        .form-textarea {
-            resize: vertical;
-            min-height: 120px;
-            font-family: var(--font-body);
-        }
-
-        .form-select {
-            cursor: pointer;
-        }
-
-        .modal-footer {
-            padding: 24px 35px;
-            border-top: 1px solid var(--dark-border);
-            display: flex;
-            gap: 12px;
-        }
-
-        .btn-full {
-            flex: 1;
-        }
-
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 80px 20px;
-            display: none;
-        }
-
-        .empty-state.active {
-            display: block;
-        }
-
-        .empty-icon {
-            font-size: 80px;
-            margin-bottom: 24px;
-            opacity: 0.3;
-        }
-
-        .empty-title {
-            font-family: var(--font-heading);
-            font-size: 28px;
-            font-weight: 400;
-            text-transform: uppercase;
-            margin-bottom: 12px;
-        }
-
-        .empty-description {
-            font-size: 16px;
-            color: var(--text-secondary);
-            margin-bottom: 32px;
-        }
-
-        /* Loading State */
-        .loading {
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 3px solid rgba(255, 255, 255, 0.1);
-            border-top-color: var(--boom-purple);
-            border-radius: 50%;
-            animation: spin 0.8s linear infinite;
-        }
-
-        @keyframes spin {
-            to { transform: rotate(360deg); }
-        }
-
-        /* Notification */
-        .notification {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            padding: 20px 28px;
-            background: var(--dark-surface);
-            border: 1px solid var(--boom-green);
-            border-radius: 16px;
-            box-shadow: var(--shadow-xl);
-            z-index: 2000;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            min-width: 300px;
-            animation: slideInRight 0.3s ease;
-        }
-
-        @keyframes slideInRight {
-            from { transform: translateX(400px); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-
-        .notification-icon {
-            font-size: 24px;
-        }
-
-        .notification-content {
-            flex: 1;
-        }
-
-        .notification-title {
-            font-weight: 600;
-            font-size: 14px;
-            margin-bottom: 4px;
-        }
-
-        .notification-message {
-            font-size: 13px;
-            color: var(--text-secondary);
-        }
-
-        .notification.success {
-            border-color: var(--boom-green);
-        }
-
-        .notification.error {
-            border-color: var(--boom-red);
-        }
-
-        /* Mobile Responsive */
-        @media (max-width: 1024px) {
-            .dashboard-container {
-                grid-template-columns: 1fr;
-            }
-
-            .sidebar {
-                position: fixed;
-                left: -280px;
-                top: 0;
-                height: 100vh;
-                z-index: 200;
-                transition: left var(--transition-base);
-            }
-
-            .sidebar.mobile-open {
-                left: 0;
-            }
-
-            .mobile-menu-btn {
-                position: fixed;
-                bottom: 30px;
-                left: 30px;
-                width: 60px;
-                height: 60px;
-                background: var(--boom-purple);
-                border: none;
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 24px;
-                color: white;
-                cursor: pointer;
-                box-shadow: var(--shadow-lg);
-                z-index: 150;
-            }
-
-            .main-content {
-                padding: 20px;
-            }
-
-            .header-title {
-                font-size: 32px;
-            }
-
-            .properties-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .form-row {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        @media (max-width: 640px) {
-            .controls-bar {
-                flex-direction: column;
-            }
-
-            .search-box {
-                width: 100%;
-            }
-
-            .filter-group {
-                overflow-x: auto;
-                padding-bottom: 5px;
-            }
-
-            .modal-container {
-                margin: 10px;
-            }
-
-            .modal-header,
-            .modal-body,
-            .modal-footer {
-                padding: 20px;
-            }
-        }
-
-        /* Print Styles */
-        @media print {
-            .sidebar,
-            .header-actions,
-            .property-actions,
-            .mobile-menu-btn {
-                display: none !important;
-            }
-
-            .dashboard-container {
-                grid-template-columns: 1fr;
-            }
-
-            .property-card {
-                break-inside: avoid;
-            }
-        }
+/* ═══════════════════════════════════════════════════════════════════
+   L'AREA PROPRIETARIO — /owner. La sorella di /casa: stessa stanza
+   (vuoto #050506, oro #D4AF37, Helvetica 300, filo d'oro), un altro
+   lettore. Il proprietario apre questa pagina per UNA domanda — «devo
+   fare qualcosa?» — e la risposta sta in testa, in una riga. Sotto: i
+   soldi, le scadenze, gli immobili, e TUTTI i documenti che ha con noi.
+   Tutto REALE: una sola chiamata a /api/owners/vault, che applica le
+   regole di js/owner-vault-engine.js. Italiano di default, EN a un tocco.
+   ═══════════════════════════════════════════════════════════════════ */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --void:#050506;--panel:rgba(255,255,255,.022);
+  --gold:#D4AF37;--gold-light:#F1DFA0;--gold-deep:#8A6D1D;
+  --line:rgba(255,255,255,.09);--line2:rgba(255,255,255,.05);--line-gold:rgba(212,175,55,.32);
+  --gold-muted:rgba(212,175,55,.12);--gold-faint:rgba(212,175,55,.05);
+  --t1:#FFF;--t2:rgba(255,255,255,.72);--t3:rgba(255,255,255,.48);--t4:rgba(255,255,255,.28);
+  --green:#4ADE9E;--green-muted:rgba(74,222,158,.12);--red:#FF8A70;--red-muted:rgba(255,138,112,.1);--wa:#25D366;
+  --sans:'Helvetica Neue',Helvetica,'Inter',-apple-system,sans-serif;
+  --mono:ui-monospace,'SF Mono',Menlo,monospace;
+  --ease:cubic-bezier(.16,1,.3,1);--safe:env(safe-area-inset-bottom,0px);--r:18px}
+html{scroll-behavior:smooth}
+body{font-family:var(--sans);background:var(--void);color:var(--t1);font-weight:300;line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+a{color:inherit}
+::selection{background:rgba(212,175,55,.3)}
+button,a{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:6px}
+
+.bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+.bg .grid{position:absolute;inset:-2px;background-image:radial-gradient(rgba(255,255,255,.05) 1px,transparent 1.5px);background-size:34px 34px;-webkit-mask-image:radial-gradient(120% 90% at 50% 0%,#000 30%,transparent 78%);mask-image:radial-gradient(120% 90% at 50% 0%,#000 30%,transparent 78%)}
+.bg .aur{position:absolute;width:120vmax;height:120vmax;border-radius:50%;filter:blur(90px);opacity:.45}
+.bg .aur.a{left:-46vmax;top:-72vmax;background:radial-gradient(circle,rgba(212,175,55,.10),transparent 58%)}
+.bg .aur.b{right:-58vmax;bottom:-74vmax;background:radial-gradient(circle,rgba(90,110,150,.10),transparent 58%)}
+.bg .scan,.bg .vign{position:absolute;inset:0}
+.bg .vign{background:radial-gradient(130% 100% at 50% 34%,transparent 50%,rgba(0,0,0,.62) 100%)}
+@media(prefers-reduced-motion:no-preference){
+  .bg .aur.a{animation:aurA 46s var(--ease) infinite alternate}
+  .bg .aur.b{animation:aurB 58s var(--ease) infinite alternate}
+  @keyframes aurA{to{transform:translate(9vmax,7vmax) scale(1.12)}}
+  @keyframes aurB{to{transform:translate(-8vmax,-6vmax) scale(1.08)}}
+}
+
+header{position:sticky;top:0;z-index:50;background:rgba(5,5,6,.72);-webkit-backdrop-filter:blur(20px) saturate(1.5);backdrop-filter:blur(20px) saturate(1.5);border-bottom:1px solid var(--line2);padding-top:env(safe-area-inset-top,0px)}
+.hrow{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:13px 20px;max-width:1180px;margin:0 auto}
+.hl{font-size:9px;letter-spacing:2.4px;text-transform:uppercase;color:var(--t4)}
+.brand{display:flex;align-items:center;gap:10px;justify-self:center;text-decoration:none}
+.brand .mark{filter:drop-shadow(0 0 10px rgba(212,175,55,.35))}
+.brand b{font-weight:300;letter-spacing:6px;font-size:14px}
+.hact{justify-self:end;display:flex;gap:14px;align-items:center}
+.hout{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);transition:.25s;min-height:32px}
+.hout:hover{color:var(--gold)}
+
+main{position:relative;z-index:5;max-width:760px;margin:0 auto;padding:26px 18px calc(70px + var(--safe))}
+.load{text-align:center;padding:110px 20px;color:var(--t3)}
+.load .mark{color:var(--gold)}
+@media(prefers-reduced-motion:no-preference){.load svg{animation:breath 2.6s var(--ease) infinite}@keyframes breath{0%,100%{opacity:.55;transform:scale(.97)}50%{opacity:1}}}
+
+.eyebrow{font-size:10px;letter-spacing:3.2px;text-transform:uppercase;color:var(--gold);font-weight:400}
+h1.big{font-weight:200;font-size:clamp(27px,6vw,40px);letter-spacing:-.6px;line-height:1.12;margin:10px 0 8px}
+h1.big em{font-style:normal;color:var(--gold);font-weight:300}
+.verdict{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:14px;color:var(--t2)}
+.verdict i{width:9px;height:9px;border-radius:50%;flex:none;background:var(--green);box-shadow:0 0 12px rgba(74,222,158,.7)}
+.verdict.act i{background:var(--gold);box-shadow:0 0 12px rgba(212,175,55,.85)}
+.verdict.act{color:var(--gold-light)}
+.adminview{position:sticky;top:62px;z-index:45;margin:0 0 16px;border:1px solid rgba(212,175,55,.5);background:linear-gradient(180deg,rgba(212,175,55,.16),rgba(212,175,55,.08));border-radius:12px;padding:10px 14px;font-size:12px;line-height:1.55;color:var(--gold-light);-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px)}
+
+.tiles{position:relative;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin:22px 0 4px;border-radius:var(--r);overflow:hidden;background:var(--panel);border:1px solid var(--line2)}
+.tiles::before{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,var(--gold),rgba(212,175,55,.25),transparent 80%)}
+.tile{padding:17px 16px 14px}
+.tile:nth-child(2n){border-left:1px solid var(--line2)}
+.tile:nth-child(n+3){border-top:1px solid var(--line2)}
+.tile .k{font-size:8.5px;letter-spacing:2.2px;text-transform:uppercase;color:var(--t4)}
+.tile .v{font-size:clamp(19px,4.6vw,26px);font-weight:200;margin-top:6px;font-variant-numeric:tabular-nums;letter-spacing:-.4px;line-height:1.15}
+.tile .v small{font-size:11px;color:var(--t3);letter-spacing:.3px}
+.tile.hero .v{background:linear-gradient(180deg,#FFF3C4,var(--gold-light) 30%,var(--gold) 78%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.tile.bad .v{color:var(--red)}
+
+.card{margin-top:16px;padding:20px;border:1px solid var(--line2);border-radius:var(--r);background:linear-gradient(180deg,rgba(255,252,240,.03),rgba(255,255,255,.015));position:relative;overflow:hidden}
+.card::after{content:"";position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,rgba(212,175,55,.5),rgba(212,175,55,.12),transparent 75%)}
+.card h2{display:flex;align-items:baseline;gap:11px;margin-bottom:14px}
+.card h2 .no{font-family:var(--mono);font-size:9px;color:var(--gold);border:1px solid var(--line-gold);border-radius:6px;padding:3px 7px;background:var(--gold-faint)}
+.card h2 .tt{font-size:10.5px;letter-spacing:3px;text-transform:uppercase;color:var(--t2);font-weight:300}
+.card h2::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent);transform:translateY(-3px)}
+.card.need{border-color:var(--line-gold);background:linear-gradient(180deg,var(--gold-faint),transparent 70%)}
+.empty{font-size:13px;color:var(--t3);line-height:1.7}
+
+/* azioni ed eventi */
+.ev{display:flex;gap:13px;align-items:flex-start;padding:13px 0;border-top:1px solid var(--line2)}
+.ev:first-of-type{border-top:none;padding-top:2px}
+.ev .dot{width:8px;height:8px;border-radius:50%;margin-top:7px;flex:none;background:var(--t4)}
+.ev.gold .dot{background:var(--gold);box-shadow:0 0 9px rgba(212,175,55,.6)}
+.ev.warn .dot{background:#E8B04B}
+.ev.red .dot{background:var(--red)}
+.ev .bd{flex:1;min-width:0}
+.ev b{display:block;font-weight:400;font-size:14px;letter-spacing:.1px}
+.ev small{display:block;font-size:12px;color:var(--t3);line-height:1.6;margin-top:2px}
+.ev .where{font-size:9.5px;letter-spacing:1.6px;text-transform:uppercase;color:var(--t4);margin-top:3px}
+.ev .when{flex:none;font-size:11px;color:var(--t3);font-variant-numeric:tabular-nums;white-space:nowrap;margin-top:2px}
+.gbtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;background:linear-gradient(180deg,var(--gold-light),var(--gold));color:#1a1407;font-weight:500;border-radius:100px;padding:11px 20px;font-size:10.5px;letter-spacing:1.8px;text-transform:uppercase;text-decoration:none;min-height:42px;transition:.25s var(--ease)}
+.gbtn:hover{filter:brightness(1.06)}
+.gbtn:disabled{opacity:.55}
+.obtn{display:inline-flex;align-items:center;justify-content:center;gap:8px;margin-top:10px;border:1px solid var(--line);color:var(--t2);border-radius:100px;padding:10px 18px;font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;text-decoration:none;min-height:42px;transition:.2s}
+.obtn:hover{border-color:var(--gold);color:var(--gold)}
+.obtn.wa{border-color:rgba(37,211,102,.4);color:#7EE6A6}
+
+/* immobili */
+.props{display:grid;gap:12px;margin-top:4px}
+.prop{display:block;text-align:left;width:100%;border:1px solid var(--line2);border-radius:16px;padding:16px 17px;background:var(--panel);transition:.25s var(--ease)}
+.prop:hover{border-color:var(--line-gold);transform:translateY(-1px)}
+.prop .top{display:flex;align-items:center;gap:10px}
+.prop .nm{flex:1;min-width:0;font-size:15.5px;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.st{flex:none;font-size:8.5px;letter-spacing:1.6px;text-transform:uppercase;border-radius:100px;padding:4px 10px;border:1px solid var(--line);color:var(--t3)}
+.st.occupied{color:var(--green);border-color:rgba(74,222,158,.35)}
+.st.ending,.st.signing{color:var(--gold);border-color:var(--line-gold)}
+.st.incoming{color:#9DC3FF;border-color:rgba(157,195,255,.35)}
+.prop .sub{font-size:12px;color:var(--t3);margin-top:4px}
+.prop .facts{display:flex;flex-wrap:wrap;gap:6px 16px;margin-top:11px;font-size:12px;color:var(--t2)}
+.prop .facts span b{font-weight:400;color:var(--t1);font-variant-numeric:tabular-nums}
+.prop .facts .red{color:var(--red)}
+.prop .facts .soft{color:var(--gold-light);opacity:.8}
+.folder.later .miss{padding:10px 0}
+
+/* dettaglio immobile */
+.back{display:inline-flex;align-items:center;gap:8px;font-size:10.5px;letter-spacing:2px;text-transform:uppercase;color:var(--t3);margin-bottom:14px;min-height:36px}
+.back:hover{color:var(--gold)}
+.kv{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:1px;background:var(--line2);border-radius:12px;overflow:hidden;border:1px solid var(--line2)}
+.kv div{background:var(--void);padding:11px 13px}
+.kv div span{display:block;font-size:8.5px;letter-spacing:2px;text-transform:uppercase;color:var(--t4)}
+.kv div b{display:block;font-weight:400;font-size:13.5px;margin-top:3px;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.kv div b.ok{color:var(--green)}
+.kv div b.wait{color:var(--gold-light)}
+.prow{display:flex;align-items:center;gap:12px;padding:11px 2px;border-top:1px solid var(--line2);font-size:13px}
+.prow:first-child{border-top:none}
+.prow .mo{flex:1;color:var(--t2)}
+.prow .mo small{display:block;font-size:10.5px;color:var(--t4)}
+.prow .amt2{font-variant-numeric:tabular-nums;font-weight:400;flex:none}
+.pst{font-size:8.5px;letter-spacing:1.3px;text-transform:uppercase;border-radius:100px;padding:3px 9px;flex:none;border:1px solid var(--line);color:var(--t3)}
+.pst.paid{color:var(--green);border-color:rgba(74,222,158,.35)}
+.pst.overdue{color:var(--red);border-color:rgba(255,138,112,.4)}
+.pst.reported,.pst.processing{color:var(--gold-light);border-color:var(--line-gold)}
+
+/* documenti */
+.dsearch{width:100%;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:100px;padding:11px 16px;color:var(--t1);font-family:inherit;font-size:16px;font-weight:300;outline:none;margin-bottom:6px}
+.dsearch:focus{border-color:var(--line-gold)}
+.folder{margin-top:14px}
+.folder:first-child{margin-top:0}
+.fh{display:flex;align-items:center;gap:9px;font-size:9.5px;letter-spacing:2.4px;text-transform:uppercase;color:var(--gold);margin-bottom:4px}
+.fh span{font-family:var(--mono);color:var(--t4);letter-spacing:.5px}
+.dlink{display:flex;align-items:center;gap:12px;padding:12px 2px;border-top:1px solid var(--line2);font-size:13.5px;color:var(--t2);text-decoration:none;transition:.2s;min-height:48px}
+.dlink:hover{color:var(--gold)}
+.dlink .ic{width:34px;height:34px;border-radius:10px;border:1px solid var(--line-gold);background:var(--gold-faint);display:grid;place-items:center;flex:none;font-size:14px}
+.dlink .tx{flex:1;min-width:0}
+.dlink .tx b{display:block;font-weight:400;color:inherit;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dlink small{display:block;font-size:10.5px;color:var(--t4);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dlink .go{margin-left:auto;color:var(--t4);flex:none}
+.lockn{margin-top:12px;padding:11px 14px;border:1px dashed var(--line);border-radius:12px;font-size:12px;color:var(--t3);line-height:1.6}
+.miss{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:1px solid var(--line2)}
+.miss:first-of-type{border-top:none;padding-top:2px}
+.miss .bd{flex:1;min-width:0}
+.miss b{display:block;font-weight:400;font-size:13.5px}
+.miss small{display:block;font-size:11.5px;color:var(--t3);line-height:1.6;margin-top:2px}
+.miss .gbtn,.miss .obtn{margin-top:0;flex:none}
+
+/* storia */
+.hist{position:relative;padding-left:18px}
+.hist::before{content:"";position:absolute;left:4px;top:6px;bottom:6px;width:1px;background:linear-gradient(180deg,var(--line-gold),var(--line2))}
+.hi{position:relative;padding:6px 0 10px}
+.hi::before{content:"";position:absolute;left:-18px;top:12px;width:9px;height:9px;border-radius:50%;background:var(--void);box-shadow:inset 0 0 0 1.5px var(--gold)}
+.hi b{display:block;font-weight:400;font-size:13.5px}
+.hi small{font-size:11px;color:var(--t4);font-variant-numeric:tabular-nums}
+
+.contact{display:flex;flex-wrap:wrap;gap:10px}
+.foot{text-align:center;font-size:10px;letter-spacing:1px;color:var(--t4);margin-top:36px;line-height:1.8}
+
+/* attivazione */
+.actbox{max-width:440px;margin:40px auto 0}
+.fld{display:block;margin-top:14px}
+.fld span{display:block;font-size:9px;letter-spacing:2.2px;text-transform:uppercase;color:var(--t4);margin-bottom:6px}
+.fld input{width:100%;background:rgba(255,255,255,.03);border:1px solid var(--line);border-radius:12px;padding:13px 14px;color:var(--t1);font-family:inherit;font-size:16px;font-weight:300;outline:none}
+.fld input:focus{border-color:var(--line-gold)}
+.msg{margin-top:12px;font-size:12.5px;line-height:1.6;color:var(--t3);min-height:1em}
+.msg.err{color:var(--red)}
+.gbtn.full{width:100%;margin-top:18px;padding:15px}
+
+.rv{opacity:0;transform:translateY(8px);transition:opacity .6s var(--ease),transform .6s var(--ease)}
+.rv.in{opacity:1;transform:none}
+@media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none}}
+
+@media(min-width:1100px){
+  .hrow{max-width:1180px}
+  main{max-width:1180px;padding:38px 42px calc(90px + var(--safe))}
+  h1.big{font-size:46px}
+  .tiles{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .tile{border-left:1px solid var(--line2)}
+  .tile:first-child{border-left:none}
+  .tile:nth-child(n+3){border-top:none}
+  .cols{display:grid;grid-template-columns:minmax(0,1fr) 440px;gap:0 30px;align-items:start}
+  .props{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .card{padding:24px}
+}
+@media(max-width:460px){.ev{flex-wrap:wrap}.ev .when{order:3;margin-left:21px}.miss{flex-wrap:wrap}.miss .gbtn,.miss .obtn{margin-left:0}}
     </style>
 <!-- BOOM_JSONLD:START -->
   <script type="application/ld+json">
@@ -1154,674 +313,480 @@
   ]
 }
   </script>
-<!-- BOOM_JSONLD:END -->
-</head>
+<!-- BOOM_JSONLD:END --></head>
 <body>
-    <!-- Mobile Menu Button -->
-    <button class="mobile-menu-btn" id="mobileMenuBtn" style="display: none;">
-        ☰
-    </button>
-
-    <div class="dashboard-container">
-        <!-- Sidebar -->
-        <aside class="sidebar" id="sidebar">
-            <div class="logo-container" onclick="window.location.href='/'">
-                <div class="logo-circle"></div>
-                <div class="logo-text">BOOM</div>
-            </div>
-
-            <div class="owner-badge">
-                <div class="owner-badge-title">Owner Portal</div>
-                <div class="owner-name" id="ownerName">Your Properties</div>
-            </div>
-
-            <nav>
-                <ul class="nav-menu">
-                    <li class="nav-section-title">Main</li>
-                    <li class="nav-item">
-                        <a class="nav-link active" data-view="dashboard">
-                            <span class="nav-icon">📊</span>
-                            <span>Dashboard</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" data-view="properties">
-                            <span class="nav-icon">🏠</span>
-                            <span>Properties</span>
-                            <span class="nav-badge" id="propertiesCount">0</span>
-                        </a>
-                    </li>
-                    
-                    <li class="nav-section-title">Management</li>
-                    <li class="nav-item">
-                        <a class="nav-link" data-view="analytics">
-                            <span class="nav-icon">📈</span>
-                            <span>Analytics</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" data-view="documents">
-                            <span class="nav-icon">📄</span>
-                            <span>Documents</span>
-                        </a>
-                    </li>
-                    
-                    <li class="nav-section-title">Account</li>
-                    <li class="nav-item">
-                        <a class="nav-link" data-view="settings">
-                            <span class="nav-icon">⚙️</span>
-                            <span>Settings</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="/">
-                            <span class="nav-icon">🚪</span>
-                            <span>Exit Portal</span>
-                        </a>
-                    </li>
-                </ul>
-            </nav>
-        </aside>
-
-        <!-- Main Content -->
-        <main class="main-content">
-            <!-- Page Header -->
-            <div class="page-header">
-                <div class="header-top">
-                    <div>
-                        <h1 class="header-title">Owner Dashboard</h1>
-                        <p class="header-subtitle">Manage your BOOM properties with ease</p>
-                    </div>
-                    <div class="header-actions">
-                        <button class="btn btn-secondary" onclick="exportData()">
-                            📥 Export Data
-                        </button>
-                        <button class="btn btn-primary" onclick="openAddPropertyModal()">
-                            ➕ Add Property
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Statistics Grid -->
-            <div class="stats-grid">
-                <div class="stat-card highlight">
-                    <div class="stat-header">
-                        <div class="stat-icon">💰</div>
-                        <div class="stat-trend trend-up">↑ 12%</div>
-                    </div>
-                    <div class="stat-label">Monthly Revenue</div>
-                    <div class="stat-value" id="statMonthlyRevenue">€0</div>
-                    <div class="stat-description">From occupied properties</div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div class="stat-icon">📆</div>
-                        <div class="stat-trend trend-up">↑ 8%</div>
-                    </div>
-                    <div class="stat-label">Annual Revenue</div>
-                    <div class="stat-value" id="statAnnualRevenue">€0</div>
-                    <div class="stat-description">Projected yearly income</div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div class="stat-icon">🏠</div>
-                    </div>
-                    <div class="stat-label">Total Properties</div>
-                    <div class="stat-value" id="statTotalProperties">0</div>
-                    <div class="stat-description" id="statOccupancyDesc">0 occupied, 0 vacant</div>
-                </div>
-
-                <div class="stat-card">
-                    <div class="stat-header">
-                        <div class="stat-icon">📊</div>
-                    </div>
-                    <div class="stat-label">Occupancy Rate</div>
-                    <div class="stat-value" id="statOccupancyRate">0%</div>
-                    <div class="stat-description">Current utilization</div>
-                </div>
-            </div>
-
-            <!-- Search & Filter Controls -->
-            <div class="controls-bar">
-                <div class="search-box">
-                    <span class="search-icon">🔍</span>
-                    <input 
-                        type="text" 
-                        class="search-input" 
-                        id="searchInput"
-                        placeholder="Search properties by name, address, or tenant..."
-                    >
-                </div>
-                <div class="filter-group">
-                    <button class="filter-btn active" data-filter="all">
-                        All (<span id="filterCountAll">0</span>)
-                    </button>
-                    <button class="filter-btn" data-filter="occupied">
-                        Occupied (<span id="filterCountOccupied">0</span>)
-                    </button>
-                    <button class="filter-btn" data-filter="vacant">
-                        Vacant (<span id="filterCountVacant">0</span>)
-                    </button>
-                </div>
-            </div>
-
-            <!-- Properties Grid -->
-            <div class="properties-grid" id="propertiesGrid"></div>
-
-            <!-- Empty State -->
-            <div class="empty-state" id="emptyState">
-                <div class="empty-icon">🏠</div>
-                <div class="empty-title">No Properties Yet</div>
-                <div class="empty-description">
-                    Start building your portfolio by adding your first property
-                </div>
-                <button class="btn btn-primary" onclick="openAddPropertyModal()">
-                    ➕ Add Your First Property
-                </button>
-            </div>
-        </main>
-    </div>
-
-    <!-- Add/Edit Property Modal -->
-    <div class="modal-overlay" id="propertyModal">
-        <div class="modal-container">
-            <div class="modal-header">
-                <h2 class="modal-title" id="modalTitle">Add Property</h2>
-                <button class="modal-close" onclick="closePropertyModal()">×</button>
-            </div>
-
-            <form id="propertyForm" onsubmit="saveProperty(event)">
-                <div class="modal-body">
-                    <input type="hidden" id="propertyId">
-                    
-                    <div class="form-grid">
-                        <div class="form-field">
-                            <label class="form-label required">Property Name</label>
-                            <input 
-                                type="text" 
-                                class="form-input" 
-                                id="propertyName" 
-                                required 
-                                placeholder="e.g., Modern Loft Trastevere"
-                            >
-                        </div>
-
-                        <div class="form-field">
-                            <label class="form-label required">Address</label>
-                            <input 
-                                type="text" 
-                                class="form-input" 
-                                id="propertyAddress" 
-                                required 
-                                placeholder="e.g., Via della Scala 42, Rome"
-                            >
-                        </div>
-
-                        <div class="form-row">
-                            <div class="form-field">
-                                <label class="form-label">Bedrooms</label>
-                                <input 
-                                    type="number" 
-                                    class="form-input" 
-                                    id="propertyBeds" 
-                                    min="0" 
-                                    placeholder="2"
-                                >
-                            </div>
-                            <div class="form-field">
-                                <label class="form-label">Size (m²)</label>
-                                <input 
-                                    type="number" 
-                                    class="form-input" 
-                                    id="propertySize" 
-                                    min="0" 
-                                    placeholder="85"
-                                >
-                            </div>
-                        </div>
-
-                        <div class="form-row">
-                            <div class="form-field">
-                                <label class="form-label required">Monthly Price (€)</label>
-                                <input 
-                                    type="number" 
-                                    class="form-input" 
-                                    id="propertyPrice" 
-                                    required 
-                                    min="0" 
-                                    step="50"
-                                    placeholder="1800"
-                                >
-                            </div>
-                            <div class="form-field">
-                                <label class="form-label required">Status</label>
-                                <select class="form-select" id="propertyStatus" required>
-                                    <option value="vacant">Vacant - Available Now</option>
-                                    <option value="occupied">Occupied - Currently Rented</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="form-field">
-                            <label class="form-label">Tenant Name</label>
-                            <input 
-                                type="text" 
-                                class="form-input" 
-                                id="propertyTenant" 
-                                placeholder="e.g., John Smith (optional)"
-                            >
-                        </div>
-
-                        <div class="form-field">
-                            <label class="form-label">Property Description</label>
-                            <textarea 
-                                class="form-textarea" 
-                                id="propertyDescription" 
-                                placeholder="Add details about the property, amenities, special features..."
-                            ></textarea>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary btn-full" onclick="closePropertyModal()">
-                        Cancel
-                    </button>
-                    <button type="submit" class="btn btn-primary btn-full">
-                        💾 Save Property
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <script>
-        // ========================================
-        // 🚀 BOOM OWNER DASHBOARD - CORE SYSTEM
-        // ========================================
-
-        // Initialize App State
-        let properties = [];
-        let currentFilter = 'all';
-        let searchQuery = '';
-
-        // Load data from localStorage on startup
-        function initializeApp() {
-            loadProperties();
-            setupEventListeners();
-            updateUI();
-            checkMobileView();
-        }
-
-        // Load properties from localStorage
-        function loadProperties() {
-            const stored = localStorage.getItem('boomOwnerProperties');
-            if (stored) {
-                try {
-                    properties = JSON.parse(stored);
-                } catch (e) {
-                    console.error('Failed to load properties:', e);
-                    properties = [];
-                }
-            }
-        }
-
-        // Save properties to localStorage
-        function saveToStorage() {
-            try {
-                localStorage.setItem('boomOwnerProperties', JSON.stringify(properties));
-            } catch (e) {
-                console.error('Failed to save properties:', e);
-                showNotification('Error saving data', 'error');
-            }
-        }
-
-        // Setup Event Listeners
-        function setupEventListeners() {
-            // Search input
-            document.getElementById('searchInput').addEventListener('input', (e) => {
-                searchQuery = e.target.value.toLowerCase();
-                renderProperties();
-            });
-
-            // Filter buttons
-            document.querySelectorAll('.filter-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    currentFilter = btn.dataset.filter;
-                    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-                    btn.classList.add('active');
-                    renderProperties();
-                });
-            });
-
-            // Navigation links
-            document.querySelectorAll('.nav-link[data-view]').forEach(link => {
-                link.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
-                    link.classList.add('active');
-                    // You can add different views here later
-                });
-            });
-
-            // Modal outside click
-            document.getElementById('propertyModal').addEventListener('click', (e) => {
-                if (e.target.id === 'propertyModal') {
-                    closePropertyModal();
-                }
-            });
-
-            // Keyboard shortcuts
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape') closePropertyModal();
-                if (e.key === 'n' && (e.metaKey || e.ctrlKey)) {
-                    e.preventDefault();
-                    openAddPropertyModal();
-                }
-            });
-
-            // Mobile menu
-            const mobileBtn = document.getElementById('mobileMenuBtn');
-            if (mobileBtn) {
-                mobileBtn.addEventListener('click', toggleMobileMenu);
-            }
-        }
-
-        // ========================================
-        // 📊 UPDATE UI COMPONENTS
-        // ========================================
-
-        function updateUI() {
-            updateStatistics();
-            updateFilterCounts();
-            renderProperties();
-        }
-
-        function updateStatistics() {
-            const total = properties.length;
-            const occupied = properties.filter(p => p.status === 'occupied').length;
-            const vacant = total - occupied;
-            
-            const monthlyRevenue = properties
-                .filter(p => p.status === 'occupied')
-                .reduce((sum, p) => sum + parseFloat(p.price), 0);
-            
-            const annualRevenue = monthlyRevenue * 12;
-            const occupancyRate = total > 0 ? Math.round((occupied / total) * 100) : 0;
-
-            // Update stat cards
-            document.getElementById('statMonthlyRevenue').textContent = `€${monthlyRevenue.toLocaleString()}`;
-            document.getElementById('statAnnualRevenue').textContent = `€${annualRevenue.toLocaleString()}`;
-            document.getElementById('statTotalProperties').textContent = total;
-            document.getElementById('statOccupancyRate').textContent = `${occupancyRate}%`;
-            document.getElementById('statOccupancyDesc').textContent = `${occupied} occupied, ${vacant} vacant`;
-            
-            // Update nav badge
-            document.getElementById('propertiesCount').textContent = total;
-        }
-
-        function updateFilterCounts() {
-            const total = properties.length;
-            const occupied = properties.filter(p => p.status === 'occupied').length;
-            const vacant = total - occupied;
-
-            document.getElementById('filterCountAll').textContent = total;
-            document.getElementById('filterCountOccupied').textContent = occupied;
-            document.getElementById('filterCountVacant').textContent = vacant;
-        }
-
-        // ========================================
-        // 🏠 RENDER PROPERTIES
-        // ========================================
-
-        function renderProperties() {
-            const grid = document.getElementById('propertiesGrid');
-            const emptyState = document.getElementById('emptyState');
-            
-            // Filter properties
-            let filtered = properties.filter(property => {
-                // Filter by status
-                if (currentFilter !== 'all' && property.status !== currentFilter) {
-                    return false;
-                }
-                
-                // Filter by search query
-                if (searchQuery) {
-                    const searchableText = [
-                        property.name,
-                        property.address,
-                        property.tenant || ''
-                    ].join(' ').toLowerCase();
-                    
-                    if (!searchableText.includes(searchQuery)) {
-                        return false;
-                    }
-                }
-                
-                return true;
-            });
-
-            // Show empty state or grid
-            if (filtered.length === 0) {
-                grid.style.display = 'none';
-                emptyState.classList.add('active');
-                return;
-            }
-
-            emptyState.classList.remove('active');
-            grid.style.display = 'grid';
-
-            // Render property cards
-            grid.innerHTML = filtered.map(property => `
-                <div class="property-card">
-                    <div class="property-image-container">
-                        <div class="property-image-placeholder">🏠</div>
-                        <div class="property-status-badge ${property.status === 'occupied' ? 'status-occupied' : 'status-vacant'}">
-                            ${property.status === 'occupied' ? '✓ Occupied' : '○ Vacant'}
-                        </div>
-                    </div>
-                    
-                    <div class="property-content">
-                        <h3 class="property-title">${property.name}</h3>
-                        <div class="property-address">
-                            📍 ${property.address}
-                        </div>
-
-                        <div class="property-stats">
-                            ${property.beds ? `
-                                <div class="property-stat">
-                                    <div class="stat-label-small">Bedrooms</div>
-                                    <div class="stat-value-small">🛏️ ${property.beds}</div>
-                                </div>
-                            ` : ''}
-                            ${property.size ? `
-                                <div class="property-stat">
-                                    <div class="stat-label-small">Size</div>
-                                    <div class="stat-value-small">📏 ${property.size}m²</div>
-                                </div>
-                            ` : ''}
-                            <div class="property-stat">
-                                <div class="stat-label-small">Monthly Rent</div>
-                                <div class="stat-value-small">💰 €${parseFloat(property.price).toLocaleString()}</div>
-                            </div>
-                        </div>
-
-                        ${property.tenant && property.status === 'occupied' ? `
-                            <div class="property-tenant">
-                                <div class="tenant-avatar">${property.tenant.charAt(0).toUpperCase()}</div>
-                                <div class="tenant-info">
-                                    <div class="tenant-label">Current Tenant</div>
-                                    <div class="tenant-name">${property.tenant}</div>
-                                </div>
-                            </div>
-                        ` : ''}
-
-                        <div class="property-actions">
-                            <button class="btn-action" onclick="editProperty('${property.id}')">
-                                ✏️ Edit
-                            </button>
-                            <button class="btn-action danger" onclick="deleteProperty('${property.id}')">
-                                🗑️ Delete
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
-        // ========================================
-        // ✨ PROPERTY CRUD OPERATIONS
-        // ========================================
-
-        function openAddPropertyModal() {
-            document.getElementById('modalTitle').textContent = 'Add Property';
-            document.getElementById('propertyForm').reset();
-            document.getElementById('propertyId').value = '';
-            document.getElementById('propertyModal').classList.add('active');
-        }
-
-        function editProperty(id) {
-            const property = properties.find(p => p.id === id);
-            if (!property) return;
-
-            document.getElementById('modalTitle').textContent = 'Edit Property';
-            document.getElementById('propertyId').value = property.id;
-            document.getElementById('propertyName').value = property.name;
-            document.getElementById('propertyAddress').value = property.address;
-            document.getElementById('propertyBeds').value = property.beds || '';
-            document.getElementById('propertySize').value = property.size || '';
-            document.getElementById('propertyPrice').value = property.price;
-            document.getElementById('propertyStatus').value = property.status;
-            document.getElementById('propertyTenant').value = property.tenant || '';
-            document.getElementById('propertyDescription').value = property.description || '';
-
-            document.getElementById('propertyModal').classList.add('active');
-        }
-
-        function saveProperty(event) {
-            event.preventDefault();
-
-            const id = document.getElementById('propertyId').value || generateId();
-            const property = {
-                id: id,
-                name: document.getElementById('propertyName').value.trim(),
-                address: document.getElementById('propertyAddress').value.trim(),
-                beds: document.getElementById('propertyBeds').value || 0,
-                size: document.getElementById('propertySize').value || 0,
-                price: parseFloat(document.getElementById('propertyPrice').value),
-                status: document.getElementById('propertyStatus').value,
-                tenant: document.getElementById('propertyTenant').value.trim(),
-                description: document.getElementById('propertyDescription').value.trim(),
-                createdAt: properties.find(p => p.id === id)?.createdAt || new Date().toISOString(),
-                updatedAt: new Date().toISOString()
-            };
-
-            const existingIndex = properties.findIndex(p => p.id === id);
-            if (existingIndex !== -1) {
-                properties[existingIndex] = property;
-                showNotification('Property updated successfully', 'success');
-            } else {
-                properties.push(property);
-                showNotification('Property added successfully', 'success');
-            }
-
-            saveToStorage();
-            closePropertyModal();
-            updateUI();
-        }
-
-        function deleteProperty(id) {
-            const property = properties.find(p => p.id === id);
-            if (!property) return;
-
-            if (!confirm(`Are you sure you want to delete "${property.name}"?\n\nThis action cannot be undone.`)) {
-                return;
-            }
-
-            properties = properties.filter(p => p.id !== id);
-            saveToStorage();
-            updateUI();
-            showNotification('Property deleted successfully', 'success');
-        }
-
-        function closePropertyModal() {
-            document.getElementById('propertyModal').classList.remove('active');
-        }
-
-        // ========================================
-        // 🔧 UTILITY FUNCTIONS
-        // ========================================
-
-        function generateId() {
-            return 'prop_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-        }
-
-        function showNotification(message, type = 'success') {
-            const notification = document.createElement('div');
-            notification.className = `notification ${type}`;
-            notification.innerHTML = `
-                <div class="notification-icon">${type === 'success' ? '✓' : '✕'}</div>
-                <div class="notification-content">
-                    <div class="notification-title">${type === 'success' ? 'Success' : 'Error'}</div>
-                    <div class="notification-message">${message}</div>
-                </div>
-            `;
-            
-            document.body.appendChild(notification);
-            
-            setTimeout(() => {
-                notification.style.animation = 'slideInRight 0.3s ease reverse';
-                setTimeout(() => notification.remove(), 300);
-            }, 3000);
-        }
-
-        function exportData() {
-            const dataStr = JSON.stringify(properties, null, 2);
-            const dataBlob = new Blob([dataStr], { type: 'application/json' });
-            const url = URL.createObjectURL(dataBlob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = `boom-properties-${new Date().toISOString().split('T')[0]}.json`;
-            link.click();
-            URL.revokeObjectURL(url);
-            showNotification('Data exported successfully', 'success');
-        }
-
-        function toggleMobileMenu() {
-            document.getElementById('sidebar').classList.toggle('mobile-open');
-        }
-
-        function checkMobileView() {
-            const mobileBtn = document.getElementById('mobileMenuBtn');
-            if (window.innerWidth <= 1024) {
-                mobileBtn.style.display = 'flex';
-            } else {
-                mobileBtn.style.display = 'none';
-                document.getElementById('sidebar').classList.remove('mobile-open');
-            }
-        }
-
-        // ========================================
-        // 🎯 INITIALIZE APP
-        // ========================================
-
-        document.addEventListener('DOMContentLoaded', initializeApp);
-        window.addEventListener('resize', checkMobileView);
-
-        // Prevent accidental data loss
-        window.addEventListener('beforeunload', (e) => {
-            if (properties.length > 0) {
-                saveToStorage();
-            }
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="bmGold" x1="0%" y1="0%" x2="0%" y2="100%">
+    <stop offset="0%" stop-color="#F1DFA0"/><stop offset="100%" stop-color="#D4AF37"/>
+  </linearGradient>
+  <g id="boomMark"><g transform="translate(0,1024) scale(0.1,-0.1)" fill="url(#bmGold)">
+    <path d="M4860 8749 c-509 -29 -976 -161 -1413 -401 -580 -317 -1057 -806 -1350 -1383 -148 -292 -229 -532 -291 -859 -89 -465 -69 -1005 54 -1461 184 -688 616 -1308 1232 -1769 492 -368 1172 -609 1794 -635 546 -22 987 57 1489 267 503 211 979 589 1327 1053 340 453 557 994 630 1569 17 135 17 630 0 760 -93 716 -396 1341 -900 1861 -280 289 -569 498 -922 667 -416 200 -813 303 -1285 332 -165 10 -170 10 -365 -1z m610 -144 c743 -103 1436 -459 1919 -985 338 -367 562 -751 704 -1205 276 -879 132 -1858 -388 -2640 -242 -364 -493 -615 -900 -900 l-70 -49 109 104 c413 396 679 919 767 1505 33 217 33 558 0 765 -75 476 -257 896 -549 1265 -127 161 -363 380 -549 511 -300 211 -689 363 -1079 420 -172 26 -604 26 -764 0 -296 -47 -545 -128 -808 -262 -236 -122 -440 -271 -632 -464 -486 -485 -749 -1121 -751 -1815 -1 -611 170 -1148 515 -1608 100 -134 286 -335 382 -413 33 -27 -8 -2 -91 55 -513 351 -904 805 -1143 1331 -71 156 -136 336 -168 465 -9 33 -19 76 -24 95 -5 19 -20 100 -34 180 -59 343 -60 740 0 1070 81 456 229 826 479 1200 246 368 558 669 949 917 386 245 881 418 1321 462 61 6 124 13 140 15 73 10 556 -4 665 -19z m-60 -1329 c105 -16 258 -49 335 -72 82 -26 197 -66 240 -84 149 -65 190 -84 266 -126 677 -379 1129 -1049 1246 -1849 27 -182 24 -517 -5 -695 -75 -458 -225 -813 -500 -1179 -116 -154 -340 -369 -527 -506 -44 -32 -87 -63 -95 -69 -8 -6 35 39 96 99 178 177 283 321 397 550 161 322 231 676 205 1045 -32 467 -223 902 -542 1237 -239 251 -521 426 -873 542 -79 26 -273 67 -383 81 -108 13 -349 13 -465 0 -276 -32 -597 -145 -834 -293 -224 -140 -466 -378 -613 -602 -307 -470 -407 -1055 -273 -1599 80 -327 217 -589 454 -871 71 -84 73 -88 31 -56 -293 225 -547 535 -718 877 -34 68 -65 143 -122 294 -42 112 -101 383 -120 555 -14 127 -14 401 0 534 51 482 223 912 516 1288 269 344 654 620 1085 778 160 59 400 115 574 134 121 13 508 5 625 -13z m-30 -1165 c401 -81 721 -242 992 -499 643 -612 769 -1607 300 -2367 -118 -190 -291 -386 -463 -524 -137 -111 -148 -113 -49 -12 110 112 206 248 275 386 67 137 98 222 132 367 24 103 26 132 27 323 0 182 -3 224 -22 310 -47 211 -126 394 -245 569 -126 186 -358 387 -564 490 -384 191 -823 225 -1218 95 -482 -160 -854 -541 -1004 -1029 -117 -379 -81 -810 96 -1165 37 -72 130 -215 166 -252 17 -18 26 -33 20 -33 -6 0 -61 52 -121 116 -259 272 -424 575 -511 934 -111 459 -18 1006 245 1430 298 483 791 797 1379 880 110 16 448 4 565 -19z m-239 -911 c360 -28 680 -171 925 -415 194 -193 317 -415 382 -688 24 -102 26 -130 26 -312 0 -191 -1 -205 -30 -320 -53 -205 -132 -372 -251 -535 -58 -79 -263 -288 -323 -330 -31 -22 -29 -18 18 35 195 220 312 519 312 795 0 325 -121 614 -350 841 -369 364 -926 453 -1385 222 -336 -170 -578 -499 -636 -865 -19 -126 -7 -371 25 -490 44 -162 97 -284 173 -398 9 -14 -4 -5 -30 20 -26 24 -45 51 -42 58 2 7 1 11 -4 7 -11 -6 -58 51 -118 140 -109 163 -183 347 -219 545 -23 127 -23 351 -1 489 55 335 248 677 492 871 261 208 530 311 881 338 11 1 81 -3 155 -8z m29 -714 c459 -74 823 -428 895 -869 58 -358 -60 -696 -345 -987 l-34 -35 22 35 c115 182 179 403 168 575 -14 235 -104 433 -268 591 -137 134 -287 209 -472 239 -115 19 -187 19 -303 0 -337 -55 -612 -302 -704 -635 -32 -113 -34 -325 -5 -440 23 -92 70 -213 98 -254 l21 -31 -31 29 c-39 36 -120 152 -155 221 -35 71 -81 215 -102 319 -25 130 -17 357 17 476 102 354 357 618 706 730 152 49 331 62 492 36z m-73 -567 c178 -24 327 -101 454 -236 137 -143 199 -303 201 -513 1 -162 -42 -309 -135 -453 -52 -82 -73 -97 -38 -28 51 99 67 290 36 412 -57 219 -251 413 -466 464 -75 17 -236 20 -311 4 -213 -44 -422 -247 -473 -460 -31 -133 -13 -325 41 -431 35 -70 8 -47 -52 43 -58 88 -90 167 -114 286 -25 121 -25 220 -1 331 33 146 84 243 186 351 171 183 413 266 672 230z m15 -470 c80 -17 186 -76 248 -139 106 -107 158 -248 147 -398 -6 -92 -25 -152 -79 -250 -45 -82 -60 -91 -27 -17 18 41 21 62 17 149 -4 89 -8 108 -35 162 -43 82 -126 165 -209 205 -58 29 -80 34 -158 37 -112 5 -184 -12 -259 -62 -182 -121 -251 -323 -171 -506 l24 -55 -25 30 c-36 44 -92 162 -104 223 -39 189 14 369 146 492 105 99 204 139 345 139 48 1 111 -4 140 -10z"/>
+  </g></g>
+</defs></svg>
+<div class="bg" aria-hidden="true"><span class="grid"></span><span class="aur a"></span><span class="aur b"></span><span class="scan"></span><span class="vign"></span></div>
+
+
+<header>
+  <div class="hrow">
+    <span class="hl" id="hl">Area proprietario</span>
+    <a class="brand" href="/"><svg class="mark" viewBox="0 0 1024 1024" width="28" height="28" aria-hidden="true"><use href="#boomMark"/></svg><b>BOOM</b></a>
+    <span class="hact"><button class="hout" id="langBtn" type="button">EN</button><button class="hout" id="logout" type="button" style="display:none">Esci</button></span>
+  </div>
+</header>
+
+<main>
+  <div class="load" id="load">
+    <svg class="mark" viewBox="0 0 1024 1024" width="64" height="64" aria-hidden="true"><use href="#boomMark"/></svg>
+    <div style="letter-spacing:7px;font-size:12px;margin-top:10px;color:var(--t1)">BOOM</div>
+    <div style="font-size:11px;margin-top:12px" id="loadMsg">Apro la tua area…</div>
+  </div>
+  <div id="app" style="display:none"></div>
+  <div class="foot" id="foot" style="display:none">Egidi Immobiliare S.r.l. · P.IVA 17322991005 · boomrome.com</div>
+</main>
+<input type="file" id="upl" accept="application/pdf,image/*" style="display:none">
+
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+<script src="/js/firebase-config.js"></script>
+<script src="/js/boom-portal.js"></script>
+<script>
+(function(){
+'use strict';
+var $=function(id){return document.getElementById(id)};
+var esc=function(s){return BoomPortal.escapeHtml(s==null?'':String(s))};
+var qs=new URLSearchParams(location.search);
+var ATTIVA=qs.get('attiva')||'';
+var AS=qs.get('as')||'';
+var WA='393313251961';
+var USER=null,PROFILE=null,DATA=null,VIEW='home',UPL=null,FILTER='';
+
+/* ── lingua: italiano di default (il locatore legge italiano), EN a un tocco ── */
+var LANG='it';
+try{var sv=localStorage.getItem('boom_owner_lang');if(sv==='en'||sv==='it')LANG=sv;}catch(e){}
+var S={
+ it:{hl:'Area proprietario',logout:'Esci',loading:'Apro la tua area…',hi:'Buongiorno',
+  hello:'Il tuo patrimonio con BOOM',nothing:'Niente da fare per te: ci pensiamo noi.',
+  needOne:'Una cosa richiede te.',needN:'{n} cose richiedono te.',
+  tRent:'In gestione',tRentS:'/mese',tYtd:'Incassato {y}',tMonth:'Atteso questo mese',tArr:'Arretrati',none:'nessuno',
+  needs:'Richiede te',next:'Prossime scadenze',props:'I tuoi immobili',docs:'Tutti i documenti',reports:'Rendiconti mensili',contact:'Parla con noi',
+  noEvents:'Nessuna scadenza nei prossimi mesi.',noProps:'Non vediamo ancora immobili collegati al tuo account. Scrivici: li colleghiamo in un minuto.',
+  noReports:'Il rendiconto arriva il 1° di ogni mese, da quando il primo canone è stato incassato.',
+  search:'Cerca un documento…',noDocs:'Nessun documento trovato.',open:'Apri',
+  st:{occupied:'Affittato',ending:'In scadenza',incoming:'In arrivo',signing:'In firma',free:'Libero'},
+  tenant:'Conduttore',rent:'Canone',until:'fino al',docsN:'{n} documenti',docsN1:'1 documento',arrearsN:'{n} in ritardo',toUpN:'{n} da caricare',
+  laterWhy:'Non bloccano niente: completano il fascicolo, così registrazione e attestazione partono senza rincorse.',
+  back:'Tutti gli immobili',contract:'Contratto',money:'Canoni',history:'Cosa ha fatto BOOM',maint:'Manutenzione',past:'Contratti precedenti',missing:'Da caricare',
+  k:{type:'Tipo',tenant:'Conduttore',start:'Decorrenza',end:'Scadenza',rent:'Canone mensile',deposit:'Deposito',cadence:'Rate',cedolare:'Regime',sign:'Firme',reg:'Registrazione'},
+  cad:{1:'mensili',2:'bimestrali',3:'trimestrali',6:'semestrali',12:'annuali'},
+  ced:{true:'Cedolare secca',false:'Ordinario'},
+  sign:{complete:'Firmato da entrambi',partial:'In firma',none:'Non ancora firmato',paper:'Firmato (cartaceo)'},
+  reg:{yes:'Registrato',no:'In corso — la segue BOOM'},
+  ytd:'Incassato nel {y}',nextRent:'Prossimo canone',lastPaid:'Ultimo incasso',arrears:'Arretrati',
+  pst:{paid:'Pagato',due:'In arrivo',overdue:'In ritardo',reported:'Segnalato',processing:'In lavorazione',cancelled:'Annullato',unknown:'Da verificare'},
+  noContract:'Nessun contratto in corso su questo immobile.',noMaint:'Nessun intervento registrato.',noHist:'La storia si scrive con la prima firma.',
+  lockedDocs:'{n} documenti del conduttore diventano visibili quando il contratto è firmato: prima della firma non sono tuoi da vedere.',
+  signNow:'Firma ora',fill:'Completa i dati',upload:'Carica',uploading:'Carico…',uploaded:'Caricato: grazie, lo vediamo subito.',
+  tooBig:'Il file è troppo grande per il caricamento dal browser (max 3 MB per i PDF). Mandacelo su WhatsApp: lo archiviamo noi.',
+  upErr:'Caricamento non riuscito. Riprova o mandacelo su WhatsApp.',
+  err:'Non riesco a caricare la tua area in questo momento.',retry:'Riprova',
+  waText:'Ciao BOOM, sono {name} — ti scrivo dall’area proprietario',
+  preview:'👁 Anteprima admin: stai vedendo l’area come la vede {name}. Nessuna azione viene registrata.',
+  ev:{sign_now:['Firma il contratto','Il conduttore ha firmato: manca solo la tua firma.'],
+      sign_pending:['Contratto in firma','Il conduttore sta firmando: ti avvisiamo appena tocca a te.'],
+      registration:['Registrazione del contratto','Entro il {date} — la segue BOOM.'],
+      registration_unconfirmed:['Registrazione da confermare','Il termine era il {due}: BOOM verifica e ti conferma.'],
+      renewal_decide:['Decidi il rinnovo','Il contratto scade il {date}: parliamone per tempo.'],
+      contract_end:['Fine contratto','Il contratto scade il {date}.'],
+      move_in:['Ingresso del conduttore','Il {date}: consegna delle chiavi con verbale e inventario.'],
+      arrears:['{n} rate in ritardo','{amount} da incassare — BOOM sta già sollecitando.','Una rata in ritardo'],
+      next_rent:['Prossimo canone','{amount}, scadenza {date}.'],
+      maintenance_open:['{n} interventi aperti','Li seguiamo noi: ti aggiorniamo a lavoro fatto.','Un intervento aperto']},
+  hist:{tenant_signed:'Il conduttore ha firmato',landlord_signed:'Hai firmato il contratto',registered:'Contratto registrato all’Agenzia delle Entrate',
+        keys_delivered:'Chiavi consegnate con verbale',inventory:'Inventario di consegna',inventory_out:'Inventario di riconsegna',aspi_sent:'Pratica di registrazione inviata',
+        mandate_given:'Mandato a firmare conferito',dossier_ape:'APE archiviato',dossier_visura:'Visura archiviata',dossier_planimetria:'Planimetria archiviata',dossier_delega:'Delega ARPE archiviata'},
+  miss:{dossier_ape:'APE — attestato di prestazione energetica',dossier_visura:'Visura catastale',dossier_planimetria:'Planimetria catastale',dossier_delega:'Delega ARPE firmata',owner_scheda:'I tuoi dati per il contratto'},
+  missWhy:{dossier_ape:'Obbligatorio per affittare: numero e classe vanno nel contratto e negli annunci.',dossier_visura:'Serve per la registrazione e per l’attestazione del canone concordato.',dossier_planimetria:'Serve all’attestazione e a calcolare la superficie.',dossier_delega:'Permette a BOOM di chiedere l’attestazione di rispondenza per te.',owner_scheda:'Codice fiscale, residenza e IBAN: senza, il contratto stampa dei puntini.'},
+  fold:{contract:'Contratto',tax:'Fiscale e registrazione',tenant:'Conduttore',property:'Immobile',reports:'Rendiconti'},
+  dk:{contract_signed:'Contratto firmato',contract_pdf:'Contratto',contract_draft:'Contratto — bozza da firmare',signing_cert:'Certificato di firma',verbale:'Verbale di consegna chiavi',
+      inventory_in:'Inventario di consegna',inventory_out:'Inventario di riconsegna',owner_mandate:'Il tuo mandato a BOOM',owner_id:'Il tuo documento d’identità',
+      fascicolo:'Fascicolo fiscale',scheda_arpe:'Scheda calcolo canone (ARPE)',reg_pack:'Pacchetto registrazione (ZIP)',valutazione:'Valutazione BOOM del canone',
+      tenant_id:'Documento d’identità del conduttore',tenant_need:'Attestazione dell’esigenza',cessione:'Cessione di fabbricato',
+      ape:'APE',visura:'Visura catastale',planimetria:'Planimetria',delega:'Delega ARPE',archive_contract:'Contratto (archivio)',rli:'Registrazione RLI',cedolare:'Opzione cedolare secca',
+      f24:'F24',istat:'Adeguamento ISTAT',rent_receipt:'Ricevuta canone',utility:'Bolletta',expense:'Fattura spese',inventory:'Inventario',shared:'Documento condiviso',report:'Rendiconto'},
+  months:['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'],
+  act:{title:'Attiva la tua area proprietario',sub:'Scegli la password con cui entrerai d’ora in poi. Nessuna app, nessun codice.',email:'Email',pwd:'Nuova password (almeno 8 caratteri)',pwd2:'Ripeti la password',go:'Attiva ed entra',
+       mismatch:'Le due password non coincidono.',weak:'Scegli una password di almeno 8 caratteri.',expired:'Questo link è scaduto o è già stato usato. Chiedici un link nuovo, oppure accedi se hai già una password.',
+       active:'La tua area è già attiva: accedi con la tua email e la tua password.',login:'Accedi',ask:'Chiedi un link nuovo',wait:'Attivo…',fail:'Attivazione non riuscita. Riprova tra un momento.'}},
+ en:{hl:'Owner area',logout:'Sign out',loading:'Opening your area…',hi:'Hello',
+  hello:'Your portfolio with BOOM',nothing:'Nothing for you to do: we’re on it.',
+  needOne:'One thing needs you.',needN:'{n} things need you.',
+  tRent:'Under management',tRentS:'/month',tYtd:'Collected {y}',tMonth:'Due this month',tArr:'Arrears',none:'none',
+  needs:'Needs you',next:'Coming up',props:'Your properties',docs:'All documents',reports:'Monthly statements',contact:'Talk to us',
+  noEvents:'Nothing due in the coming months.',noProps:'We don’t see any property linked to your account yet. Message us: we’ll link them in a minute.',
+  noReports:'Your statement arrives on the 1st of each month, from the first rent collected.',
+  search:'Search a document…',noDocs:'No documents found.',open:'Open',
+  st:{occupied:'Rented',ending:'Ending',incoming:'Incoming',signing:'Signing',free:'Vacant'},
+  tenant:'Tenant',rent:'Rent',until:'until',docsN:'{n} documents',docsN1:'1 document',arrearsN:'{n} late',toUpN:'{n} to upload',
+  laterWhy:'Nothing is blocked: they complete the file, so registration and certification start without chasing.',
+  back:'All properties',contract:'Lease',money:'Rent',history:'What BOOM did',maint:'Maintenance',past:'Previous leases',missing:'To upload',
+  k:{type:'Type',tenant:'Tenant',start:'Start',end:'End',rent:'Monthly rent',deposit:'Deposit',cadence:'Instalments',cedolare:'Tax regime',sign:'Signatures',reg:'Registration'},
+  cad:{1:'monthly',2:'bi-monthly',3:'quarterly',6:'half-yearly',12:'yearly'},
+  ced:{true:'Cedolare secca',false:'Ordinary'},
+  sign:{complete:'Signed by both',partial:'Signing',none:'Not signed yet',paper:'Signed (paper)'},
+  reg:{yes:'Registered',no:'In progress — BOOM handles it'},
+  ytd:'Collected in {y}',nextRent:'Next rent',lastPaid:'Last collected',arrears:'Arrears',
+  pst:{paid:'Paid',due:'Due',overdue:'Late',reported:'Reported',processing:'Processing',cancelled:'Cancelled',unknown:'To check'},
+  noContract:'No active lease on this property.',noMaint:'No maintenance recorded.',noHist:'The story starts with the first signature.',
+  lockedDocs:'{n} tenant documents become visible once the lease is signed: before signing they’re not yours to see.',
+  signNow:'Sign now',fill:'Complete your details',upload:'Upload',uploading:'Uploading…',uploaded:'Uploaded — thank you, we’ll see it right away.',
+  tooBig:'This file is too large to upload from the browser (PDF max 3 MB). Send it on WhatsApp: we’ll file it.',
+  upErr:'Upload failed. Try again or send it on WhatsApp.',
+  err:'I can’t load your area right now.',retry:'Retry',
+  waText:'Hi BOOM, this is {name} — writing from the owner area',
+  preview:'👁 Admin preview: you’re seeing the area as {name} sees it. Nothing is recorded.',
+  ev:{sign_now:['Sign the lease','The tenant has signed: only your signature is missing.'],
+      sign_pending:['Lease being signed','The tenant is signing: we’ll tell you when it’s your turn.'],
+      registration:['Lease registration','By {date} — BOOM handles it.'],
+      registration_unconfirmed:['Registration to confirm','The deadline was {due}: BOOM is checking and will confirm.'],
+      renewal_decide:['Decide on renewal','The lease ends on {date}: let’s talk in time.'],
+      contract_end:['Lease ends','The lease ends on {date}.'],
+      move_in:['Tenant moves in','On {date}: key handover with report and inventory.'],
+      arrears:['{n} late instalments','{amount} outstanding — BOOM is already chasing it.','One late instalment'],
+      next_rent:['Next rent','{amount}, due {date}.'],
+      maintenance_open:['{n} open jobs','We handle them and update you when done.','One open job']},
+  hist:{tenant_signed:'Tenant signed',landlord_signed:'You signed the lease',registered:'Lease registered with the Revenue Agency',
+        keys_delivered:'Keys handed over with report',inventory:'Move-in inventory',inventory_out:'Move-out inventory',aspi_sent:'Registration file sent',
+        mandate_given:'Signing mandate given',dossier_ape:'Energy certificate filed',dossier_visura:'Land-registry extract filed',dossier_planimetria:'Floor plan filed',dossier_delega:'ARPE delegation filed'},
+  miss:{dossier_ape:'Energy performance certificate (APE)',dossier_visura:'Land-registry extract (visura)',dossier_planimetria:'Cadastral floor plan',dossier_delega:'Signed ARPE delegation',owner_scheda:'Your details for the lease'},
+  missWhy:{dossier_ape:'Required to rent: its number and class go in the lease and the listings.',dossier_visura:'Needed for registration and the agreed-rent certification.',dossier_planimetria:'Needed for the certification and the surface calculation.',dossier_delega:'Lets BOOM request the certification on your behalf.',owner_scheda:'Tax code, residence and IBAN: without them the lease prints blanks.'},
+  fold:{contract:'Lease',tax:'Tax & registration',tenant:'Tenant',property:'Property',reports:'Statements'},
+  dk:{contract_signed:'Signed lease',contract_pdf:'Lease',contract_draft:'Lease — draft to sign',signing_cert:'Signature certificate',verbale:'Key handover report',
+      inventory_in:'Move-in inventory',inventory_out:'Move-out inventory',owner_mandate:'Your mandate to BOOM',owner_id:'Your ID document',
+      fascicolo:'Tax dossier',scheda_arpe:'Rent calculation sheet (ARPE)',reg_pack:'Registration pack (ZIP)',valutazione:'BOOM rent valuation',
+      tenant_id:'Tenant’s ID document',tenant_need:'Proof of transitional need',cessione:'Cessione di fabbricato',
+      ape:'Energy certificate (APE)',visura:'Land-registry extract',planimetria:'Floor plan',delega:'ARPE delegation',archive_contract:'Lease (archive)',rli:'RLI registration',cedolare:'Cedolare secca option',
+      f24:'F24 payment',istat:'ISTAT adjustment',rent_receipt:'Rent receipt',utility:'Utility bill',expense:'Expense invoice',inventory:'Inventory',shared:'Shared document',report:'Statement'},
+  months:['January','February','March','April','May','June','July','August','September','October','November','December'],
+  act:{title:'Activate your owner area',sub:'Choose the password you’ll use from now on. No app, no codes.',email:'Email',pwd:'New password (at least 8 characters)',pwd2:'Repeat the password',go:'Activate and enter',
+       mismatch:'The two passwords don’t match.',weak:'Choose a password of at least 8 characters.',expired:'This link has expired or was already used. Ask us for a new one, or sign in if you already have a password.',
+       active:'Your area is already active: sign in with your email and password.',login:'Sign in',ask:'Ask for a new link',wait:'Activating…',fail:'Activation failed. Please try again in a moment.'}}
+};
+var t=function(k){var o=S[LANG];k.split('.').forEach(function(p){o=o==null?o:o[p]});return o==null?k:o};
+var fill=function(s,v){return String(s).replace(/\{(\w+)\}/g,function(_,k){return v&&v[k]!=null?v[k]:''})};
+var eur=function(n){var v=Math.round((Number(n)||0)*100)/100;var p=v.toFixed(v%1?2:0).split('.');p[0]=p[0].replace(/\B(?=(\d{3})+(?!\d))/g,LANG==='it'?'.':',');return '€'+p.join(LANG==='it'?',':'.')};
+var dmy=function(iso){var m=/^(\d{4})-(\d{2})-(\d{2})/.exec(iso||'');if(!m)return '';return (+m[3])+' '+t('months')[+m[2]-1].slice(0,3)+' '+m[1]};
+var monthLabel=function(ym){var m=/^(\d{4})-(\d{2})$/.exec(ym||'');return m?t('months')[+m[2]-1]+' '+m[1]:ym};
+var waLink=function(extra){var n=(DATA&&DATA.owner&&DATA.owner.name)||'';return 'https://wa.me/'+WA+'?text='+encodeURIComponent(fill(t('waText'),{name:n})+(extra?' — '+extra:''))};
+function setLang(l){LANG=l;try{localStorage.setItem('boom_owner_lang',l)}catch(e){}
+  document.documentElement.lang=l;$('langBtn').textContent=l==='it'?'EN':'IT';$('hl').textContent=t('hl');$('logout').textContent=t('logout');
+  if(DATA)render();else if(ATTIVA&&$('actBox'))renderActivate(ACT_STATE);}
+$('langBtn').onclick=function(){setLang(LANG==='it'?'en':'it')};
+
+/* ── rete: ogni chiamata ha un tetto (la lezione di Safari: una promessa appesa
+   è un loader eterno) ── */
+function api(path,opts){
+  var ctl=('AbortController' in window)?new AbortController():null;
+  var tm=setTimeout(function(){if(ctl)ctl.abort()},20000);
+  return fetch(path,Object.assign({signal:ctl?ctl.signal:undefined},opts||{})).then(function(r){
+    clearTimeout(tm);return r.json().catch(function(){return{}}).then(function(b){b.__status=r.status;return b});
+  },function(e){clearTimeout(tm);return{ok:false,error:'network',__status:0}});
+}
+function authed(path,opts){
+  return USER.getIdToken().then(function(tok){
+    var o=Object.assign({},opts||{});o.headers=Object.assign({Authorization:'Bearer '+tok},o.headers||{});
+    return api(path,o);
+  });
+}
+
+/* ═══ ATTIVAZIONE: il primo ingresso, dal link dell'invito ═══ */
+var ACT_STATE={phase:'check'};
+function renderActivate(s){
+  ACT_STATE=s||ACT_STATE;s=ACT_STATE;
+  $('load').style.display='none';$('app').style.display='';
+  var a=t('act');
+  var h='<div class="actbox"><div class="eyebrow">BOOM · '+esc(t('hl'))+'</div><h1 class="big">'+esc(a.title)+'</h1>';
+  if(s.phase==='expired'||s.phase==='active'){
+    h+='<p class="empty" style="margin-top:6px">'+esc(s.phase==='active'?a.active:a.expired)+'</p>'
+      +'<a class="gbtn full" href="/login?next=%2Fowner">'+esc(a.login)+'</a>'
+      +(s.phase==='expired'?'<a class="obtn wa" style="width:100%;margin-top:10px" target="_blank" rel="noopener" href="https://wa.me/'+WA+'?text='+encodeURIComponent('Ciao BOOM, il link della mia area proprietario è scaduto: me ne mandate uno nuovo?')+'">'+esc(a.ask)+'</a>':'');
+  }else{
+    h+='<p class="empty" style="margin-top:6px">'+esc(a.sub)+'</p>'
+      +'<form id="actForm" autocomplete="on" novalidate>'
+      +'<label class="fld"><span>'+esc(a.email)+'</span><input type="email" id="aEmail" autocomplete="username" readonly value="'+esc(s.email||'')+'"></label>'
+      +'<label class="fld"><span>'+esc(a.pwd)+'</span><input type="password" id="aPwd" autocomplete="new-password" minlength="8" required></label>'
+      +'<label class="fld"><span>'+esc(a.pwd2)+'</span><input type="password" id="aPwd2" autocomplete="new-password" minlength="8" required></label>'
+      +'<button class="gbtn full" id="aGo" type="submit"'+(s.phase==='check'?' disabled':'')+'>'+esc(s.busy?a.wait:a.go)+'</button>'
+      +'<div class="msg" id="aMsg" role="alert" aria-live="assertive"></div></form>';
+  }
+  h+='</div>';
+  $('app').innerHTML=h;
+  var f=$('actForm');if(!f)return;
+  f.onsubmit=function(ev){ev.preventDefault();
+    var p1=$('aPwd').value,p2=$('aPwd2').value,m=$('aMsg');m.className='msg err';
+    if(p1.length<8){m.textContent=a.weak;return}
+    if(p1!==p2){m.textContent=a.mismatch;return}
+    $('aGo').disabled=true;$('aGo').textContent=a.wait;m.textContent='';
+    api('/api/owners/activate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ref:ATTIVA,op:'set',password:p1})}).then(function(r){
+      if(r&&r.ok){
+        return firebase.auth().signInWithEmailAndPassword(r.email||s.email,p1).then(function(){
+          try{history.replaceState(null,'','/owner')}catch(e){}
+          ATTIVA='';$('app').innerHTML='';$('load').style.display='';boot();
         });
+      }
+      if(r&&r.error==='already_active'){renderActivate({phase:'active',email:r.email||s.email});return}
+      if(r&&r.error==='expired_link'||r&&r.error==='invalid_link'){renderActivate({phase:'expired'});return}
+      $('aGo').disabled=false;$('aGo').textContent=a.go;m.textContent=r&&r.error==='weak_password'?a.weak:a.fail;
+    }).catch(function(){$('aGo').disabled=false;$('aGo').textContent=a.go;m.textContent=a.fail});
+  };
+}
+function startActivation(){
+  renderActivate({phase:'check'});
+  api('/api/owners/activate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({ref:ATTIVA,op:'check'})}).then(function(r){
+    if(r&&r.ok)renderActivate({phase:'ready',email:r.email});
+    else if(r&&r.error==='already_active')renderActivate({phase:'active',email:r.email});
+    else renderActivate({phase:'expired'});
+  });
+}
 
-        console.log('🚀 BOOM Owner Dashboard Loaded');
-        console.log('💡 Keyboard Shortcuts:');
-        console.log('   - Cmd/Ctrl + N: Add new property');
-        console.log('   - Escape: Close modal');
-    </script>
+/* ═══ L'AREA ═══ */
+function allDocs(){
+  var out=[];
+  (DATA.vault.properties||[]).forEach(function(p){(p.documents||[]).forEach(function(f){(f.items||[]).forEach(function(d){out.push(Object.assign({prop:p.name,folderKey:f.key},d))})})});
+  (DATA.vault.reports||[]).forEach(function(r){out.push({kind:'report',url:r.url,date:r.at,name:t('dk.report')+' '+monthLabel(r.month),folderKey:'reports',prop:''})});
+  return out;
+}
+function actions(){
+  var out=[];
+  (DATA.vault.properties||[]).forEach(function(p){
+    (p.events||[]).forEach(function(e){if(e.code==='sign_now')out.push({p:p,kind:'sign',url:e.action||(p.contract&&p.contract.signUrl)})});
+    (p.missing||[]).forEach(function(m){if(m.urgent)out.push({p:p,kind:m.upload?'upload':'scheda',m:m})});
+  });
+  return out;
+}
+var DICON={contract_signed:'✍',contract_pdf:'📄',contract_draft:'📝',signing_cert:'🔏',verbale:'🔑',inventory_in:'📋',inventory_out:'📋',inventory:'📋',owner_mandate:'🤝',owner_id:'🪪',
+  fascicolo:'🧾',scheda_arpe:'📐',reg_pack:'📦',valutazione:'💶',tenant_id:'🪪',tenant_need:'📎',cessione:'🛂',ape:'⚡',visura:'🏛',planimetria:'📏',delega:'✒',
+  archive_contract:'📄',rli:'🏛',cedolare:'🧾',f24:'🧾',istat:'📈',rent_receipt:'💶',utility:'💡',expense:'🔧',shared:'📎',report:'📒'};
+function docRow(d,showProp){
+  var label=t('dk.'+d.kind);if(label==='dk.'+d.kind)label=d.name||t('dk.shared');
+  var title=(d.name&&['shared','archive_contract','rli','cedolare','f24','istat','rent_receipt','utility','expense','report','tenant_id'].indexOf(d.kind)>=0)?d.name:label;
+  var sub=[d.date?dmy(d.date):'',d.tenantName&&d.folderKey!=='property'?d.tenantName:'',showProp&&d.prop?d.prop:'',title!==label?label:''].filter(Boolean).join(' · ');
+  return '<a class="dlink" href="'+esc(d.url)+'" target="_blank" rel="noopener"><span class="ic" aria-hidden="true">'+(DICON[d.kind]||'📄')+'</span><span class="tx"><b>'+esc(title)+'</b>'+(sub?'<small>'+esc(sub)+'</small>':'')+'</span><span class="go" aria-hidden="true">↗</span></a>';
+}
+function evRow(e,showProp){
+  var L=t('ev.'+e.code);if(!Array.isArray(L))return '';
+  var v={date:dmy(e.date),due:dmy(e.due),n:e.n,amount:eur(e.amount)};
+  var btn='';
+  if(e.code==='sign_now'&&e.action)btn='<a class="gbtn" href="'+esc(e.action)+'">'+esc(t('signNow'))+'</a>';
+  if(e.code==='renewal_decide')btn='<a class="obtn wa" target="_blank" rel="noopener" href="'+esc(waLink((e.propertyName||'')+' — rinnovo'))+'">WhatsApp</a>';
+  var tone=e.tone==='red'?'red':e.tone==='gold'?'gold':e.tone==='warn'?'warn':'';
+  var when=(e.code==='arrears'||e.code==='maintenance_open'||e.code==='sign_now'||e.code==='sign_pending'||e.code==='registration_unconfirmed')?'':dmy(e.date);
+  return '<div class="ev '+tone+'"><span class="dot"></span><div class="bd"><b>'+esc(fill(e.n===1&&L[2]?L[2]:L[0],v))+'</b><small>'+esc(fill(L[1],v))+'</small>'
+    +(showProp&&e.propertyName?'<div class="where">'+esc(e.propertyName)+'</div>':'')+btn+'</div>'+(when?'<span class="when">'+esc(when)+'</span>':'')+'</div>';
+}
+function missRow(p,m,showProp,quiet){
+  var title=t('miss.'+m.code),why=t('missWhy.'+m.code);
+  if(title==='miss.'+m.code)title=m.label||m.code;
+  if(why==='missWhy.'+m.code)why=m.why||'';
+  var btn=m.upload?'<button class="'+(quiet?'obtn':'gbtn')+'" type="button" data-up="'+esc(p.id)+'|'+esc(m.slot)+'"'+(AS?' disabled':'')+'>'+esc(t('upload'))+'</button>'
+    :m.action?'<a class="gbtn" href="'+esc(m.action)+'">'+esc(t('fill'))+'</a>':'';
+  return '<div class="miss"><div class="bd"><b>'+esc(title)+'</b><small>'+esc(why)+'</small>'+(showProp?'<div class="ev" style="padding:0;border:0"><div class="where">'+esc(p.name)+'</div></div>':'')+'</div>'+btn+'</div>';
+}
+function render(){
+  var app=$('app');document.documentElement.lang=LANG;
+  if(VIEW.indexOf('p:')===0){var p=(DATA.vault.properties||[]).filter(function(x){return x.id===VIEW.slice(2)})[0];if(p){app.innerHTML=renderProperty(p);wire();window.scrollTo(0,0);return}VIEW='home'}
+  app.innerHTML=renderHome();wire();
+}
+function renderHome(){
+  var V=DATA.vault,P=V.portfolio,owner=DATA.owner||{},y=(V.today||'').slice(0,4);
+  var first=String(owner.name||'').split(' ')[0];
+  var acts=actions(),h='';
+  if(DATA.preview)h+='<div class="adminview">'+esc(fill(t('preview'),{name:owner.name||owner.email||''}))+'</div>';
+  h+='<div class="rv"><div class="eyebrow">'+esc(t('hello'))+'</div><h1 class="big">'+esc(t('hi'))+(first?', <em>'+esc(first)+'</em>':'')+'</h1>'
+    +'<div class="verdict'+(acts.length?' act':'')+'"><i></i><span>'+esc(acts.length?(acts.length===1?t('needOne'):fill(t('needN'),{n:acts.length})):t('nothing'))+'</span></div></div>';
+  h+='<div class="tiles rv"><div class="tile hero"><div class="k">'+esc(t('tRent'))+'</div><div class="v">'+eur(P.monthlyRent)+'<small>'+esc(t('tRentS'))+'</small></div></div>'
+    +'<div class="tile"><div class="k">'+esc(fill(t('tYtd'),{y:y}))+'</div><div class="v">'+eur(P.collectedYtd)+'</div></div>'
+    +'<div class="tile"><div class="k">'+esc(t('tMonth'))+'</div><div class="v">'+eur(P.dueThisMonth)+'</div></div>'
+    +'<div class="tile'+(P.arrears>0?' bad':'')+'"><div class="k">'+esc(t('tArr'))+'</div><div class="v">'+(P.arrears>0?eur(P.arrears):'<small style="font-size:15px">'+esc(t('none'))+'</small>')+'</div></div></div>';
+  h+='<div class="cols"><div class="col">';
+  if(acts.length){
+    h+='<section class="card need rv"><h2><span class="no">!</span><span class="tt">'+esc(t('needs'))+'</span></h2>';
+    acts.forEach(function(a){
+      if(a.kind==='sign')h+='<div class="miss"><div class="bd"><b>'+esc(t('ev.sign_now')[0])+'</b><small>'+esc(t('ev.sign_now')[1])+'</small><div class="ev" style="padding:0;border:0"><div class="where">'+esc(a.p.name)+'</div></div></div>'+(a.url?'<a class="gbtn" href="'+esc(a.url)+'">'+esc(t('signNow'))+'</a>':'')+'</div>';
+      else h+=missRow(a.p,a.m,true);
+    });
+    h+='</section>';
+  }
+  var evs=(V.events||[]).filter(function(e){return e.code!=='sign_now'});
+  h+='<section class="card rv"><h2><span class="no">01</span><span class="tt">'+esc(t('next'))+'</span></h2>'+(evs.length?evs.slice(0,8).map(function(e){return evRow(e,true)}).join(''):'<p class="empty">'+esc(t('noEvents'))+'</p>')+'</section>';
+  h+='<section class="card rv"><h2><span class="no">02</span><span class="tt">'+esc(t('props'))+'</span></h2>';
+  if(!(V.properties||[]).length)h+='<p class="empty">'+esc(t('noProps'))+'</p><a class="obtn wa" target="_blank" rel="noopener" href="'+esc(waLink())+'">WhatsApp</a>';
+  h+='<div class="props">'+(V.properties||[]).map(function(p){
+    var c=p.contract,facts=[];
+    if(c){facts.push('<span>'+esc(t('tenant'))+' <b>'+esc(c.tenantName)+'</b></span>');facts.push('<span>'+esc(t('rent'))+' <b>'+eur(c.rent)+'</b></span>');if(c.endDate)facts.push('<span>'+esc(t('until'))+' <b>'+esc(dmy(c.endDate))+'</b></span>');}
+    facts.push('<span>'+esc(p.docCount===1?t('docsN1'):fill(t('docsN'),{n:p.docCount}))+'</span>');
+    if(p.money&&p.money.arrearsCount)facts.push('<span class="red">'+esc(fill(t('arrearsN'),{n:p.money.arrearsCount}))+'</span>');
+    var toUp=(p.missing||[]).filter(function(x){return x.upload&&!x.urgent}).length;
+    if(toUp)facts.push('<span class="soft">'+esc(fill(t('toUpN'),{n:toUp}))+'</span>');
+    return '<button class="prop" type="button" data-prop="'+esc(p.id)+'"><div class="top"><span class="nm">'+esc(p.name)+'</span><span class="st '+esc(p.status)+'">'+esc(t('st.'+p.status))+'</span></div>'
+      +(p.address&&p.address!==p.name?'<div class="sub">'+esc(p.address)+(p.unit?' · int. '+esc(p.unit):'')+'</div>':'')
+      +'<div class="facts">'+facts.join('')+'</div></button>';
+  }).join('')+'</div></section>';
+  h+='</div><div class="col">';
+  h+='<section class="card rv"><h2><span class="no">03</span><span class="tt">'+esc(t('docs'))+'</span></h2><input class="dsearch" id="dsearch" type="search" placeholder="'+esc(t('search'))+'" value="'+esc(FILTER)+'" aria-label="'+esc(t('search'))+'"><div id="dres">'+docResults()+'</div></section>';
+  h+='<section class="card rv"><h2><span class="no">04</span><span class="tt">'+esc(t('reports'))+'</span></h2>'+((V.reports||[]).length?(V.reports||[]).slice(0,12).map(function(r){return docRow({kind:'report',url:r.url,date:r.at,name:t('dk.report')+' '+monthLabel(r.month)})}).join(''):'<p class="empty">'+esc(t('noReports'))+'</p>')+'</section>';
+  h+='<section class="card rv"><h2><span class="no">05</span><span class="tt">'+esc(t('contact'))+'</span></h2><div class="contact"><a class="obtn wa" target="_blank" rel="noopener" href="'+esc(waLink())+'">WhatsApp</a><a class="obtn" href="mailto:valentino@boom-rome.com">Email</a></div></section>';
+  h+='</div></div>';
+  return h;
+}
+function docResults(){
+  var q=FILTER.trim().toLowerCase(),docs=allDocs();
+  docs.sort(function(a,b){return String(b.date||'').localeCompare(String(a.date||''))});
+  if(q)docs=docs.filter(function(d){var lab=t('dk.'+d.kind);return [d.name,lab,d.prop,d.tenantName,d.date].join(' ').toLowerCase().indexOf(q)>=0});
+  if(!docs.length)return '<p class="empty">'+esc(t('noDocs'))+'</p>';
+  return docs.slice(0,q?60:10).map(function(d){return docRow(d,true)}).join('');
+}
+function renderProperty(p){
+  var c=p.contract,h='';
+  if(DATA.preview)h+='<div class="adminview">'+esc(fill(t('preview'),{name:(DATA.owner||{}).name||''}))+'</div>';
+  h+='<button class="back" type="button" data-home="1">← '+esc(t('back'))+'</button>';
+  h+='<div class="rv"><div class="eyebrow">'+esc(t('st.'+p.status))+'</div><h1 class="big">'+esc(p.name)+'</h1><div class="empty">'+esc([p.address!==p.name?p.address:'',p.unit?'int. '+p.unit:'',p.zone,p.sqm?p.sqm+' m²':''].filter(Boolean).join(' · '))+'</div></div>';
+  var m=p.money||{},y=(DATA.vault.today||'').slice(0,4);
+  h+='<div class="tiles rv"><div class="tile hero"><div class="k">'+esc(fill(t('ytd'),{y:y}))+'</div><div class="v">'+eur(m.collectedYtd)+'</div></div>'
+    +'<div class="tile"><div class="k">'+esc(t('nextRent'))+'</div><div class="v">'+(m.next?eur(m.next.amount)+'<small> '+esc(dmy(m.next.dueDate))+'</small>':'—')+'</div></div>'
+    +'<div class="tile"><div class="k">'+esc(t('lastPaid'))+'</div><div class="v">'+(m.lastPaid?eur(m.lastPaid.amount)+'<small> '+esc(dmy(m.lastPaid.date))+'</small>':'—')+'</div></div>'
+    +'<div class="tile'+(m.arrears>0?' bad':'')+'"><div class="k">'+esc(t('arrears'))+'</div><div class="v">'+(m.arrears>0?eur(m.arrears):'<small style="font-size:15px">'+esc(t('none'))+'</small>')+'</div></div></div>';
+  h+='<div class="cols"><div class="col">';
+  var miss=(p.missing||[]).filter(function(x){return x.urgent});
+  var later=(p.missing||[]).filter(function(x){return !x.info&&!x.urgent});
+  var sign=(p.events||[]).filter(function(e){return e.code==='sign_now'})[0];
+  if(miss.length||sign){
+    h+='<section class="card need rv"><h2><span class="no">!</span><span class="tt">'+esc(t('needs'))+'</span></h2>';
+    if(sign)h+=evRow(sign,false);
+    h+=miss.map(function(x){return missRow(p,x,false)}).join('')+'</section>';
+  }
+  h+='<section class="card rv"><h2><span class="no">01</span><span class="tt">'+esc(t('contract'))+'</span></h2>';
+  if(c){
+    var K=t('k');
+    h+='<div class="kv"><div><span>'+esc(K.tenant)+'</span><b>'+esc(c.tenantName+(c.coTenants&&c.coTenants.length?' + '+c.coTenants.join(', '):''))+'</b></div>'
+      +'<div><span>'+esc(K.type)+'</span><b>'+esc(c.typeLabel)+'</b></div>'
+      +'<div><span>'+esc(K.start)+'</span><b>'+esc(dmy(c.startDate)||'—')+'</b></div>'
+      +'<div><span>'+esc(K.end)+'</span><b>'+esc(dmy(c.endDate)||'—')+'</b></div>'
+      +'<div><span>'+esc(K.rent)+'</span><b>'+eur(c.rent)+'</b></div>'
+      +'<div><span>'+esc(K.deposit)+'</span><b>'+(c.deposit?eur(c.deposit):'—')+'</b></div>'
+      +'<div><span>'+esc(K.cadence)+'</span><b>'+esc(t('cad')[c.cadence]||'')+'</b></div>'
+      +'<div><span>'+esc(K.cedolare)+'</span><b>'+esc(t('ced')[String(!!c.cedolare)])+'</b></div>'
+      +'<div><span>'+esc(K.sign)+'</span><b class="'+(c.signState==='complete'||c.signState==='paper'?'ok':'wait')+'">'+esc(t('sign.'+c.signState))+'</b></div>'
+      +'<div><span>'+esc(K.reg)+'</span><b class="'+(c.registered?'ok':'wait')+'">'+esc(c.registered?t('reg.yes')+(c.registeredAt?' · '+dmy(c.registeredAt):''):t('reg.no'))+'</b></div></div>';
+  }else h+='<p class="empty">'+esc(t('noContract'))+'</p>';
+  var evs=(p.events||[]).filter(function(e){return e.code!=='sign_now'});
+  if(evs.length)h+='<div style="margin-top:14px">'+evs.map(function(e){return evRow(e,false)}).join('')+'</div>';
+  h+='</section>';
+  h+='<section class="card rv"><h2><span class="no">02</span><span class="tt">'+esc(t('money'))+'</span></h2>'+((m.rows||[]).length?'<div>'+m.rows.slice(0,14).map(function(r){
+      return '<div class="prow"><span class="mo">'+esc(monthLabel(r.month))+'<small>'+esc(r.paidDate?dmy(r.paidDate):r.dueDate?dmy(r.dueDate):'')+'</small></span><span class="pst '+esc(r.state)+'">'+esc(t('pst.'+r.state))+'</span><span class="amt2">'+eur(r.amount)+'</span></div>';
+    }).join('')+'</div>':'<p class="empty">—</p>')+'</section>';
+  h+='<section class="card rv"><h2><span class="no">03</span><span class="tt">'+esc(t('history'))+'</span></h2>'+((p.history||[]).length?'<div class="hist">'+p.history.map(function(e){
+      var lab=t('hist.'+e.code);if(lab==='hist.'+e.code)lab=e.code;
+      return '<div class="hi"><b>'+esc(lab)+(e.tenantName&&['tenant_signed','keys_delivered'].indexOf(e.code)>=0?' · '+esc(e.tenantName):'')+'</b><small>'+esc(dmy(e.date))+'</small></div>';
+    }).join('')+'</div>':'<p class="empty">'+esc(t('noHist'))+'</p>')+'</section>';
+  h+='</div><div class="col">';
+  h+='<section class="card rv"><h2><span class="no">04</span><span class="tt">'+esc(t('docs'))+'</span></h2>';
+  var any=false;
+  (p.documents||[]).forEach(function(f){
+    if(!(f.items||[]).length)return;any=true;
+    h+='<div class="folder"><div class="fh">'+esc(t('fold.'+f.key))+' <span>'+f.items.length+'</span></div>'+f.items.map(function(d){return docRow(Object.assign({folderKey:f.key},d),false)}).join('')+'</div>';
+  });
+  if(!any)h+='<p class="empty">'+esc(t('noDocs'))+'</p>';
+  var locked=(p.missing||[]).filter(function(x){return x.code==='tenant_docs_after_sign'})[0];
+  if(locked)h+='<div class="lockn">🔒 '+esc(fill(t('lockedDocs'),{n:locked.n}))+'</div>';
+  if(later.length)h+='<div class="folder later"><div class="fh">'+esc(t('missing'))+' <span>'+later.length+'</span></div><p class="empty" style="font-size:12px;margin:2px 0 4px">'+esc(t('laterWhy'))+'</p>'+later.map(function(x){return missRow(p,x,false,true)}).join('')+'</div>';
+  h+='</section>';
+  h+='<section class="card rv"><h2><span class="no">05</span><span class="tt">'+esc(t('maint'))+'</span></h2>'+((p.maintenance||[]).length?p.maintenance.map(function(x){
+      var done=['resolved','closed','done'].indexOf(x.status)>=0;
+      return '<div class="prow"><span class="mo">'+esc(x.title||'—')+'<small>'+esc(dmy(x.date))+'</small></span><span class="pst '+(done?'paid':'reported')+'">'+esc(done?(LANG==='it'?'Risolto':'Resolved'):(LANG==='it'?'In corso':'Open'))+'</span></div>';
+    }).join(''):'<p class="empty">'+esc(t('noMaint'))+'</p>')+'</section>';
+  if((p.pastContracts||[]).length){
+    h+='<section class="card rv"><h2><span class="no">06</span><span class="tt">'+esc(t('past'))+'</span></h2>'+p.pastContracts.map(function(x){
+      return '<div class="prow"><span class="mo">'+esc(x.tenantName)+'<small>'+esc([dmy(x.startDate),dmy(x.endDate)].filter(Boolean).join(' → '))+'</small></span><span class="amt2">'+eur(x.rent)+'</span></div>';
+    }).join('')+'</section>';
+  }
+  h+='<section class="card rv"><h2><span class="no">07</span><span class="tt">'+esc(t('contact'))+'</span></h2><div class="contact"><a class="obtn wa" target="_blank" rel="noopener" href="'+esc(waLink(p.name))+'">WhatsApp</a><a class="obtn" href="mailto:valentino@boom-rome.com?subject='+encodeURIComponent(p.name)+'">Email</a></div></section>';
+  h+='</div></div>';
+  return h;
+}
+function reveal(){
+  var els=[].slice.call(document.querySelectorAll('.rv'));
+  if(!('IntersectionObserver' in window)){els.forEach(function(e){e.classList.add('in')});return}
+  var io=new IntersectionObserver(function(es){es.forEach(function(en){if(en.isIntersecting){en.target.classList.add('in');io.unobserve(en.target)}})},{threshold:.08});
+  els.forEach(function(e,i){e.style.transitionDelay=((i%5)*50)+'ms';io.observe(e)});
+  setTimeout(function(){els.forEach(function(e){if(e.getBoundingClientRect().top<innerHeight)e.classList.add('in')})},60);
+}
+function wire(){
+  [].forEach.call(document.querySelectorAll('[data-prop]'),function(b){b.onclick=function(){go('p:'+b.getAttribute('data-prop'))}});
+  [].forEach.call(document.querySelectorAll('[data-home]'),function(b){b.onclick=function(){go('home')}});
+  [].forEach.call(document.querySelectorAll('[data-up]'),function(b){b.onclick=function(){var v=b.getAttribute('data-up').split('|');UPL={pid:v[0],slot:v[1],btn:b};$('upl').value='';$('upl').click()}});
+  var s=$('dsearch');if(s)s.oninput=function(){FILTER=s.value;$('dres').innerHTML=docResults()};
+  reveal();
+}
+function go(v){VIEW=v;try{history.pushState({v:v},'',v==='home'?location.pathname+location.search:'#'+v.replace('p:','immobile/'))}catch(e){}render()}
+window.addEventListener('popstate',function(){var hh=location.hash;VIEW=/^#immobile\//.test(hh)?'p:'+decodeURIComponent(hh.slice(10)):'home';if(DATA)render()});
+
+/* ── caricare un documento dove manca (fascicolo dell'immobile) ── */
+function toJpeg(file){
+  return new Promise(function(res,rej){
+    var img=new Image(),u=URL.createObjectURL(file);
+    img.onload=function(){var mx=2200,w=img.naturalWidth,h=img.naturalHeight,k=Math.min(1,mx/Math.max(w,h));
+      var cv=document.createElement('canvas');cv.width=Math.round(w*k);cv.height=Math.round(h*k);cv.getContext('2d').drawImage(img,0,0,cv.width,cv.height);
+      URL.revokeObjectURL(u);res(cv.toDataURL('image/jpeg',.86));};
+    img.onerror=function(){URL.revokeObjectURL(u);rej(new Error('img'))};img.src=u;
+  });
+}
+function asDataUrl(file){return new Promise(function(res,rej){var r=new FileReader();r.onload=function(){res(r.result)};r.onerror=rej;r.readAsDataURL(file)})}
+$('upl').onchange=function(){
+  var f=this.files&&this.files[0];if(!f||!UPL)return;
+  var isImg=/^image\//.test(f.type),isPdf=f.type==='application/pdf';
+  if(!isImg&&!isPdf){BoomPortal.toast(t('upErr'),{type:'error'});return}
+  if(isPdf&&f.size>3.2*1024*1024){BoomPortal.toast(t('tooBig'),{type:'warning',duration:9000});return}
+  var b=UPL.btn;b.disabled=true;b.textContent=t('uploading');
+  (isImg?toJpeg(f):asDataUrl(f)).then(function(data){
+    return authed('/api/properties/dossier',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({propertyId:UPL.pid,slot:UPL.slot,base64:data,name:f.name,contentType:isImg?'image/jpeg':'application/pdf'})});
+  }).then(function(r){
+    if(r&&r.ok){BoomPortal.toast(t('uploaded'),{type:'success'});return load()}
+    b.disabled=false;b.textContent=t('upload');BoomPortal.toast(r&&r.__status===413?t('tooBig'):t('upErr'),{type:'error',duration:8000});
+  }).catch(function(){b.disabled=false;b.textContent=t('upload');BoomPortal.toast(t('upErr'),{type:'error'})});
+};
+
+function load(){
+  return authed('/api/owners/vault'+(AS?'?ownerId='+encodeURIComponent(AS):''),{method:'GET'}).then(function(r){
+    if(!r||!r.ok){showErr();return}
+    DATA=r;$('load').style.display='none';$('app').style.display='';$('foot').style.display='';
+    document.title=(LANG==='it'?'Area proprietario':'Owner area')+' — BOOM Roma';
+    var hh=location.hash;if(/^#immobile\//.test(hh))VIEW='p:'+decodeURIComponent(hh.slice(10));
+    render();
+  });
+}
+function showErr(){
+  $('load').style.display='none';$('app').style.display='';
+  $('app').innerHTML='<section class="card" style="text-align:center"><p class="empty">'+esc(t('err'))+'</p><button class="gbtn" id="retry" type="button">'+esc(t('retry'))+'</button> <a class="obtn wa" target="_blank" rel="noopener" href="https://wa.me/'+WA+'">WhatsApp</a></section>';
+  $('retry').onclick=function(){$('app').innerHTML='';$('load').style.display='';load()};
+}
+function boot(){
+  BoomPortal.requireAuth(['landlord','owner','admin'],{loginUrl:'/login'}).then(function(res){
+    USER=res.user;PROFILE=res.profile||{};
+    // un admin qui senza ?as= non ha un'area sua: torna al portale
+    if(PROFILE.role==='admin'&&!AS){location.href='/portal';return}
+    if(PROFILE.role!=='admin')AS='';
+    $('logout').style.display='';$('logout').onclick=function(){firebase.auth().signOut().then(function(){location.href='/login?next=%2Fowner'})};
+    load();
+  }).catch(function(){/* requireAuth reindirizza da solo */});
+}
+
+setLang(LANG);
+$('loadMsg').textContent=t('loading');
+try{BoomPortal.registerServiceWorker()}catch(e){}
+if(ATTIVA)startActivation();else boot();
+})();
+</script>
 </body>
 </html>

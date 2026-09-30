@@ -52,6 +52,12 @@ export default async function handler(req, res) {
   let base64, mediaType;
   try {
     if (body.fileUrl) {
+      // Il server scarica l'URL: per un non-admin solo il NOSTRO Storage,
+      // altrimenti l'endpoint è un proxy che fetcha qualsiasi indirizzo
+      // (anche interno) con la nostra rete (30/09/2026).
+      if (auth.profile.role !== 'admin' && !/^https:\/\/firebasestorage\.googleapis\.com\//.test(String(body.fileUrl))) {
+        return res.status(400).json({ ok: false, error: 'fileUrl_not_allowed' });
+      }
       ({ base64, mediaType } = await fetchAsBase64(String(body.fileUrl)));
     } else if (body.base64 && body.mediaType) {
       base64 = String(body.base64); mediaType = String(body.mediaType);

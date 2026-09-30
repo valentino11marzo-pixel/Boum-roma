@@ -312,7 +312,10 @@ lockAll('pa_altro');
 const w4 = WRITES;
 res = mkRes();
 await resolve(mkReq({ id: 'pa_x', unit: 'B', notSameAs: 'pa_altro' }, ADMIN), res);
-check('un landlord non dichiara l\'interno: 403', res.code === 403 && res.body.error === 'admin_only', JSON.stringify(res.body));
+// Dal 30/09/2026 il landlord si ferma già alla porta (requireRole solo admin:
+// resolve non ha controlli di proprietà) — prima arrivava fin dentro e lo
+// fermava questa guardia (admin_only). Stessa garanzia, un passo prima.
+check('un landlord non dichiara l\'interno: 403', res.code === 403 && ['forbidden', 'admin_only'].includes(res.body.error), JSON.stringify(res.body));
 check('…e non scrive niente', WRITES === w4 && get().status === 'reserve');
 DB.set('users/admin1', { role: 'admin', email: 'valentino@boom-rome.com' });
 res = mkRes();

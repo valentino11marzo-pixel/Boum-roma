@@ -111,6 +111,12 @@ await check('CANNOT change payment amount',
   assertFails(updateDoc(doc(tA, 'payments/payA'), { amount: 1 })));
 await check('CANNOT escalate own role to admin',
   assertFails(updateDoc(doc(tA, 'users/tA'), { role: 'admin' })));
+await check('CANNOT rewrite own email (chiave dell\'area proprietario)',
+  assertFails(updateDoc(doc(tA, 'users/tA'), { email: 'altro@x.it' })));
+await check('CANNOT self-link a landlords scheda',
+  assertFails(updateDoc(doc(tA, 'users/tA'), { landlordId: 'L_altrui' })));
+await check('still updates own name/phone',
+  assertSucceeds(updateDoc(doc(tA, 'users/tA'), { name: 'Tenant A2', phone: '+39 1' })));
 await check('CANNOT delete a contract',
   assertFails(deleteDoc(doc(tA, 'contracts/contractA'))));
 await check('signs OWN contract (signature fields only)',
