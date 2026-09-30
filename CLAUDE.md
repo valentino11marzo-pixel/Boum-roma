@@ -173,14 +173,16 @@ firebase.json             Firebase deploy config (firestore + storage rules)
   `sign-for` stays at 60s; `segretaria/preparation.js` keeps its default.
 
 ### Il sito della casa madre — `egidi/` → egidimmobiliare.it (29/09/2026)
-**Rifondazione in corso, passo 2 di 5 (proposta in attesa dell'ok di Valentino).**
+**Rifondazione in corso, passo 3 di 5 (home in anteprima, in attesa del commento di Valentino).**
 Il brief del 29/09 sera («Il Fascicolo») rifà il sito da capo: casa madre in
 italiano per i proprietari romani, tesi «prima l'ordine, poi il mercato», tre
 porte (Vendere · Affittare → BOOM · check «Il tuo immobile è in ordine?»),
 carta calda + inchiostro BOOM + oro solo come sigillo/campitura, un solo
-movimento (il fascicolo che si ricompone), niente foto stock. La home attuale
-in `egidi/index.html` (ipotesi A di giugno, ripulita) è **provvisoria** e va
-sostituita al passo 3. Proposta (sitemap, wireframe, token, redirect, lead,
+movimento (il fascicolo che si ricompone), niente foto stock. La home in
+`egidi/index.html` è quella del brief (30/09): fascicolo in CSS puro
+(`animation-timeline`, composto senza supporto o con movimento ridotto), le 8
+voci del check compilabili nel browser, i tre titoli candidati con `?h=1|2|3`
+e i segnaposto `.solo-anteprima` visibili solo fuori da egidimmobiliare.it. Proposta (sitemap, wireframe, token, redirect, lead,
 domande): artifact «Rifondazione Egidi Immobiliare». PRD del passo 3 (decisioni
 predefinite, criteri di accettazione misurati, domande aperte):
 `docs/EGIDI_PRD.md`. Infrastruttura che resta:
