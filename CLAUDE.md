@@ -1709,6 +1709,48 @@ toponomastica sono stop-word (`STOP_WORDS`): ambiguo → null, e la zona la
 mette l'operatore dal bottone. Senza zona o mq il foglio resta il modulo
 vuoto, con parametri e pertinenze compilati perché sono fatti.
 
+### Il calcolatore pubblico `/canone` È la scheda dell'attestazione (30/09/2026)
+Una proprietaria arrivata da internet ha confrontato il canone di `/canone`
+con quello delle associazioni: il nostro era più alto, e aveva ragione. La
+pagina non usava `js/canone-engine.js` ma una tabella e una formula sue:
+subfascia scelta dal proprietario («stato dell'immobile»), arredato +15%
+preselezionato, transitorio +15% (la scheda ARPE dice +10%), tetto al massimo
+di subfascia ×1,35, case piccole senza i limiti 52,90/70 mq. Misurato contro
+il motore: fino al **+39%** sopra il massimo che l'organizzazione attesta. E 27
+zone (codici D/E) esistevano solo lì, mai verificate («E11 Tragliatella /
+Periferia Est»); il claim «90+ micro-zone» girava su canone, pacchetto e
+services.
+- **Una copia del calcolo**: la pagina carica il motore e chiama
+  `computeCanone` — stesso numero di `scheda-canone.html` e del Fascicolo
+  Fiscale. Mostra il **massimo asseverabile** della subfascia (mai sopra: le
+  maggiorazioni non lo superano, e la nota lo dice), la subfascia dai **20
+  parametri** della scheda + le dotazioni essenziali («normale»), pertinenze
+  e voci A–H; l'arredo resta a 0% finché l'organizzazione non fissa la
+  percentuale (`DEFAULT_CFG.pArr`). Soglie subfascia = `DEFAULT_CFG` del
+  motore (3/7): da confermare con l'ARPE insieme alla tabella zone completa.
+- **Solo zone verificate** (quelle del motore). «La mia zona non è in
+  elenco» non riceve un numero: diventa una richiesta di verifica con
+  l'indirizzo obbligatorio (`calc.zonaNonInElenco`).
+- **Niente «risparmio» falso**: il vecchio `annuo × 0,11` confrontava lo
+  STESSO canone al 21% e al 10%. Ora c'è il **pareggio col libero** (netto
+  concordato al 10% = netto libero al 21% → libero = massimo × 0,90/0,79).
+- `api/canone-lead.js`: riassunto per l'operatore con subfascia, parametri,
+  tipo e massimo stimato; `parametri`/`maggiorazioni` in lista bianca;
+  `address` → `propertyAddress`; `risparmioAnnuo` non si salva più.
+- `/pacchetto-concordato` ripete «massimo asseverabile stimato» (mai «in
+  fascia»), con subfascia e pareggio; un vecchio link con `risparmio` viene
+  ignorato.
+- **Fuori da questo giro, dichiarato** (fase 2): regola del rimborso («se non
+  rientri in fascia»), i numeri del risparmio sulla pagina pacchetto
+  (+570 € contro «1.500–2.500 €»), tariffa dell'organizzazione e partner in
+  pagina, `llms.txt` e descrizione Stripe in `api/_catalog.js`.
+Test: `node tests/calcolatore/run.mjs` (71 check — sorgente senza tabella né
+formula propria, lead in lista bianca, e in Chromium una griglia di 9 casi
+dove il numero mostrato = motore e mai sopra il massimo di subfascia; zona
+fuori elenco senza numero; pacchetto con le parole giuste; 390px senza
+scorrimento laterale). Verificato per mutazione: il +10% del transitorio
+rimesso sopra il massimo fa cadere 12 check.
+
 ### L'iter ASPI (`api/fiscal/registra.js` + `api/fiscal/_aspi.js`) — registrazione & asseverazione in UN tap
 LA DECISIONE È PRESA: il CAF/associazione è **ASPI** (referente Roberto
 Ubertini, geometra — Roma, via S. Nicola da Tolentino; fa anche gli APE),
@@ -5481,6 +5523,7 @@ camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
   | `tests/fiscal/test.mjs` | motore scadenze fiscali |
   | `tests/fiscal/canone.mjs` | canone concordato: superficie convenzionale (coefficienti e tetti), fascia dai parametri, regola del cap, match zona che non indovina, parametri solo da feature reali, verdetto fits/fuori |
   | `tests/contractpdf/verbatim.mjs` | le clausole dei modelli A (3+2) e C (studenti, con e senza cedolare) sono quelle dei `.doc` dell'associazione in `reference/`, frase per frase — il lettore `.doc` sta in `tests/_doc.mjs`, le normalizzazioni dei refusi sono elencate, le varianti nostre dichiarate; ha preso «saranno» per «sono» al primo giro |
+  | `tests/calcolatore/run.mjs` | il calcolatore pubblico /canone è la scheda dell'attestazione: il numero mostrato è quello di `js/canone-engine.js` su una griglia di casi in Chromium e non supera MAI il massimo di subfascia (il vecchio +39% preso per mutazione), solo zone verificate, zona fuori elenco = richiesta di verifica senza numero, lead e pagina pacchetto senza «in fascia» né il falso «risparmio» |
   | `tests/fiscal/scheda.mjs` | la Scheda di calcolo canone 1:1 col modulo ARPE (Allegato 2/B): ogni etichetta stampata sta nel `.docx` del modulo parola per parola (anti-deriva, con la mutazione che dimostra che il check morde), i fatti dal contratto (bracket di superficie, pertinenze, parametri derivati, subfascia, calcolo riga per riga, cap dichiarato, sforamento), senza zona/mq un modulo vuoto onesto (e «Via della Lungaretta» non è più DELLA VITTORIA), PDF a sé stante di una pagina che stampa davvero quelle parole e NON la testata BOOM |
   | `tests/taxpack/test.mjs` | pacchetto commercialista |
   | `tests/journey/steps.mjs` | **le regole commerciali dell'operatore**: quando parte ogni email e cosa NON deve contenere (T-90 e uscita non vendono, le chiavi non si vendono mai, un prodotto già comprato non si ripropone, il rinnovo non arriva prima del move-in su un transitorio breve) |

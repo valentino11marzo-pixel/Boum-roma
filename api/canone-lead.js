@@ -12,7 +12,7 @@
 //   - best-effort per-IP rate limit (warm-instance memory)
 // The Firebase admin credentials never leave the server (reused via _lib).
 //
-// Method: POST   Body: { name, email, phone, company(honeypot), calc{...} }
+// Method: POST   Body: { name, email, phone, address?, company(honeypot), calc{...} }
 // Response 200: { ok: true, id }  | 4xx/5xx: { ok: false, error }
 
 import { fsCreate, logActivity } from './homie/_lib.js';
@@ -65,28 +65,53 @@ export default async function handler(req, res) {
   const leadType = body.leadType === 'tenant' ? 'tenant' : 'landlord';
 
   // ── Calc snapshot from the tool (all optional / sanitised) ──
+  // Dal 30/09/2026 il calcolatore è la scheda dell'Accordo (js/canone-engine.js):
+  // `fascia` è la SUBFASCIA decisa dai parametri, `mensile` il MASSIMO
+  // asseverabile stimato. Il vecchio `risparmioAnnuo` (stesso canone al 21% e
+  // al 10%) non si legge più: non era la scelta vera del proprietario, e
+  // l'operatore non deve ripeterla al telefono.
   const c = body.calc && typeof body.calc === 'object' ? body.calc : {};
+  const idxList = (v, max, allowed) => (Array.isArray(v) ? v : [])
+    .filter(x => allowed ? allowed.includes(x) : (Number.isInteger(x) && x >= 0 && x < max))
+    .slice(0, 20);
+  const SUBF = { A: 'inferiore', B: 'media', C: 'massima' };
+  const TIPI = { '32': '3+2', trans: 'transitorio', stud: 'studenti' };
   const calc = {
-    zona: clip(c.zona, 80), zoneCode: clip(c.zoneCode, 12), fascia: clip(c.fascia, 2),
+    zona: clip(c.zona, 80), zoneCode: clip(c.zoneCode, 12),
+    fascia: /^[ABC]$/.test(String(c.fascia || '')) ? c.fascia : null,
+    nParametri: num(c.nParametri), parametri: idxList(c.parametri, 20),
+    maggiorazioni: idxList(c.maggiorazioni, 0, ['arr', 'sem', 'asc', 'att', 'clA', 'eco', 'sis', 'clD']),
+    normale: c.normale === false ? false : (c.normale === true ? true : null),
+    zonaNonInElenco: c.zonaNonInElenco === true,
     mq: num(c.mq), supConv: num(c.supConv), arredo: clip(c.arredo, 12),
     contratto: clip(c.contratto, 12), classeEn: clip(c.classeEn, 12), eurMq: num(c.eurMq),
     mensile: num(c.mensile), annuo: num(c.annuo), cedolare10: num(c.cedolare10),
-    risparmioAnnuo: num(c.risparmioAnnuo), rangeMin: num(c.rangeMin), rangeMax: num(c.rangeMax),
+    pareggio: num(c.pareggio), rangeMin: num(c.rangeMin), rangeMax: num(c.rangeMax),
   };
+  const address = clip(body.address, 160);
 
   // Human-readable summary for the portal Leads inbox.
   let summary;
   if (channel === 'match_quiz') {
     summary = clip(body.message, 500) || 'Lead da Match Quiz (studente/inquilino).';
+  } else if (calc.zonaNonInElenco) {
+    const parts = ['Zona NON in elenco: da verificare sulla tabella dell\'Accordo'];
+    if (address) parts.push(`indirizzo: ${address}`);
+    if (calc.mq) parts.push(`${calc.mq} mq`);
+    if (calc.nParametri != null) parts.push(`${calc.nParametri} parametri`);
+    if (TIPI[calc.contratto]) parts.push(TIPI[calc.contratto]);
+    summary = `Richiesta verifica canone concordato — ${parts.join(' · ')}.`;
   } else {
     const parts = [];
-    if (calc.zona) parts.push(`Zona: ${calc.zona}`);
-    if (calc.mq) parts.push(`${calc.mq} mq (fascia ${calc.fascia || '?'})`);
-    if (calc.mensile) parts.push(`canone stimato ~€${calc.mensile}/mese`);
-    if (calc.risparmioAnnuo) parts.push(`risparmio fiscale ~€${calc.risparmioAnnuo}/anno`);
+    if (calc.zona) parts.push(`Zona: ${calc.zona}${calc.zoneCode ? ' (' + calc.zoneCode + ')' : ''}`);
+    if (address) parts.push(`indirizzo: ${address}`);
+    if (calc.mq) parts.push(`${calc.mq} mq`);
+    if (calc.fascia) parts.push(`subfascia ${SUBF[calc.fascia]}${calc.nParametri != null ? ' (' + calc.nParametri + ' parametri)' : ''}`);
+    if (TIPI[calc.contratto]) parts.push(TIPI[calc.contratto]);
+    if (calc.mensile) parts.push(`massimo stimato ~€${calc.mensile}/mese`);
     summary = parts.length
-      ? `Richiesta calcolo certificato canone concordato — ${parts.join(' · ')}.`
-      : 'Richiesta calcolo certificato canone concordato.';
+      ? `Richiesta verifica canone concordato — ${parts.join(' · ')}.`
+      : 'Richiesta verifica canone concordato.';
   }
 
   const zone = clip(body.zone, 80) || calc.zona || null;
@@ -107,7 +132,7 @@ export default async function handler(req, res) {
     intent: channel,
     status: 'new',
     grade: null,
-    propertyAddress: leadType === 'landlord' ? (calc.zona || null) : null,
+    propertyAddress: leadType === 'landlord' ? (address || calc.zona || null) : null,
     // audit
     ingestedBy: channel,
     sourceRef: channel,

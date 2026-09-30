@@ -360,7 +360,7 @@ html {
     <h1>Cedolare al <b>10%</b>,<br>senza pratiche.</h1>
     <p class="sub">Contratto conforme all'Accordo di Roma, attestazione di rispondenza e registrazione all'Agenzia delle Entrate — li facciamo noi. Tu firmi, il fisco scende.</p>
     <div class="trust-row">
-      <span>Verifica su 90+ micro-zone</span>
+      <span>Stessa scheda dell'attestazione</span>
       <span>Rimborso se non rientri in fascia</span>
       <span>Firma anche digitale</span>
     </div>
@@ -483,17 +483,26 @@ html {
 function track(name,params){try{if(typeof gtag==='function')gtag('event',name,params||{});}catch(e){}}
 track('view_item',{item_id:'svc_concordato_pack',item_name:'Pacchetto Concordato',price:349,currency:'EUR'});
 
-/* Personalized bar + notes prefill from /canone (?zona&mq&canone&risparmio) */
+/* Personalized bar + notes prefill from /canone (?zona&mq&canone&sub&np&pareggio).
+   Il numero è il MASSIMO asseverabile stimato con la scheda dell'Accordo —
+   mai «in fascia» e mai un «risparmio» calcolato sullo stesso canone al 21%
+   e al 10% (non è la scelta vera del proprietario). Un vecchio link col
+   parametro `risparmio` viene ignorato: era la cifra sbagliata. */
 var CALC=null;
 (function(){
   try{
     var p=new URLSearchParams(location.search);
-    var zona=p.get('zona'),mq=p.get('mq'),can=p.get('canone'),ris=p.get('risparmio');
-    if(zona&&mq&&can){
-      CALC={zona:zona,mq:mq,canone:can,risparmio:ris};
-      var t='La tua casa a <b>'+zona.replace(/</g,'&lt;')+'</b> ('+parseInt(mq,10)+' mq): canone in fascia ≈ <b>€ '+Number(can).toLocaleString('it-IT')+'/mese</b>';
-      if(ris) t+=' · risparmio stimato <b>€ '+Number(ris).toLocaleString('it-IT')+'/anno</b> con la cedolare al 10%';
-      document.getElementById('calcTxt').innerHTML=t+'.';
+    var esc=function(v){return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')};
+    var it=function(n){return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g,'.')};
+    var SUB={A:'inferiore',B:'media',C:'massima'};
+    var zona=p.get('zona'),mq=parseInt(p.get('mq'),10),can=Number(p.get('canone')),
+        sub=SUB[p.get('sub')]||null,np=parseInt(p.get('np'),10),par=Number(p.get('pareggio'));
+    if(zona&&mq>0&&can>0){
+      CALC={zona:zona,mq:mq,canone:Math.round(can),sub:sub,np:isFinite(np)?np:null,pareggio:par>0?Math.round(par):null};
+      var t='La tua casa a <b>'+esc(zona)+'</b> ('+mq+' mq): canone massimo asseverabile stimato ≈ <b>€ '+it(can)+'/mese</b>';
+      if(sub) t+=' (subfascia '+sub+(CALC.np!=null?', '+CALC.np+' parametri':'')+')';
+      if(CALC.pareggio) t+=' · al netto rende come un libero a ≈ € '+it(CALC.pareggio)+'/mese';
+      document.getElementById('calcTxt').innerHTML=t+'. La verifica sulla scheda lo conferma sui documenti.';
       document.getElementById('calcBar').classList.add('show');
     }
   }catch(e){}
@@ -528,7 +537,7 @@ function paySheet(){
   if(n.length<2)return err('Il tuo nome, per intestare la pratica.');
   if(!/^\S+@\S+\.\S+$/.test(em))return err('Un\'email valida — verifica e documenti arrivano lì.');
   if(ph.replace(/\D/g,'').length<6)return err('Un numero di telefono — coordiniamo tutto su WhatsApp.');
-  var notes=CALC?('Dal calcolatore: '+CALC.zona+', '+CALC.mq+' mq, canone stimato €'+CALC.canone+'/mese'+(CALC.risparmio?', risparmio €'+CALC.risparmio+'/anno':'')) : '';
+  var notes=CALC?('Dal calcolatore: '+CALC.zona+', '+CALC.mq+' mq, massimo stimato €'+CALC.canone+'/mese'+(CALC.sub?' (subfascia '+CALC.sub+(CALC.np!=null?', '+CALC.np+' parametri':'')+')':'')) : '';
   var go=document.getElementById('sGo');go.disabled=true;go.textContent='Apro il pagamento sicuro…';
   track('add_payment_info',{currency:'EUR',value:SVC.eur});
   fetch('/api/service-checkout',{method:'POST',headers:{'Content-Type':'application/json'},
