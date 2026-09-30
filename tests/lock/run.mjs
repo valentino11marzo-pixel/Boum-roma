@@ -39,6 +39,18 @@ globalThis.fetch = async (url, opts = {}) => {
   const u = String(url), m = (opts.method || 'GET').toUpperCase();
   if (u.includes('accounts:signInWithPassword')) return json({ idToken: 'T' });
   if (!u.includes('firestore.googleapis.com')) throw new Error('fetch imprevisto: ' + u);
+  if (u.includes(':runQuery')) {                        // query per un campo (baseKey)
+    const q = JSON.parse(opts.body).structuredQuery;
+    const coll = q.from[0].collectionId;
+    const f = q.where?.fieldFilter;
+    const rows = [];
+    for (const [k, v] of DB) {
+      if (!k.startsWith(coll + '/')) continue;
+      if (f && String(v[f.field.fieldPath]) !== String(f.value.stringValue)) continue;
+      rows.push({ document: { name: 'projects/p/databases/(default)/documents/' + k, fields: flds(v) } });
+    }
+    return json(rows.length ? rows : [{}]);
+  }
 
   const after = decodeURIComponent(u.split('/documents/')[1] || '');
   if (m === 'POST') {
@@ -171,6 +183,55 @@ const nulla = await L.acquireLock({ pa: { property: {}, lease: { startDate: '202
 check('nessun id e nessun indirizzo → unlockable, non un falso ok',
   nulla.ok === false && nulla.reason === 'unlockable', JSON.stringify(nulla));
 check('…e non ha scritto lucchetti a caso', DB.size === 0);
+
+// ═══ 5 · L'interno (30/09/2026 — «non è la stessa unità») ══════════════════
+console.log('\n\x1b[1mStanze diverse della stessa casa\x1b[0m');
+const R = (unit, over = {}) => PA({ property: { address: 'Via Cavour 12, Roma', unit }, ...over });
+check('l\'interno entra nella chiave', L.lockKey(R('Int. 3')) === 'p_prop_cavour~u3', L.lockKey(R('Int. 3')));
+check('«int. A» e «A» sono lo stesso interno', L.lockKey(R('int. A')) === L.lockKey(R('A')));
+check('senza interno la chiave è quella di prima', L.lockKey(PA()) === 'p_prop_cavour');
+
+DB.clear();
+const stanzaA = await L.acquireLock({ pa: R('A'), paId: 'pa_stanzaA' });
+const stanzaB = await L.acquireLock({ pa: R('B', { tenant: { fullName: 'Bea' } }), paId: 'pa_stanzaB' });
+check('stanza A e stanza B, stessi mesi: entrambe accettate', stanzaA.ok && stanzaB.ok, JSON.stringify([stanzaA, stanzaB]));
+const stanzaA2 = await L.acquireLock({ pa: R('int. a', { tenant: { fullName: 'Ugo' } }), paId: 'pa_stanzaA2' });
+check('la STESSA stanza resta bloccata', stanzaA2.ok === false && stanzaA2.reason === 'held' && stanzaA2.by === 'pa_stanzaA' && stanzaA2.sameUnit === true, JSON.stringify(stanzaA2));
+const intera = await L.acquireLock({ pa: PA({ tenant: { fullName: 'Tutta' } }), paId: 'pa_intera' });
+check('la casa INTERA mentre una stanza è presa: bloccata', intera.ok === false && intera.level === 'unit', JSON.stringify(intera));
+check('…e non lascia prese orfane', [...DB.values()].every(v => v.paId !== 'pa_intera'));
+
+DB.clear();
+await L.acquireLock({ pa: PA(), paId: 'pa_tutta' });
+const stanzaDopo = await L.acquireLock({ pa: R('C', { tenant: { fullName: 'Cleo' } }), paId: 'pa_stanzaC' });
+check('una stanza mentre la casa INTERA è presa: bloccata', stanzaDopo.ok === false && stanzaDopo.level === 'whole', JSON.stringify(stanzaDopo));
+check('…e senza interno dichiarato non è «la stessa unità»', stanzaDopo.sameUnit === false);
+const forzata = await L.acquireLock({ pa: R('C', { tenant: { fullName: 'Cleo' } }), paId: 'pa_stanzaC', allow: ['pa_tutta'] });
+check('l\'operatore dichiara «non è la stessa unità»: passa', forzata.ok === true, JSON.stringify(forzata));
+check('…e la presa è SOLO sull\'interno C', DB.get('propertyLocks/p_prop_cavour~uc__2026-09')?.paId === 'pa_stanzaC');
+const altraC = await L.acquireLock({ pa: R('c', { tenant: { fullName: 'Zeno' } }), paId: 'pa_zeno' });
+check('…che resta bloccato per chiunque altro lo chieda', altraC.ok === false && altraC.by === 'pa_stanzaC');
+
+console.log('\n\x1b[1mLe prese nate prima del 30/09 (chiave senza interno)\x1b[0m');
+DB.clear();
+DB.set('preAgreements/pa_vecchia', { status: 'paid', property: { address: 'Via Cavour 12, Roma', unit: 'A' } });
+for (const m of L.leaseMonths(PA().lease)) DB.set('propertyLocks/' + L.lockId('p_prop_cavour', m), { paId: 'pa_vecchia', ref: 'Vecchia', heldAt: new Date().toISOString(), firm: true, month: m });
+const nuovaB = await L.acquireLock({ pa: R('B'), paId: 'pa_nuovaB' });
+check('la vecchia presa ha l\'interno A sulla proposta: B entra da solo', nuovaB.ok === true, JSON.stringify(nuovaB));
+const nuovaA = await L.acquireLock({ pa: R('A', { tenant: { fullName: 'Aldo' } }), paId: 'pa_nuovaA' });
+check('…A invece no: stesso interno', nuovaA.ok === false && nuovaA.by === 'pa_vecchia' && nuovaA.sameUnit === true, JSON.stringify(nuovaA));
+const nuovaA_forza = await L.acquireLock({ pa: R('A', { tenant: { fullName: 'Aldo' } }), paId: 'pa_nuovaA', allow: ['pa_vecchia'] });
+check('…e nessuna dichiarazione scavalca due interni UGUALI', nuovaA_forza.ok === false, JSON.stringify(nuovaA_forza));
+
+console.log('\n\x1b[1mConferma e revoca trovano la presa, prima e dopo l\'interno\x1b[0m');
+DB.clear();
+await L.acquireLock({ pa: R('D'), paId: 'pa_d' });
+check('confirmLock sull\'interno', await L.confirmLock({ pa: R('D'), paId: 'pa_d' }) === 12);
+await L.releaseLock({ pa: R('D'), paId: 'pa_d' });
+check('releaseLock sull\'interno', DB.size === 0, String(DB.size));
+await L.acquireLock({ pa: PA(), paId: 'pa_poi_interno' });          // presa sulla casa intera…
+await L.releaseLock({ pa: R('E'), paId: 'pa_poi_interno' });         // …interno dichiarato dopo
+check('interno dichiarato dopo la presa: la revoca libera anche la chiave vecchia', DB.size === 0, String(DB.size));
 
 console.log('\n────────────────────────────────────────────────');
 console.log(`\x1b[1mResult: ${pass} passed, ${fail} failed\x1b[0m`);

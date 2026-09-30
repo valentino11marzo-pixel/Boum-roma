@@ -352,7 +352,7 @@ h1{font-weight:200;font-size:24px;letter-spacing:-.3px;margin-bottom:3px}
 <script>
 (function(){
 'use strict';
-var USER=null,LISTINGS=[];
+var USER=null,ROLE='',LISTINGS=[];
 var $=function(id){return document.getElementById(id)};
 var eur=function(n){var f=Math.round(n*100)%100!==0;return '€'+Number(n).toLocaleString('en-US',{minimumFractionDigits:f?2:0,maximumFractionDigits:2})};
 var esc=function(s){return String(s==null?'':s).replace(/</g,'&lt;')};
@@ -1074,16 +1074,46 @@ window.sendSign=async function(id,btn){
    il token di QUESTA proposta) e rimette in pari lo stato, oppure libera una
    riserva se l'immobile non è più tenuto. Non dichiara mai pagato senza
    prova. La riga si ridisegna da sola col listener realtime. */
+/* «NON È LA STESSA UNITÀ» (30/09/2026): se l'immobile è ancora tenuto,
+   l'operatore può dichiarare l'interno/stanza di QUESTA proposta. Il server
+   blocca SOLO su quell'interno; lo stesso interno dichiarato resta un
+   conflitto e lo dice. Una sola domanda, mai un bottone in più sulla riga. */
+async function resolveCall(body){
+  var tok=await USER.getIdToken();
+  var r=await fetch('/api/preagreement/resolve',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(body)});
+  var j=await r.json().catch(function(){return null;});
+  if(!j||!j.ok)throw new Error((j&&j.error)||('HTTP '+r.status));
+  return j;
+}
+function askOtherUnit(j){
+  var b=j.blocked||{};
+  var who=b.byRef||'un\'altra proposta';
+  var theirs=b.unit?('interno «'+b.unit+'»'):'interno NON dichiarato';
+  var until=b.until?' — presa in attesa di pagamento fino al '+String(b.until).slice(0,16).replace('T',' '):'';
+  return prompt('L\'immobile è tenuto da '+who+' ('+theirs+until+').\n\n'
+    +'Se NON è la stessa unità, scrivi l\'interno / la stanza di QUESTA proposta e premi OK: '
+    +'la riserva si sblocca su quell\'interno, che resta bloccato per chiunque altro lo chieda.\n\n'
+    +'Annulla per lasciare tutto com\'è.', j.unit||'');
+}
 window.resolvePA=async function(id,btn){
   var was=btn?btn.textContent:'';
   if(btn){btn.disabled=true;btn.textContent='Verifico…';}
   try{
-    var tok=await USER.getIdToken();
-    var r=await fetch('/api/preagreement/resolve',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({id:id})});
-    var j=await r.json();
-    if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
+    var j=await resolveCall({id:id});
+    if(j.verdict==='still_held'&&ROLE==='admin'){
+      var u=askOtherUnit(j);
+      if(u!==null&&String(u).trim()){
+        if(btn)btn.textContent='Sblocco…';
+        j=await resolveCall({id:id,unit:String(u).trim(),notSameAs:(j.blocked||{}).by||''});
+        if(j.verdict==='still_held'&&(j.blocked||{}).sameUnit){
+          alert('Non sbloccato: '+((j.blocked||{}).byRef||'l\'altra proposta')+' ha dichiarato lo STESSO interno («'+((j.blocked||{}).unit||u)+'»). Se è sbagliato il suo interno, correggi quella proposta; se è davvero la stessa unità, va chiusa o revocata prima.');
+          if(btn){btn.disabled=false;btn.textContent=was;}
+          return;
+        }
+      }
+    }
     var msg=j.verdict==='payment_restored'?'✓ Pagamento confermato — deal riportato a PAGATO'+(j.contractId?', contratto pronto.':'.')
-      :j.verdict==='reserve_promoted'?'✓ Riserva sbloccata — ora è accettata'+(j.due>0?': manca solo il pagamento di '+eur(j.due)+'.':'.')
+      :j.verdict==='reserve_promoted'?'✓ Riserva sbloccata'+(j.unit?' sull\'interno «'+j.unit+'»':'')+' — ora è accettata'+(j.due>0?': manca solo il pagamento di '+eur(j.due)+'.':'.')
       :j.verdict==='still_held'?'L\'immobile è ancora tenuto da un\'altra proposta'+(j.blocked&&j.blocked.byRef?' ('+j.blocked.byRef+')':'')+'. Chiudi o revoca quella prima.'
       :j.verdict==='no_payment_found'?'Su Stripe non risulta nessun pagamento per questa proposta: non ha ancora pagato.'
       :'Stato già in pari, niente da sistemare.';
@@ -1593,7 +1623,7 @@ function fillFromListing(id){
 }
 
 BoomPortal.requireAuth(['admin','owner','landlord'],{loginUrl:'/login'}).then(function(res){
-  USER=res.user;
+  USER=res.user;ROLE=((res.profile||{}).role)||'';
   $('load').style.display='none';$('app').style.display='';
   // Deep-link da Oggi (#q=BOOM-XYZ): il protocollo entra nella ricerca e
   // renderList — che parte all'arrivo dei dati — filtra sul deal giusto.
