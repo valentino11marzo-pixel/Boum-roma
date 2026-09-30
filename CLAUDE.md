@@ -1065,7 +1065,7 @@ del 1° del mese).
   (`python3 design/pages-deco/genera-og-servizi.py og-owners` — il filtro
   rigenera SOLO le card nominate). Il banner cookie (`js/boom-consent.js`)
   parla ora anche italiano, impersonale (le pagine IT danno del tu o del Lei).
-- Test: `node tests/owners/run.mjs` (127 check — porta, liste chiuse, voce
+- Test: `node tests/owners/run.mjs` (141 check — porta, liste chiuse, voce
   col Lei che non richiede il noto, card valida e prima della risposta,
   regressione /canone, una porta sola, frasi vietate, registro Lei,
   FAQ/speakable/Service, e il modulo inviato davvero in Chromium a 390px in
@@ -1078,44 +1078,66 @@ in TRE PASSI, in `#costi` (un `<ol class="ladder">`) e in tre righe accanto
 alla porta (`.lmini`: prima il solo prezzo vicino al modulo era il €349 di un
 prodotto laterale, e le card dei costi partivano dopo sei schermate):
 1. **Prima locazione — €0 di provvigione**: la provvigione la paga
-   l'inquilino; il proprietario paga solo le pratiche del contratto,
-   registrazione **€89** e, col canone concordato, attestazione **€189**
-   (€278), IVA inclusa, quando il contratto va a registrare. I due numeri
-   SONO gli `ASPI_DEFAULTS` di `api/fiscal/_aspi.js` (ciò che il 💳 link
-   incassa, IVA dentro): `tests/owners` li legge da lì.
-2. **Riaffitto — mezza mensilità + IVA** del canone pattuito, spese escluse,
-   registrazione compresa, solo se il nuovo inquilino firma; l'attestazione a
-   parte. Si scrive SEMPRE col totale accanto («€700 + IVA, €854 in tutto»):
-   «+ IVA» nudo verso un consumatore non si può (Cod. cons. art. 22 c.4).
+   l'inquilino; il proprietario paga solo le pratiche del contratto, IVA
+   inclusa: **€278** con l'attestazione di rispondenza (registrazione €89 +
+   attestazione €189, tariffa dell'organizzazione compresa) che apre
+   cedolare al 10% e IMU −25%, **€89** senza. €278 si scrive PRIMA di €89:
+   quasi ogni contratto BOOM a Roma segue l'Accordo, `convert` mette
+   `requiresAsseverazione:true` e il default di fatturazione è «completo» —
+   presentare €89 come base era il prezzo raro spacciato per normale. Per
+   tutta la durata del contratto incasso, rendiconto il 1° e coordinamento
+   delle manutenzioni sono **dichiarati compresi** (è ciò che la macchina fa
+   per ogni contratto; il fondatore sul riaffitto: «incluso di tutte le cose
+   che poi facciamo»). I due numeri SONO gli `ASPI_DEFAULTS` di
+   `api/fiscal/_aspi.js` (ciò che il 💳 link incassa, IVA dentro):
+   `tests/owners` li legge da lì.
+2. **Riaffitto — mezza mensilità + IVA** calcolata sul solo canone (senza
+   condominio e utenze), registrazione compresa, solo se il nuovo inquilino
+   firma; l'attestazione, se serve, €189. Si scrive SEMPRE col totale
+   accanto — «€700 + IVA, €854 in tutto» nella scala, «il 61% di un canone»
+   (0,5 × 1,22) ovunque altrove: «+ IVA» nudo verso un consumatore non si
+   può (Cod. cons. art. 22 c.4). Il test lo pretende su pagina, meta,
+   JSON-LD, riga contestuale, llms.txt e FAQ del sito, lingua per lingua.
 3. **Mandato su misura di 2 o 3 anni — fee annuale fissa**, su preventivo:
    per la casa che cambia spesso inquilino; è il passo che porta la clausola
    di solvibilità, ora con i limiti NOMINATI («entro il massimale e la durata
    scritti nel mandato» — «nei termini» senza dire quali era un'omissione).
-Regole di classe, testate per mutazione (8 su 8 prese): mai «gratis», «no
-fee», «senza costi», «la nostra parte» sulla prima locazione (art. 23 lett.
-v: c'è un costo) — né in pagina né nei JSON-LD né in llms.txt; dove c'è
-«€0 di provvigione» c'è il prezzo delle pratiche NELLO STESSO elemento, in
-italiano E in inglese; l'esempio si ricalcola dal codice; il FAQPage è
+Regole di classe, testate per mutazione (tutte prese): mai «gratis», «no
+fee», «senza costi», «reddito sicuro», «guaranteed rent» sulla prima
+locazione (art. 23 lett. v: c'è un costo) — né in pagina né nei JSON-LD né
+in llms.txt né nella FAQ generale del sito (`faq.html` diceva ancora «1
+month rent OR 10%» e «guaranteed rent») né nei blocchi da copiare di
+`docs/owner-outreach.md`; dove c'è «€0 di provvigione» c'è il prezzo delle
+pratiche NELLO STESSO elemento, in italiano E in inglese — anche in ogni
+voce della riga contestuale `HINT`; l'esempio si ricalcola dal codice; il FAQPage è
 GENERATO dalle `<details>` visibili (build: risposta = testo italiano senza
 tag) e il test pretende l'uguaglianza parola per parola. Il riaffitto ha la
 sua porta: goal `relet` (etichetta operatore «si dichiara già cliente —
 verificare»: la pagina non lo verifica), la voce di `ownerReplyText` chiede
 DI QUALE casa e QUANDO esce l'inquilino (mai se è arredata, mai un prezzo),
 la riga `#fHint` risponde alla scelta sotto le tendine col passo e il prezzo
-giusti (e «oggi è affittata» apre «Altri dettagli» per la scadenza), e
-`/prriaffitto` è la risposta WhatsApp installata. **La macchina mantiene la
-promessa**: il pannello 🏛 ASPI ha «Cosa fatturare» — sul riaffitto si invia
-la pratica completa e si fattura la SOLA attestazione (`billKindFor`, solo
-sottoinsiemi della richiesta), e cambiare idea non crea mai una seconda
-fattura sullo stesso servizio (`billOverlap`). Allineati: `llms.txt`
+giusti («affittarla e farla gestire» ha la sua, con la gestione compresa; «oggi
+è affittata» apre «Altri dettagli» per la scadenza, e la voce non la
+richiede se è già scritta nelle note), la riga resta nell'albero di
+accessibilità (vuota, mai `hidden`: aria-live non annuncia ciò che nasce
+nascosto) e le due scale sono `role="list"` (Safari toglie la semantica a
+un `<ol>` senza marcatori). `/prriaffitto` è la risposta WhatsApp installata
+e separa i due casi: casa già affittata da noi → mezza mensilità col totale;
+mai affittata con noi → prima locazione. **La macchina mantiene la
+promessa**: il pannello 🏛 ASPI ha «Cosa fatturare» (vedi l'iter ASPI). Allineati: `llms.txt`
 (prezzi, Pacchetto con la tariffa dell'organizzazione a parte, «non
 rilasciamo noi l'attestazione»), `terms.html` §4 (è la sezione degli
 INQUILINI; i prezzi dei proprietari rinviano a /owners), l'outreach PFS e
 `docs/owner-outreach.md` (niente più «senza alcun costo» né «reddito
 sicuro»), i conteggi di `/risposte` letti dal modulo.
 **Decisioni del fondatore ancora aperte** (default spediti, tutti
-reversibili in un punto): IVA della mezza mensilità (default «+ IVA» col
+reversibili in un punto): la gestione durante il contratto dichiarata
+compresa nei passi 1 e 2 (se va pagata a parte, la frase è in quattro punti
+della pagina, nell'Offer, in llms.txt e nella FAQ del sito, tutti presidiati
+dal test); IVA della mezza mensilità (default «+ IVA» col
 totale: se era inclusa la pagina sovrastima, non promette meno del dovuto);
+il riaffitto dedotto per immobile dai contratti finalizzati (i contratti
+importati con l'Innesto non contano);
 prezzi di produzione in `settings/registrazione` (la pagina pubblica i
 default del codice); «prima locazione» contata PER IMMOBILE; mezza mensilità
 a OGNI nuovo inquilino, non solo al primo riaffitto; massimale/durata della
@@ -1904,10 +1926,23 @@ l'attestazione di rispondenza (**€100**). Ora:
 - **Cosa si fattura ≠ cosa si invia** (30/09/2026, la scala di /owners):
   `billKind` (tendina «Cosa fatturare» nel pannello) — sul riaffitto la
   registrazione è nella mezza mensilità, quindi di un «completo» si fattura
-  la sola attestazione (`aspi_asseverazione_<id>`); ammessi solo sottoinsiemi
-  della richiesta (`billKindFor`), e una fattura che si sovrappone a una già
-  emessa non nasce mai (`billOverlap`: completo contiene le altre due).
-- Test: `node tests/aspi/run.mjs` (61 check).
+  la sola attestazione (`aspi_asseverazione_<id>`) e di una «solo
+  registrazione» niente (opzione `none`); ammessi solo sottoinsiemi della
+  richiesta (`billKindFor`). **Si fattura ciò che le fatture esistenti non
+  COPRONO** (`billPlan` su `BILL_PARTS`, pura): tutto coperto → nessuna
+  fattura nuova, si riporta l'esistente; registrazione già fatturata +
+  «completo» → la sola attestazione (prima l'overlap sì/no perdeva i €189);
+  attestazione già fatturata da sola + «completo» → niente (`relet_guard`:
+  è il segno del riaffitto, la registrazione si chiede esplicitamente). Una
+  lettura delle fatture che FALLISCE non vale «assente»: nessuna fattura,
+  `error:'overlap_check_failed'` detto nel toast. Il riaffitto si deduce dai
+  FATTI (`reletOf`/`reletFrom`: un altro contratto `finalizedAt` sullo stesso
+  immobile, cominciato prima, con un altro inquilino; stanze dichiarate
+  diverse = due prime locazioni; `contract.relet` esplicito vince):
+  `op:'status'` lo espone insieme alle fatture già emesse (`billing`), il
+  pannello preseleziona e mostra, e `maybeAutoAspi` lo applica da solo. Due
+  pratiche in due tempi portano numeri distinti (`-R`/`-A`).
+- Test: `node tests/aspi/run.mjs` (71 check).
 
 **Il documento si attacca DOVE MANCA** (`api/fiscal/allega.js`, 23/08):
 il pannello diceva onestamente dove caricare ogni pezzo ("console

@@ -46,7 +46,7 @@
 //   - 'registered' non si degrada: registrationStatus passa a 'sent' solo
 //     da pending/assente.
 
-import { fsGet, fsCreate, fsPatch } from '../homie/_lib.js';
+import { fsGet, fsCreate, fsPatch, fsList } from '../homie/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
 import { shell, row, para, fine } from '../preagreement/_notify.js';
 import { buildFascicolo } from './fascicolo.js';
@@ -123,9 +123,70 @@ export const billKindFor = (kind, billKind) => {
   const allowed = kind === 'completo' ? ['completo', 'registrazione', 'asseverazione'] : [kind];
   return allowed.includes(billKind) ? billKind : kind;
 };
-// Due fatture sullo stesso servizio sono un doppio incasso: «completo»
-// contiene entrambe le pratiche, registrazione e attestazione no fra loro.
-const billOverlap = (a, b) => a === b || a === 'completo' || b === 'completo';
+// Quali PRATICHE copre ogni fattura: «completo» = registrazione + attestazione.
+// Due fatture sulla stessa pratica sono un doppio incasso; due pratiche
+// diverse in due tempi sono due fatture legittime.
+export const BILL_PARTS = { registrazione: ['reg'], asseverazione: ['ass'], completo: ['reg', 'ass'] };
+// Cosa creare, date le fatture ASPI già emesse sul contratto (pura, testata):
+//   - tutto già coperto            → niente (si riporta la fattura esistente);
+//   - niente coperto               → la variante chiesta;
+//   - «completo» con la sola registrazione già fatturata → la sola attestazione
+//     (prima l'overlap la bloccava: €189 persi dopo un invio «solo registrazione»);
+//   - «completo» con la sola attestazione già fatturata → niente: un'attestazione
+//     fatturata da sola è il segno del RIAFFITTO (registrazione compresa nella
+//     mezza mensilità) e la registrazione non si aggiunge da sola. Se è dovuta,
+//     l'operatore la chiede esplicitamente («Solo la registrazione»).
+export function billPlan(billKind, existing) {
+  const covered = new Set((existing || []).flatMap(k => BILL_PARTS[k] || []));
+  const want = BILL_PARTS[billKind] || [];
+  const missing = want.filter(p => !covered.has(p));
+  if (!missing.length) return { create: null, reason: 'covered' };
+  if (missing.length === want.length) return { create: billKind };
+  return missing[0] === 'ass' ? { create: 'asseverazione', reason: 'partial' } : { create: null, reason: 'relet_guard' };
+}
+
+// Il riaffitto, dedotto dai FATTI (default dichiarato di /owners: «prima
+// locazione» conta per immobile): un altro contratto BOOM FIRMATO e
+// finalizzato sullo stesso immobile, cominciato prima, con un altro
+// inquilino. Stanze diverse dichiarate (unit) non si toccano: due stanze sono
+// due prime locazioni. contract.relet true/false esplicito vince sempre.
+// Lettura fallita → null (non so): chi chiama resta sul comportamento di prima.
+const normUnit = (u) => String(u || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+export function reletFrom(contract, others) {
+  if (!contract) return null;
+  if (contract.relet === true || contract.relet === false) return { relet: contract.relet, by: 'contract' };
+  const pid = contract.propertyId;
+  if (!pid) return { relet: false, by: 'no_property' };
+  const mine = normUnit(contract.unit);
+  const who = (c) => String(c.tenantId || c.tenantEmail || c.tenantName || '').toLowerCase().trim();
+  const prev = (others || []).find(o => o && o.id !== contract.id && o.propertyId === pid && o.finalizedAt
+    && !(mine && normUnit(o.unit) && normUnit(o.unit) !== mine)
+    && !(who(o) && who(o) === who(contract))
+    && (!o.startDate || !contract.startDate || String(o.startDate) < String(contract.startDate)));
+  return prev ? { relet: true, by: 'previous_contract', previousId: prev.id } : { relet: false, by: 'none' };
+}
+export async function reletOf(contract) {
+  if (!contract) return null;
+  if (contract.relet === true || contract.relet === false || !contract.propertyId) return reletFrom(contract, []);
+  try {
+    const others = await fsList('contracts', { filter: { field: 'propertyId', op: 'EQUAL', value: contract.propertyId }, limit: 50 });
+    return reletFrom(contract, others);
+  } catch (e) {
+    console.warn('[aspi] relet:', e.message);
+    return null;
+  }
+}
+// Le fatture ASPI già emesse sul contratto. Una lettura fallita LANCIA: chi
+// fattura deve sapere che non sa (prima un errore contava come «assente» e
+// la seconda fattura partiva).
+export async function aspiInvoicesOf(contractId) {
+  const out = [];
+  for (const k of ASPI_KINDS) {
+    const ex = await fsGet(`invoices/aspi_${k}_${contractId}`);
+    if (ex) out.push({ kind: k, id: `aspi_${k}_${contractId}`, amount: ex.amount, status: ex.status || null });
+  }
+  return out;
+}
 
 // La variante di default la decide il contratto: requiresAsseverazione è
 // già sul doc (checkbox del portal, true dal convert PA).
@@ -390,37 +451,44 @@ export async function sendAspiRequest(contractId, opts = {}) {
   }
   try { await fsPatch('contracts/' + contractId, patch); } catch (e) { console.warn('[aspi] patch:', e.message); }
 
-  // ── La fattura col markup (idempotente: un kind, una fattura) ─────────
+  // ── La fattura col markup (idempotente: una pratica, una fattura) ─────
   const bill = opts.bill !== undefined ? !!opts.bill : settings.autoInvoice;
   const billKind = billKindFor(kind, opts.billKind);
   let invoice = null;
   // Cambiare cosa si fattura fra un invio e l'altro non deve MAI produrre una
-  // seconda fattura sullo stesso servizio (prima completo, poi solo
-  // attestazione = €189 incassati due volte): se esiste già una fattura ASPI
-  // che si sovrappone, si riporta quella e non se ne crea un'altra.
-  let prior = null;
+  // seconda fattura sulla stessa pratica (prima completo, poi solo
+  // attestazione = €189 incassati due volte), né perdere quella che manca
+  // (prima registrazione, poi completo = l'attestazione è ancora dovuta):
+  // si guarda cosa COPRONO le fatture esistenti (billPlan).
+  let plan = null;
+  let existing = null;
   if (bill) {
-    for (const k of ASPI_KINDS) {
-      if (k === billKind || !billOverlap(k, billKind)) continue;
-      const ex = await fsGet(`invoices/aspi_${k}_${contractId}`).catch(() => null);
-      if (ex) { prior = { id: `aspi_${k}_${contractId}`, amount: ex.amount, created: false, overlap: true }; break; }
+    try { existing = await aspiInvoicesOf(contractId); }
+    catch (e) {
+      console.warn('[aspi] invoices read:', e.message);
+      invoice = { id: null, created: false, error: 'overlap_check_failed' };
     }
   }
-  if (bill && prior) invoice = prior;
-  else if (bill) {
-    const amount = kindPrice(billKind, settings);
+  if (existing) plan = billPlan(billKind, existing.map(x => x.kind));
+  if (plan && !plan.create) {
+    const cover = existing.find(x => (BILL_PARTS[x.kind] || []).some(p => (BILL_PARTS[billKind] || []).includes(p))) || existing[0];
+    invoice = { id: cover.id, amount: cover.amount, created: false, overlap: true, reason: plan.reason, requested: billKind };
+  } else if (plan && plan.create) {
+    const make = plan.create;
+    const amount = kindPrice(make, settings);
     const toTenant = settings.billTo === 'tenant';
     const recipientId = toTenant ? (contract.tenantId || '') : (property.ownerId || contract.landlordId || '');
     const recipientName = toTenant ? (contract.tenantName || '') : (contract.landlordName || '');
-    const invId = `aspi_${billKind}_${contractId}`;
+    const invId = `aspi_${make}_${contractId}`;
     const propLabel = property.address || property.name || '';
     try {
       await fsCreate('invoices', {
-        number: 'BOOM-ASPI-' + safeName(contractId, 10).toUpperCase(),
+        // due pratiche in due tempi = due fatture: il numero le distingue
+        number: 'BOOM-ASPI-' + safeName(contractId, 10).toUpperCase() + (make === 'completo' ? '' : make === 'registrazione' ? '-R' : '-A'),
         recipientId, clientId: recipientId,
         recipientType: toTenant ? 'tenant' : 'landlord',
         recipientName,
-        service: KIND_LABEL[billKind],
+        service: KIND_LABEL[make],
         amount,
         date: new Date().toISOString().slice(0, 10),
         description: `${propLabel} — contratto ${contractId}. Pratica gestita da BOOM: preparazione fascicolo, invio, follow-up e archivio.`,
@@ -429,7 +497,7 @@ export async function sendAspiRequest(contractId, opts = {}) {
         contractId,
         createdAt: new Date().toISOString(),
       }, invId);
-      invoice = { id: invId, amount, created: true };
+      invoice = { id: invId, amount, created: true, ...(make !== billKind ? { partial: true, requested: billKind } : {}) };
     } catch (e) {
       // 409 = fattura già emessa a un invio precedente: MAI duplicare.
       invoice = e && e.exists ? { id: invId, amount, created: false } : null;
@@ -453,10 +521,17 @@ export async function maybeAutoAspi(contract, overrides = {}) {
   try {
     const settings = await loadAspiSettings();
     if (!settings.auto) return { skipped: 'off' };
+    // Sul RIAFFITTO la registrazione è compresa nella mezza mensilità (/owners,
+    // passo 2): si invia tutto, si fattura la sola attestazione — e niente se
+    // la pratica è la sola registrazione. «Non so» (lettura fallita) = come prima.
+    const kind = defaultKind(contract);
+    const r = await reletOf(contract);
+    const relet = !!(r && r.relet);
     return await sendAspiRequest(contract.id, {
       settings, overrides,
       preloaded: { contract },
-      kind: defaultKind(contract),
+      kind,
+      ...(relet ? { billKind: 'asseverazione', ...(kind === 'registrazione' ? { bill: false } : {}) } : {}),
     });
   } catch (e) {
     console.warn('[aspi] auto:', e.message);

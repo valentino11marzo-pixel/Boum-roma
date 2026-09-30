@@ -165,6 +165,13 @@ for (const [sc, kinds] of Object.entries(QUOTED)) {
   ok(!!r && !!ass && r.text.includes(`€${ass}`) && /mezza mensilità/.test(r.text) && /\+ IVA/.test(r.text),
     `/prriaffitto dice mezza mensilità + IVA e l'attestazione a €${ass} (ASPI_DEFAULTS)`);
   ok(!!r && !/\b(tuo|tua|puoi|vuoi|dimmi)\b/i.test(r.text), '/prriaffitto dà del Lei');
+  // «Mi riaffittate?» lo chiede anche chi con noi non ha mai affittato: la
+  // mezza mensilità vale solo se la casa l'abbiamo già affittata noi.
+  const reg = +(aspi.match(/prezzoRegistrazione:\s*(\d+)/) || [])[1];
+  ok(!!r && /già affittata noi/.test(r.text) && /prima volta con noi/.test(r.text)
+    && r.text.includes(`€${reg + +ass}`) && r.text.includes(`€${reg}`),
+    `/prriaffitto separa il riaffitto dalla prima locazione (pratiche €${reg + +ass} / €${reg})`);
+  ok(!!r && /\+ IVA \(su €1\.400, €854 in tutto\)/.test(r.text), '/prriaffitto: «+ IVA» col totale accanto (mai nudo)');
 }
 // La commissione e la caparra sono le due cifre che l'operatore dice a voce
 // ogni giorno: se cambiano nel listino pubblico devono cambiare anche qui.

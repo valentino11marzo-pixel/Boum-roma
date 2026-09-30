@@ -270,16 +270,16 @@ Mi dica zona, metri quadri e se è arredato: le dico a quanto si affitta davvero
     {
       sc: 'prriaffitto', fam: 'pr', star: true,
       title: 'Riaffitto (mezza mensilità)',
-      when: '«Mi riaffittate e basta?» — la domanda di quasi tutti i proprietari già clienti. La risposta è sì, e il prezzo sta in una riga (è il passo 2 della scala di /owners).',
+      when: '«Mi riaffittate e basta?» — la domanda di quasi tutti i proprietari. Sì: se la casa l\'abbiamo già affittata noi è il passo 2 della scala di /owners (mezza mensilità); se no, è una prima locazione (niente provvigione, solo le pratiche). La risposta dice entrambe le cose.',
       // Il prezzo è quello pubblicato su /owners: mezza mensilità + IVA,
       // registrazione compresa; l'attestazione è l'ASPI_DEFAULTS di
       // api/fiscal/_aspi.js (tests/whatsapp/replies la lega a quel numero).
       sell: { service: null, anchor: 'i mesi di casa vuota fra un inquilino e l\'altro' },
-      text: `Sì, la riaffittiamo e basta: nessun impegno oltre il nuovo contratto.
+      text: `Sì, possiamo fare solo il riaffitto, senza altri impegni.
 
-Costa mezza mensilità del nuovo canone + IVA, e solo se il nuovo inquilino firma. Stesso lavoro della prima volta, registrazione compresa; a parte solo l'attestazione per la cedolare al 10%, se serve: €189.
+Se l'abbiamo già affittata noi: mezza mensilità del nuovo canone + IVA (su €1.400, €854 in tutto), solo se il nuovo inquilino firma, registrazione compresa; l'attestazione, se serve, €189. Se è la prima volta con noi: niente provvigione, solo le pratiche (€278 IVA inclusa, €89 senza attestazione).
 
-Mi dice quando esce l'inquilino attuale? La mostriamo già con quella data.
+Mi dice quando esce l'inquilino? La mostriamo già con quella data.
 
 ${SITE}/owners#costi`,
     },

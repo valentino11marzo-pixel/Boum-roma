@@ -307,7 +307,7 @@ const PAGES = {
     manualHead: true,
     title: 'Proprietari a Roma: prima locazione senza provvigione — BOOM',
     description:
-      'Affittiamo la sua casa a Roma a chi viene per lavoro e studio. Prima locazione senza provvigione, pratiche €89–278 IVA incl.; ogni riaffitto mezza mensilità + IVA.',
+      'Affittiamo la sua casa a Roma a chi viene per lavoro e studio. Prima locazione senza provvigione, pratiche €89–278; ogni riaffitto il 61% di un canone. IVA inclusa.',
     keywords: ['gestione affitti Roma', 'affittare casa Roma', 'property management Roma', 'canone concordato Roma', 'affittare casa senza provvigione Roma', 'riaffittare casa agenzia'],
     type: 'website',
     lang: 'it',

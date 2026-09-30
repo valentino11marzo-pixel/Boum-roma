@@ -6,7 +6,10 @@
 //       La checklist per ENTRAMBE le varianti + le manopole in vigore: il
 //       pannello del portal disegna DA QUI, mai da una copia locale (la
 //       console non può mostrare una regola diversa da quella applicata).
-//   { op:'send', contractId, kind?, note?, bill? }
+//     + billing: { relet, reletBy, previousId, invoices[] } — il riaffitto
+//       dedotto dai fatti (reletOf) e le fatture ASPI già emesse: il pannello
+//       preseleziona cosa fatturare e mostra cosa esiste già.
+//   { op:'send', contractId, kind?, billKind?, note?, bill? }
 //     → sendAspiRequest: email strutturata al referente ASPI con gli
 //       allegati, stato stampato sul contratto, fattura col markup.
 //
@@ -16,6 +19,7 @@ import { readJson, fsGet } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import {
   loadAspiSettings, aspiChecklist, sendAspiRequest, defaultKind, kindPrice, kindCost,
+  reletOf, aspiInvoicesOf,
 } from './_aspi.js';
 
 const clip = (v, n = 120) => String(v == null ? '' : v).trim().slice(0, n);
@@ -53,6 +57,10 @@ export default async function handler(req, res) {
       ? await fsGet('properties/' + contract.propertyId).catch(() => null) : null;
 
     const settings = await loadAspiSettings();
+    const [relet, invoices] = await Promise.all([
+      reletOf(contract),
+      aspiInvoicesOf(contractId).catch(() => null),   // null = non lo so (lo dice il pannello)
+    ]);
     return res.status(200).json({
       ok: true,
       settings: {
@@ -62,6 +70,12 @@ export default async function handler(req, res) {
         costi: { registrazione: kindCost('registrazione', settings), completo: kindCost('completo', settings), asseverazione: kindCost('asseverazione', settings) },
       },
       kind: defaultKind(contract),
+      billing: {
+        relet: relet ? relet.relet : null,
+        reletBy: relet ? relet.by : null,
+        previousId: relet && relet.previousId ? relet.previousId : null,
+        invoices,
+      },
       kinds: {
         registrazione: aspiChecklist(contract, property, 'registrazione'),
         completo: aspiChecklist(contract, property, 'completo'),

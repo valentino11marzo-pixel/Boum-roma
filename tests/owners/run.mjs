@@ -208,6 +208,11 @@ console.log('\n\x1b[1m▸ il riaffitto: il secondo passo ha la sua porta e la su
     && /di quale immobile si tratta/.test(it) && /quando esce l'inquilino attuale/.test(it), it);
   ok('...non chiede se è arredata (la conosciamo), non scrive prezzi, dà del Lei', !/arredat/.test(it) && !/€/.test(it)
     && !/\b(tuo|tua|ti torno)\b/i.test(it) && /condizioni del riaffitto/.test(it), it);
+  // La pagina, a «oggi è affittata», chiede di scrivere la scadenza nelle note:
+  // chi l'ha scritta non se la vede richiedere.
+  const told = ['Il contratto attuale scade il 31/10/2026', 'esce a fine novembre', 'lease ends 30 Nov']
+    .map(note => ownerReplyText({ name: 'Laura', owner: { goal: 'relet', freeFrom: 'rented', zone: 'Prati', lang: 'it', note } }));
+  ok('...e se la scadenza l\'ha già scritta nelle note, non la richiede', told.every(t => !/quando esce/.test(t)), told);
   const en = ownerReplyText({ name: 'Laura', language: 'en', owner: { goal: 'relet', zone: 'Prati', freeFrom: 'soon', lang: 'en' } });
   ok('...anche in inglese, senza richiedere la zona che ha scritto', /re-letting your property in Prati/.test(en) && !/which property/.test(en) && !/furnished/.test(en), en);
   const full = ownerReplyText({ name: 'Marco', owner: { zone: 'Monti', lang: 'it' } });
@@ -271,6 +276,7 @@ console.log('\n\x1b[1m▸ le guardie stanno dove si spende\x1b[0m');
 
 console.log('\n\x1b[1m▸ la pagina: una porta, promesse vere\x1b[0m');
 const html = read('owners.html');
+const ldText0 = () => [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map(m => m[1]).join(' ');
 const vis = html.replace(/<!--[\s\S]*?-->|<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ')
   .replace(/&amp;/g, '&').replace(/\s+/g, ' ');
 {
@@ -354,7 +360,8 @@ console.log('\n\x1b[1m▸ la scala: tre passi, ogni prezzo legato al codice\x1b[
   const costi = html.slice(html.indexOf('<section id="costi"'), html.indexOf('</section>', html.indexOf('<section id="costi"')));
   const cv = costi.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ');
   ok('tre passi, in ordine', cv.indexOf('Passo 1') > -1 && cv.indexOf('Passo 1') < cv.indexOf('Passo 2') && cv.indexOf('Passo 2') < cv.indexOf('Passo 3'));
-  ok('...in un elenco ordinato (i passi hanno un ordine)', /<ol class="ladder">/.test(costi));
+  ok('...in un elenco ordinato, che resta un elenco anche su Safari (role="list")', /<ol class="ladder" role="list">/.test(costi)
+    && /<div class="lmini">[\s\S]*?<ol role="list">/.test(html));
   // L'esempio si ricalcola: mezza mensilità di 1400 + IVA 22% = 854; con
   // l'attestazione 854 + ass. Un numero scritto a mano che diverge cade qui.
   const half = 1400 / 2, tot = Math.round(half * 1.22);
@@ -381,16 +388,75 @@ console.log('\n\x1b[1m▸ la scala: tre passi, ogni prezzo legato al codice\x1b[
     /commission/.test(part(t, 'en')) && price.test(part(t, 'en')) ? null : k + ':en',
   ]).filter(Boolean);
   ok('«€0 di provvigione» porta sempre accanto il prezzo delle pratiche', lone.length === 0, lone);
+  // Il prezzo NORMALE in testa: quasi ogni contratto BOOM a Roma segue
+  // l'Accordo e l'attestazione è ciò che apre la cedolare al 10% — il default
+  // di fatturazione ASPI è «completo». €89 è l'eccezione, e si dice così.
+  const lead278 = t => { const a = t.indexOf('€' + (reg + ass)), b = t.indexOf('€' + reg); return a > -1 && b > -1 && a < b; };
+  const pr1 = (first.match(/<span class="pr">[\s\S]*?<\/span><\/span>/) || [''])[0];
+  ok(`il prezzo normale (${eu(reg + ass)}) viene prima dell'eccezione (${eu(reg)}), in pagina e accanto alla porta`,
+    ['it', 'en'].every(l => lead278(part(pr1, l)) && lead278(part(mini, l))), { pr1: part(pr1, 'it'), mini: part(mini, 'it') });
+  ok('...e accanto alla porta l\'IVA è dichiarata, in italiano e in inglese', /IVA inclusa/.test(part(mini, 'it')) && /VAT included/.test(part(mini, 'en')));
+  const lmini = (html.match(/<div class="lmini">[\s\S]*?<\/div>/) || [''])[0];
+  ok('...e il link non fa pensare che i prezzi sopra siano senza IVA', !/con l'IVA|with VAT/.test(lmini) && /Tutti i passi, nel dettaglio/.test(lmini));
+  // La gestione durante il contratto è DICHIARATA (è ciò che la macchina fa
+  // per ogni contratto: rendiconto il 1°, incasso, manutenzioni coordinate).
+  ok('la gestione durante il contratto è scritta nel passo 1 e nella FAQ, in entrambe le lingue',
+    /per tutta la durata del contratto/.test(part(first, 'it')) && /for the whole lease/.test(part(first, 'en'))
+    && /Per tutta la durata del contratto/.test(part(faq1, 'it')) && /For the whole lease/.test(part(faq1, 'en')));
+  ok('mai «spese escluse» (si legge «più le spese») né «va a registrare»', !/spese escluse|service charges excluded|va a registrare|goes for registration/.test(vis + ldText0()));
   // Mai «gratis» dove c'è un costo (art. 23 lett. v) — sulla pagina, nei dati
   // strutturati, nella riga contestuale e in llms.txt. «Valutazione
   // gratuita» e il calcolatore restano: quelli sono gratis davvero.
   const ldText = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)].map(m => m[1]).join(' ');
   const hint = (html.match(/var HINT=\{[\s\S]*?\n\};/) || [''])[0];
   const llmsOwn = (read('llms.txt').match(/## BOOM for property owners[\s\S]*?(?=\n## )/) || [''])[0];
-  const GRATIS = /\bgratis\b|a costo zero|senza (alcun )?cost[oi]|\bno fee\b|la nostra parte la paga|prima locazione (è )?(completamente )?gratuit|\bfree (first )?letting|first letting (is )?free|at no cost|reddito sicuro/i;
-  const hits = Object.entries({ vis, ldText, hint, llmsOwn }).filter(([, t]) => GRATIS.test(t)).map(([k, t]) => k + ': ' + t.match(GRATIS)[0]);
-  ok('mai «gratis» / «no fee» / «la nostra parte» sulla prima locazione', hits.length === 0, hits);
+  // Le altre superfici che parlano ai proprietari: la FAQ generale del sito
+  // (diceva «1 month rent OR 10%» e «guaranteed rent») e i modelli di
+  // outreach (solo i blocchi da copiare: le note interne possono NOMINARE
+  // le frasi vietate per vietarle).
+  const faqHtml = read('faq.html');
+  const faqOwn = (faqHtml.match(/<div class="group-head" data-g="owners">[\s\S]*?<\/section>/) || [''])[0].replace(/<[^>]+>/g, ' ');
+  const outreach = [...read('docs/owner-outreach.md').matchAll(/```\n([\s\S]*?)```/g)].map(m => m[1]).join(' ');
+  const GRATIS = /\bgratis\b|a costo zero|senza (alcun )?cost[oi]|\bno fee\b|la nostra parte la paga|prima locazione (è )?(completamente )?gratuit|\bfree (first )?letting|first letting (is )?free|at no cost|reddito sicuro|zero pensieri|reliable income|zero stress|guaranteed rent|1 month rent or 10%/i;
+  const hits = Object.entries({ vis, ldText, hint, llmsOwn, faqOwn, outreach }).filter(([, t]) => GRATIS.test(t)).map(([k, t]) => k + ': ' + t.match(GRATIS)[0]);
+  ok('mai «gratis» / «no fee» / «reddito sicuro» / «guaranteed rent» — pagina, dati, riga, llms, FAQ del sito, outreach', hits.length === 0, hits);
+  ok('la FAQ generale del sito dice la stessa scala (€0 con le pratiche, 61%, link a /owners#costi)',
+    /€0 commission/.test(faqOwn) && faqOwn.includes('€' + reg) && faqOwn.includes('€' + (reg + ass)) && /61% of one month/.test(faqOwn) && /\/owners#costi|boomrome\.com\/owners/.test(faqHtml));
+  ok('i modelli di outreach, dove dicono «senza provvigione», dicono anche il prezzo delle pratiche',
+    [...read('docs/owner-outreach.md').matchAll(/```\n([\s\S]*?)```/g)].map(m => m[1])
+      .filter(t => /provvigione|commission/.test(t)).every(t => t.includes('€' + reg + '–' + (reg + ass))));
+  // «+ IVA» mai nudo (Cod. cons. art. 22 c.4): fuori dalla scala — dove la
+  // card porta il suo totale — ogni mezza mensilità + IVA ha il totale entro
+  // poche parole: il 61% di un canone o la cifra su €1.400.
+  const noCosti = html.slice(0, html.indexOf('<section id="costi"')) + html.slice(html.indexOf('</section>', html.indexOf('<section id="costi"')));
+  const metas = [...html.matchAll(/<meta (?:name|property)="(?:description|og:description|twitter:description)" content="([^"]*)"/g)].map(m => m[1]).join(' ');
+  // '¦' al confine di ogni <span>: il totale va cercato nella STESSA lingua
+  // (il 61% dell'inglese non copre l'italiano che l'ha perso).
+  const flat = t => t.replace(/<!--[\s\S]*?-->|<style[\s\S]*?<\/style>/g, ' ').replace(/<\/span>/g, ' ¦ ').replace(/<[^>]+>/g, ' ').replace(/\\'/g, "'").replace(/\s+/g, ' ');
+  const naked = [];
+  for (const [k, t] of Object.entries({ page: flat(noCosti), metas, llmsOwn: flat(llmsOwn), faqOwn: flat(faqOwn) })) {
+    const re = /(mezza mensilità|half a month(?:'s rent)?|half the agreed monthly rent|half a month's agreed rent)[^.;¦]{0,130}?(\+ IVA|più IVA|\+ VAT|plus VAT)/gi;
+    for (const m of t.matchAll(re)) {
+      const after = t.slice(m.index + m[0].length, m.index + m[0].length + 110).split('¦')[0];
+      if (!/61%|854/.test(after)) naked.push(k + ': …' + m[0].slice(-40) + after.slice(0, 40));
+    }
+  }
+  ok('ogni «mezza mensilità + IVA» fuori dalla scala ha il totale accanto (pagina, meta, dati, riga, llms, FAQ del sito)', naked.length === 0, naked);
   ok('la riga contestuale usa gli stessi prezzi della scala', hint.includes('€' + reg) && hint.includes('€' + (reg + ass)) && /mezza mensilità \+ IVA/.test(hint) && hint.includes('€349'));
+  // Voce per voce, lingua per lingua: la riga che il proprietario legge al
+  // momento della scelta rispetta le stesse regole della scala.
+  const H = new Function(hint.replace(/^var HINT=/, 'return ').replace(/;\s*$/, ''))();
+  const hv = ['it', 'en'].flatMap(l => Object.entries(H[l]).map(([k, v]) => [l + '.' + k, v]));
+  const hint0 = hv.filter(([, v]) => /€0|provvigione|commission/.test(v) && !(v.includes('€' + reg) && v.includes('€' + (reg + ass)))).map(([k]) => k);
+  ok('ogni riga con «€0» porta le pratiche accanto (€' + reg + ' e €' + (reg + ass) + ')', hint0.length === 0, hint0);
+  const hintHalf = hv.filter(([, v]) => /mezza mensilità|half a month/.test(v) && !/61%/.test(v)).map(([k]) => k);
+  ok('ogni riga con la mezza mensilità porta il totale (61% di un canone, IVA inclusa)', hintHalf.length === 0, hintHalf);
+  ok('il Pacchetto nella riga dice che la tariffa dell\'organizzazione è a parte', /a parte/.test(H.it.concordato) && /extra/.test(H.en.concordato));
+  ok('«affittarla e farla gestire» ha la SUA riga, che dice la gestione compresa',
+    /incasso/.test(H.it.full) && /rendiconto/.test(H.it.full) && /rent collection/.test(H.en.full)
+    && /var t=g==='full'\?H\.full:g==='find'\?H\.first/.test(html));
+  ok('la riga resta nell\'albero di accessibilità (mai hidden: aria-live non annuncerebbe)',
+    /<p class="fhint" id="fHint" aria-live="polite"><\/p>/.test(html) && !/el\.hidden/.test(html) && /\.fhint:empty\{/.test(html));
   ok('...ed è dichiarata PRIMA della IIFE che chiama setLang', html.indexOf('var HINT=') > -1 && html.indexOf('var HINT=') < html.indexOf("setLang(q||saved||'it',true)"));
   ok('il prezzo sta accanto alla porta (non più solo il €349 laterale)', /<div class="lmini">/.test(html) && html.indexOf('<div class="lmini">') < html.indexOf('<section id="metodo"'));
 }
@@ -517,7 +583,7 @@ console.log('\n\x1b[1m▸ in un browser vero: il modulo arriva alla porta, in en
           return u.startsWith(`http://localhost:${port}`) ? r.continue() : r.abort();
         });
         await pg.goto(`http://localhost:${port}/owners`, { waitUntil: 'load' });
-        const hidden0 = await pg.isHidden('#fHint');
+        const hidden0 = (await pg.isHidden('#fHint')) && (await pg.textContent('#fHint')) === '';
         await pg.selectOption('#fGoal', 'relet');
         const h1 = await pg.textContent('#fHint');
         ok('[it] nessuna riga prima della scelta; «riaffittarla» mostra mezza mensilità e la prima locazione',

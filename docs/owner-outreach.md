@@ -7,8 +7,11 @@ quality owner = inventory that fuels every other channel. Owners are also a
 annuity. **Treat supply acquisition as seriously as demand.**
 
 **The page to send:** **https://www.boomrome.com/owners**
-**Core promise to owners:** *international, verified tenants · zero hassle ·
-legal & compliant · reliable income — we manage everything.*
+**Core promise to owners:** *international, verified tenants · registered
+leases · the rent and a statement on the 1st of every month · first letting
+with no commission (paperwork only, €89–278 VAT incl.).* Never promise
+"reliable/guaranteed income": the only written solvency commitment is the
+tailored 2–3 year mandate, within its cap and term.
 
 ---
 
@@ -36,7 +39,8 @@ legal & compliant · reliable income — we manage everything.*
 2. **BOOM:** we bring **pre-verified international tenants** (students,
    professionals, researchers, sent by universities & companies), handle the
    **legal contract, deposit, payments and management**, and keep the flat
-   occupied with good people. You get reliable income, zero hassle.
+   occupied with good people. They get the rent and a statement on the 1st of
+   every month.
 3. **Trust (you're new):** registered agency (Egidi Immobiliare S.r.l., P.IVA
    17322991005), legal contracts, transparent terms. Start with **one flat** as
    a no-pressure trial.
@@ -61,7 +65,8 @@ ricercatori) per affitti a medio termine.
 Possiamo portarle un inquilino selezionato e affidabile, gestendo noi contratto
 registrato, deposito, incassi e scadenze — lei riceve il canone e un rendiconto
 il primo del mese, niente no-show né perditempo. La prima locazione con noi è
-senza provvigione per lei: paga solo le pratiche del contratto.
+senza provvigione per lei: paga solo le pratiche del contratto, €89–278 IVA
+inclusa.
 
 Posso proporle un inquilino verificato per il suo appartamento? Le bastano due
 minuti: https://www.boomrome.com/owners — oppure WhatsApp +39 331 325 1961.
@@ -78,11 +83,12 @@ Hi {{first_name}},
 
 We're BOOM, a Rome agency that places verified international tenants (students,
 professionals, researchers) in mid-term rentals and manages everything for the
-owner — legal contract, deposit, payments, day-to-day.
+owner — registered lease, rent collection and deadlines.
 
 If you own a flat in Rome but don't want the hassle (or you're abroad), we keep
-it occupied with good people and handle it all in English. Reliable income,
-zero stress.
+it occupied with good people and handle it all in English. You get the rent and
+a statement on the 1st of every month; the first letting carries no commission
+(lease paperwork only, €89–278 VAT included).
 
 Could we place a vetted tenant in your apartment this season?
 2-minute overview: https://www.boomrome.com/owners
@@ -94,8 +100,10 @@ Best,
 ### WhatsApp / short DM (to a self-lister)
 ```
 Buongiorno! Ho visto il suo annuncio a {{zona}}. Siamo BOOM (agenzia di Roma):
-le portiamo inquilini internazionali verificati e gestiamo contratto, deposito
-e pagamenti. Reddito sicuro, zero pensieri. Le interessa una proposta?
+le portiamo inquilini internazionali verificati, contratto registrato e incassi
+tracciati: lei riceve il canone e un rendiconto il primo del mese. Prima
+locazione senza provvigione: paga solo le pratiche, €89–278 IVA inclusa.
+Le interessa una proposta?
 boomrome.com/owners
 ```
 

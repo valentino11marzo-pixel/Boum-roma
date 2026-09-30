@@ -213,7 +213,11 @@ export function ownerReplyText(lead = {}) {
   const missing = [];
   if (!zone) missing.push(relet ? (en ? 'which property it is' : 'di quale immobile si tratta')
     : (en ? 'which area it is in' : 'in che zona si trova'));
-  if (relet && o.freeFrom === 'rented') missing.push(en ? 'when the current tenant moves out' : 'quando esce l\'inquilino attuale');
+  // La pagina, a «oggi è affittata», chiede di scrivere la scadenza nelle
+  // note: se l'ha scritta, il messaggio non gliela richiede.
+  const saysWhen = /\b\d{1,2}\s*[\/.\-]\s*\d{1,2}\b|\b\d{1,2}\s+(gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic|jan|jun|jul|aug|sep|oct|dec)|\b(gennaio|febbraio|marzo|aprile|maggio|giugno|luglio|agosto|settembre|ottobre|novembre|dicembre|january|february|march|april|june|july|august|september|october|november|december)\b|\bscad|\bexpir|\bfino al\b|\buntil\b|\bends?\b/i
+    .test(String(o.note || ''));
+  if (relet && o.freeFrom === 'rented') { if (!saysWhen) missing.push(en ? 'when the current tenant moves out' : 'quando esce l\'inquilino attuale'); }
   else if (!o.freeFrom) missing.push(en ? 'when it frees up' : 'da quando è libero');
   if (!o.furnished && !relet) missing.push(en ? 'whether it is furnished' : 'se è arredato');
   const join = (arr, and) => arr.length <= 1 ? (arr[0] || '') : arr.slice(0, -1).join(', ') + ' ' + and + ' ' + arr[arr.length - 1];
