@@ -208,7 +208,10 @@ console.log('\n\x1b[1m▸ la voce B2B: chi è ente e chi no\x1b[0m');
   const uni = b2bReplyText({ name: 'Mark', source: 'partner', intent: 'partner-university', partner: { kind: 'university' }, message: 'We place students every semester.' });
   ok('all\'università il SUO link, non quello corporate', uni.includes('boomrome.com/universities'));
   const own = b2bReplyText({ name: 'Giulia', source: 'partner', intent: 'owner', partner: { kind: 'owner' }, message: 'Salve, vorrei proporvi il mio appartamento a Prati, sono disponibile quando volete.' });
-  ok('al proprietario si chiede del SUO immobile, in italiano', /zona/.test(own) && /^Ciao Giulia/.test(own));
+  // Col LEI: la dottrina delle risposte rapide, famiglia `pr` («sempre col
+  // LEI — è il cliente che ci affida un bene»). Il vecchio «Ciao Giulia» dava
+  // del tu a chi ci affida una casa (vedi tests/owners).
+  ok('al proprietario si chiede del SUO immobile, in italiano e col Lei', /zona/.test(own) && /^Buongiorno Giulia/.test(own) && /suo immobile/.test(own), own);
   ok('...mai quante persone deve alloggiare', !/quante persone/.test(own), own);
   ok('le due voci org/owner sono davvero diverse', hr !== own);
 }

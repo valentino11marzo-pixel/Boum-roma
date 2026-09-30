@@ -71,7 +71,14 @@
     // the browser's, because the page has already decided what language the
     // reader is being served — an English cookie plate on the French /reunion
     // page is the one element that gives away that it is a translation.
-    var T = (String(document.documentElement.lang || 'en').toLowerCase().slice(0, 2) === 'fr')
+    // L'italiano e' impersonale di proposito: le pagine italiane danno del
+    // "tu" (/canone) o del "Lei" (/owners), e il banner non deve scegliere.
+    var L2 = String(document.documentElement.lang || 'en').toLowerCase().slice(0, 2);
+    var T = L2 === 'it'
+      ? { e: 'Privacy',
+          p: 'Un solo cookie di analisi ci aiuta a migliorare BOOM. Nessuna pubblicità che insegue, nessuna rivendita di dati — <a href="/privacy">come trattiamo i dati</a>.',
+          no: 'Solo essenziali', ok: 'Accetta', aria: 'Preferenze cookie' }
+      : (L2 === 'fr')
       ? { e: 'Confidentialité',
           p: 'Un cookie de mesure d\'audience nous aide à améliorer BOOM. Aucune publicité qui vous suit, aucune revente de données — <a href="/privacy">comment nous traitons vos données</a>.',
           no: 'Essentiels uniquement', ok: 'Accepter', aria: 'Préférences cookies' }

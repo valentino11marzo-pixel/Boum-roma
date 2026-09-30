@@ -691,6 +691,12 @@ function escapeRegex(s) {
  * Main per-file processor
  * ──────────────────────────────────────────────────────────────────────── */
 function processFile(file, cfg) {
+  // Una pagina con la testa scritta a mano (bilingue, JSON-LD propri) non si
+  // riscrive: stripExisting() ne cancellerebbe hreflang e dati strutturati.
+  if (cfg.manualHead) {
+    console.log(`[manual] ${file} — testa scritta a mano, saltata`);
+    return null;
+  }
   const fp = path.join(ROOT, file);
   if (!fs.existsSync(fp)) {
     console.warn(`[skip] ${file} — not found`);

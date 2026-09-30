@@ -297,22 +297,28 @@ const PAGES = {
   // ════════════════════════════════════════════════════════════════════
   // OWNERS / LANDLORDS
   // ════════════════════════════════════════════════════════════════════
+  // TESTA SCRITTA A MANO (30/09/2026), come /executive e /reunion: la
+  // pagina e' bilingue (it canonica + en con ?lang=en) e stripExisting()
+  // cancellerebbe l'alternate inglese e i tre JSON-LD della pagina (FAQPage,
+  // WebPage con speakable, Service). `manualHead` fa saltare la riscrittura;
+  // la voce resta qui per il generatore della sitemap.
   'owners.html': {
     path: '/owners',
-    title: 'Proprietari — Gestione Immobiliare Premium a Roma | BOOM',
+    manualHead: true,
+    title: 'Proprietari: affitto e gestione di case a Roma — BOOM',
     description:
-      'Affida il tuo immobile a chi ne risponde legalmente. Prima locazione gratuita, garanzia di solvibilità, screening rigoroso e portale esclusivo per proprietari.',
-    keywords: ['gestione immobiliare Roma', 'property management Rome', 'affittare casa Roma sicuro', 'proprietari Roma'],
+      'Inquilini selezionati che vengono a Roma per lavoro e studio, contratto firmato online e registrato, rendiconto il 1° del mese. Valutazione gratuita.',
+    keywords: ['gestione affitti Roma', 'affittare casa Roma', 'property management Roma', 'canone concordato Roma'],
     type: 'website',
     lang: 'it',
     locale: 'it_IT',
-    priority: 0.8,
+    ogImage: 'https://www.boomrome.com/og-owners.png',
+    priority: 0.85,
     changefreq: 'monthly',
     breadcrumbs: [
       { name: 'Home', url: '/' },
-      { name: 'Per Proprietari', url: '/owners' },
+      { name: 'Proprietari', url: '/owners' },
     ],
-    schemas: ['Service:propertyManagement'],
   },
 
   'owner.html': {

@@ -114,9 +114,22 @@ export const RESEARCH_URL    = 'https://www.boomrome.com/research';
  */
 export function isB2B(lead = {}) {
   if (!lead || typeof lead !== 'object') return false;
+  // La Réunion ha la SUA guardia (isReunion, sempre valutata prima): un
+  // propriétaire di Saint-Pierre non è un proprietario romano.
+  if (isReunion(lead)) return false;
   if (String(lead.source || '').toLowerCase() === 'partner') return true;
   if (String(lead.leadType || '').toLowerCase() === 'company') return true;
-  return /^partner-/.test(String(lead.intent || '').toLowerCase());
+  // IL PROPRIETARIO ROMANO (30/09/2026). Il calcolatore /canone scrive
+  // `leadType:'landlord'` da mesi con `source:'web'`, e questa funzione non
+  // lo vedeva: il Commerciale redigeva per lui la prima risposta con la
+  // persona dell'INQUILINO («ti andrebbe di fissare una visita?») e il
+  // follow-up «stai ancora cercando casa a Roma?» — a chi una casa la OFFRE.
+  // Ora anche la pagina /owners scrive qui (api/owner-lead.js): chi offre un
+  // immobile parla con la voce del proprietario, mai con quella dell'inquilino.
+  if (String(lead.leadType || '').toLowerCase() === 'landlord') return true;
+  const intent = String(lead.intent || '').toLowerCase();
+  if (intent === 'owner') return true;
+  return /^partner-/.test(intent);
 }
 
 /**
@@ -146,15 +159,7 @@ export function b2bReplyText(lead = {}) {
   const kind = String(lead && lead.partner && lead.partner.kind || '').toLowerCase();
   const url = kind === 'university' ? UNIVERSITIES_URL : kind === 'research' ? RESEARCH_URL : CORPORATE_URL;
 
-  if (b2bSide(lead) === 'owner') {
-    return en
-      ? (`Hi${first ? ' ' + first : ''}, Valentino here from BOOM Roma 👋 Thanks for telling us about your property.\n` +
-         `To give you a straight answer: which zone, when does it free up, furnished or not? ` +
-         `I'll come back today with what we'd do and the numbers in writing.`)
-      : (`Ciao${first ? ' ' + first : ''}, sono Valentino di BOOM Roma 👋 Grazie per averci scritto del tuo immobile.\n` +
-         `Per darti una risposta seria: che zona, da quando è libero, arredato o no? ` +
-         `Ti torno in giornata con cosa faremmo e i numeri per iscritto.`);
-  }
+  if (b2bSide(lead) === 'owner') return ownerReplyText(lead);
   return en
     ? (`Hi${first ? ' ' + first : ''}, Valentino here from BOOM Roma 👋 Thanks for reaching out about housing for your people.\n` +
        `To move fast: how many people, from when, and for roughly how long? ` +
@@ -162,4 +167,62 @@ export function b2bReplyText(lead = {}) {
     : (`Ciao${first ? ' ' + first : ''}, sono Valentino di BOOM Roma 👋 Grazie per il contatto: sistemare le vostre persone a Roma è esattamente il nostro lavoro.\n` +
        `Per fare presto: quante persone, da quando e per quanto tempo? ` +
        `Ti torno in giornata con opzioni reali e la forma contrattuale giusta per ogni soggiorno.\n${url}`);
+}
+
+/**
+ * Il messaggio WhatsApp già scritto per un PROPRIETARIO romano.
+ *
+ * Due regole della dottrina delle risposte rapide (js/whatsapp-replies.js,
+ * famiglia `pr`): «Sempre in italiano e sempre col LEI — è il cliente che ci
+ * affida un bene», e la prova è un meccanismo, mai un aggettivo. Più una
+ * regola nuova, nata con la pagina /owners: NON si richiede ciò che il
+ * proprietario ha già scritto nel modulo. La vecchia versione chiedeva «che
+ * zona, da quando è libero, arredato o no?» a chi l'aveva appena detto.
+ *
+ * La lingua: le SUE parole (la nota nel modulo, o il messaggio) battono la
+ * dichiarazione; senza parole vale la lingua della pagina che ha scelto.
+ * @param {object} lead
+ * @returns {string}
+ */
+export function ownerReplyText(lead = {}) {
+  const o = (lead && lead.owner) || {};
+  const first = String(lead.name || '').trim().split(/\s+/)[0] || '';
+  const langSrc = o.note != null || lead.owner
+    ? { message: o.note || '', language: o.lang || lead.language }
+    : lead;
+  const en = replyLang(langSrc) !== 'it';
+  const zone = o.zone || lead.zone || null;
+  const FREE = {
+    it: { now: 'libero da subito', soon: 'libero entro tre mesi', later: 'libero più avanti', rented: 'oggi affittato' },
+    en: { now: 'free now', soon: 'free within three months', later: 'free later on', rented: 'currently let' },
+  };
+  const FURN = {
+    it: { yes: 'arredato', partial: 'parzialmente arredato', no: 'vuoto' },
+    en: { yes: 'furnished', partial: 'part-furnished', no: 'unfurnished' },
+  };
+  const L = en ? 'en' : 'it';
+  const known = [];
+  if (o.sqm) known.push(`${Math.round(o.sqm)} ${en ? 'sqm' : 'mq'}`);
+  if (o.furnished && FURN[L][o.furnished]) known.push(FURN[L][o.furnished]);
+  if (o.freeFrom && FREE[L][o.freeFrom]) known.push(FREE[L][o.freeFrom]);
+  const missing = [];
+  if (!zone) missing.push(en ? 'which area it is in' : 'in che zona si trova');
+  if (!o.freeFrom) missing.push(en ? 'when it frees up' : 'da quando è libero');
+  if (!o.furnished) missing.push(en ? 'whether it is furnished' : 'se è arredato');
+  const join = (arr, and) => arr.length <= 1 ? (arr[0] || '') : arr.slice(0, -1).join(', ') + ' ' + and + ' ' + arr[arr.length - 1];
+
+  if (en) {
+    return [
+      `Hi${first ? ' ' + first : ''}, Valentino here from BOOM Roma — thank you for telling us about your property${zone ? ' in ' + zone : ''}.`,
+      known.length ? `I've noted: ${known.join(', ')}.` : null,
+      missing.length ? `So I can give you a straight answer, could you tell me ${join(missing, 'and')}?` : null,
+      `I'll come back today with what we would do and the numbers in writing.`,
+    ].filter(Boolean).join('\n');
+  }
+  return [
+    `Buongiorno${first ? ' ' + first : ''}, sono Valentino di BOOM — Egidi Immobiliare. Grazie per averci scritto del suo immobile${zone ? ' a ' + zone : ''}.`,
+    known.length ? `Ho annotato: ${known.join(', ')}.` : null,
+    missing.length ? `Per darle una risposta seria, mi dice ${join(missing, 'e')}?` : null,
+    `Le torno in giornata con cosa faremmo e i numeri per iscritto.`,
+  ].filter(Boolean).join('\n');
 }

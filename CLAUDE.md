@@ -98,6 +98,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `proppass.html` | Apple Wallet pass generator UI. Four pass types: viewing, tenant, referral, landlord. |
 | `pass-delivery.html` | La CARTA D'IMBARCO (STUDIO_AVIATION_2026-08.md, S2): la pagina STAMPA il biglietto (emissione in puro CSS), rotta ROM→codice zona dal lessico curato (mai inventato), e dice la verità — visita annullata (`meta.voided`) o non confermata (`when` assente) = Wallet spento e detto. Palette scalo #FFD700. Test: `node tests/scalo/run.mjs`. |
 | `index.html` | Landing page / homepage. |
+| `owners.html` | La pagina dei proprietari (`/owners`): IT col Lei + EN, una porta (Valutazione gratuita → `api/owner-lead.js`), quattro gesti suoi / dodici nostri. Vedi «BOOM Proprietari». Test: `node tests/owners/run.mjs`. |
 | `apartments.html` | Property listings page (discovery). La griglia è una FOTOGRAFIA di build (`design/pages-deco/costruisci-ad.py` su snapshot locali); in pagina l'**idrante** rilegge Firestore e aggiorna stato/prezzo/data delle card di build, e l'**innesto** COSTRUISCE la card per gli annunci nati dopo la build (es. wizard Telegram di sera) — stessa grammatica del builder, registrata nel setaccio via `window.__muroInnesta`: filtri e conto la vedono. Senza innesto un annuncio era "pubblicato e invisibile" (`/listing/:id` vivo, vetrina muta). **Il Solari del prezzo è UN montatore** (`window.__solariPrezzo`, 28/08): il tabellone split-flap del badge prezzo era montato solo sulle card di build — le carte innestate restavano col testo piatto e l'idrante, aggiornando un prezzo, DISTRUGGEVA il tabellone riscrivendolo come stringa; ora build, innesto e idrante montano lo stesso Solari (test: celle presenti anche sull'innestata). Test: `node tests/vetrina/run.mjs`. |
 | `apartment-detail.html` | Dynamic single-property page (loads from Firestore). |
 | `boom_doc_parser.html` | AI document parser UI (uses Claude API). |
@@ -995,6 +996,81 @@ non promettere — sta in `STUDIO_EXECUTIVE_ROMA.md`.
   lingua che non ricade sull'italiano, isB2B/b2bReplyText, guardie asserite
   sull'ORDINE nel sorgente, invarianti SEO/GEO della pagina, reciprocità dei
   link).
+
+### BOOM Proprietari (`/owners` + `api/owner-lead.js`) — 30/09/2026
+Rifatta da zero su richiesta del fondatore («non è attraente, non converte,
+non rispecchia il nostro modo di lavorare»). Stessa dottrina di /executive
+(`STUDIO_EXECUTIVE_CONVERSIONE.md`, `STUDIO_EXECUTIVE_UIX.md`): UNA porta (il
+modulo nell'hero, etichetta «Valutazione gratuita» identica su nav, bottone,
+banda e barra mobile), otto blocchi, ~90 parole prima del modulo, un solo
+oggetto digitale (il rendiconto). **Italiano col LEI** — la dottrina delle
+risposte rapide, famiglia `pr`: «è il cliente che ci affida un bene» — con
+interruttore inglese (`?lang=en`, mai dedotto dal browser) per chi possiede
+a Roma e vive all'estero. La tesi in una riga: *Lei riceve il canone e un
+rendiconto. Il resto è nostro.* — e il blocco 01 la dimostra con una
+sproporzione: **quattro gesti suoi, dodici nostri**, ognuno un meccanismo
+che esiste nel codice (valutazione sui canoni firmati, concordato con scheda
+e attestazione, visite video, pre-accordo, Magic Sign + RLI, verbale con
+contatori, inventario filmato, SEPA riconciliato, scadenzario, rendiconto
+del 1° del mese).
+- **Cosa è stato TOLTO perché il codice non lo sostiene**: il «Portale
+  Proprietari» con «approvazione preventivi online», «dashboard entrate
+  real-time» e «supporto prioritario 24/7»; un cruscotto finto che mostrava
+  «Canone questo mese €0 · Occupazione 0%»; «parola per parola» sui contratti
+  (vero e testato per studenti e 3+2, NON per il transitorio: l'Allegato B
+  non ha un `.doc` in `reference/`). L'area proprietario che esiste davvero
+  (portal.html, ruolo landlord: immobili, contratti, pagamenti, manutenzioni,
+  documenti) è citata come tale e basta. Il rendiconto d'esempio è
+  dichiarato «numeri di fantasia».
+- **Restano, da verificare col mandato vero**: la solvibilità dell'inquilino
+  «scritta nel mandato» (ora sempre accompagnata da «nei termini scritti nel
+  mandato»), prima locazione senza provvigione per il proprietario, mandato
+  pluriennale a fee annuale fissa — erano già pubblicate e le conferma
+  `SERVIZI_STUDIO_2026-08.md`; la cifra della fee non è pubblicata.
+- **`POST /api/owner-lead`** — prima il modulo andava su `partners/submit`
+  con la ZONA infilata nel campo `org` dell'ente e nient'altro. Ora: nome +
+  un campo unico «Telefono o email» (`splitContact`), zona, da quando è
+  libera, cosa le serve; a scomparsa mq, locali, arredo, canone in mente,
+  note. Liste CHIUSE (`FREE_FROM`, `GOALS`, `ROOMS`, `FURNISHED`: ignoto →
+  null), canone fuori scala → null (mai «€350.000/mese»), honeypot `company`,
+  rate limit, `attribution` dal `boom_source` di boom-track (le campagne di
+  `docs/owner-outreach.md` si misurano). Lead `leadType:'landlord'`,
+  `intent:'owner'`, `market:'roma'`, riassunto `PROPRIETARIO — Roma · zona ·
+  mq · locali · arredo · libero · chiede: …`. **La card Telegram parte dalla
+  porta** (tetto 5s): testo, WhatsApp col messaggio già scritto, Portale — mai
+  un bottone `mailto:` (Telegram lo rifiuta e cade il messaggio INTERO) — e il
+  lead viene marcato `telegramNotifiedAt` così notify-pending non lo ripete.
+  Ogni scrittura è attesa prima di `res.json`; Telegram giù = 200 comunque,
+  lead non marcato, recupero al minuto dopo.
+- **Il difetto di classe chiuso insieme (`api/_market.js`)**: `isB2B` non
+  riconosceva `leadType:'landlord'`, quindi i lead del calcolatore `/canone`
+  (da mesi `source:'web'`, `leadType:'landlord'`) ricevevano dal Commerciale
+  la prima risposta con la persona dell'INQUILINO e il follow-up «stai ancora
+  cercando casa a Roma?». Ora ogni proprietario romano è B2B lato `owner`
+  (la Réunion resta fuori: `isReunion` prima di tutto). `ownerReplyText`:
+  il messaggio pronto dà del **Lei** («Buongiorno Giulia, sono Valentino di
+  BOOM — Egidi Immobiliare») e **non richiede ciò che il modulo ha già
+  raccolto** — prima chiedeva zona/libero/arredato a chi li aveva appena
+  scritti; le SUE parole decidono la lingua, senza parole vale la pagina.
+  `notify-pending`: etichetta «🔑 proprietario» e i B2B mai sepolti nel
+  riepilogo dei lead C (il voto del Brain misura un inquilino).
+- **GEO/SEO**: testa scritta a mano (`manualHead: true` in
+  `scripts/seo-config.js`, e `seo-update.js` la salta — altrimenti
+  cancellerebbe l'alternate inglese e i JSON-LD), FAQPage = nove `<summary>`
+  visibili, WebPage con `speakable` (`.hero .sub`, `.enbref`), due Service
+  con identità distinte (gestione · Pacchetto €349 con Offer dal catalogo),
+  «in breve» con la riga **cosa non facciamo** (niente subaffitto, niente
+  affitti brevi turistici), sitemap con hreflang it/en, sezione in
+  `llms.txt`, card social `og-owners.png` generata dal repo
+  (`python3 design/pages-deco/genera-og-servizi.py og-owners` — il filtro
+  rigenera SOLO le card nominate). Il banner cookie (`js/boom-consent.js`)
+  parla ora anche italiano, impersonale (le pagine IT danno del tu o del Lei).
+- Test: `node tests/owners/run.mjs` (98 check — porta, liste chiuse, voce
+  col Lei che non richiede il noto, card valida e prima della risposta,
+  regressione /canone, una porta sola, frasi vietate, registro Lei,
+  FAQ/speakable/Service, e il modulo inviato davvero in Chromium a 390px in
+  IT e EN; mutazioni: landlord non-B2B, bottone mailto, patch
+  fire-and-forget, «Ciao» al proprietario — tutte prese).
 
 ### POST `/api/service-checkout`
 Public one-tap Stripe Checkout for the productised services (Services 2.0
