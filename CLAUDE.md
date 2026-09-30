@@ -1458,6 +1458,20 @@ webhook lo rende definitivo). Spazzino `sweepLocks()` in `reminder-cron`
 (oraria) perché la console revoca client-side e il lucchetto resterebbe
 appeso. **`firestore.rules`: `propertyLocks` è admin-only — senza quella riga
 cadeva nel default-deny e il lucchetto non funzionava affatto.**
+**L'interno (30/09/2026 — «non è la stessa unità»)**: la chiave non guardava
+MAI `property.unit`, quindi due stanze della stessa casa collidevano sempre e
+«✅ Sblocca la riserva» rileggeva lo stesso lucchetto — non poteva sbloccare
+mai. Ora un interno dichiarato blocca sulla SUA chiave
+(`<immobile>~u<interno>__<mese>`, `lockKey`/`normUnit`), stessa regola di
+`convert.overlapConflict`: interni dichiarati e diversi convivono, lo stesso
+interno no, un interno vuoto (casa intera) li esclude tutti — il confronto
+casa-intera ⇄ stanza si fa DOPO aver preso i propri mesi (atomico). Le prese
+nate prima portano la chiave senza interno: l'interno si legge dalla
+proposta che tiene. Dalla console, su `still_held` l'admin può dichiarare
+l'interno di QUESTA proposta (`resolve` `{id, unit, notSameAs}`): scritto
+sulla proposta con `unitDeclaredBy/At/unitWas` (+ `lockOverride` quando chi
+tiene non ha interno); due interni UGUALI non si scavalcano mai.
+Test: `tests/lock/run.mjs` §5, `tests/preagreement/state.mjs` §7.
 
 ### Rent cadence (mensile · bimestrale · trimestrale · semestrale · annuale)
 `money.installmentMonths` (1|2|3|6|12) + derived `installmentAmount`

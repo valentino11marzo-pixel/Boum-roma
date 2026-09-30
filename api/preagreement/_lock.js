@@ -28,7 +28,7 @@
 // nulla da pagare) il lucchetto diventa definitivo.
 
 import crypto from 'node:crypto';
-import { fsCreate, fsGet, fsPatch, fsDelete } from '../homie/_lib.js';
+import { fsCreate, fsGet, fsPatch, fsDelete, fsList } from '../homie/_lib.js';
 
 export const HOLD_HOURS = 48;
 
@@ -49,6 +49,35 @@ export function propertyKey(pa) {
     .replace(/[^a-z0-9]/g, '');
   if (!addr) return null;                                // niente su cui bloccare
   return 'a_' + crypto.createHash('sha1').update(addr).digest('hex').slice(0, 16);
+}
+
+// ─── L'interno (30/09/2026 — «non è la stessa unità») ─────────────────────
+// La chiave qui sopra non guardava MAI l'interno: due stanze della stessa
+// casa (stesso propertyId, o stesso indirizzo con l'interno nel campo a
+// parte) collidevano sempre, e «✅ Sblocca la riserva» rileggeva lo stesso
+// lucchetto — cioè non poteva sbloccare mai. La regola è la stessa di
+// convert.overlapConflict: due interni DICHIARATI e diversi convivono; lo
+// stesso interno no; un interno vuoto (la casa intera) non esclude niente.
+//
+// Come, restando atomici: un interno dichiarato blocca su una chiave SUA
+// (`<immobile>~u<interno>__<mese>`), così due stanze non si toccano mai a
+// livello di id. Il confronto casa-intera ⇄ stanza è un secondo controllo,
+// fatto DOPO aver preso i propri mesi (prima scrivo, poi guardo): due
+// accettazioni simultanee si vedono a vicenda, al peggio si fermano
+// entrambe — mai passano entrambe.
+export const normUnit = (v) => String(v == null ? '' : v).trim().toLowerCase()
+  .replace(/^int(erno)?\.?\s*/, '')
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .replace(/[^a-z0-9]/g, '')
+  .slice(0, 24);
+export const unitOf = (pa) => normUnit(((pa || {}).property || {}).unit);
+
+// La chiave su cui QUESTA proposta prende i suoi mesi.
+export function lockKey(pa) {
+  const base = propertyKey(pa);
+  if (!base) return null;
+  const u = unitOf(pa);
+  return u ? `${base}~u${u}` : base;
 }
 
 // ─── I mesi coperti dalla locazione ───────────────────────────────────────
@@ -91,15 +120,24 @@ export function lockLive(lock, now = Date.now()) {
 // { ok:false, reason:'held', by, byRef, until }      → l'ha già un altro
 // { ok:false, reason:'unlockable' }                  → niente su cui bloccare
 //                                                      (nessun id, nessun indirizzo)
-export async function acquireLock({ pa, paId, firm = false }) {
-  const key = propertyKey(pa);
+//
+// `allow` = id di proposte che l'OPERATORE ha dichiarato «non la stessa
+// unità» (resolve.js, admin). Vale SOLO nel confronto casa-intera ⇄ stanza e
+// SOLO contro chi non ha dichiarato l'interno: due interni dichiarati uguali
+// restano un conflitto, qualunque cosa si dichiari.
+export async function acquireLock({ pa, paId, firm = false, allow = [] }) {
+  const base = propertyKey(pa);
+  const key = lockKey(pa);
   if (!key) return { ok: false, reason: 'unlockable' };
   const months = leaseMonths(pa.lease);
   if (!months.length) return { ok: false, reason: 'unlockable' };
+  const unit = unitOf(pa);
+  const allowed = new Set((Array.isArray(allow) ? allow : []).map(String));
 
   const now = new Date();
   const mine = {
-    paId: String(paId), key,
+    paId: String(paId), key, baseKey: base,
+    unit: unit || null,
     ref: (pa.tenant || {}).fullName || null,
     heldAt: now.toISOString(),
     firm: !!firm,
@@ -123,52 +161,119 @@ export async function acquireLock({ pa, paId, firm = false }) {
       if (held && String(held.paId) === String(paId)) { taken.push(id); continue; }  // già nostro
       if (held && lockLive(held)) {
         await releaseLocks(taken);
-        return {
-          ok: false, reason: 'held',
-          by: held.paId || null, byRef: held.ref || null,
-          month: m,
-          until: held.firm ? null
-            : new Date(Date.parse(held.heldAt || now.toISOString()) + HOLD_HOURS * 3600 * 1000).toISOString(),
-        };
+        return heldBy(held, m, now, { unit: normUnit(held.unit) || unit || null, level: unit ? 'unit' : 'whole', sameUnit: !!unit });
       }
       // Scaduto (riserva che non ha pagato): lo si prende sovrascrivendo.
       try { await fsPatch('propertyLocks/' + id, { ...mine, month: m }); taken.push(id); }
       catch (err) { await releaseLocks(taken); throw err; }
     }
   }
-  return { ok: true, key, months };
+
+  // ── Il secondo controllo: casa intera ⇄ stanza ─────────────────────────
+  let conflict = null;
+  try {
+    conflict = unit
+      ? await wholeHolding({ base, months, paId, unit, allowed, now })
+      : await unitHolding({ base, months, paId, now });
+  } catch (e) {
+    // Il controllo incrociato non ha potuto leggere: i propri mesi sono presi
+    // e il confronto stessa-chiave (quello che conta di più) è già passato.
+    // Si registra, non si blocca una chiusura legittima.
+    console.error('[pa/lock] controllo incrociato non verificabile:', e.message);
+  }
+  if (conflict) { await releaseLocks(taken); return conflict; }
+  return { ok: true, key, months, unit: unit || null };
+}
+
+function heldBy(held, month, now, extra = {}) {
+  return {
+    ok: false, reason: 'held',
+    by: held.paId || null, byRef: held.ref || null,
+    month,
+    until: held.firm ? null
+      : new Date(Date.parse(held.heldAt || now.toISOString()) + HOLD_HOURS * 3600 * 1000).toISOString(),
+    ...extra,
+  };
+}
+
+// Io ho un interno: c'è una presa sulla CASA INTERA (chiave senza interno)
+// che copre uno dei miei mesi? Le prese nate prima del 30/09 stanno tutte
+// lì, anche quelle di proposte che l'interno ce l'hanno: per loro l'interno
+// si legge dalla proposta che tiene. Interno dichiarato e diverso → convivono.
+async function wholeHolding({ base, months, paId, unit, allowed, now }) {
+  const units = new Map();
+  for (const m of months) {
+    let held = null;
+    try { held = await fsGet('propertyLocks/' + lockId(base, m)); } catch (_) { held = null; }
+    if (!held || String(held.paId) === String(paId) || !lockLive(held, now.getTime())) continue;
+    let theirs = normUnit(held.unit);
+    if (!theirs && held.paId) {
+      if (!units.has(held.paId)) {
+        let hp = null;
+        try { hp = await fsGet('preAgreements/' + held.paId); } catch (_) {}
+        units.set(held.paId, unitOf(hp));
+      }
+      theirs = units.get(held.paId);
+    }
+    if (theirs && theirs !== unit) continue;                         // due interni dichiarati, diversi
+    if (!theirs && allowed.has(String(held.paId))) continue;          // l'operatore l'ha dichiarato
+    return heldBy(held, m, now, { unit: theirs || null, level: 'whole', sameUnit: !!theirs });
+  }
+  return null;
+}
+
+// Io sono la casa intera: qualcuno tiene una STANZA per uno dei miei mesi?
+async function unitHolding({ base, months, paId, now }) {
+  const rows = await fsList('propertyLocks', { filter: { field: 'baseKey', op: 'EQUAL', value: base }, limit: 400 });
+  const want = new Set(months);
+  for (const lk of rows || []) {
+    if (!lk || !normUnit(lk.unit)) continue;                         // la casa intera la copre già l'id
+    if (String(lk.paId) === String(paId) || !want.has(lk.month)) continue;
+    if (!lockLive(lk, now.getTime())) continue;
+    return heldBy(lk, lk.month, now, { unit: normUnit(lk.unit), level: 'unit' });
+  }
+  return null;
+}
+
+// Gli id che questa proposta può tenere per un mese: la sua chiave e — se
+// l'interno è stato dichiarato dopo la presa — la chiave della casa intera.
+function candidateIds(pa, month) {
+  const base = propertyKey(pa), key = lockKey(pa);
+  if (!key) return [];
+  return key === base ? [lockId(key, month)] : [lockId(key, month), lockId(base, month)];
 }
 
 // Il pagamento è arrivato (o non c'era nulla da pagare): il lucchetto non
 // scade più.
 export async function confirmLock({ pa, paId }) {
-  const key = propertyKey(pa);
-  if (!key) return 0;
+  if (!lockKey(pa)) return 0;
   let n = 0;
   for (const m of leaseMonths(pa.lease)) {
-    try {
-      const id = lockId(key, m);
-      const held = await fsGet('propertyLocks/' + id);
-      if (held && String(held.paId) === String(paId)) {
-        await fsPatch('propertyLocks/' + id, { firm: true, firmAt: new Date().toISOString() });
-        n++;
-      }
-    } catch (_) { /* best-effort: un lucchetto non confermato scade, non rompe */ }
+    for (const id of candidateIds(pa, m)) {
+      try {
+        const held = await fsGet('propertyLocks/' + id);
+        if (held && String(held.paId) === String(paId)) {
+          await fsPatch('propertyLocks/' + id, { firm: true, firmAt: new Date().toISOString() });
+          n++;
+          break;
+        }
+      } catch (_) { /* best-effort: un lucchetto non confermato scade, non rompe */ }
+    }
   }
   return n;
 }
 
 // Revoca / annullamento: l'immobile torna disponibile.
 export async function releaseLock({ pa, paId }) {
-  const key = propertyKey(pa);
-  if (!key) return 0;
+  if (!lockKey(pa)) return 0;
   const ids = [];
   for (const m of leaseMonths(pa.lease)) {
-    const id = lockId(key, m);
-    try {
-      const held = await fsGet('propertyLocks/' + id);
-      if (held && String(held.paId) === String(paId)) ids.push(id);
-    } catch (_) {}
+    for (const id of candidateIds(pa, m)) {
+      try {
+        const held = await fsGet('propertyLocks/' + id);
+        if (held && String(held.paId) === String(paId)) ids.push(id);
+      } catch (_) {}
+    }
   }
   return releaseLocks(ids);
 }
@@ -184,7 +289,6 @@ export async function releaseLock({ pa, paId }) {
 // in bozza/inviata (l'accettazione è stata annullata) · oppure è una presa non
 // confermata più vecchia della finestra.
 export async function sweepLocks({ limit = 400 } = {}) {
-  const { fsList } = await import('../homie/_lib.js');
   const out = { checked: 0, released: 0 };
   let locks = [];
   try { locks = await fsList('propertyLocks', { limit }); } catch (e) {
