@@ -114,6 +114,19 @@ export const kindCost = (kind, s) =>
   kind === 'completo' ? s.costoRegistrazione + s.costoAsseverazione
     : kind === 'asseverazione' ? s.costoAsseverazione : s.costoRegistrazione;
 
+// Cosa si FATTURA può essere meno di cosa si INVIA (la scala di /owners,
+// 30/09/2026): sul riaffitto la registrazione è compresa nella mezza
+// mensilità, quindi di una richiesta «completo» si fattura la sola
+// attestazione. Ammessi solo i sottoinsiemi della richiesta — mai fatturare
+// un servizio che non si è chiesto; un valore ignoto torna alla richiesta.
+export const billKindFor = (kind, billKind) => {
+  const allowed = kind === 'completo' ? ['completo', 'registrazione', 'asseverazione'] : [kind];
+  return allowed.includes(billKind) ? billKind : kind;
+};
+// Due fatture sullo stesso servizio sono un doppio incasso: «completo»
+// contiene entrambe le pratiche, registrazione e attestazione no fra loro.
+const billOverlap = (a, b) => a === b || a === 'completo' || b === 'completo';
+
 // La variante di default la decide il contratto: requiresAsseverazione è
 // già sul doc (checkbox del portal, true dal convert PA).
 export const defaultKind = (contract) =>
@@ -379,13 +392,27 @@ export async function sendAspiRequest(contractId, opts = {}) {
 
   // ── La fattura col markup (idempotente: un kind, una fattura) ─────────
   const bill = opts.bill !== undefined ? !!opts.bill : settings.autoInvoice;
+  const billKind = billKindFor(kind, opts.billKind);
   let invoice = null;
+  // Cambiare cosa si fattura fra un invio e l'altro non deve MAI produrre una
+  // seconda fattura sullo stesso servizio (prima completo, poi solo
+  // attestazione = €189 incassati due volte): se esiste già una fattura ASPI
+  // che si sovrappone, si riporta quella e non se ne crea un'altra.
+  let prior = null;
   if (bill) {
-    const amount = kindPrice(kind, settings);
+    for (const k of ASPI_KINDS) {
+      if (k === billKind || !billOverlap(k, billKind)) continue;
+      const ex = await fsGet(`invoices/aspi_${k}_${contractId}`).catch(() => null);
+      if (ex) { prior = { id: `aspi_${k}_${contractId}`, amount: ex.amount, created: false, overlap: true }; break; }
+    }
+  }
+  if (bill && prior) invoice = prior;
+  else if (bill) {
+    const amount = kindPrice(billKind, settings);
     const toTenant = settings.billTo === 'tenant';
     const recipientId = toTenant ? (contract.tenantId || '') : (property.ownerId || contract.landlordId || '');
     const recipientName = toTenant ? (contract.tenantName || '') : (contract.landlordName || '');
-    const invId = `aspi_${kind}_${contractId}`;
+    const invId = `aspi_${billKind}_${contractId}`;
     const propLabel = property.address || property.name || '';
     try {
       await fsCreate('invoices', {
@@ -393,7 +420,7 @@ export async function sendAspiRequest(contractId, opts = {}) {
         recipientId, clientId: recipientId,
         recipientType: toTenant ? 'tenant' : 'landlord',
         recipientName,
-        service: KIND_LABEL[kind],
+        service: KIND_LABEL[billKind],
         amount,
         date: new Date().toISOString().slice(0, 10),
         description: `${propLabel} — contratto ${contractId}. Pratica gestita da BOOM: preparazione fascicolo, invio, follow-up e archivio.`,
@@ -411,7 +438,7 @@ export async function sendAspiRequest(contractId, opts = {}) {
   }
 
   return {
-    ok: true, kind, to: settings.email,
+    ok: true, kind, billKind, to: settings.email,
     attachments: attachments.map(a => a.filename),
     missing, invoice,
     cost: kindCost(kind, settings), price: kindPrice(kind, settings),

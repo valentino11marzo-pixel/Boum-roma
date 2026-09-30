@@ -59,8 +59,9 @@ specializzata in inquilini internazionali verificati (studenti, professionisti,
 ricercatori) per affitti a medio termine.
 
 Possiamo portarle un inquilino selezionato e affidabile, gestendo noi contratto
-legale, deposito, pagamenti e gestione — lei riceve un reddito sicuro senza
-pensieri, niente no-show né perditempo.
+registrato, deposito, incassi e scadenze — lei riceve il canone e un rendiconto
+il primo del mese, niente no-show né perditempo. La prima locazione con noi è
+senza provvigione per lei: paga solo le pratiche del contratto.
 
 Posso proporle un inquilino verificato per il suo appartamento? Le bastano due
 minuti: https://www.boomrome.com/owners — oppure WhatsApp +39 331 325 1961.

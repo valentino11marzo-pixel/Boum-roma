@@ -136,7 +136,7 @@ const mkReq = (body, headers = {}) => ({ method: 'POST', headers, body });
 
 const {
   ASPI_DEFAULTS, mergeAspiSettings, aspiChecklist, checklistBlocked, checklistMissing,
-  kindPrice, kindCost, defaultKind, sendAspiRequest, maybeAutoAspi,
+  kindPrice, kindCost, defaultKind, sendAspiRequest, maybeAutoAspi, billKindFor,
 } = await import('../../api/fiscal/_aspi.js');
 
 // ═══ 1. Le manopole: default sani, override solo con valori buoni ═══
@@ -276,6 +276,55 @@ store.set('users/own1', { name: 'Mario Bianchi' });
   await handler(mkReq({ op: 'send', contractId: 'c2b', kind: 'registrazione', bill: false }, { authorization: 'Bearer faketoken' }), rb);
   check('bill:false → email sì, nessuna fattura', rb.code === 200 && !store.has('invoices/aspi_registrazione_c2b'));
   store.delete('settings/registrazione');
+}
+
+// ═══ 5b. Il RIAFFITTO: si invia tutto, si fattura la sola attestazione ═══
+// La scala di /owners (30/09/2026): sul riaffitto la registrazione è compresa
+// nella mezza mensilità. Senza questa manopola il primo riaffitto sarebbe
+// stato fatturato €278 contro la promessa pubblicata — «registrazione
+// compresa» vale solo se la macchina sa non fatturarla.
+{
+  check('billKindFor: solo sottoinsiemi della richiesta, l\'ignoto torna alla richiesta',
+    billKindFor('completo', 'asseverazione') === 'asseverazione' && billKindFor('completo', 'registrazione') === 'registrazione'
+    && billKindFor('completo', 'pack') === 'completo' && billKindFor('completo', undefined) === 'completo'
+    && billKindFor('registrazione', 'asseverazione') === 'registrazione' && billKindFor('asseverazione', 'completo') === 'asseverazione');
+
+  store.set('contracts/c6', { ...baseContract, propertyId: 'p1', tenantId: 'u1' });
+  const r = mkRes();
+  await handler(mkReq({ op: 'send', contractId: 'c6', kind: 'completo', billKind: 'asseverazione' }, { authorization: 'Bearer faketoken' }), r);
+  const inv = store.get('invoices/aspi_asseverazione_c6');
+  check('riaffitto: la richiesta parte completa, la fattura è la sola attestazione (€189)',
+    r.code === 200 && r.body.kind === 'completo' && r.body.billKind === 'asseverazione'
+    && !!inv && inv.amount === 189 && /attestazione/i.test(inv.service) && !store.has('invoices/aspi_completo_c6'));
+  check('...e l\'email al referente resta quella della variante completa', /attestazione/i.test(mails()[mails().length - 1].subject)
+    && store.get('contracts/c6').aspiRequestKind === 'completo');
+
+  store.set('contracts/c7', { ...baseContract, propertyId: 'p1', tenantId: 'u1' });
+  const r7 = mkRes();
+  await handler(mkReq({ op: 'send', contractId: 'c7', kind: 'registrazione', billKind: 'asseverazione' }, { authorization: 'Bearer faketoken' }), r7);
+  check('mai fatturare ciò che non si è chiesto: registrazione + billKind attestazione → €89 di registrazione',
+    r7.code === 200 && store.get('invoices/aspi_registrazione_c7')?.amount === 89 && !store.has('invoices/aspi_asseverazione_c7'));
+
+  // c1 ha già la fattura «completo» (§4): cambiare idea su cosa fatturare
+  // non deve MAI produrre una seconda fattura sullo stesso servizio.
+  const nInv = [...store.keys()].filter(k => k.startsWith('invoices/')).length;
+  const r1 = mkRes();
+  await handler(mkReq({ op: 'send', contractId: 'c1', kind: 'completo', billKind: 'asseverazione' }, { authorization: 'Bearer faketoken' }), r1);
+  check('fattura «completo» già emessa + re-invio «solo attestazione» → nessuna seconda fattura (doppio incasso)',
+    r1.code === 200 && [...store.keys()].filter(k => k.startsWith('invoices/')).length === nInv
+    && !store.has('invoices/aspi_asseverazione_c1') && r1.body.invoice && r1.body.invoice.created === false && r1.body.invoice.overlap === true);
+
+  // Il contrario vale uguale: una fattura «solo attestazione» impedisce il «completo».
+  const r6b = mkRes();
+  await handler(mkReq({ op: 'send', contractId: 'c6', kind: 'completo' }, { authorization: 'Bearer faketoken' }), r6b);
+  check('...e al contrario: attestazione già fatturata, il «completo» non si aggiunge sopra',
+    r6b.code === 200 && !store.has('invoices/aspi_completo_c6') && r6b.body.invoice && r6b.body.invoice.overlap === true);
+
+  // Registrazione e attestazione NON si sovrappongono: due richieste distinte, due fatture legittime.
+  const r7b = mkRes();
+  await handler(mkReq({ op: 'send', contractId: 'c7', kind: 'asseverazione' }, { authorization: 'Bearer faketoken' }), r7b);
+  check('registrazione e attestazione in due tempi restano due fatture (servizi diversi)',
+    r7b.code === 200 && store.get('invoices/aspi_asseverazione_c7')?.amount === 189 && store.get('invoices/aspi_registrazione_c7')?.amount === 89);
 }
 
 // ═══ 6. Senza PDF niente invio · 'registered' non si degrada ═══
@@ -430,8 +479,16 @@ const PDFB64 = 'data:application/pdf;base64,' + Buffer.from('%PDF-1.4 finto').to
     && portal.includes("op: 'status', contractId") && portal.includes("op: 'send', contractId"));
   const panel = portal.slice(portal.indexOf('function openAspi'), portal.indexOf('window.sendAspi ='));
   check('portal: il pannello legge prezzi e checklist dal SERVER — nessun € hardcodato nel pannello',
-    portal.includes('st.settings.prezzi[kind]') && panel.includes('s.prezzi.completo') && panel.includes('s.prezzi.registrazione')
+    portal.includes('st.settings.prezzi[billKind]') && panel.includes('s.prezzi.completo') && panel.includes('s.prezzi.registrazione')
     && !/€\d/.test(panel));
+}
+
+{
+  const pa = fs.readFileSync(new URL('../../js/portal-app.js', import.meta.url), 'utf8');
+  const rg = fs.readFileSync(new URL('../../api/fiscal/registra.js', import.meta.url), 'utf8');
+  check('pannello: la tendina «Riaffitto — solo attestazione» esiste e il send porta billKind',
+    /id="aspiBillKind"/.test(pa) && /value="asseverazione">Riaffitto/.test(pa) && /JSON\.stringify\(\{ op: 'send', contractId, kind, billKind, bill, note \}\)/.test(pa));
+  check('registra.js passa billKind alla richiesta', /billKind: clip\(b\.billKind, 20\)/.test(rg));
 }
 
 // ═══ Esito ═══

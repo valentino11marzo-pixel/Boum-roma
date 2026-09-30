@@ -23685,8 +23685,15 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const items = kind === 'registrazione' ? st.kinds.registrazione : st.kinds.completo;
         const el = document.getElementById('aspiChecklist');
         if (el) el.innerHTML = _aspiChecklistHtml(items);
+        // Cosa si fattura: sul RIAFFITTO (passo 2 di /owners) la registrazione
+        // è compresa nella mezza mensilità, quindi di un «completo» si fattura
+        // solo l'attestazione. La tendina esiste solo dove ha senso.
+        const bw = document.getElementById('aspiBillKindWrap');
+        const bk = document.getElementById('aspiBillKind');
+        if (bw) bw.style.display = kind === 'completo' ? '' : 'none';
+        const billKind = (kind === 'completo' && bk && bk.value) ? bk.value : kind;
         const bl = document.getElementById('aspiBillLbl');
-        if (bl) bl.textContent = `Crea fattura ${st.settings.billTo === 'tenant' ? 'all\'inquilino' : 'al proprietario'} — €${st.settings.prezzi[kind]} (costo pratica ASPI €${st.settings.costi[kind]})`;
+        if (bl) bl.textContent = `Crea fattura ${st.settings.billTo === 'tenant' ? 'all\'inquilino' : 'al proprietario'} — €${st.settings.prezzi[billKind]} (costo pratica ASPI €${st.settings.costi[billKind]})`;
     }
     window._aspiRenderKind = _aspiRenderKind;
     async function openAspi(contractId) {
@@ -23723,7 +23730,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
                 <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--text-muted);margin:10px 0 4px">Il fascicolo che parte</div>
                 <div id="aspiChecklist" style="margin-bottom:12px"></div>
-                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;margin-bottom:10px"><input type="checkbox" id="aspiBill" ${s.autoInvoice ? 'checked' : ''}> <span id="aspiBillLbl"></span></label>
+                <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:12.5px;margin-bottom:6px"><input type="checkbox" id="aspiBill" ${s.autoInvoice ? 'checked' : ''}> <span id="aspiBillLbl"></span></label>
+                <div id="aspiBillKindWrap" class="form-group" style="margin:0 0 10px 26px">
+                    <select id="aspiBillKind" class="form-select" onchange="_aspiRenderKind()" style="font-size:12.5px">
+                        <option value="completo">Prima locazione — fattura registrazione + attestazione (€${s.prezzi.completo})</option>
+                        <option value="asseverazione">Riaffitto — la registrazione è nella mezza mensilità: solo attestazione (€${s.prezzi.asseverazione})</option>
+                        <option value="registrazione">Solo la registrazione (€${s.prezzi.registrazione})</option>
+                    </select>
+                </div>
                 <div class="form-group"><textarea class="form-textarea" id="aspiNote" rows="2" placeholder="Nota per il referente (opzionale) — es. urgenza, dettagli catastali…"></textarea></div>
             </div>
             <div class="modal-footer">
@@ -23737,6 +23751,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     async function sendAspi(contractId) {
         const kind = document.querySelector('input[name="aspiKind"]:checked')?.value || 'completo';
         const bill = !!document.getElementById('aspiBill')?.checked;
+        const billKind = kind === 'completo' ? (document.getElementById('aspiBillKind')?.value || kind) : kind;
         const note = document.getElementById('aspiNote')?.value || '';
         const btnEl = document.getElementById('aspiSendBtn');
         if (btnEl) { btnEl.disabled = true; btnEl.textContent = '⏳ Invio…'; }
@@ -23745,7 +23760,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const r = await fetch('/api/fiscal/registra', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
-                body: JSON.stringify({ op: 'send', contractId, kind, bill, note })
+                body: JSON.stringify({ op: 'send', contractId, kind, billKind, bill, note })
             });
             const j = await r.json().catch(() => null);
             if (!j || !j.ok) {

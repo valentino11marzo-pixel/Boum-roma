@@ -1065,12 +1065,63 @@ del 1° del mese).
   (`python3 design/pages-deco/genera-og-servizi.py og-owners` — il filtro
   rigenera SOLO le card nominate). Il banner cookie (`js/boom-consent.js`)
   parla ora anche italiano, impersonale (le pagine IT danno del tu o del Lei).
-- Test: `node tests/owners/run.mjs` (98 check — porta, liste chiuse, voce
+- Test: `node tests/owners/run.mjs` (127 check — porta, liste chiuse, voce
   col Lei che non richiede il noto, card valida e prima della risposta,
   regressione /canone, una porta sola, frasi vietate, registro Lei,
   FAQ/speakable/Service, e il modulo inviato davvero in Chromium a 390px in
   IT e EN; mutazioni: landlord non-B2B, bottone mailto, patch
   fire-and-forget, «Ciao» al proprietario — tutte prese).
+
+**La scala dei prezzi (30/09/2026, sera — «manca un secondo passo: tutti mi
+chiedono se gli riaffittiamo e basta»).** Il costo per il proprietario è ora
+in TRE PASSI, in `#costi` (un `<ol class="ladder">`) e in tre righe accanto
+alla porta (`.lmini`: prima il solo prezzo vicino al modulo era il €349 di un
+prodotto laterale, e le card dei costi partivano dopo sei schermate):
+1. **Prima locazione — €0 di provvigione**: la provvigione la paga
+   l'inquilino; il proprietario paga solo le pratiche del contratto,
+   registrazione **€89** e, col canone concordato, attestazione **€189**
+   (€278), IVA inclusa, quando il contratto va a registrare. I due numeri
+   SONO gli `ASPI_DEFAULTS` di `api/fiscal/_aspi.js` (ciò che il 💳 link
+   incassa, IVA dentro): `tests/owners` li legge da lì.
+2. **Riaffitto — mezza mensilità + IVA** del canone pattuito, spese escluse,
+   registrazione compresa, solo se il nuovo inquilino firma; l'attestazione a
+   parte. Si scrive SEMPRE col totale accanto («€700 + IVA, €854 in tutto»):
+   «+ IVA» nudo verso un consumatore non si può (Cod. cons. art. 22 c.4).
+3. **Mandato su misura di 2 o 3 anni — fee annuale fissa**, su preventivo:
+   per la casa che cambia spesso inquilino; è il passo che porta la clausola
+   di solvibilità, ora con i limiti NOMINATI («entro il massimale e la durata
+   scritti nel mandato» — «nei termini» senza dire quali era un'omissione).
+Regole di classe, testate per mutazione (8 su 8 prese): mai «gratis», «no
+fee», «senza costi», «la nostra parte» sulla prima locazione (art. 23 lett.
+v: c'è un costo) — né in pagina né nei JSON-LD né in llms.txt; dove c'è
+«€0 di provvigione» c'è il prezzo delle pratiche NELLO STESSO elemento, in
+italiano E in inglese; l'esempio si ricalcola dal codice; il FAQPage è
+GENERATO dalle `<details>` visibili (build: risposta = testo italiano senza
+tag) e il test pretende l'uguaglianza parola per parola. Il riaffitto ha la
+sua porta: goal `relet` (etichetta operatore «si dichiara già cliente —
+verificare»: la pagina non lo verifica), la voce di `ownerReplyText` chiede
+DI QUALE casa e QUANDO esce l'inquilino (mai se è arredata, mai un prezzo),
+la riga `#fHint` risponde alla scelta sotto le tendine col passo e il prezzo
+giusti (e «oggi è affittata» apre «Altri dettagli» per la scadenza), e
+`/prriaffitto` è la risposta WhatsApp installata. **La macchina mantiene la
+promessa**: il pannello 🏛 ASPI ha «Cosa fatturare» — sul riaffitto si invia
+la pratica completa e si fattura la SOLA attestazione (`billKindFor`, solo
+sottoinsiemi della richiesta), e cambiare idea non crea mai una seconda
+fattura sullo stesso servizio (`billOverlap`). Allineati: `llms.txt`
+(prezzi, Pacchetto con la tariffa dell'organizzazione a parte, «non
+rilasciamo noi l'attestazione»), `terms.html` §4 (è la sezione degli
+INQUILINI; i prezzi dei proprietari rinviano a /owners), l'outreach PFS e
+`docs/owner-outreach.md` (niente più «senza alcun costo» né «reddito
+sicuro»), i conteggi di `/risposte` letti dal modulo.
+**Decisioni del fondatore ancora aperte** (default spediti, tutti
+reversibili in un punto): IVA della mezza mensilità (default «+ IVA» col
+totale: se era inclusa la pagina sovrastima, non promette meno del dovuto);
+prezzi di produzione in `settings/registrazione` (la pagina pubblica i
+default del codice); «prima locazione» contata PER IMMOBILE; mezza mensilità
+a OGNI nuovo inquilino, non solo al primo riaffitto; massimale/durata della
+solvibilità e modello del mandato su misura (nel repo non esistono);
+moduli d'incarico depositati in CCIAA (L. 39/89) e capitale sociale nel
+footer (art. 2250 c.c.) — da verificare fuori dal codice.
 
 ### POST `/api/service-checkout`
 Public one-tap Stripe Checkout for the productised services (Services 2.0
@@ -1850,7 +1901,13 @@ l'attestazione di rispondenza (**€100**). Ora:
   op:status (mai un prezzo hardcodato nel client), radio variante,
   checklist live, checkbox fattura, nota, ✎ per cambiare destinatario.
   `✓ RLI registrato` resta il tap che chiude il loop quando ASPI conferma.
-- Test: `node tests/aspi/run.mjs` (35 check).
+- **Cosa si fattura ≠ cosa si invia** (30/09/2026, la scala di /owners):
+  `billKind` (tendina «Cosa fatturare» nel pannello) — sul riaffitto la
+  registrazione è nella mezza mensilità, quindi di un «completo» si fattura
+  la sola attestazione (`aspi_asseverazione_<id>`); ammessi solo sottoinsiemi
+  della richiesta (`billKindFor`), e una fattura che si sovrappone a una già
+  emessa non nasce mai (`billOverlap`: completo contiene le altre due).
+- Test: `node tests/aspi/run.mjs` (61 check).
 
 **Il documento si attacca DOVE MANCA** (`api/fiscal/allega.js`, 23/08):
 il pannello diceva onestamente dove caricare ogni pezzo ("console
@@ -4222,7 +4279,9 @@ messaggi che accompagnano un link personale.
   mano, più costi, documenti, chi può abitarci, arredo, visita, estero,
   contratto altrui, ricerca su misura, italiano e proprietario — e le altre
   restano nel mazzo: la pagina
-  si apre già filtrata sulle 14, le rare si cercano e si copiano al volo.
+  si apre già filtrata sulle 15, le rare si cercano e si copiano al volo
+  (la quindicesima, 30/09: `/prriaffitto`, «mi riaffittate e basta?»; i
+  numeri nel testo di `/risposte` si leggono ora dal modulo).
   La promozione è un attributo, non una riscrittura: se una del mazzo torna
   spesso, si toglie `bench` e si carica.
 - **Cosa NON entra**: i link personali (visita, Scheda, Magic Sign,

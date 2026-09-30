@@ -73,7 +73,7 @@
    *             privato legge volentieri; è il tono del messaggio che
    *             l'operatore già scrive a mano oggi).
    * boom      — voce trasparente dell'agenzia: inquilino selezionato e
-   *             referenziato, zero costi per il proprietario. Da usare
+   *             referenziato, nessuna provvigione per il proprietario. Da usare
    *             quando la trasparenza vale più del tasso di risposta.
    *
    * ── GLI STILI ──────────────────────────────────────────────────────────
@@ -101,12 +101,12 @@
     if (voice === 'boom') {
       if (lang === 'en') {
         lines.push('Good morning! I\'m writing from BOOM Rome about ' + label + '.');
-        lines.push('We follow a selected, referenced tenant' + (bits.length ? ' (' + bits.join(', ') + ')' : '') + ' looking for exactly this kind of home — at no cost to you as the owner.');
+        lines.push('We follow a selected, referenced tenant' + (bits.length ? ' (' + bits.join(', ') + ')' : '') + ' looking for exactly this kind of home — with no commission for you as the owner.');
         if (note) lines.push(note);
         lines.push('Would it be possible to arrange a viewing in the next few days?');
       } else {
         lines.push('Buongiorno! La contatto da BOOM Roma per ' + label + '.');
-        lines.push('Seguiamo un inquilino selezionato e referenziato' + (bits.length ? ' (' + bits.join(', ') + ')' : '') + ' che cerca esattamente una casa così — senza alcun costo per lei come proprietario.');
+        lines.push('Seguiamo un inquilino selezionato e referenziato' + (bits.length ? ' (' + bits.join(', ') + ')' : '') + ' che cerca esattamente una casa così — senza provvigione per lei come proprietario.');
         if (note) lines.push(note);
         lines.push('Sarebbe possibile organizzare una visita nei prossimi giorni?');
       }

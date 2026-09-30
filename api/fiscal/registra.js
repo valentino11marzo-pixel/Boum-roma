@@ -37,6 +37,8 @@ export default async function handler(req, res) {
     if (op === 'send') {
       const out = await sendAspiRequest(contractId, {
         kind: clip(b.kind, 20),
+        // cosa si fattura: sul riaffitto solo l'attestazione (vedi billKindFor)
+        billKind: clip(b.billKind, 20),
         note: b.note,
         bill: b.bill,
       });

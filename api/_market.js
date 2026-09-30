@@ -205,24 +205,37 @@ export function ownerReplyText(lead = {}) {
   if (o.sqm) known.push(`${Math.round(o.sqm)} ${en ? 'sqm' : 'mq'}`);
   if (o.furnished && FURN[L][o.furnished]) known.push(FURN[L][o.furnished]);
   if (o.freeFrom && FREE[L][o.freeFrom]) known.push(FREE[L][o.freeFrom]);
+  // Il riaffitto (secondo passo della scala di /owners): la casa la
+  // conosciamo già, quindi NON si chiede se è arredata; si chiede DI QUALE
+  // casa si tratta e quando esce l'inquilino. Il prezzo non si scrive qui:
+  // un messaggio già pronto non deve impegnare BOOM su una cifra.
+  const relet = o.goal === 'relet';
   const missing = [];
-  if (!zone) missing.push(en ? 'which area it is in' : 'in che zona si trova');
-  if (!o.freeFrom) missing.push(en ? 'when it frees up' : 'da quando è libero');
-  if (!o.furnished) missing.push(en ? 'whether it is furnished' : 'se è arredato');
+  if (!zone) missing.push(relet ? (en ? 'which property it is' : 'di quale immobile si tratta')
+    : (en ? 'which area it is in' : 'in che zona si trova'));
+  if (relet && o.freeFrom === 'rented') missing.push(en ? 'when the current tenant moves out' : 'quando esce l\'inquilino attuale');
+  else if (!o.freeFrom) missing.push(en ? 'when it frees up' : 'da quando è libero');
+  if (!o.furnished && !relet) missing.push(en ? 'whether it is furnished' : 'se è arredato');
   const join = (arr, and) => arr.length <= 1 ? (arr[0] || '') : arr.slice(0, -1).join(', ') + ' ' + and + ' ' + arr[arr.length - 1];
 
   if (en) {
     return [
-      `Hi${first ? ' ' + first : ''}, Valentino here from BOOM Roma — thank you for telling us about your property${zone ? ' in ' + zone : ''}.`,
+      relet
+        ? `Hi${first ? ' ' + first : ''}, Valentino here from BOOM Roma — thank you for writing to us about re-letting your property${zone ? ' in ' + zone : ''}.`
+        : `Hi${first ? ' ' + first : ''}, Valentino here from BOOM Roma — thank you for telling us about your property${zone ? ' in ' + zone : ''}.`,
       known.length ? `I've noted: ${known.join(', ')}.` : null,
       missing.length ? `So I can give you a straight answer, could you tell me ${join(missing, 'and')}?` : null,
-      `I'll come back today with what we would do and the numbers in writing.`,
+      relet ? `I'll come back today with the new rent and the re-letting terms, in writing.`
+        : `I'll come back today with what we would do and the numbers in writing.`,
     ].filter(Boolean).join('\n');
   }
   return [
-    `Buongiorno${first ? ' ' + first : ''}, sono Valentino di BOOM — Egidi Immobiliare. Grazie per averci scritto del suo immobile${zone ? ' a ' + zone : ''}.`,
+    relet
+      ? `Buongiorno${first ? ' ' + first : ''}, sono Valentino di BOOM — Egidi Immobiliare. Grazie per averci scritto per riaffittare il suo immobile${zone ? ' a ' + zone : ''}.`
+      : `Buongiorno${first ? ' ' + first : ''}, sono Valentino di BOOM — Egidi Immobiliare. Grazie per averci scritto del suo immobile${zone ? ' a ' + zone : ''}.`,
     known.length ? `Ho annotato: ${known.join(', ')}.` : null,
     missing.length ? `Per darle una risposta seria, mi dice ${join(missing, 'e')}?` : null,
-    `Le torno in giornata con cosa faremmo e i numeri per iscritto.`,
+    relet ? `Le torno in giornata con il nuovo canone e le condizioni del riaffitto, per iscritto.`
+      : `Le torno in giornata con cosa faremmo e i numeri per iscritto.`,
   ].filter(Boolean).join('\n');
 }

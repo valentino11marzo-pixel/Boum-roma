@@ -267,6 +267,22 @@ Selezione documentata, contratto registrato, incassi tracciati e scadenze seguit
 Mi dica zona, metri quadri e se è arredato: le dico a quanto si affitta davvero. ${SITE}/canone`,
     },
 
+    {
+      sc: 'prriaffitto', fam: 'pr', star: true,
+      title: 'Riaffitto (mezza mensilità)',
+      when: '«Mi riaffittate e basta?» — la domanda di quasi tutti i proprietari già clienti. La risposta è sì, e il prezzo sta in una riga (è il passo 2 della scala di /owners).',
+      // Il prezzo è quello pubblicato su /owners: mezza mensilità + IVA,
+      // registrazione compresa; l'attestazione è l'ASPI_DEFAULTS di
+      // api/fiscal/_aspi.js (tests/whatsapp/replies la lega a quel numero).
+      sell: { service: null, anchor: 'i mesi di casa vuota fra un inquilino e l\'altro' },
+      text: `Sì, la riaffittiamo e basta: nessun impegno oltre il nuovo contratto.
+
+Costa mezza mensilità del nuovo canone + IVA, e solo se il nuovo inquilino firma. Stesso lavoro della prima volta, registrazione compresa; a parte solo l'attestazione per la cedolare al 10%, se serve: €189.
+
+Mi dice quando esce l'inquilino attuale? La mostriamo già con quella data.
+
+${SITE}/owners#costi`,
+    },
     // ── NEL MAZZO ──────────────────────────────────────────────────────────
     {
       sc: 'entrust', fam: 'en', bench: true,

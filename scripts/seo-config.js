@@ -305,10 +305,10 @@ const PAGES = {
   'owners.html': {
     path: '/owners',
     manualHead: true,
-    title: 'Proprietari: affitto e gestione di case a Roma — BOOM',
+    title: 'Proprietari a Roma: prima locazione senza provvigione — BOOM',
     description:
-      'Inquilini selezionati che vengono a Roma per lavoro e studio, contratto firmato online e registrato, rendiconto il 1° del mese. Valutazione gratuita.',
-    keywords: ['gestione affitti Roma', 'affittare casa Roma', 'property management Roma', 'canone concordato Roma'],
+      'Affittiamo la sua casa a Roma a chi viene per lavoro e studio. Prima locazione senza provvigione, pratiche €89–278 IVA incl.; ogni riaffitto mezza mensilità + IVA.',
+    keywords: ['gestione affitti Roma', 'affittare casa Roma', 'property management Roma', 'canone concordato Roma', 'affittare casa senza provvigione Roma', 'riaffittare casa agenzia'],
     type: 'website',
     lang: 'it',
     locale: 'it_IT',

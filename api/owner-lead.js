@@ -73,6 +73,10 @@ export const FREE_FROM = {
 export const GOALS = {
   full:       'affitto + gestione completa',
   find:       'solo trovare l\'inquilino',
+  // Il secondo passo della scala di /owners: «mi riaffittate e basta?». La
+  // pagina non verifica che sia davvero già cliente — lo DICHIARA lui, e
+  // l'etichetta lo dice all'operatore invece di trattarlo come un fatto.
+  relet:      'riaffitto (si dichiara già cliente BOOM — verificare)',
   value:      'sapere quanto rende',
   concordato: 'canone concordato (cedolare 10%)',
 };
