@@ -15,7 +15,13 @@
 //   · REA e sede legale assenti (art. 2250 c.c. li vuole sul sito);
 //   · senza JavaScript la pagina restava quasi tutta a opacità zero, e i
 //     contatori stampavano «0 h», «0 %».
+// Dal passo 3 della rifondazione (brief «Il Fascicolo», docs/EGIDI_PRD.md)
+// valgono anche i criteri di accettazione del PRD: test dei 5 secondi per
+// ogni titolo candidato, segnaposto solo in anteprima, un solo movimento,
+// contrasto AA, zero richieste esterne, fascicolo composto con riduzione del
+// movimento.
 import { readFileSync, existsSync } from 'node:fs';
+import { gzipSync } from 'node:zlib';
 import http from 'node:http';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -85,10 +91,37 @@ for (const f of PAGES) {
     }
 }
 
-// 7. Il numero vero sta nel markup: senza JS non si legge «0 h».
-for (const [, c, v] of html.matchAll(/data-c="(\d+)">(\d+)</g)) ok(c === v, `contatore ${c}: il markup porta ${v}`);
-ok(/html:not\(\.js\) \.rv\{opacity:1/.test(html), 'senza JS le sezioni restano visibili');
-ok(html.includes("document.documentElement.classList.add('js')"), 'la classe js si accende prima del render');
+// 7. Un solo movimento (il fascicolo) e niente che dipenda da JS per esistere.
+ok(html.includes("document.documentElement.classList.add('js')") || html.includes("d.classList.add('js')"), 'la classe js si accende prima del render');
+const css = (html.match(/<style>([\s\S]*?)<\/style>/) || [])[1] || '';
+const animati = [...css.matchAll(/([^{}]+)\{[^{}]*\banimation\s*:/g)].map((m) => m[1].trim().split(/\s*,\s*/)).flat();
+ok(animati.length > 0 && animati.every((sel) => /\.foglio|\.sigillo/.test(sel)), `si muovono solo fogli e sigillo (${animati.join(' | ')})`);
+ok(!/\btransition\s*:/.test(css), 'nessuna transizione: il brief vuole un movimento solo');
+ok(/prefers-reduced-motion:\s*no-preference/.test(css) && /@supports \(animation-timeline/.test(css), 'animazione solo con movimento consentito e timeline supportata (altrimenti fascicolo composto)');
+ok(!/cursor\s*:\s*none|parallax|lenis/i.test(html), 'niente cursore custom, parallax o scroll hijacking');
+// Oro mai come testo su carta; contrasto AA sulle coppie di testo usate.
+ok(!/(^|[;{\s])color\s*:\s*var\(--oro\)/.test(css), 'nessun testo oro');
+const hex = (h) => h.match(/\w\w/g).map((x) => parseInt(x, 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
+const lum = (h) => { const [r, g, b] = hex(h.replace('#', '')); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+const cr = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+const tok = Object.fromEntries([...css.matchAll(/--([\w-]+):(#[0-9A-Fa-f]{6})/g)].map((m) => [m[1], m[2]]));
+for (const [fg, bg] of [['ink', 'carta'], ['grafite', 'carta'], ['grafite-2', 'carta'], ['grafite-2', 'carta-2'], ['ink', 'oro'], ['carta', 'ink'], ['grafite', 'carta-2']]) {
+    const r = tok[fg] && tok[bg] ? cr(tok[fg], tok[bg]) : 0;
+    ok(r >= 4.5, `contrasto ${fg} su ${bg}: ${r.toFixed(2)} ≥ 4.5`);
+}
+ok(cr(tok.grafite_2 || tok['grafite-2'], '#FBF8F1') >= 4.5, 'contrasto grafite-2 sul foglio #FBF8F1');
+// Tono e contenuti del brief.
+const testo = html.replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, ' ').replace(/<[^>]+>/g, ' ');
+ok(!/!/.test(testo.replace(/<!--[\s\S]*?-->/g, '')), 'nessun punto esclamativo');
+ok(!/\p{Extended_Pictographic}/u.test(testo), 'nessuna emoji');
+ok(!/consulenza fiscale/i.test(testo), 'nessuna «consulenza fiscale»');
+ok(!/entratel/i.test(html), 'Entratel non citato finché non è attivo');
+ok(testo.includes("BOOM è il marchio di Egidi Immobiliare S.r.l. per gli affitti a studenti e professionisti internazionali."), 'la frase fissa su BOOM');
+const boomLinks = [...html.matchAll(/href="(https:\/\/www\.boomrome\.com\/[^"]*)"/g)].map((m) => m[1]).filter((u) => !/\/privacy$/.test(u));
+ok(boomLinks.length > 0 && boomLinks.every((u) => /utm_source=egidimmobiliare&amp;utm_medium=referral&amp;utm_campaign=\w+/.test(u)), 'ogni link verso BOOM porta gli UTM del brief');
+const titoli = ['data-h1', 'data-h2', 'data-h3'].map((a) => (html.match(new RegExp(a + '="([^"]+)"')) || [])[1]);
+ok(titoli.join('|') === "Prima l'ordine. Poi il mercato.|Il tuo immobile, in ordine.|Prima controlliamo i documenti. Poi parliamo di prezzo.", 'i tre titoli candidati del brief, parola per parola');
+ok(gzipSync(Buffer.from(html)).length < 60000, `home sotto 60 KB compressi (${gzipSync(Buffer.from(html)).length} B)`);
 
 // 8. Dati strutturati: fatti verificabili, JSON valido.
 const ldRaw = (html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/) || [])[1];
@@ -126,25 +159,83 @@ if (!chromium) {
     const url = `http://127.0.0.1:${srv.address().port}/`;
     const b = await chromium.launch(launchOptions());
     try {
-        for (const [w, js] of [[390, true], [1440, true], [390, false]]) {
-            const ctx = await b.newContext({ viewport: { width: w, height: 844 }, javaScriptEnabled: js });
-            await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, (rt) => rt.abort()); // niente rete: font e foto esterne non devono servire
+        const esterne = [];
+        const apri = async (w, { js = true, h = 844, rm = 'no-preference', q = '' } = {}) => {
+            const ctx = await b.newContext({ viewport: { width: w, height: h }, javaScriptEnabled: js, reducedMotion: rm });
+            await ctx.route(/^https?:\/\/(?!127\.0\.0\.1)/, (rt) => { esterne.push(rt.request().url()); rt.abort(); });
             const p = await ctx.newPage(); const errs = []; p.on('pageerror', (e) => errs.push(e.message));
-            await p.goto(url, { waitUntil: 'load' }); await p.waitForTimeout(400);
+            await p.goto(url + q, { waitUntil: 'load' }); await p.waitForTimeout(250);
+            return { ctx, p, errs };
+        };
+        for (const [w, js] of [[320, true], [390, true], [1440, true], [390, false]]) {
+            const { ctx, p, errs } = await apri(w, { js });
             const m = await p.evaluate(() => ({
                 sw: document.documentElement.scrollWidth, iw: innerWidth,
-                hidden: [...document.querySelectorAll('.rv')].filter((e) => getComputedStyle(e).opacity === '0').length,
-                counters: [...document.querySelectorAll('[data-c]')].map((e) => e.childNodes[0].nodeValue === e.dataset.c)
+                anteprimaVisibili: [...document.querySelectorAll('.solo-anteprima')].filter((e) => e.getClientRects().length).length,
+                segnapostoFuori: [...document.querySelectorAll('body *')].filter((e) => e.children.length === 0 && /DA FORNIRE|VERIFICARE|PASSO 4/.test(e.textContent) && !e.closest('.solo-anteprima')).length
             }));
             const tag = `${w}px ${js ? 'con' : 'senza'} JS`;
             ok(errs.length === 0, `${tag}: nessun errore JS (${errs.join(' | ')})`);
             ok(m.sw <= m.iw, `${tag}: nessuno scroll orizzontale (${m.sw} > ${m.iw})`);
-            if (!js) {
-                ok(m.hidden === 0, `${tag}: nessuna sezione invisibile (${m.hidden})`);
-                ok(m.counters.every(Boolean), `${tag}: i contatori mostrano il numero vero`);
-            }
+            ok(m.segnapostoFuori === 0, `${tag}: ogni segnaposto sta dentro .solo-anteprima`);
+            // Senza JS la pagina si comporta come in produzione: segnaposto nascosti.
+            if (js) ok(m.anteprimaVisibili > 0, `${tag}: in anteprima (host locale) i segnaposto si vedono`);
+            else ok(m.anteprimaVisibili === 0, `${tag}: senza JS nessun segnaposto visibile`);
             await ctx.close();
         }
+        // Il test dei 5 secondi, per ogni titolo: sopra la piega a 390×844
+        // (tolta la barra WhatsApp) si leggono titolo, «studio immobiliare a
+        // Roma» e «la società dietro BOOM».
+        for (const hN of ['1', '2', '3']) {
+            const { ctx, p } = await apri(390, { q: '?h=' + hN });
+            const r = await p.evaluate(() => {
+                const t = document.getElementById('titolo'), s = document.querySelector('.sotto');
+                const bar = document.querySelector('.wa-fissa').getBoundingClientRect().top;
+                return { titolo: t.textContent, fondo: s.getBoundingClientRect().bottom, bar, testo: s.textContent, sx: Math.min(t.getBoundingClientRect().left, s.getBoundingClientRect().left) };
+            });
+            ok(r.fondo <= r.bar, `h=${hN} «${r.titolo}»: tesi sopra la piega (${Math.round(r.fondo)} ≤ ${Math.round(r.bar)})`);
+            ok(r.sx >= 16, `h=${hN}: il testo non tocca il bordo (margine ${Math.round(r.sx)}px ≥ 16)`);
+            ok(/Studio immobiliare a Roma/.test(r.testo) && /la società dietro BOOM/.test(r.testo), `h=${hN}: le due frasi del test dei 5 secondi`);
+            await ctx.close();
+        }
+        // Il check: niente riepilogo prima di rispondere, riepilogo vero dopo.
+        {
+            const { ctx, p } = await apri(390);
+            const prima = await p.evaluate(() => document.getElementById('esito').getClientRects().length);
+            await p.evaluate(() => { const v = ['si', 'no', 'ns', 'si', 'si', 'si', 'no', 'si']; v.forEach((x, i) => document.querySelector(`input[name=v${i + 1}][value=${x}]`).click()); });
+            const dopo = await p.evaluate(() => ({ punti: document.getElementById('punti').textContent, righe: document.querySelectorAll('#manca li').length, titolo: document.getElementById('esito-titolo').textContent }));
+            ok(prima === 0, 'check: nessun riepilogo prima della prima risposta');
+            ok(dopo.punti === '5' && dopo.righe === 3 && dopo.titolo === 'Cosa manca', `check: 5 su 8 e tre voci da sistemare o verificare (${JSON.stringify(dopo)})`);
+            await ctx.close();
+        }
+        // Riduzione del movimento: il fascicolo è composto dal primo frame.
+        for (const w of [390, 1440]) {
+            const { ctx, p } = await apri(w, { rm: 'reduce' });
+            const f = await p.evaluate(() => ({
+                ruotati: [...document.querySelectorAll('.foglio')].filter((e) => { const m = new DOMMatrix(getComputedStyle(e).transform); return Math.abs(m.b) > 0.001; }).length,
+                sigillo: getComputedStyle(document.querySelector('.sigillo')).opacity
+            }));
+            ok(f.ruotati === 0 && f.sigillo === '1', `${w}px movimento ridotto: fogli allineati e sigillo presente (${f.ruotati} ruotati, sigillo ${f.sigillo})`);
+            await ctx.close();
+        }
+        // Con movimento: in cima i fogli sono sparsi, dopo lo scroll composti e sigillati.
+        {
+            const { ctx, p } = await apri(1440, { h: 900 });
+            const stato = () => p.evaluate(() => ({
+                ruotati: [...document.querySelectorAll('.foglio')].filter((e) => Math.abs(new DOMMatrix(getComputedStyle(e).transform).b) > 0.01).length,
+                sigillo: +getComputedStyle(document.querySelector('.sigillo')).opacity,
+                supporta: CSS.supports('animation-timeline: view()')
+            }));
+            const inizio = await stato();
+            if (inizio.supporta) {
+                await p.evaluate(() => scrollTo(0, innerHeight * 0.26)); await p.waitForTimeout(250);
+                const dopo = await stato();
+                ok(inizio.ruotati >= 5 && inizio.sigillo < 0.1, `1440px in cima: fascicolo sparso (${inizio.ruotati} fogli ruotati, sigillo ${inizio.sigillo})`);
+                ok(dopo.ruotati === 0 && dopo.sigillo > 0.99, `1440px dopo lo scroll: composto e sigillato (${dopo.ruotati}, ${dopo.sigillo})`);
+            } else console.log('  (scroll-timeline non supportata da questo Chromium: salto il controllo del movimento)');
+            await ctx.close();
+        }
+        ok(esterne.length === 0, `zero richieste esterne per disegnare la pagina (${esterne.slice(0, 3).join(' | ')})`);
     } finally { await b.close(); srv.close(); }
 }
 

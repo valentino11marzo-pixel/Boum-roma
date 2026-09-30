@@ -181,7 +181,9 @@ carta calda + inchiostro BOOM + oro solo come sigillo/campitura, un solo
 movimento (il fascicolo che si ricompone), niente foto stock. La home attuale
 in `egidi/index.html` (ipotesi A di giugno, ripulita) è **provvisoria** e va
 sostituita al passo 3. Proposta (sitemap, wireframe, token, redirect, lead,
-domande): artifact «Rifondazione Egidi Immobiliare». Infrastruttura che resta:
+domande): artifact «Rifondazione Egidi Immobiliare». PRD del passo 3 (decisioni
+predefinite, criteri di accettazione misurati, domande aperte):
+`docs/EGIDI_PRD.md`. Infrastruttura che resta:
 progetto Vercel **suo** con Root Directory `egidi` (dentro `boum-roma`
 `egidimmobiliare.it/` servirebbe la home BOOM: una riscrittura non batte un
 file esistente), `egidi/vercel.json` statico con `ignoreCommand`, e il
