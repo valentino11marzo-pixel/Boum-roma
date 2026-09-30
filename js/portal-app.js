@@ -3230,6 +3230,41 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (S.maintenanceListener) { S.maintenanceListener(); S.maintenanceListener = null; }
     }
 
+    // Real-time leads listener — LA LEZIONE DEL 30 SETTEMBRE 2026: i lead si
+    // leggevano UNA volta, nel carico pigro del boot. Chi candidava dal sito
+    // mentre il portal era aperto finiva in Firestore e non compariva in
+    // Lead né in Oggi fino a un ricaricamento — e sembrava non essere mai
+    // arrivato. Stessa query del boot (più recenti prima, 100), ora viva:
+    // toast + notifica del browser sul lead nuovo, badge e Oggi aggiornati.
+    function startLeadsListener() {
+        if (!S.profile?.id || !isAdmin()) return;
+        if (S.leadsListener) S.leadsListener();
+        S._leadsSeen = new Set((S.leads || []).map(l => l.id));
+        S._leadsInit = false;
+        S.leadsListener = db.collection('leads').orderBy('createdAt', 'desc').limit(100)
+            .onSnapshot(snapshot => {
+                S.leads = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                const firstRun = !S._leadsInit; S._leadsInit = true;   // niente avvisi per l'arretrato al login
+                const fresh = firstRun ? [] : S.leads.filter(l => !S._leadsSeen.has(l.id)
+                    && (l.status === 'new' || !l.status));
+                S._leadsSeen = new Set(S.leads.map(l => l.id));
+                if (fresh.length) {
+                    const top = fresh[0];
+                    const sub = (top.name || 'Senza nome') + (top.propertyTitle ? ' → ' + top.propertyTitle : '');
+                    toast('info', 'Nuovo lead' + (fresh.length > 1 ? ' (' + fresh.length + ')' : ''), sub);
+                    document.getElementById('notifBtn')?.classList.add('notif-pulse');
+                    setTimeout(() => document.getElementById('notifBtn')?.classList.remove('notif-pulse'), 2000);
+                    if (document.hidden) sendBrowserNotification('📬 Nuovo lead', sub);
+                }
+                buildNav();
+                oggiScheduleUpdate();
+                if (S.page === 'leads') renderPage();
+            }, err => console.error('Leads listener error:', err));
+    }
+    function stopLeadsListener() {
+        if (S.leadsListener) { S.leadsListener(); S.leadsListener = null; }
+    }
+
     // Real-time agent-event feed — the agentNotifications queue (lead.new,
     // contract.signed, maintenance.opened, concierge emergencies) is written by
     // several endpoints but was consumed ONLY by the off-repo Mac daemon, so if
@@ -4027,6 +4062,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             stopRadarListener();
             stopInboxListener();
             stopMaintenanceListener();
+            stopLeadsListener();
             stopAgentFeedListener();
             // Clear data cache
             localStorage.removeItem('boom_data_cache');
@@ -4076,6 +4112,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         startInboxListener();
         startHeartbeatListener();
         startMaintenanceListener();
+        startLeadsListener();
         startAgentFeedListener();
 
         // Notifications and review / referral campaigns must be explicit

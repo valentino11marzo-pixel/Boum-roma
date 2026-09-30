@@ -17,6 +17,7 @@ import { postinoTick } from './_postino.js';
 import { fmtViewingCard, viewingKeyboard } from './_viewings.js';
 import { loadViewing } from '../viewings/_apply.js';
 import { replyLang } from '../_lang.js';
+import { pendingNewLeads } from '../leads/_fresh.js';
 import { isReunion, reunionReplyText, isB2B, b2bReplyText } from '../_market.js';
 
 const MAX_PER_RUN = 10; // cap so a backlog doesn't spam Telegram
@@ -158,12 +159,12 @@ export default async function handler(req, res) {
   // form), the operator's phone shows WHO, WHAT and — when there's a phone —
   // a one-tap "open WhatsApp" button. The AI reply draft still follows via
   // the Commerciale's proposal card; this is the speed layer.
+  // La lettura storica (status == 'new', limit 50, SENZA ordine) poteva non
+  // contenere il lead appena arrivato: vedi api/leads/_fresh.js. Ora la
+  // finestra degli ultimi 3 giorni, più recenti prima, si AFFIANCA a quella.
   let leads = [];
   try {
-    leads = await fsList('leads', {
-      filter: { field: 'status', op: 'EQUAL', value: 'new' },
-      limit: 50,
-    });
+    leads = await pendingNewLeads({ days: 3 });
   } catch (_) { /* non-fatal */ }
   const GRADE_ICON = { A: '🔥', B: '🟢', C: '🟡' };
   const gradeRank = l => ({ A: 0, B: 1 }[l.grade] ?? 2);
