@@ -10,7 +10,7 @@
      screenshot). Espone window.__h = { pronto, imposta(T), info(), poster(T, n) }. -->
 <style>
 @font-face{font-family:'JetBrains Mono';src:url(../../egidi/fonts/jetbrains-mono.woff2) format('woff2');font-weight:100 800;font-display:block}
-:root{--notte:#111D36;--notte-2:#1B2A45;--luce:#F2EFE8;--nebbia:#C5CEDE;--accento-chiaro:#96C0FE;--accento:#173FA4;--ink:#0D1626;--oro:#FFD700;--boom:#060607;--t:0;--mono:'JetBrains Mono',ui-monospace,monospace}
+:root{--notte:#1E1F21;--notte-2:#2A2B2E;--luce:#F6F4EF;--nebbia:#BDB8AE;--accento-chiaro:#E4DED2;--accento:#1E1F21;--ink:#1E1F21;--oro:#FFD700;--boom:#060607;--t:0;--mono:'JetBrains Mono',ui-monospace,monospace}
 html,body{margin:0;height:100%;background:#000;color:var(--luce);font:14px/1.4 system-ui,sans-serif;overflow:hidden}
 #palco{position:absolute;left:0;top:0;overflow:hidden;--fondo:color-mix(in oklab,var(--notte),var(--boom) calc(var(--t) * 100%));background:var(--fondo)}
 #tela{position:absolute;inset:0;width:100%;height:100%;display:block}
@@ -18,12 +18,12 @@ html,body{margin:0;height:100%;background:#000;color:var(--luce);font:14px/1.4 s
 .desktop .velo{background:linear-gradient(90deg,color-mix(in oklab,var(--fondo) 92%,transparent) 0,color-mix(in oklab,var(--fondo) 92%,transparent) 30%,color-mix(in oklab,var(--fondo) 85%,transparent) 38%,transparent 56%)}
 .mobile .velo{background:linear-gradient(180deg,transparent 0,transparent 46%,color-mix(in oklab,var(--fondo) 88%,transparent) 58%,var(--fondo) 68%)}
 .noui .velo,.noui .eti,.noui .pin,.noui .tag,.noui .mirino{display:none!important}
-.eti{position:absolute;left:0;top:0;transform:translate(-50%,-50%);display:grid;gap:2px;padding:5px 8px;border-radius:3px;background:rgba(17,29,54,.84);color:var(--luce);font:500 11px/1.25 var(--mono);letter-spacing:.06em;text-align:center;white-space:nowrap;opacity:0}
+.eti{position:absolute;left:0;top:0;transform:translate(-50%,-50%);display:grid;gap:2px;padding:5px 8px;border-radius:3px;background:rgba(30,31,33,.86);color:var(--luce);font:500 11px/1.25 var(--mono);letter-spacing:.06em;text-align:center;white-space:nowrap;opacity:0}
 .eti b{font-weight:700;letter-spacing:.12em;text-transform:uppercase}.eti i{font-style:normal;color:var(--accento-chiaro)}.eti.on{opacity:1}
 .pin{position:absolute;left:0;top:0;display:inline-flex;align-items:center;gap:8px;padding:7px 11px;border-radius:3px;background:var(--luce);color:var(--ink);font:600 11.5px/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;white-space:nowrap;box-shadow:0 12px 30px -12px rgba(0,0,0,.6);opacity:0}
 .pin::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--accento)}
 .pin.on{opacity:1}.pin[data-pin=noncombacia]{background:var(--nebbia)}.pin.boom{background:#FFD700;color:#060607}.pin.boom::before{background:#060607}
-.tag{position:absolute;right:20px;bottom:16px;font:500 11px/1.3 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--nebbia);background:rgba(17,29,54,.7);padding:6px 9px;border-radius:3px}
+.tag{position:absolute;right:20px;bottom:16px;font:500 11px/1.3 var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--nebbia);background:rgba(30,31,33,.72);padding:6px 9px;border-radius:3px}
 .mobile .tag{top:80px;bottom:auto;right:12px}
 .mirino{position:absolute;left:44%;right:5%;top:12%;bottom:12%;opacity:0}.mirino.on{opacity:1}
 .mobile .mirino{left:6%;right:6%;top:14%;bottom:48%}
@@ -49,7 +49,7 @@ const layout = q.get('layout') || (W >= 1024 ? 'desktop' : 'mobile'), ui = q.get
 const palco = document.getElementById('palco'), tela = document.getElementById('tela');
 palco.style.width = W + 'px'; palco.style.height = Hh + 'px';
 document.body.classList.add(layout); if (!ui) document.body.classList.add('noui'); if (q.has('shot')) document.body.classList.add('shot');
-const TOK = { notte: '#111D36', notte2: '#1B2A45', luce: '#F2EFE8', nebbia: '#C5CEDE', accentoChiaro: '#96C0FE', accento: '#173FA4', oro: '#FFD700', boom: '#060607' };
+const TOK = { notte: '#1E1F21', notte2: '#2A2B2E', luce: '#F6F4EF', nebbia: '#BDB8AE', accentoChiaro: '#E4DED2', accento: '#1E1F21', oro: '#FFD700', boom: '#060607' }; // La Porta: gli stessi token della pagina
 const cl = (x) => Math.max(0, Math.min(1, x)), seg = (t, a, b) => cl((t - a) / (b - a)), liscio = (x) => x * x * x * (x * (x * 6 - 15) + 10);
 let M, S, T = num('T', 0);
 const pronto = (async () => {
@@ -104,7 +104,7 @@ function etichetta(g, x, y, righe, scala) {
   const sp = [0.12, 0.06, 0.06]; let w = 0;
   righe.forEach((r, i) => { g.font = f[i]; if ('letterSpacing' in g) g.letterSpacing = (sp[i] * 11 * scala).toFixed(1) + 'px'; w = Math.max(w, g.measureText(r).width); });
   const lh = 14 * scala, pw = w + 16 * scala, ph = righe.length * lh + 8 * scala, x0 = x - pw / 2, y0 = y - ph / 2;
-  g.fillStyle = 'rgba(17,29,54,.84)'; g.beginPath(); g.roundRect(x0, y0, pw, ph, 3 * scala); g.fill();
+  g.fillStyle = 'rgba(30,31,33,.86)'; g.beginPath(); g.roundRect(x0, y0, pw, ph, 3 * scala); g.fill();
   righe.forEach((r, i) => { g.font = f[i]; if ('letterSpacing' in g) g.letterSpacing = (sp[i] * 11 * scala).toFixed(1) + 'px'; g.fillStyle = i === 2 ? TOK.accentoChiaro : TOK.luce; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(i === 0 ? r.toUpperCase() : r, x, y0 + 4 * scala + lh * (i + 0.5)); });
   g.textAlign = 'left';
 }
@@ -116,8 +116,8 @@ function poster(t, n, qualita = 0.8) {
   g.drawImage(tela, 0, 0, c.width, c.height);
   const P = (id) => { const p = S.proietta(id); return { x: p.x * dpr, y: p.y * dpr, visibile: p.visibile }; };
   if (n === 1) for (const s of M.PIANTA.stanze) { const p = P(s.id); const r = [s.nome, s.netta.toFixed(2).replace('.', ',') + ' m²']; if (s.w) r.push(s.w.toFixed(2).replace('.', ',') + ' × ' + s.d.toFixed(2).replace('.', ',')); etichetta(g, p.x, p.y, r, sc * 0.92); }
-  if (n === 2) { const p = P('noncombacia'); chip(g, p.x, p.y, 'NON COMBACIA', TOK.nebbia, '#0D1626', TOK.accento, sc); }
-  if (n === 4) { const p = P('rogito'); chip(g, p.x, Math.max(40, p.y), 'ROGITO', TOK.luce, '#0D1626', TOK.accento, sc); }
+  if (n === 2) { const p = P('noncombacia'); chip(g, p.x, p.y, 'NON COMBACIA', TOK.nebbia, '#1E1F21', TOK.accento, sc); }
+  if (n === 4) { const p = P('rogito'); chip(g, p.x, Math.max(40, p.y), 'ROGITO', TOK.luce, '#1E1F21', TOK.accento, sc); }
   if (n === 5) { const p = P('boom'); chip(g, p.x, Math.max(40, p.y), 'OPPURE LA AFFITTA BOOM', '#FFD700', '#060607', '#060607', sc); }
   const urls = []; let url = '';
   for (let qq = qualita; qq >= 0.5; qq -= 0.04) { url = c.toDataURL('image/webp', +qq.toFixed(2)); urls.push([qq, url.length]); if ((url.length - 23) * 0.75 <= 90000) return { url, q: +qq.toFixed(2) }; }

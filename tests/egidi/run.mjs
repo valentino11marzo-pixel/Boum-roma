@@ -37,6 +37,12 @@
 // serve, con poster al posto suo quando il telefono non regge o chi legge non
 // vuole movimento). Il 3D è un'illustrazione dichiarata: i numeri che stampa
 // la pagina (85,6 m², 107 m²) vengono dalla STESSA pianta della scena.
+// Il marchio, deciso il 01/10/2026 fra tre territori (design/egidi-marchio):
+// LA PORTA. Il giorno è Egidi (calce #F6F4EF, grafite #1E1F21, Inter Tight),
+// la notte e l'oro sono BOOM: ogni sezione dove parla BOOM si fa nera e oro.
+// Il segno è una famiglia: BOOM sono cerchi annidati che nascono da un
+// punto, Egidi archi annidati che nascono dalla stessa soglia. Niente V in
+// monogramma, niente rosso, «Valentino Egidi» sempre intero.
 import { readFileSync, existsSync, writeFileSync, unlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { gzipSync, brotliCompressSync } from 'node:zlib';
@@ -135,13 +141,14 @@ ok(!/cursor\s*:\s*none|lenis|locomotive/i.test(html), 'niente cursore custom né
 const oro = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].filter((m) => /(^|;)\s*(color|--ink-su):\s*(var\(--oro\)|#FFD700)/i.test(m[2])).map((m) => ({ sel: m[1].trim(), fondo: /background:(#060607|var\(--boom\))/.test(m[2]) }));
 ok(oro.length > 0 && oro.every((r) => r.fondo || /casa-boom|\.atto-5|a-boom|i-boom|m3d-pin/.test(r.sel)), `testo oro solo su fondi scuri (${oro.map((r) => r.sel).join(' | ')})`);
 // I caratteri: scelti, ospitati qui, con licenza. Nessuna richiesta a terzi.
-for (const f of ['archivo-wdth.woff2', 'jetbrains-mono.woff2']) {
+for (const f of ['inter-tight.woff2', 'jetbrains-mono.woff2']) {
     const b = existsSync(path.join(SITE, 'fonts', f)) ? readFileSync(path.join(SITE, 'fonts', f)) : Buffer.alloc(0);
     ok(b.subarray(0, 4).toString('latin1') === 'wOF2' && b.length < 120000, `fonts/${f}: woff2 vero e leggero (${b.length} B)`);
     ok(html.includes(`<link rel="preload" href="/fonts/${f}" as="font" type="font/woff2" crossorigin>`), `fonts/${f} precaricato`);
 }
-ok(/SIL Open Font License/.test(read('fonts/OFL.txt')) && /Archivo/.test(read('fonts/OFL.txt')) && /JetBrains Mono/.test(read('fonts/OFL.txt')), 'fonts/OFL.txt: licenza e attribuzione dei due caratteri');
-ok(/font-stretch:62% 125%/.test(css), "Archivo dichiara l'asse della larghezza (62–125%)");
+ok(/SIL Open Font License/.test(read('fonts/OFL.txt')) && /Inter Tight/.test(read('fonts/OFL.txt')) && /JetBrains Mono/.test(read('fonts/OFL.txt')), 'fonts/OFL.txt: licenza e attribuzione dei due caratteri');
+ok(!existsSync(path.join(SITE, 'fonts', 'archivo-wdth.woff2')) && !/Archivo/.test(css), 'Archivo è uscito dalla pagina (La Porta parla Inter Tight)');
+ok(/font-weight:100 900/.test(css) && /--sans:'Inter Tight'/.test(css), 'Inter Tight variabile (100–900) è il carattere della pagina');
 ok(!/fonts\.googleapis|fonts\.gstatic|use\.typekit/.test(html), 'nessun carattere da servizi esterni');
 ok(/"source":"\/fonts\/\(\.\*\)"[^\]]*immutable/.test(JSON.stringify(JSON.parse(read('vercel.json')))), 'i caratteri hanno cache lunga (immutable)');
 ok(!/data-colore=rosso|c=rosso|\brosso\b/i.test(html), 'nessuna variante rossa (il rosso Valentino è della casa di moda)');
@@ -155,10 +162,10 @@ const oklab = (h) => { const [r, g, b] = rgb(h); const l = Math.cbrt(0.412221470
 const dE = (a, b) => { const [p, q] = [oklab(a), oklab(b)]; return 100 * Math.hypot(p[0] - q[0], p[1] - q[1], p[2] - q[2]); };
 const tok = Object.fromEntries([...css.match(/:root\{[^}]*\}/)[0].matchAll(/--([\w-]+):(#[0-9A-Fa-f]{6})/g)].map((m) => [m[1], m[2]]));
 const pieno = (v) => ({ ...v, 'hero-fondo': v['hero-fondo'] && v['hero-fondo'].startsWith('#') ? v['hero-fondo'] : v.notte, 'hero-testo': v['hero-testo'] && v['hero-testo'].startsWith('#') ? v['hero-testo'] : '#FFFFFF', 'hero-sec': v['hero-sec'] && v['hero-sec'].startsWith('#') ? v['hero-sec'] : v.nebbia });
-const nomi = ['inchiostro', ...[...css.matchAll(/data-colore=(\w+)\]\{/g)].map((m) => m[1])];
-const varianti = [tok, ...[...css.matchAll(/data-colore=\w+\]\{([^}]*)\}/g)].map((m) => ({ ...tok, ...Object.fromEntries([...m[1].matchAll(/--([\w-]+):(#[0-9A-Fa-f]{6})/g)].map((x) => [x[1], x[2]])) }))].map(pieno);
-ok(varianti.length === 3 && nomi.join(',') === 'inchiostro,persiana,travertino', `tre palette: inchiostro in produzione, persiana e travertino solo in anteprima (${nomi.join(', ')})`);
-ok(/\^\(travertino\|persiana\)\$/.test(html) && /classList\.contains\('anteprima'\) && \/\^/.test(html), 'le varianti si accendono solo in anteprima, con ?c= fra quelle dichiarate');
+const nomi = ['la porta'];
+const varianti = [pieno({ ...tok, 'hero-fondo': tok.calce, 'hero-testo': tok.ink, 'hero-sec': tok.grigio })];
+ok(!/data-colore/.test(html) && !/[?&]c=/.test(html), 'una palette sola: il marchio è deciso, niente varianti ?c=');
+ok(tok.calce === '#F6F4EF' && tok.grafite === '#1E1F21' && tok.pietra === '#D9D3C7' && tok.boom === '#060607' && tok.oro === '#FFD700', 'La Porta: calce, grafite e pietra per Egidi; nero e oro solo per BOOM');
 varianti.forEach((v, i) => {
     const n = nomi[i];
     ok(cr('#FFFFFF', v.accento) >= 4.5, `${n}: bianco su accento ${v.accento} (bottoni): ${cr('#FFFFFF', v.accento).toFixed(2)}`);
@@ -172,6 +179,25 @@ varianti.forEach((v, i) => {
 for (const [fg, bg, cosa] of [[tok['ink-su'], tok['flap-su'], 'lettere del tabellone'], [tok['ink-giu'], tok['flap-giu'], 'metà bassa delle palette'], ['#FFD700', '#141416', 'AFFITTARE in oro sulla palette'], [tok.boom, tok.oro, 'nero su oro (pin BOOM)'], [tok.oro, tok.boom, 'oro su nero BOOM'], [tok.luce, tok.boom, 'testo sulla casa BOOM'], [tok.nebbia, tok.cassa, 'intestazioni del tabellone']]) {
     ok(cr(fg, bg) >= 4.5, `contrasto ${cosa}: ${fg} su ${bg}: ${cr(fg, bg).toFixed(2)}`);
 }
+// La Porta: il segno è una famiglia. Archi annidati sulla stessa soglia (y=116),
+// ognuno dentro il precedente, l'ultimo pieno (la porta aperta); niente V in monogramma.
+const simbolo = (id) => { const m = html.match(new RegExp(`<symbol id="${id}"[^>]*>([\\s\\S]*?)</symbol>`)); return m ? [...m[1].matchAll(/<path d="([^"]+)"([^>]*)\/>/g)].map((x) => ({ d: x[1], pieno: /fill="currentColor"/.test(x[2]) })) : []; };
+for (const [id, n] of [['arco-s', 4], ['arco-l', 7]]) {
+    const P = simbolo(id), L = P.map((x) => { const v = x.d.match(/^M([\d.]+) 116V[\d.]+A[\d.]+ [\d.]+ 0 0 1 ([\d.]+) [\d.]+V116$/); return v ? +v[2] - +v[1] : NaN; });
+    ok(P.length === n && L.every((w, i) => w > 0 && (i === 0 || w < L[i - 1])), `${id}: ${n} archi sulla stessa soglia, uno dentro l'altro (${L.map((w) => w.toFixed(1)).join(' · ')})`);
+    ok(P.length > 0 && P.slice(0, -1).every((x) => !x.pieno) && P[P.length - 1].pieno, `${id}: solo l'arco più interno è pieno`);
+}
+ok(/<a class="marchio"[^>]*><svg[^>]*><use href="#arco-s"\/><\/svg><span><b>Valentino Egidi<\/b>/.test(html), 'il marchio in testata: archi e «Valentino Egidi», nome intero');
+ok(!/>\s*VE\s*</.test(html), 'nessun monogramma VE (la V è della Maison Valentino)');
+// La porta dell'hero: sei archi, in fondo l'interno della casa della scena, versione nel nome.
+const portaB = existsSync(path.join(SITE, 'img', 'porta.webp')) ? readFileSync(path.join(SITE, 'img', 'porta.webp')) : Buffer.alloc(0);
+const portaV = (html.match(/\/img\/porta\.webp\?v=([0-9a-f]{8})/) || [])[1];
+ok(portaB.length > 0 && portaB.length < 40000 && portaV === createHash('sha256').update(portaB).digest('hex').slice(0, 8), `la porta dell'hero: img/porta.webp leggera e versionata (${portaB.length} B, v ${portaV})`);
+ok(((html.match(/<g class="archi">([\s\S]*?)<\/g>/) || ['', ''])[1].match(/<path /g) || []).length === 6, "la porta dell'hero ha sei archi");
+// BOOM resta BOOM: il suo marchio è lo stesso file del sito BOOM, servito da qui.
+ok(existsSync(path.join(SITE, 'img', 'boom-mark.svg')) && readFileSync(path.join(SITE, 'img', 'boom-mark.svg'), 'utf8') === readFileSync(path.join(ROOT, 'boom-mark.svg'), 'utf8'), 'il marchio BOOM è la copia esatta di boom-mark.svg (una fonte sola)');
+// Dove parla BOOM la pagina si fa notte e oro.
+ok(/id="macchina"[^>]*data-boom/.test(html) && /\.notte-boom\{--notte:#060607/.test(css) && /\.calc-out\{background:var\(--boom\)/.test(css), 'dove parla BOOM (macchina, rendimento) la pagina si fa nera e oro');
 ok(gzipSync(Buffer.from(html)).length < 60000, `home sotto 60 KB compressi (${gzipSync(Buffer.from(html)).length} B)`);
 
 // 8. Dati strutturati: fatti verificabili, JSON valido.
@@ -207,8 +233,15 @@ const sha = createHash('sha256').update(bundle).digest('hex');
 ok(man && man.sha256 === sha, 'il manifest dichiara lo sha256 del pacchetto vero (rigenerato con design/egidi-3d/build.mjs)');
 const V3D = (html.match(/var V3D = '([0-9a-f]{8})'/) || [])[1];
 ok(man && V3D === sha.slice(0, 8), `la pagina chiede la versione del pacchetto (V3D ${V3D} = ${sha.slice(0, 8)})`);
-const versioni = [...html.matchAll(/\/(?:js\/metodo3d\.js|img\/metodo-\d\.webp)\?v=([0-9a-f]{8}|' \+ V3D)/g)].map((m) => m[1]);
-ok(versioni.length >= 7 && versioni.every((v) => v === V3D || v === "' + V3D"), `ogni riferimento a pacchetto e poster porta ?v= della versione (${versioni.length})`);
+const vPacco = [...html.matchAll(/\/js\/metodo3d\.js\?v=([0-9a-f]{8}|' \+ V3D)/g)].map((m) => m[1]);
+ok(vPacco.length >= 1 && vPacco.every((v) => v === V3D || v === "' + V3D"), `il pacchetto porta ?v= della sua versione (${vPacco.length})`);
+// I poster hanno una versione loro (cambiano coi colori della pagina, il pacchetto no):
+// lo sha8 dei cinque file in fila. Un poster rifatto senza cambiare VP resterebbe vecchio in cache.
+const VP = (html.match(/var VP = '([0-9a-f]{8})'/) || [])[1];
+const shaPoster = createHash('sha256').update(Buffer.concat([1, 2, 3, 4, 5].map((n) => existsSync(path.join(SITE, 'img', `metodo-${n}.webp`)) ? readFileSync(path.join(SITE, 'img', `metodo-${n}.webp`)) : Buffer.alloc(0)))).digest('hex').slice(0, 8);
+ok(VP === shaPoster, `i poster portano la loro versione (VP ${VP} = ${shaPoster})`);
+const vPoster = [...html.matchAll(/\/img\/metodo-\d\.webp\?v=([0-9a-f]{8}|' \+ VP)/g)].map((m) => m[1]);
+ok(vPoster.length >= 6 && vPoster.every((v) => v === VP || v === "' + VP") && !/metodo-[^'"]*\?v=' \+ V3D/.test(html), `ogni riferimento ai poster porta ?v=VP (${vPoster.length})`);
 ok(!/00000000/.test(html), 'nessuna versione segnaposto rimasta nella pagina');
 ok(bundle.length <= 620000 && brotliCompressSync(bundle).length <= 140000, `pacchetto ≤ 620 KB e ≤ 140 KB brotli (${bundle.length} B · ${brotliCompressSync(bundle).length} B)`);
 ok(man && man.three === '0.186.1', 'three.js alla versione fissata (0.186.1)');
@@ -279,7 +312,7 @@ if (!chromium) {
             ok(errs.length === 0, `${tag}: nessun errore JS (${errs.join(' | ')})`);
             ok(m.sw <= m.iw, `${tag}: nessuno scroll orizzontale (${m.sw} > ${m.iw})`);
             ok(m.segnapostoFuori === 0, `${tag}: ogni segnaposto sta dentro .solo-anteprima`);
-            ok(m.marchioRighe <= 1, `${tag}: «VALENTINO EGIDI» su una riga sola`);
+            ok(m.marchioRighe <= 1, `${tag}: «Valentino Egidi» su una riga sola`);
             if (js) ok(m.anteprimaVisibili > 0, `${tag}: in anteprima (host locale) i segnaposto si vedono`);
             else {
                 ok(m.anteprimaVisibili === 0, `${tag}: senza JS nessun segnaposto visibile`);
@@ -326,8 +359,8 @@ if (!chromium) {
         {
             const { ctx, p } = await apri(1440, { h: 900 });
             await p.evaluate(() => document.fonts.ready);
-            const f = await p.evaluate(() => ({ a: document.fonts.check('700 20px Archivo'), m: document.fonts.check('500 12px "JetBrains Mono"'), stato: [...document.fonts].map((x) => x.family + ':' + x.status).join(',') }));
-            ok(f.a && f.m && !/error/.test(f.stato), `Archivo e JetBrains Mono caricati (${f.stato})`);
+            const f = await p.evaluate(() => ({ a: document.fonts.check('300 20px "Inter Tight"'), m: document.fonts.check('500 12px "JetBrains Mono"'), stato: [...document.fonts].map((x) => x.family + ':' + x.status).join(','), titolo: getComputedStyle(document.querySelector('.titolo')).fontFamily }));
+            ok(f.a && f.m && !/error/.test(f.stato) && /Inter Tight/.test(f.titolo), `Inter Tight e JetBrains Mono caricati, il titolo usa Inter Tight (${f.stato})`);
             await ctx.close();
         }
         // Il tabellone: gira palette per palette, si posa sulle parole giuste,
@@ -435,13 +468,13 @@ if (!chromium) {
             ok(errs.length === 0, `3D mancante: nessun errore JS (${errs.join(' | ')})`);
             await ctx.close();
         }
-        // Testata: trasparente sull'hero, chiara sulla carta, scura sulle sezioni notte.
+        // Testata: d'inchiostro sull'hero (il giorno), chiara sulla carta, nera e oro dove parla BOOM.
         {
             const { ctx, p } = await apri(1440, { h: 900 });
             const at = async (id) => { await p.evaluate((i) => scrollTo(0, document.getElementById(i).offsetTop + 200), id); await p.waitForTimeout(200); return p.evaluate(() => document.getElementById('testata').className); };
             const hero = await p.evaluate(() => document.getElementById('testata').className);
             const v = { hero, case: await at('case'), valentino: await at('valentino'), macchina: await at('macchina'), investire: await at('investire') };
-            ok(v.hero === '' && v.case === 'chiara' && v.valentino === 'chiara' && v.macchina === 'scura' && v.investire === 'chiara', `testata: nulla sull'hero, chiara sulla carta, scura sulla notte (${JSON.stringify(v)})`);
+            ok(v.hero === '' && v.case === 'chiara' && v.valentino === 'chiara' && v.macchina === 'boom' && v.investire === 'chiara', `testata: nulla sull'hero, chiara sulla carta, nera BOOM sulla macchina (${JSON.stringify(v)})`);
             await ctx.close();
         }
         // La macchina: quattro schede, frecce da tastiera, niente in ciclo.

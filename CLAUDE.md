@@ -173,37 +173,60 @@ firebase.json             Firebase deploy config (firestore + storage rules)
   `sign-for` stays at 60s; `segretaria/preparation.js` keeps its default.
 
 ### Il sito della casa madre — `egidi/` → egidimmobiliare.it (29/09/2026)
-**Rifondazione in corso, passo 3 di 5 (quarta direzione in anteprima).**
-Il 30/09 il fondatore ha bocciato «Il Fascicolo» (troppo basilare), trovato la
-v2 «carina» e chiesto per la v3 «ancora di meglio». Il brand è **Valentino
-Egidi Immobiliare** (vendite: vendere, comprare, investire); BOOM (affitti) si
-raggiunge in modo esplicito da sei punti, tutti con UTM. La home v4 in
-`egidi/index.html`:
-- palette **Inchiostro**: notte `#111D36`, distinta dal nero BOOM di ΔE_OK
-  ≥ 11, verificato;
-- hero = **tabellone delle partenze** meccanico (palette WAAPI che cadono,
-  orologio a palette sull'ora di Roma, un giro poi «Riavvia»);
-- tesi «Prima i documenti. Poi il prezzo.»; **Archivo** con l'asse della
-  larghezza e **JetBrains Mono** in `egidi/fonts/` (OFL, immutable, zero
-  richieste esterne);
-- il **metodo recitato da un appartamento in WebGL**:
+**Rifondazione in corso, passo 3 di 5: il marchio è deciso, La Porta.**
+Il 30/09 il fondatore ha bocciato «Il Fascicolo» (troppo basilare); la v4
+(palette Inchiostro, blu notte) «non fa impazzire». Il 01/10, dopo una ricerca
+su agenzie di Roma, brand immobiliari internazionali e patrimonio visivo
+romano, ha scelto fra tre territori completi (`design/egidi-marchio/`, tavole
+in `tavole/`: Il Rione, La Fascia, **La Porta**) **La Porta**. Il brand è
+**Valentino Egidi Immobiliare** (vendite: vendere, comprare, investire); BOOM
+(affitti) si raggiunge in modo esplicito da sei punti, tutti con UTM. La home
+in `egidi/index.html`:
+- **il segno è una famiglia**: BOOM sono cerchi annidati che nascono da un
+  punto, Egidi **archi annidati che nascono dalla stessa soglia** (sprite
+  `#arco-s`/`#arco-l` nella pagina; il marchio BOOM vero è `img/boom-mark.svg`,
+  copia esatta di `boom-mark.svg`, verificata dai test). «Valentino Egidi»
+  sempre intero, mai un monogramma con la V (Maison Valentino);
+- **il giorno è Egidi, la notte e l'oro sono BOOM**: calce `#F6F4EF`, grafite
+  `#1E1F21`, pietra `#D9D3C7`; ogni sezione dove parla BOOM (`data-boom`: la
+  macchina, il risultato del rendimento) si fa nera `#060607` e oro, e la
+  testata con lei. Il blu non c'è più (la ricerca: rosso e blu sono i colori
+  più affollati del settore a Roma);
+- **Inter Tight** variabile (100–900) e **JetBrains Mono** in `egidi/fonts/`
+  (OFL, immutable, zero richieste esterne); il tabellone usa il mono;
+- hero di giorno: titolo «Prima i documenti. Poi il prezzo.», **tabellone
+  delle partenze** meccanico compatto (palette WAAPI, orologio sull'ora di
+  Roma, un giro poi «Riavvia») e **la porta**: sei archi che si disegnano su
+  una soglia, in fondo l'interno della casa della scena (`img/porta.webp`,
+  versionata). Sul telefono la porta sta sotto il testo: la riga BOOM e il
+  bottone «Candida» restano sopra la piega (criterio del PRD);
+- il **metodo recitato da un appartamento in WebGL** su fondo grafite:
   - three.js 0.186.1 impacchettato con esbuild in `egidi/js/metodo3d.js`,
-    versione `?v=` = sha8 del manifest, sorgenti in `design/egidi-3d/`;
+    versione `?v=` = sha8 del manifest (`V3D`), sorgenti in `design/egidi-3d/`;
+    i colori arrivano dalla pagina, quindi cambiare palette non rifà il pacchetto;
   - cinque atti su T 0…5 legati allo scroll: rilievo, planimetria che «non
     combacia» e si corregge sulla carta, casa arredata con tre scatti,
     palazzo in strada, sera nei colori BOOM;
   - poster WebP quando il 3D non si può o non si deve (movimento ridotto,
     risparmio dati, poca memoria, niente WebGL2, pacchetto mancante, contesto
-    perso);
+    perso); **i poster hanno una versione loro** (`VP` = sha8 dei cinque file):
+    cambiano coi colori, il pacchetto no;
   - `?m3d=0|forza|diag`;
   - i metri stampati vengono da `PIANTA` della scena, e i test li confrontano;
-- le micro-demo della macchina; il calcolo del rendimento con i risultati su
-  palette; la **candidatura** in quattro passi che apre WhatsApp col
+- il ritratto di Valentino dentro un arco (la foto vera è ancora da fornire),
+  le micro-demo della macchina; il calcolo del rendimento con i risultati su
+  palette oro; la **candidatura** in quattro passi che apre WhatsApp col
   riepilogo (nessun dato parte dalla pagina; «Affittare» va subito a BOOM).
 
-Niente rosso: il nome Valentino in rosso è la casa di moda. Segnaposto
-`.solo-anteprima` e varianti `?c=persiana|travertino` solo fuori da
-egidimmobiliare.it.
+Niente rosso, niente varianti di colore: il marchio è deciso. Segnaposto
+`.solo-anteprima` solo fuori da egidimmobiliare.it, e sugli host
+`*.vercel.app` la pagina risponde `X-Robots-Tag: noindex`.
+**Anteprima Vercel**: il collegamento Vercel della sessione non ha il permesso
+di creare progetti (403, 01/10). Il progetto `egidi-immobiliare` (Root
+Directory `egidi`, Framework «Other») si crea a mano dal pannello; meglio
+**senza** collegamento Git, perché su `main` la cartella `egidi/` non c'è
+ancora e ogni ramo e PR del repo riceverebbe un controllo rosso. Da lì si
+pubblica dal ramo con `create_deployment` (gitSource del ramo).
 PRD della v4 (decisioni
 predefinite, criteri di accettazione misurati, domande aperte):
 `docs/EGIDI_PRD.md`. Infrastruttura che resta:

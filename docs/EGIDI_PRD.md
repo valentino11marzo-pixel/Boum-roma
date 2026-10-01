@@ -12,6 +12,27 @@ La v4 risponde a «possiamo costruire ancora di meglio: animazioni,
 l'appartamento, più complesso, realistico, dinamico, appagante; ristudia anche
 i colori».
 
+## 0. Decisione del 01/10/2026: il marchio è La Porta
+Dopo una ricerca su agenzie di Roma, brand immobiliari internazionali e
+patrimonio visivo romano, tre territori completi a parità di condizioni
+(`design/egidi-marchio/tavole/`): Il Rione (pianta di Nolli e targa di
+travertino), La Fascia (modernismo italiano, arancio segnale), **La Porta**
+(archi da una soglia accanto ai cerchi BOOM da un punto). Il fondatore ha
+scelto **La Porta**. Cosa cambia rispetto alla v4 qui sotto:
+- la palette Inchiostro (blu notte) esce: **il giorno è Egidi** (calce
+  `#F6F4EF`, grafite `#1E1F21`, pietra `#D9D3C7`), **la notte e l'oro sono BOOM**
+  (`#060607`, `#FFD700`) e si accendono solo dove parla BOOM;
+- Archivo esce: **Inter Tight** (variabile 100–900) per tutto, JetBrains Mono
+  per dati e tabellone;
+- il marchio: archi annidati sulla stessa soglia + «Valentino Egidi»; niente
+  monogrammi con la V, niente rosso, nome sempre intero;
+- l'hero è di giorno: titolo, tabellone compatto, e la porta con l'interno
+  della casa della scena; il metodo 3D si recita su grafite;
+- spariscono le varianti `?c=persiana|travertino`.
+I criteri di sostanza qui sotto (sei passaggi a BOOM, nessun dato inventato,
+riga BOOM e «Candida» sopra la piega a 390×844, movimento ridotto, 3D con
+poster) restano e sono verificati da `tests/egidi/run.mjs`.
+
 ## 1. Il brand e le due case (invariato)
 - **Valentino Egidi Immobiliare** è il marchio delle vendite: vendere,
   comprare, investire a Roma. **BOOM** è il marchio degli affitti.

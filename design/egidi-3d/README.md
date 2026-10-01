@@ -23,7 +23,7 @@ node shoot.mjs --solo=poster          # rigenera i 5 poster (vanno nel repo)
 node shoot.mjs --out=/tmp/fotogrammi  # fotogrammi desktop/mobile a tutte le T + poster + misure
 ```
 
-Dopo ogni build **si rifanno i poster** (devono corrispondere al pacchetto) e si aggiorna `V3D` nella pagina
+Dopo ogni build **si rifanno i poster** (devono corrispondere al pacchetto) e si aggiorna `V3D` nella pagina; i poster hanno anche la loro versione `VP` (sha8 dei cinque file in fila: cambiano coi colori della pagina anche quando il pacchetto resta uguale)
 con il `sha8` del manifest (`tests/egidi/run.mjs` lo verifica). `shoot.mjs` usa il Chromium dei test
 (`tests/_browser.mjs`) con SwiftShader: lento ma fedele. Opzioni: `--solo=desktop|mobile|poster|misura`,
 `--T=0.85,2.48`, `--out=<cartella>`.
