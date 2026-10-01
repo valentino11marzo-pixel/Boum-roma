@@ -336,6 +336,80 @@ const extOf = (url, fallback) => {
 
 // ── L'operazione: componi, invia, stampa lo stato, fattura ──────────────
 // opts: { kind, note, bill, preloaded:{contract,property}, overrides:{signedPdfUrl,certUrl,fascicoloUrl} }
+// ── La fattura, sola: la usa l'invio E il tasto «Solo la fattura» ─────
+// Cambiare cosa si fattura fra un invio e l'altro non deve MAI produrre una
+// seconda fattura sulla stessa pratica (prima completo, poi solo attestazione
+// = €189 incassati due volte), né perdere quella che manca (prima
+// registrazione, poi completo = l'attestazione è ancora dovuta): si guarda
+// cosa COPRONO le fatture esistenti (billPlan). Una lettura che fallisce non
+// vale «assente»: nessuna fattura, e un avviso urgente che arriva su Telegram
+// (notify-pending) — sul percorso automatico nessuno vedrebbe il toast, e la
+// finalize non ripassa. Recupero SENZA rimandare l'email ad ASPI:
+// /api/fiscal/registra op:'bill'.
+export async function billAspi({ contractId, contract, property, settings, billKind }) {
+  let existing;
+  try { existing = await aspiInvoicesOf(contractId); }
+  catch (e) {
+    console.warn('[aspi] invoices read:', e.message);
+    const day = new Date().toISOString().slice(0, 10);
+    try {
+      await fsCreate('agentNotifications', {
+        type: 'aspi.invoice_unverified', status: 'pending', priority: 'high',
+        title: '🏛 Fattura ASPI non creata — le fatture esistenti non si leggono',
+        body: `Contratto ${contract.tenantName || contractId}: la pratica ASPI (${KIND_LABEL[billKind] || billKind}) è partita, ma la lettura delle fatture già emesse è fallita e la fattura NON è stata creata per non rischiare un doppione. Dal portal: 🏛 ASPI → «Solo la fattura» (non rimanda l'email).`,
+        contractId, billKind, createdAt: new Date().toISOString(),
+      }, `aspinv_${safeName(contractId, 60)}_${day}`);
+    } catch (_) { /* già avvisato oggi */ }
+    return { id: null, created: false, error: 'overlap_check_failed', requested: billKind };
+  }
+  const plan = billPlan(billKind, existing.map(x => x.kind));
+  if (!plan.create) {
+    const cover = existing.find(x => x.kind === billKind)
+      || existing.find(x => (BILL_PARTS[x.kind] || []).some(p => (BILL_PARTS[billKind] || []).includes(p))) || existing[0];
+    // coverKind === requested: è la STESSA fattura di un invio precedente
+    // (re-invio normale); diverso: un'altra fattura copre la pratica.
+    return { id: cover.id, amount: cover.amount, created: false, overlap: true, reason: plan.reason, requested: billKind, coverKind: cover.kind };
+  }
+  const make = plan.create;
+  const amount = kindPrice(make, settings);
+  const toTenant = settings.billTo === 'tenant';
+  const recipientId = toTenant ? (contract.tenantId || '') : (property.ownerId || contract.landlordId || '');
+  const recipientName = toTenant ? (contract.tenantName || '') : (contract.landlordName || '');
+  const invId = `aspi_${make}_${contractId}`;
+  const propLabel = property.address || property.name || '';
+  try {
+    await fsCreate('invoices', {
+      // due pratiche in due tempi = due fatture: il numero le distingue
+      number: 'BOOM-ASPI-' + safeName(contractId, 10).toUpperCase() + (make === 'completo' ? '' : make === 'registrazione' ? '-R' : '-A'),
+      recipientId, clientId: recipientId,
+      recipientType: toTenant ? 'tenant' : 'landlord',
+      recipientName,
+      service: KIND_LABEL[make],
+      amount,
+      date: new Date().toISOString().slice(0, 10),
+      description: `${propLabel} — contratto ${contractId}. Pratica gestita da BOOM: preparazione fascicolo, invio, follow-up e archivio.`,
+      status: 'pending',
+      source: 'aspi',
+      contractId,
+      createdAt: new Date().toISOString(),
+    }, invId);
+    return { id: invId, amount, created: true, ...(make !== billKind ? { partial: true, requested: billKind } : {}) };
+  } catch (e) {
+    // 409 = fattura già emessa in una gara con un altro invio: MAI duplicare.
+    if (e && e.exists) return { id: invId, amount, created: false, overlap: true, reason: 'covered', requested: billKind, coverKind: make };
+    console.warn('[aspi] invoice:', e.message);
+    return null;
+  }
+}
+
+// Il piano per OGNI variante, sulle fatture già emesse: il pannello dice
+// prima di premere cosa verrà fatturato davvero (null = non si leggono).
+export function billPlansFor(invoices) {
+  if (!Array.isArray(invoices)) return null;
+  const kinds = invoices.map(x => x.kind);
+  return Object.fromEntries(ASPI_KINDS.map(k => [k, billPlan(k, kinds)]));
+}
+
 export async function sendAspiRequest(contractId, opts = {}) {
   if (!contractId) return { ok: false, error: 'contract_required' };
   const settings = opts.settings || await loadAspiSettings();
@@ -454,56 +528,7 @@ export async function sendAspiRequest(contractId, opts = {}) {
   // ── La fattura col markup (idempotente: una pratica, una fattura) ─────
   const bill = opts.bill !== undefined ? !!opts.bill : settings.autoInvoice;
   const billKind = billKindFor(kind, opts.billKind);
-  let invoice = null;
-  // Cambiare cosa si fattura fra un invio e l'altro non deve MAI produrre una
-  // seconda fattura sulla stessa pratica (prima completo, poi solo
-  // attestazione = €189 incassati due volte), né perdere quella che manca
-  // (prima registrazione, poi completo = l'attestazione è ancora dovuta):
-  // si guarda cosa COPRONO le fatture esistenti (billPlan).
-  let plan = null;
-  let existing = null;
-  if (bill) {
-    try { existing = await aspiInvoicesOf(contractId); }
-    catch (e) {
-      console.warn('[aspi] invoices read:', e.message);
-      invoice = { id: null, created: false, error: 'overlap_check_failed' };
-    }
-  }
-  if (existing) plan = billPlan(billKind, existing.map(x => x.kind));
-  if (plan && !plan.create) {
-    const cover = existing.find(x => (BILL_PARTS[x.kind] || []).some(p => (BILL_PARTS[billKind] || []).includes(p))) || existing[0];
-    invoice = { id: cover.id, amount: cover.amount, created: false, overlap: true, reason: plan.reason, requested: billKind };
-  } else if (plan && plan.create) {
-    const make = plan.create;
-    const amount = kindPrice(make, settings);
-    const toTenant = settings.billTo === 'tenant';
-    const recipientId = toTenant ? (contract.tenantId || '') : (property.ownerId || contract.landlordId || '');
-    const recipientName = toTenant ? (contract.tenantName || '') : (contract.landlordName || '');
-    const invId = `aspi_${make}_${contractId}`;
-    const propLabel = property.address || property.name || '';
-    try {
-      await fsCreate('invoices', {
-        // due pratiche in due tempi = due fatture: il numero le distingue
-        number: 'BOOM-ASPI-' + safeName(contractId, 10).toUpperCase() + (make === 'completo' ? '' : make === 'registrazione' ? '-R' : '-A'),
-        recipientId, clientId: recipientId,
-        recipientType: toTenant ? 'tenant' : 'landlord',
-        recipientName,
-        service: KIND_LABEL[make],
-        amount,
-        date: new Date().toISOString().slice(0, 10),
-        description: `${propLabel} — contratto ${contractId}. Pratica gestita da BOOM: preparazione fascicolo, invio, follow-up e archivio.`,
-        status: 'pending',
-        source: 'aspi',
-        contractId,
-        createdAt: new Date().toISOString(),
-      }, invId);
-      invoice = { id: invId, amount, created: true, ...(make !== billKind ? { partial: true, requested: billKind } : {}) };
-    } catch (e) {
-      // 409 = fattura già emessa a un invio precedente: MAI duplicare.
-      invoice = e && e.exists ? { id: invId, amount, created: false } : null;
-      if (!(e && e.exists)) console.warn('[aspi] invoice:', e.message);
-    }
-  }
+  const invoice = bill ? await billAspi({ contractId, contract, property, settings, billKind }) : null;
 
   return {
     ok: true, kind, billKind, to: settings.email,

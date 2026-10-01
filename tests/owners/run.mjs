@@ -417,7 +417,7 @@ console.log('\n\x1b[1m▸ la scala: tre passi, ogni prezzo legato al codice\x1b[
   const faqHtml = read('faq.html');
   const faqOwn = (faqHtml.match(/<div class="group-head" data-g="owners">[\s\S]*?<\/section>/) || [''])[0].replace(/<[^>]+>/g, ' ');
   const outreach = [...read('docs/owner-outreach.md').matchAll(/```\n([\s\S]*?)```/g)].map(m => m[1]).join(' ');
-  const GRATIS = /\bgratis\b|a costo zero|senza (alcun )?cost[oi]|\bno fee\b|la nostra parte la paga|prima locazione (è )?(completamente )?gratuit|\bfree (first )?letting|first letting (is )?free|at no cost|reddito sicuro|zero pensieri|reliable income|zero stress|guaranteed rent|1 month rent or 10%/i;
+  const GRATIS = /\bgratis\b|a costo zero|senza (alcun )?cost[oi]|\bno fee\b|la nostra parte la paga|prima locazione (è )?(completamente )?gratuit|\bfree (first )?letting|first letting (is )?free|at no cost|reddito sicuro|zero pensieri|reliable income|zero stress|guaranteed rent|1 month rent or 10%|won'?t stay empty|resta(?:rà)? mai vuota|average:? \d+ days/i;
   const hits = Object.entries({ vis, ldText, hint, llmsOwn, faqOwn, outreach }).filter(([, t]) => GRATIS.test(t)).map(([k, t]) => k + ': ' + t.match(GRATIS)[0]);
   ok('mai «gratis» / «no fee» / «reddito sicuro» / «guaranteed rent» — pagina, dati, riga, llms, FAQ del sito, outreach', hits.length === 0, hits);
   ok('la FAQ generale del sito dice la stessa scala (€0 con le pratiche, 61%, link a /owners#costi)',
@@ -429,12 +429,14 @@ console.log('\n\x1b[1m▸ la scala: tre passi, ogni prezzo legato al codice\x1b[
   // card porta il suo totale — ogni mezza mensilità + IVA ha il totale entro
   // poche parole: il 61% di un canone o la cifra su €1.400.
   const noCosti = html.slice(0, html.indexOf('<section id="costi"')) + html.slice(html.indexOf('</section>', html.indexOf('<section id="costi"')));
-  const metas = [...html.matchAll(/<meta (?:name|property)="(?:description|og:description|twitter:description)" content="([^"]*)"/g)].map(m => m[1]).join(' ');
+  // ogni meta a sé, separata da '¦': il totale di twitter:description non
+  // copre un og:description che l'ha perso
+  const metas = [...html.matchAll(/<meta (?:name|property)="(?:description|og:description|twitter:description)" content="([^"]*)"/g)].map(m => m[1]).join(' ¦ ');
   // '¦' al confine di ogni <span>: il totale va cercato nella STESSA lingua
   // (il 61% dell'inglese non copre l'italiano che l'ha perso).
   const flat = t => t.replace(/<!--[\s\S]*?-->|<style[\s\S]*?<\/style>/g, ' ').replace(/<\/span>/g, ' ¦ ').replace(/<[^>]+>/g, ' ').replace(/\\'/g, "'").replace(/\s+/g, ' ');
   const naked = [];
-  for (const [k, t] of Object.entries({ page: flat(noCosti), metas, llmsOwn: flat(llmsOwn), faqOwn: flat(faqOwn) })) {
+  for (const [k, t] of Object.entries({ page: flat(noCosti), metas, llmsOwn: flat(llmsOwn), faqOwn: flat(faqOwn), faqLd: (faqHtml.match(/How much commission do you charge owners\?[\s\S]*?"\}\}/) || [''])[0] })) {
     const re = /(mezza mensilità|half a month(?:'s rent)?|half the agreed monthly rent|half a month's agreed rent)[^.;¦]{0,130}?(\+ IVA|più IVA|\+ VAT|plus VAT)/gi;
     for (const m of t.matchAll(re)) {
       const after = t.slice(m.index + m[0].length, m.index + m[0].length + 110).split('¦')[0];

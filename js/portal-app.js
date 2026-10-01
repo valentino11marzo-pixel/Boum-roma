@@ -23707,14 +23707,64 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
         const sel = (bk && bk.value) || kind;
         const billKind = sel === 'none' ? null : sel;
+        // L'etichetta dice cosa verrà fatturato DAVVERO: il piano per ogni
+        // variante arriva dal server (billPlan sulle fatture già emesse) — mai
+        // «Crea fattura» a prezzo pieno su una pratica già fatturata o a metà.
+        const plans = st.billing ? st.billing.plans : undefined;   // null = non si leggono
+        const invs = (st.billing && st.billing.invoices) || [];
+        const who = st.settings.billTo === 'tenant' ? 'all\'inquilino' : 'al proprietario';
+        let lbl, canBill = !!billKind;
+        if (!billKind) lbl = 'Nessuna fattura: la registrazione è compresa nella mezza mensilità';
+        else if (plans === null) lbl = '⚠ Le fatture già emesse non si leggono: all\'invio la fattura NON si crea (poi «Solo la fattura»)';
+        else {
+            const pl = (plans && plans[billKind]) || { create: billKind };
+            if (pl.create) lbl = `Crea fattura ${who} — €${p[pl.create]} (costo pratica ASPI €${st.settings.costi[pl.create]})${pl.create !== billKind ? ' · solo la parte non ancora fatturata' : ''}`;
+            else if (pl.reason === 'relet_guard') { lbl = '⚠ C\'è già la fattura della sola attestazione: la registrazione non si aggiunge da sola (riaffitto?) — se è dovuta, scegli «Solo la registrazione»'; canBill = false; }
+            else { const c = invs.find(x => x.kind === billKind) || invs[0]; lbl = `Già fatturata${c ? ': ' + c.id + ' · €' + c.amount : ''} — nessuna nuova fattura`; canBill = false; }
+        }
         const bl = document.getElementById('aspiBillLbl');
-        if (bl) bl.textContent = billKind
-            ? `Crea fattura ${st.settings.billTo === 'tenant' ? 'all\'inquilino' : 'al proprietario'} — €${p[billKind]} (costo pratica ASPI €${st.settings.costi[billKind]})`
-            : 'Nessuna fattura: la registrazione è compresa nella mezza mensilità';
+        if (bl) bl.textContent = lbl;
         const cb = document.getElementById('aspiBill');
-        if (cb) cb.disabled = !billKind;
+        if (cb) cb.disabled = !canBill;
         if (bw) bw.style.display = '';
     }
+    // Cosa dire della fattura dopo un invio (o dopo «Solo la fattura»): un
+    // re-invio della STESSA pratica è normale (successo), un'altra fattura che
+    // copre la pratica o un riaffitto sono avvisi, una lettura fallita è un errore.
+    function _aspiInvoiceMsg(inv) {
+        if (!inv) return { level: 'success', txt: '' };
+        if (inv.error) return { level: 'error', txt: ' · ⚠ fattura NON creata: non riesco a leggere le fatture esistenti — riprova con «Solo la fattura» (non rimanda l\'email)' };
+        if (inv.overlap && inv.reason === 'relet_guard') return { level: 'error', txt: ` · ⚠ c'è già la fattura dell'attestazione (${inv.id}, €${inv.amount}): la registrazione non si aggiunge da sola — se è dovuta, scegli «Solo la registrazione»` };
+        if (inv.overlap && inv.coverKind && inv.coverKind === inv.requested) return { level: 'success', txt: ` · fattura già emessa (${inv.id}, €${inv.amount})` };
+        if (inv.overlap) return { level: 'error', txt: ` · ⚠ la pratica è già coperta dalla fattura ${inv.id} (€${inv.amount}): non ne creo un'altra — se quella è sbagliata, correggila da Fatture` };
+        if (inv.created) return { level: 'success', txt: ` · fattura €${inv.amount} creata${inv.partial ? ' (solo la parte non ancora fatturata)' : ''}` };
+        return { level: 'success', txt: ' · fattura già emessa' };
+    }
+    window._aspiInvoiceMsg = _aspiInvoiceMsg;
+    async function sendAspiBill(contractId) {
+        const kind = document.querySelector('input[name="aspiKind"]:checked')?.value || 'completo';
+        const sel = document.getElementById('aspiBillKind')?.value || kind;
+        if (sel === 'none') return toast('info', 'Riaffitto su sola registrazione: nessuna fattura da creare');
+        const btnEl = document.getElementById('aspiBillBtn');
+        if (btnEl) btnEl.disabled = true;
+        try {
+            const idToken = await auth.currentUser.getIdToken();
+            const r = await fetch('/api/fiscal/registra', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
+                body: JSON.stringify({ op: 'bill', contractId, kind, billKind: sel })
+            });
+            const j = await r.json().catch(() => null);
+            if (!j || !j.ok) { if (btnEl) btnEl.disabled = false; return toast('error', 'Fattura ASPI: ' + ((j && j.error) || 'non creata')); }
+            const m = _aspiInvoiceMsg(j.invoice);
+            closeModal();
+            toast(m.level, '🧾 Fattura ASPI' + (m.txt || ' · niente da fatturare'));
+        } catch (e) {
+            if (btnEl) btnEl.disabled = false;
+            toast('error', 'Fattura ASPI: ' + e.message);
+        }
+    }
+    window.sendAspiBill = sendAspiBill;
     window._aspiRenderKind = _aspiRenderKind;
     async function openAspi(contractId) {
         toast('info', '🏛 Leggo lo stato della pratica…');
@@ -23768,6 +23818,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>
             <div class="modal-footer">
                 <button class="btn btn-secondary" onclick="closeModal()">Annulla</button>
+                <button class="btn btn-secondary" id="aspiBillBtn" onclick="sendAspiBill('${contractId}')" title="Crea la fattura senza rimandare l'email ad ASPI">🧾 Solo la fattura</button>
                 <button class="btn" id="aspiSendBtn" onclick="sendAspi('${contractId}')">✉ Invia ad ASPI</button>
             </div>
         </div></div>`;
@@ -23798,17 +23849,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     : 'ASPI: ' + ((j && j.error) || 'invio fallito'));
             }
             closeModal();
-            const inv = j.invoice;
-            // la fattura si DICE per quello che è: creata, parziale, già coperta
-            // da un'altra (mai «già emessa» su una fattura diversa), o non creata
-            const invTxt = !inv ? ''
-                : inv.error ? ' · ⚠ fattura NON creata: non riesco a leggere le fatture esistenti, riprova'
-                : inv.overlap ? (inv.reason === 'relet_guard'
-                    ? ` · ⚠ c'è già la fattura dell'attestazione (${inv.id}, €${inv.amount}): la registrazione non si aggiunge da sola — se è dovuta, scegli «Solo la registrazione»`
-                    : ` · ⚠ esiste già la fattura ${inv.id} (€${inv.amount}): non ne creo un'altra — se è sbagliata, correggila da Fatture`)
-                : inv.created ? ` · fattura €${inv.amount} creata${inv.partial ? ' (solo la parte non ancora fatturata)' : ''}`
-                : ' · fattura già emessa';
-            toast(inv && (inv.error || inv.overlap) ? 'error' : 'success', `✉ Inviato a ${j.to} — ${(j.attachments || []).length} allegati${invTxt}`);
+            // la fattura si DICE per quello che è (_aspiInvoiceMsg): creata,
+            // parziale, già emessa da un invio precedente, coperta da un'altra,
+            // o non creata perché le fatture non si leggevano
+            const m = _aspiInvoiceMsg(j.invoice);
+            toast(m.level, `✉ Inviato a ${j.to} — ${(j.attachments || []).length} allegati${m.txt}`);
             if (Array.isArray(j.missing) && j.missing.length) {
                 toast('error', '⚠ Dichiarati mancanti nell\'email: ' + j.missing.slice(0, 3).join(', ') + (j.missing.length > 3 ? '…' : ''));
             }

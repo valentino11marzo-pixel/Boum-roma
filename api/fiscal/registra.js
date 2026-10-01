@@ -10,6 +10,9 @@
 //       dedotto dai fatti (reletOf) e le fatture ASPI già emesse: il pannello
 //       preseleziona cosa fatturare e mostra cosa esiste già.
 //   { op:'send', contractId, kind?, billKind?, note?, bill? }
+//   { op:'bill', contractId, kind?, billKind? }
+//     → SOLO la fattura (billAspi), senza rimandare l'email ad ASPI: il
+//       recupero quando all'invio le fatture esistenti non si leggevano.
 //     → sendAspiRequest: email strutturata al referente ASPI con gli
 //       allegati, stato stampato sul contratto, fattura col markup.
 //
@@ -19,7 +22,7 @@ import { readJson, fsGet } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import {
   loadAspiSettings, aspiChecklist, sendAspiRequest, defaultKind, kindPrice, kindCost,
-  reletOf, aspiInvoicesOf,
+  reletOf, aspiInvoicesOf, billAspi, billPlansFor, billKindFor, ASPI_KINDS,
 } from './_aspi.js';
 
 const clip = (v, n = 120) => String(v == null ? '' : v).trim().slice(0, n);
@@ -49,6 +52,25 @@ export default async function handler(req, res) {
       return res.status(out.ok ? 200 : (out.error === 'contract_not_found' ? 404 : 422)).json(out);
     }
 
+    if (op === 'bill') {
+      const contract = await fsGet('contracts/' + contractId);
+      if (!contract) return res.status(404).json({ ok: false, error: 'contract_not_found' });
+      contract.id = contractId;
+      const property = (contract.propertyId ? await fsGet('properties/' + contract.propertyId).catch(() => null) : null) || {};
+      if (!contract.tenantName && contract.tenantId) {
+        const t = await fsGet('users/' + contract.tenantId).catch(() => null); if (t && t.name) contract.tenantName = t.name;
+      }
+      if (!contract.landlordName && property.ownerId) {
+        const l = await fsGet('users/' + property.ownerId).catch(() => null); if (l && l.name) contract.landlordName = l.name;
+      }
+      const k = clip(b.kind, 20);
+      const kind = ASPI_KINDS.includes(k) ? k : (ASPI_KINDS.includes(contract.aspiRequestKind) ? contract.aspiRequestKind : defaultKind(contract));
+      const billKind = billKindFor(kind, clip(b.billKind, 20));
+      const settings = await loadAspiSettings();
+      const invoice = await billAspi({ contractId, contract, property, settings, billKind });
+      return res.status(200).json({ ok: true, kind, billKind, invoice });
+    }
+
     // op:'status' — la fotografia per il pannello.
     const contract = await fsGet('contracts/' + contractId);
     if (!contract) return res.status(404).json({ ok: false, error: 'contract_not_found' });
@@ -75,6 +97,7 @@ export default async function handler(req, res) {
         reletBy: relet ? relet.by : null,
         previousId: relet && relet.previousId ? relet.previousId : null,
         invoices,
+        plans: billPlansFor(invoices),   // cosa fatturerebbe ogni variante, adesso
       },
       kinds: {
         registrazione: aspiChecklist(contract, property, 'registrazione'),

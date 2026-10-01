@@ -1134,7 +1134,8 @@ sicuro»), i conteggi di `/risposte` letti dal modulo.
 reversibili in un punto): la gestione durante il contratto dichiarata
 compresa nei passi 1 e 2 (se va pagata a parte, la frase è in quattro punti
 della pagina, nell'Offer, in llms.txt e nella FAQ del sito, tutti presidiati
-dal test); IVA della mezza mensilità (default «+ IVA» col
+dal test — anche `faq.html`, dove sono sparite le promesse «Average: 8
+days» e «won't stay empty» che /owners smentisce); IVA della mezza mensilità (default «+ IVA» col
 totale: se era inclusa la pagina sovrastima, non promette meno del dovuto);
 il riaffitto dedotto per immobile dai contratti finalizzati (i contratti
 importati con l'Innesto non contano);
@@ -1935,14 +1936,23 @@ l'attestazione di rispondenza (**€100**). Ora:
   attestazione già fatturata da sola + «completo» → niente (`relet_guard`:
   è il segno del riaffitto, la registrazione si chiede esplicitamente). Una
   lettura delle fatture che FALLISCE non vale «assente»: nessuna fattura,
-  `error:'overlap_check_failed'` detto nel toast. Il riaffitto si deduce dai
+  `error:'overlap_check_failed'` detto nel toast E un avviso urgente
+  `agentNotifications` `aspi.invoice_unverified` (→ Telegram): sul percorso
+  automatico nessuno vede il toast e la finalize non ripassa. Il recupero è
+  **🧾 Solo la fattura** (`op:'bill'`, `billAspi`): fattura senza rimandare
+  l'email ad ASPI. `op:'status'` porta anche `billing.plans` — il piano per
+  ogni variante sulle fatture già emesse — e il pannello scrive l'esito VERO
+  prima del tap («Crea fattura …», «solo la parte non ancora fatturata»,
+  «Già fatturata — nessuna nuova fattura»); dopo, un re-invio della stessa
+  pratica (`coverKind === requested`) è un successo, non un avviso
+  (`_aspiInvoiceMsg`, eseguita davvero nel test). Il riaffitto si deduce dai
   FATTI (`reletOf`/`reletFrom`: un altro contratto `finalizedAt` sullo stesso
   immobile, cominciato prima, con un altro inquilino; stanze dichiarate
   diverse = due prime locazioni; `contract.relet` esplicito vince):
   `op:'status'` lo espone insieme alle fatture già emesse (`billing`), il
   pannello preseleziona e mostra, e `maybeAutoAspi` lo applica da solo. Due
   pratiche in due tempi portano numeri distinti (`-R`/`-A`).
-- Test: `node tests/aspi/run.mjs` (71 check).
+- Test: `node tests/aspi/run.mjs` (79 check).
 
 **Il documento si attacca DOVE MANCA** (`api/fiscal/allega.js`, 23/08):
 il pannello diceva onestamente dove caricare ogni pezzo ("console
