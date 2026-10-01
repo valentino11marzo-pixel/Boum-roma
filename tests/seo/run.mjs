@@ -1,5 +1,5 @@
 // tests/seo/run.mjs
-// LA GUARDIA SEO — otto regole, tutte nate da un difetto vero trovato in
+// LA GUARDIA SEO — dieci regole, tutte nate da un difetto vero trovato in
 // produzione, mai da una lista di buone pratiche copiata.
 //
 // Il reperto che l'ha fatta nascere: property-finding.html e board.html,
@@ -306,6 +306,30 @@ for (const [f] of pubbliche) {
 muti.length
   ? male(`${muti.length} selettori speakable che non esistono in pagina:` + elenco(muti))
   : bene('ogni speakable punta a un nodo che esiste davvero');
+
+// ── 10 · nessun indirizzo inventato nei finti schermi ──────────────────
+// Diciotto schermi di prodotto mostravano app.boomrome.com/…,
+// portal.boomrome.com, tenant.boomrome.com: domini che non esistono. Chi
+// li digita trova un errore DNS, cioe' la prova che lo schermo era finto.
+// L'unico sottodominio vero e' www. Si guardano TUTTE le pagine servite
+// dalla radice (anche le legacy fuori sitemap: sono raggiungibili) e i
+// sorgenti in design/, che le ricostruirebbero col difetto.
+const inventati = [];
+const daGuardare = fs.readdirSync(R).filter((f) => f.endsWith('.html'));
+for (const dir of ['design/pages-deco', 'design/home-live-deco']) {
+  const d = path.join(R, dir);
+  if (fs.existsSync(d)) for (const f of fs.readdirSync(d))
+    if (/\.(html|py|cjs)$/.test(f)) daGuardare.push(path.join(dir, f));
+}
+for (const f of daGuardare) {
+  const s = fs.readFileSync(path.join(R, f), 'utf8');
+  for (const m of s.matchAll(/\b([a-z0-9-]+)\.boomrome\.com\b/gi)) {
+    if (m[1].toLowerCase() !== 'www') inventati.push(`${f} → ${m[0]}`);
+  }
+}
+inventati.length
+  ? male(`${inventati.length} indirizzi boomrome.com che non esistono:` + elenco(inventati))
+  : bene('nessun sottodominio inventato: i finti schermi mostrano indirizzi veri o dichiarano l\'esempio');
 
 console.log(ko ? `  \x1b[31mLa casa non e ancora in ordine\x1b[0m — ${ok} passed, ${ko} failed`
                 : `  \x1b[32mLa casa e in ordine\x1b[0m — ${ok} passed, 0 failed`);

@@ -5552,6 +5552,20 @@ checklist di buone pratiche:
   `welcome-to-rome`, cioe' proprio «the viral asset»), `llms.txt` allineato
   ai prezzi di `api/_catalog.js` e senza promesse non dimostrabili, e ogni
   `speakable` che punta a nodi reali.
+- **Nessun indirizzo inventato nei finti schermi** (1/10/2026, regola 10):
+  diciotto mockup mostravano `app.boomrome.com/…`, `portal.boomrome.com`,
+  `tenant.boomrome.com` — domini che non risolvono: chi li digita trova la
+  prova che lo schermo era finto. Ora un prodotto che ESISTE porta la sua
+  rotta vera (cercatore → `/client-portal`, film «run by BOOM» →
+  `/portal`, inquilino → `/casa`, vetrina → `/apartments`; la visita
+  video dice «Zoom · WhatsApp · FaceTime», cioe' dove avviene davvero),
+  e uno schermo di un prodotto che NON esiste (ufficio partner università/
+  ricerca, guadagni referral, revisione contratto) dichiara «illustrative
+  example» — senza lucchetto, che lo farebbe leggere come un URL. La
+  regola guarda ogni `.html` della radice (anche le legacy fuori sitemap)
+  e i sorgenti in `design/`. Restano da decidere, perche' sono marketing e
+  non un indirizzo: i numeri dentro quegli schermi (214 studenti, 38
+  dipendenti, 73 ricercatori, «1,200+ verified homes» nel film).
 
 **Il blocco «in brief»** (`.breve`, dal motore della console) e' la parte
 GEO: fatti a plat — cos'e', prezzo esatto, cosa comprende, **cosa NON e'**,
