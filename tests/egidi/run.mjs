@@ -186,6 +186,7 @@ let vj = null; try { vj = JSON.parse(read('vercel.json')); } catch { /* sotto */
 ok(vj && vj.cleanUrls === true, 'egidi/vercel.json valido con cleanUrls');
 ok(vj && !vj.functions && !vj.crons && !vj.rewrites, 'egidi/vercel.json solo statico (niente funzioni, cron, riscritture)');
 ok(vj && /git diff --quiet HEAD\^ HEAD -- \./.test(vj.ignoreCommand || ''), 'build saltata quando egidi/ non cambia');
+ok(vj && (vj.headers || []).some(h => (h.has || []).some(x => x.type === 'host' && /vercel\\\.app/.test(x.value)) && h.headers.some(k => k.key === 'X-Robots-Tag' && /noindex/.test(k.value))), 'le anteprime su *.vercel.app non si indicizzano (segnaposto e varianti restano fuori da Google)');
 const root = JSON.parse(readFileSync(path.join(ROOT, 'vercel.json'), 'utf8'));
 const r1 = (root.redirects || []).find((r) => r.source === '/egidi');
 const r2 = (root.redirects || []).find((r) => r.source === '/egidi/:path*');
