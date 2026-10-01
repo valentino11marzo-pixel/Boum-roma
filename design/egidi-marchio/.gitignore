@@ -1,0 +1,4 @@
+fonts/
+*.html
+*.jpg
+!tavole/*.jpg
