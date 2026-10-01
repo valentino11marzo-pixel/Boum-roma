@@ -176,6 +176,8 @@ Mutazioni verificate (rimetti il difetto, il test cade):
 - bottoni nascosti visibili nella candidatura;
 - pin e mirino con la classe accesa ma invisibili (una regola CSS più pesante
   li teneva a opacità 0: trovato così, ora il test legge l'opacità calcolata);
+- pin BOOM bianco invece che oro (stessa classe di difetto: il colore lo
+  decideva la regola di base);
 - versione del pacchetto sbagliata nella pagina.
 
 ## 5. Cosa resta a te

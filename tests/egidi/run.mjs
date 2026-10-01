@@ -412,13 +412,14 @@ if (!chromium) {
                     const nc = await visto('.m3d-pin[data-pin=noncombacia]', 1.63);
                     M.vai(1.5); const fatti = document.querySelectorAll('#lista3d li.fatto').length;
                     const mirino = await visto('#mirino3d', 2.48);
-                    const boom = await visto('.m3d-pin.boom', 4.85);
-                    return { pieni: n / (64 * 40), info: i1, eti, nc, fatti, mirino, boom, tag: getComputedStyle(document.querySelector('.m3d-tag')).display };
+                    const boom = await visto('.m3d-pin.boom', 4.85), oroPin = getComputedStyle(document.querySelector('.m3d-pin.boom')).backgroundColor + '/' + getComputedStyle(document.querySelector('.m3d-pin.boom')).color;
+                    return { pieni: n / (64 * 40), info: i1, eti, nc, fatti, mirino, boom, oroPin, tag: getComputedStyle(document.querySelector('.m3d-tag')).display };
                 });
                 ok(r.pieni > 0.2, `3D: la scena disegna davvero (${Math.round(r.pieni * 100)}% della tela)`);
                 ok(r.info.programs > 0 && r.info.programs <= 24 && r.info.calls > 0 && r.info.calls <= 160, `3D: budget GPU (programmi ${r.info.programs} · chiamate ${r.info.calls} · triangoli ${r.info.tris})`);
                 ok(r.eti >= 6, `3D: all'atto 1 le stanze si etichettano sulla pianta (${r.eti})`);
                 ok(r.nc === true && r.fatti === 4 && r.boom === true, `3D: «Non combacia» all'atto 2, documenti spuntati, «Oppure la affitta BOOM» all'atto 5, e si VEDONO (${r.nc} ${r.fatti} ${r.boom})`);
+                ok(r.oroPin === 'rgb(255, 215, 0)/rgb(6, 6, 7)', `3D: il pin BOOM è oro con testo nero (${r.oroPin})`);
                 ok(r.mirino === true, `3D: il mirino delle foto si vede durante lo scatto (${r.mirino})`);
                 ok(r.tag !== 'none', '3D: il cartellino «Illustrazione» resta visibile');
             } else ok(false, `3D: con ?m3d=forza la scena si monta (${pronto})`);
