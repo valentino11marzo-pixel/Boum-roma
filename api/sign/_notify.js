@@ -159,7 +159,16 @@ export async function notifyPartialSignature(contract, signedRole, property, opt
     const signerName  = (isCo ? coT.name : (signerIsTenant ? g.tenantName : g.landlordName)) || 'there';
     const otherEmail  = (signerIsTenant ? (sideDone ? g.landlordEmail : '') : g.tenantEmail);
     const otherName   = (signerIsTenant ? g.landlordName : g.tenantName) || 'there';
-    const otherToken  = signerIsTenant ? contract.landlordSignToken : contract.tenantSignToken;
+    // Il link della controparte dal deposito dei token (signTokens): il
+    // contratto non li porta più. Si conia solo per chi non ha firmato.
+    let toks = {};
+    if (otherEmail && contract.id) {
+      try {
+        const { ensureSignTokens } = await import('./_tokens.js');
+        toks = await ensureSignTokens(contract.id, contract, { mint: [signerIsTenant ? 'landlord' : 'tenant'] });
+      } catch (e) { console.warn('[sign/notify] sign tokens:', e.message); }
+    }
+    const otherToken  = signerIsTenant ? toks.landlord : toks.tenant;
     const link = otherToken ? `${BASE}/sign?sign=${encodeURIComponent(otherToken)}` : '';
 
     const jobs = [];

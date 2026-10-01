@@ -1660,7 +1660,8 @@ di co-intestazione automatica). Test: notify 60→68.
 
 ### POST `/api/magic-sign/lookup`
 Public endpoint for the Magic-Sign UI. Body: `{ token }`. Looks up the
-contract by `tenantSignToken` or `landlordSignToken`, returns sanitized
+contract by its tenant/landlord sign token (the admin-only `signTokens`
+store — see «Le chiavi di firma fuori dal contratto»), returns sanitized
 `{role, contract, property, signer, otherParty}`. Replaces the previous
 flow which had the browser issue `db.collection('contracts').where(...)`
 anonymously — denied by `firestore.rules`.
@@ -1675,6 +1676,81 @@ sync + payment schedule + tenant user bootstrap). All those mutations are
 admin-only per the rules. The user-profile sync writes BOTH users schemas
 (sign `cf/dob/…` AND wizard `codiceFiscale/birthDate/…`) so the Allegato
 generators and the RLI scheda always see identity collected at signing.
+
+### Le chiavi di firma fuori dal contratto (`api/sign/_tokens.js` + `POST /api/sign/links`) — 1/10/2026
+**Il difetto**: `contracts/{id}` portava `tenantSignToken` e `landlordSignToken`
+in chiaro, e le rules fanno leggere il contratto all'inquilino (`tenantId`) e
+al proprietario (`ownsProperty`) — Firestore non nasconde un CAMPO. /casa legge
+il contratto: l'inquilino aveva `/sign?sign=<landlordSignToken>` e, a lato
+conduttori completo, `submit` accettava quella firma come del locatore; il
+proprietario leggeva il link dell'inquilino. In più tre porte HTTP davano il
+link dell'altra parte a un chiamante proprietario: `preagreement/convert` e
+`send-sign` (owner/landlord ammessi, entrambi i link in risposta — e il
+contratto `pa_<paId>`, leggibile dal proprietario, ne rivela l'id),
+`sign/send-link` (l'`url` dell'inquilino al proprietario che lo sollecita),
+`profile/link` (il link FIRMA dei co-conduttori). `api/owners/vault.js`,
+citato nella segnalazione, non esiste nel repo.
+- **Il deposito**: `signTokens/{contractId}` = `{ contractId, tenant,
+  landlord }`, admin-only nelle rules. Token CASUALI per contratto (UUID, come
+  prima — non derivati da HOMIE_SECRET come cosign/scheda: quel segreto vive
+  anche sul Mac di Homie, e firmare come parte principale non deve dipendere
+  da lui). Formato del link invariato: i link già nelle email restano validi.
+  `ensureSignTokens` conia dove manca (solo per chi non ha firmato e solo per
+  i ruoli chiesti), SPOSTA un token ancora in chiaro col suo valore, e scrive
+  sotto precondizione (create 409 / updateTime): sei chiamate concorrenti =
+  un solo token per parte. `readSignTokens` non conia mai.
+  `findContractByToken` → `findSignTokenHolder`: prima il deposito, poi (solo
+  transizione) il campo in chiaro — che però NON vale se il deposito tiene un
+  token diverso per quella parte (ruotato = revocato).
+- **Chi scrive**: `convert` (subito dopo la creazione), `send-link`,
+  `sign-for`, `notifyPartialSignature` (il «Tocca a Lei» conia il link della
+  controparte se manca), `/api/sign/links`. Il portal non conia più nulla
+  (wizard, saveContract, rinnovo, Innesto, Share Hub, promemoria): i link li
+  chiede a **`POST /api/sign/links {contractId}`** (`fetchSignLinks`), che
+  risponde col SOLO link spettante — admin entrambi (+ co-conduttori),
+  proprietario dell'immobile il suo, inquilino del contratto il suo, altri
+  403. La firma in prima persona (`openSignContractModal`) apre il link del
+  server e non ricade più in silenzio sul modale legacy (che scrive la firma
+  lato client saltando le guardie di `submit`). Il cockpit legge `signTokens`
+  (admin) e ruota i token nel deposito, cancellando quello in chiaro.
+- **Le porte**: `convert` e `send-sign` restituiscono i link SOLO all'admin
+  (`withoutSignLinks`); `send-link` l'`url` solo all'admin o al proprietario
+  per il SUO link; `profile/link` il link firma dei co-conduttori solo
+  all'admin (al proprietario restano Scheda e stato).
+- **Le rules**: `match /signTokens/{x}` admin-only (senza, default-deny e il
+  server non scriverebbe — la lezione propertyLocks); su `contracts` nessuno,
+  admin e server compresi, può più AGGIUNGERE o CAMBIARE i due campi
+  (`noPlainSignTokens` in create, `keepsPlainSignTokensOut` in update —
+  toglierli sì); l'inquilino non può più scrivere `tenantSignToken`.
+  Verificate nell'emulatore (`tests/rules`, 80 asserzioni; 6 cadono con le
+  regole vecchie).
+- **La migrazione**: `migrateLegacySignTokens` sposta nel deposito i token in
+  chiaro (query `> ''`, i `null` non sono segreti) e li CANCELLA dal contratto
+  (campi nella updateMask assenti dal corpo), sotto precondizione: un
+  contratto firmato nel mezzo si salta e si riprende al giro dopo; un token
+  già ruotato nel deposito vince (conflitto contato). Gira ogni ora nel
+  reminder-cron (dopo incasso, journey e countdown, col tempo che resta,
+  tetto 8s; a regime due query vuote) e su richiesta da
+  `POST /api/sign/links {op:'migrate', dryRun?}` (admin). Finché non è
+  passata, il ramo legacy della lettura tiene vivi i link vecchi.
+- **Da sapere**: un contratto nuovo non ha token finché qualcuno non chiede
+  un link o manda un invito (il Gestore sollecita solo chi ha già un link —
+  prima l'Innesto coniava token anche su contratti firmati su carta). Lo
+  scope `landlord` vale per il proprietario dell'immobile anche con la delega
+  armata: è la sua firma. Le rules non sono nel CI (`npm test`): vanno
+  deployate (job `deploy-rules`) PRIMA che i client vecchi ripartano — una
+  scheda del portal aperta da prima del deploy che crea un contratto coi
+  token in chiaro riceve PERMISSION_DENIED finché non si ricarica.
+- Fuori scopo, segnalato: `profile/link` dà al proprietario il link della
+  Scheda dell'inquilino (dati anagrafici, non firma); `depositPayToken` sta
+  ancora sul contratto (apre solo una Checkout del deposito).
+Test: `node tests/signtokens/run.mjs` (52 check, handler veri: deposito,
+concorrenza, giro firma completo col «Tocca a Lei», porte per ruolo,
+migrazione con precondizione e link spediti che restano validi, regola di
+classe «nessun file scrive un token in chiaro»; quattro mutazioni prese) +
+`tests/mandato` e `tests/notify` (il contratto convertito/inviato non porta
+token, il proprietario che sollecita non vede il link dell'inquilino, un
+contratto legacy firma ancora).
 
 ### Il Fascicolo Fiscale (`api/fiscal/fascicolo.js` + `js/canone-engine.js`)
 UN PDF, tre pagine, generato DAL CONTRATTO alla firma completa (dentro
@@ -5555,6 +5631,7 @@ camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
   | `tests/scrivano/run.mjs` | lo Scrivano, la porta dal telefono: archiviato con id deterministico e bottone 🌱, il tap mette in coda (mai una lettura nel webhook), il worker legge i byte archiviati col cuore dell'Innesto e manda la card col link `#innesto=<docId>`; mai due letture, guasti col rimedio, le porte di Codex ereditano l'offerta |
   | `tests/doctext/run.mjs` | «qualsiasi cosa» diventa testo: lo ZIP minimo (STORE/DEFLATE, mai una zip bomb), Word/Excel/OpenDocument/.doc/email/HTML/RTF/testo estratti senza dipendenze, il tipo VERO dai byte prima che dal nome (un JPEG etichettato HEIC è un JPEG; una HEIC vera è una HEIC) |
   | `tests/innesto/run.mjs` | l'Innesto e il 413 di piattaforma: il PDF grande transita da Storage e i byte che arrivano ad Anthropic sono ESATTAMENTE quelli scaricati, un host estraneo non viene MAI contattato (l'endpoint non è un proxy), i tetti restano onesti (8 MB, whitelist formati), e il transito si cancella nel finally. Più l'APPLY VERO su Firestore finto: proposta completa → contratto+rate scritti, proposta senza una gamba → il contratto non nasce MA il riepilogo non lo promette e il toast dice quale gamba manca (la lezione del 30/08: "Innesto completato" senza contratto), proprietario già in `landlords` → mai un doppione |
+  | `tests/signtokens/run.mjs` | le chiavi di firma fuori dal contratto: deposito `signTokens` admin-only, il contratto letto dalle parti non porta token, nessuna porta HTTP dà il link dell'altra parte, migrazione che cancella i campi in chiaro conservando i link spediti; mutazioni |
   | `tests/notify/run.mjs` | ciclo email contratto (pdf-lib REALE, nodemailer mockato): fascicolo CAF a valentino@boom-rome.com esattamente una volta con anagrafica di entrambe le parti, welcome nella lingua del lettore, invito firma col link giusto e 409 sul locatore sequenziale, conferma scheda one-shot; §1f: ogni firma STAMPA lo stato sulla proposta (rail PA), 🖊 send-sign su contratto già firmato non manda email e ristampa la proposta, mai una proposta fantasma |
   | `tests/aspi/run.mjs` | l'iter ASPI: la checklist blocca SOLO senza contratto (il resto avverte, dichiarato nell'email), l'invio raggiunge il referente con l'operatore in copia e gli allegati veri, la fattura col markup non si duplica MAI (id deterministico), 'registered' non si degrada, l'auto-invio parte solo con la manopola girata |
   | `tests/viewings/avail.mjs` | griglia slot: passi, gap 15', preavviso, orizzonte, maxPerDay, DST, token del link cliente |

@@ -2933,6 +2933,17 @@
     /** Start the contracts listener. Idempotent — no-op if already running. */
     startListener() {
       if (STATE.contractsUnsub) return;
+      // Le chiavi di firma (admin-only): una lettura viva a parte.
+      if (!STATE.signTokensUnsub) {
+        try {
+          STATE.signTokensUnsub = db.collection('signTokens').limit(500).onSnapshot(snap => {
+            STATE.signTokens = {};
+            snap.docs.forEach(d => { STATE.signTokens[d.id] = d.data() || {}; });
+            this.updateBadge();
+            if (STATE.route === 'contracts') this.renderPanel();
+          }, err => console.warn('[ContractStore] signTokens:', err));
+        } catch (e) { console.warn('[ContractStore] signTokens listener', e); }
+      }
       try {
         STATE.contractsUnsub = db.collection('contracts')
           .orderBy('endDate', 'asc')
@@ -3019,7 +3030,7 @@
         if (d != null && d <= 30) count++;
         else if (c.signatureStatus === 'partial' || c.signatureStatus === 'none') {
           // Only counts as "attention needed" if missing signatures AND active
-          if (c.tenantSignToken || c.landlordSignToken) count++;
+          if (ContractStore.hasLink(c)) count++;
         }
       }
       el.textContent = count;
@@ -3035,7 +3046,7 @@
         else if (band === 'urgent') c.urgent++;
         else if (band === 'soon') c.soon++;
         else if (band === 'expired') c.expired++;
-        if (x.signatureStatus !== 'complete' && (x.tenantSignToken || x.landlordSignToken)) c.unsigned++;
+        if (x.signatureStatus !== 'complete' && ContractStore.hasLink(x)) c.unsigned++;
       }
       return c;
     },
@@ -3046,15 +3057,25 @@
       if (f === 'all') return STATE.contracts;
       if (f === 'unsigned') {
         return STATE.contracts.filter(c =>
-          c.signatureStatus !== 'complete' && (c.tenantSignToken || c.landlordSignToken)
+          c.signatureStatus !== 'complete' && ContractStore.hasLink(c)
         );
       }
       return STATE.contracts.filter(c => this.bandOf(c) === f);
     },
 
+    /** The sign token for a role. Tokens live in signTokens/{contractId}
+     *  (admin-only — the contract doc is readable by tenant AND landlord, so
+     *  it must never carry them); the plaintext field is the pre-migration
+     *  fallback. */
+    tokenOf(c, role) {
+      const s = (STATE.signTokens || {})[c.id] || {};
+      return s[role] || (role === 'tenant' ? c.tenantSignToken : c.landlordSignToken) || null;
+    },
+    hasLink(c) { return !!(this.tokenOf(c, 'tenant') || this.tokenOf(c, 'landlord')); },
+
     /** Build the magic-link URL for a role (tenant|landlord). */
     magicUrl(c, role) {
-      const token = role === 'tenant' ? c.tenantSignToken : c.landlordSignToken;
+      const token = this.tokenOf(c, role);
       if (!token) return null;
       const origin = window.location.origin || 'https://boomrome.com';
       return `${origin}/portal.html?sign=${token}`;
@@ -3214,12 +3235,23 @@
       try {
         const token = (crypto.randomUUID && crypto.randomUUID()) ||
           (Date.now().toString(36) + Math.random().toString(36).slice(2, 10));
+        // Il token nuovo va nel deposito admin-only signTokens — MAI sul
+        // contratto (le rules lo rifiutano: inquilino e proprietario lo
+        // leggono). Il vecchio token in chiaro, se c'è, si cancella: il
+        // deposito vince comunque, e un link ruotato deve morire davvero.
+        await db.collection('signTokens').doc(contractId).set({
+          contractId,
+          [role]: token,
+          [`${role}RegeneratedAt`]: firebase.firestore.FieldValue.serverTimestamp(),
+          [`${role}RegeneratedBy`]: STATE.user?.email || null
+        }, { merge: true });
         const field = role === 'tenant' ? 'tenantSignToken' : 'landlordSignToken';
-        await db.collection('contracts').doc(contractId).update({
-          [field]: token,
-          [`${field}RegeneratedAt`]: firebase.firestore.FieldValue.serverTimestamp(),
-          [`${field}RegeneratedBy`]: STATE.user?.email || null
-        });
+        const c = (STATE.contracts || []).find(x => x.id === contractId);
+        if (c && c[field] != null) {
+          await db.collection('contracts').doc(contractId).update({ [field]: firebase.firestore.FieldValue.delete() });
+        }
+        STATE.signTokens = STATE.signTokens || {};
+        STATE.signTokens[contractId] = { ...(STATE.signTokens[contractId] || {}), [role]: token };
         STATE.revealedLinks[`${contractId}|${role}`] = true;
         Toast.show({ type: 'success', title: `Nuovo token ${role}`, desc: 'Click su Copia per condividerlo.' });
       } catch (e) {

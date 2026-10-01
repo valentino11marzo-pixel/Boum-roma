@@ -9,7 +9,8 @@
 // Method:   POST
 // Headers:  Authorization: Bearer <firebase-id-token>  (admin/owner/landlord)
 // Body:     { id }                            // preAgreements doc id
-// Response: { ok, contractId, tenantSignUrl, landlordSignUrl, emailed }
+// Response: { ok, contractId, tenantSignUrl*, landlordSignUrl*, emailed }
+//           (* admin callers only)
 
 import { fsGet, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
@@ -78,6 +79,11 @@ export default async function handler(req, res) {
   const tenantSignUrl = out.tenantSignUrl || pa.tenantSignUrl || null;
   const landlordSignUrl = out.landlordSignUrl || pa.landlordSignUrl || null;
   if (!tenantSignUrl) return res.status(409).json({ ok: false, error: 'already_signed' });
+  // I link di firma tornano in risposta SOLO all'admin: la porta accetta anche
+  // owner/landlord, e il link del conduttore in mano al proprietario è una
+  // firma falsa a portata di tap (signTokens, 1/10/2026). Le email partono
+  // comunque, ciascuna al suo destinatario.
+  const echoLinks = auth.profile.role === 'admin' ? { tenantSignUrl, landlordSignUrl } : {};
 
   // ── Il contratto è GIÀ firmato? Allora niente link morto ─────────────
   // I token non si azzerano più alla firma (il link riaperto dice «hai già
@@ -114,7 +120,7 @@ export default async function handler(req, res) {
       .catch(() => {});
     return res.status(200).json({
       ok: true, alreadySigned: true, signatureStatus: sig.status,
-      contractId: out.contractId, tenantSignUrl, landlordSignUrl,
+      contractId: out.contractId, ...echoLinks,
       tenantSignedAt: sig.tenantSignedAt || null, landlordSignedAt: sig.landlordSignedAt || null,
       delegate: out.delegate || null, emailed: false,
     });
@@ -179,7 +185,7 @@ export default async function handler(req, res) {
     .catch(() => {});
 
   return res.status(200).json({
-    ok: true, contractId: out.contractId, tenantSignUrl, landlordSignUrl, emailed,
+    ok: true, contractId: out.contractId, ...echoLinks, emailed,
     landlordAsked: landlordAsk.asked === true, landlordAskedTo: landlordAsk.to || null,
     landlordMissing: landlordAsk.missing || [], landlordAskWhy: landlordAsk.why || null,
   });

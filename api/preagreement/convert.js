@@ -4,7 +4,7 @@
 // client self-filled on the public page (name, dob, birthplace, nationality,
 // address, CF, ID + uploaded ID documents) seeds their `users` profile and
 // travels onto the contract; lease + money terms carry over; Magic-Sign
-// tokens are minted.
+// tokens are minted in the signTokens store (never on the contract doc).
 //
 // Two entry points:
 //   - HTTP POST (console "→ Contract" button) — this file's default handler
@@ -37,7 +37,8 @@
 //   dryRun?:     boolean,       // NON scrive: torna completezza (puntini del
 //                               // PDF per parte) + eventuale sovrapposizione
 // }
-// Response: { ok, contractId, tenantId, tenantSignUrl, landlordSignUrl,
+// Response: { ok, contractId, tenantId, tenantSignUrl*, landlordSignUrl*,
+//   (* admin callers only — owner/landlord callers get no sign links)
 //             delegate:{...}|null, already?:true, propertyCreated?:true }
 //   409 overlap { overlap:{contractId, tenantName, startDate, endDate, unit} }
 //   400 no_property { canCreate }
@@ -48,6 +49,7 @@ import { requireRole, setCors } from '../_auth.js';
 import { ensureContractPdf, resolveLandlord, buildContractPdfBytes } from '../sign/_contractpdf.js';
 import { storageUpload } from '../agent/_lib.js';
 import { mandateTermsHash } from '../magic-sign/_shared.js';
+import { ensureSignTokens, readSignTokens, signUrl } from '../sign/_tokens.js';
 import MANDATO from '../../js/mandato-engine.js';
 import { buildPaPdf } from './_pdf.js';
 // Il dizionario del contratto: il preflight dice PRIMA quali puntini il PDF
@@ -70,7 +72,7 @@ export function leaseType(explicit, lease) {
 
 // Il back-link proposta → contratto, in UNA copia (creazione e ramo «esiste
 // già»). convertedAt non si riscrive se la proposta lo porta già.
-async function backlinkPa({ paId, pa, contractId, tenantSignToken, landlordSignToken, delegated, actor, propertyId }) {
+async function backlinkPa({ paId, pa, contractId, links, delegated, actor, propertyId }) {
   try {
     await fsPatch('preAgreements/' + paId, {
       contractId,
@@ -80,11 +82,38 @@ async function backlinkPa({ paId, pa, contractId, tenantSignToken, landlordSignT
       ...(propertyId ? { propertyId } : {}),
       convertedAt: (pa && pa.convertedAt) || new Date().toISOString(),
       convertedBy: (pa && pa.convertedBy) || actor,
-      tenantSignUrl: tenantSignToken ? `${BASE}/sign?sign=${tenantSignToken}` : null,
-      landlordSignUrl: landlordSignToken ? `${BASE}/sign?sign=${landlordSignToken}` : null,
+      // preAgreements è admin-only: i link qui non li legge nessuna parte
+      tenantSignUrl: (links && links.tenantSignUrl) || null,
+      landlordSignUrl: (links && links.landlordSignUrl) || null,
       delegated: !!delegated,   // the console shapes the landlord-link action on this
     });
   } catch (e) { console.warn('[preagreement/convert] pa back-link:', e.message); }
+}
+
+// I link di firma del contratto, dal deposito dei token (signTokens,
+// admin-only — api/sign/_tokens.js). Coniati dove mancano per chi non ha
+// firmato; un token ancora in chiaro su un contratto vecchio si sposta col
+// suo valore. Un guasto del deposito non fa fallire la conversione: i link
+// tornano null e send-sign / send-link li coniano al giro dopo.
+async function signLinks(contractId, contract, { mint = true } = {}) {
+  try {
+    const t = mint
+      ? await ensureSignTokens(contractId, contract)
+      : await readSignTokens(contractId, contract);
+    return { tenantSignUrl: signUrl(t.tenant), landlordSignUrl: signUrl(t.landlord) };
+  } catch (e) {
+    console.warn('[preagreement/convert] sign tokens:', e.message);
+    return { tenantSignUrl: null, landlordSignUrl: null };
+  }
+}
+
+// Solo l'admin riceve i link di firma in risposta: la porta accetta anche
+// owner/landlord, e il link del conduttore in mano al proprietario è una
+// firma falsa a portata di tap (lo stesso difetto dei token sul contratto).
+export function withoutSignLinks(out) {
+  if (!out || typeof out !== 'object') return out;
+  const { tenantSignUrl, landlordSignUrl, ...rest } = out;
+  return rest;
 }
 
 // ── L'IMMOBILE CHE MANCA SI CREA DALLA PROPOSTA (Sprint 1, 1.1) ──────
@@ -288,8 +317,7 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
         return {
           ok: true, already: true, contractId: pa.contractId, tenantId: c.tenantId || null,
           ...(dryRun ? { dryRun: true } : {}),
-          tenantSignUrl: c.tenantSignToken ? `${BASE}/sign?sign=${c.tenantSignToken}` : null,
-          landlordSignUrl: c.landlordSignToken ? `${BASE}/sign?sign=${c.landlordSignToken}` : null,
+          ...(await signLinks(pa.contractId, c, { mint: !dryRun })),
           delegate: c.landlordDelegate || null,
         };
       }
@@ -339,11 +367,11 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
   try { existing = await fsGet('contracts/' + contractId); } catch (_) { existing = null; }
   if (existing) {
     if (dryRun) return { ok: true, dryRun: true, already: true, exists: true, contractId, propertyId: existing.propertyId || propId };
-    await backlinkPa({ paId, pa, contractId, tenantSignToken: existing.tenantSignToken, landlordSignToken: existing.landlordSignToken, delegated: !!(existing.landlordDelegate && existing.landlordDelegate.name), actor, propertyId: existing.propertyId || propId });
+    const links = await signLinks(contractId, existing);
+    await backlinkPa({ paId, pa, contractId, links, delegated: !!(existing.landlordDelegate && existing.landlordDelegate.name), actor, propertyId: existing.propertyId || propId });
     return {
       ok: true, already: true, contractId, tenantId: existing.tenantId || null,
-      tenantSignUrl: existing.tenantSignToken ? `${BASE}/sign?sign=${existing.tenantSignToken}` : null,
-      landlordSignUrl: existing.landlordSignToken ? `${BASE}/sign?sign=${existing.landlordSignToken}` : null,
+      ...links,
       delegate: existing.landlordDelegate || null,
     };
   }
@@ -412,7 +440,6 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
   const stud = (le.studenti && typeof le.studenti === 'object') ? le.studenti : {};
   const delegateOn = delegate === true;
   const dName = clip(delegateName, 120) || 'Valentino Egidi';
-  const newToken = () => crypto.randomUUID();
 
   const contract = {
     propertyId: propId,
@@ -531,8 +558,9 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     landlordName: (pa.landlord || {}).name || property.ownerName || '',
     landlordEmail: (pa.landlord || {}).email || null,
     landlordPhone: (pa.landlord || {}).phone || null,
-    tenantSignToken: newToken(),
-    landlordSignToken: newToken(),
+    // I token di firma NON stanno qui: il contratto lo leggono inquilino e
+    // proprietario, e ciascuno vi troverebbe il link dell'altro. Nascono in
+    // signTokens/{contractId} (admin-only) subito dopo la creazione.
     landlordDelegate: delegateOn ? {
       name: dName,
       onBehalfOf: (pa.landlord || {}).name || property.ownerName || '',
@@ -628,11 +656,11 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
           // il back-link: l'orfana restava orfana per sempre e la console
           // la mostrava «paid · → Contratto». Ora il ramo «esiste già»
           // ricuce la proposta al suo contratto, e lo ATTENDE.
-          await backlinkPa({ paId, pa, contractId, tenantSignToken: c.tenantSignToken, landlordSignToken: c.landlordSignToken, delegated: !!(c.landlordDelegate && c.landlordDelegate.name), actor, propertyId: c.propertyId || propId });
+          const links = await signLinks(contractId, c);
+          await backlinkPa({ paId, pa, contractId, links, delegated: !!(c.landlordDelegate && c.landlordDelegate.name), actor, propertyId: c.propertyId || propId });
           return {
             ok: true, already: true, contractId, tenantId: c.tenantId || null,
-            tenantSignUrl: c.tenantSignToken ? `${BASE}/sign?sign=${c.tenantSignToken}` : null,
-            landlordSignUrl: c.landlordSignToken ? `${BASE}/sign?sign=${c.landlordSignToken}` : null,
+            ...links,
             delegate: c.landlordDelegate || null,
           };
         }
@@ -704,7 +732,8 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
   // console non sa che il contratto esiste (il caso Léa qui sopra). Sign
   // URLs are stored here too so the console can offer 🖊 Magic Sign /
   // WhatsApp share without extra reads (preAgreements is admin-only).
-  await backlinkPa({ paId, pa, contractId, tenantSignToken: contract.tenantSignToken, landlordSignToken: contract.landlordSignToken, delegated: delegateOn, actor, propertyId: propId });
+  const links = await signLinks(contractId, contract);
+  await backlinkPa({ paId, pa, contractId, links, delegated: delegateOn, actor, propertyId: propId });
   await logActivity('preagreement_converted', 'contract',
     { paId, ref: pa.ref || '', contractId, tenant: t.fullName, delegate: delegateOn, auto: actor === 'auto' }, actor)
     .catch(() => {});
@@ -734,8 +763,7 @@ export async function convertPaToContract({ pa, paId, propertyId, delegate = fal
     propertyId: propId,
     ...(propertyCreated ? { propertyCreated: true } : {}),
     ...(overlap ? { overlapForced: overlap } : {}),
-    tenantSignUrl: `${BASE}/sign?sign=${contract.tenantSignToken}`,
-    landlordSignUrl: `${BASE}/sign?sign=${contract.landlordSignToken}`,
+    ...links,
     delegate: contract.landlordDelegate,
     mandate: !!contract.tenantMandate,
     mandateTermsMatch: contract.tenantMandate ? contract.tenantMandate.termsMatch : null,
@@ -779,5 +807,5 @@ export default async function handler(req, res) {
       : out.error === 'no_tenant_identity' ? 409 : 500;
     return res.status(code).json({ ok: false, error: out.error, status: pa.status, ...(out.overlap ? { overlap: out.overlap } : {}), ...(out.canCreate != null ? { canCreate: out.canCreate } : {}) });
   }
-  return res.status(200).json(out);
+  return res.status(200).json(auth.profile.role === 'admin' ? out : withoutSignLinks(out));
 }
