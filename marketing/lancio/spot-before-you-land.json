@@ -1,0 +1,728 @@
+{
+ "final": {
+  "angle": "One protagonist makes one unbroken remote journey: a rainy night far from Rome, a live video viewing of a real BOOM listing on a phone in a stand, first light above the clouds, and a quiet Roman street with the keys in his hand. The legal close done from abroad is the plot. It appears as a thin system layer in BOOM's own console language: gold mono split-flap eyebrows and LEDs. That layer carries across the cuts and closes two loops on screen. The first is the far-city clock, answered by the Rome clock. The second is the one pending gold LED (KEYS · ON ARRIVAL), which turns green on the ground.\n\nRegistration is never shown as a timed event. It is the standing fact that explains \"Legally.\" on the end card (\"Your lease, registered with the Agenzia delle Entrate.\"). The room he watched on the phone comes back without words after the keys: the screen becomes the room.\n\nEvery BOOM interior is real: genuine walkthrough footage of the chosen listing plus its enhanced photos, moved in 2D only. The generated frames show only a foreign flat, an aircraft cabin and a zone-neutral Roman garden wall with no entrance.\n\nThis is deliberately not GPT's per-service films: no suitcase arrival, no service explainer. One man, one continuous story, with the remote legal close as the plot.",
+  "title": "Before You Land",
+  "logline": "On a rainy night nearly 10,000 km from Rome, a man won't wire a deposit to a stranger. Instead he watches a real BOOM listing live on video, pays through BOOM with a receipt, signs his lease online, and flies. On a quiet Roman street the keys are in his hand, and his lease is registered with the Agenzia delle Entrate. Rent in Rome before you land. Legally.",
+  "hook_first_second": "Frame 0 is already moving, with no fade. The Kling clip is trimmed to start at 0.6 s, mid-motion. Frame 0 is a dark, softly graded 9:16 frame (never a flat black void) with one warm lamp-lit face. The man is reading something just below the frame with a careful, guarded look, lit from below by the same kind of screen the viewer is holding. One warm face in a dark frame stands out against bright, busy feeds.\n\nOn frame 0 a gold split-flap eyebrow flutters through three random glyphs per tile (8 ms stagger) and settles by 0.30 s on \"RENTING IN ROME FROM ABROAD?\". It is motion and an audience call-out at once. Under it the headline is already on screen: \"Don't send a deposit / to a stranger.\", with \"a stranger.\" in gold. By about 0.8 s the right viewer has recognised himself and has been handed, in BOOM's voice, the exact fear he carries. The answer (\"See it live.\") lands at 3.3 s, inside the beat budget.\n\nThe Reel cover is not frame 0, where the flaps are still random glyphs. It is a separately exported 1080×1920 PNG of the edit frame at 1.2 s (Kling 1.8 s), with the eyebrow settled.\n\nZero-credit, type-only variants on identical footage:\n- B: eyebrow \"MOVING TO ROME?\" + \"Sign your lease / before you land.\"\n- D: the attribution \"A STRANGER ONLINE SAYS:\" is already settled on frame 0 (its tiles only shimmer). Under it, in white at 70%, \"“Send the deposit today.” / “Keys when you land.”\". At 1.40–1.70 s a gold strike-through draws across the first line. BOOM therefore never reads as the one asking for money, and beat 5 (\"Keys in hand. / Signed before you flew.\") answers it by contrast.",
+  "total_seconds": 24,
+  "protagonist": "Adult man, about 32 years old, of East African descent: warm deep-brown skin with natural texture, visible pores and a few tiny imperfections; close-cropped black hair with a natural, even hairline; a short, neatly groomed black beard with a clean cheek line; calm dark-brown eyes, straight dark brows, a slim straight nose, full lips; lean build.\n\nWardrobe, identical in every shot: a deep navy fine-merino crew-neck sweater with sleeves down to the wrists and the thin white edge of a plain crew-neck T-shirt just visible at the collar; charcoal-grey wool trousers when visible; in the Rome shot only, a plain dark-grey nylon backpack with no logo, worn by one strap on the left shoulder. No glasses, no watch, no rings, no jewellery, no visible logos or text on any garment.\n\nThis full text is sent ONLY in S1. S2–S4 describe him as \"the same man as in the supplied photograph, with his face, hairline, short beard and skin tone unchanged\", plus the wardrobe sentence verbatim. That way no text spec competes with the approved S1 face. If the approved S1 differs from this spec in any detail, rewrite the wardrobe/identity line to describe S1 as rendered before sending S2–S4.",
+  "beats": [
+   {
+    "n": 1,
+    "start_s": 0,
+    "end_s": 3.2,
+    "source": "generated_still_kling",
+    "still_prompt": "One exceptionally credible cinema frame for a film about a man renting a home in Rome from abroad, before he has ever been there. Observational photographic realism: a quiet frame from an independent feature shot on a large-sensor cinema camera. Not an advertisement, not a stock photo, not a render.\n\nPerson: adult man, about 32 years old, of East African descent: warm deep-brown skin with natural texture, visible pores and a few tiny imperfections; close-cropped black hair with a natural, even hairline; a short, neatly groomed black beard with a clean cheek line; calm dark-brown eyes, straight dark brows, a slim straight nose, full lips; lean build. Wardrobe: a deep navy fine-merino crew-neck sweater with sleeves down to the wrists and the thin white edge of a plain crew-neck T-shirt just visible at the collar. No glasses, no watch, no rings, no jewellery, no visible logos or text on any garment.\n\nScene: about 7:40 pm on a rainy autumn night, in the small, plain rented apartment where he lives now, in a large city far from Rome. Nothing in the frame identifies the city or the country. He sits alone at a plain light-oak desk that stands against a tall, rain-covered window. The camera is between him and that window, looking back at him, so the window is behind the camera. He is reading something on the desk just below the frame edge; a faint cool-neutral glow rises from there onto his chin and lower eyelids.\n\nPose and expression: he sits upright, head turned about 10 degrees toward frame left, gaze lowered only about 15 degrees, so both eyes stay open and the irises are clearly visible under the lids. He looks concentrated and slightly guarded, like someone reading carefully before trusting anything. Lips closed, jaw relaxed. Not sad, not smiling.\n\nLight: the key is a warm 2700K table lamp with a pleated off-white linen shade, just out of frame at frame right, at about 45 degrees to his face and slightly above eye level. It gives a soft, wrapping three-quarter key with believable falloff. Key-to-fill ratio is about 3:1: the shadow side of his face stays readable, with skin tone and the cheek and jaw contour visible, never crushed to black. Both ears are visible. Low cool-blue fill comes from the rainy window behind the camera. The sweater reads clearly as deep navy, not black.\n\nBackground: a plain dark-grey plaster wall several metres behind him, in deep shadow with a very soft tonal falloff, never a flat black void. One small warm bokeh sits at the far right of the frame at shoulder height. No window, door, shelf or readable object behind him.\n\nCamera: at his seated eye level, true 50mm perspective, f/2. Medium close-up: the frame ends at mid-chest, above the desk surface; his arms and hands are entirely below the frame edge. Both eyes and the beard edge are tack sharp. No wide-angle stretch, no dutch angle.\n\nComposition: face centred horizontally. Generous headroom: the top of his head at 40 percent of frame height, eyes at 54 percent. Everything above his head is the empty, softly lit dark wall, with no object, highlight or texture, kept calm and empty.\n\nTexture: refined neutral film colour, restrained teal night tones against warm skin light, fine organic grain, natural unsmoothed skin with real pores, visible merino knit.\n\nAvoid: any visible phone, screen, laptop or glowing object in frame; visible hands, fingers or arms; city skyline; landmarks; neon; rain shadows or water spots on his face or clothes; anything readable reflected in the eyes; looking into the lens; dramatic posing; tears; beauty lighting; HDR look; plastic skin; over-sharpening; text, letters, numbers, logos or watermarks.",
+    "motion_prompt": "PROMPT (paste as the Kling positive prompt):\nPreserve this exact photograph: the same man, face, beard, hairline and navy sweater, the same dark wall and warm lamp light. The camera pushes in very slowly and smoothly, about 3 centimetres, at eye level, with a constant focal length. He stays seated, looking down at something just below the frame, his gaze steady. At about 1.5 seconds he blinks once, naturally. At about 2.6 seconds his brows lift very slightly and he exhales once, softly, through his nose; his shoulders settle a few millimetres. His mouth stays closed. The light stays constant.\n\nNEGATIVE PROMPT (Kling negative_prompt field. If the endpoint exposes none, send the positive prompt alone and never paste this list into it):\nmorphing, warping, face distortion, beard change, darting eyes, rolling eyes, flicker, exposure change, light change, hands, fingers, phone, screen, new objects, new people, head turn to camera, talking, lip movement, camera shake, cut, text, letters, logos, watermark\n\nAPI PARAMETERS (set as parameters, never in the prompt text):\n- Kling 3.0 image-to-video\n- start image = approved S1 4K still\n- mode pro (1080p)\n- duration 5 s\n- aspect 9:16\n- sound off",
+    "on_screen_type": "Variant A (default Reel master):\n- EYEBROW (split-flap, gold mono): RENTING IN ROME FROM ABROAD?\n- HEADLINE, on screen from frame 0: Don't send a deposit / to a stranger. (\"a stranger.\" in gold)\n\nStory master: the same, minus the eyebrow. That audience is already qualified.",
+    "type_position": "MASTER\n1080×1920. Frame rate = Kling's native output, verified on K1 (expected 24 fps; never conformed). Type-safe band y 269–1498. Below y 1100, keep x ≤ 900.\n\nGRID (every beat)\n- Left margin x 84.\n- Eyebrow baseline y 356.\n- Headline baselines y 440 / 530.\n- One-line subline baseline y 506.\n\nEYEBROW\nIBM Plex Mono 400, 34 px caps, tracking 3 px, #FFD700. Each glyph sits on a split-flap tile (6% white fill, 2 px radius, 1 px hinge line). Tiles flip through 3 random glyphs with an 8 ms left-to-right stagger and are settled by 0.30 s.\n\nHEADLINE\nInter 300, 80 px, line-height 90, tracking −1.5 px, #FFFFFF. \"a stranger.\" in Inter 400 #FFD700. Shadow 0 2px 24px rgba(0,0,0,.45). Present on frame 0, with no fade.\n\nVARIANT D\n- Attribution: 34 px mono at y 356.\n- Quote lines: Inter 300, 64 px, white 70%, baselines y 440 / 520, with a 2 px #8A8A90 rule at x 70 to their left.\n- The gold strike-through is 3 px.\n\nAll type sits over S1's calm upper wall (y < 768), above his head.",
+    "post_notes": "RUN SHEET, S1\n- gpt_image_2_5, text only (no reference image), 9:16 native 4K, quality xhigh. Generate first, alone.\n- Gate before any other spend: both eyes readable with visible irises; both ears visible; shadow side readable; sweater reads navy; no phone, screen, hands or arms; head top at about 40% with an empty wall above; no text.\n- If it fails, use the one planned still reroll here, because S1 is the identity reference for everything after it.\n\nCLIP\n- Use Kling 0.6–3.8 s (3.2 s). This skips the settling frames, so frame 0 is already moving.\n- Blink lands at about 0.9 s edit time; brow lift and exhale at about 2.0 s.\n- Optional, post only: a masked grade on the under-light zone (chin, lower lids) with two slow ±6% luminance swells, as if the picture on his phone changed. This is never asked of Kling.\n\nCOVER\n- Export a separate 1080×1920 PNG per variant: the edit frame at 1.2 s, eyebrow settled.\n- The eyebrow and headline sit inside y 332–560, inside both the 3:4 grid crop (y 240–1680) and the 4:5 feed crop (y 285–1635).\n- Upload via Edit cover → Add from camera roll.\n- The D cover is taken at 1.9 s, with the strike visible.\n\nGRADE AND ENCODE\n- One 35mm-style grain plate across the whole spot, at 1–1.5% on the dark frames.\n- Hold the black floor at about RGB 10 wherever type sits (Instagram bands flat blacks).\n\nSFX (optional stem)\n- Split-flap flutter 0.00–0.30 s.\n- Soft rain on glass under beats 1–2.\n\nFALLBACK (zero credits)\n- If K1 fails QA (face drift, darting eyes, a hand or phone appears), first use contingency Kling reroll #1 here; beat 1 has top priority.\n- If that also fails: the S1 4K still with a 3% push. The split-flap supplies the first-second motion.\n\nHOOK TESTING\n- Publish A to the grid.\n- Run B and D as Instagram Trial Reels (non-followers only). Compare 3-second hold and skip rate in Insights, and pin the winner's cover organically.\n- Paid: Meta A/B test on the three openings, each with its own utm_content (before-you-land-A | B | D)."
+   },
+   {
+    "n": 2,
+    "start_s": 3.2,
+    "end_s": 5.9,
+    "source": "generated_still_post_motion",
+    "still_prompt": "Preserve the exact identity and wardrobe of the supplied person, seen only from behind. Use the supplied photograph only as an identity, wardrobe and room reference: his skin tone at the neck and ear, his close-cropped hair from behind, the same deep navy fine-merino crew-neck sweater, the same light-oak desk, the same warm lamp colour and the same rainy night. Do not reproduce its camera position or framing. This is the reverse angle, from behind him, and his face is never visible.\n\nOne exceptionally credible cinema frame in observational photographic realism: a quiet frame from an independent feature, not an advertisement.\n\nCamera: locked off, about 65 centimetres from the phone, just behind and slightly above his left shoulder, looking past him down at the desk at about 20 degrees; true 85mm perspective, f/5.6.\n\nOn the plain light-oak desk in front of him, about 45 centimetres from his face, a slim modern black smartphone stands upright in portrait orientation in a small, plain, matte-black desk stand. It sits slightly to the left of his centreline, directly on the camera's line of sight past his left ear, so its screen faces the lens. The stand tilts it back about 20 degrees. We see the front of the phone, the screen side, nearly square-on; a slight natural perspective is acceptable. All four evenly rounded corners are visible, crisp and unoccluded, with a thin, even black bezel. The back of the phone and its rear cameras are never visible. Nothing touches or overlaps the phone.\n\nThe screen is on at moderate brightness and shows one flat, evenly lit, uniform neutral mid-grey with no markings: no interface, no status bar, no icons, no image, no text, no reflections, no glare, no fingerprints, no moiré. The only feature is a tiny black pill-shaped front-camera cutout at the top centre. The bezel edge is crisp, with no bloom or halo. The screen is tack sharp.\n\nSize and position: the phone is centred horizontally. The lit screen spans about 38 percent of the frame width and runs from about 31 percent to 77 percent of the frame height.\n\nForeground: his left shoulder, the back of his neck and the rim of his left ear fill the bottom-left corner, dark navy and skin, soft and out of focus. His arms rest in his lap below the desk edge; no forearm, hand or finger is anywhere on the desk.\n\nBackground: directly behind the phone is the tall window at night, beaded with raindrops and slow streaks. Beyond it lies a deep blue-black city reduced to a few small, dim, defocused lights, none brighter than the screen, with no recognisable buildings, signs or landmarks. The dark glass shows only faint, formless, defocused reflections, never a readable reflection of him, the lamp or the phone. The upper 30 percent of the frame is calm, dark, out-of-focus wet glass with no points of light.\n\nLight: the room is dark. The warm linen-shaded table lamp is just outside the left edge of the frame, beside him at shoulder height, dimmed, with its shade turned away from the window. It lays a soft warm edge on the rim of his left ear and along the side of the desk. The grey screen casts a soft, even glow on the oak around the stand. Cool window light edges his shoulder.\n\nTexture: refined neutral film colour, rich blacks that are never crushed, restrained teal night tones, real oak grain, rain beads, visible merino knit, fine organic grain.\n\nAvoid: his face or profile; anything on the screen; interface, apps or video-call graphics; text, letters, numbers, logos or brand marks anywhere, including on the phone and the stand; the back of the phone; a tilted, rotated or bent phone; a tablet-sized device; hands, fingers, or forearms on the desk; a second phone; laptops; monitors; cups; clutter; landmarks; neon; glare or reflections on the screen.",
+    "on_screen_type": "- EYEBROW (gold mono, split-flap): TOKYO 19:40 — ROME 12:40\n  - If publishing on or after 25 Oct 2026 (CET): TOKYO 19:40 — ROME 11:40\n- HEADLINE: See it live. (\"live.\" in gold)\n- SUBLINE: With BOOM, you direct the camera. (\"BOOM\" in gold)",
+    "type_position": "Everything sits on a screen-space layer ABOVE the comp. This layer never scales with the push. All three elements sit on the dark wet glass above the phone; the screen's top edge is at y ≈ 595. Nothing is typed on or over the screen.\n\nEYEBROW\nx 84, baseline y 356. IBM Plex Mono 400, 34 px caps, #FFD700. Flaps in 3.25–3.55 s.\n\nHEADLINE\nx 84, baseline y 440. Inter 300, 80 px, #FFFFFF, with \"live.\" in Inter 400 #FFD700. Rises 10 px over 3.30–3.75 s, cubic-bezier(.16,1,.3,1).\n\nSUBLINE\nx 84, baseline y 506. Inter 300, 36 px, #D9D9DE, with \"BOOM\" in Inter 400 #FFD700. Fades in 3.80–4.10 s.\n\nEXIT\nAll three fade out 5.30–5.45 s. The push-through (5.45–5.90) runs on a clean frame.",
+    "post_notes": "RUN SHEET, S2\n- gpt_image_2_5, image reference = approved S1, 9:16 native 4K, quality xhigh.\n- Gate:\n  - all four screen corners crisp and unoccluded;\n  - grey field flat, with no glare or bloom;\n  - no face or profile;\n  - no hands or forearms on the desk;\n  - no text or logos;\n  - no readable reflection in the window.\n- THE POST-MOTION SHOT: no Kling. The generated camera never moves.\n\n(1) SCREEN CONTENT: REAL, NEVER GENERATED\nPreference order:\n- (a) First choice. On publish week the operator shoots 10–12 s of genuinely filmed vertical iPhone footage of the chosen listing: 1080×1920, 24 fps, stabilised, eye level, slow, walking from the entrance into the daylit living room. Shoot one extra 3–4 s held take in the living room for beat 6.\n- (b) A screen recording of a real BOOM video viewing, cropped to picture only, with no client face or voice.\n- (c) Last resort: two real enhanced photos of the SAME listing (entrance 3.2–4.3 s, 6-frame dissolve, living room 4.3–5.45 s), moved with a clean 2D drift only.\nNEVER add simulated handheld jitter to stills. Never image-to-video a listing photo, because that invents geometry.\n\n(2) COMPOSITE\n- Work at 4K (2160×3840) and downscale at export.\n- Use a static 4-corner pin on the grey screen; it absorbs any slight keystone.\n- Use a rounded-corner matte matched to the bezel radius, and redraw the camera pill on top.\n- Place the footage as its own layer so that at the end of the push it renders at native 1080×1920, never upscaled.\n- No call UI, buttons or LIVE badge. The claim lives in the type.\n\n(3) GLASS REALISM\n- Lift the in-screen blacks slightly so the screen reads as emitting light.\n- Add a 3% Screen-mode reflection of what is BEHIND the camera: a soft warm smear on the lamp side (frame left) and the dark, defocused silhouette of his head and left shoulder. NEVER the window.\n- 4 px light wrap onto the bezel.\n- Desk spill whose colour follows the screen's average colour.\n- Matched grain over the composite.\n\n(4) CAMERA MOVE\n- The whole comp scales 100→104% over 3.2–5.45 s, cubic-bezier(.16,1,.3,1).\n- Over 5.45–5.90 it pushes through to about 265%, centred on the screen, so the screen fills the frame.\n- The push ends on a frame of the walkthrough in the living room, crossfading 5.85–5.90 into beat 3.\n\n(5) LISTING\n- Pick it from the LIVE portal (Listings → 📅 Disponibilità), never from HTML build snapshots, and ONLY from marketLane 'now'. Never use 'ahead': those homes have a sitting tenant, and 'DM ROME to book a live viewing' must be bookable.\n- Candidates to check: Trilocale Pigneto, Bilocale Ponte Milvio, Bilocale Prati. The repo snapshots contradict each other, and the Prati snapshot reads 'Free from 1 Mar 2027' = ahead, so it is excluded unless the portal says otherwise.\n- Lock the listing before the walkthrough is shot.\n\n(6) CLOCK\n- Publishing before 25 Oct 2026 (CEST, +7 h): ROME 12:40.\n- From 25 Oct (CET, +8 h): ROME 11:40.\n- Both fall inside BOOM's default weekday video-viewing window (10:00–13:00 Rome).\n\n(7) TRUTH\n- Live video viewings of BOOM homes exist; faq.html: 'where you direct the camera'.\n\nSFX\n- Room tone only, no UI sounds."
+   },
+   {
+    "n": 3,
+    "start_s": 5.9,
+    "end_s": 7.9,
+    "source": "real_boom_photo",
+    "on_screen_type": "LABEL (gold mono):\n- Reel master: A REAL BOOM LISTING · <ZONE> (e.g. A REAL BOOM LISTING · PIGNETO)\n- Story/Highlight master: A REAL BOOM LISTING (no zone)",
+    "type_position": "Top grid: x 84, baseline y 356. IBM Plex Mono 400, 34 px caps, tracking 3 px, #FFD700. Visible 5.95–7.85 s (1.9 s).\n\nTop scrim: black 45% at y 269, fading to 0 at y 560. Real photos usually have bright ceilings or windows up there.\n\nNo bottom scrim and no other type.",
+    "post_notes": "REAL MEDIA ONLY, all from the listing that was on the phone. Three cuts of about 0.67 s each, snapped to the beat grid of the chosen licensed track. Choose the track BEFORE locking this edit.\n\nCUTS\n- 5.90–6.57: the genuine walkthrough continues full-bleed in the living room, at native vertical resolution. This makes the push-through seamless. If only photos exist: the living-room photo.\n- 6.57–7.23: the real enhanced bedroom photo in daylight, 2% slide left.\n- 7.23–7.90: a real enhanced photo of one of the listing's windows with daylight falling in, slow push. Frame it so the bright window opening sits at the far LEFT edge of frame (±10%), matching the S3 cabin window for a window-to-window match cut.\n\nCROP RULE\n- Landscape sources: the DEFAULT is a 4:5 plate (1080×1350) centred on #060607.\n- Full-bleed 9:16 only for portrait-shot photos, or where a 9:16 crop still holds a recognisable room (sofa plus window, or bed plus window).\n- Never more than a 1.2× plain bicubic upscale. No AI upscale, no AI extend, no staging, no object removal, no sky replacement.\n- Only a light unifying grade: same black point and white balance.\n\nLABEL\nThe label names a place, never a price or availability. 'LISTING', not 'HOME': BOOM is the agency, not the owner.\n\nSFX\nRain falls away; warm room tone comes in."
+   },
+   {
+    "n": 4,
+    "start_s": 7.9,
+    "end_s": 11.7,
+    "source": "generated_still_kling",
+    "still_prompt": "Preserve the exact identity and wardrobe of the supplied person. Use the supplied photograph only for this man's face, hair, beard, skin tone and clothing; do not copy its framing, lighting, colour grade or setting. He is the same man as in the supplied photograph, with his face, hairline, short beard and skin tone unchanged, wearing the same deep navy fine-merino crew-neck sweater with sleeves down to the wrists and the thin white edge of a plain crew-neck T-shirt just visible at the collar. No glasses, no watch, no rings, no jewellery, no visible logos.\n\nOne exceptionally credible cinema frame in observational photographic realism: a quiet frame from an independent feature, not an airline advertisement.\n\nScene: first light inside a quiet airliner cabin in the last hour of a long night flight. The cabin lights are off. He sits alone in a window seat on the right-hand side of the aircraft, so the window is on his right. The seats around and behind him are empty and in darkness.\n\nCamera: at his seated eye level, just forward of him on the window side, looking back at him about 35 degrees off his nose line; true 50mm perspective, f/2. Medium close-up from mid-chest up. The window is at the far left edge of the frame, seen at an angle. His head rests lightly on a plain dark-grey fabric headrest and is turned about 30 degrees toward the window, toward frame left and just past the lens. We see his face in three-quarter view, with both eyes, the near cheek and the beard line clearly visible.\n\nWindow: a single standard airliner cabin window, a rounded-rectangle opening about 25 centimetres wide and 35 centimetres tall, set in a thick, pale, curved plastic sidewall bezel. The pull-down shade is raised so only its thin edge shows at the top. Through it: a calm sea of cloud tops glowing pale gold and rose under a pale sky, slightly out of focus. The sun itself is outside the window's view; only its warm light enters. It lays a soft band of warm gold across his near cheek, temple, beard line and the shoulder of his sweater, with gentle falloff.\n\nExpression: eyes open, looking out; lips closed; a calm, unguarded look of relief. His hands are below the frame.\n\nComposition: eyes at about 56 percent of frame height; face in the centre-right of the frame. The upper 38 percent of the frame is only the smooth, unlit curve of the sidewall and the underside of the overhead bin, falling into soft deep shadow with gentle tonal falloff: no vents, reading lights, call buttons, icons or signs. The bottom 22 percent is quiet seat fabric and sweater.\n\nColour and texture: cool blue-grey cabin shadow against warm gold window light, refined neutral film colour, fine grain, natural unsmoothed skin with real pores, real fabric weave.\n\nAvoid: other passengers, crew, seat-back screens or any screen, phones, headphones, blankets, tray tables, safety cards, signs, placards, pictograms, airline logos or livery, a wing or engine, an oval porthole, looking into the lens, sleeping, a broad or open-mouth smile, lens-flare streaks, a visible sun disc, text, letters, numbers, logos or watermarks.",
+    "motion_prompt": "PROMPT (paste as the Kling positive prompt):\nPreserve this exact photograph: the same man, face, beard and navy sweater, the same seat, window, cabin and warm gold light. The camera is locked off, with a constant focal length. Outside the window, soft golden cloud tops drift slowly and steadily toward the rear of the aircraft, staying inside the window opening. The light on his face stays exactly as it is. His head stays on the headrest, looking out. At about 1.5 seconds he blinks once. From about 2.5 seconds a small closed-mouth smile of relief slowly forms, and his shoulders settle with one relaxed breath.\n\nNEGATIVE PROMPT (Kling negative_prompt field. If the endpoint exposes none, send the positive prompt alone):\nmorphing, warping, face distortion, window changing shape, shade moving, flicker, exposure change, light change, light moving on face, lens flare, camera shake, turbulence, new people, crew, hands, objects, screens, talking, open-mouth smile, head turn to camera, cut, text, letters, logos, watermark\n\nAPI PARAMETERS (set as parameters, never in the prompt text):\n- Kling 3.0 image-to-video\n- start image = approved S3 4K still\n- mode pro (1080p)\n- duration 5 s\n- aspect 9:16\n- sound off",
+    "on_screen_type": "HEADLINE: Before you land. (\"land.\" in gold)\n\nSTATUS STACK (mono, with LEDs; counted as one list element). Rows 1 and 2 are done; row 3 is pending:\n- ● PAID THROUGH BOOM · RECEIPT\n- ● LEASE SIGNED ONLINE\n- ○ KEYS · ON ARRIVAL",
+    "type_position": "HEADLINE\nInter 300, 80 px, #FFFFFF, with \"land.\" in Inter 400 #FFD700. Position x 84, baseline y 440. Rises 12 px over 8.00–8.45 s. It stays on screen: headline + stack = 2 elements.\n\nSTACK TYPE\nIBM Plex Mono 400, 34 px caps, tracking 2 px, text at x 124. The longest row ends at about x 760.\n\nROW BASELINES (60 px pitch)\ny 540 / 600 / 660, all inside S3's dark cabin ceiling (y < 730).\n\nLEDS\n16 px circles centred at x 92 on each row's x-height.\n- Done: fill #3ddc97 with a 12 px glow; row text at white 88%.\n- Pending: hollow 2 px #FFD700 ring; row text at white 70%.\n\nREVEALS\n- Each row wipes in with an 8-frame left-to-right mask at 8.70, 9.30 and 9.90 s.\n- LEDs 1 and 2 turn green 150 ms after their row lands.\n- LED 3 stays hollow gold.\n- Everything holds to 11.7 s, so the last row gets 1.8 s.\n\nNo gloss line and no registration row.",
+    "post_notes": "RUN SHEET, S3\n- gpt_image_2_5, image reference = approved S1, 9:16 native 4K, quality xhigh.\n- Gate:\n  - rounded-rectangle window (not an oval) at the far left edge;\n  - both eyes visible in three-quarter view;\n  - gold light on the camera-side cheek;\n  - no passenger service unit, icons, people or screens;\n  - no sun disc;\n  - calm dark upper 38%.\n\nCLIP\n- Use Kling 0.4–4.2 s (3.8 s): the blink and the start of the smile.\n- Match cut in from beat 3's real window at the left edge to the cabin window at the left edge, on the beat.\n- The grade pivots warm here. Gentle highlight halation on the light band only; same grain plate.\n\nSFX (optional)\n- Low cabin hum at about −24 dB.\n- One soft UI tick per LED that lights.\n\nTRUTH\n- Paid through BOOM with a receipt: the pre-agreement's due-at-signing goes through BOOM's secure Stripe Checkout, with a receipt email. 'THROUGH', not 'TO': rent and deposits are the owners' money.\n- Lease signed online: Magic Sign.\n- Order is pay, then sign, as in BOOM's real flow.\n- KEYS stays pending in the air on purpose. Registration is NOT in the stack: it is never shown as a timed event (legal deadline 30 days, ASPI send is manual by default).\n- Never attach a date, speed or duration to a row.\n- Never claim the lease text is in English: the leases follow the Italian associazione models verbatim.\n- No Stripe brand on screen.\n\nFALLBACK\n- K3 gets no planned reroll.\n- If it fails QA (window shape, face drift): the S3 4K still with a masked lateral cloud parallax inside the window only, plus a 2% push. The stack carries the beat."
+   },
+   {
+    "n": 5,
+    "start_s": 11.7,
+    "end_s": 15.9,
+    "source": "generated_still_kling",
+    "still_prompt": "Preserve the exact identity and wardrobe of the supplied person. Use the supplied photograph only for this man's face, hair, beard, skin tone and clothing; do not copy its framing, lighting, colour grade or setting. He is the same man as in the supplied photograph, with his face, hairline, short beard and skin tone unchanged, wearing the same deep navy fine-merino crew-neck sweater with sleeves down to the wrists and the thin white edge of a plain crew-neck T-shirt just visible at the collar, charcoal-grey wool trousers, and a plain dark-grey nylon backpack with no logo worn by one strap on his left shoulder. No glasses, no watch, no rings, no jewellery, no visible logos.\n\nOne exceptionally credible cinema frame in observational photographic realism: a quiet frame from an independent feature, not a tourism advertisement.\n\nScene: mid-morning on a clear autumn day in Rome, the day he lands, in a quiet residential street of an ordinary neighbourhood. He stands about 3 metres in front of a long, plain boundary wall of warm cream plaster. It is a private garden wall, with a trail of ivy spilling over its top and a few leaves of a plane tree above it. Beyond and above the wall, softly out of focus, rise the upper floors of an ordinary residential building in pale plaster, with tall windows and closed dark-green wooden shutters. At ground level behind him there is only this continuous wall.\n\nPose: he stands still, body three-quarters toward the camera and angled toward frame left, as if he has just stopped. His right hand is raised to upper-chest height, close to his body. He holds a plain steel key ring pinched between his thumb and the side of his bent index finger; his other three fingers are loosely curled into his palm. Exactly two plain brass keys hang straight down from the ring, side by side and slightly fanned so they do not overlap, clearly visible against the navy sweater, with one small warm highlight on the brass. His left arm hangs relaxed, partly out of frame. His gaze is lifted up and slightly toward frame left, toward upper windows out of frame. His expression is quiet and settled, with the beginning of a private, closed-mouth smile.\n\nLight: the street runs left to right across the frame. Warm, still fairly low mid-morning sun shines along it from frame right, lighting his face, beard and sweater in warm gold. The wall and the building behind him run parallel to the sun and receive only grazing light, so they sit in soft, warm open shade two to three stops darker than his lit face: an even mid-dark cream-grey, with the shutters barely readable. No sky is visible anywhere in the frame.\n\nCamera: eye level, true 50mm perspective, f/2.8. Medium shot from mid-thigh up. Focus on his face; the keys are sharp; the background is soft.\n\nComposition: the top of his head at about 37 percent of frame height, eyes at 43 to 44 percent, the keys at about 60 percent of frame height and 45 percent of frame width. The upper 36 percent of the frame is the evenly shaded, softly out-of-focus upper building, with no bright patches. The bottom 20 percent is quiet charcoal trousers; no ground is visible.\n\nColour and texture: warm Roman morning on real plaster, restrained contrast, refined neutral film colour, fine grain, natural unsmoothed skin.\n\nAvoid: people, vehicles, doorways, signs, numbers or lettering of any kind; landmarks; a phone; sunglasses; a wheeled suitcase; a second hand touching the keys; extra or missing fingers; more or fewer than two keys; looking into the lens; dramatic posing; logos or watermarks.",
+    "motion_prompt": "PROMPT (paste as the Kling positive prompt):\nPreserve this exact photograph: the same man, face, beard, navy sweater, charcoal trousers and grey backpack; the same steel ring and exactly two brass keys in his right hand; the same wall, building and warm light. The camera pushes in very slowly and smoothly, about 3 centimetres, at eye level, with a constant focal length. He stays completely still except for one slow breath at about 2 seconds, his shoulders rising and settling, and one natural blink at about 3.5 seconds. His gaze and expression do not change. His hand, fingers, ring and keys do not move at all.\n\nNEGATIVE PROMPT (Kling negative_prompt field. If the endpoint exposes none, send the positive prompt alone):\nmorphing, warping, face distortion, extra fingers, missing fingers, merging keys, extra keys, keys swinging, hand movement, walking, talking, head turn to camera, doors, new people, vehicles, birds, flicker, exposure change, light change, camera shake, cut, text, letters, numbers, logos, watermark\n\nAPI PARAMETERS (set as parameters, never in the prompt text):\n- Kling 3.0 image-to-video\n- start image = approved S4 4K still\n- mode pro (1080p)\n- duration 5 s\n- aspect 9:16\n- sound off",
+    "on_screen_type": "Beat 5 plays in two moves.\n\n1. The system layer closes the loop:\n   - EYEBROW (gold, split-flap): ROME · 10:40\n   - The persisting row ○ KEYS · ON ARRIVAL: its LED turns ● green. The text does not change.\n\n2. The layer clears, then the payoff (same copy in variants A, B and D):\n   - HEADLINE: Keys in hand. (\"hand.\" in gold)\n   - SUBLINE: Signed before you flew.",
+    "type_position": "AT THE CUT\n- 11.70–11.95: the beat-4 headline and rows 1–2 dissolve out.\n- Row 3 keeps its exact beat-4 pixel position (text x 124, baseline y 660, LED at x 92), so it reads as one persistent UI layer from the air to the ground.\n\nEYEBROW\n11.75–12.05: 'ROME · 10:40' flaps in at x 84, baseline y 356. IBM Plex Mono 34 px, #FFD700.\n\nLED\n12.30: the KEYS LED fills #3ddc97 with a 0.12 s glow burst; its text rises to white 88%. Eyebrow and row hold to 13.60 (1.3 s after green).\n\nEXIT\n13.60–13.80: eyebrow and row fade out.\n\nHEADLINE\n13.80–14.25: rises 12 px. Inter 300, 80 px, white, at x 84, baseline y 440.\n\nSUBLINE\n14.30–14.60: fades in and holds to 15.90 (1.3 s). Inter 300, 36 px, #D9D9DE, at x 84, baseline y 506.\n\nLEGIBILITY\n- Everything sits inside S4's shaded upper 36% (y < 690).\n- Scrim behind the type: black 55% at y 269, fading to 0 at y 780.\n- 'hand.' is set in Inter 400 #FFD700 only where the local background luminance under it is below 25%. Otherwise it is white Inter 400.",
+    "post_notes": "RUN SHEET, S4\n- gpt_image_2_5, image reference = approved S1, 9:16 native 4K, quality xhigh.\n- Gate:\n  - exactly one ring and two non-overlapping keys, pinched by thumb and index;\n  - correct finger count;\n  - no doorway, sign, number or lettering;\n  - wall and building in shade with no sky;\n  - face lit;\n  - no ground in frame.\n\nCLIP\n- Use Kling 0.4–4.6 s (4.2 s).\n- Hard cut from the cabin dawn to the Roman morning; the colour script goes cool → gold, and no landing shot is needed.\n\nQA GATE\n- Check the keys frame by frame: two keys, one ring, no morph, static fingers.\n- If the 4.3–4.6 s tail fails: freeze-hold the last clean frame under the grain.\n- If there is no clean 4.2 s window: use contingency Kling reroll #2 here (priority after beat 1).\n- Failing that: the S4 4K still with a 3% push. The LED flip still carries the payoff.\n\nSOUND MUST NOT CONTRADICT PICTURE\n- The keys never move, so there is no metallic clink.\n- The same soft UI tick as the other LEDs on the flip, plus quiet street air and distant swifts.\n\nTRUTH\n- 'Keys in hand.' is what the frame shows.\n- 'Signed before you flew.' is what beat 4 showed. Magic Sign makes signing before arrival possible; /executive: 'keys on arrival day', handed over in person with the verbale di consegna.\n- No guarantee, date or registration timing is implied.\n- The street is a zone-neutral garden wall: exterior only, no entrance, no number, never presented as the listing's building.\n\nTRANSITION\nFrom 15.90, an 8-frame dissolve matched on warm light into beat 6."
+   },
+   {
+    "n": 6,
+    "start_s": 15.9,
+    "end_s": 17.6,
+    "source": "real_boom_photo",
+    "on_screen_type": "None. A wordless beat.",
+    "type_position": "No type. The frame is clean.",
+    "post_notes": "THE RHYME. The home he watched on the phone returns full-bleed, in its own daylight: the screen has become the room.\n\nSOURCE\n- Preferred: the extra 3–4 s held living-room take from the genuine walkthrough (native vertical 1080×1920, real footage), played at native speed. No speed ramp: 24p slowed would stutter.\n- Fallback: the SAME real enhanced living-room photo used on screen, moved 2D only (slow push 1.00→1.04, cubic-bezier(.16,1,.3,1)). Beat 3's crop rule applies: a 4:5 plate on #060607 for landscape sources unless a 9:16 crop still shows a recognisable room.\n\nTIMING\n- 15.90–16.23: dissolve in from beat 5.\n- 16.23–17.30: clean.\n- 17.30–17.60: the brightest window highlight in the frame grows a soft gold bloom and dissolves to void #060607. The BOOM mark resolves out of that light.\n\nNo chip, no label, no frame device. The 'real listing' truth is already stated in beat 3, in the caption and in the post copy.\n\nSFX\nStreet air falls away to soft interior room tone."
+   },
+   {
+    "n": 7,
+    "start_s": 17.6,
+    "end_s": 24,
+    "source": "graphics_only",
+    "on_screen_type": "PHASE 1: THE CLAIM (17.6–21.5 s)\n- The real BOOM gold mark\n- Rent in Rome / before you land.\n- Legally. (in gold)\n- Your lease, registered with the / Agenzia delle Entrate.\n\nPHASE 2: THE ACTION (21.5–24.0 s)\nThe mark, headline and 'Legally.' stay. The registration subline is replaced by:\n- DM “ROME” for a live video viewing\n- LINK IN BIO · BOOMROME.COM\n- Egidi Immobiliare S.r.l. · REA RM-1710623 · Rome",
+    "type_position": "Everything is centred on x 540. Below y 1100 all type stays within x 180–900.\n\nMARK\nboom-mark.svg, native gradient #FFD54F → #F5A623, 240 px wide, centred at y 600.\n\nHEADLINE\nInter 300, 76 px, #FFFFFF, baselines y 900 / 986.\n\n'LEGALLY.'\nInter 400, 76 px, #FFD700, baseline y 1082.\n\nPHASE 1 SUBLINE\nInter 300, 34 px, #D9D9DE, baselines y 1170 / 1214.\n\nPHASE 2\n- CTA: Inter 400, 38 px, #FFFFFF, baseline y 1190.\n- URL: IBM Plex Mono 400, 32 px, tracking 4 px, #FFD700, baseline y 1262.\n- Legal line: Inter 300, 28 px, #9A9AA0, baseline y 1440.\n\nAll of it sits inside y 269–1498. At no moment are there more than 3 elements plus the micro legal line.",
+    "post_notes": "BACKGROUND\n- Void #060607 with the same grain (1.2%), black floor about RGB 10.\n- A faint 1 px gold tech-grid at 4%, faded out radially.\n- A barely visible radial glow rgba(255,215,0,.06) behind the mark.\n\nTIMING\n- 17.60–18.00: the mark fades in, scaling 0.96→1.00, with a bloom (30 px blur settling from 25% to 10%).\n- 18.00–18.50: one gold sheen sweep, used once, never looped.\n- 18.00 and 18.15: the two headline lines rise 12 px.\n- 18.60: 'Legally.' lands alone in gold.\n- 19.00–19.30: the registration subline fades in.\n- 21.30–21.50: the subline fades out.\n- 21.50–21.80: the CTA fades in.\n- 21.70: the URL types on at 18 ms per character.\n- 21.90: the legal line fades in.\n- Hold to 23.60.\n- 23.60–24.00: everything dims to pure black, so the Reel loops invisibly into beat 1's dark frame 0. The answer (…before you land. Legally.) leads back into the question (Renting in Rome from abroad?).\n\nSTORY / HIGHLIGHT\nA link sticker cannot be timed, so this is built as separate pieces.\n- SEGMENT 1: the film 0–21.5 s (phase 1 only, then a 0.4 s dim to black). No sticker. The beat-3 label has no zone. No eyebrow in beat 1.\n- SEGMENT 2: a separate 6 s end-card video with a 2 s gold sheen loop:\n  - mark 200 px at y 500;\n  - 'Rent in Rome / before you land.' Inter 300, 72 px, y 760 / 842;\n  - 'Legally.' Inter 400, 72 px, gold, y 934;\n  - 'Your lease, registered with the / Agenzia delle Entrate.' 32 px, y 1010 / 1052;\n  - legal line 26 px #9A9AA0, y 1110;\n  - 'Tap below · or reply ROME', mono 32 px gold, y 1200;\n  - link sticker 'LIVE VIDEO VIEWING' in the empty band y 1260–1480.\n- HOW-IT-WORKS CARD: a static 5 s card, one line each, Inter 300, 44 px:\n  - Live video viewing\n  - Pay through BOOM · receipt\n  - Lease signed online\n  - Keys on arrival\n  - Registered with the Agenzia delle Entrate\n- Highlight 'RENT FROM ABROAD', in order: segment 1 → how-it-works card → segment 2. Highlight cover: the gold mark alone on #060607.\n\nLINKS AND TRACKING\n- Every tappable link is www. The on-screen BOOMROME.COM is display text only.\n- Sticker, bio and DM quick-reply link: https://www.boomrome.com/book?utm_source=instagram&utm_medium=story|bio|dm&utm_campaign=lancio-2026-10&utm_content=before-you-land-A|B|D\n- book.html already loads js/boom-track.js. index.html and apartments.html do NOT: do not link there until P0 of STUDIO_CAMPAGNA_LANCIO is done.\n- Save an Instagram quick reply for 'ROME' that sends the /book link BEFORE publishing; DM replies are the operator bottleneck.\n\nCAPTION (line 1, and repeated as the pinned first comment)\n'DM ROME for a live video viewing of a real BOOM listing. See it live, pay through BOOM with a receipt, sign your lease online — before you land. Every lease is registered with the Agenzia delle Entrate (the Italian Revenue Agency).'\nLast caption line: 'Egidi Immobiliare S.r.l. · P.IVA 17322991005 · REA RM-1710623 · Rome'.\nNever write 9,000 km. If a distance is used, write 'nearly 10,000 km'.\n\nAUDIO\n- Pick a track from Meta Sound Collection or a library licensed for paid social BEFORE locking the beat-3 cuts; business accounts can't use most trending audio, and paid ads can't use it at all.\n- Deliver:\n  - (a) the organic Reel with that track embedded as original audio;\n  - (b) the paid master with the same track plus the SFX stem under it (stem about −18 LUFS, full mix −14 LUFS integrated, −1 dBTP);\n  - (c) a clean silent master.\n- No voiceover.\n\nPAID 15.0 s CUTDOWN (zero credits, beat 6 dropped)\n- B1 0–3.0 (K1 0.6–3.6)\n- B2 3.0–5.4: type 3.05 / 3.10 / 3.50, fade 4.9–5.0, push 5.0–5.4\n- B3 5.4–6.4: walkthrough or living room only, label 5.45–6.35\n- B4 6.4–9.4 (K3 0.4–3.4): headline 6.5, rows 6.9 / 7.3 / 7.7\n- B5 9.4–12.4 (K4 0.4–3.4): eyebrow 9.45, KEYS green 9.8, hold to 10.8, headline 11.0, subline 11.4\n- END 12.4–15.0: mark, headline, 'Legally.' 12.9, registration subline 13.2. No CTA or URL (the ad button carries it); legal line in the ad's primary text.\n- Objective: Click-to-Instagram-Direct. Check Meta Special Ad Category rules for every targeted country, and declare Special Ad Category = Housing whenever the audience includes US/CA (no age, gender or postcode targeting, no lookalikes; use Special Ad Audiences / broad).\n\nEXPORT\n- H.264 High, 1080×1920, 20 Mbps, AAC 48 kHz.\n- Upload from the phone app with 'Upload at highest quality' ON.\n\nBRAND\n- Product gold #FFD700 (boom-2026.css), never the portal's #D4AF37.\n- Inter and IBM Plex Mono are the open-licence render stand-ins.\n- No price, rating, review, press logo, testimonial or Wallet claim anywhere.\n\nSFX (optional)\nOne low warm tone under the mark at about −20 dB."
+   }
+  ],
+  "end_card": "Void black #060607 with faint film grain (black floor about RGB 10) and a barely visible radial gold tech-grid. The real BOOM mark (boom-mark.svg, native #FFD54F → #F5A623, 240 px) resolves out of the window light of the real listing, then takes one slow gold sheen.\n\nPhase 1, the claim (17.6–21.5 s):\n- \"Rent in Rome / before you land.\" in Inter 300 white.\n- \"Legally.\" in Inter 400 #FFD700, on its own beat.\n- \"Your lease, registered with the / Agenzia delle Entrate.\" in Inter 300 34 px.\nRegistration is stated as a standing fact, never timed.\n\nPhase 2, the action (21.5–24.0 s): the subline gives way to:\n- \"DM “ROME” for a live video viewing\" (Inter 400, 38 px, white)\n- \"LINK IN BIO · BOOMROME.COM\" (gold mono, 32 px)\n- \"Egidi Immobiliare S.r.l. · REA RM-1710623 · Rome\" (28 px, #9A9AA0)\n\nEverything is centred inside y 269–1498 and x 180–900. It holds to 23.6 s, then dims to pure black for a seamless loop into the dark first frame.\n\nOther masters:\n- Story/Highlight: segment 1 ends after phase 1. A separate 6 s segment 2 carries the link sticker (y 1260–1480) and 'Tap below · or reply ROME'.\n- Paid: phase 1 only, because the ad button is the CTA.\n\nNo price, rating, review, press logo or testimonial.",
+  "rationale": "WHY THIS BASE\nThe 'hook' treatment (best combined score) stays the spine:\n- Frame 0 is already moving, calls out the right viewer and names the brief's fear in BOOM's voice.\n- The promise arrives inside the first beat budget.\n- A persistent console-language system layer closes on screen.\n- A dark-to-dark loop brings the viewer back to the start.\n\nIt stays a different idea from GPT's per-service films: one man, one unbroken remote journey, with the legal close as the plot.\n\nWHAT CHANGED\nTwo truth blockers reshaped the payoff.\n1. Registration left the LED/clock mechanic entirely. A green REGISTERED LED under a landing clock tells every viewer \"registered by the time you land\". BOOM does not offer that: the legal deadline is 30 days and the ASPI send is manual by default. So the in-air stack is now three true rows in BOOM's real order (PAID THROUGH BOOM · RECEIPT → LEASE SIGNED ONLINE → ○ KEYS · ON ARRIVAL). Registration becomes the standing, timeless fact that explains \"Legally.\" on the end card, in index.html's own words.\n2. \"Keys when you land. / This time, it's in writing.\" implied a written keys-on-landing guarantee, and in variant D it had BOOM repeat the scammer's line. It is now \"Keys in hand. / Signed before you flew.\": exactly what the film shows, working in every variant, and in D rhyming by contrast.\n\nThree reels blockers fixed readability and platform mechanics.\n- Every payoff element now holds at least 1.3 s.\n- Story/Highlight became a sticker-free film segment plus a separate sticker end card (stickers can't be timed).\n- The cover is a separately exported settled frame, not frame 0's random flaps.\n\nThe spot grew from 21 to 24 s (inside the brief's 18–25). The extra time went where reading needs it: the hook (3.2 s), the rhyme and a two-phase end card. A 15 s paid cutdown is delivered at zero credits.\n\nGEOMETRY AND FAILURE MODES (AI blockers and majors)\nS1 (identity anchor):\n- Framing is one consistent spec: ends at mid-chest, head top at 40%.\n- Readable 3:1 fill, both ears, navy that reads navy.\n- The unseen phone is no longer named, so it can't leak into frame. No rain shadows are baked into the reference.\n- The Kling actions now happen inside the kept trim, with no eye-darting.\n\nS2 (screen plate):\n- Behind his LEFT shoulder for lamp continuity with S1.\n- 85mm at 65 cm, so a real-size phone fills 38% without becoming a tablet.\n- The phone sits on the lens axis past his ear; moderate brightness, no bloom.\n- Arms in his lap. A reference line forbids reproducing S1's frontal face.\n- The window may show only formless reflections.\n\nS3 (cabin):\n- A physically possible cabin: right-hand window seat, camera forward on the window side, a rounded-rectangle window at the far left edge, a 30° head turn keeping both eyes, and no passenger service unit or pictograms.\n- Kling moves only the clouds; no light change.\n\nS4 (street):\n- The keys are pinched and hanging, not lying across an open palm.\n- The action is one breath and one blink.\n- A POSITIVE doorless setting (a garden boundary wall) replaces a list of negations.\n- The wall sits in open shade, so white and gold type hold.\n\nAll Kling prompts:\n- Positive text of about 90 words.\n- Exclusions moved to the negative field.\n- Parameters set via the API.\n- No brand name or production header reaches any generation prompt.\n\nTRUTH AUDIT\nEvery on-screen claim is literally true today:\n- Live video viewings of BOOM homes exist, and the viewer directs the camera (faq.html).\n- Payment goes through BOOM's secure checkout with a receipt.\n- The lease is signed online (Magic Sign).\n- Keys are handed over in person on arrival (/executive, verbale di consegna).\n- Every lease is registered with the Agenzia delle Entrate (index.html).\n- Egidi Immobiliare S.r.l., REA RM-1710623 (faq.html): a verifiable number instead of an unverifiable adjective.\n\nDeliberately not claimed: English-language leases, speeds, dates, registration timing, prices, 'free', the Wallet pass, ratings, reviews, press, clients.\n\nThe only BOOM interiors are genuine walkthrough footage and enhanced photos of ONE listing picked from the live portal's 'now' lane, moved in 2D only and never image-to-video. They are labelled 'A REAL BOOM LISTING' (the agency, not the owner). The generated architecture is a foreign flat, a cabin and a zone-neutral wall with no entrance, so no generated neighbourhood is passed off as a listing's street.\n\nBUDGET\n- 4 stills × 7 + 3 Kling pro 1080p × 7.5 = 50.5 of 79.\n- The headroom funds at most one still reroll and two Kling rerolls, in priority S1 → K1 → K4, with a hard stop at 72.5.\n- Every Kling beat also has a zero-credit still-plus-post fallback.\n\nAUDIO\n- No voiceover: most viewers watch muted, and a synthetic voice undercuts a trust spot.\n- The licensed track is chosen before the edit locks. Sound never contradicts picture.",
+  "resolved": [
+   "B4 blocker (AI): S3 geometry rebuilt. Right-hand window seat, camera forward on the window side about 35° off his nose line, window at the far left edge, head turned about 30° so both eyes and the lit near cheek face the lens. Beat 3's match-cut window moved to the left edge.",
+   "B4 major (AI): standard rounded-rectangle window in a thick sidewall bezel, shade raised. Sun outside the window's view. Upper frame is only the smooth sidewall and bin underside, with vents, reading lights, call buttons and icons excluded.",
+   "B4 major (AI) + minor (truth): the S3 Kling light-band change is deleted. The light on his face is held constant; only the clouds move, toward the rear of the aircraft, inside the window.",
+   "B5 major (AI): keys pinched between thumb and bent index finger, exactly two brass keys hanging side by side, slightly fanned. Keys at about 60% of frame height.",
+   "B5 major (AI): S4 Kling action cut to a 3 cm push, one breath and one blink. Gaze, expression, hand and keys frozen; exclusions moved to the negative field; frame-by-frame key QA kept.",
+   "B5 major (AI) + truth major + reels minor (zone): the street became a positive, zone-neutral cream garden boundary wall with ivy and a plane tree, and a residential building beyond. No doorways, no period or zone cues, no ground. The Avoid list is cut to 'people, vehicles, doorways, signs, numbers or lettering of any kind'.",
+   "B5 major (reels): wall and building run parallel to the sun, in open shade 2–3 stops under his face, with no sky. Scrim at 55% from y 269 to 0 at y 780. Gold only where the local background luminance is below 25%.",
+   "B1 major (AI) + truth major: S1 framing unified (ends at mid-chest above the desk, head top at 40%, eyes at 54%). Forearm sentence and 'clear of the right 12%' sentence deleted.",
+   "B1 major (AI): the smartphone sentence is deleted from S1. The glow comes from 'something on the desk just below the frame edge'.",
+   "B1 major (AI): 3:1 key-to-fill, both ears visible, sweater reads navy. Raindrop shadows removed from S1 and from K1.",
+   "B1 major (AI): K1 rewritten. Steady gaze with no reading saccades; blink at about 1.5 s and brow/exhale at about 2.6 s, both inside the kept trim (0.6–3.8).",
+   "B2 major (AI) + reels minor: S2 optics now 85mm at about 65 cm, f/5.6, so a real-size phone fills about 38% of the width.",
+   "B2 major (AI): phone on the lens axis past his ear with slight natural perspective allowed; moderate screen brightness with no bloom; arms in his lap; window glass shows only formless reflections; no light points in the upper 30%; 'uniform neutral mid-grey with no markings'.",
+   "B2 major (AI) + truth major: camera behind his LEFT shoulder (lamp continuity with S1). Reference used only for wardrobe, skin tone at neck and ear, desk, lamp colour and atmosphere; explicitly not for camera or framing; face never visible.",
+   "B4/B5 major (AI): S3 and S4 open by limiting the reference to face, hair, beard, skin and clothing, with no framing, light, grade or setting copied. The full text spec is not re-sent; they say 'the same man as in the supplied photograph' plus the wardrobe sentence.",
+   "Kling major (AI): each positive prompt is about 90 words with 2–3 timed actions. Exclusions go in the negative_prompt field (or are omitted); mode, duration, ratio and sound are set as API parameters.",
+   "Minor (AI): every production header, gating note and the brand name are stripped from the generation prompts. Gates live in the run sheet in post_notes.",
+   "Minor (AI): landing clock changed to 'ROME · 10:40' with mid-morning light, plausible after a dawn arrival.",
+   "B5 blocker (truth): REGISTERED removed from the LED/clock mechanic and from the in-air stack. Registration moved to the end card as a timeless subline under 'Legally.'.",
+   "B5 blocker (truth): payoff copy is now 'Keys in hand. / Signed before you flew.' in all variants. 'It's in writing' is never used.",
+   "B2 major (truth) + reels minor + AI minor: screen content is genuine walkthrough footage (first choice) or a real video-viewing screen recording. Stills are a last resort with a 2D drift and never simulated jitter.",
+   "B3 major (truth): listing chosen from the LIVE portal, marketLane 'now' only ('ahead' excluded), locked before the walkthrough. Highlight master label carries no zone.",
+   "B4 major (truth + reels): stack cut to three rows at 34 px mono with a 60 px pitch; gloss line removed; stack counted as one list element; legal line enlarged.",
+   "Minor (truth): legal line is now 'Egidi Immobiliare S.r.l. · REA RM-1710623 · Rome'.",
+   "Minor (truth): rows now read '● PAID THROUGH BOOM · RECEIPT' → '● LEASE SIGNED ONLINE' → '○ KEYS · ON ARRIVAL', in BOOM's real order.",
+   "Minor (truth): label changed to 'A REAL BOOM LISTING · <ZONE>'.",
+   "Minor (truth): the comp reflection is now what is behind the camera (warm lamp smear, his head/shoulder silhouette), never the window.",
+   "Minor (truth): headline changed to 'See it live.'.",
+   "Minor (truth + reels): audio track chosen from Meta Sound Collection or a paid-social licence before locking; organic, paid and silent masters delivered.",
+   "Minor (truth): all tappable links are www with full UTM; BOOMROME.COM is display only; the landing page is /book, which already loads boom-track.js.",
+   "Minor (truth + reels): Housing Special Ad Category is declared for US/CA audiences and rules are checked per country; objective Click-to-Instagram-Direct.",
+   "Minor (truth): '9,000 km' replaced by 'nearly 10,000 km'.",
+   "Minor (truth): S4 bottom 20% is 'quiet charcoal trousers, no ground visible'.",
+   "B5 blocker (reels): whole spot retimed. Payoff elements hold at least 1.3 s; the KEYS LED turns green with no text re-flap; headline and subline follow once the layer clears.",
+   "B7 blocker (reels): Story/Highlight split into a sticker-free film segment and a separate 6 s sticker end-card segment.",
+   "B1 major (reels): the cover is a separate settled PNG per variant, not frame 0.",
+   "B1 major (reels): hook extended to 3.2 s; flap settles by 0.30 s; eyebrow 34 px; headline Inter 300.",
+   "B1 major (reels): variant D attribution settled on frame 0, with a gold strike-through on the stranger's line.",
+   "B2 major (reels): type on a non-scaling screen-space layer, cleared before the push-through.",
+   "B2 major (reels): subline 'With BOOM, you direct the camera.' brings the brand in at about 3.8 s.",
+   "B3 major (reels): label moved to the top grid at 34 px gold with a top scrim.",
+   "B7 major (reels): end card now has a legible CTA and 'LINK IN BIO' in a second phase; the CTA is also in the caption and pinned comment.",
+   "Audio major (reels): licensed-track plan and three masters.",
+   "Minor (reels): type system is now headlines Inter 300, gold Inter 400, sublines 36 px, mono at least 32 px; shadow kept.",
+   "Minor (reels): S1 background is a softly falling-off wall, never a flat void; black floor about RGB 10; grain 1–1.5%; native frame rate; export spec.",
+   "Minor (reels): hooks tested via grid plus Trial Reels plus paid A/B, each with its own utm_content.",
+   "Minor (reels): 15.0 s paid cutdown delivered.",
+   "Minor (reels): contingency rerolls are reserved first for K1.",
+   "Minor (reels): three-item Highlight 'RENT FROM ABROAD' with a how-it-works card.",
+   "Minor (reels + AI): 4:5 plate is the default for landscape listing photos. Beat 6 prefers native vertical walkthrough footage, which removes the crop problem."
+  ],
+  "rejected_issues": [
+   {
+    "problem": "Truth-brand major (beat 4): the headline 'Before you land.' should fade out before the status stack starts.",
+    "why_rejected": "Partially rejected. The density problem is solved another way: the stack is now 3 rows at 34 px with no gloss and counts as one list element, so headline plus stack is 2 elements on screen. Keeping 'Before you land.' visible is what places the LEDs in the air. Without it, '● PAID / ● SIGNED' over a cabin reads as a list, not a story. Every other part of that fix was applied."
+   },
+   {
+    "problem": "Truth-brand major (beat 7): move the 'DM “ROME”…' CTA off the end card into the caption and pinned comment.",
+    "why_rejected": "Rejected as stated, because the reels major requires a legible end-card CTA. Many viewers never open captions, and Reel links aren't tappable. Both concerns are met with a two-phase end card: phase 1 (claim plus registration) and phase 2 (CTA, link-in-bio, legal line). Neither phase exceeds 3 elements plus the micro legal line. The CTA is ALSO in the caption and pinned comment."
+   },
+   {
+    "problem": "Reels minor (beat 7): drop the legal micro-line from the Reel end card and keep it only in the caption.",
+    "why_rejected": "Rejected. In a spot built on 'don't pay a stranger', the verifiable REA number is the on-screen answer to 'stranger'. It is raised from 18 px to 28 px #9A9AA0, which is near the phone legibility floor, and appears only in phase 2, so it adds trust without clutter."
+   },
+   {
+    "problem": "Truth-brand major and reels minor (beat 5): write the S4 street to match the chosen listing's zone (Prati Umbertine, or Pigneto palazzine) and generate S4 only after picking the listing.",
+    "why_rejected": "Fixed by a different route. S4 is a zone-neutral cream garden wall with no period, zone or entrance cues, and no ground. That removes the misrepresentation for ANY listing, and it doesn't tie a credit spend to a listing that may be let before publish or rotated in the pinned Highlight. The beat-3 label says 'LISTING' and drops the zone on the Highlight."
+   },
+   {
+    "problem": "Reels blocker (beat 5): turn the REGISTERED LED green at 12.0 s inside the retimed ground sequence.",
+    "why_rejected": "Superseded by the truth-brand blocker, which removes REGISTERED from the LED/clock mechanic entirely. The rest of that blocker (retiming, holds of at least 1.3 s, no KEYS text re-flap) was applied in full."
+   },
+   {
+    "problem": "Reels major (beat 4): row copy '● SIGNED ONLINE / ● PAID ONLINE · RECEIPT / ○ REGISTERED · ITALIAN TAX AGENCY / ○ KEYS ON ARRIVAL'.",
+    "why_rejected": "Replaced by the truth-brand blocker and minor. There is no registration row. The order is pay-then-sign, BOOM's real flow. 'PAID THROUGH BOOM' answers the 'stranger' hook, which 'PAID ONLINE' does not. The reels layout, type size, timing and holds were kept."
+   },
+   {
+    "problem": "Reels major (beat 5): variant-dependent subline ('Every step in writing.' for A/B, 'This time, it's in writing.' for D).",
+    "why_rejected": "Superseded by the truth-brand blocker. Any 'in writing' line after 'Keys when you land' implies a written keys guarantee. 'Signed before you flew.' works in every variant and still rhymes with D by contrast, without BOOM repeating the scammer's words."
+   },
+   {
+    "problem": "Truth-brand minor (beat 2): subline 'On video. You direct the camera.'",
+    "why_rejected": "Partly rejected. The headline 'See it live.' is adopted, but the subline uses the reels major's 'With BOOM, you direct the camera.' so the brand appears by about 3.8 s. 'On video' is carried by the picture (a phone on a stand showing the home) and stated in the caption. Adding it on screen would push the subline past what 1.5 s can carry."
+   },
+   {
+    "problem": "AI-failure major (beat 2): lamp 'out of frame, behind the camera on the left', and the phone placed on the line of sight past his RIGHT ear.",
+    "why_rejected": "Adapted. The camera moved to his LEFT shoulder (truth-brand major, lamp continuity with S1), so the phone sits on the line past his left ear. The lamp sits just outside the left frame edge at his shoulder, shade turned away from the window, instead of behind the camera. A light behind the camera would contradict S1's front-left key. Reflections are handled by the explicit 'formless reflections only' clause and by pre-emptive post QA."
+   },
+   {
+    "problem": "AI-failure major (beat 1): trim the K1 clip to 0.6–3.0 s.",
+    "why_rejected": "Adapted to 0.6–3.8 s, because the reels majors extend beat 1 to 3.2 s for hook readability. The K1 events were re-timed (1.5 s and 2.6 s clip time) so both land inside the kept window."
+   },
+   {
+    "problem": "Original treatment rule: 'no planned rerolls, the budget is fixed'.",
+    "why_rejected": "Corrected, not rejected. The real spend is 50.5 of 79 credits. Per the reels minor, the headroom funds at most one still reroll plus two Kling rerolls (priority S1 → K1 → K4, hard stop 72.5). Zero-credit fallbacks remain for everything else."
+   },
+   {
+    "problem": "Reels minor (beat 7): 'CTA line only' on the 15 s paid cutdown end card.",
+    "why_rejected": "Adjusted. The paid ad carries its own button, so the cutdown end card keeps the claim ('Legally.' plus the registration subline), which is the differentiator, and drops the CTA and URL. The legal line moves to the ad's primary text."
+   }
+  ],
+  "generation_order": [
+   "0. Confirm Kling 3.0 mode 'pro' (1080p) on the endpoint. Pick the listing from the LIVE portal (marketLane 'now' only) and book the operator's walkthrough shoot (0 credits; runs in parallel).",
+   "1. S1 with gpt_image_2_5: text only, 9:16 native 4K, quality xhigh (7 credits). Gate: eyes and irises readable, both ears, readable shadow side, navy reads navy, no phone/screen/hands/arms, head top at about 40% with calm wall above, no text. If it fails, reroll S1 now (contingency still reroll, 7). Nothing else is spent until S1 is approved.",
+   "2. S2, S3 and S4 with gpt_image_2_5, each with approved S1 as the image reference (9:16 native 4K, xhigh; 7 credits each; may be batched). Gates: S2: four crisp unoccluded screen corners, flat grey, no glare or bloom, no face, no hands, no text, no readable window reflection. S3: rounded-rectangle window at the far left edge, both eyes visible, no passenger service unit, icons, people or screens, no sun disc. S4: one ring and two non-overlapping keys, correct fingers, no doorway/sign/number/lettering, shaded background, no sky, no ground. Use the one still reroll only if S1 did not use it.",
+   "3. K1: Kling 3.0 image-to-video from S1 (pro 1080p, 5 s, 9:16, sound off; 7.5). Check the native frame rate and set the master to it. QA the kept window 0.6–3.8 s: no eye-darting, no face drift, no hands. If it fails, spend contingency Kling reroll #1 here first.",
+   "4. K3 from S3 and K4 from S4 (pro 1080p, 5 s, 9:16, sound off; 7.5 each). QA K4's keys frame by frame; if it fails, spend contingency Kling reroll #2 on K4. K3 falls back to the still plus in-window cloud parallax. Hard stop at 72.5 credits.",
+   "5. Post in Higgsedit (0 credits): choose the licensed track first, then run the S2 4-corner-pin composite with the real walkthrough, the real-media beats 3 and 6, the status layer, the two-phase end card, variants A/B/D, the per-variant cover PNGs, Story segments 1 and 2 plus the how-it-works card, the 15 s paid cutdown, and the three audio masters."
+  ],
+  "credit_estimate": "Planned spend: 50.5 of 79 credits.\n- 4 stills × 7 = 28 (gpt_image_2_5, 9:16, native 4K, quality xhigh).\n- 3 clips × 7.5 = 22.5 (Kling 3.0 pro 1080p, 5 s, sound off).\n\nHeadroom: 28.5 credits, used ONLY when a QA gate fails:\n- at most one still reroll (7, S1 first);\n- at most two Kling rerolls (7.5 each, K1 first, then K4).\nWorst case is 72.5, with a hard stop there, never beyond 79.\n\nEverything else costs 0 credits in Higgsedit: the screen composite, real footage and photos, type, end card, hook variants, covers, Story segments, the 15 s cutdown and the audio masters."
+ },
+ "judged": [
+  {
+   "scores": [
+    {
+     "id": "hook",
+     "score": 8.5,
+     "strengths": "Best fit for how Reels convert. Frame 0 does three jobs at once, with no fade: it is already moving (the Kling clip is trimmed to start at 0.7s, plus the split-flap), it calls out the right viewer ('RENTING IN ROME FROM ABROAD?'), and it names the fear in BOOM's own voice ('Don't send a deposit to a stranger.'). By 2.4s the answer is on screen ('See it live, on video.'), so the promise is clear well inside 3 seconds. Retention is designed in: the Tokyo clock is answered by the Rome clock, and the hollow 'KEYS · ON ARRIVAL' LED left pending in the air flips green on the ground, which gives the viewer a reason to stay. At 20s it is the shortest of the three, so completion should be highest. The loop is built dark-to-dark with a seamless seam, and the text loops answer back to question. The CTA is the strongest: DM keyword 'ROME' plus link in bio, UTM-tagged per hook. It is also the only treatment that remembers boom-track.js must be live before judging, and it offers type-only A/B hooks at zero credits. It has the lowest-risk composite: the phone sits on a stand facing the camera, with no hands and the window behind it, so a 4-corner pin is enough, followed by a push-through into the real listing photo. Claims are carefully chosen ('PAID · SECURE CHECKOUT · RECEIPT', no English-lease claim, and 'A REAL BOOM HOME' labels the real interiors).",
+     "weaknesses": "(1) It has the most on-screen text: eyebrow plus 84px headline on frame 0, then a headline plus a 4-line status stack in B4. That goes against the Apple-restraint brief and adds reading load for a muted viewer. (2) S1 is a weak identity anchor. The face is lit from below by the phone, with rain shadows on the cheek and the eyes lowered. S3 and S4 must copy the identity from it, so drift risk is real. (3) The Kling prompt on the hook shot asks for the light to change in brightness 2–3 times. That invites flicker on the single most important second, and the fallback (a still plus a push) loses the 'already moving' hook. (4) 'REGISTERED' appears as completed while he is still in flight, which implies a timing BOOM cannot promise for every deal; the treatment only offers a hedge. (5) Tokyo as the origin city is arbitrary for a UN/embassy/US/UK audience, and the clock depends on a DST caveat (Rome 12:40 is valid only from 25 Oct). (6) The metallic 'tink' is synced to keys that do not move on screen."
+    },
+    {
+     "id": "human",
+     "score": 7.8,
+     "strengths": "The strongest emotional truth. 'Send the deposit today. Keys when you land.' is the exact scam script this audience has received, so the scroll stops on recognition. The face-down phone is a wordless sign of distrust. The payoff is the best copy in the whole set: the stranger's line comes back as BOOM's fact, without quotation marks, followed by 'This time, it's in writing.' The narrative closure pays off the watch-through. It addresses the brief's fear directly: the deposit row answers the hook ('PAID · RECEIPT ISSUED'). Trust detail is true and useful: 'You direct the camera' is on virtual-viewing.html and faq.html, 'Italian Revenue Agency' glosses the Agenzia delle Entrate for expats, and 'Egidi Immobiliare S.r.l. · licensed agency, Rome' matches index.html. Continuity is built in: the same real listing appears in the phone and in the payoff. The loop is dark-to-dark.",
+     "weaknesses": "(1) Misattribution risk in the first second. A muted viewer sees 'Send the deposit today.' coming from a brand account, and the attribution ('— someone you've never met') does not arrive until 1.9s. For a trust brand, that ambiguity is costly. (2) Frame 0 has little motion: a still man and a face-down phone, with motion relying on a post glow and a buzz SFX most viewers won't hear. (3) BOOM's own promise is not stated until 3.4s. (4) The post-motion phone still is a first-person POV with both hands gripping a phone held perfectly parallel. That is the hardest hand/phone generation in the set, and hands and phones are the known #1 failure point. (5) A 4.2s pure-graphics console in the middle of the spot risks a retention dip. (6) 'Deposit paid' simplifies deals where the deposit is split between signing and move-in. (7) The Kling key shot has the palm raised, so the hand is animated."
+    },
+    {
+     "id": "apple",
+     "score": 6.9,
+     "strengths": "The most elegant and brand-true craft. There is one type grid on every beat, Thin 100, with gold held back for the single word 'Legally.' It has the best visual rhyme: the warm real room glowing in a phone on a cold foreign night returns full-bleed in a wordless beat, so the screen has become the room. It has the best production engineering. The identity anchor is deliberately three-quarter and lamp-lit. The phone shot is landscape because the real listing photos are landscape, which gives native pins. The over-the-ear geometry makes a wrong-side phone impossible. There are no doors anywhere, and a frame-by-frame QA gate checks the key. It is the only treatment that gives an explicit truth hedge: the order of the beats shows the sequence of services, not a guaranteed registration before any particular flight. It also adds the rule to choose the listing in the marketLane now/ahead lane on publish day, and the rule that sound must not contradict picture (no key clink).",
+     "weaknesses": "Weakest on this lens. The hook is 'Rome.' over an interior. It is pretty, but it reads like any property ad. It doesn't qualify the viewer as someone renting from abroad until 'You're not there yet.' at 3.0s, and the actual promise (Seen live) arrives at 5.4s, so the promise isn't clear in under 3 seconds. The fear this brief exists to kill (sending a deposit to a stranger) is never named, and money or receipts never appear. The CTA is generic (URL, plus 'DM us to book a live viewing' only in the caption). The loop goes from a black end card back to a bright phone frame, so it is not seamless. At 22s with a long silent beat, completion may suffer."
+    }
+   ],
+   "winner": "hook",
+   "grafts": [
+    "From human, the callback line into hook B5: over the keys, in the calm upper band of S4, add 'Keys when you land.' (with 'land.' in gold) and then 'This time, it's in writing.' at 30px light. Keep the LED flip to 'KEYS · IN HAND'. This closes the hook's 'Don't send a deposit to a stranger' with written proof and turns an open loop into a punchline.",
+    "From human, run their scam-script hook as type-only A/B variant D on the hook's footage at zero credits: \"Send the deposit today.\" / \"Keys when you land.\" / — someone you've never met. Put the attribution on screen by 0.6s rather than 1.9s, so BOOM is never read as the one asking for a deposit.",
+    "From human, on B2 subline: 'Live, on video. You direct the camera.' This is literally true (virtual-viewing.html and faq.html say 'you direct'), and it tells the viewer the video isn't a staged tour.",
+    "From human, add a 20px grey gloss 'Italian Revenue Agency' under 'AGENZIA DELLE ENTRATE' in the status stack. Expats don't know the acronym, and the gloss is what turns 'registered' into trust.",
+    "From human, add the end-card legal micro-line 'Egidi Immobiliare S.r.l. · licensed agency, Rome' (true, as on index.html) below the CTA and inside the safe band. It is a trust signal at the moment of action.",
+    "From apple, fix the identity anchor in hook S1. Add a warm practical lamp as a soft three-quarter key from frame-right so the whole face is readable and evenly modelled. Keep the phone glow only as secondary under-light, keep the rain-droplet shadows off the face, and keep the eyes readable. Approve the face before spending on S2–S4.",
+    "From apple, apply the truth hedge on registration. Don't show REGISTERED as done while he is in flight. Either flip REGISTERED together with KEYS on the ground beat, or keep the stack as pure sequence with no implied completion date. Add apple's note to the production brief: the order shows what BOOM does, not a guaranteed timing.",
+    "From apple, add the wordless rhyme. After the keys beat, insert a 1.2–1.5s full-bleed, no-type return of the exact real living-room photo that was on the phone in B2 (2D push only), then go to the mark. The home he watched becomes the home he enters, and total length stays about 21s.",
+    "From apple, choose the listing on B2/B3 from marketLane 'now' or 'ahead' on publish day, so that anyone who DMs 'ROME' about 'that flat' can actually rent or reserve it. Pick photos whose native crop reaches 1920px, or else use a 4:5 plate on #060607.",
+    "From apple, cut the text load toward Apple restraint in B4. Keep 'Before you land.' and shorten the stack to four terse, literally true words/lines: SIGNED · PAID · RECEIPT · REGISTERED · KEYS. Drop the eyebrow from frame 0 in the Story/Highlight master, where the audience is already qualified.",
+    "From apple, sound must not contradict picture. Replace the metallic 'tink' on the static keys with the same soft UI tick used for the other LEDs.",
+    "From apple and human combined, make the CTA copy specific: 'DM \"ROME\" to book a live viewing', with a saved quick reply ready before publishing. The action is concrete and the keyword stays measurable."
+   ]
+  },
+  {
+   "scores": [
+    {
+     "id": "apple",
+     "score": 8.4,
+     "strengths": "The strongest brand and craft piece of the three and the closest to the Apple restraint the brief asks for. It uses the fewest words: four literally true milestones (Seen live · Signed online · Registered · Keys on arrival), each on one fixed type grid, plus one silent beat. It has the best structural idea of the three: the REAL listing photo glowing in her phone in beat 1 comes back full-bleed in beat 7, so the screen becomes the room. Real BOOM product sits in frame 0, and the pull-out reveal is also the hook. The identity anchor is chosen correctly: still #1 is a sharp, three-quarter, lamp-lit face with hands still in her lap, the right reference for stills #2 to #4. The Kling beats carry the least risk of the three. The abroad shot has only breath, a blink and rain rivulets. The plane shot keeps her hands out of frame. The street shot has NO doors, no numbers and a key hanging still at her side. The signature is an abstract gold stroke made in post, never a generated hand signing. Landscape phone orientation pins BOOM's landscape listing photos natively, and the OTS camera sits on her eyeline, which rules out the wrong-side phone by geometry. It has the most complete truth audit: the lease is never claimed to be in English, and the registration timing is flagged. Every Kling beat has a zero-credit fallback, and the spend order is gated (approve #1 before spending more).",
+     "weaknesses": "The composite still (#2) still depends on two generated hands holding a landscape phone with thumbs on the bezel. That is the #1 failure class, and it also has to be square-on from behind her ear, which is only moderately likely in one attempt. The key at hip height in a 40mm medium-wide frame will be about 60-70 px on a 1080 master: the payoff object barely reads on a phone. Thin 100 at 104 px breaks up under Instagram compression on bright plaster and cloud-lit frames. The in-screen 'LIVE' REC chip over a drifting still photo is a small dramatization, and the claim should live in the type. The hook word 'Rome.' is beautiful but semantically weak. The line that actually hits ('You're not there yet.') only lands at 3.0s. Payment, the literal fear of the €3,000 deposit, is never named. 'Registered.' placed in flight implies the registration timing, as the treatment itself admits."
+    },
+    {
+     "id": "hook",
+     "score": 7.3,
+     "strengths": "It has the best composite feasibility of the three. S2 is a phone in a plain black desk stand, square to a locked-off OTS lens, with no hands, the window behind it so no glare, and a flat grey screen. It is close to a guaranteed one-shot 4-corner pin. Beat 1 also removes both failure classes: the phone and hands are out of frame and only the phone light plays on his face. It has the strongest watch-through mechanics. The hollow 'KEYS · ON ARRIVAL' LED left pending in the air flips green on the ground, the Tokyo clock is answered by the Rome clock, the real listing window match-cuts to the plane window, and the keys' glint grows into the mark before a loop to black. Craft details show real production judgment: a DST-correct clock inside BOOM's viewing window, Inter/IBM Plex Mono because the site fonts are not licensed for video, zero-credit type-only A/B hooks, cuts snapped to the trending track's beat grid, 'PAID · SECURE CHECKOUT · RECEIPT' (the deposit fear answered and true), a mono 'A REAL BOOM HOME · PRATI' label, and a prepared DM 'ROME' quick reply.",
+     "weaknesses": "The identity anchor is the weakest of the three. S1 is a near-black, phone-underlit face with eyes down, and it is the reference for two DAYLIGHT stills (plane and street). Underlighting distorts facial structure, so identity drift in S3/S4 is a real retry risk at 14.5 credits each. The key shot puts a walnut portone in frame, reintroducing failure class #2 (doors), and an open palm held up for 5s in Kling is a posed gesture that tends to drift. It is the least restrained: frame 0 stacks a split-flap eyebrow and a two-line headline, and the plane beat carries a headline plus four mono status rows. That is performance density, not Apple silence. The status stack over the plane implies that registration happens before landing. At 0.75s per cut, the real listing photos flash by too quickly to build trust in the home."
+    },
+    {
+     "id": "human",
+     "score": 7.1,
+     "strengths": "It has the truest emotional premise. Opening on the scam script every expat has received ('Send the deposit today. Keys when you land.') over a phone turned face down stops the scroll by recognition, and the callback resolves it cleanly. The face-down phone with rear cameras up is correct physics and cannot show the wrong side. The man never touches it in the Kling shot. A post-only halo stands in for the notification. The console beat is the most explicit proof of the legal close: proposal, deposit with receipt, lease signed online, and registration with the Agenzia delle Entrate. All four are literally true, and the deposit row directly defuses the fear. The end-card micro-line 'Egidi Immobiliare S.r.l. · licensed agency, Rome' is true (index.html) and adds real trust. 'A REAL BOOM HOME · <LISTING>' honestly separates real interiors from generated frames. Using the listing's real MP4 walkthrough inside the screen when one exists is the most truthful screen content of the three. The colour-temperature arc is well judged.",
+     "weaknesses": "It carries the most generation risk of the three. The composite still is a first-person POV with both hands wrapping a phone perfectly parallel to the lens: visible fingers, thumbs that must stay off the glass, and a watch. It is feasible but not a one-shot certainty. The Kling beat 1 puts his hands flat on the table beside a phone and mug that must stay still, so both failure classes are in the same shot. The keys are held at chest height with sway permitted, which invites morphing. A palazzo portone behind him brings back the door risk. The first words a muted viewer reads next to the BOOM brand are 'Send the deposit today': a brand-association risk. The payoff 'Keys when you land.' repeats the scammer's words, and 'This time, it's in writing' is softer than 'Legally.' The 4.2s graphics console (headline plus four mono rows plus a subline at 28 px) is dense for a Reel and far from Apple restraint. The identity anchor has his eyes lowered to the table, a weaker reference for the daylight stills."
+    }
+   ],
+   "winner": "apple",
+   "grafts": [
+    "From hook (S2 geometry): take the hands out of the composite still. Keep Apple's landscape phone and her soft ear/hoop/shoulder in the foreground, but put the phone in a plain matte-black stand on the side table at her eyeline, screen square to a locked-off lens, with the rain window BEHIND the phone so no glare can reach the glass. This removes the #1 failure class from the one frame that has to be pixel-exact for the corner-pin.",
+    "From human (screen content): if the chosen listing has a genuinely filmed MP4 walkthrough (videoUrl), composite THAT inside the screen for beats 1 and 3 instead of drifting stills. Then the 'Seen live.' moment is real footage, not a dramatization. In that case drop Apple's in-screen 'LIVE' REC chip, and let the claim live in the type (hook's rule: never draw call UI on the screen).",
+    "From hook and human (the deposit fear): Apple never names the money. Change the beat-4 microline to 'PROPOSAL + LEASE · E-SIGNATURE · RECEIPT' (or use hook's 'SECURE CHECKOUT · RECEIPT' / human's 'PAID · RECEIPT ISSUED'). This is true via Stripe receipts, and it answers the €3,000-to-a-stranger fear without adding a beat.",
+    "From human (end card): add the true micro-line 'Egidi Immobiliare S.r.l. · licensed agency, Rome' under BOOMROME.COM, small and 60% grey, inside the safe band. It is the strongest trust fact available and uses the wording index.html already uses.",
+    "From human and hook (truth label): on the beat-7 rhyme, a single tiny mono tag 'A REAL BOOM HOME · <LISTING NAME>' in the lower safe area makes explicit that this interior is real, and that only this one is. It stays optional if it breaks the wordless beat; alternatively put the label on the Reel cover and in the caption.",
+    "From hook (open loop, minimal version): a four-dot row (●●●○) under each microline on the same grid. The dots fill green on Seen live / Signed online / Registered and stay hollow gold until 'Keys on arrival.', where the last dot lights. It adds watch-through without adding words.",
+    "From hook (match cut): make real photo C in beat 3 a listing window with daylight, and match-cut it to the plane window. Only if the plane beat order is kept; otherwise match the listing window light into the street-key shot.",
+    "From human and hook (key readability, without adding risk): keep Apple's relaxed hand at her side with no raise and no door. Tighten the street still to a 50mm frame from mid-thigh up so the brass key reads at roughly 120+ px on the 1080 master, and keep 'the key remains exactly the same object' in the motion prompt.",
+    "From hook (type rendering): render in Inter 200 / IBM Plex Mono (open licence) instead of Helvetica Neue Thin 100 / SF Mono. Weight 200 survives Instagram compression on bright plaster and clouds; Thin 100 at 104 px does not.",
+    "From hook and human (zero-credit A/B): export type-only hook variants on identical footage. Variant B from human, 'Send the deposit today.' / 'Keys when you land.' / '— someone you've never met.', over the letterboxed screen frame. Variant C from hook, 'Renting in Rome from abroad?'. UTM each as utm_content=before-you-land-A/B/C and keep the winner as the pinned organic.",
+    "From hook (edit discipline): pick the trending track BEFORE locking the edit and snap the cuts to its beat grid. Let the end card dim to pure black in the last 0.5s so the Reel loops into the dark frame 0 without a visible seam. Prepare a saved WhatsApp/IG quick reply before publishing, because 'DM us' is an operator bottleneck.",
+    "From hook (registration timing): if legal prefers zero timing implication, move 'Registered.' off the in-flight beat and put it on the signature graphic (beat 4: 'Signed. Registered.'), with the plane beat carrying the wordless release or just the gold route code 'IN FLIGHT · → ROM'."
+   ]
+  }
+ ],
+ "issues": [
+  {
+   "beat": 4,
+   "severity": "blocker",
+   "problem": "The S3 camera geometry cannot work. The camera sits 'from the empty middle seat beside him', which is the aisle side. The window is on his other side, so it lands BEHIND his head, not at 'frame left-centre'. If he turns '45 degrees toward the window', his face turns AWAY from the lens, and the dawn light hits the cheek we cannot see. The model has to break the cabin to satisfy all three constraints: a window floating on the camera side, rows facing the wrong way, or the back of his head. This is exactly the aircraft-geometry botch the brief warned about.",
+   "fix": "Replace the camera paragraph: 'He sits in a window seat on the right-hand side of the aircraft, so the window is on his right. Camera: at his seated eye level, just forward of him on the window side, as if from the window seat of the row ahead with that seat removed, looking back at him about 35 degrees off his nose line; true 50mm, f/2. The window is at the far left edge of the frame, seen at an angle. He turns his head about 30 degrees toward it, toward frame left and just past the lens. We see his face in three-quarter view with both eyes visible, lit on the camera side by the window light.' Delete 'from the empty middle seat beside him' and 'face turned about 45 degrees toward the window at frame left'. Beat 3's match cut then uses a real window placed at the left edge (±10%).",
+   "reviewer": "ai-failure"
+  },
+  {
+   "beat": 4,
+   "severity": "major",
+   "problem": "The cabin will show a bad window and generated text. 'One oval cabin window' produces a porthole or ellipse, which reads as fake; real airliner windows are rounded rectangles in a thick sidewall bezel. 'The dim curve of the cabin ceiling and a closed overhead bin' invites the passenger service unit, whose reading lights, vents and seat-belt or no-smoking icons are generated pictograms or text. Banning only 'signs' does not stop that unit from appearing. A low sun in the window also risks a clipped sun disc.",
+   "fix": "Use: 'a single standard airliner cabin window: a rounded-rectangle opening about 25 cm wide and 35 cm tall, set in a thick, pale, curved plastic sidewall bezel, with the pull-down shade raised so only its thin edge shows at the top. The sun itself is outside the window's view; only its warm light enters. Above him there is only the smooth, unlit curve of the sidewall and the underside of the overhead bin, falling into deep shadow. No passenger service unit, vents, reading lights, call buttons or icons are in frame.'",
+   "reviewer": "ai-failure"
+  },
+  {
+   "beat": 4,
+   "severity": "major",
+   "problem": "The S3 motion prompt breaks the treatment's own rule that no light change is asked of Kling. It asks the band of dawn light to 'brighten gradually and slide about two centimetres toward his ear'. Kling renders this as exposure pumping or flicker on the face, and it can drag the skin texture with the light. It also asks for clouds 'right to left', which no longer matches the corrected geometry.",
+   "fix": "Delete the light-band sentence. Add: 'The light on his face stays exactly as it is, with the same brightness, the same position and no flicker. Only the clouds outside the window move, slowly and steadily, toward the rear of the aircraft, staying inside the window opening.' Keep the blink at about 1.5 s and the closed-mouth smile from about 2.5 s.",
+   "reviewer": "ai-failure"
+  },
+  {
+   "beat": 5,
+   "severity": "major",
+   "problem": "The S4 hand pose exposes the most failure-prone anatomy. It asks for an open palm turned up at chest height with 'fingers gently curled' and two keys 'lying across his fingers'. All five fingers are visible and foreshortened toward the camera, and keys lying on fingers merge with them, so finger counts and fused keys are likely. 'Five natural fingers, anatomically correct' does not prevent this. A palm-up hand held out while he looks at the windows also reads as a staged key presentation.",
+   "fix": "Replace it with: 'His right hand is raised to upper-chest height, close to his body. He holds a plain steel key ring pinched between his thumb and the side of his bent index finger; his other three fingers are loosely curled into his palm. Exactly two plain brass keys hang straight down from the ring, side by side and slightly fanned so they do not overlap, clearly visible against the navy sweater, with one small warm highlight on the brass.' Then update the composition line to 'keys at about 60 percent of frame height'.",
+   "reviewer": "ai-failure"
+  },
+  {
+   "beat": 5,
+   "severity": "major",
+   "problem": "The S4 Kling motion puts too many actions on details that are too small. At mid-thigh framing his face is about 220 px wide on the 1080 output, and the key cluster is roughly 70 to 95 px. At that scale Kling 3.0 morphs faces and small metal objects. The prompt still asks for a gaze lift, an exhale, a widening smile, a blink and a 5 cm push, and every extra facial action adds morph risk to a face that is barely readable. The QA gate will probably fail, which wastes the most expensive credit of the spot.",
+   "fix": "Rewrite the action part: 'Camera: one very slow push-in of about 3 centimetres at eye level, with a constant 50mm focal length. He stays completely still except for one slow breath at about 2 seconds (his shoulders rise and settle) and one natural blink at about 3.5 seconds. His gaze and expression do not change. His right hand, every finger, the ring and the two keys do not move at all.' Move all 'no ...' items to the negative-prompt field (see the Kling negative-prompt issue). Keep the frame-by-frame QA check on the keys.",
+   "reviewer": "ai-failure"
+  },
+  {
+   "beat": 5,
+   "severity": "major",
+   "problem": "The street asks for 'no doorways ... anywhere' through negation, while also describing a 'narrow residential street' of Roman facades that recedes behind him. Street-level portoni, intercoms, house numbers and shopfronts are the defining feature of such a street. The model will add them, especially in the receding background, which brings back both the door problem and generated numbers or text. The Avoid list names eight lettering-bearing objects (doorbells, nameplates, intercoms, licence plates and so on), which primes them.",
+   "fix": "Give the model a positive, doorless setting instead: 'He stands in front of a long, plain, sun-warmed ochre plaster boundary wall of a Roman palazzo garden, about 3 metres behind him, with a trail of ivy spilling over its top. Above and beyond it, softly out of focus, are the upper floors of ochre and terracotta facades with closed dark-green shutters and small iron balconies. Grey basalt sampietrini at his feet. At ground level behind him there is only this continuous wall.' Cut the Avoid list to: 'no people, vehicles, doorways, signs, numbers or lettering of any kind.'",
+   "reviewer": "ai-failure"
+  },
+  {
+   "beat": 1,
+   "severity": "major",
+   "problem": "S1's framing contradicts itself, and the arms sentence is physically impossible. First, it says 'Medium close-up from mid-chest to a little above the top of his head' but also 'top of head at about 40 percent, upper 38 percent empty'. Second, 'forearms rest on the edge of the desk and angle down and out of the bottom of the frame': forearms resting on a desk are horizontal, and at mid-chest framing the desk is below the frame, so the model may invent visible arms or hands. Third, 'keep his head and shoulders clear of the right 12 percent' is impossible, because a centred medium close-up this tight is about 48 cm wide and his shoulders fill it. The right-rail rule applies to type, not to the picture.",
+   "fix": "Replace these with: 'Medium close-up: the frame ends at mid-chest, above the desk surface; his arms and hands are entirely below the frame edge. Generous headroom: the top of his head is at 40 percent of frame height, and everything above it is empty, softly lit dark wall.' Delete the forearm sentence, 'to a little above the top of his head', and the 'clear of the right 12 percent' sentence.",
+   "reviewer": "ai-failure"
+  },
+  {
+   "beat": 1,
+   "severity": "major",
+   "problem": "S1 names a 'smartphone ... in a small desk stand just below the bottom edge of the frame'. Mentioning an object in order to hide it is a classic failure: the top of a phone, or a phone in his hand, often appears at the bottom edge. It may be the wrong side, with the back camera toward us, which is the exact error the GPT pipeline paid to fix. This is the identity anchor, and a reroll here is expensive.",
+   "fix": "Delete the smartphone sentence. Use: 'He is reading something on the desk just below the frame edge; a faint cool-neutral glow rises from there onto his chin and lower eyelids.' Keep 'no phone, screen or glowing object in frame' in Avoid.",
+   "reviewer": "ai-failure"
+  },
+  {
+   "beat": 1,
+   "severity": "major",
+   "problem": "S1 is a weak identity reference for three stills. The key light falls off 'into shadow on frame left' in a near-black frame, so half the face (jaw contour, cheek, ear) is guessed differently in each derived still. The navy sweater under dim 2700K light will render near-black, so S3 and S4 will drift toward black or royal blue. The 'raindrop shadows' on the sweater get baked into the reference, and derived stills tend to copy them as spots or stains on the knit. S2 relies on 'ear shape', but here the ears are soft and partly hidden.",
+   "fix": "Add: 'Key-to-fill ratio about 3:1: the shadow side of his face stays readable, with skin tone and the cheek and jaw contour visible, never crushed to black. Both ears are visible. The sweater reads clearly as deep navy, not black.' Delete the raindrop-shadow sentence from S1, and from the S1 motion prompt. If rain shadows are wanted, add them as a masked overlay in post, as the fallback already plans.",
+   "reviewer": "ai-failure"
+  },
+  {
+   "beat": 1,
+   "severity": "major",
+   "problem": "The S1 motion timing does not match the edit. The brow lift and exhale are timed at 3.5 s, but the clip is trimmed to 0.7–3.1 s, so the only facial event that survives is the blink at 2 s. Credits go on motion that is cut. The 'small left-to-right reading movements' of the eyes are a known Kling failure: darting, twitchy or rolling eyes on the most-watched second of the Reel. The 'raindrop shadows drift downward' over merino makes the knit texture swim.",
+   "fix": "Rewrite the action block: 'He stays seated, looking down at something just below the frame; his gaze stays steady, with no darting eye movements. At about 1.2 seconds he blinks once, naturally. At about 2.2 seconds his brows lift very slightly and he exhales once, softly, through his nose; his shoulders settle a few millimetres.' Delete the raindrop sentence and the reading-movement sentence. Change the trim to 0.6–3.0 s.",
+   "reviewer": "ai-failure"
+  },
+  {
+   "beat": 2,
+   "severity": "major",
+   "problem": "S2's optics are inconsistent. A true 50mm lens on a camera behind his shoulder, about 65–70 cm from the phone, frames about 34 cm horizontally, so a 7 cm phone screen fills about 21 percent of the width, not the 38 percent the prompt asks for. To hit 38 percent at 50mm the camera would have to sit about 38 cm from the phone, which is in front of his face. The model will either shrink the phone, make it tablet-sized, or bend perspective, and the plate gets worse for the composite and the 265% push.",
+   "fix": "Change the camera line to: 'Locked-off camera about 65 centimetres from the phone, just behind and above his right shoulder, looking down at about 20 degrees; true 85mm perspective, f/5.6.' At 85mm and 0.65 m the frame is about 18 cm wide, so a 7 cm screen fills about 38 percent, which matches the spec. At this aperture the focus plane on the screen is only a few centimetres deep: the screen stays sharp while the shoulder and the window blur heavily.",
+   "reviewer": "ai-failure"
+  },
+  {
+   "beat": 2,
+   "severity": "major",
+   "problem": "Three failure modes for the composite. First, the camera sits behind his RIGHT shoulder while the phone is centred in front of HIM, so the lens sees the screen about 15–20° off-axis. Demanding 'exactly perpendicular, no keystone' pushes the model toward a flat, pasted-on phone. Second, a lamp 'beside the desk, level with the phone' in front of a black night window will reflect in the window glass, and possibly show his face reflected, which creates identity chaos. 'It cannot reflect in the glass' is a wish, not geometry. The lamp may also appear in frame, and 'upper 30% no bright light' conflicts with 'city bokeh lights'. Third, a lit screen in a dark room is often rendered blown out, with a bloom halo over the bezel, which ruins the corner pin. His arms are also never placed, so the model may put hands or forearms on the desk next to the stand.",
+   "fix": "Add: 'The phone stands slightly to the right of his centreline, directly on the camera's line of sight past his right ear, so the screen faces the lens. A slight natural perspective is acceptable; all four rounded corners must be visible, crisp and unoccluded. Screen brightness is moderate, not blown out; the bezel edge is crisp with no bloom or halo. His arms rest in his lap below the desk edge; no forearm, hand or finger is anywhere on the desk. The only other light is a dim warm lamp out of frame, behind the camera on the left. The dark window glass shows only faint, formless, defocused reflections, never a readable reflection of him, the lamp or the phone. Beyond the glass are a few small, dim, defocused city lights, none brighter than the screen.' Replace 'like an 18 percent grey card' with 'a uniform neutral mid-grey with no markings'. Composite with a 4-corner pin, which handles any residual keystone.",
+   "reviewer": "ai-failure"
+  },
+  {
+   "beat": 2,
+   "severity": "major",
+   "problem": "S1 is supplied as an image reference with a frontal, lamp-lit face. The model tends to reproduce that face, turning him toward the lens or putting his profile and beard in frame, which violates 'his face is not visible' and competes with the screen. 'Preserve the exact same man: skin tone, hairline and ear shape' makes this worse, because it asks for facial features the shot must not show.",
+   "fix": "Change the reference line to: 'Use the supplied photograph only for his clothing, his skin tone at the neck and ear, the desk, the lamp colour and the room's night atmosphere. New camera position: we see him from behind. We never see his face; only the back of his neck, the rim of his right ear and his right shoulder appear, dark and out of focus in the bottom-left corner.'",
+   "reviewer": "ai-failure"
+  },
+  {
+   "beat": 4,
+   "severity": "major",
+   "problem": "Identity drift and style bleed affect S3 and S4 (and S2 for lighting). Two things pull against each other. The reference image transfers S1's low-key 2700K lamp grade and near-black background into the dawn cabin and the Roman morning. The prompts also re-send the full original text spec ('East African descent ... slim straight nose, full lips ... 1.82 m'). If the approved S1 differs from that text at all (hair length, beard line, collar), the model is pulled between two targets and produces a third face.",
+   "fix": "Open S3 and S4 with: 'Use the supplied photograph only for this man's face, hair, beard, skin tone and clothing. Do not copy its framing, lighting, colour grade or setting.' After S1 is approved, rewrite the person paragraph to describe S1 as it was rendered, or cut it to: 'the same man as in the supplied photograph, unchanged face, beard and hairline, in the same deep navy merino crew-neck with the thin white T-shirt edge at the collar.' Do not re-send spec text that the approved S1 contradicts.",
+   "reviewer": "ai-failure"
+  },
+  {
+   "beat": 5,
+   "severity": "major",
+   "problem": "All three Kling prompts put long 'no ...' lists into the positive prompt, for example 'no doors, no people, vehicles or birds appearing', 'no head turn toward the camera', 'no speaking' and 'no lights turning on or off'. Kling picks up nouns and verbs much more readily than gpt_image does, so naming birds, doors, speaking or head-turns raises the chance of those events. The prompts are also over 150 words and start with parameter headers ('Kling 3.0 image-to-video from S4, mode pro (1080p)...'), which dilutes adherence. This applies to beats 1, 4 and 5.",
+   "fix": "Set the mode, duration, ratio and sound through the API parameters, not the prompt text. Keep each positive prompt under about 90 words: 'Preserve this exact photograph...' plus the camera move plus 2–3 timed actions. Put the exclusions in Kling's negative_prompt field, e.g. 'morphing, warping, face distortion, extra fingers, extra or merging keys, text, logos, watermark, new people, doors, flicker, exposure change, camera shake, cut'.",
+   "reviewer": "ai-failure"
+  },
+  {
+   "beat": 1,
+   "severity": "minor",
+   "problem": "The still prompts carry production metadata and a brand name into the image model: 'STILL S1 of 4, THE IDENTITY ANCHOR (gpt_image_2_5...)', 'Generate and approve this frame before any other spend', 'cinema frame for BOOM', 'this frame will be animated only in post, and its screen will be replaced'. The word BOOM and the labels are exactly what leaks as generated lettering, signage or watermarks, which the hard rules forbid. This applies to all four stills.",
+   "fix": "Strip every header and production note from the text actually sent. Start S1 with: 'One exceptionally credible cinema frame for a service that helps people rent a home in Rome legally from abroad.' Never write the brand name in a generation prompt, and keep the gating notes in the run sheet.",
+   "reviewer": "ai-failure"
+  },
+  {
+   "beat": 5,
+   "severity": "minor",
+   "problem": "The timeline is implausible. S3 shows dawn in 'the last hour' of the flight, and S4 puts him on a Roman street holding keys at 'ROME · 09:12' / 'about 9 am'. Sunrise in Rome in October is about 07:15–07:30, so landing, passport control, baggage and the transfer from FCO leave no time for a 09:12 key handover. It is small, but the on-screen clock invites the arithmetic.",
+   "fix": "Change the eyebrow to 'ROME · 10:40' and S4's light to 'mid-morning, low autumn sun raking along the wall'. Alternatively drop the minutes and use 'ROME · MORNING'.",
+   "reviewer": "ai-failure"
+  },
+  {
+   "beat": 4,
+   "severity": "minor",
+   "problem": "The type contradicts the treatment's own rule of never more than three text elements on screen at once. At 9.05 s the screen shows the headline, four stack rows and a gloss line. At 12.1 s it shows the eyebrow, rows 3–4 and the gloss. The gloss 'Italian Revenue Agency' at 20 px in #8A8A90 over a dark cabin will not survive Instagram compression.",
+   "fix": "Treat the stack as one element and say so in the rule. Raise the gloss to Inter 300, 22 px, #B0B0B6, or merge it into the row as '○ REGISTERED · ITALIAN REVENUE AGENCY' and move 'Agenzia delle Entrate' to the caption.",
+   "reviewer": "ai-failure"
+  },
+  {
+   "beat": 5,
+   "severity": "minor",
+   "problem": "The callback 'Keys when you land. / This time, it's in writing.' is ambiguous about what is in writing. It can read as 'the keys-on-arrival promise is a contract clause', which is not literally true: the keys are handed over with the verbale di consegna, and that is not a lease term.",
+   "fix": "Use 'This time, the lease is in writing.' or 'This time, there's a signed lease.'",
+   "reviewer": "ai-failure"
+  },
+  {
+   "beat": 2,
+   "severity": "minor",
+   "problem": "The fallback for the on-screen content uses two still photos with a '0.5 px handheld micro-jitter so it reads as a live walk'. That fakes live footage from stills on the very beat that claims 'See it live, on video', which is a small but real honesty gap.",
+   "fix": "Use jitter only when the source is the listing's genuinely filmed walkthrough. With stills, use a clean 2D slide or dissolve, with no simulated handheld movement.",
+   "reviewer": "ai-failure"
+  },
+  {
+   "beat": 3,
+   "severity": "minor",
+   "problem": "The crop rule prefers a native 9:16 crop. Real enhanced interior photos are mostly 4:3 landscape, and a 9:16 crop keeps only about 42% of their width, usually a slice of wall or a corner instead of a readable room. That undercuts the proof beat and the rhyme in beat 6. This applies to beats 3 and 6.",
+   "fix": "Make the 4:5 plate on #060607 the default for landscape sources. Allow full-bleed 9:16 only for photos that were shot in portrait, or where a 9:16 crop still contains a recognisable room (sofa plus window, or bed plus window).",
+   "reviewer": "ai-failure"
+  },
+  {
+   "beat": 5,
+   "severity": "minor",
+   "problem": "The generated ochre-palazzo street, followed by the full-bleed real living room in beat 6, implies that this is the building of the chosen listing. If the listing is Bilocale Ponte Milvio (mixed or modern stock), the implied exterior misrepresents a real BOOM property.",
+   "fix": "Pick the listing whose real surroundings match an ochre historic street (Prati or Pigneto) and name that zone in beat 3. If Ponte Milvio is chosen, make S4's backdrop a neutral wall with no period architecture.",
+   "reviewer": "ai-failure"
+  },
+  {
+   "beat": 5,
+   "severity": "blocker",
+   "problem": "REGISTERED turns green at 12.1 s, right under the 'ROME · 09:12' clock and a beat after KEYS goes pending. Every viewer will read that as 'your lease is registered with the Agenzia delle Entrate by the time you land.' BOOM does not offer that. The ASPI send is manual by default (api/fiscal/_aspi.js has auto:false). The legal deadline is 30 days from the earlier of signing and lease start. BOOM's own pages promise 'registered within 30 days' (virtual-viewing.html), not 'registered on arrival'. The treatment's note that 'the order is what BOOM does, not a guaranteed date' never reaches the screen. It also contradicts the treatment's own rule that registration is 'never shown as completed'.",
+   "fix": "Take REGISTERED out of the LED/clock mechanic altogether. In-air stack (beat 4): '● PAID THROUGH BOOM · RECEIPT' / '● LEASE SIGNED ONLINE' / '○ KEYS · ON ARRIVAL'. Ground (beat 5): 'ROME · 09:12' plus 'KEYS · IN HAND' only. Registration moves to the end card as a standing, timeless fact that explains 'Legally.' Under 'Legally.' add a subline in Inter 300 30 px #C9C9CE, two lines, centred: 'Your lease, registered with the / Agenzia delle Entrate.' The claim matches index.html ('Every contract is registered with the Agenzia delle Entrate') without attaching a time to it. Delete the gloss rows at y 612/636 in beats 4 and 5.",
+   "reviewer": "truth-brand"
+  },
+  {
+   "beat": 5,
+   "severity": "blocker",
+   "problem": "'Keys when you land. / This time, it's in writing.' tells the viewer that a keys-on-landing guarantee is written down. The lease states a start date, not a key time. /executive only says a tenancy 'can close before you land — keys on arrival day'. There is also a brand risk: in variant D, BOOM repeats word for word the line it has just attributed to a scammer. A screenshot of beat 5 on its own shows BOOM making the scammer's promise.",
+   "fix": "HEADLINE: 'Keys in hand.' (with 'hand.' in #FFD700). SUBLINE: 'Signed before you flew.' Both are literally what the spot has shown, and neither implies a guarantee. Variant D still rhymes by contrast: the stranger's '“Send the deposit today.” / “Keys when you land.”' against BOOM's 'Signed before you flew.' If the rhyme has to stay, use only this: '“Keys when you land.” / This time, with a signed lease behind it.' Never use 'it's in writing'.",
+   "reviewer": "truth-brand"
+  },
+  {
+   "beat": 2,
+   "severity": "major",
+   "problem": "The S2 prompt contradicts itself on geometry, and this is exactly the failure (phones and hands) that the pipeline cannot reroll. 'Camera just behind and slightly above his right shoulder' puts his right shoulder at frame RIGHT, but the prompt places 'his right shoulder… right ear' in the bottom-LEFT corner. Continuity also demands the LEFT side: in S1 the lamp is camera-right, which is his left, and in the reverse the prompt correctly puts the lamp 'at the far left', lighting 'the edge of his ear'. That is his left ear. There is a second risk: with S1 as the image reference, gpt_image tends to copy S1's face-to-camera composition.",
+   "fix": "Replace these fragments. First: 'A locked-off camera sits just behind and slightly above his LEFT shoulder, looking past him down at the desk at about 20 degrees.' Second: 'Foreground: his left shoulder, the back of his neck and the rim of his left ear fill the bottom-left corner, dark navy, soft and out of focus; the lamp at far left rims that ear with warm light.' Add a lead sentence right after the identity line: 'The supplied photograph is only an identity, wardrobe and room reference. Do NOT reproduce its camera position or framing: this is the reverse angle, from behind him, and his face is not visible.'",
+   "reviewer": "truth-brand"
+  },
+  {
+   "beat": 2,
+   "severity": "major",
+   "problem": "The spot's central claim, 'See it live, on video.', is illustrated with still listing photos and a fake '0.5 px handheld micro-jitter so it reads as a live walk'. This does not break the no-generated-interior rule, but it fakes liveness under a liveness claim. A zero-cost truthful option exists.",
+   "fix": "Put genuinely filmed footage of the chosen listing inside the screen. First choice: the operator shoots an 8–10 s vertical iPhone walk-through at 1080×1920 on publish week (corridor to living room, eye level, slow). Second choice: a screen recording of a real BOOM video viewing, cropped to picture only, with no client face or voice. Stills are a last resort: then 2D drift only and NO simulated handheld jitter. Rewrite the note: 'Never add fake camera shake to stills to imply a live call.'",
+   "reviewer": "truth-brand"
+  },
+  {
+   "beat": 5,
+   "severity": "major",
+   "problem": "S4's generated street is a narrow ochre and terracotta lane with sampietrini cobbles. That is Trastevere/Monti/Centro. The film labels the home 'PRATI' (or Ponte Milvio/Pigneto), then rhymes the street into that listing's real living room (beat 6). The sequence therefore presents a generated neighbourhood as the setting of a real BOOM listing, and gets the zone wrong: Prati is wide Umbertine blocks on asphalt. A viewer who later visits sees the mismatch. There is also an ordering problem: S4 is generated now, but the listing is picked 'on publish day'.",
+   "fix": "Choose the listing BEFORE generating S4, and write the street to match its zone. Prati: 'a quiet residential street of late-1800s Umbertine palazzi in pale cream and travertine grey, tall shuttered windows, plane-tree shade, smooth asphalt with a stone kerb, no cobbles'. Pigneto: 'low 1930s–1950s palazzine in faded ochre and pink plaster, simple balconies, asphalt'. Keep the ochre-and-cobbles lane only if the chosen listing is in Trastevere, Monti or Centro Storico. Alternatively, drop the zone from the beat-3 label.",
+   "reviewer": "truth-brand"
+  },
+  {
+   "beat": 3,
+   "severity": "major",
+   "problem": "The listing candidates are unverified, and the repo snapshots contradict each other. index.html's CASE data marks Bilocale Ponte Milvio (ttvrjazww9oe4tA0wHTf) 'rented' and Trilocale Pigneto 'reserved'; apartments.html shows both 'Available now'. The only Prati card is 'Free from 1 Mar 2027' (PreOrder), which means occupied. A flat in the 'ahead' lane has a sitting tenant, so 'DM “ROME” to book a live viewing' of 'that flat' may not be honoured without the tenant's consent. Also, this spot will be pinned as the main Highlight, so any named listing goes stale once it is let.",
+   "fix": "Rewrite post note (4): 'Pick the listing from the LIVE portal (Listings → 📅 Disponibilità), never from the HTML build snapshots, and ONLY from marketLane now. Do not use ahead: those homes are occupied. Lock it before S4 is generated.' For the Highlight master, change the beat-3 label to 'A REAL BOOM LISTING' with no zone, and diary a re-cut of the beat-2/3/6 photos when the flat is let.",
+   "reviewer": "truth-brand"
+  },
+  {
+   "beat": 4,
+   "severity": "major",
+   "problem": "Type density and legibility contradict the treatment's own rule of 'never more than three text elements on screen at once'. From 9.05 to 11.4 s beat 4 shows the headline, four status rows and a gloss (six elements), leaving about 2.3 s to read them. Beat 5 shows four; the end card shows six. The sizes are also too small once scaled to a phone (factor about 0.36 to points). Rows at 26 px come out around 9 pt; the gloss at 20 px around 7 pt; the legal line at 18 px in #6B6B70 on #060607 is about 6.5 pt at roughly 3.7:1 contrast. That is unreadable, and the legal line is the trust anchor.",
+   "fix": "Beat 4: the headline 'Before you land.' holds 7.5–8.3 s, then fades out before the stack starts. The stack has at most three rows (see the blocker fix), in IBM Plex Mono at 34 px with 60 px row pitch (baselines y 520 / 580 / 640), and no gloss in the air. End card, Reel master: mark, headline, 'Legally.', registration subline and URL. Move the 'DM “ROME”…' CTA into the caption and pinned comment. Legal line at 24 px #9A9AA0, baseline y 1420.",
+   "reviewer": "truth-brand"
+  },
+  {
+   "beat": 7,
+   "severity": "minor",
+   "problem": "'Egidi Immobiliare S.r.l. · licensed agency, Rome' uses an adjective the viewer cannot verify. Italian agencies are registered (REA / Chamber of Commerce), not licensed in a way a foreigner can check. The site already publishes the verifiable ID (faq.html: P.IVA 17322991005, REA RM-1710623). A checkable number beats an adjective in a spot about not trusting strangers.",
+   "fix": "Replace the line with: 'Egidi Immobiliare S.r.l. · REA RM-1710623 · Rome' (Inter 300, 24 px, #9A9AA0).",
+   "reviewer": "truth-brand"
+  },
+  {
+   "beat": 4,
+   "severity": "minor",
+   "problem": "The payment row does not answer the hook. The film opens with 'Don't send a deposit to a stranger' and then shows him paying online. 'PAID · SECURE CHECKOUT · RECEIPT' does not say who received the money, so 'stranger' goes unanswered until the tiny legal line. The row order is also inaccurate: in BOOM's flow the proposal is accepted, then paid via Stripe, then the lease is signed via Magic Sign. 'SIGNED ONLINE' above 'PAID' blurs this.",
+   "fix": "Rows, in this order: '● PAID THROUGH BOOM · RECEIPT' / '● LEASE SIGNED ONLINE' / '○ KEYS · ON ARRIVAL'. 'THROUGH' rather than 'TO' is deliberate: BOOM is the agency, and rent and deposits are the owners' money. It also avoids naming Stripe, which is a third-party brand.",
+   "reviewer": "truth-brand"
+  },
+  {
+   "beat": 3,
+   "severity": "minor",
+   "problem": "'A REAL BOOM HOME' could be read as BOOM owning or operating the flat. CLAUDE.md is explicit that BOOM is only an agency and does not sublet. The site does use the phrase 'BOOM homes', but in a spot built on literal truth the precise word costs nothing.",
+   "fix": "Label: 'A REAL BOOM LISTING · <ZONE>'. On the Highlight master: 'A REAL BOOM LISTING'.",
+   "reviewer": "truth-brand"
+  },
+  {
+   "beat": 2,
+   "severity": "minor",
+   "problem": "The compositing note asks for 'a 4% Screen-mode reflection made from blurred, flipped window bokeh'. That is physically wrong: the screen faces the camera and away from the window, so it cannot reflect the window behind it. A wrong reflection is exactly the detail that makes a composite read as fake.",
+   "fix": "Replace it with: 'a 3% Screen-mode reflection of what is BEHIND the camera: a soft warm smear on the lamp side (frame left) and the dark, defocused silhouette of his head and left shoulder. Never the window.'",
+   "reviewer": "truth-brand"
+  },
+  {
+   "beat": 1,
+   "severity": "major",
+   "problem": "S1's framing instruction contradicts itself, on the frame that gates the whole budget. 'Medium close-up from mid-chest to a little above the top of his head' means almost no headroom. The same prompt also asks for the top of his head at 40% and an empty upper 38% reserved for type. The model will satisfy one instruction or the other; if it picks the MCU, beat 1's headline has nowhere to sit.",
+   "fix": "Replace the line with: 'Medium shot from just below the chest, with deliberately generous headroom: the top of his head sits at 40 percent of frame height, eyes at 54 percent, and everything above his head is the dark, out-of-focus wall.'",
+   "reviewer": "truth-brand"
+  },
+  {
+   "beat": 5,
+   "severity": "minor",
+   "problem": "S4's framing conflicts with itself. 'Medium shot from mid-thigh up' cannot put 'quiet trousers and cobbles' in the bottom 20%, because the ground is out of frame at mid-thigh.",
+   "fix": "Either say 'Medium-wide shot from just below the knees; the bottom 20 percent is trousers and street surface', or keep mid-thigh and write 'the bottom 20 percent is quiet charcoal trousers, no ground visible'. Match the street-surface wording to the zone fix.",
+   "reviewer": "truth-brand"
+  },
+  {
+   "beat": 4,
+   "severity": "minor",
+   "problem": "S3's geometry risks showing the back of his head. From the middle seat, a passenger who turns 45° toward his own window turns away from the camera. The Kling prompt also asks the light band to 'brighten gradually and slide 2 cm', a light change that invites flicker. The treatment banned light changes on beat 1 for exactly that reason.",
+   "fix": "S3: 'The window sits slightly forward of his shoulder at frame left; he turns his head only about 30 degrees toward it, so the camera still sees both eyes, the near cheek and the beard line inside the gold band.' Kling: 'The band of dawn light on his face stays constant in position and brightness; only the clouds outside move.'",
+   "reviewer": "truth-brand"
+  },
+  {
+   "beat": 2,
+   "severity": "minor",
+   "problem": "'See it live, on video.' is slightly clumsy, and the comma splice weakens the gold emphasis on 'live'.",
+   "fix": "HEADLINE: 'See it live.' ('live.' in #FFD700). SUBLINE: 'On video. You direct the camera.' Both are true per index.html and faq.html.",
+   "reviewer": "truth-brand"
+  },
+  {
+   "beat": 0,
+   "severity": "minor",
+   "problem": "The audio plan assumes trending Instagram audio. Business and brand accounts cannot use most commercial trending tracks in Reels, and paid Meta ads cannot use them at all. The edit is supposed to be locked to that track's beat grid.",
+   "fix": "Choose the track from Meta Sound Collection or a royalty-free licence BEFORE locking the beat-3 cuts. Master (b), with the SFX stem, is the default for the paid cut.",
+   "reviewer": "truth-brand"
+  },
+  {
+   "beat": 7,
+   "severity": "minor",
+   "problem": "The link sticker and bio URL are not specified. CLAUDE.md records a failure (8 Sep 2026) where an apex-domain URL returned 'Redirecting...' to a crawler. UTM measurement also depends on the landing URL being exact.",
+   "fix": "The sticker and bio link must be 'https://www.boomrome.com/<page>?utm_source=instagram&utm_medium=story&utm_campaign=lancio-2026-10&utm_content=before-you-land-A', always www. The on-screen 'BOOMROME.COM' is display text only.",
+   "reviewer": "truth-brand"
+  },
+  {
+   "beat": 7,
+   "severity": "minor",
+   "problem": "The paid Meta cut is aimed at expats, including North America. Real-estate rental ads shown to US or Canada audiences must run under Meta's Housing Special Ad Category, which restricts age, gender and postcode targeting. Missing it gets the ad rejected or the account restricted.",
+   "fix": "Add to the post notes: 'Paid master: declare Special Ad Category = Housing whenever the audience includes US/CA; no demographic targeting.'",
+   "reviewer": "truth-brand"
+  },
+  {
+   "beat": 0,
+   "severity": "minor",
+   "problem": "The logline says '9,000 km'. Tokyo to Rome is about 9,850 km. If the logline is reused in the caption or post copy, the number is wrong.",
+   "fix": "In any public copy, write 'almost 10,000 km from Rome' or drop the distance.",
+   "reviewer": "truth-brand"
+  },
+  {
+   "beat": 5,
+   "severity": "blocker",
+   "problem": "The payoff beat is unreadable at mobile speed. The loops the spot sets up close on screen for too short a time to read. KEYS re-flaps to \"KEYS · IN HAND\" at 12.5 s, takes 0.3 s to settle and fades at 13.0 s, so the text is readable for about 0.2 s. REGISTERED is green for 0.9 s. \"This time, it's in writing.\" is fully visible from 14.3 s until the dissolve at 15.0 s, which is 0.7 s. All three are under the 1.2 s floor, and they are the climax.",
+   "fix": "Retime the whole spot. It stays 21.0 s and uses the same assets and the same Kling clips.\n\nNEW BEAT TIMINGS\n- B1 0.0–3.2 (Kling S1 0.7–3.9)\n- B2 3.2–5.9\n- B3 5.9–7.9\n- B4 7.9–11.7 (Kling S3 0.4–4.2)\n- B5 11.7–15.9 (Kling S4 0.4–4.6). If the 4.3–4.6 tail fails QA, freeze-hold the last clean frame under grain.\n- B6 15.9–17.2\n- END 17.2–21.0\n\nINSIDE B5\n- 11.70–12.05: the eyebrow \"ROME 09:12\" flaps in.\n- 12.00: the REGISTERED LED turns green.\n- 12.30: the KEYS LED turns green. There is no text re-flap; the row keeps \"KEYS ON ARRIVAL\".\n- Both rows hold to 13.60, giving 1.6 s and 1.3 s.\n- 13.60–13.80: the stack and eyebrow fade out.\n- 13.80–14.25: the headline \"Keys when you land.\" rises.\n- 14.30–14.60: the subline fades in and holds to 15.90 (1.3 s).\n- From 15.90: an 8-frame warm dissolve into B6.",
+   "reviewer": "reels"
+  },
+  {
+   "beat": 7,
+   "severity": "blocker",
+   "problem": "The Story/Highlight master cannot work as designed. An Instagram link sticker stays visible for the whole story segment and cannot be timed to appear only on the end card. A sticker placed at y 1260–1480 would sit over the protagonist's chest in B1, over the wet desk in B2, over the keys area just below y 1229 in B5 and over the real photos, for all 21 s. It would also hide the first second of the hook.",
+   "fix": "Build the Story/Highlight master as two segments.\n\nSEGMENT 1\n- The film only, 0–20.6 s, with no sticker.\n- Its end card keeps the y 1260–1480 band empty.\n\nSEGMENT 2\n- A separate 6 s end-card video: the same mark, \"Rent in Rome / before you land. / Legally.\" and a 2 s gold sheen loop.\n- The link sticker goes at y 1260–1480, reading \"TAP · LIVE VIDEO VIEWING\", with a utm_medium=story link.\n- Add a line under it: \"or reply ROME\".\n\nPin both segments to the Highlight in that order.",
+   "reviewer": "reels"
+  },
+  {
+   "beat": 1,
+   "severity": "major",
+   "problem": "The planned Reel cover is \"frame 0 with variant A\". On frame 0 the split-flap eyebrow shows random glyphs, because it only settles at 0.45 s. The grid tile and the share preview would therefore show garbled text on the brand's main Reel.",
+   "fix": "Render the cover as a separate 1080×1920 PNG.\n- Use S1 at the Kling frame 1.2 s, with the eyebrow fully settled and the headline.\n- Both already sit at y 332–560, inside the 3:4 profile-grid crop (y 240–1680) and the 4:5 feed crop (y 285–1635).\n- Upload it via Edit cover → Add from camera roll.\n- Do the same for each hook variant. For variant D, render the cover from 1.9 s, with the strike-through visible (see the D issue).",
+   "reviewer": "reels"
+  },
+  {
+   "beat": 1,
+   "severity": "major",
+   "problem": "The hook asks for about 63 characters in 1.95 s of readable time. The eyebrow is only legible from 0.45 s and the cut is at 2.4 s, which is about 32 characters per second against a comfortable 15–17. The viewers are largely non-native English speakers. The 28 px eyebrow is about 10 pt on a phone, yet it is the line that qualifies the audience.",
+   "fix": "Extend B1 to 0.0–3.2 s using Kling S1 0.7–3.9 (covered by the retime in the B5 issue).\n- Speed the flap up to settle by 0.30 s: 3 random glyphs per tile, 8 ms stagger.\n- Eyebrow: IBM Plex Mono 400, 34 px caps, tracking 3, #FFD700, baseline y 356.\n- Headline: Inter 300, 80 px, baselines y 440 and y 530.\n- Nothing else on screen.\n\nIf 3.2 s is refused, cut the eyebrow to \"RENTING IN ROME?\" (16 characters). The headline already carries the \"from abroad\" idea.",
+   "reviewer": "reels"
+  },
+  {
+   "beat": 1,
+   "severity": "major",
+   "problem": "In variant D the quote is readable from frame 0, but the attribution \"A STRANGER ONLINE SAYS:\" is random glyphs until 0.45 s. The first thing a scroller reads on a BOOM post is \"Send the deposit today.\", unattributed, so BOOM reads as the one asking for money. This is the exact reputational inversion the variant was meant to avoid.",
+   "fix": "Variant D, frame 0:\n- The attribution line is already settled. Its tiles only shimmer: a 3-frame hinge bounce with the correct letters.\n- The quote lines render in white 70%, in typographic quotes, with a 2 px #8A8A90 rule at x 70 to their left.\n- At 1.40–1.70 s a 3 px #FFD700 strike-through draws left to right across \"Send the deposit today.\"\n- B2's \"See it live, on video.\" then lands as the answer.\n- The D cover is taken with the strike visible.",
+   "reviewer": "reels"
+  },
+  {
+   "beat": 2,
+   "severity": "major",
+   "problem": "The type is not specified relative to the push-through. If it scales with the comp during the 104→265% move, the subline flies off before it can be read. If it holds, it overlaps the push. With the push starting at 4.55 s, \"You direct the camera.\" is fully legible for only about 1.1 s, from 3.45 s.",
+   "fix": "Put all B2 type on a screen-space layer above the comp that never scales. Timings on the retimed clock (B2 3.2–5.9):\n- 3.25–3.55: the eyebrow flaps in.\n- 3.30–3.75: the headline rises.\n- 3.80–4.10: the subline fades in.\n- 5.30–5.45: all three fade out.\n- 5.45–5.90: the push-through runs on a clean frame.\n\nThis gives the subline 1.2 s, the headline 1.55 s and the eyebrow 1.75 s.",
+   "reviewer": "reels"
+  },
+  {
+   "beat": 2,
+   "severity": "major",
+   "problem": "The brand is invisible until 16.6 s, apart from a 22 px bottom label at about 5 s. Most Reel viewers, and most paid-ad viewers, leave before the end card. They absorb the fear and the promise but not whose promise it is, and the username in the UI is not brand recall. Meta's own guidance is brand within the first 3 s.",
+   "fix": "Change the B2 subline to: \"With BOOM, you direct the camera.\"\n- Inter 300, 36 px, #D9D9DE, with \"BOOM\" in Inter 400 #FFD700.\n- Position x 84, baseline y 506.\n\nThis brings the name in at about 3.8 s and adds no extra element on screen. The enlarged top label in B3 (next issue) repeats BOOM at about 6 s.",
+   "reviewer": "reels"
+  },
+  {
+   "beat": 3,
+   "severity": "major",
+   "problem": "The trust-critical label \"A REAL BOOM HOME · PRATI\" is 22 px (about 8 pt on a phone) and sits at baseline y 1440. That is the zone the Reels caption, username and audio overlay grow into when the caption runs to two lines. The label that separates real homes from renders is the least legible text in the spot.",
+   "fix": "Move it to the top grid.\n- Text: \"A REAL BOOM HOME · <ZONE>\"\n- IBM Plex Mono 400, 34 px caps, tracking 3, #FFD700.\n- Position x 84, baseline y 356.\n- Visible 5.95–7.85 s (1.9 s).\n- Add a top scrim: black 45% at y 269 fading to 0 at y 560. Real photos usually have bright ceilings or windows up there.\n- Delete the bottom-left scrim.\n\nThe three photos run about 0.67 s each, snapped to the chosen track's beat grid.",
+   "reviewer": "reels"
+  },
+  {
+   "beat": 4,
+   "severity": "major",
+   "problem": "The status stack is too dense and too small.\n- About 134 characters appear in 4 s.\n- The rows arrive every 0.35 s, faster than a 32-character row can be read (about 1.9 s).\n- The mono is 26 px (about 9.4 pt on a phone). The gloss \"Italian Revenue Agency\" is 20 px grey (about 7 pt), unreadable, and it is the only part of the registration claim an expat understands.\n- With headline, four rows and gloss, six elements are on screen, which contradicts the treatment's own \"max 3 at once\" claim.",
+   "fix": "ROW TEXT (IBM Plex Mono 400, 32 px caps, tracking 2)\n- ● SIGNED ONLINE\n- ● PAID ONLINE · RECEIPT\n- ○ REGISTERED · ITALIAN TAX AGENCY, with an optional gloss \"Agenzia delle Entrate\" beneath in Inter 300, 24 px, #A0A0A6\n- ○ KEYS ON ARRIVAL\n\nPOSITIONS\n- Headline: Inter 300, 80 px, baseline y 420.\n- Row baselines: y 500, 552, 604; gloss at y 630; last row at y 680. All sit inside S3's calm ceiling (y < 730).\n- LEDs: 16 px, centred at x 92.\n\nTIMING (retimed B4 7.9–11.7)\n- Headline at 8.00.\n- Rows at 8.60, 9.20, 9.80 and 10.40, each an 8-frame wipe.\n- The done LEDs turn green 150 ms after their row lands.\n- Everything holds to 11.7, so the last row gets 1.3 s.\n\nTreat the stack as one list element in the density rule.",
+   "reviewer": "reels"
+  },
+  {
+   "beat": 5,
+   "severity": "major",
+   "problem": "The headline is set over the brightest area of the spot. S4's reserved type zone is described as \"sunlit upper facade … strip of sky\". White Inter at a thin weight, and especially the #FFD700 \"land.\" over sunlit ochre plaster, gives roughly 1.3–1.9:1 contrast. At y 440 the specified scrim (35%→0 over y 0–760) is only about 15% black. After Instagram compression the line will be illegible exactly where the payoff lands.",
+   "fix": "Rewrite the S4 composition and light lines as follows:\n\n\"The street runs left-to-right across the frame. Low morning sun shines along its length from frame right, lighting his face, beard and sweater in warm gold. The facade behind him runs parallel to the sun and receives only grazing light, so it sits in soft, warm open shade two to three stops darker than his lit face: an even mid-dark grey-ochre with closed shutters barely readable. No sky is visible anywhere in the frame. The upper 36 percent of the frame is this evenly shaded, softly out-of-focus facade with no bright patches, reserved for type.\"\n\nIn post:\n- Scrim black 55% at y 269 fading to 0 at y 780.\n- Gold words only where the local background luminance is below 25%. Otherwise set \"land.\" in white Inter 400.",
+   "reviewer": "reels"
+  },
+  {
+   "beat": 5,
+   "severity": "major",
+   "problem": "The copy is broken in the default master. \"This time, it's in writing.\" only makes sense after variant D, where a stranger promised \"Keys when you land.\" In variants A and B nobody made an earlier promise, so \"This time\" refers to nothing and the emotional callback fails in the version most people will see.",
+   "fix": "Make the subline depend on the variant:\n- A and B: \"Keys when you land. / Every step in writing.\" This is true: proposal, contract, receipt and handover report are all written.\n- D only: \"Keys when you land. / This time, it's in writing.\"\n\nSubline type: Inter 300, 36 px, #D9D9DE, x 84, baseline y 506.",
+   "reviewer": "reels"
+  },
+  {
+   "beat": 7,
+   "severity": "major",
+   "problem": "The call to action is the least legible line in the spot.\n- \"DM “ROME” TO BOOK A LIVE VIEWING\" is 22 px mono at 60% white, about 8 pt on a phone.\n- It appears only at 18.5 s, after most viewers have left.\n- The Reel master prints BOOMROME.COM, but links in Reels are not tappable and no \"link in bio\" cue is given.\n- The end card is 4.4 s, 21% of the runtime, most of it static.",
+   "fix": "REEL END CARD, 17.2–21.0 s, centred on x 540\n- Mark at 17.2, 240 px wide, centred at y 620.\n- \"Rent in Rome / before you land.\" at 17.5: Inter 300, 76 px, baselines y 920 and y 1006.\n- \"Legally.\" at 17.9: Inter 400, 76 px, #FFD700, baseline y 1102.\n- \"DM “ROME” for a live video viewing\" at 18.2: Inter 400, 40 px, #FFFFFF, baseline y 1230.\n- \"LINK IN BIO · BOOMROME.COM\" at 18.4: IBM Plex Mono, 30 px, #FFD700, baseline y 1300.\n- Hold to 20.6, then dim to black.\n\nCAPTION AND COMMENTS\n- Caption line 1: \"DM ROME for a live video viewing of a real BOOM home. Sign, pay and register your Rome lease before you land.\"\n- Pin the same line as the first comment.\n\nBefore publishing, save an Instagram quick reply for ROME that sends the booking link.",
+   "reviewer": "reels"
+  },
+  {
+   "beat": 0,
+   "severity": "major",
+   "problem": "The audio plan conflicts with platform rules.\n- A Business Instagram account gets only a restricted, mostly royalty-free music library, and many trending tracks are unavailable to it.\n- A Reel carrying licensed trending audio cannot be boosted or run as a paid ad with that audio.\n- Audio picked in-app at publish time will not follow cuts that were timed to the beat of a different track.",
+   "fix": "Before locking the edit, pick a track from Meta's Sound Collection or from a library licensed for paid social. Cut B3 and the end-card beats to its grid.\n\nDeliver:\n- (a) The organic Reel with that track embedded as original audio.\n- (b) The paid master with the same track plus the SFX stem mixed at −18 LUFS.\n- (c) A clean, silent master.\n\nUse in-app trending audio only if @boomrome is a Creator account and the post will never be boosted.",
+   "reviewer": "reels"
+  },
+  {
+   "beat": 0,
+   "severity": "minor",
+   "problem": "The type weights and sizes are too fragile for Instagram's re-encode. Inter 200 at 80 px, the 30 px sublines, the 26–28 px mono and the 18–20 px gloss and legal lines lose their thin strokes, especially over grain and bright plaster. Many lines fall below the roughly 11 pt phone floor.",
+   "fix": "TYPE SYSTEM\n- Headlines: Inter 300, 76–80 px. Gold emphasis words: Inter 400.\n- Sublines: Inter 300, 36 px.\n- All mono: at least 32 px (the top-grid eyebrows 34 px).\n- Nothing under 30 px on the 1080 canvas except the optional Italian gloss (24 px).\n- Keep the 0 2px 24px rgba(0,0,0,.45) shadow on every line placed over footage.",
+   "reviewer": "reels"
+  },
+  {
+   "beat": 0,
+   "severity": "minor",
+   "problem": "The near-black frames will break up on Instagram. B1's upper 38% of flat near-black with grain, B2's dark window and the #060607 end card are the conditions where Instagram's encoder produces blocking and banding, right where the hook text sits. The frame rate is also unchecked: a 30 fps Kling output conformed to a 24 fps master judders.",
+   "fix": "S1 PROMPT\nReplace \"calm, near-black negative space\" with: \"the same dark-grey plaster wall in deep shadow with a very soft tonal falloff, never a flat black void\".\n\nPOST\n- Hold the black floor at about RGB 10 in type areas.\n- Keep grain at 1–1.5% for these frames.\n- Set the master frame rate to Kling's native output after checking it; do not conform.\n\nEXPORT AND UPLOAD\n- H.264 High, 1080×1920, 20 Mbps, AAC 48 kHz.\n- Upload from the phone app with \"Upload at highest quality\" switched on.",
+   "reviewer": "reels"
+  },
+  {
+   "beat": 0,
+   "severity": "minor",
+   "problem": "Hook variants A, B and D cannot be measured with UTMs if they are posted organically. Reel links are not tappable, so every variant funnels through the same bio link and the same DM keyword. Posting three near-identical Reels to the grid also risks duplicate-content suppression.",
+   "fix": "TEST THE HOOKS WITHOUT CANNIBALISING\n- Publish A to the grid.\n- Run B and D as Instagram Trial Reels, which are shown to non-followers only, and compare the 3-second hold and the skip rate in Insights.\n- For paid, run a Meta A/B test on the three covers and first seconds, each with its own utm_content.\n\nUTM FORMAT\nutm_content=before-you-land-A, before-you-land-B or before-you-land-D.",
+   "reviewer": "reels"
+  },
+  {
+   "beat": 0,
+   "severity": "minor",
+   "problem": "At 21 s the spot suits the organic Reel. For paid Reels and Stories placements it loses completion rate, and the retention drop sits in the 7.9–15.9 s stretch, which is two slow shots.",
+   "fix": "Also deliver a 15.0 s paid cutdown at no credit cost:\n- B1: 0–3.0\n- B2: 3.0–5.6\n- B3: one real photo only, 5.6–6.6\n- B4: 6.6–9.8, rows at 7.2, 7.7, 8.2 and 8.7\n- B5: 9.8–13.0, LEDs at 10.0 and 10.3, headline at 11.4, subline at 11.9\n- END: 13.0–15.0, with the CTA line only\n\nB6 is dropped.",
+   "reviewer": "reels"
+  },
+  {
+   "beat": 0,
+   "severity": "minor",
+   "problem": "The paid plan assumes lookalike and detailed targeting. That may not be allowed: housing ads targeting the US or Canada must run under Meta's Special Ad Category \"Housing\", which removes lookalikes and age, gender and postcode targeting. The rules for other countries have not been checked.",
+   "fix": "Before briefing the paid version:\n- Check the current Special Ad Category rules for every targeted country.\n- If the Housing category applies, plan with Special Ad Audiences and broad interest targeting.\n- Use the Click-to-Instagram-Direct objective, which matches the DM \"ROME\" call to action.",
+   "reviewer": "reels"
+  },
+  {
+   "beat": 1,
+   "severity": "minor",
+   "problem": "The whole spot's performance depends on the S1 Kling clip, the hook, yet the budget plan has no reroll anywhere. The zero-credit fallback, a 3% push on the still, gives much weaker motion in the most important second.",
+   "fix": "Check the credit balance after the four stills and the three pro 1080p clips.\n- If anything is left, reserve the next Kling pro 1080p generation for B1 only, not for B4 or B5.\n- Generate B1's clip first and QA it before spending on S3 and S4 clips.",
+   "reviewer": "reels"
+  },
+  {
+   "beat": 2,
+   "severity": "minor",
+   "problem": "The phone shows a still photo with a 0.5 px jitter presented as a live video walk. That reads as fake on a large 4K composite and weakens the claim \"see it live\". It is the one beat where real footage is cheap: BOOM is in Rome.",
+   "fix": "The operator shoots 10–12 s of vertical iPhone footage of the chosen listing at 1080p24, stabilised, walking from the entrance into the daylit living room. Composite it on the screen from 3.2 to 5.45 s.\n\nThe push-through ends on a frame of that walk, and B3 opens on the matching real photo.\n\nIf footage is impossible, remove the jitter and use a plain 2D drift.",
+   "reviewer": "reels"
+  },
+  {
+   "beat": 2,
+   "severity": "minor",
+   "problem": "The S2 geometry is physically impossible. With \"true 50mm\" and the camera behind his shoulder, about 70 cm from the phone, a phone screen about 7 cm wide fills only about 25% of the frame width. To hit the 38% instruction the model will enlarge the device into a tablet, which is obvious at mobile size.",
+   "fix": "Replace \"true 50mm perspective, f/2.8\" with:\n\n\"true 85mm perspective, camera about 70 centimetres from the phone, just behind and above his right shoulder, f/2.8, so the phone screen fills about 38 percent of the frame width at its real size.\"",
+   "reviewer": "reels"
+  },
+  {
+   "beat": 5,
+   "severity": "minor",
+   "problem": "The street does not match the labelled zone. B3 labels the home with a zone (e.g. PRATI or PONTE MILVIO), and B5 then shows a narrow ochre medieval-looking alley. Prati is wide boulevards and 19th-century palazzi. Locals, and the Rome-based expats who share these posts, will spot the mismatch. The montage also implies the alley is that home's street.",
+   "fix": "Choose the listing before generating S4, then either:\n- (a) Add a zone line to the S4 prompt. For Prati: \"a quiet residential side street of late-19th-century five-storey palazzi in pale cream and grey plaster with travertine bases and plane trees\". The no-entrance rule still applies.\n- (b) Or set the B3 label to \"A REAL BOOM HOME · ROME\".",
+   "reviewer": "reels"
+  },
+  {
+   "beat": 7,
+   "severity": "minor",
+   "problem": "The legal micro-line \"Egidi Immobiliare S.r.l. · licensed agency, Rome\" is 18 px #6B6B70, about 6.5 pt. It cannot be read on a phone, so it adds clutter without adding trust.",
+   "fix": "Reel: drop the line from the end card and put it in the caption's last line.\n\nStory end segment and paid master: set it at 26 px Inter 300 #8A8A90, baseline y 1380.",
+   "reviewer": "reels"
+  },
+  {
+   "beat": 7,
+   "severity": "minor",
+   "problem": "As the main pinned Highlight, a single 21 s story will be tapped past before its end. Highlight visitors are warm and want the how-to and the link, not another hook.",
+   "fix": "Highlight \"RENT FROM ABROAD\", with cover = the gold mark on #060607:\n1. The film (segment 1).\n2. A static 5 s card: \"Live video viewing → Sign online → Pay with receipt → Registered lease → Keys on arrival\", one line each, Inter 300, 44 px.\n3. The sticker end segment (segment 2).\n\nThis gives a fast-tapper the promise and the link within about 10 s.",
+   "reviewer": "reels"
+  }
+ ]
+}
