@@ -68,7 +68,7 @@ service cloud.firestore {
                         && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
                              'role', 'email', 'landlordId', 'ownerSetup', 'ownerActivatedAt',
                              'ownerInvitedAt', 'ownerInviteCount', 'ownerInviteError',
-                             'ownerLastSeenAt', 'ownerAreaSince']));
+                             'ownerLastSeenAt', 'ownerAreaSince', 'ownerVisitAt', 'ownerPrevVisitAt']));
       allow delete: if isAdmin();
     }
 

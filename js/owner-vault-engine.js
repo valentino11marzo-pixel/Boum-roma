@@ -342,6 +342,13 @@
     return 'occupied';
   }
 
+  function coverOf(p) {
+    var photos = list(p.photos).map(function (x) { return typeof x === 'string' ? x : x && x.url; });
+    var tries = [p.heroPhoto].concat(photos, [p.image, p.coverImage]);
+    for (var i = 0; i < tries.length; i++) { var u = safeUrl(tries[i]); if (u) return u; }
+    return '';
+  }
+
   function buildVault(input) {
     var I = input || {};
     var today = day(I.now || new Date()) || new Date().toISOString().slice(0, 10);
@@ -368,6 +375,9 @@
         name: str(p.name) || str(p.address) || 'Immobile',
         address: str(p.address), zone: str(p.zone || p.neighborhood), unit: str(p.interno || p.unit),
         sqm: Number(p.sqm) || null,
+        // il volto dell'immobile: la foto vera (Photo Studio del portal) se
+        // c'è, passata dalla stessa regola dei documenti — mai un host altrui
+        cover: coverOf(p),
         status: status(cv, today),
         contract: cv, pastContracts: past,
         money: money,

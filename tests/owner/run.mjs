@@ -312,6 +312,40 @@ console.log('\n── api/owners/vault');
   check('rules: da sé non si riscrivono email, landlordId e lo stato dell\'area', /hasAny\(\[[^\]]*'email'[^\]]*'landlordId'[^\]]*'ownerSetup'/.test(rules));
 }
 
+// ═══ 2b. «Dalla tua ultima visita» e il volto della casa ═════════════
+console.log('\n── visite e copertina');
+{
+  const { visitWindow } = await import('../../api/owners/vault.js');
+  const now = '2026-09-30T12:00:00.000Z';
+  const w0 = visitWindow({}, now);
+  check('primo accesso → since null (niente «Nuovo»: sarebbe tutto nuovo)', w0.since === null && w0.patch.ownerVisitAt === now && !('ownerPrevVisitAt' in w0.patch));
+  const w1 = visitWindow({ ownerVisitAt: '2026-09-30T09:00:00.000Z', ownerPrevVisitAt: '2026-09-20T08:00:00.000Z' }, now);
+  check('ricaricare dentro 6 ore NON sposta il confine (i «Nuovo» non spariscono)', w1.since === '2026-09-20T08:00:00.000Z' && w1.patch === null);
+  const w2 = visitWindow({ ownerVisitAt: '2026-09-29T09:00:00.000Z', ownerPrevVisitAt: '2026-09-20T08:00:00.000Z' }, now);
+  check('dopo 6 ore nasce una visita nuova: la vecchia diventa il confine', w2.since === '2026-09-29T09:00:00.000Z' && w2.patch.ownerPrevVisitAt === '2026-09-29T09:00:00.000Z' && w2.patch.ownerVisitAt === now);
+  const w3 = visitWindow({ ownerLastSeenAt: '2026-09-01T10:00:00.000Z' }, now);
+  check('profili di prima (solo ownerLastSeenAt) → quel timbro fa da confine', w3.since === '2026-09-01T10:00:00.000Z');
+  seed();
+  store.set('users/anna', { ...store.get('users/anna'), ownerVisitAt: '2026-09-01T10:00:00.000Z' });
+  let r = await call(vaultH, { method: 'GET', token: 'anna' });
+  check('la porta risponde col confine della visita precedente', r.code === 200 && r.body.since === '2026-09-01T10:00:00.000Z', r.body.since);
+  const u = store.get('users/anna');
+  check('…e apre la visita nuova sul profilo', u.ownerPrevVisitAt === '2026-09-01T10:00:00.000Z' && u.ownerVisitAt > '2026-09-01T10:00:00.000Z');
+  r = await call(vaultH, { method: 'GET', token: 'anna' });
+  check('un refresh subito dopo tiene lo stesso confine', r.body.since === '2026-09-01T10:00:00.000Z');
+  const snap = JSON.stringify(store.get('users/anna'));
+  r = await call(vaultH, { method: 'GET', token: 'admin1', query: { ownerId: 'anna' } });
+  check('anteprima admin: vede il confine del proprietario, ma non scrive niente', r.body.since === '2026-09-01T10:00:00.000Z' && JSON.stringify(store.get('users/anna')) === snap);
+  const rules = readFileSync(new URL('../../firestore.rules', import.meta.url), 'utf8');
+  check('rules: le visite le scrive solo il server', /'ownerVisitAt', 'ownerPrevVisitAt'/.test(rules));
+  // la copertina: la foto vera se c'è, MAI un host altrui
+  const cov = (p) => OWNER.buildVault({ now: '2026-09-30', properties: [Object.assign({ id: 'x' }, p)] }).properties[0].cover;
+  check('copertina: heroPhoto del Photo Studio', cov({ heroPhoto: FS + 'hero?alt=media', photos: [{ url: FS + 'p1?alt=media' }] }) === FS + 'hero?alt=media');
+  check('copertina: senza hero, la prima foto (oggetto o stringa)', cov({ photos: [{ url: FS + 'p1?alt=media' }] }) === FS + 'p1?alt=media' && cov({ photos: [FS + 'p2?alt=media'] }) === FS + 'p2?alt=media');
+  check('copertina: un host estraneo non passa, si scende alla foto successiva', cov({ heroPhoto: 'https://evil.example/x.jpg', photos: [{ url: FS + 'ok?alt=media' }] }) === FS + 'ok?alt=media');
+  check('copertina: niente foto → stringa vuota (la pagina disegna la facciata)', cov({}) === '' && cov({ image: 'http://insecure/x.jpg' }) === '');
+}
+
 // ═══ 3. Invito + attivazione: l'account nasce, la password è sua ══════
 console.log('\n── invito e attivazione');
 {
@@ -450,6 +484,14 @@ console.log('\n── la pagina /owner');
   check('/owner non indicizzato e non in cache', (vj.headers || []).some((h) => /\(owner\|/.test(h.source) && h.headers.some((x) => /no-store/.test(x.value))));
   check('il pattern privato NON copre /owners (pagina pubblica)', !(vj.headers || []).some((h) => h.source === '/(owner)(.*)'));
   const fin = readFileSync(new URL('../../api/sign/_finalize.js', import.meta.url), 'utf8');
+  // la demo pubblica: lo stesso motore, nessuna porta, nessun Firebase
+  check('Firebase non è uno script statico (la demo non lo scarica)', !/<script src="https:\/\/www\.gstatic\.com\/firebasejs/.test(html) && html.includes('firebaseReady()'));
+  check('la demo usa il motore VERO, non un JSON scritto a mano', /startDemo[\s\S]{0,200}owner-vault-engine\.js/.test(html) && html.includes('BOOM_OWNER.buildVault(DEMO_IN.input)'));
+  check('nella demo documenti e firma non portano a file veri: lo si dice', /if\(!DEMO\)return;[\s\S]{0,200}demo=1#/.test(html));
+  check('nella demo il caricamento non manda niente a nessuno', /if\(DEMO\)\{demoUpload\(\);return\}/.test(html));
+  const own = readFileSync(new URL('../../owners.html', import.meta.url), 'utf8');
+  check('owners.html porta all\'area d\'esempio vera', (own.match(/href="\/owner\?demo=1"/g) || []).length >= 2);
+  check('owners.html non promette più ciò che l\'area non fa', !/app\.boomrome\.com\/proprietari|media annua|Approvazione preventivi online|Ticket manutenzione con foto|Ispezioni programmate|Alert pagamento in ritardo|Rinnovo APE/.test(own));
   check('finalize: l\'area nasce PRIMA del benvenuto (il link viaggia dentro)', fin.indexOf('maybeOwnerArea(contract, property)') > 0 && fin.indexOf('maybeOwnerArea(contract, property)') < fin.indexOf('sendWelcomeEmails(contract, property'));
 }
 

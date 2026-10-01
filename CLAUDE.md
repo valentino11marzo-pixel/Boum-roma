@@ -112,7 +112,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `vercel.json` | Deployment config, rewrites, cron schedule. |
 | `js/firebase-config.js` | Firebase project config (`boom-property-dashboards`). |
 | `js/boom-portal.js` | Shared portal lib — `window.BoomPortal` API. |
-| `owner-dashboard.html` | **L'area proprietario** (`/owner`, rewrite — il `?attiva=` non si perde): tutto quello che il proprietario ha con BOOM da UNA chiamata a `/api/owners/vault` (motore `js/owner-vault-engine.js`). Vedi "L'area proprietario". Test: `node tests/owner/run.mjs` + `tests/owner/ui.mjs`. |
+| `owner-dashboard.html` | **L'area proprietario** (`/owner`, rewrite — il `?attiva=` non si perde): tutto quello che il proprietario ha con BOOM da UNA chiamata a `/api/owners/vault` (motore `js/owner-vault-engine.js`). `/owner?demo=1` = la stessa pagina sullo stesso motore con dati d'esempio dichiarati (il convertitore di `/owners`). Studio: `STUDIO_AREA_PROPRIETARIO.md`. Vedi "L'area proprietario". Test: `node tests/owner/run.mjs` + `tests/owner/ui.mjs`. |
 | `tenant.html` | Tenant SPA. Realtime property + maintenance feed. |
 | `client-portal.html` | PFS client swipe app. Reads `pfsClients` collection. |
 | `pfs-command.html` | **La plancia unica del PFS** (admin): TUTTO il flusso Property Finding in una pagina. Pipeline per stage (giorni-in-stage, chip lenti in ambra) → fascicolo cliente a drawer (criteri, ricerche, mazzo con esiti/rimozione, attività, link portale con codice BM…, WhatsApp, cambio stage con la STESSA scrittura del portal) → creazione cliente (nasce col portale attivo) → feed radar con fiuto 💎/badge cluster/filtro occasioni + azione «→ Proponi a…» (push curato via `api/casafari/import`, conferma sulle agenzie) → strip occasioni (radarState) → ricerche automatiche + **vedette** (stessa collection della Centrale) → triage swipe, ⌘K, brief AI, salute fonti. |
@@ -2338,17 +2338,50 @@ un'email, mai chi è già attivo o è stato invitato da meno di 30 giorni).
 WhatsApp, «👁 Vedi come lui»); nella sidebar del landlord «🗄️ La mia area».
 Il rendiconto mensile rimanda all'area.
 
+**Il prodotto, non solo la pagina (1/10/2026 — `STUDIO_AREA_PROPRIETARIO.md`).**
+Tre obiezioni prima del design: (1) una pagina dietro il login non converte
+nessuno → **`/owner?demo=1`**, la stessa pagina sullo STESSO motore
+(`buildVault` su dati d'esempio relativi a oggi, nastro «Esempio dal vivo»,
+nessuna chiamata a `/api/`, Firebase non scaricato — ora si carica su
+richiesta, `firebaseReady()`, solo fuori dalla demo; i documenti e la firma
+d'esempio dicono «nell'area vera…» invece di aprire un file inesistente, il
+caricamento chiude il fascicolo senza mandare niente); (2) **`owners.html`
+vendeva un prodotto che non esiste** — `app.boomrome.com/proprietari`,
+«Occupazione 96% media annua», approvazione preventivi online, ticket con
+foto, alert di ritardo, ispezioni, rinnovo APE: corretto con ciò che l'area
+fa davvero, e il device e i bottoni aprono la demo; (3) la «dipendenza» viene
+da tre anelli ONESTI, non da gamification: **«Dalla tua ultima visita»**
+(`api/owners/vault.js` → `since`, `visitWindow`: una visita è una sessione di
+6 ore — ricaricare non fa sparire i «Nuovo»; `ownerVisitAt/ownerPrevVisitAt`
+scritti solo dal server, nelle rules; l'anteprima admin vede il confine e non
+scrive), **il fascicolo che si chiude** (anello x/4, scintille d'oro e anello
+che avanza al caricamento), **i soldi che si vedono** (12 barre: incassato
+oro, in ritardo rosso `#E5484D`, in arrivo CAVO — palette passata dal
+validatore dataviz: il vecchio corallo contro l'oro falliva la separazione
+deutan, ΔE 4.8; tooltip per mese e tabella per i lettori di schermo).
+Il "badge 3D" di ogni sezione è un **emblema coniato in CSS 3D + SVG** (oro
+pieno = richiede te, ossidiana = il resto; si conia all'ingresso, segue il
+puntatore solo col mouse), mai WebGL. Icone SVG al posto delle emoji. Le case
+hanno un volto: la foto del Photo Studio (`property.cover`, stessa regola
+`safeUrl` dei documenti) o una **facciata disegnata** derivata dall'id — mai
+spacciata per una foto. Numeri che salgono (il valore finale è sempre nel
+DOM), View Transitions casa → dettaglio, dock su telefono, scheletro al
+caricamento, attivazione con forza della password e occhio. Tutto il
+movimento si spegne con `prefers-reduced-motion`.
+
 **Da fare fuori dal codice**: il template email di reset di Firebase
 (Authentication → Templates) andrebbe comunque tradotto e firmato BOOM —
 resta la via di «Password dimenticata» dopo l'attivazione.
 **Non risolto qui (spawn_task)**: i token di firma stanno in chiaro sul
 contratto, che conduttore e locatore leggono dal browser via rules — un
 conduttore può leggere il token del locatore.
-Test: `node tests/owner/run.mjs` (88 check — motore con 3 mutazioni,
-perimetro dell'identità, porta della cassaforte, invito→attivazione col
-giro VERO di Identity Toolkit, backfill, finalize, il proprietario che non
-è un operatore, upload) + `node tests/owner/ui.mjs` (38 check in Chromium a
-390/1440px).
+Test: `node tests/owner/run.mjs` (107 check — motore con 3 mutazioni,
+perimetro dell'identità, porta della cassaforte, visite e copertina,
+invito→attivazione col giro VERO di Identity Toolkit, backfill, finalize, il
+proprietario che non è un operatore, upload, demo e owners.html sulla
+sorgente) + `node tests/owner/ui.mjs` (80 check in Chromium a 390/1440px:
+polso e grafico col tooltip, «Nuovi», emblemi, facciate, dock, fascicolo,
+reduced motion, la demo senza rete che chiude il fascicolo, attivazione).
 
 ### Conservazione (`GET/POST /api/ops/conservazione`, cron il 2 del mese 05:40 UTC)
 L'archivio legale FUORI da Firebase, senza nuovi servizi: il 2 del mese i

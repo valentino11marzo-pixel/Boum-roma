@@ -5,7 +5,8 @@
 // Auth:    Bearer <firebase-id-token> — proprietario (landlord) → la SUA
 //          area; admin → ?ownerId=<users uid | landlords id> = «vedi come la
 //          vede lui» (anteprima: nessuna scrittura, nessun timbro di visita).
-// Returns: { ok, owner:{name,email}, preview, vault } — vault è l'uscita di
+// Returns: { ok, owner:{name,email}, preview, since, vault } — since =
+//          inizio della visita precedente (vedi visitWindow) — vault è l'uscita di
 //          js/owner-vault-engine.js (buildVault): immobili, contratto, soldi,
 //          scadenze, storia, cosa manca, documenti in cartelle, rendiconti.
 //
@@ -41,6 +42,25 @@ export async function resolveOwner(auth, ownerId) {
   if (uid && profile) for (const k of await ownerKeys(uid, profile)) keys.add(k);
   if (!profile && l) profile = { name: l.name || [l.firstName, l.lastName].filter(Boolean).join(' '), email: l.email || '' };
   return { keys, uid, profile: profile || {}, preview: true };
+}
+
+// «Dalla tua ultima visita»: una VISITA è una sessione, non un caricamento —
+// se il timbro si spostasse a ogni refresh, il proprietario che ricarica la
+// pagina vedrebbe sparire i «Nuovo» che non ha ancora letto. Finestra di 6
+// ore: dentro, `since` resta l'inizio della visita PRECEDENTE; fuori, nasce
+// una visita nuova e la vecchia diventa il confine. Primo accesso → null
+// (niente «Nuovo»: sarebbe tutto nuovo, cioè niente).
+const VISIT_GAP_MS = 6 * 3600 * 1000;
+export function visitWindow(profile, nowIso) {
+  const p = profile || {};
+  const cur = Date.parse(p.ownerVisitAt || '');
+  if (Number.isFinite(cur) && Date.parse(nowIso) - cur < VISIT_GAP_MS) {
+    return { since: p.ownerPrevVisitAt || null, patch: null };
+  }
+  const prev = p.ownerVisitAt || p.ownerLastSeenAt || null;
+  const patch = { ownerVisitAt: nowIso };
+  if (prev) patch.ownerPrevVisitAt = prev;
+  return { since: prev, patch };
 }
 
 const byField = (col, field, value, limit) =>
@@ -104,12 +124,15 @@ export default async function handler(req, res) {
   // La visita del proprietario è un'informazione per l'operatore (chi guarda
   // davvero la sua area). Attesa, ma non blocca: un timbro fallito non
   // toglie l'area a nessuno. Mai in anteprima admin.
+  const nowIso = new Date().toISOString();
+  const visit = visitWindow(who.profile, nowIso);
   if (!who.preview && auth.uid) {
-    await fsPatch('users/' + auth.uid, { ownerLastSeenAt: new Date().toISOString() }).catch((e) => console.warn('[owners/vault] seen', e.message));
+    await fsPatch('users/' + auth.uid, Object.assign({ ownerLastSeenAt: nowIso }, visit.patch || {}))
+      .catch((e) => console.warn('[owners/vault] seen', e.message));
   }
   const p = who.profile || {};
   return res.status(200).json({
-    ok: true, preview: who.preview,
+    ok: true, preview: who.preview, since: visit.since,
     owner: { name: clip(p.name, 120), email: clip(p.email, 200), activated: !!p.ownerActivatedAt || !p.ownerSetup },
     vault,
   });
