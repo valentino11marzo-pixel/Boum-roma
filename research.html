@@ -305,8 +305,8 @@ html {
                     <span class="svc-portal-badge"><b>●</b> Settling</span>
                 </div>
                 <div class="svc-portal-stat">
-                    <div class="svc-portal-num" data-count="73">0</div>
-                    <div class="svc-portal-statlbl">researchers settled</div>
+                    <div class="svc-portal-num">Settled</div>
+                    <div class="svc-portal-statlbl">home · grant-ready invoice · family support</div>
                 </div>
                 <div class="svc-portal-rows">
                     <div class="svc-portal-row"><span class="svc-portal-av">A</span><span class="svc-portal-rt"><b>Dr. Alvarez</b> · ERC · 2-bed, Trieste</span><span class="svc-portal-ok">Housed ✓</span></div>
@@ -372,7 +372,7 @@ html {
                                     <span class="bf-ok" style="margin-top:10px">✓ Verified &amp; qualified</span>
                                 </div>
                             </div>
-                            <div class="bf-scene" data-pill="Step 2 · Match" data-cap="We scan 1,200+ verified homes and surface the best matches">
+                            <div class="bf-scene" data-pill="Step 2 · Match" data-cap="We match the brief against verified homes and surface the best fits">
                                 <div class="bf-h"><span class="step">2</span> Smart match</div>
                                 <div class="bf-scan"><span>Scanning verified network…</span><span class="bf-scanbar"></span></div>
                                 <div class="bf-matches">
@@ -391,7 +391,7 @@ html {
                                     <div class="bf-doc-h">📄 Lease agreement · Maria K.</div>
                                     <div class="bf-line m"></div><div class="bf-line"></div><div class="bf-line s"></div>
                                     <div class="bf-sign"><small>Signed by tenant</small><svg viewBox="0 0 120 38"><path d="M4 26 C 16 6, 24 6, 30 22 S 44 34, 52 16 S 70 4, 80 22 C 86 30, 96 30, 116 12"/></svg></div>
-                                    <div class="bf-badges"><span class="bf-ok">✓ Contract signed</span><span class="bf-ok">✓ €300 deposit secured</span></div>
+                                    <div class="bf-badges"><span class="bf-ok">✓ Contract signed</span><span class="bf-ok">✓ Deposit protected</span></div>
                                 </div>
                             </div>
                             <div class="bf-scene" data-pill="Step 5 · Move-in" data-cap="Keys handed over and a digital move-in pass delivered">
@@ -685,7 +685,7 @@ html {
 
   // Partner-portal device: count-up + staggered rows when it enters view
   const dev = document.querySelector('.svc-device');
-  const numEl = document.querySelector('.svc-portal-num');
+  const numEl = document.querySelector('.svc-portal-num[data-count]');
   const rows = Array.from(document.querySelectorAll('.svc-portal-row'));
   if(dev){
     if(reduce){

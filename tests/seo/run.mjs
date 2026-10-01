@@ -331,6 +331,24 @@ inventati.length
   ? male(`${inventati.length} indirizzi boomrome.com che non esistono:` + elenco(inventati))
   : bene('nessun sottodominio inventato: i finti schermi mostrano indirizzi veri o dichiarano l\'esempio');
 
+// ── 10b · la parola nel finto schermo resta una parola ─────────────────
+// I finti schermi dei servizi mostravano statistiche inventate («214
+// students housed», «38 employees relocated», «73 researchers»): ora il
+// numero grande è una parola («Housed», «Settled») o un termine VERO del
+// servizio (€50 a amico, 24h). Lo script del conteggio però leggeva
+// `data-count` su qualunque .svc-portal-num: senza l'attributo riscriveva
+// la parola in «0» (o la svuotava con reduced-motion) — in silenzio.
+const parole = [];
+for (const f of fs.readdirSync(R).filter((x) => x.endsWith('.html'))) {
+  const s = fs.readFileSync(path.join(R, f), 'utf8');
+  const nudi = [...s.matchAll(/<div class="svc-portal-num"(?![^>]*data-count)[^>]*>/g)];
+  if (nudi.length && /querySelector\('\.svc-portal-num'\)/.test(s))
+    parole.push(`${f} → statistica a parole ma il conteggio la riscrive (serve .svc-portal-num[data-count])`);
+}
+parole.length
+  ? male(`${parole.length} finti schermi dove il conteggio cancella la parola:` + elenco(parole))
+  : bene('le statistiche a parole dei finti schermi non vengono riscritte dal conteggio');
+
 console.log(ko ? `  \x1b[31mLa casa non e ancora in ordine\x1b[0m — ${ok} passed, ${ko} failed`
                 : `  \x1b[32mLa casa e in ordine\x1b[0m — ${ok} passed, 0 failed`);
 process.exit(ko ? 1 : 0);

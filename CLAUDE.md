@@ -5563,9 +5563,16 @@ checklist di buone pratiche:
   ricerca, guadagni referral, revisione contratto) dichiara «illustrative
   example» — senza lucchetto, che lo farebbe leggere come un URL. La
   regola guarda ogni `.html` della radice (anche le legacy fuori sitemap)
-  e i sorgenti in `design/`. Restano da decidere, perche' sono marketing e
-  non un indirizzo: i numeri dentro quegli schermi (214 studenti, 38
-  dipendenti, 73 ricercatori, «1,200+ verified homes» nel film).
+  e i sorgenti in `design/`. **E i numeri dentro quegli schermi** (regola
+  10b): «214 students housed», «38 employees relocated», «73 researchers
+  settled», «€150 earned», «7 red flags», «0 scams · avg 6 days» e
+  «1,200+ verified homes» nel film (il catalogo vero ne ha ~26) erano
+  statistiche inventate sotto un'etichetta di esempio. Ora il numero grande
+  è una parola («Housed», «Settled») o un termine VERO del servizio
+  (€50 a amico, rapporto entro 24h), i chip dicono ciò che la pagina già
+  promette («days, not weeks»), e il film dice «verified homes» senza
+  quantità. Lo script del conteggio legge solo `.svc-portal-num[data-count]`:
+  senza, riscriveva la parola in «0» — la regola lo verifica (mutazione).
 
 **Il blocco «in brief»** (`.breve`, dal motore della console) e' la parte
 GEO: fatti a plat — cos'e', prezzo esatto, cosa comprende, **cosa NON e'**,
