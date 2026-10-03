@@ -16,7 +16,7 @@ import {
 } from '@firebase/rules-unit-testing';
 import { readFileSync } from 'node:fs';
 import {
-  doc, getDoc, setDoc, updateDoc, deleteDoc,
+  doc, getDoc, setDoc, updateDoc, deleteDoc, deleteField,
 } from 'firebase/firestore';
 
 const PROJECT = 'boom-rules-test';
@@ -47,6 +47,11 @@ await env.withSecurityRulesDisabled(async (ctx) => {
 
   await setDoc(doc(db, 'contracts/contractA'), { tenantId: 'tA', propertyId: 'propA', rent: 1000 });
   await setDoc(doc(db, 'contracts/contractB'), { tenantId: 'tB', propertyId: 'propB', rent: 1200 });
+  // Le chiavi di firma: nel deposito admin-only, mai sul contratto. Un
+  // contratto LEGACY le porta ancora in chiaro (prima della migrazione).
+  await setDoc(doc(db, 'signTokens/contractA'), { contractId: 'contractA', tenant: 'tok-tenant-A-000', landlord: 'tok-landlord-A-00' });
+  await setDoc(doc(db, 'contracts/contractLegacy'), { tenantId: 'tA', propertyId: 'propA', rent: 900,
+    tenantSignToken: 'tok-legacy-tenant', landlordSignToken: 'tok-legacy-landlord' });
 
   await setDoc(doc(db, 'payments/payA'), { tenantId: 'tA', propertyId: 'propA', contractId: 'contractA', amount: 1000, status: 'pending' });
   await setDoc(doc(db, 'payments/payB'), { tenantId: 'tB', propertyId: 'propB', contractId: 'contractB', amount: 1200, status: 'pending' });
@@ -117,6 +122,32 @@ await check('signs OWN contract (signature fields only)',
   assertSucceeds(updateDoc(doc(tA, 'contracts/contractA'), { tenantSignature: 'data:img', tenantSignedAt: 'now' })));
 await check('CANNOT change rent on own contract',
   assertFails(updateDoc(doc(tA, 'contracts/contractA'), { rent: 1 })));
+
+await check('CANNOT write a sign token onto own contract (tenantSignToken is gone from the allowed fields)',
+  assertFails(updateDoc(doc(tA, 'contracts/contractA'), { tenantSignToken: 'mine' })));
+
+// ── SIGN TOKENS: the other party's signing credential is never readable ──
+console.log('\nsignTokens (Magic Sign credentials, admin-only)');
+await check('tenant A CANNOT read the sign tokens of OWN contract',
+  assertFails(getDoc(doc(tA, 'signTokens/contractA'))));
+await check('landlord A CANNOT read the sign tokens of a contract on OWN property',
+  assertFails(getDoc(doc(llA, 'signTokens/contractA'))));
+await check('tenant A CANNOT write sign tokens',
+  assertFails(setDoc(doc(tA, 'signTokens/contractA'), { landlord: 'forged' })));
+await check('admin reads sign tokens',  assertSucceeds(getDoc(doc(admin, 'signTokens/contractA'))));
+await check('admin writes sign tokens', assertSucceeds(setDoc(doc(admin, 'signTokens/contractB'), { contractId: 'contractB', tenant: 'tok-b-tenant-000' })));
+await check('admin CANNOT create a contract carrying a plaintext sign token',
+  assertFails(setDoc(doc(admin, 'contracts/contractNew'), { tenantId: 'tA', propertyId: 'propA', landlordSignToken: 'x-00000000' })));
+await check('admin creates a contract WITHOUT sign tokens',
+  assertSucceeds(setDoc(doc(admin, 'contracts/contractNew'), { tenantId: 'tA', propertyId: 'propA', rent: 800 })));
+await check('admin CANNOT add a plaintext sign token to a contract',
+  assertFails(updateDoc(doc(admin, 'contracts/contractA'), { landlordSignToken: 'x-00000000' })));
+await check('admin CANNOT change a legacy plaintext sign token',
+  assertFails(updateDoc(doc(admin, 'contracts/contractLegacy'), { tenantSignToken: 'rotated-000000' })));
+await check('admin still updates OTHER fields of a legacy contract (tokens untouched)',
+  assertSucceeds(updateDoc(doc(admin, 'contracts/contractLegacy'), { notes: 'ok' })));
+await check('admin CAN remove the legacy plaintext tokens (the migration)',
+  assertSucceeds(updateDoc(doc(admin, 'contracts/contractLegacy'), { tenantSignToken: deleteField(), landlordSignToken: deleteField() })));
 
 // ── LANDLORD A: own properties only ─────────────────────────────────────
 console.log('\nLandlord A (owns propA)');

@@ -18,6 +18,8 @@
 // cosign: anche i link FIRMA dei co-conduttori sono derivati (cosignRef da
 // HOMIE_SECRET) — il browser non può calcolarli, e senza questo campo lo
 // Share Hub non aveva nulla da incollare su WhatsApp per un co-conduttore.
+// `url` (il link FIRMA) solo all'admin (1/10/2026): un proprietario non
+// riceve mai la credenziale di firma di un'altra parte.
 
 import { fsGet, readJson } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
@@ -46,7 +48,8 @@ export default async function handler(req, res) {
   catch (e) { return res.status(500).json({ ok: false, error: 'lookup_failed' }); }
   if (!contract) return res.status(404).json({ ok: false, error: 'not_found' });
 
-  if (auth.profile.role !== 'admin') {
+  const isAdmin = auth.profile.role === 'admin';
+  if (!isAdmin) {
     let ownerId = null;
     if (contract.propertyId) {
       try { ownerId = ((await fsGet('properties/' + contract.propertyId)) || {}).ownerId || null; } catch (_) {}
@@ -90,7 +93,10 @@ export default async function handler(req, res) {
     .map((co, i) => (co && co.name ? {
       index: i,
       name: String(co.name).slice(0, 60),
-      url: `${BASE}/sign?sign=${encodeURIComponent(cosignRef(contractId, i))}`,
+      // Il link FIRMA del co-conduttore è la sua credenziale: solo l'admin lo
+      // riceve. Al proprietario (che questa porta ammette) restano Scheda e
+      // stato — col link potrebbe firmare al posto del co-conduttore.
+      ...(isAdmin ? { url: `${BASE}/sign?sign=${encodeURIComponent(cosignRef(contractId, i))}` } : {}),
       signed: !!co.signature,
       // La Scheda del co-conduttore: la SUA riga RLI (CF, nascita, documento).
       schedaUrl: schedaUrl(contractId, 'cotenant', i),

@@ -11,6 +11,7 @@ import { offeredAddons } from './_addons.js';
 import { paidOnRecord, dueAtSigning } from './_state.js';
 import { resolveCanoneInput, schedaFacts, schedaGaps } from '../fiscal/fascicolo.js';
 import CANONE from '../../js/canone-engine.js';
+import { readSignTokens, signUrl } from '../sign/_tokens.js';
 
 // La scheda ARPE come la vedrebbe il contratto nato da questa proposta:
 // stessi fatti (schedaFacts), stesso motore. Senza immobile collegato o
@@ -34,7 +35,6 @@ async function schedaSummary(pa) {
   };
 }
 
-const BASE = 'https://www.boomrome.com';
 
 // ── IL CLIENTE VEDE IL SUO STATO E FIRMA DA QUI (Sprint 1, 2.3) ────────
 // L'email col link del contratto restava chiusa per settimane (il caso che
@@ -56,6 +56,12 @@ export async function contractStatus(id, data) {
   const complete = c.signatureStatus === 'complete' || (tenantSigned && landlordSigned);
   const unlocked = paidOnRecord(data) || dueAtSigning(data) === 0;
   const iso = (v) => (!v ? null : typeof v === 'string' ? v : (v && v.seconds) ? new Date(v.seconds * 1000).toISOString() : String(v));
+  // Il link del conduttore dal deposito dei token (signTokens): letto solo
+  // quando può comparire, mai coniato da questa porta pubblica.
+  let tenantSignUrl = null;
+  if (unlocked && !tenantSigned) {
+    try { tenantSignUrl = signUrl((await readSignTokens(cid, c)).tenant); } catch (_) { tenantSignUrl = null; }
+  }
   return {
     id: cid,
     status: complete ? 'complete' : (tenantSigned || landlordSigned) ? 'partial' : 'none',
@@ -64,7 +70,7 @@ export async function contractStatus(id, data) {
     fullySignedAt: iso(c.fullySignedAt),
     invitedAt: iso(c.signInviteTenantAt) || iso(data.signSentAt) || null,
     unlocked,
-    tenantSignUrl: (unlocked && !tenantSigned && c.tenantSignToken) ? `${BASE}/sign?sign=${c.tenantSignToken}` : null,
+    tenantSignUrl,
     signedPdfUrl: complete ? (c.signedPdfUrl || null) : null,
     // Il contratto DA FIRMARE, leggibile dal cliente (21/09/2026): il PDF
     // generato alla conversione, con la stessa esposizione del link di

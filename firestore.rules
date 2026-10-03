@@ -75,16 +75,41 @@ service cloud.firestore {
     }
 
     // ─── contracts ────────────────────────────────────────────────────
+    // LE CHIAVI DI FIRMA NON STANNO QUI (1/10/2026). Il contratto lo leggono
+    // l'inquilino E il proprietario, e le rules non nascondono un campo: un
+    // tenantSignToken/landlordSignToken sul documento dava a ciascuno il link
+    // di firma dell'altro. I token vivono in /signTokens (admin-only, qui
+    // sotto). Nessuno — admin compreso, server compreso — può più AGGIUNGERE
+    // o CAMBIARE quei due campi su un contratto; toglierli sì (è la
+    // migrazione di api/sign/_tokens.js).
+    function noPlainSignTokens() {
+      return !request.resource.data.keys().hasAny(['tenantSignToken','landlordSignToken']);
+    }
+    function keepsPlainSignTokensOut() {
+      return !request.resource.data.diff(resource.data).addedKeys().hasAny(['tenantSignToken','landlordSignToken'])
+          && !request.resource.data.diff(resource.data).changedKeys().hasAny(['tenantSignToken','landlordSignToken']);
+    }
     match /contracts/{cId} {
       allow read: if isAdmin()
                   || (isTenant() && resource.data.tenantId == uid())
                   || (isLandlord() && ownsProperty(resource.data.propertyId));
-      allow create, delete: if isAdmin();
-      allow update: if isAdmin()
-                    || (isTenant() && resource.data.tenantId == uid()
-                        && onlyChanges(['tenantSignature','tenantSignedAt','tenantSignIP',
-                                        'tenantSignUA','tenantSignToken','tenantSignedStatus']));
+      allow create: if isAdmin() && noPlainSignTokens();
+      allow delete: if isAdmin();
+      allow update: if keepsPlainSignTokensOut()
+                    && (isAdmin()
+                        || (isTenant() && resource.data.tenantId == uid()
+                            && onlyChanges(['tenantSignature','tenantSignedAt','tenantSignIP',
+                                            'tenantSignUA','tenantSignedStatus'])));
     }
+
+    // I token di firma (Magic Sign) per contratto: { contractId, tenant,
+    // landlord }. Li leggono e scrivono SOLO admin e server (credenziali
+    // admin): nessuna parte vede mai la credenziale dell'altra. Il browser
+    // di inquilino e proprietario chiede il PROPRIO link a /api/sign/links.
+    // Senza questa riga cadrebbe nel default-deny e il server (che scrive
+    // con credenziali admin, quindi attraverso le rules) non potrebbe
+    // salvarli — la lezione di propertyLocks.
+    match /signTokens/{x} { allow read, write: if isAdmin(); }
 
     // ─── payments ─────────────────────────────────────────────────────
     match /payments/{pId} {

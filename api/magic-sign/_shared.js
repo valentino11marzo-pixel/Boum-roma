@@ -25,6 +25,7 @@ export async function fsGetWithTime(docPath) {
 // ?sign= come "<contractId>.c<idx>.<token>".
 import crypto from 'node:crypto';
 import MANDATO from '../../js/mandato-engine.js';
+import { findSignTokenHolder } from '../sign/_tokens.js';
 
 export function cosignToken(contractId, idx) {
   const salt = process.env.HOMIE_SECRET || process.env.CRON_SECRET || 'boom';
@@ -43,8 +44,9 @@ export function parseCoSignRef(token) {
   return { contractId: m[1], idx };
 }
 
-// Look up a contract by tenantSignToken, landlordSignToken or a derived
-// co-sign ref. Returns { contract, role, coIndex? } or null.
+// Look up a contract by the tenant/landlord sign token (signTokens store,
+// legacy plaintext as transition fallback) or a derived co-sign ref.
+// Returns { contract, role, coIndex? } or null.
 export async function findContractByToken(token) {
   if (!token || typeof token !== 'string' || token.length < 8) return null;
 
@@ -59,20 +61,16 @@ export async function findContractByToken(token) {
     return { contract: { ...contract, id: co.contractId }, role: 'cotenant', coIndex: co.idx };
   }
 
-  // tenantSignToken first (most common path)
-  let hits = await fsList('contracts', {
-    filter: { field: 'tenantSignToken', op: 'EQUAL', value: token },
-    limit: 2,
-  });
-  if (hits.length === 1) return { contract: hits[0], role: 'tenant' };
-  if (hits.length > 1) return null; // ambiguous → reject
-
-  hits = await fsList('contracts', {
-    filter: { field: 'landlordSignToken', op: 'EQUAL', value: token },
-    limit: 2,
-  });
-  if (hits.length === 1) return { contract: hits[0], role: 'landlord' };
-  return null;
+  // Conduttore / locatore: i token stanno in signTokens/{contractId}
+  // (admin-only), MAI più sul contratto che le parti leggono — vedi
+  // api/sign/_tokens.js. Il ramo legacy (token ancora in chiaro, prima della
+  // migrazione) vive dentro findSignTokenHolder.
+  const h = await findSignTokenHolder(token);
+  if (!h) return null;
+  const { fsGet } = await import('../homie/_lib.js');
+  const contract = h.contract || await fsGet('contracts/' + h.contractId);
+  if (!contract) return null;
+  return { contract: { ...contract, id: h.contractId }, role: h.role };
 }
 
 // L'impronta dei termini ECONOMICI del contratto: la usa la firma (terms

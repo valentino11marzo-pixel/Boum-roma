@@ -558,7 +558,12 @@ check('proposta completa → contratto E piano rate scritti',
   JSON.stringify(a.by));
 check('…e il toast lo dice', a.toasts.some((t) => t[0] === 'success' && /contratto/.test(t[2] || '')));
 const C = a.writes.find((w) => w.c === 'contracts' && w.op === 'add')?.data || {};
-check('il contratto nasce con i TOKEN di firma (Magic Sign pronto, come saveContract)', /^[0-9a-f-]{36}$/.test(C.tenantSignToken || '') && /^[0-9a-f-]{36}$/.test(C.landlordSignToken || ''));
+// LE CHIAVI DI FIRMA FUORI DAL CONTRATTO (1/10/2026): il contratto lo leggono
+// inquilino e proprietario — nessun token in chiaro; li conia il server in
+// signTokens (admin-only) al primo invito o alla prima richiesta del link.
+check('il contratto nasce SENZA token di firma in chiaro (li conia il server nel deposito signTokens, come saveContract)',
+  !('tenantSignToken' in C) && !('landlordSignToken' in C) && C.signatureStatus === 'none'
+  && !a.writes.some((w) => w.c === 'signTokens'));
 check('…con canone{} e durata{} strutturati (il PDF li legge)', C.canone?.monthly === 1100 && C.canone?.installments === 12 && C.durata?.startDate === '2026-09-01');
 check('…con l\'identità delle parti sul contratto (CF, nascita, documento, catasto, APE)', C.tenantCF === 'TSTOYK95A41H501P' && C.tenantDob === '1995-01-01' && C.tenantDocNum === 'U12345678' && C.landlordCF === 'RSSNNA70A41H501J' && /foglio 12/.test(C.cadastral) && C.energyClass === 'F');
 check('…e le scadenze (AdE, rinnovi) generate come dal portal', (a.by.deadlines || 0) >= 1, JSON.stringify(a.by));
