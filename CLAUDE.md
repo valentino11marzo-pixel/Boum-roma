@@ -3155,7 +3155,9 @@ codice appena andato in produzione; chiusi quelli che toccano firme e soldi:
   (`revisionResets`), la proposta perde `coTenantsSignedAt`.
 - **Inviti**: `send-link` col titolare firmato raggiunge i co-conduttori che
   mancano (prima 409 `already_signed`: il promemoria del portal non arrivava
-  mai a chi bloccava il contratto) e il 409 del locatore porta `waitingFor`;
+  mai a chi bloccava il contratto; i loro link tornano SOLO all'admin — la
+  regola delle chiavi di firma: al proprietario parte l'email, il link no) e
+  il 409 del locatore porta `waitingFor`;
   cooldown di 12 ore sulle email ai co-conduttori (`CO_INVITE_COOLDOWN_MS` —
   ripremere 🖊/👥 non spamma più; `updated` e il promemoria del cron passano;
   `coRecent` nella risposta); il titolare mai invitato riceve il suo PRIMO

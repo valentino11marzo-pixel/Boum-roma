@@ -601,6 +601,14 @@ const MANDATO = (await import('../../js/mandato-engine.js')).default;
   r = mkRes(); await sendLink(mkReq({ contractId: 'ctrSL', role: 'landlord' }, ADMIN), r);
   check('C5: il locatore in attesa → 409 awaiting_tenant CON i nomi di chi manca',
     r.code === 409 && r.body.error === 'awaiting_tenant' && (r.body.waitingFor || []).map(x => x.name).join(',') === 'Nina Co,Ugo Co');
+  // il proprietario che sollecita: l'email parte, il link (credenziale del co-conduttore) NON torna
+  store.set('properties/propOWN', { ownerId: 'caller1', name: 'Casa del proprietario', address: 'Via X 1' });
+  store.set('contracts/ctrSLO', baseContract({ propertyId: 'propOWN', tenantSignature: SIG, signatureStatus: 'partial', coTenants: [{ name: 'Olga Co', email: 'olga@co.it' }] }));
+  store.get('users/caller1').role = 'landlord';
+  r = mkRes(); await sendLink(mkReq({ contractId: 'ctrSLO', role: 'tenant' }, ADMIN), r);
+  store.get('users/caller1').role = 'admin';
+  check('C5: al proprietario il promemoria parte ma i link dei co-conduttori NON tornano (credenziale di firma)',
+    r.code === 200 && r.body.coInvited === 1 && r.body.coTenants.length === 1 && !('url' in r.body.coTenants[0]) && mailTo('olga@co.it').length === 1);
   const co = await inviteCoTenants({ contractId: 'ctrSL', contract: store.get('contracts/ctrSL'), updated: true });
   check('C5: una versione NUOVA del contratto passa il cooldown (è un\'altra notizia)', co.emailed.includes('Nina Co') && mailTo('nina@co.it').length === ninaFirst + 1);
 
