@@ -1360,6 +1360,24 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
   statically (top-level `import`). Lazy `await import('pkg')` is not traced
   by Vercel's bundler → "Cannot find package" at runtime in production
   (this silently killed all pre-agreement emails until 2026-07).
+- **L'accettazione naturale (30/09/2026 — «troppo aggressiva, diventa
+  bloccante»)**. Misurato a 390px: al passo 4 una casella da 21px accanto a
+  7 righe di legalese, sotto 17 righe del mandato che partivano in maiuscolo
+  («MANDATE TO SIGN. I appoint…»), e «Accept & sign» SPENTO — toccato non
+  faceva nulla e non diceva nulla. Ora: UNA riga grande e toccabile (tutta la
+  frase è il bersaglio) «I accept this proposal» + una riga di sottotitolo;
+  il testo che il server registra (`PA_CONSENT_TEXT`/`PA_MANDATE_TEXT`,
+  STESSO testo e stesso hash) sta integro sotto «Read the full wording», a
+  un tocco — mai riscritto, solo raccolto; il mandato è la seconda riga,
+  «Optional», mai pre-spuntata; il bottone non è mai spento per la spunta:
+  senza, `accept()` non firma, porta sulla riga (`nudgeTick`) e la barra
+  dice cosa manca. `SENDING` tiene fermo il bottone mentre la firma viaggia
+  (prima un tocco su una spunta ridisegnava la barra e lo riaccendeva). La
+  card del mandato dopo l'accettazione: tre righe in chiaro, testo integro a
+  un tocco, spunta + bottone sempre acceso con la stessa guida. Test:
+  `node tests/preagreement/consent-ui.mjs` (Chromium a 390px, handler di
+  rete finti; mutazioni: guardia spunta, guardia mandato, bottone spento,
+  doppio invio — tutte prese).
 - `pre-agreement.html` — the public page, an Apple-style guided 4-step
   flow: **Review** (hero tiles: monthly all-in / due today / move-in /
   term, full terms, advisor card, trust chips) → **Details** (identity +
@@ -1658,6 +1676,31 @@ coTenants: conversione PA (tenants[] della proposta) e Deal Link con
 `cofirma:true` (i conviventi del payload diventano co-firmatari, clausola
 di co-intestazione automatica). Test: notify 60→68.
 
+**I co-conduttori senza link (3/10/2026 — «non riceve mai il link, quindi
+non firma mai, e il proprietario legge "not your turn yet"»).** La co-firma
+rende i co-conduttori firmatari veri (`tenantSideComplete`), ma l'invito
+esisteva SOLO in `sign/send-link.js` (portal): il 🖊 Magic Sign della console
+mandava il link al solo titolare, ✍️ Firmo io si fermava su «mancano i
+co-conduttori» senza dare i loro link, e il promemoria del `reminder-cron`
+leggeva il contratto con un `parseDoc` che appiattisce array e mappe a null —
+`coTenants` spariva, il lato conduttori risultava completo e partiva al
+PROPRIETARIO «✍️ Tocca a Lei» con un link che poi rispondeva «non è il tuo
+turno». Ora `api/sign/_cosign.js` è la copia unica (chi manca, il suo link
+derivato, l'email a chi ce l'ha, `coSignInviteAt.<idx>` stampato): la usano
+send-sign (anche `coOnly:true` = solo i co-conduttori, dal bottone 👥),
+send-link, `notifyPartialSignature` (alla firma del titolare a chi non era
+mai stato invitato — sana i deal già fermi — e col promemoria a tutti quelli
+che mancano; la conferma al titolare dice CHI manca), il cron (che rilegge il
+contratto intero prima di decidere) e sign-for (torna i loro link). Chi non ha
+un'email torna nella risposta col link: la console lo offre su WhatsApp
+(`showCoLinks`). Il link del proprietario risponde `awaiting_tenant` con
+`waitingFor` (nomi e ruolo, `tenantSideWaiting`) e `sign.html` lo dice in
+italiano; la proposta (`coSignUrls`, mai le email) e la pagina del cliente
+(`waitingCoTenants`, solo i nomi) sanno chi manca; la riga della console, a
+titolare firmato, ha 👥 Link co-conduttori come mossa primaria e nasconde il
+link del proprietario finché manca qualcuno. Test: `tests/revise/run.mjs` §A,
+`tests/firma/console.mjs` (riga H).
+
 ### POST `/api/magic-sign/lookup`
 Public endpoint for the Magic-Sign UI. Body: `{ token }`. Looks up the
 contract by its tenant/landlord sign token (the admin-only `signTokens`
@@ -1716,7 +1759,12 @@ citato nella segnalazione, non esiste nel repo.
 - **Le porte**: `convert` e `send-sign` restituiscono i link SOLO all'admin
   (`withoutSignLinks`); `send-link` l'`url` solo all'admin o al proprietario
   per il SUO link; `profile/link` il link firma dei co-conduttori solo
-  all'admin (al proprietario restano Scheda e stato).
+  all'admin (al proprietario restano Scheda e stato); `send-sign` i link
+  dei co-conduttori (`coTenants[].url`, dal giro `_cosign.js`) solo
+  all'admin, al proprietario i nomi. `contracts/revise` (admin) e il
+  sollecito al titolare in `notifyPartialSignature` leggono il deposito:
+  nessun file `api/` legge più i campi in chiaro dal contratto (regola di
+  classe in `tests/signtokens`, presa al merge con #265/#266).
 - **Le rules**: `match /signTokens/{x}` admin-only (senza, default-deny e il
   server non scriverebbe — la lezione propertyLocks); su `contracts` nessuno,
   admin e server compresi, può più AGGIUNGERE o CAMBIARE i due campi
@@ -3026,6 +3074,56 @@ sul rail che c'era già:
   esposizione al cliente come il link di firma, porta HTTP, contratto nato →
   generatedPDF, firme complete → null; giunzioni console e pagina),
   `tests/firma/console.mjs` (i bottoni SOLO dove hanno senso).
+
+### 📤 La versione corretta del contratto (`POST /api/contracts/revise`) + ✎ Correggi i dati (3/10/2026)
+Il caso: Magic Sign partito, poi il PDF ha difetti (formattazione, dati nel
+posto sbagliato, piano e interno errati). L'unica uscita era fuori dal
+sistema — correggere il PDF a mano e mandarlo su WhatsApp — e la journey si
+spezzava (niente FES sul documento giusto, certificato, fascicolo,
+registrazione, /casa). Ora «ok, mettiamolo a posto» resta NEL giro:
+- **📤 Carica versione corretta** (riga della console, finché le firme non
+  sono complete; admin): il PDF caricato (base64 ≤ 3 MB, oltre via Storage
+  sotto `contracts/<id>/revisions/` — `fileUrl` accettato SOLO su
+  firebasestorage e sotto quel contratto, mai un proxy) diventa la versione
+  N+1 su `contracts/<id>/contract-v<N>.pdf`: `pdfSource:'upload'`,
+  `sigAnchors:null` (la firma completa appende la pagina delle firme in coda),
+  `contractVersions[]` con la storia. È ciò che /sign mostra e che `_finalize`
+  firma. Validato con pdf-lib (aggiunta di una pagina + save, come farà la
+  firma): un PDF che non si apre è 422 adesso, non un finalize morto dopo.
+- **Nessuna rigenerazione lo sovrascrive**: `isUploadedPdf` in
+  `ensureContractPdf` vince su force, Scheda e prima firma; il portal
+  (`generateContractPDF`) rifiuta lo stesso. `pdfPathOf`: dopo una revisione
+  ogni rigenerazione scrive sul path della versione corrente, mai sui byte che
+  una firma archiviata ha visto.
+- **Una firma sulla versione sbagliata non si sposta**: con una firma viva la
+  revisione risponde 409 `signed_needs_void` coi nomi; con `voidSignatures:true`
+  (la console lo chiede nominando chi ha firmato) la firma viene ARCHIVIATA in
+  `contractVersions[].voidedSignatures` (chi, quando, IP, dispositivo, hash del
+  consenso e della firma; l'immagine finché l'archivio sta sotto 300 KB),
+  riaperta, e la parte rifirma. Commit condizionato all'`updateTime` letto.
+  Firmato da TUTTI o finalizzato → 409 `fully_signed` (lì è un nuovo
+  contratto).
+- **notify**: se il contratto era già stato mandato in firma, parte «Updated
+  contract — please review and sign the new version» al titolare e ai
+  co-conduttori (`sendSignInvite({updated:true})`), il proprietario dopo come
+  sempre; la proposta torna a `contractSignatureStatus:'none'`.
+- **↺ Modello BOOM** (`op:'template'`, e il 🔄 Rigenera del portal quando c'è
+  una firma viva o un PDF caricato): rigenera dal modello sui dati di adesso,
+  impaginato PRIMA del commit (`renderContractPdf`), stesse regole sulle firme.
+- **✎ Correggi i dati**: ✎ Completa i dati mostrava solo i campi VUOTI, quindi
+  un piano o un interno sbagliati non si correggevano dalla console. Con
+  `all:true` (solo admin) `profile/link` passa `includeFilled` e il modulo
+  mostra tutti i dati coi valori attuali; parte SOLO ciò che l'operatore cambia
+  (`data-orig`). Su una versione caricata i dati si salvano ma il documento no
+  (`pdfUploaded` nella risposta, e la console lo dice).
+- Il PDF caricato non è letto dal sistema: canone, date e deposito che
+  governano rate, scadenze e registrazione restano quelli del contratto — la
+  conferma lo ricorda (si allineano con ✎ Correggi i dati).
+Test: `tests/revise/run.mjs` §B (handler veri: byte identici su Storage, la
+guardia contro force, firma archiviata e riaperta, la v2 intatta dopo la v3,
+firma completa = PDF caricato + pagina firme, `fully_signed`, ↺ che stampa
+«piano 2, int. 14» dall'immobile; quattro mutazioni prese),
+`tests/firma/console.mjs` (riga I).
 
 ### 🏠 Il mandato scritto del proprietario — la controfirma smette di reggersi sulla parola dell'operatore (23/09/2026)
 Il pezzo lasciato fuori dal 21/09: ✍️ Firmo io firmava per il conduttore in

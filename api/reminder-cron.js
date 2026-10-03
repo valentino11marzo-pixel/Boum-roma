@@ -200,20 +200,46 @@ export default async function handler(req, res) {
       const parts = (partQ || []).filter(r => r.document).map(r => parseDoc(r.document)).filter(Boolean);
       let nudged = 0;
       const H48 = 48 * 3600 * 1000, H24 = 24 * 3600 * 1000;
-      for (const c of parts) {
-        const signedRole = c.tenantSignature ? 'tenant' : (c.landlordSignature ? 'landlord' : null);
+      for (const c0 of parts) {
+        // IL CONTRATTO INTERO (3/10/2026). parseDoc di questo file appiattisce
+        // array e mappe a null: coTenants spariva, tenantSideComplete diceva
+        // «lato conduttori completo» e il promemoria mandava al PROPRIETARIO
+        // «✍️ Tocca a Lei» con un link che poi rispondeva «not your turn
+        // yet» — il deal fermo, e il proprietario convinto che il sistema
+        // fosse rotto. Si rilegge col lettore completo; senza, si salta.
+        let c = null;
+        try { const { fsGet: fsGetFull } = await import('./homie/_lib.js'); c = await fsGetFull('contracts/' + c0.id); }
+        catch (e) { results.errors.push(`nudge read ${c0.id}: ${e.message}`); }
+        if (!c) continue;
+        c.id = c0.id;
+        // Lato conduttori INCOMPLETO (titolare firmato e co-conduttori no, o
+        // il contrario): il promemoria va a chi manca lì — prima cercava il
+        // locatore, che non può ancora firmare, e non partiva niente
+        // (3/10/2026: i co-conduttori senza link fermavano il deal per sempre).
+        const coSignedList = (Array.isArray(c.coTenants) ? c.coTenants : []).filter(x => x && x.signature);
+        const coIdx = (Array.isArray(c.coTenants) ? c.coTenants : []).findIndex(x => x && x.signature);
+        const signedRole = c.tenantSignature ? 'tenant' : (c.landlordSignature ? 'landlord' : (coSignedList.length ? 'cotenant' : null));
         if (!signedRole) continue;
-        const signedAt = signedRole === 'tenant' ? c.tenantSignedAt : c.landlordSignedAt;
+        const { tenantSideComplete } = await import('./magic-sign/_shared.js');
+        const sideDone = tenantSideComplete(c);
+        const coLast = coSignedList.map(x => x.signedAt).filter(Boolean).sort().pop();
+        const signedAt = signedRole === 'tenant' ? c.tenantSignedAt : signedRole === 'landlord' ? c.landlordSignedAt : coLast;
         if (!signedAt || (now.getTime() - new Date(signedAt).getTime()) < H48) continue;
         const last = c.lastReminderAt ? new Date(c.lastReminderAt).getTime() : 0;
         if (last && now.getTime() - last < H24) continue;
         if ((c.autoNudgeCount || 0) >= 3) continue;
-        // Solo chi ha un link: il token dal deposito (signTokens), mai coniato qui.
-        const pendingToken = (await readSignTokens(c.id, c).catch(() => ({})))[signedRole === 'tenant' ? 'landlord' : 'tenant'];
+        // Solo chi ha un link: il token dal deposito (signTokens), mai coniato
+        // qui. Lato conduttori incompleto: chi manca è lì (titolare o
+        // co-conduttori, link derivati) — notifyPartialSignature li cerca.
+        let pendingToken = 'tenant-side';
+        if (signedRole === 'landlord' || sideDone) {
+          const toks = await readSignTokens(c.id, c).catch(() => ({}));
+          pendingToken = signedRole === 'landlord' ? toks.tenant : toks.landlord;
+        }
         if (!pendingToken) continue;
         try {
           const { notifyPartialSignature } = await import('./sign/_notify.js');
-          await notifyPartialSignature(c, signedRole, null, { nudgeOnly: true });
+          await notifyPartialSignature(c, signedRole, null, { nudgeOnly: true, ...(signedRole === 'cotenant' ? { coIndex: coIdx } : {}) });
           await fsPatch(`contracts/${c.id}`, {
             lastReminderAt: { timestampValue: now.toISOString() },
             autoNudgeCount: { integerValue: String((c.autoNudgeCount || 0) + 1) },

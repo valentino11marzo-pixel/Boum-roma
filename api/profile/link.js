@@ -73,8 +73,12 @@ export default async function handler(req, res) {
   const propLabel = property.name || property.address || '';
   const tenantUrl = schedaUrl(contractId, 'tenant');
   const landlordUrl = schedaUrl(contractId, 'landlord');
+  // `all` (solo admin, 3/10/2026): anche i campi GIÀ compilati, coi valori
+  // attuali — un dato sbagliato (piano, interno, un documento letto male)
+  // si corregge dalla console, non solo un puntino si riempie.
+  const includeFilled = !!(b && b.all === true) && auth.profile.role === 'admin';
   const askOf = (role) => {
-    const a = FIELDS.askFor(role, ctx, { lang: 'it', identityAsSection: true });
+    const a = FIELDS.askFor(role, ctx, { lang: 'it', identityAsSection: true, includeFilled });
     return { role: a.role, template: a.template, missingCount: a.missingCount, complete: a.complete, sections: a.sections,
       // i termini dell'operatore entrano nel corpo del PDF: congelati da
       // QUALSIASI firma viva (submit risponde 410), non solo dalla sua parte

@@ -238,7 +238,7 @@ ok(/export async function resolveLandlord\(/.test(cpS) && /landlord = await reso
   && cpS.indexOf('opts && opts.force') < cpS.indexOf('if (hasAnySignature(contract)) return contract.generatedPDF || null;'),
   'puntini: il PDF risolve il locatore da users+landlords (anche per email) e accetta force — la firma viva vince sempre (guardia dopo il force)');
 const ps = src('api/profile/submit.js');
-ok(/if \(!hasAnySignature\(contract\)\) \{/.test(ps) && /ensureContractPdf\(contractId, null, \{ force: true \}\)/.test(ps) && /pdfRegenerated/.test(ps), 'puntini: la Scheda rigenera il PDF quando nessuno ha firmato');
+ok(/if \(!hasAnySignature\(contract\)( && !pdfUploaded)?\) \{/.test(ps) && /ensureContractPdf\(contractId, null, \{ force: true \}\)/.test(ps) && /pdfRegenerated/.test(ps), 'puntini: la Scheda rigenera il PDF quando nessuno ha firmato');
 const ms = src('api/magic-sign/submit.js');
 ok(ms.indexOf("if (role === 'tenant' && !hasAnySignature(contract)) {") < ms.indexOf('// ── 3. Re-read FRESH') && /ensureContractPdf\(contractId, \{ \.\.\.contract, \.\.\.idOnly \}, \{ force: true \}\)/.test(ms) && !/idOnly\['tenantSignature'\]/.test(ms),
   'puntini: prima della PRIMA firma il PDF si rifà con la SOLA identità dichiarata, poi si rilegge (precondizione intatta)');

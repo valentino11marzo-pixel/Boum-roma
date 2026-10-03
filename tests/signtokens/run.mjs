@@ -409,6 +409,14 @@ const signBody = (token, extra = {}) => ({ token, signature: SIG, consent: { tex
     if (/[{,]\s*['"]?(tenant|landlord)SignToken['"]?\s*:/.test(src) || /\.(tenant|landlord)SignToken\s*=[^=]/.test(src)) writers.push(f);
   }
   check('nessun file api/, js/ o pagina scrive tenantSignToken/landlordSignToken su un oggetto' + (writers.length ? ' — ' + writers.join(', ') : ''), writers.length === 0);
+  // E nessun file del server li LEGGE più dal contratto (solo _tokens.js, il
+  // ramo legacy): dopo la migrazione il campo non c'è, e chi lo legge tace
+  // in silenzio — un invito che non parte, un link null (3/10/2026: revise
+  // e il sollecito al titolare in _notify nati su main leggevano ancora
+  // `c.tenantSignToken`).
+  const readers = files.filter(f => f.startsWith('api') && f !== join('api', 'sign', '_tokens.js'))
+    .filter(f => /\.(tenant|landlord)SignToken\b/.test(R(f).replace(/\/\/[^\n]*/g, '')));
+  check('nessun file api/ legge tenantSignToken/landlordSignToken dal contratto (il deposito è la fonte)' + (readers.length ? ' — ' + readers.join(', ') : ''), readers.length === 0);
   const sh = R('api/magic-sign/_shared.js');
   check('findContractByToken passa dal deposito (findSignTokenHolder), niente più query dirette sui campi del contratto',
     /findSignTokenHolder\(token\)/.test(sh) && !/field: 'tenantSignToken'/.test(sh));
@@ -432,6 +440,10 @@ const signBody = (token, extra = {}) => ({ token, signature: SIG, consent: { tex
     ['api/profile/link.js', /\.\.\.\(isAdmin \? \{ url: /]]) {
     check(f + ': i link di firma in risposta solo a chi spettano', re.test(R(f)));
   }
+  const ss = R('api/preagreement/send-sign.js');
+  check('send-sign: i link dei co-conduttori in risposta solo all\'admin (al proprietario i nomi)',
+    /const coOut = \(co\) => co\.pending\.map\(x => \(\{ name: x\.name, phone: x\.phone, \.\.\.\(auth\.profile\.role === 'admin' \? \{ url: x\.url \} : \{\}\) \}\)\);/.test(ss)
+    && !/coTenants: co\.pending\.map/.test(ss) && (ss.match(/coTenants: coOut\(co\)/g) || []).length === 3);
 }
 
 console.log(`\nChiavi di firma: ${passed} passed, ${failed} failed`);

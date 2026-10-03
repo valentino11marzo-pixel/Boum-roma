@@ -78,6 +78,11 @@ export async function contractStatus(id, data) {
     // il firmato). È ciò che il mandato autorizza BOOM a sottoscrivere.
     draftPdfUrl: (unlocked && !complete && c.generatedPDF) ? c.generatedPDF : null,
     byDelegate: (c.tenantSignedByDelegate && c.tenantSignedByDelegate.name) ? { name: c.tenantSignedByDelegate.name, signedAt: iso(c.tenantSignedByDelegate.signedAt) } : null,
+    // i co-conduttori che non hanno ancora firmato: SOLO i nomi (i loro
+    // link sono personali e non passano dal titolare) — la pagina dice al
+    // cliente chi manca, invece di «aspettiamo il proprietario».
+    waitingCoTenants: complete ? [] : (Array.isArray(c.coTenants) ? c.coTenants : [])
+      .filter(x => x && String(x.name || '').trim() && !x.signature).map(x => String(x.name).trim()),
   };
 }
 
