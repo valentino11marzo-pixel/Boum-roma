@@ -636,9 +636,16 @@ function sigOfContract(c){
   c=c||{};
   var tS=!!c.tenantSignature,lS=!!c.landlordSignature;
   var status=(c.signatureStatus==='complete'||(tS&&lS))?'complete':(tS||lS||c.signatureStatus==='partial')?'partial':'none';
+  /* i CO-CONDUTTORI firmano col proprio link e il proprietario dopo di loro:
+     senza questo la riga diceva «manca la firma del proprietario» mentre il
+     suo link rispondeva «non è il tuo turno» (3/10/2026) */
+  var coT=(Array.isArray(c.coTenants)?c.coTenants:[]).filter(function(x){return x&&x.name;});
+  var coPending=status==='complete'?[]:coT.filter(function(x){return !x.signature;}).map(function(x){return x.name;});
   return {status:status,tenantSigned:tS||status==='complete',landlordSigned:lS||status==='complete',
     tenantAt:isoOf(c.tenantSignedAt),landlordAt:isoOf(c.landlordSignedAt),fullyAt:isoOf(c.fullySignedAt),
-    pdf:c.signedPdfUrl||null,draft:c.generatedPDF||null,cert:c.signingCertificateUrl||null,finalized:!!c.finalizedAt,loaded:true};
+    coPending:coPending,coTotal:coT.length,
+    pdf:c.signedPdfUrl||null,draft:c.generatedPDF||null,cert:c.signingCertificateUrl||null,finalized:!!c.finalizedAt,loaded:true,
+    version:Number(c.contractVersion||1),pdfSource:c.pdfSource||'boom',pdfNote:c.pdfUploadNote||'',revisedAt:isoOf(c.contractRevisedAt)};
 }
 function sigState(d){
   var cid=contractIdOf(d);
@@ -650,7 +657,9 @@ function sigState(d){
   if(st!=='complete'&&tA&&lA)st='complete';
   if(st==='none'&&(tA||lA))st='partial';
   return {status:st,tenantSigned:!!tA||st==='complete',landlordSigned:!!lA||st==='complete',
-    tenantAt:tA,landlordAt:lA,fullyAt:isoOf(d&&d.contractFullySignedAt),pdf:null,cert:null,finalized:false,loaded:false};
+    tenantAt:tA,landlordAt:lA,fullyAt:isoOf(d&&d.contractFullySignedAt),pdf:null,cert:null,finalized:false,loaded:false,
+    coPending:(Array.isArray(d&&d.coSignUrls)?d.coSignUrls:[]).filter(function(x){return x&&!x.signed;}).map(function(x){return x.name;}),
+    coTotal:(Array.isArray(d&&d.coSignUrls)?d.coSignUrls.length:0),version:1,pdfSource:'boom',pdfNote:'',revisedAt:''};
 }
 /* il prossimo passo, dal punto in cui il deal è DAVVERO */
 function nextStepLine(d,sig,st,m){
@@ -661,21 +670,26 @@ function nextStepLine(d,sig,st,m){
       +(sig.loaded?(sig.finalized?' — attivo: certificato FES, scadenze ed email di benvenuto partiti.':' — post-firma in corso (certificato, scadenze, email); se resta così, <b>Rigenera</b> sulla riga contratto del portal.'):'.')
       +' Prossimo passo: <b>registrazione</b> (🏛 ASPI dal portal) e 📦 Fascicolo ARPE.'+tail;
   }
+  if(sig.tenantSigned&&sig.coPending&&sig.coPending.length){
+    return '✍ <b>L’inquilino ha firmato</b> il '+day(sig.tenantAt)+' — mancano i <b>co-conduttori</b> ('+esc(sig.coPending.join(', '))+'): '
+      +'firmano col LORO link (<b>👥 Link co-conduttori</b>), e solo dopo il proprietario può controfirmare — prima il suo link risponde «non è il tuo turno».'+tail;
+  }
   if(sig.tenantSigned){
     return '✍ <b>L’inquilino ha firmato</b> il '+day(sig.tenantAt)+' — manca la firma del proprietario: '
       +(d.delegated?'apri il <b>link delega</b> e controfirma tu.':'mandagli il <b>link firma</b> (WhatsApp/copia).')
       +' Il Magic Sign all’inquilino non serve più.'+tail;
   }
   var cid=contractIdOf(d);
+  var coNote=(sig.coTotal&&sig.coPending&&sig.coPending.length)?' I co-conduttori ('+esc(sig.coPending.join(', '))+') firmano col proprio link (<b>👥 Link co-conduttori</b>).':'';
   return (d.signSentAt
-    ?'🖊 Magic Sign inviato il <b>'+day(d.signSentAt)+'</b> — in attesa della firma dell’inquilino; dopo, '+(d.delegated
+    ?'🖊 Magic Sign inviato il <b>'+day(d.signSentAt)+'</b> — in attesa della firma dell’inquilino'+(coNote?' e dei co-conduttori':'')+'; dopo, '+(d.delegated
       ?'apri il <b>link delega</b> e controfirmi quando decidi tu, poi registrazione.'
       :'manda il <b>link firma al proprietario</b> (WhatsApp/copia), poi registrazione.')
     :(cid
       ?'Contratto pronto (identità + documenti già dentro) — <b>🖊 Magic Sign</b> quando vuoi far firmare l’inquilino.'
       :(d.propertyId
         ?'Tutto pronto — <b>🖊 Magic Sign</b> crea il contratto e manda il link di firma all’inquilino, in un tocco.'
-        :'Prossimo passo → <b>→ Contratto</b> collega la proprietà e prepara il contratto (identità e termini già dentro). Se l’immobile non è nel portal, <b>→ Contratto</b> lo crea dalla proposta con un tap.')))+tail;
+        :'Prossimo passo → <b>→ Contratto</b> collega la proprietà e prepara il contratto (identità e termini già dentro). Se l’immobile non è nel portal, <b>→ Contratto</b> lo crea dalla proposta con un tap.')))+coNote+tail;
 }
 function fillForm(d){
   $('fAddress').value=(d.property||{}).address||'';$('fFloor').value=(d.property||{}).floor||'';
@@ -805,9 +819,10 @@ window.signFor=async function(id,btn){
     if(btn)btn.textContent=j.fullySigned?'✓ Firmato da entrambi':(j.steps&&j.steps.length?'✓ Firmato ('+j.steps.join(' + ')+')':'✓');
     alert(j.alreadySigned?'Il contratto era già firmato da entrambe le parti.'
       :j.fullySigned?'Contratto firmato da entrambe le parti'+(j.signedPdfUrl?': il PDF firmato è pronto (📥 nella riga). Certificato, fascicolo e pack sono partiti.':' — il PDF firmato e il certificato arrivano tra pochi secondi.')
-      :(j.waitingCoTenants&&j.waitingCoTenants.length)?'Firmato per il conduttore. Mancano i co-conduttori ('+j.waitingCoTenants.join(', ')+'): firmano col proprio link, poi il proprietario.'
+      :(j.waitingCoTenants&&j.waitingCoTenants.length)?'Firmato per il conduttore. Mancano i co-conduttori ('+j.waitingCoTenants.join(', ')+'): firmano col proprio link (te li mostro adesso), poi il proprietario.'
       :j.landlordPending?'Firmato per il conduttore. Ora il proprietario: '+(j.askLandlordMandate?'il mandato gli è già stato chiesto — appena lo dà, ✍️ Controfirmo io.':'chiedigli il mandato (🏠, un tap sulla sua scheda) oppure mandagli il link firma (WhatsApp/copia nella riga).')
       :'Fatto: '+(j.steps||[]).join(', '));
+    if(j.coTenants&&j.coTenants.length)showCoLinks(d,j.coTenants,'');
     if(j.landlordPending&&!j.askLandlordMandate&&ask('Vuoi chiedere ORA al proprietario il mandato a firmare (WhatsApp/email con il link della sua scheda)?'))askLandlordMandateFor(id);
   }catch(e){
     restore();
@@ -898,6 +913,115 @@ window.openSigModal=openSigModal;
    convert dryRun+draftPdf (una copia dell'impaginato: buildContractPdfBytes),
    finisce su preagreements/<id>/bozza-contratto.pdf e sulla proposta
    (draftPdfUrl): la riga la riapre, il cliente la legge accanto al mandato. */
+/* 📤 «OK, METTIAMOLO A POSTO» (3/10/2026): la versione corretta del
+   contratto entra NEL giro invece di uscire su WhatsApp. Il PDF caricato
+   diventa la versione N+1 — quella che /sign mostra, che le parti firmano,
+   a cui la firma completa appende la pagina delle firme; certificato,
+   fascicolo, registrazione e journey ripartono da lì. Una firma già messa
+   sulla versione sbagliata NON si sposta: viene archiviata (chi, quando,
+   dove) e la parte firma la nuova — e lo si dice prima, coi nomi.
+   ↺ Modello BOOM: dopo aver corretto i dati, rigenera dal modello. */
+async function reviseCall(body){
+  var tok=await USER.getIdToken();
+  var r=await fetch('/api/contracts/revise',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify(body)});
+  var j=await r.json().catch(function(){return null;});
+  if(!j||!j.ok){var e=new Error((j&&j.error)||('HTTP '+r.status));e.body=j;throw e;}
+  return j;
+}
+function reviseErr(e){
+  var m=String(e&&e.message||''),b=(e&&e.body)||{};
+  return m==='fully_signed'?'il contratto è già firmato da TUTTE le parti: certificato e fascicolo sono partiti su quella versione. Una correzione lì è un nuovo contratto (rinnovo / duplica), non una versione.'
+    :m==='conflict'?'qualcuno ha firmato proprio adesso: ricarica la pagina e riprova.'
+    :m==='not_pdf'?'il file non è un PDF.'
+    :m==='pdf_unreadable'?'il PDF non si apre (protetto o danneggiato): riesportalo dall’editor senza password.'
+    :(m==='too_large'||m==='HTTP 413')?'il file è troppo grande (massimo 15 MB): riesportalo comprimendo le immagini.'
+    :m==='pdf_failed'?'il modello BOOM non si è generato: riprova tra un momento.'
+    :m==='storage_failed'?'il salvataggio del file non è riuscito: riprova.'
+    :m==='forbidden'||m==='HTTP 403'?'solo un admin può sostituire il contratto.'
+    :(m||'riprova');
+}
+function loadStorageSdk(){
+  if(window.firebase&&typeof firebase.storage==='function')return Promise.resolve();
+  return new Promise(function(ok,ko){var sc=document.createElement('script');sc.src='https://www.gstatic.com/firebasejs/10.7.0/firebase-storage-compat.js';sc.onload=function(){ok();};sc.onerror=function(){ko(new Error('storage_sdk'));};document.head.appendChild(sc);});
+}
+function fileToB64(f){return new Promise(function(ok,ko){var fr=new FileReader();fr.onload=function(){ok(String(fr.result||''));};fr.onerror=function(){ko(new Error('read_failed'));};fr.readAsDataURL(f);});}
+function pickPdf(){
+  return new Promise(function(ok){
+    var inp=document.createElement('input');inp.type='file';inp.accept='application/pdf,.pdf';inp.style.display='none';
+    inp.onchange=function(){var f=inp.files&&inp.files[0];inp.remove();ok(f||null);};
+    document.body.appendChild(inp);inp.click();
+  });
+}
+/* la conferma, coi NOMI di chi ha firmato e cosa succede alle loro firme */
+async function reviseConfirm(cid,what){
+  var st=await reviseCall({op:'status',contractId:cid});
+  if(st.fullySigned){alert('Non si può: '+reviseErr({message:'fully_signed'}));return null;}
+  var lines=[what+' (diventa la versione '+(st.version+1)+').'];
+  if(st.needsVoid){
+    lines.push('⚠ Hanno già firmato la versione attuale: '+st.signed.map(function(x){return x.name+(x.signedAt?' ('+String(x.signedAt).slice(0,10)+')':'')}).join(', ')+'.\nLe loro firme vengono ARCHIVIATE (restano nella storia: chi, quando, dove) e dovranno firmare la nuova versione — una firma non si sposta su un documento diverso da quello che hanno visto.');
+  }
+  lines.push('Le date, il canone e il deposito che governano rate, scadenze e registrazione restano quelli del contratto nel sistema: se il PDF corretto li cambia, aggiornali anche lì (✎ Correggi i dati).');
+  if(!ask(lines.join('\n\n')+'\n\nProcedere?'))return null;
+  var note=prompt('Cosa hai corretto? (resta nella storia del contratto — es. «piano 2, int. 14; formattazione art. 3»)','');
+  if(note===null)return null;
+  return {status:st,note:note,voidSignatures:!!st.needsVoid};
+}
+function reviseDone(d,j){
+  var bits=['✓ Versione '+j.version+' attiva'+(j.pages?' ('+j.pages+' pagine)':'')+'.'];
+  if(j.voided&&j.voided.length)bits.push('Firme archiviate: '+j.voided.map(function(x){return x.name||x.role}).join(', ')+' — firmeranno la nuova versione.');
+  var n=j.notified||{};
+  if(n.tenant)bits.push('Il link della nuova versione è partito all’inquilino.');
+  else bits.push('Nessuna email partita all’inquilino'+(j.voided&&j.voided.length?'':' (il contratto non era ancora stato mandato in firma: usa 🖊 Magic Sign quando vuoi)')+'.');
+  if(n.coEmailed&&n.coEmailed.length)bits.push('Co-conduttori avvisati: '+n.coEmailed.join(', ')+'.');
+  alert(bits.join('\n'));
+  if(j.coTenants&&j.coTenants.length&&n.coNoEmail&&n.coNoEmail.length)showCoLinks(d,j.coTenants,'Senza email: '+esc(n.coNoEmail.join(', '))+' — mandagli il link della nuova versione da qui.');
+}
+window.uploadRevision=async function(id,btn){
+  var d=PAS.find(function(x){return x.id===id});var cid=d?contractIdOf(d):null;
+  if(!cid){alert('Prima crea il contratto (→ Contratto).');return;}
+  var f=await pickPdf();if(!f)return;
+  if(!/pdf$/i.test(f.type||'')&&!/\.pdf$/i.test(f.name||'')){alert('Serve un file PDF.');return;}
+  if(f.size>15*1024*1024){alert('Il file è troppo grande (massimo 15 MB): riesportalo comprimendo le immagini.');return;}
+  var was=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='Controllo…';}
+  try{
+    var cf=await reviseConfirm(cid,'Il PDF «'+f.name+'» sostituisce il contratto che le parti firmano');
+    if(!cf){if(btn){btn.disabled=false;btn.textContent=was;}return;}
+    if(btn)btn.textContent='Carico…';
+    var body={op:'upload',contractId:cid,fileName:f.name,note:cf.note||'',voidSignatures:cf.voidSignatures};
+    /* sotto ~3 MB il file viaggia nella richiesta; sopra passa da Storage
+       (il limite delle richieste è 4,5 MB) sotto contracts/<id>/ */
+    if(f.size<=3*1024*1024){body.pdfBase64=await fileToB64(f);}
+    else{
+      await loadStorageSdk();
+      var ref=firebase.storage().ref().child('contracts/'+cid+'/revisions/upload-'+Date.now()+'.pdf');
+      await ref.put(f,{contentType:'application/pdf'});
+      body.fileUrl=await ref.getDownloadURL();
+    }
+    var j=await reviseCall(body);
+    if(btn){btn.disabled=false;btn.textContent='✓ Versione '+j.version;}
+    reviseDone(d,j);
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent=was;}
+    alert('Versione non caricata: '+reviseErr(e));
+  }
+};
+window.reviseTemplate=async function(id,btn){
+  var d=PAS.find(function(x){return x.id===id});var cid=d?contractIdOf(d):null;if(!cid)return;
+  var was=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='Controllo…';}
+  try{
+    var cf=await reviseConfirm(cid,'Il contratto torna al MODELLO BOOM, rigenerato dai dati di adesso (correggili prima con ✎ Correggi i dati)');
+    if(!cf){if(btn){btn.disabled=false;btn.textContent=was;}return;}
+    if(btn)btn.textContent='Rigenero…';
+    var j=await reviseCall({op:'template',contractId:cid,note:cf.note||'',voidSignatures:cf.voidSignatures});
+    if(btn){btn.disabled=false;btn.textContent='✓ Versione '+j.version;}
+    reviseDone(d,j);
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent=was;}
+    alert('Modello non rigenerato: '+reviseErr(e));
+  }
+};
 window.draftPdf=async function(id,btn){
   var d=PAS.find(function(x){return x.id===id});if(!d)return;
   var was=btn?btn.textContent:'';if(btn){btn.disabled=true;btn.textContent='Impagino…';}
@@ -929,17 +1053,23 @@ window.draftPdf=async function(id,btn){
    seconda lista di campi. Chi ha firmato è congelato e lo si dice; un dato
    che cambierebbe le condizioni del mandato torna come 409 e si dice. */
 var CD_ROLES=[['tenant','Inquilino'],['landlord','Locatore'],['operator','Termini (operatore)']];
+/* «Correggi»: un campo già compilato arriva col suo valore (data-orig) e
+   parte SOLO se l'operatore l'ha cambiato — mai una riscrittura di ciò che
+   non ha toccato. Il valore va escapato anche dentro gli attributi. */
+var escA=function(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;')};
 function cdField(role,f){
   var id='cd_'+role+'_'+f.key,lab=(f.label&&(f.label.it||f.label.en))||f.key,hint=(f.ask&&(f.ask.it||f.ask.en))||'';
-  var h='<label class="fld'+(f.required?' req':'')+'"><span>'+esc(lab)+'</span>';
+  var cur=(f.value==null?'':String(f.value)),orig=' data-orig="'+escA(cur)+'"';
+  var h='<label class="fld'+(f.required?' req':'')+'"><span>'+esc(lab)+(cur?' <i style="font-style:normal;color:var(--t3);font-size:10px">· attuale</i>':'')+'</span>';
+  var sel=function(v){return String(v)===cur?' selected':''};
   if(f.type==='yesno'){
-    h+='<select id="'+id+'" data-key="'+esc(f.key)+'"><option value="">—</option><option value="si">Sì</option><option value="no">No</option></select>';
+    h+='<select id="'+id+'" data-key="'+esc(f.key)+'"'+orig+'><option value="">—</option><option value="si"'+sel('si')+'>Sì</option><option value="no"'+sel('no')+'>No</option></select>';
   }else if(f.type==='select'&&Array.isArray(f.options)){
-    h+='<select id="'+id+'" data-key="'+esc(f.key)+'"><option value="">—</option>'+f.options.map(function(o){return '<option value="'+esc(String(o.v))+'">'+esc((o.label&&(o.label.it||o.label.en))||String(o.v))+'</option>'}).join('')+'</select>';
+    h+='<select id="'+id+'" data-key="'+esc(f.key)+'"'+orig+'><option value="">—</option>'+f.options.map(function(o){return '<option value="'+escA(String(o.v))+'"'+sel(o.v)+'>'+esc((o.label&&(o.label.it||o.label.en))||String(o.v))+'</option>'}).join('')+'</select>';
   }else if(f.type==='textarea'||f.type==='people'){
-    h+='<textarea id="'+id+'" data-key="'+esc(f.key)+'"'+(f.type==='people'?' data-people="1"':'')+' rows="2" placeholder="'+esc(f.type==='people'?'un nome per riga — oppure «solo» se vive da solo':hint)+'"></textarea>';
+    h+='<textarea id="'+id+'" data-key="'+esc(f.key)+'"'+orig+(f.type==='people'?' data-people="1"':'')+' rows="2" placeholder="'+escA(f.type==='people'?'un nome per riga — oppure «solo» se vive da solo':hint)+'">'+esc(cur)+'</textarea>';
   }else{
-    h+='<input id="'+id+'" data-key="'+esc(f.key)+'" type="'+(f.type==='date'?'date':(f.type==='number'?'number':'text'))+'" placeholder="'+esc(hint)+'"'+(f.type==='number'?' step="any"':'')+'>';
+    h+='<input id="'+id+'" data-key="'+esc(f.key)+'"'+orig+' value="'+escA(cur)+'" type="'+(f.type==='date'?'date':(f.type==='number'?'number':'text'))+'" placeholder="'+escA(hint)+'"'+(f.type==='number'?' step="any"':'')+'>';
   }
   return h+'</label>';
 }
@@ -947,6 +1077,7 @@ function cdCollect(ov,role){
   var out={},n=0;
   ov.querySelectorAll('[data-role="'+role+'"] [data-key]').forEach(function(el){
     var v=String(el.value||'').trim();if(!v)return;
+    if(v===String(el.getAttribute('data-orig')||'').trim())return;   /* non toccato: non si riscrive */
     var k=el.getAttribute('data-key');
     if(el.getAttribute('data-people')==='1'){var low=v.toLowerCase();out[k]=(/^(solo|da solo|nessuno|alone|no)$/.test(low))?{alone:true}:{text:v.split(/\n+/).map(function(x){return x.trim()}).filter(Boolean).join('; ')};}
     else out[k]=v;
@@ -954,24 +1085,28 @@ function cdCollect(ov,role){
   });
   return n?out:null;
 }
-window.completaDati=async function(id){
+window.completaDati=async function(id,all){
   var d=PAS.find(function(x){return x.id===id});var cid=d?contractIdOf(d):null;
   if(!cid){alert('Prima crea il contratto (→ Contratto).');return;}
+  var ALL=all===true;
   var old=document.getElementById('cdov');if(old)old.remove();
   var ov=document.createElement('div');ov.className='cvov';ov.id='cdov';
   ov.innerHTML='<div class="cvbox" style="width:min(640px,100%)"><h3>✎ Completa i dati</h3><div class="sub2">Leggo cosa manca…</div></div>';
   document.body.appendChild(ov);
   async function load(summary){
     var tok=await USER.getIdToken();
-    var r=await fetch('/api/profile/link',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({contractId:cid})});
+    var r=await fetch('/api/profile/link',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({contractId:cid,all:ALL})});
     var k=await r.json();if(!k||!k.ok)throw new Error((k&&k.error)||('errore '+r.status));
     var ask=k.ask||{},any=false;
-    var h='<h3>✎ Completa i dati</h3><div class="sub2">Solo i campi che il PDF stamperebbe come puntini (o che servono alla registrazione). Si scrivono sul contratto e sull\'immobile con le regole della Scheda; a salvataggio riuscito il PDF si rigenera da solo. I campi lasciati vuoti restano vuoti.</div>'
+    var h='<h3>✎ '+(ALL?'Correggi i dati':'Completa i dati')+'</h3><div class="sub2">'+(ALL
+        ?'Tutti i dati che il contratto stampa, coi valori di adesso: cambia solo quelli sbagliati (piano, interno, un documento letto male…). Parte soltanto ciò che modifichi; a salvataggio riuscito il PDF si rigenera da solo.'
+        :'Solo i campi che il PDF stamperebbe come puntini (o che servono alla registrazione). Si scrivono sul contratto e sull\'immobile con le regole della Scheda; a salvataggio riuscito il PDF si rigenera da solo. I campi lasciati vuoti restano vuoti.')+'</div>'
+      +'<label style="display:flex;gap:8px;align-items:center;font-size:12px;color:var(--t2);margin:6px 0 4px"><input type="checkbox" id="cdAll"'+(ALL?' checked':'')+'> Mostra anche i dati già compilati (per correggerli)</label>'
       +(summary?'<div class="alertline" style="margin-bottom:12px">'+summary+'</div>':'');
     CD_ROLES.forEach(function(w){
       var a=ask[w[0]];if(!a)return;
-      if(a.locked){h+='<div class="sub2" style="margin-top:8px"><b>'+w[1]+'</b> — ha già firmato: l\'identità è congelata. Restano solo i documenti, dal portal.</div>';return;}
-      if(!a.sections||!a.sections.length){h+='<div class="sub2" style="margin-top:8px"><b>'+w[1]+'</b> — ✓ niente da completare.</div>';return;}
+      if(a.locked){h+='<div class="sub2" style="margin-top:8px"><b>'+w[1]+'</b> — ha già firmato: i suoi dati sono congelati su QUELLA versione. Per correggerli: <b>📤 Carica versione corretta</b> o <b>↺</b> (la firma viene archiviata e si rifirma).</div>';return;}
+      if(!a.sections||!a.sections.length){h+='<div class="sub2" style="margin-top:8px"><b>'+w[1]+'</b> — ✓ niente da completare'+(ALL?'':' (spunta «Mostra anche i dati già compilati» per correggere un dato sbagliato)')+'.</div>';return;}
       any=true;
       h+='<div data-role="'+w[0]+'" style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)"><div style="font-size:11px;letter-spacing:1.6px;text-transform:uppercase;color:var(--gold);margin-bottom:8px">'+w[1]+' · '+a.missingCount+' dovut'+(a.missingCount===1?'o':'i')+'</div>';
       a.sections.forEach(function(sec){
@@ -983,11 +1118,12 @@ window.completaDati=async function(id){
     h+='<div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">'+(any?'<button class="pbtn prim" id="cdSave">Salva e rigenera il PDF</button>':'')+'<button class="pbtn" id="cdClose">Chiudi</button></div><p id="cdErr" style="display:none;color:#ff8a70;font-size:12px;margin-top:8px"></p>';
     ov.firstChild.innerHTML=h;
     ov.querySelector('#cdClose').onclick=function(){ov.remove();};
+    var tg=ov.querySelector('#cdAll');if(tg)tg.onchange=function(){ALL=!!tg.checked;load('').catch(function(e){alert(e.message||'errore');});};
     var sv=ov.querySelector('#cdSave');
     if(sv)sv.onclick=async function(){
       var err=ov.querySelector('#cdErr');err.style.display='none';
       var jobs=CD_ROLES.map(function(w){return [w,cdCollect(ov,w[0])]}).filter(function(x){return x[1]});
-      if(!jobs.length){err.textContent='Nessun campo compilato.';err.style.display='block';return;}
+      if(!jobs.length){err.textContent=ALL?'Nessun campo modificato.':'Nessun campo compilato.';err.style.display='block';return;}
       sv.disabled=true;sv.textContent='Salvo…';
       var lines=[];
       try{
@@ -999,7 +1135,7 @@ window.completaDati=async function(id){
           if(rr.status===409&&jj&&jj.error==='mandate_terms_frozen')lines.push('⚠ '+w[1]+': non salvato — il mandato congela le condizioni approvate ('+(jj.changed||[]).join(', ')+'). Si corregge sulla proposta, non sul contratto.');
           else if(rr.status===410)lines.push('⚠ '+w[1]+': ha già firmato — identità congelata.');
           else if(!rr.ok||!jj||!jj.ok)lines.push('⚠ '+w[1]+': '+((jj&&jj.error)||('errore '+rr.status)));
-          else lines.push('✓ '+w[1]+': '+(jj.applied||[]).length+' campi salvati'+((jj.rejected||[]).length?' · scartati: '+jj.rejected.map(function(x){return x.key+' ('+x.why+')'}).join(', '):'')+(jj.complete?' · completo':'')+(jj.pdfRegenerated?' · PDF rigenerato':' · PDF non rigenerato (firma viva?)'));
+          else lines.push('✓ '+w[1]+': '+(jj.applied||[]).length+' campi salvati'+((jj.rejected||[]).length?' · scartati: '+jj.rejected.map(function(x){return x.key+' ('+x.why+')'}).join(', '):'')+(jj.complete?' · completo':'')+(jj.pdfRegenerated?' · PDF rigenerato':jj.pdfUploaded?' · il contratto è il PDF che hai caricato: i dati sono salvati, il documento no (correggilo e ricaricalo, o ↺ Modello BOOM)':' · PDF non rigenerato (firma viva?)'));
         }
       }catch(e){lines.push('⚠ '+(e.message||'errore'));}
       try{await load(lines.map(esc).join('<br>'));}catch(e2){err.textContent=e2.message||'errore';err.style.display='block';sv.disabled=false;sv.textContent='Salva e rigenera il PDF';}
@@ -1056,17 +1192,67 @@ window.sendSign=async function(id,btn){
          (un invito a firmare un contratto già firmato è un link morto) */
       var when=j.tenantSignedAt?String(j.tenantSignedAt).slice(0,10):'';
       if(btn)btn.textContent=j.signatureStatus==='complete'?'✓ Già firmato da entrambi':'✓ L’inquilino ha già firmato';
+      if(j.signatureStatus!=='complete'&&j.coTenants&&j.coTenants.length){showCoLinks(d,j.coTenants,'L’inquilino ha già firmato'+(when?' il '+when:'')+': mancano loro. '+coNoteOf(j));return;}
       alert(j.signatureStatus==='complete'
         ?'Il contratto è già firmato da entrambe le parti: nessun link inviato. La riga mostra lo stato reale.'
         :'L’inquilino ha già firmato'+(when?' il '+when:'')+': nessun link inviato. Manca la firma del proprietario'+(j.delegate?' — apri il link delega e controfirma.':' — mandagli il link firma (WhatsApp/copia).'));
       return;
     }
-    if(btn)btn.textContent=(j.emailed?'✓ Inviato':'✓ Contratto pronto (email non partita)')+(j.landlordAsked?' · dati chiesti al proprietario':'');
+    if(j.coTenants&&j.coTenants.length)showCoLinks(d,j.coTenants,coNoteOf(j));
+    if(btn)btn.textContent=(j.emailed?'✓ Inviato':'✓ Contratto pronto (email non partita)')+(j.coTenants&&j.coTenants.length?' · + '+j.coTenants.length+' co-conduttor'+(j.coTenants.length>1?'i':'e'):'')+(j.landlordAsked?' · dati chiesti al proprietario':'');
     if(j.landlordAsked)alert('Al proprietario ('+(j.landlordAskedTo||'')+') è partita anche la richiesta dei suoi dati per il contratto (link Scheda): appena li compila il PDF si rifà da solo, prima della firma dell’inquilino.');
     else if(j.landlordAskWhy==='no_email'&&(j.landlordMissing||[]).length)alert('Al contratto mancano dati del proprietario ('+j.landlordMissing.length+') e non c’è un’email a cui chiederli: usa 📨 Chiedi al locatore dal portal (WhatsApp) o ✎ Modifica per aggiungere l’email.');
   }catch(e){
     if(btn){btn.disabled=false;btn.textContent='🖊 Riprova Magic Sign';}
     alert('Magic Sign non inviato: '+(e.message||'riprova')+(String(e.message).indexOf('no_property')>=0?' — collega (o crea) la proprietà con → Contratto.':String(e.message).indexOf('overlap')>=0?' — sullo stesso immobile c’è già un contratto attivo: passa da → Contratto e decidi.':''));
+  }
+};
+/* 👥 I CO-CONDUTTORI (3/10/2026): ognuno firma col SUO link e il
+   proprietario solo dopo l'ultimo. Il server manda l'email a chi ce l'ha
+   (send-sign coOnly → _cosign.js) e restituisce i link: qui WhatsApp e
+   copia per tutti — chi non ha un'email non resta senza strada. */
+function coWaText(d,c){
+  var a=(d.property||{}).address||'',ten=((d.tenant||{}).fullName||'').split(' ')[0];
+  return 'Hi '+String(c.name||'').split(' ')[0]+'! The lease for '+a+' is ready for your signature as co-tenant'+(ten?' (with '+ten+')':'')+' — about 2 minutes from your phone: '+c.url;
+}
+function showCoLinks(d,list,note){
+  var old=document.getElementById('coov');if(old)old.remove();
+  var ov=document.createElement('div');ov.className='cvov';ov.id='coov';
+  var rows=(list||[]).map(function(c,i){
+    var wa=c.phone?('https://wa.me/'+String(c.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent(coWaText(d,c))):null;
+    return '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:10px 0;border-top:1px solid var(--line)">'
+      +'<b style="flex:1;min-width:140px">'+esc(c.name)+'</b>'
+      +(wa?'<a class="pbtn wa" href="'+wa+'" target="_blank" rel="noopener">📲 WhatsApp</a>':'<span style="font-size:11px;color:var(--t3)">nessun telefono</span>')
+      +'<button class="pbtn" data-co="'+i+'">Copia link</button></div>';
+  }).join('');
+  ov.innerHTML='<div class="cvbox" style="width:min(560px,100%)"><h3>👥 Link dei co-conduttori</h3>'
+    +'<div class="sub2">Ognuno firma col SUO link personale; il proprietario può controfirmare solo dopo l’ultimo.'+(note?' '+note:'')+'</div>'
+    +(rows||'<div class="sub2">Nessun co-conduttore da far firmare.</div>')
+    +'<div style="margin-top:12px"><button class="pbtn" id="coClose">Chiudi</button></div></div>';
+  document.body.appendChild(ov);
+  [].slice.call(ov.querySelectorAll('[data-co]')).forEach(function(b){b.onclick=function(){var c=list[Number(b.getAttribute('data-co'))];copyTxt(c.url);b.textContent='✓ Copiato';};});
+  ov.querySelector('#coClose').onclick=function(){ov.remove();};
+}
+function coNoteOf(j){
+  var bits=[];
+  if(j.coEmailed&&j.coEmailed.length)bits.push('Email partita a: '+esc(j.coEmailed.join(', '))+'.');
+  if(j.coNoEmail&&j.coNoEmail.length)bits.push('<b>Senza email</b>: '+esc(j.coNoEmail.join(', '))+' — mandagli il link su WhatsApp da qui.');
+  return bits.join(' ');
+}
+window.coLinksFor=async function(id,btn){
+  var d=PAS.find(function(x){return x.id===id});if(!d)return;
+  var was=btn?btn.textContent:'';
+  if(btn){btn.disabled=true;btn.textContent='Preparo…';}
+  try{
+    var tok=await USER.getIdToken();
+    var r=await fetch('/api/preagreement/send-sign',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({id:id,coOnly:true})});
+    var j=await r.json();
+    if(!j||!j.ok)throw new Error((j&&j.error)||'failed');
+    if(btn){btn.disabled=false;btn.textContent=was;}
+    showCoLinks(d,j.coTenants||[],coNoteOf(j));
+  }catch(e){
+    if(btn){btn.disabled=false;btn.textContent=was;}
+    alert('Link dei co-conduttori non pronti: '+(e.message||'riprova'));
   }
 };
 /* ⚠ Sistema lo stato · ✅ Sblocca la riserva · 🔎 Ha pagato?
@@ -1433,6 +1619,9 @@ function paRow(d){
   }else if(done&&!sig.landlordSigned&&sig.status!=='complete'){
     docsLine+='<div class="docs" style="color:var(--t3)">🏠 '+(lask?'Mandato chiesto al proprietario, non ancora dato':(d.delegated?'Delega del proprietario a base dichiarata dall’operatore':'Nessun mandato del proprietario'))+' — <b>🏠 Chiedi il mandato al proprietario</b>: per lui è un tap sulla sua scheda; senza, firma col suo link</div>';
   }
+  if(cid&&sig.loaded&&sig.version>1){
+    docsLine+='<div class="docs" style="color:var(--gold-light)">📄 Contratto <b>versione '+sig.version+'</b> — '+(sig.pdfSource==='upload'?'PDF caricato da te':'modello BOOM rigenerato')+(sig.revisedAt?' il '+esc(String(sig.revisedAt).slice(0,10)):'')+(sig.pdfNote?' · «'+esc(sig.pdfNote)+'»':'')+'. È questo che le parti firmano.</div>';
+  }
   if(ups.length||d.extraDoc){
     docsLine+='<div class="docs">📎 '
       +(ups.length?ups.map(function(u,i){var n=(u.name||'doc '+(i+1));return '<a href="'+u.url+'" target="_blank" rel="noopener">'+esc(n.length>22?n.slice(0,20)+'…':n)+(u.kind==='extra'?' (extra)':'')+'</a>'}).join(' · '):'<span class="miss">nessun documento</span>')
@@ -1440,7 +1629,8 @@ function paRow(d){
       +'</div>';
   }
   /* landlord signature share (owner signs directly unless delegated) */
-  var llWa=(done&&(d.signSentAt||sig.tenantSigned)&&d.landlordSignUrl&&!d.delegated&&ll.phone)
+  var coWait=!!(sig.coPending&&sig.coPending.length)&&sig.status!=='complete';
+  var llWa=(done&&(d.signSentAt||sig.tenantSigned)&&!(sig.tenantSigned&&coWait)&&d.landlordSignUrl&&!d.delegated&&ll.phone)
     ?('https://wa.me/'+String(ll.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(ll.name?' '+ll.name.split(' ')[0]:'')+'! Il contratto per '+((d.property||{}).address||'')+' è pronto per la sua firma digitale'+(sig.tenantSigned?' — l’inquilino ha già firmato':' (dopo la firma dell’inquilino)')+'. Può firmare qui: '+d.landlordSignUrl)):null;
   return '<div class="parow st-'+st+(sig.status==='complete'?' st-signed':'')+'">'
     +'<div class="top"><span class="chip '+st+'">'+st+(st==='paid'&&d.paidEur?' '+eur(d.paidEur):'')+'</span>'
@@ -1470,7 +1660,9 @@ function paRow(d){
              Property link required (from creation or → Contratto). */
         (sig.status==='complete'
           ?(sig.pdf?'<a class="pbtn prim" href="'+sig.pdf+'" target="_blank" rel="noopener">📥 Contratto firmato</a>':'')
-          :(sig.tenantSigned
+          :(sig.tenantSigned&&coWait&&cid
+            ?'<button class="pbtn prim" onclick="coLinksFor(\''+d.id+'\',this)" title="I co-conduttori firmano col LORO link; il proprietario solo dopo di loro">👥 Link co-conduttori ('+sig.coPending.length+')</button>'
+          :sig.tenantSigned
             ?(lmand&&cid
               ?'<button class="pbtn prim" onclick="signFor(\''+d.id+'\',this)" title="Controfirmi tu per il proprietario in forza del suo mandato scritto (dato dalla sua scheda)">✍️ Controfirmo io (mandato)</button>'
               :(d.delegated&&d.landlordSignUrl
@@ -1492,19 +1684,25 @@ function paRow(d){
         +(done&&!sig.landlordSigned&&sig.status!=='complete'&&!lmand&&!d.delegated?'<button class="pbtn" onclick="askLandlordMandateFor(\''+d.id+'\')" title="Arma la card sulla scheda del proprietario e manda il messaggio (WhatsApp/email): per lui è un tap, poi controfirmi tu">🏠 '+(lask?'Richiedi di nuovo il mandato':'Chiedi il mandato al proprietario')+'</button>':'')
         +(done&&!hasMandate&&!sig.tenantSigned&&sig.status!=='complete'?'<button class="pbtn" onclick="askMandateFor(\''+d.id+'\')" title="Attiva la card sulla proposta e manda il messaggio: il cliente dà il mandato con un tap">🖊 Chiedi il mandato</button>':'')
         +(!sig.tenantSigned&&d.signSentAt&&d.tenantSignUrl&&t.phone?'<a class="pbtn wa" href="https://wa.me/'+String(t.phone).replace(/[^\d]/g,'')+'?text='+encodeURIComponent('Ciao'+(t.fullName?' '+t.fullName.split(' ')[0]:'')+'! Il tuo contratto per '+((d.property||{}).address||'')+' è pronto — firmi qui in 2 minuti: '+d.tenantSignUrl)+'" target="_blank" rel="noopener">Firma su WhatsApp</a>':'')
+        +(cid&&coWait&&!sig.tenantSigned?'<button class="pbtn" onclick="coLinksFor(\''+d.id+'\',this)" title="Ogni co-conduttore firma col suo link: email a chi ce l’ha, WhatsApp/copia per tutti">👥 Link co-conduttori ('+sig.coPending.length+')</button>':'')
         +(llWa&&!sig.tenantSigned?'<a class="pbtn wa" href="'+llWa+'" target="_blank" rel="noopener">Firma proprietario su WhatsApp</a>':'')
-        +(d.landlordSignUrl&&sig.status!=='complete'?'<button class="pbtn" onclick="copyTxt(\''+(d.delegated?delegaUrl(d.landlordSignUrl):d.landlordSignUrl)+'\')">'+(d.delegated?'Copia link delega':'Copia link firma proprietario')+'</button>':'')
+        +(d.landlordSignUrl&&sig.status!=='complete'&&!(sig.tenantSigned&&coWait)?'<button class="pbtn" onclick="copyTxt(\''+(d.delegated?delegaUrl(d.landlordSignUrl):d.landlordSignUrl)+'\')">'+(d.delegated?'Copia link delega':'Copia link firma proprietario')+'</button>':'')
         +(sig.status==='complete'&&sig.cert?'<a class="pbtn" href="'+sig.cert+'" target="_blank" rel="noopener">Certificato FES</a>':'')
         /* il contratto GENERATO (non ancora firmato): il PDF esiste dalla
            conversione (generatedPDF) ma la console lo mostrava solo a firme
            complete — l'operatore che vuole leggerlo o stamparlo prima della
            firma doveva passare dal portal. A firme complete resta il firmato. */
-        +(sig.status!=='complete'&&sig.draft?'<a class="pbtn" href="'+sig.draft+'" target="_blank" rel="noopener">📄 Contratto (PDF, non firmato)</a>':'')
+        +(sig.status!=='complete'&&sig.draft?'<a class="pbtn" href="'+sig.draft+'" target="_blank" rel="noopener">📄 Contratto'+(sig.version>1?' v'+sig.version:'')+' (PDF, non firmato)</a>':'')
+        /* 📤 la versione corretta entra NEL giro (firme, certificato,
+           fascicolo) invece di uscire su WhatsApp — finché non firmano tutti */
+        +(cid&&sig.status!=='complete'?'<button class="pbtn" onclick="uploadRevision(\''+d.id+'\',this)" title="Carichi il PDF corretto: diventa il contratto che le parti firmano (una firma già messa sulla versione sbagliata viene archiviata e si rifirma)">📤 Carica versione corretta</button>':'')
+        +(cid&&sig.status!=='complete'&&sig.pdfSource==='upload'?'<button class="pbtn" onclick="reviseTemplate(\''+d.id+'\',this)" title="Torna al modello BOOM rigenerato dai dati (dopo averli corretti)">↺ Modello BOOM</button>':'')
         /* ✎ COMPLETA I DATI (21/09/2026): i puntini del PDF si chiudono da
            qui — inquilino, locatore, termini — sul rail della Scheda con
            l'operatore autenticato; il PDF si rifà da solo. Solo con un
            contratto e finché le firme non sono complete. */
-        +(cid&&sig.status!=='complete'?'<button class="pbtn" onclick="completaDati(\''+d.id+'\')" title="I dati che il PDF stamperebbe come puntini: si scrivono da qui, con le regole della Scheda; il PDF si rigenera da solo">✎ Completa i dati</button>':'')
+        +(cid&&sig.status!=='complete'?'<button class="pbtn" onclick="completaDati(\''+d.id+'\')" title="I dati che il PDF stamperebbe come puntini: si scrivono da qui, con le regole della Scheda; il PDF si rigenera da solo">✎ Completa i dati</button>'
+          +'<button class="pbtn" onclick="completaDati(\''+d.id+'\',true)" title="Tutti i dati del contratto coi valori di adesso: correggi quelli sbagliati (piano, interno, documento…), il PDF si rigenera">✎ Correggi i dati</button>':'')
         /* 📄 BOZZA CONTRATTO: prima di → Contratto, lo stesso impaginato in
            PDF senza creare niente (convert dryRun + draftPdf). */
         +(!cid?'<button class="pbtn" onclick="draftPdf(\''+d.id+'\',this)" title="Il contratto che → Contratto scriverebbe, in PDF, senza creare contratto, profilo o immobile">📄 Bozza contratto</button>'+(d.draftPdfUrl?'<a class="pbtn" href="'+d.draftPdfUrl+'" target="_blank" rel="noopener">Apri bozza'+(d.draftPdfAt?' ('+String(d.draftPdfAt).slice(0,10)+')':'')+'</a>':''):'')

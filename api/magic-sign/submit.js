@@ -22,7 +22,7 @@
 // Response 4xx: { ok:false, error }
 
 import { fsGet, fsPatch, fsList, readJson, logActivity } from '../homie/_lib.js';
-import { findContractByToken, commitWrites, fsGetWithTime, tenantSideComplete, termsFingerprint, mandateCheck, landlordMandateCheck, setCors, rateOk } from './_shared.js';
+import { findContractByToken, commitWrites, fsGetWithTime, tenantSideComplete, tenantSideWaiting, termsFingerprint, mandateCheck, landlordMandateCheck, setCors, rateOk } from './_shared.js';
 import { ensureContractPdf, hasAnySignature } from '../sign/_contractpdf.js';
 
 // ── TERMS FREEZE ──────────────────────────────────────────────────────────
@@ -110,7 +110,10 @@ export default async function handler(req, res) {
   // il locatore controfirma solo a LATO CONDUTTORI completo (principale +
   // tutti i co-conduttori). I co-conduttori firmano in parallelo tra loro.
   if (role === 'landlord' && !tenantSideComplete(contract) && contract.signingOrder !== 'any') {
-    return res.status(409).json({ ok: false, error: 'awaiting_tenant' });
+    // CHI manca, per nome (3/10/2026): «tocca prima all'inquilino» a un
+    // proprietario il cui inquilino HA firmato era un vicolo cieco — mancava
+    // un co-conduttore e nessuno glielo diceva.
+    return res.status(409).json({ ok: false, error: 'awaiting_tenant', waitingFor: tenantSideWaiting(contract) });
   }
 
   const already = role === 'tenant' ? !!contract.tenantSignature

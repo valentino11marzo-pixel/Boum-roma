@@ -8,8 +8,10 @@
 //
 // Method:   POST
 // Headers:  Authorization: Bearer <firebase-id-token>  (admin/owner/landlord)
-// Body:     { id }                            // preAgreements doc id
-// Response: { ok, contractId, tenantSignUrl, landlordSignUrl, emailed }
+// Body:     { id, coOnly? }                   // preAgreements doc id; coOnly =
+//           solo l'invito ai co-conduttori (nessuna email al titolare)
+// Response: { ok, contractId, tenantSignUrl, landlordSignUrl, emailed,
+//             coTenants:[{name,url,phone}], coEmailed:[], coNoEmail:[] }
 
 import { fsGet, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
@@ -17,6 +19,7 @@ import { convertPaToContract } from './convert.js';
 import { sendContractSignEmail } from './_notify.js';
 import { ensureContractPdf } from '../sign/_contractpdf.js';
 import { askLandlordScheda } from './_askscheda.js';
+import { inviteCoTenants, coSignUrlsForPa } from '../sign/_cosign.js';
 
 const BASE = 'https://www.boomrome.com';
 
@@ -95,6 +98,30 @@ export default async function handler(req, res) {
     catch (e) { console.warn('[pa/send-sign] contract read:', e.message); }
   }
   const sig = signatureState(contract);
+  // I CO-CONDUTTORI (3/10/2026): firmano col LORO link e il locatore
+  // controfirma solo dopo di loro. Prima questo tap li ignorava del tutto
+  // — e il deal restava fermo per sempre su «not your turn yet».
+  const coPending = async (resend) => {
+    if (!out.contractId || !contract) return { pending: [], emailed: [], noEmail: [], failed: [] };
+    try { return await inviteCoTenants({ contractId: out.contractId, contract, resend }); }
+    catch (e) { console.warn('[pa/send-sign] co-tenants:', e.message); return { pending: [], emailed: [], noEmail: [], failed: [] }; }
+  };
+  // 👥 SOLO i co-conduttori (la console, «Link co-conduttori»): nessuna
+  // email al titolare, l'invito a chi manca e i link per WhatsApp/copia.
+  if (b.coOnly === true) {
+    if (!contract) return res.status(409).json({ ok: false, error: 'no_contract' });
+    const co = sig.status === 'complete' ? { pending: [], emailed: [], noEmail: [], failed: [] } : await coPending(true);
+    try { await fsPatch('preAgreements/' + paId, { coSignUrls: coSignUrlsForPa(out.contractId, contract) }); }
+    catch (e) { console.warn('[pa/send-sign] co stamp:', e.message); }
+    await logActivity('preagreement_cosign_sent', 'contract',
+      { paId, ref: pa.ref || '', contractId: out.contractId, emailed: co.emailed.length, noEmail: co.noEmail.length }, auth.email || 'admin')
+      .catch(() => {});
+    return res.status(200).json({
+      ok: true, coOnly: true, contractId: out.contractId, signatureStatus: sig.status,
+      coTenants: co.pending.map(x => ({ name: x.name, url: x.url, phone: x.phone })),
+      coEmailed: co.emailed, coNoEmail: co.noEmail, coFailed: co.failed,
+    });
+  }
   if (sig.tenantSigned) {
     const stamp = {
       contractId: out.contractId,
@@ -105,6 +132,10 @@ export default async function handler(req, res) {
     if (sig.tenantSignedAt) stamp.tenantSignedAt = sig.tenantSignedAt;
     if (sig.landlordSignedAt) stamp.landlordSignedAt = sig.landlordSignedAt;
     if (sig.status === 'complete') stamp.contractFullySignedAt = sig.fullySignedAt || sig.landlordSignedAt || sig.tenantSignedAt;
+    // titolare firmato, co-conduttori no: il tap li sollecita (è l'unico
+    // invito che serve ancora) e la riga riceve i loro link
+    const co = sig.status === 'complete' ? { pending: [], emailed: [], noEmail: [], failed: [] } : await coPending(true);
+    if (contract) stamp.coSignUrls = coSignUrlsForPa(out.contractId, contract);
     // Atteso, non fire-and-forget: questa stampa È la sanatoria — dopo la
     // risposta la funzione può essere congelata e un patch in volo perso.
     try { await fsPatch('preAgreements/' + paId, stamp); }
@@ -117,6 +148,8 @@ export default async function handler(req, res) {
       contractId: out.contractId, tenantSignUrl, landlordSignUrl,
       tenantSignedAt: sig.tenantSignedAt || null, landlordSignedAt: sig.landlordSignedAt || null,
       delegate: out.delegate || null, emailed: false,
+      coTenants: co.pending.map(x => ({ name: x.name, url: x.url, phone: x.phone })),
+      coEmailed: co.emailed, coNoEmail: co.noEmail,
     });
   }
 
@@ -149,6 +182,7 @@ export default async function handler(req, res) {
     });
     emailed = !!r.client;
   } catch (e) { console.error('[pa/send-sign] email failed:', e.message); }
+  const co = await coPending(!!pa.signSentAt);
 
   // LA LEZIONE DEL 13 SETTEMBRE 2026 — LE SCRITTURE DOPO LA RISPOSTA SI
   // PERDONO. Queste tre righe erano fire-and-forget (`.catch(() => {})`
@@ -164,6 +198,7 @@ export default async function handler(req, res) {
       signSentAt: new Date().toISOString(),
       signSentBy: auth.email || auth.uid,
       tenantSignUrl, landlordSignUrl,
+      ...(contract ? { coSignUrls: coSignUrlsForPa(out.contractId, contract) } : {}),
     });
   } catch (e) { console.warn('[pa/send-sign] pa stamp:', e.message); }
   // L'invito va STAMPATO ANCHE SUL CONTRATTO: journeyEligible tace il
@@ -180,6 +215,8 @@ export default async function handler(req, res) {
 
   return res.status(200).json({
     ok: true, contractId: out.contractId, tenantSignUrl, landlordSignUrl, emailed,
+    coTenants: co.pending.map(x => ({ name: x.name, url: x.url, phone: x.phone })),
+    coEmailed: co.emailed, coNoEmail: co.noEmail,
     landlordAsked: landlordAsk.asked === true, landlordAskedTo: landlordAsk.to || null,
     landlordMissing: landlordAsk.missing || [], landlordAskWhy: landlordAsk.why || null,
   });

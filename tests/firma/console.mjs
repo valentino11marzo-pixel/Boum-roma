@@ -78,6 +78,10 @@ paApply(snap([
   { ...base, id: 'F', contractId: undefined, propertyId: null, signSentAt: null, paidAt: new Date(Date.now() - 40 * 86400000).toISOString() },
   /* G · accettata NON pagata (la proposta di prova che restava lì per sempre) */
   { ...base, id: 'G', status: 'accepted', paidEur: null, paidAt: null, contractId: undefined, propertyId: null, signSentAt: null },
+  /* H · titolare firmato, CO-CONDUTTORE mancante (3/10/2026): il proprietario non può ancora firmare */
+  { ...base, id: 'H', contractId: 'pa_H', tenants: [{ fullName: 'Ines Test' }, { fullName: 'Marco Rossi' }] },
+  /* I · versione CORRETTA caricata dall'operatore (v2), nessuna firma */
+  { ...base, id: 'I', contractId: 'pa_I' },
 ]));
 const before = els.paRows.innerHTML;
 cWatch['pa_A']({ exists: true, data: () => ({ signatureStatus: 'none', generatedPDF: 'https://st/contracts/pa_A/contract.pdf' }) });
@@ -86,6 +90,8 @@ cWatch['pa_C']({ exists: true, data: () => ({ tenantSignature: 'x', landlordSign
 cWatch['pa_E']({ exists: true, data: () => ({ tenantSignature: 'x', landlordSignature: 'y', tenantSignedAt: '2026-08-14T09:00:00Z', landlordSignedAt: '2026-08-14T10:00:00Z', fullySignedAt: '2026-08-14T10:00:00Z', signatureStatus: 'complete', signedPdfUrl: 'https://s/lea.pdf', finalizedAt: 'x' }) });
 cWatch['pa_F']({ exists: false, data: () => null });
 cWatch['pa_G']({ exists: false, data: () => null });
+cWatch['pa_H']({ exists: true, data: () => ({ tenantSignature: 'x', tenantSignedAt: '2026-09-02T09:00:00Z', signatureStatus: 'partial', coTenants: [{ name: 'Marco Rossi' }] }) });
+cWatch['pa_I']({ exists: true, data: () => ({ signatureStatus: 'none', generatedPDF: 'https://st/contracts/pa_I/contract-v2.pdf', pdfSource: 'upload', contractVersion: 2, contractRevisedAt: '2026-10-03T09:00:00Z', pdfUploadNote: 'piano 2, int. 14' }) });
 await new Promise(r => setTimeout(r, 200));   // scheduleRender è debounced
 
 const rows = els.paRows.innerHTML.split('<div class="parow').slice(1);
@@ -93,8 +99,8 @@ const has = (i, re) => re.test(rows[i] || '');
 let pass = 0, fail = 0;
 const ok = (c, n) => { if (c) { pass++; console.log('PASS ' + n); } else { fail++; console.log('✗ FAIL ' + n); } };
 
-ok(rows.length === 7 && Object.keys(cWatch).length === 7, 'sette deal renderizzati, sette contratti in ascolto (anche pa_<id> per chi non ha contractId)');
-ok(before.split('<div class="parow').length === 8 && !/chip signed/.test(before) && /chip signing">✍ firmato inquilino/.test(before),
+ok(rows.length === 9 && Object.keys(cWatch).length === 9, 'nove deal renderizzati, nove contratti in ascolto (anche pa_<id> per chi non ha contractId)');
+ok(before.split('<div class="parow').length === 10 && !/chip signed/.test(before) && /chip signing">✍ firmato inquilino/.test(before),
   'PRIMA che i contratti arrivino la lista è intera e il ripiego (stampa sulla proposta) già parla');
 ok(has(0, /Reinvia Magic Sign/) && has(0, /Firma su WhatsApp/) && !has(0, /chip sign/),
   'A · nessuna firma: 🖊 Reinvia Magic Sign + Firma su WhatsApp, nessun chip firma');
@@ -125,7 +131,7 @@ ok(has(5, /contratto NON ancora creato nel sistema/) && has(5, /40 giorni fa/) &
 ok(has(6, /Revoca</) && has(6, /Pagamento ancora in sospeso/) && !has(6, /contratto NON ancora creato/),
   'G · accettato non pagato: Revoca disponibile, nessun allarme «senza contratto» (non ha pagato)');
 ok(!has(0, /Revoca</) && !has(2, /Revoca</), 'A e C (pagati/contrattualizzati): mai Revoca');
-ok(/^2 <small>\/ 5 creati<\/small>$/.test(els.kContr.innerHTML), 'KPI: 2 contratti firmati su 5 creati (E adottato conta)');
+ok(/^2 <small>\/ 7 creati<\/small>$/.test(els.kContr.innerHTML), 'KPI: 2 contratti firmati su 7 creati (E adottato conta)');
 ok(chipI.signed.textContent === 2 || chipI.signed.textContent === '2', 'chip Firmati conta 2');
 ok(chipI.nocontract.textContent === 1 || chipI.nocontract.textContent === '1', 'chip Da contratto conta 1 (solo F)');
 ctx.setFilter('nocontract', chips.find(c => c.getAttribute() === 'nocontract'));
@@ -136,6 +142,17 @@ ok(onlyNo.length === 1 && /contratto NON ancora creato/.test(onlyNo[0]), 'filtro
 ctx.setFilter('signed', chips.find(c => c.getAttribute() === 'signed'));
 const onlySigned = els.paRows.innerHTML.split('<div class="parow').slice(1);
 ok(onlySigned.length === 2 && onlySigned.every(r => /chip signed/.test(r)), 'filtro Firmati → restano C ed E, i due firmati da entrambi');
+
+/* 👥 H: il proprietario aspetta il CO-CONDUTTORE — la riga lo dice e dà i suoi link */
+ok(has(7, /class="pbtn prim" onclick="coLinksFor\('H',this\)"[^>]*>👥 Link co-conduttori \(1\)/) && !has(7, /Firma proprietario/) && !has(7, /Copia link firma proprietario/)
+  && has(7, /mancano i <b>co-conduttori<\/b> \(Marco Rossi\)/) && !has(7, /manca la firma del proprietario/),
+  'H · titolare firmato, co-conduttore mancante: 👥 Link co-conduttori PRIMARIO, il link del proprietario (che direbbe «non è il tuo turno») nascosto');
+/* 📤 I: la versione corretta caricata */
+ok(has(8, /Contratto <b>versione 2<\/b> — PDF caricato da te il 2026-10-03 · «piano 2, int\. 14»/) && has(8, /📄 Contratto v2 \(PDF, non firmato\)/)
+  && has(8, /onclick="uploadRevision\('I',this\)"/) && has(8, /onclick="reviseTemplate\('I',this\)"[^>]*>↺ Modello BOOM/),
+  'I · versione caricata: la riga dice quale versione gira e perché, con 📤 e ↺ Modello BOOM');
+ok(has(0, /onclick="uploadRevision\('A',this\)"/) && !has(0, /↺ Modello BOOM/) && !has(2, /uploadRevision/) && has(0, /completaDati\('A',true\)"[^>]*>✎ Correggi i dati/),
+  'A · 📤 Carica versione corretta e ✎ Correggi i dati su un contratto non firmato; C · firmato da entrambi: niente revisione');
 
 console.log(`\n${fail ? '✗' : '✓'} console PA: ${pass} pass, ${fail} fail`);
 process.exit(fail ? 1 : 0);

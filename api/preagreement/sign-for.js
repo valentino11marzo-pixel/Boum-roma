@@ -47,6 +47,7 @@ import { fsGet, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import { convertPaToContract } from './convert.js';
 import { ensureContractPdf } from '../sign/_contractpdf.js';
+import { pendingCoSigners, coSignUrlsForPa } from '../sign/_cosign.js';
 import { mandateCheck, landlordMandateCheck } from '../magic-sign/_shared.js';
 import msSubmit, { MS_CONSENT_TEXT } from '../magic-sign/submit.js';
 import { signatureState } from './send-sign.js';
@@ -338,8 +339,16 @@ export default async function handler(req, res) {
   const coPending = (Array.isArray(fresh.coTenants) ? fresh.coTenants : []).filter(x => x && x.name && !x.signature).map(x => x.name);
   const landlordSignUrl = fresh.landlordSignToken ? `${BASE}/sign?sign=${fresh.landlordSignToken}` : null;
   if (coPending.length) {
+    // I LORO link, subito in mano all'operatore (3/10/2026): il mandato del
+    // titolare non li copre, e prima la console diceva solo «mancano» senza
+    // dare il modo di raggiungerli. L'email è già partita dalla firma del
+    // titolare (notifyPartialSignature → _cosign) a chi ce l'ha; qui i link
+    // per WhatsApp/copia, anche per chi un'email non l'ha.
+    const coLinks = pendingCoSigners(contractId, fresh).map(x => ({ name: x.name, url: x.url, phone: x.phone, hasEmail: !!x.email }));
+    try { await fsPatch('preAgreements/' + paId, { coSignUrls: coSignUrlsForPa(contractId, fresh) }); }
+    catch (e) { console.warn('[pa/sign-for] co links stamp:', e.message); }
     await logActivity('preagreement_sign_for', 'contract', { paId, contractId, steps, waitingCoTenants: coPending }, auth.email || 'admin');
-    return res.status(200).json({ ok: true, partial: true, steps, waitingCoTenants: coPending, contractId, signatureStatus: fresh.signatureStatus || 'partial', landlordSignUrl });
+    return res.status(200).json({ ok: true, partial: true, steps, waitingCoTenants: coPending, coTenants: coLinks, contractId, signatureStatus: fresh.signatureStatus || 'partial', landlordSignUrl });
   }
 
   // ── 3. IL LOCATORE: per MANDATO (dato da lui sulla Scheda) o per delega

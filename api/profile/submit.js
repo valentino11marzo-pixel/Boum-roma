@@ -47,7 +47,7 @@
 // per mandato — qui lo si dice PRIMA, senza scrivere niente.
 
 import { fsGet, fsPatch, fsCreate, readJson, logActivity } from '../homie/_lib.js';
-import { ensureContractPdf, hasAnySignature } from '../sign/_contractpdf.js';
+import { ensureContractPdf, hasAnySignature, isUploadedPdf } from '../sign/_contractpdf.js';
 import { setCors, rateOk, fsGetWithTime, commitWrites } from '../magic-sign/_shared.js';
 import { parseSchedaRef, schedaLocked, identityComplete } from './_scheda.js';
 import FIELDS from '../../js/contract-fields.js';
@@ -255,8 +255,12 @@ export default async function handler(req, res) {
   // pieno, non i puntini di ieri. Con una firma viva il documento è
   // congelato (ensureContractPdf lo sa). Prima bisognava premere 🔄
   // Rigenera nel portal — cioè, di solito, non si faceva.
+  // Una versione CARICATA a mano dall'operatore non si rigenera (è il
+  // documento): i dati restano sul contratto e la risposta lo dice
+  // (pdfUploaded) invece di dichiarare un PDF rifatto che non lo è.
   let pdfRegenerated = false;
-  if (!hasAnySignature(contract)) {
+  const pdfUploaded = isUploadedPdf(contract);
+  if (!hasAnySignature(contract) && !pdfUploaded) {
     try { pdfRegenerated = !!(await ensureContractPdf(contractId, null, { force: true })); }
     catch (e) { console.warn('[profile/submit] pdf regen:', e.message); }
   }
@@ -383,5 +387,5 @@ export default async function handler(req, res) {
     });
   } catch (_) { /* never block the client on a notification */ }
 
-  return res.status(200).json({ ok: true, complete, missing, applied: applied.applied, rejected: applied.rejected, pdfRegenerated });
+  return res.status(200).json({ ok: true, complete, missing, applied: applied.applied, rejected: applied.rejected, pdfRegenerated, pdfUploaded });
 }

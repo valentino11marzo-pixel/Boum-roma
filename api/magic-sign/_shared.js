@@ -142,6 +142,18 @@ export function tenantSideComplete(contract) {
   return list.filter(x => x && x.name).every(x => !!x.signature);
 }
 
+// Chi manca sul lato conduttori, per nome e ruolo — quello che il
+// proprietario (e la console) devono leggere invece di «non è il tuo turno».
+export function tenantSideWaiting(contract) {
+  if (!contract) return [];
+  const out = [];
+  if (!contract.tenantSignature) out.push({ name: String(contract.tenantName || '').trim() || null, role: 'tenant' });
+  (Array.isArray(contract.coTenants) ? contract.coTenants : []).forEach(x => {
+    if (x && String(x.name || '').trim() && !x.signature) out.push({ name: String(x.name).trim(), role: 'cotenant' });
+  });
+  return out;
+}
+
 // Apply server-side timestamp via a Firestore field transform. The plain
 // fsPatch helper writes fields literally; some cascading updates want
 // serverTimestamp() for createdAt / updatedAt. We do those through :commit.

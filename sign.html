@@ -403,6 +403,7 @@
         e_signed_t:'Already signed', e_signed_full:'This contract is fully signed and active.',
         e_signed_part:'Your signature is recorded. We’re waiting for the other party to sign.',
         e_turn_t:'Not your turn yet', e_turn_d:'The tenant signs first. The moment their signature is in, we’ll email you and this same link will open for your countersignature — nothing to do now.',
+        e_turn_w:'Still waiting for the signature of: {names}. As soon as the last tenant signs, we’ll email you and this same link will open for your countersignature — nothing to do now.', e_co:'co-tenant', e_ten:'tenant',
         e_link_t:'Link not valid', e_link_d:'This link is invalid or has already been used.',
         e_err_t:'Something went wrong', e_err_d:'We couldn’t load this contract. Please try again in a moment.',
         e_conn_t:'Connection needed', e_conn_d:'We couldn’t reach the signing service. Check your connection and refresh.',
@@ -442,6 +443,7 @@
         e_signed_t:'Già firmato', e_signed_full:'Questo contratto è firmato da tutte le parti ed è attivo.',
         e_signed_part:'La Sua firma è registrata. Attendiamo la firma dell’altra parte.',
         e_turn_t:'Non è ancora il Suo turno', e_turn_d:'Firma prima il conduttore. Appena la sua firma è registrata Le scriviamo, e questo stesso link si aprirà per la Sua controfirma — per ora non deve fare nulla.',
+        e_turn_w:'Manca ancora la firma di: {names}. Appena firma l’ultimo dei conduttori Le scriviamo, e questo stesso link si aprirà per la Sua controfirma — per ora non deve fare nulla.', e_co:'co-conduttore', e_ten:'conduttore',
         e_link_t:'Link non valido', e_link_d:'Questo link non è valido o è già stato usato.',
         e_err_t:'Qualcosa è andato storto', e_err_d:'Non riusciamo a caricare il contratto. Riprovi tra un momento.',
         e_conn_t:'Serve la connessione', e_conn_d:'Non riusciamo a raggiungere il servizio di firma. Controlli la connessione e ricarichi.',
@@ -458,6 +460,10 @@
     var lang = '';
     try { lang = localStorage.getItem('boom_sign_lang') || ''; } catch(e) {}
     function t(k){ return (STR[lang]||STR.en)[k] || STR.en[k] || k; }
+    function turnText(w,plain){
+      var names=(Array.isArray(w)?w:[]).filter(function(x){return x&&x.name;}).map(function(x){return (plain?x.name:esc(x.name))+' ('+t(x.role==='cotenant'?'e_co':'e_ten')+')';});
+      return names.length?t('e_turn_w').replace('{names}',plain?names.join(', '):'<b>'+names.join(', ')+'</b>'):t('e_turn_d');
+    }
     function waLink(txt){ return 'https://wa.me/393313251961?text='+encodeURIComponent(t('wa_msg')); }
     function setLang(l, silent){
       lang = (l==='it') ? 'it' : 'en';
@@ -562,7 +568,14 @@
             return centered(ICON_CHECK,t('e_signed_t'), done?t('e_signed_full'):t('e_signed_part'), '');
           }
           if(!j.ok){
-            if(j.error==='awaiting_tenant') return centered(ICON_LINK,t('e_turn_t'),t('e_turn_d'), '');
+            if(j.error==='awaiting_tenant'){
+              /* è il link del LOCATORE: parla italiano (salvo scelta esplicita)
+                 e dice CHI manca — «tocca all'inquilino» quando l'inquilino ha
+                 già firmato e manca un co-conduttore era un vicolo cieco */
+              var sl=''; try{ sl=localStorage.getItem('boom_sign_lang')||''; }catch(e){}
+              setLang(sl||'it', true);
+              return centered(ICON_LINK,t('e_turn_t'),turnText(j.waitingFor), '');
+            }
             if(j.error==='invalid_or_used' || j.error==='missing_token') return centered(ICON_LINK,t('e_link_t'),t('e_link_d'), SUPPORT_());
             return centered(ICON_WARN,t('e_err_t'),t('e_err_d'), SUPPORT_());
           }
@@ -936,7 +949,7 @@
           var code=(j&&(j.error||j.detail))?String(j.error||j.detail):'';
           if(code==='rate_limited') return flash(t('e_rate'));
           if(code==='terms_changed') return flash(t('e_terms'));
-          if(code==='awaiting_tenant') return flash(t('e_turn_d'));
+          if(code==='awaiting_tenant') return flash(turnText(j&&j.waitingFor,true));
           if(code==='otp_required') return flash(t('e_otp'));
           if(code==='invalid_or_used') return flash(t('e_used'));
           if(code==='invalid_consent_text'||code==='invalid_consent_hash'||code==='missing_consent') return flash(t('e_consent'));
