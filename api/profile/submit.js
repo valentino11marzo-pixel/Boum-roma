@@ -387,5 +387,5 @@ export default async function handler(req, res) {
     });
   } catch (_) { /* never block the client on a notification */ }
 
-  return res.status(200).json({ ok: true, complete, missing, applied: applied.applied, rejected: applied.rejected, pdfRegenerated, pdfUploaded });
+  return res.status(200).json({ ok: true, complete, missing, applied: applied.applied, rejected: applied.rejected, cleared: applied.cleared || [], pdfRegenerated, pdfUploaded });
 }

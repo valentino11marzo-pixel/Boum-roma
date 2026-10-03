@@ -50,6 +50,13 @@ export function coSigners(contractId, contract) {
 
 export const pendingCoSigners = (contractId, contract) => coSigners(contractId, contract).filter(x => !x.signed);
 
+// Un co-conduttore avvisato da meno di COOLDOWN non riceve un'altra email:
+// ripremere 🖊 o 👥 nella console mandava una mail a ogni tocco (review del
+// 3/10/2026). Il link resta comunque nella risposta (WhatsApp/copia). Una
+// versione NUOVA del contratto (`updated`) passa sempre: è un'altra notizia.
+// `recent` nella risposta: i nomi saltati perché avvisati da poco.
+export const CO_INVITE_COOLDOWN_MS = 12 * 3600 * 1000;
+
 // Manda l'invito a ogni co-conduttore NON firmato che ha un'email.
 // - resend: «Reminder —» (anche quando un invito risulta già stampato);
 // - updated: la versione corretta del contratto sostituisce la precedente;
@@ -58,16 +65,18 @@ export const pendingCoSigners = (contractId, contract) => coSigners(contractId, 
 //   scrittura dopo la risposta su Vercel si perde, la lezione del 13/09).
 // Ritorna { pending, emailed:[nomi], noEmail:[nomi], failed:[nomi] } —
 // `pending` porta i link, così chi chiama può offrirli su WhatsApp.
-export async function inviteCoTenants({ contractId, contract, property = null, resend = false, updated = false, stamp = true, only = null } = {}) {
+export async function inviteCoTenants({ contractId, contract, property = null, resend = false, updated = false, stamp = true, only = null, cooldownMs = CO_INVITE_COOLDOWN_MS, now = Date.now() } = {}) {
   const pick = Array.isArray(only) ? new Set(only.map(Number)) : null;
   const pending = pendingCoSigners(contractId, contract).filter(x => !pick || pick.has(x.idx));
-  const res = { pending, emailed: [], noEmail: [], failed: [] };
+  const res = { pending, emailed: [], noEmail: [], failed: [], recent: [] };
   if (!contractId || !pending.length) return res;
   const prev = (contract && contract.coSignInviteAt && typeof contract.coSignInviteAt === 'object') ? contract.coSignInviteAt : {};
   const primary = String((contract && contract.tenantName) || '').trim();
   const stamps = {};
   for (const p of pending) {
     if (!p.email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(p.email)) { res.noEmail.push(p.name); continue; }
+    const last = prev[String(p.idx)] ? Date.parse(prev[String(p.idx)]) : NaN;
+    if (!updated && cooldownMs > 0 && Number.isFinite(last) && now - last < cooldownMs) { res.recent.push(p.name); continue; }
     try {
       const r = await sendSignInvite({
         contract, property, role: 'tenant', to: p.email, name: p.name, url: p.url,

@@ -20,7 +20,7 @@
 // Everything is best-effort and time-boxed; this module never throws, so it
 // can never block or fail a signature.
 
-import { fsGet } from '../homie/_lib.js';
+import { fsGet, fsPatch } from '../homie/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
 import { shell, btn, btn2, para, fine, tiles, timeline, includes, rule, row } from '../preagreement/_notify.js';
 // Il pass Wallet del contratto è servito LIVE da /api/my-pass (ricostruito
@@ -224,14 +224,26 @@ export async function notifyPartialSignature(contract, signedRole, property, opt
       const prevCo = (contract.coSignInviteAt && typeof contract.coSignInviteAt === 'object') ? contract.coSignInviteAt : {};
       const toInvite = opts.nudgeOnly ? coPend : coPend.filter(x => !prevCo[String(x.idx)]);
       if (toInvite.length) {
-        jobs.push(inviteCoTenants({ contractId: contract.id, contract, property: g.prop, resend: !!opts.nudgeOnly, only: toInvite.map(x => x.idx) })
+        // il promemoria del cron ha già il suo passo (48h ferme, 24h fra un
+        // sollecito e l'altro): qui niente cooldown, lo decide il cron
+        jobs.push(inviteCoTenants({ contractId: contract.id, contract, property: g.prop, resend: !!opts.nudgeOnly, only: toInvite.map(x => x.idx), ...(opts.nudgeOnly ? { cooldownMs: 0 } : {}) })
           .then(r => { coRes = r; }).catch(e => console.warn('[sign/notify] co invite:', e.message)));
       }
+      // Il titolare mai invitato riceve il suo PRIMO invito (non un
+      // «Reminder»), e l'invito si stampa: prima ogni firma di un
+      // co-conduttore glielo rimandava, perché nessuno scriveva
+      // signInviteTenantAt (review del 3/10/2026).
       if (primaryPending && g.tenantEmail && contract.tenantSignToken && (opts.nudgeOnly || !contract.signInviteTenantAt)) {
         jobs.push(sendSignInvite({
           contract, property: g.prop, role: 'tenant', to: g.tenantEmail, name: g.tenantName,
-          url: `${BASE}/sign?sign=${encodeURIComponent(contract.tenantSignToken)}`, resend: true,
-        }).then(r => { primaryNudged = !!(r && r.ok); }).catch(() => {}));
+          url: `${BASE}/sign?sign=${encodeURIComponent(contract.tenantSignToken)}`, resend: !!contract.signInviteTenantAt,
+        }).then(async r => {
+          primaryNudged = !!(r && r.ok);
+          if (primaryNudged && !contract.signInviteTenantAt && contract.id) {
+            try { await fsPatch('contracts/' + contract.id, { signInviteTenantAt: new Date().toISOString() }); }
+            catch (e) { console.warn('[sign/notify] stamp primary invite:', e.message); }
+          }
+        }).catch(() => {}));
       }
     }
     await Promise.all(jobs);

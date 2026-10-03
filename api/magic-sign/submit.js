@@ -175,6 +175,33 @@ export default async function handler(req, res) {
     }
   }
 
+  // ── LA FIRMA VA SULLA VERSIONE VISTA (3/10/2026) ──────────────────────
+  // Con 📤 Carica versione corretta il documento può cambiare mentre una
+  // scheda /sign è aperta: chi aveva letto la v1 firmava la v2 senza
+  // saperlo. sign.html rimanda `contractVersion` (dalla lookup); se nel
+  // frattempo il contratto è passato a un'altra versione → 409
+  // version_changed e la pagina chiede di rileggere. Assente (una scheda
+  // aperta prima di questo rilascio) = nessun controllo, come prima.
+  const versionOf = (c) => Number(c && c.contractVersion) || 1;
+  const seenVersion = (body.contractVersion !== undefined && body.contractVersion !== null && body.contractVersion !== ''
+    && Number.isFinite(Number(body.contractVersion))) ? Number(body.contractVersion) : null;
+  if (seenVersion !== null && versionOf(contract) !== seenVersion) {
+    return res.status(409).json({ ok: false, error: 'version_changed', version: versionOf(contract), seen: seenVersion });
+  }
+
+  // ── IL MANDATO COPRE LE CONDIZIONI, NON IL FILE (3/10/2026) ──────────
+  // mandateCheck confronta i DATI del contratto con la foto approvata; un
+  // PDF caricato dall'operatore non lo legge nessuno. Firmare per mandato
+  // su quel file vuol dire che l'operatore afferma che riproduce le
+  // condizioni approvate: lo deve DIRE (`ackUploadedPdf:true`), e la
+  // dichiarazione resta stampata sulla firma per conto (versione, data).
+  const byMandate = !!tenantDele || !!(landlordDele && contract.landlordMandate && contract.landlordMandate.given === true);
+  const uploadedPdf = contract.pdfSource === 'upload' && !!contract.generatedPDF;
+  if (byMandate && uploadedPdf && body.ackUploadedPdf !== true) {
+    return res.status(409).json({ ok: false, error: 'uploaded_pdf_ack_required', version: versionOf(contract), fileName: contract.pdfFileName || null });
+  }
+  const pdfAck = (byMandate && uploadedPdf) ? { uploadedPdfAck: { version: versionOf(contract), fileName: contract.pdfFileName || null, at: new Date().toISOString() } } : {};
+
   // ── 2. Build the signature update for the contract ──────
   const id = body.identity || {};
   // Il CF entra normalizzato (maiuscolo, senza spazi) — la validazione
@@ -261,6 +288,7 @@ export default async function handler(req, res) {
         mandateRef: m.ref || '',
         mandateAt: m.at || '',
         mandateHash: m.hash || '',
+        ...pdfAck,
       };
     }
     // Il token NON si azzera più: chi riapre il proprio link deve vedere
@@ -318,7 +346,7 @@ export default async function handler(req, res) {
       upd.landlordSignedByDelegate = {
         ...landlordDele,
         signedAt: nowISO,
-        ...(lm ? { mandateRef: lm.ref || '', mandateAt: lm.at || '', mandateHash: lm.hash || '', basisKind: 'mandate' } : {}),
+        ...(lm ? { mandateRef: lm.ref || '', mandateAt: lm.at || '', mandateHash: lm.hash || '', basisKind: 'mandate', ...pdfAck } : {}),
       };
     }
   }
@@ -365,119 +393,138 @@ export default async function handler(req, res) {
     } catch (e) { console.warn('[magic-sign/submit] pdf refresh skipped:', e.message); }
   }
 
-  // ── 3. Re-read FRESH (dati + updateTime per la precondizione) ──
+  // ── 3+4. Rilettura FRESCA e scrittura condizionata, IN GIRO ──
+  // LA LEZIONE DEL 3 OTTOBRE 2026 (review della versione corretta): sul
+  // conflitto di precondizione si rileggeva e, se il ruolo non risultava
+  // firmato, si riscriveva `upd` ALLA CIECA — ma `upd` portava campi
+  // calcolati sul dato VECCHIO (coTenants riscritto dall'array letto,
+  // signatureStatus, signedTermsHash). Se nel mezzo una revisione aveva
+  // annullato le firme (📤 Carica versione corretta), la riscrittura
+  // cieca le RIPORTAVA in vita: un co-conduttore annullato tornava
+  // «firmato» su un documento che non aveva mai visto, e lo stato poteva
+  // diventare 'complete'. Ora a ogni conflitto si rilegge e si ricalcola
+  // TUTTO ciò che dipende dal dato fresco (versione, ordine, firma già
+  // apposta, termini, co-conduttori, stato) e si riscrive con la nuova
+  // precondizione; dopo 3 conflitti si risponde 409, mai una scrittura
+  // senza precondizione su un documento che è cambiato.
+  const FRESH_KEYS = ['signedTermsHash', 'signedTermsAt', 'signedTerms', 'coTenants', 'signatureStatus', 'status', 'fullySignedAt'];
+  let fullySigned = false;
+  let committed = false;
   let fresh = null, freshTime = null;
-  try {
-    const pre = await fsGetWithTime('contracts/' + contractId);
-    if (pre) { fresh = pre.data; freshTime = pre.updateTime; }
-  } catch (e) { return res.status(500).json({ ok: false, error: 'reread_failed' }); }
-  if (!fresh) return res.status(404).json({ ok: false, error: 'contract_vanished' });
-
-  // Anti-doppione sul dato FRESCO (il check iniziale usava la query per
-  // token, che può essere stantia di qualche secondo).
-  const freshAlready = role === 'tenant' ? !!fresh.tenantSignature
-    : role === 'cotenant' ? !!(((fresh.coTenants || [])[coIndex] || {}).signature)
-    : !!fresh.landlordSignature;
-  if (freshAlready) {
-    return res.status(410).json({ ok: false, error: 'already_signed', role, signatureStatus: fresh.signatureStatus || 'partial' });
-  }
-
-  // TERMS FREEZE: verifica sui valori CORRENTI, congelamento alla prima firma.
-  const currentTermsHash = sha256(termsFingerprint(fresh));
-  if (fresh.signedTermsHash && fresh.signedTermsHash !== currentTermsHash) {
+  for (let attempt = 0; attempt < 3 && !committed; attempt++) {
+    for (const k of FRESH_KEYS) delete upd[k];
+    fresh = null; freshTime = null;
     try {
-      const { fsCreate } = await import('../homie/_lib.js');
-      await fsCreate('agentNotifications', {
-        type: 'contract.terms_changed',
-        summary: `⚠ Termini modificati DOPO una firma · ${contractId} — controfirma BLOCCATA (serve nuova versione del contratto)`,
-        priority: 'urgent',
-        ref: { collection: 'contracts', id: contractId },
-        payload: { contractId, role },
-        dedupKey: `terms-changed-${contractId}`,
-        status: 'pending', actor: 'magic-sign',
-        createdAt: new Date().toISOString(), attempts: 0,
-      }).catch(() => {});
-    } catch (_) {}
-    alertSignFailure(contractId, role, 'terms_changed', 'i termini sono cambiati dopo la prima firma — rimanda il link');
-    return res.status(409).json({ ok: false, error: 'terms_changed' });
-  }
-  if (!fresh.signedTermsHash) {
-    upd.signedTermsHash = currentTermsHash;
-    upd.signedTermsAt = nowISO;
-    upd.signedTerms = {
-      rent: Number(fresh.rent || 0),
-      deposit: Number(fresh.deposit || 0),
-      startDate: String(fresh.startDate || ''),
-      endDate: String(fresh.endDate || ''),
-      installmentMonths: [1, 2, 3, 6, 12].includes(Number(fresh.installmentMonths)) ? Number(fresh.installmentMonths) : 1,
-      type: String(fresh.type || ''),
-      cedolareSecca: ((fresh.cedolareSecca || 'si') !== 'no' && fresh.cedolareSecca !== false) ? 'si' : 'no',
-    };
-  }
+      const pre = await fsGetWithTime('contracts/' + contractId);
+      if (pre) { fresh = pre.data; freshTime = pre.updateTime; }
+    } catch (e) { return res.status(500).json({ ok: false, error: 'reread_failed' }); }
+    if (!fresh) return res.status(404).json({ ok: false, error: 'contract_vanished' });
 
-  // CO-FIRMA: riscrittura di coTenants[idx] dal dato fresco (identità
-  // fill-only + firma + consenso). Fatta QUI, dopo la rilettura, così la
-  // precondizione updateTime del write copre anche questo array.
-  if (role === 'cotenant') {
-    const list = (Array.isArray(fresh.coTenants) ? fresh.coTenants : []).map(x => ({ ...x }));
-    if (!list[coIndex] || !list[coIndex].name) return res.status(404).json({ ok: false, error: 'invalid_or_used' });
-    Object.assign(list[coIndex], {
-      cf: id.cf || list[coIndex].cf || '',
-      address: id.address || list[coIndex].address || '',
-      dob: id.dob || list[coIndex].dob || '',
-      birthPlace: id.pob || list[coIndex].birthPlace || '',
-      idDoc: id.docNum || list[coIndex].idDoc || '',
-      nationality: id.nationality || list[coIndex].nationality || '',
-      signature: body.signature, signedAt: nowISO,
-      signedIP: reqIP || body.signerIP || '',
-      signedUA: reqUA || (body.signerUA || '').slice(0, 200),
-      consentText: consent.text, consentHash: consent.hash, consentAt: nowISO,
-      ...(phoneVerified ? { phone: phoneNumber, phoneVerified: true }
-        : (phone.number ? { phone: String(phone.number).slice(0, 30) } : {})),
-    });
-    upd.coTenants = list;
-  }
-
-  // Firma completa = locatore + LATO CONDUTTORI al completo (questa firma
-  // inclusa): principale e tutti i co-conduttori.
-  const afterMine = { ...fresh, ...upd };
-  let fullySigned = tenantSideComplete(afterMine) && !!afterMine.landlordSignature;
-  upd.signatureStatus = fullySigned ? 'complete' : 'partial';
-  if (fullySigned) {
-    upd.status = 'active';
-    upd.fullySignedAt = nowISO;
-  }
-
-  // ── 4. Write contract update (precondizione ottimistica) ──
-  // Il patch è condizionato all'updateTime appena letto: se un altro submit
-  // scrive nel mezzo (doppio tap, seconda scheda), Firestore risponde
-  // FAILED_PRECONDITION — si rilegge e, se questo ruolo risulta già
-  // firmato, si risponde 410 invece di sovrascrivere firma, IP e timestamp
-  // del primo submit.
-  try {
-    if (freshTime) {
-      try {
-        await commitWrites([{ docPath: 'contracts/' + contractId, fields: upd, precondition: { updateTime: freshTime } }]);
-      } catch (e) {
-        if (/FAILED_PRECONDITION|precondition/i.test(String(e.message || ''))) {
-          const again = await fsGet('contracts/' + contractId).catch(() => null);
-          // Stessa logica di ruolo del check iniziale: un co-conduttore in
-          // gara guardava landlordSignature e, a locatore già firmato,
-          // riceveva 410 senza che la SUA firma fosse mai stata scritta.
-          const nowSigned = again && (role === 'tenant' ? again.tenantSignature
-            : role === 'cotenant' ? (((again.coTenants || [])[coIndex] || {}).signature)
-            : again.landlordSignature);
-          if (nowSigned) return res.status(410).json({ ok: false, error: 'already_signed', role, signatureStatus: (again && again.signatureStatus) || 'partial' });
-          await fsPatch('contracts/' + contractId, upd);   // conflitto su ALTRI campi: riprova secca
-        } else { throw e; }
-      }
-    } else {
-      await fsPatch('contracts/' + contractId, upd);
+    // La versione VISTA dal firmatario è quella che firma (vedi sopra).
+    if (seenVersion !== null && versionOf(fresh) !== seenVersion) {
+      return res.status(409).json({ ok: false, error: 'version_changed', version: versionOf(fresh), seen: seenVersion });
     }
-  } catch (e) {
-    console.error('[magic-sign/submit] contract write:', e.message);
-    alertSignFailure(contractId, role, 'contract_write_failed', String(e.message || '').slice(0, 160));
-    return res.status(500).json({ ok: false, error: 'contract_write_failed' });
+    // L'ordine sul dato fresco: una revisione può aver riaperto la firma
+    // del conduttore dopo che il locatore ha aperto il suo link.
+    if (role === 'landlord' && !tenantSideComplete(fresh) && fresh.signingOrder !== 'any') {
+      return res.status(409).json({ ok: false, error: 'awaiting_tenant', waitingFor: tenantSideWaiting(fresh) });
+    }
+
+    // Anti-doppione sul dato FRESCO (il check iniziale usava la query per
+    // token, che può essere stantia di qualche secondo).
+    const freshAlready = role === 'tenant' ? !!fresh.tenantSignature
+      : role === 'cotenant' ? !!(((fresh.coTenants || [])[coIndex] || {}).signature)
+      : !!fresh.landlordSignature;
+    if (freshAlready) {
+      return res.status(410).json({ ok: false, error: 'already_signed', role, signatureStatus: fresh.signatureStatus || 'partial' });
+    }
+
+    // TERMS FREEZE: verifica sui valori CORRENTI, congelamento alla prima firma.
+    const currentTermsHash = sha256(termsFingerprint(fresh));
+    if (fresh.signedTermsHash && fresh.signedTermsHash !== currentTermsHash) {
+      try {
+        const { fsCreate } = await import('../homie/_lib.js');
+        await fsCreate('agentNotifications', {
+          type: 'contract.terms_changed',
+          summary: `⚠ Termini modificati DOPO una firma · ${contractId} — controfirma BLOCCATA (serve nuova versione del contratto)`,
+          priority: 'urgent',
+          ref: { collection: 'contracts', id: contractId },
+          payload: { contractId, role },
+          dedupKey: `terms-changed-${contractId}`,
+          status: 'pending', actor: 'magic-sign',
+          createdAt: new Date().toISOString(), attempts: 0,
+        }).catch(() => {});
+      } catch (_) {}
+      alertSignFailure(contractId, role, 'terms_changed', 'i termini sono cambiati dopo la prima firma — rimanda il link');
+      return res.status(409).json({ ok: false, error: 'terms_changed' });
+    }
+    if (!fresh.signedTermsHash) {
+      upd.signedTermsHash = currentTermsHash;
+      upd.signedTermsAt = nowISO;
+      upd.signedTerms = {
+        rent: Number(fresh.rent || 0),
+        deposit: Number(fresh.deposit || 0),
+        startDate: String(fresh.startDate || ''),
+        endDate: String(fresh.endDate || ''),
+        installmentMonths: [1, 2, 3, 6, 12].includes(Number(fresh.installmentMonths)) ? Number(fresh.installmentMonths) : 1,
+        type: String(fresh.type || ''),
+        cedolareSecca: ((fresh.cedolareSecca || 'si') !== 'no' && fresh.cedolareSecca !== false) ? 'si' : 'no',
+      };
+    }
+
+    // CO-FIRMA: riscrittura di coTenants[idx] dal dato fresco (identità
+    // fill-only + firma + consenso). Fatta QUI, dopo la rilettura, così la
+    // precondizione updateTime del write copre anche questo array.
+    if (role === 'cotenant') {
+      const list = (Array.isArray(fresh.coTenants) ? fresh.coTenants : []).map(x => ({ ...x }));
+      if (!list[coIndex] || !list[coIndex].name) return res.status(404).json({ ok: false, error: 'invalid_or_used' });
+      Object.assign(list[coIndex], {
+        cf: id.cf || list[coIndex].cf || '',
+        address: id.address || list[coIndex].address || '',
+        dob: id.dob || list[coIndex].dob || '',
+        birthPlace: id.pob || list[coIndex].birthPlace || '',
+        idDoc: id.docNum || list[coIndex].idDoc || '',
+        nationality: id.nationality || list[coIndex].nationality || '',
+        signature: body.signature, signedAt: nowISO,
+        signedIP: reqIP || body.signerIP || '',
+        signedUA: reqUA || (body.signerUA || '').slice(0, 200),
+        consentText: consent.text, consentHash: consent.hash, consentAt: nowISO,
+        ...(phoneVerified ? { phone: phoneNumber, phoneVerified: true }
+          : (phone.number ? { phone: String(phone.number).slice(0, 30) } : {})),
+      });
+      upd.coTenants = list;
+    }
+
+    // Firma completa = locatore + LATO CONDUTTORI al completo (questa firma
+    // inclusa): principale e tutti i co-conduttori.
+    const afterMine = { ...fresh, ...upd };
+    fullySigned = tenantSideComplete(afterMine) && !!afterMine.landlordSignature;
+    upd.signatureStatus = fullySigned ? 'complete' : 'partial';
+    if (fullySigned) {
+      upd.status = 'active';
+      upd.fullySignedAt = nowISO;
+    }
+
+    // Il patch è condizionato all'updateTime appena letto: se un altro
+    // submit (doppio tap, seconda scheda) o una revisione scrive nel mezzo,
+    // Firestore risponde FAILED_PRECONDITION e si rifà il giro dal fresco.
+    try {
+      if (freshTime) {
+        await commitWrites([{ docPath: 'contracts/' + contractId, fields: upd, precondition: { updateTime: freshTime } }]);
+      } else {
+        await fsPatch('contracts/' + contractId, upd);
+      }
+      committed = true;
+    } catch (e) {
+      if (/FAILED_PRECONDITION|precondition/i.test(String(e.message || ''))) continue;
+      console.error('[magic-sign/submit] contract write:', e.message);
+      alertSignFailure(contractId, role, 'contract_write_failed', String(e.message || '').slice(0, 160));
+      return res.status(500).json({ ok: false, error: 'contract_write_failed' });
+    }
+  }
+  if (!committed) {
+    alertSignFailure(contractId, role, 'contract_busy', 'il contratto è cambiato tre volte durante la firma');
+    return res.status(409).json({ ok: false, error: 'contract_busy' });
   }
 
   // ── 4b. Close the double-signer race ────────────────────

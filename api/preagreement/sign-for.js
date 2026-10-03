@@ -107,6 +107,13 @@ export function signPlan(contract, opSig) {
     landlordMandateReason: lm ? (lchk.reason || null) : 'landlord_mandate_missing',
     landlordMandateDiff: lm && !lchk.ok ? MANDATO.describeDiff(lchk.diff || []) : '',
     askLandlordMandate: c.askLandlordMandate === true,
+    // la versione del documento che la console mostra e su cui l'operatore
+    // conferma (rimandata alla firma: se cambia nel mezzo, 409), e se è un
+    // PDF caricato a mano — il mandato copre le condizioni, non il file:
+    // firmare per mandato lì esige la dichiarazione dell'operatore.
+    contractVersion: Number(c.contractVersion) || 1,
+    uploadedPdf: c.pdfSource === 'upload' && !!c.generatedPDF,
+    pdfFileName: c.pdfFileName || null,
     coTenantsPending: coPending,
     operatorSignature: !!opSig,
     canSignTenant: !sig.tenantSigned && chk.ok && !!opSig,
@@ -120,7 +127,7 @@ export function signPlan(contract, opSig) {
 // l'handler resta una funzione Vercel E una libreria. Tutte le guardie
 // (mandato, termini, sequenza, already_signed, otp) e il finalize restano
 // SUE. IP e UA sono quelli della richiesta dell'operatore: è lui che firma.
-export async function signInProcess({ token, signature, identity, asDelegate, ip, ua, handler = msSubmit }) {
+export async function signInProcess({ token, signature, identity, asDelegate, ip, ua, contractVersion = null, ackUploadedPdf = false, handler = msSubmit }) {
   const captured = { status: 0, body: null };
   const req = {
     method: 'POST',
@@ -128,6 +135,8 @@ export async function signInProcess({ token, signature, identity, asDelegate, ip
     body: {
       token, signature, identity: identity || {}, phone: {},
       asDelegate: asDelegate === true,
+      ...(contractVersion != null ? { contractVersion } : {}),
+      ackUploadedPdf: ackUploadedPdf === true,
       consent: { text: MS_CONSENT_TEXT, hash: sha256(MS_CONSENT_TEXT) },
     },
     socket: {}, on() {},
@@ -155,7 +164,7 @@ const landlordIdentity = (c) => ({
   nationality: c.landlordNationality || '',
 });
 
-const errStatus = (e) => ({ mandate_missing: 403, mandate_terms_changed: 409, landlord_mandate_terms_changed: 409, terms_changed: 409, awaiting_tenant: 409, already_signed: 410, invalid_or_used: 404, otp_required: 428, rate_limited: 429 })[e] || 500;
+const errStatus = (e) => ({ mandate_missing: 403, mandate_terms_changed: 409, landlord_mandate_terms_changed: 409, terms_changed: 409, awaiting_tenant: 409, version_changed: 409, uploaded_pdf_ack_required: 409, contract_busy: 409, already_signed: 410, invalid_or_used: 404, otp_required: 428, rate_limited: 429 })[e] || 500;
 
 export default async function handler(req, res) {
   setCors(req, res);
@@ -302,6 +311,21 @@ export default async function handler(req, res) {
   }
   const steps = [];
 
+  // ── La versione e il file (3/10/2026) ─────────────────────────────────
+  // La console conferma su una versione precisa (il piano la porta): se nel
+  // frattempo è stata caricata una versione corretta, niente firma. E su un
+  // PDF caricato a mano la firma per mandato esige la dichiarazione
+  // dell'operatore (ackUploadedPdf) — controllata QUI, prima di armare
+  // qualunque delega, così un 409 non lascia scritture a metà.
+  const seenVersion = (b.contractVersion != null && Number.isFinite(Number(b.contractVersion))) ? Number(b.contractVersion) : (Number(contract.contractVersion) || 1);
+  if ((Number(contract.contractVersion) || 1) !== seenVersion) {
+    return res.status(409).json({ ok: false, error: 'version_changed', version: Number(contract.contractVersion) || 1, seen: seenVersion, contractId });
+  }
+  const ackUploadedPdf = b.ackUploadedPdf === true;
+  if (contract.pdfSource === 'upload' && contract.generatedPDF && !ackUploadedPdf) {
+    return res.status(409).json({ ok: false, error: 'uploaded_pdf_ack_required', version: seenVersion, fileName: contract.pdfFileName || null, contractId });
+  }
+
   // ── 1. IL CONDUTTORE, per mandato ────────────────────────────────────
   if (!sig0.tenantSigned) {
     const chk = mandateCheck(contract);
@@ -324,7 +348,7 @@ export default async function handler(req, res) {
       await fsPatch('contracts/' + contractId, { tenantDelegate: dele });
       contract.tenantDelegate = dele;
     }
-    const r = await signInProcess({ token: contract.tenantSignToken, signature: opSig.png, identity: tenantIdentity(contract), asDelegate: true, ip, ua });
+    const r = await signInProcess({ token: contract.tenantSignToken, signature: opSig.png, identity: tenantIdentity(contract), asDelegate: true, ip, ua, contractVersion: seenVersion, ackUploadedPdf });
     if (r.status !== 200) {
       const err = (r.body && r.body.error) || 'tenant_sign_failed';
       return res.status(r.status || 500).json({ ok: false, error: err, step: 'tenant', contractId, changed: (r.body && r.body.changed) || [] });
@@ -389,7 +413,7 @@ export default async function handler(req, res) {
     }
     // asDelegate:true — è l'OPERATORE che firma: submit stampa
     // landlordSignedByDelegate (con mandateRef/At/Hash quando c'è il mandato)
-    const r2 = await signInProcess({ token: fresh.landlordSignToken, signature: opSig.png, identity: landlordIdentity(fresh), asDelegate: true, ip, ua });
+    const r2 = await signInProcess({ token: fresh.landlordSignToken, signature: opSig.png, identity: landlordIdentity(fresh), asDelegate: true, ip, ua, contractVersion: seenVersion, ackUploadedPdf });
     if (r2.status !== 200) {
       const err = (r2.body && r2.body.error) || 'landlord_sign_failed';
       return res.status(r2.status || 500).json({ ok: false, error: err, step: 'landlord', steps, contractId, landlordSignUrl });

@@ -410,6 +410,8 @@
         support:'Contact BOOM',
         e_rate:'Too many attempts — wait a minute and press Sign again.',
         e_terms:'This contract was updated after it was sent. Please ask BOOM to resend your signing link — it takes a second.',
+        e_ver:'A corrected version of this contract was published a moment ago. Reloading it now — please read it before signing.',
+        e_busy:'The contract was being updated while you signed. Please tap Sign again in a few seconds.',
         e_otp:'This contract requires phone verification: go back and verify your number.',
         e_used:'This signing link is no longer valid. Ask BOOM for a fresh one.',
         e_consent:'Please tick the consent box again and press Sign.',
@@ -450,6 +452,8 @@
         support:'Contatta BOOM',
         e_rate:'Troppi tentativi — attenda un minuto e prema di nuovo Firma.',
         e_terms:'Il contratto è stato aggiornato dopo l’invio. Chieda a BOOM di rimandare il link di firma — è questione di un attimo.',
+        e_ver:'È stata appena pubblicata una versione corretta di questo contratto. La ricarico ora — la legga prima di firmare.',
+        e_busy:'Il contratto si stava aggiornando mentre firmava. Riprovi a premere Firma fra qualche secondo.',
         e_otp:'Questo contratto richiede la verifica del telefono: torni indietro e verifichi il numero.',
         e_used:'Questo link di firma non è più valido. Ne chieda uno nuovo a BOOM.',
         e_consent:'Rimetta la spunta sul consenso e prema Firma.',
@@ -619,6 +623,7 @@
           '<p class="sub">'+t('rev_welcome')+(signer.name?(', '+esc(signer.name)):'')+'. '+t('rev_d')+'</p>'+
           (dele?'<p class="sub" style="border:1px dashed rgba(212,175,55,.4);border-radius:10px;padding:10px 14px">✍️ You are countersigning as <b>'+esc(dele.name)+'</b> on behalf of <b>'+esc(dele.onBehalfOf||'the landlord')+'</b>'+(lmand&&lmand.at?(' — written mandate given by the landlord on '+esc(String(lmand.at).slice(0,10))+(lmand.ref?(' ('+esc(lmand.ref)+')'):'')+(lmand.termsOk===false?'. <b style="color:#F08585">The contract terms are no longer those of the mandate ('+esc((lmand.termsChanged||[]).join(', '))+'): the server will refuse this signature.</b>':'')):(dele.basis?(' — '+esc(dele.basis)):''))+'. The signature will be recorded as a delegate signature.</p>':'')+
           (tdele?'<p class="sub" style="border:1px dashed rgba(212,175,55,.4);border-radius:10px;padding:10px 14px">✍️ You are signing as <b>'+esc(tdele.name)+'</b> on behalf of the tenant <b>'+esc(tdele.onBehalfOf||signer.name||'')+'</b>'+(tmand&&tmand.at?(' — written mandate given on '+esc(String(tmand.at).slice(0,10))+(tmand.ref?(' with proposal '+esc(tmand.ref)):'')):' — <b>no written mandate on file: the server will refuse this signature</b>')+'. The signature will be recorded as signed under mandate.'+(tmand&&tmand.termsOk===false?'<br><b style="color:#E08573">The contract terms no longer match the conditions the tenant accepted'+((tmand.termsChanged||[]).length?' ('+esc((tmand.termsChanged||[]).join(', '))+')':'')+': the server will refuse this signature. Send the tenant their own link, or issue a new proposal.</b>':'')+'</p>':'')+
+          ((dele||tdele)&&c.pdfSource==='upload'?'<p class="sub" style="border:1px dashed rgba(224,133,115,.5);border-radius:10px;padding:10px 14px">⚠ Il PDF di questo contratto è una versione caricata a mano (v'+esc(String(c.contractVersion||''))+'). Il mandato copre le condizioni approvate, non il file: prima di registrare la firma ti chiederemo di confermare che il documento le riporta.</p>':'')+
           '<div class="summary">'+
             '<div class="prop"><div class="lbl">'+t('k_prop')+'</div><div class="name">'+esc(p.name||p.title||'Apartment')+'</div><div class="addr">'+esc(p.address||'')+'</div></div>'+
             '<div class="grid2">'+
@@ -928,6 +933,10 @@
         var payload = {
           token: TOKEN,
           asDelegate: !!(ASDELE && (S.role==='tenant' || S.role==='landlord')),
+          // la versione LETTA: se nel frattempo ne è stata caricata una
+          // corretta, il server rifiuta (409 version_changed) e si rilegge
+          contractVersion: (S.data.contract && S.data.contract.contractVersion) || 1,
+          ackUploadedPdf: !!S.ackPdf,
           signature: S.signature,
           signerIP: arr[1],
           signerName: S.id.name || signer.name || '',
@@ -949,6 +958,18 @@
           var code=(j&&(j.error||j.detail))?String(j.error||j.detail):'';
           if(code==='rate_limited') return flash(t('e_rate'));
           if(code==='terms_changed') return flash(t('e_terms'));
+          // Una versione corretta è arrivata mentre la pagina era aperta: si
+          // rilegge (stesso link) — mai una firma su un testo non letto.
+          if(code==='version_changed'){ flash(t('e_ver')); setTimeout(function(){ location.reload(); }, 2600); return; }
+          if(code==='contract_busy') return flash(t('e_busy'));
+          // Firma PER MANDATO su un PDF caricato dall'operatore: il mandato
+          // copre le condizioni, non il file — chi firma lo dichiara.
+          if(code==='uploaded_pdf_ack_required'){
+            if(window.confirm('Il PDF di questo contratto (v'+(j.version||'?')+(j.fileName?(' · '+j.fileName):'')+') è stato caricato a mano. Il mandato copre le condizioni approvate, non il file: firmando per conto della parte dichiari che il documento riporta ESATTAMENTE quelle condizioni. Procedere?')){
+              S.ackPdf=true; if(b){ b.disabled=true; b.textContent='…'; } submit(); return;
+            }
+            return flash('Firma non registrata: il PDF caricato non è stato confermato.');
+          }
           if(code==='awaiting_tenant') return flash(turnText(j&&j.waitingFor,true));
           if(code==='otp_required') return flash(t('e_otp'));
           if(code==='invalid_or_used') return flash(t('e_used'));

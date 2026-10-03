@@ -77,6 +77,13 @@ globalThis.fetch = async (url, opts = {}) => {
   if (url.startsWith('https://storage.example/')) return new Response(Buffer.from('FILE:' + url.slice(24)), { status: 200 });
   if (url.startsWith('https://freetsa.org/tsr')) return new Response(Buffer.alloc(300, 7), { status: 200 });
   if (url.includes('firebasestorage.googleapis.com')) {
+    // un file oltre il tetto, servito a pezzi SENZA content-length (il caso
+    // in cui solo il conteggio del flusso lo ferma)
+    if (opts.method !== 'POST' && url.includes('%2Frevisions%2Fhuge.pdf')) {
+      globalThis.__hugeChunks = 0;
+      const chunk = new Uint8Array(1024 * 1024);
+      return new Response(new ReadableStream({ pull(ctrl) { if (globalThis.__hugeChunks++ < 40) ctrl.enqueue(chunk); else ctrl.close(); } }), { status: 200 });
+    }
     if (opts.method === 'POST') {
       const name = new URL(url).searchParams.get('name');
       if (name) { storageFiles.set(name, Buffer.from(opts.body)); storagePosts++; }
@@ -119,6 +126,12 @@ globalThis.fetch = async (url, opts = {}) => {
           return new Response(JSON.stringify({ error: { code: 400, status: 'INVALID_ARGUMENT', message: 'bad name' } }), { status: 400 });
         }
         const k = (w.update.name.split('/documents/')[1] || '');
+        // un'altra scrittura che arriva FRA la rilettura e il commit (la
+        // revisione nel mezzo di una firma): l'hook gira una volta sola
+        if (globalThis.__beforeCommit && globalThis.__beforeCommit.key === k) {
+          const h = globalThis.__beforeCommit; globalThis.__beforeCommit = null;
+          h.run(store.get(k)); bump(k);
+        }
         if (w.currentDocument && w.currentDocument.updateTime) {
           const cur = docTimes.get(k) || '2026-01-01T00:00:00Z';
           if (cur !== w.currentDocument.updateTime) return new Response(JSON.stringify({ error: { status: 'FAILED_PRECONDITION', message: 'stored version does not match' } }), { status: 400 });
@@ -260,9 +273,9 @@ const { notifyPartialSignature } = await import('../../api/sign/_notify.js');
   const annaBefore = mailTo('anna@expat.com').length;
   r = mkRes();
   await sendSign(mkReq({ id: 'paCO', coOnly: true }, ADMIN), r);
-  check('👥 coOnly: link dei co-conduttori, email a chi ce l\'ha, niente al titolare',
+  check('👥 coOnly: link dei co-conduttori, niente al titolare, e chi è stato avvisato da poco NON riceve un\'altra email',
     r.code === 200 && r.body.coOnly === true && r.body.coTenants.length === 2
-    && mailTo('anna@expat.com').length === annaBefore && mailTo('marco@flat.com').length === 3);
+    && mailTo('anna@expat.com').length === annaBefore && mailTo('marco@flat.com').length === 2 && (r.body.coRecent || []).includes('Marco Rossi'));
 
   // 6. i co-conduttori firmano col LORO link; il proprietario solo dopo l'ULTIMO
   r = mkRes();
@@ -319,6 +332,10 @@ const { notifyPartialSignature } = await import('../../api/sign/_notify.js');
 const revise = (await import('../../api/contracts/revise.js')).default;
 const { ensureContractPdf } = await import('../../api/sign/_contractpdf.js');
 const callRevise = async (body, headers = ADMIN) => { const r = mkRes(); await revise(mkReq(body, headers), r); return r; };
+// il path di una versione porta un suffisso unico (due revisioni concorrenti
+// non si sovrascrivono i byte): si cerca per versione
+const vrx = (n) => new RegExp('contract-v' + n + '-[0-9a-f]{8}\\.pdf');
+const vfile = (cid, n) => { for (const [k, v] of storageFiles) if (k.startsWith('contracts/' + cid + '/') && vrx(n).test(k)) return v; return undefined; };
 {
   store.set('contracts/ctrRV', baseContract({
     tenantSignToken: 'TOK_RV_T', landlordSignToken: 'TOK_RV_L', preAgreementId: 'paRV',
@@ -350,9 +367,9 @@ const callRevise = async (body, headers = ADMIN) => { const r = mkRes(); await r
   const cv2 = store.get('contracts/ctrRV');
   check('upload: 200, versione 2, 3 pagine', r.code === 200 && r.body.version === 2 && r.body.pages === 3);
   check('upload: i byte in Storage sono ESATTAMENTE quelli caricati, su un path di versione',
-    !!storageFiles.get('contracts/ctrRV/contract-v2.pdf') && storageFiles.get('contracts/ctrRV/contract-v2.pdf').equals(V2));
+    !!vfile('ctrRV', 2) && vfile('ctrRV', 2).equals(V2));
   check('upload: il contratto punta alla versione caricata (pdfSource upload, niente ancore, nota)',
-    String(cv2.generatedPDF).includes('contract-v2.pdf') && cv2.pdfSource === 'upload' && cv2.sigAnchors === null
+    vrx(2).test(String(cv2.generatedPDF)) && cv2.pdfSource === 'upload' && cv2.sigAnchors === null
     && cv2.pdfUploadNote === 'piano 2, int. 14' && cv2.contractVersion === 2 && cv2.pdfHash !== 'oldhash00000000');
   check('upload: la versione 1 resta nella storia (url + hash)',
     Array.isArray(cv2.contractVersions) && cv2.contractVersions.length === 1 && cv2.contractVersions[0].v === 1
@@ -368,13 +385,13 @@ const callRevise = async (body, headers = ADMIN) => { const r = mkRes(); await r
     u1 === cv2.generatedPDF && storagePosts === postsBefore && !storageFiles.has('contracts/ctrRV/contract.pdf'));
   r = mkRes();
   await msLookup(mkReq({ token: 'TOK_RV_T' }), r);
-  check('/sign mostra la versione caricata', r.code === 200 && String(r.body.contract.generatedPDF).includes('contract-v2.pdf'));
+  check('/sign mostra la versione caricata', r.code === 200 && vrx(2).test(String(r.body.contract.generatedPDF)));
 
   // l'inquilino firma la v2 (la prima firma forza un refresh del PDF: qui no)
   r = mkRes();
   await msSubmit(mkReq(signBody('TOK_RV_T')), r);
   check('l\'inquilino firma la v2: 200 partial, il PDF è ancora quello caricato',
-    r.code === 200 && String(store.get('contracts/ctrRV').generatedPDF).includes('contract-v2.pdf') && storagePosts === postsBefore);
+    r.code === 200 && vrx(2).test(String(store.get('contracts/ctrRV').generatedPDF)) && storagePosts === postsBefore);
 
   // una nuova correzione con una firma viva: si DICE, non si fa da sola
   const V3 = await mkPdf(4);
@@ -391,12 +408,12 @@ const callRevise = async (body, headers = ADMIN) => { const r = mkRes(); await r
     r.code === 200 && r.body.version === 3 && cv3.tenantSignature == null && cv3.signatureStatus === 'none'
     && cv3.signedTermsHash == null && arch.length === 1 && arch[0].role === 'tenant' && arch[0].name === 'Anna Expat'
     && /^[a-f0-9]{64}$/.test(arch[0].signatureSha256) && !!arch[0].signedAt);
-  check('i byte della v2 (quella che Anna ha visto) restano intatti in Storage', storageFiles.get('contracts/ctrRV/contract-v2.pdf').equals(V2));
+  check('i byte della v2 (quella che Anna ha visto) restano intatti in Storage', vfile('ctrRV', 2).equals(V2));
   check('la proposta torna a dire «nessuna firma»', store.get('preAgreements/paRV').contractSignatureStatus === 'none' && store.get('preAgreements/paRV').contractVersion === 3);
   check('Anna riceve il link della nuova versione', mailTo('anna@expat.com').slice(annaB2).some(m => /Updated contract/.test(m.subject)));
   r = mkRes();
   await msLookup(mkReq({ token: 'TOK_RV_T' }), r);
-  check('il link di Anna si riapre sulla v3 (non più «hai già firmato»)', r.code === 200 && String(r.body.contract.generatedPDF).includes('contract-v3.pdf'));
+  check('il link di Anna si riapre sulla v3 (non più «hai già firmato»)', r.code === 200 && vrx(3).test(String(r.body.contract.generatedPDF)));
 
   // il giro completo sulla versione caricata
   r = mkRes(); await msSubmit(mkReq(signBody('TOK_RV_T')), r);
@@ -416,11 +433,11 @@ const callRevise = async (body, headers = ADMIN) => { const r = mkRes(); await r
   r = await callRevise({ op: 'template', contractId: 'ctrTP', note: 'dati corretti' });
   const tp = store.get('contracts/ctrTP');
   check('↺ modello BOOM: versione 3 rigenerata dai dati, path suo, la v2 caricata intatta',
-    r.code === 200 && r.body.version === 3 && tp.pdfSource === 'boom' && String(tp.generatedPDF).includes('contract-v3.pdf')
-    && !!storageFiles.get('contracts/ctrTP/contract-v3.pdf') && storageFiles.get('contracts/ctrTP/contract-v2.pdf').equals(V2)
+    r.code === 200 && r.body.version === 3 && tp.pdfSource === 'boom' && vrx(3).test(String(tp.generatedPDF))
+    && !!vfile('ctrTP', 3) && vfile('ctrTP', 2).equals(V2)
     && tp.sigAnchors && Array.isArray(tp.sigAnchors.blocks) && tp.sigAnchors.blocks.length > 0);
   check('un contratto mai mandato in firma: nessuna email partita dalla revisione', notifiedFresh && notifiedFresh.tenant === false);
-  const tpPdf = storageFiles.get('contracts/ctrTP/contract-v3.pdf');
+  const tpPdf = vfile('ctrTP', 3);
   check('↺ il modello stampa il piano e l\'interno dall\'immobile (piano 2, int. 14)', !!tpPdf && /piano 2/.test(tpPdf.toString('latin1')) && /int\. 14/.test(tpPdf.toString('latin1')));
 
   // giunzioni
@@ -442,8 +459,208 @@ const callRevise = async (body, headers = ADMIN) => { const r = mkRes(); await r
     /window\.uploadRevision=async function/.test(cons) && /'contracts\/'\+cid\+'\/revisions\/upload-'/.test(cons)
     && /window\.reviseTemplate=async function/.test(cons) && /📤 Carica versione corretta/.test(cons));
   check('console: ✎ Correggi i dati — i campi già compilati coi valori attuali, parte solo ciò che cambia',
-    /completaDati\(\\''\+d\.id\+'\\',true\)/.test(cons) && /data-orig/.test(cons) && /if\(v===String\(el\.getAttribute\('data-orig'\)\|\|''\)\.trim\(\)\)return;/.test(cons)
+    /completaDati\(\\''\+d\.id\+'\\',true\)/.test(cons) && /data-orig/.test(cons) && /var v=String\(el\.value\|\|''\)\.trim\(\),orig=String\(el\.getAttribute\('data-orig'\)\|\|''\)\.trim\(\);\s*if\(v===orig\)return;/.test(cons)
     && /includeFilled = !!\(b && b\.all === true\) && auth\.profile\.role === 'admin'/.test(src('api/profile/link.js')));
+}
+
+// ═══ C. IL GIRO DOPO LA REVIEW (3/10/2026) ════════════════════════════════
+// Firma ↔ versione, nessuna firma annullata che torna in vita, e il mandato
+// che non copre un file caricato senza una dichiarazione.
+const { mandateTermsHash } = await import('../../api/magic-sign/_shared.js');
+const MANDATO = (await import('../../js/mandato-engine.js')).default;
+{
+  // C1 — la revisione che arriva fra la rilettura e il commit della firma
+  const coList = () => ([
+    { name: 'Marco Co', email: 'marco@co.it', signature: SIG, signedAt: '2026-10-01T09:00:00Z', signedIP: '1.1.1.1' },
+    { name: 'Sara Co', email: 'sara@co.it' },
+  ]);
+  store.set('contracts/ctrRS', baseContract({ tenantSignToken: 'TOK_RS_T', landlordSignToken: 'TOK_RS_L', coTenants: coList(), signatureStatus: 'partial' }));
+  const voidAll = (d) => {
+    d.coTenants = d.coTenants.map(x => { const y = { ...x }; delete y.signature; delete y.signedAt; delete y.signedIP; return y; });
+    d.signatureStatus = 'none'; d.contractVersion = 2; d.generatedPDF = 'https://storage.example/contract-v2.pdf';
+  };
+  globalThis.__beforeCommit = { key: 'contracts/ctrRS', run: voidAll };
+  let r = mkRes();
+  await msSubmit(mkReq(signBody(cosignRef('ctrRS', 1))), r);
+  let d = store.get('contracts/ctrRS');
+  check('C1: una revisione nel mezzo della firma NON riporta in vita la firma annullata (co-conduttore 0 resta da firmare)',
+    !d.coTenants[0].signature && d.signatureStatus !== 'complete');
+  check('C1: la firma in corso si rifà sul dato fresco (Sara firmata, stato partial)', r.code === 200 && !!d.coTenants[1].signature && d.signatureStatus === 'partial');
+
+  // C1b — con la versione vista: la firma su un testo cambiato non passa
+  store.set('contracts/ctrRS2', baseContract({ tenantSignToken: 'TOK_RS2_T', landlordSignToken: 'TOK_RS2_L', coTenants: coList(), signatureStatus: 'partial' }));
+  globalThis.__beforeCommit = { key: 'contracts/ctrRS2', run: voidAll };
+  r = mkRes();
+  await msSubmit(mkReq({ ...signBody(cosignRef('ctrRS2', 1)), contractVersion: 1 }), r);
+  d = store.get('contracts/ctrRS2');
+  check('C1b: la versione cambiata fra lettura e commit → 409 version_changed, nessuna firma scritta',
+    r.code === 409 && r.body.error === 'version_changed' && r.body.version === 2 && !d.coTenants[1].signature && !d.coTenants[0].signature);
+
+  // C2 — la scheda aperta sulla v1 dopo il caricamento della v2
+  store.set('contracts/ctrVV', baseContract({ tenantSignToken: 'TOK_VV_T', landlordSignToken: 'TOK_VV_L', contractVersion: 2, pdfSource: 'upload', generatedPDF: 'https://storage.example/contract-v2.pdf' }));
+  r = mkRes(); await msLookup(mkReq({ token: 'TOK_VV_T' }), r);
+  check('C2: la lookup dice la versione e la provenienza del PDF', r.code === 200 && r.body.contract.contractVersion === 2 && r.body.contract.pdfSource === 'upload');
+  r = mkRes(); await msSubmit(mkReq({ ...signBody('TOK_VV_T'), contractVersion: 1 }), r);
+  check('C2: firma con la v1 in mano su un contratto alla v2 → 409 version_changed, nulla scritto',
+    r.code === 409 && r.body.error === 'version_changed' && r.body.seen === 1 && !store.get('contracts/ctrVV').tenantSignature);
+  r = mkRes(); await msSubmit(mkReq({ ...signBody('TOK_VV_T'), contractVersion: 2 }), r);
+  check('C2: con la versione giusta la firma passa', r.code === 200 && !!store.get('contracts/ctrVV').tenantSignature);
+  const sh = src('sign.html');
+  check('C2: sign.html rimanda la versione letta e ricarica sul 409 version_changed',
+    /contractVersion: \(S\.data\.contract && S\.data\.contract\.contractVersion\) \|\| 1/.test(sh) && /code==='version_changed'\)\{ flash\(t\('e_ver'\)\); setTimeout\(function\(\)\{ location\.reload\(\); \}/.test(sh));
+
+  // C3 — firma PER MANDATO su un PDF caricato: solo con la dichiarazione
+  const base = baseContract({ tenantSignToken: 'TOK_MU_T', landlordSignToken: 'TOK_MU_L', contractVersion: 2, pdfSource: 'upload', pdfFileName: 'corretto.pdf', generatedPDF: 'https://storage.example/contract-v2.pdf' });
+  const terms = MANDATO.termsFromContract(base);
+  store.set('contracts/ctrMU', { ...base,
+    tenantMandate: { given: true, at: '2026-09-20T10:00:00Z', ref: 'BOOM-MU1', termsVersion: 2, terms, termsHash: mandateTermsHash(terms) },
+    tenantDelegate: { name: 'Valentino Egidi', onBehalfOf: 'Anna Expat', basis: 'mandato scritto' },
+  });
+  r = mkRes(); await msSubmit(mkReq({ ...signBody('TOK_MU_T'), asDelegate: true }), r);
+  check('C3: per mandato su un PDF caricato senza dichiarazione → 409 uploaded_pdf_ack_required, nessuna firma',
+    r.code === 409 && r.body.error === 'uploaded_pdf_ack_required' && r.body.version === 2 && !store.get('contracts/ctrMU').tenantSignature);
+  r = mkRes(); await msSubmit(mkReq({ ...signBody('TOK_MU_T'), asDelegate: true, ackUploadedPdf: true }), r);
+  const mu = store.get('contracts/ctrMU');
+  check('C3: con la dichiarazione la firma passa e la dichiarazione resta sulla firma per conto (versione, file)',
+    r.code === 200 && !!mu.tenantSignature && mu.tenantSignedByDelegate && mu.tenantSignedByDelegate.uploadedPdfAck
+    && mu.tenantSignedByDelegate.uploadedPdfAck.version === 2 && mu.tenantSignedByDelegate.uploadedPdfAck.fileName === 'corretto.pdf');
+  // il cliente stesso dal suo link (nessun mandato in gioco) firma senza dichiarazioni
+  store.set('contracts/ctrMU2', { ...base, tenantSignToken: 'TOK_MU2_T', landlordSignToken: 'TOK_MU2_L' });
+  r = mkRes(); await msSubmit(mkReq(signBody('TOK_MU2_T')), r);
+  check('C3: il conduttore che firma DA SÉ un PDF caricato non deve dichiarare nulla', r.code === 200 && !store.get('contracts/ctrMU2').tenantSignedByDelegate);
+  const sf = src('api/preagreement/sign-for.js');
+  check('C3: ✍️ Firmo io controlla versione e dichiarazione PRIMA di armare la delega, e le passa a submit',
+    sf.indexOf("error: 'uploaded_pdf_ack_required'") > 0 && sf.indexOf("error: 'uploaded_pdf_ack_required'") < sf.indexOf('await fsPatch(\'contracts/\' + contractId, { tenantDelegate: dele });')
+    && (sf.match(/contractVersion: seenVersion, ackUploadedPdf \}\)/g) || []).length === 2);
+}
+
+// C4 — revise.js: bucket, tetto, path unico, timbri azzerati
+{
+  const { allowedFileUrl, revisionResets } = await import('../../api/contracts/revise.js');
+  const B = 'test-proj.firebasestorage.app';
+  const u = (bucket, path) => `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${encodeURIComponent(path)}?alt=media&token=x`;
+  check('C4: il file grande si accetta SOLO dal bucket di BOOM (un altro progetto Firebase con lo stesso path no)',
+    allowedFileUrl(u(B, 'contracts/ctrX/revisions/a.pdf'), 'ctrX') === true
+    && allowedFileUrl(u('test-proj.appspot.com', 'contracts/ctrX/revisions/a.pdf'), 'ctrX') === true
+    && allowedFileUrl(u('evil-proj.firebasestorage.app', 'contracts/ctrX/revisions/a.pdf'), 'ctrX') === false
+    && allowedFileUrl(u(B, 'contracts/ctrY/revisions/a.pdf'), 'ctrX') === false
+    && allowedFileUrl('https://firebasestorage.googleapis.com/o/' + encodeURIComponent('contracts/ctrX/a.pdf'), 'ctrX') === false);
+
+  store.set('contracts/ctrBIG', baseContract({ tenantSignToken: 'TOK_BIG_T', landlordSignToken: 'TOK_BIG_L' }));
+  let r = await callRevise({ op: 'upload', contractId: 'ctrBIG', fileUrl: u(B, 'contracts/ctrBIG/revisions/huge.pdf') });
+  check('C4: un file oltre 15 MB senza content-length → 413, letto solo fino al tetto (mai tutto in memoria)',
+    r.code === 413 && r.body.error === 'too_large' && globalThis.__hugeChunks <= 17 && store.get('contracts/ctrBIG').contractVersion == null);
+
+  // due correzioni nello stesso istante: il perdente non tocca i byte del vincitore
+  store.set('contracts/ctrRACE', baseContract({ tenantSignToken: 'TOK_RACE_T', landlordSignToken: 'TOK_RACE_L' }));
+  const PA_ = await mkPdf(2), PB_ = await mkPdf(5);
+  const [ra, rb] = await Promise.all([
+    callRevise({ op: 'upload', contractId: 'ctrRACE', pdfBase64: PA_.toString('base64') }),
+    callRevise({ op: 'upload', contractId: 'ctrRACE', pdfBase64: PB_.toString('base64') }),
+  ]);
+  const won = ra.code === 200 ? PA_ : PB_;
+  const raceDoc = store.get('contracts/ctrRACE');
+  const pathOf = (url) => decodeURIComponent((/\/o\/([^?]+)/.exec(String(url)) || [])[1] || '');
+  const linked = storageFiles.get(pathOf(raceDoc.generatedPDF));
+  check('C4: due revisioni concorrenti → una sola vince (l\'altra 409), e il file a cui punta il contratto è QUELLO del vincitore',
+    [ra.code, rb.code].sort().join(',') === '200,409' && raceDoc.contractVersion === 2 && !!linked && linked.equals(won));
+
+  store.set('contracts/ctrRZ', baseContract({
+    tenantSignToken: 'TOK_RZ_T', landlordSignToken: 'TOK_RZ_L', preAgreementId: 'paRZ',
+    coTenants: [{ name: 'Leo Co', email: 'leo@co.it', signature: SIG, signedAt: '2026-10-01T09:00:00Z' }],
+    signatureStatus: 'partial', signViewedTenantAt: '2026-09-30T10:00:00Z', viewNudgedTenantAt: '2026-10-01T10:00:00Z',
+    signViewedCo0At: '2026-09-30T11:00:00Z', inviteNudgeCount: 2, signInviteTenantAt: '2026-09-28T10:00:00Z',
+  }));
+  store.set('preAgreements/paRZ', { status: 'paid', coTenantsSignedAt: '2026-10-01T09:00:00Z', contractSignatureStatus: 'partial' });
+  r = await callRevise({ op: 'upload', contractId: 'ctrRZ', pdfBase64: (await mkPdf(2)).toString('base64'), voidSignatures: true });
+  const rz = store.get('contracts/ctrRZ');
+  check('C4: la nuova versione azzera «visto», solleciti e conteggio dei re-inviti (si riferivano al documento di prima)',
+    r.code === 200 && rz.signViewedTenantAt == null && rz.viewNudgedTenantAt == null && rz.signViewedCo0At == null && rz.inviteNudgeCount === 0);
+  check('C4: la proposta perde anche «co-conduttori firmati» quando le loro firme si annullano',
+    store.get('preAgreements/paRZ').coTenantsSignedAt == null && store.get('preAgreements/paRZ').contractSignatureStatus === 'none');
+  const rr = revisionResets({ coTenants: [{}, {}] });
+  check('C4: revisionResets copre ogni co-conduttore', 'signViewedCo1At' in rr && 'viewNudgedCo1At' in rr && rr.inviteNudgeCount === 0);
+}
+
+// C5 — gli inviti: send-link ai co-conduttori, cooldown, primo invito del titolare
+{
+  const sendLink = (await import('../../api/sign/send-link.js')).default;
+  const { inviteCoTenants } = await import('../../api/sign/_cosign.js');
+  store.set('contracts/ctrSL', baseContract({
+    tenantSignToken: 'TOK_SL_T', landlordSignToken: 'TOK_SL_L', tenantSignature: SIG, tenantSignedAt: '2026-10-01T10:00:00Z', signatureStatus: 'partial',
+    coTenants: [{ name: 'Nina Co', email: 'nina@co.it' }, { name: 'Ugo Co', phone: '+393331112222' }],
+  }));
+  let r = mkRes(); await sendLink(mkReq({ contractId: 'ctrSL', role: 'tenant' }, ADMIN), r);
+  const ninaFirst = mailTo('nina@co.it').length;
+  check('C5: promemoria del portal a titolare firmato → raggiunge i co-conduttori che mancano (prima 409 already_signed)',
+    r.code === 200 && r.body.primarySigned === true && r.body.sent === true && r.body.coInvited === 1
+    && r.body.coNoEmail.includes('Ugo Co') && r.body.coTenants.length === 2 && ninaFirst === 1);
+  r = mkRes(); await sendLink(mkReq({ contractId: 'ctrSL', role: 'tenant' }, ADMIN), r);
+  check('C5: ripremere entro 12 ore non manda un\'altra email (cooldown), il link resta nella risposta',
+    r.code === 200 && r.body.sent === false && r.body.coRecent.includes('Nina Co') && mailTo('nina@co.it').length === ninaFirst && r.body.coTenants.length === 2);
+  r = mkRes(); await sendLink(mkReq({ contractId: 'ctrSL', role: 'landlord' }, ADMIN), r);
+  check('C5: il locatore in attesa → 409 awaiting_tenant CON i nomi di chi manca',
+    r.code === 409 && r.body.error === 'awaiting_tenant' && (r.body.waitingFor || []).map(x => x.name).join(',') === 'Nina Co,Ugo Co');
+  const co = await inviteCoTenants({ contractId: 'ctrSL', contract: store.get('contracts/ctrSL'), updated: true });
+  check('C5: una versione NUOVA del contratto passa il cooldown (è un\'altra notizia)', co.emailed.includes('Nina Co') && mailTo('nina@co.it').length === ninaFirst + 1);
+
+  // il titolare mai invitato: la firma di un co-conduttore gli manda il PRIMO invito, una volta sola
+  store.set('contracts/ctrPI', baseContract({
+    tenantSignToken: 'TOK_PI_T', landlordSignToken: 'TOK_PI_L', tenantEmail: 'paolo@main.it', tenantName: 'Paolo Main', tenantId: '',
+    coTenants: [{ name: 'Ada Co', email: 'ada@co.it' }, { name: 'Bea Co', email: 'bea@co.it' }],
+  }));
+  r = mkRes(); await msSubmit(mkReq(signBody(cosignRef('ctrPI', 0))), r);
+  const p1 = mailTo('paolo@main.it');
+  check('C5: alla firma del primo co-conduttore il titolare mai invitato riceve il suo invito — non un «Reminder»',
+    r.code === 200 && p1.length === 1 && !/^Reminder/.test(p1[0].subject) && !!store.get('contracts/ctrPI').signInviteTenantAt);
+  r = mkRes(); await msSubmit(mkReq(signBody(cosignRef('ctrPI', 1))), r);
+  check('C5: alla firma del secondo co-conduttore il titolare NON riceve un altro invito (era stampato)',
+    r.code === 200 && mailTo('paolo@main.it').length === 1);
+  const portal = src('js/portal-app.js');
+  check('C5: il promemoria del portal chiama send-link per i co-conduttori quando il titolare ha già firmato',
+    /else if \(contract\.tenantSignature && \(contract\.coTenants \|\| \[\]\)\.some\(x => x && x\.name && !x\.signature\)\) \{/.test(portal));
+}
+
+// C6 — portal/console: svuotare un dato, il rinnovo, l'attivazione, il cron
+{
+  const FIELDS = (await import('../../js/contract-fields.js')).default;
+  const ctx = { contract: { type: 'transitorio', tenantAddress: 'Via Sbagliata 1' }, property: {} };
+  const op = FIELDS.applyAnswers('tenant', { tenantAddress: { clear: true } }, ctx, { trusted: true });
+  const pub = FIELDS.applyAnswers('tenant', { tenantAddress: { clear: true } }, ctx, {});
+  check('C6: «svuota» vale SOLO per l\'operatore autenticato; da un link pubblico è rifiutato (clear_not_allowed)',
+    op.contract.tenantAddress === '' && (op.cleared || []).includes('tenantAddress')
+    && !('tenantAddress' in pub.contract) && pub.rejected.some(x => x.key === 'tenantAddress' && x.why === 'clear_not_allowed'));
+  const profileSubmit = (await import('../../api/profile/submit.js')).default;
+  store.set('contracts/ctrCL', baseContract({ tenantSignToken: 'TOK_CL_T', landlordSignToken: 'TOK_CL_L', tenantAddress: 'Via Sbagliata 1' }));
+  const r = mkRes(); await profileSubmit(mkReq({ contractId: 'ctrCL', role: 'tenant', answers: { tenantAddress: { clear: true } } }, ADMIN), r);
+  check('C6: ✎ Correggi i dati svuota davvero il campo sul contratto (e lo dice nella risposta)',
+    r.code === 200 && store.get('contracts/ctrCL').tenantAddress === '' && (r.body.cleared || []).includes('tenantAddress'));
+  const cons = src('pre-agreement-admin.html');
+  check('C6: la console manda {clear:true} per un campo svuotato e chiede conferma prima',
+    /if\(!v\)\{if\(!orig\|\|el\.getAttribute\('data-people'\)==='1'\)return;out\[k\]=\{clear:true\};n\+\+;return;\}/.test(cons)
+    && /Svuoto questi dati/.test(cons));
+
+  const portal = src('js/portal-app.js');
+  const renew = portal.slice(portal.indexOf('IL RINNOVO DI UN CONTRATTO FIRMATO È UN NUOVO CONTRATTO'), portal.indexOf("const ref = await db.collection('contracts').add(clone);"));
+  check('C6: il rinnovo NON eredita la versione caricata, le firme dei co-conduttori né il mandato del proprietario',
+    ['pdfSource', 'pdfPath', 'contractVersion', 'contractVersions', 'coSignInviteAt', 'landlordMandate', 'sigAnchors'].every(k => renew.includes("'" + k + "'"))
+    && /\['signature', 'signedAt', 'signedIP', 'signedUA', 'consentText', 'consentHash', 'consentAt'\]\.forEach\(f => delete y\[f\]\)/.test(renew)
+    && /basisKind === 'mandate'/.test(renew));
+  check('C6: l\'attivazione archivia la copia FIRMATA (signedPdfUrl) e non chiama «Signed» il PDF senza firme',
+    /const _docUrl = contract\.signedPdfUrl \|\| contract\.generatedPDF \|\| '';/.test(portal) && !/name: 'Signed Contract \\u2014 ' \+ \(property\?\.name/.test(portal));
+  const cron = src('api/reminder-cron.js');
+  check('C6: il cron filtra gratis (promemoria recente, tetto, firma fresca) PRIMA della rilettura completa',
+    cron.indexOf('if ((c0.autoNudgeCount || 0) >= 3) continue;') > 0 && cron.indexOf('if ((c0.autoNudgeCount || 0) >= 3) continue;') < cron.indexOf("c = await fsGetFull('contracts/' + c0.id)"));
+}
+
+// C7 — lo stato della firma conta i co-conduttori
+{
+  const { signatureState } = await import('../../api/preagreement/send-sign.js');
+  const st = signatureState({ tenantSignature: 'x', landlordSignature: 'y', signingOrder: 'any', coTenants: [{ name: 'Zoe Co' }] });
+  const done = signatureState({ tenantSignature: 'x', landlordSignature: 'y', coTenants: [{ name: 'Zoe Co', signature: 'z' }] });
+  const onlyCo = signatureState({ coTenants: [{ name: 'Zoe Co', signature: 'z' }] });
+  check('C7: titolare + locatore con un co-conduttore che manca NON è «complete» (e lo conta)',
+    st.status === 'partial' && st.coPending === 1 && done.status === 'complete' && onlyCo.status === 'partial');
 }
 
 console.log(`\nRevisione + co-conduttori: ${passed} passed, ${failed} failed`);

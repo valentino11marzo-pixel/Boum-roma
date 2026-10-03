@@ -3004,7 +3004,7 @@ registrazione, /casa). Ora «ok, mettiamolo a posto» resta NEL giro:
   sono complete; admin): il PDF caricato (base64 ≤ 3 MB, oltre via Storage
   sotto `contracts/<id>/revisions/` — `fileUrl` accettato SOLO su
   firebasestorage e sotto quel contratto, mai un proxy) diventa la versione
-  N+1 su `contracts/<id>/contract-v<N>.pdf`: `pdfSource:'upload'`,
+  N+1 su `contracts/<id>/contract-v<N>-<rand>.pdf`: `pdfSource:'upload'`,
   `sigAnchors:null` (la firma completa appende la pagina delle firme in coda),
   `contractVersions[]` con la storia. È ciò che /sign mostra e che `_finalize`
   firma. Validato con pdf-lib (aggiunta di una pagina + save, come farà la
@@ -3043,6 +3043,59 @@ guardia contro force, firma archiviata e riaperta, la v2 intatta dopo la v3,
 firma completa = PDF caricato + pagina firme, `fully_signed`, ↺ che stampa
 «piano 2, int. 14» dall'immobile; quattro mutazioni prese),
 `tests/firma/console.mjs` (riga I).
+
+**Il secondo giro, dalla review di #266 (3/10/2026).** Quindici rilievi sul
+codice appena andato in produzione; chiusi quelli che toccano firme e soldi:
+- **Una firma annullata non torna in vita.** `magic-sign/submit`, sul
+  conflitto di precondizione, rileggeva e poi riscriveva ALLA CIECA un `upd`
+  calcolato sul dato vecchio (coTenants, signatureStatus, signedTermsHash):
+  una revisione arrivata nel mezzo veniva cancellata e il co-conduttore
+  annullato tornava «firmato». Ora rilettura + ricalcolo + scrittura
+  condizionata IN GIRO (3 tentativi, poi 409 `contract_busy`), con versione,
+  ordine e firma già apposta ricontrollati sul dato fresco.
+- **Si firma la versione letta.** La lookup espone `contractVersion` e
+  `pdfSource`; `sign.html` rimanda la versione vista e il server risponde 409
+  `version_changed` se nel frattempo è stata caricata un'altra versione (la
+  pagina si ricarica da sola). Senza il campo (una scheda aperta prima del
+  rilascio) nessun controllo, come prima. ✍️ Firmo io conferma su una
+  versione e la ripassa a submit.
+- **Il mandato copre le condizioni, non il file.** Firmare PER MANDATO
+  (conduttore, o locatore col suo mandato scritto) su un PDF caricato a mano
+  esige `ackUploadedPdf:true` (409 `uploaded_pdf_ack_required` senza, prima di
+  armare qualunque delega): l'operatore dichiara che il file riporta le
+  condizioni approvate, e la dichiarazione resta su
+  `<parte>SignedByDelegate.uploadedPdfAck {version, fileName, at}`. Il
+  conduttore che firma DA SÉ non dichiara nulla.
+- **revise.js**: path UNICO per tentativo (due correzioni concorrenti: il
+  perdente sovrascriveva i byte del vincitore prima che il commit lo
+  respingesse), il file grande solo dal bucket di BOOM (env o le due forme
+  `<progetto>.firebasestorage.app/.appspot.com`) e letto a flusso contato fino
+  ai 15 MB, una nuova versione azzera «visto», solleciti e re-inviti
+  (`revisionResets`), la proposta perde `coTenantsSignedAt`.
+- **Inviti**: `send-link` col titolare firmato raggiunge i co-conduttori che
+  mancano (prima 409 `already_signed`: il promemoria del portal non arrivava
+  mai a chi bloccava il contratto) e il 409 del locatore porta `waitingFor`;
+  cooldown di 12 ore sulle email ai co-conduttori (`CO_INVITE_COOLDOWN_MS` —
+  ripremere 🖊/👥 non spamma più; `updated` e il promemoria del cron passano;
+  `coRecent` nella risposta); il titolare mai invitato riceve il suo PRIMO
+  invito alla firma di un co-conduttore, stampato (prima un «Reminder» a ogni
+  firma di co-conduttore).
+- **Portal/console**: il rinnovo non eredita versione caricata, firme dei
+  co-conduttori, mandato del proprietario né una delega nata da quel mandato;
+  l'attivazione archivia la copia FIRMATA (`signedPdfUrl`), mai il PDF senza
+  firme chiamato «Signed Contract»; ✎ Correggi i dati può SVUOTARE un campo
+  (`{clear:true}`, solo l'operatore autenticato — da un link pubblico
+  `clear_not_allowed`), con conferma; il cron filtra gratis prima della
+  rilettura completa; `signatureState` non dice «complete» con un
+  co-conduttore che manca.
+- **Non fatto, di proposito**: nessuna regola `maxDuration` per revise.js
+  (`send-sign`, più pesante, gira senza override — una regola a 60 s
+  rischierebbe di ABBASSARE il default; vercel.json resta a 49/50).
+Test: `tests/revise/run.mjs` §C (C1–C7: la revisione iniettata FRA rilettura
+e commit, versione, mandato su file caricato, bucket, flusso oltre 15 MB, due
+revisioni concorrenti, timbri, send-link, cooldown, primo invito, svuotare,
+rinnovo, attivazione, cron, stato); ogni fix verificato per mutazione (il
+`submit.js` di main fallisce C1 esattamente sulla firma resuscitata).
 
 ### 🏠 Il mandato scritto del proprietario — la controfirma smette di reggersi sulla parola dell'operatore (23/09/2026)
 Il pezzo lasciato fuori dal 21/09: ✍️ Firmo io firmava per il conduttore in

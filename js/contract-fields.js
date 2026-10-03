@@ -758,7 +758,16 @@
       if (ownerOf(f, ctx) !== who) { out.rejected.push({ key, why: 'not_yours' }); return; }
       if (!onTemplate(f, tpl)) { out.rejected.push({ key, why: 'not_on_template' }); return; }
       if (!f.write) { out.rejected.push({ key, why: 'upload_only' }); return; }
-      const norm = normalizeAnswer(f, answers[key]);
+      // SVUOTARE un dato (3/10/2026 — «✎ Correggi i dati» non poteva
+      // cancellare un valore finito nel campo sbagliato): `{clear:true}`,
+      // SOLO dall'operatore autenticato (`trusted`). Da un link pubblico un
+      // vuoto non cancella mai niente: il link intercettato non deve poter
+      // togliere un dato che c'è.
+      const raw = answers[key];
+      const wantsClear = !!(raw && typeof raw === 'object' && raw.clear === true) && f.type !== 'people';
+      if (wantsClear && !opts.trusted) { out.rejected.push({ key, why: 'clear_not_allowed' }); return; }
+      const norm = wantsClear ? { ok: true, value: (f.type === 'number' || f.type === 'yesno') ? null : '' } : normalizeAnswer(f, raw);
+      if (wantsClear) out.cleared = (out.cleared || []).concat([key]);
       if (!norm.ok) { out.rejected.push({ key, why: norm.why }); return; }
       // fillOnly: un dato che c'è già non si riscrive da un link pubblico
       // (email di firma, IBAN, indirizzo dell'immobile): si corregge dal portal.
@@ -767,7 +776,7 @@
       // non da chi ha già le chiavi di tutto.
       if (f.fillOnly && !opts.trusted && valueOf(f, ctx) !== '' && valueOf(f, ctx) !== str(norm.value)) { out.rejected.push({ key, why: 'already_set' }); return; }
       let value = norm.value;
-      if (f.sensitive) out.sensitive = (out.sensitive || []).concat([{ key, value: str(value) }]);
+      if (f.sensitive && !wantsClear) out.sensitive = (out.sensitive || []).concat([{ key, value: str(value) }]);
       if (f.type === 'people') value = composeCohabitants(c, value);
       const w = f.write;
       put(w.doc, w.path, value);
