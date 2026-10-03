@@ -57,6 +57,7 @@ import { commitWrites, fsGetWithTime } from '../magic-sign/_shared.js';
 import { renderContractPdf, CLAUSE_VERSION } from '../sign/_contractpdf.js';
 import { sendSignInvite } from '../sign/_notify.js';
 import { inviteCoTenants, coSignUrlsForPa } from '../sign/_cosign.js';
+import { ensureSignTokens, signUrl } from '../sign/_tokens.js';
 
 const BASE = 'https://www.boomrome.com';
 export const MAX_PDF_BYTES = 15 * 1024 * 1024;
@@ -332,6 +333,14 @@ export default async function handler(req, res) {
   // Chi deve firmare la NUOVA versione riceve l'invito («contratto
   // aggiornato»). Solo se il contratto era già stato mandato in firma:
   // un contratto mai inviato resta una decisione dell'operatore.
+  // Il link del titolare dal deposito (signTokens — il contratto non porta
+  // più i token): dopo la revisione deve firmare di nuovo, quindi si conia
+  // se manca. Admin-only: la risposta può portarlo.
+  let tenantUrl = null;
+  if (!fresh.tenantSignature) {
+    try { tenantUrl = signUrl((await ensureSignTokens(contractId, fresh, { mint: ['tenant'] })).tenant); }
+    catch (e) { console.warn('[contracts/revise] sign tokens:', e.message); }
+  }
   const notified = { tenant: false, coEmailed: [], coNoEmail: [] };
   const wasInvited = !!(c.signInviteTenantAt || archive.length);
   if (b.notify !== false && wasInvited) {
@@ -339,9 +348,9 @@ export default async function handler(req, res) {
     if (c.propertyId) { try { property = await fsGet('properties/' + c.propertyId); } catch (_) {} }
     let to = c.tenantEmail || '';
     if (!to && c.tenantId) { try { const u = await fsGet('users/' + c.tenantId); to = (u && u.email) || ''; } catch (_) {} }
-    if (to && fresh.tenantSignToken) {
+    if (to && tenantUrl) {
       try {
-        const r = await sendSignInvite({ contract: fresh, property, role: 'tenant', to, name: c.tenantName || '', url: `${BASE}/sign?sign=${encodeURIComponent(fresh.tenantSignToken)}`, updated: true });
+        const r = await sendSignInvite({ contract: fresh, property, role: 'tenant', to, name: c.tenantName || '', url: tenantUrl, updated: true });
         notified.tenant = !!(r && r.ok);
       } catch (e) { console.warn('[contracts/revise] tenant invite:', e.message); }
     }
@@ -362,7 +371,7 @@ export default async function handler(req, res) {
     ok: true, op, contractId, version: nextV, pdfUrl: fresh.generatedPDF, pages,
     voided: archive.map(a => ({ role: a.role, name: a.name, signedAt: a.signedAt })),
     notified,
-    tenantSignUrl: fresh.tenantSignToken ? `${BASE}/sign?sign=${encodeURIComponent(fresh.tenantSignToken)}` : null,
+    tenantSignUrl: tenantUrl,
     coTenants: coSignUrlsForPa(contractId, fresh).filter(x => !x.signed),
   });
 }

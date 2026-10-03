@@ -10,8 +10,9 @@
 // Headers:  Authorization: Bearer <firebase-id-token>  (admin/owner/landlord)
 // Body:     { id, coOnly? }                   // preAgreements doc id; coOnly =
 //           solo l'invito ai co-conduttori (nessuna email al titolare)
-// Response: { ok, contractId, tenantSignUrl, landlordSignUrl, emailed,
-//             coTenants:[{name,url,phone}], coEmailed:[], coNoEmail:[] }
+// Response: { ok, contractId, tenantSignUrl*, landlordSignUrl*, emailed,
+//             coTenants:[{name,phone,url*}], coEmailed:[], coNoEmail:[] }
+//           (* admin callers only)
 
 import { fsGet, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
@@ -81,6 +82,14 @@ export default async function handler(req, res) {
   const tenantSignUrl = out.tenantSignUrl || pa.tenantSignUrl || null;
   const landlordSignUrl = out.landlordSignUrl || pa.landlordSignUrl || null;
   if (!tenantSignUrl) return res.status(409).json({ ok: false, error: 'already_signed' });
+  // I link di firma tornano in risposta SOLO all'admin: la porta accetta anche
+  // owner/landlord, e il link del conduttore in mano al proprietario è una
+  // firma falsa a portata di tap (signTokens, 1/10/2026). Le email partono
+  // comunque, ciascuna al suo destinatario.
+  const echoLinks = auth.profile.role === 'admin' ? { tenantSignUrl, landlordSignUrl } : {};
+  // Lo stesso per i link dei co-conduttori: al proprietario i nomi, mai il
+  // link con cui si firma al posto loro.
+  const coOut = (co) => co.pending.map(x => ({ name: x.name, phone: x.phone, ...(auth.profile.role === 'admin' ? { url: x.url } : {}) }));
 
   // ── Il contratto è GIÀ firmato? Allora niente link morto ─────────────
   // I token non si azzerano più alla firma (il link riaperto dice «hai già
@@ -118,7 +127,7 @@ export default async function handler(req, res) {
       .catch(() => {});
     return res.status(200).json({
       ok: true, coOnly: true, contractId: out.contractId, signatureStatus: sig.status,
-      coTenants: co.pending.map(x => ({ name: x.name, url: x.url, phone: x.phone })),
+      coTenants: coOut(co),
       coEmailed: co.emailed, coNoEmail: co.noEmail, coFailed: co.failed,
     });
   }
@@ -145,10 +154,10 @@ export default async function handler(req, res) {
       .catch(() => {});
     return res.status(200).json({
       ok: true, alreadySigned: true, signatureStatus: sig.status,
-      contractId: out.contractId, tenantSignUrl, landlordSignUrl,
+      contractId: out.contractId, ...echoLinks,
       tenantSignedAt: sig.tenantSignedAt || null, landlordSignedAt: sig.landlordSignedAt || null,
       delegate: out.delegate || null, emailed: false,
-      coTenants: co.pending.map(x => ({ name: x.name, url: x.url, phone: x.phone })),
+      coTenants: coOut(co),
       coEmailed: co.emailed, coNoEmail: co.noEmail,
     });
   }
@@ -214,8 +223,8 @@ export default async function handler(req, res) {
     .catch(() => {});
 
   return res.status(200).json({
-    ok: true, contractId: out.contractId, tenantSignUrl, landlordSignUrl, emailed,
-    coTenants: co.pending.map(x => ({ name: x.name, url: x.url, phone: x.phone })),
+    ok: true, contractId: out.contractId, ...echoLinks, emailed,
+    coTenants: coOut(co),
     coEmailed: co.emailed, coNoEmail: co.noEmail,
     landlordAsked: landlordAsk.asked === true, landlordAskedTo: landlordAsk.to || null,
     landlordMissing: landlordAsk.missing || [], landlordAskWhy: landlordAsk.why || null,

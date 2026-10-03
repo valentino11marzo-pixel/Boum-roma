@@ -106,7 +106,8 @@ ok(/const _isStudenti = \(data\.type \|\| _existingContract\.type\) === 'student
 // la finestra copre l'intera funzione, fino a setDelega.
 const fo = app.slice(app.indexOf('function openFirmaOra'), app.indexOf('async function setDelega'));
 ok(fo.length > 500 && /window\.openFirmaOra/.test(app), 'il pannello 🖊 Firma ora esiste ed è globale');
-ok(/tenantSignToken/.test(fo) && /landlordSignToken/.test(fo), 'apre il link VERO di ciascuna parte (firma in presenza)');
+ok(/await fetchSignLinks\(contractId\)/.test(fo) && /sl\.tenant/.test(fo) && /sl\.landlord/.test(fo) && !/SignToken/.test(fo),
+  'apre il link VERO di ciascuna parte (firma in presenza) — dal server (/api/sign/links), mai dai token sul contratto');
 ok(/boomOpen\(/.test(fo), 'usa la consegna unica (niente window.open crudo)');
 ok(/non si firma mai/.test(fo) && /firma falsa/.test(fo), 'la riga rossa è SCRITTA nel pannello: al posto del conduttore non si firma');
 ok(/🖊 Firma ora/.test(app), 'il bottone è sulla riga contratto');
@@ -172,7 +173,7 @@ for (const f of railFiles) {
 }
 ok(railFiles.length > 20, 'la scansione copre i tre rail (preagreement, magic-sign, sign)');
 ok(loose.length === 0, 'nessuna scrittura/ping fire-and-forget a inizio istruzione nei rail' + (loose.length ? ' — ' + loose.join(', ') : ''));
-ok(/async function backlinkPa\(/.test(conv) && /await backlinkPa\(\{ paId, pa, contractId, tenantSignToken: c\.tenantSignToken/.test(conv),
+ok(/async function backlinkPa\(/.test(conv) && /const links = await signLinks\(contractId, c\);\s*await backlinkPa\(\{ paId, pa, contractId, links,/.test(conv),
   'convert: il ramo «contratto esiste già» ricuce il back-link della proposta orfana (atteso)');
 ok(/match \/viewings\/\{x\}/.test(src('firestore.rules')), 'firestore.rules: `viewings` ha una regola (prima: default-deny → 403 anche per l\'admin)');
 ok(/fsList\('viewingRequests', \{ limit: 600 \}\)/.test(src('api/leads/_richiamo.js')) && /fsList\('viewingRequests', \{ limit: 2000 \}\)/.test(src('api/homie/miniera.js')),
@@ -213,7 +214,9 @@ ok(/const asDelegate = body\.asDelegate === true;/.test(src('api/magic-sign/subm
 ok(/&delegate=1/.test(app) && /qs\.get\('delegate'\) === '1'/.test(src('sign.html')), '1.3: il flag nasce dal link del pannello Firma ora e sign.html lo legge dall\'URL');
 const lookS = src('api/preagreement/lookup.js');
 ok(/export async function contractStatus\(/.test(lookS) && /const unlocked = paidOnRecord\(data\) \|\| dueAtSigning\(data\) === 0;/.test(lookS)
-  && /tenantSignUrl: \(unlocked && !tenantSigned && c\.tenantSignToken\)/.test(lookS) && !/landlordSignToken/.test(lookS),
+  && /if \(unlocked && !tenantSigned\) \{\s*try \{ tenantSignUrl = signUrl\(\(await readSignTokens\(cid, c\)\)\.tenant\)/.test(lookS)
+  && !/landlordSignToken/.test(lookS)
+  && !/\.landlord\b/.test(lookS.slice(lookS.indexOf('export async function contractStatus('), lookS.indexOf('export function paExpired('))),
   '2.3 lookup: il link di firma del conduttore SOLO a soldi ricevuti (o dovuto zero) e SOLO se non ha firmato; il token del locatore non esce mai');
 ok(/id="ctcard"/.test(src('pre-agreement.html')) && /Sign your contract now/.test(src('pre-agreement.html')), '2.3 pagina: la card «Sign your contract now» esiste');
 ok(/dryRun: b\.dryRun === true/.test(convS) && convS.indexOf('if (dryRun) {') < convS.indexOf("await fsCreate('contracts', contract, contractId);") && /if \(!dryRun\) try \{/.test(convS),

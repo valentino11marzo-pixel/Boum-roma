@@ -26,6 +26,14 @@ async function pushPass(serial) {
   if (_pushPass) return _pushPass(serial);
 }
 
+// I token di firma stanno in signTokens (api/sign/_tokens.js), non sul
+// contratto. Import pigro come _passkit: un modulo che non carica non deve
+// mai spegnere il cron.
+async function readSignTokens(contractId, contract) {
+  const m = await import('./sign/_tokens.js');
+  return m.readSignTokens(contractId, contract);
+}
+
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID;
 const API_KEY    = process.env.FIREBASE_API_KEY;
 
@@ -98,7 +106,9 @@ export function shouldReinvite(c, nowMs) {
   if (!c) return false;
   if (c.status && c.status !== 'active') return false;
   if (c.tenantSignature || c.landlordSignature) return false;   // partial → ci pensa l'altro nudge
-  if (!c.tenantSignToken || !c.signInviteTenantAt) return false;
+  // L'invito spedito È la prova che un link esiste: il token sta in
+  // signTokens (admin-only), non più sul contratto.
+  if (!c.signInviteTenantAt) return false;
   if (nowMs - new Date(c.signInviteTenantAt).getTime() < H72) return false;
   const last = c.lastReminderAt ? new Date(c.lastReminderAt).getTime() : 0;
   if (last && nowMs - last < H24) return false;
@@ -212,15 +222,21 @@ export default async function handler(req, res) {
         if (!signedRole) continue;
         const { tenantSideComplete } = await import('./magic-sign/_shared.js');
         const sideDone = tenantSideComplete(c);
-        const pendingToken = signedRole === 'landlord' ? c.tenantSignToken
-          : (sideDone ? c.landlordSignToken : 'tenant-side');
-        if (!pendingToken) continue;
         const coLast = coSignedList.map(x => x.signedAt).filter(Boolean).sort().pop();
         const signedAt = signedRole === 'tenant' ? c.tenantSignedAt : signedRole === 'landlord' ? c.landlordSignedAt : coLast;
         if (!signedAt || (now.getTime() - new Date(signedAt).getTime()) < H48) continue;
         const last = c.lastReminderAt ? new Date(c.lastReminderAt).getTime() : 0;
         if (last && now.getTime() - last < H24) continue;
         if ((c.autoNudgeCount || 0) >= 3) continue;
+        // Solo chi ha un link: il token dal deposito (signTokens), mai coniato
+        // qui. Lato conduttori incompleto: chi manca è lì (titolare o
+        // co-conduttori, link derivati) — notifyPartialSignature li cerca.
+        let pendingToken = 'tenant-side';
+        if (signedRole === 'landlord' || sideDone) {
+          const toks = await readSignTokens(c.id, c).catch(() => ({}));
+          pendingToken = signedRole === 'landlord' ? toks.tenant : toks.landlord;
+        }
+        if (!pendingToken) continue;
         try {
           const { notifyPartialSignature } = await import('./sign/_notify.js');
           await notifyPartialSignature(c, signedRole, null, { nudgeOnly: true, ...(signedRole === 'cotenant' ? { coIndex: coIdx } : {}) });
@@ -247,6 +263,8 @@ export default async function handler(req, res) {
       for (const c of cold) {
         if (!shouldReinvite(c, now.getTime())) continue;
         try {
+          const tenantToken = (await readSignTokens(c.id, c)).tenant;
+          if (!tenantToken) continue;
           const { fsGet } = await import('./homie/_lib.js');
           const { sendSignInvite } = await import('./sign/_notify.js');
           const tenant = c.tenantId ? await fsGet('users/' + c.tenantId).catch(() => null) : null;
@@ -255,7 +273,7 @@ export default async function handler(req, res) {
           const sent = await sendSignInvite({
             contract: c, property: null, role: 'tenant', to,
             name: c.tenantName || (tenant && tenant.name) || '',
-            url: `https://www.boomrome.com/sign?sign=${encodeURIComponent(c.tenantSignToken)}`,
+            url: `https://www.boomrome.com/sign?sign=${encodeURIComponent(tenantToken)}`,
             resend: true,
           });
           if (sent && sent.ok) {
@@ -293,14 +311,16 @@ export default async function handler(req, res) {
         // partire nello STESSO run, con lo stesso link, alla stessa persona.
         if (c.lastReminderAt && (now.getTime() - new Date(c.lastReminderAt).getTime()) < DAY) continue;
         const targets = [];
-        if (!c.tenantSignature && c.tenantSignToken && c.signViewedTenantAt && !c.viewNudgedTenantAt
-            && (now.getTime() - new Date(c.signViewedTenantAt).getTime()) > DAY) {
+        const tenantToken = (!c.tenantSignature && c.signViewedTenantAt && !c.viewNudgedTenantAt
+            && (now.getTime() - new Date(c.signViewedTenantAt).getTime()) > DAY)
+          ? (await readSignTokens(c.id, c).catch(() => ({}))).tenant : null;
+        if (tenantToken) {
           const { fsGet } = await import('./homie/_lib.js');
           const tenant = c.tenantId ? await fsGet('users/' + c.tenantId).catch(() => null) : null;
           targets.push({
             to: (tenant && tenant.email) || c.tenantEmail || '',
             name: c.tenantName || (tenant && tenant.name) || '',
-            url: `https://www.boomrome.com/sign?sign=${encodeURIComponent(c.tenantSignToken)}`,
+            url: `https://www.boomrome.com/sign?sign=${encodeURIComponent(tenantToken)}`,
             stamp: 'viewNudgedTenantAt',
           });
         }
@@ -408,6 +428,23 @@ export default async function handler(req, res) {
       const { runViewingMoments } = await import('./viewings/_moments.js');
       results.viewings = await runViewingMoments();
     } catch (e) { results.errors.push(`viewings: ${e.message}`); }
+
+    // ── Le chiavi di firma fuori dal contratto (1/10/2026): i token ancora in
+    // chiaro su contracts/* (leggibili da inquilino E proprietario) si
+    // spostano in signTokens (admin-only) e si cancellano dal contratto. I
+    // link già spediti restano validi (stesso valore). Una volta l'ora, DOPO
+    // incasso/journey/countdown (un recupero non affama chi lavora — la
+    // lezione del 1/09) e solo col tempo che resta: tetto 8s, e a migrazione
+    // finita costa due query vuote. ──
+    if (now.getUTCMinutes() < 15) {
+      const left = 30_000 - (Date.now() - now.getTime());
+      if (left > 2000) {
+        try {
+          const { migrateLegacySignTokens } = await import('./sign/_tokens.js');
+          results.signTokens = await migrateLegacySignTokens({ limit: 100, maxMs: Math.min(8000, left) });
+        } catch (e) { results.errors.push(`sign-tokens: ${e.message}`); }
+      } else results.signTokens = 'budget';
+    }
 
     // ── Watchdog refinalize: contratti COMPLETI senza finalizedAt ──
     // finalize è best-effort dentro la richiesta del firmatario: se cade

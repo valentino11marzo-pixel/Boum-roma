@@ -2,7 +2,7 @@
 // Server-side Magic Sign invitation for ANY contract — the replacement for
 // the portal's EmailJS sendSignatureEmail, which only fired while the admin
 // had the portal open, with a third-party template and no record. One POST:
-// resolves the party, backfills a missing sign token (legacy contracts),
+// resolves the party, mints a missing sign token in the signTokens store,
 // sends the invitation on the shared design system in the reader's language,
 // stamps the send on the contract.
 //
@@ -10,7 +10,8 @@
 // Headers:  Authorization: Bearer <firebase-id-token>  (admin/owner/landlord;
 //           owners only for their own property's contracts)
 // Body:     { contractId, role?: 'tenant'|'landlord' (default 'tenant') }
-// Response: 200 { ok, url, sent }
+// Response: 200 { ok, url?, sent } — url only to admins, or to the owner
+//           for their OWN (landlord) link: never the other party's credential
 //           409 { error:'already_signed' | 'awaiting_tenant' }
 //           404/403/400 on the usual failures
 //
@@ -19,8 +20,8 @@
 // awaiting the tenant is refused here with a clear 409 — the partial-signature
 // stage email delivers it automatically at the right moment.
 
-import crypto from 'node:crypto';
 import { fsGet, fsPatch, readJson, logActivity } from '../homie/_lib.js';
+import { ensureSignTokens } from './_tokens.js';
 import { requireRole, setCors } from '../_auth.js';
 import { sendSignInvite } from './_notify.js';
 import { ensureContractPdf } from './_contractpdf.js';
@@ -64,15 +65,21 @@ export default async function handler(req, res) {
     return res.status(409).json({ ok: false, error: 'awaiting_tenant' });
   }
 
-  // Token backfill for legacy contracts created before the wizard.
-  const tokenField = role === 'tenant' ? 'tenantSignToken' : 'landlordSignToken';
-  let token = contract[tokenField];
-  if (!token) {
-    token = crypto.randomUUID();
-    try { await fsPatch('contracts/' + contractId, { [tokenField]: token }); }
-    catch (e) { return res.status(500).json({ ok: false, error: 'token_backfill_failed' }); }
-  }
+  // Il token dal deposito (signTokens, admin-only): coniato qui se manca —
+  // anche quello della controparte non firmata, così il "Tocca a Lei" alla
+  // prima firma ha già il suo link. Il contratto non lo porta più.
+  let toks;
+  try { toks = await ensureSignTokens(contractId, contract); }
+  catch (e) { return res.status(500).json({ ok: false, error: 'token_backfill_failed' }); }
+  const token = toks[role];
+  if (!token) return res.status(500).json({ ok: false, error: 'token_backfill_failed' });
   const url = `${BASE}/sign?sign=${encodeURIComponent(token)}`;
+  // Il link è la credenziale di firma di QUELLA parte: torna nella risposta
+  // solo all'admin o al proprietario per il SUO link. Un proprietario che
+  // sollecita l'inquilino fa partire l'email, ma il link non lo vede —
+  // altrimenti potrebbe firmare al suo posto.
+  const mayEchoUrl = auth.profile.role === 'admin' || role === 'landlord';
+  const echo = mayEchoUrl ? { url } : {};
 
   // PDF backfill, stessa cintura di preagreement/send-sign: l'invito non
   // parte senza che il contratto abbia il suo PDF (il portal lo rigenera
@@ -101,7 +108,7 @@ export default async function handler(req, res) {
     to = (u && u.email) || (ll && ll.email) || contract.landlordEmail || '';
     name = contract.landlordName || (u && u.name) || (ll && ll.name) || '';
   }
-  if (!to) return res.status(409).json({ ok: false, error: 'no_email', url });
+  if (!to) return res.status(409).json({ ok: false, error: 'no_email', ...echo });
 
   const stampField = role === 'tenant' ? 'signInviteTenantAt' : 'signInviteLandlordAt';
   const resend = !!contract[stampField];
@@ -125,5 +132,5 @@ export default async function handler(req, res) {
     } catch (e) { console.warn('[send-link] co-tenants:', e.message); }
   }
 
-  return res.status(200).json({ ok: true, url, sent: !!sent.ok, resend, ...(coInvited ? { coInvited } : {}), ...(coNoEmail.length ? { coNoEmail } : {}) });
+  return res.status(200).json({ ok: true, ...echo, sent: !!sent.ok, resend, ...(coInvited ? { coInvited } : {}), ...(coNoEmail.length ? { coNoEmail } : {}) });
 }

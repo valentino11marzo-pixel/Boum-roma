@@ -55,6 +55,7 @@ import { schedaUrl } from '../profile/_scheda.js';
 import { sendEmail } from '../agent/_lib.js';
 import { shell, btn, para, fine } from './_notify.js';
 import MANDATO from '../../js/mandato-engine.js';
+import { ensureSignTokens, signUrl } from '../sign/_tokens.js';
 
 const BASE = 'https://www.boomrome.com';
 const SIG_MAX_LEN = 800_000;
@@ -300,6 +301,13 @@ export default async function handler(req, res) {
   if (sig0.status === 'complete') {
     return res.status(200).json({ ok: true, alreadySigned: true, signatureStatus: 'complete', contractId, signedPdfUrl: contract.signedPdfUrl || null, certificateUrl: contract.signingCertificateUrl || null, steps: [] });
   }
+  // I token di firma dal deposito (signTokens, admin-only): il contratto non
+  // li porta più. Coniati qui se mancano (contratto appena convertito o nato
+  // prima della migrazione con il token in chiaro: si sposta col suo valore).
+  let toks;
+  try { toks = await ensureSignTokens(contractId, contract); }
+  catch (e) { console.error('[pa/sign-for] sign tokens:', e.message); return res.status(500).json({ ok: false, error: 'sign_tokens_unavailable', contractId }); }
+
   const steps = [];
 
   // ── 1. IL CONDUTTORE, per mandato ────────────────────────────────────
@@ -309,8 +317,8 @@ export default async function handler(req, res) {
       return res.status(errStatus(chk.reason)).json({
         ok: false, error: chk.reason, contractId,
         changed: (chk.diff || []).map(d => d.key), changedText: MANDATO.describeDiff(chk.diff || []),
-        landlordSignUrl: contract.landlordSignToken ? `${BASE}/sign?sign=${contract.landlordSignToken}` : null,
-        tenantSignUrl: contract.tenantSignToken ? `${BASE}/sign?sign=${contract.tenantSignToken}` : null,
+        landlordSignUrl: signUrl(toks.landlord),
+        tenantSignUrl: signUrl(toks.tenant),
       });
     }
     if (!(contract.tenantDelegate && contract.tenantDelegate.name)) {
@@ -324,7 +332,7 @@ export default async function handler(req, res) {
       await fsPatch('contracts/' + contractId, { tenantDelegate: dele });
       contract.tenantDelegate = dele;
     }
-    const r = await signInProcess({ token: contract.tenantSignToken, signature: opSig.png, identity: tenantIdentity(contract), asDelegate: true, ip, ua });
+    const r = await signInProcess({ token: toks.tenant, signature: opSig.png, identity: tenantIdentity(contract), asDelegate: true, ip, ua });
     if (r.status !== 200) {
       const err = (r.body && r.body.error) || 'tenant_sign_failed';
       return res.status(r.status || 500).json({ ok: false, error: err, step: 'tenant', contractId, changed: (r.body && r.body.changed) || [] });
@@ -337,7 +345,7 @@ export default async function handler(req, res) {
   try { fresh = await fsGet('contracts/' + contractId); } catch (_) { fresh = null; }
   if (!fresh) return res.status(500).json({ ok: false, error: 'reread_failed', steps });
   const coPending = (Array.isArray(fresh.coTenants) ? fresh.coTenants : []).filter(x => x && x.name && !x.signature).map(x => x.name);
-  const landlordSignUrl = fresh.landlordSignToken ? `${BASE}/sign?sign=${fresh.landlordSignToken}` : null;
+  const landlordSignUrl = signUrl(toks.landlord);
   if (coPending.length) {
     // I LORO link, subito in mano all'operatore (3/10/2026): il mandato del
     // titolare non li copre, e prima la console diceva solo «mancano» senza
@@ -389,7 +397,7 @@ export default async function handler(req, res) {
     }
     // asDelegate:true — è l'OPERATORE che firma: submit stampa
     // landlordSignedByDelegate (con mandateRef/At/Hash quando c'è il mandato)
-    const r2 = await signInProcess({ token: fresh.landlordSignToken, signature: opSig.png, identity: landlordIdentity(fresh), asDelegate: true, ip, ua });
+    const r2 = await signInProcess({ token: toks.landlord, signature: opSig.png, identity: landlordIdentity(fresh), asDelegate: true, ip, ua });
     if (r2.status !== 200) {
       const err = (r2.body && r2.body.error) || 'landlord_sign_failed';
       return res.status(r2.status || 500).json({ ok: false, error: err, step: 'landlord', steps, contractId, landlordSignUrl });

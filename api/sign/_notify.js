@@ -166,7 +166,16 @@ export async function notifyPartialSignature(contract, signedRole, property, opt
     const signerName  = (isCo ? coT.name : (signerIsTenant ? g.tenantName : g.landlordName)) || 'there';
     const otherEmail  = (signerIsTenant ? (sideDone ? g.landlordEmail : '') : g.tenantEmail);
     const otherName   = (signerIsTenant ? g.landlordName : g.tenantName) || 'there';
-    const otherToken  = signerIsTenant ? contract.landlordSignToken : contract.tenantSignToken;
+    // Il link della controparte dal deposito dei token (signTokens): il
+    // contratto non li porta più. Si conia solo per chi non ha firmato.
+    let toks = {};
+    if (otherEmail && contract.id) {
+      try {
+        const { ensureSignTokens } = await import('./_tokens.js');
+        toks = await ensureSignTokens(contract.id, contract, { mint: [signerIsTenant ? 'landlord' : 'tenant'] });
+      } catch (e) { console.warn('[sign/notify] sign tokens:', e.message); }
+    }
+    const otherToken  = signerIsTenant ? toks.landlord : toks.tenant;
     const link = otherToken ? `${BASE}/sign?sign=${encodeURIComponent(otherToken)}` : '';
 
     // CHI MANCA SUL LATO CONDUTTORI (3/10/2026): il titolare e/o i
@@ -227,10 +236,19 @@ export async function notifyPartialSignature(contract, signedRole, property, opt
         jobs.push(inviteCoTenants({ contractId: contract.id, contract, property: g.prop, resend: !!opts.nudgeOnly, only: toInvite.map(x => x.idx) })
           .then(r => { coRes = r; }).catch(e => console.warn('[sign/notify] co invite:', e.message)));
       }
-      if (primaryPending && g.tenantEmail && contract.tenantSignToken && (opts.nudgeOnly || !contract.signInviteTenantAt)) {
+      // Il titolare manca ancora: il SUO link dal deposito (signTokens) —
+      // solo se ne ha già uno, mai coniato da qui.
+      let primaryToken = null;
+      if (primaryPending && g.tenantEmail && contract.id && (opts.nudgeOnly || !contract.signInviteTenantAt)) {
+        try {
+          const { readSignTokens } = await import('./_tokens.js');
+          primaryToken = (await readSignTokens(contract.id, contract)).tenant;
+        } catch (e) { console.warn('[sign/notify] primary token:', e.message); }
+      }
+      if (primaryToken) {
         jobs.push(sendSignInvite({
           contract, property: g.prop, role: 'tenant', to: g.tenantEmail, name: g.tenantName,
-          url: `${BASE}/sign?sign=${encodeURIComponent(contract.tenantSignToken)}`, resend: true,
+          url: `${BASE}/sign?sign=${encodeURIComponent(primaryToken)}`, resend: true,
         }).then(r => { primaryNudged = !!(r && r.ok); }).catch(() => {}));
       }
     }

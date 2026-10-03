@@ -18,6 +18,10 @@ nothing in production.
   them; denied landlord B's data and the lead pool; cannot write properties.
 - **Anonymous** is denied all private reads but can POST a viewingRequest
   (public booking form).
+- **Sign tokens** (`signTokens/*`) are admin-only: neither party can read the
+  other's Magic-Sign credential, and no one (admin included) can add or change
+  `tenantSignToken`/`landlordSignToken` on a contract — removing them (the
+  migration) is allowed.
 - **Default-deny** catch-all blocks any undeclared collection.
 
 ## Run
