@@ -349,6 +349,37 @@ parole.length
   ? male(`${parole.length} finti schermi dove il conteggio cancella la parola:` + elenco(parole))
   : bene('le statistiche a parole dei finti schermi non vengono riscritte dal conteggio');
 
+// ── 10c · la prova sociale si controlla, non si dichiara ───────────────
+// «500+ happy tenants», «98% success rate», «2 min average response»,
+// «50+ sources», «200+ verified owners»: su homepage, about, FAQ, sette
+// articoli del blog e tre pagine servizio, e nessuno di quei numeri esisteva
+// da qualche parte che un cliente potesse controllare. Il radar guarda DUE
+// portali, non cinquanta. La prova vera c'era gia': 4.9 su Google con 47
+// recensioni, P.IVA, REA. Qui si guarda anche il numero CONTATO (il «500+»
+// della homepage non era scritto: lo disegnava data-fine="500" — una ricerca
+// del testo non lo vedeva) e la sorgente delle meta (scripts/seo-config.js),
+// che altrimenti lo rimetterebbe alla prossima rigenerazione. «€1,500–2,500+»
+// e' una fascia di prezzo, non una vanteria: il lookbehind la lascia stare.
+const VANTI = [
+  [/(?<![\d,.])500\+/, '«500+»'],
+  [/data-(?:count|fine|target)="500"/, 'un conteggio che disegna 500'],
+  [/\b(?:happy tenants|clients helped|tenants placed|contracts reviewed|success rate)\b/i, 'etichetta di una statistica mai misurata'],
+  [/\b(?:avg|average) (?:whatsapp )?response\b|\bunder 2 minutes\b|\b2-minute average\b/i, 'tempo di risposta medio mai misurato'],
+  [/\b\d+\+ (?:sources|verified owners)\b/i, 'fonti/proprietari contati a occhio'],
+];
+const vanti = [];
+const conVanti = fs.readdirSync(R).filter((f) => f.endsWith('.html')).concat('scripts/seo-config.js');
+for (const f of conVanti) {
+  const s = fs.readFileSync(path.join(R, f), 'utf8');
+  for (const [re, perche] of VANTI) {
+    const m = s.match(re);
+    if (m) vanti.push(`${f} → ${perche}: «${m[0]}»`);
+  }
+}
+vanti.length
+  ? male(`${vanti.length} numeri di fiducia che nessuno puo' verificare:` + elenco(vanti))
+  : bene('la prova sociale e\' quella verificabile (Google, P.IVA): nessun «500+», nessun tasso inventato');
+
 console.log(ko ? `  \x1b[31mLa casa non e ancora in ordine\x1b[0m — ${ok} passed, ${ko} failed`
                 : `  \x1b[32mLa casa e in ordine\x1b[0m — ${ok} passed, 0 failed`);
 process.exit(ko ? 1 : 0);

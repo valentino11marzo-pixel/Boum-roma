@@ -5513,7 +5513,7 @@ stesso carattere, stessa geometria (±2px), stesso contenuto, zero errori JS.
 
 ## La casa in ordine — SEO/GEO (tests/seo/run.mjs)
 
-Undici regole su **60 pagine dedotte dalla sitemap**, non da una lista a
+Le regole girano su **60 pagine dedotte dalla sitemap**, non da una lista a
 mano. Ognuna nata da un difetto VERO trovato in produzione, non da una
 checklist di buone pratiche:
 - **Il documento e' un documento.** `property-finding.html` e `board.html`,
@@ -5573,6 +5573,28 @@ checklist di buone pratiche:
   promette («days, not weeks»), e il film dice «verified homes» senza
   quantità. Lo script del conteggio legge solo `.svc-portal-num[data-count]`:
   senza, riscriveva la parola in «0» — la regola lo verifica (mutazione).
+- **La prova sociale si controlla, non si dichiara** (3/10/2026, regola
+  10c): «500+ happy tenants», «98% success rate», «2 min average
+  response», «50+ sources», «200+ verified owners» stavano su homepage,
+  about, FAQ (trust bar e quattro risposte), sette articoli del blog, tre
+  pagine servizio e nella sorgente delle meta (`scripts/seo-config.js`) —
+  nessuno verificabile, e il radar PFS guarda DUE portali, non cinquanta.
+  Ora la prova è quella che chiunque controlla: **4.9 su Google · 47
+  recensioni** (linkate), P.IVA/REA, «in Rome since 2019». Il «500+» della
+  homepage non era testo: lo disegnava `data-fine="500"`, quindi la regola
+  guarda anche i conteggi (`data-count|fine|target="500"`) e le etichette
+  (Happy Tenants, Success Rate…); la fascia «€1,500–2,500+» passa (è un
+  prezzo). La pagina **About** dice ciò che il prodotto fa: il client
+  portal è dei clienti Property Finding (match, preferiti, visite, chat con
+  l'advisor — niente «Time to Close / Avg 21 days»), il radar legge
+  Immobiliare.it e Idealista ogni 15 minuti (niente «AI-powered», «entire
+  market», «before it hits the public listings»), il contratto è il modello
+  italiano ufficiale guidato in inglese (non «contracts in English»), /casa
+  non ha foto nelle riparazioni né un percorso di check-out, e «video-
+  verified» è diventato ciò che esiste: la visita video gratuita da /book.
+  Il contatore di about/FAQ ora conosce i decimali (`data-dec`): 4.9 non
+  diventa 5. Restano promesse dichiarate, non misure: 48h dalle chiavi e
+  WhatsApp 24/7.
 
 **Il blocco «in brief»** (`.breve`, dal motore della console) e' la parte
 GEO: fatti a plat — cos'e', prezzo esatto, cosa comprende, **cosa NON e'**,

@@ -47,7 +47,7 @@ const PAGES = {
     path: '/',
     title: 'BOOM Rome — Premium Apartment Rentals in Rome | 48-Hour Move-In',
     description:
-      'Find verified apartments for rent in Rome. Premium mid-term rentals with 48-hour move-in, full property management, and legal contracts. Trusted by 500+ expats. Zero hidden fees.',
+      'Find verified apartments for rent in Rome. Premium mid-term rentals with 48-hour move-in, full property management, and legal contracts. Rated 4.9 on Google. Zero hidden fees.',
     keywords: [
       'apartments for rent Rome',
       'rent apartment Rome',
@@ -121,7 +121,7 @@ const PAGES = {
     path: '/about',
     title: 'About BOOM Rome — Built in Rome, For Renters | Our Story',
     description:
-      'BOOM was born from frustration with Rome\'s broken rental market. 6+ years of local expertise, 500+ happy tenants, a mission to make renting in Rome actually work.',
+      'BOOM was born from frustration with Rome\'s broken rental market: a registered agency, 4.9 on Google, on a mission to make renting in Rome actually work.',
     keywords: ['about BOOM Rome', 'Rome rental agency', 'expat rental service Rome', 'BOOM story'],
     type: 'website',
     priority: 0.7,
@@ -416,7 +416,7 @@ const PAGES = {
     slug: 'blog-neighborhood-guide',
     title: 'The Real Rome Neighborhood Guide — Where to Actually Live | BOOM',
     description:
-      'Honest, no-BS guide to Rome\'s 12 best neighborhoods for expats. Interactive map with scam risk ratings, rent prices, and insider tips from 500+ rental deals.',
+      'Honest, no-BS guide to Rome\'s 12 best neighborhoods for expats. Interactive map with scam risk ratings, rent prices, and insider tips from a registered Rome agency.',
     keywords: ['best neighborhoods Rome expat', 'where to live Rome', 'Rome neighborhood guide'],
     datePublished: '2026-01-19',
     dateModified: '2026-05-04',
