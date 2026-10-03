@@ -240,7 +240,7 @@ ok(/export async function resolveLandlord\(/.test(cpS) && /landlord = await reso
 const ps = src('api/profile/submit.js');
 ok(/if \(!hasAnySignature\(contract\)( && !pdfUploaded)?\) \{/.test(ps) && /ensureContractPdf\(contractId, null, \{ force: true \}\)/.test(ps) && /pdfRegenerated/.test(ps), 'puntini: la Scheda rigenera il PDF quando nessuno ha firmato');
 const ms = src('api/magic-sign/submit.js');
-ok(ms.indexOf("if (role === 'tenant' && !hasAnySignature(contract)) {") < ms.indexOf('// ── 3. Re-read FRESH') && /ensureContractPdf\(contractId, \{ \.\.\.contract, \.\.\.idOnly \}, \{ force: true \}\)/.test(ms) && !/idOnly\['tenantSignature'\]/.test(ms),
+ok(ms.indexOf("if (role === 'tenant' && !hasAnySignature(contract)) {") < ms.indexOf('// ── 3+4. Rilettura FRESCA') && /ensureContractPdf\(contractId, \{ \.\.\.contract, \.\.\.idOnly \}, \{ force: true \}\)/.test(ms) && !/idOnly\['tenantSignature'\]/.test(ms),
   'puntini: prima della PRIMA firma il PDF si rifà con la SOLA identità dichiarata, poi si rilegge (precondizione intatta)');
 const fin = src('api/sign/_finalize.js');
 ok(/identityLines\('tenant', c\)/.test(fin) && /identityLines\('landlord', c\)/.test(fin) && /import \{ wa \} from '\.\.\/_pdfbrand\.js';/.test(fin), 'puntini: la pagina delle firme stampa nascita/residenza/documento dichiarati, WinAnsi-safe');

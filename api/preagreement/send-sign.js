@@ -21,6 +21,7 @@ import { sendContractSignEmail } from './_notify.js';
 import { ensureContractPdf } from '../sign/_contractpdf.js';
 import { askLandlordScheda } from './_askscheda.js';
 import { inviteCoTenants, coSignUrlsForPa } from '../sign/_cosign.js';
+import { tenantSideComplete } from '../magic-sign/_shared.js';
 
 const BASE = 'https://www.boomrome.com';
 
@@ -32,10 +33,16 @@ export function signatureState(c) {
   const iso = (v) => (!v ? null : typeof v === 'string' ? v : (v && typeof v.toDate === 'function') ? v.toDate().toISOString() : (v && v.seconds) ? new Date(v.seconds * 1000).toISOString() : String(v));
   const tenantSigned = !!c.tenantSignature;
   const landlordSigned = !!c.landlordSignature;
-  const status = c.signatureStatus === 'complete' || (tenantSigned && landlordSigned) ? 'complete'
-    : (tenantSigned || landlordSigned || c.signatureStatus === 'partial') ? 'partial' : 'none';
+  // «complete» = locatore + LATO CONDUTTORI completo (co-conduttori
+  // compresi): con signingOrder 'any' titolare e locatore potevano aver
+  // firmato con un co-conduttore che mancava, e qui risultava «complete».
+  const co = (Array.isArray(c.coTenants) ? c.coTenants : []).filter(x => x && x.name);
+  const coPending = co.filter(x => !x.signature).length;
+  const coSigned = co.length - coPending;
+  const status = c.signatureStatus === 'complete' || (tenantSideComplete(c) && landlordSigned) ? 'complete'
+    : (tenantSigned || landlordSigned || coSigned > 0 || c.signatureStatus === 'partial') ? 'partial' : 'none';
   return {
-    status, tenantSigned, landlordSigned,
+    status, tenantSigned, landlordSigned, coPending,
     tenantSignedAt: iso(c.tenantSignedAt), landlordSignedAt: iso(c.landlordSignedAt),
     fullySignedAt: iso(c.fullySignedAt),
   };
@@ -128,7 +135,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       ok: true, coOnly: true, contractId: out.contractId, signatureStatus: sig.status,
       coTenants: coOut(co),
-      coEmailed: co.emailed, coNoEmail: co.noEmail, coFailed: co.failed,
+      coEmailed: co.emailed, coNoEmail: co.noEmail, coRecent: co.recent, coFailed: co.failed,
     });
   }
   if (sig.tenantSigned) {
@@ -158,7 +165,7 @@ export default async function handler(req, res) {
       tenantSignedAt: sig.tenantSignedAt || null, landlordSignedAt: sig.landlordSignedAt || null,
       delegate: out.delegate || null, emailed: false,
       coTenants: coOut(co),
-      coEmailed: co.emailed, coNoEmail: co.noEmail,
+      coEmailed: co.emailed, coNoEmail: co.noEmail, coRecent: co.recent,
     });
   }
 
@@ -225,7 +232,7 @@ export default async function handler(req, res) {
   return res.status(200).json({
     ok: true, contractId: out.contractId, ...echoLinks, emailed,
     coTenants: coOut(co),
-    coEmailed: co.emailed, coNoEmail: co.noEmail,
+    coEmailed: co.emailed, coNoEmail: co.noEmail, coRecent: co.recent,
     landlordAsked: landlordAsk.asked === true, landlordAskedTo: landlordAsk.to || null,
     landlordMissing: landlordAsk.missing || [], landlordAskWhy: landlordAsk.why || null,
   });

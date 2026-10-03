@@ -53,7 +53,7 @@ import { PDFDocument } from 'pdf-lib';
 import { fsGet, fsPatch, readJson, logActivity } from '../homie/_lib.js';
 import { requireRole, setCors } from '../_auth.js';
 import { storageUpload } from '../agent/_lib.js';
-import { commitWrites, fsGetWithTime } from '../magic-sign/_shared.js';
+import { commitWrites, fsGetWithTime, tenantSideComplete } from '../magic-sign/_shared.js';
 import { renderContractPdf, CLAUSE_VERSION } from '../sign/_contractpdf.js';
 import { sendSignInvite } from '../sign/_notify.js';
 import { inviteCoTenants, coSignUrlsForPa } from '../sign/_cosign.js';
@@ -86,8 +86,7 @@ export function signedParties(c) {
 export function isFullySigned(c) {
   if (!c) return false;
   if (c.finalizedAt || c.signatureStatus === 'complete' || c.fullySignedAt) return true;
-  if (!c.tenantSignature || !c.landlordSignature) return false;
-  return (Array.isArray(c.coTenants) ? c.coTenants : []).filter(x => x && x.name).every(x => !!x.signature);
+  return tenantSideComplete(c) && !!c.landlordSignature;
 }
 
 const SIDE_FIELDS = ['Signature', 'SignedAt', 'SignedIP', 'SignedUA', 'ConsentText', 'ConsentHash', 'ConsentAt', 'SignTokenUsedAt', 'SignedByDelegate'];
@@ -134,6 +133,25 @@ export function voidSignatures(c, { withImages = true } = {}) {
   return { archive, patch };
 }
 
+// Pura: ciò che una NUOVA versione azzera sempre (anche senza firme da
+// annullare). «Ha aperto il link» e i solleciti si riferivano al documento
+// di prima: la console diceva «visto» su una versione mai aperta, e il
+// guardiano degli inviti freddi aveva già speso i suoi due re-inviti.
+// `coSignInviteAt` resta: i co-conduttori il link l'hanno avuto (è lo
+// stesso), e la revisione li riavvisa con «contratto aggiornato».
+export function revisionResets(c) {
+  const out = {
+    signViewedTenantAt: null, signViewedLandlordAt: null,
+    viewNudgedTenantAt: null, viewNudgedLandlordAt: null,
+    inviteNudgeCount: 0, autoNudgeCount: 0, lastReminderAt: null,
+  };
+  (Array.isArray(c && c.coTenants) ? c.coTenants : []).forEach((_, i) => {
+    out['signViewedCo' + i + 'At'] = null;
+    out['viewNudgedCo' + i + 'At'] = null;
+  });
+  return out;
+}
+
 // Il PDF caricato: firma %PDF, leggibile da pdf-lib (è con pdf-lib che
 // _finalize gli appenderà la pagina delle firme — un PDF che pdf-lib non
 // apre farebbe morire la firma completa, quindi si rifiuta ADESSO).
@@ -154,17 +172,52 @@ export async function inspectPdf(buf) {
   }
 }
 
-// Il file grande arriva da Storage: SOLO firebasestorage.googleapis.com e
-// SOLO sotto contracts/<id>/ — l'endpoint non è un proxy.
+// Il bucket di BOOM (la stessa regola di storageUpload in agent/_lib.js).
+export const storageBucket = () => process.env.FIREBASE_STORAGE_BUCKET
+  || `${process.env.FIREBASE_PROJECT_ID || 'boom-property-dashboards'}.firebasestorage.app`;
+
+// I nomi del bucket dello STESSO progetto: quello del server (env) e le due
+// forme che il client Firebase può usare (firebase-config.js dichiara
+// .firebasestorage.app; i progetti vecchi rispondono anche su .appspot.com).
+const boomBuckets = () => {
+  const pid = process.env.FIREBASE_PROJECT_ID || 'boom-property-dashboards';
+  return new Set([storageBucket(), pid + '.firebasestorage.app', pid + '.appspot.com']);
+};
+
+// Il file grande arriva da Storage: SOLO firebasestorage.googleapis.com, SOLO
+// il bucket di BOOM (un URL di un altro progetto Firebase con lo stesso path
+// passava: 3/10/2026) e SOLO sotto contracts/<id>/ — l'endpoint non è un proxy.
 export function allowedFileUrl(url, contractId) {
   try {
     const u = new URL(String(url || ''));
     if (u.protocol !== 'https:' || u.hostname !== 'firebasestorage.googleapis.com') return false;
-    const m = /\/o\/([^/?]+)/.exec(u.pathname);
-    if (!m) return false;
-    const path = decodeURIComponent(m[1]);
+    const m = /^\/v0\/b\/([^/]+)\/o\/([^/?]+)$/.exec(u.pathname);
+    if (!m || !boomBuckets().has(decodeURIComponent(m[1]))) return false;
+    const path = decodeURIComponent(m[2]);
     return path.startsWith('contracts/' + contractId + '/') && !path.includes('..');
   } catch (_) { return false; }
+}
+
+// Si legge al massimo MAX_PDF_BYTES: prima l'intestazione dichiarata, poi
+// il flusso contato pezzo per pezzo — mai un file intero in memoria per
+// scoprire DOPO che era troppo grande.
+async function readCapped(r, max) {
+  const len = Number(r.headers && r.headers.get && r.headers.get('content-length') || 0);
+  if (len > max) return { error: 'too_large' };
+  const reader = r.body && typeof r.body.getReader === 'function' ? r.body.getReader() : null;
+  if (!reader) {
+    const ab = await r.arrayBuffer();
+    return ab.byteLength > max ? { error: 'too_large' } : { buf: Buffer.from(ab) };
+  }
+  const chunks = []; let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > max) { try { await reader.cancel(); } catch (_) {} return { error: 'too_large' }; }
+    chunks.push(Buffer.from(value));
+  }
+  return { buf: Buffer.concat(chunks) };
 }
 
 async function readBytes(b, contractId) {
@@ -177,7 +230,7 @@ async function readBytes(b, contractId) {
     if (!allowedFileUrl(b.fileUrl, contractId)) return { error: 'bad_file_url' };
     const r = await fetch(b.fileUrl, { signal: AbortSignal.timeout(15000) }).catch(() => null);
     if (!r || !r.ok) return { error: 'file_fetch_failed' };
-    return { buf: Buffer.from(await r.arrayBuffer()) };
+    return readCapped(r, MAX_PDF_BYTES);
   }
   return { error: 'file_required' };
 }
@@ -247,7 +300,11 @@ export default async function handler(req, res) {
   const now = new Date().toISOString();
   const note = String(b.note || '').trim().slice(0, 300);
   const nextV = Number(c.contractVersion || 1) + 1;
-  const path = `contracts/${contractId}/contract-v${nextV}.pdf`;
+  // Un path UNICO per tentativo: due revisioni concorrenti calcolano la
+  // stessa nextV, e il perdente (che il commit condizionato respinge)
+  // sovrascriveva comunque i byte del vincitore — il contratto puntava
+  // alla v2 giusta e il file era quello sbagliato (3/10/2026).
+  const path = `contracts/${contractId}/contract-v${nextV}-${crypto.randomBytes(4).toString('hex')}.pdf`;
 
   // Le firme di questa versione: archivio (con le immagini finché il
   // documento resta leggero) + patch che riapre la firma.
@@ -271,6 +328,7 @@ export default async function handler(req, res) {
     catch (e) { return res.status(502).json({ ok: false, error: 'storage_failed' }); }
     if (!url) return res.status(502).json({ ok: false, error: 'storage_failed' });
     fields = {
+      ...revisionResets(c),
       ...patch,
       generatedPDF: url,
       pdfHash: sha256(rd.buf).slice(0, 16), pdfSha256: sha256(rd.buf),
@@ -296,6 +354,7 @@ export default async function handler(req, res) {
     catch (e) { console.error('[contracts/revise] template:', e.message); }
     if (!r) return res.status(502).json({ ok: false, error: 'pdf_failed' });
     fields = {
+      ...revisionResets(c),
       ...patch, ...r.fields,
       pdfSource: 'boom', pdfPath: path, pdfFileName: null, pdfUploadNote: note || null,
       pdfSha256: null, pdfPages: null,
@@ -321,7 +380,7 @@ export default async function handler(req, res) {
   if (paId && archive.length) {
     try {
       await commitWrites([{ docPath: 'preAgreements/' + paId, precondition: { exists: true }, fields: {
-        contractSignatureStatus: 'none', tenantSignedAt: null, landlordSignedAt: null, contractFullySignedAt: null,
+        contractSignatureStatus: 'none', tenantSignedAt: null, landlordSignedAt: null, coTenantsSignedAt: null, contractFullySignedAt: null,
         contractVersion: nextV, contractRevisedAt: now, coSignUrls: coSignUrlsForPa(contractId, fresh),
       } }]);
     } catch (e) { console.warn('[contracts/revise] pa stamp:', e.message); }

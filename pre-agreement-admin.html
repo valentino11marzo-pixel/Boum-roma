@@ -804,9 +804,10 @@ window.signFor=async function(id,btn){
       else if(p.landlordDelegate)lines.push('Poi controfirmi per delega del proprietario '+(ll.name||'')+' — '+(p.landlordDelegate.basis||'delega')+'.');
       else lines.push('Il proprietario '+(ll.name||'')+' firma col suo link (WhatsApp/copia dalla riga) — oppure gli chiedi il mandato scritto (🏠 Chiedi il mandato al proprietario: per lui è un tap sulla sua scheda), o dichiari una sua delega SCRITTA (te lo chiedo dopo).');
     }
+    if(p.uploadedPdf)lines.push('⚠ Il contratto è una versione CARICATA a mano (v'+(p.contractVersion||'?')+(p.pdfFileName?' · '+p.pdfFileName:'')+'). Il mandato copre le condizioni approvate, non il file: confermando DICHIARI che il PDF riporta esattamente quelle condizioni (la dichiarazione resta sulla firma).');
     lines.push('Nome, data, ora, dispositivo e «per mandato/per delega» finiscono sulla pagina delle firme e sul certificato.');
     if(!ask(lines.join('\n\n')+'\n\nProcedere?')){restore();return;}
-    var body={op:'sign',id:id};
+    var body={op:'sign',id:id,contractVersion:p.contractVersion||1,ackUploadedPdf:!!p.uploadedPdf};
     if(!p.landlordSigned&&!lm&&!p.landlordDelegate&&!(p.coTenantsPending&&p.coTenantsPending.length)&&ask('Vuoi controfirmare TU anche per il proprietario, per delega?\n\nSOLO se hai una sua delega scritta (es. nel mandato di gestione firmato). Annulla = il proprietario firma col suo link (o gli chiedi il mandato dalla riga).')){
       var basis=prompt('Base scritta della delega del proprietario (viene stampata sul certificato) — es. «mandato di gestione firmato il 12/03/2026»:','');
       if(basis&&basis.trim().length>=8){body.landlordDelegate=true;body.landlordBasis=basis.trim();}
@@ -833,6 +834,9 @@ window.signFor=async function(id,btn){
       :m==='landlord_basis_required'?'la delega del proprietario vuole una base scritta (almeno 8 caratteri).'
       :m==='landlord_mandate_terms_changed'?'le condizioni del contratto non sono più quelle del mandato del proprietario: rifai la proposta o mandagli il suo link.'
       :m==='awaiting_tenant'?'il lato conduttori non è completo (co-conduttori).'
+      :m==='version_changed'?'nel frattempo è stata caricata un’altra versione del contratto: ricontrolla e riprova.'
+      :m==='uploaded_pdf_ack_required'?'il PDF caricato va confermato prima di firmare per mandato.'
+      :m==='contract_busy'?'il contratto si stava aggiornando: riprova fra qualche secondo.'
       :m==='no_property'?'collega (o crea) la proprietà con → Contratto.'
       :m==='overlap'?'sullo stesso immobile c’è già un contratto attivo: passa da → Contratto e decidi.'
       :m==='forbidden'?'solo un admin può firmare per le parti.'
@@ -1076,9 +1080,11 @@ function cdField(role,f){
 function cdCollect(ov,role){
   var out={},n=0;
   ov.querySelectorAll('[data-role="'+role+'"] [data-key]').forEach(function(el){
-    var v=String(el.value||'').trim();if(!v)return;
-    if(v===String(el.getAttribute('data-orig')||'').trim())return;   /* non toccato: non si riscrive */
+    var v=String(el.value||'').trim(),orig=String(el.getAttribute('data-orig')||'').trim();
+    if(v===orig)return;   /* non toccato: non si riscrive */
     var k=el.getAttribute('data-key');
+    /* svuotato a mano un dato che c'era: si CANCELLA (solo l'operatore può) */
+    if(!v){if(!orig||el.getAttribute('data-people')==='1')return;out[k]={clear:true};n++;return;}
     if(el.getAttribute('data-people')==='1'){var low=v.toLowerCase();out[k]=(/^(solo|da solo|nessuno|alone|no)$/.test(low))?{alone:true}:{text:v.split(/\n+/).map(function(x){return x.trim()}).filter(Boolean).join('; ')};}
     else out[k]=v;
     n++;
@@ -1124,6 +1130,8 @@ window.completaDati=async function(id,all){
       var err=ov.querySelector('#cdErr');err.style.display='none';
       var jobs=CD_ROLES.map(function(w){return [w,cdCollect(ov,w[0])]}).filter(function(x){return x[1]});
       if(!jobs.length){err.textContent=ALL?'Nessun campo modificato.':'Nessun campo compilato.';err.style.display='block';return;}
+      var clears=[];jobs.forEach(function(x){Object.keys(x[1]).forEach(function(k){if(x[1][k]&&x[1][k].clear===true)clears.push(x[0][1]+': '+k);});});
+      if(clears.length&&!ask('Svuoto questi dati (il PDF li stamperà come puntini finché non li rimetti):\n\n'+clears.join('\n')+'\n\nProcedere?'))return;
       sv.disabled=true;sv.textContent='Salvo…';
       var lines=[];
       try{
@@ -1135,7 +1143,7 @@ window.completaDati=async function(id,all){
           if(rr.status===409&&jj&&jj.error==='mandate_terms_frozen')lines.push('⚠ '+w[1]+': non salvato — il mandato congela le condizioni approvate ('+(jj.changed||[]).join(', ')+'). Si corregge sulla proposta, non sul contratto.');
           else if(rr.status===410)lines.push('⚠ '+w[1]+': ha già firmato — identità congelata.');
           else if(!rr.ok||!jj||!jj.ok)lines.push('⚠ '+w[1]+': '+((jj&&jj.error)||('errore '+rr.status)));
-          else lines.push('✓ '+w[1]+': '+(jj.applied||[]).length+' campi salvati'+((jj.rejected||[]).length?' · scartati: '+jj.rejected.map(function(x){return x.key+' ('+x.why+')'}).join(', '):'')+(jj.complete?' · completo':'')+(jj.pdfRegenerated?' · PDF rigenerato':jj.pdfUploaded?' · il contratto è il PDF che hai caricato: i dati sono salvati, il documento no (correggilo e ricaricalo, o ↺ Modello BOOM)':' · PDF non rigenerato (firma viva?)'));
+          else lines.push('✓ '+w[1]+': '+(jj.applied||[]).length+' campi salvati'+((jj.cleared||[]).length?' (svuotati: '+jj.cleared.join(', ')+')':'')+((jj.rejected||[]).length?' · scartati: '+jj.rejected.map(function(x){return x.key+' ('+x.why+')'}).join(', '):'')+(jj.complete?' · completo':'')+(jj.pdfRegenerated?' · PDF rigenerato':jj.pdfUploaded?' · il contratto è il PDF che hai caricato: i dati sono salvati, il documento no (correggilo e ricaricalo, o ↺ Modello BOOM)':' · PDF non rigenerato (firma viva?)'));
         }
       }catch(e){lines.push('⚠ '+(e.message||'errore'));}
       try{await load(lines.map(esc).join('<br>'));}catch(e2){err.textContent=e2.message||'errore';err.style.display='block';sv.disabled=false;sv.textContent='Salva e rigenera il PDF';}
@@ -1236,6 +1244,7 @@ function showCoLinks(d,list,note){
 function coNoteOf(j){
   var bits=[];
   if(j.coEmailed&&j.coEmailed.length)bits.push('Email partita a: '+esc(j.coEmailed.join(', '))+'.');
+  if(j.coRecent&&j.coRecent.length)bits.push('Già avvisati nelle ultime 12 ore (nessuna nuova email): '+esc(j.coRecent.join(', '))+'.');
   if(j.coNoEmail&&j.coNoEmail.length)bits.push('<b>Senza email</b>: '+esc(j.coNoEmail.join(', '))+' — mandagli il link su WhatsApp da qui.');
   return bits.join(' ');
 }

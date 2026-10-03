@@ -201,6 +201,16 @@ export default async function handler(req, res) {
       let nudged = 0;
       const H48 = 48 * 3600 * 1000, H24 = 24 * 3600 * 1000;
       for (const c0 of parts) {
+        // Prima i filtri che costano zero (campi scalari: parseDoc li legge
+        // bene) — la rilettura completa solo per chi può davvero ricevere un
+        // promemoria adesso (review del 3/10/2026: prima ogni contratto
+        // 'partial' costava una lettura a ogni giro, anche fermo da ore).
+        {
+          const last0 = c0.lastReminderAt ? new Date(c0.lastReminderAt).getTime() : 0;
+          if (last0 && now.getTime() - last0 < H24) continue;
+          if ((c0.autoNudgeCount || 0) >= 3) continue;
+          if (c0.tenantSignature && c0.tenantSignedAt && (now.getTime() - new Date(c0.tenantSignedAt).getTime()) < H48) continue;
+        }
         // IL CONTRATTO INTERO (3/10/2026). parseDoc di questo file appiattisce
         // array e mappe a null: coTenants spariva, tenantSideComplete diceva
         // «lato conduttori completo» e il promemoria mandava al PROPRIETARIO

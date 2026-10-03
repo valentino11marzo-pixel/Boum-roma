@@ -17928,7 +17928,26 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                  'depositPayToken', 'depositPaid', 'inviteNudgeCount', 'lastReminderAt', 'welcomeEmailSent',
                  // mandato e deleghe sono atti su QUEL contratto: un rinnovo non li eredita
                  'tenantMandate', 'tenantDelegate', 'tenantSignedByDelegate', 'landlordSignedByDelegate', 'paAcceptance',
+                 'landlordMandate', 'askLandlordMandate',
+                 // la versione del documento è di QUEL contratto: un rinnovo
+                 // nasce dal modello, mai «caricato a mano» (prima ereditava
+                 // pdfSource:'upload' e nessuna rigenerazione partiva più)
+                 'pdfSource', 'pdfPath', 'pdfFileName', 'pdfPages', 'pdfSha256', 'pdfSizeKB', 'pdfUploadNote', 'pdfUploadedAt', 'pdfUploadedBy',
+                 'pdfGeneratedAt', 'pdfGeneratedBy', 'sigAnchors', 'contractVersion', 'contractVersions', 'contractRevisedAt', 'contractRevisedBy',
+                 'coSignInviteAt', 'viewNudgedTenantAt', 'viewNudgedLandlordAt', 'autoNudgeCount',
                  'createdAt', 'updatedAt', 'renewalHistory'].forEach(k => delete clone[k]);
+                Object.keys(clone).forEach(k => { if (/^(signViewedCo|viewNudgedCo)\d+At$/.test(k)) delete clone[k]; });
+                // le firme dei co-conduttori vivono DENTRO coTenants[]: il
+                // rinnovo tiene le persone, mai le loro firme sul contratto vecchio
+                if (Array.isArray(clone.coTenants)) clone.coTenants = clone.coTenants.map(x => {
+                    if (!x || typeof x !== 'object') return x;
+                    const y = { ...x };
+                    ['signature', 'signedAt', 'signedIP', 'signedUA', 'consentText', 'consentHash', 'consentAt'].forEach(f => delete y[f]);
+                    return y;
+                });
+                // una delega del locatore nata DAL suo mandato scritto vale solo
+                // per le condizioni di quel mandato: sul rinnovo non c'è
+                if (clone.landlordDelegate && (clone.landlordDelegate.basisKind === 'mandate' || clone.landlordDelegate.mandateHash)) delete clone.landlordDelegate;
                 const _inst = (contract.canone && contract.canone.installments) || 12;
                 Object.assign(clone, {
                     startDate: newStart,
@@ -19176,28 +19195,34 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             }
             
             // 3.5. Create document entry visible to tenant
+            // Il documento «firmato» punta alla copia FIRMATA (signedPdfUrl,
+            // prodotta dal server al finalize) — mai al PDF senza firme
+            // etichettato «Signed Contract». Finché la copia firmata non c'è,
+            // il nome dice la verità (review del 3/10/2026).
+            const _docUrl = contract.signedPdfUrl || contract.generatedPDF || '';
+            const _docName = (contract.signedPdfUrl ? 'Signed Contract \u2014 ' : 'Contract (signed copy in preparation) \u2014 ') + (property?.name || 'Lease');
             try {
                 await db.collection('documents').add({
-                    name: 'Signed Contract \u2014 ' + (property?.name || 'Lease'),
+                    name: _docName,
                     type: 'contract',
                     contractId: contractId,
                     propertyId: property?.id || '',
                     userId: tenant?.id || '',
                     shared: true,
-                    fileUrl: contract.generatedPDF || '',
+                    fileUrl: _docUrl,
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                     note: 'Auto-generated upon contract activation via Magic Sign'
                 });
                 // Also add landlord copy
                 if (landlord) {
                     await db.collection('documents').add({
-                        name: 'Signed Contract \u2014 ' + (property?.name || 'Lease'),
+                        name: _docName,
                         type: 'contract',
                         contractId: contractId,
                         propertyId: property?.id || '',
                         userId: landlord?.id || property?.ownerId || '',
                         shared: true,
-                        fileUrl: contract.generatedPDF || '',
+                        fileUrl: _docUrl,
                         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                         note: 'Auto-generated upon contract activation via Magic Sign'
                     });
@@ -21281,6 +21306,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }
         if (!contract.tenantSignature && contract.tenantId) {
             if (await remind('tenant', contract.tenantId)) sent++;
+        } else if (contract.tenantSignature && (contract.coTenants || []).some(x => x && x.name && !x.signature)) {
+            // Il titolare ha firmato, mancano i co-conduttori: il promemoria è
+            // per LORO (send-link li raggiunge col link di ciascuno).
+            if (await remind('tenant', null)) sent++;
         }
         if (sent) { try { await db.collection('contracts').doc(contractId).update({ lastReminderAt: firebase.firestore.FieldValue.serverTimestamp() }); contract.lastReminderAt = new Date(); } catch (e) {} }
         toast('success', sent ? '📧 Promemoria inviato!' : 'Nessun promemoria da inviare');

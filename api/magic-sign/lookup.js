@@ -147,6 +147,12 @@ export default async function handler(req, res) {
     propertyId: contract.propertyId || null,
     tenantId: contract.tenantId || null,
     generatedPDF: contract.generatedPDF || null,
+    // la VERSIONE che il firmatario sta leggendo: sign.html la rimanda al
+    // submit, che rifiuta (409 version_changed) se nel frattempo è stata
+    // caricata una versione corretta — si firma solo ciò che si è letto.
+    contractVersion: Number(contract.contractVersion) || 1,
+    pdfSource: contract.pdfSource || 'boom',
+    pdfFileName: contract.pdfFileName || null,
     signatureStatus: contract.signatureStatus || null,
     // expose only the OTHER party's signed flag (so UI can show "waiting on landlord/tenant")
     tenantSigned: !!contract.tenantSignature,

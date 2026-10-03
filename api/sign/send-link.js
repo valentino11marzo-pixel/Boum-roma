@@ -57,12 +57,35 @@ export default async function handler(req, res) {
   }
 
   const signed = role === 'tenant' ? !!contract.tenantSignature : !!contract.landlordSignature;
-  if (signed) return res.status(409).json({ ok: false, error: 'already_signed' });
+  if (signed) {
+    // Il titolare ha firmato ma il lato conduttori NON è completo: il
+    // promemoria del portal tocca ai co-conduttori che mancano (prima
+    // rispondeva 409 already_signed e il promemoria non raggiungeva mai
+    // chi bloccava davvero il contratto — review del 3/10/2026).
+    if (role === 'tenant') {
+      const { inviteCoTenants } = await import('./_cosign.js');
+      let co = null;
+      try { co = await inviteCoTenants({ contractId, contract, property, resend: true }); }
+      catch (e) { console.warn('[send-link] co-tenants:', e.message); }
+      if (co && co.pending.length) {
+        if (co.emailed.length) await logActivity('sign_invite_sent', 'contract', { contractId, role: 'cotenant', to: co.emailed, resend: true }, auth.email || auth.uid).catch(() => {});
+        return res.status(200).json({
+          ok: true, primarySigned: true, sent: co.emailed.length > 0,
+          coInvited: co.emailed.length, coNoEmail: co.noEmail, coRecent: co.recent,
+          // il link di un co-conduttore è la SUA credenziale di firma: solo
+          // l'admin lo vede (stessa regola dei token nel deposito) — un
+          // proprietario che sollecita fa partire l'email, il link no
+          coTenants: co.pending.map(x => ({ name: x.name, phone: x.phone, hasEmail: !!x.email, ...(auth.profile.role === 'admin' ? { url: x.url } : {}) })),
+        });
+      }
+    }
+    return res.status(409).json({ ok: false, error: 'already_signed' });
+  }
   // Sequenziale: il locatore controfirma solo a lato-conduttori COMPLETO
-  // (principale + tutti i co-conduttori).
-  const { tenantSideComplete } = await import('../magic-sign/_shared.js');
+  // (principale + tutti i co-conduttori). CHI manca, per nome.
+  const { tenantSideComplete, tenantSideWaiting } = await import('../magic-sign/_shared.js');
   if (role === 'landlord' && !tenantSideComplete(contract) && contract.signingOrder !== 'any') {
-    return res.status(409).json({ ok: false, error: 'awaiting_tenant' });
+    return res.status(409).json({ ok: false, error: 'awaiting_tenant', waitingFor: tenantSideWaiting(contract) });
   }
 
   // Il token dal deposito (signTokens, admin-only): coniato qui se manca —
