@@ -1219,12 +1219,16 @@ function renderAccepted(){
   }
   if(CT&&CT.tenantSignUrl){
     html+='<div class="ctc" id="ctcard"><div class="ch"><b>Your contract is ready</b><span>'+(CT.invitedAt?'sent '+esc(String(CT.invitedAt).slice(0,10)):'')+'</span></div>'
-      +'<p>Prepared from this document, on exactly these terms. Signing takes two minutes on your phone — no app, no account.</p>'
+      +'<p>Prepared from this document, on exactly these terms. Signing takes two minutes on your phone — no app, no account.'
+      +((CT.waitingCoTenants&&CT.waitingCoTenants.length)?' Your co-tenant'+(CT.waitingCoTenants.length>1?'s':'')+' ('+esc(CT.waitingCoTenants.join(', '))+') sign'+(CT.waitingCoTenants.length>1?'':'s')+' with their own link.':'')+'</p>'
       +(draftUrl?'<a class="obtn" href="'+esc(draftUrl)+'" target="_blank" rel="noopener" style="margin-bottom:8px">📄 Read the full contract first</a>':'')
       +'<a class="gbtn" href="'+esc(CT.tenantSignUrl)+'">Sign your contract now →</a></div>';
   }else if(CT&&CT.tenantSigned&&CT.status!=='complete'){
     html+='<div class="ctc" id="ctcard"><div class="ch"><b>✓ Contract signed by you</b><span>'+esc(String(CT.tenantSignedAt||'').slice(0,10))+'</span></div>'
-      +'<p>'+(CT.byDelegate?'Signed under your written mandate by '+esc(CT.byDelegate.name)+'. ':'')+'Waiting for the landlord’s countersignature — you’ll receive the signed contract and its certificate by email.</p></div>';
+      +'<p>'+(CT.byDelegate?'Signed under your written mandate by '+esc(CT.byDelegate.name)+'. ':'')
+      +((CT.waitingCoTenants&&CT.waitingCoTenants.length)
+        ?'Waiting for your co-tenant'+(CT.waitingCoTenants.length>1?'s':'')+' — <b>'+esc(CT.waitingCoTenants.join(', '))+'</b> — each signs with their own personal link (we’ve sent it). Then the landlord countersigns and you’ll receive the signed contract by email.'
+        :'Waiting for the landlord’s countersignature — you’ll receive the signed contract and its certificate by email.')+'</p></div>';
   }else if(CT&&CT.status==='complete'){
     html+='<div class="ctc" id="ctcard"><div class="ch"><b>✓ Contract signed by both parties</b><span>'+esc(String(CT.fullySignedAt||CT.landlordSignedAt||'').slice(0,10))+'</span></div>'
       +'<p>Your lease is active. BOOM files the registration with the Agenzia delle Entrate.</p>'

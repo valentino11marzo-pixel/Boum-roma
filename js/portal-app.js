@@ -19847,6 +19847,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         try {
             const contract = S.contracts.find(c => c.id === contractId);
             if (!contract) return false;
+            // Le stesse due guardie del server (ensureContractPdf): la versione
+            // CARICATA dall'operatore è il documento (si torna al modello solo
+            // con ↺ dalla console/🔄 qui, che passa da /api/contracts/revise),
+            // e sotto una firma viva il documento è congelato.
+            if (contract.pdfSource === 'upload' && contract.generatedPDF) { console.warn('[BOOM] PDF caricato a mano: non si rigenera', contractId); return false; }
+            if (contract.tenantSignature || contract.landlordSignature || (Array.isArray(contract.coTenants) && contract.coTenants.some(x => x && x.signature))) { console.warn('[BOOM] firma viva: PDF congelato', contractId); return false; }
             const property = S.properties.find(p => p.id === contract.propertyId);
             const tenant = S.users.find(u => u.id === contract.tenantId);
             const landlord = property ? S.users.find(u => u.id === property.ownerId) : null;
@@ -19860,7 +19866,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const hash = await generateDocHash(built.hashSeed);
             const pdfBlob = built.doc.output('blob');
 
-            const pdfRef = firebase.storage().ref().child(`contracts/${contractId}/contract.pdf`);
+            // il path della versione corrente (dopo una revisione: contract-v<N>.pdf)
+            const pdfPath = (contract.pdfPath && String(contract.pdfPath).indexOf('contracts/' + contractId + '/') === 0) ? contract.pdfPath : `contracts/${contractId}/contract.pdf`;
+            const pdfRef = firebase.storage().ref().child(pdfPath);
             await pdfRef.put(pdfBlob, {
                 contentType: 'application/pdf',
                 contentDisposition: 'inline; filename="contract.pdf"',
@@ -21357,6 +21365,30 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // divergenti. Per cambiare i termini serve una NUOVA versione.
         if (contract.signatureStatus === 'complete' || (contract.tenantSignature && contract.landlordSignature)) {
             toast('error', '🔒 Contratto firmato da entrambe le parti', 'Il PDF firmato fa fede e non si rigenera. Per nuovi termini: rinnovo/duplica → nuovo giro di firme.');
+            return;
+        }
+        // UNA FIRMA GIÀ MESSA, o un PDF CARICATO A MANO (3/10/2026): qui
+        // rigenerare in silenzio sovrascriveva il documento sotto la firma di
+        // qualcuno (o la versione corretta dell'operatore). Ora passa dalla
+        // revisione: nuova versione col modello BOOM, la firma già messa
+        // archiviata e richiesta di nuovo — detto prima, coi nomi.
+        const liveSigs = [contract.tenantSignature ? (contract.tenantName || 'inquilino') : null,
+            ...(Array.isArray(contract.coTenants) ? contract.coTenants.filter(x => x && x.signature).map(x => x.name || 'co-conduttore') : []),
+            contract.landlordSignature ? (contract.landlordName || 'proprietario') : null].filter(Boolean);
+        if (liveSigs.length || contract.pdfSource === 'upload') {
+            const msg = (contract.pdfSource === 'upload' ? 'Questo contratto usa il PDF che hai CARICATO (versione ' + (contract.contractVersion || 2) + '). Rigenerare lo sostituisce col modello BOOM, rifatto dai dati di adesso.\n\n' : '')
+                + (liveSigs.length ? 'Hanno già firmato: ' + liveSigs.join(', ') + '. Le loro firme vengono ARCHIVIATE e dovranno firmare la nuova versione (riceveranno il link).\n\n' : '')
+                + 'Procedere con una nuova versione del contratto?';
+            if (!confirm(msg)) return;
+            try {
+                const tok = await firebase.auth().currentUser.getIdToken();
+                const r = await fetch('/api/contracts/revise', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + tok },
+                    body: JSON.stringify({ op: 'template', contractId: id, voidSignatures: liveSigs.length > 0, note: 'rigenerato dal portal' }) });
+                const j = await r.json().catch(() => null);
+                if (!j || !j.ok) throw new Error((j && j.error) || ('HTTP ' + r.status));
+                await refreshOnly('contracts');
+                toast('success', 'Versione ' + j.version + ' del contratto', (j.voided && j.voided.length ? 'Firme archiviate: ' + j.voided.map(x => x.name || x.role).join(', ') + '. ' : '') + (j.notified && j.notified.tenant ? 'Link della nuova versione inviato.' : ''));
+            } catch (e) { toast('error', 'Nuova versione non creata', String(e.message || e)); }
             return;
         }
 
