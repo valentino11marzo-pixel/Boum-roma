@@ -480,7 +480,15 @@ console.log('\n── la pagina /owner');
   check('niente più dati finti del vecchio mockup', !/chart\.js/i.test(html) && !/Mario Rossi|Luxury Penthouse/.test(html));
   check('ogni testo passa da escapeHtml', html.includes('BoomPortal.escapeHtml'));
   const vj = JSON.parse(readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));
-  check('/owner è una rewrite (il ?attiva= non si perde in un redirect)', (vj.rewrites || []).some((x) => x.source === '/owner' && /owner-dashboard/.test(x.destination)));
+  check('/owner è una rewrite (il ?attiva= non si perde in un redirect)', (vj.rewrites || []).some((x) => x.source === '/owner' && x.destination === '/owner-dashboard'));
+  // 3/10/2026, letto sulla preview vera: /owner → /owner-dashboard.html dava
+  // 404 (con cleanUrls una destinazione .html non si risolve), e il test
+  // sopra passava lo stesso perché guardava solo «owner-dashboard». Il server
+  // locale di ui.mjs mappa /owner da sé, quindi non poteva vederlo. Regola di
+  // CLASSE: con cleanUrls nessuna rewrite punta a un .html diverso dalla sua
+  // sorgente — la forma che funziona è quella di /casa → /tenant.
+  const rotti = vj.cleanUrls ? (vj.rewrites || []).filter((x) => /\.html$/.test(x.destination) && x.source !== x.destination.slice(0, -5)) : [];
+  check('con cleanUrls nessuna rewrite punta a un .html di altro nome' + (rotti.length ? ' — ' + rotti.map((x) => x.source + ' → ' + x.destination).join(', ') : ''), rotti.length === 0);
   check('/owner non indicizzato e non in cache', (vj.headers || []).some((h) => /\(owner\|/.test(h.source) && h.headers.some((x) => /no-store/.test(x.value))));
   check('il pattern privato NON copre /owners (pagina pubblica)', !(vj.headers || []).some((h) => h.source === '/(owner)(.*)'));
   const fin = readFileSync(new URL('../../api/sign/_finalize.js', import.meta.url), 'utf8');

@@ -2369,6 +2369,16 @@ DOM), View Transitions casa → dettaglio, dock su telefono, scheletro al
 caricamento, attivazione con forza della password e occhio. Tutto il
 movimento si spegne con `prefers-reduced-motion`.
 
+**La rotta che non c'era** (3/10/2026, letto sulla preview Vercel, non
+dedotto): `/owner` → `/owner-dashboard.html` rispondeva **404** — con
+`cleanUrls:true` una destinazione `.html` non si risolve. Cioè la demo e
+OGNI link di attivazione nelle email (`/owner?attiva=…`) sarebbero morti al
+merge. Il test guardava solo «owner-dashboard» nella destinazione e il
+server locale di `ui.mjs` mappava `/owner` da sé: verde e cieco. Ora la
+rewrite è `/owner` → `/owner-dashboard` (la forma di `/casa` → `/tenant`) e
+`tests/owner/run.mjs` porta la regola di CLASSE: con cleanUrls nessuna
+rewrite punta a un `.html` di nome diverso dalla sorgente (mutazione presa).
+
 **Da fare fuori dal codice**: il template email di reset di Firebase
 (Authentication → Templates) andrebbe comunque tradotto e firmato BOOM —
 resta la via di «Password dimenticata» dopo l'attivazione.

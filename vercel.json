@@ -458,7 +458,7 @@
     },
     {
       "source": "/owner",
-      "destination": "/owner-dashboard.html"
+      "destination": "/owner-dashboard"
     },
     {
       "source": "/form-tenant",
