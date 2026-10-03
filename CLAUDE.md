@@ -1360,6 +1360,24 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
   statically (top-level `import`). Lazy `await import('pkg')` is not traced
   by Vercel's bundler → "Cannot find package" at runtime in production
   (this silently killed all pre-agreement emails until 2026-07).
+- **L'accettazione naturale (30/09/2026 — «troppo aggressiva, diventa
+  bloccante»)**. Misurato a 390px: al passo 4 una casella da 21px accanto a
+  7 righe di legalese, sotto 17 righe del mandato che partivano in maiuscolo
+  («MANDATE TO SIGN. I appoint…»), e «Accept & sign» SPENTO — toccato non
+  faceva nulla e non diceva nulla. Ora: UNA riga grande e toccabile (tutta la
+  frase è il bersaglio) «I accept this proposal» + una riga di sottotitolo;
+  il testo che il server registra (`PA_CONSENT_TEXT`/`PA_MANDATE_TEXT`,
+  STESSO testo e stesso hash) sta integro sotto «Read the full wording», a
+  un tocco — mai riscritto, solo raccolto; il mandato è la seconda riga,
+  «Optional», mai pre-spuntata; il bottone non è mai spento per la spunta:
+  senza, `accept()` non firma, porta sulla riga (`nudgeTick`) e la barra
+  dice cosa manca. `SENDING` tiene fermo il bottone mentre la firma viaggia
+  (prima un tocco su una spunta ridisegnava la barra e lo riaccendeva). La
+  card del mandato dopo l'accettazione: tre righe in chiaro, testo integro a
+  un tocco, spunta + bottone sempre acceso con la stessa guida. Test:
+  `node tests/preagreement/consent-ui.mjs` (Chromium a 390px, handler di
+  rete finti; mutazioni: guardia spunta, guardia mandato, bottone spento,
+  doppio invio — tutte prese).
 - `pre-agreement.html` — the public page, an Apple-style guided 4-step
   flow: **Review** (hero tiles: monthly all-in / due today / move-in /
   term, full terms, advisor card, trust chips) → **Details** (identity +
