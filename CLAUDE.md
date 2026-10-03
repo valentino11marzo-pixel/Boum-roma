@@ -181,6 +181,9 @@ PASS_KEY_PASSPHRASE
 # Email (Nodemailer)
 GMAIL_USER
 GMAIL_APP_PASS
+LEADS_NOTIFY_EMAIL           # optional — dove arriva l'avviso di ogni candidatura
+                             # dal sito (/api/apply-lead); default
+                             # ADMIN_NOTIFY_EMAIL → valentino@boom-rome.com
 REGISTRATION_EMAIL           # optional — dove arriva il Foglio di registrazione
                              # (email pulita a firma completa); default
                              # CAF_EMAIL → valentino@boom-rome.com
@@ -857,6 +860,46 @@ rate limit, clip/num sanitizers). Writes to `leads` in the exact portal/
 cockpit schema (`status:'new'`, `source:'web'`, `intent:apply|reserve|waitlist`,
 qualification snapshot in `message` + `raw`) so every serious applicant lands
 in the pipeline even if they never open Stripe. Returns `{ ok, id }`.
+
+**LA LEZIONE DEL 30 SETTEMBRE 2026 — «chi fa apply non lo vedo: né nei lead,
+né via email».** Letto nei log e nella casella, non dedotto: due candidature
+vere (16:38 e 16:43 UTC) → 200, lead scritto, conferma partita al CANDIDATO.
+Fra quel lead e l'operatore c'erano tre buchi, chiusi insieme:
+- **Nessuna email a BOOM.** La porta scriveva solo al candidato. Ora ogni
+  candidatura arriva anche all'operatore (`LEADS_NOTIFY_EMAIL` →
+  `ADMIN_NOTIFY_EMAIL` → valentino@boom-rome.com), IT, con fascia di
+  reddito, garante, firmatari, ingresso, tasto WhatsApp precompilato e
+  **Reply-To sul candidato** (`sendEmail` accetta ora `replyTo`). Le due
+  email partono in parallelo sotto lo stesso tetto di 8s, DOPO la scrittura;
+  `ackEmailAt`/`operatorEmailAt` si timbrano solo se l'email è partita
+  davvero (prima `ackEmailAt` si scriveva anche a timeout vinto). Il testo
+  del candidato è escapato in entrambe.
+- **La finestra a caso** (`api/leads/_fresh.js`). Brain e notify-pending
+  leggevano `status == 'new', limit 50` SENZA ordine: Firestore restituisce
+  i primi 50 per id automatico (casuale). Un lead resta `new` finché
+  l'operatore non risponde, quindi oltre 50 aperti una candidatura nuova
+  poteva non essere votata né notificata su Telegram MAI (gli stessi 50 id
+  bassi occupavano la finestra a ogni giro). `pendingNewLeads()` affianca
+  alla lettura storica la finestra recente ordinata per `createdAt`
+  (timestamp E stringa ISO — `recover-checkouts` scrive stringhe, e
+  Firestore confronta per tipo); Brain 7 giorni, notify-pending 3. Solo
+  indici a campo singolo.
+- **Il portal cieco.** I lead si leggevano una volta sola nel carico pigro
+  del boot: a portal aperto la candidatura non compariva. `startLeadsListener`
+  (admin, stessa query del boot) li tiene vivi: toast «Nuovo lead: X → casa»,
+  notifica del browser a scheda nascosta, badge e Oggi aggiornati; ridisegna
+  solo la pagina Lead (mai l'intera Oggi).
+- **La qualificazione buttata via.** `apartment-detail.html` manda reddito e
+  garante come FASCE di testo (`1500-2500`, `yes-italy`) e `signers`; la
+  porta accettava solo un numero e `=== true`. Ora `incomeBand`,
+  `guarantorType`, `signers` restano in `raw` e nel messaggio (mai un
+  numero inventato dalla fascia); `income: 0` della pagina classica non
+  stampa più «income €0/mo».
+Un'applicazione **non** crea un cliente: il lead diventa cliente dalla
+conversione (proposta → contratto → profilo inquilino). Test:
+`node tests/apply/run.mjs` (handler veri su Firestore in memoria che ordina
+per NOME come quello vero: la finestra a caso riprodotta con la lettura
+vecchia, Brain e card Telegram sul lead nuovo, listener del portal in vm).
 
 ### BOOM La Réunion (`/reunion` + `api/reunion-lead.js` + `api/_market.js`)
 Il secondo mercato. Landing **francese** (toggle EN, `?lang=en`) che serve TRE
@@ -5552,6 +5595,7 @@ camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
   | `tests/fiducia/run.mjs` | La scala della fiducia: parte da solo SOLO il provato (campione ≥30 + tasso ≥95%, sulle decisioni dell'OPERATORE — gli auto-invii non si contano), la prima risposta AI mai (nemmeno accesa a mano), le parole legali/di rabbia tornano a un umano, ✋ Ferma e kill switch vincono anche sulle bozze già armate, e coi DEFAULT non parte niente. Giro vero su Firestore in memoria con l'executor reale |
   | `tests/segretaria/run.mjs` | La Segretaria: parla SOLO sulle chat consegnate col 🤖 (e la consegna marca la conversazione che riceverà davvero il traffico — CID persistito e verificato, anche dopo la creazione del lead), mai con inquilini, mai oltre i tetti; l'eco della sua stessa risposta non la spegne, un messaggio manuale dell'operatore sì; un link fuori dominio o una trattativa diventano escalation con card 🖐, MAI un invio. Handler vero su Firestore in memoria |
   | `tests/wizard/local_brain.py` | Il cervello gratis del bot wizard (`python3`): cosa capisce senza modello e — più importante — cosa deve rifiutarsi di capire. Una domanda ("Levico è affittato?") non può diventare una scrittura; un annuncio nuovo dettato non può diventare la modifica di uno esistente. Estrae le funzioni pure dal bot via AST: gira senza `.env`, senza Telegram, senza rete |
+  | `tests/apply/run.mjs` | chi fa APPLY dal sito arriva all'operatore: email a BOOM con Reply-To sul candidato (e mai prima della scrittura), fasce di reddito/garante/firmatari che non si perdono, la finestra `status == 'new' limit 50` senza ordine RIPRODOTTA (il lead nuovo ne restava fuori) e chiusa da `pendingNewLeads`, Brain e card Telegram sul lead appena arrivato con gli handler veri, e il listener del portal che lo mostra senza ricaricare |
   | `tests/executive/run.mjs` | BOOM Executive: il professionista in trasferta resta un TENANT nella macchina piena, il datore dichiarato (`employer`) non viene scambiato per l'honeypot (`company`), la voce B2B tace col tenant e parla con l'ente — con la guardia PRIMA della spesa, asserita sull'ordine nel sorgente |
   | `tests/verbale/run.mjs` | verbale consegna chiavi: il PDF vero (WinAnsi-ostile compreso) viaggia in allegato a conduttori/co-conduttori/proprietario/admin, owner solo sui contratti dei propri immobili (403 = zero scritture), firme richieste per entrambi i lati, sul contratto restano solo i NOMI mai i dataURI |
   | `tests/inventario/run.mjs` | inventario dal video (101 check): il video non dichiara mai "buono stato" (solo difetti e oggetti nuovi, e il declassamento viene detto), una condizione non dichiarata alla consegna non diventa MAI un danno alla riconsegna (mutazione), `analyze` non scrive niente, un elenco non riguardato non diventa un documento, e il verbale smette di dire "arredi pattuiti" |
