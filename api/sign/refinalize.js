@@ -12,6 +12,7 @@
 import { fsGet, secretEqual } from '../homie/_lib.js';
 import { verifyBrowserAdmin } from '../agent/_lib.js';
 import { finalizeContract, dedupeFinalizeDeadlines } from './_finalize.js';
+import { archiveSignedContract } from './_archive.js';
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', 'https://www.boomrome.com');
@@ -48,7 +49,17 @@ export default async function handler(req, res) {
     try { dedupeRemoved = (await dedupeFinalizeDeadlines(contractId)).removed || 0; }
     catch (e) { console.warn('[refinalize] dedupe:', e.message); }
     const result = await finalizeContract(contract);
-    return res.status(200).json({ ok: true, result, dedupeRemoved });
+    // Contratto GIÀ finalizzato (finalize esce subito): la copia firmata
+    // entra comunque nell'archivio delle parti — è la sanatoria dei
+    // contratti firmati prima che il finalize la scrivesse da sé.
+    let archive = null;
+    if (result && result.skipped && contract.signedPdfUrl) {
+      const property = contract.propertyId ? await fsGet('properties/' + contract.propertyId).catch(() => null) : null;
+      archive = await archiveSignedContract(contract, property, {
+        signedPdfUrl: contract.signedPdfUrl, certUrl: contract.signingCertificateUrl || '',
+      });
+    }
+    return res.status(200).json({ ok: true, result, dedupeRemoved, ...(archive ? { archive } : {}) });
   } catch (e) {
     return res.status(502).json({ ok: false, error: 'finalize_failed', detail: String((e && e.message) || e) });
   }

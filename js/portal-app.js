@@ -17933,7 +17933,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                  // nasce dal modello, mai «caricato a mano» (prima ereditava
                  // pdfSource:'upload' e nessuna rigenerazione partiva più)
                  'pdfSource', 'pdfPath', 'pdfFileName', 'pdfPages', 'pdfSha256', 'pdfSizeKB', 'pdfUploadNote', 'pdfUploadedAt', 'pdfUploadedBy',
-                 'pdfGeneratedAt', 'pdfGeneratedBy', 'sigAnchors', 'contractVersion', 'contractVersions', 'contractRevisedAt', 'contractRevisedBy',
+                 'pdfGeneratedAt', 'pdfGeneratedBy', 'sigAnchors', 'contractVersion', 'contractVersions', 'contractRevisedAt', 'contractRevisedBy', 'pdfCheck',
                  'coSignInviteAt', 'viewNudgedTenantAt', 'viewNudgedLandlordAt', 'autoNudgeCount',
                  'createdAt', 'updatedAt', 'renewalHistory'].forEach(k => delete clone[k]);
                 Object.keys(clone).forEach(k => { if (/^(signViewedCo|viewNudgedCo)\d+At$/.test(k)) delete clone[k]; });
@@ -19199,34 +19199,34 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // prodotta dal server al finalize) — mai al PDF senza firme
             // etichettato «Signed Contract». Finché la copia firmata non c'è,
             // il nome dice la verità (review del 3/10/2026).
+            // Stessi id del server (api/sign/_archive.js signedDocId): il
+            // «Ri-attiva onboarding» non raddoppia più la riga, e la copia
+            // scritta dal finalize (source:'finalize') non si tocca mai —
+            // quando arriva, è lei che ripara questa.
             const _docUrl = contract.signedPdfUrl || contract.generatedPDF || '';
             const _docName = (contract.signedPdfUrl ? 'Signed Contract \u2014 ' : 'Contract (signed copy in preparation) \u2014 ') + (property?.name || 'Lease');
-            try {
-                await db.collection('documents').add({
+            const _writeContractDoc = async (who, userId) => {
+                if (!userId) return;
+                const ref = db.collection('documents').doc('contract-signed_' + contractId + '_' + who);
+                const cur = await ref.get().catch(() => null);
+                if (cur && cur.exists && cur.data().source === 'finalize') return;
+                await ref.set({
                     name: _docName,
                     type: 'contract',
                     contractId: contractId,
                     propertyId: property?.id || '',
-                    userId: tenant?.id || '',
+                    userId: userId,
                     shared: true,
                     fileUrl: _docUrl,
+                    uploadedBy: 'boom',
                     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
                     note: 'Auto-generated upon contract activation via Magic Sign'
-                });
+                }, { merge: true });
+            };
+            try {
+                await _writeContractDoc('tenant', tenant?.id || '');
                 // Also add landlord copy
-                if (landlord) {
-                    await db.collection('documents').add({
-                        name: _docName,
-                        type: 'contract',
-                        contractId: contractId,
-                        propertyId: property?.id || '',
-                        userId: landlord?.id || property?.ownerId || '',
-                        shared: true,
-                        fileUrl: _docUrl,
-                        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-                        note: 'Auto-generated upon contract activation via Magic Sign'
-                    });
-                }
+                if (landlord || property?.ownerId) await _writeContractDoc('landlord', landlord?.id || property?.ownerId || '');
             } catch(docErr) { console.error('Document creation:', docErr); }
             
             // 3.6. Generate RLI draft (pre-compiled registration data)
@@ -21535,10 +21535,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             var viewing = contract.linkedViewingId ? (S.viewingRequests || []).find(function(v) { return v.id === contract.linkedViewingId; }) : null;
             var basePath = 'deals/' + contractId + '/';
             var savedUrls = {};
-            // 1. Upload signed PDF
-            if (contract.generatedPDF) {
+            // 1. Upload signed PDF — la copia FIRMATA (signedPdfUrl, con la
+            // pagina delle firme) quando c'è: archiviare il PDF senza firme
+            // sotto il nome «Contratto firmato» era il difetto del 4/10/2026.
+            var _contractSrc = contract.signedPdfUrl || contract.generatedPDF || '';
+            if (_contractSrc) {
                 try {
-                    var pdfBlob = await fetch(contract.generatedPDF).then(function(r) { return r.blob(); });
+                    var pdfBlob = await fetch(_contractSrc).then(function(r) { return r.blob(); });
                     var pdfRef = firebase.storage().ref(basePath + 'contratto-firmato.pdf');
                     await pdfRef.put(pdfBlob, { contentType: 'application/pdf' });
                     savedUrls.contractPdf = await pdfRef.getDownloadURL();
@@ -21580,7 +21583,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             // 5. Create documents in Firestore for each file
             var batch = db.batch();
             var propName = property?.name || 'Immobile';
-            if (savedUrls.contractPdf) batch.set(db.collection('documents').doc(), { name: 'Contratto firmato - ' + propName, type: 'deal-archive', contractId: contractId, userId: contract.tenantId || '', propertyId: contract.propertyId || '', fileUrl: savedUrls.contractPdf, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+            if (savedUrls.contractPdf) batch.set(db.collection('documents').doc(), { name: (contract.signedPdfUrl ? 'Contratto firmato - ' : 'Contratto (senza pagina firme) - ') + propName, type: 'deal-archive', contractId: contractId, userId: contract.tenantId || '', propertyId: contract.propertyId || '', fileUrl: savedUrls.contractPdf, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
             if (savedUrls.landlordSig) batch.set(db.collection('documents').doc(), { name: 'Firma locatore - ' + propName, type: 'deal-archive', contractId: contractId, userId: property?.ownerId || '', propertyId: contract.propertyId || '', fileUrl: savedUrls.landlordSig, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
             if (savedUrls.tenantSig) batch.set(db.collection('documents').doc(), { name: 'Firma conduttore - ' + propName, type: 'deal-archive', contractId: contractId, userId: contract.tenantId || '', propertyId: contract.propertyId || '', fileUrl: savedUrls.tenantSig, createdAt: firebase.firestore.FieldValue.serverTimestamp() });
             if (savedUrls.summary) batch.set(db.collection('documents').doc(), { name: 'Deal Summary - ' + propName, type: 'deal-archive', contractId: contractId, fileUrl: savedUrls.summary, createdAt: firebase.firestore.FieldValue.serverTimestamp() });

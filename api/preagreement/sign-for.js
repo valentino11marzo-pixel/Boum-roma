@@ -115,6 +115,9 @@ export function signPlan(contract, opSig) {
     contractVersion: Number(c.contractVersion) || 1,
     uploadedPdf: c.pdfSource === 'upload' && !!c.generatedPDF,
     pdfFileName: c.pdfFileName || null,
+    // il controllo automatico del PDF caricato contro i dati (revise →
+    // _pdfcheck.js): la console lo mette davanti alla dichiarazione
+    pdfCheck: c.pdfSource === 'upload' && c.pdfCheck ? { status: c.pdfCheck.status || 'unchecked', diff: (c.pdfCheck.diff || []).map(d => d.label + ': ' + d.contract + ' → ' + d.pdf), accepted: !!c.pdfCheck.accepted } : null,
     coTenantsPending: coPending,
     operatorSignature: !!opSig,
     canSignTenant: !sig.tenantSigned && chk.ok && !!opSig,

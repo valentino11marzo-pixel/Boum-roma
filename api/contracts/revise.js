@@ -58,6 +58,7 @@ import { renderContractPdf, CLAUSE_VERSION } from '../sign/_contractpdf.js';
 import { sendSignInvite } from '../sign/_notify.js';
 import { inviteCoTenants, coSignUrlsForPa } from '../sign/_cosign.js';
 import { ensureSignTokens, signUrl } from '../sign/_tokens.js';
+import { checkUploadedPdf } from './_pdfcheck.js';
 
 const BASE = 'https://www.boomrome.com';
 export const MAX_PDF_BYTES = 15 * 1024 * 1024;
@@ -255,6 +256,7 @@ function statusOf(id, c) {
     pdfUrl: c.generatedPDF || null,
     fileName: c.pdfFileName || null,
     note: c.pdfUploadNote || '',
+    check: c.pdfSource === 'upload' && c.pdfCheck ? { status: c.pdfCheck.status, diff: c.pdfCheck.diff || [], accepted: !!c.pdfCheck.accepted, reason: c.pdfCheck.reason || null } : null,
     revisedAt: iso(c.contractRevisedAt),
     signed,
     fullySigned: full,
@@ -315,7 +317,7 @@ export default async function handler(req, res) {
   const history = [...prevHistory, historyEntry(c, now, by, note, archive)];
 
   let fields;
-  let pages = null, fileName = null;
+  let pages = null, fileName = null, pdfCheck = null;
   if (op === 'upload') {
     const rd = await readBytes(b, contractId);
     if (rd.error) return res.status(rd.error === 'too_large' ? 413 : 400).json({ ok: false, error: rd.error });
@@ -323,6 +325,19 @@ export default async function handler(req, res) {
     if (!chk.ok) return res.status(chk.error === 'too_large' ? 413 : 422).json({ ok: false, error: chk.error, detail: chk.detail || null });
     pages = chk.pages;
     fileName = String(b.fileName || '').replace(/[^\w .()\-àèéìòù]/gi, '').slice(0, 120) || ('contratto-v' + nextV + '.pdf');
+    // Il PDF si LEGGE prima di diventare il documento che si firma
+    // (_pdfcheck.js): canone, date, deposito, parti, piano e interno contro
+    // i DATI del contratto, che restano quelli che governano rate, scadenze
+    // e registrazione. Una differenza torna all'operatore PRIMA di qualunque
+    // scrittura (né Storage né contratto); con `acceptMismatch:true` si
+    // carica comunque e la scelta resta scritta. Un guasto della lettura
+    // non blocca: `unchecked` col motivo.
+    let property = null;
+    if (c.propertyId) { try { property = await fsGet('properties/' + c.propertyId); } catch (_) {} }
+    pdfCheck = await checkUploadedPdf({ buf: rd.buf, contract: c, property, pages });
+    if (pdfCheck.status === 'mismatch' && b.acceptMismatch !== true) {
+      return res.status(409).json({ ok: false, error: 'pdf_terms_mismatch', check: pdfCheck });
+    }
     let url;
     try { url = await storageUpload(path, rd.buf, 'application/pdf'); }
     catch (e) { return res.status(502).json({ ok: false, error: 'storage_failed' }); }
@@ -333,6 +348,7 @@ export default async function handler(req, res) {
       generatedPDF: url,
       pdfHash: sha256(rd.buf).slice(0, 16), pdfSha256: sha256(rd.buf),
       pdfSource: 'upload', pdfPath: path, pdfFileName: fileName, pdfPages: pages,
+      pdfCheck: { ...pdfCheck, accepted: pdfCheck.status === 'mismatch', by },
       pdfUploadNote: note, pdfUploadedAt: now, pdfUploadedBy: by,
       // il file caricato non ha ancore: _finalize stampa le firme nella
       // pagina delle firme in coda (la via dei PDF senza ancore)
@@ -356,7 +372,7 @@ export default async function handler(req, res) {
     fields = {
       ...revisionResets(c),
       ...patch, ...r.fields,
-      pdfSource: 'boom', pdfPath: path, pdfFileName: null, pdfUploadNote: note || null,
+      pdfSource: 'boom', pdfPath: path, pdfFileName: null, pdfUploadNote: note || null, pdfCheck: null,
       pdfSha256: null, pdfPages: null,
       contractVersion: nextV, contractVersions: history,
       contractRevisedAt: now, contractRevisedBy: by,
@@ -427,7 +443,7 @@ export default async function handler(req, res) {
   }, by).catch(() => {});
 
   return res.status(200).json({
-    ok: true, op, contractId, version: nextV, pdfUrl: fresh.generatedPDF, pages,
+    ok: true, op, contractId, version: nextV, pdfUrl: fresh.generatedPDF, pages, check: pdfCheck,
     voided: archive.map(a => ({ role: a.role, name: a.name, signedAt: a.signedAt })),
     notified,
     tenantSignUrl: tenantUrl,
