@@ -5674,6 +5674,13 @@ stesso carattere, stessa geometria (±2px), stesso contenuto, zero errori JS.
 Undici regole su **60 pagine dedotte dalla sitemap**, non da una lista a
 mano. Ognuna nata da un difetto VERO trovato in produzione, non da una
 checklist di buone pratiche:
+- **Il robots non chiude la porta alla sitemap.** `Disallow: /s` era una
+  regola per una vecchia rotta, ma nel protocollo robots vale come prefisso:
+  bloccava anche `/sitemap.xml`, `/services` e `/skyline`. Search Console
+  riportava «Impossibile leggere la Sitemap» con XML valido e HTTP 200.
+  La guardia ora verifica la sitemap stessa e ogni URL che essa dichiara.
+  Ha trovato anche `/booking`: il modulo resta pubblico e seguibile, ma è
+  `noindex` e non viene più dichiarato nella sitemap.
 - **Il documento e' un documento.** `property-finding.html` e `board.html`,
   due pagine LIVE, non avevano `<!doctype>`, `<html lang>` ne'
   `<meta charset>`. Misurato in Chromium: **quirks mode**, nessuna lingua
