@@ -51,7 +51,7 @@ const { toFsFields, fsValToJs } = await import('../../api/homie/_lib.js');
   ok(REG.PURPOSES.every(p => REG.PRICES[p.cloudModel] || p.cloudModel === 'whisper-1'), 'ogni modello cloud di default è nel listino');
   ok(REG.PURPOSES.every(p => p.why && p.why.length > 10), 'ogni scopo dice PERCHÉ può (o non può) andare in locale');
   const noLocal = REG.PURPOSES.filter(p => !p.localOk).map(p => p.key).sort();
-  ok(noLocal.join(',') === 'banking.pdf,inventario.video,parse.docs,portal.ingest', 'chi non va MAI in locale è scritto: PDF banca, inventario, proxy, Innesto 3.0 (strumento + scala dei 400: solo cloud)', noLocal);
+  ok(noLocal.join(',') === 'banking.pdf,contract.pdfcheck,inventario.video,parse.docs,portal.ingest', 'chi non va MAI in locale è scritto: PDF banca, PDF del contratto caricato, inventario, proxy, Innesto 3.0 (strumento + scala dei 400: solo cloud)', noLocal);
 
   // 1.a i default: tutto cloud
   const d = REG.mergeSettings(null);

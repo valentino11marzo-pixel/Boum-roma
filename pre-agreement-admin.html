@@ -804,7 +804,13 @@ window.signFor=async function(id,btn){
       else if(p.landlordDelegate)lines.push('Poi controfirmi per delega del proprietario '+(ll.name||'')+' — '+(p.landlordDelegate.basis||'delega')+'.');
       else lines.push('Il proprietario '+(ll.name||'')+' firma col suo link (WhatsApp/copia dalla riga) — oppure gli chiedi il mandato scritto (🏠 Chiedi il mandato al proprietario: per lui è un tap sulla sua scheda), o dichiari una sua delega SCRITTA (te lo chiedo dopo).');
     }
-    if(p.uploadedPdf)lines.push('⚠ Il contratto è una versione CARICATA a mano (v'+(p.contractVersion||'?')+(p.pdfFileName?' · '+p.pdfFileName:'')+'). Il mandato copre le condizioni approvate, non il file: confermando DICHIARI che il PDF riporta esattamente quelle condizioni (la dichiarazione resta sulla firma).');
+    if(p.uploadedPdf){
+      lines.push('⚠ Il contratto è una versione CARICATA a mano (v'+(p.contractVersion||'?')+(p.pdfFileName?' · '+p.pdfFileName:'')+'). Il mandato copre le condizioni approvate, non il file: confermando DICHIARI che il PDF riporta esattamente quelle condizioni (la dichiarazione resta sulla firma).');
+      var pc=p.pdfCheck;
+      if(pc&&pc.status==='match')lines.push('Controllo automatico al caricamento: il PDF coincide coi dati del contratto.');
+      else if(pc&&pc.status==='mismatch')lines.push('⛔ Controllo automatico al caricamento: il PDF NON coincide coi dati ('+(pc.diff||[]).join(' · ')+'). Firmare per mandato su questo file è firmare condizioni diverse da quelle approvate.');
+      else lines.push('Controllo automatico del PDF non eseguito: verifica tu che riporti le condizioni approvate.');
+    }
     lines.push('Nome, data, ora, dispositivo e «per mandato/per delega» finiscono sulla pagina delle firme e sul certificato.');
     if(!ask(lines.join('\n\n')+'\n\nProcedere?')){restore();return;}
     var body={op:'sign',id:id,contractVersion:p.contractVersion||1,ackUploadedPdf:!!p.uploadedPdf};
@@ -970,8 +976,22 @@ async function reviseConfirm(cid,what){
   if(note===null)return null;
   return {status:st,note:note,voidSignatures:!!st.needsVoid};
 }
+/* il controllo del PDF caricato contro i dati (api/contracts/_pdfcheck.js) */
+var CHECK_WHY={too_long:'documento troppo lungo',cloud_unconfigured:'lettura automatica non configurata',cloud_timeout:'lettura troppo lenta',unreadable:'risposta illeggibile',nothing_read:'nessun dato riconosciuto nel PDF'};
+function checkMismatchText(ck){
+  var diff=(ck&&ck.diff)||[];
+  return 'Il PDF non coincide coi dati del contratto:\n'+diff.map(function(x){return '• '+x.label+': contratto '+x.contract+' · PDF '+x.pdf;}).join('\n')
+    +'\n\nRate, scadenze, registrazione e mandato seguono i DATI del contratto, non il PDF.';
+}
+function checkLine(ck){
+  if(!ck)return '';
+  if(ck.status==='match')return '✓ Il PDF coincide coi dati del contratto'+((ck.unread&&ck.unread.length)?' (non letti: '+ck.unread.length+' campi)':'')+'.';
+  if(ck.status==='mismatch')return '⚠ Caricato con differenze dai dati ('+(ck.diff||[]).map(function(x){return x.label}).join(', ')+'): correggi i dati con ✎ Correggi i dati se il PDF è quello giusto.';
+  return 'Controllo automatico del PDF non eseguito ('+(CHECK_WHY[ck.reason]||ck.reason||'motivo sconosciuto')+'): verifica tu canone, date e deposito.';
+}
 function reviseDone(d,j){
   var bits=['✓ Versione '+j.version+' attiva'+(j.pages?' ('+j.pages+' pagine)':'')+'.'];
+  if(j.check)bits.push(checkLine(j.check));
   if(j.voided&&j.voided.length)bits.push('Firme archiviate: '+j.voided.map(function(x){return x.name||x.role}).join(', ')+' — firmeranno la nuova versione.');
   var n=j.notified||{};
   if(n.tenant)bits.push('Il link della nuova versione è partito all’inquilino.');
@@ -1002,7 +1022,19 @@ window.uploadRevision=async function(id,btn){
       await ref.put(f,{contentType:'application/pdf'});
       body.fileUrl=await ref.getDownloadURL();
     }
-    var j=await reviseCall(body);
+    if(btn)btn.textContent='Leggo il PDF…';
+    var j;
+    try{j=await reviseCall(body);}
+    catch(e1){
+      /* il PDF letto NON coincide coi dati del contratto: nulla è stato
+         scritto. Si sceglie qui, con le differenze davanti. */
+      if(String(e1&&e1.message)!=='pdf_terms_mismatch')throw e1;
+      var ck=(e1.body&&e1.body.check)||{};
+      if(!ask(checkMismatchText(ck)+'\n\nCaricare comunque? (Annulla = correggi prima i dati con ✎ Correggi i dati, poi ricarica)')){if(btn){btn.disabled=false;btn.textContent=was;}return;}
+      body.acceptMismatch=true;
+      if(btn)btn.textContent='Carico…';
+      j=await reviseCall(body);
+    }
     if(btn){btn.disabled=false;btn.textContent='✓ Versione '+j.version;}
     reviseDone(d,j);
   }catch(e){

@@ -76,6 +76,16 @@ globalThis.fetch = async (url, opts = {}) => {
   if (url.startsWith('https://storage.example/contract.pdf')) return new Response(SRC_PDF, { status: 200, headers: { 'Content-Type': 'application/pdf' } });
   if (url.startsWith('https://storage.example/')) return new Response(Buffer.from('FILE:' + url.slice(24)), { status: 200 });
   if (url.startsWith('https://freetsa.org/tsr')) return new Response(Buffer.alloc(300, 7), { status: 200 });
+  // Anthropic finto (§D): la trascrizione del PDF caricato. __aiReply è una
+  // funzione: un oggetto/stringa diventa il testo della risposta, una
+  // Response si restituisce così com'è (il guasto del modello).
+  if (url.startsWith('https://api.anthropic.com/')) {
+    globalThis.__aiCalls = (globalThis.__aiCalls || 0) + 1;
+    globalThis.__aiLastBody = JSON.parse(opts.body || '{}');
+    const out = typeof globalThis.__aiReply === 'function' ? globalThis.__aiReply() : globalThis.__aiReply;
+    if (out instanceof Response) return out;
+    return okJson({ content: [{ type: 'text', text: typeof out === 'string' ? out : JSON.stringify(out) }], model: 'claude-haiku-4-5-20251001', usage: { input_tokens: 900, output_tokens: 80 }, stop_reason: 'end_turn' });
+  }
   if (url.includes('firebasestorage.googleapis.com')) {
     // un file oltre il tetto, servito a pezzi SENZA content-length (il caso
     // in cui solo il conteggio del flusso lo ferma)
@@ -669,6 +679,108 @@ const MANDATO = (await import('../../js/mandato-engine.js')).default;
   const onlyCo = signatureState({ coTenants: [{ name: 'Zoe Co', signature: 'z' }] });
   check('C7: titolare + locatore con un co-conduttore che manca NON è «complete» (e lo conta)',
     st.status === 'partial' && st.coPending === 1 && done.status === 'complete' && onlyCo.status === 'partial');
+}
+
+// ═══ D. IL PDF CARICATO SI LEGGE CONTRO I DATI (4/10/2026) ═══════════════
+// Il PDF corretto a mano diventa il documento che le parti firmano, ma rate,
+// scadenze, registrazione e mandato seguono i DATI del contratto. Se
+// l'operatore corregge il canone nel PDF e non nei dati, il cliente firma
+// 1.250 e le rate partono a 1.200. Qui il PDF si legge prima di accettarlo:
+// il modello trascrive soltanto, il confronto lo fa il codice, e una
+// differenza torna all'operatore PRIMA di qualunque scrittura.
+{
+  const PC = await import('../../api/contracts/_pdfcheck.js');
+  const ours = PC.contractTerms(baseContract({}), store.get('properties/prop1'));
+  check('D: i dati del contratto come il PDF li stampa (piano e interno dall\'immobile, durata in mesi)',
+    ours.rent === 1200 && ours.deposit === 2400 && ours.startDate === '2026-10-01' && ours.endDate === '2027-09-30'
+    && ours.floor === '2' && ours.unit === '14' && ours.months === 12 && ours.landlordName === 'Giulia Bianchi');
+  const READ_OK = { rent: { amount: 1200, basis: 'mensile' }, deposit: 2400, startDate: '2026-10-01', endDate: '2027-09-30',
+    tenantName: 'ANNA EXPAT', landlordName: 'Bianchi Giulia', floor: 'secondo', unit: 'int. 14' };
+  let cmp = PC.compareTerms(READ_OK, ours);
+  check('D: lo stesso contratto scritto in un\'altra forma (maiuscole, cognome prima, «secondo», «int. 14») non è una differenza',
+    cmp.diff.length === 0 && cmp.read === 8 && cmp.unread.length === 0);
+  check('D: il canone vale per la base dichiarata — annuo 14.400 e intera durata 14.400 coincidono con 1.200 al mese',
+    PC.compareTerms({ ...READ_OK, rent: { amount: 14400, basis: 'annuo' } }, ours).diff.length === 0
+    && PC.compareTerms({ ...READ_OK, rent: { amount: '14.400,00', basis: 'durata' } }, ours).diff.length === 0);
+  cmp = PC.compareTerms({ ...READ_OK, rent: { amount: 1250, basis: 'mensile' } }, ours);
+  check('D: 1.250 al mese nel PDF contro 1.200 nei dati È una differenza, col valore dei due lati',
+    cmp.diff.length === 1 && cmp.diff[0].key === 'rent' && cmp.diff[0].label === 'canone' && cmp.diff[0].contract === 1200 && /1250/.test(String(cmp.diff[0].pdf)));
+  check('D: un canone annuo letto come mensile non passa (14.400 «mensile» ≠ 1.200)',
+    PC.compareTerms({ ...READ_OK, rent: { amount: 14400, basis: 'mensile' } }, ours).diff.some(d => d.key === 'rent'));
+  cmp = PC.compareTerms({ ...READ_OK, floor: 'terzo', unit: 'Interno 15', startDate: '01/11/2026', deposit: 3600, tenantName: 'Marco Rossi' }, ours);
+  check('D: piano, interno, decorrenza (anche gg/mm/aaaa), deposito e conduttore diversi sono cinque differenze',
+    ['floor', 'unit', 'startDate', 'deposit', 'tenantName'].every(k => cmp.diff.some(d => d.key === k)) && cmp.diff.length === 5);
+  check('D: «2°», «piano 2» e «Interno 14» sono il piano e l\'interno del contratto',
+    PC.normFloor('2°') === '2' && PC.normFloor('piano 2') === '2' && PC.normFloor('secondo') === '2' && PC.normUnit('Interno 14') === '14' && PC.normUnit('int. 14') === '14');
+  cmp = PC.compareTerms({ rent: { amount: null }, deposit: null, startDate: null, endDate: null, tenantName: null, landlordName: null, floor: null, unit: null }, ours);
+  check('D: ciò che il PDF non porta è «non letto», MAI una differenza',
+    cmp.diff.length === 0 && cmp.read === 0 && cmp.unread.length === 8);
+
+  // ── il giro vero sulla porta ──
+  process.env.ANTHROPIC_API_KEY = 'test-key-pdfcheck';
+  store.set('contracts/ctrPC', baseContract({ tenantSignToken: 'TOK_PC_T', landlordSignToken: 'TOK_PC_L' }));
+  const PDF = await mkPdf(2);
+  const up = (extra = {}) => callRevise({ op: 'upload', contractId: 'ctrPC', pdfBase64: PDF.toString('base64'), fileName: 'corretto.pdf', ...extra });
+
+  globalThis.__aiReply = () => ({ ...READ_OK, rent: { amount: 1250, basis: 'mensile' } });
+  globalThis.__aiCalls = 0;
+  const posts0 = storagePosts;
+  let r = await up();
+  check('D: canone diverso → 409 pdf_terms_mismatch con la differenza, PRIMA di qualunque scrittura (né Storage né contratto)',
+    r.code === 409 && r.body.error === 'pdf_terms_mismatch' && r.body.check.status === 'mismatch'
+    && r.body.check.diff.some(d => d.key === 'rent') && storagePosts === posts0 && store.get('contracts/ctrPC').contractVersion == null);
+  const req = globalThis.__aiLastBody || {};
+  const blocks = ((req.messages || [])[0] || {}).content || [];
+  check('D: il modello riceve il PDF VERO (blocco document) sul modello del registro',
+    globalThis.__aiCalls === 1 && req.model === 'claude-haiku-4-5-20251001'
+    && blocks.some(b => b.type === 'document' && b.source && Buffer.from(b.source.data, 'base64').equals(PDF)));
+
+  r = await up({ acceptMismatch: true });
+  const cPC = store.get('contracts/ctrPC');
+  check('D: «carica comunque» → 200, versione nuova, e la scelta resta scritta sul contratto (accepted, chi)',
+    r.code === 200 && r.body.version === 2 && r.body.check.status === 'mismatch'
+    && cPC.pdfCheck && cPC.pdfCheck.status === 'mismatch' && cPC.pdfCheck.accepted === true && !!cPC.pdfCheck.by);
+  r = await callRevise({ op: 'status', contractId: 'ctrPC' });
+  check('D: lo stato del contratto porta il controllo (la console lo mostra accanto alla versione)',
+    r.code === 200 && r.body.check && r.body.check.status === 'mismatch' && r.body.check.accepted === true);
+
+  globalThis.__aiReply = () => READ_OK;
+  r = await up();
+  check('D: PDF coerente coi dati → 200, controllo «match», nessuna scelta da registrare',
+    r.code === 200 && store.get('contracts/ctrPC').pdfCheck.status === 'match' && store.get('contracts/ctrPC').pdfCheck.accepted === false);
+
+  globalThis.__aiReply = () => 'non riesco a leggere il documento';
+  r = await up();
+  check('D: una risposta illeggibile non è un «match» inventato né un blocco: unchecked col motivo',
+    r.code === 200 && store.get('contracts/ctrPC').pdfCheck.status === 'unchecked' && store.get('contracts/ctrPC').pdfCheck.reason === 'unreadable');
+
+  globalThis.__aiReply = () => new Response('overloaded', { status: 529 });
+  r = await up();
+  check('D: il modello giù non ferma la correzione (unchecked, motivo del guasto)',
+    r.code === 200 && store.get('contracts/ctrPC').pdfCheck.status === 'unchecked' && /cloud_/.test(store.get('contracts/ctrPC').pdfCheck.reason));
+
+  globalThis.__aiCalls = 0;
+  const LONG = await mkPdf(41);
+  r = await callRevise({ op: 'upload', contractId: 'ctrPC', pdfBase64: LONG.toString('base64') });
+  check('D: un PDF oltre 40 pagine non si manda al modello (too_long, dichiarato)',
+    r.code === 200 && globalThis.__aiCalls === 0 && store.get('contracts/ctrPC').pdfCheck.reason === 'too_long');
+
+  r = await callRevise({ op: 'template', contractId: 'ctrPC' });
+  check('D: ↺ Modello BOOM azzera il controllo (il PDF torna a nascere dai dati)',
+    r.code === 200 && store.get('contracts/ctrPC').pdfCheck === null);
+  delete process.env.ANTHROPIC_API_KEY;
+
+  const reg = (await import('../../js/ai-registry.js')).default;
+  const purpose = (reg.PURPOSES || reg.purposes || []).find(x => x.key === 'contract.pdfcheck');
+  check('D: lo scopo è nel registro della Centrale, mai in locale, e trascrive soltanto',
+    !!purpose && purpose.localOk === false && purpose.modality === 'document' && purpose.file === 'api/contracts/_pdfcheck.js');
+  const cons = src('pre-agreement-admin.html');
+  check('D: la console mostra le differenze e chiede prima di caricare comunque (acceptMismatch solo dopo la conferma)',
+    cons.indexOf("'pdf_terms_mismatch'") > 0 && cons.indexOf('body.acceptMismatch=true') > cons.indexOf('checkMismatchText(ck)')
+    && /function checkLine\(/.test(cons));
+  const sf = src('api/preagreement/sign-for.js');
+  check('D: ✍️ Firmo io dice il controllo del PDF caricato prima del tap (signPlan.pdfCheck)',
+    /pdfCheck: c\.pdfSource === 'upload' && c\.pdfCheck/.test(sf) && /pdfCheck/.test(cons.slice(cons.indexOf('window.signFor'))));
 }
 
 console.log(`\nRevisione + co-conduttori: ${passed} passed, ${failed} failed`);

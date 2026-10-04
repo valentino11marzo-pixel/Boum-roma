@@ -68,7 +68,7 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
                           (jsPDF npm, STESSA versione pinnata). build() →
                           { doc, sigAnchors, hashSeed }; upload/hash/patch
                           restano ai chiamanti.
-  ai-registry.js          La Centrale AI, il registro PURO: i 26 scopi che
+  ai-registry.js          La Centrale AI, il registro PURO: i 27 scopi che
                           chiamano un modello (file, modello cloud di default,
                           modalità testo/visione/documento/audio, se può
                           andare in locale e perché), le tre modalità
@@ -3180,6 +3180,57 @@ revisioni concorrenti, timbri, send-link, cooldown, primo invito, svuotare,
 rinnovo, attivazione, cron, stato); ogni fix verificato per mutazione (il
 `submit.js` di main fallisce C1 esattamente sulla firma resuscitata).
 
+**Il terzo giro (4/10/2026): la copia firmata arriva alle parti, e il PDF
+caricato si legge contro i dati.**
+- **La copia firmata nell'archivio di chi ha firmato** (`api/sign/_archive.js`).
+  Il finalize produceva `signedPdfUrl` ma nessuno lo metteva fra i
+  `documents` delle parti: il portal del proprietario legge `documents where
+  userId == uid`, e l'unico documento «contratto» nasceva nel browser
+  all'attivazione — sul PDF SENZA firme, mai aggiornato. `/casa` non mostrava
+  `signedPdfUrl` affatto, e `archiveDeal` archiviava il PDF senza firme col
+  nome «Contratto firmato». Ora, subito dopo l'upload della copia firmata e
+  prima del semaforo `finalizedAt`, il finalize scrive una copia per ogni
+  parte con un profilo — inquilino (EN), proprietario (`property.ownerId`,
+  IT), co-conduttori con `userId` — su id DETERMINISTICI
+  `contract-signed_<contratto>_<tenant|landlord|co<i>>` (`type:'contract'`,
+  `category:'contratto locazione'`, certificato FES accanto,
+  `uploadedBy:'boom'` → «FROM BOOM»). Il documento dell'attivazione non viene
+  affiancato: si RIPARA sul posto (contenuto sì, `shared`/`createdAt` no), e
+  un rerun non aggiunge righe. Senza copia firmata nessun documento: un PDF
+  senza firme col nome «firmato» è proprio il difetto. Best-effort, 8 s di
+  tetto, mai blocca la firma. 🔄 Rifinalizza su un contratto già finalizzato
+  sana l'archivio dei contratti firmati prima del rilascio.
+  `activateContract` scrive sugli stessi id (il «Ri-attiva onboarding» non
+  raddoppia più) e non tocca mai la copia `source:'finalize'`; `archiveDeal`
+  copia `signedPdfUrl` quando c'è; `/casa` mostra «Signed contract» e
+  «Signature certificate».
+- **Il PDF caricato si legge contro i dati** (`api/contracts/_pdfcheck.js`,
+  scopo `contract.pdfcheck` della Centrale AI: haiku, documento, mai in
+  locale). Il PDF corretto a mano diventa ciò che si firma, ma rate,
+  scadenze, registrazione e mandato seguono i DATI: corretto il canone nel
+  PDF e non nei dati, il cliente firma 1.250 e le rate partono a 1.200. Prima
+  di qualunque scrittura il modello TRASCRIVE canone (con la sua base:
+  mensile · annuo · intera durata), deposito, date, conduttore, locatore,
+  piano e interno; il confronto lo fa il CODICE (`compareTerms`: tolleranza
+  1 €/0,5 %, nomi come insiemi di parole, «secondo»/«2°», «int. 14»). Una
+  differenza → 409 `pdf_terms_mismatch` con le voci, nulla scritto; la
+  console le mostra e chiede: Annulla (si corregge con ✎ Correggi i dati) o
+  «carica comunque» (`acceptMismatch:true`, la scelta resta su
+  `contract.pdfCheck.accepted` con chi). Ciò che il PDF non porta è «non
+  letto», mai una differenza; modello giù, risposta illeggibile o PDF oltre
+  40 pagine → `unchecked` col motivo, e il caricamento prosegue (avverte, non
+  blocca). `op:status` e il piano di ✍️ Firmo io riportano il controllo;
+  ↺ Modello BOOM lo azzera.
+Test: `tests/finalize/run.mjs` §3b (attivazione riparata e non affiancata,
+proprietario e co-conduttore, rerun senza righe nuove, il verbale non si
+tocca, 🔄 Rifinalizza che sana un contratto vecchio, giunzioni su finalize/
+portal/`/casa`; quattro mutazioni prese — e lo stub che spezzava i path su
+una collection chiamata «documents», corretto) · `tests/revise/run.mjs` §D
+(confronti puri per base, forma e «non letto»; la porta vera con un Anthropic
+finto: 409 prima di Storage, il PDF vero al modello del registro, carica
+comunque, match, illeggibile, modello giù, oltre 40 pagine, template;
+giunzioni console e Firmo io; sei mutazioni prese).
+
 ### 🏠 Il mandato scritto del proprietario — la controfirma smette di reggersi sulla parola dell'operatore (23/09/2026)
 Il pezzo lasciato fuori dal 21/09: ✍️ Firmo io firmava per il conduttore in
 forza del SUO mandato scritto, poi controfirmava per il proprietario «per
@@ -3381,7 +3432,7 @@ il compito di Codex in `docs/PROMPT_CODEX_MODELLI_LOCALI.md`.
 **Cosa cambia.** Ogni chiamata a un modello passa da `ai({ purpose, system,
 messages|user, maxTokens, timeoutMs, json })` in `api/_ai.js`; il chiamante
 dichiara solo lo SCOPO, e lo scopo sta nel registro puro `js/ai-registry.js`
-(26 voci: file, modello cloud di default, modalità testo/visione/documento/
+(27 voci: file, modello cloud di default, modalità testo/visione/documento/
 audio, `localOk` col perché, posta in gioco, i campi su cui misurare
 l'accordo). La centrale:
 - **instrada** secondo `settings/ai` (default: TUTTO cloud, il deploy non
