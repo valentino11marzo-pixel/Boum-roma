@@ -51,12 +51,12 @@ Disallow: /form-landlord
 Disallow: /form-landlord.html
 
 # Legacy / test artefacts (slated for removal)
-Disallow: /s
+Disallow: /s$
+Disallow: /s?
+Disallow: /s/
 Disallow: /s.html
 Disallow: /faq-page
 Disallow: /faq_page.html
-Disallow: /booking
-Disallow: /booking.html
 
 # API endpoints — never index
 Disallow: /api/

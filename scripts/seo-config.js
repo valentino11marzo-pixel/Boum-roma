@@ -281,6 +281,7 @@ const PAGES = {
 
   'booking.html': {
     path: '/booking',
+    robots: 'noindex, follow',
     title: 'Apply for a Rome Apartment — Secure Application Form | BOOM',
     description:
       'Apply for a BOOM-verified Rome apartment. Secure form, document upload, fast review. We respond within 24 hours.',
