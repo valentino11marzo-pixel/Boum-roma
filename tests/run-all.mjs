@@ -10,6 +10,7 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const SUITES = [
+  { name: 'guasti', file: 'tests/guasti/run.mjs', what: 'i guasti del 4/10: il giro VERO del Commerciale, una regola per ogni collection del server (mutazione), un solo login in volo e nessun login fuori posto' },
   { name: 'vercelfunctions', file: 'tests/vercel-functions/run.mjs', what: 'limite 50 regole, corrispondenza esatta degli handler, impostazioni e mutazioni' },
   { name: 'propertymodel', file: 'tests/property-dossier/engine.mjs', what: 'fascicolo derivato, riferimenti certi, stati e cronologia; mutazioni' },
   { name: 'propertyload', file: 'tests/property-dossier/loader.mjs', what: 'cache, aggiornamento, errore e archivio parziale sulle letture reali' },

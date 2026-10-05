@@ -1,6 +1,6 @@
 import Stripe from 'stripe';
 import crypto from 'node:crypto';
-import { fsList, fsPatch, fsGet } from './homie/_lib.js';
+import { fsList, fsPatch, fsGet, getAdminToken } from './homie/_lib.js';
 import { sendPaEmails, shell, para, fine, btn, btn2 } from './preagreement/_notify.js';
 import { sendEmail } from './agent/_lib.js';
 import { maybeAutoConvert } from './preagreement/_auto.js';
@@ -16,22 +16,11 @@ async function getRawBody(req) {
   return Buffer.concat(chunks);
 }
 
+// Il login di servizio è UNO per tutta la piattaforma (homie/_lib:
+// cache + un solo login in volo). Prima ogni lettura/scrittura del webhook
+// rifaceva il login con la password — quattro login per un solo evento Stripe.
 async function firebaseIdToken() {
-  const r = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${process.env.FIREBASE_API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: process.env.FIREBASE_ADMIN_EMAIL,
-        password: process.env.FIREBASE_ADMIN_PASS,
-        returnSecureToken: true,
-      }),
-    }
-  );
-  const d = await r.json();
-  if (!d.idToken) throw new Error('Firebase auth failed: ' + JSON.stringify(d));
-  return d.idToken;
+  return getAdminToken();
 }
 
 function toFirestoreFields(obj) {

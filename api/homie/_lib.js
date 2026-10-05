@@ -24,9 +24,16 @@ let _cachedToken = null;
 let _cachedAt = 0;
 const TOKEN_TTL_MS = 50 * 60 * 1000; // 50 min (real expiry is 1h)
 
-export async function getAdminToken({ signal } = {}) {
-  const now = Date.now();
-  if (_cachedToken && (now - _cachedAt) < TOKEN_TTL_MS) return _cachedToken;
+// UN SOLO LOGIN IN VOLO (5/10/2026 — letto nei log di Vercel). Il cache
+// teneva il token ma non il login IN CORSO: a token scaduto, scan-replies
+// lanciava ~190 letture in parallelo e ognuna faceva il proprio
+// signInWithPassword — ~190 login in un colpo. La quota «verifying
+// passwords» è dell'INTERO progetto, quindi la raffica faceva cadere anche
+// reminder-cron, scan-replies e i battiti di salute (QUOTA_EXCEEDED). Ora
+// chi arriva mentre un login è in corso aspetta QUELLO. Un login fallito non
+// resta in memoria: la chiamata dopo riprova.
+let _inflight = null;
+async function signInOnce({ signal } = {}) {
   const res = await fetch(
     `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}`,
     {
@@ -43,8 +50,16 @@ export async function getAdminToken({ signal } = {}) {
   const data = await res.json();
   if (!data.idToken) throw new Error('Firebase signIn failed: ' + JSON.stringify(data));
   _cachedToken = data.idToken;
-  _cachedAt = now;
+  _cachedAt = Date.now();
   return _cachedToken;
+}
+
+export async function getAdminToken({ signal } = {}) {
+  if (_cachedToken && (Date.now() - _cachedAt) < TOKEN_TTL_MS) return _cachedToken;
+  if (!_inflight) {
+    _inflight = signInOnce({ signal }).finally(() => { _inflight = null; });
+  }
+  return _inflight;
 }
 
 // Convert a plain JS value into the Firestore REST "Value" shape.

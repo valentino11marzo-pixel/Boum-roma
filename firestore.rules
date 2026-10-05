@@ -110,6 +110,14 @@ service cloud.firestore {
     // con credenziali admin, quindi attraverso le rules) non potrebbe
     // salvarli — la lezione di propertyLocks.
     match /signTokens/{x} { allow read, write: if isAdmin(); }
+    // La firma dell'operatore per ✍️ Firmo io (api/preagreement/sign-for.js
+    // op:'signature'). Il server entra in Firestore come UTENTE admin, non con
+    // una service account: le regole valgono anche per lui. Senza questa riga
+    // il default-deny rispondeva 403 al primo salvataggio (1/10/2026, tre
+    // tentativi nei log) — la stessa lezione di propertyLocks e signTokens.
+    // tests/guasti/run.mjs pretende una regola per OGNI collection usata
+    // dal server.
+    match /operatorSignatures/{x} { allow read, write: if isAdmin(); }
 
     // ─── payments ─────────────────────────────────────────────────────
     match /payments/{pId} {

@@ -3417,6 +3417,38 @@ tutti e tre di CLASSE, tutti e tre chiusi in un posto solo.
 - Test: `node tests/modeljson/run.mjs` (39) · `node tests/tempo/run.mjs` (33)
   · `node tests/scala/run.mjs` (8).
 
+### I tre guasti del 4/10/2026 (letti nei log di Vercel, non dedotti)
+- **Il Commerciale fermo.** `ReferenceError: pickChannel is not defined` in
+  49 giri su 49 della finestra dei log (28/09 → 4/10, e verosimilmente da
+  prima). Un merge aveva annidato `pickChannel` DENTRO `run()` (e
+  `propertyContext`/`alternatives` dentro `proposeFirstReply`), mentre la
+  chiamavano due funzioni esterne: le prime risposte cadevano nel `.catch`
+  contate come «errore AI», il primo follow-up faceva cadere il giro intero.
+  Ora sono funzioni del modulo (`pickChannel` esportata). Nessun test
+  eseguiva quel percorso: `tests/guasti/run.mjs` esegue il giro VERO.
+- **✍️ Firmo io senza regola.** Il server entra in Firestore come UTENTE admin
+  (login con password), non con una service account: le regole valgono anche
+  per lui. `operatorSignatures` non aveva un `match` → 403 al primo
+  salvataggio della firma (1/10, tre tentativi). Regola admin-only aggiunta;
+  la guardia di CLASSE (`tests/guasti`) scandaglia `api/` — fsGet/fsCreate/…,
+  `collectionId`, `'coll/' + id`, `` `coll/${id}` `` e le costanti
+  `*COLL*`/`*QUEUE*` — e pretende un `match` per OGNI collection (i prefissi
+  di Storage si riconoscono da `storage.rules`). È la sesta volta:
+  propertyLocks, signTokens, portalPubs, rendiconti, viewings,
+  operatorSignatures.
+- **La raffica di login.** `getAdminToken` teneva il token ma non il login IN
+  CORSO: a token scaduto le ~190 letture parallele di scan-replies facevano
+  ~190 `signInWithPassword` → `QUOTA_EXCEEDED: Exceeded quota for verifying
+  passwords`, quota dell'INTERO progetto (reminder-cron caduto il 16/09 e il
+  2/10, battiti di salute persi). Ora un solo login in volo, condiviso da
+  chi arriva nel mezzo; un login fallito non resta in memoria. reminder-cron
+  e stripe-webhook (un login per OGNI lettura dell'evento) usano il login
+  condiviso; fuori da `homie/_lib` firmano da sé solo le pagine pubbliche
+  col ripiego su 403 (elenco pinnato nel test).
+Test: `node tests/guasti/run.mjs` (18 check; mutazioni: le versioni di main
+di commerciale, `_lib` e reminder-cron cadono, e togliere la regola di
+`operatorSignatures` fa nominare proprio quella).
+
 ### La Centrale AI (`api/_ai.js` + `js/ai-registry.js` + `GET/POST /api/ai/status` + `/ai` su Telegram) — 21/09/2026
 **Cos'era.** VENTITRÉ file chiamavano `api.anthropic.com` ognuno con la
 propria `fetch`, il modello scritto a mano dentro il file e NESSUN contatore:
