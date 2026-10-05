@@ -1759,7 +1759,8 @@ citato nella segnalazione, non esiste nel repo.
 - **Le porte**: `convert` e `send-sign` restituiscono i link SOLO all'admin
   (`withoutSignLinks`); `send-link` l'`url` solo all'admin o al proprietario
   per il SUO link; `profile/link` il link firma dei co-conduttori solo
-  all'admin (al proprietario restano Scheda e stato); `send-sign` i link
+  all'admin (al proprietario resta lo stato — dal 5/10 nemmeno la Scheda,
+  vedi «Le tre letture risparmiate»); `send-sign` i link
   dei co-conduttori (`coTenants[].url`, dal giro `_cosign.js`) solo
   all'admin, al proprietario i nomi. `contracts/revise` (admin) e il
   sollecito al titolare in `notifyPartialSignature` leggono il deposito:
@@ -1789,9 +1790,9 @@ citato nella segnalazione, non esiste nel repo.
   deployate (job `deploy-rules`) PRIMA che i client vecchi ripartano — una
   scheda del portal aperta da prima del deploy che crea un contratto coi
   token in chiaro riceve PERMISSION_DENIED finché non si ricarica.
-- Fuori scopo, segnalato: `profile/link` dà al proprietario il link della
-  Scheda dell'inquilino (dati anagrafici, non firma); `depositPayToken` sta
-  ancora sul contratto (apre solo una Checkout del deposito).
+- Fuori scopo, segnalato: `depositPayToken` sta ancora sul contratto (apre
+  solo una Checkout del deposito). Il link della Scheda dell'inquilino al
+  proprietario è chiuso dal 5/10/2026 (`profile/link`, solo admin).
 Test: `node tests/signtokens/run.mjs` (52 check, handler veri: deposito,
 concorrenza, giro firma completo col «Tocca a Lei», porte per ruolo,
 migrazione con precondizione e link spediti che restano validi, regola di
@@ -3448,6 +3449,38 @@ tutti e tre di CLASSE, tutti e tre chiusi in un posto solo.
 Test: `node tests/guasti/run.mjs` (18 check; mutazioni: le versioni di main
 di commerciale, `_lib` e reminder-cron cadono, e togliere la regola di
 `operatorSignatures` fa nominare proprio quella).
+
+### Le tre letture risparmiate (5/10/2026 — dai log di Vercel, come i guasti del 4/10)
+- **La fotografia per il Mac** (`api/agent/_memo.js`). Homie chiama
+  `agent/state.snapshot` ~741 volte e `agent/risk.scan` ~719 volte al giorno
+  (una ogni due minuti), e ogni risk.scan rilegge fino a ~2.280 documenti per
+  dati che cambiano nell'arco di ore. Ora il risultato si calcola UNA volta e
+  vale 10 minuti (`MEMO_TTL_MS`): in memoria nell'istanza calda (zero
+  letture), nel documento `heartbeat/agent-memo-<chiave>` per un'istanza
+  fredda (UNA lettura), come stringa JSON (la conversione Firestore delle
+  mappe perde i `null`). Chiave per scope e per orizzonte (`window` 1–730,
+  scope in lista bianca: un valore iniettato non crea chiavi nuove); due
+  chiamate insieme fanno un calcolo; `fresh:true` ricalcola; la risposta dice
+  `cached`/`cachedAt`. Un guasto della memoria non ferma la risposta.
+- **Le conversazioni dei seguiti in blocco** (`fsGetMany` in `homie/_lib.js`,
+  usato da `segretaria/scan-replies`): ~190 `fsGet` paralleli diventano una
+  `documents:batchGet` ogni 100 percorsi. Ciò che il lotto non risolve
+  (risposta non valida, errore) si rilegge uno per uno, 8 alla volta — mai
+  la raffica di prima; un errore vero di lettura risale come prima.
+- **La Scheda dell'inquilino solo all'admin** (`profile/link`). Il link della
+  Scheda permette di SCRIVERE i dati della parte (anagrafica, documento): al
+  proprietario arrivavano quello dell'inquilino e quelli dei co-conduttori.
+  Ora al proprietario: il SUO link, lo stato e i nomi; niente `tenantUrl`
+  (`tenantLinkVia:'admin'`), niente `ask.tenant`/`ask.operator`, niente
+  messaggio pronto né `schedaUrl` dei co-conduttori. Il portal, sul bottone
+  «Chiedi all'inquilino», dice che il link lo manda BOOM.
+Test: `node tests/efficienza/run.mjs` (18 check — cache calda/fredda/scaduta,
+`fresh`, chiavi separate, calcolo condiviso, lotti da 100, ripiego con
+tetto, giunzione di scan-replies; mutazioni: memoria tolta, ripiego senza
+tetto, scan-replies di main, scope senza lista bianca) + `tests/scheda`
+(owner senza Scheda dell'inquilino, admin invariato) + `tests/signtokens`
+(owner senza Scheda dei co-conduttori). Il risparmio VERO si legge nei log
+e nella fattura Firestore dei giorni successivi.
 
 ### La Centrale AI (`api/_ai.js` + `js/ai-registry.js` + `GET/POST /api/ai/status` + `/ai` su Telegram) — 21/09/2026
 **Cos'era.** VENTITRÉ file chiamavano `api.anthropic.com` ognuno con la

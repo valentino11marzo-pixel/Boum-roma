@@ -128,6 +128,13 @@ globalThis.fetch = async (rawURL, opts = {}) => {
     }
     return json(entries.slice(0, q.limit || 1000).map(([p]) => ({ document: doc(p) })));
   }
+  if (url.pathname.endsWith(':batchGet')) {
+    // Lettura a lotti (fsGetMany): sola lettura, mai una scrittura.
+    return json((body.documents || []).map(name => {
+      const p = name.split('/documents/')[1];
+      return DB.has(p) ? { found: doc(p), readTime: new Date(NOW).toISOString() } : { missing: name, readTime: new Date(NOW).toISOString() };
+    }));
+  }
   const path = decodeURIComponent(url.pathname.split('/documents/')[1] || '');
   if (opts.method === 'POST') {
     const id = url.searchParams.get('documentId') || 'auto' + ++sequence;
