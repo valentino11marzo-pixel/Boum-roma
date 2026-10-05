@@ -37,22 +37,13 @@ async function readSignTokens(contractId, contract) {
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID;
 const API_KEY    = process.env.FIREBASE_API_KEY;
 
+// Il login di servizio è UNO per tutta la piattaforma (homie/_lib: cache +
+// un solo login in volo). Prima il cron ne faceva uno suo a ogni giro, più
+// quello dei moduli che chiama — e il 16/09 e il 2/10 un giro è caduto per
+// intero su QUOTA_EXCEEDED. Import dinamico come gli altri moduli qui sotto.
 async function getFirebaseToken() {
-  const res = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${API_KEY}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: process.env.FIREBASE_ADMIN_EMAIL,
-        password: process.env.FIREBASE_ADMIN_PASS,
-        returnSecureToken: true,
-      }),
-    }
-  );
-  const data = await res.json();
-  if (!data.idToken) throw new Error('Firebase auth failed: ' + JSON.stringify(data));
-  return data.idToken;
+  const { getAdminToken } = await import('./homie/_lib.js');
+  return getAdminToken();
 }
 
 const FS_BASE = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default)/documents`;

@@ -79,6 +79,20 @@ export default async function handler(req, res) {
   }
 }
 
+// channel choice: honour the origin channel when we can actually reach them.
+// FUORI da run(): la chiamano proposeFirstReply e proposeFollowup, che sono
+// funzioni a sé. Dichiarata dentro run(), il primo lead da sollecitare
+// faceva cadere l'intero giro su `ReferenceError: pickChannel is not
+// defined` — 49 giri su 49 nei log di Vercel (28/09 → 4/10/2026): nessuna
+// prima risposta, nessun follow-up. tests/commerciale/run.mjs esegue il
+// giro vero.
+export function pickChannel(lead) {
+  const src = String(lead.source || '').toLowerCase();
+  if (src.includes('whatsapp') && lead.phone) return 'whatsapp';
+  if (lead.email) return 'email';
+  return lead.phone ? 'whatsapp' : 'email';
+}
+
 async function run({ dry }) {
   // Le regole in vigore, non quelle di quando il file fu scritto.
   const { k, rejected } = await knobs(EMPLOYEE);
@@ -88,14 +102,6 @@ async function run({ dry }) {
   const isNew = l => !l.status || l.status === 'new';
   const ageOf = l => { const t = Date.parse(l.createdAt || 0); return t ? now - t : null; };
   const reachable = l => !!(l.email || l.phone);
-
-// channel choice: honour the origin channel when we can actually reach them
-function pickChannel(lead) {
-  const src = String(lead.source || '').toLowerCase();
-  if (src.includes('whatsapp') && lead.phone) return 'whatsapp';
-  if (lead.email) return 'email';
-  return lead.phone ? 'whatsapp' : 'email';
-}
 
   const proposals = [];
   let firstCount = 0, followupCount = 0, aiErrors = 0, timeBoxed = false;
@@ -172,15 +178,6 @@ function pickChannel(lead) {
   return { counts, summary, report };
 }
 
-async function proposeFirstReply(lead, dry) {
-  const contextHash = `commerciale:first:${lead.id}`;
-  if (dry) return { type: 'first', leadId: lead.id, dedupHit: false, dry: true };
-
-  // Dedup BEFORE paying for the Claude call.
-  const probe = await proposeProbe(contextHash);
-  if (probe) return { type: 'first', leadId: lead.id, dedupHit: true };
-
-
 // What the draft MUST know before writing a word: is that home still free?
 // Answering "yes it's available" about a rented flat is the single worst
 // thing an assistant can do — it burns the lead and the reputation at once.
@@ -226,6 +223,14 @@ async function alternatives(lead) {
     ).join('\n');
   } catch { return null; }
 }
+
+async function proposeFirstReply(lead, dry) {
+  const contextHash = `commerciale:first:${lead.id}`;
+  if (dry) return { type: 'first', leadId: lead.id, dedupHit: false, dry: true };
+
+  // Dedup BEFORE paying for the Claude call.
+  const probe = await proposeProbe(contextHash);
+  if (probe) return { type: 'first', leadId: lead.id, dedupHit: true };
 
   const facts = [
     lead.name ? `Nome lead: ${lead.name}` : null,
