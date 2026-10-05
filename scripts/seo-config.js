@@ -395,12 +395,12 @@ const PAGES = {
 
   'blog-contract-types.html': blogPost({
     slug: 'blog-contract-types',
-    title: 'Transitorio vs 4+4 — Which Italian Rental Contract Is Right for You? | BOOM',
+    title: '4+4 Contract Italy: Transitorio, 3+2 & Lease Guide | BOOM',
     description:
-      'Complete guide to Italian rental contracts: transitorio, 4+4, cedolare secca, uso foresteria. What each means, who it\'s for, what landlords won\'t explain.',
-    keywords: ['contratto transitorio', 'contratto 4+4', 'cedolare secca', 'Italian rental contract types'],
+      'What is a 4+4 contract in Italy? Compare 4+4, transitorio, 3+2, student and foresteria leases: duration, renewal, rent caps, notice and tax.',
+    keywords: ['4+4 contract Italy', 'what is 4+4 contract in Italy', 'contratto transitorio', 'Italian rental contract', '3+2 contract'],
     datePublished: '2026-03-21',
-    dateModified: '2026-04-19',
+    dateModified: '2026-10-05',
   }),
 
   'blog-cost-calculator.html': blogPost({

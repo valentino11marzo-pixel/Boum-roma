@@ -5790,6 +5790,14 @@ conta: una fonte che dichiara cosa non fa e' una fonte che un motore di
 risposta cita, e protegge dal cliente che arriva aspettandosi altro. Il nodo
 `WebPage` con `speakable` punta al registro e a questo blocco.
 
+**Il titolo segue la domanda che Google mostra davvero** (5/10). Search
+Console, tre mesi: `/canone` 773 impressioni, CTR 1,2%, query dominante
+«calcolo canone concordato»; `/blog-contract-types` 417 impressioni, CTR
+0,5%, posizione media 7,7, query dominante «4+4 contract Italy». Title,
+description, H1 e risposta breve visibile ora aprono con quelle domande;
+JSON-LD e `scripts/seo-config.js` riportano la stessa promessa e la stessa
+data di modifica. Test: `node tests/seo/run.mjs`.
+
 ## Lo scorrimento — un contratto solo (css/boom-scroll.css + js/boom-scroll.js)
 
 Misurato in Chromium su 60 pagine, non supposto. Quattro difetti veri:
