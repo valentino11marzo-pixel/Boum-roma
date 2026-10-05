@@ -320,24 +320,25 @@ function serviceJsonLd(serviceKey, canonicalUrl) {
       type: 'Concierge',
     },
     dealAssistance: {
-      name: 'Deal Assistance Service',
+      name: 'Rome Rental Contract Review in English — Deal Assistance',
       description:
-        'Contract review, negotiation and end-to-end support for apartments you found yourself in Rome. €249 flat fee.',
-      type: 'Legal',
+        'A clause-by-clause review in English of an Italian rental contract, with landlord and ownership verification and negotiation before signing. €249; first review within 24 hours.',
+      type: 'Rome rental contract review and negotiation',
       price: '249',
     },
     propertyFinding: {
-      name: 'Property Finding Service',
+      name: 'Property Finder Rome — Apartment Search Service',
       description:
-        'BOOM finds, vets and negotiates your Rome apartment — €350 flat fee, refundable if no match. 7-day average move-in.',
-      type: 'PropertyManagement',
+        'A local property finder searches every portal and off-market Rome homes, vets each match and negotiates. €350 flat fee; at least 3 matching options within 15 days or a full refund.',
+      type: 'Property finding and apartment search',
       price: '350',
     },
     virtualViewing: {
-      name: 'Virtual Apartment Viewings',
+      name: 'Virtual Apartment Viewing Rome — Live Video Tour',
       description:
-        'Live video viewings of Rome apartments with professional verification, honest feedback and live Q&A.',
-      type: 'PropertyManagement',
+        'A BOOM agent walks any Rome apartment live on video while the client directs the tour, then sends HD photos and an honest report with red-flag checks.',
+      type: 'Virtual apartment viewing in Rome',
+      price: '89',
     },
     propertyManagement: {
       name: 'Premium Property Management',

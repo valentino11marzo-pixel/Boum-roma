@@ -5782,6 +5782,12 @@ checklist di buone pratiche:
   `welcome-to-rome`, cioe' proprio «the viral asset»), `llms.txt` allineato
   ai prezzi di `api/_catalog.js` e senza promesse non dimostrabili, e ogni
   `speakable` che punta a nodi reali.
+- Il 5 ottobre 2026 Search Console ha misurato PFS (58 impressioni, posizione
+  18,3), DAS (43, posizione 8,5, zero clic) e VV (91, posizione 16,2). Title,
+  H1, risposta breve e schema `Service` ora rispondono alle query reali
+  «property finder», «rental contract review» e «virtual apartment viewing».
+  Da `services.html` e' sparito anche «clients save €600+ on average»: non era
+  una misura disponibile, quindi non puo' essere una promessa pubblica.
 
 **Il blocco «in brief»** (`.breve`, dal motore della console) e' la parte
 GEO: fatti a plat — cos'e', prezzo esatto, cosa comprende, **cosa NON e'**,
