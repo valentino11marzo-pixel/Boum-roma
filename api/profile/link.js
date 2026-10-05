@@ -106,19 +106,28 @@ export default async function handler(req, res) {
     } : null))
     .filter(Boolean);
 
+  // IL LINK DELLA SCHEDA DI UNA PARTE È LA SUA CREDENZIALE (5/10/2026). Fino
+  // alla firma quel link non solo legge: SCRIVE l'anagrafica di chi lo
+  // tiene (CF, nascita, documento, residenza). Al proprietario — che questa
+  // porta ammette per i SUOI immobili — restano la sua Scheda e lo STATO di
+  // quella dell'inquilino e dei co-conduttori (cosa manca, se è chiusa), mai
+  // il loro link né il messaggio che lo contiene: lo manda BOOM
+  // (`tenantLinkVia:'admin'`, il portal lo dice invece di «riprova»). La
+  // stessa regola delle chiavi di firma (1/10/2026).
+  const ownerView = !isAdmin;
   return res.status(200).json({
     ok: true,
-    tenantUrl,
+    ...(ownerView ? { tenantLinkVia: 'admin' } : { tenantUrl }),
     landlordUrl,
     tenantLocked: schedaLocked(contract, 'tenant'),
     landlordLocked: schedaLocked(contract, 'landlord'),
     template: FIELDS.templateOf(contract),
     missing: { tenant: missT, landlord: missL, operator: FIELDS.missingFor('operator', ctx, { lang: 'it' }) },
-    ask: { tenant: askOf('tenant'), landlord: askOf('landlord'), operator: askOf('operator') },
+    ask: ownerView ? { landlord: askOf('landlord') } : { tenant: askOf('tenant'), landlord: askOf('landlord'), operator: askOf('operator') },
     messages: {
-      tenant: FIELDS.missingMessage('tenant', missT, { name: tName, url: tenantUrl, propLabel }),
+      ...(ownerView ? {} : { tenant: FIELDS.missingMessage('tenant', missT, { name: tName, url: tenantUrl, propLabel }) }),
       landlord: FIELDS.missingMessage('landlord', missL, { name: lName, url: landlordUrl, propLabel }),
     },
-    ...(cosign.length ? { cosign } : {}),
+    ...(cosign.length ? { cosign: ownerView ? cosign.map(({ schedaUrl, message, ...rest }) => rest) : cosign } : {}),
   });
 }

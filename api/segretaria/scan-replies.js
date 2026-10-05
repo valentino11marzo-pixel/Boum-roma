@@ -21,7 +21,7 @@ import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import crypto from 'node:crypto';
 import SEG from '../../js/segretaria-engine.js';
-import { fsGet, fsPatch, fsCreate, fsList } from '../homie/_lib.js';
+import { fsGet, fsGetMany, fsPatch, fsCreate, fsList } from '../homie/_lib.js';
 import { normalizePhone } from '../homie/_lead.js';
 import { resolveLeadConversation } from '../homie/_conversation.js';
 import { requireCronOrAdmin } from '../pfs/_guard.js';
@@ -77,11 +77,17 @@ async function run({ dry }) {
   const selected = new Map(convs.map(c => [c.id, c]));
   let missingConversations = 0;
   const trackedIds = [...new Set(tracked.rows.map(t => t.followUp.conversationId))];
-  await Promise.all(trackedIds.filter(cid => !selected.has(cid)).map(async cid => {
-    if (!/^[\w.-]{1,180}$/.test(String(cid || ''))) { missingConversations++; return; }
-    const c = await fsGet('conversations/' + cid);
+  // In blocco (5/10/2026): erano ~190 letture parallele una per una ogni 10
+  // minuti — la raffica che faceva ~190 login a token scaduto e i timeout a
+  // 60s. Ora richieste da 100 documenti; un errore resta un errore, come prima.
+  const toRead = trackedIds.filter(cid => !selected.has(cid));
+  const valid = toRead.filter(cid => /^[\w.-]{1,180}$/.test(String(cid || '')));
+  missingConversations += toRead.length - valid.length;
+  const read = await fsGetMany(valid.map(cid => 'conversations/' + cid));
+  for (const cid of valid) {
+    const c = read.get('conversations/' + cid);
     if (c) selected.set(cid, c); else missingConversations++;
-  }));
+  }
   const byEmail = new Map();
   for (const c of selected.values()) {
     const e = String(c.contactEmail || '').trim().toLowerCase();

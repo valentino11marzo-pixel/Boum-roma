@@ -23598,6 +23598,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             });
             const j = await r.json().catch(() => null);
             if (j && j.ok) {
+                // Il link della Scheda dell'inquilino è una SUA credenziale:
+                // al proprietario il server non lo dà (lo manda BOOM).
+                if (isTenant && !j.tenantUrl && j.tenantLinkVia === 'admin') return toast('info', 'Lo manda BOOM', 'Il link della Scheda dell\u2019inquilino gli permette di scrivere i suoi dati: lo inviamo noi. Scrivici e lo facciamo subito.');
                 url = isTenant ? j.tenantUrl : j.landlordUrl;
                 // Il messaggio NOMINA ciò che manca, nella lingua della parte, col
                 // link dentro: lo scrive il dizionario sul server (una copia).

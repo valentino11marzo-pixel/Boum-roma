@@ -322,8 +322,11 @@ const signBody = (token, extra = {}) => ({ token, signature: SIG, consent: { tex
 
   r = mkRes();
   await profileLink(mkReq({ contractId: 'cScope' }, 'uOwner'), r);
-  check('/api/profile/link al PROPRIETARIO: i co-conduttori senza il loro link di FIRMA (restano Scheda e stato)',
-    r.code === 200 && Array.isArray(r.body.cosign) && r.body.cosign.length === 1 && !('url' in r.body.cosign[0]) && !!r.body.cosign[0].schedaUrl);
+  // 5/10/2026: la Scheda di un co-conduttore scrive i SUOI dati — al
+  // proprietario resta lo stato, il link lo manda BOOM (come per il titolare).
+  check('/api/profile/link al PROPRIETARIO: i co-conduttori senza link di FIRMA né di Scheda (resta lo stato)',
+    r.code === 200 && Array.isArray(r.body.cosign) && r.body.cosign.length === 1 && !('url' in r.body.cosign[0])
+    && !('schedaUrl' in r.body.cosign[0]) && !('message' in r.body.cosign[0]) && !JSON.stringify(r.body).includes('/scheda?t=cScope.c'));
   r = mkRes();
   await profileLink(mkReq({ contractId: 'cScope' }, 'uAdmin'), r);
   check('/api/profile/link all\'admin: il link di firma del co-conduttore c\'è', r.code === 200 && /\/sign\?sign=/.test((r.body.cosign || [])[0].url || ''));

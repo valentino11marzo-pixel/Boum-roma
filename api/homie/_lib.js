@@ -243,6 +243,46 @@ export async function fsGet(docPath) {
   return fsDocToJs(await res.json());
 }
 
+// Più documenti in UNA richiesta (documents:batchGet, a pezzi da 100).
+// → Map path → doc | null. Nato per scan-replies, che leggeva ~190
+// conversazioni una per una ogni 10 minuti (e così faceva ~190 login a token
+// scaduto, prima del login unico). Se il batch fallisce si ricade sulle
+// letture singole, al massimo 8 in volo: mai peggio di prima.
+export async function fsGetMany(paths, { chunk = 100 } = {}) {
+  const out = new Map();
+  const list = [...new Set((paths || []).filter(p => typeof p === 'string' && /^[\w.-]+\/[\w.-]+$/.test(p)))];
+  const resourceBase = FS_BASE.replace(/^https?:\/\/[^/]+\/v1\//, '');
+  for (let i = 0; i < list.length; i += chunk) {
+    const part = list.slice(i, i + chunk);
+    let ok = false;
+    try {
+      const token = await getAdminToken();
+      const res = await fetch(`${FS_BASE}:batchGet`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ documents: part.map(p => `${resourceBase}/${p}`) }),
+      });
+      const arr = res.ok ? await res.json().catch(() => null) : null;
+      if (Array.isArray(arr)) {
+        for (const r of arr) {
+          const name = (r && r.found && r.found.name) || (r && r.missing) || '';
+          const path = String(name).split('/documents/')[1];
+          if (!path) continue;
+          out.set(path, r.found ? fsDocToJs(r.found) : null);
+        }
+        ok = part.every(p => out.has(p));
+      }
+    } catch (_) { ok = false; }
+    if (!ok) {
+      const rest = part.filter(p => !out.has(p));
+      for (let j = 0; j < rest.length; j += 8) {
+        await Promise.all(rest.slice(j, j + 8).map(async p => { out.set(p, await fsGet(p)); }));
+      }
+    }
+  }
+  return out;
+}
+
 // Read-modify-write callers must retain the server version. A missing
 // version is an error, never permission to fall back to an unconditional write.
 export async function fsGetVersioned(docPath) {
