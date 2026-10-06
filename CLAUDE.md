@@ -3738,6 +3738,13 @@ Le ricevute storiche senza rata sono in «Ricevute da collegare»: documento acc
 Sollecito email, WhatsApp e colori degli importi restano nella lista; checkout distingue anche depositi e altri addebiti.
 Test: `rent` (anche mutazioni), `rentadmin` (funzioni vere, filtri, documenti, link, export e refresh) e `finish` (controlli e azioni effettivi).
 
+### Fatture BOOM: evidenze fiscali e incassi separati — 6 ottobre 2026
+La pagina `invoices` mostra il prospetto importato (Zucchetti, Stripe, Sella e costi), con fonte e data del controllo; le registrazioni interne rimangono distinte e non certificano SdI o incasso riconciliato.
+`invoice-reconciliation-engine.js` valida riferimenti, centesimi e stati, calcola i totali e segnala numeri interni mancanti/ripetuti. Nessun abbinamento per solo nome/importo, nessuna nuova fattura o sollecito automatico.
+`/api/accounting/reconciliation` richiede admin: anteprima senza scritture, conferma sul digest, snapshot immutabile e idempotente in `invoiceReconciliations`. Dati reali fuori dal repository e dagli asset pubblici; regola Firestore admin-only da pubblicare insieme al rilascio.
+`invoice-workspace.js` offre sei viste, ricerca, export JSON e recupero da errore. La data di lettura non rinnova la data delle fonti; incassi e trasferimenti non vengono sommati due volte.
+Test `invoicereconciliation`: handler reale con rete simulata, ruoli, errori, import ripetuto/concorrente, totali, escaping, mutazioni e rendering delle registrazioni legacy.
+
 ### Link di pagamento Stripe (`/api/payments/link` + `link-for`)
 Aggiornamento 17/09: `paymentBlockReason` condiviso blocca pagato/annullato/SEPA o carta in corso/stato sconosciuto.
 `_checkout.js` riusa una sessione aperta della stessa rata/fattura; un completamento attende il webhook.
