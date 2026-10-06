@@ -4311,7 +4311,16 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             case 'listings': S.page = 'adminflats'; m.innerHTML = isAdmin() ? adminflatsPage() : accessDenied(); buildNav(); break;
             case 'property-engine': S.page = 'boom-tools'; m.innerHTML = isAdmin() ? boomToolsPage() : accessDenied(); buildNav(); break;
             // === Core Admin ===
-            case 'invoices': m.innerHTML = isAdmin() ? invoicesPage() : accessDenied(); break;
+            case 'invoices':
+                m.innerHTML = isAdmin() ? invoicesPage() : accessDenied();
+                if (isAdmin() && window.BOOM_INVOICE_WORKSPACE) {
+                    const invoiceActor = auth.currentUser?.uid;
+                    window.BOOM_INVOICE_WORKSPACE.mount(document.getElementById('invoiceWorkspace'), {
+                        authorized: () => isAdmin() && S.page === 'invoices' && auth.currentUser?.uid === invoiceActor,
+                        token: () => auth.currentUser.getIdToken()
+                    });
+                }
+                break;
             case 'templates': m.innerHTML = isAdmin() ? templatesPage() : accessDenied(); break;
             case 'users': m.innerHTML = isAdmin() ? usersPage() : accessDenied(); break;
             case 'properties': m.innerHTML = isAdmin() ? propertiesPage() : accessDenied(); break;
@@ -9340,11 +9349,14 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     function invoicesPage() {
+        return `<section id="invoiceWorkspace" class="invoice-workspace" aria-label="Riconciliazione fatture"><h1>Fatture BOOM</h1><p>Lettura delle evidenze…</p></section><details class="fi-legacy"><summary>Registrazioni interne BOOM (${boomBusinessInvoices().length})</summary><p>Archivio operativo preesistente. Il pagamento registrato qui non certifica l’emissione o l’esito SdI. Canoni e ricevute restano in Canoni per unità.</p>${internalInvoicesPage()}</details>`;
+    }
+
+    function internalInvoicesPage() {
         const all = boomBusinessInvoices();
-        const pending = all.filter(i => i.status === 'pending');
-        const paid = all.filter(i => i.status === 'paid');
-        const thisYear = new Date().getFullYear();
-        const ytdRevenue = paid.filter(i => new Date(i.date || i.createdAt).getFullYear() === thisYear).reduce((s, i) => s + (i.amount || 0), 0);
+        const invoiceDay = i => window.BOOM_INVOICE_RECONCILIATION.day(i.date || i.createdAt);
+        const invoiceYear = i => invoiceDay(i)?.slice(0,4) || 'unknown';
+        const repeated = window.BOOM_INVOICE_RECONCILIATION.legacyIssues(all).filter(r => r.issues.length);
 
         const getRecipient = (inv) => {
             const rid = inv.recipientId || inv.clientId;
@@ -9363,20 +9375,20 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         const invoiceRow = (inv) => {
             const r = getRecipient(inv);
-            const year = new Date(inv.date || inv.createdAt).getFullYear();
+            const year = invoiceYear(inv);
             const search = [inv.number, r.name, inv.service, inv.description].filter(Boolean).join(' ').toLowerCase();
             const reminders = inv.remindersSent || 0;
-            return `<div class="list-item clickable invoice-item" data-status="${inv.status}" data-kind="${r.kind}" data-year="${year}" data-search="${esc(search)}" onclick="viewInvoice('${inv.id}')" style="padding:14px 16px">
+            return `<div class="list-item clickable invoice-item" data-status="${esc(inv.status || 'unknown')}" data-kind="${esc(r.kind)}" data-year="${year}" data-search="${esc(search)}" onclick="viewInvoice('${inv.id}')" style="padding:14px 16px">
                 <div class="list-icon" style="background:${inv.status === 'paid' ? 'var(--green-light)' : 'var(--orange-light)'}">🧾</div>
                 <div class="list-content" style="flex:1;min-width:0">
                     <div class="list-title" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-                        <span style="font-weight:600">${inv.number}</span>
+                        <span style="font-weight:600">${esc(inv.number || 'Numero da verificare')}</span>
                         <span style="color:var(--text-secondary)">·</span>
-                        <span>${r.name}</span>
+                        <span>${esc(r.name)}</span>
                         ${recipientBadge(r.kind)}
                         ${reminders > 0 ? `<span class="li-flag orange" title="${reminders} solleciti">${reminders} sollecit${reminders == 1 ? 'o' : 'i'}</span>` : ''}
                     </div>
-                    <div class="list-subtitle li-meta" style="margin-top:4px">${inv.service || ''}<span class="sep">·</span>${fmtDate(inv.date || inv.createdAt)}</div>
+                    <div class="list-subtitle li-meta" style="margin-top:4px">${esc(inv.service || '')}<span class="sep">·</span>${fmtDate(inv.date || inv.createdAt)}</div>
                 </div>
                 <div class="list-meta"><div class="li-money-val ${inv.status === 'paid' ? 'green' : ''}" style="font-size:16px">€${(inv.amount || 0).toLocaleString('it-IT')}</div><span class="badge ${inv.status === 'paid' ? 'green' : 'orange'}">${inv.status === 'paid' ? 'Pagata' : 'In attesa'}</span></div>
                 <div style="display:flex;gap:4px">
@@ -9387,138 +9399,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             </div>`;
         };
 
-        const years = [...new Set(all.map(i => new Date(i.date || i.createdAt).getFullYear()))].sort((a, b) => b - a);
+        const years = [...new Set(all.map(invoiceYear).filter(y => y !== 'unknown'))].sort((a, b) => b - a);
         const yearTabs = years.map(y => `<button class="btn btn-sm btn-secondary" data-filter="year-${y}" onclick="filterInvoices('year-${y}', this)">${y}</button>`).join('');
 
-        // ── 📊 Dashboard: ageing, cash flow, YoY, top debtors ───────────
-        const now = new Date();
-        const lastYear = thisYear - 1;
-        const ytdRevenueLY = paid.filter(i => new Date(i.date || i.createdAt).getFullYear() === lastYear).reduce((s, i) => s + (i.amount || 0), 0);
-        const ytdGrowth = ytdRevenueLY > 0 ? Math.round(((ytdRevenue - ytdRevenueLY) / ytdRevenueLY) * 100) : (ytdRevenue > 0 ? 100 : 0);
-        // Issued/paid conversion (all-time)
-        const convRate = all.length ? Math.round((paid.length / all.length) * 100) : 0;
-        // Pending ageing buckets — based on invoice date if no dueDate
-        const daysOld = (inv) => Math.floor((now - new Date(inv.date || inv.createdAt || Date.now())) / 86400000);
-        const aging = { '0-30': 0, '31-60': 0, '61-90': 0, '90+': 0 };
-        const agingTotals = { '0-30': 0, '31-60': 0, '61-90': 0, '90+': 0 };
-        pending.forEach(i => {
-            const d = daysOld(i);
-            const bucket = d <= 30 ? '0-30' : d <= 60 ? '31-60' : d <= 90 ? '61-90' : '90+';
-            aging[bucket]++; agingTotals[bucket] += i.amount || 0;
-        });
-        const pendingTotal = pending.reduce((s,i)=>s+(i.amount||0),0);
-        // Top 3 debtors by outstanding amount
-        const debtorMap = {};
-        pending.forEach(i => {
-            const r = getRecipient(i);
-            const key = i.recipientId || i.clientId || 'unknown';
-            if (!debtorMap[key]) debtorMap[key] = { name: r.name, kind: r.kind, total: 0, count: 0, oldest: 0 };
-            debtorMap[key].total += i.amount || 0;
-            debtorMap[key].count++;
-            const d = daysOld(i);
-            if (d > debtorMap[key].oldest) debtorMap[key].oldest = d;
-        });
-        const topDebtors = Object.values(debtorMap).sort((a, b) => b.total - a.total).slice(0, 3);
-        // Company forecast only; rent receipts never become BOOM revenue.
-        const expectedSoon = pending.filter(p => p.dueDate).map(p => {
-            const due = new Date(p.dueDate);
-            return { amt: p.amount || 0, in: Math.floor((due - now) / 86400000) };
-        });
-        const fc30 = expectedSoon.filter(x => x.in >= 0 && x.in <= 30).reduce((s,x)=>s+x.amt,0);
-        const fc60 = expectedSoon.filter(x => x.in >= 0 && x.in <= 60).reduce((s,x)=>s+x.amt,0);
-        const fc90 = expectedSoon.filter(x => x.in >= 0 && x.in <= 90).reduce((s,x)=>s+x.amt,0);
-        const autoCount = paid.filter(i => i.autoGenerated).length;
-
-        // Per-month revenue this year (used for the sparkline)
-        const months = ['Gen','Feb','Mar','Apr','Mag','Giu','Lug','Ago','Set','Ott','Nov','Dic'];
-        const monthly = new Array(12).fill(0);
-        paid.forEach(i => { const d = new Date(i.date || i.createdAt); if (d.getFullYear() === thisYear) monthly[d.getMonth()] += i.amount || 0; });
-        const maxMonth = Math.max(1, ...monthly);
-        const sparkline = monthly.map((v, idx) => {
-            const h = Math.max(2, Math.round((v / maxMonth) * 36));
-            const isCurr = idx === now.getMonth();
-            return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px" title="${months[idx]} ${thisYear}: €${v.toLocaleString('it-IT')}">
-                <div style="width:100%;height:${h}px;background:${v ? (isCurr ? 'var(--gold)' : 'rgba(212,175,55,0.45)') : 'var(--bg-elevated)'};border-radius:3px 3px 0 0"></div>
-                <div style="font-size:9px;color:${isCurr ? 'var(--gold)' : 'var(--text-muted)'}">${months[idx]}</div>
-            </div>`;
-        }).join('');
-
-        const bucketCard = (key, color) => `<div style="text-align:center;padding:10px 8px;background:var(--bg-card);border-radius:8px;border:1px solid var(--border);border-top:2px solid var(--${color})">
-            <div style="font-size:10px;color:var(--text-muted);letter-spacing:1px">${key} gg</div>
-            <div style="font-size:18px;font-weight:700;color:var(--${color});margin:2px 0">€${agingTotals[key].toLocaleString('it-IT')}</div>
-            <div style="font-size:10px;color:var(--text-muted)">${aging[key]} fatt.</div>
-        </div>`;
-
-        return `<div class="page-header">
-            <div><h1 class="page-title">Fatture BOOM</h1><p class="page-subtitle">Compensi e servizi dell’azienda. Le ricevute dei canoni sono consultabili in <a href="#payments" onclick="goTo('payments');return false">Canoni per unità</a>.</p><div class="page-subtitle">${all.length} totali · €${ytdRevenue.toLocaleString('it-IT')} incassati nel ${thisYear} ${ytdGrowth !== 0 ? `· <span style="color:var(--${ytdGrowth > 0 ? 'green' : 'red'})">${ytdGrowth > 0 ? '+' : ''}${ytdGrowth}% YoY</span>` : ''}</div></div>
-            <div class="page-actions">
-                <button class="btn btn-secondary btn-sm" onclick="exportInvoicesCSV()">📊 Export</button>
-                <button class="btn" onclick="openModal('addInvoice')">+ Nuova</button>
-            </div>
-        </div>
-
-        <!-- 📊 KPI ROW 1: headline numbers -->
-        <div class="stats-grid" style="grid-template-columns:repeat(5,1fr);margin-bottom:14px">
-            <div class="stat-card" style="cursor:pointer" onclick="filterInvoices('all', this.closest('.stats-grid').parentElement.querySelector('[data-filter=all]'))">
-                <div class="stat-label">Totale</div>
-                <div class="stat-value">${all.length}</div>
-                ${autoCount > 0 ? `<div style="font-size:10px;color:var(--text-muted);margin-top:2px">${autoCount} auto-gen</div>` : ''}
-            </div>
-            <div class="stat-card" style="cursor:pointer" onclick="filterInvoices('pending', this.closest('.stats-grid').parentElement.querySelector('[data-filter=pending]'))">
-                <div class="stat-label">Da Incassare</div>
-                <div class="stat-value text-gold">€${pendingTotal.toLocaleString('it-IT')}</div>
-                <div style="font-size:10px;color:var(--text-muted);margin-top:2px">${pending.length} fatt.</div>
-            </div>
-            <div class="stat-card" style="cursor:pointer" onclick="filterInvoices('paid', this.closest('.stats-grid').parentElement.querySelector('[data-filter=paid]'))">
-                <div class="stat-label">Incassate</div>
-                <div class="stat-value text-green">€${paid.reduce((s,i)=>s+(i.amount||0),0).toLocaleString('it-IT')}</div>
-                <div style="font-size:10px;color:var(--text-muted);margin-top:2px">${paid.length} fatt.</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">Conversion</div>
-                <div class="stat-value" style="color:var(--${convRate >= 80 ? 'green' : convRate >= 60 ? 'orange' : 'red'})">${convRate}%</div>
-                <div style="font-size:10px;color:var(--text-muted);margin-top:2px">emesse → pagate</div>
-            </div>
-            <div class="stat-card">
-                <div class="stat-label">${thisYear} vs ${lastYear}</div>
-                <div class="stat-value" style="color:var(--${ytdGrowth >= 0 ? 'green' : 'red'})">${ytdGrowth >= 0 ? '+' : ''}${ytdGrowth}%</div>
-                <div style="font-size:10px;color:var(--text-muted);margin-top:2px">€${ytdRevenueLY.toLocaleString('it-IT')} → €${ytdRevenue.toLocaleString('it-IT')}</div>
-            </div>
-        </div>
-
-        <!-- 📊 KPI ROW 2: ageing buckets + forecast + monthly trend -->
-        <div style="display:grid;grid-template-columns:1.4fr 1fr 1fr;gap:14px;margin-bottom:14px">
-            <div class="card" style="padding:14px">
-                <div style="font-size:11px;letter-spacing:1px;color:var(--text-muted);margin-bottom:10px">⏳ AGEING (FATTURE PENDING)</div>
-                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
-                    ${bucketCard('0-30',  'green')}
-                    ${bucketCard('31-60', 'orange')}
-                    ${bucketCard('61-90', 'red')}
-                    ${bucketCard('90+',   'red')}
-                </div>
-            </div>
-            <div class="card" style="padding:14px">
-                <div style="font-size:11px;letter-spacing:1px;color:var(--text-muted);margin-bottom:10px">FATTURE BOOM IN SCADENZA</div>
-                <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>Prossimi 30gg</span><strong class="text-gold">€${fc30.toLocaleString('it-IT')}</strong></div>
-                <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span>Prossimi 60gg</span><strong>€${fc60.toLocaleString('it-IT')}</strong></div>
-                <div style="display:flex;justify-content:space-between"><span>Prossimi 90gg</span><strong>€${fc90.toLocaleString('it-IT')}</strong></div>
-            </div>
-            <div class="card" style="padding:14px">
-                <div style="font-size:11px;letter-spacing:1px;color:var(--text-muted);margin-bottom:10px">📈 INCASSI ${thisYear}</div>
-                <div style="display:flex;align-items:end;gap:3px;height:50px">${sparkline}</div>
-            </div>
-        </div>
-
-        ${topDebtors.length > 0 ? `<div class="card" style="padding:14px;margin-bottom:14px">
-            <div style="font-size:11px;letter-spacing:1px;color:var(--text-muted);margin-bottom:10px">⚠️ TOP DEBITORI</div>
-            <div style="display:grid;grid-template-columns:repeat(${topDebtors.length},1fr);gap:10px">
-                ${topDebtors.map(d => `<div style="padding:10px 12px;background:var(--bg-card);border-radius:8px;border-left:3px solid var(--${d.oldest > 60 ? 'red' : d.oldest > 30 ? 'orange' : 'gold'})">
-                    <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(d.name)}</div>
-                    <div style="font-size:11px;color:var(--text-muted);margin-top:2px">${recipientBadge(d.kind)} ${d.count} fatt. · ${d.oldest}gg max</div>
-                    <div style="font-size:18px;font-weight:700;color:var(--${d.oldest > 60 ? 'red' : 'gold'});margin-top:4px">€${d.total.toLocaleString('it-IT')}</div>
-                </div>`).join('')}
-            </div>
-        </div>` : ''}
+        return `<div class="page-header"><div><h2>Registrazioni interne BOOM</h2><p class="page-subtitle">${all.length} registrazioni caricate. Stato di pagamento interno: da collegare alle fonti prima di considerarlo riconciliato.</p></div><div class="page-actions"><button class="btn btn-secondary btn-sm" onclick="exportInvoicesCSV()">Esporta registrazioni</button><button class="btn" onclick="openModal('addInvoice')">+ Registrazione interna</button></div></div>
+        ${repeated.length ? `<div class="fi-legacy-warning">${repeated.length} registrazioni con numero mancante, ripetuto o data da verificare. I numeri BOOM non identificano automaticamente le fatture Zucchetti.</div>` : ''}
         <div class="card">
             <div style="display:flex;gap:6px;padding:12px 16px;border-bottom:1px solid var(--border);flex-wrap:wrap;align-items:center">
                 <button class="btn btn-sm" data-filter="all" onclick="filterInvoices('all', this)">Tutte</button>

@@ -10,6 +10,7 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const SUITES = [
+  { name: 'invoicereconciliation', file: 'tests/invoice-reconciliation/run.mjs', what: 'evidenze fatture admin-only, import idempotente, stati fiscali separati, costi e mutazioni' },
   { name: 'guasti', file: 'tests/guasti/run.mjs', what: 'i guasti del 4/10: il giro VERO del Commerciale, una regola per ogni collection del server (mutazione), un solo login in volo e nessun login fuori posto' },
   { name: 'efficienza', file: 'tests/efficienza/run.mjs', what: 'le letture risparmiate: la fotografia di snapshot/risk riusata 10 minuti (calda, fredda, scaduta, fresh), letture a lotti con ripiego a tetto, scan-replies in blocco' },
   { name: 'vercelfunctions', file: 'tests/vercel-functions/run.mjs', what: 'limite 50 regole, corrispondenza esatta degli handler, impostazioni e mutazioni' },

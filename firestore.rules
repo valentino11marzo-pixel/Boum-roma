@@ -217,6 +217,13 @@ service cloud.firestore {
       allow update, delete: if isAdmin();
     }
 
+    // Accounting evidence contains private client and payment information.
+    // Immutable snapshots; only the admin import endpoint creates revisions.
+    match /invoiceReconciliations/{x} {
+      allow read, create: if isAdmin();
+      allow update, delete: if false;
+    }
+
     // ─── invoices ─────────────────────────────────────────────────────
     match /invoices/{x} {
       allow read:  if isAdmin() || resource.data.recipientId == uid();
