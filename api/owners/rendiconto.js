@@ -8,26 +8,152 @@
 //
 // Infrastruttura identica a La Squadra: heartbeat `teamHealth/rendiconto`,
 // report `teamReports`, recap Telegram all'operatore, `?dry=1` per provare
-// senza scrivere né spedire. Idempotente per (proprietario, mese): il doc
-// `rendiconti/<ownerId>_<YYYY-MM>` nasce con fsCreate → un rerun trova il
-// 409 e NON rispedisce (se le rules non sono ancora deployate il controllo
-// fallisce APERTO e il recap lo dice — meglio un doppio invio raro che un
-// mese saltato in silenzio).
+// senza scrivere né spedire. Il doc `rendiconti/<ownerId>_<YYYY-MM>` è il
+// registro di consegna: pending → sending (claim CAS) → sent solo se il
+// server SMTP accetta il destinatario. Un esito ambiguo richiede verifica
+// umana; non si reinvia alla cieca un'email forse già accettata.
 //
 // Auth: cron Vercel (Bearer CRON_SECRET), X-Homie-Secret, o admin Firebase
 // (bottone "Esegui ora"). Query: ?dry=1 · ?month=YYYY-MM (default: il mese
 // scorso) · ?ownerId=<id> (solo quel proprietario).
 
 import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import crypto from 'node:crypto';
 import {
   requireCronOrAdmin, fsGet, fsList, fsCreate, logActivity, tgNotify,
   reportEmployeeHealth, saveReport, euro, esc,
 } from '../employees/_lib.js';
+import { fsGetVersioned, fsCommit } from '../homie/_lib.js';
 import { storageUpload, sendEmail } from '../agent/_lib.js';
 import { shell, para, fine, btn, rule } from '../preagreement/_notify.js';
 
 const EMPLOYEE = 'rendiconto';
 const clip = (v, n = 120) => String(v == null ? '' : v).trim().slice(0, n);
+const SEND_CLAIM_MS = 20 * 60 * 1000; // longer than the function's 60s ceiling
+
+const reportPath = (ownerId, month) => `rendiconti/${ownerId}_${month}`;
+const smtpAddress = (s) => String(s || '').match(/<([^<>]+)>/)?.[1]?.trim().toLowerCase()
+  || String(s || '').trim().toLowerCase();
+
+async function casFields(path, version, fields) {
+  await fsCommit([{ docPath: path, fields, precondition: { updateTime: version } }]);
+}
+
+// A legacy marker does not prove delivery: the old code wrote it before PDF,
+// Storage and SMTP. A stale sending claim is also ambiguous after a crash.
+async function markerDecision(path) {
+  for (let i = 0; i < 4; i++) {
+    const v = await fsGetVersioned(path);
+    if (!v) throw new Error('rendiconto_marker_missing');
+    const s = v.data.status;
+    if (s === 'sent') return { kind: 'sent', marker: v };
+    if (s === 'pending') return { kind: 'pending', marker: v };
+    if (s === 'delivery_unknown') return { kind: 'unknown', marker: v };
+    if (s === 'sending' && Date.now() - Date.parse(v.data.sendStartedAt || '') < SEND_CLAIM_MS) {
+      return { kind: 'in_progress', marker: v };
+    }
+    const reason = s === 'sending' ? 'send_claim_expired' : 'legacy_marker_unverified';
+    try {
+      await casFields(path, v.updateTime, { status: 'delivery_unknown', reason, reviewedAt: null });
+      return { kind: 'unknown', marker: v, reason };
+    } catch (e) { if (!e.conflict) throw e; }
+  }
+  throw new Error('rendiconto_marker_contention');
+}
+
+async function claimSend(path, recipient, pdfUrl) {
+  for (let i = 0; i < 4; i++) {
+    const d = await markerDecision(path);
+    if (d.kind !== 'pending') return d;
+    const claimId = crypto.randomUUID();
+    try {
+      await casFields(path, d.marker.updateTime, {
+        status: 'sending', claimId, sendStartedAt: new Date().toISOString(),
+        attempts: (Number(d.marker.data.attempts) || 0) + 1,
+        recipient, pdfUrl, lastError: null,
+      });
+      return { kind: 'claimed', claimId };
+    } catch (e) { if (!e.conflict) throw e; }
+  }
+  throw new Error('rendiconto_claim_contention');
+}
+
+async function finishClaim(path, claimId, fields) {
+  const v = await fsGetVersioned(path);
+  if (!v || v.data.status !== 'sending' || v.data.claimId !== claimId) {
+    throw new Error('rendiconto_claim_lost');
+  }
+  await casFields(path, v.updateTime, fields);
+}
+
+async function deliverReport({ ownerId, ownerEmail, ownerName, month, label, sections, collected, expected, arrears }) {
+  const path = reportPath(ownerId, month);
+  try {
+    await fsCreate('rendiconti', {
+      ownerId, month, status: 'pending', attempts: 0, createdAt: new Date().toISOString(),
+    }, `${ownerId}_${month}`);
+  } catch (e) { if (!e.exists) throw e; } // no untracked send when rules are unavailable
+
+  const before = await markerDecision(path);
+  if (before.kind !== 'pending') return before.kind === 'sent' ? { kind: 'already_sent' } : before;
+
+  // These steps are safe to repeat: no email has been claimed yet and the
+  // Storage path is deterministic for owner+month.
+  const pdfBytes = await buildPdf({ ownerName, label, month, sections, collected, expected, arrears });
+  const url = await storageUpload(`rendiconti/${ownerId}/rendiconto_${month}.pdf`, pdfBytes, 'application/pdf');
+  if (!url) throw new Error('rendiconto_pdf_url_missing');
+
+  const claim = await claimSend(path, ownerEmail, url);
+  if (claim.kind !== 'claimed') return claim.kind === 'sent' ? { kind: 'already_sent' } : claim;
+
+  let receipt;
+  try {
+    receipt = await sendOwnerEmail({ ownerEmail, ownerName, label, sections, collected, expected, arrears, url, pdfBytes });
+  } catch (e) {
+    // An explicit SMTP 4xx/5xx response is a rejection. A timeout/network
+    // error after DATA may mean Gmail accepted the message: do not auto-retry.
+    const rejected = Number(e.responseCode) >= 400 && Number(e.responseCode) < 600;
+    try {
+      await finishClaim(path, claim.claimId, rejected
+        ? { status: 'pending', lastError: 'smtp_rejected', lastErrorAt: new Date().toISOString() }
+        : { status: 'delivery_unknown', reason: 'smtp_outcome_unconfirmed', lastErrorAt: new Date().toISOString() });
+    } catch { return { kind: 'unknown', reason: 'smtp_state_write_failed' }; }
+    return { kind: rejected ? 'retry' : 'unknown', reason: rejected ? 'smtp_rejected' : 'smtp_outcome_unconfirmed' };
+  }
+
+  const accepted = Array.isArray(receipt?.accepted)
+    && receipt.accepted.some((x) => smtpAddress(x) === smtpAddress(ownerEmail));
+  if (!accepted) {
+    const rejected = Array.isArray(receipt?.rejected)
+      && receipt.rejected.some((x) => smtpAddress(x) === smtpAddress(ownerEmail));
+    try {
+      await finishClaim(path, claim.claimId, rejected
+        ? { status: 'pending', lastError: 'smtp_recipient_rejected', lastErrorAt: new Date().toISOString() }
+        : { status: 'delivery_unknown', reason: 'smtp_acceptance_unconfirmed', lastErrorAt: new Date().toISOString() });
+    } catch { return { kind: 'unknown', reason: 'smtp_state_write_failed' }; }
+    return { kind: rejected ? 'retry' : 'unknown', reason: rejected ? 'smtp_recipient_rejected' : 'smtp_acceptance_unconfirmed' };
+  }
+
+  const acceptedAt = new Date().toISOString();
+  try {
+    await finishClaim(path, claim.claimId, {
+      status: 'sent', smtpAcceptedAt: acceptedAt, messageId: receipt.messageId || '', pdfUrl: url, lastError: null,
+    });
+  } catch {
+    // Commit may have succeeded while its response was lost. Check the ledger
+    // once before surfacing an unknown; never send the email again here.
+    const latest = await fsGetVersioned(path).catch(() => null);
+    if (latest?.data.status === 'sent' && latest.data.claimId === claim.claimId) {
+      return { kind: 'sent', url, messageId: latest.data.messageId };
+    }
+    await finishClaim(path, claim.claimId, {
+      status: 'delivery_unknown', reason: 'smtp_accepted_receipt_not_saved',
+      smtpAcceptedAt: acceptedAt, messageId: receipt.messageId || '',
+    }).catch(() => {});
+    return { kind: 'unknown', reason: 'smtp_accepted_receipt_not_saved' };
+  }
+  return { kind: 'sent', url, messageId: receipt.messageId || '' };
+}
 
 // WinAnsi safety — la lezione del certificato FES.
 function wa(s) {
@@ -49,8 +175,10 @@ export default async function handler(req, res) {
       monthOverride: /^\d{4}-\d{2}$/.test(String(req.query?.month || '')) ? req.query.month : null,
       onlyOwner: clip(req.query?.ownerId, 80) || null,
     });
-    if (!dry) await reportEmployeeHealth(EMPLOYEE, { ok: true, stats: out.counts });
-    return res.status(200).json({ ok: true, actor, dry, ...out });
+    const issues = out.counts.failed + out.counts.deliveryUnknown + out.counts.skippedNoEmail + out.counts.inProgress;
+    if (!dry) await reportEmployeeHealth(EMPLOYEE, { ok: issues === 0, stats: out.counts,
+      ...(issues ? { error: `${issues} rendiconti non confermati` } : {}) });
+    return res.status(!dry && issues ? 503 : 200).json({ ok: dry || issues === 0, actor, dry, ...out });
   } catch (e) {
     console.error('[rendiconto]', e);
     if (!dry) await reportEmployeeHealth(EMPLOYEE, { ok: false, error: e.message });
@@ -89,7 +217,8 @@ async function run({ dry, monthOverride, onlyOwner }) {
   const today = new Date().toISOString().slice(0, 10);
 
   const results = [];
-  const counts = { owners: 0, sent: 0, skippedNoEmail: 0, skippedNoActivity: 0, alreadySent: 0, totalCollected: 0 };
+  const counts = { owners: 0, sent: 0, skippedNoEmail: 0, skippedNoActivity: 0,
+    alreadySent: 0, inProgress: 0, deliveryUnknown: 0, failed: 0, totalCollected: 0 };
 
   for (const [ownerId, props] of byOwner) {
     counts.owners++;
@@ -130,26 +259,30 @@ async function run({ dry, monthOverride, onlyOwner }) {
 
     if (dry) { results.push({ ownerId, ownerName, ownerEmail, month, collected, expected, arrears, properties: sections.length, dry: true }); continue; }
 
-    // Idempotenza per (proprietario, mese) — fail-open con avviso.
-    let idemWarn = null;
-    try { await fsCreate('rendiconti', { ownerId, month, at: new Date().toISOString() }, `${ownerId}_${month}`); }
-    catch (e) {
-      if (e.exists) { counts.alreadySent++; results.push({ ownerId, ownerName, skipped: 'already_sent' }); continue; }
-      idemWarn = e.message; // 403 rules non deployate → si procede, il recap lo dice
+    try {
+      const delivery = await deliverReport({ ownerId, ownerEmail, ownerName, month, label, sections, collected, expected, arrears });
+      if (delivery.kind === 'sent') {
+        counts.sent++; counts.totalCollected += collected;
+        results.push({ ownerId, ownerName, ownerEmail, month, collected, expected, arrears, properties: sections.length, url: delivery.url });
+      } else if (delivery.kind === 'pending' || delivery.kind === 'retry') {
+        counts.failed++; results.push({ ownerId, ownerName, month, status: 'pending', reason: delivery.reason || 'retry' });
+      } else if (delivery.kind === 'unknown') {
+        counts.deliveryUnknown++; results.push({ ownerId, ownerName, month, status: 'delivery_unknown', reason: delivery.reason || 'verify_email' });
+      } else if (delivery.kind === 'in_progress') {
+        counts.inProgress++; results.push({ ownerId, ownerName, month, skipped: 'in_progress' });
+      } else {
+        counts.alreadySent++; results.push({ ownerId, ownerName, skipped: 'already_sent' });
+      }
+    } catch (e) {
+      counts.failed++;
+      results.push({ ownerId, ownerName, month, status: 'failed', reason: clip(e.message, 120) });
     }
-
-    const pdfBytes = await buildPdf({ ownerName, label, month, sections, collected, expected, arrears });
-    const url = await storageUpload(`rendiconti/${ownerId}/rendiconto_${month}.pdf`, pdfBytes, 'application/pdf');
-
-    await sendOwnerEmail({ ownerEmail, ownerName, label, sections, collected, expected, arrears, url, pdfBytes });
-    counts.sent++; counts.totalCollected += collected;
-    results.push({ ownerId, ownerName, ownerEmail, month, collected, expected, arrears, properties: sections.length, url, ...(idemWarn ? { idemWarn } : {}) });
   }
 
-  if (!dry && counts.sent) {
-    await saveReport(EMPLOYEE, { summary: `${counts.sent} rendiconti ${label} inviati — ${euro(counts.totalCollected)} incassati`, counts, results: results.slice(0, 20) });
-    await tgNotify(`📒 <b>Rendiconti ${esc(label)}</b>\n${counts.sent} proprietari · incassato ${esc(euro(counts.totalCollected))}${counts.skippedNoEmail ? `\n⚠️ ${counts.skippedNoEmail} senza email` : ''}${results.some((r) => r.idemWarn) ? '\n⚠️ idempotenza non garantita (deploy rules!)' : ''}`);
-    await logActivity('Rendiconti mensili inviati', 'employee', counts, EMPLOYEE);
+  if (!dry && (counts.sent || counts.failed || counts.deliveryUnknown || counts.skippedNoEmail || counts.inProgress)) {
+    await saveReport(EMPLOYEE, { summary: `${counts.sent} rendiconti ${label} accettati da SMTP — ${counts.failed} da riprovare, ${counts.deliveryUnknown} da verificare, ${counts.inProgress} in corso`, counts, results: results.slice(0, 20) });
+    await tgNotify(`📒 <b>Rendiconti ${esc(label)}</b>\n${counts.sent} accettati da SMTP · incassato ${esc(euro(counts.totalCollected))}${counts.failed ? `\n⚠️ ${counts.failed} da riprovare` : ''}${counts.deliveryUnknown ? `\n🚨 ${counts.deliveryUnknown} esito email incerto: verifica prima di reinviare` : ''}${counts.inProgress ? `\n⏳ ${counts.inProgress} in corso: ricontrollare lo stato` : ''}${counts.skippedNoEmail ? `\n⚠️ ${counts.skippedNoEmail} senza email` : ''}`);
+    if (counts.sent) await logActivity('Rendiconti mensili accettati da SMTP', 'employee', counts, EMPLOYEE);
   }
   return { month, label, counts, results };
 }
@@ -214,7 +347,8 @@ async function sendOwnerEmail({ ownerEmail, ownerName, label, sections, collecte
   const props = sections.map((s) => clip(s.prop.address || s.prop.name, 60)).join(' · ');
   const att = pdfBytes.length < 8 * 1024 * 1024
     ? [{ filename: `BOOM_Rendiconto_${label.replace(' ', '_')}.pdf`, content: pdfBytes, contentType: 'application/pdf' }] : undefined;
-  await Promise.race([
+  let timer;
+  try { return await Promise.race([
     sendEmail({
       to: ownerEmail,
       subject: `📒 Rendiconto ${label} — ${clip(sections[0].prop.address || sections[0].prop.name, 50)}${sections.length > 1 ? ` +${sections.length - 1}` : ''}`,
@@ -231,6 +365,7 @@ async function sendOwnerEmail({ ownerEmail, ownerName, label, sections, collecte
         `Rendiconto ${label} — incassato ${euro(collected)}`),
       attachments: att,
     }),
-    new Promise((_, rej) => setTimeout(() => rej(new Error('email_timeout')), 15000)),
-  ]);
+    new Promise((_, rej) => { timer = setTimeout(() => rej(new Error('email_timeout')), 15000); }),
+  ]); }
+  finally { clearTimeout(timer); }
 }

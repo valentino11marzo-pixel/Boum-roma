@@ -2380,10 +2380,20 @@ design BOOM (pdf-lib, `wa()`) su Storage `rendiconti/<ownerId>/` + email
 IT nel design system con PDF in allegato. Email risolta users →
 landlords → contract.landlordEmail; senza email → segnalato nel recap
 Telegram, MAI perso in silenzio; proprietario senza movimenti → salta.
-Idempotente per (proprietario, mese) via `rendiconti/<ownerId>_<YYYY-MM>`
-(fsCreate 409 → skip; collection admin-only in firestore.rules — la
-lezione propertyLocks). `?dry=1`, `?month=YYYY-MM`, `?ownerId=`; auth
-come i cron PFS. Heartbeat `teamHealth/rendiconto`.
+Il registro `rendiconti/<ownerId>_<YYYY-MM>` (collection admin-only in
+firestore.rules) nasce `pending`, passa a `sending` con claim Firestore CAS
+e diventa `sent` solo quando SMTP include il destinatario in `accepted`.
+`accepted` conferma la presa in carico SMTP, non la consegna nella casella.
+PDF/upload falliti e rifiuti SMTP espliciti restano `pending`: un nuovo run
+con `?month=YYYY-MM` li riprova. Timeout di rete, perdita del commit dopo
+accettazione, claim scaduti e marker legacy diventano `delivery_unknown`:
+verificare il messaggio sul provider e il documento; se accettato, registrare
+`sent`, se rifiutato con certezza, ripristinare `pending`; mai reinviare alla
+cieca. Un claim ancora attivo è `in_progress`, non una consegna confermata.
+Il cron mensile non riprova da solo durante il mese: il 503, il heartbeat
+e il recap Telegram richiedono intervento operativo. `?dry=1`,
+`?month=YYYY-MM`, `?ownerId=`;
+auth come i cron PFS. Heartbeat `teamHealth/rendiconto`.
 Test: `node tests/rendiconto/run.mjs`.
 
 ### Conservazione (`GET/POST /api/ops/conservazione`, cron il 2 del mese 05:40 UTC)
