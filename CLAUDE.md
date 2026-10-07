@@ -5631,6 +5631,11 @@ dopo deploy e verifica dei lettori, chiudere la rule in un rilascio separato.
 Cache edge fino a 120 s; HTML di build e cache del service worker possono
 restare vecchi: niente segreti/off-market in `listings`. Test: `npm test -- catalogtruth catalogprivacy vetrina prenota dispo feed seo`.
 
+Il service worker `boom-v29` cancella all'attivazione la cache `boom-v28`
+che può contenere HTML con letture Firestore dirette. Un client che non
+aggiorna il worker resta un rischio fino al prossimo ingresso online.
+Test: `npm test -- rete` (handler `activate` vero con cache sintetica).
+
 Un `/listing/:id` assente prima rispondeva 200 col template generico: lo
 script sceglieva la prima casa della build e attribuiva ad essa l'URL di
 un'altra. Ora l'SSR risponde 404 per ID assente/privato e 503 se Firestore
