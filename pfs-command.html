@@ -446,6 +446,10 @@ body.triage-lock { overflow: hidden; }
 .d-deck-row .dd-flags { font-size: 12px; flex-shrink: 0; }
 .d-deck-row .dd-x { color: var(--text-muted); padding: 4px 7px; border-radius: 8px; flex-shrink: 0; }
 .d-deck-row .dd-x:hover { color: var(--red); }
+.cand-actions { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+.cand-actions .abtn { padding: 6px 8px; }
+#candidate-modal-overlay { display: flex; }
+#candidate-modal-overlay[hidden], #cand-approve-fields[hidden], #cand-reject-fields[hidden] { display: none; }
 .d-act-row { font-size: 11px; color: var(--text-muted); padding: 6px 0; border-bottom: 1px dashed var(--border); line-height: 1.5; }
 .d-links { display: flex; gap: 6px; flex-wrap: wrap; }
 
@@ -749,6 +753,30 @@ body.triage-lock { overflow: hidden; }
 <div id="drawer-scrim" hidden></div>
 <div id="client-drawer" hidden role="dialog" aria-modal="true" aria-label="Fascicolo cliente"></div>
 
+<div id="candidate-modal-overlay" hidden style="position:fixed;inset:0;background:rgba(0,0,0,0.88);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);z-index:8400;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Revisione candidato PFS">
+        <div class="modal-head">
+            <div class="modal-title" id="cand-title">Revisione candidato</div>
+            <button class="modal-close" id="cand-close" aria-label="Chiudi">✕</button>
+        </div>
+        <div class="modal-src" id="cand-source"></div>
+        <div id="cand-approve-fields" class="mgrid">
+            <div class="mfield"><label for="cand-availability-at">Disponibilità verificata il *</label><input id="cand-availability-at" type="datetime-local"></div>
+            <div class="mfield"><label for="cand-availability-with">Con chi / da chi *</label><input id="cand-availability-with" type="text" maxlength="160" placeholder="Nome e ruolo del referente"></div>
+            <div class="mfield full"><label for="cand-availability-evidence">Prova della disponibilità *</label><textarea id="cand-availability-evidence" maxlength="500" placeholder="Es. risposta ricevuta via WhatsApp, telefonata, email…"></textarea></div>
+            <div class="mfield"><label for="cand-sharing-at">Permesso di condivisione confermato il *</label><input id="cand-sharing-at" type="datetime-local"></div>
+            <div class="mfield"><label for="cand-sharing-from">Permesso concesso da *</label><input id="cand-sharing-from" type="text" maxlength="160" placeholder="Nome e ruolo del referente"></div>
+            <div class="mfield full"><label for="cand-sharing-evidence">Prova del permesso *</label><textarea id="cand-sharing-evidence" maxlength="500" placeholder="Es. consenso via email o messaggio, con riferimento…"></textarea></div>
+            <div class="mfield full"><label><input id="cand-permission-granted" type="checkbox"> Confermo di aver ottenuto il permesso di condividere questo annuncio con il cliente.</label></div>
+        </div>
+        <div id="cand-reject-fields" class="mgrid" hidden>
+            <div class="mfield full"><label for="cand-reason">Motivo del rifiuto *</label><textarea id="cand-reason" maxlength="500" placeholder="Es. non disponibile, fuori criteri, fonte inattendibile…"></textarea></div>
+        </div>
+        <p class="hint">La decisione resta interna. Non invia l'annuncio né la shortlist al cliente.</p>
+        <div class="modal-actions"><button class="btn-ghost" id="cand-cancel">Annulla</button><button class="btn" id="cand-save">Registra decisione</button></div>
+    </div>
+</div>
+
 <div id="client-modal-overlay" hidden style="position:fixed;inset:0;background:rgba(0,0,0,0.85);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);z-index:8350;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto">
     <div class="modal" role="dialog" aria-modal="true" aria-label="Cliente PFS">
         <div class="modal-head">
@@ -1008,6 +1036,8 @@ var state = {
     candidateClientId: null,
     candidateLoad: 'idle',   // idle · loading · ready · error
     candidateUnsub: null,
+    candidateDecision: null, // open operator form; never a customer send
+    candidateBusy: false,
     clientModal: null,        // null · 'new' · id cliente in modifica
     knownIds: null,           // Set di id già visti (per rilevare nuovi arrivi realtime)
     newIds: null,             // Set di id appena arrivati (animazione is-new)
@@ -1381,6 +1411,7 @@ function renderClients() {
 
 /* ── Il fascicolo cliente (drawer) ───────────────────────────── */
 function openDrawer(id) {
+    closeCandidateReview();
     if (state.candidateUnsub) { state.candidateUnsub(); state.candidateUnsub = null; }
     state.drawerClient = id;
     state.candidateRows = [];
@@ -1408,6 +1439,7 @@ function openDrawer(id) {
     }
 }
 function closeDrawer() {
+    closeCandidateReview();
     if (state.candidateUnsub) { state.candidateUnsub(); state.candidateUnsub = null; }
     state.drawerClient = null;
     state.candidateClientId = null;
@@ -1415,6 +1447,77 @@ function closeDrawer() {
     state.candidateLoad = 'idle';
     $('drawer-scrim').hidden = true;
     $('client-drawer').hidden = true;
+}
+function closeCandidateReview() {
+    state.candidateDecision = null;
+    $('candidate-modal-overlay').hidden = true;
+}
+function openCandidateReview(caseId, decision) {
+    if (state.candidateBusy) return;
+    var p = state.candidateRows.find(function (row) { return row.id === caseId; });
+    if (!p || p.status !== 'pending' || state.candidateClientId !== state.drawerClient) {
+        BoomPortal.toast('Il candidato è cambiato: riapri il fascicolo.', { type: 'warning' });
+        return;
+    }
+    state.candidateDecision = { id: caseId, clientId: p.clientId, propertyId: p.propertyId,
+        sourceUrl: p.sourceUrl, decision: decision };
+    $('cand-title').textContent = decision === 'approve' ? 'Approva candidato · solo interno' : 'Rifiuta candidato';
+    $('cand-source').innerHTML = 'Fonte: ' + (safeUrl(p.sourceUrl)
+        ? '<a href="' + esc(safeUrl(p.sourceUrl)) + '" target="_blank" rel="noopener">' + esc(p.sourceUrl) + '</a>'
+        : esc(p.sourceUrl || 'mancante'));
+    $('cand-approve-fields').hidden = decision !== 'approve';
+    $('cand-reject-fields').hidden = decision !== 'reject';
+    ['cand-availability-at', 'cand-availability-with', 'cand-availability-evidence',
+        'cand-sharing-at', 'cand-sharing-from', 'cand-sharing-evidence', 'cand-reason'].forEach(function (id) { $(id).value = ''; });
+    $('cand-permission-granted').checked = false;
+    $('candidate-modal-overlay').hidden = false;
+    $(decision === 'approve' ? 'cand-availability-at' : 'cand-reason').focus();
+}
+function candidateDateValue(id) {
+    var value = $(id).value;
+    if (!value) return null;
+    var date = new Date(value);
+    return isNaN(date) ? null : date.toISOString();
+}
+function saveCandidateReview() {
+    var choice = state.candidateDecision;
+    if (!choice || state.candidateBusy) return;
+    var body = { clientId: choice.clientId, propertyId: choice.propertyId, decision: choice.decision };
+    if (choice.decision === 'approve') {
+        body.evidence = {
+            sourceUrl: choice.sourceUrl,
+            availabilityVerifiedAt: candidateDateValue('cand-availability-at'),
+            availabilityVerifiedWith: $('cand-availability-with').value.trim(),
+            availabilityEvidence: $('cand-availability-evidence').value.trim(),
+            sharingPermissionAt: candidateDateValue('cand-sharing-at'),
+            sharingPermissionFrom: $('cand-sharing-from').value.trim(),
+            sharingPermissionEvidence: $('cand-sharing-evidence').value.trim(),
+            permissionGranted: $('cand-permission-granted').checked
+        };
+        if (!body.evidence.availabilityVerifiedAt || !body.evidence.sharingPermissionAt
+            || !body.evidence.availabilityVerifiedWith || !body.evidence.availabilityEvidence
+            || !body.evidence.sharingPermissionFrom || !body.evidence.sharingPermissionEvidence
+            || !body.evidence.permissionGranted) {
+            BoomPortal.toast('Completa fonte, disponibilità e permesso di condivisione.', { type: 'warning' });
+            return;
+        }
+    } else {
+        body.reason = $('cand-reason').value.trim();
+        if (!body.reason) { BoomPortal.toast('Scrivi il motivo del rifiuto.', { type: 'warning' }); return; }
+    }
+    state.candidateBusy = true;
+    $('cand-save').disabled = true;
+    $('cand-save').textContent = 'Salvo…';
+    apiPost('/api/pfs/candidate-review', body).then(function (result) {
+        if (state.candidateDecision && state.candidateDecision.id === choice.id) closeCandidateReview();
+        BoomPortal.toast(result.already ? 'Decisione già registrata' : 'Decisione registrata: nessun invio al cliente', { type: 'success' });
+    }).catch(function (err) {
+        BoomPortal.toast('Revisione non salvata: ' + (err && err.message ? err.message : err), { type: 'error' });
+    }).then(function () {
+        state.candidateBusy = false;
+        $('cand-save').disabled = false;
+        $('cand-save').textContent = 'Registra decisione';
+    });
 }
 function clientSearches(id) {
     return state.searches.filter(function (s) { return s.clientId === id; });
@@ -1444,6 +1547,9 @@ function renderDrawer() {
         ? state.candidateRows.filter(function (r) { return r.status === 'pending'; }).sort(function (a, b) {
             return String(b.firstSeenAt || '').localeCompare(String(a.firstSeenAt || ''));
         }) : [];
+    var decidedForClient = c.reviewRequired === true && state.candidateClientId === c.id
+        ? state.candidateRows.filter(function (r) { return r.status === 'approved' || r.status === 'rejected'; })
+            .sort(function (a, b) { return String(b.reviewedAt || '').localeCompare(String(a.reviewedAt || '')); }) : [];
     var due = toDate(c.firstShortlistDueAt);
     var dueText = due ? new Intl.DateTimeFormat('it-IT', {
         timeZone: 'Europe/Rome', dateStyle: 'short', timeStyle: 'short'
@@ -1501,7 +1607,7 @@ function renderDrawer() {
                 '</div>';
             }).join('') : '<div class="dd-meta" style="color:var(--text-muted)">Nessuna ricerca: si generano dai criteri al prossimo sync.</div>') +
         '</div>' +
-        (c.reviewRequired === true ? '<div class="d-sec"><h4>Prima shortlist · revisione interna</h4>' +
+        (c.reviewRequired === true ? '<div class="d-sec"><h4>Prima shortlist · revisione interna (' + pendingForClient.length + ' da decidere)</h4>' +
             '<div class="dd-meta">Scadenza interna: ' + esc(dueText) + ' · ricerche BOOM: ' +
                 esc(c.pfsKickoffStatus || 'in attesa') + ' · copertura Casafari: ' +
                 esc(c.casafariAlertStatus === 'needs_review' ? 'da verificare sugli alert esistenti' :
@@ -1516,11 +1622,28 @@ function renderDrawer() {
                 return '<div class="d-deck-row"><div class="dd-main"><div class="dd-title">⌛ ' +
                     esc(p.title || p.address || p.sourceUrl || p.propertyId) + '</div><div class="dd-meta">' +
                     (inDeck ? 'Già nel portale · revisione da riallineare' : 'Candidato interno · disponibilità e condivisione da verificare') +
-                    ' · €' + fmtPrice(p.price) + '/mese · match ' + esc(p.score) + '</div></div>' +
+                    ' · €' + fmtPrice(p.price) + '/mese · match ' + esc(p.score) + '</div>' +
                     (safeUrl(p.sourceUrl) ? '<a class="abtn" href="' + esc(safeUrl(p.sourceUrl)) + '" target="_blank" rel="noopener">Apri ↗</a>' : '') +
+                    '<div class="cand-actions"><button class="abtn" data-daction="candidate-approve" data-cid="' + esc(p.id) + '">Approva</button>' +
+                    '<button class="abtn" data-daction="candidate-reject" data-cid="' + esc(p.id) + '">Rifiuta</button></div></div>' +
                     '</div>';
             }).join('') + (pendingForClient.length > 40 ? '<div class="dd-meta">+' + esc(pendingForClient.length - 40) + ' candidati nella coda. Raffina o amplia la revisione prima di proporre.</div>' : '') :
             '<div class="dd-meta">Nessun candidato in attesa nella coda del cliente. Controlla fonti e criteri.</div>') +
+            (decidedForClient.length ? '<div class="dd-meta" style="margin-top:12px">Decisioni registrate (' + decidedForClient.length + ') · non inviate al cliente</div>' +
+                decidedForClient.slice(0, 12).map(function (p) {
+                    var approved = p.status === 'approved';
+                    var proof = approved && p.reviewEvidence ? p.reviewEvidence : null;
+                    return '<div class="d-deck-row"><div class="dd-main"><div class="dd-title">' + (approved ? '✓ ' : '✕ ') +
+                        esc(p.title || p.address || p.propertyId) + '</div><div class="dd-meta">' +
+                        (approved ? 'Approvato · disponibilità ' + esc(proof && proof.availabilityVerifiedAt) +
+                            ' con ' + esc(proof && proof.availabilityVerifiedWith) + ': ' + esc(proof && proof.availabilityEvidence) +
+                            ' · permesso ' + esc(proof && proof.sharingPermissionAt) + ' da ' +
+                            esc(proof && proof.sharingPermissionFrom) + ': ' + esc(proof && proof.sharingPermissionEvidence) :
+                            'Rifiutato · ' + esc(p.rejectionReason || 'motivo non registrato')) +
+                        ' · ' + esc(p.reviewedBy || '') + ' · ' + esc(relTime(p.reviewedAt)) + '</div></div>' +
+                        (safeUrl(p.sourceUrl) ? '<a class="abtn" href="' + esc(safeUrl(p.sourceUrl)) + '" target="_blank" rel="noopener">Fonte ↗</a>' : '') +
+                        '</div>';
+                }).join('') : '') +
         '</div>' : '') +
         '<div class="d-sec"><h4>Mazzo (' + s.total + ') · ❤️ ' + s.liked + ' · ✗ ' + s.rejected + (s.view ? ' · 📅 ' + s.view : '') + '</h4>' +
             (deck.length ? deck.map(function (p) {
@@ -1533,7 +1656,7 @@ function renderDrawer() {
                     '<button class="dd-x" data-daction="deck-remove" data-pid="' + esc(p.id) + '" title="Togli dal mazzo">🗑</button>' +
                 '</div>';
             }).join('') : '<div class="dd-meta" style="color:var(--text-muted)">' +
-                (c.reviewRequired === true ? 'Mazzo vuoto: i candidati del radar restano interni finché non li proponi tu dal feed.' :
+                (c.reviewRequired === true ? 'Mazzo vuoto: approvare un candidato lo lascia interno; la shortlist e l’invio restano da preparare.' :
                     'Mazzo vuoto: il radar spinge i match ≥60, oppure proponi tu dal feed («→ Proponi a…»).') + '</div>') +
         '</div>' +
         '<div class="d-sec"><h4>Attività recente</h4>' +
@@ -1661,12 +1784,16 @@ function saveClientModal() {
 function pushToClient(prop, clientId, selEl) {
     var client = state.clientsById[clientId];
     if (!client || !prop) { if (selEl) selEl.value = ''; return; }
+    if (client.reviewRequired === true) {
+        BoomPortal.toast('Per questo cliente usa la coda nel fascicolo: disponibilità e permesso vanno registrati prima di proporre.', { type: 'warning' });
+        if (selEl) selEl.value = '';
+        return;
+    }
     var submit = function () {
         if (selEl) selEl.disabled = true;
         apiPost('/api/casafari/import', {
             clientId: clientId,
             force: true,
-            reviewConfirmed: client.reviewRequired === true,
             listing: {
                 sourceUrl: prop.sourceUrl, source: prop.source, price: prop.price,
                 title: prop.title, address: prop.address, zone: prop.zone,
@@ -1685,23 +1812,16 @@ function pushToClient(prop, clientId, selEl) {
             if (selEl) { selEl.disabled = false; selEl.value = ''; }
         });
     };
-    var doIt = function () {
-        if (client.reviewRequired !== true) { submit(); return; }
-        BoomPortal.confirm('Prima di proporre a ' + (client.name || 'questo cliente') +
-            ': hai verificato disponibilità attuale, fonte e permesso di condividere l’annuncio? ' +
-            'La conferma registra la tua scelta, non certifica queste verifiche. Proporre ora?')
-            .then(function (yes) { if (yes) submit(); else if (selEl) selEl.value = ''; });
-    };
     if (prop.advertiser === 'agency') {
         BoomPortal.confirm('È un annuncio di AGENZIA (doppia commissione per il cliente). Proporlo comunque?', { danger: true })
-            .then(function (yes) { if (yes) doIt(); else if (selEl) selEl.value = ''; });
+            .then(function (yes) { if (yes) submit(); else if (selEl) selEl.value = ''; });
     } else {
-        doIt();
+        submit();
     }
 }
 
 function activeClientOpts() {
-    return state.clients.filter(isActiveClient)
+    return state.clients.filter(function (c) { return isActiveClient(c) && c.reviewRequired !== true; })
         .sort(function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); })
         .map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.name || c.id) + '</option>'; })
         .join('');
@@ -2802,7 +2922,9 @@ function bindUI() {
         var act = b.getAttribute('data-daction');
         if (act === 'close') { closeDrawer(); return; }
         if (!c) { closeDrawer(); return; }
-        if (act === 'stage-prev' || act === 'stage-next') {
+        if (act === 'candidate-approve' || act === 'candidate-reject') {
+            openCandidateReview(b.getAttribute('data-cid'), act === 'candidate-approve' ? 'approve' : 'reject');
+        } else if (act === 'stage-prev' || act === 'stage-next') {
             var flow = STAGE_FLOW.concat(['placed']);
             var i = flow.indexOf(effStage(c));
             var ni = act === 'stage-next' ? Math.min(flow.length - 1, i + 1) : Math.max(0, i - 1);
@@ -2841,6 +2963,11 @@ function bindUI() {
         var c = state.clientsById[state.drawerClient];
         if (c) writeStage(c, e.target.value);
     });
+
+    $('cand-close').addEventListener('click', closeCandidateReview);
+    $('cand-cancel').addEventListener('click', closeCandidateReview);
+    $('cand-save').addEventListener('click', saveCandidateReview);
+    $('candidate-modal-overlay').addEventListener('click', function (e) { if (e.target === this) closeCandidateReview(); });
 
     // Modale cliente
     $('cm-close').addEventListener('click', closeClientModal);

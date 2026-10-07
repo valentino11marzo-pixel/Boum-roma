@@ -23,6 +23,7 @@ import { readJson, fsGet, fsPatch, logActivity } from '../homie/_lib.js';
 import { scoreMatch, DEFAULT_THRESHOLD } from '../homie/_match.js';
 import { stableIdFromUrl, sanitizeImages } from '../pfs/_ingest.js';
 import { requireCronOrAdmin } from '../pfs/_guard.js';
+import { candidateId, hasApprovedEvidence } from '../pfs/_candidates.js';
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
@@ -57,7 +58,7 @@ export default async function handler(req, res) {
     let reviewer;
     try { reviewer = await fsGet('users/' + actor.slice('admin:'.length)); }
     catch { return res.status(500).json({ ok: false, error: 'reviewer_lookup_failed' }); }
-    if (!['admin', 'owner'].includes(reviewer?.role)) return res.status(403).json({ ok: false, error: 'operator_required' });
+    if (reviewer?.role !== 'admin') return res.status(403).json({ ok: false, error: 'operator_required' });
     if (body.reviewConfirmed !== true) return res.status(400).json({ ok: false, error: 'review_confirmation_required' });
   }
 
@@ -75,6 +76,21 @@ export default async function handler(req, res) {
     }
 
     const stableId = stableIdFromUrl(sourceUrl);
+    if (client.reviewRequired === true) {
+      // A bare reviewConfirmed boolean used to release reviewed clients.
+      // Require the separate, CAS-protected operator decision and its proof
+      // for this exact client/listing pair before *any* import write.
+      let caseDoc;
+      try { caseDoc = await fsGet('pfsCandidateReviews/' + candidateId(clientId, stableId)); }
+      catch {
+        results.push({ ok: false, url: sourceUrl, propertyId: stableId, error: 'candidate_lookup_failed' });
+        continue;
+      }
+      if (!hasApprovedEvidence(caseDoc, clientId, stableId, sourceUrl)) {
+        results.push({ ok: false, url: sourceUrl, propertyId: stableId, error: 'candidate_approval_required' });
+        continue;
+      }
+    }
     const now = new Date();
     const property = {
       sourceUrl,

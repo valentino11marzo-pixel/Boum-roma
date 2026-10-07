@@ -320,6 +320,12 @@ console.log('\n── B. Le giunzioni (asserite sulla sorgente) ─────�
   ok('plancia: fascicolo legge la coda del cliente, indipendente dagli ultimi 120 annunci',
     cmd.includes("collection('pfsCandidateReviews').where('clientId', '==', id)")
       && /candidateRows\.filter\(function \(r\) \{ return r\.status === 'pending'; \}\)/.test(cmd));
+  ok('plancia: decisione richiede fonte, disponibilità e permesso; invio cliente separato',
+    cmd.includes('/api/pfs/candidate-review') && cmd.includes('id="cand-availability-evidence"')
+      && cmd.includes('id="cand-sharing-evidence"') && cmd.includes('id="cand-permission-granted"')
+      && /isActiveClient\(c\) && c\.reviewRequired !== true/.test(cmd)
+      && /#candidate-modal-overlay\[hidden\][^\n]*display: none/.test(cmd)
+      && !/<div id="candidate-modal-overlay"[^>]*display:flex/.test(cmd));
 }
 
 console.log('\n── C. Il giro vero (Firestore in memoria) ────────────────────');
