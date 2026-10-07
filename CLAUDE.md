@@ -1429,6 +1429,13 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
 - `api/stripe-webhook.js` PREAGREEMENT branch — on checkout completed:
   doc → `status:'paid'` (+paidEur/paidAt/paidSessionId, idempotent on
   retries), fetches the Stripe receipt_url, sends both emails.
+- PA add-ons: `submit.js` records the chosen price rows; `pay.js` replays
+  those exact rows in a resumed Checkout. The paid Stripe webhook checks
+  metadata and total against the PA, then create-only opens one operator
+  task per kind before its duplicate shortcut; a failed write asks Stripe
+  to retry. Old base-only resume sessions never prove an add-on purchase.
+  Journey reads those tasks before suppressing an upsell and says only
+  that payment arrived until the provider confirms work (`money`, `pastate`, `journey`).
 - `submit.js` also emails at acceptance: client copy only when nothing is
   due via Stripe (else it arrives after payment); admin always notified.
 

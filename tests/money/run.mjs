@@ -94,7 +94,7 @@ globalThis.fetch = async (url, opts = {}) => {
     if (opts.method === 'POST') {
       const docId = qs.get('documentId') || 'auto_' + (store.size + 1);
       const key = clean + '/' + docId;
-      if (key.startsWith('operatorTasks/task_service_') && failTaskWrites > 0) {
+      if ((key.startsWith('operatorTasks/task_service_') || key.startsWith('operatorTasks/task_paaddon_')) && failTaskWrites > 0) {
         failTaskWrites--;
         return new Response('temporary task outage', { status: 503 });
       }
@@ -141,7 +141,7 @@ const mkStreamReq = (obj) => ({
 });
 const sessionEvent = (metadata, over = {}) => ({
   type: 'checkout.session.completed',
-  data: { object: { id: over.id || 'cs_live_abc123', created: over.created ?? Math.floor(Date.now() / 1000), amount_total: over.amount_total ?? 8900, currency: 'eur', customer_email: 'c@x.it', payment_intent: 'pi_1', metadata } },
+  data: { object: { id: over.id || 'cs_live_abc123', created: over.created ?? Math.floor(Date.now() / 1000), amount_total: over.amount_total ?? 8900, currency: 'eur', payment_status: over.payment_status || 'paid', customer_email: 'c@x.it', payment_intent: 'pi_1', metadata } },
 });
 
 // ═══ 1. service-checkout ═══
@@ -307,11 +307,135 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
   await webhook(mkStreamReq(ev), r);
   const pa = store.get('preAgreements/pa1');
   check('webhook PA: pagamento → status paid + paidSessionId', pa.status === 'paid' && pa.paidSessionId === 'cs_pa_1');
+  check('webhook PA senza add-on: nessun task servizio dedotto',
+    ![...store.values()].some(v => v.preAgreementId === 'pa1' && v.source === 'preagreement-addon'));
 
   const eb = emails.length;
   r = mkRes();
   await webhook(mkStreamReq(ev), r);
   check('webhook PA: retry → duplicate, niente nuove email', r.body?.duplicate === true && emails.length === eb);
+}
+
+// ═══ 6b. PREAGREEMENT add-on: prova Stripe, importo, task e retry ═══
+{
+  const { normalizeAddons, addonsTotal, paidAddonTaskId } = await import('../../api/preagreement/_addons.js');
+  const token = 'b'.repeat(32);
+  const addons = normalizeAddons(['movein-pack', 'cleaning-premium']);
+  const addonTotal = addonsTotal(addons);
+  const pa = { token, ref: 'BOOM-ADDON', status: 'accepted',
+    money: { dueAtSigning: 2800 }, addons, addonsEur: addonTotal };
+  const metadata = { service: 'PREAGREEMENT', token,
+    addons: 'movein-pack,cleaning-premium', addonsEur: String(addonTotal) };
+  const ev = sessionEvent(metadata, { id: 'cs_pa_addons', amount_total: (2800 + addonTotal) * 100,
+    created: Date.parse('2026-10-04T23:30:00Z') / 1000 });
+  ev.created = Date.parse('2026-10-07T23:30:00Z') / 1000;
+  const taskKey = kind => 'operatorTasks/' + paidAddonTaskId('pa_addons', kind);
+  store.set('preAgreements/pa_addons', pa);
+
+  let r = mkRes();
+  const unpaid = structuredClone(ev);
+  unpaid.data.object.payment_status = 'unpaid';
+  await webhook(mkStreamReq(unpaid), r);
+  check('PA add-on: sessione non pagata non apre task né modifica proposta',
+    r.body?.skipped === 'payment_not_paid' && !store.has(taskKey('movein-pack'))
+    && store.get('preAgreements/pa_addons').status === 'accepted');
+
+  r = mkRes();
+  const wrong = structuredClone(ev);
+  wrong.data.object.amount_total -= 100;
+  await webhook(mkStreamReq(wrong), r);
+  check('PA add-on: totale Stripe diverso dalla proposta → 500, nessun task o paid',
+    r.code === 500 && r.body?.error === 'addon_payment_mismatch'
+    && !store.has(taskKey('movein-pack')) && store.get('preAgreements/pa_addons').status === 'accepted');
+
+  r = mkRes();
+  const wrongKinds = structuredClone(ev);
+  wrongKinds.data.object.metadata.addons = 'movein-pack';
+  await webhook(mkStreamReq(wrongKinds), r);
+  check('PA add-on: metadata con kind incompleti → 500, nessun task',
+    r.code === 500 && !store.has(taskKey('movein-pack')));
+
+  r = mkRes();
+  const wrongCurrency = structuredClone(ev);
+  wrongCurrency.data.object.currency = 'usd';
+  await webhook(mkStreamReq(wrongCurrency), r);
+  check('PA add-on: centesimi uguali ma valuta diversa non provano acquisto',
+    r.code === 500 && !store.has(taskKey('movein-pack')));
+
+  const emailsBefore = emails.length;
+  r = mkRes();
+  failTaskWrites = 1;
+  await webhook(mkStreamReq(ev), r);
+  check('PA add-on: Firestore task giù → retry Stripe, proposta ancora accepted e nessuna email',
+    r.code === 500 && r.body?.error === 'addon_task_write_failed'
+    && store.get('preAgreements/pa_addons').status === 'accepted' && emails.length === emailsBefore);
+
+  r = mkRes();
+  await webhook(mkStreamReq(ev), r);
+  const tMove = store.get(taskKey('movein-pack'));
+  const tClean = store.get(taskKey('cleaning-premium'));
+  check('PA add-on: pagamento verificato apre esattamente due task e marca la proposta paid',
+    r.code === 200 && !!tMove && !!tClean && tMove.serviceKind === 'movein-pack'
+    && tClean.serviceKind === 'cleaning-premium' && tMove.status === 'open'
+    && tMove.due === '2026-10-08' && tClean.due === '2026-10-08'
+    && store.get('preAgreements/pa_addons').paidSessionId === 'cs_pa_addons');
+
+  const emailedAfterPaid = emails.length;
+  tMove.status = 'done';
+  r = mkRes();
+  ev.created += 4 * 86400;
+  await webhook(mkStreamReq(ev), r);
+  check('PA add-on: retry ordinario non riapre task concluso né reinvia email',
+    r.body?.duplicate === true && store.get(taskKey('movein-pack')).status === 'done'
+    && store.get(taskKey('movein-pack')).due === '2026-10-08' && emails.length === emailedAfterPaid);
+
+  store.delete(taskKey('cleaning-premium')); // primo giro parziale, PA già paid
+  r = mkRes();
+  await webhook(mkStreamReq(ev), r);
+  check('PA add-on: retry dopo task mancante ripara PRIMA del ramo duplicate',
+    r.body?.duplicate === true && store.has(taskKey('cleaning-premium'))
+    && store.get(taskKey('movein-pack')).status === 'done' && emails.length === emailedAfterPaid);
+
+  // Old pay.js omitted add-ons and their metadata. The PA selection alone
+  // must never be interpreted as a paid service on that historical path.
+  const legacyToken = 'c'.repeat(32);
+  store.set('preAgreements/pa_legacy', { ...pa, token: legacyToken, status: 'accepted' });
+  r = mkRes();
+  await webhook(mkStreamReq(sessionEvent({ service: 'PREAGREEMENT', token: legacyToken },
+    { id: 'cs_pa_legacy', amount_total: 280000 })), r);
+  check('PA legacy: scelta non addebitata non apre task add-on',
+    r.code === 200 && store.get('preAgreements/pa_legacy').status === 'paid'
+    && !store.has('operatorTasks/' + paidAddonTaskId('pa_legacy', 'movein-pack')));
+
+  // The converted signed contract still receives Journey emails. Its PA
+  // tasks are purchase evidence, even though there is no service lead.
+  const dateIn = days => {
+    const d = new Date(); d.setUTCDate(d.getUTCDate() + days);
+    return d.toISOString().slice(0, 10);
+  };
+  store.set('contracts/ctr_pa_addons', { status: 'active', signatureStatus: 'complete',
+    preAgreementId: 'pa_addons', tenantId: 'u_pa_addons', propertyId: 'p_pa_addons',
+    startDate: dateIn(12), endDate: dateIn(377), tenantCF: 'AA', tenantDocNum: 'ID',
+    identityDocs: ['id'] });
+  store.set('users/u_pa_addons', { name: 'Xenia Petrova', email: 'xenia-pa@example.com' });
+  store.set('properties/p_pa_addons', { address: 'Via Cavour 12, Roma' });
+  globalThis.__mailCalls = [];
+  const { runJourney } = await import('../../api/journey/_run.js');
+  const journey14 = await runJourney();
+  const mail14 = globalThis.__mailCalls.find(m => m.to === 'xenia-pa@example.com');
+  check('Journey reale T-14: PA add-on pagato blocca upsell e dice solo pagamento ricevuto',
+    journey14.sent.includes('ctr_pa_addons:t14')
+    && /received your.*Move-in Pack.*payment/i.test(mail14?.html || '')
+    && !/api\/services\/buy\?kind=movein-pack|already in motion/i.test(mail14?.html || ''));
+
+  store.get('contracts/ctr_pa_addons').startDate = dateIn(6);
+  globalThis.__mailCalls = [];
+  const journey7 = await runJourney();
+  const mail7 = globalThis.__mailCalls.find(m => m.to === 'xenia-pa@example.com');
+  check('Journey reale T-7: Cleaning pagato blocca upsell senza dire booked',
+    journey7.sent.includes('ctr_pa_addons:t7')
+    && /received your.*Cleaning Premium.*payment/i.test(mail7?.html || '')
+    && !/api\/services\/buy\?kind=cleaning-premium|is booked/i.test(mail7?.html || ''));
 }
 
 // ═══ 7. convertPaToContract: idempotente su ID deterministico ═══

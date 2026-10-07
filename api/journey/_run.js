@@ -31,6 +31,7 @@ import { schedaUrl } from '../profile/_scheda.js';
 // Wallet pass del contratto, sempre a portata dentro il journey (servito
 // live da /api/my-pass, link derivato — niente da generare).
 import { tenantWalletUrl } from '../sign/_notify.js';
+import { paidAddonTaskId } from '../preagreement/_addons.js';
 
 const ADMIN_EMAIL = 'valentino@boom-rome.com';
 const WA = 'https://wa.me/393313251961';
@@ -130,7 +131,7 @@ export function steps({ c, tenant, addrShort, addr, first, has = () => false, mi
         + casaBtns
         + (late ? ''
           : has('movein-pack')
-            ? para(`Your <b>Move-in Pack</b> is already in motion — utilities and internet are on us from here.`, 'margin-top:24px')
+            ? para(`We received your <b>Move-in Pack</b> payment. We'll confirm the utility details and activation schedule with you.`, 'margin-top:24px')
             : para(`And if you'd rather not think about utilities at all, the <b>Move-in Pack</b> is still the shortcut — we start the transfers the same day.`, 'margin-top:24px')
               + btn2(buyUrl('movein-pack', tenant), 'Move-in Pack — €149')
               + fine(`Questions? <a href="${waMsg(`Ciao BOOM! Info sul Move-in Pack per ${addr}.`)}" style="color:#141414">WhatsApp us</a>.`, 'text-align:center')),
@@ -143,7 +144,7 @@ export function steps({ c, tenant, addrShort, addr, first, has = () => false, mi
         + (late
             ? para(`<b>1 · The numbers.</b> Our records show an instalment still open on your side — settling it before move-in keeps everything smooth. One tap in your portal, card or transfer, receipt automatic.`, 'margin-bottom:4px')
             : has('cleaning-premium')
-            ? para(`<b>1 · A spotless home.</b> Your <b>Cleaning Premium</b> is booked — the team goes in the day before you arrive, and you'll get the photo report.`, 'margin-bottom:4px')
+            ? para(`<b>1 · A spotless home.</b> We received your <b>Cleaning Premium</b> payment. We'll confirm the team, access and date; photos follow after the clean is done.`, 'margin-bottom:4px')
             : para(`<b>1 · A spotless home.</b> Our <b>Cleaning Premium</b> is a professional deep clean the day before you arrive. You open the door to a hotel-fresh apartment.`, 'margin-bottom:4px')
               + includes(['Kitchen, bathrooms, floors and windows',
                           'Done the day before your move-in',
@@ -208,7 +209,11 @@ export async function runJourney() {
   try {
     const svc = await fsList('leads', { filter: { field: 'type', op: 'EQUAL', value: 'service' }, limit: 300 });
     (svc || []).forEach(l => { if (l && l.paid && l.email && l.kind) owned.add(String(l.email).toLowerCase() + '|' + l.kind); });
-  } catch (e) { console.warn('[journey] owned lookup:', e.message); }
+  } catch (e) {
+    console.warn('[journey] owned lookup:', e.message);
+    out.errors++;
+    return out; // Do not upsell a paid customer when purchase evidence is unavailable.
+  }
   let contracts = [];
   try {
     contracts = await fsList('contracts', { filter: { field: 'status', op: 'EQUAL', value: 'active' }, limit: 300 });
@@ -251,7 +256,26 @@ export async function runJourney() {
     if (!addr) addr = 'your home in Rome';
     const addrShort = addr.split(',')[0];
 
-    const has = kind => owned.has(String(email).toLowerCase() + '|' + kind);
+    const paidPaAddons = new Set();
+    if (c.preAgreementId) {
+      const dStart = dayDiff(c.startDate);
+      const kinds = ((dStart >= 24 && dStart <= 30) || (dStart >= 10 && dStart <= 14)) ? ['movein-pack']
+        : dStart >= 4 && dStart <= 7 ? ['cleaning-premium'] : [];
+      try {
+        for (const kind of kinds) {
+          if (owned.has(String(email).toLowerCase() + '|' + kind)) continue;
+          const task = await fsGet('operatorTasks/' + paidAddonTaskId(c.preAgreementId, kind));
+          if (task && task.source === 'preagreement-addon'
+            && task.preAgreementId === c.preAgreementId && task.serviceKind === kind
+            && task.stripeSessionId) paidPaAddons.add(kind);
+        }
+      } catch (e) {
+        console.warn('[journey] paid PA add-on lookup:', e.message);
+        out.errors++;
+        continue; // Retry the email on the next cron, without a second sales pitch.
+      }
+    }
+    const has = kind => owned.has(String(email).toLowerCase() + '|' + kind) || paidPaAddons.has(kind);
     const late = (overdueBy.get(id) || 0) > 0;
     // La Scheda: cosa manca DAVVERO (identità essenziale + copia documento).
     const identityOk = !!(c.tenantCF && c.tenantDocNum);
