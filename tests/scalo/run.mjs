@@ -30,6 +30,7 @@ const require = createRequire(import.meta.url);
 
 const passSrc = readFileSync(new URL('../../pass-delivery.html', import.meta.url), 'utf8');
 const boardSrc = readFileSync(new URL('../../board.html', import.meta.url), 'utf8');
+const apartmentsSrc = readFileSync(new URL('../../apartments.html', import.meta.url), 'utf8');
 const viewSrc = readFileSync(new URL('../../viewing.html', import.meta.url), 'utf8');
 const bookSrc = readFileSync(new URL('../../book.html', import.meta.url), 'utf8');
 const casaSrc = readFileSync(new URL('../../tenant.html', import.meta.url), 'utf8');
@@ -195,8 +196,11 @@ check('book: gli id che showConfirmed scrive esistono ancora',
 
 check('idrante: il board carica il motore delle corsie (dispo-engine)',
   boardSrc.includes('src="/js/dispo-engine.js"'));
-check('idrante: stessa porta della vetrina (REST pubblico listings)',
-  boardSrc.includes('firestore.googleapis.com') && boardSrc.includes('listings?pageSize=300'));
+check('idrante: stessa porta della vetrina (API catalogo proiettata)',
+  boardSrc.includes("fetch('/api/listings?format=firestore'") &&
+  apartmentsSrc.includes("fetch('/api/listings?format=firestore'") &&
+  !boardSrc.includes('firestore.googleapis.com') &&
+  !apartmentsSrc.includes('firestore.googleapis.com'));
 check('idrante: le corsie escono SOLO da marketLane, mai da un parser locale',
   boardSrc.includes('D.marketLane({') && boardSrc.includes('if (!D || !D.marketLane) return null'));
 check('idrante: la corsia closed non sale sul tabellone',

@@ -5630,6 +5630,9 @@ incoerente nasconde racconto e form; il dry run del Segugio richiede auth.
 dopo deploy e verifica dei lettori, chiudere la rule in un rilascio separato.
 Cache edge fino a 120 s; HTML di build e cache del service worker possono
 restare vecchi: niente segreti/off-market in `listings`. Test: `npm test -- catalogtruth catalogprivacy vetrina prenota dispo feed seo`.
+Il test `scalo` controlla ora che board e vetrina leggano entrambi l'API
+proiettata, non la vecchia REST pubblica di Firestore: la CI completa ha
+individuato l'asserzione storica rimasta indietro dopo la migrazione.
 
 Il service worker `boom-v29` cancella all'attivazione la cache `boom-v28`
 che può contenere HTML con letture Firestore dirette. Un client che non
