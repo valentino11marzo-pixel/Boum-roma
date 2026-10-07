@@ -166,4 +166,36 @@ ok('la vista non scrive su Firestore', !/\bdb\.|\.update\(|\.set\(|firestore/.te
 ok('l\'unica scrittura (collega gli interni) è solo admin e chiede conferma', /async function palazzoLinkOwner\(ids, ownerId\) \{\s*if \(!isAdmin\(\)\) return;[\s\S]{0,700}confirm\(/.test(app));
 ok('le azioni admin nella vista sono bloccate per il proprietario', /if \(!admin\) return;\s*\n\s*if \(act === 'rent'/.test(view));
 
+
+// ── 9. L'aspetto del palazzo: solo ciò che qualcuno ha dichiarato ─────
+const lk = m.look;
+eq('senza dichiarazione: aspetto neutro, mai persiane verdi per default', [lk.intonaco, lk.persiane, lk.declared], ['pietra', 'grafite', { intonaco: false, persiane: false, topFloor: false }]);
+eq('il civico è un fatto: targa e numero dall\'indirizzo', [lk.street, lk.civic], ['Viale Esempio', '12']);
+eq('civico con lettera', P.civicOf('Piazzale Prenestino 42a'), { street: 'Piazzale Prenestino', civic: '42A' });
+eq('un nome senza numero non inventa un civico', P.civicOf('Palazzo Prenestino'), { street: 'Palazzo Prenestino', civic: '' });
+const decl = P.model(P.context({ ...F.state, now: NOW, properties: F.state.properties.map(p => p.id === 'u7' ? { ...p, palazzoIntonaco: 'Ocra', palazzoPersiane: 'verde', palazzoNome: 'Palazzo Esempio', ultimoPiano: 5 } : p) }), all[0].key, F.month);
+eq('basta UN interno che lo dichiari (maiuscole indifferenti)', [decl.look.intonaco, decl.look.persiane, decl.look.name, decl.look.topFloor], ['ocra', 'verde', 'Palazzo Esempio', 5]);
+ok('ultimo piano dichiarato: il palazzo arriva fin lassù, coi piani vuoti', decl.floors.map(f => f.short).join(' ') === 'PT P1 P2 P3 P4 AT' && decl.floors.find(f => f.short === 'P4').ghost);
+const bogus = P.model(P.context({ ...F.state, now: NOW, properties: F.state.properties.map(p => p.id === 'u7' ? { ...p, palazzoIntonaco: 'fucsia', palazzoPersiane: '<b>' } : p) }), all[0].key, F.month);
+eq('un colore fuori elenco non passa: resta neutro', [bogus.look.intonaco, bogus.look.persiane, bogus.look.declared.intonaco], ['pietra', 'grafite', false]);
+const prev = P.model(ctx, all[0].key, F.month, { topFloor: 6 });
+ok('anteprima (opts.topFloor) disegna i piani...', prev.floors.map(f => f.short).join(' ') === 'PT P1 P2 P3 P4 P5 AT');
+eq('...ma m.look resta ciò che è SALVATO (il confronto per "cosa è cambiato")', prev.look.topFloor, null);
+eq('valida: solo i campi passati, coi nomi del documento', P.validateLook({ intonaco: 'ocra', persiane: 'verde', nome: ' Palazzo Esempio ', ultimoPiano: '5' }, m),
+  { ok: true, fields: { palazzoIntonaco: 'ocra', palazzoPersiane: 'verde', palazzoNome: 'Palazzo Esempio', ultimoPiano: 5 }, errors: [] });
+eq('rifiuta, mai aggiusta: ultimo piano sotto un interno gestito (P3 + attico → almeno 4)', P.validateLook({ ultimoPiano: 3 }, m).errors, ['ultimoPiano<4']);
+eq('rifiuta un ultimo piano non intero o fuori scala', ['2.5', 0, 41, 'tre'].map(v => P.validateLook({ ultimoPiano: v }, m).errors[0]), ['ultimoPiano', 'ultimoPiano', 'ultimoPiano', 'ultimoPiano']);
+eq('rifiuta un colore fuori elenco e un nome lungo', P.validateLook({ intonaco: 'fucsia', persiane: 'rosa', nome: 'x'.repeat(61) }, m).errors, ['intonaco', 'persiane', 'nome']);
+const noTop = P.model(P.context({ ...F.state, now: NOW, properties: F.state.properties.filter(p => p.id !== 'u11') }), all[0].key, F.month);
+eq('senza attico basta il piano più alto gestito', [P.validateLook({ ultimoPiano: 3 }, noTop).ok, P.validateLook({ ultimoPiano: 2 }, noTop).errors], [true, ['ultimoPiano<3']]);
+ok('ogni preset ha nome e colore esadecimale', ['intonaco', 'persiane'].every(k => Object.values(P.LOOKS[k]).every(v => v[0] && /^#[0-9A-F]{6}$/i.test(v[1]))));
+const css = readFileSync(new URL('../../css/palazzo.css', import.meta.url), 'utf8');
+ok('i default neutri sono quelli del foglio di stile', css.includes('var(--wall,' + P.LOOKS.intonaco[P.LOOK_DEFAULT.intonaco][1] + ')') && css.includes('var(--shut,' + P.LOOKS.persiane[P.LOOK_DEFAULT.persiane][1] + ')'));
+ok('il salvataggio dell\'aspetto è solo admin, con conferma e campi in lista bianca', /async function palazzoSaveLook\(ids, fields\) \{\s*if \(!isAdmin\(\)\) return false;\s*const allowed = \['palazzoIntonaco', 'palazzoPersiane', 'palazzoNome', 'ultimoPiano'\];[\s\S]{0,1200}confirm\(/.test(app));
+ok('la vista non salva un campo che l\'admin non ha toccato', /function lookChanges\(m\)/.test(view) && /validateLook\(lookChanges\(last\.m\), last\.m\)/.test(view));
+ok('il libero ha le persiane chiuse, sempre (anche in mezzo a un\'animazione)', /\.plz-win\[data-state="vacant"\] \.plz-shut,[^{]*\{transform:none!important\}/.test(css));
+
+const sw = readFileSync(new URL('../../sw.js', import.meta.url), 'utf8');
+ok('sw.js: motore, vista e foglio del Palazzo viaggiano col portale (network-first)', ['/js/palazzo-engine.js', '/js/palazzo.js', '/css/palazzo.css'].every(f => sw.includes("url.pathname === '" + f + "'")));
+
 console.log(`\n${n} check passati — palazzo sintetico, nessuna rete.`);

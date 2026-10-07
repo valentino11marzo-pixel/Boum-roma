@@ -415,6 +415,61 @@
     return out;
   }
 
+  // ── L'aspetto del palazzo ─────────────────────────────────────────────
+  // La facciata disegna SOLO ciò che qualcuno ha dichiarato (dalla foto,
+  // dal sopralluogo): intonaco, persiane, ultimo piano, nome. Senza
+  // dichiarazione l'aspetto è neutro (pietra + grafite), mai "persiane
+  // verdi" per default: sarebbe una bella bugia sul palazzo di qualcuno.
+  // Il civico invece è un fatto (sta nell'indirizzo) e va sulla targa.
+  var LOOKS = {
+    intonaco: { pietra: ['Pietra · neutro', '#A9A193'], ocra: ['Ocra romana', '#C4874C'], giallo: ['Giallo Roma', '#CFA153'],
+      rosso: ['Rosso pompeiano', '#A2573C'], rosa: ['Rosa antico', '#C0907E'], travertino: ['Travertino', '#CDBFA1'], bianco: ['Bianco', '#D6D2C7'] },
+    persiane: { grafite: ['Grafite · neutro', '#3A3D41'], verde: ['Verde', '#2D4A38'], marrone: ['Marrone', '#4A3527'],
+      grigio: ['Grigio', '#6A6F74'], bianco: ['Bianco', '#CBC6BB'] }
+  };
+  var LOOK_DEFAULT = { intonaco: 'pietra', persiane: 'grafite' };
+  function civicOf(label) {
+    var mm = /^(.*?)[\s,]+(\d+[a-z]?(?:\/[a-z0-9]+)?)$/i.exec(str(label));
+    return mm ? { street: mm[1].trim(), civic: mm[2].toUpperCase() } : { street: str(label), civic: '' };
+  }
+  function lookOf(props, b, declaredTop) {
+    var first = function (k) {
+      for (var i = 0; i < props.length; i++) { var v = str(props[i] && props[i][k]); if (v) return v; }
+      return '';
+    };
+    var it = first('palazzoIntonaco').toLowerCase(), pe = first('palazzoPersiane').toLowerCase();
+    var where = b && b.key && b.key.slice(0, 2) === 'a:' ? civicOf(b.label) : civicOf(titleCase(streetKey(props[0] && props[0].address) || (b ? b.label : '')));
+    return {
+      intonaco: LOOKS.intonaco[it] ? it : LOOK_DEFAULT.intonaco,
+      persiane: LOOKS.persiane[pe] ? pe : LOOK_DEFAULT.persiane,
+      declared: { intonaco: !!LOOKS.intonaco[it], persiane: !!LOOKS.persiane[pe], topFloor: !!declaredTop },
+      name: first('palazzoNome').slice(0, 60), street: where.street, civic: where.civic, topFloor: declaredTop || null
+    };
+  }
+  // Quello che l'admin vuole salvare sugli interni del palazzo. Rifiuta,
+  // mai aggiusta: un ultimo piano più basso di un interno gestito è un
+  // errore da dire, non un numero da correggere in silenzio.
+  function validateLook(input, m) {
+    input = input || {};
+    var out = {}, errors = [];
+    if (input.intonaco != null) { if (LOOKS.intonaco[input.intonaco]) out.palazzoIntonaco = input.intonaco; else errors.push('intonaco'); }
+    if (input.persiane != null) { if (LOOKS.persiane[input.persiane]) out.palazzoPersiane = input.persiane; else errors.push('persiane'); }
+    if (input.nome != null) {
+      var n = str(input.nome);
+      if (n.length > 60) errors.push('nome'); else out.palazzoNome = n;
+    }
+    if (input.ultimoPiano != null && str(input.ultimoPiano) !== '') {
+      var u = Number(input.ultimoPiano);
+      var units = m && m.units ? m.units : [];
+      var highest = units.reduce(function (h, x) { return x.floor != null && !x.floorTop && x.floor > h ? x.floor : h; }, -1);
+      var need = highest + (units.some(function (x) { return x.floorTop; }) ? 1 : 0);
+      if (!(u === Math.floor(u)) || u < 1 || u > 40) errors.push('ultimoPiano');
+      else if (u < need) errors.push('ultimoPiano<' + need);
+      else out.ultimoPiano = u;
+    }
+    return { ok: !errors.length, fields: out, errors: errors };
+  }
+
   // ── I palazzi ────────────────────────────────────────────────────────
   function buildings(ctx, filter) {
     var groups = Object.create(null);
@@ -451,7 +506,10 @@
     // compreso). Non "quanti piani": quello si legge in due modi (col piano
     // terra o senza) e il disegno mentirebbe di un piano.
     var declared = props.map(function (p) { return parseInt(p.ultimoPiano, 10); }).filter(function (x) { return x > 0 && x <= 40; });
-    var declaredTop = declared.length ? Math.max.apply(null, declared) : null;
+    var savedTop = declared.length ? Math.max.apply(null, declared) : null, declaredTop = savedTop;
+    // L'anteprima dell'admin (opts.topFloor) prima di salvare: stesso disegno,
+    // ma m.look resta ciò che è SALVATO (è il confronto per "cosa è cambiato").
+    if (opts.topFloor > 0 && opts.topFloor <= 40) declaredTop = Math.floor(opts.topFloor);
     var topN = Math.max(known.length ? Math.max.apply(null, known) + 1 : 1, declaredTop || 0);
     var owner = b.owner;
     var units = props.map(function (p) {
@@ -516,7 +574,7 @@
     var norate = units.filter(function (u) { return u.month.state === 'norate' && m <= ctx.month; });
     if (norate.length) issues.push({ code: 'norate', count: norate.length, ids: norate.map(function (u) { return u.id; }) });
     var model0 = { building: b, buildings: all, month: m, currentMonth: ctx.month, floors: floors, unplaced: unplaced, units: units,
-      totals: totalsOf(units), series: series, issues: issues, owner: owner };
+      totals: totalsOf(units), series: series, issues: issues, owner: owner, look: lookOf(props, b, savedTop) };
     model0.analytics = analyticsOf(ctx, model0);
     model0.brief = brief(model0);
     return model0;
@@ -583,7 +641,8 @@
   var API = { day: day, monthOf: monthOf, monthAdd: monthAdd, monthLabel: monthLabel, parseFloor: parseFloor, floorLabel: floorLabel,
     unitOf: unitOf, scalaOf: scalaOf, floorOf: floorOf, streetKey: streetKey, buildingKeyOf: buildingKeyOf, ownerOf: ownerOf,
     context: context, unitMonth: unitMonth, arrearsOf: arrearsOf, strip: strip, buildings: buildings, model: model,
-    totalsOf: totalsOf, pipelineOf: pipelineOf, timeOf: timeOf, analyticsOf: analyticsOf, brief: brief, STATES: STATES };
+    totalsOf: totalsOf, pipelineOf: pipelineOf, timeOf: timeOf, analyticsOf: analyticsOf, brief: brief, STATES: STATES,
+    LOOKS: LOOKS, LOOK_DEFAULT: LOOK_DEFAULT, lookOf: lookOf, civicOf: civicOf, validateLook: validateLook };
   if (typeof module === 'object' && module.exports) module.exports = API;
   if (root) root.BOOM_PALAZZO = API;
 })(typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : this);

@@ -28,7 +28,7 @@
   ];
   var GLYPH = { paid: '✓', late: '!', due: '·', review: '?', norate: '–', unknown: '?', incoming: '→', vacant: '' };
 
-  var ui = { key: '', month: '', view: '3d', filter: 'all', selected: '', rx: -22, ry: 34, zoom: 1, intro: Object.create(null), playing: null };
+  var ui = { key: '', month: '', view: '3d', filter: 'all', selected: '', rx: -22, ry: 34, zoom: 1, intro: Object.create(null), facIntro: Object.create(null), playing: null, draft: null, lookOpen: false, paidOpen: false };
   var adapter = null, last = null, bound = false;
   try {
     var saved = JSON.parse(root.localStorage && root.localStorage.getItem('boom_palazzo') || '{}');
@@ -69,7 +69,14 @@
     var me = S.profile && S.profile.id;
     var filter = admin ? null : function (p) { return p.ownerId === me; };
     if (!ui.month) ui.month = ctx.month;
-    var m = E.model(ctx, ui.key, ui.month, { filter: filter });
+    // L'anteprima dell'aspetto (solo admin, prima di salvare) usa lo stesso
+    // motore: l'ultimo piano entra nel modello, i colori sopra m.look.
+    var d = admin && ui.draft && ui.draft.key === ui.key ? ui.draft : null;
+    var m = E.model(ctx, ui.key, ui.month, { filter: filter, topFloor: d && d.ultimoPiano > 0 ? +d.ultimoPiano : undefined });
+    if (m.building && d) {
+      m.lookView = Object.assign({}, m.look, d.intonaco ? { intonaco: d.intonaco } : {}, d.persiane ? { persiane: d.persiane } : {}, d.nome != null ? { name: String(d.nome).trim() } : {});
+      if (d.ultimoPiano > 0 && d.ultimoPiano <= 40) m.lookView.topFloor = +d.ultimoPiano;
+    }
     if (!admin && m.building) m.brief = E.brief(m, { owner: true });
     if (m.building && m.building.key !== ui.key) { ui.key = m.building.key; }
     if (ui.selected && !m.units.some(function (u) { return u.id === ui.selected; })) ui.selected = '';
@@ -88,7 +95,8 @@
     if (ui.view === 'simple') {
       return '<div class="plz" data-view="simple">' + header(data) + '<div id="plz-issues">' + issues(data) + '</div>' +
         '<div class="plz-body plz-body-simple"><div class="plz-main" id="plz-simple">' + simple(data) + '</div>' +
-        '<aside class="plz-panel" id="plz-panel" aria-live="polite">' + (ui.selected ? panel(data) : '') + '</aside></div></div>';
+        '<aside class="plz-panel" id="plz-panel" aria-live="polite">' + (ui.selected ? panel(data) : '') + '</aside></div>' +
+        '<div class="plz-tip" id="plz-tip" hidden></div></div>';
     }
     return '<div class="plz" data-view="' + ui.view + '">' + header(data) + '<div id="plz-issues">' + issues(data) + '</div><div id="plz-kpis">' + kpis(data) + '</div>' +
       '<div id="plz-timeline">' + timeline(data) + '</div>' +
@@ -170,13 +178,20 @@
     }).join('') + '</div>';
   }
 
+  // Un libero non è tutto uguale: in trattativa o già sul sito si vede.
+  function pipeOf(u) {
+    var s = u.month.state, pr = u.pipeline && u.pipeline.proposal, ls = u.pipeline && u.pipeline.listing;
+    return s === 'vacant' && pr && pr.kind !== 'reserved' ? 'nego' : s === 'vacant' && ls && ls.published ? 'listed' : '';
+  }
+  function unitLabel(u) {
+    var um = u.month, s = um.state, pipe = pipeOf(u);
+    return unitTitle(u) + ', ' + unitWhere(u) + ': ' + (um.tenants.join(', ') || (s === 'vacant' ? 'libero' : '')) + ' — ' + stateLabel(um, last.m.month, last.m.currentMonth) + (um.expected ? ', ' + eur(um.expected) : '') +
+      (pipe === 'nego' ? ' · in trattativa' : pipe === 'listed' ? ' · pubblicato sul sito' : '');
+  }
   function cube(u, x, z, i) {
-    var um = u.month, s = um.state, dim = !matches(ui.filter, s);
-    var pr = u.pipeline && u.pipeline.proposal, ls = u.pipeline && u.pipeline.listing;
-    var pipe = s === 'vacant' && pr && pr.kind !== 'reserved' ? 'nego' : s === 'vacant' && ls && ls.published ? 'listed' : '';
+    var um = u.month, s = um.state, dim = !matches(ui.filter, s), pipe = pipeOf(u);
     var who = um.tenants.length ? surname(um.tenants[0]) : pipe === 'nego' ? 'Trattativa' : pipe === 'listed' ? 'Sul sito' : s === 'vacant' ? 'Libero' : s === 'incoming' ? 'In arrivo' : '';
-    var label = unitTitle(u) + ', ' + unitWhere(u) + ': ' + (um.tenants.join(', ') || (s === 'vacant' ? 'libero' : '')) + ' — ' + stateLabel(um, last.m.month, last.m.currentMonth) + (um.expected ? ', ' + eur(um.expected) : '');
-    return '<div class="plz-unit' + (u.id === ui.selected ? ' is-sel' : '') + (dim ? ' is-dim' : '') + '" role="button" tabindex="0" data-plz="select" data-id="' + esc(u.id) + '" data-state="' + s + '"' + (pipe ? ' data-pipe="' + pipe + '"' : '') + ' style="--x:' + x + 'px;--zz:' + z + 'px;--i:' + i + '" aria-label="' + esc(label + (pipe === 'nego' ? ' · in trattativa' : pipe === 'listed' ? ' · pubblicato sul sito' : '')) + '">' +
+    return '<div class="plz-unit' + (u.id === ui.selected ? ' is-sel' : '') + (dim ? ' is-dim' : '') + '" role="button" tabindex="0" data-plz="select" data-id="' + esc(u.id) + '" data-state="' + s + '"' + (pipe ? ' data-pipe="' + pipe + '"' : '') + ' style="--x:' + x + 'px;--zz:' + z + 'px;--i:' + i + '" aria-label="' + esc(unitLabel(u)) + '">' +
       '<div class="plz-face plz-f-front"><b>' + esc(u.interno || '•') + '</b><small>' + esc(who) + '</small><em aria-hidden="true">' + (GLYPH[s] || '') + '</em></div>' +
       '<div class="plz-face plz-f-back"></div><div class="plz-face plz-f-right"></div><div class="plz-face plz-f-left"></div><div class="plz-face plz-f-top"></div></div>';
   }
@@ -340,23 +355,115 @@
   }
 
   // ── Semplice: il mese in una schermata ───────────────────────────────
-  // La frase del mese (scritta dai numeri), la facciata del palazzo in 2D
-  // (un quadrato per interno, dall'alto in basso come lo guardi dalla
-  // strada) e tre elenchi con UN'azione per riga. Nessun grafico da leggere.
-  function facade(data) {
-    var m = data.m, rows = m.floors.slice().reverse();
-    var max = Math.max.apply(null, rows.map(function (f) { return f.units.length; }).concat([1]));
-    return '<div class="plz-facade" role="group" aria-label="La facciata del palazzo"><div class="plz-roofline" aria-hidden="true"></div>' + rows.map(function (f) {
-      return '<div class="plz-frow' + (f.ghost ? ' is-ghost' : '') + '"><span class="plz-flab">' + esc(f.short) + '</span><div class="plz-fcells" style="--n:' + max + '">' +
-        (f.ghost ? '<span class="plz-fghost">non gestito</span>' : f.units.map(function (u) {
-          var st = u.month.state;
-          return '<button type="button" class="plz-fcell plz-s-' + st + (u.id === ui.selected ? ' is-sel' : '') + (matches(ui.filter, st) ? '' : ' is-dim') + '" data-plz="select" data-id="' + esc(u.id) + '" data-state="' + st + '" aria-label="' + esc(unitTitle(u) + ': ' + stateLabel(u.month, m.month, m.currentMonth)) + '"><b>' + esc(u.interno || '•') + '</b><em aria-hidden="true">' + (GLYPH[st] || '') + '</em></button>';
-        }).join('')) + '</div></div>';
-    }).join('') + (m.unplaced.length ? '<div class="plz-frow"><span class="plz-flab">?</span><div class="plz-fcells" style="--n:' + max + '">' + m.unplaced.map(function (u) {
-      return '<button type="button" class="plz-fcell plz-s-' + u.month.state + '" data-plz="select" data-id="' + esc(u.id) + '" data-state="' + u.month.state + '" aria-label="' + esc(unitTitle(u) + ', piano da indicare: ' + stateLabel(u.month, m.month, m.currentMonth)) + '"><b>' + esc(u.interno || '•') + '</b></button>';
-    }).join('') + '</div></div>' : '') + '<div class="plz-street" aria-hidden="true"></div></div>';
+  // La frase del mese (scritta dai numeri), la facciata del palazzo di sera
+  // e gli elenchi con UN'azione per riga. Nessun grafico da leggere.
+  //
+  // La facciata: ogni interno è una finestra e la LUCE è lo stato del mese
+  // (oro pagato, rosso non ha pagato, avorio deve pagare, blu in verifica,
+  // menta in arrivo a persiane socchiuse). Libero = persiane CHIUSE. Le
+  // finestre senza numero sono di interni che BOOM non gestisce. Intonaco,
+  // persiane, ultimo piano e nome vengono da m.look: solo ciò che qualcuno
+  // ha dichiarato, il resto è neutro. La posizione degli interni sul piano
+  // è schematica, e la didascalia lo dice.
+  function frame() { return '<span class="plz-win-frame" aria-hidden="true"><span class="plz-win-glass"></span><span class="plz-shut plz-shut-l"></span><span class="plz-shut plz-shut-r"></span></span>'; }
+  function win(u, k) {
+    var s = u.month.state, pipe = pipeOf(u);
+    return '<button type="button" class="plz-win' + (u.id === ui.selected ? ' is-sel' : '') + (matches(ui.filter, s) ? '' : ' is-dim') + '" style="--bi:' + k + '" data-plz="select" data-id="' + esc(u.id) + '" data-state="' + s + '"' + (pipe ? ' data-pipe="' + pipe + '"' : '') + ' aria-label="' + esc(unitLabel(u)) + '">' +
+      frame() + '<span class="plz-win-plate"><b>' + esc(u.interno || '•') + '</b><em aria-hidden="true">' + (GLYPH[s] || '') + '</em></span></button>';
   }
-  function simple(data) {
+  function blind(k) { return '<span class="plz-win is-blind" style="--bi:' + k + '" aria-hidden="true">' + frame() + '<span class="plz-win-plate"></span></span>'; }
+  function lookStyle(look) {
+    var I = E.LOOKS.intonaco[look.intonaco] || E.LOOKS.intonaco[E.LOOK_DEFAULT.intonaco];
+    var P = E.LOOKS.persiane[look.persiane] || E.LOOKS.persiane[E.LOOK_DEFAULT.persiane];
+    return '--wall:' + I[1] + ';--shut:' + P[1];
+  }
+  function facade(data) {
+    var m = data.m, look = m.lookView || m.look, floors = m.floors;
+    var isAttic = function (f) { return f.label === 'Attico'; };
+    var n = Math.max(2, floors.reduce(function (x, f) { return isAttic(f) ? x : Math.max(x, f.units.length); }, 0));
+    var attic = floors.length && isAttic(floors[floors.length - 1]) ? floors[floors.length - 1] : null;
+    var row = function (f) {
+      var fi = floors.indexOf(f), ground = f.n === 0;
+      var cells = f.units.map(function (u, k) { return win(u, k); });
+      var cols = f === attic ? Math.max(1, f.units.length) : n;
+      for (var k = cells.length; k < cols; k++) cells.push(blind(k));
+      if (ground) {
+        cells.splice(Math.floor(cells.length / 2), 0, '<span class="plz-portone" aria-hidden="true">' + (look.civic ? '<i class="plz-civ">' + esc(look.civic) + '</i>' : '') + '<span class="plz-door"></span></span>');
+        cols++;
+      }
+      return '<div class="plz-fac-fl' + (f === attic ? ' is-attic' : '') + (ground ? ' is-ground' : '') + (f.ghost ? ' is-ghost' : '') + '" style="--fi:' + fi + ';--cols:' + cols + '">' +
+        '<span class="plz-fac-lab" title="' + esc(f.label + (f.ghost ? ' · non gestito da BOOM' : '')) + '">' + esc(f.short) + '</span>' +
+        (ground && look.street ? '<span class="plz-targa" aria-hidden="true">' + esc(look.street) + '</span>' : '') +
+        '<div class="plz-fac-bays">' + cells.join('') + '</div></div>';
+    };
+    var regular = floors.filter(function (f) { return f !== attic; }).slice().reverse();
+    var intro = !ui.facIntro[m.building.key] && !ui.draft;
+    var keys = [['paid', 'Pagato'], ['late', 'Non ha pagato'], ['due', 'Deve pagare'], ['review', 'In verifica'], ['incoming', 'In arrivo'], ['vacant', 'Libero']];
+    return '<figure class="plz-facade' + (intro ? ' is-intro' : '') + '" id="plz-fac" style="' + lookStyle(look) + ';--n:' + n + '" aria-label="' + esc('La facciata di ' + (look.name || m.building.label) + ': una finestra per interno') + '">' +
+      '<div class="plz-fac-bld">' +
+      (attic ? '<div class="plz-fac-roof is-small" aria-hidden="true"></div>' + row(attic) : '') +
+      '<div class="plz-fac-roof" aria-hidden="true">' + (look.name ? '<span>' + esc(look.name) + '</span>' : '') + '</div>' +
+      regular.map(row).join('') + '</div>' +
+      '<div class="plz-fac-street" aria-hidden="true"></div>' +
+      (m.unplaced.length ? '<div class="plz-fac-yard"><p>Senza piano · indicalo dalla scheda</p><div class="plz-fac-bays" style="--cols:' + Math.min(6, Math.max(2, m.unplaced.length)) + '">' + m.unplaced.map(function (u, k) { return win(u, k); }).join('') + '</div></div>' : '') +
+      '<figcaption class="plz-fac-cap"><span class="plz-keys">' + keys.map(function (k) { return '<span class="plz-key" data-state="' + k[0] + '"><i></i>' + k[1] + '</span>'; }).join('') + '</span>' +
+      '<small>Una finestra per interno; la posizione sul piano è schematica. Finestre senza numero: interni non gestiti da BOOM.' +
+      (data.admin && !(look.declared.intonaco || look.declared.persiane) && !ui.draft ? ' Aspetto neutro: imposta intonaco e persiane veri qui sotto.' : '') + '</small></figcaption></figure>';
+  }
+
+  // L'aspetto del palazzo, solo admin: si dichiara ciò che si è visto (foto,
+  // sopralluogo) e si salva su TUTTI gli interni del palazzo. L'anteprima è
+  // dal vivo; la scrittura parte solo da "Salva", con conferma.
+  function lookPanel(data) {
+    var m = data.m, look = m.look, d = ui.draft || {};
+    var sw = function (kind, key) {
+      var val = E.LOOKS[kind][key], cur = d[kind] != null ? d[kind] : (look.declared[kind] ? look[kind] : '');
+      return '<label class="plz-sw" title="' + esc(val[0]) + '"><input type="radio" name="plz-look-' + kind + '" value="' + key + '" data-look="' + kind + '"' + (cur === key ? ' checked' : '') + '><i style="--sw:' + val[1] + '"></i><span>' + esc(val[0]) + '</span></label>';
+    };
+    var top = d.ultimoPiano != null ? d.ultimoPiano : (look.topFloor || '');
+    var nome = d.nome != null ? d.nome : look.name;
+    return '<details class="plz-look" id="plz-look"' + (ui.draft || ui.lookOpen ? ' open' : '') + '><summary>Aspetto del palazzo <em class="plz-warn" id="plz-look-badge">' + lookBadge(look) + '</em></summary>' +
+      '<p class="plz-look-note">Disegna solo ciò che hai visto, dalla foto o dal sopralluogo. Si salva su tutti gli interni del palazzo.</p>' +
+      '<div class="plz-look-row"><label class="plz-look-f"><span>Nome · facoltativo</span><input type="text" maxlength="60" data-look="nome" value="' + esc(nome) + '"></label>' +
+      '<label class="plz-look-f plz-look-n"><span>Ultimo piano</span><input type="number" min="1" max="40" step="1" inputmode="numeric" data-look="ultimoPiano" value="' + esc(top) + '" aria-describedby="plz-look-nh"></label></div>' +
+      '<p class="plz-look-hint" id="plz-look-nh">Il numero dell’ultimo piano, attico compreso.</p>' +
+      '<fieldset class="plz-look-sw"><legend>Intonaco</legend>' + Object.keys(E.LOOKS.intonaco).map(function (k) { return sw('intonaco', k); }).join('') + '</fieldset>' +
+      '<fieldset class="plz-look-sw"><legend>Persiane</legend>' + Object.keys(E.LOOKS.persiane).map(function (k) { return sw('persiane', k); }).join('') + '</fieldset>' +
+      '<p class="plz-look-err" id="plz-look-err" role="alert"></p>' +
+      '<div class="plz-look-act" id="plz-look-act">' + lookActions() + '</div></details>';
+  }
+  function lookBadge(look) { return ui.draft ? 'anteprima' : look.declared.intonaco || look.declared.persiane ? 'dichiarato' : 'neutro'; }
+  function lookActions() {
+    return '<button type="button" class="plz-btn plz-primary plz-sm" data-plz="look-save"' + (ui.draft ? '' : ' disabled') + '>Salva sul palazzo</button>' +
+      (ui.draft ? '<button type="button" class="plz-btn plz-sm" data-plz="look-cancel">Annulla</button>' : '');
+  }
+  // Solo ciò che l'admin ha davvero cambiato: toccare l'ultimo piano non
+  // dichiara un intonaco che nessuno ha scelto.
+  function lookChanges(m) {
+    var d = ui.draft || {}, look = m.look, out = {};
+    if (d.intonaco != null && (d.intonaco !== look.intonaco || !look.declared.intonaco)) out.intonaco = d.intonaco;
+    if (d.persiane != null && (d.persiane !== look.persiane || !look.declared.persiane)) out.persiane = d.persiane;
+    if (d.nome != null && String(d.nome).trim() !== look.name) out.nome = String(d.nome).trim();
+    if (d.ultimoPiano != null && String(d.ultimoPiano).trim() !== '' && String(d.ultimoPiano).trim() !== String(look.topFloor || '')) out.ultimoPiano = String(d.ultimoPiano).trim();
+    return out;
+  }
+  function lookError(errors) {
+    return errors.map(function (e) {
+      if (e === 'intonaco' || e === 'persiane') return 'Colore non valido.';
+      if (e === 'nome') return 'Il nome sta in 60 caratteri.';
+      if (e === 'ultimoPiano') return 'L’ultimo piano è un numero intero da 1 a 40.';
+      var need = /^ultimoPiano<(\d+)$/.exec(e);
+      if (need) return 'Un interno gestito arriva al ' + E.floorLabel(+need[1]).toLowerCase() + ': l’ultimo piano non può essere più basso di ' + need[1] + '.';
+      return 'Valore non valido.';
+    }).join(' ');
+  }
+
+  function briefHTML(data) {
+    var m = data.m, b = m.brief || [];
+    return '<div class="plz-brief"><p class="plz-eyebrow">' + esc(E.monthLabel(m.month)) + ' in breve</p><p class="plz-lead">' + esc((b[0] || '').replace(/^[^:]+:\s*/, '')) + '</p>' +
+      (b.length > 1 ? '<p class="plz-rest">' + esc(b.slice(1).join(' ')) + '</p>' : '') + '</div>';
+  }
+  function cards(data) {
     var m = data.m, admin = data.admin, by = function (states) { return m.units.filter(function (u) { return states.indexOf(u.month.state) >= 0; }); };
     var late = by(['late']).sort(function (a, b) { return b.month.lateDays - a.month.lateDays; });
     var due = by(['due']), check = by(['review', 'norate', 'unknown']), free = by(['vacant', 'incoming']), paid = by(['paid']);
@@ -368,16 +475,34 @@
       return admin && r ? '<button type="button" class="plz-btn plz-primary plz-sm" data-plz="paylink" data-pay="' + esc(r.id) + '">Sollecita</button>' : '';
     };
     var card = function (cls, title, n, body) { return '<section class="plz-scard ' + cls + '"><h3>' + title + ' <b>' + n + '</b></h3>' + body + '</section>'; };
-    var b = m.brief || [];
-    return '<div class="plz-brief"><p class="plz-eyebrow">' + esc(E.monthLabel(m.month)) + ' in breve</p><p class="plz-lead">' + esc((b[0] || '').replace(/^[^:]+:\s*/, '')) + '</p>' +
-      (b.length > 1 ? '<p class="plz-rest">' + esc(b.slice(1).join(' ')) + '</p>' : '') + '</div>' +
-      '<div class="plz-sgrid">' + facade(data) + '<div class="plz-scards">' +
-      card('is-late', 'Non hanno pagato', late.length, late.length ? late.map(function (u) { return row(u, eur(u.month.lateAmount || u.month.expected), u.month.lateDays ? u.month.lateDays + (u.month.lateDays === 1 ? ' giorno' : ' giorni') + ' di ritardo' : 'scaduto', sollecita(u)); }).join('') : '<p class="plz-ok">Tutti in regola.</p>') +
+    return card('is-late', 'Non hanno pagato', late.length, late.length ? late.map(function (u) { return row(u, eur(u.month.lateAmount || u.month.expected), u.month.lateDays ? u.month.lateDays + (u.month.lateDays === 1 ? ' giorno' : ' giorni') + ' di ritardo' : 'scaduto', sollecita(u)); }).join('') : '<p class="plz-ok">Tutti in regola.</p>') +
       (due.length ? card('', 'Devono ancora pagare', due.length, due.map(function (u) { var r = u.month.rows.find(function (x) { return x.state === 'due'; }); return row(u, eur(u.month.expected), r && r.dueDate ? 'entro il ' + dateIt(r.dueDate) : ''); }).join('')) : '') +
       (check.length ? card('', 'Da verificare', check.length, check.map(function (u) { return row(u, '', stateLabel(u.month, m.month, m.currentMonth)); }).join('')) : '') +
       card('', 'Liberi', free.length, free.length ? free.map(function (u) { return row(u, '', freeNote(u)); }).join('') : '<p class="plz-ok">Tutto pieno.</p>') +
-      '<details class="plz-scard plz-paidcard"><summary><h3>Hanno pagato <b>' + paid.length + '</b></h3></summary>' + paid.map(function (u) { return row(u, eur(u.month.collected || u.month.expected), ''); }).join('') + '</details>' +
-      '</div></div>';
+      '<details class="plz-scard plz-paidcard"' + (ui.paidOpen ? ' open' : '') + '><summary><h3>Hanno pagato <b>' + paid.length + '</b></h3></summary>' + paid.map(function (u) { return row(u, eur(u.month.collected || u.month.expected), ''); }).join('') + '</details>';
+  }
+  function simple(data) {
+    return '<div id="plz-sbrief">' + briefHTML(data) + '</div>' +
+      '<div class="plz-sgrid"><div class="plz-scol">' + facade(data) + (data.admin ? lookPanel(data) : '') + '</div>' +
+      '<div class="plz-scards" id="plz-scards">' + cards(data) + '</div></div>';
+  }
+  // Cambiare mese (o riprodurre l'anno) non ridisegna la facciata: cambia
+  // la luce delle finestre e le persiane si aprono o si chiudono davvero.
+  function patchFacade(data) {
+    var fac = doc.getElementById('plz-fac'); if (!fac) return;
+    var byId = Object.create(null); data.m.units.forEach(function (u) { byId[u.id] = u; });
+    var els = fac.querySelectorAll('.plz-win[data-id]');
+    if (els.length !== data.m.units.length) { fac.outerHTML = facade(data); return; }
+    Array.prototype.forEach.call(els, function (el) {
+      var u = byId[el.getAttribute('data-id')]; if (!u) return;
+      var s = u.month.state, pipe = pipeOf(u);
+      el.setAttribute('data-state', s);
+      if (pipe) el.setAttribute('data-pipe', pipe); else el.removeAttribute('data-pipe');
+      el.setAttribute('aria-label', unitLabel(u));
+      el.classList.toggle('is-dim', !matches(ui.filter, s));
+      el.classList.toggle('is-sel', u.id === ui.selected);
+      var em = el.querySelector('.plz-win-plate em'); if (em) em.textContent = GLYPH[s] || '';
+    });
   }
 
   // ── L'andamento: 12 mesi di soldi, puntualità, sfitto, scadenze ────────
@@ -413,7 +538,8 @@
     var data = compute(); last = data;
     var m = data.m, set = function (id, html) { var el = doc.getElementById(id); if (el) el.innerHTML = html; };
     if (ui.view === 'simple') {
-      set('plz-issues', issues(data)); set('plz-simple', simple(data)); set('plz-panel', ui.selected ? panel(data) : '');
+      set('plz-issues', issues(data)); set('plz-sbrief', briefHTML(data)); set('plz-scards', cards(data)); set('plz-panel', ui.selected ? panel(data) : '');
+      if (doc.getElementById('plz-fac')) patchFacade(data); else set('plz-simple', simple(data));
       var lab0 = doc.getElementById('plz-month-label'); if (lab0) lab0.textContent = E.monthLabel(m.month);
       toggleToday(m);
       return;
@@ -484,8 +610,9 @@
   function mount() {
     if (!doc) return;
     var st = doc.getElementById('plz-stage'), w = world();
-    if (last && last.m.building) ui.intro[last.m.building.key] = true;
+    lightsOn();
     if (!st || !w) return;
+    if (last && last.m.building) ui.intro[last.m.building.key] = true;
     applyView();
     scrollTimeline();
     var drag = null;
@@ -518,6 +645,44 @@
       e.preventDefault(); applyView();
     });
     w.addEventListener('animationend', function (e) { if (e.target === w) w.classList.remove('plz-intro'); });
+  }
+
+  // La prima volta che si apre un palazzo le luci si accendono dal basso e
+  // le persiane si aprono piano per piano. Una volta sola per palazzo.
+  function lightsOn() {
+    var fac = doc.getElementById('plz-fac');
+    if (!fac || !fac.classList.contains('is-intro')) return;
+    if (last && last.m.building) ui.facIntro[last.m.building.key] = true;
+    var raf = root.requestAnimationFrame || function (f) { return root.setTimeout(f, 16); };
+    var reduce = root.matchMedia && root.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    raf(function () { raf(function () {
+      fac.classList.remove('is-intro');
+      if (reduce) return;
+      fac.classList.add('is-waking');
+      root.setTimeout(function () { fac.classList.remove('is-waking'); }, 2600);
+    }); });
+  }
+  function readDraft(el) {
+    var k = el.getAttribute('data-look');
+    if (!last || !last.m.building || !k) return;
+    if (!ui.draft || ui.draft.key !== last.m.building.key) ui.draft = { key: last.m.building.key };
+    ui.draft[k] = el.type === 'number' ? (el.value === '' ? '' : Number(el.value)) : el.value;
+    var err = doc.getElementById('plz-look-err'); if (err) err.textContent = '';
+    var data = compute(); last = data;
+    var fac = doc.getElementById('plz-fac'); if (fac) fac.outerHTML = facade(data);
+    var act = doc.getElementById('plz-look-act'); if (act) act.innerHTML = lookActions();
+    var badge = doc.getElementById('plz-look-badge'); if (badge) badge.textContent = lookBadge(data.m.look);
+  }
+  function onInput(e) {
+    var el = e.target;
+    if (!el || !el.getAttribute || !el.getAttribute('data-look') || !adapter || !adapter.isAdmin()) return;
+    readDraft(el);
+  }
+  function onToggle(e) {
+    var el = e.target;
+    if (!el || !el.classList) return;
+    if (el.id === 'plz-look') ui.lookOpen = el.open;
+    if (el.classList.contains('plz-paidcard')) ui.paidOpen = el.open;
   }
 
   function onClick(e) {
@@ -556,6 +721,16 @@
     if (act === 'dossier' && unit && A.dossier) return A.dossier(unit.id);
     if (act === 'edit' && unit && A.edit) return A.edit(unit.property);
     if (act === 'paylink' && A.payLink) return A.payLink(el.getAttribute('data-pay'));
+    if (act === 'look-cancel') { ui.draft = null; adapter.render(); return; }
+    if (act === 'look-save' && A.saveLook && last.m.building) {
+      var v = E.validateLook(lookChanges(last.m), last.m), err = doc.getElementById('plz-look-err');
+      if (!v.ok) { if (err) err.textContent = lookError(v.errors); return; }
+      if (!Object.keys(v.fields).length) { ui.draft = null; adapter.render(); return; }
+      el.disabled = true;
+      return Promise.resolve(A.saveLook(last.m.building.propertyIds.slice(), v.fields)).then(function (ok) {
+        if (ok) { ui.draft = null; ui.lookOpen = true; adapter.render(); } else el.disabled = false;
+      }, function () { el.disabled = false; });
+    }
     if (act === 'contracts' && A.contracts) return A.contracts();
     if (act === 'users' && A.users) return A.users();
     if (act === 'link' && A.linkOwner) {
@@ -565,8 +740,9 @@
   }
   function onChange(e) {
     var el = e.target;
+    if (el && el.getAttribute && el.getAttribute('data-look') && el.type === 'radio') return onInput(e);
     if (!el || el.getAttribute('data-plz') !== 'building' || !adapter) return;
-    stopPlay(); ui.key = el.value; ui.selected = ''; persist(); rerender();
+    stopPlay(); ui.key = el.value; ui.selected = ''; ui.draft = null; persist(); rerender();
   }
   function onKey(e) {
     var el = e.target;
@@ -576,7 +752,7 @@
     if (e.key === 'Escape' && ui.selected && doc.querySelector('.plz')) { ui.selected = ''; patch(); }
   }
   function onOver(e) {
-    var tip = doc.getElementById('plz-tip'), el = e.target.closest && e.target.closest('.plz-unit');
+    var tip = doc.getElementById('plz-tip'), el = e.target.closest && e.target.closest('.plz-unit, .plz-win[data-id]');
     if (!tip) return;
     if (!el || (root.matchMedia && root.matchMedia('(hover: none)').matches)) { tip.hidden = true; return; }
     tip.textContent = el.getAttribute('aria-label');
@@ -594,6 +770,8 @@
     doc.addEventListener('change', onChange);
     doc.addEventListener('keydown', onKey);
     doc.addEventListener('pointerover', onOver);
+    doc.addEventListener('input', onInput);
+    doc.addEventListener('toggle', onToggle, true);
     root.addEventListener('resize', function () { if (doc.getElementById('plz-world')) applyView(); });
   }
 

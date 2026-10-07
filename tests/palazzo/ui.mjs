@@ -23,7 +23,7 @@ function extract(name) {
   return next < 0 ? src.slice(start) : src.slice(start, start + 5 + next);
 }
 const names = ['goTo', 'buildNav', 'renderPage', 'closeSidebar', 'toggleSidebar', 'accessDenied', 'isAdmin', 'isLandlord', 'isTenant', 'esc', 'daysUntil', 'isOverdue', 'isPaymentLate', 'isPaymentOpen',
-  'getMyProperties', 'getMyContracts', 'getMyPayments', 'getMyMaintenance', 'boomBusinessInvoices', 'closeModal', 'palazzoLinkOwner'];
+  'getMyProperties', 'getMyContracts', 'getMyPayments', 'getMyMaintenance', 'boomBusinessInvoices', 'closeModal', 'palazzoLinkOwner', 'palazzoSaveLook'];
 const functions = names.map(extract).join('\n');
 const cfgStart = src.indexOf('    window.BOOM_PALAZZO_UI?.configure({');
 const config = src.slice(cfgStart, src.indexOf('    // L\'unica scrittura della vista', cfgStart));
@@ -97,10 +97,38 @@ try {
       const rest = await pg.locator('.plz-rest').innerText();
       assert.ok(rest.includes('5 hanno pagato su 9 (€5.000 di €8.950).') && rest.includes('2 sono in ritardo per €1.800: int. 12, int. 3.'), rest);
     });
-    await check('Semplice: la facciata, un quadrato per interno, dall\'alto', async () => {
-      assert.equal(await pg.locator('.plz-fcell').count(), 13);
-      assert.ok(/^at$/i.test(await pg.locator('.plz-flab').first().innerText()));
-      assert.equal(await pg.locator('.plz-fcell[data-state="late"]').count(), 2);
+    await check('Semplice: la facciata, una finestra per interno, dall\'alto', async () => {
+      assert.equal(await pg.locator('.plz-win[data-id]').count(), 13);
+      assert.ok(/^at$/i.test(await pg.locator('.plz-fac-lab').first().innerText()));
+      assert.equal(await pg.locator('.plz-win[data-state="late"]').count(), 2);
+      assert.equal(await pg.locator('.plz-win[data-id="u2"]').getAttribute('data-pipe'), 'nego');
+      // Le finestre senza numero non sono interni: non si toccano, non si leggono
+      const blind = pg.locator('.plz-win.is-blind');
+      assert.ok(await blind.count() > 0);
+      assert.equal(await blind.first().evaluate(e => e.tagName + ':' + e.getAttribute('aria-hidden')), 'SPAN:true');
+    });
+    await check('Semplice: le luci si accendono e le persiane si aprono; il libero resta chiuso', async () => {
+      await pg.waitForFunction(() => { const f = document.getElementById('plz-fac'); return f && !f.classList.contains('is-intro'); });
+      await pg.waitForTimeout(2800);
+      const tf = id => pg.locator('.plz-win[data-id="' + id + '"] .plz-shut-l').evaluate(e => getComputedStyle(e).transform);
+      assert.equal(await tf('u2'), 'none');            // libero: persiane chiuse
+      assert.notEqual(await tf('u1'), 'none');         // pagato: aperte contro il muro
+      assert.notEqual(await tf('u9'), 'none');         // in arrivo: socchiuse
+      assert.notEqual(await tf('u1'), await tf('u9'));
+    });
+    await check('Semplice: la targa e il civico dal vero indirizzo, aspetto neutro finché nessuno lo dichiara', async () => {
+      assert.equal(await pg.locator('.plz-targa').evaluate(e => e.textContent), 'Viale Esempio');
+      assert.equal(await pg.locator('.plz-civ').evaluate(e => e.textContent), '12');
+      assert.ok((await pg.locator('#plz-fac').getAttribute('style')).includes('--wall:#A9A193'));
+      assert.equal(await pg.locator('#plz-look-badge').evaluate(e => e.textContent), 'neutro');
+    });
+    await check('Semplice: cambio mese, la facciata resta (cambia la luce, non il disegno)', async () => {
+      const h = await pg.locator('.plz-win[data-id="u1"]').elementHandle();
+      await pg.locator('[data-plz="prev"]').click();
+      assert.ok(await h.evaluate(e => e.isConnected));
+      assert.equal(await pg.locator('#plz-fac.is-intro').count(), 0);
+      await pg.locator('[data-plz="today"]').click();
+      assert.ok(await h.evaluate(e => e.isConnected));
     });
     await check('Semplice: chi non ha pagato, con UN tasto per sollecitare', async () => {
       const card = pg.locator('.plz-scard.is-late');
@@ -115,8 +143,8 @@ try {
       assert.ok(txt.includes('in trattativa con Candidata Demo') && txt.includes('pubblicato sul sito') && /libero da \d+ giorni/.test(txt), txt);
       assert.ok(txt.includes('proposta pagata, contratto da creare'), txt);
     });
-    await check('Semplice: tocco un quadrato e si apre la scheda', async () => {
-      await pg.locator('.plz-fcell[data-id="u3"]').click();
+    await check('Semplice: tocco una finestra e si apre la scheda', async () => {
+      await pg.locator('.plz-win[data-id="u3"]').click();
       await pg.waitForSelector('#plz-unit-h');
       assert.equal(await pg.locator('#plz-unit-h').innerText(), 'Int. 3');
       await pg.locator('[data-plz="deselect"]').click();
@@ -232,6 +260,52 @@ try {
     await check('nessuno scorrimento orizzontale', async () => {
       assert.ok(await pg.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
     });
+    // ── L'aspetto del palazzo (admin) ─────────────────────────────────
+    await pg.locator('[data-plz="view"][data-v="simple"]').click();
+    await pg.waitForSelector('#plz-look');
+    await pg.evaluate(() => { writes.length = 0; });
+    await check('aspetto: anteprima dal vivo, nessuna scrittura finché non salvi', async () => {
+      await pg.locator('#plz-look summary').click();
+      await pg.locator('input[data-look="ultimoPiano"]').fill('5');
+      const labs = await pg.locator('.plz-fac-lab').evaluateAll(els => els.map(e => e.textContent));
+      assert.deepEqual(labs, ['AT', 'P4', 'P3', 'P2', 'P1', 'PT']);
+      assert.equal(await pg.locator('.plz-fac-fl.is-ghost').count(), 1);
+      await pg.locator('.plz-sw input[value="ocra"]').check({ force: true });
+      await pg.locator('.plz-sw input[value="verde"]').check({ force: true });
+      const st = await pg.locator('#plz-fac').getAttribute('style');
+      assert.ok(st.includes('--wall:#C4874C') && st.includes('--shut:#2D4A38'), st);
+      assert.equal(await pg.locator('#plz-look-badge').evaluate(e => e.textContent), 'anteprima');
+      assert.equal(await pg.evaluate(() => writes.length), 0);
+    });
+    await check('aspetto: rifiuta un ultimo piano più basso di un interno gestito', async () => {
+      await pg.locator('input[data-look="ultimoPiano"]').fill('2');
+      await pg.locator('[data-plz="look-save"]').click();
+      assert.ok((await pg.locator('#plz-look-err').innerText()).includes('non può essere più basso di 4'));
+      assert.equal(await pg.evaluate(() => writes.length), 0);
+    });
+    await check('aspetto: salva su TUTTI gli interni, solo ciò che è cambiato', async () => {
+      await pg.locator('input[data-look="ultimoPiano"]').fill('5');
+      await pg.locator('[data-plz="look-save"]').click();
+      await pg.waitForFunction(() => writes.length > 0);
+      const w = await pg.evaluate(() => writes);
+      assert.equal(w.length, 13);
+      assert.ok(w.every(x => x[0].startsWith('properties/u')), JSON.stringify(w.map(x => x[0])));
+      assert.ok(w.every(x => x[1].ultimoPiano === 5 && x[1].palazzoIntonaco === 'ocra' && x[1].palazzoPersiane === 'verde' && !('palazzoNome' in x[1])), JSON.stringify(w[0][1]));
+      await pg.waitForFunction(() => document.getElementById('plz-look-badge')?.textContent === 'dichiarato');
+      assert.ok((await pg.locator('#plz-fac').getAttribute('style')).includes('--wall:#C4874C'));
+      await pg.evaluate(() => { writes.length = 0; });
+    });
+    await check('aspetto: Annulla butta l\'anteprima', async () => {
+      await pg.locator('.plz-sw input[value="rosso"]').check({ force: true });
+      assert.ok((await pg.locator('#plz-fac').getAttribute('style')).includes('--wall:#A2573C'));
+      await pg.locator('[data-plz="look-cancel"]').click();
+      await pg.waitForSelector('#plz-fac');
+      assert.ok((await pg.locator('#plz-fac').getAttribute('style')).includes('--wall:#C4874C'));
+      assert.equal(await pg.evaluate(() => writes.length), 0);
+    });
+    await check('facciata: nessuno scorrimento orizzontale', async () => {
+      assert.ok(await pg.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+    });
     if (process.env.SCREENSHOT_DIR) {
       await pg.locator('[data-plz="deselect"]').click().catch(() => {});
       await pg.waitForTimeout(1800);
@@ -240,6 +314,9 @@ try {
 
     // ── La proprietaria ───────────────────────────────────────────────
     await pg.goto(base + '/owner?page=');
+    await pg.waitForSelector('.plz');
+    // la vista scelta si ricorda (localStorage): l'admin ha finito in Semplice
+    if (await pg.locator('.plz').getAttribute('data-view') !== '3d') await pg.locator('[data-plz="view"][data-v="3d"]').click();
     await pg.waitForSelector('.plz-unit');
     await check('proprietaria: atterra sul SUO palazzo, solo i suoi interni', async () => {
       assert.ok(pg.url().endsWith('#palazzo'));
@@ -263,6 +340,8 @@ try {
       assert.ok(txt.includes('in verifica da BOOM') && !/non registrata|non ha la rata/i.test(txt), txt);
       assert.equal(await pg.locator('[data-plz="paylink"]').count(), 0);
       assert.ok(!txt.includes('trattativa'), 'le proposte restano all\'operatore');
+      assert.equal(await pg.locator('#plz-look').count(), 0, 'l\'aspetto lo dichiara l\'operatore');
+      assert.equal(await pg.locator('.plz-win[data-pipe="nego"]').count(), 0, 'nessuna luce di trattativa per la proprietaria');
       await pg.locator('[data-plz="view"][data-v="3d"]').click();
       await pg.waitForSelector('.plz-unit');
     });

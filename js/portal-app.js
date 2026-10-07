@@ -818,7 +818,8 @@ Valentyne - BOOM Rome`
             edit: property => openModal('editProperty', property),
             contracts: () => goTo('contracts'), users: () => goTo('users'), inbox: () => goTo('inbox'),
             payLink: id => showPaymentLink('pay', id),
-            linkOwner: (ids, ownerId) => palazzoLinkOwner(ids, ownerId) }
+            linkOwner: (ids, ownerId) => palazzoLinkOwner(ids, ownerId),
+            saveLook: (ids, fields) => palazzoSaveLook(ids, fields) }
     });
     // L'unica scrittura della vista, esplicita e solo admin: un interno senza
     // ownerId non esiste per il proprietario (rules + loader leggono ownerId).
@@ -838,6 +839,36 @@ Valentyne - BOOM Rome`
             toast('success', 'Interni collegati', `${props.length} → ${owner.name || owner.email}`);
             if (S.page === 'palazzo') renderPage();
         } catch (err) { toast('error', 'Collegamento non riuscito', err.message); }
+    }
+
+    // L'aspetto del palazzo (intonaco, persiane, ultimo piano, nome) si scrive
+    // su TUTTI i suoi interni: il motore legge il primo valore dichiarato. I
+    // campi arrivano già validati da BOOM_PALAZZO.validateLook (solo quelli
+    // cambiati); qui la conferma e la scrittura, solo admin.
+    async function palazzoSaveLook(ids, fields) {
+        if (!isAdmin()) return false;
+        const allowed = ['palazzoIntonaco', 'palazzoPersiane', 'palazzoNome', 'ultimoPiano'];
+        const clean = {};
+        Object.keys(fields || {}).forEach(k => { if (allowed.includes(k)) clean[k] = fields[k]; });
+        const props = ids.map(id => (S.properties || []).find(p => p.id === id)).filter(Boolean);
+        if (!props.length || !Object.keys(clean).length) return false;
+        const L = window.BOOM_PALAZZO?.LOOKS || { intonaco: {}, persiane: {} };
+        const what = [
+            clean.palazzoNome != null ? (clean.palazzoNome ? `nome «${clean.palazzoNome}»` : 'nome tolto') : '',
+            clean.ultimoPiano != null ? `ultimo piano ${clean.ultimoPiano}` : '',
+            clean.palazzoIntonaco ? `intonaco ${(L.intonaco[clean.palazzoIntonaco] || [clean.palazzoIntonaco])[0].toLowerCase()}` : '',
+            clean.palazzoPersiane ? `persiane ${(L.persiane[clean.palazzoPersiane] || [clean.palazzoPersiane])[0].toLowerCase()}` : ''
+        ].filter(Boolean).join(', ');
+        if (!confirm(`Salvare l'aspetto del palazzo su ${props.length} ${props.length === 1 ? 'interno' : 'interni'}?\n\n${what}`)) return false;
+        try {
+            const batch = db.batch();
+            props.forEach(p => batch.update(db.collection('properties').doc(p.id), { ...clean, palazzoLookAt: firebase.firestore.FieldValue.serverTimestamp(), palazzoLookBy: S.profile?.id || '' }));
+            await batch.commit();
+            props.forEach(p => Object.assign(p, clean));
+            logActivity('palazzo_look_saved', 'property', { ids: props.map(p => p.id), fields: Object.keys(clean) });
+            toast('success', 'Palazzo aggiornato', what);
+            return true;
+        } catch (err) { toast('error', 'Salvataggio non riuscito', err.message); return false; }
     }
 
     // ═══════════════════════════════════════════════════════════════════════════

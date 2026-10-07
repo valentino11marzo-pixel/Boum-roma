@@ -6050,14 +6050,60 @@ NON VEDEVANO NIENTE (vedi sotto).
     indistinguibili. Ora grigio a righe; tutte le coppie ΔE ≥ 15 a vista
     normale, il caso peggiore daltonico (grigio↔rosso 6,6) ha codifiche
     secondarie (righe, "!", pulsazione, etichette).
-Test: `node tests/palazzo/engine.mjs` (100 check: civico, piano, 13 interni
+- **La facciata di sera (7/10 notte)** — «un design veritiero». Il quadrato
+  colorato per interno era un foglio di calcolo, non un palazzo. Ora la vista
+  Semplice disegna la FACCIATA: intonaco, marcapiani, piano terra a bugnato
+  col portone, attico arretrato con la terrazza, sanpietrini. Ogni interno è
+  una FINESTRA e la luce è lo stato del mese: oro pagato, rosso non ha pagato
+  (pulsa), avorio deve pagare, blu in verifica, grigio a righe senza rata,
+  menta in arrivo a persiane SOCCHIUSE; libero = persiane CHIUSE (in
+  trattativa: un filo d'oro fra le stecche). Le persiane girano in 3D
+  davvero (perspective + rotateY sui cardini) quando cambia il mese: la
+  facciata non si ridisegna, cambia la luce (`patchFacade`; `--hi/--lo`
+  registrate con `@property` per sfumare i colori). Alla prima apertura le
+  luci si accendono dal basso, piano per piano; con `prefers-reduced-motion`
+  niente movimento. Le finestre senza numero sono interni che BOOM non
+  gestisce (`span` aria-hidden, non cliccabili); la didascalia dice che la
+  posizione sul piano è SCHEMATICA.
+  **Si disegna solo ciò che qualcuno ha dichiarato** (`m.look`, motore
+  `lookOf`): `palazzoIntonaco` · `palazzoPersiane` (preset in
+  `BOOM_PALAZZO.LOOKS`) · `palazzoNome` · `ultimoPiano`, letti dal primo
+  interno che li porta. Senza dichiarazione l'aspetto è NEUTRO (pietra +
+  grafite), mai «persiane verdi» per default: sarebbe una bella bugia sul
+  palazzo di qualcuno. Il civico invece è un fatto (dall'indirizzo): targa
+  marmorea con la via e numero sopra il portone.
+  **Aspetto del palazzo** (pannello solo admin sotto la facciata): nome,
+  ultimo piano, intonaco e persiane a campioni, ANTEPRIMA dal vivo (stesso
+  motore: `opts.topFloor` disegna i piani, ma `m.look` resta il SALVATO,
+  il confronto per «cosa è cambiato» — il difetto preso dal test: con la
+  bozza dentro `m.look` il salvataggio non vedeva cambiamenti), poi «Salva
+  sul palazzo» → `palazzoSaveLook` (admin, conferma, lista bianca dei 4
+  campi, batch su TUTTI gli interni, `palazzoLookAt/By`). Si salva solo ciò
+  che l'admin ha toccato (`lookChanges`: scegliere l'ultimo piano non
+  dichiara un intonaco). `validateLook` RIFIUTA, mai aggiusta: un ultimo
+  piano sotto un interno gestito (attico compreso) è un errore detto in
+  chiaro.
+  **Piazzale Prenestino 42** (la prima cliente): dal sandbox Google Maps,
+  Street View (API non attiva sul progetto) e OSM non sono raggiungibili;
+  i fatti verificati vengono dalle 25 foto dell'annuncio al 3° piano
+  (`sr0rpLSqbpDMASkHINfx`): persiane VERDI, ringhiere nere, balcone sul
+  cortile interno con albero, lavanderia a volta al piano terra, ascensore,
+  portiere. Intonaco e numero di piani NON sono verificati: si dichiarano
+  dal pannello dopo una foto della facciata.
+  `sw.js` (boom-v29): `palazzo-engine.js`, `palazzo.js` e `palazzo.css`
+  passano network-first col tetto di 6s come gli altri motori del portale
+  (prima non erano in lista: a portale offline il Palazzo non c'era).
+Test: `node tests/palazzo/engine.mjs` (120 check: civico, piano, 13 interni
 in ogni stato, trimestrale, contratto chiuso in anticipo, proposte e annunci,
 puntualità/sfitto/incassato su scaduto, la frase del mese nelle due voci,
 piani vuoti e attico, cose da sistemare, filtro proprietaria, mutazioni sul
-conteggio dei ritardi, giunzioni del portal) + `node tests/palazzo/ui.mjs`
-(49 check in Chromium a 1440 e 390px con le funzioni VERE del portal estratte
-da portal-app.js e Firestore finto: Semplice, Sollecita, 3D, Andamento,
-Elenco, collega, la proprietaria senza proposte né azioni).
+conteggio dei ritardi, aspetto dichiarato/neutro/anteprima, validateLook,
+giunzioni del portal) + `node tests/palazzo/ui.mjs` (65 check in Chromium a
+1440 e 390px con le funzioni VERE del portal estratte da portal-app.js e
+Firestore finto: facciata e persiane, luci dal basso, cambio mese senza
+ridisegno, aspetto in anteprima/rifiutato/salvato/annullato, Sollecita, 3D,
+Andamento, Elenco, collega, la proprietaria senza proposte, azioni né
+pannello dell'aspetto).
 
 ### Fascicolo operativo immobile — 20 settembre 2026
 La scheda admin passa dal modale al percorso `#property/<id>/<sezione>`: situazione, contratti, canoni, documenti e attività; link ricaricabili, ritorno alla ricerca/posizione e apertura dei flussi esistenti; ricerca e filtro di disponibilità ora si combinano. Le viste dei proprietari restano separate.

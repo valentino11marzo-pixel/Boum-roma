@@ -3,7 +3,7 @@
 // Cache-first for static assets (icons, manifest).
 // Skips Firebase / EmailJS / 3rd-party traffic entirely.
 
-const CACHE_VERSION = 'boom-v28';
+const CACHE_VERSION = 'boom-v29';
 const STATIC_CACHE = `${CACHE_VERSION}-static`;
 // NB: portal.html NON è nel precache — il sito pubblico registra questo SW e
 // non deve scaricare 2.5MB di shell in background. Il portale entra in cache
@@ -153,6 +153,11 @@ self.addEventListener('fetch', (event) => {
             || url.pathname === '/js/contract-fields.js'
             // le condizioni approvate del mandato: la stessa copia del server
             || url.pathname === '/js/mandato-engine.js'
+            // Il Palazzo: motore, vista e foglio viaggiano col portale (una
+            // vista vecchia sopra un motore nuovo disegnerebbe stati sbagliati)
+            || url.pathname === '/js/palazzo-engine.js'
+            || url.pathname === '/js/palazzo.js'
+            || url.pathname === '/css/palazzo.css'
             || url.pathname === '/js/portal-desktop.js'
             || url.pathname === '/css/portal-desktop.css'
             || url.pathname === '/css/portal-finish.css'
