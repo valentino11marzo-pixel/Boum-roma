@@ -14,7 +14,7 @@ Object.assign(process.env, {
 
 const { default: llms } = await import('../../api/llms-listings.js');
 const { default: sitemap } = await import('../../api/sitemap-listings.js');
-const { default: ask, buildContext } = await import('../../api/ask-listing.js');
+const { default: ask, buildContext, SYSTEM } = await import('../../api/ask-listing.js');
 const { default: feed, buildFeed, feedKey, publishable } = await import('../../api/feed/immobiliare.js');
 const { default: matcher, matches } = await import('../../api/search/matcher.js');
 const { default: geocodeAll } = await import('../../api/geocode-all.js');
@@ -132,9 +132,13 @@ try {
   check(modelCalls === 0, 'private apartment facts never reach the model');
   const staleContext = buildContext({ name: 'Rented Fixture', status: 'rented',
     availableDate: '2026-01-01', description: 'Available from January 2026.' });
-  check(staleContext.includes('Availability:')
+  check(staleContext.includes('Listing lane: closed')
+    && staleContext.includes('Availability:')
     && !staleContext.includes('Available from January 2026.'),
     'listing assistant does not repeat an older availability claim to the model');
+  check(!/Every listing is video-verified|24\/7 WhatsApp|within 2 hours|No hidden fees/.test(SYSTEM)
+    && /when it is closed, do not invite an application or hold/.test(SYSTEM),
+    'listing assistant has no unverified global guarantees and respects closed homes');
 
   check(publishable({ id: 'private-id', ...homes.private }) === false
     && publishable({ id: 'missing-id', ...homes.missing }) === false

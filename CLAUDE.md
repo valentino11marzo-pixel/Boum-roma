@@ -5636,6 +5636,11 @@ che può contenere HTML con letture Firestore dirette. Un client che non
 aggiorna il worker resta un rischio fino al prossimo ingresso online.
 Test: `npm test -- rete` (handler `activate` vero con cache sintetica).
 
+Il concierge della scheda riceve la corsia canonica e non riceve il racconto
+se `needsAvailabilityReview` segnala una data residua. Il prompt non promette
+video, tempi di risposta o hold per ogni casa; su corsia chiusa offre alternative.
+Test: `npm test -- catalogprivacy ai` (contesto e istruzioni effettive).
+
 Un `/listing/:id` assente prima rispondeva 200 col template generico: lo
 script sceglieva la prima casa della build e attribuiva ad essa l'URL di
 un'altra. Ora l'SSR risponde 404 per ID assente/privato e 503 se Firestore
