@@ -265,6 +265,8 @@ console.log('\n── B. Le giunzioni (asserite sulla sorgente) ─────�
   ok('rules: radarWatchers admin-only', /match \/radarWatchers\/\{x\}\s*\{ allow read, write: if isAdmin\(\); \}/.test(rules));
   ok('rules: radarState admin-only', /match \/radarState\/\{x\}\s*\{ allow read, write: if isAdmin\(\); \}/.test(rules));
   ok('rules: coda PFS per cliente solo admin', /match \/pfsCandidateReviews\/\{x\}\s*\{ allow read, write: if isAdmin\(\); \}/.test(rules));
+  ok('rules: shortlist PFS leggibile solo da admin e non editabile dal browser',
+    /match \/pfsShortlists\/\{x\}\s*\{ allow read: if isAdmin\(\); allow write: if false; \}/.test(rules));
 
   const vercel = src('vercel.json');
   ok('vercel: il cron del digest è dichiarato', vercel.includes('"/api/radar/digest"'));
@@ -326,6 +328,15 @@ console.log('\n── B. Le giunzioni (asserite sulla sorgente) ─────�
       && /isActiveClient\(c\) && c\.reviewRequired !== true/.test(cmd)
       && /#candidate-modal-overlay\[hidden\][^\n]*display: none/.test(cmd)
       && !/<div id="candidate-modal-overlay"[^>]*display:flex/.test(cmd));
+  ok('plancia: shortlist per cliente con bozza, verifica finale e ricevuta distinta dal messaggio',
+    cmd.includes("collection('pfsShortlists').where('clientId', '==', id)")
+      && cmd.includes("action: 'prepare'") && cmd.includes("action: 'publish'")
+      && cmd.includes('id="shortlist-checks"') && cmd.includes('Non prova email, WhatsApp o lettura del cliente.')
+      && cmd.includes('sl-availability-confirmed-') && cmd.includes('sl-sharing-confirmed-')
+      && /#shortlist-modal-overlay\[hidden\][^\n]*display: none/.test(cmd));
+  ok('portale PFS: evento shortlist pubblicata ha etichetta cliente nelle due lingue',
+    src('client-portal.html').includes("a_shortlist_published:'Nuova selezione pronta'")
+      && src('client-portal.html').includes("a_shortlist_published:'New selection ready'"));
 }
 
 console.log('\n── C. Il giro vero (Firestore in memoria) ────────────────────');

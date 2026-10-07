@@ -3,7 +3,7 @@
 // POST { clientId, propertyId, decision:'approve'|'reject', evidence?, reason? }
 import crypto from 'node:crypto';
 import { fsGet, fsGetVersioned, fsCommit, readJson } from '../homie/_lib.js';
-import { requireCronOrAdmin } from './_guard.js';
+import { requireHumanAdmin } from './_guard.js';
 import { candidateId, normalizeApprovalEvidence } from './_candidates.js';
 
 const validId = id => typeof id === 'string' && /^[A-Za-z0-9_-]{1,120}$/.test(id);
@@ -13,15 +13,8 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'method_not_allowed' });
 
-  const actor = await requireCronOrAdmin(req, res);
-  if (!actor) return;
-  // The shared radar guard also accepts cron, Homie, and an owner role.
-  // A human admin alone may attest the availability and sharing checks.
-  if (!actor.startsWith('admin:')) return res.status(403).json({ ok: false, error: 'admin_required' });
-  let profile;
-  try { profile = await fsGet('users/' + actor.slice(6)); }
-  catch { return res.status(500).json({ ok: false, error: 'admin_lookup_failed' }); }
-  if (profile?.role !== 'admin') return res.status(403).json({ ok: false, error: 'admin_required' });
+  const operator = await requireHumanAdmin(req, res);
+  if (!operator) return;
 
   let body;
   try { body = await readJson(req); }
@@ -38,7 +31,6 @@ export default async function handler(req, res) {
     return res.status(404).json({ ok: false, error: 'reviewed_client_not_found' });
 
   const path = 'pfsCandidateReviews/' + candidateId(body.clientId, body.propertyId);
-  const operator = actor.slice(6);
   for (let attempt = 0; attempt < 3; attempt++) {
     let snap;
     try { snap = await fsGetVersioned(path); }

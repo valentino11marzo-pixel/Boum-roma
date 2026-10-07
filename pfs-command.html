@@ -448,8 +448,8 @@ body.triage-lock { overflow: hidden; }
 .d-deck-row .dd-x:hover { color: var(--red); }
 .cand-actions { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
 .cand-actions .abtn { padding: 6px 8px; }
-#candidate-modal-overlay { display: flex; }
-#candidate-modal-overlay[hidden], #cand-approve-fields[hidden], #cand-reject-fields[hidden] { display: none; }
+#candidate-modal-overlay, #shortlist-modal-overlay { display: flex; }
+#candidate-modal-overlay[hidden], #shortlist-modal-overlay[hidden], #cand-approve-fields[hidden], #cand-reject-fields[hidden] { display: none; }
 .d-act-row { font-size: 11px; color: var(--text-muted); padding: 6px 0; border-bottom: 1px dashed var(--border); line-height: 1.5; }
 .d-links { display: flex; gap: 6px; flex-wrap: wrap; }
 
@@ -777,6 +777,15 @@ body.triage-lock { overflow: hidden; }
     </div>
 </div>
 
+<div id="shortlist-modal-overlay" hidden style="position:fixed;inset:0;background:rgba(0,0,0,0.88);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);z-index:8400;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Pubblica shortlist PFS">
+        <div class="modal-head"><div class="modal-title">Pubblica nel portale</div><button class="modal-close" id="shortlist-close" aria-label="Chiudi">✕</button></div>
+        <p class="hint">Controlla disponibilità e permesso di condivisione con questo cliente per ogni casa, entrambi nelle ultime 24 ore. La ricevuta prova la pubblicazione nel portale, non email, WhatsApp o lettura del cliente.</p>
+        <div id="shortlist-checks"></div>
+        <div class="modal-actions"><button class="btn-ghost" id="shortlist-cancel">Annulla</button><button class="btn" id="shortlist-save">Pubblica nel portale</button></div>
+    </div>
+</div>
+
 <div id="client-modal-overlay" hidden style="position:fixed;inset:0;background:rgba(0,0,0,0.85);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);z-index:8350;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto">
     <div class="modal" role="dialog" aria-modal="true" aria-label="Cliente PFS">
         <div class="modal-head">
@@ -1038,6 +1047,13 @@ var state = {
     candidateUnsub: null,
     candidateDecision: null, // open operator form; never a customer send
     candidateBusy: false,
+    shortlistRows: [],        // versioni per cliente, non nel feed annunci
+    shortlistLoad: 'idle',
+    shortlistUnsub: null,
+    shortlistSelected: [],
+    shortlistPrepareKey: null,
+    shortlistPublishing: null,
+    shortlistBusy: false,
     clientModal: null,        // null · 'new' · id cliente in modifica
     knownIds: null,           // Set di id già visti (per rilevare nuovi arrivi realtime)
     newIds: null,             // Set di id appena arrivati (animazione is-new)
@@ -1412,12 +1428,18 @@ function renderClients() {
 /* ── Il fascicolo cliente (drawer) ───────────────────────────── */
 function openDrawer(id) {
     closeCandidateReview();
+    closeShortlistPublish();
     if (state.candidateUnsub) { state.candidateUnsub(); state.candidateUnsub = null; }
+    if (state.shortlistUnsub) { state.shortlistUnsub(); state.shortlistUnsub = null; }
     state.drawerClient = id;
     state.candidateRows = [];
     state.candidateClientId = id;
+    state.shortlistRows = [];
+    state.shortlistSelected = [];
+    state.shortlistPrepareKey = null;
     var selected = state.clientsById[id];
     state.candidateLoad = selected && selected.reviewRequired === true ? 'loading' : 'idle';
+    state.shortlistLoad = selected && selected.reviewRequired === true ? 'loading' : 'idle';
     $('drawer-scrim').hidden = false;
     $('client-drawer').hidden = false;
     renderDrawer();
@@ -1436,15 +1458,35 @@ function openDrawer(id) {
             renderDrawer();
             console.warn('[PFS] coda candidati non disponibile:', err && err.message);
         });
+        state.shortlistUnsub = BoomPortal.listen(db.collection('pfsShortlists').where('clientId', '==', id), function (snap) {
+            if (state.drawerClient !== id) return;
+            var rows = [];
+            snap.forEach(function (d) { rows.push(Object.assign({ id: d.id }, d.data())); });
+            state.shortlistRows = rows.sort(function (a, b) { return (Number(b.revision) || 0) - (Number(a.revision) || 0); });
+            state.shortlistLoad = 'ready';
+            renderDrawer();
+        }, function (err) {
+            if (state.drawerClient !== id) return;
+            state.shortlistLoad = 'error';
+            state.shortlistRows = [];
+            renderDrawer();
+            console.warn('[PFS] shortlist non leggibili:', err && err.message);
+        });
     }
 }
 function closeDrawer() {
     closeCandidateReview();
+    closeShortlistPublish();
     if (state.candidateUnsub) { state.candidateUnsub(); state.candidateUnsub = null; }
+    if (state.shortlistUnsub) { state.shortlistUnsub(); state.shortlistUnsub = null; }
     state.drawerClient = null;
     state.candidateClientId = null;
     state.candidateRows = [];
     state.candidateLoad = 'idle';
+    state.shortlistRows = [];
+    state.shortlistSelected = [];
+    state.shortlistPrepareKey = null;
+    state.shortlistLoad = 'idle';
     $('drawer-scrim').hidden = true;
     $('client-drawer').hidden = true;
 }
@@ -1519,11 +1561,164 @@ function saveCandidateReview() {
         $('cand-save').textContent = 'Registra decisione';
     });
 }
+function shortlistKey() {
+    return window.crypto && window.crypto.randomUUID
+        ? window.crypto.randomUUID().replace(/-/g, '')
+        : Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
+}
+function shortlistError(err) {
+    var code = err && err.message;
+    return ({ reverification_required: 'Ricontrolla disponibilità e permesso di ogni casa nelle ultime 24 ore.',
+        candidate_changed_reprepare: 'Un annuncio è cambiato: prepara una nuova bozza con i dati aggiornati.',
+        candidate_not_eligible: 'Candidato non idoneo: controlla approvazione, prove e presenza nel portale.',
+        already_in_portal: 'Una casa è già nel portale: prepara una nuova bozza.',
+        portal_not_ready: 'Attiva il portale del cliente prima di pubblicare.',
+        portal_code_ambiguous: 'Codice portale duplicato: correggilo prima di pubblicare.',
+        shortlist_version_limit: 'Raggiunto il limite di 24 versioni: serve archiviare prima di prepararne altre.'
+    })[code] || (code || 'Errore sconosciuto');
+}
+function prepareShortlist() {
+    var clientId = state.drawerClient;
+    if (!clientId || state.shortlistBusy || state.shortlistLoad !== 'ready' || state.candidateLoad !== 'ready') return;
+    var selected = state.shortlistSelected.slice();
+    if (!selected.length || selected.length > 8) {
+        BoomPortal.toast('Seleziona da 1 a 8 candidati approvati.', { type: 'warning' }); return;
+    }
+    state.shortlistPrepareKey = state.shortlistPrepareKey || shortlistKey();
+    state.shortlistBusy = true;
+    apiPost('/api/pfs/shortlist', { action: 'prepare', clientId: clientId,
+        candidateIds: selected, idempotencyKey: state.shortlistPrepareKey }).then(function (result) {
+        state.shortlistPrepareKey = null;
+        state.shortlistSelected = [];
+        if (state.drawerClient === clientId && result.draft) {
+            state.shortlistRows = [result.draft].concat(state.shortlistRows.filter(function (x) { return x.id !== result.draft.id; }));
+            renderDrawer();
+        }
+        BoomPortal.toast(result.already ? 'Bozza già preparata' : 'Bozza preparata: controlla prima di pubblicare', { type: 'success' });
+    }).catch(function (err) {
+        BoomPortal.toast('Bozza non preparata: ' + shortlistError(err), { type: 'error' });
+    }).then(function () { state.shortlistBusy = false; if (state.drawerClient === clientId) renderDrawer(); });
+}
+function closeShortlistPublish() {
+    state.shortlistPublishing = null;
+    $('shortlist-modal-overlay').hidden = true;
+}
+function openShortlistPublish(id) {
+    if (state.shortlistBusy || state.shortlistLoad !== 'ready') return;
+    var draft = state.shortlistRows.find(function (x) { return x.id === id; });
+    if (!draft || draft.status !== 'draft' || !Array.isArray(draft.items) || !draft.items.length) {
+        BoomPortal.toast('La bozza è cambiata: riapri il fascicolo.', { type: 'warning' }); return;
+    }
+    state.shortlistPublishing = { id: draft.id, clientId: draft.clientId, hash: draft.snapshotHash,
+        items: draft.items.map(function (x) { return { candidateId: x.candidateId, propertyId: x.propertyId, sourceUrl: x.sourceUrl }; }) };
+    $('shortlist-checks').innerHTML = draft.items.map(function (x, i) {
+        return '<div class="d-sec"><h4>' + esc(i + 1) + '. ' + esc(x.address || x.title || x.propertyId) + ' · €' + fmtPrice(x.price) + '</h4>' +
+            '<div class="modal-src">Fonte: <a href="' + esc(safeUrl(x.sourceUrl) || '#') + '" target="_blank" rel="noopener">' + esc(x.sourceUrl) + ' ↗</a></div>' +
+            '<div class="mgrid"><div class="mfield"><label for="sl-at-' + i + '">Disponibilità ricontrollata il *</label><input id="sl-at-' + i + '" type="datetime-local"></div>' +
+            '<div class="mfield"><label for="sl-with-' + i + '">Con chi / da chi *</label><input id="sl-with-' + i + '" type="text" maxlength="160"></div>' +
+            '<div class="mfield full"><label for="sl-proof-' + i + '">Prova della disponibilità *</label><textarea id="sl-proof-' + i + '" maxlength="500"></textarea></div>' +
+            '<div class="mfield full"><label><input id="sl-availability-confirmed-' + i + '" type="checkbox"> Confermo che questa casa è disponibile ora.</label></div>' +
+            '<div class="mfield"><label for="sl-share-at-' + i + '">Permesso ricontrollato il *</label><input id="sl-share-at-' + i + '" type="datetime-local"></div>' +
+            '<div class="mfield"><label for="sl-share-with-' + i + '">Con chi / da chi *</label><input id="sl-share-with-' + i + '" type="text" maxlength="160"></div>' +
+            '<div class="mfield full"><label for="sl-share-proof-' + i + '">Prova del permesso *</label><textarea id="sl-share-proof-' + i + '" maxlength="500"></textarea></div>' +
+            '<div class="mfield full"><label><input id="sl-sharing-confirmed-' + i + '" type="checkbox"> Confermo il permesso di condividere questa casa con questo cliente.</label></div></div></div>';
+    }).join('');
+    $('shortlist-modal-overlay').hidden = false;
+    $('sl-at-0').focus();
+}
+function publishShortlist() {
+    var chosen = state.shortlistPublishing;
+    if (!chosen || state.shortlistBusy) return;
+    var checks = chosen.items.map(function (item, i) {
+        var at = $('sl-at-' + i).value, date = at ? new Date(at) : null;
+        var sharingAt = $('sl-share-at-' + i).value, sharingDate = sharingAt ? new Date(sharingAt) : null;
+        return { candidateId: item.candidateId, propertyId: item.propertyId, sourceUrl: item.sourceUrl,
+            availabilityConfirmed: $('sl-availability-confirmed-' + i).checked,
+            availabilityCheckedAt: date && !isNaN(date) ? date.toISOString() : null,
+            availabilityCheckedWith: $('sl-with-' + i).value.trim(), availabilityEvidence: $('sl-proof-' + i).value.trim(),
+            sharingPermissionConfirmed: $('sl-sharing-confirmed-' + i).checked,
+            sharingCheckedAt: sharingDate && !isNaN(sharingDate) ? sharingDate.toISOString() : null,
+            sharingCheckedWith: $('sl-share-with-' + i).value.trim(), sharingEvidence: $('sl-share-proof-' + i).value.trim() };
+    });
+    if (checks.some(function (x) { return !x.availabilityConfirmed || !x.availabilityCheckedAt
+        || x.availabilityCheckedWith.length < 3 || x.availabilityEvidence.length < 8
+        || !x.sharingPermissionConfirmed || !x.sharingCheckedAt
+        || x.sharingCheckedWith.length < 3 || x.sharingEvidence.length < 8; })) {
+        BoomPortal.toast('Conferma disponibilità e condivisione per ogni casa.', { type: 'warning' }); return;
+    }
+    state.shortlistBusy = true;
+    $('shortlist-save').disabled = true;
+    apiPost('/api/pfs/shortlist', { action: 'publish', clientId: chosen.clientId,
+        shortlistId: chosen.id, snapshotHash: chosen.hash, finalChecks: checks }).then(function (result) {
+        closeShortlistPublish();
+        BoomPortal.toast(result.already ? 'Già pubblicata nel portale' : 'Pubblicata nel portale; nessuna email o WhatsApp inviata', { type: 'success' });
+    }).catch(function (err) {
+        BoomPortal.toast('Pubblicazione non riuscita: ' + shortlistError(err), { type: 'error' });
+    }).then(function () {
+        state.shortlistBusy = false;
+        $('shortlist-save').disabled = false;
+        if (state.drawerClient === chosen.clientId) renderDrawer();
+    });
+}
 function clientSearches(id) {
     return state.searches.filter(function (s) { return s.clientId === id; });
 }
 function portalLink(c) {
     return c.portalAccessCode ? 'https://www.boomrome.com/client-portal?code=' + encodeURIComponent(c.portalAccessCode) : null;
+}
+function renderShortlistPanel(c, approved, allDeck) {
+    if (state.shortlistLoad === 'loading') return '<div class="dd-meta">Carico le versioni della shortlist…</div>';
+    if (state.shortlistLoad === 'error') return '<div class="dd-meta" style="color:var(--amber)">⚠ Versioni non leggibili: riapri il fascicolo. Nessuna pubblicazione sicura.</div>';
+    var deckIds = new Set(allDeck.map(function (p) { return p.id; }));
+    var publishedIds = new Set();
+    state.shortlistRows.filter(function (s) { return s.status === 'published'; }).forEach(function (s) {
+        (s.items || []).forEach(function (x) { publishedIds.add(x.propertyId); });
+    });
+    var eligible = approved.filter(function (p) { return !deckIds.has(p.propertyId) && !publishedIds.has(p.propertyId); });
+    var chosen = state.shortlistSelected;
+    return '<div class="dd-meta" style="margin-top:12px">Bozze e pubblicazioni (' + state.shortlistRows.length + ' / 24). Seleziona nell’ordine desiderato, massimo 8 immobili.</div>' +
+        (eligible.length ? eligible.map(function (p) {
+            return '<label class="d-deck-row"><input type="checkbox" data-shortlist-select="' + esc(p.id) + '"' +
+                (chosen.includes(p.id) ? ' checked' : '') + '><span class="dd-main"><span class="dd-title">' + esc(p.title || p.address || p.propertyId) +
+                '</span><span class="dd-meta">€' + fmtPrice(p.price) + ' · approvato ' + esc(relTime(p.reviewedAt)) + '</span></span></label>';
+        }).join('') + '<div class="d-links"><button class="abtn" data-daction="shortlist-prepare"' +
+            (!chosen.length || chosen.length > 8 || state.shortlistBusy ? ' disabled' : '') + '>Prepara bozza (' + chosen.length + ')</button></div>' :
+            '<div class="dd-meta">Nessun approvato ancora disponibile per una nuova shortlist.</div>') +
+        state.shortlistRows.map(function (s) {
+            var published = s.status === 'published';
+            var items = Array.isArray(s.items) ? s.items : [];
+            return '<div class="d-deck-row" style="display:block"><div class="dd-title">Versione ' + esc(s.revision) +
+                (published ? ' · pubblicata nel portale' : ' · bozza interna') + '</div>' +
+                items.map(function (x, i) { return '<div class="dd-meta">' + esc(i + 1) + '. ' + esc(x.address || x.title || x.propertyId) +
+                    ' · €' + fmtPrice(x.price) + ' · <a href="' + esc(safeUrl(x.sourceUrl) || '#') +
+                    '" target="_blank" rel="noopener">Fonte ↗</a></div>'; }).join('') +
+                (published ? '<div class="dd-meta">Ricevuta portale: ' + esc(s.receipt && s.receipt.publishedAt) +
+                    ' · operatore ' + esc(s.receipt && s.receipt.publishedBy) +
+                    '. Non prova email, WhatsApp o lettura del cliente.</div>' :
+                    '<div class="d-links"><button class="abtn" data-daction="shortlist-publish" data-sid="' + esc(s.id) +
+                    '"' + (state.shortlistBusy || c.portalEnabled !== true || !c.portalAccessCode ? ' disabled' : '') +
+                    '>Ricontrolla e pubblica nel portale</button></div>') + '</div>';
+        }).join('') +
+        (c.portalEnabled !== true || !c.portalAccessCode ? '<div class="dd-meta" style="color:var(--amber)">Attiva il portale prima di pubblicare.</div>' : '');
+}
+function drawerDeck(c) {
+    var entries = new Map((Array.isArray(c.portalProperties) ? c.portalProperties : [])
+        .filter(function (p) { return p && p.id; }).map(function (p) { return [p.id, p]; }));
+    var markers = new Set(Array.isArray(c.publishedShortlistIds) ? c.publishedShortlistIds : []);
+    state.shortlistRows.filter(function (s) { return s.status === 'published' && markers.has(s.id) && s.receipt; })
+        .forEach(function (s) {
+            (s.items || []).forEach(function (item) {
+                var old = entries.get(item.propertyId) || {};
+                var feedback = {};
+                ['clientLiked', 'clientRejected', 'rejectReason', 'viewingRequested', 'viewingPreference', 'clientActionAt']
+                    .forEach(function (key) { if (old[key] !== undefined) feedback[key] = old[key]; });
+                entries.set(item.propertyId, Object.assign({}, item.portalCard, feedback, {
+                    id: item.propertyId, sourceUrl: item.sourceUrl, shortlistId: s.id,
+                    addedAt: s.receipt.publishedAt, isNew: true
+                }));
+            });
+        });
+    return Array.from(entries.values());
 }
 
 function renderDrawer() {
@@ -1531,7 +1726,6 @@ function renderDrawer() {
     var c = state.clientsById[state.drawerClient];
     if (!c) { box.innerHTML = '<div class="empty"><div class="empty-title">Cliente non trovato</div><p>Forse è stato eliminato.</p></div>'; return; }
     var stKey = effStage(c);
-    var s = deckStats(c);
     var flow = STAGE_FLOW.concat(['placed']);
     var idx = flow.indexOf(stKey);
     var stageOpts = flow.map(function (k) {
@@ -1539,7 +1733,8 @@ function renderDrawer() {
     }).join('');
     var searches = clientSearches(c.id);
     var pLink = portalLink(c);
-    var allDeck = Array.isArray(c.portalProperties) ? c.portalProperties : [];
+    var allDeck = drawerDeck(c);
+    var s = deckStats(Object.assign({}, c, { portalProperties: allDeck }));
     var deck = allDeck.slice().reverse().slice(0, 40);
     var acts = (Array.isArray(c.portalActivity) ? c.portalActivity : []).slice(-12).reverse();
     var phone = waPhone(c.phone);
@@ -1644,6 +1839,7 @@ function renderDrawer() {
                         (safeUrl(p.sourceUrl) ? '<a class="abtn" href="' + esc(safeUrl(p.sourceUrl)) + '" target="_blank" rel="noopener">Fonte ↗</a>' : '') +
                         '</div>';
                 }).join('') : '') +
+            renderShortlistPanel(c, decidedForClient.filter(function (p) { return p.status === 'approved'; }), allDeck) +
         '</div>' : '') +
         '<div class="d-sec"><h4>Mazzo (' + s.total + ') · ❤️ ' + s.liked + ' · ✗ ' + s.rejected + (s.view ? ' · 📅 ' + s.view : '') + '</h4>' +
             (deck.length ? deck.map(function (p) {
@@ -1653,10 +1849,11 @@ function renderDrawer() {
                     '<div class="dd-meta">€' + fmtPrice(p.price) + (p.match ? ' · match ' + esc(p.match) : '') + (p.addedAt ? ' · ' + esc(relTime(p.addedAt)) : '') + (p.rejectReason ? ' · “' + esc(p.rejectReason) + '”' : '') + '</div></div>' +
                     (flags ? '<span class="dd-flags">' + flags + '</span>' : '') +
                     (safeUrl(p.sourceUrl) ? '<a class="abtn" href="' + esc(safeUrl(p.sourceUrl)) + '" target="_blank" rel="noopener">↗</a>' : '') +
-                    '<button class="dd-x" data-daction="deck-remove" data-pid="' + esc(p.id) + '" title="Togli dal mazzo">🗑</button>' +
+                    (p.shortlistId ? '<span class="dd-meta">Shortlist pubblicata</span>' :
+                        '<button class="dd-x" data-daction="deck-remove" data-pid="' + esc(p.id) + '" title="Togli dal mazzo">🗑</button>') +
                 '</div>';
             }).join('') : '<div class="dd-meta" style="color:var(--text-muted)">' +
-                (c.reviewRequired === true ? 'Mazzo vuoto: approvare un candidato lo lascia interno; la shortlist e l’invio restano da preparare.' :
+                (c.reviewRequired === true ? 'Mazzo vuoto: i candidati approvati restano interni finché non pubblichi una shortlist nel portale.' :
                     'Mazzo vuoto: il radar spinge i match ≥60, oppure proponi tu dal feed («→ Proponi a…»).') + '</div>') +
         '</div>' +
         '<div class="d-sec"><h4>Attività recente</h4>' +
@@ -2924,6 +3121,10 @@ function bindUI() {
         if (!c) { closeDrawer(); return; }
         if (act === 'candidate-approve' || act === 'candidate-reject') {
             openCandidateReview(b.getAttribute('data-cid'), act === 'candidate-approve' ? 'approve' : 'reject');
+        } else if (act === 'shortlist-prepare') {
+            prepareShortlist();
+        } else if (act === 'shortlist-publish') {
+            openShortlistPublish(b.getAttribute('data-sid'));
         } else if (act === 'stage-prev' || act === 'stage-next') {
             var flow = STAGE_FLOW.concat(['placed']);
             var i = flow.indexOf(effStage(c));
@@ -2953,12 +3154,24 @@ function bindUI() {
             });
         } else if (act === 'deck-remove') {
             var pid = b.getAttribute('data-pid');
+            if (state.shortlistRows.some(function (s) { return s.status === 'published' &&
+                (s.items || []).some(function (item) { return item.propertyId === pid; }); })) {
+                BoomPortal.toast('Casa pubblicata in una shortlist: la ricevuta resta nel portale.', { type: 'warning' });
+                return;
+            }
             BoomPortal.confirm('Togliere questa casa dal mazzo del cliente?').then(function (yes) {
                 if (yes) deckRemove(c, pid);
             });
         }
     });
     $('client-drawer').addEventListener('change', function (e) {
+        if (e.target.matches && e.target.matches('[data-shortlist-select]')) {
+            var id = e.target.getAttribute('data-shortlist-select');
+            state.shortlistSelected = state.shortlistSelected.filter(function (x) { return x !== id; });
+            if (e.target.checked) state.shortlistSelected.push(id);
+            renderDrawer();
+            return;
+        }
         if (!e.target.matches || !e.target.matches('[data-dfield="stage"]')) return;
         var c = state.clientsById[state.drawerClient];
         if (c) writeStage(c, e.target.value);
@@ -2968,6 +3181,10 @@ function bindUI() {
     $('cand-cancel').addEventListener('click', closeCandidateReview);
     $('cand-save').addEventListener('click', saveCandidateReview);
     $('candidate-modal-overlay').addEventListener('click', function (e) { if (e.target === this) closeCandidateReview(); });
+    $('shortlist-close').addEventListener('click', closeShortlistPublish);
+    $('shortlist-cancel').addEventListener('click', closeShortlistPublish);
+    $('shortlist-save').addEventListener('click', publishShortlist);
+    $('shortlist-modal-overlay').addEventListener('click', function (e) { if (e.target === this) closeShortlistPublish(); });
 
     // Modale cliente
     $('cm-close').addEventListener('click', closeClientModal);

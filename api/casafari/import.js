@@ -1,29 +1,26 @@
 // api/casafari/import.js
 // Casafari → PFS bridge (manual operator import).
 // The operator reviews Casafari (deep-linked + pre-filtered to the client),
-// picks a listing, and imports it straight into THAT client's swipe deck.
+// picks a listing, and imports it for THAT client. Reviewed paid clients get
+// an internal case; only /api/pfs/shortlist publishes to their portal.
 //
-// The radar (api/pfs/scan-inbox.js → _ingest.js) pushes a listing to EVERY
-// matching client above threshold. This path is different on purpose:
-// operator-curated for ONE chosen client, so it force-pushes regardless of
-// score. It deliberately reuses the shared pipeline's helpers (stableId,
-// sanitizeImages, scoreMatch) and writes the exact same pfsProperties master
-// + portalProperties entry shape — same data, no forked path, just a
-// single-client target the radar's bulk ingest doesn't express.
+// This path targets one client. Historic clients retain the curated direct
+// push. For reviewRequired clients it writes pfsProperties and the durable
+// per-client candidate case, then stops before portalProperties; approval
+// and final shortlist publication happen in the PFS operator flow.
 //
 // Method:  POST    Auth: Bearer <firebase admin token>  (api/pfs/_guard.js)
-// Body: { clientId*, listing | listings[], force? (default true),
-//         reviewConfirmed? (required for reviewRequired clients) }
+// Body: { clientId*, listing | listings[], force? (default true) }
 //   listing: { url|sourceUrl*, price*, address?, zone?, bedrooms?, sqm?,
 //              images?[], title?, description?, advertiser? }
 // Response: { ok, clientId, pushedCount, count, results:[{ url, propertyId,
-//             pushed, duplicate, clientFound, score, reasons, error? }] }
+//             pushed, queued?, duplicate?, clientFound, score, reasons, error? }] }
 
 import { readJson, fsGet, fsPatch, logActivity } from '../homie/_lib.js';
 import { scoreMatch, DEFAULT_THRESHOLD } from '../homie/_match.js';
 import { stableIdFromUrl, sanitizeImages } from '../pfs/_ingest.js';
 import { requireCronOrAdmin } from '../pfs/_guard.js';
-import { candidateId, hasApprovedEvidence } from '../pfs/_candidates.js';
+import { ensureCandidate } from '../pfs/_candidates.js';
 
 export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
@@ -50,8 +47,8 @@ export default async function handler(req, res) {
   catch (e) { return res.status(500).json({ ok: false, error: 'client_lookup_failed', detail: e.message }); }
   if (!client) return res.status(404).json({ ok: false, error: 'client_not_found' });
   if (client.reviewRequired === true) {
-    // A reviewed client is never fed by an automatic bridge. The boolean is
-    // an operator attestation, not evidence that availability was verified.
+    // Only a real human admin may enter a manual Casafari candidate. This
+    // route does not publish reviewed clients, even with reviewConfirmed.
     if (!actor.startsWith('admin:')) return res.status(403).json({ ok: false, error: 'operator_required' });
     // _guard also admits landlord profiles for legacy admin pages. A
     // landlord must not be able to release a PFS candidate for any client.
@@ -59,7 +56,6 @@ export default async function handler(req, res) {
     try { reviewer = await fsGet('users/' + actor.slice('admin:'.length)); }
     catch { return res.status(500).json({ ok: false, error: 'reviewer_lookup_failed' }); }
     if (reviewer?.role !== 'admin') return res.status(403).json({ ok: false, error: 'operator_required' });
-    if (body.reviewConfirmed !== true) return res.status(400).json({ ok: false, error: 'review_confirmation_required' });
   }
 
   const results = [];
@@ -76,21 +72,6 @@ export default async function handler(req, res) {
     }
 
     const stableId = stableIdFromUrl(sourceUrl);
-    if (client.reviewRequired === true) {
-      // A bare reviewConfirmed boolean used to release reviewed clients.
-      // Require the separate, CAS-protected operator decision and its proof
-      // for this exact client/listing pair before *any* import write.
-      let caseDoc;
-      try { caseDoc = await fsGet('pfsCandidateReviews/' + candidateId(clientId, stableId)); }
-      catch {
-        results.push({ ok: false, url: sourceUrl, propertyId: stableId, error: 'candidate_lookup_failed' });
-        continue;
-      }
-      if (!hasApprovedEvidence(caseDoc, clientId, stableId, sourceUrl)) {
-        results.push({ ok: false, url: sourceUrl, propertyId: stableId, error: 'candidate_approval_required' });
-        continue;
-      }
-    }
     const now = new Date();
     const property = {
       sourceUrl,
@@ -126,6 +107,19 @@ export default async function handler(req, res) {
 
     // Score for display; operator-curated push ignores the threshold/veto.
     const { score, reasons, reject } = scoreMatch(property, client);
+    if (client.reviewRequired === true) {
+      try {
+        await ensureCandidate({ client, propertyId: stableId, property, score, reasons, now });
+        await logActivity('casafari_candidate_queued', 'pfs_radar',
+          { sourceUrl, price, propertyId: stableId, clientId, score }, actor);
+        results.push({ ok: true, url: sourceUrl, propertyId: stableId, pushed: false,
+          queued: true, clientFound: true, score, reasons });
+      } catch (e) {
+        console.error('[casafari/import] candidate write failed:', e.message);
+        results.push({ ok: false, url: sourceUrl, propertyId: stableId, error: 'candidate_write_failed' });
+      }
+      continue;
+    }
     const existing = Array.isArray(client.portalProperties) ? client.portalProperties : [];
     if (existing.some(p => p && p.id === stableId)) {
       results.push({ ok: true, url: sourceUrl, propertyId: stableId, pushed: false, duplicate: true, clientFound: true, score, reasons });
@@ -155,28 +149,12 @@ export default async function handler(req, res) {
     };
     const newProps = existing.concat([entry]);
     const activity = (Array.isArray(client.portalActivity) ? client.portalActivity : [])
-      .concat([{ type: 'casafari_import', propertyId: stableId, score, timestamp: now.toISOString(),
-        ...(client.reviewRequired === true ? { reviewConfirmedBy: actor, reviewConfirmedAt: now.toISOString() } : {}) }]);
+      .concat([{ type: 'casafari_import', propertyId: stableId, score, timestamp: now.toISOString() }]);
 
     try {
       await fsPatch('pfsClients/' + clientId, { portalProperties: newProps, portalActivity: activity });
       client.portalProperties = newProps;  // keep local copy fresh for batch imports
       client.portalActivity = activity;
-      if (client.reviewRequired === true) {
-        try {
-          const saved = await fsGet('pfsProperties/' + stableId);
-          const summary = saved?.matchSummary || {};
-          await fsPatch('pfsProperties/' + stableId, { matchSummary: {
-            // `at` is the epoch of an all-client score pass. This manual
-            // release checks only one client and must not hide a later paid
-            // client from scan-inbox's freshness guard.
-            ...summary, reviewedAt: now.toISOString(), threshold: summary.threshold ?? DEFAULT_THRESHOLD,
-            pendingReview: (Array.isArray(summary.pendingReview) ? summary.pendingReview : []).filter(m => m.clientId !== clientId),
-            pushedTo: (Array.isArray(summary.pushedTo) ? summary.pushedTo : []).filter(m => m.clientId !== clientId)
-              .concat([{ clientId, name: client.name || null, score }]),
-          } });
-        } catch (e) { console.warn('[casafari/import] matchSummary update failed:', e.message); }
-      }
       await logActivity('casafari_imported', 'pfs_radar', { sourceUrl, price, propertyId: stableId, clientId, score }, actor);
       results.push({ ok: true, url: sourceUrl, propertyId: stableId, pushed: true, duplicate: false, clientFound: true, score, reasons });
     } catch (e) {

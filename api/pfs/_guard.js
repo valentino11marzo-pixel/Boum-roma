@@ -58,3 +58,27 @@ export async function requireCronOrAdmin(req, res) {
   res.status(401).json({ ok: false, error: 'unauthorized' });
   return null;
 }
+
+// Decisions that attest human checks or publish to a paid client's portal
+// require the real admin role. Cron, Homie and the legacy owner API role are
+// intentionally excluded even though they can use the shared radar guard.
+export async function requireHumanAdmin(req, res) {
+  const actor = await requireCronOrAdmin(req, res);
+  if (!actor) return null;
+  if (!actor.startsWith('admin:')) {
+    res.status(403).json({ ok: false, error: 'admin_required' });
+    return null;
+  }
+  const uid = actor.slice(6);
+  let profile;
+  try { profile = await fsGet('users/' + uid); }
+  catch {
+    res.status(500).json({ ok: false, error: 'admin_lookup_failed' });
+    return null;
+  }
+  if (profile?.role !== 'admin') {
+    res.status(403).json({ ok: false, error: 'admin_required' });
+    return null;
+  }
+  return uid;
+}
