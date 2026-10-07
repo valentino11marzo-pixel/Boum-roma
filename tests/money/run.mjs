@@ -399,13 +399,24 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
   r = mkRes();
   await matchTest(mkReq({ ...body, dryRun: false }, { authorization: 'Bearer firebase-token' }), r);
   const { stableIdFromUrl } = await import('../../api/pfs/_ingest.js');
+  const { candidateId } = await import('../../api/pfs/_candidates.js');
   const summary = store.get('pfsProperties/' + stableIdFromUrl(sourceUrl))?.matchSummary;
   check('match-test live: admin non espone candidati reviewed; li lascia nel feed interno',
     r.code === 200 && (store.get('pfsClients/cspfsretry2').portalProperties || []).length === deckBefore
       && r.body?.pendingReview?.some(x => x.clientId === 'cspfsretry2')
-      && summary?.pendingReview?.some(x => x.clientId === 'cspfsretry2'));
+      && summary?.pendingReview?.some(x => x.clientId === 'cspfsretry2')
+      && store.get('pfsCandidateReviews/' + candidateId('cspfsretry2', stableIdFromUrl(sourceUrl)))?.status === 'pending');
   check('match-test live: cliente storico conserva il push automatico',
     r.body?.pushedTo?.some(x => x.clientId === 'cspfslegacy1'));
+  const casePath = 'pfsCandidateReviews/' + candidateId('cspfsretry2', stableIdFromUrl(sourceUrl));
+  store.set(casePath, { ...store.get(casePath), status: 'approved', reviewedBy: 'admin1' });
+  r = mkRes();
+  await matchTest(mkReq({ ...body, dryRun: false }, { authorization: 'Bearer firebase-token' }), r);
+  check('match-test retry: approvazione resta e il feed non la chiama ancora pending',
+    r.code === 200 && store.get(casePath)?.status === 'approved'
+      && store.get(casePath)?.reviewedBy === 'admin1'
+      && !r.body?.pendingReview?.some(x => x.clientId === 'cspfsretry2')
+      && !store.get('pfsProperties/' + stableIdFromUrl(sourceUrl))?.matchSummary?.pendingReview?.some(x => x.clientId === 'cspfsretry2'));
 }
 
 // ═══ 5. stripe-webhook: idempotenza DEPOSIT ═══

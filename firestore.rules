@@ -313,6 +313,7 @@ service cloud.firestore {
     match /leads/{x}                      { allow read, write: if isAdmin(); }
     match /pfsClients/{x}                  { allow read, write: if isAdmin(); }
     match /pfsProperties/{x}               { allow read, write: if isAdmin(); }
+    match /pfsCandidateReviews/{x}          { allow read, write: if isAdmin(); }
     match /pfsActivities/{x}               { allow read, write: if isAdmin(); }
     match /landlords/{x}                   { allow read, write: if isAdmin(); }
     match /clients/{x}                     { allow read, write: if isAdmin(); }

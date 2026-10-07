@@ -33,6 +33,7 @@ import crypto from 'node:crypto';
 import { fsPatch, fsGet, readJson, logActivity } from '../homie/_lib.js';
 import { scoreMatch, DEFAULT_THRESHOLD } from '../homie/_match.js';
 import { listActiveClients } from '../pfs/_ingest.js';
+import { ensureCandidate } from '../pfs/_candidates.js';
 
 const ADMIN_ROLES = new Set(['admin', 'owner']);
 
@@ -179,6 +180,7 @@ export default async function handler(req, res) {
   const now = new Date();
   const pushedTo = [];
   const pendingReview = [];
+  const reviewedIds = new Set(clients.filter(c => c.reviewRequired === true).map(c => c.id));
   const skipped = [];
   const errors = [];
   let masterSaved = true;
@@ -200,8 +202,16 @@ export default async function handler(req, res) {
   for (const r of allScores) {
     if (r.alreadyHasIt) { skipped.push({ clientId: r.clientId, name: r.name, score: r.score }); continue; }
     if (r.pendingReview) {
-      if (masterSaved) pendingReview.push({ clientId: r.clientId, name: r.name, score: r.score, reasons: r.reasons });
-      else errors.push({ clientId: r.clientId, error: 'master_write_failed' });
+      if (!masterSaved) errors.push({ clientId: r.clientId, error: 'master_write_failed' });
+      else try {
+        const client = clients.find(c => c.id === r.clientId);
+        const candidate = await ensureCandidate({ client, propertyId: stableId, property, score: r.score, reasons: r.reasons, now });
+        if (candidate.status === 'pending')
+          pendingReview.push({ clientId: r.clientId, name: r.name, score: r.score, reasons: r.reasons });
+      } catch (e) {
+        console.error('[admin/match-test] candidate write failed:', e.message);
+        errors.push({ clientId: r.clientId, error: 'candidate_write_failed' });
+      }
       continue;
     }
     if (!r.wouldPush) continue;
@@ -244,14 +254,13 @@ export default async function handler(req, res) {
     }
   }
 
-  if (pendingReview.length) try {
+  if (masterSaved && reviewedIds.size && !errors.some(e => e.error === 'candidate_write_failed')) try {
     const saved = await fsGet('pfsProperties/' + stableId);
     const prev = saved?.matchSummary || {};
-    const pendingIds = new Set(pendingReview.map(r => r.clientId));
     await fsPatch('pfsProperties/' + stableId, { matchSummary: {
-      ...prev, at: clientsSnapshotAt, threshold,
+      ...prev, at: clientsSnapshotAt, threshold, queueVersion: 1,
       pendingReview: (Array.isArray(prev.pendingReview) ? prev.pendingReview : [])
-        .filter(r => !pendingIds.has(r.clientId)).concat(pendingReview),
+        .filter(r => !reviewedIds.has(r.clientId)).concat(pendingReview),
     } });
   } catch (err) { errors.push({ step: 'pending_review', error: 'match_summary_write_failed' }); }
 
@@ -266,7 +275,7 @@ export default async function handler(req, res) {
     admin: profile.id,
   }, 'admin');
 
-  const criticalError = errors.find(e => e.error === 'master_write_failed' || e.error === 'match_summary_write_failed');
+  const criticalError = errors.find(e => ['master_write_failed', 'candidate_write_failed', 'match_summary_write_failed'].includes(e.error));
   return res.status(criticalError ? 500 : 200).json({
     ok: !criticalError,
     ...(criticalError ? { error: criticalError.error } : {}),

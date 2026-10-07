@@ -264,6 +264,7 @@ console.log('\n── B. Le giunzioni (asserite sulla sorgente) ─────�
   const rules = src('firestore.rules');
   ok('rules: radarWatchers admin-only', /match \/radarWatchers\/\{x\}\s*\{ allow read, write: if isAdmin\(\); \}/.test(rules));
   ok('rules: radarState admin-only', /match \/radarState\/\{x\}\s*\{ allow read, write: if isAdmin\(\); \}/.test(rules));
+  ok('rules: coda PFS per cliente solo admin', /match \/pfsCandidateReviews\/\{x\}\s*\{ allow read, write: if isAdmin\(\); \}/.test(rules));
 
   const vercel = src('vercel.json');
   ok('vercel: il cron del digest è dichiarato', vercel.includes('"/api/radar/digest"'));
@@ -316,6 +317,9 @@ console.log('\n── B. Le giunzioni (asserite sulla sorgente) ─────�
     !cmd.includes('clients-list') && !cmd.includes('sec-clients'));
   ok('plancia: il cliente creato qui nasce col portale attivo (codice BM…)',
     cmd.includes('portalAccessCode') && cmd.includes('portalEnabled: true'));
+  ok('plancia: fascicolo legge la coda del cliente, indipendente dagli ultimi 120 annunci',
+    cmd.includes("collection('pfsCandidateReviews').where('clientId', '==', id)")
+      && /candidateRows\.filter\(function \(r\) \{ return r\.status === 'pending'; \}\)/.test(cmd));
 }
 
 console.log('\n── C. Il giro vero (Firestore in memoria) ────────────────────');
@@ -349,6 +353,7 @@ let autoId = 0;
 let breakRadarIO = false;   // fase "radar rotto": le sue letture/scritture esplodono
 let failMatchSummaryWrites = false;
 let failMasterWrites = false;
+let failCandidateWrites = false;
 let pfsClientQueries = 0;
 let failPfsClientQueries = false;
 const htmlPages = new Map();
@@ -379,6 +384,9 @@ globalThis.fetch = async (url, opts = {}) => {
     return json(rows.map(([k, v]) => ({ document: toDoc(k, v) })));
   }
   if (opts.method === 'PATCH') {
+    if (failCandidateWrites && path.startsWith('pfsCandidateReviews/')) {
+      return json({ error: 'transient candidate failure' }, 503);
+    }
     if (failMasterWrites && path.startsWith('pfsProperties/') && body.fields?.sourceUrl) {
       return json({ error: 'transient master failure' }, 503);
     }
@@ -391,7 +399,12 @@ globalThis.fetch = async (url, opts = {}) => {
     return json(toDoc(path, next));
   }
   if (opts.method === 'POST') {
-    const id = 'doc' + (++autoId);
+    if (failCandidateWrites && path === 'pfsCandidateReviews') {
+      return json({ error: 'transient candidate failure' }, 503);
+    }
+    const requestedId = new URL(u).searchParams.get('documentId');
+    const id = requestedId || 'doc' + (++autoId);
+    if (requestedId && DB.has(`${path}/${id}`)) return json({ error: { status: 'ALREADY_EXISTS' } }, 409);
     DB.set(`${path}/${id}`, Object.fromEntries(Object.entries(body.fields || {}).map(([k, v]) => [k, dec(v)])));
     return json(toDoc(`${path}/${id}`, DB.get(`${path}/${id}`)));
   }
@@ -406,6 +419,7 @@ process.env.FIREBASE_ADMIN_PASS = 'p';
 delete process.env.TELEGRAM_BOT_TOKEN;
 
 const { ingestProperty, stableIdFromUrl } = await import('../../api/pfs/_ingest.js');
+const { ensureCandidate, candidateId } = await import('../../api/pfs/_candidates.js');
 const { _resetTapCaches } = await import('../../api/radar/_tap.js');
 const { default: valutaHandler } = await import('../../api/radar/valuta.js');
 const { default: digestHandler } = await import('../../api/radar/digest.js');
@@ -584,12 +598,74 @@ const idA = stableIdFromUrl(urlA), idB = stableIdFromUrl(urlB), idC = stableIdFr
     r);
   ok('reviewRequired: matchSummary conserva il candidato rivedibile',
     summary?.pendingReview?.some(m => m.clientId === 'cl_review') === true, summary);
+  const candidate = DB.get('pfsCandidateReviews/' + candidateId('cl_review', propertyId));
+  ok('reviewRequired: coda per cliente persiste oltre il feed recente',
+    candidate?.status === 'pending' && candidate.clientId === 'cl_review'
+      && candidate.propertyId === propertyId && candidate.sourceUrl === sourceUrl, candidate);
   ok('cliente storico: lo stesso annuncio continua ad arrivare nel mazzo',
     r.pushedTo.some(m => m.clientId === 'cl1')
       && DB.get('pfsClients/cl1').portalProperties.some(p => p.id === propertyId), r);
 }
 
+// ── 8-bis. Retry e run concorrenti non riaprono una decisione umana ───────
+{
+  const client = DB.get('pfsClients/cl_review');
+  const sourceUrl = 'https://www.immobiliare.it/annunci/review-concurrent-1001/';
+  const propertyId = stableIdFromUrl(sourceUrl);
+  const property = { sourceUrl, source: 'immobiliare', price: 1090, title: 'Bilocale Prati', advertiser: 'unknown' };
+  const [a, b] = await Promise.all([
+    ensureCandidate({ client: { ...client, id: 'cl_review' }, propertyId, property, score: 75, reasons: ['zona'] }),
+    ensureCandidate({ client: { ...client, id: 'cl_review' }, propertyId, property, score: 75, reasons: ['zona'] }),
+  ]);
+  const path = 'pfsCandidateReviews/' + candidateId('cl_review', propertyId);
+  ok('due run concorrenti: un solo caso deterministico, nessun doppione',
+    [a, b].filter(x => x.created).length === 1 && DB.has(path)
+      && [...DB.keys()].filter(k => k === path).length === 1, { a, b });
+  DB.set(path, { ...DB.get(path), status: 'rejected', reviewedBy: 'owner-1', reviewedAt: iso(NOW) });
+  const retry = await ensureCandidate({ client: { ...client, id: 'cl_review' }, propertyId,
+    property: { ...property, price: 1050 }, score: 80, reasons: ['prezzo'] });
+  const after = DB.get(path);
+  ok('nuovo alert: prezzo aggiornato, rifiuto e autore non cancellati',
+    retry.status === 'rejected' && after.status === 'rejected'
+      && after.reviewedBy === 'owner-1' && after.reviewedAt === iso(NOW) && after.price === 1050, after);
+  const ingested = await ingestProperty({ ...property, price: 1040 }, { ingestedBy: 'test', skipFreshHours: 0 });
+  ok('nuovo ingest: il candidato rifiutato non torna pending né nel deck',
+    ingested.ok && !ingested.pendingReview.some(x => x.clientId === 'cl_review')
+      && DB.get(path).status === 'rejected'
+      && !DB.get('pfsClients/cl_review').portalProperties.some(x => x.id === propertyId), ingested);
+  DB.set(path, { ...DB.get(path), status: 'approved', reviewedBy: 'owner-2', reviewedAt: iso(NOW + 1000) });
+  const parallelRetries = await Promise.all([
+    ensureCandidate({ client: { ...client, id: 'cl_review' }, propertyId,
+      property: { ...property, price: 1030 }, score: 82, reasons: ['zona'] }),
+    ensureCandidate({ client: { ...client, id: 'cl_review' }, propertyId,
+      property: { ...property, price: 1030 }, score: 82, reasons: ['zona'] }),
+  ]);
+  const approved = DB.get(path);
+  ok('due retry concorrenti: approvazione e autore umano restano intatti',
+    parallelRetries.every(x => x.status === 'approved') && approved.status === 'approved'
+      && approved.reviewedBy === 'owner-2' && approved.reviewedAt === iso(NOW + 1000), approved);
+}
+
 // ── 9. Un candidato interno non si perde se il summary fallisce ───────────
+{
+  const sourceUrl = 'https://www.idealista.it/immobile/review-queue-retry-1002/';
+  const propertyId = stableIdFromUrl(sourceUrl);
+  const raw = { sourceUrl, source: 'idealista', price: 1130, sqm: 63, bedrooms: 2,
+    title: 'Bilocale via dei Castani 91', zone: 'Centocelle', advertiser: 'private' };
+  failCandidateWrites = true;
+  const failed = await ingestProperty(raw, { ingestedBy: 'test', skipFreshHours: 12 });
+  failCandidateWrites = false;
+  ok('coda guasta: ingest fallisce e non avanza il summary come se fosse completo',
+    failed.ok === false && failed.error === 'candidate_write_failed'
+      && !DB.get('pfsProperties/' + propertyId)?.matchSummary
+      && !DB.has('pfsCandidateReviews/' + candidateId('cl_review', propertyId)), failed);
+  const retried = await ingestProperty(raw, { ingestedBy: 'test', skipFreshHours: 12 });
+  ok('coda ripristinata: stesso alert crea il caso deterministico',
+    retried.ok && !retried.skippedFresh
+      && DB.get('pfsCandidateReviews/' + candidateId('cl_review', propertyId))?.status === 'pending', retried);
+}
+
+// ── 10. La cache del feed non sostituisce la coda ─────────────────────────
 {
   const sourceUrl = 'https://www.idealista.it/immobile/review-retry-1002/';
   const propertyId = stableIdFromUrl(sourceUrl);

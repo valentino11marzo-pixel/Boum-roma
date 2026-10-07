@@ -1004,6 +1004,10 @@ var state = {
     outreachModal: null,      // listingId col modale 📨 aperto
     outreachDirty: false,     // l'operatore ha editato l'anteprima a mano
     drawerClient: null,       // id del cliente col fascicolo aperto
+    candidateRows: [],        // queue per cliente, indipendente dal feed ultimi 120
+    candidateClientId: null,
+    candidateLoad: 'idle',   // idle · loading · ready · error
+    candidateUnsub: null,
     clientModal: null,        // null · 'new' · id cliente in modifica
     knownIds: null,           // Set di id già visti (per rilevare nuovi arrivi realtime)
     newIds: null,             // Set di id appena arrivati (animazione is-new)
@@ -1377,13 +1381,38 @@ function renderClients() {
 
 /* ── Il fascicolo cliente (drawer) ───────────────────────────── */
 function openDrawer(id) {
+    if (state.candidateUnsub) { state.candidateUnsub(); state.candidateUnsub = null; }
     state.drawerClient = id;
+    state.candidateRows = [];
+    state.candidateClientId = id;
+    var selected = state.clientsById[id];
+    state.candidateLoad = selected && selected.reviewRequired === true ? 'loading' : 'idle';
     $('drawer-scrim').hidden = false;
     $('client-drawer').hidden = false;
     renderDrawer();
+    if (state.candidateLoad === 'loading') {
+        state.candidateUnsub = BoomPortal.listen(db.collection('pfsCandidateReviews').where('clientId', '==', id), function (snap) {
+            if (state.drawerClient !== id) return;
+            var rows = [];
+            snap.forEach(function (d) { rows.push(Object.assign({ id: d.id }, d.data())); });
+            state.candidateRows = rows;
+            state.candidateLoad = 'ready';
+            renderDrawer();
+        }, function (err) {
+            if (state.drawerClient !== id) return;
+            state.candidateLoad = 'error';
+            state.candidateRows = [];
+            renderDrawer();
+            console.warn('[PFS] coda candidati non disponibile:', err && err.message);
+        });
+    }
 }
 function closeDrawer() {
+    if (state.candidateUnsub) { state.candidateUnsub(); state.candidateUnsub = null; }
     state.drawerClient = null;
+    state.candidateClientId = null;
+    state.candidateRows = [];
+    state.candidateLoad = 'idle';
     $('drawer-scrim').hidden = true;
     $('client-drawer').hidden = true;
 }
@@ -1407,12 +1436,14 @@ function renderDrawer() {
     }).join('');
     var searches = clientSearches(c.id);
     var pLink = portalLink(c);
-    var deck = (Array.isArray(c.portalProperties) ? c.portalProperties : []).slice().reverse().slice(0, 40);
+    var allDeck = Array.isArray(c.portalProperties) ? c.portalProperties : [];
+    var deck = allDeck.slice().reverse().slice(0, 40);
     var acts = (Array.isArray(c.portalActivity) ? c.portalActivity : []).slice(-12).reverse();
     var phone = waPhone(c.phone);
-    var pendingForClient = c.reviewRequired === true ? state.properties.filter(function (p) {
-        return pendingReviewFor(p).some(function (m) { return m.clientId === c.id; });
-    }).slice(0, 20) : [];
+    var pendingForClient = c.reviewRequired === true && state.candidateClientId === c.id
+        ? state.candidateRows.filter(function (r) { return r.status === 'pending'; }).sort(function (a, b) {
+            return String(b.firstSeenAt || '').localeCompare(String(a.firstSeenAt || ''));
+        }) : [];
     var due = toDate(c.firstShortlistDueAt);
     var dueText = due ? new Intl.DateTimeFormat('it-IT', {
         timeZone: 'Europe/Rome', dateStyle: 'short', timeStyle: 'short'
@@ -1478,13 +1509,18 @@ function renderDrawer() {
                     (c.casafariAlertStatus || 'da verificare')) +
                 '. Nuova ricerca solo se manca copertura; verificare anche lo stock iniziale. Il task non prova l’arrivo delle email.</div>' +
             (c.pfsKickoffError ? '<div class="dd-meta" style="color:var(--amber)">⚠ ' + esc(c.pfsKickoffError) + '</div>' : '') +
-            (pendingForClient.length ? pendingForClient.map(function (p) {
+            (state.candidateLoad === 'loading' ? '<div class="dd-meta">Carico la coda del cliente…</div>' :
+            state.candidateLoad === 'error' ? '<div class="dd-meta" style="color:var(--amber)">⚠ Coda candidati non leggibile. Riapri il fascicolo; non considerare vuota la ricerca.</div>' :
+            pendingForClient.length ? pendingForClient.slice(0, 40).map(function (p) {
+                var inDeck = allDeck.some(function (entry) { return entry.id === p.propertyId; });
                 return '<div class="d-deck-row"><div class="dd-main"><div class="dd-title">⌛ ' +
-                    esc(p.title || p.address || p.sourceUrl || p.id) + '</div><div class="dd-meta">Candidato da verificare · €' +
-                    fmtPrice(p.price) + '/mese</div></div>' +
+                    esc(p.title || p.address || p.sourceUrl || p.propertyId) + '</div><div class="dd-meta">' +
+                    (inDeck ? 'Già nel portale · revisione da riallineare' : 'Candidato interno · disponibilità e condivisione da verificare') +
+                    ' · €' + fmtPrice(p.price) + '/mese · match ' + esc(p.score) + '</div></div>' +
                     (safeUrl(p.sourceUrl) ? '<a class="abtn" href="' + esc(safeUrl(p.sourceUrl)) + '" target="_blank" rel="noopener">Apri ↗</a>' : '') +
                     '</div>';
-            }).join('') : '<div class="dd-meta">Nessun candidato interno nel feed recente. Controlla fonti e criteri.</div>') +
+            }).join('') + (pendingForClient.length > 40 ? '<div class="dd-meta">+' + esc(pendingForClient.length - 40) + ' candidati nella coda. Raffina o amplia la revisione prima di proporre.</div>' : '') :
+            '<div class="dd-meta">Nessun candidato in attesa nella coda del cliente. Controlla fonti e criteri.</div>') +
         '</div>' : '') +
         '<div class="d-sec"><h4>Mazzo (' + s.total + ') · ❤️ ' + s.liked + ' · ✗ ' + s.rejected + (s.view ? ' · 📅 ' + s.view : '') + '</h4>' +
             (deck.length ? deck.map(function (p) {

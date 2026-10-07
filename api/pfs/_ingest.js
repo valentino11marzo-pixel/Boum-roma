@@ -10,7 +10,7 @@
 //      NEVER pushed to client decks — BOOM only proposes private listings
 //   3. score against every active pfsClients doc (api/homie/_match.js)
 //   4. push score ≥ threshold for historic clients; reviewRequired clients
-//      stay internal in matchSummary.pendingReview until an operator acts
+//      get a durable per-client case and never enter the customer deck
 //   5. persist a matchSummary on the property doc so the command center
 //      can render per-client scores without re-scoring client-side
 
@@ -22,6 +22,7 @@ import { radarTap } from '../radar/_tap.js';
 import { scoreMatch, DEFAULT_THRESHOLD } from '../homie/_match.js';
 import { tgNotify } from './_health.js';
 import { listPfsDocs, MAX_PFS_CLIENTS } from './_pages.js';
+import { ensureCandidate } from './_candidates.js';
 
 export const ACTIVE_STAGES = new Set([
   'payment_confirmed', 'searching', 'options', 'viewing', 'closing',
@@ -99,7 +100,11 @@ export async function ingestProperty(raw, opts = {}) {
         return Number.isFinite(createdAt)
           ? createdAt >= lastScoredAt : client.reviewRequired === true;
       });
-      if (seen && Number.isFinite(lastScoredAt) && !needsNewClientScore
+      // Old summaries predate the durable queue; re-score them once so a
+      // recent alert cannot hide a reviewed client's case after rollout.
+      const needsQueueMigration = hasClientSnapshot && opts.activeClients.some(c => c.reviewRequired === true)
+        && existing?.matchSummary?.queueVersion !== 1;
+      if (seen && Number.isFinite(lastScoredAt) && !needsNewClientScore && !needsQueueMigration
           && (now - new Date(seen)) < skipFreshHours * 3600 * 1000) {
         // Un prezzo cambiato dentro la finestra di freschezza non è "niente
         // di nuovo": si aggiorna il doc (prima restava stantio) e, se è un
@@ -212,9 +217,16 @@ export async function ingestProperty(raw, opts = {}) {
       if (masterWriteError) {
         errors.push({ clientId: client.id, error: 'master_write_failed' });
       } else {
-        // Only an operator's explicit proposal can write portalProperties.
-        // A score is a candidate for review, not proof of availability.
-        pendingReview.push({ clientId: client.id, name: client.name || null, score, reasons });
+        // The client/property case is the truth; matchSummary is only a feed
+        // cache. A failed case write must not advance the scored epoch.
+        try {
+          const candidate = await ensureCandidate({ client, propertyId: stableId, property, score, reasons, now });
+          if (candidate.status === 'pending')
+            pendingReview.push({ clientId: client.id, name: client.name || null, score, reasons });
+        } catch (e) {
+          console.error('[pfs/_ingest] candidate write failed:', e.message);
+          errors.push({ clientId: client.id, error: 'candidate_write_failed' });
+        }
       }
       continue;
     }
@@ -266,11 +278,13 @@ export async function ingestProperty(raw, opts = {}) {
   // A failed master update cannot be followed by a fresh score epoch: that
   // would make the next alert skip a reviewed client whose candidate was
   // deliberately not recorded above. Leave the old summary retryable.
-  if (masterWriteError) summaryWriteError = masterWriteError;
+  if (masterWriteError || errors.some(e => e.error === 'candidate_write_failed'))
+    summaryWriteError = masterWriteError || new Error('candidate_write_failed');
   else try {
     await fsPatch('pfsProperties/' + stableId, {
       matchSummary: {
         at: new Date(activeClientsSnapshotAt).toISOString(),
+        queueVersion: 1,
         threshold,
         pushedTo: pushedTo.map(p => ({ clientId: p.clientId, name: p.name, score: p.score })),
         pendingReview: pendingReview.map(p => ({ clientId: p.clientId, name: p.name, score: p.score, reasons: p.reasons })),
@@ -285,7 +299,8 @@ export async function ingestProperty(raw, opts = {}) {
 
   // The radar must report a failed internal candidate write as a failure,
   // never as "ingested, zero matches". Existing legacy pushes remain intact.
-  if (pendingReview.length && summaryWriteError) errors.push({ step: 'pending_review', error: 'match_summary_write_failed' });
+  if (pendingReview.length && summaryWriteError && !errors.some(e => e.error === 'candidate_write_failed'))
+    errors.push({ step: 'pending_review', error: 'match_summary_write_failed' });
 
   // ── 5. "Qualcosa di pronto" → Telegram ───────────────────
   // Fires only when at least one client actually received the property —
@@ -322,7 +337,7 @@ export async function ingestProperty(raw, opts = {}) {
     totalActive: clients.length,
   }, ingestedBy);
 
-  const criticalError = errors.find(e => e.error === 'master_write_failed' || e.error === 'match_summary_write_failed');
+  const criticalError = errors.find(e => ['master_write_failed', 'candidate_write_failed', 'match_summary_write_failed'].includes(e.error));
   return {
     ok: !criticalError,
     ...(criticalError ? { error: criticalError.error } : {}),
