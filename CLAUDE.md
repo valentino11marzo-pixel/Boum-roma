@@ -4680,6 +4680,11 @@ Match-test, the PFS brief and the shared PFS operational guard accept only admin
 Exact-deadline escalation remains follow-up work. The import confirmation is an operator attestation only: for reviewed clients an absent advertiser type stays `unknown`, and availability/share-permission evidence is not stored yet.
 `portalProperties` updates still use blind read/patch writes in multiple routes, so concurrent proposals can overwrite each other; a shared conditional-write migration and email outbox are required before the pilot can claim reliable delivery.
 `pfs-command.html` asks for operator confirmation before proposing to a reviewed client. The Casafari form in `js/portal-app.js` belongs to Lotto 4 and still lacks `reviewConfirmed`; it fails closed for reviewed clients until its owner updates that UI. The shared PFS guard excludes landlord profiles from operational endpoints that can expose client data.
+`scan-inbox` reads active clients once per run with mail and records in `matchSummary.at` the client-snapshot epoch taken before the query.
+A fresh listing is re-scored when an active client's `created_at` is at or after that epoch; an invalid summary or missing reviewed-client timestamp also prevents the freshness skip.
+The real inbox handler tests a checkout after prior scoring, a checkout during a run, a failed client list and a failed master write followed by recovery (`tests/radar/run.mjs`).
+Manual `casafari/import` preserves the all-client score epoch, while admin match-test captures it before its own client query (`tests/money/run.mjs`).
+This covers alert emails that are re-read. The three-day IMAP window and last-40-message cap still require an initial-stock backfill for a dependable first shortlist.
 
 **BLOCCATA ≠ GUASTA** (`alertDecision()`, esportata + testata). `scan-market`
 aveva accumulato **1145 run falliti di fila** e un allarme ogni 6h per ~3
