@@ -89,9 +89,10 @@ export default async function handler(req, res) {
       furnished: typeof raw.furnished === 'boolean' ? raw.furnished : null,
       images: sanitizeImages(raw.images),
       description: raw.description || null,
-      // The operator vetted it → 'private' unless told otherwise. (Only
-      // 'agency' is ever filtered out of client decks by the pipeline.)
-      advertiser: ['private', 'agency', 'unknown'].includes(raw.advertiser) ? raw.advertiser : 'private',
+      // A confirmation is not evidence of advertiser type. New reviewed
+      // clients keep an absent type unknown; preserve historic import shape.
+      advertiser: ['private', 'agency', 'unknown'].includes(raw.advertiser)
+        ? raw.advertiser : (client.reviewRequired === true ? 'unknown' : 'private'),
       scrapedAt: raw.scrapedAt || now.toISOString(),
       lastSeenAt: now,
       ingestedBy: 'casafari-import:' + actor,

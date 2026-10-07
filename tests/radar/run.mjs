@@ -340,9 +340,13 @@ globalThis.fetch = async (url, opts = {}) => {
     const coll = q.from[0].collectionId;
     if (breakRadarIO && /radarWatchers/.test(coll)) throw new Error('radar_io_down');
     const filter = q.where && q.where.fieldFilter;
+    const afterId = q.startAt?.values?.[0]?.referenceValue?.split('/').at(-1) || null;
     const rows = [...DB.entries()]
       .filter(([k]) => k.startsWith(coll + '/'))
-      .filter(([, v]) => !filter || String(v[filter.field.fieldPath]) === String(dec(filter.value)));
+      .filter(([k]) => !afterId || k.slice(coll.length + 1) > afterId)
+      .filter(([, v]) => !filter || String(v[filter.field.fieldPath]) === String(dec(filter.value)))
+      .sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
+      .slice(0, q.limit || Infinity);
     return json(rows.map(([k, v]) => ({ document: toDoc(k, v) })));
   }
   if (opts.method === 'PATCH') {
@@ -591,6 +595,9 @@ const idA = stableIdFromUrl(urlA), idB = stableIdFromUrl(urlB), idC = stableIdFr
     auto: true, enabled: true, clientId: 'cl_after_checkout', portal: 'immobiliare',
     searchUrl, zoneName: 'Prati', knownListings: {},
   });
+  for (let i = 0; i < 205; i++) DB.set('radarSearches/a_disabled_' + i, {
+    auto: false, enabled: false, portal: 'immobiliare', searchUrl,
+  });
   htmlPages.set(searchUrl, '<html>' + 'x'.repeat(220) + '<a href="/annunci/777777/">Casa</a></html>');
   htmlPages.set(sourceUrl, '<html>' + 'x'.repeat(220) +
     '<script type="application/ld+json">' + JSON.stringify({ '@type': 'Apartment',
@@ -599,7 +606,7 @@ const idA = stableIdFromUrl(urlA), idB = stableIdFromUrl(urlB), idC = stableIdFr
   const scanMarket = (await import('../../api/pfs/scan-market.js')).default;
   const result = await call(scanMarket, 'GET', null, { 'x-homie-secret': 'test-secret' });
   const summary = DB.get('pfsProperties/' + propertyId)?.matchSummary;
-  ok('prima scansione del nuovo cliente: annuncio globale fresco viene ricalcolato e resta interno',
+  ok('prima scansione oltre 200 ricerche: annuncio globale fresco viene ricalcolato e resta interno',
     result.status === 200 && result.body?.ingested === 1
       && summary?.pendingReview?.some(m => m.clientId === 'cl_after_checkout')
       && DB.get('pfsClients/cl_after_checkout').portalProperties.length === 0,

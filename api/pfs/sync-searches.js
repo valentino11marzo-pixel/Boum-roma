@@ -12,11 +12,12 @@
 // Manual knobs preserved on update: `enabled` and `urlOverride` are only
 // set on first creation — re-syncs never clobber what Valentino tuned.
 
-import { fsGet, fsPatch, fsList, logActivity } from '../homie/_lib.js';
+import { fsGet, fsPatch, logActivity } from '../homie/_lib.js';
 import { requireCronOrAdmin } from './_guard.js';
 import { isActivePfsClient, listActiveClients } from './_ingest.js';
 import { ensurePfsKickoff, syncClientSearches } from './_kickoff.js';
 import { reportHealth } from './_health.js';
+import { listPfsDocs, MAX_PFS_CLIENTS, MAX_RADAR_SEARCHES } from './_pages.js';
 
 // A delayed cron must not miss the daily reconcile. The attempt marker also
 // prevents a broken full sync from rewriting every search every five minutes:
@@ -56,11 +57,14 @@ export default async function handler(req, res) {
 
   let clients;
   try {
-    clients = fullSync ? await listActiveClients() : (await fsList('pfsClients', {
-      filter: { field: 'pfsKickoffStatus', op: 'EQUAL', value: 'pending' }, limit: 200,
+    clients = fullSync ? await listActiveClients() : (await listPfsDocs('pfsClients', {
+      filter: { field: 'pfsKickoffStatus', op: 'EQUAL', value: 'pending' }, maxDocs: MAX_PFS_CLIENTS,
     })).filter(isActivePfsClient);
   }
-  catch (e) { return res.status(500).json({ ok: false, error: 'client_list_failed', detail: e.message }); }
+  catch (e) {
+    await reportHealth('sync', { ok: false, error: 'client_list_failed: ' + e.message });
+    return res.status(500).json({ ok: false, error: 'client_list_failed', detail: e.message });
+  }
 
   // Quiet empty polling: no Firestore activity/heartbeat writes 287 times a
   // day when there is no pending paid checkout. The daily heartbeat remains.
@@ -82,12 +86,12 @@ export default async function handler(req, res) {
 
   // Switch off auto-searches whose client is no longer active
   if (fullSync) try {
-    const all = await fsList('radarSearches', { limit: 200 });
+    const all = await listPfsDocs('radarSearches', { maxDocs: MAX_RADAR_SEARCHES });
     const verified = new Map();
     for (const s of all) {
       if (s.auto === true && s.clientId && !activeIds.has(s.clientId) && s.enabled !== false) {
-        // The active-client list is capped at 200. Absence from that page is
-        // not evidence of inactivity; verify the actual client before off.
+        // A client can change stage after the active-list snapshot. Verify
+        // before disabling rather than relying on that earlier snapshot.
         if (!verified.has(s.clientId)) {
           try { verified.set(s.clientId, await fsGet('pfsClients/' + s.clientId)); }
           catch (e) { errors.push({ step: 'verify_inactive', clientId: s.clientId, error: e.message }); continue; }

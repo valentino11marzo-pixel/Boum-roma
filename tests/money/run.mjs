@@ -74,9 +74,11 @@ globalThis.fetch = async (url, opts = {}) => {
       const coll = q.from[0].collectionId;
       const field = q.where?.fieldFilter?.field?.fieldPath;
       const val = q.where?.fieldFilter?.value?.stringValue;
+      const afterId = q.startAt?.values?.[0]?.referenceValue?.split('/').at(-1) || null;
       const rows = [];
-      for (const [key, fields] of store) {
+      for (const [key, fields] of [...store.entries()].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) {
         if (!key.startsWith(coll + '/')) continue;
+        if (afterId && key.slice(coll.length + 1) <= afterId) continue;
         if (field && String(fields[field]) !== String(val)) continue;
         rows.push({ document: { name: 'projects/p/databases/(default)/documents/' + key, fields: toFsFieldsShallow(fields) } });
       }
@@ -330,6 +332,14 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
   const summary = store.get('pfsProperties/' + propertyId)?.matchSummary;
   check('PFS review manuale: il candidato lascia la coda interna dopo la proposta',
     summary?.pendingReview?.length === 0 && summary?.pushedTo?.some(m => m.clientId === clientId));
+
+  const unknownListing = { sourceUrl: 'https://www.casafari.com/listing/unknown-advertiser',
+    source: 'casafari', price: 1250, title: 'Bilocale senza inserzionista', zone: 'Prati' };
+  r = mkRes();
+  await importCasafari(mkReq({ clientId, listing: unknownListing, reviewConfirmed: true },
+    { authorization: 'Bearer firebase-token' }), r);
+  check('PFS review manuale: inserzionista assente resta unknown, non privato presunto',
+    r.code === 200 && store.get('pfsProperties/' + stableIdFromUrl(unknownListing.sourceUrl))?.advertiser === 'unknown');
 }
 
 // Il vecchio harness admin aveva un secondo push automatico che bypassava
@@ -341,6 +351,22 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
   store.set('users/admin1', { role: 'landlord' });
   let r = mkRes();
   await matchTest(mkReq(body, { authorization: 'Bearer firebase-token' }), r);
+  check('match-test: landlord non legge criteri e candidati di tutti i PFS',
+    r.code === 403 && r.body?.error === 'admin_required' && !r.body?.results);
+  r = mkRes();
+  await matchTest(mkReq({ ...body, dryRun: false }, { authorization: 'Bearer firebase-token' }), r);
+  check('match-test live: landlord non può creare o distribuire candidati PFS',
+    r.code === 403 && !store.has('pfsProperties/' + (await import('../../api/pfs/_ingest.js')).stableIdFromUrl(sourceUrl)));
+
+  const brief = (await import('../../api/pfs/brief.js')).default;
+  r = mkRes();
+  await brief({ method: 'GET', headers: { authorization: 'Bearer firebase-token' } }, r);
+  check('brief: landlord non legge il riepilogo di tutti i clienti PFS',
+    r.code === 403 && r.body?.error === 'admin_required');
+
+  store.set('users/admin1', { role: 'admin' });
+  r = mkRes();
+  await matchTest(mkReq(body, { authorization: 'Bearer firebase-token' }), r);
   const reviewedDry = r.body?.results?.find(x => x.clientId === 'cspfsretry2');
   check('match-test dry run: cliente reviewed è da rivedere, non da spingere',
     r.code === 200 && reviewedDry?.pendingReview === true && reviewedDry?.wouldPush === false);
@@ -349,7 +375,7 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
   await matchTest(mkReq({ ...body, dryRun: false }, { authorization: 'Bearer firebase-token' }), r);
   const { stableIdFromUrl } = await import('../../api/pfs/_ingest.js');
   const summary = store.get('pfsProperties/' + stableIdFromUrl(sourceUrl))?.matchSummary;
-  check('match-test live: landlord non espone candidati reviewed; li lascia nel feed interno',
+  check('match-test live: admin non espone candidati reviewed; li lascia nel feed interno',
     r.code === 200 && (store.get('pfsClients/cspfsretry2').portalProperties || []).length === deckBefore
       && r.body?.pendingReview?.some(x => x.clientId === 'cspfsretry2')
       && summary?.pendingReview?.some(x => x.clientId === 'cspfsretry2'));
@@ -652,25 +678,63 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
     /\(env\.contract\.type === 'studenti'\) \? buildAllegatoC\(env\) : is32\(env\.contract\) \? buildAllegatoA\(env\) : buildAllegatoB\(env\)/.test(disp));
 }
 
-// ═══ Scalabilità: un cliente oltre la prima pagina non va disattivato ═══
+// ═══ Scalabilità: clienti e ricerche oltre la prima pagina ═══
 {
   for (let i = 0; i < 205; i++) store.set('pfsClients/bulk_' + i, {
-    name: 'Bulk ' + i, stage: 'searching', budget: 1500, portalEnabled: true,
+    name: 'Bulk ' + i, stage: 'placed', budget: 1500, portalEnabled: true,
+    pfsKickoffStatus: 'pending',
   });
+  const paidAt = new Date().toISOString();
   store.set('pfsClients/outside_page', { name: 'Cliente oltre pagina', stage: 'searching',
-    budget: 1300, portalEnabled: true, reviewRequired: true });
+    budget: 1300, portalEnabled: true, reviewRequired: true,
+    pfsKickoffStatus: 'pending', paid_at: paidAt,
+    firstShortlistDueAt: new Date(Date.parse(paidAt) + 48 * 3600_000).toISOString() });
+  for (let i = 0; i < 205; i++) store.set('radarSearches/a_dummy_' + i, {
+    auto: false, enabled: false, portal: 'idealista', searchUrl: 'https://www.idealista.it/' });
   store.set('radarSearches/pfs_outside_page_idealista', { auto: true, enabled: true,
     clientId: 'outside_page', portal: 'idealista', searchUrl: 'https://www.idealista.it/affitto-case/roma-roma/' });
   store.set('radarSearches/pfs_missing_idealista', { auto: true, enabled: true,
     clientId: 'missing', portal: 'idealista', searchUrl: 'https://www.idealista.it/affitto-case/roma-roma/' });
-  store.set('users/admin1', { role: 'admin' });
+  store.set('pfsRadarHealth/sync', { lastFullSyncDay: new Date().toISOString().slice(0, 10) });
   const syncSearches = (await import('../../api/pfs/sync-searches.js')).default;
-  const r = mkRes();
+  let r = mkRes();
+  await syncSearches({ method: 'GET', headers: { authorization: 'Bearer test-cron-secret' } }, r);
+  check('sync pending: cliente pagato oltre 200 riceve il kickoff dal worker',
+    r.code === 200 && r.body?.mode === 'pending'
+      && store.get('pfsClients/outside_page')?.pfsKickoffStatus === 'searches_ready'
+      && [...store.keys()].filter(k => k.startsWith('radarSearches/pfs_outside_page_')).length === 2);
+
+  const { ingestProperty, stableIdFromUrl } = await import('../../api/pfs/_ingest.js');
+  const sourceUrl = 'https://www.immobiliare.it/annunci/99999991/';
+  const ingest = await ingestProperty({ sourceUrl, source: 'immobiliare', price: 1200,
+    title: 'Bilocale oltre pagina', advertiser: 'private' }, { threshold: 0 });
+  const summary = store.get('pfsProperties/' + stableIdFromUrl(sourceUrl))?.matchSummary;
+  check('ingest vero: cliente reviewed oltre 200 viene valutato e resta interno',
+    ingest.ok === true && summary?.pendingReview?.some(m => m.clientId === 'outside_page')
+      && !(store.get('pfsClients/outside_page')?.portalProperties || []).some(p => p.id === stableIdFromUrl(sourceUrl)));
+
+  store.set('users/admin1', { role: 'admin' });
+  const matchTest = (await import('../../api/admin/match-test.js')).default;
+  r = mkRes();
+  await matchTest(mkReq({ dryRun: true, sourceUrl: 'https://www.immobiliare.it/annunci/99999992/',
+    price: 1200, title: 'Bilocale oltre pagina' }, { authorization: 'Bearer firebase-token' }), r);
+  check('match-test: include il cliente attivo oltre 200 senza perdere i criteri',
+    r.code === 200 && r.body?.results?.some(x => x.clientId === 'outside_page'));
+
+  r = mkRes();
   await syncSearches({ method: 'GET', headers: { authorization: 'Bearer firebase-token' } }, r);
   check('sync completa: cliente attivo oltre 200 verificato, ricerca non spenta',
-    r.code === 200 && store.get('radarSearches/pfs_outside_page_idealista')?.enabled === true);
-  check('sync completa: ricerca di cliente davvero mancante viene spenta',
+    r.code === 200 && r.body?.mode === 'full'
+      && store.get('radarSearches/pfs_outside_page_idealista')?.enabled === true);
+  check('sync completa: ricerca oltre 200 di cliente davvero mancante viene spenta',
     store.get('radarSearches/pfs_missing_idealista')?.enabled === false);
+
+  const { listPfsDocs } = await import('../../api/pfs/_pages.js');
+  let overflow = null;
+  try { await listPfsDocs('pfsClients', { maxDocs: 2 }); }
+  catch (e) { overflow = e; }
+  check('paginazione oltre il limite: fallisce esplicitamente, senza lista parziale',
+    overflow?.message === 'pfsClients_scan_limit_exceeded');
 }
 
 console.log('\n' + '─'.repeat(48));

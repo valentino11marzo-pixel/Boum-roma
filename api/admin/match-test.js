@@ -30,13 +30,11 @@
 // ─────────────────────────────────────────────────────────────────────────
 
 import crypto from 'node:crypto';
-import { fsList, fsPatch, fsGet, readJson, logActivity } from '../homie/_lib.js';
+import { fsPatch, fsGet, readJson, logActivity } from '../homie/_lib.js';
 import { scoreMatch, DEFAULT_THRESHOLD } from '../homie/_match.js';
+import { listActiveClients } from '../pfs/_ingest.js';
 
-const ADMIN_ROLES = new Set(['admin', 'owner', 'landlord']);
-const ACTIVE_STAGES = new Set([
-  'payment_confirmed', 'searching', 'options', 'viewing', 'closing',
-]);
+const ADMIN_ROLES = new Set(['admin', 'owner']);
 
 async function verifyFirebaseToken(token) {
   if (!token) return null;
@@ -130,14 +128,8 @@ export default async function handler(req, res) {
 
   // ── Fetch active clients + score ─────────────────────────
   let clients = [];
-  try {
-    const all = await fsList('pfsClients', { limit: 200 });
-    clients = all.filter(c => {
-      const stage = c.stage || c.portalStage;
-      if (!stage) return c.portalEnabled === true;
-      return ACTIVE_STAGES.has(stage);
-    });
-  } catch (err) {
+  try { clients = await listActiveClients(); }
+  catch (err) {
     return res.status(500).json({ ok: false, error: 'client_list_failed', detail: err.message });
   }
 

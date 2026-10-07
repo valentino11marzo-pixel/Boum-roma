@@ -4672,7 +4672,11 @@ For these new `reviewRequired` clients `_ingest.js` saves scored candidates in `
 Manual `casafari/import` release requires an admin/owner token and explicit operator confirmation; this is an attestation, not captured availability or sharing-permission evidence. `casafariAlertStatus: needs_setup` stays pending until a separate verified activation flow exists.
 `scan-market` re-scores a URL new to each search even if seen globally before checkout; blocked portal scans still leave initial stock to manual search. Pending candidates beyond the command center's latest 120 listings have no durable per-client queue yet.
 The brief counts pending matches separately as "da rivedere" (`tests/radar/run.mjs`). The pilot remains blocked on a durable per-client queue, verified Casafari alert setup, and availability/share-permission evidence; the customer email still promises 72h and the 48h goal is internal only.
-The daily full sync still lists up to 200 active clients per pass; before disabling a search for a client outside that page it verifies the client directly. Pagination and exact-deadline escalation remain follow-up work.
+PFS ingestion, match-test, pending/full sync, and market-search selection now paginate client/search collections by document ID (`tests/money/run.mjs`, `tests/radar/run.mjs`).
+They fail explicitly and report health at the 1000-document safety cap rather than silently ignore later clients or searches.
+Match-test and the PFS brief accept only admin/owner profiles for all-client data; the shared auth guard remains unchanged.
+Exact-deadline escalation remains follow-up work. The import confirmation is an operator attestation only: for reviewed clients an absent advertiser type stays `unknown`, and availability/share-permission evidence is not stored yet.
+`portalProperties` updates still use blind read/patch writes in multiple routes, so concurrent proposals can overwrite each other; a shared conditional-write migration and email outbox are required before the pilot can claim reliable delivery.
 The `pfs-command.html` manual proposal path works with reviewed clients; the Casafari form in `js/portal-app.js` lacks `reviewConfirmed` and will fail closed until its Lotto 4 owner updates that UI.
 
 **BLOCCATA ≠ GUASTA** (`alertDecision()`, esportata + testata). `scan-market`

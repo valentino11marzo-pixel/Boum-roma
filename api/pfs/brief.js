@@ -75,6 +75,14 @@ export default async function handler(req, res) {
   }
   const actor = await requireCronOrAdmin(req, res);
   if (!actor) return;
+  // The shared guard permits landlord profiles for other admin surfaces;
+  // this brief contains every PFS client's criteria and candidate listings.
+  if (actor.startsWith('admin:')) {
+    let profile;
+    try { profile = await fsGet('users/' + actor.slice('admin:'.length)); }
+    catch { return res.status(500).json({ ok: false, error: 'profile_lookup_failed' }); }
+    if (!['admin', 'owner'].includes(profile?.role)) return res.status(403).json({ ok: false, error: 'admin_required' });
+  }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ ok: false, error: 'server_missing_anthropic_key' });
@@ -93,7 +101,8 @@ export default async function handler(req, res) {
       return seen && new Date(seen) > cutoff;
     });
   } catch (e) { console.warn('[pfs/brief] properties read failed:', e.message); }
-  try { clients = await listActiveClients(); } catch (e) { console.warn('[pfs/brief] clients read failed:', e.message); }
+  try { clients = await listActiveClients(); }
+  catch (e) { return res.status(500).json({ ok: false, error: 'client_list_failed', detail: e.message }); }
   for (const s of ['inbox', 'market', 'sync']) {
     try {
       const h = await fsGet('pfsRadarHealth/' + s);

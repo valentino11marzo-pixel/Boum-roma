@@ -16,11 +16,12 @@
 
 import crypto from 'node:crypto';
 import RADAR from '../../js/radar-engine.js';
-import { fsPatch, fsGet, fsList, logActivity } from '../homie/_lib.js';
+import { fsPatch, fsGet, logActivity } from '../homie/_lib.js';
 import { recordObservation } from '../market/_ledger.js';
 import { radarTap } from '../radar/_tap.js';
 import { scoreMatch, DEFAULT_THRESHOLD } from '../homie/_match.js';
 import { tgNotify } from './_health.js';
+import { listPfsDocs, MAX_PFS_CLIENTS } from './_pages.js';
 
 export const ACTIVE_STAGES = new Set([
   'payment_confirmed', 'searching', 'options', 'viewing', 'closing',
@@ -45,7 +46,7 @@ export function sanitizeImages(imgs) {
 }
 
 export async function listActiveClients() {
-  const all = await fsList('pfsClients', { limit: 200 });
+  const all = await listPfsDocs('pfsClients', { maxDocs: MAX_PFS_CLIENTS });
   return all.filter(isActivePfsClient);
 }
 

@@ -11,11 +11,12 @@
 //
 // Auth: cron secret / Homie secret / admin token (see _guard.js).
 
-import { fsList, fsPatch } from '../homie/_lib.js';
+import { fsPatch } from '../homie/_lib.js';
 import { requireCronOrAdmin } from './_guard.js';
 import { ingestProperty } from './_ingest.js';
 import { fetchHtml, extractListingUrls, parseListing, detectAdvertiser } from './_fetch.js';
 import { reportHealth, reportNeedsAttention } from './_health.js';
+import { listPfsDocs, MAX_RADAR_SEARCHES } from './_pages.js';
 
 const MAX_SEARCHES_PER_RUN = 12;
 const MAX_DETAIL_FETCHES = 24;   // global per run, keeps us inside maxDuration
@@ -30,7 +31,7 @@ export default async function handler(req, res) {
 
   let searches = [];
   try {
-    const all = await fsList('radarSearches', { limit: 200 });
+    const all = await listPfsDocs('radarSearches', { maxDocs: MAX_RADAR_SEARCHES });
     searches = all
       .filter(s => s.auto === true && s.enabled !== false && (s.urlOverride || s.searchUrl))
       .sort((a, b) => String(a.lastScanAt || '').localeCompare(String(b.lastScanAt || '')))
