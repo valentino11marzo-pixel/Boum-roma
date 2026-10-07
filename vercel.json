@@ -519,6 +519,10 @@
     {
       "source": "/chiamate",
       "destination": "/chiamate.html"
+    },
+    {
+      "source": "/behavior",
+      "destination": "/behavior.html"
     }
   ],
   "headers": [
@@ -556,7 +560,7 @@
       ]
     },
     {
-      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|team|banca|salute|manuale|risposte|risposte.html|photo-lab|pfs-command|radar|watermark-studio|media-studio|pre-agreement-admin|casa|tenant|chiamate|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html|team.html|banca.html|salute.html|manuale.html|photo-lab.html|pfs-command.html|radar.html|watermark-studio.html|media-studio.html|pre-agreement-admin.html|tenant.html|chiamate.html|viewing|viewing.html|scheda|scheda.html|sign|sign.html|pre-agreement|pre-agreement.html|verbale|verbale.html|inventario|inventario.html)(.*)",
+      "source": "/(portal|admin|admin-flats|setup-firebase|seed-listings|boom-doc-parser|boom_doc_parser|cockpit-preview|team|banca|salute|manuale|risposte|risposte.html|photo-lab|pfs-command|radar|behavior|behavior.html|watermark-studio|media-studio|pre-agreement-admin|casa|tenant|chiamate|portal.html|admin.html|admin-flats.html|setup-firebase.html|seed-listings.html|boom_doc_parser.html|cockpit-preview.html|team.html|banca.html|salute.html|manuale.html|photo-lab.html|pfs-command.html|radar.html|behavior.html|watermark-studio.html|media-studio.html|pre-agreement-admin.html|tenant.html|chiamate.html|viewing|viewing.html|scheda|scheda.html|sign|sign.html|pre-agreement|pre-agreement.html|verbale|verbale.html|inventario|inventario.html)(.*)",
       "headers": [
         {
           "key": "X-Robots-Tag",
@@ -915,6 +919,10 @@
     {
       "path": "/api/radar/digest",
       "schedule": "10 6,12,17 * * *"
+    },
+    {
+      "path": "/api/analytics/cleanup",
+      "schedule": "25 2 * * *"
     }
   ]
 }

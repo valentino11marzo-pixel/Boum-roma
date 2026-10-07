@@ -336,6 +336,10 @@ service cloud.firestore {
     match /savedSearches/{x}               { allow read, write: if isAdmin(); }
     match /teamHealth/{x}                  { allow read, write: if isAdmin(); }
     match /teamReports/{x}                 { allow read, write: if isAdmin(); }
+    // Behavior Intelligence: riepiloghi anonimi e consentiti delle visite.
+    // Il browser non parla mai direttamente con Firestore: scrive la porta
+    // validata /api/analytics/collect; la dashboard legge l'aggregato server.
+    match /webJourneys/{x}                 { allow read, write: if isAdmin(); }
     // La Centrale AI: contatori per scopo (aiUsage/<giorno>) e coppie
     // cloud/locale dell'ombra (aiShadow/<scopo>) — solo numeri, mai contenuto,
     // e comunque admin-only (la lezione propertyLocks: senza la riga si cade
