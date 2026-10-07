@@ -204,7 +204,8 @@ console.log('\nLE GIUNZIONI — le superfici leggono la stessa corsia');
 check('JSON-LD: PreOrder per le prenotabili, SoldOut solo per le chiuse', () => {
   const s = src('api/listing.js');
   return /schema\.org\/PreOrder/.test(s) && /marketLane/.test(s)
-    && /lane === 'closed' \? 'https:\/\/schema\.org\/SoldOut'/.test(s);
+    && /lane\.lane === 'closed'\s*\? 'https:\/\/schema\.org\/SoldOut'/.test(s)
+    && /lane\.status !== 'unknown'/.test(s);
 });
 check('JSON-LD: availabilityStarts solo dalla corsia (mai da un testo qualsiasi)', () =>
   /if \(lane\.iso\) ld\.offers\.availabilityStarts = lane\.iso;/.test(src('api/listing.js')));

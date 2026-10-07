@@ -80,8 +80,10 @@ function injectSeo(html, d, id) {
   if (zone) bits.push('in ' + zone);
   bits.push('verified by BOOM Rome');
   if (price) bits.push('from €' + price.toLocaleString('en-US') + '/mo');
-  bits.push('legal contract, 48h move-in');
+  bits.push('legal contract, English support');
   const description = bits.join(', ') + '.';
+  const descriptionNeedsReview = DISPO.needsAvailabilityReview(d);
+  const currentDescription = descriptionNeedsReview ? '' : String(d.description || '');
 
   const images = Array.isArray(d.images) ? d.images.filter(Boolean) : [];
   const ogImage = images[0] || d.coverImage || d.image || 'https://www.boomrome.com/og-home.png';
@@ -112,7 +114,7 @@ function injectSeo(html, d, id) {
     '@context': 'https://schema.org',
     '@type': 'Apartment',
     name,
-    description: d.description ? String(d.description).slice(0, 300) : description,
+    description: currentDescription ? currentDescription.slice(0, 300) : description,
     url: canonical,
     image: images.length ? images : [ogImage],
   };
@@ -134,12 +136,13 @@ function injectSeo(html, d, id) {
     const lane = DISPO.marketLane(d);
     ld.offers = {
       '@type': 'Offer', price, priceCurrency: 'EUR', url: canonical,
-      availability: lane.lane === 'closed' ? 'https://schema.org/SoldOut'
-        : lane.lane === 'ahead' ? 'https://schema.org/PreOrder'
-          : 'https://schema.org/InStock',
       priceSpecification: { '@type': 'UnitPriceSpecification', price, priceCurrency: 'EUR', unitText: 'MONTH' },
       seller: { '@id': 'https://www.boomrome.com/#organization' },
     };
+    if (lane.status !== 'unknown') ld.offers.availability = lane.lane === 'closed'
+      ? 'https://schema.org/SoldOut'
+      : lane.lane === 'ahead' ? 'https://schema.org/PreOrder'
+        : 'https://schema.org/InStock';
     // availabilityStarts solo su una data CERTA (la corsia la espone solo lì)
     if (lane.iso) ld.offers.availabilityStarts = lane.iso;
   }
@@ -200,7 +203,9 @@ function injectSeo(html, d, id) {
   // DATA, che è l'unico fatto che un motore di risposta può citare utilmente
   // ("libero da settembre 2027"), spariva. Ora la corsia la porta in chiaro.
   const lane2 = DISPO.marketLane(d);
-  const avail = lane2.lane === 'ahead'
+  const avail = lane2.status === 'unknown'
+    ? 'Availability to confirm — ask BOOM.'
+    : lane2.lane === 'ahead'
     ? (lane2.iso
       ? 'Occupied now — free from ' + lane2.iso + ' and reservable today.'
       : 'Occupied now — reservable ahead; ask BOOM for the release date.')
@@ -216,10 +221,10 @@ function injectSeo(html, d, id) {
   if (beds) facts.push('<li>' + beds + (beds > 1 ? ' bedrooms' : ' bedroom') +
     (baths ? ' · ' + baths + (baths > 1 ? ' bathrooms' : ' bathroom') : '') + '</li>');
   if (d.videoUrl) facts.push('<li>Video tour available on this page</li>');
-  facts.push('<li>Legal contract registered with the Agenzia delle Entrate · English support · 48h move-in</li>');
+  facts.push('<li>Legal contract registered with the Agenzia delle Entrate · English support</li>');
   const noscript = '<noscript><section style="max-width:720px;margin:40px auto;padding:0 20px;font-family:Helvetica,Arial,sans-serif">' +
     '<h1>' + esc(name) + (zone ? ' — ' + esc(zone) : '') + ', Rome</h1>' +
-    (d.description ? '<p>' + esc(String(d.description).replace(/\s+/g, ' ').slice(0, 700)) + '</p>' : '') +
+    (currentDescription ? '<p>' + esc(currentDescription.replace(/\s+/g, ' ').slice(0, 700)) + '</p>' : '') +
     '<ul>' + facts.join('') + '</ul>' +
     '<p>This page is interactive with JavaScript (photos, video, 3D map, online application). ' +
     'Without it: <a href="https://wa.me/393313251961">WhatsApp BOOM (English, 24/7)</a> · ' +

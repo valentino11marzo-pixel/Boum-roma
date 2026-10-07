@@ -5604,6 +5604,15 @@ asserite sulla sorgente, e il handler VERO su un Firestore in memoria: senza
 credenziali 401, `{text}` senza apply non scrive, una data illeggibile viene
 RIFIUTATA alla porta invece di essere scritta a caso).
 
+Stato mancante o sconosciuto nel catalogo ora significa «Disponibilità da
+confermare», corsia chiusa; anche `/api/listings-availability` non presume
+più che sia libero. La scheda usa i dati e le foto SSR correnti, segnala una
+descrizione con data residua su casa chiusa e precompila solo date future.
+La candidatura mostra «Sent» soltanto dopo `{ok:true}` dal server; su errore
+lascia il form pronto a riprovare. La vetrina statica non dichiara conteggi
+o disponibilità correnti prima della lettura live. Test: `npm test -- dispo
+prenota catalogtruth`.
+
 ## Precisione dei pin + perché non c'è il 3D di Google (`js/boom-geo.js`)
 
 **Google Photorealistic 3D Tiles non sono erogabili a questo account.** Dall'8

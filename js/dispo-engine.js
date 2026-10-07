@@ -268,6 +268,9 @@
     var l = listing || {};
     var ref = todayIso(today);
     var status = String(l.status || l.availabilityStatus || '').toLowerCase();
+    /* Uno stato assente o fuori grammatica non equivale a «available». */
+    if (!/^(available|waitlist|rented|affittato|off_market|reserved)$/.test(status))
+      status = 'unknown';
 
     var res = null, source = 'none';
     if (l.availableFrom != null && String(l.availableFrom).trim()) {
@@ -287,7 +290,7 @@
       kind: kind,
       iso: res.kind === 'date' ? res.iso : null,
       precision: res.precision,
-      status: status || 'available',
+      status: status,
       source: source,
       past: past,
       yearGuessed: !!res.yearGuessed
@@ -313,6 +316,11 @@
   function label(listingOrRes, lang, today) {
     var it = lang === 'it';
     var r = (listingOrRes && listingOrRes.kind) ? listingOrRes : resolve(listingOrRes, today);
+
+    if (r.status === 'unknown') return {
+      text: it ? 'Disponibilità da confermare' : 'Availability to confirm',
+      tone: 'unknown'
+    };
 
     /* IL DIFETTO CHE VIVEVA QUI: su una waitlist si usciva con «si prenota
        in anticipo» e la DATA — che quella casa ce l'ha, tutte e nove nel
@@ -431,6 +439,8 @@
       };
     };
 
+    if (st === 'unknown') return out('closed', 'stato non confermato');
+
     /* REGOLA A — la dichiarazione dell'operatore vince su tutto */
     if (st === 'waitlist') {
       return r.kind === 'date'
@@ -471,6 +481,15 @@
     var m = (listingOrLane && listingOrLane.lane)
       ? listingOrLane : marketLane(listingOrLane, today);
     var when = m.iso ? fmtDate(m.iso, lang) : '';
+
+    if (m.status === 'unknown') return {
+      lane: 'closed',
+      short: it ? 'Disponibilità da confermare' : 'Availability to confirm',
+      long: it ? 'Chiedici di verificare la disponibilità.'
+        : 'Ask BOOM to confirm availability.',
+      cta: null,
+      tone: 'fila'
+    };
 
     if (m.lane === 'now') {
       /* REGOLA 1 del file: ciò che non sappiamo leggere non dice mai
@@ -523,6 +542,15 @@
       cta: it ? 'Bloccala in anticipo' : 'Reserve ahead',
       tone: 'fila'
     };
+  }
+
+  /* La vecchia data libera resta su molte case affittate. Se è nel passato
+     e viene solo da availableDate (testo libero), la descrizione va rivista
+     prima di riproporla come fatto pubblico. Non riscriviamo il testo. */
+  function needsAvailabilityReview(listing, today) {
+    var r = resolve(listing, today);
+    return r.past && r.source === 'availableDate'
+      && laneFromResolved(r, today).lane === 'closed';
   }
 
   /* ── 4. RICONOSCERE L'IMMOBILE (stesso punteggio del bot) ─────────────── */
@@ -778,6 +806,7 @@
     resolve: resolve,
     marketLane: marketLane,
     laneCopy: laneCopy,
+    needsAvailabilityReview: needsAvailabilityReview,
     label: label,
     fmtDate: fmtDate,
     matchListing: matchListing,

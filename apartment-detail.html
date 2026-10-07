@@ -2551,6 +2551,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       <h2 class="titolo">What it's <span class="hl">like</span>.</h2>
     </div>
     <div class="racconto sale" style="margin-top:20px">
+      <p id="dispoAvviso" role="status" hidden>Availability is being checked. An older date may still appear in the description; use the status above and ask BOOM to confirm. <button type="button" id="mostraRacconto">Read the older description</button></p>
       <p id="raccontoCasa">—</p>
       <div class="dote" id="dentroCasa"></div>
     </div>
@@ -2896,6 +2897,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
           aria-hidden="true" class="ap-esca">
 
         <button class="btn btn-primary" type="submit">Send application</button>
+        <p class="applica-nota" id="applicaErrore" role="alert" hidden></p>
         <p class="applica-fede">Egidi Immobiliare S.r.l., licensed agency
           · BOOM® EU trade mark 019317594 · payments via Stripe, receipted</p>
         <p class="applica-nota">Your application goes straight to a person — a named human
@@ -3071,7 +3073,9 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       lib = true;
     } else if (s2 === 'waitlist') { eti = 'Waitlist open'; lib = false; }
     else if (s2 === 'reserved') { eti = 'Reserved'; lib = false; }
-    else { eti = 'Rented'; lib = false; }
+    else if (s2 === 'rented' || s2 === 'affittato' || s2 === 'off_market')
+      { eti = 'Rented'; lib = false; }
+    else { eti = 'Availability to confirm'; lib = false; }
     return { eti: eti, lib: lib, lane: lib ? 'now' : 'closed' };
   }
   function casaDaListing(d, ideNuovo) {
@@ -3084,7 +3088,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
     }
     var img = (Array.isArray(d.images) ? d.images : []).filter(Boolean);
     var cover = img[0] || d.coverImage || d.image || '';
-    var rawDal = String(d.availableDate || d.availableFrom || '').trim();
+    var rawDal = String(d.availableFrom || d.availableDate || '').trim();
     var dal = (rawDal.match(/^\d{4}-\d{2}-\d{2}/) || [])[0] || null;
     /* la data testo libero passa dal motore CONDIVISO: mai "Available
        now" per un regex che legge solo ISO */
@@ -3094,7 +3098,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
         if (paD && paD.kind === 'date') dal = paD.iso;
       } catch (e) {}
     }
-    var st = statoDa(String(d.status || 'available').toLowerCase(), dal,
+    var st = statoDa(String(d.status || d.availabilityStatus || '').toLowerCase(), dal,
       { af: t(d.availableFrom), ad: t(d.availableDate) });
     return {
       id: ideNuovo,
@@ -3110,7 +3114,9 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       tipo: d.type ? t(d.type) : null,
       arredata: ['yes', 'true', 'si', 'sì']
         .indexOf(String(d.furnished || '').toLowerCase()) >= 0,
-      stato: st.eti, libera: st.lib, dal: dal,
+      stato: st.eti, libera: st.lib, dal: st.lane === 'closed' ? null : dal,
+      dispoReview: !!(window.BOOM_DISPO && BOOM_DISPO.needsAvailabilityReview
+        && BOOM_DISPO.needsAvailabilityReview(d)),
       racconto: t(d.description),
       dentro: (Array.isArray(d.features) ? d.features
         : Array.isArray(d.tags) ? d.tags : []).filter(Boolean).map(t),
@@ -3135,9 +3141,17 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
     || (location.hash.match(/id=([^&]+)/) || [])[1]
     || (location.search.match(/[?&]id=([^&]+)/) || [])[1]
     || (location.pathname.match(/\/listing\/([^\/?#]+)/) || [])[1];
-  var c = CASE.filter(function (x) { return x.id === ide; })[0];
-  if (!c && ide && window.__LISTING) c = casaDaListing(window.__LISTING, ide);
+  var c = ide && window.__LISTING && window.__LISTING_ID === ide
+    ? casaDaListing(window.__LISTING, ide)
+    : CASE.filter(function (x) { return x.id === ide; })[0];
   c = c || CASE[0];
+  if (!(ide && window.__LISTING && window.__LISTING_ID === ide)) {
+    /* La CASE di build è una fotografia: se l'SSR manca, non presentare
+       stato/data e descrizione come fatti aggiornati. */
+    c = Object.assign({}, c, { stato: 'Availability to confirm', libera: false,
+      dal: null, lane: 'closed', ctaLane: null, spiegaLane: null,
+      dispoReview: true });
+  }
 
   /* ── la scena: la foto grande e il rullino ──────────────────────────── */
   var telaio = document.getElementById('telaio');
@@ -3260,10 +3274,15 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
     st.className = 'stato-grande ' + (/^Free from/i.test(c.stato) ? 'dopo'
       : c.libera ? 'libera'
       : /wait/i.test(c.stato) ? 'attesa' : 'presa');
+    var decStato = document.getElementById('decStato');
+    var decVai = document.getElementById('decVai');
+    if (decStato) decStato.textContent = c.stato;
+    if (decVai) decVai.textContent = c.libera ? 'Apply'
+      : c.lane === 'ahead' ? 'Reserve ahead' : 'Ask BOOM';
   }
   scriviStato();
   var rifaiDurata = function () {}, rifaiPresa = function () {},
-      rifaiPorte = function () {};
+      rifaiPorte = function () {}, rifaiDataApply = function () {};
   /* la chiave dei preferiti e la stessa delle altre due pagine:
      il segnaposto sopravvive al replace di navigazione del builder */
   per('#cuoreCasa').dataset.u = '/listing/' + c.id;
@@ -3281,46 +3300,29 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       if (window.boomTrack) boomTrack('whatsapp_click', { item_id: c.id || '' });
     });
   })();
-  /* se la casa non e libera, la CTA non finge: si entra in lista */
-  /* una casa libera DA una data: la data sta nel gesto, non solo nel badge */
-  if (c.libera && c.dal) {
-    var oggiIso = new Date().toISOString().slice(0, 10);
-    if (c.dal > oggiIso) {
-      var bF = document.querySelector('#modApplica button[type="submit"]');
-      if (bF) {
-        var dF = new Date(c.dal + 'T12:00:00');
-        bF.textContent = 'Apply \u00b7 move in '
-          + dF.getDate() + ' ' + dF.toLocaleDateString('en-GB', { month: 'short' });
-      }
-    }
-  }
-  /* IL PRE-BLOCCO. Su una casa occupata il vecchio testo chiedeva di
-     «mettersi in lista» e di aspettare «il momento in cui si libera» —
-     un'attesa senza data, che è il modo più sicuro di perdere qualcuno
-     che sta programmando un trasferimento. Sedici case su ventisei di
-     questo catalogo hanno invece una data di rilascio NOTA: chi guarda
-     deve leggere il giorno in cui entra e poter bloccare adesso. Le
-     parole vengono da laneCopy, le stesse della card e del JSON-LD. */
-  if (!c.libera) {
+  /* La candidatura segue la corsia corrente, anche se il documento cambia
+     dopo la build della pagina. */
+  function scriviApply() {
     var bAp = document.querySelector('#modApplica button[type="submit"]');
     var sAp = document.getElementById('applicaSotto');
-    var chiuso = c.lane === 'closed';
-    if (bAp) bAp.textContent = c.ctaLane || (chiuso ? 'Ask about this home'
-      : 'Reserve ahead');
-    if (sAp) {
-      sAp.textContent = chiuso
-        ? 'This home is rented right now. Tell us what you need and we '
-          + 'send you the closest matches — from a person, not a robot.'
-        /* solo fatti che il sistema può mantenere: la data viene dalla
-           locazione in corso, e chi prenota lo sa per primo se cambia.
-           Nessuna promessa sui costi — l'hold ha le sue regole, e una
-           riga di marketing non può contraddire il prodotto. */
-        : (c.spiegaLane ? c.spiegaLane + ' ' : '')
-          + 'You reserve it now and sign closer to the date. The date '
-          + 'comes from the current tenancy — if it moves, you are the '
-          + 'first to know, from a person.';
+    if (bAp && !bAp.disabled) {
+      if (c.libera && c.dal && c.dal > new Date().toISOString().slice(0, 10)) {
+        var dF = new Date(c.dal + 'T12:00:00');
+        bAp.textContent = 'Apply \u00b7 move in ' + dF.getDate() + ' '
+          + dF.toLocaleDateString('en-GB', { month: 'short' });
+      } else bAp.textContent = c.libera ? 'Send application'
+        : c.ctaLane || 'Ask about this home';
     }
+    if (!sAp) return;
+    sAp.textContent = c.libera
+      ? 'Tell us when you land and who is coming. We will come back to you in person.'
+      : c.lane === 'ahead'
+        ? (c.spiegaLane || 'Ask us to confirm the release date.')
+        : c.stato === 'Availability to confirm'
+          ? 'Ask BOOM to verify whether this home can be proposed.'
+          : 'This home is rented right now. Tell us what you need and we will check alternatives.';
   }
+  scriviApply();
 
   /* il canone sui Solari, come ovunque nel sito */
   var canone = per('#canoneCasa');
@@ -3408,8 +3410,22 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
   })();
 
   /* ── il racconto e ciò che c'è dentro ───────────────────────────────── */
-  per('#raccontoCasa').textContent = c.racconto
-    || 'Walked and checked by us. Ask for the full walkthrough — we filmed it.';
+  var racconto = per('#raccontoCasa');
+  var avviso = per('#dispoAvviso');
+  var vecchioRacconto = per('#mostraRacconto');
+  var raccontoAperto = false;
+  if (vecchioRacconto) vecchioRacconto.addEventListener('click', function () {
+    raccontoAperto = !raccontoAperto;
+    racconto.hidden = !raccontoAperto;
+    vecchioRacconto.textContent = raccontoAperto
+      ? 'Hide the older description' : 'Read the older description';
+  });
+  function scriviRacconto() {
+    racconto.textContent = c.racconto || 'Ask BOOM for the full description.';
+    if (avviso) avviso.hidden = !c.dispoReview;
+    racconto.hidden = !!c.dispoReview && !raccontoAperto;
+  }
+  scriviRacconto();
   per('#dentroCasa').innerHTML = (c.dentro || []).slice(0, 10)
     .map(function (x) { return '<span>' + x + '</span>'; }).join('');
 
@@ -3524,12 +3540,14 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
        + 'student, relocating — and tell you what this particular landlord '
        + 'asks for before you apply, not after.'],
       ['How fast can I actually move in?',
-       'As little as <em>48 hours</em> from a signed pre-agreement, if the '
-       + 'flat is free. This one'
-       + (c.dal ? ' is available from <em>' + new Date(c.dal + 'T12:00:00')
-            .toLocaleDateString('en-GB', { day: 'numeric', month: 'long',
-              year: 'numeric' })
-            + '</em>.' : ' is available now.')],
+       c.lane === 'closed'
+         ? 'The next move-in date for this home needs confirmation from BOOM.'
+         : c.dal && c.dal > new Date().toISOString().slice(0, 10)
+           ? 'This home is shown as free from <em>'
+             + new Date(c.dal + 'T12:00:00').toLocaleDateString('en-GB', {
+               day: 'numeric', month: 'long', year: 'numeric' })
+             + '</em>. Ask us to confirm before making plans.'
+           : 'Ask BOOM to confirm the move-in timing for this home.'],
       ['Can I hold it while I decide?',
        'Yes — a <em>€300</em> hold takes it off the market for 48 hours, one '
        + 'tap, fully refundable. It is the only way to stop someone else '
@@ -3591,14 +3609,27 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       if (m) { m.value = String(e.detail); stato(); }
     });
     var apQ = f.querySelector('#apQuando');
-    if (apQ) { /* niente passato: il min che il campo di discovery ha già */
+    if (apQ) { /* la data proposta non deve mai essere nel passato */
       try { apQ.min = new Date().toISOString().slice(0, 10); } catch (e) {}
-      if (c.dal) apQ.value = c.dal;
+      rifaiDataApply = function () {
+        var auto = apQ.dataset.autoDate || '';
+        if (auto && apQ.value === auto) apQ.value = '';
+        var prossima = c.dal && c.dal >= apQ.min && c.lane !== 'closed'
+          ? c.dal : '';
+        apQ.dataset.autoDate = '';
+        if (prossima && !apQ.value) {
+          apQ.value = prossima; apQ.dataset.autoDate = prossima;
+        }
+      };
+      apQ.addEventListener('input', function () { apQ.dataset.autoDate = ''; });
+      rifaiDataApply();
     }
     stato();
 
     f.addEventListener('submit', function (e) {
       e.preventDefault();
+      var errore = document.getElementById('applicaErrore');
+      if (errore) { errore.hidden = true; errore.textContent = ''; }
       if (!f.querySelector('#apNome').value.trim()
           || !f.querySelector('#apMail').value.trim()) {
         (f.querySelector('#apNome').value.trim()
@@ -3606,6 +3637,11 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
         return;
       }
       var d = new FormData(f);
+      if (d.get('quando') && String(d.get('quando')) < new Date().toISOString().slice(0, 10)) {
+        if (errore) { errore.textContent = 'Choose a future move-in date.'; errore.hidden = false; }
+        if (apQ) apQ.focus();
+        return;
+      }
       /* il corpo di /api/apply-lead, campo per campo */
       var corpo = {
         name: d.get('nome'), email: d.get('email'), phone: d.get('telefono'),
@@ -3625,22 +3661,39 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
         signers: Number(d.get('firmatari')) || 1,
         company: d.get('company')          /* esca per i robot */
       };
-      if (VERO) {
-        /* la porta vera del pipeline: parte e non blocca, come dal vivo */
-        try { fetch('/api/apply-lead', { method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(corpo) }); } catch (err) {}
-      } else console.info('[PREVIEW] POST /api/apply-lead →', corpo);
-      if (window.boomTrack) boomTrack('apply_submit',
-        { item_id: c.id || '', intent: c.libera ? 'apply' : 'waitlist' });
-      f.style.display = 'none';
-      var sotto = document.getElementById('applicaSotto');
-      if (sotto) sotto.style.display = 'none';
-      var fatto = document.getElementById('applicaFatto');
-      if (fatto) {
-        fatto.classList.add('si');
-        fatto.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      }
+      var bottone = f.querySelector('button[type="submit"]');
+      if (bottone.disabled) return;
+      var testoBottone = bottone.textContent;
+      bottone.disabled = true; bottone.textContent = 'Sending…';
+      var controller = VERO && 'AbortController' in window ? new AbortController() : null;
+      var scadenza = controller ? setTimeout(function () { controller.abort(); }, 15000) : null;
+      var invio = VERO ? fetch('/api/apply-lead', { method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(corpo), signal: controller && controller.signal })
+        .then(function (r) {
+          if (!r.ok) throw new Error('apply_failed');
+          return r.json();
+        }).then(function (j) {
+          if (!j || j.ok !== true) throw new Error('apply_failed');
+        }) : Promise.resolve(console.info('[PREVIEW] POST /api/apply-lead →', corpo));
+      invio.then(function () {
+        if (window.boomTrack) boomTrack('apply_submit',
+          { item_id: c.id || '', intent: corpo.kind });
+        f.style.display = 'none';
+        var sotto = document.getElementById('applicaSotto');
+        if (sotto) sotto.style.display = 'none';
+        var fatto = document.getElementById('applicaFatto');
+        if (fatto) {
+          fatto.classList.add('si');
+          fatto.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      }).catch(function () {
+        bottone.disabled = false; bottone.textContent = testoBottone;
+        if (errore) {
+          errore.textContent = 'We could not send your request. Please try again or contact BOOM on WhatsApp.';
+          errore.hidden = false;
+        }
+      }).finally(function () { if (scadenza) clearTimeout(scadenza); });
     });
   })();
 
@@ -4067,19 +4120,26 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
     if (m2 && m2 !== c.cauzioneMesi) {
       c.cauzioneMesi = m2; cambia = true;
     }
-    var s2 = testo('status').toLowerCase();
-    if (s2) {
-      var af2 = testo('availableFrom'), ad2 = testo('availableDate');
-      var d2 = ((af2 || ad2).match(/^\d{4}-\d{2}-\d{2}/) || [])[0] || c.dal;
-      var st2 = statoDa(s2, d2, { af: af2, ad: ad2 });
-      if (st2.eti !== c.stato || st2.lib !== c.libera || d2 !== c.dal) {
-        c.stato = st2.eti; c.libera = st2.lib; c.dal = d2;
-        c.lane = st2.lane; c.ctaLane = st2.cta; c.spiegaLane = st2.spiega;
-        cambia = true;
-      }
+    var s2 = (testo('status') || testo('availabilityStatus')).toLowerCase();
+    var af2 = testo('availableFrom'), ad2 = testo('availableDate');
+    var d2 = ((af2 || ad2).match(/^\d{4}-\d{2}-\d{2}/) || [])[0] || null;
+    var st2 = statoDa(s2, d2, { af: af2, ad: ad2 });
+    if (st2.lane === 'closed') d2 = null;
+    if (st2.eti !== c.stato || st2.lib !== c.libera || d2 !== c.dal) {
+      c.stato = st2.eti; c.libera = st2.lib; c.dal = d2;
+      c.lane = st2.lane; c.ctaLane = st2.cta; c.spiegaLane = st2.spiega;
+      cambia = true;
     }
+    var r2 = testo('description');
+    if (r2 !== c.racconto) { c.racconto = r2; cambia = true; }
+    var review = !!(window.BOOM_DISPO && BOOM_DISPO.needsAvailabilityReview
+      && BOOM_DISPO.needsAvailabilityReview({
+        status: s2, availableFrom: af2, availableDate: ad2
+      }));
+    if (review !== !!c.dispoReview) { c.dispoReview = review; cambia = true; }
     if (!cambia) return;
     scriviStato(); contiSoldi(); mostraTotale(true); mostraCanone(true);
+    scriviRacconto(); rifaiDataApply(); scriviApply();
     rifaiDurata(); scriviChiedi(); rifaiPresa(); rifaiPorte();
   }
   /* prima sorsata: il documento gia iniettato dal server — zero rete */
@@ -4165,7 +4225,8 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       per('#decPrezzo').textContent = euro(c.prezzo) + '/mo';
       per('#decStato').textContent = c.stato;
       var vaiB = document.getElementById('decVai');
-      if (!c.libera && vaiB) vaiB.textContent = 'Waitlist';
+      if (vaiB) vaiB.textContent = c.libera ? 'Apply'
+        : c.lane === 'ahead' ? 'Reserve ahead' : 'Ask BOOM';
       bar.hidden = false;
       var applica = document.getElementById('applica');
       var soglia = 520;
