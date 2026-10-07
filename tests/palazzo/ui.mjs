@@ -33,11 +33,12 @@ function page(state, hash) {
 <link rel="stylesheet" href="/css/portal.css"><link rel="stylesheet" href="/css/portal-finish.css"><link rel="stylesheet" href="/css/palazzo.css"><link rel="stylesheet" href="/css/portal-mobile.css"><link rel="stylesheet" href="/css/portal-desktop.css"></head><body>
 <div class="app active" id="app"><header class="header"><div class="header-left"><button class="menu-btn" onclick="toggleSidebar()" aria-label="Menu">☰</button><span class="logo-text">BOOM</span></div><span style="color:var(--text-secondary);font-size:11px">ANTEPRIMA LOCALE · DATI DEMO</span><span id="headerName">Demo</span></header><div class="layout"><aside class="sidebar" id="sidebar"></aside><div class="sidebar-overlay" id="sidebarOverlay"></div><main class="main" id="main"></main></div><div id="modals"></div><div id="toasts"></div></div>
 <script src="/js/rent-engine.js"></script><script src="/js/palazzo-engine.js"></script><script src="/js/palazzo.js"></script><script>
-const S=${JSON.stringify(state)}; Object.assign(S,{page:'',invoices:[],maintenance:[],conversations:[],viewingRequests:[],actionQueue:[],deadlines:[],leads:[],notifications:[],documents:[]}); window.testState=S;
+const S=${JSON.stringify(state)}; Object.assign(S,{page:'',_paLoaded:true,invoices:[],maintenance:[],conversations:[],viewingRequests:[],actionQueue:[],deadlines:[],leads:[],notifications:[],documents:[]}); window.testState=S;
 window.demoActions=[]; window.writes=[];
 function toast(...a){demoActions.push(['toast',...a]);}
 function openRentUnit(id,month){demoActions.push(['rent',id,month]);}
 function viewContract(id){demoActions.push(['contract',id]);}
+function showPaymentLink(kind,id){demoActions.push(['payLink',kind,id]);}
 function openModal(type,data){demoActions.push([type,data&&data.id]);}
 function logActivity(){}
 function innestoSeedFromHash(){return false;}
@@ -87,6 +88,40 @@ try {
     const check = async (label, fn) => { await fn(); count++; console.log('✓ ' + width + ' ' + label); };
 
     await pg.goto(base + '/admin');
+    await pg.waitForSelector('.plz');
+    if (width <= 600) await check('telefono: si apre in Semplice', async () => { assert.equal(await pg.locator('.plz').getAttribute('data-view'), 'simple'); });
+    else await pg.locator('[data-plz="view"][data-v="simple"]').click();
+    await pg.waitForSelector('.plz-facade');
+    await check('Semplice: il mese in una frase scritta dai numeri', async () => {
+      assert.equal(await pg.locator('.plz-lead').innerText(), '10 interni su 13 sono pieni, 1 libero, 2 in arrivo.');
+      const rest = await pg.locator('.plz-rest').innerText();
+      assert.ok(rest.includes('5 hanno pagato su 9 (€5.000 di €8.950).') && rest.includes('2 sono in ritardo per €1.800: int. 12, int. 3.'), rest);
+    });
+    await check('Semplice: la facciata, un quadrato per interno, dall\'alto', async () => {
+      assert.equal(await pg.locator('.plz-fcell').count(), 13);
+      assert.ok(/^at$/i.test(await pg.locator('.plz-flab').first().innerText()));
+      assert.equal(await pg.locator('.plz-fcell[data-state="late"]').count(), 2);
+    });
+    await check('Semplice: chi non ha pagato, con UN tasto per sollecitare', async () => {
+      const card = pg.locator('.plz-scard.is-late');
+      assert.equal(await card.locator('.plz-srow').count(), 2);
+      await card.locator('[data-plz="paylink"]').first().click();
+      const last = await pg.evaluate(() => demoActions.at(-1));
+      assert.deepEqual(last.slice(0, 2), ['payLink', 'pay']);
+      assert.ok(/^p12_/.test(last[2]), last[2]);
+    });
+    await check('Semplice: i liberi dicono cosa succede (trattativa, sito, da quanto)', async () => {
+      const txt = await pg.locator('.plz-scard').filter({ hasText: 'Liberi' }).innerText();
+      assert.ok(txt.includes('in trattativa con Candidata Demo') && txt.includes('pubblicato sul sito') && /libero da \d+ giorni/.test(txt), txt);
+      assert.ok(txt.includes('proposta pagata, contratto da creare'), txt);
+    });
+    await check('Semplice: tocco un quadrato e si apre la scheda', async () => {
+      await pg.locator('.plz-fcell[data-id="u3"]').click();
+      await pg.waitForSelector('#plz-unit-h');
+      assert.equal(await pg.locator('#plz-unit-h').innerText(), 'Int. 3');
+      await pg.locator('[data-plz="deselect"]').click();
+    });
+    await pg.locator('[data-plz="view"][data-v="3d"]').click();
     await pg.waitForSelector('.plz-unit');
     await check('admin: il palazzo più grande, un cubo per ogni interno con piano', async () => {
       assert.equal(await pg.locator('#plz-h1').innerText(), 'Viale Esempio 12');
@@ -96,13 +131,14 @@ try {
     });
     await check('lo stato del mese sul colore di ogni cubo', async () => {
       const st = await pg.$$eval('.plz-unit', els => Object.fromEntries(els.map(e => [e.dataset.id, e.dataset.state])));
-      assert.deepEqual([st.u1, st.u3, st.u5, st.u6, st.u8, st.u9, st.u13], ['paid', 'late', 'due', 'review', 'norate', 'incoming', 'vacant']);
+      assert.deepEqual([st.u1, st.u3, st.u5, st.u6, st.u8, st.u9, st.u13, st.u2], ['paid', 'late', 'due', 'review', 'norate', 'incoming', 'incoming', 'vacant']);
+      assert.equal(await pg.locator('.plz-unit[data-id="u2"]').getAttribute('data-pipe'), 'nego');
       const late = await pg.locator('.plz-unit[data-id="u3"] .plz-f-front').evaluate(e => getComputedStyle(e).backgroundImage);
-      assert.ok(late.includes('rgb(255, 90, 95)'), late);
+      assert.ok(late.includes('rgb(255, 77, 90)'), late);
     });
     await check('i numeri del mese: pieni, pagati, non pagati, arretrati', async () => {
       const k = await pg.locator('#plz-kpis').innerText();
-      assert.ok(/Pieni\s*10\s*\/13\s*2 liberi · 1 in arrivo/i.test(k), k);
+      assert.ok(/Pieni\s*10\s*\/13\s*1 libero · 2 in arrivo · 1 in scadenza/i.test(k), k);
       assert.ok(/Hanno pagato[^\n]*\n\s*5\s*\/9\s*€5\.000 di €8\.950/i.test(k), k);
       assert.ok(/Non hanno pagato\s*2\s*€1\.800 in ritardo/i.test(k), k);
       assert.ok(k.includes('€4.200'), k);
@@ -133,6 +169,24 @@ try {
       await pg.locator('#plz-panel [data-plz="edit"]').click();
       const acts = await pg.evaluate(() => demoActions.filter(a => a[0] !== 'toast'));
       assert.deepEqual(acts.slice(-3), [['rent', 'property:u3', acts.at(-3)[2]], ['contract', 'c3'], ['editProperty', 'u3']]);
+    });
+    await check('andamento: 12 barre, incassato su scaduto, puntualità, scadenze', async () => {
+      assert.equal(await pg.locator('.plz-abar').count(), 12);
+      const a = await pg.locator('#plz-analytics').innerText();
+      assert.ok(/Incassato su scaduto\s*89%/i.test(a) && a.includes('€39.050 di €44.050'), a);
+      assert.ok(/Puntualità\s*97%/i.test(a) && a.includes('29 rate su 30'), a);
+      assert.ok(/Occupazione 12 mesi\s*88%/i.test(a), a);
+      assert.ok(a.includes('Int. 7'), a);
+      const tip = await pg.locator('.plz-abar.is-on').getAttribute('aria-label');
+      assert.ok(tip.includes('incassato €5.000 su €8.950'), tip);
+    });
+    await check('scheda dell\'interno: puntualità, mesi occupati, proposta in corso', async () => {
+      await pg.locator('.plz-unit[data-id="u2"]').evaluate(e => e.scrollIntoView({ block: 'center' }));
+      await pg.locator('.plz-unit[data-id="u2"]').click({ force: true });
+      await pg.waitForSelector('#plz-unit-h');
+      const p = await pg.locator('#plz-panel').innerText();
+      assert.ok(p.includes('occupato 10 mesi su 12') && p.includes('Proposta inviata · Candidata Demo'), p);
+      await pg.locator('[data-plz="deselect"]').click();
     });
     await check('il filtro "In ritardo" spegne gli altri cubi senza toglierli', async () => {
       await pg.locator('[data-plz="filter"][data-f="late"]').click();
@@ -200,6 +254,17 @@ try {
       await pg.waitForSelector('#plz-unit-h');
       assert.equal(await pg.locator('#plz-panel [data-plz="rent"], #plz-panel [data-plz="edit"], #plz-panel [data-plz="dossier"]').count(), 0);
       assert.equal(await pg.locator('#plz-panel [data-plz="inbox"]').count(), 1);
+      assert.ok(!(await pg.locator('#plz-panel').innerText()).includes('Proposta'), 'le proposte restano all\'operatore');
+    });
+    await check('proprietaria: in Semplice parla la sua lingua (mai "rata non registrata")', async () => {
+      await pg.locator('[data-plz="view"][data-v="simple"]').click();
+      await pg.waitForSelector('.plz-brief');
+      const txt = await pg.locator('#plz-simple').innerText();
+      assert.ok(txt.includes('in verifica da BOOM') && !/non registrata|non ha la rata/i.test(txt), txt);
+      assert.equal(await pg.locator('[data-plz="paylink"]').count(), 0);
+      assert.ok(!txt.includes('trattativa'), 'le proposte restano all\'operatore');
+      await pg.locator('[data-plz="view"][data-v="3d"]').click();
+      await pg.waitForSelector('.plz-unit');
     });
     await check('proprietaria: la voce nel menu e il badge dei ritardi', async () => {
       const nav = await pg.locator('#sidebar').innerText();

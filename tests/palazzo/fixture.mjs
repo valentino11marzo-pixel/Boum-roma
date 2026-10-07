@@ -52,13 +52,20 @@ export function buildFixture(now = new Date()) {
   payments.push(pay(3, -1, 1000, 'pending'));            // scaduta il 5 del mese scorso
   payments.push(pay(3, 0, 1000, 'pending', { dueDate: D(-3) }));
   payments.push(pay(5, 0, 950, 'pending', { dueDate: D(4) }));
-  payments.push(pay(5, -1, 950, 'paid'));
+  payments.push(pay(5, -1, 950, 'paid', { paidDate: M(-1) + '-12' }));   // pagata con 7 giorni di ritardo
   payments.push(pay(6, 0, 1200, 'pending', { dueDate: D(-1), tenantReported: true }));
   payments.push(pay(6, -1, 1200, 'paid'));
   payments.push({ id: 'p10_q', propertyId: 'u10', contractId: 'c10', type: 'rent', month: M(-1), coversTo: M(1), amount: 3900, status: 'paid', dueDate: M(-1) + '-05', paidDate: M(-1) + '-04', installmentMonths: 3 });
   payments.push(pay(12, 0, 800, 'pending', { dueDate: D(-6) }));
   payments.push({ id: 'dep12', propertyId: 'u12', contractId: 'c12', type: 'deposit-balance', amount: 400, status: 'pending', dueDate: M(-1) + '-10' });
   payments.push({ id: 'pa1', propertyId: 'altra-1', contractId: 'c-altra', type: 'rent', month: M(0), amount: 700, status: 'paid', dueDate: D(-1), paidDate: D(-1) });
+  const preAgreements = [
+    { id: 'pa2', ref: 'BOOM-NEG2', status: 'viewed', propertyId: 'u2', tenant: { fullName: 'Candidata Demo', email: 'cand@example.invalid' }, lease: { startDate: M(1) + '-01', endDate: M(13) + '-28' }, money: { rent: 980 } },
+    { id: 'pa13', ref: 'BOOM-RES13', status: 'paid', paidAt: D(-4), propertyId: 'u13', tenant: { fullName: 'Prenotata Demo' }, lease: { startDate: M(1) + '-01', endDate: M(13) + '-28' }, money: { rent: 1050 } },
+    { id: 'pa-old', ref: 'BOOM-OLD', status: 'revoked', propertyId: 'u2', tenant: { fullName: 'Revocata Demo' }, lease: { startDate: M(-3) + '-01' }, money: { rent: 900 } },
+    { id: 'pa-conv', ref: 'BOOM-CONV', status: 'paid', paidAt: M(-14) + '-01', propertyId: 'u4', contractId: 'c4', tenant: { fullName: 'Inquilino 4 Demo' }, lease: { startDate: M(-14) + '-01' }, money: { rent: 1100 } }
+  ];
+  const listings = [{ id: 'lst2', propertyId: 'u2', status: 'available', name: 'Bilocale Esempio' }];
   const users = [owner, { id: 'owner-altro', role: 'landlord', name: 'Altro Proprietario', email: 'altro@example.invalid' }, { id: 'demo-admin', role: 'admin', name: 'Operatore demo' }];
-  return { today, month, M, D, state: { profile: { id: 'demo-admin', role: 'admin', name: 'Operatore demo' }, users, properties, contracts, payments } };
+  return { today, month, M, D, state: { profile: { id: 'demo-admin', role: 'admin', name: 'Operatore demo' }, users, properties, contracts, payments, preAgreements, listings } };
 }

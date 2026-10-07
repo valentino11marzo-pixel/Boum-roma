@@ -6012,11 +6012,52 @@ NON VEDEVANO NIENTE (vedi sotto).
   esclude anche il bonifico già segnalato dall'inquilino).
 - Da sapere: il ruolo `owner` non è gestito dal portal (cade nella vista
   inquilino): la proprietaria va creata come **Locatore** (`landlord`).
-Test: `node tests/palazzo/engine.mjs` (80 check: civico, piano, 13 interni
-in ogni stato, trimestrale, contratto chiuso in anticipo, cose da sistemare,
-filtro proprietaria, mutazioni sul conteggio dei ritardi, giunzioni del
-portal) + `node tests/palazzo/ui.mjs` (32 check in Chromium a 1440 e 390px
-con le funzioni VERE del portal estratte da portal-app.js e Firestore finto).
+- **Il secondo giro (7/10 sera)** — dati veri oltre a contratti e rate:
+  * **Proposte e annunci** (`pipelineOf`): una proposta col `propertyId`
+    dell'interno dice cosa succede a un libero — inviata/vista = *in
+    trattativa* (vetro col filo d'oro), accettata o pagata senza contratto =
+    **in arrivo** con nome e data dalla proposta, `reserve` = lista
+    d'attesa; revocate, scadute non accettate e già convertite (il
+    contratto c'è) tacciono. L'annuncio (`p.listingId` o
+    `listing.propertyId`) dice se è *sul sito*. Le proposte le legge solo
+    l'admin (caricate alla prima apertura, come in Oggi): la proprietaria
+    non le vede mai.
+  * **Il tempo** (`timeOf`, `analyticsOf`): puntualità (giorni fra
+    scadenza e pagamento, % entro la scadenza), mesi occupati su 12,
+    *libero da N giorni* (dal giorno dopo la fine dell'ultimo contratto),
+    **incassato su SCADUTO** (una rata che scade fra una settimana non
+    abbassa la percentuale), occupazione 12 mesi, contratti che finiscono
+    entro un anno. Nessuna stima: il canone "perso" per lo sfitto non si
+    calcola. Sezione **Andamento** sotto la scena: barre incassato su
+    atteso (una serie, traccia = atteso, valore scritto solo sul mese
+    scelto) + 4 indicatori.
+  * **La frase del mese** (`brief`): scritta dai numeri del modello, mai
+    una cifra che il modello non ha; alla proprietaria (`{owner:true}`)
+    "in verifica da BOOM" invece di "rata non registrata".
+  * **Semplice** (terza vista, predefinita sotto i 600px): la frase, la
+    **facciata** 2D (un quadrato per interno, dall'alto come dalla strada) e
+    le schede *Non hanno pagato* (con **Sollecita** → `showPaymentLink`,
+    solo admin) · *Devono ancora pagare* · *Da verificare* · *Liberi* ·
+    *Hanno pagato* (chiusa). Su telefono chi non ha pagato sta SOPRA la
+    facciata.
+  * **Piani veri**: il piano terra e i piani fra due piani gestiti si
+    disegnano vuoti ("non gestito da BOOM"); `property.ultimoPiano` (il
+    NUMERO dell'ultimo piano, attico compreso — non "quanti piani", che si
+    legge in due modi) porta il palazzo alla sua altezza vera e l'attico
+    lassù.
+  * **Palette validata** (`validate_palette.js` della skill dataviz, fondo
+    #050506): "senza rata" era ambra a ΔE 5 dall'oro del "pagato" —
+    indistinguibili. Ora grigio a righe; tutte le coppie ΔE ≥ 15 a vista
+    normale, il caso peggiore daltonico (grigio↔rosso 6,6) ha codifiche
+    secondarie (righe, "!", pulsazione, etichette).
+Test: `node tests/palazzo/engine.mjs` (100 check: civico, piano, 13 interni
+in ogni stato, trimestrale, contratto chiuso in anticipo, proposte e annunci,
+puntualità/sfitto/incassato su scaduto, la frase del mese nelle due voci,
+piani vuoti e attico, cose da sistemare, filtro proprietaria, mutazioni sul
+conteggio dei ritardi, giunzioni del portal) + `node tests/palazzo/ui.mjs`
+(49 check in Chromium a 1440 e 390px con le funzioni VERE del portal estratte
+da portal-app.js e Firestore finto: Semplice, Sollecita, 3D, Andamento,
+Elenco, collega, la proprietaria senza proposte né azioni).
 
 ### Fascicolo operativo immobile — 20 settembre 2026
 La scheda admin passa dal modale al percorso `#property/<id>/<sezione>`: situazione, contratti, canoni, documenti e attività; link ricaricabili, ritorno alla ricerca/posizione e apertura dei flussi esistenti; ricerca e filtro di disponibilità ora si combinano. Le viste dei proprietari restano separate.

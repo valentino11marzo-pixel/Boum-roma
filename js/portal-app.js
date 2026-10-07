@@ -817,6 +817,7 @@ Valentyne - BOOM Rome`
             dossier: id => window.BOOM_PROPERTY_DOSSIER?.open(id),
             edit: property => openModal('editProperty', property),
             contracts: () => goTo('contracts'), users: () => goTo('users'), inbox: () => goTo('inbox'),
+            payLink: id => showPaymentLink('pay', id),
             linkOwner: (ids, ownerId) => palazzoLinkOwner(ids, ownerId) }
     });
     // L'unica scrittura della vista, esplicita e solo admin: un interno senza
@@ -4411,7 +4412,18 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             case 'landlords': m.innerHTML = isAdmin() ? landlordDatabasePage() : accessDenied(); break;
             // === Landlord/Tenant ===
             case 'palazzo':
-                if ((isAdmin() || isLandlord()) && window.BOOM_PALAZZO_UI) { m.innerHTML = window.BOOM_PALAZZO_UI.render(); window.BOOM_PALAZZO_UI.mount(); }
+                if ((isAdmin() || isLandlord()) && window.BOOM_PALAZZO_UI) {
+                    // Le proposte non sono nel boot (dieta): come in Oggi si caricano
+                    // alla prima apertura, senza attendere, e il palazzo si ridisegna.
+                    if (isAdmin() && !S._paLoaded && !S._paLoading) {
+                        S._paLoading = true;
+                        db.collection('preAgreements').limit(150).get().then((snap) => {
+                            S.preAgreements = snap.docs.map((d) => ({ id: d.id, ...d.data() })); S._paLoaded = true;
+                            if (S.page === 'palazzo') renderPage();
+                        }).catch(() => { S._paLoaded = true; });
+                    }
+                    m.innerHTML = window.BOOM_PALAZZO_UI.render(); window.BOOM_PALAZZO_UI.mount();
+                }
                 else m.innerHTML = accessDenied();
                 break;
             case 'my-properties': m.innerHTML = isLandlord() ? myPropertiesPage() : accessDenied(); break;

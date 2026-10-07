@@ -43,9 +43,9 @@ ok('il proprietario prevalente è la proprietaria con il profilo', all[0].owner 
 const m = P.model(ctx, all[0].key, F.month);
 const st = id => m.units.find(u => u.id === id).month;
 const states = Object.fromEntries(m.units.map(u => [u.interno, u.month.state]));
-eq('lo stato di ogni interno nel mese', states, { 1: 'paid', 2: 'vacant', 3: 'late', 4: 'paid', 5: 'due', 6: 'review', 7: 'paid', 8: 'norate', 9: 'incoming', 10: 'paid', 11: 'paid', 12: 'late', 13: 'vacant' });
+eq('lo stato di ogni interno nel mese', states, { 1: 'paid', 2: 'vacant', 3: 'late', 4: 'paid', 5: 'due', 6: 'review', 7: 'paid', 8: 'norate', 9: 'incoming', 10: 'paid', 11: 'paid', 12: 'late', 13: 'incoming' });
 const t = m.totals;
-eq('pieni/liberi/in arrivo', [t.units, t.occupied, t.vacant, t.incoming], [13, 10, 2, 1]);
+eq('pieni/liberi/in arrivo (int. 13 riservato da una proposta pagata)', [t.units, t.occupied, t.vacant, t.incoming], [13, 10, 1, 2]);
 eq('pagati/in ritardo/da pagare/in verifica/senza rata', [t.paid, t.late, t.due, t.review, t.norate], [5, 2, 1, 1, 1]);
 eq('atteso e incassato nel mese (la trimestrale non si conta qui)', [t.expected, t.collected, t.lateAmount], [8950, 5000, 1800]);
 eq('arretrati di tutti i mesi, deposito compreso', t.arrears, 4200);
@@ -87,10 +87,58 @@ ok('...e nessun interno di un altro proprietario', mine.units.every(u => u.prope
 const noProfile = P.model(P.context({ ...F.state, now: NOW, properties: F.state.properties.map(p => p.id.startsWith('u') ? { ...p, ownerId: null } : p) }), all[0].key, F.month);
 ok('nessun interno collegato a un profilo → avviso ownerProfile', noProfile.issues.some(i => i.code === 'ownerProfile'));
 
+// ── 6b. Proposte e annunci: cosa succede a un interno libero ─────────
+const pip = id => m.units.find(u => u.id === id).pipeline;
+eq('int. 2: proposta vista = in trattativa, con chi e da quando', [pip('u2').proposal.kind, pip('u2').proposal.tenant, pip('u2').proposal.startDate], ['negotiating', 'Candidata Demo', F.M(1) + '-01']);
+ok('int. 2: la proposta revocata non conta', pip('u2').proposal.id === 'pa2');
+ok('int. 2: pubblicato sul sito', pip('u2').listing && pip('u2').listing.published && pip('u2').listing.url === '/listing/lst2');
+eq('int. 13: proposta pagata senza contratto = riservato, in arrivo', [pip('u13').proposal.kind, pip('u13').proposal.paid, st('u13').state, st('u13').tenants[0]], ['reserved', true, 'incoming', 'Prenotata Demo']);
+ok('int. 4: la proposta già diventata contratto tace (parla il contratto)', pip('u4').proposal === null && st('u4').state === 'paid');
+const blind = P.model(P.context({ ...F.state, now: NOW, preAgreements: undefined }), all[0].key, F.month);
+ok('senza proposte (il proprietario non le legge) int. 13 resta libero, mai inventato', blind.units.find(u => u.id === 'u13').month.state === 'vacant');
+
+// ── 6c. Il tempo: puntualità, sfitto, scadenze ────────────────────────
+const tm = id => m.units.find(u => u.id === id).time;
+eq('int. 1: paga in media 1,8 giorni prima, sempre puntuale', [tm('u1').avgDelay, tm('u1').onTime, tm('u1').paidCount], [-1.8, 6, 6]);
+eq('int. 5: una rata pagata 7 giorni dopo la scadenza', [tm('u5').paidCount, tm('u5').onTime, tm('u5').avgDelay], [1, 0, 7]);
+eq('int. 2: occupato 10 mesi su 12, libero dal giorno dopo la chiusura', [tm('u2').occupiedMonths, tm('u2').vacantSince, tm('u2').vacantDays], [10, F.M(-2) + '-16', 53]);
+const A = m.analytics;
+eq('palazzo: 30 rate pagate, 29 puntuali (97%)', [A.paidCount, A.onTime, A.onTimePct], [30, 29, 97]);
+eq('incassato su SCADUTO negli ultimi 12 mesi (la rata non ancora scaduta non pesa)', [A.collected12, A.expected12, A.collectionPct], [39050, 44050, 89]);
+eq('occupazione dei 12 mesi', A.occupancy12, 88);
+eq('contratti che finiscono entro un anno: int. 7', A.expiries.map(e => e.interno), ['7']);
+eq('liberi dal più vecchio, con la loro storia', A.vacant.map(v => [v.interno, v.days]), [['13', 99], ['2', 53], ['9', null]]);
+eq('12 mesi di incassi per il grafico', [A.months.length, A.months[11].month, A.months[11].collected], [12, F.month, 5000]);
+
+// ── 6d. La frase del mese ─────────────────────────────────────────────
+eq('il mese in parole, dai numeri', m.brief, [
+  'Ottobre 2026: 10 interni su 13 sono pieni, 1 libero, 2 in arrivo.',
+  '5 hanno pagato su 9 (€5.000 di €8.950).',
+  '2 sono in ritardo per €1.800: int. 12, int. 3.',
+  "1 deve ancora pagare, entro l'11 ottobre.",
+  '1 pagamento è da verificare.',
+  '1 interno occupato non ha la rata registrata.',
+  'Arretrati di tutti i mesi: €4.200.']);
+
+ok('per la proprietaria: "in verifica da BOOM", mai il nome del problema interno', P.brief(m, { owner: true }).includes('2 pagamenti sono in verifica da BOOM.') && !P.brief(m, { owner: true }).some(x => /registrata|da verificare/.test(x)));
+
+// ── 6e. Il palazzo vero non ha buchi ──────────────────────────────────
+const gapCtx = P.context({ now: NOW, properties: [
+  { id: 'g1', address: 'Via Prova 1', interno: '1', floor: '1', ownerId: 'o' },
+  { id: 'g3', address: 'Via Prova 1', interno: '5', floor: '3', ownerId: 'o', ultimoPiano: 5 }], contracts: [], payments: [] });
+const gm = P.model(gapCtx, '', F.month);
+eq('piani gestiti 1 e 3, ultimo piano il 5°: PT, 2, 4, 5 vuoti', gm.floors.map(f => f.short + (f.ghost ? '·' : '')), ['PT·', 'P1', 'P2·', 'P3', 'P4·', 'P5·']);
+
+const atCtx = P.context({ now: NOW, properties: [
+  { id: 'a1', address: 'Via Prova 2', interno: '1', floor: '1', ownerId: 'o' },
+  { id: 'a9', address: 'Via Prova 2', interno: '9', floor: 'attico', ownerId: 'o', ultimoPiano: 4 }], contracts: [], payments: [] });
+eq('con l\'ultimo piano dichiarato l\'attico sta lassù, non sopra il primo', P.model(atCtx, '', F.month).floors.map(f => f.short + (f.ghost ? '·' : '')), ['PT·', 'P1', 'P2·', 'P3·', 'AT']);
+
 // ── 7. Invarianti (ognuna è un difetto possibile) ────────────────────
 for (const u of m.units) {
   if (u.month.state === 'norate') ok('int. ' + u.interno + ' senza rata: niente incassato, niente ritardo', u.month.collected === 0 && u.month.lateAmount === 0);
   if (u.month.state === 'vacant') ok('int. ' + u.interno + ' libero: nessun inquilino inventato', u.month.tenants.length === 0 && !u.month.occupied);
+  if (u.month.state === 'incoming') ok('int. ' + u.interno + ' in arrivo: non conta come pieno né come incasso', !u.month.occupied && u.month.expected === 0);
 }
 ok('pagato = ogni rata del mese pagata (mai una sola su due)', m.units.filter(u => u.month.state === 'paid').every(u => u.month.rows.every(r => r.state === 'paid')));
 // Mutazione: se lo stato venisse dalla sola etichetta 'pending' (il difetto

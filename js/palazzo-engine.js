@@ -227,8 +227,23 @@
       };
       (paymentsByProperty[pid] = paymentsByProperty[pid] || []).push(row);
     });
+    // Le proposte (pre-agreement) e gli annunci dicono cosa succede a un
+    // interno libero: in trattativa, riservato, pubblicato. Le proposte le
+    // carica solo l'admin (rules): al proprietario arrivano vuote.
+    var proposalsByProperty = Object.create(null);
+    list(o.preAgreements).forEach(function (pa) {
+      var pid = str(pa.propertyId);
+      if (pid && propIds[pid]) (proposalsByProperty[pid] = proposalsByProperty[pid] || []).push(pa);
+    });
+    var listingsByProperty = Object.create(null), listingById = Object.create(null);
+    list(o.listings).forEach(function (l) { if (str(l.id)) listingById[str(l.id)] = l; });
+    properties.forEach(function (p) {
+      var l = listingById[str(p.listingId)] || list(o.listings).find(function (x) { return str(x.propertyId) === str(p.id); });
+      if (l) listingsByProperty[str(p.id)] = l;
+    });
     return { now: now, today: today, month: today.slice(0, 7), properties: properties, usersById: usersById,
-      contractsByProperty: byProperty, paymentsByProperty: paymentsByProperty };
+      contractsByProperty: byProperty, paymentsByProperty: paymentsByProperty,
+      proposalsByProperty: proposalsByProperty, listingsByProperty: listingsByProperty, contractById: contractById };
   }
 
   // ── Un interno in un mese ────────────────────────────────────────────
@@ -312,6 +327,94 @@
     });
   }
 
+  // ── Cosa succede a un interno: proposte e annunci ─────────────────────
+  var PA_DEAD = { revoked: 1, cancelled: 1, canceled: 1, expired: 1, rejected: 1, void: 1 };
+  function paPaid(pa) { return !!(pa && (pa.paidAt || pa.paidSessionId || (Number(pa.paidEur) > 0))); }
+  function pipelineOf(ctx, p) {
+    var pid = str(p.id), out = { proposal: null, listing: null };
+    var live = (ctx.proposalsByProperty[pid] || []).filter(function (pa) {
+      var st = norm(pa.status);
+      if (PA_DEAD[st]) return false;
+      // Già diventata contratto: parla il contratto, non la proposta.
+      if (str(pa.contractId) && ctx.contractById[str(pa.contractId)]) return false;
+      var until = day(pa.validUntil);
+      if (until && until < ctx.today && !(st === 'accepted' || st === 'paid' || paPaid(pa))) return false;
+      return true;
+    });
+    var rank = function (pa) { var st = norm(pa.status); return paPaid(pa) || st === 'paid' ? 3 : st === 'accepted' ? 2 : st === 'reserve' ? 1 : 0; };
+    var best = live.sort(function (a, b) { return rank(b) - rank(a) || str(b.createdAt && b.createdAt.seconds || b.createdAt).localeCompare(str(a.createdAt && a.createdAt.seconds || a.createdAt)); })[0];
+    if (best) {
+      var st = norm(best.status), lease = best.lease || {}, t = best.tenant || {};
+      out.proposal = {
+        id: str(best.id), ref: str(best.ref),
+        kind: paPaid(best) || st === 'paid' || st === 'accepted' ? 'reserved' : st === 'reserve' ? 'waiting' : 'negotiating',
+        paid: paPaid(best) || st === 'paid', status: st,
+        tenant: str(t.fullName || t.name), startDate: day(lease.startDate), endDate: day(lease.endDate),
+        rent: money(best.money && best.money.rent)
+      };
+    }
+    var l = ctx.listingsByProperty[pid];
+    if (l) {
+      var ls = norm(l.status || l.availabilityStatus);
+      out.listing = { id: str(l.id), status: ls, published: !!ls && ['available', 'waitlist', 'negotiation'].indexOf(ls) >= 0, url: '/listing/' + encodeURIComponent(str(l.id)) };
+    }
+    return out;
+  }
+
+  // ── Il tempo: puntualità, sfitto, contratti che finiscono ──────────────
+  function daysBetween(a, b) { return Math.round((Date.parse(b) - Date.parse(a)) / 864e5); }
+  function timeOf(ctx, p, endMonth) {
+    var end = monthOf(endMonth) || ctx.month, from = monthAdd(end, -11);
+    var rows = (ctx.paymentsByProperty[str(p.id)] || []).filter(function (r) {
+      return r.isRent && r.state === 'paid' && r.dueDate && r.paidDate && r.month >= from && r.month <= end;
+    });
+    var delays = rows.map(function (r) { return daysBetween(r.dueDate, r.paidDate); });
+    var occupiedMonths = 0;
+    for (var i = 0; i < 12; i++) if (unitMonth(ctx, p, monthAdd(end, i - 11)).occupied) occupiedMonths++;
+    // Libero da quando: la fine dell'ultimo contratto già chiuso.
+    var ends = (ctx.contractsByProperty[str(p.id)] || []).filter(function (c) { return LIVE[cStatus(c)]; })
+      .map(effectiveEnd).filter(function (d) { return d && d < ctx.today; }).sort();
+    var lastEnd = ends.length ? ends[ends.length - 1] : '';
+    return {
+      paidCount: delays.length,
+      avgDelay: delays.length ? Math.round(delays.reduce(function (a, b) { return a + b; }, 0) / delays.length * 10) / 10 : null,
+      onTime: delays.filter(function (d) { return d <= 0; }).length,
+      occupiedMonths: occupiedMonths, vacantMonths: 12 - occupiedMonths,
+      vacantSince: lastEnd ? dayAdd(lastEnd, 1) : '', vacantDays: lastEnd ? daysBetween(lastEnd, ctx.today) : null
+    };
+  }
+
+  // La frase del mese: quello che un proprietario chiederebbe al telefono,
+  // scritto dai numeri. Mai una cifra che il modello non contiene.
+  function brief(m, opts) {
+    var owner = !!(opts && opts.owner);
+    if (!m || !m.building) return [];
+    var t = m.totals, mon = monthLabel(m.month), n = function (x, one, many) { return x + ' ' + (x === 1 ? one : many); };
+    var late = m.units.filter(function (u) { return u.month.state === 'late'; }).sort(function (a, b) { return b.month.lateDays - a.month.lateDays; });
+    var due = m.units.filter(function (u) { return u.month.state === 'due'; });
+    var name = function (u) { return u.interno ? 'int. ' + u.interno : u.name; };
+    var eur = function (v) { var x = Math.round(v); return '€' + String(x).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); };
+    var out = [mon + ': ' + t.occupied + ' interni su ' + t.units + ' sono pieni' + (t.vacant ? ', ' + n(t.vacant, 'libero', 'liberi') : '') + (t.incoming ? ', ' + t.incoming + ' in arrivo' : '') + '.'];
+    var payers = t.paid + t.late + t.due + t.review + t.unknown;
+    if (payers) out.push(n(t.paid, 'ha pagato', 'hanno pagato') + ' su ' + payers + ' (' + eur(t.collected) + ' di ' + eur(t.expected) + ').');
+    if (late.length) out.push(n(late.length, 'è in ritardo', 'sono in ritardo') + ' per ' + eur(t.lateAmount) + ': ' + late.map(name).join(', ') + '.');
+    else if (payers) out.push('Nessun ritardo.');
+    if (due.length) {
+      var dates = due.map(function (u) { var r = u.month.rows.find(function (x) { return x.state === 'due'; }); return r && r.dueDate; }).filter(Boolean).sort();
+      var last = dates[dates.length - 1], dd = last ? +last.slice(8, 10) : 0;
+      out.push(n(due.length, 'deve', 'devono') + ' ancora pagare' + (last ? ', entro ' + ([1, 8, 11].indexOf(dd) >= 0 ? "l'" : 'il ') + dd + ' ' + monthLabel(last.slice(0, 7)).split(' ')[0].toLowerCase() : '') + '.');
+    }
+    // Al proprietario si dice cosa sta facendo BOOM, non il nome del
+    // problema interno: "rata non registrata" è un lavoro dell'operatore.
+    if (owner) { if (t.review + t.norate) out.push(n(t.review + t.norate, 'pagamento è', 'pagamenti sono') + ' in verifica da BOOM.'); }
+    else {
+      if (t.review) out.push(n(t.review, 'pagamento è', 'pagamenti sono') + ' da verificare.');
+      if (t.norate) out.push(n(t.norate, 'interno occupato non ha', 'interni occupati non hanno') + ' la rata registrata.');
+    }
+    if (t.arrears > t.lateAmount) out.push('Arretrati di tutti i mesi: ' + eur(t.arrears) + '.');
+    return out;
+  }
+
   // ── I palazzi ────────────────────────────────────────────────────────
   function buildings(ctx, filter) {
     var groups = Object.create(null);
@@ -344,7 +447,12 @@
     if (!b) return { building: null, buildings: all, month: m, floors: [], unplaced: [], units: [], totals: totalsOf([]), series: [], issues: [] };
     var props = b.propertyIds.map(function (id) { return ctx.properties.find(function (p) { return str(p.id) === id; }); }).filter(Boolean);
     var known = props.map(floorOf).filter(function (f) { return f && !f.top; }).map(function (f) { return f.n; });
-    var topN = known.length ? Math.max.apply(null, known) + 1 : 1;
+    // property.ultimoPiano: il numero dell'ultimo piano del palazzo (attico
+    // compreso). Non "quanti piani": quello si legge in due modi (col piano
+    // terra o senza) e il disegno mentirebbe di un piano.
+    var declared = props.map(function (p) { return parseInt(p.ultimoPiano, 10); }).filter(function (x) { return x > 0 && x <= 40; });
+    var declaredTop = declared.length ? Math.max.apply(null, declared) : null;
+    var topN = Math.max(known.length ? Math.max.apply(null, known) + 1 : 1, declaredTop || 0);
     var owner = b.owner;
     var units = props.map(function (p) {
       var f = floorOf(p), um = unitMonth(ctx, p, m), o = ownerOf(p, ctx.usersById);
@@ -353,18 +461,35 @@
         floor: f ? (f.top ? topN : f.n) : null, floorTop: !!(f && f.top),
         name: str(p.name) || str(p.address) || 'Interno', owner: o,
         ownerMismatch: !!(owner && o.key !== owner.key),
-        month: um, arrears: arrearsOf(ctx, p),
+        month: um, arrears: arrearsOf(ctx, p), pipeline: pipelineOf(ctx, p), time: timeOf(ctx, p, m > ctx.month ? m : ctx.month),
         strip: opts.strip === false ? [] : strip(ctx, p, m > ctx.month ? m : ctx.month, 12)
       };
     }).sort(function (a, b2) { return natural(a.scala, b2.scala) || natural(a.interno, b2.interno) || natural(a.name, b2.name); });
+    // Un interno libero con una proposta accettata o pagata (contratto non
+    // ancora creato) è in arrivo: chi, da quando, lo dice la proposta.
+    units.forEach(function (u) {
+      var pr = u.pipeline.proposal;
+      if (u.month.state === 'vacant' && pr && pr.kind === 'reserved' && (!pr.startDate || pr.startDate.slice(0, 7) >= m)) {
+        u.month.state = 'incoming'; u.month.fromProposal = true;
+        u.month.tenants = pr.tenant ? [pr.tenant] : []; u.month.leaseStart = pr.startDate; u.month.rent = pr.rent != null ? pr.rent : u.month.rent;
+      }
+    });
     var floorsMap = Object.create(null), unplaced = [];
     units.forEach(function (u) {
       if (u.floor == null) { unplaced.push(u); return; }
       (floorsMap[u.floor] = floorsMap[u.floor] || []).push(u);
     });
+    // Il palazzo vero non ha buchi: il piano terra, un piano fra due piani
+    // gestiti, o fino all'ultimo piano dichiarato (property.ultimoPiano) ci
+    // sono anche se BOOM non vi gestisce nessun interno: si disegnano vuoti.
+    var nums = Object.keys(floorsMap).map(Number);
+    var lo = nums.length ? Math.min(0, Math.min.apply(null, nums)) : 0;
+    var hi = nums.length ? Math.max.apply(null, nums) : -1;
+    if (declaredTop) hi = Math.max(hi, declaredTop);
+    for (var g = lo; g <= hi; g++) if (!floorsMap[g]) floorsMap[g] = [];
     var floors = Object.keys(floorsMap).map(Number).sort(function (a, b2) { return a - b2; }).map(function (n) {
-      var top = floorsMap[n].every(function (u) { return u.floorTop; });
-      return { n: n, label: top ? 'Attico' : floorLabel(n), short: top ? 'AT' : floorLabel(n, true), units: floorsMap[n] };
+      var fl = floorsMap[n], top = fl.length && fl.every(function (u) { return u.floorTop; });
+      return { n: n, label: top ? 'Attico' : floorLabel(n), short: top ? 'AT' : floorLabel(n, true), units: fl, ghost: !fl.length };
     });
     var series = Array.from({ length: 12 }, function (_, i) {
       var mm = monthAdd(m > ctx.month ? m : ctx.month, i - 11);
@@ -390,8 +515,48 @@
     if (double.length) issues.push({ code: 'overlap', count: double.length, ids: double.map(function (u) { return u.id; }) });
     var norate = units.filter(function (u) { return u.month.state === 'norate' && m <= ctx.month; });
     if (norate.length) issues.push({ code: 'norate', count: norate.length, ids: norate.map(function (u) { return u.id; }) });
-    return { building: b, buildings: all, month: m, currentMonth: ctx.month, floors: floors, unplaced: unplaced, units: units,
+    var model0 = { building: b, buildings: all, month: m, currentMonth: ctx.month, floors: floors, unplaced: unplaced, units: units,
       totals: totalsOf(units), series: series, issues: issues, owner: owner };
+    model0.analytics = analyticsOf(ctx, model0);
+    model0.brief = brief(model0);
+    return model0;
+  }
+
+  // L'andamento del palazzo negli ultimi 12 mesi. Solo misure, nessuna
+  // stima: il canone "perso" per lo sfitto non si inventa.
+  function analyticsOf(ctx, m) {
+    var paid = 0, onTime = 0, delaySum = 0, unitMonths = 0, occMonths = 0;
+    m.units.forEach(function (u) {
+      paid += u.time.paidCount; onTime += u.time.onTime;
+      if (u.time.avgDelay != null) delaySum += u.time.avgDelay * u.time.paidCount;
+      unitMonths += 12; occMonths += u.time.occupiedMonths;
+    });
+    // Incassato su SCADUTO: una rata che scade fra una settimana non è un
+    // mancato incasso, quindi non abbassa la percentuale.
+    var dueTotal = 0, collectedTotal = 0, from = monthAdd(ctx.month, -11);
+    m.units.forEach(function (u) {
+      (ctx.paymentsByProperty[u.id] || []).forEach(function (r) {
+        if (!r.isRent || r.state === 'cancelled' || r.amount == null || !r.month || r.month < from || r.month > ctx.month) return;
+        if (!r.dueDate || r.dueDate > ctx.today) return;
+        dueTotal = round(dueTotal + r.amount);
+        if (r.state === 'paid') collectedTotal = round(collectedTotal + r.amount);
+      });
+    });
+    var horizon = dayAdd(ctx.today, 365);
+    var expiries = m.units.filter(function (u) { return u.month.leaseEnd && u.month.leaseEnd >= ctx.today && u.month.leaseEnd <= horizon; })
+      .map(function (u) { return { id: u.id, interno: u.interno, name: u.name, date: u.month.leaseEnd, tenants: u.month.tenants, next: u.pipeline.proposal }; })
+      .sort(function (a, b) { return a.date.localeCompare(b.date); });
+    var vacant = m.units.filter(function (u) { return u.month.state === 'vacant' || u.month.state === 'incoming'; })
+      .map(function (u) { return { id: u.id, interno: u.interno, name: u.name, days: u.time.vacantDays, since: u.time.vacantSince, pipeline: u.pipeline }; })
+      .sort(function (a, b) { return (b.days || 0) - (a.days || 0); });
+    return {
+      paidCount: paid, onTime: onTime, onTimePct: paid ? Math.round(onTime / paid * 100) : null,
+      avgDelay: paid ? Math.round(delaySum / paid * 10) / 10 : null,
+      occupancy12: unitMonths ? Math.round(occMonths / unitMonths * 100) : 0, vacantMonths: unitMonths - occMonths,
+      collected12: collectedTotal, expected12: dueTotal, collectionPct: dueTotal ? Math.round(collectedTotal / dueTotal * 100) : null,
+      months: m.series.map(function (s) { return { month: s.month, expected: s.totals.expected, collected: s.totals.collected, late: s.totals.lateAmount }; }),
+      expiries: expiries, vacant: vacant
+    };
   }
 
   function totalsOf(units) {
@@ -418,7 +583,7 @@
   var API = { day: day, monthOf: monthOf, monthAdd: monthAdd, monthLabel: monthLabel, parseFloor: parseFloor, floorLabel: floorLabel,
     unitOf: unitOf, scalaOf: scalaOf, floorOf: floorOf, streetKey: streetKey, buildingKeyOf: buildingKeyOf, ownerOf: ownerOf,
     context: context, unitMonth: unitMonth, arrearsOf: arrearsOf, strip: strip, buildings: buildings, model: model,
-    totalsOf: totalsOf, STATES: STATES };
+    totalsOf: totalsOf, pipelineOf: pipelineOf, timeOf: timeOf, analyticsOf: analyticsOf, brief: brief, STATES: STATES };
   if (typeof module === 'object' && module.exports) module.exports = API;
   if (root) root.BOOM_PALAZZO = API;
 })(typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : this);
