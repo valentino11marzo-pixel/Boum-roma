@@ -4676,10 +4676,10 @@ The 2026-10-07 account inspection found existing saved searches, standard alerts
 The brief counts pending matches separately as "da rivedere" (`tests/radar/run.mjs`). The pilot remains blocked on a durable per-client queue, verified Casafari coverage and email receipt, and availability/share-permission evidence; the customer email still promises 72h and the 48h goal is internal only.
 PFS ingestion, match-test, pending/full sync, and market-search selection now paginate client/search collections by document ID (`tests/money/run.mjs`, `tests/radar/run.mjs`).
 They fail explicitly and report health at the 1000-document safety cap rather than silently ignore later clients or searches.
-Match-test and the PFS brief accept only admin/owner profiles for all-client data; the shared auth guard remains unchanged.
+Match-test, the PFS brief and the shared PFS operational guard accept only admin/owner profiles for all-client data and scan actions.
 Exact-deadline escalation remains follow-up work. The import confirmation is an operator attestation only: for reviewed clients an absent advertiser type stays `unknown`, and availability/share-permission evidence is not stored yet.
 `portalProperties` updates still use blind read/patch writes in multiple routes, so concurrent proposals can overwrite each other; a shared conditional-write migration and email outbox are required before the pilot can claim reliable delivery.
-The `pfs-command.html` manual proposal path works with reviewed clients; the Casafari form in `js/portal-app.js` lacks `reviewConfirmed` and will fail closed until its Lotto 4 owner updates that UI.
+Both `pfs-command.html` and the Casafari form in `js/portal-app.js` ask for operator confirmation before proposing to a reviewed client. The shared PFS guard excludes landlord profiles from operational endpoints that can expose client data.
 
 **BLOCCATA ≠ GUASTA** (`alertDecision()`, esportata + testata). `scan-market`
 aveva accumulato **1145 run falliti di fila** e un allarme ogni 6h per ~3

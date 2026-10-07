@@ -375,7 +375,18 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
   check('brief: landlord non legge il riepilogo di tutti i clienti PFS',
     r.code === 403 && r.body?.error === 'admin_required');
 
+  const { requireCronOrAdmin } = await import('../../api/pfs/_guard.js');
+  r = mkRes();
+  const deniedActor = await requireCronOrAdmin(
+    { method: 'POST', headers: { authorization: 'Bearer firebase-token' } }, r);
+  check('guard PFS: landlord non può invocare scan inbox, mercato o sync',
+    deniedActor === null && r.code === 403 && r.body?.error === 'admin_required');
+
   store.set('users/admin1', { role: 'admin' });
+  r = mkRes();
+  const adminActor = await requireCronOrAdmin(
+    { method: 'POST', headers: { authorization: 'Bearer firebase-token' } }, r);
+  check('guard PFS: admin conserva l’accesso operativo', adminActor === 'admin:admin1' && r.code === 0);
   r = mkRes();
   await matchTest(mkReq(body, { authorization: 'Bearer firebase-token' }), r);
   const reviewedDry = r.body?.results?.find(x => x.clientId === 'cspfsretry2');

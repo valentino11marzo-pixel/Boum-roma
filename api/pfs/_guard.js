@@ -3,14 +3,14 @@
 //   1. Vercel cron        → Authorization: Bearer <CRON_SECRET>
 //   2. Homie (Mac bridge) → X-Homie-Secret: <HOMIE_SECRET>
 //   3. The command center → Authorization: Bearer <firebase-id-token> of an
-//                           admin/owner/landlord user ("Scansiona ora" button)
+//                           admin/owner user ("Scansiona ora" button)
 //
 // Returns an actor string ('cron' | 'homie' | 'admin:<uid>') on success.
 // On failure it writes the 401/403 response and returns null.
 
 import { secretEqual, fsGet } from '../homie/_lib.js';
 
-const ADMIN_ROLES = new Set(['admin', 'owner', 'landlord']);
+const ADMIN_ROLES = new Set(['admin', 'owner']);
 
 async function verifyFirebaseToken(token) {
   const apiKey = process.env.FIREBASE_API_KEY;
