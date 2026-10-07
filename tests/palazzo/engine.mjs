@@ -188,6 +188,11 @@ eq('rifiuta un ultimo piano non intero o fuori scala', ['2.5', 0, 41, 'tre'].map
 eq('rifiuta un colore fuori elenco e un nome lungo', P.validateLook({ intonaco: 'fucsia', persiane: 'rosa', nome: 'x'.repeat(61) }, m).errors, ['intonaco', 'persiane', 'nome']);
 const noTop = P.model(P.context({ ...F.state, now: NOW, properties: F.state.properties.filter(p => p.id !== 'u11') }), all[0].key, F.month);
 eq('senza attico basta il piano più alto gestito', [P.validateLook({ ultimoPiano: 3 }, noTop).ok, P.validateLook({ ultimoPiano: 2 }, noTop).errors], [true, ['ultimoPiano<3']]);
+// §10 I quattro toni: otto stati del motore, quattro colori in pagina.
+eq('i toni sono quattro, in quest\'ordine', P.TONES.map(t => t.key), ['pagato', 'ritardo', 'attesa', 'libero']);
+ok('ogni stato sta in UN tono e uno solo', Object.keys(P.STATES).every(s => P.TONES.filter(t => t.states.includes(s)).length === 1));
+eq('toneOf: in verifica e senza rata sono «in attesa», in arrivo è «libero»', ['paid', 'late', 'review', 'norate', 'incoming', 'vacant'].map(P.toneOf), ['pagato', 'ritardo', 'attesa', 'attesa', 'libero', 'libero']);
+eq('model espone la data di oggi (la scadenza si conta da qui)', m.today, F.today);
 ok('ogni preset ha nome e colore esadecimale', ['intonaco', 'persiane'].every(k => Object.values(P.LOOKS[k]).every(v => v[0] && /^#[0-9A-F]{6}$/i.test(v[1]))));
 const css = readFileSync(new URL('../../css/palazzo.css', import.meta.url), 'utf8');
 ok('i default neutri sono quelli del foglio di stile', css.includes('var(--wall,' + P.LOOKS.intonaco[P.LOOK_DEFAULT.intonaco][1] + ')') && css.includes('var(--shut,' + P.LOOKS.persiane[P.LOOK_DEFAULT.persiane][1] + ')'));

@@ -86,10 +86,12 @@ window.__pmLoaded = true;
     // dell'operatore — la tab bar la offre come primo tap quando la
     // sidebar del ruolo la porta (admin); per gli altri ruoli non esiste
     // in sidebar e la lista scala da sola sul dashboard.
-    var PREF_TABS = ['oggi', 'dashboard', 'contracts', 'payments', 'viewings', 'leads', 'clienti',
+    // 'palazzo' dopo i soldi: per l'admin resta quinto (fuori), per la
+    // proprietaria — che ci atterra — è il secondo tap.
+    var PREF_TABS = ['oggi', 'dashboard', 'contracts', 'payments', 'palazzo', 'viewings', 'leads', 'clienti',
         'my-contract', 'my-contracts', 'my-payments', 'my-maintenance', 'my-properties', 'my-documents'];
     var TAB_LABELS = {
-        oggi: 'Oggi', dashboard: 'Studio', contracts: 'Contratti', payments: 'Incassi', viewings: 'Visite',
+        oggi: 'Oggi', palazzo: 'Palazzo', dashboard: 'Studio', contracts: 'Contratti', payments: 'Incassi', viewings: 'Visite',
         leads: 'Lead', clienti: 'Clienti', properties: 'Immobili',
         'my-contract': 'Contratto', 'my-contracts': 'Contratti', 'my-payments': 'Pagamenti',
         'my-maintenance': 'Guasti', 'my-properties': 'Immobili', 'my-documents': 'Documenti'

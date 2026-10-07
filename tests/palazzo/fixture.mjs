@@ -27,15 +27,18 @@ export function buildFixture(now = new Date()) {
     { id: 'altra-1', name: 'Via Altra 3 int. 1', address: 'Via Altra 3, Roma', interno: '1', floor: '1', ownerId: 'owner-altro' },
     { id: 'altra-2', name: 'Via Altra 3 int. 2', address: 'Via Altra 3, Roma', interno: '2', floor: '2', ownerId: 'owner-altro' }
   ];
-  const lease = (n, rent, extra = {}) => ({ id: 'c' + n, propertyId: 'u' + n, status: 'active', tenantName: 'Inquilino ' + n + ' Demo', rent, startDate: M(-14) + '-01', endDate: M(20) + '-28', ...extra });
+  // Recapiti finti e dichiarati tali (+39 000…, example.invalid): servono al
+  // giro dei contatti, mai a raggiungere qualcuno.
+  const lease = (n, rent, extra = {}) => ({ id: 'c' + n, propertyId: 'u' + n, status: 'active', tenantName: 'Inquilino ' + n + ' Demo', rent, startDate: M(-14) + '-01', endDate: M(20) + '-28',
+    tenantPhone: '+39000000' + String(n).padStart(4, '0'), tenantEmail: 'inquilino' + n + '@example.invalid', deposit: rent * 2, type: 'transitorio', ...extra });
   const contracts = [
     lease(1, 900), lease(3, 1000), lease(4, 1100), lease(5, 950), lease(6, 1200),
     lease(7, 1000, { endDate: D(60) }),
     lease(8, 1050),
     lease(9, 980, { status: 'pending', startDate: M(1) + '-01', endDate: M(13) + '-28' }),
     lease(10, 1300, { installmentMonths: 3 }),
-    lease(11, 2000, { coTenants: [{ name: 'Coinquilina Demo' }] }),
-    lease(12, 800),
+    lease(11, 2000, { coTenants: [{ name: 'Coinquilina Demo', phone: '+390000000111' }] }),
+    lease(12, 800, { tenantPhone: '', tenantEmail: '' }),
     // int. 2: c'era qualcuno, ha chiuso in anticipo due mesi fa
     { id: 'c2old', propertyId: 'u2', status: 'terminated', tenantName: 'Uscito Demo', rent: 900, startDate: M(-14) + '-01', endDate: M(20) + '-28', terminatedAt: M(-2) + '-15' },
     // int. 13: "attivo" in archivio ma scaduto da 4 mesi

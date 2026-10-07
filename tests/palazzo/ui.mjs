@@ -12,6 +12,8 @@ import { join, extname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadChromium, launchOptions } from '../_browser.mjs';
 import { buildFixture } from './fixture.mjs';
+import { buildFixture18 } from './fixture18.mjs';
+import { contactsOf } from '../../api/owners/contatti.js';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const src = readFileSync(new URL('../../js/portal-app.js', import.meta.url), 'utf8');
@@ -43,7 +45,7 @@ function openModal(type,data){demoActions.push([type,data&&data.id]);}
 function logActivity(){}
 function innestoSeedFromHash(){return false;}
 window.confirm=()=>true;
-const firebase={firestore:{FieldValue:{serverTimestamp:()=>'SERVER_TS'}}};
+const firebase={firestore:{FieldValue:{serverTimestamp:()=>'SERVER_TS'}},auth(){return{currentUser:{getIdToken:async()=>'demo-'+S.profile.id}};}};
 const db={batch(){const ops=[];return{update(ref,data){ops.push([ref.path,data]);},async commit(){writes.push(...ops);}};},collection(c){return{doc(id){return{path:c+'/'+id};}};}};
 ${functions}
 ${config}
@@ -51,15 +53,35 @@ goTo(${JSON.stringify(hash)});
 </script><script src="/js/portal-mobile.js"></script><script src="/js/portal-desktop.js"></script></body></html>`;
 }
 
-const F = buildFixture(new Date());
+// PREVIEW_FIXTURE=18: l'anteprima a mano sul palazzo da 18 interni.
+const F = process.env.PREVIEW_FIXTURE === '18' ? buildFixture18(new Date()) : buildFixture(new Date());
 const admin = F.state;
 const landlord = { ...F.state, profile: { id: 'owner-demo', role: 'landlord', name: 'Proprietaria Demo' },
   // dal suo accesso il loader porta solo i suoi immobili (rules + query ownerId)
   properties: F.state.properties.filter(p => p.ownerId === 'owner-demo'), users: [F.state.users[0]] };
 
+const contactCalls = [], contactFail = { on: false };
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost'), path = url.pathname;
+    // La porta dei contatti, finta ma con la regola VERA: il chiamante
+    // proprietario riceve solo i contratti dei suoi immobili, e i recapiti
+    // escono dalla stessa contactsOf del server.
+    if (path === '/api/owners/contatti' && req.method === 'POST') {
+      let body = ''; for await (const ch of req) body += ch;
+      const who = String(req.headers.authorization || '').replace(/^Bearer demo-/, '');
+      contactCalls.push({ who, ids: JSON.parse(body).contractIds });
+      if (process.env.CONTACTS_FAIL === '1' || contactFail.on) { res.statusCode = 500; res.end('{"ok":false,"error":"lookup_failed"}'); return; }
+      const out = {};
+      for (const id of JSON.parse(body).contractIds) {
+        const c = F.state.contracts.find(x => x.id === id); if (!c) continue;
+        const p = F.state.properties.find(x => x.id === c.propertyId);
+        if (who !== 'demo-admin' && (!p || p.ownerId !== who)) continue;
+        out[id] = contactsOf(c, null, null);
+      }
+      res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ ok: true, contacts: out }));
+      return;
+    }
     if (path === '/admin' || path === '/owner') {
       res.setHeader('Content-Type', 'text/html');
       res.end(page(path === '/admin' ? admin : landlord, url.searchParams.get('page') || 'palazzo'));
@@ -87,6 +109,7 @@ try {
     await pg.route('**/*', route => route.request().url().startsWith(base) ? route.continue() : route.abort());
     const check = async (label, fn) => { await fn(); count++; console.log('✓ ' + width + ' ' + label); };
 
+    const calls0 = contactCalls.length;
     await pg.goto(base + '/admin');
     await pg.waitForSelector('.plz');
     if (width <= 600) await check('telefono: si apre in Semplice', async () => { assert.equal(await pg.locator('.plz').getAttribute('data-view'), 'simple'); });
@@ -142,6 +165,50 @@ try {
       const txt = await pg.locator('.plz-scard').filter({ hasText: 'Liberi' }).innerText();
       assert.ok(txt.includes('in trattativa con Candidata Demo') && txt.includes('pubblicato sul sito') && /libero da \d+ giorni/.test(txt), txt);
       assert.ok(txt.includes('proposta pagata, contratto da creare'), txt);
+    });
+    await check('contatti: UNA richiesta per palazzo, con tutti i contratti del mese', async () => {
+      await pg.waitForFunction(() => document.querySelectorAll('.plz-win[data-id]').length > 0);
+      assert.equal(contactCalls.length - calls0, 1);
+      const ids = contactCalls[calls0].ids.slice().sort();
+      for (const id of ['c1', 'c3', 'c11', 'c12', 'c9']) assert.ok(ids.includes(id), id + ' · ' + ids.join(','));
+      assert.equal(contactCalls[calls0].who, 'demo-admin');
+    });
+    await check('scheda: chi abita qui, con Chiama · WhatsApp · Email, e quanto manca alla scadenza', async () => {
+      await pg.locator('.plz-win[data-id="u7"]').click();
+      await pg.waitForSelector('#plz-panel .plz-person');
+      const card = pg.locator('#plz-panel');
+      assert.equal(await card.locator('a[href="tel:+390000000007"]').count(), 1);
+      assert.equal(await card.locator('a[href="https://wa.me/390000000007"]').count(), 1);
+      assert.equal(await card.locator('a[href="mailto:inquilino7@example.invalid"]').count(), 1);
+      const txt = await card.innerText();
+      assert.ok(/scade tra 60 giorni/.test(txt), txt);
+      assert.ok(/transitorio/i.test(txt) && /deposito/i.test(txt) && txt.includes('€2.000'), txt);
+      assert.equal(await pg.locator('#plz-panel .plz-term.is-leaving').count(), 1);
+      assert.equal(await pg.locator('#plz-panel .plz-unitcard.is-enter').count(), 1);
+      assert.equal(contactCalls.length - calls0, 1, 'la scheda non richiede di nuovo');
+    });
+    await check('scheda: il co-intestatario ha la sua riga, il numero mancante lo dice', async () => {
+      await pg.locator('.plz-win[data-id="u11"]').click();
+      await pg.waitForSelector('#plz-panel .plz-person');
+      assert.equal(await pg.locator('#plz-panel .plz-person').count(), 2);
+      assert.ok((await pg.locator('#plz-panel').innerText()).includes('Coinquilina Demo'));
+      assert.equal(await pg.locator('#plz-panel a[href="tel:+390000000111"]').count(), 1);
+      await pg.locator('.plz-win[data-id="u12"]').click();
+      await pg.waitForSelector('#plz-unit-h');
+      assert.ok((await pg.locator('#plz-panel').innerText()).includes('telefono non in archivio'));
+      assert.equal(await pg.locator('#plz-panel a[href^="tel:"]').count(), 0);
+      assert.ok((await pg.locator('.plz-issues').innerText()).includes('1 inquilino senza telefono'));
+      await pg.locator('[data-plz="deselect"]').click();
+    });
+    await check('contatti giù: la scheda lo dice e «Riprova» li ricarica', async () => {
+      contactFail.on = true;
+      await pg.evaluate(() => { const C = BOOM_PALAZZO_UI.ui.contacts; C.byId = Object.create(null); C.failed = Object.create(null); });
+      await pg.locator('.plz-win[data-id="u4"]').click();
+      await pg.waitForSelector('#plz-panel [data-plz="contacts-retry"]');
+      contactFail.on = false;
+      await pg.locator('#plz-panel [data-plz="contacts-retry"]').click();
+      await pg.waitForSelector('#plz-panel a[href="tel:+390000000004"]');
+      await pg.locator('[data-plz="deselect"]').click();
     });
     await check('Semplice: tocco una finestra e si apre la scheda', async () => {
       await pg.locator('.plz-win[data-id="u3"]').click();
@@ -246,6 +313,13 @@ try {
       assert.equal(await pg.locator('.plz-rrow:not(.plz-rhead)').count(), 13);
       assert.ok(/^attico$/i.test(await pg.locator('.plz-rfloor-l').first().innerText()));
       assert.equal(await pg.locator('.plz-rrow:not(.plz-rhead)').first().locator('.plz-dot').count(), 12);
+      // il numero è nella riga, e toccarlo chiama (non apre la scheda)
+      const tel = pg.locator('.plz-rrow[data-id="u1"] a.plz-tel');
+      assert.equal(await tel.getAttribute('href'), 'tel:+390000000001');
+      await pg.evaluate(() => document.addEventListener('click', e => { if (e.target.closest('a[href^="tel:"]')) e.preventDefault(); }, true));
+      await tel.click();
+      assert.equal(await pg.locator('#plz-unit-h').count(), 0);
+      assert.ok(/scade tra 60 giorni/i.test(await pg.locator('.plz-rrow[data-id="u7"]').innerText()));
       await pg.locator('[data-plz="view"][data-v="3d"]').click();
       await pg.waitForSelector('.plz-unit');
     });
@@ -313,16 +387,30 @@ try {
     }
 
     // ── La proprietaria ───────────────────────────────────────────────
+    // nessuna vista salvata: la proprietaria apre su Semplice anche da desktop
+    await pg.evaluate(() => localStorage.removeItem('boom_palazzo'));
     await pg.goto(base + '/owner?page=');
     await pg.waitForSelector('.plz');
-    // la vista scelta si ricorda (localStorage): l'admin ha finito in Semplice
-    if (await pg.locator('.plz').getAttribute('data-view') !== '3d') await pg.locator('[data-plz="view"][data-v="3d"]').click();
+    await check('proprietaria: senza una scelta salvata apre su Semplice (chi ha pagato, subito)', async () => {
+      assert.equal(await pg.locator('.plz').getAttribute('data-view'), 'simple');
+    });
+    await pg.locator('[data-plz="view"][data-v="3d"]').click();
     await pg.waitForSelector('.plz-unit');
     await check('proprietaria: atterra sul SUO palazzo, solo i suoi interni', async () => {
       assert.ok(pg.url().endsWith('#palazzo'));
       assert.equal(await pg.locator('#plz-h1').innerText(), 'Viale Esempio 12');
       assert.equal(await pg.locator('.plz-unit').count() + await pg.locator('.plz-tray .plz-chip').count(), 12);
       assert.ok((await pg.locator('.plz-sub').innerText()).includes('gestiti da BOOM'));
+    });
+    await check('proprietaria: i contatti dei SUOI inquilini, chiesti a suo nome', async () => {
+      const mine = contactCalls.filter(c => c.who === 'owner-demo');
+      assert.ok(mine.length >= 1);
+      assert.ok(!mine.some(c => c.ids.includes('c-altra')), 'mai i contratti di un altro proprietario');
+      await pg.locator('.plz-unit[data-id="u3"]').evaluate(e => e.scrollIntoView({ block: 'center' }));
+      await pg.locator('.plz-unit[data-id="u3"]').click({ force: true });
+      await pg.waitForSelector('#plz-panel a[href="tel:+390000000003"]');
+      assert.equal(await pg.locator('#plz-panel a[href="https://wa.me/390000000003"]').count(), 1);
+      await pg.locator('[data-plz="deselect"]').click();
     });
     await check('proprietaria: niente "da sistemare", niente azioni dell\'operatore', async () => {
       assert.equal(await pg.locator('.plz-issues').count(), 0);

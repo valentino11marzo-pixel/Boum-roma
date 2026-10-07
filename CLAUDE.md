@@ -5983,9 +5983,8 @@ NON VEDEVANO NIENTE (vedi sotto).
   `vacant` · `incoming` (contratto futuro o in firma). Ogni rata passa da
   `BOOM_RENT.paymentState` (una copia sola). Una rata trimestrale colora i
   mesi che copre ma **il suo importo conta una volta**, nel mese di scadenza.
-- **La vista**: cubi in 3D CSS (trascina/frecce per ruotare, +/−, ⌂), oro
-  pagato, rosso pulsante in ritardo, avorio da pagare, blu in verifica,
-  ambra a righe senza rata, vetro libero, menta tratteggiato in arrivo; il
+- **La vista**: cubi in 3D CSS (trascina/frecce per ruotare, +/−, ⌂),
+  colorati dai QUATTRO TONI (vedi «I quattro toni» in fondo); il
   palazzo si monta piano per piano all'ingresso. Accanto **il mese in
   parole** (chi non ha pagato, ritardo più lungo per primo; chi deve ancora;
   da verificare; liberi; hanno pagato), sopra i 4 numeri (pieni · pagati ·
@@ -6054,9 +6053,9 @@ NON VEDEVANO NIENTE (vedi sotto).
   colorato per interno era un foglio di calcolo, non un palazzo. Ora la vista
   Semplice disegna la FACCIATA: intonaco, marcapiani, piano terra a bugnato
   col portone, attico arretrato con la terrazza, sanpietrini. Ogni interno è
-  una FINESTRA e la luce è lo stato del mese: oro pagato, rosso non ha pagato
-  (pulsa), avorio deve pagare, blu in verifica, grigio a righe senza rata,
-  menta in arrivo a persiane SOCCHIUSE; libero = persiane CHIUSE (in
+  una FINESTRA e la luce è il tono del mese: oro pagato, rosso non ha pagato
+  (pulsa), avorio in attesa; in arrivo a persiane SOCCHIUSE; libero =
+  persiane CHIUSE (in
   trattativa: un filo d'oro fra le stecche). Le persiane girano in 3D
   davvero (perspective + rotateY sui cardini) quando cambia il mese: la
   facciata non si ridisegna, cambia la luce (`patchFacade`; `--hi/--lo`
@@ -6090,20 +6089,72 @@ NON VEDEVANO NIENTE (vedi sotto).
   cortile interno con albero, lavanderia a volta al piano terra, ascensore,
   portiere. Intonaco e numero di piani NON sono verificati: si dichiarano
   dal pannello dopo una foto della facciata.
-  `sw.js` (boom-v29): `palazzo-engine.js`, `palazzo.js` e `palazzo.css`
+  `sw.js` (boom-v30): `palazzo-engine.js`, `palazzo.js` e `palazzo.css`
   passano network-first col tetto di 6s come gli altri motori del portale
   (prima non erano in lista: a portale offline il Palazzo non c'era).
-Test: `node tests/palazzo/engine.mjs` (120 check: civico, piano, 13 interni
+- **I quattro toni + la scheda per la proprietaria (8/10)** — «i colori
+  creano caos». Otto colori per otto stati erano corretti e illeggibili: la
+  proprietaria non distingue blu "in verifica" da avorio "da pagare", e non
+  le serve. Il motore tiene gli otto stati (le parole restano precise:
+  "segnalato", "in verifica da BOOM"), la pagina ne mostra QUATTRO
+  (`BOOM_PALAZZO.TONES` / `toneOf`): **Pagato** (oro) · **Non ha pagato**
+  (rosso) · **In attesa** (avorio: da pagare, segnalato, senza rata, ignoto)
+  · **Libero** (vetro; in arrivo = persiane socchiuse, tratteggio neutro).
+  Filtri, legenda, striscia dei mesi e linea del tempo seguono i toni.
+  **La scheda dell'interno** (un tocco su finestra, cubo o riga) apre con
+  **chi abita qui**: nome, telefono, email e tre gesti — **Chiama**
+  (`tel:`), **WhatsApp** (`wa.me`, un cellulare italiano senza +39 lo
+  riceve), **Email** — un riquadro per il titolare e uno per ogni
+  co-intestatario; poi il contratto (tipo, dal/al) con **quanto manca**
+  («scade tra 24 giorni», in giorni fino a due mesi poi in mesi, ambra se
+  entro 90 giorni; «entra tra N giorni» per chi arriva), canone, deposito,
+  arretrati, puntualità, 12 mesi, rate del mese. Nell'Elenco il numero sta
+  nella riga (toccarlo chiama, non apre la scheda) e la scadenza dice
+  quanto manca. La scheda entra di lato solo quando cambia l'interno.
+  **I contatti vengono dal server** (`POST /api/owners/contatti`
+  `{contractIds}`, Bearer): le rules non fanno leggere `users` al
+  proprietario e un contratto nato da una proposta non porta il telefono.
+  La porta li ricompone (contratto → profilo `users/<tenantId>` → proposta
+  `preAgreements/<preAgreementId>`, letta SOLO se serve; co-conduttori dal
+  contratto, poi dalla proposta) e li consegna SOLO per i contratti degli
+  immobili con `ownerId === uid` (admin: tutti). Gli altri si OMETTONO
+  (`denied`), mai un 403 che riveli quali id esistono; escono nome,
+  telefono, email e ruolo — MAI CF, documento, nascita, indirizzo; un
+  telefono che non è un numero ("chiamare dopo le 18") resta vuoto.
+  `private, no-store`, nessuna scrittura, nessuna regola nuova in
+  vercel.json (default). La vista chiede UNA volta per palazzo
+  (`ensureContacts`, cache per contratto); un guasto non riprova da solo:
+  «Riprova» nella scheda. All'admin, in «Da sistemare», gli inquilini senza
+  telefono («dalla sua scheda la proprietaria non li può chiamare»).
+  Tab bar del telefono: «Palazzo» dopo i soldi (`PREF_TABS`): quinta per
+  l'admin (fuori), seconda per la proprietaria. Senza una vista salvata la
+  proprietaria apre su **Semplice** a ogni larghezza (la frase del mese e
+  chi non ha pagato, subito); l'admin su 3D da desktop. La scelta fatta coi
+  tab si ricorda e vince. Anteprima locale sul
+  palazzo da 18 interni (`tests/palazzo/fixture18.mjs`, dati inventati,
+  recapiti +39 000… ed example.invalid): `PREVIEW_FIXTURE=18
+  PREVIEW_PORT=8123 PREVIEW_ONLY=1 node tests/palazzo/ui.mjs`.
+  **Da sapere sul business**: i recapiti in mano alla proprietaria le
+  permettono di parlare con gli inquilini senza BOOM. È ciò che ha chiesto
+  ed è la sua controparte contrattuale; il bottone «Scrivi a BOOM» resta.
+Test: `node tests/palazzo/engine.mjs` (124 check: civico, piano, 13 interni
 in ogni stato, trimestrale, contratto chiuso in anticipo, proposte e annunci,
 puntualità/sfitto/incassato su scaduto, la frase del mese nelle due voci,
 piani vuoti e attico, cose da sistemare, filtro proprietaria, mutazioni sul
 conteggio dei ritardi, aspetto dichiarato/neutro/anteprima, validateLook,
-giunzioni del portal) + `node tests/palazzo/ui.mjs` (65 check in Chromium a
+giunzioni del portal, i quattro toni) + `node tests/palazzo/contatti.mjs`
+(12 check, handler vero su Firestore in memoria: 401/403/400, la
+proprietaria che riceve i suoi e non quelli di un altro — mutazione presa
+togliendo il filtro — profilo/proposta/co-conduttori, mai CF né indirizzo,
+la proposta letta solo se serve) + `node tests/palazzo/ui.mjs` (77 check in Chromium a
 1440 e 390px con le funzioni VERE del portal estratte da portal-app.js e
 Firestore finto: facciata e persiane, luci dal basso, cambio mese senza
 ridisegno, aspetto in anteprima/rifiutato/salvato/annullato, Sollecita, 3D,
 Andamento, Elenco, collega, la proprietaria senza proposte, azioni né
-pannello dell'aspetto).
+pannello dell'aspetto; i contatti: una richiesta per palazzo, Chiama ·
+WhatsApp · Email, co-intestatario, telefono mancante e «Da sistemare»,
+guasto e Riprova, il numero nell'Elenco che chiama senza aprire la scheda,
+la proprietaria che li chiede a suo nome e mai per un altro).
 
 ### Fascicolo operativo immobile — 20 settembre 2026
 La scheda admin passa dal modale al percorso `#property/<id>/<sezione>`: situazione, contratti, canoni, documenti e attività; link ricaricabili, ritorno alla ricerca/posizione e apertura dei flussi esistenti; ricerca e filtro di disponibilità ora si combinano. Le viste dei proprietari restano separate.

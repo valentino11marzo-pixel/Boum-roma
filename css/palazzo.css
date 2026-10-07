@@ -4,21 +4,23 @@
  * opacità sugli elementi 3D (appiattirebbero la scena): l'effetto sta
  * sempre sulle FACCE, che sono foglie. */
 .plz{
-  /* Stati: validati (scripts/validate_palette.js della skill dataviz, fondo
-     #050506, tutte le coppie). Ogni coppia ΔE ≥ 15 a vista normale; il caso
-     peggiore per i daltonici (grigio↔rosso, 6,6) ha codifiche secondarie:
-     righe sul grigio, "!" e pulsazione sul rosso, etichette nel pannello.
-     "Senza rata" NON è più ambra: era ΔE 5 dall'oro del "pagato". */
-  --plz-paid:#D4AF37; --plz-late:#FF4D5A; --plz-due:#E9E4D6; --plz-review:#5B8CFF;
-  --plz-norate:#808088; --plz-unknown:#808088; --plz-incoming:#7EE0B5; --plz-vacant:rgba(255,255,255,.07);
+  /* QUATTRO TONI, non otto (8/10 — «i colori creano caos»): alla
+     proprietaria serve sapere se ha pagato, se no, se si aspetta, se è
+     libero. Oro = pagato · rosso = non ha pagato · avorio = in attesa (da
+     pagare, in verifica, senza rata) · spento = libero (anche in arrivo).
+     Lo stato preciso resta nei dati, nel data-state e nelle PAROLE (scheda,
+     elenco, frase del mese). Oro↔avorio si distinguono per saturazione
+     anche ai daltonici, il rosso ha "!" e pulsazione, il libero è buio. */
+  --plz-paid:#D4AF37; --plz-late:#FF4D5A; --plz-due:#E9E4D6; --plz-review:var(--plz-due);
+  --plz-norate:var(--plz-due); --plz-unknown:var(--plz-due); --plz-incoming:rgba(255,255,255,.55); --plz-vacant:rgba(255,255,255,.07);
   --plz-amber:#F2A93B;
   --plz-line:rgba(255,255,255,.08); --plz-card:#0B0B0D;
   position:relative; color:var(--text,#fff); font-weight:300;
 }
 .plz *{box-sizing:border-box}
-.plz .plz-s-paid{--c:var(--plz-paid)} .plz .plz-s-late{--c:var(--plz-late)} .plz .plz-s-due{--c:var(--plz-due)}
-.plz .plz-s-review{--c:var(--plz-review)} .plz .plz-s-norate,.plz .plz-s-unknown{--c:var(--plz-norate)}
-.plz .plz-s-incoming{--c:var(--plz-incoming)} .plz .plz-s-vacant{--c:rgba(255,255,255,.22)}
+.plz .plz-s-paid{--c:var(--plz-paid)} .plz .plz-s-late{--c:var(--plz-late)}
+.plz .plz-s-due,.plz .plz-s-review,.plz .plz-s-norate,.plz .plz-s-unknown{--c:var(--plz-due)}
+.plz .plz-s-incoming,.plz .plz-s-vacant{--c:rgba(255,255,255,.22)}
 .plz-eyebrow{margin:0 0 6px;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--gold,#D4AF37);font-weight:500}
 .plz-num{font-variant-numeric:tabular-nums}
 .plz-muted{color:var(--text-muted,#666);font-size:13px;margin:6px 0}
@@ -79,7 +81,7 @@
 .plz-mcell small{font-size:10px;letter-spacing:1px;text-transform:uppercase;text-align:center}
 .plz-mbar{display:flex;height:26px;border-radius:5px;overflow:hidden;background:rgba(255,255,255,.04);gap:1px}
 .plz-mbar i{display:block;background:var(--c)}
-.plz-mbar i.plz-s-vacant{background:rgba(255,255,255,.08)}
+.plz-mbar i.plz-s-vacant,.plz-mbar i.plz-s-incoming{background:rgba(255,255,255,.08)}
 
 /* Corpo: scena + pannello */
 .plz-body{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:16px;align-items:start}
@@ -89,8 +91,8 @@
 .plz-filter i{width:8px;height:8px;border-radius:50%;background:var(--c,rgba(255,255,255,.5))}
 .plz-filter b{font-weight:500;color:var(--text,#fff);font-variant-numeric:tabular-nums}
 .plz-filter[aria-pressed="true"]{border-color:var(--gold,#D4AF37);color:var(--text,#fff);background:rgba(212,175,55,.09)}
-.plz-f-paid{--c:var(--plz-paid)}.plz-f-late{--c:var(--plz-late)}.plz-f-due{--c:var(--plz-due)}.plz-f-check{--c:var(--plz-norate)}.plz-f-free{--c:var(--plz-incoming)}
-.plz-f-all i{background:conic-gradient(var(--plz-paid) 0 33%,var(--plz-late) 0 55%,var(--plz-due) 0 80%,var(--plz-incoming) 0)}
+.plz-f-paid{--c:var(--plz-paid)}.plz-f-late{--c:var(--plz-late)}.plz-f-due{--c:var(--plz-due)}.plz-f-free{--c:rgba(255,255,255,.22)}
+.plz-f-all i{background:conic-gradient(var(--plz-paid) 0 40%,var(--plz-late) 0 55%,var(--plz-due) 0 80%,rgba(255,255,255,.22) 0)}
 
 /* ── La scena 3D ─────────────────────────────────────────────────── */
 .plz-stage{position:relative;height:var(--h3,460px);border-radius:20px;overflow:hidden;perspective:2400px;perspective-origin:50% 30%;
@@ -133,19 +135,16 @@
 .plz-f-front small{font-size:9px;letter-spacing:1.2px;text-transform:uppercase;color:rgba(0,0,0,.62);max-width:92%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .plz-f-front em{position:absolute;right:6px;top:4px;font-style:normal;font-size:11px;font-weight:700;color:rgba(0,0,0,.6)}
 .plz-unit[data-state="paid"]{--c:var(--plz-paid)}
-.plz-unit[data-state="due"]{--c:var(--plz-due)}
-.plz-unit[data-state="review"]{--c:var(--plz-review)}
-.plz-unit[data-state="norate"],.plz-unit[data-state="unknown"]{--c:var(--plz-norate)}
+.plz-unit[data-state="due"],.plz-unit[data-state="review"],.plz-unit[data-state="norate"],.plz-unit[data-state="unknown"]{--c:var(--plz-due)}
 .plz-unit[data-state="late"]{--c:var(--plz-late)}
 .plz-unit[data-state="late"] .plz-f-front b,.plz-unit[data-state="late"] .plz-f-front small,.plz-unit[data-state="late"] .plz-f-front em{color:#fff}
 .plz-unit[data-state="late"] .plz-face{animation:plzPulse 1.9s ease-in-out infinite}
-.plz-unit[data-state="norate"] .plz-f-front{background:repeating-linear-gradient(135deg,rgba(0,0,0,.12) 0 6px,transparent 6px 12px),linear-gradient(165deg,color-mix(in srgb,var(--c) 78%,#fff),var(--c) 45%,color-mix(in srgb,var(--c) 72%,#000))}
 /* Libero = vetro: si vede la struttura, non il colore */
 .plz-unit[data-state="vacant"] .plz-face,.plz-unit[data-state="incoming"] .plz-face{background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.22)}
-.plz-unit[data-state="incoming"] .plz-face{border:1px dashed rgba(126,224,181,.7);background:rgba(126,224,181,.06)}
+.plz-unit[data-state="incoming"] .plz-face{border-style:dashed}
 .plz-unit[data-state="vacant"] .plz-f-front b,.plz-unit[data-state="incoming"] .plz-f-front b{color:rgba(255,255,255,.75)}
 .plz-unit[data-state="vacant"] .plz-f-front small{color:rgba(255,255,255,.45)}
-.plz-unit[data-state="incoming"] .plz-f-front small,.plz-unit[data-state="incoming"] .plz-f-front em{color:var(--plz-incoming)}
+.plz-unit[data-state="incoming"] .plz-f-front small,.plz-unit[data-state="incoming"] .plz-f-front em{color:rgba(255,255,255,.7)}
 .plz-unit.is-sel .plz-face{box-shadow:0 0 0 2px var(--gold,#D4AF37),0 0 34px rgba(212,175,55,.45)}
 .plz-unit:focus-visible .plz-face{box-shadow:0 0 0 2px #fff}
 .plz-unit.is-dim .plz-face{opacity:.1}
@@ -173,8 +172,8 @@
 .plz-chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--plz-line);background:var(--plz-card);color:var(--text,#fff);border-radius:12px;padding:8px 12px;font:inherit;font-size:13px;cursor:pointer}
 .plz-chip i{width:10px;height:10px;border-radius:3px;background:var(--c,rgba(255,255,255,.3))}
 .plz-chip small{color:var(--text-muted,#666);font-size:11px}
-.plz-chip[data-state="paid"]{--c:var(--plz-paid)}.plz-chip[data-state="late"]{--c:var(--plz-late)}.plz-chip[data-state="due"]{--c:var(--plz-due)}
-.plz-chip[data-state="review"]{--c:var(--plz-review)}.plz-chip[data-state="norate"],.plz-chip[data-state="unknown"]{--c:var(--plz-norate)}.plz-chip[data-state="incoming"]{--c:var(--plz-incoming)}
+.plz-chip[data-state="paid"]{--c:var(--plz-paid)}.plz-chip[data-state="late"]{--c:var(--plz-late)}
+.plz-chip[data-state="due"],.plz-chip[data-state="review"],.plz-chip[data-state="norate"],.plz-chip[data-state="unknown"]{--c:var(--plz-due)}
 
 /* ── Pannello ─────────────────────────────────────────────────────── */
 .plz-panel{position:sticky;top:84px;min-width:0}
@@ -199,10 +198,35 @@
 .plz-facts div{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:baseline}
 .plz-facts dt{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted,#666)}
 .plz-facts dd{margin:0;font-size:14px}
+/* Chi abita qui: nome, numero, e i tre gesti (chiama · WhatsApp · email). */
+.plz-people{list-style:none;margin:0 0 12px;padding:0;display:grid;gap:8px}
+.plz-person{border:1px solid var(--plz-line);border-radius:14px;padding:12px 12px 10px;background:rgba(255,255,255,.02)}
+.plz-person-n{margin:0;font-size:15px;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.plz-person-n b{font-weight:500}
+.plz-person-n small{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted,#666)}
+.plz-person-c{margin:3px 0 0;font-size:13px;color:var(--text-secondary,#999);display:flex;gap:4px 12px;flex-wrap:wrap;word-break:break-all}
+.plz-reach{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.plz-reach .plz-btn{min-height:40px;padding:8px 14px}
+.plz-people-names{margin:0 0 12px;font-size:15px}
+.plz-loading{margin:0 0 12px}
+.plz-link{background:none;border:0;padding:0;color:var(--gold,#D4AF37);font:inherit;text-decoration:underline;cursor:pointer}
+/* La scadenza: il dato che si guarda per primo dopo il nome. */
+.plz-term{display:grid;grid-template-columns:1fr auto;gap:2px 12px;align-items:baseline;border-top:1px solid var(--plz-line);border-bottom:1px solid var(--plz-line);padding:10px 0;margin:0 0 4px}
+.plz-term p{margin:0}
+.plz-term-k{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted,#666);grid-column:1/-1}
+.plz-term-d{font-size:14px}
+.plz-term-x{font-size:13px;color:var(--text-secondary,#999);white-space:nowrap}
+.plz-term.is-leaving .plz-term-x{color:var(--plz-amber)}
+.plz-tel{display:block;margin-top:2px;font-size:12px;color:var(--gold,#D4AF37);text-decoration:none;font-variant-numeric:tabular-nums}
+.plz-tel:hover{text-decoration:underline}
+/* La scheda entra di lato quando cambia l'interno (non quando cambia il mese). */
+.plz-unitcard.is-enter{animation:plz-card-in .32s cubic-bezier(.2,.8,.2,1) both}
+@keyframes plz-card-in{from{opacity:0;transform:translateX(14px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.plz-unitcard.is-enter{animation:none}}
 .plz-strip{display:grid;grid-template-columns:repeat(12,1fr);gap:4px;margin:0 0 14px;min-width:132px}
 .plz-dot{height:16px;border-radius:4px;border:0;padding:0;cursor:pointer;background:var(--c);opacity:.92}
 .plz-dot.plz-s-vacant{background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12)}
-.plz-dot.plz-s-incoming{background:rgba(126,224,181,.18);box-shadow:inset 0 0 0 1px rgba(126,224,181,.6)}
+.plz-dot.plz-s-incoming{background:rgba(255,255,255,.07);box-shadow:inset 0 0 0 1px rgba(255,255,255,.3)}
 .plz-dot.is-on{outline:2px solid #fff;outline-offset:1px}
 .plz-rows{list-style:none;margin:0 0 14px;padding:0}
 .plz-rows li{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:8px 0;border-top:1px solid rgba(255,255,255,.05);font-size:13px}
@@ -229,9 +253,7 @@
 .plz-ghostbox .plz-face{background:rgba(255,255,255,.018)!important;border:1px dashed rgba(255,255,255,.12)!important;animation:none!important}
 .plz-ghostbox .plz-f-front small{color:rgba(255,255,255,.32)!important;letter-spacing:2px}
 /* Libero ma in trattativa / sul sito: il vetro prende un filo d'oro */
-.plz-unit[data-state="vacant"][data-pipe="nego"] .plz-face{border:1px dashed rgba(212,175,55,.75);background:rgba(212,175,55,.05)}
-.plz-unit[data-state="vacant"][data-pipe="nego"] .plz-f-front small{color:var(--plz-paid)}
-.plz-unit[data-state="vacant"][data-pipe="listed"] .plz-f-front small{color:rgba(255,255,255,.75)}
+.plz-unit[data-state="vacant"][data-pipe] .plz-f-front small{color:rgba(255,255,255,.75)}
 
 /* ── Semplice ─────────────────────────────────────────────────────── */
 .plz-body-simple{grid-template-columns:minmax(0,1fr) 360px}
@@ -315,15 +337,11 @@
 /* Chiuse: libero, o un interno che BOOM non gestisce */
 .plz-win[data-state="vacant"] .plz-shut,.plz-win.is-blind .plz-shut,.plz-facade.is-intro .plz-shut{transform:none!important}
 /* In trattativa o sul sito: un filo di luce passa fra le stecche */
-.plz-win[data-state="vacant"][data-pipe="nego"]{--louver:rgba(212,175,55,.55)}
-.plz-win[data-state="vacant"][data-pipe="listed"]{--louver:rgba(233,228,214,.28)}
+.plz-win[data-state="vacant"][data-pipe]{--louver:rgba(233,228,214,.22)}
 
 .plz-win[data-state="paid"]{--hi:#FFE9A8;--lo:#D4AF37;--ga:rgba(212,175,55,.55);--gr:16px;--gs:1px}
-.plz-win[data-state="due"]{--hi:#FFFBF0;--lo:#D9D2BF;--ga:rgba(233,228,214,.38);--gr:12px;--gs:0px}
+.plz-win[data-state="due"],.plz-win[data-state="review"],.plz-win[data-state="norate"],.plz-win[data-state="unknown"]{--hi:#FFFBF0;--lo:#D9D2BF;--ga:rgba(233,228,214,.38);--gr:12px;--gs:0px}
 .plz-win[data-state="late"]{--hi:#FF8F97;--lo:#FF4D5A;--ga:rgba(255,77,90,.6);--gr:18px;--gs:2px}
-.plz-win[data-state="review"]{--hi:#A9C2FF;--lo:#5B8CFF;--ga:rgba(91,140,255,.5);--gr:14px;--gs:0px}
-.plz-win[data-state="incoming"]{--hi:#C9F6E2;--lo:#5FBF95;--ga:rgba(126,224,181,.35);--gr:10px;--gs:0px}
-.plz-win[data-state="norate"] .plz-win-glass,.plz-win[data-state="unknown"] .plz-win-glass{background:repeating-linear-gradient(135deg,rgba(0,0,0,.35) 0 3px,transparent 3px 6px),#7C7C84}
 .plz-win[data-state="late"] .plz-win-glass{animation:plzGlow 1.9s ease-in-out infinite}
 @keyframes plzGlow{50%{box-shadow:0 0 26px 5px rgba(255,77,90,.75)}}
 /* Le luci si accendono dal basso, piano per piano (solo all'apertura) */
@@ -334,10 +352,10 @@
 .plz-win-plate{display:inline-flex;align-items:center;gap:3px;min-height:15px;padding:0 6px;border-radius:2px;font-size:10px;letter-spacing:.4px;line-height:15px;color:rgba(255,246,228,.85);background:rgba(0,0,0,.32)}
 .plz-win-plate b{font-weight:500}
 .plz-win-plate em{font-style:normal;font-weight:700;font-size:9px}
+.plz-win-plate em:empty{display:none}
 .plz-win-plate:empty{visibility:hidden}
 .plz-win[data-state="late"] .plz-win-plate em{color:#FF8F97}
 .plz-win[data-state="paid"] .plz-win-plate em{color:#F3D77A}
-.plz-win[data-state="incoming"] .plz-win-plate em{color:var(--plz-incoming)}
 .plz-win.is-sel .plz-win-plate{background:rgba(212,175,55,.9);color:#000}
 .plz-win.is-sel .plz-win-plate em{color:#000}
 
@@ -354,8 +372,6 @@
 .plz-key[data-state="paid"]{--hi:#FFE9A8;--lo:#D4AF37;--ga:rgba(212,175,55,.6)}
 .plz-key[data-state="late"]{--hi:#FF8F97;--lo:#FF4D5A;--ga:rgba(255,77,90,.6)}
 .plz-key[data-state="due"]{--hi:#FFFBF0;--lo:#D9D2BF}
-.plz-key[data-state="review"]{--hi:#A9C2FF;--lo:#5B8CFF}
-.plz-key[data-state="incoming"]{--hi:#C9F6E2;--lo:#5FBF95}
 .plz-key[data-state="vacant"] i{background:repeating-linear-gradient(180deg,#5d6066 0 1.5px,#2a2c30 1.5px 3px)}
 .plz-fac-cap small{display:block;margin-top:7px;font-size:11px;line-height:1.45;color:var(--text-muted,#666)}
 
@@ -403,7 +419,7 @@
 
 /* ── Andamento (12 mesi) ──────────────────────────────────────────── */
 .plz-analytics{margin-top:22px}
-.plz-agrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.plz-agrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;align-items:start}
 .plz-acard{background:linear-gradient(180deg,#0E0E10,#09090A);border:1px solid var(--plz-line);border-radius:16px;padding:16px 18px;min-width:0}
 .plz-acard>span{display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted,#666)}
 .plz-acard strong{display:block;font-size:30px;font-weight:200;margin-top:4px;font-variant-numeric:tabular-nums}

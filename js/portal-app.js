@@ -819,7 +819,21 @@ Valentyne - BOOM Rome`
             contracts: () => goTo('contracts'), users: () => goTo('users'), inbox: () => goTo('inbox'),
             payLink: id => showPaymentLink('pay', id),
             linkOwner: (ids, ownerId) => palazzoLinkOwner(ids, ownerId),
-            saveLook: (ids, fields) => palazzoSaveLook(ids, fields) }
+            saveLook: (ids, fields) => palazzoSaveLook(ids, fields) },
+        // I contatti degli inquilini: `users` non è leggibile dal proprietario
+        // e un contratto da proposta non porta il telefono — li ricompone il
+        // server, SOLO per i contratti dei suoi immobili.
+        contacts: async (contractIds) => {
+            const user = firebase.auth().currentUser;
+            if (!user) throw new Error('no_session');
+            const token = await user.getIdToken();
+            const r = await fetch('/api/owners/contatti', { method: 'POST',
+                headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+                body: JSON.stringify({ contractIds }) });
+            const j = await r.json().catch(() => null);
+            if (!r.ok || !j || !j.ok) throw new Error((j && j.error) || ('http_' + r.status));
+            return j.contacts || {};
+        }
     });
     // L'unica scrittura della vista, esplicita e solo admin: un interno senza
     // ownerId non esiste per il proprietario (rules + loader leggono ownerId).

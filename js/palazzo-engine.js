@@ -247,6 +247,19 @@
   }
 
   // ── Un interno in un mese ────────────────────────────────────────────
+  // QUATTRO TONI a schermo (8/10): gli stati sono otto perché i dati sono
+  // otto, ma la proprietaria ne legge quattro. Una copia sola, letta da
+  // filtri, legenda, facciata e test.
+  var TONES = [
+    { key: 'pagato', label: 'Pagato', states: ['paid'] },
+    { key: 'ritardo', label: 'Non ha pagato', states: ['late'] },
+    { key: 'attesa', label: 'In attesa', states: ['due', 'review', 'norate', 'unknown'] },
+    { key: 'libero', label: 'Libero', states: ['vacant', 'incoming'] }
+  ];
+  function toneOf(state) {
+    for (var i = 0; i < TONES.length; i++) if (TONES[i].states.indexOf(state) >= 0) return TONES[i].key;
+    return 'attesa';
+  }
   var STATES = {
     paid: { label: 'Pagato', short: 'Pagato' },
     late: { label: 'In ritardo', short: 'Ritardo' },
@@ -573,7 +586,7 @@
     if (double.length) issues.push({ code: 'overlap', count: double.length, ids: double.map(function (u) { return u.id; }) });
     var norate = units.filter(function (u) { return u.month.state === 'norate' && m <= ctx.month; });
     if (norate.length) issues.push({ code: 'norate', count: norate.length, ids: norate.map(function (u) { return u.id; }) });
-    var model0 = { building: b, buildings: all, month: m, currentMonth: ctx.month, floors: floors, unplaced: unplaced, units: units,
+    var model0 = { building: b, buildings: all, month: m, currentMonth: ctx.month, today: ctx.today, floors: floors, unplaced: unplaced, units: units,
       totals: totalsOf(units), series: series, issues: issues, owner: owner, look: lookOf(props, b, savedTop) };
     model0.analytics = analyticsOf(ctx, model0);
     model0.brief = brief(model0);
@@ -641,7 +654,7 @@
   var API = { day: day, monthOf: monthOf, monthAdd: monthAdd, monthLabel: monthLabel, parseFloor: parseFloor, floorLabel: floorLabel,
     unitOf: unitOf, scalaOf: scalaOf, floorOf: floorOf, streetKey: streetKey, buildingKeyOf: buildingKeyOf, ownerOf: ownerOf,
     context: context, unitMonth: unitMonth, arrearsOf: arrearsOf, strip: strip, buildings: buildings, model: model,
-    totalsOf: totalsOf, pipelineOf: pipelineOf, timeOf: timeOf, analyticsOf: analyticsOf, brief: brief, STATES: STATES,
+    totalsOf: totalsOf, pipelineOf: pipelineOf, timeOf: timeOf, analyticsOf: analyticsOf, brief: brief, STATES: STATES, TONES: TONES, toneOf: toneOf,
     LOOKS: LOOKS, LOOK_DEFAULT: LOOK_DEFAULT, lookOf: lookOf, civicOf: civicOf, validateLook: validateLook };
   if (typeof module === 'object' && module.exports) module.exports = API;
   if (root) root.BOOM_PALAZZO = API;

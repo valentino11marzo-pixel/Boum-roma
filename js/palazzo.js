@@ -18,22 +18,20 @@
   var doc = root.document;
 
   var GEO = { w: 88, h: 54, d: 66, gx: 12, gz: 16, fh: 66 };
-  var FILTERS = [
-    ['all', 'Tutti', null],
-    ['paid', 'Pagato', ['paid']],
-    ['late', 'In ritardo', ['late']],
-    ['due', 'Da pagare', ['due']],
-    ['check', 'Da verificare', ['review', 'norate', 'unknown']],
-    ['free', 'Liberi', ['vacant', 'incoming']]
-  ];
-  var GLYPH = { paid: '✓', late: '!', due: '·', review: '?', norate: '–', unknown: '?', incoming: '→', vacant: '' };
+  // I filtri sono i QUATTRO TONI del motore (E.TONES), non gli otto stati.
+  var FILTERS = [['all', 'Tutti', null]].concat(E.TONES.map(function (t) {
+    return [{ pagato: 'paid', ritardo: 'late', attesa: 'due', libero: 'free' }[t.key], t.key === 'ritardo' ? 'Non pagato' : t.key === 'libero' ? 'Liberi' : t.label, t.states];
+  }));
+  var GLYPH = { paid: '✓', late: '!', due: '·', review: '·', norate: '·', unknown: '·', incoming: '→', vacant: '' };
 
-  var ui = { key: '', month: '', view: '3d', filter: 'all', selected: '', rx: -22, ry: 34, zoom: 1, intro: Object.create(null), facIntro: Object.create(null), playing: null, draft: null, lookOpen: false, paidOpen: false };
+  // view '' = nessuna scelta salvata: la decide il ruolo al primo disegno
+  // (la proprietaria apre su Semplice ovunque, l'admin su 3D da desktop).
+  var ui = { key: '', month: '', view: '', filter: 'all', selected: '', rx: -22, ry: 34, zoom: 1, intro: Object.create(null), facIntro: Object.create(null), playing: null, draft: null, lookOpen: false, paidOpen: false, shown: '',
+    contacts: { byId: Object.create(null), pending: Object.create(null), failed: Object.create(null) } };
   var adapter = null, last = null, bound = false;
   try {
     var saved = JSON.parse(root.localStorage && root.localStorage.getItem('boom_palazzo') || '{}');
     if (saved.view === 'list' || saved.view === '3d' || saved.view === 'simple') ui.view = saved.view;
-    else if (root.matchMedia && root.matchMedia('(max-width: 600px)').matches) ui.view = 'simple';
     if (typeof saved.key === 'string') ui.key = saved.key;
   } catch (_) {}
   function persist() { try { root.localStorage.setItem('boom_palazzo', JSON.stringify({ view: ui.view, key: ui.key })); } catch (_) {} }
@@ -64,6 +62,7 @@
   // ── Dati ──────────────────────────────────────────────────────────────
   function compute() {
     var S = adapter.state(), admin = adapter.isAdmin();
+    if (!ui.view) ui.view = !admin || (root.matchMedia && root.matchMedia('(max-width: 600px)').matches) ? 'simple' : '3d';
     var ctx = E.context({ properties: S.properties, contracts: S.contracts, payments: S.payments, users: S.users,
       preAgreements: admin ? S.preAgreements : null, listings: S.listings });
     var me = S.profile && S.profile.id;
@@ -126,7 +125,8 @@
   }
 
   function issues(data) {
-    if (!data.admin || !data.m.issues.length) return '';
+    var noPhone = data.admin ? withoutPhone(data.m) : [];
+    if (!data.admin || (!data.m.issues.length && !noPhone.length)) return '';
     var m = data.m, o = m.owner, S = data.S;
     var rows = m.issues.map(function (i) {
       if (i.code === 'unplaced') return row('Piano', i.count + (i.count === 1 ? ' interno senza piano' : ' interni senza piano') + ': restano nel cortile, fuori dalla vista 3D.', '<button type="button" class="plz-btn" data-plz="edit" data-id="' + esc(i.ids[0]) + '">Indica il piano</button>');
@@ -140,8 +140,9 @@
       if (i.code === 'overlap') return row('Contratti', i.count + (i.count === 1 ? ' interno ha due contratti' : ' interni hanno due contratti') + ' nello stesso mese.', '<button type="button" class="plz-btn" data-plz="select" data-id="' + esc(i.ids[0]) + '">Vedi</button>');
       if (i.code === 'norate') return row('Rate', i.count + (i.count === 1 ? ' interno occupato senza rata' : ' interni occupati senza rata') + ' in ' + esc(E.monthLabel(m.month).toLowerCase()) + ': né pagato né in ritardo finché la rata non esiste.', '<button type="button" class="plz-btn" data-plz="rent" data-id="' + esc(i.ids[0]) + '">Verifica rate</button>');
       return '';
-    }).join('');
-    return rows ? '<details class="plz-issues"' + (m.issues.some(function (i) { return i.code !== 'norate'; }) ? ' open' : '') + '><summary>Da sistemare · ' + m.issues.length + '</summary>' + rows + '</details>' : '';
+    }).join('') + (noPhone.length ? row('Contatti', noPhone.length + (noPhone.length === 1 ? ' inquilino senza telefono' : ' inquilini senza telefono') + ' in archivio: dalla sua scheda la proprietaria non ' + (noPhone.length === 1 ? 'lo può' : 'li può') + ' chiamare.', '<button type="button" class="plz-btn" data-plz="select" data-id="' + esc(noPhone[0].id) + '">Vedi</button>') : '');
+    var n = m.issues.length + (noPhone.length ? 1 : 0);
+    return rows ? '<details class="plz-issues"' + (m.issues.some(function (i) { return i.code !== 'norate'; }) || noPhone.length ? ' open' : '') + '><summary>Da sistemare · ' + n + '</summary>' + rows + '</details>' : '';
     function row(tag, text, action) { return '<div class="plz-issue"><span class="plz-tag">' + tag + '</span><p>' + text + '</p>' + action + '</div>'; }
   }
 
@@ -166,13 +167,13 @@
     return '<div class="plz-time"><button type="button" class="plz-ico plz-play" data-plz="play" aria-label="' + (ui.playing ? 'Ferma' : 'Riproduci gli ultimi 12 mesi') + '">' + (ui.playing ? '❚❚' : '▶') + '</button><div class="plz-months" role="group" aria-label="Ultimi 12 mesi">' +
       m.series.map(function (s) {
         var t = s.totals, n = Math.max(1, t.units), seg = function (k, v) { return v ? '<i class="plz-s-' + k + '" style="flex:' + v + '"></i>' : ''; };
-        var bar = seg('paid', t.paid) + seg('review', t.review) + seg('due', t.due) + seg('norate', t.norate + t.unknown) + seg('late', t.late) + seg('incoming', t.incoming) + seg('vacant', t.vacant);
+        var bar = seg('paid', t.paid) + seg('due', t.due + t.review + t.norate + t.unknown) + seg('late', t.late) + seg('vacant', t.vacant + t.incoming);
         return '<button type="button" class="plz-mcell' + (s.month === m.month ? ' is-on' : '') + (s.month === m.currentMonth ? ' is-now' : '') + '" data-plz="month" data-m="' + s.month + '" aria-label="' + esc(E.monthLabel(s.month)) + ': ' + t.paid + ' pagati, ' + t.late + ' in ritardo, ' + (t.vacant + t.incoming) + ' liberi" aria-pressed="' + (s.month === m.month) + '"><span class="plz-mbar">' + bar + '</span><small>' + E.monthLabel(s.month, true) + '</small></button>';
       }).join('') + '</div></div>';
   }
 
   function filters(data) {
-    var t = data.m.totals, count = { all: t.units, paid: t.paid, late: t.late, due: t.due, check: t.review + t.norate + t.unknown, free: t.vacant + t.incoming };
+    var t = data.m.totals, count = { all: t.units, paid: t.paid, late: t.late, due: t.due + t.review + t.norate + t.unknown, free: t.vacant + t.incoming };
     return '<div class="plz-filters" role="group" aria-label="Mostra">' + FILTERS.map(function (f) {
       return '<button type="button" class="plz-filter plz-f-' + f[0] + '" data-plz="filter" data-f="' + f[0] + '" aria-pressed="' + (ui.filter === f[0]) + '"><i aria-hidden="true"></i>' + f[1] + '<b>' + count[f[0]] + '</b></button>';
     }).join('') + '</div>';
@@ -261,9 +262,9 @@
           var um = u.month;
           return '<div class="plz-rrow' + (u.id === ui.selected ? ' is-sel' : '') + '" role="row" tabindex="0" data-plz="select" data-id="' + esc(u.id) + '">' +
             '<span role="cell" class="plz-rint"><b>' + esc(unitTitle(u)) + '</b>' + (u.scala ? '<small>Scala ' + esc(u.scala) + '</small>' : '') + '</span>' +
-            '<span role="cell" data-l="Inquilino">' + esc(um.tenants.join(' · ') || (um.state === 'vacant' ? 'Libero' : um.state === 'incoming' ? 'In arrivo dal ' + dateIt(um.leaseStart) : '—')) + '</span>' +
+            '<span role="cell" data-l="Inquilino">' + esc(um.tenants.join(' · ') || (um.state === 'vacant' ? 'Libero' : um.state === 'incoming' ? 'In arrivo dal ' + dateIt(um.leaseStart) : '—')) + rollPhone(um) + '</span>' +
             '<span role="cell" data-l="Canone" class="plz-num">' + (um.rent != null && um.occupied ? eur(um.rent) : '—') + '</span>' +
-            '<span role="cell" data-l="Fino al">' + (um.leaseEnd ? dateIt(um.leaseEnd) + (um.leaving ? ' <em class="plz-warn">in scadenza</em>' : '') : '—') + '</span>' +
+            '<span role="cell" data-l="Fino al">' + (um.leaseEnd ? dateIt(um.leaseEnd) + (um.leaving ? ' <em class="plz-warn">' + esc(expiry(um.leaseEnd, m.today)) + '</em>' : '') : '—') + '</span>' +
             '<span role="cell" data-l="Mese"><span class="plz-pill plz-s-' + um.state + '">' + esc(stateLabel(um, m.month, m.currentMonth)) + '</span>' + (um.expected ? ' <small class="plz-num">' + eur(um.expected) + '</small>' : '') + '</span>' +
             '<span role="cell" data-l="12 mesi">' + stripHTML(u, m.month) + '</span>' +
             '<span role="cell" data-l="Arretrati" class="plz-num' + (u.arrears.amount ? ' plz-red' : '') + '">' + (u.arrears.amount ? eur(u.arrears.amount) : '—') + '</span></div>';
@@ -273,7 +274,9 @@
 
   function panel(data) {
     var m = data.m, u = ui.selected && m.units.find(function (x) { return x.id === ui.selected; });
-    return u ? unitPanel(u, data) : monthPanel(data);
+    if (!u) { ui.shown = ''; return monthPanel(data); }
+    var enter = ui.shown !== u.id; ui.shown = u.id;
+    return unitPanel(u, data, enter);
   }
   function monthPanel(data) {
     var m = data.m, by = function (states) { return m.units.filter(function (u) { return states.indexOf(u.month.state) >= 0; }); };
@@ -321,11 +324,109 @@
     return out.join(' — ');
   }
   function itNum(n) { return String(Math.round(n * 10) / 10).replace('.', ','); }
-  function unitPanel(u, data) {
+  // ── I contatti: dal server, una volta per contratto ─────────────────
+  // `users` non è leggibile dal proprietario e un contratto nato da una
+  // proposta non porta il telefono: li ricompone /api/owners/contatti, solo
+  // per i contratti dei SUOI immobili. Un guasto non riprova da solo (niente
+  // giri a vuoto): la scheda offre «Riprova».
+  function contactIdsOf(m) {
+    var seen = Object.create(null), out = [];
+    (m && m.units || []).forEach(function (u) { var id = u.month.contractId; if (id && !seen[id]) { seen[id] = 1; out.push(id); } });
+    return out;
+  }
+  function ensureContacts(m) {
+    if (!adapter || typeof adapter.contacts !== 'function' || !m || !m.building) return;
+    var C = ui.contacts;
+    var need = contactIdsOf(m).filter(function (id) { return !(id in C.byId) && !C.pending[id] && !C.failed[id]; });
+    if (!need.length) return;
+    need.forEach(function (id) { C.pending[id] = true; });
+    Promise.resolve().then(function () { return adapter.contacts(need.slice(0, 120)); }).then(function (map) {
+      need.forEach(function (id) { C.byId[id] = map && Array.isArray(map[id]) ? map[id] : []; delete C.pending[id]; });
+      if (doc && doc.querySelector('.plz')) patch();
+    }, function () {
+      need.forEach(function (id) { C.failed[id] = true; delete C.pending[id]; });
+      if (doc && doc.querySelector('.plz')) patch();
+    });
+  }
+  function contactsOf(um) { return um.contractId ? ui.contacts.byId[um.contractId] : undefined; }
+  function withoutPhone(m) {
+    return m.units.filter(function (u) {
+      var list = u.month.occupied ? contactsOf(u.month) : undefined;
+      return Array.isArray(list) && !list.some(function (p) { return p.phone; });
+    });
+  }
+  // WhatsApp vuole il prefisso: un cellulare italiano scritto senza +39 lo riceve.
+  function waNumber(phone) {
+    var d = String(phone || '').replace(/\D/g, '');
+    if (String(phone).charAt(0) !== '+' && /^3\d{8,9}$/.test(d)) d = '39' + d;
+    return d;
+  }
+  function fmtPhone(phone) {
+    var s = String(phone || ''), d = s.replace(/\D/g, '');
+    var g = function (x) { return x.length === 10 ? x.slice(0, 3) + ' ' + x.slice(3, 6) + ' ' + x.slice(6) : x; };
+    if (/^\+39\d{9,10}$/.test(s)) return '+39 ' + g(d.slice(2));
+    if (/^3\d{9}$/.test(s)) return g(s);
+    return s;
+  }
+  function rollPhone(um) {
+    var list = um.occupied || um.state === 'incoming' ? contactsOf(um) : undefined;
+    var p = Array.isArray(list) && list.find(function (x) { return x.phone; });
+    return p ? '<a class="plz-tel" href="tel:' + esc(p.phone) + '" aria-label="' + esc('Chiama ' + (p.name || '') + ' ' + fmtPhone(p.phone)) + '">' + esc(fmtPhone(p.phone)) + '</a>' : '';
+  }
+  function personHTML(p) {
+    var links = [];
+    if (p.phone) {
+      links.push('<a class="plz-btn plz-sm plz-primary" href="tel:' + esc(p.phone) + '">Chiama</a>');
+      links.push('<a class="plz-btn plz-sm" href="https://wa.me/' + esc(waNumber(p.phone)) + '" target="_blank" rel="noopener">WhatsApp</a>');
+    }
+    if (p.email) links.push('<a class="plz-btn plz-sm" href="mailto:' + esc(p.email) + '">Email</a>');
+    return '<li class="plz-person"><p class="plz-person-n"><b>' + esc(p.name || 'Senza nome') + '</b>' + (p.role === 'cotenant' ? '<small>co-intestatario</small>' : '') + '</p>' +
+      '<p class="plz-person-c">' + (p.phone ? '<span class="plz-num">' + esc(fmtPhone(p.phone)) + '</span>' : '<span class="plz-muted">telefono non in archivio</span>') + (p.email ? '<span>' + esc(p.email) + '</span>' : '') + '</p>' +
+      (links.length ? '<div class="plz-reach">' + links.join('') + '</div>' : '') + '</li>';
+  }
+  function peopleHTML(u, data) {
+    var um = u.month;
+    if (!um.contractId) return '';
+    var head = '<p class="plz-eyebrow">' + (um.state === 'incoming' ? 'Chi arriva' : 'Chi abita qui') + '</p>';
+    if (!adapter || typeof adapter.contacts !== 'function') return head + '<p class="plz-people-names">' + esc(um.tenants.join(' · ') || '—') + '</p>';
+    var list = contactsOf(um);
+    if (!list) {
+      if (ui.contacts.failed[um.contractId]) return head + '<p class="plz-muted">' + esc(um.tenants.join(' · ')) + ' — contatti non raggiungibili ora. <button type="button" class="plz-link" data-plz="contacts-retry">Riprova</button></p>';
+      return head + '<p class="plz-muted plz-loading">' + esc(um.tenants.join(' · ')) + (um.tenants.length ? ' · ' : '') + 'carico i contatti…</p>';
+    }
+    if (!list.length) return head + '<p class="plz-people-names">' + esc(um.tenants.join(' · ') || '—') + '</p><p class="plz-muted">' + (data.admin ? 'Nessun contatto in archivio: aggiungilo dal contratto.' : 'Contatti non ancora in archivio: li aggiunge BOOM.') + '</p>';
+    return head + '<ul class="plz-people">' + list.map(personHTML).join('') + '</ul>';
+  }
+  // Quanto manca: in giorni fino a due mesi, poi in mesi. Mai una data
+  // inventata: senza fine contratto non si dice niente.
+  function expiry(end, today) {
+    if (!end || !today) return '';
+    var d = Math.round((Date.parse(end) - Date.parse(today)) / 864e5);
+    if (isNaN(d)) return '';
+    if (d < 0) return 'scaduto da ' + (-d) + (d === -1 ? ' giorno' : ' giorni');
+    if (d === 0) return 'scade oggi';
+    if (d <= 60) return 'scade tra ' + d + (d === 1 ? ' giorno' : ' giorni');
+    var mo = Math.floor(d / 30.44);
+    return 'scade tra ' + mo + (mo === 1 ? ' mese' : ' mesi');
+  }
+  function startsIn(start, today) {
+    var d = Math.round((Date.parse(start) - Date.parse(today)) / 864e5);
+    return isNaN(d) || d < 0 ? '' : d === 0 ? 'entra oggi' : 'entra tra ' + d + (d === 1 ? ' giorno' : ' giorni');
+  }
+  var TYPES = { transitorio: 'Transitorio', studenti: 'Studenti', '3+2': '3+2 canone concordato', '32': '3+2 canone concordato', concordato: '3+2 canone concordato', '4+4': '4+4 libero', libero: '4+4 libero' };
+  function leaseType(c) { var t = String(c && c.type || '').trim(); return TYPES[t.toLowerCase()] || (t ? t.charAt(0).toUpperCase() + t.slice(1) : ''); }
+  function depositOf(c) {
+    if (!c) return '';
+    var n = Number(c.deposit);
+    if (isFinite(n) && n > 0) return eur(n);
+    var mo = Number(c.depositMonths);
+    return isFinite(mo) && mo > 0 ? mo + ' mensilità' : '';
+  }
+  function unitPanel(u, data, enter) {
     var m = data.m, um = u.month, admin = data.admin;
     var lease = um.lease || um.incoming;
     var rows = um.rows.map(function (r) {
-      var st = { paid: 'Pagato', overdue: 'In ritardo', due: 'Da pagare', reported: 'Segnalato · da verificare', processing: 'In corso', unknown: 'Da verificare' }[r.state] || 'Da verificare';
+      var st = { paid: 'Pagato', overdue: 'Non pagato', due: 'Da pagare', reported: 'Segnalato · da verificare', processing: 'In corso', unknown: 'Da verificare' }[r.state] || 'Da verificare';
       return '<li><span>' + esc(r.month && r.coversTo && r.coversTo !== r.month ? E.monthLabel(r.month, true) + '→' + E.monthLabel(r.coversTo, true) : E.monthLabel(r.month)) + '</span><b class="plz-num">' + eur(r.amount) + '</b><em class="plz-pill plz-s-' + ({ overdue: 'late', reported: 'review', processing: 'review' }[r.state] || r.state) + '">' + st + '</em><small>' + (r.paidDate ? 'pagato il ' + dateIt(r.paidDate) : r.dueDate ? 'scadenza ' + dateIt(r.dueDate) : '') + '</small></li>';
     }).join('');
     var pdf = lease && (lease.signedPdfUrl || lease.generatedPDF);
@@ -337,18 +438,21 @@
         (u.pipeline.listing ? '<a class="plz-btn" href="' + esc(u.pipeline.listing.url) + '" target="_blank" rel="noopener">Annuncio ↗</a>' : '') +
         '<button type="button" class="plz-btn" data-plz="dossier" data-id="' + esc(u.id) + '">Fascicolo</button><button type="button" class="plz-btn" data-plz="edit" data-id="' + esc(u.id) + '">Modifica interno</button>'
       : (safe(pdf) ? '<a class="plz-btn" href="' + esc(safe(pdf)) + '" target="_blank" rel="noopener">Contratto (PDF) ↗</a>' : '') + '<button type="button" class="plz-btn" data-plz="inbox">Scrivi a BOOM</button>';
-    return '<div class="plz-pcard plz-unitcard"><button type="button" class="plz-close" data-plz="deselect" aria-label="Chiudi">×</button>' +
+    var exp = um.leaseEnd ? expiry(um.leaseEnd, m.today) : um.state === 'incoming' && um.leaseStart ? startsIn(um.leaseStart, m.today) : '';
+    var kind = leaseType(lease), dep = depositOf(lease);
+    return '<div class="plz-pcard plz-unitcard' + (enter ? ' is-enter' : '') + '"><button type="button" class="plz-close" data-plz="deselect" aria-label="Chiudi">×</button>' +
       '<p class="plz-eyebrow">' + esc(unitWhere(u)) + '</p><h2 id="plz-unit-h" tabindex="-1">' + esc(unitTitle(u)) + '</h2>' +
       '<span class="plz-pill plz-s-' + um.state + ' plz-big">' + esc(stateLabel(um, m.month, m.currentMonth)) + ' · ' + esc(E.monthLabel(m.month).toLowerCase()) + '</span>' +
       (u.ownerMismatch && admin ? '<p class="plz-note">Non collegato al profilo di ' + esc(m.owner && (m.owner.name || m.owner.email) || 'proprietaria') + ': dal suo accesso non lo vede.</p>' : '') +
+      (um.contractId ? peopleHTML(u, data) : '<p class="plz-people-names plz-muted">' + (um.state === 'vacant' ? 'Libero' + (u.time && u.time.vacantDays != null ? ' da ' + u.time.vacantDays + (u.time.vacantDays === 1 ? ' giorno' : ' giorni') : '') : esc(um.tenants.join(' · ') || '—')) + '</p>') +
+      (um.leaseStart || um.leaseEnd ? '<div class="plz-term' + (um.leaving ? ' is-leaving' : '') + '"><p class="plz-term-k">' + esc(kind || 'Contratto') + '</p><p class="plz-term-d">' + esc((um.leaseStart ? 'dal ' + dateIt(um.leaseStart) : '') + (um.leaseEnd ? ' al ' + dateIt(um.leaseEnd) : '')) + '</p>' + (exp ? '<p class="plz-term-x">' + esc(exp) + '</p>' : '') + '</div>' : '') +
       '<dl class="plz-facts">' +
-      '<div><dt>' + (um.state === 'incoming' ? 'In arrivo' : 'Inquilino') + '</dt><dd>' + esc(um.tenants.join(' · ') || (um.state === 'vacant' ? 'Libero' : '—')) + '</dd></div>' +
-      '<div><dt>Contratto</dt><dd>' + (um.leaseStart || um.leaseEnd ? esc((um.leaseStart ? 'dal ' + dateIt(um.leaseStart) : '') + (um.leaseEnd ? ' al ' + dateIt(um.leaseEnd) : '')) + (um.leaving ? ' <em class="plz-warn">in scadenza</em>' : '') : '—') + '</dd></div>' +
       '<div><dt>Canone</dt><dd class="plz-num">' + (um.rent != null ? eur(um.rent) + ' / mese' : '—') + '</dd></div>' +
-      '<div><dt>Puntualità</dt><dd>' + esc(punctuality(u.time)) + '</dd></div>' +
-      '<div><dt>12 mesi</dt><dd>' + (u.time ? 'occupato ' + u.time.occupiedMonths + ' mesi su 12' + (um.state === 'vacant' && u.time.vacantDays != null ? ' · libero da ' + u.time.vacantDays + ' giorni' : '') : '—') + '</dd></div>' +
-      (admin && (u.pipeline.proposal || u.pipeline.listing) ? '<div><dt>In corso</dt><dd>' + esc(pipelineText(u)) + '</dd></div>' : '') +
+      (dep ? '<div><dt>Deposito</dt><dd class="plz-num">' + esc(dep) + '</dd></div>' : '') +
       '<div><dt>Arretrati</dt><dd class="plz-num' + (u.arrears.amount ? ' plz-red' : '') + '">' + (u.arrears.amount ? eur(u.arrears.amount) + ' · ' + u.arrears.count + (u.arrears.count === 1 ? ' rata' : ' rate') + (u.arrears.oldest ? ' dal ' + dateIt(u.arrears.oldest) : '') : 'Nessuno') + '</dd></div>' +
+      '<div><dt>Puntualità</dt><dd>' + esc(punctuality(u.time)) + '</dd></div>' +
+      '<div><dt>12 mesi</dt><dd>' + (u.time ? 'occupato ' + u.time.occupiedMonths + ' mesi su 12' : '—') + '</dd></div>' +
+      (admin && (u.pipeline.proposal || u.pipeline.listing) ? '<div><dt>In corso</dt><dd>' + esc(pipelineText(u)) + '</dd></div>' : '') +
       '</dl><p class="plz-eyebrow">Ultimi 12 mesi</p>' + stripHTML(u, m.month) +
       '<p class="plz-eyebrow">Rate di ' + esc(E.monthLabel(m.month).toLowerCase()) + '</p>' + (rows ? '<ul class="plz-rows">' + rows + '</ul>' : '<p class="plz-muted">' + (um.occupied ? 'Nessuna rata registrata per questo mese.' : 'Nessun contratto in questo mese.') + '</p>') +
       '<div class="plz-actions">' + actions + '</div></div>';
@@ -398,7 +502,7 @@
     };
     var regular = floors.filter(function (f) { return f !== attic; }).slice().reverse();
     var intro = !ui.facIntro[m.building.key] && !ui.draft;
-    var keys = [['paid', 'Pagato'], ['late', 'Non ha pagato'], ['due', 'Deve pagare'], ['review', 'In verifica'], ['incoming', 'In arrivo'], ['vacant', 'Libero']];
+    var keys = E.TONES.map(function (t) { return [t.states[0], t.label]; });
     return '<figure class="plz-facade' + (intro ? ' is-intro' : '') + '" id="plz-fac" style="' + lookStyle(look) + ';--n:' + n + '" aria-label="' + esc('La facciata di ' + (look.name || m.building.label) + ': una finestra per interno') + '">' +
       '<div class="plz-fac-bld">' +
       (attic ? '<div class="plz-fac-roof is-small" aria-hidden="true"></div>' + row(attic) : '') +
@@ -520,7 +624,8 @@
     }).join('');
     var pct = function (v) { return v == null ? '—' : v + '%'; };
     var delay = A.avgDelay == null ? 'nessun dato' : A.avgDelay < -0.4 ? 'in media ' + itNum(Math.abs(A.avgDelay)) + ' giorni prima' : A.avgDelay > 0.4 ? 'in media ' + itNum(A.avgDelay) + ' giorni dopo la scadenza' : 'in media alla scadenza';
-    var exp = A.expiries.length ? A.expiries.map(function (e) { return '<li><b>' + esc(e.interno ? 'Int. ' + e.interno : e.name) + '</b> ' + esc(e.tenants[0] || '') + '<em>' + dateIt(e.date) + (e.next ? ' · ' + (e.next.kind === 'reserved' ? 'nuovo inquilino pronto' : 'in trattativa') : '') + '</em></li>'; }).join('') : '<li class="plz-muted">Nessun contratto finisce nei prossimi 12 mesi.</li>';
+    var EXP_MAX = 5, more = A.expiries.length - EXP_MAX;
+    var exp = A.expiries.length ? A.expiries.slice(0, EXP_MAX).map(function (e) { return '<li><b>' + esc(e.interno ? 'Int. ' + e.interno : e.name) + '</b> ' + esc(e.tenants[0] || '') + '<em>' + dateIt(e.date) + (e.next ? ' · ' + (e.next.kind === 'reserved' ? 'nuovo inquilino pronto' : 'in trattativa') : '') + '</em></li>'; }).join('') + (more > 0 ? '<li class="plz-muted">e altri ' + more + ' · vedi Elenco</li>' : '') : '<li class="plz-muted">Nessun contratto finisce nei prossimi 12 mesi.</li>';
     return '<div class="plz-ahead"><p class="plz-eyebrow">Andamento · ultimi 12 mesi</p></div><div class="plz-agrid">' +
       '<div class="plz-acard plz-achart"><h3>Incassato su atteso, per mese</h3><div class="plz-abars" role="group" aria-label="Incassato su atteso, per mese">' + bars + '</div></div>' +
       '<div class="plz-acard"><span>Incassato su scaduto</span><strong>' + pct(A.collectionPct) + '</strong><em>' + eur(A.collected12) + ' di ' + eur(A.expected12) + '</em></div>' +
@@ -536,6 +641,7 @@
   function patch() {
     if (!adapter || !doc || !doc.querySelector('.plz')) return;
     var data = compute(); last = data;
+    ensureContacts(data.m);
     var m = data.m, set = function (id, html) { var el = doc.getElementById(id); if (el) el.innerHTML = html; };
     if (ui.view === 'simple') {
       set('plz-issues', issues(data)); set('plz-sbrief', briefHTML(data)); set('plz-scards', cards(data)); set('plz-panel', ui.selected ? panel(data) : '');
@@ -611,6 +717,7 @@
     if (!doc) return;
     var st = doc.getElementById('plz-stage'), w = world();
     lightsOn();
+    if (last) ensureContacts(last.m);
     if (!st || !w) return;
     if (last && last.m.building) ui.intro[last.m.building.key] = true;
     applyView();
@@ -686,12 +793,14 @@
   }
 
   function onClick(e) {
+    if (e.target.closest && e.target.closest('a[href]')) return; // chiama/scrivi: il link fa il suo lavoro
     var el = e.target.closest && e.target.closest('[data-plz]');
     if (!el || !el.closest('.plz') || !adapter) return;
     var act = el.getAttribute('data-plz'), id = el.getAttribute('data-id') || '';
     var st = doc.getElementById('plz-stage');
     if (act === 'select') { if (st && st.dataset.justDragged) return; select(id); return; }
     if (act === 'deselect') { ui.selected = ''; patch(); return; }
+    if (act === 'contacts-retry') { ui.contacts.failed = Object.create(null); patch(); return; }
     if (act === 'month') { stopPlay(); setMonth(el.getAttribute('data-m')); return; }
     if (act === 'prev' || act === 'next') { stopPlay(); setMonth(E.monthAdd(ui.month || last.m.month, act === 'prev' ? -1 : 1)); return; }
     if (act === 'today') { stopPlay(); setMonth(last.m.currentMonth); return; }
