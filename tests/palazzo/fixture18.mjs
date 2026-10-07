@@ -28,7 +28,9 @@ export function buildFixture18(now = new Date()) {
   plan.push([18, 'Attico']);
   const look = { palazzoPersiane: 'verde', palazzoIntonaco: 'ocra', ultimoPiano: 6 };
   const properties = plan.map(([i, floor]) => ({ id: 'u' + i, name: 'Piazza Esempio 42 int. ' + i, address: ADDR, interno: String(i), floor,
-    ownerId: owner.id, rent: 850 + (i % 5) * 60, ...(i === 1 ? look : {}) }));
+    ownerId: owner.id, rent: 850 + (i % 5) * 60, ...(i === 1 ? look : {}),
+    // POD/PDR inventati, nella forma vera; l'int. 9 ne ha uno scritto male
+    pod: i === 9 ? 'IT002E1234' : 'IT002E' + String(10000000 + i).slice(0, 8), pdr: i % 3 ? '0088' + String(1000000000 + i).slice(0, 10) : '' }));
 
   // Chi è dentro: tutti tranne 6 (libero, sul sito), 14 (in trattativa), 17 (in arrivo).
   const rent = i => 850 + (i % 5) * 60;
@@ -72,6 +74,11 @@ export function buildFixture18(now = new Date()) {
     { id: 'pa14', ref: 'BOOM-DEMO14', status: 'viewed', propertyId: 'u14', tenant: { fullName: 'Candidata Demo' }, lease: { startDate: M(1) + '-01', endDate: M(13) + '-28' }, money: { rent: rent(14) } }
   ];
   const listings = [{ id: 'lst6', propertyId: 'u6', status: 'available', name: 'Bilocale Esempio' }];
+  const maintenance = [
+    { id: 'mt13', propertyId: 'u13', title: 'Caldaia in blocco (E01)', category: 'heating', priority: 'urgent', status: 'open', createdAt: D(-1), reporter: { role: 'tenant', name: NOMI[12] } },
+    { id: 'mt7', propertyId: 'u7', title: 'Infiltrazione sul soffitto del bagno', category: 'leaks', priority: 'medium', status: 'in_progress', createdAt: D(-8), reporter: { role: 'owner' } },
+    { id: 'mt2', propertyId: 'u2', title: 'Tapparella bloccata', category: 'other', priority: 'low', status: 'resolved', createdAt: D(-30), resolvedAt: D(-26) }
+  ];
   const users = [owner, { id: 'demo-admin', role: 'admin', name: 'Operatore demo' }];
-  return { today, month, state: { profile: { id: 'demo-admin', role: 'admin', name: 'Operatore demo' }, users, properties, contracts, payments, preAgreements, listings } };
+  return { today, month, state: { profile: { id: 'demo-admin', role: 'admin', name: 'Operatore demo' }, users, properties, contracts, payments, preAgreements, listings, maintenance } };
 }

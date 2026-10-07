@@ -199,6 +199,38 @@
   }
 
   // ── Contesto: indici una volta sola ──────────────────────────────────
+  // ── Manutenzione e utenze ────────────────────────────────────────────
+  var MAINT_DONE = { resolved: 1, closed: 1, done: 1, completed: 1, cancelled: 1, canceled: 1 };
+  var MAINT_PRI = { urgent: 'urgent', emergency: 'urgent', emergenza: 'urgent', high: 'high', urgente: 'high', medium: 'medium', normal: 'medium', normale: 'medium', low: 'low' };
+  var MAINT_CAT = { plumbing: 'Acqua / scarichi', idraulica: 'Acqua / scarichi', electrical: 'Luce / prese', elettricita: 'Luce / prese', heating: 'Caldaia / riscaldamento',
+    riscaldamento: 'Caldaia / riscaldamento', appliance: 'Elettrodomestici', elettrodomestici: 'Elettrodomestici', locks: 'Porta / serratura', serrature: 'Porta / serratura',
+    leaks: 'Infiltrazioni / umidità', common: 'Parti comuni', other: 'Altro', altro: 'Altro' };
+  function maintItem(mt) {
+    var st = norm(mt.status) || 'open';
+    return { id: str(mt.id), title: str(mt.title) || (MAINT_CAT[norm(mt.category)] || 'Manutenzione'), category: MAINT_CAT[norm(mt.category)] || 'Altro',
+      priority: MAINT_PRI[norm(mt.priority)] || 'medium', status: st, open: !MAINT_DONE[st], inProgress: st === 'in_progress',
+      createdAt: day(mt.createdAt), resolvedAt: day(mt.resolvedAt || mt.completedAt), description: str(mt.description).slice(0, 400),
+      reporter: str(mt.reporter && mt.reporter.role) || (mt.tenantName || mt.tenantId ? 'tenant' : ''), photoUrl: str(mt.photoUrl) };
+  }
+  var PRI_RANK = { urgent: 0, high: 1, medium: 2, low: 3 };
+  function maintOf(ctx, p) {
+    var all = (ctx.maintenanceByProperty && ctx.maintenanceByProperty[str(p.id)]) || [];
+    var open = all.filter(function (x) { return x.open; })
+      .sort(function (a, b) { return (PRI_RANK[a.priority] - PRI_RANK[b.priority]) || String(b.createdAt).localeCompare(String(a.createdAt)); });
+    var closed = all.filter(function (x) { return !x.open; }).sort(function (a, b) { return String(b.resolvedAt || b.createdAt).localeCompare(String(a.resolvedAt || a.createdAt)); });
+    return { open: open, urgent: open.filter(function (x) { return x.priority === 'urgent' || x.priority === 'high'; }).length, recentClosed: closed.slice(0, 3), total: all.length };
+  }
+  // POD (luce): IT + 3 cifre del distributore + E + 8/9 cifre. PDR (gas): 14
+  // cifre. Un codice scritto male si conserva com'è ma si DICHIARA: al
+  // mediatore non deve partire un codice che il distributore rifiuterà.
+  function cleanCode(v) { return str(v).toUpperCase().replace(/[\s.\-]/g, ''); }
+  function podOk(v) { return /^IT\d{3}E\d{8,9}$/.test(cleanCode(v)); }
+  function pdrOk(v) { return /^\d{14}$/.test(cleanCode(v)); }
+  function utenzeOf(p) {
+    var pod = cleanCode(p && p.pod), pdr = cleanCode(p && p.pdr);
+    return { pod: pod, pdr: pdr, podOk: pod ? podOk(pod) : null, pdrOk: pdr ? pdrOk(pdr) : null };
+  }
+
   function context(o) {
     o = o || {};
     var now = o.now == null ? new Date() : o.now;
@@ -245,6 +277,15 @@
       var pid = str(pa.propertyId);
       if (pid && propIds[pid]) (proposalsByProperty[pid] = proposalsByProperty[pid] || []).push(pa);
     });
+    // La manutenzione: la stessa collection del portal (Manutenzione, Oggi,
+    // il Gestore). Due vocabolari convivono (il portal: plumbing/urgent; /casa:
+    // idraulica/emergency): qui si leggono entrambi, mai uno si perde.
+    var maintenanceByProperty = Object.create(null);
+    list(o.maintenance).forEach(function (mt) {
+      var pid = str(mt.propertyId);
+      if (!pid || !propIds[pid]) return;
+      (maintenanceByProperty[pid] = maintenanceByProperty[pid] || []).push(maintItem(mt));
+    });
     var listingsByProperty = Object.create(null), listingById = Object.create(null);
     list(o.listings).forEach(function (l) { if (str(l.id)) listingById[str(l.id)] = l; });
     properties.forEach(function (p) {
@@ -253,7 +294,8 @@
     });
     return { now: now, today: today, month: today.slice(0, 7), properties: properties, usersById: usersById,
       contractsByProperty: byProperty, paymentsByProperty: paymentsByProperty, preBoomOpen: preBoomOpen,
-      proposalsByProperty: proposalsByProperty, listingsByProperty: listingsByProperty, contractById: contractById };
+      proposalsByProperty: proposalsByProperty, listingsByProperty: listingsByProperty, contractById: contractById,
+      maintenanceByProperty: maintenanceByProperty };
   }
 
   // ── Un interno in un mese ────────────────────────────────────────────
@@ -417,9 +459,23 @@
       });
     return rows;
   }
-  function toCsv(rows) {
+  // Le utenze del palazzo, per il mediatore dell'energia: interno, piano,
+  // chi è conduttore oggi, POD/PDR e se il codice ha la forma giusta. Niente
+  // telefoni né email: al mediatore serve il punto di fornitura.
+  var UTENZE_HEAD = ['Interno', 'Piano', 'Indirizzo', 'Conduttore oggi', 'POD (luce)', 'POD valido', 'PDR (gas)', 'PDR valido'];
+  function utenzeRows(m) {
+    if (!m || !m.units) return [];
+    return m.units.slice().sort(function (a, b) { return (a.floor == null ? 999 : a.floor) - (b.floor == null ? 999 : b.floor) || natural(a.interno, b.interno); })
+      .map(function (u) {
+        var ut = u.utenze || {};
+        return [u.interno || u.name, u.floor == null ? '' : u.floorTop ? 'Attico' : floorLabel(u.floor), str(u.property && u.property.address),
+          u.month.lease ? u.month.tenants.join(', ') : '', ut.pod || '', ut.pod ? (ut.podOk ? 'sì' : 'da controllare') : '',
+          ut.pdr || '', ut.pdr ? (ut.pdrOk ? 'sì' : 'da controllare') : ''];
+      });
+  }
+  function toCsv(rows, head) {
     var cell = function (v) { var s = v == null ? '' : String(v); return /[;"\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
-    return '﻿' + [CSV_HEAD].concat(rows).map(function (r) { return r.map(cell).join(';'); }).join('\r\n') + '\r\n';
+    return '﻿' + [head || CSV_HEAD].concat(rows).map(function (r) { return r.map(cell).join(';'); }).join('\r\n') + '\r\n';
   }
 
   // ── Il palazzo da una tabella: la presa in carico ─────────────────────
@@ -448,7 +504,9 @@
     cedolare: ['cedolare', 'cedolare secca'],
     registrato: ['registrato', 'registrazione', 'registrato il', 'data registrazione', 'rli'],
     pagato: ['pagato', 'pagato il', 'pagamento', 'ultimo pagamento'],
-    giorno: ['giorno', 'giorno pagamento', 'giorno di pagamento', 'scadenza rata']
+    giorno: ['giorno', 'giorno pagamento', 'giorno di pagamento', 'scadenza rata'],
+    pod: ['pod', 'codice pod', 'pod luce', 'luce'],
+    pdr: ['pdr', 'codice pdr', 'pdr gas', 'gas']
   };
   var RR_TYPES = { transitorio: 'transitorio', transitoria: 'transitorio', studenti: 'studenti', studente: 'studenti', universitario: 'studenti',
     '3+2': '3+2', '32': '3+2', concordato: '3+2', 'canone concordato': '3+2', '4+4': '4+4', '44': '4+4', libero: '4+4', 'canone libero': '4+4' };
@@ -503,7 +561,7 @@
     var rows = lines.slice(1).map(function (line, li) {
       var c = rrSplit(line, sep), get = function (k) { return cols[k] == null ? '' : str(c[cols[k]]); };
       var r = { line: li + 2, interno: get('interno').replace(/^int(erno)?\.?\s*/i, ''), piano: get('piano'), scala: get('scala'), inquilino: get('inquilino'),
-        telefono: '', email: '', canone: null, dal: '', al: '', tipo: '', deposito: null, cedolare: '', registrato: '', registratoSi: false, pagato: '', pagatoSi: false, giorno: 5,
+        telefono: '', email: '', canone: null, dal: '', al: '', tipo: '', deposito: null, cedolare: '', registrato: '', registratoSi: false, pagato: '', pagatoSi: false, giorno: 5, pod: '', pdr: '',
         errors: [], warnings: [] };
       if (!r.interno) r.errors.push('interno mancante');
       else { var key = norm(r.scala) + '|' + norm(r.interno); if (seen[key]) r.errors.push('interno ' + r.interno + ' ripetuto (riga ' + seen[key] + ')'); else seen[key] = r.line; }
@@ -521,6 +579,9 @@
       var reg = get('registrato'); if (reg) { var rd = rrDate(reg); if (rd) r.registrato = rd; else if (rrYes(reg)) r.registratoSi = true; else if (!rrNo(reg)) r.warnings.push('registrazione «' + reg + '» non letta'); }
       var pg = get('pagato'); if (pg) { var pd = rrDate(pg); if (pd) { r.pagato = pd; r.pagatoSi = true; } else if (rrYes(pg)) r.pagatoSi = true; else if (!rrNo(pg)) r.warnings.push('pagato «' + pg + '» non letto'); }
       var gg = parseInt(get('giorno'), 10); if (gg >= 1 && gg <= 28) r.giorno = gg;
+      r.pod = cleanCode(get('pod')); r.pdr = cleanCode(get('pdr'));
+      if (r.pod && !podOk(r.pod)) r.warnings.push('POD «' + r.pod + '» non ha la forma IT001E12345678: lo carico, va controllato');
+      if (r.pdr && !pdrOk(r.pdr)) r.warnings.push('PDR «' + r.pdr + '» non ha 14 cifre: lo carico, va controllato');
       if (r.inquilino) {
         if (r.canone == null && !r.errors.some(function (e) { return /^canone/.test(e); })) r.errors.push('canone mancante');
         if (!r.dal && !r.errors.some(function (e) { return /^inizio/.test(e); })) r.errors.push('data di inizio mancante');
@@ -536,7 +597,7 @@
   function planImport(rows, ctx, opts) {
     opts = opts || {};
     var gd = monthOf(opts.gestioneDal) || ctx.month, address = str(opts.address), skey = streetKey(address);
-    var out = { properties: [], contracts: [], payments: [], skipped: [], errors: [], counts: { create: 0, update: 0, contracts: 0, payments: 0, paid: 0 } };
+    var out = { properties: [], contracts: [], payments: [], skipped: [], errors: [], counts: { create: 0, update: 0, same: 0, contracts: 0, payments: 0, paid: 0 } };
     if (!skey) { out.errors.push('indirizzo'); return out; }
     if (!str(opts.ownerId)) out.errors.push('proprietaria');
     var existing = ctx.properties.filter(function (p) { return streetKey(p.address) === skey; });
@@ -546,8 +607,11 @@
       var prop = existing.find(function (p) { return norm(unitOf(p)) === norm(r.interno) && norm(scalaOf(p)) === norm(r.scala); });
       var pid = prop ? str(prop.id) : ('plz_' + rrSlug(streetKey(address)) + (r.scala ? '_s' + rrSlug(r.scala) : '') + '_' + rrSlug(r.interno));
       var live = r.inquilino && r.al >= monthStart(gd);
-      var pdata = { gestioneDal: gd };
+      var pdata = {};
       if (prop) {
+        if (!monthOf(prop.gestioneDal)) pdata.gestioneDal = gd;
+        if (r.pod && !cleanCode(prop.pod)) pdata.pod = r.pod;
+        if (r.pdr && !cleanCode(prop.pdr)) pdata.pdr = r.pdr;
         // Fill-only: un campo già scritto nel portal non si tocca.
         if (!str(prop.floor) && r.piano) pdata.floor = r.piano;
         if (!str(prop.interno)) pdata.interno = r.interno;
@@ -555,13 +619,15 @@
         if (!str(prop.ownerId)) { pdata.ownerId = opts.ownerId; pdata.ownerName = str(opts.ownerName); }
         else if (str(prop.ownerId) !== str(opts.ownerId)) out.errors.push('owner:' + r.interno);
         if (!(money(prop.rent) > 0) && r.canone) pdata.rent = r.canone;
-        out.counts.update++;
+        if (Object.keys(pdata).length) out.counts.update++; else out.counts.same++;
       } else {
         pdata = { name: label + ' int. ' + r.interno, address: address, interno: r.interno, scala: r.scala, floor: r.piano, ownerId: opts.ownerId, ownerName: str(opts.ownerName),
           rent: r.canone || 0, propertyType: 'apartment', availabilityStatus: live ? 'rented' : 'available', gestioneDal: gd, source: 'palazzo-import' };
+        if (r.pod) pdata.pod = r.pod;
+        if (r.pdr) pdata.pdr = r.pdr;
         out.counts.create++;
       }
-      out.properties.push({ id: pid, exists: !!prop, data: pdata, interno: r.interno });
+      if (!prop || Object.keys(pdata).length) out.properties.push({ id: pid, exists: !!prop, data: pdata, interno: r.interno });
       if (!r.inquilino) return;
       var dup = (ctx.contractsByProperty[pid] || []).find(function (c) { return day(c.startDate) === r.dal; });
       var cid = dup ? str(dup.id) : ('c_' + pid + '_' + r.dal);
@@ -594,9 +660,9 @@
     out.buildingKey = existing.length ? buildingKeyOf(existing[0]) : 'a:' + skey; out.label = label; out.gestioneDal = gd;
     return out;
   }
-  var RR_TEMPLATE = 'Interno;Piano;Inquilino;Telefono;Email;Canone;Dal;Al;Tipo;Deposito;Cedolare;Registrato il;Pagato il\r\n' +
-    '1;PT;Mario Rossi;+39 333 1234567;mario@example.com;850;01/09/2025;31/08/2027;transitorio;1700;si;20/09/2025;03/10/2026\r\n' +
-    '2;PT;;;;900;;;;;;;\r\n';
+  var RR_TEMPLATE = 'Interno;Piano;Inquilino;Telefono;Email;Canone;Dal;Al;Tipo;Deposito;Cedolare;Registrato il;Pagato il;POD;PDR\r\n' +
+    '1;PT;Mario Rossi;+39 333 1234567;mario@example.com;850;01/09/2025;31/08/2027;transitorio;1700;si;20/09/2025;03/10/2026;IT001E12345678;00881234567890\r\n' +
+    '2;PT;;;;900;;;;;;;;;\r\n';
 
   // ── Cosa succede a un interno: proposte e annunci ─────────────────────
   var PA_DEAD = { revoked: 1, cancelled: 1, canceled: 1, expired: 1, rejected: 1, void: 1 };
@@ -682,6 +748,7 @@
       if (t.review) out.push(n(t.review, 'pagamento è', 'pagamenti sono') + ' da verificare.');
       if (t.norate) out.push(n(t.norate, 'interno occupato non ha', 'interni occupati non hanno') + ' la rata registrata.');
     }
+    if (t.maintOpen) out.push(n(t.maintOpen, 'segnalazione di manutenzione aperta', 'segnalazioni di manutenzione aperte') + (t.maintUrgent ? ' (' + t.maintUrgent + ' urgent' + (t.maintUrgent === 1 ? 'e' : 'i') + ')' : '') + '.');
     if (t.before) out.push(n(t.before, 'interno era', 'interni erano') + ' prima della gestione BOOM: i pagamenti di quel mese non sono in archivio.');
     if (t.arrears > t.lateAmount) out.push('Arretrati di tutti i mesi: ' + eur(t.arrears) + '.');
     return out;
@@ -792,7 +859,7 @@
         name: str(p.name) || str(p.address) || 'Interno', owner: o,
         ownerMismatch: !!(owner && o.key !== owner.key),
         month: um, arrears: arrearsOf(ctx, p), pipeline: pipelineOf(ctx, p), time: timeOf(ctx, p, m > ctx.month ? m : ctx.month),
-        paper: paperOf(um.lease || um.incoming, ctx.today),
+        paper: paperOf(um.lease || um.incoming, ctx.today), maintenance: maintOf(ctx, p), utenze: utenzeOf(p),
         strip: opts.strip === false ? [] : strip(ctx, p, m > ctx.month ? m : ctx.month, 12)
       };
     }).sort(function (a, b2) { return natural(a.scala, b2.scala) || natural(a.interno, b2.interno) || natural(a.name, b2.name); });
@@ -896,7 +963,7 @@
   }
 
   function totalsOf(units) {
-    var t = { units: units.length, occupied: 0, vacant: 0, incoming: 0, paid: 0, late: 0, due: 0, review: 0, norate: 0, unknown: 0, before: 0,
+    var t = { units: units.length, occupied: 0, vacant: 0, incoming: 0, paid: 0, late: 0, due: 0, review: 0, norate: 0, unknown: 0, before: 0, maintOpen: 0, maintUrgent: 0,
       expected: 0, collected: 0, lateAmount: 0, arrears: 0, arrearsCount: 0, arrearsOldest: '', leaving: 0, occupancy: 0 };
     units.forEach(function (u) {
       var um = u.month;
@@ -906,6 +973,7 @@
       t.expected = round(t.expected + um.expected);
       t.collected = round(t.collected + um.collected);
       t.lateAmount = round(t.lateAmount + um.lateAmount);
+      if (u.maintenance) { t.maintOpen += u.maintenance.open.length; t.maintUrgent += u.maintenance.urgent; }
       t.arrears = round(t.arrears + ((u.arrears && u.arrears.amount) || 0));
       if (u.arrears && u.arrears.count) {
         t.arrearsCount += u.arrears.count;
@@ -922,7 +990,8 @@
     totalsOf: totalsOf, pipelineOf: pipelineOf, timeOf: timeOf, analyticsOf: analyticsOf, brief: brief, STATES: STATES, TONES: TONES, toneOf: toneOf,
     LOOKS: LOOKS, LOOK_DEFAULT: LOOK_DEFAULT, lookOf: lookOf, civicOf: civicOf, validateLook: validateLook,
     paperOf: paperOf, cedolareDeclared: cedolareDeclared, csvRows: csvRows, toCsv: toCsv, CSV_HEAD: CSV_HEAD,
-    parseRentRoll: parseRentRoll, planImport: planImport, RR_TEMPLATE: RR_TEMPLATE };
+    parseRentRoll: parseRentRoll, planImport: planImport, RR_TEMPLATE: RR_TEMPLATE,
+    maintOf: maintOf, utenzeOf: utenzeOf, podOk: podOk, pdrOk: pdrOk, utenzeRows: utenzeRows, UTENZE_HEAD: UTENZE_HEAD };
   if (typeof module === 'object' && module.exports) module.exports = API;
   if (root) root.BOOM_PALAZZO = API;
 })(typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : this);

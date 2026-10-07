@@ -117,7 +117,7 @@ window.__pmLoaded = true;
             { t: 'Spazi e piano', f: ['sqm', 'rooms', 'bathrooms', 'floor', 'scala', 'interno'] },
             { t: 'Caratteristiche', f: ['propertyType', 'furnished', 'yearBuilt', 'accessories', 'youtubeUrl'] },
             { t: 'Disponibilità', f: ['availabilityStatus', 'availableSince'] },
-            { t: 'Catasto ed energia', f: ['cadastralData', 'energyClass', 'energyCert', 'safetyImplants'] },
+            { t: 'Catasto ed energia', f: ['cadastralData', 'energyClass', 'energyCert', 'safetyImplants', 'pod', 'pdr'] },
             { t: 'Note', f: ['notes'] }
         ],
         addUser: [

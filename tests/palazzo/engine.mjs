@@ -118,6 +118,7 @@ eq('il mese in parole, dai numeri', m.brief, [
   "1 deve ancora pagare, entro l'11 ottobre.",
   '1 pagamento è da verificare.',
   '1 interno occupato non ha la rata registrata.',
+  '2 segnalazioni di manutenzione aperte (1 urgente).',
   'Arretrati di tutti i mesi: €4.200.']);
 
 ok('per la proprietaria: "in verifica da BOOM", mai il nome del problema interno', P.brief(m, { owner: true }).includes('2 pagamenti sono in verifica da BOOM.') && !P.brief(m, { owner: true }).some(x => /registrata|da verificare/.test(x)));
@@ -303,7 +304,7 @@ eq('cedolareDeclared: anche canone.cedolareSecca e "Sì"; ciò che non si legge 
     contracts: plan.contracts.map(x => ({ id: x.id, ...x.data })),
     payments: plan.payments.map(x => ({ id: x.id, ...x.data })) });
   const again = P.planImport(good, loaded, { address: 'P.le Prenestino 42', ownerId: 'o-chiara', gestioneDal: F.month });
-  eq('reincollata: zero interni nuovi, zero contratti, zero rate (l\'indirizzo scritto in un altro modo è lo stesso palazzo)', [again.counts.create, again.counts.update, again.counts.contracts, again.counts.payments], [0, 3, 0, 0]);
+  eq('reincollata: niente da creare né da cambiare (l\'indirizzo scritto in un altro modo è lo stesso palazzo)', [again.counts.create, again.counts.update, again.counts.same, again.counts.contracts, again.counts.payments, again.properties.length], [0, 0, 3, 0, 0, 0]);
   const other = P.planImport(good, loaded, { address: 'Piazzale Prenestino 42', ownerId: 'altro', gestioneDal: F.month });
   ok('un interno già di un altro proprietario non si sposta da qui', other.errors.some(e => e.startsWith('owner:')));
   const lm = P.model(loaded, again.buildingKey, F.month);
@@ -315,6 +316,29 @@ eq('cedolareDeclared: anche canone.cedolareSecca e "Sì"; ciò che non si legge 
   const app2 = readFileSync(new URL('../../js/portal-app.js', import.meta.url), 'utf8');
   ok('la presa in carico è solo admin, con conferma, e chiede al SERVER cosa esiste prima di scrivere', /async function palazzoImport\(plan\) \{\s*if \(!isAdmin\(\)[\s\S]{0,900}confirm\([\s\S]{0,700}\.get\(\)[\s\S]{0,600}where\('contractId', 'in'/.test(app2));
   ok('scrive solo properties, contracts, payments', !/palazzoImport[\s\S]*?collection\('(?!properties|contracts|payments)[a-zA-Z]+'\)[\s\S]*?async function palazzoSaveLook/.test(app2));
+}
+
+// ── 13. Manutenzione e utenze ──────────────────────────────────────────
+{
+  const mt = id => m.units.find(u => u.id === id).maintenance;
+  eq('aperta: la caldaia di /casa («riscaldamento», «emergency», «pending») letta col vocabolario del portal', [mt('u7').open.length, mt('u7').open[0].priority, mt('u7').open[0].category, mt('u7').urgent], [1, 'urgent', 'Caldaia / riscaldamento', 1]);
+  ok('in lavorazione resta aperta e lo dice; chi l\'ha segnalata si sa', mt('u11').open[0].inProgress && mt('u11').open[0].reporter === 'owner');
+  eq('chiusa: non è aperta, ma si ricorda (ultima chiusa)', [mt('u4').open.length, mt('u4').recentClosed[0].resolvedAt], [0, F.D(-35)]);
+  eq('i totali del palazzo contano i guasti aperti e gli urgenti, mai quelli di un altro palazzo', [m.totals.maintOpen, m.totals.maintUrgent], [2, 1]);
+  const mine = P.model(ctx, '', F.month, { filter: p => p.ownerId === 'owner-demo' });
+  ok('la proprietaria vede i guasti dei suoi interni', mine.units.find(u => u.id === 'u7').maintenance.open.length === 1);
+  eq('POD/PDR: puliti e controllati nella forma', [P.utenzeOf({ pod: 'it001e 0000 0001', pdr: '0000-0000-0000-01' }), m.units.find(u => u.id === 'u7').utenze.podOk],
+    [{ pod: 'IT001E00000001', pdr: '00000000000001', podOk: true, pdrOk: true }, false]);
+  eq('POD a 9 cifre finali vale, uno con lettere no', [P.podOk('IT012E123456789'), P.podOk('IT012X12345678'), P.pdrOk('1234567890123')], [true, false, false]);
+  const ur = P.utenzeRows(m), u1 = ur.find(r => r[0] === '1'), u7 = ur.find(r => r[0] === '7');
+  eq('il foglio delle utenze per il mediatore: codici e validità, mai un recapito', [P.UTENZE_HEAD.length, u1[4], u1[5], u1[6], u7[5]], [8, 'IT001E00000001', 'sì', '00000000000001', 'da controllare']);
+  ok('…e nessun telefono né email nel foglio', !JSON.stringify(ur).includes('+39') && !JSON.stringify(ur).includes('@'));
+  const R = P.parseRentRoll('Interno;POD;PDR\n1;IT001E00000099;00000000000099\n2;IT1;\n');
+  eq('la tabella porta anche POD e PDR (con l\'avviso se la forma non torna)', [R.rows[0].pod, R.rows[0].pdr, R.rows[1].warnings.some(w => /POD «IT1»/.test(w))], ['IT001E00000099', '00000000000099', true]);
+  const loaded = P.context({ now: NOW, properties: [{ id: 'k1', address: 'Via Prova 1', interno: '1', ownerId: 'o', gestioneDal: '2026-01' }, { id: 'k2', address: 'Via Prova 1', interno: '2', ownerId: 'o', pod: 'IT001E00000002' }] });
+  const pl = P.planImport(R.rows, loaded, { address: 'Via Prova 1', ownerId: 'o', gestioneDal: F.month });
+  eq('aggiornare le utenze di interni esistenti: solo i campi vuoti, mai la gestione già scritta', pl.properties.map(x => [x.id, x.data]),
+    [['k1', { pod: 'IT001E00000099', pdr: '00000000000099' }], ['k2', { gestioneDal: F.month }]]);
 }
 
 const sw = readFileSync(new URL('../../sw.js', import.meta.url), 'utf8');

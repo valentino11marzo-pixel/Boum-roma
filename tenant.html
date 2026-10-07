@@ -1275,12 +1275,16 @@ function wire(next,hist){
         propertyName:(PROPERTY&&(PROPERTY.name||PROPERTY.address))||'',
         category:$('mCat').value,priority:$('mPri').value,description:desc.slice(0,800),
         status:'pending',createdAt:new Date().toISOString()};
-      firebase.firestore().collection('maintenance').add(doc).then(function(){
+      firebase.firestore().collection('maintenance').add(doc).then(function(ref){
         ok.style.display='inline';$('mDesc').value='';
         ms.disabled=false;ms.textContent=t('mSend');
         MAINT.unshift(doc);
         $('mList').innerHTML=maintRows();
-        try{fetch('/api/agent/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({type:'maintenance.opened',summary:'🔧 '+doc.category+' ('+doc.priority+') — '+(doc.propertyName||doc.tenantName),detail:desc.slice(0,300)})});}catch(e){}
+        /* Il ping all'operatore. Prima chiamava /api/agent/notify SENZA
+           credenziale: 401 a ogni segnalazione, e BOOM non ne sapeva niente
+           finché non apriva il portal. Ora passa dalla porta dei guasti, col
+           token di chi ha scritto (il server controlla che sia sua). */
+        try{USER.getIdToken().then(function(tok){return fetch('/api/maintenance/guasto',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok},body:JSON.stringify({op:'notify',id:ref.id})});}).catch(function(){});}catch(e){}
       }).catch(function(){
         ms.disabled=false;ms.textContent=t('mSend');
         err.textContent=t('mFail');err.style.display='inline';

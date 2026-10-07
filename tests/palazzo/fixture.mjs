@@ -17,9 +17,9 @@ export function buildFixture(now = new Date()) {
   const owner = { id: 'owner-demo', role: 'landlord', name: 'Proprietaria Demo', email: 'owner@example.invalid', phone: '+39 000 000 9999' };
   const prop = (n, floor, extra = {}) => ({ id: 'u' + n, name: 'Viale Esempio 12 int. ' + n, address: ADDR, interno: String(n), floor, ownerId: owner.id, rent: 900 + n * 10, ...extra });
   const properties = [
-    prop(1, 'PT'), prop(2, 'Piano terra'),
+    prop(1, 'PT', { pod: 'IT001E00000001', pdr: '00000000000001' }), prop(2, 'Piano terra'),
     prop(3, '1° / 5'), prop(4, '1'), prop(5, 'primo piano'),
-    prop(6, 2), prop(7, '2nd Floor'), prop(8, '2'),
+    prop(6, 2), prop(7, '2nd Floor', { pod: 'IT001E0000007' }), prop(8, '2'),   // int. 7: un POD con una cifra in meno
     prop(9, '3° con ascensore'), prop(10, '3'),
     prop(11, 'Attico'),
     prop(12, ''),
@@ -75,6 +75,13 @@ export function buildFixture(now = new Date()) {
     { id: 'pa-conv', ref: 'BOOM-CONV', status: 'paid', paidAt: M(-14) + '-01', propertyId: 'u4', contractId: 'c4', tenant: { fullName: 'Inquilino 4 Demo' }, lease: { startDate: M(-14) + '-01' }, money: { rent: 1100 } }
   ];
   const listings = [{ id: 'lst2', propertyId: 'u2', status: 'available', name: 'Bilocale Esempio' }];
+  // Manutenzione: i due vocabolari che convivono (portal: plumbing/urgent; /casa: riscaldamento/emergency)
+  const maintenance = [
+    { id: 'mt7', propertyId: 'u7', title: 'Caldaia ferma', category: 'riscaldamento', priority: 'emergency', status: 'pending', createdAt: D(-1), tenantName: 'Inquilino 7 Demo' },
+    { id: 'mt11', propertyId: 'u11', title: 'Scarico lento in bagno', category: 'plumbing', priority: 'medium', status: 'in_progress', createdAt: D(-6), reporter: { role: 'owner' } },
+    { id: 'mt4', propertyId: 'u4', title: 'Serratura dura', category: 'locks', priority: 'low', status: 'resolved', createdAt: D(-40), resolvedAt: D(-35) },
+    { id: 'mt-altra', propertyId: 'altra-1', title: 'Non è di questo palazzo', category: 'other', priority: 'urgent', status: 'open', createdAt: D(-2) }
+  ];
   const users = [owner, { id: 'owner-altro', role: 'landlord', name: 'Altro Proprietario', email: 'altro@example.invalid' }, { id: 'demo-admin', role: 'admin', name: 'Operatore demo' }];
-  return { today, month, M, D, state: { profile: { id: 'demo-admin', role: 'admin', name: 'Operatore demo' }, users, properties, contracts, payments, preAgreements, listings } };
+  return { today, month, M, D, state: { profile: { id: 'demo-admin', role: 'admin', name: 'Operatore demo' }, users, properties, contracts, payments, preAgreements, listings, maintenance } };
 }

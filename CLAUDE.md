@@ -6210,10 +6210,51 @@ NON VEDEVANO NIENTE (vedi sotto).
     registrazioni da segnare, tasto «Apri il Palazzo». Letture limitate al
     palazzo (`IN` a blocchi di 30 su contratti, rate — anche per
     `contractId` — e proposte), mai un recapito degli inquilini nel testo.
+  * **La manutenzione nel Palazzo** (8/10 sera — «devono poter segnalare»).
+    Gli inquilini caricati dalla tabella non hanno un account, quindi
+    `/casa` non basta: ogni interno ha un **link `/guasto` senza login**
+    (`guasto.html` + `POST /api/maintenance/guasto`). Il link è DERIVATO
+    (`sha256("guasto:<propertyId>:<HOMIE_SECRET>")`, niente da coniare né
+    migrare, ruotare il segreto li revoca) e apre UN interno: categoria,
+    urgenza, descrizione, foto ridotta sul telefono (JPEG/PNG/WEBP ≤ 4 MB,
+    sotto `maintenance/guasto-<id>/`, match di storage.rules già esistente),
+    nome e telefono; honeypot e limite per IP; `lookup` dice palazzo e
+    interno, mai chi ci abita. Dalla scheda dell'interno la proprietaria (e
+    l'admin) segnala con Bearer — solo sui SUOI interni (403 altrimenti) —
+    e chiede i link (`op:'links'`, gli interni non suoi omessi): la scheda
+    offre «WhatsApp a <inquilino>» col messaggio pronto. Ogni segnalazione
+    si scrive in `maintenance` (la stessa del portal) PRIMA della card
+    `agentNotifications/maint_<id>` (priority `high`, `urgent` per
+    un'emergenza → Telegram entro un minuto via notify-pending). Nel
+    Palazzo: chiave inglese sulla finestra/cubo (rossa se urgente), card
+    «Manutenzione aperta» in Semplice (il pallino è l'URGENZA, non il
+    pagamento), sezione Manutenzione nella scheda (aperto/in lavorazione,
+    da chi, da quando; all'admin il tap apre il ticket), la riga nella frase
+    del mese e in `/palazzo`. I due vocabolari che convivono (portal
+    `plumbing/urgent`, /casa `idraulica/emergency`) si leggono entrambi.
+    **Il difetto trovato per strada**: `/casa` avvisava l'operatore
+    chiamando `/api/agent/notify` SENZA credenziale → 401 a ogni
+    segnalazione, cioè nessun ping mai. Ora usa `op:'notify'` col token
+    dell'inquilino (il server controlla che la segnalazione sia sua; due
+    chiamate = una card).
+  * **POD e PDR per interno** (`property.pod`/`pdr`): nel modale
+    dell'immobile (crea e modifica, capitolo «Catasto ed energia» su
+    telefono), nella tabella della presa in carico (colonne POD/PDR, solo
+    sui campi vuoti degli interni esistenti), nella scheda (all'admin «non
+    in archivio» quando mancano). La FORMA si controlla (`podOk`: IT + 3
+    cifre + E + 8/9 cifre; `pdrOk`: 14 cifre) e un codice storto si
+    conserva ma si DICHIARA «da controllare». «Utenze POD/PDR · CSV»
+    (`utenzeRows`) è il foglio per il mediatore dell'energia: interno,
+    piano, indirizzo, conduttore di oggi, codici e validità — mai un
+    telefono né un'email. L'invio automatico al mediatore NON c'è ancora:
+    aspetta chi è, cosa gli serve e per cosa (offerta, voltura, subentro).
+  * **La presa in carico che aggiorna**: reincollare la tabella con nuove
+    colonne (es. solo Interno + POD + PDR) aggiorna i campi vuoti degli
+    interni esistenti; «gestione BOOM dal» già scritta non si riscrive mai.
   * **Da sapere al lancio**: dal 1° del mese il **Rendiconto** parte da
     solo alla proprietaria collegata (email + PDF del mese chiuso): va
     guardato prima che parta.
-Test: `node tests/palazzo/engine.mjs` (170 check: civico, piano, 13 interni
+Test: `node tests/palazzo/engine.mjs` (181 check: civico, piano, 13 interni
 in ogni stato, trimestrale, contratto chiuso in anticipo, proposte e annunci,
 puntualità/sfitto/incassato su scaduto, la frase del mese nelle due voci,
 piani vuoti e attico, cose da sistemare, filtro proprietaria, mutazioni sul
@@ -6222,11 +6263,14 @@ giunzioni del portal, i quattro toni, registrazione e cedolare, il CSV
 che somma come la pagina, gestione BOOM dal, la presa in carico — parser,
 piano, reincollare senza doppioni, il modello che si rilegge) +
 `node tests/palazzo/telegram.mjs` (6 check, modulo vero su Firestore in
-memoria) + `node tests/palazzo/contatti.mjs`
+memoria) + `node tests/manutenzione/run.mjs` (11 check, handler vero: il
+link apre un solo interno, owner solo sui suoi — mutazione presa —, guasto
+prima della card, foto, honeypot, 429, il ping di /casa) +
+`node tests/palazzo/contatti.mjs`
 (12 check, handler vero su Firestore in memoria: 401/403/400, la
 proprietaria che riceve i suoi e non quelli di un altro — mutazione presa
 togliendo il filtro — profilo/proposta/co-conduttori, mai CF né indirizzo,
-la proposta letta solo se serve) + `node tests/palazzo/ui.mjs` (94 check in Chromium a
+la proposta letta solo se serve) + `node tests/palazzo/ui.mjs` (103 check in Chromium a
 1440 e 390px con le funzioni VERE del portal estratte da portal-app.js e
 Firestore finto: facciata e persiane, luci dal basso, cambio mese senza
 ridisegno, aspetto in anteprima/rifiutato/salvato/annullato, Sollecita, 3D,

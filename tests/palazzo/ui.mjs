@@ -35,7 +35,7 @@ function page(state, hash) {
 <link rel="stylesheet" href="/css/portal.css"><link rel="stylesheet" href="/css/portal-finish.css"><link rel="stylesheet" href="/css/palazzo.css"><link rel="stylesheet" href="/css/portal-mobile.css"><link rel="stylesheet" href="/css/portal-desktop.css"></head><body>
 <div class="app active" id="app"><header class="header"><div class="header-left"><button class="menu-btn" onclick="toggleSidebar()" aria-label="Menu">☰</button><span class="logo-text">BOOM</span></div><span style="color:var(--text-secondary);font-size:11px">ANTEPRIMA LOCALE · DATI DEMO</span><span id="headerName">Demo</span></header><div class="layout"><aside class="sidebar" id="sidebar"></aside><div class="sidebar-overlay" id="sidebarOverlay"></div><main class="main" id="main"></main></div><div id="modals"></div><div id="toasts"></div></div>
 <script src="/js/rent-engine.js"></script><script src="/js/palazzo-engine.js"></script><script src="/js/palazzo.js"></script><script>
-const S=${JSON.stringify(state)}; Object.assign(S,{page:'',_paLoaded:true,invoices:[],maintenance:[],conversations:[],viewingRequests:[],actionQueue:[],deadlines:[],leads:[],notifications:[],documents:[]}); window.testState=S;
+const S=${JSON.stringify(state)}; Object.assign(S,{page:'',_paLoaded:true,invoices:[],maintenance:S.maintenance||[],conversations:[],viewingRequests:[],actionQueue:[],deadlines:[],leads:[],notifications:[],documents:[]}); window.testState=S;
 window.demoActions=[]; window.writes=[];
 function toast(...a){demoActions.push(['toast',...a]);}
 function openRentUnit(id,month){demoActions.push(['rent',id,month]);}
@@ -66,13 +66,37 @@ const landlord = { ...F.state, profile: { id: 'owner-demo', role: 'landlord', na
   // dal suo accesso il loader porta solo i suoi immobili (rules + query ownerId)
   properties: F.state.properties.filter(p => p.ownerId === 'owner-demo'), users: [F.state.users[0]] };
 
-const contactCalls = [], contactFail = { on: false };
+const contactCalls = [], contactFail = { on: false }, guastoCalls = [];
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost'), path = url.pathname;
     // La porta dei contatti, finta ma con la regola VERA: il chiamante
     // proprietario riceve solo i contratti dei suoi immobili, e i recapiti
     // escono dalla stessa contactsOf del server.
+    // La porta dei guasti, finta ma con la regola vera dei link: il
+    // proprietario li riceve solo per i suoi interni.
+    if (path === '/api/maintenance/guasto' && req.method === 'POST') {
+      let body = ''; for await (const ch of req) body += ch;
+      const who = String(req.headers.authorization || '').replace(/^Bearer demo-/, ''), b = JSON.parse(body);
+      guastoCalls.push({ who, ...b });
+      res.setHeader('Content-Type', 'application/json');
+      if (b.op === 'lookup') {
+        const p = F.state.properties.find(x => x.id === String(b.t || '').replace(/\.demo$/, ''));
+        if (!p || !/\.demo$/.test(b.t || '')) { res.statusCode = 404; res.end('{"ok":false,"error":"invalid_link"}'); return; }
+        res.end(JSON.stringify({ ok: true, unit: { building: String(p.address).split(',')[0], interno: p.interno, label: 'Int. ' + p.interno } })); return;
+      }
+      if (b.op === 'report') {
+        if (b.t && !/\.demo$/.test(b.t)) { res.statusCode = 404; res.end('{"ok":false,"error":"invalid_link"}'); return; }
+        if (String(b.description || '').trim().length < 8) { res.statusCode = 400; res.end('{"ok":false,"error":"description_short"}'); return; }
+        res.end(JSON.stringify({ ok: true, id: 'mt-new-' + guastoCalls.length, photo: !!b.photo })); return;
+      }
+      if (b.op === 'links') {
+        const links = {};
+        for (const id of b.propertyIds) { const p = F.state.properties.find(x => x.id === id); if (p && (who === 'demo-admin' || p.ownerId === who)) links[id] = 'https://www.boomrome.com/guasto?t=' + id + '.demo'; }
+        res.end(JSON.stringify({ ok: true, links })); return;
+      }
+      res.statusCode = 400; res.end('{"ok":false}'); return;
+    }
     if (path === '/api/owners/contatti' && req.method === 'POST') {
       let body = ''; for await (const ch of req) body += ch;
       const who = String(req.headers.authorization || '').replace(/^Bearer demo-/, '');
@@ -95,7 +119,7 @@ const server = createServer(async (req, res) => {
     }
     const file = resolve(ROOT, '.' + path);
     if (!file.startsWith(ROOT)) throw Error('bad path');
-    res.setHeader('Content-Type', ({ '.js': 'text/javascript', '.css': 'text/css' })[extname(file)] || 'text/plain');
+    res.setHeader('Content-Type', ({ '.js': 'text/javascript', '.css': 'text/css', '.html': 'text/html; charset=utf-8' })[extname(file)] || 'text/plain');
     res.end(await readFile(file));
   } catch (_) { res.statusCode = 404; res.end(); }
 });
@@ -317,6 +341,40 @@ try {
       assert.equal(await pg.locator('#plz-panel [data-plz="rli"]').count(), 0, 'già registrato: niente ✓ RLI');
       await pg.locator('[data-plz="deselect"]').click();
     });
+    await check('manutenzione: la chiave inglese sugli interni con un guasto, la scheda dice cosa e da quando', async () => {
+      assert.equal(await pg.locator('.plz-unit[data-id="u7"]').getAttribute('data-maint'), 'urgent');
+      assert.equal(await pg.locator('.plz-unit[data-id="u11"]').getAttribute('data-maint'), 'open');
+      assert.equal(await pg.locator('.plz-unit[data-id="u4"]').getAttribute('data-maint'), null, 'un guasto chiuso non resta sulla facciata');
+      await pg.locator('.plz-unit[data-id="u7"]').click({ force: true });
+      await pg.waitForFunction(() => /Int\. 7$/.test(document.getElementById('plz-unit-h')?.textContent || ''));
+      const p = await pg.locator('#plz-panel').innerText();
+      assert.ok(p.includes('Caldaia ferma') && /Emergenza · aperto · dal/.test(p) && p.includes('dall’inquilino'), p);
+      assert.ok(/POD luce\s*IT001E0000007 da controllare/i.test(p), 'un POD scritto male si vede e si dichiara');
+    });
+    await check('segnalare dalla scheda: il guasto parte sul server e compare subito', async () => {
+      const n0 = guastoCalls.length;
+      await pg.locator('#plz-panel [data-plz="maint-new"]').click();
+      await pg.locator('#plz-mform select[name="category"]').selectOption('leaks');
+      await pg.locator('#plz-mform select[name="priority"]').selectOption('high');
+      await pg.locator('#plz-mform textarea').fill('rotto');
+      await pg.locator('#plz-mform [data-plz="maint-send"]').click();
+      assert.ok((await pg.locator('#plz-merr').innerText()).includes('almeno una frase'));
+      assert.equal(guastoCalls.length, n0, 'una frase troppo corta non parte');
+      await pg.locator('#plz-mform textarea').fill('Macchia di umidità sul soffitto del bagno, si allarga');
+      await pg.locator('#plz-mform [data-plz="maint-send"]').click();
+      await pg.waitForSelector('#plz-panel .plz-okline');
+      const c = guastoCalls.at(-1);
+      assert.deepEqual([c.op, c.propertyId, c.category, c.priority, c.who], ['report', 'u7', 'leaks', 'high', 'demo-admin']);
+      assert.equal(await pg.locator('#plz-panel .plz-mitem').count(), 2);
+    });
+    await check('il link per l\'inquilino: chiesto al server, WhatsApp col suo numero e il messaggio pronto', async () => {
+      await pg.locator('#plz-panel [data-plz="maint-link"]').click();
+      await pg.waitForSelector('#plz-panel .plz-mlink');
+      assert.equal(guastoCalls.at(-1).op, 'links');
+      const wa = await pg.locator('#plz-panel .plz-mlink a').getAttribute('href');
+      assert.ok(wa.startsWith('https://wa.me/390000000007?text=') && decodeURIComponent(wa).includes('https://www.boomrome.com/guasto?t=u7.demo'), wa);
+      await pg.locator('[data-plz="deselect"]').click();
+    });
     await check('da sistemare: i contratti in corso senza registrazione segnata', async () => {
       assert.ok((await pg.locator('.plz-issues').innerText()).includes('2 contratti in corso senza registrazione segnata'));
     });
@@ -333,6 +391,10 @@ try {
       const [dy] = await Promise.all([pg.waitForEvent('download'), pg.locator('[data-plz="csv"][data-span="year"]').click()]);
       const ycsv = readFileSync(await dy.path(), 'utf8').trim().split('\r\n');
       assert.equal(ycsv.length, 1 + 13 * Number(F.month.slice(5, 7)), 'un anno fino al mese corrente, mai oltre');
+      const [du] = await Promise.all([pg.waitForEvent('download'), pg.locator('[data-plz="csv"][data-span="utenze"]').click()]);
+      const ucsv = readFileSync(await du.path(), 'utf8');
+      assert.ok(du.suggestedFilename().endsWith('_utenze.csv') && ucsv.startsWith('\ufeffInterno;Piano;Indirizzo;Conduttore oggi;POD (luce)') && ucsv.includes(';IT001E0000007;da controllare;'), ucsv.slice(0, 300));
+      assert.ok(!ucsv.includes('+39') && !ucsv.includes('@'), 'al mediatore mai un recapito');
       await pg.locator('[data-plz="view"][data-v="3d"]').click();
       await pg.waitForSelector('.plz-unit');
     });
@@ -555,6 +617,47 @@ try {
       assert.equal(await pg.locator('#plz-panel [data-plz="rent"], #plz-panel [data-plz="edit"], #plz-panel [data-plz="dossier"]').count(), 0);
       assert.equal(await pg.locator('#plz-panel [data-plz="inbox"]').count(), 1);
       assert.ok(!(await pg.locator('#plz-panel').innerText()).includes('Proposta'), 'le proposte restano all\'operatore');
+    });
+    await check('proprietaria: vede i guasti dei suoi interni e li segnala lei, a suo nome', async () => {
+      await pg.locator('[data-plz="view"][data-v="simple"]').click();
+      await pg.waitForSelector('.plz-win[data-id="u11"]');
+      await pg.locator('.plz-win[data-id="u11"]').scrollIntoViewIfNeeded();
+      await pg.locator('.plz-win[data-id="u11"]').click();
+      await pg.waitForSelector('#plz-panel .plz-mitem');
+      assert.equal(await pg.locator('#plz-panel [data-plz="maint"]').count(), 0, 'aprire il ticket nel portal è dell\'operatore');
+      assert.ok((await pg.locator('#plz-panel').innerText()).includes('Scarico lento in bagno'));
+      await pg.locator('#plz-panel [data-plz="maint-new"]').click();
+      await pg.locator('#plz-mform textarea').fill('Il citofono non funziona da ieri sera');
+      await pg.locator('#plz-mform [data-plz="maint-send"]').click();
+      await pg.waitForSelector('#plz-panel .plz-okline');
+      assert.deepEqual([guastoCalls.at(-1).who, guastoCalls.at(-1).propertyId], ['owner-demo', 'u11']);
+      await pg.locator('[data-plz="deselect"]').click();
+    });
+    if (width === 390) await check('/guasto dal telefono dell\'inquilino: senza login, l\'interno giusto, la segnalazione parte e lo dice', async () => {
+      const g = await context.newPage();
+      g.on('pageerror', e => errors.push(e.message));
+      await g.goto(base + '/guasto.html?t=u7.demo');
+      await g.waitForSelector('#f');
+      assert.ok((await g.locator('.where').innerText()).includes('Int. 7'));
+      await g.locator('label.chip:has(input[value="heating"])').click();
+      await g.locator('label.chip:has(input[value="urgent"])').click();
+      await g.locator('#desc').fill('rotto');
+      await g.locator('#send').click();
+      assert.ok((await g.locator('#err').innerText()).includes('almeno una frase'));
+      await g.locator('#desc').fill('La caldaia non parte da stamattina, display E01');
+      await g.locator('#nm').fill('Elena');
+      await g.locator('#tel').fill('333 000 0007');
+      await g.locator('#send').click();
+      await g.waitForSelector('.done');
+      const c = guastoCalls.at(-1);
+      assert.deepEqual([c.op, c.t, c.category, c.priority, c.name, c.phone, c.who], ['report', 'u7.demo', 'heating', 'urgent', 'Elena', '333 000 0007', '']);
+      assert.ok((await g.locator('.done').innerText()).includes('Segnalazione inviata'));
+      await g.locator('[data-lang="en"]').click();
+      assert.ok((await g.locator('.done').innerText()).includes('Report sent'));
+      assert.ok(await g.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+      await g.goto(base + '/guasto.html?t=u7.falso');
+      await g.waitForFunction(() => /non è valido|not valid/.test(document.getElementById('app')?.textContent || ''));
+      await g.close();
     });
     await check('proprietaria: il CSV per il commercialista, nella sua lingua e solo coi suoi interni', async () => {
       await pg.locator('[data-plz="view"][data-v="simple"]').click();

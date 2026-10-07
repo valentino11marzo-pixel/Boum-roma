@@ -53,6 +53,12 @@ export function palazzoSummary(m) {
     lines.push('', '⌛ <b>In scadenza entro 90 giorni</b>');
     leaving.forEach(u => { const d = days(m.today, u.month.leaseEnd); lines.push('• ' + esc(unitName(u)) + ' · ' + (d <= 0 ? 'scade oggi' : 'tra ' + d + (d === 1 ? ' giorno' : ' giorni'))); });
   }
+  const broken = m.units.filter(u => u.maintenance && u.maintenance.open.length).sort((a, b) => b.maintenance.urgent - a.maintenance.urgent);
+  if (broken.length) {
+    lines.push('', '🔧 <b>Manutenzione aperta</b>');
+    const PRI = { urgent: 'emergenza', high: 'urgente', medium: 'normale', low: 'non urgente' };
+    broken.forEach(u => u.maintenance.open.forEach(x => lines.push('• ' + esc(unitName(u)) + ' · ' + esc(x.title) + ' · ' + PRI[x.priority] + (x.createdAt ? ' · dal ' + x.createdAt.slice(8, 10) + '/' + x.createdAt.slice(5, 7) : ''))));
+  }
   const unreg = m.issues.find(i => i.code === 'unregistered');
   if (unreg) {
     const names = unreg.ids.map(id => m.units.find(u => u.id === id)).filter(Boolean).map(unitName);
@@ -90,7 +96,8 @@ export async function palazzoMessage(query, { now } = {}) {
       .filter(x => typeof x === 'string' && /^[\w.-]{1,80}$/.test(x)))];
     const uMap = userIds.length ? await fsGetMany(userIds.map(u => 'users/' + u)).catch(() => new Map()) : new Map();
     const users = [...uMap.entries()].filter(([, d]) => d).map(([k, d]) => ({ ...d, id: k.split('/')[1] }));
-    const ctx = PALAZZO.context({ properties, contracts, payments, users, preAgreements, now });
+    const maintenance = await listIn('maintenance', 'propertyId', ids, 400).catch(() => []);
+    const ctx = PALAZZO.context({ properties, contracts, payments, users, preAgreements, maintenance, now });
     blocks.push(palazzoSummary(PALAZZO.model(ctx, b.key, ctx.month, { strip: false })));
   }
   const more = list.length - shown.length;

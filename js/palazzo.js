@@ -26,7 +26,7 @@
 
   // view '' = nessuna scelta salvata: la decide il ruolo al primo disegno
   // (la proprietaria apre su Semplice ovunque, l'admin su 3D da desktop).
-  var ui = { key: '', month: '', view: '', filter: 'all', selected: '', rx: -22, ry: 34, zoom: 1, intro: Object.create(null), facIntro: Object.create(null), fy: -25, fx: -10, playing: null, draft: null, lookOpen: false, paidOpen: false, shown: '', asOwner: '', shareOpen: false, imp: null,
+  var ui = { key: '', month: '', view: '', filter: 'all', selected: '', rx: -22, ry: 34, zoom: 1, intro: Object.create(null), facIntro: Object.create(null), fy: -25, fx: -10, playing: null, draft: null, lookOpen: false, paidOpen: false, shown: '', asOwner: '', shareOpen: false, imp: null, reportFor: '', reportDone: '', reportDraft: { category: 'plumbing', priority: 'medium', description: '' }, links: null, linksOpen: false, linksErr: false,
     contacts: { byId: Object.create(null), pending: Object.create(null), failed: Object.create(null) } };
   var adapter = null, last = null, bound = false;
   try {
@@ -67,7 +67,7 @@
     if (!realAdmin) ui.asOwner = '';
     var preview = realAdmin && ui.asOwner ? ui.asOwner : '', admin = realAdmin && !preview;
     if (!ui.view) ui.view = !admin || (root.matchMedia && root.matchMedia('(max-width: 600px)').matches) ? 'simple' : '3d';
-    var ctx = E.context({ properties: S.properties, contracts: S.contracts, payments: S.payments, users: S.users,
+    var ctx = E.context({ properties: S.properties, contracts: S.contracts, payments: S.payments, users: S.users, maintenance: S.maintenance,
       preAgreements: admin ? S.preAgreements : null, listings: S.listings });
     // In anteprima il filtro è QUELLO della proprietaria: vede solo gli
     // interni col suo ownerId, come dal suo accesso (rules + loader).
@@ -225,15 +225,20 @@
     var s = u.month.state, pr = u.pipeline && u.pipeline.proposal, ls = u.pipeline && u.pipeline.listing;
     return s === 'vacant' && pr && pr.kind !== 'reserved' ? 'nego' : s === 'vacant' && ls && ls.published ? 'listed' : '';
   }
+  function maintAttr(u) {
+    var mt = u.maintenance;
+    return mt && mt.open.length ? ' data-maint="' + (mt.urgent ? 'urgent' : 'open') + '"' : '';
+  }
   function unitLabel(u) {
     var um = u.month, s = um.state, pipe = pipeOf(u);
     return unitTitle(u) + ', ' + unitWhere(u) + ': ' + (um.tenants.join(', ') || (s === 'vacant' ? 'libero' : '')) + ' — ' + stateLabel(um, last.m.month, last.m.currentMonth) + (um.expected ? ', ' + eur(um.expected) : '') +
-      (pipe === 'nego' ? ' · in trattativa' : pipe === 'listed' ? ' · pubblicato sul sito' : '');
+      (pipe === 'nego' ? ' · in trattativa' : pipe === 'listed' ? ' · pubblicato sul sito' : '') +
+      (u.maintenance && u.maintenance.open.length ? ' · ' + u.maintenance.open.length + (u.maintenance.open.length === 1 ? ' guasto aperto' : ' guasti aperti') : '');
   }
   function cube(u, x, z, i) {
     var um = u.month, s = um.state, dim = !matches(ui.filter, s), pipe = pipeOf(u);
     var who = um.tenants.length ? surname(um.tenants[0]) : pipe === 'nego' ? 'Trattativa' : pipe === 'listed' ? 'Sul sito' : s === 'vacant' ? 'Libero' : s === 'incoming' ? 'In arrivo' : '';
-    return '<div class="plz-unit' + (u.id === ui.selected ? ' is-sel' : '') + (dim ? ' is-dim' : '') + '" role="button" tabindex="0" data-plz="select" data-id="' + esc(u.id) + '" data-state="' + s + '"' + (pipe ? ' data-pipe="' + pipe + '"' : '') + ' style="--x:' + x + 'px;--zz:' + z + 'px;--i:' + i + '" aria-label="' + esc(unitLabel(u)) + '">' +
+    return '<div class="plz-unit' + (u.id === ui.selected ? ' is-sel' : '') + (dim ? ' is-dim' : '') + '" role="button" tabindex="0" data-plz="select" data-id="' + esc(u.id) + '" data-state="' + s + '"' + (pipe ? ' data-pipe="' + pipe + '"' : '') + maintAttr(u) + ' style="--x:' + x + 'px;--zz:' + z + 'px;--i:' + i + '" aria-label="' + esc(unitLabel(u)) + '">' +
       '<div class="plz-face plz-f-front"><b>' + esc(u.interno || '•') + '</b><small>' + esc(who) + '</small><em aria-hidden="true">' + (GLYPH[s] || '') + '</em></div>' +
       '<div class="plz-face plz-f-back"></div><div class="plz-face plz-f-right"></div><div class="plz-face plz-f-left"></div><div class="plz-face plz-f-top"></div></div>';
   }
@@ -303,7 +308,8 @@
           var um = u.month;
           return '<div class="plz-rrow' + (u.id === ui.selected ? ' is-sel' : '') + '" role="row" tabindex="0" data-plz="select" data-id="' + esc(u.id) + '">' +
             '<span role="cell" class="plz-rint"><b>' + esc(unitTitle(u)) + '</b>' + (u.scala ? '<small>Scala ' + esc(u.scala) + '</small>' : '') + '</span>' +
-            '<span role="cell" data-l="Inquilino">' + esc(um.tenants.join(' · ') || (um.state === 'vacant' ? 'Libero' : um.state === 'incoming' ? 'In arrivo dal ' + dateIt(um.leaseStart) : '—')) + rollPhone(um) + '</span>' +
+            '<span role="cell" data-l="Inquilino">' + esc(um.tenants.join(' · ') || (um.state === 'vacant' ? 'Libero' : um.state === 'incoming' ? 'In arrivo dal ' + dateIt(um.leaseStart) : '—')) + rollPhone(um) +
+              (u.maintenance && u.maintenance.open.length ? ' <em class="plz-warn">🔧 ' + u.maintenance.open.length + (u.maintenance.open.length === 1 ? ' guasto' : ' guasti') + '</em>' : '') + '</span>' +
             '<span role="cell" data-l="Canone" class="plz-num">' + (um.rent != null && um.occupied ? eur(um.rent) : '—') + '</span>' +
             '<span role="cell" data-l="Fino al">' + (um.leaseEnd ? dateIt(um.leaseEnd) + (um.leaving ? ' <em class="plz-warn">' + esc(expiry(um.leaseEnd, m.today)) + '</em>' : '') : '—') + '</span>' +
             '<span role="cell" data-l="Mese"><span class="plz-pill plz-s-' + um.state + '">' + esc(stateLabel(um, m.month, m.currentMonth)) + '</span>' + (um.expected ? ' <small class="plz-num">' + eur(um.expected) + '</small>' : '') + '</span>' +
@@ -493,6 +499,51 @@
       (u.pipeline.listing ? '<a class="plz-btn" href="' + esc(u.pipeline.listing.url) + '" target="_blank" rel="noopener">Annuncio ↗</a>' : '')]);
     return groups.map(function (g) { return '<div class="plz-agroup"><p class="plz-agroup-l">' + g[0] + '</p><div class="plz-agroup-b">' + g[1] + '</div></div>'; }).join('');
   }
+  var PRI_LABEL = { urgent: 'Emergenza', high: 'Urgente', medium: 'Normale', low: 'Non urgente' };
+  var CAT_OPTS = [['plumbing', 'Acqua / scarichi'], ['heating', 'Caldaia / riscaldamento'], ['electrical', 'Luce / prese'], ['appliance', 'Elettrodomestici'],
+    ['locks', 'Porta / serratura'], ['leaks', 'Infiltrazioni / umidità'], ['common', 'Parti comuni'], ['other', 'Altro']];
+  // La manutenzione dell'interno: ciò che è aperto (urgente prima), la
+  // segnalazione dalla scheda e il link per l'inquilino. Il guasto si scrive
+  // sul server (/api/maintenance/guasto): così parte anche il ping all'operatore.
+  function maintHTML(u, data) {
+    var mt = u.maintenance || { open: [], recentClosed: [] }, admin = data.admin;
+    var who = function (x) { return x.reporter === 'owner' ? 'da te' : x.reporter === 'admin' ? 'da BOOM' : x.reporter === 'tenant' ? 'dall’inquilino' : ''; };
+    var item = function (x) {
+      var label = (admin ? '' : '') + '<b>' + esc(x.title) + '</b><small>' + esc([PRI_LABEL[x.priority], x.inProgress ? 'in lavorazione' : 'aperto', x.createdAt ? 'dal ' + dateIt(x.createdAt) : '', admin ? (x.reporter === 'owner' ? 'dalla proprietaria' : x.reporter === 'admin' ? 'da BOOM' : x.reporter === 'tenant' ? 'dall’inquilino' : '') : who(x)].filter(Boolean).join(' · ')) + '</small>';
+      return '<li class="plz-mitem plz-mp-' + x.priority + '">' + (admin && x.id ? '<button type="button" class="plz-mopen" data-plz="maint" data-id="' + esc(x.id) + '">' + label + '</button>' : '<span>' + label + '</span>') + '</li>';
+    };
+    var list = mt.open.length ? '<ul class="plz-mlist">' + mt.open.map(item).join('') + '</ul>'
+      : '<p class="plz-muted">Nessun guasto aperto' + (mt.recentClosed[0] ? ' · l’ultimo, «' + esc(mt.recentClosed[0].title) + '», è chiuso' + (mt.recentClosed[0].resolvedAt ? ' dal ' + dateIt(mt.recentClosed[0].resolvedAt) : '') : '') + '.</p>';
+    var done = ui.reportDone === u.id ? '<p class="plz-okline">✓ Segnalazione inviata: BOOM l’ha ricevuta adesso.</p>' : '';
+    var form = ui.reportFor === u.id ? '<form class="plz-mform" id="plz-mform" data-id="' + esc(u.id) + '">' +
+      '<label><span>Di cosa si tratta</span><select name="category">' + CAT_OPTS.map(function (c) { return '<option value="' + c[0] + '"' + (ui.reportDraft.category === c[0] ? ' selected' : '') + '>' + c[1] + '</option>'; }).join('') + '</select></label>' +
+      '<label><span>Quanto è urgente</span><select name="priority">' + [['medium', 'Normale'], ['high', 'Urgente'], ['urgent', 'Emergenza']].map(function (o) { return '<option value="' + o[0] + '"' + (ui.reportDraft.priority === o[0] ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>' +
+      '<label class="plz-mform-wide"><span>Cosa succede</span><textarea name="description" rows="3" maxlength="1200" placeholder="Es. macchia di umidità sul soffitto del bagno, si allarga">' + esc(ui.reportDraft.description) + '</textarea></label>' +
+      '<p class="plz-err" id="plz-merr" role="alert"></p>' +
+      '<div class="plz-mform-b"><button type="submit" class="plz-btn plz-primary plz-sm" data-plz="maint-send">Invia a BOOM</button><button type="button" class="plz-btn plz-sm" data-plz="maint-cancel">Annulla</button></div></form>' : '';
+    var link = ui.links && ui.links[u.id];
+    var reach = link ? tenantShare(u, link) : '';
+    return '<p class="plz-eyebrow">Manutenzione</p>' + list + done + form +
+      (ui.reportFor === u.id ? '' : '<div class="plz-actions plz-mact"><button type="button" class="plz-btn plz-sm" data-plz="maint-new" data-id="' + esc(u.id) + '">🔧 Segnala un guasto</button>' +
+        (u.month.contractId && adapter.links ? '<button type="button" class="plz-btn plz-sm" data-plz="maint-link" data-id="' + esc(u.id) + '">Link per l’inquilino</button>' : '') + '</div>') + reach;
+  }
+  // Il link del guasto, pronto da mandare all'inquilino: WhatsApp col suo
+  // numero (dai contatti già caricati), altrimenti da copiare.
+  function tenantShare(u, link) {
+    var list = contactsOf(u.month) || [], p = list.find(function (x) { return x.role === 'tenant' && x.phone; }) || list.find(function (x) { return x.phone; });
+    var first = String((p && p.name) || u.month.tenants[0] || '').trim().split(/\s+/)[0];
+    var txt = (first ? 'Ciao ' + first + ', ' : 'Ciao, ') + 'per segnalare un guasto in casa (' + unitTitle(u).toLowerCase() + ') usa questo link: ' + link + ' — arriva subito a BOOM, che organizza l’intervento.';
+    return '<div class="plz-mlink"><input type="text" readonly value="' + esc(link) + '" aria-label="Link per segnalare un guasto">' +
+      (p ? '<a class="plz-btn plz-primary plz-sm" href="https://wa.me/' + esc(waNumber(p.phone)) + '?text=' + esc(encodeURIComponent(txt)) + '" target="_blank" rel="noopener">WhatsApp a ' + esc(first || 'inquilino') + '</a>' : '') +
+      '<button type="button" class="plz-btn plz-sm" data-plz="copy-link" data-text="' + esc(txt) + '">Copia messaggio</button></div>';
+  }
+  function utenzeFacts(u, admin) {
+    var ut = u.utenze || {}, row = function (k, code, ok) {
+      if (!code) return admin ? '<div><dt>' + k + '</dt><dd class="plz-muted">non in archivio</dd></div>' : '';
+      return '<div><dt>' + k + '</dt><dd class="plz-num">' + esc(code) + (ok === false ? ' <em class="plz-warn">da controllare</em>' : '') + '</dd></div>';
+    };
+    return row('POD luce', ut.pod, ut.podOk) + row('PDR gas', ut.pdr, ut.pdrOk);
+  }
   function unitPanel(u, data, enter) {
     var m = data.m, um = u.month, admin = data.admin;
     var lease = um.lease || um.incoming;
@@ -521,7 +572,8 @@
       '<div><dt>Puntualità</dt><dd>' + esc(punctuality(u.time)) + '</dd></div>' +
       '<div><dt>12 mesi</dt><dd>' + (u.time ? 'occupato ' + u.time.occupiedMonths + ' mesi su 12' : '—') + '</dd></div>' +
       (admin && (u.pipeline.proposal || u.pipeline.listing) ? '<div><dt>In corso</dt><dd>' + esc(pipelineText(u)) + '</dd></div>' : '') +
-      '</dl><p class="plz-eyebrow">Ultimi 12 mesi</p>' + stripHTML(u, m.month) +
+      utenzeFacts(u, admin) +
+      '</dl>' + maintHTML(u, data) + '<p class="plz-eyebrow">Ultimi 12 mesi</p>' + stripHTML(u, m.month) +
       '<p class="plz-eyebrow">Rate di ' + esc(E.monthLabel(m.month).toLowerCase()) + '</p>' + (rows ? '<ul class="plz-rows">' + rows + '</ul>' : '<p class="plz-muted">' + (um.state === 'before' ? 'Prima della gestione BOOM (dal ' + esc(E.monthLabel(um.gestioneDal).toLowerCase()) + '): i pagamenti di questo mese non sono in archivio.' : um.occupied ? 'Nessuna rata registrata per questo mese.' : 'Nessun contratto in questo mese.') + '</p>') +
       '<div class="plz-actions">' + actions + '</div></div>';
   }
@@ -540,7 +592,7 @@
   function frame() { return '<span class="plz-win-frame" aria-hidden="true"><span class="plz-win-glass"></span><span class="plz-shut plz-shut-l"></span><span class="plz-shut plz-shut-r"></span></span>'; }
   function win(u, k) {
     var s = u.month.state, pipe = pipeOf(u);
-    return '<button type="button" class="plz-win' + (u.id === ui.selected ? ' is-sel' : '') + (matches(ui.filter, s) ? '' : ' is-dim') + '" style="--bi:' + k + '" data-plz="select" data-id="' + esc(u.id) + '" data-state="' + s + '"' + (pipe ? ' data-pipe="' + pipe + '"' : '') + ' aria-label="' + esc(unitLabel(u)) + '">' +
+    return '<button type="button" class="plz-win' + (u.id === ui.selected ? ' is-sel' : '') + (matches(ui.filter, s) ? '' : ' is-dim') + '" style="--bi:' + k + '" data-plz="select" data-id="' + esc(u.id) + '" data-state="' + s + '"' + (pipe ? ' data-pipe="' + pipe + '"' : '') + maintAttr(u) + ' aria-label="' + esc(unitLabel(u)) + '">' +
       frame() + '<span class="plz-win-plate"><b>' + esc(u.interno || '•') + '</b><em aria-hidden="true">' + (GLYPH[s] || '') + '</em></span></button>';
   }
   function blind(k) { return '<span class="plz-win is-blind" style="--bi:' + k + '" aria-hidden="true">' + frame() + '<span class="plz-win-plate"></span></span>'; }
@@ -654,9 +706,18 @@
       return admin && r ? '<button type="button" class="plz-btn plz-primary plz-sm" data-plz="paylink" data-pay="' + esc(r.id) + '">Sollecita</button>' : '';
     };
     var card = function (cls, title, n, body) { return '<section class="plz-scard ' + cls + '"><h3>' + title + ' <b>' + n + '</b></h3>' + body + '</section>'; };
+    var broken = m.units.filter(function (u) { return u.maintenance && u.maintenance.open.length; })
+      .sort(function (a, b) { return b.maintenance.urgent - a.maintenance.urgent; });
+    var mcard = broken.length ? card('is-maint', 'Manutenzione aperta', broken.reduce(function (a, u) { return a + u.maintenance.open.length; }, 0), broken.map(function (u) {
+      var top = u.maintenance.open[0];
+      // Il pallino qui è l'URGENZA, non il pagamento: oro = pagato confonderebbe.
+      return row(u, '<span class="plz-mpri plz-mp-' + top.priority + '">' + esc(PRI_LABEL[top.priority] || '') + '</span>', top.category + (top.createdAt ? ' · dal ' + dateIt(top.createdAt) : '') + (u.maintenance.open.length > 1 ? ' · +' + (u.maintenance.open.length - 1) : ''))
+        .replace('<i class="plz-s-' + u.month.state + '"', '<i class="plz-mdot plz-mp-' + top.priority + '"');
+    }).join('')) : '';
     return card('is-late', 'Non hanno pagato', late.length, late.length ? late.map(function (u) { return row(u, eur(u.month.lateAmount || u.month.expected), u.month.lateDays ? u.month.lateDays + (u.month.lateDays === 1 ? ' giorno' : ' giorni') + ' di ritardo' : 'scaduto', sollecita(u)); }).join('') : '<p class="plz-ok">Tutti in regola.</p>') +
       (due.length ? card('', 'Devono ancora pagare', due.length, due.map(function (u) { var r = u.month.rows.find(function (x) { return x.state === 'due'; }); return row(u, eur(u.month.expected), r && r.dueDate ? 'entro il ' + dateIt(r.dueDate) : ''); }).join('')) : '') +
       (check.length ? card('', 'Da verificare', check.length, check.map(function (u) { return row(u, '', stateLabel(u.month, m.month, m.currentMonth)); }).join('')) : '') +
+      mcard +
       card('', 'Liberi', free.length, free.length ? free.map(function (u) { return row(u, '', freeNote(u)); }).join('') : '<p class="plz-ok">Tutto pieno.</p>') +
       '<details class="plz-scard plz-paidcard"' + (ui.paidOpen ? ' open' : '') + '><summary><h3>Hanno pagato <b>' + paid.length + '</b></h3></summary>' + paid.map(function (u) { return row(u, eur(u.month.collected || u.month.expected), ''); }).join('') + '</details>';
   }
@@ -677,6 +738,8 @@
       var s = u.month.state, pipe = pipeOf(u);
       el.setAttribute('data-state', s);
       if (pipe) el.setAttribute('data-pipe', pipe); else el.removeAttribute('data-pipe');
+      var mt = u.maintenance && u.maintenance.open.length ? (u.maintenance.urgent ? 'urgent' : 'open') : '';
+      if (mt) el.setAttribute('data-maint', mt); else el.removeAttribute('data-maint');
       el.setAttribute('aria-label', unitLabel(u));
       el.classList.toggle('is-dim', !matches(ui.filter, s));
       el.classList.toggle('is-sel', u.id === ui.selected);
@@ -912,6 +975,7 @@
   }
   function onInput(e) {
     var el = e.target;
+    if (el && el.form && el.form.id === 'plz-mform' && el.name && el.name in ui.reportDraft) { ui.reportDraft[el.name] = el.value; return; }
     if (el && el.getAttribute && el.getAttribute('data-imp') && ui.imp) { ui.imp[el.getAttribute('data-imp')] = el.value; return; }
     if (!el || !el.getAttribute || !el.getAttribute('data-look') || !adapter || !viewAdmin()) return;
     readDraft(el);
@@ -969,16 +1033,18 @@
       return '<tr' + (r.errors.length ? ' class="is-bad"' : '') + '><td>' + esc(r.interno) + '</td><td>' + esc(r.piano || '—') + '</td><td>' + esc(r.inquilino || '—') + '</td><td class="plz-num">' + (r.canone != null ? eur(r.canone) : '—') + '</td><td>' +
         esc(r.dal ? dateIt(r.dal) + ' → ' + dateIt(r.al) : '—') + '</td><td>' + verdict + (r.warnings.length ? '<small>' + esc(r.warnings.join(' · ')) + '</small>' : '') + '</td></tr>';
     }).join('');
-    var c = plan ? plan.counts : { create: 0, update: 0, contracts: 0, payments: 0, paid: 0 };
-    var can = plan && !bad.length && !planErr.length && (c.create + c.update) > 0;
-    return '<p class="plz-import-sum"><b>' + P.rows.length + (P.rows.length === 1 ? ' riga' : ' righe') + '</b> · ' + c.create + ' interni nuovi, ' + c.update + ' già in archivio · ' + c.contracts + ' contratti · ' + c.payments + ' rate da ' + esc(E.monthLabel(plan ? plan.gestioneDal : st.from).toLowerCase()) +
+    var c = plan ? plan.counts : { create: 0, update: 0, same: 0, contracts: 0, payments: 0, paid: 0 };
+    var can = plan && !bad.length && !planErr.length && (c.create + c.update + c.contracts + c.payments) > 0;
+    var go = [c.create ? 'crea ' + c.create + (c.create === 1 ? ' interno' : ' interni') : '', c.update ? 'aggiorna ' + c.update + (c.update === 1 ? ' interno' : ' interni') : '',
+      c.contracts ? c.contracts + (c.contracts === 1 ? ' contratto' : ' contratti') : '', c.payments ? c.payments + (c.payments === 1 ? ' rata' : ' rate') : ''].filter(Boolean).join(', ');
+    return '<p class="plz-import-sum"><b>' + P.rows.length + (P.rows.length === 1 ? ' riga' : ' righe') + '</b> · ' + c.create + ' interni nuovi, ' + (c.update + (c.same || 0)) + ' già in archivio' + (c.update ? ' (' + c.update + ' da completare)' : '') + ' · ' + c.contracts + ' contratti · ' + c.payments + ' rate da ' + esc(E.monthLabel(plan ? plan.gestioneDal : st.from).toLowerCase()) +
       (c.paid ? ' (' + c.paid + ' segnate pagate dalla tabella)' : '') + '</p>' +
       (P.unknown.length ? '<p class="plz-muted">Colonne ignorate: ' + esc(P.unknown.join(', ')) + '.</p>' : '') +
       (msgs.length ? '<p class="plz-note">' + msgs.join(' ') + '</p>' : '') +
       (bad.length ? '<p class="plz-note">' + bad.length + (bad.length === 1 ? ' riga da correggere' : ' righe da correggere') + ' (in rosso): sistemale nella tabella e rileggi. Non si carica niente a metà.</p>' : '') +
       (warn.length ? '<p class="plz-muted">' + warn.length + (warn.length === 1 ? ' riga ha' : ' righe hanno') + ' un avviso: si carica lo stesso, il dato non letto resta vuoto.</p>' : '') +
       '<div class="plz-import-wrap"><table class="plz-import-tab"><thead><tr><th>Interno</th><th>Piano</th><th>Inquilino</th><th>Canone</th><th>Contratto</th><th>Esito</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
-      '<div class="plz-import-b"><button type="button" class="plz-btn plz-primary" data-plz="imp-go"' + (can ? '' : ' disabled') + '>Crea ' + c.create + ' interni, ' + c.contracts + ' contratti, ' + c.payments + ' rate</button></div>';
+      '<div class="plz-import-b"><button type="button" class="plz-btn plz-primary" data-plz="imp-go"' + (can ? '' : ' disabled') + '>' + (go ? go.charAt(0).toUpperCase() + go.slice(1) : 'Niente da cambiare') + '</button></div>';
   }
   function importRead() {
     var st = ui.imp; if (!st || !last) return;
@@ -986,6 +1052,11 @@
     var owner = (last.S.users || []).find(function (u) { return u.id === st.ownerId; });
     st.plan = st.parsed.rows.length ? E.planImport(st.parsed.rows, last.ctx, { address: st.address, ownerId: st.ownerId, ownerName: owner ? (owner.name || owner.email || '') : '', gestioneDal: st.from }) : null;
     var out = doc.getElementById('plz-imp-out'); if (out) out.innerHTML = importResult();
+  }
+  function copyText(text, el) {
+    var done = function () { if (el) { var t0 = el.textContent; el.textContent = 'Copiato ✓'; root.setTimeout(function () { el.textContent = t0; }, 1600); } };
+    try { if (root.navigator.clipboard && root.isSecureContext) { root.navigator.clipboard.writeText(text).then(done, function () { root.prompt('Copia il messaggio', text); }); return; } } catch (_) {}
+    try { root.prompt('Copia il messaggio', text); } catch (_) {}
   }
   function downloadText(file, text, type) {
     try {
@@ -1002,12 +1073,14 @@
   function exportBar(data) {
     var y = data.m.month.slice(0, 4);
     return '<div class="plz-export"><p>Per il commercialista</p><button type="button" class="plz-btn plz-sm" data-plz="csv" data-span="month">' + esc(E.monthLabel(data.m.month)) + ' · CSV</button>' +
-      '<button type="button" class="plz-btn plz-sm" data-plz="csv" data-span="year">Anno ' + esc(y) + ' · CSV</button></div>';
+      '<button type="button" class="plz-btn plz-sm" data-plz="csv" data-span="year">Anno ' + esc(y) + ' · CSV</button>' +
+      '<button type="button" class="plz-btn plz-sm" data-plz="csv" data-span="utenze">Utenze POD/PDR · CSV</button></div>';
   }
   function slug(s) { return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'palazzo'; }
   function exportCsv(year) {
     if (!last || !last.m.building) return;
     var m = last.m, owner = !last.admin, rows = [], name;
+    if (year === 'utenze') { downloadText('BOOM_' + slug(m.building.label) + '_utenze.csv', E.toCsv(E.utenzeRows(m), E.UTENZE_HEAD)); ui.lastExport = { file: 'utenze' }; return; }
     if (!year) { rows = E.csvRows(m, { owner: owner }); name = m.month; }
     else {
       var y = m.month.slice(0, 4), endM = y === m.currentMonth.slice(0, 4) ? m.currentMonth : y + '-12';
@@ -1054,7 +1127,16 @@
     var A = adapter.actions || {}, admin = viewAdmin();
     var unit = last && last.m.units.find(function (u) { return u.id === id; });
     if (act === 'inbox' && A.inbox) return A.inbox();
-    if (act === 'csv') return exportCsv(el.getAttribute('data-span') === 'year');
+    if (act === 'csv') { var span = el.getAttribute('data-span'); return exportCsv(span === 'year' ? true : span === 'utenze' ? 'utenze' : false); }
+    if (act === 'maint-new') { ui.reportFor = id; ui.reportDone = ''; patch(); var ta = doc.querySelector('#plz-mform textarea'); if (ta) ta.focus(); return; }
+    if (act === 'maint-cancel') { ui.reportFor = ''; patch(); return; }
+    if (act === 'copy-link') { copyText(el.getAttribute('data-text') || '', el); return; }
+    if (act === 'maint-link' && adapter.links && last) {
+      var occ = last.m.units.filter(function (x) { return x.month.contractId; }).map(function (x) { return x.id; });
+      el.disabled = true;
+      return Promise.resolve(adapter.links(occ.length ? occ : [id])).then(function (links) { ui.links = Object.assign({}, ui.links || {}, links || {}); el.disabled = false; patch(); },
+        function () { el.disabled = false; el.textContent = 'Link non disponibile ora · riprova'; });
+    }
     if (act === 'as-owner' && adapter.isAdmin()) { ui.asOwner = el.getAttribute('data-owner') || ''; ui.selected = ''; ui.shareOpen = false; ui.draft = null; rerender(); return; }
     if (act === 'share' && adapter.isAdmin()) {
       ui.shareOpen = !ui.shareOpen; el.setAttribute('aria-expanded', ui.shareOpen ? 'true' : 'false');
@@ -1079,6 +1161,7 @@
         if (ok) { ui.imp = null; ui.key = plan.buildingKey; ui.selected = ''; persist(); adapter.render(); } else el.disabled = false;
       }, function () { el.disabled = false; });
     }
+    if (act === 'maint' && id && A.maintenance) return A.maintenance(id);
     if (act === 'pdf' && id && A.pdf) return A.pdf(id);
     if (act === 'firma' && id && A.firma) return A.firma(id);
     if (act === 'rli' && id && A.rli) return A.rli(id);
@@ -1109,9 +1192,26 @@
   }
   function onChange(e) {
     var el = e.target;
-    if (el && el.getAttribute && (el.getAttribute('data-look') && el.type === 'radio' || el.getAttribute('data-imp'))) return onInput(e);
+    if (el && el.getAttribute && (el.getAttribute('data-look') && el.type === 'radio' || el.getAttribute('data-imp') || (el.form && el.form.id === 'plz-mform'))) return onInput(e);
     if (!el || el.getAttribute('data-plz') !== 'building' || !adapter) return;
     stopPlay(); ui.key = el.value; ui.selected = ''; ui.draft = null; persist(); rerender();
+  }
+  // La segnalazione dalla scheda: si valida qui (una frase, almeno), si
+  // scrive sul server. Il testo resta in ui.reportDraft finché non parte.
+  function onSubmit(e) {
+    var f = e.target;
+    if (!f || f.id !== 'plz-mform' || !adapter) return;
+    e.preventDefault();
+    var pid = f.getAttribute('data-id'), err = doc.getElementById('plz-merr'), btn = f.querySelector('[data-plz="maint-send"]');
+    var d = { category: f.category.value, priority: f.priority.value, description: String(f.description.value || '').trim() };
+    if (d.description.length < 8) { if (err) err.textContent = 'Scrivi almeno una frase: cosa succede e dove.'; f.description.focus(); return; }
+    if (!adapter.report) return;
+    if (btn) { btn.disabled = true; btn.textContent = 'Invio…'; }
+    return Promise.resolve(adapter.report(pid, d)).then(function (ok) {
+      if (ok) { ui.reportFor = ''; ui.reportDone = pid; ui.reportDraft = { category: 'plumbing', priority: 'medium', description: '' }; patch(); return; }
+      if (btn) { btn.disabled = false; btn.textContent = 'Invia a BOOM'; }
+      if (err) err.textContent = 'Non è partita: riprova fra un attimo.';
+    }, function () { if (btn) { btn.disabled = false; btn.textContent = 'Invia a BOOM'; } if (err) err.textContent = 'Non è partita: riprova fra un attimo.'; });
   }
   function onKey(e) {
     var el = e.target;
@@ -1146,6 +1246,7 @@
     doc.addEventListener('keydown', onKey);
     doc.addEventListener('pointerover', onOver);
     doc.addEventListener('input', onInput);
+    doc.addEventListener('submit', onSubmit);
     doc.addEventListener('toggle', onToggle, true);
     doc.addEventListener('pointerdown', onFacDown);
     doc.addEventListener('pointermove', onFacMove);
