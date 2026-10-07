@@ -1212,7 +1212,7 @@ export default async function handler(req, res) {
       reviewRequired: true,
       pfsKickoffStatus: 'pending',
       firstShortlistDueAt: firstReviewDueAt(paidAt), // internal target, not customer copy
-      casafariAlertStatus: 'needs_setup',
+      casafariAlertStatus: 'needs_review',
     } : {}),
   };
 

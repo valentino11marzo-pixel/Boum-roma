@@ -231,13 +231,24 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
       && client.firstShortlistDueAt === '2026-10-07T10:30:00.000Z'
       && new Date(client.firstShortlistDueAt).getTime() - new Date(client.paid_at).getTime() === 48 * 3600_000
       && /Z$/.test(client.firstShortlistDueAt));
-  check('PFS pagato: due ricerche BOOM, task Casafari e reminder shortlist una volta',
-    client?.pfsKickoffStatus === 'searches_ready' && client?.casafariAlertStatus === 'needs_setup'
+  check('PFS pagato: due ricerche BOOM, revisione copertura Casafari e reminder shortlist una volta',
+    client?.pfsKickoffStatus === 'searches_ready' && client?.casafariAlertStatus === 'needs_review'
       && searches.length === 2 && tasks.length === 2
+      && tasks.some(([, t]) => t.title.startsWith('Verifica copertura Casafari')
+        && t.note.includes('alert Casafari esistenti')
+        && t.note.includes('nuova ricerca solo se manca copertura')
+        && t.note.includes('ricerca iniziale nello stock')
+        && t.note.includes('non prova che le email Casafari siano attive'))
       && tasks.some(([, t]) => t.title.startsWith('Rivedi prima shortlist PFS')
         && t.due === '2026-10-07' && t.dueTime === '12:30'));
   check('PFS pagato: email cliente ancora a 72h',
     emails.length === emailsBefore + 2 && emails.slice(emailsBefore).some(e => e.r2_value === 'Within 72 hours'));
+  const pfsCommand = readFileSync(new URL('../../pfs-command.html', import.meta.url), 'utf8');
+  check('PFS command: mostra copertura da verificare e stock iniziale, non alert presunto attivo',
+    pfsCommand.includes("c.casafariAlertStatus === 'needs_review'")
+      && pfsCommand.includes('da verificare sugli alert esistenti')
+      && pfsCommand.includes('verificare anche lo stock iniziale')
+      && pfsCommand.includes('Il task non prova l’arrivo delle email'));
 
   r = mkRes();
   await webhook(mkStreamReq(paidEvent), r);
@@ -258,7 +269,7 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
   const existingSearchKey = [...store.keys()].find(k => k.startsWith('radarSearches/pfs_' + partialId + '_'));
   check('PFS errore parziale: cliente resta pending, non finge alert pronto',
     r.code === 200 && partial?.pfsKickoffStatus === 'pending'
-      && partial?.casafariAlertStatus === 'needs_setup' && !!existingSearchKey);
+      && partial?.casafariAlertStatus === 'needs_review' && !!existingSearchKey);
   store.get(existingSearchKey).enabled = false;
   store.get(existingSearchKey).urlOverride = 'https://www.idealista.it/override-operatore/';
   const partialEmailCount = emails.length;

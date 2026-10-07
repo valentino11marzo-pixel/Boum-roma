@@ -1472,9 +1472,11 @@ function renderDrawer() {
         '</div>' +
         (c.reviewRequired === true ? '<div class="d-sec"><h4>Prima shortlist · revisione interna</h4>' +
             '<div class="dd-meta">Scadenza interna: ' + esc(dueText) + ' · ricerche BOOM: ' +
-                esc(c.pfsKickoffStatus || 'in attesa') + ' · alert Casafari: ' +
-                esc(c.casafariAlertStatus === 'needs_setup' ? 'da impostare nell’account' : (c.casafariAlertStatus || 'da verificare')) +
-                '. Copiare i criteri non attiva l’alert.</div>' +
+                esc(c.pfsKickoffStatus || 'in attesa') + ' · copertura Casafari: ' +
+                esc(c.casafariAlertStatus === 'needs_review' ? 'da verificare sugli alert esistenti' :
+                    c.casafariAlertStatus === 'needs_setup' ? 'da verificare sugli alert esistenti' :
+                    (c.casafariAlertStatus || 'da verificare')) +
+                '. Nuova ricerca solo se manca copertura; verificare anche lo stock iniziale. Il task non prova l’arrivo delle email.</div>' +
             (c.pfsKickoffError ? '<div class="dd-meta" style="color:var(--amber)">⚠ ' + esc(c.pfsKickoffError) + '</div>' : '') +
             (pendingForClient.length ? pendingForClient.map(function (p) {
                 return '<div class="d-deck-row"><div class="dd-main"><div class="dd-title">⌛ ' +

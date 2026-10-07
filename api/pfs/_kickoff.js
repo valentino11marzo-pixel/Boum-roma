@@ -1,5 +1,5 @@
 // Paid PFS kickoff. Firestore is the queue: a client stays `pending` until
-// both BOOM searches and the operator's Casafari setup task exist. Every
+// both BOOM searches and the operator's Casafari coverage-review task exist. Every
 // write has a stable ID, so Stripe retries and the sync cron can repair a
 // partial attempt without creating a second task or resetting manual knobs.
 import { fsCreate, fsPatch } from '../homie/_lib.js';
@@ -60,9 +60,9 @@ export async function ensurePfsKickoff(client, now = new Date()) {
     await ensureTask({
       id: autoTaskId('pfs_casafari', client.id),
       kind: 'auto', source: 'pfs-kickoff', createdBy: 'pfs-kickoff',
-      title: `Attiva alert Casafari per ${client.name || client.id}`,
-      note: `Apri PFS Command, copia i criteri e salva l'alert nell'account Casafari. Verifica poi le prime opzioni per la shortlist interna entro ${client.firstShortlistDueAt || '48 ore dal pagamento'}. La creazione del task non prova che l'alert sia attivo.`,
-      // Stable across retries (including retries after midnight). If setup
+      title: `Verifica copertura Casafari per ${client.name || client.id}`,
+      note: `Apri PFS Command e confronta i criteri con gli alert Casafari esistenti. Crea e salva una nuova ricerca solo se manca copertura; fai anche una ricerca iniziale nello stock. Verifica le opzioni per la shortlist interna entro ${client.firstShortlistDueAt || '48 ore dal pagamento'}. Il task non prova che le email Casafari siano attive.`,
+      // Stable across retries (including retries after midnight). If review
       // failed for a day, the task should be overdue, never silently moved.
       due: romeDateKey(new Date(client.paid_at || now)), calendarize: false,
     });
