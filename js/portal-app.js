@@ -818,6 +818,9 @@ Valentyne - BOOM Rome`
             edit: property => openModal('editProperty', property),
             contracts: () => goTo('contracts'), users: () => goTo('users'), inbox: () => goTo('inbox'),
             payLink: id => showPaymentLink('pay', id),
+            pdf: id => downloadContractPDF(id), firma: id => openFirmaOra(id),
+            rli: id => markRliRegistered(id), aspi: id => openAspi(id),
+            fiscale: id => openFascicolo(id), arpe: id => openSchedaArpe(id),
             linkOwner: (ids, ownerId) => palazzoLinkOwner(ids, ownerId),
             saveLook: (ids, fields) => palazzoSaveLook(ids, fields) },
         // I contatti degli inquilini: `users` non è leggibile dal proprietario

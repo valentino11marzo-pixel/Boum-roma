@@ -26,7 +26,7 @@
 
   // view '' = nessuna scelta salvata: la decide il ruolo al primo disegno
   // (la proprietaria apre su Semplice ovunque, l'admin su 3D da desktop).
-  var ui = { key: '', month: '', view: '', filter: 'all', selected: '', rx: -22, ry: 34, zoom: 1, intro: Object.create(null), facIntro: Object.create(null), fy: -25, fx: -10, playing: null, draft: null, lookOpen: false, paidOpen: false, shown: '',
+  var ui = { key: '', month: '', view: '', filter: 'all', selected: '', rx: -22, ry: 34, zoom: 1, intro: Object.create(null), facIntro: Object.create(null), fy: -25, fx: -10, playing: null, draft: null, lookOpen: false, paidOpen: false, shown: '', asOwner: '', shareOpen: false,
     contacts: { byId: Object.create(null), pending: Object.create(null), failed: Object.create(null) } };
   var adapter = null, last = null, bound = false;
   try {
@@ -53,19 +53,25 @@
   }
   function surname(name) { var s = String(name || '').trim().split(/\s+/); return s.length > 1 ? s[s.length - 1] : s[0] || ''; }
   function stateLabel(um, month, currentMonth) {
-    if (um.state === 'norate' && adapter && !adapter.isAdmin()) return 'In verifica da BOOM';
+    if (um.state === 'norate' && adapter && !viewAdmin()) return 'In verifica da BOOM';
     if (um.state === 'norate') return month > currentMonth ? 'Rata non ancora generata' : 'Rata non registrata';
     return E.STATES[um.state] ? E.STATES[um.state].label : 'Da verificare';
   }
+  // L'operatore che guarda "come la vede lei": stessi dati, nessun suo tasto.
+  function viewAdmin() { return !!(adapter && adapter.isAdmin() && !ui.asOwner); }
   function matches(filter, state) { var f = FILTERS.find(function (x) { return x[0] === filter; }); return !f || !f[2] || f[2].indexOf(state) >= 0; }
 
   // ── Dati ──────────────────────────────────────────────────────────────
   function compute() {
-    var S = adapter.state(), admin = adapter.isAdmin();
+    var S = adapter.state(), realAdmin = adapter.isAdmin();
+    if (!realAdmin) ui.asOwner = '';
+    var preview = realAdmin && ui.asOwner ? ui.asOwner : '', admin = realAdmin && !preview;
     if (!ui.view) ui.view = !admin || (root.matchMedia && root.matchMedia('(max-width: 600px)').matches) ? 'simple' : '3d';
     var ctx = E.context({ properties: S.properties, contracts: S.contracts, payments: S.payments, users: S.users,
       preAgreements: admin ? S.preAgreements : null, listings: S.listings });
-    var me = S.profile && S.profile.id;
+    // In anteprima il filtro è QUELLO della proprietaria: vede solo gli
+    // interni col suo ownerId, come dal suo accesso (rules + loader).
+    var me = preview || (S.profile && S.profile.id);
     var filter = admin ? null : function (p) { return p.ownerId === me; };
     if (!ui.month) ui.month = ctx.month;
     // L'anteprima dell'aspetto (solo admin, prima di salvare) usa lo stesso
@@ -79,7 +85,8 @@
     if (!admin && m.building) m.brief = E.brief(m, { owner: true });
     if (m.building && m.building.key !== ui.key) { ui.key = m.building.key; }
     if (ui.selected && !m.units.some(function (u) { return u.id === ui.selected; })) ui.selected = '';
-    return { ctx: ctx, m: m, admin: admin, S: S };
+    var pv = preview ? (S.users || []).find(function (u) { return u.id === preview; }) || { id: preview } : null;
+    return { ctx: ctx, m: m, admin: admin, realAdmin: realAdmin, preview: pv, S: S, filter: filter };
   }
 
   // ── Disegno ───────────────────────────────────────────────────────────
@@ -88,24 +95,48 @@
     var data = compute(); last = data;
     var m = data.m;
     if (!m.building) {
-      return '<div class="plz"><header class="plz-head"><div><p class="plz-eyebrow">Il Palazzo</p><h1>' + (data.admin ? 'Nessun immobile in archivio' : 'Nessun interno collegato al tuo profilo') + '</h1><p class="plz-sub">' +
+      return '<div class="plz">' + previewBar(data) + '<header class="plz-head"><div><p class="plz-eyebrow">Il Palazzo</p><h1>' + (data.admin ? 'Nessun immobile in archivio' : 'Nessun interno collegato al tuo profilo') + '</h1><p class="plz-sub">' +
         (data.admin ? 'Aggiungi gli immobili da Immobili o dall’Innesto: ogni interno allo stesso civico diventa un piano del palazzo.' : 'BOOM sta collegando i tuoi immobili. Appena pronti li vedrai qui, interno per interno.') + '</p></div></header></div>';
     }
     if (ui.view === 'simple') {
-      return '<div class="plz" data-view="simple">' + header(data) + '<div id="plz-issues">' + issues(data) + '</div>' +
+      return '<div class="plz" data-view="simple">' + previewBar(data) + header(data) + '<div id="plz-share">' + (ui.shareOpen ? shareBox(data) : '') + '</div><div id="plz-issues">' + issues(data) + '</div>' +
         '<div class="plz-body plz-body-simple"><div class="plz-main" id="plz-simple">' + simple(data) + '</div>' +
         '<aside class="plz-panel" id="plz-panel" aria-live="polite">' + (ui.selected ? panel(data) : '') + '</aside></div>' +
         '<div class="plz-tip" id="plz-tip" hidden></div></div>';
     }
-    return '<div class="plz" data-view="' + ui.view + '">' + header(data) + '<div id="plz-issues">' + issues(data) + '</div><div id="plz-kpis">' + kpis(data) + '</div>' +
+    return '<div class="plz" data-view="' + ui.view + '">' + previewBar(data) + header(data) + '<div id="plz-share">' + (ui.shareOpen ? shareBox(data) : '') + '</div><div id="plz-issues">' + issues(data) + '</div><div id="plz-kpis">' + kpis(data) + '</div>' +
       '<div id="plz-timeline">' + timeline(data) + '</div>' +
       '<div class="plz-body"><div class="plz-main">' + filters(data) +
-      (ui.view === '3d' ? scene(data) : '<div id="plz-roll">' + roll(data) + '</div>') + tray(data) +
+      (ui.view === '3d' ? scene(data) : '<div id="plz-roll">' + roll(data) + exportBar(data) + '</div>') + tray(data) +
       '</div><aside class="plz-panel" id="plz-panel" aria-live="polite">' + panel(data) + '</aside></div>' +
       '<section class="plz-analytics" id="plz-analytics" aria-label="Andamento degli ultimi 12 mesi">' + analytics(data) + '</section>' +
       '<div class="plz-tip" id="plz-tip" hidden></div></div>';
   }
 
+  // ── Anteprima e invio alla proprietaria ───────────────────────────────
+  var LOGIN_URL = 'https://www.boomrome.com/login?next=%2Fportal%23palazzo';
+  function previewBar(data) {
+    if (!data.preview) return '';
+    var p = data.preview;
+    return '<div class="plz-preview" role="status"><p><b>Anteprima</b> · così vede il Palazzo <b>' + esc(p.name || p.email || 'la proprietaria') + '</b> dal suo accesso: solo gli interni collegati a lei, nessun tasto dell’operatore, nessuna proposta.</p>' +
+      '<button type="button" class="plz-btn plz-sm" data-plz="as-owner" data-owner="">Esci dall’anteprima</button></div>';
+  }
+  function shareText(data) {
+    var o = data.m.owner || {}, first = String(o.name || '').trim().split(/\s+/)[0];
+    return (first ? 'Buongiorno ' + first + ',' : 'Buongiorno,') + ' il suo Palazzo su BOOM è pronto (' + data.m.building.label + '): ogni mese vede quali interni sono occupati, chi ha pagato e chi no; toccando un interno trova l’inquilino con telefono, la scadenza del contratto e i pagamenti.\n\n' +
+      'Si entra da qui con la sua email: ' + LOGIN_URL + '\nLa prima volta, se non ha ancora una password, scriva la sua email e tocchi «Forgot?»: le arriva il link per sceglierla.\n\nValentino · BOOM';
+  }
+  function shareBox(data) {
+    var o = data.m.owner || {}, u = o.user || {}, txt = shareText(data);
+    var phone = u.phone ? waNumber(u.phone) : '';
+    return '<div class="plz-share"><p class="plz-eyebrow">Il messaggio per ' + esc(o.name || o.email || 'la proprietaria') + '</p><textarea class="plz-share-t" id="plz-share-t" rows="7" aria-label="Messaggio da inviare">' + esc(txt) + '</textarea>' +
+      '<div class="plz-share-b">' +
+      (phone ? '<a class="plz-btn plz-primary plz-sm" href="https://wa.me/' + esc(phone) + '?text=' + esc(encodeURIComponent(txt)) + '" target="_blank" rel="noopener">WhatsApp</a>' : '') +
+      (o.email ? '<a class="plz-btn plz-sm" href="mailto:' + esc(o.email) + '?subject=' + esc(encodeURIComponent('Il suo Palazzo su BOOM')) + '&body=' + esc(encodeURIComponent(txt)) + '">Email</a>' : '') +
+      '<button type="button" class="plz-btn plz-sm" data-plz="share-copy">Copia</button>' +
+      (!phone && !o.email ? '<span class="plz-muted">Nel suo profilo non ci sono telefono né email: copia il messaggio.</span>' : !phone ? '<span class="plz-muted">Telefono non in archivio: WhatsApp da aggiungere in Utenti.</span>' : '') +
+      '</div><p class="plz-muted plz-share-n">Prima di inviarlo: «👁 Come la vede» mostra esattamente la sua pagina.</p></div>';
+  }
   function header(data) {
     var m = data.m, b = m.building, o = m.owner;
     var sub = data.admin ? (o ? 'Proprietà di ' + esc(o.name || o.email || 'proprietario da collegare') : 'Proprietario da collegare') + ' · ' + b.units + (b.units === 1 ? ' interno' : ' interni')
@@ -114,7 +145,10 @@
       return '<option value="' + esc(x.key) + '"' + (x.key === b.key ? ' selected' : '') + '>' + esc(x.label) + ' · ' + x.units + (data.admin && x.owner ? ' · ' + esc(x.owner.name || x.owner.email || '') : '') + '</option>';
     }).join('') + '</select></label>' : '';
     var isNow = m.month === m.currentMonth;
-    return '<header class="plz-head"><div class="plz-title"><p class="plz-eyebrow">Il Palazzo</p><h1 id="plz-h1" tabindex="-1">' + esc(b.label) + '</h1><p class="plz-sub">' + sub + '</p></div>' +
+    var first = o && (String(o.name || '').trim().split(/\s+/)[0] || o.email);
+    var tools = data.admin && o && o.id ? '<div class="plz-otools"><button type="button" class="plz-chip-btn" data-plz="as-owner" data-owner="' + esc(o.id) + '">👁 Come la vede ' + esc(first) + '</button>' +
+      '<button type="button" class="plz-chip-btn" data-plz="share" aria-expanded="' + (ui.shareOpen ? 'true' : 'false') + '">Invia a ' + esc(first) + '</button></div>' : '';
+    return '<header class="plz-head"><div class="plz-title"><p class="plz-eyebrow">Il Palazzo</p><h1 id="plz-h1" tabindex="-1">' + esc(b.label) + '</h1><p class="plz-sub">' + sub + '</p>' + tools + '</div>' +
       '<div class="plz-controls">' + picker +
       '<div class="plz-month" role="group" aria-label="Mese"><button type="button" class="plz-ico" data-plz="prev" aria-label="Mese precedente">‹</button><strong id="plz-month-label">' + esc(E.monthLabel(m.month)) + '</strong><button type="button" class="plz-ico" data-plz="next" aria-label="Mese successivo">›</button>' +
       (isNow ? '' : '<button type="button" class="plz-chip-btn" data-plz="today">Oggi</button>') + '</div>' +
@@ -138,6 +172,7 @@
       }
       if (i.code === 'staleActive') return row('Contratti', i.count + (i.count === 1 ? ' contratto risulta attivo ma è scaduto' : ' contratti risultano attivi ma sono scaduti') + ': per le date, l’interno è libero.', '<button type="button" class="plz-btn" data-plz="contracts">Apri contratti</button>');
       if (i.code === 'overlap') return row('Contratti', i.count + (i.count === 1 ? ' interno ha due contratti' : ' interni hanno due contratti') + ' nello stesso mese.', '<button type="button" class="plz-btn" data-plz="select" data-id="' + esc(i.ids[0]) + '">Vedi</button>');
+      if (i.code === 'unregistered') return row('Registrazione', i.count + (i.count === 1 ? ' contratto in corso senza registrazione segnata' : ' contratti in corso senza registrazione segnata') + ' oltre 30 giorni dalla decorrenza: segnala con ✓ RLI registrato o invia ad ASPI. Alla proprietaria risulta “in verifica da BOOM”.', '<button type="button" class="plz-btn" data-plz="select" data-id="' + esc(i.ids[0]) + '">Vedi</button>');
       if (i.code === 'norate') return row('Rate', i.count + (i.count === 1 ? ' interno occupato senza rata' : ' interni occupati senza rata') + ' in ' + esc(E.monthLabel(m.month).toLowerCase()) + ': né pagato né in ritardo finché la rata non esiste.', '<button type="button" class="plz-btn" data-plz="rent" data-id="' + esc(i.ids[0]) + '">Verifica rate</button>');
       return '';
     }).join('') + (noPhone.length ? row('Contatti', noPhone.length + (noPhone.length === 1 ? ' inquilino senza telefono' : ' inquilini senza telefono') + ' in archivio: dalla sua scheda la proprietaria non ' + (noPhone.length === 1 ? 'lo può' : 'li può') + ' chiamare.', '<button type="button" class="plz-btn" data-plz="select" data-id="' + esc(noPhone[0].id) + '">Vedi</button>') : '');
@@ -422,6 +457,36 @@
     var mo = Number(c.depositMonths);
     return isFinite(mo) && mo > 0 ? mo + ' mensilità' : '';
   }
+  // La registrazione in parole. Alla proprietaria: ciò che BOOM ha segnato,
+  // altrimenti "in verifica da BOOM" (mai "non registrato": un contratto
+  // registrato e non segnato è il caso più comune dei contratti nati prima).
+  function regText(reg, admin) {
+    if (reg.status === 'registered') return 'registrato all\u2019Agenzia delle Entrate' + (reg.at ? ' il ' + dateIt(reg.at) : '');
+    if (reg.status === 'sent') return 'in registrazione' + (reg.at ? ' · inviato il ' + dateIt(reg.at) : '');
+    if (!admin) return 'in verifica da BOOM';
+    return 'non segnata' + (reg.late ? ' · oltre 30 giorni dalla decorrenza' : '');
+  }
+  // Le leve dell'operatore sull'interno, raggruppate per mestiere: ogni tasto
+  // è una funzione del portal che esiste già (nessuna seconda strada).
+  function adminActions(u, data) {
+    var um = u.month, cid = um.contractId, reg = u.paper && u.paper.registration;
+    var b = function (act, label, extra, primary) { return '<button type="button" class="plz-btn' + (primary ? ' plz-primary' : '') + '" data-plz="' + act + '"' + (extra || '') + '>' + label + '</button>'; };
+    var open = um.rows.filter(function (r) { return r.state === 'overdue' || r.state === 'due'; })[0];
+    var groups = [];
+    groups.push(['Soldi', b('rent', 'Gestisci canoni', ' data-id="' + esc(u.id) + '"', true) +
+      (open && open.id ? b('paylink', 'Link di pagamento', ' data-pay="' + esc(open.id) + '"') : '')]);
+    if (cid) {
+      groups.push(['Contratto', b('contract', 'Apri contratto', ' data-id="' + esc(cid) + '"') + b('pdf', 'PDF', ' data-id="' + esc(cid) + '"') +
+        b('firma', 'Firma ora', ' data-id="' + esc(cid) + '"')]);
+      groups.push(['Registrazione', (reg && reg.status !== 'registered' ? b('rli', '✓ RLI registrato', ' data-id="' + esc(cid) + '"', !!reg.late) : '') +
+        b('aspi', 'Invia ad ASPI', ' data-id="' + esc(cid) + '"') + b('fiscale', 'Fascicolo fiscale', ' data-id="' + esc(cid) + '"') +
+        b('arpe', 'Scheda ARPE', ' data-id="' + esc(cid) + '"')]);
+    }
+    groups.push(['Interno', b('dossier', 'Fascicolo immobile', ' data-id="' + esc(u.id) + '"') + b('edit', 'Modifica interno', ' data-id="' + esc(u.id) + '"') +
+      (u.pipeline.proposal ? '<a class="plz-btn" href="/pre-agreement-admin.html" target="_blank" rel="noopener">Proposta ' + esc(u.pipeline.proposal.ref || '') + ' ↗</a>' : '') +
+      (u.pipeline.listing ? '<a class="plz-btn" href="' + esc(u.pipeline.listing.url) + '" target="_blank" rel="noopener">Annuncio ↗</a>' : '')]);
+    return groups.map(function (g) { return '<div class="plz-agroup"><p class="plz-agroup-l">' + g[0] + '</p><div class="plz-agroup-b">' + g[1] + '</div></div>'; }).join('');
+  }
   function unitPanel(u, data, enter) {
     var m = data.m, um = u.month, admin = data.admin;
     var lease = um.lease || um.incoming;
@@ -431,13 +496,8 @@
     }).join('');
     var pdf = lease && (lease.signedPdfUrl || lease.generatedPDF);
     var safe = function (url) { try { var x = new URL(url); return x.protocol === 'https:' ? x.href : ''; } catch (_) { return ''; } };
-    var actions = admin
-      ? '<button type="button" class="plz-btn plz-primary" data-plz="rent" data-id="' + esc(u.id) + '">Gestisci canoni</button>' +
-        (um.contractId ? '<button type="button" class="plz-btn" data-plz="contract" data-id="' + esc(um.contractId) + '">Apri contratto</button>' : '') +
-        (u.pipeline.proposal ? '<a class="plz-btn" href="/pre-agreement-admin.html" target="_blank" rel="noopener">Proposta ' + esc(u.pipeline.proposal.ref || '') + ' ↗</a>' : '') +
-        (u.pipeline.listing ? '<a class="plz-btn" href="' + esc(u.pipeline.listing.url) + '" target="_blank" rel="noopener">Annuncio ↗</a>' : '') +
-        '<button type="button" class="plz-btn" data-plz="dossier" data-id="' + esc(u.id) + '">Fascicolo</button><button type="button" class="plz-btn" data-plz="edit" data-id="' + esc(u.id) + '">Modifica interno</button>'
-      : (safe(pdf) ? '<a class="plz-btn" href="' + esc(safe(pdf)) + '" target="_blank" rel="noopener">Contratto (PDF) ↗</a>' : '') + '<button type="button" class="plz-btn" data-plz="inbox">Scrivi a BOOM</button>';
+    var actions = admin ? adminActions(u, data) : (safe(pdf) ? '<a class="plz-btn" href="' + esc(safe(pdf)) + '" target="_blank" rel="noopener">Contratto (PDF) ↗</a>' : '') + '<button type="button" class="plz-btn" data-plz="inbox">Scrivi a BOOM</button>';
+    var pp = u.paper, reg = pp && pp.registration;
     var exp = um.leaseEnd ? expiry(um.leaseEnd, m.today) : um.state === 'incoming' && um.leaseStart ? startsIn(um.leaseStart, m.today) : '';
     var kind = leaseType(lease), dep = depositOf(lease);
     return '<div class="plz-pcard plz-unitcard' + (enter ? ' is-enter' : '') + '"><button type="button" class="plz-close" data-plz="deselect" aria-label="Chiudi">×</button>' +
@@ -449,6 +509,8 @@
       '<dl class="plz-facts">' +
       '<div><dt>Canone</dt><dd class="plz-num">' + (um.rent != null ? eur(um.rent) + ' / mese' : '—') + '</dd></div>' +
       (dep ? '<div><dt>Deposito</dt><dd class="plz-num">' + esc(dep) + '</dd></div>' : '') +
+      (reg ? '<div><dt>Registrazione</dt><dd class="' + (admin && reg.late ? 'plz-red' : '') + '">' + esc(regText(reg, admin)) + '</dd></div>' : '') +
+      (pp && (pp.cedolare != null || admin) ? '<div><dt>Cedolare secca</dt><dd>' + (pp.cedolare === true ? 'sì' : pp.cedolare === false ? 'no' : 'non indicata nel contratto') + '</dd></div>' : '') +
       '<div><dt>Arretrati</dt><dd class="plz-num' + (u.arrears.amount ? ' plz-red' : '') + '">' + (u.arrears.amount ? eur(u.arrears.amount) + ' · ' + u.arrears.count + (u.arrears.count === 1 ? ' rata' : ' rate') + (u.arrears.oldest ? ' dal ' + dateIt(u.arrears.oldest) : '') : 'Nessuno') + '</dd></div>' +
       '<div><dt>Puntualità</dt><dd>' + esc(punctuality(u.time)) + '</dd></div>' +
       '<div><dt>12 mesi</dt><dd>' + (u.time ? 'occupato ' + u.time.occupiedMonths + ' mesi su 12' : '—') + '</dd></div>' +
@@ -595,7 +657,7 @@
   function simple(data) {
     return '<div id="plz-sbrief">' + briefHTML(data) + '</div>' +
       '<div class="plz-sgrid"><div class="plz-scol">' + facade(data) + (data.admin ? lookPanel(data) : '') + '</div>' +
-      '<div class="plz-scards" id="plz-scards">' + cards(data) + '</div></div>';
+      '<div class="plz-scards" id="plz-scards">' + cards(data) + exportBar(data) + '</div></div>';
   }
   // Cambiare mese (o riprodurre l'anno) non ridisegna la facciata: cambia
   // la luce delle finestre e le persiane si aprono o si chiudono davvero.
@@ -651,7 +713,7 @@
     ensureContacts(data.m);
     var m = data.m, set = function (id, html) { var el = doc.getElementById(id); if (el) el.innerHTML = html; };
     if (ui.view === 'simple') {
-      set('plz-issues', issues(data)); set('plz-sbrief', briefHTML(data)); set('plz-scards', cards(data)); set('plz-panel', ui.selected ? panel(data) : '');
+      set('plz-issues', issues(data)); set('plz-sbrief', briefHTML(data)); set('plz-scards', cards(data) + exportBar(data)); set('plz-panel', ui.selected ? panel(data) : '');
       if (doc.getElementById('plz-fac')) patchFacade(data); else { set('plz-simple', simple(data)); syncFacade(); }
       var lab0 = doc.getElementById('plz-month-label'); if (lab0) lab0.textContent = E.monthLabel(m.month);
       toggleToday(m);
@@ -661,7 +723,7 @@
     var lab = doc.getElementById('plz-month-label'); if (lab) lab.textContent = E.monthLabel(m.month);
     toggleToday(m);
     var fl = doc.querySelector('.plz-filters'); if (fl) fl.outerHTML = filters(data);
-    if (ui.view === 'list') { set('plz-roll', roll(data)); }
+    if (ui.view === 'list') { set('plz-roll', roll(data) + exportBar(data)); }
     else {
       var byId = Object.create(null); m.units.forEach(function (u) { byId[u.id] = u; });
       Array.prototype.forEach.call(doc.querySelectorAll('.plz-unit'), function (el) {
@@ -844,7 +906,7 @@
   }
   function onInput(e) {
     var el = e.target;
-    if (!el || !el.getAttribute || !el.getAttribute('data-look') || !adapter || !adapter.isAdmin()) return;
+    if (!el || !el.getAttribute || !el.getAttribute('data-look') || !adapter || !viewAdmin()) return;
     readDraft(el);
   }
   function onToggle(e) {
@@ -852,6 +914,36 @@
     if (!el || !el.classList) return;
     if (el.id === 'plz-look') ui.lookOpen = el.open;
     if (el.classList.contains('plz-paidcard')) ui.paidOpen = el.open;
+  }
+
+  // ── Per il commercialista: il mese o l'anno in un CSV ─────────────────
+  // Lo stesso motore della pagina (E.csvRows), mese per mese: il foglio non
+  // può dire una cosa diversa da ciò che la proprietaria vede. L'anno arriva
+  // fino al mese corrente, mai un mese che non è ancora successo.
+  function exportBar(data) {
+    var y = data.m.month.slice(0, 4);
+    return '<div class="plz-export"><p>Per il commercialista</p><button type="button" class="plz-btn plz-sm" data-plz="csv" data-span="month">' + esc(E.monthLabel(data.m.month)) + ' · CSV</button>' +
+      '<button type="button" class="plz-btn plz-sm" data-plz="csv" data-span="year">Anno ' + esc(y) + ' · CSV</button></div>';
+  }
+  function slug(s) { return String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'palazzo'; }
+  function exportCsv(year) {
+    if (!last || !last.m.building) return;
+    var m = last.m, owner = !last.admin, rows = [], name;
+    if (!year) { rows = E.csvRows(m, { owner: owner }); name = m.month; }
+    else {
+      var y = m.month.slice(0, 4), endM = y === m.currentMonth.slice(0, 4) ? m.currentMonth : y + '-12';
+      for (var mm = y + '-01'; mm <= endM; mm = E.monthAdd(mm, 1)) {
+        rows = rows.concat(E.csvRows(E.model(last.ctx, m.building.key, mm, { filter: last.filter, strip: false }), { owner: owner }));
+      }
+      name = y;
+    }
+    var file = 'BOOM_' + slug(m.building.label) + '_' + name + '.csv';
+    try {
+      var url = root.URL.createObjectURL(new root.Blob([E.toCsv(rows)], { type: 'text/csv;charset=utf-8' }));
+      var a = doc.createElement('a'); a.href = url; a.download = file; a.rel = 'noopener'; doc.body.appendChild(a); a.click();
+      root.setTimeout(function () { root.URL.revokeObjectURL(url); a.remove(); }, 1500);
+    } catch (_) {}
+    ui.lastExport = { file: file, rows: rows.length };
   }
 
   function onClick(e) {
@@ -884,10 +976,30 @@
       patch();
       return;
     }
-    var A = adapter.actions || {}, admin = adapter.isAdmin();
+    var A = adapter.actions || {}, admin = viewAdmin();
     var unit = last && last.m.units.find(function (u) { return u.id === id; });
     if (act === 'inbox' && A.inbox) return A.inbox();
+    if (act === 'csv') return exportCsv(el.getAttribute('data-span') === 'year');
+    if (act === 'as-owner' && adapter.isAdmin()) { ui.asOwner = el.getAttribute('data-owner') || ''; ui.selected = ''; ui.shareOpen = false; ui.draft = null; rerender(); return; }
+    if (act === 'share' && adapter.isAdmin()) {
+      ui.shareOpen = !ui.shareOpen; el.setAttribute('aria-expanded', ui.shareOpen ? 'true' : 'false');
+      var box = doc.getElementById('plz-share'); if (box && last) box.innerHTML = ui.shareOpen ? shareBox(last) : '';
+      return;
+    }
+    if (act === 'share-copy') {
+      var ta = doc.getElementById('plz-share-t'); if (!ta) return;
+      var done = function () { el.textContent = 'Copiato ✓'; root.setTimeout(function () { el.textContent = 'Copia'; }, 1600); };
+      try { if (root.navigator.clipboard && root.isSecureContext) return root.navigator.clipboard.writeText(ta.value).then(done, function () { ta.select(); }); } catch (_) {}
+      ta.select(); try { if (doc.execCommand('copy')) done(); } catch (_) {}
+      return;
+    }
     if (!admin) return;
+    if (act === 'pdf' && id && A.pdf) return A.pdf(id);
+    if (act === 'firma' && id && A.firma) return A.firma(id);
+    if (act === 'rli' && id && A.rli) return A.rli(id);
+    if (act === 'aspi' && id && A.aspi) return A.aspi(id);
+    if (act === 'fiscale' && id && A.fiscale) return A.fiscale(id);
+    if (act === 'arpe' && id && A.arpe) return A.arpe(id);
     if (act === 'rent' && unit && A.rent) return A.rent(unit.id, last.m.month);
     if (act === 'contract' && id && A.contract) return A.contract(id);
     if (act === 'dossier' && unit && A.dossier) return A.dossier(unit.id);

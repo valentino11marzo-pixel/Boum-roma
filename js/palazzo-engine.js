@@ -341,6 +341,72 @@
     });
   }
 
+  // ── La carta del contratto: registrazione e regime ───────────────────
+  // Le due domande che la proprietaria (e il suo commercialista) fanno di un
+  // contratto oltre ai soldi. Solo ciò che è SCRITTO: una registrazione non
+  // segnata non diventa "registrato", e la cedolare non dichiarata resta
+  // null — i contratti nati prima del dizionario non la portano, e "sì" per
+  // default (la regola del PDF) qui sarebbe un'affermazione sul regime
+  // fiscale di qualcuno che nessuno ha fatto.
+  // `late`: oltre 30 giorni dalla DECORRENZA senza registrazione segnata. Il
+  // termine di legge corre dalla data più vicina fra stipula e decorrenza,
+  // quindi passata la decorrenza + 30 il ritardo è certo (mai un falso).
+  function cedolareDeclared(c) {
+    var v = c && c.cedolareSecca;
+    if (v == null || v === '') v = c && c.canone && c.canone.cedolareSecca;
+    if (v === true || v === 1) return true;
+    if (v === false || v === 0) return false;
+    var s = norm(v);
+    if (s === 'si' || s === 'yes' || s === 'true') return true;
+    if (s === 'no' || s === 'false') return false;
+    return null;
+  }
+  function paperOf(c, today) {
+    if (!c) return null;
+    var at = day(c.rliRegisteredAt), rs = norm(c.registrationStatus), start = day(c.startDate);
+    var reg = (at || rs === 'registered') ? { status: 'registered', at: at }
+      : (rs === 'sent' || c.aspiRequestedAt) ? { status: 'sent', at: day(c.aspiRequestedAt) }
+      : { status: 'todo', at: '' };
+    reg.late = reg.status !== 'registered' && !!(start && today && dayAdd(start, 30) < today);
+    return { registration: reg, cedolare: cedolareDeclared(c) };
+  }
+
+  // ── Il foglio per il commercialista ──────────────────────────────────
+  // Una riga per interno per mese (formato lungo: si filtra e si somma in
+  // Excel senza ricomporre colonne). Separatore ';', decimali con la virgola,
+  // date gg/mm/aaaa, BOM: è ciò che un Excel italiano apre senza chiedere.
+  // Le parole sono quelle della proprietaria (mai "rata non registrata").
+  var CSV_HEAD = ['Mese', 'Interno', 'Piano', 'Inquilino', 'Contratto', 'Dal', 'Al', 'Cedolare secca', 'Registrazione',
+    'Canone mensile', 'Dovuto nel mese', 'Incassato nel mese', 'Pagato il', 'Stato'];
+  var CSV_STATE = { paid: 'Pagato', late: 'Non ha pagato', due: 'Da pagare', review: 'In verifica', norate: 'In verifica da BOOM',
+    unknown: 'In verifica', incoming: 'In arrivo', vacant: 'Libero' };
+  function itDate(d) { var x = day(d); return x ? x.slice(8, 10) + '/' + x.slice(5, 7) + '/' + x.slice(0, 4) : ''; }
+  function itNum(n) { return n == null || !isFinite(n) ? '' : round(n).toFixed(2).replace('.', ','); }
+  function csvRows(m, opts) {
+    if (!m || !m.units) return [];
+    var owner = !!(opts && opts.owner);
+    var rows = [];
+    var floorOfUnit = function (u) { return u.floor == null ? '' : u.floorTop ? 'Attico' : floorLabel(u.floor); };
+    m.units.slice().sort(function (a, b) { return (a.floor == null ? 999 : a.floor) - (b.floor == null ? 999 : b.floor) || natural(a.interno, b.interno); })
+      .forEach(function (u) {
+        var um = u.month, c = um.lease || um.incoming, pp = paperOf(c, m.today);
+        var paid = um.rows.filter(function (r) { return r.month === m.month && r.state === 'paid' && r.paidDate; })
+          .map(function (r) { return itDate(r.paidDate); });
+        rows.push([m.month, u.interno || u.name, floorOfUnit(u), um.tenants.join(', '),
+          c ? (str(c.type) || 'contratto') : '', um.leaseStart ? itDate(um.leaseStart) : '', um.leaseEnd ? itDate(um.leaseEnd) : '',
+          !pp ? '' : pp.cedolare === true ? 'Sì' : pp.cedolare === false ? 'No' : 'Non indicata',
+          !pp ? '' : pp.registration.status === 'registered' ? 'Registrato' + (pp.registration.at ? ' il ' + itDate(pp.registration.at) : '')
+            : pp.registration.status === 'sent' ? 'Inviato per la registrazione' : owner ? 'In verifica da BOOM' : 'Non segnata',
+          um.occupied || um.state === 'incoming' ? itNum(um.rent) : '', um.occupied ? itNum(um.expected) : '', um.occupied ? itNum(um.collected) : '', paid.join(', '),
+          um.state === 'norate' && !owner ? 'Senza rata' : CSV_STATE[um.state] || '']);
+      });
+    return rows;
+  }
+  function toCsv(rows) {
+    var cell = function (v) { var s = v == null ? '' : String(v); return /[;"\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    return '﻿' + [CSV_HEAD].concat(rows).map(function (r) { return r.map(cell).join(';'); }).join('\r\n') + '\r\n';
+  }
+
   // ── Cosa succede a un interno: proposte e annunci ─────────────────────
   var PA_DEAD = { revoked: 1, cancelled: 1, canceled: 1, expired: 1, rejected: 1, void: 1 };
   function paPaid(pa) { return !!(pa && (pa.paidAt || pa.paidSessionId || (Number(pa.paidEur) > 0))); }
@@ -534,6 +600,7 @@
         name: str(p.name) || str(p.address) || 'Interno', owner: o,
         ownerMismatch: !!(owner && o.key !== owner.key),
         month: um, arrears: arrearsOf(ctx, p), pipeline: pipelineOf(ctx, p), time: timeOf(ctx, p, m > ctx.month ? m : ctx.month),
+        paper: paperOf(um.lease || um.incoming, ctx.today),
         strip: opts.strip === false ? [] : strip(ctx, p, m > ctx.month ? m : ctx.month, 12)
       };
     }).sort(function (a, b2) { return natural(a.scala, b2.scala) || natural(a.interno, b2.interno) || natural(a.name, b2.name); });
@@ -585,6 +652,8 @@
       return (ctx.contractsByProperty[u.id] || []).filter(function (c) { return LIVE[cStatus(c)] && covers(c, m); }).length > 1;
     });
     if (double.length) issues.push({ code: 'overlap', count: double.length, ids: double.map(function (u) { return u.id; }) });
+    var unreg = units.filter(function (u) { return u.month.lease && u.paper && u.paper.registration.late; });
+    if (unreg.length) issues.push({ code: 'unregistered', count: unreg.length, ids: unreg.map(function (u) { return u.id; }) });
     var norate = units.filter(function (u) { return u.month.state === 'norate' && m <= ctx.month; });
     if (norate.length) issues.push({ code: 'norate', count: norate.length, ids: norate.map(function (u) { return u.id; }) });
     var model0 = { building: b, buildings: all, month: m, currentMonth: ctx.month, today: ctx.today, floors: floors, unplaced: unplaced, units: units,
@@ -656,7 +725,8 @@
     unitOf: unitOf, scalaOf: scalaOf, floorOf: floorOf, streetKey: streetKey, buildingKeyOf: buildingKeyOf, ownerOf: ownerOf,
     context: context, unitMonth: unitMonth, arrearsOf: arrearsOf, strip: strip, buildings: buildings, model: model,
     totalsOf: totalsOf, pipelineOf: pipelineOf, timeOf: timeOf, analyticsOf: analyticsOf, brief: brief, STATES: STATES, TONES: TONES, toneOf: toneOf,
-    LOOKS: LOOKS, LOOK_DEFAULT: LOOK_DEFAULT, lookOf: lookOf, civicOf: civicOf, validateLook: validateLook };
+    LOOKS: LOOKS, LOOK_DEFAULT: LOOK_DEFAULT, lookOf: lookOf, civicOf: civicOf, validateLook: validateLook,
+    paperOf: paperOf, cedolareDeclared: cedolareDeclared, csvRows: csvRows, toCsv: toCsv, CSV_HEAD: CSV_HEAD };
   if (typeof module === 'object' && module.exports) module.exports = API;
   if (root) root.BOOM_PALAZZO = API;
 })(typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : this);

@@ -14,7 +14,7 @@ export function buildFixture(now = new Date()) {
   const today = romeDay(now), month = today.slice(0, 7);
   const M = k => monthAdd(month, k), D = k => dayAdd(today, k);
   const ADDR = 'Viale Esempio 12, 00197 Roma';
-  const owner = { id: 'owner-demo', role: 'landlord', name: 'Proprietaria Demo', email: 'owner@example.invalid' };
+  const owner = { id: 'owner-demo', role: 'landlord', name: 'Proprietaria Demo', email: 'owner@example.invalid', phone: '+39 000 000 9999' };
   const prop = (n, floor, extra = {}) => ({ id: 'u' + n, name: 'Viale Esempio 12 int. ' + n, address: ADDR, interno: String(n), floor, ownerId: owner.id, rent: 900 + n * 10, ...extra });
   const properties = [
     prop(1, 'PT'), prop(2, 'Piano terra'),
@@ -30,15 +30,21 @@ export function buildFixture(now = new Date()) {
   // Recapiti finti e dichiarati tali (+39 000…, example.invalid): servono al
   // giro dei contatti, mai a raggiungere qualcuno.
   const lease = (n, rent, extra = {}) => ({ id: 'c' + n, propertyId: 'u' + n, status: 'active', tenantName: 'Inquilino ' + n + ' Demo', rent, startDate: M(-14) + '-01', endDate: M(20) + '-28',
-    tenantPhone: '+39000000' + String(n).padStart(4, '0'), tenantEmail: 'inquilino' + n + '@example.invalid', deposit: rent * 2, type: 'transitorio', ...extra });
+    tenantPhone: '+39000000' + String(n).padStart(4, '0'), tenantEmail: 'inquilino' + n + '@example.invalid', deposit: rent * 2, type: 'transitorio',
+    rliRegisteredAt: M(-14) + '-20', cedolareSecca: 'si', ...extra });
   const contracts = [
-    lease(1, 900), lease(3, 1000), lease(4, 1100), lease(5, 950), lease(6, 1200),
+    lease(1, 900), lease(3, 1000), lease(4, 1100),
+    // int. 5: registrazione mai segnata, decorrenza di 14 mesi fa → "Da sistemare"
+    lease(5, 950, { rliRegisteredAt: '' }),
+    // int. 6: senza cedolare, dichiarato
+    lease(6, 1200, { cedolareSecca: 'no' }),
     lease(7, 1000, { endDate: D(60) }),
-    lease(8, 1050),
+    // int. 8: inviato ad ASPI, registrazione non ancora segnata
+    lease(8, 1050, { rliRegisteredAt: '', registrationStatus: 'sent', aspiRequestedAt: M(-13) + '-02' }),
     lease(9, 980, { status: 'pending', startDate: M(1) + '-01', endDate: M(13) + '-28' }),
     lease(10, 1300, { installmentMonths: 3 }),
     lease(11, 2000, { coTenants: [{ name: 'Coinquilina Demo', phone: '+390000000111' }] }),
-    lease(12, 800, { tenantPhone: '', tenantEmail: '' }),
+    lease(12, 800, { tenantPhone: '', tenantEmail: '', cedolareSecca: undefined }),
     // int. 2: c'era qualcuno, ha chiuso in anticipo due mesi fa
     { id: 'c2old', propertyId: 'u2', status: 'terminated', tenantName: 'Uscito Demo', rent: 900, startDate: M(-14) + '-01', endDate: M(20) + '-28', terminatedAt: M(-2) + '-15' },
     // int. 13: "attivo" in archivio ma scaduto da 4 mesi

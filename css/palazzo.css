@@ -40,6 +40,17 @@
 .plz-ico:hover{border-color:var(--gold,#D4AF37);color:var(--gold,#D4AF37)}
 .plz-ico:active{transform:scale(.94)}
 .plz-chip-btn{border:1px solid rgba(212,175,55,.45);background:rgba(212,175,55,.1);color:var(--gold,#D4AF37);border-radius:999px;padding:7px 12px;font:inherit;font-size:12px;cursor:pointer}
+.plz-otools{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+/* L'anteprima: l'operatore vede la pagina della proprietaria, e lo sa */
+.plz-preview{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:0 0 14px;padding:10px 14px;border-radius:14px;border:1px solid rgba(212,175,55,.45);
+  background:repeating-linear-gradient(135deg,rgba(212,175,55,.08) 0 10px,rgba(212,175,55,.03) 10px 20px)}
+.plz-preview p{margin:0;flex:1 1 280px;font-size:13px;line-height:1.45;color:var(--text-secondary,#999)}
+.plz-preview b{color:var(--text,#fff)}
+.plz-share{margin:0 0 14px;padding:14px;border-radius:16px;border:1px solid var(--plz-line);background:#0B0B0D}
+.plz-share-t{width:100%;box-sizing:border-box;resize:vertical;margin:6px 0 10px;padding:10px 12px;border-radius:12px;border:1px solid var(--plz-line);background:var(--bg-input,#1A1A1A);
+  color:var(--text,#fff);font:inherit;font-size:13px;line-height:1.5}
+.plz-share-b{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.plz-share-n{margin:10px 0 0;font-size:12px}
 .plz-seg{display:inline-flex;background:var(--plz-card);border:1px solid var(--plz-line);border-radius:999px;padding:4px}
 .plz-seg button{border:0;background:transparent;color:var(--text-secondary,#999);padding:8px 14px;border-radius:999px;font:inherit;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer}
 .plz-seg button[aria-selected="true"]{background:var(--gold,#D4AF37);color:#000;font-weight:600}
@@ -195,8 +206,8 @@
 .plz-pill.plz-big{font-size:11px;padding:5px 12px;margin-bottom:10px}
 .plz-note{font-size:12px;color:var(--plz-amber);margin:6px 0 0}
 .plz-facts{margin:12px 0 14px;display:grid;gap:10px}
-.plz-facts div{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:baseline}
-.plz-facts dt{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted,#666)}
+.plz-facts div{display:grid;grid-template-columns:112px 1fr;gap:10px;align-items:baseline}
+.plz-facts dt{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted,#666)}
 .plz-facts dd{margin:0;font-size:14px}
 /* Chi abita qui: nome, numero, e i tre gesti (chiama · WhatsApp · email). */
 .plz-people{list-style:none;margin:0 0 12px;padding:0;display:grid;gap:8px}
@@ -233,6 +244,15 @@
 .plz-rows li small{grid-column:1/-1;color:var(--text-muted,#666);font-size:11px}
 .plz-rows li em{justify-self:start}
 .plz-actions{display:flex;gap:8px;flex-wrap:wrap}
+.plz-agroup{width:100%;border-top:1px solid rgba(255,255,255,.05);padding-top:9px}
+.plz-agroup:first-child{border-top:0;padding-top:0}
+.plz-agroup-l{margin:0 0 6px;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted,#666)}
+.plz-agroup-b{display:flex;gap:6px;flex-wrap:wrap}
+.plz-agroup .plz-btn{padding:7px 11px;font-size:12px}
+/* Per il commercialista: il mese o l'anno in un CSV, sotto la lista */
+.plz-export{display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:14px 0 0;padding:11px 14px;border:1px dashed rgba(255,255,255,.1);border-radius:14px}
+.plz-export p{margin:0 auto 0 0;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted,#666)}
+.plz-scards .plz-export{margin:0}
 .plz-btn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--plz-line);background:var(--bg-elevated,#141414);color:var(--text,#fff);border-radius:12px;padding:9px 13px;font:inherit;font-size:13px;cursor:pointer;text-decoration:none;transition:border-color .2s,color .2s}
 .plz-btn:hover{border-color:var(--gold,#D4AF37);color:var(--gold,#D4AF37)}
 .plz-btn.plz-primary{background:var(--gold,#D4AF37);color:#000;border-color:var(--gold,#D4AF37);font-weight:600}
@@ -479,7 +499,7 @@
   /* Su telefono la risposta prima: chi non ha pagato sta sopra la facciata */
   .plz-sgrid{display:flex;flex-direction:column;align-items:stretch}
   .plz-scards{display:contents}
-  .plz-scard{order:2}.plz-scard.is-late{order:0}
+  .plz-scard{order:2}.plz-scard.is-late{order:0}.plz-scards .plz-export{order:3}
   .plz-scol{position:static;order:1}
   .plz-abars{gap:4px;height:120px}
   .plz-aval{font-size:10px}

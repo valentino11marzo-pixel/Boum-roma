@@ -39,7 +39,10 @@ export function buildFixture18(now = new Date()) {
     const c = { id: 'c' + i, propertyId: 'u' + i, status: 'active', tenantName: NOMI[i - 1], rent: rent(i), deposit: rent(i) * 2,
       type: i % 4 === 0 ? 'studenti' : i === 18 ? '3+2' : 'transitorio',
       startDate: M(-10 - (i % 6)) + '-01', endDate: M(8 + (i % 9)) + '-' + (i % 2 ? '30' : '28'),
-      tenantPhone: '+39000000' + String(i).padStart(4, '0'), tenantEmail: NOMI[i - 1].toLowerCase().replace(/\s+/g, '.') + '@example.invalid' };
+      tenantPhone: '+39000000' + String(i).padStart(4, '0'), tenantEmail: NOMI[i - 1].toLowerCase().replace(/\s+/g, '.') + '@example.invalid',
+      rliRegisteredAt: M(-10 - (i % 6)) + '-18', cedolareSecca: i === 13 ? 'no' : 'si' };
+    if (i === 4) c.rliRegisteredAt = '';                                                   // registrazione mai segnata
+    if (i === 10) Object.assign(c, { rliRegisteredAt: '', registrationStatus: 'sent', aspiRequestedAt: M(-9) + '-03' }); // inviato ad ASPI
     if (i === 3) c.endDate = D(24);                    // in scadenza fra poco più di tre settimane
     if (i === 11) c.endDate = D(70);                   // in scadenza fra due mesi
     if (i === 9) c.coTenants = [{ name: 'Coinquilino Demo', phone: '+390000000909', email: 'coinquilino@example.invalid' }];

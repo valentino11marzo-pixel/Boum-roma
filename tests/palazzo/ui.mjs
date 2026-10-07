@@ -42,6 +42,12 @@ function openRentUnit(id,month){demoActions.push(['rent',id,month]);}
 function viewContract(id){demoActions.push(['contract',id]);}
 function showPaymentLink(kind,id){demoActions.push(['payLink',kind,id]);}
 function openModal(type,data){demoActions.push([type,data&&data.id]);}
+function downloadContractPDF(id){demoActions.push(['pdf',id]);}
+function openFirmaOra(id){demoActions.push(['firma',id]);}
+function markRliRegistered(id){demoActions.push(['rli',id]);}
+function openAspi(id){demoActions.push(['aspi',id]);}
+function openFascicolo(id){demoActions.push(['fiscale',id]);}
+function openSchedaArpe(id){demoActions.push(['arpe',id]);}
 function logActivity(){}
 function innestoSeedFromHash(){return false;}
 window.confirm=()=>true;
@@ -295,6 +301,69 @@ try {
       const acts = await pg.evaluate(() => demoActions.filter(a => a[0] !== 'toast'));
       assert.deepEqual(acts.slice(-3), [['rent', 'property:u3', acts.at(-3)[2]], ['contract', 'c3'], ['editProperty', 'u3']]);
     });
+    await check('scheda admin: registrazione e cedolare, le leve raggruppate per mestiere', async () => {
+      await pg.locator('.plz-unit[data-id="u5"]').evaluate(e => e.scrollIntoView({ block: 'center' }));
+      await pg.locator('.plz-unit[data-id="u5"]').click({ force: true });
+      await pg.waitForSelector('#plz-panel .plz-agroup');
+      const p = await pg.locator('#plz-panel').innerText();
+      assert.ok(/Registrazione\s*non segnata · oltre 30 giorni dalla decorrenza/i.test(p) && /Cedolare secca\s*sì/i.test(p), p);
+      assert.deepEqual(await pg.locator('#plz-panel .plz-agroup-l').allInnerTexts(), ['SOLDI', 'CONTRATTO', 'REGISTRAZIONE', 'INTERNO'], 'gruppi');
+      for (const a of ['rli', 'aspi', 'fiscale', 'arpe', 'pdf', 'firma']) await pg.locator('#plz-panel [data-plz="' + a + '"]').click();
+      const acts = await pg.evaluate(() => demoActions.filter(a => a[0] !== 'toast').slice(-6));
+      assert.deepEqual(acts, [['rli', 'c5'], ['aspi', 'c5'], ['fiscale', 'c5'], ['arpe', 'c5'], ['pdf', 'c5'], ['firma', 'c5']]);
+      await pg.locator('.plz-unit[data-id="u1"]').click({ force: true });
+      await pg.waitForFunction(() => /Int\. 1$/.test(document.getElementById('plz-unit-h')?.textContent || ''));
+      assert.ok(/registrato all’Agenzia delle Entrate il \d{1,2} [a-z]{3} \d{4}/.test(await pg.locator('#plz-panel').innerText()));
+      assert.equal(await pg.locator('#plz-panel [data-plz="rli"]').count(), 0, 'già registrato: niente ✓ RLI');
+      await pg.locator('[data-plz="deselect"]').click();
+    });
+    await check('da sistemare: i contratti in corso senza registrazione segnata', async () => {
+      assert.ok((await pg.locator('.plz-issues').innerText()).includes('2 contratti in corso senza registrazione segnata'));
+    });
+    await check('per il commercialista: il mese e l\'anno in CSV, dallo stesso motore', async () => {
+      await pg.locator('[data-plz="view"][data-v="list"]').click();
+      await pg.waitForSelector('.plz-export');
+      const [dl] = await Promise.all([pg.waitForEvent('download'), pg.locator('[data-plz="csv"][data-span="month"]').click()]);
+      assert.ok(/^BOOM_Viale-Esempio-12_\d{4}-\d{2}\.csv$/.test(dl.suggestedFilename()), dl.suggestedFilename());
+      const csv = readFileSync(await dl.path(), 'utf8');
+      assert.ok(csv.startsWith('﻿Mese;Interno;Piano;Inquilino;'), csv.slice(0, 60));
+      const rows = csv.trim().split('\r\n');
+      assert.equal(rows.length, 1 + 13);
+      assert.ok(rows.some(r => r.includes(';Inquilino 5 Demo;') && r.includes(';Non segnata;')), csv);
+      const [dy] = await Promise.all([pg.waitForEvent('download'), pg.locator('[data-plz="csv"][data-span="year"]').click()]);
+      const ycsv = readFileSync(await dy.path(), 'utf8').trim().split('\r\n');
+      assert.equal(ycsv.length, 1 + 13 * Number(F.month.slice(5, 7)), 'un anno fino al mese corrente, mai oltre');
+      await pg.locator('[data-plz="view"][data-v="3d"]').click();
+      await pg.waitForSelector('.plz-unit');
+    });
+    await check('👁 come la vede la proprietaria: i suoi interni, la sua lingua, nessun tasto dell\'operatore', async () => {
+      await pg.locator('[data-plz="as-owner"][data-owner="owner-demo"]').click();
+      await pg.waitForSelector('.plz-preview');
+      assert.equal(await pg.locator('.plz-issues').count(), 0);
+      assert.equal(await pg.locator('.plz-otools').count(), 0);
+      assert.equal(await pg.locator('.plz-unit[data-id="u13"]').count(), 0, 'un interno non collegato a lei non c\'è, come dal suo accesso');
+      await pg.locator('.plz-unit[data-id="u5"]').evaluate(e => e.scrollIntoView({ block: 'center' }));
+      await pg.locator('.plz-unit[data-id="u5"]').click({ force: true });
+      await pg.waitForSelector('#plz-unit-h');
+      const p = await pg.locator('#plz-panel').innerText();
+      assert.ok(/Registrazione\s*in verifica da BOOM/i.test(p), p);
+      assert.equal(await pg.locator('#plz-panel [data-plz="rent"], #plz-panel .plz-agroup').count(), 0);
+      assert.equal(await pg.locator('#plz-panel [data-plz="inbox"]').count(), 1);
+      await pg.locator('.plz-preview [data-plz="as-owner"]').click();
+      await pg.waitForSelector('.plz-otools');
+      assert.equal(await pg.locator('.plz-preview').count(), 0);
+      assert.equal(await pg.locator('.plz-issues').count(), 1);
+    });
+    await check('invia alla proprietaria: il messaggio pronto col link, WhatsApp ed email', async () => {
+      await pg.locator('[data-plz="share"]').click();
+      await pg.waitForSelector('#plz-share-t');
+      const t = await pg.locator('#plz-share-t').inputValue();
+      assert.ok(t.startsWith('Buongiorno Proprietaria,') && t.includes('https://www.boomrome.com/login?next=%2Fportal%23palazzo') && t.includes('Forgot?'), t);
+      assert.ok((await pg.locator('.plz-share a[href^="https://wa.me/390000009999?text="]').count()) === 1);
+      assert.ok((await pg.locator('.plz-share a[href^="mailto:owner@example.invalid?subject="]').count()) === 1);
+      await pg.locator('[data-plz="share"]').click();
+      assert.equal(await pg.locator('#plz-share-t').count(), 0);
+    });
     await check('andamento: 12 barre, incassato su scaduto, puntualità, scadenze', async () => {
       assert.equal(await pg.locator('.plz-abar').count(), 12);
       const a = await pg.locator('#plz-analytics').innerText();
@@ -450,6 +519,14 @@ try {
       assert.equal(await pg.locator('#plz-panel [data-plz="rent"], #plz-panel [data-plz="edit"], #plz-panel [data-plz="dossier"]').count(), 0);
       assert.equal(await pg.locator('#plz-panel [data-plz="inbox"]').count(), 1);
       assert.ok(!(await pg.locator('#plz-panel').innerText()).includes('Proposta'), 'le proposte restano all\'operatore');
+    });
+    await check('proprietaria: il CSV per il commercialista, nella sua lingua e solo coi suoi interni', async () => {
+      await pg.locator('[data-plz="view"][data-v="simple"]').click();
+      await pg.waitForSelector('.plz-export');
+      const [dl] = await Promise.all([pg.waitForEvent('download'), pg.locator('[data-plz="csv"][data-span="month"]').click()]);
+      const csv = readFileSync(await dl.path(), 'utf8');
+      assert.ok(csv.includes(';Inquilino 5 Demo;') && /;In verifica da BOOM;/.test(csv) && !/Non segnata|Senza rata/.test(csv), csv);
+      assert.ok(!csv.includes('Altro Demo') && !csv.includes('Vecchio Demo'), 'mai un interno che non è suo');
     });
     await check('proprietaria: in Semplice parla la sua lingua (mai "rata non registrata")', async () => {
       await pg.locator('[data-plz="view"][data-v="simple"]').click();

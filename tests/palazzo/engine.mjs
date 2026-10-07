@@ -164,7 +164,13 @@ ok('il proprietario atterra sul suo palazzo', app.includes("(S.profile?.role ===
 ok('voce nel menu per admin e proprietario', (app.match(/goTo\('palazzo'\)"><span class="nav-icon">🏛️<\/span> Il Palazzo/g) || []).length === 2);
 ok('la vista non scrive su Firestore', !/\bdb\.|\.update\(|\.set\(|firestore/.test(view));
 ok('l\'unica scrittura (collega gli interni) è solo admin e chiede conferma', /async function palazzoLinkOwner\(ids, ownerId\) \{\s*if \(!isAdmin\(\)\) return;[\s\S]{0,700}confirm\(/.test(app));
-ok('le azioni admin nella vista sono bloccate per il proprietario', /if \(!admin\) return;\s*\n\s*if \(act === 'rent'/.test(view));
+{
+  const gate = view.indexOf('if (!admin) return;');
+  const at = a => view.indexOf("if (act === '" + a + "'", view.indexOf('function onClick('));
+  ok('le azioni admin nella vista sono bloccate per il proprietario (tutte dopo il cancello)', gate > 0 &&
+    ['rent', 'contract', 'dossier', 'edit', 'paylink', 'pdf', 'firma', 'rli', 'aspi', 'fiscale', 'arpe'].every(a => at(a) > gate));
+  ok('il CSV e "Scrivi a BOOM" restano alla proprietaria (prima del cancello)', at('csv') > 0 && at('csv') < gate && at('inbox') < gate);
+}
 
 
 // ── 9. L'aspetto del palazzo: solo ciò che qualcuno ha dichiarato ─────
@@ -201,6 +207,33 @@ ok('i default neutri sono quelli del foglio di stile', css.includes('var(--wall,
 ok('il salvataggio dell\'aspetto è solo admin, con conferma e campi in lista bianca', /async function palazzoSaveLook\(ids, fields\) \{\s*if \(!isAdmin\(\)\) return false;\s*const allowed = \['palazzoIntonaco', 'palazzoPersiane', 'palazzoNome', 'ultimoPiano'\];[\s\S]{0,1200}confirm\(/.test(app));
 ok('la vista non salva un campo che l\'admin non ha toccato', /function lookChanges\(m\)/.test(view) && /validateLook\(lookChanges\(last\.m\), last\.m\)/.test(view));
 ok('il libero ha le persiane chiuse, sempre (anche in mezzo a un\'animazione)', /\.plz-win\[data-state="vacant"\] \.plz-shut,[^{]*\{transform:none!important\}/.test(css));
+
+// ── 10. La carta del contratto e il foglio per il commercialista ───────
+const paper = id => m.units.find(u => u.id === id).paper;
+eq('registrato: la data che BOOM ha segnato', paper('u1').registration, { status: 'registered', at: F.M(-14) + '-20', late: false });
+ok('mai segnata e decorrenza di 14 mesi fa: ritardo certo', paper('u5').registration.status === 'todo' && paper('u5').registration.late);
+eq('inviato ad ASPI: in registrazione, con la data dell\'invio', [paper('u8').registration.status, paper('u8').registration.at], ['sent', F.M(-13) + '-02']);
+ok('decorrenza di oggi: nessun ritardo (il termine non è passato)', !P.paperOf({ startDate: F.today }, F.today).registration.late);
+eq('cedolare: sì, no, e non dichiarata resta null (mai il "sì" di default del PDF)', [paper('u1').cedolare, paper('u6').cedolare, paper('u12').cedolare], [true, false, null]);
+eq('cedolareDeclared: anche canone.cedolareSecca e "Sì"; ciò che non si legge resta null',
+  [P.cedolareDeclared({ canone: { cedolareSecca: true } }), P.cedolareDeclared({ cedolareSecca: 'Sì' }), P.cedolareDeclared({ cedolareSecca: 'forse' }), P.cedolareDeclared({})], [true, true, null, null]);
+{
+  const un = (m.issues.find(i => i.code === 'unregistered') || { ids: [] }).ids.slice().sort();
+  eq('Da sistemare: i contratti IN CORSO senza registrazione segnata oltre 30 giorni (mai un futuro, mai uno registrato)', un, ['u5', 'u8']);
+}
+{
+  const rows = P.csvRows(m), byInt = Object.fromEntries(rows.map(r => [r[1], r]));
+  eq('CSV: una riga per interno, intestazione fissa', [rows.length, P.CSV_HEAD.length, rows.every(r => r.length === P.CSV_HEAD.length)], [m.units.length, 14, true]);
+  eq('CSV: la riga di un interno pagato, all\'italiana', byInt['1'].slice(2), ['Piano terra', 'Inquilino 1 Demo', 'transitorio', '01/' + F.M(-14).slice(5, 7) + '/' + F.M(-14).slice(0, 4),
+    byInt['1'][6], 'Sì', 'Registrato il 20/' + F.M(-14).slice(5, 7) + '/' + F.M(-14).slice(0, 4), '900,00', '900,00', '900,00', byInt['1'][12], 'Pagato']);
+  ok('CSV: il libero non ha importi (non 0,00)', byInt['2'][10] === '' && byInt['2'][11] === '' && byInt['2'][13] === 'Libero');
+  const sum = rows.reduce((a, r) => a + (r[11] ? Number(r[11].replace(',', '.')) : 0), 0);
+  eq('CSV: la somma dell\'incassato è quella della pagina (un foglio solo, un motore solo)', Math.round(sum * 100) / 100, m.totals.collected);
+  const own = P.csvRows(m, { owner: true }), byO = Object.fromEntries(own.map(r => [r[1], r]));
+  eq('CSV della proprietaria: la sua lingua (mai "Non segnata" né "Senza rata")', [byO['5'][8], byO['8'][13], byInt['5'][8], byInt['8'][13]], ['In verifica da BOOM', 'In verifica da BOOM', 'Non segnata', 'Senza rata']);
+  const csv = P.toCsv([['a;b', 'x"y', 'ok']]);
+  ok('toCsv: BOM, punto e virgola, CRLF, virgolette dove servono', csv.startsWith('\ufeffMese;Interno;') && csv.includes('\r\n"a;b";"x""y";ok\r\n'));
+}
 
 const sw = readFileSync(new URL('../../sw.js', import.meta.url), 'utf8');
 ok('sw.js: motore, vista e foglio del Palazzo viaggiano col portale (network-first)', ['/js/palazzo-engine.js', '/js/palazzo.js', '/css/palazzo.css'].every(f => sw.includes("url.pathname === '" + f + "'")));
