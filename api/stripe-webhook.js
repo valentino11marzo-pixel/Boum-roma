@@ -5,6 +5,7 @@ import { sendPaEmails, shell, para, fine, btn, btn2 } from './preagreement/_noti
 import { sendEmail } from './agent/_lib.js';
 import { maybeAutoConvert } from './preagreement/_auto.js';
 import { tgNotify } from './pfs/_health.js';
+import { ensurePfsKickoff, firstReviewDueAt } from './pfs/_kickoff.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -1168,6 +1169,15 @@ export default async function handler(req, res) {
   const portalToken = crypto.randomBytes(24).toString('hex');
   const portalCode = genPortalCode();
   const now = new Date().toISOString();
+  // Stripe's checkout.session.completed event time is the payment anchor.
+  // Delivery can be delayed; processing time would silently move the 48h goal.
+  const eventSeconds = Number(event.created);
+  const eventMs = eventSeconds * 1000;
+  const paidAt = eventSeconds > 0 && Number.isFinite(eventMs) && Number.isFinite(new Date(eventMs).getTime())
+    ? new Date(eventMs).toISOString() : now;
+  // Default-off rollout: only newly paid clients created while enabled enter
+  // the reviewed PFS flow. Existing clients keep their current radar behavior.
+  const reviewedKickoff = process.env.PFS_KICKOFF_V1 === '1';
 
   const doc = {
     service: 'PFS',
@@ -1196,8 +1206,14 @@ export default async function handler(req, res) {
     amount_paid: session.amount_total,
     currency: session.currency,
     portal_token: portalToken,
-    paid_at: now,
+    paid_at: paidAt,
     created_at: now,
+    ...(reviewedKickoff ? {
+      reviewRequired: true,
+      pfsKickoffStatus: 'pending',
+      firstShortlistDueAt: firstReviewDueAt(paidAt), // internal target, not customer copy
+      casafariAlertStatus: 'needs_setup',
+    } : {}),
   };
 
   try { await writePfsClient(docId, doc); }
@@ -1206,6 +1222,10 @@ export default async function handler(req, res) {
       // Retry di Stripe: cliente già creato al primo giro con il SUO codice
       // portale (quello nelle email già inviate). Non rigenerare nulla,
       // non rimandare email.
+      try {
+        const existing = await readDoc('pfsClients/' + docId);
+        if (existing?.pfsKickoffStatus === 'pending') await ensurePfsKickoff(existing);
+      } catch (kickoffErr) { console.error('[pfs/kickoff] retry:', kickoffErr.message); }
       return res.status(200).json({ received: true, duplicate: true, pfsClientId: docId });
     }
     // Scrittura fallita: niente email con un codice mai persistito.
@@ -1273,6 +1293,13 @@ export default async function handler(req, res) {
       portal_link: portalLink,
     });
   } catch (err) { console.error('Admin EmailJS error:', err); }
+
+  // Paid-client record is the durable retry queue. Do this only after the
+  // existing confirmation emails, so a slow kickoff cannot suppress them.
+  if (reviewedKickoff) {
+    try { await ensurePfsKickoff({ ...doc, id: docId }); }
+    catch (kickoffErr) { console.error('[pfs/kickoff] immediate:', kickoffErr.message); }
+  }
 
   return res.status(200).json({ received: true, pfsClientId: docId });
 }

@@ -9,7 +9,8 @@
 //   2. agency policy: advertiser 'agency' is stored (for analytics) but
 //      NEVER pushed to client decks — BOOM only proposes private listings
 //   3. score against every active pfsClients doc (api/homie/_match.js)
-//   4. push score ≥ threshold into client.portalProperties (swipe deck)
+//   4. push score ≥ threshold for historic clients; reviewRequired clients
+//      stay internal in matchSummary.pendingReview until an operator acts
 //   5. persist a matchSummary on the property doc so the command center
 //      can render per-client scores without re-scoring client-side
 
@@ -25,6 +26,13 @@ export const ACTIVE_STAGES = new Set([
   'payment_confirmed', 'searching', 'options', 'viewing', 'closing',
 ]);
 
+export function isActivePfsClient(c) {
+  if (!c) return false;
+  const stage = c.stage || c.portalStage;
+  if (!stage) return c.portalEnabled === true; // legacy clients pre-stage
+  return ACTIVE_STAGES.has(stage);
+}
+
 export function stableIdFromUrl(url) {
   return 'h_' + crypto.createHash('sha1').update(url).digest('hex').slice(0, 16);
 }
@@ -38,11 +46,7 @@ export function sanitizeImages(imgs) {
 
 export async function listActiveClients() {
   const all = await fsList('pfsClients', { limit: 200 });
-  return all.filter(c => {
-    const stage = c.stage || c.portalStage;
-    if (!stage) return c.portalEnabled === true; // legacy clients pre-stage
-    return ACTIVE_STAGES.has(stage);
-  });
+  return all.filter(isActivePfsClient);
 }
 
 // raw: { sourceUrl*, source*, price*, title?, address?, zone?, bedrooms?,
@@ -77,7 +81,9 @@ export async function ingestProperty(raw, opts = {}) {
     try {
       const existing = await fsGet('pfsProperties/' + stableId);
       const seen = existing && (existing.lastSeenAt || existing.scrapedAt);
-      if (seen && (now - new Date(seen)) < skipFreshHours * 3600 * 1000) {
+      // A failed match-summary write must be retried on the next alert;
+      // otherwise a reviewed candidate could disappear for twelve hours.
+      if (seen && existing.matchSummary && (now - new Date(seen)) < skipFreshHours * 3600 * 1000) {
         // Un prezzo cambiato dentro la finestra di freschezza non è "niente
         // di nuovo": si aggiorna il doc (prima restava stantio) e, se è un
         // RIBASSO, il radar lo tratta come notizia (fiuto + vedette).
@@ -124,10 +130,13 @@ export async function ingestProperty(raw, opts = {}) {
     ingestedBy,
   };
 
+  let masterWriteError = null;
   try { await fsPatch('pfsProperties/' + stableId, property); }
   catch (err) {
     console.error('[pfs/_ingest] master write failed:', err.message);
-    // Continue — we can still push to clients even if the master write hiccupped
+    masterWriteError = err;
+    // Legacy client delivery remains best-effort, but a reviewed match has
+    // no safe internal record until this write succeeds.
   }
 
   // IL PERITO: ogni annuncio visto da QUALSIASI porta alimenta anche il
@@ -160,6 +169,7 @@ export async function ingestProperty(raw, opts = {}) {
 
   const threshold = Number.isFinite(opts.threshold) ? opts.threshold : DEFAULT_THRESHOLD;
   const pushedTo = [];
+  const pendingReview = [];
   const skippedExisting = [];
   const belowThreshold = [];
 
@@ -178,6 +188,17 @@ export async function ingestProperty(raw, opts = {}) {
       ? radar.clusterIds : null;
     if (existing.some(p => p && (p.id === stableId || (clusterMates && clusterMates.includes(p.id))))) {
       skippedExisting.push({ clientId: client.id, name: client.name || null, score });
+      continue;
+    }
+
+    if (client.reviewRequired === true) {
+      if (masterWriteError) {
+        errors.push({ clientId: client.id, error: 'master_write_failed' });
+      } else {
+        // Only an operator's explicit proposal can write portalProperties.
+        // A score is a candidate for review, not proof of availability.
+        pendingReview.push({ clientId: client.id, name: client.name || null, score, reasons });
+      }
       continue;
     }
 
@@ -221,19 +242,26 @@ export async function ingestProperty(raw, opts = {}) {
   }
 
   // ── 4. Match summary on the property doc (command center) ─
+  let summaryWriteError = null;
   try {
     await fsPatch('pfsProperties/' + stableId, {
       matchSummary: {
         at: now.toISOString(),
         threshold,
         pushedTo: pushedTo.map(p => ({ clientId: p.clientId, name: p.name, score: p.score })),
+        pendingReview: pendingReview.map(p => ({ clientId: p.clientId, name: p.name, score: p.score, reasons: p.reasons })),
         alreadyHad: skippedExisting.map(p => ({ clientId: p.clientId, name: p.name, score: p.score })),
         belowThreshold: belowThreshold.slice(0, 20).map(p => ({ clientId: p.clientId, name: p.name, score: p.score, reasons: p.reasons })),
       },
     });
   } catch (err) {
     console.warn('[pfs/_ingest] matchSummary write failed:', err.message);
+    summaryWriteError = err;
   }
+
+  // The radar must report a failed internal candidate write as a failure,
+  // never as "ingested, zero matches". Existing legacy pushes remain intact.
+  if (pendingReview.length && summaryWriteError) errors.push({ step: 'pending_review', error: 'match_summary_write_failed' });
 
   // ── 5. "Qualcosa di pronto" → Telegram ───────────────────
   // Fires only when at least one client actually received the property —
@@ -264,15 +292,19 @@ export async function ingestProperty(raw, opts = {}) {
     source: property.source,
     advertiser,
     pushedCount: pushedTo.length,
+    pendingReviewCount: pendingReview.length,
     skippedCount: skippedExisting.length,
     belowThresholdCount: belowThreshold.length,
     totalActive: clients.length,
   }, ingestedBy);
 
+  const criticalError = errors.find(e => e.error === 'master_write_failed' || e.error === 'match_summary_write_failed');
   return {
-    ok: true,
+    ok: !criticalError,
+    ...(criticalError ? { error: criticalError.error } : {}),
     propertyId: stableId,
     pushedTo,
+    pendingReview,
     skipped: skippedExisting,
     belowThreshold,
     errors,

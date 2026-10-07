@@ -12,7 +12,8 @@
 // Headers:  Content-Type: application/json
 //           Authorization: Bearer <firebase-id-token>
 // Body:     {
-//   dryRun?:     boolean   // default true. false = actually push matches.
+//   dryRun?:     boolean   // default true. false = push historic clients;
+//                          // reviewed clients remain internal candidates.
 //   sourceUrl?:  string    // optional in dryRun; required to actually push
 //   source?:     string    // default 'manual'
 //   price:       number    // required, €/month
@@ -22,7 +23,8 @@
 //
 // Response 200 (dryRun): { ok, dryRun:true, propertyId, threshold,
 //                          totalActiveClients, results: [...all scored, sorted] }
-// Response 200 (push):   { ok, dryRun:false, propertyId, pushedTo, skipped,
+// Response 200 (push):   { ok, dryRun:false, propertyId, pushedTo,
+//                          pendingReview, skipped,
 //                          errors, allScores, ... }
 // Response 401/403:      auth/role failure
 // ─────────────────────────────────────────────────────────────────────────
@@ -143,6 +145,7 @@ export default async function handler(req, res) {
     const { score, reasons, reject } = scoreMatch(property, c);
     const alreadyHasIt = Array.isArray(c.portalProperties)
       && c.portalProperties.some(p => p && p.id === stableId);
+    const eligible = !reject && score >= threshold && !alreadyHasIt;
     return {
       clientId: c.id,
       name: c.name || null,
@@ -158,7 +161,8 @@ export default async function handler(req, res) {
       score,
       reasons,
       reject: reject || null,
-      wouldPush: !reject && score >= threshold && !alreadyHasIt,
+      wouldPush: eligible && c.reviewRequired !== true,
+      pendingReview: eligible && c.reviewRequired === true,
       alreadyHasIt,
     };
   });
@@ -179,8 +183,10 @@ export default async function handler(req, res) {
   // ── Live push (same flow as homie/property.js) ───────────
   const now = new Date();
   const pushedTo = [];
+  const pendingReview = [];
   const skipped = [];
   const errors = [];
+  let masterSaved = true;
 
   // 1. Master record
   try {
@@ -192,11 +198,17 @@ export default async function handler(req, res) {
     });
   } catch (err) {
     console.error('[admin/match-test] master write failed:', err.message);
+    masterSaved = false;
   }
 
   // 2. Push to matched clients
   for (const r of allScores) {
     if (r.alreadyHasIt) { skipped.push({ clientId: r.clientId, name: r.name, score: r.score }); continue; }
+    if (r.pendingReview) {
+      if (masterSaved) pendingReview.push({ clientId: r.clientId, name: r.name, score: r.score, reasons: r.reasons });
+      else errors.push({ clientId: r.clientId, error: 'master_write_failed' });
+      continue;
+    }
     if (!r.wouldPush) continue;
 
     const client = clients.find(c => c.id === r.clientId);
@@ -237,23 +249,38 @@ export default async function handler(req, res) {
     }
   }
 
+  if (pendingReview.length) try {
+    const saved = await fsGet('pfsProperties/' + stableId);
+    const prev = saved?.matchSummary || {};
+    const pendingIds = new Set(pendingReview.map(r => r.clientId));
+    await fsPatch('pfsProperties/' + stableId, { matchSummary: {
+      ...prev, at: now.toISOString(), threshold,
+      pendingReview: (Array.isArray(prev.pendingReview) ? prev.pendingReview : [])
+        .filter(r => !pendingIds.has(r.clientId)).concat(pendingReview),
+    } });
+  } catch (err) { errors.push({ step: 'pending_review', error: 'match_summary_write_failed' }); }
+
   await logActivity('admin_match_test', 'pfs_bridge', {
     sourceUrl,
     price,
     propertyId: stableId,
     pushedCount: pushedTo.length,
+    pendingReviewCount: pendingReview.length,
     skippedCount: skipped.length,
     totalActive: clients.length,
     admin: profile.id,
   }, 'admin');
 
-  return res.status(200).json({
-    ok: true,
+  const criticalError = errors.find(e => e.error === 'master_write_failed' || e.error === 'match_summary_write_failed');
+  return res.status(criticalError ? 500 : 200).json({
+    ok: !criticalError,
+    ...(criticalError ? { error: criticalError.error } : {}),
     dryRun: false,
     propertyId: stableId,
     threshold,
     totalActiveClients: clients.length,
     pushedTo,
+    pendingReview,
     skipped,
     errors,
     allScores,

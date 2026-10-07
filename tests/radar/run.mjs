@@ -199,6 +199,15 @@ console.log('\n── A. Il motore ───────────────
 console.log('\n── B. Le giunzioni (asserite sulla sorgente) ─────────────────');
 {
   const src = p => readFileSync(join(root, p), 'utf8');
+  const { compactProperty, briefStats } = await import('../../api/pfs/brief.js');
+  const onlyPending = { title: 'Annuncio in verifica', advertiser: 'private',
+    matchSummary: { pushedTo: [], pendingReview: [{ name: 'Cliente nuovo', score: 81 }] } };
+  ok('brief: candidato interno conta come match, ma non come proposta già nel portale',
+    briefStats([onlyPending], [{}]).conMatch === 1
+      && briefStats([onlyPending], [{}]).giaNelPortale === 0
+      && briefStats([onlyPending], [{}]).candidatiDaRivedere === 1);
+  ok('brief: il candidato porta nome e score nella sezione da rivedere',
+    compactProperty(onlyPending).candidatiDaRivedere[0] === 'Cliente nuovo:81');
   const ingest = src('api/pfs/_ingest.js');
   const iMaster = ingest.indexOf("fsPatch('pfsProperties/' + stableId, property)");
   const iLedger = ingest.indexOf('recordObservation(stableId, property)');
@@ -216,7 +225,8 @@ console.log('\n── B. Le giunzioni (asserite sulla sorgente) ─────�
   ok('scan-market: passa la zona PULITA della ricerca', scanMarket.includes('zone: search.zoneName || null'));
 
   const sync = src('api/pfs/sync-searches.js');
-  ok('sync-searches: scrive la zona pulita sul doc ricerca', sync.includes('zoneName: s.zone || null'));
+  const kickoff = src('api/pfs/_kickoff.js');
+  ok('sync-searches: scrive la zona pulita sul doc ricerca', kickoff.includes('zoneName: s.zone || null'));
   ok('sync-searches: il battito che mancava ora esiste', sync.includes("reportHealth('sync'"));
 
   const eyes = src('api/homie/market.js');
@@ -313,9 +323,12 @@ const toDoc = (path, data) => ({ name: `projects/p/databases/(default)/documents
 
 let autoId = 0;
 let breakRadarIO = false;   // fase "radar rotto": le sue letture/scritture esplodono
+let failMatchSummaryWrites = false;
+const htmlPages = new Map();
 globalThis.fetch = async (url, opts = {}) => {
   const u = String(url);
   const json = (o, status = 200) => ({ ok: status < 400, status, json: async () => o, text: async () => JSON.stringify(o) });
+  if (htmlPages.has(u)) return { ok: true, status: 200, text: async () => htmlPages.get(u) };
   if (u.includes('identitytoolkit')) return json({ idToken: 'fake', localId: 'admin' });
   if (u.includes('api.telegram.org')) return json({ ok: true });
   if (breakRadarIO && /radarState|radarWatchers|marketStats/.test(u)) throw new Error('radar_io_down');
@@ -333,6 +346,9 @@ globalThis.fetch = async (url, opts = {}) => {
     return json(rows.map(([k, v]) => ({ document: toDoc(k, v) })));
   }
   if (opts.method === 'PATCH') {
+    if (failMatchSummaryWrites && path.startsWith('pfsProperties/') && body.fields?.matchSummary) {
+      return json({ error: 'transient summary failure' }, 503);
+    }
     const prev = DB.get(path) || {};
     const next = { ...prev, ...Object.fromEntries(Object.entries(body.fields || {}).map(([k, v]) => [k, dec(v)])) };
     DB.set(path, next);
@@ -511,6 +527,85 @@ const idA = stableIdFromUrl(urlA), idB = stableIdFromUrl(urlB), idC = stableIdFr
     r.ok === true && r.pushedTo.length === 1, r);
   breakRadarIO = false;
   _resetTapCaches();
+}
+
+// ── 8. Nuovi clienti: un match resta interno finché Valentino lo verifica ──
+{
+  DB.set('pfsClients/cl_review', {
+    name: 'Cliente nuovo', stage: 'searching', portalEnabled: true,
+    reviewRequired: true, budget: 1500, portalProperties: [], portalActivity: [],
+  });
+  const sourceUrl = 'https://www.immobiliare.it/annunci/review-1001/';
+  const propertyId = stableIdFromUrl(sourceUrl);
+  const r = await ingestProperty({
+    sourceUrl, source: 'immobiliare', price: 1100, sqm: 65, bedrooms: 2,
+    title: 'Bilocale via Tor de Schiavi 37', zone: 'Centocelle', advertiser: 'private',
+  }, { ingestedBy: 'test' });
+  const summary = DB.get('pfsProperties/' + propertyId)?.matchSummary;
+  ok('reviewRequired: match nel feed interno, mai nel mazzo automatico',
+    r.ok && r.pendingReview.some(m => m.clientId === 'cl_review')
+      && DB.get('pfsClients/cl_review').portalProperties.length === 0,
+    r);
+  ok('reviewRequired: matchSummary conserva il candidato rivedibile',
+    summary?.pendingReview?.some(m => m.clientId === 'cl_review') === true, summary);
+  ok('cliente storico: lo stesso annuncio continua ad arrivare nel mazzo',
+    r.pushedTo.some(m => m.clientId === 'cl1')
+      && DB.get('pfsClients/cl1').portalProperties.some(p => p.id === propertyId), r);
+}
+
+// ── 9. Un candidato interno non si perde se il summary fallisce ───────────
+{
+  const sourceUrl = 'https://www.idealista.it/immobile/review-retry-1002/';
+  const propertyId = stableIdFromUrl(sourceUrl);
+  const raw = {
+    sourceUrl, source: 'idealista', price: 1150, sqm: 66, bedrooms: 2,
+    title: 'Bilocale via dei Castani 91', zone: 'Centocelle', advertiser: 'private',
+  };
+  failMatchSummaryWrites = true;
+  const failed = await ingestProperty(raw, { ingestedBy: 'test', skipFreshHours: 12 });
+  failMatchSummaryWrites = false;
+  ok('summary rotto: ingest segnala fallimento, non spaccia un candidato per salvato',
+    failed.ok === false && failed.error === 'match_summary_write_failed'
+      && DB.get('pfsClients/cl_review').portalProperties.length === 0, failed);
+  const retried = await ingestProperty(raw, { ingestedBy: 'test', skipFreshHours: 12 });
+  ok('retry entro 12h: candidato ricalcolato e salvato per la revisione',
+    retried.ok === true && !retried.skippedFresh
+      && DB.get('pfsProperties/' + propertyId)?.matchSummary?.pendingReview?.some(m => m.clientId === 'cl_review'), retried);
+}
+
+// ── 10. Annuncio visto prima del checkout, poi scoperto dalla nuova ricerca ─
+{
+  const sourceUrl = 'https://www.immobiliare.it/annunci/777777/';
+  const searchUrl = 'https://www.immobiliare.it/affitto-case/roma/prati/da-privati/';
+  const propertyId = stableIdFromUrl(sourceUrl);
+  await ingestProperty({
+    sourceUrl, source: 'immobiliare', price: 1100, sqm: 60, bedrooms: 2,
+    title: 'Bilocale via Flaminia 88', zone: 'Prati', advertiser: 'private',
+  }, { ingestedBy: 'test' });
+  DB.set('pfsClients/cl_after_checkout', {
+    name: 'Nuovo pagamento', stage: 'searching', reviewRequired: true,
+    preferred_areas: 'Prati', budget: 1500, portalEnabled: true,
+    portalProperties: [], portalActivity: [],
+  });
+  DB.set('radarSearches/new_client_search', {
+    auto: true, enabled: true, clientId: 'cl_after_checkout', portal: 'immobiliare',
+    searchUrl, zoneName: 'Prati', knownListings: {},
+  });
+  htmlPages.set(searchUrl, '<html>' + 'x'.repeat(220) + '<a href="/annunci/777777/">Casa</a></html>');
+  htmlPages.set(sourceUrl, '<html>' + 'x'.repeat(220) +
+    '<script type="application/ld+json">' + JSON.stringify({ '@type': 'Apartment',
+      name: 'Bilocale via Flaminia 88', offers: { price: 1100 }, floorSize: { value: 60 }, numberOfRooms: 2 }) +
+    '</script>"sellerType":"private"</html>');
+  const scanMarket = (await import('../../api/pfs/scan-market.js')).default;
+  const result = await call(scanMarket, 'GET', null, { 'x-homie-secret': 'test-secret' });
+  const summary = DB.get('pfsProperties/' + propertyId)?.matchSummary;
+  ok('prima scansione del nuovo cliente: annuncio globale fresco viene ricalcolato e resta interno',
+    result.status === 200 && result.body?.ingested === 1
+      && summary?.pendingReview?.some(m => m.clientId === 'cl_after_checkout')
+      && DB.get('pfsClients/cl_after_checkout').portalProperties.length === 0,
+    { result: result.body, summary });
+  ok('prima scansione: URL marcato noto solo dopo salvataggio del candidato',
+    !!DB.get('radarSearches/new_client_search')?.knownListings?.[sourceUrl]);
 }
 
 console.log(`\n  ${passed} passati, ${failed} falliti`);

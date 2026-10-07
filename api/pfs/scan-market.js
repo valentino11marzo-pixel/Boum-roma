@@ -105,12 +105,19 @@ export default async function handler(req, res) {
         images: listing.images,
         description: listing.description,
         advertiser,
-      }, { ingestedBy: 'pfs-scan-market', skipFreshHours: 12 });
+      // knownListings already skips repeats for this search. A URL may be
+      // fresh globally but new to a just-paid client's search: re-score it.
+      }, { ingestedBy: 'pfs-scan-market', skipFreshHours: 0 });
       if (r.ok) {
         ingested++;
         newHere++;
         if (r.droppedAgency) droppedAgency++;
         pushedTotal += (r.pushedTo || []).length;
+      } else {
+        // A failed internal review write must be retried next run, rather
+        // than being remembered as a successfully processed URL.
+        delete known[listingUrl];
+        needsAttention.push({ sourceUrl: listingUrl, source: portal, reason: r.error || 'ingest_failed' });
       }
     }
 

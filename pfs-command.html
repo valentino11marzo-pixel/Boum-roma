@@ -1087,6 +1087,17 @@ function scoreClass(s) {
     return n >= 80 ? 'mc-green' : n >= 60 ? 'mc-gold' : 'mc-dim';
 }
 
+function pendingReviewFor(p) {
+    var pending = ((p.matchSummary || {}).pendingReview || []);
+    if (!Array.isArray(pending)) return [];
+    // If the final summary patch after an operator push failed, the client
+    // deck remains the source of truth: never show the card as still pending.
+    return pending.filter(function (m) {
+        var c = state.clientsById[m.clientId];
+        return !c || !(Array.isArray(c.portalProperties) && c.portalProperties.some(function (entry) { return entry.id === p.id; }));
+    });
+}
+
 function visibleProps() {
     var f = state.filters;
     var q = f.q.trim().toLowerCase();
@@ -1096,7 +1107,7 @@ function visibleProps() {
         else if (!f.showAgency && adv === 'agency') return false;
         if (f.source && (p.source || '') !== f.source) return false;
         var ms = p.matchSummary || {};
-        if (f.onlyMatch && !(Array.isArray(ms.pushedTo) && ms.pushedTo.length)) return false;
+        if (f.onlyMatch && !((Array.isArray(ms.pushedTo) && ms.pushedTo.length) || pendingReviewFor(p).length)) return false;
         if (f.onlyDeals && !(p.radar && p.radar.fiuto && p.radar.fiuto.verdict === 'occasione')) return false;
         if (q) {
             var hay = [p.title, p.address, p.zone, p.description].join(' ').toLowerCase();
@@ -1116,6 +1127,7 @@ function feedCard(p) {
     var oj = window.BOOM_OUTREACH ? state.outreachById[BOOM_OUTREACH.outreachKey(p.id)] : null;
     var ms = p.matchSummary || {};
     var pushed = Array.isArray(ms.pushedTo) ? ms.pushedTo : [];
+    var pending = pendingReviewFor(p);
     var had = Array.isArray(ms.alreadyHad) ? ms.alreadyHad : [];
     var below = Array.isArray(ms.belowThreshold) ? ms.belowThreshold : [];
     var o = p.outreach || null;
@@ -1143,9 +1155,11 @@ function feedCard(p) {
 
     var chips = pushed.map(function (m) {
         return '<span class="mchip ' + scoreClass(m.score) + '">' + esc(m.name) + ' ' + esc(m.score) + '</span>';
+    }).concat(pending.map(function (m) {
+        return '<span class="mchip mc-gold" title="Candidato interno: verifica disponibilità e autorizzazione prima di proporre">⌛ ' + esc(m.name || m.clientId) + ' ' + esc(m.score) + ' · da rivedere</span>';
     }).concat(had.map(function (m) {
         return '<span class="mchip mc-had" title="Già nel deck del cliente">' + esc(m.name) + ' ' + esc(m.score) + ' · già</span>';
-    }));
+    })));
     if (below.length) {
         chips.push('<button class="below-toggle" data-action="toggle-below">' + (belowOpen ? '▴' : '▾') + ' Sotto soglia (' + below.length + ')</button>');
     }
@@ -1396,6 +1410,13 @@ function renderDrawer() {
     var deck = (Array.isArray(c.portalProperties) ? c.portalProperties : []).slice().reverse().slice(0, 40);
     var acts = (Array.isArray(c.portalActivity) ? c.portalActivity : []).slice(-12).reverse();
     var phone = waPhone(c.phone);
+    var pendingForClient = c.reviewRequired === true ? state.properties.filter(function (p) {
+        return pendingReviewFor(p).some(function (m) { return m.clientId === c.id; });
+    }).slice(0, 20) : [];
+    var due = toDate(c.firstShortlistDueAt);
+    var dueText = due ? new Intl.DateTimeFormat('it-IT', {
+        timeZone: 'Europe/Rome', dateStyle: 'short', timeStyle: 'short'
+    }).format(due) : '—';
 
     box.innerHTML =
         '<div class="d-head">' +
@@ -1449,6 +1470,20 @@ function renderDrawer() {
                 '</div>';
             }).join('') : '<div class="dd-meta" style="color:var(--text-muted)">Nessuna ricerca: si generano dai criteri al prossimo sync.</div>') +
         '</div>' +
+        (c.reviewRequired === true ? '<div class="d-sec"><h4>Prima shortlist · revisione interna</h4>' +
+            '<div class="dd-meta">Scadenza interna: ' + esc(dueText) + ' · ricerche BOOM: ' +
+                esc(c.pfsKickoffStatus || 'in attesa') + ' · alert Casafari: ' +
+                esc(c.casafariAlertStatus === 'needs_setup' ? 'da impostare nell’account' : (c.casafariAlertStatus || 'da verificare')) +
+                '. Copiare i criteri non attiva l’alert.</div>' +
+            (c.pfsKickoffError ? '<div class="dd-meta" style="color:var(--amber)">⚠ ' + esc(c.pfsKickoffError) + '</div>' : '') +
+            (pendingForClient.length ? pendingForClient.map(function (p) {
+                return '<div class="d-deck-row"><div class="dd-main"><div class="dd-title">⌛ ' +
+                    esc(p.title || p.address || p.sourceUrl || p.id) + '</div><div class="dd-meta">Candidato da verificare · €' +
+                    fmtPrice(p.price) + '/mese</div></div>' +
+                    (safeUrl(p.sourceUrl) ? '<a class="abtn" href="' + esc(safeUrl(p.sourceUrl)) + '" target="_blank" rel="noopener">Apri ↗</a>' : '') +
+                    '</div>';
+            }).join('') : '<div class="dd-meta">Nessun candidato interno nel feed recente. Controlla fonti e criteri.</div>') +
+        '</div>' : '') +
         '<div class="d-sec"><h4>Mazzo (' + s.total + ') · ❤️ ' + s.liked + ' · ✗ ' + s.rejected + (s.view ? ' · 📅 ' + s.view : '') + '</h4>' +
             (deck.length ? deck.map(function (p) {
                 var flags = (p.viewingRequested ? '📅' : '') + (p.clientLiked ? '❤️' : '') + (p.clientRejected ? '✗' : '') + (p.isNew ? '🆕' : '');
@@ -1459,7 +1494,9 @@ function renderDrawer() {
                     (safeUrl(p.sourceUrl) ? '<a class="abtn" href="' + esc(safeUrl(p.sourceUrl)) + '" target="_blank" rel="noopener">↗</a>' : '') +
                     '<button class="dd-x" data-daction="deck-remove" data-pid="' + esc(p.id) + '" title="Togli dal mazzo">🗑</button>' +
                 '</div>';
-            }).join('') : '<div class="dd-meta" style="color:var(--text-muted)">Mazzo vuoto: il radar spinge i match ≥60, oppure proponi tu dal feed («→ Proponi a…»).</div>') +
+            }).join('') : '<div class="dd-meta" style="color:var(--text-muted)">' +
+                (c.reviewRequired === true ? 'Mazzo vuoto: i candidati del radar restano interni finché non li proponi tu dal feed.' :
+                    'Mazzo vuoto: il radar spinge i match ≥60, oppure proponi tu dal feed («→ Proponi a…»).') + '</div>') +
         '</div>' +
         '<div class="d-sec"><h4>Attività recente</h4>' +
             (acts.length ? acts.map(function (a) {
@@ -1586,11 +1623,12 @@ function saveClientModal() {
 function pushToClient(prop, clientId, selEl) {
     var client = state.clientsById[clientId];
     if (!client || !prop) { if (selEl) selEl.value = ''; return; }
-    var doIt = function () {
+    var submit = function () {
         if (selEl) selEl.disabled = true;
         apiPost('/api/casafari/import', {
             clientId: clientId,
             force: true,
+            reviewConfirmed: client.reviewRequired === true,
             listing: {
                 sourceUrl: prop.sourceUrl, source: prop.source, price: prop.price,
                 title: prop.title, address: prop.address, zone: prop.zone,
@@ -1608,6 +1646,13 @@ function pushToClient(prop, clientId, selEl) {
         }).then(function () {
             if (selEl) { selEl.disabled = false; selEl.value = ''; }
         });
+    };
+    var doIt = function () {
+        if (client.reviewRequired !== true) { submit(); return; }
+        BoomPortal.confirm('Prima di proporre a ' + (client.name || 'questo cliente') +
+            ': hai verificato disponibilità attuale, fonte e permesso di condividere l’annuncio? ' +
+            'La conferma registra la tua scelta, non certifica queste verifiche. Proporre ora?')
+            .then(function (yes) { if (yes) submit(); else if (selEl) selEl.value = ''; });
     };
     if (prop.advertiser === 'agency') {
         BoomPortal.confirm('È un annuncio di AGENZIA (doppia commissione per il cliente). Proporlo comunque?', { danger: true })
@@ -2005,7 +2050,7 @@ function updateBrief() {
         if (!d || d.getTime() < t0) return;
         newToday++;
         var ms = p.matchSummary || {};
-        if (Array.isArray(ms.pushedTo) && ms.pushedTo.length) matchToday++;
+        if ((Array.isArray(ms.pushedTo) && ms.pushedTo.length) || pendingReviewFor(p).length) matchToday++;
     });
     var likes = 0;
     state.clients.forEach(function (c) {
@@ -2548,7 +2593,7 @@ function renderDryResults(results) {
     }
     var rows = results.slice().sort(function (a, b) { return (b.score || 0) - (a.score || 0); }).map(function (r) {
         var sc = (Number(r.score) || 0) >= 80 ? 'sc-green' : (Number(r.score) || 0) >= 60 ? 'sc-gold' : 'sc-dim';
-        var push = r.wouldPush ? '<span class="sc-green">✓ push</span>' : (r.alreadyHasIt ? '<span class="sc-dim">già nel deck</span>' : '<span class="sc-dim">—</span>');
+        var push = r.pendingReview ? '<span class="sc-gold">⌛ revisione</span>' : (r.wouldPush ? '<span class="sc-green">✓ push</span>' : (r.alreadyHasIt ? '<span class="sc-dim">già nel deck</span>' : '<span class="sc-dim">—</span>'));
         var reasons = Array.isArray(r.reasons) ? r.reasons.join(' · ') : '';
         return '<tr><td>' + esc(r.name || r.clientId) + '</td><td class="' + sc + '">' + esc(r.score) + '</td><td>' + push + '</td><td class="reasons">' + esc(reasons) + '</td></tr>';
     }).join('');
@@ -2579,7 +2624,9 @@ function doPush() {
         var names = (Array.isArray(r.pushedTo) ? r.pushedTo : []).map(function (x) {
             return typeof x === 'string' ? x : ((x && (x.name || x.clientId)) || '?');
         });
-        BoomPortal.toast(names.length ? 'Annuncio ingerito · push a: ' + names.join(', ') : 'Annuncio ingerito · nessun push (sotto soglia)', { duration: 6000 });
+        var pending = Array.isArray(r.pendingReview) ? r.pendingReview.length : 0;
+        BoomPortal.toast(names.length ? 'Annuncio ingerito · push a: ' + names.join(', ') :
+            (pending ? 'Annuncio ingerito · ' + pending + ' candidat' + (pending === 1 ? 'o' : 'i') + ' da rivedere' : 'Annuncio ingerito · nessun push (sotto soglia)'), { duration: 6000 });
         closeModal();
     }).catch(function (err) {
         BoomPortal.toast('Errore ingest: ' + (err && err.message ? err.message : err), { type: 'error' });
@@ -3157,6 +3204,7 @@ function startListeners() {
         state.loaded.props = true;
         state.live.props = true;
         renderFeed();
+        if (state.drawerClient) renderDrawer();
         updateBrief();
         updateLive();
         // triage aperto: ri-renderizza solo se la card mostrata è sparita

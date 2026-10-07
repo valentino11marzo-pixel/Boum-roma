@@ -4648,25 +4648,32 @@ competitor ha — e il VERDETTO che ne esce decide quale potere costruire.
 
 ## PFS Radar (automated market scan — api/pfs/*)
 
-The PFS pipeline finds rental listings for paying search clients with no
-manual monitoring. One shared ingestion path (`api/pfs/_ingest.js`):
+The PFS pipeline collects rental listings for paying search clients via
+alerts and best-effort scans. One shared ingestion path (`api/pfs/_ingest.js`):
 dedupe → advertiser policy (agency listings stored but NEVER pushed) →
-score every active `pfsClients` doc (`api/homie/_match.js`, both client
-schemas supported) → push into swipe decks → `matchSummary` persisted on
-the `pfsProperties` doc for the command center.
+score active `pfsClients` (`api/homie/_match.js`, both schemas) → push historic
+clients or queue reviewed candidates → `matchSummary` on `pfsProperties`.
 
 | Endpoint (cron) | Schedule | What it does |
 |---|---|---|
 | `/api/pfs/scan-inbox` | */15 min | **Load-bearing source.** Reads Idealista/Immobiliare search-alert emails from the Gmail mailbox over IMAP (imapflow), reconstructs canonical listing URLs from tracking links (`api/pfs/_alertparse.js`), enriches from the detail page when possible, ingests. Stateless: re-scans a 3-day window, dedupe makes reruns no-ops. |
 | `/api/pfs/scan-market` | 2×/hour | Best-effort scraper of the auto-generated searches in `radarSearches` (portals 403 datacenter IPs at will — failures are expected and tracked). |
-| `/api/pfs/sync-searches` | daily | Auto-(re)generates one `radarSearches` doc per active client per portal from their stored criteria (`api/pfs/_searchurls.js`). Manual knobs `enabled`/`urlOverride` are never clobbered. Clients gone inactive → searches disabled. |
+| `/api/pfs/sync-searches` | */5 min; full once/day after 04:00 UTC | Retries only pending paid kickoffs on short runs; the durable daily pass reconciles all active searches and disables inactive ones. Manual `enabled`/`urlOverride` are preserved. |
 | `/api/pfs/brief` | daily 06:00 UTC | AI daily briefing: compacts the last 48h (annunci, match, outreach, feedback clienti, salute fonti) and asks Claude (`claude-opus-4-8`, raw-fetch pattern) for an Italian operational brief. Cron → delivered to Telegram; command-center button → returned as JSON `{ ok, brief, stats }`. |
 
 All three accept POST with Vercel cron secret, `X-Homie-Secret`, or an
 admin Firebase ID token (the command center's "Scansiona ora" buttons) —
-see `api/pfs/_guard.js`. Every run writes a heartbeat to
+see `api/pfs/_guard.js`. Every processing run writes a heartbeat to
 `pfsRadarHealth/<source>`; 3+ consecutive failures → Telegram alert
 (`api/pfs/_health.js`), recovery notified once.
+
+Paid PFS kickoff is default-off (`PFS_KICKOFF_V1=1`): a new client gets exact UTC +48h internal review target, two BOOM searches and deterministic Casafari/shortlist operator tasks; Stripe retry and five-minute sync repair partial writes (`tests/money/run.mjs`).
+For these new `reviewRequired` clients `_ingest.js` saves scored candidates in `matchSummary.pendingReview` and the command center, without automatic `portalProperties` delivery; historic clients keep the existing push (`tests/radar/run.mjs`).
+Manual `casafari/import` release requires an admin/owner token and explicit operator confirmation; this is an attestation, not captured availability or sharing-permission evidence. `casafariAlertStatus: needs_setup` stays pending until a separate verified activation flow exists.
+`scan-market` re-scores a URL new to each search even if seen globally before checkout; blocked portal scans still leave initial stock to manual search. Pending candidates beyond the command center's latest 120 listings have no durable per-client queue yet.
+The brief counts pending matches separately as "da rivedere" (`tests/radar/run.mjs`). The pilot remains blocked on a durable per-client queue, verified Casafari alert setup, and availability/share-permission evidence; the customer email still promises 72h and the 48h goal is internal only.
+The daily full sync still lists up to 200 active clients per pass; before disabling a search for a client outside that page it verifies the client directly. Pagination and exact-deadline escalation remain follow-up work.
+The `pfs-command.html` manual proposal path works with reviewed clients; the Casafari form in `js/portal-app.js` lacks `reviewConfirmed` and will fail closed until its Lotto 4 owner updates that UI.
 
 **BLOCCATA ≠ GUASTA** (`alertDecision()`, esportata + testata). `scan-market`
 aveva accumulato **1145 run falliti di fila** e un allarme ogni 6h per ~3
