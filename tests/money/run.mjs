@@ -15,6 +15,7 @@ process.env.FIREBASE_ADMIN_EMAIL = 'a@b.c';
 process.env.FIREBASE_ADMIN_PASS = 'p';
 process.env.FIREBASE_PROJECT_ID = 'test-proj';
 process.env.EMAILJS_PRIVATE_KEY = 'ek';
+process.env.CRON_SECRET = 'cron-money';
 
 let passed = 0, failed = 0;
 const bad = [];
@@ -24,6 +25,9 @@ const check = (name, cond) => { cond ? passed++ : (failed++, bad.push(name)); co
 const store = new Map();        // 'collection/docId' → plain fields object
 const emails = [];              // template_params delle email inviate
 const queries = [];             // structuredQuery dei runQuery
+let failTaskWrites = 0;
+let failServiceLeadWrites = 0;
+let failEmailJs = 0;
 globalThis.__stripeCalls = [];
 
 const FS = 'firestore.googleapis.com';
@@ -62,6 +66,10 @@ globalThis.fetch = async (url, opts = {}) => {
   url = String(url);
   if (url.includes('identitytoolkit')) return okJson({ idToken: 'tok', users: [{ localId: 'admin1' }] });
   if (url.includes('api.emailjs.com')) {
+    if (failEmailJs > 0) {
+      failEmailJs--;
+      return new Response('temporary email outage', { status: 503 });
+    }
     emails.push(JSON.parse(opts.body).template_params);
     return new Response('OK', { status: 200 });
   }
@@ -86,6 +94,14 @@ globalThis.fetch = async (url, opts = {}) => {
     if (opts.method === 'POST') {
       const docId = qs.get('documentId') || 'auto_' + (store.size + 1);
       const key = clean + '/' + docId;
+      if (key.startsWith('operatorTasks/task_service_') && failTaskWrites > 0) {
+        failTaskWrites--;
+        return new Response('temporary task outage', { status: 503 });
+      }
+      if (key.startsWith('leads/svc_') && failServiceLeadWrites > 0) {
+        failServiceLeadWrites--;
+        return new Response('temporary lead outage', { status: 503 });
+      }
       if (qs.get('documentId') && store.has(key)) return new Response('conflict', { status: 409 });
       const fields = JSON.parse(opts.body).fields || {};
       const flat = {};
@@ -125,7 +141,7 @@ const mkStreamReq = (obj) => ({
 });
 const sessionEvent = (metadata, over = {}) => ({
   type: 'checkout.session.completed',
-  data: { object: { id: over.id || 'cs_live_abc123', amount_total: over.amount_total ?? 8900, currency: 'eur', customer_email: 'c@x.it', payment_intent: 'pi_1', metadata } },
+  data: { object: { id: over.id || 'cs_live_abc123', created: over.created ?? Math.floor(Date.now() / 1000), amount_total: over.amount_total ?? 8900, currency: 'eur', customer_email: 'c@x.it', payment_intent: 'pi_1', metadata } },
 });
 
 // ═══ 1. service-checkout ═══
@@ -183,15 +199,88 @@ const rsv = (await import('../../api/reserve-checkout.js')).default;
 const webhook = (await import('../../api/stripe-webhook.js')).default;
 {
   const ev = sessionEvent({ service: 'SERVICE', kind: 'virtual-viewing', name: 'Ada B', email: 'ada@x.it', phone: '333' });
+  ev.data.object.created = Date.parse('2026-10-06T23:30:00Z') / 1000; // Checkout aperto il 7 a Roma
+  ev.created = Date.parse('2026-10-07T23:30:00Z') / 1000; // pagato l'8 a Roma
   let r = mkRes();
   const emailsBefore = emails.length;
   await webhook(mkStreamReq(ev), r);
-  check('webhook SERVICE: 1° evento → lead scritto', r.code === 200 && [...store.keys()].some(k => k.startsWith('leads/svc_')));
-  check('webhook SERVICE: 1° evento → 2 email (admin+cliente)', emails.length === emailsBefore + 2);
+  const tasks = [...store.entries()].filter(([k]) => k.startsWith('operatorTasks/task_service_'));
+  check('webhook SERVICE: 1° evento → lead e impegno con data del pagamento a Roma',
+    r.code === 200 && [...store.keys()].some(k => k.startsWith('leads/svc_'))
+    && tasks.length === 1 && tasks[0][1].status === 'open' && tasks[0][1].kind === 'auto'
+    && tasks[0][1].source === 'stripe-service' && tasks[0][1].due === '2026-10-08'
+    && tasks[0][1].note.includes('leads/svc_csliveabc123'));
+  check('webhook SERVICE: 1° evento → 2 email, nessuna visita già dichiarata prenotata',
+    emails.length === emailsBefore + 2 && emails.at(-1).subheading === 'BOOM Rome — payment received, next steps');
+
+  r = mkRes();
+  tasks[0][1].status = 'done'; // il retry non deve riaprire un lavoro chiuso dall'operatore
+  ev.created += 3 * 86400; // un secondo evento tardivo non sposta la scadenza
+  await webhook(mkStreamReq(ev), r);
+  check('webhook SERVICE: retry stessa sessione → duplicate, ZERO task e email nuovi',
+    r.body?.duplicate === true && emails.length === emailsBefore + 2
+    && [...store.keys()].filter(k => k.startsWith('operatorTasks/task_service_')).length === 1
+    && tasks[0][1].status === 'done' && tasks[0][1].due === '2026-10-08');
+
+  // Il lead resta `new` per il portale, ma è un caso pagato: il Commerciale
+  // non deve proporre una ricerca casa a chi aspetta la video visita.
+  for (const [key, lead] of store) {
+    if (key.startsWith('leads/svc_')) lead.createdAt = new Date(Date.now() - 3600_000).toISOString();
+  }
+  const commerciale = (await import('../../api/employees/commerciale.js')).default;
+  r = mkRes();
+  await commerciale({ method: 'POST', headers: { authorization: 'Bearer cron-money' }, query: { dry: '1' } }, r);
+  check('commerciale: lead servizio pagato resta in pipeline ma non genera bozza affitto',
+    r.code === 200 && r.body?.counts?.leadsScanned === 1 && r.body.counts.firstReplies === 0
+    && r.body.counts.followups === 0);
+}
+
+// ═══ 4b. SERVICE: errore prima del task e dopo il task → retry sicuro ═══
+{
+  const ev = sessionEvent({ service: 'SERVICE', kind: 'deal-assistance', name: 'Ada B', email: 'ada@x.it' }, { id: 'cs_service_task_retry' });
+  let r = mkRes();
+  const before = emails.length;
+  failTaskWrites = 1;
+  await webhook(mkStreamReq(ev), r);
+  check('webhook SERVICE: task non scritto → 500, nessun lead o email prematuri',
+    r.code === 500 && r.body?.error === 'service_task_write_failed'
+    && !store.has('leads/svc_csservicetaskretry') && emails.length === before);
 
   r = mkRes();
   await webhook(mkStreamReq(ev), r);
-  check('webhook SERVICE: retry stessa sessione → duplicate, ZERO nuove email', r.body?.duplicate === true && emails.length === emailsBefore + 2);
+  check('webhook SERVICE: retry dopo guasto task → task + lead + email una volta',
+    r.code === 200 && store.has('leads/svc_csservicetaskretry')
+    && [...store.values()].some(x => x.source === 'stripe-service' && x.title?.includes('Deal Assistance'))
+    && emails.length === before + 2);
+}
+{
+  const ev = sessionEvent({ service: 'SERVICE', kind: 'virtual-viewing', name: 'Lin', email: 'lin@x.it' }, { id: 'cs_service_lead_retry' });
+  let r = mkRes();
+  const before = emails.length;
+  const tasksBefore = [...store.keys()].filter(k => k.startsWith('operatorTasks/task_service_')).length;
+  failServiceLeadWrites = 1;
+  await webhook(mkStreamReq(ev), r);
+  check('webhook SERVICE: task scritto ma lead giù → 500, nessuna email',
+    r.code === 500 && r.body?.error === 'lead_write_failed' && emails.length === before
+    && [...store.keys()].filter(k => k.startsWith('operatorTasks/task_service_')).length === tasksBefore + 1);
+
+  r = mkRes();
+  await webhook(mkStreamReq(ev), r);
+  check('webhook SERVICE: retry dopo guasto lead → stesso task, lead e email una volta',
+    r.code === 200 && store.has('leads/svc_csserviceleadretry') && emails.length === before + 2
+    && [...store.keys()].filter(k => k.startsWith('operatorTasks/task_service_')).length === tasksBefore + 1);
+}
+{
+  const ev = sessionEvent({ service: 'SERVICE', kind: 'contract-check-express', name: 'Mia', email: 'mia@x.it' }, { id: 'cs_service_email_outage' });
+  const before = emails.length;
+  failEmailJs = 2;
+  const r = mkRes();
+  await webhook(mkStreamReq(ev), r);
+  const task = [...store.values()].find(x => x.source === 'stripe-service' && x.title?.includes('Contract Check Express'));
+  check('webhook SERVICE: EmailJS giù → caso pagato e task aperto restano, nessuna mail dichiarata inviata',
+    r.code === 200 && r.body?.received === true && !('emailSent' in r.body)
+    && store.has('leads/svc_csserviceemailoutage') && task?.status === 'open'
+    && task.note.includes('Verificare conferma al cliente') && emails.length === before);
 }
 
 // ═══ 5. stripe-webhook: idempotenza DEPOSIT ═══

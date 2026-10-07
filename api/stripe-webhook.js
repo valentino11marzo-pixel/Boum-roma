@@ -1,10 +1,12 @@
 import Stripe from 'stripe';
 import crypto from 'node:crypto';
-import { fsList, fsPatch, fsGet, getAdminToken } from './homie/_lib.js';
+import { fsList, fsPatch, fsGet, fsCreate, getAdminToken } from './homie/_lib.js';
 import { sendPaEmails, shell, para, fine, btn, btn2 } from './preagreement/_notify.js';
 import { sendEmail } from './agent/_lib.js';
 import { maybeAutoConvert } from './preagreement/_auto.js';
 import { tgNotify } from './pfs/_health.js';
+import { autoTaskId } from './regista/_tasks.js';
+import { romeDateKey } from './viewings/_avail.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -308,7 +310,7 @@ const SERVICE_META = {
   },
 };
 
-async function handleService(res, session, m) {
+async function handleService(res, session, m, eventCreated) {
   const docId = session.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
   const now = new Date().toISOString();
   const amountEur = (session.amount_total || 0) / 100;
@@ -338,6 +340,37 @@ async function handleService(res, session, m) {
     paid_at: now,
     createdAt: now,
   };
+  // Stripe retries this same event if the operational commitment cannot be
+  // recorded. Create the task FIRST: a failed lead write can then be retried
+  // without either losing the task or sending a premature confirmation.
+  // Hash the full session id instead of truncating it like the legacy lead id.
+  const taskId = autoTaskId('service', crypto.createHash('sha256').update(session.id).digest('hex').slice(0, 24));
+  // The Stripe completion event is the clock for this intake, not when the
+  // buyer opened Checkout. Create-only keeps the first due date unchanged if
+  // another event for the same session arrives later.
+  const eventSeconds = Number(eventCreated || session.created);
+  const intakeDate = Number.isFinite(eventSeconds) && eventSeconds > 0
+    ? new Date(eventSeconds * 1000) : new Date();
+  try {
+    await fsCreate('operatorTasks', {
+      title: `${meta.emoji} Servizio pagato: ${meta.title}${m.name ? ' · ' + m.name : ''}`,
+      note: `Lead leads/svc_${docId}; Stripe ${session.id}; cliente ${email || '—'}; immobile ${m.listing || '—'}. Verificare conferma al cliente, presa in carico e scadenza promessa prima di chiudere.`,
+      due: romeDateKey(intakeDate),
+      dueTime: null,
+      status: 'open',
+      kind: 'auto',
+      source: 'stripe-service',
+      calendarize: false,
+      icalSeq: 0,
+      createdAt: new Date(),
+      createdBy: 'stripe-webhook',
+    }, taskId);
+  } catch (err) {
+    if (!err?.exists) {
+      console.error('Firestore service task write error:', err);
+      return res.status(500).json({ error: 'service_task_write_failed' });
+    }
+  }
   let w = null;
   try { w = await writeDoc('leads', 'svc_' + docId, lead); }
   catch (err) {
@@ -375,7 +408,7 @@ async function handleService(res, session, m) {
     if (email) await sendEmailJS({
       to_email: email,
       heading: it ? `${meta.title} — confermato` : `Your ${meta.title} is confirmed`,
-      subheading: it ? 'BOOM Rome — pagato, in lavorazione' : 'BOOM Rome — paid & scheduled',
+      subheading: it ? 'BOOM Rome — pagamento ricevuto, prossimi passi' : 'BOOM Rome — payment received, next steps',
       name: firstName,
       intro: it
         ? `Pagamento ricevuto — €${amountEur}, via Stripe. Ecco esattamente cosa succede adesso:`
@@ -1145,7 +1178,7 @@ export default async function handler(req, res) {
   }
 
   if (m.service === 'SERVICE') {
-    return handleService(res, session, m);
+    return handleService(res, session, m, event.created);
   }
 
   if (m.service === 'PREAGREEMENT') {

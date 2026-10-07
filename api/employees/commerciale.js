@@ -117,6 +117,10 @@ async function run({ dry }) {
   for (const lead of leads) {
     if (!B.afford(COST_DRAFT)) { timeBoxed = true; break; }
     if (!isNew(lead) || !reachable(lead)) continue;
+    // A bought service is already an operational case, not a rental enquiry.
+    // The Stripe webhook creates its Regista task; this sales persona would
+    // otherwise offer an apartment search to someone awaiting VV/DAS work.
+    if (lead.type === 'service' && lead.paid === true) continue;
     // La Réunion: il Commerciale TACE. Tutto ciò che lo rende bravo — il
     // SYSTEM prompt che descrive il mercato romano, il catalogo `listings`
     // che consulta, il follow-up "stai ancora cercando casa a Roma?" — è

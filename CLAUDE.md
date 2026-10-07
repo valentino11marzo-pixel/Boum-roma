@@ -1055,6 +1055,19 @@ WhatsApp-only. All four pages (`virtual-viewing`, `deal-assistance`,
 (MATERIA ambient, pay-plate + checkout sheet, sticky mobile pay bar,
 JSON-LD Service+Offer+FAQ).
 
+Paid SERVICE checkouts now create a deterministic `operatorTasks` Regista
+commitment before the lead and emails; Firestore failure returns 500 for a
+Stripe retry. The task is due on the completed payment event's Rome day;
+one task survives all retries for the full Stripe session, even if the lead
+write fails.
+The Commerciale skips these paid service leads, which need fulfillment rather
+than a rental enquiry draft. `npm test -- money` exercises both real handlers.
+This is intake, not proof that VV/DAS or any other service has been delivered.
+Release blocker: the existing `SERVICE_META` email rows still promise outcomes
+or times (48h scheduling, utilities started, deposit returned, guarantees,
+2h human reply). Valentino must review each against current delivery capacity
+before rollout; EmailJS failure still needs a durable delivery follow-up.
+
 ### POST `/api/search/save`
 Public save-search endpoint for the apartments discovery page. Body
 `{ email, label?, criteria{q,budgetMax,moveIn,beds,baths,furnished,video,
