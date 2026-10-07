@@ -25724,7 +25724,6 @@ IBAN: ${l.iban || '-'}`;
         const price = parseFloat(g('price'));
         if (!url || !/^https?:\/\//.test(url)) { toast('error', 'Manca il link', 'Incolla l\'URL Casafari dell\'immobile'); return; }
         if (!isFinite(price) || price <= 0) { toast('error', 'Manca il canone', 'Inserisci il prezzo mensile'); return; }
-        if (c.reviewRequired === true && !confirm('Hai verificato disponibilità attuale, fonte e permesso di condividere questo annuncio con il cliente? La conferma registra la tua scelta. Proporre ora?')) return;
         const images = g('images').split(/[\s,]+/).filter(s => /^https?:\/\//.test(s)).slice(0, 20);
         const listing = {
             url, price,
@@ -25741,7 +25740,7 @@ IBAN: ${l.iban || '-'}`;
             const r = await fetch('/api/casafari/import', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + idToken },
-                body: JSON.stringify({ clientId: id, listing, reviewConfirmed: c.reviewRequired === true }),
+                body: JSON.stringify({ clientId: id, listing }),
             });
             const data = await r.json().catch(() => ({}));
             if (!r.ok || !data.ok) { toast('error', 'Import fallito', (data && data.error) || ('HTTP ' + r.status)); return; }
