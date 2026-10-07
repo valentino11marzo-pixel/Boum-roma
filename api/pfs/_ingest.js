@@ -53,7 +53,8 @@ export async function listActiveClients() {
 // raw: { sourceUrl*, source*, price*, title?, address?, zone?, bedrooms?,
 //        sqm?, bathrooms?, furnished?, images?, description?, contactEmail?,
 //        contactPhone?, scrapedAt?, advertiser? ('private'|'agency'|'unknown') }
-// opts: { threshold?, ingestedBy?, addedBy?, skipFreshHours? }
+// opts: { threshold?, ingestedBy?, addedBy?, skipFreshHours?,
+//         activeClients?, activeClientsSnapshotAt? }
 //
 // Returns { ok, propertyId, skippedFresh?, droppedAgency?, pushedTo,
 //           skipped, belowThreshold, errors, totalActiveClients }
@@ -73,6 +74,12 @@ export async function ingestProperty(raw, opts = {}) {
   const ingestedBy = opts.ingestedBy || 'pfs-ingest';
   const advertiser = ['private', 'agency', 'unknown'].includes(raw.advertiser)
     ? raw.advertiser : 'unknown';
+  // scan-inbox scores many emails against one client snapshot. Its epoch is
+  // captured before the list query, so a checkout during IMAP processing
+  // remains newer than the summary and gets picked up on the next run.
+  const hasClientSnapshot = Array.isArray(opts.activeClients);
+  const activeClientsSnapshotAt = hasClientSnapshot ? Date.parse(opts.activeClientsSnapshotAt) : now.getTime();
+  if (!Number.isFinite(activeClientsSnapshotAt)) return { ok: false, error: 'invalid_client_snapshot' };
 
   // ── Freshness short-circuit ───────────────────────────────
   // Crons re-scan a sliding window; if we ingested this listing recently,
@@ -84,7 +91,16 @@ export async function ingestProperty(raw, opts = {}) {
       const seen = existing && (existing.lastSeenAt || existing.scrapedAt);
       // A failed match-summary write must be retried on the next alert;
       // otherwise a reviewed candidate could disappear for twelve hours.
-      if (seen && existing.matchSummary && (now - new Date(seen)) < skipFreshHours * 3600 * 1000) {
+      const lastScoredAt = Date.parse(existing?.matchSummary?.at || '');
+      const needsNewClientScore = hasClientSnapshot && opts.activeClients.some(client => {
+        const createdAt = Date.parse(client.created_at || '');
+        // New reviewed clients always have created_at. If that timestamp is
+        // malformed, rescore conservatively rather than lose a candidate.
+        return Number.isFinite(createdAt)
+          ? createdAt >= lastScoredAt : client.reviewRequired === true;
+      });
+      if (seen && Number.isFinite(lastScoredAt) && !needsNewClientScore
+          && (now - new Date(seen)) < skipFreshHours * 3600 * 1000) {
         // Un prezzo cambiato dentro la finestra di freschezza non è "niente
         // di nuovo": si aggiorna il doc (prima restava stantio) e, se è un
         // RIBASSO, il radar lo tratta come notizia (fiuto + vedette).
@@ -163,7 +179,7 @@ export async function ingestProperty(raw, opts = {}) {
 
   // ── 3. Score + push ───────────────────────────────────────
   let clients = [];
-  try { clients = await listActiveClients(); }
+  try { clients = hasClientSnapshot ? opts.activeClients : await listActiveClients(); }
   catch (err) {
     return { ok: false, error: 'client_list_failed', detail: err.message, propertyId: stableId };
   }
@@ -235,6 +251,9 @@ export async function ingestProperty(raw, opts = {}) {
         portalProperties: existing.concat([entry]),
         portalActivity: newActivity,
       });
+      // Keep scan-inbox's run-level snapshot coherent across several alerts.
+      client.portalProperties = existing.concat([entry]);
+      client.portalActivity = newActivity;
       pushedTo.push({ clientId: client.id, name: client.name || null, score, reasons });
     } catch (err) {
       console.error('[pfs/_ingest] push to ' + client.id + ' failed:', err.message);
@@ -244,10 +263,14 @@ export async function ingestProperty(raw, opts = {}) {
 
   // ── 4. Match summary on the property doc (command center) ─
   let summaryWriteError = null;
-  try {
+  // A failed master update cannot be followed by a fresh score epoch: that
+  // would make the next alert skip a reviewed client whose candidate was
+  // deliberately not recorded above. Leave the old summary retryable.
+  if (masterWriteError) summaryWriteError = masterWriteError;
+  else try {
     await fsPatch('pfsProperties/' + stableId, {
       matchSummary: {
-        at: now.toISOString(),
+        at: new Date(activeClientsSnapshotAt).toISOString(),
         threshold,
         pushedTo: pushedTo.map(p => ({ clientId: p.clientId, name: p.name, score: p.score })),
         pendingReview: pendingReview.map(p => ({ clientId: p.clientId, name: p.name, score: p.score, reasons: p.reasons })),

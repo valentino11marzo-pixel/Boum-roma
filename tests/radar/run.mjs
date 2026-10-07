@@ -25,6 +25,30 @@ import { fileURLToPath } from 'node:url';
 // globalThis.__mails) — la CI gira a zero dipendenze e così il digest si
 // testa PER DAVVERO: invio, notifiedIds, coda svuotata, idempotenza.
 register('../notify/loader.mjs', import.meta.url);
+// Inbox integration keeps the real handler, alert parser and Firestore
+// adapters; only the IMAP socket and MIME boundary are simulated.
+const inboxDeps = 'data:text/javascript,' + encodeURIComponent(`
+  export class ImapFlow {
+    async connect() {}
+    async getMailboxLock() { return { release() {} }; }
+    async search({ from }) {
+      return (globalThis.__pfsInboxMail || []).filter(m => m.from.includes(from)).map(m => m.uid);
+    }
+    async fetchOne(uid) {
+      if (globalThis.__pfsInboxBeforeFetch) await globalThis.__pfsInboxBeforeFetch();
+      const m = (globalThis.__pfsInboxMail || []).find(x => x.uid === Number(uid));
+      return m ? { source: Buffer.from(JSON.stringify(m.parsed)) } : null;
+    }
+    async logout() {}
+  }
+  export async function simpleParser(source) { return JSON.parse(String(source)); }
+`);
+register('data:text/javascript,' + encodeURIComponent(`
+  export async function resolve(s, c, next) {
+    if (s === 'imapflow' || s === 'mailparser') return { url: ${JSON.stringify(inboxDeps)}, shortCircuit: true };
+    return next(s, c);
+  }
+`), import.meta.url);
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
@@ -324,6 +348,9 @@ const toDoc = (path, data) => ({ name: `projects/p/databases/(default)/documents
 let autoId = 0;
 let breakRadarIO = false;   // fase "radar rotto": le sue letture/scritture esplodono
 let failMatchSummaryWrites = false;
+let failMasterWrites = false;
+let pfsClientQueries = 0;
+let failPfsClientQueries = false;
 const htmlPages = new Map();
 globalThis.fetch = async (url, opts = {}) => {
   const u = String(url);
@@ -338,6 +365,8 @@ globalThis.fetch = async (url, opts = {}) => {
   if (u.includes(':runQuery')) {
     const q = body.structuredQuery;
     const coll = q.from[0].collectionId;
+    if (coll === 'pfsClients') pfsClientQueries++;
+    if (coll === 'pfsClients' && failPfsClientQueries) return json({ error: 'client list unavailable' }, 503);
     if (breakRadarIO && /radarWatchers/.test(coll)) throw new Error('radar_io_down');
     const filter = q.where && q.where.fieldFilter;
     const afterId = q.startAt?.values?.[0]?.referenceValue?.split('/').at(-1) || null;
@@ -350,6 +379,9 @@ globalThis.fetch = async (url, opts = {}) => {
     return json(rows.map(([k, v]) => ({ document: toDoc(k, v) })));
   }
   if (opts.method === 'PATCH') {
+    if (failMasterWrites && path.startsWith('pfsProperties/') && body.fields?.sourceUrl) {
+      return json({ error: 'transient master failure' }, 503);
+    }
     if (failMatchSummaryWrites && path.startsWith('pfsProperties/') && body.fields?.matchSummary) {
       return json({ error: 'transient summary failure' }, 503);
     }
@@ -613,6 +645,119 @@ const idA = stableIdFromUrl(urlA), idB = stableIdFromUrl(urlB), idC = stableIdFr
     { result: result.body, summary });
   ok('prima scansione: URL marcato noto solo dopo salvataggio del candidato',
     !!DB.get('radarSearches/new_client_search')?.knownListings?.[sourceUrl]);
+}
+
+// ── 11. Alert email già visto: un checkout nuovo riapre il punteggio ──────
+{
+  process.env.PFS_IMAP_USER = 'inbox@example.test';
+  process.env.PFS_IMAP_PASS = 'fixture';
+  // Earlier reviewed fixtures predate the checkout field. Keep their known
+  // creation epochs older than the property so this test isolates the new
+  // paid client rather than repeatedly repairing a malformed fixture.
+  for (const [path, client] of DB) {
+    if (path.startsWith('pfsClients/') && client.reviewRequired && !client.created_at)
+      client.created_at = iso(Date.now() - 2 * 86400e3);
+  }
+  const inbox = (await import('../../api/pfs/scan-inbox.js')).default;
+  const now = Date.now();
+  const oldUrl = 'https://www.idealista.it/immobile/8888001/';
+  const oldId = stableIdFromUrl(oldUrl);
+  DB.set('pfsProperties/' + oldId, {
+    sourceUrl: oldUrl, source: 'idealista', advertiser: 'private', price: 1100,
+    lastSeenAt: iso(now - 5 * 60_000),
+    matchSummary: { at: iso(now - 60 * 60_000), pushedTo: [], pendingReview: [] },
+  });
+  DB.set('pfsClients/cl_inbox_paid', {
+    name: 'Pagato dopo annuncio', stage: 'payment_confirmed', portalEnabled: true,
+    reviewRequired: true, created_at: iso(now - 30 * 60_000), budget: 1500,
+    portalProperties: [], portalActivity: [],
+  });
+  const mail = (uid, url) => ({ uid, from: 'idealista.it', parsed: {
+    from: { text: 'Idealista <alerts@idealista.it>' },
+    subject: 'Nuovo appartamento di un privato della tua ricerca',
+    html: `<a href="${url}">Bilocale</a> 1.100 €/mese · 2 camere · 60 m²`,
+  } });
+  globalThis.__pfsInboxMail = [mail(1, oldUrl)];
+  let before = pfsClientQueries;
+  let r = await call(inbox, 'GET', null, { 'x-homie-secret': 'test-secret' });
+  let summary = DB.get('pfsProperties/' + oldId)?.matchSummary;
+  ok('inbox vero: URL fresco precedente al checkout viene ricalcolato per il nuovo cliente',
+    r.status === 200 && r.body?.stats?.skippedFresh === 0
+      && summary?.pendingReview?.some(m => m.clientId === 'cl_inbox_paid')
+      && DB.get('pfsClients/cl_inbox_paid').portalProperties.length === 0,
+    { result: r.body, summary });
+  ok('inbox: un solo elenco clienti per run anche durante il ricalcolo',
+    pfsClientQueries - before === 1, pfsClientQueries - before);
+  before = pfsClientQueries;
+  r = await call(inbox, 'GET', null, { 'x-homie-secret': 'test-secret' });
+  ok('inbox: senza nuovi checkout il successivo alert fresco torna al percorso breve',
+    r.status === 200 && r.body?.stats?.skippedFresh === 1
+      && pfsClientQueries - before === 1, r.body);
+
+  // A checkout can land after the single client-list query but before an
+  // email is fetched. The summary must retain the earlier snapshot epoch.
+  const raceUrl = 'https://www.idealista.it/immobile/8888002/';
+  const raceId = stableIdFromUrl(raceUrl);
+  globalThis.__pfsInboxMail = [mail(2, raceUrl)];
+  globalThis.__pfsInboxBeforeFetch = async () => {
+    delete globalThis.__pfsInboxBeforeFetch;
+    await new Promise(resolve => setTimeout(resolve, 5));
+    DB.set('pfsClients/cl_inbox_during', {
+      name: 'Pagato durante scansione', stage: 'payment_confirmed', portalEnabled: true,
+      reviewRequired: true, created_at: new Date().toISOString(), budget: 1500,
+      portalProperties: [], portalActivity: [],
+    });
+  };
+  before = pfsClientQueries;
+  r = await call(inbox, 'GET', null, { 'x-homie-secret': 'test-secret' });
+  summary = DB.get('pfsProperties/' + raceId)?.matchSummary;
+  ok('inbox: checkout durante il run resta successivo all’epoch del summary',
+    r.status === 200 && pfsClientQueries - before === 1
+      && !summary?.pendingReview?.some(m => m.clientId === 'cl_inbox_during')
+      && Date.parse(summary?.at) < Date.parse(DB.get('pfsClients/cl_inbox_during').created_at),
+    summary);
+  before = pfsClientQueries;
+  r = await call(inbox, 'GET', null, { 'x-homie-secret': 'test-secret' });
+  summary = DB.get('pfsProperties/' + raceId)?.matchSummary;
+  ok('inbox: il run seguente recupera il cliente entrato durante lo snapshot',
+    r.status === 200 && r.body?.stats?.skippedFresh === 0 && pfsClientQueries - before === 1
+      && summary?.pendingReview?.some(m => m.clientId === 'cl_inbox_during')
+      && DB.get('pfsClients/cl_inbox_during').portalProperties.length === 0,
+    { result: r.body, summary });
+
+  failPfsClientQueries = true;
+  r = await call(inbox, 'GET', null, { 'x-homie-secret': 'test-secret' });
+  failPfsClientQueries = false;
+  ok('inbox: errore lista clienti ferma il run e segnala health, mai lista vuota',
+    r.status === 500 && r.body?.error === 'client_list_failed'
+      && DB.get('pfsRadarHealth/inbox')?.ok === false, r.body);
+
+  const retryUrl = 'https://www.idealista.it/immobile/8888003/';
+  const retryId = stableIdFromUrl(retryUrl);
+  DB.set('pfsProperties/' + retryId, {
+    sourceUrl: retryUrl, source: 'idealista', advertiser: 'private', price: 1100,
+    lastSeenAt: iso(now - 5 * 60_000),
+    matchSummary: { at: iso(now - 60 * 60_000), pushedTo: [], pendingReview: [] },
+  });
+  globalThis.__pfsInboxMail = [mail(3, retryUrl)];
+  failMasterWrites = true;
+  r = await call(inbox, 'GET', null, { 'x-homie-secret': 'test-secret' });
+  failMasterWrites = false;
+  ok('inbox: master rotto non avanza l’epoch e lascia il candidato ritentabile',
+    r.status === 200 && r.body?.needsAttention?.some(x => x.reason === 'master_write_failed')
+      && DB.get('pfsProperties/' + retryId)?.matchSummary?.at === iso(now - 60 * 60_000),
+    r.body);
+  r = await call(inbox, 'GET', null, { 'x-homie-secret': 'test-secret' });
+  ok('inbox: dopo ripresa del master il candidato interno arriva davvero',
+    r.status === 200 && r.body?.stats?.skippedFresh === 0
+      && DB.get('pfsProperties/' + retryId)?.matchSummary?.pendingReview?.some(m => m.clientId === 'cl_inbox_paid'),
+    r.body);
+
+  globalThis.__pfsInboxMail = [];
+  before = pfsClientQueries;
+  r = await call(inbox, 'GET', null, { 'x-homie-secret': 'test-secret' });
+  ok('inbox: senza messaggi non legge inutilmente tutti i clienti',
+    r.status === 200 && pfsClientQueries === before, r.body);
 }
 
 console.log(`\n  ${passed} passati, ${failed} falliti`);

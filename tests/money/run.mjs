@@ -312,6 +312,7 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
     source: 'casafari', price: 1200, title: 'Bilocale Prati', zone: 'Prati', advertiser: 'private' };
   const propertyId = stableIdFromUrl(listing.sourceUrl);
   store.set('pfsProperties/' + propertyId, { matchSummary: {
+    at: '2026-10-05T09:00:00.000Z',
     pendingReview: [{ clientId, name: 'Nuova Cliente', score: 80 }], pushedTo: [],
   } });
   process.env.HOMIE_SECRET = 'homie-test';
@@ -343,6 +344,8 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
   const summary = store.get('pfsProperties/' + propertyId)?.matchSummary;
   check('PFS review manuale: il candidato lascia la coda interna dopo la proposta',
     summary?.pendingReview?.length === 0 && summary?.pushedTo?.some(m => m.clientId === clientId));
+  check('PFS review manuale: non avanza l’epoch del punteggio per tutti i clienti',
+    summary?.at === '2026-10-05T09:00:00.000Z' && !!summary?.reviewedAt);
 
   const unknownListing = { sourceUrl: 'https://www.casafari.com/listing/unknown-advertiser',
     source: 'casafari', price: 1250, title: 'Bilocale senza inserzionista', zone: 'Prati' };

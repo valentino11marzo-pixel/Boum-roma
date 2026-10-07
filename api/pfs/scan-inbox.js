@@ -9,9 +9,9 @@
 // ("di un privato") — exactly the filter BOOM's outreach needs.
 //
 // Stateless by design: every run re-reads the last LOOKBACK_DAYS of alert
-// mail; pfsProperties dedupes by sourceUrl (skipFreshHours), so processing
-// the same email twice is a no-op. No fragile "seen flags" that break when
-// Valentino reads his own inbox.
+// mail; pfsProperties dedupes by sourceUrl (skipFreshHours). A repeat alert
+// is re-scored when a paying client joined after its last client snapshot.
+// No fragile "seen flags" that break when Valentino reads his own inbox.
 //
 // Env: PFS_IMAP_USER / PFS_IMAP_PASS override GMAIL_USER / GMAIL_APP_PASS
 // when the alert mailbox differs from the sending account. The mailbox is
@@ -23,7 +23,7 @@
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import { requireCronOrAdmin } from './_guard.js';
-import { ingestProperty } from './_ingest.js';
+import { ingestProperty, listActiveClients } from './_ingest.js';
 import { classifyAlertEmail, extractListings } from './_alertparse.js';
 import { fetchHtml, parseListing, detectAdvertiser } from './_fetch.js';
 import { reportHealth, reportNeedsAttention } from './_health.js';
@@ -64,6 +64,9 @@ export default async function handler(req, res) {
   const results = [];
   let detailBudget = MAX_DETAIL_FETCHES;
 
+  let activeClients = null;
+  let activeClientsSnapshotAt = null;
+
   const client = new ImapFlow({
     host: process.env.PFS_IMAP_HOST || 'imap.gmail.com',
     port: 993,
@@ -92,6 +95,14 @@ export default async function handler(req, res) {
         }
       }
       const uids = [...uidSet].sort((a, b) => a - b).slice(-MAX_MESSAGES);
+      if (uids.length) {
+        // One list for the whole mail run, and no Firestore client scan when
+        // the mailbox yielded no candidate messages. Capture the epoch
+        // BEFORE the query so a checkout during IMAP work is retried later.
+        activeClientsSnapshotAt = new Date().toISOString();
+        try { activeClients = await listActiveClients(); }
+        catch (e) { e.pfsClientListFailure = true; throw e; }
+      }
 
       for (const uid of uids) {
         if (!B.afford(COST_ITER)) {
@@ -157,7 +168,8 @@ export default async function handler(req, res) {
             images,
             description,
             advertiser,
-          }, { ingestedBy: 'pfs-scan-inbox', skipFreshHours: 12 });
+          }, { ingestedBy: 'pfs-scan-inbox', skipFreshHours: 12,
+            activeClients, activeClientsSnapshotAt });
 
           if (r.ok) {
             stats.ingested++;
@@ -178,8 +190,11 @@ export default async function handler(req, res) {
     await client.logout();
   } catch (e) {
     try { await client.logout(); } catch { /* already closed */ }
-    await reportHealth('inbox', { ok: false, error: 'imap: ' + e.message, stats });
-    return res.status(500).json({ ok: false, error: 'imap_failed', detail: e.message, stats });
+    const clientListFailure = e.pfsClientListFailure === true;
+    await reportHealth('inbox', { ok: false,
+      error: (clientListFailure ? 'client_list_failed: ' : 'imap: ') + e.message, stats });
+    return res.status(500).json({ ok: false,
+      error: clientListFailure ? 'client_list_failed' : 'imap_failed', detail: e.message, stats });
   }
 
   await reportNeedsAttention('inbox', needsAttention);

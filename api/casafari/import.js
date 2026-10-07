@@ -151,7 +151,10 @@ export default async function handler(req, res) {
           const saved = await fsGet('pfsProperties/' + stableId);
           const summary = saved?.matchSummary || {};
           await fsPatch('pfsProperties/' + stableId, { matchSummary: {
-            ...summary, at: now.toISOString(), threshold: summary.threshold ?? DEFAULT_THRESHOLD,
+            // `at` is the epoch of an all-client score pass. This manual
+            // release checks only one client and must not hide a later paid
+            // client from scan-inbox's freshness guard.
+            ...summary, reviewedAt: now.toISOString(), threshold: summary.threshold ?? DEFAULT_THRESHOLD,
             pendingReview: (Array.isArray(summary.pendingReview) ? summary.pendingReview : []).filter(m => m.clientId !== clientId),
             pushedTo: (Array.isArray(summary.pushedTo) ? summary.pushedTo : []).filter(m => m.clientId !== clientId)
               .concat([{ clientId, name: client.name || null, score }]),

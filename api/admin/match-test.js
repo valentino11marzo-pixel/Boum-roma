@@ -128,6 +128,9 @@ export default async function handler(req, res) {
 
   // ── Fetch active clients + score ─────────────────────────
   let clients = [];
+  // A checkout can arrive while this handler scores and writes. The summary
+  // epoch must describe the client snapshot, not the later write time.
+  const clientsSnapshotAt = new Date().toISOString();
   try { clients = await listActiveClients(); }
   catch (err) {
     return res.status(500).json({ ok: false, error: 'client_list_failed', detail: err.message });
@@ -246,7 +249,7 @@ export default async function handler(req, res) {
     const prev = saved?.matchSummary || {};
     const pendingIds = new Set(pendingReview.map(r => r.clientId));
     await fsPatch('pfsProperties/' + stableId, { matchSummary: {
-      ...prev, at: now.toISOString(), threshold,
+      ...prev, at: clientsSnapshotAt, threshold,
       pendingReview: (Array.isArray(prev.pendingReview) ? prev.pendingReview : [])
         .filter(r => !pendingIds.has(r.clientId)).concat(pendingReview),
     } });
