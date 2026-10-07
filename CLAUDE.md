@@ -6134,10 +6134,13 @@ NON VEDEVANO NIENTE (vedi sotto).
   palazzo da 18 interni (`tests/palazzo/fixture18.mjs`, dati inventati,
   recapiti +39 000… ed example.invalid): `PREVIEW_FIXTURE=18
   PREVIEW_PORT=8123 PREVIEW_ONLY=1 node tests/palazzo/ui.mjs`.
+  **«P.le» è Piazzale** (`streetKey`): conosceva «P.za» e «V.le» ma non
+  l'abbreviazione romana di Piazzale, quindi «P.le Prenestino 42» e
+  «Piazzale Prenestino 42» sarebbero stati DUE palazzi.
   **Da sapere sul business**: i recapiti in mano alla proprietaria le
   permettono di parlare con gli inquilini senza BOOM. È ciò che ha chiesto
   ed è la sua controparte contrattuale; il bottone «Scrivi a BOOM» resta.
-Test: `node tests/palazzo/engine.mjs` (124 check: civico, piano, 13 interni
+Test: `node tests/palazzo/engine.mjs` (126 check: civico, piano, 13 interni
 in ogni stato, trimestrale, contratto chiuso in anticipo, proposte e annunci,
 puntualità/sfitto/incassato su scaduto, la frase del mese nelle due voci,
 piani vuoti e attico, cose da sistemare, filtro proprietaria, mutazioni sul

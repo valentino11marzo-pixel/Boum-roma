@@ -188,6 +188,8 @@ eq('rifiuta un ultimo piano non intero o fuori scala', ['2.5', 0, 41, 'tre'].map
 eq('rifiuta un colore fuori elenco e un nome lungo', P.validateLook({ intonaco: 'fucsia', persiane: 'rosa', nome: 'x'.repeat(61) }, m).errors, ['intonaco', 'persiane', 'nome']);
 const noTop = P.model(P.context({ ...F.state, now: NOW, properties: F.state.properties.filter(p => p.id !== 'u11') }), all[0].key, F.month);
 eq('senza attico basta il piano più alto gestito', [P.validateLook({ ultimoPiano: 3 }, noTop).ok, P.validateLook({ ultimoPiano: 2 }, noTop).errors], [true, ['ultimoPiano<3']]);
+eq('«P.le» è Piazzale: lo stesso palazzo comunque sia scritto', ['P.le Prenestino 42, int. 3', 'Piazzale Prenestino, 42 - 00177 Roma', 'p.zale Prenestino 42 scala A'].map(P.streetKey), Array(3).fill(P.streetKey('Piazzale Prenestino 42')));
+ok('…e non si confonde con piazza', P.streetKey('P.za Prenestino 42') !== P.streetKey('P.le Prenestino 42'));
 // §10 I quattro toni: otto stati del motore, quattro colori in pagina.
 eq('i toni sono quattro, in quest\'ordine', P.TONES.map(t => t.key), ['pagato', 'ritardo', 'attesa', 'libero']);
 ok('ogni stato sta in UN tono e uno solo', Object.keys(P.STATES).every(s => P.TONES.filter(t => t.states.includes(s)).length === 1));

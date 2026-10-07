@@ -125,6 +125,7 @@
     var s = norm(address);
     if (!s) return '';
     s = s.replace(/\bv\.\s*le\b/g, 'viale').replace(/\bp\.\s*zz?a\b/g, 'piazza')
+      .replace(/\bp\.\s*le\b/g, 'piazzale').replace(/\bp\.\s*zale\b/g, 'piazzale')
       .replace(/\bc\.\s*so\b/g, 'corso').replace(/\bl\.\s*go\b/g, 'largo')
       .replace(/^v\.\s*/, 'via ').replace(/\b\d{5}\b/g, ' ')
       .replace(/(\d+)\s*\/\s*([a-z])\b/g, '$1$2')
