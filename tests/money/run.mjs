@@ -26,6 +26,7 @@ const versions = new Map();     // Firestore updateTime for candidate CAS tests
 const emails = [];              // template_params delle email inviate
 const queries = [];             // structuredQuery dei runQuery
 let failRadarCreates = 0;       // transient Firestore failure after paid client creation
+let beforeCommitOnce = null;     // inject a legacy write between read and CAS
 globalThis.__stripeCalls = [];
 
 const FS = 'firestore.googleapis.com';
@@ -72,6 +73,7 @@ globalThis.fetch = async (url, opts = {}) => {
     const path = url.split('/documents')[1] || '';
     if (path.startsWith(':commit')) {
       const writes = JSON.parse(opts.body).writes || [];
+      if (beforeCommitOnce) { const inject = beforeCommitOnce; beforeCommitOnce = null; inject(writes); }
       for (const write of writes) {
         const key = write.update?.name?.split('/documents/')[1];
         const pre = write.currentDocument || {};
@@ -709,6 +711,26 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
   check('PFS shortlist: prezzo cambiato dopo la bozza richiede nuova preparazione',
     r.code === 409 && r.body?.error === 'candidate_changed_reprepare'
     && store.get('pfsShortlists/' + changedDraft.id)?.status === 'draft');
+  r = mkRes();
+  await shortlist(prepare([fifthCase.candidateId], 'list-changed-2'), r);
+  const revisedDraft = r.body?.draft;
+  const clientKey = 'pfsClients/' + clientId;
+  const legacyEntry = { id: 'h_legacy_concurrent', address: 'Casa inserita dal vecchio pannello',
+    sourceUrl: 'https://legacy.example/listing', price: 970 };
+  beforeCommitOnce = () => {
+    const current = store.get(clientKey);
+    store.set(clientKey, { ...current, portalProperties: current.portalProperties.concat(legacyEntry) });
+    versions.set(clientKey, (versions.get(clientKey) || 1) + 1);
+  };
+  r = mkRes();
+  await shortlist(publish(revisedDraft, [checkNow(fifthCase)]), r);
+  const afterOverwriteRace = store.get(clientKey);
+  check('PFS shortlist: write legacy fra read e commit causa retry CAS senza perdere nessuna carta',
+    r.code === 200 && !beforeCommitOnce
+      && afterOverwriteRace.publishedShortlistIds?.length === 4
+      && afterOverwriteRace.portalProperties?.length === 6
+      && afterOverwriteRace.portalProperties.some(p => p.id === legacyEntry.id)
+      && afterOverwriteRace.portalProperties.some(p => p.id === fifthId && p.shortlistId === revisedDraft.id));
   const saved = store.get('pfsClients/' + clientId);
   store.set('pfsClients/' + clientId, { ...saved, shortlistRevision: 24 });
   r = mkRes();
