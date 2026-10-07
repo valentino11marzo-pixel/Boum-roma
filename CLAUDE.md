@@ -6140,16 +6140,93 @@ NON VEDEVANO NIENTE (vedi sotto).
   **Da sapere sul business**: i recapiti in mano alla proprietaria le
   permettono di parlare con gli inquilini senza BOOM. È ciò che ha chiesto
   ed è la sua controparte contrattuale; il bottone «Scrivi a BOOM» resta.
-Test: `node tests/palazzo/engine.mjs` (126 check: civico, piano, 13 interni
+- **Il terzo giro (8/10) — pronto da consegnare.**
+  * **La facciata Semplice è un volume 3D**: fianchi ciechi (le finestre
+    laterali non le conosciamo), tetto a terrazza, attico arretrato col suo
+    tetto, il piano della strada; le linee dei piani sui fianchi sono
+    MISURATE sui piani veri (`syncFacade`). Si gira trascinando (su telefono
+    lo swipe verticale resta lo scorrimento della pagina: `touch-action:
+    pan-y`) o con le frecce. Tolto il dondolio perpetuo: un palazzo che si
+    muove sempre non si tocca (e non si testa). **La lezione del click in
+    3D**: Chrome sceglieva il CONTENITORE invece della finestra su 9 interni
+    su 13 (piani coplanari nel contesto `preserve-3d`, `elementFromPoint`
+    ≠ `elementsFromPoint`). I contenitori del volume hanno `pointer-events:
+    none`, ogni piano sta `translateZ(1px)` davanti: la finestra che vedi è
+    quella che tocchi (test su OGNI finestra numerata).
+  * **Registrazione e cedolare** nella scheda (`paperOf`): registrato il /
+    in registrazione / alla proprietaria «in verifica da BOOM» — mai «non
+    registrato» su un contratto solo non segnato (è il caso più comune dei
+    contratti nati prima). La cedolare SOLO se dichiarata
+    (`cedolareDeclared`): il «sì» di default del PDF non è un'affermazione
+    sul regime fiscale di qualcuno. In Da sistemare: i contratti in corso
+    senza registrazione segnata oltre 30 giorni dalla DECORRENZA (il
+    termine corre dalla data più vicina fra stipula e decorrenza, quindi lì
+    il ritardo è certo).
+  * **Le leve dell'operatore** nella scheda, per mestiere: Soldi (Gestisci
+    canoni, Link di pagamento) · Contratto (apri, PDF, Firma ora) ·
+    Registrazione (✓ RLI registrato, Invia ad ASPI, Fascicolo fiscale,
+    Scheda ARPE) · Interno. Ogni tasto è una funzione del portal che esiste
+    già; tutte dietro il cancello admin della vista.
+  * **Per il commercialista** (`csvRows`/`toCsv`): il mese o l'anno in CSV,
+    formato lungo (una riga per interno per mese), `;`, virgola decimale,
+    gg/mm/aaaa, BOM — dallo stesso motore della pagina (la somma
+    dell'incassato è quella che la pagina mostra). La proprietaria lo
+    scarica nella sua lingua e solo coi suoi interni; l'anno arriva al mese
+    corrente, mai oltre. L'**intelligenza di mercato resta interna**: fuori
+    dal menu del proprietario, la rotta `market-intel` gli risponde accesso
+    negato.
+  * **👁 Come la vede lei** (anteprima dentro l'admin col filtro della
+    proprietaria, `ownerId`: un interno non collegato a lei non c'è, come
+    dal suo accesso) e **Invia a lei** (messaggio pronto col link
+    `https://www.boomrome.com/login?next=%2Fportal%23palazzo`, la riga
+    «Forgot?» per la prima password, WhatsApp/email/copia).
+  * **La presa in carico da tabella** (`parseRentRoll`/`planImport`, PURI;
+    `palazzoImport` nel portal, solo admin, con conferma). L'elenco della
+    proprietaria incollato da Excel/Sheets (titoli riconosciuti con
+    alias: Interno · Piano · Scala · Inquilino · Telefono · Email · Canone ·
+    Dal · Al · Tipo · Deposito · Cedolare · Registrato il · Pagato il ·
+    Giorno) diventa interni + contratti (`signatureStatus:'paper'`,
+    `source:'palazzo-import'`) + rate. Le regole: una riga sbagliata dice
+    TUTTO ciò che non va e blocca il carico intero (niente a metà); leggere
+    non scrive; **le rate partono da «gestione BOOM dal», mai dalla
+    decorrenza** di un contratto di due anni fa (sarebbero arretrati
+    inventati); pagata SOLO la rata che la tabella dice pagata
+    (`paidVia:'dichiarato'`, `paidSource`); id deterministici
+    (`plz_<via>_<interno>`, `c_<immobile>_<inizio>`, `pay_<contratto>_<mese>`
+    — lo schema del generatore del portal) e prima di scrivere si chiede al
+    SERVER cosa esiste già: reincollare non raddoppia e una rata pagata non
+    torna mai «da pagare». Un interno già di un altro proprietario non si
+    sposta da qui. Nessuna email agli inquilini: il journey parte solo con
+    un profilo inquilino (`tenantId`), che l'import non crea.
+  * **Gestione BOOM dal** (`property.gestioneDal`, YYYY-MM): i mesi prima
+    sono «Prima di BOOM» (quinto tono, a schermo SOLO quando c'è), mai
+    arretrati; le rate aperte di quei mesi — quelle che `generateMonthly
+    Payments` crea partendo dalla decorrenza quando un contratto vecchio
+    entra dall'Innesto — escono dal Palazzo e l'operatore le vede contate
+    in Da sistemare (in Canoni restano scadute: chiuderle è una decisione).
+  * **/palazzo su Telegram** (`api/telegram/_palazzo.js`): il mese di ogni
+    palazzo con almeno 3 interni (o `/palazzo <via>`) dallo STESSO motore:
+    la frase, chi non ha pagato con i giorni, scadenze ≤90 giorni,
+    registrazioni da segnare, tasto «Apri il Palazzo». Letture limitate al
+    palazzo (`IN` a blocchi di 30 su contratti, rate — anche per
+    `contractId` — e proposte), mai un recapito degli inquilini nel testo.
+  * **Da sapere al lancio**: dal 1° del mese il **Rendiconto** parte da
+    solo alla proprietaria collegata (email + PDF del mese chiuso): va
+    guardato prima che parta.
+Test: `node tests/palazzo/engine.mjs` (170 check: civico, piano, 13 interni
 in ogni stato, trimestrale, contratto chiuso in anticipo, proposte e annunci,
 puntualità/sfitto/incassato su scaduto, la frase del mese nelle due voci,
 piani vuoti e attico, cose da sistemare, filtro proprietaria, mutazioni sul
 conteggio dei ritardi, aspetto dichiarato/neutro/anteprima, validateLook,
-giunzioni del portal, i quattro toni) + `node tests/palazzo/contatti.mjs`
+giunzioni del portal, i quattro toni, registrazione e cedolare, il CSV
+che somma come la pagina, gestione BOOM dal, la presa in carico — parser,
+piano, reincollare senza doppioni, il modello che si rilegge) +
+`node tests/palazzo/telegram.mjs` (6 check, modulo vero su Firestore in
+memoria) + `node tests/palazzo/contatti.mjs`
 (12 check, handler vero su Firestore in memoria: 401/403/400, la
 proprietaria che riceve i suoi e non quelli di un altro — mutazione presa
 togliendo il filtro — profilo/proposta/co-conduttori, mai CF né indirizzo,
-la proposta letta solo se serve) + `node tests/palazzo/ui.mjs` (77 check in Chromium a
+la proposta letta solo se serve) + `node tests/palazzo/ui.mjs` (94 check in Chromium a
 1440 e 390px con le funzioni VERE del portal estratte da portal-app.js e
 Firestore finto: facciata e persiane, luci dal basso, cambio mese senza
 ridisegno, aspetto in anteprima/rifiutato/salvato/annullato, Sollecita, 3D,
@@ -6157,7 +6234,11 @@ Andamento, Elenco, collega, la proprietaria senza proposte, azioni né
 pannello dell'aspetto; i contatti: una richiesta per palazzo, Chiama ·
 WhatsApp · Email, co-intestatario, telefono mancante e «Da sistemare»,
 guasto e Riprova, il numero nell'Elenco che chiama senza aprire la scheda,
-la proprietaria che li chiede a suo nome e mai per un altro).
+la proprietaria che li chiede a suo nome e mai per un altro; il click su
+ogni finestra della facciata 3D, il trascinamento che gira senza aprire
+una scheda, le leve per mestiere, il CSV scaricato davvero, l'anteprima
+«come la vede lei», l'invio, la presa in carico dalla tabella sbagliata a
+quella giusta con le scritture contate).
 
 ### Fascicolo operativo immobile — 20 settembre 2026
 La scheda admin passa dal modale al percorso `#property/<id>/<sezione>`: situazione, contratti, canoni, documenti e attività; link ricaricabili, ritorno alla ricerca/posizione e apertura dei flussi esistenti; ricerca e filtro di disponibilità ora si combinano. Le viste dei proprietari restano separate.
