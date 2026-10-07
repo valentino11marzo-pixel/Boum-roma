@@ -16,6 +16,7 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import DISPO from '../js/dispo-engine.js';
+import { projectPublicListing } from './_public-listing.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT = process.env.FIREBASE_PROJECT_ID || 'boom-property-dashboards';
@@ -186,7 +187,7 @@ function injectSeo(html, d, id) {
   // Inject the already-read listing so the client renders instantly — no Firebase SDK
   // load + Firestore round-trip on the critical path. The client falls back to a live
   // read if this is absent (e.g. on /apartment-detail without SSR).
-  const dataScript = '<script>window.__LISTING=' + safe(d) + ';window.__LISTING_ID=' + JSON.stringify(id) + ';</script>\n';
+  const dataScript = '<script>window.__LISTING=' + safe(d) + ';window.__LISTING_ID=' + safe(id) + ';</script>\n';
   const scripts = preload + dataScript +
     '<script type="application/ld+json" data-seo-dynamic>' + safe(ld) + '</script>\n' +
     '<script type="application/ld+json" data-seo-dynamic>' + safe(breadcrumb) + '</script>\n' +
@@ -282,8 +283,17 @@ export default async function handler(req, res) {
   let out = html;
   try {
     if (id) {
-      const d = await readListing(id);
-      if (d) out = injectSeo(html, d, id);
+      const raw = await readListing(id);
+      if (raw) {
+        const d = projectPublicListing(id, raw);
+        if (!d) {
+          res.statusCode = 404;
+          res.setHeader('Content-Type', 'text/html; charset=utf-8');
+          res.setHeader('Cache-Control', 'no-store');
+          return res.end('<!doctype html><html lang="en"><meta charset="utf-8"><title>Home unavailable | BOOM</title><body><h1>Home unavailable</h1><p>Ask BOOM for current options.</p><a href="/apartments">Browse homes</a></body></html>');
+        }
+        out = injectSeo(html, d, id);
+      }
     }
   } catch {
     out = html; // serve the plain template on any error

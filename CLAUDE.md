@@ -5613,6 +5613,15 @@ lascia il form pronto a riprovare. La vetrina statica non dichiara conteggi
 o disponibilità correnti prima della lettura live. Test: `npm test -- dispo
 prenota catalogtruth`.
 
+`/api/listings` e l'SSR `/listing/:id` usano ora la stessa proiezione
+pubblica (`api/_public-listing.js`): campi non dichiarati e chiavi annidate
+non escono; indicatori espliciti di privato/draft bloccano la risposta.
+È una difesa aggiuntiva, non un confine per stock privato: `firestore.rules`
+permette ancora la lettura anonima diretta di ogni documento `listings`.
+Tenere dati riservati in `properties` e pratiche; `listings` resta contenuto
+pubblico finché lettori diretti e rules non migrano insieme. Test: `npm test
+-- catalogtruth` (handler reali, anche fallback admin e campi segreti finti).
+
 ## Precisione dei pin + perché non c'è il 3D di Google (`js/boom-geo.js`)
 
 **Google Photorealistic 3D Tiles non sono erogabili a questo account.** Dall'8
