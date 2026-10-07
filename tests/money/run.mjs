@@ -28,6 +28,7 @@ const queries = [];             // structuredQuery dei runQuery
 let failTaskWrites = 0;
 let failServiceLeadWrites = 0;
 let failEmailJs = 0;
+let failLeadQuery = 0;
 globalThis.__stripeCalls = [];
 
 const FS = 'firestore.googleapis.com';
@@ -79,6 +80,10 @@ globalThis.fetch = async (url, opts = {}) => {
       const q = JSON.parse(opts.body).structuredQuery;
       queries.push(q);
       const coll = q.from[0].collectionId;
+      if (coll === 'leads' && failLeadQuery > 0) {
+        failLeadQuery--;
+        return new Response('temporary lead query outage', { status: 503 });
+      }
       const field = q.where?.fieldFilter?.field?.fieldPath;
       const val = q.where?.fieldFilter?.value?.stringValue;
       const rows = [];
@@ -202,6 +207,15 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
   ev.data.object.created = Date.parse('2026-10-06T23:30:00Z') / 1000; // Checkout aperto il 7 a Roma
   ev.created = Date.parse('2026-10-07T23:30:00Z') / 1000; // pagato l'8 a Roma
   let r = mkRes();
+  const unpaid = structuredClone(ev);
+  unpaid.data.object.payment_status = 'unpaid';
+  const emailsBeforeUnpaid = emails.length;
+  await webhook(mkStreamReq(unpaid), r);
+  check('webhook SERVICE: sessione completata ma non pagata → zero task, lead o email',
+    r.body?.skipped === 'payment_not_paid' && emails.length === emailsBeforeUnpaid
+    && ![...store.keys()].some(k => k.startsWith('operatorTasks/task_service_') || k.startsWith('leads/svc_')));
+
+  r = mkRes();
   const emailsBefore = emails.length;
   await webhook(mkStreamReq(ev), r);
   const tasks = [...store.entries()].filter(([k]) => k.startsWith('operatorTasks/task_service_'));
@@ -436,6 +450,22 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
     journey7.sent.includes('ctr_pa_addons:t7')
     && /received your.*Cleaning Premium.*payment/i.test(mail7?.html || '')
     && !/api\/services\/buy\?kind=cleaning-premium|is booked/i.test(mail7?.html || ''));
+
+  // A failed purchase index must not send an uninformed sales email, but it
+  // also must not cancel the key handover email, which has no upsell.
+  store.get('contracts/ctr_pa_addons').startDate = dateIn(1);
+  store.set('contracts/ctr_pa_unknown', { status: 'active', tenantId: 'u_pa_unknown',
+    propertyId: 'p_pa_unknown', startDate: dateIn(12), endDate: dateIn(377) });
+  store.set('users/u_pa_unknown', { name: 'Other Tenant', email: 'other-pa@example.com' });
+  globalThis.__mailCalls = [];
+  failLeadQuery = 1;
+  const journeyUnavailable = await runJourney();
+  check('Journey con indice acquisti giù: rinvia upsell ma invia comunque le chiavi',
+    journeyUnavailable.errors >= 1
+    && journeyUnavailable.sent.includes('ctr_pa_addons:t1')
+    && !journeyUnavailable.sent.includes('ctr_pa_unknown:t14')
+    && globalThis.__mailCalls.some(m => m.to === 'xenia-pa@example.com')
+    && !globalThis.__mailCalls.some(m => m.to === 'other-pa@example.com'));
 }
 
 // ═══ 7. convertPaToContract: idempotente su ID deterministico ═══

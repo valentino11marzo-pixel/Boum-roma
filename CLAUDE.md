@@ -1060,6 +1060,10 @@ commitment before the lead and emails; Firestore failure returns 500 for a
 Stripe retry. The task is due on the completed payment event's Rome day;
 one task survives all retries for the full Stripe session, even if the lead
 write fails.
+`checkout.session.completed` alone is not payment evidence: SERVICE skips
+sessions whose `payment_status` is not `paid`, with no task, lead or email.
+The current Checkout offers card only; async methods need an explicit paid
+event handler before being enabled (`npm test -- money`).
 The Commerciale skips these paid service leads, which need fulfillment rather
 than a rental enquiry draft. `npm test -- money` exercises both real handlers.
 This is intake, not proof that VV/DAS or any other service has been delivered.

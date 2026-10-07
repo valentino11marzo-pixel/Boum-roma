@@ -312,6 +312,11 @@ const SERVICE_META = {
 };
 
 async function handleService(res, session, m, eventCreated) {
+  // Checkout completion can precede settlement for some payment methods.
+  // An operational commitment and a paid lead require Stripe's paid status.
+  if (session.payment_status !== 'paid') {
+    return res.status(200).json({ received: true, skipped: 'payment_not_paid' });
+  }
   const docId = session.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
   const now = new Date().toISOString();
   const amountEur = (session.amount_total || 0) / 100;

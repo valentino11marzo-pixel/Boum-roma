@@ -206,13 +206,14 @@ export async function runJourney() {
   // Already-bought products are never pitched again: one query per run,
   // keyed email|kind. (The webhook writes a paid `leads` doc per purchase.)
   const owned = new Set();
+  let ownedLookupFailed = false;
   try {
     const svc = await fsList('leads', { filter: { field: 'type', op: 'EQUAL', value: 'service' }, limit: 300 });
     (svc || []).forEach(l => { if (l && l.paid && l.email && l.kind) owned.add(String(l.email).toLowerCase() + '|' + l.kind); });
   } catch (e) {
     console.warn('[journey] owned lookup:', e.message);
     out.errors++;
-    return out; // Do not upsell a paid customer when purchase evidence is unavailable.
+    ownedLookupFailed = true;
   }
   let contracts = [];
   try {
@@ -285,6 +286,9 @@ export async function runJourney() {
       : null;
     for (const st of steps({ c, tenant, addr, addrShort, first, has, missing, late, walletUrl: tenantWalletUrl(id) })) {
       if (!st.due || j[st.key]) continue;
+      // If the purchase index is unavailable, defer only steps with an
+      // upsell; keys, reviews and renewal messages must still go out.
+      if (ownedLookupFailed && ['t30', 't14', 't7'].includes(st.key)) continue;
       try {
         await sendEmail({ to: email, subject: st.subject, html: shell(st.html, st.subject) });
         j[st.key] = new Date().toISOString();
