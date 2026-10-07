@@ -21,6 +21,14 @@
 .plz .plz-s-paid{--c:var(--plz-paid)} .plz .plz-s-late{--c:var(--plz-late)}
 .plz .plz-s-due,.plz .plz-s-review,.plz .plz-s-norate,.plz .plz-s-unknown{--c:var(--plz-due)}
 .plz .plz-s-incoming,.plz .plz-s-vacant{--c:rgba(255,255,255,.22)}
+/* Prima della gestione BOOM: non un colore, un'assenza dichiarata (tratteggio) */
+.plz .plz-s-before{--c:rgba(255,255,255,.14)}
+.plz-dot.plz-s-before{background:transparent;box-shadow:none;border:1px dashed rgba(255,255,255,.22)}
+.plz-mbar i.plz-s-before{background:repeating-linear-gradient(135deg,rgba(255,255,255,.08) 0 3px,transparent 3px 6px)}
+.plz-pill.plz-s-before{color:var(--text-muted,#666);border-style:dashed}
+.plz-unit[data-state="before"] .plz-face{background:rgba(255,255,255,.02);border:1px dashed rgba(255,255,255,.18)}
+.plz-unit[data-state="before"] .plz-f-front b{color:rgba(255,255,255,.5)}
+.plz-win[data-state="before"]{--hi:#1B1C21;--lo:#111216;--ga:transparent;opacity:.7}
 .plz-eyebrow{margin:0 0 6px;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--gold,#D4AF37);font-weight:500}
 .plz-num{font-variant-numeric:tabular-nums}
 .plz-muted{color:var(--text-muted,#666);font-size:13px;margin:6px 0}
@@ -51,6 +59,23 @@
   color:var(--text,#fff);font:inherit;font-size:13px;line-height:1.5}
 .plz-share-b{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .plz-share-n{margin:10px 0 0;font-size:12px}
+.plz-import{margin:0 0 14px;padding:16px;border-radius:16px;border:1px solid rgba(212,175,55,.35);background:#0B0B0D}
+.plz-import-f{display:grid;grid-template-columns:2fr 1.4fr 1fr;gap:10px;margin:10px 0}
+.plz-import-f label{display:grid;gap:5px;min-width:0}
+.plz-import-f span{font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted,#666)}
+.plz-import-f input,.plz-import-f select,.plz-import-t{width:100%;box-sizing:border-box;padding:10px 12px;border-radius:12px;border:1px solid var(--plz-line);background:var(--bg-input,#1A1A1A);color:var(--text,#fff);font:inherit;font-size:14px}
+.plz-import-t{resize:vertical;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;line-height:1.5;white-space:pre;overflow:auto;margin-bottom:10px}
+.plz-import-b{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+.plz-import-sum{margin:14px 0 6px;font-size:13px;color:var(--text-secondary,#999)}
+.plz-import-sum b{color:var(--text,#fff)}
+.plz-import-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;border:1px solid var(--plz-line);border-radius:12px;margin-top:8px}
+.plz-import-tab{width:100%;border-collapse:collapse;font-size:12px}
+.plz-import-tab th{text-align:left;font-weight:500;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted,#666);padding:8px 10px;border-bottom:1px solid var(--plz-line);white-space:nowrap}
+.plz-import-tab td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:top}
+.plz-import-tab td small{display:block;color:var(--plz-amber);font-size:11px;margin-top:2px}
+.plz-import-tab tr.is-bad td{background:rgba(255,77,90,.06)}
+.plz-btn[disabled]{opacity:.45;cursor:not-allowed;filter:none}
+@media (max-width:700px){.plz-import-f{grid-template-columns:1fr}}
 .plz-seg{display:inline-flex;background:var(--plz-card);border:1px solid var(--plz-line);border-radius:999px;padding:4px}
 .plz-seg button{border:0;background:transparent;color:var(--text-secondary,#999);padding:8px 14px;border-radius:999px;font:inherit;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer}
 .plz-seg button[aria-selected="true"]{background:var(--gold,#D4AF37);color:#000;font-weight:600}
@@ -103,6 +128,7 @@
 .plz-filter b{font-weight:500;color:var(--text,#fff);font-variant-numeric:tabular-nums}
 .plz-filter[aria-pressed="true"]{border-color:var(--gold,#D4AF37);color:var(--text,#fff);background:rgba(212,175,55,.09)}
 .plz-f-paid{--c:var(--plz-paid)}.plz-f-late{--c:var(--plz-late)}.plz-f-due{--c:var(--plz-due)}.plz-f-free{--c:rgba(255,255,255,.22)}
+.plz-f-before i{background:transparent;border:1px dashed rgba(255,255,255,.35)}
 .plz-f-all i{background:conic-gradient(var(--plz-paid) 0 40%,var(--plz-late) 0 55%,var(--plz-due) 0 80%,rgba(255,255,255,.22) 0)}
 
 /* ── La scena 3D ─────────────────────────────────────────────────── */
@@ -426,6 +452,7 @@
 .plz-key[data-state="late"]{--hi:#FF8F97;--lo:#FF4D5A;--ga:rgba(255,77,90,.6)}
 .plz-key[data-state="due"]{--hi:#FFFBF0;--lo:#D9D2BF}
 .plz-key[data-state="vacant"] i{background:repeating-linear-gradient(180deg,#5d6066 0 1.5px,#2a2c30 1.5px 3px)}
+.plz-key[data-state="before"] i{background:transparent;border-style:dashed}
 .plz-fac-cap small{display:block;margin-top:7px;font-size:11px;line-height:1.45;color:var(--text-muted,#666)}
 
 /* L'aspetto del palazzo (admin) */

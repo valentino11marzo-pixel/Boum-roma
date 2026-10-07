@@ -25,7 +25,7 @@ function extract(name) {
   return next < 0 ? src.slice(start) : src.slice(start, start + 5 + next);
 }
 const names = ['goTo', 'buildNav', 'renderPage', 'closeSidebar', 'toggleSidebar', 'accessDenied', 'isAdmin', 'isLandlord', 'isTenant', 'esc', 'daysUntil', 'isOverdue', 'isPaymentLate', 'isPaymentOpen',
-  'getMyProperties', 'getMyContracts', 'getMyPayments', 'getMyMaintenance', 'boomBusinessInvoices', 'closeModal', 'palazzoLinkOwner', 'palazzoSaveLook'];
+  'getMyProperties', 'getMyContracts', 'getMyPayments', 'getMyMaintenance', 'boomBusinessInvoices', 'closeModal', 'palazzoLinkOwner', 'palazzoSaveLook', 'palazzoImport'];
 const functions = names.map(extract).join('\n');
 const cfgStart = src.indexOf('    window.BOOM_PALAZZO_UI?.configure({');
 const config = src.slice(cfgStart, src.indexOf('    // L\'unica scrittura della vista', cfgStart));
@@ -52,7 +52,7 @@ function logActivity(){}
 function innestoSeedFromHash(){return false;}
 window.confirm=()=>true;
 const firebase={firestore:{FieldValue:{serverTimestamp:()=>'SERVER_TS'}},auth(){return{currentUser:{getIdToken:async()=>'demo-'+S.profile.id}};}};
-const db={batch(){const ops=[];return{update(ref,data){ops.push([ref.path,data]);},async commit(){writes.push(...ops);}};},collection(c){return{doc(id){return{path:c+'/'+id};}};}};
+const db={batch(){const ops=[];return{update(ref,data){ops.push([ref.path,data]);},set(ref,data){ops.push([ref.path,data]);},async commit(){writes.push(...ops);}};},collection(c){return{doc(id){return{path:c+'/'+id,async get(){return{exists:!!(S[c]||[]).find(x=>x.id===id)};}};},where(f,op,v){return{async get(){const arr=(S[c]||[]).filter(x=>op==='in'?v.includes(x[f]):x[f]===v);return{docs:arr.map(x=>({id:x.id}))};}};}};}};
 ${functions}
 ${config}
 goTo(${JSON.stringify(hash)});
@@ -478,6 +478,42 @@ try {
     });
     await check('facciata: nessuno scorrimento orizzontale', async () => {
       assert.ok(await pg.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+    });
+    if (width === 1440) await check('presa in carico: la tabella diventa interni, contratti e rate — solo dopo l\'anteprima', async () => {
+      const w0 = await pg.evaluate(() => writes.length);
+      const key0 = await pg.evaluate(() => BOOM_PALAZZO_UI.ui.key);
+      await pg.locator('.plz-otools [data-plz="imp-open"]').click();
+      await pg.waitForSelector('.plz-import');
+      assert.equal(await pg.locator('[data-imp="address"]').inputValue(), 'Viale Esempio 12');
+      assert.equal(await pg.locator('[data-imp="ownerId"]').inputValue(), 'owner-demo');
+      await pg.locator('[data-imp="address"]').fill('Piazzale Prenestino 42, Roma');
+      const mon = await pg.locator('[data-imp="from"]').inputValue();
+      const paid = '03/' + mon.slice(5, 7) + '/' + mon.slice(0, 4);
+      const bad = ['Interno\tPiano\tInquilino\tTelefono\tCanone\tDal\tAl\tPagato il', '1\tPT\tMario Rossi\t333 1234567\t1.250\t01/09/2025\t31/08/2027\t' + paid, '2\t1\t\t\t900\t\t\t', '3\t1\tAnna Bianchi\t\tabc\t01/01/2026\t31/12/2027\t'].join('\n');
+      await pg.locator('[data-imp="text"]').fill(bad);
+      await pg.locator('[data-plz="imp-read"]').click();
+      await pg.waitForSelector('.plz-import-tab tr.is-bad');
+      assert.ok(await pg.locator('[data-plz="imp-go"]').isDisabled(), 'con una riga in rosso non si carica niente');
+      assert.ok((await pg.locator('#plz-imp-out').innerText()).includes('canone «abc» non è un numero'));
+      await pg.locator('[data-imp="text"]').fill(bad.replace('\tabc\t', '\t950\t'));
+      await pg.locator('[data-plz="imp-read"]').click();
+      await pg.waitForFunction(() => !document.querySelector('[data-plz="imp-go"]')?.disabled);
+      assert.equal(await pg.evaluate(() => writes.length), w0, 'leggere non scrive niente');
+      const label = await pg.locator('[data-plz="imp-go"]').innerText();
+      assert.ok(/^Crea 3 interni, 2 contratti, \d+ rate$/.test(label), label);
+      await pg.locator('[data-plz="imp-go"]').click();
+      await pg.waitForFunction(() => /Piazzale Prenestino 42/.test(document.getElementById('plz-h1')?.textContent || ''));
+      const w = await pg.evaluate(n => writes.slice(n).map(x => x[0]), w0);
+      assert.equal(w.filter(x => x.startsWith('properties/')).length, 3);
+      assert.equal(w.filter(x => x.startsWith('contracts/')).length, 2);
+      assert.ok(w.every(x => /^(properties|contracts|payments)\//.test(x)), w.join(','));
+      const firstPay = await pg.evaluate(n => writes.slice(n).filter(x => x[0].startsWith('payments/')).map(x => x[1].month).sort()[0], w0);
+      assert.equal(firstPay, mon, 'le rate partono dalla gestione, mai dalla decorrenza del 2025');
+      assert.equal(await pg.locator('.plz-win[data-id]').count(), 3);
+      assert.equal(await pg.locator('.plz-win[data-id="plz_piazzale-prenestino-42_1"]').getAttribute('data-state'), 'paid');
+      assert.ok((await pg.locator('.plz-sub').innerText()).includes('gestione dal'));
+      await pg.locator('select[data-plz="building"]').selectOption(key0);
+      await pg.waitForFunction(() => /Viale Esempio/.test(document.getElementById('plz-h1')?.textContent || ''));
     });
     if (process.env.SCREENSHOT_DIR) {
       await pg.locator('[data-plz="deselect"]').click().catch(() => {});

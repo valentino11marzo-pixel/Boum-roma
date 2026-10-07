@@ -822,6 +822,7 @@ Valentyne - BOOM Rome`
             rli: id => markRliRegistered(id), aspi: id => openAspi(id),
             fiscale: id => openFascicolo(id), arpe: id => openSchedaArpe(id),
             linkOwner: (ids, ownerId) => palazzoLinkOwner(ids, ownerId),
+            importRoll: plan => palazzoImport(plan),
             saveLook: (ids, fields) => palazzoSaveLook(ids, fields) },
         // I contatti degli inquilini: `users` non è leggibile dal proprietario
         // e un contratto da proposta non porta il telefono — li ricompone il
@@ -862,6 +863,60 @@ Valentyne - BOOM Rome`
     // su TUTTI i suoi interni: il motore legge il primo valore dichiarato. I
     // campi arrivano già validati da BOOM_PALAZZO.validateLook (solo quelli
     // cambiati); qui la conferma e la scrittura, solo admin.
+    // LA PRESA IN CARICO: il palazzo da una tabella (BOOM_PALAZZO.planImport,
+    // puro). Solo admin, con conferma che dice cosa nasce. Prima di scrivere
+    // si chiede al SERVER cosa esiste già (il carico del portal ha dei tetti):
+    // un contratto o una rata già in archivio non si sovrascrive MAI — una
+    // rata pagata tornerebbe "da pagare". Solo properties/contracts/payments.
+    async function palazzoImport(plan) {
+        if (!isAdmin() || !plan || !Array.isArray(plan.properties)) return false;
+        const P = plan.properties, C = plan.contracts || [], R = plan.payments || [];
+        const newP = P.filter(p => !p.exists).length, updP = P.length - newP;
+        if (!confirm(`Caricare il palazzo ${plan.label}?\n\n${newP} interni nuovi${updP ? `, ${updP} già in archivio (solo i campi vuoti)` : ''}\n${C.length} contratti\n${R.length} rate da ${(window.BOOM_PALAZZO?.monthLabel(plan.gestioneDal) || plan.gestioneDal).toLowerCase()}\n\nNessuna email parte agli inquilini.`)) return false;
+        try {
+            const exists = async (col, ids) => {
+                const out = new Set();
+                for (const id of ids) { const d = await db.collection(col).doc(id).get(); if (d.exists) out.add(id); }
+                return out;
+            };
+            const propHave = await exists('properties', P.filter(p => !p.exists).map(p => p.id));
+            const conHave = await exists('contracts', C.map(c => c.id));
+            const payHave = new Set();
+            const cids = [...new Set(R.map(r => r.data.contractId))];
+            for (let i = 0; i < cids.length; i += 10) {
+                const snap = await db.collection('payments').where('contractId', 'in', cids.slice(i, i + 10)).get();
+                snap.docs.forEach(d => payHave.add(d.id));
+            }
+            const ts = firebase.firestore.FieldValue.serverTimestamp(), by = S.profile?.id || '';
+            const ops = [];
+            P.forEach(p => {
+                if (p.exists) ops.push(['update', 'properties', p.id, { ...p.data, palazzoImportAt: ts, palazzoImportBy: by }]);
+                else if (!propHave.has(p.id)) ops.push(['set', 'properties', p.id, { ...p.data, createdAt: ts, palazzoImportBy: by }]);
+            });
+            C.forEach(c => { if (!conHave.has(c.id)) ops.push(['set', 'contracts', c.id, { ...c.data, createdAt: ts, palazzoImportBy: by }]); });
+            R.forEach(r => { if (!payHave.has(r.id)) ops.push(['set', 'payments', r.id, { ...r.data, createdAt: ts }]); });
+            for (let i = 0; i < ops.length; i += 400) {
+                const batch = db.batch();
+                ops.slice(i, i + 400).forEach(([kind, col, id, data]) => {
+                    const ref = db.collection(col).doc(id);
+                    if (kind === 'update') batch.update(ref, data); else batch.set(ref, data);
+                });
+                await batch.commit();
+            }
+            // In memoria subito: il palazzo si disegna senza ricaricare.
+            ops.forEach(([kind, col, id, data]) => {
+                const arr = S[col] = S[col] || [];
+                const clean = { ...data }; ['createdAt', 'palazzoImportAt'].forEach(k => { if (clean[k] === ts) delete clean[k]; });
+                const cur = arr.find(x => x.id === id);
+                if (cur) Object.assign(cur, clean); else arr.push({ id, ...clean });
+            });
+            const skipped = (P.length - ops.filter(o => o[1] === 'properties').length) + (C.length - ops.filter(o => o[1] === 'contracts').length) + (R.length - ops.filter(o => o[1] === 'payments').length);
+            logActivity('palazzo_import', 'property', { building: plan.label, properties: P.length, contracts: C.length, payments: R.length, skipped });
+            toast('success', 'Palazzo caricato', `${newP} interni · ${C.length} contratti · ${R.length} rate${skipped ? ` · ${skipped} già in archivio, non toccati` : ''}`);
+            return true;
+        } catch (err) { toast('error', 'Caricamento non riuscito', err.message); return false; }
+    }
+
     async function palazzoSaveLook(ids, fields) {
         if (!isAdmin()) return false;
         const allowed = ['palazzoIntonaco', 'palazzoPersiane', 'palazzoNome', 'ultimoPiano'];

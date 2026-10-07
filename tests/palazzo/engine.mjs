@@ -197,7 +197,7 @@ eq('senza attico basta il piano più alto gestito', [P.validateLook({ ultimoPian
 eq('«P.le» è Piazzale: lo stesso palazzo comunque sia scritto', ['P.le Prenestino 42, int. 3', 'Piazzale Prenestino, 42 - 00177 Roma', 'p.zale Prenestino 42 scala A'].map(P.streetKey), Array(3).fill(P.streetKey('Piazzale Prenestino 42')));
 ok('…e non si confonde con piazza', P.streetKey('P.za Prenestino 42') !== P.streetKey('P.le Prenestino 42'));
 // §10 I quattro toni: otto stati del motore, quattro colori in pagina.
-eq('i toni sono quattro, in quest\'ordine', P.TONES.map(t => t.key), ['pagato', 'ritardo', 'attesa', 'libero']);
+eq('i toni sono quattro, in quest\'ordine (+ «Prima di BOOM», solo nei mesi prima della gestione)', P.TONES.map(t => t.key), ['pagato', 'ritardo', 'attesa', 'libero', 'prima']);
 ok('ogni stato sta in UN tono e uno solo', Object.keys(P.STATES).every(s => P.TONES.filter(t => t.states.includes(s)).length === 1));
 eq('toneOf: in verifica e senza rata sono «in attesa», in arrivo è «libero»', ['paid', 'late', 'review', 'norate', 'incoming', 'vacant'].map(P.toneOf), ['pagato', 'ritardo', 'attesa', 'attesa', 'libero', 'libero']);
 eq('model espone la data di oggi (la scadenza si conta da qui)', m.today, F.today);
@@ -233,6 +233,88 @@ eq('cedolareDeclared: anche canone.cedolareSecca e "Sì"; ciò che non si legge 
   eq('CSV della proprietaria: la sua lingua (mai "Non segnata" né "Senza rata")', [byO['5'][8], byO['8'][13], byInt['5'][8], byInt['8'][13]], ['In verifica da BOOM', 'In verifica da BOOM', 'Non segnata', 'Senza rata']);
   const csv = P.toCsv([['a;b', 'x"y', 'ok']]);
   ok('toCsv: BOM, punto e virgola, CRLF, virgolette dove servono', csv.startsWith('\ufeffMese;Interno;') && csv.includes('\r\n"a;b";"x""y";ok\r\n'));
+}
+
+// ── 11. Gestione BOOM dal: prima non è storia di BOOM ──────────────────
+{
+  // Un contratto di 14 mesi fa entrato con TUTTE le rate (il generatore parte
+  // dalla decorrenza): con gestioneDal = mese corrente, quelle vecchie non
+  // sono arretrati.
+  const GD = F.month;
+  const props = F.state.properties.map(p => p.id === 'u3' || p.id === 'u12' ? { ...p, gestioneDal: GD } : p);
+  const gctx = P.context({ ...F.state, properties: props, now: NOW });
+  const gm = P.model(gctx, all[0].key, F.month);
+  const u3 = gm.units.find(u => u.id === 'u3');
+  eq('le rate di prima della gestione non sono arretrati (int. 3 aveva 3 rate scadute)', [m.units.find(u => u.id === 'u3').arrears.count, u3.arrears.count], [3, 1]);
+  const pre = gm.issues.find(i => i.code === 'preBoom');
+  ok('…ma l\'operatore le vede contate a parte (Da sistemare)', pre && pre.ids.includes('u3') && pre.count >= 2, pre);
+  const past = P.model(gctx, all[0].key, P.monthAdd(F.month, -1));
+  const pu3 = past.units.find(u => u.id === 'u3').month;
+  eq('un mese prima della gestione: «Prima di BOOM», importi zero, contratto ancora un fatto', [pu3.state, pu3.expected, pu3.occupied], ['before', 0, true]);
+  ok('la frase lo dice invece di contarlo come ritardo', P.brief(past).some(x => /prima della gestione BOOM/.test(x)), P.brief(past));
+  eq('il modello dichiara da quando gestisce', gm.gestioneDal, GD);
+  eq('toneOf: before ha il suo tono', P.toneOf('before'), 'prima');
+  const csvPast = P.csvRows(past).find(r => r[1] === '3');
+  eq('CSV: un mese prima di BOOM non ha importi', [csvPast[10], csvPast[11], csvPast[13]], ['', '', 'Prima della gestione BOOM']);
+}
+
+// ── 12. La presa in carico: il palazzo da una tabella ──────────────────
+{
+  const T = ['Interno\tPiano\tInquilino\tTelefono\tEmail\tCanone\tDal\tAl\tTipo\tDeposito\tCedolare\tRegistrato il\tPagato il\tNote',
+    '1\tPT\tMario Rossi\t333 123 4567\tMARIO@example.invalid\t1.250,00\t01/09/2025\t31/08/2027\ttransitorio\t2.500\tsì\t20/09/2025\t' + '03/' + F.month.slice(5, 7) + '/' + F.month.slice(0, 4) + '\tok',
+    '2\t1°\t\t\t\t900\t\t\t\t\t\t\t\t',
+    'int. 3\t2\tAnna Bianchi\t+39 06 1234567\t\t950\t01/' + F.month.slice(5, 7) + '/' + F.month.slice(0, 4) + '\t30/09/2027\t3+2\t\tno\t\tsi\t',
+    '4\tboh\tLuca\t12\tnope\tabc\t32/01/2025\t01/01/2027\txx\t\t\t\t\t',
+    '1\t3\tDoppio\t\t\t800\t01/01/2026\t31/12/2026\t\t\t\t\t\t'].join('\n');
+  const R = P.parseRentRoll(T);
+  eq('i titoli si riconoscono (anche con accenti e maiuscole); le colonne ignote si dicono', [R.columns.interno, R.columns.pagato, R.unknown], [0, 12, ['Note']]);
+  const r1 = R.rows[0];
+  eq('una riga piena all\'italiana', [r1.interno, r1.canone, r1.deposito, r1.dal, r1.al, r1.telefono, r1.email, r1.tipo, r1.cedolare, r1.registrato, r1.pagatoSi],
+    ['1', 1250, 2500, '2025-09-01', '2027-08-31', '3331234567', 'mario@example.invalid', 'transitorio', 'si', '2025-09-20', true]);
+  eq('«int. 3» è l\'interno 3; «sì» senza data al pagato è pagato', [R.rows[2].interno, R.rows[2].pagatoSi, R.rows[2].pagato, R.rows[2].tipo], ['3', true, '', '3+2']);
+  eq('un interno libero non ha errori', R.rows[1].errors, []);
+  ok('una riga sbagliata dice TUTTO ciò che non va', ['canone «abc»', 'inizio «32/01/2025»'].every(x => R.rows[3].errors.some(e => e.startsWith(x))) &&
+    ['piano «boh»', 'telefono «12»', 'email «nope»', 'tipo «xx»'].every(x => R.rows[3].warnings.some(w => w.startsWith(x))), R.rows[3]);
+  ok('un interno ripetuto è un errore (mai due contratti sulla stessa riga del palazzo)', R.rows[4].errors.some(e => /ripetuto/.test(e)));
+  eq('senza la colonna Interno non si legge niente', P.parseRentRoll('Nome;Canone\nA;1').errors, ['senza_interno']);
+  eq('separatori: punto e virgola, virgola fra virgolette', P.parseRentRoll('Interno;Inquilino;Canone;Dal;Al\n7;"Rossi; Mario";1.000;01/01/2026;31/12/2026').rows[0].inquilino, 'Rossi; Mario');
+
+  const ectx = P.context({ properties: [], now: NOW });
+  const good = R.rows.filter(r => !r.errors.length);
+  const plan = P.planImport(good, ectx, { address: 'Piazzale Prenestino 42, Roma', ownerId: 'o-chiara', ownerName: 'Chiara', gestioneDal: F.month });
+  eq('il piano: interni, contratti, rate', [plan.counts.create, plan.counts.contracts, plan.errors], [3, 2, []]);
+  const c1 = plan.contracts.find(c => c.interno === '1');
+  ok('il contratto porta i fatti della tabella, firmato su carta, gestito da BOOM dal mese scelto', c1.data.status === 'active' && c1.data.signatureStatus === 'paper' && c1.data.paymentsFrom === F.month &&
+    c1.data.rliRegisteredAt === '2025-09-20' && c1.data.registrationStatus === 'registered' && c1.data.cedolareSecca === 'si' && c1.data.tenantPhone === '3331234567');
+  const p1 = plan.payments.filter(x => x.interno === '1');
+  eq('LE RATE PARTONO DALLA GESTIONE, mai dalla decorrenza del 2025 (niente arretrati inventati)', p1[0].data.month, F.month);
+  ok('…fino alla fine del contratto, una al mese, con l\'id del generatore del portal', p1.at(-1).data.month === '2027-08' && p1.every(x => x.id === 'pay_' + c1.id + '_' + x.data.month));
+  eq('pagata SOLO quella che la tabella dice pagata, con la data e la fonte dichiarata', [p1[0].data.status, p1[0].data.paidDate, p1[0].data.paidVia, p1[1].data.status],
+    ['paid', F.month + '-03', 'dichiarato', 'pending']);
+  const p3 = plan.payments.filter(x => x.interno === '3');
+  eq('un contratto che inizia nel mese: la prima scadenza non cade prima dell\'ingresso', p3[0].data.dueDate >= p3[0].data.month + '-01', true);
+  const prop2 = plan.properties.find(x => x.interno === '2');
+  ok('il libero nasce come interno disponibile, della proprietaria, gestito dal mese scelto', !prop2.exists && prop2.data.ownerId === 'o-chiara' && prop2.data.availabilityStatus === 'available' && prop2.data.gestioneDal === F.month);
+  eq('senza proprietaria o indirizzo il piano lo dice', [P.planImport(good, ectx, { address: 'Piazzale Prenestino 42', gestioneDal: F.month }).errors, P.planImport(good, ectx, { address: '', ownerId: 'x' }).errors], [['proprietaria'], ['indirizzo']]);
+
+  // Reincollare la stessa tabella quando è già caricata: niente doppioni.
+  const loaded = P.context({ now: NOW,
+    properties: plan.properties.map(x => ({ id: x.id, ...x.data })),
+    contracts: plan.contracts.map(x => ({ id: x.id, ...x.data })),
+    payments: plan.payments.map(x => ({ id: x.id, ...x.data })) });
+  const again = P.planImport(good, loaded, { address: 'P.le Prenestino 42', ownerId: 'o-chiara', gestioneDal: F.month });
+  eq('reincollata: zero interni nuovi, zero contratti, zero rate (l\'indirizzo scritto in un altro modo è lo stesso palazzo)', [again.counts.create, again.counts.update, again.counts.contracts, again.counts.payments], [0, 3, 0, 0]);
+  const other = P.planImport(good, loaded, { address: 'Piazzale Prenestino 42', ownerId: 'altro', gestioneDal: F.month });
+  ok('un interno già di un altro proprietario non si sposta da qui', other.errors.some(e => e.startsWith('owner:')));
+  const lm = P.model(loaded, again.buildingKey, F.month);
+  eq('caricato, il Palazzo lo legge: 3 interni, 2 pieni, int. 1 pagato', [lm.units.length, lm.totals.occupied, lm.units.find(u => u.interno === '1').month.state], [3, 2, 'paid']);
+  eq('…e il mese prima è «Prima di BOOM», non due arretrati', lm.units.find(u => u.interno === '1').arrears.count, 0);
+  ok('il modello da scaricare si rilegge da solo senza errori', P.parseRentRoll(P.RR_TEMPLATE).rows.every(r => !r.errors.length));
+}
+{
+  const app2 = readFileSync(new URL('../../js/portal-app.js', import.meta.url), 'utf8');
+  ok('la presa in carico è solo admin, con conferma, e chiede al SERVER cosa esiste prima di scrivere', /async function palazzoImport\(plan\) \{\s*if \(!isAdmin\(\)[\s\S]{0,900}confirm\([\s\S]{0,700}\.get\(\)[\s\S]{0,600}where\('contractId', 'in'/.test(app2));
+  ok('scrive solo properties, contracts, payments', !/palazzoImport[\s\S]*?collection\('(?!properties|contracts|payments)[a-zA-Z]+'\)[\s\S]*?async function palazzoSaveLook/.test(app2));
 }
 
 const sw = readFileSync(new URL('../../sw.js', import.meta.url), 'utf8');

@@ -20,7 +20,7 @@ export function buildFixture18(now = new Date()) {
   const today = romeDay(now), month = today.slice(0, 7);
   const M = k => monthAdd(month, k), D = k => dayAdd(today, k);
   const ADDR = 'Piazza Esempio 42, 00176 Roma';
-  const owner = { id: 'owner-demo', role: 'landlord', name: 'Proprietaria Demo', email: 'owner@example.invalid' };
+  const owner = { id: 'owner-demo', role: 'landlord', name: 'Proprietaria Demo', email: 'owner@example.invalid', phone: '+39 000 000 9999' };
   // PT: 2 interni · dal 1° al 5°: 3 per piano · attico: 1 → 18
   const plan = [[1, 'PT'], [2, 'PT']];
   let n = 3;

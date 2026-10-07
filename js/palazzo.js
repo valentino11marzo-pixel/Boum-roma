@@ -20,13 +20,13 @@
   var GEO = { w: 88, h: 54, d: 66, gx: 12, gz: 16, fh: 66 };
   // I filtri sono i QUATTRO TONI del motore (E.TONES), non gli otto stati.
   var FILTERS = [['all', 'Tutti', null]].concat(E.TONES.map(function (t) {
-    return [{ pagato: 'paid', ritardo: 'late', attesa: 'due', libero: 'free' }[t.key], t.key === 'ritardo' ? 'Non pagato' : t.key === 'libero' ? 'Liberi' : t.label, t.states];
+    return [{ pagato: 'paid', ritardo: 'late', attesa: 'due', libero: 'free', prima: 'before' }[t.key], t.key === 'ritardo' ? 'Non pagato' : t.key === 'libero' ? 'Liberi' : t.label, t.states];
   }));
-  var GLYPH = { paid: '✓', late: '!', due: '·', review: '·', norate: '·', unknown: '·', incoming: '→', vacant: '' };
+  var GLYPH = { paid: '✓', late: '!', due: '·', review: '·', norate: '·', unknown: '·', incoming: '→', vacant: '', before: '' };
 
   // view '' = nessuna scelta salvata: la decide il ruolo al primo disegno
   // (la proprietaria apre su Semplice ovunque, l'admin su 3D da desktop).
-  var ui = { key: '', month: '', view: '', filter: 'all', selected: '', rx: -22, ry: 34, zoom: 1, intro: Object.create(null), facIntro: Object.create(null), fy: -25, fx: -10, playing: null, draft: null, lookOpen: false, paidOpen: false, shown: '', asOwner: '', shareOpen: false,
+  var ui = { key: '', month: '', view: '', filter: 'all', selected: '', rx: -22, ry: 34, zoom: 1, intro: Object.create(null), facIntro: Object.create(null), fy: -25, fx: -10, playing: null, draft: null, lookOpen: false, paidOpen: false, shown: '', asOwner: '', shareOpen: false, imp: null,
     contacts: { byId: Object.create(null), pending: Object.create(null), failed: Object.create(null) } };
   var adapter = null, last = null, bound = false;
   try {
@@ -96,15 +96,17 @@
     var m = data.m;
     if (!m.building) {
       return '<div class="plz">' + previewBar(data) + '<header class="plz-head"><div><p class="plz-eyebrow">Il Palazzo</p><h1>' + (data.admin ? 'Nessun immobile in archivio' : 'Nessun interno collegato al tuo profilo') + '</h1><p class="plz-sub">' +
-        (data.admin ? 'Aggiungi gli immobili da Immobili o dall’Innesto: ogni interno allo stesso civico diventa un piano del palazzo.' : 'BOOM sta collegando i tuoi immobili. Appena pronti li vedrai qui, interno per interno.') + '</p></div></header></div>';
+        (data.admin ? 'Carica il palazzo da una tabella, oppure aggiungi gli immobili da Immobili o dall’Innesto: ogni interno allo stesso civico diventa un piano del palazzo.' : 'BOOM sta collegando i tuoi immobili. Appena pronti li vedrai qui, interno per interno.') + '</p>' +
+        (data.admin ? '<div class="plz-otools"><button type="button" class="plz-chip-btn" data-plz="imp-open">＋ Carica da tabella</button></div>' : '') + '</div></header>' +
+        '<div id="plz-import">' + (data.admin && ui.imp ? importPanel(data) : '') + '</div></div>';
     }
     if (ui.view === 'simple') {
-      return '<div class="plz" data-view="simple">' + previewBar(data) + header(data) + '<div id="plz-share">' + (ui.shareOpen ? shareBox(data) : '') + '</div><div id="plz-issues">' + issues(data) + '</div>' +
+      return '<div class="plz" data-view="simple">' + previewBar(data) + header(data) + '<div id="plz-share">' + (ui.shareOpen ? shareBox(data) : '') + '</div><div id="plz-import">' + (data.admin && ui.imp ? importPanel(data) : '') + '</div><div id="plz-issues">' + issues(data) + '</div>' +
         '<div class="plz-body plz-body-simple"><div class="plz-main" id="plz-simple">' + simple(data) + '</div>' +
         '<aside class="plz-panel" id="plz-panel" aria-live="polite">' + (ui.selected ? panel(data) : '') + '</aside></div>' +
         '<div class="plz-tip" id="plz-tip" hidden></div></div>';
     }
-    return '<div class="plz" data-view="' + ui.view + '">' + previewBar(data) + header(data) + '<div id="plz-share">' + (ui.shareOpen ? shareBox(data) : '') + '</div><div id="plz-issues">' + issues(data) + '</div><div id="plz-kpis">' + kpis(data) + '</div>' +
+    return '<div class="plz" data-view="' + ui.view + '">' + previewBar(data) + header(data) + '<div id="plz-share">' + (ui.shareOpen ? shareBox(data) : '') + '</div><div id="plz-import">' + (data.admin && ui.imp ? importPanel(data) : '') + '</div><div id="plz-issues">' + issues(data) + '</div><div id="plz-kpis">' + kpis(data) + '</div>' +
       '<div id="plz-timeline">' + timeline(data) + '</div>' +
       '<div class="plz-body"><div class="plz-main">' + filters(data) +
       (ui.view === '3d' ? scene(data) : '<div id="plz-roll">' + roll(data) + exportBar(data) + '</div>') + tray(data) +
@@ -141,13 +143,16 @@
     var m = data.m, b = m.building, o = m.owner;
     var sub = data.admin ? (o ? 'Proprietà di ' + esc(o.name || o.email || 'proprietario da collegare') : 'Proprietario da collegare') + ' · ' + b.units + (b.units === 1 ? ' interno' : ' interni')
       : b.units + (b.units === 1 ? ' interno gestito' : ' interni gestiti') + ' da BOOM';
+    if (m.gestioneDal) sub += ' · gestione dal ' + esc(E.monthLabel(m.gestioneDal).toLowerCase());
     var picker = m.buildings.length > 1 ? '<label class="plz-pick"><span>Palazzo</span><select data-plz="building">' + m.buildings.map(function (x) {
       return '<option value="' + esc(x.key) + '"' + (x.key === b.key ? ' selected' : '') + '>' + esc(x.label) + ' · ' + x.units + (data.admin && x.owner ? ' · ' + esc(x.owner.name || x.owner.email || '') : '') + '</option>';
     }).join('') + '</select></label>' : '';
     var isNow = m.month === m.currentMonth;
     var first = o && (String(o.name || '').trim().split(/\s+/)[0] || o.email);
     var tools = data.admin && o && o.id ? '<div class="plz-otools"><button type="button" class="plz-chip-btn" data-plz="as-owner" data-owner="' + esc(o.id) + '">👁 Come la vede ' + esc(first) + '</button>' +
-      '<button type="button" class="plz-chip-btn" data-plz="share" aria-expanded="' + (ui.shareOpen ? 'true' : 'false') + '">Invia a ' + esc(first) + '</button></div>' : '';
+      '<button type="button" class="plz-chip-btn" data-plz="share" aria-expanded="' + (ui.shareOpen ? 'true' : 'false') + '">Invia a ' + esc(first) + '</button>' +
+      '<button type="button" class="plz-chip-btn" data-plz="imp-open">＋ Carica da tabella</button></div>'
+      : data.admin ? '<div class="plz-otools"><button type="button" class="plz-chip-btn" data-plz="imp-open">＋ Carica da tabella</button></div>' : '';
     return '<header class="plz-head"><div class="plz-title"><p class="plz-eyebrow">Il Palazzo</p><h1 id="plz-h1" tabindex="-1">' + esc(b.label) + '</h1><p class="plz-sub">' + sub + '</p>' + tools + '</div>' +
       '<div class="plz-controls">' + picker +
       '<div class="plz-month" role="group" aria-label="Mese"><button type="button" class="plz-ico" data-plz="prev" aria-label="Mese precedente">‹</button><strong id="plz-month-label">' + esc(E.monthLabel(m.month)) + '</strong><button type="button" class="plz-ico" data-plz="next" aria-label="Mese successivo">›</button>' +
@@ -172,6 +177,7 @@
       }
       if (i.code === 'staleActive') return row('Contratti', i.count + (i.count === 1 ? ' contratto risulta attivo ma è scaduto' : ' contratti risultano attivi ma sono scaduti') + ': per le date, l’interno è libero.', '<button type="button" class="plz-btn" data-plz="contracts">Apri contratti</button>');
       if (i.code === 'overlap') return row('Contratti', i.count + (i.count === 1 ? ' interno ha due contratti' : ' interni hanno due contratti') + ' nello stesso mese.', '<button type="button" class="plz-btn" data-plz="select" data-id="' + esc(i.ids[0]) + '">Vedi</button>');
+      if (i.code === 'preBoom') return row('Rate', i.count + (i.count === 1 ? ' rata aperta' : ' rate aperte') + ' di mesi prima della gestione BOOM: nel Palazzo non contano (non sono arretrati di BOOM), ma in Canoni restano scadute. Chiudile se non servono.', '<button type="button" class="plz-btn" data-plz="rent" data-id="' + esc(i.ids[0]) + '">Apri canoni</button>');
       if (i.code === 'unregistered') return row('Registrazione', i.count + (i.count === 1 ? ' contratto in corso senza registrazione segnata' : ' contratti in corso senza registrazione segnata') + ' oltre 30 giorni dalla decorrenza: segnala con ✓ RLI registrato o invia ad ASPI. Alla proprietaria risulta “in verifica da BOOM”.', '<button type="button" class="plz-btn" data-plz="select" data-id="' + esc(i.ids[0]) + '">Vedi</button>');
       if (i.code === 'norate') return row('Rate', i.count + (i.count === 1 ? ' interno occupato senza rata' : ' interni occupati senza rata') + ' in ' + esc(E.monthLabel(m.month).toLowerCase()) + ': né pagato né in ritardo finché la rata non esiste.', '<button type="button" class="plz-btn" data-plz="rent" data-id="' + esc(i.ids[0]) + '">Verifica rate</button>');
       return '';
@@ -202,14 +208,14 @@
     return '<div class="plz-time"><button type="button" class="plz-ico plz-play" data-plz="play" aria-label="' + (ui.playing ? 'Ferma' : 'Riproduci gli ultimi 12 mesi') + '">' + (ui.playing ? '❚❚' : '▶') + '</button><div class="plz-months" role="group" aria-label="Ultimi 12 mesi">' +
       m.series.map(function (s) {
         var t = s.totals, n = Math.max(1, t.units), seg = function (k, v) { return v ? '<i class="plz-s-' + k + '" style="flex:' + v + '"></i>' : ''; };
-        var bar = seg('paid', t.paid) + seg('due', t.due + t.review + t.norate + t.unknown) + seg('late', t.late) + seg('vacant', t.vacant + t.incoming);
+        var bar = seg('paid', t.paid) + seg('due', t.due + t.review + t.norate + t.unknown) + seg('late', t.late) + seg('vacant', t.vacant + t.incoming) + seg('before', t.before || 0);
         return '<button type="button" class="plz-mcell' + (s.month === m.month ? ' is-on' : '') + (s.month === m.currentMonth ? ' is-now' : '') + '" data-plz="month" data-m="' + s.month + '" aria-label="' + esc(E.monthLabel(s.month)) + ': ' + t.paid + ' pagati, ' + t.late + ' in ritardo, ' + (t.vacant + t.incoming) + ' liberi" aria-pressed="' + (s.month === m.month) + '"><span class="plz-mbar">' + bar + '</span><small>' + E.monthLabel(s.month, true) + '</small></button>';
       }).join('') + '</div></div>';
   }
 
   function filters(data) {
-    var t = data.m.totals, count = { all: t.units, paid: t.paid, late: t.late, due: t.due + t.review + t.norate + t.unknown, free: t.vacant + t.incoming };
-    return '<div class="plz-filters" role="group" aria-label="Mostra">' + FILTERS.map(function (f) {
+    var t = data.m.totals, count = { all: t.units, paid: t.paid, late: t.late, due: t.due + t.review + t.norate + t.unknown, free: t.vacant + t.incoming, before: t.before || 0 };
+    return '<div class="plz-filters" role="group" aria-label="Mostra">' + FILTERS.filter(function (f) { return f[0] !== 'before' || count.before || ui.filter === 'before'; }).map(function (f) {
       return '<button type="button" class="plz-filter plz-f-' + f[0] + '" data-plz="filter" data-f="' + f[0] + '" aria-pressed="' + (ui.filter === f[0]) + '"><i aria-hidden="true"></i>' + f[1] + '<b>' + count[f[0]] + '</b></button>';
     }).join('') + '</div>';
   }
@@ -516,7 +522,7 @@
       '<div><dt>12 mesi</dt><dd>' + (u.time ? 'occupato ' + u.time.occupiedMonths + ' mesi su 12' : '—') + '</dd></div>' +
       (admin && (u.pipeline.proposal || u.pipeline.listing) ? '<div><dt>In corso</dt><dd>' + esc(pipelineText(u)) + '</dd></div>' : '') +
       '</dl><p class="plz-eyebrow">Ultimi 12 mesi</p>' + stripHTML(u, m.month) +
-      '<p class="plz-eyebrow">Rate di ' + esc(E.monthLabel(m.month).toLowerCase()) + '</p>' + (rows ? '<ul class="plz-rows">' + rows + '</ul>' : '<p class="plz-muted">' + (um.occupied ? 'Nessuna rata registrata per questo mese.' : 'Nessun contratto in questo mese.') + '</p>') +
+      '<p class="plz-eyebrow">Rate di ' + esc(E.monthLabel(m.month).toLowerCase()) + '</p>' + (rows ? '<ul class="plz-rows">' + rows + '</ul>' : '<p class="plz-muted">' + (um.state === 'before' ? 'Prima della gestione BOOM (dal ' + esc(E.monthLabel(um.gestioneDal).toLowerCase()) + '): i pagamenti di questo mese non sono in archivio.' : um.occupied ? 'Nessuna rata registrata per questo mese.' : 'Nessun contratto in questo mese.') + '</p>') +
       '<div class="plz-actions">' + actions + '</div></div>';
   }
 
@@ -564,7 +570,7 @@
     };
     var regular = floors.filter(function (f) { return f !== attic; }).slice().reverse();
     var intro = !ui.facIntro[m.building.key] && !ui.draft;
-    var keys = E.TONES.map(function (t) { return [t.states[0], t.label]; });
+    var keys = E.TONES.filter(function (t) { return t.key !== 'prima' || m.totals.before; }).map(function (t) { return [t.states[0], t.label]; });
     // Il volume: la facciata è la faccia davanti di un palazzo vero — fianchi,
     // tetto a terrazza, attico arretrato, la strada come piano. I fianchi sono
     // CIECHI di proposito: dove stanno le finestre laterali non lo sappiamo.
@@ -906,6 +912,7 @@
   }
   function onInput(e) {
     var el = e.target;
+    if (el && el.getAttribute && el.getAttribute('data-imp') && ui.imp) { ui.imp[el.getAttribute('data-imp')] = el.value; return; }
     if (!el || !el.getAttribute || !el.getAttribute('data-look') || !adapter || !viewAdmin()) return;
     readDraft(el);
   }
@@ -914,6 +921,78 @@
     if (!el || !el.classList) return;
     if (el.id === 'plz-look') ui.lookOpen = el.open;
     if (el.classList.contains('plz-paidcard')) ui.paidOpen = el.open;
+  }
+
+  // ── La presa in carico: il palazzo da una tabella (solo admin) ────────
+  // La proprietaria ha già il suo elenco: incollato qui diventa interni,
+  // contratti e rate (E.parseRentRoll → E.planImport, puri). Si scrive solo
+  // dopo l'anteprima, col tasto che dice cosa nasce, e le rate partono da
+  // "gestione BOOM dal": mai arretrati inventati prima di BOOM.
+  function impDefaults(data) {
+    var m = data.m, o = m && m.owner;
+    return { address: m && m.building ? m.building.label : '', ownerId: o && o.id || '', from: (m && m.currentMonth) || '', text: '', parsed: null, plan: null };
+  }
+  function importPanel(data) {
+    var st = ui.imp, S = data.S || {};
+    var owners = (S.users || []).filter(function (u) { return u.role === 'landlord' || u.role === 'owner'; })
+      .sort(function (a, b) { return String(a.name || a.email || '').localeCompare(String(b.name || b.email || ''), 'it'); });
+    return '<section class="plz-import" aria-labelledby="plz-imp-h"><p class="plz-eyebrow" id="plz-imp-h">Carica il palazzo da una tabella</p>' +
+      '<p class="plz-muted">Incolla da Excel o Google Sheets la riga dei titoli e una riga per interno. Titoli letti: Interno · Piano · Inquilino · Telefono · Email · Canone · Dal · Al · Tipo · Deposito · Cedolare · Registrato il · Pagato il. Serve solo Interno; per un interno affittato anche Canone, Dal e Al. «Pagato il» vale per il primo mese di gestione.</p>' +
+      '<div class="plz-import-f"><label><span>Indirizzo del palazzo</span><input type="text" data-imp="address" value="' + esc(st.address) + '" placeholder="Piazzale Prenestino 42, Roma" autocomplete="off"></label>' +
+      '<label><span>Proprietaria</span><select data-imp="ownerId"><option value="">Scegli…</option>' + owners.map(function (u) {
+        return '<option value="' + esc(u.id) + '"' + (u.id === st.ownerId ? ' selected' : '') + '>' + esc(u.name || u.email || u.id) + '</option>';
+      }).join('') + '</select></label>' +
+      '<label><span>Gestione BOOM dal</span><input type="month" data-imp="from" value="' + esc(st.from) + '"></label></div>' +
+      (owners.length ? '' : '<p class="plz-note">Nessun profilo Locatore: crealo in Utenti (ruolo Locatore), poi torna qui.</p>') +
+      '<textarea class="plz-import-t" data-imp="text" rows="7" spellcheck="false" aria-label="Tabella degli interni" placeholder="Interno\tPiano\tInquilino\tTelefono\tCanone\tDal\tAl\tTipo\tPagato il">' + esc(st.text) + '</textarea>' +
+      '<div class="plz-import-b"><button type="button" class="plz-btn plz-primary plz-sm" data-plz="imp-read">Leggi la tabella</button>' +
+      '<button type="button" class="plz-btn plz-sm" data-plz="imp-template">Scarica il modello</button>' +
+      '<button type="button" class="plz-btn plz-sm" data-plz="imp-close">Chiudi</button></div>' +
+      '<div id="plz-imp-out" aria-live="polite">' + importResult() + '</div></section>';
+  }
+  function importResult() {
+    var st = ui.imp; if (!st || !st.parsed) return '';
+    var P = st.parsed, plan = st.plan;
+    if (P.errors.indexOf('vuota') >= 0) return '<p class="plz-note">La tabella è vuota.</p>';
+    if (P.errors.indexOf('senza_interno') >= 0) return '<p class="plz-note">Nella prima riga manca il titolo «Interno»: è l’unica colonna obbligatoria.</p>';
+    var bad = P.rows.filter(function (r) { return r.errors.length; }), warn = P.rows.filter(function (r) { return r.warnings.length; });
+    var planErr = plan ? plan.errors : [];
+    var msgs = [];
+    if (planErr.indexOf('indirizzo') >= 0) msgs.push('Scrivi l’indirizzo del palazzo (via e civico).');
+    if (planErr.indexOf('proprietaria') >= 0) msgs.push('Scegli la proprietaria.');
+    planErr.filter(function (e) { return /^owner:/.test(e); }).forEach(function (e) { msgs.push('L’interno ' + esc(e.slice(6)) + ' è già in archivio a nome di un altro proprietario: non lo sposto da qui.'); });
+    var byLine = Object.create(null); (plan ? plan.payments : []).forEach(function (x) { byLine[x.interno] = (byLine[x.interno] || 0) + 1; });
+    var rows = P.rows.map(function (r) {
+      var ex = plan && plan.properties.find(function (x) { return x.interno === r.interno; });
+      var verdict = r.errors.length ? '<em class="plz-red">' + esc(r.errors.join(' · ')) + '</em>'
+        : (ex && ex.exists ? 'già in archivio' : 'nuovo') + (r.inquilino ? ' · contratto · ' + (byLine[r.interno] || 0) + ' rate' : ' · libero') + (r.pagatoSi ? ' · pagato' : '');
+      return '<tr' + (r.errors.length ? ' class="is-bad"' : '') + '><td>' + esc(r.interno) + '</td><td>' + esc(r.piano || '—') + '</td><td>' + esc(r.inquilino || '—') + '</td><td class="plz-num">' + (r.canone != null ? eur(r.canone) : '—') + '</td><td>' +
+        esc(r.dal ? dateIt(r.dal) + ' → ' + dateIt(r.al) : '—') + '</td><td>' + verdict + (r.warnings.length ? '<small>' + esc(r.warnings.join(' · ')) + '</small>' : '') + '</td></tr>';
+    }).join('');
+    var c = plan ? plan.counts : { create: 0, update: 0, contracts: 0, payments: 0, paid: 0 };
+    var can = plan && !bad.length && !planErr.length && (c.create + c.update) > 0;
+    return '<p class="plz-import-sum"><b>' + P.rows.length + (P.rows.length === 1 ? ' riga' : ' righe') + '</b> · ' + c.create + ' interni nuovi, ' + c.update + ' già in archivio · ' + c.contracts + ' contratti · ' + c.payments + ' rate da ' + esc(E.monthLabel(plan ? plan.gestioneDal : st.from).toLowerCase()) +
+      (c.paid ? ' (' + c.paid + ' segnate pagate dalla tabella)' : '') + '</p>' +
+      (P.unknown.length ? '<p class="plz-muted">Colonne ignorate: ' + esc(P.unknown.join(', ')) + '.</p>' : '') +
+      (msgs.length ? '<p class="plz-note">' + msgs.join(' ') + '</p>' : '') +
+      (bad.length ? '<p class="plz-note">' + bad.length + (bad.length === 1 ? ' riga da correggere' : ' righe da correggere') + ' (in rosso): sistemale nella tabella e rileggi. Non si carica niente a metà.</p>' : '') +
+      (warn.length ? '<p class="plz-muted">' + warn.length + (warn.length === 1 ? ' riga ha' : ' righe hanno') + ' un avviso: si carica lo stesso, il dato non letto resta vuoto.</p>' : '') +
+      '<div class="plz-import-wrap"><table class="plz-import-tab"><thead><tr><th>Interno</th><th>Piano</th><th>Inquilino</th><th>Canone</th><th>Contratto</th><th>Esito</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<div class="plz-import-b"><button type="button" class="plz-btn plz-primary" data-plz="imp-go"' + (can ? '' : ' disabled') + '>Crea ' + c.create + ' interni, ' + c.contracts + ' contratti, ' + c.payments + ' rate</button></div>';
+  }
+  function importRead() {
+    var st = ui.imp; if (!st || !last) return;
+    st.parsed = E.parseRentRoll(st.text);
+    var owner = (last.S.users || []).find(function (u) { return u.id === st.ownerId; });
+    st.plan = st.parsed.rows.length ? E.planImport(st.parsed.rows, last.ctx, { address: st.address, ownerId: st.ownerId, ownerName: owner ? (owner.name || owner.email || '') : '', gestioneDal: st.from }) : null;
+    var out = doc.getElementById('plz-imp-out'); if (out) out.innerHTML = importResult();
+  }
+  function downloadText(file, text, type) {
+    try {
+      var url = root.URL.createObjectURL(new root.Blob([text], { type: type || 'text/csv;charset=utf-8' }));
+      var a = doc.createElement('a'); a.href = url; a.download = file; a.rel = 'noopener'; doc.body.appendChild(a); a.click();
+      root.setTimeout(function () { root.URL.revokeObjectURL(url); a.remove(); }, 1500);
+    } catch (_) {}
   }
 
   // ── Per il commercialista: il mese o l'anno in un CSV ─────────────────
@@ -938,11 +1017,7 @@
       name = y;
     }
     var file = 'BOOM_' + slug(m.building.label) + '_' + name + '.csv';
-    try {
-      var url = root.URL.createObjectURL(new root.Blob([E.toCsv(rows)], { type: 'text/csv;charset=utf-8' }));
-      var a = doc.createElement('a'); a.href = url; a.download = file; a.rel = 'noopener'; doc.body.appendChild(a); a.click();
-      root.setTimeout(function () { root.URL.revokeObjectURL(url); a.remove(); }, 1500);
-    } catch (_) {}
+    downloadText(file, E.toCsv(rows));
     ui.lastExport = { file: file, rows: rows.length };
   }
 
@@ -994,6 +1069,16 @@
       return;
     }
     if (!admin) return;
+    if (act === 'imp-open') { ui.imp = ui.imp || impDefaults(last || compute()); var box2 = doc.getElementById('plz-import'); if (box2) { box2.innerHTML = importPanel(last); var ta2 = box2.querySelector('[data-imp="text"]'); if (ta2) ta2.focus(); } return; }
+    if (act === 'imp-close') { ui.imp = null; var box3 = doc.getElementById('plz-import'); if (box3) box3.innerHTML = ''; return; }
+    if (act === 'imp-template') return downloadText('BOOM_modello_palazzo.csv', '﻿' + E.RR_TEMPLATE);
+    if (act === 'imp-read') return importRead();
+    if (act === 'imp-go' && ui.imp && ui.imp.plan && A.importRoll) {
+      var plan = ui.imp.plan; el.disabled = true;
+      return Promise.resolve(A.importRoll(plan)).then(function (ok) {
+        if (ok) { ui.imp = null; ui.key = plan.buildingKey; ui.selected = ''; persist(); adapter.render(); } else el.disabled = false;
+      }, function () { el.disabled = false; });
+    }
     if (act === 'pdf' && id && A.pdf) return A.pdf(id);
     if (act === 'firma' && id && A.firma) return A.firma(id);
     if (act === 'rli' && id && A.rli) return A.rli(id);
@@ -1024,7 +1109,7 @@
   }
   function onChange(e) {
     var el = e.target;
-    if (el && el.getAttribute && el.getAttribute('data-look') && el.type === 'radio') return onInput(e);
+    if (el && el.getAttribute && (el.getAttribute('data-look') && el.type === 'radio' || el.getAttribute('data-imp'))) return onInput(e);
     if (!el || el.getAttribute('data-plz') !== 'building' || !adapter) return;
     stopPlay(); ui.key = el.value; ui.selected = ''; ui.draft = null; persist(); rerender();
   }

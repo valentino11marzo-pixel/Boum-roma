@@ -26,6 +26,7 @@ import crypto from 'node:crypto';
 import { fiduciaStatusMessage, toggleFiducia } from '../employees/_fiducia.js';
 import { aiStatusMessage, toggleAi } from '../ai/_status.js';
 import { handoverSegretaria, segretariaOpen, segretariaOffConv, segretariaStatusMessage, toggleSegretariaKill } from '../segretaria/_core.js';
+import { palazzoMessage } from './_palazzo.js';
 
 // Canonical public host for self-calls (the executor). VERCEL_URL deployment
 // URLs can be auth-gated / unreliable for server-to-server self-fetches, which
@@ -357,6 +358,7 @@ export default async function handler(req, res) {
           '• /segretaria — le chat in mano alla Segretaria (🤖 sulla card del lead per consegnargliene una)',
           '• /vendi — manda a un cliente il link di pagamento di un servizio',
           '• /recensione — chi ringraziare oggi, con il messaggio già pronto',
+          '• /palazzo — il mese dei palazzi: chi è dentro, chi ha pagato, chi no · /palazzo <code>&lt;via&gt;</code> per uno',
           '• /visite — agenda dei prossimi 7 giorni + richieste da confermare',
           '• /giornata — il Foglio di Chiamata di oggi (visite, viaggi, task)',
           '• /calendario — il tuo Google Calendar è collegato alla griglia? Cosa blocca?',
@@ -383,6 +385,19 @@ export default async function handler(req, res) {
 
       if (text === '/queue') {
         await tgSend(chatId, await fmtSnapshot());
+        return res.status(200).json({ ok: true });
+      }
+
+      // /palazzo — IL PALAZZO in tasca: il mese di ogni palazzo (chi è dentro,
+      // chi ha pagato, chi no, scadenze, registrazioni da segnare) dallo
+      // STESSO motore della pagina. Sola lettura; mai un recapito nel testo.
+      if (text === '/palazzo' || text.startsWith('/palazzo ')) {
+        try {
+          const { msg, keyboard } = await palazzoMessage(text.slice('/palazzo'.length).trim());
+          await tgSend(chatId, msg, { reply_markup: keyboard });
+        } catch (e) {
+          await tgSend(chatId, '⚠️ Non riesco a leggere il Palazzo: ' + esc(e.message));
+        }
         return res.status(200).json({ ok: true });
       }
 
