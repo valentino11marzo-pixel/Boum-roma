@@ -145,6 +145,36 @@ try {
       assert.ok((await pg.locator('#plz-fac').getAttribute('style')).includes('--wall:#A9A193'));
       assert.equal(await pg.locator('#plz-look-badge').evaluate(e => e.textContent), 'neutro');
     });
+    await check('Semplice 3D: ogni finestra numerata riceve il SUO click (Chrome sbagliava piano)', async () => {
+      const miss = await pg.evaluate(() => [...document.querySelectorAll('.plz-win[data-id]')].filter(w => {
+        w.scrollIntoView({ block: 'center' });
+        const c = w.getBoundingClientRect();
+        const e = document.elementFromPoint(c.left + c.width / 2, c.top + c.height * 0.3);
+        return !(e && e.closest('.plz-win') === w);
+      }).map(w => w.dataset.id));
+      assert.deepEqual(miss, []);
+    });
+    await check('Semplice 3D: trascinare gira il palazzo e non apre una scheda; le frecce pure', async () => {
+      const stage = pg.locator('#plz-fac-stage');
+      await stage.scrollIntoViewIfNeeded();
+      const fy = () => pg.locator('#plz-fac-body').evaluate(e => e.style.getPropertyValue('--fy'));
+      const before = await fy();
+      const sel0 = await pg.evaluate(() => BOOM_PALAZZO_UI.ui.selected);
+      const b = await stage.boundingBox();
+      const cx = b.x + b.width / 2, cy = b.y + Math.min(b.height / 2, 300);
+      await pg.mouse.move(cx, cy); await pg.mouse.down();
+      await pg.mouse.move(cx + 120, cy, { steps: 6 }); await pg.mouse.up();
+      assert.notEqual(await fy(), before);
+      assert.equal(await pg.evaluate(() => BOOM_PALAZZO_UI.ui.selected), sel0, 'un trascinamento non è un tocco');
+      await pg.mouse.move(cx + 120, cy); await pg.mouse.down();
+      await pg.mouse.move(cx, cy, { steps: 6 }); await pg.mouse.up();
+      await stage.focus();
+      const k0 = await fy();
+      await pg.keyboard.press('ArrowRight');
+      assert.notEqual(await fy(), k0);
+      await pg.keyboard.press('ArrowLeft');
+      assert.equal(await fy(), k0);
+    });
     await check('Semplice: cambio mese, la facciata resta (cambia la luce, non il disegno)', async () => {
       const h = await pg.locator('.plz-win[data-id="u1"]').elementHandle();
       await pg.locator('[data-plz="prev"]').click();

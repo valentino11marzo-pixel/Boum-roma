@@ -4323,9 +4323,6 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="nav-item ${S.page==='my-documents'?'active':''}" onclick="goTo('my-documents')"><span class="nav-icon">📁</span> Documenti</div>
                     <div class="nav-item ${S.page==='commercialista'?'active':''}" onclick="goTo('commercialista')"><span class="nav-icon">🧮</span> Commercialista</div>
                 </div>
-                <div class="nav-section"><div class="nav-label">Insight</div>
-                    <div class="nav-item ${S.page==='market-intel'?'active':''}" onclick="goTo('market-intel')"><span class="nav-icon">📊</span> Market Intelligence</div>
-                </div>
                 <div class="sidebar-footer">
                     <div class="nav-item" onclick="goTo('settings')"><span class="nav-icon">⚙️</span> Impostazioni</div>
                     <div class="nav-item" onclick="logout()"><span class="nav-icon">🚪</span> Esci</div>
@@ -4415,12 +4412,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             case 'inbox': m.innerHTML = (isAdmin() || isLandlord()) ? inboxPage() : accessDenied(); break;
             case 'photo-studio': m.innerHTML = isAdmin() ? photoStudioPage() : accessDenied(); if (isAdmin()) setTimeout(photoStudioInitDnd, 30); break;
             // Machete #6: per l'ADMIN la verità di mercato è il Perito nella
-            // plancia (tab Mercato); il LANDLORD tiene la sua pagina — non ha
-            // accesso alle console admin e toglierla sarebbe un furto.
+            // plancia (tab Mercato). 8/10/2026: l'intelligenza di mercato
+            // resta INTERNA a BOOM (decisione dell'operatore) — il
+            // proprietario non la vede né dal menu né dal link diretto.
             case 'market-intel':
                 if (isAdmin()) { m.innerHTML = tombstonePage('📊', 'Market Intelligence è confluita nella plancia PFS',
                     'Le statistiche client-side mostravano dati stantii. La verità è il polso del Perito — canoni chiesti e FIRMATI per zona — nella sezione Mercato della plancia.', '/pfs-command#mercato', 'Apri il Mercato in plancia →'); }
-                else if (isLandlord()) { m.innerHTML = marketIntelPage(); setTimeout(marketInitChart, 50); }
                 else { m.innerHTML = accessDenied(); }
                 break;
             case 'activity-log': m.innerHTML = isAdmin() ? activityLogPage() : accessDenied(); break;

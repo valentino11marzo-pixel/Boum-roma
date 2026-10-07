@@ -198,10 +198,13 @@ ok(/case 'property-radar':[\s\S]{0,500}tombstonePage/.test(app) && !/goTo\('prop
 ok(/case 'property-finder':[\s\S]{0,500}tombstonePage/.test(app) && !/goTo\('property-finder'\)/.test(app),
   'Fonderia: Property Finder è una lapide verso la plancia');
 const miCase = app.slice(app.indexOf("case 'market-intel':"), app.indexOf("case 'market-intel':") + 900);
-ok(/tombstonePage/.test(miCase) && /isLandlord\(\)[\s\S]{0,120}marketIntelPage\(\)/.test(miCase),
-  'Fonderia: Market Intelligence — lapide per l\'admin, pagina VIVA per il landlord (non ha accesso alle console)');
+// 8/10/2026: l'intelligenza di mercato resta INTERNA (decisione dell'operatore):
+// lapide per l'admin, accesso negato al proprietario, e niente voce nel suo menu.
+const llNav = app.slice(app.indexOf("} else if (r === 'landlord') {"), app.indexOf('} else { // tenant'));
+ok(/tombstonePage/.test(miCase) && !/marketIntelPage\(\)/.test(miCase) && /accessDenied\(\)/.test(miCase) && !/market-intel/.test(llNav),
+  'Market Intelligence è interna: lapide per l\'admin, il proprietario non la vede né dal menu né dal link');
 ok(!/goTo\('market-intel'\)[\s\S]{0,200}Tools/.test(app.slice(app.indexOf('const activeClients'), app.indexOf('const activeClients') + 4000)),
-  'sidebar admin: Market Intelligence non c\'è più (il landlord tiene la sua)');
+  'sidebar admin: Market Intelligence non c\'è più');
 ok(/function tombstonePage/.test(app), 'la lapide gentile esiste (un segnalibro vecchio non trova mai il vuoto)');
 // il deep-link è VERO: la console legge #q= e lo mette nella ricerca
 const consoleSrc = readFileSync(join(ROOT, 'pre-agreement-admin.html'), 'utf8');

@@ -273,25 +273,61 @@
   --wallN:color-mix(in srgb,var(--wall,#A9A193) 34%,#0B0B0E);
   --wallD:color-mix(in srgb,var(--wall,#A9A193) 18%,#070708);
   --wallL:color-mix(in srgb,var(--wall,#A9A193) 52%,#0B0B0E);
+  --wallS:color-mix(in srgb,var(--wall,#A9A193) 26%,#0B0B0E);
   --shutN:color-mix(in srgb,var(--shut,#3A3D41) 72%,#000);
   --stone:rgba(232,222,200,.26);
+  --dep:150px;
   margin:0;position:relative;overflow:hidden;border:1px solid var(--plz-line);border-radius:18px;padding:22px 16px 0 14px;
   background:radial-gradient(120% 60% at 50% 115%,rgba(255,176,96,.12),transparent 62%),linear-gradient(180deg,#0A0D17 0%,#0A0B10 45%,#08080A 100%);
 }
-.plz-fac-bld{position:relative;margin:0 4px 0 30px;box-shadow:0 22px 30px -8px rgba(0,0,0,.55)}
+.plz-fac-bld{position:relative;margin:0 4px 0 30px;transform-style:preserve-3d}
+/* ── Il volume (8/10): la facciata è la faccia davanti di un palazzo vero.
+   Lo stage dà la prospettiva; il corpo ruota (trascina / frecce) attorno al
+   centro del VOLUME, non della facciata. Entra ruotando UNA volta e poi sta
+   fermo: un palazzo che ondeggia sempre è un bersaglio che si muove sotto
+   il dito (provato: niente oscillazione perpetua). Fianchi e tetto sono
+   piani ruotati di 90°: ciechi di proposito (le finestre laterali non le
+   conosciamo). Nessun overflow/filter/opacity nella catena preserve-3d. */
+.plz-fac-stage{position:relative;z-index:0;perspective:1250px;perspective-origin:50% -18%;padding:14px 0 34px;touch-action:pan-y;cursor:grab;outline:none;border-radius:12px}
+.plz-fac-stage:focus-visible{box-shadow:0 0 0 2px rgba(212,175,55,.55)}
+.plz-fac-stage.is-drag{cursor:grabbing}
+.plz-fac-body,.plz-fac-main,.plz-fac-attic{transform-style:preserve-3d}
+/* Il click in 3D: Chrome sceglie MALE fra piani coplanari (provato: 9 finestre su 13
+   mancate, il click andava al contenitore). I contenitori del volume non si cliccano,
+   ogni piano sta 1px davanti al suo: la finestra che vedi è quella che tocchi. */
+.plz-fac-body,.plz-fac-bld,.plz-fac-main,.plz-fac-attic,.plz-fac-roof{pointer-events:none}
+.plz-fac-body{transform-origin:50% 55% calc(var(--dep) * -.5);transform:rotateX(var(--fx,-10deg)) rotateY(var(--fy,-25deg));transition:transform 1.5s cubic-bezier(.2,.8,.2,1)}
+.plz-facade.is-intro .plz-fac-body{transform:rotateX(-2deg) rotateY(-44deg) translateZ(-70px)}
+.plz-fac-stage.is-drag .plz-fac-body{transition:none}
+.plz-fac-main{position:relative}
+.plz-fac-attic{position:relative;margin:0 16%;--dep:100px;transform:translateZ(-26px)}
+.plz-fac-side{position:absolute;top:0;bottom:0;width:var(--dep);pointer-events:none;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  background:var(--lines,linear-gradient(transparent,transparent)),linear-gradient(90deg,var(--wallS),var(--wallD) 92%)}
+.plz-fac-side.is-r{left:100%;transform-origin:0 50%;transform:rotateY(90deg)}
+.plz-fac-side.is-l{right:100%;transform-origin:100% 50%;transform:rotateY(-90deg);background:var(--lines,linear-gradient(transparent,transparent)),linear-gradient(270deg,var(--wallS),var(--wallD) 92%)}
+/* Il tetto a terrazza: lastrico scuro con il parapetto, niente tegole inventate */
+.plz-fac-top{position:absolute;left:0;right:0;bottom:100%;height:var(--dep);pointer-events:none;transform-origin:50% 100%;transform:rotateX(90deg);backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  background:linear-gradient(180deg,rgba(255,255,255,.05),transparent 60%),#15161A;box-shadow:inset 0 0 0 3px var(--wallN)}
+/* La strada è un piano: sanpietrini che vengono verso chi guarda, l'ombra
+   del palazzo alla base, la luce calda dei lampioni */
+.plz-fac-ground{position:absolute;left:-34%;right:-34%;top:100%;height:170px;transform-origin:50% 0;transform:rotateX(90deg);pointer-events:none;
+  background:radial-gradient(46% 26% at 50% 0,rgba(0,0,0,.7),transparent 75%),radial-gradient(70% 90% at 50% 0,rgba(255,180,100,.12),transparent 70%),
+    repeating-linear-gradient(45deg,rgba(255,255,255,.05) 0 1px,transparent 1px 9px),repeating-linear-gradient(-45deg,rgba(255,255,255,.05) 0 1px,transparent 1px 9px),#0B0B0D;
+  -webkit-mask-image:linear-gradient(180deg,#000 40%,transparent);mask-image:linear-gradient(180deg,#000 40%,transparent)}
+@media (prefers-reduced-motion:reduce){.plz-fac-body{transition:none}.plz-facade.is-intro .plz-fac-body{transform:rotateX(var(--fx,-10deg)) rotateY(var(--fy,-25deg))}}
 .plz-fac-roof{position:relative;height:14px;margin:0 -7px;border-radius:2px 2px 0 0;
   background:linear-gradient(180deg,var(--wallL),var(--wallN));border-bottom:3px solid var(--wallD);
   box-shadow:0 5px 8px rgba(0,0,0,.35);display:flex;align-items:center;justify-content:center}
 .plz-fac-roof::before{content:'';position:absolute;left:4px;right:4px;top:-5px;height:5px;border-radius:3px 3px 0 0;
   background:repeating-linear-gradient(90deg,#3A2019 0 5px,#4A2A20 5px 7px)}
 .plz-fac-roof span{font-size:8px;letter-spacing:4px;text-transform:uppercase;color:rgba(255,240,214,.62);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:90%}
-.plz-fac-roof.is-small{margin:0 calc(16% - 5px);height:9px}
+.plz-fac-roof.is-small{margin:0 -5px;height:9px}
 .plz-fac-roof.is-small::before{display:none}
-.plz-fac-fl{position:relative;padding:9px 8px 9px;background:linear-gradient(90deg,rgba(0,0,0,.22),transparent 14%,transparent 86%,rgba(0,0,0,.26)),var(--wallN);
+.plz-fac-fl{position:relative;pointer-events:auto;transform:translateZ(1px);padding:9px 8px 9px;background:linear-gradient(90deg,rgba(0,0,0,.22),transparent 14%,transparent 86%,rgba(0,0,0,.26)),var(--wallN);
   border-bottom:2px solid var(--wallD);box-shadow:inset 0 1px 0 rgba(255,255,255,.04)}
-.plz-fac-fl.is-attic{margin:0 16%}
+.plz-fac-fl.is-attic{margin:0}
 /* La terrazza davanti all'attico: la ringhiera corre sul cornicione */
-.plz-fac-fl.is-attic+.plz-fac-roof::after{content:'';position:absolute;left:2px;right:2px;top:-12px;height:10px;
+.plz-fac-attic+.plz-fac-main>.plz-fac-roof::after{content:'';position:absolute;left:2px;right:2px;top:-12px;height:10px;
   background:repeating-linear-gradient(90deg,rgba(20,20,22,.9) 0 1px,transparent 1px 6px);border-top:1px solid rgba(20,20,22,.95)}
 .plz-fac-fl.is-ground{padding-top:20px;background:repeating-linear-gradient(180deg,transparent 0 15px,rgba(0,0,0,.26) 15px 17px),linear-gradient(90deg,rgba(0,0,0,.24),transparent 14%,transparent 86%,rgba(0,0,0,.28)),var(--wallD)}
 .plz-fac-lab{position:absolute;left:-30px;top:50%;transform:translateY(-50%);width:24px;text-align:right;font-size:9px;letter-spacing:1px;color:rgba(212,175,55,.85)}
@@ -359,13 +395,10 @@
 .plz-win.is-sel .plz-win-plate{background:rgba(212,175,55,.9);color:#000}
 .plz-win.is-sel .plz-win-plate em{color:#000}
 
-/* La strada: sanpietrini e la luce dei lampioni */
-.plz-fac-street{height:22px;margin:0 -16px 0 -14px;border-top:2px solid rgba(214,203,180,.2);
-  background:radial-gradient(60% 140% at 50% 0,rgba(255,180,100,.10),transparent 70%),repeating-linear-gradient(45deg,rgba(255,255,255,.04) 0 1px,transparent 1px 7px),repeating-linear-gradient(-45deg,rgba(255,255,255,.04) 0 1px,transparent 1px 7px),#0B0B0D}
-.plz-fac-yard{margin:0 -16px 0 -14px;padding:10px 16px 6px;background:#0A0A0C;border-top:1px dashed rgba(255,255,255,.08)}
+.plz-fac-yard{position:relative;z-index:1;margin:0 -16px 0 -14px;padding:10px 16px 6px;background:#0A0A0C;border-top:1px dashed rgba(255,255,255,.08)}
 .plz-fac-yard p{margin:0 0 4px;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--plz-amber)}
 .plz-fac-yard .plz-win-frame{width:22px}
-.plz-fac-cap{margin:0 -16px 0 -14px;padding:10px 14px 12px;background:#09090B;border-top:1px solid var(--plz-line)}
+.plz-fac-cap{position:relative;z-index:1;margin:0 -16px 0 -14px;padding:10px 14px 12px;background:#09090B;border-top:1px solid var(--plz-line)}
 .plz-keys{display:flex;flex-wrap:wrap;gap:4px 12px}
 .plz-key{display:inline-flex;align-items:center;gap:5px;font-size:11px;color:var(--text-secondary,#999)}
 .plz-key i{width:8px;height:12px;border:1px solid var(--stone);background:radial-gradient(circle at 50% 30%,var(--hi,#15171C),var(--lo,#0C0D11));box-shadow:0 0 6px var(--ga,transparent)}

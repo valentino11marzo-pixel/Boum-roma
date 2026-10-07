@@ -26,7 +26,7 @@
 
   // view '' = nessuna scelta salvata: la decide il ruolo al primo disegno
   // (la proprietaria apre su Semplice ovunque, l'admin su 3D da desktop).
-  var ui = { key: '', month: '', view: '', filter: 'all', selected: '', rx: -22, ry: 34, zoom: 1, intro: Object.create(null), facIntro: Object.create(null), playing: null, draft: null, lookOpen: false, paidOpen: false, shown: '',
+  var ui = { key: '', month: '', view: '', filter: 'all', selected: '', rx: -22, ry: 34, zoom: 1, intro: Object.create(null), facIntro: Object.create(null), fy: -25, fx: -10, playing: null, draft: null, lookOpen: false, paidOpen: false, shown: '',
     contacts: { byId: Object.create(null), pending: Object.create(null), failed: Object.create(null) } };
   var adapter = null, last = null, bound = false;
   try {
@@ -503,15 +503,22 @@
     var regular = floors.filter(function (f) { return f !== attic; }).slice().reverse();
     var intro = !ui.facIntro[m.building.key] && !ui.draft;
     var keys = E.TONES.map(function (t) { return [t.states[0], t.label]; });
+    // Il volume: la facciata è la faccia davanti di un palazzo vero — fianchi,
+    // tetto a terrazza, attico arretrato, la strada come piano. I fianchi sono
+    // CIECHI di proposito: dove stanno le finestre laterali non lo sappiamo.
+    var sides = '<i class="plz-fac-side is-r" aria-hidden="true"></i><i class="plz-fac-side is-l" aria-hidden="true"></i><i class="plz-fac-top" aria-hidden="true"></i>';
     return '<figure class="plz-facade' + (intro ? ' is-intro' : '') + '" id="plz-fac" style="' + lookStyle(look) + ';--n:' + n + '" aria-label="' + esc('La facciata di ' + (look.name || m.building.label) + ': una finestra per interno') + '">' +
+      '<div class="plz-fac-stage" id="plz-fac-stage" tabindex="0" aria-label="Il palazzo in 3D: trascina o usa le frecce per girarlo">' +
+      '<div class="plz-fac-body" id="plz-fac-body" style="--fy:' + ui.fy + 'deg;--fx:' + ui.fx + 'deg">' +
       '<div class="plz-fac-bld">' +
-      (attic ? '<div class="plz-fac-roof is-small" aria-hidden="true"></div>' + row(attic) : '') +
-      '<div class="plz-fac-roof" aria-hidden="true">' + (look.name ? '<span>' + esc(look.name) + '</span>' : '') + '</div>' +
-      regular.map(row).join('') + '</div>' +
-      '<div class="plz-fac-street" aria-hidden="true"></div>' +
+      (attic ? '<div class="plz-fac-attic"><div class="plz-fac-roof is-small" aria-hidden="true"></div>' + row(attic) + sides + '</div>' : '') +
+      '<div class="plz-fac-main"><div class="plz-fac-roof" aria-hidden="true">' + (look.name ? '<span>' + esc(look.name) + '</span>' : '') + '</div>' +
+      regular.map(row).join('') + sides + '</div>' +
+      '<div class="plz-fac-ground" aria-hidden="true"></div>' +
+      '</div></div></div>' +
       (m.unplaced.length ? '<div class="plz-fac-yard"><p>Senza piano · indicalo dalla scheda</p><div class="plz-fac-bays" style="--cols:' + Math.min(6, Math.max(2, m.unplaced.length)) + '">' + m.unplaced.map(function (u, k) { return win(u, k); }).join('') + '</div></div>' : '') +
       '<figcaption class="plz-fac-cap"><span class="plz-keys">' + keys.map(function (k) { return '<span class="plz-key" data-state="' + k[0] + '"><i></i>' + k[1] + '</span>'; }).join('') + '</span>' +
-      '<small>Una finestra per interno; la posizione sul piano è schematica. Finestre senza numero: interni non gestiti da BOOM.' +
+      '<small>Una finestra per interno; la posizione sul piano è schematica e i fianchi sono ciechi. Finestre senza numero: interni non gestiti da BOOM. Trascina per girare il palazzo.' +
       (data.admin && !(look.declared.intonaco || look.declared.persiane) && !ui.draft ? ' Aspetto neutro: imposta intonaco e persiane veri qui sotto.' : '') + '</small></figcaption></figure>';
   }
 
@@ -596,7 +603,7 @@
     var fac = doc.getElementById('plz-fac'); if (!fac) return;
     var byId = Object.create(null); data.m.units.forEach(function (u) { byId[u.id] = u; });
     var els = fac.querySelectorAll('.plz-win[data-id]');
-    if (els.length !== data.m.units.length) { fac.outerHTML = facade(data); return; }
+    if (els.length !== data.m.units.length) { fac.outerHTML = facade(data); syncFacade(); return; }
     Array.prototype.forEach.call(els, function (el) {
       var u = byId[el.getAttribute('data-id')]; if (!u) return;
       var s = u.month.state, pipe = pipeOf(u);
@@ -645,7 +652,7 @@
     var m = data.m, set = function (id, html) { var el = doc.getElementById(id); if (el) el.innerHTML = html; };
     if (ui.view === 'simple') {
       set('plz-issues', issues(data)); set('plz-sbrief', briefHTML(data)); set('plz-scards', cards(data)); set('plz-panel', ui.selected ? panel(data) : '');
-      if (doc.getElementById('plz-fac')) patchFacade(data); else set('plz-simple', simple(data));
+      if (doc.getElementById('plz-fac')) patchFacade(data); else { set('plz-simple', simple(data)); syncFacade(); }
       var lab0 = doc.getElementById('plz-month-label'); if (lab0) lab0.textContent = E.monthLabel(m.month);
       toggleToday(m);
       return;
@@ -717,6 +724,7 @@
     if (!doc) return;
     var st = doc.getElementById('plz-stage'), w = world();
     lightsOn();
+    syncFacade();
     if (last) ensureContacts(last.m);
     if (!st || !w) return;
     if (last && last.m.building) ui.intro[last.m.building.key] = true;
@@ -754,6 +762,60 @@
     w.addEventListener('animationend', function (e) { if (e.target === w) w.classList.remove('plz-intro'); });
   }
 
+  // ── Il volume della facciata: girarlo ────────────────────────────────
+  // Delegato sul documento: la facciata si ridisegna (anteprima aspetto,
+  // cambio palazzo) e un ascoltatore sull'elemento morirebbe con lei. Sul
+  // telefono il gesto verticale resta della pagina (touch-action: pan-y):
+  // si gira solo trascinando di lato.
+  var facDrag = null;
+  function clampN(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  function setFacAngles() {
+    var b = doc.getElementById('plz-fac-body'); if (!b) return;
+    b.style.setProperty('--fy', ui.fy + 'deg'); b.style.setProperty('--fx', ui.fx + 'deg');
+  }
+  function onFacDown(e) {
+    var st = e.target.closest && e.target.closest('#plz-fac-stage');
+    if (!st || e.button !== 0) return;
+    facDrag = { x: e.clientX, y: e.clientY, fy: ui.fy, fx: ui.fx, moved: false, id: e.pointerId, st: st, touch: e.pointerType !== 'mouse' };
+  }
+  function onFacMove(e) {
+    if (!facDrag || facDrag.id !== e.pointerId) return;
+    var dx = e.clientX - facDrag.x, dy = e.clientY - facDrag.y;
+    if (!facDrag.moved) {
+      if (Math.abs(dx) + Math.abs(dy) < 6) return;
+      if (facDrag.touch && Math.abs(dy) > Math.abs(dx)) { facDrag = null; return; }
+      facDrag.moved = true; facDrag.st.classList.add('is-drag');
+      try { facDrag.st.setPointerCapture(e.pointerId); } catch (_) {}
+    }
+    ui.fy = clampN(facDrag.fy + dx * 0.32, -42, 42);
+    if (!facDrag.touch) ui.fx = clampN(facDrag.fx - dy * 0.18, -22, 2);
+    setFacAngles();
+  }
+  function onFacUp(e) {
+    if (!facDrag || facDrag.id !== e.pointerId) return;
+    if (facDrag.moved) {
+      var st = facDrag.st;
+      st.classList.remove('is-drag'); st.dataset.justDragged = '1';
+      root.setTimeout(function () { delete st.dataset.justDragged; }, 60);
+    }
+    facDrag = null;
+  }
+  // I marcapiani dei fianchi alla quota VERA dei piani della facciata
+  // (le altezze dipendono dalla larghezza: si misurano, non si indovinano).
+  function syncFacade() {
+    var fac = doc && doc.getElementById('plz-fac'); if (!fac) return;
+    Array.prototype.forEach.call(fac.querySelectorAll('.plz-fac-main, .plz-fac-attic'), function (box) {
+      if (!box.offsetHeight) return;
+      var stops = [];
+      Array.prototype.forEach.call(box.children, function (fl) {
+        if (!fl.classList || !(fl.classList.contains('plz-fac-fl') || fl.classList.contains('plz-fac-roof'))) return;
+        var y = fl.offsetTop + fl.offsetHeight;
+        stops.push('transparent ' + (y - 2) + 'px', 'rgba(0,0,0,.38) ' + (y - 2) + 'px', 'rgba(0,0,0,.38) ' + y + 'px', 'transparent ' + y + 'px');
+      });
+      if (stops.length) box.style.setProperty('--lines', 'linear-gradient(180deg,' + stops.join(',') + ')');
+    });
+  }
+
   // La prima volta che si apre un palazzo le luci si accendono dal basso e
   // le persiane si aprono piano per piano. Una volta sola per palazzo.
   function lightsOn() {
@@ -776,7 +838,7 @@
     ui.draft[k] = el.type === 'number' ? (el.value === '' ? '' : Number(el.value)) : el.value;
     var err = doc.getElementById('plz-look-err'); if (err) err.textContent = '';
     var data = compute(); last = data;
-    var fac = doc.getElementById('plz-fac'); if (fac) fac.outerHTML = facade(data);
+    var fac = doc.getElementById('plz-fac'); if (fac) { fac.outerHTML = facade(data); syncFacade(); }
     var act = doc.getElementById('plz-look-act'); if (act) act.innerHTML = lookActions();
     var badge = doc.getElementById('plz-look-badge'); if (badge) badge.textContent = lookBadge(data.m.look);
   }
@@ -798,7 +860,8 @@
     if (!el || !el.closest('.plz') || !adapter) return;
     var act = el.getAttribute('data-plz'), id = el.getAttribute('data-id') || '';
     var st = doc.getElementById('plz-stage');
-    if (act === 'select') { if (st && st.dataset.justDragged) return; select(id); return; }
+    var fst = doc.getElementById('plz-fac-stage');
+    if (act === 'select') { if ((st && st.dataset.justDragged) || (fst && fst.dataset.justDragged)) return; select(id); return; }
     if (act === 'deselect') { ui.selected = ''; patch(); return; }
     if (act === 'contacts-retry') { ui.contacts.failed = Object.create(null); patch(); return; }
     if (act === 'month') { stopPlay(); setMonth(el.getAttribute('data-m')); return; }
@@ -858,6 +921,12 @@
     if ((e.key === 'Enter' || e.key === ' ') && el && el.getAttribute && el.getAttribute('data-plz') === 'select' && el.getAttribute('role')) {
       e.preventDefault(); select(el.getAttribute('data-id'));
     }
+    if (el && el.id === 'plz-fac-stage' && /^Arrow(Left|Right|Up|Down)$/.test(e.key)) {
+      e.preventDefault();
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') ui.fy = clampN(ui.fy + (e.key === 'ArrowLeft' ? -8 : 8), -42, 42);
+      else ui.fx = clampN(ui.fx + (e.key === 'ArrowUp' ? -4 : 4), -22, 2);
+      setFacAngles();
+    }
     if (e.key === 'Escape' && ui.selected && doc.querySelector('.plz')) { ui.selected = ''; patch(); }
   }
   function onOver(e) {
@@ -881,7 +950,11 @@
     doc.addEventListener('pointerover', onOver);
     doc.addEventListener('input', onInput);
     doc.addEventListener('toggle', onToggle, true);
-    root.addEventListener('resize', function () { if (doc.getElementById('plz-world')) applyView(); });
+    doc.addEventListener('pointerdown', onFacDown);
+    doc.addEventListener('pointermove', onFacMove);
+    doc.addEventListener('pointerup', onFacUp);
+    doc.addEventListener('pointercancel', onFacUp);
+    root.addEventListener('resize', function () { if (doc.getElementById('plz-world')) applyView(); syncFacade(); });
   }
 
   var API = { configure: configure, render: render, mount: mount, patch: patch, ui: ui, eur: eur };
