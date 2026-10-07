@@ -5622,6 +5622,13 @@ Tenere dati riservati in `properties` e pratiche; `listings` resta contenuto
 pubblico finché lettori diretti e rules non migrano insieme. Test: `npm test
 -- catalogtruth` (handler reali, anche fallback admin e campi segreti finti).
 
+Un `/listing/:id` assente prima rispondeva 200 col template generico: lo
+script sceglieva la prima casa della build e attribuiva ad essa l'URL di
+un'altra. Ora l'SSR risponde 404 per ID assente/privato e 503 se Firestore
+non è leggibile, senza mostrare una casa campione. Anche la scheda client
+usa `CASE[0]` solo quando l'URL non porta un ID; un ID sconosciuto mostra
+«Home unavailable». Test: `npm test -- catalogtruth` (handler e script reale).
+
 ## Precisione dei pin + perché non c'è il 3D di Google (`js/boom-geo.js`)
 
 **Google Photorealistic 3D Tiles non sono erogabili a questo account.** Dall'8

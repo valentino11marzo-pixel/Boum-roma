@@ -9,8 +9,7 @@
 // The client still re-applies the same tags on hydration (idempotent — it
 // removes [data-seo-dynamic] before re-adding), so there is no duplication.
 //
-// Fully defensive: on any failure it serves the unmodified template (which
-// still renders client-side), so a listing page can never break.
+// An unresolved ID must never render the template's first sample home.
 
 import fs from 'fs';
 import path from 'path';
@@ -34,6 +33,17 @@ function readTemplate() {
   }
   TEMPLATE = null;
   return TEMPLATE;
+}
+
+function sendUnavailable(res, status) {
+  res.statusCode = status;
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  const temporary = status === 503;
+  res.end('<!doctype html><html lang="en"><meta charset="utf-8"><title>Home unavailable | BOOM</title>' +
+    '<body><h1>Home unavailable</h1><p>' +
+    (temporary ? 'Please try again shortly or ask BOOM for current options.' : 'Ask BOOM for current options.') +
+    '</p><a href="/apartments">Browse homes</a></body></html>');
 }
 
 // Convert a Firestore REST value object into a plain JS value.
@@ -261,7 +271,8 @@ async function readListing(id) {
     const token = await adminToken();
     if (token) r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   }
-  if (!r.ok) return null;
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error('listing_read_failed');
   const doc = await r.json();
   const f = doc.fields || {};
   const d = {};
@@ -274,7 +285,8 @@ export default async function handler(req, res) {
   const html = readTemplate();
 
   if (!html) {
-    // Template not bundled with the function — fall back to the static page.
+    // The static page contains a sample home: never redirect a named ID there.
+    if (id) return sendUnavailable(res, 503);
     res.statusCode = 307;
     res.setHeader('Location', '/apartment-detail' + (id ? '?id=' + encodeURIComponent(id) : ''));
     return res.end();
@@ -284,19 +296,14 @@ export default async function handler(req, res) {
   try {
     if (id) {
       const raw = await readListing(id);
-      if (raw) {
-        const d = projectPublicListing(id, raw);
-        if (!d) {
-          res.statusCode = 404;
-          res.setHeader('Content-Type', 'text/html; charset=utf-8');
-          res.setHeader('Cache-Control', 'no-store');
-          return res.end('<!doctype html><html lang="en"><meta charset="utf-8"><title>Home unavailable | BOOM</title><body><h1>Home unavailable</h1><p>Ask BOOM for current options.</p><a href="/apartments">Browse homes</a></body></html>');
-        }
-        out = injectSeo(html, d, id);
-      }
+      if (!raw) return sendUnavailable(res, 404);
+      const d = projectPublicListing(id, raw);
+      if (!d) return sendUnavailable(res, 404);
+      out = injectSeo(html, d, id);
     }
   } catch {
-    out = html; // serve the plain template on any error
+    if (id) return sendUnavailable(res, 503);
+    out = html;
   }
 
   res.statusCode = 200;

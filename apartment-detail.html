@@ -3144,7 +3144,18 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
   var c = ide && window.__LISTING && window.__LISTING_ID === ide
     ? casaDaListing(window.__LISTING, ide)
     : CASE.filter(function (x) { return x.id === ide; })[0];
-  c = c || CASE[0];
+  c = c || (!ide ? CASE[0] : null);
+  if (!c) {
+    /* Un ID non presente non è la prima casa del catalogo fotografato. */
+    var pagina = document.querySelector('.casa');
+    if (pagina) pagina.innerHTML = '<div class="container" style="padding:96px 0">' +
+      '<h1>Home unavailable</h1><p>Ask BOOM for current options.</p>' +
+      '<a href="/apartments">Browse homes</a></div>';
+    [].forEach.call(document.querySelectorAll('.sezione, .decisione, .rotaia'),
+      function (el) { el.style.display = 'none'; });
+    document.title = 'Home unavailable | BOOM';
+    return;
+  }
   if (!(ide && window.__LISTING && window.__LISTING_ID === ide)) {
     /* La CASE di build è una fotografia: se l'SSR manca, non presentare
        stato/data e descrizione come fatti aggiornati. */

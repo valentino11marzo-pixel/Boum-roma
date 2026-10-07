@@ -58,6 +58,31 @@ function formFixture(fetchResult) {
 }
 async function settle() { for (let i = 0; i < 8; i++) await Promise.resolve(); }
 
+// Esegue la selezione dell'ID nella pagina reale: un URL inesistente non
+// deve ereditare la prima casa della fotografia statica.
+const idStart = source.indexOf('  var ide = window.__LISTING_ID');
+const idEnd = source.indexOf('  /* ── la scena', idStart);
+check(idStart >= 0 && idEnd > idStart, 'selezione ID trovata nella pagina reale');
+const idScript = source.slice(idStart, idEnd);
+function identify(pathname) {
+  const page = { innerHTML: 'first-home' };
+  const hidden = Array.from({ length: 3 }, () => ({ style: {} }));
+  const document = { title: '', querySelector: () => page,
+    querySelectorAll: () => hidden };
+  const context = { window: {}, location: { pathname, hash: '', search: '' },
+    CASE: [{ id: 'first-home', nome: 'First home' }],
+    casaDaListing: () => { throw new Error('no SSR record'); }, document };
+  runInNewContext('(function () {' + idScript + 'globalThis.selected = c; })()', context);
+  return { page, hidden, document, selected: context.selected };
+}
+const missingPage = identify('/listing/missing-id');
+check(missingPage.selected === undefined && missingPage.page.innerHTML.includes('Home unavailable')
+  && !missingPage.page.innerHTML.includes('first-home')
+  && missingPage.hidden.every(el => el.style.display === 'none'),
+  'ID inesistente mostra solo pagina indisponibile e nasconde la scheda campione');
+check(identify('/apartment-detail').selected.id === 'first-home',
+  'solo un URL senza ID mantiene il fallback storico');
+
 let resolveRequest;
 const pending = formFixture(() => new Promise(resolve => { resolveRequest = resolve; }));
 pending.submit({ preventDefault() {} });
@@ -139,6 +164,16 @@ try {
   runInNewContext(maliciousDataScript, maliciousHydrated);
   check(maliciousHydrated.window.__LISTING_ID === 'unit-test</script><script>alert(1)</script>',
     'ID con caratteri HTML rimane un valore stringa nello script');
+  globalThis.fetch = async () => ({ ok: false, status: 404 });
+  html = await render(404, 'missing-id');
+  check(html.includes('Home unavailable') && !html.includes('window.__LISTING')
+    && !html.includes('Bilocale Trastevere'),
+    'SSR su ID inesistente dà 404 senza la prima casa della build');
+  globalThis.fetch = async () => ({ ok: false, status: 500 });
+  html = await render(503, 'read-failed');
+  check(html.includes('Home unavailable') && !html.includes('window.__LISTING')
+    && !html.includes('Bilocale Trastevere'),
+    'errore Firestore dà 503 e non una casa diversa');
 } finally { globalThis.fetch = originalFetch; }
 
 // La stessa proiezione passa anche dall'endpoint collection e ?id, incluso
