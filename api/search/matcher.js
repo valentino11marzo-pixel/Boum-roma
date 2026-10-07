@@ -13,11 +13,12 @@
 //   - Max 6 listings per email; max 40 emails per run (safety valve).
 //
 // Auth: Vercel cron (`Authorization: Bearer CRON_SECRET`).
-// GET /api/search/matcher?dry=1 → report only, no emails, no writes.
+// GET /api/search/matcher?dry=1 → authenticated report only, no emails or writes.
 
 import { fsList, fsPatch } from '../homie/_lib.js';
 import { sendEmail } from '../agent/_lib.js';
 import DISPO from '../../js/dispo-engine.js';
+import { isPublicListing, projectPublicListing } from '../_public-listing.js';
 
 const SITE = 'https://www.boomrome.com';
 
@@ -28,11 +29,12 @@ const norm = s => String(s || '').toLowerCase().trim();
 // esattamente l'annuncio che serve a chi cerca con mesi di anticipo, e fino
 // a oggi era l'unica categoria che il Segugio non poteva vedere.
 function isRentable(l) {
-  return DISPO.marketLane(l).lane !== 'closed';
+  return isPublicListing(l) && DISPO.marketLane(l).lane !== 'closed';
 }
 
 // Mirrors the discovery page's pass() closely enough to keep promises honest.
 export function matches(criteria, l) {
+  if (!isRentable(l)) return false;
   const c = criteria || {};
   if (c.budgetMax && Number(l.price) > Number(c.budgetMax)) return false;
   if (c.beds  && Number(l.beds  || 0) < Number(c.beds))  return false;
@@ -98,9 +100,10 @@ function digestHtml(search, hits) {
 }
 
 export default async function handler(req, res) {
-  const isVercelCron = req.headers['authorization'] === `Bearer ${process.env.CRON_SECRET}`;
+  const isVercelCron = !!process.env.CRON_SECRET
+    && req.headers['authorization'] === `Bearer ${process.env.CRON_SECRET}`;
   const dry = req.query?.dry === '1';
-  if (!isVercelCron && !dry) return res.status(401).json({ ok: false, error: 'unauthorized' });
+  if (!isVercelCron) return res.status(401).json({ ok: false, error: 'unauthorized' });
 
   const report = { searches: 0, seeded: 0, emailed: 0, matchesFound: 0, errors: [] };
   try {
@@ -108,7 +111,7 @@ export default async function handler(req, res) {
       fsList('savedSearches', { limit: 300 }),
       fsList('listings', { limit: 300 }),
     ]);
-    const catalog = listings.filter(isRentable);
+    const catalog = listings.map(l => projectPublicListing(l.id, l)).filter(isRentable);
     let emailsSent = 0;
 
     for (const s of searches) {

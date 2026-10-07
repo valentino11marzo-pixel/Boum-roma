@@ -308,8 +308,8 @@ export default async function handler(req, res) {
 
   res.statusCode = 200;
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  // s-maxage bounded + short SWR: the page self-refreshes from live data on
-  // load, but the SSR snapshot itself shouldn't serve day-old numbers either
-  res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=300, stale-while-revalidate=3600');
+  // The SSR document can outlive a visibility change until this edge TTL ends.
+  // Avoid a stale extension so a withdrawn ID is rechecked within 2 minutes.
+  res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=120');
   res.end(out);
 }

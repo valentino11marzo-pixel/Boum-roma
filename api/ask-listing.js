@@ -10,6 +10,8 @@
 // that would break the chat UX.
 
 import { ai } from './_ai.js';
+import DISPO from '../js/dispo-engine.js';
+import { projectPublicListing } from './_public-listing.js';
 
 export const config = { api: { bodyParser: { sizeLimit: '64kb' } } };
 
@@ -25,7 +27,7 @@ const RATE_MAX = 12;     // requests / window / IP
 const RATE_WINDOW_MS = 60_000;
 
 const WHATSAPP = '+39 331 325 1961';
-const FALLBACK = `I couldn't reach our AI just now — but our team can answer instantly. Message BOOM on WhatsApp at ${WHATSAPP}, or apply on this page and we'll reply within 2 hours.`;
+const FALLBACK = `I couldn't reach our AI just now — but our team can help. Message BOOM on WhatsApp at ${WHATSAPP} for current details and alternatives.`;
 
 const rl = new Map(); // ip -> { c, t }
 function clientIp(req) {
@@ -76,15 +78,16 @@ async function readListing(id) {
   const url = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/listings/${encodeURIComponent(id)}?key=${FB_KEY}`;
   let r = await fetch(url);
   if (r.status === 403) { const t = await adminToken(); if (t) r = await fetch(url, { headers: { Authorization: `Bearer ${t}` } }); }
-  if (!r.ok) return null;
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error('listing_read_failed');
   const doc = await r.json();
   const f = doc.fields || {};
   const d = {};
   for (const k in f) d[k] = fv(f[k]);
-  return d;
+  return projectPublicListing(id, d);
 }
 
-function buildContext(d) {
+export function buildContext(d) {
   const pick = (...keys) => { for (const k of keys) if (d[k] != null && d[k] !== '') return d[k]; return undefined; };
   const lines = [];
   lines.push(`Name: ${pick('name') || 'This apartment'}`);
@@ -96,10 +99,13 @@ function buildContext(d) {
   if (d.floor) lines.push(`Floor: ${d.floor}`);
   if (d.type) lines.push(`Type: ${d.type}`);
   if (d.furnished) lines.push(`Furnished: ${d.furnished}`);
-  if (d.availableDate) lines.push(`Available from: ${d.availableDate}`);
+  lines.push(`Availability: ${DISPO.laneCopy(d, 'en').long}`);
   if (Array.isArray(d.features) && d.features.length) lines.push(`Features & amenities: ${d.features.slice(0, 40).join(', ')}`);
   if (Array.isArray(d.tags) && d.tags.length) lines.push(`Tags: ${d.tags.slice(0, 20).join(', ')}`);
-  if (d.description) lines.push(`Description: ${String(d.description).slice(0, 1600)}`);
+  // A residual availableDate on a closed home makes the older commercial
+  // description unsafe to repeat, including in the model's private context.
+  if (d.description && !DISPO.needsAvailabilityReview(d))
+    lines.push(`Description: ${String(d.description).slice(0, 1600)}`);
   return lines.join('\n');
 }
 
@@ -117,7 +123,7 @@ BOOM policies (always true):
 - Utilities (electricity, water, gas, internet, TARI waste tax, condo fees) are billed separately to you; we help you set them all up.
 - Every listing is video-verified. No hidden fees. 24/7 WhatsApp support.
 
-For viewings, exact availability, or anything you don't know: invite them to apply (the form on this page) or message BOOM on WhatsApp at ${WHATSAPP}. If the question isn't about this apartment, renting with BOOM, or living in Rome, gently steer back. Plain text only — no markdown, no headers, no bullet symbols.`;
+For viewings, exact availability, or anything you don't know: invite them to apply (the form on this page) or message BOOM on WhatsApp at ${WHATSAPP}. If the apartment is currently rented without a confirmed release date, do not invite an application or a hold; offer WhatsApp help to check alternatives. If the question isn't about this apartment, renting with BOOM, or living in Rome, gently steer back. Plain text only — no markdown, no headers, no bullet symbols.`;
 
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -130,8 +136,6 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  if (!process.env.ANTHROPIC_API_KEY) return res.status(200).json({ answer: FALLBACK });
-
   const ip = clientIp(req);
   if (!rateOk(ip)) {
     res.setHeader('Retry-After', '60');
@@ -143,8 +147,12 @@ export default async function handler(req, res) {
   const question = String(body.question || '').trim().slice(0, Q_MAX);
   if (!id || !question) return res.status(400).json({ error: 'Missing id or question' });
 
-  let context = '';
-  try { const d = await readListing(id); if (d) context = buildContext(d); } catch { /* answer from policy */ }
+  let listing;
+  try { listing = await readListing(id); }
+  catch { return res.status(200).json({ answer: FALLBACK }); }
+  if (!listing) return res.status(404).json({ error: 'listing_not_found' });
+  if (!process.env.ANTHROPIC_API_KEY) return res.status(200).json({ answer: FALLBACK });
+  const context = buildContext(listing);
 
   const messages = [];
   if (Array.isArray(body.history)) {
@@ -157,7 +165,7 @@ export default async function handler(req, res) {
   }
   messages.push({
     role: 'user',
-    content: `Apartment facts:\n${context || '(facts unavailable — answer from BOOM policy and invite them to ask the team for specifics)'}\n\nVisitor question: ${question}`,
+    content: `Apartment facts:\n${context}\n\nVisitor question: ${question}`,
   });
 
   try {

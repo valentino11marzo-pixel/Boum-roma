@@ -1853,7 +1853,8 @@ setTimeout(function () {
 @media (min-width:900px){ .scena-casa {
   grid-template-columns:minmax(0,1fr) 112px; } }
 .telaio { position:relative; overflow:hidden; background:var(--void);
-  aspect-ratio:16/10; box-shadow:inset 0 0 0 1px var(--line-gold-2); }
+  aspect-ratio:16/10; max-height:min(62svh,620px);
+  box-shadow:inset 0 0 0 1px var(--line-gold-2); }
 .telaio img { width:100%; height:100%; object-fit:cover; display:block;
   opacity:0; transition:opacity .5s ease; }
 .telaio img.qui { opacity:1; }
@@ -1900,6 +1901,9 @@ setTimeout(function () {
   font-weight:300; color:var(--gold); }
 .fatto span { display:block; margin-top:3px; font-size:9.5px;
   letter-spacing:.14em; text-transform:uppercase; color:var(--text-3); }
+.casa-azione { margin-top:16px; display:flex; align-items:center;
+  gap:14px; flex-wrap:wrap; }
+.casa-azione span { font-size:12px; color:var(--text-3); }
 
 /* ══ IL DENARO IN CHIARO ═══════════════════════════════════════════════ */
 .soldi { display:grid; gap:clamp(20px,2.6vw,34px); grid-template-columns:1fr;
@@ -1966,6 +1970,7 @@ html.vivo .coro.dentro .tempo::after {
   box-shadow:inset 0 0 0 1px var(--line-gold); }
 .applica h3 { font-family:var(--display); font-weight:300;
   font-size:clamp(19px,2.2vw,24px); }
+.applica [hidden], .racconto [hidden] { display:none !important; }
 .applica > p { margin-top:8px; font-size:13px; color:var(--text-2); }
 .passi { margin-top:18px; display:flex; gap:6px; }
 .passo-eti { flex:1; height:2px; background:var(--line-0); overflow:hidden; }
@@ -2535,6 +2540,10 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
     <div class="pellicola coro" id="pellicola"></div>
 
     <div class="fatti coro" id="fatti"></div>
+    <div class="casa-azione">
+      <a class="btn btn-primary" id="heroAction" href="https://wa.me/393313251961">Ask BOOM</a>
+      <span id="heroActionNote">Ask BOOM to confirm current availability.</span>
+    </div>
   </div>
 </section>
 
@@ -2551,7 +2560,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       <h2 class="titolo">What it's <span class="hl">like</span>.</h2>
     </div>
     <div class="racconto sale" style="margin-top:20px">
-      <p id="dispoAvviso" role="status" hidden>Availability is being checked. An older date may still appear in the description; use the status above and ask BOOM to confirm. <button type="button" id="mostraRacconto">Read the older description</button></p>
+      <p id="dispoAvviso" role="status" hidden>Availability and the move-in date need confirmation. Ask BOOM for the current details.</p>
       <p id="raccontoCasa">—</p>
       <div class="dote" id="dentroCasa"></div>
     </div>
@@ -2804,15 +2813,16 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
 <section class="sezione">
   <div class="container soldi">
     <div class="applica quadro sale" id="applica"><span class="tacca"></span>
-      <h3>Apply for <span class="hl" id="applicaNome">this home</span></h3>
-      <p id="applicaSotto">Tell us when you land and who's coming. We'll come
-        back to you in person.</p>
-      <div class="passi" aria-hidden="true">
+      <h3 id="applicaTitoloNeutro">Ask BOOM about this home</h3>
+      <h3 id="applicaTitoloAperto" hidden>Apply for <span class="hl" id="applicaNome">this home</span></h3>
+      <h3 id="applicaTitoloChiuso" hidden>This home is not accepting applications</h3>
+      <p id="applicaSotto">Ask BOOM to confirm current availability.</p>
+      <div class="passi" id="applicaPassi" aria-hidden="true" hidden>
         <span class="passo-eti ora"><i></i></span>
         <span class="passo-eti"><i></i></span>
         <span class="passo-eti"><i></i></span>
       </div>
-      <form id="modApplica" novalidate>
+      <form id="modApplica" novalidate hidden>
 
         <div class="ap-gruppo">
           <span class="ap-eti">1 · You</span>
@@ -2905,6 +2915,11 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
           pre-agreement.</p>
       </form>
 
+      <div id="applicaAlternativa">
+        <a class="btn btn-primary" id="applicaAlternativaLink" href="https://wa.me/393313251961"
+          target="_blank" rel="noopener">Ask BOOM on WhatsApp</a>
+      </div>
+
       <div class="applica-fatto" id="applicaFatto">
         <b>Sent. Here is exactly what happens now.</b>
         <ol class="ap-dopo">
@@ -2964,7 +2979,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
 <nav class="rotaia" id="rotaia" aria-label="Sections">
   <a href="#casa">The home</a><a href="#denaro">The money</a>
   <a href="#posto">The place</a><a href="#chiedi">Questions</a>
-  <a href="#applica" class="oro">Apply</a>
+  <a href="#applica" class="oro" id="rotaiaApply">Ask BOOM</a>
 </nav>
 
 <footer class="piede">
@@ -3137,6 +3152,15 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       fotoCurate: !!d.photosEnhancedAt
     };
   }
+  function mostraIndisponibile() {
+    var pagina = document.querySelector('.casa');
+    if (pagina) pagina.innerHTML = '<div class="container" style="padding:96px 0">' +
+      '<h1>Home unavailable</h1><p>Ask BOOM for current options.</p>' +
+      '<a href="/apartments">Browse homes</a></div>';
+    [].forEach.call(document.querySelectorAll('.sezione, .decisione, .rotaia'),
+      function (el) { el.style.display = 'none'; });
+    document.title = 'Home unavailable | BOOM';
+  }
   var ide = window.__LISTING_ID
     || (location.hash.match(/id=([^&]+)/) || [])[1]
     || (location.search.match(/[?&]id=([^&]+)/) || [])[1]
@@ -3147,13 +3171,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
   c = c || (!ide ? CASE[0] : null);
   if (!c) {
     /* Un ID non presente non è la prima casa del catalogo fotografato. */
-    var pagina = document.querySelector('.casa');
-    if (pagina) pagina.innerHTML = '<div class="container" style="padding:96px 0">' +
-      '<h1>Home unavailable</h1><p>Ask BOOM for current options.</p>' +
-      '<a href="/apartments">Browse homes</a></div>';
-    [].forEach.call(document.querySelectorAll('.sezione, .decisione, .rotaia'),
-      function (el) { el.style.display = 'none'; });
-    document.title = 'Home unavailable | BOOM';
+    mostraIndisponibile();
     return;
   }
   if (!(ide && window.__LISTING && window.__LISTING_ID === ide)) {
@@ -3287,9 +3305,22 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
       : /wait/i.test(c.stato) ? 'attesa' : 'presa');
     var decStato = document.getElementById('decStato');
     var decVai = document.getElementById('decVai');
-    if (decStato) decStato.textContent = c.stato;
-    if (decVai) decVai.textContent = c.libera ? 'Apply'
+    var heroVai = document.getElementById('heroAction');
+    var heroNota = document.getElementById('heroActionNote');
+    var rotaiaVai = document.getElementById('rotaiaApply');
+    var action = c.libera ? 'Apply'
       : c.lane === 'ahead' ? 'Reserve ahead' : 'Ask BOOM';
+    if (decStato) decStato.textContent = c.stato;
+    if (decVai) decVai.textContent = action;
+    if (heroVai) {
+      heroVai.textContent = action;
+      heroVai.href = '#applica';
+    }
+    if (rotaiaVai) rotaiaVai.textContent = action;
+    if (heroNota) heroNota.textContent = c.lane === 'closed'
+      ? 'This home is not accepting applications. Ask about current options.'
+      : c.lane === 'ahead' ? 'Ask BOOM to confirm the release date.'
+        : 'Ask BOOM to confirm the current move-in date.';
   }
   scriviStato();
   var rifaiDurata = function () {}, rifaiPresa = function () {},
@@ -3314,6 +3345,25 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
   /* La candidatura segue la corsia corrente, anche se il documento cambia
      dopo la build della pagina. */
   function scriviApply() {
+    var chiusa = c.lane === 'closed';
+    var fAp = document.getElementById('modApplica');
+    var aAp = document.getElementById('applicaAlternativa');
+    var lAp = document.getElementById('applicaAlternativaLink');
+    var pAp = document.getElementById('applicaPassi');
+    var tNe = document.getElementById('applicaTitoloNeutro');
+    var tAp = document.getElementById('applicaTitoloAperto');
+    var tCh = document.getElementById('applicaTitoloChiuso');
+    if (fAp) fAp.hidden = chiusa;
+    if (aAp) aAp.hidden = !chiusa;
+    if (pAp) pAp.hidden = chiusa;
+    if (tNe) tNe.hidden = true;
+    if (tAp) tAp.hidden = chiusa;
+    if (tCh) tCh.hidden = !chiusa;
+    if (lAp) {
+      var waAttuale = document.querySelector('.chiedi-wa');
+      if (waAttuale) lAp.href = waAttuale.href;
+      lAp.textContent = 'Ask BOOM for alternatives';
+    }
     var bAp = document.querySelector('#modApplica button[type="submit"]');
     var sAp = document.getElementById('applicaSotto');
     if (bAp && !bAp.disabled) {
@@ -3325,7 +3375,9 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
         : c.ctaLane || 'Ask about this home';
     }
     if (!sAp) return;
-    sAp.textContent = c.libera
+    sAp.textContent = chiusa
+      ? 'BOOM can check this home and propose current alternatives.'
+      : c.libera
       ? 'Tell us when you land and who is coming. We will come back to you in person.'
       : c.lane === 'ahead'
         ? (c.spiegaLane || 'Ask us to confirm the release date.')
@@ -3423,18 +3475,11 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
   /* ── il racconto e ciò che c'è dentro ───────────────────────────────── */
   var racconto = per('#raccontoCasa');
   var avviso = per('#dispoAvviso');
-  var vecchioRacconto = per('#mostraRacconto');
-  var raccontoAperto = false;
-  if (vecchioRacconto) vecchioRacconto.addEventListener('click', function () {
-    raccontoAperto = !raccontoAperto;
-    racconto.hidden = !raccontoAperto;
-    vecchioRacconto.textContent = raccontoAperto
-      ? 'Hide the older description' : 'Read the older description';
-  });
   function scriviRacconto() {
-    racconto.textContent = c.racconto || 'Ask BOOM for the full description.';
+    racconto.textContent = c.dispoReview ? ''
+      : (c.racconto || 'Ask BOOM for the full description.');
     if (avviso) avviso.hidden = !c.dispoReview;
-    racconto.hidden = !!c.dispoReview && !raccontoAperto;
+    racconto.hidden = !!c.dispoReview;
   }
   scriviRacconto();
   per('#dentroCasa').innerHTML = (c.dentro || []).slice(0, 10)
@@ -3639,6 +3684,7 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
 
     f.addEventListener('submit', function (e) {
       e.preventDefault();
+      if (c.lane === 'closed') return;
       var errore = document.getElementById('applicaErrore');
       if (errore) { errore.hidden = true; errore.textContent = ''; }
       if (!f.querySelector('#apNome').value.trim()
@@ -4161,25 +4207,22 @@ details.chiedi-v[open] summary::after { transform:translateY(-50%) rotate(45deg)
         return isFinite(n) && n > 0 ? n : null;
       }, function (k) { return d[k] == null ? '' : String(d[k]); });
     })(window.__LISTING);
-  /* seconda: la rilettura viva, come sempre */
+  /* seconda: la rilettura viva usa la stessa proiezione pubblica dell'SSR. */
   if (VERO) setTimeout(function () {
-    fetch('https://firestore.googleapis.com/v1/projects/'
-        + 'boom-property-dashboards/databases/(default)/documents/listings/'
-        + encodeURIComponent(c.id))
+    fetch('/api/listings?id=' + encodeURIComponent(c.id), { cache: 'no-store' })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (j) {
-        if (!j || !j.fields) return;
-        var f = j.fields;
+        if (!j || !j.ok) return;
+        if (!j.listing) { mostraIndisponibile(); return; }
+        var f = j.listing;
         digest(function (k) {
-          var v = f[k]; if (!v) return null;
-          var n = parseFloat(v.integerValue || v.doubleValue
-            || v.stringValue);
+          var n = parseFloat(f[k]);
           return isFinite(n) && n > 0 ? n : null;
         }, function (k) {
-          var v = f[k]; return v ? String(v.stringValue || '') : '';
+          return f[k] == null ? '' : String(f[k]);
         });
       })
-      .catch(function () { /* niente rete: restano i numeri del builder */ });
+      .catch(function () { /* niente rete: resta l'SSR o la build neutra */ });
   }, 600);
 
   /* ── le altre case: tre, della stessa mano ──────────────────────────── */

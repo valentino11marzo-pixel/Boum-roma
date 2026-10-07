@@ -5619,8 +5619,17 @@ non escono; indicatori espliciti di privato/draft bloccano la risposta.
 È una difesa aggiuntiva, non un confine per stock privato: `firestore.rules`
 permette ancora la lettura anonima diretta di ogni documento `listings`.
 Tenere dati riservati in `properties` e pratiche; `listings` resta contenuto
-pubblico finché lettori diretti e rules non migrano insieme. Test: `npm test
+pubblico finché il cambio delle rules non è rilasciato e verificato. Test: `npm test
 -- catalogtruth` (handler reali, anche fallback admin e campi segreti finti).
+
+Home, discovery, quartieri, board, booking e scheda leggono `/api/listings`;
+llms, sitemap, ask, feed e Segugio usano la stessa proiezione pubblica.
+`?format=firestore` conserva il parser delle card; la scheda RENTED con data
+incoerente nasconde racconto e form; il dry run del Segugio richiede auth.
+**Release a due tempi:** questa PR lascia `allow read: if true` su `listings`;
+dopo deploy e verifica dei lettori, chiudere la rule in un rilascio separato.
+Cache edge fino a 120 s; HTML di build e cache del service worker possono
+restare vecchi: niente segreti/off-market in `listings`. Test: `npm test -- catalogtruth catalogprivacy vetrina prenota dispo feed seo`.
 
 Un `/listing/:id` assente prima rispondeva 200 col template generico: lo
 script sceglieva la prima casa della build e attribuiva ad essa l'URL di

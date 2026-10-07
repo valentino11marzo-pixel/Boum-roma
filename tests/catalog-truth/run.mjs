@@ -1,5 +1,5 @@
 // La disponibilità pubblica non nasce da una build vecchia o da un invio HTTP tentato.
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { runInNewContext } from 'node:vm';
 import { fileURLToPath } from 'node:url';
@@ -18,7 +18,7 @@ const start = source.indexOf('  /* ── L\'APPLY');
 const end = source.indexOf('  /* ── LA LENTE', start);
 check(start >= 0 && end > start, 'listener APPLY trovato nella pagina reale');
 const applyScript = source.slice(start, end);
-function formFixture(fetchResult) {
+function formFixture(fetchResult, state = {}) {
   const listeners = {};
   const fields = {
     '#apNome': { value: 'Test Client', focus() {} },
@@ -46,8 +46,8 @@ function formFixture(fetchResult) {
     firmatari: '1', company: '' };
   const context = { document, window: { AbortController }, AbortController,
     FormData: class { get(k) { return values[k] ?? ''; } },
-    c: { id: 'unit-test', nome: 'Test home', prezzo: 1000, zona: 'Rome', libera: false,
-      lane: 'closed', dal: null }, VERO: true,
+    c: { id: 'unit-test', nome: 'Test home', prezzo: 1000, zona: 'Rome', libera: true,
+      lane: 'now', dal: null, ...state }, VERO: true,
     console, Date, Promise,
     fetch: fetchResult,
     setTimeout() { return 1; }, clearTimeout() {},
@@ -60,7 +60,7 @@ async function settle() { for (let i = 0; i < 8; i++) await Promise.resolve(); }
 
 // Esegue la selezione dell'ID nella pagina reale: un URL inesistente non
 // deve ereditare la prima casa della fotografia statica.
-const idStart = source.indexOf('  var ide = window.__LISTING_ID');
+const idStart = source.indexOf('  function mostraIndisponibile()');
 const idEnd = source.indexOf('  /* ── la scena', idStart);
 check(idStart >= 0 && idEnd > idStart, 'selezione ID trovata nella pagina reale');
 const idScript = source.slice(idStart, idEnd);
@@ -82,6 +82,121 @@ check(missingPage.selected === undefined && missingPage.page.innerHTML.includes(
   'ID inesistente mostra solo pagina indisponibile e nasconde la scheda campione');
 check(identify('/apartment-detail').selected.id === 'first-home',
   'solo un URL senza ID mantiene il fallback storico');
+
+// Le superfici pubbliche non devono leggere Firestore dal browser dopo il
+// futuro cambio rules. I tool admin/legacy hanno un percorso separato.
+const publicPages = ['index.html', 'apartments.html', 'board.html', 'book.html',
+  'apartment-detail.html', 'detail-v2.html', 'design/pages-deco/ld-regia.html',
+  ...readdirSync(join(root, 'apartments-in')).filter(f => f.endsWith('.html') && f !== 'index.html')
+    .map(f => 'apartments-in/' + f)];
+for (const file of publicPages) {
+  const page = readFileSync(join(root, file), 'utf8');
+  check(page.includes('/api/listings')
+    && !/\.collection\(['"]listings['"]\)|documents\/listings|listings\?pageSize=300/.test(page),
+    file + ' legge la proiezione pubblica e non la collection Firestore');
+}
+
+// Il booking usa il payload dell'API e tiene solo lo stato available
+// esplicito; una risposta fallita non diventa un catalogo vuoto credibile.
+const bookSource = readFileSync(join(root, 'book.html'), 'utf8');
+const bookStart = bookSource.indexOf('async function loadListings(){');
+const bookEnd = bookSource.indexOf('function propCard(', bookStart);
+check(bookStart >= 0 && bookEnd > bookStart, 'loader booking trovato nella pagina reale');
+async function loadBook(fetchResult) {
+  const cardContainer = { innerHTML: '' };
+  const context = { document: { getElementById: () => cardContainer },
+    window: { _L: {} }, ST: { all: [] }, fetch: fetchResult,
+    paintProps() { context.painted = true; }, Error };
+  runInNewContext(bookSource.slice(bookStart, bookEnd) + '\nglobalThis.loadBook = loadListings;', context);
+  await context.loadBook();
+  return { cardContainer, context };
+}
+const book = await loadBook(async () => ({ ok: true, json: async () => ({ ok: true,
+  listings: [{ id: 'public', status: 'available' }, { id: 'rented', status: 'rented' },
+    { id: 'unknown' }] }) }));
+check(book.context.painted && book.context.ST.all.length === 1
+  && book.context.ST.all[0].id === 'public' && !book.context.window._L.rented,
+  'booking offre solo case pubbliche con stato available esplicito');
+const failedBook = await loadBook(async () => ({ ok: false }));
+check(failedBook.cardContainer.innerHTML.includes("Couldn't load the catalog")
+  && !failedBook.context.painted,
+  'booking distingue errore API da nessuna casa disponibile');
+
+const refreshStart = source.indexOf('  if (VERO) setTimeout(function () {',
+  source.indexOf('/* seconda: la rilettura viva'));
+const refreshEnd = source.indexOf('  /* ── le altre case', refreshStart);
+check(refreshStart >= 0 && refreshEnd > refreshStart, 'refresh della scheda trovato nella pagina reale');
+async function refreshDetail(payload) {
+  const result = { hidden: 0, digest: null, url: '' };
+  const context = { VERO: true, c: { id: 'unit-test' }, Promise,
+    setTimeout(fn) { fn(); },
+    fetch(url) { result.url = url; return Promise.resolve({ ok: true, json: async () => payload }); },
+    mostraIndisponibile() { result.hidden++; },
+    digest(number, string) { result.digest = { price: number('price'), status: string('status') }; } };
+  runInNewContext(source.slice(refreshStart, refreshEnd), context);
+  await settle();
+  return result;
+}
+const privateRefresh = await refreshDetail({ ok: true, listing: null });
+check(privateRefresh.url === '/api/listings?id=unit-test'
+  && privateRefresh.hidden === 1 && privateRefresh.digest === null,
+  'scheda nasconde un ID ritirato dalla proiezione pubblica');
+const publicRefresh = await refreshDetail({ ok: true,
+  listing: { id: 'unit-test', price: 1250, status: 'available' } });
+check(publicRefresh.hidden === 0 && publicRefresh.digest.price === 1250
+  && publicRefresh.digest.status === 'available',
+  'scheda aggiorna i fatti dal record proiettato');
+
+const applyStart = source.indexOf('  /* La candidatura segue la corsia corrente');
+const applyEnd = source.indexOf('  /* il canone sui Solari', applyStart);
+check(applyStart >= 0 && applyEnd > applyStart, 'render candidatura trovato nella pagina reale');
+const applyEls = Object.fromEntries([
+  'modApplica', 'applicaAlternativa', 'applicaAlternativaLink', 'applicaPassi',
+  'applicaTitoloNeutro', 'applicaTitoloAperto', 'applicaTitoloChiuso', 'applicaSotto',
+].map(id => [id, { hidden: false, href: '' }]));
+const applyButton = { disabled: false, textContent: 'Send application' };
+const applyContext = { c: { lane: 'closed', libera: false, stato: 'Rented' },
+  document: { getElementById(id) { return applyEls[id] || null; },
+    querySelector(selector) { return selector === '.chiedi-wa'
+      ? { href: 'https://wa.me/fixture?text=home' } : applyButton; } },
+  Date };
+runInNewContext(source.slice(applyStart, applyEnd), applyContext);
+check(applyEls.modApplica.hidden && !applyEls.applicaAlternativa.hidden
+  && applyEls.applicaPassi.hidden && applyEls.applicaTitoloAperto.hidden
+  && !applyEls.applicaTitoloChiuso.hidden && applyEls.applicaTitoloNeutro.hidden
+  && applyEls.applicaAlternativaLink.href.includes('wa.me/fixture'),
+  'casa RENTED nasconde candidatura e propone un contatto contestuale');
+applyContext.c.lane = 'ahead';
+applyContext.scriviApply();
+check(!applyEls.modApplica.hidden && applyEls.applicaAlternativa.hidden
+  && !applyEls.applicaPassi.hidden && !applyEls.applicaTitoloAperto.hidden,
+  'data di rilascio confermata riapre la candidatura senza ricaricare la pagina');
+
+const descriptionStart = source.indexOf('  /* ── il racconto e ciò che c\'è dentro');
+const descriptionEnd = source.indexOf("  per('#dentroCasa')", descriptionStart);
+check(descriptionStart >= 0 && descriptionEnd > descriptionStart,
+  'render descrizione trovato nella pagina reale');
+const copyEls = { '#raccontoCasa': { textContent: '', hidden: false },
+  '#dispoAvviso': { hidden: true } };
+const copyContext = { c: { dispoReview: true,
+  racconto: 'Old listing says available from July 2026.' },
+  per(selector) { return copyEls[selector]; } };
+runInNewContext(source.slice(descriptionStart, descriptionEnd), copyContext);
+check(copyEls['#raccontoCasa'].textContent === ''
+  && copyEls['#raccontoCasa'].hidden && !copyEls['#dispoAvviso'].hidden,
+  'descrizione con disponibilità da rivedere non viene esposta né riaperta');
+copyContext.c.dispoReview = false;
+copyContext.scriviRacconto();
+check(copyEls['#raccontoCasa'].textContent.includes('Old listing')
+  && !copyEls['#raccontoCasa'].hidden && copyEls['#dispoAvviso'].hidden,
+  'descrizione torna visibile solo quando il motore non chiede revisione');
+
+let closedCalls = 0;
+const closed = formFixture(() => { closedCalls++; return Promise.resolve({ ok: true }); },
+  { lane: 'closed', libera: false });
+closed.submit({ preventDefault() {} });
+check(closedCalls === 0 && !closed.success.classList.added && !closed.button.disabled,
+  'submit programmato su RENTED non invia una candidatura');
 
 let resolveRequest;
 const pending = formFixture(() => new Promise(resolve => { resolveRequest = resolve; }));
@@ -123,9 +238,12 @@ globalThis.fetch = async () => ({ ok: true, status: 200,
   json: async () => ({ fields: fields(raw) }) });
 async function render(expected = 200, id = 'unit-test') {
   let html = '';
-  const res = { statusCode: 0, setHeader() {}, end(s) { html = s; } };
+  const headers = {};
+  const res = { statusCode: 0, setHeader(k, v) { headers[k] = v; }, end(s) { html = s; } };
   await listingHandler({ query: { id } }, res);
   check(res.statusCode === expected, 'handler listing vero risponde ' + expected);
+  if (expected === 200) check(headers['Cache-Control'] === 'public, max-age=0, s-maxage=120',
+    'SSR limita la cache edge senza servire una copia stale dopo la revoca');
   return html;
 }
 try {
@@ -192,17 +310,28 @@ globalThis.fetch = async url => ({ ok: true, status: 200, json: async () =>
     : String(url).includes('/private-test?') ? privateDoc
       : String(url).includes('/unpublished-test?') ? unpublishedDoc : publicDoc });
 async function catalog(query = {}) {
-  const res = { statusCode: 0, payload: null, setHeader() {},
+  const headers = {};
+  const res = { statusCode: 0, payload: null, setHeader(k, v) { headers[k] = v; },
     status(code) { this.statusCode = code; return this; },
     json(body) { this.payload = body; return this; } };
   await listingsHandler({ query }, res);
   check(res.statusCode === 200, 'endpoint listings vero risponde 200');
+  check(headers['Cache-Control'] === 'public, max-age=0, s-maxage=120',
+    'API catalogo limita la cache edge senza stale extension');
   return res.payload;
 }
 try {
   const all = await catalog();
   check(all.count === 1 && all.listings[0].id === 'unit-test',
     'collection esclude annuncio privato esplicito');
+  const compatible = await catalog({ format: 'firestore' });
+  check(compatible.count === 1 && compatible.documents[0].name.endsWith('/unit-test')
+    && compatible.documents[0].fields.price.integerValue === '1000'
+    && compatible.documents[0].fields.images.arrayValue.values.length === 2,
+    'home, griglia e board ricevono la forma Firestore dei soli dati proiettati');
+  check(!JSON.stringify(compatible).includes('operator-secret')
+    && !JSON.stringify(compatible).includes('private-test'),
+    'forma compatibile non ripubblica campi segreti o annunci privati');
   check(!JSON.stringify(all).includes('operator-secret')
     && !JSON.stringify(all).includes('secretSynthetic'),
     'collection scarta i campi riservati sintetici');
@@ -231,13 +360,23 @@ globalThis.fetch = async (url, options) => {
     json: async () => ({ idToken: 'synthetic-token' }) };
   if (!options?.headers?.Authorization) return { ok: false, status: 403 };
   adminReads++;
-  return { ok: true, status: 200, json: async () => ({ documents: [publicDoc, privateDoc, unpublishedDoc] }) };
+  return { ok: true, status: 200, json: async () =>
+    String(url).includes('/listings?')
+      ? ({ documents: [publicDoc, privateDoc, unpublishedDoc] }) : publicDoc };
 };
 try {
   const all = await catalog();
   check(adminReads === 1 && all.count === 1
     && !JSON.stringify(all).includes('operator-secret'),
     'fallback admin non apre campi o annunci privati al pubblico');
+  const compatible = await catalog({ format: 'firestore' });
+  check(adminReads === 2 && compatible.count === 1
+    && !JSON.stringify(compatible).includes('operator-secret'),
+    'forma compatibile resta proiettata anche dietro rules chiuse');
+  const html = await render(200);
+  check(adminReads === 3 && html.includes('window.__LISTING=')
+    && !html.includes('operator-secret'),
+    'SSR continua a funzionare con lettura anonima 403 e token admin');
 } finally {
   globalThis.fetch = originalFetch;
   if (oldEmail === undefined) delete process.env.FIREBASE_ADMIN_EMAIL;

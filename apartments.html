@@ -4617,9 +4617,7 @@ setTimeout(function () {
       + new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
   }
   setTimeout(function () {
-    fetch('https://firestore.googleapis.com/v1/projects/'
-        + 'boom-property-dashboards/databases/(default)/documents/'
-        + 'listings?pageSize=300')
+    fetch('/api/listings?format=firestore', { cache: 'no-store' })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (j) {
         if (!j || !j.documents) return;
@@ -4655,6 +4653,12 @@ setTimeout(function () {
             af: af, ad: raw,
             p: isFinite(p) && p > 0 ? Math.round(p) : null
           };
+        });
+        /* Un annuncio tolto dalla proiezione pubblica non resta come carta
+           della build dopo la risposta live (anche se il suo HTML era vecchio). */
+        carte = carte.filter(function (card) {
+          if (per[card.dataset.id]) return true;
+          card.remove(); return false;
         });
         [].forEach.call(carte, function (card) {
           var d = per[card.dataset.id];
