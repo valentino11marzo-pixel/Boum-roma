@@ -68,6 +68,11 @@ Premium rental management platform for Rome's apartment market. Serves tenants, 
                           (jsPDF npm, STESSA versione pinnata). build() →
                           { doc, sigAnchors, hashSeed }; upload/hash/patch
                           restano ai chiamanti.
+  palazzo-engine.js       Il Palazzo, puro: per un palazzo (stesso civico) e
+                          QUALUNQUE mese, interno per interno chi è dentro,
+                          chi ha pagato, chi no. window.BOOM_PALAZZO.
+  palazzo.js              La vista 3D (CSS, niente WebGL) + elenco del Palazzo,
+                          per admin e proprietario. Vedi "Il Palazzo".
   ai-registry.js          La Centrale AI, il registro PURO: i 27 scopi che
                           chiamano un modello (file, modello cloud di default,
                           modalità testo/visione/documento/audio, se può
@@ -107,7 +112,7 @@ firebase.json             Firebase deploy config (firestore + storage rules)
 | `vercel.json` | Deployment config, rewrites, cron schedule. |
 | `js/firebase-config.js` | Firebase project config (`boom-property-dashboards`). |
 | `js/boom-portal.js` | Shared portal lib — `window.BoomPortal` API. |
-| `owner-dashboard.html` | Landlord/owner SPA. Firestore-backed, filtered by `ownerId`. |
+| `owner-dashboard.html` | **Demo statica** (localStorage, nessun Firebase, nessun link vi punta). La superficie VERA del proprietario è `portal.html` col ruolo `landlord`, che atterra su **Il Palazzo**. |
 | `tenant.html` | Tenant SPA. Realtime property + maintenance feed. |
 | `client-portal.html` | PFS client swipe app. Reads `pfsClients` collection. |
 | `pfs-command.html` | **La plancia unica del PFS** (admin): TUTTO il flusso Property Finding in una pagina. Pipeline per stage (giorni-in-stage, chip lenti in ambra) → fascicolo cliente a drawer (criteri, ricerche, mazzo con esiti/rimozione, attività, link portale con codice BM…, WhatsApp, cambio stage con la STESSA scrittura del portal) → creazione cliente (nasce col portale attivo) → feed radar con fiuto 💎/badge cluster/filtro occasioni + azione «→ Proponi a…» (push curato via `api/casafari/import`, conferma sulle agenzie) → strip occasioni (radarState) → ricerche automatiche + **vedette** (stessa collection della Centrale) → triage swipe, ⌘K, brief AI, salute fonti. |
@@ -5958,6 +5963,61 @@ camere, «Trilocale Pigneto» con 3. Va corretto alla fonte, non nel markup.
 - PWA support via `manifest.json` and `sw.js` service worker — registered on
   the 3 portals via `BoomPortal.registerServiceWorker()`
 
+### Il Palazzo (`js/palazzo-engine.js` + `js/palazzo.js` + `css/palazzo.css`, `goTo('palazzo')`) — 7 ottobre 2026
+La domanda della proprietaria di un palazzo intero, ogni mese: **quali interni
+sono pieni, chi ha pagato, chi no**. Prima nessuna superficie la rispondeva:
+`owner-dashboard.html` era una demo in localStorage, il portal del landlord
+mostrava schede piatte senza piano/interno, e i suoi conteggi di ritardo
+NON VEDEVANO NIENTE (vedi sotto).
+- **Il palazzo non è un documento**: è il gruppo degli interni allo stesso
+  civico (`streetKey`, per token — "Via della Scala 5" resta una via, "Via
+  Roma 12" tiene la sua Roma; interno/scala/piano/CAP/città ignorati), o
+  `property.palazzo` se scritto a mano. Piano letto da `floor` ("3° / 5",
+  "2nd Floor", "PT", "rialzato", "Attico" in cima), **mai indovinato**: un
+  piano illeggibile va "nel cortile" (da collocare) e l'admin lo vede.
+- **Lo stato di un interno in un mese** (`unitMonth`): occupato se un
+  contratto in vigore (attivo, o scaduto/terminato per i mesi passati —
+  `terminatedAt` vince su `endDate`) copre il mese, o se ci sono rate del
+  mese; poi `paid` · `late` · `due` · `review` (segnalato/in corso) ·
+  `norate` (occupato SENZA rata: da sistemare, mai pagato né in ritardo) ·
+  `vacant` · `incoming` (contratto futuro o in firma). Ogni rata passa da
+  `BOOM_RENT.paymentState` (una copia sola). Una rata trimestrale colora i
+  mesi che copre ma **il suo importo conta una volta**, nel mese di scadenza.
+- **La vista**: cubi in 3D CSS (trascina/frecce per ruotare, +/−, ⌂), oro
+  pagato, rosso pulsante in ritardo, avorio da pagare, blu in verifica,
+  ambra a righe senza rata, vetro libero, menta tratteggiato in arrivo; il
+  palazzo si monta piano per piano all'ingresso. Accanto **il mese in
+  parole** (chi non ha pagato, ritardo più lungo per primo; chi deve ancora;
+  da verificare; liberi; hanno pagato), sopra i 4 numeri (pieni · pagati ·
+  non pagati · arretrati totali) e la **linea del tempo** di 12 mesi (▶ la
+  riproduce: i cubi cambiano colore sul posto, non si ridisegnano). Vista
+  **Elenco** = rent roll per piano con la striscia dei 12 mesi. Niente
+  solai disegnati: lastre larghe quanto il palazzo, Chrome le ordinava male
+  in profondità e sembravano tagliare gli interni (provato, tolte).
+- **Due ruoli, una faccia**: l'admin sceglie il palazzo, vede **Da
+  sistemare** (cortile, interni non collegati al profilo della proprietaria,
+  contratti "attivi" già scaduti, sovrapposizioni, rate mancanti) e le
+  azioni del portal (Gestisci canoni = `openRentUnit`, contratto, fascicolo,
+  modifica interno). Il proprietario vede solo il suo, in sola lettura (PDF
+  del contratto, Scrivi a BOOM) e **ci atterra al login**. L'unica
+  scrittura è admin e con conferma: **Collega** imposta `ownerId` sugli
+  interni (un immobile nato da una proposta ha `ownerId: null` e dal suo
+  accesso non esiste — rules e loader leggono `ownerId`).
+- **Il difetto trovato per strada**: il loader del portal rinomina in
+  memoria le rate scadute da `pending` a `overdue`, ma badge Pagamenti,
+  dashboard e pagina pagamenti del landlord (più alcune viste admin:
+  utenti in ritardo, solleciti a livelli) contavano ancora `status ===
+  'pending' && isOverdue` — cioè **zero ritardi, sempre**. Ora passano da
+  `isPaymentLate()` = `BOOM_RENT.paymentState(p) === 'overdue'` (che
+  esclude anche il bonifico già segnalato dall'inquilino).
+- Da sapere: il ruolo `owner` non è gestito dal portal (cade nella vista
+  inquilino): la proprietaria va creata come **Locatore** (`landlord`).
+Test: `node tests/palazzo/engine.mjs` (80 check: civico, piano, 13 interni
+in ogni stato, trimestrale, contratto chiuso in anticipo, cose da sistemare,
+filtro proprietaria, mutazioni sul conteggio dei ritardi, giunzioni del
+portal) + `node tests/palazzo/ui.mjs` (32 check in Chromium a 1440 e 390px
+con le funzioni VERE del portal estratte da portal-app.js e Firestore finto).
+
 ### Fascicolo operativo immobile — 20 settembre 2026
 La scheda admin passa dal modale al percorso `#property/<id>/<sezione>`: situazione, contratti, canoni, documenti e attività; link ricaricabili, ritorno alla ricerca/posizione e apertura dei flussi esistenti; ricerca e filtro di disponibilità ora si combinano. Le viste dei proprietari restano separate.
 `property-dossier-engine.js` deriva il fascicolo dai record caricati, riusa BOOM_RENT e non scrive uno stato parallelo. ID diretti prevalgono sui contratti legacy; conflitti e dati mancanti restano espliciti, nessun abbinamento per nome o persona.
@@ -5978,7 +6038,8 @@ loader, confirm dialog) — see `BoomPortal.*` API.
 
 | Portal | Role(s) accepted | Collections read/written |
 |---|---|---|
-| `owner-dashboard.html` | `owner`, `landlord`, `admin` | reads/writes `properties` filtered by `ownerId` |
+| `portal.html#palazzo` | `landlord` (e `admin` per tutti i palazzi) | reads `properties` where `ownerId == uid`, contracts/payments by `propertyId` — sola lettura |
+| `owner-dashboard.html` | — | demo statica in localStorage, non autentica nessuno |
 | `tenant.html` | `tenant` | reads `properties` (own), writes `maintenance` |
 | `client-portal.html` | access code on `pfsClients` doc | reads/writes `pfsClients.portalProperties` |
 

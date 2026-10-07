@@ -807,6 +807,38 @@ Valentyne - BOOM Rome`
             innesto: id => innestoOpenFor('property', id) }
     });
 
+    // IL PALAZZO: un proprietario, un palazzo, ogni interno, ogni mese. La vista
+    // deriva tutto da S (BOOM_PALAZZO); le azioni restano quelle del portal.
+    window.BOOM_PALAZZO_UI?.configure({
+        state: () => S, isAdmin: () => isAdmin(),
+        render: () => { if (S.page === 'palazzo') { renderPage(); } },
+        actions: { rent: (propertyId, month) => openRentUnit('property:' + propertyId, month),
+            contract: id => viewContract(id),
+            dossier: id => window.BOOM_PROPERTY_DOSSIER?.open(id),
+            edit: property => openModal('editProperty', property),
+            contracts: () => goTo('contracts'), users: () => goTo('users'), inbox: () => goTo('inbox'),
+            linkOwner: (ids, ownerId) => palazzoLinkOwner(ids, ownerId) }
+    });
+    // L'unica scrittura della vista, esplicita e solo admin: un interno senza
+    // ownerId non esiste per il proprietario (rules + loader leggono ownerId).
+    async function palazzoLinkOwner(ids, ownerId) {
+        if (!isAdmin()) return;
+        const owner = (S.users || []).find(u => u.id === ownerId);
+        const props = ids.map(id => (S.properties || []).find(p => p.id === id)).filter(p => p && p.ownerId !== ownerId);
+        if (!owner || !props.length) return toast('info', 'Niente da collegare');
+        const names = props.map(p => p.interno ? 'int. ' + p.interno : (p.name || p.id)).join(', ');
+        if (!confirm(`Collegare ${props.length} ${props.length === 1 ? 'interno' : 'interni'} a ${owner.name || owner.email}?\n\n${names}\n\nDal suo accesso li vedrà con contratti e canoni.`)) return;
+        try {
+            const batch = db.batch();
+            props.forEach(p => batch.update(db.collection('properties').doc(p.id), { ownerId, ownerName: owner.name || p.ownerName || '', ownerLinkedAt: firebase.firestore.FieldValue.serverTimestamp(), ownerLinkedFrom: 'palazzo' }));
+            await batch.commit();
+            props.forEach(p => { p.ownerId = ownerId; if (owner.name) p.ownerName = owner.name; });
+            logActivity('property_owner_linked', 'property', { ids: props.map(p => p.id), ownerId });
+            toast('success', 'Interni collegati', `${props.length} → ${owner.name || owner.email}`);
+            if (S.page === 'palazzo') renderPage();
+        } catch (err) { toast('error', 'Collegamento non riuscito', err.message); }
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     // TRANSLATIONS (IT/EN)
     // ═══════════════════════════════════════════════════════════════════════════
@@ -982,6 +1014,16 @@ Valentyne - BOOM Rome`
         const days = daysUntil(dateStr);
         return days !== null && days < 0;
     }
+
+    // Il loader rinomina in memoria le rate scadute in 'overdue' (2661/2755):
+    // ogni conteggio di ritardo passa da qui, mai da status === 'pending'
+    // (che dopo il rinomino non trovava più niente — il proprietario non
+    // vedeva un solo arretrato). Segnalate e in corso non sono ritardi.
+    function isPaymentLate(p) {
+        if (window.BOOM_RENT) return window.BOOM_RENT.paymentState(p) === 'overdue';
+        return !!p && (p.status === 'pending' || p.status === 'overdue') && isOverdue(p.dueDate);
+    }
+    function isPaymentOpen(p) { return !!p && (p.status === 'pending' || p.status === 'overdue'); }
 
     function getCountdownClass(days) {
         if (days === null) return '';
@@ -4135,7 +4177,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // #innesto=<docId>: la proposta letta dal telefono (lo Scrivano) apre
         // l'Innesto già seminata — l'id viene preso PRIMA che goTo riscriva l'hash.
         const innestoSeed = isAdmin() && innestoSeedFromHash();
-        goTo(innestoSeed ? 'innesto' : (window.location.hash.slice(1) || (isAdmin() ? 'oggi' : (localStorage.getItem('boom_lastPage') || 'dashboard'))));
+        goTo(innestoSeed ? 'innesto' : (window.location.hash.slice(1) || (isAdmin() ? 'oggi' : (localStorage.getItem('boom_lastPage') || (S.profile?.role === 'landlord' ? 'palazzo' : 'dashboard')))));
 
     }
 
@@ -4177,6 +4219,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
                 <div class="nav-section"><div class="nav-label">Gestione</div>
                     <div class="nav-item ${S.page==='properties'||S.page.startsWith('property/')?'active':''}" onclick="goTo('properties')"><span class="nav-icon">🏠</span> Immobili</div>
+                    <div class="nav-item ${S.page==='palazzo'?'active':''}" onclick="goTo('palazzo')"><span class="nav-icon">🏛️</span> Il Palazzo</div>
                     <div class="nav-item ${S.page==='contracts'?'active':''}" onclick="goTo('contracts')"><span class="nav-icon">📋</span> Contratti</div>
                     <div class="nav-item ${S.page==='burocrazia'?'active':''}" onclick="goTo('burocrazia')" title="Registrazioni RLI, asseverazioni ASPI, archivio contratti"><span class="nav-icon">📝</span> Burocrazia ${daRegistrare?`<span class="nav-badge orange">${daRegistrare}</span>`:''}</div>
                     <div class="nav-item" onclick="window.open('/pre-agreement-admin.html','_blank')"><span class="nav-icon">🖋️</span> Pre-agreement <span class="nav-badge gold">L'ATTO</span></div>
@@ -4218,10 +4261,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>`;
         } else if (r === 'landlord') {
             const myMaint = getMyMaintenance().filter(m => m.status !== 'resolved' && m.status !== 'closed').length;
-            const myOverdue = getMyPayments().filter(p => p.status === 'pending' && isOverdue(p.dueDate)).length;
+            const myOverdue = getMyPayments().filter(isPaymentLate).length;
             const myUnreadInbox = (S.conversations || []).reduce((n, c) => n + (Number(c.unread) || 0), 0);
             sb.innerHTML = `
                 <div class="nav-section"><div class="nav-label">Home</div>
+                    <div class="nav-item ${S.page==='palazzo'?'active':''}" onclick="goTo('palazzo')"><span class="nav-icon">🏛️</span> Il Palazzo</div>
                     <div class="nav-item ${S.page==='dashboard'?'active':''}" onclick="goTo('dashboard')"><span class="nav-icon">📊</span> Dashboard</div>
                     <div class="nav-item ${S.page==='inbox'?'active':''}" onclick="goTo('inbox')"><span class="nav-icon">📨</span> Messaggi ${myUnreadInbox?`<span class="nav-badge gold">${myUnreadInbox}</span>`:''}</div>
                 </div>
@@ -4242,7 +4286,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>`;
         } else { // tenant
             const myMaint = getMyMaintenance().filter(m => m.status !== 'resolved').length;
-            const myOverdue = getMyPayments().filter(p => p.status === 'pending' && isOverdue(p.dueDate)).length;
+            const myOverdue = getMyPayments().filter(isPaymentLate).length;
             sb.innerHTML = `
                 <div class="nav-section"><div class="nav-label">Home</div>
                     <div class="nav-item ${S.page==='dashboard'?'active':''}" onclick="goTo('dashboard')"><span class="nav-icon">🏠</span> Dashboard</div>
@@ -4366,6 +4410,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 'Le statistiche di zona client-side mostravano dati vecchi. La verità ora è una sola: il polso per zona del Perito — canoni chiesti e FIRMATI, assorbimento, ribassi — nella sezione Mercato della plancia PFS.', '/pfs-command#mercato', 'Apri il Mercato in plancia →') : accessDenied(); break;
             case 'landlords': m.innerHTML = isAdmin() ? landlordDatabasePage() : accessDenied(); break;
             // === Landlord/Tenant ===
+            case 'palazzo':
+                if ((isAdmin() || isLandlord()) && window.BOOM_PALAZZO_UI) { m.innerHTML = window.BOOM_PALAZZO_UI.render(); window.BOOM_PALAZZO_UI.mount(); }
+                else m.innerHTML = accessDenied();
+                break;
             case 'my-properties': m.innerHTML = isLandlord() ? myPropertiesPage() : accessDenied(); break;
             case 'my-contracts': m.innerHTML = isLandlord() ? myContractsPage() : accessDenied(); break;
             case 'my-contract': m.innerHTML = isTenant() ? tenantContractPage() : accessDenied(); break;
@@ -6953,8 +7001,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const activeContracts = myContracts.filter(c => c.status === 'active');
         const myPayments = getMyPayments();
         const paidThisMonth = myPayments.filter(p => p.status === 'paid' && isThisMonth(p.paidDate)).reduce((s, p) => s + (p.amount || 0), 0);
-        const pendingPayments = myPayments.filter(p => p.status === 'pending');
-        const overduePayments = pendingPayments.filter(p => isOverdue(p.dueDate));
+        const pendingPayments = myPayments.filter(isPaymentOpen);
+        const overduePayments = myPayments.filter(isPaymentLate);
         const overdueTotal = overduePayments.reduce((s, p) => s + (p.amount || 0), 0);
         const myMaint = getMyMaintenance().filter(m => m.status === 'open');
         const occupancy = myProps.length > 0 ? Math.round((activeContracts.length / myProps.length) * 100) : 0;
@@ -7178,7 +7226,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             doc.setFontSize(10);
             const paidTotal = myPayments.filter(p => p.status === 'paid').reduce((s, p) => s + (p.amount || 0), 0);
             const paidThisYear = myPayments.filter(p => p.status === 'paid' && new Date(p.paidDate).getFullYear() === year).reduce((s, p) => s + (p.amount || 0), 0);
-            const pendingTotal = myPayments.filter(p => p.status === 'pending').reduce((s, p) => s + (p.amount || 0), 0);
+            const pendingTotal = myPayments.filter(isPaymentOpen).reduce((s, p) => s + (p.amount || 0), 0);
             
             doc.text(`Immobili: ${myProps.length}`, 15, y); y += 6;
             doc.text(`Contratti attivi: ${myContracts.filter(c => c.status === 'active').length}`, 15, y); y += 6;
@@ -8867,7 +8915,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
         // Pre-computed money + status
         const paid = payments.filter(p => p.status === 'paid');
-        const overduePayments = payments.filter(p => p.status === 'pending' && isOverdue(p.dueDate));
+        const overduePayments = payments.filter(isPaymentLate);
         const totalPaid = paid.reduce((s, p) => s + (p.amount || 0), 0);
         const totalOverdue = overduePayments.reduce((s, p) => s + (p.amount || 0), 0);
         const unsignedContracts = contracts.filter(c => c.status === 'active' && (!c.tenantSignature || !c.landlordSignature));
@@ -8933,7 +8981,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         }).join('') : null;
 
         const paymentsBody = payments.length ? payments.slice(0, 8).map(p => {
-            const overdue = p.status === 'pending' && isOverdue(p.dueDate);
+            const overdue = isPaymentLate(p);
             return `<div class="list-item clickable" onclick="openModal('editPayment',S.payments.find(x=>x.id==='${p.id}'))"><div class="list-icon">${p.status === 'paid' ? '✓' : overdue ? '⚠️' : '⏳'}</div><div class="list-content"><div class="list-title">${esc(p.month || '')} · €${p.amount}</div><div class="list-subtitle">${p.status === 'paid' ? 'Pagato il ' + fmtDate(p.paidDate) : 'Scadenza ' + fmtDate(p.dueDate)}${overdue ? ' · in ritardo' : ''}</div></div></div>`;
         }).join('') + (payments.length > 8 ? `<div style="padding:8px 16px;color:var(--text-muted);font-size:12px">+${payments.length - 8} altri</div>` : '') : null;
 
@@ -9802,7 +9850,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // Calculate stats
         const tenantsWithOverdue = tenants.filter(t => {
             const contract = S.contracts.find(c => c.tenantId === t.id && c.status === 'active');
-            return contract && S.payments.some(p => p.contractId === contract.id && p.status === 'pending' && isOverdue(p.dueDate));
+            return contract && S.payments.some(p => p.contractId === contract.id && isPaymentLate(p));
         });
         const tenantsActive = tenants.filter(t => S.contracts.some(c => c.tenantId === t.id && c.status === 'active'));
 
@@ -9831,7 +9879,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const contract = S.contracts.find(c => c.tenantId === u.id && c.status === 'active');
             const property = contract ? S.properties.find(p => p.id === contract.propertyId) : null;
             const ownedProps = S.properties.filter(p => p.ownerId === u.id);
-            const overduePayments = contract ? S.payments.filter(p => p.contractId === contract.id && p.status === 'pending' && isOverdue(p.dueDate)) : [];
+            const overduePayments = contract ? S.payments.filter(p => p.contractId === contract.id && isPaymentLate(p)) : [];
             const score = u.role === 'tenant' ? getPaymentScore(u.id) : null;
             const roleConfig = { tenant: { icon: '👤', color: 'blue', label: 'Inquilino' }, landlord: { icon: '🏠', color: 'gold', label: 'Proprietario' }, admin: { icon: '👁', color: 'purple', label: 'Admin' } };
             const r = roleConfig[u.role] || roleConfig.tenant;
@@ -10154,7 +10202,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             const payments = S.payments.filter(x => x.contractId === c.id);
             const paidCount = payments.filter(x => x.status === 'paid').length;
             const pendingCount = payments.filter(x => x.status === 'pending').length;
-            const overdueCount = payments.filter(x => x.status === 'pending' && isOverdue(x.dueDate)).length;
+            const overdueCount = payments.filter(x => isPaymentLate(x)).length;
 
             let statusConfig = { color: 'green', bg: 'green-light', icon: '✓', text: 'Attivo' };
             if (c.status !== 'active') statusConfig = { color: 'gray', bg: 'bg-elevated', icon: '✗', text: 'Scaduto' };
@@ -10652,7 +10700,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
 
     async function sendBulkRemindersAtLevel(level) {
         const targets = S.payments.filter(p =>
-            p.status === 'pending' && isOverdue(p.dueDate) &&
+            isPaymentLate(p) &&
             suggestedDunningLevel(p) >= level && (p.dunningStage || 0) < level
         );
         if (!targets.length) return toast('info', 'Nessun pagamento da sollecitare a questo livello');
@@ -14862,8 +14910,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function myPaymentsPage() {
         const payments = getMyPayments();
         const paid = payments.filter(p => p.status === 'paid');
-        const pending = payments.filter(p => p.status === 'pending');
-        const overdue = pending.filter(p => isOverdue(p.dueDate));
+        const pending = payments.filter(isPaymentOpen);
+        const overdue = payments.filter(isPaymentLate);
 
         return `<div class="page-header">
                 <div><h1 class="page-title">💳 ${isTenant() ? 'I Miei Pagamenti' : 'Pagamenti'}</h1></div>
@@ -14877,7 +14925,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <div class="card"><div class="card-body flush">${payments.length ? payments.map(p => {
                 const c = S.contracts.find(x => x.id === p.contractId);
                 const prop = c ? S.properties.find(x => x.id === c.propertyId) : null;
-                const isOD = p.status === 'pending' && isOverdue(p.dueDate);
+                const isOD = isPaymentLate(p);
                 const payBadge = p.stripeSessionId ? ' <span class="badge blue" style="font-size:9px;padding:2px 6px">💳 Stripe</span>' : '';
                 return `<div class="list-item"><div class="list-icon" style="background:${p.status === 'paid' ? 'var(--green-light)' : isOD ? 'var(--red-light)' : 'var(--orange-light)'}">${p.status === 'paid' ? '✔' : isOD ? '⚠️' : '⏳'}</div><div class="list-content"><div class="list-title">${prop?.name || ''} · ${p.month || 'Pagamento'}${payBadge}</div><div class="list-subtitle">${p.status === 'paid' ? 'Pagato il ' + fmtDate(p.paidDate) : 'Scadenza: ' + fmtDate(p.dueDate) + (isOD ? ' (IN RITARDO)' : '')}</div></div><div class="list-meta"><div class="list-value ${p.status === 'paid' ? 'text-green' : isOD ? 'text-red' : 'text-gold'}">€${p.amount || 0}</div></div>${p.status === 'paid' && isTenant() ? `<button class="btn btn-xs btn-secondary" onclick="downloadPaymentReceipt('${p.id}')">📥</button>` : ''}${p.status === 'pending' && isTenant() && STRIPE_CONFIG.enabled ? `<button class="btn btn-xs" onclick="payWithStripe('${p.id}')" style="background:var(--blue);color:#fff">💳 Paga</button>` : ''}${p.status === 'pending' && isTenant() ? `<button class="btn btn-xs ${p.tenantReported ? 'btn-secondary' : ''}" onclick="reportPaymentMade('${p.id}')" style="${!p.tenantReported ? 'background:var(--green);color:#fff' : ''}">${p.tenantReported ? '⏳ Reported' : '✅ I Paid'}</button>` : ''}${p.status === 'pending' && isLandlord() ? `<button class="btn btn-xs btn-success" onclick="markPaymentPaid('${p.id}')">✔</button>` : ''}</div>`;
             }).join('') : '<div class="empty-state"><div class="empty-icon">💳</div><div class="empty-title">Nessun pagamento</div></div>'}</div></div>`;
