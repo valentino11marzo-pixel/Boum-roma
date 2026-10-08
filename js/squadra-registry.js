@@ -1,6 +1,6 @@
 /* js/squadra-registry.js — L'ORGANIGRAMMA. Chi lavora qui, e con quali chiavi.
  *
- * BOOM ha 23 cron e ~20 processi che agiscono da soli sui dati veri, sui
+ * BOOM ha 31 cron e più di 20 processi che agiscono da soli sui dati veri, sui
  * clienti veri e sui soldi veri. Fino a oggi l'unico posto che li elencava
  * era una lista scritta a mano dentro team.html: OTTO voci, ferme a quando
  * furono scritte. Mancavano — fra gli altri — il Selezionatore che archivia
@@ -461,6 +461,25 @@
       crons: ['/api/documents/scan-inbox'],
       health: null,
       console: null, run: '/api/documents/scan-inbox'
+    },
+    {
+      key: 'custode-dati', emoji: '🧭', name: 'Il Custode dei Dati', reparto: 'Amministrazione',
+      role: 'Conservazione minima dei dati anonimi di Behavior Intelligence',
+      hired: 'I percorsi anonimi aiutano a migliorare il sito, ma non devono restare in archivio oltre il periodo dichiarato.',
+      mandate: [
+        'Ogni notte individua i riepiloghi anonimi di navigazione che hanno superato 90 giorni',
+        'Elimina solo i record scaduti di webJourneys, in lotti limitati e senza leggere dati personali'
+      ],
+      autonomy: {
+        solo:  ['Cancella i riepiloghi Behavior Intelligence oltre i 90 giorni dichiarati'],
+        porta: ['Il risultato tecnico del giro resta disponibile nei log del cron'],
+        mai:   ['Non cancella dati prima della scadenza', 'Non accede a clienti, contratti, pagamenti o contenuti compilati']
+      },
+      reach: ['archivio'],
+      approval: 'mai',
+      crons: ['/api/analytics/cleanup'],
+      health: null,
+      console: '/behavior', run: null
     },
     {
       key: 'archivista', emoji: '🗄️', name: 'L\'Archivista', reparto: 'Amministrazione',

@@ -32,6 +32,13 @@
     });
     try { document.dispatchEvent(new CustomEvent('boom-consent-granted')); } catch (e) {}
   }
+  function deny() {
+    gtagSafe('consent', 'update', {
+      analytics_storage: 'denied', ad_storage: 'denied',
+      ad_user_data: 'denied', ad_personalization: 'denied'
+    });
+    try { document.dispatchEvent(new CustomEvent('boom-consent-denied')); } catch (e) {}
+  }
   function save(v) { try { localStorage.setItem(KEY, v + ':' + Date.now()); } catch (e) {} }
 
   var s = state();
@@ -71,10 +78,15 @@
     // the browser's, because the page has already decided what language the
     // reader is being served — an English cookie plate on the French /reunion
     // page is the one element that gives away that it is a translation.
-    var T = (String(document.documentElement.lang || 'en').toLowerCase().slice(0, 2) === 'fr')
+    var lang = String(document.documentElement.lang || 'en').toLowerCase().slice(0, 2);
+    var T = lang === 'fr'
       ? { e: 'Confidentialité',
           p: 'Un cookie de mesure d\'audience nous aide à améliorer BOOM. Aucune publicité qui vous suit, aucune revente de données — <a href="/privacy">comment nous traitons vos données</a>.',
           no: 'Essentiels uniquement', ok: 'Accepter', aria: 'Préférences cookies' }
+      : lang === 'it'
+      ? { e: 'Privacy',
+          p: 'Un cookie di misurazione ci aiuta a migliorare BOOM. Nessuna pubblicità che ti segue, nessuna vendita di dati — <a href="/privacy">come trattiamo i dati</a>.',
+          no: 'Solo essenziali', ok: 'Accetta', aria: 'Preferenze cookie' }
       : { e: 'Privacy',
           p: 'One analytics cookie helps us make BOOM better. No ads following you, no data resale — <a href="/privacy">how we handle data</a>.',
           no: 'Essential only', ok: 'Accept', aria: 'Cookie preferences' };
@@ -90,7 +102,7 @@
       el.style.opacity = '1'; el.style.transform = 'none';
     }); });
     el.querySelector('.ok').addEventListener('click', function () { save('all'); grant(); close(); });
-    el.querySelector('.no').addEventListener('click', function () { save('min'); close(); });
+    el.querySelector('.no').addEventListener('click', function () { save('min'); deny(); close(); });
   }
 
   if (!s) {

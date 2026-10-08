@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <title>Behavior Intelligence · BOOM</title>
+  <link rel="icon" href="/favicon.ico">
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.0/firebase-firestore-compat.js"></script>
+  <style>
+    :root{--bg:#060607;--panel:#0d0d10;--line:rgba(255,255,255,.09);--gold:#e3bf54;--green:#54d89a;--red:#ff6b6b;--muted:#888b95;--text:#f7f7f5}
+    *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Inter,sans-serif;font-weight:300}
+    .shell{max-width:1500px;margin:auto;padding:30px clamp(16px,4vw,54px) 80px}.top{display:flex;gap:20px;align-items:flex-end;justify-content:space-between;margin-bottom:30px}.eyebrow{font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--gold)}h1{font-size:clamp(28px,4vw,52px);font-weight:250;letter-spacing:-1.8px;margin:8px 0 0}.sub{color:var(--muted);font-size:13px;margin-top:8px}
+    .controls{display:flex;gap:8px;align-items:center}.control,button{border:1px solid var(--line);background:#101013;color:#ddd;border-radius:999px;padding:10px 14px;font:inherit;font-size:12px}button{cursor:pointer}.refresh{background:var(--gold);color:#171207;border:0;font-weight:650}.refresh:disabled{opacity:.5}
+    .notice{display:none;border:1px solid rgba(227,191,84,.25);background:rgba(227,191,84,.07);padding:15px 17px;border-radius:13px;color:#e8dcae;margin-bottom:20px;font-size:13px}.notice.show{display:block}
+    .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:28px}.kpi{border:1px solid var(--line);background:linear-gradient(145deg,#111116,#09090b);border-radius:18px;padding:18px;min-height:112px}.kpi b{display:block;font-size:29px;font-weight:350;letter-spacing:-1px;margin-top:12px}.kpi span{color:var(--muted);font-size:10px;letter-spacing:1.4px;text-transform:uppercase}
+    .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:14px;margin:14px 0}.card{border:1px solid var(--line);background:var(--panel);border-radius:20px;padding:20px;overflow:hidden}.card h2{font-size:15px;font-weight:450;margin:0 0 4px}.card .desc{font-size:12px;color:var(--muted);margin-bottom:18px}.stack{display:grid;gap:9px}.rec{border:1px solid var(--line);background:#09090c;border-radius:14px;padding:15px;display:grid;grid-template-columns:auto 1fr;gap:12px}.dot{width:9px;height:9px;border-radius:50%;margin-top:5px;background:var(--gold);box-shadow:0 0 18px currentColor}.dot.alta{background:var(--red)}.dot.media{background:var(--gold)}.rec h3{font-size:13px;margin:0 0 5px;font-weight:520}.rec p{font-size:12px;color:#aaa;margin:3px 0;line-height:1.5}.rec .action{color:#e9dfbd}.path{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:#d4d4d7;font-size:11px}
+    .flow{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line)}.flow:last-child{border:0}.flow strong{margin-left:auto;color:var(--gold);font-size:12px}.flow .trail{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:11px;color:#b9bac0}
+    .wide{grid-column:1/-1}table{width:100%;border-collapse:collapse;min-width:720px}th{text-align:left;color:var(--muted);font-size:9px;letter-spacing:1.3px;text-transform:uppercase;padding:10px;border-bottom:1px solid var(--line)}td{padding:12px 10px;border-bottom:1px solid rgba(255,255,255,.055);font-size:12px;color:#c9cad0}.bar{height:4px;background:#232329;border-radius:4px;margin-top:6px;overflow:hidden}.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--gold),#fff0a8);border-radius:4px}.pill{display:inline-block;border:1px solid var(--line);border-radius:99px;padding:4px 7px;color:#bbb;font-size:10px}.empty{padding:35px 10px;text-align:center;color:var(--muted);font-size:13px}.foot{color:#5f626c;font-size:11px;margin-top:18px;line-height:1.6}
+    #gate{position:fixed;inset:0;background:#060607;display:grid;place-items:center;z-index:20;text-align:center;padding:24px}#gate.hide{display:none}.loader{width:34px;height:34px;border:2px solid #333;border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 18px}@keyframes spin{to{transform:rotate(360deg)}}
+    @media(max-width:1050px){.kpis{grid-template-columns:repeat(3,1fr)}.grid{grid-template-columns:1fr}}@media(max-width:600px){.top{display:block}.controls{margin-top:18px}.kpis{grid-template-columns:repeat(2,1fr)}.kpi{min-height:98px}.shell{padding-top:20px}.card{padding:15px}}
+  </style>
+</head>
+<body>
+  <div id="gate"><div><div class="loader"></div><div id="gateText">Verifica accesso BOOM…</div></div></div>
+  <main class="shell">
+    <header class="top">
+      <div><div class="eyebrow">BOOM · Behavior Intelligence</div><h1>Dove nasce la curiosità.</h1><div class="sub" id="stamp">Percorsi anonimi, consenso esplicito, priorità misurabili.</div></div>
+      <div class="controls"><select class="control" id="days" aria-label="Periodo"><option value="7">7 giorni</option><option value="14" selected>14 giorni</option><option value="28">28 giorni</option><option value="90">90 giorni</option></select><button class="refresh" id="refresh">Aggiorna</button></div>
+    </header>
+    <div class="notice" id="notice"></div>
+    <section class="kpis" id="kpis"></section>
+    <section class="grid">
+      <article class="card"><h2>Prossime migliorie</h2><div class="desc">Indicazioni generate solo quando il campione supera le soglie minime.</div><div class="stack" id="recommendations"></div></article>
+      <article class="card"><h2>Percorsi più frequenti</h2><div class="desc">Sequenze di pagine nella stessa sessione, senza identità personale.</div><div id="flows"></div></article>
+      <article class="card wide"><h2>Pagine</h2><div class="desc">Visite, attenzione, profondità, uscite e azioni per pagina.</div><div style="overflow:auto"><table><thead><tr><th>Pagina</th><th>Visite</th><th>Sessioni</th><th>Tempo</th><th>Profondità</th><th>Coinvolgimento</th><th>Uscita</th><th>Azioni</th></tr></thead><tbody id="pages"></tbody></table></div></article>
+      <article class="card"><h2>Sezioni che incuriosiscono</h2><div class="desc">Dove le persone arrivano e quanto tempo attivo dedicano.</div><div style="overflow:auto"><table><thead><tr><th>Sezione</th><th>Vista</th><th>Tempo</th><th>Ultima</th></tr></thead><tbody id="sections"></tbody></table></div></article>
+      <article class="card"><h2>Azioni osservate</h2><div class="desc">CTA, navigazione, WhatsApp, lead e checkout.</div><div style="overflow:auto"><table><thead><tr><th>Azione</th><th>Tipo</th><th>Pagina</th><th>Volte</th></tr></thead><tbody id="interactions"></tbody></table></div></article>
+    </section>
+    <p class="foot">La dashboard conserva riepiloghi anonimi per 90 giorni. Non registra campi compilati, email, telefoni, query URL, IP, testo libero o movimenti fini del mouse. Gli utenti con “Essenziali soltanto” e Do Not Track non entrano nel campione.</p>
+  </main>
+  <script src="/js/firebase-config.js"></script>
+  <script>
+  (function(){
+    'use strict';
+    var gate=document.getElementById('gate'), token='', loading=false;
+    function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+    function empty(id,text,span){document.getElementById(id).innerHTML='<tr><td class="empty" colspan="'+(span||4)+'">'+esc(text)+'</td></tr>'}
+    function n(v){return Number(v||0).toLocaleString('it-IT')}
+    function metric(label,value){return '<div class="kpi"><span>'+esc(label)+'</span><b>'+esc(value)+'</b></div>'}
+    function render(d,meta){
+      var t=d.totals||{};
+      document.getElementById('kpis').innerHTML=[metric('Sessioni',n(t.sessions)),metric('Pagine viste',n(t.pageViews)),metric('Tempo attivo',n(t.avgActiveSeconds)+' s'),metric('Profondità',n(t.avgScroll)+'%'),metric('Coinvolgimento',n(t.engagementRate)+'%'),metric('Azioni / conversioni',n(t.interactions)+' / '+n(t.conversions))].join('');
+      document.getElementById('stamp').textContent='Ultimo calcolo '+new Date(d.generatedAt).toLocaleString('it-IT')+' · '+meta.sample+' visite nel campione';
+      var rec=(d.recommendations||[]).map(function(x){return '<div class="rec"><i class="dot '+esc(x.priority)+'"></i><div><div class="path">'+esc(x.pagePath)+(x.sectionId?' · '+esc(x.sectionId):'')+'</div><h3>'+esc(x.title)+'</h3><p>'+esc(x.evidence)+'</p><p class="action">'+esc(x.action)+'</p></div></div>'}).join('');
+      document.getElementById('recommendations').innerHTML=rec||'<div class="empty">Servono almeno alcune visite comparabili prima di proporre modifiche.</div>';
+      var flows=(d.flows||[]).map(function(x){return '<div class="flow"><div class="trail">'+esc(x.path)+'</div><strong>'+n(x.sessions)+'</strong></div>'}).join('');
+      document.getElementById('flows').innerHTML=flows||'<div class="empty">I percorsi appariranno quando una sessione attraversa almeno una pagina.</div>';
+      var pages=(d.pages||[]).map(function(x){return '<tr><td><span class="path">'+esc(x.pagePath)+'</span><br><span class="pill">'+esc(x.service)+'</span></td><td>'+n(x.views)+'</td><td>'+n(x.uniqueSessions)+'</td><td>'+n(x.avgActiveSeconds)+' s</td><td>'+n(x.avgScroll)+'%<div class="bar"><i style="width:'+Math.min(100,x.avgScroll)+'%"></i></div></td><td>'+n(x.engagementRate)+'%</td><td>'+n(x.exitRate)+'%</td><td>'+n(x.interactions)+' / '+n(x.conversions)+'</td></tr>'}).join('');
+      document.getElementById('pages').innerHTML=pages||'<tr><td class="empty" colspan="8">Nessun dato nel periodo.</td></tr>';
+      var sections=(d.sections||[]).slice(0,30).map(function(x){return '<tr><td><b>'+esc(x.label)+'</b><br><span class="path">'+esc(x.pagePath)+' · '+esc(x.sectionId)+'</span></td><td>'+n(x.views)+'</td><td>'+n(x.avgDwellSeconds)+' s</td><td>'+n(x.lastSectionRate)+'%</td></tr>'}).join('');
+      document.getElementById('sections').innerHTML=sections||'<tr><td class="empty" colspan="4">Le sezioni appariranno dopo le prime visite consentite.</td></tr>';
+      var actions=(d.interactions||[]).slice(0,30).map(function(x){return '<tr><td>'+esc(x.label)+'</td><td><span class="pill">'+esc(x.kind)+'</span></td><td><span class="path">'+esc(x.pagePath)+'</span></td><td>'+n(x.count)+'</td></tr>'}).join('');
+      document.getElementById('interactions').innerHTML=actions||'<tr><td class="empty" colspan="4">Nessuna azione osservata nel periodo.</td></tr>';
+      var notice=document.getElementById('notice');
+      if(meta.truncated){notice.textContent='Il periodo supera 2.500 visite: la lettura mostra il campione più recente disponibile.';notice.classList.add('show')}else notice.classList.remove('show');
+    }
+    async function load(){
+      if(loading||!token)return;loading=true;document.getElementById('refresh').disabled=true;
+      try{var r=await fetch('/api/analytics/summary?days='+document.getElementById('days').value,{headers:{Authorization:'Bearer '+token}});var j=await r.json();if(!r.ok)throw new Error(j.error||'Errore');render(j.data,j)}
+      catch(e){var notice=document.getElementById('notice');notice.textContent='Dati non disponibili: '+e.message;notice.classList.add('show');document.getElementById('kpis').innerHTML='';empty('pages','Dati non disponibili.',8);empty('sections','Dati non disponibili.',4);empty('interactions','Dati non disponibili.',4)}
+      finally{loading=false;document.getElementById('refresh').disabled=false}
+    }
+    document.getElementById('refresh').onclick=load;document.getElementById('days').onchange=load;
+    auth.onAuthStateChanged(async function(user){
+      if(!user){location.replace('/login?next=%2Fbehavior');return}
+      try{var doc=await db.collection('users').doc(user.uid).get();if(!doc.exists||doc.data().role!=='admin'){document.getElementById('gateText').textContent='Accesso riservato all’amministratore BOOM.';return}token=await user.getIdToken();gate.classList.add('hide');load()}
+      catch(e){document.getElementById('gateText').textContent='Impossibile verificare l’accesso. Riprova.'}
+    });
+  })();
+  </script>
+</body>
+</html>

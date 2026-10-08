@@ -6129,6 +6129,13 @@ scadenze + PDF come saveContract e manda l'invito firma via
 firma dell'inquilino — prima spediva entrambi i link subito, fuori dal
 design system).
 
+**Behavior Intelligence** (`/behavior`, ottobre 2026): `js/boom-track.js` misura
+in forma anonima percorsi, sezioni, profondità, CTA e uscite su ogni URL della
+sitemap, esclusivamente dopo il consenso. `/api/analytics/collect` valida e
+salva `webJourneys` per 90 giorni; il cron cleanup li elimina. La dashboard e
+`/api/analytics/summary` sono solo admin e mostrano aggregati, mai dati grezzi.
+Regression suite: `npm test -- behavior`.
+
 Firestore listeners with auto-retry / exponential backoff:
 
 ```js
