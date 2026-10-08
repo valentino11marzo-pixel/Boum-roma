@@ -570,7 +570,7 @@ html {
   }, GIRO);
 
   /* ══ L'IDRANTE (S4-full) — il tabellone legge il catalogo VERO ════════
-     Stessa porta della vetrina (REST pubblico su `listings`) e STESSO
+     Stessa porta della vetrina (`/api/listings`) e STESSO
      motore delle corsie (BOOM_DISPO.marketLane): partenze = lane 'now',
      arrivi = lane 'ahead' con l'ETA del MOTORE — mai un parser locale
      (il parser povero della build è il difetto storico della vetrina).
@@ -628,9 +628,7 @@ html {
     return { part: part, arr: arr };
   }
   function idrante() {
-    fetch('https://firestore.googleapis.com/v1/projects/'
-        + 'boom-property-dashboards/databases/(default)/documents/'
-        + 'listings?pageSize=300')
+    fetch('/api/listings?format=firestore', { cache: 'no-store' })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (j) {
         if (!j || !j.documents) return;

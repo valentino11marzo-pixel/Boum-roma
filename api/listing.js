@@ -9,13 +9,13 @@
 // The client still re-applies the same tags on hydration (idempotent — it
 // removes [data-seo-dynamic] before re-adding), so there is no duplication.
 //
-// Fully defensive: on any failure it serves the unmodified template (which
-// still renders client-side), so a listing page can never break.
+// An unresolved ID must never render the template's first sample home.
 
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import DISPO from '../js/dispo-engine.js';
+import { projectPublicListing } from './_public-listing.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PROJECT = process.env.FIREBASE_PROJECT_ID || 'boom-property-dashboards';
@@ -33,6 +33,17 @@ function readTemplate() {
   }
   TEMPLATE = null;
   return TEMPLATE;
+}
+
+function sendUnavailable(res, status) {
+  res.statusCode = status;
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-store');
+  const temporary = status === 503;
+  res.end('<!doctype html><html lang="en"><meta charset="utf-8"><title>Home unavailable | BOOM</title>' +
+    '<body><h1>Home unavailable</h1><p>' +
+    (temporary ? 'Please try again shortly or ask BOOM for current options.' : 'Ask BOOM for current options.') +
+    '</p><a href="/apartments">Browse homes</a></body></html>');
 }
 
 // Convert a Firestore REST value object into a plain JS value.
@@ -80,8 +91,10 @@ function injectSeo(html, d, id) {
   if (zone) bits.push('in ' + zone);
   bits.push('verified by BOOM Rome');
   if (price) bits.push('from €' + price.toLocaleString('en-US') + '/mo');
-  bits.push('legal contract, 48h move-in');
+  bits.push('legal contract, English support');
   const description = bits.join(', ') + '.';
+  const descriptionNeedsReview = DISPO.needsAvailabilityReview(d);
+  const currentDescription = descriptionNeedsReview ? '' : String(d.description || '');
 
   const images = Array.isArray(d.images) ? d.images.filter(Boolean) : [];
   const ogImage = images[0] || d.coverImage || d.image || 'https://www.boomrome.com/og-home.png';
@@ -112,7 +125,7 @@ function injectSeo(html, d, id) {
     '@context': 'https://schema.org',
     '@type': 'Apartment',
     name,
-    description: d.description ? String(d.description).slice(0, 300) : description,
+    description: currentDescription ? currentDescription.slice(0, 300) : description,
     url: canonical,
     image: images.length ? images : [ogImage],
   };
@@ -134,12 +147,13 @@ function injectSeo(html, d, id) {
     const lane = DISPO.marketLane(d);
     ld.offers = {
       '@type': 'Offer', price, priceCurrency: 'EUR', url: canonical,
-      availability: lane.lane === 'closed' ? 'https://schema.org/SoldOut'
-        : lane.lane === 'ahead' ? 'https://schema.org/PreOrder'
-          : 'https://schema.org/InStock',
       priceSpecification: { '@type': 'UnitPriceSpecification', price, priceCurrency: 'EUR', unitText: 'MONTH' },
       seller: { '@id': 'https://www.boomrome.com/#organization' },
     };
+    if (lane.status !== 'unknown') ld.offers.availability = lane.lane === 'closed'
+      ? 'https://schema.org/SoldOut'
+      : lane.lane === 'ahead' ? 'https://schema.org/PreOrder'
+        : 'https://schema.org/InStock';
     // availabilityStarts solo su una data CERTA (la corsia la espone solo lì)
     if (lane.iso) ld.offers.availabilityStarts = lane.iso;
   }
@@ -183,7 +197,7 @@ function injectSeo(html, d, id) {
   // Inject the already-read listing so the client renders instantly — no Firebase SDK
   // load + Firestore round-trip on the critical path. The client falls back to a live
   // read if this is absent (e.g. on /apartment-detail without SSR).
-  const dataScript = '<script>window.__LISTING=' + safe(d) + ';window.__LISTING_ID=' + JSON.stringify(id) + ';</script>\n';
+  const dataScript = '<script>window.__LISTING=' + safe(d) + ';window.__LISTING_ID=' + safe(id) + ';</script>\n';
   const scripts = preload + dataScript +
     '<script type="application/ld+json" data-seo-dynamic>' + safe(ld) + '</script>\n' +
     '<script type="application/ld+json" data-seo-dynamic>' + safe(breadcrumb) + '</script>\n' +
@@ -200,7 +214,9 @@ function injectSeo(html, d, id) {
   // DATA, che è l'unico fatto che un motore di risposta può citare utilmente
   // ("libero da settembre 2027"), spariva. Ora la corsia la porta in chiaro.
   const lane2 = DISPO.marketLane(d);
-  const avail = lane2.lane === 'ahead'
+  const avail = lane2.status === 'unknown'
+    ? 'Availability to confirm — ask BOOM.'
+    : lane2.lane === 'ahead'
     ? (lane2.iso
       ? 'Occupied now — free from ' + lane2.iso + ' and reservable today.'
       : 'Occupied now — reservable ahead; ask BOOM for the release date.')
@@ -216,10 +232,10 @@ function injectSeo(html, d, id) {
   if (beds) facts.push('<li>' + beds + (beds > 1 ? ' bedrooms' : ' bedroom') +
     (baths ? ' · ' + baths + (baths > 1 ? ' bathrooms' : ' bathroom') : '') + '</li>');
   if (d.videoUrl) facts.push('<li>Video tour available on this page</li>');
-  facts.push('<li>Legal contract registered with the Agenzia delle Entrate · English support · 48h move-in</li>');
+  facts.push('<li>Legal contract registered with the Agenzia delle Entrate · English support</li>');
   const noscript = '<noscript><section style="max-width:720px;margin:40px auto;padding:0 20px;font-family:Helvetica,Arial,sans-serif">' +
     '<h1>' + esc(name) + (zone ? ' — ' + esc(zone) : '') + ', Rome</h1>' +
-    (d.description ? '<p>' + esc(String(d.description).replace(/\s+/g, ' ').slice(0, 700)) + '</p>' : '') +
+    (currentDescription ? '<p>' + esc(currentDescription.replace(/\s+/g, ' ').slice(0, 700)) + '</p>' : '') +
     '<ul>' + facts.join('') + '</ul>' +
     '<p>This page is interactive with JavaScript (photos, video, 3D map, online application). ' +
     'Without it: <a href="https://wa.me/393313251961">WhatsApp BOOM (English, 24/7)</a> · ' +
@@ -255,7 +271,8 @@ async function readListing(id) {
     const token = await adminToken();
     if (token) r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   }
-  if (!r.ok) return null;
+  if (r.status === 404) return null;
+  if (!r.ok) throw new Error('listing_read_failed');
   const doc = await r.json();
   const f = doc.fields || {};
   const d = {};
@@ -268,7 +285,8 @@ export default async function handler(req, res) {
   const html = readTemplate();
 
   if (!html) {
-    // Template not bundled with the function — fall back to the static page.
+    // The static page contains a sample home: never redirect a named ID there.
+    if (id) return sendUnavailable(res, 503);
     res.statusCode = 307;
     res.setHeader('Location', '/apartment-detail' + (id ? '?id=' + encodeURIComponent(id) : ''));
     return res.end();
@@ -277,17 +295,21 @@ export default async function handler(req, res) {
   let out = html;
   try {
     if (id) {
-      const d = await readListing(id);
-      if (d) out = injectSeo(html, d, id);
+      const raw = await readListing(id);
+      if (!raw) return sendUnavailable(res, 404);
+      const d = projectPublicListing(id, raw);
+      if (!d) return sendUnavailable(res, 404);
+      out = injectSeo(html, d, id);
     }
   } catch {
-    out = html; // serve the plain template on any error
+    if (id) return sendUnavailable(res, 503);
+    out = html;
   }
 
   res.statusCode = 200;
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  // s-maxage bounded + short SWR: the page self-refreshes from live data on
-  // load, but the SSR snapshot itself shouldn't serve day-old numbers either
-  res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=300, stale-while-revalidate=3600');
+  // The SSR document can outlive a visibility change until this edge TTL ends.
+  // Avoid a stale extension so a withdrawn ID is rechecked within 2 minutes.
+  res.setHeader('Cache-Control', 'public, max-age=0, s-maxage=120');
   res.end(out);
 }

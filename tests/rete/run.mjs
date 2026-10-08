@@ -192,8 +192,25 @@ ok(/netFirstCapped\(/.test(navBlock), 'le navigazioni usano la STESSA strategia 
 ok(/NET_HARD_MS/.test(navBlock) || /NET_HARD_MS\)/.test(sw),
   'il limite duro è cablato sulle navigazioni (non sugli asset: lì un errore non aiuta nessuno)');
 const cacheVersion = /^const CACHE_VERSION = 'boom-v(\d+)';$/m.exec(sw);
-ok(cacheVersion && Number(cacheVersion[1]) >= 22,
-  'la versione della cache è salita: senza, i browser terrebbero il worker vecchio');
+ok(cacheVersion && Number(cacheVersion[1]) >= 29,
+  'la migrazione catalogo sale di versione e invalida il vecchio HTML pubblico');
+{
+  const handlers = new Map(), deleted = [];
+  let claimed = 0, activation;
+  const current = `boom-v${cacheVersion[1]}-static`;
+  const context = createContext({
+    self: { addEventListener: (name, fn) => handlers.set(name, fn),
+      clients: { claim: async () => { claimed++; } } },
+    caches: { keys: async () => ['boom-v28-static', current],
+      delete: async key => { deleted.push(key); return true; } },
+  });
+  runInContext(sw, context, { filename: 'sw.js' });
+  handlers.get('activate')({ waitUntil(p) { activation = p; } });
+  await activation;
+  ok(deleted.includes('boom-v28-static') && !deleted.includes(current)
+    && claimed === 1,
+    'attivazione SW elimina la cache con HTML che leggeva Firestore diretto');
+}
 
 // ── 10. Il handler INTERO: /portal precede il ramo delle navigazioni ─────
 // Guidare solo netFirstCapped non basta: il ramo portalAsset può dimenticare

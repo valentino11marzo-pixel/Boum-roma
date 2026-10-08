@@ -5604,6 +5604,53 @@ asserite sulla sorgente, e il handler VERO su un Firestore in memoria: senza
 credenziali 401, `{text}` senza apply non scrive, una data illeggibile viene
 RIFIUTATA alla porta invece di essere scritta a caso).
 
+Stato mancante o sconosciuto nel catalogo ora significa «Disponibilità da
+confermare», corsia chiusa; anche `/api/listings-availability` non presume
+più che sia libero. La scheda usa i dati e le foto SSR correnti, segnala una
+descrizione con data residua su casa chiusa e precompila solo date future.
+La candidatura mostra «Sent» soltanto dopo `{ok:true}` dal server; su errore
+lascia il form pronto a riprovare. La vetrina statica non dichiara conteggi
+o disponibilità correnti prima della lettura live. Test: `npm test -- dispo
+prenota catalogtruth`.
+
+`/api/listings` e l'SSR `/listing/:id` usano ora la stessa proiezione
+pubblica (`api/_public-listing.js`): campi non dichiarati e chiavi annidate
+non escono; indicatori espliciti di privato/draft bloccano la risposta.
+È una difesa aggiuntiva, non un confine per stock privato: `firestore.rules`
+permette ancora la lettura anonima diretta di ogni documento `listings`.
+Tenere dati riservati in `properties` e pratiche; `listings` resta contenuto
+pubblico finché il cambio delle rules non è rilasciato e verificato. Test: `npm test
+-- catalogtruth` (handler reali, anche fallback admin e campi segreti finti).
+
+Home, discovery, quartieri, board, booking e scheda leggono `/api/listings`;
+llms, sitemap, ask, feed e Segugio usano la stessa proiezione pubblica.
+`?format=firestore` conserva il parser delle card; la scheda RENTED con data
+incoerente nasconde racconto e form; il dry run del Segugio richiede auth.
+**Release a due tempi:** questa PR lascia `allow read: if true` su `listings`;
+dopo deploy e verifica dei lettori, chiudere la rule in un rilascio separato.
+Cache edge fino a 120 s; HTML di build e cache del service worker possono
+restare vecchi: niente segreti/off-market in `listings`. Test: `npm test -- catalogtruth catalogprivacy vetrina prenota dispo feed seo`.
+Il test `scalo` controlla ora che board e vetrina leggano entrambi l'API
+proiettata, non la vecchia REST pubblica di Firestore: la CI completa ha
+individuato l'asserzione storica rimasta indietro dopo la migrazione.
+
+Il service worker `boom-v29` cancella all'attivazione la cache `boom-v28`
+che può contenere HTML con letture Firestore dirette. Un client che non
+aggiorna il worker resta un rischio fino al prossimo ingresso online.
+Test: `npm test -- rete` (handler `activate` vero con cache sintetica).
+
+Il concierge della scheda riceve la corsia canonica e non riceve il racconto
+se `needsAvailabilityReview` segnala una data residua. Il prompt non promette
+video, tempi di risposta o hold per ogni casa; su corsia chiusa offre alternative.
+Test: `npm test -- catalogprivacy ai` (contesto e istruzioni effettive).
+
+Un `/listing/:id` assente prima rispondeva 200 col template generico: lo
+script sceglieva la prima casa della build e attribuiva ad essa l'URL di
+un'altra. Ora l'SSR risponde 404 per ID assente/privato e 503 se Firestore
+non è leggibile, senza mostrare una casa campione. Anche la scheda client
+usa `CASE[0]` solo quando l'URL non porta un ID; un ID sconosciuto mostra
+«Home unavailable». Test: `npm test -- catalogtruth` (handler e script reale).
+
 ## Precisione dei pin + perché non c'è il 3D di Google (`js/boom-geo.js`)
 
 **Google Photorealistic 3D Tiles non sono erogabili a questo account.** Dall'8

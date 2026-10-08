@@ -1010,22 +1010,18 @@
         return isFinite(n) && n > 0 ? n : null;
       }, function (k) { return d[k] == null ? '' : String(d[k]); });
     })(window.__LISTING);
-  /* seconda: la rilettura viva, come sempre */
+  /* seconda: la rilettura viva attraverso la proiezione pubblica */
   if (VERO) setTimeout(function () {
-    fetch('https://firestore.googleapis.com/v1/projects/'
-        + 'boom-property-dashboards/databases/(default)/documents/listings/'
-        + encodeURIComponent(c.id))
+    fetch('/api/listings?id=' + encodeURIComponent(c.id), { cache: 'no-store' })
       .then(function (r) { return r.ok ? r.json() : null; })
       .then(function (j) {
-        if (!j || !j.fields) return;
-        var f = j.fields;
+        if (!j || !j.listing) return;
+        var f = j.listing;
         digest(function (k) {
-          var v = f[k]; if (!v) return null;
-          var n = parseFloat(v.integerValue || v.doubleValue
-            || v.stringValue);
+          var n = parseFloat(f[k]);
           return isFinite(n) && n > 0 ? n : null;
         }, function (k) {
-          var v = f[k]; return v ? String(v.stringValue || '') : '';
+          return f[k] == null ? '' : String(f[k]);
         });
       })
       .catch(function () { /* niente rete: restano i numeri del builder */ });

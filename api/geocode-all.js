@@ -20,11 +20,10 @@
 // FIREBASE_PROJECT_ID.
 
 import crypto from 'node:crypto';
+import { fsList } from './homie/_lib.js';
 
-const PROJECT = process.env.FIREBASE_PROJECT_ID || 'boom-property-dashboards';
 const UA = 'BOOMRome/1.0 (+https://www.boomrome.com; valentino11marzo@gmail.com)';
 
-const sv = (f, k) => (f && f[k] && f[k].stringValue) || '';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // Constant-time secret comparison (avoids timing side-channels).
@@ -81,16 +80,13 @@ export default async function handler(req, res) {
   const to = q.to != null ? (parseInt(q.to, 10) || 0) : null;
   let total = 0;
   try {
-    const r = await fetch(`https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents/listings?pageSize=300&key=${apiKey}`);
-    const j = await r.json();
-    const allDocs = j.documents || [];
+    const allDocs = await fsList('listings', { limit: 300 });
     total = allDocs.length;
     const docs = to != null ? allDocs.slice(from, to) : allDocs.slice(from);
     for (const doc of docs) {
-      const id = doc.name.split('/').pop();
-      const f = doc.fields || {};
-      const address = sv(f, 'address').trim();
-      const zone = (sv(f, 'zone') || sv(f, 'neighborhood')).trim();
+      const id = doc.id;
+      const address = String(doc.address || '').trim();
+      const zone = String(doc.zone || doc.neighborhood || '').trim();
       if (!address) { misses.push({ id, reason: 'no address' }); continue; }
 
       // Try most specific query first, then progressively looser. Some
