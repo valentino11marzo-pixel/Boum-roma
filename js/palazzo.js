@@ -1001,7 +1001,7 @@
     var owners = (S.users || []).filter(function (u) { return u.role === 'landlord' || u.role === 'owner'; })
       .sort(function (a, b) { return String(a.name || a.email || '').localeCompare(String(b.name || b.email || ''), 'it'); });
     return '<section class="plz-import" aria-labelledby="plz-imp-h"><p class="plz-eyebrow" id="plz-imp-h">Carica il palazzo da una tabella</p>' +
-      '<p class="plz-muted">Incolla da Excel o Google Sheets la riga dei titoli e una riga per interno. Titoli letti: Interno · Piano · Inquilino · Telefono · Email · Canone · Dal · Al · Tipo · Deposito · Cedolare · Registrato il · Pagato il. Serve solo Interno; per un interno affittato anche Canone, Dal e Al. «Pagato il» vale per il primo mese di gestione.</p>' +
+      '<p class="plz-muted">Incolla da Excel o Google Sheets la riga dei titoli e una riga per interno. Titoli letti: Interno · Piano · Inquilino · Telefono · Email · Canone · Dal · Al · Tipo · Deposito · Cedolare · Registrato il · Pagato il · POD · PDR. Serve solo Interno; per un interno affittato anche Canone, Dal e Al. «Pagato il» vale per il primo mese di gestione.</p>' +
       '<div class="plz-import-f"><label><span>Indirizzo del palazzo</span><input type="text" data-imp="address" value="' + esc(st.address) + '" placeholder="Piazzale Prenestino 42, Roma" autocomplete="off"></label>' +
       '<label><span>Proprietaria</span><select data-imp="ownerId"><option value="">Scegli…</option>' + owners.map(function (u) {
         return '<option value="' + esc(u.id) + '"' + (u.id === st.ownerId ? ' selected' : '') + '>' + esc(u.name || u.email || u.id) + '</option>';
