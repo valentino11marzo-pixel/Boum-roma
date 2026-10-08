@@ -91,6 +91,9 @@ ok('raccolta, dashboard, retention e Firestore restano sulle rotaie private', ()
   assert.ok(vercel.rewrites.some(x => x.source === '/behavior' && x.destination === '/behavior.html'));
   assert.ok(vercel.crons.some(x => x.path === '/api/analytics/cleanup'));
   assert.match(dashboard, /role!=='admin'/); assert.match(dashboard, /noindex,nofollow,noarchive/);
+  assert.match(dashboard, /onIdTokenChanged/); assert.match(dashboard, /getIdToken\(!!forceRefresh\)/);
+  assert.match(dashboard, /r\.status===401&&!forceRefresh/); assert.match(dashboard, /requestSummary\(true\)/);
+  assert.match(dashboard, /Sessione scaduta/); assert.doesNotMatch(dashboard, /Dati non disponibili: ['"]\+e\.message/);
   assert.match(portal, /window\.open\('\/behavior','_blank'\)/);
 });
 

@@ -45,7 +45,7 @@
   <script>
   (function(){
     'use strict';
-    var gate=document.getElementById('gate'), token='', loading=false;
+    var gate=document.getElementById('gate'), currentUser=null, loading=false;
     function esc(v){return String(v==null?'':v).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
     function empty(id,text,span){document.getElementById(id).innerHTML='<tr><td class="empty" colspan="'+(span||4)+'">'+esc(text)+'</td></tr>'}
     function n(v){return Number(v||0).toLocaleString('it-IT')}
@@ -67,16 +67,25 @@
       var notice=document.getElementById('notice');
       if(meta.truncated){notice.textContent='Il periodo supera 2.500 visite: la lettura mostra il campione più recente disponibile.';notice.classList.add('show')}else notice.classList.remove('show');
     }
+    async function requestSummary(forceRefresh){
+      if(!currentUser)throw new Error('session_missing');
+      var freshToken=await currentUser.getIdToken(!!forceRefresh);
+      var r=await fetch('/api/analytics/summary?days='+document.getElementById('days').value,{headers:{Authorization:'Bearer '+freshToken}});
+      var j={};try{j=await r.json()}catch(ignore){}
+      if(r.status===401&&!forceRefresh)return requestSummary(true);
+      if(!r.ok)throw new Error(r.status===401?'session_expired':(j.error||'request_failed'));
+      return j;
+    }
     async function load(){
-      if(loading||!token)return;loading=true;document.getElementById('refresh').disabled=true;
-      try{var r=await fetch('/api/analytics/summary?days='+document.getElementById('days').value,{headers:{Authorization:'Bearer '+token}});var j=await r.json();if(!r.ok)throw new Error(j.error||'Errore');render(j.data,j)}
-      catch(e){var notice=document.getElementById('notice');notice.textContent='Dati non disponibili: '+e.message;notice.classList.add('show');document.getElementById('kpis').innerHTML='';empty('pages','Dati non disponibili.',8);empty('sections','Dati non disponibili.',4);empty('interactions','Dati non disponibili.',4)}
+      if(loading||!currentUser)return;loading=true;document.getElementById('refresh').disabled=true;
+      try{var j=await requestSummary(false);render(j.data,j)}
+      catch(e){var notice=document.getElementById('notice');if(e.message==='session_expired'||e.message==='session_missing'){notice.textContent='Sessione scaduta. Ti porto al login…';notice.classList.add('show');setTimeout(function(){location.replace('/login?next=%2Fbehavior')},400);return}notice.textContent='Dati temporaneamente non disponibili. Riprova.';notice.classList.add('show');document.getElementById('kpis').innerHTML='';empty('pages','Dati non disponibili.',8);empty('sections','Dati non disponibili.',4);empty('interactions','Dati non disponibili.',4)}
       finally{loading=false;document.getElementById('refresh').disabled=false}
     }
     document.getElementById('refresh').onclick=load;document.getElementById('days').onchange=load;
-    auth.onAuthStateChanged(async function(user){
-      if(!user){location.replace('/login?next=%2Fbehavior');return}
-      try{var doc=await db.collection('users').doc(user.uid).get();if(!doc.exists||doc.data().role!=='admin'){document.getElementById('gateText').textContent='Accesso riservato all’amministratore BOOM.';return}token=await user.getIdToken();gate.classList.add('hide');load()}
+    auth.onIdTokenChanged(async function(user){
+      if(!user){currentUser=null;gate.classList.remove('hide');location.replace('/login?next=%2Fbehavior');return}
+      try{var doc=await db.collection('users').doc(user.uid).get();if(!doc.exists||doc.data().role!=='admin'){document.getElementById('gateText').textContent='Accesso riservato all’amministratore BOOM.';return}currentUser=user;gate.classList.add('hide');load()}
       catch(e){document.getElementById('gateText').textContent='Impossibile verificare l’accesso. Riprova.'}
     });
   })();
