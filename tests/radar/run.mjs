@@ -25,6 +25,30 @@ import { fileURLToPath } from 'node:url';
 // globalThis.__mails) — la CI gira a zero dipendenze e così il digest si
 // testa PER DAVVERO: invio, notifiedIds, coda svuotata, idempotenza.
 register('../notify/loader.mjs', import.meta.url);
+// Inbox integration keeps the real handler, alert parser and Firestore
+// adapters; only the IMAP socket and MIME boundary are simulated.
+const inboxDeps = 'data:text/javascript,' + encodeURIComponent(`
+  export class ImapFlow {
+    async connect() {}
+    async getMailboxLock() { return { release() {} }; }
+    async search({ from }) {
+      return (globalThis.__pfsInboxMail || []).filter(m => m.from.includes(from)).map(m => m.uid);
+    }
+    async fetchOne(uid) {
+      if (globalThis.__pfsInboxBeforeFetch) await globalThis.__pfsInboxBeforeFetch();
+      const m = (globalThis.__pfsInboxMail || []).find(x => x.uid === Number(uid));
+      return m ? { source: Buffer.from(JSON.stringify(m.parsed)) } : null;
+    }
+    async logout() {}
+  }
+  export async function simpleParser(source) { return JSON.parse(String(source)); }
+`);
+register('data:text/javascript,' + encodeURIComponent(`
+  export async function resolve(s, c, next) {
+    if (s === 'imapflow' || s === 'mailparser') return { url: ${JSON.stringify(inboxDeps)}, shortCircuit: true };
+    return next(s, c);
+  }
+`), import.meta.url);
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, '..', '..');
@@ -199,6 +223,15 @@ console.log('\n── A. Il motore ───────────────
 console.log('\n── B. Le giunzioni (asserite sulla sorgente) ─────────────────');
 {
   const src = p => readFileSync(join(root, p), 'utf8');
+  const { compactProperty, briefStats } = await import('../../api/pfs/brief.js');
+  const onlyPending = { title: 'Annuncio in verifica', advertiser: 'private',
+    matchSummary: { pushedTo: [], pendingReview: [{ name: 'Cliente nuovo', score: 81 }] } };
+  ok('brief: candidato interno conta come match, ma non come proposta già nel portale',
+    briefStats([onlyPending], [{}]).conMatch === 1
+      && briefStats([onlyPending], [{}]).giaNelPortale === 0
+      && briefStats([onlyPending], [{}]).candidatiDaRivedere === 1);
+  ok('brief: il candidato porta nome e score nella sezione da rivedere',
+    compactProperty(onlyPending).candidatiDaRivedere[0] === 'Cliente nuovo:81');
   const ingest = src('api/pfs/_ingest.js');
   const iMaster = ingest.indexOf("fsPatch('pfsProperties/' + stableId, property)");
   const iLedger = ingest.indexOf('recordObservation(stableId, property)');
@@ -216,7 +249,8 @@ console.log('\n── B. Le giunzioni (asserite sulla sorgente) ─────�
   ok('scan-market: passa la zona PULITA della ricerca', scanMarket.includes('zone: search.zoneName || null'));
 
   const sync = src('api/pfs/sync-searches.js');
-  ok('sync-searches: scrive la zona pulita sul doc ricerca', sync.includes('zoneName: s.zone || null'));
+  const kickoff = src('api/pfs/_kickoff.js');
+  ok('sync-searches: scrive la zona pulita sul doc ricerca', kickoff.includes('zoneName: s.zone || null'));
   ok('sync-searches: il battito che mancava ora esiste', sync.includes("reportHealth('sync'"));
 
   const eyes = src('api/homie/market.js');
@@ -230,6 +264,9 @@ console.log('\n── B. Le giunzioni (asserite sulla sorgente) ─────�
   const rules = src('firestore.rules');
   ok('rules: radarWatchers admin-only', /match \/radarWatchers\/\{x\}\s*\{ allow read, write: if isAdmin\(\); \}/.test(rules));
   ok('rules: radarState admin-only', /match \/radarState\/\{x\}\s*\{ allow read, write: if isAdmin\(\); \}/.test(rules));
+  ok('rules: coda PFS per cliente solo admin', /match \/pfsCandidateReviews\/\{x\}\s*\{ allow read, write: if isAdmin\(\); \}/.test(rules));
+  ok('rules: shortlist PFS leggibile solo da admin e non editabile dal browser',
+    /match \/pfsShortlists\/\{x\}\s*\{ allow read: if isAdmin\(\); allow write: if false; \}/.test(rules));
 
   const vercel = src('vercel.json');
   ok('vercel: il cron del digest è dichiarato', vercel.includes('"/api/radar/digest"'));
@@ -282,6 +319,24 @@ console.log('\n── B. Le giunzioni (asserite sulla sorgente) ─────�
     !cmd.includes('clients-list') && !cmd.includes('sec-clients'));
   ok('plancia: il cliente creato qui nasce col portale attivo (codice BM…)',
     cmd.includes('portalAccessCode') && cmd.includes('portalEnabled: true'));
+  ok('plancia: fascicolo legge la coda del cliente, indipendente dagli ultimi 120 annunci',
+    cmd.includes("collection('pfsCandidateReviews').where('clientId', '==', id)")
+      && /candidateRows\.filter\(function \(r\) \{ return r\.status === 'pending'; \}\)/.test(cmd));
+  ok('plancia: decisione richiede fonte, disponibilità e permesso; invio cliente separato',
+    cmd.includes('/api/pfs/candidate-review') && cmd.includes('id="cand-availability-evidence"')
+      && cmd.includes('id="cand-sharing-evidence"') && cmd.includes('id="cand-permission-granted"')
+      && /isActiveClient\(c\) && c\.reviewRequired !== true/.test(cmd)
+      && /#candidate-modal-overlay\[hidden\][^\n]*display: none/.test(cmd)
+      && !/<div id="candidate-modal-overlay"[^>]*display:flex/.test(cmd));
+  ok('plancia: shortlist per cliente con bozza, verifica finale e ricevuta distinta dal messaggio',
+    cmd.includes("collection('pfsShortlists').where('clientId', '==', id)")
+      && cmd.includes("action: 'prepare'") && cmd.includes("action: 'publish'")
+      && cmd.includes('id="shortlist-checks"') && cmd.includes('Non prova email, WhatsApp o lettura del cliente.')
+      && cmd.includes('sl-availability-confirmed-') && cmd.includes('sl-sharing-confirmed-')
+      && /#shortlist-modal-overlay\[hidden\][^\n]*display: none/.test(cmd));
+  ok('portale PFS: evento shortlist pubblicata ha etichetta cliente nelle due lingue',
+    src('client-portal.html').includes("a_shortlist_published:'Nuova selezione pronta'")
+      && src('client-portal.html').includes("a_shortlist_published:'New selection ready'"));
 }
 
 console.log('\n── C. Il giro vero (Firestore in memoria) ────────────────────');
@@ -313,9 +368,16 @@ const toDoc = (path, data) => ({ name: `projects/p/databases/(default)/documents
 
 let autoId = 0;
 let breakRadarIO = false;   // fase "radar rotto": le sue letture/scritture esplodono
+let failMatchSummaryWrites = false;
+let failMasterWrites = false;
+let failCandidateWrites = false;
+let pfsClientQueries = 0;
+let failPfsClientQueries = false;
+const htmlPages = new Map();
 globalThis.fetch = async (url, opts = {}) => {
   const u = String(url);
   const json = (o, status = 200) => ({ ok: status < 400, status, json: async () => o, text: async () => JSON.stringify(o) });
+  if (htmlPages.has(u)) return { ok: true, status: 200, text: async () => htmlPages.get(u) };
   if (u.includes('identitytoolkit')) return json({ idToken: 'fake', localId: 'admin' });
   if (u.includes('api.telegram.org')) return json({ ok: true });
   if (breakRadarIO && /radarState|radarWatchers|marketStats/.test(u)) throw new Error('radar_io_down');
@@ -325,21 +387,41 @@ globalThis.fetch = async (url, opts = {}) => {
   if (u.includes(':runQuery')) {
     const q = body.structuredQuery;
     const coll = q.from[0].collectionId;
+    if (coll === 'pfsClients') pfsClientQueries++;
+    if (coll === 'pfsClients' && failPfsClientQueries) return json({ error: 'client list unavailable' }, 503);
     if (breakRadarIO && /radarWatchers/.test(coll)) throw new Error('radar_io_down');
     const filter = q.where && q.where.fieldFilter;
+    const afterId = q.startAt?.values?.[0]?.referenceValue?.split('/').at(-1) || null;
     const rows = [...DB.entries()]
       .filter(([k]) => k.startsWith(coll + '/'))
-      .filter(([, v]) => !filter || String(v[filter.field.fieldPath]) === String(dec(filter.value)));
+      .filter(([k]) => !afterId || k.slice(coll.length + 1) > afterId)
+      .filter(([, v]) => !filter || String(v[filter.field.fieldPath]) === String(dec(filter.value)))
+      .sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)
+      .slice(0, q.limit || Infinity);
     return json(rows.map(([k, v]) => ({ document: toDoc(k, v) })));
   }
   if (opts.method === 'PATCH') {
+    if (failCandidateWrites && path.startsWith('pfsCandidateReviews/')) {
+      return json({ error: 'transient candidate failure' }, 503);
+    }
+    if (failMasterWrites && path.startsWith('pfsProperties/') && body.fields?.sourceUrl) {
+      return json({ error: 'transient master failure' }, 503);
+    }
+    if (failMatchSummaryWrites && path.startsWith('pfsProperties/') && body.fields?.matchSummary) {
+      return json({ error: 'transient summary failure' }, 503);
+    }
     const prev = DB.get(path) || {};
     const next = { ...prev, ...Object.fromEntries(Object.entries(body.fields || {}).map(([k, v]) => [k, dec(v)])) };
     DB.set(path, next);
     return json(toDoc(path, next));
   }
   if (opts.method === 'POST') {
-    const id = 'doc' + (++autoId);
+    if (failCandidateWrites && path === 'pfsCandidateReviews') {
+      return json({ error: 'transient candidate failure' }, 503);
+    }
+    const requestedId = new URL(u).searchParams.get('documentId');
+    const id = requestedId || 'doc' + (++autoId);
+    if (requestedId && DB.has(`${path}/${id}`)) return json({ error: { status: 'ALREADY_EXISTS' } }, 409);
     DB.set(`${path}/${id}`, Object.fromEntries(Object.entries(body.fields || {}).map(([k, v]) => [k, dec(v)])));
     return json(toDoc(`${path}/${id}`, DB.get(`${path}/${id}`)));
   }
@@ -354,6 +436,7 @@ process.env.FIREBASE_ADMIN_PASS = 'p';
 delete process.env.TELEGRAM_BOT_TOKEN;
 
 const { ingestProperty, stableIdFromUrl } = await import('../../api/pfs/_ingest.js');
+const { ensureCandidate, candidateId } = await import('../../api/pfs/_candidates.js');
 const { _resetTapCaches } = await import('../../api/radar/_tap.js');
 const { default: valutaHandler } = await import('../../api/radar/valuta.js');
 const { default: digestHandler } = await import('../../api/radar/digest.js');
@@ -511,6 +594,263 @@ const idA = stableIdFromUrl(urlA), idB = stableIdFromUrl(urlB), idC = stableIdFr
     r.ok === true && r.pushedTo.length === 1, r);
   breakRadarIO = false;
   _resetTapCaches();
+}
+
+// ── 8. Nuovi clienti: un match resta interno finché Valentino lo verifica ──
+{
+  DB.set('pfsClients/cl_review', {
+    name: 'Cliente nuovo', stage: 'searching', portalEnabled: true,
+    reviewRequired: true, budget: 1500, portalProperties: [], portalActivity: [],
+  });
+  const sourceUrl = 'https://www.immobiliare.it/annunci/review-1001/';
+  const propertyId = stableIdFromUrl(sourceUrl);
+  const r = await ingestProperty({
+    sourceUrl, source: 'immobiliare', price: 1100, sqm: 65, bedrooms: 2,
+    title: 'Bilocale via Tor de Schiavi 37', zone: 'Centocelle', advertiser: 'private',
+  }, { ingestedBy: 'test' });
+  const summary = DB.get('pfsProperties/' + propertyId)?.matchSummary;
+  ok('reviewRequired: match nel feed interno, mai nel mazzo automatico',
+    r.ok && r.pendingReview.some(m => m.clientId === 'cl_review')
+      && DB.get('pfsClients/cl_review').portalProperties.length === 0,
+    r);
+  ok('reviewRequired: matchSummary conserva il candidato rivedibile',
+    summary?.pendingReview?.some(m => m.clientId === 'cl_review') === true, summary);
+  const candidate = DB.get('pfsCandidateReviews/' + candidateId('cl_review', propertyId));
+  ok('reviewRequired: coda per cliente persiste oltre il feed recente',
+    candidate?.status === 'pending' && candidate.clientId === 'cl_review'
+      && candidate.propertyId === propertyId && candidate.sourceUrl === sourceUrl, candidate);
+  ok('cliente storico: lo stesso annuncio continua ad arrivare nel mazzo',
+    r.pushedTo.some(m => m.clientId === 'cl1')
+      && DB.get('pfsClients/cl1').portalProperties.some(p => p.id === propertyId), r);
+}
+
+// ── 8-bis. Retry e run concorrenti non riaprono una decisione umana ───────
+{
+  const client = DB.get('pfsClients/cl_review');
+  const sourceUrl = 'https://www.immobiliare.it/annunci/review-concurrent-1001/';
+  const propertyId = stableIdFromUrl(sourceUrl);
+  const property = { sourceUrl, source: 'immobiliare', price: 1090, title: 'Bilocale Prati', advertiser: 'unknown' };
+  const [a, b] = await Promise.all([
+    ensureCandidate({ client: { ...client, id: 'cl_review' }, propertyId, property, score: 75, reasons: ['zona'] }),
+    ensureCandidate({ client: { ...client, id: 'cl_review' }, propertyId, property, score: 75, reasons: ['zona'] }),
+  ]);
+  const path = 'pfsCandidateReviews/' + candidateId('cl_review', propertyId);
+  ok('due run concorrenti: un solo caso deterministico, nessun doppione',
+    [a, b].filter(x => x.created).length === 1 && DB.has(path)
+      && [...DB.keys()].filter(k => k === path).length === 1, { a, b });
+  DB.set(path, { ...DB.get(path), status: 'rejected', reviewedBy: 'owner-1', reviewedAt: iso(NOW) });
+  const retry = await ensureCandidate({ client: { ...client, id: 'cl_review' }, propertyId,
+    property: { ...property, price: 1050 }, score: 80, reasons: ['prezzo'] });
+  const after = DB.get(path);
+  ok('nuovo alert: prezzo aggiornato, rifiuto e autore non cancellati',
+    retry.status === 'rejected' && after.status === 'rejected'
+      && after.reviewedBy === 'owner-1' && after.reviewedAt === iso(NOW) && after.price === 1050, after);
+  const ingested = await ingestProperty({ ...property, price: 1040 }, { ingestedBy: 'test', skipFreshHours: 0 });
+  ok('nuovo ingest: il candidato rifiutato non torna pending né nel deck',
+    ingested.ok && !ingested.pendingReview.some(x => x.clientId === 'cl_review')
+      && DB.get(path).status === 'rejected'
+      && !DB.get('pfsClients/cl_review').portalProperties.some(x => x.id === propertyId), ingested);
+  DB.set(path, { ...DB.get(path), status: 'approved', reviewedBy: 'owner-2', reviewedAt: iso(NOW + 1000) });
+  const parallelRetries = await Promise.all([
+    ensureCandidate({ client: { ...client, id: 'cl_review' }, propertyId,
+      property: { ...property, price: 1030 }, score: 82, reasons: ['zona'] }),
+    ensureCandidate({ client: { ...client, id: 'cl_review' }, propertyId,
+      property: { ...property, price: 1030 }, score: 82, reasons: ['zona'] }),
+  ]);
+  const approved = DB.get(path);
+  ok('due retry concorrenti: approvazione e autore umano restano intatti',
+    parallelRetries.every(x => x.status === 'approved') && approved.status === 'approved'
+      && approved.reviewedBy === 'owner-2' && approved.reviewedAt === iso(NOW + 1000), approved);
+}
+
+// ── 9. Un candidato interno non si perde se il summary fallisce ───────────
+{
+  const sourceUrl = 'https://www.idealista.it/immobile/review-queue-retry-1002/';
+  const propertyId = stableIdFromUrl(sourceUrl);
+  const raw = { sourceUrl, source: 'idealista', price: 1130, sqm: 63, bedrooms: 2,
+    title: 'Bilocale via dei Castani 91', zone: 'Centocelle', advertiser: 'private' };
+  failCandidateWrites = true;
+  const failed = await ingestProperty(raw, { ingestedBy: 'test', skipFreshHours: 12 });
+  failCandidateWrites = false;
+  ok('coda guasta: ingest fallisce e non avanza il summary come se fosse completo',
+    failed.ok === false && failed.error === 'candidate_write_failed'
+      && !DB.get('pfsProperties/' + propertyId)?.matchSummary
+      && !DB.has('pfsCandidateReviews/' + candidateId('cl_review', propertyId)), failed);
+  const retried = await ingestProperty(raw, { ingestedBy: 'test', skipFreshHours: 12 });
+  ok('coda ripristinata: stesso alert crea il caso deterministico',
+    retried.ok && !retried.skippedFresh
+      && DB.get('pfsCandidateReviews/' + candidateId('cl_review', propertyId))?.status === 'pending', retried);
+}
+
+// ── 10. La cache del feed non sostituisce la coda ─────────────────────────
+{
+  const sourceUrl = 'https://www.idealista.it/immobile/review-retry-1002/';
+  const propertyId = stableIdFromUrl(sourceUrl);
+  const raw = {
+    sourceUrl, source: 'idealista', price: 1150, sqm: 66, bedrooms: 2,
+    title: 'Bilocale via dei Castani 91', zone: 'Centocelle', advertiser: 'private',
+  };
+  failMatchSummaryWrites = true;
+  const failed = await ingestProperty(raw, { ingestedBy: 'test', skipFreshHours: 12 });
+  failMatchSummaryWrites = false;
+  ok('summary rotto: ingest segnala fallimento, non spaccia un candidato per salvato',
+    failed.ok === false && failed.error === 'match_summary_write_failed'
+      && DB.get('pfsClients/cl_review').portalProperties.length === 0, failed);
+  const retried = await ingestProperty(raw, { ingestedBy: 'test', skipFreshHours: 12 });
+  ok('retry entro 12h: candidato ricalcolato e salvato per la revisione',
+    retried.ok === true && !retried.skippedFresh
+      && DB.get('pfsProperties/' + propertyId)?.matchSummary?.pendingReview?.some(m => m.clientId === 'cl_review'), retried);
+}
+
+// ── 10. Annuncio visto prima del checkout, poi scoperto dalla nuova ricerca ─
+{
+  const sourceUrl = 'https://www.immobiliare.it/annunci/777777/';
+  const searchUrl = 'https://www.immobiliare.it/affitto-case/roma/prati/da-privati/';
+  const propertyId = stableIdFromUrl(sourceUrl);
+  await ingestProperty({
+    sourceUrl, source: 'immobiliare', price: 1100, sqm: 60, bedrooms: 2,
+    title: 'Bilocale via Flaminia 88', zone: 'Prati', advertiser: 'private',
+  }, { ingestedBy: 'test' });
+  DB.set('pfsClients/cl_after_checkout', {
+    name: 'Nuovo pagamento', stage: 'searching', reviewRequired: true,
+    preferred_areas: 'Prati', budget: 1500, portalEnabled: true,
+    portalProperties: [], portalActivity: [],
+  });
+  DB.set('radarSearches/new_client_search', {
+    auto: true, enabled: true, clientId: 'cl_after_checkout', portal: 'immobiliare',
+    searchUrl, zoneName: 'Prati', knownListings: {},
+  });
+  for (let i = 0; i < 205; i++) DB.set('radarSearches/a_disabled_' + i, {
+    auto: false, enabled: false, portal: 'immobiliare', searchUrl,
+  });
+  htmlPages.set(searchUrl, '<html>' + 'x'.repeat(220) + '<a href="/annunci/777777/">Casa</a></html>');
+  htmlPages.set(sourceUrl, '<html>' + 'x'.repeat(220) +
+    '<script type="application/ld+json">' + JSON.stringify({ '@type': 'Apartment',
+      name: 'Bilocale via Flaminia 88', offers: { price: 1100 }, floorSize: { value: 60 }, numberOfRooms: 2 }) +
+    '</script>"sellerType":"private"</html>');
+  const scanMarket = (await import('../../api/pfs/scan-market.js')).default;
+  const result = await call(scanMarket, 'GET', null, { 'x-homie-secret': 'test-secret' });
+  const summary = DB.get('pfsProperties/' + propertyId)?.matchSummary;
+  ok('prima scansione oltre 200 ricerche: annuncio globale fresco viene ricalcolato e resta interno',
+    result.status === 200 && result.body?.ingested === 1
+      && summary?.pendingReview?.some(m => m.clientId === 'cl_after_checkout')
+      && DB.get('pfsClients/cl_after_checkout').portalProperties.length === 0,
+    { result: result.body, summary });
+  ok('prima scansione: URL marcato noto solo dopo salvataggio del candidato',
+    !!DB.get('radarSearches/new_client_search')?.knownListings?.[sourceUrl]);
+}
+
+// ── 11. Alert email già visto: un checkout nuovo riapre il punteggio ──────
+{
+  process.env.PFS_IMAP_USER = 'inbox@example.test';
+  process.env.PFS_IMAP_PASS = 'fixture';
+  // Earlier reviewed fixtures predate the checkout field. Keep their known
+  // creation epochs older than the property so this test isolates the new
+  // paid client rather than repeatedly repairing a malformed fixture.
+  for (const [path, client] of DB) {
+    if (path.startsWith('pfsClients/') && client.reviewRequired && !client.created_at)
+      client.created_at = iso(Date.now() - 2 * 86400e3);
+  }
+  const inbox = (await import('../../api/pfs/scan-inbox.js')).default;
+  const now = Date.now();
+  const oldUrl = 'https://www.idealista.it/immobile/8888001/';
+  const oldId = stableIdFromUrl(oldUrl);
+  DB.set('pfsProperties/' + oldId, {
+    sourceUrl: oldUrl, source: 'idealista', advertiser: 'private', price: 1100,
+    lastSeenAt: iso(now - 5 * 60_000),
+    matchSummary: { at: iso(now - 60 * 60_000), pushedTo: [], pendingReview: [] },
+  });
+  DB.set('pfsClients/cl_inbox_paid', {
+    name: 'Pagato dopo annuncio', stage: 'payment_confirmed', portalEnabled: true,
+    reviewRequired: true, created_at: iso(now - 30 * 60_000), budget: 1500,
+    portalProperties: [], portalActivity: [],
+  });
+  const mail = (uid, url) => ({ uid, from: 'idealista.it', parsed: {
+    from: { text: 'Idealista <alerts@idealista.it>' },
+    subject: 'Nuovo appartamento di un privato della tua ricerca',
+    html: `<a href="${url}">Bilocale</a> 1.100 €/mese · 2 camere · 60 m²`,
+  } });
+  globalThis.__pfsInboxMail = [mail(1, oldUrl)];
+  let before = pfsClientQueries;
+  let r = await call(inbox, 'GET', null, { 'x-homie-secret': 'test-secret' });
+  let summary = DB.get('pfsProperties/' + oldId)?.matchSummary;
+  ok('inbox vero: URL fresco precedente al checkout viene ricalcolato per il nuovo cliente',
+    r.status === 200 && r.body?.stats?.skippedFresh === 0
+      && summary?.pendingReview?.some(m => m.clientId === 'cl_inbox_paid')
+      && DB.get('pfsClients/cl_inbox_paid').portalProperties.length === 0,
+    { result: r.body, summary });
+  ok('inbox: un solo elenco clienti per run anche durante il ricalcolo',
+    pfsClientQueries - before === 1, pfsClientQueries - before);
+  before = pfsClientQueries;
+  r = await call(inbox, 'GET', null, { 'x-homie-secret': 'test-secret' });
+  ok('inbox: senza nuovi checkout il successivo alert fresco torna al percorso breve',
+    r.status === 200 && r.body?.stats?.skippedFresh === 1
+      && pfsClientQueries - before === 1, r.body);
+
+  // A checkout can land after the single client-list query but before an
+  // email is fetched. The summary must retain the earlier snapshot epoch.
+  const raceUrl = 'https://www.idealista.it/immobile/8888002/';
+  const raceId = stableIdFromUrl(raceUrl);
+  globalThis.__pfsInboxMail = [mail(2, raceUrl)];
+  globalThis.__pfsInboxBeforeFetch = async () => {
+    delete globalThis.__pfsInboxBeforeFetch;
+    await new Promise(resolve => setTimeout(resolve, 5));
+    DB.set('pfsClients/cl_inbox_during', {
+      name: 'Pagato durante scansione', stage: 'payment_confirmed', portalEnabled: true,
+      reviewRequired: true, created_at: new Date().toISOString(), budget: 1500,
+      portalProperties: [], portalActivity: [],
+    });
+  };
+  before = pfsClientQueries;
+  r = await call(inbox, 'GET', null, { 'x-homie-secret': 'test-secret' });
+  summary = DB.get('pfsProperties/' + raceId)?.matchSummary;
+  ok('inbox: checkout durante il run resta successivo all’epoch del summary',
+    r.status === 200 && pfsClientQueries - before === 1
+      && !summary?.pendingReview?.some(m => m.clientId === 'cl_inbox_during')
+      && Date.parse(summary?.at) < Date.parse(DB.get('pfsClients/cl_inbox_during').created_at),
+    summary);
+  before = pfsClientQueries;
+  r = await call(inbox, 'GET', null, { 'x-homie-secret': 'test-secret' });
+  summary = DB.get('pfsProperties/' + raceId)?.matchSummary;
+  ok('inbox: il run seguente recupera il cliente entrato durante lo snapshot',
+    r.status === 200 && r.body?.stats?.skippedFresh === 0 && pfsClientQueries - before === 1
+      && summary?.pendingReview?.some(m => m.clientId === 'cl_inbox_during')
+      && DB.get('pfsClients/cl_inbox_during').portalProperties.length === 0,
+    { result: r.body, summary });
+
+  failPfsClientQueries = true;
+  r = await call(inbox, 'GET', null, { 'x-homie-secret': 'test-secret' });
+  failPfsClientQueries = false;
+  ok('inbox: errore lista clienti ferma il run e segnala health, mai lista vuota',
+    r.status === 500 && r.body?.error === 'client_list_failed'
+      && DB.get('pfsRadarHealth/inbox')?.ok === false, r.body);
+
+  const retryUrl = 'https://www.idealista.it/immobile/8888003/';
+  const retryId = stableIdFromUrl(retryUrl);
+  DB.set('pfsProperties/' + retryId, {
+    sourceUrl: retryUrl, source: 'idealista', advertiser: 'private', price: 1100,
+    lastSeenAt: iso(now - 5 * 60_000),
+    matchSummary: { at: iso(now - 60 * 60_000), pushedTo: [], pendingReview: [] },
+  });
+  globalThis.__pfsInboxMail = [mail(3, retryUrl)];
+  failMasterWrites = true;
+  r = await call(inbox, 'GET', null, { 'x-homie-secret': 'test-secret' });
+  failMasterWrites = false;
+  ok('inbox: master rotto non avanza l’epoch e lascia il candidato ritentabile',
+    r.status === 200 && r.body?.needsAttention?.some(x => x.reason === 'master_write_failed')
+      && DB.get('pfsProperties/' + retryId)?.matchSummary?.at === iso(now - 60 * 60_000),
+    r.body);
+  r = await call(inbox, 'GET', null, { 'x-homie-secret': 'test-secret' });
+  ok('inbox: dopo ripresa del master il candidato interno arriva davvero',
+    r.status === 200 && r.body?.stats?.skippedFresh === 0
+      && DB.get('pfsProperties/' + retryId)?.matchSummary?.pendingReview?.some(m => m.clientId === 'cl_inbox_paid'),
+    r.body);
+
+  globalThis.__pfsInboxMail = [];
+  before = pfsClientQueries;
+  r = await call(inbox, 'GET', null, { 'x-homie-secret': 'test-secret' });
+  ok('inbox: senza messaggi non legge inutilmente tutti i clienti',
+    r.status === 200 && pfsClientQueries === before, r.body);
 }
 
 console.log(`\n  ${passed} passati, ${failed} falliti`);

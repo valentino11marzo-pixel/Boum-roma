@@ -22,12 +22,16 @@ const check = (name, cond) => { cond ? passed++ : (failed++, bad.push(name)); co
 
 // ── Stub fetch: store Firestore in-memory ───────────────────────────────
 const store = new Map();        // 'collection/docId' → plain fields object
+const versions = new Map();     // Firestore updateTime for candidate CAS tests
 const emails = [];              // template_params delle email inviate
 const queries = [];             // structuredQuery dei runQuery
+let failRadarCreates = 0;       // transient Firestore failure after paid client creation
+let beforeCommitOnce = null;     // inject a legacy write between read and CAS
 globalThis.__stripeCalls = [];
 
 const FS = 'firestore.googleapis.com';
 const okJson = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'Content-Type': 'application/json' } });
+const versionOf = key => new Date(Date.UTC(2026, 0, 1) + (versions.get(key) || 1) * 1000).toISOString();
 
 // Serializzazione COMPLETA (array e mappe annidate incluse): il convert
 // scrive coTenants[]/agencyFee{} e la lib vera li gestisce — lo stub deve
@@ -67,23 +71,57 @@ globalThis.fetch = async (url, opts = {}) => {
   }
   if (url.includes(FS)) {
     const path = url.split('/documents')[1] || '';
+    if (path.startsWith(':commit')) {
+      const writes = JSON.parse(opts.body).writes || [];
+      if (beforeCommitOnce) { const inject = beforeCommitOnce; beforeCommitOnce = null; inject(writes); }
+      for (const write of writes) {
+        const key = write.update?.name?.split('/documents/')[1];
+        const pre = write.currentDocument || {};
+        if (!key || (pre.exists === false ? store.has(key)
+          : !store.has(key) || pre.updateTime !== versionOf(key)))
+          return new Response(JSON.stringify({ error: { status: 'FAILED_PRECONDITION' } }), { status: 409 });
+      }
+      for (const write of writes) {
+        const key = write.update.name.split('/documents/')[1];
+        const next = { ...(store.get(key) || {}) };
+        for (const field of write.updateMask.fieldPaths) next[field] = fromFsV(write.update.fields[field]);
+        store.set(key, next);
+        versions.set(key, (versions.get(key) || 1) + 1);
+      }
+      return okJson({ writeResults: writes.map(() => ({ updateTime: 'ok' })) });
+    }
+    if (path.startsWith(':batchGet')) {
+      const paths = JSON.parse(opts.body).documents || [];
+      return okJson(paths.map(name => {
+        const key = name.split('/documents/')[1];
+        const doc = store.get(key);
+        return doc ? { found: { name, fields: toFsFieldsShallow(doc), updateTime: versionOf(key) } }
+          : { missing: name };
+      }));
+    }
     if (path.startsWith(':runQuery')) {
       const q = JSON.parse(opts.body).structuredQuery;
       queries.push(q);
       const coll = q.from[0].collectionId;
       const field = q.where?.fieldFilter?.field?.fieldPath;
       const val = q.where?.fieldFilter?.value?.stringValue;
+      const afterId = q.startAt?.values?.[0]?.referenceValue?.split('/').at(-1) || null;
       const rows = [];
-      for (const [key, fields] of store) {
+      for (const [key, fields] of [...store.entries()].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)) {
         if (!key.startsWith(coll + '/')) continue;
+        if (afterId && key.slice(coll.length + 1) <= afterId) continue;
         if (field && String(fields[field]) !== String(val)) continue;
         rows.push({ document: { name: 'projects/p/databases/(default)/documents/' + key, fields: toFsFieldsShallow(fields) } });
       }
-      return okJson(rows.length ? rows : [{}]);
+      return okJson(rows.length ? rows.slice(0, q.limit || rows.length) : [{}]);
     }
     const clean = path.replace(/^\//, '').split('?')[0];
     const qs = new URL(url).searchParams;
     if (opts.method === 'POST') {
+      if (clean === 'radarSearches' && failRadarCreates > 0) {
+        failRadarCreates--;
+        return new Response('temporarily unavailable', { status: 503 });
+      }
       const docId = qs.get('documentId') || 'auto_' + (store.size + 1);
       const key = clean + '/' + docId;
       if (qs.get('documentId') && store.has(key)) return new Response('conflict', { status: 409 });
@@ -91,6 +129,7 @@ globalThis.fetch = async (url, opts = {}) => {
       const flat = {};
       for (const [k, v] of Object.entries(fields)) flat[k] = fromFsV(v);
       store.set(key, flat);
+      versions.set(key, 1);
       return okJson({ name: 'projects/p/databases/(default)/documents/' + key });
     }
     if (opts.method === 'PATCH') {
@@ -98,12 +137,14 @@ globalThis.fetch = async (url, opts = {}) => {
       const flat = store.get(clean) || {};
       for (const [k, v] of Object.entries(fields)) flat[k] = fromFsV(v);
       store.set(clean, flat);
+      versions.set(clean, (versions.get(clean) || 1) + 1);
       return okJson({ name: 'projects/p/databases/(default)/documents/' + clean });
     }
     // GET doc
     const doc = store.get(clean);
     if (!doc) return new Response('not found', { status: 404 });
-    return okJson({ name: 'projects/p/databases/(default)/documents/' + clean, fields: toFsFieldsShallow(doc) });
+    return okJson({ name: 'projects/p/databases/(default)/documents/' + clean,
+      fields: toFsFieldsShallow(doc), updateTime: versionOf(clean) });
   }
   throw new Error('fetch non stubbata: ' + url);
 };
@@ -125,6 +166,7 @@ const mkStreamReq = (obj) => ({
 });
 const sessionEvent = (metadata, over = {}) => ({
   type: 'checkout.session.completed',
+  ...(over.event_created ? { created: over.event_created } : {}),
   data: { object: { id: over.id || 'cs_live_abc123', amount_total: over.amount_total ?? 8900, currency: 'eur', customer_email: 'c@x.it', payment_intent: 'pi_1', metadata } },
 });
 
@@ -192,6 +234,573 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
   r = mkRes();
   await webhook(mkStreamReq(ev), r);
   check('webhook SERVICE: retry stessa sessione → duplicate, ZERO nuove email', r.body?.duplicate === true && emails.length === emailsBefore + 2);
+}
+
+// ═══ 4b. PFS pagato: kickoff interno, retry e vecchi clienti ═══
+{
+  delete process.env.PFS_KICKOFF_V1;
+  const legacyEvent = sessionEvent({ service: 'PFS', name: 'Cliente storico', email: 'old@x.it', budget: '1500' },
+    { id: 'cs_pfs_legacy_1', amount_total: 35000 });
+  const legacy = mkRes();
+  await webhook(mkStreamReq(legacyEvent), legacy);
+  const legacyDoc = store.get('pfsClients/cspfslegacy1');
+  check('PFS flag spenta: il nuovo record conserva il flusso precedente',
+    legacy.code === 200 && legacyDoc?.reviewRequired === undefined && legacyDoc?.pfsKickoffStatus === undefined);
+
+  process.env.PFS_KICKOFF_V1 = '1';
+  const paidEvent = sessionEvent({ service: 'PFS', name: 'Nuova Cliente', email: 'new@x.it',
+    budget: '1500', bedrooms: '2', preferred_areas: 'Prati' },
+  { id: 'cs_pfs_review_1', amount_total: 35000,
+    event_created: Date.parse('2026-10-05T10:30:00.000Z') / 1000 });
+  const emailsBefore = emails.length;
+  let r = mkRes();
+  await webhook(mkStreamReq(paidEvent), r);
+  const clientId = 'cspfsreview1';
+  const client = store.get('pfsClients/' + clientId);
+  const searches = [...store.entries()].filter(([key]) => key.startsWith('radarSearches/pfs_' + clientId + '_'));
+  const tasks = [...store.entries()].filter(([key, value]) => key.startsWith('operatorTasks/') && value.source === 'pfs-kickoff');
+  check('PFS flag accesa: scadenza interna UTC esattamente +48h e reviewRequired',
+    r.code === 200 && client?.reviewRequired === true
+      && client.paid_at === '2026-10-05T10:30:00.000Z'
+      && client.firstShortlistDueAt === '2026-10-07T10:30:00.000Z'
+      && new Date(client.firstShortlistDueAt).getTime() - new Date(client.paid_at).getTime() === 48 * 3600_000
+      && /Z$/.test(client.firstShortlistDueAt));
+  check('PFS pagato: due ricerche BOOM, revisione copertura Casafari e reminder shortlist una volta',
+    client?.pfsKickoffStatus === 'searches_ready' && client?.casafariAlertStatus === 'needs_review'
+      && searches.length === 2 && tasks.length === 2
+      && tasks.some(([, t]) => t.title.startsWith('Verifica copertura Casafari')
+        && t.note.includes('alert Casafari esistenti')
+        && t.note.includes('nuova ricerca solo se manca copertura')
+        && t.note.includes('ricerca iniziale nello stock')
+        && t.note.includes('non prova che le email Casafari siano attive'))
+      && tasks.some(([, t]) => t.title.startsWith('Rivedi prima shortlist PFS')
+        && t.due === '2026-10-07' && t.dueTime === '12:30'));
+  check('PFS pagato: email cliente ancora a 72h',
+    emails.length === emailsBefore + 2 && emails.slice(emailsBefore).some(e => e.r2_value === 'Within 72 hours'));
+  const pfsCommand = readFileSync(new URL('../../pfs-command.html', import.meta.url), 'utf8');
+  check('PFS command: mostra copertura da verificare e stock iniziale, non alert presunto attivo',
+    pfsCommand.includes("c.casafariAlertStatus === 'needs_review'")
+      && pfsCommand.includes('da verificare sugli alert esistenti')
+      && pfsCommand.includes('verificare anche lo stock iniziale')
+      && pfsCommand.includes('Il task non prova l’arrivo delle email'));
+
+  r = mkRes();
+  await webhook(mkStreamReq(paidEvent), r);
+  check('PFS retry Stripe: zero nuovi task/ricerche/email e stesso codice portale',
+    r.body?.duplicate === true && emails.length === emailsBefore + 2
+      && [...store.keys()].filter(k => k.startsWith('radarSearches/pfs_' + clientId + '_')).length === 2
+      && [...store.keys()].filter(k => k.startsWith('operatorTasks/') && store.get(k).source === 'pfs-kickoff').length === 2
+      && store.get('pfsClients/' + clientId).portalAccessCode === client.portalAccessCode);
+
+  failRadarCreates = 1;
+  const partialEvent = sessionEvent({ service: 'PFS', name: 'Retry Cliente', email: 'retry@x.it',
+    budget: '1300', preferred_areas: 'Prati' },
+  { id: 'cs_pfs_retry_2', amount_total: 35000 });
+  r = mkRes();
+  await webhook(mkStreamReq(partialEvent), r);
+  const partialId = 'cspfsretry2';
+  const partial = store.get('pfsClients/' + partialId);
+  const existingSearchKey = [...store.keys()].find(k => k.startsWith('radarSearches/pfs_' + partialId + '_'));
+  check('PFS errore parziale: cliente resta pending, non finge alert pronto',
+    r.code === 200 && partial?.pfsKickoffStatus === 'pending'
+      && partial?.casafariAlertStatus === 'needs_review' && !!existingSearchKey);
+  store.get(existingSearchKey).enabled = false;
+  store.get(existingSearchKey).urlOverride = 'https://www.idealista.it/override-operatore/';
+  const partialEmailCount = emails.length;
+  process.env.CRON_SECRET = 'test-cron-secret';
+  const { default: syncSearches, dailySyncDue, dailyMarkerEligible } = await import('../../api/pfs/sync-searches.js');
+  const delayed = new Date('2026-10-07T04:03:00.000Z');
+  check('PFS sync giornaliero: il cron in ritardo alle 04:03 non perde il giro',
+    dailySyncDue(delayed, { lastFullSyncDay: '2026-10-06' }) === true);
+  check('PFS sync giornaliero: un tentativo fallito è limitato a uno ogni ora',
+    dailySyncDue(delayed, { lastFullSyncAttemptAt: '2026-10-07T04:01:00.000Z' }) === false
+      && dailySyncDue(new Date('2026-10-07T05:04:00.000Z'), {
+        lastFullSyncAttemptAt: '2026-10-07T04:01:00.000Z',
+      }) === true
+      && dailySyncDue(delayed, { lastFullSyncDay: '2026-10-07' }) === false);
+  check('PFS sync manuale prima delle 04:00 non sposta il giro giornaliero',
+    dailyMarkerEligible(new Date('2026-10-07T03:59:00.000Z')) === false
+      && dailyMarkerEligible(delayed) === true
+      && dailySyncDue(delayed, { lastFullSyncDay: '2026-10-06' }) === true);
+  r = mkRes();
+  await syncSearches({ method: 'GET', headers: { authorization: 'Bearer test-cron-secret' } }, r);
+  check('PFS worker: recupera il pending dopo errore webhook',
+    r.code === 200 && r.body?.ok === true
+      && store.get('pfsClients/' + partialId)?.pfsKickoffStatus === 'searches_ready'
+      && [...store.keys()].filter(k => k.startsWith('radarSearches/pfs_' + partialId + '_')).length === 2);
+  check('PFS worker: mantiene ricerche spente e URL rifinito a mano',
+    store.get(existingSearchKey).enabled === false
+      && store.get(existingSearchKey).urlOverride === 'https://www.idealista.it/override-operatore/');
+  check('PFS worker: non manda email e non duplica task Casafari',
+    emails.length === partialEmailCount
+      && [...store.keys()].filter(k => k.startsWith('operatorTasks/') && store.get(k).source === 'pfs-kickoff').length === 4);
+  delete process.env.PFS_KICKOFF_V1;
+}
+
+// ═══ 4c. Proposta manuale a un cliente con reviewRequired ═══
+{
+  const { stableIdFromUrl } = await import('../../api/pfs/_ingest.js');
+  const { ensureCandidate, candidateId } = await import('../../api/pfs/_candidates.js');
+  const reviewCase = (await import('../../api/pfs/candidate-review.js')).default;
+  const importCasafari = (await import('../../api/casafari/import.js')).default;
+  const clientId = 'cspfsreview1';
+  const listing = { sourceUrl: 'https://www.casafari.com/listing/verified-1',
+    source: 'casafari', price: 1200, title: 'Bilocale Prati', zone: 'Prati', advertiser: 'private' };
+  const propertyId = stableIdFromUrl(listing.sourceUrl);
+  store.set('pfsProperties/' + propertyId, { matchSummary: {
+    at: '2026-10-05T09:00:00.000Z',
+    pendingReview: [{ clientId, name: 'Nuova Cliente', score: 80 }], pushedTo: [],
+  } });
+  process.env.HOMIE_SECRET = 'homie-test';
+
+  store.set('users/admin1', { role: 'landlord' });
+  let r = mkRes();
+  await importCasafari(mkReq({ clientId, listing, reviewConfirmed: true }, { authorization: 'Bearer firebase-token' }), r);
+  check('PFS review manuale: landlord non può sbloccare il mazzo di un cliente',
+    r.code === 403 && (store.get('pfsClients/' + clientId).portalProperties || []).length === 0);
+
+  store.set('users/admin1', { role: 'admin' });
+  r = mkRes();
+  await importCasafari(mkReq({ clientId, listing, reviewConfirmed: true }, { 'x-homie-secret': 'homie-test' }), r);
+  check('PFS review manuale: Homie non può attestare una verifica umana',
+    r.code === 403 && (store.get('pfsClients/' + clientId).portalProperties || []).length === 0);
+
+  r = mkRes();
+  await importCasafari(mkReq({ clientId, listing }, { authorization: 'Bearer firebase-token' }), r);
+  check('PFS import manuale: Casafari entra nella coda interna, non nel portale',
+    r.code === 200 && r.body?.results?.[0]?.queued === true
+      && r.body?.pushedCount === 0 && (store.get('pfsClients/' + clientId).portalProperties || []).length === 0);
+
+  r = mkRes();
+  await importCasafari(mkReq({ clientId, listing, reviewConfirmed: true }, { authorization: 'Bearer firebase-token' }), r);
+  check('PFS review manuale: reviewConfirmed da solo non sblocca un cliente nuovo',
+    r.code === 200 && r.body?.pushedCount === 0
+      && r.body?.results?.[0]?.queued === true
+      && (store.get('pfsClients/' + clientId).portalProperties || []).length === 0);
+
+  const forgedPath = 'pfsCandidateReviews/' + candidateId(clientId, propertyId);
+  store.set(forgedPath, { clientId, propertyId, sourceUrl: listing.sourceUrl,
+    status: 'approved', reviewedBy: 'admin1', reviewedAt: new Date().toISOString() });
+  r = mkRes();
+  await importCasafari(mkReq({ clientId, listing, reviewConfirmed: true }, { authorization: 'Bearer firebase-token' }), r);
+  check('PFS import: stato approved senza prove non bypassa la shortlist',
+    r.code === 200 && r.body?.pushedCount === 0 && r.body?.results?.[0]?.queued === true
+      && (store.get('pfsClients/' + clientId).portalProperties || []).length === 0);
+  store.delete(forgedPath);
+
+  await ensureCandidate({ client: { ...store.get('pfsClients/' + clientId), id: clientId },
+    propertyId, property: listing, score: 80, reasons: ['zona'] });
+  const casePath = 'pfsCandidateReviews/' + candidateId(clientId, propertyId);
+  const evidence = {
+    sourceUrl: listing.sourceUrl,
+    availabilityVerifiedAt: '2026-10-05T10:00:00.000Z',
+    availabilityVerifiedWith: 'Maria, proprietaria',
+    availabilityEvidence: 'Conferma via WhatsApp ricevuta dalla proprietaria',
+    sharingPermissionAt: '2026-10-05T10:05:00.000Z',
+    sharingPermissionFrom: 'Maria, proprietaria',
+    sharingPermissionEvidence: 'Consenso esplicito via WhatsApp per invio al cliente',
+    permissionGranted: true,
+  };
+  r = mkRes();
+  await reviewCase(mkReq({ clientId, propertyId, decision: 'approve', evidence }, { 'x-homie-secret': 'homie-test' }), r);
+  check('PFS decisione: Homie non può approvare', r.code === 403 && store.get(casePath)?.status === 'pending');
+  store.set('users/admin1', { role: 'landlord' });
+  r = mkRes();
+  await reviewCase(mkReq({ clientId, propertyId, decision: 'approve', evidence }, { authorization: 'Bearer firebase-token' }), r);
+  check('PFS decisione: landlord non può approvare', r.code === 403 && store.get(casePath)?.status === 'pending');
+  store.set('users/admin1', { role: 'admin' });
+  r = mkRes();
+  await reviewCase(mkReq({ clientId, propertyId, decision: 'approve' }, { authorization: 'Bearer firebase-token' }), r);
+  check('PFS decisione: senza prova non approva',
+    r.code === 400 && r.body?.error === 'approval_evidence_required' && store.get(casePath)?.status === 'pending');
+  r = mkRes();
+  await reviewCase(mkReq({ clientId, propertyId, decision: 'approve', evidence: { ...evidence, sourceUrl: 'https://wrong.example/' } },
+    { authorization: 'Bearer firebase-token' }), r);
+  check('PFS decisione: fonte diversa dal candidato non approva',
+    r.code === 400 && store.get(casePath)?.status === 'pending');
+  r = mkRes();
+  await reviewCase(mkReq({ clientId, propertyId, decision: 'approve', evidence }, { authorization: 'Bearer firebase-token' }), r);
+  check('PFS decisione: approvazione CAS registra operatore e prove senza inviare',
+    r.code === 200 && r.body?.status === 'approved' && store.get(casePath)?.reviewedBy === 'admin1'
+      && store.get(casePath)?.reviewEvidence?.permissionGranted === true
+      && (store.get('pfsClients/' + clientId).portalProperties || []).length === 0);
+  r = mkRes();
+  await reviewCase(mkReq({ clientId, propertyId, decision: 'approve', evidence }, { authorization: 'Bearer firebase-token' }), r);
+  check('PFS decisione: retry identico idempotente', r.code === 200 && r.body?.already === true);
+  r = mkRes();
+  await reviewCase(mkReq({ clientId, propertyId, decision: 'reject', reason: 'Non disponibile' },
+    { authorization: 'Bearer firebase-token' }), r);
+  check('PFS decisione: approvazione non viene sovrascritta da rifiuto',
+    r.code === 409 && store.get(casePath)?.status === 'approved');
+
+  r = mkRes();
+  await importCasafari(mkReq({ clientId, listing, reviewConfirmed: true }, { authorization: 'Bearer firebase-token' }), r);
+  check('PFS import: anche dopo approvazione, solo shortlist pubblica nel portale',
+    r.code === 200 && r.body?.pushedCount === 0 && r.body?.results?.[0]?.queued === true
+      && (store.get('pfsClients/' + clientId).portalProperties || []).length === 0
+      && store.get(casePath)?.status === 'approved');
+  const summary = store.get('pfsProperties/' + propertyId)?.matchSummary;
+  check('PFS import: il candidato resta nel riepilogo interno prima della shortlist',
+    summary?.pendingReview?.some(m => m.clientId === clientId) && !summary?.pushedTo?.length);
+  check('PFS import: non avanza l’epoch del punteggio per tutti i clienti',
+    summary?.at === '2026-10-05T09:00:00.000Z' && !summary?.reviewedAt);
+
+  const unknownListing = { sourceUrl: 'https://www.casafari.com/listing/unknown-advertiser',
+    source: 'casafari', price: 1250, title: 'Bilocale senza inserzionista', zone: 'Prati' };
+  const unknownId = stableIdFromUrl(unknownListing.sourceUrl);
+  await ensureCandidate({ client: { ...store.get('pfsClients/' + clientId), id: clientId },
+    propertyId: unknownId, property: unknownListing, score: 70, reasons: [] });
+  r = mkRes();
+  await reviewCase(mkReq({ clientId, propertyId: unknownId, decision: 'approve',
+    evidence: { ...evidence, sourceUrl: unknownListing.sourceUrl } }, { authorization: 'Bearer firebase-token' }), r);
+  r = mkRes();
+  await importCasafari(mkReq({ clientId, listing: unknownListing, reviewConfirmed: true },
+    { authorization: 'Bearer firebase-token' }), r);
+  check('PFS review manuale: inserzionista assente resta unknown, non privato presunto',
+    r.code === 200 && store.get('pfsProperties/' + stableIdFromUrl(unknownListing.sourceUrl))?.advertiser === 'unknown');
+
+  const legacyListing = { sourceUrl: 'https://www.casafari.com/listing/legacy-1', price: 990, title: 'Trilocale' };
+  r = mkRes();
+  await importCasafari(mkReq({ clientId: 'cspfslegacy1', listing: legacyListing },
+    { authorization: 'Bearer firebase-token' }), r);
+  check('PFS review manuale: cliente storico senza reviewRequired conserva import',
+    r.code === 200 && r.body?.pushedCount === 1);
+
+  const raceListing = { sourceUrl: 'https://www.casafari.com/listing/review-race-1', price: 1180, title: 'Bilocale' };
+  const raceId = stableIdFromUrl(raceListing.sourceUrl);
+  await ensureCandidate({ client: { ...store.get('pfsClients/' + clientId), id: clientId },
+    propertyId: raceId, property: raceListing, score: 72, reasons: [] });
+  const [approvedAttempt, rejectedAttempt] = await Promise.all([
+    (async () => { const out = mkRes(); await reviewCase(mkReq({ clientId, propertyId: raceId,
+      decision: 'approve', evidence: { ...evidence, sourceUrl: raceListing.sourceUrl } },
+    { authorization: 'Bearer firebase-token' }), out); return out; })(),
+    (async () => { const out = mkRes(); await reviewCase(mkReq({ clientId, propertyId: raceId,
+      decision: 'reject', reason: 'Non disponibile' }, { authorization: 'Bearer firebase-token' }), out); return out; })(),
+  ]);
+  const raceDoc = store.get('pfsCandidateReviews/' + candidateId(clientId, raceId));
+  check('PFS decisione: due operatori concorrenti, una sola decisione CAS',
+    [approvedAttempt.code, rejectedAttempt.code].sort().join(',') === '200,409'
+      && ['approved', 'rejected'].includes(raceDoc?.status)
+      && raceDoc?.reviewedBy === 'admin1');
+
+  const rejectListing = { sourceUrl: 'https://www.casafari.com/listing/review-reject-1', price: 1300, title: 'Bilocale' };
+  const rejectId = stableIdFromUrl(rejectListing.sourceUrl);
+  await ensureCandidate({ client: { ...store.get('pfsClients/' + clientId), id: clientId },
+    propertyId: rejectId, property: rejectListing, score: 64, reasons: [] });
+  r = mkRes();
+  await reviewCase(mkReq({ clientId, propertyId: rejectId, decision: 'reject', reason: 'Non più disponibile' },
+    { authorization: 'Bearer firebase-token' }), r);
+  const rejectDoc = store.get('pfsCandidateReviews/' + candidateId(clientId, rejectId));
+  check('PFS decisione: rifiuto registra motivo e operatore senza inviare',
+    r.code === 200 && rejectDoc?.status === 'rejected' && rejectDoc?.rejectionReason === 'Non più disponibile'
+      && rejectDoc?.reviewedBy === 'admin1' && !(store.get('pfsClients/' + clientId).portalProperties || []).some(p => p.id === rejectId));
+  r = mkRes();
+  await reviewCase(mkReq({ clientId, propertyId: rejectId, decision: 'reject', reason: 'Non più disponibile' },
+    { authorization: 'Bearer firebase-token' }), r);
+  check('PFS decisione: retry del rifiuto idempotente', r.code === 200 && r.body?.already === true);
+  r = mkRes();
+  await importCasafari(mkReq({ clientId, listing: rejectListing, reviewConfirmed: true },
+    { authorization: 'Bearer firebase-token' }), r);
+  check('PFS import: candidato rifiutato non diventa proposta',
+    r.code === 200 && r.body?.pushedCount === 0
+      && r.body?.results?.[0]?.queued === true
+      && store.get('pfsCandidateReviews/' + candidateId(clientId, rejectId))?.status === 'rejected'
+      && !(store.get('pfsClients/' + clientId).portalProperties || []).some(p => p.id === rejectId));
+}
+
+// ═══ 4d. Shortlist PFS: bozza, verifica finale, pubblicazione nel portale ═══
+{
+  const { stableIdFromUrl } = await import('../../api/pfs/_ingest.js');
+  const { ensureCandidate, candidateId } = await import('../../api/pfs/_candidates.js');
+  const reviewCase = (await import('../../api/pfs/candidate-review.js')).default;
+  const shortlist = (await import('../../api/pfs/shortlist.js')).default;
+  const portalLookup = (await import('../../api/portal/lookup.js')).default;
+  const portalAction = (await import('../../api/portal/action.js')).default;
+  const clientId = 'cspfslist1', code = 'BMLIST1';
+  store.set('pfsClients/' + clientId, { name: 'Cliente shortlist', reviewRequired: true,
+    portalEnabled: true, portalAccessCode: code, portalProperties: [], portalActivity: [] });
+  store.set('users/admin1', { role: 'admin' });
+  const fresh = new Date().toISOString();
+  const cases = [];
+  for (let i = 1; i <= 4; i++) {
+    const sourceUrl = 'https://www.casafari.com/listing/shortlist-' + i;
+    const propertyId = stableIdFromUrl(sourceUrl);
+    const listing = { sourceUrl, source: 'casafari', price: 1100 + i * 50,
+      title: 'Casa ' + i, address: 'Via Roma ' + i, zone: 'Prati', advertiser: 'private' };
+    store.set('pfsProperties/' + propertyId, { sourceUrl, description: 'Descrizione ' + i,
+      images: ['https://example.com/shortlist-' + i + '.jpg'] });
+    await ensureCandidate({ client: { id: clientId, name: 'Cliente shortlist' },
+      propertyId, property: listing, score: 80 - i, reasons: ['zona'] });
+    const evidence = { sourceUrl, availabilityVerifiedAt: fresh, availabilityVerifiedWith: 'Proprietaria ' + i,
+      availabilityEvidence: 'Conferma scritta dalla proprietaria ' + i,
+      sharingPermissionAt: fresh, sharingPermissionFrom: 'Proprietaria ' + i,
+      sharingPermissionEvidence: 'Consenso scritto a condividere con il cliente ' + i, permissionGranted: true };
+    const approved = mkRes();
+    await reviewCase(mkReq({ clientId, propertyId, decision: 'approve', evidence },
+      { authorization: 'Bearer firebase-token' }), approved);
+    check('PFS shortlist: candidato ' + i + ' approvato con prova', approved.code === 200);
+    cases.push({ candidateId: candidateId(clientId, propertyId), propertyId, sourceUrl });
+  }
+  const prepare = (ids, key) => mkReq({ action: 'prepare', clientId, candidateIds: ids,
+    idempotencyKey: key }, { authorization: 'Bearer firebase-token' });
+  const checkNow = c => ({ candidateId: c.candidateId, propertyId: c.propertyId, sourceUrl: c.sourceUrl,
+    availabilityConfirmed: true, availabilityCheckedAt: new Date().toISOString(),
+    availabilityCheckedWith: 'Proprietaria diretta',
+    availabilityEvidence: 'Conferma telefonica di disponibilità annotata nel fascicolo',
+    sharingPermissionConfirmed: true, sharingCheckedAt: new Date().toISOString(),
+    sharingCheckedWith: 'Proprietaria diretta',
+    sharingEvidence: 'Consenso alla condivisione con questo cliente annotato nel fascicolo' });
+  const publish = (draft, checks) => mkReq({ action: 'publish', clientId,
+    shortlistId: draft.id, snapshotHash: draft.snapshotHash, finalChecks: checks },
+  { authorization: 'Bearer firebase-token' });
+  let r = mkRes();
+  store.set('users/admin1', { role: 'landlord' });
+  await shortlist(prepare([cases[0].candidateId], 'list-auth-1'), r);
+  check('PFS shortlist: solo admin può preparare', r.code === 403 && !store.get('pfsClients/' + clientId).shortlistRevision);
+  store.set('users/admin1', { role: 'admin' });
+  r = mkRes();
+  await shortlist(mkReq({ action: 'prepare', clientId, candidateIds: [cases[0].candidateId],
+    idempotencyKey: 'list-homie-1' }, { 'x-homie-secret': 'homie-test' }), r);
+  check('PFS shortlist: Homie non può preparare', r.code === 403 && !store.get('pfsClients/' + clientId).shortlistRevision);
+
+  r = mkRes();
+  await shortlist(prepare([cases[0].candidateId, cases[1].candidateId], 'list-main-1'), r);
+  const draft = r.body?.draft;
+  const emailCount = emails.length;
+  check('PFS shortlist: bozza immutabile senza marker visibile al cliente', r.code === 200
+    && draft?.status === 'draft' && draft.items?.length === 2
+    && store.get('pfsShortlists/' + draft.id)?.snapshotHash === draft.snapshotHash
+    && !store.get('pfsClients/' + clientId).publishedShortlistIds
+    && store.get('pfsClients/' + clientId).portalProperties.length === 0);
+  r = mkRes();
+  await shortlist(prepare([cases[0].candidateId, cases[1].candidateId], 'list-main-1'), r);
+  check('PFS shortlist: stesso prepare key non crea nuova versione', r.code === 200 && r.body?.already === true
+    && store.get('pfsClients/' + clientId).shortlistRevision === 1);
+  r = mkRes();
+  await shortlist(prepare([cases[1].candidateId], 'list-main-1'), r);
+  check('PFS shortlist: chiave riusata per selezione diversa rifiutata', r.code === 409
+    && r.body?.error === 'idempotency_key_reused');
+
+  r = mkRes();
+  await shortlist(publish(draft, []), r);
+  check('PFS shortlist: nessuna pubblicazione senza ricontrollo finale', r.code === 409
+    && r.body?.error === 'reverification_required'
+    && store.get('pfsShortlists/' + draft.id)?.status === 'draft');
+  r = mkRes();
+  await shortlist(publish(draft, cases.slice(0, 2).map(c => ({ ...checkNow(c),
+    availabilityCheckedAt: new Date(Date.now() - 25 * 3600_000).toISOString() }))), r);
+  check('PFS shortlist: conferma disponibilità oltre 24 ore richiede nuova verifica',
+    r.code === 409 && r.body?.error === 'reverification_required');
+  r = mkRes();
+  await shortlist(publish(draft, cases.slice(0, 2).map(c => ({ ...checkNow(c),
+    sharingCheckedAt: new Date(Date.now() - 25 * 3600_000).toISOString() }))), r);
+  check('PFS shortlist: permesso di condivisione oltre 24 ore richiede nuova verifica',
+    r.code === 409 && r.body?.error === 'reverification_required');
+  r = mkRes();
+  await shortlist(publish(draft, cases.slice(0, 2).map((c, i) => ({ ...checkNow(c),
+    availabilityConfirmed: i !== 0 }))), r);
+  check('PFS shortlist: disponibilità non confermata blocca la pubblicazione',
+    r.code === 409 && r.body?.error === 'reverification_required');
+  r = mkRes();
+  await shortlist(publish(draft, cases.slice(0, 2).map((c, i) => ({ ...checkNow(c),
+    sharingPermissionConfirmed: i !== 0 }))), r);
+  check('PFS shortlist: permesso non confermato blocca la pubblicazione',
+    r.code === 409 && r.body?.error === 'reverification_required');
+  r = mkRes();
+  await shortlist(publish(draft, cases.slice(0, 2).map((c, i) => ({ ...checkNow(c),
+    sharingEvidence: i ? 'Consenso scritto di nuovo' : '' }))), r);
+  check('PFS shortlist: prova del permesso mancante blocca la pubblicazione',
+    r.code === 409 && r.body?.error === 'reverification_required');
+  r = mkRes();
+  await shortlist(publish(draft, cases.slice(0, 2).map((c, i) => ({ ...checkNow(c),
+    sourceUrl: i ? c.sourceUrl : 'https://wrong.example/listing' }))), r);
+  check('PFS shortlist: la verifica finale deve citare la fonte esatta',
+    r.code === 409 && r.body?.error === 'reverification_required');
+  r = mkRes();
+  await shortlist(publish(draft, cases.slice(0, 2).map((c, i) => ({ ...checkNow(c),
+    propertyId: i ? c.propertyId : 'h_wrong_listing' }))), r);
+  check('PFS shortlist: la verifica finale deve citare l’immobile esatto',
+    r.code === 409 && r.body?.error === 'reverification_required');
+  store.set('users/admin1', { role: 'landlord' });
+  r = mkRes();
+  await shortlist(publish(draft, cases.slice(0, 2).map(checkNow)), r);
+  check('PFS shortlist: solo admin può pubblicare', r.code === 403
+    && store.get('pfsShortlists/' + draft.id)?.status === 'draft');
+  store.set('users/admin1', { role: 'admin' });
+  store.set('pfsClients/cspfsduplicatecode', { portalEnabled: true, portalAccessCode: code });
+  r = mkRes();
+  await shortlist(publish(draft, cases.slice(0, 2).map(checkNow)), r);
+  check('PFS shortlist: codice portale ambiguo blocca la ricevuta', r.code === 409
+    && r.body?.error === 'portal_code_ambiguous'
+    && store.get('pfsShortlists/' + draft.id)?.status === 'draft');
+  store.delete('pfsClients/cspfsduplicatecode');
+
+  r = mkRes();
+  await shortlist(publish(draft, cases.slice(0, 2).map(checkNow)), r);
+  const receipt = r.body?.receipt;
+  check('PFS shortlist: commit atomico pubblica snapshot, marker e ricevuta portale', r.code === 200
+    && receipt?.channel === 'portal' && receipt?.itemCount === 2 && receipt.finalChecks?.length === 2
+    && receipt.finalChecks[0].availabilityConfirmed === true
+    && receipt.finalChecks[0].sharingPermissionConfirmed === true
+    && receipt.finalChecks[0].propertyId === cases[0].propertyId
+    && store.get('pfsShortlists/' + draft.id)?.status === 'published'
+    && store.get('pfsClients/' + clientId).publishedShortlistIds?.includes(draft.id)
+    && store.get('pfsClients/' + clientId).portalProperties?.length === 2
+    && store.get('pfsClients/' + clientId).portalProperties[0].sourceUrl === cases[0].sourceUrl
+    && emails.length === emailCount);
+  r = mkRes();
+  await shortlist(publish(draft, []), r);
+  check('PFS shortlist: retry publish restituisce stessa ricevuta senza duplicare', r.code === 200
+    && r.body?.already === true && r.body?.receipt?.publishedAt === receipt.publishedAt
+    && store.get('pfsClients/' + clientId).portalProperties.length === 2
+    && store.get('pfsClients/' + clientId).portalActivity.filter(a => a.type === 'shortlist_published').length === 1);
+
+  // Un vecchio writer può ancora sostituire l'array: lookup e action devono
+  // recuperare la carta dalla fonte canonica invece di far sparire la shortlist.
+  store.set('pfsClients/' + clientId, { ...store.get('pfsClients/' + clientId), portalProperties: [] });
+  r = mkRes();
+  await portalLookup(mkReq({ code }), r);
+  check('PFS shortlist: lookup pubblico recupera carta dopo overwrite legacy', r.code === 200
+    && r.body?.client?.properties?.length === 2
+    && r.body.client.properties[0].sourceUrl === cases[0].sourceUrl);
+  r = mkRes();
+  await portalAction(mkReq({ code, action: 'like', propertyId: cases[0].propertyId }), r);
+  check('PFS shortlist: azione del cliente usa la carta canonica recuperata', r.code === 200
+    && store.get('pfsClients/' + clientId).portalProperties?.length === 2
+    && store.get('pfsClients/' + clientId).portalProperties[0].clientLiked === true);
+
+  const prepared = [];
+  for (let i = 2; i < 4; i++) {
+    r = mkRes();
+    await shortlist(prepare([cases[i].candidateId], 'list-race-' + i), r);
+    prepared.push(r.body?.draft);
+  }
+  const results = await Promise.all(prepared.map(async (d, i) => {
+    const out = mkRes(); await shortlist(publish(d, [checkNow(cases[i + 2])]), out); return out;
+  }));
+  const afterRace = store.get('pfsClients/' + clientId);
+  check('PFS shortlist: due pubblicazioni concorrenti non cancellano marker o carte',
+    results.every(x => x.code === 200)
+    && afterRace.publishedShortlistIds?.length === 3
+    && new Set(afterRace.publishedShortlistIds).size === 3
+    && afterRace.portalProperties?.length === 4);
+  r = mkRes();
+  await portalLookup(mkReq({ code }), r);
+  check('PFS shortlist: lookup finale vede tutte le versioni pubblicate',
+    r.code === 200 && r.body?.client?.properties?.length === 4);
+  const fifthUrl = 'https://www.casafari.com/listing/shortlist-changed';
+  const fifthId = stableIdFromUrl(fifthUrl);
+  const fifth = { sourceUrl: fifthUrl, source: 'casafari', price: 1360,
+    title: 'Casa cambiata', address: 'Via Roma 5', advertiser: 'private' };
+  await ensureCandidate({ client: { id: clientId }, propertyId: fifthId,
+    property: fifth, score: 75, reasons: [] });
+  r = mkRes();
+  await reviewCase(mkReq({ clientId, propertyId: fifthId, decision: 'approve', evidence: {
+    sourceUrl: fifthUrl, availabilityVerifiedAt: fresh, availabilityVerifiedWith: 'Proprietaria diretta',
+    availabilityEvidence: 'Conferma scritta della casa cambiata', sharingPermissionAt: fresh,
+    sharingPermissionFrom: 'Proprietaria diretta', sharingPermissionEvidence: 'Consenso scritto per il cliente',
+    permissionGranted: true } }, { authorization: 'Bearer firebase-token' }), r);
+  r = mkRes();
+  const fifthCase = { candidateId: candidateId(clientId, fifthId), propertyId: fifthId, sourceUrl: fifthUrl };
+  await shortlist(prepare([fifthCase.candidateId], 'list-changed-1'), r);
+  const changedDraft = r.body?.draft;
+  await ensureCandidate({ client: { id: clientId }, propertyId: fifthId,
+    property: { ...fifth, price: 1450 }, score: 75, reasons: [] });
+  r = mkRes();
+  await shortlist(publish(changedDraft, [checkNow(fifthCase)]), r);
+  check('PFS shortlist: prezzo cambiato dopo la bozza richiede nuova preparazione',
+    r.code === 409 && r.body?.error === 'candidate_changed_reprepare'
+    && store.get('pfsShortlists/' + changedDraft.id)?.status === 'draft');
+  r = mkRes();
+  await shortlist(prepare([fifthCase.candidateId], 'list-changed-2'), r);
+  const revisedDraft = r.body?.draft;
+  const clientKey = 'pfsClients/' + clientId;
+  const legacyEntry = { id: 'h_legacy_concurrent', address: 'Casa inserita dal vecchio pannello',
+    sourceUrl: 'https://legacy.example/listing', price: 970 };
+  beforeCommitOnce = () => {
+    const current = store.get(clientKey);
+    store.set(clientKey, { ...current, portalProperties: current.portalProperties.concat(legacyEntry) });
+    versions.set(clientKey, (versions.get(clientKey) || 1) + 1);
+  };
+  r = mkRes();
+  await shortlist(publish(revisedDraft, [checkNow(fifthCase)]), r);
+  const afterOverwriteRace = store.get(clientKey);
+  check('PFS shortlist: write legacy fra read e commit causa retry CAS senza perdere nessuna carta',
+    r.code === 200 && !beforeCommitOnce
+      && afterOverwriteRace.publishedShortlistIds?.length === 4
+      && afterOverwriteRace.portalProperties?.length === 6
+      && afterOverwriteRace.portalProperties.some(p => p.id === legacyEntry.id)
+      && afterOverwriteRace.portalProperties.some(p => p.id === fifthId && p.shortlistId === revisedDraft.id));
+  const saved = store.get('pfsClients/' + clientId);
+  store.set('pfsClients/' + clientId, { ...saved, shortlistRevision: 24 });
+  r = mkRes();
+  await shortlist(prepare([cases[0].candidateId], 'list-over-limit'), r);
+  check('PFS shortlist: safety cap delle 24 versioni esplicito', r.code === 409
+    && r.body?.error === 'shortlist_version_limit');
+  store.set('pfsClients/' + clientId, saved);
+}
+
+// Il vecchio harness admin aveva un secondo push automatico che bypassava
+// `_ingest`: anche da lì i clienti reviewRequired devono restare interni.
+{
+  const matchTest = (await import('../../api/admin/match-test.js')).default;
+  const sourceUrl = 'https://www.immobiliare.it/annunci/45678901/';
+  const body = { dryRun: true, sourceUrl, price: 1200, zone: 'Prati', title: 'Bilocale Prati' };
+  store.set('users/admin1', { role: 'landlord' });
+  let r = mkRes();
+  await matchTest(mkReq(body, { authorization: 'Bearer firebase-token' }), r);
+  check('match-test: landlord non legge criteri e candidati di tutti i PFS',
+    r.code === 403 && r.body?.error === 'admin_required' && !r.body?.results);
+  r = mkRes();
+  await matchTest(mkReq({ ...body, dryRun: false }, { authorization: 'Bearer firebase-token' }), r);
+  check('match-test live: landlord non può creare o distribuire candidati PFS',
+    r.code === 403 && !store.has('pfsProperties/' + (await import('../../api/pfs/_ingest.js')).stableIdFromUrl(sourceUrl)));
+
+  const brief = (await import('../../api/pfs/brief.js')).default;
+  r = mkRes();
+  await brief({ method: 'GET', headers: { authorization: 'Bearer firebase-token' } }, r);
+  check('brief: landlord non legge il riepilogo di tutti i clienti PFS',
+    r.code === 403 && r.body?.error === 'admin_required');
+
+  const { requireCronOrAdmin } = await import('../../api/pfs/_guard.js');
+  r = mkRes();
+  const deniedActor = await requireCronOrAdmin(
+    { method: 'POST', headers: { authorization: 'Bearer firebase-token' } }, r);
+  check('guard PFS: landlord non può invocare scan inbox, mercato o sync',
+    deniedActor === null && r.code === 403 && r.body?.error === 'admin_required');
+
+  store.set('users/admin1', { role: 'admin' });
+  r = mkRes();
+  const adminActor = await requireCronOrAdmin(
+    { method: 'POST', headers: { authorization: 'Bearer firebase-token' } }, r);
+  check('guard PFS: admin conserva l’accesso operativo', adminActor === 'admin:admin1' && r.code === 0);
+  r = mkRes();
+  await matchTest(mkReq(body, { authorization: 'Bearer firebase-token' }), r);
+  const reviewedDry = r.body?.results?.find(x => x.clientId === 'cspfsretry2');
+  check('match-test dry run: cliente reviewed è da rivedere, non da spingere',
+    r.code === 200 && reviewedDry?.pendingReview === true && reviewedDry?.wouldPush === false);
+  const deckBefore = (store.get('pfsClients/cspfsretry2').portalProperties || []).length;
+  r = mkRes();
+  await matchTest(mkReq({ ...body, dryRun: false }, { authorization: 'Bearer firebase-token' }), r);
+  const { stableIdFromUrl } = await import('../../api/pfs/_ingest.js');
+  const { candidateId } = await import('../../api/pfs/_candidates.js');
+  const summary = store.get('pfsProperties/' + stableIdFromUrl(sourceUrl))?.matchSummary;
+  check('match-test live: admin non espone candidati reviewed; li lascia nel feed interno',
+    r.code === 200 && (store.get('pfsClients/cspfsretry2').portalProperties || []).length === deckBefore
+      && r.body?.pendingReview?.some(x => x.clientId === 'cspfsretry2')
+      && summary?.pendingReview?.some(x => x.clientId === 'cspfsretry2')
+      && store.get('pfsCandidateReviews/' + candidateId('cspfsretry2', stableIdFromUrl(sourceUrl)))?.status === 'pending');
+  check('match-test live: cliente storico conserva il push automatico',
+    r.body?.pushedTo?.some(x => x.clientId === 'cspfslegacy1'));
+  const casePath = 'pfsCandidateReviews/' + candidateId('cspfsretry2', stableIdFromUrl(sourceUrl));
+  store.set(casePath, { ...store.get(casePath), status: 'approved', reviewedBy: 'admin1' });
+  r = mkRes();
+  await matchTest(mkReq({ ...body, dryRun: false }, { authorization: 'Bearer firebase-token' }), r);
+  check('match-test retry: approvazione resta e il feed non la chiama ancora pending',
+    r.code === 200 && store.get(casePath)?.status === 'approved'
+      && store.get(casePath)?.reviewedBy === 'admin1'
+      && !r.body?.pendingReview?.some(x => x.clientId === 'cspfsretry2')
+      && !store.get('pfsProperties/' + stableIdFromUrl(sourceUrl))?.matchSummary?.pendingReview?.some(x => x.clientId === 'cspfsretry2'));
 }
 
 // ═══ 5. stripe-webhook: idempotenza DEPOSIT ═══
@@ -487,6 +1096,65 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
   const disp = readFileSync(new URL('../../js/contract-pdf.js', import.meta.url), 'utf8');
   check('e il generatore, su quel type, sceglie l\'Allegato C',
     /\(env\.contract\.type === 'studenti'\) \? buildAllegatoC\(env\) : is32\(env\.contract\) \? buildAllegatoA\(env\) : buildAllegatoB\(env\)/.test(disp));
+}
+
+// ═══ Scalabilità: clienti e ricerche oltre la prima pagina ═══
+{
+  for (let i = 0; i < 205; i++) store.set('pfsClients/bulk_' + i, {
+    name: 'Bulk ' + i, stage: 'placed', budget: 1500, portalEnabled: true,
+    pfsKickoffStatus: 'pending',
+  });
+  const paidAt = new Date().toISOString();
+  store.set('pfsClients/outside_page', { name: 'Cliente oltre pagina', stage: 'searching',
+    budget: 1300, portalEnabled: true, reviewRequired: true,
+    pfsKickoffStatus: 'pending', paid_at: paidAt,
+    firstShortlistDueAt: new Date(Date.parse(paidAt) + 48 * 3600_000).toISOString() });
+  for (let i = 0; i < 205; i++) store.set('radarSearches/a_dummy_' + i, {
+    auto: false, enabled: false, portal: 'idealista', searchUrl: 'https://www.idealista.it/' });
+  store.set('radarSearches/pfs_outside_page_idealista', { auto: true, enabled: true,
+    clientId: 'outside_page', portal: 'idealista', searchUrl: 'https://www.idealista.it/affitto-case/roma-roma/' });
+  store.set('radarSearches/pfs_missing_idealista', { auto: true, enabled: true,
+    clientId: 'missing', portal: 'idealista', searchUrl: 'https://www.idealista.it/affitto-case/roma-roma/' });
+  store.set('pfsRadarHealth/sync', { lastFullSyncDay: new Date().toISOString().slice(0, 10) });
+  const syncSearches = (await import('../../api/pfs/sync-searches.js')).default;
+  let r = mkRes();
+  await syncSearches({ method: 'GET', headers: { authorization: 'Bearer test-cron-secret' } }, r);
+  check('sync pending: cliente pagato oltre 200 riceve il kickoff dal worker',
+    r.code === 200 && r.body?.mode === 'pending'
+      && store.get('pfsClients/outside_page')?.pfsKickoffStatus === 'searches_ready'
+      && [...store.keys()].filter(k => k.startsWith('radarSearches/pfs_outside_page_')).length === 2);
+
+  const { ingestProperty, stableIdFromUrl } = await import('../../api/pfs/_ingest.js');
+  const sourceUrl = 'https://www.immobiliare.it/annunci/99999991/';
+  const ingest = await ingestProperty({ sourceUrl, source: 'immobiliare', price: 1200,
+    title: 'Bilocale oltre pagina', advertiser: 'private' }, { threshold: 0 });
+  const summary = store.get('pfsProperties/' + stableIdFromUrl(sourceUrl))?.matchSummary;
+  check('ingest vero: cliente reviewed oltre 200 viene valutato e resta interno',
+    ingest.ok === true && summary?.pendingReview?.some(m => m.clientId === 'outside_page')
+      && !(store.get('pfsClients/outside_page')?.portalProperties || []).some(p => p.id === stableIdFromUrl(sourceUrl)));
+
+  store.set('users/admin1', { role: 'admin' });
+  const matchTest = (await import('../../api/admin/match-test.js')).default;
+  r = mkRes();
+  await matchTest(mkReq({ dryRun: true, sourceUrl: 'https://www.immobiliare.it/annunci/99999992/',
+    price: 1200, title: 'Bilocale oltre pagina' }, { authorization: 'Bearer firebase-token' }), r);
+  check('match-test: include il cliente attivo oltre 200 senza perdere i criteri',
+    r.code === 200 && r.body?.results?.some(x => x.clientId === 'outside_page'));
+
+  r = mkRes();
+  await syncSearches({ method: 'GET', headers: { authorization: 'Bearer firebase-token' } }, r);
+  check('sync completa: cliente attivo oltre 200 verificato, ricerca non spenta',
+    r.code === 200 && r.body?.mode === 'full'
+      && store.get('radarSearches/pfs_outside_page_idealista')?.enabled === true);
+  check('sync completa: ricerca oltre 200 di cliente davvero mancante viene spenta',
+    store.get('radarSearches/pfs_missing_idealista')?.enabled === false);
+
+  const { listPfsDocs } = await import('../../api/pfs/_pages.js');
+  let overflow = null;
+  try { await listPfsDocs('pfsClients', { maxDocs: 2 }); }
+  catch (e) { overflow = e; }
+  check('paginazione oltre il limite: fallisce esplicitamente, senza lista parziale',
+    overflow?.message === 'pfsClients_scan_limit_exceeded');
 }
 
 console.log('\n' + '─'.repeat(48));

@@ -3,14 +3,14 @@
 //   1. Vercel cron        → Authorization: Bearer <CRON_SECRET>
 //   2. Homie (Mac bridge) → X-Homie-Secret: <HOMIE_SECRET>
 //   3. The command center → Authorization: Bearer <firebase-id-token> of an
-//                           admin/owner/landlord user ("Scansiona ora" button)
+//                           admin/owner user ("Scansiona ora" button)
 //
 // Returns an actor string ('cron' | 'homie' | 'admin:<uid>') on success.
 // On failure it writes the 401/403 response and returns null.
 
 import { secretEqual, fsGet } from '../homie/_lib.js';
 
-const ADMIN_ROLES = new Set(['admin', 'owner', 'landlord']);
+const ADMIN_ROLES = new Set(['admin', 'owner']);
 
 async function verifyFirebaseToken(token) {
   const apiKey = process.env.FIREBASE_API_KEY;
@@ -57,4 +57,28 @@ export async function requireCronOrAdmin(req, res) {
 
   res.status(401).json({ ok: false, error: 'unauthorized' });
   return null;
+}
+
+// Decisions that attest human checks or publish to a paid client's portal
+// require the real admin role. Cron, Homie and the legacy owner API role are
+// intentionally excluded even though they can use the shared radar guard.
+export async function requireHumanAdmin(req, res) {
+  const actor = await requireCronOrAdmin(req, res);
+  if (!actor) return null;
+  if (!actor.startsWith('admin:')) {
+    res.status(403).json({ ok: false, error: 'admin_required' });
+    return null;
+  }
+  const uid = actor.slice(6);
+  let profile;
+  try { profile = await fsGet('users/' + uid); }
+  catch {
+    res.status(500).json({ ok: false, error: 'admin_lookup_failed' });
+    return null;
+  }
+  if (profile?.role !== 'admin') {
+    res.status(403).json({ ok: false, error: 'admin_required' });
+    return null;
+  }
+  return uid;
 }

@@ -9,21 +9,31 @@
 //   2. agency policy: advertiser 'agency' is stored (for analytics) but
 //      NEVER pushed to client decks — BOOM only proposes private listings
 //   3. score against every active pfsClients doc (api/homie/_match.js)
-//   4. push score ≥ threshold into client.portalProperties (swipe deck)
+//   4. push score ≥ threshold for historic clients; reviewRequired clients
+//      get a durable per-client case and never enter the customer deck
 //   5. persist a matchSummary on the property doc so the command center
 //      can render per-client scores without re-scoring client-side
 
 import crypto from 'node:crypto';
 import RADAR from '../../js/radar-engine.js';
-import { fsPatch, fsGet, fsList, logActivity } from '../homie/_lib.js';
+import { fsPatch, fsGet, logActivity } from '../homie/_lib.js';
 import { recordObservation } from '../market/_ledger.js';
 import { radarTap } from '../radar/_tap.js';
 import { scoreMatch, DEFAULT_THRESHOLD } from '../homie/_match.js';
 import { tgNotify } from './_health.js';
+import { listPfsDocs, MAX_PFS_CLIENTS } from './_pages.js';
+import { ensureCandidate } from './_candidates.js';
 
 export const ACTIVE_STAGES = new Set([
   'payment_confirmed', 'searching', 'options', 'viewing', 'closing',
 ]);
+
+export function isActivePfsClient(c) {
+  if (!c) return false;
+  const stage = c.stage || c.portalStage;
+  if (!stage) return c.portalEnabled === true; // legacy clients pre-stage
+  return ACTIVE_STAGES.has(stage);
+}
 
 export function stableIdFromUrl(url) {
   return 'h_' + crypto.createHash('sha1').update(url).digest('hex').slice(0, 16);
@@ -37,18 +47,15 @@ export function sanitizeImages(imgs) {
 }
 
 export async function listActiveClients() {
-  const all = await fsList('pfsClients', { limit: 200 });
-  return all.filter(c => {
-    const stage = c.stage || c.portalStage;
-    if (!stage) return c.portalEnabled === true; // legacy clients pre-stage
-    return ACTIVE_STAGES.has(stage);
-  });
+  const all = await listPfsDocs('pfsClients', { maxDocs: MAX_PFS_CLIENTS });
+  return all.filter(isActivePfsClient);
 }
 
 // raw: { sourceUrl*, source*, price*, title?, address?, zone?, bedrooms?,
 //        sqm?, bathrooms?, furnished?, images?, description?, contactEmail?,
 //        contactPhone?, scrapedAt?, advertiser? ('private'|'agency'|'unknown') }
-// opts: { threshold?, ingestedBy?, addedBy?, skipFreshHours? }
+// opts: { threshold?, ingestedBy?, addedBy?, skipFreshHours?,
+//         activeClients?, activeClientsSnapshotAt? }
 //
 // Returns { ok, propertyId, skippedFresh?, droppedAgency?, pushedTo,
 //           skipped, belowThreshold, errors, totalActiveClients }
@@ -68,6 +75,12 @@ export async function ingestProperty(raw, opts = {}) {
   const ingestedBy = opts.ingestedBy || 'pfs-ingest';
   const advertiser = ['private', 'agency', 'unknown'].includes(raw.advertiser)
     ? raw.advertiser : 'unknown';
+  // scan-inbox scores many emails against one client snapshot. Its epoch is
+  // captured before the list query, so a checkout during IMAP processing
+  // remains newer than the summary and gets picked up on the next run.
+  const hasClientSnapshot = Array.isArray(opts.activeClients);
+  const activeClientsSnapshotAt = hasClientSnapshot ? Date.parse(opts.activeClientsSnapshotAt) : now.getTime();
+  if (!Number.isFinite(activeClientsSnapshotAt)) return { ok: false, error: 'invalid_client_snapshot' };
 
   // ── Freshness short-circuit ───────────────────────────────
   // Crons re-scan a sliding window; if we ingested this listing recently,
@@ -77,7 +90,22 @@ export async function ingestProperty(raw, opts = {}) {
     try {
       const existing = await fsGet('pfsProperties/' + stableId);
       const seen = existing && (existing.lastSeenAt || existing.scrapedAt);
-      if (seen && (now - new Date(seen)) < skipFreshHours * 3600 * 1000) {
+      // A failed match-summary write must be retried on the next alert;
+      // otherwise a reviewed candidate could disappear for twelve hours.
+      const lastScoredAt = Date.parse(existing?.matchSummary?.at || '');
+      const needsNewClientScore = hasClientSnapshot && opts.activeClients.some(client => {
+        const createdAt = Date.parse(client.created_at || '');
+        // New reviewed clients always have created_at. If that timestamp is
+        // malformed, rescore conservatively rather than lose a candidate.
+        return Number.isFinite(createdAt)
+          ? createdAt >= lastScoredAt : client.reviewRequired === true;
+      });
+      // Old summaries predate the durable queue; re-score them once so a
+      // recent alert cannot hide a reviewed client's case after rollout.
+      const needsQueueMigration = hasClientSnapshot && opts.activeClients.some(c => c.reviewRequired === true)
+        && existing?.matchSummary?.queueVersion !== 1;
+      if (seen && Number.isFinite(lastScoredAt) && !needsNewClientScore && !needsQueueMigration
+          && (now - new Date(seen)) < skipFreshHours * 3600 * 1000) {
         // Un prezzo cambiato dentro la finestra di freschezza non è "niente
         // di nuovo": si aggiorna il doc (prima restava stantio) e, se è un
         // RIBASSO, il radar lo tratta come notizia (fiuto + vedette).
@@ -124,10 +152,13 @@ export async function ingestProperty(raw, opts = {}) {
     ingestedBy,
   };
 
+  let masterWriteError = null;
   try { await fsPatch('pfsProperties/' + stableId, property); }
   catch (err) {
     console.error('[pfs/_ingest] master write failed:', err.message);
-    // Continue — we can still push to clients even if the master write hiccupped
+    masterWriteError = err;
+    // Legacy client delivery remains best-effort, but a reviewed match has
+    // no safe internal record until this write succeeds.
   }
 
   // IL PERITO: ogni annuncio visto da QUALSIASI porta alimenta anche il
@@ -153,13 +184,14 @@ export async function ingestProperty(raw, opts = {}) {
 
   // ── 3. Score + push ───────────────────────────────────────
   let clients = [];
-  try { clients = await listActiveClients(); }
+  try { clients = hasClientSnapshot ? opts.activeClients : await listActiveClients(); }
   catch (err) {
     return { ok: false, error: 'client_list_failed', detail: err.message, propertyId: stableId };
   }
 
   const threshold = Number.isFinite(opts.threshold) ? opts.threshold : DEFAULT_THRESHOLD;
   const pushedTo = [];
+  const pendingReview = [];
   const skippedExisting = [];
   const belowThreshold = [];
 
@@ -178,6 +210,24 @@ export async function ingestProperty(raw, opts = {}) {
       ? radar.clusterIds : null;
     if (existing.some(p => p && (p.id === stableId || (clusterMates && clusterMates.includes(p.id))))) {
       skippedExisting.push({ clientId: client.id, name: client.name || null, score });
+      continue;
+    }
+
+    if (client.reviewRequired === true) {
+      if (masterWriteError) {
+        errors.push({ clientId: client.id, error: 'master_write_failed' });
+      } else {
+        // The client/property case is the truth; matchSummary is only a feed
+        // cache. A failed case write must not advance the scored epoch.
+        try {
+          const candidate = await ensureCandidate({ client, propertyId: stableId, property, score, reasons, now });
+          if (candidate.status === 'pending')
+            pendingReview.push({ clientId: client.id, name: client.name || null, score, reasons });
+        } catch (e) {
+          console.error('[pfs/_ingest] candidate write failed:', e.message);
+          errors.push({ clientId: client.id, error: 'candidate_write_failed' });
+        }
+      }
       continue;
     }
 
@@ -213,6 +263,9 @@ export async function ingestProperty(raw, opts = {}) {
         portalProperties: existing.concat([entry]),
         portalActivity: newActivity,
       });
+      // Keep scan-inbox's run-level snapshot coherent across several alerts.
+      client.portalProperties = existing.concat([entry]);
+      client.portalActivity = newActivity;
       pushedTo.push({ clientId: client.id, name: client.name || null, score, reasons });
     } catch (err) {
       console.error('[pfs/_ingest] push to ' + client.id + ' failed:', err.message);
@@ -221,19 +274,33 @@ export async function ingestProperty(raw, opts = {}) {
   }
 
   // ── 4. Match summary on the property doc (command center) ─
-  try {
+  let summaryWriteError = null;
+  // A failed master update cannot be followed by a fresh score epoch: that
+  // would make the next alert skip a reviewed client whose candidate was
+  // deliberately not recorded above. Leave the old summary retryable.
+  if (masterWriteError || errors.some(e => e.error === 'candidate_write_failed'))
+    summaryWriteError = masterWriteError || new Error('candidate_write_failed');
+  else try {
     await fsPatch('pfsProperties/' + stableId, {
       matchSummary: {
-        at: now.toISOString(),
+        at: new Date(activeClientsSnapshotAt).toISOString(),
+        queueVersion: 1,
         threshold,
         pushedTo: pushedTo.map(p => ({ clientId: p.clientId, name: p.name, score: p.score })),
+        pendingReview: pendingReview.map(p => ({ clientId: p.clientId, name: p.name, score: p.score, reasons: p.reasons })),
         alreadyHad: skippedExisting.map(p => ({ clientId: p.clientId, name: p.name, score: p.score })),
         belowThreshold: belowThreshold.slice(0, 20).map(p => ({ clientId: p.clientId, name: p.name, score: p.score, reasons: p.reasons })),
       },
     });
   } catch (err) {
     console.warn('[pfs/_ingest] matchSummary write failed:', err.message);
+    summaryWriteError = err;
   }
+
+  // The radar must report a failed internal candidate write as a failure,
+  // never as "ingested, zero matches". Existing legacy pushes remain intact.
+  if (pendingReview.length && summaryWriteError && !errors.some(e => e.error === 'candidate_write_failed'))
+    errors.push({ step: 'pending_review', error: 'match_summary_write_failed' });
 
   // ── 5. "Qualcosa di pronto" → Telegram ───────────────────
   // Fires only when at least one client actually received the property —
@@ -264,15 +331,19 @@ export async function ingestProperty(raw, opts = {}) {
     source: property.source,
     advertiser,
     pushedCount: pushedTo.length,
+    pendingReviewCount: pendingReview.length,
     skippedCount: skippedExisting.length,
     belowThresholdCount: belowThreshold.length,
     totalActive: clients.length,
   }, ingestedBy);
 
+  const criticalError = errors.find(e => ['master_write_failed', 'candidate_write_failed', 'match_summary_write_failed'].includes(e.error));
   return {
-    ok: true,
+    ok: !criticalError,
+    ...(criticalError ? { error: criticalError.error } : {}),
     propertyId: stableId,
     pushedTo,
+    pendingReview,
     skipped: skippedExisting,
     belowThreshold,
     errors,

@@ -446,6 +446,10 @@ body.triage-lock { overflow: hidden; }
 .d-deck-row .dd-flags { font-size: 12px; flex-shrink: 0; }
 .d-deck-row .dd-x { color: var(--text-muted); padding: 4px 7px; border-radius: 8px; flex-shrink: 0; }
 .d-deck-row .dd-x:hover { color: var(--red); }
+.cand-actions { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+.cand-actions .abtn { padding: 6px 8px; }
+#candidate-modal-overlay, #shortlist-modal-overlay { display: flex; }
+#candidate-modal-overlay[hidden], #shortlist-modal-overlay[hidden], #cand-approve-fields[hidden], #cand-reject-fields[hidden] { display: none; }
 .d-act-row { font-size: 11px; color: var(--text-muted); padding: 6px 0; border-bottom: 1px dashed var(--border); line-height: 1.5; }
 .d-links { display: flex; gap: 6px; flex-wrap: wrap; }
 
@@ -749,6 +753,39 @@ body.triage-lock { overflow: hidden; }
 <div id="drawer-scrim" hidden></div>
 <div id="client-drawer" hidden role="dialog" aria-modal="true" aria-label="Fascicolo cliente"></div>
 
+<div id="candidate-modal-overlay" hidden style="position:fixed;inset:0;background:rgba(0,0,0,0.88);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);z-index:8400;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Revisione candidato PFS">
+        <div class="modal-head">
+            <div class="modal-title" id="cand-title">Revisione candidato</div>
+            <button class="modal-close" id="cand-close" aria-label="Chiudi">✕</button>
+        </div>
+        <div class="modal-src" id="cand-source"></div>
+        <div id="cand-approve-fields" class="mgrid">
+            <div class="mfield"><label for="cand-availability-at">Disponibilità verificata il *</label><input id="cand-availability-at" type="datetime-local"></div>
+            <div class="mfield"><label for="cand-availability-with">Con chi / da chi *</label><input id="cand-availability-with" type="text" maxlength="160" placeholder="Nome e ruolo del referente"></div>
+            <div class="mfield full"><label for="cand-availability-evidence">Prova della disponibilità *</label><textarea id="cand-availability-evidence" maxlength="500" placeholder="Es. risposta ricevuta via WhatsApp, telefonata, email…"></textarea></div>
+            <div class="mfield"><label for="cand-sharing-at">Permesso di condivisione confermato il *</label><input id="cand-sharing-at" type="datetime-local"></div>
+            <div class="mfield"><label for="cand-sharing-from">Permesso concesso da *</label><input id="cand-sharing-from" type="text" maxlength="160" placeholder="Nome e ruolo del referente"></div>
+            <div class="mfield full"><label for="cand-sharing-evidence">Prova del permesso *</label><textarea id="cand-sharing-evidence" maxlength="500" placeholder="Es. consenso via email o messaggio, con riferimento…"></textarea></div>
+            <div class="mfield full"><label><input id="cand-permission-granted" type="checkbox"> Confermo di aver ottenuto il permesso di condividere questo annuncio con il cliente.</label></div>
+        </div>
+        <div id="cand-reject-fields" class="mgrid" hidden>
+            <div class="mfield full"><label for="cand-reason">Motivo del rifiuto *</label><textarea id="cand-reason" maxlength="500" placeholder="Es. non disponibile, fuori criteri, fonte inattendibile…"></textarea></div>
+        </div>
+        <p class="hint">La decisione resta interna. Non invia l'annuncio né la shortlist al cliente.</p>
+        <div class="modal-actions"><button class="btn-ghost" id="cand-cancel">Annulla</button><button class="btn" id="cand-save">Registra decisione</button></div>
+    </div>
+</div>
+
+<div id="shortlist-modal-overlay" hidden style="position:fixed;inset:0;background:rgba(0,0,0,0.88);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);z-index:8400;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto">
+    <div class="modal" role="dialog" aria-modal="true" aria-label="Pubblica shortlist PFS">
+        <div class="modal-head"><div class="modal-title">Pubblica nel portale</div><button class="modal-close" id="shortlist-close" aria-label="Chiudi">✕</button></div>
+        <p class="hint">Controlla disponibilità e permesso di condivisione con questo cliente per ogni casa, entrambi nelle ultime 24 ore. La ricevuta prova la pubblicazione nel portale, non email, WhatsApp o lettura del cliente.</p>
+        <div id="shortlist-checks"></div>
+        <div class="modal-actions"><button class="btn-ghost" id="shortlist-cancel">Annulla</button><button class="btn" id="shortlist-save">Pubblica nel portale</button></div>
+    </div>
+</div>
+
 <div id="client-modal-overlay" hidden style="position:fixed;inset:0;background:rgba(0,0,0,0.85);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);z-index:8350;display:flex;align-items:flex-start;justify-content:center;padding:24px 16px;overflow-y:auto">
     <div class="modal" role="dialog" aria-modal="true" aria-label="Cliente PFS">
         <div class="modal-head">
@@ -1004,6 +1041,19 @@ var state = {
     outreachModal: null,      // listingId col modale 📨 aperto
     outreachDirty: false,     // l'operatore ha editato l'anteprima a mano
     drawerClient: null,       // id del cliente col fascicolo aperto
+    candidateRows: [],        // queue per cliente, indipendente dal feed ultimi 120
+    candidateClientId: null,
+    candidateLoad: 'idle',   // idle · loading · ready · error
+    candidateUnsub: null,
+    candidateDecision: null, // open operator form; never a customer send
+    candidateBusy: false,
+    shortlistRows: [],        // versioni per cliente, non nel feed annunci
+    shortlistLoad: 'idle',
+    shortlistUnsub: null,
+    shortlistSelected: [],
+    shortlistPrepareKey: null,
+    shortlistPublishing: null,
+    shortlistBusy: false,
     clientModal: null,        // null · 'new' · id cliente in modifica
     knownIds: null,           // Set di id già visti (per rilevare nuovi arrivi realtime)
     newIds: null,             // Set di id appena arrivati (animazione is-new)
@@ -1087,6 +1137,17 @@ function scoreClass(s) {
     return n >= 80 ? 'mc-green' : n >= 60 ? 'mc-gold' : 'mc-dim';
 }
 
+function pendingReviewFor(p) {
+    var pending = ((p.matchSummary || {}).pendingReview || []);
+    if (!Array.isArray(pending)) return [];
+    // If the final summary patch after an operator push failed, the client
+    // deck remains the source of truth: never show the card as still pending.
+    return pending.filter(function (m) {
+        var c = state.clientsById[m.clientId];
+        return !c || !(Array.isArray(c.portalProperties) && c.portalProperties.some(function (entry) { return entry.id === p.id; }));
+    });
+}
+
 function visibleProps() {
     var f = state.filters;
     var q = f.q.trim().toLowerCase();
@@ -1096,7 +1157,7 @@ function visibleProps() {
         else if (!f.showAgency && adv === 'agency') return false;
         if (f.source && (p.source || '') !== f.source) return false;
         var ms = p.matchSummary || {};
-        if (f.onlyMatch && !(Array.isArray(ms.pushedTo) && ms.pushedTo.length)) return false;
+        if (f.onlyMatch && !((Array.isArray(ms.pushedTo) && ms.pushedTo.length) || pendingReviewFor(p).length)) return false;
         if (f.onlyDeals && !(p.radar && p.radar.fiuto && p.radar.fiuto.verdict === 'occasione')) return false;
         if (q) {
             var hay = [p.title, p.address, p.zone, p.description].join(' ').toLowerCase();
@@ -1116,6 +1177,7 @@ function feedCard(p) {
     var oj = window.BOOM_OUTREACH ? state.outreachById[BOOM_OUTREACH.outreachKey(p.id)] : null;
     var ms = p.matchSummary || {};
     var pushed = Array.isArray(ms.pushedTo) ? ms.pushedTo : [];
+    var pending = pendingReviewFor(p);
     var had = Array.isArray(ms.alreadyHad) ? ms.alreadyHad : [];
     var below = Array.isArray(ms.belowThreshold) ? ms.belowThreshold : [];
     var o = p.outreach || null;
@@ -1143,9 +1205,11 @@ function feedCard(p) {
 
     var chips = pushed.map(function (m) {
         return '<span class="mchip ' + scoreClass(m.score) + '">' + esc(m.name) + ' ' + esc(m.score) + '</span>';
+    }).concat(pending.map(function (m) {
+        return '<span class="mchip mc-gold" title="Candidato interno: verifica disponibilità e autorizzazione prima di proporre">⌛ ' + esc(m.name || m.clientId) + ' ' + esc(m.score) + ' · da rivedere</span>';
     }).concat(had.map(function (m) {
         return '<span class="mchip mc-had" title="Già nel deck del cliente">' + esc(m.name) + ' ' + esc(m.score) + ' · già</span>';
-    }));
+    })));
     if (below.length) {
         chips.push('<button class="below-toggle" data-action="toggle-below">' + (belowOpen ? '▴' : '▾') + ' Sotto soglia (' + below.length + ')</button>');
     }
@@ -1363,15 +1427,238 @@ function renderClients() {
 
 /* ── Il fascicolo cliente (drawer) ───────────────────────────── */
 function openDrawer(id) {
+    closeCandidateReview();
+    closeShortlistPublish();
+    if (state.candidateUnsub) { state.candidateUnsub(); state.candidateUnsub = null; }
+    if (state.shortlistUnsub) { state.shortlistUnsub(); state.shortlistUnsub = null; }
     state.drawerClient = id;
+    state.candidateRows = [];
+    state.candidateClientId = id;
+    state.shortlistRows = [];
+    state.shortlistSelected = [];
+    state.shortlistPrepareKey = null;
+    var selected = state.clientsById[id];
+    state.candidateLoad = selected && selected.reviewRequired === true ? 'loading' : 'idle';
+    state.shortlistLoad = selected && selected.reviewRequired === true ? 'loading' : 'idle';
     $('drawer-scrim').hidden = false;
     $('client-drawer').hidden = false;
     renderDrawer();
+    if (state.candidateLoad === 'loading') {
+        state.candidateUnsub = BoomPortal.listen(db.collection('pfsCandidateReviews').where('clientId', '==', id), function (snap) {
+            if (state.drawerClient !== id) return;
+            var rows = [];
+            snap.forEach(function (d) { rows.push(Object.assign({ id: d.id }, d.data())); });
+            state.candidateRows = rows;
+            state.candidateLoad = 'ready';
+            renderDrawer();
+        }, function (err) {
+            if (state.drawerClient !== id) return;
+            state.candidateLoad = 'error';
+            state.candidateRows = [];
+            renderDrawer();
+            console.warn('[PFS] coda candidati non disponibile:', err && err.message);
+        });
+        state.shortlistUnsub = BoomPortal.listen(db.collection('pfsShortlists').where('clientId', '==', id), function (snap) {
+            if (state.drawerClient !== id) return;
+            var rows = [];
+            snap.forEach(function (d) { rows.push(Object.assign({ id: d.id }, d.data())); });
+            state.shortlistRows = rows.sort(function (a, b) { return (Number(b.revision) || 0) - (Number(a.revision) || 0); });
+            state.shortlistLoad = 'ready';
+            renderDrawer();
+        }, function (err) {
+            if (state.drawerClient !== id) return;
+            state.shortlistLoad = 'error';
+            state.shortlistRows = [];
+            renderDrawer();
+            console.warn('[PFS] shortlist non leggibili:', err && err.message);
+        });
+    }
 }
 function closeDrawer() {
+    closeCandidateReview();
+    closeShortlistPublish();
+    if (state.candidateUnsub) { state.candidateUnsub(); state.candidateUnsub = null; }
+    if (state.shortlistUnsub) { state.shortlistUnsub(); state.shortlistUnsub = null; }
     state.drawerClient = null;
+    state.candidateClientId = null;
+    state.candidateRows = [];
+    state.candidateLoad = 'idle';
+    state.shortlistRows = [];
+    state.shortlistSelected = [];
+    state.shortlistPrepareKey = null;
+    state.shortlistLoad = 'idle';
     $('drawer-scrim').hidden = true;
     $('client-drawer').hidden = true;
+}
+function closeCandidateReview() {
+    state.candidateDecision = null;
+    $('candidate-modal-overlay').hidden = true;
+}
+function openCandidateReview(caseId, decision) {
+    if (state.candidateBusy) return;
+    var p = state.candidateRows.find(function (row) { return row.id === caseId; });
+    if (!p || p.status !== 'pending' || state.candidateClientId !== state.drawerClient) {
+        BoomPortal.toast('Il candidato è cambiato: riapri il fascicolo.', { type: 'warning' });
+        return;
+    }
+    state.candidateDecision = { id: caseId, clientId: p.clientId, propertyId: p.propertyId,
+        sourceUrl: p.sourceUrl, decision: decision };
+    $('cand-title').textContent = decision === 'approve' ? 'Approva candidato · solo interno' : 'Rifiuta candidato';
+    $('cand-source').innerHTML = 'Fonte: ' + (safeUrl(p.sourceUrl)
+        ? '<a href="' + esc(safeUrl(p.sourceUrl)) + '" target="_blank" rel="noopener">' + esc(p.sourceUrl) + '</a>'
+        : esc(p.sourceUrl || 'mancante'));
+    $('cand-approve-fields').hidden = decision !== 'approve';
+    $('cand-reject-fields').hidden = decision !== 'reject';
+    ['cand-availability-at', 'cand-availability-with', 'cand-availability-evidence',
+        'cand-sharing-at', 'cand-sharing-from', 'cand-sharing-evidence', 'cand-reason'].forEach(function (id) { $(id).value = ''; });
+    $('cand-permission-granted').checked = false;
+    $('candidate-modal-overlay').hidden = false;
+    $(decision === 'approve' ? 'cand-availability-at' : 'cand-reason').focus();
+}
+function candidateDateValue(id) {
+    var value = $(id).value;
+    if (!value) return null;
+    var date = new Date(value);
+    return isNaN(date) ? null : date.toISOString();
+}
+function saveCandidateReview() {
+    var choice = state.candidateDecision;
+    if (!choice || state.candidateBusy) return;
+    var body = { clientId: choice.clientId, propertyId: choice.propertyId, decision: choice.decision };
+    if (choice.decision === 'approve') {
+        body.evidence = {
+            sourceUrl: choice.sourceUrl,
+            availabilityVerifiedAt: candidateDateValue('cand-availability-at'),
+            availabilityVerifiedWith: $('cand-availability-with').value.trim(),
+            availabilityEvidence: $('cand-availability-evidence').value.trim(),
+            sharingPermissionAt: candidateDateValue('cand-sharing-at'),
+            sharingPermissionFrom: $('cand-sharing-from').value.trim(),
+            sharingPermissionEvidence: $('cand-sharing-evidence').value.trim(),
+            permissionGranted: $('cand-permission-granted').checked
+        };
+        if (!body.evidence.availabilityVerifiedAt || !body.evidence.sharingPermissionAt
+            || !body.evidence.availabilityVerifiedWith || !body.evidence.availabilityEvidence
+            || !body.evidence.sharingPermissionFrom || !body.evidence.sharingPermissionEvidence
+            || !body.evidence.permissionGranted) {
+            BoomPortal.toast('Completa fonte, disponibilità e permesso di condivisione.', { type: 'warning' });
+            return;
+        }
+    } else {
+        body.reason = $('cand-reason').value.trim();
+        if (!body.reason) { BoomPortal.toast('Scrivi il motivo del rifiuto.', { type: 'warning' }); return; }
+    }
+    state.candidateBusy = true;
+    $('cand-save').disabled = true;
+    $('cand-save').textContent = 'Salvo…';
+    apiPost('/api/pfs/candidate-review', body).then(function (result) {
+        if (state.candidateDecision && state.candidateDecision.id === choice.id) closeCandidateReview();
+        BoomPortal.toast(result.already ? 'Decisione già registrata' : 'Decisione registrata: nessun invio al cliente', { type: 'success' });
+    }).catch(function (err) {
+        BoomPortal.toast('Revisione non salvata: ' + (err && err.message ? err.message : err), { type: 'error' });
+    }).then(function () {
+        state.candidateBusy = false;
+        $('cand-save').disabled = false;
+        $('cand-save').textContent = 'Registra decisione';
+    });
+}
+function shortlistKey() {
+    return window.crypto && window.crypto.randomUUID
+        ? window.crypto.randomUUID().replace(/-/g, '')
+        : Date.now().toString(36) + Math.random().toString(36).slice(2, 12);
+}
+function shortlistError(err) {
+    var code = err && err.message;
+    return ({ reverification_required: 'Ricontrolla disponibilità e permesso di ogni casa nelle ultime 24 ore.',
+        candidate_changed_reprepare: 'Un annuncio è cambiato: prepara una nuova bozza con i dati aggiornati.',
+        candidate_not_eligible: 'Candidato non idoneo: controlla approvazione, prove e presenza nel portale.',
+        already_in_portal: 'Una casa è già nel portale: prepara una nuova bozza.',
+        portal_not_ready: 'Attiva il portale del cliente prima di pubblicare.',
+        portal_code_ambiguous: 'Codice portale duplicato: correggilo prima di pubblicare.',
+        shortlist_version_limit: 'Raggiunto il limite di 24 versioni: serve archiviare prima di prepararne altre.'
+    })[code] || (code || 'Errore sconosciuto');
+}
+function prepareShortlist() {
+    var clientId = state.drawerClient;
+    if (!clientId || state.shortlistBusy || state.shortlistLoad !== 'ready' || state.candidateLoad !== 'ready') return;
+    var selected = state.shortlistSelected.slice();
+    if (!selected.length || selected.length > 8) {
+        BoomPortal.toast('Seleziona da 1 a 8 candidati approvati.', { type: 'warning' }); return;
+    }
+    state.shortlistPrepareKey = state.shortlistPrepareKey || shortlistKey();
+    state.shortlistBusy = true;
+    apiPost('/api/pfs/shortlist', { action: 'prepare', clientId: clientId,
+        candidateIds: selected, idempotencyKey: state.shortlistPrepareKey }).then(function (result) {
+        state.shortlistPrepareKey = null;
+        state.shortlistSelected = [];
+        if (state.drawerClient === clientId && result.draft) {
+            state.shortlistRows = [result.draft].concat(state.shortlistRows.filter(function (x) { return x.id !== result.draft.id; }));
+            renderDrawer();
+        }
+        BoomPortal.toast(result.already ? 'Bozza già preparata' : 'Bozza preparata: controlla prima di pubblicare', { type: 'success' });
+    }).catch(function (err) {
+        BoomPortal.toast('Bozza non preparata: ' + shortlistError(err), { type: 'error' });
+    }).then(function () { state.shortlistBusy = false; if (state.drawerClient === clientId) renderDrawer(); });
+}
+function closeShortlistPublish() {
+    state.shortlistPublishing = null;
+    $('shortlist-modal-overlay').hidden = true;
+}
+function openShortlistPublish(id) {
+    if (state.shortlistBusy || state.shortlistLoad !== 'ready') return;
+    var draft = state.shortlistRows.find(function (x) { return x.id === id; });
+    if (!draft || draft.status !== 'draft' || !Array.isArray(draft.items) || !draft.items.length) {
+        BoomPortal.toast('La bozza è cambiata: riapri il fascicolo.', { type: 'warning' }); return;
+    }
+    state.shortlistPublishing = { id: draft.id, clientId: draft.clientId, hash: draft.snapshotHash,
+        items: draft.items.map(function (x) { return { candidateId: x.candidateId, propertyId: x.propertyId, sourceUrl: x.sourceUrl }; }) };
+    $('shortlist-checks').innerHTML = draft.items.map(function (x, i) {
+        return '<div class="d-sec"><h4>' + esc(i + 1) + '. ' + esc(x.address || x.title || x.propertyId) + ' · €' + fmtPrice(x.price) + '</h4>' +
+            '<div class="modal-src">Fonte: <a href="' + esc(safeUrl(x.sourceUrl) || '#') + '" target="_blank" rel="noopener">' + esc(x.sourceUrl) + ' ↗</a></div>' +
+            '<div class="mgrid"><div class="mfield"><label for="sl-at-' + i + '">Disponibilità ricontrollata il *</label><input id="sl-at-' + i + '" type="datetime-local"></div>' +
+            '<div class="mfield"><label for="sl-with-' + i + '">Con chi / da chi *</label><input id="sl-with-' + i + '" type="text" maxlength="160"></div>' +
+            '<div class="mfield full"><label for="sl-proof-' + i + '">Prova della disponibilità *</label><textarea id="sl-proof-' + i + '" maxlength="500"></textarea></div>' +
+            '<div class="mfield full"><label><input id="sl-availability-confirmed-' + i + '" type="checkbox"> Confermo che questa casa è disponibile ora.</label></div>' +
+            '<div class="mfield"><label for="sl-share-at-' + i + '">Permesso ricontrollato il *</label><input id="sl-share-at-' + i + '" type="datetime-local"></div>' +
+            '<div class="mfield"><label for="sl-share-with-' + i + '">Con chi / da chi *</label><input id="sl-share-with-' + i + '" type="text" maxlength="160"></div>' +
+            '<div class="mfield full"><label for="sl-share-proof-' + i + '">Prova del permesso *</label><textarea id="sl-share-proof-' + i + '" maxlength="500"></textarea></div>' +
+            '<div class="mfield full"><label><input id="sl-sharing-confirmed-' + i + '" type="checkbox"> Confermo il permesso di condividere questa casa con questo cliente.</label></div></div></div>';
+    }).join('');
+    $('shortlist-modal-overlay').hidden = false;
+    $('sl-at-0').focus();
+}
+function publishShortlist() {
+    var chosen = state.shortlistPublishing;
+    if (!chosen || state.shortlistBusy) return;
+    var checks = chosen.items.map(function (item, i) {
+        var at = $('sl-at-' + i).value, date = at ? new Date(at) : null;
+        var sharingAt = $('sl-share-at-' + i).value, sharingDate = sharingAt ? new Date(sharingAt) : null;
+        return { candidateId: item.candidateId, propertyId: item.propertyId, sourceUrl: item.sourceUrl,
+            availabilityConfirmed: $('sl-availability-confirmed-' + i).checked,
+            availabilityCheckedAt: date && !isNaN(date) ? date.toISOString() : null,
+            availabilityCheckedWith: $('sl-with-' + i).value.trim(), availabilityEvidence: $('sl-proof-' + i).value.trim(),
+            sharingPermissionConfirmed: $('sl-sharing-confirmed-' + i).checked,
+            sharingCheckedAt: sharingDate && !isNaN(sharingDate) ? sharingDate.toISOString() : null,
+            sharingCheckedWith: $('sl-share-with-' + i).value.trim(), sharingEvidence: $('sl-share-proof-' + i).value.trim() };
+    });
+    if (checks.some(function (x) { return !x.availabilityConfirmed || !x.availabilityCheckedAt
+        || x.availabilityCheckedWith.length < 3 || x.availabilityEvidence.length < 8
+        || !x.sharingPermissionConfirmed || !x.sharingCheckedAt
+        || x.sharingCheckedWith.length < 3 || x.sharingEvidence.length < 8; })) {
+        BoomPortal.toast('Conferma disponibilità e condivisione per ogni casa.', { type: 'warning' }); return;
+    }
+    state.shortlistBusy = true;
+    $('shortlist-save').disabled = true;
+    apiPost('/api/pfs/shortlist', { action: 'publish', clientId: chosen.clientId,
+        shortlistId: chosen.id, snapshotHash: chosen.hash, finalChecks: checks }).then(function (result) {
+        closeShortlistPublish();
+        BoomPortal.toast(result.already ? 'Già pubblicata nel portale' : 'Pubblicata nel portale; nessuna email o WhatsApp inviata', { type: 'success' });
+    }).catch(function (err) {
+        BoomPortal.toast('Pubblicazione non riuscita: ' + shortlistError(err), { type: 'error' });
+    }).then(function () {
+        state.shortlistBusy = false;
+        $('shortlist-save').disabled = false;
+        if (state.drawerClient === chosen.clientId) renderDrawer();
+    });
 }
 function clientSearches(id) {
     return state.searches.filter(function (s) { return s.clientId === id; });
@@ -1379,13 +1666,66 @@ function clientSearches(id) {
 function portalLink(c) {
     return c.portalAccessCode ? 'https://www.boomrome.com/client-portal?code=' + encodeURIComponent(c.portalAccessCode) : null;
 }
+function renderShortlistPanel(c, approved, allDeck) {
+    if (state.shortlistLoad === 'loading') return '<div class="dd-meta">Carico le versioni della shortlist…</div>';
+    if (state.shortlistLoad === 'error') return '<div class="dd-meta" style="color:var(--amber)">⚠ Versioni non leggibili: riapri il fascicolo. Nessuna pubblicazione sicura.</div>';
+    var deckIds = new Set(allDeck.map(function (p) { return p.id; }));
+    var publishedIds = new Set();
+    state.shortlistRows.filter(function (s) { return s.status === 'published'; }).forEach(function (s) {
+        (s.items || []).forEach(function (x) { publishedIds.add(x.propertyId); });
+    });
+    var eligible = approved.filter(function (p) { return !deckIds.has(p.propertyId) && !publishedIds.has(p.propertyId); });
+    var chosen = state.shortlistSelected;
+    return '<div class="dd-meta" style="margin-top:12px">Bozze e pubblicazioni (' + state.shortlistRows.length + ' / 24). Seleziona nell’ordine desiderato, massimo 8 immobili.</div>' +
+        (eligible.length ? eligible.map(function (p) {
+            return '<label class="d-deck-row"><input type="checkbox" data-shortlist-select="' + esc(p.id) + '"' +
+                (chosen.includes(p.id) ? ' checked' : '') + '><span class="dd-main"><span class="dd-title">' + esc(p.title || p.address || p.propertyId) +
+                '</span><span class="dd-meta">€' + fmtPrice(p.price) + ' · approvato ' + esc(relTime(p.reviewedAt)) + '</span></span></label>';
+        }).join('') + '<div class="d-links"><button class="abtn" data-daction="shortlist-prepare"' +
+            (!chosen.length || chosen.length > 8 || state.shortlistBusy ? ' disabled' : '') + '>Prepara bozza (' + chosen.length + ')</button></div>' :
+            '<div class="dd-meta">Nessun approvato ancora disponibile per una nuova shortlist.</div>') +
+        state.shortlistRows.map(function (s) {
+            var published = s.status === 'published';
+            var items = Array.isArray(s.items) ? s.items : [];
+            return '<div class="d-deck-row" style="display:block"><div class="dd-title">Versione ' + esc(s.revision) +
+                (published ? ' · pubblicata nel portale' : ' · bozza interna') + '</div>' +
+                items.map(function (x, i) { return '<div class="dd-meta">' + esc(i + 1) + '. ' + esc(x.address || x.title || x.propertyId) +
+                    ' · €' + fmtPrice(x.price) + ' · <a href="' + esc(safeUrl(x.sourceUrl) || '#') +
+                    '" target="_blank" rel="noopener">Fonte ↗</a></div>'; }).join('') +
+                (published ? '<div class="dd-meta">Ricevuta portale: ' + esc(s.receipt && s.receipt.publishedAt) +
+                    ' · operatore ' + esc(s.receipt && s.receipt.publishedBy) +
+                    '. Non prova email, WhatsApp o lettura del cliente.</div>' :
+                    '<div class="d-links"><button class="abtn" data-daction="shortlist-publish" data-sid="' + esc(s.id) +
+                    '"' + (state.shortlistBusy || c.portalEnabled !== true || !c.portalAccessCode ? ' disabled' : '') +
+                    '>Ricontrolla e pubblica nel portale</button></div>') + '</div>';
+        }).join('') +
+        (c.portalEnabled !== true || !c.portalAccessCode ? '<div class="dd-meta" style="color:var(--amber)">Attiva il portale prima di pubblicare.</div>' : '');
+}
+function drawerDeck(c) {
+    var entries = new Map((Array.isArray(c.portalProperties) ? c.portalProperties : [])
+        .filter(function (p) { return p && p.id; }).map(function (p) { return [p.id, p]; }));
+    var markers = new Set(Array.isArray(c.publishedShortlistIds) ? c.publishedShortlistIds : []);
+    state.shortlistRows.filter(function (s) { return s.status === 'published' && markers.has(s.id) && s.receipt; })
+        .forEach(function (s) {
+            (s.items || []).forEach(function (item) {
+                var old = entries.get(item.propertyId) || {};
+                var feedback = {};
+                ['clientLiked', 'clientRejected', 'rejectReason', 'viewingRequested', 'viewingPreference', 'clientActionAt']
+                    .forEach(function (key) { if (old[key] !== undefined) feedback[key] = old[key]; });
+                entries.set(item.propertyId, Object.assign({}, item.portalCard, feedback, {
+                    id: item.propertyId, sourceUrl: item.sourceUrl, shortlistId: s.id,
+                    addedAt: s.receipt.publishedAt, isNew: true
+                }));
+            });
+        });
+    return Array.from(entries.values());
+}
 
 function renderDrawer() {
     var box = $('client-drawer');
     var c = state.clientsById[state.drawerClient];
     if (!c) { box.innerHTML = '<div class="empty"><div class="empty-title">Cliente non trovato</div><p>Forse è stato eliminato.</p></div>'; return; }
     var stKey = effStage(c);
-    var s = deckStats(c);
     var flow = STAGE_FLOW.concat(['placed']);
     var idx = flow.indexOf(stKey);
     var stageOpts = flow.map(function (k) {
@@ -1393,9 +1733,22 @@ function renderDrawer() {
     }).join('');
     var searches = clientSearches(c.id);
     var pLink = portalLink(c);
-    var deck = (Array.isArray(c.portalProperties) ? c.portalProperties : []).slice().reverse().slice(0, 40);
+    var allDeck = drawerDeck(c);
+    var s = deckStats(Object.assign({}, c, { portalProperties: allDeck }));
+    var deck = allDeck.slice().reverse().slice(0, 40);
     var acts = (Array.isArray(c.portalActivity) ? c.portalActivity : []).slice(-12).reverse();
     var phone = waPhone(c.phone);
+    var pendingForClient = c.reviewRequired === true && state.candidateClientId === c.id
+        ? state.candidateRows.filter(function (r) { return r.status === 'pending'; }).sort(function (a, b) {
+            return String(b.firstSeenAt || '').localeCompare(String(a.firstSeenAt || ''));
+        }) : [];
+    var decidedForClient = c.reviewRequired === true && state.candidateClientId === c.id
+        ? state.candidateRows.filter(function (r) { return r.status === 'approved' || r.status === 'rejected'; })
+            .sort(function (a, b) { return String(b.reviewedAt || '').localeCompare(String(a.reviewedAt || '')); }) : [];
+    var due = toDate(c.firstShortlistDueAt);
+    var dueText = due ? new Intl.DateTimeFormat('it-IT', {
+        timeZone: 'Europe/Rome', dateStyle: 'short', timeStyle: 'short'
+    }).format(due) : '—';
 
     box.innerHTML =
         '<div class="d-head">' +
@@ -1449,6 +1802,45 @@ function renderDrawer() {
                 '</div>';
             }).join('') : '<div class="dd-meta" style="color:var(--text-muted)">Nessuna ricerca: si generano dai criteri al prossimo sync.</div>') +
         '</div>' +
+        (c.reviewRequired === true ? '<div class="d-sec"><h4>Prima shortlist · revisione interna (' + pendingForClient.length + ' da decidere)</h4>' +
+            '<div class="dd-meta">Scadenza interna: ' + esc(dueText) + ' · ricerche BOOM: ' +
+                esc(c.pfsKickoffStatus || 'in attesa') + ' · copertura Casafari: ' +
+                esc(c.casafariAlertStatus === 'needs_review' ? 'da verificare sugli alert esistenti' :
+                    c.casafariAlertStatus === 'needs_setup' ? 'da verificare sugli alert esistenti' :
+                    (c.casafariAlertStatus || 'da verificare')) +
+                '. Nuova ricerca solo se manca copertura; verificare anche lo stock iniziale. Il task non prova l’arrivo delle email.</div>' +
+            (c.pfsKickoffError ? '<div class="dd-meta" style="color:var(--amber)">⚠ ' + esc(c.pfsKickoffError) + '</div>' : '') +
+            (state.candidateLoad === 'loading' ? '<div class="dd-meta">Carico la coda del cliente…</div>' :
+            state.candidateLoad === 'error' ? '<div class="dd-meta" style="color:var(--amber)">⚠ Coda candidati non leggibile. Riapri il fascicolo; non considerare vuota la ricerca.</div>' :
+            pendingForClient.length ? pendingForClient.slice(0, 40).map(function (p) {
+                var inDeck = allDeck.some(function (entry) { return entry.id === p.propertyId; });
+                return '<div class="d-deck-row"><div class="dd-main"><div class="dd-title">⌛ ' +
+                    esc(p.title || p.address || p.sourceUrl || p.propertyId) + '</div><div class="dd-meta">' +
+                    (inDeck ? 'Già nel portale · revisione da riallineare' : 'Candidato interno · disponibilità e condivisione da verificare') +
+                    ' · €' + fmtPrice(p.price) + '/mese · match ' + esc(p.score) + '</div>' +
+                    (safeUrl(p.sourceUrl) ? '<a class="abtn" href="' + esc(safeUrl(p.sourceUrl)) + '" target="_blank" rel="noopener">Apri ↗</a>' : '') +
+                    '<div class="cand-actions"><button class="abtn" data-daction="candidate-approve" data-cid="' + esc(p.id) + '">Approva</button>' +
+                    '<button class="abtn" data-daction="candidate-reject" data-cid="' + esc(p.id) + '">Rifiuta</button></div></div>' +
+                    '</div>';
+            }).join('') + (pendingForClient.length > 40 ? '<div class="dd-meta">+' + esc(pendingForClient.length - 40) + ' candidati nella coda. Raffina o amplia la revisione prima di proporre.</div>' : '') :
+            '<div class="dd-meta">Nessun candidato in attesa nella coda del cliente. Controlla fonti e criteri.</div>') +
+            (decidedForClient.length ? '<div class="dd-meta" style="margin-top:12px">Decisioni registrate (' + decidedForClient.length + ') · non inviate al cliente</div>' +
+                decidedForClient.slice(0, 12).map(function (p) {
+                    var approved = p.status === 'approved';
+                    var proof = approved && p.reviewEvidence ? p.reviewEvidence : null;
+                    return '<div class="d-deck-row"><div class="dd-main"><div class="dd-title">' + (approved ? '✓ ' : '✕ ') +
+                        esc(p.title || p.address || p.propertyId) + '</div><div class="dd-meta">' +
+                        (approved ? 'Approvato · disponibilità ' + esc(proof && proof.availabilityVerifiedAt) +
+                            ' con ' + esc(proof && proof.availabilityVerifiedWith) + ': ' + esc(proof && proof.availabilityEvidence) +
+                            ' · permesso ' + esc(proof && proof.sharingPermissionAt) + ' da ' +
+                            esc(proof && proof.sharingPermissionFrom) + ': ' + esc(proof && proof.sharingPermissionEvidence) :
+                            'Rifiutato · ' + esc(p.rejectionReason || 'motivo non registrato')) +
+                        ' · ' + esc(p.reviewedBy || '') + ' · ' + esc(relTime(p.reviewedAt)) + '</div></div>' +
+                        (safeUrl(p.sourceUrl) ? '<a class="abtn" href="' + esc(safeUrl(p.sourceUrl)) + '" target="_blank" rel="noopener">Fonte ↗</a>' : '') +
+                        '</div>';
+                }).join('') : '') +
+            renderShortlistPanel(c, decidedForClient.filter(function (p) { return p.status === 'approved'; }), allDeck) +
+        '</div>' : '') +
         '<div class="d-sec"><h4>Mazzo (' + s.total + ') · ❤️ ' + s.liked + ' · ✗ ' + s.rejected + (s.view ? ' · 📅 ' + s.view : '') + '</h4>' +
             (deck.length ? deck.map(function (p) {
                 var flags = (p.viewingRequested ? '📅' : '') + (p.clientLiked ? '❤️' : '') + (p.clientRejected ? '✗' : '') + (p.isNew ? '🆕' : '');
@@ -1457,9 +1849,12 @@ function renderDrawer() {
                     '<div class="dd-meta">€' + fmtPrice(p.price) + (p.match ? ' · match ' + esc(p.match) : '') + (p.addedAt ? ' · ' + esc(relTime(p.addedAt)) : '') + (p.rejectReason ? ' · “' + esc(p.rejectReason) + '”' : '') + '</div></div>' +
                     (flags ? '<span class="dd-flags">' + flags + '</span>' : '') +
                     (safeUrl(p.sourceUrl) ? '<a class="abtn" href="' + esc(safeUrl(p.sourceUrl)) + '" target="_blank" rel="noopener">↗</a>' : '') +
-                    '<button class="dd-x" data-daction="deck-remove" data-pid="' + esc(p.id) + '" title="Togli dal mazzo">🗑</button>' +
+                    (p.shortlistId ? '<span class="dd-meta">Shortlist pubblicata</span>' :
+                        '<button class="dd-x" data-daction="deck-remove" data-pid="' + esc(p.id) + '" title="Togli dal mazzo">🗑</button>') +
                 '</div>';
-            }).join('') : '<div class="dd-meta" style="color:var(--text-muted)">Mazzo vuoto: il radar spinge i match ≥60, oppure proponi tu dal feed («→ Proponi a…»).</div>') +
+            }).join('') : '<div class="dd-meta" style="color:var(--text-muted)">' +
+                (c.reviewRequired === true ? 'Mazzo vuoto: i candidati approvati restano interni finché non pubblichi una shortlist nel portale.' :
+                    'Mazzo vuoto: il radar spinge i match ≥60, oppure proponi tu dal feed («→ Proponi a…»).') + '</div>') +
         '</div>' +
         '<div class="d-sec"><h4>Attività recente</h4>' +
             (acts.length ? acts.map(function (a) {
@@ -1586,7 +1981,12 @@ function saveClientModal() {
 function pushToClient(prop, clientId, selEl) {
     var client = state.clientsById[clientId];
     if (!client || !prop) { if (selEl) selEl.value = ''; return; }
-    var doIt = function () {
+    if (client.reviewRequired === true) {
+        BoomPortal.toast('Per questo cliente usa la coda nel fascicolo: disponibilità e permesso vanno registrati prima di proporre.', { type: 'warning' });
+        if (selEl) selEl.value = '';
+        return;
+    }
+    var submit = function () {
         if (selEl) selEl.disabled = true;
         apiPost('/api/casafari/import', {
             clientId: clientId,
@@ -1611,14 +2011,14 @@ function pushToClient(prop, clientId, selEl) {
     };
     if (prop.advertiser === 'agency') {
         BoomPortal.confirm('È un annuncio di AGENZIA (doppia commissione per il cliente). Proporlo comunque?', { danger: true })
-            .then(function (yes) { if (yes) doIt(); else if (selEl) selEl.value = ''; });
+            .then(function (yes) { if (yes) submit(); else if (selEl) selEl.value = ''; });
     } else {
-        doIt();
+        submit();
     }
 }
 
 function activeClientOpts() {
-    return state.clients.filter(isActiveClient)
+    return state.clients.filter(function (c) { return isActiveClient(c) && c.reviewRequired !== true; })
         .sort(function (a, b) { return String(a.name || '').localeCompare(String(b.name || '')); })
         .map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.name || c.id) + '</option>'; })
         .join('');
@@ -2005,7 +2405,7 @@ function updateBrief() {
         if (!d || d.getTime() < t0) return;
         newToday++;
         var ms = p.matchSummary || {};
-        if (Array.isArray(ms.pushedTo) && ms.pushedTo.length) matchToday++;
+        if ((Array.isArray(ms.pushedTo) && ms.pushedTo.length) || pendingReviewFor(p).length) matchToday++;
     });
     var likes = 0;
     state.clients.forEach(function (c) {
@@ -2548,7 +2948,7 @@ function renderDryResults(results) {
     }
     var rows = results.slice().sort(function (a, b) { return (b.score || 0) - (a.score || 0); }).map(function (r) {
         var sc = (Number(r.score) || 0) >= 80 ? 'sc-green' : (Number(r.score) || 0) >= 60 ? 'sc-gold' : 'sc-dim';
-        var push = r.wouldPush ? '<span class="sc-green">✓ push</span>' : (r.alreadyHasIt ? '<span class="sc-dim">già nel deck</span>' : '<span class="sc-dim">—</span>');
+        var push = r.pendingReview ? '<span class="sc-gold">⌛ revisione</span>' : (r.wouldPush ? '<span class="sc-green">✓ push</span>' : (r.alreadyHasIt ? '<span class="sc-dim">già nel deck</span>' : '<span class="sc-dim">—</span>'));
         var reasons = Array.isArray(r.reasons) ? r.reasons.join(' · ') : '';
         return '<tr><td>' + esc(r.name || r.clientId) + '</td><td class="' + sc + '">' + esc(r.score) + '</td><td>' + push + '</td><td class="reasons">' + esc(reasons) + '</td></tr>';
     }).join('');
@@ -2579,7 +2979,9 @@ function doPush() {
         var names = (Array.isArray(r.pushedTo) ? r.pushedTo : []).map(function (x) {
             return typeof x === 'string' ? x : ((x && (x.name || x.clientId)) || '?');
         });
-        BoomPortal.toast(names.length ? 'Annuncio ingerito · push a: ' + names.join(', ') : 'Annuncio ingerito · nessun push (sotto soglia)', { duration: 6000 });
+        var pending = Array.isArray(r.pendingReview) ? r.pendingReview.length : 0;
+        BoomPortal.toast(names.length ? 'Annuncio ingerito · push a: ' + names.join(', ') :
+            (pending ? 'Annuncio ingerito · ' + pending + ' candidat' + (pending === 1 ? 'o' : 'i') + ' da rivedere' : 'Annuncio ingerito · nessun push (sotto soglia)'), { duration: 6000 });
         closeModal();
     }).catch(function (err) {
         BoomPortal.toast('Errore ingest: ' + (err && err.message ? err.message : err), { type: 'error' });
@@ -2717,7 +3119,13 @@ function bindUI() {
         var act = b.getAttribute('data-daction');
         if (act === 'close') { closeDrawer(); return; }
         if (!c) { closeDrawer(); return; }
-        if (act === 'stage-prev' || act === 'stage-next') {
+        if (act === 'candidate-approve' || act === 'candidate-reject') {
+            openCandidateReview(b.getAttribute('data-cid'), act === 'candidate-approve' ? 'approve' : 'reject');
+        } else if (act === 'shortlist-prepare') {
+            prepareShortlist();
+        } else if (act === 'shortlist-publish') {
+            openShortlistPublish(b.getAttribute('data-sid'));
+        } else if (act === 'stage-prev' || act === 'stage-next') {
             var flow = STAGE_FLOW.concat(['placed']);
             var i = flow.indexOf(effStage(c));
             var ni = act === 'stage-next' ? Math.min(flow.length - 1, i + 1) : Math.max(0, i - 1);
@@ -2746,16 +3154,37 @@ function bindUI() {
             });
         } else if (act === 'deck-remove') {
             var pid = b.getAttribute('data-pid');
+            if (state.shortlistRows.some(function (s) { return s.status === 'published' &&
+                (s.items || []).some(function (item) { return item.propertyId === pid; }); })) {
+                BoomPortal.toast('Casa pubblicata in una shortlist: la ricevuta resta nel portale.', { type: 'warning' });
+                return;
+            }
             BoomPortal.confirm('Togliere questa casa dal mazzo del cliente?').then(function (yes) {
                 if (yes) deckRemove(c, pid);
             });
         }
     });
     $('client-drawer').addEventListener('change', function (e) {
+        if (e.target.matches && e.target.matches('[data-shortlist-select]')) {
+            var id = e.target.getAttribute('data-shortlist-select');
+            state.shortlistSelected = state.shortlistSelected.filter(function (x) { return x !== id; });
+            if (e.target.checked) state.shortlistSelected.push(id);
+            renderDrawer();
+            return;
+        }
         if (!e.target.matches || !e.target.matches('[data-dfield="stage"]')) return;
         var c = state.clientsById[state.drawerClient];
         if (c) writeStage(c, e.target.value);
     });
+
+    $('cand-close').addEventListener('click', closeCandidateReview);
+    $('cand-cancel').addEventListener('click', closeCandidateReview);
+    $('cand-save').addEventListener('click', saveCandidateReview);
+    $('candidate-modal-overlay').addEventListener('click', function (e) { if (e.target === this) closeCandidateReview(); });
+    $('shortlist-close').addEventListener('click', closeShortlistPublish);
+    $('shortlist-cancel').addEventListener('click', closeShortlistPublish);
+    $('shortlist-save').addEventListener('click', publishShortlist);
+    $('shortlist-modal-overlay').addEventListener('click', function (e) { if (e.target === this) closeShortlistPublish(); });
 
     // Modale cliente
     $('cm-close').addEventListener('click', closeClientModal);
@@ -3157,6 +3586,7 @@ function startListeners() {
         state.loaded.props = true;
         state.live.props = true;
         renderFeed();
+        if (state.drawerClient) renderDrawer();
         updateBrief();
         updateLive();
         // triage aperto: ri-renderizza solo se la card mostrata è sparita
