@@ -10,6 +10,7 @@ import { spawn } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 
 const SUITES = [
+  { name: 'campo', file: 'tests/campo/run.mjs', what: 'la porta di campo: solo staff/admin, solo visite in persona nella finestra, mai email/CF/IBAN/canoni, esito a visita iniziata che chiude il Regista e arriva su Telegram, nota di manutenzione fuori dal documento dell\'inquilino, staff in nessun\'altra porta' },
   { name: 'guasti', file: 'tests/guasti/run.mjs', what: 'i guasti del 4/10: il giro VERO del Commerciale, una regola per ogni collection del server (mutazione), un solo login in volo e nessun login fuori posto' },
   { name: 'efficienza', file: 'tests/efficienza/run.mjs', what: 'le letture risparmiate: la fotografia di snapshot/risk riusata 10 minuti (calda, fredda, scaduta, fresh), letture a lotti con ripiego a tetto, scan-replies in blocco' },
   { name: 'vercelfunctions', file: 'tests/vercel-functions/run.mjs', what: 'limite 50 regole, corrispondenza esatta degli handler, impostazioni e mutazioni' },

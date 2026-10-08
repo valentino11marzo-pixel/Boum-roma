@@ -2275,6 +2275,42 @@ Un giro solo, otto interventi, 33 suite verdi:
   poteva divergere dal Fascicolo ARPE è stata rimossa; un edit manuale
   marca `zoneSrc='manual'` e da lì la copia salvata vince).
 
+### La porta di campo (`/campo` + `GET|POST /api/campo`) — 8/10/2026
+La seconda porta d'accesso, solo per la collaboratrice di campo (ruolo
+`staff`, creato dal portal: Utenti → Nuovo → «Collaboratrice di campo»).
+Perché non il portal: admin qui firma per conto dei clienti, cambia l'IBAN
+delle fatture, cancella dati, approva messaggi ai clienti e legge ogni
+documento d'identità — niente di questo è il lavoro di chi fa le visite.
+`STUDIO_PRIMA_ASSUNZIONE_2026-10.md` (Appendice B) è il disegno.
+- **Il server serve, campo per campo, solo il lavoro** (lo schema di /scheda
+  e /sign): le regole Firestore restano admin-only, la pagina non legge
+  Firestore. `GET` → visite IN PERSONA vive da 3 giorni fa a +7 (video,
+  voided, annullate fuori; nome, telefono e lingua del cliente, indirizzo,
+  mappa, chiavi), consegne chiavi (contratti che partono da −3 a +14 giorni:
+  inquilino, co-conduttori per nome, indirizzo con piano/interno, firmato,
+  verbale), manutenzioni aperte (con nome e telefono di chi le ha chieste),
+  case in vetrina con le note di campo. **Non esce mai**: email dei clienti,
+  codici fiscali, IBAN, canoni dei contratti, link di firma.
+- **Tre scritture, tutte firmate `staff:<email>`**: `op:'esito'` (solo da 15'
+  prima della visita in poi; `campoEsito` sul doc visita, chiude l'attività
+  «esito visita» del Regista, arriva a Valentino su Telegram escapato),
+  `op:'casa'` (chiavi e accesso su `campoNotes/<listingId>` — MAI sul listing,
+  che è pubblico), `op:'manutenzione'` (nota del sopralluogo su
+  `campoNotes/mnt_<id>` — MAI sul documento che l'inquilino legge). Niente
+  cancellazioni, soldi, firme, messaggi ai clienti.
+- Il portal manda `staff` a `/campo` PRIMA di `loadData` (le sue letture le
+  rules le negano). `firestore.rules`: `campoNotes` admin-only (va deployata).
+  `/campo` è nel gruppo `no-store` + `noindex` di vercel.json.
+- **Fuori dalla v1, di proposito**: verbale/inventario dal suo telefono
+  (oggi richiedono admin/owner/landlord e leggono contratti dal client),
+  upload di foto e video sugli annunci, messaggi ai clienti.
+- **Già aperto a ogni utente autenticato, quindi anche a lei**: `settings/
+  company`, `settings/registrazione`, `settings/ai` (rule `settings`:
+  `request.auth != null`) e `payout`. Difetto preesistente, da chiudere a parte.
+- Test: `node tests/campo/run.mjs` (59 check; tre mutazioni prese: redirect
+  dopo loadData, email del cliente nella risposta, nota sul documento della
+  manutenzione).
+
 ### Verbale di consegna chiavi (`POST /api/contracts/verbale` + `/verbale`)
 Il contratto (Art. 3 di entrambi gli Allegati) rinvia a "quanto risulta dal
 verbale di consegna" — questo lo genera davvero, SUL POSTO. `verbale.html`
@@ -5981,6 +6017,7 @@ loader, confirm dialog) — see `BoomPortal.*` API.
 | `owner-dashboard.html` | `owner`, `landlord`, `admin` | reads/writes `properties` filtered by `ownerId` |
 | `tenant.html` | `tenant` | reads `properties` (own), writes `maintenance` |
 | `client-portal.html` | access code on `pfsClients` doc | reads/writes `pfsClients.portalProperties` |
+| `campo.html` (`/campo`) | `staff`, `admin` | nothing directly: everything through `/api/campo` (rules stay admin-only) |
 
 **Single auth surface**: `/login` (login.html) is the ONLY sign-in UI on the
 site. portal.html, boom_doc_parser.html and the `BoomPortal.requireAuth` guard

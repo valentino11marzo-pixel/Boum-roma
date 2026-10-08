@@ -361,6 +361,8 @@ else can do: landlord mandates (supply), negotiations and B2B.
 
 ## Appendix B · `/campo` + `staff` role (spec for week 2)
 
+> **Built 8/10/2026 (v1)** at the founder's request, before her first week: role `staff`, `/campo`, `/api/campo` (viewings, people, handovers, maintenance, keys notes, outcome to Telegram). Not in v1: media upload (point 3) and verbale/inventory for staff (point 5). See CLAUDE.md, «La porta di campo».
+
 **Principle**: no Firestore rule changes. All collections stay admin-only,
 and a staff user reads and writes **only through `/api/campo/*`**
 (`requireRole(['admin','staff'])`), exactly as `/scheda` and `/sign` serve
