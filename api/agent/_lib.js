@@ -98,7 +98,8 @@ async function getMailer() {
   return _transporter;
 }
 
-// Send a single email. Returns { messageId }.
+// Send a single email. `accepted` is SMTP envelope acceptance, not proof of
+// inbox delivery; callers with delivery ledgers must inspect it explicitly.
 export async function sendEmail({ to, subject, html, text, from, attachments, icalEvent, cc, replyTo }) {
   if (!to || !subject || (!html && !text)) throw new Error('to, subject and html|text required');
   const m = await getMailer();
@@ -116,7 +117,7 @@ export async function sendEmail({ to, subject, html, text, from, attachments, ic
     // Apple Mail add (or update, or remove) the event automatically.
     ...(icalEvent && icalEvent.content ? { icalEvent } : {}),
   });
-  return { messageId: info.messageId };
+  return { messageId: info.messageId, accepted: info.accepted || [], rejected: info.rejected || [] };
 }
 
 // Build a WhatsApp deep-link. Phone is normalized (digits only, no plus).

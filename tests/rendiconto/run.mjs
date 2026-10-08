@@ -23,7 +23,10 @@ const check = (n, c) => { c ? passed++ : (failed++, bad.push(n)); console.log((c
 const mails = () => globalThis.__mails || [];
 
 // ── Stub in-memory: Firestore (get/patch/create/runQuery) + Storage ─────
-const store = new Map(); const storageFiles = new Map();
+const store = new Map(); const storageFiles = new Map(); const versions = new Map();
+let versionClock = 0, failStoragePosts = 0, failSentCommits = 0, failMarkerCreates = 0;
+const versionOf = (key) => versions.get(key) || '2026-01-01T00:00:00.000Z';
+const bump = (key) => versions.set(key, new Date(Date.UTC(2026, 0, 1) + (++versionClock) * 1000).toISOString());
 const okJson = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'Content-Type': 'application/json' } });
 function toFs(v) {
   if (v === null || v === undefined) return { nullValue: null };
@@ -61,6 +64,7 @@ globalThis.fetch = async (url, opts = {}) => {
   if (url.includes('api.telegram.org')) return okJson({ ok: true });
   if (url.includes('firebasestorage.googleapis.com')) {
     if (opts.method === 'POST') {
+      if (failStoragePosts > 0) { failStoragePosts--; return new Response('forbidden', { status: 403 }); }
       const name = new URL(url).searchParams.get('name');
       if (name) storageFiles.set(name, Buffer.from(opts.body));
       return okJson({ downloadTokens: 'dltok' });
@@ -70,7 +74,26 @@ globalThis.fetch = async (url, opts = {}) => {
   if (url.includes('firestore.googleapis.com')) {
     const path = (url.split('(default)/documents')[1] || '').replace(/^\//, '').split('?')[0];
     const qs = new URL(url).searchParams;
-    const row = (k) => ({ name: 'projects/p/databases/(default)/documents/' + k, fields: toFsFields(store.get(k)), updateTime: '2026-01-01T00:00:00Z', createTime: '2026-01-01T00:00:00Z' });
+    const row = (k) => ({ name: 'projects/p/databases/(default)/documents/' + k, fields: toFsFields(store.get(k)), updateTime: versionOf(k), createTime: '2026-01-01T00:00:00Z' });
+    if (path.startsWith(':commit')) {
+      const writes = JSON.parse(opts.body).writes || [];
+      if (failSentCommits > 0 && writes.some(w => w.update?.fields?.status?.stringValue === 'sent')) {
+        failSentCommits--; return new Response('temporary commit outage', { status: 503 });
+      }
+      for (const w of writes) {
+        const key = w.update?.name?.split('/documents/')[1];
+        if (!key || !store.has(key) || w.currentDocument?.updateTime !== versionOf(key)) {
+          return new Response(JSON.stringify({ error: { status: 'FAILED_PRECONDITION' } }), { status: 412 });
+        }
+      }
+      for (const w of writes) {
+        const key = w.update.name.split('/documents/')[1];
+        const doc = store.get(key);
+        for (const field of w.updateMask?.fieldPaths || []) doc[field] = fromFs(w.update.fields[field]);
+        bump(key);
+      }
+      return okJson({ writeResults: [] });
+    }
     if (path.startsWith(':runQuery')) {
       const sq = (JSON.parse(opts.body || '{}') || {}).structuredQuery || {};
       const col = ((sq.from || [])[0] || {}).collectionId || '';
@@ -87,12 +110,17 @@ globalThis.fetch = async (url, opts = {}) => {
     if (opts.method === 'POST' && !path.startsWith(':')) {
       const docId = qs.get('documentId') || 'auto_' + (store.size + 1);
       const key = path + '/' + docId;
+      if (key.startsWith('rendiconti/') && failMarkerCreates > 0) {
+        failMarkerCreates--; return new Response('temporary marker outage', { status: 503 });
+      }
       if (qs.get('documentId') && store.has(key)) return new Response(JSON.stringify({ error: { code: 409, status: 'ALREADY_EXISTS', message: 'Document already exists' } }), { status: 409 });
       store.set(key, fromFsFields(JSON.parse(opts.body).fields));
+      bump(key);
       return okJson({ name: 'projects/p/databases/(default)/documents/' + key });
     }
     if (opts.method === 'PATCH') {
       store.set(path, Object.assign(store.get(path) || {}, fromFsFields(JSON.parse(opts.body).fields)));
+      bump(path);
       return okJson({ name: 'projects/p/databases/(default)/documents/' + path });
     }
     if (!store.has(path)) return new Response('not found', { status: 404 });
@@ -104,7 +132,9 @@ globalThis.fetch = async (url, opts = {}) => {
 // ── Dati: un proprietario, due immobili, un mese vero di movimenti ──────
 const MONTH = '2026-07';
 function seed() {
-  store.clear(); storageFiles.clear(); globalThis.__mails = [];
+  store.clear(); storageFiles.clear(); versions.clear(); versionClock = 0;
+  failStoragePosts = 0; failSentCommits = 0; failMarkerCreates = 0;
+  globalThis.__mailFailure = null; globalThis.__mails = [];
   store.set('users/own1', { role: 'landlord', name: 'Stefano Compierchio', email: 'stefano@own.it' });
   store.set('properties/p1', { ownerId: 'own1', address: 'Via Squarcialupo 36', name: 'Squarcialupo' });
   store.set('properties/p2', { ownerId: 'own1', address: 'Via Levico 7', name: 'Levico' });
@@ -151,13 +181,115 @@ const drive = async (query = {}, authz = 'Bearer cron-test-secret') => {
   const m = mails().find(x => x.to === 'stefano@own.it');
   check('email al proprietario (IT) con PDF identico allo Storage',
     !!m && /Rendiconto Luglio 2026/.test(m.subject) && m.attachments && Buffer.compare(m.attachments[0].content, stored) === 0);
-  check('idempotenza scritta (rendiconti/own1_2026-07)', store.has(`rendiconti/own1_${MONTH}`));
+  check('marker sent solo dopo accettazione SMTP',
+    store.get(`rendiconti/own1_${MONTH}`)?.status === 'sent'
+    && !!store.get(`rendiconti/own1_${MONTH}`)?.smtpAcceptedAt
+    && store.get(`rendiconti/own1_${MONTH}`)?.messageId === 'test-1');
   check('nessuna email al proprietario senza movimenti', !mails().some(x => x.to === 'vuoto@own.it'));
 
   // ═══ 3. Rerun = nessun doppio invio ═══
   const before = mails().length;
   const r2 = await drive({ month: MONTH });
   check('rerun: already_sent, zero nuove email', r2.body.counts.alreadySent === 1 && r2.body.counts.sent === 0 && mails().length === before);
+}
+
+// ═══ 6. Nessuna email prima del ledger e dell'upload ════════════════════
+{
+  seed(); failMarkerCreates = 1;
+  const first = await drive({ month: MONTH });
+  check('marker non creato: 503 e nessuna email',
+    first.code === 503 && first.body.counts.failed === 1
+    && !store.has(`rendiconti/own1_${MONTH}`) && mails().length === 0);
+  const second = await drive({ month: MONTH });
+  check('retry dopo Firestore riprende e invia una sola email',
+    second.code === 200 && second.body.counts.sent === 1 && mails().length === 1);
+}
+{
+  seed(); failStoragePosts = 1;
+  const first = await drive({ month: MONTH });
+  check('upload PDF fallito: marker pending e nessuna email',
+    first.code === 503 && first.body.counts.failed === 1
+    && store.get(`rendiconti/own1_${MONTH}`)?.status === 'pending' && mails().length === 0);
+  const second = await drive({ month: MONTH });
+  check('retry upload riusa marker e invia una sola email',
+    second.code === 200 && second.body.counts.sent === 1
+    && store.get(`rendiconti/own1_${MONTH}`)?.status === 'sent' && mails().length === 1);
+}
+
+// ═══ 7. Rifiuto certo, esito ambiguo e accettazione SMTP ════════════════
+{
+  seed(); globalThis.__mailFailure = 'rejected';
+  const first = await drive({ month: MONTH });
+  check('SMTP rifiutato: marker pending e 503',
+    first.code === 503 && first.body.counts.failed === 1
+    && store.get(`rendiconti/own1_${MONTH}`)?.status === 'pending' && mails().length === 0);
+  const second = await drive({ month: MONTH });
+  check('rifiuto certo: nuovo tentativo conclude una sola email',
+    second.code === 200 && second.body.counts.sent === 1
+    && store.get(`rendiconti/own1_${MONTH}`)?.status === 'sent' && mails().length === 1);
+}
+{
+  seed(); globalThis.__mailFailure = 'ambiguous';
+  const first = await drive({ month: MONTH });
+  check('timeout SMTP ambiguo: delivery_unknown e 503',
+    first.code === 503 && first.body.counts.deliveryUnknown === 1
+    && store.get(`rendiconti/own1_${MONTH}`)?.status === 'delivery_unknown' && mails().length === 1);
+  const second = await drive({ month: MONTH });
+  check('ambiguità non produce invio duplicato al rerun',
+    second.code === 503 && second.body.counts.deliveryUnknown === 1 && mails().length === 1);
+}
+{
+  seed(); globalThis.__mailFailure = 'no_acceptance';
+  const first = await drive({ month: MONTH });
+  check('messageId senza accepted non dichiara sent',
+    first.code === 503 && first.body.counts.deliveryUnknown === 1
+    && store.get(`rendiconti/own1_${MONTH}`)?.status === 'delivery_unknown' && mails().length === 0);
+}
+{
+  seed(); failSentCommits = 1;
+  const first = await drive({ month: MONTH });
+  check('accettazione SMTP con commit sent fallito resta incerta',
+    first.code === 503 && first.body.counts.deliveryUnknown === 1
+    && store.get(`rendiconti/own1_${MONTH}`)?.status === 'delivery_unknown' && mails().length === 1);
+  await drive({ month: MONTH });
+  check('commit sent fallito non fa rispedire al rerun', mails().length === 1);
+}
+
+// ═══ 8. Concorrenza e marker preesistenti ═══════════════════════════════
+{
+  seed();
+  const [first, second] = await Promise.all([drive({ month: MONTH }), drive({ month: MONTH })]);
+  check('due invocazioni concorrenti: un solo claim e una sola email',
+    [200, 503].includes(first.code) && [200, 503].includes(second.code)
+    && first.body.counts.sent + second.body.counts.sent === 1 && mails().length === 1
+    && store.get(`rendiconti/own1_${MONTH}`)?.status === 'sent');
+}
+{
+  seed();
+  store.set(`rendiconti/own1_${MONTH}`, { ownerId: 'own1', month: MONTH, at: '2026-08-01T06:10:00Z' });
+  bump(`rendiconti/own1_${MONTH}`);
+  const first = await drive({ month: MONTH });
+  const second = await drive({ month: MONTH });
+  check('marker legacy: esito ignoto e mai invio automatico',
+    first.code === 503 && second.code === 503 && mails().length === 0
+    && store.get(`rendiconti/own1_${MONTH}`)?.status === 'delivery_unknown'
+    && store.get(`rendiconti/own1_${MONTH}`)?.reason === 'legacy_marker_unverified');
+}
+{
+  seed();
+  store.set(`rendiconti/own1_${MONTH}`, {
+    ownerId: 'own1', month: MONTH, status: 'sending', claimId: 'live', sendStartedAt: new Date().toISOString(),
+  });
+  bump(`rendiconti/own1_${MONTH}`);
+  const first = await drive({ month: MONTH });
+  check('claim attivo: 503 non conferma falsamente la consegna',
+    first.code === 503 && first.body.counts.inProgress === 1 && mails().length === 0);
+  store.get(`rendiconti/own1_${MONTH}`).sendStartedAt = '2020-01-01T00:00:00Z';
+  bump(`rendiconti/own1_${MONTH}`);
+  const second = await drive({ month: MONTH });
+  check('claim scaduto: esito ignoto senza reinvio cieco',
+    second.code === 503 && second.body.counts.deliveryUnknown === 1 && mails().length === 0
+    && store.get(`rendiconti/own1_${MONTH}`)?.reason === 'send_claim_expired');
 }
 
 // ═══ 4. Dry run ═════════════════════════════════════════════════════════
