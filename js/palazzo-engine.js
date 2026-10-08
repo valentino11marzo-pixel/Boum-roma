@@ -815,7 +815,7 @@
   // ── Il tempo: puntualità, sfitto, contratti che finiscono ──────────────
   function daysBetween(a, b) { return Math.round((Date.parse(b) - Date.parse(a)) / 864e5); }
   function timeOf(ctx, p, endMonth) {
-    var end = monthOf(endMonth) || ctx.month, from = monthAdd(end, -11);
+    var end = monthOf(endMonth) || ctx.month, from = monthAdd(end, -11), gd = monthOf(p.gestioneDal);
     var rows = (ctx.paymentsByProperty[str(p.id)] || []).filter(function (r) {
       return r.isRent && r.state === 'paid' && r.dueDate && r.paidDate && r.month >= from && r.month <= end;
     });
@@ -827,6 +827,8 @@
       .map(effectiveEnd).filter(function (d) { return d && d < ctx.today; }).sort();
     var lastEnd = ends.length ? ends[ends.length - 1] : '';
     return {
+      // Gestione iniziata dentro la finestra: la puntualità si misura da lì.
+      since: gd && gd > from && gd <= end ? gd : '',
       paidCount: delays.length,
       avgDelay: delays.length ? Math.round(delays.reduce(function (a, b) { return a + b; }, 0) / delays.length * 10) / 10 : null,
       onTime: delays.filter(function (d) { return d <= 0; }).length,
@@ -857,10 +859,13 @@
     }
     // Al proprietario si dice cosa sta facendo BOOM, non il nome del
     // problema interno: "rata non registrata" è un lavoro dell'operatore.
-    if (owner) { if (t.review + t.norate) out.push(n(t.review + t.norate, 'pagamento è', 'pagamenti sono') + ' in verifica da BOOM.'); }
-    else {
+    if (owner) {
+      if (t.review + t.norate) out.push(n(t.review + t.norate, 'pagamento è', 'pagamenti sono') + ' in verifica da BOOM.');
+      if (t.nocontract) out.push(n(t.nocontract, 'interno ha', 'interni hanno') + ' il contratto in arrivo da BOOM.');
+    } else {
       if (t.review) out.push(n(t.review, 'pagamento è', 'pagamenti sono') + ' da verificare.');
       if (t.norate) out.push(n(t.norate, 'interno occupato non ha', 'interni occupati non hanno') + ' la rata registrata.');
+      if (t.nocontract) out.push(n(t.nocontract, 'interno occupato non ha', 'interni occupati non hanno') + ' il contratto in archivio.');
     }
     if (t.maintOpen) out.push(n(t.maintOpen, 'segnalazione di manutenzione aperta', 'segnalazioni di manutenzione aperte') + (t.maintUrgent ? ' (' + t.maintUrgent + ' urgent' + (t.maintUrgent === 1 ? 'e' : 'i') + ')' : '') + '.');
     if (t.before) out.push(n(t.before, 'interno era', 'interni erano') + ' prima della gestione BOOM: i pagamenti di quel mese non sono in archivio.');
@@ -1083,11 +1088,14 @@
 
   function totalsOf(units) {
     var t = { units: units.length, occupied: 0, vacant: 0, incoming: 0, paid: 0, late: 0, due: 0, review: 0, norate: 0, unknown: 0, before: 0, maintOpen: 0, maintUrgent: 0,
-      expected: 0, collected: 0, lateAmount: 0, arrears: 0, arrearsCount: 0, arrearsOldest: '', leaving: 0, occupancy: 0 };
+      expected: 0, collected: 0, lateAmount: 0, arrears: 0, arrearsCount: 0, arrearsOldest: '', leaving: 0, occupancy: 0, nocontract: 0 };
     units.forEach(function (u) {
       var um = u.month;
       if (um.occupied) t.occupied++;
       t[um.state] = (t[um.state] || 0) + 1;
+      // Occupato col contratto non ancora in archivio: è una cosa diversa da
+      // una rata mancante, e alla proprietaria si dice com'è.
+      if (um.state === 'norate' && um.lease && um.lease.contractMissing === true) { t.nocontract++; t.norate--; }
       if (um.leaving) t.leaving++;
       t.expected = round(t.expected + um.expected);
       t.collected = round(t.collected + um.collected);

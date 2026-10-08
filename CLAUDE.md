@@ -6329,7 +6329,18 @@ NON VEDEVANO NIENTE (vedi sotto).
       archivio»; alla proprietaria «Contratto in arrivo da BOOM». Quando la
       riga torna con canone e date, si **completa lo stesso contratto** e
       nascono le rate — mai un secondo contratto vivo sullo stesso interno.
-      Un dato a metà (canone senza date) resta un errore.
+      Un dato a metà (canone senza date) resta un errore. Nei totali è
+      `nocontract`, separato da `norate`: la frase del mese dice alla
+      proprietaria «N interni hanno il contratto in arrivo da BOOM» (mai
+      «pagamenti in verifica») e all'operatore «non ha il contratto in
+      archivio»; le etichette sono «Contratto in arrivo da BOOM» /
+      «Contratto da caricare», e per la proprietaria anche un bonifico
+      segnalato è «In verifica da BOOM».
+    - **La puntualità parte dalla gestione**: con «gestione BOOM dal» dentro
+      gli ultimi 12 mesi, un interno appena preso in carico non è più
+      «Nessuna rata pagata negli ultimi 12 mesi» (che suona come un cattivo
+      pagatore) ma «Nessuna rata ancora pagata da ottobre 2026 (gestione
+      BOOM)» (`time.since`).
     - **Reincollare completa**: anche sul contratto si scrivono solo i campi
       vuoti (co-intestatari solo se non ce n'è nessuno); le rate già in
       archivio non si ricalcolano mai da qui, e se gli oneri arrivano dopo
@@ -6348,7 +6359,7 @@ NON VEDEVANO NIENTE (vedi sotto).
     I dati veri (nomi, telefoni, documenti, IBAN) NON stanno nel repo: la
     tabella per la presa in carico si prepara fuori, i test usano nomi e
     numeri inventati.
-Test: `node tests/palazzo/engine.mjs` (203 check: civico, piano, 13 interni
+Test: `node tests/palazzo/engine.mjs` (207 check: civico, piano, 13 interni
 in ogni stato, trimestrale, contratto chiuso in anticipo, proposte e annunci,
 puntualità/sfitto/incassato su scaduto, la frase del mese nelle due voci,
 piani vuoti e attico, cose da sistemare, filtro proprietaria, mutazioni sul

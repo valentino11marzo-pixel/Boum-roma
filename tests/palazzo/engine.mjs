@@ -376,6 +376,10 @@ eq('cedolareDeclared: anche canone.cedolareSecca e "Sì"; ciò che non si legge 
   const loaded = P.context({ now: NOW, properties: plan.properties.map(x => ({ id: x.id, ...x.data })), contracts: plan.contracts.map(x => ({ id: x.id, ...x.data })) });
   const lm = P.model(loaded, plan.buildingKey, F.month), u = lm.units[0];
   eq('il Palazzo lo dice com\'è: occupato, senza rata, canone sconosciuto (mai €0), e in Da sistemare', [u.month.occupied, u.month.state, u.month.rent, lm.issues.map(i => i.code)], [true, 'norate', null, ['unplaced', 'nocontract']]);
+  eq('nei totali è «contratto mancante», non una rata mancante', [lm.totals.nocontract, lm.totals.norate], [1, 0]);
+  ok('alla proprietaria: «contratto in arrivo da BOOM», mai «pagamento in verifica»', P.brief(lm, { owner: true }).some(x => /1 interno ha il contratto in arrivo da BOOM/.test(x)) && !P.brief(lm, { owner: true }).some(x => /pagament/.test(x)), P.brief(lm, { owner: true }));
+  ok('all\'operatore: «non ha il contratto in archivio»', P.brief(lm).some(x => /non ha il contratto in archivio/.test(x)), P.brief(lm));
+  eq('la puntualità si misura da quando gestisce BOOM', u.time.since, F.month);
   eq('reincollato com\'è: niente di nuovo', P.planImport([a], loaded, { address: 'Via Prova 9', ownerId: 'o', gestioneDal: F.month }).contracts.length, 0);
   const full = P.parseRentRoll('Interno\tInquilino\tCanone\tOneri\tDal\tAl\n14\tGaia Sette\t1100\t120\t01/' + mm + '\t30/06/2027\n').rows;
   const done = P.planImport(full, loaded, { address: 'Via Prova 9', ownerId: 'o', gestioneDal: F.month });

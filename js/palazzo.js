@@ -54,7 +54,10 @@
   }
   function surname(name) { var s = String(name || '').trim().split(/\s+/); return s.length > 1 ? s[s.length - 1] : s[0] || ''; }
   function stateLabel(um, month, currentMonth) {
-    if (um.state === 'norate' && adapter && !viewAdmin()) return 'In verifica da BOOM';
+    var owner = adapter && !viewAdmin();
+    if (um.state === 'norate' && um.lease && um.lease.contractMissing === true) return owner ? 'Contratto in arrivo da BOOM' : 'Contratto da caricare';
+    if (um.state === 'norate' && owner) return 'In verifica da BOOM';
+    if (um.state === 'review' && owner) return 'In verifica da BOOM';
     if (um.state === 'norate') return month > currentMonth ? 'Rata non ancora generata' : 'Rata non registrata';
     return E.STATES[um.state] ? E.STATES[um.state].label : 'Da verificare';
   }
@@ -210,13 +213,13 @@
     return '<div class="plz-time"><button type="button" class="plz-ico plz-play" data-plz="play" aria-label="' + (ui.playing ? 'Ferma' : 'Riproduci gli ultimi 12 mesi') + '">' + (ui.playing ? '❚❚' : '▶') + '</button><div class="plz-months" role="group" aria-label="Ultimi 12 mesi">' +
       m.series.map(function (s) {
         var t = s.totals, n = Math.max(1, t.units), seg = function (k, v) { return v ? '<i class="plz-s-' + k + '" style="flex:' + v + '"></i>' : ''; };
-        var bar = seg('paid', t.paid) + seg('due', t.due + t.review + t.norate + t.unknown) + seg('late', t.late) + seg('vacant', t.vacant + t.incoming) + seg('before', t.before || 0);
+        var bar = seg('paid', t.paid) + seg('due', t.due + t.review + t.norate + (t.nocontract || 0) + t.unknown) + seg('late', t.late) + seg('vacant', t.vacant + t.incoming) + seg('before', t.before || 0);
         return '<button type="button" class="plz-mcell' + (s.month === m.month ? ' is-on' : '') + (s.month === m.currentMonth ? ' is-now' : '') + '" data-plz="month" data-m="' + s.month + '" aria-label="' + esc(E.monthLabel(s.month)) + ': ' + t.paid + ' pagati, ' + t.late + ' in ritardo, ' + (t.vacant + t.incoming) + ' liberi" aria-pressed="' + (s.month === m.month) + '"><span class="plz-mbar">' + bar + '</span><small>' + E.monthLabel(s.month, true) + '</small></button>';
       }).join('') + '</div></div>';
   }
 
   function filters(data) {
-    var t = data.m.totals, count = { all: t.units, paid: t.paid, late: t.late, due: t.due + t.review + t.norate + t.unknown, free: t.vacant + t.incoming, before: t.before || 0 };
+    var t = data.m.totals, count = { all: t.units, paid: t.paid, late: t.late, due: t.due + t.review + t.norate + (t.nocontract || 0) + t.unknown, free: t.vacant + t.incoming, before: t.before || 0 };
     return '<div class="plz-filters" role="group" aria-label="Mostra">' + FILTERS.filter(function (f) { return f[0] !== 'before' || count.before || ui.filter === 'before'; }).map(function (f) {
       return '<button type="button" class="plz-filter plz-f-' + f[0] + '" data-plz="filter" data-f="' + f[0] + '" aria-pressed="' + (ui.filter === f[0]) + '"><i aria-hidden="true"></i>' + f[1] + '<b>' + count[f[0]] + '</b></button>';
     }).join('') + '</div>';
@@ -362,7 +365,7 @@
     return bits.join(' · ') || unitWhere(u);
   }
   function punctuality(t) {
-    if (!t || !t.paidCount) return 'Nessuna rata pagata negli ultimi 12 mesi';
+    if (!t || !t.paidCount) return t && t.since ? 'Nessuna rata ancora pagata da ' + E.monthLabel(t.since).toLowerCase() + ' (gestione BOOM)' : 'Nessuna rata pagata negli ultimi 12 mesi';
     var d = t.avgDelay, when = d < -0.4 ? itNum(Math.abs(d)) + (Math.abs(d) === 1 ? ' giorno prima' : ' giorni prima') : d > 0.4 ? itNum(d) + (d === 1 ? ' giorno dopo' : ' giorni dopo') : 'il giorno della scadenza';
     return 'Paga in media ' + when + ' · ' + t.onTime + ' rate su ' + t.paidCount + ' puntuali';
   }
