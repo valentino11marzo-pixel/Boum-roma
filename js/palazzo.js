@@ -180,6 +180,7 @@
       if (i.code === 'overlap') return row('Contratti', i.count + (i.count === 1 ? ' interno ha due contratti' : ' interni hanno due contratti') + ' nello stesso mese.', '<button type="button" class="plz-btn" data-plz="select" data-id="' + esc(i.ids[0]) + '">Vedi</button>');
       if (i.code === 'preBoom') return row('Rate', i.count + (i.count === 1 ? ' rata aperta' : ' rate aperte') + ' di mesi prima della gestione BOOM: nel Palazzo non contano (non sono arretrati di BOOM), ma in Canoni restano scadute. Chiudile se non servono.', '<button type="button" class="plz-btn" data-plz="rent" data-id="' + esc(i.ids[0]) + '">Apri canoni</button>');
       if (i.code === 'unregistered') return row('Registrazione', i.count + (i.count === 1 ? ' contratto in corso senza registrazione segnata' : ' contratti in corso senza registrazione segnata') + ' oltre 30 giorni dalla decorrenza: segnala con ✓ RLI registrato o invia ad ASPI. Alla proprietaria risulta “in verifica da BOOM”.', '<button type="button" class="plz-btn" data-plz="select" data-id="' + esc(i.ids[0]) + '">Vedi</button>');
+      if (i.code === 'nocontract') return row('Contratti', i.count + (i.count === 1 ? ' interno occupato senza contratto in archivio' : ' interni occupati senza contratto in archivio') + ': canone, date e rate arrivano col contratto (reincolla la riga completa, o caricalo dall’Innesto). Alla proprietaria risulta “in verifica da BOOM”.', '<button type="button" class="plz-btn" data-plz="select" data-id="' + esc(i.ids[0]) + '">Vedi</button>');
       if (i.code === 'norate') return row('Rate', i.count + (i.count === 1 ? ' interno occupato senza rata' : ' interni occupati senza rata') + ' in ' + esc(E.monthLabel(m.month).toLowerCase()) + ': né pagato né in ritardo finché la rata non esiste.', '<button type="button" class="plz-btn" data-plz="rent" data-id="' + esc(i.ids[0]) + '">Verifica rate</button>');
       return '';
     }).join('') + (noPhone.length ? row('Contatti', noPhone.length + (noPhone.length === 1 ? ' inquilino senza telefono' : ' inquilini senza telefono') + ' in archivio: dalla sua scheda la proprietaria non ' + (noPhone.length === 1 ? 'lo può' : 'li può') + ' chiamare.', '<button type="button" class="plz-btn" data-plz="select" data-id="' + esc(noPhone[0].id) + '">Vedi</button>') : '');
@@ -615,7 +616,7 @@
       var acts = (proof ? '<a class="plz-btn plz-sm" href="' + esc(proof) + '" target="_blank" rel="noopener">Ricevuta ↗</a>' : '') +
         (admin && payable(r) && adapter.rataLinks ? '<button type="button" class="plz-btn plz-sm' + (r.state === 'overdue' ? ' plz-primary' : '') + '" data-plz="rata" data-pay="' + esc(r.id) + '" data-id="' + esc(u.id) + '">Manda il link</button>' : '') +
         (admin && (payable(r) || r.state === 'reported') && A0.record ? '<button type="button" class="plz-btn plz-sm" data-plz="record" data-pay="' + esc(r.id) + '">Registra incasso</button>' : '');
-      return '<li><span>' + esc(r.month && r.coversTo && r.coversTo !== r.month ? E.monthLabel(r.month, true) + '→' + E.monthLabel(r.coversTo, true) : E.monthLabel(r.month)) + '</span><b class="plz-num">' + eur(r.amount) + '</b><em class="plz-pill plz-s-' + ({ overdue: 'late', reported: 'review', processing: 'review' }[r.state] || r.state) + '">' + st + '</em><small>' + esc(rep || (r.paidDate ? 'pagato il ' + dateIt(r.paidDate) : r.dueDate ? 'scadenza ' + dateIt(r.dueDate) : '')) + '</small>' +
+      return '<li><span>' + esc(r.month && r.coversTo && r.coversTo !== r.month ? E.monthLabel(r.month, true) + '→' + E.monthLabel(r.coversTo, true) : E.monthLabel(r.month)) + '</span><b class="plz-num">' + eur(r.amount) + (Number(p.oneriAmount) > 0 ? '<small>di cui oneri ' + eur(Number(p.oneriAmount)) + '</small>' : '') + '</b><em class="plz-pill plz-s-' + ({ overdue: 'late', reported: 'review', processing: 'review' }[r.state] || r.state) + '">' + st + '</em><small>' + esc(rep || (r.paidDate ? 'pagato il ' + dateIt(r.paidDate) : r.dueDate ? 'scadenza ' + dateIt(r.dueDate) : '')) + '</small>' +
         (acts ? '<div class="plz-rowact">' + acts + '</div>' : '') + (admin && ui.rata.open === r.id ? rataShare(u, r) : '') + '</li>';
     }).join('');
     var pdf = lease && (lease.signedPdfUrl || lease.generatedPDF);
@@ -624,15 +625,22 @@
     var pp = u.paper, reg = pp && pp.registration;
     var exp = um.leaseEnd ? expiry(um.leaseEnd, m.today) : um.state === 'incoming' && um.leaseStart ? startsIn(um.leaseStart, m.today) : '';
     var kind = leaseType(lease), dep = depositOf(lease);
+    var oneri = lease && Number(lease.oneriQuota) > 0 ? Number(lease.oneriQuota) : 0;
+    var iban = lease ? String(lease.landlordIban || '').replace(/\s+/g, '').toUpperCase() : '';
+    iban = /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(iban) ? iban.replace(/(.{4})/g, '$1 ').trim() : '';
     return '<div class="plz-pcard plz-unitcard' + (enter ? ' is-enter' : '') + '"><button type="button" class="plz-close" data-plz="deselect" aria-label="Chiudi">×</button>' +
       '<p class="plz-eyebrow">' + esc(unitWhere(u)) + '</p><h2 id="plz-unit-h" tabindex="-1">' + esc(unitTitle(u)) + '</h2>' +
       '<span class="plz-pill plz-s-' + um.state + ' plz-big">' + esc(stateLabel(um, m.month, m.currentMonth)) + ' · ' + esc(E.monthLabel(m.month).toLowerCase()) + '</span>' +
       (u.ownerMismatch && admin ? '<p class="plz-note">Non collegato al profilo di ' + esc(m.owner && (m.owner.name || m.owner.email) || 'proprietaria') + ': dal suo accesso non lo vede.</p>' : '') +
       (um.contractId ? peopleHTML(u, data) : '<p class="plz-people-names plz-muted">' + (um.state === 'vacant' ? 'Libero' + (u.time && u.time.vacantDays != null ? ' da ' + u.time.vacantDays + (u.time.vacantDays === 1 ? ' giorno' : ' giorni') : '') : esc(um.tenants.join(' · ') || '—')) + '</p>') +
+      (lease && lease.contractMissing === true ? '<p class="plz-note">' + (admin ? 'Contratto non ancora in archivio: canone, date e rate arrivano quando lo carichi.' : 'Contratto in arrivo da BOOM: canone e scadenze compariranno qui.') + '</p>' : '') +
       (um.leaseStart || um.leaseEnd ? '<div class="plz-term' + (um.leaving ? ' is-leaving' : '') + '"><p class="plz-term-k">' + esc(kind || 'Contratto') + '</p><p class="plz-term-d">' + esc((um.leaseStart ? 'dal ' + dateIt(um.leaseStart) : '') + (um.leaseEnd ? ' al ' + dateIt(um.leaseEnd) : '')) + '</p>' + (exp ? '<p class="plz-term-x">' + esc(exp) + '</p>' : '') + '</div>' : '') +
       '<dl class="plz-facts">' +
       '<div><dt>Canone</dt><dd class="plz-num">' + (um.rent != null ? eur(um.rent) + ' / mese' : '—') + '</dd></div>' +
+      (oneri ? '<div><dt>Oneri accessori</dt><dd class="plz-num">' + eur(oneri) + ' / mese <small>insieme al canone</small></dd></div>' : '') +
       (dep ? '<div><dt>Deposito</dt><dd class="plz-num">' + esc(dep) + '</dd></div>' : '') +
+      (lease && String(lease.landlordName || '').trim() ? '<div><dt>Locatore</dt><dd>' + esc(String(lease.landlordName).slice(0, 120)) + '</dd></div>' : '') +
+      (admin && lease ? '<div><dt>Conto per il bonifico</dt><dd' + (iban ? ' class="plz-num">' + esc(iban) : ' class="plz-muted">non in archivio: la pagina della rata dice «il conto di sempre»') + '</dd></div>' : '') +
       (reg ? '<div><dt>Registrazione</dt><dd class="' + (admin && reg.late ? 'plz-red' : '') + '">' + esc(regText(reg, admin)) + '</dd></div>' : '') +
       (pp && (pp.cedolare != null || admin) ? '<div><dt>Cedolare secca</dt><dd>' + (pp.cedolare === true ? 'sì' : pp.cedolare === false ? 'no' : 'non indicata nel contratto') + '</dd></div>' : '') +
       '<div><dt>Arretrati</dt><dd class="plz-num' + (u.arrears.amount ? ' plz-red' : '') + '">' + (u.arrears.amount ? eur(u.arrears.amount) + ' · ' + u.arrears.count + (u.arrears.count === 1 ? ' rata' : ' rate') + (u.arrears.oldest ? ' dal ' + dateIt(u.arrears.oldest) : '') : 'Nessuno') + '</dd></div>' +
@@ -1073,7 +1081,7 @@
     var owners = (S.users || []).filter(function (u) { return u.role === 'landlord' || u.role === 'owner'; })
       .sort(function (a, b) { return String(a.name || a.email || '').localeCompare(String(b.name || b.email || ''), 'it'); });
     return '<section class="plz-import" aria-labelledby="plz-imp-h"><p class="plz-eyebrow" id="plz-imp-h">Carica il palazzo da una tabella</p>' +
-      '<p class="plz-muted">Incolla da Excel o Google Sheets la riga dei titoli e una riga per interno. Titoli letti: Interno · Piano · Inquilino · Telefono · Email · Canone · Dal · Al · Tipo · Deposito · Cedolare · Registrato il · Pagato il · POD · PDR. Serve solo Interno; per un interno affittato anche Canone, Dal e Al. «Pagato il» vale per il primo mese di gestione.</p>' +
+      '<p class="plz-muted">Incolla da Excel o Google Sheets la riga dei titoli e una riga per interno. Titoli letti: Interno · Piano · Inquilino · Co-intestatari · Telefono · Email · Canone · Oneri · Dal · Al · Tipo · Deposito · Cedolare · Registrato il · Pagato il · Locatore · IBAN · Mq · POD · PDR. Serve solo Interno; per un interno affittato anche Canone, Dal e Al. Gli oneri fissi entrano nella rata insieme al canone; l’IBAN è il conto che l’inquilino vede per il bonifico. «Pagato il» vale per il primo mese di gestione.</p>' +
       '<div class="plz-import-f"><label><span>Indirizzo del palazzo</span><input type="text" data-imp="address" value="' + esc(st.address) + '" placeholder="Piazzale Prenestino 42, Roma" autocomplete="off"></label>' +
       '<label><span>Proprietaria</span><select data-imp="ownerId"><option value="">Scegli…</option>' + owners.map(function (u) {
         return '<option value="' + esc(u.id) + '"' + (u.id === st.ownerId ? ' selected' : '') + '>' + esc(u.name || u.email || u.id) + '</option>';
@@ -1101,15 +1109,18 @@
     var rows = P.rows.map(function (r) {
       var ex = plan && plan.properties.find(function (x) { return x.interno === r.interno; });
       var verdict = r.errors.length ? '<em class="plz-red">' + esc(r.errors.join(' · ')) + '</em>'
-        : (ex && ex.exists ? 'già in archivio' : 'nuovo') + (r.inquilino ? ' · contratto · ' + (byLine[r.interno] || 0) + ' rate' : ' · libero') + (r.pagatoSi ? ' · pagato' : '');
-      return '<tr' + (r.errors.length ? ' class="is-bad"' : '') + '><td>' + esc(r.interno) + '</td><td>' + esc(r.piano || '—') + '</td><td>' + esc(r.inquilino || '—') + '</td><td class="plz-num">' + (r.canone != null ? eur(r.canone) : '—') + '</td><td>' +
+        : (ex && ex.exists ? 'già in archivio' : 'nuovo') + (r.senzaContratto ? ' · occupato · contratto da caricare' : r.inquilino ? ' · contratto · ' + (byLine[r.interno] || 0) + ' rate' : ' · libero') + (r.pagatoSi ? ' · pagato' : '');
+      return '<tr' + (r.errors.length ? ' class="is-bad"' : '') + '><td>' + esc(r.interno) + '</td><td>' + esc(r.piano || '—') + '</td><td>' + esc(r.inquilino ? [r.inquilino].concat(r.coinquilini || []).join(' + ') : '—') + '</td><td class="plz-num">' + (r.canone != null ? eur(r.canone) + (r.oneri ? '<small>+ ' + eur(r.oneri) + ' oneri</small>' : '') : '—') + '</td><td>' +
         esc(r.dal ? dateIt(r.dal) + ' → ' + dateIt(r.al) : '—') + '</td><td>' + verdict + (r.warnings.length ? '<small>' + esc(r.warnings.join(' · ')) + '</small>' : '') + '</td></tr>';
     }).join('');
-    var c = plan ? plan.counts : { create: 0, update: 0, same: 0, contracts: 0, payments: 0, paid: 0 };
-    var can = plan && !bad.length && !planErr.length && (c.create + c.update + c.contracts + c.payments) > 0;
+    var c = plan ? plan.counts : { create: 0, update: 0, same: 0, contracts: 0, contractUpdates: 0, payments: 0, paid: 0 };
+    var cu = c.contractUpdates || 0;
+    var can = plan && !bad.length && !planErr.length && (c.create + c.update + c.contracts + cu + c.payments) > 0;
     var go = [c.create ? 'crea ' + c.create + (c.create === 1 ? ' interno' : ' interni') : '', c.update ? 'aggiorna ' + c.update + (c.update === 1 ? ' interno' : ' interni') : '',
-      c.contracts ? c.contracts + (c.contracts === 1 ? ' contratto' : ' contratti') : '', c.payments ? c.payments + (c.payments === 1 ? ' rata' : ' rate') : ''].filter(Boolean).join(', ');
-    return '<p class="plz-import-sum"><b>' + P.rows.length + (P.rows.length === 1 ? ' riga' : ' righe') + '</b> · ' + c.create + ' interni nuovi, ' + (c.update + (c.same || 0)) + ' già in archivio' + (c.update ? ' (' + c.update + ' da completare)' : '') + ' · ' + c.contracts + ' contratti · ' + c.payments + ' rate da ' + esc(E.monthLabel(plan ? plan.gestioneDal : st.from).toLowerCase()) +
+      c.contracts ? c.contracts + (c.contracts === 1 ? ' contratto' : ' contratti') : '', cu ? 'completa ' + cu + (cu === 1 ? ' contratto' : ' contratti') : '',
+      c.payments ? c.payments + (c.payments === 1 ? ' rata' : ' rate') : ''].filter(Boolean).join(', ');
+    (plan ? plan.notes : []).filter(function (n) { return /^oneri:/.test(n); }).forEach(function (n) { msgs.push('Interno ' + esc(n.slice(6)) + ': gli oneri entrano nel contratto, ma le rate già in archivio restano col solo canone — correggile da Gestisci canoni.'); });
+    return '<p class="plz-import-sum"><b>' + P.rows.length + (P.rows.length === 1 ? ' riga' : ' righe') + '</b> · ' + c.create + ' interni nuovi, ' + (c.update + (c.same || 0)) + ' già in archivio' + (c.update ? ' (' + c.update + ' da completare)' : '') + ' · ' + c.contracts + ' contratti' + (c.missing ? ' (' + c.missing + ' da caricare)' : '') + (cu ? ' (+' + cu + ' da completare)' : '') + ' · ' + c.payments + ' rate da ' + esc(E.monthLabel(plan ? plan.gestioneDal : st.from).toLowerCase()) +
       (c.paid ? ' (' + c.paid + ' segnate pagate dalla tabella)' : '') + '</p>' +
       (P.unknown.length ? '<p class="plz-muted">Colonne ignorate: ' + esc(P.unknown.join(', ')) + '.</p>' : '') +
       (msgs.length ? '<p class="plz-note">' + msgs.join(' ') + '</p>' : '') +

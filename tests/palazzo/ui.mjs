@@ -622,7 +622,9 @@ try {
       await pg.locator('[data-imp="address"]').fill('Piazzale Prenestino 42, Roma');
       const mon = await pg.locator('[data-imp="from"]').inputValue();
       const paid = '03/' + mon.slice(5, 7) + '/' + mon.slice(0, 4);
-      const bad = ['Interno\tPiano\tInquilino\tTelefono\tCanone\tDal\tAl\tPagato il', '1\tPT\tMario Rossi\t333 1234567\t1.250\t01/09/2025\t31/08/2027\t' + paid, '2\t1\t\t\t900\t\t\t', '3\t1\tAnna Bianchi\t\tabc\t01/01/2026\t31/12/2027\t'].join('\n');
+      const bad = ['Interno\tPiano\tInquilino\tCo-intestatari\tTelefono\tCanone\tOneri\tDal\tAl\tPagato il\tLocatore\tIBAN',
+        '1\tPT\tMario Rossi\tAda Uno\t333 1234567\t1.250\t120\t01/09/2025\t31/08/2027\t' + paid + '\tAcme S.r.l.\tIT60 X054 2811 1010 0000 0123 456',
+        '2\t1\t\t\t\t900\t\t\t\t\t\t', '3\t1\tAnna Bianchi\t\t\tabc\t\t01/01/2026\t31/12/2027\t\t\t'].join('\n');
       await pg.locator('[data-imp="text"]').fill(bad);
       await pg.locator('[data-plz="imp-read"]').click();
       await pg.waitForSelector('.plz-import-tab tr.is-bad');
@@ -645,6 +647,17 @@ try {
       assert.equal(await pg.locator('.plz-win[data-id]').count(), 3);
       assert.equal(await pg.locator('.plz-win[data-id="plz_piazzale-prenestino-42_1"]').getAttribute('data-state'), 'paid');
       assert.ok((await pg.locator('.plz-sub').innerText()).includes('gestione dal'));
+      const pay1 = await pg.evaluate(n => writes.slice(n).find(x => x[0].startsWith('payments/') && x[1].status === 'paid')[1], w0);
+      assert.deepEqual([pay1.amount, pay1.rentAmount, pay1.oneriAmount], [1370, 1250, 120], 'la rata è canone + oneri');
+      const con1 = await pg.evaluate(n => writes.slice(n).find(x => x[0].startsWith('contracts/') && x[1].tenantName === 'Mario Rossi')[1], w0);
+      assert.deepEqual([con1.coTenants, con1.oneriQuota, con1.landlordName, con1.landlordIban], [[{ name: 'Ada Uno' }], 120, 'Acme S.r.l.', 'IT60X0542811101000000123456']);
+      await pg.locator('.plz-win[data-id="plz_piazzale-prenestino-42_1"]').click();
+      await pg.waitForSelector('#plz-unit-h');
+      const card = await pg.locator('#plz-panel').textContent();
+      assert.ok(/Oneri accessori/.test(card), card);
+      assert.ok(/Mario Rossi/.test(card) && /Ada Uno/.test(card), 'i due intestatari');
+      assert.ok(/di cui oneri/.test(card) && /Acme S\.r\.l\./.test(card) && /IT60 X054 2811 1010 0000 0123 456/.test(card), card);
+      await pg.locator('[data-plz="deselect"]').click();
       await pg.locator('select[data-plz="building"]').selectOption(key0);
       await pg.waitForFunction(() => /Viale Esempio/.test(document.getElementById('plz-h1')?.textContent || ''));
     });

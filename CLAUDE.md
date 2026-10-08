@@ -6299,20 +6299,73 @@ NON VEDEVANO NIENTE (vedi sotto).
     d.lgs. 218/2017 — PSD2; avviso AGCM 2018) vale anche quando si chiama
     «servizio». Apple Pay compare in Checkout solo se attivo nel Dashboard
     Stripe.
-Test: `node tests/palazzo/engine.mjs` (181 check: civico, piano, 13 interni
+  * **La presa in carico coi contratti veri** (8/10 — i primi tre contratti
+    di Piazzale Prenestino 42, studenti, senza cedolare). Ciò che il foglio
+    «chi e quanto» non diceva e il contratto sì:
+    - **Co-intestatari** (colonna `Co-intestatari`, nomi separati da `,` `/`
+      `+` `e`): diventano `contract.coTenants [{name}]` — firmano e pagano
+      in solido; il Palazzo li mette accanto all'intestatario.
+    - **Oneri fissi pagati col canone** (`Oneri`, art. 5: «€ 120 mensili
+      contestualmente al canone»): `contract.oneriQuota`, e la **rata è il
+      TOTALE** che l'inquilino versa (`amount` = canone + oneri, con
+      `rentAmount`/`oneriAmount` accanto). La scheda dice «Oneri accessori
+      €120 / mese insieme al canone» e «di cui oneri» sulla rata; /rata
+      scompone il totale («canone €1.600 + oneri accessori €120») solo se le
+      voci tornano col totale. Oneri illeggibili FERMANO la riga, come il
+      canone: sbaglierebbero ogni rata.
+    - **Locatore e IBAN** (`Locatore`, `IBAN`): `contract.landlordName` /
+      `landlordIban`. Il locatore può essere una società diversa dalla
+      persona che gestisce il palazzo (lo è, qui). L'IBAN passa forma +
+      mod-97 sia alla porta sia in `rataView`: uno sbagliato NON si carica e
+      /rata dice «il conto di sempre» — mai un conto falso davanti a chi
+      paga. All'admin la scheda mostra «Conto per il bonifico» (o che
+      manca).
+    - **Mq** → `property.sqm` (fill-only).
+    - **Contratto da caricare**: inquilino con canone, inizio e fine TUTTI
+      vuoti = interno occupato con un contratto segnaposto
+      (`c_<interno>_da-caricare`, `contractMissing: true`, nessuna data,
+      nessuna rata). Il Palazzo lo dice com'è: occupato, «senza rata»,
+      canone sconosciuto (mai €0), «Da sistemare · contratto non in
+      archivio»; alla proprietaria «Contratto in arrivo da BOOM». Quando la
+      riga torna con canone e date, si **completa lo stesso contratto** e
+      nascono le rate — mai un secondo contratto vivo sullo stesso interno.
+      Un dato a metà (canone senza date) resta un errore.
+    - **Reincollare completa**: anche sul contratto si scrivono solo i campi
+      vuoti (co-intestatari solo se non ce n'è nessuno); le rate già in
+      archivio non si ricalcolano mai da qui, e se gli oneri arrivano dopo
+      il piano lo dice.
+    - **Mesi di CONTRATTO, non di calendario** (il difetto trovato sul vero):
+      il generatore contava i mesi di calendario fra inizio e fine, quindi
+      un contratto dal 15/09 al 14/08 riceveva una dodicesima rata ad
+      agosto — un canone chiesto per un mese che il contratto non ha. Ora
+      si conta come magic-sign: periodi dal giorno di decorrenza (fine mese
+      tenuto), `periodFrom`/`periodTo` sulla rata, l'ultimo periodo
+      parziale in proporzione (`prorated`), la prima scadenza mai prima
+      dell'ingresso.
+    - Facciata: due preset misurati sulla foto del cortile (al sole:
+      intonaco #ECD5C9, persiane #455553) — **Rosa chiaro** e **Verde
+      grigio**. Restano scelte dichiarate dall'admin, mai un default.
+    I dati veri (nomi, telefoni, documenti, IBAN) NON stanno nel repo: la
+    tabella per la presa in carico si prepara fuori, i test usano nomi e
+    numeri inventati.
+Test: `node tests/palazzo/engine.mjs` (203 check: civico, piano, 13 interni
 in ogni stato, trimestrale, contratto chiuso in anticipo, proposte e annunci,
 puntualità/sfitto/incassato su scaduto, la frase del mese nelle due voci,
 piani vuoti e attico, cose da sistemare, filtro proprietaria, mutazioni sul
 conteggio dei ritardi, aspetto dichiarato/neutro/anteprima, validateLook,
 giunzioni del portal, i quattro toni, registrazione e cedolare, il CSV
 che somma come la pagina, gestione BOOM dal, la presa in carico — parser,
-piano, reincollare senza doppioni, il modello che si rilegge) +
+piano, reincollare senza doppioni, il modello che si rilegge; i contratti
+veri — co-intestatari, oneri nella rata, IBAN col mod-97, locatore, mq,
+contratto da caricare che si completa, mesi di contratto e ultimo periodo
+in proporzione) +
 `node tests/palazzo/telegram.mjs` (6 check, modulo vero su Firestore in
 memoria) + `node tests/rata/run.mjs` (13 check, handler vero su Firestore
 in memoria che versiona i documenti: token di un'altra rata 404, segnalato
 mai pagato, seconda segnalazione senza doppioni, ricevuta su Storage e
 Storage giù detto, pagamento con carta nel mezzo → 409 senza ping, porte
-strette, link solo admin; quattro mutazioni prese) + `node tests/manutenzione/run.mjs` (11 check, handler vero: il
+strette, link solo admin, canone + oneri scomposti, IBAN sbagliato mai
+mostrato; quattro mutazioni prese) + `node tests/manutenzione/run.mjs` (11 check, handler vero: il
 link apre un solo interno, owner solo sui suoi — mutazione presa —, guasto
 prima della card, foto, honeypot, 429, il ping di /casa) +
 `node tests/palazzo/contatti.mjs`

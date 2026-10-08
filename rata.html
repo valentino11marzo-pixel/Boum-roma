@@ -23,6 +23,7 @@ h1{margin:0 0 4px;font-weight:300;font-size:30px;letter-spacing:.5px}
 .where{margin:0 0 20px;color:var(--muted);font-size:14px;line-height:1.5}
 .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:14px}
 .amount{font-size:44px;font-weight:200;letter-spacing:1px;margin:2px 0 4px;font-variant-numeric:tabular-nums}
+.parts{margin:0 0 6px;color:var(--muted,#8a8a8a);font-size:13px;font-variant-numeric:tabular-nums}
 .due{margin:0;font-size:14px;color:var(--muted)}
 .due.is-late{color:#FF8F97}
 .lab{display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin:0 0 9px}
@@ -71,6 +72,7 @@ input[type=date],input[type=text]{width:100%;padding:13px 14px;border-radius:14p
     it: { loading: 'Un attimo…', eyebrow: 'La tua rata', rent: 'Canone', depbal: 'Saldo deposito', other: 'Addebito', due: 'entro il', late: 'scaduta il',
       card: 'Paga con carta o Apple Pay', cardHint: 'Apple Pay compare se il telefono lo supporta. Ricevuta automatica via email.',
       cardFee: function (a, f) { return a + ' + ' + f + ' di commissione per il pagamento con carta. Il bonifico non costa niente.'; },
+      parts: function (r, o) { return 'canone ' + r + ' + oneri accessori ' + o; },
       or: 'oppure', bank: 'Ho pagato con bonifico', bankTodo: 'Se devi ancora farlo', beneficiary: 'Beneficiario', iban: 'IBAN', causale: 'Causale', copy: 'Copia', copied: 'Copiato',
       bankSame: 'Al conto di sempre, quello indicato nel contratto.', when: 'Quando hai fatto il bonifico', proof: 'Ricevuta del bonifico', proofAdd: 'Foto o PDF della ricevuta', proofChange: 'Cambia ricevuta',
       proofHint: 'Facoltativa, ma fa verificare l’incasso subito.', note: 'Una nota (facoltativa)', notePh: 'Es. pagato in due bonifici', report: 'Segnala il bonifico', sending: 'Invio…',
@@ -87,6 +89,7 @@ input[type=date],input[type=text]{width:100%;padding:13px 14px;border-radius:14p
     en: { loading: 'One moment…', eyebrow: 'Your rent', rent: 'Rent', depbal: 'Deposit balance', other: 'Charge', due: 'due by', late: 'overdue since',
       card: 'Pay by card or Apple Pay', cardHint: 'Apple Pay appears if your phone supports it. Automatic receipt by email.',
       cardFee: function (a, f) { return a + ' + ' + f + ' card payment fee. A bank transfer costs nothing.'; },
+      parts: function (r, o) { return 'rent ' + r + ' + service charges ' + o; },
       or: 'or', bank: 'I paid by bank transfer', bankTodo: 'If you still have to make it', beneficiary: 'Beneficiary', iban: 'IBAN', causale: 'Reference', copy: 'Copy', copied: 'Copied',
       bankSame: 'To the usual account, the one in your lease.', when: 'When you made the transfer', proof: 'Transfer receipt', proofAdd: 'Photo or PDF of the receipt', proofChange: 'Change receipt',
       proofHint: 'Optional, but it gets the payment checked right away.', note: 'A note (optional)', notePh: 'E.g. paid in two transfers', report: 'Report the transfer', sending: 'Sending…',
@@ -152,7 +155,7 @@ input[type=date],input[type=text]{width:100%;padding:13px 14px;border-radius:14p
     if (r.state === 'processing') { app.innerHTML = html + status('', '…', t('procH'), [t('procP')]); return; }
     if (!r.canPay) { app.innerHTML = html + status('', '?', t('otherH'), [t('otherP')], '<a class="link" href="' + WA + '" target="_blank" rel="noopener">' + esc(t('wa')) + '</a>'); return; }
     var late = r.state === 'overdue';
-    html += '<div class="card"><div class="amount">' + eur(r.amount) + '</div>' + (r.dueDate ? '<p class="due' + (late ? ' is-late' : '') + '">' + esc((late ? t('late') : t('due')) + ' ' + day(r.dueDate)) + '</p>' : '') + '</div>';
+    html += '<div class="card"><div class="amount">' + eur(r.amount) + '</div>' + (r.parts ? '<p class="parts">' + esc(T[lang].parts(eur(r.parts.rent), eur(r.parts.oneri))) + '</p>' : '') + (r.dueDate ? '<p class="due' + (late ? ' is-late' : '') + '">' + esc((late ? t('late') : t('due')) + ' ' + day(r.dueDate)) + '</p>' : '') + '</div>';
     if (payUrl) html += '<a class="btn" id="card" href="' + esc(payUrl) + '">' + esc(t('card')) + '</a><p class="hint">' + esc(r.cardFee > 0 ? T[lang].cardFee(eur(r.amount), eur(r.cardFee)) : t('cardHint')) + (r.cardFee > 0 ? ' ' + esc(t('cardHint')) : '') + '</p>';
     html += '<div class="or">' + esc(t('or')) + '</div>';
     if (!open) { html += '<button type="button" class="btn ghost" id="bank">' + esc(t('bank')) + '</button>'; app.innerHTML = html; document.getElementById('bank').onclick = function () { open = true; render(); }; return; }

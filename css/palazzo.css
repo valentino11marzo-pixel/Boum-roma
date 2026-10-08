@@ -593,3 +593,6 @@
 .plz-rataitem.is-sent .plz-rataitem-h{opacity:.6}
 .plz-rataitem .plz-rshare{margin:0}
 .plz-linkbtn{background:none;border:0;padding:0;color:var(--gold,#D4AF37);font:inherit;text-decoration:underline;cursor:pointer}
+/* Oneri fissi pagati col canone: la rata è il totale, la voce sta sotto */
+.plz-rows li b small{display:block;font-weight:400;text-align:right;letter-spacing:0}
+.plz-facts dd small{color:var(--text-muted,#666);font-size:11px;margin-left:4px}

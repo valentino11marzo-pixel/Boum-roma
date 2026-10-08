@@ -230,6 +230,15 @@ await check('rataView pura: la commissione si mostra solo su una rata pagabile, 
   assert.equal(v.kind, 'depbal'); assert.ok(v.cardFee > 0);
   assert.equal(rataView({ id: 'x', amount: 400, status: 'paid', paidDate: '2026-10-01' }, {}).cardFee, 0);
 });
+await check('canone + oneri: la pagina dice di cosa è fatto il totale; un IBAN che non passa il mod-97 non si mostra', async () => {
+  const v = rataView({ id: 'o1', type: 'rent', amount: 1720, rentAmount: 1600, oneriAmount: 120, status: 'pending', month: '2026-11', dueDate: '2026-11-05' },
+    { contract: { landlordIban: 'IT60X0542811101000000123457', landlordName: 'Acme S.r.l.' }, today: '2026-10-20' });
+  assert.deepEqual(v.parts, { rent: 1600, oneri: 120 });
+  assert.deepEqual([v.bonifico.iban, v.bonifico.beneficiary], ['', ''], 'una cifra sbagliata = «il conto di sempre», mai un conto falso');
+  assert.equal(rataView({ id: 'o2', amount: 1700, rentAmount: 1600, oneriAmount: 120, status: 'pending' }, {}).parts, null, 'voci che non tornano col totale: non si scompone');
+  const page = readFileSync(new URL('../../rata.html', import.meta.url), 'utf8');
+  assert.ok(page.includes('r.parts') && page.includes('oneri accessori'));
+});
 await check('giunzioni: la pagina parla con questa porta, dice la commissione, è noindex/no-store; il Palazzo la usa', async () => {
   const page = readFileSync(new URL('../../rata.html', import.meta.url), 'utf8');
   assert.ok(page.includes("fetch('/api/payments/rata'") && page.includes('noindex'));

@@ -81,6 +81,19 @@ function isoOf(v) {
   return '';
 }
 
+// Il conto che l'inquilino vede per il bonifico: forma E controllo mod-97.
+// Un IBAN sbagliato è peggio di nessuno (il pagamento parte e non arriva):
+// se non torna, la pagina dice «il conto di sempre».
+function ibanOk(v) {
+  const ib = String(v || '').replace(/\s+/g, '').toUpperCase();
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(ib)) return '';
+  const r = ib.slice(4) + ib.slice(0, 4);
+  let n = '', rem = 0;
+  for (const ch of r) n += /[A-Z]/.test(ch) ? String(ch.charCodeAt(0) - 55) : ch;
+  for (let i = 0; i < n.length; i += 7) rem = Number(String(rem) + n.slice(i, i + 7)) % 97;
+  return rem === 1 ? ib : '';
+}
+
 // Le parole della pagina, dalla rata. Pura: si testa senza rete.
 export function rataView(p, { property, contract, feeStats, today } = {}) {
   const pay = p || {}, state = RENT.paymentState(pay, today), amount = RENT.amount(pay.amount);
@@ -88,7 +101,8 @@ export function rataView(p, { property, contract, feeStats, today } = {}) {
   const pr = property || {}, c = contract || {};
   const interno = clip(pr.interno || c.unit, 12);
   const building = clip(pr.palazzoNome || String(pr.address || c.propertyAddress || '').split(',')[0] || pr.name, 120);
-  const iban = String(c.landlordIban || '').replace(/\s+/g, '').toUpperCase();
+  const iban = ibanOk(c.landlordIban);
+  const rentPart = RENT.amount(pay.rentAmount), oneriPart = RENT.amount(pay.oneriAmount);
   const view = {
     label: paymentLabel(pay).replace(/ — \d{4}-\d{2}$/, ''),
     kind: RENT.isRentPayment(pay) ? 'rent' : String(pay.type || '').toLowerCase() === 'deposit-balance' ? 'depbal' : 'other',
@@ -103,7 +117,10 @@ export function rataView(p, { property, contract, feeStats, today } = {}) {
     hasProof: state === 'reported' && !!pay.proofUrl,
     canWithdraw: pay.tenantReported === true && ['pending', 'due', 'overdue'].includes(String(pay.status || '').toLowerCase()),
     cardFee: 0,
-    bonifico: { causale: payCausale(pay), iban: /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(iban) ? iban : '', beneficiary: iban ? clip(c.landlordName, 120) : '' },
+    // Canone + oneri fissi pagati insieme (la rata è il totale): si dice
+    // di cosa è fatto il numero, solo se le due voci tornano col totale.
+    parts: oneriPart > 0 && rentPart > 0 && amount != null && Math.abs(rentPart + oneriPart - amount) < 0.01 ? { rent: rentPart, oneri: oneriPart } : null,
+    bonifico: { causale: payCausale(pay), iban, beneficiary: iban ? clip(c.landlordName, 120) : '' },
   };
   if (view.canPay && amount != null) view.cardFee = rentFee(amount, feeStats || null);
   return view;

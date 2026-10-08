@@ -911,7 +911,8 @@ Valentyne - BOOM Rome`
         if (!isAdmin() || !plan || !Array.isArray(plan.properties)) return false;
         const P = plan.properties, C = plan.contracts || [], R = plan.payments || [];
         const newP = P.filter(p => !p.exists).length, updP = P.length - newP;
-        if (!confirm(`Caricare il palazzo ${plan.label}?\n\n${newP} interni nuovi${updP ? `, ${updP} già in archivio (solo i campi vuoti)` : ''}\n${C.length} contratti\n${R.length} rate da ${(window.BOOM_PALAZZO?.monthLabel(plan.gestioneDal) || plan.gestioneDal).toLowerCase()}\n\nNessuna email parte agli inquilini.`)) return false;
+        const newC = C.filter(c => !c.exists).length, updC = C.length - newC;
+        if (!confirm(`Caricare il palazzo ${plan.label}?\n\n${newP} interni nuovi${updP ? `, ${updP} già in archivio (solo i campi vuoti)` : ''}\n${newC} contratti${updC ? `, ${updC} già in archivio (solo i campi vuoti)` : ''}\n${R.length} rate da ${(window.BOOM_PALAZZO?.monthLabel(plan.gestioneDal) || plan.gestioneDal).toLowerCase()}\n\nNessuna email parte agli inquilini.`)) return false;
         try {
             const exists = async (col, ids) => {
                 const out = new Set();
@@ -919,7 +920,7 @@ Valentyne - BOOM Rome`
                 return out;
             };
             const propHave = await exists('properties', P.filter(p => !p.exists).map(p => p.id));
-            const conHave = await exists('contracts', C.map(c => c.id));
+            const conHave = await exists('contracts', C.filter(c => !c.exists).map(c => c.id));
             const payHave = new Set();
             const cids = [...new Set(R.map(r => r.data.contractId))];
             for (let i = 0; i < cids.length; i += 10) {
@@ -932,7 +933,10 @@ Valentyne - BOOM Rome`
                 if (p.exists) ops.push(['update', 'properties', p.id, { ...p.data, palazzoImportAt: ts, palazzoImportBy: by }]);
                 else if (!propHave.has(p.id)) ops.push(['set', 'properties', p.id, { ...p.data, createdAt: ts, palazzoImportBy: by }]);
             });
-            C.forEach(c => { if (!conHave.has(c.id)) ops.push(['set', 'contracts', c.id, { ...c.data, createdAt: ts, palazzoImportBy: by }]); });
+            C.forEach(c => {
+                if (c.exists) ops.push(['update', 'contracts', c.id, { ...c.data, palazzoImportAt: ts, palazzoImportBy: by }]);
+                else if (!conHave.has(c.id)) ops.push(['set', 'contracts', c.id, { ...c.data, createdAt: ts, palazzoImportBy: by }]);
+            });
             R.forEach(r => { if (!payHave.has(r.id)) ops.push(['set', 'payments', r.id, { ...r.data, createdAt: ts }]); });
             for (let i = 0; i < ops.length; i += 400) {
                 const batch = db.batch();
@@ -951,7 +955,7 @@ Valentyne - BOOM Rome`
             });
             const skipped = (P.length - ops.filter(o => o[1] === 'properties').length) + (C.length - ops.filter(o => o[1] === 'contracts').length) + (R.length - ops.filter(o => o[1] === 'payments').length);
             logActivity('palazzo_import', 'property', { building: plan.label, properties: P.length, contracts: C.length, payments: R.length, skipped });
-            toast('success', 'Palazzo caricato', `${newP} interni · ${C.length} contratti · ${R.length} rate${skipped ? ` · ${skipped} già in archivio, non toccati` : ''}`);
+            toast('success', 'Palazzo caricato', `${newP} interni · ${newC} contratti${updC ? ` (+${updC} completati)` : ''} · ${R.length} rate${skipped ? ` · ${skipped} già in archivio, non toccati` : ''}`);
             return true;
         } catch (err) { toast('error', 'Caricamento non riuscito', err.message); return false; }
     }

@@ -312,6 +312,76 @@ eq('cedolareDeclared: anche canone.cedolareSecca e "Sì"; ciò che non si legge 
   eq('…e il mese prima è «Prima di BOOM», non due arretrati', lm.units.find(u => u.interno === '1').arrears.count, 0);
   ok('il modello da scaricare si rilegge da solo senza errori', P.parseRentRoll(P.RR_TEMPLATE).rows.every(r => !r.errors.length));
 }
+// ── 12b. Quello che i contratti veri aggiungono (Prenestino, 8/10) ──────
+// Due studenti per interno in solido, oneri fissi pagati col canone, un
+// locatore che è una società col suo conto. Nomi e numeri inventati.
+{
+  const mm = F.month.slice(5, 7) + '/' + F.month.slice(0, 4);
+  const T = ['Interno\tPiano\tInquilino\tCo-intestatari\tTelefono\tCanone\tOneri\tDal\tAl\tTipo\tDeposito\tCedolare\tLocatore\tIBAN\tMq',
+    '7\tsecondo\tAda Uno\tBea Due\t+90 533 000 00 00\t1.600\t120 €/mese\t01/' + mm + '\t30/06/2027\tstudenti\t3200\tno\tAcme S.r.l.\tIT60 X054 2811 1010 0000 0123 456\t48,06',
+    '11\tterzo\tCarlo Tre\tDino Quattro / Carlo Tre + Eva Cinque\t+39 351 000 0000\t1500\t120\t01/' + mm + '\t30/06/2027\tstudenti\t3000\tno\tAcme S.r.l.\tIT60X0542811101000000123457\t48',
+    '13\t\tElsa Sei\t\t\t1600\tcentoventi\t01/' + mm + '\t30/06/2027\tstudenti\t\t\t\t\t'].join('\n');
+  const R = P.parseRentRoll(T);
+  eq('i titoli nuovi si riconoscono, nessuna colonna ignorata', [R.columns.coinquilini, R.columns.oneri, R.columns.locatore, R.columns.iban, R.columns.mq, R.unknown], [3, 6, 12, 13, 14, []]);
+  const [a, b, c] = R.rows;
+  eq('una riga del contratto vero: co-intestatari, oneri «120 €/mese», IBAN con gli spazi, mq con la virgola', [a.coinquilini, a.oneri, a.iban, a.mq, a.locatore, a.errors],
+    [['Bea Due'], 120, 'IT60X0542811101000000123456', 48.06, 'Acme S.r.l.', []]);
+  eq('i co-intestatari si separano con / + e, senza ripetere l\'intestatario', b.coinquilini, ['Dino Quattro', 'Eva Cinque']);
+  ok('un IBAN che non passa il controllo NON si carica e lo si dice', b.iban === '' && b.warnings.some(w => /IBAN .* non valido/.test(w)) && !b.errors.length);
+  ok('oneri illeggibili fermano la riga (sbaglierebbero la rata), come il canone', c.errors.some(e => /^oneri «centoventi»/.test(e)));
+  const plan = P.planImport([a, b], P.context({ properties: [], now: NOW }), { address: 'Via Prova 9, Roma', ownerId: 'o', gestioneDal: F.month });
+  const ca = plan.contracts.find(x => x.interno === '7').data, cb = plan.contracts.find(x => x.interno === '11').data;
+  eq('il contratto porta chi firma con lui, gli oneri, il locatore e il conto', [ca.coTenants, ca.oneriQuota, ca.landlordName, ca.landlordIban], [[{ name: 'Bea Due' }], 120, 'Acme S.r.l.', 'IT60X0542811101000000123456']);
+  ok('…e senza un IBAN valido il contratto non ne inventa uno', !('landlordIban' in cb));
+  const pa = plan.payments.find(x => x.interno === '7').data;
+  eq('LA RATA È IL TOTALE che l\'inquilino versa, con le due voci accanto', [pa.amount, pa.rentAmount, pa.oneriAmount], [1720, 1600, 120]);
+  eq('l\'interno prende i mq (fill-only)', plan.properties.find(x => x.interno === '7').data.sqm, 48.06);
+  const loaded = P.context({ now: NOW,
+    properties: plan.properties.map(x => ({ id: x.id, ...x.data })),
+    contracts: plan.contracts.map(x => ({ id: x.id, ...x.data, ...(x.interno === '11' ? { oneriQuota: '', coTenants: [{ name: 'Già Scritto' }] } : {}) })),
+    payments: plan.payments.map(x => ({ id: x.id, ...x.data })) });
+  const b2 = { ...b, iban: 'IT60X0542811101000000123456' };
+  const again = P.planImport([a, b2], loaded, { address: 'Via Prova 9', ownerId: 'o', gestioneDal: F.month });
+  const upd = again.contracts.filter(x => x.exists);
+  eq('reincollata: solo i campi vuoti del contratto, mai i co-intestatari già scritti, nessuna rata nuova', [upd.map(x => [x.interno, x.data]), again.counts.contractUpdates, again.counts.payments],
+    [[['11', { oneriQuota: 120, landlordIban: 'IT60X0542811101000000123456' }]], 1, 0]);
+  ok('se gli oneri arrivano dopo le rate, il piano lo dice (le rate in archivio non si ricalcolano da qui)', again.notes.includes('oneri:11'));
+  const lm = P.model(loaded, again.buildingKey, F.month);
+  const u7 = lm.units.find(u => u.interno === '7');
+  eq('il Palazzo legge i due intestatari e atteso = canone + oneri', [u7.month.tenants, u7.month.expected, u7.month.rent], [['Ada Uno', 'Bea Due'], 1720, 1600]);
+}
+// ── 12b-bis. Mesi di CONTRATTO, non di calendario ──────────────────────
+{
+  const R = P.parseRentRoll('Interno\tInquilino\tCanone\tOneri\tDal\tAl\n7\tAda Uno\t1600\t120\t15/09/2026\t14/08/2027\n8\tBea Due\t1000\t\t01/09/2026\t15/06/2027\n9\tCia Tre\t900\t\t31/01/2027\t29/04/2027\n').rows;
+  const pl = P.planImport(R, P.context({ properties: [], now: '2026-09-01T10:00:00Z' }), { address: 'Via Prova 9', ownerId: 'o', gestioneDal: '2026-09' });
+  const r7 = pl.payments.filter(x => x.interno === '7').map(x => x.data);
+  eq('dal 15/09 al 14/08 sono UNDICI rate (settembre → luglio), mai una dodicesima ad agosto', [r7.length, r7[0].month, r7.at(-1).month, r7.at(-1).periodFrom, r7.at(-1).periodTo, r7.at(-1).amount],
+    [11, '2026-09', '2027-07', '2027-07-15', '2027-08-14', 1720]);
+  eq('la prima scadenza non cade prima dell\'ingresso', r7[0].dueDate, '2026-09-15');
+  const r8 = pl.payments.filter(x => x.interno === '8').map(x => x.data);
+  eq('l\'ultimo periodo parziale si paga in proporzione (1–15 giugno = 15/30), dichiarato', [r8.length, r8.at(-1).amount, r8.at(-1).prorated, r8[0].prorated], [10, 500, true, undefined]);
+  eq('fine mese tenuto: dal 31/01 il periodo dopo parte il 28/02', pl.payments.filter(x => x.interno === '9').map(x => x.data.periodFrom), ['2027-01-31', '2027-02-28', '2027-03-31']);
+}
+// ── 12c. Chi abita lì ma il contratto non è ancora arrivato ────────────
+{
+  const mm = F.month.slice(5, 7) + '/' + F.month.slice(0, 4);
+  const R = P.parseRentRoll('Interno\tInquilino\tTelefono\tCanone\tDal\tAl\n14\tGaia Sette\t+39 324 000 0000\t\t\t\n5\tIda Otto\t\t1200\t\t\n');
+  const [a, b] = R.rows;
+  ok('inquilino senza canone NÉ date: occupato, contratto da caricare (avviso, non errore)', a.senzaContratto && !a.errors.length && a.warnings.some(w => /contratto da caricare/.test(w)));
+  ok('…ma un dato a metà (canone senza date) resta un errore', !b.senzaContratto && b.errors.some(e => /inizio mancante/.test(e)));
+  const plan = P.planImport([a], P.context({ properties: [], now: NOW }), { address: 'Via Prova 9, Roma', ownerId: 'o', gestioneDal: F.month });
+  const c0 = plan.contracts[0];
+  eq('nasce l\'interno occupato e un contratto segnaposto: nessuna data, nessuna rata', [plan.properties[0].data.availabilityStatus, c0.id.endsWith('_da-caricare'), c0.data.contractMissing, c0.data.startDate, plan.payments.length, plan.counts.missing],
+    ['rented', true, true, undefined, 0, 1]);
+  const loaded = P.context({ now: NOW, properties: plan.properties.map(x => ({ id: x.id, ...x.data })), contracts: plan.contracts.map(x => ({ id: x.id, ...x.data })) });
+  const lm = P.model(loaded, plan.buildingKey, F.month), u = lm.units[0];
+  eq('il Palazzo lo dice com\'è: occupato, senza rata, canone sconosciuto (mai €0), e in Da sistemare', [u.month.occupied, u.month.state, u.month.rent, lm.issues.map(i => i.code)], [true, 'norate', null, ['unplaced', 'nocontract']]);
+  eq('reincollato com\'è: niente di nuovo', P.planImport([a], loaded, { address: 'Via Prova 9', ownerId: 'o', gestioneDal: F.month }).contracts.length, 0);
+  const full = P.parseRentRoll('Interno\tInquilino\tCanone\tOneri\tDal\tAl\n14\tGaia Sette\t1100\t120\t01/' + mm + '\t30/06/2027\n').rows;
+  const done = P.planImport(full, loaded, { address: 'Via Prova 9', ownerId: 'o', gestioneDal: F.month });
+  eq('arrivato il contratto: si COMPLETA lo stesso (mai un secondo contratto vivo) e nascono le rate', [done.contracts.length, done.contracts[0].id, done.contracts[0].exists, done.contracts[0].data.contractMissing, done.contracts[0].data.rent, done.payments[0].data.contractId === c0.id, done.payments[0].data.amount],
+    [1, c0.id, true, false, 1100, true, 1220]);
+}
 {
   const app2 = readFileSync(new URL('../../js/portal-app.js', import.meta.url), 'utf8');
   ok('la presa in carico è solo admin, con conferma, e chiede al SERVER cosa esiste prima di scrivere', /async function palazzoImport\(plan\) \{\s*if \(!isAdmin\(\)[\s\S]{0,900}confirm\([\s\S]{0,700}\.get\(\)[\s\S]{0,600}where\('contractId', 'in'/.test(app2));
