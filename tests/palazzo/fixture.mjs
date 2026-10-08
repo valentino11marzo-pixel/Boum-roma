@@ -62,7 +62,8 @@ export function buildFixture(now = new Date()) {
   payments.push(pay(3, 0, 1000, 'pending', { dueDate: D(-3) }));
   payments.push(pay(5, 0, 950, 'pending', { dueDate: D(4) }));
   payments.push(pay(5, -1, 950, 'paid', { paidDate: M(-1) + '-12' }));   // pagata con 7 giorni di ritardo
-  payments.push(pay(6, 0, 1200, 'pending', { dueDate: D(-1), tenantReported: true }));
+  payments.push(pay(6, 0, 1200, 'pending', { dueDate: D(-1), tenantReported: true, tenantReportDate: D(-1), tenantNotes: 'pagato dal conto di mia madre',
+    proofUrl: 'https://firebasestorage.googleapis.com/v0/b/demo/o/payment-proofs%2Flink-p6%2Fricevuta.jpg?alt=media' }));
   payments.push(pay(6, -1, 1200, 'paid'));
   payments.push({ id: 'p10_q', propertyId: 'u10', contractId: 'c10', type: 'rent', month: M(-1), coversTo: M(1), amount: 3900, status: 'paid', dueDate: M(-1) + '-05', paidDate: M(-1) + '-04', installmentMonths: 3 });
   payments.push(pay(12, 0, 800, 'pending', { dueDate: D(-6) }));

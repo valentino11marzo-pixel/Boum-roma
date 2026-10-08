@@ -14,6 +14,8 @@ import { loadChromium, launchOptions } from '../_browser.mjs';
 import { buildFixture } from './fixture.mjs';
 import { buildFixture18 } from './fixture18.mjs';
 import { contactsOf } from '../../api/owners/contatti.js';
+import { rataView } from '../../api/payments/rata.js';
+import RENT from '../../js/rent-engine.js';
 
 const ROOT = fileURLToPath(new URL('../../', import.meta.url));
 const src = readFileSync(new URL('../../js/portal-app.js', import.meta.url), 'utf8');
@@ -41,6 +43,7 @@ function toast(...a){demoActions.push(['toast',...a]);}
 function openRentUnit(id,month){demoActions.push(['rent',id,month]);}
 function viewContract(id){demoActions.push(['contract',id]);}
 function showPaymentLink(kind,id){demoActions.push(['payLink',kind,id]);}
+function confirmRentPayment(id){demoActions.push(['record',id]);}
 function openModal(type,data){demoActions.push([type,data&&data.id]);}
 function downloadContractPDF(id){demoActions.push(['pdf',id]);}
 function openFirmaOra(id){demoActions.push(['firma',id]);}
@@ -66,7 +69,10 @@ const landlord = { ...F.state, profile: { id: 'owner-demo', role: 'landlord', na
   // dal suo accesso il loader porta solo i suoi immobili (rules + query ownerId)
   properties: F.state.properties.filter(p => p.ownerId === 'owner-demo'), users: [F.state.users[0]] };
 
-const contactCalls = [], contactFail = { on: false }, guastoCalls = [];
+const contactCalls = [], contactFail = { on: false }, guastoCalls = [], rataCalls = [];
+// La porta /api/payments/rata, finta ma con le parti VERE: rataView (le parole
+// della pagina) e il motore delle rate per dire cosa si può ancora pagare.
+const rataPays = new Map(F.state.payments.map(p => [p.id, { ...p }]));
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url, 'http://localhost'), path = url.pathname;
@@ -96,6 +102,29 @@ const server = createServer(async (req, res) => {
         res.end(JSON.stringify({ ok: true, links })); return;
       }
       res.statusCode = 400; res.end('{"ok":false}'); return;
+    }
+    if (path === '/api/payments/rata' && req.method === 'POST') {
+      let body = ''; for await (const ch of req) body += ch;
+      const who = String(req.headers.authorization || '').replace(/^Bearer demo-/, ''), b = JSON.parse(body);
+      rataCalls.push({ who, ...b, proof: b.proof ? { type: b.proof.type, size: String(b.proof.base64 || '').length } : null });
+      res.setHeader('Content-Type', 'application/json');
+      if (b.op === 'links') {
+        if (who !== 'demo-admin') { res.statusCode = 403; res.end('{"ok":false,"error":"forbidden"}'); return; }
+        const links = {}, skipped = {};
+        for (const id of b.paymentIds) { const p = rataPays.get(id), why = p ? RENT.paymentBlockReason(p, 'rent') : 'not_found'; if (why) skipped[id] = why; else links[id] = 'https://www.boomrome.com/rata?id=' + id + '&t=demo'; }
+        res.end(JSON.stringify({ ok: true, links, skipped })); return;
+      }
+      const p = rataPays.get(b.id);
+      if (!p || b.t !== 'demo') { res.statusCode = 404; res.end('{"ok":false,"error":"invalid_link"}'); return; }
+      const c = F.state.contracts.find(x => x.id === p.contractId), pr = F.state.properties.find(x => x.id === p.propertyId);
+      if (b.op === 'report') {
+        if (!RENT.canPay(p)) { res.statusCode = 409; res.end('{"ok":false,"error":"state_changed"}'); return; }
+        Object.assign(p, { tenantReported: true, tenantReportedAt: new Date().toISOString(), tenantReportDate: b.date, tenantNotes: b.note || '', ...(b.proof ? { proofUrl: 'https://firebasestorage.googleapis.com/v0/b/demo/o/x.jpg?alt=media' } : {}) });
+        res.end(JSON.stringify({ ok: true, state: 'reported', proof: !!b.proof, proofFailed: false })); return;
+      }
+      if (b.op === 'withdraw') { Object.assign(p, { tenantReported: false, tenantReportedAt: null }); res.end('{"ok":true}'); return; }
+      const view = rataView(p, { property: pr, contract: { ...c, landlordIban: 'IT60X0542811101000000123456', landlordName: 'Proprietaria Demo' } });
+      res.end(JSON.stringify({ ok: true, rata: view, payUrl: view.canPay ? 'https://www.boomrome.com/api/payments/link?k=pay&id=' + p.id + '&t=demo' : '' })); return;
     }
     if (path === '/api/owners/contatti' && req.method === 'POST') {
       let body = ''; for await (const ch of req) body += ch;
@@ -213,13 +242,55 @@ try {
       await pg.locator('[data-plz="today"]').click();
       assert.ok(await h.evaluate(e => e.isConnected));
     });
-    await check('Semplice: chi non ha pagato, con UN tasto per sollecitare', async () => {
+    await check('Semplice: chi non ha pagato, con UN tasto: il link della SUA rata su WhatsApp, col messaggio già scritto', async () => {
       const card = pg.locator('.plz-scard.is-late');
       assert.equal(await card.locator('.plz-srow').count(), 2);
-      await card.locator('[data-plz="paylink"]').first().click();
-      const last = await pg.evaluate(() => demoActions.at(-1));
-      assert.deepEqual(last.slice(0, 2), ['payLink', 'pay']);
-      assert.ok(/^p12_/.test(last[2]), last[2]);
+      const r0 = rataCalls.length;
+      await card.locator('[data-plz="rata"]').nth(1).click();          // int. 3: ha un telefono
+      const wa = pg.locator('#plz-panel .plz-rshare a[href^="https://wa.me/"]');
+      await wa.waitFor({ timeout: 4000 }).catch(async e => { console.log('DEBUG', await pg.evaluate(() => JSON.stringify({ sel: BOOM_PALAZZO_UI.ui.selected, rata: BOOM_PALAZZO_UI.ui.rata, panel: (document.getElementById('plz-panel')||{}).innerHTML?.slice(0, 600) }))); throw e; });
+      const href = decodeURIComponent(await wa.getAttribute('href'));
+      assert.ok(href.startsWith('https://wa.me/390000000003?text='), href);
+      assert.ok(href.includes('Ciao Inquilino, ecco la rata di') && href.includes('(int. 3): €1.000, scaduta il ') && href.includes('carta o Apple Pay') &&
+        href.includes('bonifico con la foto della ricevuta') && /\/rata\?id=p3_\d{4}-\d{2}&t=demo$/.test(href), href);
+      assert.equal(rataCalls.length - r0, 1);
+      assert.deepEqual([rataCalls.at(-1).op, rataCalls.at(-1).who], ['links', 'demo-admin']);
+      await wa.click();
+      await pg.waitForFunction(() => /Inviato/.test(document.querySelector('#plz-panel .plz-rshare a')?.textContent || ''));
+      assert.equal(await pg.evaluate(() => demoActions.filter(a => a[0] === 'payLink').length), 0, 'dal Palazzo mai più il link Stripe nudo: carta E bonifico');
+      // int. 12 non ha telefono: il messaggio si copia, non si inventa un numero
+      await card.locator('[data-plz="rata"]').first().click();
+      await pg.waitForSelector('#plz-panel .plz-rshare [data-plz="copy-link"]');
+      assert.equal(await pg.locator('#plz-panel .plz-rshare a[href^="https://wa.me/"]').count(), 0);
+      assert.ok((await pg.locator('#plz-panel .plz-rshare').innerText()).includes('Nessun telefono in archivio'));
+      await pg.locator('[data-plz="deselect"]').click();
+    });
+    await check('Rate del mese: un elenco, un tap a testa — chi ha già segnalato il bonifico non riceve il link', async () => {
+      const r0 = rataCalls.length;
+      await pg.locator('[data-plz="rata-all"]').click();
+      await pg.waitForFunction(() => document.querySelectorAll('#plz-ratalist .plz-rshare input').length === 3);
+      const items = await pg.locator('#plz-ratalist .plz-rataitem-h').allInnerTexts();
+      assert.equal(items.length, 3, items.join(' | '));
+      assert.ok(items[0].startsWith('Int. 3') && items[1].startsWith('Int. 12') && items[2].startsWith('Int. 5'), items.join(' | '));   // gli scaduti prima, poi per interno
+      assert.ok(!items.some(t => t.startsWith('Int. 6')), 'int. 6 ha segnalato il bonifico');
+      assert.equal(rataCalls.length - r0, 1, 'una richiesta sola per tutti');
+      assert.deepEqual(rataCalls.at(-1).paymentIds.map(id => id.split('_')[0]), ['p5'], 'i link di int. 3 e 12 erano già in tasca: si chiede solo quello che manca');
+      await pg.locator('[data-plz="rata-all"]').click();
+      assert.equal(await pg.locator('#plz-ratalist').count(), 0);
+    });
+    await check('scheda: il bonifico segnalato si vede con la ricevuta, e l\'incasso lo registra un umano', async () => {
+      await pg.locator('.plz-win[data-id="u6"]').scrollIntoViewIfNeeded();
+      await pg.locator('.plz-win[data-id="u6"]').click();
+      await pg.waitForSelector('#plz-panel .plz-rowact');
+      const row = pg.locator('#plz-panel .plz-rows li').first();
+      const txt = await row.innerText();
+      assert.ok(/bonifico segnalato del \d+ \w+ \d{4} · «pagato dal conto di mia madre»/.test(txt), txt);
+      assert.equal(await row.locator('a', { hasText: 'Ricevuta' }).getAttribute('href'), 'https://firebasestorage.googleapis.com/v0/b/demo/o/payment-proofs%2Flink-p6%2Fricevuta.jpg?alt=media');
+      assert.equal(await row.locator('[data-plz="rata"]').count(), 0, 'chi ha segnalato non riceve un altro link');
+      await row.locator('[data-plz="record"]').click();
+      assert.deepEqual((await pg.evaluate(() => demoActions.at(-1))).slice(0, 1), ['record']);
+      assert.ok(/^p6_/.test(await pg.evaluate(() => demoActions.at(-1)[1])));
+      await pg.locator('[data-plz="deselect"]').click();
     });
     await check('Semplice: i liberi dicono cosa succede (trattativa, sito, da quanto)', async () => {
       const txt = await pg.locator('.plz-scard').filter({ hasText: 'Liberi' }).innerText();
@@ -614,7 +685,7 @@ try {
       await pg.locator('.plz-unit[data-id="u3"]').evaluate(e => e.scrollIntoView({ block: 'center' }));
       await pg.locator('.plz-unit[data-id="u3"]').click({ force: true });
       await pg.waitForSelector('#plz-unit-h');
-      assert.equal(await pg.locator('#plz-panel [data-plz="rent"], #plz-panel [data-plz="edit"], #plz-panel [data-plz="dossier"]').count(), 0);
+      assert.equal(await pg.locator('#plz-panel [data-plz="rent"], #plz-panel [data-plz="edit"], #plz-panel [data-plz="dossier"], #plz-panel [data-plz="rata"], #plz-panel [data-plz="record"], [data-plz="rata-all"]').count(), 0);
       assert.equal(await pg.locator('#plz-panel [data-plz="inbox"]').count(), 1);
       assert.ok(!(await pg.locator('#plz-panel').innerText()).includes('Proposta'), 'le proposte restano all\'operatore');
     });
@@ -632,6 +703,40 @@ try {
       await pg.waitForSelector('#plz-panel .plz-okline');
       assert.deepEqual([guastoCalls.at(-1).who, guastoCalls.at(-1).propertyId], ['owner-demo', 'u11']);
       await pg.locator('[data-plz="deselect"]').click();
+    });
+    if (width === 390) await check('/rata dal telefono dell\'inquilino: carta con la commissione detta prima, oppure bonifico con la ricevuta', async () => {
+      const p5 = F.state.payments.find(p => p.propertyId === 'u5' && p.status === 'pending');
+      const g = await context.newPage();
+      g.on('pageerror', e => errors.push(e.message));
+      await g.goto(base + '/rata.html?id=' + p5.id + '&t=demo');
+      await g.waitForSelector('.amount');
+      assert.equal(await g.locator('.amount').innerText(), '€950');
+      assert.ok((await g.locator('h1').innerText()).startsWith('Canone · '));
+      assert.equal(await g.locator('.where').innerText(), 'Viale Esempio 12 · int. 5');
+      const card = g.locator('#card');
+      assert.equal(await card.getAttribute('href'), 'https://www.boomrome.com/api/payments/link?k=pay&id=' + p5.id + '&t=demo');
+      assert.ok(/€950 \+ €[\d,]+ di commissione per il pagamento con carta\. Il bonifico non costa niente\./.test(await g.locator('.hint').first().innerText()));
+      await g.locator('#bank').click();
+      assert.ok((await g.locator('.kv').innerText()).includes('IT60 X054 2811 1010 0000 0123 456'));
+      assert.ok(/BOOM-[2-9A-HJ-NP-Z]{6} canone \d{4}-\d{2}/.test(await g.locator('.kv').innerText()));
+      const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==', 'base64');
+      await g.locator('#pf').setInputFiles({ name: 'ricevuta.png', mimeType: 'image/png', buffer: png });
+      await g.waitForSelector('.proof img');
+      await g.locator('#nt').fill('pagato ieri sera');
+      await g.locator('#send').click();
+      await g.waitForSelector('.status h2');
+      assert.equal(await g.locator('.status h2').innerText(), 'Bonifico segnalato');
+      const rep = rataCalls.filter(c => c.op === 'report').at(-1);
+      assert.deepEqual([rep.op, rep.id, rep.note, rep.proof && rep.proof.type], ['report', p5.id, 'pagato ieri sera', 'image/jpeg']);
+      assert.equal(await g.locator('#card').count(), 0, 'segnalato: niente più carta, un secondo pagamento sarebbe un doppione');
+      await g.locator('#wd').click();
+      await g.waitForSelector('#card');
+      await g.locator('[data-lang="en"]').click();
+      assert.equal(await g.locator('#card').innerText(), 'Pay by card or Apple Pay');
+      await g.goto(base + '/rata.html?id=' + p5.id + '&t=altro');
+      await g.waitForSelector('.where');
+      assert.ok((await g.locator('.where').innerText()).includes('not valid'));
+      await g.close();
     });
     if (width === 390) await check('/guasto dal telefono dell\'inquilino: senza login, l\'interno giusto, la segnalazione parte e lo dice', async () => {
       const g = await context.newPage();

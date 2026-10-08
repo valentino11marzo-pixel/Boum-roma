@@ -824,6 +824,7 @@ Valentyne - BOOM Rome`
             linkOwner: (ids, ownerId) => palazzoLinkOwner(ids, ownerId),
             importRoll: plan => palazzoImport(plan),
             maintenance: id => viewMaintenance(id),
+            record: id => confirmRentPayment(id),
             saveLook: (ids, fields) => palazzoSaveLook(ids, fields) },
         // I contatti degli inquilini: `users` non è leggibile dal proprietario
         // e un contratto da proposta non porta il telefono — li ricompone il
@@ -856,6 +857,18 @@ Valentyne - BOOM Rome`
             const r = await palazzoGuasto({ op: 'links', propertyIds });
             if (!r || !r.ok) throw new Error((r && r.error) || 'links_failed');
             return r.links || {};
+        },
+        // I link /rata (carta o Apple Pay, oppure bonifico con la ricevuta):
+        // il token è derivato sul server, solo l'admin li chiede.
+        rataLinks: async (paymentIds) => {
+            const user = firebase.auth().currentUser;
+            if (!user) throw new Error('no_session');
+            const token = await user.getIdToken();
+            const r = await fetch('/api/payments/rata', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+                body: JSON.stringify({ op: 'links', paymentIds }) });
+            const j = await r.json().catch(() => null);
+            if (!r.ok || !j || !j.ok) throw new Error((j && j.error) || ('http_' + r.status));
+            return { links: j.links || {}, skipped: j.skipped || {} };
         }
     });
     async function palazzoGuasto(body) {

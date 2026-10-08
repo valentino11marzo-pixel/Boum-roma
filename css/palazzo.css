@@ -581,3 +581,15 @@
   .plz-win[data-state="late"] .plz-win-glass{animation:none!important}
   .plz-world.plz-intro,.plz-world.plz-intro .plz-level,.plz-world.plz-intro .plz-face,.plz-unit[data-state="late"] .plz-face{animation:none!important}
 }
+
+/* La rata in tasca all'inquilino: azioni sulla riga, link, elenco del mese */
+.plz-rows li .plz-rowact{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.plz-rows li .plz-rshare{grid-column:1/-1;margin:8px 0 2px}
+.plz-ratabar{margin-bottom:10px}
+.plz-ratalist{margin:0 0 14px;padding:12px 14px;border:1px solid var(--plz-line,rgba(255,255,255,.08));border-radius:14px;background:rgba(255,255,255,.02)}
+.plz-ratalist>.plz-muted{margin:0 0 10px;font-size:12px;line-height:1.5}
+.plz-rataitem{padding:10px 0;border-top:1px solid rgba(255,255,255,.05)}
+.plz-rataitem-h{margin:0 0 8px;font-size:13px}
+.plz-rataitem.is-sent .plz-rataitem-h{opacity:.6}
+.plz-rataitem .plz-rshare{margin:0}
+.plz-linkbtn{background:none;border:0;padding:0;color:var(--gold,#D4AF37);font:inherit;text-decoration:underline;cursor:pointer}

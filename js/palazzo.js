@@ -27,6 +27,7 @@
   // view '' = nessuna scelta salvata: la decide il ruolo al primo disegno
   // (la proprietaria apre su Semplice ovunque, l'admin su 3D da desktop).
   var ui = { key: '', month: '', view: '', filter: 'all', selected: '', rx: -22, ry: 34, zoom: 1, intro: Object.create(null), facIntro: Object.create(null), fy: -25, fx: -10, playing: null, draft: null, lookOpen: false, paidOpen: false, shown: '', asOwner: '', shareOpen: false, imp: null, reportFor: '', reportDone: '', reportDraft: { category: 'plumbing', priority: 'medium', description: '' }, links: null, linksOpen: false, linksErr: false,
+    rata: { urls: Object.create(null), skipped: Object.create(null), pending: Object.create(null), sent: Object.create(null), open: '', failed: '' }, rataOpen: false,
     contacts: { byId: Object.create(null), pending: Object.create(null), failed: Object.create(null) } };
   var adapter = null, last = null, bound = false;
   try {
@@ -486,7 +487,7 @@
     var open = um.rows.filter(function (r) { return r.state === 'overdue' || r.state === 'due'; })[0];
     var groups = [];
     groups.push(['Soldi', b('rent', 'Gestisci canoni', ' data-id="' + esc(u.id) + '"', true) +
-      (open && open.id ? b('paylink', 'Link di pagamento', ' data-pay="' + esc(open.id) + '"') : '')]);
+      (open && open.id && adapter.rataLinks ? b('rata', 'Manda il link della rata', ' data-pay="' + esc(open.id) + '" data-id="' + esc(u.id) + '"') : open && open.id ? b('paylink', 'Link di pagamento', ' data-pay="' + esc(open.id) + '"') : '')]);
     if (cid) {
       groups.push(['Contratto', b('contract', 'Apri contratto', ' data-id="' + esc(cid) + '"') + b('pdf', 'PDF', ' data-id="' + esc(cid) + '"') +
         b('firma', 'Firma ora', ' data-id="' + esc(cid) + '"')]);
@@ -537,6 +538,65 @@
       (p ? '<a class="plz-btn plz-primary plz-sm" href="https://wa.me/' + esc(waNumber(p.phone)) + '?text=' + esc(encodeURIComponent(txt)) + '" target="_blank" rel="noopener">WhatsApp a ' + esc(first || 'inquilino') + '</a>' : '') +
       '<button type="button" class="plz-btn plz-sm" data-plz="copy-link" data-text="' + esc(txt) + '">Copia messaggio</button></div>';
   }
+  // ── La rata in tasca all'inquilino ─────────────────────────────────────
+  // UN link per rata (/rata, api/payments/rata.js): carta o Apple Pay, oppure
+  // "ho fatto il bonifico" con la foto della ricevuta. Il link lo calcola il
+  // server (il token è derivato da un segreto); qui si compone il messaggio
+  // col nome e il numero dell'inquilino, dai contatti già caricati.
+  function payable(r) { return r && (r.state === 'due' || r.state === 'overdue') && r.amount != null && r.amount > 0 && !/^missing-id:/.test(r.id); }
+  function rataMessage(u, r, url) {
+    var list = contactsOf(u.month) || [], p = list.find(function (x) { return x.role === 'tenant' && x.phone; }) || list.find(function (x) { return x.phone; });
+    var first = String((p && p.name) || r.tenantName || u.month.tenants[0] || '').trim().split(/\s+/)[0];
+    var late = r.state === 'overdue';
+    var txt = (first ? 'Ciao ' + first : 'Ciao') + ', ecco la rata di ' + E.monthLabel(r.month).toLowerCase() + ' (' + unitTitle(u).toLowerCase() + '): ' + eur(r.amount) +
+      (r.dueDate ? (late ? ', scaduta il ' : ' entro il ') + dateIt(r.dueDate) : '') +
+      '. Puoi pagarla con carta o Apple Pay, oppure segnalare il bonifico con la foto della ricevuta, da qui: ' + url;
+    return { txt: txt, phone: p ? p.phone : '', first: first };
+  }
+  var SKIP_WHY = { already_paid: 'risulta già pagata', payment_reported: 'il bonifico è già segnalato', sdd_processing: 'addebito SEPA in corso', payment_processing: 'pagamento in corso',
+    payment_cancelled: 'rata annullata', payment_not_payable: 'stato da verificare', not_found: 'rata non trovata' };
+  function rataShare(u, r) {
+    var R = ui.rata, url = R.urls[r.id];
+    if (R.pending[r.id]) return '<p class="plz-muted plz-rshare">Preparo il link…</p>';
+    if (R.skipped[r.id]) return '<p class="plz-note plz-rshare">Link non creato: ' + esc(SKIP_WHY[R.skipped[r.id]] || R.skipped[r.id]) + '.</p>';
+    if (!url) return R.failed ? '<p class="plz-note plz-rshare">Link non disponibile ora · <button type="button" class="plz-linkbtn" data-plz="rata" data-pay="' + esc(r.id) + '" data-id="' + esc(u.id) + '">riprova</button></p>' : '';
+    var msg = rataMessage(u, r, url), sent = R.sent[r.id];
+    return '<div class="plz-mlink plz-rshare"><input type="text" readonly value="' + esc(url) + '" aria-label="Link della rata">' +
+      (msg.phone ? '<a class="plz-btn plz-primary plz-sm" data-sent="' + esc(r.id) + '" href="https://wa.me/' + esc(waNumber(msg.phone)) + '?text=' + esc(encodeURIComponent(msg.txt)) + '" target="_blank" rel="noopener">' + (sent ? '✓ Inviato · di nuovo' : 'WhatsApp a ' + esc(msg.first || 'inquilino')) + '</a>' : '<span class="plz-muted">Nessun telefono in archivio</span>') +
+      '<button type="button" class="plz-btn plz-sm" data-plz="copy-link" data-text="' + esc(msg.txt) + '">Copia messaggio</button></div>';
+  }
+  function fetchRata(ids) {
+    var R = ui.rata, need = ids.filter(function (id) { return !R.urls[id] && !R.pending[id]; });
+    if (!need.length || typeof adapter.rataLinks !== 'function') return;
+    need.forEach(function (id) { R.pending[id] = true; delete R.skipped[id]; });
+    R.failed = '';
+    Promise.resolve().then(function () { return adapter.rataLinks(need.slice(0, 120)); }).then(function (res) {
+      need.forEach(function (id) { delete R.pending[id]; });
+      Object.keys((res && res.links) || {}).forEach(function (id) { R.urls[id] = res.links[id]; });
+      Object.keys((res && res.skipped) || {}).forEach(function (id) { R.skipped[id] = res.skipped[id]; });
+      if (doc && doc.querySelector('.plz')) patch();
+    }, function () {
+      need.forEach(function (id) { delete R.pending[id]; });
+      R.failed = 'error';
+      if (doc && doc.querySelector('.plz')) patch();
+    });
+  }
+  // Tutte le rate aperte del mese, una riga per inquilino: un tap a testa.
+  function rataBar(data) {
+    if (!data.admin || typeof adapter.rataLinks !== 'function') return '';
+    var open = [];
+    data.m.units.forEach(function (u) { u.month.rows.forEach(function (r) { if (payable(r) && r.month === data.m.month) open.push({ u: u, r: r }); }); });
+    var head = '<div class="plz-export plz-ratabar"><p>Rate del mese</p><button type="button" class="plz-btn plz-sm' + (ui.rataOpen ? '' : ' plz-primary') + '" data-plz="rata-all" aria-expanded="' + (ui.rataOpen ? 'true' : 'false') + '"' + (open.length ? '' : ' disabled') + '>' +
+      (open.length ? '📨 Manda i link di ' + esc(E.monthLabel(data.m.month).toLowerCase()) + ' · ' + open.length : 'Nessuna rata aperta in ' + esc(E.monthLabel(data.m.month).toLowerCase())) + '</button></div>';
+    if (!ui.rataOpen || !open.length) return head;
+    open.sort(function (a, b) { return (b.r.state === 'overdue') - (a.r.state === 'overdue') || String(a.u.interno || a.u.name).localeCompare(String(b.u.interno || b.u.name), 'it', { numeric: true }); });
+    var sent = open.filter(function (x) { return ui.rata.sent[x.r.id]; }).length;
+    return head + '<div class="plz-ratalist" id="plz-ratalist"><p class="plz-muted">Ogni messaggio porta il link della SUA rata: carta o Apple Pay, oppure il bonifico con la ricevuta. Chi segnala il bonifico passa in «In attesa» finché non premi Registra incasso. Inviati in questa sessione: ' + sent + ' di ' + open.length + '.</p>' +
+      open.map(function (x) {
+        return '<div class="plz-rataitem' + (ui.rata.sent[x.r.id] ? ' is-sent' : '') + '"><p class="plz-rataitem-h"><b>' + esc(unitTitle(x.u)) + '</b> ' + esc(x.r.tenantName || x.u.month.tenants[0] || '') +
+          ' · <span class="plz-num">' + eur(x.r.amount) + '</span>' + (x.r.state === 'overdue' ? ' · <span class="plz-red">scaduta</span>' : '') + '</p>' + rataShare(x.u, x.r) + '</div>';
+      }).join('') + '</div>';
+  }
   function utenzeFacts(u, admin) {
     var ut = u.utenze || {}, row = function (k, code, ok) {
       if (!code) return admin ? '<div><dt>' + k + '</dt><dd class="plz-muted">non in archivio</dd></div>' : '';
@@ -544,12 +604,19 @@
     };
     return row('POD luce', ut.pod, ut.podOk) + row('PDR gas', ut.pdr, ut.pdrOk);
   }
+  function safeUrl(url) { try { var x = new URL(String(url || '')); return x.protocol === 'https:' ? x.href : ''; } catch (_) { return ''; } }
   function unitPanel(u, data, enter) {
-    var m = data.m, um = u.month, admin = data.admin;
+    var m = data.m, um = u.month, admin = data.admin, A0 = (adapter && adapter.actions) || {};
     var lease = um.lease || um.incoming;
     var rows = um.rows.map(function (r) {
       var st = { paid: 'Pagato', overdue: 'Non pagato', due: 'Da pagare', reported: 'Segnalato · da verificare', processing: 'In corso', unknown: 'Da verificare' }[r.state] || 'Da verificare';
-      return '<li><span>' + esc(r.month && r.coversTo && r.coversTo !== r.month ? E.monthLabel(r.month, true) + '→' + E.monthLabel(r.coversTo, true) : E.monthLabel(r.month)) + '</span><b class="plz-num">' + eur(r.amount) + '</b><em class="plz-pill plz-s-' + ({ overdue: 'late', reported: 'review', processing: 'review' }[r.state] || r.state) + '">' + st + '</em><small>' + (r.paidDate ? 'pagato il ' + dateIt(r.paidDate) : r.dueDate ? 'scadenza ' + dateIt(r.dueDate) : '') + '</small></li>';
+      var p = r.payment || {}, proof = r.state === 'reported' ? safeUrl(p.proofUrl) : '';
+      var rep = r.state === 'reported' ? 'bonifico segnalato' + (/^\d{4}-\d{2}-\d{2}$/.test(String(p.tenantReportDate || '')) ? ' del ' + dateIt(p.tenantReportDate) : '') + (p.tenantNotes ? ' · «' + String(p.tenantNotes).slice(0, 80) + '»' : '') : '';
+      var acts = (proof ? '<a class="plz-btn plz-sm" href="' + esc(proof) + '" target="_blank" rel="noopener">Ricevuta ↗</a>' : '') +
+        (admin && payable(r) && adapter.rataLinks ? '<button type="button" class="plz-btn plz-sm' + (r.state === 'overdue' ? ' plz-primary' : '') + '" data-plz="rata" data-pay="' + esc(r.id) + '" data-id="' + esc(u.id) + '">Manda il link</button>' : '') +
+        (admin && (payable(r) || r.state === 'reported') && A0.record ? '<button type="button" class="plz-btn plz-sm" data-plz="record" data-pay="' + esc(r.id) + '">Registra incasso</button>' : '');
+      return '<li><span>' + esc(r.month && r.coversTo && r.coversTo !== r.month ? E.monthLabel(r.month, true) + '→' + E.monthLabel(r.coversTo, true) : E.monthLabel(r.month)) + '</span><b class="plz-num">' + eur(r.amount) + '</b><em class="plz-pill plz-s-' + ({ overdue: 'late', reported: 'review', processing: 'review' }[r.state] || r.state) + '">' + st + '</em><small>' + esc(rep || (r.paidDate ? 'pagato il ' + dateIt(r.paidDate) : r.dueDate ? 'scadenza ' + dateIt(r.dueDate) : '')) + '</small>' +
+        (acts ? '<div class="plz-rowact">' + acts + '</div>' : '') + (admin && ui.rata.open === r.id ? rataShare(u, r) : '') + '</li>';
     }).join('');
     var pdf = lease && (lease.signedPdfUrl || lease.generatedPDF);
     var safe = function (url) { try { var x = new URL(url); return x.protocol === 'https:' ? x.href : ''; } catch (_) { return ''; } };
@@ -703,7 +770,12 @@
     };
     var sollecita = function (u) {
       var r = u.month.rows.find(function (x) { return x.state === 'overdue'; });
-      return admin && r ? '<button type="button" class="plz-btn plz-primary plz-sm" data-plz="paylink" data-pay="' + esc(r.id) + '">Sollecita</button>' : '';
+      return admin && r ? (adapter.rataLinks ? '<button type="button" class="plz-btn plz-primary plz-sm" data-plz="rata" data-pay="' + esc(r.id) + '" data-id="' + esc(u.id) + '">Sollecita</button>'
+        : '<button type="button" class="plz-btn plz-primary plz-sm" data-plz="paylink" data-pay="' + esc(r.id) + '">Sollecita</button>') : '';
+    };
+    var manda = function (u) {
+      var r = u.month.rows.find(function (x) { return x.state === 'due'; });
+      return admin && r && adapter.rataLinks ? '<button type="button" class="plz-btn plz-sm" data-plz="rata" data-pay="' + esc(r.id) + '" data-id="' + esc(u.id) + '">Manda il link</button>' : '';
     };
     var card = function (cls, title, n, body) { return '<section class="plz-scard ' + cls + '"><h3>' + title + ' <b>' + n + '</b></h3>' + body + '</section>'; };
     var broken = m.units.filter(function (u) { return u.maintenance && u.maintenance.open.length; })
@@ -715,7 +787,7 @@
         .replace('<i class="plz-s-' + u.month.state + '"', '<i class="plz-mdot plz-mp-' + top.priority + '"');
     }).join('')) : '';
     return card('is-late', 'Non hanno pagato', late.length, late.length ? late.map(function (u) { return row(u, eur(u.month.lateAmount || u.month.expected), u.month.lateDays ? u.month.lateDays + (u.month.lateDays === 1 ? ' giorno' : ' giorni') + ' di ritardo' : 'scaduto', sollecita(u)); }).join('') : '<p class="plz-ok">Tutti in regola.</p>') +
-      (due.length ? card('', 'Devono ancora pagare', due.length, due.map(function (u) { var r = u.month.rows.find(function (x) { return x.state === 'due'; }); return row(u, eur(u.month.expected), r && r.dueDate ? 'entro il ' + dateIt(r.dueDate) : ''); }).join('')) : '') +
+      (due.length ? card('', 'Devono ancora pagare', due.length, due.map(function (u) { var r = u.month.rows.find(function (x) { return x.state === 'due'; }); return row(u, eur(u.month.expected), r && r.dueDate ? 'entro il ' + dateIt(r.dueDate) : '', manda(u)); }).join('')) : '') +
       (check.length ? card('', 'Da verificare', check.length, check.map(function (u) { return row(u, '', stateLabel(u.month, m.month, m.currentMonth)); }).join('')) : '') +
       mcard +
       card('', 'Liberi', free.length, free.length ? free.map(function (u) { return row(u, '', freeNote(u)); }).join('') : '<p class="plz-ok">Tutto pieno.</p>') +
@@ -1072,7 +1144,7 @@
   // fino al mese corrente, mai un mese che non è ancora successo.
   function exportBar(data) {
     var y = data.m.month.slice(0, 4);
-    return '<div class="plz-export"><p>Per il commercialista</p><button type="button" class="plz-btn plz-sm" data-plz="csv" data-span="month">' + esc(E.monthLabel(data.m.month)) + ' · CSV</button>' +
+    return rataBar(data) + '<div class="plz-export"><p>Per il commercialista</p><button type="button" class="plz-btn plz-sm" data-plz="csv" data-span="month">' + esc(E.monthLabel(data.m.month)) + ' · CSV</button>' +
       '<button type="button" class="plz-btn plz-sm" data-plz="csv" data-span="year">Anno ' + esc(y) + ' · CSV</button>' +
       '<button type="button" class="plz-btn plz-sm" data-plz="csv" data-span="utenze">Utenze POD/PDR · CSV</button></div>';
   }
@@ -1095,7 +1167,12 @@
   }
 
   function onClick(e) {
-    if (e.target.closest && e.target.closest('a[href]')) return; // chiama/scrivi: il link fa il suo lavoro
+    var a = e.target.closest && e.target.closest('a[href]');
+    if (a) {   // chiama/scrivi: il link fa il suo lavoro
+      var sentId = a.getAttribute('data-sent');
+      if (sentId) { ui.rata.sent[sentId] = true; root.setTimeout(function () { if (doc.querySelector('.plz')) patch(); }, 0); }
+      return;
+    }
     var el = e.target.closest && e.target.closest('[data-plz]');
     if (!el || !el.closest('.plz') || !adapter) return;
     var act = el.getAttribute('data-plz'), id = el.getAttribute('data-id') || '';
@@ -1131,6 +1208,25 @@
     if (act === 'maint-new') { ui.reportFor = id; ui.reportDone = ''; patch(); var ta = doc.querySelector('#plz-mform textarea'); if (ta) ta.focus(); return; }
     if (act === 'maint-cancel') { ui.reportFor = ''; patch(); return; }
     if (act === 'copy-link') { copyText(el.getAttribute('data-text') || '', el); return; }
+    if (act === 'rata' && admin) {
+      var payId = el.getAttribute('data-pay');
+      if (id && ui.selected !== id) ui.selected = id;
+      ui.rata.open = payId;
+      fetchRata([payId]);
+      patch();
+      return;
+    }
+    if (act === 'rata-all' && admin && last) {
+      ui.rataOpen = !ui.rataOpen;
+      if (ui.rataOpen) {
+        var ids = [];
+        last.m.units.forEach(function (u) { u.month.rows.forEach(function (r) { if (payable(r) && r.month === last.m.month) ids.push(r.id); }); });
+        fetchRata(ids);
+      }
+      patch();
+      return;
+    }
+    if (act === 'record' && admin && A.record) return A.record(el.getAttribute('data-pay'));
     if (act === 'maint-link' && adapter.links && last) {
       var occ = last.m.units.filter(function (x) { return x.month.contractId; }).map(function (x) { return x.id; });
       el.disabled = true;

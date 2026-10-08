@@ -6254,6 +6254,51 @@ NON VEDEVANO NIENTE (vedi sotto).
   * **Da sapere al lancio**: dal 1° del mese il **Rendiconto** parte da
     solo alla proprietaria collegata (email + PDF del mese chiuso): va
     guardato prima che parta.
+  * **La rata in tasca all'inquilino** (8/10 notte — «segnalare il
+    pagamento e caricare la prova, o pagare con Apple Pay»). Gli inquilini
+    presi in carico dalla tabella non hanno un account e non devono averlo
+    per pagare: ogni mese ricevono su WhatsApp UN link, quello della loro
+    rata (`/rata?id=<paymentId>&t=<token>` — lo STESSO token derivato del
+    link di pagamento, `api/payments/_token.js`: niente da coniare, ruotare
+    HOMIE_SECRET revoca tutto, un link apre una rata sola). `rata.html`
+    (noindex/no-store, IT/EN) offre le due strade: **carta o Apple Pay**
+    (passa dal link di pagamento che esiste già → Stripe Checkout; la
+    commissione della carta si DICE prima, accanto a «il bonifico non costa
+    niente») oppure **«ho pagato con bonifico»** con data, nota e foto/PDF
+    della ricevuta (foto ridotta sul telefono, PDF ≤ 3 MB, sotto
+    `payment-proofs/link-<id>/`, match di storage.rules già esistente).
+    `POST /api/payments/rata` (ops lookup · report · withdraw · links): la
+    segnalazione rende la rata SEGNALATA (`tenantReported`, come da /casa),
+    MAI pagata — l'incasso lo registra un umano con «Registra incasso»
+    (`confirmRentPayment`), perché una foto si può sbagliare e l'estratto
+    conto no; scrittura condizionata sull'`updateTime` letto (un pagamento
+    con carta arrivato nel mezzo vince: 409); prima la scrittura poi la
+    card Telegram (`agentNotifications/payrep_<id>_<ts>`, priority high);
+    una ricevuta che non sale lo si DICE alla pagina (che chiede di
+    mandarla su WhatsApp). Il conto del bonifico è quello del CONTRATTO
+    (`landlordIban` + `landlordName`), mai il conto di BOOM al posto di
+    quello pattuito; senza IBAN la pagina dice «il conto di sempre». La
+    pagina non dice mai chi abita lì. `op:'links'` solo admin, solo per
+    rate ancora pagabili (le altre tornano in `skipped` col motivo).
+    Nel Palazzo (admin): «Sollecita» e «Manda il link» sulle schede
+    Semplice, «Manda il link della rata» nelle leve Soldi, sulla riga della
+    rata «Manda il link» · «Registra incasso» · «Ricevuta ↗» (la vede anche
+    la proprietaria) e la nota del bonifico segnalato; **«📨 Manda i link
+    di <mese>»** apre l'elenco di tutte le rate aperte del mese (scadute
+    prima), UNA richiesta per i link mancanti, un WhatsApp precompilato a
+    testa (nome dai contatti, importo, scadenza, il link) e «✓ Inviato»
+    segnato in sessione. Chi non ha telefono: «Copia messaggio», mai un
+    numero inventato. Dal Palazzo non parte più il link Stripe nudo.
+    **Da decidere, non da codice**: con la carta i soldi arrivano sul conto
+    Stripe di BOOM, non su quello della proprietaria (serve un mandato
+    all'incasso scritto e il giroconto); la commissione di default va a
+    pari (`RENT_FEE_BUFFER` 0), e già oggi una «Commissione servizio BOOM»
+    applicata SOLO a chi paga con carta va verificata col legale: il
+    divieto di sovrapprezzo sugli strumenti di pagamento verso i consumatori
+    (art. 62 Codice del consumo, art. 3 c. 4 d.lgs. 11/2010 come da
+    d.lgs. 218/2017 — PSD2; avviso AGCM 2018) vale anche quando si chiama
+    «servizio». Apple Pay compare in Checkout solo se attivo nel Dashboard
+    Stripe.
 Test: `node tests/palazzo/engine.mjs` (181 check: civico, piano, 13 interni
 in ogni stato, trimestrale, contratto chiuso in anticipo, proposte e annunci,
 puntualità/sfitto/incassato su scaduto, la frase del mese nelle due voci,
@@ -6263,14 +6308,18 @@ giunzioni del portal, i quattro toni, registrazione e cedolare, il CSV
 che somma come la pagina, gestione BOOM dal, la presa in carico — parser,
 piano, reincollare senza doppioni, il modello che si rilegge) +
 `node tests/palazzo/telegram.mjs` (6 check, modulo vero su Firestore in
-memoria) + `node tests/manutenzione/run.mjs` (11 check, handler vero: il
+memoria) + `node tests/rata/run.mjs` (13 check, handler vero su Firestore
+in memoria che versiona i documenti: token di un'altra rata 404, segnalato
+mai pagato, seconda segnalazione senza doppioni, ricevuta su Storage e
+Storage giù detto, pagamento con carta nel mezzo → 409 senza ping, porte
+strette, link solo admin; quattro mutazioni prese) + `node tests/manutenzione/run.mjs` (11 check, handler vero: il
 link apre un solo interno, owner solo sui suoi — mutazione presa —, guasto
 prima della card, foto, honeypot, 429, il ping di /casa) +
 `node tests/palazzo/contatti.mjs`
 (12 check, handler vero su Firestore in memoria: 401/403/400, la
 proprietaria che riceve i suoi e non quelli di un altro — mutazione presa
 togliendo il filtro — profilo/proposta/co-conduttori, mai CF né indirizzo,
-la proposta letta solo se serve) + `node tests/palazzo/ui.mjs` (103 check in Chromium a
+la proposta letta solo se serve) + `node tests/palazzo/ui.mjs` (108 check in Chromium a
 1440 e 390px con le funzioni VERE del portal estratte da portal-app.js e
 Firestore finto: facciata e persiane, luci dal basso, cambio mese senza
 ridisegno, aspetto in anteprima/rifiutato/salvato/annullato, Sollecita, 3D,
@@ -6282,7 +6331,11 @@ la proprietaria che li chiede a suo nome e mai per un altro; il click su
 ogni finestra della facciata 3D, il trascinamento che gira senza aprire
 una scheda, le leve per mestiere, il CSV scaricato davvero, l'anteprima
 «come la vede lei», l'invio, la presa in carico dalla tabella sbagliata a
-quella giusta con le scritture contate).
+quella giusta con le scritture contate; la rata: Sollecita → WhatsApp col
+messaggio e il link della SUA rata, senza telefono «Copia», l'elenco del
+mese con una richiesta sola, il bonifico segnalato con la ricevuta e
+Registra incasso, /rata a 390px con la commissione detta, la ricevuta, la
+segnalazione e il suo annullamento).
 
 ### Fascicolo operativo immobile — 20 settembre 2026
 La scheda admin passa dal modale al percorso `#property/<id>/<sezione>`: situazione, contratti, canoni, documenti e attività; link ricaricabili, ritorno alla ricerca/posizione e apertura dei flussi esistenti; ricerca e filtro di disponibilità ora si combinano. Le viste dei proprietari restano separate.

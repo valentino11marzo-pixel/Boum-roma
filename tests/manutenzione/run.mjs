@@ -185,7 +185,7 @@ await check('giunzioni: /casa non chiama più /api/agent/notify senza credenzial
   const page = readFileSync(new URL('../../guasto.html', import.meta.url), 'utf8');
   assert.ok(page.includes('noindex') && page.includes("fetch('/api/maintenance/guasto'") && !/firebase/i.test(page.replace(/Firebase/g, '')), 'la pagina parla solo con la porta');
   const v = JSON.parse(readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'));
-  const h = v.headers.find(x => /\|guasto\|guasto\.html\)/.test(x.source));
+  const h = v.headers.find(x => /\|guasto\|guasto\.html[|)]/.test(x.source));
   assert.ok(h && h.headers.some(x => x.key === 'Cache-Control' && /no-store/.test(x.value)) && h.headers.some(x => x.key === 'X-Robots-Tag'));
   assert.ok(Object.keys(v.functions || {}).length <= 50);
 });
