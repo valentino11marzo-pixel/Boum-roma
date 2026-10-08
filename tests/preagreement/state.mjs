@@ -189,6 +189,45 @@ await payHandler(mkReq({ token: TOKEN }), res);
 check('rifiuta: già pagato', res.code === 409 && res.body.error === 'already_paid', JSON.stringify(res.body));
 check('…e non ha creato nessuna sessione', globalThis.__stripeCalls.length === 0);
 
+// The customer chose these rows at submit. A later pay link must replay the
+// persisted snapshot, including the exact price, rather than today's catalog.
+seed(PA());
+res = mkRes();
+await submit(mkReq({ token: TOKEN, tenant: TENANT, accept: true,
+  addons: ['movein-pack', 'cleaning-premium'] }), res);
+const initialItems = globalThis.__stripeCalls.at(-1)?.line_items;
+const chosen = get().addons;
+check('submit iniziale: base + due add-on sono righe Stripe distinte',
+  res.code === 200 && chosen?.length === 2 && initialItems?.length === 3
+  && initialItems[0].price_data.unit_amount === 280000
+  && initialItems[1].price_data.unit_amount === chosen[0].eur * 100
+  && initialItems[2].price_data.unit_amount === chosen[1].eur * 100);
+check('submit iniziale: metadata associa entrambi i kind alla PA',
+  globalThis.__stripeCalls.at(-1)?.metadata?.addons === 'movein-pack,cleaning-premium'
+  && Number(globalThis.__stripeCalls.at(-1)?.metadata?.addonsEur) === get().addonsEur);
+res = mkRes();
+await payHandler(mkReq({ token: TOKEN }), res);
+const resumed = globalThis.__stripeCalls.at(-1);
+check('ripresa: righe, totale e metadata identici alla scelta salvata',
+  res.code === 200 && resumed?.line_items?.length === 3
+  && resumed.line_items.every((row, i) => row.price_data.unit_amount === initialItems[i].price_data.unit_amount)
+  && resumed.metadata.addons === 'movein-pack,cleaning-premium'
+  && Number(resumed.metadata.addonsEur) === get().addonsEur);
+
+seed(PA({ status: 'accepted', tenant: TENANT }));
+res = mkRes();
+await payHandler(mkReq({ token: TOKEN }), res);
+check('ripresa senza add-on: una sola riga base, nessun servizio inventato',
+  res.code === 200 && globalThis.__stripeCalls.at(-1)?.line_items?.length === 1
+  && globalThis.__stripeCalls.at(-1).line_items[0].price_data.unit_amount === 280000
+  && globalThis.__stripeCalls.at(-1).metadata.addons === '');
+
+seed(PA({ status: 'accepted', tenant: TENANT, addons: chosen, addonsEur: 1 }));
+res = mkRes();
+await payHandler(mkReq({ token: TOKEN }), res);
+check('snapshot add-on incoerente: nessuna nuova Checkout',
+  res.code === 409 && res.body.error === 'addon_snapshot_invalid' && globalThis.__stripeCalls.length === 0);
+
 // ═══ 5 · Il bottone che rimette in pari ════════════════════════════════════
 console.log('\n\x1b[1mLa riparazione dalla console\x1b[0m');
 seed(PA({ status: 'accepted', tenant: TENANT, ref: 'BOOM-1', paidAt: '2026-08-10T10:00:00.000Z', paidEur: 2800, paidSessionId: 'cs_paid_1' }));

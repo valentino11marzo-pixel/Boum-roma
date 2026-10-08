@@ -5,6 +5,7 @@ const anything = new Proxy(function () {}, {
   get: (t, prop) => {
     if (prop === Symbol.toPrimitive) return () => '';
     if (prop === 'then') return undefined; // niente thenable: await risolve subito
+    if (prop === 'createTransport') return createTransport;
     return anything;
   },
   apply: () => anything,
@@ -16,4 +17,7 @@ export const StandardFonts = anything;
 export const rgb = anything;
 export const degrees = anything;
 export const PKPass = anything;
-export const createTransport = () => ({ sendMail: async () => ({ messageId: 'stub' }) });
+export const createTransport = () => ({ sendMail: async (message) => {
+  (globalThis.__mailCalls ||= []).push(message);
+  return { messageId: 'stub' };
+} });
