@@ -18,6 +18,8 @@
 //      commerciale è pinnata.
 
 import { CATALOG } from '../_catalog.js';
+import crypto from 'node:crypto';
+import { autoTaskId } from '../regista/_tasks.js';
 
 /** I soli add-on proponibili alla firma: già a catalogo, già consegnabili. */
 export const OFFERABLE = ['movein-pack', 'cleaning-premium'];
@@ -75,4 +77,26 @@ export function normalizeAddons(input) {
 /** Somma in euro degli add-on già normalizzati. */
 export function addonsTotal(list) {
   return (list || []).reduce((s, a) => s + (Number(a.eur) || 0), 0);
+}
+
+// Replay only the price snapshot the tenant accepted. Repricing from today's
+// catalog would silently change a resumed checkout after a catalog update.
+export function recordedAddons(pa = {}) {
+  const raw = pa.addons == null ? [] : pa.addons;
+  if (!Array.isArray(raw)) return null;
+  const seen = new Set();
+  const rows = [];
+  for (const a of raw) {
+    if (!a || !OFFERABLE.includes(a.kind) || seen.has(a.kind)
+      || !Number.isInteger(a.eur) || a.eur <= 0 || !String(a.label || '').trim()) return null;
+    seen.add(a.kind);
+    rows.push({ kind: a.kind, eur: a.eur, label: a.label });
+  }
+  const recordedTotal = pa.addonsEur == null ? 0 : Number(pa.addonsEur);
+  return Number.isInteger(recordedTotal) && recordedTotal === addonsTotal(rows) ? rows : null;
+}
+
+export function paidAddonTaskId(paId, kind) {
+  const hash = crypto.createHash('sha256').update(`${paId}:${kind}`).digest('hex').slice(0, 24);
+  return autoTaskId('paaddon', hash);
 }

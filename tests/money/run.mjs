@@ -15,6 +15,7 @@ process.env.FIREBASE_ADMIN_EMAIL = 'a@b.c';
 process.env.FIREBASE_ADMIN_PASS = 'p';
 process.env.FIREBASE_PROJECT_ID = 'test-proj';
 process.env.EMAILJS_PRIVATE_KEY = 'ek';
+process.env.CRON_SECRET = 'cron-money';
 
 let passed = 0, failed = 0;
 const bad = [];
@@ -24,6 +25,10 @@ const check = (name, cond) => { cond ? passed++ : (failed++, bad.push(name)); co
 const store = new Map();        // 'collection/docId' → plain fields object
 const emails = [];              // template_params delle email inviate
 const queries = [];             // structuredQuery dei runQuery
+let failTaskWrites = 0;
+let failServiceLeadWrites = 0;
+let failEmailJs = 0;
+let failLeadQuery = 0;
 globalThis.__stripeCalls = [];
 
 const FS = 'firestore.googleapis.com';
@@ -62,6 +67,10 @@ globalThis.fetch = async (url, opts = {}) => {
   url = String(url);
   if (url.includes('identitytoolkit')) return okJson({ idToken: 'tok', users: [{ localId: 'admin1' }] });
   if (url.includes('api.emailjs.com')) {
+    if (failEmailJs > 0) {
+      failEmailJs--;
+      return new Response('temporary email outage', { status: 503 });
+    }
     emails.push(JSON.parse(opts.body).template_params);
     return new Response('OK', { status: 200 });
   }
@@ -71,6 +80,10 @@ globalThis.fetch = async (url, opts = {}) => {
       const q = JSON.parse(opts.body).structuredQuery;
       queries.push(q);
       const coll = q.from[0].collectionId;
+      if (coll === 'leads' && failLeadQuery > 0) {
+        failLeadQuery--;
+        return new Response('temporary lead query outage', { status: 503 });
+      }
       const field = q.where?.fieldFilter?.field?.fieldPath;
       const val = q.where?.fieldFilter?.value?.stringValue;
       const rows = [];
@@ -86,6 +99,14 @@ globalThis.fetch = async (url, opts = {}) => {
     if (opts.method === 'POST') {
       const docId = qs.get('documentId') || 'auto_' + (store.size + 1);
       const key = clean + '/' + docId;
+      if ((key.startsWith('operatorTasks/task_service_') || key.startsWith('operatorTasks/task_paaddon_')) && failTaskWrites > 0) {
+        failTaskWrites--;
+        return new Response('temporary task outage', { status: 503 });
+      }
+      if (key.startsWith('leads/svc_') && failServiceLeadWrites > 0) {
+        failServiceLeadWrites--;
+        return new Response('temporary lead outage', { status: 503 });
+      }
       if (qs.get('documentId') && store.has(key)) return new Response('conflict', { status: 409 });
       const fields = JSON.parse(opts.body).fields || {};
       const flat = {};
@@ -125,7 +146,7 @@ const mkStreamReq = (obj) => ({
 });
 const sessionEvent = (metadata, over = {}) => ({
   type: 'checkout.session.completed',
-  data: { object: { id: over.id || 'cs_live_abc123', amount_total: over.amount_total ?? 8900, currency: 'eur', customer_email: 'c@x.it', payment_intent: 'pi_1', metadata } },
+  data: { object: { id: over.id || 'cs_live_abc123', created: over.created ?? Math.floor(Date.now() / 1000), amount_total: over.amount_total ?? 8900, currency: 'eur', payment_status: over.payment_status || 'paid', customer_email: 'c@x.it', payment_intent: 'pi_1', metadata } },
 });
 
 // ═══ 1. service-checkout ═══
@@ -183,15 +204,97 @@ const rsv = (await import('../../api/reserve-checkout.js')).default;
 const webhook = (await import('../../api/stripe-webhook.js')).default;
 {
   const ev = sessionEvent({ service: 'SERVICE', kind: 'virtual-viewing', name: 'Ada B', email: 'ada@x.it', phone: '333' });
+  ev.data.object.created = Date.parse('2026-10-06T23:30:00Z') / 1000; // Checkout aperto il 7 a Roma
+  ev.created = Date.parse('2026-10-07T23:30:00Z') / 1000; // pagato l'8 a Roma
   let r = mkRes();
+  const unpaid = structuredClone(ev);
+  unpaid.data.object.payment_status = 'unpaid';
+  const emailsBeforeUnpaid = emails.length;
+  await webhook(mkStreamReq(unpaid), r);
+  check('webhook SERVICE: sessione completata ma non pagata → zero task, lead o email',
+    r.body?.skipped === 'payment_not_paid' && emails.length === emailsBeforeUnpaid
+    && ![...store.keys()].some(k => k.startsWith('operatorTasks/task_service_') || k.startsWith('leads/svc_')));
+
+  r = mkRes();
   const emailsBefore = emails.length;
   await webhook(mkStreamReq(ev), r);
-  check('webhook SERVICE: 1° evento → lead scritto', r.code === 200 && [...store.keys()].some(k => k.startsWith('leads/svc_')));
-  check('webhook SERVICE: 1° evento → 2 email (admin+cliente)', emails.length === emailsBefore + 2);
+  const tasks = [...store.entries()].filter(([k]) => k.startsWith('operatorTasks/task_service_'));
+  check('webhook SERVICE: 1° evento → lead e impegno con data del pagamento a Roma',
+    r.code === 200 && [...store.keys()].some(k => k.startsWith('leads/svc_'))
+    && tasks.length === 1 && tasks[0][1].status === 'open' && tasks[0][1].kind === 'auto'
+    && tasks[0][1].source === 'stripe-service' && tasks[0][1].due === '2026-10-08'
+    && tasks[0][1].note.includes('leads/svc_csliveabc123'));
+  check('webhook SERVICE: 1° evento → 2 email, nessuna visita già dichiarata prenotata',
+    emails.length === emailsBefore + 2 && emails.at(-1).subheading === 'BOOM Rome — payment received, next steps');
+
+  r = mkRes();
+  tasks[0][1].status = 'done'; // il retry non deve riaprire un lavoro chiuso dall'operatore
+  ev.created += 3 * 86400; // un secondo evento tardivo non sposta la scadenza
+  await webhook(mkStreamReq(ev), r);
+  check('webhook SERVICE: retry stessa sessione → duplicate, ZERO task e email nuovi',
+    r.body?.duplicate === true && emails.length === emailsBefore + 2
+    && [...store.keys()].filter(k => k.startsWith('operatorTasks/task_service_')).length === 1
+    && tasks[0][1].status === 'done' && tasks[0][1].due === '2026-10-08');
+
+  // Il lead resta `new` per il portale, ma è un caso pagato: il Commerciale
+  // non deve proporre una ricerca casa a chi aspetta la video visita.
+  for (const [key, lead] of store) {
+    if (key.startsWith('leads/svc_')) lead.createdAt = new Date(Date.now() - 3600_000).toISOString();
+  }
+  const commerciale = (await import('../../api/employees/commerciale.js')).default;
+  r = mkRes();
+  await commerciale({ method: 'POST', headers: { authorization: 'Bearer cron-money' }, query: { dry: '1' } }, r);
+  check('commerciale: lead servizio pagato resta in pipeline ma non genera bozza affitto',
+    r.code === 200 && r.body?.counts?.leadsScanned === 1 && r.body.counts.firstReplies === 0
+    && r.body.counts.followups === 0);
+}
+
+// ═══ 4b. SERVICE: errore prima del task e dopo il task → retry sicuro ═══
+{
+  const ev = sessionEvent({ service: 'SERVICE', kind: 'deal-assistance', name: 'Ada B', email: 'ada@x.it' }, { id: 'cs_service_task_retry' });
+  let r = mkRes();
+  const before = emails.length;
+  failTaskWrites = 1;
+  await webhook(mkStreamReq(ev), r);
+  check('webhook SERVICE: task non scritto → 500, nessun lead o email prematuri',
+    r.code === 500 && r.body?.error === 'service_task_write_failed'
+    && !store.has('leads/svc_csservicetaskretry') && emails.length === before);
 
   r = mkRes();
   await webhook(mkStreamReq(ev), r);
-  check('webhook SERVICE: retry stessa sessione → duplicate, ZERO nuove email', r.body?.duplicate === true && emails.length === emailsBefore + 2);
+  check('webhook SERVICE: retry dopo guasto task → task + lead + email una volta',
+    r.code === 200 && store.has('leads/svc_csservicetaskretry')
+    && [...store.values()].some(x => x.source === 'stripe-service' && x.title?.includes('Deal Assistance'))
+    && emails.length === before + 2);
+}
+{
+  const ev = sessionEvent({ service: 'SERVICE', kind: 'virtual-viewing', name: 'Lin', email: 'lin@x.it' }, { id: 'cs_service_lead_retry' });
+  let r = mkRes();
+  const before = emails.length;
+  const tasksBefore = [...store.keys()].filter(k => k.startsWith('operatorTasks/task_service_')).length;
+  failServiceLeadWrites = 1;
+  await webhook(mkStreamReq(ev), r);
+  check('webhook SERVICE: task scritto ma lead giù → 500, nessuna email',
+    r.code === 500 && r.body?.error === 'lead_write_failed' && emails.length === before
+    && [...store.keys()].filter(k => k.startsWith('operatorTasks/task_service_')).length === tasksBefore + 1);
+
+  r = mkRes();
+  await webhook(mkStreamReq(ev), r);
+  check('webhook SERVICE: retry dopo guasto lead → stesso task, lead e email una volta',
+    r.code === 200 && store.has('leads/svc_csserviceleadretry') && emails.length === before + 2
+    && [...store.keys()].filter(k => k.startsWith('operatorTasks/task_service_')).length === tasksBefore + 1);
+}
+{
+  const ev = sessionEvent({ service: 'SERVICE', kind: 'contract-check-express', name: 'Mia', email: 'mia@x.it' }, { id: 'cs_service_email_outage' });
+  const before = emails.length;
+  failEmailJs = 2;
+  const r = mkRes();
+  await webhook(mkStreamReq(ev), r);
+  const task = [...store.values()].find(x => x.source === 'stripe-service' && x.title?.includes('Contract Check Express'));
+  check('webhook SERVICE: EmailJS giù → caso pagato e task aperto restano, nessuna mail dichiarata inviata',
+    r.code === 200 && r.body?.received === true && !('emailSent' in r.body)
+    && store.has('leads/svc_csserviceemailoutage') && task?.status === 'open'
+    && task.note.includes('Verificare conferma al cliente') && emails.length === before);
 }
 
 // ═══ 5. stripe-webhook: idempotenza DEPOSIT ═══
@@ -218,11 +321,151 @@ const webhook = (await import('../../api/stripe-webhook.js')).default;
   await webhook(mkStreamReq(ev), r);
   const pa = store.get('preAgreements/pa1');
   check('webhook PA: pagamento → status paid + paidSessionId', pa.status === 'paid' && pa.paidSessionId === 'cs_pa_1');
+  check('webhook PA senza add-on: nessun task servizio dedotto',
+    ![...store.values()].some(v => v.preAgreementId === 'pa1' && v.source === 'preagreement-addon'));
 
   const eb = emails.length;
   r = mkRes();
   await webhook(mkStreamReq(ev), r);
   check('webhook PA: retry → duplicate, niente nuove email', r.body?.duplicate === true && emails.length === eb);
+}
+
+// ═══ 6b. PREAGREEMENT add-on: prova Stripe, importo, task e retry ═══
+{
+  const { normalizeAddons, addonsTotal, paidAddonTaskId } = await import('../../api/preagreement/_addons.js');
+  const token = 'b'.repeat(32);
+  const addons = normalizeAddons(['movein-pack', 'cleaning-premium']);
+  const addonTotal = addonsTotal(addons);
+  const pa = { token, ref: 'BOOM-ADDON', status: 'accepted',
+    money: { dueAtSigning: 2800 }, addons, addonsEur: addonTotal };
+  const metadata = { service: 'PREAGREEMENT', token,
+    addons: 'movein-pack,cleaning-premium', addonsEur: String(addonTotal) };
+  const ev = sessionEvent(metadata, { id: 'cs_pa_addons', amount_total: (2800 + addonTotal) * 100,
+    created: Date.parse('2026-10-04T23:30:00Z') / 1000 });
+  ev.created = Date.parse('2026-10-07T23:30:00Z') / 1000;
+  const taskKey = kind => 'operatorTasks/' + paidAddonTaskId('pa_addons', kind);
+  store.set('preAgreements/pa_addons', pa);
+
+  let r = mkRes();
+  const unpaid = structuredClone(ev);
+  unpaid.data.object.payment_status = 'unpaid';
+  await webhook(mkStreamReq(unpaid), r);
+  check('PA add-on: sessione non pagata non apre task né modifica proposta',
+    r.body?.skipped === 'payment_not_paid' && !store.has(taskKey('movein-pack'))
+    && store.get('preAgreements/pa_addons').status === 'accepted');
+
+  r = mkRes();
+  const wrong = structuredClone(ev);
+  wrong.data.object.amount_total -= 100;
+  await webhook(mkStreamReq(wrong), r);
+  check('PA add-on: totale Stripe diverso dalla proposta → 500, nessun task o paid',
+    r.code === 500 && r.body?.error === 'addon_payment_mismatch'
+    && !store.has(taskKey('movein-pack')) && store.get('preAgreements/pa_addons').status === 'accepted');
+
+  r = mkRes();
+  const wrongKinds = structuredClone(ev);
+  wrongKinds.data.object.metadata.addons = 'movein-pack';
+  await webhook(mkStreamReq(wrongKinds), r);
+  check('PA add-on: metadata con kind incompleti → 500, nessun task',
+    r.code === 500 && !store.has(taskKey('movein-pack')));
+
+  r = mkRes();
+  const wrongCurrency = structuredClone(ev);
+  wrongCurrency.data.object.currency = 'usd';
+  await webhook(mkStreamReq(wrongCurrency), r);
+  check('PA add-on: centesimi uguali ma valuta diversa non provano acquisto',
+    r.code === 500 && !store.has(taskKey('movein-pack')));
+
+  const emailsBefore = emails.length;
+  r = mkRes();
+  failTaskWrites = 1;
+  await webhook(mkStreamReq(ev), r);
+  check('PA add-on: Firestore task giù → retry Stripe, proposta ancora accepted e nessuna email',
+    r.code === 500 && r.body?.error === 'addon_task_write_failed'
+    && store.get('preAgreements/pa_addons').status === 'accepted' && emails.length === emailsBefore);
+
+  r = mkRes();
+  await webhook(mkStreamReq(ev), r);
+  const tMove = store.get(taskKey('movein-pack'));
+  const tClean = store.get(taskKey('cleaning-premium'));
+  check('PA add-on: pagamento verificato apre esattamente due task e marca la proposta paid',
+    r.code === 200 && !!tMove && !!tClean && tMove.serviceKind === 'movein-pack'
+    && tClean.serviceKind === 'cleaning-premium' && tMove.status === 'open'
+    && tMove.due === '2026-10-08' && tClean.due === '2026-10-08'
+    && store.get('preAgreements/pa_addons').paidSessionId === 'cs_pa_addons');
+
+  const emailedAfterPaid = emails.length;
+  tMove.status = 'done';
+  r = mkRes();
+  ev.created += 4 * 86400;
+  await webhook(mkStreamReq(ev), r);
+  check('PA add-on: retry ordinario non riapre task concluso né reinvia email',
+    r.body?.duplicate === true && store.get(taskKey('movein-pack')).status === 'done'
+    && store.get(taskKey('movein-pack')).due === '2026-10-08' && emails.length === emailedAfterPaid);
+
+  store.delete(taskKey('cleaning-premium')); // primo giro parziale, PA già paid
+  r = mkRes();
+  await webhook(mkStreamReq(ev), r);
+  check('PA add-on: retry dopo task mancante ripara PRIMA del ramo duplicate',
+    r.body?.duplicate === true && store.has(taskKey('cleaning-premium'))
+    && store.get(taskKey('movein-pack')).status === 'done' && emails.length === emailedAfterPaid);
+
+  // Old pay.js omitted add-ons and their metadata. The PA selection alone
+  // must never be interpreted as a paid service on that historical path.
+  const legacyToken = 'c'.repeat(32);
+  store.set('preAgreements/pa_legacy', { ...pa, token: legacyToken, status: 'accepted' });
+  r = mkRes();
+  await webhook(mkStreamReq(sessionEvent({ service: 'PREAGREEMENT', token: legacyToken },
+    { id: 'cs_pa_legacy', amount_total: 280000 })), r);
+  check('PA legacy: scelta non addebitata non apre task add-on',
+    r.code === 200 && store.get('preAgreements/pa_legacy').status === 'paid'
+    && !store.has('operatorTasks/' + paidAddonTaskId('pa_legacy', 'movein-pack')));
+
+  // The converted signed contract still receives Journey emails. Its PA
+  // tasks are purchase evidence, even though there is no service lead.
+  const dateIn = days => {
+    const d = new Date(); d.setUTCDate(d.getUTCDate() + days);
+    return d.toISOString().slice(0, 10);
+  };
+  store.set('contracts/ctr_pa_addons', { status: 'active', signatureStatus: 'complete',
+    preAgreementId: 'pa_addons', tenantId: 'u_pa_addons', propertyId: 'p_pa_addons',
+    startDate: dateIn(12), endDate: dateIn(377), tenantCF: 'AA', tenantDocNum: 'ID',
+    identityDocs: ['id'] });
+  store.set('users/u_pa_addons', { name: 'Xenia Petrova', email: 'xenia-pa@example.com' });
+  store.set('properties/p_pa_addons', { address: 'Via Cavour 12, Roma' });
+  globalThis.__mailCalls = [];
+  const { runJourney } = await import('../../api/journey/_run.js');
+  const journey14 = await runJourney();
+  const mail14 = globalThis.__mailCalls.find(m => m.to === 'xenia-pa@example.com');
+  check('Journey reale T-14: PA add-on pagato blocca upsell e dice solo pagamento ricevuto',
+    journey14.sent.includes('ctr_pa_addons:t14')
+    && /received your.*Move-in Pack.*payment/i.test(mail14?.html || '')
+    && !/api\/services\/buy\?kind=movein-pack|already in motion/i.test(mail14?.html || ''));
+
+  store.get('contracts/ctr_pa_addons').startDate = dateIn(6);
+  globalThis.__mailCalls = [];
+  const journey7 = await runJourney();
+  const mail7 = globalThis.__mailCalls.find(m => m.to === 'xenia-pa@example.com');
+  check('Journey reale T-7: Cleaning pagato blocca upsell senza dire booked',
+    journey7.sent.includes('ctr_pa_addons:t7')
+    && /received your.*Cleaning Premium.*payment/i.test(mail7?.html || '')
+    && !/api\/services\/buy\?kind=cleaning-premium|is booked/i.test(mail7?.html || ''));
+
+  // A failed purchase index must not send an uninformed sales email, but it
+  // also must not cancel the key handover email, which has no upsell.
+  store.get('contracts/ctr_pa_addons').startDate = dateIn(1);
+  store.set('contracts/ctr_pa_unknown', { status: 'active', tenantId: 'u_pa_unknown',
+    propertyId: 'p_pa_unknown', startDate: dateIn(12), endDate: dateIn(377) });
+  store.set('users/u_pa_unknown', { name: 'Other Tenant', email: 'other-pa@example.com' });
+  globalThis.__mailCalls = [];
+  failLeadQuery = 1;
+  const journeyUnavailable = await runJourney();
+  check('Journey con indice acquisti giù: rinvia upsell ma invia comunque le chiavi',
+    journeyUnavailable.errors >= 1
+    && journeyUnavailable.sent.includes('ctr_pa_addons:t1')
+    && !journeyUnavailable.sent.includes('ctr_pa_unknown:t14')
+    && globalThis.__mailCalls.some(m => m.to === 'xenia-pa@example.com')
+    && !globalThis.__mailCalls.some(m => m.to === 'other-pa@example.com'));
 }
 
 // ═══ 7. convertPaToContract: idempotente su ID deterministico ═══

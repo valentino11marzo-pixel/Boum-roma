@@ -6,7 +6,9 @@
 //
 //   node tests/journey/steps.mjs
 
-import { steps, journeyEligible } from '../../api/journey/_run.js';
+import { register } from 'node:module';
+register('../money/loader.mjs', import.meta.url);
+const { steps, journeyEligible } = await import('../../api/journey/_run.js');
 
 // ── helper: costruisce lo stato a N giorni dall'inizio (o dalla fine) ──────
 const iso = (d) => d.toISOString().slice(0, 10);
@@ -88,6 +90,13 @@ check('T-7 propone il Cleaning Premium se non comprato',
   t7plain && /Book Cleaning Premium/i.test(t7plain.html));
 check('T-7 NON lo ripropone se già comprato',
   t7bought && !/Book Cleaning Premium/i.test(t7bought.html));
+const t14bought = one({ startIn: 12, endIn: 377, bought: ['movein-pack'] });
+check('T-14 dopo Move-in pagato: conferma soltanto il pagamento',
+  t14bought && /received your.*Move-in Pack.*payment/i.test(t14bought.html)
+  && !/already in motion|activated|booked/i.test(t14bought.html));
+check('T-7 dopo Cleaning pagato: nessuna prenotazione fornitore inventata',
+  t7bought && /received your.*Cleaning Premium.*payment/i.test(t7bought.html)
+  && !/is booked|team goes in/i.test(t7bought.html));
 
 // ═══ 4 · Il bottone recensione punta dove deve ═════════════════════════════
 console.log('\n\x1b[1mLink recensione\x1b[0m');

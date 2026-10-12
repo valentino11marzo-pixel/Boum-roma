@@ -1,10 +1,13 @@
 import Stripe from 'stripe';
 import crypto from 'node:crypto';
-import { fsList, fsPatch, fsGet, getAdminToken } from './homie/_lib.js';
+import { fsList, fsPatch, fsGet, fsCreate, getAdminToken } from './homie/_lib.js';
 import { sendPaEmails, shell, para, fine, btn, btn2 } from './preagreement/_notify.js';
 import { sendEmail } from './agent/_lib.js';
 import { maybeAutoConvert } from './preagreement/_auto.js';
 import { tgNotify } from './pfs/_health.js';
+import { autoTaskId } from './regista/_tasks.js';
+import { romeDateKey } from './viewings/_avail.js';
+import { recordedAddons, addonsTotal, paidAddonTaskId } from './preagreement/_addons.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -308,7 +311,12 @@ const SERVICE_META = {
   },
 };
 
-async function handleService(res, session, m) {
+async function handleService(res, session, m, eventCreated) {
+  // Checkout completion can precede settlement for some payment methods.
+  // An operational commitment and a paid lead require Stripe's paid status.
+  if (session.payment_status !== 'paid') {
+    return res.status(200).json({ received: true, skipped: 'payment_not_paid' });
+  }
   const docId = session.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 30);
   const now = new Date().toISOString();
   const amountEur = (session.amount_total || 0) / 100;
@@ -338,6 +346,37 @@ async function handleService(res, session, m) {
     paid_at: now,
     createdAt: now,
   };
+  // Stripe retries this same event if the operational commitment cannot be
+  // recorded. Create the task FIRST: a failed lead write can then be retried
+  // without either losing the task or sending a premature confirmation.
+  // Hash the full session id instead of truncating it like the legacy lead id.
+  const taskId = autoTaskId('service', crypto.createHash('sha256').update(session.id).digest('hex').slice(0, 24));
+  // The Stripe completion event is the clock for this intake, not when the
+  // buyer opened Checkout. Create-only keeps the first due date unchanged if
+  // another event for the same session arrives later.
+  const eventSeconds = Number(eventCreated || session.created);
+  const intakeDate = Number.isFinite(eventSeconds) && eventSeconds > 0
+    ? new Date(eventSeconds * 1000) : new Date();
+  try {
+    await fsCreate('operatorTasks', {
+      title: `${meta.emoji} Servizio pagato: ${meta.title}${m.name ? ' · ' + m.name : ''}`,
+      note: `Lead leads/svc_${docId}; Stripe ${session.id}; cliente ${email || '—'}; immobile ${m.listing || '—'}. Verificare conferma al cliente, presa in carico e scadenza promessa prima di chiudere.`,
+      due: romeDateKey(intakeDate),
+      dueTime: null,
+      status: 'open',
+      kind: 'auto',
+      source: 'stripe-service',
+      calendarize: false,
+      icalSeq: 0,
+      createdAt: new Date(),
+      createdBy: 'stripe-webhook',
+    }, taskId);
+  } catch (err) {
+    if (!err?.exists) {
+      console.error('Firestore service task write error:', err);
+      return res.status(500).json({ error: 'service_task_write_failed' });
+    }
+  }
   let w = null;
   try { w = await writeDoc('leads', 'svc_' + docId, lead); }
   catch (err) {
@@ -375,7 +414,7 @@ async function handleService(res, session, m) {
     if (email) await sendEmailJS({
       to_email: email,
       heading: it ? `${meta.title} — confermato` : `Your ${meta.title} is confirmed`,
-      subheading: it ? 'BOOM Rome — pagato, in lavorazione' : 'BOOM Rome — paid & scheduled',
+      subheading: it ? 'BOOM Rome — pagamento ricevuto, prossimi passi' : 'BOOM Rome — payment received, next steps',
       name: firstName,
       intro: it
         ? `Pagamento ricevuto — €${amountEur}, via Stripe. Ecco esattamente cosa succede adesso:`
@@ -496,7 +535,51 @@ async function handleReserve(res, session, m) {
 // Marks the doc paid and sends the confirmation emails (client: document +
 // Stripe receipt; admin: copy + next-step nudge). Idempotent on webhook
 // retries via paidSessionId.
-async function handlePreagreement(res, session, m) {
+function provedPaidAddons(pa, session, m) {
+  const kinds = String(m.addons || '').split(',').filter(Boolean);
+  // Legacy resume sessions did not include add-ons in their charge or
+  // metadata. pa.addons alone is a selection, never proof of purchase.
+  if (!kinds.length && (m.addonsEur == null || Number(m.addonsEur) === 0)) return [];
+  const rows = recordedAddons(pa);
+  const rawBase = Number((pa.money || {}).dueAtSigning ?? 0);
+  const base = Math.round(rawBase); // submit.js charges the rounded base.
+  const total = rows && addonsTotal(rows);
+  if (!rows || !kinds.length || !Number.isFinite(rawBase) || base < 0
+    || kinds.length !== rows.length || kinds.some((kind, i) => kind !== rows[i].kind)
+    || Number(m.addonsEur) !== total
+    || session.currency !== 'eur'
+    || Number(session.amount_total) !== (base + total) * 100) {
+    throw new Error('preagreement_addon_payment_mismatch');
+  }
+  return rows;
+}
+
+async function createPaidAddonTasks(pa, paId, session, m, eventCreated) {
+  const addons = provedPaidAddons(pa, session, m);
+  if (!addons.length) return;
+  const eventSeconds = Number(eventCreated || session.created);
+  const paidAt = Number.isFinite(eventSeconds) && eventSeconds > 0
+    ? new Date(eventSeconds * 1000) : new Date();
+  for (const addon of addons) {
+    const taskId = paidAddonTaskId(paId, addon.kind);
+    try {
+      await fsCreate('operatorTasks', {
+        title: `${addon.kind === 'movein-pack' ? '🔌' : '✨'} Add-on pagato: ${addon.label}`,
+        note: `Pre-agreement ${paId}; Stripe ${session.id}. Verificare dati, disponibilità e data con il fornitore prima di promettere attivazione o prenotazione.`,
+        due: romeDateKey(paidAt), dueTime: null,
+        status: 'open', kind: 'auto', source: 'preagreement-addon',
+        preAgreementId: paId, serviceKind: addon.kind, stripeSessionId: session.id,
+        calendarize: false, icalSeq: 0, createdAt: new Date(), createdBy: 'stripe-webhook',
+      }, taskId);
+    } catch (e) { if (!e.exists) throw e; }
+  }
+}
+
+async function handlePreagreement(res, session, m, eventCreated) {
+  // Only a paid Checkout is evidence that an add-on can enter operations.
+  if (session.payment_status !== 'paid') {
+    return res.status(200).json({ received: true, skipped: 'payment_not_paid' });
+  }
   const token = String(m.token || '');
   if (!/^[a-f0-9]{32}$/.test(token)) return res.status(200).json({ received: true, skipped: 'bad_pa_token' });
 
@@ -504,9 +587,21 @@ async function handlePreagreement(res, session, m) {
   try {
     const rows = await fsList('preAgreements', { filter: { field: 'token', op: 'EQUAL', value: token }, limit: 1 });
     hit = rows && rows[0];
-  } catch (e) { console.error('[webhook/pa] lookup failed:', e.message); }
-  if (!hit) return res.status(200).json({ received: true, skipped: 'pa_not_found' });
+  } catch (e) {
+    console.error('[webhook/pa] lookup failed:', e.message);
+    return res.status(500).json({ error: 'pa_lookup_failed' });
+  }
+  if (!hit) return res.status(500).json({ error: 'pa_not_found' });
   const { id, ...pa } = hit;   // fsList returns flat rows: {id, ...fields}
+
+  // Create-only tasks precede the duplicate shortcut. Stripe can retry after
+  // one of several writes succeeds; the same PA+kind never opens two tasks.
+  try { await createPaidAddonTasks(pa, id, session, m, eventCreated); }
+  catch (e) {
+    console.error('[webhook/pa] add-on intake failed:', e.message);
+    return res.status(500).json({ error: e.message === 'preagreement_addon_payment_mismatch'
+      ? 'addon_payment_mismatch' : 'addon_task_write_failed' });
+  }
 
   if (pa.paidSessionId === session.id) {
     // Retry — email già inviate. MA se la conversione in contratto era fallita
@@ -527,7 +622,10 @@ async function handlePreagreement(res, session, m) {
       paidSessionId: session.id,
       stripePaymentIntent: String(session.payment_intent || ''),
     });
-  } catch (e) { console.error('[webhook/pa] patch failed:', e.message); }
+  } catch (e) {
+    console.error('[webhook/pa] patch failed:', e.message);
+    return res.status(500).json({ error: 'pa_payment_write_failed' });
+  }
 
   // Il dovuto alla firma è arrivato: il lucchetto sull'immobile diventa
   // DEFINITIVO. Prima scadeva dopo 48h, perché una riserva che non paga non
@@ -1145,11 +1243,11 @@ export default async function handler(req, res) {
   }
 
   if (m.service === 'SERVICE') {
-    return handleService(res, session, m);
+    return handleService(res, session, m, event.created);
   }
 
   if (m.service === 'PREAGREEMENT') {
-    return handlePreagreement(res, session, m);
+    return handlePreagreement(res, session, m, event.created);
   }
 
   if (m.service === 'RENT') {

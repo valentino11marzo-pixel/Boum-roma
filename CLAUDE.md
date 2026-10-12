@@ -1055,6 +1055,23 @@ WhatsApp-only. All four pages (`virtual-viewing`, `deal-assistance`,
 (MATERIA ambient, pay-plate + checkout sheet, sticky mobile pay bar,
 JSON-LD Service+Offer+FAQ).
 
+Paid SERVICE checkouts now create a deterministic `operatorTasks` Regista
+commitment before the lead and emails; Firestore failure returns 500 for a
+Stripe retry. The task is due on the completed payment event's Rome day;
+one task survives all retries for the full Stripe session, even if the lead
+write fails.
+`checkout.session.completed` alone is not payment evidence: SERVICE skips
+sessions whose `payment_status` is not `paid`, with no task, lead or email.
+The current Checkout offers card only; async methods need an explicit paid
+event handler before being enabled (`npm test -- money`).
+The Commerciale skips these paid service leads, which need fulfillment rather
+than a rental enquiry draft. `npm test -- money` exercises both real handlers.
+This is intake, not proof that VV/DAS or any other service has been delivered.
+Release blocker: the existing `SERVICE_META` email rows still promise outcomes
+or times (48h scheduling, utilities started, deposit returned, guarantees,
+2h human reply). Valentino must review each against current delivery capacity
+before rollout; EmailJS failure still needs a durable delivery follow-up.
+
 ### POST `/api/search/save`
 Public save-search endpoint for the apartments discovery page. Body
 `{ email, label?, criteria{q,budgetMax,moveIn,beds,baths,furnished,video,
@@ -1416,6 +1433,13 @@ annual rent + VAT "due separately", conditions 5.1–5.7, Egidi footer).
 - `api/stripe-webhook.js` PREAGREEMENT branch — on checkout completed:
   doc → `status:'paid'` (+paidEur/paidAt/paidSessionId, idempotent on
   retries), fetches the Stripe receipt_url, sends both emails.
+- PA add-ons: `submit.js` records the chosen price rows; `pay.js` replays
+  those exact rows in a resumed Checkout. The paid Stripe webhook checks
+  metadata and total against the PA, then create-only opens one operator
+  task per kind before its duplicate shortcut; a failed write asks Stripe
+  to retry. Old base-only resume sessions never prove an add-on purchase.
+  Journey reads those tasks before suppressing an upsell and says only
+  that payment arrived until the provider confirms work (`money`, `pastate`, `journey`).
 - `submit.js` also emails at acceptance: client copy only when nothing is
   due via Stripe (else it arrives after payment); admin always notified.
 

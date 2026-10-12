@@ -10,7 +10,8 @@
 
 import Stripe from 'stripe';
 import { fsList, fsPatch, readJson } from '../homie/_lib.js';
-import { paidOnRecord } from './_state.js';
+import { paidOnRecord, dueAtSigning } from './_state.js';
+import { recordedAddons, addonsTotal } from './_addons.js';
 
 const clip = (v, n = 200) => (v == null ? null : String(v).trim().slice(0, n) || null);
 
@@ -39,32 +40,50 @@ export default async function handler(req, res) {
     if (paidOnRecord(pa)) return res.status(409).json({ ok: false, error: 'already_paid' });
     if (pa.status !== 'accepted') return res.status(409).json({ ok: false, error: 'not_accepted' });
 
-    const due = Math.round(Number((pa.money || {}).dueAtSigning) || 0);
+    const addons = recordedAddons(pa);
+    if (!addons) return res.status(409).json({ ok: false, error: 'addon_snapshot_invalid' });
+    const baseEur = Math.round(Number((pa.money || {}).dueAtSigning) || 0);
+    const addonsEur = addonsTotal(addons);
+    const due = dueAtSigning(pa);
     if (!(due > 0)) return res.status(409).json({ ok: false, error: 'nothing_due' });
+    // submit.js persisted the chosen rows before creating its Checkout. A
+    // resumed Checkout must charge exactly that snapshot, never today's
+    // catalog price. Do not clamp a base line and silently overcharge it.
+    if (addons.length && (baseEur < 0 || (baseEur > 0 && (baseEur < 50 || baseEur > 20000))
+      || due !== baseEur + addonsEur)) {
+      return res.status(409).json({ ok: false, error: 'addon_amount_invalid' });
+    }
     if (!process.env.STRIPE_SECRET_KEY) return res.status(503).json({ ok: false, error: 'payments_unavailable' });
 
     const t = pa.tenant || {};
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
     const eur = Math.max(50, Math.min(20000, due));
+    const lineItems = [];
+    if (baseEur > 0) lineItems.push({
+      price_data: {
+        currency: 'eur',
+        product_data: {
+          name: `Pre-agreement ${pa.ref || ''} — ${(pa.property || {}).address || 'Rome apartment'}`,
+          description: 'Amount due at signing per your BOOM pre-agreement. Deposit terms per the agreement.',
+        },
+        unit_amount: (addons.length ? baseEur : eur) * 100,
+      },
+      quantity: 1,
+    });
+    for (const a of addons) lineItems.push({
+      price_data: { currency: 'eur', product_data: { name: `BOOM ${a.label}` }, unit_amount: a.eur * 100 },
+      quantity: 1,
+    });
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
       payment_method_types: ['card'],
       customer_email: t.email || undefined,
-      line_items: [{
-        price_data: {
-          currency: 'eur',
-          product_data: {
-            name: `Pre-agreement ${pa.ref || ''} — ${(pa.property || {}).address || 'Rome apartment'}`,
-            description: 'Amount due at signing per your BOOM pre-agreement. Deposit terms per the agreement.',
-          },
-          unit_amount: eur * 100,
-        },
-        quantity: 1,
-      }],
+      line_items: lineItems,
       metadata: {
         service: 'PREAGREEMENT', ref: pa.ref || '', token,
         address: clip((pa.property || {}).address, 200) || '',
         name: t.fullName || '', email: t.email || '', phone: t.phone || '',
+        addons: addons.map(a => a.kind).join(','), addonsEur: String(addonsEur),
       },
       success_url: 'https://www.boomrome.com/pre-agreement?t=' + token + '&paid=1',
       cancel_url: 'https://www.boomrome.com/pre-agreement?t=' + token,
