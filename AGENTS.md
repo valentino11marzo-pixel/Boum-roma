@@ -1,11 +1,24 @@
 # AGENTS.md — le regole di casa per chi lavora in questo repo (Codex incluso)
 
 Questo file lo legge Codex da solo. Le stesse regole valgono per Claude e
-per chiunque apra una PR. La conoscenza del progetto sta in `CLAUDE.md`:
-leggerlo PRIMA di toccare un file (è lungo: cerca la sezione del componente
-su cui lavori). La missione in corso e la divisione del lavoro stanno in
-`STUDIO_SEGRETARIA_UNICA_2026-09.md` §5: se un'istruzione contraddice lo
-studio, vince lo studio.
+per chiunque apra una PR.
+
+## Prima di tutto: `ORA.md`
+
+`ORA.md` dice cosa si fa adesso, chi costruisce e cosa non si fa. Vince su
+tutto: su questo file, su `CLAUDE.md`, sugli studi `STUDIO_*.md` e sui prompt
+in `docs/PROMPT_*.md`, che da oggi sono storia. Se la richiesta non è in
+`ORA.md`, fermati e chiedi a Valentino cosa esce per farle spazio.
+
+**Ruoli (dal 12/10/2026; li fissa `ORA.md`).** Costruisce Claude. Codex
+rivede: legge le PR che toccano soldi, contratti e firma e scrive le
+obiezioni — file, riga, lo scenario che si rompe — senza riscriverle. Codex
+non apre rami o PR di funzionalità se `ORA.md` non gli assegna
+esplicitamente un lavoro.
+
+**Dove sta la conoscenza.** `CLAUDE.md` è la mappa, corta. Il dettaglio e la
+storia di ogni area sono in `docs/aree/<area>.md`: leggi quello dell'area
+che tocchi PRIMA di toccare un file.
 
 ## Cos'è
 
@@ -60,19 +73,22 @@ in `api/`), modelli Anthropic solo dal server, bot Telegram, un Mac
   (rimetti il difetto, il test deve cadere). Un test non si salta, non si
   disabilita, non si allenta.
 - **Documentazione**: ogni cambiamento che cambia un comportamento aggiunge
-  3-8 righe nella sezione giusta di `CLAUDE.md`, nello stile del file:
-  cos'era, cosa cambia, dove sta il test.
+  3-8 righe nella sezione giusta di `docs/aree/<area>.md`, nello stile del
+  file: cos'era, cosa cambia, dove sta il test. **Mai in `CLAUDE.md`**: è la
+  mappa e resta sotto le 300 righe (`tests/contesto` lo verifica).
 
 ## Cosa non fare
 
 - Non creare stato fuori da Firestore (file, memorie di modello, code
   proprie). Non scrivere dati da un componente guidato da prompt senza una
   proposta confermata.
-- Non toccare file posseduti da un altro lotto (vedi lo studio §5). Un
-  conflitto è un errore di perimetro: fermati e scrivilo nella PR.
+- Non aprire un terzo ramo di lavoro: al massimo 2 rami aperti in tutto il
+  repo, e un ramo tocca un'area sola. Un conflitto con il lavoro di un altro
+  è un errore di perimetro: fermati e scrivilo nella PR.
 - Non aggiungere dipendenze, env o segreti senza necessità dichiarata; mai
   un segreto nel codice o nei log.
-- Non fare merge: le PR le unisce Valentino. Non pushare su `main`.
+- Non fare merge: le PR le unisce Valentino, solo con la CI verde. Non
+  pushare su `main`.
 - Prima di ogni deploy autorizzato, leggi il commit realmente servito da `www.boomrome.com` e confrontalo con il candidato. Se il dominio è cambiato durante il lavoro o il ramo parte da una versione precedente, integra e verifica i lavori già pubblicati prima di procedere: una CI verde sul solo ramo non prova che siano conservati.
 - Il rilascio ha un solo responsabile coordinato. Ricontrolla alias e commit subito prima della pubblicazione; dopo verifica dominio, contenuto degli asset e provenienza Git, distinguendo queste prove dal collaudo autenticato.
 - Non riscrivere ciò che regge per farlo «più pulito»: il repo porta
@@ -80,7 +96,12 @@ in `api/`), modelli Anthropic solo dal server, bot Telegram, un Mac
 
 ## Flusso
 
-Ramo `codex/<lotto>` (o `claude/<lotto>`), commit piccoli con messaggio
-che dice cos'era e cosa cambia, PR verso `main` con: cosa, perché, quali
+Ramo `claude/<obiettivo>` (o `codex/<obiettivo>` solo se `ORA.md` assegna
+il lavoro a Codex), commit piccoli con messaggio che dice cos'era e cosa
+cambia, PR verso `main` con: cosa, perché, quale voce di `ORA.md`, quali
 suite girate e l'output di `npm test -- <suite>`. Domande aperte nella
 descrizione della PR, mai risolte tirando a indovinare.
+
+Revisione (il lavoro di Codex): un commento sulla PR con le obiezioni
+ordinate per gravità, ognuna con file, riga e lo scenario concreto che si
+rompe. Niente commit sul ramo di un altro.
