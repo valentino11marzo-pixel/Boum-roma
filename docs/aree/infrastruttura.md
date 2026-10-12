@@ -169,6 +169,13 @@ firebase.json             Firebase deploy config (firestore + storage rules)
   single endpoint, keeps the original 51-rule regression fixture and rejects
   overlaps, lost settings and new overrides on default-configured handlers.
   `sign-for` stays at 60s; `segretaria/preparation.js` keeps its default.
+- **I `.md` non vanno sul sito (12/10/2026)**: con `outputDirectory: "."`
+  ogni file del repo diventava una pagina, e `www.boomrome.com/AGENTS.md`
+  rispondeva 200 (così CLAUDE.md, gli studi e gli audit). Da oggi
+  `.vercelignore` esclude `*.md`: nessuna pagina e nessuna funzione ne legge
+  uno a runtime (i bot sul Mac scaricano da GitHub, non dal sito). Il repo
+  resta pubblico: l'esclusione toglie la copia sul dominio, non quella su
+  GitHub. `tests/contesto` fa cadere la CI se la riga sparisce.
 
 
 ## Environment Variables (Vercel)

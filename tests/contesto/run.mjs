@@ -13,7 +13,9 @@
 //   3. ORA.md ha ruoli, al massimo tre obiettivi e la lista «Non si fa»;
 //   4. AGENTS.md (che Codex legge da solo) mette ORA.md sopra a tutto e manda
 //      la documentazione in docs/aree, non in CLAUDE.md;
-//   5. la divisione resta senza perdite e fallisce su una sezione senza area.
+//   5. la divisione resta senza perdite e fallisce su una sezione senza area;
+//   6. i .md restano fuori dal sito: con outputDirectory "." ogni file del
+//      repo è una pagina, e www.boomrome.com/AGENTS.md rispondeva 200.
 // Ogni controllo è una funzione pura, provata anche per mutazione qui sotto:
 // un controllo che non morde passa sempre ed è peggio di nessun controllo.
 
@@ -60,6 +62,10 @@ export function agentsCoerente(agents) {
   return comandaOra && docAree && !vecchiaRegola;
 }
 
+export function mdFuoriDalSito(vercelignore) {
+  return vercelignore.split('\n').map((l) => l.trim()).includes('*.md');
+}
+
 // ── 1 · la mappa resta corta ────────────────────────────────────────────
 const claude = read('CLAUDE.md');
 const n = righeMappa(claude);
@@ -100,6 +106,10 @@ ok(/Costruisce Claude/.test(agents) && /Codex\s+rivede/.test(agents), 'AGENTS.md
   ok(morso, 'divisione: una sezione senza area FA FALLIRE lo script (mai una riga persa in silenzio)');
 }
 
+// ── 6 · i documenti interni non diventano pagine del sito ───────────────
+const vercelignore = read('.vercelignore');
+ok(mdFuoriDalSito(vercelignore), '.vercelignore esclude *.md: ORA.md, il triage e docs/aree non diventano pagine di www.boomrome.com');
+
 // ── mutazioni: ogni controllo deve mordere ─────────────────────────────
 ok(righeMappa('x\n'.repeat(MAX_RIGHE + 1)) > MAX_RIGHE, 'mutazione: una mappa di 301 righe viene vista');
 ok(indiceAree('vedi docs/aree/a.md', ['a.md', 'b.md']).mancanti[0] === 'b.md', 'mutazione: un file d\'area senza indice viene visto');
@@ -107,6 +117,7 @@ ok(indiceAree('vedi docs/aree/a.md e docs/aree/z.md', ['a.md']).fantasma[0] === 
 ok(obiettivi('## Obiettivi\n1. **a**\n2. **b**\n3. **c**\n4. **d**\n## Altro\n') === 4, 'mutazione: quattro obiettivi vengono contati');
 ok(!agentsCoerente(agents.replace(/docs\/aree\/<area>\.md`, nello stile/, '`CLAUDE.md`, nello stile')), 'mutazione: la vecchia regola «righe in CLAUDE.md» viene vista');
 ok(!agentsCoerente(agents.replace(/Vince su\s+tutto/g, 'Conta')), 'mutazione: un AGENTS.md che non mette ORA.md sopra a tutto viene visto');
+ok(!mdFuoriDalSito(vercelignore.replace(/^\*\.md$/m, '')), 'mutazione: un .vercelignore senza *.md viene visto');
 
 console.log(`\nContesto: ${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

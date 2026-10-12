@@ -1,6 +1,6 @@
 # Pagine legacy e studi di design: restano nel repo ma NON vengono deployate.
 # (Le superfici attive sono: portal.html, owner-dashboard.html, tenant.html,
-#  client-portal.html, login.html — vedi CLAUDE.md.)
+#  client-portal.html, login.html — vedi docs/aree/portal.md.)
 preview-*.html
 dashboard.html
 owner.html
@@ -14,3 +14,8 @@ admin-flats.html
 tenant-registration.html
 js/boom-bg-roma.js
 v2-immersive.html
+# Documentazione interna (CLAUDE.md, AGENTS.md, ORA.md, docs/, studi, audit):
+# sta nel repo per chi lavora, non è una pagina del sito. Fino al 12/10/2026
+# www.boomrome.com/AGENTS.md rispondeva 200. Nessuna pagina e nessuna
+# funzione legge un .md a runtime; tests/contesto tiene la riga.
+*.md
