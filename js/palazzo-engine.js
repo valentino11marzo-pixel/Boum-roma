@@ -283,7 +283,7 @@
   var NOTICE = {
     studenti: { months: 3, renews: 'tacito', source: 'modello', rule: 'Contratto studenti (Allegato C, art. 1): senza disdetta del conduttore almeno tre mesi prima della scadenza si rinnova per uguale periodo.' },
     transitorio: { months: 0, renews: '', source: 'modello', rule: 'Contratto transitorio (Allegato B, art. 1): cessa alla scadenza senza bisogno di disdetta.' },
-    '3+2': { months: 6, renews: 'proroga', source: 'modello', rule: 'Contratto 3+2 (Allegato A, art. 1): alla prima scadenza si proroga di diritto di due anni; la comunicazione per non rinnovare va data almeno sei mesi prima.' },
+    '3+2': { months: 6, renews: 'proroga', source: 'modello', rule: 'Contratto 3+2 (Allegato A, art. 1): alla prima scadenza si proroga di diritto di due anni (il locatore può disdire solo per i motivi dell’art. 3 L. 431/98); alla fine della proroga chi non vuole rinnovare lo comunica almeno sei mesi prima.' },
     '4+4': { months: 6, renews: 'rinnovo', source: 'legge', rule: 'Contratto 4+4 (L. 431/98, art. 2 c. 1): alla prima scadenza si rinnova di quattro anni, salvo disdetta del locatore per i motivi di legge con almeno sei mesi di preavviso.' },
     '': { months: 3, renews: '', source: 'ipotesi', assumed: true, rule: 'Tipo di contratto non indicato: termine di disdetta di tre mesi IPOTIZZATO, da verificare sul contratto.' }
   };
