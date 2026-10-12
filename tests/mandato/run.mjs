@@ -1376,6 +1376,35 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
   check('📋 solo admin (403 a un proprietario)', r.code === 403);
   store.get('users/caller1').role = 'admin';
 
+  // ✍️ premuto PER PRIMO, senza passare da 📋 — con il mandato in mano è la
+  // mossa più naturale. La console legge hasContract dallo status: false →
+  // manda createProperty. Senza, la firma non parte e non scrive NIENTE.
+  IP = '9.7.12.3';
+  const T_L4 = 'd4'.repeat(16);
+  const tenP = { fullName: 'Lina Prova', email: 'lina@x.com', phone: '+905000000004', dob: '1993-03-03', nationality: 'Turkish' };
+  store.set('preAgreements/paLat4', paSeed(T_L4, {
+    propertyId: null, askMandate: true,
+    property: { address: 'Via dei Volsci 5', type: 'Entire Apartment', condition: 'Furnished', use: 'Residential', floor: '2', unit: '3' },
+    landlord: { name: 'Sara Prova', email: null, phone: '+39 345 000 0004' },
+    lease: { startDate: '2050-11-01', months: 3, endDate: '2051-01-31', type: 'Transitional Lease', lawRef: 'x', reason: 'Sapienza' },
+  }));
+  r = mkRes(); await paSubmit(mkReq({ token: T_L4, tenant: tenP, tenants: [tenP], accept: true, mandate: true }), r);
+  const users0 = [...store.keys()].filter(k => k.startsWith('users/')).length;
+  r = mkRes(); await signFor(admin({ op: 'status', id: 'paLat4' }), r);
+  check('✍️ per primo · status senza contratto: hasContract false, needsContract (è ciò che la console legge per mandare createProperty)',
+    r.code === 200 && r.body.hasContract === false && r.body.plan.needsContract === true && r.body.plan.mandateOk === true);
+  r = mkRes(); await signFor(admin({ op: 'sign', id: 'paLat4', contractVersion: 1 }), r);
+  check('✍️ per primo SENZA createProperty → 400 no_property (canCreate true), nessun contratto, immobile, profilo o firma',
+    r.code === 400 && r.body.error === 'no_property' && r.body.canCreate === true && !store.has('contracts/pa_paLat4') && !store.has('properties/prop_pa_paLat4')
+    && [...store.keys()].filter(k => k.startsWith('users/')).length === users0);
+  r = mkRes(); await signFor(admin({ op: 'sign', id: 'paLat4', contractVersion: 1, createProperty: true }), r);
+  const c4 = store.get('contracts/pa_paLat4');
+  check('✍️ per primo CON createProperty: contratto e immobile nascono dalla proposta e il conduttore è firmato PER MANDATO nello stesso tap, col link firma del proprietario in risposta',
+    r.code === 200 && (r.body.steps || []).join() === 'tenant' && r.body.landlordPending === true && /\/sign\?sign=/.test(r.body.landlordSignUrl || '')
+    && !!c4 && c4.propertyId === 'prop_pa_paLat4' && store.has('properties/prop_pa_paLat4') && !!c4.tenantSignature
+    && !!c4.tenantSignedByDelegate && c4.tenantSignedByDelegate.onBehalfOf === 'Lina Prova' && !c4.landlordSignature
+    && store.get('preAgreements/paLat4').contractId === 'pa_paLat4');
+
   // lo Share Hub del portal MONTATO (la funzione vera, estratta dal file): la
   // proprietaria senza profilo nel portal ha WhatsApp dal contratto
   {
@@ -1412,12 +1441,19 @@ const { termsFingerprint } = await import('../../api/magic-sign/_shared.js');
     /\(done&&!sig\.landlordSigned&&sig\.status!=='complete'\?'<button class="pbtn" onclick="sendLandlordScheda\(/.test(cons)
     && /op:'landlord-scheda',id:id,propertyId:d\.propertyId\|\|undefined,createProperty:!d\.propertyId/.test(cons));
   check('console: il contratto che manca si annuncia PRIMA (confirmContractBirth) per 📋 e 🏠, non dopo ✍️ (contractKnown)',
-    /if\(!confirmContractBirth\(d,'mandare la Scheda a /.test(cons) && /if\(!\(opt&&opt\.contractKnown\)&&!confirmContractBirth\(d,'chiedere il mandato al proprietario'\)\)return;/.test(cons)
+    /if\(!\(await confirmContractBirth\(d,'mandare la Scheda a /.test(cons) && /if\(!\(opt&&opt\.contractKnown\)&&!\(await confirmContractBirth\(d,'chiedere il mandato al proprietario'\)\)\)return;/.test(cons)
     && /askLandlordMandateFor\(d\.id,\{contractKnown:true\}\)/.test(cons));
   check('console: niente window.open dopo la chiamata al server per 🏠 (Safari lo blocca in silenzio): WhatsApp è un link vero nella finestra della pagina',
     !/window\.open\('https:\/\/wa\.me\/'\+String\(j\.phone\)/.test(cons) && /function showPartySend\(d,o\)/.test(cons) && /'<a class="pbtn prim wa" href="'\+wa\+'" target="_blank" rel="noopener">📲 Manda su WhatsApp<\/a>'/.test(cons));
   check('console: dopo ✍️ col proprietario di turno, il SUO link firma subito, dalla risposta',
     /if\(j\.landlordPending&&j\.landlordSignUrl\)showLandlordSignLink\(d,j\.landlordSignUrl,!j\.askLandlordMandate\);/.test(cons) && /function showLandlordSignLink\(d,url,offerMandate\)/.test(cons));
+  check('console: ✍️ senza contratto (lo dice il SERVER, hasContract) annuncia la nascita nella stessa conferma e manda createProperty/propertyId',
+    /var needsContract=st\.hasContract===false;/.test(cons) && /if\(needsContract\)lines\.push\(contractBirthText\(d,'firmare',await existingPropFor\(d\)\)\);/.test(cons)
+    && /if\(needsContract\)\{if\(d\.propertyId\)body\.propertyId=d\.propertyId;else body\.createProperty=true;\}/.test(cons)
+    && /return ask\(contractBirthText\(d,purpose,await existingPropFor\(d\)\)\+'\\n\\nProcedere\?'\);/.test(cons));
+  check('console: prima di creare un immobile dalla proposta (📋 🏠 ✍️) si cerca la casa GIÀ nel portal con lo stesso abbinamento di → Contratto (una copia), escluso l\'immobile nato da questa proposta',
+    /async function existingPropFor\(d\)\{\n  if\(!d\|\|d\.propertyId\)return null;\n  var g=propGuess\(d,await loadProps\(\)\);\n  return \(g&&g\.id!=='prop_pa_'\+d\.id\)\?g:null;\n\}/.test(cons)
+    && /var guess=propGuess\(d,props\);/.test(cons) && (cons.match(/function propGuess\(/g) || []).length === 1 && !/norm\(addr\)\.indexOf\(norm\(p\.address\)\.slice\(0,14\)\)===0\}\)\n    \|\|props\.find/.test(cons.slice(cons.indexOf('window.convertPA='))));
   check('portal: 🖊 Firma ora e il mandato armato confrontano con termsForMandate (lo stesso confronto del server)',
     /ME\.termsForMandate \? ME\.termsForMandate\(c, mand\)/.test(app) && /ME\.termsForMandate \? ME\.termsForMandate\(c, c\.tenantMandate\)/.test(app));
   check('portal Share Hub: WhatsApp/email delle parti dai contatti del CONTRATTO quando manca il profilo; l\'accesso al portale solo a chi ha un profilo',
