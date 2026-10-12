@@ -21,6 +21,13 @@
   'use strict';
 
   var RENT = (typeof module === 'object' && module.exports) ? require('./rent-engine.js') : root.BOOM_RENT;
+  // Che tipo di contratto è (carta, segnaposto): UNA copia, la stessa della
+  // macchina di firma. Senza il modulo (una pagina che non lo carica) le due
+  // regole sono le sue, ricopiate alla lettera.
+  var CS = ((typeof module === 'object' && module.exports) ? require('./contract-state.js') : root.BOOM_CONTRACT_STATE) || {
+    isPaper: function (c) { return !!(c && String(c.signatureStatus || '').trim() === 'paper'); },
+    isPlaceholder: function (c) { return !!(c && c.contractMissing === true); }
+  };
 
   function str(v) { return v == null ? '' : String(v).trim(); }
   function norm(v) { return str(v).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, ''); }
@@ -29,13 +36,22 @@
   function money(v) { var n = RENT && RENT.amount ? RENT.amount(v) : (typeof v === 'number' && v >= 0 ? v : null); return n; }
 
   // ── Date civili (Europe/Rome) ─────────────────────────────────────────
+  // Una stringa con l'ora E il fuso ('…T23:30:00.000Z', '…+02:00') è un
+  // ISTANTE: il giorno è quello di Roma, non i primi dieci caratteri (un
+  // incasso registrato alle 00:30 del 6 novembre a Roma è del 6, non del 5;
+  // il 31/12 alle 23:30 UTC è già l'anno dopo). Senza fuso la data è quella
+  // scritta: nessuno ha detto in che ora del mondo.
+  var INSTANT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?(?:Z|[+-]\d{2}:?\d{2})$/i;
   function day(value) {
     if (value == null || value === '') return '';
     if (typeof value === 'string') {
-      var m = /^(\d{4})-(\d{2})-(\d{2})(?:$|T)/.exec(value.trim());
+      var s0 = value.trim();
+      var m = /^(\d{4})-(\d{2})-(\d{2})(?:$|T)/.exec(s0);
       if (!m) return '';
       var d0 = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
-      return d0.getUTCFullYear() === +m[1] && d0.getUTCMonth() === +m[2] - 1 && d0.getUTCDate() === +m[3] ? m[0].slice(0, 10) : '';
+      if (!(d0.getUTCFullYear() === +m[1] && d0.getUTCMonth() === +m[2] - 1 && d0.getUTCDate() === +m[3])) return '';
+      if (INSTANT_RE.test(s0)) { var at = new Date(s0); if (Number.isFinite(at.getTime())) return day(at); }
+      return m[0].slice(0, 10);
     }
     var date;
     try {
@@ -69,6 +85,19 @@
   function dayAdd(d, k) {
     var x = new Date(d + 'T12:00:00Z'); x.setUTCDate(x.getUTCDate() + k);
     return x.toISOString().slice(0, 10);
+  }
+  // Quanti mesi di calendario da a (YYYY-MM) a b (YYYY-MM): b − a.
+  function monthsDiff(a, b) { return (+b.slice(0, 4) - +a.slice(0, 4)) * 12 + (+b.slice(5, 7) - +a.slice(5, 7)); }
+  // Il giorno in cui una rata è stata pagata. Il webhook Stripe scrive
+  // paidAt (l'istante) e paidDate = i primi dieci caratteri in UTC: lì vale
+  // l'istante, letto a Roma. Una paidDate scritta come data a sé (l'accredito
+  // dichiarato da chi registra l'incasso) resta quella: è il fatto.
+  function paidDayOf(p) {
+    var at = p && p.paidAt, pd = p && p.paidDate;
+    var atDay = at && (typeof at !== 'string' || INSTANT_RE.test(at.trim())) ? day(typeof at === 'string' ? new Date(at.trim()) : at) : '';
+    var pdDay = day(pd);
+    if (atDay && (!pdDay || (typeof pd === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(pd.trim()) && typeof at === 'string' && at.trim().slice(0, 10) === pd.trim()))) return atDay;
+    return pdDay || atDay;
   }
   var MONTHS_IT = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
   function monthLabel(month, short) {
@@ -204,6 +233,70 @@
     list(c.coTenants).forEach(function (t) { var n = str(t && (t.name || t.fullName)); if (n && !out.includes(n)) out.push(n); });
     return out;
   }
+  // Che contratto è: firmato su carta (la presa in carico), segnaposto (non
+  // ancora in archivio) o nella macchina digitale. Un contratto di carta
+  // non è mai "da firmare": la firma c'è, a penna.
+  function contractKindOf(c) {
+    if (!c) return null;
+    if (CS.isPlaceholder(c)) return 'placeholder';
+    if (CS.isPaper(c)) return 'paper';
+    return 'digital';
+  }
+  // I giorni di due contratti si toccano davvero? (Non lo stesso MESE: un
+  // cambio inquilino al 15 non è una sovrapposizione.) Senza inizio il
+  // contratto è dichiarato in corso: copre tutto, e lo si dice.
+  function daysOverlap(a, b) {
+    var sa = day(a.startDate), sb = day(b.startDate), ea = effectiveEnd(a), eb = effectiveEnd(b);
+    if (!sa || !sb) return true;
+    return sb <= (ea || '9999-12-31') && sa <= (eb || '9999-12-31');
+  }
+  // Il locatore è una società? Dalla forma giuridica nel nome (S.r.l., SPA,
+  // S.a.s., società, coop…) o da una sigla puntata di almeno tre lettere.
+  // Serve a non parlare di IRPEF/cedolare a una società e a dire a nome di
+  // chi è il reddito; un nome di persona resta persona.
+  var COMPANY_RE = /(^|[^a-z])(s\.?\s?r\.?\s?l\.?\s?s?\.?|s\.?\s?p\.?\s?a\.?|s\.\s?a\.\s?p\.\s?a\.|s\.?\s?a\.?\s?s\.?|s\.?\s?n\.?\s?c\.?|s\.\s?s\.|s\.\s?a\.|soc\.|societa|cooperativa|coop\.?|consorzio|fondazione|associazione|holding|immobiliare|ltd\.?|gmbh|llc|inc\.|sarl)(?=$|[^a-z])/;
+  function isCompanyName(name) {
+    var s = norm(name);
+    if (!s) return false;
+    if (COMPANY_RE.test(s)) return true;
+    // Solo sigla puntata (almeno tre lettere, e nient'altro): un nome con le
+    // iniziali puntate davanti al cognome resta una persona.
+    return /^(?:[a-z]\.\s?){3,}$/.test(s);
+  }
+  // ── La fine del contratto: disdetta e rinnovo ──────────────────────────
+  // Dai MODELLI (js/contract-pdf.js), non da un'idea: studenti (Allegato C,
+  // art. 1) si rinnova per uguale periodo se il conduttore non dà disdetta
+  // almeno tre mesi prima; transitorio (Allegato B, art. 1) cessa senza
+  // disdetta; 3+2 (Allegato A, art. 1) alla prima scadenza si proroga di
+  // diritto di due anni, e la comunicazione per la rinuncia va data sei mesi
+  // prima. Il 4+4 non ha un modello BOOM: il termine (sei mesi) viene dalla
+  // legge, dichiarato. Un tipo che non si legge: tre mesi, DICHIARATI come
+  // ipotesi da verificare sul contratto.
+  function typeKey(c) {
+    var t = norm(c && c.type);
+    if (t === 'studenti' || t === 'studente' || t === 'universitario') return 'studenti';
+    if (t === 'transitorio' || t === 'transitoria') return 'transitorio';
+    if (t === '3+2' || t === '32' || t === 'concordato' || t === 'canone concordato') return '3+2';
+    if (t === '4+4' || t === '44' || t === 'libero' || t === 'canone libero') return '4+4';
+    return '';
+  }
+  var NOTICE = {
+    studenti: { months: 3, renews: 'tacito', source: 'modello', rule: 'Contratto studenti (Allegato C, art. 1): senza disdetta del conduttore almeno tre mesi prima della scadenza si rinnova per uguale periodo.' },
+    transitorio: { months: 0, renews: '', source: 'modello', rule: 'Contratto transitorio (Allegato B, art. 1): cessa alla scadenza senza bisogno di disdetta.' },
+    '3+2': { months: 6, renews: 'proroga', source: 'modello', rule: 'Contratto 3+2 (Allegato A, art. 1): alla prima scadenza si proroga di diritto di due anni; la comunicazione per non rinnovare va data almeno sei mesi prima.' },
+    '4+4': { months: 6, renews: 'rinnovo', source: 'legge', rule: 'Contratto 4+4 (L. 431/98, art. 2 c. 1): alla prima scadenza si rinnova di quattro anni, salvo disdetta del locatore per i motivi di legge con almeno sei mesi di preavviso.' },
+    '': { months: 3, renews: '', source: 'ipotesi', assumed: true, rule: 'Tipo di contratto non indicato: termine di disdetta di tre mesi IPOTIZZATO, da verificare sul contratto.' }
+  };
+  function noticeOf(c, today) {
+    if (!c || CS.isPlaceholder(c)) return null;
+    var end = effectiveEnd(c);
+    if (!end) return null;
+    var k = typeKey(c), N = NOTICE[k], terminated = cStatus(c) === 'terminated' || !!day(c.terminatedAt);
+    var by = N.months && !terminated ? leaseMonth(end, -N.months) : '';
+    return { type: k || null, end: end, months: terminated ? 0 : N.months, by: by, renews: terminated ? '' : N.renews, rule: N.rule, source: N.source, assumed: !!N.assumed,
+      terminated: terminated, received: day(c.disdettaAt), passed: !!(by && today && by < today),
+      daysToEnd: today ? daysBetween(today, end) : null, daysToBy: by && today ? daysBetween(today, by) : null };
+  }
 
   // ── Contesto: indici una volta sola ──────────────────────────────────
   // ── Manutenzione e utenze ────────────────────────────────────────────
@@ -238,6 +331,24 @@
     return { pod: pod, pdr: pdr, podOk: pod ? podOk(pod) : null, pdrOk: pdr ? pdrOk(pdr) : null };
   }
 
+  function httpsUrl(u) { try { var x = new URL(str(u)); return x.protocol === 'https:' ? x.href : ''; } catch (_) { return ''; } }
+  // Canone e oneri di una rata: dalle due voci scritte sulla rata (la presa in
+  // carico le scrive), oppure dal contratto quando il totale torna ESATTO con
+  // canone + oneri. Altrimenti null: non si divide a occhio un incasso.
+  function splitRow(row, c) {
+    var p = row.payment || {}, a = row.amount;
+    if (a == null || !row.isRent) return { rent: null, oneri: null };
+    var ra = money(p.rentAmount), oa = money(p.oneriAmount);
+    if (ra != null && oa != null && Math.abs(round(ra + oa) - a) < 0.01) return { rent: ra, oneri: oa };
+    if (oa != null && oa <= a) return { rent: round(a - oa), oneri: oa };
+    if (ra != null && ra <= a) return { rent: ra, oneri: round(a - ra) };
+    var q = c ? money(c.oneriQuota) : null;
+    if (!q) return { rent: a, oneri: 0 };
+    var r = contractRent(c);
+    if (r != null && Math.abs(round(r + q) - a) < 0.01) return { rent: r, oneri: q };
+    return { rent: null, oneri: null };
+  }
+
   function context(o) {
     o = o || {};
     var now = o.now == null ? new Date() : o.now;
@@ -253,18 +364,40 @@
       if (!pid || !propIds[pid]) return;
       (byProperty[pid] = byProperty[pid] || []).push(c);
     });
-    var paymentsByProperty = Object.create(null), preBoomOpen = Object.create(null);
+    var paymentsByProperty = Object.create(null), preBoomOpen = Object.create(null), afterClose = Object.create(null);
     list(o.payments).forEach(function (p, i) {
       var contract = contractById[str(p.contractId)] || null;
       var pid = str(p.propertyId) || str(contract && contract.propertyId);
       if (!pid || !propIds[pid]) return;
       var row = {
-        id: str(p.id) || 'missing-id:' + i, payment: p, contractId: str(p.contractId),
+        id: str(p.id) || 'missing-id:' + i, payment: p, contract: contract, contractId: str(p.contractId), type: norm(p.type),
         month: monthOf(p.month) || day(p.dueDate).slice(0, 7), coversTo: monthOf(p.coversTo),
-        dueDate: day(p.dueDate), paidDate: day(p.paidDate || p.paidAt),
+        dueDate: day(p.dueDate), paidDate: paidDayOf(p),
         amount: money(p.amount), state: RENT.paymentState(p, now), isRent: RENT.isRentPayment(p),
-        tenantName: str(p.tenantName) || str(contract && contract.tenantName)
+        tenantName: str(p.tenantName) || str(contract && contract.tenantName),
+        // Chi deve QUESTA rata: i nomi del SUO contratto, non di chi abita lì
+        // oggi (nel mese del cambio inquilino il ritardo del vecchio resta suo).
+        tenants: contract ? tenantNamesOf(contract, usersById) : (str(p.tenantName) ? [str(p.tenantName)] : []),
+        // Come è stata pagata e chi l'ha visto: per il commercialista e per
+        // la scheda. La ricevuta solo https (un link qualsiasi non si apre).
+        paidVia: norm(p.paidVia), paidEvidence: norm(p.paidEvidence), paidSource: str(p.paidSource).slice(0, 80),
+        receiptUrl: httpsUrl(p.receiptUrl), proofUrl: httpsUrl(p.proofUrl)
       };
+      if (row.state === 'overdue' && row.dueDate) row.days = Math.max(0, daysBetween(row.dueDate, today));
+      var parts = splitRow(row, contract);
+      row.rentPart = parts.rent; row.oneriPart = parts.oneri;
+      // Il periodo della rata: scritto (periodFrom/periodTo, la presa in
+      // carico), oppure ricavato dal giorno di decorrenza del contratto come
+      // fanno i generatori (mesi di LOCAZIONE): una rata di luglio di un
+      // contratto dal 15 copre fino al 14 agosto.
+      var pf = day(p.periodFrom), pt = day(p.periodTo), cs = contract ? day(contract.startDate) : '';
+      if ((!pf || !pt) && cs && row.month && monthsDiff(cs.slice(0, 7), row.month) >= 0) {
+        var k0 = monthsDiff(cs.slice(0, 7), row.month), k1 = monthsDiff(cs.slice(0, 7), row.coversTo && row.coversTo > row.month ? row.coversTo : row.month) + 1;
+        if (!pf) pf = leaseMonth(cs, k0);
+        if (!pt) { pt = dayAdd(leaseMonth(cs, k1), -1); var ce = effectiveEnd(contract); if (ce && pt > ce) pt = ce; }
+        row.periodDerived = true;
+      }
+      row.periodFrom = pf; row.periodTo = pt;
       // Gestione BOOM dal (property.gestioneDal, YYYY-MM): ciò che è prima non
       // è storia di BOOM. Una rata di quei mesi (nata da un generatore che
       // parte dalla decorrenza di un contratto vecchio) non è un arretrato:
@@ -273,6 +406,18 @@
       if (gd && row.month && (row.coversTo || row.month) < gd) {
         if (row.state === 'overdue' || row.state === 'due') preBoomOpen[pid] = (preBoomOpen[pid] || 0) + 1;
         return;
+      }
+      // Una rata il cui periodo comincia DOPO la fine del suo contratto
+      // (chiuso in anticipo, rate future rimaste aperte): non tiene occupato
+      // l'interno e non è un ritardo. Aperta, si toglie dal Palazzo e si conta
+      // per l'operatore (va annullata); pagata resta (sono soldi veri) ma si
+      // dichiara, perché il contratto dice che lì non c'era più nessuno.
+      var cEnd = contract ? effectiveEnd(contract) : '', pStart = pf || (row.month ? monthStart(row.month) : '');
+      if (cEnd && pStart && pStart > cEnd) {
+        row.afterClose = true;
+        var ac = afterClose[pid] = afterClose[pid] || { open: [], paid: [] };
+        if (row.state === 'overdue' || row.state === 'due' || row.state === 'unknown') { ac.open.push(row); return; }
+        if (row.state === 'paid') ac.paid.push(row);
       }
       (paymentsByProperty[pid] = paymentsByProperty[pid] || []).push(row);
     });
@@ -300,7 +445,7 @@
       if (l) listingsByProperty[str(p.id)] = l;
     });
     return { now: now, today: today, month: today.slice(0, 7), properties: properties, usersById: usersById,
-      contractsByProperty: byProperty, paymentsByProperty: paymentsByProperty, preBoomOpen: preBoomOpen,
+      contractsByProperty: byProperty, paymentsByProperty: paymentsByProperty, preBoomOpen: preBoomOpen, afterClose: afterClose,
       proposalsByProperty: proposalsByProperty, listingsByProperty: listingsByProperty, contractById: contractById,
       maintenanceByProperty: maintenanceByProperty };
   }
@@ -347,11 +492,24 @@
       return r.month === month || (r.coversTo && r.month && r.month < month && month <= r.coversTo);
     });
   }
+  // Il mese di calendario che resta dopo l'ultima rata di un contratto
+  // iniziato a metà mese (dal 15/09 al 14/08: agosto, giorni 1–14) è coperto
+  // dal PERIODO della rata di luglio, non da una rata sua: non è "rata non
+  // registrata". Solo come ripiego, quando il mese non ha rate proprie, e
+  // l'importo resta nel mese della rata (mai contato due volte).
+  function carriedRows(rows, month) {
+    var ms = monthStart(month), me = monthEnd(month);
+    return rows.filter(function (r) {
+      return r.isRent && r.state !== 'cancelled' && r.month && r.month < month && r.periodFrom && r.periodTo && r.periodFrom <= me && r.periodTo >= ms;
+    });
+  }
+  function byDue(a, b) { return (a.dueDate || '9999').localeCompare(b.dueDate || '9999') || String(a.month).localeCompare(String(b.month)); }
   function unitMonth(ctx, p, month) {
     var pid = str(p.id), contracts = ctx.contractsByProperty[pid] || [], rows = ctx.paymentsByProperty[pid] || [];
     var lease = contracts.filter(function (c) { return LIVE[cStatus(c)] && covers(c, month); })
       .sort(function (a, b) { return (day(b.startDate) || '').localeCompare(day(a.startDate) || ''); })[0] || null;
-    var monthRows = rowsForMonth(rows, month);
+    var monthRows = rowsForMonth(rows, month), carried = false;
+    if (!monthRows.length && lease) { var cr = carriedRows(rows, month); if (cr.length) { monthRows = cr; carried = true; } }
     var ownRows = monthRows.filter(function (r) { return r.month === month; });
     var occupied = !!lease || monthRows.length > 0;
     var incoming = null;
@@ -361,12 +519,16 @@
     }
     var pay = aggregate(monthRows.map(function (r) { return r.state; }));
     var state = !occupied ? (incoming ? 'incoming' : 'vacant') : !monthRows.length ? 'norate' : pay;
-    var expected = 0, collected = 0, lateAmount = 0, unknownAmounts = 0;
+    var expected = 0, collected = 0, lateAmount = 0, unknownAmounts = 0, lateUnknown = 0;
+    var split = { er: 0, eo: 0, cr: 0, co: 0, ok: true };
     ownRows.forEach(function (r) {
-      if (r.amount == null) { unknownAmounts++; return; }
+      if (r.amount == null) { unknownAmounts++; split.ok = false; if (r.state === 'overdue') lateUnknown++; return; }
       expected = round(expected + r.amount);
       if (r.state === 'paid') collected = round(collected + r.amount);
       if (r.state === 'overdue') lateAmount = round(lateAmount + r.amount);
+      if (r.rentPart == null) { split.ok = false; return; }
+      split.er = round(split.er + r.rentPart); split.eo = round(split.eo + r.oneriPart);
+      if (r.state === 'paid') { split.cr = round(split.cr + r.rentPart); split.co = round(split.co + r.oneriPart); }
     });
     var who = lease || incoming;
     var tenants = who ? tenantNamesOf(who, ctx.usersById) : [];
@@ -374,28 +536,52 @@
     var leaseEnd = lease ? effectiveEnd(lease) : '';
     var ref = ctx.today > monthStart(month) ? ctx.today : monthStart(month);
     var gd = monthOf(p.gestioneDal);
-    if (gd && month < gd) { state = 'before'; expected = 0; collected = 0; lateAmount = 0; unknownAmounts = 0; }
+    // Le rate scadute e non pagate fino a questo mese (ad oggi), anche dei
+    // mesi prima: chi non ha pagato novembre a dicembre è ancora in ritardo.
+    var overdueUpTo = rows.filter(function (r) { return r.state === 'overdue' && (!r.month || r.month <= month); }).sort(byDue);
+    if (gd && month < gd) { state = 'before'; expected = 0; collected = 0; lateAmount = 0; unknownAmounts = 0; lateUnknown = 0; split = { er: 0, eo: 0, cr: 0, co: 0, ok: true }; overdueUpTo = []; }
+    var pastDue = overdueUpTo.filter(function (r) { return monthRows.indexOf(r) < 0; });
     var latePaid = monthRows.filter(function (r) { return r.state === 'overdue'; })
       .map(function (r) { return r.dueDate; }).filter(Boolean).sort()[0] || '';
+    var contractId = str((lease || incoming || {}).id), lateRow = overdueUpTo[0] || null;
     return {
       month: month, state: state, occupied: occupied, lease: lease, incoming: incoming, gestioneDal: gd,
-      contractId: str((lease || incoming || {}).id), tenants: tenants,
+      contractId: contractId, tenants: tenants,
+      contractKind: contractKindOf(lease || incoming), placeholder: !!(lease && CS.isPlaceholder(lease)),
+      landlordName: str((lease || incoming || {}).landlordName).slice(0, 160),
       // Un contratto non ancora in archivio non ha canone: mai lo 0 della scheda.
       rent: contractRent(lease || incoming) != null ? contractRent(lease || incoming) : (lease && lease.contractMissing === true ? null : money(p.rent)),
       leaseStart: lease ? day(lease.startDate) : incoming ? day(incoming.startDate) : '', leaseEnd: leaseEnd,
       leaving: !!(leaseEnd && leaseEnd >= ref && leaseEnd <= dayAdd(ref, 90)),
-      rows: monthRows, expected: expected, collected: collected, lateAmount: lateAmount, unknownAmounts: unknownAmounts,
-      lateSince: latePaid, lateDays: latePaid ? Math.max(0, Math.round((Date.parse(ctx.today) - Date.parse(latePaid)) / 864e5)) : 0
+      rows: monthRows, carried: carried, pastDue: pastDue, overdueUpTo: overdueUpTo,
+      expected: expected, collected: collected, lateAmount: lateAmount, unknownAmounts: unknownAmounts, lateUnknown: lateUnknown,
+      // Canone e oneri separati (null se una rata non si divide con certezza).
+      expectedRent: split.ok ? split.er : null, expectedOneri: split.ok ? split.eo : null,
+      collectedRent: split.ok ? split.cr : null, collectedOneri: split.ok ? split.co : null,
+      lateSince: latePaid, lateDays: latePaid ? Math.max(0, Math.round((Date.parse(ctx.today) - Date.parse(latePaid)) / 864e5)) : 0,
+      // Il ritardo è del contratto della RATA: nel mese del cambio inquilino
+      // il debito del vecchio non diventa del nuovo (né il suo sollecito).
+      lateContractId: lateRow ? lateRow.contractId : '', lateTenants: lateRow ? lateRow.tenants.slice() : [],
+      lateFromPrevious: !!(lateRow && lateRow.contractId && contractId && lateRow.contractId !== contractId)
     };
   }
-  function arrearsOf(ctx, p) {
-    var out = { amount: 0, count: 0, rent: 0, other: 0, oldest: '' };
+  // Le rate scadute e non pagate (ad oggi) di un interno: tutte, oppure fino
+  // al mese `upTo`. Le righe sono le rate vere (id, mese, importo, scadenza,
+  // giorni, contratto e i SUOI conduttori), dalla più vecchia.
+  function arrearsOf(ctx, p, upTo) {
+    var out = { amount: 0, count: 0, rent: 0, other: 0, oldest: '', oldestDays: 0, oldestMonth: '', unknownAmounts: 0, rows: [] };
+    var limit = monthOf(upTo);
     (ctx.paymentsByProperty[str(p.id)] || []).forEach(function (r) {
       if (r.state !== 'overdue') return;
+      if (limit && r.month && r.month > limit) return;
       out.count++;
+      out.rows.push(r);
       if (r.amount != null) { out.amount = round(out.amount + r.amount); out[r.isRent ? 'rent' : 'other'] = round(out[r.isRent ? 'rent' : 'other'] + r.amount); }
-      if (r.dueDate && (!out.oldest || r.dueDate < out.oldest)) out.oldest = r.dueDate;
+      else out.unknownAmounts++;
     });
+    out.rows.sort(byDue);
+    var first = out.rows.find(function (r) { return r.dueDate; });
+    if (first) { out.oldest = first.dueDate; out.oldestDays = first.days || 0; out.oldestMonth = first.month; }
     return out;
   }
   function strip(ctx, p, endMonth, n) {
@@ -441,29 +627,92 @@
   // Excel senza ricomporre colonne). Separatore ';', decimali con la virgola,
   // date gg/mm/aaaa, BOM: è ciò che un Excel italiano apre senza chiedere.
   // Le parole sono quelle della proprietaria (mai "rata non registrata").
-  var CSV_HEAD = ['Mese', 'Interno', 'Piano', 'Inquilino', 'Contratto', 'Dal', 'Al', 'Cedolare secca', 'Registrazione',
-    'Canone mensile', 'Dovuto nel mese', 'Incassato nel mese', 'Pagato il', 'Stato'];
+  // Canone e oneri in colonne SEPARATE (gli oneri sono un rimborso di spese,
+  // non reddito da locazione), come si è pagato e chi l'ha visto; una cella
+  // senza dato resta VUOTA, mai 0,00. Nel mese del cambio inquilino una riga
+  // per contratto: il debito del vecchio non finisce sul nuovo.
+  var CSV_HEAD = ['Mese', 'Interno', 'Piano', 'Inquilino', 'Locatore', 'Contratto', 'Dal', 'Al', 'Cedolare secca', 'Registrazione',
+    'Canone mensile', 'Oneri mensili', 'Dovuto nel mese', 'Incassato canone', 'Incassato oneri', 'Incassato nel mese', 'Pagato il', 'Modalità', 'Fonte prova', 'Stato'];
   var CSV_STATE = { paid: 'Pagato', late: 'Non ha pagato', due: 'Da pagare', review: 'In verifica', norate: 'In verifica da BOOM',
     unknown: 'In verifica', incoming: 'In arrivo', vacant: 'Libero', before: 'Prima della gestione BOOM' };
+  var TYPE_LABEL = { transitorio: 'Transitorio', studenti: 'Studenti universitari', '3+2': '3+2 canone concordato', '4+4': '4+4 canone libero' };
+  // Come è arrivato il pagamento (payments.paidVia) e chi ha visto i soldi
+  // arrivare (payments.paidEvidence): BOOM non vede il conto del locatore.
+  var PAID_VIA = { bonifico: 'Bonifico al locatore', contanti: 'Contanti', stripe: 'Carta (via BOOM)', sepa: 'Addebito SEPA (via BOOM)',
+    bank: 'Bonifico (estratto conto BOOM)', dichiarato: 'Dichiarato dalla proprietaria', altro: 'Altro' };
+  var PAID_EVIDENCE = { 'estratto-conto-locatore': 'Estratto conto del locatore', 'ricevuta-inquilino': 'Ricevuta dell’inquilino',
+    'conferma-proprietaria': 'Conferma della proprietaria', stripe: 'Stripe', 'banca-boom': 'Estratto conto BOOM', altro: 'Altro' };
+  function paidViaLabel(r) { return !r || !r.paidVia ? '' : PAID_VIA[r.paidVia] || r.paidVia; }
+  function evidenceLabel(r) {
+    if (!r) return '';
+    if (r.paidEvidence) return PAID_EVIDENCE[r.paidEvidence] || r.paidEvidence;
+    if (r.paidVia === 'stripe' || r.paidVia === 'sepa') return 'Stripe';
+    if (r.paidVia === 'bank') return 'Estratto conto BOOM';
+    if (r.paidSource) return r.paidSource.charAt(0).toUpperCase() + r.paidSource.slice(1);
+    return '';
+  }
   function itDate(d) { var x = day(d); return x ? x.slice(8, 10) + '/' + x.slice(5, 7) + '/' + x.slice(0, 4) : ''; }
   function itNum(n) { return n == null || !isFinite(n) ? '' : round(n).toFixed(2).replace('.', ','); }
+  function uniq(a) { return a.filter(function (x, i) { return x && a.indexOf(x) === i; }); }
+  function sumKnown(rows, f) { var t = 0; for (var i = 0; i < rows.length; i++) { var v = f(rows[i]); if (v == null) return null; t = round(t + v); } return t; }
   function csvRows(m, opts) {
     if (!m || !m.units) return [];
     var owner = !!(opts && opts.owner);
     var rows = [];
     var floorOfUnit = function (u) { return u.floor == null ? '' : u.floorTop ? 'Attico' : floorLabel(u.floor); };
+    var kindText = function (c) { return !c ? '' : CS.isPlaceholder(c) ? (owner ? 'Contratto in arrivo da BOOM' : 'Contratto da caricare') : TYPE_LABEL[typeKey(c)] || str(c.type) || 'Contratto'; };
+    var regText = function (c) {
+      var pp = c && !CS.isPlaceholder(c) ? paperOf(c, m.today) : null;
+      return !pp ? ['', ''] : [pp.cedolare === true ? 'Sì' : pp.cedolare === false ? 'No' : 'Non indicata',
+        pp.registration.status === 'registered' ? 'Registrato' + (pp.registration.at ? ' il ' + itDate(pp.registration.at) : '')
+          : pp.registration.status === 'sent' ? 'Inviato per la registrazione' : owner ? 'In verifica da BOOM' : 'Non segnata'];
+    };
+    // Una riga: il contratto `c`, le rate del mese `own` (null = nessuna rata
+    // propria nel mese: le colonne dei soldi restano vuote), lo stato a parole.
+    var line = function (u, c, tenants, own, stateText) {
+      var rg = regText(c), paid = own ? own.filter(function (r) { return r.state === 'paid'; }) : [];
+      var rent = c ? contractRent(c) : null, oneri = c ? money(c.oneriQuota) : null;
+      if (c && c === u.month.lease && rent == null) rent = u.month.rent;
+      var has = !!(own && own.length);
+      // Un contratto senza oneri non ha una colonna oneri da riempire: vuota.
+      var noOneri = !oneri && (!has || own.every(function (r) { return !r.oneriPart; }));
+      return [m.month, u.interno || u.name, floorOfUnit(u), tenants.join(', '), str(c && c.landlordName), kindText(c),
+        c && day(c.startDate) ? itDate(c.startDate) : '', c && effectiveEnd(c) ? itDate(effectiveEnd(c)) : '', rg[0], rg[1],
+        itNum(rent), oneri ? itNum(oneri) : '',
+        has ? itNum(sumKnown(own, function (r) { return r.amount; })) : '',
+        has ? itNum(sumKnown(paid, function (r) { return r.rentPart; })) : '',
+        has && !noOneri ? itNum(sumKnown(paid, function (r) { return r.oneriPart; })) : '',
+        has ? itNum(sumKnown(paid, function (r) { return r.amount; })) : '',
+        paid.map(function (r) { return itDate(r.paidDate); }).filter(Boolean).join(', '),
+        uniq(paid.map(paidViaLabel)).join(', '), uniq(paid.map(evidenceLabel)).join(', '), stateText];
+    };
     m.units.slice().sort(function (a, b) { return (a.floor == null ? 999 : a.floor) - (b.floor == null ? 999 : b.floor) || natural(a.interno, b.interno); })
       .forEach(function (u) {
-        var um = u.month, c = um.lease || um.incoming, pp = paperOf(c, m.today);
-        var paid = um.rows.filter(function (r) { return r.month === m.month && r.state === 'paid' && r.paidDate; })
-          .map(function (r) { return itDate(r.paidDate); });
-        rows.push([m.month, u.interno || u.name, floorOfUnit(u), um.tenants.join(', '),
-          c ? (str(c.type) || 'contratto') : '', um.leaseStart ? itDate(um.leaseStart) : '', um.leaseEnd ? itDate(um.leaseEnd) : '',
-          !pp ? '' : pp.cedolare === true ? 'Sì' : pp.cedolare === false ? 'No' : 'Non indicata',
-          !pp ? '' : pp.registration.status === 'registered' ? 'Registrato' + (pp.registration.at ? ' il ' + itDate(pp.registration.at) : '')
-            : pp.registration.status === 'sent' ? 'Inviato per la registrazione' : owner ? 'In verifica da BOOM' : 'Non segnata',
-          um.occupied || um.state === 'incoming' ? itNum(um.rent) : '', um.occupied && um.state !== 'before' ? itNum(um.expected) : '', um.occupied && um.state !== 'before' ? itNum(um.collected) : '', paid.join(', '),
-          um.state === 'norate' && !owner ? 'Senza rata' : CSV_STATE[um.state] || '']);
+        var um = u.month, lease = um.lease || um.incoming;
+        var own = um.state === 'before' ? [] : um.rows.filter(function (r) { return r.month === m.month; });
+        var stateOf = function (st) {
+          if (lease && CS.isPlaceholder(lease) && st === 'norate') return owner ? 'Contratto in arrivo da BOOM' : 'Contratto da caricare';
+          return st === 'norate' && !owner ? 'Senza rata' : CSV_STATE[st] || '';
+        };
+        if (!own.length) {
+          // Mese senza rate proprie: coperto da una rata di un altro mese
+          // (trimestrale, o i giorni dopo l'ultima rata di un contratto dal 15),
+          // senza rata, libero, in arrivo, o prima di BOOM.
+          var cover = um.state !== 'before' && um.rows.length ? um.rows[0] : null;
+          var st = stateOf(um.state) + (cover ? ' · coperto dalla rata di ' + monthLabel(cover.month).toLowerCase() : '');
+          rows.push(line(u, lease, um.tenants, null, st));
+          return;
+        }
+        var groups = [], byC = Object.create(null);
+        own.forEach(function (r) { var k = r.contractId || str(lease && lease.id) || '-'; if (!byC[k]) { byC[k] = []; groups.push(k); } byC[k].push(r); });
+        groups.forEach(function (k) {
+          var g = byC[k], c = g[0].contract || (lease && k === str(lease.id) ? lease : null);
+          var names = c === lease ? um.tenants : g[0].tenants.length ? g[0].tenants : [];
+          rows.push(line(u, c, names, g, stateOf(aggregate(g.map(function (r) { return r.state; })))));
+        });
+        // L'inquilino di oggi senza una rata sua nel mese (il cambio di
+        // contratto a metà mese): c'è, e lo si dice, senza soldi suoi.
+        if (um.lease && !byC[str(um.lease.id)]) rows.push(line(u, um.lease, um.tenants, null, stateOf('norate')));
       });
     return rows;
   }
@@ -477,12 +726,18 @@
       .map(function (u) {
         var ut = u.utenze || {};
         return [u.interno || u.name, u.floor == null ? '' : u.floorTop ? 'Attico' : floorLabel(u.floor), str(u.property && u.property.address),
-          u.month.lease ? u.month.tenants.join(', ') : '', ut.pod || '', ut.pod ? (ut.podOk ? 'sì' : 'da controllare') : '',
+          (u.currentTenants || (u.month.lease ? u.month.tenants : [])).join(', '), ut.pod || '', ut.pod ? (ut.podOk ? 'sì' : 'da controllare') : '',
           ut.pdr || '', ut.pdr ? (ut.pdrOk ? 'sì' : 'da controllare') : ''];
       });
   }
   function toCsv(rows, head) {
-    var cell = function (v) { var s = v == null ? '' : String(v); return /[;"\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; };
+    // Un nome che comincia con = + @ (o un trattino che non apre un numero)
+    // Excel lo legge come formula: un apostrofo davanti lo lascia testo.
+    var cell = function (v) {
+      var s = v == null ? '' : String(v);
+      if (/^[=+@\t\r]/.test(s) || /^-(?![\d,.])/.test(s)) s = "'" + s;
+      return /[;"\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
     return '﻿' + [head || CSV_HEAD].concat(rows).map(function (r) { return r.map(cell).join(';'); }).join('\r\n') + '\r\n';
   }
 
@@ -813,45 +1068,116 @@
   }
 
   // ── Il tempo: puntualità, sfitto, contratti che finiscono ──────────────
-  function daysBetween(a, b) { return Math.round((Date.parse(b) - Date.parse(a)) / 864e5); }
+  // La finestra è SEMPRE gli ultimi 12 mesi fino a oggi (un mese futuro
+  // scelto nella linea del tempo non la sposta in avanti), e dentro la
+  // finestra si misurano solo i mesi di BOOM: prima di "gestione BOOM dal"
+  // non c'è storia (né pieno né sfitto), un contratto segnaposto è
+  // un'occupazione NON NOTA (mai "12 su 12"), un mese futuro non è successo.
+  var OCC_MIN_MONTHS = 3;
   function timeOf(ctx, p, endMonth) {
-    var end = monthOf(endMonth) || ctx.month, from = monthAdd(end, -11), gd = monthOf(p.gestioneDal);
-    var rows = (ctx.paymentsByProperty[str(p.id)] || []).filter(function (r) {
+    var e0 = monthOf(endMonth), end = e0 && e0 < ctx.month ? e0 : ctx.month, from = monthAdd(end, -11), gd = monthOf(p.gestioneDal);
+    var start = gd && gd > from ? gd : from;
+    var all = ctx.paymentsByProperty[str(p.id)] || [];
+    var rows = all.filter(function (r) {
       return r.isRent && r.state === 'paid' && r.dueDate && r.paidDate && r.month >= from && r.month <= end;
     });
     var delays = rows.map(function (r) { return daysBetween(r.dueDate, r.paidDate); });
-    var occupiedMonths = 0;
-    for (var i = 0; i < 12; i++) if (unitMonth(ctx, p, monthAdd(end, i - 11)).occupied) occupiedMonths++;
+    var occupied = 0, vacant = 0, unknown = 0, window = 0;
+    for (var mm = start; mm <= end; mm = monthAdd(mm, 1)) {
+      window++;
+      var um = unitMonth(ctx, p, mm);
+      if (um.state === 'before') continue;
+      if (um.placeholder) { unknown++; continue; }
+      if (um.occupied) occupied++; else vacant++;
+    }
+    var measured = occupied + vacant;
+    // Le rate che erano attese (scadute fino a oggi) e quelle ancora aperte:
+    // "nessuna rata ancora prevista" non è "non paga", e chi ha due rate
+    // aperte non è "puntuale" perché le pagate erano in orario.
+    var expectedRows = all.filter(function (r) { return r.isRent && r.state !== 'cancelled' && r.dueDate && r.dueDate <= ctx.today && r.month >= start && r.month <= end; });
+    var open = all.filter(function (r) { return r.state === 'overdue'; }).sort(byDue);
     // Libero da quando: la fine dell'ultimo contratto già chiuso.
     var ends = (ctx.contractsByProperty[str(p.id)] || []).filter(function (c) { return LIVE[cStatus(c)]; })
       .map(effectiveEnd).filter(function (d) { return d && d < ctx.today; }).sort();
     var lastEnd = ends.length ? ends[ends.length - 1] : '';
     return {
-      // Gestione iniziata dentro la finestra: la puntualità si misura da lì.
+      // Gestione iniziata dentro la finestra: puntualità e occupazione si
+      // misurano da lì ("da ottobre 2026").
       since: gd && gd > from && gd <= end ? gd : '',
+      from: start <= end ? start : '', to: end,
       paidCount: delays.length,
       avgDelay: delays.length ? Math.round(delays.reduce(function (a, b) { return a + b; }, 0) / delays.length * 10) / 10 : null,
       onTime: delays.filter(function (d) { return d <= 0; }).length,
-      occupiedMonths: occupiedMonths, vacantMonths: 12 - occupiedMonths,
+      expectedCount: expectedRows.length,
+      overdueCount: open.length, overdueOldest: open.length ? open[0].dueDate : '',
+      windowMonths: window, measuredMonths: measured, unknownMonths: unknown,
+      occupiedMonths: occupied, vacantMonths: vacant,
+      occupancy: measured && window >= OCC_MIN_MONTHS ? Math.round(occupied / measured * 100) : null,
       vacantSince: lastEnd ? dayAdd(lastEnd, 1) : '', vacantDays: lastEnd ? daysBetween(lastEnd, ctx.today) : null
     };
   }
 
+  // Euro all'italiana, deterministici (mai toLocaleString: con l'ICU ridotta
+  // degrada in silenzio): €1.500 sugli interi, €1.500,50 coi centesimi —
+  // la frase e la scheda dicono lo stesso numero.
+  function eurIt(v) {
+    if (v == null || !isFinite(v)) return '';
+    var s = round(v).toFixed(2).split('.');
+    return '€' + s[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.') + (s[1] === '00' ? '' : ',' + s[1]);
+  }
+
   // La frase del mese: quello che un proprietario chiederebbe al telefono,
-  // scritto dai numeri. Mai una cifra che il modello non contiene.
+  // scritto dai numeri. Mai una cifra che il modello non contiene, mai
+  // "nessun ritardo" con un arretrato aperto, mai un ritardo "di €0".
   function brief(m, opts) {
     var owner = !!(opts && opts.owner);
     if (!m || !m.building) return [];
     var t = m.totals, mon = monthLabel(m.month), n = function (x, one, many) { return x + ' ' + (x === 1 ? one : many); };
-    var late = m.units.filter(function (u) { return u.month.state === 'late'; }).sort(function (a, b) { return b.month.lateDays - a.month.lateDays; });
-    var due = m.units.filter(function (u) { return u.month.state === 'due'; });
     var name = function (u) { return u.interno ? 'int. ' + u.interno : u.name; };
-    var eur = function (v) { var x = Math.round(v); return '€' + String(x).replace(/\B(?=(\d{3})+(?!\d))/g, '.'); };
-    var out = [mon + ': ' + t.occupied + ' interni su ' + t.units + ' sono pieni' + (t.vacant ? ', ' + n(t.vacant, 'libero', 'liberi') : '') + (t.incoming ? ', ' + t.incoming + ' in arrivo' : '') + '.'];
+    var eur = eurIt;
+    var out = [];
+    var tail = function () {
+      if (m.partial) {
+        var cols = Array.isArray(m.partial) ? m.partial.join(', ') : '';
+        out.push(owner ? 'Alcuni dati sono ancora in arrivo: i numeri di questo riepilogo potrebbero essere incompleti.'
+          : 'Archivio letto in parte' + (cols ? ' (' + cols + ')' : '') + ': i numeri possono essere incompleti.');
+      }
+      return out;
+    };
+    // Un mese tutto prima della gestione: niente "tutti in regola", niente
+    // "pieni": di quel mese BOOM non sa nulla, e lo dice.
+    if (m.allBefore) {
+      out.push(mon + ': prima della gestione BOOM' + (m.gestioneDal ? ' (che parte da ' + monthLabel(m.gestioneDal).toLowerCase() + ')' : '') +
+        ': pagamenti e occupazione di questo mese non sono in archivio.');
+      return tail();
+    }
+    var managed = t.managed != null ? t.managed : t.units, part = managed !== t.units;
+    out.push(mon + ': ' + (t.occupied === 1 ? '1 interno' : t.occupied + ' interni') + ' su ' + managed + (part ? (managed === 1 ? ' gestito' : ' gestiti') + ' da BOOM' : '') +
+      (t.occupied === 1 ? ' è pieno' : ' sono pieni') + (t.vacant ? ', ' + n(t.vacant, 'libero', 'liberi') : '') + (t.incoming ? ', ' + t.incoming + ' in arrivo' : '') + '.');
     var payers = t.paid + t.late + t.due + t.review + t.unknown;
-    if (payers) out.push(n(t.paid, 'ha pagato', 'hanno pagato') + ' su ' + payers + ' (' + eur(t.collected) + ' di ' + eur(t.expected) + ').');
-    if (late.length) out.push(n(late.length, 'è in ritardo', 'sono in ritardo') + ' per ' + eur(t.lateAmount) + ': ' + late.map(name).join(', ') + '.');
-    else if (payers) out.push('Nessun ritardo.');
+    if (payers) out.push(n(t.paid, 'ha pagato', 'hanno pagato') + ' su ' + payers + ' (' + (!t.expected && t.unknownAmounts ? 'importi da verificare'
+      : eur(t.collected) + ' di ' + eur(t.expected) + (t.unknownAmounts ? ', più ' + n(t.unknownAmounts, 'rata', 'rate') + ' con l’importo da verificare' : '')) + ').');
+    // In ritardo con una rata DI QUESTO MESE (la cifra è quella del mese)…
+    var lateNow = m.units.filter(function (u) { return u.month.state === 'late' && (u.month.lateAmount > 0 || u.month.lateUnknown > 0); })
+      .sort(function (a, b) { return b.month.lateDays - a.month.lateDays; });
+    var nowIds = Object.create(null), shown = 0;
+    lateNow.forEach(function (u) { nowIds[u.id] = 1; shown = round(shown + u.month.lateAmount); });
+    if (lateNow.length) {
+      var unk = lateNow.some(function (u) { return u.month.lateUnknown > 0; });
+      out.push(n(lateNow.length, 'è in ritardo', 'sono in ritardo') + ' per ' + (shown > 0 ? eur(shown) + (unk ? ' più un importo da verificare' : '') : 'un importo da verificare') + ': ' + lateNow.map(name).join(', ') + '.');
+    }
+    // …e chi deve ancora mesi PRECEDENTI (a dicembre, chi non ha pagato
+    // novembre è ancora in ritardo: non sparisce dalla frase).
+    var older = (m.debtors || []).filter(function (d) { return !nowIds[d.id]; });
+    if (older.length) {
+      out.push('Ancora da pagare dai mesi precedenti: ' + older.map(function (d) {
+        shown = round(shown + d.amount);
+        var when = d.oldestMonth ? (d.count === 1 ? monthLabel(d.oldestMonth).toLowerCase() : d.count + ' rate da ' + monthLabel(d.oldestMonth).toLowerCase()) : n(d.count, 'rata', 'rate');
+        return (d.interno ? 'int. ' + d.interno : d.name) + ' (' + when + ', ' + (d.amount > 0 ? eur(d.amount) + (d.unknownAmounts ? ' più un importo da verificare' : '') : 'importo da verificare') + ')';
+      }).join(', ') + '.');
+    }
+    if (!lateNow.length && !older.length && payers) out.push('Nessun ritardo.');
+    var due = m.units.filter(function (u) { return u.month.state === 'due'; });
     if (due.length) {
       var dates = due.map(function (u) { var r = u.month.rows.find(function (x) { return x.state === 'due'; }); return r && r.dueDate; }).filter(Boolean).sort();
       var last = dates[dates.length - 1], dd = last ? +last.slice(8, 10) : 0;
@@ -869,10 +1195,9 @@
     }
     if (t.maintOpen) out.push(n(t.maintOpen, 'segnalazione di manutenzione aperta', 'segnalazioni di manutenzione aperte') + (t.maintUrgent ? ' (' + t.maintUrgent + ' urgent' + (t.maintUrgent === 1 ? 'e' : 'i') + ')' : '') + '.');
     if (t.before) out.push(n(t.before, 'interno era', 'interni erano') + ' prima della gestione BOOM: i pagamenti di quel mese non sono in archivio.');
-    if (t.arrears > t.lateAmount) out.push('Arretrati di tutti i mesi: ' + eur(t.arrears) + '.');
-    return out;
+    if (t.arrears > shown + 0.005) out.push('Arretrati di tutti i mesi: ' + eur(t.arrears) + '.');
+    return tail();
   }
-
   // ── L'aspetto del palazzo ─────────────────────────────────────────────
   // La facciata disegna SOLO ciò che qualcuno ha dichiarato (dalla foto,
   // dal sopralluogo): intonaco, persiane, ultimo piano, nome. Senza
@@ -953,14 +1278,52 @@
 
   function natural(a, b) { return String(a || '').localeCompare(String(b || ''), 'it', { numeric: true, sensitivity: 'base' }); }
 
+  // Il contratto in corso in un GIORNO (oggi): per la disdetta, l'annuncio
+  // ancora pubblicato, il conduttore di oggi nelle utenze.
+  function leaseOn(ctx, p, d) {
+    return (ctx.contractsByProperty[str(p.id)] || []).filter(function (c) {
+      if (!LIVE[cStatus(c)]) return false;
+      var s = day(c.startDate), e = effectiveEnd(c);
+      return !s ? cStatus(c) === 'active' : s <= d && (!e || e >= d);
+    }).sort(function (a, b) { return (day(b.startDate) || '').localeCompare(day(a.startDate) || ''); })[0] || null;
+  }
+  // Un contratto PIÙ RECENTE sullo stesso interno (rinnovo, nuovo inquilino,
+  // anche in firma): la fine del vecchio è già decisa.
+  function successorOf(ctx, pid, c) {
+    var s = day(c.startDate);
+    return (ctx.contractsByProperty[pid] || []).some(function (x) {
+      return x !== c && (LIVE[cStatus(x)] || SIGNING[cStatus(x)]) && day(x.startDate) && (!s || day(x.startDate) > s);
+    });
+  }
+  var CLOSED = { terminated: 1, closed: 1, ended: 1, completed: 1, renewed: 1, cancelled: 1, canceled: 1 };
+  // Gli oneri dell'anno (del mese scelto) fino a oggi: per il conguaglio
+  // ("salvo conguaglio", art. 5). Solo le quote che si dividono con certezza;
+  // le rate che non si dividono si contano a parte, mai stimate.
+  function oneriYearOf(ctx, p, month) {
+    var y = month.slice(0, 4), out = { year: y, collected: 0, expected: 0, rows: 0, unknown: 0 };
+    (ctx.paymentsByProperty[str(p.id)] || []).forEach(function (r) {
+      if (!r.isRent || r.state === 'cancelled' || !r.month || r.month.slice(0, 4) !== y || r.month > ctx.month) return;
+      if (r.oneriPart == null) { out.unknown++; return; }
+      if (!r.oneriPart) return;
+      out.rows++;
+      if (r.dueDate && r.dueDate <= ctx.today) out.expected = round(out.expected + r.oneriPart);
+      if (r.state === 'paid') out.collected = round(out.collected + r.oneriPart);
+    });
+    return out;
+  }
+
   // Il modello completo di un palazzo per un mese: piani → interni, totali,
   // serie dei mesi per la linea del tempo, e ciò che va sistemato.
+  // opts.partial: l'archivio è stato letto con un tetto (true, o l'elenco
+  // delle collection troncate): il modello lo DICHIARA (frase e Da sistemare)
+  // invece di contare come assente ciò che non ha letto.
   function model(ctx, key, month, opts) {
     opts = opts || {};
     var m = monthOf(month) || ctx.month;
     var all = buildings(ctx, opts.filter);
     var b = all.find(function (x) { return x.key === key; }) || all[0] || null;
-    if (!b) return { building: null, buildings: all, month: m, floors: [], unplaced: [], units: [], totals: totalsOf([]), series: [], issues: [] };
+    var partial = opts.partial ? (Array.isArray(opts.partial) ? opts.partial.filter(Boolean).map(str) : true) : false;
+    if (!b) return { building: null, buildings: all, month: m, floors: [], unplaced: [], units: [], totals: totalsOf([]), series: [], issues: [], debtors: [], partial: partial, allBefore: false };
     var props = b.propertyIds.map(function (id) { return ctx.properties.find(function (p) { return str(p.id) === id; }); }).filter(Boolean);
     var known = props.map(floorOf).filter(function (f) { return f && !f.top; }).map(function (f) { return f.n; });
     // property.ultimoPiano: il numero dell'ultimo piano del palazzo (attico
@@ -974,14 +1337,23 @@
     var topN = Math.max(known.length ? Math.max.apply(null, known) + 1 : 1, declaredTop || 0);
     var owner = b.owner;
     var units = props.map(function (p) {
-      var f = floorOf(p), um = unitMonth(ctx, p, m), o = ownerOf(p, ctx.usersById);
+      var f = floorOf(p), um = unitMonth(ctx, p, m), o = ownerOf(p, ctx.usersById), cur = leaseOn(ctx, p, ctx.today);
       return {
         id: str(p.id), property: p, interno: unitOf(p), scala: scalaOf(p),
         floor: f ? (f.top ? topN : f.n) : null, floorTop: !!(f && f.top),
         name: str(p.name) || str(p.address) || 'Interno', owner: o,
         ownerMismatch: !!(owner && o.key !== owner.key),
-        month: um, arrears: arrearsOf(ctx, p), pipeline: pipelineOf(ctx, p), time: timeOf(ctx, p, m > ctx.month ? m : ctx.month),
-        paper: paperOf(um.lease || um.incoming, ctx.today), maintenance: maintOf(ctx, p), utenze: utenzeOf(p),
+        // arrears: tutte le rate scadute ad oggi; debt: solo fino al mese scelto.
+        month: um, arrears: arrearsOf(ctx, p), debt: arrearsOf(ctx, p, m), pipeline: pipelineOf(ctx, p),
+        // Il tempo si misura sempre fino a OGGI: un mese futuro scelto non
+        // sposta la finestra degli "ultimi 12 mesi".
+        time: timeOf(ctx, p, ctx.month),
+        // Un contratto non ancora in archivio non ha registrazione né regime
+        // da raccontare ("in verifica" su un contratto che non c'è): null.
+        paper: um.placeholder ? null : paperOf(um.lease || um.incoming, ctx.today), maintenance: maintOf(ctx, p), utenze: utenzeOf(p),
+        oneri: oneriYearOf(ctx, p, m),
+        contractKind: um.contractKind, landlordName: um.landlordName, landlordIsCompany: isCompanyName(um.landlordName),
+        current: cur, currentTenants: cur ? tenantNamesOf(cur, ctx.usersById) : [], notice: noticeOf(cur, ctx.today),
         strip: opts.strip === false ? [] : strip(ctx, p, m > ctx.month ? m : ctx.month, 12)
       };
     }).sort(function (a, b2) { return natural(a.scala, b2.scala) || natural(a.interno, b2.interno) || natural(a.name, b2.name); });
@@ -1011,52 +1383,148 @@
       var fl = floorsMap[n], top = fl.length && fl.every(function (u) { return u.floorTop; });
       return { n: n, label: top ? 'Attico' : floorLabel(n), short: top ? 'AT' : floorLabel(n, true), units: fl, ghost: !fl.length };
     });
-    var series = Array.from({ length: 12 }, function (_, i) {
-      var mm = monthAdd(m > ctx.month ? m : ctx.month, i - 11);
-      var t = totalsOf(props.map(function (p) { return { month: unitMonth(ctx, p, mm), arrears: { amount: 0 } }; }));
-      return { month: mm, totals: t };
-    });
+    var seriesOf = function (endM) {
+      return Array.from({ length: 12 }, function (_, i) {
+        var mm = monthAdd(endM, i - 11);
+        var t = totalsOf(props.map(function (p) { return { month: unitMonth(ctx, p, mm), arrears: { amount: 0 } }; }));
+        return { month: mm, totals: t };
+      });
+    };
+    // La linea del tempo segue il mese scelto (si naviga anche avanti);
+    // l'andamento resta sugli ultimi 12 mesi fino a oggi.
+    var series = seriesOf(m > ctx.month ? m : ctx.month);
+    var pastSeries = m > ctx.month ? seriesOf(ctx.month) : series;
+
+    // Chi non ha pagato, a oggi, fino a questo mese: anche i mesi precedenti.
+    // Il nome e il contratto sono quelli della rata più vecchia (nel mese del
+    // cambio inquilino il ritardo del vecchio resta del vecchio).
+    var debtors = units.filter(function (u) { return u.debt.count; }).map(function (u) {
+      var d = u.debt, first = d.rows[0];
+      var pay = d.rows.find(function (r) { return r.amount != null && r.amount > 0 && !/^missing-id:/.test(r.id); }) || null;
+      var mine = d.rows.filter(function (r) { return r.month === m; });
+      return { id: u.id, interno: u.interno, name: u.name, amount: d.amount, count: d.count, unknownAmounts: d.unknownAmounts,
+        oldest: d.oldest, oldestDays: d.oldestDays, oldestMonth: d.oldestMonth, rows: d.rows, row: first, payRow: pay,
+        contractId: first.contractId, tenants: first.tenants.slice(),
+        previousContract: !!(first.contractId && u.month.contractId && first.contractId !== u.month.contractId),
+        thisMonth: { count: mine.length, amount: mine.reduce(function (a, r) { return r.amount != null ? round(a + r.amount) : a; }, 0) },
+        older: { count: d.count - mine.length, amount: round(d.amount - mine.reduce(function (a, r) { return r.amount != null ? round(a + r.amount) : a; }, 0)) } };
+    }).sort(function (a, b2) { return b2.oldestDays - a.oldestDays || natural(a.interno, b2.interno); });
+
     var issues = [];
     if (unplaced.length) issues.push({ code: 'unplaced', count: unplaced.length, ids: unplaced.map(function (u) { return u.id; }) });
     var mism = units.filter(function (u) { return u.ownerMismatch; });
     if (mism.length) issues.push({ code: 'owner', count: mism.length, ids: mism.map(function (u) { return u.id; }) });
     if (owner && !owner.id) issues.push({ code: 'ownerProfile', count: units.length, ids: units.map(function (u) { return u.id; }) });
-    var stale = [];
+    // Contratti scaduti senza una chiusura scritta: "attivo" (staleActive) o
+    // scaduto e basta (expiredStillIn). Per le date l'interno è libero, ma
+    // l'inquilino potrebbe essere ancora dentro: uno studenti senza disdetta
+    // si rinnova da solo. Si dice quale regola vale, mai si decide.
+    var stale = [], staleItems = [], expired = [];
     props.forEach(function (p) {
-      (ctx.contractsByProperty[str(p.id)] || []).forEach(function (c) {
-        var end = effectiveEnd(c);
-        if (cStatus(c) === 'active' && end && end < ctx.today) stale.push(str(c.id));
+      var pid = str(p.id), cs = ctx.contractsByProperty[pid] || [];
+      cs.forEach(function (c) {
+        var end = effectiveEnd(c), st = cStatus(c);
+        if (!end || end >= ctx.today || CS.isPlaceholder(c)) return;
+        var nt = noticeOf(c, ctx.today), next = successorOf(ctx, pid, c);
+        var item = { id: str(c.id), unitId: pid, end: end, status: st, type: typeKey(c) || null, renews: nt && !next ? nt.renews : '', successor: next };
+        if (st === 'active') { stale.push(str(c.id)); staleItems.push(item); return; }
+        if (CLOSED[st] || !LIVE[st] || day(c.terminatedAt) || next || end < dayAdd(ctx.today, -400)) return;
+        expired.push(item);
       });
     });
-    if (stale.length) issues.push({ code: 'staleActive', count: stale.length, ids: stale });
+    if (stale.length) issues.push({ code: 'staleActive', count: stale.length, ids: stale, items: staleItems });
+    if (expired.length) issues.push({ code: 'expiredStillIn', count: expired.length, ids: uniq(expired.map(function (x) { return x.unitId; })), contracts: expired });
+    // Due contratti vivi i cui GIORNI si sovrappongono (non lo stesso mese:
+    // un cambio inquilino al 15 è normale). La stessa regola della
+    // conversione (convert.overlapConflict).
     var double = units.filter(function (u) {
-      return (ctx.contractsByProperty[u.id] || []).filter(function (c) { return LIVE[cStatus(c)] && covers(c, m); }).length > 1;
+      var cs = (ctx.contractsByProperty[u.id] || []).filter(function (c) { return LIVE[cStatus(c)] && covers(c, m); });
+      for (var i = 0; i < cs.length; i++) for (var j = i + 1; j < cs.length; j++) if (daysOverlap(cs[i], cs[j])) return true;
+      return false;
     });
     if (double.length) issues.push({ code: 'overlap', count: double.length, ids: double.map(function (u) { return u.id; }) });
     var pre = units.filter(function (u) { return ctx.preBoomOpen && ctx.preBoomOpen[u.id]; });
     if (pre.length) issues.push({ code: 'preBoom', count: pre.reduce(function (a, u) { return a + ctx.preBoomOpen[u.id]; }, 0), ids: pre.map(function (u) { return u.id; }) });
+    // Rate rimaste dopo la chiusura del contratto: aperte vanno annullate;
+    // pagate vanno verificate (rimborso, o la data di chiusura è sbagliata).
+    var acU = units.filter(function (u) { var a = ctx.afterClose && ctx.afterClose[u.id]; return a && (a.open.length || a.paid.length); });
+    if (acU.length) {
+      var acOpen = [], acPaid = [];
+      acU.forEach(function (u) { ctx.afterClose[u.id].open.forEach(function (r) { acOpen.push(r.id); }); ctx.afterClose[u.id].paid.forEach(function (r) { acPaid.push(r.id); }); });
+      issues.push({ code: 'afterClose', count: acOpen.length + acPaid.length, open: acOpen.length, paid: acPaid.length, ids: acU.map(function (u) { return u.id; }), paymentIds: acOpen, paidIds: acPaid });
+    }
     var unreg = units.filter(function (u) { return u.month.lease && u.paper && u.paper.registration.late; });
     if (unreg.length) issues.push({ code: 'unregistered', count: unreg.length, ids: unreg.map(function (u) { return u.id; }) });
     var missingC = units.filter(function (u) { return u.month.lease && u.month.lease.contractMissing === true; });
     if (missingC.length) issues.push({ code: 'nocontract', count: missingC.length, ids: missingC.map(function (u) { return u.id; }) });
     var norate = units.filter(function (u) { return u.month.state === 'norate' && m <= ctx.month && !(u.month.lease && u.month.lease.contractMissing === true); });
     if (norate.length) issues.push({ code: 'norate', count: norate.length, ids: norate.map(function (u) { return u.id; }) });
+    // La disdetta: per i contratti in corso che finiscono presto, la data
+    // entro cui va data (dal modello del contratto) e cosa succede se nessuno
+    // la dà. Fuori: chi l'ha già data, chi ha già un contratto dopo.
+    var notice = [];
+    units.forEach(function (u) {
+      var nt = u.notice, c = u.current;
+      if (!c || !nt || !nt.by || nt.terminated || nt.received || successorOf(ctx, u.id, c)) return;
+      var from = [dayAdd(nt.end, -120), dayAdd(nt.by, -30)].sort()[0];
+      if (ctx.today < from || ctx.today > nt.end) return;
+      notice.push({ unitId: u.id, contractId: str(c.id), end: nt.end, by: nt.by, months: nt.months, renews: nt.renews, rule: nt.rule, source: nt.source,
+        assumed: nt.assumed, passed: nt.passed, daysToBy: nt.daysToBy, daysToEnd: nt.daysToEnd, tenants: u.currentTenants.slice() });
+    });
+    if (notice.length) issues.push({ code: 'noticeDue', count: notice.length, ids: notice.map(function (x) { return x.unitId; }), items: notice });
+    // Un interno abitato con l'annuncio ancora in vetrina: porta lead per una
+    // casa che non c'è. Va bene solo il pre-blocco VERO: una data di
+    // disponibilità scritta che viene dopo la fine del contratto.
+    var live = [];
+    units.forEach(function (u) {
+      var c = u.current, l = u.pipeline.listing, raw = ctx.listingsByProperty[u.id];
+      if (!c || !l || !l.published || !raw) return;
+      var lFrom = day(raw.availableFrom) || day(raw.availableDate), end = effectiveEnd(c);
+      if (lFrom && end && lFrom > end) return;
+      var why = !lFrom ? (l.status === 'available' ? 'now' : 'nodate') : !end ? 'noend' : lFrom <= ctx.today ? 'now' : 'early';
+      live.push({ unitId: u.id, listingId: l.id, status: l.status, availableFrom: lFrom, leaseEnd: end, why: why });
+    });
+    if (live.length) issues.push({ code: 'listingLive', count: live.length, ids: live.map(function (x) { return x.unitId; }), items: live });
+    var look = lookOf(props, b, savedTop);
+    // Prima di condividere il palazzo con la proprietaria: ciò che il disegno
+    // non sa (ultimo piano, intonaco, persiane) resta neutro — e si dice.
+    if (props.length >= 3) {
+      var miss = [];
+      if (!look.declared.topFloor) miss.push('ultimoPiano');
+      if (!look.declared.intonaco) miss.push('intonaco');
+      if (!look.declared.persiane) miss.push('persiane');
+      if (miss.length) issues.push({ code: 'lookMissing', count: miss.length, ids: [], missing: miss });
+    }
+    if (partial) issues.push({ code: 'partial', count: 1, ids: [], collections: Array.isArray(partial) ? partial : [] });
+    var totals = totalsOf(units);
+    totals.debtors = debtors.length;
+    totals.debtorsAmount = debtors.reduce(function (a, d) { return round(a + d.amount); }, 0);
+    totals.debtorsOldest = debtors.map(function (d) { return d.oldest; }).filter(Boolean).sort()[0] || '';
     var model0 = { building: b, buildings: all, month: m, currentMonth: ctx.month, today: ctx.today, floors: floors, unplaced: unplaced, units: units,
-      totals: totalsOf(units), series: series, issues: issues, owner: owner, look: lookOf(props, b, savedTop),
+      totals: totals, series: series, issues: issues, owner: owner, look: look,
+      debtors: debtors, debtorsRef: ctx.today, partial: partial,
+      // Un mese tutto prima della gestione BOOM: niente "tutti in regola" né
+      // "tutto pieno" — di quel mese non c'è archivio.
+      allBefore: units.length > 0 && totals.before === totals.units, beforeCount: totals.before,
       gestioneDal: props.map(function (p) { return monthOf(p.gestioneDal); }).filter(Boolean).sort()[0] || '' };
-    model0.analytics = analyticsOf(ctx, model0);
+    model0.analytics = analyticsOf(ctx, model0, pastSeries);
     model0.brief = brief(model0);
     return model0;
   }
 
-  // L'andamento del palazzo negli ultimi 12 mesi. Solo misure, nessuna
-  // stima: il canone "perso" per lo sfitto non si inventa.
-  function analyticsOf(ctx, m) {
-    var paid = 0, onTime = 0, delaySum = 0, unitMonths = 0, occMonths = 0;
+  // L'andamento del palazzo negli ultimi 12 mesi fino a oggi. Solo misure,
+  // nessuna stima: il canone "perso" per lo sfitto non si inventa, e
+  // l'occupazione si misura solo sui mesi di BOOM con un contratto noto
+  // (null sotto OCC_MIN_MONTHS mesi di gestione: un numero su un mese solo
+  // non è un andamento).
+  function analyticsOf(ctx, m, pastSeries) {
+    var paid = 0, onTime = 0, delaySum = 0, unitMonths = 0, occMonths = 0, unknownMonths = 0, win = 0, sinces = [];
     m.units.forEach(function (u) {
       paid += u.time.paidCount; onTime += u.time.onTime;
       if (u.time.avgDelay != null) delaySum += u.time.avgDelay * u.time.paidCount;
-      unitMonths += 12; occMonths += u.time.occupiedMonths;
+      unitMonths += u.time.measuredMonths; occMonths += u.time.occupiedMonths; unknownMonths += u.time.unknownMonths;
+      win = Math.max(win, u.time.windowMonths);
+      sinces.push(u.time.since || '');
     });
     // Incassato su SCADUTO: una rata che scade fra una settimana non è un
     // mancato incasso, quindi non abbassa la percentuale.
@@ -1071,27 +1539,35 @@
     });
     var horizon = dayAdd(ctx.today, 365);
     var expiries = m.units.filter(function (u) { return u.month.leaseEnd && u.month.leaseEnd >= ctx.today && u.month.leaseEnd <= horizon; })
-      .map(function (u) { return { id: u.id, interno: u.interno, name: u.name, date: u.month.leaseEnd, tenants: u.month.tenants, next: u.pipeline.proposal }; })
+      .map(function (u) { return { id: u.id, interno: u.interno, name: u.name, date: u.month.leaseEnd, tenants: u.month.tenants, next: u.pipeline.proposal, notice: u.notice }; })
       .sort(function (a, b) { return a.date.localeCompare(b.date); });
     var vacant = m.units.filter(function (u) { return u.month.state === 'vacant' || u.month.state === 'incoming'; })
       .map(function (u) { return { id: u.id, interno: u.interno, name: u.name, days: u.time.vacantDays, since: u.time.vacantSince, pipeline: u.pipeline }; })
       .sort(function (a, b) { return (b.days || 0) - (a.days || 0); });
+    var ser = pastSeries || m.series;
     return {
       paidCount: paid, onTime: onTime, onTimePct: paid ? Math.round(onTime / paid * 100) : null,
       avgDelay: paid ? Math.round(delaySum / paid * 10) / 10 : null,
-      occupancy12: unitMonths ? Math.round(occMonths / unitMonths * 100) : 0, vacantMonths: unitMonths - occMonths,
+      // null = campione troppo piccolo (dichiarato da occupancyMonths/
+      // occupancyMinMonths): mai "48%" su un palazzo preso in carico ieri.
+      occupancy12: unitMonths && win >= OCC_MIN_MONTHS ? Math.round(occMonths / unitMonths * 100) : null, vacantMonths: unitMonths - occMonths,
+      occupancyMonths: win, occupancyUnitMonths: unitMonths, occupancyUnknown: unknownMonths, occupancyMinMonths: OCC_MIN_MONTHS,
+      occupancySince: sinces.length && sinces.every(Boolean) ? sinces.sort()[0] : '',
       collected12: collectedTotal, expected12: dueTotal, collectionPct: dueTotal ? Math.round(collectedTotal / dueTotal * 100) : null,
-      months: m.series.map(function (s) { return { month: s.month, expected: s.totals.expected, collected: s.totals.collected, late: s.totals.lateAmount }; }),
+      months: ser.map(function (s) { return { month: s.month, expected: s.totals.expected, collected: s.totals.collected, late: s.totals.lateAmount }; }),
       expiries: expiries, vacant: vacant
     };
   }
 
+  // I numeri del mese. `occupied` conta solo gli interni GESTITI nel mese
+  // (un mese prima di BOOM non è né pieno né libero: `before`), e `managed`
+  // è il denominatore giusto ("3 su 4 gestiti").
   function totalsOf(units) {
-    var t = { units: units.length, occupied: 0, vacant: 0, incoming: 0, paid: 0, late: 0, due: 0, review: 0, norate: 0, unknown: 0, before: 0, maintOpen: 0, maintUrgent: 0,
-      expected: 0, collected: 0, lateAmount: 0, arrears: 0, arrearsCount: 0, arrearsOldest: '', leaving: 0, occupancy: 0, nocontract: 0 };
+    var t = { units: units.length, managed: 0, occupied: 0, vacant: 0, incoming: 0, paid: 0, late: 0, due: 0, review: 0, norate: 0, unknown: 0, before: 0, maintOpen: 0, maintUrgent: 0,
+      expected: 0, collected: 0, lateAmount: 0, unknownAmounts: 0, arrears: 0, arrearsCount: 0, arrearsOldest: '', leaving: 0, occupancy: 0, nocontract: 0 };
     units.forEach(function (u) {
       var um = u.month;
-      if (um.occupied) t.occupied++;
+      if (um.state !== 'before') { t.managed++; if (um.occupied) t.occupied++; }
       t[um.state] = (t[um.state] || 0) + 1;
       // Occupato col contratto non ancora in archivio: è una cosa diversa da
       // una rata mancante, e alla proprietaria si dice com'è.
@@ -1100,6 +1576,7 @@
       t.expected = round(t.expected + um.expected);
       t.collected = round(t.collected + um.collected);
       t.lateAmount = round(t.lateAmount + um.lateAmount);
+      t.unknownAmounts += um.unknownAmounts || 0;
       if (u.maintenance) { t.maintOpen += u.maintenance.open.length; t.maintUrgent += u.maintenance.urgent; }
       t.arrears = round(t.arrears + ((u.arrears && u.arrears.amount) || 0));
       if (u.arrears && u.arrears.count) {
@@ -1107,7 +1584,7 @@
         if (u.arrears.oldest && (!t.arrearsOldest || u.arrears.oldest < t.arrearsOldest)) t.arrearsOldest = u.arrears.oldest;
       }
     });
-    t.occupancy = t.units ? Math.round(t.occupied / t.units * 100) : 0;
+    t.occupancy = t.managed ? Math.round(t.occupied / t.managed * 100) : 0;
     return t;
   }
 
@@ -1118,7 +1595,11 @@
     LOOKS: LOOKS, LOOK_DEFAULT: LOOK_DEFAULT, lookOf: lookOf, civicOf: civicOf, validateLook: validateLook,
     paperOf: paperOf, cedolareDeclared: cedolareDeclared, csvRows: csvRows, toCsv: toCsv, CSV_HEAD: CSV_HEAD,
     parseRentRoll: parseRentRoll, planImport: planImport, RR_TEMPLATE: RR_TEMPLATE,
-    maintOf: maintOf, utenzeOf: utenzeOf, podOk: podOk, pdrOk: pdrOk, utenzeRows: utenzeRows, UTENZE_HEAD: UTENZE_HEAD };
+    maintOf: maintOf, utenzeOf: utenzeOf, podOk: podOk, pdrOk: pdrOk, utenzeRows: utenzeRows, UTENZE_HEAD: UTENZE_HEAD,
+    // S2 — il mese, gli arretrati, i numeri
+    effectiveEnd: effectiveEnd, covers: covers, daysOverlap: daysOverlap, contractKindOf: contractKindOf, isCompanyName: isCompanyName,
+    noticeOf: noticeOf, NOTICE: NOTICE, typeKey: typeKey, paidDayOf: paidDayOf, eur: eurIt, leaseOn: leaseOn,
+    PAID_VIA: PAID_VIA, PAID_EVIDENCE: PAID_EVIDENCE, paidViaLabel: paidViaLabel, evidenceLabel: evidenceLabel, OCC_MIN_MONTHS: OCC_MIN_MONTHS };
   if (typeof module === 'object' && module.exports) module.exports = API;
   if (root) root.BOOM_PALAZZO = API;
 })(typeof window !== 'undefined' ? window : typeof globalThis !== 'undefined' ? globalThis : this);
