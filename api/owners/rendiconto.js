@@ -223,7 +223,10 @@ export function ownerReport(o) {
     rows.forEach((r) => { if (r.state === 'paid' && r.paidDate && r.paidDate.slice(0, 7) === month && r.amount != null) cashIn = round2(cashIn + r.amount); });
     const cash = other.filter((r) => r.state === 'paid' && r.paidDate && r.paidDate.slice(0, 7) === month);
     const late = other.filter((r) => r.state === 'overdue');
-    const review = other.filter((r) => (r.state === 'reported' || r.state === 'processing') && (!r.month || r.month <= month));
+    // Tutto ciò che non è pagato, scaduto o da pagare è «in verifica»: un
+    // bonifico segnalato, un pagamento in corso, uno stato che il motore non
+    // sa leggere (una contestazione, un rimborso). Mai taciuto, mai arretrato.
+    const review = other.filter((r) => !['paid', 'overdue', 'due', 'cancelled'].includes(r.state) && (!r.month || r.month <= month));
     const maint = ((ctx.maintenanceByProperty && ctx.maintenanceByProperty[str(p.id)]) || []).filter((x) =>
       (x.createdAt && x.createdAt.slice(0, 7) === month) || (x.resolvedAt && x.resolvedAt.slice(0, 7) === month)
       || (x.open && x.createdAt && x.createdAt <= mEnd));
@@ -308,7 +311,8 @@ export function ownerReport(o) {
       const d = PALAZZO.day((r.payment || {}).tenantReportDate || (r.payment || {}).tenantReportedAt);
       lines.push({ text: r.state === 'reported'
         ? `In verifica da BOOM: ${payLabel(r)}${who(r)}, bonifico segnalato dall'inquilino${d ? ' il ' + itDate(d) : ''}`
-        : `In verifica da BOOM: ${payLabel(r)}${who(r)}, pagamento in corso`, amount: r.amount, tone: 'review' });
+        : r.state === 'processing' ? `In verifica da BOOM: ${payLabel(r)}${who(r)}, pagamento in corso`
+          : `In verifica da BOOM: ${payLabel(r)}${who(r)}`, amount: r.amount, tone: 'review' });
     }
     for (const x of maint) {
       const st = !x.open ? (x.resolvedAt ? 'risolta il ' + itDate(x.resolvedAt) : 'chiusa') : x.inProgress ? 'in lavorazione' : 'aperta' + (x.createdAt ? ' dal ' + itDate(x.createdAt) : '');

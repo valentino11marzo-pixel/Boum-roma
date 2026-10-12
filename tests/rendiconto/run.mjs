@@ -48,6 +48,8 @@ function seed() {
   F.put('payments/pay_c1_2026-06', { contractId: 'c1', propertyId: 'p1', amount: 1400, month: '2026-06', dueDate: '2026-06-01', status: 'paid', paidDate: '2026-06-02', paidVia: 'stripe' });
   F.put('payments/pay_c2_2026-07', { contractId: 'c2', propertyId: 'p2', amount: 900, month: '2026-07', dueDate: '2026-07-05', status: 'pending' });
   F.put('payments/pay_c2_2026-05', { contractId: 'c2', propertyId: 'p2', amount: 900, month: '2026-05', dueDate: '2026-05-05', status: 'pending' });
+  // Uno stato che il motore non sa leggere (una contestazione): «in verifica», mai arretrato, mai taciuto.
+  F.put('payments/pay_c2_2026-06', { contractId: 'c2', propertyId: 'p2', amount: 900, month: '2026-06', dueDate: '2026-06-05', status: 'disputed' });
   F.put('maintenance/m1', { propertyId: 'p1', title: 'Caldaia rumorosa', status: 'resolved', createdAt: '2026-07-10T09:00:00Z', resolvedAt: '2026-07-12T09:00:00Z' });
 }
 const mkRes = () => ({ code: 0, body: null, setHeader() {}, status(c) { this.code = c; return this; }, json(o) { this.body = o; return this; }, end() { return this; } });
@@ -97,6 +99,7 @@ const drive = async (query = {}, authz = 'Bearer cron-test-secret') => {
   check('PDF: il canale in italiano (mai «bank»)', /pagata il 03\/07\/2026 · bonifico/.test(txt) && !/\(bank\)|\bbank\b/.test(txt));
   check('PDF: euro all\'italiana deterministici', /€1\.400/.test(txt) && /€2\.300/.test(txt) && /€1\.800/.test(txt));
   check('PDF: la manutenzione del mese c\'è', /Manutenzione: Caldaia rumorosa — risolta il 12\/07\/2026/.test(txt));
+  check('PDF: uno stato sconosciuto è «in verifica da BOOM», non un arretrato', /In verifica da BOOM: rata di giugno 2026/.test(txt) && !/Arretrato: rata di giugno/.test(txt));
   const html = String(m.html);
   check('email: niente «Nessun arretrato» quando qualcuno non ha pagato', !/Nessun arretrato/.test(html) && /Non hanno pagato la rata di luglio 2026/.test(html));
   check('email: niente «ci stiamo già lavorando» senza un sollecito registrato', !/ci stiamo già lavorando/.test(html));
