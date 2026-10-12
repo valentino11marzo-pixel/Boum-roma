@@ -1073,7 +1073,7 @@
           }
           if(j.alreadySigned){
             var done = j.status==='complete';
-            return centered(ICON_CHECK,'Already signed', done?'This document is fully signed.':'Your signature is recorded. We’re waiting for the other party.', '');
+            return centered(ICON_CHECK,'Already signed', done?'This document is fully signed.':j.status==='finalization_failed'?'Your signature is recorded. BOOM is preparing the final PDF.':'Your signature is recorded. We’re waiting for the other party.', '');
           }
           renderCustom(j);
         })
@@ -1114,20 +1114,20 @@
           .then(function(r){ return r.json().catch(function(){return {ok:false};}); })
           .then(function(j){
             if(!j||!j.ok){ signBtn.disabled=false; signBtn.textContent='Sign document'; return flash(j&&j.error==='rate_limited'?'Too many attempts — please wait a moment.':'We couldn’t record your signature. Please try again.'); }
-            customSuccess(!!j.complete, j.signedPdfUrl||'');
+            customSuccess(!!j.complete, j.signedPdfUrl||'', !!j.finalizationPending);
           })
           .catch(function(){ signBtn.disabled=false; signBtn.textContent='Sign document'; flash('Connection lost. Please try again.'); });
       };
       renderPdf(d);
     }
 
-    function customSuccess(complete, pdfUrl){
+    function customSuccess(complete, pdfUrl, finalizationPending){
       setProgress(-1);
       var cta = (complete && pdfUrl) ? '<a class="btn" href="'+esc(pdfUrl)+'" target="_blank" rel="noopener noreferrer" style="display:inline-flex;width:auto;padding:0 22px;margin-top:18px;align-items:center;justify-content:center;text-decoration:none">Download signed PDF</a>' : '';
       FLOW.innerHTML='';
       FLOW.appendChild(el('<div class="step center"><div class="ic success-ring" style="border-color:rgba(95,208,140,.4)">'+ICON_CHECK_ANIM+'</div>'+
         '<h2>'+(complete?'Document complete':'Signed successfully')+'</h2>'+
-        '<p>'+(complete?'All parties have signed. The signed document is ready.':'Your signature has been recorded. We’ll notify you when it’s fully signed.')+'</p>'+cta+'</div>'));
+        '<p>'+(complete?'All parties have signed. The signed document is ready.':finalizationPending?'All parties have signed. Your signature is recorded; BOOM is preparing the final PDF.':'Your signature has been recorded. We’ll notify you when it’s fully signed.')+'</p>'+cta+'</div>'));
     }
 
     function renderMockPdf(host, d){

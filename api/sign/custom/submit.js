@@ -51,7 +51,6 @@ async function buildSignedPdf(originalBytes, fields, signers){
   const pdf = await PDFDocument.load(originalBytes);
   const pages = pdf.getPages();
   const font = await pdf.embedFont(StandardFonts.Helvetica);
-  const today = new Date().toLocaleDateString('it-IT');
   const imgCache = {};
   async function img(role){
     if (imgCache[role] !== undefined) return imgCache[role];
@@ -75,8 +74,12 @@ async function buildSignedPdf(originalBytes, fields, signers){
     const yTop = (Number(f.yr) || 0) * ph;
     const y = ph - yTop - h;             // top-left ratio → pdf-lib bottom-left
     if (f.kind === 'date') {
+      const signedAt = signers[f.role] && signers[f.role].signedAt;
+      const when = signedAt && new Date(signedAt);
+      if (!when || Number.isNaN(when.getTime())) throw new Error('missing_signer_date_' + f.role);
+      const signingDate = when.toLocaleDateString('it-IT', { timeZone: 'Europe/Rome' });
       const size = Math.max(8, Math.min(14, h * 0.7));
-      page.drawText(today, { x: x + 2, y: y + (h - size) / 2, size, font, color: rgb(0.05, 0.05, 0.05) });
+      page.drawText(signingDate, { x: x + 2, y: y + (h - size) / 2, size, font, color: rgb(0.05, 0.05, 0.05) });
     } else {
       const im = await img(f.role);
       if (im) {
@@ -112,12 +115,11 @@ export default async function handler(req, res) {
   const nodeCrypto = await import('node:crypto');
   const sha256 = (s) => nodeCrypto.createHash('sha256').update(String(s), 'utf8').digest('hex');
   const consent = (body && body.consent && typeof body.consent === 'object') ? body.consent : null;
-  if (consent) {
-    if (consent.text !== MS_CONSENT_DOC) return res.status(400).json({ ok:false, error:'invalid_consent_text' });
-    const expected = sha256(MS_CONSENT_DOC);
-    if (consent.hash && consent.hash !== expected) return res.status(400).json({ ok:false, error:'invalid_consent_hash' });
-    consent.hash = expected;
-  }
+  if (!consent || !consent.text || !consent.hash) return res.status(400).json({ ok:false, error:'missing_consent' });
+  if (consent.text !== MS_CONSENT_DOC) return res.status(400).json({ ok:false, error:'invalid_consent_text' });
+  const expected = sha256(MS_CONSENT_DOC);
+  if (consent.hash !== expected) return res.status(400).json({ ok:false, error:'invalid_consent_hash' });
+  consent.hash = expected;
 
   try {
     const doc = await fsGet(`signRequests/${reqId}`);
@@ -127,18 +129,16 @@ export default async function handler(req, res) {
     if (!mine || !mine.token || !secretEqual(token, String(mine.token))) return res.status(401).json({ ok:false, error:'invalid_token' });
 
     // idempotent
-    if (mine.signedAt) return res.status(200).json({ ok:true, complete: doc.status === 'complete', signedPdfUrl: doc.signedPdfUrl || '', note:'already_signed' });
+    if (mine.signedAt) return res.status(200).json({ ok:true, complete: doc.status === 'complete', finalizationPending: doc.status === 'finalization_failed', signedPdfUrl: doc.signedPdfUrl || '', note:'already_signed' });
 
     const now = new Date();
     mine.signatureImg = signature;
     mine.signedAt = now.toISOString();
     mine.signIP = ip;
     mine.signUA = String(req.headers['user-agent'] || '').slice(0, 200);
-    if (consent) {
-      mine.consentText = consent.text;
-      mine.consentHash = consent.hash;
-      mine.consentAt = consent.at || now.toISOString();
-    }
+    mine.consentText = consent.text;
+    mine.consentHash = consent.hash;
+    mine.consentAt = now.toISOString();
 
     // Write ONLY signers.{role} (per-field updateMask) — patching the whole
     // `signers` map would make two roles signing at the same moment a
@@ -163,7 +163,8 @@ export default async function handler(req, res) {
     const required = Array.isArray(fresh.requiredRoles) && fresh.requiredRoles.length ? fresh.requiredRoles : Object.keys(freshSigners);
     const complete = required.every(r => freshSigners[r] && freshSigners[r].signedAt);
 
-    const patch = { status: complete ? 'complete' : 'partial' };
+    const patch = { status: complete ? 'finalization_failed' : 'partial' };
+    if (complete && !doc.originalPdfUrl) patch.signedPdfError = 'missing_original_pdf';
 
     if (complete && doc.originalPdfUrl) {
       try {
@@ -175,11 +176,11 @@ export default async function handler(req, res) {
         patch.signedPdfUrl = await uploadPdf(path, Buffer.from(signed));
         patch.signedPdfPath = path;
         patch.signedAt = now;
-      } catch (embedErr) {
-        // Don't lose the signature if embedding/upload fails: record the signature,
-        // mark complete-pending so an admin/cron can regenerate the PDF.
-        console.error('[custom/submit] embed/upload failed:', embedErr.message);
         patch.status = 'complete';
+      } catch (embedErr) {
+        // Keep the recorded signatures, but do not claim the document is complete
+        // until the final PDF has actually been generated and stored.
+        console.error('[custom/submit] embed/upload failed:', embedErr.message);
         patch.signedPdfError = String(embedErr.message || embedErr).slice(0, 300);
       }
     }
@@ -195,37 +196,41 @@ export default async function handler(req, res) {
       try {
         const { fsCreate } = await import('../../homie/_lib.js');
         await fsCreate('agentNotifications', {
-          type: 'document.signed',
-          summary: `📄 Documento firmato da tutte le parti · ${doc.title || reqId}`,
+          type: patch.status === 'complete' ? 'document.signed' : 'document.finalization_failed',
+          summary: patch.status === 'complete'
+            ? `📄 Documento firmato da tutte le parti · ${doc.title || reqId}`
+            : `⚠️ Firme raccolte, PDF finale mancante · ${doc.title || reqId}`,
           priority: 'high',
           ref: { collection: 'signRequests', id: reqId },
           payload: { reqId, title: doc.title || '', signedPdfUrl: patch.signedPdfUrl || '' },
-          dedupKey: `docsigned-${reqId}`,
+          dedupKey: `${patch.status === 'complete' ? 'docsigned' : 'docfinalize-failed'}-${reqId}`,
           status: 'pending',
           actor: 'magic-sign-custom',
           createdAt: now.toISOString(),
           attempts: 0,
         });
       } catch (e) { console.warn('[custom/submit] notify:', e.message); }
-      try {
-        const { sendEmail } = await import('../../agent/_lib.js');
-        const url = patch.signedPdfUrl || '';
-        const safe = (s) => String(s || '').replace(/[<>&]/g, '');
-        const jobs = required.map((r) => {
-          const sg = freshSigners[r];
-          if (!sg || !sg.email) return null;
-          return sendEmail({
-            to: sg.email,
-            subject: `✓ Documento firmato — ${doc.title || 'BOOM Roma'}`,
-            html: '<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#222">'
-              + `<p>Ciao ${safe(sg.name)},</p>`
-              + `<p>Il documento <b>"${safe(doc.title)}"</b> è stato firmato da tutte le parti.</p>`
-              + (url ? `<p><a href="${url}" style="color:#B8860B">⬇ Scarica il PDF firmato</a></p>` : '')
-              + '<p style="color:#888;font-size:12px">Firma Elettronica Semplice (Art. 21 CAD) · BOOM Roma</p></div>',
-          }).catch((e) => console.warn('[custom/submit] email', sg.email, e.message));
-        }).filter(Boolean);
-        await Promise.race([Promise.all(jobs), new Promise((rs) => setTimeout(rs, 12000))]);
-      } catch (e) { console.warn('[custom/submit] emails:', e.message); }
+      if (patch.status === 'complete') {
+        try {
+          const { sendEmail } = await import('../../agent/_lib.js');
+          const url = patch.signedPdfUrl || '';
+          const safe = (s) => String(s || '').replace(/[<>&]/g, '');
+          const jobs = required.map((r) => {
+            const sg = freshSigners[r];
+            if (!sg || !sg.email) return null;
+            return sendEmail({
+              to: sg.email,
+              subject: `✓ Documento firmato — ${doc.title || 'BOOM Roma'}`,
+              html: '<div style="font-family:-apple-system,Segoe UI,Helvetica,Arial,sans-serif;color:#222">'
+                + `<p>Ciao ${safe(sg.name)},</p>`
+                + `<p>Il documento <b>"${safe(doc.title)}"</b> è stato firmato da tutte le parti.</p>`
+                + (url ? `<p><a href="${url}" style="color:#B8860B">⬇ Scarica il PDF firmato</a></p>` : '')
+                + '<p style="color:#888;font-size:12px">Firma Elettronica Semplice (Art. 21 CAD) · BOOM Roma</p></div>',
+            }).catch((e) => console.warn('[custom/submit] email', sg.email, e.message));
+          }).filter(Boolean);
+          await Promise.race([Promise.all(jobs), new Promise((rs) => setTimeout(rs, 12000))]);
+        } catch (e) { console.warn('[custom/submit] emails:', e.message); }
+      }
     } else {
       // Partial: nudge the remaining signer(s) with THEIR link — same
       // lifecycle as the standard flow's _notify. Best-effort, time-boxed.
@@ -251,7 +256,7 @@ export default async function handler(req, res) {
     }
 
     res.setHeader('Cache-Control','private, no-store');
-    return res.status(200).json({ ok:true, complete, signedPdfUrl: patch.signedPdfUrl || '' });
+    return res.status(200).json({ ok:true, complete: patch.status === 'complete', finalizationPending: complete && patch.status !== 'complete', signedPdfUrl: patch.signedPdfUrl || '' });
   } catch (e) {
     return res.status(502).json({ ok:false, error:'upstream', detail:String((e&&e.message)||e) });
   }

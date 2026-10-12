@@ -20499,7 +20499,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function renderSignRequestsSection() {
         const reqs = S.signRequests || [];
         if (reqs.length === 0) return '';
-        const statusMeta = { sent: { c: 'orange', t: 'Da firmare' }, partial: { c: 'blue', t: 'Firma parziale' }, complete: { c: 'green', t: 'Completo' } };
+        const statusMeta = { sent: { c: 'orange', t: 'Da firmare' }, partial: { c: 'blue', t: 'Firma parziale' }, finalization_failed: { c: 'red', t: 'Firme raccolte · PDF da completare' }, complete: { c: 'green', t: 'Completo' } };
         return `<details class="dash-extras" style="margin:0 0 16px;border:1px solid var(--border);border-radius:12px;padding:14px 16px" open>
             <summary class="dash-extras-summary"><span>✨ Magic Sign — Richieste (${reqs.length})</span><span class="dash-extras-hint">contratti personalizzati con firma drag-and-drop</span></summary>
             <div class="dash-list" style="margin-top:12px">
