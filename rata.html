@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#08080A">
-<title>La tua rata · BOOM</title>
+<title>Your rent · BOOM</title>
 <link rel="icon" href="/favicon.ico">
 <style>
 :root{--bg:#08080A;--card:#0F0F12;--line:rgba(255,255,255,.09);--text:#fff;--muted:#8E8E93;--gold:#D4AF37;--red:#FF4D5A;--ok:#3DDC84}
@@ -15,32 +15,40 @@ body{min-height:100vh;padding:max(18px,env(safe-area-inset-top)) 16px max(28px,e
 .wrap{max-width:560px;margin:0 auto}
 .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
 .brand{font-weight:300;letter-spacing:6px;font-size:15px}
-.lang{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px}
-.lang button{background:none;border:0;color:var(--muted);font:inherit;font-size:12px;padding:5px 10px;border-radius:999px;cursor:pointer}
+.lang{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:2px}
+.lang button{background:none;border:0;color:var(--muted);font:inherit;font-size:13px;min-width:44px;min-height:44px;padding:0 12px;border-radius:999px;cursor:pointer}
 .lang button[aria-pressed="true"]{background:var(--gold);color:#000;font-weight:600}
 .eyebrow{margin:0 0 6px;font-size:10px;letter-spacing:3px;text-transform:uppercase;color:var(--gold)}
 h1{margin:0 0 4px;font-weight:300;font-size:30px;letter-spacing:.5px}
 .where{margin:0 0 20px;color:var(--muted);font-size:14px;line-height:1.5}
 .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin-bottom:14px}
 .amount{font-size:44px;font-weight:200;letter-spacing:1px;margin:2px 0 4px;font-variant-numeric:tabular-nums}
-.parts{margin:0 0 6px;color:var(--muted,#8a8a8a);font-size:13px;font-variant-numeric:tabular-nums}
+.parts{margin:0 0 6px;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+.period{margin:0 0 6px;color:var(--muted);font-size:13px;line-height:1.5}
 .due{margin:0;font-size:14px;color:var(--muted)}
 .due.is-late{color:#FF8F97}
-.lab{display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin:0 0 9px}
+.lab{display:block;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin:0 0 9px}
+h2.lab{font-weight:400}
+.free{color:var(--ok);letter-spacing:1px}
 .btn{display:block;width:100%;padding:16px;border:0;border-radius:16px;background:var(--gold);color:#000;font:inherit;font-size:16px;font-weight:600;letter-spacing:.3px;cursor:pointer;text-align:center;text-decoration:none}
 .btn.ghost{background:none;border:1px solid rgba(255,255,255,.22);color:var(--text);font-weight:500}
 .btn[disabled]{opacity:.5;cursor:wait}
 .hint{margin:9px 0 0;font-size:12px;color:var(--muted);line-height:1.5}
 .or{display:flex;align-items:center;gap:12px;margin:18px 0;color:var(--muted);font-size:11px;letter-spacing:2px;text-transform:uppercase}
 .or:before,.or:after{content:'';flex:1;height:1px;background:var(--line)}
-.kv{display:grid;grid-template-columns:auto 1fr auto;gap:8px 12px;align-items:center;font-size:14px;margin:0}
-.kv dt{color:var(--muted);font-size:12px}
-.kv dd{margin:0;word-break:break-all;font-variant-numeric:tabular-nums}
-.copy{background:none;border:1px solid var(--line);color:var(--gold);border-radius:999px;font:inherit;font-size:12px;padding:5px 10px;cursor:pointer}
+.kv{margin:0;font-size:14px}
+.kv .row{display:grid;grid-template-columns:96px 1fr;gap:10px;align-items:start;padding:7px 0;border-top:1px solid var(--line)}
+.kv .row:first-child{border-top:0}
+.kv dt{color:var(--muted);font-size:12px;padding-top:2px}
+.kv dd{margin:0;display:flex;align-items:flex-start;justify-content:space-between;gap:10px;min-width:0}
+.kv .v{overflow-wrap:anywhere;font-variant-numeric:tabular-nums;line-height:1.45}
+.kv .v.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:13px;letter-spacing:.3px}
+.copy{flex:none;background:none;border:1px solid var(--line);color:var(--gold);border-radius:999px;font:inherit;font-size:12px;min-height:32px;padding:5px 12px;cursor:pointer}
 input[type=date],input[type=text]{width:100%;padding:13px 14px;border-radius:14px;border:1px solid var(--line);background:#141417;color:var(--text);font:inherit;font-size:16px;color-scheme:dark}
 .field{margin-bottom:14px}
 .proof{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
 .proof label{display:inline-flex;align-items:center;gap:8px;padding:11px 15px;border:1px dashed rgba(255,255,255,.25);border-radius:14px;cursor:pointer;font-size:14px}
+.proof label:focus-within{outline:2px solid #fff;outline-offset:2px}
 .proof input{position:absolute;opacity:0;width:1px;height:1px}
 .proof img{width:64px;height:64px;object-fit:cover;border-radius:10px;border:1px solid var(--line)}
 .proof .pdf{font-size:13px;color:var(--muted)}
@@ -50,64 +58,105 @@ input[type=date],input[type=text]{width:100%;padding:13px 14px;border-radius:14p
 .status.is-paid .tick{background:rgba(61,220,132,.14);color:var(--ok)}
 .status h2{font-weight:300;margin:0 0 8px}
 .status p{color:var(--muted);margin:0 0 6px;line-height:1.5}
-.warn{border-color:rgba(255,184,0,.35)}
-.warn p{margin:0;font-size:13px;line-height:1.5;color:#F2D58A}
+.status ul{list-style:none;margin:10px 0 0;padding:0;color:var(--muted);font-size:13px;line-height:1.6}
+.note{border-color:rgba(212,175,55,.35)}
+.note p{margin:0;font-size:13px;line-height:1.5;color:#F2D58A}
 .link{display:inline-block;margin-top:10px;color:var(--gold);font-size:14px}
 .hp{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
-.foot{margin-top:22px;text-align:center;font-size:11px;color:#5A5A60;line-height:1.5}
+.foot{margin-top:22px;text-align:center;font-size:12px;color:var(--muted);line-height:1.6}
+.foot a{color:var(--muted);text-decoration:underline;text-underline-offset:3px}
+button:focus-visible,a:focus-visible,input:focus-visible{outline:2px solid #fff;outline-offset:2px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><span class="brand">BOOM</span><span class="lang" role="group" aria-label="Lingua"><button type="button" data-lang="it" aria-pressed="true">IT</button><button type="button" data-lang="en" aria-pressed="false">EN</button></span></div>
-  <main id="app"><p class="where">Un attimo…</p></main>
-  <p class="foot" data-t="foot">Pagamento gestito da BOOM Property Management.</p>
+  <div class="top"><span class="brand">BOOM</span><span class="lang" role="group" aria-label="Language"><button type="button" data-lang="it" aria-pressed="false">IT</button><button type="button" data-lang="en" aria-pressed="true">EN</button></span></div>
+  <main id="app"><p class="where">One moment…</p></main>
+  <p class="foot" id="foot"></p>
 </div>
 <script>
 (function () {
   var WA = 'https://wa.me/393313251961';
   var MONTHS = { it: ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'],
     en: ['January','February','March','April','May','June','July','August','September','October','November','December'] };
+  // Le parole della pagina, nelle due lingue. L'inglese è la lingua di casa
+  // per gli inquilini BOOM (expat e studenti): l'italiano si sceglie, o arriva
+  // da ?lang=it o da un telefono in italiano.
   var T = {
-    it: { loading: 'Un attimo…', eyebrow: 'La tua rata', rent: 'Canone', depbal: 'Saldo deposito', other: 'Addebito', due: 'entro il', late: 'scaduta il',
-      card: 'Paga con carta o Apple Pay', cardHint: 'Apple Pay compare se il telefono lo supporta. Ricevuta automatica via email.',
-      cardFee: function (a, f) { return a + ' + ' + f + ' di commissione per il pagamento con carta. Il bonifico non costa niente.'; },
+    it: { title: 'La tua rata · BOOM', langGroup: 'Lingua', loading: 'Un attimo…', eyebrow: 'La tua rata', rent: 'Canone', depbal: 'Saldo deposito', other: 'Addebito', due: 'entro il', late: 'scaduta il',
+      card: 'Paga con carta o Apple Pay', cardHint: 'Apple Pay e Google Pay compaiono se il telefono li supporta. La ricevuta arriva all’email che inserisci nel pagamento.',
+      cardFee: function (a, f) { return a + ' + ' + f + ' di commissione per il pagamento con carta. Il bonifico non ha commissioni.'; },
+      cardNoFee: 'Nessuna commissione: paghi l’importo della rata.',
+      onBehalf: function (n) { return 'Con la carta incassa Egidi Immobiliare S.r.l. (BOOM) per conto di ' + n + ', che le ha dato mandato.'; },
       parts: function (r, o) { return 'canone ' + r + ' + oneri accessori ' + o; },
-      or: 'oppure', bank: 'Ho pagato con bonifico', bankTodo: 'Se devi ancora farlo', beneficiary: 'Beneficiario', iban: 'IBAN', causale: 'Causale', copy: 'Copia', copied: 'Copiato',
-      bankSame: 'Al conto di sempre, quello indicato nel contratto.', when: 'Quando hai fatto il bonifico', proof: 'Ricevuta del bonifico', proofAdd: 'Foto o PDF della ricevuta', proofChange: 'Cambia ricevuta',
-      proofHint: 'Facoltativa, ma fa verificare l’incasso subito.', note: 'Una nota (facoltativa)', notePh: 'Es. pagato in due bonifici', report: 'Segnala il bonifico', sending: 'Invio…',
+      period: function (a, b) { return 'Periodo: ' + a + ' – ' + b; },
+      prorated: function (a, b) { return 'In proporzione: ' + a + ' – ' + b + '. Il contratto copre solo una parte del mese, quindi l’importo è più basso del solito.'; },
+      or: 'oppure', bankH: 'Paga con bonifico', free: 'gratis', beneficiary: 'Beneficiario', iban: 'IBAN', bic: 'BIC / SWIFT', causale: 'Causale', copy: 'Copia', copied: 'Copiato', copyOf: function (k) { return 'Copia ' + k; },
+      bankSame: 'Al conto di sempre, quello indicato nel contratto.', abroadBic: 'Da una banca fuori dall’area SEPA: usa IBAN e BIC qui sopra e scegli le spese «OUR», così arriva l’importo intero.',
+      abroad: 'Da una banca fuori dall’area SEPA: usa l’IBAN qui sopra e scegli le spese «OUR», così arriva l’importo intero. Se la tua banca chiede il BIC, scrivi a BOOM.',
+      already: 'Ho già fatto il bonifico', reportH: 'Segnala il bonifico che hai fatto', when: 'Quando hai fatto il bonifico', proof: 'Ricevuta del bonifico', proofAdd: 'Foto o PDF della ricevuta', proofChange: 'Cambia ricevuta',
+      proofHint: 'Facoltativa, ma fa verificare l’incasso prima.', note: 'Una nota (facoltativa)', notePh: 'Es. pagato in due bonifici', report: 'Segnala il bonifico', sending: 'Invio…',
       proofBig: 'La ricevuta è troppo grande (massimo 3 MB): fai una foto dello schermo.', proofBad: 'Questa ricevuta non si legge: scegline un’altra, o segnala senza.',
-      fail: 'Non è partita. Controlla la connessione e riprova.', rate: 'Troppi tentativi in poco tempo: riprova fra qualche minuto.', changed: 'Lo stato della rata è cambiato: ricarica la pagina.',
+      fail: 'Non è partita. Controlla la connessione e riprova.', retry: 'Riprova', rate: 'Troppi tentativi in poco tempo: riprova fra qualche minuto.', changed: 'Lo stato della rata è cambiato: ricarica la pagina.',
+      badDate: 'La data non può essere nel futuro: scegli il giorno in cui hai fatto il bonifico.', tooMany: 'Su questa rata ci sono già diverse segnalazioni: scrivi a BOOM su WhatsApp.',
+      cardDone: 'Un pagamento con carta per questa rata è appena andato a buon fine: non pagare di nuovo. Lo stato si aggiorna a breve.',
       invalid: 'Questo link non è valido o non è più attivo. Chiedi a BOOM il link della tua rata.',
       paidH: 'Rata pagata', paidP: function (d) { return 'Il pagamento risulta registrato' + (d ? ' il ' + d : '') + '. Non devi fare altro.'; },
-      repH: 'Bonifico segnalato', repP: function (d) { return 'Hai segnalato il bonifico' + (d ? ' del ' + d : '') + '. BOOM verifica l’incasso e te lo conferma: non pagare di nuovo.'; },
+      paidCard: 'La ricevuta è stata mandata all’email inserita nel pagamento.', receipt: 'Vedi la ricevuta',
+      repH: 'Bonifico segnalato', repP: function (d) { return 'È stato segnalato un bonifico' + (d ? ' del ' + d : '') + '. Il bonifico va sul conto del locatore: BOOM verifica con il locatore che sia arrivato e, quando risulta arrivato, questa pagina lo segna come pagato. Non pagare di nuovo.'; },
+      reports: 'Bonifici segnalati:', withProof: 'ricevuta allegata',
       repProof: 'Ricevuta allegata.', repNoProof: 'Se hai la ricevuta, mandala a BOOM su WhatsApp: si verifica prima.', proofFailed: 'La ricevuta non è arrivata: mandala a BOOM su WhatsApp.',
-      wa: 'Scrivi a BOOM su WhatsApp', withdraw: 'Era un errore: annulla la segnalazione', withdrawn: 'Segnalazione annullata.',
+      wa: 'Scrivi a BOOM su WhatsApp', more: 'Segnala un altro bonifico (es. la tua metà)', withdraw: 'Era un errore: annulla la segnalazione', withdrawn: 'Segnalazione annullata.',
       procH: 'Pagamento in corso', procP: 'Un pagamento per questa rata è già in elaborazione. Non pagare di nuovo: lo stato si aggiorna da solo.',
+      reviewH: 'Pagamento da verificare', reviewP: 'Su questo pagamento c’è un rimborso o una contestazione: BOOM lo sta verificando. Non pagare di nuovo finché BOOM non ti scrive.',
       otherH: 'Rata da verificare', otherP: 'Questa rata non si può pagare da qui. Scrivi a BOOM per capire cosa fare.',
-      foot: 'Pagamento gestito da BOOM Property Management. Il link vale solo per questa rata.' },
-    en: { loading: 'One moment…', eyebrow: 'Your rent', rent: 'Rent', depbal: 'Deposit balance', other: 'Charge', due: 'due by', late: 'overdue since',
-      card: 'Pay by card or Apple Pay', cardHint: 'Apple Pay appears if your phone supports it. Automatic receipt by email.',
-      cardFee: function (a, f) { return a + ' + ' + f + ' card payment fee. A bank transfer costs nothing.'; },
+      backH: 'Conferma in arrivo', backP: 'Stiamo verificando il pagamento con carta. Non pagare di nuovo: fra poco questa pagina lo mostra come pagato.', refresh: 'Aggiorna',
+      cancelled: 'Il pagamento con carta non è stato completato. Puoi riprovare, oppure pagare con bonifico qui sotto.',
+      foot: 'Pagamento gestito da BOOM Property Management (Egidi Immobiliare S.r.l.). Il link vale solo per questa rata.', privacy: 'Informativa privacy' },
+    en: { title: 'Your rent · BOOM', langGroup: 'Language', loading: 'One moment…', eyebrow: 'Your rent', rent: 'Rent', depbal: 'Deposit balance', other: 'Charge', due: 'due by', late: 'overdue since',
+      card: 'Pay by card or Apple Pay', cardHint: 'Apple Pay and Google Pay appear if your phone supports them. The receipt goes to the email you enter when paying.',
+      cardFee: function (a, f) { return a + ' + ' + f + ' card payment fee. A bank transfer has no fees.'; },
+      cardNoFee: 'No fee: you pay the instalment amount.',
+      onBehalf: function (n) { return 'Card payments are collected by Egidi Immobiliare S.r.l. (BOOM) on behalf of ' + n + ', under the landlord’s mandate.'; },
       parts: function (r, o) { return 'rent ' + r + ' + service charges ' + o; },
-      or: 'or', bank: 'I paid by bank transfer', bankTodo: 'If you still have to make it', beneficiary: 'Beneficiary', iban: 'IBAN', causale: 'Reference', copy: 'Copy', copied: 'Copied',
-      bankSame: 'To the usual account, the one in your lease.', when: 'When you made the transfer', proof: 'Transfer receipt', proofAdd: 'Photo or PDF of the receipt', proofChange: 'Change receipt',
-      proofHint: 'Optional, but it gets the payment checked right away.', note: 'A note (optional)', notePh: 'E.g. paid in two transfers', report: 'Report the transfer', sending: 'Sending…',
+      period: function (a, b) { return 'Period: ' + a + ' – ' + b; },
+      prorated: function (a, b) { return 'Pro rata: ' + a + ' – ' + b + '. The lease covers only part of the month, so the amount is lower than usual.'; },
+      or: 'or', bankH: 'Pay by bank transfer', free: 'free', beneficiary: 'Beneficiary', iban: 'IBAN', bic: 'BIC / SWIFT', causale: 'Reference', copy: 'Copy', copied: 'Copied', copyOf: function (k) { return 'Copy ' + k; },
+      bankSame: 'To the usual account, the one in your lease.', abroadBic: 'From a bank outside the SEPA area: use the IBAN and BIC above and choose “OUR” fees, so the full amount arrives.',
+      abroad: 'From a bank outside the SEPA area: use the IBAN above and choose “OUR” fees, so the full amount arrives. If your bank asks for the BIC, message BOOM.',
+      already: 'I have already paid by bank transfer', reportH: 'Report the transfer you made', when: 'When you made the transfer', proof: 'Transfer receipt', proofAdd: 'Photo or PDF of the receipt', proofChange: 'Change receipt',
+      proofHint: 'Optional, but it gets the payment checked sooner.', note: 'A note (optional)', notePh: 'E.g. paid in two transfers', report: 'Report the transfer', sending: 'Sending…',
       proofBig: 'The receipt is too large (3 MB max): take a screenshot instead.', proofBad: 'This receipt can’t be read: pick another, or report without it.',
-      fail: 'It didn’t go through. Check your connection and try again.', rate: 'Too many attempts in a short time: try again in a few minutes.', changed: 'This instalment changed: reload the page.',
+      fail: 'It didn’t go through. Check your connection and try again.', retry: 'Try again', rate: 'Too many attempts in a short time: try again in a few minutes.', changed: 'This instalment changed: reload the page.',
+      badDate: 'The date can’t be in the future: pick the day you made the transfer.', tooMany: 'This instalment already has several reports: message BOOM on WhatsApp.',
+      cardDone: 'A card payment for this instalment has just gone through: don’t pay again. The status updates shortly.',
       invalid: 'This link is not valid or no longer active. Ask BOOM for the link to your rent.',
       paidH: 'Rent paid', paidP: function (d) { return 'The payment is recorded' + (d ? ' on ' + d : '') + '. Nothing else to do.'; },
-      repH: 'Transfer reported', repP: function (d) { return 'You reported the transfer' + (d ? ' of ' + d : '') + '. BOOM checks the payment and confirms it: don’t pay again.'; },
+      paidCard: 'The receipt was emailed to the address you entered when paying.', receipt: 'View the receipt',
+      repH: 'Transfer reported', repP: function (d) { return 'A bank transfer' + (d ? ' of ' + d : '') + ' was reported. The transfer goes to the landlord’s account: BOOM checks with the landlord that it arrived, and once it has, this page shows it as paid. Don’t pay again.'; },
+      reports: 'Reported transfers:', withProof: 'receipt attached',
       repProof: 'Receipt attached.', repNoProof: 'If you have the receipt, send it to BOOM on WhatsApp: it gets checked sooner.', proofFailed: 'The receipt didn’t arrive: send it to BOOM on WhatsApp.',
-      wa: 'Message BOOM on WhatsApp', withdraw: 'That was a mistake: cancel the report', withdrawn: 'Report cancelled.',
+      wa: 'Message BOOM on WhatsApp', more: 'Report another transfer (e.g. your half)', withdraw: 'That was a mistake: cancel the report', withdrawn: 'Report cancelled.',
       procH: 'Payment in progress', procP: 'A payment for this instalment is already being processed. Don’t pay again: the status updates by itself.',
+      reviewH: 'Payment being checked', reviewP: 'There is a refund or a dispute on this payment and BOOM is checking it. Don’t pay again until BOOM contacts you.',
       otherH: 'Instalment to check', otherP: 'This instalment can’t be paid from here. Message BOOM to sort it out.',
-      foot: 'Payment managed by BOOM Property Management. This link is only for this instalment.' }
+      backH: 'Confirmation on its way', backP: 'We’re checking your card payment. Don’t pay again: in a moment this page shows it as paid.', refresh: 'Refresh',
+      cancelled: 'The card payment wasn’t completed. You can try again, or pay by bank transfer below.',
+      foot: 'Payment managed by BOOM Property Management (Egidi Immobiliare S.r.l.). This link is only for this instalment.', privacy: 'Privacy notice' }
   };
-  var lang = 'it', rata = null, payUrl = '', state = 'loading', open = false, proof = null, after = null;
+  var qs = new URLSearchParams(location.search), id = qs.get('id') || '', token = qs.get('t') || '', ret = qs.get('return') || '';
+  // La lingua: ?lang vince, poi la scelta salvata, poi il telefono (italiano
+  // solo se il telefono è in italiano), altrimenti inglese.
+  var lang = 'en';
+  (function () {
+    var q = qs.get('lang'), sl = '';
+    try { sl = localStorage.getItem('boom_rata_lang') || ''; } catch (_) {}
+    var nav = String((navigator.languages && navigator.languages[0]) || navigator.language || '').toLowerCase();
+    lang = q === 'it' || q === 'en' ? q : sl === 'it' || sl === 'en' ? sl : nav.indexOf('it') === 0 ? 'it' : 'en';
+  })();
+  var rata = null, payUrl = '', state = 'loading', form = false, proof = null, after = null;
   var draft = { date: '', note: '' };
-  try { var sl = localStorage.getItem('boom_rata_lang'); if (sl === 'en' || sl === 'it') lang = sl; } catch (_) {}
-  var qs = new URLSearchParams(location.search), id = qs.get('id') || '', token = qs.get('t') || '';
   var app = document.getElementById('app');
   function t(k) { return T[lang][k]; }
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
@@ -118,8 +167,10 @@ input[type=date],input[type=text]{width:100%;padding:13px 14px;border-radius:14p
   function setLang(l) {
     lang = l; try { localStorage.setItem('boom_rata_lang', l); } catch (_) {}
     document.documentElement.lang = l;
+    document.title = t('title');
+    document.querySelector('.lang').setAttribute('aria-label', t('langGroup'));
     [].forEach.call(document.querySelectorAll('[data-lang]'), function (b) { b.setAttribute('aria-pressed', String(b.getAttribute('data-lang') === l)); });
-    document.querySelector('[data-t="foot"]').textContent = t('foot');
+    document.getElementById('foot').innerHTML = esc(t('foot')) + '<br><a href="/privacy-inquilini' + (l === 'en' ? '?lang=en' : '') + '">' + esc(t('privacy')) + '</a>';
     render();
   }
   function api(body) {
@@ -135,50 +186,104 @@ input[type=date],input[type=text]{width:100%;padding:13px 14px;border-radius:14p
   }
   function waLink() { var r = rata || {}; return WA + '?text=' + encodeURIComponent((lang === 'it' ? 'Ciao BOOM, ti mando la ricevuta del bonifico per ' : 'Hi BOOM, here is the transfer receipt for ') + (r.bonifico && r.bonifico.causale || '')); }
   function status(cls, icon, h, ps, extra) {
-    return '<div class="card status ' + cls + '"><div class="tick">' + icon + '</div><h2>' + esc(h) + '</h2>' + ps.map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('') + (extra || '') + '</div>';
+    return '<div class="card status ' + cls + '"><div class="tick" aria-hidden="true">' + icon + '</div><h2>' + esc(h) + '</h2>' + ps.map(function (p) { return '<p>' + esc(p) + '</p>'; }).join('') + (extra || '') + '</div>';
   }
-  function render() {
-    if (state === 'invalid') { app.innerHTML = '<p class="eyebrow">' + esc(t('eyebrow')) + '</p><h1>BOOM</h1><p class="where">' + esc(t('invalid')) + '</p>'; return; }
-    if (state === 'offline') { app.innerHTML = '<p class="eyebrow">' + esc(t('eyebrow')) + '</p><h1>BOOM</h1><p class="where">' + esc(t('fail')) + '</p><button type="button" class="btn" onclick="location.reload()">↻</button>'; return; }
-    if (!rata) { app.innerHTML = '<p class="where">' + esc(t('loading')) + '</p>'; return; }
-    var r = rata, html = head();
-    if (r.state === 'paid') { app.innerHTML = html + status('is-paid', '✓', t('paidH'), [T[lang].paidP(day(r.paidDate))]); return; }
-    if (r.state === 'reported') {
-      var ps = [T[lang].repP(day(r.reportedDate))];
-      if (after && after.proofFailed) ps.push(t('proofFailed')); else ps.push(r.hasProof || (after && after.proof) ? t('repProof') : t('repNoProof'));
-      app.innerHTML = html + status('', '✓', t('repH'), ps, (!r.hasProof && !(after && after.proof) ? '<a class="link" href="' + esc(waLink()) + '" target="_blank" rel="noopener">' + esc(t('wa')) + '</a>' : '')) +
-        (r.canWithdraw ? '<button type="button" class="btn ghost" id="wd">' + esc(t('withdraw')) + '</button><p class="err" id="err" role="alert"></p>' : '');
-      var wd = document.getElementById('wd');
-      if (wd) wd.onclick = withdraw;
-      return;
-    }
-    if (r.state === 'processing') { app.innerHTML = html + status('', '…', t('procH'), [t('procP')]); return; }
-    if (!r.canPay) { app.innerHTML = html + status('', '?', t('otherH'), [t('otherP')], '<a class="link" href="' + WA + '" target="_blank" rel="noopener">' + esc(t('wa')) + '</a>'); return; }
-    var late = r.state === 'overdue';
-    html += '<div class="card"><div class="amount">' + eur(r.amount) + '</div>' + (r.parts ? '<p class="parts">' + esc(T[lang].parts(eur(r.parts.rent), eur(r.parts.oneri))) + '</p>' : '') + (r.dueDate ? '<p class="due' + (late ? ' is-late' : '') + '">' + esc((late ? t('late') : t('due')) + ' ' + day(r.dueDate)) + '</p>' : '') + '</div>';
-    if (payUrl) html += '<a class="btn" id="card" href="' + esc(payUrl) + '">' + esc(t('card')) + '</a><p class="hint">' + esc(r.cardFee > 0 ? T[lang].cardFee(eur(r.amount), eur(r.cardFee)) : t('cardHint')) + (r.cardFee > 0 ? ' ' + esc(t('cardHint')) : '') + '</p>';
-    html += '<div class="or">' + esc(t('or')) + '</div>';
-    if (!open) { html += '<button type="button" class="btn ghost" id="bank">' + esc(t('bank')) + '</button>'; app.innerHTML = html; document.getElementById('bank').onclick = function () { open = true; render(); }; return; }
-    var b = r.bonifico || {};
-    html += '<div class="card"><span class="lab">' + esc(t('bankTodo')) + '</span><dl class="kv">' +
-      (b.iban ? (b.beneficiary ? '<dt>' + esc(t('beneficiary')) + '</dt><dd>' + esc(b.beneficiary) + '</dd><span></span>' : '') +
-        '<dt>' + esc(t('iban')) + '</dt><dd>' + esc(b.iban.replace(/(.{4})/g, '$1 ').trim()) + '</dd><button type="button" class="copy" data-copy="' + esc(b.iban) + '">' + esc(t('copy')) + '</button>'
-        : '<dt></dt><dd>' + esc(t('bankSame')) + '</dd><span></span>') +
-      '<dt>' + esc(t('causale')) + '</dt><dd>' + esc(b.causale || '') + '</dd><button type="button" class="copy" data-copy="' + esc(b.causale || '') + '">' + esc(t('copy')) + '</button></dl></div>' +
-      '<form id="f" novalidate class="card">' +
+  function row(label, value, copyValue, mono) {
+    return '<div class="row"><dt>' + esc(label) + '</dt><dd><span class="v' + (mono ? ' mono' : '') + '">' + esc(value) + '</span>' +
+      (copyValue ? '<button type="button" class="copy" data-copy="' + esc(copyValue) + '" aria-label="' + esc(T[lang].copyOf(label)) + '">' + esc(t('copy')) + '</button>' : '') + '</dd></div>';
+  }
+  // Il bonifico: sempre visibile su una rata da pagare (è gratis, e la
+  // pagina lo consiglia): beneficiario, IBAN, BIC solo se c'è, causale.
+  function bankCard() {
+    var b = rata.bonifico || {};
+    var rows = b.iban
+      ? (b.beneficiary ? row(t('beneficiary'), b.beneficiary) : '') + row(t('iban'), b.iban.replace(/(.{4})/g, '$1 ').trim(), b.iban, true) + (b.bic ? row(t('bic'), b.bic, b.bic, true) : '')
+      : '<div class="row"><dt></dt><dd><span class="v">' + esc(t('bankSame')) + '</span></dd></div>';
+    rows += row(t('causale'), b.causale || '', b.causale || '');
+    return '<section class="card" aria-labelledby="bankh"><h2 class="lab" id="bankh">' + esc(t('bankH')) + ' — <span class="free">' + esc(t('free')) + '</span></h2><dl class="kv">' + rows + '</dl>' +
+      (b.iban ? '<p class="hint">' + esc(b.bic ? t('abroadBic') : t('abroad')) + '</p>' : '') + '</section>';
+  }
+  function reportForm() {
+    return '<form id="f" novalidate class="card"><h2 class="lab">' + esc(t('reportH')) + '</h2>' +
       '<div class="field"><label class="lab" for="dt">' + esc(t('when')) + '</label><input type="date" id="dt" name="date" max="' + today() + '" value="' + esc(draft.date || today()) + '"></div>' +
-      '<div class="field"><span class="lab">' + esc(t('proof')) + '</span><div class="proof"><label><input type="file" id="pf" accept="image/*,application/pdf"><span>📎 ' + esc(proof ? t('proofChange') : t('proofAdd')) + '</span></label>' +
+      '<div class="field"><span class="lab" id="pfl">' + esc(t('proof')) + '</span><div class="proof"><label><input type="file" id="pf" accept="image/*,application/pdf" aria-labelledby="pfl"><span>📎 ' + esc(proof ? t('proofChange') : t('proofAdd')) + '</span></label>' +
         (proof ? (proof.preview ? '<img alt="" src="' + proof.preview + '">' : '<span class="pdf">' + esc(proof.name) + '</span>') : '') + '</div><p class="hint">' + esc(t('proofHint')) + '</p></div>' +
       '<div class="field"><label class="lab" for="nt">' + esc(t('note')) + '</label><input type="text" id="nt" name="note" maxlength="500" placeholder="' + esc(t('notePh')) + '" value="' + esc(draft.note) + '"></div>' +
       '<div class="hp" aria-hidden="true"><input type="text" name="company" tabindex="-1" autocomplete="off"></div>' +
       '<button type="submit" class="btn" id="send">' + esc(t('report')) + '</button><p class="err" id="err" role="alert"></p></form>';
-    app.innerHTML = html;
-    [].forEach.call(app.querySelectorAll('[data-copy]'), function (btn) { btn.onclick = function () { copy(btn); }; });
+  }
+  function bindForm() {
     var f = document.getElementById('f');
+    if (!f) return;
     f.addEventListener('input', function (e) { if (e.target.name in draft) draft[e.target.name] = e.target.value; });
     document.getElementById('pf').addEventListener('change', function (e) { var file = e.target.files && e.target.files[0]; if (file) readProof(file); });
     f.addEventListener('submit', submit);
   }
+  function render() {
+    if (state === 'invalid') { app.innerHTML = '<p class="eyebrow">' + esc(t('eyebrow')) + '</p><h1>BOOM</h1><p class="where">' + esc(t('invalid')) + '</p>'; return; }
+    if (state === 'offline') { app.innerHTML = '<p class="eyebrow">' + esc(t('eyebrow')) + '</p><h1>BOOM</h1><p class="where">' + esc(t('fail')) + '</p><button type="button" class="btn" id="rl" aria-label="' + esc(t('retry')) + '">↻ ' + esc(t('retry')) + '</button>'; document.getElementById('rl').onclick = function () { location.reload(); }; return; }
+    if (!rata) { app.innerHTML = '<p class="where">' + esc(t('loading')) + '</p>'; return; }
+    var r = rata, html = head();
+    if (r.state === 'paid') {
+      var pp = [T[lang].paidP(day(r.paidDate))];
+      if (r.paidByCard) pp.push(t('paidCard'));
+      app.innerHTML = html + status('is-paid', '✓', t('paidH'), pp, r.receiptUrl ? '<a class="link" href="' + esc(r.receiptUrl) + '" target="_blank" rel="noopener">' + esc(t('receipt')) + '</a>' : '');
+      return;
+    }
+    if (r.state === 'reported') {
+      var ps = [T[lang].repP(day(r.reportedDate))];
+      if (after && after.proofFailed) ps.push(t('proofFailed')); else ps.push(r.hasProof || (after && after.proof) ? t('repProof') : t('repNoProof'));
+      var list = r.reports && r.reports.length > 1 ? '<ul>' + r.reports.map(function (x) { return '<li>' + esc(day(x.date)) + (x.hasProof ? ' · ' + esc(t('withProof')) : '') + '</li>'; }).join('') + '</ul>' : '';
+      if (list) list = '<p>' + esc(t('reports')) + '</p>' + list;
+      html += status('', '✓', t('repH'), ps, list + (!r.hasProof && !(after && after.proof) ? '<a class="link" href="' + esc(waLink()) + '" target="_blank" rel="noopener">' + esc(t('wa')) + '</a>' : ''));
+      if (form && r.canReportMore) { html += bankCard() + reportForm(); app.innerHTML = html; bindAll(); return; }
+      if (r.canReportMore) html += '<button type="button" class="btn ghost" id="more">' + esc(t('more')) + '</button><div style="height:10px"></div>';
+      if (r.canWithdraw) html += '<button type="button" class="btn ghost" id="wd">' + esc(t('withdraw')) + '</button>';
+      html += '<p class="err" id="err" role="alert"></p>';
+      app.innerHTML = html;
+      var more = document.getElementById('more'); if (more) more.onclick = function () { form = true; after = null; render(); };
+      var wd = document.getElementById('wd'); if (wd) wd.onclick = withdraw;
+      return;
+    }
+    if (r.state === 'processing') { app.innerHTML = html + status('', '…', t('procH'), [t('procP')]); return; }
+    if (r.state === 'review') { app.innerHTML = html + status('', '?', t('reviewH'), [t('reviewP')], '<a class="link" href="' + WA + '" target="_blank" rel="noopener">' + esc(t('wa')) + '</a>'); return; }
+    if (!r.canPay) { app.innerHTML = html + status('', '?', t('otherH'), [t('otherP')], '<a class="link" href="' + WA + '" target="_blank" rel="noopener">' + esc(t('wa')) + '</a>'); return; }
+    // Di ritorno da Stripe ma il pagamento non risulta ancora: niente carta
+    // né bonifico (sarebbe un secondo pagamento), solo "aggiorna".
+    if (ret === 'success') {
+      app.innerHTML = html + status('', '…', t('backH'), [t('backP')], '<button type="button" class="btn ghost" id="rf" style="margin-top:12px">' + esc(t('refresh')) + '</button>');
+      document.getElementById('rf').onclick = function () { ret = ''; try { history.replaceState(null, '', location.pathname + '?id=' + encodeURIComponent(id) + '&t=' + encodeURIComponent(token) + '&lang=' + lang); } catch (_) {} load(); };
+      return;
+    }
+    var late = r.state === 'overdue';
+    if (ret === 'cancel') html += '<div class="card note" role="status"><p>' + esc(t('cancelled')) + '</p></div>';
+    var per = r.periodFrom && r.periodTo ? (r.prorated ? T[lang].prorated(day(r.periodFrom), day(r.periodTo)) : T[lang].period(day(r.periodFrom), day(r.periodTo))) : '';
+    html += '<div class="card"><div class="amount">' + eur(r.amount) + '</div>' + (r.parts ? '<p class="parts">' + esc(T[lang].parts(eur(r.parts.rent), eur(r.parts.oneri))) + '</p>' : '') +
+      (per ? '<p class="period">' + esc(per) + '</p>' : '') +
+      (r.dueDate ? '<p class="due' + (late ? ' is-late' : '') + '">' + esc((late ? t('late') : t('due')) + ' ' + day(r.dueDate)) + '</p>' : '') + '</div>';
+    var card = r.card || {};
+    // La carta solo se il contratto la consente: spenta, la pagina parla
+    // solo del bonifico (nessun cenno alla carta).
+    if (payUrl && card.available) {
+      var fee = card.fee > 0;
+      html += '<a class="btn" id="card" href="' + esc(payUrl + '&lang=' + lang) + '">' + esc(t('card')) + '</a><p class="hint">' +
+        esc((fee ? T[lang].cardFee(eur(r.amount), eur(card.fee)) + ' ' : card.feeMode === 'absorbed' ? t('cardNoFee') + ' ' : '') + t('cardHint') +
+          (card.onBehalfOf ? ' ' + T[lang].onBehalf(card.onBehalfOf) : '')) + '</p>';
+      html += '<div class="or">' + esc(t('or')) + '</div>';
+    }
+    html += bankCard();
+    if (!form) {
+      html += '<button type="button" class="btn ghost" id="bank">' + esc(t('already')) + '</button>';
+      app.innerHTML = html; bindCopy();
+      document.getElementById('bank').onclick = function () { form = true; render(); var d = document.getElementById('dt'); if (d) d.focus(); };
+      return;
+    }
+    html += reportForm();
+    app.innerHTML = html;
+    bindAll();
+  }
+  function bindCopy() { [].forEach.call(app.querySelectorAll('[data-copy]'), function (btn) { btn.onclick = function () { copy(btn); }; }); }
+  function bindAll() { bindCopy(); bindForm(); }
   function copy(btn) {
     var v = btn.getAttribute('data-copy'), done = function () { btn.textContent = t('copied'); setTimeout(function () { btn.textContent = t('copy'); }, 1600); };
     try { navigator.clipboard.writeText(v).then(done, function () { window.prompt('', v); }); } catch (_) { window.prompt('', v); }
@@ -212,22 +317,24 @@ input[type=date],input[type=text]{width:100%;padding:13px 14px;border-radius:14p
     btn.disabled = true; btn.textContent = t('sending'); fail('');
     api({ op: 'report', date: draft.date || today(), note: draft.note, company: f.company.value, proof: proof ? { base64: proof.base64, type: proof.type, name: proof.name } : null })
       .then(function (j) {
-        if (j.ok) { after = { proof: !!j.proof, proofFailed: !!j.proofFailed }; proof = null; return load(); }
+        if (j.ok) { after = { proof: !!j.proof, proofFailed: !!j.proofFailed }; proof = null; form = false; draft = { date: '', note: '' }; return load(); }
         btn.disabled = false; btn.textContent = t('report');
-        fail(j.status === 429 ? t('rate') : j.error === 'bad_proof' ? t('proofBad') : j.error === 'state_changed' ? t('changed') : j.error === 'invalid_link' ? t('invalid') : t('fail'));
+        fail(j.status === 429 ? t('rate') : j.error === 'bad_proof' ? t('proofBad') : j.error === 'bad_date' ? t('badDate') : j.error === 'too_many_reports' ? t('tooMany')
+          : j.error === 'card_completed' ? t('cardDone') : j.error === 'state_changed' ? t('changed') : j.error === 'invalid_link' ? t('invalid') : t('fail'));
       }, function () { btn.disabled = false; btn.textContent = t('report'); fail(t('fail')); });
   }
   function withdraw() {
     var btn = document.getElementById('wd'); btn.disabled = true;
     api({ op: 'withdraw' }).then(function (j) {
-      if (j.ok) { after = null; open = false; return load(); }
+      if (j.ok) { after = null; form = false; return load(); }
       btn.disabled = false; fail(j.error === 'state_changed' ? t('changed') : t('fail'));
     }, function () { btn.disabled = false; fail(t('fail')); });
   }
   function load() {
     return api({ op: 'lookup' }).then(function (j) {
       if (!j.ok) { state = j.status === 404 ? 'invalid' : 'offline'; render(); return; }
-      rata = j.rata; payUrl = j.payUrl || ''; state = 'ok'; render(); window.scrollTo(0, 0);
+      rata = j.rata; payUrl = j.payUrl || ''; state = 'ok'; render();
+      window.scrollTo(0, 0);
     }, function () { state = 'offline'; render(); });
   }
   [].forEach.call(document.querySelectorAll('[data-lang]'), function (b) { b.onclick = function () { setLang(b.getAttribute('data-lang')); }; });
