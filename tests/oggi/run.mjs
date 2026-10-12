@@ -184,7 +184,7 @@ ok(sw.includes('/js/oggi-engine.js'), 'sw.js: il motore viaggia con gli asset de
 ok(/window\[a\.fn\]/.test(app) && /f\.apply\(window, a\.args/.test(app), 'oggiRun invoca per riferimento, mai per stringa');
 // preAgreements: lazy alla prima apertura (dieta del boot), mai un await sul render
 const opg = app.slice(app.indexOf('function oggiPage'), app.indexOf('function oggiPage') + 1200);
-ok(/preAgreements/.test(opg) && /S\._paLoading/.test(opg) && !/await/.test(opg),
+ok(/oggiLoadProposals/.test(opg) && /S\._paLoading/.test(opg) && !/await/.test(opg),
   'oggiPage carica le proposte fire-and-forget: niente await sul percorso di render');
 // Machete #1-2 (Arsenale): il Command Center è un alias di Oggi, Zone
 // Intelligence una lapide che punta alla Centrale — mai due verità di zona.

@@ -89,7 +89,7 @@ try {
     await page.route('**/*', route => route.request().url().startsWith(base) ? route.continue() : route.abort());
     const row = id => page.locator('article[data-sg-id="' + id + '"]');
     const propertyButton = id => row(id).locator('[data-sg-action="property"]');
-    const idle = () => page.waitForFunction(() => testCases.loaded && !testCases.loading);
+    const idle = async () => { await page.waitForFunction(() => testCases.loaded && !testCases.loading); await page.locator('#ogFollowTools').evaluate(el => { el.open = true; }); };
     let visit = 0;
     const fresh = async () => {
       await page.goto(base + '/portal?case=' + (++visit) + '#oggi'); await idle();

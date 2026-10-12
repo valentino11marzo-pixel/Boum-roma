@@ -87,7 +87,7 @@ async function fixture(source = portal, width = 390, globalOnline = false) {
   const inboxHelpers=['inboxFreshnessUpdate','inboxLiveRefresh'].filter(name=>source.includes('    function '+name+'(') && !oggi.includes('    function '+name+'('));
   await page.addScriptTag({ content: source.match(/    var _inboxState = [^\n]+/)[0] + '\n' + oggi + '\n'
     + [...inboxFunctions, ...inboxHelpers, 'startInboxListener', 'stopInboxListener', 'stopOpenConvListener'].map(name=>named(name,source)).join('\n') + `
-    document.getElementById('main').innerHTML=oggiPage();startInboxListener();
+    document.getElementById('main').innerHTML=oggiPage();document.getElementById('ogFollowTools').open=true;startInboxListener();
   ` });
   await page.waitForFunction(() => oggiSegretaria.loaded && !oggiSegretaria.loading);
   await page.evaluate(() => {
@@ -267,7 +267,7 @@ try {
       await page.evaluate(()=>{changeVisibility(true);changeVisibility(false);window.dispatchEvent(new Event('online'));});
       await page.waitForTimeout(250);
       assert.equal(await page.evaluate(()=>apiCalls.length),before);
-      await page.evaluate(()=>{S.page='oggi';document.getElementById('main').innerHTML=oggiPage();});
+      await page.evaluate(()=>{S.page='oggi';document.getElementById('main').innerHTML=oggiPage();document.getElementById('ogFollowTools').open=true;});
       await page.waitForTimeout(350);
       assert.equal(await page.evaluate(()=>apiCalls.length),before+1,'Il rientro deve coalescere primo snapshot e lettura iniziale');
       const beforeForeground=await page.evaluate(()=>{holdAPI=true;return apiCalls.length;});

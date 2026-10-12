@@ -427,7 +427,7 @@
         // quel nodo lancia. Si controlla prima invece di affidarsi al catch.
         if (!doc || !doc.getElementById('globalSearch')) return [];
         try {
-            w.handleSearch(query);
+            w.handleSearch(query, kind);
             var dd = doc && doc.getElementById('searchResults');
             if (!dd) return [];
             var rows = dd.children || [];

@@ -61,7 +61,7 @@ async function fixture(source = portal, mobile = false) {
   ` });
   for (const name of ['js/oggi-engine.js', 'js/segretaria-casi-engine.js', 'js/segretaria-proposta-engine.js', 'js/segretaria-esecuzione-engine.js']) await page.addScriptTag({ content: read(name) });
   await page.addScriptTag({ content: body(source) + '\n' + listeners(source) + `
-    document.getElementById('main').innerHTML=oggiPage();
+    document.getElementById('main').innerHTML=oggiPage();document.getElementById('ogFollowTools').open=true;
     startActionQueueListener();startContractsListener();startMaintenanceListener();
   ` });
   await page.waitForFunction(() => oggiSegretaria.loaded);

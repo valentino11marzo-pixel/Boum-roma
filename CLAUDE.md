@@ -2125,6 +2125,14 @@ Un giro solo, otto interventi, 33 suite verdi:
   Dashboard resta come "Studio". Tab mobile: ⚡ Oggi prima. Senza motore
   caricato la pagina ricade sulla dashboard — mai una schermata vuota.
   Test: `node tests/oggi/run.mjs` (41 check).
+- **Oggi operativa (12/10/2026):** la home admin apre ricerca contestuale, coda
+  esistente e agenda visite di sette giorni Roma; messaggio e Segreteria restano
+  montati in pannelli richiudibili. Ricerca riusa Prontuario/handleSearch e filtra
+  il tipo prima del limite; nessuna preselezione né invio o AI in lettura.
+  Visite/proposte espongono errori e limiti senza svuotare la copia precedente;
+  aggiornamenti regionali conservano bozza, ricerca e pannelli aperti.
+  `oggi-workspace-engine` distingue proposte/conferme e alimenta anche il prefilling
+  delle visite. Prove: `oggiworkspace`, `oggihomeui` e regressioni Segreteria.
 - **D2 — i form grandi coi capitoli su desktop** (`sectionizeForm` in
   portal-desktop.js): su telefono i modali piatti diventano wizard (M2);
   su desktop erano muri da 15-22 campi. Pattern console corporate: header

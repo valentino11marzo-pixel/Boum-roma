@@ -2809,10 +2809,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                             S.pfsActivities = rows(pfsActivities); S.landlords = rows(landlords);
                         } catch (e) { S.pfsClients = []; S.pfsProperties = []; S.pfsActivities = []; S.landlords = []; }
                     })(),
-                    (async () => {
-                        try { S.viewingRequests = rows(await db.collection('viewingRequests').orderBy('createdAt', 'desc').limit(100).get()); }
-                        catch (e) { S.viewingRequests = []; }
-                    })(),
+                    oggiLoadViewings(),
                     (async () => {
                         try {
                             const [convs, msgs] = await Promise.all([
@@ -4611,7 +4608,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         return `<div class="empty-state" style="padding:80px 24px"><div class="empty-icon">🚫</div><h2 class="empty-title">Accesso Negato</h2><p class="empty-text">Non hai i permessi per questa sezione.</p><button class="btn" onclick="goTo('dashboard')">Torna alla Dashboard</button></div>`;
     }
 
-    function handleSearch(q) {
+    function handleSearch(q, recordKind) {
         if (!q || q.length < 2) { document.getElementById('searchResults')?.remove(); return; }
         const ql = q.toLowerCase();
         const results = [];
@@ -4636,7 +4633,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         });
         
         // Search contracts
-        (S.contracts || []).filter(c => { const t = S.users.find(u => u.id === c.tenantId); return (t?.name||'').toLowerCase().includes(ql); }).forEach(c => {
+        (S.contracts || []).filter(c => { const t = S.users.find(u => u.id === c.tenantId), p = S.properties.find(p => p.id === c.propertyId); return [c.id, c.ref, t?.name, p?.name, p?.address].some(value => String(value || '').toLowerCase().includes(ql)); }).forEach(c => {
             const t = S.users.find(u => u.id === c.tenantId); const p = S.properties.find(x => x.id === c.propertyId);
             results.push({ type: '📋', label: `Contratto ${p?.name || ''}`, sub: `${t?.name || ''} · €${c.rent}/mese`, action: `viewContract('${c.id}')` });
         });
@@ -4663,16 +4660,19 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         (S.deadlines || []).filter(d => (d.title||'').toLowerCase().includes(ql)).forEach(d =>
             results.push({ type: '📅', label: d.title, sub: `${d.type || ''} · ${fmtDate(d.date)}`, action: `goTo('dashboard')` }));
 
+        // Context pickers filter BEFORE the display cap: unrelated records cannot hide the requested kind.
+        const via = { property: 'viewProperty(', person: 'viewUserProfile(', client: 'viewClient(', contract: 'viewContract(' }[recordKind];
+        const matches = via ? results.filter(r => r.action.startsWith(via)) : results;
         // Render dropdown
         let dd = document.getElementById('searchResults');
         if (!dd) { dd = document.createElement('div'); dd.id = 'searchResults'; dd.style.cssText = 'position:absolute;top:100%;left:0;right:0;background:var(--bg-card);border:1px solid var(--border);border-radius:12px;max-height:360px;overflow-y:auto;z-index:1000;box-shadow:0 8px 32px rgba(0,0,0,0.3);margin-top:4px'; document.getElementById('globalSearch').parentElement.style.position = 'relative'; document.getElementById('globalSearch').parentElement.appendChild(dd); }
         
-        if (results.length === 0) { dd.innerHTML = `<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px">No results for "${esc(q)}"</div>`; return; }
+        if (matches.length === 0) { dd.innerHTML = `<div style="padding:16px;text-align:center;color:var(--text-muted);font-size:13px">No results for "${esc(q)}"</div>`; return; }
         
-        dd.innerHTML = results.slice(0, 12).map(r => `<div style="padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);transition:background .15s" onmouseenter="this.style.background='var(--bg-elevated)'" onmouseleave="this.style.background=''" onclick="${r.action};document.getElementById('searchResults')?.remove();document.getElementById('globalSearch').value=''">
+        dd.innerHTML = matches.slice(0, 12).map(r => `<div style="padding:10px 14px;cursor:pointer;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);transition:background .15s" onmouseenter="this.style.background='var(--bg-elevated)'" onmouseleave="this.style.background=''" onclick="${r.action};document.getElementById('searchResults')?.remove();document.getElementById('globalSearch').value=''">
             <span style="font-size:16px;width:24px;text-align:center">${r.type}</span>
             <div style="flex:1;min-width:0"><div style="font-weight:500;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.label)}</div><div style="font-size:11px;color:var(--text-muted)">${esc(r.sub)}</div></div>
-        </div>`).join('') + (results.length > 12 ? `<div style="padding:8px;text-align:center;font-size:11px;color:var(--text-muted)">${results.length - 12} more results...</div>` : '');
+        </div>`).join('') + (matches.length > 12 ? `<div style="padding:8px;text-align:center;font-size:11px;color:var(--text-muted)">${matches.length - 12} more results...</div>` : '');
     }
     
     // Close search on click outside
@@ -4695,7 +4695,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             if (!cur.includes(id)) cur.push(id);
             localStorage.setItem(k, JSON.stringify(cur));
         } catch (e) { /* Safari privato: il nascondi non vale la pagina */ }
-        renderPage();
+        oggiScheduleUpdate();
     }
     function oggiRun(id) {
         // Un solo ponte per tutti i bottoni della coda: ritrova la decisione
@@ -4847,13 +4847,13 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     function oggiOwnerCommandPanel() {
         if (!isAdmin()) return '';
         return `<section id="ogOwnerCommand" aria-labelledby="ogOwnerTitle">
-            <div class="og-owner-heading"><div><p>SEGRETERIA / INCARICO</p><h2 id="ogOwnerTitle">Dille chi. Dille cosa.</h2></div><span>Prepara soltanto</span></div>
+            <div class="og-owner-heading"><div><p>SEGRETERIA / INCARICO</p><h2 id="ogOwnerTitle">Prepara un messaggio</h2></div><span>Prepara soltanto</span></div>
             <form id="ogOwnerResolveForm" class="og-owner-form" onsubmit="oggiOwnerResolve(event)">
                 <div class="form-group"><label class="form-label" for="ogOwnerQuery">Persona · nome, telefono o email</label><input class="form-input" id="ogOwnerQuery" maxlength="120" autocomplete="off" value="${esc(oggiOwnerCommand.query)}" placeholder="Es. Giuliano oppure +39…" ${oggiOwnerCommand.loading || oggiOwnerCommand.preparing ? 'disabled' : ''}></div>
                 <div class="form-group og-owner-instruction"><label class="form-label" for="ogOwnerInstruction">Istruzione</label><textarea class="form-textarea" id="ogOwnerInstruction" maxlength="1200" rows="2" placeholder="Es. Avvisa il portiere che il tecnico arriva alle 15" ${oggiOwnerCommand.loading || oggiOwnerCommand.preparing ? 'disabled' : ''}>${esc(oggiOwnerCommand.instruction)}</textarea></div>
                 <button class="btn" type="submit" data-og-owner-action="resolve" ${oggiOwnerCommand.loading || oggiOwnerCommand.preparing ? 'disabled' : ''}>${oggiOwnerCommand.loading ? 'Verifico…' : 'Trova e verifica'}</button>
             </form>
-            <p class="og-owner-boundary">People → conversazione → pratica → Flat → canale. Nessun messaggio parte da questa schermata.</p>
+            <p class="og-owner-boundary">Scegli la persona e i riferimenti corretti. Rivedrai il testo prima di confermare un invio.</p>
             ${oggiOwnerCommand.error ? `<div class="og-owner-notice is-error" role="alert">${esc(oggiOwnerCommand.error)}</div>` : ''}
             ${oggiOwnerCommand.notice ? `<div class="og-owner-notice" role="status">${esc(oggiOwnerCommand.notice)}</div>` : ''}
             ${oggiOwnerCommandResults()}
@@ -5047,9 +5047,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 const panel = document.getElementById('ogDecisionPanel');
                 if (panel) {
                     const focused = panel.contains(document.activeElement) ? document.activeElement?.getAttribute('data-og-action') : null;
+                    const cashOpen = panel.querySelector('.ow-cash')?.open;
                     panel.innerHTML = oggiDecisionPanel();
+                    if (cashOpen && panel.querySelector('.ow-cash')) panel.querySelector('.ow-cash').open = true;
                     if (focused) [...panel.querySelectorAll('[data-og-action]')].find(el => el.getAttribute('data-og-action') === focused)?.focus({ preventScroll: true });
                 }
+            }
+            const agendaPanel = document.getElementById('ogAgendaPanel');
+            if (agendaPanel) {
+                const focusedId = agendaPanel.contains(document.activeElement) ? document.activeElement?.getAttribute('data-og-viewing') : null;
+                agendaPanel.innerHTML = oggiAgendaPanel();
+                if (focusedId) [...agendaPanel.querySelectorAll('[data-og-viewing]')].find(el => el.getAttribute('data-og-viewing') === focusedId)?.focus({ preventScroll: true });
             }
             oggiSegretariaFreshnessUpdate();
             if (oggiSegretaria.refreshPending && !oggiSegretaria.loading) {
@@ -5361,6 +5369,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             }
         }
         const all = [...groups.decisions, ...groups.preparing, ...groups.progress, ...groups.waiting], total = all.length;
+        const compact = document.getElementById('ogFollowSummary');
+        if (compact) compact.textContent = oggiSegretaria.error ? 'Lettura da verificare' : !oggiSegretaria.loaded ? 'Caricamento dei seguiti…' : `${groups.decisions.length} da rivedere · ${groups.preparing.length} da preparare · ${groups.waiting.length} in attesa${oggiSegretaria.incomplete ? ' · elenco parziale' : ''}`;
         const ready = groups.decisions.filter(task => { const p = oggiSegretariaPreparation(task); return p && !p.approval && p.status === 'ready' && !oggiSegretariaApprovalTimeIssue(p, now); }).length;
         const future = all.map(task => E.describe(task, null, S, now).checkAt).filter(at => at !== null && at > now).sort((a, b) => a - b)[0];
         const subline = !oggiSegretaria.loaded ? 'Carico richieste, proposte e ricontrolli.' : groups.decisions.length
@@ -5458,6 +5468,8 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         const context = oggiSegretaria.propertyReturn;
         if (!context || S.page !== 'oggi' || oggiSegretaria.loading || !oggiSegretaria.loaded || oggiSegretaria.generation < context.afterGeneration) return;
         oggiSegretaria.propertyReturn = null;
+        const fold = document.getElementById('ogFollowTools');
+        if (fold) fold.open = true;
         const opened = new Set(context.opened || []);
         panel.querySelectorAll('details[data-sg-detail]').forEach(el => { if (opened.has(el.dataset.sgDetail)) el.open = true; });
         requestAnimationFrame(() => {
@@ -5848,34 +5860,138 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
     // ═══ FINE SEGRETERIA · SEGUITI IN OGGI ═══
 
+    // HOME OPERATIVA: UI state only; domain data stays in the existing records.
+    const oggiWorkspace = { user: null, records: [], selected: null, actions: [], agenda: [], visible: 6 };
+    function oggiWorkspaceResetUser() {
+        const uid = auth.currentUser?.uid || null;
+        if (oggiWorkspace.user !== uid) Object.assign(oggiWorkspace, { user: uid, records: [], selected: null, actions: [], agenda: [], visible: 6 });
+    }
+    window.oggiOpenSection = function(id) {
+        if (!isAdmin() || !['ogOwnerTools', 'ogFollowTools'].includes(id)) return;
+        const section = document.getElementById(id);
+        if (!section) return;
+        section.open = true;
+        section.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        const input = id === 'ogOwnerTools' ? document.getElementById('ogOwnerQuery') : section.querySelector('summary');
+        input?.focus({ preventScroll: true });
+    };
+    window.oggiWorkspaceSearch = function(query) {
+        if (!isAdmin()) return;
+        oggiWorkspaceResetUser();
+        const target = document.getElementById('ogWorkResults');
+        if (!target) return;
+        oggiWorkspace.records = []; oggiWorkspace.selected = null; oggiWorkspace.actions = [];
+        query = String(query || '').trim().slice(0, 120);
+        if (query.length < 2) { target.innerHTML = ''; return; }
+        const P = window.BOOM_ACTIONS;
+        if (!P?.findRecords || !document.getElementById('globalSearch')) {
+            target.innerHTML = '<p role="status" class="ow-hint">La ricerca non è disponibile. Apri la sezione dal menu.</p>'; return;
+        }
+        const kind = document.getElementById('ogWorkKind')?.value || 'property';
+        if (!['property', 'person', 'contract', 'client'].includes(kind)) return;
+        oggiWorkspace.records = P.findRecords(query, kind, window);
+        target.innerHTML = oggiWorkspace.records.length ? `<div class="ow-results">${oggiWorkspace.records.map((r, i) => `<button type="button" class="ow-result" onclick="oggiWorkspaceSelect(${i})"><span><strong>${esc(r.label)}</strong><small>${esc(r.sub)}</small></span><span aria-hidden="true">↗</span></button>`).join('')}</div>`
+            : '<p role="status" class="ow-hint">Nessun risultato nei dati caricati. Prova un altro nome o apri la sezione completa.</p>';
+    };
+    window.oggiWorkspaceSelect = function(index) {
+        if (!isAdmin()) return;
+        const record = oggiWorkspace.records[index], P = window.BOOM_ACTIONS;
+        if (!record || !P?.ACTIONS) return;
+        oggiWorkspace.selected = record;
+        const safe = ['viewProperty', 'openPerson', 'viewUserProfile', 'viewUser', 'viewClient', 'viewContract', 'openFascicolo', 'openShareHub', 'viewContractSignatures'];
+        oggiWorkspace.actions = P.ACTIONS.filter(a => a.need === record.kind && (safe.includes(a.fn) || (a.fn === 'open' && String(a.args?.[0] || '').startsWith('/inventario?'))));
+        const target = document.getElementById('ogWorkResults');
+        target.innerHTML = `<div class="ow-selection"><div><span class="ow-eyebrow">${esc(P.KINDS[record.kind]?.label || '')}</span><h3>${esc(record.label)}</h3><p>${esc(record.sub)}</p></div><div class="ow-context-actions">${oggiWorkspace.actions.map((a, i) => `<button class="btn btn-secondary btn-sm" type="button" onclick="oggiWorkspaceAction(${i})">${esc(a.label)}</button>`).join('')}</div><button type="button" class="ow-link" onclick="oggiWorkspaceSearch(document.getElementById('ogWorkQuery').value)">Cambia selezione</button></div>`;
+        target.querySelector('button')?.focus({ preventScroll: true });
+    };
+    window.oggiWorkspaceAction = function(index) {
+        if (!isAdmin()) return;
+        const action = oggiWorkspace.actions[index], record = oggiWorkspace.selected;
+        if (!action || !record || !window.BOOM_ACTIONS?.run(action, window, record)) toast('error', 'Strumento non disponibile. Apri la sezione dal menu.');
+    };
+    function oggiWorkspacePanel() {
+        return `<section class="ow-workbench" aria-labelledby="ogWorkTitle"><div class="ow-workbench-head"><div><p class="ow-eyebrow">BOOM / IL TUO LAVORO</p><h2 id="ogWorkTitle">Da dove ripartiamo?</h2><p>Trova la casa o la persona. Apri ciò che ti serve, già collegato.</p></div><button class="btn" type="button" onclick="oggiOpenSection('ogOwnerTools')">Prepara una risposta <span aria-hidden="true">↗</span></button></div>
+            <div class="ow-search"><label class="sr-only" for="ogWorkKind">Cerca tra</label><select id="ogWorkKind" onchange="oggiWorkspaceSearch(document.getElementById('ogWorkQuery').value)"><option value="property">Immobili</option><option value="person">Persone</option><option value="contract">Contratti</option><option value="client">Clienti</option></select><label class="sr-only" for="ogWorkQuery">Nome, indirizzo o riferimento</label><input id="ogWorkQuery" autocomplete="off" maxlength="120" placeholder="Nome, indirizzo o riferimento…" oninput="oggiWorkspaceSearch(this.value)"><span aria-hidden="true">⌕</span></div>
+            <div id="ogWorkResults" aria-live="polite"></div>
+            <nav class="ow-shortcuts" aria-label="Strumenti quotidiani"><button type="button" onclick="goTo('inbox')">Messaggi <span>↗</span></button><button type="button" onclick="goTo('innesto')">Carica un documento <span>↗</span></button><button type="button" onclick="goTo('viewings')">Visite <span>↗</span></button><button type="button" onclick="oggiOpenSection('ogFollowTools')">Segreteria e seguiti <span>↓</span></button></nav>
+        </section>`;
+    }
+    async function oggiLoadViewings() {
+        if (!isAdmin() || !auth.currentUser) return false;
+        const user = auth.currentUser, generation = S._viewingsGeneration = (S._viewingsGeneration || 0) + 1;
+        if (S._viewingsUser && S._viewingsUser !== user) { S.viewingRequests = []; S._viewingsReadAt = null; S._viewingsPartial = false; }
+        S._viewingsUser = user; S._viewingsSource = 'loading'; oggiScheduleUpdate();
+        try {
+            const snap = await db.collection('viewingRequests').orderBy('createdAt', 'desc').limit(100).get();
+            if (auth.currentUser !== user || generation !== S._viewingsGeneration) return false;
+            S.viewingRequests = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            S._viewingsSource = 'ready'; S._viewingsPartial = snap.docs.length >= 100;
+            S._viewingsReadAt = new Date().toISOString();
+            return true;
+        } catch (e) {
+            if (auth.currentUser === user && generation === S._viewingsGeneration) S._viewingsSource = 'error';
+            return false;
+        } finally { if (auth.currentUser === user && generation === S._viewingsGeneration) oggiScheduleUpdate(); }
+    }
+    async function oggiLoadProposals(force = false) {
+        if (!isAdmin() || !auth.currentUser || (S._paLoading && S._paUser === auth.currentUser) || (!force && S._paLoaded && S._paUser === auth.currentUser)) return;
+        const user = auth.currentUser;
+        if (S._paUser && S._paUser !== user) { S.preAgreements = []; S._paLoaded = false; S._paPartial = false; }
+        S._paUser = user; S._paLoading = true; S._paError = false;
+        try {
+            const snap = await db.collection('preAgreements').limit(150).get();
+            if (auth.currentUser !== user) return;
+            S.preAgreements = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+            S._paLoaded = true; S._paPartial = snap.docs.length >= 150;
+        } catch (e) { if (auth.currentUser === user) S._paError = true; }
+        finally { if (auth.currentUser === user) { S._paLoading = false; oggiScheduleUpdate(); } }
+    }
+    window.oggiRetryWorkspace = function() {
+        if (!isAdmin()) return;
+        oggiLoadViewings(); oggiLoadProposals(true);
+    };
+    function oggiAgendaPanel() {
+        const engine = window.BOOM_OGGI_WORKSPACE;
+        const agenda = engine?.buildAgenda(S.viewingRequests || [], new Date().toISOString());
+        oggiWorkspace.agenda = agenda?.items || [];
+        const sameUser = S._viewingsUser === auth.currentUser;
+        const source = sameUser ? S._viewingsSource : null;
+        let notice = !engine ? 'Agenda non disponibile: ricarica la pagina.' : source === 'error' ? 'Non riesco ad aggiornare le visite. Le eventuali voci sotto sono della lettura precedente.' : source === 'loading' ? 'Aggiorno le visite…' : source !== 'ready' ? 'Visite non ancora verificate.' : S._viewingsPartial ? 'Ultime 100 richieste caricate: l’agenda può essere incompleta.' : '';
+        const readable = sameUser && (source === 'ready' || S._viewingsReadAt);
+        const items = readable ? oggiWorkspace.agenda.slice(0, 5) : [];
+        return `<header class="ow-section-head"><div><p class="ow-eyebrow">PROSSIMI 7 GIORNI</p><h2>Agenda visite</h2></div><button type="button" class="ow-link" onclick="goTo('viewings')">Tutte le visite ↗</button></header>
+            ${notice ? `<p class="ow-source-note" role="status">${esc(notice)}${source !== 'loading' ? ' <button class="ow-link" type="button" onclick="oggiRetryWorkspace()">Riprova</button>' : ''}</p>` : ''}
+            ${items.length ? `<ol class="ow-agenda">${items.map((v, i) => `<li><div class="ow-agenda-time"><strong>${esc(v.time || '—')}</strong><span>${esc(v.label)}</span></div><div class="ow-agenda-info"><span class="ow-status ${v.status === 'confirmed' ? 'is-confirmed' : ''}">${v.status === 'confirmed' ? 'Confermata' : 'Da confermare'}</span><h3>${esc(v.title)}</h3><p>${esc(v.person)}</p><button class="ow-link" type="button" data-og-viewing="${esc(v.id)}" onclick="oggiAgendaAction(${i})">${v.status === 'confirmed' ? 'Sposta visita' : 'Verifica e conferma'} ↗</button></div></li>`).join('')}</ol>` : source === 'ready' && engine ? '<p class="ow-empty">Nessuna visita nei prossimi 7 giorni tra le richieste caricate.</p>' : ''}
+            ${readable && agenda?.undatedCount ? `<p class="ow-source-note">${agenda.undatedCount} richieste con data da verificare. <button type="button" class="ow-link" onclick="goTo('viewings')">Apri visite</button></p>` : ''}
+            ${oggiWorkspace.agenda.length > 5 && readable ? `<p class="ow-hint">Altre ${oggiWorkspace.agenda.length - 5} visite nella sezione completa.</p>` : ''}
+            ${sameUser && S._viewingsReadAt ? `<p class="ow-hint">Ultima lettura ${esc(new Date(S._viewingsReadAt).toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Rome' }))} · Roma</p>` : ''}`;
+    }
+    window.oggiAgendaAction = function(index) {
+        if (!isAdmin()) return;
+        const item = oggiWorkspace.agenda[index];
+        const current = item && (S.viewingRequests || []).find(v => v.id === item.id);
+        if (!current || ['cancelled', 'done', 'completed'].includes(current.status) || current.voided) return;
+        if (current.status === 'confirmed') rescheduleViewingModal(current.id);
+        else confirmViewingModal(current.id);
+    };
+    window.oggiShowMoreDecisions = function() {
+        if (!isAdmin()) return;
+        oggiWorkspace.visible += 6; oggiScheduleUpdate();
+    };
+
     function oggiPage() {
         const E = window.BOOM_OGGI;
-        if (!E || typeof E.build !== 'function') return adminDashboard();   // motore assente: mai una pagina vuota
-        // preAgreements NON sono nel boot (dieta): si caricano alla prima
-        // apertura di Oggi, fire-and-forget, e la pagina si ridisegna
-        // all'arrivo — il percorso di render non aspetta MAI la rete
-        // (regola Safari).
-        if (isAdmin() && !S._paLoaded && !S._paLoading) {
-            S._paLoading = true;
-            db.collection('preAgreements').limit(150).get().then((snap) => {
-                S.preAgreements = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-                S._paLoaded = true;
-                oggiScheduleUpdate();
-            }).catch(() => { S._paLoaded = true; });
-        }
-        return `<div class="page-header">
-                <div><h1 class="page-title">⚡ Oggi</h1><p class="page-subtitle">Decisioni e seguiti di BOOM</p></div>
-                <div class="page-actions">
-                    <button class="btn btn-secondary" onclick="goTo('dashboard')">📊 Studio</button>
-                    <button class="btn btn-secondary" onclick="forceRefreshData()" title="Ricarica i dati">↻</button>
-                </div>
-            </div>
-
-            ${oggiOwnerCommandPanel()}
-
-            ${oggiSegretariaPanel()}
-
-            <section id="ogDecisionPanel" aria-label="Altre decisioni di oggi">${oggiDecisionPanel()}</section>`;
+        if (!E || typeof E.build !== 'function') return adminDashboard();
+        oggiWorkspaceResetUser();
+        if ((S._paUser && S._paUser !== auth.currentUser) || (!S._paLoaded && !S._paLoading && !S._paError)) oggiLoadProposals();
+        const name = (S.profile?.name || 'Valentino').split(' ')[0];
+        return `<div class="ow-home">
+            <header class="ow-header"><div><p class="ow-eyebrow">${esc(new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Rome' }))}</p><h1>Oggi, ${esc(name)}.</h1></div><div class="page-actions"><button class="btn btn-secondary btn-sm" onclick="goTo('dashboard')">Riepilogo azienda</button><button class="btn btn-secondary btn-sm" onclick="forceRefreshData()" aria-label="Aggiorna i dati">↻</button></div></header>
+            ${oggiWorkspacePanel()}
+            <details class="ow-fold" id="ogOwnerTools"><summary><span>Prepara una risposta</span><small>Persona, istruzione e revisione</small></summary>${oggiOwnerCommandPanel()}</details>
+            <div class="ow-columns"><section id="ogDecisionPanel" class="ow-decisions" aria-label="Da gestire">${oggiDecisionPanel()}</section><section id="ogAgendaPanel" class="ow-agenda-panel" aria-label="Agenda visite">${oggiAgendaPanel()}</section></div>
+            <details class="ow-fold" id="ogFollowTools"><summary><span>Segreteria e seguiti</span><small id="ogFollowSummary">Caricamento dei seguiti…</small></summary>${oggiSegretariaPanel()}</details>
+        </div>`;
     }
 
     function oggiDecisionPanel() {
@@ -5886,7 +6002,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         let hidden = [];
         try { hidden = JSON.parse(localStorage.getItem(oggiDismissKey()) || '[]'); } catch (e) { }
         const live = decisions.filter((d) => !hidden.includes(d.id));
-        const shown = live.slice(0, 12);
+        const shown = live.slice(0, oggiWorkspace.visible);
 
         const card = (d, i) => `<div class="list-item og-item" data-kind="${d.kind}">
                 <div class="list-icon" style="background:var(--${d.tint === 'red' ? 'red-light' : d.tint === 'orange' ? 'orange-light' : 'gold-light'});font-size:17px">${d.icon}</div>
@@ -5903,7 +6019,12 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 </div>
             </div>`;
 
-        return `<div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
+        const sources = S._paError ? 'Proposte non aggiornate: la coda può essere incompleta.' : S._paLoading || !S._paLoaded ? 'Caricamento delle proposte in corso.' : S._paPartial ? 'Proposte: limite di 150 record raggiunto, quadro parziale.' : '';
+        return `<header class="ow-section-head"><div><p class="ow-eyebrow">DAL PORTALE</p><h2>Da gestire <span class="ow-count">${live.length}</span></h2></div></header>
+            ${sources ? `<p class="ow-source-note" role="status">${sources}${S._paError ? ' <button class="ow-link" type="button" onclick="oggiRetryWorkspace()">Riprova</button>' : ''}</p>` : ''}
+            <div class="card"><div class="card-body flush">${shown.length ? shown.map(card).join('') : '<p class="ow-empty">Nessuna voce in questa coda tra i dati caricati.</p>'}</div></div>
+            ${live.length > shown.length ? `<button type="button" class="btn btn-secondary btn-sm" onclick="oggiShowMoreDecisions()">Mostra altre · ${live.length - shown.length} rimanenti</button>` : ''}
+            <details class="ow-cash"><summary>Incassi registrati nel portale</summary><div class="stats-grid" style="grid-template-columns:repeat(4,1fr)">
                 <div class="stat-card green" onclick="goTo('payments')">
                     <div class="stat-value">€${cash.paidMonth.toLocaleString('it-IT')}</div>
                     <div class="stat-label">Incassato questo mese</div>
@@ -5920,12 +6041,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     <div class="stat-value">€${cash.next7.toLocaleString('it-IT')}</div>
                     <div class="stat-label">Prossimi 7 giorni</div>
                 </div>
-            </div>
-
-            <div class="card"><div class="card-body flush">
-                ${shown.length ? shown.map(card).join('') : `<div class="empty-state"><div class="empty-icon">🌅</div><div class="empty-title">Nessun’altra decisione in questa coda</div></div>`}
-            </div></div>
-            ${live.length > shown.length ? `<div style="text-align:center;margin-top:10px;font-size:12px;color:var(--text-muted)">e altre ${live.length - shown.length} più in basso nella scala — le trovi nelle loro sezioni</div>` : ''}`;
+            </div></details>`;
     }
 
     function adminDashboard() {
@@ -7607,9 +7723,11 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         // Best-known instant of the appointment, in the operator's local clock.
         // ISO fields first: self-booked docs (slots.js) carry ONLY those, and the
         // legacy confirmedTime is a UTC slice that must not be read as local.
-        var iso = v && (v.confirmedDateTime || v.scheduledAt || v.proposedDateTime);
+        var iso = v && (v.status === 'rescheduled' ? v.proposedDateTime : (v.confirmedDateTime || v.scheduledAt || v.proposedDateTime));
         var d = iso ? new Date(iso) : null;
-        if ((!d || isNaN(d.getTime())) && v && v.proposedDate && v.proposedTime) d = new Date(v.proposedDate + 'T' + v.proposedTime);
+        const resolve = window.BOOM_OGGI_WORKSPACE?.appointmentInstant;
+        if (resolve) { const ms = resolve(v || {}); d = ms === null ? null : new Date(ms); }
+        if ((!d || isNaN(d.getTime())) && v && !v.proposedDateTime && v.proposedDate && v.proposedTime) d = new Date(v.proposedDate + 'T' + v.proposedTime);
         if (!d || isNaN(d.getTime())) return null;
         var p = function(n){ return String(n).padStart(2, '0'); };
         return {
@@ -7970,12 +8088,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     }
 
     async function refreshViewings() {
-        try {
-            const snap = await db.collection('viewingRequests').orderBy('createdAt','desc').limit(100).get();
-            S.viewingRequests = snap.docs.map(d => ({id:d.id,...d.data()}));
-            if (S.page === 'viewings') goTo('viewings');
-            buildNav();
-        } catch(e) { console.error(e); }
+        const loaded = await oggiLoadViewings();
+        if (loaded && S.page === 'viewings') goTo('viewings');
+        if (loaded) buildNav();
     }
     // ─── END VIEWINGS ─────────────────────────────────────────────────────────
 
