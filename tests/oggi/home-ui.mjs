@@ -17,27 +17,75 @@ try{
   await page.goto(base);await page.waitForFunction(()=>oggiSegretaria.loaded);
   await check(width+' home utile prima dei pannelli lunghi, senza invii',async()=>{
    assert.equal(await page.locator('#ogOwnerTools').evaluate(e=>e.open),false);
-   assert.equal(await page.locator('#ogFollowTools').evaluate(e=>e.open),false);
+   assert.equal(await page.locator('#ogWorkBriefing').count(),0);
+   assert.equal(await page.locator('[data-ow-view="decisions"]').getAttribute('aria-pressed'),'true');
    assert.equal(await page.evaluate(()=>testIO.writes.length),0);
    assert(await page.locator('#ogAgendaPanel').getByText('Casa Aurora',{exact:true}).isVisible());
   });
   await check(width+' decisioni, fonte telefonica e review usano il caso esistente senza AI',async()=>{
-   assert.equal(await page.locator('#ogWorkBriefing .ow-case').count(),2);
-   assert.equal(await page.locator('#ogWorkBriefing a[href="/chiamate?call=demo-call"]').count(),1);
+   assert.equal(await page.locator('#sgFollowPanel .sg-case').count(),2);
+   assert.equal(await page.locator('#sgFollowPanel a[href="/chiamate?call=demo-call"]').count(),1);
+   assert.equal(await page.locator('article[data-sg-id]').count(),2);
    const requests=await page.evaluate(()=>testIO.writes.length);
-   await page.locator('#ogWorkBriefing [data-ow-case]').first().click();
+   await page.locator('#sgFollowPanel [data-sg-primary]').first().click();
    await page.waitForFunction(()=>oggiSegretaria.modal?.task);
    assert.match(await page.locator('#sgFollowModal').innerText(),/tecnico|portiere/);
    assert.equal(await page.locator('#sgFollowModal a[href="/chiamate?call=demo-call"]').count(),1);
    assert.equal(await page.evaluate(()=>testIO.writes.length),requests);
    await page.locator('#sgFollowModal [aria-label="Chiudi"]').click();
-   assert.equal(await page.evaluate(()=>document.activeElement.dataset.owCase),'sg_'+'a'.repeat(32));
+   assert.equal(await page.evaluate(()=>document.activeElement.dataset.sgId),'sg_'+'a'.repeat(32));
   });
   await check(width+' una nuova proposta non eredita il badge Confermato del seguito precedente',async()=>{
    await page.evaluate(()=>{const t=oggiSegretaria.rows[0];window.oldCheck=t.followUp.checkAt;t.followUp.checkAt=new Date(Date.now()+3600000).toISOString();t.preparation={version:BOOM_PROPOSTA.VERSION,coverage:{version:BOOM_PROPOSTA.CONTEXT_VERSION},revision:'demo-revision',messageId:t.followUp.lastMessageId,selectedPracticeRef:t.followUp.practiceRef,status:'ready',summary:'Nuova proposta di accesso',recommendation:'Da valutare',sources:[],nextAction:{text:'Proporre un altro orario',waitingLabel:'Valentino',checkAt:t.followUp.checkAt}};oggiSegretariaRender();});
-   const text=await page.locator('#ogWorkBriefing .ow-case').filter({hasText:'Proporre un altro orario'}).innerText();
-   assert.match(text,/Proposta da rivedere/);assert.doesNotMatch(text,/Confermato/);
+   const text=await page.locator('#sgFollowPanel .sg-case').filter({hasText:'Proporre un altro orario'}).innerText();
+   assert.match(text,/Proposta da rivedere/i);assert.doesNotMatch(text,/Confermato/i);
    await page.evaluate(()=>{const t=oggiSegretaria.rows[0];delete t.preparation;t.followUp.checkAt=oldCheck;oggiSegretariaRender();});
+  });
+  await check(width+' filtri separano preparazione e attesa senza duplicare casi né generare AI',async()=>{
+   await page.evaluate(()=>{
+    const base=structuredClone(testIO.followUps[0]);
+    const prep=structuredClone(base);prep.id='sg_'+'c'.repeat(32);Object.assign(prep.followUp,{confirmed:false,needsReview:true,ambiguous:false,checkAt:null,intakeTiming:null,lastMessageId:'wa-preparing',nextAction:'Richiesta ancora da preparare'});
+    const wait=structuredClone(base);wait.id='sg_'+'d'.repeat(32);Object.assign(wait.followUp,{waitingOn:'client',waitingLabel:'Cliente',checkAt:new Date(Date.now()+86400000).toISOString(),nextAction:'Attendere il documento'});
+    oggiSegretaria.rows.push(prep,wait);oggiSegretariaRender();
+   });
+   await page.locator('[data-ow-view="preparing"]').click();
+   assert.equal(await page.locator('#ogDecisionPanel').isVisible(),false);
+   assert.match(await page.locator('[data-sg-group="preparing"]').innerText(),/Richiesta ancora da preparare/);
+   assert.equal(await page.locator('[data-sg-group="decisions"]').isVisible(),false);
+   await page.locator('[data-ow-view="following"]').click();
+   assert.match(await page.locator('[data-sg-group="waiting"]').innerText(),/Attendere il documento/);
+   assert.equal(await page.locator('[data-sg-group="preparing"]').isVisible(),false);
+   await page.evaluate(()=>oggiSegretariaRender());
+   assert.equal(await page.locator('[data-ow-view="following"]').getAttribute('aria-pressed'),'true');
+   assert.equal(await page.locator('article[data-sg-id]').count(),4);
+   assert.equal(await page.evaluate(()=>testIO.writes.length),0);
+   await page.evaluate(()=>{oggiSegretaria.rows=oggiSegretaria.rows.slice(0,2);oggiSegretariaRender();});
+   assert.match(await page.locator('#ogQueueEmpty').innerText(),/Nessun seguito in corso/);
+   await page.locator('[data-ow-view="decisions"]').click();
+  });
+  await check(width+' chiusura review ritrova il caso spostato da un nuovo messaggio',async()=>{
+   await page.locator('#sgFollowPanel [data-sg-primary]').first().click();await page.waitForFunction(()=>oggiSegretaria.modal?.task);
+   await page.evaluate(()=>{window.beforeMove=structuredClone(oggiSegretaria.rows[0]);Object.assign(oggiSegretaria.rows[0].followUp,{confirmed:false,needsReview:true,lastMessageId:'new-message'});oggiSegretariaRender();});
+   await page.locator('#sgFollowModal [aria-label="Chiudi"]').click();
+   assert.equal(await page.locator('[data-ow-view="preparing"]').getAttribute('aria-pressed'),'true');
+   assert.equal(await page.evaluate(()=>document.activeElement.dataset.sgId),'sg_'+'a'.repeat(32));
+   assert(await page.locator('[data-sg-group="preparing"] [data-sg-primary]').isVisible());
+   await page.evaluate(()=>{oggiSegretaria.rows[0]=beforeMove;oggiSegretariaRender();oggiWorkView('decisions');});
+   assert.equal(await page.evaluate(()=>testIO.writes.length),0);
+  });
+  await check(width+' refresh conserva il focus quando il ricontrollo passa tra le decisioni',async()=>{
+   await page.evaluate(()=>{window.beforeDue=structuredClone(oggiSegretaria.rows[0]);Object.assign(oggiSegretaria.rows[0].followUp,{waitingOn:'client',checkAt:new Date(Date.now()+3600000).toISOString()});oggiSegretariaRender();oggiWorkView('following');});
+   await page.locator('[data-sg-group="waiting"] [data-sg-primary]').focus();
+   await page.evaluate(()=>{oggiSegretaria.rows[0].followUp.checkAt=new Date(Date.now()-60000).toISOString();oggiSegretariaRender();});
+   assert.equal(await page.locator('[data-ow-view="decisions"]').getAttribute('aria-pressed'),'true');
+   assert.equal(await page.evaluate(()=>document.activeElement.dataset.sgId),'sg_'+'a'.repeat(32));
+   assert(await page.locator('[data-sg-group="decisions"] [data-sg-primary]').first().isVisible());
+   await page.evaluate(()=>{oggiSegretaria.rows[0]=beforeDue;oggiSegretariaRender();});
+  });
+  await check(width+' errore proposte non svuota le altre viste senza spiegazione',async()=>{
+   await page.evaluate(()=>{S._paError=true;oggiWorkView('following');});
+   assert.match(await page.locator('#ogQueueEmpty').innerText(),/Nessun seguito in corso/);
+   await page.evaluate(()=>{S._paError=false;oggiWorkView('decisions');});
   });
   await check(width+' stesso contesto, caso ambiguo separato e passaggio al contratto',async()=>{
    await page.locator('#ogWorkKind').selectOption('property');await page.locator('#ogWorkQuery').fill('Aurora');await page.locator('.ow-result').click();
@@ -53,6 +101,14 @@ try{
    assert.deepEqual(await page.evaluate(()=>testIO.actions.at(-1)),['open','/inventario?c=contratto-demo']);
    await page.evaluate(()=>{testIO.actions.length=0;});
    await page.locator('#ogWorkKind').selectOption('property');
+  });
+  await check(width+' il fascicolo reale si apre e torna alla lista senza scritture',async()=>{
+   await page.locator('#ogWorkKind').selectOption('property');await page.locator('#ogWorkQuery').fill('Aurora');await page.locator('.ow-result').click();
+   await page.locator('.ow-context-actions button').filter({hasText:"Apri l'immobile"}).click();
+   await page.waitForSelector('#pdos-title');assert.equal(await page.locator('#pdos-title').innerText(),'Casa Aurora');
+   await page.locator('[data-pdos-tab="contracts"]').click();assert.match(page.url(),/contracts$/);
+   await page.locator('[data-pdos-action="back"]').click();await page.waitForFunction(()=>oggiSegretaria.loaded);
+   assert.equal(await page.locator('#ogWorkQueue').count(),1);assert.equal(await page.locator('#ogWorkQuery').inputValue(),'Aurora');assert.equal(await page.locator('.ow-selection h3').innerText(),'Casa Aurora');assert.equal(await page.evaluate(()=>testIO.writes.length),0);
   });
   await check(width+' ricerca per tipo prima del limite e selezione esplicita',async()=>{
    await page.locator('#ogWorkQuery').fill('Aurora');

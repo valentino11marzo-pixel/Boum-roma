@@ -2141,6 +2141,14 @@ Un giro solo, otto interventi, 33 suite verdi:
   ultime 120, audio e trascrizione salvata con limiti dichiarati, nessuna AI.
   Suite/guide riusano il Prontuario. Prove `oggiworkspace`, `oggihomeui`,
   `phoneui`; `propertyload` include il vero helper visite estratto.
+- **Oggi senza doppioni (12/10/2026):** una sola area di lavoro filtra decisioni,
+  richieste da preparare e seguiti in corso usando i due motori esistenti; tolti
+  il briefing duplicato e i contatori ripetuti. Fonti e stato sono apribili dal caso.
+  Aprire una richiesta legge soltanto: generazione nel dialogo, su comando esplicito.
+  Errori di aggiornamento visibili anche a dettagli chiusi; ritorno da fascicolo o
+  revisione ritrova caso/filtro, ricerca e selezione. Nessuna nuova lettura o AI.
+  Prove: `oggihomeui`, `propertyoggiui`, `segretarialiveui`, `segretariafreshui`,
+  `seguitoui`, `segretariapropostaui`; anteprima con fascicolo reale e dati sintetici.
 - **D2 — i form grandi coi capitoli su desktop** (`sectionizeForm` in
   portal-desktop.js): su telefono i modali piatti diventano wizard (M2);
   su desktop erano muri da 15-22 campi. Pattern console corporate: header

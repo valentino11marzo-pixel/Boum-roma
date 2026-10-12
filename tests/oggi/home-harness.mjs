@@ -5,8 +5,11 @@ const src = read('js/portal-app.js');
 const oggi = src.slice(src.indexOf('    function oggiDismissKey()'), src.indexOf('    function adminDashboard()'));
 const search = src.slice(src.indexOf('    function handleSearch('), src.indexOf('    // Close search on click outside'));
 const clock = src.slice(src.indexOf('    function viewingWhenLocal('), src.indexOf('    // ─── DISPONIBILITÀ:', src.indexOf('    function viewingWhenLocal(')));
-const scripts = ['oggi-engine','oggi-workspace-engine','portal-actions','segretaria-casi-engine','segretaria-proposta-engine','segretaria-esecuzione-engine'].map(name=>read('js/'+name+'.js')).join('\n');
-export const html = `<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BOOM · Home operativa · anteprima locale</title><style>${['portal','portal-finish','segretaria','oggi-workspace'].map(n=>read('css/'+n+'.css')).join('\n')} .demo-bar{padding:10px 24px;background:#d4af37;color:#16130b;font-size:12px;font-weight:600;letter-spacing:.2px}.demo-brand{padding:20px 24px;font-size:20px;letter-spacing:5px;border-bottom:1px solid var(--border)}.main{max-width:1500px;margin:auto}.demo-bar a{color:inherit} </style></head><body><div class="demo-bar">ANTEPRIMA LOCALE · DATI DIMOSTRATIVI · NESSUN INVIO <span style="float:right">BOOM / OGGI</span></div><div class="demo-brand">BOOM</div><div hidden><input id="globalSearch"></div><main id="main" class="main"></main><div id="modals"></div><div id="toasts"></div><script>${scripts}</script><script>
+const dossierStart = src.indexOf('    window.BOOM_PROPERTY_DOSSIER?.configure({');
+const dossierConfig = src.slice(dossierStart, src.indexOf('    // ══', dossierStart));
+const propertyOpen = src.slice(src.indexOf('    function viewProperty(id)'), src.indexOf('    function viewPropertyLandlord(id)'));
+const scripts = ['oggi-engine','oggi-workspace-engine','portal-actions','segretaria-casi-engine','segretaria-proposta-engine','segretaria-esecuzione-engine','rent-engine','property-dossier-engine','property-dossier'].map(name=>read('js/'+name+'.js')).join('\n');
+export const html = `<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BOOM · Home operativa · anteprima locale</title><style>${['portal','portal-finish','segretaria','oggi-workspace','property-dossier','rent'].map(n=>read('css/'+n+'.css')).join('\n')} .demo-bar{padding:10px 24px;background:#d4af37;color:#16130b;font-size:12px;font-weight:600;letter-spacing:.2px}.demo-brand{padding:20px 24px;font-size:20px;letter-spacing:5px;border-bottom:1px solid var(--border)}.main{max-width:1500px;margin:auto}.demo-bar a{color:inherit} #toasts:not(:empty){position:fixed;bottom:18px;right:18px;max-width:min(360px,calc(100vw - 36px));padding:18px;background:#252728;color:white;border:1px solid #d4af37;border-radius:10px;z-index:10000;font:13px/1.5 sans-serif;box-shadow:0 8px 28px #0008} #toasts button{display:block;margin-top:10px;background:none;border:0;color:#d4af37;cursor:pointer} </style></head><body><div class="demo-bar">ANTEPRIMA LOCALE · DATI DIMOSTRATIVI · NESSUN INVIO <span style="float:right">BOOM / OGGI</span></div><div class="demo-brand">BOOM</div><div hidden><input id="globalSearch"></div><main id="main" class="main"></main><div id="modals"></div><div id="toasts"></div><script>${scripts}</script><script>
 window.testIO={reads:[],writes:[],actions:[],failViewings:false,failProposals:false,holdViewings:false,pendingReads:[]};
 const now=new Date(), today=now.toISOString().slice(0,10);
 const isoAt=h=>today+'T'+h+':00:00Z';
@@ -16,7 +19,7 @@ const S={page:'oggi',profile:{id:'demo-admin',name:'Valentino',role:'admin'},_pa
  properties:[{id:'casa-demo',name:'Casa Aurora',address:'Indirizzo dimostrativo · Roma'}],
  contracts:[{id:'contratto-demo',ref:'BOOM-DEMO',propertyId:'casa-demo',tenantId:'p-demo',status:'active',signatureStatus:'partial',createdAt:isoAt('08'),rent:1400}],
  clients:Array.from({length:15},(_,i)=>({id:'cliente-'+i,name:'Aurora Cliente '+i})),
- actionQueue:[],payments:[],leads:[],documents:[],tasks:[],deadlines:[],conversations:[],messages:[],
+ actionQueue:[],payments:[],leads:[],documents:[],tasks:[],deadlines:[],conversations:[],messages:[],inboxFeed:{state:'live'},inboxListener:()=>{},
  maintenance:[{id:'guasto-demo',propertyId:'casa-demo',title:'Verificare perdita in cucina',priority:'urgent',status:'pending',createdAt:isoAt('08')}],
  viewingRequests:[{id:'v-demo',propertyName:'Casa Aurora',clientName:'Persona Demo',status:'confirmed',confirmedDateTime:isoAt('13')},{id:'v-proposta',propertyName:'Casa Giardino',clientName:'Nuovo contatto · demo',status:'rescheduled',confirmedDateTime:isoAt('09'),proposedDateTime:isoAt('15')}],
  _viewingsSource:'ready',_viewingsUser:auth.currentUser,_viewingsReadAt:now.toISOString(),_viewingsPartial:false};
@@ -29,12 +32,19 @@ const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const fmtDate=v=>String(v||'');
 const toast=(...args)=>testIO.actions.push(['toast',...args]);
 const buildNav=()=>{};
-const renderPage=()=>{throw Error('A partial update replaced the whole home')};
-function demoAction(name,...args){testIO.actions.push([name,...args]);document.getElementById('toasts').textContent='Anteprima: '+name+'. Nel portale si apre il flusso esistente.';}
-function goTo(id){demoAction('goTo',id);}
+const renderPage=()=>{if(!BOOM_PROPERTY_DOSSIER.parseRoute(S.page))throw Error('A partial update replaced the whole home');renderPreview();};
+function demoAction(name,...args){testIO.actions.push([name,...args]);const labels={viewContract:'Contratto',openPerson:'Persona',viewClient:'Cliente',openFascicolo:'Documenti del contratto',openShareHub:'Condivisione',viewContractSignatures:'Stato firme',viewMaintenance:'Manutenzione',confirmViewingModal:'Conferma visita',rescheduleViewingModal:'Sposta visita',open:'Strumento BOOM',goTo:'Sezione del portale'};document.getElementById('toasts').innerHTML='<strong>'+esc(labels[name]||'Strumento BOOM')+'</strong><br>Questo percorso richiede i dati del portale e non è simulato qui. Puoi provare ricerca, revisione delle richieste, fonte telefonica e fascicolo immobile.<button type="button" onclick="this.parentElement.replaceChildren()">Chiudi</button>';}
+function renderPreview(){const route=BOOM_PROPERTY_DOSSIER.parseRoute(S.page);document.getElementById('main').innerHTML=route?BOOM_PROPERTY_DOSSIER.render(S,route,BOOM_PROPERTY_DOSSIER.load):oggiPage();BOOM_PROPERTY_DOSSIER.afterRender();}
+function goTo(id,fromHistory=false){
+ if(id!=='oggi'&&!BOOM_PROPERTY_DOSSIER.parseRoute(id))return demoAction('goTo',id);
+ if(S.page==='oggi'&&id!=='oggi')oggiSegretariaStopLive();
+ S.page=id;if(!fromHistory)history.pushState({},'',location.pathname+location.search+'#'+id);renderPreview();
+}
+window.addEventListener('popstate',()=>goTo(location.hash.slice(1)||'oggi',true));
+async function loadDataFresh(){BOOM_PROPERTY_DOSSIER.setSourceState('loading');await Promise.resolve();BOOM_PROPERTY_DOSSIER.setSourceState('ready');}
 function forceRefreshData(){oggiRetryWorkspace();}
 function inboxSelect(id){demoAction('inboxSelect',id);}
-function viewProperty(id){demoAction('viewProperty',id);}
+${propertyOpen}
 function viewContract(id){demoAction('viewContract',id);}
 function openPerson(id){demoAction('openPerson',id);}
 function viewClient(id){demoAction('viewClient',id);}
@@ -42,6 +52,13 @@ function openFascicolo(id){demoAction('openFascicolo',id);}
 function openShareHub(id){demoAction('openShareHub',id);}
 function viewContractSignatures(id){demoAction('viewContractSignatures',id);}
 function viewMaintenance(id){demoAction('viewMaintenance',id);}
+function editTask(id){demoAction('editTask',id);}
+function viewUser(id){demoAction('viewUser',id);}
+function openRentUnit(...args){demoAction('openRentUnit',...args);}
+function openModal(...args){demoAction('openModal',...args);}
+function confirmDelete(...args){demoAction('confirmDelete',...args);}
+function openValutazione(...args){demoAction('openValutazione',...args);}
+function innestoOpenFor(...args){demoAction('innestoOpenFor',...args);}
 function confirmViewingModal(id){const row=S.viewingRequests.find(v=>v.id===id);demoAction('confirmViewingModal',id,viewingWhenLocal(row));}
 function rescheduleViewingModal(id){demoAction('rescheduleViewingModal',id);}
 window.open=(...args)=>demoAction('open',...args);
@@ -50,5 +67,7 @@ window.fetch=async(url,options={})=>{if(options.method&&options.method!=='GET'){
 ${search}
 ${clock}
 ${oggi}
-document.getElementById('main').innerHTML=oggiPage();
+${dossierConfig}
+BOOM_PROPERTY_DOSSIER.setSourceState('ready');BOOM_PROPERTY_DOSSIER.setTasksSourceState('ready');
+goTo(location.hash.slice(1)||'oggi',true);
 </script></body></html>`;

@@ -87,7 +87,7 @@ async function fixture(source = portal, width = 390, globalOnline = false) {
   const inboxHelpers=['inboxFreshnessUpdate','inboxLiveRefresh'].filter(name=>source.includes('    function '+name+'(') && !oggi.includes('    function '+name+'('));
   await page.addScriptTag({ content: source.match(/    var _inboxState = [^\n]+/)[0] + '\n' + oggi + '\n'
     + [...inboxFunctions, ...inboxHelpers, 'startInboxListener', 'stopInboxListener', 'stopOpenConvListener'].map(name=>named(name,source)).join('\n') + `
-    document.getElementById('main').innerHTML=oggiPage();document.getElementById('ogFollowTools').open=true;startInboxListener();
+    document.getElementById('main').innerHTML=oggiPage();startInboxListener();
   ` });
   await page.waitForFunction(() => oggiSegretaria.loaded && !oggiSegretaria.loading);
   await page.evaluate(() => {
@@ -95,7 +95,9 @@ async function fixture(source = portal, width = 390, globalOnline = false) {
     emitConversations(seedConversations);
   });
   await page.waitForTimeout(250);
-  await page.locator('article[data-sg-id="' + ID + '"] summary').click();
+  await page.locator('details[data-sg-detail="operations"] > summary').click();
+  await page.locator('[data-ow-view="preparing"]').click();
+  await page.locator('details[data-sg-detail="case-' + ID + '"] > summary').click();
   await page.locator('[data-sg-action="edit"][data-sg-id="' + ID + '"]').click();
   await page.locator('#sgAction').fill('Bozza da completare: non inviare');
   await page.locator('#sgAction').focus();
@@ -145,6 +147,25 @@ try {
       visibleError(before,after);
     } finally { await page.close(); }
   });
+  for (const listener of ['conversations', 'operatorTasks']) {
+    await check('errore ' + listener + ' visibile anche con stato e copertura chiusi', async () => {
+      const { page, errors } = await fixture();
+      try {
+        await page.locator('[data-sg-modal="cancel"]').first().click();
+        const operations = page.locator('details[data-sg-detail="operations"]');
+        await operations.locator(':scope > summary').click();
+        assert.equal(await operations.evaluate(el => el.open), false);
+        await page.evaluate(name => subscriptions[name].error({code:'unavailable'}), listener);
+        await page.waitForTimeout(250);
+        assert.equal(await operations.evaluate(el => el.open), false, 'L’errore non apre la sezione al posto dell’utente');
+        assert.equal(await operations.locator(':scope > summary').isVisible(), true);
+        assert.match(await operations.locator(':scope > summary').innerText(), /aggiornament.*(?:verificare|indisponibil|non disponibile)|conversazion.*(?:errore|indisponibil)/i);
+        assert.equal(await page.evaluate(() => JSON.stringify(S.conversations) === previousConversations && JSON.stringify(oggiSegretaria.rows) === previousRows), true);
+        assert.equal(await page.evaluate(() => apiWrites), 0);
+        assert.deepEqual(errors, []);
+      } finally { await page.close(); }
+    });
+  }
   await check('B · ritorno in primo piano ricontrolla subito con una sola GET, senza AI o perdita della bozza', async () => {
     const { page, errors } = await fixture();
     try {
@@ -267,7 +288,7 @@ try {
       await page.evaluate(()=>{changeVisibility(true);changeVisibility(false);window.dispatchEvent(new Event('online'));});
       await page.waitForTimeout(250);
       assert.equal(await page.evaluate(()=>apiCalls.length),before);
-      await page.evaluate(()=>{S.page='oggi';document.getElementById('main').innerHTML=oggiPage();document.getElementById('ogFollowTools').open=true;});
+      await page.evaluate(()=>{S.page='oggi';document.getElementById('main').innerHTML=oggiPage();});
       await page.waitForTimeout(350);
       assert.equal(await page.evaluate(()=>apiCalls.length),before+1,'Il rientro deve coalescere primo snapshot e lettura iniziale');
       const beforeForeground=await page.evaluate(()=>{holdAPI=true;return apiCalls.length;});

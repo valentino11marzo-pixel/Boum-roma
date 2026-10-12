@@ -317,7 +317,7 @@ try {
   console.log('PASS browser: decisioni, attese e limite visibili, nessuna riga duplicata né HTML eseguito'); checks++;
 
   const clickCase = async (id, action) => {
-    await page.locator(`article[data-sg-id="${id}"] details`).evaluate(el => { el.open = true; });
+    await page.locator(`article[data-sg-id="${id}"] .sg-case-details`).evaluate(el => { el.open = true; });
     await page.locator(`article[data-sg-id="${id}"] [data-sg-action="${action}"]`).click();
   };
   await clickCase(ID, 'source');
@@ -379,7 +379,7 @@ try {
   assert.equal(posts.length, 3);
   assert.equal(posts[2].lastMessageId, 'msg-new');
   assert.equal(posts[2].practiceRef, 'contracts/c2');
-  await page.locator(`article[data-sg-id="${ID}"] details`).evaluate(el => { el.open = true; });
+  await page.locator(`article[data-sg-id="${ID}"] .sg-case-details`).evaluate(el => { el.open = true; });
   await page.waitForSelector(`article[data-sg-id="${ID}"]`);
   assert.match(await page.locator(`article[data-sg-id="${ID}"]`).innerText(), /Casa Luna/);
   assert.match(await page.locator(`article[data-sg-id="${ID}"]`).innerText(), /Tecnico confermato/);
@@ -402,7 +402,7 @@ try {
   assert.deepEqual(errors, []);
   await page.waitForFunction(() => document.getElementById('sgFollowPanel')?.textContent.includes('potrebbero non essere aggiornati'));
   assert.equal(await page.locator('article[data-sg-id]').count(), 3);
-  assert.equal(await page.locator(`article[data-sg-id="${ID}"] details`).evaluate(el => el.open), true);
+  assert.equal(await page.locator(`article[data-sg-id="${ID}"] .sg-case-details`).evaluate(el => el.open), true);
   console.log('PASS browser: rete in errore conserva i seguiti e segnala dati non aggiornati'); checks++;
   listFailure = false; incomplete = false;
   const beforeRecoveredRefresh = listReads;
