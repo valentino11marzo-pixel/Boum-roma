@@ -101,18 +101,26 @@
     return short ? 'P' + n : n + '° piano';
   }
   var UNIT_RE = /\bint(?:erno)?\.?\s*([a-z0-9]{1,4})\b/;
-  var SCALA_RE = /\b(?:scala|sc\.)\s*([a-z0-9]{1,3})\b/;
   function unitOf(p) {
     var u = str(p && (p.interno || p.unit));
     if (u) return u.replace(/^int(?:erno)?\.?\s*/i, '');
     var m = UNIT_RE.exec(norm(p && p.name)) || UNIT_RE.exec(norm(p && p.address));
     return m ? m[1].toUpperCase() : '';
   }
+  // La scala si legge per token, come il civico: "Via della Scala 5" è una
+  // via di Trastevere (scala dopo una preposizione), "Via Scala 5" pure
+  // (scala dopo il tipo di strada). Solo "scala B" / "sc. B" è una scala.
+  function scalaIn(text) {
+    var t = norm(text).replace(/[^a-z0-9]+/g, ' ').trim().split(' ').filter(Boolean);
+    for (var i = 0; i < t.length; i++) {
+      if ((t[i] === 'scala' || t[i] === 'sc') && isScalaMarker(t[i - 1] || '', t[i + 1] || '')) return t[i + 1].toUpperCase();
+    }
+    return '';
+  }
   function scalaOf(p) {
     var s = str(p && p.scala);
-    if (s) return s.replace(/^scala\s*/i, '').toUpperCase();
-    var m = SCALA_RE.exec(norm(p && p.address)) || SCALA_RE.exec(norm(p && p.name));
-    return m ? m[1].toUpperCase() : '';
+    if (s) return s.replace(/^(?:scala|sc\.?)\s*/i, '').toUpperCase();
+    return scalaIn(p && p.address) || scalaIn(p && p.name);
   }
   function floorOf(p) {
     var f = parseFloor(p && p.floor);
@@ -125,30 +133,63 @@
   var PREP = ['del', 'della', 'delle', 'dello', 'degli', 'dei', 'di', 'la', 'alla', 'alle', 'al', 'sulla'];
   var CITY = ['roma', 'rome', 'rm', 'italia', 'italy'];
   var FLOOR_WORDS = ['terra', 'rialzato', 'primo', 'secondo', 'terzo', 'quarto', 'quinto', 'sesto', 'settimo', 'ottavo', 'nono', 'decimo', 'attico'];
+  // Il tipo di strada: "Via Scala 5" ha la scala nel nome, non una scala B.
+  var STREET_TYPES = ['via', 'viale', 'piazza', 'piazzale', 'largo', 'vicolo', 'vico', 'corso', 'lungotevere', 'circonvallazione', 'salita', 'borgo', 'strada', 'contrada', 'galleria', 'lungomare', 'piazzetta', 'rampa', 'scalinata'];
+  // Le vie con una data nel nome (4 Novembre, XX Settembre, 21 Aprile,
+  // 16 Ottobre 1943): quel numero è il NOME della via, non il civico.
+  var MONTH_WORDS = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+  var ROMAN_DAYS = (function () {
+    var o = {}, u = ['', 'i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix'], t = ['', 'x', 'xx', 'xxx'];
+    for (var n = 1; n <= 31; n++) o[t[Math.floor(n / 10)] + u[n % 10]] = n;
+    return o;
+  })();
+  var CIVIC_SUFFIX = ['bis', 'ter', 'quater'];
+  function isScalaMarker(prev, next) {
+    return PREP.indexOf(prev) < 0 && STREET_TYPES.indexOf(prev) < 0 && !!next && next.length <= 3;
+  }
   // Per token, non per regex cieca: "Via della Scala 5" è un palazzo in
   // Trastevere, non "Via della" + scala 5; "Via Roma 12" tiene la sua Roma.
-  // Dopo il civico ci si ferma: lì vengono solo i dettagli dell'interno.
+  // Il civico è l'ULTIMO numero della via, quello dopo cui vengono solo i
+  // dettagli (virgola, int., scala, piano, città, fine): "Via 4 Novembre 96"
+  // è il 96 di Via 4 Novembre, mai il 4 di "Via". bis/ter restano nel
+  // civico (il 42 bis è un altro portone), i romani davanti a un mese
+  // diventano cifre (XX Settembre = 20 Settembre).
   function streetKey(address) {
     var s = norm(address);
     if (!s) return '';
-    s = s.replace(/\bv\.\s*le\b/g, 'viale').replace(/\bp\.\s*zz?a\b/g, 'piazza')
-      .replace(/\bp\.\s*le\b/g, 'piazzale').replace(/\bp\.\s*zale\b/g, 'piazzale')
-      .replace(/\bc\.\s*so\b/g, 'corso').replace(/\bl\.\s*go\b/g, 'largo')
+    s = s.replace(/\bv\.\s*le\b|\bvle\b/g, 'viale')
+      .replace(/\bp\.\s*(?:zz?a?)?le\b|\bpzz?a?le\b/g, 'piazzale')
+      .replace(/\bp\.\s*zz?a\b|\bpzz?a\b/g, 'piazza')
+      .replace(/\bc\.\s*so\b|\bcso\b/g, 'corso').replace(/\bl\.\s*go\b|\blgo\b/g, 'largo')
       .replace(/^v\.\s*/, 'via ').replace(/\b\d{5}\b/g, ' ')
       .replace(/(\d+)\s*\/\s*([a-z])\b/g, '$1$2')
-      .replace(/[^a-z0-9]+/g, ' ').trim();
+      // virgola, trattino staccato, parentesi: lì finisce la via
+      .replace(/\s*[,;()]\s*|\s+-\s+/g, ' , ')
+      .replace(/[^a-z0-9,]+/g, ' ').trim();
     var t = s.split(' ').filter(Boolean), out = [], civico = '';
+    var hasStreet = function () { return out.some(function (x) { return CITY.indexOf(x) < 0; }); };
+    var isNum = function (w) { return /^\d+(?:[a-z]|bis|ter|quater)?$/.test(w); };
     for (var i = 0; i < t.length; i++) {
       var w = t[i], prev = t[i - 1] || '', next = t[i + 1] || '';
-      if (w === 'int' || w === 'interno') { i++; continue; }
-      if ((w === 'scala' || w === 'sc') && PREP.indexOf(prev) < 0 && next && next.length <= 3) { i++; continue; }
-      if (w === 'piano' && PREP.indexOf(prev) < 0 && (/^\d{1,2}$/.test(next) || FLOOR_WORDS.indexOf(next) >= 0)) { i++; continue; }
-      if (w === 'p' && /^\d{1,2}$/.test(next)) { i++; continue; }
-      if (w === 'civico' || w === 'n' || w === 'nr' || w === 'num') continue;
-      if (/^\d+[a-z]?$/.test(w)) {
-        if (!out.some(function (x) { return CITY.indexOf(x) < 0; })) continue;
-        civico = /^\d+$/.test(w) && /^[a-z]$/.test(next) ? w + next : w;
-        break;
+      if (w === ',') { if (civico) break; continue; }
+      if (w === 'int' || w === 'interno') { if (civico) break; i++; continue; }
+      if ((w === 'scala' || w === 'sc') && isScalaMarker(prev, next)) { if (civico) break; i++; continue; }
+      if (w === 'piano' && PREP.indexOf(prev) < 0 && (/^\d{1,2}$/.test(next) || FLOOR_WORDS.indexOf(next) >= 0)) { if (civico) break; i++; continue; }
+      if (w === 'p' && /^\d{1,2}$/.test(next)) { if (civico) break; i++; continue; }
+      if (w === 'civico' || w === 'civ' || w === 'n' || w === 'nr' || w === 'num') continue;
+      if (civico) {
+        // Un numero seguito da altre parole della via era parte del nome
+        // ("Via 4 Fontane 20"): torna nella via e si cerca il civico vero.
+        if (CITY.indexOf(w) >= 0 || isNum(w)) break;
+        out.push(civico); civico = '';
+      }
+      if (ROMAN_DAYS[w] && MONTH_WORDS.indexOf(next) >= 0) { out.push(String(ROMAN_DAYS[w])); continue; }
+      if (/^\d+$/.test(w) && (MONTH_WORDS.indexOf(next) >= 0 || (/^(1[89]|20)\d\d$/.test(w) && MONTH_WORDS.indexOf(prev) >= 0))) { out.push(w); continue; }
+      if (isNum(w)) {
+        if (!hasStreet()) continue;
+        civico = w;
+        if (/^\d+$/.test(w) && (/^[a-z]$/.test(next) || CIVIC_SUFFIX.indexOf(next) >= 0)) { civico = w + next; i++; }
+        continue;
       }
       out.push(w);
     }
@@ -496,22 +537,33 @@
   // La regola che tiene in piedi tutto: le rate nascono da "gestione BOOM
   // dal" (mai dalla decorrenza di un contratto di due anni fa — sarebbero
   // ventiquattro arretrati inventati), e una rata è pagata SOLO se la tabella
-  // lo dice. Id deterministici: reincollare la stessa tabella non raddoppia.
+  // lo dice con una data che cade nella finestra di QUELLA rata. Id
+  // deterministici: reincollare la stessa tabella non raddoppia, e ciò che
+  // in archivio è DIVERSO dalla tabella si dice (plan.diffs) e si scrive solo
+  // se l'operatore lo chiede (opts.applyDiffs).
+  var CS = (typeof module === 'object' && module.exports) ? require('./contract-state.js') : null;
+  function phoneOf(v) {
+    var cs = CS || (root && root.BOOM_CONTRACT_STATE);
+    return cs && typeof cs.phoneIntl === 'function' ? cs.phoneIntl(v) : null;
+  }
   var RR_COLS = {
-    interno: ['interno', 'int', 'int.', 'unita', 'appartamento', 'app', 'n', 'numero'],
+    interno: ['interno', 'int', 'int.', 'unita', 'unita immobiliare', 'appartamento', 'app', 'n', 'nr', 'num', 'numero', 'n interno', 'interno n', 'numero interno'],
     piano: ['piano', 'floor'],
     scala: ['scala'],
-    inquilino: ['inquilino', 'conduttore', 'nome', 'cognome e nome', 'nome e cognome', 'locatario', 'tenant'],
-    telefono: ['telefono', 'tel', 'tel.', 'cellulare', 'cell', 'phone', 'whatsapp'],
-    email: ['email', 'e-mail', 'mail'],
-    canone: ['canone', 'canone mensile', 'affitto', 'importo', 'rent', 'canone €', 'canone (€)'],
-    dal: ['dal', 'inizio', 'decorrenza', 'data inizio', 'inizio contratto', 'start'],
-    al: ['al', 'fine', 'scadenza', 'data fine', 'fine contratto', 'end'],
-    tipo: ['tipo', 'tipologia', 'contratto', 'tipo contratto'],
+    inquilino: ['inquilino', 'conduttore', 'nome', 'cognome e nome', 'nome e cognome', 'locatario', 'tenant', 'nominativo', 'inquilini', 'conduttori', 'intestatario'],
+    cognome: ['cognome', 'surname'],
+    telefono: ['telefono', 'tel', 'tel.', 'cellulare', 'cell', 'phone', 'whatsapp', 'numero di telefono', 'telefono cellulare'],
+    email: ['email', 'e-mail', 'mail', 'posta elettronica'],
+    canone: ['canone', 'canone mensile', 'affitto', 'importo', 'rent', 'canone €', 'canone (€)', 'canone di locazione'],
+    dal: ['dal', 'inizio', 'decorrenza', 'data inizio', 'inizio contratto', 'start', 'inizio locazione', 'data decorrenza'],
+    al: ['al', 'fine', 'scadenza', 'data fine', 'fine contratto', 'end', 'fine locazione', 'scadenza contratto', 'data scadenza'],
+    tipo: ['tipo', 'tipologia', 'contratto', 'tipo contratto', 'tipo di contratto'],
     deposito: ['deposito', 'cauzione', 'deposito cauzionale'],
     cedolare: ['cedolare', 'cedolare secca'],
     registrato: ['registrato', 'registrazione', 'registrato il', 'data registrazione', 'rli'],
-    pagato: ['pagato', 'pagato il', 'pagamento', 'ultimo pagamento'],
+    // «Ultimo pagamento» e «pagamento» non sono qui di proposito: la data
+    // segnerebbe pagata la rata di un altro mese. «Pagato il» dice l'accredito.
+    pagato: ['pagato', 'pagato il', 'pagata il', 'data accredito', 'accreditato il', 'incassato il', 'data pagamento'],
     giorno: ['giorno', 'giorno pagamento', 'giorno di pagamento', 'scadenza rata'],
     pod: ['pod', 'codice pod', 'pod luce', 'luce'],
     pdr: ['pdr', 'codice pdr', 'pdr gas', 'gas'],
@@ -520,11 +572,57 @@
     // del locatore (una società, non la persona che gestisce il palazzo).
     coinquilini: ['co-intestatari', 'cointestatari', 'co-intestatario', 'cointestatario', 'coinquilini', 'coinquilino', 'co-conduttori',
       'coconduttori', 'co-conduttore', 'coconduttore', 'altri conduttori', 'altri intestatari', 'secondo conduttore', 'secondo inquilino'],
-    oneri: ['oneri', 'oneri accessori', 'spese', 'spese condominiali', 'acconto oneri', 'condominio', 'oneri mensili', 'oneri €', 'oneri (€)'],
+    oneri: ['oneri', 'oneri accessori', 'spese', 'spese condominiali', 'acconto oneri', 'condominio', 'oneri mensili', 'oneri €', 'oneri (€)', 'oneri condominiali'],
     locatore: ['locatore', 'locatrice', 'proprietario', 'proprietaria', 'intestatario contratto'],
     iban: ['iban', 'iban locatore', 'iban proprietario', 'iban per il canone', 'conto', 'conto corrente'],
     mq: ['mq', 'm2', 'm²', 'metri', 'metri quadri', 'superficie', 'superficie mq']
   };
+  // Il titolo come lo scrive Excel: «Canone mensile €», «Canone (€/mese)»,
+  // «Deposito €», «Int.», «N°». Si tolgono valuta, parentesi, "/mese",
+  // "mensile", punti e due punti; poi si cerca l'alias esatto e, se non
+  // c'è, la parola chiave (prima le regole più specifiche).
+  function rrHead(h) {
+    return norm(h).replace(/\([^)]*\)/g, ' ').replace(/€|\beur(?:o)?\b/g, ' ')
+      .replace(/\/\s*mese\b|\bal mese\b|\bper mese\b|\bmensil[ei]\b/g, ' ')
+      .replace(/[:*°º#.]+/g, ' ').replace(/\s+/g, ' ').trim();
+  }
+  var RR_ALIAS = (function () {
+    var o = Object.create(null);
+    Object.keys(RR_COLS).forEach(function (k) { RR_COLS[k].forEach(function (a) { var h = rrHead(a); if (h && !o[h]) o[h] = k; }); });
+    return o;
+  })();
+  var RR_GUESS = [
+    [/\biban\b/, 'iban'],
+    [/^(?:codice )?pod\b/, 'pod'], [/^(?:codice )?pdr\b/, 'pdr'],
+    [/co-?\s?intestat|cointestat|co-?\s?condutt|cocondutt|coinquilin|^altri (?:condutt|intestat|inquilin)|^(?:secondo|seconda|2) (?:condutt|inquilin|intestat)|^(?:condutt|inquilin|intestatari)\w* (?:2|ii|secondo|seconda)$/, 'coinquilini'],
+    [/^(?:data (?:di |della )?|giorno (?:di |della )?)?scadenza (?:della )?(?:rata|pagamento|canone)|^giorno\b/, 'giorno'],
+    [/^(?:nominativ|inquilin|condutt|locatari|tenant|intestatari)/, 'inquilino'],
+    [/^cognome\b/, 'cognome'],
+    [/^(?:canone|affitto|pigione)(?!.*(?:oneri|spese|total|annu|deposit|cauzion))/, 'canone'],
+    [/^(?:oneri|spese|condominio|acconto (?:oneri|spese))/, 'oneri'],
+    [/^(?:data (?:di |d'|del |della )?)?(?:inizio|decorrenza|ingresso)\b/, 'dal'],
+    [/^(?:data (?:di |del |della )?)?(?:fine|termine|uscita|scadenza)\b/, 'al'],
+    [/^(?:deposito|cauzione)/, 'deposito'],
+    [/^cedolare/, 'cedolare'],
+    [/^(?:data (?:di |della )?)?registra|^rli\b/, 'registrato'],
+    [/^(?:pagat|data (?:di |del |dell')?(?:pagamento|accredito|bonifico)|accredit|incassat)/, 'pagato'],
+    [/^(?:telefon|tel\b|cell|mobile|whatsapp|recapito tel)/, 'telefono'],
+    [/mail/, 'email'],
+    [/^(?:locator|locatric|propriet)/, 'locatore'],
+    [/^(?:superficie|mq\b|m2\b|metri)/, 'mq'],
+    [/^(?:tipo|tipologia)\b/, 'tipo'],
+    [/^piano\b/, 'piano'],
+    [/^scala\b/, 'scala'],
+    [/^(?:interno|int\b|unita|appartamento|n\b|nr\b|num)/, 'interno']
+  ];
+  function rrColumn(h, cols) {
+    var k = rrHead(h);
+    if (!k) return '';
+    if (RR_ALIAS[k] && cols[RR_ALIAS[k]] == null) return RR_ALIAS[k];
+    if (RR_ALIAS[k]) return '';
+    for (var i = 0; i < RR_GUESS.length; i++) if (RR_GUESS[i][0].test(k) && cols[RR_GUESS[i][1]] == null) return RR_GUESS[i][1];
+    return '';
+  }
   var RR_TYPES = { transitorio: 'transitorio', transitoria: 'transitorio', studenti: 'studenti', studente: 'studenti', universitario: 'studenti',
     '3+2': '3+2', '32': '3+2', concordato: '3+2', 'canone concordato': '3+2', '4+4': '4+4', '44': '4+4', libero: '4+4', 'canone libero': '4+4' };
   function rrNum(v) {
@@ -548,6 +646,12 @@
     var dt = new Date(d + 'T12:00:00Z');
     return isNaN(dt) || dt.toISOString().slice(0, 10) !== d ? null : d;
   }
+  // gg/mm/aaaa per le frasi del piano.
+  function rrIt(d) { var x = str(d); return /^\d{4}-\d{2}-\d{2}$/.test(x) ? x.slice(8, 10) + '/' + x.slice(5, 7) + '/' + x.slice(0, 4) : x; }
+  function rrDays(a, b) { return Math.round((Date.parse(b + 'T12:00:00Z') - Date.parse(a + 'T12:00:00Z')) / 864e5); }
+  function rrPlural(n, one, many) { return n + ' ' + (n === 1 ? one : many); }
+  function rrList(items) { return items.length < 2 ? items.join('') : items.slice(0, -1).join(', ') + ' e ' + items[items.length - 1]; }
+  function rrMonth(m) { return monthLabel(m).toLowerCase(); }
   // Il conto dove l'inquilino paga il bonifico (/rata lo mostra): un IBAN
   // sbagliato è peggio di nessuno — il pagamento parte e non arriva. Forma
   // e controllo mod-97, come il dizionario del contratto.
@@ -558,6 +662,14 @@
     for (var i = 0; i < r.length; i++) n += /[A-Z]/.test(r[i]) ? String(r.charCodeAt(i) - 55) : r[i];
     for (var j = 0; j < n.length; j += 7) rem = Number(String(rem) + n.slice(j, j + 7)) % 97;
     return rem === 1 ? ib : '';
+  }
+  function ibanMask(ib) { ib = str(ib).replace(/\s+/g, '').toUpperCase(); return ib.length > 8 ? ib.slice(0, 4) + ' … ' + ib.slice(-4) : ib; }
+  // Una società non ha la cedolare secca (solo persone fisiche, art. 3
+  // d.lgs. 23/2011): s.r.l., s.p.a., s.a.s., s.n.c., società, coop…
+  // Parola per parola, coi punti tolti dentro la parola: «S.r.l.» → srl.
+  var COMPANY_WORDS = ['srl', 'srls', 'spa', 'sapa', 'sas', 'snc', 'scarl', 'scrl', 'societa', 'soc', 'coop', 'cooperativa', 'fondazione', 'associazione', 'ltd', 'gmbh', 'inc', 'sarl'];
+  function looksCompany(name) {
+    return norm(name).split(/\s+/).some(function (w) { return COMPANY_WORDS.indexOf(w.replace(/[^a-z0-9]/g, '')) >= 0; });
   }
   // «Ada Rossi, Bea Verdi» · «A / B» · «A + B» · «A e B» (anche nomi con ğ, ş, ç).
   function rrNames(v, main) {
@@ -571,42 +683,88 @@
   }
   function rrYes(v) { var s0 = norm(v); return s0 === 'si' || s0 === 'yes' || s0 === 'x' || s0 === 'vero' || s0 === 'true' || s0 === '1'; }
   function rrNo(v) { var s0 = norm(v); return s0 === 'no' || s0 === 'falso' || s0 === 'false' || s0 === '0'; }
-  function rrSplit(line, sep) {
-    if (sep === '\t') return line.split('\t');
-    var out = [], cur = '', q = false;
-    for (var i = 0; i < line.length; i++) {
-      var ch = line[i];
-      if (q) { if (ch === '"') { if (line[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += ch; }
-      else if (ch === '"') q = true;
-      else if (ch === sep) { out.push(cur); cur = ''; }
-      else cur += ch;
+  // La chiave di un interno e di una scala: «07» è il 7, «int. 7» è il 7,
+  // «12/B» è il 12B, «Scala A» è la A. Solo per CONFRONTARE: in archivio
+  // l'interno resta scritto come l'ha scritto la proprietaria.
+  function unitKey(v) {
+    return norm(v).replace(/^(?:int(?:erno)?|app(?:artamento)?|unita|n)\b\.?\s*/, '').replace(/[^a-z0-9]+/g, '').replace(/^0+(?=\d)/, '');
+  }
+  function scalaKey(v) { return norm(v).replace(/^(?:scala|sc)\b\.?\s*/, '').replace(/[^a-z0-9]+/g, ''); }
+  // Le righe della tabella, virgolette comprese: una cella di Excel con un
+  // a capo dentro ("Ada\nBea") arriva fra virgolette e resta UNA cella.
+  function rrRecords(text, sep) {
+    var out = [], row = [], cur = '', q = false, line = 1, start = 1, opened = false;
+    for (var i = 0; i < text.length; i++) {
+      var ch = text[i];
+      if (!opened) { opened = true; start = line; }
+      if (q) {
+        if (ch === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; }
+        else { if (ch === '\n') line++; cur += ch; }
+      } else if (ch === '"' && cur === '') q = true;
+      else if (ch === sep) { row.push(cur); cur = ''; }
+      else if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && text[i + 1] === '\n') i++;
+        row.push(cur); out.push({ cells: row, line: start }); row = []; cur = ''; line++; opened = false;
+      } else cur += ch;
     }
-    out.push(cur);
+    if (opened && (cur !== '' || row.length)) { row.push(cur); out.push({ cells: row, line: start }); }
     return out;
   }
+  // La riga dei totali in fondo a un Excel: non è un interno.
+  var RR_TOTAL = /^(?:tot|totale|totali|totale generale|subtotale|sub totale|somma|sum|total)$/;
   function parseRentRoll(text) {
-    var lines = String(text || '').replace(/^﻿/, '').split(/\r?\n/).filter(function (l) { return l.trim(); });
-    if (!lines.length) return { rows: [], columns: {}, unknown: [], errors: ['vuota'] };
-    var head = lines[0], sep = head.indexOf('\t') >= 0 ? '\t' : head.indexOf(';') >= 0 ? ';' : ',';
-    var cols = {}, unknown = [];
-    rrSplit(head, sep).forEach(function (h, i) {
-      var k = norm(h).replace(/\s+/g, ' ').replace(/[:*]$/, '');
-      var hit = Object.keys(RR_COLS).find(function (key) { return RR_COLS[key].indexOf(k) >= 0 && cols[key] == null; });
-      if (hit) cols[hit] = i; else if (k) unknown.push(str(h));
+    var all = String(text || '').replace(/^﻿/, '');
+    var first = all.split(/\r?\n/).find(function (l) { return l.trim(); });
+    if (!first) return { rows: [], columns: {}, unknown: [], unknownColumns: [], ignored: [], errors: ['vuota'] };
+    var sep = first.indexOf('\t') >= 0 ? '\t' : first.indexOf(';') >= 0 ? ';' : ',';
+    var recs = rrRecords(all, sep).filter(function (rc) { return rc.cells.some(function (x) { return str(x); }); });
+    var cols = {}, unknown = [], unknownCols = [];
+    recs[0].cells.forEach(function (h, i) {
+      var hit = rrColumn(h, cols);
+      if (hit) cols[hit] = i; else if (str(h)) { unknown.push(str(h)); unknownCols.push({ name: str(h), index: i, looks: '' }); }
     });
-    if (cols.interno == null) return { rows: [], columns: cols, unknown: unknown, errors: ['senza_interno'] };
+    if (cols.interno == null) return { rows: [], columns: cols, unknown: unknown, unknownColumns: unknownCols, ignored: [], errors: ['senza_interno'] };
+    // Un titolo al plurale («Conduttori») senza la colonna dei co-intestatari:
+    // la cella porta tutti e due i nomi.
+    var splitTenants = cols.coinquilini == null && cols.inquilino != null && /^(?:condutt|inquilin|intestatar|nominativ)\w*i$/.test(rrHead(recs[0].cells[cols.inquilino]));
+    var has = {};
+    Object.keys(RR_COLS).forEach(function (k) { has[k] = cols[k] != null; });
+    var meta = { has: has, columns: cols, unknown: unknown, unknownColumns: unknownCols, ignored: [] };
     var seen = Object.create(null);
-    var rows = lines.slice(1).map(function (line, li) {
-      var c = rrSplit(line, sep), get = function (k) { return cols[k] == null ? '' : str(c[cols[k]]); };
-      var r = { line: li + 2, interno: get('interno').replace(/^int(erno)?\.?\s*/i, ''), piano: get('piano'), scala: get('scala'), inquilino: get('inquilino'),
+    var rows = [];
+    recs.slice(1).forEach(function (rec) {
+      var c = rec.cells, get = function (k) { return cols[k] == null ? '' : str(c[cols[k]]); };
+      var rawInt = get('interno');
+      var tot = (rawInt ? [rawInt] : c).some(function (x) { return RR_TOTAL.test(norm(x).replace(/[^a-z ]+/g, ' ').replace(/\s+/g, ' ').trim()); });
+      if (tot) { meta.ignored.push({ line: rec.line, reason: 'totale', text: rawInt || 'Totale' }); return; }
+      var inq = get('inquilino'), coRaw = get('coinquilini');
+      if (cols.cognome != null && get('cognome')) inq = (inq + ' ' + get('cognome')).trim();
+      if (splitTenants && inq && /[\/+;&\n]|\s+e\s+/i.test(inq)) {
+        var parts = inq.split(/\s*(?:[\/+;&\n]|\s+e\s+)\s*/i).map(function (x) { return x.replace(/\s+/g, ' ').trim(); }).filter(Boolean);
+        inq = parts[0] || ''; coRaw = parts.slice(1).join(' / ');
+      }
+      var r = { line: rec.line, interno: rawInt.replace(/^int(erno)?\.?\s*/i, ''), piano: get('piano'), scala: get('scala').replace(/^(?:scala|sc\.?)\s*/i, ''), inquilino: inq.replace(/\s+/g, ' ').slice(0, 120),
         telefono: '', email: '', canone: null, dal: '', al: '', tipo: '', deposito: null, cedolare: '', registrato: '', registratoSi: false, pagato: '', pagatoSi: false, giorno: 5, pod: '', pdr: '',
-        coinquilini: [], oneri: null, locatore: get('locatore').slice(0, 120), iban: '', mq: null,
-        errors: [], warnings: [] };
+        coinquilini: [], oneri: null, locatore: get('locatore').slice(0, 120), iban: '', ibanInput: '', ibanValid: null, mq: null,
+        senzaContratto: false, soloContatti: false, meta: meta, errors: [], warnings: [], alerts: [] };
+      var ik = unitKey(r.interno);
       if (!r.interno) r.errors.push('interno mancante');
-      else { var key = norm(r.scala) + '|' + norm(r.interno); if (seen[key]) r.errors.push('interno ' + r.interno + ' ripetuto (riga ' + seen[key] + ')'); else seen[key] = r.line; }
+      else if (r.interno.length > 12 || r.interno.split(/\s+/).length >= 3 || !ik) r.errors.push('interno «' + r.interno + '» non sembra un interno: scrivi solo il numero (7, 7A, 12/B)');
+      else {
+        var key = scalaKey(r.scala) + '|' + ik;
+        if (seen[key]) { r.errors.push('interno ' + r.interno + ' ripetuto (riga ' + seen[key] + ')'); r.dupUnit = seen[key]; } else seen[key] = r.line;
+      }
       if (r.piano && parseFloor(r.piano) == null) r.warnings.push('piano «' + r.piano + '» non letto: resta da indicare');
       var tel = get('telefono'), digits = tel.replace(/\D/g, '');
-      if (tel) { if (digits.length >= 6 && digits.length <= 15) r.telefono = (/^\s*(\+|00)/.test(tel) ? '+' : '') + digits.replace(/^00/, ''); else r.warnings.push('telefono «' + tel + '» non è un numero'); }
+      if (tel) {
+        if (digits.length >= 6 && digits.length <= 15) {
+          r.telefono = (/^\s*(\+|00)/.test(tel) ? '+' : '') + digits.replace(/^00/, '');
+          // Un numero che non è chiaramente italiano e non porta il prefisso
+          // internazionale manda il link WhatsApp in un altro paese.
+          var ph = phoneOf(tel);
+          if (ph && (ph.kind === 'unknown' || ph.ambiguous)) r.warnings.push('telefono «' + tel + '»: numero senza prefisso internazionale, scrivilo con + (es. +90 …): altrimenti WhatsApp e la chiamata vanno a un altro numero');
+        } else r.warnings.push('telefono «' + tel + '» non è un numero');
+      }
       var em = get('email').toLowerCase();
       if (em) { if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) r.email = em; else r.warnings.push('email «' + em + '» non valida'); }
       var can = get('canone'); r.canone = rrNum(can);
@@ -616,51 +774,295 @@
       var tp = get('tipo'); if (tp) { r.tipo = RR_TYPES[norm(tp)] || ''; if (!r.tipo) r.warnings.push('tipo «' + tp + '» non riconosciuto: lascialo vuoto o usa transitorio · studenti · 3+2 · 4+4'); }
       var ced = get('cedolare'); r.cedolare = rrYes(ced) ? 'si' : rrNo(ced) ? 'no' : '';
       var reg = get('registrato'); if (reg) { var rd = rrDate(reg); if (rd) r.registrato = rd; else if (rrYes(reg)) r.registratoSi = true; else if (!rrNo(reg)) r.warnings.push('registrazione «' + reg + '» non letta'); }
-      var pg = get('pagato'); if (pg) { var pd = rrDate(pg); if (pd) { r.pagato = pd; r.pagatoSi = true; } else if (rrYes(pg)) r.pagatoSi = true; else if (!rrNo(pg)) r.warnings.push('pagato «' + pg + '» non letto'); }
+      // «Pagato il» vuole la data dell'accredito: è lei che dice QUALE rata.
+      // Un «sì» senza data non segna niente (lo si dice).
+      var pg = get('pagato'); if (pg) { var pd = rrDate(pg); if (pd) { r.pagato = pd; r.pagatoSi = true; } else if (rrYes(pg)) { r.pagatoSi = true; r.warnings.push('pagato «' + pg + '» senza data: nessuna rata segnata pagata, scrivi il giorno dell’accredito (gg/mm/aaaa)'); } else if (!rrNo(pg)) r.warnings.push('pagato «' + pg + '» non letto'); }
       var gg = parseInt(get('giorno'), 10); if (gg >= 1 && gg <= 28) r.giorno = gg;
       r.pod = cleanCode(get('pod')); r.pdr = cleanCode(get('pdr'));
       if (r.pod && !podOk(r.pod)) r.warnings.push('POD «' + r.pod + '» non ha la forma IT001E12345678: lo carico, va controllato');
       if (r.pdr && !pdrOk(r.pdr)) r.warnings.push('PDR «' + r.pdr + '» non ha 14 cifre: lo carico, va controllato');
-      r.coinquilini = rrNames(get('coinquilini'), r.inquilino);
+      r.coinquilini = rrNames(coRaw, r.inquilino);
       // Gli oneri entrano nella rata: un numero illeggibile la sbaglierebbe,
       // quindi si ferma la riga come per il canone.
       var on = get('oneri'); r.oneri = rrNum(on);
       if (on && (r.oneri === null || isNaN(r.oneri))) { r.errors.push('oneri «' + on + '» non è un numero'); r.oneri = null; }
       var ib = get('iban');
-      if (ib) { r.iban = ibanOk(ib); if (!r.iban) r.warnings.push('IBAN «' + ib + '» non valido: non lo carico (un conto sbagliato è peggio di nessuno)'); }
+      if (ib) {
+        r.ibanInput = ib.replace(/\s+/g, '').toUpperCase(); r.iban = ibanOk(ib); r.ibanValid = !!r.iban;
+        if (!r.iban) r.warnings.push('IBAN «' + ib + '» non valido: non lo carico (un conto sbagliato è peggio di nessuno)');
+      }
+      if (r.cedolare === 'si' && r.locatore && looksCompany(r.locatore)) {
+        var al0 = 'cedolare «sì» con un locatore che è una società («' + r.locatore + '»): la cedolare secca è solo per le persone fisiche, controlla il contratto';
+        r.alerts.push(al0); r.warnings.push(al0);
+      }
       var mq = get('mq'); r.mq = rrNum(mq);
       if (mq && !(r.mq > 0 && r.mq <= 2000)) { r.warnings.push('mq «' + mq + '» non letti'); r.mq = null; }
       if (!r.inquilino && r.coinquilini.length) r.warnings.push('co-intestatari senza inquilino: aggiungi il primo intestatario');
       // Chi abita lì ma il contratto non è ancora arrivato (canone, inizio e
-      // fine TUTTI vuoti): l'interno è occupato, le rate aspettano il
-      // contratto. Un dato a metà resta un errore — più facile uno sbaglio.
-      r.senzaContratto = !!(r.inquilino && !get('canone') && !get('dal') && !get('al'));
-      if (r.senzaContratto) r.warnings.push('contratto da caricare: l’interno risulta occupato, le rate partono quando arrivano canone e date');
-      else if (r.inquilino) {
+      // fine TUTTI vuoti, colonne presenti): l'interno è occupato, le rate
+      // aspettano il contratto. Se la tabella NON ha quelle colonne, è un
+      // aggiornamento dei contatti (soloContatti), mai un «contratto da
+      // caricare». Un dato a metà resta un errore — più facile uno sbaglio.
+      var anyContract = !!(get('canone') || get('dal') || get('al'));
+      var contractCols = has.canone && has.dal && has.al;
+      r.senzaContratto = !!(r.inquilino && !anyContract && contractCols);
+      r.soloContatti = !!(r.inquilino && !anyContract && !contractCols);
+      if (r.inquilino && anyContract) {
         if (r.canone == null && !r.errors.some(function (e) { return /^canone/.test(e); })) r.errors.push('canone mancante');
         if (!r.dal && !r.errors.some(function (e) { return /^inizio/.test(e); })) r.errors.push('data di inizio mancante');
         if (!r.al && !r.errors.some(function (e) { return /^fine/.test(e); })) r.errors.push('data di fine mancante');
         if (r.dal && r.al && r.al < r.dal) r.errors.push('la fine è prima dell’inizio');
-      } else if (r.dal || r.al || r.pagatoSi) r.warnings.push('date o pagamento senza inquilino: l’interno resta libero');
-      return r;
+      } else if (!r.inquilino && (r.dal || r.al || r.pagatoSi)) r.warnings.push('date o pagamento senza inquilino: l’interno resta libero');
+      rows.push(r);
     });
-    return { rows: rows, columns: cols, unknown: unknown, errors: [] };
+    // Una colonna che non riconosco ma porta date o importi: se mancano le
+    // colonne del contratto, quelle date/importi sono probabilmente proprio
+    // canone e decorrenza scritti con un titolo che non conosco. Si ferma
+    // la riga invece di caricare un interno senza contratto.
+    unknownCols.forEach(function (u) {
+      var vals = rows.filter(function (r) { return r.inquilino; }).map(function (r) { return { r: r, v: str(recs.find(function (x) { return x.line === r.line; }).cells[u.index]) }; }).filter(function (x) { return x.v; });
+      var dates = vals.filter(function (x) { return rrDate(x.v); }), nums = vals.filter(function (x) { var n = rrNum(x.v); return !rrDate(x.v) && typeof n === 'number' && n >= 100; });
+      u.looks = dates.length && dates.length >= nums.length ? 'date' : nums.length ? 'importi' : '';
+      var miss = u.looks === 'date' ? !(has.dal && has.al) : u.looks === 'importi' ? !has.canone : false;
+      if (miss) (u.looks === 'date' ? dates : nums).forEach(function (x) {
+        x.r.errors.push('la colonna «' + u.name + '» ha ' + (u.looks === 'date' ? 'date' : 'importi') + ' che non so leggere: rinominala come nel modello (' + (u.looks === 'date' ? 'Dal · Al · Pagato il · Registrato il' : 'Canone · Oneri · Deposito') + ') o toglila');
+      });
+    });
+    return { rows: rows, columns: cols, unknown: unknown, unknownColumns: unknownCols, ignored: meta.ignored, errors: [] };
   }
   function rrSlug(s0) { return norm(s0).replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'x'; }
-  // opts: { address, ownerId, ownerName, gestioneDal (YYYY-MM), today, by }
+
+  // ── Le rate di un contratto, mese di CONTRATTO per mese ──────────────
+  // Come il generatore di magic-sign: dal 15/09 al 14/08 sono 11 periodi, e
+  // una dodicesima rata ad agosto sarebbe un canone chiesto per un mese che
+  // il contratto non ha. L'ultimo periodo parziale si paga in proporzione.
+  // La scadenza è il giorno di pagamento del mese, MAI prima dell'inizio
+  // del periodo che la rata paga (un contratto dal 15 non è "in ritardo"
+  // il 6 per un periodo che non è cominciato). Un contratto dal 29/02 (o
+  // dal 31) che finisce sull'anniversario tagliato a fine mese finisce lì:
+  // niente tredicesima rata di un giorno.
+  function rrSchedule(dal, al, canone, oneri, giorno) {
+    var out = [];
+    if (!dal || !al || al < dal) return out;
+    for (var k = 0; k < 600; k++) {
+      var ps = leaseMonth(dal, k);
+      if (ps > al) break;
+      var nx = leaseMonth(dal, k + 1), full = dayAdd(nx, -1);
+      if (nx === al && +nx.slice(8, 10) < +dal.slice(8, 10)) full = al;
+      var pe = full < al ? full : al, mm = ps.slice(0, 7);
+      var f = pe < full ? (rrDays(ps, pe) + 1) / (rrDays(ps, full) + 1) : 1;
+      var canK = round((canone || 0) * f), oneK = oneri ? round(oneri * f) : 0;
+      var due = mm + '-' + ('0' + (giorno || 5)).slice(-2);
+      if (due < ps) due = ps;
+      out.push({ k: k, month: mm, periodFrom: ps, periodTo: pe, due: due, f: f, rent: canK, oneri: oneK, amount: oneK ? round(canK + oneK) : canK });
+      if (pe >= al) break;
+    }
+    return out;
+  }
+  // La finestra in cui una data di accredito appartiene a una rata: da
+  // max(inizio periodo, scadenza − 25 giorni) a min(fine periodo, oggi).
+  function rrPaidWindow(e, today) {
+    var lo = dayAdd(e.due, -25); if (lo < e.periodFrom) lo = e.periodFrom;
+    var hi = e.periodTo < today ? e.periodTo : today;
+    return { from: lo, to: hi };
+  }
+
+  // ── Il confronto col contratto in archivio ───────────────────────────
+  var ALIVE_C = { active: 1, signed: 1, expired: 1, terminated: 1, completed: 1, ended: 1, renewed: 1, closed: 1, pending: 1, signing: 1, sent: 1 };
+  function rrAlive(c) { return !!ALIVE_C[cStatus(c)]; }
+  function rrPlaceholder(c) { return !!(c && c.contractMissing === true); }
+  function rrSigned(c) {
+    var s = norm(c && c.signatureStatus);
+    return !!(c && (c.tenantSignature || c.landlordSignature || ['complete', 'tenant_signed', 'landlord_signed', 'partial', 'signed'].indexOf(s) >= 0));
+  }
+  function rrNameKey(v) { return str(v).replace(/\s+/g, ' ').toLowerCase(); }
+  function rrTokens(v) { return norm(v).replace(/[^a-z0-9ı]+/g, ' ').trim().split(' ').filter(Boolean).sort(); }
+  // La stessa persona scritta in un altro modo: «Rossi Mario» = «Mario
+  // Rossi», «Ayşe» = «Ayse», «Ivan Test» dentro «Ivan Test Petrov».
+  function rrSamePerson(a, b) {
+    var x = rrTokens(a), y = rrTokens(b);
+    if (!x.length || !y.length) return false;
+    if (x.join(' ') === y.join(' ')) return true;
+    var small = x.length <= y.length ? x : y, big = small === x ? y : x;
+    return small.length >= 2 && small.every(function (t) { return big.indexOf(t) >= 0; });
+  }
+  function rrPeopleOf(c) {
+    return [str(c.tenantName)].concat(list(c.coTenants).map(function (t) { return str(t && (t.name || t.fullName)); })).filter(Boolean);
+  }
+  function rrPhoneSame(a, b) {
+    var pa = phoneOf(a), pb = phoneOf(b);
+    if (pa && pb && pa.e164 && pb.e164) return pa.e164 === pb.e164;
+    var da = str(a).replace(/\D/g, '').replace(/^00/, ''), db = str(b).replace(/\D/g, '').replace(/^00/, '');
+    return da === db || da === '39' + db || db === '39' + da;
+  }
+  var RR_FIELDS = [
+    { f: 'tenantName', label: 'nome dell’inquilino', terms: true },
+    { f: 'coTenants', label: 'co-intestatari', terms: true },
+    { f: 'rent', label: 'canone', terms: true, rates: true },
+    { f: 'oneriQuota', label: 'oneri', terms: true, rates: true },
+    { f: 'endDate', label: 'fine del contratto', terms: true, rates: true },
+    { f: 'deposit', label: 'deposito', terms: true },
+    { f: 'type', label: 'tipo di contratto', terms: true },
+    { f: 'cedolareSecca', label: 'cedolare secca', terms: true },
+    { f: 'landlordName', label: 'locatore', terms: true },
+    { f: 'landlordIban', label: 'IBAN del locatore' },
+    { f: 'tenantPhone', label: 'telefono' },
+    { f: 'tenantEmail', label: 'email' }
+  ];
+  function rrFactsOfContract(c) {
+    return { tenantName: str(c.tenantName), coTenants: list(c.coTenants).map(function (t) { return str(t && (t.name || t.fullName)); }).filter(Boolean),
+      rent: contractRent(c), oneriQuota: money(c.oneriQuota), endDate: day(c.endDate), deposit: money(c.deposit), type: str(c.type).toLowerCase(),
+      cedolareSecca: cedolareDeclared(c), landlordName: str(c.landlordName), landlordIban: str(c.landlordIban).replace(/\s+/g, '').toUpperCase(),
+      tenantPhone: str(c.tenantPhone), tenantEmail: str(c.tenantEmail).toLowerCase() };
+  }
+  function rrFactsOfRow(r) {
+    return { tenantName: r.inquilino, coTenants: r.coinquilini || [], rent: r.canone, oneriQuota: r.oneri, endDate: r.al, deposit: r.deposito, type: r.tipo,
+      cedolareSecca: r.cedolare === 'si' ? true : r.cedolare === 'no' ? false : null, landlordName: r.locatore, landlordIban: r.iban,
+      tenantPhone: r.telefono, tenantEmail: r.email };
+  }
+  function rrEmpty(v) { return v == null || v === '' || (Array.isArray(v) && !v.length); }
+  function rrSame(f, a, b) {
+    if (f === 'rent' || f === 'oneriQuota' || f === 'deposit') return Math.abs(a - b) < 0.005;
+    if (f === 'tenantName') return rrNameKey(a) === rrNameKey(b);
+    if (f === 'coTenants') return a.map(rrNameKey).sort().join('|') === b.map(rrNameKey).sort().join('|');
+    if (f === 'landlordName') return norm(a).replace(/[^a-z0-9]+/g, '') === norm(b).replace(/[^a-z0-9]+/g, '');
+    if (f === 'tenantPhone') return rrPhoneSame(a, b);
+    return a === b;
+  }
+  // Il valore nella forma del documento contracts/<id>.
+  function rrWrite(f, v) {
+    if (f === 'coTenants') return v.map(function (n) { return { name: n }; });
+    if (f === 'cedolareSecca') return v ? 'si' : 'no';
+    return v;
+  }
+  function rrEur(v) {
+    var n = round(v), i = Math.floor(n), c = Math.round((n - i) * 100);
+    return '€' + String(i).replace(/\B(?=(\d{3})+(?!\d))/g, '.') + (c ? ',' + ('0' + c).slice(-2) : '');
+  }
+  function rrShow(f, v) {
+    if (rrEmpty(v)) return '';
+    if (f === 'rent' || f === 'oneriQuota' || f === 'deposit') return rrEur(v);
+    if (f === 'endDate') return rrIt(v);
+    if (f === 'cedolareSecca') return v ? 'sì' : 'no';
+    if (f === 'coTenants') return v.join(', ');
+    if (f === 'landlordIban') return ibanMask(v);
+    return String(v);
+  }
+
+  // Le rate in archivio di UN contratto rilette coi termini dati: quali
+  // cambierebbero importo, quali scadono prima del loro periodo, quali
+  // cadono dopo una fine anticipata. Mai una rata pagata, segnalata o in
+  // corso (lo stato viene da BOOM_RENT, come in tutto il Palazzo).
+  function rrReconcile(ctx, pid, cid, terms) {
+    var byMonth = Object.create(null);
+    rrSchedule(terms.start, terms.end, terms.rent, terms.oneri, terms.day).forEach(function (e) { byMonth[e.month] = e; });
+    var res = { updates: [], cancels: [], skipped: [], amount: 0, due: 0, period: 0 };
+    if (!terms.start || !terms.end) return res;
+    (ctx.paymentsByProperty[pid] || []).forEach(function (x) {
+      if (x.contractId !== cid || !x.isRent || (x.state !== 'due' && x.state !== 'overdue')) return;
+      var p = x.payment || {};
+      // Solo le rate nate dalla presa in carico (stesso calendario): quelle
+      // del portale o di magic-sign hanno le loro regole, si correggono da
+      // Gestisci canoni.
+      if ((Number(p.installmentMonths) || 1) > 1 || !(str(p.source) === 'palazzo-import' || day(p.periodFrom))) { res.skipped.push(x); return; }
+      var e = byMonth[x.month], from = day(p.periodFrom);
+      if (!e) {
+        if (terms.end && (from || x.month + '-01') > terms.end) res.cancels.push(x); else res.skipped.push(x);
+        return;
+      }
+      if (from && from !== e.periodFrom) { res.skipped.push(x); return; }
+      var data = {}, why = [];
+      if (x.amount == null || Math.abs(x.amount - e.amount) >= 0.005) { data.amount = e.amount; why.push('amount'); }
+      var split = money(p.rentAmount) != null || money(p.oneriAmount) != null;
+      if (e.oneri || split || data.amount != null) {
+        if (money(p.rentAmount) !== e.rent || data.amount != null) data.rentAmount = e.rent;
+        if (money(p.oneriAmount) !== e.oneri || data.amount != null) data.oneriAmount = e.oneri;
+      }
+      if (from && day(p.periodTo) && day(p.periodTo) !== e.periodTo) { data.periodTo = e.periodTo; why.push('period'); }
+      if (from && !!p.prorated !== (e.f < 1)) data.prorated = e.f < 1;
+      if (from && x.dueDate && x.dueDate < from) { data.dueDate = e.due; why.push('due'); }
+      if (!why.length) return;
+      if (why.indexOf('amount') >= 0) res.amount++;
+      if (why.indexOf('due') >= 0) res.due++;
+      if (why.indexOf('period') >= 0) res.period++;
+      res.updates.push({ x: x, data: data, why: why });
+    });
+    return res;
+  }
+
+  // Quale interno in archivio è questa riga: stessa chiave d'interno
+  // («07» = «7»), stessa scala. Se la tabella non dice la scala e c'è UN
+  // solo candidato, è lui; se ce n'è più d'uno, la riga si ferma (meglio
+  // una domanda che un contratto sull'interno sbagliato).
+  function rrMatch(existing, r) {
+    var uk = unitKey(r.interno), sk = scalaKey(r.scala);
+    var same = existing.filter(function (p) { return unitKey(unitOf(p)) === uk; });
+    if (!same.length) return { prop: null };
+    var exact = same.filter(function (p) { return scalaKey(scalaOf(p)) === sk; });
+    if (exact.length === 1) return { prop: exact[0] };
+    if (exact.length > 1) return { error: 'in archivio ci sono ' + exact.length + ' interni ' + r.interno + (sk ? ' nella scala ' + r.scala.toUpperCase() : '') + ': correggi l’archivio prima di caricare' };
+    if (sk) {
+      var bare = same.filter(function (p) { return !scalaKey(scalaOf(p)); });
+      if (bare.length === 1) return { prop: bare[0] };
+      if (bare.length > 1) return { error: 'in archivio ci sono ' + bare.length + ' interni ' + r.interno + ' senza scala: correggi l’archivio prima di caricare' };
+      return { prop: null };
+    }
+    if (same.length === 1) return { prop: same[0] };
+    return { error: 'in archivio ci sono ' + same.length + ' interni ' + r.interno + ' (scala ' + rrList(same.map(function (p) { return scalaOf(p) || '—'; })) + '): aggiungi la colonna Scala' };
+  }
+
+  // opts: { address, ownerId, ownerName, gestioneDal (YYYY-MM), by, applyDiffs, listings }
   function planImport(rows, ctx, opts) {
     opts = opts || {};
-    var gd = monthOf(opts.gestioneDal) || ctx.month, address = str(opts.address), skey = streetKey(address);
-    var out = { properties: [], contracts: [], payments: [], skipped: [], errors: [], notes: [], counts: { create: 0, update: 0, same: 0, contracts: 0, contractUpdates: 0, missing: 0, payments: 0, paid: 0 } };
+    var gd = monthOf(opts.gestioneDal) || ctx.month, address = str(opts.address), skey = streetKey(address), apply = opts.applyDiffs === true;
+    var today = ctx.today, nowIso = '';
+    try { var nd = ctx.now instanceof Date ? ctx.now : new Date(ctx.now); if (isFinite(nd.getTime())) nowIso = nd.toISOString(); } catch (_) {}
+    var out = { properties: [], contracts: [], payments: [], paymentUpdates: [], skipped: [], errors: [], notes: [], messages: [], rows: [], diffs: [],
+      paidMarks: [], overdueNow: [], listingLinks: [], accounts: [], unknownColumns: [], ignoredRows: [], applyDiffs: apply,
+      counts: { create: 0, update: 0, same: 0, contracts: 0, contractUpdates: 0, missing: 0, payments: 0, paid: 0, diffs: 0, diffsLocked: 0,
+        paymentUpdates: 0, paymentCancels: 0, overdueNow: 0, rowErrors: 0, contacts: 0 } };
+    var meta0 = (rows || []).map(function (r) { return r && r.meta; }).filter(Boolean)[0] || null;
+    if (meta0) { out.unknownColumns = (meta0.unknownColumns || []).slice(); out.ignoredRows = (meta0.ignored || []).slice(); }
     if (!skey) { out.errors.push('indirizzo'); return out; }
     if (!str(opts.ownerId)) out.errors.push('proprietaria');
     var existing = ctx.properties.filter(function (p) { return streetKey(p.address) === skey; });
     var label = titleCase(streetKey(address));
+    // Gli annunci li passa chi chiama (opts.listings: il contesto del
+    // Palazzo non li espone tutti), oppure il contesto se un giorno li porta.
+    var listings = list(opts.listings).length ? list(opts.listings) : list(ctx.listings).length ? list(ctx.listings)
+      : ctx.listingById ? Object.keys(ctx.listingById).map(function (k) { return ctx.listingById[k]; }) : [];
+    var linkedListing = Object.create(null);
+    ctx.properties.forEach(function (p) { if (str(p.listingId)) linkedListing[str(p.listingId)] = str(p.id); });
     (rows || []).forEach(function (r) {
-      if (r.errors && r.errors.length) { out.skipped.push(r.line); return; }
-      var prop = existing.find(function (p) { return norm(unitOf(p)) === norm(r.interno) && norm(scalaOf(p)) === norm(r.scala); });
-      var pid = prop ? str(prop.id) : ('plz_' + rrSlug(streetKey(address)) + (r.scala ? '_s' + rrSlug(r.scala) : '') + '_' + rrSlug(r.interno));
-      var live = r.inquilino && (r.senzaContratto || r.al >= monthStart(gd));
+      var info = { line: r.line, interno: r.interno, unitKey: unitKey(r.interno), scala: r.scala || '', propertyId: '', exists: false, existsAs: '', action: '', contractId: '',
+        tenant: r.inquilino || '', coTenants: (r.coinquilini || []).slice(), phone: r.telefono || '', email: r.email || '', canone: r.canone, oneri: r.oneri,
+        dal: r.dal || '', al: r.al || '', tipo: r.tipo || '', cedolare: r.cedolare || '', deposito: r.deposito, locatore: r.locatore || '',
+        iban: r.iban || '', ibanInput: r.ibanInput || '', ibanValid: r.ibanValid == null ? null : r.ibanValid, ibanMasked: ibanMask(r.iban || r.ibanInput || ''),
+        floor: r.piano || '', floorMissing: false, gestioneDal: '', payments: 0, paid: false, paidMarks: [], overdue: 0,
+        diffs: [], notes: [], warnings: (r.warnings || []).slice(), alerts: (r.alerts || []).slice(), errors: [], listing: null };
+      out.rows.push(info);
+      var rowErr = function (msg) { info.errors.push(msg); info.action = 'error'; };
+      if (r.errors && r.errors.length) { info.action = 'error'; info.errors = r.errors.slice(); out.skipped.push(r.line); return; }
+      var has = (r.meta && r.meta.has) || null;
+      var mt = rrMatch(existing, r);
+      if (mt.error) { rowErr(mt.error); }
+      var prop = mt.prop || null;
+      var pid = prop ? str(prop.id) : ('plz_' + rrSlug(skey) + (r.scala ? '_s' + rrSlug(scalaKey(r.scala) || r.scala) : '') + '_' + rrSlug(info.unitKey || r.interno));
+      if (!prop && ctx.properties.some(function (p) { return str(p.id) === pid; })) pid += '_b';
+      info.propertyId = pid; info.exists = !!prop;
+      if (prop) info.existsAs = str(prop.name) || str(prop.address);
+      // Gestione BOOM dal: quella dell'interno, se già scritta, non si
+      // riscrive MAI (completare un interno a novembre non toglie ottobre).
+      var unitGd = (prop && monthOf(prop.gestioneDal)) || gd;
+      info.gestioneDal = unitGd;
+      info.gestioneKept = !!(prop && monthOf(prop.gestioneDal) && monthOf(prop.gestioneDal) !== gd);
+      info.floorMissing = !(r.piano && parseFloor(r.piano)) && !(prop && floorOf(prop));
+      // Lo si dice quando la tabella ha la colonna Piano (la cella vuota è
+      // una dimenticanza) o quando l'interno nasce ora; una tabella di soli
+      // telefoni non deve rifare l'elenco dei piani mancanti.
+      info.floorAsk = info.floorMissing && (!prop || !has || has.piano);
+      if (!r.piano && info.floorAsk) info.warnings.push('piano non indicato: l’interno resta fuori dalla facciata finché non lo indichi');
+      var live = r.inquilino && (r.senzaContratto || r.soloContatti || r.al >= monthStart(unitGd));
       var pdata = {};
       if (prop) {
         if (!monthOf(prop.gestioneDal)) pdata.gestioneDal = gd;
@@ -674,108 +1076,344 @@
         else if (str(prop.ownerId) !== str(opts.ownerId)) out.errors.push('owner:' + r.interno);
         if (!(money(prop.rent) > 0) && r.canone) pdata.rent = r.canone;
         if (r.mq && !(Number(prop.sqm) > 0)) pdata.sqm = r.mq;
-        if (Object.keys(pdata).length) out.counts.update++; else out.counts.same++;
       } else {
+        // Mai un canone inventato: senza canone l'interno nasce senza.
         pdata = { name: label + ' int. ' + r.interno, address: address, interno: r.interno, scala: r.scala, floor: r.piano, ownerId: opts.ownerId, ownerName: str(opts.ownerName),
-          rent: r.canone || 0, propertyType: 'apartment', availabilityStatus: live ? 'rented' : 'available', gestioneDal: gd, source: 'palazzo-import' };
+          propertyType: 'apartment', availabilityStatus: live ? 'rented' : 'available', gestioneDal: gd, source: 'palazzo-import' };
+        if (r.canone != null) pdata.rent = r.canone;
         if (r.pod) pdata.pod = r.pod;
         if (r.pdr) pdata.pdr = r.pdr;
         if (r.mq) pdata.sqm = r.mq;
-        out.counts.create++;
       }
-      if (!prop || Object.keys(pdata).length) out.properties.push({ id: pid, exists: !!prop, data: pdata, interno: r.interno });
-      if (!r.inquilino) return;
-      var pcs = ctx.contractsByProperty[pid] || [];
-      // Il segnaposto «contratto da caricare» è LO STESSO contratto che
-      // arriva dopo: si completa, non se ne crea un secondo (sarebbero due
-      // contratti vivi sullo stesso interno).
-      var placeholder = pcs.find(function (c) { return c.contractMissing === true && !day(c.startDate) && LIVE[cStatus(c)]; });
-      if (r.senzaContratto) {
-        if (placeholder || pcs.some(function (c) { return LIVE[cStatus(c)] && (!day(c.startDate) || effectiveEnd(c) >= ctx.today || !effectiveEnd(c)); })) return;
-        var pcid = 'c_' + pid + '_da-caricare', pex = {};
-        if (r.coinquilini.length) pex.coTenants = r.coinquilini.map(function (n) { return { name: n }; });
-        if (r.oneri != null) pex.oneriQuota = r.oneri;
-        if (r.locatore) pex.landlordName = r.locatore;
-        if (r.iban) pex.landlordIban = r.iban;
-        out.contracts.push({ id: pcid, data: Object.assign({ propertyId: pid, status: 'active', contractMissing: true, tenantName: r.inquilino, tenantPhone: r.telefono, tenantEmail: r.email,
-          type: r.tipo, source: 'palazzo-import' }, pex), interno: r.interno });
-        out.counts.contracts++; out.counts.missing++;
+      // L'annuncio allo stesso civico e interno: si aggancia (solo se
+      // l'interno non ne ha uno), lo stato dell'annuncio non si tocca.
+      if (listings.length) {
+        var cand = listings.filter(function (l) {
+          return streetKey(l.address) === skey && unitKey(unitOf(l)) === info.unitKey && (!str(l.propertyId) || str(l.propertyId) === pid) &&
+            (!linkedListing[str(l.id)] || linkedListing[str(l.id)] === pid);
+        });
+        if (cand.length === 1 && !(prop && str(prop.listingId))) {
+          var l0 = cand[0], ls = norm(l0.status || l0.availabilityStatus), pub = ['available', 'waitlist', 'negotiation'].indexOf(ls) >= 0;
+          pdata.listingId = str(l0.id);
+          info.listing = { id: str(l0.id), name: str(l0.name || l0.title), status: ls, published: pub };
+          info.notes.push('annuncio «' + (str(l0.name || l0.title) || l0.id) + '» agganciato all’interno');
+          // In lista d'attesa (con la data in cui si libera) è il pre-blocco:
+          // va bene. «Disponibile» su un interno abitato porta lead a vuoto.
+          if (live && (ls === 'available' || ls === 'negotiation')) info.alerts.push('l’annuncio «' + (str(l0.name || l0.title) || l0.id) + '» è ancora pubblicato come disponibile ma l’interno risulta occupato: dal catalogo toglilo, o mettilo in lista d’attesa con la data in cui si libera');
+          out.listingLinks.push({ interno: r.interno, propertyId: pid, listingId: str(l0.id), status: ls, published: pub, occupied: !!live });
+        }
+      }
+      var plan = { contracts: [], payments: [], paymentUpdates: [], diffs: [], paidMarks: [], overdue: [] };
+      var pcs = prop ? (ctx.contractsByProperty[pid] || []) : [];
+      var aliveC = pcs.filter(rrAlive);
+      var ph = aliveC.find(function (c) { return rrPlaceholder(c) && !day(c.startDate); }) || null;
+      // Il contratto di OGGI dell'interno (per i contatti): quello in corso,
+      // altrimenti il segnaposto, altrimenti il prossimo in arrivo.
+      var currentOf = function () {
+        var cov = aliveC.filter(function (c) { var s = day(c.startDate), e = effectiveEnd(c); return !rrPlaceholder(c) && s && s <= today && (!e || e >= today); });
+        if (cov.length > 1) return { ambiguous: cov };
+        if (cov.length) return { c: cov[0] };
+        if (ph) return { c: ph };
+        var nxt = aliveC.filter(function (c) { return !rrPlaceholder(c) && day(c.startDate) > today; }).sort(function (a, b) { return day(a.startDate).localeCompare(day(b.startDate)); })[0];
+        return nxt ? { c: nxt } : {};
+      };
+      var tenantOf = function (c) { return str(c.tenantName) || 'un altro inquilino'; };
+
+      // Il confronto riga ⇄ contratto in archivio: ciò che manca si riempie,
+      // ciò che è diverso si DICE (e si scrive solo con applyDiffs).
+      var compare = function (c, opt) {
+        opt = opt || {};
+        var a = rrFactsOfContract(c), b = rrFactsOfRow(r), fill = {}, diffs = [];
+        var locked = rrSigned(c), terminated = cStatus(c) === 'terminated';
+        var person = !opt.nameCheck || !r.inquilino || !a.tenantName || rrPeopleOf(c).some(function (n) { return rrSamePerson(n, r.inquilino); });
+        RR_FIELDS.forEach(function (d) {
+          var to = b[d.f], from = a[d.f];
+          if (rrEmpty(to)) return;
+          if (opt.only && opt.only.indexOf(d.f) < 0) return;
+          if (d.f === 'endDate' && terminated) return;
+          if (rrEmpty(from)) { fill[d.f] = rrWrite(d.f, to); return; }
+          if (rrSame(d.f, from, to)) return;
+          // Un co-intestatario con dati di firma non si riscrive da qui.
+          var coLocked = d.f === 'coTenants' && list(c.coTenants).some(function (t) { return t && Object.keys(t).some(function (k) { return k !== 'name' && t[k] != null && t[k] !== ''; }); });
+          diffs.push({ interno: r.interno, line: r.line, contractId: str(c.id), field: d.f, label: d.label, from: from, to: to,
+            fromText: rrShow(d.f, from), toText: rrShow(d.f, to), locked: !!((d.terms && locked) || coLocked), rates: 0 });
+        });
+        return { fill: fill, diffs: diffs, person: person, locked: locked };
+      };
+      // Scrive sul contratto esistente: i riempimenti (se è la stessa
+      // persona o se l'operatore lo chiede) e le differenze con applyDiffs.
+      var updateExisting = function (c, cmp, extra) {
+        var data = {};
+        if (cmp.person || apply) Object.keys(cmp.fill).forEach(function (k) { data[k] = cmp.fill[k]; });
+        Object.keys(extra || {}).forEach(function (k) { data[k] = extra[k]; });
+        var applied = apply ? cmp.diffs.filter(function (d) { return !d.locked; }) : [];
+        applied.forEach(function (d) { data[d.field] = rrWrite(d.field, d.to); });
+        if (applied.some(function (d) { return d.field === 'endDate'; })) {
+          var st = cStatus(c);
+          if (st === 'active' && r.al < today) data.status = 'expired';
+          else if (st === 'expired' && r.al >= today) data.status = 'active';
+        }
+        // I termini con cui si rileggono e si generano le rate.
+        var a = rrFactsOfContract(c);
+        var pick = function (f) { return f in data ? data[f] : a[f]; };
+        var terms = { start: day(c.startDate) || r.dal, end: data.endDate || (cStatus(c) === 'terminated' ? effectiveEnd(c) : a.endDate),
+          rent: pick('rent'), oneri: pick('oneriQuota'), day: parseInt(c.paymentDay, 10) || r.giorno };
+        // Per l'anteprima: che cosa cambierebbe nelle rate se si applicasse.
+        var full = {};
+        cmp.diffs.filter(function (d) { return !d.locked; }).forEach(function (d) { full[d.field] = d.to; });
+        var tAll = { start: terms.start, end: full.endDate || terms.end, rent: full.rent != null ? full.rent : terms.rent,
+          oneri: full.oneriQuota != null ? full.oneriQuota : terms.oneri, day: terms.day };
+        var rec = rrReconcile(ctx, pid, str(c.id), tAll);
+        cmp.diffs.forEach(function (d) {
+          if (d.field === 'rent' || d.field === 'oneriQuota') d.rates = rec.amount;
+          if (d.field === 'endDate') d.rates = rec.cancels.length + rec.period;
+        });
+        // Gli oneri (o il canone) arrivati DOPO le rate: il contratto si
+        // riempie, le rate da pagare cambierebbero importo — si dice.
+        ['oneriQuota', 'rent'].forEach(function (f) {
+          if (cmp.fill[f] != null && rec.amount && !cmp.diffs.some(function (d) { return d.field === f; })) {
+            cmp.diffs.push({ interno: r.interno, line: r.line, contractId: str(c.id), field: f, label: f === 'rent' ? 'canone nelle rate' : 'oneri nelle rate', from: null, to: cmp.fill[f],
+              fromText: f === 'rent' ? 'rate senza canone' : 'rate col solo canone', toText: rrShow(f, cmp.fill[f]), locked: false, rates: rec.amount, fill: true });
+          }
+        });
+        if (rec.due) cmp.diffs.push({ interno: r.interno, line: r.line, contractId: str(c.id), field: 'dueDate', label: 'scadenza delle rate', from: null, to: null,
+          fromText: rrPlural(rec.due, 'rata scade', 'rate scadono') + ' prima dell’inizio del periodo che paga', toText: 'all’inizio del periodo', locked: false, rates: rec.due });
+        if (apply) {
+          // Gli importi cambiano SOLO se cambia ciò che li fa (canone, oneri,
+          // fine): una correzione di telefono non riscrive una rata ritoccata
+          // a mano. La scadenza prima del periodo si sistema sempre.
+          var ratesChange = ['rent', 'oneriQuota', 'endDate'].some(function (f) { return f in data; });
+          var recA = rrReconcile(ctx, pid, str(c.id), terms);
+          recA.updates.forEach(function (u) {
+            var d0 = u.data;
+            if (!ratesChange) {
+              if (u.why.indexOf('due') < 0) return;
+              d0 = { dueDate: u.data.dueDate };
+            }
+            plan.paymentUpdates.push({ id: u.x.id, interno: r.interno, contractId: str(c.id), month: u.x.month, data: d0, why: ratesChange ? u.why : ['due'],
+              expect: { status: str(u.x.payment && u.x.payment.status), amount: u.x.amount } });
+          });
+          if (ratesChange) recA.cancels.forEach(function (x) {
+            plan.paymentUpdates.push({ id: x.id, interno: r.interno, contractId: str(c.id), month: x.month, cancel: true,
+              data: { status: 'cancelled', cancelledAt: nowIso, cancelledReason: 'fine del contratto anticipata (tabella del palazzo)' },
+              expect: { status: str(x.payment && x.payment.status), amount: x.amount } });
+          });
+          if (ratesChange && recA.skipped.length) info.notes.push(rrPlural(recA.skipped.length, 'rata da pagare non segue', 'rate da pagare non seguono') + ' il calendario della presa in carico: ' + (recA.skipped.length === 1 ? 'correggila' : 'correggile') + ' da Gestisci canoni');
+        } else if (cmp.diffs.some(function (d) { return d.field === 'oneriQuota' && d.fill; })) out.notes.push('oneri:' + r.interno);
+        if (Object.keys(data).length) plan.contracts.push({ id: str(c.id), exists: true, data: data, interno: r.interno });
+        plan.diffs = plan.diffs.concat(cmp.diffs);
+        if (!cmp.person && !apply) info.notes.push('in archivio l’interno è di ' + tenantOf(c) + ', la tabella dice ' + r.inquilino + ': non scrivo contatti né dati sul contratto di un’altra persona finché non applichi le differenze');
+        return terms;
+      };
+      // Le rate nuove di un contratto: solo i mesi che QUEL contratto non
+      // ha ancora (mai quelle di un altro contratto sullo stesso interno).
+      var newRates = function (cid, terms) {
+        var have = Object.create(null);
+        (ctx.paymentsByProperty[pid] || []).forEach(function (x) { if (x.contractId === cid && x.month) have[x.month] = 1; });
+        var sched = rrSchedule(terms.start, terms.end, terms.rent, terms.oneri, terms.day);
+        var made = [];
+        sched.forEach(function (e) {
+          if (e.month < unitGd || have[e.month]) return;
+          var pay = { contractId: cid, propertyId: pid, type: 'rent', amount: e.amount, month: e.month, coversTo: e.month, installmentMonths: 1, dueDate: e.due,
+            periodFrom: e.periodFrom, periodTo: e.periodTo, status: 'pending', autoGenerated: true, source: 'palazzo-import' };
+          // Gli oneri fissi si pagano col canone (art. 5 del contratto): la
+          // rata è il TOTALE che l'inquilino versa, con le due voci accanto.
+          if (e.oneri) { pay.rentAmount = e.rent; pay.oneriAmount = e.oneri; }
+          if (e.f < 1) pay.prorated = true;
+          made.push({ id: 'pay_' + cid + '_' + e.month, data: pay, interno: r.interno, e: e });
+        });
+        // «Pagato il» vale per la PRIMA rata della gestione, e solo se la data
+        // cade nella sua finestra: una data sola non dice di quale mese è un
+        // pagamento tardivo (il 20/11 può essere ottobre in ritardo).
+        if (r.pagato) {
+          var inWin = function (x) { var w = rrPaidWindow(x.e, today); return r.pagato >= w.from && r.pagato <= w.to; };
+          var hit = made.length && inWin(made[0]) ? made[0] : null;
+          var later = !hit && made.slice(1).find(inWin);
+          if (hit) {
+            Object.assign(hit.data, { status: 'paid', paidDate: r.pagato, paidVia: 'dichiarato', paidEvidence: 'conferma-proprietaria', paidSource: 'tabella della proprietaria' });
+            if (nowIso) hit.data.paidRecordedAt = nowIso;
+            if (str(opts.by)) hit.data.paidRecordedBy = str(opts.by);
+            plan.paidMarks.push({ interno: r.interno, paymentId: hit.id, month: hit.e.month, paidDate: r.pagato, amount: hit.data.amount });
+            info.notes.push('pagamento del ' + rrIt(r.pagato) + ' segnato sulla rata di ' + rrMonth(hit.e.month));
+          } else {
+            var old = (ctx.paymentsByProperty[pid] || []).filter(function (x) { return x.contractId === cid && x.isRent; }).find(function (x) {
+              var p = x.payment || {}, from = day(p.periodFrom) || (x.month + '-01'), to = day(p.periodTo) || monthEnd(x.month);
+              var w = rrPaidWindow({ due: x.dueDate || from, periodFrom: from, periodTo: to }, today); return r.pagato >= w.from && r.pagato <= w.to;
+            });
+            // La stessa tabella ricaricata: la rata è già pagata, niente da dire.
+            if (old && old.state === 'paid') { /* già registrato */ }
+            else if (later) info.warnings.push('pagamento del ' + rrIt(r.pagato) + ': cade nella rata di ' + rrMonth(later.e.month) + ', ma «Pagato il» vale per la prima rata (' + rrMonth(made[0].e.month) + '): nessuna rata segnata, registra l’incasso dal Palazzo');
+            else if (r.pagato > today) info.warnings.push('pagato il ' + rrIt(r.pagato) + ': è una data futura, nessuna rata segnata pagata');
+            else if (old) info.warnings.push('pagamento del ' + rrIt(r.pagato) + ': la rata di ' + rrMonth(old.month) + ' è già in archivio, registra l’incasso dal Palazzo (Registra incasso)');
+            else if (made.length && r.pagato < rrPaidWindow(made[0].e, today).from) info.warnings.push('pagamento del ' + rrIt(r.pagato) + ': è prima della rata di ' + rrMonth(made[0].e.month) + ' (si paga dal ' + rrIt(rrPaidWindow(made[0].e, today).from) + '), nessuna rata segnata pagata');
+            else info.warnings.push('pagamento del ' + rrIt(r.pagato) + ': non cade nel periodo di nessuna rata, nessuna rata segnata pagata');
+          }
+        }
+        made.forEach(function (x) {
+          if (x.data.status === 'pending' && x.data.dueDate < today) plan.overdue.push({ interno: r.interno, paymentId: x.id, month: x.e.month, dueDate: x.data.dueDate, amount: x.data.amount });
+          plan.payments.push({ id: x.id, data: x.data, interno: r.interno });
+        });
+      };
+
+      if (!info.errors.length) {
+        if (!r.inquilino) {
+          var cur0 = currentOf();
+          var contactsOnly = has && !has.inquilino && (r.telefono || r.email);
+          if (contactsOnly) {
+            if (cur0.ambiguous) info.warnings.push('in archivio l’interno ha più contratti in corso: i contatti non li scrivo, sistemali dal contratto');
+            else if (cur0.c) { info.action = 'contacts'; info.contractId = str(cur0.c.id); updateExisting(cur0.c, compare(cur0.c, { only: ['tenantPhone', 'tenantEmail'] })); }
+            else info.warnings.push('nessun contratto in corso per questo interno: telefono ed email non hanno dove andare');
+          } else {
+            info.action = 'free';
+            if (has && has.inquilino && cur0.c && !rrPlaceholder(cur0.c) && day(cur0.c.startDate) <= today) {
+              var e0 = effectiveEnd(cur0.c);
+              info.warnings.push('la tabella lo dà libero, ma in archivio c’è il contratto di ' + tenantOf(cur0.c) + (e0 ? ' fino al ' + rrIt(e0) : '') + ': da qui non lo chiudo');
+            }
+          }
+        } else if (r.senzaContratto || r.soloContatti) {
+          var cur = currentOf();
+          if (r.pagato) info.warnings.push('pagamento del ' + rrIt(r.pagato) + ': senza canone e date in tabella non lo segno su nessuna rata, registra l’incasso dal Palazzo');
+          if (cur.ambiguous) rowErr('in archivio l’interno ha ' + cur.ambiguous.length + ' contratti in corso (' + rrList(cur.ambiguous.map(tenantOf)) + '): chiudi quello vecchio prima di caricare');
+          else if (cur.c) {
+            info.action = 'contacts'; info.contractId = str(cur.c.id);
+            updateExisting(cur.c, compare(cur.c, { nameCheck: true }));
+          } else if (r.soloContatti) {
+            info.action = 'none';
+            info.warnings.push('nessun contratto in archivio per questo interno: la tabella non ha le colonne Canone, Dal e Al, quindi non lo creo');
+          } else {
+            var pcid = 'c_' + pid + '_da-caricare', pex = {};
+            if (r.coinquilini.length) pex.coTenants = r.coinquilini.map(function (n) { return { name: n }; });
+            if (r.oneri != null) pex.oneriQuota = r.oneri;
+            if (r.locatore) pex.landlordName = r.locatore;
+            if (r.iban) pex.landlordIban = r.iban;
+            plan.contracts.push({ id: pcid, data: Object.assign({ propertyId: pid, status: 'active', contractMissing: true, tenantName: r.inquilino, tenantPhone: r.telefono, tenantEmail: r.email,
+              type: r.tipo, source: 'palazzo-import' }, pex), interno: r.interno });
+            info.action = 'placeholder-new'; info.contractId = pcid;
+            info.warnings.push('contratto da caricare: l’interno risulta occupato, le rate partono quando arrivano canone e date');
+          }
+        } else {
+          var dup = aliveC.find(function (c) { return !rrPlaceholder(c) && day(c.startDate) === r.dal; });
+          var overlap = aliveC.filter(function (c) {
+            if (rrPlaceholder(c) || c === dup) return false;
+            var s = day(c.startDate), e = effectiveEnd(c);
+            return s && s <= r.al && (!e || e >= r.dal);
+          });
+          if (dup) {
+            info.action = 'contract-same'; info.contractId = str(dup.id);
+            var cmpD = compare(dup);
+            var tD = updateExisting(dup, cmpD);
+            if (plan.contracts.length || plan.diffs.length) info.action = 'contract-update';
+            newRates(str(dup.id), tD);
+          } else if (overlap.length) {
+            var o = overlap[0], os = day(o.startDate), oe = effectiveEnd(o);
+            var same = rrPeopleOf(o).some(function (n) { return rrSamePerson(n, r.inquilino); });
+            if (same) rowErr('decorrenza diversa (' + rrIt(r.dal) + ' in tabella, ' + rrIt(os) + ' in archivio): è un nuovo contratto? chiudi prima il vecchio, poi ricarica la riga');
+            else rowErr('c’è già il contratto di ' + tenantOf(o) + ' (dal ' + rrIt(os) + (oe ? ' al ' + rrIt(oe) : '') + '): chiudilo prima con la data di uscita, poi ricarica la riga');
+          } else if (ph) {
+            // Il segnaposto «contratto da caricare» è LO STESSO contratto che
+            // arriva ora: si completa, non se ne crea un secondo.
+            var cmpP = compare(ph, { nameCheck: true });
+            info.contractId = str(ph.id);
+            if (!cmpP.person && !apply) {
+              info.action = 'placeholder-hold';
+              plan.diffs = plan.diffs.concat(cmpP.diffs);
+              info.notes.push('il contratto da caricare è a nome di ' + tenantOf(ph) + ', la tabella dice ' + r.inquilino + ': se è la stessa persona applica le differenze, altrimenti chiudi prima il segnaposto');
+            } else {
+              info.action = 'placeholder-complete';
+              var fillP = { contractMissing: false, rent: r.canone, deposit: r.deposito, startDate: r.dal, endDate: r.al, paymentDay: r.giorno, installmentMonths: 1,
+                cedolareSecca: r.cedolare, signatureStatus: 'paper', paymentsFrom: unitGd, status: r.al < today ? 'expired' : 'active' };
+              if (r.tipo) fillP.type = r.tipo;
+              if (r.registrato) fillP.rliRegisteredAt = r.registrato;
+              if (r.registrato || r.registratoSi) fillP.registrationStatus = 'registered';
+              cmpP.diffs = cmpP.diffs.filter(function (d) { return ['rent', 'endDate', 'deposit', 'cedolareSecca', 'type'].indexOf(d.field) < 0; });
+              ['rent', 'endDate', 'deposit', 'cedolareSecca', 'type'].forEach(function (k) { delete cmpP.fill[k]; });
+              // Le rate coi termini che il contratto avrà DAVVERO (oneri diversi
+              // dal segnaposto restano quelli in archivio finché non si applica).
+              newRates(str(ph.id), updateExisting(ph, cmpP, fillP));
+            }
+          } else {
+            var cid = 'c_' + pid + '_' + r.dal;
+            if (ctx.contractById && ctx.contractById[cid]) cid += '_b';
+            // Ciò che il contratto aggiunge al semplice "chi e quanto": chi
+            // firma con lui, gli oneri fissi, chi è il locatore e dove si paga.
+            var extra = {};
+            if (r.coinquilini.length) extra.coTenants = r.coinquilini.map(function (n) { return { name: n }; });
+            if (r.oneri != null) extra.oneriQuota = r.oneri;
+            if (r.locatore) extra.landlordName = r.locatore;
+            if (r.iban) extra.landlordIban = r.iban;
+            var cd = Object.assign({ propertyId: pid, status: r.al < today ? 'expired' : 'active', tenantName: r.inquilino, tenantPhone: r.telefono, tenantEmail: r.email,
+              rent: r.canone, deposit: r.deposito, startDate: r.dal, endDate: r.al, type: r.tipo, paymentDay: r.giorno, installmentMonths: 1,
+              cedolareSecca: r.cedolare, signatureStatus: 'paper', paymentsFrom: unitGd, source: 'palazzo-import' }, extra);
+            if (r.registrato) cd.rliRegisteredAt = r.registrato;
+            if (r.registrato || r.registratoSi) cd.registrationStatus = 'registered';
+            plan.contracts.push({ id: cid, data: cd, interno: r.interno });
+            info.action = 'contract-new'; info.contractId = cid;
+            newRates(cid, { start: r.dal, end: r.al, rent: r.canone, oneri: r.oneri, day: r.giorno });
+          }
+        }
+      }
+      if (info.errors.length) {
+        out.errors.push('row:' + r.line); out.skipped.push(r.line); out.counts.rowErrors++;
         return;
       }
-      var dup = pcs.find(function (c) { return day(c.startDate) === r.dal; }) || placeholder;
-      var cid = dup ? str(dup.id) : ('c_' + pid + '_' + r.dal);
-      // Ciò che il contratto aggiunge al semplice "chi e quanto": chi firma
-      // con lui, gli oneri fissi, chi è il locatore e dove si paga.
-      var extra = {};
-      if (r.coinquilini.length) extra.coTenants = r.coinquilini.map(function (n) { return { name: n }; });
-      if (r.oneri != null) extra.oneriQuota = r.oneri;
-      if (r.locatore) extra.landlordName = r.locatore;
-      if (r.iban) extra.landlordIban = r.iban;
-      if (!dup) {
-        out.contracts.push({ id: cid, data: Object.assign({ propertyId: pid, status: r.al < ctx.today ? 'expired' : 'active', tenantName: r.inquilino, tenantPhone: r.telefono, tenantEmail: r.email,
-          rent: r.canone, deposit: r.deposito, startDate: r.dal, endDate: r.al, type: r.tipo, paymentDay: r.giorno, installmentMonths: 1,
-          cedolareSecca: r.cedolare, signatureStatus: 'paper', paymentsFrom: gd, source: 'palazzo-import' }, extra), interno: r.interno });
-        var cd = out.contracts[out.contracts.length - 1].data;
-        if (r.registrato) cd.rliRegisteredAt = r.registrato;
-        if (r.registrato || r.registratoSi) cd.registrationStatus = 'registered';
-        out.counts.contracts++;
-      } else {
-        // Fill-only anche sul contratto: un dato già scritto (nel portal, da
-        // una firma) non si tocca; i co-intestatari solo se non ce n'è nessuno.
-        var fill = {};
-        if (dup === placeholder) {
-          // Arrivato il contratto: i fatti che il segnaposto non aveva.
-          fill = { contractMissing: false, rent: r.canone, deposit: r.deposito, startDate: r.dal, endDate: r.al, paymentDay: r.giorno, installmentMonths: 1,
-            cedolareSecca: r.cedolare, signatureStatus: 'paper', paymentsFrom: gd, status: r.al < ctx.today ? 'expired' : 'active' };
-          if (r.tipo) fill.type = r.tipo;
-          if (r.registrato) fill.rliRegisteredAt = r.registrato;
-          if (r.registrato || r.registratoSi) fill.registrationStatus = 'registered';
-        }
-        if (extra.coTenants && !list(dup.coTenants).length) fill.coTenants = extra.coTenants;
-        if (extra.oneriQuota != null && (dup.oneriQuota == null || dup.oneriQuota === '')) fill.oneriQuota = extra.oneriQuota;
-        if (extra.landlordName && !str(dup.landlordName)) fill.landlordName = extra.landlordName;
-        if (extra.landlordIban && !str(dup.landlordIban)) fill.landlordIban = extra.landlordIban;
-        if (!str(dup.tenantPhone) && r.telefono) fill.tenantPhone = r.telefono;
-        if (!str(dup.tenantEmail) && r.email) fill.tenantEmail = r.email;
-        if (Object.keys(fill).length) { out.contracts.push({ id: cid, exists: true, data: fill, interno: r.interno }); out.counts.contractUpdates++; }
-        // Le rate già in archivio non si ricalcolano mai da qui (una pagata
-        // tornerebbe da pagare): se gli oneri arrivano dopo, lo si dice.
-        if (fill.oneriQuota && (ctx.paymentsByProperty[pid] || []).some(function (x) { return x.isRent; })) out.notes.push('oneri:' + r.interno);
-      }
-      // Le rate: da max(gestione, inizio) a fine contratto, mensili, stesso id
-      // del generatore del portal (pay_<contratto>_<mese>): mai due schedule.
-      var have = Object.create(null);
-      (ctx.paymentsByProperty[pid] || []).forEach(function (x) { if (x.month) have[x.month] = 1; });
-      // MESI DI CONTRATTO, non di calendario (come il generatore di
-      // magic-sign): dal 15/09 al 14/08 sono 11 periodi, e una dodicesima
-      // rata ad agosto sarebbe un canone chiesto per un mese che il
-      // contratto non ha. L'ultimo periodo parziale si paga in proporzione.
-      for (var k = 0; k < 120; k++) {
-        var ps = leaseMonth(r.dal, k);
-        if (ps > r.al) break;
-        var nx = leaseMonth(r.dal, k + 1), full = dayAdd(nx, -1), pe = full < r.al ? full : r.al, mm = ps.slice(0, 7);
-        if (mm < gd || have[mm]) continue;
-        var f = pe < full ? (daysBetween(ps, pe) + 1) / (daysBetween(ps, full) + 1) : 1;
-        var canK = round(r.canone * f), oneK = r.oneri ? round(r.oneri * f) : 0;
-        var due = mm + '-' + ('0' + r.giorno).slice(-2);
-        if (k === 0 && due < r.dal) due = r.dal;
-        var paidNow = mm === gd && r.pagatoSi;
-        // Gli oneri fissi si pagano col canone (art. 5 del contratto): la
-        // rata è il TOTALE che l'inquilino versa, con le due voci accanto.
-        var pay = { contractId: cid, propertyId: pid, type: 'rent', amount: oneK ? round(canK + oneK) : canK, month: mm, coversTo: mm, installmentMonths: 1, dueDate: due,
-          periodFrom: ps, periodTo: pe, status: paidNow ? 'paid' : 'pending', autoGenerated: true, source: 'palazzo-import' };
-        if (oneK) { pay.rentAmount = canK; pay.oneriAmount = oneK; }
-        if (f < 1) pay.prorated = true;
-        if (paidNow) { pay.paidDate = r.pagato || null; pay.paidVia = 'dichiarato'; pay.paidSource = 'tabella della proprietaria'; out.counts.paid++; }
-        out.payments.push({ id: 'pay_' + cid + '_' + mm, data: pay, interno: r.interno });
-        out.counts.payments++;
-      }
+      // Tutto ciò che la riga scrive, solo se la riga è sana.
+      if (prop) { if (Object.keys(pdata).length) out.counts.update++; else out.counts.same++; }
+      else out.counts.create++;
+      if (!prop || Object.keys(pdata).length) out.properties.push({ id: pid, exists: !!prop, data: pdata, interno: r.interno });
+      plan.contracts.forEach(function (c) {
+        out.contracts.push(c);
+        if (c.exists) out.counts.contractUpdates++; else { out.counts.contracts++; if (c.data.contractMissing === true) out.counts.missing++; }
+      });
+      plan.payments.forEach(function (p) { out.payments.push(p); out.counts.payments++; if (p.data.status === 'paid') out.counts.paid++; });
+      plan.paymentUpdates.forEach(function (u) { out.paymentUpdates.push(u); if (u.cancel) out.counts.paymentCancels++; else out.counts.paymentUpdates++; });
+      plan.diffs.forEach(function (d) { out.diffs.push(d); out.counts.diffs++; if (d.locked) out.counts.diffsLocked++; });
+      plan.paidMarks.forEach(function (x) { out.paidMarks.push(x); });
+      plan.overdue.forEach(function (x) { out.overdueNow.push(x); out.counts.overdueNow++; });
+      if (info.action === 'contacts') out.counts.contacts++;
+      info.diffs = plan.diffs; info.paidMarks = plan.paidMarks; info.paid = plan.paidMarks.length > 0; info.overdue = plan.overdue.length;
+      info.payments = plan.payments.length;
     });
+    // I conti su cui pagano gli inquilini, raccolti: il dato più delicato
+    // della tabella, da guardare una volta prima di caricare.
+    var accounts = Object.create(null);
+    out.rows.forEach(function (x) {
+      if (x.action === 'error' || (!x.iban && !x.ibanInput && !x.locatore)) return;
+      var k = (x.iban || x.ibanInput) + '|' + norm(x.locatore);
+      var a = accounts[k] = accounts[k] || { locatore: x.locatore, iban: x.iban, ibanMasked: x.ibanMasked, ibanValid: x.ibanValid, interni: [] };
+      a.interni.push(x.interno);
+    });
+    out.accounts = Object.keys(accounts).map(function (k) { return accounts[k]; });
+    // Le frasi del piano, con singolari e plurali giusti.
+    var M = out.messages;
+    var keptGd = out.rows.filter(function (x) { return x.action !== 'error' && x.gestioneKept; });
+    if (out.ignoredRows.length) M.push(out.ignoredRows.length === 1 ? 'Riga ' + out.ignoredRows[0].line + ' saltata: è la riga dei totali, non un interno.'
+      : 'Righe ' + rrList(out.ignoredRows.map(function (x) { return String(x.line); })) + ' saltate: sono righe dei totali, non interni.');
+    if (out.unknownColumns.length) {
+      var one = out.unknownColumns.length === 1;
+      M.push((one ? 'Colonna non riconosciuta: ' : 'Colonne non riconosciute: ') + out.unknownColumns.map(function (u) { return '«' + u.name + '»' + (u.looks ? ' (contiene ' + u.looks + ')' : ''); }).join(', ') +
+        '. ' + (one ? 'Non la carico: se serve, rinominala' : 'Non le carico: se servono, rinominale') + ' come nel modello.');
+    }
+    if (keptGd.length) M.push('Per ' + (keptGd.length === 1 ? 'l’interno ' + keptGd[0].interno + ', già in archivio, la gestione resta da ' + rrMonth(keptGd[0].gestioneDal)
+      : 'gli interni ' + rrList(keptGd.map(function (x) { return x.interno; })) + ', già in archivio, la gestione resta quella scritta (' + rrList(keptGd.map(function (x) { return rrMonth(x.gestioneDal); }).filter(function (v, i, a) { return a.indexOf(v) === i; })) + ')') +
+      '; il mese scelto vale per gli interni nuovi.');
+    var floorless = out.rows.filter(function (x) { return x.action !== 'error' && x.floorAsk; });
+    if (floorless.length) M.push(rrPlural(floorless.length, 'interno senza piano', 'interni senza piano') + ' (' + rrList(floorless.map(function (x) { return x.interno; })) + '): ' + (floorless.length === 1 ? 'resta' : 'restano') + ' fuori dalla facciata finché non lo indichi.');
+    if (out.counts.diffs) M.push(apply ? rrPlural(out.counts.diffs - out.counts.diffsLocked, 'differenza con l’archivio verrà applicata', 'differenze con l’archivio verranno applicate') + (out.counts.paymentUpdates + out.counts.paymentCancels ? ' (' + rrPlural(out.counts.paymentUpdates + out.counts.paymentCancels, 'rata da pagare cambia', 'rate da pagare cambiano') + ')' : '') + '.'
+      : rrPlural(out.counts.diffs, 'differenza con l’archivio', 'differenze con l’archivio') + ': ' + (out.counts.diffs === 1 ? 'non la applico' : 'non le applico') + ' finché non lo chiedi.');
+    if (out.counts.diffsLocked) M.push(out.counts.diffsLocked === 1 ? '1 differenza riguarda un contratto firmato digitalmente (o un co-intestatario che ha firmato): da qui non si cambia, correggila dal contratto.'
+      : out.counts.diffsLocked + ' differenze riguardano contratti firmati digitalmente (o co-intestatari che hanno firmato): da qui non si cambiano, correggile dal contratto.');
+    if (out.overdueNow.length) M.push(rrPlural(out.overdueNow.length, 'rata risulta già scaduta', 'rate risultano già scadute') + ' oggi (' +
+      out.overdueNow.slice(0, 6).map(function (x) { return 'int. ' + x.interno + ' · ' + rrMonth(x.month) + ', scadenza ' + rrIt(x.dueDate); }).join('; ') + (out.overdueNow.length > 6 ? '; …' : '') +
+      '): ' + (out.overdueNow.length === 1 ? 'se è stata pagata' : 'se sono state pagate') + ', scrivi «Pagato il» nella tabella o registra l’incasso dopo il carico.');
+    var noList = listings.filter(function (l) { return streetKey(l.address) === skey && !unitKey(unitOf(l)) && !linkedListing[str(l.id)] && !str(l.propertyId); });
+    if (noList.length) M.push(rrPlural(noList.length, 'annuncio', 'annunci') + ' allo stesso civico senza interno (' + rrList(noList.map(function (l) { return '«' + (str(l.name || l.title) || l.id) + '»'; })) + '): ' + (noList.length === 1 ? 'agganciarlo' : 'agganciarli') + ' a mano dalla scheda dell’interno.');
     out.buildingKey = existing.length ? buildingKeyOf(existing[0]) : 'a:' + skey; out.label = label; out.gestioneDal = gd;
     return out;
   }
+  // Il modello da scaricare: dati inventati, coerenti fra loro (una società
+  // locatrice non ha la cedolare; «Pagato il» dentro il primo mese).
   var RR_TEMPLATE = 'Interno;Piano;Inquilino;Co-intestatari;Telefono;Email;Canone;Oneri;Dal;Al;Tipo;Deposito;Cedolare;Registrato il;Pagato il;Locatore;IBAN;Mq;POD;PDR\r\n' +
-    '1;PT;Mario Rossi;Anna Bianchi;+39 333 1234567;mario@example.com;850;120;01/09/2025;31/08/2027;transitorio;1700;si;20/09/2025;03/10/2026;Rossi Immobiliare S.r.l.;IT60X0542811101000000123456;48;IT001E12345678;00881234567890\r\n' +
+    '1;PT;Mario Rossi;Anna Bianchi;+39 333 1234567;mario@example.com;850;120;01/09/2025;31/08/2027;transitorio;1700;no;20/09/2025;03/10/2026;Rossi Immobiliare S.r.l.;IT60X0542811101000000123456;48;IT001E12345678;00881234567890\r\n' +
     '2;PT;;;;;900;;;;;;;;;;;;;\r\n';
 
   // ── Cosa succede a un interno: proposte e annunci ─────────────────────
@@ -1117,7 +1755,7 @@
     totalsOf: totalsOf, pipelineOf: pipelineOf, timeOf: timeOf, analyticsOf: analyticsOf, brief: brief, STATES: STATES, TONES: TONES, toneOf: toneOf,
     LOOKS: LOOKS, LOOK_DEFAULT: LOOK_DEFAULT, lookOf: lookOf, civicOf: civicOf, validateLook: validateLook,
     paperOf: paperOf, cedolareDeclared: cedolareDeclared, csvRows: csvRows, toCsv: toCsv, CSV_HEAD: CSV_HEAD,
-    parseRentRoll: parseRentRoll, planImport: planImport, RR_TEMPLATE: RR_TEMPLATE,
+    parseRentRoll: parseRentRoll, planImport: planImport, RR_TEMPLATE: RR_TEMPLATE, unitKey: unitKey, scalaKey: scalaKey, rrSchedule: rrSchedule,
     maintOf: maintOf, utenzeOf: utenzeOf, podOk: podOk, pdrOk: pdrOk, utenzeRows: utenzeRows, UTENZE_HEAD: UTENZE_HEAD };
   if (typeof module === 'object' && module.exports) module.exports = API;
   if (root) root.BOOM_PALAZZO = API;

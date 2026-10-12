@@ -339,7 +339,8 @@ eq('cedolareDeclared: anche canone.cedolareSecca e "Sì"; ciò che non si legge 
   const loaded = P.context({ now: NOW,
     properties: plan.properties.map(x => ({ id: x.id, ...x.data })),
     contracts: plan.contracts.map(x => ({ id: x.id, ...x.data, ...(x.interno === '11' ? { oneriQuota: '', coTenants: [{ name: 'Già Scritto' }] } : {}) })),
-    payments: plan.payments.map(x => ({ id: x.id, ...x.data })) });
+    // Le rate dell'int. 11 nate prima che gli oneri fossero noti: solo canone.
+    payments: plan.payments.map(x => ({ id: x.id, ...x.data, ...(x.interno === '11' ? { amount: x.data.rentAmount, rentAmount: null, oneriAmount: null } : {}) })) });
   const b2 = { ...b, iban: 'IT60X0542811101000000123456' };
   const again = P.planImport([a, b2], loaded, { address: 'Via Prova 9', ownerId: 'o', gestioneDal: F.month });
   const upd = again.contracts.filter(x => x.exists);
@@ -367,10 +368,13 @@ eq('cedolareDeclared: anche canone.cedolareSecca e "Sì"; ciò che non si legge 
   const mm = F.month.slice(5, 7) + '/' + F.month.slice(0, 4);
   const R = P.parseRentRoll('Interno\tInquilino\tTelefono\tCanone\tDal\tAl\n14\tGaia Sette\t+39 324 000 0000\t\t\t\n5\tIda Otto\t\t1200\t\t\n');
   const [a, b] = R.rows;
-  ok('inquilino senza canone NÉ date: occupato, contratto da caricare (avviso, non errore)', a.senzaContratto && !a.errors.length && a.warnings.some(w => /contratto da caricare/.test(w)));
+  // L'avviso «contratto da caricare» lo dà il PIANO (sa se in archivio il
+  // contratto c'è già): la sola tabella non può affermarlo.
+  ok('inquilino senza canone NÉ date: occupato, contratto da caricare (avviso, non errore)', a.senzaContratto && !a.errors.length && !a.warnings.some(w => /contratto da caricare/.test(w)));
   ok('…ma un dato a metà (canone senza date) resta un errore', !b.senzaContratto && b.errors.some(e => /inizio mancante/.test(e)));
   const plan = P.planImport([a], P.context({ properties: [], now: NOW }), { address: 'Via Prova 9, Roma', ownerId: 'o', gestioneDal: F.month });
   const c0 = plan.contracts[0];
+  ok('…e il piano lo dice sulla riga, perché in archivio non c\'è', plan.rows[0].action === 'placeholder-new' && plan.rows[0].warnings.some(w => /contratto da caricare/.test(w)), plan.rows[0]);
   eq('nasce l\'interno occupato e un contratto segnaposto: nessuna data, nessuna rata', [plan.properties[0].data.availabilityStatus, c0.id.endsWith('_da-caricare'), c0.data.contractMissing, c0.data.startDate, plan.payments.length, plan.counts.missing],
     ['rented', true, true, undefined, 0, 1]);
   const loaded = P.context({ now: NOW, properties: plan.properties.map(x => ({ id: x.id, ...x.data })), contracts: plan.contracts.map(x => ({ id: x.id, ...x.data })) });
