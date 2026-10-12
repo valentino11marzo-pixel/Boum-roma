@@ -4648,25 +4648,49 @@ competitor ha — e il VERDETTO che ne esce decide quale potere costruire.
 
 ## PFS Radar (automated market scan — api/pfs/*)
 
-The PFS pipeline finds rental listings for paying search clients with no
-manual monitoring. One shared ingestion path (`api/pfs/_ingest.js`):
+The PFS pipeline collects rental listings for paying search clients via
+alerts and best-effort scans. One shared ingestion path (`api/pfs/_ingest.js`):
 dedupe → advertiser policy (agency listings stored but NEVER pushed) →
-score every active `pfsClients` doc (`api/homie/_match.js`, both client
-schemas supported) → push into swipe decks → `matchSummary` persisted on
-the `pfsProperties` doc for the command center.
+score active `pfsClients` (`api/homie/_match.js`, both schemas) → push historic
+clients or queue reviewed candidates → `matchSummary` on `pfsProperties`.
 
 | Endpoint (cron) | Schedule | What it does |
 |---|---|---|
 | `/api/pfs/scan-inbox` | */15 min | **Load-bearing source.** Reads Idealista/Immobiliare search-alert emails from the Gmail mailbox over IMAP (imapflow), reconstructs canonical listing URLs from tracking links (`api/pfs/_alertparse.js`), enriches from the detail page when possible, ingests. Stateless: re-scans a 3-day window, dedupe makes reruns no-ops. |
 | `/api/pfs/scan-market` | 2×/hour | Best-effort scraper of the auto-generated searches in `radarSearches` (portals 403 datacenter IPs at will — failures are expected and tracked). |
-| `/api/pfs/sync-searches` | daily | Auto-(re)generates one `radarSearches` doc per active client per portal from their stored criteria (`api/pfs/_searchurls.js`). Manual knobs `enabled`/`urlOverride` are never clobbered. Clients gone inactive → searches disabled. |
+| `/api/pfs/sync-searches` | */5 min; full once/day after 04:00 UTC | Retries only pending paid kickoffs on short runs; the durable daily pass reconciles all active searches and disables inactive ones. Manual `enabled`/`urlOverride` are preserved. |
 | `/api/pfs/brief` | daily 06:00 UTC | AI daily briefing: compacts the last 48h (annunci, match, outreach, feedback clienti, salute fonti) and asks Claude (`claude-opus-4-8`, raw-fetch pattern) for an Italian operational brief. Cron → delivered to Telegram; command-center button → returned as JSON `{ ok, brief, stats }`. |
 
 All three accept POST with Vercel cron secret, `X-Homie-Secret`, or an
 admin Firebase ID token (the command center's "Scansiona ora" buttons) —
-see `api/pfs/_guard.js`. Every run writes a heartbeat to
+see `api/pfs/_guard.js`. Every processing run writes a heartbeat to
 `pfsRadarHealth/<source>`; 3+ consecutive failures → Telegram alert
 (`api/pfs/_health.js`), recovery notified once.
+
+Paid PFS kickoff is default-off (`PFS_KICKOFF_V1=1`): a new client gets exact UTC +48h internal review target, two BOOM searches and deterministic Casafari/shortlist operator tasks; Stripe retry and five-minute sync repair partial writes (`tests/money/run.mjs`).
+For these new `reviewRequired` clients `_ingest.js` creates one deterministic `pfsCandidateReviews` doc per client/listing before refreshing the `matchSummary` feed cache; no automatic `portalProperties` delivery occurs. Historic clients keep the existing push (`tests/radar/run.mjs`).
+The candidate doc is the durable review queue: repeat alerts refresh listing facts without touching `status`, reviewer or evidence, including two concurrent runs. A failed candidate write fails ingestion and does not advance the summary's scoring epoch.
+PFS Command reads that client's queue directly when its drawer opens; the latest-120-property feed is no longer the only place to find a paid client's candidates. The collection is admin-only in `firestore.rules` (`tests/radar/run.mjs`, `tests/money/run.mjs`).
+`POST /api/pfs/candidate-review` is admin-only and records an `approved` or `rejected` decision with Firestore update-time CAS. Approval requires the matching source URL, a dated availability check with named source and note, and dated sharing permission with named grantor and note. Exact retries are idempotent; a competing decision receives 409. The decision does not send anything to the client (`tests/money/run.mjs`).
+Manual `casafari/import` for `reviewRequired` clients now creates or refreshes an internal candidate only. It cannot publish to the portal, including with `reviewConfirmed:true` or an approved case. Historic clients keep the old direct import route. PFS Command removes reviewed clients from the direct feed dropdown and offers decision actions in the client drawer. The Casafari form in `js/portal-app.js` belongs to Lotto 4; for reviewed clients its call now queues the listing internally.
+`POST /api/pfs/shortlist` is human-admin-only. `prepare` freezes an ordered snapshot of 1–8 approved candidates, their exact source URLs, prices and review evidence into `pfsShortlists/<id>` with a deterministic idempotency key and Firestore CAS. `publish` re-reads each exact client/listing case and requires two new operator attestations per item: availability now and permission to share with this client. Each has its own confirmation, time within 24 hours, named contact and note, tied to the exact property ID and source URL. These are operator statements, not independent verification of an external reply or continued availability. A changed case requires a new draft.
+Publishing atomically marks the snapshot `published`, writes its receipt and adds its ID to `pfsClients.publishedShortlistIds` with an update-time CAS on the client and cases. The receipt proves portal publication at the recorded time; it does not prove email/WhatsApp delivery or client reading. Public portal lookup/action rehydrate cards from these immutable snapshots, so a later legacy `portalProperties` array overwrite does not hide the published shortlist. PFS Command shows drafts, published versions and receipt, and requires the final per-item check before publication (`tests/money/run.mjs`, `tests/radar/run.mjs`).
+The current safety cap is 24 shortlist versions per client; the 25th prepare fails with `shortlist_version_limit`. An archive or compaction path is not yet implemented. Browser Firestore rules allow admin reads of shortlist snapshots but no browser writes; only the server handler writes them.
+`casafariAlertStatus: needs_review` means compare the paid client's criteria with existing Casafari alerts, create a saved search only if coverage is missing, and inspect current stock. The operator task and BOOM search creation do not prove that Casafari emails are arriving.
+The 2026-10-07 account inspection found existing saved searches, standard alerts on, and a daily global email setting; it did not verify per-client coverage or receipt. A separate evidence-backed activation flow remains necessary (`tests/money/run.mjs`).
+`scan-market` re-scores a URL new to each search even if seen globally before checkout; blocked portal scans still leave initial stock to manual search.
+The brief counts pending matches separately as "da rivedere" (`tests/radar/run.mjs`). The pilot remains blocked on verified Casafari coverage and email receipt, any separate email/WhatsApp delivery receipt, and exact-deadline escalation; the customer email still promises 72h and the 48h goal is internal only. Candidate approval is a recorded operator attestation; it does not verify Casafari inbox delivery or prove an external source replied.
+PFS ingestion, match-test, pending/full sync, and market-search selection now paginate client/search collections by document ID (`tests/money/run.mjs`, `tests/radar/run.mjs`).
+They fail explicitly and report health at the 1000-document safety cap rather than silently ignore later clients or searches.
+Match-test, the PFS brief and the shared PFS operational guard accept only admin/owner profiles for all-client data and scan actions.
+Exact-deadline escalation remains follow-up work. For reviewed clients an absent advertiser type stays `unknown`. Availability and sharing evidence is stored on the case; portal publication requires separate checks for both no older than 24 hours. Their truth still depends on the human operator.
+`portalProperties` updates still use blind read/patch writes in multiple legacy routes. The published shortlist survives those overwrites in portal lookup/action through snapshot hydration; legacy client actions and feedback can still race, so a shared conditional-write migration and email outbox remain necessary before claiming reliable end-to-end delivery.
+The shared PFS guard excludes landlord profiles from operational endpoints that can expose client data. `candidate-review` separately excludes cron, Homie and the legacy `owner` API role; Firestore rules require the `admin` role to read the case queue.
+`scan-inbox` reads active clients once per run with mail and records in `matchSummary.at` the client-snapshot epoch taken before the query.
+A fresh listing is re-scored when an active client's `created_at` is at or after that epoch; an invalid summary or missing reviewed-client timestamp also prevents the freshness skip.
+The real inbox handler tests a checkout after prior scoring, a checkout during a run, a failed client list and a failed master write followed by recovery (`tests/radar/run.mjs`).
+Manual `casafari/import` preserves the all-client score epoch, while admin match-test captures it before its own client query (`tests/money/run.mjs`).
+This covers alert emails that are re-read. The three-day IMAP window and last-40-message cap still require an initial-stock backfill for a dependable first shortlist.
 
 **BLOCCATA ≠ GUASTA** (`alertDecision()`, esportata + testata). `scan-market`
 aveva accumulato **1145 run falliti di fila** e un allarme ogni 6h per ~3

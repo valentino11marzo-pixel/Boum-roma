@@ -24,7 +24,8 @@ const MAX_TOKENS = 1200;
 
 function hoursAgo(h) { return new Date(Date.now() - h * 3600 * 1000); }
 
-function compactProperty(p) {
+export function compactProperty(p) {
+  const summary = p.matchSummary || {};
   return {
     titolo: (p.title || p.address || p.sourceUrl || '').slice(0, 80),
     prezzo: p.price,
@@ -33,9 +34,24 @@ function compactProperty(p) {
     fonte: p.source,
     inserzionista: p.advertiser,
     visto: p.lastSeenAt || p.scrapedAt,
-    pushATo: ((p.matchSummary && p.matchSummary.pushedTo) || []).map(x => `${x.name}:${x.score}`),
+    pushATo: (Array.isArray(summary.pushedTo) ? summary.pushedTo : []).map(x => `${x.name}:${x.score}`),
+    candidatiDaRivedere: (Array.isArray(summary.pendingReview) ? summary.pendingReview : []).map(x => `${x.name}:${x.score}`),
     outreach: p.outreach ? { stato: p.outreach.status, nota: (p.outreach.note || '').slice(0, 60) } : null,
     url: p.sourceUrl,
+  };
+}
+
+export function briefStats(properties, clients) {
+  const pushed = p => Array.isArray(p.matchSummary?.pushedTo) ? p.matchSummary.pushedTo.length : 0;
+  const pending = p => Array.isArray(p.matchSummary?.pendingReview) ? p.matchSummary.pendingReview.length : 0;
+  return {
+    annunci48h: properties.length,
+    privati: properties.filter(p => p.advertiser === 'private').length,
+    agenzieScartate: properties.filter(p => p.advertiser === 'agency').length,
+    conMatch: properties.filter(p => pushed(p) || pending(p)).length,
+    giaNelPortale: properties.filter(p => pushed(p)).length,
+    candidatiDaRivedere: properties.filter(p => pending(p)).length,
+    clientiAttivi: clients.length,
   };
 }
 
@@ -59,6 +75,14 @@ export default async function handler(req, res) {
   }
   const actor = await requireCronOrAdmin(req, res);
   if (!actor) return;
+  // The shared guard permits landlord profiles for other admin surfaces;
+  // this brief contains every PFS client's criteria and candidate listings.
+  if (actor.startsWith('admin:')) {
+    let profile;
+    try { profile = await fsGet('users/' + actor.slice('admin:'.length)); }
+    catch { return res.status(500).json({ ok: false, error: 'profile_lookup_failed' }); }
+    if (!['admin', 'owner'].includes(profile?.role)) return res.status(403).json({ ok: false, error: 'admin_required' });
+  }
 
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return res.status(500).json({ ok: false, error: 'server_missing_anthropic_key' });
@@ -77,7 +101,8 @@ export default async function handler(req, res) {
       return seen && new Date(seen) > cutoff;
     });
   } catch (e) { console.warn('[pfs/brief] properties read failed:', e.message); }
-  try { clients = await listActiveClients(); } catch (e) { console.warn('[pfs/brief] clients read failed:', e.message); }
+  try { clients = await listActiveClients(); }
+  catch (e) { return res.status(500).json({ ok: false, error: 'client_list_failed', detail: e.message }); }
   for (const s of ['inbox', 'market', 'sync']) {
     try {
       const h = await fsGet('pfsRadarHealth/' + s);
@@ -85,13 +110,7 @@ export default async function handler(req, res) {
     } catch { /* health doc may not exist yet */ }
   }
 
-  const stats = {
-    annunci48h: properties.length,
-    privati: properties.filter(p => p.advertiser === 'private').length,
-    agenzieScartate: properties.filter(p => p.advertiser === 'agency').length,
-    conMatch: properties.filter(p => (p.matchSummary?.pushedTo || []).length > 0).length,
-    clientiAttivi: clients.length,
-  };
+  const stats = briefStats(properties, clients);
 
   const data = {
     oggi: new Date().toISOString().slice(0, 10),
@@ -104,13 +123,14 @@ export default async function handler(req, res) {
   // ── Ask Claude for the brief ──────────────────────────────
   const system =
     'Sei l\'analista operativo del servizio Property Finding di BOOM Roma (ricerca casa per clienti paganti, Roma). ' +
-    'Ricevi un JSON con lo stato delle ultime 48 ore: annunci entrati dal radar, match pushati ai clienti, stato outreach ' +
+    'Ricevi un JSON con lo stato delle ultime 48 ore: annunci entrati dal radar, match già pushati ai clienti, candidati ancora da rivedere, stato outreach ' +
     '(contatto dei proprietari privati), feedback dei clienti (like/scartate) e salute delle fonti. ' +
     'Scrivi il briefing operativo del giorno in italiano, per Valentino che lo legge dal telefono. ' +
     'Formato: HTML minimale compatibile Telegram (solo <b> e <i>, niente markdown, niente liste annidate). ' +
-    'Struttura: 1) una riga di sintesi; 2) "Da proporre ora" — gli annunci con match non ancora gestiti, con prezzo e cliente; ' +
-    '3) "Outreach" — chi contattare o sollecitare; 4) "Clienti" — segnali dal feedback (like/scartate/non visti); ' +
-    '5) "Sistema" — solo se una fonte è ferma o ci sono annunci da verificare; 6) "Le 3 azioni di oggi" — priorità concrete. ' +
+    'I candidati da rivedere NON sono proposte né disponibilità confermate. ' +
+    'Struttura: 1) una riga di sintesi; 2) "Da rivedere" — candidati interni con prezzo e cliente; ' +
+    '3) "Già nel portale" — match pushati; 4) "Outreach" — chi contattare o sollecitare; 5) "Clienti" — feedback; ' +
+    '6) "Sistema" — solo se una fonte è ferma o ci sono annunci da verificare; 7) "Le 3 azioni di oggi" — priorità concrete. ' +
     'Massimo ~200 parole. Concreto e diretto: nomi, cifre, zone. Ometti le sezioni vuote. Non inventare nulla che non sia nel JSON.';
 
   let brief;

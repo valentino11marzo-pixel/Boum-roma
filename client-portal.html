@@ -598,7 +598,7 @@
         activity:'Attività', code:'Codice di accesso', logout:'Esci', daysWith:'giorni con noi',
         chat_t:'Concierge', chat_ph:'Scrivi un messaggio…', chat_empty:'Scrivi al tuo consulente — domande, dubbi, preferenze. Rispondiamo in giornata.', chat_wa:'Preferisci WhatsApp?', chat_you:'Tu', chat_team:'BOOM',
         t_saved:'Salvato', t_unsaved:'Rimosso dai salvati', t_passed:'Grazie del feedback', t_viewing:'Richiesta inviata · consulente avvisato', t_restored:'Ripristinato', t_viewCancel:'Richiesta annullata', t_critSaved:'Brief aggiornato', t_msg:'Messaggio inviato · ti rispondiamo a breve',
-        a_homie_match:'Nuova proposta', a_like:'Salvato', a_reject:'Feedback inviato', a_undo:'Ripristinato', a_requestViewing:'Visita richiesta', a_cancelViewing:'Visita annullata', a_criteria_updated:'Brief aggiornato', a_message:'Messaggio',
+        a_homie_match:'Nuova proposta', a_shortlist_published:'Nuova selezione pronta', a_like:'Salvato', a_reject:'Feedback inviato', a_undo:'Ripristinato', a_requestViewing:'Visita richiesta', a_cancelViewing:'Visita annullata', a_criteria_updated:'Brief aggiornato', a_message:'Messaggio',
         np_t:'Nuova proposta', np_s:'Il tuo consulente ha aggiunto un immobile per te', np_b:'Scopri →', perMonth:'mese' },
       en:{ authKick:'Mid-term living · Rome', authTitle:'Your relocation<br><b>atelier</b>', authP:'Sign in with your advisor\'s code', codePh:'Access code', enter:'Enter', invalid:'Invalid code', noCode:'No code?', contact:'Contact us',
         nav_home:'Atelier', nav_explore:'Selection', nav_saved:'Saved', nav_profile:'You', active:'Search active',
@@ -642,7 +642,7 @@
         activity:'Activity', code:'Access code', logout:'Sign out', daysWith:'days with us',
         chat_t:'Concierge', chat_ph:'Type a message…', chat_empty:'Message your advisor — questions, doubts, preferences. We reply same day.', chat_wa:'Prefer WhatsApp?', chat_you:'You', chat_team:'BOOM',
         t_saved:'Saved', t_unsaved:'Removed from saved', t_passed:'Thanks for the feedback', t_viewing:'Request sent · advisor notified', t_restored:'Restored', t_viewCancel:'Request cancelled', t_critSaved:'Brief updated', t_msg:'Message sent · we\'ll reply shortly',
-        a_homie_match:'New proposal', a_like:'Saved', a_reject:'Feedback sent', a_undo:'Restored', a_requestViewing:'Viewing requested', a_cancelViewing:'Viewing cancelled', a_criteria_updated:'Brief updated', a_message:'Message',
+        a_homie_match:'New proposal', a_shortlist_published:'New selection ready', a_like:'Saved', a_reject:'Feedback sent', a_undo:'Restored', a_requestViewing:'Viewing requested', a_cancelViewing:'Viewing cancelled', a_criteria_updated:'Brief updated', a_message:'Message',
         np_t:'New proposal', np_s:'Your advisor added a home for you', np_b:'Discover →', perMonth:'mo' }
     };
     var lang='it';
@@ -917,7 +917,7 @@
           '</aside>'+
         '</div>';
     }
-    function actIc(ty){ return {homie_match:'✦',like:'♥',reject:'·',undo:'↺',requestViewing:'❖',cancelViewing:'✕',criteria_updated:'◍',message:'✉'}[ty]||'·'; }
+    function actIc(ty){ return {homie_match:'✦',shortlist_published:'✦',like:'♥',reject:'·',undo:'↺',requestViewing:'❖',cancelViewing:'✕',criteria_updated:'◍',message:'✉'}[ty]||'·'; }
     function ago(ts){ if(!ts)return''; var d=new Date(ts),s=(Date.now()-d.getTime())/1000; if(s<60)return lang==='it'?'adesso':'now'; if(s<3600)return ~~(s/60)+'m'; if(s<86400)return ~~(s/3600)+'h'; var dd=~~(s/86400); if(dd<7)return dd+(lang==='it'?'g':'d'); return d.toLocaleDateString(lang==='it'?'it-IT':'en-GB',{day:'numeric',month:'short'}); }
 
     /* ───────── Actions ───────── */
