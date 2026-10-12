@@ -534,7 +534,7 @@ const LOCAL = { enabled: true, url: 'http://127.0.0.1:11434', model: 'qwen3:14b'
   ok(/\['company', 'registrazione', 'ai'\]/.test(rules), 'settings/ai non è leggibile dal pubblico (porta l\'URL del tunnel)');
   ok(/"api\/ai\/status\.js"/.test(src('vercel.json')), 'vercel.json: la porta di stato ha il suo maxDuration');
   ok(/name: 'ai'/.test(src('tests/run-all.mjs')), 'la suite è registrata in run-all');
-  ok(/LOCAL_AI_URL|LOCAL_AI_TOKEN/.test(src('CLAUDE.md')), 'CLAUDE.md documenta le env della centrale');
+  ok(/LOCAL_AI_URL|LOCAL_AI_TOKEN/.test(src('docs/aree/infrastruttura.md')), 'docs/aree/infrastruttura.md documenta le env della centrale (dal 12/10 le variabili non stanno più in CLAUDE.md)');
   ok(/api\/_ai\.js/.test(src('AGENTS.md')), 'AGENTS.md: la regola per Codex — i modelli si chiamano SOLO dalla centrale');
 }
 
