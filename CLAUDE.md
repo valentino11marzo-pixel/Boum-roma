@@ -2133,6 +2133,14 @@ Un giro solo, otto interventi, 33 suite verdi:
   aggiornamenti regionali conservano bozza, ricerca e pannelli aperti.
   `oggi-workspace-engine` distingue proposte/conferme e alimenta anche il prefilling
   delle visite. Prove: `oggiworkspace`, `oggihomeui` e regressioni Segreteria.
+- **Oggi collegata (12/10/2026):** il briefing espone tre decisioni dei seguiti
+  esistenti; la revisione resta una lettura e le proposte non approvate non
+  ereditano il badge Confermato. La barra collega record per ID tipizzati,
+  incluse persone/contratti/case; omonimie e casi ambigui restano separati.
+  `phone:<id>` apre `/chiamate?call=<id>`: lettura admin esatta anche oltre le
+  ultime 120, audio e trascrizione salvata con limiti dichiarati, nessuna AI.
+  Suite/guide riusano il Prontuario. Prove `oggiworkspace`, `oggihomeui`,
+  `phoneui`; `propertyload` include il vero helper visite estratto.
 - **D2 — i form grandi coi capitoli su desktop** (`sectionizeForm` in
   portal-desktop.js): su telefono i modali piatti diventano wizard (M2);
   su desktop erano muri da 15-22 campi. Pattern console corporate: header

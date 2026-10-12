@@ -200,4 +200,26 @@ check('mutations detect UTC legacy shift, stale moved slot and fixed-duration wi
     }
 });
 
+check('context follows saved IDs, never names, phones or unrelated households', () => {
+    const state = { properties:[{id:'p1',name:'Aurora',ownerId:'owner'},{id:'p2',name:'Aurora',ownerId:'other'}], users:[{id:'owner',name:'Anna'},{id:'tenant',name:'Anna'},{id:'other',name:'Anna'}], contracts:[{id:'c1',propertyId:'p1',tenantId:'tenant'},{id:'c2',propertyId:'p2',tenantId:'other'}], clients:[{id:'tenant',name:'Anna'}], conversations:[{id:'cv1',contactType:'tenant',contactId:'tenant'},{id:'cv2',contactType:'client',contactId:'tenant'},{id:'unrelated',contactType:'phone',contactId:'tenant'}] };
+    const before=JSON.stringify(state);
+    const house=E.contextFor({kind:'property',id:'p1'},state);
+    assert(house.available);assert.deepEqual(house.records.map(r=>r.kind+':'+r.id),['person:owner','person:tenant','contract:c1']);
+    assert.deepEqual(house.practiceRefs,['contracts/c1']);assert.deepEqual(house.conversationIds,[]);
+    assert.deepEqual(E.contextFor({kind:'person',id:'tenant'},state).conversationIds,['cv1']);
+    assert.deepEqual(E.contextFor({kind:'client',id:'tenant'},state).conversationIds,['cv2']);
+    assert.deepEqual(E.contextFor({kind:'contract',id:'c1'},state).records.map(r=>r.id),['p1','owner','tenant']);
+    assert.equal(E.contextFor({kind:'property',id:'missing'},state).available,false);
+    assert.equal(JSON.stringify(state),before);
+    state.users.push({id:'co',name:'Co-conduttore'});state.contracts[0].coTenants=[{userId:'co'}];
+    assert.deepEqual(E.contextFor({kind:'person',id:'co'},state).practiceRefs,['contracts/c1']);
+    state.properties.push({...state.properties[0]});
+    assert.equal(E.contextFor({kind:'property',id:'p1'},state).available,false);
+});
+check('phone source comes only from the canonical event, rejects paths and injected URLs', () => {
+    assert.equal(E.phoneSource({followUp:{lastMessageId:'phone:el_abc-123'}}),'/chiamate?call=el_abc-123');
+    for(const id of ['wa_abc','phone:../secret','phone:a/b','phone:foo?call=x','phone:<img>','phone:'+ 'a'.repeat(181)]) assert.equal(E.phoneSource({followUp:{lastMessageId:id}}),null);
+    assert.equal(E.phoneSource({followUp:{preview:'phone:el_abc-123'}}),null);
+});
+
 console.log(`\n${checks} workspace agenda checks passed`);

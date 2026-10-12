@@ -21,6 +21,39 @@ try{
    assert.equal(await page.evaluate(()=>testIO.writes.length),0);
    assert(await page.locator('#ogAgendaPanel').getByText('Casa Aurora',{exact:true}).isVisible());
   });
+  await check(width+' decisioni, fonte telefonica e review usano il caso esistente senza AI',async()=>{
+   assert.equal(await page.locator('#ogWorkBriefing .ow-case').count(),2);
+   assert.equal(await page.locator('#ogWorkBriefing a[href="/chiamate?call=demo-call"]').count(),1);
+   const requests=await page.evaluate(()=>testIO.writes.length);
+   await page.locator('#ogWorkBriefing [data-ow-case]').first().click();
+   await page.waitForFunction(()=>oggiSegretaria.modal?.task);
+   assert.match(await page.locator('#sgFollowModal').innerText(),/tecnico|portiere/);
+   assert.equal(await page.locator('#sgFollowModal a[href="/chiamate?call=demo-call"]').count(),1);
+   assert.equal(await page.evaluate(()=>testIO.writes.length),requests);
+   await page.locator('#sgFollowModal [aria-label="Chiudi"]').click();
+   assert.equal(await page.evaluate(()=>document.activeElement.dataset.owCase),'sg_'+'a'.repeat(32));
+  });
+  await check(width+' una nuova proposta non eredita il badge Confermato del seguito precedente',async()=>{
+   await page.evaluate(()=>{const t=oggiSegretaria.rows[0];window.oldCheck=t.followUp.checkAt;t.followUp.checkAt=new Date(Date.now()+3600000).toISOString();t.preparation={version:BOOM_PROPOSTA.VERSION,coverage:{version:BOOM_PROPOSTA.CONTEXT_VERSION},revision:'demo-revision',messageId:t.followUp.lastMessageId,selectedPracticeRef:t.followUp.practiceRef,status:'ready',summary:'Nuova proposta di accesso',recommendation:'Da valutare',sources:[],nextAction:{text:'Proporre un altro orario',waitingLabel:'Valentino',checkAt:t.followUp.checkAt}};oggiSegretariaRender();});
+   const text=await page.locator('#ogWorkBriefing .ow-case').filter({hasText:'Proporre un altro orario'}).innerText();
+   assert.match(text,/Proposta da rivedere/);assert.doesNotMatch(text,/Confermato/);
+   await page.evaluate(()=>{const t=oggiSegretaria.rows[0];delete t.preparation;t.followUp.checkAt=oldCheck;oggiSegretariaRender();});
+  });
+  await check(width+' stesso contesto, caso ambiguo separato e passaggio al contratto',async()=>{
+   await page.locator('#ogWorkKind').selectOption('property');await page.locator('#ogWorkQuery').fill('Aurora');await page.locator('.ow-result').click();
+   assert.equal(await page.locator('.ow-related button').count(),2);
+   await page.locator('#ogContextConnections summary').click();
+   assert.equal(await page.locator('#ogContextConnections .ow-case').count(),1);
+   assert.doesNotMatch(await page.locator('#ogContextConnections').innerText(),/Giuliano/);
+   await page.evaluate(()=>oggiSegretariaRender());
+   assert.equal(await page.locator('#ogContextConnections details').evaluate(e=>e.open),true);
+   await page.locator('.ow-related button').filter({hasText:'Contratto'}).click();
+   assert.equal(await page.evaluate(()=>oggiWorkspace.selected.id),'contratto-demo');
+   await page.locator('.ow-context-actions').getByRole('button',{name:'Inventario dal video',exact:true}).click();
+   assert.deepEqual(await page.evaluate(()=>testIO.actions.at(-1)),['open','/inventario?c=contratto-demo']);
+   await page.evaluate(()=>{testIO.actions.length=0;});
+   await page.locator('#ogWorkKind').selectOption('property');
+  });
   await check(width+' ricerca per tipo prima del limite e selezione esplicita',async()=>{
    await page.locator('#ogWorkQuery').fill('Aurora');
    assert.equal(await page.locator('.ow-result').count(),1);assert.equal(await page.evaluate(()=>testIO.actions.length),0);

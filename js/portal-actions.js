@@ -258,6 +258,8 @@
     // ── Le console satellite (pagine proprie, si aprono in una scheda) ──
     [
         ['/team',    '🤖', 'Console — La Squadra',   'squadra team agenti salute cron'],
+        ['/chiamate', '📞', 'Console — Centralino', 'chiamate telefono audio trascrizioni riepiloghi segreteria'],
+        ['/risposte', '💬', 'Console — Risposte pronte', 'risposte whatsapp testi stile messaggi link pronti'],
         ['/banca',   '🏦', 'Console — Banca & Fisco','banca movimenti riconciliazione estratto conto'],
         ['/pfs-command', '🛰️', 'Console — PFS Command', 'pfs radar command center ricerche clienti'],
         ['/photo-lab', '🎞️', 'Console — Photo Lab',  'foto photo lab migliora immagini ai'],

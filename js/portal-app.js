@@ -5403,6 +5403,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                     ${p && !p.approval && (p.identityBlocked || p.status !== 'ready') ? '<p class="sg-inline-notice" role="status">Conferma bloccata: servono informazioni verificate.</p>' : ''}
                     ${doubts || incomplete ? `<p class="sg-context-notice" role="status">${doubts ? `${doubts} ${doubts === 1 ? 'punto da verificare' : 'punti da verificare'}. ` : ''}${incomplete ? 'Fonti parziali. ' : ''}Apri il contesto prima di decidere.</p>` : ''}
                     ${oggiSegretariaTiming(task)}
+                    ${window.BOOM_OGGI_WORKSPACE?.phoneSource(task) ? `<a class="ow-link" href="${esc(window.BOOM_OGGI_WORKSPACE.phoneSource(task))}" target="_blank" rel="noopener">Audio e trascrizione della chiamata ↗</a>` : ''}
                     ${reviewIssue ? `<p class="sg-inline-notice" role="status">${esc(reviewIssue)} Nessun nuovo tentativo automatico finché il caso resta in verifica.</p>` : ''}
                     ${receipt ? `<p class="sg-receipt" role="status">${esc(receipt)}</p>` : task.preparation && !p ? '<p class="sg-inline-notice">La proposta precedente va aggiornata.</p>' : ''}
                     <div class="sg-case-meta"><span><span class="sg-meta-label">${p?.draft && !p.approval ? 'Dopo l’invio · chi agisce' : 'Chi agisce'}</span>${esc(n?.waitingLabel || d.waiting)}</span><span><span class="sg-meta-label">Ricontrollo interno</span>${esc(oggiSegretariaDate(n?.checkAt ? Date.parse(n.checkAt) : d.checkAt))}</span></div>
@@ -5463,6 +5464,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 : [...panel.querySelectorAll('details[data-sg-detail]')].find(el => el.dataset.sgDetail === focusDetail)?.querySelector('summary'))?.focus({ preventScroll: true });
         }
         oggiSegretariaRestorePropertyContext(panel);
+        if (typeof oggiWorkBriefing === 'function') oggiWorkBriefing();
     }
     function oggiSegretariaRestorePropertyContext(panel) {
         const context = oggiSegretaria.propertyReturn;
@@ -5582,13 +5584,17 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         oggiSegretaria.modal = null;
         document.getElementById('sgFollowModal')?.remove();
         if (!document.querySelector('.modal-overlay.active')) document.body.classList.remove('modal-open');
-        if (previous && window.BOOM_SEGRETARIA_CASI.validId(previous.id)) {
+        const homeArea = previous?.returnFocusArea && document.getElementById(previous.returnFocusArea);
+        const homeButton = homeArea && [...homeArea.querySelectorAll('[data-ow-case]')].find(b => b.dataset.owCase === previous.returnFocus?.dataset.owCase && b.dataset.owAction === previous.returnFocus?.dataset.owAction);
+        if (homeButton) homeButton.focus({ preventScroll: true });
+        else if (previous?.returnFocus?.isConnected && previous.returnFocus.offsetParent !== null) previous.returnFocus.focus({ preventScroll: true });
+        else if (previous && window.BOOM_SEGRETARIA_CASI.validId(previous.id)) {
             document.querySelector(`[data-sg-id="${previous.id}"] [data-sg-primary]`)?.focus();
         }
     }
     async function oggiSegretariaOpen(id, notice, mode, generateRequested) {
         if (!window.BOOM_SEGRETARIA_CASI.validId(id)) return;
-        const modal = { id, task: null, dossier: null, notice: notice || '', error: '', busy: false, mode: mode || 'edit', uncertain: false };
+        const modal = { id, returnFocus: oggiSegretaria.modal?.returnFocus || document.activeElement, returnFocusArea: oggiSegretaria.modal?.returnFocusArea || document.activeElement?.closest?.('#ogWorkBriefing, #ogWorkResults')?.id, task: null, dossier: null, notice: notice || '', error: '', busy: false, mode: mode || 'edit', uncertain: false };
         oggiSegretaria.modal = modal;
         oggiSegretariaModalRender();
         try {
@@ -5697,6 +5703,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
                 ${m.notice ? `<div class="sg-notice sg-notice--warning" role="status">${esc(m.notice)}</div>` : ''}
                 <div id="sgFollowError" role="alert" class="sg-notice sg-notice--warning" style="${m.error ? '' : 'display:none'}" ${m.error ? '' : 'hidden'}>${esc(m.error)}</div>
                 ${d ? `<div class="sg-origin"><div><p class="sg-eyebrow">Ultimo messaggio ricevuto · anteprima</p>${oggiSegretariaSourceDate(m.task)}<blockquote class="sg-source-preview">${esc(d.preview || 'Anteprima non disponibile.')}</blockquote></div><button class="btn btn-secondary" type="button" data-sg-modal="source" ${d.conversationId ? '' : 'disabled'}>Apri conversazione di origine</button></div>` : ''}
+                ${m.task && window.BOOM_OGGI_WORKSPACE?.phoneSource(m.task) ? `<a class="btn btn-secondary" href="${esc(window.BOOM_OGGI_WORKSPACE.phoneSource(m.task))}" target="_blank" rel="noopener">Audio e trascrizione della chiamata ↗</a>` : ''}
                 ${m.busy ? `<p role="status" class="sg-working">${m.operation === 'generate' ? 'La Segreteria sta preparando il lavoro…' : 'Registro la tua conferma e verifico lo stato…'}</p>` : ''}
                 ${form || (m.error ? '<button class="btn btn-secondary" type="button" data-sg-modal="reload">Riprova</button>' : '<p class="sg-state" role="status">Carico la richiesta e le pratiche collegate…</p>')}
             </div><div class="modal-footer sg-modal-footer"><div class="sg-footer-note">${review && p && !p.approval ? (p.draft ? 'Approvi il piano e l’invio del testo al destinatario mostrato.' : 'Approvi il seguito e il ricontrollo. Non è previsto un messaggio.') : 'Il seguito resta aperto fino a un esito.'}</div><div class="sg-footer-actions"><button class="btn btn-secondary sg-cancel" type="button" data-sg-modal="cancel">Annulla</button>
@@ -5721,7 +5728,7 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         wrap.onkeydown = event => {
             if (event.key === 'Escape' && !m.busy) { event.stopPropagation(); oggiSegretariaClose(); }
             if (event.key !== 'Tab') return;
-            const controls = [...wrap.querySelectorAll('button, input, select, textarea, summary')].filter(el => !el.disabled && el.offsetParent !== null);
+            const controls = [...wrap.querySelectorAll('button, input, select, textarea, summary, a[href]')].filter(el => !el.disabled && el.offsetParent !== null);
             const first = controls[0], last = controls[controls.length - 1];
             if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
             else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
@@ -5861,10 +5868,10 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
     // ═══ FINE SEGRETERIA · SEGUITI IN OGGI ═══
 
     // HOME OPERATIVA: UI state only; domain data stays in the existing records.
-    const oggiWorkspace = { user: null, records: [], selected: null, actions: [], agenda: [], visible: 6 };
+    const oggiWorkspace = { user: null, records: [], selected: null, actions: [], related: [], agenda: [], visible: 6 };
     function oggiWorkspaceResetUser() {
         const uid = auth.currentUser?.uid || null;
-        if (oggiWorkspace.user !== uid) Object.assign(oggiWorkspace, { user: uid, records: [], selected: null, actions: [], agenda: [], visible: 6 });
+        if (oggiWorkspace.user !== uid) Object.assign(oggiWorkspace, { user: uid, records: [], selected: null, actions: [], related: [], agenda: [], visible: 6 });
     }
     window.oggiOpenSection = function(id) {
         if (!isAdmin() || !['ogOwnerTools', 'ogFollowTools'].includes(id)) return;
@@ -5897,23 +5904,99 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
         if (!isAdmin()) return;
         const record = oggiWorkspace.records[index], P = window.BOOM_ACTIONS;
         if (!record || !P?.ACTIONS) return;
+        oggiWorkspaceShow(record);
+    };
+    function oggiWorkspaceShow(record) {
+        const P = window.BOOM_ACTIONS;
+        if (!isAdmin() || oggiWorkspace.user !== auth.currentUser?.uid || !window.BOOM_OGGI_WORKSPACE?.contextFor(record, S).available) return;
         oggiWorkspace.selected = record;
         const safe = ['viewProperty', 'openPerson', 'viewUserProfile', 'viewUser', 'viewClient', 'viewContract', 'openFascicolo', 'openShareHub', 'viewContractSignatures'];
         oggiWorkspace.actions = P.ACTIONS.filter(a => a.need === record.kind && (safe.includes(a.fn) || (a.fn === 'open' && String(a.args?.[0] || '').startsWith('/inventario?'))));
         const target = document.getElementById('ogWorkResults');
-        target.innerHTML = `<div class="ow-selection"><div><span class="ow-eyebrow">${esc(P.KINDS[record.kind]?.label || '')}</span><h3>${esc(record.label)}</h3><p>${esc(record.sub)}</p></div><div class="ow-context-actions">${oggiWorkspace.actions.map((a, i) => `<button class="btn btn-secondary btn-sm" type="button" onclick="oggiWorkspaceAction(${i})">${esc(a.label)}</button>`).join('')}</div><button type="button" class="ow-link" onclick="oggiWorkspaceSearch(document.getElementById('ogWorkQuery').value)">Cambia selezione</button></div>`;
+        target.innerHTML = `<div class="ow-selection"><div><span class="ow-eyebrow">${esc(P.KINDS[record.kind]?.label || '')}</span><h3>${esc(record.label)}</h3><p>${esc(record.sub)}</p></div><div class="ow-context-actions">${oggiWorkspace.actions.map((a, i) => `<button class="btn btn-secondary btn-sm" type="button" onclick="oggiWorkspaceAction(${i})">${esc(a.label)}</button>`).join('')}</div><button type="button" class="ow-link" onclick="oggiWorkspaceSearch(document.getElementById('ogWorkQuery').value)">Cambia selezione</button><div id="ogContextConnections"></div></div>`;
+        target.onclick = oggiWorkCaseClick;
+        oggiWorkspaceContext();
         target.querySelector('button')?.focus({ preventScroll: true });
     };
     window.oggiWorkspaceAction = function(index) {
-        if (!isAdmin()) return;
+        if (!isAdmin() || oggiWorkspace.user !== auth.currentUser?.uid) return;
         const action = oggiWorkspace.actions[index], record = oggiWorkspace.selected;
+        if (!window.BOOM_OGGI_WORKSPACE?.contextFor(record, S).available) return toast('warning', 'Il record non è più nei dati caricati. Ripeti la ricerca.');
         if (!action || !record || !window.BOOM_ACTIONS?.run(action, window, record)) toast('error', 'Strumento non disponibile. Apri la sezione dal menu.');
     };
+    window.oggiWorkspaceRelated = function(index) {
+        if (!isAdmin() || oggiWorkspace.user !== auth.currentUser?.uid) return;
+        const record = oggiWorkspace.related[index];
+        if (record) oggiWorkspaceShow(record);
+    };
+    function oggiWorkCaseClick(event) {
+        const button = event.target.closest('[data-ow-case]');
+        if (!button || !isAdmin() || !button.parentElement) return;
+        const task = oggiSegretaria.rows.find(t => t.id === button.dataset.owCase && t.status === 'open');
+        if (!task) return;
+        if (button.dataset.owAction === 'source') return oggiSegretariaSource(task);
+        return oggiSegretariaOpen(task.id, '', 'review'); // Read only: no implicit generation.
+    }
+    function oggiWorkCaseCard(task) {
+        const d = window.BOOM_SEGRETARIA_CASI.describe(task, oggiSegretaria.dossiers[task.id], S, Date.now());
+        const p = oggiSegretariaPreparation(task), source = window.BOOM_OGGI_WORKSPACE?.phoneSource(task);
+        const issue = window.BOOM_SEGRETARIA_CASI.reviewReason(task);
+        const state = issue ? 'Da verificare' : p && !p.approval ? (p.identityBlocked || p.status !== 'ready' ? 'Da chiarire' : 'Proposta da rivedere') : d.state;
+        return `<article class="ow-case"><div class="ow-case-top"><span>${esc(d.name)}</span><span>${source ? 'Chiamata' : 'Conversazione'} · ${esc(state)}</span></div>
+            <h3>${esc(p?.nextAction?.text || d.nextAction)}</h3>
+            <p class="ow-case-reading"><span>${p ? 'Sintesi AI · da verificare' : 'Ultima richiesta · estratto'}</span>${esc(p?.summary || d.preview || 'Apri la fonte per leggere la richiesta.')}</p>
+            ${issue ? `<p class="ow-source-note">${esc(issue)}</p>` : ''}
+            <div class="ow-case-meta"><span><small>Chi agisce${p && !p.approval ? ' · proposto' : ''}</small>${esc(p?.nextAction?.waitingLabel || d.waiting)}</span><span><small>Ricontrollo${p && !p.approval ? ' · proposto' : ''}</small>${esc(oggiSegretariaDate(p?.nextAction?.checkAt ? Date.parse(p.nextAction.checkAt) : d.checkAt))}</span></div>
+            <div class="ow-case-actions"><button class="btn btn-sm" type="button" data-ow-case="${esc(task.id)}">${p?.draft ? 'Rivedi risposta' : p ? 'Rivedi seguito' : 'Esamina richiesta'} ↗</button>${source ? `<a class="ow-link" href="${esc(source)}" target="_blank" rel="noopener">Audio e trascrizione ↗</a>` : ''}${d.conversationId ? `<button class="ow-link" type="button" data-ow-case="${esc(task.id)}" data-ow-action="source">Apri conversazione</button>` : ''}</div></article>`;
+    }
+    function oggiWorkspaceContext() {
+        const target = document.getElementById('ogContextConnections'), record = oggiWorkspace.selected, E = window.BOOM_OGGI_WORKSPACE;
+        if (!target || !record || !E?.contextFor || !isAdmin() || oggiWorkspace.user !== auth.currentUser?.uid) return;
+        const linked = E.contextFor(record, S);
+        oggiWorkspace.related = linked.records;
+        if (!linked.available) { target.innerHTML = '<p class="ow-source-note">Il record non è più disponibile nei dati caricati. Ripeti la ricerca.</p>'; return; }
+        const tasks = oggiSegretaria.rows.filter(t => {
+            if (t.status !== 'open' || !t.followUp) return false;
+            const f = t.followUp;
+            if (linked.conversationIds.includes(f.conversationId)) return true;
+            if (record.kind === 'property') return window.BOOM_SEGRETARIA_CASI.propertyTarget(t, oggiSegretaria.dossiers[t.id], S)?.id === record.id;
+            return f.confirmed === true && f.needsReview !== true && f.ambiguous !== true && linked.practiceRefs.includes(f.practiceRef);
+        });
+        const open = new Set([...target.querySelectorAll('details[open]')].map(d => d.dataset.owFold));
+        const focused = target.contains(document.activeElement) ? document.activeElement : null;
+        const focusedCase = focused?.dataset.owCase, focusedAction = focused?.dataset.owAction;
+        target.innerHTML = `<div class="ow-connections"><p class="ow-eyebrow">Nello stesso contesto</p>${linked.records.length ? `<div class="ow-related">${linked.records.map((r, i) => `${i === 6 ? '<details class="ow-more-links" data-ow-fold="links" '+(open.has('links') ? 'open' : '')+'><summary>Altri '+(linked.records.length-6)+' collegamenti</summary><div class="ow-related">' : ''}<button type="button" onclick="oggiWorkspaceRelated(${i})"><small>${esc(window.BOOM_ACTIONS.KINDS[r.kind]?.label || r.kind)}</small><strong>${esc(r.label)}</strong><span>${esc(r.sub)}</span></button>`).join('')}${linked.records.length>6 ? '</div></details>' : ''}</div>` : '<p class="ow-hint">Nessun altro record collegato nei dati caricati.</p>'}
+            <details data-ow-fold="cases" ${open.has('cases') ? 'open' : ''}><summary>Seguiti collegati <span>${tasks.length}</span></summary>${oggiSegretaria.error || oggiSegretaria.incomplete ? '<p class="ow-source-note">La lettura dei seguiti è parziale o non aggiornata.</p>' : ''}${!oggiSegretaria.loaded ? '<p class="ow-hint">Lettura dei seguiti in corso.</p>' : tasks.length ? tasks.slice(0, 4).map(oggiWorkCaseCard).join('') + (tasks.length > 4 ? '<p class="ow-hint">Mostrati 4 di '+tasks.length+' seguiti collegati. <button type="button" class="ow-link" onclick="oggiOpenSection(\'ogFollowTools\')">Apri tutti i seguiti</button></p>' : '') : '<p class="ow-hint">Nessun seguito collegato in questo elenco. Le richieste da associare restano in Segreteria.</p>'}</details><p class="ow-hint">Collegamenti salvati nel portale. Le omonimie non vengono unite.</p></div>`;
+        if (focusedCase) [...target.querySelectorAll('[data-ow-case]')].find(b => b.dataset.owCase === focusedCase && b.dataset.owAction === focusedAction)?.focus({ preventScroll: true });
+    }
+    function oggiWorkBriefing() {
+        const target = document.getElementById('ogWorkBriefing');
+        if (!isAdmin() || !target || !window.BOOM_SEGRETARIA_CASI) return;
+        const groups = oggiSegretariaGroups(Date.now()), selected = groups.decisions.slice(0, 3);
+        const waiting = groups.waiting.length + groups.progress.length;
+        const next = [...groups.waiting, ...groups.progress].map(t => Date.parse(t.followUp?.checkAt)).filter(n => Number.isFinite(n) && n > Date.now()).sort((a,b) => a-b)[0];
+        const focused = target.contains(document.activeElement) ? document.activeElement : null;
+        const focusedCase = focused?.dataset.owCase, focusedAction = focused?.dataset.owAction;
+        target.innerHTML = `<header class="ow-section-head"><div><p class="ow-eyebrow">SEGRETERIA</p><h2>Le decisioni per te <span class="ow-count">${oggiSegretaria.loaded ? groups.decisions.length : '—'}</span></h2></div><button class="ow-link" type="button" onclick="oggiOpenSection('ogFollowTools')">Tutti i seguiti ↓</button></header>
+            ${oggiSegretaria.error ? `<p class="ow-source-note" role="status">${esc(oggiSegretaria.error)}</p>` : ''}
+            ${oggiSegretaria.incomplete || groups.invalid ? '<p class="ow-source-note">Elenco parziale: potrebbero esserci altre richieste da verificare.</p>' : ''}
+            ${!oggiSegretaria.loaded ? '<p class="ow-hint">Carico i seguiti salvati…</p>' : selected.length ? `<div class="ow-brief-cases">${selected.map(oggiWorkCaseCard).join('')}</div>` : '<p class="ow-quiet">Nessuna decisione da rivedere nei seguiti caricati.</p>'}
+            <div class="ow-brief-foot"><button type="button" class="ow-link" onclick="oggiOpenSection('ogFollowTools')">${oggiSegretaria.loaded ? groups.preparing.length+' richieste da preparare · '+waiting+' seguiti in corso o in attesa' : 'Seguiti in lettura'}</button><span>${next ? 'Prossimo ricontrollo · '+esc(oggiSegretariaDate(next)) : 'Ricontrolli e responsabilità nei singoli seguiti'}</span></div>`;
+        target.onclick = oggiWorkCaseClick;
+        if (focusedCase) [...target.querySelectorAll('[data-ow-case]')].find(b => b.dataset.owCase === focusedCase && b.dataset.owAction === focusedAction)?.focus({ preventScroll: true });
+        oggiWorkspaceContext();
+    }
+    function oggiToolLibrary() {
+        const P = window.BOOM_ACTIONS;
+        const ids = ['console:/chiamate', 'console:/risposte', 'console:/media-studio', 'console:/manuale'];
+        const descriptions = { '/chiamate': 'Audio, trascrizioni e riepiloghi salvati', '/risposte': 'Testi pronti e link da copiare', '/media-studio': 'Foto e reel dagli annunci', '/manuale': 'Istruzioni e informazioni della casa' };
+        return `<details class="ow-fold ow-library"><summary><span>Strumenti e guide</span><small>La suite BOOM, quando serve</small></summary><div class="ow-library-grid">${ids.map(id => P?.ACTIONS.find(a => a.id === id)).filter(Boolean).map(a => `<a href="${esc(a.args[0])}" target="_blank" rel="noopener"><strong>${esc(a.label.replace('Console — ', ''))} ↗</strong><span>${esc(descriptions[a.args[0]])}</span></a>`).join('')}<button type="button" onclick="goTo('tools')"><strong>Tutti gli strumenti ↗</strong><span>Generatori, documenti e strumenti BOOM</span></button></div></details>`;
+    }
     function oggiWorkspacePanel() {
         return `<section class="ow-workbench" aria-labelledby="ogWorkTitle"><div class="ow-workbench-head"><div><p class="ow-eyebrow">BOOM / IL TUO LAVORO</p><h2 id="ogWorkTitle">Da dove ripartiamo?</h2><p>Trova la casa o la persona. Apri ciò che ti serve, già collegato.</p></div><button class="btn" type="button" onclick="oggiOpenSection('ogOwnerTools')">Prepara una risposta <span aria-hidden="true">↗</span></button></div>
             <div class="ow-search"><label class="sr-only" for="ogWorkKind">Cerca tra</label><select id="ogWorkKind" onchange="oggiWorkspaceSearch(document.getElementById('ogWorkQuery').value)"><option value="property">Immobili</option><option value="person">Persone</option><option value="contract">Contratti</option><option value="client">Clienti</option></select><label class="sr-only" for="ogWorkQuery">Nome, indirizzo o riferimento</label><input id="ogWorkQuery" autocomplete="off" maxlength="120" placeholder="Nome, indirizzo o riferimento…" oninput="oggiWorkspaceSearch(this.value)"><span aria-hidden="true">⌕</span></div>
             <div id="ogWorkResults" aria-live="polite"></div>
-            <nav class="ow-shortcuts" aria-label="Strumenti quotidiani"><button type="button" onclick="goTo('inbox')">Messaggi <span>↗</span></button><button type="button" onclick="goTo('innesto')">Carica un documento <span>↗</span></button><button type="button" onclick="goTo('viewings')">Visite <span>↗</span></button><button type="button" onclick="oggiOpenSection('ogFollowTools')">Segreteria e seguiti <span>↓</span></button></nav>
+            <nav class="ow-shortcuts" aria-label="Strumenti quotidiani"><button type="button" onclick="goTo('inbox')">Messaggi <span>↗</span></button><button type="button" onclick="goTo('innesto')">Carica un documento <span>↗</span></button><a href="/chiamate" target="_blank" rel="noopener">Chiamate <span>↗</span></a><button type="button" onclick="oggiOpenSection('ogFollowTools')">Segreteria e seguiti <span>↓</span></button></nav>
         </section>`;
     }
     async function oggiLoadViewings() {
@@ -5989,7 +6072,9 @@ showMagicSignSuccess(contractId, role, freshData, otherSigned);
             <header class="ow-header"><div><p class="ow-eyebrow">${esc(new Date().toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'Europe/Rome' }))}</p><h1>Oggi, ${esc(name)}.</h1></div><div class="page-actions"><button class="btn btn-secondary btn-sm" onclick="goTo('dashboard')">Riepilogo azienda</button><button class="btn btn-secondary btn-sm" onclick="forceRefreshData()" aria-label="Aggiorna i dati">↻</button></div></header>
             ${oggiWorkspacePanel()}
             <details class="ow-fold" id="ogOwnerTools"><summary><span>Prepara una risposta</span><small>Persona, istruzione e revisione</small></summary>${oggiOwnerCommandPanel()}</details>
+            <section id="ogWorkBriefing" class="ow-briefing" aria-label="Decisioni della Segreteria"><p class="ow-hint">Carico i seguiti salvati…</p></section>
             <div class="ow-columns"><section id="ogDecisionPanel" class="ow-decisions" aria-label="Da gestire">${oggiDecisionPanel()}</section><section id="ogAgendaPanel" class="ow-agenda-panel" aria-label="Agenda visite">${oggiAgendaPanel()}</section></div>
+            ${oggiToolLibrary()}
             <details class="ow-fold" id="ogFollowTools"><summary><span>Segreteria e seguiti</span><small id="ogFollowSummary">Caricamento dei seguiti…</small></summary>${oggiSegretariaPanel()}</details>
         </div>`;
     }

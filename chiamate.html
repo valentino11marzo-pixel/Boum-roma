@@ -49,6 +49,11 @@ header a:hover { color: var(--gold); }
 .call.lead { border-left-color: var(--green); }
 .call.nomsg { border-left-color: var(--text-muted); opacity: .75; }
 .call.done { border-left-color: var(--border); opacity: .6; }
+.call.source { border-color: var(--gold); opacity: 1; }
+.source-panel { border: 1px solid var(--gold); border-radius: 14px; padding: 14px 16px; margin: 18px 0; }
+.source-panel h2 { font-size: 15px; }
+.source-panel p { font-size: 12px; line-height: 1.5; margin-top: 8px; }
+.source-panel code { overflow-wrap: anywhere; color: var(--text-secondary); }
 .chead { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .cname { font-size: 14px; font-weight: 600; }
 .cwhen { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
@@ -99,6 +104,12 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
   <p class="sub">Ogni chiamata deviata: segreteria che registra o receptionist AI che conversa — audio, trascrizione, azione consigliata. Il lead nasce da solo; qui si ascolta e si risponde con un tocco. Live.</p>
 
   <div id="loading">Caricamento…</div>
+  <section id="sourcePanel" class="source-panel" hidden aria-labelledby="sourceTitle">
+    <h2 id="sourceTitle">Fonte della chiamata</h2>
+    <p><code id="sourceId"></code></p>
+    <p id="sourceStatus" role="status" aria-live="polite"></p>
+    <div class="acts"><button class="btn" type="button" id="sourceRetry">Rileggi chiamata</button><a class="btn quiet" href="/chiamate">Tutte le chiamate</a></div>
+  </section>
   <div id="content" style="display:none">
     <div class="stats">
       <div class="stat"><div class="n" id="stToday">0</div><div class="l">Oggi</div></div>
@@ -190,7 +201,7 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
       ? call.turnTimeline.filter((turn) => turn && ['agent', 'user'].includes(turn.role) && turn.message != null)
       : [];
     if (!turns.length) return call.transcript
-      ? '<details class="tr"><summary>Trascrizione</summary><blockquote>' + esc(call.transcript) + '</blockquote></details>' : '';
+      ? '<details class="tr" data-transcript><summary>Trascrizione salvata</summary><blockquote>' + esc(call.transcript) + '</blockquote></details>' : '';
     const rows = turns.map((turn) => {
       const metrics = TURN_METRICS.map(([key, label]) => {
         const value = latency(turn.providerMetrics && turn.providerMetrics[key]);
@@ -202,7 +213,7 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
         (metrics ? '<span class="turn-metrics">' + esc(metrics) + '</span>' : '') +
         '</div><div class="turn-text">' + esc(turn.message) + '</div></div></div>';
     }).join('');
-    return '<details class="tr"><summary>Timeline' + (call.turnTimelineStatus === 'partial' ? ' · parziale' : '') +
+    return '<details class="tr" data-transcript><summary>Trascrizione salvata · Timeline' + (call.turnTimelineStatus === 'partial' ? ' · parziale' : '') +
       '</summary><div class="turns">' + rows + '</div></details>';
   }
 
@@ -251,6 +262,12 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
 
   let calls = [];
   let filter = 'open';
+  const requestedCalls = new URLSearchParams(location.search).getAll('call');
+  const sourceMode = requestedCalls.length > 0;
+  // Same bounded ID contract as the phone → follow-up bridge; never a path.
+  const sourceId = requestedCalls.length === 1 && /^[\w.-]{1,180}$/.test(requestedCalls[0])
+    && !['.', '..'].includes(requestedCalls[0]) && !/^__.*__$/.test(requestedCalls[0]) ? requestedCalls[0] : null;
+  let sourceRead = 0;
   const reviewWrites = new Map();
   const reviewConfirmed = new Map();
 
@@ -273,6 +290,7 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
     document.getElementById('stOpen').textContent = calls.filter(isOpen).length;
 
     const rows = calls.filter((c) => {
+      if (sourceMode) return c.id === sourceId;
       const st = effStatus(c);
       if (filter === 'open') return isOpen(c);
       if (filter === 'lead') return !!c.leadId;
@@ -315,22 +333,58 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
           '<button type="button" class="timing-tag' + (timingTags.includes(tag) ? ' on' : '') + '" aria-pressed="' +
           (timingTags.includes(tag) ? 'true' : 'false') + '" data-timing-tag="' + tag + '" data-id="' + esc(c.id) + '">' + tag + '</button>'
         ).join('') + '</div>' : '';
+      const transcript = renderTranscript(c);
 
-      return '<div class="call ' + cls + '">' +
+      return '<div class="call ' + cls + (sourceMode ? ' source' : '') + '" data-call-id="' + esc(c.id) + '">' +
         '<div class="chead"><span class="cname">' + esc(name) + '</span><span class="cwhen">' + esc(ago(c.createdAt)) + (c.durationSec ? ' · ' + c.durationSec + 's' : '') + '</span></div>' +
         (c.callerName && c.from && c.callerName !== c.from ? '<div class="cnote">' + esc(c.from) + '</div>' : '') +
         (badges.length ? '<div class="badges">' + badges.join('') + '</div>' : '') +
         (contact.notice && st === 'received' ? '<div class="cnote" role="note">' + esc(contact.notice) + '</div>' : '') +
-        (c.summary && st === 'received' ? '<div class="csum">🧠 ' + esc(c.summary) + '</div>' : '') +
+        (c.summary && (st === 'received' || sourceMode) ? '<div class="csum">' + (sourceMode ? '<strong>Riepilogo disponibile</strong><br>' : '🧠 ') + esc(c.summary) + '</div>' : (sourceMode ? '<div class="cnote">Riepilogo non disponibile.</div>' : '')) +
         (c.audioUrl ? '<audio controls preload="none" src="' + esc(c.audioUrl) + '"></audio>'
-          : (c.audioError && st === 'received' ? '<div class="cnote">⚠️ audio non recuperato (' + esc(c.audioError) + ')</div>' : '')) +
-        renderTranscript(c) +
+          : (c.audioError && (st === 'received' || sourceMode) ? '<div class="cnote">⚠️ audio non recuperato (' + esc(c.audioError) + ')</div>' : (sourceMode ? '<div class="cnote">Audio non disponibile.</div>' : ''))) +
+        transcript +
+        (sourceMode && !transcript ? '<div class="cnote">Trascrizione salvata non disponibile.</div>' : '') +
         renderToolReceipts(c) +
         (c.draftReply && st === 'received' && !c.handled ? '<details class="tr"><summary>Bozza risposta' + (contact.phone ? '' : ' · recapito da verificare') + ' (' + esc(c.language || 'en') + ')</summary><blockquote>' + esc(c.draftReply) + '</blockquote></details>' : '') +
         timingReview +
         '<div class="acts">' + acts.join('') + '</div>' +
         '</div>';
     }).join('') || '<div class="empty">' + (filter === 'open' ? 'Niente da gestire. 🎉' : 'Nessuna chiamata qui.') + '</div>';
+    if (sourceMode) document.querySelector('#list [data-transcript]')?.setAttribute('open', '');
+  }
+
+  async function loadSourceCall() {
+    const version = ++sourceRead;
+    const status = document.getElementById('sourceStatus');
+    const retry = document.getElementById('sourceRetry');
+    calls = [];
+    document.getElementById('list').innerHTML = '';
+    document.getElementById('content').style.display = 'none';
+    if (!sourceId) { status.textContent = 'Riferimento chiamata non valido. Nessuna fonte aperta.'; retry.hidden = true; return; }
+    status.textContent = 'Lettura della chiamata collegata…';
+    retry.disabled = true;
+    const user = firebase.auth().currentUser;
+    let timer;
+    try {
+      if (!user) throw Error('session_changed');
+      const snap = await Promise.race([
+        db.collection('phoneCalls').doc(sourceId).get({ source: 'server' }),
+        new Promise((_, reject) => { timer = setTimeout(() => reject(Error('source_timeout')), 12000); })
+      ]);
+      if (version !== sourceRead) return;
+      if (firebase.auth().currentUser !== user) throw Error('session_changed');
+      if (!snap.exists) { status.textContent = 'Chiamata non trovata. La fonte potrebbe essere stata rimossa.'; return; }
+      calls = withPendingReviews([{ ...snap.data(), id: sourceId }]);
+      status.textContent = 'Fonte richiesta dal link. Mostriamo audio, riepilogo disponibile e trascrizione salvata: possono essere parziali.';
+      render();
+      document.getElementById('content').style.display = '';
+    } catch {
+      if (version === sourceRead) status.textContent = 'Lettura della chiamata non riuscita. Verifica accesso e connessione, poi riprova.';
+    } finally {
+      clearTimeout(timer);
+      if (version === sourceRead) retry.disabled = false;
+    }
   }
 
   const withPendingReviews = (rows) => rows.map((row) => {
@@ -401,6 +455,7 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
     const handled = b.dataset.h === '1';
     try {
       await db.collection('phoneCalls').doc(b.dataset.id).update({ handled, handledAt: handled ? new Date().toISOString() : null });
+      if (sourceMode) await loadSourceCall();
       BoomPortal.toast && BoomPortal.toast(handled ? 'Segnata come gestita' : 'Riaperta');
     } catch (err) { BoomPortal.toast ? BoomPortal.toast('Errore: ' + err.message) : alert(err.message); }
   });
@@ -419,6 +474,16 @@ details.tr blockquote { font-size: 12px; color: var(--text-secondary); border-le
   });
 
   // ── live: la collection è nostra, ogni doc ha createdAt → orderBy sicuro
+  if (sourceMode) {
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('sourcePanel').hidden = false;
+    document.getElementById('sourceId').textContent = sourceId ? 'phoneCalls/' + sourceId : '';
+    document.querySelector('.sub').textContent = 'La fonte telefonica del seguito, con i contenuti già disponibili.';
+    for (const selector of ['.stats', '#chips', '.setup']) document.querySelector(selector).style.display = 'none';
+    document.getElementById('sourceRetry').addEventListener('click', loadSourceCall);
+    await loadSourceCall();
+    return;
+  }
   BoomPortal.listen(
     db.collection('phoneCalls').orderBy('createdAt', 'desc').limit(120),
     (snap) => {

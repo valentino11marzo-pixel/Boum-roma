@@ -102,5 +102,43 @@
         return { items: rows.map(row => row.item), undatedCount, pendingCount };
     }
 
-    return Object.freeze({ buildAgenda, appointmentInstant: when });
+    // Read-only joins on saved IDs. Names/phones and listing IDs never establish
+    // a relationship; the same name can belong to more than one person/house.
+    function contextFor(record, state) {
+        const pools = { property: 'properties', person: 'users', contract: 'contracts', client: 'clients' };
+        const list = kind => Array.isArray(state?.[pools[kind]]) ? state[pools[kind]] : [];
+        const selected = list(record?.kind).filter(row => row.id === record?.id);
+        if (selected.length !== 1) return { available: false, records: [], practiceRefs: [], conversationIds: [] };
+        const row = selected[0], kind = record.kind;
+        const properties = list('property'), contracts = list('contract');
+        const parties = c => [c.tenantId, c.landlordId, ...(Array.isArray(c.coTenants) ? c.coTenants.map(p => p?.userId) : [])];
+        const linkedContracts = contracts.filter(c => kind === 'contract' ? c.id === row.id
+            : kind === 'property' ? c.propertyId === row.id
+            : kind === 'person' && (parties(c).includes(row.id) || properties.some(p => p.id === c.propertyId && p.ownerId === row.id)));
+        const propertyIds = new Set(kind === 'property' ? [row.id] : kind === 'contract' ? [row.propertyId]
+            : kind === 'person' ? [...linkedContracts.map(c => c.propertyId), ...properties.filter(p => p.ownerId === row.id).map(p => p.id)] : []);
+        const personIds = new Set(kind === 'person' ? [row.id] : kind === 'property' || kind === 'contract'
+            ? [...linkedContracts.flatMap(parties), ...properties.filter(p => propertyIds.has(p.id)).map(p => p.ownerId)] : []);
+        const records = [], seen = new Set();
+        function add(k, r) {
+            if (!r?.id || (k === kind && r.id === row.id) || seen.has(k + ':' + r.id)) return;
+            seen.add(k + ':' + r.id);
+            const house = k === 'contract' && properties.find(p => p.id === r.propertyId);
+            records.push({ kind: k, id: r.id, label: text(r.name) || (k === 'contract' ? 'Contratto · ' + (text(house?.name) || text(r.ref) || r.id) : r.id),
+                sub: k === 'property' ? text(r.address) : k === 'contract' ? text(r.status) : text(r.role) });
+        }
+        properties.filter(p => propertyIds.has(p.id)).forEach(p => add('property', p));
+        list('person').filter(p => personIds.has(p.id)).forEach(p => add('person', p));
+        linkedContracts.forEach(c => add('contract', c));
+        const conversationIds = (Array.isArray(state?.conversations) ? state.conversations : []).filter(c =>
+            kind === 'person' ? c.contactId === row.id && ['tenant', 'landlord'].includes(c.contactType)
+            : kind === 'client' && c.contactId === row.id && c.contactType === 'client').map(c => c.id);
+        return { available: true, records, practiceRefs: linkedContracts.map(c => 'contracts/' + c.id), conversationIds };
+    }
+    function phoneSource(task) {
+        const match = /^phone:([A-Za-z0-9_.-]{1,180})$/.exec(text(task?.followUp?.lastMessageId));
+        return match ? '/chiamate?call=' + encodeURIComponent(match[1]) : null;
+    }
+
+    return Object.freeze({ buildAgenda, appointmentInstant: when, contextFor, phoneSource });
 }));

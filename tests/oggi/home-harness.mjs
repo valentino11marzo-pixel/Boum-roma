@@ -17,10 +17,13 @@ const S={page:'oggi',profile:{id:'demo-admin',name:'Valentino',role:'admin'},_pa
  contracts:[{id:'contratto-demo',ref:'BOOM-DEMO',propertyId:'casa-demo',tenantId:'p-demo',status:'active',signatureStatus:'partial',createdAt:isoAt('08'),rent:1400}],
  clients:Array.from({length:15},(_,i)=>({id:'cliente-'+i,name:'Aurora Cliente '+i})),
  actionQueue:[],payments:[],leads:[],documents:[],tasks:[],deadlines:[],conversations:[],messages:[],
- maintenance:[{id:'guasto-demo',propertyId:'casa-demo',title:'Concordare accesso per il tecnico',priority:'urgent',status:'pending',createdAt:isoAt('08')}],
+ maintenance:[{id:'guasto-demo',propertyId:'casa-demo',title:'Verificare perdita in cucina',priority:'urgent',status:'pending',createdAt:isoAt('08')}],
  viewingRequests:[{id:'v-demo',propertyName:'Casa Aurora',clientName:'Persona Demo',status:'confirmed',confirmedDateTime:isoAt('13')},{id:'v-proposta',propertyName:'Casa Giardino',clientName:'Nuovo contatto · demo',status:'rescheduled',confirmedDateTime:isoAt('09'),proposedDateTime:isoAt('15')}],
  _viewingsSource:'ready',_viewingsUser:auth.currentUser,_viewingsReadAt:now.toISOString(),_viewingsPartial:false};
 window.testState=S;window.testAuth=auth;
+const caseRow=(letter,fields)=>({id:'sg_'+letter.repeat(32),source:'segretaria',status:'open',followUp:{open:true,conversationId:'conv-'+letter,contactName:'Persona Demo',lastMessageId:'phone:demo-call',lastInboundAt:isoAt('08'),preview:'Buongiorno, il tecnico può passare domani dalle 10 alle 12. Chi avvisa il portiere?',practiceRef:'contracts/contratto-demo',propertyRef:'properties/casa-demo',nextAction:'Confermare l’accesso al tecnico',waitingOn:'valentino',waitingLabel:'Valentino',checkAt:new Date(now.getTime()-60000).toISOString(),confirmed:true,needsReview:false,ambiguous:false,...fields}});
+testIO.followUps=[caseRow('a',{}),caseRow('b',{contactName:'Giuliano · da identificare',lastMessageId:'wa-demo',preview:'Per le chiavi ci vediamo lì domani? Non so ancora a che ora.',nextAction:'Chiarire immobile e orario per le chiavi',practiceRef:null,propertyRef:null,confirmed:false,needsReview:true,ambiguous:true,intakeTiming:{status:'ambiguous'}})];
+S.conversations=[{id:'conv-a',contactType:'tenant',contactId:'p-demo',contactName:'Persona Demo'},{id:'conv-b',contactType:'phone',contactId:'unknown',contactName:'Giuliano · da identificare'}];
 const isAdmin=()=>S.profile?.role==='admin';
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const fmtDate=v=>String(v||'');
@@ -30,6 +33,7 @@ const renderPage=()=>{throw Error('A partial update replaced the whole home')};
 function demoAction(name,...args){testIO.actions.push([name,...args]);document.getElementById('toasts').textContent='Anteprima: '+name+'. Nel portale si apre il flusso esistente.';}
 function goTo(id){demoAction('goTo',id);}
 function forceRefreshData(){oggiRetryWorkspace();}
+function inboxSelect(id){demoAction('inboxSelect',id);}
 function viewProperty(id){demoAction('viewProperty',id);}
 function viewContract(id){demoAction('viewContract',id);}
 function openPerson(id){demoAction('openPerson',id);}
@@ -42,7 +46,7 @@ function confirmViewingModal(id){const row=S.viewingRequests.find(v=>v.id===id);
 function rescheduleViewingModal(id){demoAction('rescheduleViewingModal',id);}
 window.open=(...args)=>demoAction('open',...args);
 const db={collection(name){testIO.reads.push(name);return {orderBy(){return this;},limit(){return this;},where(){return this;},onSnapshot(next){next({docs:[]});return()=>{};},async get(){if(name==='viewingRequests'&&testIO.holdViewings)await new Promise(r=>testIO.pendingReads.push(r));if((name==='viewingRequests'&&testIO.failViewings)||(name==='preAgreements'&&testIO.failProposals))throw Error('synthetic read failure');const list=name==='viewingRequests'?S.viewingRequests:[];return {docs:list.map(v=>({id:v.id,data:()=>({...v})}))};},doc(){testIO.writes.push(name);throw Error('No writes in preview');}}}};
-window.fetch=async(url,options={})=>{if(options.method&&options.method!=='GET'){testIO.writes.push(url);throw Error('No sending or AI calls in preview');}if(!String(url).startsWith('/api/segretaria/follow-up'))throw Error('Unexpected API');return {ok:true,json:async()=>({ok:true,rows:[],monitoring:{mode:'continuous',status:'paused',preparationEnabled:false}})};};
+window.fetch=async(url,options={})=>{if(options.method&&options.method!=='GET'){testIO.writes.push(url);throw Error('No sending or AI calls in preview');}if(!String(url).startsWith('/api/segretaria/follow-up'))throw Error('Unexpected API');const id=new URL(String(url),'https://example.invalid').searchParams.get('id');const task=testIO.followUps.find(t=>t.id===id);return {ok:true,json:async()=>id?({ok:true,task,dossier:{practices:task?.followUp.practiceRef?[{ref:task.followUp.practiceRef,propertyRefs:['properties/casa-demo']}]:[],identityAmbiguous:!!task?.followUp.ambiguous}}):({ok:true,rows:testIO.followUps,monitoring:{mode:'continuous',status:'paused',preparationEnabled:false}})};};
 ${search}
 ${clock}
 ${oggi}
