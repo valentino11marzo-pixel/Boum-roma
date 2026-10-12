@@ -628,9 +628,11 @@
   function rrNum(v) {
     var x = str(v).replace(/[€\s]/g, '').replace(/(\/|al)?mese$|mensil[ie]$|eur(o)?$/i, '');
     if (!x) return null;
+    // «1.500,00» italiano · «1,500» con gruppi di tre cifre = migliaia (un
+    // importo con tre decimali non esiste) · «1500,5» decimale con virgola.
     if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(x)) x = x.replace(/\./g, '').replace(',', '.');
-    else if (/^\d+,\d+$/.test(x)) x = x.replace(',', '.');
     else if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(x)) x = x.replace(/,/g, '');
+    else if (/^\d+,\d+$/.test(x)) x = x.replace(',', '.');
     var n = Number(x);
     return isFinite(n) && n >= 0 ? round(n) : NaN;
   }
@@ -769,6 +771,7 @@
       if (em) { if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(em)) r.email = em; else r.warnings.push('email «' + em + '» non valida'); }
       var can = get('canone'); r.canone = rrNum(can);
       if (can && (r.canone === null || isNaN(r.canone))) { r.errors.push('canone «' + can + '» non è un numero'); r.canone = null; }
+      else if (r.canone != null && (r.canone < 50 || r.canone > 20000)) r.warnings.push('canone «' + can + '» letto come ' + rrEur(r.canone) + ': è davvero il canone MENSILE? controllalo prima di caricare');
       var dep = get('deposito'); r.deposito = rrNum(dep); if (dep && (r.deposito === null || isNaN(r.deposito))) { r.warnings.push('deposito «' + dep + '» non letto'); r.deposito = null; }
       ['dal', 'al'].forEach(function (k) { var v = get(k), d = rrDate(v); if (v && !d) r.errors.push((k === 'dal' ? 'inizio' : 'fine') + ' «' + v + '» non è una data (gg/mm/aaaa)'); r[k] = d || ''; });
       var tp = get('tipo'); if (tp) { r.tipo = RR_TYPES[norm(tp)] || ''; if (!r.tipo) r.warnings.push('tipo «' + tp + '» non riconosciuto: lascialo vuoto o usa transitorio · studenti · 3+2 · 4+4'); }
@@ -1019,7 +1022,7 @@
     try { var nd = ctx.now instanceof Date ? ctx.now : new Date(ctx.now); if (isFinite(nd.getTime())) nowIso = nd.toISOString(); } catch (_) {}
     var out = { properties: [], contracts: [], payments: [], paymentUpdates: [], skipped: [], errors: [], notes: [], messages: [], rows: [], diffs: [],
       paidMarks: [], overdueNow: [], listingLinks: [], accounts: [], unknownColumns: [], ignoredRows: [], applyDiffs: apply,
-      counts: { create: 0, update: 0, same: 0, contracts: 0, contractUpdates: 0, missing: 0, payments: 0, paid: 0, diffs: 0, diffsLocked: 0,
+      counts: { create: 0, update: 0, same: 0, contracts: 0, contractUpdates: 0, missing: 0, payments: 0, paid: 0, diffs: 0, diffsLocked: 0, diffsApplicable: 0,
         paymentUpdates: 0, paymentCancels: 0, overdueNow: 0, rowErrors: 0, contacts: 0 } };
     var meta0 = (rows || []).map(function (r) { return r && r.meta; }).filter(Boolean)[0] || null;
     if (meta0) { out.unknownColumns = (meta0.unknownColumns || []).slice(); out.ignoredRows = (meta0.ignored || []).slice(); }
@@ -1126,6 +1129,11 @@
         var a = rrFactsOfContract(c), b = rrFactsOfRow(r), fill = {}, diffs = [];
         var locked = rrSigned(c), terminated = cStatus(c) === 'terminated';
         var person = !opt.nameCheck || !r.inquilino || !a.tenantName || rrPeopleOf(c).some(function (n) { return rrSamePerson(n, r.inquilino); });
+        // Una persona DIVERSA su un contratto con le date, senza date in
+        // tabella a dire che è lo stesso contratto: può essere un cambio
+        // d'inquilino. Niente da qui, nemmeno con applyDiffs (il segnaposto
+        // invece non ha date né soldi: lo si può intestare).
+        var lockPerson = !person && !rrPlaceholder(c);
         RR_FIELDS.forEach(function (d) {
           var to = b[d.f], from = a[d.f];
           if (rrEmpty(to)) return;
@@ -1135,16 +1143,17 @@
           if (rrSame(d.f, from, to)) return;
           // Un co-intestatario con dati di firma non si riscrive da qui.
           var coLocked = d.f === 'coTenants' && list(c.coTenants).some(function (t) { return t && Object.keys(t).some(function (k) { return k !== 'name' && t[k] != null && t[k] !== ''; }); });
+          var why = lockPerson ? 'persona' : d.terms && locked ? 'firmato' : coLocked ? 'cofirmato' : '';
           diffs.push({ interno: r.interno, line: r.line, contractId: str(c.id), field: d.f, label: d.label, from: from, to: to,
-            fromText: rrShow(d.f, from), toText: rrShow(d.f, to), locked: !!((d.terms && locked) || coLocked), rates: 0 });
+            fromText: rrShow(d.f, from), toText: rrShow(d.f, to), locked: !!why, lockReason: why, rates: 0 });
         });
-        return { fill: fill, diffs: diffs, person: person, locked: locked };
+        return { fill: fill, diffs: diffs, person: person, lockPerson: lockPerson, locked: locked };
       };
       // Scrive sul contratto esistente: i riempimenti (se è la stessa
       // persona o se l'operatore lo chiede) e le differenze con applyDiffs.
       var updateExisting = function (c, cmp, extra) {
         var data = {};
-        if (cmp.person || apply) Object.keys(cmp.fill).forEach(function (k) { data[k] = cmp.fill[k]; });
+        if (cmp.person || (apply && !cmp.lockPerson)) Object.keys(cmp.fill).forEach(function (k) { data[k] = cmp.fill[k]; });
         Object.keys(extra || {}).forEach(function (k) { data[k] = extra[k]; });
         var applied = apply ? cmp.diffs.filter(function (d) { return !d.locked; }) : [];
         applied.forEach(function (d) { data[d.field] = rrWrite(d.field, d.to); });
@@ -1202,7 +1211,8 @@
         } else if (cmp.diffs.some(function (d) { return d.field === 'oneriQuota' && d.fill; })) out.notes.push('oneri:' + r.interno);
         if (Object.keys(data).length) plan.contracts.push({ id: str(c.id), exists: true, data: data, interno: r.interno });
         plan.diffs = plan.diffs.concat(cmp.diffs);
-        if (!cmp.person && !apply) info.notes.push('in archivio l’interno è di ' + tenantOf(c) + ', la tabella dice ' + r.inquilino + ': non scrivo contatti né dati sul contratto di un’altra persona finché non applichi le differenze');
+        if (cmp.lockPerson) info.notes.push('in archivio l’interno è di ' + tenantOf(c) + ', la tabella dice ' + r.inquilino + ': non scrivo niente sul contratto di un’altra persona. Se è un cambio d’inquilino chiudi prima quel contratto; se è lo stesso nome scritto diverso, correggilo con una riga completa (canone, dal, al)');
+        else if (!cmp.person && !apply) info.notes.push('il contratto da caricare è a nome di ' + tenantOf(c) + ', la tabella dice ' + r.inquilino + ': se è la stessa persona applica le differenze');
         return terms;
       };
       // Le rate nuove di un contratto: solo i mesi che QUEL contratto non
@@ -1366,7 +1376,7 @@
       });
       plan.payments.forEach(function (p) { out.payments.push(p); out.counts.payments++; if (p.data.status === 'paid') out.counts.paid++; });
       plan.paymentUpdates.forEach(function (u) { out.paymentUpdates.push(u); if (u.cancel) out.counts.paymentCancels++; else out.counts.paymentUpdates++; });
-      plan.diffs.forEach(function (d) { out.diffs.push(d); out.counts.diffs++; if (d.locked) out.counts.diffsLocked++; });
+      plan.diffs.forEach(function (d) { out.diffs.push(d); out.counts.diffs++; if (d.locked) out.counts.diffsLocked++; else out.counts.diffsApplicable++; });
       plan.paidMarks.forEach(function (x) { out.paidMarks.push(x); });
       plan.overdue.forEach(function (x) { out.overdueNow.push(x); out.counts.overdueNow++; });
       if (info.action === 'contacts') out.counts.contacts++;
@@ -1398,10 +1408,15 @@
       '; il mese scelto vale per gli interni nuovi.');
     var floorless = out.rows.filter(function (x) { return x.action !== 'error' && x.floorAsk; });
     if (floorless.length) M.push(rrPlural(floorless.length, 'interno senza piano', 'interni senza piano') + ' (' + rrList(floorless.map(function (x) { return x.interno; })) + '): ' + (floorless.length === 1 ? 'resta' : 'restano') + ' fuori dalla facciata finché non lo indichi.');
-    if (out.counts.diffs) M.push(apply ? rrPlural(out.counts.diffs - out.counts.diffsLocked, 'differenza con l’archivio verrà applicata', 'differenze con l’archivio verranno applicate') + (out.counts.paymentUpdates + out.counts.paymentCancels ? ' (' + rrPlural(out.counts.paymentUpdates + out.counts.paymentCancels, 'rata da pagare cambia', 'rate da pagare cambiano') + ')' : '') + '.'
-      : rrPlural(out.counts.diffs, 'differenza con l’archivio', 'differenze con l’archivio') + ': ' + (out.counts.diffs === 1 ? 'non la applico' : 'non le applico') + ' finché non lo chiedi.');
-    if (out.counts.diffsLocked) M.push(out.counts.diffsLocked === 1 ? '1 differenza riguarda un contratto firmato digitalmente (o un co-intestatario che ha firmato): da qui non si cambia, correggila dal contratto.'
-      : out.counts.diffsLocked + ' differenze riguardano contratti firmati digitalmente (o co-intestatari che hanno firmato): da qui non si cambiano, correggile dal contratto.');
+    var da = out.counts.diffsApplicable;
+    if (da) M.push(apply ? rrPlural(da, 'differenza con l’archivio verrà applicata', 'differenze con l’archivio verranno applicate') + (out.counts.paymentUpdates + out.counts.paymentCancels ? ' (' + rrPlural(out.counts.paymentUpdates + out.counts.paymentCancels, 'rata da pagare cambia', 'rate da pagare cambiano') + ')' : '') + '.'
+      : rrPlural(da, 'differenza con l’archivio', 'differenze con l’archivio') + ': ' + (da === 1 ? 'non la applico' : 'non le applico') + ' finché non lo chiedi.');
+    var lockedBy = function (why) { return out.diffs.filter(function (d) { return d.lockReason === why || (why === 'firmato' && d.lockReason === 'cofirmato'); }).length; };
+    var lf = lockedBy('firmato'), lp = lockedBy('persona');
+    if (lf) M.push(lf === 1 ? '1 differenza riguarda un contratto firmato digitalmente (o un co-intestatario che ha firmato): da qui non si cambia, correggila dal contratto.'
+      : lf + ' differenze riguardano contratti firmati digitalmente (o co-intestatari che hanno firmato): da qui non si cambiano, correggile dal contratto.');
+    if (lp) M.push(lp === 1 ? '1 differenza riguarda il contratto di un’altra persona: da qui non si applica (vedi la riga).'
+      : lp + ' differenze riguardano il contratto di un’altra persona: da qui non si applicano (vedi le righe).');
     if (out.overdueNow.length) M.push(rrPlural(out.overdueNow.length, 'rata risulta già scaduta', 'rate risultano già scadute') + ' oggi (' +
       out.overdueNow.slice(0, 6).map(function (x) { return 'int. ' + x.interno + ' · ' + rrMonth(x.month) + ', scadenza ' + rrIt(x.dueDate); }).join('; ') + (out.overdueNow.length > 6 ? '; …' : '') +
       '): ' + (out.overdueNow.length === 1 ? 'se è stata pagata' : 'se sono state pagate') + ', scrivi «Pagato il» nella tabella o registra l’incasso dopo il carico.');

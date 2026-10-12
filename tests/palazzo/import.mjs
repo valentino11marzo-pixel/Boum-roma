@@ -137,7 +137,12 @@ const loaded = loadedFrom(first);
   const other = plan(P, 'Interno\tInquilino\tTelefono\n7\tNina Altra\t+90 533 000 0078', empty);
   ok('un nome DIVERSO: niente contatti scritti sul contratto di un\'altra persona (lo si dice)', !other.contracts.length && other.diffs.some(d => d.field === 'tenantName') && other.rows[0].notes.some(x => /un’altra persona/.test(x)), other.rows[0]);
   const otherAp = plan(P, 'Interno\tInquilino\tTelefono\n7\tNina Altra\t+90 533 000 0078', empty, { applyDiffs: true });
-  eq('…a meno che l\'operatore applichi le differenze', otherAp.contracts[0].data, { tenantName: 'Nina Altra', tenantPhone: '+905330000078' });
+  ok('…nemmeno con applyDiffs: senza date può essere un cambio d\'inquilino (differenza bloccata, «persona»)', !otherAp.contracts.length && otherAp.diffs.every(d => d.locked && d.lockReason === 'persona') &&
+    otherAp.messages.some(m => /riguarda il contratto di un’altra persona/.test(m)), [otherAp.contracts, otherAp.messages]);
+  const fix = plan(P, [H, row({ int: '7', piano: '2', inq: 'Ada Unò', co: 'Bea Due', tel: '+90 533 000 0001', can: '1500', oneri: '120', dal: '15/09/2026', al: '14/08/2027' })].join('\n'), loaded, { applyDiffs: true });
+  eq('il nome si corregge con la riga completa (stessa decorrenza = stesso contratto)', fix.contracts.map(c => c.data.tenantName), ['Ada Unò']);
+  mutation('i contatti si scrivono sul contratto di un\'altra persona con applyDiffs', 'var lockPerson = !person && !rrPlaceholder(c);', 'var lockPerson = false;',
+    E => !plan(E, 'Interno\tInquilino\tTelefono\n7\tNina Altra\t+90 533 000 0078', empty, { applyDiffs: true }).contracts.length);
   const nocol = plan(P, 'Interno\tInquilino\n9\tZeno Nove', {});
   ok('senza le colonne Canone/Dal/Al e senza contratto in archivio: nessun contratto inventato, lo si dice', nocol.rows[0].action === 'none' && !nocol.contracts.length && nocol.rows[0].warnings.some(w => /non ha le colonne Canone, Dal e Al/.test(w)));
   const libero = plan(P, 'Interno\tInquilino\n7\t', loaded);
@@ -303,6 +308,9 @@ const loaded = loadedFrom(first);
   eq('una cella con un a capo (fra virgolette) resta UNA cella', [multi.rows.length, multi.rows[0].coinquilini, multi.rows[1].line], [2, ['Bea Due', 'Cia Tre'], 4]);
   const plural = P.parseRentRoll('Interno;Conduttori\n7;Ada Uno / Bea Due');
   eq('«Conduttori» al plurale: il primo è l\'intestatario, gli altri co-intestatari', [plural.rows[0].inquilino, plural.rows[0].coinquilini], ['Ada Uno', ['Bea Due']]);
+  const cm = P.parseRentRoll('Interno,Inquilino,Canone,Dal,Al\n7,"Rossi, Mario","1,500",15/09/2026,14/08/2027\n8,Bea,"1500,50",15/09/2026,14/08/2027\n9,Cia,15,15/09/2026,14/08/2027');
+  eq('«1,500» in un CSV con le virgole è 1500 (mai €1,50); «1500,50» è 1500,50', [cm.rows[0].inquilino, cm.rows[0].canone, cm.rows[1].canone], ['Rossi, Mario', 1500, 1500.5]);
+  ok('un canone di €15 si carica ma si chiede se è davvero mensile', cm.rows[2].warnings.some(w => /letto come €15: è davvero il canone MENSILE/.test(w)) && !cm.rows[2].errors.length);
   const nc = P.parseRentRoll('Interno;Nome;Cognome\n7;Ada;Uno');
   eq('Nome e Cognome in due colonne', nc.rows[0].inquilino, 'Ada Uno');
   const bad = P.parseRentRoll('Interno;Inquilino\nCanone pagato a mano;Ada');
